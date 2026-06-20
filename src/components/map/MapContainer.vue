@@ -56,7 +56,9 @@ onMounted(() => {
   map.on('click', (event) => {
     let clicked = false
     map.forEachFeatureAtPixel(event.pixel, (feature) => {
-      if (feature.get('type') !== 'port') {
+      console.log('type=', feature.get('type'))
+      console.log('featureType=', feature.get('featureType'))
+      if (feature.get('featureType') !== 'port') {
         return
       }
       clicked = true

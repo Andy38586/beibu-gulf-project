@@ -9,6 +9,6 @@ const selectedPort = ref(null)
 <template>
   <div class="home-page">
     <MapContainer v-model:selectedPort="selectedPort" style="width: 100%; height: 100vh" />
-    <InfoPanel v-if="selectedPort" :selected="selectedPort" />
+    <InfoPanel v-if="selectedPort" :selectedPort="selectedPort" />
   </div>
 </template>

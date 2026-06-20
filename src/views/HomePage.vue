@@ -1,0 +1,14 @@
+<script setup>
+import { ref } from 'vue'
+import MapContainer from '@/components/map/MapContainer.vue'
+import InfoPanel from '@/components/common/InfoPanel.vue'
+
+const selectedPort = ref(null)
+</script>
+
+<template>
+  <div class="home-page">
+    <MapContainer v-model:selectedPort="selectedPort" style="width: 100%; height: 100vh" />
+    <InfoPanel v-if="selectedPort" :selected="selectedPort" />
+  </div>
+</template>

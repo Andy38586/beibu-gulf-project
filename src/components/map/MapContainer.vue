@@ -15,7 +15,7 @@ import 'ol/ol.css'
 const emit = defineEmits(['update:selectedPort'])
 const ports = ref([])
 const loading = ref(true)
-const loadError = ref(false)
+const loadError = ref(null)
 const boundaryWarning = ref('')
 
 let map = null
@@ -32,6 +32,10 @@ async function loadPorts() {
   return data
 }
 function initMap() {
+  if (map) {
+    map.setTarget(null)
+    map = null
+  }
   const portFeatures = ports.value.map((port) => {
     const feature = new Feature({
       geometry: new Point(fromLonLat([port.lon, port.lat])),
@@ -100,8 +104,10 @@ async function init() {
     loading.value = false
   }
 }
-function retry() {
-  init()
+async function retry() {
+  if (loading.value) return
+
+  await init()
 }
 onMounted(init)
 

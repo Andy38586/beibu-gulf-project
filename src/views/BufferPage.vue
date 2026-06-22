@@ -1,3 +1,24 @@
+<script setup>
+import { ref, onMounted } from 'vue'
+import MapContainer from '@/components/map/MapContainer.vue'
+import BufferControl from '@/components/analysis/BufferControl.vue'
+
+const ports = ref([])
+const mapRef = ref(null)
+
+onMounted(async () => {
+  const res = await fetch('/data/ports.json')
+  ports.value = await res.json()
+})
+
+function handleBufferResult(geojson) {
+  mapRef.value?.setBufferResult(geojson)
+}
+</script>
+
 <template>
-  <div>开发中</div>
+  <div class="buffer-page">
+    <MapContainer ref="mapRef" style="width: 100%; height: 100vh" />
+    <BufferControl :ports="ports" @buffer-result="handleBufferResult" />
+  </div>
 </template>

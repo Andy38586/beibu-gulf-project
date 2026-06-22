@@ -19,6 +19,7 @@ const loadError = ref(null)
 const boundaryWarning = ref('')
 
 let map = null
+let bufferLayer = null
 
 async function loadPorts() {
   const response = await fetch('/data/ports.json')
@@ -91,6 +92,24 @@ function initMap() {
     }
   })
 }
+function setBufferResult(geojson) {
+  if (bufferLayer) {
+    map.removeLayer(bufferLayer)
+    bufferLayer = null
+  }
+  if (!geojson) return
+  const source = new VectorSource({
+    features: new GeoJSON().readFeatures(geojson, {
+      featureProjection: 'EPSG:3857',
+    }),
+  })
+  bufferLayer = new VectorLayer({
+    source,
+  })
+  map.addLayer(bufferLayer)
+}
+defineExpose({ setBufferResult })
+
 async function init() {
   loading.value = true
   loadError.value = false

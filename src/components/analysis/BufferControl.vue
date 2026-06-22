@@ -13,7 +13,7 @@ const calcError = ref('')
 
 function generateBuffer() {
   calcError.value = ''
-  const port = props.prots.find((p) => p.name === selectedPortName.value)
+  const port = props.ports.find((p) => p.name === selectedPortName.value)
   if (!port) {
     calcError.value = '请先选择一个港口'
     return

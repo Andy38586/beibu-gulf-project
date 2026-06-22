@@ -8,7 +8,14 @@ const selectedPort = ref(null)
 
 <template>
   <div class="home-page">
-    <MapContainer v-model:selectedPort="selectedPort" style="width: 100%; height: 100vh" />
+    <MapContainer v-model:selectedPort="selectedPort" style="width: 100%; height: 100%" />
     <InfoPanel v-if="selectedPort" :selectedPort="selectedPort" />
   </div>
 </template>
+
+<style scoped>
+.home-page {
+  width: 100%;
+  height: 100%;
+}
+</style>

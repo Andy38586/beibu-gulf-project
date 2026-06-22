@@ -18,7 +18,14 @@ function handleBufferResult(geojson) {
 
 <template>
   <div class="buffer-page">
-    <MapContainer ref="mapRef" style="width: 100%; height: 100vh" />
+    <MapContainer ref="mapRef" style="width: 100%; height: 100%" />
     <BufferControl :ports="ports" @buffer-result="handleBufferResult" />
   </div>
 </template>
+
+<style scoped>
+.buffer-page {
+  width: 100%;
+  height: 100%;
+}
+</style>

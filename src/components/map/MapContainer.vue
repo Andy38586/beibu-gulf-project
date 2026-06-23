@@ -11,7 +11,7 @@ import Point from 'ol/geom/Point'
 import Feature from 'ol/Feature'
 import GeoJSON from 'ol/format/GeoJSON'
 import 'ol/ol.css'
-import { Style, Fill, Stroke } from 'ol/style'
+import { Style, Fill, Stroke, Circle as CircleStyle } from 'ol/style'
 
 const emit = defineEmits(['update:selectedPort'])
 const ports = ref([])
@@ -20,8 +20,8 @@ const loadError = ref(null)
 const boundaryWarning = ref('')
 
 let map = null
-let bufferLayers = []
-let overlayLayer = null
+let coverageLayer = null
+let matchedLayer = null
 
 async function loadPorts() {
   const response = await fetch('/data/ports.json')
@@ -94,38 +94,48 @@ function initMap() {
     }
   })
 }
-function setBuffers(bufferList) {
-  bufferLayers.forEach((layer) => map.removeLayer(layer))
-  bufferLayers = []
-  bufferList.forEach(({ geojson }) => {
-    const source = new VectorSource({
-      features: new GeoJSON().readFeatures(geojson, { featureProjection: 'EPSG:3857' }),
-    })
-    const layer = new VectorLayer({ source })
-    bufferLayers.push(layer)
-    map.addLayer(layer)
-  })
-}
-function setOverlayResult(geojson) {
-  if (overlayLayer) {
-    map.removeLayer(overlayLayer)
-    overlayLayer = null
+function setAnalysisResult({ coverage, matchedXiaoqu }) {
+  if (coverageLayer) {
+    map.removeLayer(coverageLayer)
+    coverageLayer = null
   }
-  if (!geojson) return
-  const source = new VectorSource({
-    features: new GeoJSON().readFeatures(geojson, { featureProjection: 'EPSG:3857' }),
-  })
-  overlayLayer = new VectorLayer({
-    source,
-    style: new Style({
-      fill: new Fill({ color: 'rgba(255, 0, 0, 0.4)' }),
-      stroke: new Stroke({ color: 'red', width: 2 }),
-    }),
-  })
-  map.addLayer(overlayLayer)
+  if (matchedLayer) {
+    map.removeLayer(matchedLayer)
+    matchedLayer = null
+  }
+  if (coverage) {
+    const source = new VectorSource({
+      features: new GeoJSON().readFeatures(coverage, { featureProjection: 'EPSG:3857' }),
+    })
+    coverageLayer = new VectorLayer({
+      source,
+      style: new Style({
+        fill: new Fill({ color: 'rgba(64, 158, 255, 0.15)' }),
+        stroke: new Stroke({ color: '#409eff', width: 1 }),
+      }),
+    })
+    map.addLayer(coverageLayer)
+  }
+  if (matchedXiaoqu && matchedXiaoqu.length) {
+    const features = matchedXiaoqu.map((xq) => {
+      const f = new Feature({ geometry: new Point(fromLonLat([xq.lng, xq.lat])) })
+      f.setProperties(xq)
+      return f
+    })
+    matchedLayer = new VectorLayer({
+      source: new VectorSource({ features }),
+      style: new Style({
+        image: new CircleStyle({
+          radius: 6,
+          fill: new Fill({ color: '#e74c3c' }),
+          stroke: new Stroke({ color: '#fff', width: 1.5 }),
+        }),
+      }),
+    })
+    map.addLayer(matchedLayer)
+  }
 }
-
-defineExpose({ setBuffers, setOverlayResult })
+defineExpose({ setAnalysisResult })
 
 async function init() {
   loading.value = true
@@ -142,7 +152,6 @@ async function init() {
 }
 async function retry() {
   if (loading.value) return
-
   await init()
 }
 onMounted(init)

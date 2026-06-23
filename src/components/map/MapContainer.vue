@@ -11,6 +11,7 @@ import Point from 'ol/geom/Point'
 import Feature from 'ol/Feature'
 import GeoJSON from 'ol/format/GeoJSON'
 import 'ol/ol.css'
+import { Style, Fill, Stroke } from 'ol/style'
 
 const emit = defineEmits(['update:selectedPort'])
 const ports = ref([])
@@ -19,7 +20,8 @@ const loadError = ref(null)
 const boundaryWarning = ref('')
 
 let map = null
-let bufferLayer = null
+let bufferLayers = []
+let overlayLayer = null
 
 async function loadPorts() {
   const response = await fetch('/data/ports.json')
@@ -92,23 +94,38 @@ function initMap() {
     }
   })
 }
-function setBufferResult(geojson) {
-  if (bufferLayer) {
-    map.removeLayer(bufferLayer)
-    bufferLayer = null
+function setBuffers(bufferList) {
+  bufferLayers.forEach((layer) => map.removeLayer(layer))
+  bufferLayers = []
+  bufferList.forEach(({ geojson }) => {
+    const source = new VectorSource({
+      features: new GeoJSON().readFeatures(geojson, { featureProjection: 'EPSG:3857' }),
+    })
+    const layer = new VectorLayer({ source })
+    bufferLayers.push(layer)
+    map.addLayer(layer)
+  })
+}
+function setOverlayResult(geojson) {
+  if (overlayLayer) {
+    map.removeLayer(overlayLayer)
+    overlayLayer = null
   }
   if (!geojson) return
   const source = new VectorSource({
-    features: new GeoJSON().readFeatures(geojson, {
-      featureProjection: 'EPSG:3857',
+    features: new GeoJSON().readFeatures(geojson, { featureProjection: 'EPSG:3857' }),
+  })
+  overlayLayer = new VectorLayer({
+    source,
+    style: new Style({
+      fill: new Fill({ color: 'rgba(255, 0, 0, 0.4)' }),
+      stroke: new Stroke({ color: 'red', width: 2 }),
     }),
   })
-  bufferLayer = new VectorLayer({
-    source,
-  })
-  map.addLayer(bufferLayer)
+  map.addLayer(overlayLayer)
 }
-defineExpose({ setBufferResult })
+
+defineExpose({ setBuffers, setOverlayResult })
 
 async function init() {
   loading.value = true

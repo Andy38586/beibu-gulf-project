@@ -10,16 +10,16 @@ onMounted(async () => {
   const res = await fetch('/data/ports.json')
   ports.value = await res.json()
 })
-
-function handleBufferResult(geojson) {
-  mapRef.value?.setBufferResult(geojson)
-}
 </script>
 
 <template>
   <div class="buffer-page">
     <MapContainer ref="mapRef" style="width: 100%; height: 100%" />
-    <BufferControl :ports="ports" @buffer-result="handleBufferResult" />
+    <BufferControl
+      :ports="ports"
+      @buffer-result="(list) => mapRef?.setBuffers(list)"
+      @overlay-result="(geojson) => mapRef?.setOverlayResult(geojson)"
+    />
   </div>
 </template>
 

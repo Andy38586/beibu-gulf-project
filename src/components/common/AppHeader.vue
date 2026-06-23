@@ -7,8 +7,8 @@ import { RouterLink } from 'vue-router'
     <div class="logo">北部湾港口地图</div>
     <nav>
       <RouterLink to="/" active-class="active"> 首页 </RouterLink>
-      <RouterLink to="/buffer" active-class="active"> 缓冲区分析 </RouterLink>
-      <RouterLink to="/overlay" active-class="active"> 叠加分析 </RouterLink>
+      <RouterLink to="/buffer" active-class="active"> 选址分析 </RouterLink>
+      <RouterLink to="/overlay" active-class="active"> xx分析 </RouterLink>
     </nav>
   </header>
 </template>

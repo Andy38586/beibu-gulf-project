@@ -6,9 +6,9 @@ import { RouterLink } from 'vue-router'
   <header class="app-header">
     <div class="logo">北部湾港口地图</div>
     <nav>
-      <RouterLink to="/" active-class="active"> 首页 </RouterLink>
-      <RouterLink to="/buffer" active-class="active"> 选址分析 </RouterLink>
-      <RouterLink to="/overlay" active-class="active"> xx分析 </RouterLink>
+      <RouterLink to="/" class="nav-item" active-class="active">首页</RouterLink>
+      <RouterLink to="/buffer" class="nav-item" active-class="active">选址分析</RouterLink>
+      <RouterLink to="/overlay" class="nav-item" active-class="active">xx分析</RouterLink>
     </nav>
   </header>
 </template>
@@ -20,9 +20,12 @@ import { RouterLink } from 'vue-router'
   align-items: center;
   justify-content: space-between;
   padding: 0 20px;
-  background: #2c3e50;
-  color: white;
   flex-shrink: 0;
+  background: rgba(44, 62, 80, 0.35);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+  color: white;
 }
 .logo {
   font-weight: bold;
@@ -30,15 +33,25 @@ import { RouterLink } from 'vue-router'
 }
 nav {
   display: flex;
-  gap: 16px;
+  gap: 8px;
 }
-nav a {
-  color: #ccc;
+.nav-item {
+  color: rgba(255, 255, 255, 0.85);
   text-decoration: none;
   font-size: 14px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  transition:
+    background 0.2s,
+    color 0.2s;
 }
-nav a.active,
-nav a:hover {
+.nav-item:hover {
+  background: rgba(255, 255, 255, 0.15);
   color: white;
+}
+.nav-item.active {
+  background: rgba(64, 158, 255, 0.85);
+  color: white;
+  font-weight: 500;
 }
 </style>

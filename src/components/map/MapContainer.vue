@@ -13,6 +13,11 @@ import GeoJSON from 'ol/format/GeoJSON'
 import 'ol/ol.css'
 import { Style, Fill, Stroke, Circle as CircleStyle } from 'ol/style'
 
+const props = defineProps({
+  interactive: { type: Boolean, default: true },
+  initialZoom: { type: Number, default: 9 },
+  minZoom: { type: Number, default: 9 },
+})
 const emit = defineEmits(['update:selectedPort'])
 const ports = ref([])
 const loading = ref(true)
@@ -66,9 +71,11 @@ function initMap() {
   })
   map = new Map({
     target: 'map',
+    interactions: props.interactive ? undefined : [],
     view: new View({
       center: fromLonLat([108.6, 21.95]),
-      zoom: 8,
+      zoom: 9,
+      minZoom: props.minZoom,
     }),
     layers: [
       new TileLayer({
@@ -214,5 +221,15 @@ onUnmounted(() => {
   to {
     transform: rotate(360deg);
   }
+}
+.boundary-warning {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  background: rgba(255, 200, 0, 0.9);
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  z-index: 15;
 }
 </style>

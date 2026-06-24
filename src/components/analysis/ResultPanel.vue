@@ -15,6 +15,10 @@ function selectXiaoqu(xq) {
   activeXiaoqu.value = xq
 }
 function closeDetail() {
+  if (chartInstance) {
+    chartInstance.dispose()
+    chartInstance = null
+  }
   activeXiaoqu.value = null
 }
 function renderRadar() {
@@ -49,10 +53,18 @@ function renderRadar() {
   })
 }
 watch([activeXiaoqu, () => props.selectedTypes], renderRadar, { flush: 'post' })
+
 onBeforeUnmount(() => {
   chartInstance?.dispose()
+  chartInstance = null
 })
 const hasResult = computed(() => props.matchedXiaoqu.length > 0)
+
+defineExpose({
+  selectXiaoqu,
+  closeDetail,
+  activeXiaoqu,
+})
 </script>
 
 <template>
@@ -86,17 +98,13 @@ const hasResult = computed(() => props.matchedXiaoqu.length > 0)
 
 <style scoped>
 .result-panel {
-  position: absolute;
-  bottom: 10px;
-  right: 10px;
-  width: 300px;
-  max-height: 320px;
+  width: 100%;
+  max-height: 380px;
   overflow-y: auto;
   background: white;
   padding: 12px;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  z-index: 30;
 }
 .xiaoqu-list {
   list-style: none;

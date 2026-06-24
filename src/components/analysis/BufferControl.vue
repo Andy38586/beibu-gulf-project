@@ -21,7 +21,6 @@ const selectedKeys = computed(() =>
     .filter(([, v]) => v.selected)
     .map(([k]) => k),
 )
-
 async function init() {
   await loadAll()
   Object.entries(FACILITY_CONFIG).forEach(([key, conf]) => {
@@ -29,12 +28,10 @@ async function init() {
   })
 }
 init()
-
 function runAnalysis() {
   calcError.value = ''
   matchedCount.value = null
   calculating.value = true
-
   try {
     const result = runSiteAnalysis({
       selectedKeys: selectedKeys.value,
@@ -63,13 +60,18 @@ function runAnalysis() {
     calculating.value = false
   }
 }
-
 function clearAll() {
   Object.values(typeSettings.value).forEach((v) => (v.selected = false))
   matchedCount.value = null
   calcError.value = ''
   emit('result-update', { coverage: null, matchedXiaoqu: [] })
 }
+
+defineExpose({
+  clearAll,
+  runAnalysis,
+  selectedKeys,
+})
 </script>
 
 <template>
@@ -109,15 +111,11 @@ function clearAll() {
 
 <style scoped>
 .buffer-control {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  width: 280px;
+  width: 100%;
   background: white;
   padding: 12px;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  z-index: 30;
   display: flex;
   flex-direction: column;
   gap: 8px;

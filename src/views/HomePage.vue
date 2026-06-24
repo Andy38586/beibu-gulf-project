@@ -8,7 +8,13 @@ const selectedPort = ref(null)
 
 <template>
   <div class="home-page">
-    <MapContainer v-model:selectedPort="selectedPort" style="width: 100%; height: 100%" />
+    <MapContainer
+      v-model:selectedPort="selectedPort"
+      :interactive="false"
+      :initial-zoom="9"
+      :min-zoom="9"
+      style="width: 100%; height: 100%"
+    />
     <InfoPanel v-if="selectedPort" :selectedPort="selectedPort" />
   </div>
 </template>

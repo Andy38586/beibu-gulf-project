@@ -1,15 +1,14 @@
 <script setup>
 import { ref, computed } from 'vue'
-import * as turf from '@turf/turf'
 import { useFacilities } from '@/composables/useFacilities'
-import { scoreXiaoqu, DEFAULT_WEIGHTS } from '@/composables/useScoring'
-import { linearDecay } from '@/composables/decayFunctions'
+import { DEFAULT_WEIGHTS } from '@/composables/useScoring'
+import { IMPORTANCE_LABELS } from '@/composables/importanceMapping'
+import { runSiteAnalysis } from '@/composables/useSiteAnalysis'
 
 const emit = defineEmits(['result-update'])
 
 const { facilityData, xiaoquData, loading, loadError, loadAll, FACILITY_CONFIG } = useFacilities()
 
-const MAX_RADIUS = 100
 const TOP_N = 10
 const typeSettings = ref({})
 const weights = ref({ ...DEFAULT_WEIGHTS })
@@ -22,64 +21,41 @@ const selectedKeys = computed(() =>
     .filter(([, v]) => v.selected)
     .map(([k]) => k),
 )
+
 async function init() {
   await loadAll()
   Object.entries(FACILITY_CONFIG).forEach(([key, conf]) => {
-    typeSettings.value[key] = { selected: false, radius: conf.defaultRadius }
+    typeSettings.value[key] = { selected: false, importance: 3, defaultRadius: conf.defaultRadius }
   })
 }
 init()
-function buildCoverage(points, radiusKm) {
-  const buffers = points.map((p) =>
-    turf.buffer(turf.point([p.lng, p.lat]), radiusKm, { units: 'kilometers' }),
-  )
-  if (buffers.length === 1) return buffers[0]
-  return turf.union(turf.featureCollection(buffers))
-}
+
 function runAnalysis() {
   calcError.value = ''
   matchedCount.value = null
-  if (selectedKeys.value.length === 0) {
-    calcError.value = '请至少选择一种设施类型'
-    return
-  }
-  const invalidRadius = selectedKeys.value.find((key) => {
-    const r = typeSettings.value[key].radius
-    return !r || r <= 0 || r > MAX_RADIUS
-  })
-  if (invalidRadius) {
-    calcError.value = `${FACILITY_CONFIG[invalidRadius].label}的半径需在 0~${MAX_RADIUS}公里 之间`
-    return
-  }
   calculating.value = true
+
   try {
-    const coverages = selectedKeys.value.map((key) =>
-      buildCoverage(facilityData.value[key] || [], typeSettings.value[key].radius),
-    )
-    let finalArea = coverages[0]
-    for (let i = 1; i < coverages.length; i++) {
-      finalArea = turf.intersect(turf.featureCollection([finalArea, coverages[i]]))
-      if (!finalArea) break
-    }
-    if (!finalArea) {
-      calcError.value = '所选设施的覆盖范围没有重叠区域，没有符合条件的小区'
+    const result = runSiteAnalysis({
+      selectedKeys: selectedKeys.value,
+      typeSettings: typeSettings.value,
+      facilityData: facilityData.value,
+      xiaoquData: xiaoquData.value,
+      weights: weights.value,
+    })
+
+    if (result.error) {
+      calcError.value = result.error
       emit('result-update', { coverage: null, matchedXiaoqu: [] })
       return
     }
-    const matched = xiaoquData.value.filter((xq) =>
-      turf.booleanPointInPolygon(turf.point([xq.lng, xq.lat]), finalArea),
-    )
-    const scored = scoreXiaoqu(
-      matched,
-      facilityData.value,
-      typeSettings.value,
-      weights.value,
-      linearDecay,
-    )
-    const top = scored.sort((a, b) => b.score - a.score).slice(0, TOP_N)
-    matchedCount.value = top.length
 
-    emit('result-update', { coverage: finalArea, matchedXiaoqu: top })
+    matchedCount.value = result.matchedXiaoqu.length
+    emit('result-update', {
+      coverage: result.coverage,
+      matchedXiaoqu: result.matchedXiaoqu,
+      selectedTypes: selectedKeys.value,
+    })
   } catch (error) {
     console.error('选址分析失败:', error)
     calcError.value = '分析失败，请稍后重试'
@@ -87,6 +63,7 @@ function runAnalysis() {
     calculating.value = false
   }
 }
+
 function clearAll() {
   Object.values(typeSettings.value).forEach((v) => (v.selected = false))
   matchedCount.value = null
@@ -109,16 +86,13 @@ function clearAll() {
             <span :style="{ color: conf.color }">●</span>
             {{ conf.label }}
           </label>
-          <input
+          <select
             v-if="typeSettings[key]?.selected"
-            type="number"
-            v-model.number="typeSettings[key].radius"
-            min="0.1"
-            :max="MAX_RADIUS"
-            step="0.1"
-            class="inline-radius"
-            title="该类型缓冲半径(公里)"
-          />
+            v-model.number="typeSettings[key].importance"
+            class="importance-select"
+          >
+            <option v-for="n in 5" :key="n" :value="n">{{ IMPORTANCE_LABELS[n] }}</option>
+          </select>
         </div>
       </div>
       <button @click="runAnalysis" :disabled="calculating">
@@ -164,8 +138,9 @@ function clearAll() {
   align-items: center;
   gap: 6px;
 }
-.inline-radius {
-  width: 60px;
+.importance-select {
+  font-size: 13px;
+  width: 90px;
 }
 .error-text {
   color: #e74c3c;

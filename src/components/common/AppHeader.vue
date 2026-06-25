@@ -15,12 +15,16 @@ import { RouterLink } from 'vue-router'
 
 <style scoped>
 .app-header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
   height: 56px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 20px;
-  flex-shrink: 0;
   background: rgba(44, 62, 80, 0.35);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);

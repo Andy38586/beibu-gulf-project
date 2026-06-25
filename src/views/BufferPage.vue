@@ -33,7 +33,7 @@ function handleResult(result) {
 }
 .panel-stack {
   position: absolute;
-  top: 10px;
+  top: 66px;
   right: 10px;
   width: 300px;
   display: flex;

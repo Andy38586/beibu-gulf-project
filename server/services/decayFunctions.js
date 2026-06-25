@@ -13,7 +13,7 @@ export const steppedDecay = (distance, maxDistance) => {
   return ((1 - ratio) / 0.7) * 100
 }
 export const DECAY_FUNCTIONS = {
-  linear: { label: '线性衰减', fn: linearDecay },
-  exponential: { label: '指数衰减', fn: exponentialDecay },
-  stepped: { label: '分段衰减', fn: steppedDecay },
+  linear: linearDecay,
+  exponential: exponentialDecay,
+  stepped: steppedDecay,
 }

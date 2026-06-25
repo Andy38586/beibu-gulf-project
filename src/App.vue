@@ -18,12 +18,12 @@ import AppHeader from '@/components/common/AppHeader.vue'
 
 <style scoped>
 .app-layout {
-  display: flex;
-  flex-direction: column;
+  position: relative;
   height: 100vh;
 }
 .app-content {
-  flex: 1;
+  width: 100%;
+  height: 100%;
   position: relative;
   overflow: hidden;
 }

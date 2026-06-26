@@ -2,6 +2,11 @@ import fs from 'fs/promises'
 import path from 'path'
 import { fileURLToPath } from 'url'
 
+let writeLock = Promise.resolve()
+function sequential(fn) {
+  return (writeLock = writeLock.then(fn))
+}
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const DATA_FILE = path.join(__dirname, '../data/markers.json')
 
@@ -27,6 +32,7 @@ export async function findById(id) {
   return markers.find((m) => m.id === id)
 }
 export async function create(markerData) {
+  return sequential(async () => {
   const markers = await readAll()
   const newMarker = {
     id: Date.now().toString(),
@@ -36,8 +42,10 @@ export async function create(markerData) {
   markers.push(newMarker)
   await writeAll(markers)
   return newMarker
+  })
 }
 export async function update(id, updates) {
+  return sequential(async () => {
   const markers = await readAll()
   const index = markers.findIndex((m) => m.id === id)
   if (index === -1) return null
@@ -45,11 +53,14 @@ export async function update(id, updates) {
   markers[index] = { ...markers[index], ...updates, updatedAt: new Date().toISOString() }
   await writeAll(markers)
   return markers[index]
+  })
 }
 export async function remove(id) {
+  return sequential(async () => {
   const markers = await readAll()
   const filtered = markers.filter((m) => m.id !== id)
   if (filtered.length === markers.length) return false
   await writeAll(filtered)
   return true
+  })
 }

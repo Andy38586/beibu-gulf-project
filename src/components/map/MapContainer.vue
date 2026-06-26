@@ -27,6 +27,8 @@ const boundaryWarning = ref('')
 let map = null
 let coverageLayer = null
 let matchedLayer = null
+let isUpdating = false
+let pendingResult = null
 
 async function loadPorts() {
   const response = await fetch('/data/ports.json')
@@ -109,6 +111,8 @@ function initMap() {
   })
 }
 function setAnalysisResult({ coverage, matchedXiaoqu }) {
+  // ========== 以下为注释掉的原方法（保留供参考） ==========
+  /*
   if (coverageLayer) {
     map.removeLayer(coverageLayer)
     coverageLayer = null
@@ -147,6 +151,69 @@ function setAnalysisResult({ coverage, matchedXiaoqu }) {
       }),
     })
     map.addLayer(matchedLayer)
+  }
+  */
+  // ========== 原方法注释结束 ==========
+  if (isUpdating) {
+    pendingResult = { coverage, matchedXiaoqu }
+    return
+  }
+
+  isUpdating = true
+
+  try {
+    if (coverageLayer) {
+      try {
+        map.removeLayer(coverageLayer)
+        // eslint-disable-next-line no-empty, no-unused-vars
+      } catch (e) {}
+      coverageLayer = null
+    }
+    if (matchedLayer) {
+      try {
+        map.removeLayer(matchedLayer)
+        // eslint-disable-next-line no-empty, no-unused-vars
+      } catch (e) {}
+      matchedLayer = null
+    }
+    if (coverage) {
+      const source = new VectorSource({
+        features: new GeoJSON().readFeatures(coverage, { featureProjection: 'EPSG:3857' }),
+      })
+      coverageLayer = new VectorLayer({
+        source,
+        style: new Style({
+          fill: new Fill({ color: 'rgba(64, 158, 255, 0.15)' }),
+          stroke: new Stroke({ color: '#409eff', width: 1 }),
+        }),
+      })
+      map.addLayer(coverageLayer)
+    }
+    if (matchedXiaoqu && matchedXiaoqu.length) {
+      const features = matchedXiaoqu.map((xq) => {
+        const f = new Feature({ geometry: new Point(fromLonLat([xq.lng, xq.lat])) })
+        f.setProperties(xq)
+        return f
+      })
+      matchedLayer = new VectorLayer({
+        source: new VectorSource({ features }),
+        style: new Style({
+          image: new CircleStyle({
+            radius: 6,
+            fill: new Fill({ color: '#e74c3c' }),
+            stroke: new Stroke({ color: '#fff', width: 1.5 }),
+          }),
+        }),
+      })
+      map.addLayer(matchedLayer)
+    }
+  } finally {
+    isUpdating = false
+    if (pendingResult) {
+      const next = pendingResult
+      pendingResult = null
+      setAnalysisResult(next)
+    }
   }
 }
 defineExpose({ setAnalysisResult })

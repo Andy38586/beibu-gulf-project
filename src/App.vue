@@ -1,22 +1,44 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, provide } from 'vue'
 import { RouterView } from 'vue-router'
 import AppHeader from '@/components/common/AppHeader.vue'
 import ErrorBoundary from '@/components/common/ErrorBoundary.vue'
 import AuthModal from '@/components/auth/AuthModal.vue'
+import PlanDrawer from '@/components/user/PlanDrawer.vue'
 import { useAuth } from '@/composables/useAuth'
 
 const showAuthModal = ref(false)
+const showPlanDrawer = ref(false)
+const restorePlanData = ref(null)
+const editingPlan = ref(null)
 const { checkAuth } = useAuth()
+
+provide('restorePlanData', restorePlanData)
+provide('editingPlan', editingPlan)
 
 onMounted(() => {
   checkAuth()
 })
+
+function onLoadPlan(plan) {
+  restorePlanData.value = { ...plan.typeSettings }
+  showPlanDrawer.value = false
+}
+
+function onEditPlan(plan) {
+  restorePlanData.value = { ...plan.typeSettings }
+  editingPlan.value = { id: plan.id, name: plan.name }
+  showPlanDrawer.value = false
+}
+
+function onOpenPlans() {
+  showPlanDrawer.value = true
+}
 </script>
 
 <template>
   <div class="app-layout">
-    <AppHeader @open-login="showAuthModal = true" />
+    <AppHeader @open-login="showAuthModal = true" @open-plans="onOpenPlans" />
     <main class="app-content">
       <ErrorBoundary>
       <RouterView v-slot="{ Component }">
@@ -28,6 +50,7 @@ onMounted(() => {
     </main>
   </div>
   <AuthModal :visible="showAuthModal" @close="showAuthModal = false" />
+  <PlanDrawer :visible="showPlanDrawer" @close="showPlanDrawer = false" @load-plan="onLoadPlan" @edit-plan="onEditPlan" />
 </template>
 
 <style scoped>

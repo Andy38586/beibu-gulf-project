@@ -2,7 +2,7 @@
 import { RouterLink } from 'vue-router'
 import { useAuth } from '@/composables/useAuth'
 
-const emit = defineEmits(['open-login'])
+const emit = defineEmits(['open-login', 'open-plans'])
 const { user, isAuthenticated, logout } = useAuth()
 
 function handleLogout() {
@@ -22,6 +22,7 @@ function handleLogout() {
     <div class="auth-area">
       <template v-if="isAuthenticated">
         <span class="user-name">{{ user?.username }}</span>
+        <button class="auth-btn" @click="emit('open-plans')">我的方案</button>
         <button class="auth-btn" @click="handleLogout">退出</button>
       </template>
       <button v-else class="auth-btn" @click="emit('open-login')">登录</button>

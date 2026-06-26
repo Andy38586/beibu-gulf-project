@@ -1,0 +1,67 @@
+[
+  {
+    "id": "1782471621577",
+    "userId": "1782471621525",
+    "name": "????",
+    "selectedKeys": [
+      "hospital"
+    ],
+    "typeSettings": {
+      "hospital": {
+        "selected": true,
+        "importance": 3
+      }
+    },
+    "weights": null,
+    "createdAt": "2026-06-26T11:00:21.577Z",
+    "updatedAt": "2026-06-26T11:00:21.577Z"
+  },
+  {
+    "id": "1782477497029",
+    "userId": "1782469103303",
+    "name": "1",
+    "selectedKeys": [
+      "hospital",
+      "primary_school",
+      "middle_school",
+      "park",
+      "bus_station",
+      "mall"
+    ],
+    "typeSettings": {
+      "hospital": {
+        "selected": true,
+        "importance": 3,
+        "defaultRadius": 3
+      },
+      "primary_school": {
+        "selected": true,
+        "importance": 3,
+        "defaultRadius": 1
+      },
+      "middle_school": {
+        "selected": true,
+        "importance": 3,
+        "defaultRadius": 2
+      },
+      "park": {
+        "selected": true,
+        "importance": 3,
+        "defaultRadius": 1.5
+      },
+      "bus_station": {
+        "selected": true,
+        "importance": 3,
+        "defaultRadius": 0.5
+      },
+      "mall": {
+        "selected": true,
+        "importance": 3,
+        "defaultRadius": 2
+      }
+    },
+    "weights": null,
+    "createdAt": "2026-06-26T12:38:17.029Z",
+    "updatedAt": "2026-06-26T12:38:17.029Z"
+  }
+]

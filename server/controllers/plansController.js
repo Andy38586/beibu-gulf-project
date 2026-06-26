@@ -33,6 +33,10 @@ export async function createOne(req, res) {
     if (!name || !selectedKeys) {
       return res.status(400).json({ error: '缺少必要字段: name, selectedKeys' })
     }
+    const existing = await plansRepo.findAllByUserId(req.user.id)
+    if (existing.some(p => p.name === name)) {
+      return res.status(409).json({ error: '方案名称已存在' })
+    }
     const newPlan = await plansRepo.create({
       userId: req.user.id,
       name,
@@ -57,6 +61,12 @@ export async function updateOne(req, res) {
       return res.status(403).json({ error: '无权修改该方案' })
     }
     const { name, selectedKeys, typeSettings, weights } = req.body
+    if (name !== undefined) {
+      const all = await plansRepo.findAllByUserId(req.user.id)
+      if (all.some(p => p.name === name && p.id !== req.params.id)) {
+        return res.status(409).json({ error: '方案名称已存在' })
+      }
+    }
     const updates = {}
     if (name !== undefined) updates.name = name
     if (selectedKeys !== undefined) updates.selectedKeys = selectedKeys

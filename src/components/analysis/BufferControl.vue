@@ -1,7 +1,10 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, inject, watch } from 'vue'
 import { FACILITY_CONFIG } from '@/composables/useFacilities'
 import { useSiteAnalysisApi } from '@/composables/useSiteAnalysisApi'
+import { useAuth } from '@/composables/useAuth'
+import { usePlans } from '@/composables/usePlans'
+import PlanSaveModal from '@/components/user/PlanSaveModal.vue'
 
 const emit = defineEmits(['result-update'])
 
@@ -30,12 +33,15 @@ async function runAnalysis() {
   matchedCount.value = null
 
   if (selectedKeys.value.length === 0) {
-    calcError.value = '请至少选择一种设施类型'
+    calcError.value = '请至少选择一种设施类型?'
     return
   }
   const validTypes = Object.keys(FACILITY_CONFIG)
-  const invalid = selectedKeys.value.filter(k => !validTypes.includes(k))
-  if (invalid.length) { calcError.value = `未知类型: ${invalid.join(',')}`; return }
+  const invalid = selectedKeys.value.filter((k) => !validTypes.includes(k))
+  if (invalid.length) {
+    calcError.value = `未知类型: ${invalid.join(',')}`
+    return
+  }
   const result = await analyze({
     selectedKeys: selectedKeys.value,
     typeSettings: typeSettings.value,
@@ -58,6 +64,82 @@ function clearAll() {
   emit('result-update', { coverage: null, matchedXiaoqu: [] })
 }
 defineExpose({ clearAll, runAnalysis, selectedKeys })
+
+const restorePlanData = inject('restorePlanData', ref(null))
+const editingPlan = inject('editingPlan', ref(null))
+
+watch(
+  restorePlanData,
+  (settings) => {
+    if (!settings || Object.keys(settings).length === 0) return
+    Object.keys(FACILITY_CONFIG).forEach((key) => {
+      typeSettings.value[key] = {
+        selected: false,
+        importance: 3,
+        defaultRadius: FACILITY_CONFIG[key].defaultRadius,
+      }
+    })
+    Object.entries(settings).forEach(([key, value]) => {
+      if (typeSettings.value[key]) {
+        typeSettings.value[key] = {
+          ...typeSettings.value[key],
+          selected: true,
+          importance: value.importance,
+        }
+      } else {
+        console.warn('[BufferControl] 未知设施类型:', key)
+      }
+    })
+  },
+  { deep: true },
+)
+
+const { isAuthenticated } = useAuth()
+const { getPlans, createPlan, updatePlan, deletePlan } = usePlans()
+const showSaveModal = ref(false)
+const saveMessage = ref('')
+const saveError = ref('')
+const saving = ref(false)
+
+async function handleSavePlan() {
+  if (!isAuthenticated.value) {
+    saveMessage.value = '请先登录'
+    return
+  }
+  saveError.value = ''
+  saveMessage.value = ''
+  showSaveModal.value = true
+}
+
+async function onSavePlan(name) {
+  saving.value = true
+  try {
+    if (editingPlan.value?.id) {
+      await updatePlan(editingPlan.value.id, name, typeSettings.value)
+      editingPlan.value = null
+    } else {
+      const plans = await getPlans()
+      const dup = plans.find((p) => p.name === name.trim())
+      if (dup) {
+        const ok = window.confirm(
+          '\u5df2\u5b58\u5728\u201c' + name.trim() + '\u201d\uff0c\u662f\u5426\u8986\u76d6\uff1f',
+        )
+        if (!ok) {
+          saving.value = false
+          return
+        }
+        await deletePlan(dup.id)
+      }
+      await createPlan(name.trim(), typeSettings.value)
+    }
+    showSaveModal.value = false
+    saveMessage.value = '\u65b9\u6848\u4fdd\u5b58\u6210\u529f'
+  } catch (e) {
+    saveError.value = e.message || '\u4fdd\u5b58\u5931\u8d25'
+  } finally {
+    saving.value = false
+  }
+}
 </script>
 
 <template>
@@ -83,11 +165,21 @@ defineExpose({ clearAll, runAnalysis, selectedKeys })
       {{ calculating ? '分析中...' : '开始筛选' }}
     </button>
     <button @click="clearAll">清空</button>
+    <button v-if="isAuthenticated" @click="handleSavePlan">保存方案</button>
+    <p v-if="saveMessage" class="save-message">{{ saveMessage }}</p>
     <p v-if="calcError" class="error-text">{{ calcError }}</p>
     <p v-if="matchedCount !== null" class="result-text">
       符合条件的小区（按推荐度排序，最多{{ TOP_N }}个）：{{ matchedCount }} 个
     </p>
   </div>
+  <PlanSaveModal
+    :visible="showSaveModal"
+    :saving="saving"
+    :error-msg="saveError"
+    :initial-name="editingPlan?.name || ''"
+    @close="showSaveModal = false"
+    @save="onSavePlan"
+  />
 </template>
 
 <style scoped>
@@ -130,6 +222,11 @@ defineExpose({ clearAll, runAnalysis, selectedKeys })
   color: #27ae60;
   font-size: 14px;
   font-weight: 500;
+  margin: 0;
+}
+.save-message {
+  color: #27ae60;
+  font-size: 13px;
   margin: 0;
 }
 </style>

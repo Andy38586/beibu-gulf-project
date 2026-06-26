@@ -24,9 +24,11 @@ function closeDetail() {
 function renderRadar() {
   if (!activeXiaoqu.value || !chartRef.value) return
 
-  if (!chartInstance) {
-    chartInstance = echarts.init(chartRef.value)
+  if (chartInstance) {
+    chartInstance.dispose()
+    chartInstance = null
   }
+  chartInstance = echarts.init(chartRef.value)
   const indicators = props.selectedTypes.map((key) => ({
     name: FACILITY_LABELS[key] || key,
     max: 100,

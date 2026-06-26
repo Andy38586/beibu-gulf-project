@@ -1,17 +1,20 @@
 <script setup>
 import { RouterView } from 'vue-router'
 import AppHeader from '@/components/common/AppHeader.vue'
+import ErrorBoundary from '@/components/common/ErrorBoundary.vue'
 </script>
 
 <template>
   <div class="app-layout">
     <AppHeader />
     <main class="app-content">
+      <ErrorBoundary>
       <RouterView v-slot="{ Component }">
         <transition name="fade" mode="out-in">
           <component :is="Component" />
         </transition>
       </RouterView>
+      </ErrorBoundary>
     </main>
   </div>
 </template>

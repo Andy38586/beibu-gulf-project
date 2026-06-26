@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onUnmounted } from 'vue'
 import MapContainer from '@/components/map/MapContainer.vue'
 import BufferControl from '@/components/analysis/BufferControl.vue'
 import ResultPanel from '@/components/analysis/ResultPanel.vue'
@@ -8,8 +8,19 @@ const mapRef = ref(null)
 const matchedXiaoqu = ref([])
 const selectedTypes = ref([])
 
+const isUnmounted = ref(false)
+onUnmounted(() => { isUnmounted.value = true })
+
 function handleResult(result) {
-  mapRef.value?.setAnalysisResult(result)
+  if (isUnmounted.value) {
+    console.warn('[BufferPage] 组件已卸载，丢弃分析结果')
+    return
+  }
+  if (mapRef.value) {
+    mapRef.value.setAnalysisResult(result)
+  } else {
+    console.warn('[BufferPage] MapContainer 尚未就绪，结果无法在地图展示')
+  }
   matchedXiaoqu.value = result.matchedXiaoqu || []
   selectedTypes.value = result.selectedTypes || []
 }

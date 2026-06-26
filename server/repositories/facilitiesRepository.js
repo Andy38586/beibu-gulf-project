@@ -1,3 +1,4 @@
+// 依赖文件在 server/data/ 中的相对位置，勿移动此文件
 import fs from 'fs/promises'
 import path from 'path'
 import { fileURLToPath } from 'url'

@@ -3,7 +3,7 @@ import { onMounted, onUnmounted, ref } from 'vue'
 import Map from 'ol/Map'
 import View from 'ol/View'
 import TileLayer from 'ol/layer/Tile'
-import OSM from 'ol/source/OSM'
+import XYZ from 'ol/source/XYZ'
 import VectorSource from 'ol/source/Vector'
 import VectorLayer from 'ol/layer/Vector'
 import { fromLonLat } from 'ol/proj'
@@ -79,7 +79,14 @@ function initMap() {
     }),
     layers: [
       new TileLayer({
-        source: new OSM(),
+        source: new XYZ({
+          url: `https://t0.tianditu.gov.cn/DataServer?T=vec_w&x={x}&y={y}&l={z}&tk=e4cef34602f9d6226f7d142990ab614e`,
+        }),
+      }),
+      new TileLayer({
+        source: new XYZ({
+          url: `https://t0.tianditu.gov.cn/DataServer?T=cva_w&x={x}&y={y}&l={z}&tk=e4cef34602f9d6226f7d142990ab614e`,
+        }),
       }),
       boundaryLayer,
       portLayer,

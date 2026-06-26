@@ -11,6 +11,8 @@
   "dependencies": {
     "@turf/turf": "^7.3.5",
     "cors": "^2.8.6",
-    "express": "^5.2.1"
+    "express": "^5.2.1",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2"
   }
 }

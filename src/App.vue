@@ -1,12 +1,22 @@
 <script setup>
+import { ref, onMounted } from 'vue'
 import { RouterView } from 'vue-router'
 import AppHeader from '@/components/common/AppHeader.vue'
 import ErrorBoundary from '@/components/common/ErrorBoundary.vue'
+import AuthModal from '@/components/auth/AuthModal.vue'
+import { useAuth } from '@/composables/useAuth'
+
+const showAuthModal = ref(false)
+const { checkAuth } = useAuth()
+
+onMounted(() => {
+  checkAuth()
+})
 </script>
 
 <template>
   <div class="app-layout">
-    <AppHeader />
+    <AppHeader @open-login="showAuthModal = true" />
     <main class="app-content">
       <ErrorBoundary>
       <RouterView v-slot="{ Component }">
@@ -17,6 +27,7 @@ import ErrorBoundary from '@/components/common/ErrorBoundary.vue'
       </ErrorBoundary>
     </main>
   </div>
+  <AuthModal :visible="showAuthModal" @close="showAuthModal = false" />
 </template>
 
 <style scoped>

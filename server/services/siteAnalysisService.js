@@ -28,16 +28,16 @@ export function buildTypeCoverage(points, radiusKm) {
   if (buffers.length === 1) return buffers[0]
   return turf.union(turf.featureCollection(buffers))
 }
-export function intersectCoverages(coverages) {
-  const valid = coverages.filter(Boolean)
-  if (valid.length === 0) return null
-
-  let result = valid[0]
-  for (let i = 1; i < valid.length; i++) {
-    result = turf.intersect(turf.featureCollection([result, valid[i]]))
-    if (!result) return null
+export function intersectCoverages(coverages, selectedKeys) {
+  const entries = coverages.map((c, i) => ({ key: selectedKeys[i], coverage: c }))
+    .filter(e => e.coverage)
+  if (entries.length === 0) return { area: null, failKey: null }
+  let result = entries[0].coverage
+  for (let i = 1; i < entries.length; i++) {
+    result = turf.intersect(turf.featureCollection([result, entries[i].coverage]))
+    if (!result) return { area: null, failKey: entries[i].key }
   }
-  return result
+  return { area: result, failKey: null }
 }
 export function filterMatchedXiaoqu(xiaoquData, finalArea) {
   return xiaoquData.filter((xq) =>
@@ -66,10 +66,10 @@ export function runSiteAnalysis({
     buildTypeCoverage(facilityData[key], radiusSettings[key].radius),
   )
 
-  const finalArea = intersectCoverages(coverages)
+  const { area: finalArea, failKey } = intersectCoverages(coverages, selectedKeys)
   if (!finalArea) {
     return {
-      error: '所选设施的覆盖范围没有重叠区域，没有符合条件的小区',
+      error: `${failKey} 的覆盖范围与其他类型无重叠区域`,
       coverage: null,
       matchedXiaoqu: [],
     }

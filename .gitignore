@@ -37,3 +37,9 @@ __screenshots__/
 
 # Vite
 *.timestamp-*-*.mjs
+# .gitignore 
+server/data/users.json
+server/data/plans.json
+.env
+.env.production
+.env.local

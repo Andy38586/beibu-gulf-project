@@ -33,6 +33,9 @@ async function runAnalysis() {
     calcError.value = '请至少选择一种设施类型'
     return
   }
+  const validTypes = Object.keys(FACILITY_CONFIG)
+  const invalid = selectedKeys.value.filter(k => !validTypes.includes(k))
+  if (invalid.length) { calcError.value = `未知类型: ${invalid.join(',')}`; return }
   const result = await analyze({
     selectedKeys: selectedKeys.value,
     typeSettings: typeSettings.value,

@@ -9,7 +9,11 @@ export async function analyze(req, res) {
       return res.status(400).json({ error: '缺少必要参数: selectedKeys, typeSettings' })
     }
     const facilityData = {}
+    const validTypes = facilitiesRepo.getAvailableTypes()
     for (const key of selectedKeys) {
+      if (!validTypes.includes(key)) {
+        return res.status(400).json({ error: `未知设施类型: ${key}，可用类型: ${validTypes.join(', ')}` })
+      }
       facilityData[key] = await facilitiesRepo.findByType(key)
     }
     const xiaoquData = await facilitiesRepo.findXiaoqu()

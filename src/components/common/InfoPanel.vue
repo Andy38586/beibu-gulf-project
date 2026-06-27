@@ -29,14 +29,14 @@ defineProps({
 <style scoped>
 .info-panel {
   position: absolute;
-  top: 20px;
+  top: 70px;
   right: 20px;
   width: 280px;
+  z-index: 40;
   background: rgba(255, 255, 255, 0.95);
   border-radius: 10px;
   box-shadow: 0 4px 18px rgba(0, 0, 0, 0.2);
   padding: 15px;
-  z-index: 10;
   max-height: 80vh;
   overflow-y: auto;
   display: flex;

@@ -12,21 +12,21 @@ function handleLogout() {
 
 <template>
   <header class="app-header">
-    <div class="logo">北部湾港口地图</div>
+    <div class="logo">北部湾城市群地图</div>
     <div class="right-section">
-    <nav class="nav-links">
-      <RouterLink to="/" class="nav-item" active-class="active">首页</RouterLink>
-      <RouterLink to="/buffer" class="nav-item" active-class="active">选址分析</RouterLink>
-      <RouterLink to="/overlay" class="nav-item" active-class="active">xx分析</RouterLink>
-    </nav>
-    <div class="auth-area">
-      <template v-if="isAuthenticated">
-        <span class="user-name">{{ user?.username }}</span>
-        <button class="auth-btn" @click="emit('open-plans')">我的方案</button>
-        <button class="auth-btn" @click="handleLogout">退出</button>
-      </template>
-      <button v-else class="auth-btn" @click="emit('open-login')">登录</button>
-    </div>
+      <nav class="nav-links">
+        <RouterLink to="/" class="nav-item" active-class="active">首页</RouterLink>
+        <RouterLink to="/buffer" class="nav-item" active-class="active">选址分析</RouterLink>
+        <RouterLink to="/overlay" class="nav-item" active-class="active">xx分析</RouterLink>
+      </nav>
+      <div class="auth-area">
+        <template v-if="isAuthenticated">
+          <span class="user-name">{{ user?.username }}</span>
+          <button class="auth-btn" @click="emit('open-plans')">我的方案</button>
+          <button class="auth-btn" @click="handleLogout">退出</button>
+        </template>
+        <button v-else class="auth-btn" @click="emit('open-login')">登录</button>
+      </div>
     </div>
   </header>
 </template>

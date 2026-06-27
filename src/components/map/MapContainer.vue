@@ -61,7 +61,7 @@ function initMap() {
     source: portSource,
   })
   const boundarySource = new VectorSource({
-    url: '/beibu-gulf-merged-data.geojson',
+    url: '/beibu-gulf-merged-data.json',
     format: new GeoJSON(),
   })
   boundarySource.on('featuresloaderror', () => {

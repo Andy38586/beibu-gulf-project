@@ -1,7 +1,7 @@
 import { ref } from 'vue'
 import { useAuth } from './useAuth'
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000/api'
+const API_BASE = import.meta.env.VITE_API_BASE || '/api'
 
 export function usePlans() {
   const { token, logout } = useAuth()
@@ -12,14 +12,17 @@ export function usePlans() {
     if (!token.value) throw new Error('未登录')
     return {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token.value}`,
+      Authorization: `Bearer ${token.value}`,
     }
   }
 
   async function getPlans() {
     const headers = authHeaders()
     const res = await fetch(`${API_BASE}/plans`, { headers })
-    if (res.status === 401) { logout(); throw new Error('登录已过期') }
+    if (res.status === 401) {
+      logout()
+      throw new Error('登录已过期')
+    }
     if (!res.ok) throw new Error('获取方案列表失败')
     return res.json()
   }
@@ -36,7 +39,10 @@ export function usePlans() {
         headers,
         body: JSON.stringify({ name, selectedKeys, typeSettings }),
       })
-      if (res.status === 401) { logout(); throw new Error('登录已过期') }
+      if (res.status === 401) {
+        logout()
+        throw new Error('登录已过期')
+      }
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
         throw new Error(data.error || '创建方案失败')
@@ -53,7 +59,10 @@ export function usePlans() {
       method: 'DELETE',
       headers,
     })
-    if (res.status === 401) { logout(); throw new Error('登录已过期') }
+    if (res.status === 401) {
+      logout()
+      throw new Error('登录已过期')
+    }
     if (res.status === 204) return null
     if (!res.ok) {
       const data = await res.json().catch(() => ({}))
@@ -74,7 +83,10 @@ export function usePlans() {
         headers,
         body: JSON.stringify({ name, selectedKeys, typeSettings }),
       })
-      if (res.status === 401) { logout(); throw new Error('登录已过期') }
+      if (res.status === 401) {
+        logout()
+        throw new Error('登录已过期')
+      }
       if (res.status === 409) {
         const data = await res.json()
         throw new Error(data.error || '方案名称已存在')

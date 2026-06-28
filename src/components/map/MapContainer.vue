@@ -41,35 +41,32 @@ async function loadPorts() {
   }
   return data
 }
-function initMap() {
-  if (map) {
-    map.setTarget(null)
-    map = null
-  }
-  const portFeatures = ports.value.map((port) => {
+function buildbeibuwan_portLayer() {
+  const beibuwan_portFeature = ports.value.map((port) => {
     const feature = new Feature({
       geometry: new Point(fromLonLat([port.lon, port.lat])),
     })
     feature.setProperties(port)
-    feature.set('featureType', 'port') //加个标识
+    feature.set('featureType', 'port')
     return feature
   })
-  const portSource = new VectorSource({
-    features: portFeatures,
+  return new VectorLayer({
+    source: new VectorSource({
+      features: beibuwan_portFeature,
+    }),
   })
-  const portLayer = new VectorLayer({
-    source: portSource,
-  })
-  const boundarySource = new VectorSource({
+}
+function buildbeibuwan_boundaryLayer() {
+  const beibuwan_boundarySource = new VectorSource({
     url: '/beibu-gulf-merged-data.geojson',
     format: new GeoJSON(),
   })
-  boundarySource.on('featuresloaderror', () => {
+  beibuwan_boundarySource.on('featuresloaderror', () => {
     console.error('边界数据加载失败')
-    boundaryWarning.value = '边界数据加载失败,图层可能缺失'
+    boundaryWarning.value = '边界数据加载失败，图层可能缺失'
   })
-  const boundaryLayer = new VectorLayer({
-    source: boundarySource,
+  return new VectorLayer({
+    source: beibuwan_boundarySource,
     style: new Style({
       stroke: new Stroke({
         color: '4dabf7',
@@ -80,6 +77,43 @@ function initMap() {
       }),
     }),
   })
+}
+function buildimage_baseLayer() {
+  const TIANDITU_KEY = 'e4cef34602f9d6226f7d142990ab614e'
+  return [
+    new TileLayer({
+      source: new XYZ({
+        url: `https://t0.tianditu.gov.cn/DataServer?T=img_w&x={x}&y={y}&l={z}&tk=${TIANDITU_KEY}`,
+      }),
+    }),
+    new TileLayer({
+      source: new XYZ({
+        url: `https://t0.tianditu.gov.cn/DataServer?T=cia_w&x={x}&y={y}&l={z}&tk=${TIANDITU_KEY}`,
+      }),
+    }),
+  ]
+}
+function bindClickHandler(mapInstance) {
+  mapInstance.on('click', (event) => {
+    let clicked = false
+    mapInstance.forEachFeatureAtPixel(event.pixel, (feature) => {
+      if (feature.get('featureType') !== 'port') return
+      clicked = true
+      // eslint-disable-next-line no-unused-vars
+      const { geometry, ...portData } = feature.getProperties()
+      emit('update:selectedPort', portData)
+    })
+    if (!clicked) emit('update:selectedPort', null)
+  })
+}
+function initMap() {
+  if (map) {
+    map.setTarget(null)
+    map = null
+  }
+  const portLayer = buildbeibuwan_portLayer()
+  const boundaryLayer = buildbeibuwan_boundaryLayer()
+  const image_baseLayer = buildimage_baseLayer()
   map = new Map({
     target: 'map',
     interactions: props.interactive ? undefined : [],
@@ -88,132 +122,88 @@ function initMap() {
       zoom: 9,
       minZoom: props.minZoom,
     }),
-    layers: [
-      new TileLayer({
-        source: new XYZ({
-          url: `https://t0.tianditu.gov.cn/DataServer?T=img_w&x={x}&y={y}&l={z}&tk=e4cef34602f9d6226f7d142990ab614e`,
-        }),
-      }),
-      new TileLayer({
-        source: new XYZ({
-          url: `https://t0.tianditu.gov.cn/DataServer?T=cia_w&x={x}&y={y}&l={z}&tk=e4cef34602f9d6226f7d142990ab614e`,
-        }),
-      }),
-      boundaryLayer,
-      portLayer,
-    ],
+    layers: [...image_baseLayer, boundaryLayer, portLayer],
   })
-  map.on('click', (event) => {
-    let clicked = false
-    map.forEachFeatureAtPixel(event.pixel, (feature) => {
-      if (feature.get('featureType') !== 'port') {
-        return
-      }
-      clicked = true
-      // eslint-disable-next-line no-unused-vars
-      const { geometry, ...portData } = feature.getProperties()
-      emit('update:selectedPort', portData)
-    })
-    if (!clicked) {
-      emit('update:selectedPort', null)
-    }
-  })
+  bindClickHandler(map)
 }
-function setAnalysisResult({ coverage, matchedXiaoqu }) {
-  // ========== 以下为注释掉的原方法（保留供参考） ==========
-  /*
+function clearAnalysisLayers() {
   if (coverageLayer) {
-    map.removeLayer(coverageLayer)
+    try {
+      map.removeLayer(coverageLayer)
+      // eslint-disable-next-line no-empty, no-unused-vars
+    } catch (e) {}
     coverageLayer = null
   }
   if (matchedLayer) {
-    map.removeLayer(matchedLayer)
+    try {
+      map.removeLayer(matchedLayer)
+      // eslint-disable-next-line no-empty, no-unused-vars
+    } catch (e) {}
     matchedLayer = null
   }
-  if (coverage) {
-    const source = new VectorSource({
-      features: new GeoJSON().readFeatures(coverage, { featureProjection: 'EPSG:3857' }),
-    })
-    coverageLayer = new VectorLayer({
-      source,
-      style: new Style({
-        fill: new Fill({ color: 'rgba(64, 158, 255, 0.15)' }),
-        stroke: new Stroke({ color: '#409eff', width: 1 }),
+}
+function newCoverageLayer(coverage) {
+  const source = new VectorSource({
+    features: new GeoJSON().readFeatures(coverage, {
+      featureProjection: 'EPSG:3857',
+    }),
+  })
+  return new VectorLayer({
+    source,
+    style: new Style({
+      fill: new Fill({
+        color: 'rgba(64, 158, 255, 0.15)',
       }),
+      stroke: new Stroke({
+        color: '#409eff',
+        width: 1,
+      }),
+    }),
+  })
+}
+function newMatchedLayer(matchedXiaoqu) {
+  const features = matchedXiaoqu.map((xq) => {
+    const f = new Feature({
+      geometry: new Point(fromLonLat([xq.lng, xq.lat])),
     })
-    map.addLayer(coverageLayer)
-  }
-  if (matchedXiaoqu && matchedXiaoqu.length) {
-    const features = matchedXiaoqu.map((xq) => {
-      const f = new Feature({ geometry: new Point(fromLonLat([xq.lng, xq.lat])) })
-      f.setProperties(xq)
-      return f
-    })
-    matchedLayer = new VectorLayer({
-      source: new VectorSource({ features }),
-      style: new Style({
-        image: new CircleStyle({
-          radius: 6,
-          fill: new Fill({ color: '#e74c3c' }),
-          stroke: new Stroke({ color: '#fff', width: 1.5 }),
+    f.setProperties(xq)
+    return f
+  })
+  return new VectorLayer({
+    source: new VectorSource({
+      features,
+    }),
+    style: new Style({
+      image: new CircleStyle({
+        radius: 6,
+        fill: new Fill({
+          color: '#e74c3c',
+        }),
+        stroke: new Stroke({
+          color: '#fff',
+          width: 1.5,
         }),
       }),
-    })
-    map.addLayer(matchedLayer)
-  }
-  */
-  // ========== 原方法注释结束 ==========
+    }),
+  })
+}
+function setAnalysisResult({ coverage, matchedXiaoqu }) {
   if (isUpdating) {
-    pendingResult = { coverage, matchedXiaoqu }
+    pendingResult = {
+      coverage,
+      matchedXiaoqu,
+    }
     return
   }
-
   isUpdating = true
-
   try {
-    if (coverageLayer) {
-      try {
-        map.removeLayer(coverageLayer)
-        // eslint-disable-next-line no-empty, no-unused-vars
-      } catch (e) {}
-      coverageLayer = null
-    }
-    if (matchedLayer) {
-      try {
-        map.removeLayer(matchedLayer)
-        // eslint-disable-next-line no-empty, no-unused-vars
-      } catch (e) {}
-      matchedLayer = null
-    }
+    clearAnalysisLayers()
     if (coverage) {
-      const source = new VectorSource({
-        features: new GeoJSON().readFeatures(coverage, { featureProjection: 'EPSG:3857' }),
-      })
-      coverageLayer = new VectorLayer({
-        source,
-        style: new Style({
-          fill: new Fill({ color: 'rgba(64, 158, 255, 0.15)' }),
-          stroke: new Stroke({ color: '#409eff', width: 1 }),
-        }),
-      })
+      coverageLayer = newCoverageLayer(coverage)
       map.addLayer(coverageLayer)
     }
     if (matchedXiaoqu && matchedXiaoqu.length) {
-      const features = matchedXiaoqu.map((xq) => {
-        const f = new Feature({ geometry: new Point(fromLonLat([xq.lng, xq.lat])) })
-        f.setProperties(xq)
-        return f
-      })
-      matchedLayer = new VectorLayer({
-        source: new VectorSource({ features }),
-        style: new Style({
-          image: new CircleStyle({
-            radius: 6,
-            fill: new Fill({ color: '#e74c3c' }),
-            stroke: new Stroke({ color: '#fff', width: 1.5 }),
-          }),
-        }),
-      })
+      matchedLayer = newMatchedLayer(matchedXiaoqu)
       map.addLayer(matchedLayer)
     }
   } finally {

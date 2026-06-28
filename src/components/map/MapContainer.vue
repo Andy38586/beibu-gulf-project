@@ -61,7 +61,7 @@ function initMap() {
     source: portSource,
   })
   const boundarySource = new VectorSource({
-    url: '/beibu-gulf-merged-data.json',
+    url: '/beibu-gulf-merged-data.geojson',
     format: new GeoJSON(),
   })
   boundarySource.on('featuresloaderror', () => {
@@ -70,24 +70,33 @@ function initMap() {
   })
   const boundaryLayer = new VectorLayer({
     source: boundarySource,
+    style: new Style({
+      stroke: new Stroke({
+        color: '4dabf7',
+        width: 2,
+      }),
+      fill: new Fill({
+        color: 'rgba(77,171,247,0.15)',
+      }),
+    }),
   })
   map = new Map({
     target: 'map',
     interactions: props.interactive ? undefined : [],
     view: new View({
-      center: fromLonLat([108.6, 21.95]),
+      center: fromLonLat([108.5752963, 21.760409]),
       zoom: 9,
       minZoom: props.minZoom,
     }),
     layers: [
       new TileLayer({
         source: new XYZ({
-          url: `https://t0.tianditu.gov.cn/DataServer?T=vec_w&x={x}&y={y}&l={z}&tk=e4cef34602f9d6226f7d142990ab614e`,
+          url: `https://t0.tianditu.gov.cn/DataServer?T=img_w&x={x}&y={y}&l={z}&tk=e4cef34602f9d6226f7d142990ab614e`,
         }),
       }),
       new TileLayer({
         source: new XYZ({
-          url: `https://t0.tianditu.gov.cn/DataServer?T=cva_w&x={x}&y={y}&l={z}&tk=e4cef34602f9d6226f7d142990ab614e`,
+          url: `https://t0.tianditu.gov.cn/DataServer?T=cia_w&x={x}&y={y}&l={z}&tk=e4cef34602f9d6226f7d142990ab614e`,
         }),
       }),
       boundaryLayer,

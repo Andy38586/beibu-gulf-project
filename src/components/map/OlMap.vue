@@ -29,8 +29,11 @@ async function init() {
     portLayer.set('alwaysVisible', true)
     boundaryLayer.set('alwaysVisible', true)
 
-    const { addLayers } = useLayerManager()
+    const { addLayers, registerToggleable } = useLayerManager()
     addLayers('home', [boundaryLayer, portLayer])
+
+    registerToggleable('boundary', '行政区划', boundaryLayer)
+    registerToggleable('ports', '港口位置', portLayer)
 
     const { setAnalysisResult } = useAnalysisLayer(map)
     mapStore.registerAnalysisHandler(setAnalysisResult)
@@ -64,9 +67,8 @@ onUnmounted(() => {
 
 <style scoped>
 .map-wrapper {
-  position: relative;
-  width: 100%;
-  height: 100%;
+  position: absolute;
+  inset: 0;
 }
 .map-fill {
   width: 100%;

@@ -16,8 +16,33 @@ function handleResult(result) {
 </script>
 
 <template>
-  <div class="panel-stack">
-    <BufferControl @result-update="handleResult" />
-    <ResultPanel :matched-xiaoqu="matchedXiaoqu" :selected-types="selectedTypes" />
+  <div class="buffer-panel">
+    <div class="panel-card">
+      <BufferControl @result-update="handleResult" />
+    </div>
+    <div class="panel-card">
+      <ResultPanel :matched-xiaoqu="matchedXiaoqu" :selected-types="selectedTypes" />
+    </div>
   </div>
 </template>
+
+<style scoped>
+.buffer-panel {
+  position: fixed;
+  top: 70px;
+  right: 20px;
+  width: 280px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  z-index: 40;
+  pointer-events: auto;
+}
+.panel-card {
+  background: rgba(255, 255, 255, 0.98);
+  border-radius: 10px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.2);
+  padding: 15px;
+  overflow: hidden;
+}
+</style>

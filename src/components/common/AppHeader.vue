@@ -2,30 +2,24 @@
 import { RouterLink } from 'vue-router'
 import { useAuth } from '@/composables/useAuth'
 
-const emit = defineEmits(['open-login', 'open-plans'])
-const { user, isAuthenticated, logout } = useAuth()
-
-function handleLogout() {
-  logout()
-}
+const emit = defineEmits(['open-profile'])
+const { user, isAuthenticated } = useAuth()
 </script>
 
 <template>
   <header class="app-header">
-    <div class="logo">北部湾城市群地图</div>
+    <div class="logo">北部湾港口选址分析系统</div>
     <div class="right-section">
       <nav class="nav-links">
         <RouterLink to="/" class="nav-item" active-class="active">首页</RouterLink>
         <RouterLink to="/buffer" class="nav-item" active-class="active">选址分析</RouterLink>
-        <RouterLink to="/overlay" class="nav-item" active-class="active">xx分析</RouterLink>
+        <button class="nav-item" @click="emit('open-profile')">个人主页</button>
       </nav>
       <div class="auth-area">
         <template v-if="isAuthenticated">
-          <span class="user-name">{{ user?.username }}</span>
-          <button class="auth-btn" @click="emit('open-plans')">我的方案</button>
-          <button class="auth-btn" @click="handleLogout">退出</button>
+          <span class="user-name" @click="emit('open-profile')">{{ user?.username }}</span>
         </template>
-        <button v-else class="auth-btn" @click="emit('open-login')">登录</button>
+        <button v-else class="auth-btn" @click="emit('open-profile')">登录</button>
       </div>
     </div>
   </header>
@@ -71,6 +65,9 @@ function handleLogout() {
   transition:
     background 0.2s,
     color 0.2s;
+  background: none;
+  border: none;
+  cursor: pointer;
 }
 .nav-item:hover {
   background: rgba(255, 255, 255, 0.15);
@@ -89,6 +86,12 @@ function handleLogout() {
 .user-name {
   font-size: 13px;
   color: rgba(255, 255, 255, 0.9);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+.user-name:hover {
+  background: rgba(255, 255, 255, 0.1);
 }
 .auth-btn {
   padding: 5px 14px;

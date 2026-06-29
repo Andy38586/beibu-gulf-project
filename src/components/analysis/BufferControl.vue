@@ -161,11 +161,13 @@ async function onSavePlan(name) {
         </select>
       </div>
     </div>
-    <button @click="runAnalysis" :disabled="calculating">
-      {{ calculating ? '分析中...' : '开始筛选' }}
-    </button>
-    <button @click="clearAll">清空</button>
-    <button v-if="isAuthenticated" @click="handleSavePlan">保存方案</button>
+    <div class="btn-group">
+      <button class="action-btn" @click="runAnalysis" :disabled="calculating">
+        {{ calculating ? '分析中...' : '开始筛选' }}
+      </button>
+      <button class="action-btn secondary" @click="clearAll">清空</button>
+      <button v-if="isAuthenticated" class="action-btn primary" @click="handleSavePlan">保存方案</button>
+    </div>
     <p v-if="saveMessage" class="save-message">{{ saveMessage }}</p>
     <p v-if="calcError" class="error-text">{{ calcError }}</p>
     <p v-if="matchedCount !== null" class="result-text">
@@ -184,19 +186,19 @@ async function onSavePlan(name) {
 
 <style scoped>
 .buffer-control {
-  width: 100%;
-  background: white;
-  padding: 12px;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
+}
+.buffer-control h3 {
+  margin: 0;
+  font-size: 16px;
+  color: #333;
 }
 .type-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 .type-item {
   display: flex;
@@ -207,11 +209,44 @@ async function onSavePlan(name) {
 .type-label {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 .importance-select {
   font-size: 13px;
   width: 90px;
+  padding: 2px 4px;
+}
+.btn-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.action-btn {
+  padding: 7px 12px;
+  border-radius: 6px;
+  font-size: 14px;
+  border: 1px solid #ddd;
+  cursor: pointer;
+  background: white;
+  transition: background 0.2s;
+}
+.action-btn:hover:not(:disabled) {
+  background: #f5f7fa;
+}
+.action-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.action-btn.primary {
+  background: #409eff;
+  color: white;
+  border-color: #409eff;
+}
+.action-btn.primary:hover:not(:disabled) {
+  background: #337ecc;
+}
+.action-btn.secondary {
+  background: #f5f7fa;
 }
 .error-text {
   color: #e74c3c;

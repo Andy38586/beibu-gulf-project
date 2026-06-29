@@ -2,10 +2,10 @@
 import { RouterView, useRoute, useRouter } from 'vue-router'
 import { onMounted, provide, ref, watch } from 'vue'
 import AppHeader from '@/components/common/AppHeader.vue'
-import AuthModal from '@/components/auth/AuthModal.vue'
-import PlanDrawer from '@/components/user/PlanDrawer.vue'
+import ProfilePanel from '@/components/user/ProfilePanel.vue'
 import OlMap from '@/components/map/OlMap.vue'
 import BaseLayerSwitcher from '@/components/map/BaseLayerSwitcher.vue'
+import LayerPanel from '@/components/map/LayerPanel.vue'
 import { useLayerManager } from '@/composables/useLayerManager'
 import { useAuth } from '@/composables/useAuth'
 
@@ -14,8 +14,7 @@ const router = useRouter()
 const { activate } = useLayerManager()
 const { checkAuth } = useAuth()
 
-const showLogin = ref(false)
-const showPlans = ref(false)
+const showProfile = ref(false)
 const restorePlanData = ref(null)
 const editingPlan = ref(null)
 
@@ -29,14 +28,21 @@ watch(
   },
   { immediate: true },
 )
+
+function openProfile() {
+  if (route.path === '/buffer') {
+    router.push('/')
+  }
+  showProfile.value = true
+}
+
 function handleLoadPlan(plan) {
   restorePlanData.value = plan.typeSettings || {}
   editingPlan.value = plan
   router.push('/buffer')
+  showProfile.value = false
 }
-function handleEditPlan(plan) {
-  handleLoadPlan(plan)
-}
+
 onMounted(() => {
   checkAuth()
 })
@@ -45,8 +51,9 @@ onMounted(() => {
 <template>
   <div class="app-layout">
     <OlMap />
-    <AppHeader @open-login="showLogin = true" @open-plans="showPlans = true" />
+    <AppHeader @open-profile="openProfile" />
     <BaseLayerSwitcher />
+    <LayerPanel />
     <main class="app-content">
       <RouterView v-slot="{ Component }">
         <transition name="fade" mode="out-in">
@@ -54,13 +61,7 @@ onMounted(() => {
         </transition>
       </RouterView>
     </main>
-    <AuthModal :visible="showLogin" @close="showLogin = false" />
-    <PlanDrawer
-      :visible="showPlans"
-      @close="showPlans = false"
-      @load-plan="handleLoadPlan"
-      @edit-plan="handleEditPlan"
-    />
+    <ProfilePanel :visible="showProfile" @close="showProfile = false" @load-plan="handleLoadPlan" />
   </div>
 </template>
 

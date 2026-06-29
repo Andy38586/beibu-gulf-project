@@ -10,13 +10,13 @@ const mapStore = useMapStore()
       :class="{ active: mapStore.activeBaseMap === 'image' }"
       @click="mapStore.switchBaseMap('image')"
     >
-      影像
+      影像底图
     </button>
     <button
       :class="{ active: mapStore.activeBaseMap === 'vector' }"
       @click="mapStore.switchBaseMap('vector')"
     >
-      矢量
+      矢量底图
     </button>
   </div>
 </template>
@@ -24,30 +24,35 @@ const mapStore = useMapStore()
 <style scoped>
 .base-switcher {
   position: absolute;
-  bottom: 16px;
-  left: 16px;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
   z-index: 40;
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(6px);
-  border-radius: 10px;
-  padding: 6px;
+  background: rgba(44, 62, 80, 0.85);
+  backdrop-filter: blur(10px);
+  border-radius: 30px;
+  padding: 4px;
   display: flex;
   gap: 4px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
 }
 .base-switcher button {
   border: none;
   background: transparent;
-  padding: 6px 10px;
-  border-radius: 6px;
+  padding: 8px 20px;
+  border-radius: 26px;
   font-size: 13px;
+  color: rgba(255, 255, 255, 0.7);
   cursor: pointer;
+  transition: all 0.2s;
 }
 .base-switcher button:hover {
-  background: #f0f4f8;
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
 }
 .base-switcher button.active {
-  background: #409eff;
-  color: white;
+  background: white;
+  color: #34495e;
+  font-weight: 500;
 }
 </style>

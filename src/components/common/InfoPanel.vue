@@ -29,8 +29,8 @@ defineProps({
 <style scoped>
 .info-panel {
   position: absolute;
-  top: 70px;
-  right: 20px;
+  top: 65px;
+  right: 7px;
   width: 280px;
   z-index: 40;
   background: rgba(255, 255, 255, 0.95);

@@ -76,7 +76,7 @@ async function fetchPlans() {
       const tB = new Date(b.updatedeatedAt)
       return tB - tA
     })
-    // eslint-disable-next-line no-empty, no-unused-vars
+    // eslint-disable-next-line no-unused-vars
   } catch (e) {
     plans.value = []
   } finally {
@@ -208,24 +208,27 @@ function formatDate(iso) {
 <style scoped>
 .profile-panel {
   position: fixed;
-  top: 70px;
-  right: 20px;
+  top: 55px;
+  right: 15px;
   width: 280px;
-  z-index: 55;
+  z-index: 40;
   pointer-events: auto;
-  background: rgba(255, 255, 255, 0.98);
+  background: rgba(255, 255, 255, 0.95);
   border-radius: 10px;
   box-shadow: 0 4px 18px rgba(0, 0, 0, 0.2);
+  padding: 15px;
+  max-height: 80vh;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
-  max-height: 80vh;
+  gap: 8px;
 }
 .panel-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 15px;
   border-bottom: 1px solid #eee;
+  padding-bottom: 15px;
 }
 .panel-header h3 {
   margin: 0;
@@ -241,7 +244,6 @@ function formatDate(iso) {
   line-height: 1;
 }
 .panel-body {
-  padding: 15px;
   overflow-y: auto;
 }
 .tab-row {

@@ -29,9 +29,9 @@ function handleResult(result) {
 <style scoped>
 .buffer-panel {
   position: fixed;
-  top: 70px;
-  right: 20px;
-  width: 280px;
+  top: 55px;
+  right: 15px;
+  width: 310px;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -39,10 +39,13 @@ function handleResult(result) {
   pointer-events: auto;
 }
 .panel-card {
-  background: rgba(255, 255, 255, 0.98);
+  background: rgba(255, 255, 255, 0.95);
   border-radius: 10px;
   box-shadow: 0 4px 18px rgba(0, 0, 0, 0.2);
   padding: 15px;
-  overflow: hidden;
+  max-height: 80vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
 }
 </style>

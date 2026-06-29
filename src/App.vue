@@ -1,56 +1,67 @@
 <script setup>
-import { ref, onMounted, provide } from 'vue'
-import { RouterView } from 'vue-router'
+import { RouterView, useRoute, useRouter } from 'vue-router'
+import { onMounted, provide, ref, watch } from 'vue'
 import AppHeader from '@/components/common/AppHeader.vue'
-import ErrorBoundary from '@/components/common/ErrorBoundary.vue'
 import AuthModal from '@/components/auth/AuthModal.vue'
 import PlanDrawer from '@/components/user/PlanDrawer.vue'
+import OlMap from '@/components/map/OlMap.vue'
+import BaseLayerSwitcher from '@/components/map/BaseLayerSwitcher.vue'
+import { useLayerManager } from '@/composables/useLayerManager'
 import { useAuth } from '@/composables/useAuth'
 
-const showAuthModal = ref(false)
-const showPlanDrawer = ref(false)
+const route = useRoute()
+const router = useRouter()
+const { activate } = useLayerManager()
+const { checkAuth } = useAuth()
+
+const showLogin = ref(false)
+const showPlans = ref(false)
 const restorePlanData = ref(null)
 const editingPlan = ref(null)
-const { checkAuth } = useAuth()
 
 provide('restorePlanData', restorePlanData)
 provide('editingPlan', editingPlan)
 
+watch(
+  () => route.name,
+  (name) => {
+    activate(name?.toLowerCase())
+  },
+  { immediate: true },
+)
+function handleLoadPlan(plan) {
+  restorePlanData.value = plan.typeSettings || {}
+  editingPlan.value = plan
+  router.push('/buffer')
+}
+function handleEditPlan(plan) {
+  handleLoadPlan(plan)
+}
 onMounted(() => {
   checkAuth()
 })
-
-function onLoadPlan(plan) {
-  restorePlanData.value = { ...plan.typeSettings }
-  showPlanDrawer.value = false
-}
-
-function onEditPlan(plan) {
-  restorePlanData.value = { ...plan.typeSettings }
-  editingPlan.value = { id: plan.id, name: plan.name }
-  showPlanDrawer.value = false
-}
-
-function onOpenPlans() {
-  showPlanDrawer.value = true
-}
 </script>
 
 <template>
   <div class="app-layout">
-    <AppHeader @open-login="showAuthModal = true" @open-plans="onOpenPlans" />
+    <OlMap />
+    <AppHeader @open-login="showLogin = true" @open-plans="showPlans = true" />
+    <BaseLayerSwitcher />
     <main class="app-content">
-      <ErrorBoundary>
       <RouterView v-slot="{ Component }">
         <transition name="fade" mode="out-in">
           <component :is="Component" />
         </transition>
       </RouterView>
-      </ErrorBoundary>
     </main>
+    <AuthModal :visible="showLogin" @close="showLogin = false" />
+    <PlanDrawer
+      :visible="showPlans"
+      @close="showPlans = false"
+      @load-plan="handleLoadPlan"
+      @edit-plan="handleEditPlan"
+    />
   </div>
-  <AuthModal :visible="showAuthModal" @close="showAuthModal = false" />
-  <PlanDrawer :visible="showPlanDrawer" @close="showPlanDrawer = false" @load-plan="onLoadPlan" @edit-plan="onEditPlan" />
 </template>
 
 <style scoped>
@@ -63,6 +74,10 @@ function onOpenPlans() {
   height: 100%;
   position: relative;
   overflow: hidden;
+  pointer-events: none;
+}
+.app-content > * {
+  pointer-events: auto;
 }
 .fade-enter-active,
 .fade-leave-active {

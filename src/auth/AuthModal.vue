@@ -2,21 +2,24 @@
 import { ref } from 'vue'
 import { useAuth } from '@/composables/useAuth'
 
+const props = defineProps({ visible: Boolean })
 const emit = defineEmits(['close'])
+
 const { login, register } = useAuth()
+
 const mode = ref('login')
 const username = ref('')
 const password = ref('')
 const confirmPassword = ref('')
 const errorMsg = ref('')
 const loading = ref(false)
-defineProps({ visible: Boolean })
 
 function switchMode(m) {
   mode.value = m
   errorMsg.value = ''
   confirmPassword.value = ''
 }
+
 async function handleSubmit() {
   errorMsg.value = ''
   if (!username.value.trim() || !password.value) {
@@ -47,6 +50,7 @@ async function handleSubmit() {
     loading.value = false
   }
 }
+
 function onOverlayClick() {
   emit('close')
 }
@@ -59,15 +63,14 @@ function onOverlayClick() {
         <button class="close-btn" @click="emit('close')">x</button>
         <h3 class="auth-title">{{ mode === 'login' ? '登录' : '注册' }}</h3>
         <div class="tab-row">
-          <button :class="['tab-btn', { active: mode === 'login' }]" @click="switchMode('login')">
-            登录
-          </button>
+          <button
+            :class="['tab-btn', { active: mode === 'login' }]"
+            @click="switchMode('login')"
+          >登录</button>
           <button
             :class="['tab-btn', { active: mode === 'register' }]"
             @click="switchMode('register')"
-          >
-            注册
-          </button>
+          >注册</button>
         </div>
         <form class="auth-form" @submit.prevent="handleSubmit">
           <input
@@ -151,9 +154,7 @@ function onOverlayClick() {
   font-size: 14px;
   background: #f5f7fa;
   color: #666;
-  transition:
-    background 0.2s,
-    color 0.2s;
+  transition: background 0.2s, color 0.2s;
 }
 .tab-btn.active {
   background: #409eff;

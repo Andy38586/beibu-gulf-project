@@ -52,7 +52,6 @@ export function usePlans() {
       saving.value = false
     }
   }
-
   async function deletePlan(id) {
     const headers = authHeaders()
     const res = await fetch(`${API_BASE}/plans/${id}`, {
@@ -70,7 +69,6 @@ export function usePlans() {
     }
     return null
   }
-
   async function updatePlan(id, name, typeSettings) {
     updating.value = true
     try {

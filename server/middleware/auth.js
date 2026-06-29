@@ -1,6 +1,23 @@
 import jwt from 'jsonwebtoken'
 
-const JWT_SECRET = process.env.JWT_SECRET || 'beibu-gulf-dev-secret-2024'
+const DEV_SECRET = 'beibu-gulf-dev-secret-2024'
+const isProd = process.env.NODE_ENV === 'production'
+const JWT_SECRET = process.env.JWT_SECRET || (isProd ? null : DEV_SECRET)
+
+if (!JWT_SECRET) {
+  throw new Error(
+    'FATAL: JWT_SECRET 环境变量未设置！\n' +
+    '请在 server/.env 文件中配置 JWT_SECRET（至少32位随机字符串）。\n' +
+    '可参考 server/.env.example 模板。'
+  )
+}
+
+if (!isProd && JWT_SECRET === DEV_SECRET) {
+  console.warn(
+    '[WARN] 当前使用默认开发密钥，仅适用于本地开发！\n' +
+    '       生产环境必须设置 JWT_SECRET 环境变量。'
+  )
+}
 
 export function authenticate(req, res, next) {
   const header = req.headers.authorization

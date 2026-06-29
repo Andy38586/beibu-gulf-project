@@ -5,6 +5,16 @@ import { fileURLToPath } from 'url'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const DATA_FILE = path.join(__dirname, '../data/users.json')
 
+let writeLock = Promise.resolve()
+function sequential(fn) {
+  const next = writeLock.then(fn, fn)
+  writeLock = next.then(
+    () => {},
+    () => {},
+  )
+  return next
+}
+
 async function readAll() {
   try {
     const content = await fs.readFile(DATA_FILE, 'utf-8')
@@ -27,16 +37,18 @@ export async function findByUsername(username) {
 }
 
 export async function createUser(username, hashedPassword) {
-  const users = await readAll()
-  const newUser = {
-    id: Date.now().toString(),
-    username,
-    password: hashedPassword,
-    createdAt: new Date().toISOString(),
-  }
-  users.push(newUser)
-  await writeAll(users)
-  return { id: newUser.id, username: newUser.username, createdAt: newUser.createdAt }
+  return sequential(async () => {
+    const users = await readAll()
+    const newUser = {
+      id: Date.now().toString(),
+      username,
+      password: hashedPassword,
+      createdAt: new Date().toISOString(),
+    }
+    users.push(newUser)
+    await writeAll(users)
+    return { id: newUser.id, username: newUser.username, createdAt: newUser.createdAt }
+  })
 }
 
 export async function userExists(username) {

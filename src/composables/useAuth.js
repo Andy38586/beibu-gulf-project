@@ -12,18 +12,15 @@ function loadToken() {
     token.value = saved
   }
 }
-
 function saveToken(t) {
   token.value = t
   localStorage.setItem('auth_token', t)
 }
-
 function clearToken() {
   token.value = ''
   localStorage.removeItem('auth_token')
   user.value = null
 }
-
 async function apiRequest(path, options = {}) {
   const headers = { 'Content-Type': 'application/json', ...options.headers }
   if (token.value) {
@@ -34,7 +31,6 @@ async function apiRequest(path, options = {}) {
   if (!res.ok) throw new Error(data.error || '请求失败')
   return data
 }
-
 export function useAuth() {
   loadToken()
 
@@ -47,7 +43,6 @@ export function useAuth() {
     user.value = data.user
     return data.user
   }
-
   async function register(username, password) {
     const data = await apiRequest('/auth/register', {
       method: 'POST',
@@ -57,11 +52,9 @@ export function useAuth() {
     user.value = data.user
     return data.user
   }
-
   function logout() {
     clearToken()
   }
-
   async function checkAuth() {
     if (!token.value) return null
     try {
@@ -73,6 +66,5 @@ export function useAuth() {
       return null
     }
   }
-
   return { user, token, isAuthenticated, login, register, logout, checkAuth }
 }

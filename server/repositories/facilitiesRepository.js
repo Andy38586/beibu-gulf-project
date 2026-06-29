@@ -14,10 +14,26 @@ const FILE_MAP = {
   mall: 'qz_mall_and_supermarket.json',
   xiaoqu: 'xiaoqu.json',
 }
+
+const cache = new Map()
+
 async function readJsonFile(filename) {
+  if (cache.has(filename)) {
+    return cache.get(filename)
+  }
   const filePath = path.join(__dirname, '../data', filename)
   const content = await fs.readFile(filePath, 'utf-8')
-  return JSON.parse(content)
+  const data = JSON.parse(content)
+  cache.set(filename, data)
+  return data
+}
+
+export function invalidateCache(type) {
+  if (type && FILE_MAP[type]) {
+    cache.delete(FILE_MAP[type])
+  } else {
+    cache.clear()
+  }
 }
 export async function findByType(type) {
   const filename = FILE_MAP[type]

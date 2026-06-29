@@ -5,7 +5,12 @@ import { fileURLToPath } from 'url'
 
 let writeLock = Promise.resolve()
 function sequential(fn) {
-  return (writeLock = writeLock.then(fn))
+  const next = writeLock.then(fn, fn)
+  writeLock = next.then(
+    () => {},
+    () => {},
+  )
+  return next
 }
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))

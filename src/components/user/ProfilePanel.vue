@@ -208,10 +208,10 @@ function formatDate(iso) {
 <style scoped>
 .profile-panel {
   position: fixed;
-  top: 55px;
-  right: 15px;
+  top: 70px;
+  right: 20px;
   width: 280px;
-  z-index: 40;
+  z-index: 55;
   pointer-events: auto;
   background: rgba(255, 255, 255, 0.95);
   border-radius: 10px;

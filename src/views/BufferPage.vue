@@ -29,13 +29,13 @@ function handleResult(result) {
 <style scoped>
 .buffer-panel {
   position: fixed;
-  top: 55px;
-  right: 15px;
+  top: 70px;
+  right: 20px;
   width: 310px;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  z-index: 40;
+  z-index: 55;
   pointer-events: auto;
 }
 .panel-card {

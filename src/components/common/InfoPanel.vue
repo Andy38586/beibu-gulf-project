@@ -29,10 +29,10 @@ defineProps({
 <style scoped>
 .info-panel {
   position: absolute;
-  top: 65px;
-  right: 7px;
+  top: 60px;
+  right: 12px;
   width: 280px;
-  z-index: 40;
+  z-index: 55;
   background: rgba(255, 255, 255, 0.95);
   border-radius: 10px;
   box-shadow: 0 4px 18px rgba(0, 0, 0, 0.2);

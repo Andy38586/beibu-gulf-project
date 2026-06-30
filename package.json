@@ -15,6 +15,7 @@
   "dependencies": {
     "@turf/turf": "^7.3.5",
     "echarts": "^6.1.0",
+    "element-plus": "^2.14.2",
     "ol": "^10.9.0",
     "pinia": "^3.0.4",
     "vue": "^3.5.38",

@@ -89,7 +89,7 @@ async function handleDelete(id) {
   try {
     await deletePlan(id)
     plans.value = plans.value.filter((p) => p.id !== id)
-    // eslint-disable-next-line no-empty, no-unused-vars
+    // eslint-disable-next-line no-unused-vars
   } catch (e) {
   } finally {
     deleting.value = null
@@ -116,48 +116,73 @@ function formatDate(iso) {
   <div class="profile-panel" v-if="visible">
     <div class="panel-header">
       <h3>{{ user ? '个人主页' : '登录/注册' }}</h3>
-      <button class="close-btn" @click="emit('close')">x</button>
+      <el-button type="text" class="close-btn" @click="emit('close')">×</el-button>
     </div>
 
     <div class="panel-body" v-if="!user">
-      <div class="tab-row">
-        <button :class="['tab-btn', { active: mode === 'login' }]" @click="switchMode('login')">
-          登录
-        </button>
-        <button
-          :class="['tab-btn', { active: mode === 'register' }]"
-          @click="switchMode('register')"
-        >
-          注册
-        </button>
-      </div>
-      <form class="auth-form" @submit.prevent="handleSubmit">
-        <input
-          v-model="username"
-          class="input-field"
-          placeholder="用户名"
-          autocomplete="username"
-        />
-        <input
-          v-model="password"
-          class="input-field"
-          type="password"
-          placeholder="密码"
-          autocomplete="current-password"
-        />
-        <input
-          v-if="mode === 'register'"
-          v-model="confirmPassword"
-          class="input-field"
-          type="password"
-          placeholder="确认密码"
-          autocomplete="new-password"
-        />
-        <p v-if="errorMsg" class="error-text">{{ errorMsg }}</p>
-        <button type="submit" class="submit-btn" :disabled="loading">
-          {{ loading ? '处理中...' : mode === 'login' ? '登录' : '注册' }}
-        </button>
-      </form>
+      <el-tabs v-model="mode" class="tab-row" @tab-change="switchMode">
+        <el-tab-pane label="登录" name="login">
+          <el-form :model="form" class="auth-form" @submit.prevent="handleSubmit">
+            <el-input
+              v-model="username"
+              placeholder="用户名"
+              autocomplete="username"
+              size="small"
+            />
+            <el-input
+              v-model="password"
+              type="password"
+              placeholder="密码"
+              autocomplete="current-password"
+              size="small"
+            />
+            <div v-if="errorMsg" class="error-text">{{ errorMsg }}</div>
+            <el-button
+              type="primary"
+              size="small"
+              class="submit-btn"
+              :loading="loading"
+              @click="handleSubmit"
+            >
+              {{ loading ? '处理中...' : '登录' }}
+            </el-button>
+          </el-form>
+        </el-tab-pane>
+        <el-tab-pane label="注册" name="register">
+          <el-form :model="form" class="auth-form" @submit.prevent="handleSubmit">
+            <el-input
+              v-model="username"
+              placeholder="用户名"
+              autocomplete="username"
+              size="small"
+            />
+            <el-input
+              v-model="password"
+              type="password"
+              placeholder="密码"
+              autocomplete="current-password"
+              size="small"
+            />
+            <el-input
+              v-model="confirmPassword"
+              type="password"
+              placeholder="确认密码"
+              autocomplete="new-password"
+              size="small"
+            />
+            <div v-if="errorMsg" class="error-text">{{ errorMsg }}</div>
+            <el-button
+              type="primary"
+              size="small"
+              class="submit-btn"
+              :loading="loading"
+              @click="handleSubmit"
+            >
+              {{ loading ? '处理中...' : '注册' }}
+            </el-button>
+          </el-form>
+        </el-tab-pane>
+      </el-tabs>
     </div>
 
     <div class="panel-body" v-else>
@@ -165,7 +190,7 @@ function formatDate(iso) {
         <div class="avatar">👤</div>
         <div class="user-details">
           <span class="user-name">{{ user.username }}</span>
-          <button class="logout-btn" @click="handleLogout">退出</button>
+          <el-button size="small" @click="handleLogout">退出</el-button>
         </div>
       </div>
 
@@ -184,18 +209,21 @@ function formatDate(iso) {
             <div class="plan-actions">
               <template v-if="confirmDeleteId === plan.id">
                 <span class="confirm-hint">确认?</span>
-                <button class="action-btn confirm-yes" @click="handleDelete(plan.id)">确认</button>
-                <button class="action-btn confirm-no" @click="confirmDeleteId = null">取消</button>
+                <el-button size="small" type="danger" @click="handleDelete(plan.id)"
+                  >确认</el-button
+                >
+                <el-button size="small" @click="confirmDeleteId = null">取消</el-button>
               </template>
               <template v-else>
-                <button class="action-btn load-btn" @click="handleLoad(plan)">加载</button>
-                <button
-                  class="action-btn delete-btn"
-                  :disabled="deleting === plan.id"
+                <el-button size="small" type="primary" @click="handleLoad(plan)">加载</el-button>
+                <el-button
+                  size="small"
+                  type="danger"
+                  :loading="deleting === plan.id"
                   @click="confirmDeleteId = plan.id"
                 >
-                  {{ deleting === plan.id ? '...' : '删除' }}
-                </button>
+                  删除
+                </el-button>
               </template>
             </div>
           </div>
@@ -236,56 +264,21 @@ function formatDate(iso) {
   color: #333;
 }
 .close-btn {
-  background: none;
-  border: none;
   font-size: 18px;
-  cursor: pointer;
   color: #999;
   line-height: 1;
+  padding: 0;
 }
 .panel-body {
   overflow-y: auto;
 }
 .tab-row {
-  display: flex;
-  gap: 0;
   margin-bottom: 12px;
-  border-radius: 6px;
-  overflow: hidden;
-  border: 1px solid #e0e0e0;
-}
-.tab-btn {
-  flex: 1;
-  padding: 6px 0;
-  border: none;
-  cursor: pointer;
-  font-size: 13px;
-  background: #f5f7fa;
-  color: #666;
-  transition:
-    background 0.2s,
-    color 0.2s;
-}
-.tab-btn.active {
-  background: #409eff;
-  color: white;
-  font-weight: 500;
 }
 .auth-form {
   display: flex;
   flex-direction: column;
   gap: 8px;
-}
-.input-field {
-  padding: 8px 10px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  font-size: 13px;
-  outline: none;
-  transition: border-color 0.2s;
-}
-.input-field:focus {
-  border-color: #409eff;
 }
 .error-text {
   color: #e74c3c;
@@ -293,21 +286,7 @@ function formatDate(iso) {
   margin: 0;
 }
 .submit-btn {
-  padding: 8px 0;
-  background: #409eff;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  font-size: 14px;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-.submit-btn:hover:not(:disabled) {
-  background: #337ecc;
-}
-.submit-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+  width: 100%;
 }
 .user-info {
   display: flex;
@@ -335,19 +314,6 @@ function formatDate(iso) {
   font-size: 16px;
   font-weight: 500;
   color: #333;
-}
-.logout-btn {
-  padding: 4px 10px;
-  background: #f5f5f5;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 12px;
-  cursor: pointer;
-  color: #666;
-  align-self: flex-start;
-}
-.logout-btn:hover {
-  background: #eee;
 }
 .section-divider {
   height: 1px;
@@ -405,47 +371,9 @@ function formatDate(iso) {
   gap: 4px;
   flex-shrink: 0;
 }
-.action-btn {
-  padding: 3px 8px;
-  border-radius: 4px;
-  font-size: 11px;
-  border: 1px solid #ddd;
-  cursor: pointer;
-  background: white;
-  transition: background 0.15s;
-}
-.action-btn:hover:not(:disabled) {
-  background: #f5f5f5;
-}
-.action-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-.load-btn {
-  color: #409eff;
-  border-color: #409eff;
-}
-.load-btn:hover:not(:disabled) {
-  background: #ecf5ff;
-}
-.delete-btn {
-  color: #e74c3c;
-  border-color: #e74c3c;
-}
-.delete-btn:hover:not(:disabled) {
-  background: #fef0ef;
-}
 .confirm-hint {
   font-size: 11px;
   color: #e74c3c;
   line-height: 22px;
-}
-.confirm-yes {
-  color: #e74c3c;
-  border-color: #e74c3c;
-}
-.confirm-no {
-  color: #666;
-  border-color: #ccc;
 }
 </style>

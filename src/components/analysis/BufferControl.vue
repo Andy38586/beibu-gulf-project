@@ -147,26 +147,26 @@ async function onSavePlan(name) {
     <h3>选址分析</h3>
     <div class="type-list">
       <div v-for="(conf, key) in FACILITY_CONFIG" :key="key" class="type-item">
-        <label class="type-label">
-          <input type="checkbox" v-model="typeSettings[key].selected" />
+        <el-checkbox v-model="typeSettings[key].selected" class="type-label">
           <span :style="{ color: conf.color }">●</span>
           {{ conf.label }}
-        </label>
-        <select
+        </el-checkbox>
+        <el-select
           v-if="typeSettings[key]?.selected"
           v-model.number="typeSettings[key].importance"
+          size="small"
           class="importance-select"
         >
-          <option v-for="n in 5" :key="n" :value="n">{{ IMPORTANCE_LABELS[n] }}</option>
-        </select>
+          <el-option v-for="n in 5" :key="n" :label="IMPORTANCE_LABELS[n]" :value="n" />
+        </el-select>
       </div>
     </div>
     <div class="btn-group">
-      <button class="action-btn" @click="runAnalysis" :disabled="calculating">
+      <el-button size="small" :loading="calculating" @click="runAnalysis">
         {{ calculating ? '分析中...' : '开始筛选' }}
-      </button>
-      <button class="action-btn secondary" @click="clearAll">清空</button>
-      <button v-if="isAuthenticated" class="action-btn primary" @click="handleSavePlan">保存方案</button>
+      </el-button>
+      <el-button size="small" type="default" @click="clearAll">清空</el-button>
+      <el-button v-if="isAuthenticated" size="small" type="primary" @click="handleSavePlan">保存方案</el-button>
     </div>
     <p v-if="saveMessage" class="save-message">{{ saveMessage }}</p>
     <p v-if="calcError" class="error-text">{{ calcError }}</p>
@@ -212,41 +212,12 @@ async function onSavePlan(name) {
   gap: 8px;
 }
 .importance-select {
-  font-size: 13px;
   width: 90px;
-  padding: 2px 4px;
 }
 .btn-group {
   display: flex;
   flex-direction: column;
   gap: 6px;
-}
-.action-btn {
-  padding: 7px 12px;
-  border-radius: 6px;
-  font-size: 14px;
-  border: 1px solid #ddd;
-  cursor: pointer;
-  background: white;
-  transition: background 0.2s;
-}
-.action-btn:hover:not(:disabled) {
-  background: #f5f7fa;
-}
-.action-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-.action-btn.primary {
-  background: #409eff;
-  color: white;
-  border-color: #409eff;
-}
-.action-btn.primary:hover:not(:disabled) {
-  background: #337ecc;
-}
-.action-btn.secondary {
-  background: #f5f7fa;
 }
 .error-text {
   color: #e74c3c;

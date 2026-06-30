@@ -29,13 +29,11 @@ watch(
     }
   },
 )
-
 function switchMode(m) {
   mode.value = m
   errorMsg.value = ''
   confirmPassword.value = ''
 }
-
 async function handleSubmit() {
   errorMsg.value = ''
   if (!username.value.trim() || !password.value) {
@@ -66,7 +64,6 @@ async function handleSubmit() {
     loading.value = false
   }
 }
-
 async function fetchPlans() {
   plansLoading.value = true
   try {
@@ -76,27 +73,23 @@ async function fetchPlans() {
       const tB = new Date(b.updatedeatedAt)
       return tB - tA
     })
-    // eslint-disable-next-line no-unused-vars
   } catch (e) {
     plans.value = []
   } finally {
     plansLoading.value = false
   }
 }
-
 async function handleDelete(id) {
   deleting.value = id
   try {
     await deletePlan(id)
     plans.value = plans.value.filter((p) => p.id !== id)
-    // eslint-disable-next-line no-unused-vars
   } catch (e) {
   } finally {
     deleting.value = null
     confirmDeleteId.value = null
   }
 }
-
 function handleLoad(plan) {
   emit('load-plan', plan)
 }

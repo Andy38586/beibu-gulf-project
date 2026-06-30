@@ -12,17 +12,20 @@ const loading = ref(false)
 const deleting = ref(null)
 const confirmDeleteId = ref(null)
 
-watch(() => props.visible, (v) => {
-  if (v) fetchPlans()
-})
+watch(
+  () => props.visible,
+  (v) => {
+    if (v) fetchPlans()
+  },
+)
 
 async function fetchPlans() {
   loading.value = true
   try {
     const raw = await getPlans()
     plans.value = raw.slice().sort((a, b) => {
-      const tA = new Date(a.updatedAt || a.createdAt);
-      const tB = new Date(b.updatedAt || b.createdAt);
+      const tA = new Date(a.updatedAt || a.createdAt)
+      const tB = new Date(b.updatedAt || b.createdAt)
       return tB - tA
     })
   } catch (e) {
@@ -31,7 +34,6 @@ async function fetchPlans() {
     loading.value = false
   }
 }
-
 async function handleDelete(id) {
   deleting.value = id
   try {
@@ -43,18 +45,13 @@ async function handleDelete(id) {
     confirmDeleteId.value = null
   }
 }
-
-function handleEdit(plan) { emit('edit-plan', plan) }
-
 function handleLoad(plan) {
   emit('load-plan', plan)
   emit('close')
 }
-
 function onOverlayClick() {
   emit('close')
 }
-
 function formatDate(iso) {
   if (!iso) return ''
   const d = new Date(iso)
@@ -82,16 +79,22 @@ function formatDate(iso) {
               <div class="plan-actions">
                 <template v-if="confirmDeleteId === plan.id">
                   <span class="confirm-hint">确认删除?</span>
-                  <button class="action-btn confirm-yes" @click="handleDelete(plan.id)">确认</button>
-                  <button class="action-btn confirm-no" @click="confirmDeleteId = null">取消</button>
+                  <button class="action-btn confirm-yes" @click="handleDelete(plan.id)">
+                    确认
+                  </button>
+                  <button class="action-btn confirm-no" @click="confirmDeleteId = null">
+                    取消
+                  </button>
                 </template>
                 <template v-else>
-                <button class="action-btn load-btn" @click="handleLoad(plan)">加载</button>
-                <button
-                  class="action-btn delete-btn"
-                  :disabled="deleting === plan.id"
-                  @click="confirmDeleteId = plan.id"
-                >{{ deleting === plan.id ? '...' : '删除' }}</button>
+                  <button class="action-btn load-btn" @click="handleLoad(plan)">加载</button>
+                  <button
+                    class="action-btn delete-btn"
+                    :disabled="deleting === plan.id"
+                    @click="confirmDeleteId = plan.id"
+                  >
+                    {{ deleting === plan.id ? '...' : '删除' }}
+                  </button>
                 </template>
               </div>
             </div>

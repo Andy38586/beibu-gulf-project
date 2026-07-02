@@ -31,7 +31,7 @@ const { analyze, calculating, calcError } = useSiteAnalysisApi()
 
 async function runAnalysis() {
   matchedCount.value = null
-
+  calcError.value = ''
   if (selectedKeys.value.length === 0) {
     calcError.value = '请至少选择一种设施类型?'
     return
@@ -50,10 +50,11 @@ async function runAnalysis() {
     emit('result-update', { coverage: null, matchedXiaoqu: [] })
     return
   }
-  matchedCount.value = result.matchedXiaoqu.length
+  const matched = result.matchedXiaoqu ?? []
+  matchedCount.value = matched.length
   emit('result-update', {
-    coverage: result.coverage,
-    matchedXiaoqu: result.matchedXiaoqu,
+    coverage: result.coverage ?? null,
+    matchedXiaoqu: matched,
     selectedTypes: selectedKeys.value,
   })
 }
@@ -166,7 +167,9 @@ async function onSavePlan(name) {
         {{ calculating ? '分析中...' : '开始筛选' }}
       </el-button>
       <el-button size="small" type="default" @click="clearAll">清空</el-button>
-      <el-button v-if="isAuthenticated" size="small" type="primary" @click="handleSavePlan">保存方案</el-button>
+      <el-button v-if="isAuthenticated" size="small" type="primary" @click="handleSavePlan"
+        >保存方案</el-button
+      >
     </div>
     <p v-if="saveMessage" class="save-message">{{ saveMessage }}</p>
     <p v-if="calcError" class="error-text">{{ calcError }}</p>

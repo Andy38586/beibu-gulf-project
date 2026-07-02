@@ -1,86 +1,100 @@
-import VectorSource from 'ol/source/Vector'
-import VectorLayer from 'ol/layer/Vector'
-import GeoJSON from 'ol/format/GeoJSON'
-import { fromLonLat } from 'ol/proj'
-import Point from 'ol/geom/Point'
-import Feature from 'ol/Feature'
-import { Style, Fill, Stroke, Circle as CircleStyle } from 'ol/style'
+export function buildCoverageGeoJson(coverage) {
+  const geojson = { ...coverage }
+  geojson.features.forEach((f) => {
+    f.properties.featureType = 'analysis-coverage'
+  })
+  return geojson
+}
 
-export function useAnalysisLayer(map) {
-  let coverageLayer = null
-  let matchedLayer = null
+export function buildMatchedGeoJson(matchedXiaoqu) {
+  return {
+    type: 'FeatureCollection',
+    features: matchedXiaoqu.map((xq) => ({
+      type: 'Feature',
+      geometry: {
+        type: 'Point',
+        coordinates: [xq.lng, xq.lat],
+      },
+      properties: {
+        ...xq,
+        featureType: 'analysis-matched',
+      },
+    })),
+  }
+}
+
+export const COVERAGE_STYLE = {
+  fillColor: 'rgba(64, 158, 255, 0.15)',
+  strokeColor: '#409eff',
+  strokeWidth: 1,
+  featureType: 'analysis-coverage',
+}
+
+export const MATCHED_STYLE = {
+  size: 6,
+  color: '#e74c3c',
+  featureType: 'analysis-matched',
+}
+
+export function useAnalysisLayer() {
   let isUpdating = false
   let pendingResult = null
 
-  function clearLayers() {
-    if (coverageLayer) {
+  function getAnalysisLayers(result) {
+    const layers = []
+
+    if (result.coverage) {
+      layers.push({
+        id: 'analysis-coverage',
+        geojson: buildCoverageGeoJson(result.coverage),
+        style: COVERAGE_STYLE,
+      })
+    }
+
+    if (result.matchedXiaoqu?.length) {
+      layers.push({
+        id: 'analysis-matched',
+        geojson: buildMatchedGeoJson(result.matchedXiaoqu),
+        style: MATCHED_STYLE,
+      })
+    }
+
+    return layers
+  }
+
+  function createUpdateHandler(renderer) {
+    return function setAnalysisResult(result) {
+      if (isUpdating) {
+        pendingResult = result
+        return
+      }
+      isUpdating = true
       try {
-        map.removeLayer(coverageLayer)
-        // eslint-disable-next-line no-empty
-      } catch (e) {}
-      coverageLayer = null
-    }
-    if (matchedLayer) {
-      try {
-        map.removeLayer(matchedLayer)
-        // eslint-disable-next-line no-empty
-      } catch (e) {}
-      matchedLayer = null
-    }
-  }
-  function buildCoverageLayer(coverage) {
-    const source = new VectorSource({
-      features: new GeoJSON().readFeatures(coverage, { featureProjection: 'EPSG:3857' }),
-    })
-    return new VectorLayer({
-      source,
-      style: new Style({
-        fill: new Fill({ color: 'rgba(64, 158, 255, 0.15)' }),
-        stroke: new Stroke({ color: '#409eff', width: 1 }),
-      }),
-    })
-  }
-  function buildMatchedLayer(matchedXiaoqu) {
-    const features = matchedXiaoqu.map((xq) => {
-      const f = new Feature({ geometry: new Point(fromLonLat([xq.lng, xq.lat])) })
-      f.setProperties(xq)
-      return f
-    })
-    return new VectorLayer({
-      source: new VectorSource({ features }),
-      style: new Style({
-        image: new CircleStyle({
-          radius: 6,
-          fill: new Fill({ color: '#e74c3c' }),
-          stroke: new Stroke({ color: '#fff', width: 1.5 }),
-        }),
-      }),
-    })
-  }
-  function setAnalysisResult({ coverage, matchedXiaoqu }) {
-    if (isUpdating) {
-      pendingResult = { coverage, matchedXiaoqu }
-      return
-    }
-    isUpdating = true
-    try {
-      clearLayers()
-      if (coverage) {
-        coverageLayer = buildCoverageLayer(coverage)
-        map.addLayer(coverageLayer)
-      }
-      if (matchedXiaoqu?.length) {
-        matchedLayer = buildMatchedLayer(matchedXiaoqu)
-        map.addLayer(matchedLayer)
-      }
-    } finally {
-      isUpdating = false
-      if (pendingResult) {
-        const next = pendingResult
-        pendingResult = null
-        setAnalysisResult(next)
+        renderer.removeLayer('analysis-coverage')
+        renderer.removeLayer('analysis-matched')
+
+        const layers = getAnalysisLayers(result)
+        layers.forEach((layer) => {
+          if (layer.style.featureType === 'analysis-coverage') {
+            renderer.addGeoJsonLayer(layer.id, layer.geojson, layer.style)
+          } else {
+            renderer.addPointLayer(layer.id, layer.geojson.features.map(f => ({
+              ...f.properties,
+              lng: f.geometry.coordinates[0],
+              lat: f.geometry.coordinates[1],
+            })), layer.style)
+          }
+        })
+      } finally {
+        isUpdating = false
+        if (pendingResult) {
+          const next = pendingResult
+          pendingResult = null
+          setAnalysisResult(next)
+        }
       }
     }
   }
-  return { setAnalysisResult }
+
+  return { getAnalysisLayers, createUpdateHandler }
 }

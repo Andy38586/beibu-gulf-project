@@ -1,8 +1,8 @@
-﻿# 北部湾港 WebGIS - 港口选址分析平台
+# 北部湾港 WebGIS - 港口选址分析平台
 
-一个全栈 WebGIS 应用，面向**北部湾（广西钦州）港口腹地的选址分析**。前端基于 Vue 3 + OpenLayers + Turf.js，后端基于 Express.js。
+一个全栈 WebGIS 应用，面向**北部湾（广西钦州）港口腹地的选址分析**。前端基于 Vue 3 + OpenLayers + Cesium + Turf.js，后端基于 Express.js。
 
-本项目展示了一套完整的空间分析工作流：多因子缓冲区叠加分析、距离加权综合评分、交互式地图可视化，以及基于 JWT 认证的用户方案管理。
+本项目采用 **Renderer Adapter 架构模式**，实现了 2D/3D 地图引擎的统一抽象，业务图层与渲染引擎完全解耦。展示了一套完整的空间分析工作流：多因子缓冲区叠加分析、距离加权综合评分、交互式地图可视化，以及基于 JWT 认证的用户方案管理。
 
 ---
 
@@ -10,12 +10,13 @@
 
 | 层级 | 技术 |
 |------|------|
-| **前端** | Vue 3（Composition API、`<script setup>`）、Vite、Vue Router |
-| **GIS 引擎** | OpenLayers 10（地图渲染、矢量图层、GeoJSON）、Turf.js（空间分析） |
+| **前端** | Vue 3（Composition API、`<script setup>`）、Vite、Vue Router、Pinia |
+| **GIS 引擎** | OpenLayers 10（2D 地图）、Cesium（3D 地图）、Turf.js（空间分析） |
 | **数据可视化** | ECharts 6（评分分解雷达图） |
 | **后端** | Express.js 5（ESM）、RESTful API |
 | **认证** | JWT（jsonwebtoken + bcryptjs） |
 | **存储** | 基于 JSON 文件的持久化 |
+| **测试** | Vitest（单元测试、集成测试） |
 | **代码规范** | ESLint + oxlint + Prettier |
 
 ---
@@ -29,10 +30,12 @@
 - 返回按推荐度排序的前 10 个小区，附带各设施类型得分明细
 
 ### 地图可视化
-- 交互式 OpenLayers 地图，OSM 底图
+- **2D/3D 双视图切换**：统一地图组件支持 OpenLayers 2D 和 Cesium 3D 切换
+- 交互式地图，天地图底图（影像/矢量）
 - 港口点位点击查看详情面板
 - 分析结果覆盖区域半透明多边形渲染
 - 匹配小区红色圆点标记
+- 图层控制面板（底图切换、业务图层显隐）
 
 ### 分析可视化
 - 点击任一结果项，弹出 ECharts 雷达图展示该小区在各设施类型上的得分分布
@@ -52,25 +55,74 @@
 
 ## 架构
 
+### Renderer Adapter 模式
+
+本项目采用 **Renderer Adapter 架构模式**，实现了地图渲染引擎的统一抽象：
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      UnifiedMap.vue                          │
+│                      （统一地图组件）                         │
+│  ┌─────────────────┐    ┌─────────────────┐                 │
+│  │   OLRenderer    │    │  CesiumRenderer │                 │
+│  │   (2D 渲染器)    │    │   (3D 渲染器)    │                 │
+│  └────────┬────────┘    └────────┬────────┘                 │
+│           │                      │                           │
+│           └──────────┬───────────┘                           │
+│                      ▼                                       │
+│              MapRenderer (抽象基类)                           │
+│              - addPointLayer()                               │
+│              - addGeoJsonLayer()                             │
+│              - setVisibility()                               │
+│              - flyTo()                                       │
+│              - on('click', handler)                          │
+└──────────────────────┬──────────────────────────────────────┘
+                       │
+     ┌─────────────────┼─────────────────┐
+     ▼                 ▼                 ▼
+┌─────────────┐  ┌─────────────┐  ┌─────────────┐
+│usePortLayer │  │useBoundary │  │useAnalysis  │
+│  (港口图层)  │  │ Layer      │  │ Layer       │
+│             │  │ (边界图层)  │  │ (分析图层)  │
+│ 纯业务逻辑  │  │ 纯业务逻辑  │  │ 纯业务逻辑  │
+│ 返回GeoJSON │  │ 返回GeoJSON │  │ 返回GeoJSON │
+└─────────────┘  └─────────────┘  └─────────────┘
+```
+
+### 架构优势
+
+| 特性 | 说明 |
+|------|------|
+| **业务与引擎解耦** | 业务图层只返回 GeoJSON 和样式配置，不关心底层使用 OpenLayers 还是 Cesium |
+| **统一接口** | 通过 `MapRenderer` 抽象基类定义标准接口，新增渲染引擎只需实现接口 |
+| **状态持久化** | 2D/3D 切换时自动保存/恢复图层可见性、视角状态 |
+| **可测试性** | Renderer 可被 mock，便于单元测试和集成测试 |
+
+### 前端架构
+
 ```
 前端 (Vue 3 + Vite)                    后端 (Express.js)
 +-------------------------+            +----------------------+
 |  App.vue                |            |  app.js              |
-|  +-- AppHeader.vue      |   HTTP     |  +-- /api/markers    |
-|  +-- HomePage.vue       |  <------>  |  +-- /api/auth       |
-|  |   +-- MapContainer   |   REST     |  +-- /api/plans      |
-|  |   +-- InfoPanel      |            |  +-- /api/site-analysis
+|  +-- UnifiedMap.vue     |            |  +-- /api/markers    |
+|  |   +-- Renderer       |   HTTP     |  +-- /api/auth       |
+|  +-- HomePage.vue       |  <------>  |  +-- /api/plans      |
+|  |   +-- InfoPanel      |   REST     |  +-- /api/site-analysis
 |  +-- BufferPage.vue     |            |  +-- /api/facilities |
-|  |   +-- MapContainer   |            |  +-- controllers/    |
-|  |   +-- BufferControl  |            |  +-- services/       |
-|  |   +-- ResultPanel    |            |  |   +-- siteAnalysisService
-|  +-- OverlayPage.vue    |            |  |   +-- scoringService
+|  |   +-- BufferControl  |            |  +-- controllers/    |
+|  |   +-- ResultPanel    |            |  +-- services/       |
+|  +-- LayerPanel.vue     |            |  |   +-- siteAnalysisService
+|  +-- MapSwitcher.vue    |            |  |   +-- scoringService
 |  +-- composables/       |            |  |   +-- decayFunctions
 |  |   +-- useAuth.js     |            |  |   +-- importanceMapping
 |  |   +-- usePlans.js    |            |  +-- repositories/   |
-|  |   +-- useSiteAnalysisApi          |  +-- middleware/auth.js
-|  |   +-- useFacilities.js           |  +-- data/*.json
-|  +-- components/                     +----------------------+
+|  |   +-- useLayerManager|            |  +-- middleware/auth.js
+|  |   +-- useMapRenderer |            |  +-- data/*.json
+|  +-- renderers/         |            +----------------------+
+|  |   +-- MapRenderer.js |
+|  |   +-- OLRenderer.js  |
+|  |   +-- CesiumRenderer.js |
+|  +-- stores/map.js      |
 +-------------------------+
 ```
 

@@ -1,9 +1,12 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useLayerManager } from '@/composables/useLayerManager'
 
 const { layerCatalog, toggleLayer } = useLayerManager()
 const isExpanded = ref(false)
+
+const baseLayers = computed(() => layerCatalog.value.filter((e) => e.category === 'base'))
+const businessLayers = computed(() => layerCatalog.value.filter((e) => e.category === 'business'))
 
 function togglePanel() {
   isExpanded.value = !isExpanded.value
@@ -17,15 +20,31 @@ function togglePanel() {
       <span class="panel-toggle">{{ isExpanded ? '▼' : '▶' }}</span>
     </div>
     <div v-show="isExpanded" class="panel-content">
-      <label v-for="item in layerCatalog" :key="item.key" class="layer-item">
-        <input
-          type="checkbox"
-          :checked="item.visible"
-          @change="toggleLayer(item.key)"
-          class="layer-checkbox"
-        />
-        <span class="layer-label">{{ item.label }}</span>
-      </label>
+      <div class="base-map-section">
+        <span class="section-title">底图</span>
+        <label v-for="item in baseLayers" :key="item.key" class="layer-item">
+          <input
+            type="checkbox"
+            :checked="item.visible"
+            @change="toggleLayer(item.key)"
+            class="layer-checkbox"
+          />
+          <span class="layer-label">{{ item.label }}</span>
+        </label>
+      </div>
+      <div class="divider"></div>
+      <div class="business-layers-section">
+        <span class="section-title">业务图层</span>
+        <label v-for="item in businessLayers" :key="item.key" class="layer-item">
+          <input
+            type="checkbox"
+            :checked="item.visible"
+            @change="toggleLayer(item.key)"
+            class="layer-checkbox"
+          />
+          <span class="layer-label">{{ item.label }}</span>
+        </label>
+      </div>
     </div>
   </div>
 </template>
@@ -35,13 +54,14 @@ function togglePanel() {
   position: absolute;
   top: 70px;
   left: 10px;
-  z-index: 40;
+  z-index: 100;
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(10px);
   border-radius: 10px;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
   overflow: hidden;
   min-width: 160px;
+  pointer-events: auto;
 }
 .panel-header {
   display: flex;
@@ -66,6 +86,24 @@ function togglePanel() {
 }
 .panel-content {
   padding: 8px 0;
+}
+.section-title {
+  font-size: 12px;
+  color: #999;
+  padding: 4px 12px;
+  margin-bottom: 4px;
+  display: block;
+}
+.base-map-section {
+  padding: 4px 0;
+}
+.divider {
+  height: 1px;
+  background: #eee;
+  margin: 8px 0;
+}
+.business-layers-section {
+  padding: 4px 0;
 }
 .layer-item {
   display: flex;

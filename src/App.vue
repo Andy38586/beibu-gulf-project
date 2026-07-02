@@ -3,16 +3,18 @@ import { RouterView, useRoute, useRouter } from 'vue-router'
 import { onMounted, provide, ref, watch } from 'vue'
 import AppHeader from '@/components/common/AppHeader.vue'
 import ProfilePanel from '@/components/user/ProfilePanel.vue'
-import OlMap from '@/components/map/OlMap.vue'
-import BaseLayerSwitcher from '@/components/map/BaseLayerSwitcher.vue'
+import UnifiedMap from '@/components/map/UnifiedMap.vue'
 import LayerPanel from '@/components/map/LayerPanel.vue'
+import MapSwitcher from '@/components/map/MapSwitcher.vue'
 import { useLayerManager } from '@/composables/useLayerManager'
 import { useAuth } from '@/composables/useAuth'
+import { useMapStore } from '@/stores/map'
 
 const route = useRoute()
 const router = useRouter()
 const { activate } = useLayerManager()
 const { checkAuth } = useAuth()
+const mapStore = useMapStore()
 
 const showProfile = ref(false)
 const restorePlanData = ref(null)
@@ -50,10 +52,10 @@ onMounted(() => {
 
 <template>
   <div class="app-layout">
-    <OlMap />
+    <UnifiedMap :map-type="mapStore.mapType" />
     <AppHeader @open-profile="openProfile" />
-    <BaseLayerSwitcher />
     <LayerPanel />
+    <MapSwitcher />
     <main class="app-content">
       <RouterView v-slot="{ Component }">
         <transition name="fade" mode="out-in">
@@ -76,6 +78,7 @@ onMounted(() => {
   position: relative;
   overflow: hidden;
   pointer-events: none;
+  z-index: 50;
 }
 .app-content > * {
   pointer-events: auto;

@@ -8,7 +8,7 @@ const { user, isAuthenticated } = useAuth()
 
 <template>
   <header class="app-header">
-    <div class="logo">北部湾城市群选址分析</div>
+    <div class="logo">北部湾港口选址分析系统</div>
     <div class="right-section">
       <nav class="nav-links">
         <RouterLink to="/" class="nav-item" active-class="active">首页</RouterLink>

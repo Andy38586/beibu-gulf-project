@@ -1,27 +1,63 @@
+import { computed } from 'vue'
 import { useMapStore } from '@/stores/map'
-import { ref } from 'vue'
-
-const layerCatalog = ref([])
 
 export function useLayerManager() {
   const store = useMapStore()
+  const layerCatalog = computed(() => store.layerCatalog)
 
   function addLayers(routeName, layers) {
     store.registerLayers(routeName, layers)
   }
+
   function activate(routeName) {
     store.switchRoute(routeName)
   }
-  function registerToggleable(key, label, layer) {
-    layer.setVisible(true)
-    layerCatalog.value.push({ key, label, layer, visible: true })
-  }
-  function toggleLayer(key) {
-    const entry = layerCatalog.value.find((e) => e.key === key)
-    if (!entry) return
-    entry.visible = !entry.visible
-    entry.layer.setVisible(entry.visible)
+
+  function clearLayers() {
+    store.clearLayerCatalog()
   }
 
-  return { addLayers, activate, registerToggleable, toggleLayer, layerCatalog }
+  function registerLayer(key, label, options) {
+    store.registerLayer(key, label, options)
+  }
+
+  function registerBaseLayer(key, label, show, hide) {
+    store.registerBaseLayer(key, label, show, hide)
+  }
+
+  function registerToggleable(key, label, rendererOrShow, hide) {
+    let showFn, hideFn
+
+    if (typeof rendererOrShow === 'object' && rendererOrShow.setVisibility) {
+      showFn = () => rendererOrShow.setVisibility(key, true)
+      hideFn = () => rendererOrShow.setVisibility(key, false)
+    } else {
+      showFn = rendererOrShow
+      hideFn = hide
+    }
+
+    store.registerToggleable(key, label, showFn, hideFn)
+  }
+
+  function registerBaseLayerWithRenderer(key, label, renderer) {
+    const showFn = () => renderer.setBaseLayer(key === 'base-image' ? 'image' : 'vector')
+    const hideFn = () => {}
+
+    store.registerBaseLayer(key, label, showFn, hideFn)
+  }
+
+  function toggleLayer(key) {
+    store.toggleLayer(key)
+  }
+
+  return {
+    addLayers,
+    activate,
+    clearLayers,
+    registerBaseLayer,
+    registerBaseLayerWithRenderer,
+    registerToggleable,
+    toggleLayer,
+    layerCatalog,
+  }
 }

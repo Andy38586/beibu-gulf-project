@@ -5,25 +5,19 @@ const mapStore = useMapStore()
 </script>
 
 <template>
-  <div class="base-switcher">
-    <button
-      :class="{ active: mapStore.activeBaseMap === 'image' }"
-      @click="mapStore.switchBaseMap('image')"
-    >
-      影像底图
+  <div class="map-switcher">
+    <button :class="{ active: mapStore.mapType === '2d' }" @click="mapStore.switchMapType('2d')">
+      2D 视图
     </button>
-    <button
-      :class="{ active: mapStore.activeBaseMap === 'vector' }"
-      @click="mapStore.switchBaseMap('vector')"
-    >
-      矢量底图
+    <button :class="{ active: mapStore.mapType === '3d' }" @click="mapStore.switchMapType('3d')">
+      3D 视图
     </button>
   </div>
 </template>
 
 <style scoped>
-.base-switcher {
-  position: absolute;
+.map-switcher {
+  position: fixed;
   bottom: 20px;
   left: 50%;
   transform: translateX(-50%);
@@ -36,7 +30,7 @@ const mapStore = useMapStore()
   gap: 4px;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
 }
-.base-switcher button {
+.map-switcher button {
   border: none;
   background: transparent;
   padding: 8px 20px;
@@ -46,11 +40,11 @@ const mapStore = useMapStore()
   cursor: pointer;
   transition: all 0.2s;
 }
-.base-switcher button:hover {
+.map-switcher button:hover {
   background: rgba(255, 255, 255, 0.1);
   color: white;
 }
-.base-switcher button.active {
+.map-switcher button.active {
   background: white;
   color: #34495e;
   font-weight: 500;

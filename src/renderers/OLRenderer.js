@@ -1,0 +1,293 @@
+import { MapRenderer } from './MapRenderer'
+import Map from 'ol/Map'
+import View from 'ol/View'
+import { fromLonLat, toLonLat } from 'ol/proj'
+import VectorSource from 'ol/source/Vector'
+import VectorLayer from 'ol/layer/Vector'
+import TileLayer from 'ol/layer/Tile'
+import XYZ from 'ol/source/XYZ'
+import Point from 'ol/geom/Point'
+import Polygon from 'ol/geom/Polygon'
+import Feature from 'ol/Feature'
+import GeoJSON from 'ol/format/GeoJSON'
+import { Style, Fill, Stroke, Circle, Text } from 'ol/style'
+import { buildTiandituUrl, MAP_CONFIG } from '@/config/map'
+
+export class OLRenderer extends MapRenderer {
+  constructor(container) {
+    super(container)
+    this.map = null
+    this.baseLayers = { image: [], vector: [] }
+    this._initMap()
+  }
+  _initMap() {
+    const view = new View({
+      center: fromLonLat([MAP_CONFIG.CAMERA.center.lng, MAP_CONFIG.CAMERA.center.lat]),
+      zoom: 9,
+      minZoom: 9,
+    })
+    this.map = new Map({
+      target: this.container,
+      view,
+      layers: [],
+    })
+    this._initBaseLayers()
+    this._setupClickHandler()
+  }
+  _initBaseLayers() {
+    const imageLayers = MAP_CONFIG.BASE_LAYERS.image.layers.map((code) => {
+      const layer = new TileLayer({
+        source: new XYZ({
+          url: buildTiandituUrl(code),
+          crossOrigin: 'anonymous',
+        }),
+      })
+      layer.set('isBaseMap', true)
+      layer.set('baseType', 'image')
+      return layer
+    })
+    const vectorLayers = MAP_CONFIG.BASE_LAYERS.vector.layers.map((code) => {
+      const layer = new TileLayer({
+        source: new XYZ({
+          url: buildTiandituUrl(code),
+          crossOrigin: 'anonymous',
+        }),
+      })
+      layer.set('isBaseMap', true)
+      layer.set('baseType', 'vector')
+      layer.setVisible(false)
+      return layer
+    })
+    this.baseLayers.image = imageLayers
+    this.baseLayers.vector = vectorLayers
+
+    imageLayers.forEach((l) => this.map.addLayer(l))
+    vectorLayers.forEach((l) => this.map.addLayer(l))
+  }
+  _setupClickHandler() {
+    this.map.on('click', (event) => {
+      const coordinate = toLonLat(event.coordinate)
+      let clickedFeature = false
+
+      this.map.forEachFeatureAtPixel(
+        event.pixel,
+        (feature) => {
+          const featureType = feature.get('featureType')
+          console.log('[OLRenderer] 点击要素:', {
+            featureType,
+            properties: feature.getProperties(),
+          })
+          if (featureType) {
+            const properties = feature.getProperties()
+            this.emit('click', {
+              featureType,
+              data: properties,
+              coordinate,
+            })
+            clickedFeature = true
+            return true
+          }
+        },
+        {
+          layerFilter: (layer) => !layer.get('isBaseMap'),
+        },
+      )
+      if (!clickedFeature) {
+        console.log('[OLRenderer] 点击空白区域')
+        this.emit('click', {
+          featureType: null,
+          data: null,
+          coordinate,
+        })
+      }
+    })
+  }
+
+  addPointLayer(id, features, options = {}) {
+    const olFeatures = features.map((item) => {
+      const feature = new Feature({
+        geometry: new Point(fromLonLat([item.lon, item.lat])),
+      })
+      const featureType = options?.featureType || item?.featureType || 'point'
+      feature.setProperties({ ...item, featureType })
+      return feature
+    })
+    const style = this._createPointStyle(options)
+
+    const vectorLayer = new VectorLayer({
+      source: new VectorSource({ features: olFeatures }),
+      style,
+    })
+    this.map.addLayer(vectorLayer)
+    this._layers.set(id, {
+      instance: vectorLayer,
+      visible: true,
+      options,
+    })
+    this._applyPendingVisibility(id)
+  }
+  _createPointStyle(options) {
+    if (!options.labelField) {
+      return new Style({
+        image: new Circle({
+          radius: options.size || 12,
+          fill: new Fill({ color: options.color || '#409eff' }),
+          stroke: new Stroke({ color: '#fff', width: 2 }),
+        }),
+      })
+    }
+    return (feature) =>
+      new Style({
+        image: new Circle({
+          radius: options.size || 12,
+          fill: new Fill({ color: options.color || '#409eff' }),
+          stroke: new Stroke({ color: '#fff', width: 2 }),
+        }),
+        text: new Text({
+          text: feature.get(options.labelField),
+          font: '12px sans-serif',
+          fill: new Fill({ color: '#000' }),
+          stroke: new Stroke({ color: '#fff', width: 2 }),
+          offsetY: 15,
+        }),
+      })
+  }
+  addPolygonLayer(id, features, options = {}) {
+    const olFeatures = features
+      .map((item) => {
+        const coordinates = item.coordinates || item.geometry?.coordinates
+        if (!coordinates) return null
+
+        let polygonCoords
+        if (item.geometry?.type === 'MultiPolygon') {
+          polygonCoords = coordinates.map((poly) =>
+            poly[0].map(([lng, lat]) => fromLonLat([lng, lat])),
+          )
+        } else {
+          polygonCoords = [coordinates[0].map(([lng, lat]) => fromLonLat([lng, lat]))]
+        }
+        const feature = new Feature({
+          geometry: new Polygon(polygonCoords),
+        })
+        feature.setProperties({ ...item, featureType: options.featureType || 'polygon' })
+        return feature
+      })
+      .filter(Boolean)
+
+    const style = this._createPolygonStyle(options)
+
+    const vectorLayer = new VectorLayer({
+      source: new VectorSource({ features: olFeatures }),
+      style,
+    })
+    this.map.addLayer(vectorLayer)
+    this._layers.set(id, {
+      instance: vectorLayer,
+      visible: true,
+      options,
+    })
+    this._applyPendingVisibility(id)
+  }
+  _createPolygonStyle(options) {
+    return new Style({
+      fill: new Fill({ color: options.fillColor || 'rgba(77,171,247,0.15)' }),
+      stroke: new Stroke({
+        color: options.strokeColor || '#4dabf7',
+        width: options.strokeWidth || 2,
+      }),
+    })
+  }
+  addGeoJsonLayer(id, geojson, options = {}) {
+    const features = new GeoJSON().readFeatures(geojson, {
+      featureProjection: 'EPSG:3857',
+    })
+    features.forEach((feature) => {
+      feature.set('featureType', options.featureType || 'geojson')
+    })
+    const style = this._createPolygonStyle(options)
+
+    const vectorLayer = new VectorLayer({
+      source: new VectorSource({ features }),
+      style,
+    })
+    this.map.addLayer(vectorLayer)
+    this._layers.set(id, {
+      instance: vectorLayer,
+      visible: true,
+      options,
+    })
+    this._applyPendingVisibility(id)
+  }
+  _doSetVisibility(id, visible) {
+    const layer = this._layers.get(id)
+    if (layer && layer.instance) {
+      layer.instance.setVisible(visible)
+    }
+  }
+  _doRemoveLayer(layer) {
+    if (layer.instance) {
+      this.map.removeLayer(layer.instance)
+      if (layer.instance.getSource) {
+        const source = layer.instance.getSource()
+        if (source && source.clear) {
+          source.clear()
+        }
+      }
+    }
+  }
+  _doFlyTo(target, options = {}) {
+    const view = this.map.getView()
+    if (target.layerId) {
+      const layer = this._layers.get(target.layerId)
+      if (layer && layer.instance) {
+        const extent = layer.instance.getSource().getExtent()
+        if (extent) {
+          view.fit(extent, { duration: 1000 })
+          return
+        }
+      }
+    }
+    view.animate({
+      center: fromLonLat([target.lng, target.lat]),
+      zoom: options.zoom || view.getZoom(),
+      duration: 1000,
+    })
+  }
+  _getCameraState() {
+    const view = this.map.getView()
+    const center = toLonLat(view.getCenter())
+    const zoom = view.getZoom()
+    const height = Math.max(100, 10000 * Math.pow(2, 9 - zoom))
+    return {
+      center: { lng: center[0], lat: center[1] },
+      height,
+    }
+  }
+  _setCameraState(state) {
+    const view = this.map.getView()
+    view.setCenter(fromLonLat([state.center.lng, state.center.lat]))
+    if (state.height) {
+      const safeHeight = Math.max(100, state.height)
+      const zoom = 9 - Math.log2(safeHeight / 10000)
+      view.setZoom(zoom)
+    }
+  }
+  setBaseLayer(type) {
+    this.baseLayers.image.forEach((l) => l.setVisible(type === 'image'))
+    this.baseLayers.vector.forEach((l) => l.setVisible(type === 'vector'))
+  }
+  getType() {
+    return 'ol'
+  }
+  getMap() {
+    return this.map
+  }
+  updateSize() {
+    this.map?.updateSize()
+  }
+  destroy() {
+    super.destroy()
+    this.map?.dispose()
+    this.map = null
+  }
+}

@@ -114,7 +114,7 @@ function setupLayers(type) {
     )
     registerToggleable('ports', '港口位置', currentRenderer.value)
   }
-  const updateHandler = createUpdateHandler(currentRenderer.value)
+  const updateHandler = createUpdateHandler(currentRenderer.value, registerToggleable)
   mapStore.registerAnalysisHandler(updateHandler)
 }
 function setupEvents(type) {

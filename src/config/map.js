@@ -16,9 +16,9 @@ export const MAP_CONFIG = {
     boundary: '/beibu-gulf-merged-data.geojson',
   },
   CAMERA: {
-    center: { lng: 108.5752963, lat: 21.760409, height: 50000 },
+    center: { lng: 108.5752963, lat: 21.760409, height: 10000 },
     heading: 0,
-    pitch: -90,
+    pitch: -60,
     roll: 0,
   },
 }

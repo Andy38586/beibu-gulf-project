@@ -1,8 +1,22 @@
 export function buildCoverageGeoJson(coverage) {
-  const geojson = { ...coverage }
-  geojson.features.forEach((f) => {
-    f.properties.featureType = 'analysis-coverage'
-  })
+  if (!coverage) {
+    return { type: 'FeatureCollection', features: [] }
+  }
+  let geojson
+  if (coverage.type === 'FeatureCollection') {
+    geojson = { ...coverage }
+    geojson.features = coverage.features.map((f) => ({
+      ...f,
+      properties: { ...f.properties, featureType: 'analysis-coverage' },
+    }))
+  } else {
+    geojson = {
+      type: 'FeatureCollection',
+      features: [
+        { ...coverage, properties: { ...coverage.properties, featureType: 'analysis-coverage' } },
+      ],
+    }
+  }
   return geojson
 }
 
@@ -46,6 +60,7 @@ export function useAnalysisLayer() {
     if (result.coverage) {
       layers.push({
         id: 'analysis-coverage',
+        label: '分析覆盖范围',
         geojson: buildCoverageGeoJson(result.coverage),
         style: COVERAGE_STYLE,
       })
@@ -54,6 +69,7 @@ export function useAnalysisLayer() {
     if (result.matchedXiaoqu?.length) {
       layers.push({
         id: 'analysis-matched',
+        label: '匹配小区',
         geojson: buildMatchedGeoJson(result.matchedXiaoqu),
         style: MATCHED_STYLE,
       })
@@ -62,7 +78,7 @@ export function useAnalysisLayer() {
     return layers
   }
 
-  function createUpdateHandler(renderer) {
+  function createUpdateHandler(renderer, registerToggleableFn) {
     return function setAnalysisResult(result) {
       if (isUpdating) {
         pendingResult = result
@@ -78,11 +94,18 @@ export function useAnalysisLayer() {
           if (layer.style.featureType === 'analysis-coverage') {
             renderer.addGeoJsonLayer(layer.id, layer.geojson, layer.style)
           } else {
-            renderer.addPointLayer(layer.id, layer.geojson.features.map(f => ({
-              ...f.properties,
-              lng: f.geometry.coordinates[0],
-              lat: f.geometry.coordinates[1],
-            })), layer.style)
+            renderer.addPointLayer(
+              layer.id,
+              layer.geojson.features.map((f) => ({
+                ...f.properties,
+                lon: f.geometry.coordinates[0],
+                lat: f.geometry.coordinates[1],
+              })),
+              layer.style,
+            )
+          }
+          if (registerToggleableFn) {
+            registerToggleableFn(layer.id, layer.label, renderer)
           }
         })
       } finally {

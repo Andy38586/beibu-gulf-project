@@ -52,15 +52,15 @@ function togglePanel() {
 <style scoped>
 .layer-panel {
   position: absolute;
-  top: 70px;
-  left: 10px;
+  top: calc(9 * var(--unit));
+  left: calc(1.25 * var(--unit));
   z-index: 100;
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(10px);
-  border-radius: 10px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+  border-radius: calc(1.25 * var(--unit));
+  box-shadow: 0 calc(0.5 * var(--unit)) calc(2 * var(--unit)) rgba(0, 0, 0, 0.15);
   overflow: hidden;
-  min-width: 160px;
+  width: calc(39 * var(--unit));
   pointer-events: auto;
 }
 .panel-header {

@@ -12,4 +12,8 @@ app.use(createPinia())
 app.use(router)
 app.use(ElementPlus)
 
+app.config.errorHandler = (err, instance, info) => {
+  console.error('[Global Error]', err, info)
+}
+
 app.mount('#app')

@@ -229,20 +229,20 @@ function formatDate(iso) {
 <style scoped>
 .profile-panel {
   position: fixed;
-  top: 70px;
-  right: 20px;
-  width: 280px;
+  top: calc(9 * var(--unit));
+  right: calc(2.5 * var(--unit));
+  width: calc(35 * var(--unit));
   z-index: 55;
   pointer-events: auto;
   background: rgba(255, 255, 255, 0.95);
-  border-radius: 10px;
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.2);
-  padding: 15px;
+  border-radius: calc(1.25 * var(--unit));
+  box-shadow: 0 calc(0.5 * var(--unit)) calc(2.25 * var(--unit)) rgba(0, 0, 0, 0.2);
+  padding: calc(1.5 * var(--unit));
   max-height: 80vh;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--unit);
 }
 .panel-header {
   display: flex;

@@ -7,15 +7,15 @@ class MockRenderer extends MapRenderer {
   }
 
   init() {}
-  addPointLayer(id, features, options) {}
-  addPolygonLayer(id, features, options) {}
-  addGeoJsonLayer(id, geojson, options) {}
+  addPointLayer(_id, _features, _options) {}
+  addPolygonLayer(_id, _features, _options) {}
+  addGeoJsonLayer(_id, _geojson, _options) {}
   getType() {
     return 'mock'
   }
-  _doSetVisibility(id, visible) {}
-  _doRemoveLayer(layer) {}
-  _doFlyTo(target, options) {}
+  _doSetVisibility(_id, _visible) {}
+  _doRemoveLayer(_layer) {}
+  _doFlyTo(_target, _options) {}
 }
 
 describe('MapRenderer Interface', () => {
@@ -100,7 +100,7 @@ describe('MapRenderer Interface', () => {
 
     it('should handle empty state', () => {
       const renderer = new MockRenderer('test-container')
-      const state = renderer.exportState()
+      renderer.exportState()
 
       renderer.importState({})
       expect(renderer._layers.size).toBe(0)

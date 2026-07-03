@@ -94,7 +94,7 @@ async function initRenderer(type) {
     loading.value = false
   }
 }
-function setupLayers(type) {
+function setupLayers() {
   clearLayers()
   registerBaseLayerWithRenderer('base-image', '影像底图', currentRenderer.value)
   registerBaseLayerWithRenderer('base-vector', '矢量底图', currentRenderer.value)
@@ -117,15 +117,12 @@ function setupLayers(type) {
   const updateHandler = createUpdateHandler(currentRenderer.value, registerToggleable)
   mapStore.registerAnalysisHandler(updateHandler)
 }
-function setupEvents(type) {
+function setupEvents() {
   currentRenderer.value.on('click', (event) => {
     const { featureType, data, coordinate } = event.detail
-    console.log('[UnifiedMap] 收到点击事件:', { featureType, hasData: !!data })
     if (featureType === 'port' && data) {
-      console.log('[UnifiedMap] 设置选中港口:', data.name)
       mapStore.setSelectedPort(data)
     } else {
-      console.log('[UnifiedMap] 清除选中港口')
       mapStore.clearSelectedPort()
     }
     emit('click', { featureType, data, coordinate })
@@ -140,6 +137,12 @@ function flyTo(target, options = {}) {
 }
 function getRenderer() {
   return currentRenderer.value
+}
+function startBreathing(lng, lat) {
+  currentRenderer.value?.startBreathing(lng, lat)
+}
+function stopBreathing() {
+  currentRenderer.value?.stopBreathing()
 }
 watch(
   () => props.mapType,
@@ -161,6 +164,8 @@ defineExpose({
   switchMapType,
   flyTo,
   getRenderer,
+  startBreathing,
+  stopBreathing,
 })
 </script>
 

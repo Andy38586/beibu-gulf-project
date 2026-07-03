@@ -79,7 +79,7 @@ export function useAnalysisLayer() {
   }
 
   function createUpdateHandler(renderer, registerToggleableFn) {
-    return function setAnalysisResult(result) {
+    return async function setAnalysisResult(result) {
       if (isUpdating) {
         pendingResult = result
         return
@@ -90,9 +90,9 @@ export function useAnalysisLayer() {
         renderer.removeLayer('analysis-matched')
 
         const layers = getAnalysisLayers(result)
-        layers.forEach((layer) => {
+        for (const layer of layers) {
           if (layer.style.featureType === 'analysis-coverage') {
-            renderer.addGeoJsonLayer(layer.id, layer.geojson, layer.style)
+            await renderer.addGeoJsonLayer(layer.id, layer.geojson, layer.style)
           } else {
             renderer.addPointLayer(
               layer.id,
@@ -107,13 +107,13 @@ export function useAnalysisLayer() {
           if (registerToggleableFn) {
             registerToggleableFn(layer.id, layer.label, renderer)
           }
-        })
+        }
       } finally {
         isUpdating = false
         if (pendingResult) {
           const next = pendingResult
           pendingResult = null
-          setAnalysisResult(next)
+          await setAnalysisResult(next)
         }
       }
     }

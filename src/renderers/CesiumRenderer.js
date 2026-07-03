@@ -11,6 +11,7 @@ import {
   ScreenSpaceEventType,
   GeoJsonDataSource,
   Cartographic,
+  CallbackProperty,
 } from 'cesium'
 import { MAP_CONFIG, buildTiandituUrl } from '@/config/map'
 
@@ -315,6 +316,41 @@ export class CesiumRenderer extends MapRenderer {
     this.baseLayers.vector.forEach((l) => {
       if (l) l.show = type === 'vector'
     })
+  }
+  startBreathing(lng, lat) {
+    this.stopBreathing()
+    const startTime = Date.now()
+    const center = Cartesian3.fromDegrees(lng, lat)
+    this._breathingEntity = this.viewer.entities.add({
+      position: center,
+      point: {
+        pixelSize: new CallbackProperty(() => {
+          const elapsed = (Date.now() - startTime) / 1000
+          return 10 + Math.sin(elapsed * Math.PI * 2) * 5
+        }, false),
+        color: new CallbackProperty(() => {
+          const elapsed = (Date.now() - startTime) / 1000
+          const alpha = 0.5 + Math.sin(elapsed * Math.PI * 2) * 0.3
+          return Color.fromCssColorString(`rgba(64,158,255,${alpha})`)
+        }, false),
+        outlineColor: Color.WHITE,
+        outlineWidth: 2,
+      },
+    })
+    this._breathingAnimation = () => {
+      if (this._breathingEntity) {
+        this.viewer.scene.requestRender()
+        requestAnimationFrame(this._breathingAnimation)
+      }
+    }
+    requestAnimationFrame(this._breathingAnimation)
+  }
+  stopBreathing() {
+    if (this._breathingEntity) {
+      this.viewer.entities.remove(this._breathingEntity)
+      this._breathingEntity = null
+    }
+    this._breathingAnimation = null
   }
   getType() {
     return 'cesium'

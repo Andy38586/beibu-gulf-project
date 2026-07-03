@@ -21,6 +21,15 @@ export default defineConfig([
     },
   },
 
+  {
+    files: ['server/**/*.js'],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+      },
+    },
+  },
+
   js.configs.recommended,
   ...pluginVue.configs['flat/essential'],
 
@@ -30,8 +39,9 @@ export default defineConfig([
 
   {
     rules: {
-      'no-unused-vars': ['error', { caughtErrors: 'none' }],
+      'no-unused-vars': ['error', { caughtErrors: 'none', argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
       'no-empty': 'off',
+      'no-useless-assignment': 'off',
     },
   },
 ])

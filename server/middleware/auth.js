@@ -29,7 +29,7 @@ export function authenticate(req, res, next) {
     const decoded = jwt.verify(token, JWT_SECRET)
     req.user = { id: decoded.id, username: decoded.username }
     next()
-  } catch (err) {
+  } catch {
     return res.status(401).json({ error: '认证令牌无效或已过期' })
   }
 }

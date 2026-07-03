@@ -1,65 +1,23 @@
 <script setup>
-import { ref, computed, watch, onBeforeUnmount } from 'vue'
-import * as echarts from 'echarts'
-import { FACILITY_LABELS } from '@/composables/facilityLabels'
+import { ref, computed } from 'vue'
 
 const props = defineProps({
   matchedXiaoqu: { type: Array, default: () => [] },
   selectedTypes: { type: Array, default: () => [] },
 })
+const emit = defineEmits(['select-xiaoqu', 'close-xiaoqu'])
+
 const activeXiaoqu = ref(null)
-const chartRef = ref(null)
-let chartInstance = null
 
 function selectXiaoqu(xq) {
   activeXiaoqu.value = xq
+  emit('select-xiaoqu', xq)
 }
 function closeDetail() {
-  if (chartInstance) {
-    chartInstance.dispose()
-    chartInstance = null
-  }
   activeXiaoqu.value = null
+  emit('close-xiaoqu')
 }
-function renderRadar() {
-  if (!activeXiaoqu.value || !chartRef.value) return
 
-  if (chartInstance) {
-    chartInstance.dispose()
-    chartInstance = null
-  }
-  chartInstance = echarts.init(chartRef.value)
-  const indicators = props.selectedTypes.map((key) => ({
-    name: FACILITY_LABELS[key] || key,
-    max: 100,
-  }))
-  const values = props.selectedTypes.map((key) => activeXiaoqu.value.breakdown?.[key] ?? 0)
-  chartInstance.setOption({
-    tooltip: {},
-    radar: {
-      indicator: indicators,
-      radius: '65%',
-    },
-    series: [
-      {
-        type: 'radar',
-        data: [
-          {
-            value: values,
-            name: activeXiaoqu.value.name,
-            areaStyle: { opacity: 0.3 },
-          },
-        ],
-      },
-    ],
-  })
-}
-watch([activeXiaoqu, () => props.selectedTypes], renderRadar, { flush: 'post' })
-
-onBeforeUnmount(() => {
-  chartInstance?.dispose()
-  chartInstance = null
-})
 const hasResult = computed(() => props.matchedXiaoqu.length > 0)
 
 defineExpose({
@@ -76,7 +34,7 @@ defineExpose({
       <li
         v-for="(xq, i) in matchedXiaoqu"
         :key="xq.id"
-        class="xiaoqu-item"
+        :class="['xiaoqu-item', { active: activeXiaoqu?.id === xq.id }]"
         @click="selectXiaoqu(xq)"
       >
         <span class="rank">{{ i + 1 }}</span>
@@ -84,17 +42,6 @@ defineExpose({
         <span class="score">{{ xq.score }}分</span>
       </li>
     </ul>
-
-    <div v-if="activeXiaoqu" class="detail-overlay" @click.self="closeDetail">
-      <div class="detail-card">
-        <div class="detail-header">
-          <strong>{{ activeXiaoqu.name }}</strong>
-          <button class="close-btn" @click="closeDetail">×</button>
-        </div>
-        <p class="detail-score">综合评分：{{ activeXiaoqu.score }}</p>
-        <div ref="chartRef" class="radar-chart"></div>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -104,7 +51,7 @@ defineExpose({
   overflow-y: auto;
 }
 .result-panel h4 {
-  margin: 0 0 10px;
+  margin: 0 0 calc(1.25 * var(--unit));
   font-size: 16px;
   color: #333;
 }
@@ -119,17 +66,21 @@ defineExpose({
 .xiaoqu-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 4px;
+  gap: var(--unit);
+  padding: calc(0.75 * var(--unit)) calc(0.5 * var(--unit));
   font-size: 14px;
   cursor: pointer;
   border-radius: 4px;
+  transition: background 0.15s;
 }
 .xiaoqu-item:hover {
   background: #f5f7fa;
 }
+.xiaoqu-item.active {
+  background: rgba(64, 158, 255, 0.15);
+}
 .rank {
-  width: 20px;
+  width: calc(2.5 * var(--unit));
   color: #999;
   font-size: 12px;
 }
@@ -139,43 +90,5 @@ defineExpose({
 .score {
   color: #409eff;
   font-weight: 500;
-}
-
-.detail-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.4);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 100;
-}
-.detail-card {
-  background: white;
-  border-radius: 10px;
-  padding: 16px;
-  width: 360px;
-}
-.detail-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-}
-.close-btn {
-  background: none;
-  border: none;
-  font-size: 18px;
-  cursor: pointer;
-  color: #999;
-}
-.detail-score {
-  color: #27ae60;
-  font-weight: 500;
-  margin: 0 0 8px;
-}
-.radar-chart {
-  width: 100%;
-  height: 280px;
 }
 </style>

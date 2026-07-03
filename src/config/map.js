@@ -21,6 +21,26 @@ export const MAP_CONFIG = {
     pitch: -60,
     roll: 0,
   },
+  VIEW_LEVELS: {
+    REGION: {
+      center: { lng: 108.5752963, lat: 21.760409 },
+      height: 800000,
+      zoom: 9,
+      label: '北部湾区域',
+    },
+    CITY: {
+      center: { lng: 108.61, lat: 21.94 },
+      height: 80000,
+      zoom: 12,
+      label: '钦州市',
+    },
+    DISTRICT: {
+      center: { lng: 108.61, lat: 21.94 },
+      height: 8000,
+      zoom: 14,
+      label: '区级',
+    },
+  },
 }
 
 export function buildTiandituUrl(layerCode) {

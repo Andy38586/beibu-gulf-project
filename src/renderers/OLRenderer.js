@@ -276,6 +276,43 @@ export class OLRenderer extends MapRenderer {
     this.baseLayers.image.forEach((l) => l.setVisible(type === 'image'))
     this.baseLayers.vector.forEach((l) => l.setVisible(type === 'vector'))
   }
+  startBreathing(lng, lat) {
+    this.stopBreathing()
+    const startTime = Date.now()
+    const breathingFeature = new Feature({
+      geometry: new Point(fromLonLat([lng, lat])),
+    })
+    const breathingStyle = () => {
+      const elapsed = (Date.now() - startTime) / 1000
+      const radius = 10 + Math.sin(elapsed * Math.PI * 2) * 5
+      const alpha = 0.5 + Math.sin(elapsed * Math.PI * 2) * 0.3
+      return new Style({
+        image: new Circle({
+          radius,
+          fill: new Fill({ color: `rgba(64,158,255,${alpha})` }),
+          stroke: new Stroke({ color: '#fff', width: 2 }),
+        }),
+      })
+    }
+    this._breathingLayer = new VectorLayer({
+      source: new VectorSource({ features: [breathingFeature] }),
+      style: breathingStyle,
+    })
+    this.map.addLayer(this._breathingLayer)
+    const animate = () => {
+      if (this._breathingLayer) {
+        this._breathingLayer.changed()
+        requestAnimationFrame(animate)
+      }
+    }
+    animate()
+  }
+  stopBreathing() {
+    if (this._breathingLayer) {
+      this.map.removeLayer(this._breathingLayer)
+      this._breathingLayer = null
+    }
+  }
   getType() {
     return 'ol'
   }

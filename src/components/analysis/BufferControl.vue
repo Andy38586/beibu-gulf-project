@@ -1,12 +1,14 @@
 <script setup>
 import { ref, computed, inject, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { FACILITY_CONFIG } from '@/composables/useFacilities'
 import { useSiteAnalysisApi } from '@/composables/useSiteAnalysisApi'
 import { useAuth } from '@/composables/useAuth'
 import { usePlans } from '@/composables/usePlans'
 import PlanSaveModal from '@/components/user/PlanSaveModal.vue'
 
-const emit = defineEmits(['result-update'])
+const emit = defineEmits(['result-update', 'require-login'])
+const router = useRouter()
 
 const TOP_N = 10
 const IMPORTANCE_LABELS = {
@@ -101,15 +103,27 @@ const showSaveModal = ref(false)
 const saveMessage = ref('')
 const saveError = ref('')
 const saving = ref(false)
+const showLoginHint = ref(false)
+const saveClickTime = ref(0)
 
 async function handleSavePlan() {
+  const now = Date.now()
+  if (now - saveClickTime.value < 1000) {
+    return
+  }
+  saveClickTime.value = now
+
   if (!isAuthenticated.value) {
-    saveMessage.value = '请先登录'
+    showLoginHint.value = true
     return
   }
   saveError.value = ''
   saveMessage.value = ''
   showSaveModal.value = true
+}
+
+function handleGoLogin() {
+  router.push('/profile')
 }
 
 async function onSavePlan(name) {
@@ -167,9 +181,13 @@ async function onSavePlan(name) {
         {{ calculating ? '分析中...' : '开始筛选' }}
       </el-button>
       <el-button size="small" type="default" @click="clearAll">清空</el-button>
-      <el-button v-if="isAuthenticated" size="small" type="primary" @click="handleSavePlan"
-        >保存方案</el-button
-      >
+    </div>
+    <div class="save-section">
+      <el-button size="small" type="primary" @click="handleSavePlan">保存方案</el-button>
+      <div v-if="showLoginHint" class="login-hint">
+        <span class="hint-text">需要登录后才能使用保存方案</span>
+        <span class="login-link" @click="handleGoLogin">点击这里登录</span>
+      </div>
     </div>
     <p v-if="saveMessage" class="save-message">{{ saveMessage }}</p>
     <p v-if="calcError" class="error-text">{{ calcError }}</p>
@@ -219,8 +237,37 @@ async function onSavePlan(name) {
 }
 .btn-group {
   display: flex;
+  gap: calc(0.75 * var(--unit));
+}
+.btn-group button {
+  flex: 1;
+}
+.save-section {
+  display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
+}
+.save-section button {
+  width: 100%;
+}
+.login-hint {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+.hint-text {
+  font-size: 11px;
+  color: #999;
+}
+.login-link {
+  font-size: 11px;
+  color: #409eff;
+  cursor: pointer;
+  text-decoration: none;
+}
+.login-link:hover {
+  text-decoration: underline;
 }
 .error-text {
   color: #e74c3c;

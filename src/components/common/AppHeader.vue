@@ -2,24 +2,23 @@
 import { RouterLink } from 'vue-router'
 import { useAuth } from '@/composables/useAuth'
 
-const emit = defineEmits(['open-profile'])
 const { user, isAuthenticated } = useAuth()
 </script>
 
 <template>
   <header class="app-header">
-    <div class="logo">北部湾港口选址分析系统</div>
+    <div class="logo">北部湾城市群选址分析平台</div>
     <div class="right-section">
       <nav class="nav-links">
         <RouterLink to="/" class="nav-item" active-class="active">首页</RouterLink>
         <RouterLink to="/buffer" class="nav-item" active-class="active">选址分析</RouterLink>
-        <button class="nav-item" @click="emit('open-profile')">个人主页</button>
+        <RouterLink to="/profile" class="nav-item" active-class="active">个人主页</RouterLink>
       </nav>
       <div class="auth-area">
         <template v-if="isAuthenticated">
-          <span class="user-name" @click="emit('open-profile')">{{ user?.username }}</span>
+          <RouterLink to="/profile" class="user-name">{{ user?.username }}</RouterLink>
         </template>
-        <button v-else class="auth-btn" @click="emit('open-profile')">登录</button>
+        <RouterLink v-else to="/profile" class="auth-btn">登录</RouterLink>
       </div>
     </div>
   </header>
@@ -32,11 +31,11 @@ const { user, isAuthenticated } = useAuth()
   left: 0;
   right: 0;
   z-index: 50;
-  height: 56px;
+  height: calc(7 * var(--unit));
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 20px;
+  padding: 0 calc(2.5 * var(--unit));
   background: rgba(44, 62, 80, 0.35);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
@@ -50,60 +49,44 @@ const { user, isAuthenticated } = useAuth()
 .right-section {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: calc(2 * var(--unit));
 }
 .nav-links {
   display: flex;
-  gap: 8px;
+  gap: calc(2 * var(--unit));
 }
 .nav-item {
-  color: rgba(255, 255, 255, 0.85);
+  color: white;
   text-decoration: none;
   font-size: 14px;
-  padding: 6px 14px;
-  border-radius: 8px;
-  transition:
-    background 0.2s,
-    color 0.2s;
-  background: none;
-  border: none;
-  cursor: pointer;
+  padding: calc(0.5 * var(--unit)) var(--unit);
+  border-radius: 4px;
+  transition: background 0.15s;
 }
 .nav-item:hover {
-  background: rgba(255, 255, 255, 0.15);
-  color: white;
+  background: rgba(255, 255, 255, 0.1);
 }
 .nav-item.active {
-  background: rgba(64, 158, 255, 0.85);
-  color: white;
-  font-weight: 500;
+  background: rgba(255, 255, 255, 0.2);
 }
 .auth-area {
   display: flex;
   align-items: center;
-  gap: 8px;
 }
 .user-name {
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.9);
-  cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 4px;
-}
-.user-name:hover {
-  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  text-decoration: none;
+  font-size: 14px;
 }
 .auth-btn {
-  padding: 5px 14px;
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  border-radius: 6px;
-  background: transparent;
   color: white;
-  font-size: 13px;
-  cursor: pointer;
-  transition: background 0.2s;
+  text-decoration: none;
+  font-size: 14px;
+  padding: calc(0.5 * var(--unit)) var(--unit);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
 }
 .auth-btn:hover {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.1);
 }
 </style>

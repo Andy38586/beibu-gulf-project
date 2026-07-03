@@ -4,41 +4,24 @@
  */
 
 import { ref } from 'vue'
+import { useApiRequest } from './useApiRequest'
 
-const API_BASE = import.meta.env.VITE_API_BASE || '/api'
-
-/**
- * 选址分析 API 相关的 composable
- * @returns {{
- *   analyze: (params: AnalysisParams) => Promise<AnalysisResult>,
- *   calculating: import('vue').Ref<boolean>,
- *   calcError: import('vue').Ref<string>
- * }}
- */
 export function useSiteAnalysisApi() {
+  const { apiRequest } = useApiRequest()
   /** @type {import('vue').Ref<boolean>} */
   const calculating = ref(false)
   /** @type {import('vue').Ref<string>} */
   const calcError = ref('')
 
-  /**
-   * 执行选址分析
-   * @param {AnalysisParams} params - 分析参数
-   * @returns {Promise<AnalysisResult>} - 分析结果
-   */
   async function analyze({ selectedKeys, typeSettings, weights }) {
     calcError.value = ''
     calculating.value = true
     try {
-      const res = await fetch(`${API_BASE}/site-analysis`, {
+      /** @type {AnalysisResult} */
+      const result = await apiRequest('/site-analysis', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ selectedKeys, typeSettings, weights }),
       })
-      if (!res.ok) throw new Error(`分析请求失败 HTTP ${res.status}`)
-
-      /** @type {AnalysisResult} */
-      const result = await res.json()
       if (result.error) {
         calcError.value = result.error
         return { coverage: null, matchedXiaoqu: [], selectedTypes: [] }

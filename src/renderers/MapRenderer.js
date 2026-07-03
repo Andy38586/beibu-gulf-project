@@ -13,15 +13,15 @@ export class MapRenderer {
     throw new Error(`${this.getType()} init 未实现`)
   }
 
-  addPointLayer(id, features, options = {}) {
+  addPointLayer(_id, _features, _options = {}) {
     throw new Error(`${this.getType()} addPointLayer 未实现`)
   }
 
-  addPolygonLayer(id, features, options = {}) {
+  addPolygonLayer(_id, _features, _options = {}) {
     throw new Error(`${this.getType()} addPolygonLayer 未实现`)
   }
 
-  addGeoJsonLayer(id, geojson, options = {}) {
+  addGeoJsonLayer(_id, _geojson, _options = {}) {
     throw new Error(`${this.getType()} addGeoJsonLayer 未实现`)
   }
 
@@ -122,15 +122,15 @@ export class MapRenderer {
     this._eventBus = new EventTarget()
   }
 
-  _doSetVisibility(id, visible) {
+  _doSetVisibility(_id, _visible) {
     throw new Error('_doSetVisibility 未实现')
   }
 
-  _doRemoveLayer(layer) {
+  _doRemoveLayer(_layer) {
     throw new Error('_doRemoveLayer 未实现')
   }
 
-  _doFlyTo(target, options) {
+  _doFlyTo(_target, _options) {
     throw new Error('_doFlyTo 未实现')
   }
 
@@ -138,5 +138,5 @@ export class MapRenderer {
     return null
   }
 
-  _setCameraState(state) {}
+  _setCameraState(_state) {}
 }

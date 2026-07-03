@@ -4,13 +4,14 @@ import { shallowRef, ref } from 'vue'
 export const useMapStore = defineStore('map', () => {
   const map = shallowRef(null)
   const selectedPort = ref(null)
-  const routeLayers = ref(new Map())
-  const activeRoute = ref('')
   const mapType = ref('2d')
   const layerCatalog = ref([])
 
   const analysisHandler = ref(null)
   const lastAnalysisResult = ref(null)
+
+  const activePanel = ref('none')
+  const selectedXiaoqu = ref(null)
 
   function setMap(instance) {
     map.value = instance
@@ -42,27 +43,6 @@ export const useMapStore = defineStore('map', () => {
   function setAnalysisResult(result) {
     lastAnalysisResult.value = result
     analysisHandler.value?.(result)
-  }
-
-  function registerLayers(routeName, layers) {
-    if (!map.value) return
-    const old = routeLayers.value.get(routeName)
-    old?.forEach((l) => map.value.removeLayer(l))
-    layers.forEach((layer) => {
-      layer.set('routeName', routeName)
-      layer.setVisible(layer.get('alwaysVisible') || routeName === activeRoute.value)
-      map.value.addLayer(layer)
-    })
-    routeLayers.value.set(routeName, layers)
-  }
-
-  function switchRoute(routeName) {
-    activeRoute.value = routeName
-    routeLayers.value.forEach((layers, name) => {
-      layers.forEach((layer) => {
-        layer.setVisible(layer.get('alwaysVisible') || name === routeName)
-      })
-    })
   }
 
   function registerLayer(key, label, options) {
@@ -171,14 +151,34 @@ export const useMapStore = defineStore('map', () => {
     layerCatalog.value = []
   }
 
+  function setActivePanel(panelName) {
+    if (activePanel.value === panelName) {
+      activePanel.value = 'none'
+    } else {
+      activePanel.value = panelName
+      if (panelName === 'port-info') {
+        selectedXiaoqu.value = null
+      }
+    }
+  }
+
+  function closePanel() {
+    activePanel.value = 'none'
+    selectedXiaoqu.value = null
+  }
+
+  function setSelectedXiaoqu(xiaoqu) {
+    selectedXiaoqu.value = xiaoqu
+  }
+
   return {
     map,
     mapType,
     selectedPort,
-    activeRoute,
-    routeLayers,
     layerCatalog,
     analysisHandler,
+    activePanel,
+    selectedXiaoqu,
     setMap,
     setMapType,
     switchMapType,
@@ -186,12 +186,13 @@ export const useMapStore = defineStore('map', () => {
     clearSelectedPort,
     registerAnalysisHandler,
     setAnalysisResult,
-    registerLayers,
-    switchRoute,
     registerLayer,
     registerBaseLayer,
     registerToggleable,
     toggleLayer,
     clearLayerCatalog,
+    setActivePanel,
+    closePanel,
+    setSelectedXiaoqu,
   }
 })

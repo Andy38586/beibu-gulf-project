@@ -2,48 +2,45 @@
 import { RouterView, useRoute, useRouter } from 'vue-router'
 import { onMounted, provide, ref, watch } from 'vue'
 import AppHeader from '@/components/common/AppHeader.vue'
-import ProfilePanel from '@/components/user/ProfilePanel.vue'
 import UnifiedMap from '@/components/map/UnifiedMap.vue'
 import LayerPanel from '@/components/map/LayerPanel.vue'
 import MapSwitcher from '@/components/map/MapSwitcher.vue'
-import { useLayerManager } from '@/composables/useLayerManager'
+import ErrorBoundary from '@/components/common/ErrorBoundary.vue'
 import { useAuth } from '@/composables/useAuth'
+import { useMapControls } from '@/composables/useMapControls'
 import { useMapStore } from '@/stores/map'
 
 const route = useRoute()
 const router = useRouter()
-const { activate } = useLayerManager()
 const { checkAuth } = useAuth()
+const { zoomToRegion, zoomToCity, stopBreathing } = useMapControls()
 const mapStore = useMapStore()
 
-const showProfile = ref(false)
+const unifiedMapRef = ref(null)
 const restorePlanData = ref(null)
 const editingPlan = ref(null)
 
 provide('restorePlanData', restorePlanData)
 provide('editingPlan', editingPlan)
+provide('unifiedMap', unifiedMapRef)
+
+function handleRequireLogin() {
+  router.push('/profile')
+}
 
 watch(
   () => route.name,
   (name) => {
-    activate(name?.toLowerCase())
+    stopBreathing()
+    if (name === 'Home') {
+      zoomToRegion()
+    }
+    if (name === 'Buffer') {
+      setTimeout(() => zoomToCity(), 500)
+    }
   },
   { immediate: true },
 )
-
-function openProfile() {
-  if (route.path === '/buffer') {
-    router.push('/')
-  }
-  showProfile.value = true
-}
-
-function handleLoadPlan(plan) {
-  restorePlanData.value = plan.typeSettings || {}
-  editingPlan.value = plan
-  router.push('/buffer')
-  showProfile.value = false
-}
 
 onMounted(() => {
   checkAuth()
@@ -52,18 +49,19 @@ onMounted(() => {
 
 <template>
   <div class="app-layout">
-    <UnifiedMap :map-type="mapStore.mapType" />
-    <AppHeader @open-profile="openProfile" />
+    <UnifiedMap ref="unifiedMapRef" :map-type="mapStore.mapType" />
+    <AppHeader />
     <LayerPanel />
     <MapSwitcher />
     <main class="app-content">
-      <RouterView v-slot="{ Component }">
-        <transition name="fade" mode="out-in">
-          <component :is="Component" />
-        </transition>
-      </RouterView>
+      <ErrorBoundary>
+        <RouterView v-slot="{ Component }">
+          <transition name="fade" mode="out-in">
+            <component :is="Component" @require-login="handleRequireLogin" />
+          </transition>
+        </RouterView>
+      </ErrorBoundary>
     </main>
-    <ProfilePanel :visible="showProfile" @close="showProfile = false" @load-plan="handleLoadPlan" />
   </div>
 </template>
 

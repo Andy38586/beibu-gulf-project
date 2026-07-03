@@ -5,20 +5,8 @@ export function useLayerManager() {
   const store = useMapStore()
   const layerCatalog = computed(() => store.layerCatalog)
 
-  function addLayers(routeName, layers) {
-    store.registerLayers(routeName, layers)
-  }
-
-  function activate(routeName) {
-    store.switchRoute(routeName)
-  }
-
   function clearLayers() {
     store.clearLayerCatalog()
-  }
-
-  function registerLayer(key, label, options) {
-    store.registerLayer(key, label, options)
   }
 
   function registerBaseLayer(key, label, show, hide) {
@@ -51,8 +39,6 @@ export function useLayerManager() {
   }
 
   return {
-    addLayers,
-    activate,
     clearLayers,
     registerBaseLayer,
     registerBaseLayerWithRenderer,

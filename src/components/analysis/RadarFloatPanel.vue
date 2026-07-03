@@ -15,10 +15,8 @@ const panelRef = ref(null)
 let chartInstance = null
 let positionObserver = null
 let resizeObserver = null
-
 function renderRadar() {
   if (!props.xiaoqu || !chartRef.value) return
-
   if (chartInstance) {
     chartInstance.dispose()
     chartInstance = null
@@ -61,19 +59,31 @@ function handleResize() {
   chartInstance?.resize()
 }
 
+function getUnitSize() {
+  const root = document.documentElement
+  return parseFloat(getComputedStyle(root).getPropertyValue('--unit')) || 8
+}
+
 function updatePosition() {
   if (!panelRef.value) return
   const layerPanel = document.querySelector('.layer-panel')
+  const panelRect = panelRef.value.getBoundingClientRect()
+  const panelHeight = panelRect.height
+  const unit = getUnitSize()
+
+  let topPosition = 9 * unit
   if (layerPanel) {
     const rect = layerPanel.getBoundingClientRect()
-    panelRef.value.style.top = `${rect.bottom + 8}px`
+    topPosition = rect.bottom + 1.5 * unit
   }
+
+  const maxTop = window.innerHeight - panelHeight - 2 * unit
+  panelRef.value.style.top = `${Math.min(topPosition, maxTop)}px`
 }
 
 function handleClose() {
   emit('close')
 }
-
 watch(
   () => props.visible,
   (val) => {

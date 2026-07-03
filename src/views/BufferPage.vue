@@ -73,12 +73,14 @@ onUnmounted(() => {
         <BufferControl @result-update="handleResult" @require-login="emit('require-login')" />
       </div>
       <div class="panel-card">
-        <ResultPanel
-          :matched-xiaoqu="matchedXiaoqu"
-          :selected-types="selectedTypes"
-          @select-xiaoqu="handleSelectXiaoqu"
-          @close-xiaoqu="handleCloseXiaoqu"
-        />
+        <div class="scroll-wrap">
+          <ResultPanel
+            :matched-xiaoqu="matchedXiaoqu"
+            :selected-types="selectedTypes"
+            @select-xiaoqu="handleSelectXiaoqu"
+            @close-xiaoqu="handleCloseXiaoqu"
+          />
+        </div>
       </div>
     </div>
     <RadarFloatPanel
@@ -112,15 +114,30 @@ onUnmounted(() => {
   gap: calc(1.5 * var(--unit));
   z-index: 55;
   pointer-events: auto;
+  max-height: calc(100vh - calc(11 * var(--unit)));
+  height: calc(100vh - calc(11 * var(--unit)));
 }
 .panel-card {
   background: rgba(255, 255, 255, 0.95);
   border-radius: calc(1.25 * var(--unit));
   box-shadow: 0 calc(0.5 * var(--unit)) calc(2.25 * var(--unit)) rgba(0, 0, 0, 0.2);
   padding: calc(1.5 * var(--unit));
-  max-height: 80vh;
-  overflow-y: auto;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
+}
+
+.panel-card:first-child {
+  flex: none;
+}
+
+.panel-card:last-child {
+  flex: 1;
+  min-height: 0;
+}
+
+.scroll-wrap {
+  height: 100%;
+  overflow-y: auto;
 }
 </style>

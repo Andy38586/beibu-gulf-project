@@ -19,28 +19,25 @@
   {
     "id": "1782477497029",
     "userId": "1782469103303",
-    "name": "1",
+    "name": "2",
     "selectedKeys": [
-      "hospital",
-      "primary_school",
-      "middle_school",
       "park",
       "bus_station",
       "mall"
     ],
     "typeSettings": {
       "hospital": {
-        "selected": true,
+        "selected": false,
         "importance": 3,
         "defaultRadius": 3
       },
       "primary_school": {
-        "selected": true,
+        "selected": false,
         "importance": 3,
         "defaultRadius": 1
       },
       "middle_school": {
-        "selected": true,
+        "selected": false,
         "importance": 3,
         "defaultRadius": 2
       },
@@ -62,6 +59,6 @@
     },
     "weights": null,
     "createdAt": "2026-06-26T12:38:17.029Z",
-    "updatedAt": "2026-06-26T12:38:17.029Z"
+    "updatedAt": "2026-07-03T09:21:52.461Z"
   }
 ]

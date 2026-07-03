@@ -62,6 +62,9 @@ function togglePanel() {
   overflow: hidden;
   width: calc(39 * var(--unit));
   pointer-events: auto;
+  max-height: calc(100vh - calc(11 * var(--unit)));
+  display: flex;
+  flex-direction: column;
 }
 .panel-header {
   display: flex;
@@ -86,6 +89,8 @@ function togglePanel() {
 }
 .panel-content {
   padding: 8px 0;
+  overflow-y: auto;
+  flex: 1;
 }
 .section-title {
   font-size: 12px;
@@ -96,6 +101,9 @@ function togglePanel() {
 }
 .base-map-section {
   padding: 4px 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
 }
 .divider {
   height: 1px;
@@ -104,6 +112,9 @@ function togglePanel() {
 }
 .business-layers-section {
   padding: 4px 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
 }
 .layer-item {
   display: flex;
@@ -126,5 +137,9 @@ function togglePanel() {
 }
 .layer-label {
   flex: 1;
+}
+
+.section-title {
+  grid-column: 1 / -1;
 }
 </style>

@@ -2,6 +2,7 @@ import * as turf from '@turf/turf'
 import { scoreXiaoqu, DEFAULT_WEIGHTS } from './scoringService.js'
 import { linearDecay } from './decayFunctions.js'
 import { importanceToRadius } from './importanceMapping.js'
+import { createSpatialIndex, queryByPolygon } from '../utils/spatialIndex.js'
 
 const TOP_N = 10
 
@@ -29,8 +30,9 @@ export function buildTypeCoverage(points, radiusKm) {
   return turf.union(turf.featureCollection(buffers))
 }
 export function intersectCoverages(coverages, selectedKeys) {
-  const entries = coverages.map((c, i) => ({ key: selectedKeys[i], coverage: c }))
-    .filter(e => e.coverage)
+  const entries = coverages
+    .map((c, i) => ({ key: selectedKeys[i], coverage: c }))
+    .filter((e) => e.coverage)
   if (entries.length === 0) return { area: null, failKey: null }
   let result = entries[0].coverage
   for (let i = 1; i < entries.length; i++) {
@@ -39,8 +41,9 @@ export function intersectCoverages(coverages, selectedKeys) {
   }
   return { area: result, failKey: null }
 }
-export function filterMatchedXiaoqu(xiaoquData, finalArea) {
-  return xiaoquData.filter((xq) =>
+export function filterMatchedXiaoqu(xiaoquData, finalArea, spatialIndex = null) {
+  const candidates = spatialIndex ? queryByPolygon(spatialIndex, finalArea) : xiaoquData
+  return candidates.filter((xq) =>
     turf.booleanPointInPolygon(turf.point([xq.lng, xq.lat]), finalArea),
   )
 }
@@ -74,7 +77,8 @@ export function runSiteAnalysis({
       matchedXiaoqu: [],
     }
   }
-  const matched = filterMatchedXiaoqu(xiaoquData, finalArea)
+  const spatialIndex = createSpatialIndex(xiaoquData)
+  const matched = filterMatchedXiaoqu(xiaoquData, finalArea, spatialIndex)
   const top = rankXiaoqu(matched, facilityData, radiusSettings, weights)
 
   return { error: null, coverage: finalArea, matchedXiaoqu: top }

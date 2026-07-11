@@ -125,6 +125,7 @@ onUnmounted(() => {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  clip-path: inset(0 0 0 0 round calc(1.25 * var(--unit)));
 }
 
 .panel-card:first-child {

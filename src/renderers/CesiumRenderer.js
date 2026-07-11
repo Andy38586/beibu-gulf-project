@@ -12,6 +12,7 @@ import {
   GeoJsonDataSource,
   Cartographic,
   CallbackProperty,
+  VerticalOrigin,
 } from 'cesium'
 import { MAP_CONFIG, buildTiandituUrl } from '@/config/map'
 

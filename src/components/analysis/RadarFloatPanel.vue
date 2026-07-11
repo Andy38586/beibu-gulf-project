@@ -157,6 +157,7 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   gap: var(--unit);
+  clip-path: inset(0 0 0 0 round calc(1.25 * var(--unit)));
 }
 .panel-header {
   display: flex;

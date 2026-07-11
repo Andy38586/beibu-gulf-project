@@ -62,7 +62,7 @@ function togglePanel() {
   overflow: hidden;
   width: calc(39 * var(--unit));
   pointer-events: auto;
-  max-height: calc(100vh - calc(11 * var(--unit)));
+  max-height: calc(100vh - calc(68.5 * var(--unit)));
   display: flex;
   flex-direction: column;
 }

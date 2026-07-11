@@ -19,14 +19,17 @@ export function queryByPolygon(tree, polygon) {
 }
 
 function getPolygonBBox(polygon) {
-  const coords = polygon.geometry.coordinates[0]
+  const { type, coordinates } = polygon.geometry
+  const polygons = type === 'MultiPolygon' ? coordinates : [coordinates]
   let minX = Infinity, maxX = -Infinity
   let minY = Infinity, maxY = -Infinity
-  for (const [x, y] of coords) {
-    minX = Math.min(minX, x)
-    maxX = Math.max(maxX, x)
-    minY = Math.min(minY, y)
-    maxY = Math.max(maxY, y)
+  for (const poly of polygons) {
+    for (const [x, y] of poly[0]) {
+      minX = Math.min(minX, x)
+      maxX = Math.max(maxX, x)
+      minY = Math.min(minY, y)
+      maxY = Math.max(maxY, y)
+    }
   }
   return { minX, minY, maxX, maxY }
 }

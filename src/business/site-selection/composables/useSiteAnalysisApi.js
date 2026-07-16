@@ -4,7 +4,7 @@
  */
 
 import { ref } from 'vue'
-import { useApiRequest } from './useApiRequest'
+import { useApiRequest } from '@/shared/composables/useApiRequest'
 
 export function useSiteAnalysisApi() {
   const { apiRequest } = useApiRequest()

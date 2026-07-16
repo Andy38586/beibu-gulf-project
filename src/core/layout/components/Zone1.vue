@@ -15,7 +15,7 @@ import { useRouter } from 'vue-router'
 import GcsPanel from './GcsPanel.vue'
 import GcsButton from './GcsButton.vue'
 import CityBar from './CityBar.vue'
-import { useScreenActions } from '@/composables/useScreenActions.js'
+import { useScreenActions } from '@/shared/composables/useScreenActions.js'
 import { GAP } from '../config.js'
 
 const { goHome, goProfileOrBack, userButtonLabel, flyToCity } = useScreenActions()

@@ -9,7 +9,7 @@
 
 import { ref, watch, onBeforeUnmount, nextTick } from 'vue'
 import * as echarts from 'echarts'
-import { FACILITY_LABELS } from '@/composables/facilityLabels'
+import { FACILITY_LABELS } from '@/shared/utils/facilityLabels'
 
 const props = defineProps({
   visible: { type: Boolean, default: true },

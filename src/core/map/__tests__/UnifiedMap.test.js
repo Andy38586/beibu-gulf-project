@@ -2,11 +2,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import UnifiedMap from '../UnifiedMap.vue'
-import { buildPortGeoJson, PORT_STYLE } from '@/composables/usePortLayer'
+import { buildPortGeoJson, PORT_STYLE } from '@/core/map/composables/usePortLayer'
 import { createRenderer } from '@/core/map/renderers'
 import { useMapStore } from '@/stores/map'
 
-vi.mock('@/composables/usePortLayer', () => ({
+vi.mock('@/core/map/composables/usePortLayer', () => ({
   loadPorts: vi.fn().mockResolvedValue([
     { id: 1, name: 'test-port', lon: 108.1, lat: 21.5, type: 'container' },
   ]),
@@ -21,7 +21,7 @@ vi.mock('@/composables/usePortLayer', () => ({
   PORT_STYLE: { size: 12, color: '#409eff', labelField: 'name', featureType: 'port' },
 }))
 
-vi.mock('@/composables/useBoundaryLayer', () => ({
+vi.mock('@/core/map/composables/useBoundaryLayer', () => ({
   loadBoundaryGeoJson: vi.fn().mockResolvedValue({
     type: 'FeatureCollection',
     features: [],

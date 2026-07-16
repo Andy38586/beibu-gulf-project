@@ -7,7 +7,7 @@
  */
 
 import AppLayout from '@/core/layout/AppLayout.vue'
-import InfoPanel from '@/components/common/InfoPanel.vue'
+import InfoPanel from '@/visualization/panels/InfoPanel.vue'
 import { useMapStore } from '@/stores/map'
 
 const mapStore = useMapStore()

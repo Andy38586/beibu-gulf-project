@@ -7,7 +7,7 @@
  */
 
 import { ref, watch } from 'vue'
-import { usePlans } from '@/composables/usePlans'
+import { usePlans } from '@/shared/composables/usePlans'
 
 const props = defineProps({ visible: Boolean })
 const emit = defineEmits(['close', 'load-plan', 'edit-plan'])

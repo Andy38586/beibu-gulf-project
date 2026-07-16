@@ -11,9 +11,9 @@
 
 import { ref, inject, onUnmounted, watch, computed } from 'vue'
 import AppLayout from '@/core/layout/AppLayout.vue'
-import BufferControl from '@/components/analysis/BufferControl.vue'
-import ResultPanel from '@/components/analysis/ResultPanel.vue'
-import RadarFloatPanel from '@/components/analysis/RadarFloatPanel.vue'
+import BufferControl from '@/business/site-selection/components/BufferControl.vue'
+import ResultPanel from '@/business/site-selection/components/ResultPanel.vue'
+import RadarFloatPanel from '@/visualization/charts/RadarChart.vue'
 import { useMapStore } from '@/stores/map'
 import { MAP_CONFIG } from '@/core/config/map'
 

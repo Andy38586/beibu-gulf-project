@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
 import HomePage from '@/views/HomePage.vue'
-import SiteSelectionPage from '@/views/SiteSelectionPage.vue'
+import SiteSelectionPage from '@/business/site-selection/SiteSelectionPage.vue'
 
 const routes = [
   { path: '/', name: 'Home', component: HomePage },

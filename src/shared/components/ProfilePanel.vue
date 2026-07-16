@@ -7,7 +7,7 @@
  */
 
 import { ref, watch } from 'vue'
-import { useAuth } from '@/composables/useAuth'
+import { useAuth } from '@/shared/composables/useAuth'
 
 const props = defineProps({ visible: Boolean })
 const emit = defineEmits(['close'])

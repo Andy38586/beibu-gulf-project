@@ -12,14 +12,14 @@
  */
 
 import { ref, computed, watch } from 'vue'
-import { useAuth } from '@/composables/useAuth'
-import { usePlans } from '@/composables/usePlans'
+import { useAuth } from '@/shared/composables/useAuth'
+import { usePlans } from '@/shared/composables/usePlans'
 import { useRouter } from 'vue-router'
 import { inject } from 'vue'
 import GcsPanel from '@/core/layout/components/GcsPanel.vue'
-import ProfilePanel from '@/components/user/ProfilePanel.vue'
-import PlanDrawer from '@/components/user/PlanDrawer.vue'
-import PlanSaveModal from '@/components/user/PlanSaveModal.vue'
+import ProfilePanel from '@/shared/components/ProfilePanel.vue'
+import PlanDrawer from '@/shared/components/PlanDrawer.vue'
+import PlanSaveModal from '@/shared/components/PlanSaveModal.vue'
 import { useGCS } from '@/core/layout/useGCS.js'
 import { GAP } from '@/core/layout/config.js'
 

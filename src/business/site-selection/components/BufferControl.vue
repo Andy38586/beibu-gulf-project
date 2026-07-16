@@ -1,11 +1,11 @@
 <script setup>
 import { ref, computed, inject, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { FACILITY_CONFIG } from '@/composables/useFacilities'
-import { useSiteAnalysisApi } from '@/composables/useSiteAnalysisApi'
-import { useAuth } from '@/composables/useAuth'
-import { usePlans } from '@/composables/usePlans'
-import PlanSaveModal from '@/components/user/PlanSaveModal.vue'
+import { FACILITY_CONFIG } from '@/business/site-selection/composables/useFacilities'
+import { useSiteAnalysisApi } from '@/business/site-selection/composables/useSiteAnalysisApi'
+import { useAuth } from '@/shared/composables/useAuth'
+import { usePlans } from '@/shared/composables/usePlans'
+import PlanSaveModal from '@/shared/components/PlanSaveModal.vue'
 
 const emit = defineEmits(['result-update', 'require-login'])
 const router = useRouter()

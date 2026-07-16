@@ -3,7 +3,7 @@
  * LineChart - 折线图可视化组件
  *
  * 职责：基于 ECharts 渲染折线图，接收数据与标题配置。
- * 当前 Phase 3-B 使用示例数据占位，未来通过 props 接入真实业务数据。
+ * 属于可视化资产（visualization/charts/），供所有业务复用。
  */
 
 import { ref, onMounted, onUnmounted, watch } from 'vue'
@@ -22,6 +22,8 @@ const props = defineProps({
   },
 })
 
+const emit = defineEmits(['select'])
+
 const chartRef = ref(null)
 let chartInstance = null
 
@@ -30,6 +32,7 @@ function initChart() {
 
   chartInstance = echarts.init(chartRef.value)
   updateOption()
+  chartInstance.on('click', handleChartClick)
 
   window.addEventListener('resize', handleResize)
 }
@@ -78,12 +81,18 @@ function updateOption() {
   chartInstance.setOption(option)
 }
 
+function handleChartClick(params) {
+  // 当用户点击折线图的某个数据点时，向外抛出该点索引
+  emit('select', params.dataIndex)
+}
+
 function handleResize() {
   chartInstance?.resize()
 }
 
 function disposeChart() {
   window.removeEventListener('resize', handleResize)
+  chartInstance?.off('click', handleChartClick)
   chartInstance?.dispose()
   chartInstance = null
 }

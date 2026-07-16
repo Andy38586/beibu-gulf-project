@@ -45,19 +45,19 @@ const zoneSize = computed(() => cell(4, 4))
 // Zone 内边距 = CELL_PADDING，确保内部 Panel 不贴边
 const zonePadding = computed(() => `${padding}px`)
 
-// 左右容器可用高度：视口高度 - 顶部 - 底部 - 安全边距
+// 左右容器可用高度：视口高度 - 顶部 - 底部 - 三倍安全边距（顶/中/底各一份）
 const containerHeight = computed(() => {
   if (typeof window === 'undefined') return '100vh'
-  return `${window.innerHeight - topAreaHeight.value - bottomNavHeight.value - SAFE_MARGIN * 2}px`
+  return `${window.innerHeight - topAreaHeight.value - bottomNavHeight.value - SAFE_MARGIN * 3}px`
 })
 
 // 容器宽度与单个 Zone 保持一致（4×4 Cell）
 const containerWidth = computed(() => zoneSize.value.width)
 
-// 左侧容器定位样式
+// 左侧容器定位样式：顶部与 TopArea 之间留一份安全边距
 const leftContainerStyle = computed(() => ({
   position: 'absolute',
-  top: `${topAreaHeight.value + SAFE_MARGIN}px`,
+  top: `${topAreaHeight.value + SAFE_MARGIN * 2}px`,
   left: `${SAFE_MARGIN}px`,
   width: containerWidth.value,
   height: containerHeight.value,
@@ -67,10 +67,10 @@ const leftContainerStyle = computed(() => ({
   pointerEvents: 'none',
 }))
 
-// 右侧容器定位样式
+// 右侧容器定位样式：与左侧容器对称
 const rightContainerStyle = computed(() => ({
   position: 'absolute',
-  top: `${topAreaHeight.value + SAFE_MARGIN}px`,
+  top: `${topAreaHeight.value + SAFE_MARGIN * 2}px`,
   right: `${SAFE_MARGIN}px`,
   width: containerWidth.value,
   height: containerHeight.value,

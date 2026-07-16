@@ -17,12 +17,22 @@ export default { name: 'GcsTopArea' }
  * - 所有按钮均使用 1×1 NavButton，保持视觉统一
  */
 
+import { computed } from 'vue'
 import TitlePanel from './TitlePanel.vue'
 import NavButton from './NavButton.vue'
 import { useScreenActions } from '@/shared/composables/useScreenActions.js'
+import { useGCS } from '../useGCS.js'
 import { GAP } from '../config.js'
 
 const { goProfileOrBack, userButtonLabel, flyToCity } = useScreenActions()
+const { cell, padding } = useGCS()
+
+// 顶部左右 Zone 外层尺寸与下方 4×4 Zone 容器对齐：4 Cell 宽 + CELL_PADDING 内边距
+const zoneStyle = computed(() => ({
+  width: cell(4, 1).width,
+  padding: `${padding}px`,
+  boxSizing: 'border-box',
+}))
 
 const cityButtons = [
   { label: '钦州', city: '钦州' },
@@ -37,15 +47,15 @@ function handleCityClick(city) {
 
 <template>
   <div class="top-area" :style="{ gap: `${GAP}px` }">
-    <!-- 左侧：路由名称 -->
-    <div class="top-area-left">
+    <!-- 左侧：路由名称，外层 Zone 与下方 4×4 容器对齐 -->
+    <div class="top-area-left zone" :style="zoneStyle">
       <slot name="title">
         <TitlePanel />
       </slot>
     </div>
 
-    <!-- 右侧：城市定位 + 用户 -->
-    <div class="top-area-right" :style="{ gap: `${GAP}px` }">
+    <!-- 右侧：城市定位 + 用户，外层 Zone 与下方 4×4 容器对齐 -->
+    <div class="top-area-right zone" :style="[zoneStyle, { gap: `${GAP}px` }]">
       <slot name="actions">
         <NavButton
           v-for="item in cityButtons"

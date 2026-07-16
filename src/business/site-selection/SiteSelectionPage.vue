@@ -3,32 +3,35 @@
  * SiteSelectionPage - 选址分析业务页
  *
  * 职责：承载选址分析完整链路，继承 Home Layout。
- * Phase 4-B：
- * - Zone2：固定雷达图面板（RadarFloatPanel embedded）
- * - Zone4：选址配置（BufferControl）+ 结果列表（ResultPanel）组合显示
- * - 路由 /buffer → /site-selection
+ * 阶段 4：严格符合业务路由继承模板，地图操作统一通过 useMapControls composable，
+ * 禁止直接 inject 地图实例。
+ *
+ * 布局约定：
+ * - #left：固定雷达图面板（RadarFloatPanel embedded）
+ * - #right：选址配置（BufferControl）+ 结果列表（ResultPanel）组合显示
  */
 
-import { ref, inject, onUnmounted, watch, computed } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import AppLayout from '@/core/layout/AppLayout.vue'
 import GcsPanel from '@/core/layout/components/GcsPanel.vue'
 import BufferControl from '@/business/site-selection/components/BufferControl.vue'
 import ResultPanel from '@/business/site-selection/components/ResultPanel.vue'
 import RadarFloatPanel from '@/visualization/charts/RadarChart.vue'
+import { useMapControls } from '@/core/map/composables/useMapControls'
 import { useMapStore } from '@/stores/map'
-import { MAP_CONFIG } from '@/core/config/map'
+import { GAP } from '@/core/layout/config.js'
 
 const emit = defineEmits(['require-login'])
 
+/** 右侧面板堆叠间距，统一使用 GCS 的 GAP，禁止硬编码 px */
+const gapPx = `${GAP}px`
+
+const { flyTo, startBreathing, stopBreathing, zoomToCity, zoomToDistrict } = useMapControls()
 const mapStore = useMapStore()
+
 const matchedXiaoqu = ref([])
 const selectedTypes = ref([])
 const selectedXiaoqu = ref(null)
-
-const unifiedMapRef = inject('unifiedMap', ref(null))
-const mapReady = ref(false)
-
-const mapInstance = computed(() => unifiedMapRef.value)
 
 function handleResult(result) {
   mapStore.setAnalysisResult(result)
@@ -37,7 +40,7 @@ function handleResult(result) {
   // 清空已选小区，雷达图回到空状态
   selectedXiaoqu.value = null
   mapStore.setSelectedXiaoqu(null)
-  mapInstance.value?.stopBreathing()
+  stopBreathing()
   if (matchedXiaoqu.value.length > 0) {
     zoomToDistrict()
   }
@@ -47,38 +50,24 @@ function handleSelectXiaoqu(xq) {
   selectedXiaoqu.value = xq
   mapStore.setSelectedXiaoqu(xq)
   if (xq.lon && xq.lat) {
-    mapInstance.value?.startBreathing(xq.lon, xq.lat)
-    mapInstance.value?.flyTo({ lng: xq.lon, lat: xq.lat }, { height: 5000 })
+    startBreathing(xq.lon, xq.lat)
+    flyTo({ lng: xq.lon, lat: xq.lat }, { height: 5000 })
   }
 }
 
 function handleCloseXiaoqu() {
   selectedXiaoqu.value = null
   mapStore.setSelectedXiaoqu(null)
-  mapInstance.value?.stopBreathing()
+  stopBreathing()
 }
 
-function zoomToCity() {
-  if (!mapReady.value) return
-  const cityLevel = MAP_CONFIG.VIEW_LEVELS.CITY
-  mapInstance.value?.flyTo(cityLevel.center, { height: cityLevel.height })
-}
-
-function zoomToDistrict() {
-  if (!mapReady.value) return
-  const districtLevel = MAP_CONFIG.VIEW_LEVELS.DISTRICT
-  mapInstance.value?.flyTo(districtLevel.center, { height: districtLevel.height })
-}
-
-watch(unifiedMapRef, (val) => {
-  if (val?.value) {
-    mapReady.value = true
-    setTimeout(() => zoomToCity(), 300)
-  }
+onMounted(() => {
+  // 进入页面后稍作延迟，等待地图初始化完成，再定位到城市视角
+  setTimeout(() => zoomToCity(), 300)
 })
 
 onUnmounted(() => {
-  mapInstance.value?.stopBreathing()
+  stopBreathing()
 })
 </script>
 
@@ -132,7 +121,7 @@ onUnmounted(() => {
   height: 100%;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: v-bind(gapPx);
   overflow-y: auto;
   overflow-x: hidden;
   padding-right: 4px;

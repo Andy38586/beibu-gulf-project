@@ -98,7 +98,7 @@ async function handleDelete(id) {
 function handleLoad(plan) {
   restorePlanData.value = plan.typeSettings || {}
   editingPlan.value = plan
-  router.push('/buffer')
+  router.push('/site-selection')
 }
 
 async function handleLogout() {

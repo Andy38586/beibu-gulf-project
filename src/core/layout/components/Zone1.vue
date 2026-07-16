@@ -27,7 +27,7 @@ const router = useRouter()
  * - 顺序按 act 文档：选址 / 吞吐量 / 因子 / 航线
  */
 const businessEntries = computed(() => [
-  { label: '选址分析', icon: '◈', route: '/buffer', disabled: false },
+  { label: '选址分析', icon: '◈', route: '/site-selection', disabled: false },
   { label: '吞吐量', icon: '📊', route: '', disabled: true },
   { label: '因子', icon: '⚐', route: '', disabled: true },
   { label: '航线分析', icon: '✈', route: '', disabled: true },

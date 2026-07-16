@@ -2,9 +2,11 @@
 /**
  * SiteSelectionPage - 选址分析业务页
  *
- * 职责：承载选址分析完整链路。
- * Phase 4-A：引入 AppLayout，将 BufferControl 迁移到 Zone4。
- * Phase 4-B：将继续迁移 ResultPanel 到 Zone4，RadarFloatPanel 到 Zone2。
+ * 职责：承载选址分析完整链路，继承 Home Layout。
+ * Phase 4-B：
+ * - Zone2：固定雷达图面板（RadarFloatPanel embedded）
+ * - Zone4：选址配置（BufferControl）+ 结果列表（ResultPanel）组合显示
+ * - 路由 /buffer → /site-selection
  */
 
 import { ref, inject, onUnmounted, watch, computed } from 'vue'
@@ -31,6 +33,10 @@ function handleResult(result) {
   mapStore.setAnalysisResult(result)
   matchedXiaoqu.value = result.matchedXiaoqu || []
   selectedTypes.value = result.selectedTypes || []
+  // 清空已选小区，雷达图回到空状态
+  selectedXiaoqu.value = null
+  mapStore.setSelectedXiaoqu(null)
+  mapInstance.value?.stopBreathing()
   if (matchedXiaoqu.value.length > 0) {
     zoomToDistrict()
   }
@@ -77,34 +83,36 @@ onUnmounted(() => {
 
 <template>
   <div class="site-selection-page">
-    <!-- Phase 4-A：业务配置面板放入 Zone4 -->
     <AppLayout>
+      <!-- Zone2：雷达图固定面板 -->
+      <template #zone2>
+        <RadarFloatPanel
+          :embedded="true"
+          :xiaoqu="selectedXiaoqu"
+          :selected-types="selectedTypes"
+        />
+      </template>
+
+      <!-- Zone4：选址配置 + 结果列表 -->
       <template #zone4>
-        <BufferControl @result-update="handleResult" @require-login="emit('require-login')" />
+        <div class="zone4-stack">
+          <div class="buffer-control-wrap">
+            <BufferControl
+              @result-update="handleResult"
+              @require-login="emit('require-login')"
+            />
+          </div>
+          <div class="result-panel-wrap">
+            <ResultPanel
+              :matched-xiaoqu="matchedXiaoqu"
+              :selected-types="selectedTypes"
+              @select-xiaoqu="handleSelectXiaoqu"
+              @close-xiaoqu="handleCloseXiaoqu"
+            />
+          </div>
+        </div>
       </template>
     </AppLayout>
-
-    <!-- Phase 4-B 待迁移：结果列表面板 -->
-    <div class="result-panel-wrap">
-      <div class="panel-card">
-        <div class="scroll-wrap">
-          <ResultPanel
-            :matched-xiaoqu="matchedXiaoqu"
-            :selected-types="selectedTypes"
-            @select-xiaoqu="handleSelectXiaoqu"
-            @close-xiaoqu="handleCloseXiaoqu"
-          />
-        </div>
-      </div>
-    </div>
-
-    <!-- Phase 4-B 待迁移：雷达图浮窗 -->
-    <RadarFloatPanel
-      :visible="!!selectedXiaoqu"
-      :xiaoqu="selectedXiaoqu"
-      :selected-types="selectedTypes"
-      @close="handleCloseXiaoqu"
-    />
   </div>
 </template>
 
@@ -115,37 +123,22 @@ onUnmounted(() => {
   pointer-events: none;
 }
 
-.site-selection-page :deep(.result-panel-wrap),
-.site-selection-page :deep(.radar-float-panel) {
-  pointer-events: auto;
-}
-
-/* 临时容器：仅承载 ResultPanel，Phase 4-B 迁移到 Zone4 后删除。
-   当前避开右下 Zone4（4×4 Cell ≈ 52×--unit），放在其上方。 */
-.result-panel-wrap {
-  position: fixed;
-  top: calc(9 * var(--unit));
-  right: calc(2.5 * var(--unit));
-  bottom: calc(52 * var(--unit));
-  width: calc(39 * var(--unit));
-  z-index: 55;
-  pointer-events: auto;
-}
-
-.panel-card {
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: calc(1.25 * var(--unit));
-  box-shadow: 0 calc(0.5 * var(--unit)) calc(2.25 * var(--unit)) rgba(0, 0, 0, 0.2);
-  padding: calc(1.5 * var(--unit));
-  overflow: hidden;
+/* Zone4 内垂直堆叠：配置面板 + 结果列表，超出可滚动 */
+.zone4-stack {
+  width: 100%;
+  height: 100%;
   display: flex;
   flex-direction: column;
-  clip-path: inset(0 0 0 0 round calc(1.25 * var(--unit)));
-  height: 100%;
+  gap: 10px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 4px;
+  box-sizing: border-box;
 }
 
-.scroll-wrap {
-  height: 100%;
-  overflow-y: auto;
+.buffer-control-wrap,
+.result-panel-wrap {
+  flex-shrink: 0;
+  pointer-events: auto;
 }
 </style>

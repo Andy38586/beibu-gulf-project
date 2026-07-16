@@ -1,12 +1,21 @@
 <script setup>
+/**
+ * RadarFloatPanel - 雷达图面板
+ *
+ * 支持两种模式：
+ * - 浮动模式（默认）：v-if 控制显示，绝对定位，跟随 layer-panel 下方。
+ * - 嵌入模式（embedded=true）：作为 Zone2 固定面板，始终渲染，无数据时显示占位。
+ */
+
 import { ref, watch, onBeforeUnmount, nextTick } from 'vue'
 import * as echarts from 'echarts'
 import { FACILITY_LABELS } from '@/composables/facilityLabels'
 
 const props = defineProps({
-  visible: Boolean,
-  xiaoqu: Object,
-  selectedTypes: Array,
+  visible: { type: Boolean, default: true },
+  xiaoqu: { type: Object, default: null },
+  selectedTypes: { type: Array, default: () => [] },
+  embedded: { type: Boolean, default: false },
 })
 const emit = defineEmits(['close'])
 
@@ -15,6 +24,7 @@ const panelRef = ref(null)
 let chartInstance = null
 let positionObserver = null
 let resizeObserver = null
+
 function renderRadar() {
   if (!props.xiaoqu || !chartRef.value) return
   if (chartInstance) {
@@ -32,17 +42,13 @@ function renderRadar() {
     radar: {
       indicator: indicators,
       radius: '65%',
-      axisName: {
-        fontSize: 12,
-      },
+      axisName: { fontSize: 12 },
     },
     series: [
       {
         type: 'radar',
         symbolSize: 6,
-        lineStyle: {
-          width: 2,
-        },
+        lineStyle: { width: 2 },
         data: [
           {
             value: values,
@@ -65,7 +71,7 @@ function getUnitSize() {
 }
 
 function updatePosition() {
-  if (!panelRef.value) return
+  if (props.embedded || !panelRef.value) return
   const layerPanel = document.querySelector('.layer-panel')
   const panelRect = panelRef.value.getBoundingClientRect()
   const panelHeight = panelRect.height
@@ -84,43 +90,18 @@ function updatePosition() {
 function handleClose() {
   emit('close')
 }
-watch(
-  () => props.visible,
-  (val) => {
-    if (val) {
-      nextTick(() => {
-        updatePosition()
-        renderRadar()
-        positionObserver = new ResizeObserver(updatePosition)
-        const layerPanel = document.querySelector('.layer-panel')
-        if (layerPanel) {
-          positionObserver.observe(layerPanel)
-        }
-        resizeObserver = new ResizeObserver(handleResize)
-        if (panelRef.value) {
-          resizeObserver.observe(panelRef.value)
-        }
-        window.addEventListener('resize', handleResize)
-      })
-    } else {
-      if (positionObserver) {
-        positionObserver.disconnect()
-        positionObserver = null
-      }
-      if (resizeObserver) {
-        resizeObserver.disconnect()
-        resizeObserver = null
-      }
-      window.removeEventListener('resize', handleResize)
-    }
-  },
-)
 
-watch([() => props.xiaoqu, () => props.selectedTypes], renderRadar, { flush: 'post' })
+function setupObservers() {
+  if (props.embedded) return
+  positionObserver = new ResizeObserver(updatePosition)
+  const layerPanel = document.querySelector('.layer-panel')
+  if (layerPanel) positionObserver.observe(layerPanel)
+  resizeObserver = new ResizeObserver(handleResize)
+  if (panelRef.value) resizeObserver.observe(panelRef.value)
+  window.addEventListener('resize', handleResize)
+}
 
-onBeforeUnmount(() => {
-  chartInstance?.dispose()
-  chartInstance = null
+function cleanupObservers() {
   if (positionObserver) {
     positionObserver.disconnect()
     positionObserver = null
@@ -130,11 +111,35 @@ onBeforeUnmount(() => {
     resizeObserver = null
   }
   window.removeEventListener('resize', handleResize)
+}
+
+watch(
+  () => props.visible,
+  (val) => {
+    if (val) {
+      nextTick(() => {
+        updatePosition()
+        renderRadar()
+        setupObservers()
+      })
+    } else {
+      cleanupObservers()
+    }
+  },
+)
+
+watch([() => props.xiaoqu, () => props.selectedTypes], renderRadar, { flush: 'post' })
+
+onBeforeUnmount(() => {
+  chartInstance?.dispose()
+  chartInstance = null
+  cleanupObservers()
 })
 </script>
 
 <template>
-  <div v-if="visible && xiaoqu" ref="panelRef" class="radar-float-panel">
+  <!-- 浮动模式：保持原有行为 -->
+  <div v-if="!embedded && visible && xiaoqu" ref="panelRef" class="radar-float-panel">
     <div class="panel-header">
       <strong>{{ xiaoqu.name }}</strong>
       <button class="close-btn" @click="handleClose">×</button>
@@ -142,9 +147,24 @@ onBeforeUnmount(() => {
     <p class="score-text">综合评分：{{ xiaoqu.score }}</p>
     <div ref="chartRef" class="radar-chart"></div>
   </div>
+
+  <!-- 嵌入模式：作为 Zone2 固定面板 -->
+  <div v-else-if="embedded" ref="panelRef" class="radar-embedded">
+    <template v-if="xiaoqu">
+      <div class="panel-header">
+        <strong>{{ xiaoqu.name }}</strong>
+      </div>
+      <p class="score-text">综合评分：{{ xiaoqu.score }}</p>
+      <div ref="chartRef" class="radar-chart"></div>
+    </template>
+    <div v-else class="empty-state">
+      <span>请在结果列表中选择小区查看雷达图</span>
+    </div>
+  </div>
 </template>
 
 <style scoped>
+/* 浮动模式：与旧版保持一致 */
 .radar-float-panel {
   position: absolute;
   left: calc(1.25 * var(--unit));
@@ -159,6 +179,22 @@ onBeforeUnmount(() => {
   gap: var(--unit);
   clip-path: inset(0 0 0 0 round calc(1.25 * var(--unit)));
 }
+
+/* 嵌入模式：填满 Zone2 */
+.radar-embedded {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--unit);
+  background: rgba(255, 255, 255, 0.98);
+  border-radius: calc(1.25 * var(--unit));
+  box-shadow: 0 calc(0.5 * var(--unit)) calc(2.25 * var(--unit)) rgba(0, 0, 0, 0.2);
+  padding: calc(1.5 * var(--unit));
+  box-sizing: border-box;
+  clip-path: inset(0 0 0 0 round calc(1.25 * var(--unit)));
+}
+
 .panel-header {
   display: flex;
   justify-content: space-between;
@@ -187,6 +223,17 @@ onBeforeUnmount(() => {
 }
 .radar-chart {
   width: 100%;
-  height: calc(50 * var(--unit));
+  flex: 1;
+  min-height: 0;
+}
+.empty-state {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #999;
+  font-size: 13px;
+  text-align: center;
 }
 </style>

@@ -2,7 +2,6 @@
 import { RouterView, useRoute, useRouter } from 'vue-router'
 import { onMounted, provide, ref, watch } from 'vue'
 import UnifiedMap from '@/components/map/UnifiedMap.vue'
-import AppLayout from '@/core/layout/AppLayout.vue'
 import LayerPanel from '@/components/map/LayerPanel.vue'
 import MapSwitcher from '@/components/map/MapSwitcher.vue'
 import ErrorBoundary from '@/components/common/ErrorBoundary.vue'
@@ -35,7 +34,7 @@ watch(
     if (name === 'Home') {
       zoomToRegion()
     }
-    if (name === 'Buffer') {
+    if (name === 'SiteSelection') {
       setTimeout(() => zoomToCity(), 500)
     }
   },
@@ -50,7 +49,6 @@ onMounted(() => {
 <template>
   <div class="app-layout">
     <UnifiedMap ref="unifiedMapRef" :map-type="mapStore.mapType" />
-    <AppLayout />
     <LayerPanel />
     <MapSwitcher />
     <main class="app-content">

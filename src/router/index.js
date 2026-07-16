@@ -1,10 +1,12 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
 import HomePage from '@/views/HomePage.vue'
+import SiteSelectionPage from '@/views/SiteSelectionPage.vue'
 
 const routes = [
   { path: '/', name: 'Home', component: HomePage },
-  { path: '/buffer', name: 'Buffer', component: () => import('@/views/BufferPage.vue') },
+  // Phase 4-A：BufferPage 重命名为 SiteSelectionPage，路径保持 /buffer（Phase 4-B 再调整）
+  { path: '/buffer', name: 'SiteSelection', component: SiteSelectionPage },
   { path: '/profile', name: 'Profile', component: () => import('@/views/ProfilePage.vue') },
 ]
 

@@ -34,6 +34,15 @@ export function useGCS() {
   const gap = computed(() => CELL_PADDING * 2)
 
   /**
+   * 响应式显隐控制
+   * - showPanels: 是否显示左右容器（可视化 / 图层控制 / 结果展示）
+   * - showTopArea: 是否显示顶部功能区
+   * - 底部导航条始终显示，确保任何尺寸下都能切换业务
+   */
+  const showPanels = computed(() => windowWidth.value >= 768)
+  const showTopArea = computed(() => windowWidth.value >= 768)
+
+  /**
    * 计算 w×h 个 Cell 占据的总尺寸（含内边距）
    * @param {number} w - 横向 Cell 数
    * @param {number} h - 纵向 Cell 数
@@ -90,6 +99,8 @@ export function useGCS() {
     panelPixel,
     gap,
     padding: CELL_PADDING,
+    showPanels,
+    showTopArea,
     cell,
     panel,
   }

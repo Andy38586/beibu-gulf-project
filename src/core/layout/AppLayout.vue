@@ -28,7 +28,7 @@ import Zone2 from './components/Zone2.vue'
 import Zone3 from './components/Zone3.vue'
 import Zone4 from './components/Zone4.vue'
 
-const { cell, cellPixel, padding } = useGCS()
+const { cell, cellPixel, padding, showPanels, showTopArea } = useGCS()
 
 // 安全边距：容器与视口边缘的距离
 const SAFE_MARGIN = 20
@@ -84,10 +84,10 @@ const rightContainerStyle = computed(() => ({
 <template>
   <div class="app-layout">
     <!-- 第一层：顶部功能区 -->
-    <TopArea />
+    <TopArea v-show="showTopArea" />
 
     <!-- 第二层：左侧容器（可视化 + 图层控制） -->
-    <div class="left-container" :style="leftContainerStyle">
+    <div v-show="showPanels" class="left-container" :style="leftContainerStyle">
       <slot name="left">
         <div class="zone zone-2" :style="zoneSize">
           <Zone2 />
@@ -99,7 +99,7 @@ const rightContainerStyle = computed(() => ({
     </div>
 
     <!-- 第三层：右侧容器（结果展示 / 业务面板） -->
-    <div class="right-container" :style="rightContainerStyle">
+    <div v-show="showPanels" class="right-container" :style="rightContainerStyle">
       <slot name="right">
         <div class="zone zone-4" :style="zoneSize">
           <Zone4 />

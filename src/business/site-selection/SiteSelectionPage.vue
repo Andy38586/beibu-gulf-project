@@ -11,6 +11,7 @@
 
 import { ref, inject, onUnmounted, watch, computed } from 'vue'
 import AppLayout from '@/core/layout/AppLayout.vue'
+import GcsPanel from '@/core/layout/components/GcsPanel.vue'
 import BufferControl from '@/business/site-selection/components/BufferControl.vue'
 import ResultPanel from '@/business/site-selection/components/ResultPanel.vue'
 import RadarFloatPanel from '@/visualization/charts/RadarChart.vue'
@@ -84,17 +85,19 @@ onUnmounted(() => {
 <template>
   <div class="site-selection-page">
     <AppLayout>
-      <!-- Zone2：雷达图固定面板 -->
-      <template #zone2>
-        <RadarFloatPanel
-          :embedded="true"
-          :xiaoqu="selectedXiaoqu"
-          :selected-types="selectedTypes"
-        />
+      <!-- 左侧：雷达图固定面板 -->
+      <template #left>
+        <GcsPanel :w="4" :h="4" class="radar-panel-slot">
+          <RadarFloatPanel
+            :embedded="true"
+            :xiaoqu="selectedXiaoqu"
+            :selected-types="selectedTypes"
+          />
+        </GcsPanel>
       </template>
 
-      <!-- Zone4：选址配置 + 结果列表 -->
-      <template #zone4>
+      <!-- 右侧：选址配置 + 结果列表 -->
+      <template #right>
         <div class="zone4-stack">
           <div class="buffer-control-wrap">
             <BufferControl
@@ -140,5 +143,14 @@ onUnmounted(() => {
 .result-panel-wrap {
   flex-shrink: 0;
   pointer-events: auto;
+}
+
+/* 左侧雷达图面板插槽：确保子组件撑满 GcsPanel 内容区 */
+.radar-panel-slot {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 </style>

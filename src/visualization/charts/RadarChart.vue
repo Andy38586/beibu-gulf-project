@@ -7,9 +7,10 @@
  * - 嵌入模式（embedded=true）：作为 Zone2 固定面板，始终渲染，无数据时显示占位。
  */
 
-import { ref, watch, onBeforeUnmount, nextTick } from 'vue'
+import { ref, watch, onBeforeUnmount, nextTick, computed } from 'vue'
 import * as echarts from 'echarts'
 import { FACILITY_LABELS } from '@/shared/utils/facilityLabels'
+import { useGCS } from '@/core/layout/useGCS.js'
 
 const props = defineProps({
   visible: { type: Boolean, default: true },
@@ -24,6 +25,10 @@ const panelRef = ref(null)
 let chartInstance = null
 let positionObserver = null
 let resizeObserver = null
+
+const { cellPixel } = useGCS()
+/** 旧版 --unit=8px，现以 CELL_PIXEL 的 1/10 作为等效单位，保证视觉一致 */
+const unitPx = computed(() => cellPixel.value * 0.1)
 
 function renderRadar() {
   if (!props.xiaoqu || !chartRef.value) return
@@ -65,17 +70,12 @@ function handleResize() {
   chartInstance?.resize()
 }
 
-function getUnitSize() {
-  const root = document.documentElement
-  return parseFloat(getComputedStyle(root).getPropertyValue('--unit')) || 8
-}
-
 function updatePosition() {
   if (props.embedded || !panelRef.value) return
   const layerPanel = document.querySelector('.layer-panel')
   const panelRect = panelRef.value.getBoundingClientRect()
   const panelHeight = panelRect.height
-  const unit = getUnitSize()
+  const unit = unitPx.value
 
   let topPosition = 9 * unit
   if (layerPanel) {
@@ -102,14 +102,14 @@ function setupObservers() {
 }
 
 function cleanupObservers() {
-  if (positionObserver) {
-    positionObserver.disconnect()
-    positionObserver = null
-  }
-  if (resizeObserver) {
-    resizeObserver.disconnect()
-    resizeObserver = null
-  }
+  try {
+    positionObserver?.disconnect()
+  } catch {}
+  positionObserver = null
+  try {
+    resizeObserver?.disconnect()
+  } catch {}
+  resizeObserver = null
   window.removeEventListener('resize', handleResize)
 }
 
@@ -167,17 +167,17 @@ onBeforeUnmount(() => {
 /* 浮动模式：与旧版保持一致 */
 .radar-float-panel {
   position: absolute;
-  left: calc(1.25 * var(--unit));
-  width: calc(39 * var(--unit));
+  left: calc(1.25 * v-bind(unitPx));
+  width: calc(39 * v-bind(unitPx));
   z-index: 95;
   background: rgba(255, 255, 255, 0.98);
-  border-radius: calc(1.25 * var(--unit));
-  box-shadow: 0 calc(0.5 * var(--unit)) calc(2.25 * var(--unit)) rgba(0, 0, 0, 0.2);
-  padding: calc(1.5 * var(--unit));
+  border-radius: calc(1.25 * v-bind(unitPx));
+  box-shadow: 0 calc(0.5 * v-bind(unitPx)) calc(2.25 * v-bind(unitPx)) rgba(0, 0, 0, 0.2);
+  padding: calc(1.5 * v-bind(unitPx));
   display: flex;
   flex-direction: column;
-  gap: var(--unit);
-  clip-path: inset(0 0 0 0 round calc(1.25 * var(--unit)));
+  gap: v-bind(unitPx);
+  clip-path: inset(0 0 0 0 round calc(1.25 * v-bind(unitPx)));
 }
 
 /* 嵌入模式：填满 Zone2 */
@@ -186,20 +186,20 @@ onBeforeUnmount(() => {
   height: 100%;
   display: flex;
   flex-direction: column;
-  gap: var(--unit);
+  gap: v-bind(unitPx);
   background: rgba(255, 255, 255, 0.98);
-  border-radius: calc(1.25 * var(--unit));
-  box-shadow: 0 calc(0.5 * var(--unit)) calc(2.25 * var(--unit)) rgba(0, 0, 0, 0.2);
-  padding: calc(1.5 * var(--unit));
+  border-radius: calc(1.25 * v-bind(unitPx));
+  box-shadow: 0 calc(0.5 * v-bind(unitPx)) calc(2.25 * v-bind(unitPx)) rgba(0, 0, 0, 0.2);
+  padding: calc(1.5 * v-bind(unitPx));
   box-sizing: border-box;
-  clip-path: inset(0 0 0 0 round calc(1.25 * var(--unit)));
+  clip-path: inset(0 0 0 0 round calc(1.25 * v-bind(unitPx)));
 }
 
 .panel-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-bottom: var(--unit);
+  padding-bottom: v-bind(unitPx);
   border-bottom: 1px solid #eee;
 }
 .panel-header strong {

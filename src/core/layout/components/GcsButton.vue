@@ -45,6 +45,12 @@ const buttonStyle = computed(() => ({
   fontSize: `${cellPixel.value * 0.18}px`,
 }))
 
+const iconStyle = computed(() => ({
+  marginTop: `${cellPixel.value * 0.05}px`,
+  fontSize: '0.85em',
+  opacity: 0.9,
+}))
+
 function handleClick() {
   if (!props.disabled) {
     emit('click')
@@ -61,7 +67,7 @@ function handleClick() {
     @click="handleClick"
   >
     <span class="button-label">{{ label }}</span>
-    <span v-if="icon" class="button-icon" aria-hidden="true">{{ icon }}</span>
+    <span v-if="icon" class="button-icon" :style="iconStyle" aria-hidden="true">{{ icon }}</span>
   </button>
 </template>
 
@@ -98,7 +104,6 @@ function handleClick() {
 }
 
 .button-icon {
-  margin-top: 4px;
   font-size: 0.85em;
   opacity: 0.9;
 }

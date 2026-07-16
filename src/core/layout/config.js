@@ -5,8 +5,8 @@
  * 禁止在组件中硬编码 px 值。
  */
 
-/** Cell 最小逻辑单位像素值 */
-export const CELL_PIXEL = 100
+/** Cell 最小逻辑单位像素值。文档推荐默认值为 80，以兼顾 1920×1080 及以下视口 */
+export const CELL_PIXEL = 80
 
 /** Cell 内边距，Panel 距 Cell 边缘的距离 */
 export const CELL_PADDING = 10
@@ -26,8 +26,8 @@ export const CELL_PIXEL_DEFAULT = CELL_PIXEL
 
 /** 响应式断点对应的 CELL_PIXEL 查表 */
 export function getCellPixelByViewport(width) {
-  if (width >= 1920) return 100
-  if (width >= 1366) return 100
+  if (width >= 1920) return 90
+  if (width >= 1366) return 80
   if (width >= 1024) return 80
   if (width >= 768) return 70
   return 60

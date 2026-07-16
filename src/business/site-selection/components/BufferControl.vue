@@ -6,9 +6,13 @@ import { useSiteAnalysisApi } from '@/business/site-selection/composables/useSit
 import { useAuth } from '@/shared/composables/useAuth'
 import { usePlans } from '@/shared/composables/usePlans'
 import PlanSaveModal from '@/shared/components/PlanSaveModal.vue'
+import { useGCS } from '@/core/layout/useGCS.js'
 
 const emit = defineEmits(['result-update', 'require-login'])
 const router = useRouter()
+
+const { cellPixel } = useGCS()
+const unitPx = computed(() => cellPixel.value * 0.1)
 
 const TOP_N = 10
 const IMPORTANCE_LABELS = {
@@ -209,35 +213,35 @@ async function onSavePlan(name) {
 .buffer-control {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: calc(1.25 * v-bind(unitPx));
 }
 .buffer-control h3 {
   margin: 0;
-  font-size: 16px;
+  font-size: calc(2 * v-bind(unitPx));
   color: #333;
 }
 .type-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: v-bind(unitPx);
 }
 .type-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 14px;
+  font-size: calc(1.75 * v-bind(unitPx));
 }
 .type-label {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: v-bind(unitPx);
 }
 .importance-select {
-  width: 90px;
+  width: calc(11.25 * v-bind(unitPx));
 }
 .btn-group {
   display: flex;
-  gap: calc(0.75 * var(--unit));
+  gap: calc(0.75 * v-bind(unitPx));
 }
 .btn-group button {
   flex: 1;
@@ -245,7 +249,7 @@ async function onSavePlan(name) {
 .save-section {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: calc(0.5 * v-bind(unitPx));
 }
 .save-section button {
   width: 100%;
@@ -254,14 +258,14 @@ async function onSavePlan(name) {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px;
+  gap: calc(0.5 * v-bind(unitPx));
 }
 .hint-text {
-  font-size: 11px;
+  font-size: calc(1.375 * v-bind(unitPx));
   color: #999;
 }
 .login-link {
-  font-size: 11px;
+  font-size: calc(1.375 * v-bind(unitPx));
   color: #409eff;
   cursor: pointer;
   text-decoration: none;
@@ -271,18 +275,18 @@ async function onSavePlan(name) {
 }
 .error-text {
   color: #e74c3c;
-  font-size: 13px;
+  font-size: calc(1.625 * v-bind(unitPx));
   margin: 0;
 }
 .result-text {
   color: #27ae60;
-  font-size: 14px;
+  font-size: calc(1.75 * v-bind(unitPx));
   font-weight: 500;
   margin: 0;
 }
 .save-message {
   color: #27ae60;
-  font-size: 13px;
+  font-size: calc(1.625 * v-bind(unitPx));
   margin: 0;
 }
 </style>

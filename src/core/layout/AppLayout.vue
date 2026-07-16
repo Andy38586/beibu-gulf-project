@@ -3,70 +3,112 @@
  * AppLayout - GCS 布局基座（Layout Base）
  *
  * 职责：
- * 1. 定义四象限 Zone 布局（左上/右上/左下/右下）
- * 2. 基于 CELL_PIXEL 计算 Zone 位置与尺寸
- * 3. 提供 zone1 / zone2 / zone3 / zone4 四个插槽
+ * 1. 定义四层职责分离的界面结构：TopArea / LeftContainer / RightContainer / BottomNavBar
+ * 2. 基于 CELL_PIXEL 计算各层位置与尺寸
+ * 3. 提供 left / right 两个业务插槽，默认渲染 Zone2/Zone3/Zone4
+ *
+ * 结构说明：
+ * - TopArea：顶部全局导航与城市定位
+ * - LeftContainer：左上可视化区 + 左下图层控制区
+ * - RightContainer：右下结果展示区（业务路由可注入业务面板）
+ * - BottomNavBar：底部业务导航条
  *
  * 使用方式：
  * <AppLayout>
- *   <template #zone1>业务控制区</template>
- *   <template #zone2>可视化区</template>
- *   <template #zone3>图层控制区</template>
- *   <template #zone4>结果展示区</template>
+ *   <template #left>自定义左侧内容</template>
+ *   <template #right>自定义右侧内容</template>
  * </AppLayout>
  */
 
 import { computed } from 'vue'
 import { useGCS } from './useGCS.js'
-import Zone1 from './components/Zone1.vue'
+import TopArea from './components/TopArea.vue'
+import BottomNavBar from './components/BottomNavBar.vue'
 import Zone2 from './components/Zone2.vue'
 import Zone3 from './components/Zone3.vue'
 import Zone4 from './components/Zone4.vue'
 
-const { cell, padding } = useGCS()
+const { cell, cellPixel, padding } = useGCS()
 
-// 每个 Zone 固定占 4×4 个 Cell
+// 安全边距：容器与视口边缘的距离
+const SAFE_MARGIN = 20
+
+// 顶部功能区高度 = 1 个 Cell
+const topAreaHeight = computed(() => cellPixel.value)
+
+// 底部导航条高度 = 1 个 Cell
+const bottomNavHeight = computed(() => cellPixel.value)
+
+// 单个 Zone 固定占 4×4 个 Cell
 const zoneSize = computed(() => cell(4, 4))
 
 // Zone 内边距 = CELL_PADDING，确保内部 Panel 不贴边
-const zonePadding = computed(() => `${padding.value}px`)
+const zonePadding = computed(() => `${padding}px`)
 
-// 所有 Zone 统一尺寸
-const zoneStyle = computed(() => ({
-  width: zoneSize.value.width,
-  height: zoneSize.value.height,
+// 左右容器可用高度：视口高度 - 顶部 - 底部 - 安全边距
+const containerHeight = computed(() => {
+  if (typeof window === 'undefined') return '100vh'
+  return `${window.innerHeight - topAreaHeight.value - bottomNavHeight.value - SAFE_MARGIN * 2}px`
+})
+
+// 容器宽度与单个 Zone 保持一致（4×4 Cell）
+const containerWidth = computed(() => zoneSize.value.width)
+
+// 左侧容器定位样式
+const leftContainerStyle = computed(() => ({
+  position: 'absolute',
+  top: `${topAreaHeight.value + SAFE_MARGIN}px`,
+  left: `${SAFE_MARGIN}px`,
+  width: containerWidth.value,
+  height: containerHeight.value,
+  display: 'flex',
+  flexDirection: 'column',
+  gap: `${SAFE_MARGIN}px`,
+  pointerEvents: 'none',
+}))
+
+// 右侧容器定位样式
+const rightContainerStyle = computed(() => ({
+  position: 'absolute',
+  top: `${topAreaHeight.value + SAFE_MARGIN}px`,
+  right: `${SAFE_MARGIN}px`,
+  width: containerWidth.value,
+  height: containerHeight.value,
+  display: 'flex',
+  flexDirection: 'column',
+  gap: `${SAFE_MARGIN}px`,
+  pointerEvents: 'none',
 }))
 </script>
 
 <template>
   <div class="app-layout">
-    <!-- Zone1：右上，业务控制区 -->
-    <div class="zone zone-1" :style="zoneStyle">
-      <slot name="zone1">
-        <Zone1 />
+    <!-- 第一层：顶部功能区 -->
+    <TopArea />
+
+    <!-- 第二层：左侧容器（可视化 + 图层控制） -->
+    <div class="left-container" :style="leftContainerStyle">
+      <slot name="left">
+        <div class="zone zone-2" :style="zoneSize">
+          <Zone2 />
+        </div>
+        <div class="zone zone-3" :style="zoneSize">
+          <Zone3 />
+        </div>
       </slot>
     </div>
 
-    <!-- Zone2：左上，可视化区 -->
-    <div class="zone zone-2" :style="zoneStyle">
-      <slot name="zone2">
-        <Zone2 />
+    <!-- 第三层：右侧容器（结果展示 / 业务面板） -->
+    <div class="right-container" :style="rightContainerStyle">
+      <slot name="right">
+        <div class="zone zone-4" :style="zoneSize">
+          <Zone4 />
+        </div>
       </slot>
     </div>
 
-    <!-- Zone3：左下，图层控制区 -->
-    <div class="zone zone-3" :style="zoneStyle">
-      <slot name="zone3">
-        <Zone3 />
-      </slot>
-    </div>
-
-    <!-- Zone4：右下，结果展示区 -->
-    <div class="zone zone-4" :style="zoneStyle">
-      <slot name="zone4">
-        <Zone4 />
-      </slot>
-    </div>
+    <!-- 第四层：底部业务导航 -->
+    <BottomNavBar />
   </div>
 </template>
 
@@ -78,30 +120,15 @@ const zoneStyle = computed(() => ({
   z-index: 50;
 }
 
-.zone {
-  position: absolute;
-  box-sizing: border-box;
-  padding: v-bind(zonePadding);
+.left-container > *,
+.right-container > * {
   pointer-events: auto;
 }
 
-.zone-1 {
-  top: 0;
-  right: 0;
-}
-
-.zone-2 {
-  top: 0;
-  left: 0;
-}
-
-.zone-3 {
-  bottom: 0;
-  left: 0;
-}
-
-.zone-4 {
-  bottom: 0;
-  right: 0;
+.zone {
+  position: relative;
+  box-sizing: border-box;
+  padding: v-bind(zonePadding);
+  pointer-events: auto;
 }
 </style>

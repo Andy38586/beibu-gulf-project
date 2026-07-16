@@ -11,13 +11,22 @@ export default { name: 'GcsZone4' }
  * 当前阶段为占位实现。
  */
 
+import { computed } from 'vue'
 import GcsPanel from './GcsPanel.vue'
+import { useGCS } from '../useGCS.js'
+
+const { cellPixel } = useGCS()
+const labelStyle = computed(() => ({
+  fontSize: `${cellPixel.value * 0.2}px`,
+  fontWeight: 500,
+  opacity: 0.9,
+}))
 </script>
 
 <template>
   <GcsPanel :w="4" :h="4" class="zone-result">
     <div class="zone-content">
-      <span class="zone-label">结果展示区</span>
+      <span class="zone-label" :style="labelStyle">结果展示区</span>
     </div>
   </GcsPanel>
 </template>
@@ -34,11 +43,5 @@ import GcsPanel from './GcsPanel.vue'
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-.zone-label {
-  font-size: 16px;
-  font-weight: 500;
-  opacity: 0.9;
 }
 </style>

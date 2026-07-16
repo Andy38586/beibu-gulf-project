@@ -2,8 +2,6 @@
 import { RouterView, useRoute, useRouter } from 'vue-router'
 import { onMounted, provide, ref, watch } from 'vue'
 import UnifiedMap from '@/core/map/UnifiedMap.vue'
-import LayerPanel from '@/visualization/panels/LayerControlPanel.vue'
-import MapSwitcher from '@/visualization/panels/MapSwitcher.vue'
 import ErrorBoundary from '@/shared/components/ErrorBoundary.vue'
 import { useAuth } from '@/shared/composables/useAuth'
 import { useMapControls } from '@/core/map/composables/useMapControls'
@@ -41,6 +39,20 @@ watch(
   { immediate: true },
 )
 
+/**
+ * 地图引擎由路由元信息决定，禁止业务组件手动切换。
+ * 未来新增 3D 路由时，只需在 route.meta 中声明 engine: '3d'。
+ */
+watch(
+  () => route.meta?.engine,
+  (engine) => {
+    if (engine && ['2d', '3d'].includes(engine)) {
+      mapStore.setMapType(engine)
+    }
+  },
+  { immediate: true },
+)
+
 onMounted(() => {
   checkAuth()
 })
@@ -49,8 +61,6 @@ onMounted(() => {
 <template>
   <div class="app-layout">
     <UnifiedMap ref="unifiedMapRef" :map-type="mapStore.mapType" />
-    <LayerPanel />
-    <MapSwitcher />
     <main class="app-content">
       <ErrorBoundary>
         <RouterView v-slot="{ Component }">
@@ -81,7 +91,7 @@ onMounted(() => {
 }
 .fade-enter-active,
 .fade-leave-active {
-  transition: opacity 0.3s ease;
+  transition: opacity 2s ease;
 }
 .fade-enter-from,
 .fade-leave-to {

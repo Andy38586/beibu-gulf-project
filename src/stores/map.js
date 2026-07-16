@@ -1,11 +1,33 @@
 import { defineStore } from 'pinia'
 import { shallowRef, ref } from 'vue'
 
+/** localStorage 键：持久化当前选中的底图图层 key */
+const BASE_LAYER_STORAGE_KEY = 'beibu-gulf-base-layer'
+
+function readStoredBaseLayer() {
+  if (typeof window === 'undefined') return null
+  try {
+    return window.localStorage.getItem(BASE_LAYER_STORAGE_KEY)
+  } catch {
+    return null
+  }
+}
+
+function writeStoredBaseLayer(key) {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.setItem(BASE_LAYER_STORAGE_KEY, key)
+  } catch {
+    // 忽略隐私模式等写入失败场景
+  }
+}
+
 export const useMapStore = defineStore('map', () => {
   const map = shallowRef(null)
   const selectedPort = ref(null)
   const mapType = ref('2d')
   const layerCatalog = ref([])
+  const baseLayerKey = ref(readStoredBaseLayer())
 
   const analysisHandler = ref(null)
   const lastAnalysisResult = ref(null)
@@ -68,7 +90,9 @@ export const useMapStore = defineStore('map', () => {
   function registerBaseLayer(key, label, show, hide) {
     const existing = layerCatalog.value.find((e) => e.key === key)
     const isFirstBase = layerCatalog.value.every((e) => e.category !== 'base')
-    const shouldVisible = existing ? existing.visible : isFirstBase
+    // 优先以 localStorage 中持久化的底图 key 为准；未设置时默认第一个底图可见
+    const storedKey = baseLayerKey.value
+    const shouldVisible = existing ? existing.visible : storedKey ? key === storedKey : isFirstBase
 
     const wrappedShow = () => {
       layerCatalog.value
@@ -77,6 +101,8 @@ export const useMapStore = defineStore('map', () => {
           e.visible = false
           e.hide.forEach((fn) => fn())
         })
+      baseLayerKey.value = key
+      writeStoredBaseLayer(key)
       show()
     }
 
@@ -121,8 +147,7 @@ export const useMapStore = defineStore('map', () => {
 
   function handleBaseLayerToggle(entry) {
     if (entry.visible) {
-      entry.visible = false
-      entry.hide.forEach((fn) => fn())
+      // 底图必须保留一个可见，避免地图无背景
       return
     }
 
@@ -134,6 +159,8 @@ export const useMapStore = defineStore('map', () => {
       })
 
     entry.visible = true
+    baseLayerKey.value = entry.key
+    writeStoredBaseLayer(entry.key)
     entry.show.forEach((fn) => fn())
   }
 
@@ -176,6 +203,7 @@ export const useMapStore = defineStore('map', () => {
     mapType,
     selectedPort,
     layerCatalog,
+    baseLayerKey,
     analysisHandler,
     activePanel,
     selectedXiaoqu,

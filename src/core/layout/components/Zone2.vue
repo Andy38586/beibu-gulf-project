@@ -7,17 +7,16 @@ export default { name: 'GcsZone2' }
  * Zone2 - 可视化区（左上）
  *
  * 职责：承载折线图、雷达图等可视化面板。
- * 当前阶段为占位实现，内部内容由后续 Phase 4 可视化组件替换。
+ * Phase 3-B：接入 LineChart 折线图占位，后续 Phase 4 替换为业务真实数据。
  */
 
 import GcsPanel from './GcsPanel.vue'
+import LineChart from './charts/LineChart.vue'
 </script>
 
 <template>
   <GcsPanel :w="4" :h="4" class="zone-visualization">
-    <div class="zone-content">
-      <span class="zone-label">可视化区</span>
-    </div>
+    <LineChart class="zone-chart" />
   </GcsPanel>
 </template>
 
@@ -27,17 +26,8 @@ import GcsPanel from './GcsPanel.vue'
   height: 100%;
 }
 
-.zone-content {
+.zone-chart {
   width: 100%;
   height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.zone-label {
-  font-size: 16px;
-  font-weight: 500;
-  opacity: 0.9;
 }
 </style>

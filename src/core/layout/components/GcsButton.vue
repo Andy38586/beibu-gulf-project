@@ -12,6 +12,7 @@
  * - label: 按钮文字
  * - icon: 图标字符/类名（可选）
  * - disabled: 是否禁用
+ * - active: 是否处于激活/选中态（用于图层开关等）
  * - w: 横向 Panel 数（默认 2）
  * - h: 纵向 Panel 数（默认 1）
  */
@@ -23,6 +24,7 @@ const props = defineProps({
   label: { type: String, default: '' },
   icon: { type: String, default: '' },
   disabled: { type: Boolean, default: false },
+  active: { type: Boolean, default: false },
   w: { type: Number, default: 2 },
   h: { type: Number, default: 1 },
 })
@@ -36,7 +38,9 @@ const buttonStyle = computed(() => ({
   borderRadius: `${cellPixel.value * 0.15}px`,
   backdropFilter: `blur(${cellPixel.value * 0.15}px)`,
   WebkitBackdropFilter: `blur(${cellPixel.value * 0.15}px)`,
-  backgroundColor: 'rgba(255, 255, 255, 0.12)',
+  backgroundColor: props.active
+    ? 'rgba(64, 158, 255, 0.35)'
+    : 'rgba(255, 255, 255, 0.12)',
   boxShadow: '0 4px 16px rgba(0, 0, 0, 0.12)',
   fontSize: `${cellPixel.value * 0.18}px`,
 }))

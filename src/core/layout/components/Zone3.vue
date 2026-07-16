@@ -7,21 +7,49 @@ export default { name: 'GcsZone3' }
  * Zone3 - 图层控制区（左下）
  *
  * 职责：承载底图切换、业务图层开关等图层控制按钮。
- * 当前阶段先用 GcsButton 占位，内部内容由 Phase 5 图层控制面板替换。
+ * Phase 3-B：接入 useLayerManager，从 layerCatalog 动态渲染图层开关。
+ * 底图由 store 内部处理互斥，业务图层可多选。
  */
 
+import { computed } from 'vue'
 import GcsPanel from './GcsPanel.vue'
 import GcsButton from './GcsButton.vue'
+import { useLayerManager } from '@/composables/useLayerManager'
 import { GAP } from '../config.js'
+
+const { layerCatalog, toggleLayer } = useLayerManager()
+
+const baseLayers = computed(() => layerCatalog.value.filter((e) => e.category === 'base'))
+const businessLayers = computed(() => layerCatalog.value.filter((e) => e.category === 'business'))
+
+function getLayerIcon(label) {
+  if (label.includes('底图') || label.includes('影像') || label.includes('矢量')) return '🗺'
+  if (label.includes('港口')) return '⚓'
+  if (label.includes('航线')) return '✈'
+  if (label.includes('行政') || label.includes('边界')) return '⛭'
+  return '◈'
+}
 </script>
 
 <template>
   <GcsPanel :w="4" :h="4" class="zone-layer">
     <div class="button-grid" :style="{ gap: `${GAP}px` }">
-      <GcsButton label="影像底图" icon="🗺" />
-      <GcsButton label="矢量底图" icon="🗺" />
-      <GcsButton label="港口图层" icon="⚓" />
-      <GcsButton label="航线图层" icon="✈" />
+      <GcsButton
+        v-for="item in baseLayers"
+        :key="item.key"
+        :label="item.label"
+        :icon="getLayerIcon(item.label)"
+        :active="item.visible"
+        @click="toggleLayer(item.key)"
+      />
+      <GcsButton
+        v-for="item in businessLayers"
+        :key="item.key"
+        :label="item.label"
+        :icon="getLayerIcon(item.label)"
+        :active="item.visible"
+        @click="toggleLayer(item.key)"
+      />
     </div>
   </GcsPanel>
 </template>

@@ -14,7 +14,7 @@ export default { name: 'GcsZone3' }
 import { computed } from 'vue'
 import GcsPanel from './GcsPanel.vue'
 import GcsButton from './GcsButton.vue'
-import { useLayerManager } from '@/composables/useLayerManager'
+import { useLayerManager } from '@/core/map/composables/useLayerManager'
 import { GAP } from '../config.js'
 
 const { layerCatalog, toggleLayer } = useLayerManager()

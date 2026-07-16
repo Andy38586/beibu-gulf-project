@@ -1,5 +1,5 @@
 import { inject, computed } from 'vue'
-import { MAP_CONFIG } from '@/config/map'
+import { MAP_CONFIG } from '@/core/config/map'
 
 export function useMapControls() {
   const unifiedMapRef = inject('unifiedMap', null)

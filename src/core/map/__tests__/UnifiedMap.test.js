@@ -3,7 +3,7 @@ import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import UnifiedMap from '../UnifiedMap.vue'
 import { buildPortGeoJson, PORT_STYLE } from '@/composables/usePortLayer'
-import { createRenderer } from '@/renderers'
+import { createRenderer } from '@/core/map/renderers'
 import { useMapStore } from '@/stores/map'
 
 vi.mock('@/composables/usePortLayer', () => ({
@@ -29,7 +29,7 @@ vi.mock('@/composables/useBoundaryLayer', () => ({
   BOUNDARY_STYLE: { strokeColor: '#4dabf7', strokeWidth: 2, fillColor: 'rgba(77,171,247,0.15)', featureType: 'boundary' },
 }))
 
-vi.mock('@/renderers', () => {
+vi.mock('@/core/map/renderers', () => {
   const mockRenderers = {}
 
   const createMockRenderer = (type) => ({

@@ -15,7 +15,7 @@
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuth } from './useAuth.js'
-import { useMapControls } from './useMapControls.js'
+import { useMapControls } from '@/core/map/composables/useMapControls.js'
 
 /** 城市坐标配置（北部湾三港） */
 const CITY_CENTERS = {

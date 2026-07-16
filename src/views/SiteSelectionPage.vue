@@ -15,7 +15,7 @@ import BufferControl from '@/components/analysis/BufferControl.vue'
 import ResultPanel from '@/components/analysis/ResultPanel.vue'
 import RadarFloatPanel from '@/components/analysis/RadarFloatPanel.vue'
 import { useMapStore } from '@/stores/map'
-import { MAP_CONFIG } from '@/config/map'
+import { MAP_CONFIG } from '@/core/config/map'
 
 const emit = defineEmits(['require-login'])
 

@@ -13,7 +13,7 @@ import {
   Cartographic,
   CallbackProperty,
 } from 'cesium'
-import { MAP_CONFIG, buildTiandituUrl } from '@/config/map'
+import { MAP_CONFIG, buildTiandituUrl } from '@/core/config/map'
 
 export class CesiumRenderer extends MapRenderer {
   constructor(container) {

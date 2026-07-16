@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue'
-import { useLayerManager } from '@/composables/useLayerManager'
+import { useLayerManager } from '@/core/map/composables/useLayerManager'
 
 const { layerCatalog, toggleLayer } = useLayerManager()
 const isExpanded = ref(false)

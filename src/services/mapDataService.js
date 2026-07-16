@@ -1,4 +1,4 @@
-import { MAP_CONFIG } from '@/config/map'
+import { MAP_CONFIG } from '@/core/config/map'
 
 const cache = new Map()
 

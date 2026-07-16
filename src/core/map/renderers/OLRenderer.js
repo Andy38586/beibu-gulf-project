@@ -11,7 +11,7 @@ import Polygon from 'ol/geom/Polygon'
 import Feature from 'ol/Feature'
 import GeoJSON from 'ol/format/GeoJSON'
 import { Style, Fill, Stroke, Circle, Text } from 'ol/style'
-import { buildTiandituUrl, MAP_CONFIG } from '@/config/map'
+import { buildTiandituUrl, MAP_CONFIG } from '@/core/config/map'
 
 export class OLRenderer extends MapRenderer {
   constructor(container) {

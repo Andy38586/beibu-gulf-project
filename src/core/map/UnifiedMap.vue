@@ -1,12 +1,12 @@
 <script setup>
 import { ref, watch, onMounted, onUnmounted, provide, nextTick } from 'vue'
-import { createRenderer } from '@/renderers'
-import { MapRendererKey } from '@/composables/useMapRenderer'
+import { createRenderer } from '@/core/map/renderers'
+import { MapRendererKey } from '@/core/map/composables/useMapRenderer'
 import { useMapStore } from '@/stores/map'
 import { loadPorts, buildPortGeoJson, PORT_STYLE } from '@/composables/usePortLayer'
 import { loadBoundaryGeoJson, BOUNDARY_STYLE } from '@/composables/useBoundaryLayer'
 import { useAnalysisLayer } from '@/composables/useAnalysisLayer'
-import { useLayerManager } from '@/composables/useLayerManager'
+import { useLayerManager } from '@/core/map/composables/useLayerManager'
 
 const props = defineProps({
   mapType: {

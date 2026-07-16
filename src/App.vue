@@ -1,12 +1,12 @@
 <script setup>
 import { RouterView, useRoute, useRouter } from 'vue-router'
 import { onMounted, provide, ref, watch } from 'vue'
-import UnifiedMap from '@/components/map/UnifiedMap.vue'
+import UnifiedMap from '@/core/map/UnifiedMap.vue'
 import LayerPanel from '@/components/map/LayerPanel.vue'
 import MapSwitcher from '@/components/map/MapSwitcher.vue'
 import ErrorBoundary from '@/components/common/ErrorBoundary.vue'
 import { useAuth } from '@/composables/useAuth'
-import { useMapControls } from '@/composables/useMapControls'
+import { useMapControls } from '@/core/map/composables/useMapControls'
 import { useMapStore } from '@/stores/map'
 
 const route = useRoute()

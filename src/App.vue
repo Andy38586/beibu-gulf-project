@@ -1,8 +1,8 @@
 <script setup>
 import { RouterView, useRoute, useRouter } from 'vue-router'
 import { onMounted, provide, ref, watch } from 'vue'
-import AppHeader from '@/components/common/AppHeader.vue'
 import UnifiedMap from '@/components/map/UnifiedMap.vue'
+import AppLayout from '@/core/layout/AppLayout.vue'
 import LayerPanel from '@/components/map/LayerPanel.vue'
 import MapSwitcher from '@/components/map/MapSwitcher.vue'
 import ErrorBoundary from '@/components/common/ErrorBoundary.vue'
@@ -50,7 +50,7 @@ onMounted(() => {
 <template>
   <div class="app-layout">
     <UnifiedMap ref="unifiedMapRef" :map-type="mapStore.mapType" />
-    <AppHeader />
+    <AppLayout />
     <LayerPanel />
     <MapSwitcher />
     <main class="app-content">

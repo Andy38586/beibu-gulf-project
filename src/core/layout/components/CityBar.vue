@@ -32,7 +32,7 @@ function handleClick(city) {
 </script>
 
 <template>
-  <GcsPanel :w="4" :h="1" class="city-bar">
+  <GcsPanel :w="4" :h="1" anchor="top-left" :offset-x="0" :offset-y="0" class="city-bar">
     <div class="city-bar-inner" :style="{ gap: `${GAP}px` }">
       <button
         v-for="city in cities"

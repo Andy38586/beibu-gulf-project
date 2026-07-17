@@ -3,18 +3,18 @@
  * GcsButton - 按钮 Panel
  *
  * 统一视觉规则：
- * - 默认占 2×1 Panel
+ * - 默认占 2×1 Cell
  * - 文字优先显示，图标位于文字下方（如果提供）
- * - 尺寸基于 CELL_PIXEL / PANEL_PIXEL 计算
- * - Frosted Glass 风格，带 hover 反馈
+ * - 尺寸基于 CELL_PIXEL 计算
+ * - 白色实体背景，带 hover 反馈
  *
  * Props:
  * - label: 按钮文字
  * - icon: 图标字符/类名（可选）
  * - disabled: 是否禁用
  * - active: 是否处于激活/选中态（用于图层开关等）
- * - w: 横向 Panel 数（默认 2）
- * - h: 纵向 Panel 数（默认 1）
+ * - w: 横向 Cell 数（默认 2）
+ * - h: 纵向 Cell 数（默认 1）
  */
 
 import { computed } from 'vue'
@@ -31,17 +31,14 @@ const props = defineProps({
 
 const emit = defineEmits(['click'])
 
-const { panel, cellPixel } = useGCS()
+const { cell, cellPixel } = useGCS()
 
 const buttonStyle = computed(() => ({
-  ...panel(props.w, props.h),
+  ...cell(props.w, props.h),
   borderRadius: `${cellPixel.value * 0.15}px`,
-  backdropFilter: `blur(${cellPixel.value * 0.15}px)`,
-  WebkitBackdropFilter: `blur(${cellPixel.value * 0.15}px)`,
-  backgroundColor: props.active
-    ? 'rgba(64, 158, 255, 0.35)'
-    : 'rgba(255, 255, 255, 0.12)',
-  boxShadow: '0 4px 16px rgba(0, 0, 0, 0.12)',
+  backgroundColor: props.active ? '#409eff' : '#ffffff',
+  color: props.active ? '#ffffff' : '#333333',
+  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
   fontSize: `${cellPixel.value * 0.18}px`,
 }))
 
@@ -76,6 +73,7 @@ function handleClick() {
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
+  flex-shrink: 0;
   align-items: center;
   justify-content: center;
   border: none;

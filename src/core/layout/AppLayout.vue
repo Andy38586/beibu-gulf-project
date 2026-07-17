@@ -1,17 +1,16 @@
 <script setup>
 /**
- * AppLayout - GCS 布局基座（Layout Base）
+ * AppLayout - GCS V2 布局基座（Layout Base）
  *
  * 职责：
- * 1. 定义四层职责分离的界面结构：TopArea / LeftContainer / RightContainer / BottomNavBar
- * 2. 基于 CELL_PIXEL 计算各层位置与尺寸
- * 3. 提供 left / right 两个业务插槽，默认渲染 Zone2/Zone3/Zone4
+ * 1. 通过 PPS 定位所有 Panel（无容器、无 Zone、无 TopArea）
+ * 2. 提供 slot 供业务路由注入自定义 Panel 内容
+ * 3. 管理检查模式状态
  *
- * 结构说明：
- * - TopArea：顶部全局导航与城市定位
- * - LeftContainer：左上可视化区 + 左下图层控制区
- * - RightContainer：右下结果展示区（业务路由可注入业务面板）
- * - BottomNavBar：底部业务导航条
+ * V2 阶段 3 变更：
+ * - 移除 TopArea 组件引用（改为独立 Panel 集合）
+ * - 折线图/柱状图/雷达图/图层控制直接放入 GcsPanel slot
+ * - 标题 + 城市按钮 + 个人中心按钮渲染为独立 Panel
  *
  * 使用方式：
  * <AppLayout>
@@ -20,95 +19,177 @@
  * </AppLayout>
  */
 
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
+import { useRoute } from 'vue-router'
 import { useGCS } from './useGCS.js'
-import TopArea from './components/TopArea.vue'
 import BottomNavBar from './components/BottomNavBar.vue'
-import Zone2 from './components/Zone2.vue'
-import Zone3 from './components/Zone3.vue'
-import Zone4 from './components/Zone4.vue'
+import GcsInspectionOverlay from './components/GcsInspectionOverlay.vue'
+import GcsPanel from './components/GcsPanel.vue'
+import GcsButton from './components/GcsButton.vue'
+import NavButton from './components/NavButton.vue'
+import LineChart from '@/visualization/charts/LineChart.vue'
+import BarChart from '@/visualization/charts/BarChart.vue'
+import RadarChart from '@/visualization/charts/RadarChart.vue'
+import { useLayerManager } from '@/core/map/composables/useLayerManager'
+import { useScreenActions } from '@/shared/composables/useScreenActions.js'
 
-const { cell, cellPixel, padding, showPanels, showTopArea } = useGCS()
+const route = useRoute()
+const { showPanels, showTopArea } = useGCS()
+const { layerCatalog, toggleLayer } = useLayerManager()
+const { flyToCity, goProfileOrBack, userButtonLabel } = useScreenActions()
 
-// 安全边距：容器与视口边缘的距离
-const SAFE_MARGIN = 20
+// 检查模式状态
+const inspectionMode = ref(false)
 
-// 顶部功能区高度 = 1 个 Cell
-const topAreaHeight = computed(() => cellPixel.value)
+/**
+ * 图层控制：所有已注册图层
+ */
+const allLayers = computed(() => layerCatalog.value)
 
-// 底部导航条高度 = 1 个 Cell
-const bottomNavHeight = computed(() => cellPixel.value)
+/**
+ * 根据图层标签返回对应图标
+ */
+function getLayerIcon(label) {
+  if (label.includes('底图') || label.includes('影像') || label.includes('矢量')) return '🗺'
+  if (label.includes('港口')) return '⚓'
+  if (label.includes('航线')) return '✈'
+  if (label.includes('行政') || label.includes('边界')) return '⛭'
+  return '◈'
+}
 
-// 单个 Zone 固定占 4×4 个 Cell
-const zoneSize = computed(() => cell(4, 4))
+/**
+ * 未来图层占位（暂无实际功能）
+ */
+const futureLayers = [
+  { key: 'port-throughput', label: '港口吞吐量', icon: '📊', disabled: true },
+  { key: 'heatmap', label: '热力图', icon: '🔥', disabled: true },
+  { key: 'radar', label: '雷达图', icon: '📡', disabled: true },
+  { key: 'factor-1', label: '交通便捷度', icon: '🚗', disabled: true },
+  { key: 'factor-2', label: '人口密度', icon: '', disabled: true },
+  { key: 'factor-3', label: '经济水平', icon: '💰', disabled: true },
+]
 
-// Zone 内边距 = CELL_PADDING，确保内部 Panel 不贴边
-const zonePadding = computed(() => `${padding}px`)
+/**
+ * 图层控制按钮（8 个，1.8×0.8 Cell 尺寸，无业务响应）
+ */
+const layerButtons = [
+  { label: '影像底图', icon: '🗺' },
+  { label: '矢量底图', icon: '🗺' },
+  { label: '行政区划', icon: '⛭' },
+  { label: '港口位置', icon: '' },
+  { label: '港口吞吐量', icon: '📊' },
+  { label: '热力图', icon: '' },
+  { label: '雷达图', icon: '📡' },
+  { label: '交通便捷度', icon: '🚗' },
+]
 
-// 左右容器可用高度：视口高度 - 顶部 - 底部 - 三倍安全边距（顶/中/底各一份）
-const containerHeight = computed(() => {
-  if (typeof window === 'undefined') return '100vh'
-  return `${window.innerHeight - topAreaHeight.value - bottomNavHeight.value - SAFE_MARGIN * 3}px`
-})
+/**
+ * 折线图数据（默认数据，与旧版 Zone2 一致）
+ */
+const chartData = {
+  labels: ['2019', '2020', '2021', '2022', '2023', '2024'],
+  series: [
+    { name: '钦州港', data: [120, 132, 101, 134, 190, 230] },
+    { name: '北海港', data: [90, 110, 120, 115, 140, 180] },
+    { name: '防城港', data: [80, 95, 110, 125, 150, 170] },
+  ],
+}
 
-// 容器宽度与单个 Zone 保持一致（4×4 Cell）
-const containerWidth = computed(() => zoneSize.value.width)
+/**
+ * 柱状图数据（默认数据，与旧版 Zone5 一致）
+ */
+const barData = {
+  labels: ['钦州港', '北海港', '防城港'],
+  series: [
+    { name: '2023年', data: [190, 140, 150] },
+    { name: '2024年', data: [230, 180, 170] },
+  ],
+}
 
-// 左侧容器定位样式：顶部与 TopArea 之间留一份安全边距
-const leftContainerStyle = computed(() => ({
-  position: 'absolute',
-  top: `${topAreaHeight.value + SAFE_MARGIN * 2}px`,
-  left: `${SAFE_MARGIN}px`,
-  width: containerWidth.value,
-  height: containerHeight.value,
-  display: 'flex',
-  flexDirection: 'column',
-  gap: `${SAFE_MARGIN}px`,
-  pointerEvents: 'none',
-}))
-
-// 右侧容器定位样式：与左侧容器对称
-const rightContainerStyle = computed(() => ({
-  position: 'absolute',
-  top: `${topAreaHeight.value + SAFE_MARGIN * 2}px`,
-  right: `${SAFE_MARGIN}px`,
-  width: containerWidth.value,
-  height: containerHeight.value,
-  display: 'flex',
-  flexDirection: 'column',
-  gap: `${SAFE_MARGIN}px`,
-  pointerEvents: 'none',
-}))
+/**
+ * 城市按钮配置
+ */
+const cityButtons = [
+  { label: '钦州', city: '钦州' },
+  { label: '北海', city: '北海' },
+  { label: '防城港', city: '防城港' },
+]
 </script>
 
 <template>
   <div class="app-layout">
-    <!-- 第一层：顶部功能区 -->
-    <TopArea v-show="showTopArea" />
+    <!-- Title Panel（4×1，左上，第一行） -->
+    <GcsPanel
+      v-show="showTopArea"
+      :w="4"
+      :h="1"
+      anchor="top-left"
+      :offset-x="0"
+      :offset-y="0"
+      class="title-panel"
+    >
+      <div class="title-text">{{ route.meta?.title || '北部湾智慧港口平台' }}</div>
+    </GcsPanel>
 
-    <!-- 第二层：左侧容器（可视化 + 图层控制） -->
-    <div v-show="showPanels" class="left-container" :style="leftContainerStyle">
-      <slot name="left">
-        <div class="zone zone-2" :style="zoneSize">
-          <Zone2 />
-        </div>
-        <div class="zone zone-3" :style="zoneSize">
-          <Zone3 />
-        </div>
-      </slot>
-    </div>
+    <!-- 顶部按钮组 Panel（4×1，右上，第一行，与 Title 同行） -->
+    <GcsPanel
+      v-show="showTopArea"
+      :w="4"
+      :h="1"
+      anchor="top-right"
+      :offset-x="0"
+      :offset-y="0"
+      class="top-button-panel"
+    >
+      <div class="top-button-inner">
+        <NavButton label="钦州" @click="flyToCity('钦州')" />
+        <NavButton label="北海" @click="flyToCity('北海')" />
+        <NavButton label="防城港" @click="flyToCity('防城港')" />
+        <NavButton :label="userButtonLabel" icon="👤" @click="goProfileOrBack" />
+      </div>
+    </GcsPanel>
 
-    <!-- 第三层：右侧容器（结果展示 / 业务面板） -->
-    <div v-show="showPanels" class="right-container" :style="rightContainerStyle">
+    <!-- 左侧 Panel 组 -->
+    <slot name="left">
+      <!-- 左上：折线图 4×4 -->
+      <GcsPanel :w="4" :h="4" anchor="top-left" :offset-x="0" :offset-y="1.25">
+        <LineChart title="港口吞吐量趋势" :x-data="chartData.labels" :series="chartData.series" />
+      </GcsPanel>
+      <!-- 左下：柱状图 4×4 -->
+      <GcsPanel :w="4" :h="4" anchor="top-left" :offset-x="0" :offset-y="5.5">
+        <BarChart title="港口吞吐量对比" :x-data="barData.labels" :series="barData.series" />
+      </GcsPanel>
+    </slot>
+
+    <!-- 右侧 Panel 组 -->
+    <div v-show="showPanels">
       <slot name="right">
-        <div class="zone zone-4" :style="zoneSize">
-          <Zone4 />
-        </div>
+        <!-- 右上：雷达图 4×4 -->
+        <GcsPanel :w="4" :h="4" anchor="top-right" :offset-x="0" :offset-y="1.25">
+          <RadarChart />
+        </GcsPanel>
+        <!-- 右下：图层控制 4×4，8 个 1.8×0.8 按钮 -->
+        <GcsPanel :w="4" :h="4" anchor="top-right" :offset-x="0" :offset-y="5.5">
+          <div class="layer-panel-inner">
+            <GcsButton
+              v-for="item in layerButtons"
+              :key="item.label"
+              :label="item.label"
+              :icon="item.icon"
+              :active="false"
+              :w="1.8"
+              :h="0.8"
+            />
+          </div>
+        </GcsPanel>
       </slot>
     </div>
 
-    <!-- 第四层：底部业务导航 -->
-    <BottomNavBar />
+    <!-- 底部导航 -->
+    <BottomNavBar v-model:inspectionMode="inspectionMode" />
+
+    <!-- 检查模式 -->
+    <GcsInspectionOverlay :enabled="inspectionMode" />
   </div>
 </template>
 
@@ -120,15 +201,78 @@ const rightContainerStyle = computed(() => ({
   z-index: 50;
 }
 
-.left-container > *,
-.right-container > * {
+/* 所有 Panel 子元素恢复 pointer-events */
+.app-layout > * {
   pointer-events: auto;
 }
 
-.zone {
-  position: relative;
+/* Title Panel 内部样式 */
+.title-panel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.title-text {
+  font-size: 20px;
+  font-weight: 600;
+  color: #333;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 顶部按钮组 Panel 内部样式 */
+.top-button-panel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.top-button-inner {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
   box-sizing: border-box;
-  padding: v-bind(zonePadding);
-  pointer-events: auto;
+}
+
+/* 图层控制面板内部样式：2 列网格，10 个按钮 */
+.layer-panel-inner {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  align-content: flex-start;
+  justify-content: center;
+  gap: 10px;
+  padding: 10px;
+  box-sizing: border-box;
+}
+
+.layer-title {
+  flex: none;
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  padding: 8px 0;
+}
+
+.layer-divider {
+  flex: none;
+  height: 1px;
+  background-color: #f0f0f0;
+  margin: 8px 0;
+}
+
+.layer-buttons {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 10px;
 }
 </style>

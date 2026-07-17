@@ -19,9 +19,9 @@ import { useMapControls } from '@/core/map/composables/useMapControls.js'
 
 /** 城市坐标配置（北部湾三港） */
 const CITY_CENTERS = {
-  钦州: { lng: 108.590379, lat: 21.726917, height: 50000 },
-  防城港: { lng: 108.340973, lat: 21.617689, height: 50000 },
-  北海: { lng: 109.130658, lat: 21.418792, height: 50000 },
+  钦州: { lng: 108.590379, lat: 21.726917, height: 50000, zoom: 11 },
+  防城港: { lng: 108.340973, lat: 21.617689, height: 50000, zoom: 11 },
+  北海: { lng: 109.130658, lat: 21.418792, height: 50000, zoom: 11 },
 }
 
 export function useScreenActions() {
@@ -58,25 +58,23 @@ export function useScreenActions() {
   }
 
   /**
-   * 用户按钮标签：已登录显示用户名，未登录显示“登录”
+   * 用户按钮标签：已登录显示用户名，未登录显示"登录"
    */
   const userButtonLabel = computed(() => {
     if (isHome.value) {
-      return isAuthenticated.value && user.value?.username
-        ? user.value.username
-        : '个人中心'
+      return isAuthenticated.value && user.value?.username ? user.value.username : '个人中心'
     }
     return '返回'
   })
 
   /**
-   * 飞行到指定城市中心
+   * 飞行到指定城市中心，同时放大 zoom 显示城市级比例尺
    * @param {string} city - 城市名：钦州 / 防城港 / 北海
    */
   function flyToCity(city) {
     const target = CITY_CENTERS[city]
     if (!target) return
-    flyTo({ lng: target.lng, lat: target.lat }, { height: target.height })
+    flyTo({ lng: target.lng, lat: target.lat }, { height: target.height, zoom: target.zoom })
   }
 
   return {

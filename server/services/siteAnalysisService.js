@@ -23,22 +23,84 @@ export function resolveRadiusSettings(selectedKeys, typeSettings) {
 }
 export function buildTypeCoverage(points, radiusKm) {
   if (!points || points.length === 0) return null
-  const buffers = points.map((p) =>
+  
+  // 验证输入数据
+  const validPoints = points.filter((p) => {
+    const isValid = p && typeof p.lng === 'number' && typeof p.lat === 'number' && 
+                    !isNaN(p.lng) && !isNaN(p.lat) &&
+                    p.lng >= -180 && p.lng <= 180 && 
+                    p.lat >= -90 && p.lat <= 90
+    if (!isValid) {
+      console.warn('无效的坐标点:', p)
+    }
+    return isValid
+  })
+  
+  if (validPoints.length === 0) {
+    console.warn('没有有效的坐标点')
+    return null
+  }
+  
+  const buffers = validPoints.map((p) =>
     turf.buffer(turf.point([p.lng, p.lat]), radiusKm, { units: 'kilometers' }),
   )
-  if (buffers.length === 1) return buffers[0]
-  return turf.union(turf.featureCollection(buffers))
+  
+  // 过滤掉无效的缓冲区
+  const validBuffers = buffers.filter((b) => b && b.geometry && b.geometry.coordinates)
+  if (validBuffers.length === 0) {
+    console.warn('没有有效的缓冲区')
+    return null
+  }
+  
+  if (validBuffers.length === 1) return validBuffers[0]
+  
+  try {
+    const unionResult = turf.union(turf.featureCollection(validBuffers))
+    // 验证 union 结果
+    if (!unionResult || !unionResult.geometry) {
+      console.warn('union 返回无效结果')
+      return null
+    }
+    return unionResult
+  } catch (error) {
+    console.error('turf.union 失败:', error.message)
+    console.error('缓冲区数量:', validBuffers.length)
+    return null
+  }
 }
 export function intersectCoverages(coverages, selectedKeys) {
   const entries = coverages
     .map((c, i) => ({ key: selectedKeys[i], coverage: c }))
-    .filter((e) => e.coverage)
+    .filter((e) => e.coverage && e.coverage.geometry)
+  
   if (entries.length === 0) return { area: null, failKey: null }
+  
   let result = entries[0].coverage
+  
   for (let i = 1; i < entries.length; i++) {
-    result = turf.intersect(turf.featureCollection([result, entries[i].coverage]))
-    if (!result) return { area: null, failKey: entries[i].key }
+    try {
+      // 验证输入几何对象
+      if (!result.geometry || !result.geometry.coordinates || 
+          !entries[i].coverage.geometry || !entries[i].coverage.geometry.coordinates) {
+        console.warn(`无效的几何对象，跳过 ${entries[i].key}`)
+        continue
+      }
+      
+      const intersectResult = turf.intersect(
+        turf.featureCollection([result, entries[i].coverage])
+      )
+      
+      if (!intersectResult || !intersectResult.geometry) {
+        return { area: null, failKey: entries[i].key }
+      }
+      
+      result = intersectResult
+    } catch (error) {
+      console.error(`turf.intersect 失败 (${entries[i].key}):`, error.message)
+      return { area: null, failKey: entries[i].key }
+    }
   }
+  
   return { area: result, failKey: null }
 }
 export function filterMatchedXiaoqu(xiaoquData, finalArea, spatialIndex = null) {

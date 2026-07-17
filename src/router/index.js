@@ -1,20 +1,17 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
-import HomePage from '@/views/HomePage.vue'
-import SiteSelectionPage from '@/business/site-selection/SiteSelectionPage.vue'
-
 const routes = [
   {
     path: '/',
     name: 'Home',
-    component: HomePage,
+    component: () => import('@/views/HomePage.vue'),
     meta: { engine: '2d', title: '北部湾智慧港口平台' },
   },
   // Phase 4-B：路径从 /buffer 调整为 /site-selection
   {
     path: '/site-selection',
     name: 'SiteSelection',
-    component: SiteSelectionPage,
+    component: () => import('@/business/site-selection/SiteSelectionPage.vue'),
     meta: { engine: '2d', title: '选址分析' },
   },
   {

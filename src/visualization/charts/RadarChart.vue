@@ -8,7 +8,22 @@
  */
 
 import { ref, watch, onBeforeUnmount, nextTick, computed } from 'vue'
-import * as echarts from 'echarts'
+// ECharts 按需导入：仅引入雷达图所需模块，减少约 60% 体积
+import * as echarts from 'echarts/core'
+import { RadarChart } from 'echarts/charts'
+import {
+  TooltipComponent,
+  LegendComponent,
+} from 'echarts/components'
+import { CanvasRenderer } from 'echarts/renderers'
+
+// 注册必需的组件
+echarts.use([
+  RadarChart,
+  TooltipComponent,
+  LegendComponent,
+  CanvasRenderer,
+])
 import { FACILITY_LABELS } from '@/shared/utils/facilityLabels'
 import { useGCS } from '@/core/layout/useGCS.js'
 
@@ -17,6 +32,16 @@ const props = defineProps({
   xiaoqu: { type: Object, default: null },
   selectedTypes: { type: Array, default: () => [] },
   embedded: { type: Boolean, default: false },
+  // 默认案例数据（用于首页展示）
+  defaultData: {
+    type: Object,
+    default: () => ({
+      name: '示例小区',
+      score: 85,
+      indicators: ['交通', '人口', '经济', '环境', '政策'],
+      values: [80, 75, 90, 70, 85],
+    }),
+  },
 })
 const emit = defineEmits(['close'])
 
@@ -31,34 +56,61 @@ const { cellPixel } = useGCS()
 const unitPx = computed(() => cellPixel.value * 0.1)
 
 function renderRadar() {
-  if (!props.xiaoqu || !chartRef.value) return
+  if (!chartRef.value) return
   if (chartInstance) {
     chartInstance.dispose()
     chartInstance = null
   }
   chartInstance = echarts.init(chartRef.value)
-  const indicators = props.selectedTypes.map((key) => ({
-    name: FACILITY_LABELS[key] || key,
-    max: 100,
-  }))
-  const values = props.selectedTypes.map((key) => props.xiaoqu.breakdown?.[key] ?? 0)
+
+  let indicators, values, name
+
+  // 优先使用业务数据，否则使用默认案例数据
+  if (props.xiaoqu && props.selectedTypes.length > 0) {
+    indicators = props.selectedTypes.map((key) => ({
+      name: FACILITY_LABELS[key] || key,
+      max: 100,
+    }))
+    values = props.selectedTypes.map((key) => props.xiaoqu.breakdown?.[key] ?? 0)
+    name = props.xiaoqu.name
+  } else {
+    // 使用默认案例数据
+    indicators = props.defaultData.indicators.map((ind) => ({
+      name: ind,
+      max: 100,
+    }))
+    values = props.defaultData.values
+    name = props.defaultData.name
+  }
+
   chartInstance.setOption({
+    backgroundColor: 'transparent',
     tooltip: {},
+    title: {
+      text: '多因子评分',
+      left: 'center',
+      textStyle: { color: '#333', fontSize: 14, fontWeight: 500 },
+    },
     radar: {
       indicator: indicators,
-      radius: '65%',
-      axisName: { fontSize: 12 },
+      radius: '60%',
+      center: ['50%', '55%'],
+      axisName: { color: '#666', fontSize: 11 },
+      splitLine: { lineStyle: { color: '#eee' } },
+      splitArea: { areaStyle: { color: ['rgba(255,255,255,0.1)', 'rgba(255,255,255,0.3)'] } },
+      axisLine: { lineStyle: { color: '#ddd' } },
     },
     series: [
       {
         type: 'radar',
         symbolSize: 6,
-        lineStyle: { width: 2 },
+        lineStyle: { width: 2, color: '#409eff' },
+        itemStyle: { color: '#409eff' },
         data: [
           {
             value: values,
-            name: props.xiaoqu.name,
-            areaStyle: { opacity: 0.3 },
+            name: name,
+            areaStyle: { opacity: 0.3, color: '#409eff' },
           },
         ],
       },

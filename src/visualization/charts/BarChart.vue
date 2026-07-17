@@ -1,15 +1,14 @@
 <script setup>
 /**
- * LineChart - 折线图可视化组件
+ * BarChart - 柱状图可视化组件
  *
- * 职责：基于 ECharts 渲染折线图，接收数据与标题配置。
+ * 职责：基于 ECharts 渲染柱状图，接收数据与标题配置。
  * 属于可视化资产（visualization/charts/），供所有业务复用。
  */
 
 import { ref, onMounted, onUnmounted, watch } from 'vue'
-// ECharts 按需导入：仅引入折线图所需模块，减少约 60% 体积
 import * as echarts from 'echarts/core'
-import { LineChart } from 'echarts/charts'
+import { BarChart } from 'echarts/charts'
 import {
   TitleComponent,
   TooltipComponent,
@@ -18,9 +17,8 @@ import {
 } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 
-// 注册必需的组件
 echarts.use([
-  LineChart,
+  BarChart,
   TitleComponent,
   TooltipComponent,
   LegendComponent,
@@ -29,14 +27,13 @@ echarts.use([
 ])
 
 const props = defineProps({
-  title: { type: String, default: '港口吞吐量趋势' },
-  xData: { type: Array, default: () => ['2019', '2020', '2021', '2022', '2023', '2024'] },
+  title: { type: String, default: '港口吞吐量对比' },
+  xData: { type: Array, default: () => ['钦州港', '北海港', '防城港'] },
   series: {
     type: Array,
     default: () => [
-      { name: '钦州港', data: [120, 132, 101, 134, 190, 230] },
-      { name: '北海港', data: [90, 110, 120, 115, 140, 180] },
-      { name: '防城港', data: [80, 95, 110, 125, 150, 170] },
+      { name: '2023年', data: [190, 140, 150] },
+      { name: '2024年', data: [230, 180, 170] },
     ],
   },
 })
@@ -87,13 +84,10 @@ function updateOption() {
     },
     series: props.series.map((s) => ({
       name: s.name,
-      type: 'line',
-      smooth: true,
+      type: 'bar',
       data: s.data,
-      symbol: 'circle',
-      symbolSize: 6,
-      lineStyle: { width: 2 },
-      areaStyle: { opacity: 0.15 },
+      barWidth: '30%',
+      itemStyle: { borderRadius: [4, 4, 0, 0] },
     })),
   }
 
@@ -101,7 +95,6 @@ function updateOption() {
 }
 
 function handleChartClick(params) {
-  // 当用户点击折线图的某个数据点时，向外抛出该点索引
   emit('select', params.dataIndex)
 }
 
@@ -123,11 +116,11 @@ watch(() => [props.title, props.xData, props.series], updateOption, { deep: true
 </script>
 
 <template>
-  <div ref="chartRef" class="line-chart"></div>
+  <div ref="chartRef" class="bar-chart"></div>
 </template>
 
 <style scoped>
-.line-chart {
+.bar-chart {
   width: 100%;
   height: 100%;
 }

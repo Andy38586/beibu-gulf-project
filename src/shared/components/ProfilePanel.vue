@@ -6,8 +6,9 @@
  * 职责：用户登录/注册、用户信息展示、登出。
  */
 
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 import { useAuth } from '@/shared/composables/useAuth'
+import { CELL_PIXEL } from '@/core/layout/config.js'
 
 const props = defineProps({ visible: Boolean })
 const emit = defineEmits(['close'])
@@ -70,6 +71,21 @@ async function handleLogout() {
   await logout()
   mode.value = 'login'
 }
+
+// 用于 CSS v-bind 的计算属性：基于 CELL_PIXEL 的比例计算
+const avatarSizeCss = computed(() => `${Math.round(CELL_PIXEL * 0.6)}px`)
+const avatarFontSizeCss = computed(() => `${Math.round(CELL_PIXEL * 0.3)}px`)
+const headerPaddingCss = computed(() => `${Math.round(CELL_PIXEL * 0.15)}px`)
+const headerFontSizeCss = computed(() => `${Math.round(CELL_PIXEL * 0.2)}px`)
+const closeBtnFontSizeCss = computed(() => `${Math.round(CELL_PIXEL * 0.25)}px`)
+const closeBtnPaddingCss = computed(() => `0 ${Math.round(CELL_PIXEL * 0.05)}px`)
+const bodyPaddingCss = computed(() => `${Math.round(CELL_PIXEL * 0.15)}px`)
+const tabMarginCss = computed(() => `${Math.round(CELL_PIXEL * 0.15)}px`)
+const formGapCss = computed(() => `${Math.round(CELL_PIXEL * 0.125)}px`)
+const errorFontSizeCss = computed(() => `${Math.round(CELL_PIXEL * 0.15)}px`)
+const userInfoGapCss = computed(() => `${Math.round(CELL_PIXEL * 0.15)}px`)
+const detailsGapCss = computed(() => `${Math.round(CELL_PIXEL * 0.05)}px`)
+const userNameFontSizeCss = computed(() => `${Math.round(CELL_PIXEL * 0.2)}px`)
 </script>
 
 <template>
@@ -171,21 +187,21 @@ async function handleLogout() {
   align-items: center;
   justify-content: space-between;
   border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-  padding-bottom: 12px;
+  padding-bottom: v-bind(headerPaddingCss);
 }
 .panel-header h3 {
   margin: 0;
-  font-size: 16px;
+  font-size: v-bind(headerFontSizeCss);
   color: #fff;
 }
 .close-btn {
   background: none;
   border: none;
-  font-size: 20px;
+  font-size: v-bind(closeBtnFontSizeCss);
   color: rgba(255, 255, 255, 0.6);
   line-height: 1;
   cursor: pointer;
-  padding: 0 4px;
+  padding: v-bind(closeBtnPaddingCss);
 }
 .close-btn:hover {
   color: #fff;
@@ -194,19 +210,19 @@ async function handleLogout() {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding-top: 12px;
+  padding-top: v-bind(bodyPaddingCss);
 }
 .tab-row {
-  margin-bottom: 12px;
+  margin-bottom: v-bind(tabMarginCss);
 }
 .auth-form {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: v-bind(formGapCss);
 }
 .error-text {
   color: #ff8a80;
-  font-size: 12px;
+  font-size: v-bind(errorFontSizeCss);
   margin: 0;
 }
 .submit-btn {
@@ -215,26 +231,26 @@ async function handleLogout() {
 .user-info {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: v-bind(userInfoGapCss);
 }
 .avatar {
-  width: 48px;
-  height: 48px;
+  width: v-bind(avatarSizeCss);
+  height: v-bind(avatarSizeCss);
   background: rgba(255, 255, 255, 0.15);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24px;
+  font-size: v-bind(avatarFontSizeCss);
 }
 .user-details {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: v-bind(detailsGapCss);
 }
 .user-name {
-  font-size: 16px;
+  font-size: v-bind(userNameFontSizeCss);
   font-weight: 500;
   color: #fff;
 }

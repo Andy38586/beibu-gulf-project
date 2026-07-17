@@ -6,8 +6,9 @@
  * 职责：展示当前用户的方案列表，支持加载、重命名、删除。
  */
 
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 import { usePlans } from '@/shared/composables/usePlans'
+import { CELL_PIXEL } from '@/core/layout/config.js'
 
 const props = defineProps({ visible: Boolean })
 const emit = defineEmits(['close', 'load-plan', 'edit-plan'])
@@ -67,6 +68,25 @@ function formatDate(iso) {
   const d = new Date(iso)
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
+
+// 用于 CSS v-bind 的计算属性：基于 CELL_PIXEL 的比例计算
+const confirmLineHeightCss = computed(() => `${Math.round(CELL_PIXEL * 0.275)}px`)
+const headerPaddingCss = computed(() => `${Math.round(CELL_PIXEL * 0.15)}px`)
+const headerFontSizeCss = computed(() => `${Math.round(CELL_PIXEL * 0.2)}px`)
+const closeBtnFontSizeCss = computed(() => `${Math.round(CELL_PIXEL * 0.25)}px`)
+const closeBtnPaddingCss = computed(() => `0 ${Math.round(CELL_PIXEL * 0.05)}px`)
+const bodyPaddingCss = computed(() => `${Math.round(CELL_PIXEL * 0.15)}px`)
+const statusFontSizeCss = computed(() => `${Math.round(CELL_PIXEL * 0.1625)}px`)
+const statusMarginCss = computed(() => `${Math.round(CELL_PIXEL * 0.1)}px`)
+const listGapCss = computed(() => `${Math.round(CELL_PIXEL * 0.075)}px`)
+const itemPaddingCss = computed(() => `${Math.round(CELL_PIXEL * 0.1)}px ${Math.round(CELL_PIXEL * 0.125)}px`)
+const infoGapCss = computed(() => `${Math.round(CELL_PIXEL * 0.025)}px`)
+const planNameFontSizeCss = computed(() => `${Math.round(CELL_PIXEL * 0.1625)}px`)
+const planTimeFontSizeCss = computed(() => `${Math.round(CELL_PIXEL * 0.1375)}px`)
+const actionsGapCss = computed(() => `${Math.round(CELL_PIXEL * 0.05)}px`)
+const actionBtnPaddingCss = computed(() => `${Math.round(CELL_PIXEL * 0.0375)}px ${Math.round(CELL_PIXEL * 0.1)}px`)
+const actionBtnFontSizeCss = computed(() => `${Math.round(CELL_PIXEL * 0.15)}px`)
+const confirmFontSizeCss = computed(() => `${Math.round(CELL_PIXEL * 0.1375)}px`)
 </script>
 
 <template>
@@ -122,21 +142,21 @@ function formatDate(iso) {
   align-items: center;
   justify-content: space-between;
   border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-  padding-bottom: 12px;
+  padding-bottom: v-bind(headerPaddingCss);
 }
 .drawer-header h3 {
   margin: 0;
-  font-size: 16px;
+  font-size: v-bind(headerFontSizeCss);
   color: #fff;
 }
 .close-btn {
   background: none;
   border: none;
-  font-size: 20px;
+  font-size: v-bind(closeBtnFontSizeCss);
   color: rgba(255, 255, 255, 0.6);
   line-height: 1;
   cursor: pointer;
-  padding: 0 4px;
+  padding: v-bind(closeBtnPaddingCss);
 }
 .close-btn:hover {
   color: #fff;
@@ -145,24 +165,24 @@ function formatDate(iso) {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding-top: 12px;
+  padding-top: v-bind(bodyPaddingCss);
 }
 .status-text {
   text-align: center;
   color: rgba(255, 255, 255, 0.6);
-  font-size: 13px;
-  margin-top: 8px;
+  font-size: v-bind(statusFontSizeCss);
+  margin-top: v-bind(statusMarginCss);
 }
 .plan-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: v-bind(listGapCss);
 }
 .plan-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 10px;
+  padding: v-bind(itemPaddingCss);
   background: rgba(255, 255, 255, 0.08);
   border-radius: 6px;
   transition: background 0.15s;
@@ -173,11 +193,11 @@ function formatDate(iso) {
 .plan-info {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: v-bind(infoGapCss);
   min-width: 0;
 }
 .plan-name {
-  font-size: 13px;
+  font-size: v-bind(planNameFontSizeCss);
   font-weight: 500;
   color: #fff;
   overflow: hidden;
@@ -185,18 +205,18 @@ function formatDate(iso) {
   white-space: nowrap;
 }
 .plan-time {
-  font-size: 11px;
+  font-size: v-bind(planTimeFontSizeCss);
   color: rgba(255, 255, 255, 0.5);
 }
 .plan-actions {
   display: flex;
-  gap: 4px;
+  gap: v-bind(actionsGapCss);
   flex-shrink: 0;
 }
 .action-btn {
-  padding: 3px 8px;
+  padding: v-bind(actionBtnPaddingCss);
   border-radius: 4px;
-  font-size: 12px;
+  font-size: v-bind(actionBtnFontSizeCss);
   border: 1px solid rgba(255, 255, 255, 0.3);
   cursor: pointer;
   background: rgba(255, 255, 255, 0.1);
@@ -223,9 +243,9 @@ function formatDate(iso) {
   border-color: rgba(255, 138, 128, 0.5);
 }
 .confirm-hint {
-  font-size: 11px;
+  font-size: v-bind(confirmFontSizeCss);
   color: #ff8a80;
-  line-height: 22px;
+  line-height: v-bind(confirmLineHeightCss);
 }
 .confirm-yes {
   color: #ff8a80;

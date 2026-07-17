@@ -2,42 +2,40 @@
 /**
  * SiteSelectionPage - 选址分析业务页
  *
- * 职责：承载选址分析完整链路，继承 Home Layout。
- * 阶段 4：严格符合业务路由继承模板，地图操作统一通过 useMapControls composable，
- * 禁止直接 inject 地图实例。
+ * 布局（继承 Home Layout，替换 slot 内容）：
+ * - 左上（4×4）：第一名小区雷达图
+ * - 左下（4×4）：图层控制面板（接入真实功能）
+ * - 右上（4×4）：设施因子选择面板（6 按钮 + 滑块 + 清空/分析）
+ * - 右下（4×4）：小区名单列表
  *
- * 布局约定：
- * - #left：固定雷达图面板（RadarFloatPanel embedded）
- * - #right：选址配置（BufferControl）+ 结果列表（ResultPanel）组合显示
+ * 顶部标题 + 城市按钮 + 底部导航条固定不变。
  */
 
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import AppLayout from '@/core/layout/AppLayout.vue'
 import GcsPanel from '@/core/layout/components/GcsPanel.vue'
-import BufferControl from '@/business/site-selection/components/BufferControl.vue'
-import ResultPanel from '@/business/site-selection/components/ResultPanel.vue'
-import RadarFloatPanel from '@/visualization/charts/RadarChart.vue'
+import SiteFactorPanel from './components/SiteFactorPanel.vue'
+import SiteLayerPanel from './components/SiteLayerPanel.vue'
+import RadarChart from '@/visualization/charts/RadarChart.vue'
 import { useMapControls } from '@/core/map/composables/useMapControls'
 import { useMapStore } from '@/stores/map'
-import { GAP } from '@/core/layout/config.js'
-
-const emit = defineEmits(['require-login'])
-
-/** 右侧面板堆叠间距，统一使用 GCS 的 GAP，禁止硬编码 px */
-const gapPx = `${GAP}px`
 
 const { flyTo, startBreathing, stopBreathing, zoomToCity, zoomToDistrict } = useMapControls()
 const mapStore = useMapStore()
 
+/** 分析结果 */
 const matchedXiaoqu = ref([])
 const selectedTypes = ref([])
 const selectedXiaoqu = ref(null)
 
+/** 第一名小区（雷达图默认显示） */
+const topXiaoqu = computed(() => matchedXiaoqu.value[0] || null)
+
+/** 处理分析结果 */
 function handleResult(result) {
   mapStore.setAnalysisResult(result)
   matchedXiaoqu.value = result.matchedXiaoqu || []
   selectedTypes.value = result.selectedTypes || []
-  // 清空已选小区，雷达图回到空状态
   selectedXiaoqu.value = null
   mapStore.setSelectedXiaoqu(null)
   stopBreathing()
@@ -46,6 +44,7 @@ function handleResult(result) {
   }
 }
 
+/** 点击小区列表项 */
 function handleSelectXiaoqu(xq) {
   selectedXiaoqu.value = xq
   mapStore.setSelectedXiaoqu(xq)
@@ -55,14 +54,7 @@ function handleSelectXiaoqu(xq) {
   }
 }
 
-function handleCloseXiaoqu() {
-  selectedXiaoqu.value = null
-  mapStore.setSelectedXiaoqu(null)
-  stopBreathing()
-}
-
 onMounted(() => {
-  // 进入页面后稍作延迟，等待地图初始化完成，再定位到城市视角
   setTimeout(() => zoomToCity(), 300)
 })
 
@@ -74,35 +66,48 @@ onUnmounted(() => {
 <template>
   <div class="site-selection-page">
     <AppLayout>
-      <!-- 左侧：雷达图固定面板 -->
+      <!-- 左侧：左上雷达图 + 左下图层控制 -->
       <template #left>
-        <GcsPanel :w="4" :h="4" class="radar-panel-slot">
-          <RadarFloatPanel
+        <!-- 左上：第一名小区雷达图 4×4 -->
+        <GcsPanel :w="4" :h="4" anchor="top-left" :offset-x="0" :offset-y="1.25">
+          <RadarChart
             :embedded="true"
-            :xiaoqu="selectedXiaoqu"
+            :xiaoqu="topXiaoqu"
             :selected-types="selectedTypes"
           />
         </GcsPanel>
+        <!-- 左下：图层控制面板 4×4 -->
+        <GcsPanel :w="4" :h="4" anchor="top-left" :offset-x="0" :offset-y="5.5">
+          <SiteLayerPanel />
+        </GcsPanel>
       </template>
 
-      <!-- 右侧：选址配置 + 结果列表 -->
+      <!-- 右侧：右上因子面板 + 右下小区名单 -->
       <template #right>
-        <div class="zone4-stack">
-          <div class="buffer-control-wrap">
-            <BufferControl
-              @result-update="handleResult"
-              @require-login="emit('require-login')"
-            />
+        <!-- 右上：设施因子选择面板 4×4 -->
+        <GcsPanel :w="4" :h="4" anchor="top-right" :offset-x="0" :offset-y="1.25">
+          <SiteFactorPanel @result-update="handleResult" />
+        </GcsPanel>
+        <!-- 右下：小区名单列表 4×4 -->
+        <GcsPanel :w="4" :h="4" anchor="top-right" :offset-x="0" :offset-y="5.5">
+          <div class="xiaoqu-list-panel">
+            <div v-if="matchedXiaoqu.length === 0" class="empty-hint">
+              请在右侧选择设施因子后点击"开始分析"
+            </div>
+            <ul v-else class="xiaoqu-list">
+              <li
+                v-for="(xq, i) in matchedXiaoqu"
+                :key="xq.id"
+                :class="['xiaoqu-item', { active: selectedXiaoqu?.id === xq.id }]"
+                @click="handleSelectXiaoqu(xq)"
+              >
+                <span class="rank">{{ i + 1 }}</span>
+                <span class="name">{{ xq.name }}</span>
+                <span class="score">{{ xq.score }}分</span>
+              </li>
+            </ul>
           </div>
-          <div class="result-panel-wrap">
-            <ResultPanel
-              :matched-xiaoqu="matchedXiaoqu"
-              :selected-types="selectedTypes"
-              @select-xiaoqu="handleSelectXiaoqu"
-              @close-xiaoqu="handleCloseXiaoqu"
-            />
-          </div>
-        </div>
+        </GcsPanel>
       </template>
     </AppLayout>
   </div>
@@ -115,31 +120,70 @@ onUnmounted(() => {
   pointer-events: none;
 }
 
-/* Zone4 内垂直堆叠：配置面板 + 结果列表，超出可滚动 */
-.zone4-stack {
+/* 小区名单面板内部样式 */
+.xiaoqu-list-panel {
   width: 100%;
   height: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: v-bind(gapPx);
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding-right: 4px;
+  padding: 10px;
   box-sizing: border-box;
+  overflow-y: auto;
 }
 
-.buffer-control-wrap,
-.result-panel-wrap {
-  flex-shrink: 0;
-  pointer-events: auto;
-}
-
-/* 左侧雷达图面板插槽：确保子组件撑满 GcsPanel 内容区 */
-.radar-panel-slot {
+.empty-hint {
   width: 100%;
   height: 100%;
   display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #999;
+  font-size: 14px;
+  text-align: center;
+}
+
+.xiaoqu-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
   flex-direction: column;
+  gap: 8px;
+}
+
+.xiaoqu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  font-size: 14px;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: background 0.15s;
+}
+
+.xiaoqu-item:hover {
+  background: #f5f7fa;
+}
+
+.xiaoqu-item.active {
+  background: rgba(64, 158, 255, 0.15);
+}
+
+.rank {
+  width: 24px;
+  color: #999;
+  font-size: 13px;
+}
+
+.name {
+  flex: 1;
   overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.score {
+  color: #409eff;
+  font-weight: 500;
+  font-size: 13px;
 }
 </style>

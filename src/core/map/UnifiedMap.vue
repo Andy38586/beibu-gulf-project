@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch, onMounted, onUnmounted, provide, nextTick } from 'vue'
+import { ref, watch, onMounted, onUnmounted, provide, nextTick, computed } from 'vue'
 import { createRenderer } from '@/core/map/renderers'
 import { MapRendererKey } from '@/core/map/composables/useMapRenderer'
 import { useMapStore } from '@/stores/map'
@@ -7,6 +7,7 @@ import { loadPorts, buildPortGeoJson, PORT_STYLE } from '@/core/map/composables/
 import { loadBoundaryGeoJson, BOUNDARY_STYLE } from '@/core/map/composables/useBoundaryLayer'
 import { useAnalysisLayer } from '@/business/site-selection/composables/useAnalysisLayer'
 import { useLayerManager } from '@/core/map/composables/useLayerManager'
+import { CELL_PIXEL } from '@/core/layout/config.js'
 
 const props = defineProps({
   mapType: {
@@ -36,6 +37,9 @@ const lastState = ref(null)
 const mapStore = useMapStore()
 const { registerBaseLayerWithRenderer, registerToggleable, clearLayers } = useLayerManager()
 const { createUpdateHandler } = useAnalysisLayer()
+
+// 用于 CSS v-bind 的计算属性：loading spinner 尺寸基于 CELL_PIXEL
+const spinnerSizeCss = computed(() => `${Math.round(CELL_PIXEL * 0.5)}px`)
 
 provide(MapRendererKey, currentRenderer)
 
@@ -68,7 +72,7 @@ async function initRenderer(type) {
   await nextTick()
 
   try {
-    currentRenderer.value = createRenderer(type, containerRef.value)
+    currentRenderer.value = await createRenderer(type, containerRef.value)
     await nextTick()
 
     if (type === '2d') {
@@ -217,8 +221,8 @@ defineExpose({
 }
 
 .loading-spinner {
-  width: 40px;
-  height: 40px;
+  width: v-bind(spinnerSizeCss);
+  height: v-bind(spinnerSizeCss);
   border: 4px solid #f3f3f3;
   border-top: 4px solid #409eff;
   border-radius: 50%;

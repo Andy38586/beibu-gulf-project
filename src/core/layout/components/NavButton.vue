@@ -36,8 +36,8 @@ defineEmits(['click'])
 
 <template>
   <GcsButton
-    :w="1"
-    :h="1"
+    :w="0.8"
+    :h="0.8"
     :label="label"
     :icon="icon"
     :disabled="disabled"

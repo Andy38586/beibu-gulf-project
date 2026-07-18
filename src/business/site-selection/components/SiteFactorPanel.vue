@@ -20,9 +20,14 @@
  */
 
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { FACILITY_CONFIG } from '../composables/useFacilities'
 import { useSiteAnalysisApi } from '../composables/useSiteAnalysisApi'
+import { useAuth } from '@/shared/composables/useAuth'
 import ErrorPopup from './ErrorPopup.vue'
+
+const router = useRouter()
+const { isAuthenticated } = useAuth()
 
 const emit = defineEmits(['result-update'])
 
@@ -126,9 +131,18 @@ async function runAnalysis() {
     showPopup.value = true
     return
   }
+  // 构造后端期望的 typeSettings 格式
+  const apiTypeSettings = {}
+  selectedKeys.value.forEach((key) => {
+    const config = FACILITY_CONFIG[key]
+    apiTypeSettings[key] = {
+      defaultRadius: config.defaultRadius,
+      importance: typeSettings[key].importance,
+    }
+  })
   const result = await analyze({
     selectedKeys: selectedKeys.value,
-    typeSettings: typeSettings,
+    typeSettings: apiTypeSettings,
   })
   if (calcError.value) {
     popupMessage.value = calcError.value || '网络异常，请重试'
@@ -191,6 +205,35 @@ onUnmounted(() => {
   Object.values(confirmTimers).forEach((timer) => {
     if (timer) clearTimeout(timer)
   })
+})
+
+/**
+ * 获取当前因子设置状态（用于状态保存）
+ */
+function getSettings() {
+  return JSON.parse(JSON.stringify(typeSettings))
+}
+
+/**
+ * 恢复因子设置状态（用于状态恢复）
+ */
+function restoreSettings(settings) {
+  if (!settings) return
+  Object.entries(settings).forEach(([key, value]) => {
+    if (typeSettings[key]) {
+      typeSettings[key].selected = value.selected || false
+      typeSettings[key].importance = value.importance || 3
+      typeSettings[key].selecting = false // 恢复时不进入选择态
+    }
+  })
+}
+
+/**
+ * 暴露方法供父组件调用
+ */
+defineExpose({
+  getSettings,
+  restoreSettings,
 })
 </script>
 

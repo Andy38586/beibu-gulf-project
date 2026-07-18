@@ -100,3 +100,53 @@ export async function deleteOne(req, res) {
     res.status(500).json({ error: '删除方案失败' })
   }
 }
+
+/**
+ * 保存小区到方案
+ * POST /plans/:id/xiaoqu
+ * Body: { xiaoqu: { id, name, score, breakdown, selectionCriteria, ... } }
+ */
+export async function saveXiaoquToOne(req, res) {
+  try {
+    const plan = await plansRepo.findById(req.params.id)
+    if (!plan) {
+      return res.status(404).json({ error: '方案不存在' })
+    }
+    if (plan.userId !== req.user.id) {
+      return res.status(403).json({ error: '无权修改该方案' })
+    }
+
+    const { xiaoqu } = req.body
+    if (!xiaoqu || !xiaoqu.id) {
+      return res.status(400).json({ error: '缺少小区信息' })
+    }
+
+    const updated = await plansRepo.saveXiaoqu(req.params.id, xiaoqu)
+    res.json(updated)
+  } catch (error) {
+    console.error('保存小区失败:', error)
+    res.status(500).json({ error: '保存小区失败' })
+  }
+}
+
+/**
+ * 从方案中移除小区
+ * DELETE /plans/:id/xiaoqu/:xiaoquId
+ */
+export async function removeXiaoquFromOne(req, res) {
+  try {
+    const plan = await plansRepo.findById(req.params.id)
+    if (!plan) {
+      return res.status(404).json({ error: '方案不存在' })
+    }
+    if (plan.userId !== req.user.id) {
+      return res.status(403).json({ error: '无权修改该方案' })
+    }
+
+    const updated = await plansRepo.removeXiaoqu(req.params.id, req.params.xiaoquId)
+    res.json(updated)
+  } catch (error) {
+    console.error('移除小区失败:', error)
+    res.status(500).json({ error: '移除小区失败' })
+  }
+}

@@ -55,5 +55,28 @@ export function usePlans() {
     }
   }
 
-  return { getPlans, createPlan, updatePlan, deletePlan, saving, updating }
+  /**
+   * 保存小区到方案
+   * @param {string} planId - 方案ID
+   * @param {object} xiaoqu - 小区详情（包含 id, name, score, breakdown, selectionCriteria 等）
+   */
+  async function saveXiaoqu(planId, xiaoqu) {
+    return apiRequest(`/plans/${planId}/xiaoqu`, {
+      method: 'POST',
+      body: JSON.stringify({ xiaoqu }),
+    })
+  }
+
+  /**
+   * 从方案中移除小区
+   * @param {string} planId - 方案ID
+   * @param {string} xiaoquId - 小区ID
+   */
+  async function removeXiaoqu(planId, xiaoquId) {
+    return apiRequest(`/plans/${planId}/xiaoqu/${xiaoquId}`, {
+      method: 'DELETE',
+    })
+  }
+
+  return { getPlans, createPlan, updatePlan, deletePlan, saveXiaoqu, removeXiaoqu, saving, updating }
 }

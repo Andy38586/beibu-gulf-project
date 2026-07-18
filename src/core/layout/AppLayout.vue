@@ -30,6 +30,7 @@ import NavButton from './components/NavButton.vue'
 import LineChart from '@/visualization/charts/LineChart.vue'
 import BarChart from '@/visualization/charts/BarChart.vue'
 import RadarChart from '@/visualization/charts/RadarChart.vue'
+import SiteLayerPanel from '@/business/site-selection/components/SiteLayerPanel.vue'
 import { useLayerManager } from '@/core/map/composables/useLayerManager'
 import { useScreenActions } from '@/shared/composables/useScreenActions.js'
 
@@ -168,19 +169,9 @@ const cityButtons = [
         <GcsPanel :w="4" :h="4" anchor="top-right" :offset-x="0" :offset-y="1.25">
           <RadarChart />
         </GcsPanel>
-        <!-- 右下：图层控制 4×4，8 个 1.8×0.8 按钮 -->
+        <!-- 右下：图层控制 4×4（接入真实功能） -->
         <GcsPanel :w="4" :h="4" anchor="top-right" :offset-x="0" :offset-y="5.5">
-          <div class="layer-panel-inner">
-            <GcsButton
-              v-for="item in layerButtons"
-              :key="item.label"
-              :label="item.label"
-              :icon="item.icon"
-              :active="false"
-              :w="1.8"
-              :h="0.8"
-            />
-          </div>
+          <SiteLayerPanel />
         </GcsPanel>
       </slot>
     </div>

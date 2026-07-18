@@ -12,4 +12,8 @@ router.post('/', plansController.createOne)
 router.put('/:id', plansController.updateOne)
 router.delete('/:id', plansController.deleteOne)
 
+// 小区保存/移除接口
+router.post('/:id/xiaoqu', plansController.saveXiaoquToOne)
+router.delete('/:id/xiaoqu/:xiaoquId', plansController.removeXiaoquFromOne)
+
 export default router

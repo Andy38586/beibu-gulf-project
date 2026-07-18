@@ -174,6 +174,18 @@ export const useMapStore = defineStore('map', () => {
     }
   }
 
+  /**
+   * 移除指定图层（从 catalog 中删除并调用 hide）
+   * 用于进入选址分析页前清除旧的分析图层
+   */
+  function removeLayer(key) {
+    const idx = layerCatalog.value.findIndex((e) => e.key === key)
+    if (idx < 0) return
+    const entry = layerCatalog.value[idx]
+    entry.hide.forEach((fn) => fn())
+    layerCatalog.value.splice(idx, 1)
+  }
+
   function clearLayerCatalog() {
     layerCatalog.value = []
   }
@@ -218,6 +230,7 @@ export const useMapStore = defineStore('map', () => {
     registerBaseLayer,
     registerToggleable,
     toggleLayer,
+    removeLayer,
     clearLayerCatalog,
     setActivePanel,
     closePanel,

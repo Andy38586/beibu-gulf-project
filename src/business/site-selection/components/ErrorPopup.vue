@@ -1,20 +1,31 @@
 <script setup>
 /**
- * ErrorPopup - 网络异常错误弹窗
+ * ErrorPopup - 通用提示弹窗
  *
  * 规格：4×3 Cell 面板，居中显示
  * - 右上角：关闭按钮（×）
- * - 内容区：错误信息 + 重试按钮
+ * - 内容区：提示信息
+ * - 底部：两个并列按钮
+ *   - 主按钮（蓝色，1.8×0.8 cell）：重试 或 去登录
+ *   - 次按钮（白色，1.8×0.8 cell）：取消
+ *
+ * 两种模式：
+ * - mode='error'：显示"重试"和"取消"按钮
+ * - mode='login'：显示"去登录"和"取消"按钮
  */
 
 import { useGCS } from '@/core/layout/useGCS.js'
+import { useRouter } from 'vue-router'
 
 const props = defineProps({
   visible: { type: Boolean, default: false },
   message: { type: String, default: '网络异常，请重试' },
+  /** 弹窗模式：'error' 或 'login' */
+  mode: { type: String, default: 'error', validator: (v) => ['error', 'login'].includes(v) },
 })
 
 const emit = defineEmits(['close', 'retry'])
+const router = useRouter()
 
 const { panelPosition } = useGCS()
 
@@ -24,6 +35,11 @@ function handleClose() {
 
 function handleRetry() {
   emit('retry')
+}
+
+function handleLogin() {
+  emit('close') // 先关闭弹窗
+  router.push('/profile') // 跳转到登录页
 }
 </script>
 
@@ -35,13 +51,32 @@ function handleRetry() {
         <button class="close-btn" @click="handleClose" aria-label="关闭">×</button>
 
         <!-- 错误图标 -->
-        <div class="error-icon">️</div>
+        <div class="error-icon">⚠️</div>
 
         <!-- 错误信息 -->
         <p class="error-message">{{ message }}</p>
 
-        <!-- 重试按钮 -->
-        <button class="retry-btn" @click="handleRetry">重试</button>
+        <!-- 底部按钮组：两个并列按钮 -->
+        <div class="button-group">
+          <!-- 主按钮（蓝色）：重试 或 去登录 -->
+          <button
+            v-if="mode === 'login'"
+            class="action-btn primary-btn"
+            @click="handleLogin"
+          >
+            去登录
+          </button>
+          <button
+            v-else
+            class="action-btn primary-btn"
+            @click="handleRetry"
+          >
+            重试
+          </button>
+
+          <!-- 次按钮（白色）：取消 -->
+          <button class="action-btn cancel-btn" @click="handleClose">取消</button>
+        </div>
       </div>
     </div>
   </Transition>
@@ -110,24 +145,53 @@ function handleRetry() {
   line-height: 1.5;
 }
 
-.retry-btn {
+/* 底部按钮组：两个并列按钮 */
+.button-group {
+  display: flex;
+  gap: 12px;
   width: 100%;
-  height: 40px;
+  justify-content: center;
+}
+
+/* 操作按钮基础样式（1.8×0.8 cell 规格） */
+.action-btn {
+  width: 144px; /* 1.8 × 80px */
+  height: 64px; /* 0.8 × 80px */
   border: none;
   border-radius: 8px;
-  background: #409eff;
-  color: #fff;
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
-.retry-btn:hover {
+/* 主按钮（蓝色）：重试/去登录 */
+.primary-btn {
+  background: #409eff;
+  color: #fff;
+}
+
+.primary-btn:hover {
   background: #66b1ff;
 }
 
-.retry-btn:active {
+.primary-btn:active {
+  transform: scale(0.98);
+}
+
+/* 取消按钮（白色） */
+.cancel-btn {
+  background: #ffffff;
+  color: #333;
+  border: 1px solid #e0e0e0;
+}
+
+.cancel-btn:hover {
+  border-color: #409eff;
+  background: #f0f7ff;
+}
+
+.cancel-btn:active {
   transform: scale(0.98);
 }
 

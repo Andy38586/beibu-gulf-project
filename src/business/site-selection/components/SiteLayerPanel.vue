@@ -31,10 +31,8 @@ const layerButtons = computed(() => {
     'base-vector',
     'boundary',
     'ports',
-    'analysis-buffer',
-    'analysis-result',
-    'heatmap',
-    'radar',
+    'analysis-coverage',
+    'analysis-matched',
   ]
   return order
     .map((key) => layerCatalog.value.find((l) => l.key === key))
@@ -49,13 +47,11 @@ const layerButtons = computed(() => {
 /** 图层图标映射 */
 function getLayerIcon(label) {
   if (label.includes('底图') || label.includes('影像') || label.includes('矢量')) return '🗺'
-  if (label.includes('港口')) return '⚓'
+  if (label.includes('港口')) return ''
   if (label.includes('行政')) return ''
-  if (label.includes('缓冲')) return '◎'
-  if (label.includes('结果')) return '◈'
-  if (label.includes('热力')) return '🔥'
-  if (label.includes('雷达')) return '📡'
-  return '◈'
+  if (label.includes('覆盖') || label.includes('缓冲')) return '◎'
+  if (label.includes('匹配') || label.includes('结果')) return '◈'
+  return ''
 }
 
 /** 点击图层按钮 */

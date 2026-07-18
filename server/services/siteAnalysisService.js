@@ -113,16 +113,41 @@ export function rankXiaoqu(matched, facilityData, radiusSettings, weights) {
   const scored = scoreXiaoqu(matched, facilityData, radiusSettings, weights, linearDecay)
   return scored.sort((a, b) => b.score - a.score).slice(0, TOP_N)
 }
+/**
+ * 筛选覆盖范围内的设施POI
+ * @param {Object} facilityData - 设施数据 { type: [{lng, lat, name}] }
+ * @param {Object} finalArea - 覆盖范围 GeoJSON
+ * @param {Array} selectedKeys - 选中的设施类型
+ * @returns {Object} 各类型设施POI { type: [{lng, lat, name}] }
+ */
+export function filterFacilitiesInCoverage(facilityData, finalArea, selectedKeys) {
+  const result = {}
+  selectedKeys.forEach((key) => {
+    const points = facilityData[key]
+    if (!points || points.length === 0) {
+      result[key] = []
+      return
+    }
+    result[key] = points.filter((p) => {
+      if (!p || typeof p.lng !== 'number' || typeof p.lat !== 'number') return false
+      return turf.booleanPointInPolygon(turf.point([p.lng, p.lat]), finalArea)
+    })
+  })
+  return result
+}
+
 export function runSiteAnalysis({
   selectedKeys,
   typeSettings,
   facilityData,
   xiaoquData,
-  weights = DEFAULT_WEIGHTS,
+  weights,
 }) {
+  // null 不会触发默认参数，需显式处理
+  const finalWeights = weights || DEFAULT_WEIGHTS
   const validationError = validateSelection(selectedKeys)
   if (validationError) {
-    return { error: validationError, coverage: null, matchedXiaoqu: [] }
+    return { error: validationError, coverage: null, matchedXiaoqu: [], facilityPoi: {} }
   }
 
   const radiusSettings = resolveRadiusSettings(selectedKeys, typeSettings)
@@ -137,11 +162,15 @@ export function runSiteAnalysis({
       error: `${failKey} 的覆盖范围与其他类型无重叠区域`,
       coverage: null,
       matchedXiaoqu: [],
+      facilityPoi: {},
     }
   }
   const spatialIndex = createSpatialIndex(xiaoquData)
   const matched = filterMatchedXiaoqu(xiaoquData, finalArea, spatialIndex)
-  const top = rankXiaoqu(matched, facilityData, radiusSettings, weights)
+  const top = rankXiaoqu(matched, facilityData, radiusSettings, finalWeights)
 
-  return { error: null, coverage: finalArea, matchedXiaoqu: top }
+  // 筛选覆盖范围内的设施POI
+  const facilityPoi = filterFacilitiesInCoverage(facilityData, finalArea, selectedKeys)
+
+  return { error: null, coverage: finalArea, matchedXiaoqu: top, facilityPoi }
 }

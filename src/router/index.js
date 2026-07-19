@@ -18,13 +18,26 @@ const routes = [
     path: '/profile',
     name: 'Profile',
     component: () => import('@/views/ProfilePage.vue'),
-    meta: { engine: '2d', title: '个人中心' },
+    meta: { engine: '2d', title: '个人中心', requiresAuth: true },
   },
 ]
 
 const router = createRouter({
   history: createWebHistory(),
   routes,
+})
+
+// 路由守卫：保护需要登录的路由
+router.beforeEach((to, from, next) => {
+  if (to.meta.requiresAuth) {
+    const token = localStorage.getItem('auth_token')
+    if (!token) {
+      // 未登录，跳转到首页（登录面板在首页）
+      next({ name: 'Home' })
+      return
+    }
+  }
+  next()
 })
 
 export default router

@@ -8,6 +8,21 @@ export async function analyze(req, res) {
     if (!selectedKeys || !typeSettings) {
       return res.status(400).json({ error: '缺少必要参数: selectedKeys, typeSettings' })
     }
+    
+    // AUDIT-103/104: 校验权重范围（1-5）
+    if (typeSettings) {
+      for (const [key, setting] of Object.entries(typeSettings)) {
+        if (setting.importance !== undefined) {
+          const importance = Number(setting.importance)
+          if (isNaN(importance) || importance < 1 || importance > 5) {
+            return res.status(400).json({ 
+              error: `设施类型 ${key} 的权重值无效，应在 1-5 之间` 
+            })
+          }
+        }
+      }
+    }
+    
     const facilityData = {}
     const validTypes = facilitiesRepo.getAvailableTypes()
     for (const key of selectedKeys) {

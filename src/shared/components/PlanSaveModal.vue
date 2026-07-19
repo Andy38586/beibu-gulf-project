@@ -34,8 +34,8 @@ function onClose() {
 
 <template>
   <el-dialog v-model="dialogVisible" title="保存方案" width="320px" @close="onClose">
-    <el-form :model="form" class="save-form" @submit.prevent="handleConfirm">
-      <el-input v-model="planName" placeholder="请输入方案名称" size="small" autofocus />
+    <el-form class="save-form" @submit.prevent="handleConfirm">
+      <el-input v-model="planName" placeholder="请输入方案名称" size="small" maxlength="50" show-word-limit autofocus />
       <div v-if="errorMsg" class="modal-error">{{ errorMsg }}</div>
     </el-form>
     <template #footer>

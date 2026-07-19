@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 /**
  * RadarChart - 雷达图面板（简化版）
  *
@@ -24,21 +24,44 @@ echarts.use([EChartsRadarChart, TooltipComponent, CanvasRenderer])
 import { FACILITY_LABELS } from '@/shared/utils/facilityLabels'
 import { FACILITY_CONFIG } from '@/business/site-selection/composables/useFacilities'
 import { useGCS } from '@/core/layout/useGCS.js'
+import RadarScoreTooltip from './components/RadarScoreTooltip.vue'
+import type { ScoredXiaoqu } from '@/types/xiaoqu'
+import type { FacilityPoint, FacilityType } from '@/types/facility'
+import type { ECharts } from 'echarts'
 
-const props = defineProps({
-  visible: { type: Boolean, default: true },
-  xiaoqu: { type: Object, default: null },
-  selectedTypes: { type: Array, default: () => [] },
-  embedded: { type: Boolean, default: false },
-  facilityPoi: { type: Object, default: () => ({}) },
+interface Props {
+  visible: boolean
+  xiaoqu: ScoredXiaoqu | null
+  selectedTypes: string[]
+  embedded: boolean
+  facilityPoi: Record<string, FacilityPoint[]>
+}
+
+interface Emits {
+  (e: 'close'): void
+  (e: 'show-facility-layer', data: {
+    type: string
+    poiList: FacilityPoint[]
+    color: string
+    label: string
+  }): void
+  (e: 'hide-facility-layer'): void
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  visible: true,
+  xiaoqu: null,
+  selectedTypes: () => [],
+  embedded: false,
+  facilityPoi: () => ({})
 })
 
-const emit = defineEmits(['close', 'show-facility-layer', 'hide-facility-layer'])
+const emit = defineEmits<Emits>()
 
-const chartRef = ref(null)
-const panelRef = ref(null)
-let chartInstance = null
-let resizeObserver = null
+const chartRef = ref<HTMLElement | null>(null)
+const panelRef = ref<HTMLElement | null>(null)
+let chartInstance: ECharts | null = null
+let resizeObserver: ResizeObserver | null = null
 let isRendering = false
 
 const { cellPixel } = useGCS()
@@ -46,20 +69,24 @@ const unitPx = computed(() => cellPixel.value * 0.1)
 /** 0.2 cell 间距 */
 const spacingPx = computed(() => cellPixel.value * 0.2)
 
+/** 弹窗尺寸：2×3 cell（Teleport 到 body 后 v-bind 失效，用 inline style） */
+const tooltipW = computed(() => cellPixel.value * 2)
+const tooltipH = computed(() => cellPixel.value * 3)
+
 /** 浮窗状态 */
-const tooltipVisible = ref(false)
-const tooltipPosition = ref({ left: 0, top: 0 })
+const tooltipVisible = ref<boolean>(false)
+const tooltipPosition = ref<{ left: number; top: number }>({ left: 0, top: 0 })
 
 /** 当前选中的设施类型 */
-const activeFacilityType = ref(null)
+const activeFacilityType = ref<string | null>(null)
 
 /** 获取设施颜色 */
-function getFacilityColor(key) {
-  return FACILITY_CONFIG[key]?.color || '#666'
+function getFacilityColor(key: string): string {
+  return FACILITY_CONFIG[key as FacilityType]?.color || '#666'
 }
 
 /** 渲染雷达图 */
-function renderRadar() {
+function renderRadar(): void {
   if (!chartRef.value || isRendering) return
   // 确保容器有实际尺寸再初始化
   const w = chartRef.value.clientWidth
@@ -70,14 +97,24 @@ function renderRadar() {
     return
   }
   isRendering = true
-  if (chartInstance) {
-    chartInstance.dispose()
-    chartInstance = null
+  
+  // AUDIT-315-004: 复用ECharts实例，避免频繁销毁重建
+  if (!chartInstance) {
+    chartInstance = echarts.init(chartRef.value)
+    
+    // 监听雷达图点击事件（轴名称点击）- 只需绑定一次
+    chartInstance.on('click', (params: any) => {
+      if (params.componentType === 'radar' && params.name) {
+        const key = props.selectedTypes.find((k) => FACILITY_LABELS[k as FacilityType] === params.name)
+        if (key) {
+          handleFacilityClick(key)
+        }
+      }
+    })
   }
-  chartInstance = echarts.init(chartRef.value)
 
   const indicators = props.selectedTypes.map((key) => ({
-    name: FACILITY_LABELS[key] || key,
+    name: FACILITY_LABELS[key as FacilityType] || key,
     max: 100,
   }))
   const values = props.selectedTypes.map((key) => props.xiaoqu?.breakdown?.[key] ?? 0)
@@ -121,35 +158,22 @@ function renderRadar() {
     ],
   })
 
-  // 监听雷达图点击事件（轴名称点击）
-  chartInstance.on('click', (params) => {
-    if (params.componentType === 'radar' && params.name) {
-      const key = props.selectedTypes.find((k) => FACILITY_LABELS[k] === params.name)
-      if (key) {
-        handleFacilityClick(key)
-      }
-    }
-  })
-
   isRendering = false
 }
 
 /** 点击综合评分 */
-function handleScoreClick() {
+function handleScoreClick(): void {
   if (tooltipVisible.value) {
     tooltipVisible.value = false
     return
   }
 
   // 定位到评分文字上方，水平居中（Teleport 到 body，用视口坐标）
-  // 弹窗尺寸：2×3 cell
-  const tooltipW = cellPixel.value * 2
-  const tooltipH = cellPixel.value * 3
   const scoreEl = document.querySelector('.score-text')
   if (scoreEl) {
     const rect = scoreEl.getBoundingClientRect()
-    let left = rect.left + rect.width / 2 - tooltipW / 2
-    let top = rect.top - tooltipH - 8
+    let left = rect.left + rect.width / 2 - tooltipW.value / 2
+    let top = rect.top - tooltipH.value - 8
 
     // 边界检测：确保弹窗在视口内
     const viewportW = window.innerWidth
@@ -157,7 +181,7 @@ function handleScoreClick() {
 
     // 水平居中，但不超出左右边界
     if (left < 10) left = 10
-    if (left + tooltipW > viewportW - 10) left = viewportW - tooltipW - 10
+    if (left + tooltipW.value > viewportW - 10) left = viewportW - tooltipW.value - 10
 
     // 如果上方空间不够，显示在下方
     if (top < 10) {
@@ -165,8 +189,8 @@ function handleScoreClick() {
     }
 
     // 如果下方也不够，确保至少显示在视口内
-    if (top + tooltipH > viewportH - 10) {
-      top = viewportH - tooltipH - 10
+    if (top + tooltipH.value > viewportH - 10) {
+      top = viewportH - tooltipH.value - 10
     }
 
     tooltipPosition.value = { left, top }
@@ -175,17 +199,22 @@ function handleScoreClick() {
 }
 
 /** 点击其他地方关闭浮窗 */
-function handleGlobalClick(e) {
+function handleGlobalClick(e: MouseEvent): void {
   const tooltipEl = document.querySelector('.radar-tooltip')
   const scoreEl = document.querySelector('.score-text')
-  
-  if (tooltipVisible.value && tooltipEl && !tooltipEl.contains(e.target) && !scoreEl?.contains(e.target)) {
+
+  if (
+    tooltipVisible.value &&
+    tooltipEl &&
+    !tooltipEl.contains(e.target) &&
+    !scoreEl?.contains(e.target)
+  ) {
     tooltipVisible.value = false
   }
 }
 
 /** 点击设施名称（显示POI图层） */
-function handleFacilityClick(key) {
+function handleFacilityClick(key: string): void {
   if (activeFacilityType.value === key) {
     activeFacilityType.value = null
     emit('hide-facility-layer')
@@ -197,7 +226,7 @@ function handleFacilityClick(key) {
     type: key,
     poiList: props.facilityPoi[key] || [],
     color: getFacilityColor(key),
-    label: FACILITY_LABELS[key],
+    label: FACILITY_LABELS[key as FacilityType],
   })
 }
 
@@ -212,7 +241,7 @@ watch(
   },
 )
 
-function handleResize() {
+function handleResize(): void {
   chartInstance?.resize()
 }
 
@@ -225,15 +254,19 @@ watch(
   },
 )
 
-watch([() => props.xiaoqu, () => props.selectedTypes, () => props.facilityPoi], () => {
-  setupResizeObserver()
-  nextTick(() => renderRadar())
-}, {
-  flush: 'post',
-})
+watch(
+  [() => props.xiaoqu, () => props.selectedTypes, () => props.facilityPoi],
+  () => {
+    setupResizeObserver()
+    nextTick(() => renderRadar())
+  },
+  {
+    flush: 'post',
+  },
+)
 
 /** 设置 ResizeObserver */
-function setupResizeObserver() {
+function setupResizeObserver(): void {
   resizeObserver?.disconnect()
   if (chartRef.value) {
     resizeObserver = new ResizeObserver(() => {
@@ -273,29 +306,13 @@ onBeforeUnmount(() => {
       综合评分：{{ xiaoqu.score }}
     </div>
 
-    <!-- 具体得分浮窗（Teleport 到 body，2×3 cell 面板） -->
-    <Teleport to="body">
-      <div
-        v-if="tooltipVisible && xiaoqu && selectedTypes.length > 0"
-        class="radar-tooltip"
-        :style="{
-          left: tooltipPosition.left + 'px',
-          top: tooltipPosition.top + 'px',
-        }"
-      >
-        <div class="tooltip-grid">
-          <div
-            v-for="key in selectedTypes"
-            :key="key"
-            class="tooltip-item"
-            :style="{ color: getFacilityColor(key) }"
-          >
-            <span class="tooltip-label">{{ FACILITY_LABELS[key] }}</span>
-            <span class="tooltip-value">{{ xiaoqu.breakdown?.[key] ?? 0 }}分</span>
-          </div>
-        </div>
-      </div>
-    </Teleport>
+    <!-- 具体得分浮窗（使用子组件） -->
+    <RadarScoreTooltip
+      :visible="tooltipVisible"
+      :xiaoqu="xiaoqu"
+      :selectedTypes="selectedTypes"
+      :position="tooltipPosition"
+    />
   </div>
 </template>
 
@@ -305,12 +322,12 @@ onBeforeUnmount(() => {
   height: 100%;
   display: flex;
   flex-direction: column;
-  padding: calc(2 * v-bind(unitPx)) calc(1.5 * v-bind(unitPx));
+  padding: 0;
   box-sizing: border-box;
   position: relative;
 }
 
-/* 小区名称：顶部居中，距 panel 顶部 0.2 cell */
+/* 小区名称：距 panel 顶部 0.2 cell */
 .xiaoqu-name {
   font-size: 14px;
   font-weight: 500;
@@ -319,7 +336,8 @@ onBeforeUnmount(() => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  margin-bottom: calc(0.5 * v-bind(unitPx));
+  margin-top: calc(2 * v-bind(unitPx));
+  margin-bottom: calc(2 * v-bind(unitPx));
 }
 
 /* 雷达图容器：flex 占满剩余空间，内部用 absolute 确保 ECharts 有确定尺寸 */
@@ -343,13 +361,15 @@ onBeforeUnmount(() => {
   text-align: center;
 }
 
-/* 综合评分：与 panel 底部间距由 .radar-panel 的 padding 控制（0.2 cell） */
+/* 综合评分：距雷达图 0.2 cell，距 panel 底部 0.2 cell */
 .score-text {
   color: #409eff;
   font-weight: 500;
   margin: 0;
   font-size: 14px;
   text-align: center;
+  margin-top: calc(2 * v-bind(unitPx));
+  margin-bottom: calc(2 * v-bind(unitPx));
 }
 
 .score-text.clickable {
@@ -359,51 +379,5 @@ onBeforeUnmount(() => {
 
 .score-text.clickable:hover {
   color: #66b1ff;
-}
-
-/* 具体得分浮窗（Teleport 到 body，用 fixed 定位，2×3 cell） */
-.radar-tooltip {
-  position: fixed;
-  z-index: 1000;
-  background: rgba(255, 255, 255, 0.98);
-  border: 1px solid #e0e0e0;
-  border-radius: calc(1 * v-bind(unitPx));
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
-  width: calc(20 * v-bind(unitPx));
-  height: calc(30 * v-bind(unitPx));
-  box-sizing: border-box;
-}
-
-/* 1列×6行网格布局，撑满整个弹窗 */
-.tooltip-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  grid-template-rows: repeat(6, 1fr);
-  width: 100%;
-  height: 100%;
-}
-
-.tooltip-item {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 calc(1 * v-bind(unitPx));
-  font-size: 15px;
-  border-bottom: 1px solid #f0f0f0;
-}
-
-.tooltip-item:last-child {
-  border-bottom: none;
-}
-
-.tooltip-label {
-  font-weight: 500;
-  font-size: 14px;
-}
-
-.tooltip-value {
-  font-weight: 600;
-  font-size: 15px;
 }
 </style>

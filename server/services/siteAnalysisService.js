@@ -17,6 +17,16 @@ export function resolveRadiusSettings(selectedKeys, typeSettings) {
   selectedKeys.forEach((key) => {
     const setting = typeSettings[key]
     const radius = importanceToRadius(setting.defaultRadius, setting.importance)
+    
+    // AUDIT-106: 校验半径必须为正数
+    if (radius <= 0 || isNaN(radius)) {
+      // AUDIT-016 (错误): 仅在开发环境输出警告
+      if (process.env.NODE_ENV === 'development') {
+        console.warn(`设施类型 ${key} 的缓冲区半径无效: ${radius}`)
+      }
+      throw new Error(`设施类型 ${key} 的缓冲区半径计算失败`)
+    }
+    
     resolved[key] = { selected: true, radius }
   })
   return resolved
@@ -24,20 +34,44 @@ export function resolveRadiusSettings(selectedKeys, typeSettings) {
 export function buildTypeCoverage(points, radiusKm) {
   if (!points || points.length === 0) return null
   
-  // 验证输入数据
-  const validPoints = points.filter((p) => {
+  // AUDIT-315-001: 性能优化提示 - 大量POI数据建议实现聚类或空间索引
+  if (points.length > 1000 && process.env.NODE_ENV === 'development') {
+    console.warn(`[性能优化] POI数据量较大(${points.length}条)，建议实现聚类或空间索引优化`)
+  }
+  
+  // AUDIT-314-002: POI数据去重（基于坐标）
+  const uniquePoints = []
+  const seenCoords = new Set()
+  for (const p of points) {
+    const coordKey = `${p.lng},${p.lat}`
+    if (!seenCoords.has(coordKey)) {
+      seenCoords.add(coordKey)
+      uniquePoints.push(p)
+    }
+  }
+  
+  // AUDIT-314-003: 过滤异常坐标[0,0]和不在北部湾范围内的坐标
+  // 北部湾范围：经度 105-115，纬度 18-25
+  const validPoints = uniquePoints.filter((p) => {
     const isValid = p && typeof p.lng === 'number' && typeof p.lat === 'number' && 
                     !isNaN(p.lng) && !isNaN(p.lat) &&
                     p.lng >= -180 && p.lng <= 180 && 
-                    p.lat >= -90 && p.lat <= 90
-    if (!isValid) {
+                    p.lat >= -90 && p.lat <= 90 &&
+                    !(p.lng === 0 && p.lat === 0) && // 过滤[0,0]异常坐标
+                    p.lng >= 105 && p.lng <= 115 && // 北部湾经度范围
+                    p.lat >= 18 && p.lat <= 25      // 北部湾纬度范围
+    // AUDIT-016 (错误): 仅在开发环境输出警告
+    if (!isValid && process.env.NODE_ENV === 'development') {
       console.warn('无效的坐标点:', p)
     }
     return isValid
   })
   
   if (validPoints.length === 0) {
-    console.warn('没有有效的坐标点')
+    // AUDIT-016 (错误): 仅在开发环境输出警告
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('没有有效的坐标点')
+    }
     return null
   }
   
@@ -48,7 +82,10 @@ export function buildTypeCoverage(points, radiusKm) {
   // 过滤掉无效的缓冲区
   const validBuffers = buffers.filter((b) => b && b.geometry && b.geometry.coordinates)
   if (validBuffers.length === 0) {
-    console.warn('没有有效的缓冲区')
+    // AUDIT-016 (错误): 仅在开发环境输出警告
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('没有有效的缓冲区')
+    }
     return null
   }
   
@@ -58,13 +95,19 @@ export function buildTypeCoverage(points, radiusKm) {
     const unionResult = turf.union(turf.featureCollection(validBuffers))
     // 验证 union 结果
     if (!unionResult || !unionResult.geometry) {
-      console.warn('union 返回无效结果')
+      // AUDIT-016 (错误): 仅在开发环境输出警告
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('union 返回无效结果')
+      }
       return null
     }
     return unionResult
   } catch (error) {
-    console.error('turf.union 失败:', error.message)
-    console.error('缓冲区数量:', validBuffers.length)
+    // AUDIT-016 (错误): 仅在开发环境输出错误
+    if (process.env.NODE_ENV === 'development') {
+      console.error('turf.union 失败:', error.message)
+      console.error('缓冲区数量:', validBuffers.length)
+    }
     return null
   }
 }
@@ -82,7 +125,10 @@ export function intersectCoverages(coverages, selectedKeys) {
       // 验证输入几何对象
       if (!result.geometry || !result.geometry.coordinates || 
           !entries[i].coverage.geometry || !entries[i].coverage.geometry.coordinates) {
-        console.warn(`无效的几何对象，跳过 ${entries[i].key}`)
+        // AUDIT-016 (错误): 仅在开发环境输出警告
+        if (process.env.NODE_ENV === 'development') {
+          console.warn(`无效的几何对象，跳过 ${entries[i].key}`)
+        }
         continue
       }
       
@@ -96,7 +142,10 @@ export function intersectCoverages(coverages, selectedKeys) {
       
       result = intersectResult
     } catch (error) {
-      console.error(`turf.intersect 失败 (${entries[i].key}):`, error.message)
+      // AUDIT-016 (错误): 仅在开发环境输出错误
+      if (process.env.NODE_ENV === 'development') {
+        console.error(`turf.intersect 失败 (${entries[i].key}):`, error.message)
+      }
       return { area: null, failKey: entries[i].key }
     }
   }
@@ -104,10 +153,45 @@ export function intersectCoverages(coverages, selectedKeys) {
   return { area: result, failKey: null }
 }
 export function filterMatchedXiaoqu(xiaoquData, finalArea, spatialIndex = null) {
+  // AUDIT-314-001: 检查 xiaoquData 是否为空或 null
+  if (!xiaoquData || xiaoquData.length === 0) {
+    // AUDIT-016 (错误): 仅在开发环境输出警告
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('小区数据为空')
+    }
+    return []
+  }
+  
   const candidates = spatialIndex ? queryByPolygon(spatialIndex, finalArea) : xiaoquData
-  return candidates.filter((xq) =>
-    turf.booleanPointInPolygon(turf.point([xq.lng, xq.lat]), finalArea),
-  )
+  
+  // AUDIT-314-004: 验证 GeoJSON Feature 完整性
+  return candidates.filter((xq) => {
+    // 检查必要字段
+    if (!xq || typeof xq.lng !== 'number' || typeof xq.lat !== 'number') {
+      // AUDIT-016 (错误): 仅在开发环境输出警告
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('小区数据缺少坐标字段:', xq)
+      }
+      return false
+    }
+    // 检查坐标有效性
+    if (isNaN(xq.lng) || isNaN(xq.lat) || xq.lng < -180 || xq.lng > 180 || xq.lat < -90 || xq.lat > 90) {
+      // AUDIT-016 (错误): 仅在开发环境输出警告
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('小区坐标无效:', xq)
+      }
+      return false
+    }
+    try {
+      return turf.booleanPointInPolygon(turf.point([xq.lng, xq.lat]), finalArea)
+    } catch (error) {
+      // AUDIT-016 (错误): 仅在开发环境输出警告
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('空间判断失败:', error.message, xq)
+      }
+      return false
+    }
+  })
 }
 export function rankXiaoqu(matched, facilityData, radiusSettings, weights) {
   const scored = scoreXiaoqu(matched, facilityData, radiusSettings, weights, linearDecay)

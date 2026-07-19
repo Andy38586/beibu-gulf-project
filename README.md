@@ -8,28 +8,30 @@
 
 ## 技术栈
 
-| 层级 | 技术 |
-|------|------|
-| **前端** | Vue 3（Composition API、`<script setup>`）、Vite、Vue Router、Pinia |
-| **GIS 引擎** | OpenLayers 10（2D 地图）、Cesium（3D 地图）、Turf.js（空间分析） |
-| **数据可视化** | ECharts 6（评分分解雷达图） |
-| **后端** | Express.js 5（ESM）、RESTful API |
-| **认证** | JWT（jsonwebtoken + bcryptjs） |
-| **存储** | 基于 JSON 文件的持久化 |
-| **测试** | Vitest（单元测试、集成测试） |
-| **代码规范** | ESLint + oxlint + Prettier |
+| 层级           | 技术                                                                |
+| -------------- | ------------------------------------------------------------------- |
+| **前端**       | Vue 3（Composition API、`<script setup>`）、Vite、Vue Router、Pinia |
+| **GIS 引擎**   | OpenLayers 10（2D 地图）、Cesium（3D 地图）、Turf.js（空间分析）    |
+| **数据可视化** | ECharts 6（评分分解雷达图）                                         |
+| **后端**       | Express.js 5（ESM）、RESTful API                                    |
+| **认证**       | JWT（jsonwebtoken + bcryptjs）                                      |
+| **存储**       | 基于 JSON 文件的持久化                                              |
+| **测试**       | Vitest（单元测试、集成测试）                                        |
+| **代码规范**   | ESLint + oxlint + Prettier                                          |
 
 ---
 
 ## 功能特性
 
 ### 选址分析
+
 - 从 6 种设施类型中选择：医院、小学、中学、公园、公交站、商场/超市
 - 每类设施设置重要性（1-5 级），影响缓冲区半径系数（0.4x 至 2.2x）
 - 后端计算流程：**多缓冲区合并 → AND 交集 → 面内点过滤 → 加权距离评分**
 - 返回按推荐度排序的前 10 个小区，附带各设施类型得分明细
 
 ### 地图可视化
+
 - **2D/3D 双视图切换**：统一地图组件支持 OpenLayers 2D 和 Cesium 3D 切换
 - 交互式地图，天地图底图（影像/矢量）
 - 港口点位点击查看详情面板
@@ -38,14 +40,17 @@
 - 图层控制面板（底图切换、业务图层显隐）
 
 ### 分析可视化
+
 - 点击任一结果项，弹出 ECharts 雷达图展示该小区在各设施类型上的得分分布
 
 ### 用户系统
+
 - 基于 JWT 的注册与登录
 - localStorage 持久化会话
 - Token 过期自动退出
 
 ### 分析方案管理
+
 - 将当前分析配置（选中类型 + 重要性设置）保存为命名方案
 - 加载已有方案恢复面板配置
 - 编辑方案名称、删除方案
@@ -91,12 +96,12 @@
 
 ### 架构优势
 
-| 特性 | 说明 |
-|------|------|
+| 特性               | 说明                                                                     |
+| ------------------ | ------------------------------------------------------------------------ |
 | **业务与引擎解耦** | 业务图层只返回 GeoJSON 和样式配置，不关心底层使用 OpenLayers 还是 Cesium |
-| **统一接口** | 通过 `MapRenderer` 抽象基类定义标准接口，新增渲染引擎只需实现接口 |
-| **状态持久化** | 2D/3D 切换时自动保存/恢复图层可见性、视角状态 |
-| **可测试性** | Renderer 可被 mock，便于单元测试和集成测试 |
+| **统一接口**       | 通过 `MapRenderer` 抽象基类定义标准接口，新增渲染引擎只需实现接口        |
+| **状态持久化**     | 2D/3D 切换时自动保存/恢复图层可见性、视角状态                            |
+| **可测试性**       | Renderer 可被 mock，便于单元测试和集成测试                               |
 
 ### 前端架构
 
@@ -237,13 +242,27 @@ npm run dev
 
 前端运行在 `http://localhost:5173`，后端 API 运行在 `http://localhost:3000`。
 
+### PowerShell 终端编码说明
+
+项目中的 GeoJSON 数据文件（如 `public/beibu-gulf-merged-data.geojson`）采用 **UTF-8 无 BOM** 编码。在 PowerShell 终端调试时，需要使用 UTF-8 编码读取文件以避免中文乱码：
+
+```powershell
+# 正确方式：指定 UTF-8 编码
+Get-Content public/beibu-gulf-merged-data.geojson -Encoding UTF8
+
+# 错误方式：默认编码会导致中文乱码
+Get-Content public/beibu-gulf-merged-data.geojson
+```
+
+浏览器 `fetch` API 会自动处理 UTF-8 编码，因此前端功能不受影响。此说明仅针对终端调试场景。
+
 ### 环境变量
 
-| 变量 | 默认值 | 说明 |
-|------|--------|------|
-| `VITE_API_BASE` | `http://localhost:3000/api` | 后端 API 地址（前端使用，可在 .env 或 Vercel 中设置） |
-| `JWT_SECRET` | `beibu-gulf-dev-secret-2024` | JWT 签名密钥（后端环境变量） |
-| `PORT` | `3000` | 后端端口（后端环境变量） |
+| 变量            | 默认值                       | 说明                                                  |
+| --------------- | ---------------------------- | ----------------------------------------------------- |
+| `VITE_API_BASE` | `http://localhost:3000/api`  | 后端 API 地址（前端使用，可在 .env 或 Vercel 中设置） |
+| `JWT_SECRET`    | `beibu-gulf-dev-secret-2024` | JWT 签名密钥（后端环境变量）                          |
+| `PORT`          | `3000`                       | 后端端口（后端环境变量）                              |
 
 ---
 
@@ -251,42 +270,42 @@ npm run dev
 
 ### 认证
 
-| 方法 | 路径 | 需认证 | 请求体 | 返回 |
-|------|------|--------|--------|------|
-| POST | `/api/auth/register` | 否 | `{username, password}` | `{token, user}` |
-| POST | `/api/auth/login` | 否 | `{username, password}` | `{token, user}` |
-| GET | `/api/auth/me` | 是 | - | `{user}` |
+| 方法 | 路径                 | 需认证 | 请求体                 | 返回            |
+| ---- | -------------------- | ------ | ---------------------- | --------------- |
+| POST | `/api/auth/register` | 否     | `{username, password}` | `{token, user}` |
+| POST | `/api/auth/login`    | 否     | `{username, password}` | `{token, user}` |
+| GET  | `/api/auth/me`       | 是     | -                      | `{user}`        |
 
 ### 方案管理（需 Bearer token）
 
-| 方法 | 路径 | 请求体 | 返回 |
-|------|------|--------|------|
-| GET | `/api/plans` | - | 当前用户的方案列表 |
-| POST | `/api/plans` | `{name, selectedKeys[], typeSettings}` | 创建后的方案 |
-| PUT | `/api/plans/:id` | `{name?, selectedKeys?, typeSettings?}` | 更新后的方案 |
-| DELETE | `/api/plans/:id` | - | 204 |
+| 方法   | 路径             | 请求体                                  | 返回               |
+| ------ | ---------------- | --------------------------------------- | ------------------ |
+| GET    | `/api/plans`     | -                                       | 当前用户的方案列表 |
+| POST   | `/api/plans`     | `{name, selectedKeys[], typeSettings}`  | 创建后的方案       |
+| PUT    | `/api/plans/:id` | `{name?, selectedKeys?, typeSettings?}` | 更新后的方案       |
+| DELETE | `/api/plans/:id` | -                                       | 204                |
 
 ### 设施数据
 
-| 方法 | 路径 | 返回 |
-|------|------|------|
-| GET | `/api/facilities/xiaoqu` | 全部小区数据 |
-| GET | `/api/facilities/:type` | 按类型获取设施数据（hospital / primary_school / middle_school / park / bus_station / mall） |
+| 方法 | 路径                     | 返回                                                                                        |
+| ---- | ------------------------ | ------------------------------------------------------------------------------------------- |
+| GET  | `/api/facilities/xiaoqu` | 全部小区数据                                                                                |
+| GET  | `/api/facilities/:type`  | 按类型获取设施数据（hospital / primary_school / middle_school / park / bus_station / mall） |
 
 ### 选址分析
 
-| 方法 | 路径 | 请求体 | 返回 |
-|------|------|--------|------|
+| 方法 | 路径                 | 请求体                           | 返回                                                                  |
+| ---- | -------------------- | -------------------------------- | --------------------------------------------------------------------- |
 | POST | `/api/site-analysis` | `{selectedKeys[], typeSettings}` | `{error, coverage（GeoJSON 多边形）, matchedXiaoqu[]（Top 10 小区）}` |
 
 ### 用户标记
 
-| 方法 | 路径 | 请求体 | 返回 |
-|------|------|--------|------|
-| GET | `/api/markers` | - | 全部标记 |
-| POST | `/api/markers` | `{name, lng, lat, note?}` | 创建后的标记（201） |
-| PUT | `/api/markers/:id` | 部分字段 | 更新后的标记 |
-| DELETE | `/api/markers/:id` | - | 204 |
+| 方法   | 路径               | 请求体                    | 返回                |
+| ------ | ------------------ | ------------------------- | ------------------- |
+| GET    | `/api/markers`     | -                         | 全部标记            |
+| POST   | `/api/markers`     | `{name, lng, lat, note?}` | 创建后的标记（201） |
+| PUT    | `/api/markers/:id` | 部分字段                  | 更新后的标记        |
+| DELETE | `/api/markers/:id` | -                         | 204                 |
 
 ---
 
@@ -332,7 +351,3 @@ pm2 startup
 项目使用广西钦州地区的静态 GeoJSON/JSON 数据，来源于公开数据。当前数据仅供功能演示。
 
 ---
-
-## License
-
-MIT

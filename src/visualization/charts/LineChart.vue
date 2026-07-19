@@ -4,29 +4,11 @@
  *
  * 职责：基于 ECharts 渲染折线图，接收数据与标题配置。
  * 属于可视化资产（visualization/charts/），供所有业务复用。
+ *
+ * AUDIT-002(架构): 使用 useECharts composable 复用通用图表逻辑
  */
 
-import { ref, onMounted, onUnmounted, watch } from 'vue'
-// ECharts 按需导入：仅引入折线图所需模块，减少约 60% 体积
-import * as echarts from 'echarts/core'
-import { LineChart } from 'echarts/charts'
-import {
-  TitleComponent,
-  TooltipComponent,
-  LegendComponent,
-  GridComponent,
-} from 'echarts/components'
-import { CanvasRenderer } from 'echarts/renderers'
-
-// 注册必需的组件
-echarts.use([
-  LineChart,
-  TitleComponent,
-  TooltipComponent,
-  LegendComponent,
-  GridComponent,
-  CanvasRenderer,
-])
+import { useECharts } from '@/visualization/composables/useECharts'
 
 const props = defineProps({
   title: { type: String, default: '港口吞吐量趋势' },
@@ -43,23 +25,14 @@ const props = defineProps({
 
 const emit = defineEmits(['select'])
 
-const chartRef = ref(null)
-let chartInstance = null
-
-function initChart() {
-  if (!chartRef.value) return
-
-  chartInstance = echarts.init(chartRef.value)
-  updateOption()
-  chartInstance.on('click', handleChartClick)
-
-  window.addEventListener('resize', handleResize)
+/** AUDIT-117: 边界场景处理 - 空数据保护 */
+function handleChartClick(params) {
+  if (params.dataIndex == null) return
+  emit('select', params.dataIndex)
 }
 
-function updateOption() {
-  if (!chartInstance) return
-
-  const option = {
+const { chartRef } = useECharts({
+  getOption: () => ({
     backgroundColor: 'transparent',
     grid: { top: 40, right: 16, bottom: 40, left: 40 },
     title: {
@@ -76,7 +49,7 @@ function updateOption() {
     },
     xAxis: {
       type: 'category',
-      data: props.xData,
+      data: props.xData || [],
       axisLine: { lineStyle: { color: '#ddd' } },
       axisLabel: { color: '#666', fontSize: 10 },
     },
@@ -85,41 +58,20 @@ function updateOption() {
       splitLine: { lineStyle: { color: '#eee' } },
       axisLabel: { color: '#666', fontSize: 10 },
     },
-    series: props.series.map((s) => ({
+    series: (props.series || []).map((s) => ({
       name: s.name,
       type: 'line',
       smooth: true,
-      data: s.data,
+      data: s.data || [],
       symbol: 'circle',
       symbolSize: 6,
       lineStyle: { width: 2 },
       areaStyle: { opacity: 0.15 },
     })),
-  }
-
-  chartInstance.setOption(option)
-}
-
-function handleChartClick(params) {
-  // 当用户点击折线图的某个数据点时，向外抛出该点索引
-  emit('select', params.dataIndex)
-}
-
-function handleResize() {
-  chartInstance?.resize()
-}
-
-function disposeChart() {
-  window.removeEventListener('resize', handleResize)
-  chartInstance?.off('click', handleChartClick)
-  chartInstance?.dispose()
-  chartInstance = null
-}
-
-onMounted(initChart)
-onUnmounted(disposeChart)
-
-watch(() => [props.title, props.xData, props.series], updateOption, { deep: true })
+  }),
+  watchSources: [() => props.title, () => props.xData, () => props.series],
+  onClick: handleChartClick,
+})
 </script>
 
 <template>

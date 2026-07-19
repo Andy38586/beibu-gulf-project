@@ -51,7 +51,13 @@ function handleLogin() {
         <button class="close-btn" @click="handleClose" aria-label="关闭">×</button>
 
         <!-- 错误图标 -->
-        <div class="error-icon">⚠️</div>
+        <div class="error-icon">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="12" r="10" stroke="#E74C3C" stroke-width="2"/>
+            <path d="M12 8V13" stroke="#E74C3C" stroke-width="2" stroke-linecap="round"/>
+            <circle cx="12" cy="16" r="1" fill="#E74C3C"/>
+          </svg>
+        </div>
 
         <!-- 错误信息 -->
         <p class="error-message">{{ message }}</p>

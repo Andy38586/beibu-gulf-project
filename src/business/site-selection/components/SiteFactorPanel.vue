@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 /**
  * SiteFactorPanel - 选址分析因子选择面板
  *
@@ -25,29 +25,40 @@ import { FACILITY_CONFIG } from '../composables/useFacilities'
 import { useSiteAnalysisApi } from '../composables/useSiteAnalysisApi'
 import { useAuth } from '@/shared/composables/useAuth'
 import ErrorPopup from './ErrorPopup.vue'
+import type { FacilityType, TypeSetting } from '@/types/facility'
+import type { AnalysisResult } from '@/types/analysis'
+
+interface Emits {
+  (e: 'result-update', result: Partial<AnalysisResult>): void
+}
 
 const router = useRouter()
 const { isAuthenticated } = useAuth()
 
-const emit = defineEmits(['result-update'])
+const emit = defineEmits<Emits>()
 
 /** 面板元素引用（用于外部点击检测） */
-const panelRef = ref(null)
+const panelRef = ref<HTMLElement | null>(null)
 
 /** 自动确认延迟（毫秒） */
 const CONFIRM_DELAY = 3000
 
+/** 扩展 TypeSetting，添加 selecting 状态 */
+interface LocalTypeSetting extends TypeSetting {
+  selecting: boolean
+}
+
 /** 使用 reactive 确保所有属性响应式 */
-const typeSettings = reactive({})
+const typeSettings = reactive<Record<string, LocalTypeSetting>>({})
 Object.entries(FACILITY_CONFIG).forEach(([key]) => {
-  typeSettings[key] = { selected: false, importance: 3, selecting: false }
+  typeSettings[key] = { selected: false, importance: 3, selecting: false, defaultRadius: 0 }
 })
 
 /** 计时器存储（不需要响应式） */
-const confirmTimers = {}
+const confirmTimers: Record<string, ReturnType<typeof setTimeout> | null> = {}
 
 /** 已选中的设施 key 列表 */
-const selectedKeys = computed(() =>
+const selectedKeys = computed<string[]>(() =>
   Object.entries(typeSettings)
     .filter(([, v]) => v.selected)
     .map(([k]) => k),
@@ -56,19 +67,19 @@ const selectedKeys = computed(() =>
 const { analyze, calculating, calcError } = useSiteAnalysisApi()
 
 /** 弹窗状态 */
-const showPopup = ref(false)
-const popupMessage = ref('')
+const showPopup = ref<boolean>(false)
+const popupMessage = ref<string>('')
 
 /** 清除指定因子的计时器 */
-function clearTimer(key) {
+function clearTimer(key: string): void {
   if (confirmTimers[key]) {
-    clearTimeout(confirmTimers[key])
+    clearTimeout(confirmTimers[key]!)
     confirmTimers[key] = null
   }
 }
 
 /** 启动指定因子的自动确认计时器 */
-function startConfirmTimer(key) {
+function startConfirmTimer(key: string): void {
   clearTimer(key)
   confirmTimers[key] = setTimeout(() => {
     if (typeSettings[key]) {
@@ -79,14 +90,14 @@ function startConfirmTimer(key) {
 }
 
 /** 重置指定因子的计时器（用户操作滑块时调用） */
-function resetConfirmTimer(key) {
+function resetConfirmTimer(key: string): void {
   if (typeSettings[key]?.selecting) {
     startConfirmTimer(key)
   }
 }
 
 /** 切换设施选择状态 */
-function toggleFactor(key) {
+function toggleFactor(key: string): void {
   const setting = typeSettings[key]
   if (!setting) return
 
@@ -104,7 +115,7 @@ function toggleFactor(key) {
 }
 
 /** 确认所有选择（点击外部区域时触发） */
-function confirmAll() {
+function confirmAll(): void {
   Object.entries(typeSettings).forEach(([key, v]) => {
     v.selecting = false
     clearTimer(key)
@@ -112,7 +123,7 @@ function confirmAll() {
 }
 
 /** 清空所有选择 */
-function clearAll() {
+function clearAll(): void {
   Object.entries(typeSettings).forEach(([key, v]) => {
     v.selected = false
     v.selecting = false
@@ -122,7 +133,13 @@ function clearAll() {
 }
 
 /** 开始分析 */
-async function runAnalysis() {
+async function runAnalysis(): Promise<void> {
+  // AUDIT-105: 防重复提交守卫
+  if (calculating.value) {
+    console.warn('分析正在进行中，请勿重复点击')
+    return
+  }
+  
   calcError.value = ''
   // 先确认所有选择
   confirmAll()
@@ -132,16 +149,17 @@ async function runAnalysis() {
     return
   }
   // 构造后端期望的 typeSettings 格式
-  const apiTypeSettings = {}
+  const apiTypeSettings: Record<string, TypeSetting> = {}
   selectedKeys.value.forEach((key) => {
-    const config = FACILITY_CONFIG[key]
+    const config = FACILITY_CONFIG[key as FacilityType]
     apiTypeSettings[key] = {
       defaultRadius: config.defaultRadius,
       importance: typeSettings[key].importance,
+      selected: true,
     }
   })
   const result = await analyze({
-    selectedKeys: selectedKeys.value,
+    selectedKeys: selectedKeys.value as FacilityType[],
     typeSettings: apiTypeSettings,
   })
   if (calcError.value) {
@@ -152,26 +170,25 @@ async function runAnalysis() {
   emit('result-update', {
     coverage: result.coverage ?? null,
     matchedXiaoqu: result.matchedXiaoqu ?? [],
-    selectedTypes: selectedKeys.value,
   })
 }
 
 /** 重试分析 */
-function handleRetry() {
+async function handleRetry(): Promise<void> {
   showPopup.value = false
   popupMessage.value = ''
-  runAnalysis()
+  await runAnalysis()
 }
 
 /** 关闭弹窗 */
-function handleClosePopup() {
+function handleClosePopup(): void {
   showPopup.value = false
   popupMessage.value = ''
   calcError.value = ''
 }
 
 /** 重要性标签 */
-const IMPORTANCE_LABELS = {
+const IMPORTANCE_LABELS: Record<number, string> = {
   1: '不太在意',
   2: '稍微在意',
   3: '一般重要',
@@ -189,8 +206,8 @@ const facilityList = computed(() =>
 )
 
 /** 点击外部区域立即结束所有选择态 */
-function handleGlobalClick(e) {
-  if (panelRef.value && !panelRef.value.contains(e.target)) {
+function handleGlobalClick(e: MouseEvent): void {
+  if (panelRef.value && !panelRef.value.contains(e.target as Node)) {
     confirmAll()
   }
 }

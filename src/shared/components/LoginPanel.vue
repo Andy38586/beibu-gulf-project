@@ -44,12 +44,37 @@ function switchMode(m) {
   confirmPassword.value = ''
 }
 
+// AUDIT-SEC-010: 密码特殊字符转义，防止XSS攻击
+function escapePassword(pwd) {
+  return pwd.replace(/[&<>"']/g, (char) => {
+    const escapeMap = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }
+    return escapeMap[char]
+  })
+}
+
 async function handleSubmit() {
   errorMsg.value = ''
-  if (!username.value.trim() || !password.value) {
+  const trimmedUsername = username.value.trim()
+  
+  // AUDIT-019: 使用显式布尔转换
+  if (username.value.trim() === '' || password.value === '') {
     errorMsg.value = '请填写用户名和密码'
     return
   }
+  
+  // AUDIT-101: 用户名长度校验（2-20 字符）
+  if (trimmedUsername.length < 2 || trimmedUsername.length > 20) {
+    errorMsg.value = '用户名长度应在 2-20 个字符之间'
+    return
+  }
+  
+  // AUDIT-102: 用户名特殊字符校验（仅允许字母、数字、中文、下划线）
+  const usernameRegex = /^[\u4e00-\u9fa5a-zA-Z0-9_]+$/
+  if (!usernameRegex.test(trimmedUsername)) {
+    errorMsg.value = '用户名只能包含字母、数字、中文和下划线'
+    return
+  }
+  
   if (mode.value === 'register') {
     if (password.value.length < 6) {
       errorMsg.value = '密码长度不能少于 6 位'
@@ -62,10 +87,11 @@ async function handleSubmit() {
   }
   loading.value = true
   try {
+    const escapedPassword = escapePassword(password.value)
     if (mode.value === 'login') {
-      await login(username.value.trim(), password.value)
+      await login(trimmedUsername, escapedPassword)
     } else {
-      await register(username.value.trim(), password.value)
+      await register(trimmedUsername, escapedPassword)
     }
     // 成功后清空表单
     username.value = ''

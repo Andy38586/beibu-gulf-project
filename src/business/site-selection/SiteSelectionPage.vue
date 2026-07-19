@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 /**
  * SiteSelectionPage - 选址分析业务页
  *
@@ -31,6 +31,9 @@ import { useSiteSelectionStateStore } from '@/stores/siteSelectionState'
 import { useLayerManager } from '@/core/map/composables/useLayerManager'
 import { FACILITY_CONFIG } from './composables/useFacilities'
 import { FACILITY_LABELS } from '@/shared/utils/facilityLabels'
+import type { ScoredXiaoqu } from '@/types/xiaoqu'
+import type { FacilityType, TypeSetting, FacilityPoint } from '@/types/facility'
+import type { AnalysisResult } from '@/types/analysis'
 
 const router = useRouter()
 const { flyTo, startBreathing, stopBreathing, zoomToCity, zoomToDistrict, mapInstance } = useMapControls()
@@ -40,40 +43,40 @@ const stateStore = useSiteSelectionStateStore()
 const { registerToggleable, toggleLayer } = useLayerManager()
 
 /** 分析结果 */
-const matchedXiaoqu = ref([])
-const selectedTypes = ref([])
-const selectedXiaoqu = ref(null)
+const matchedXiaoqu = ref<ScoredXiaoqu[]>([])
+const selectedTypes = ref<string[]>([])
+const selectedXiaoqu = ref<ScoredXiaoqu | null>(null)
 
 /** 覆盖范围内的设施POI数据 { type: [{lng, lat, name}] } */
-const facilityPoi = ref({})
+const facilityPoi = ref<Record<string, FacilityPoint[]>>({})
 
 /** 当前方案ID（用于保存小区） */
-const currentPlanId = ref(null)
+const currentPlanId = ref<string | null>(null)
 
 /** 当前显示的设施POI图层key（互斥） */
-const activeFacilityLayerKey = ref(null)
+const activeFacilityLayerKey = ref<string | null>(null)
 
 /** 因子面板引用（用于获取/恢复状态） */
-const factorPanelRef = ref(null)
+const factorPanelRef = ref<InstanceType<typeof SiteFactorPanel> | null>(null)
 
 /** 小区结果面板引用（用于获取/恢复状态） */
-const xiaoquResultPanelRef = ref(null)
+const xiaoquResultPanelRef = ref<InstanceType<typeof XiaoquResultPanel> | null>(null)
 
 /** 限制显示前8个小区 */
-const displayXiaoqu = computed(() => matchedXiaoqu.value.slice(0, 8))
+const displayXiaoqu = computed<ScoredXiaoqu[]>(() => matchedXiaoqu.value.slice(0, 8))
 
 /** 第一名小区（雷达图默认显示） */
-const topXiaoqu = computed(() => matchedXiaoqu.value[0] || null)
+const topXiaoqu = computed<ScoredXiaoqu | null>(() => matchedXiaoqu.value[0] || null)
 
 /** 当前显示的小区（优先显示选中的，否则显示第一名） */
-const displayXiaoquForRadar = computed(() => selectedXiaoqu.value || topXiaoqu.value)
+const displayXiaoquForRadar = computed<ScoredXiaoqu | null>(() => selectedXiaoqu.value || topXiaoqu.value)
 
 /** 处理分析结果 */
-function handleResult(result) {
+function handleResult(result: Partial<AnalysisResult>): void {
   mapStore.setAnalysisResult(result)
   matchedXiaoqu.value = result.matchedXiaoqu || []
-  selectedTypes.value = result.selectedTypes || []
-  facilityPoi.value = result.facilityPoi || {}
+  selectedTypes.value = (result as any).selectedTypes || []
+  facilityPoi.value = (result as any).facilityPoi || {}
   selectedXiaoqu.value = null
   mapStore.setSelectedXiaoqu(null)
   stopBreathing()
@@ -84,9 +87,13 @@ function handleResult(result) {
 
 /**
  * 显示指定设施的POI图层（互斥，只显示一个）
- * @param {Object} data - { type, poiList, color, label }
  */
-function handleShowFacilityLayer(data) {
+function handleShowFacilityLayer(data: {
+  type: string
+  poiList: FacilityPoint[]
+  color: string
+  label: string
+}): void {
   const renderer = mapInstance.value?.getRenderer?.()
   if (!renderer) return
 
@@ -121,7 +128,7 @@ function handleShowFacilityLayer(data) {
 /**
  * 隐藏当前设施POI图层
  */
-function handleHideFacilityLayer() {
+function handleHideFacilityLayer(): void {
   if (!activeFacilityLayerKey.value) return
 
   const renderer = mapInstance.value?.getRenderer?.()
@@ -133,24 +140,24 @@ function handleHideFacilityLayer() {
 }
 
 /** 点击小区列表项 */
-function handleSelectXiaoqu(xq) {
+function handleSelectXiaoqu(xq: ScoredXiaoqu): void {
   selectedXiaoqu.value = xq
   mapStore.setSelectedXiaoqu(xq)
-  if (xq.lon && xq.lat) {
-    startBreathing(xq.lon, xq.lat)
-    flyTo({ lng: xq.lon, lat: xq.lat }, { height: 5000 })
+  if ((xq as any).lon && (xq as any).lat) {
+    startBreathing((xq as any).lon, (xq as any).lat)
+    flyTo({ lng: (xq as any).lon, lat: (xq as any).lat }, { height: 5000 })
   }
 }
 
 /** 保存小区到方案（无方案时自动创建） */
-async function handleSaveXiaoqu({ planId, xiaoqu }) {
-  let pid = planId
+async function handleSaveXiaoqu(data: { planId: string | null; xiaoqu: ScoredXiaoqu }): Promise<void> {
+  let pid = data.planId
   if (!pid) {
     // 自动创建方案：名称=分析结果时间戳
     const planName = `选址方案_${new Date().toLocaleTimeString()}`
-    const typeSettings = {}
+    const typeSettings: Record<string, TypeSetting> = {}
     selectedTypes.value.forEach((key) => {
-      typeSettings[key] = { selected: true }
+      typeSettings[key] = { selected: true, importance: 3, defaultRadius: 0 }
     })
     try {
       const plan = await createPlan(planName, typeSettings)
@@ -165,21 +172,21 @@ async function handleSaveXiaoqu({ planId, xiaoqu }) {
   }
   if (!pid) return
   try {
-    await saveXiaoqu(pid, xiaoqu)
-    console.log('小区保存成功:', xiaoqu.name)
+    await saveXiaoqu(pid, data.xiaoqu)
+    console.log('小区保存成功:', data.xiaoqu.name)
   } catch (error) {
     console.error('保存小区失败:', error)
   }
 }
 
 /** 从方案中移除小区 */
-async function handleRemoveXiaoqu({ planId, xiaoquId }) {
-  if (!planId) {
+async function handleRemoveXiaoqu(data: { planId: string | null; xiaoquId: string }): Promise<void> {
+  if (!data.planId) {
     console.warn('未选择方案，无法移除小区')
     return
   }
   try {
-    await removeXiaoqu(planId, xiaoquId)
+    await removeXiaoqu(data.planId, data.xiaoquId)
     console.log('小区移除成功')
   } catch (error) {
     console.error('移除小区失败:', error)
@@ -203,7 +210,7 @@ onBeforeRouteLeave((to) => {
 /**
  * 保存当前页面状态到 store
  */
-function saveCurrentState() {
+function saveCurrentState(): void {
   const factorSettings = factorPanelRef.value?.getSettings?.() || null
   const savedXiaoquIds = xiaoquResultPanelRef.value?.getSavedIds?.() || []
 
@@ -219,30 +226,29 @@ function saveCurrentState() {
 /**
  * 恢复保存的状态
  */
-function restoreState() {
+function restoreState(): boolean {
   const savedState = stateStore.consumeState()
   if (!savedState) return false
 
   // 恢复分析结果
-  matchedXiaoqu.value = savedState.matchedXiaoqu || []
-  selectedTypes.value = savedState.selectedTypes || []
-  currentPlanId.value = savedState.currentPlanId || null
+  matchedXiaoqu.value = (savedState as any).matchedXiaoqu || []
+  selectedTypes.value = (savedState as any).selectedTypes || []
+  currentPlanId.value = (savedState as any).currentPlanId || null
 
   // 恢复因子面板状态
-  if (savedState.factorSettings && factorPanelRef.value?.restoreSettings) {
-    factorPanelRef.value.restoreSettings(savedState.factorSettings)
+  if ((savedState as any).factorSettings && factorPanelRef.value?.restoreSettings) {
+    factorPanelRef.value.restoreSettings((savedState as any).factorSettings)
   }
 
   // 恢复小区结果面板状态
-  if (savedState.savedXiaoquIds && xiaoquResultPanelRef.value?.restoreSavedIds) {
-    xiaoquResultPanelRef.value.restoreSavedIds(savedState.savedXiaoquIds)
+  if ((savedState as any).savedXiaoquIds && xiaoquResultPanelRef.value?.restoreSavedIds) {
+    xiaoquResultPanelRef.value.restoreSavedIds((savedState as any).savedXiaoquIds)
   }
 
   // 如果有分析结果，触发结果更新
   if (matchedXiaoqu.value.length > 0) {
     handleResult({
       matchedXiaoqu: matchedXiaoqu.value,
-      selectedTypes: selectedTypes.value,
     })
   }
 
@@ -253,7 +259,7 @@ function restoreState() {
  * 清除旧的分析图层（分析覆盖范围 + 匹配小区 + 设施POI）
  * 从 mapStore catalog 和 renderer 中同时移除
  */
-function clearAnalysisLayers() {
+function clearAnalysisLayers(): void {
   const renderer = mapInstance.value?.getRenderer?.()
 
   // 清除分析覆盖范围和匹配小区图层

@@ -1,8 +1,14 @@
 import { defineStore } from 'pinia'
 import { shallowRef, ref } from 'vue'
 
-/** localStorage 键：持久化当前选中的底图图层 key */
+/** localStorage 键：持久化选中的底图图层 key */
 const BASE_LAYER_STORAGE_KEY = 'beibu-gulf-base-layer'
+/** localStorage 键：持久化地图类型（2d/3d） */
+const MAP_TYPE_STORAGE_KEY = 'beibu-gulf-map-type'
+/** localStorage 键：持久化选中的港口 */
+const SELECTED_PORT_STORAGE_KEY = 'beibu-gulf-selected-port'
+/** sessionStorage 键：持久化分析结果（会话级别） */
+const ANALYSIS_RESULT_STORAGE_KEY = 'beibu-gulf-analysis-result'
 
 function readStoredBaseLayer() {
   if (typeof window === 'undefined') return null
@@ -22,6 +28,78 @@ function writeStoredBaseLayer(key) {
   }
 }
 
+function readStoredMapType() {
+  if (typeof window === 'undefined') return '2d'
+  try {
+    return window.localStorage.getItem(MAP_TYPE_STORAGE_KEY) || '2d'
+  } catch {
+    return '2d'
+  }
+}
+
+function writeStoredMapType(type) {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.setItem(MAP_TYPE_STORAGE_KEY, type)
+  } catch {
+    // 忽略隐私模式等写入失败场景
+  }
+}
+
+function readStoredSelectedPort() {
+  if (typeof window === 'undefined') return null
+  try {
+    const stored = window.localStorage.getItem(SELECTED_PORT_STORAGE_KEY)
+    return stored ? JSON.parse(stored) : null
+  } catch {
+    return null
+  }
+}
+
+function writeStoredSelectedPort(port) {
+  if (typeof window === 'undefined') return
+  try {
+    if (port) {
+      window.localStorage.setItem(SELECTED_PORT_STORAGE_KEY, JSON.stringify(port))
+    } else {
+      window.localStorage.removeItem(SELECTED_PORT_STORAGE_KEY)
+    }
+  } catch {
+    // 忽略隐私模式等写入失败场景
+  }
+}
+
+/**
+ * 从 sessionStorage 读取分析结果
+ * @returns {object | null}
+ */
+function readStoredAnalysisResult() {
+  if (typeof window === 'undefined') return null
+  try {
+    const stored = window.sessionStorage.getItem(ANALYSIS_RESULT_STORAGE_KEY)
+    return stored ? JSON.parse(stored) : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * 将分析结果写入 sessionStorage
+ * @param {object | null} result
+ */
+function writeStoredAnalysisResult(result) {
+  if (typeof window === 'undefined') return
+  try {
+    if (result) {
+      window.sessionStorage.setItem(ANALYSIS_RESULT_STORAGE_KEY, JSON.stringify(result))
+    } else {
+      window.sessionStorage.removeItem(ANALYSIS_RESULT_STORAGE_KEY)
+    }
+  } catch {
+    // 忽略隐私模式等写入失败场景
+  }
+}
+
 export const useMapStore = defineStore('map', () => {
   const map = shallowRef(null)
   const selectedPort = ref(null)
@@ -30,7 +108,8 @@ export const useMapStore = defineStore('map', () => {
   const baseLayerKey = ref(readStoredBaseLayer())
 
   const analysisHandler = ref(null)
-  const lastAnalysisResult = ref(null)
+  // AUDIT-003 (状态): 从 sessionStorage 恢复分析结果
+  const lastAnalysisResult = ref(readStoredAnalysisResult())
 
   const activePanel = ref('none')
   const selectedXiaoqu = ref(null)
@@ -39,23 +118,31 @@ export const useMapStore = defineStore('map', () => {
     map.value = instance
   }
 
+  // AUDIT-012: 删除重复函数，保留 setMapType
+  // AUDIT-004 (状态): 持久化地图类型
   function setMapType(type) {
     mapType.value = type
-  }
-
-  function switchMapType(type) {
-    mapType.value = type
+    writeStoredMapType(type)
   }
 
   function setSelectedPort(port) {
     selectedPort.value = port
+    writeStoredSelectedPort(port)
   }
 
   function clearSelectedPort() {
     selectedPort.value = null
+    writeStoredSelectedPort(null)
   }
 
   function registerAnalysisHandler(handler) {
+    // AUDIT-023: 验证handler是否为函数
+    if (typeof handler !== 'function') {
+      if (import.meta.env.DEV) {
+        console.warn('registerAnalysisHandler: handler必须是函数类型')
+      }
+      return
+    }
     analysisHandler.value = handler
     if (lastAnalysisResult.value) {
       handler(lastAnalysisResult.value)
@@ -64,6 +151,8 @@ export const useMapStore = defineStore('map', () => {
 
   function setAnalysisResult(result) {
     lastAnalysisResult.value = result
+    // AUDIT-003 (状态): 持久化分析结果到 sessionStorage
+    writeStoredAnalysisResult(result)
     analysisHandler.value?.(result)
   }
 
@@ -136,7 +225,13 @@ export const useMapStore = defineStore('map', () => {
 
   function toggleLayer(key) {
     const entry = layerCatalog.value.find((e) => e.key === key)
-    if (!entry) return
+    // AUDIT-024: 验证entry存在性
+    if (!entry) {
+      if (import.meta.env.DEV) {
+        console.warn(`toggleLayer: 未找到key为"${key}"的图层`)
+      }
+      return
+    }
 
     if (entry.category === 'base') {
       handleBaseLayerToggle(entry)
@@ -221,7 +316,6 @@ export const useMapStore = defineStore('map', () => {
     selectedXiaoqu,
     setMap,
     setMapType,
-    switchMapType,
     setSelectedPort,
     clearSelectedPort,
     registerAnalysisHandler,

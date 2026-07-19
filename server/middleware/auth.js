@@ -13,18 +13,29 @@ if (!JWT_SECRET) {
 }
 
 if (!isProd && JWT_SECRET === DEV_SECRET) {
-  console.warn(
-    '[WARN] 当前使用默认开发密钥，仅适用于本地开发！\n' +
-    '       生产环境必须设置 JWT_SECRET 环境变量。'
-  )
+  // AUDIT-016 (错误): 仅在非测试环境输出警告
+  if (process.env.NODE_ENV !== 'test') {
+    console.warn(
+      '[WARN] 当前使用默认开发密钥，仅适用于本地开发！\n' +
+      '       生产环境必须设置 JWT_SECRET 环境变量。'
+    )
+  }
 }
 
 export function authenticate(req, res, next) {
-  const header = req.headers.authorization
-  if (!header || !header.startsWith('Bearer ')) {
+  // AUDIT-SEC-001: 优先从 cookie 读取 token，兼容从 header 读取
+  let token = req.cookies?.auth_token
+  if (!token) {
+    const header = req.headers.authorization
+    if (header && header.startsWith('Bearer ')) {
+      token = header.slice(7)
+    }
+  }
+  
+  if (!token) {
     return res.status(401).json({ error: '未提供认证令牌' })
   }
-  const token = header.slice(7)
+  
   try {
     const decoded = jwt.verify(token, JWT_SECRET)
     req.user = { id: decoded.id, username: decoded.username }

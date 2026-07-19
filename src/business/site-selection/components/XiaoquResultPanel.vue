@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 /**
  * XiaoquResultPanel - 小区结果面板（双状态）
  *
@@ -18,50 +18,56 @@
 import { ref, computed, onUnmounted } from 'vue'
 import { useAuth } from '@/shared/composables/useAuth'
 import ErrorPopup from './ErrorPopup.vue'
+import type { ScoredXiaoqu } from '@/types/xiaoqu'
+
+interface Props {
+  /** 分析结果小区列表（最多8个） */
+  xiaoquList: ScoredXiaoqu[]
+  /** 当前方案ID */
+  planId: string | null
+}
+
+interface Emits {
+  (e: 'save-xiaoqu', data: { planId: string | null; xiaoqu: ScoredXiaoqu }): void
+  (e: 'remove-xiaoqu', data: { planId: string | null; xiaoquId: string }): void
+  (e: 'select-xiaoqu', xiaoqu: ScoredXiaoqu): void
+}
 
 const { isAuthenticated } = useAuth()
 
-const props = defineProps({
-  /** 分析结果小区列表（最多8个） */
-  xiaoquList: {
-    type: Array,
-    default: () => []
-  },
-  /** 当前方案ID */
-  planId: {
-    type: String,
-    default: null
-  }
+const props = withDefaults(defineProps<Props>(), {
+  xiaoquList: () => [],
+  planId: null
 })
 
-const emit = defineEmits(['save-xiaoqu', 'remove-xiaoqu', 'select-xiaoqu'])
+const emit = defineEmits<Emits>()
 
 /** 未登录提示弹窗状态 */
-const showLoginPopup = ref(false)
-const pendingSaveXiaoquId = ref(null)
+const showLoginPopup = ref<boolean>(false)
+const pendingSaveXiaoquId = ref<string | null>(null)
 
 /** 自动返回延迟（毫秒） */
 const AUTO_RETURN_DELAY = 500
 
 /** 操作模式中的小区ID */
-const operatingXiaoquId = ref(null)
+const operatingXiaoquId = ref<string | null>(null)
 
 /** 已保存的小区ID集合 */
-const savedXiaoquIds = ref(new Set())
+const savedXiaoquIds = ref<Set<string>>(new Set())
 
 /** 计时器存储 */
-const returnTimer = ref(null)
+const returnTimer = ref<ReturnType<typeof setTimeout> | null>(null)
 
 /** 面板元素引用 */
-const panelRef = ref(null)
+const panelRef = ref<HTMLElement | null>(null)
 
 /** 获取小区数据 */
-function getXiaoquById(id) {
+function getXiaoquById(id: string): ScoredXiaoqu | undefined {
   return props.xiaoquList.find(xq => xq.id === id)
 }
 
 /** 切换操作模式 */
-function toggleOperation(xqId) {
+function toggleOperation(xqId: string): void {
   // 如果已经在操作这个小区，不做处理
   if (operatingXiaoquId.value === xqId) return
   
@@ -76,7 +82,7 @@ function toggleOperation(xqId) {
 }
 
 /** 启动自动返回计时器 */
-function startReturnTimer() {
+function startReturnTimer(): void {
   returnTimer.value = setTimeout(() => {
     operatingXiaoquId.value = null
     returnTimer.value = null
@@ -84,7 +90,7 @@ function startReturnTimer() {
 }
 
 /** 清除自动返回计时器 */
-function clearReturnTimer() {
+function clearReturnTimer(): void {
   if (returnTimer.value) {
     clearTimeout(returnTimer.value)
     returnTimer.value = null
@@ -92,7 +98,7 @@ function clearReturnTimer() {
 }
 
 /** 保存小区（检查登录状态） */
-function handleSave(xqId) {
+function handleSave(xqId: string): void {
   // 检查登录状态
   if (!isAuthenticated.value) {
     pendingSaveXiaoquId.value = xqId
@@ -105,7 +111,7 @@ function handleSave(xqId) {
 }
 
 /** 执行保存操作 */
-function performSave(xqId) {
+function performSave(xqId: string): void {
   const xq = getXiaoquById(xqId)
   if (!xq) return
   
@@ -124,13 +130,13 @@ function performSave(xqId) {
 }
 
 /** 关闭未登录提示弹窗 */
-function handleCloseLoginPopup() {
+function handleCloseLoginPopup(): void {
   showLoginPopup.value = false
   pendingSaveXiaoquId.value = null
 }
 
 /** 取消保存小区 */
-function handleRemove(xqId) {
+function handleRemove(xqId: string): void {
   // 从已保存集合移除
   savedXiaoquIds.value.delete(xqId)
   
@@ -146,17 +152,17 @@ function handleRemove(xqId) {
 }
 
 /** 选择小区（点击显示模式时触发） */
-function handleSelect(xq) {
+function handleSelect(xq: ScoredXiaoqu): void {
   emit('select-xiaoqu', xq)
 }
 
 /** 判断小区是否已保存 */
-function isSaved(xqId) {
+function isSaved(xqId: string): boolean {
   return savedXiaoquIds.value.has(xqId)
 }
 
 /** 判断是否在操作模式 */
-function isOperating(xqId) {
+function isOperating(xqId: string): boolean {
   return operatingXiaoquId.value === xqId
 }
 
@@ -168,14 +174,14 @@ onUnmounted(() => {
 /**
  * 获取已保存的小区ID列表（用于状态保存）
  */
-function getSavedIds() {
+function getSavedIds(): string[] {
   return Array.from(savedXiaoquIds.value)
 }
 
 /**
  * 恢复已保存的小区ID列表（用于状态恢复）
  */
-function restoreSavedIds(ids) {
+function restoreSavedIds(ids: string[]): void {
   if (!ids || !Array.isArray(ids)) return
   savedXiaoquIds.value = new Set(ids)
 }

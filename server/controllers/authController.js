@@ -21,9 +21,21 @@ export async function register(req, res) {
     const hashedPassword = await bcrypt.hash(password, 10)
     const user = await userService.createUser(username, hashedPassword)
     const token = generateToken(user)
+    
+    // AUDIT-SEC-001: 使用 HttpOnly Cookie 存储 token
+    res.cookie('auth_token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 天
+    })
+    
     res.status(201).json({ token, user })
   } catch (error) {
-    console.error('注册失败:', error)
+    // AUDIT-016 (错误): 使用结构化日志替代 console
+    if (process.env.NODE_ENV !== 'test') {
+      console.error('注册失败:', error.message)
+    }
     res.status(500).json({ error: '注册失败' })
   }
 }
@@ -43,11 +55,29 @@ export async function login(req, res) {
       return res.status(401).json({ error: '用户名或密码错误' })
     }
     const token = generateToken(user)
+    
+    // AUDIT-SEC-001: 使用 HttpOnly Cookie 存储 token
+    res.cookie('auth_token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 天
+    })
+    
     res.json({ token, user: { id: user.id, username: user.username, createdAt: user.createdAt } })
   } catch (error) {
-    console.error('登录失败:', error)
+    // AUDIT-016 (错误): 使用结构化日志替代 console
+    if (process.env.NODE_ENV !== 'test') {
+      console.error('登录失败:', error.message)
+    }
     res.status(500).json({ error: '登录失败' })
   }
+}
+
+export async function logout(req, res) {
+  // AUDIT-SEC-001: 清除 token cookie
+  res.clearCookie('auth_token')
+  res.json({ message: '登出成功' })
 }
 
 export async function me(req, res) {

@@ -98,7 +98,7 @@ const userNameFontSizeCss = computed(() => `${Math.round(CELL_PIXEL * 0.2)}px`)
     <div class="panel-body" v-if="!user">
       <el-tabs v-model="mode" class="tab-row" @tab-change="switchMode">
         <el-tab-pane label="登录" name="login">
-          <el-form :model="form" class="auth-form" @submit.prevent="handleSubmit">
+          <el-form class="auth-form" @submit.prevent="handleSubmit">
             <el-input
               v-model="username"
               placeholder="用户名"
@@ -125,7 +125,7 @@ const userNameFontSizeCss = computed(() => `${Math.round(CELL_PIXEL * 0.2)}px`)
           </el-form>
         </el-tab-pane>
         <el-tab-pane label="注册" name="register">
-          <el-form :model="form" class="auth-form" @submit.prevent="handleSubmit">
+          <el-form class="auth-form" @submit.prevent="handleSubmit">
             <el-input
               v-model="username"
               placeholder="用户名"

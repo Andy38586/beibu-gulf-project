@@ -167,9 +167,14 @@ export class CesiumRenderer extends MapRenderer {
       const coordinates = item.coordinates || item.geometry?.coordinates
       if (!coordinates) return
 
+      // AUDIT-011: 验证坐标数组有效性
+      if (!Array.isArray(coordinates) || coordinates.length === 0) return
+
       const geometryType = item.geometry?.type
       const createPolygon = (polyCoords) => {
         try {
+          // AUDIT-011: 验证坐标结构
+          if (!Array.isArray(polyCoords) || !Array.isArray(polyCoords[0])) return
           const outerRing = polyCoords[0].map(([lng, lat]) => Cartesian3.fromDegrees(lng, lat))
           const holes = polyCoords.slice(1).map((holeCoords) => {
             const holePoints = holeCoords.map(([lng, lat]) => Cartesian3.fromDegrees(lng, lat))
@@ -187,7 +192,10 @@ export class CesiumRenderer extends MapRenderer {
           })
           entities.push(entity)
         } catch (e) {
-          console.warn('创建多边形实体失败:', e)
+          // AUDIT-017 (错误): 仅在开发环境输出警告
+          if (import.meta.env.DEV) {
+            console.warn('创建多边形实体失败:', e)
+          }
         }
       }
       if (geometryType === 'MultiPolygon') {

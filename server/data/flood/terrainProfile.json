@@ -1,0 +1,129 @@
+{
+  "metadata": {
+    "description": "北部湾港区典型海岸地形剖面数据，用于Cesium剖面分析",
+    "coordinateSystem": "EPSG:4326 (WGS84)",
+    "elevationUnit": "米",
+    "distanceUnit": "米",
+    "version": "1.0.0",
+    "createdAt": "2026-07-19"
+  },
+  "profiles": [
+    {
+      "id": "qz-wharf-profile",
+      "name": "钦州港码头剖面",
+      "port": "钦州港",
+      "description": "从钦州港码头前沿向内陆延伸约2km的地形剖面",
+      "startPoint": {
+        "lon": 108.62,
+        "lat": 21.86
+      },
+      "endPoint": {
+        "lon": 108.638,
+        "lat": 21.87
+      },
+      "points": [
+        { "distance": 0, "longitude": 108.62, "latitude": 21.86, "elevation": 0.5 },
+        { "distance": 100, "longitude": 108.621, "latitude": 21.861, "elevation": 0.8 },
+        { "distance": 200, "longitude": 108.622, "latitude": 21.862, "elevation": 1.2 },
+        { "distance": 300, "longitude": 108.623, "latitude": 21.862, "elevation": 1.5 },
+        { "distance": 400, "longitude": 108.624, "latitude": 21.863, "elevation": 2.0 },
+        { "distance": 500, "longitude": 108.625, "latitude": 21.863, "elevation": 2.8 },
+        { "distance": 600, "longitude": 108.626, "latitude": 21.864, "elevation": 3.5 },
+        { "distance": 700, "longitude": 108.627, "latitude": 21.864, "elevation": 4.2 },
+        { "distance": 800, "longitude": 108.628, "latitude": 21.865, "elevation": 5.0 },
+        { "distance": 1000, "longitude": 108.629, "latitude": 21.866, "elevation": 6.5 },
+        { "distance": 1200, "longitude": 108.631, "latitude": 21.867, "elevation": 8.0 },
+        { "distance": 1400, "longitude": 108.633, "latitude": 21.868, "elevation": 10.5 },
+        { "distance": 1600, "longitude": 108.634, "latitude": 21.869, "elevation": 13.0 },
+        { "distance": 1800, "longitude": 108.636, "latitude": 21.869, "elevation": 16.5 },
+        { "distance": 2000, "longitude": 108.638, "latitude": 21.87, "elevation": 20.0 }
+      ]
+    },
+    {
+      "id": "fcg-coastline-profile",
+      "name": "防城港岸线剖面",
+      "port": "防城港",
+      "description": "从防城港海岸向内陆延伸约2.5km的地形剖面，经过港口作业区",
+      "startPoint": {
+        "lon": 108.34,
+        "lat": 21.7
+      },
+      "endPoint": {
+        "lon": 108.362,
+        "lat": 21.712
+      },
+      "points": [
+        { "distance": 0, "longitude": 108.34, "latitude": 21.7, "elevation": 0.3 },
+        { "distance": 100, "longitude": 108.341, "latitude": 21.701, "elevation": 0.6 },
+        { "distance": 200, "longitude": 108.342, "latitude": 21.701, "elevation": 1.0 },
+        { "distance": 350, "longitude": 108.343, "latitude": 21.702, "elevation": 1.8 },
+        { "distance": 500, "longitude": 108.345, "latitude": 21.703, "elevation": 2.5 },
+        { "distance": 650, "longitude": 108.346, "latitude": 21.703, "elevation": 3.2 },
+        { "distance": 800, "longitude": 108.348, "latitude": 21.704, "elevation": 4.0 },
+        { "distance": 1000, "longitude": 108.349, "latitude": 21.705, "elevation": 5.5 },
+        { "distance": 1200, "longitude": 108.351, "latitude": 21.706, "elevation": 7.0 },
+        { "distance": 1400, "longitude": 108.353, "latitude": 21.707, "elevation": 9.0 },
+        { "distance": 1600, "longitude": 108.354, "latitude": 21.708, "elevation": 11.5 },
+        { "distance": 1800, "longitude": 108.356, "latitude": 21.709, "elevation": 14.0 },
+        { "distance": 2000, "longitude": 108.358, "latitude": 21.71, "elevation": 17.0 },
+        { "distance": 2250, "longitude": 108.36, "latitude": 21.711, "elevation": 21.0 },
+        { "distance": 2500, "longitude": 108.362, "latitude": 21.712, "elevation": 25.0 }
+      ]
+    },
+    {
+      "id": "bh-beach-profile",
+      "name": "北海港银滩剖面",
+      "port": "北海港",
+      "description": "从北海银滩海岸向内陆延伸约1.8km的地形剖面，典型海滩-台地地貌",
+      "startPoint": {
+        "lon": 109.11,
+        "lat": 21.445
+      },
+      "endPoint": {
+        "lon": 109.125,
+        "lat": 21.455
+      },
+      "points": [
+        { "distance": 0, "longitude": 109.11, "latitude": 21.445, "elevation": 0.2 },
+        { "distance": 100, "longitude": 109.111, "latitude": 21.446, "elevation": 0.5 },
+        { "distance": 200, "longitude": 109.112, "latitude": 21.446, "elevation": 1.0 },
+        { "distance": 300, "longitude": 109.113, "latitude": 21.447, "elevation": 1.8 },
+        { "distance": 450, "longitude": 109.114, "latitude": 21.447, "elevation": 2.5 },
+        { "distance": 600, "longitude": 109.115, "latitude": 21.448, "elevation": 3.5 },
+        { "distance": 800, "longitude": 109.116, "latitude": 21.449, "elevation": 5.0 },
+        { "distance": 1000, "longitude": 109.118, "latitude": 21.449, "elevation": 7.0 },
+        { "distance": 1200, "longitude": 109.119, "latitude": 21.45, "elevation": 9.5 },
+        { "distance": 1400, "longitude": 109.121, "latitude": 21.451, "elevation": 12.0 },
+        { "distance": 1600, "longitude": 109.123, "latitude": 21.453, "elevation": 15.5 },
+        { "distance": 1800, "longitude": 109.125, "latitude": 21.455, "elevation": 18.0 }
+      ]
+    },
+    {
+      "id": "qz-mangrove-profile",
+      "name": "钦州港红树林湿地剖面",
+      "port": "钦州港",
+      "description": "穿越钦州港茅尾海红树林保护区的剖面，地势低平",
+      "startPoint": {
+        "lon": 108.605,
+        "lat": 21.84
+      },
+      "endPoint": {
+        "lon": 108.62,
+        "lat": 21.85
+      },
+      "points": [
+        { "distance": 0, "longitude": 108.605, "latitude": 21.84, "elevation": 0.1 },
+        { "distance": 150, "longitude": 108.606, "latitude": 21.841, "elevation": 0.3 },
+        { "distance": 300, "longitude": 108.608, "latitude": 21.842, "elevation": 0.5 },
+        { "distance": 450, "longitude": 108.609, "latitude": 21.843, "elevation": 0.8 },
+        { "distance": 600, "longitude": 108.61, "latitude": 21.843, "elevation": 1.0 },
+        { "distance": 800, "longitude": 108.612, "latitude": 21.844, "elevation": 1.5 },
+        { "distance": 1000, "longitude": 108.614, "latitude": 21.845, "elevation": 2.0 },
+        { "distance": 1200, "longitude": 108.615, "latitude": 21.846, "elevation": 2.8 },
+        { "distance": 1500, "longitude": 108.617, "latitude": 21.848, "elevation": 4.0 },
+        { "distance": 1800, "longitude": 108.619, "latitude": 21.849, "elevation": 5.5 },
+        { "distance": 2000, "longitude": 108.62, "latitude": 21.85, "elevation": 7.0 }
+      ]
+    }
+  ]
+}

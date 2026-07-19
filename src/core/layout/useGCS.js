@@ -49,7 +49,7 @@ export function useGCS() {
   // Panel 到 Canvas 边缘距离 = PANEL_SPACING = 20px（V2 新增）
   const safeMargin = computed(() => SAFE_MARGIN)
 
-  // 基础间距单位 = GAP = 10px（V2 修改：从 GAP 改为 panelSpacing）
+  // 基础间距单位 = GAP = 10px（V2 保留：用于 Grid 参考线计算）
   const gap = computed(() => GAP)
 
   /**
@@ -158,7 +158,10 @@ export function useGCS() {
         top = H - S - (offsetY + h) * C
         break
       default:
-        console.warn(`[GCS] Unknown anchor: ${anchor}, fallback to top-left`)
+        // AUDIT-017 (错误): 仅在开发环境输出警告
+        if (import.meta.env.DEV) {
+          console.warn(`[GCS] Unknown anchor: ${anchor}, fallback to top-left`)
+        }
         left = S
         top = S
     }

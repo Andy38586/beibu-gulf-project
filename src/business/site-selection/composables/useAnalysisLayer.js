@@ -23,17 +23,35 @@ export function buildCoverageGeoJson(coverage) {
 export function buildMatchedGeoJson(matchedXiaoqu) {
   return {
     type: 'FeatureCollection',
-    features: matchedXiaoqu.map((xq) => ({
-      type: 'Feature',
-      geometry: {
-        type: 'Point',
-        coordinates: [xq.lng, xq.lat],
-      },
-      properties: {
-        ...xq,
-        featureType: 'analysis-matched',
-      },
-    })),
+    features: matchedXiaoqu
+      .filter((xq) => {
+        // AUDIT-017: 验证xq.lng和xq.lat字段存在性
+        if (xq.lng === undefined || xq.lat === undefined) {
+          if (import.meta.env.DEV) {
+            console.warn('小区数据缺少坐标字段:', xq)
+          }
+          return false
+        }
+        // AUDIT-017: 验证坐标有效性
+        if (typeof xq.lng !== 'number' || typeof xq.lat !== 'number') {
+          if (import.meta.env.DEV) {
+            console.warn('小区坐标字段类型无效:', xq)
+          }
+          return false
+        }
+        return true
+      })
+      .map((xq) => ({
+        type: 'Feature',
+        geometry: {
+          type: 'Point',
+          coordinates: [xq.lng, xq.lat],
+        },
+        properties: {
+          ...xq,
+          featureType: 'analysis-matched',
+        },
+      })),
   }
 }
 
@@ -50,7 +68,16 @@ export const MATCHED_STYLE = {
   featureType: 'analysis-matched',
 }
 
+/**
+ * AUDIT-025: 闭包模式说明
+ * 
+ * isUpdating 和 pendingResult 在 useAnalysisLayer 函数内部声明，
+ * 通过 createUpdateHandler 返回的闭包访问，这是正确的闭包模式。
+ * 每次调用 useAnalysisLayer() 都会创建新的闭包作用域，
+ * 确保不同组件实例的状态相互独立。
+ */
 export function useAnalysisLayer() {
+  // 闭包内部状态，仅对 createUpdateHandler 返回的函数可见
   let isUpdating = false
   let pendingResult = null
 

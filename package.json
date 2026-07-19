@@ -20,6 +20,7 @@
     "ol": "^10.9.0",
     "pinia": "^3.0.4",
     "rbush": "^4.0.1",
+    "resize-observer-polyfill": "^1.5.1",
     "vite-plugin-cesium": "^1.2.23",
     "vue": "^3.5.38",
     "vue-router": "^5.1.0"
@@ -44,5 +45,14 @@
   },
   "engines": {
     "node": "^22.18.0 || >=24.12.0"
-  }
+  },
+  "browserslist": [
+    "> 1%",
+    "last 2 versions",
+    "not dead",
+    "not ie 11",
+    "Chrome >= 89",
+    "Safari >= 14.1",
+    "Firefox >= 114"
+  ]
 }

@@ -1,0 +1,87 @@
+{
+  "metadata": {
+    "description": "北部湾港不同水位下的淹没统计数据",
+    "region": "广西北部湾（钦州港、防城港、北海港）",
+    "unit": {
+      "area": "km²",
+      "depth": "米",
+      "waterLevel": "米"
+    },
+    "version": "1.0.0",
+    "createdAt": "2026-07-19"
+  },
+  "statistics": [
+    {
+      "waterLevel": 0,
+      "riskLevel": "无风险",
+      "riskLevelCode": 0,
+      "floodArea": 0,
+      "averageDepth": 0,
+      "maxDepth": 0,
+      "affectedFacilities": 0,
+      "affectedPorts": [],
+      "estimatedLoss": 0,
+      "description": "正常潮位，无淹没风险"
+    },
+    {
+      "waterLevel": 2,
+      "riskLevel": "低风险",
+      "riskLevelCode": 1,
+      "floodArea": 0.85,
+      "averageDepth": 0.3,
+      "maxDepth": 0.8,
+      "affectedFacilities": 3,
+      "affectedPorts": ["钦州港"],
+      "estimatedLoss": 120,
+      "description": "低潮位附近，部分低洼码头区域开始受影响"
+    },
+    {
+      "waterLevel": 5,
+      "riskLevel": "中风险",
+      "riskLevelCode": 2,
+      "floodArea": 3.2,
+      "averageDepth": 1.2,
+      "maxDepth": 2.8,
+      "affectedFacilities": 8,
+      "affectedPorts": ["钦州港", "防城港"],
+      "estimatedLoss": 850,
+      "description": "接近设计高潮位，码头前沿作业区和部分仓储区受淹"
+    },
+    {
+      "waterLevel": 8,
+      "riskLevel": "高风险",
+      "riskLevelCode": 3,
+      "floodArea": 7.5,
+      "averageDepth": 2.5,
+      "maxDepth": 5.2,
+      "affectedFacilities": 15,
+      "affectedPorts": ["钦州港", "防城港", "北海港"],
+      "estimatedLoss": 3200,
+      "description": "超过设计高潮位，港口作业区大面积受淹，油库区域面临威胁"
+    },
+    {
+      "waterLevel": 10,
+      "riskLevel": "极高风险",
+      "riskLevelCode": 4,
+      "floodArea": 12.8,
+      "averageDepth": 3.8,
+      "maxDepth": 7.5,
+      "affectedFacilities": 22,
+      "affectedPorts": ["钦州港", "防城港", "北海港"],
+      "estimatedLoss": 8500,
+      "description": "风暴潮叠加高潮位，港口设施严重受损，内陆区域开始受淹"
+    },
+    {
+      "waterLevel": 15,
+      "riskLevel": "灾难级",
+      "riskLevelCode": 5,
+      "floodArea": 25.6,
+      "averageDepth": 6.5,
+      "maxDepth": 12.0,
+      "affectedFacilities": 31,
+      "affectedPorts": ["钦州港", "防城港", "北海港"],
+      "estimatedLoss": 25000,
+      "description": "极端洪水情景，三港全面受淹，周边城镇低洼区域严重内涝"
+    }
+  ]
+}

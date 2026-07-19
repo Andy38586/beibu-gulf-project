@@ -1,0 +1,75 @@
+{
+  "metadata": {
+    "description": "北部湾港水位模拟控制数据",
+    "coordinateSystem": "EPSG:4326 (WGS84)",
+    "verticalDatum": "理论深度基准面",
+    "unit": "米",
+    "region": "广西北部湾",
+    "tidalType": "正规半日潮",
+    "version": "1.0.0",
+    "createdAt": "2026-07-19"
+  },
+  "baseLevels": [
+    {
+      "id": "msl",
+      "name": "平均海平面",
+      "height": 2.5,
+      "description": "多年潮汐观测平均值，北部湾基准面"
+    },
+    {
+      "id": "mhhw",
+      "name": "设计高潮位",
+      "height": 4.5,
+      "description": "50年一遇设计高潮位，港口工程设计基准"
+    },
+    {
+      "id": "extreme",
+      "name": "极端最高水位",
+      "height": 6.8,
+      "description": "考虑台风风暴潮叠加的极端水位，百年一遇"
+    },
+    {
+      "id": "mlw",
+      "name": "平均低潮位",
+      "height": 0.8,
+      "description": "多年低潮位平均值"
+    },
+    {
+      "id": "llw",
+      "name": "最低低潮位",
+      "height": -0.3,
+      "description": "历史最低潮位记录"
+    }
+  ],
+  "simulationRange": {
+    "minHeight": -1.0,
+    "maxHeight": 15.0,
+    "defaultHeight": 2.5,
+    "step": 0.5,
+    "unit": "米",
+    "description": "水位滑块模拟范围，支持从最低潮到极端洪水"
+  },
+  "tidalStations": [
+    {
+      "id": "qinzhou-station",
+      "name": "钦州港潮汐站",
+      "longitude": 108.618,
+      "latitude": 21.865,
+      "port": "钦州港"
+    },
+    {
+      "id": "fangchenggang-station",
+      "name": "防城港潮汐站",
+      "longitude": 108.345,
+      "latitude": 21.705,
+      "port": "防城港"
+    },
+    {
+      "id": "beihai-station",
+      "name": "北海港潮汐站",
+      "longitude": 109.115,
+      "latitude": 21.478,
+      "port": "北海港"
+    }
+  ]
+}

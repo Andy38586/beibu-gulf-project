@@ -1,0 +1,261 @@
+{
+  "metadata": {
+    "description": "北部湾港风险影响设施点数据",
+    "coordinateSystem": "EPSG:4326 (WGS84)",
+    "elevationUnit": "米",
+    "version": "1.0.0",
+    "createdAt": "2026-07-19"
+  },
+  "facilities": [
+    {
+      "id": "QZ-M-001",
+      "name": "钦州港大榄坪作业区1号泊位",
+      "type": "泊位",
+      "port": "钦州港",
+      "longitude": 108.62,
+      "latitude": 21.858,
+      "elevation": 1.5,
+      "description": "10万吨级集装箱泊位"
+    },
+    {
+      "id": "QZ-M-002",
+      "name": "钦州港大榄坪作业区2号泊位",
+      "type": "泊位",
+      "port": "钦州港",
+      "longitude": 108.621,
+      "latitude": 21.856,
+      "elevation": 1.3,
+      "description": "10万吨级集装箱泊位"
+    },
+    {
+      "id": "QZ-M-003",
+      "name": "钦州港金谷港区码头",
+      "type": "码头",
+      "port": "钦州港",
+      "longitude": 108.615,
+      "latitude": 21.862,
+      "elevation": 1.0,
+      "description": "散杂货码头"
+    },
+    {
+      "id": "QZ-S-001",
+      "name": "钦州港保税仓储区",
+      "type": "仓储区",
+      "port": "钦州港",
+      "longitude": 108.625,
+      "latitude": 21.865,
+      "elevation": 3.2,
+      "description": "出口加工保税仓库"
+    },
+    {
+      "id": "QZ-S-002",
+      "name": "钦州港粮食仓储中心",
+      "type": "仓储区",
+      "port": "钦州港",
+      "longitude": 108.628,
+      "latitude": 21.86,
+      "elevation": 4.0,
+      "description": "粮油储备仓库"
+    },
+    {
+      "id": "QZ-O-001",
+      "name": "钦州港石化储罐区",
+      "type": "油库",
+      "port": "钦州港",
+      "longitude": 108.612,
+      "latitude": 21.852,
+      "elevation": 2.0,
+      "description": "大型石油化工储罐基地，高风险设施"
+    },
+    {
+      "id": "QZ-O-002",
+      "name": "钦州港LNG接收站储罐",
+      "type": "油库",
+      "port": "钦州港",
+      "longitude": 108.608,
+      "latitude": 21.848,
+      "elevation": 1.8,
+      "description": "液化天然气接收站，极高风险设施"
+    },
+    {
+      "id": "FCG-M-001",
+      "name": "防城港渔澫港区1号泊位",
+      "type": "泊位",
+      "port": "防城港",
+      "longitude": 108.345,
+      "latitude": 21.7,
+      "elevation": 1.2,
+      "description": "20万吨级矿石泊位"
+    },
+    {
+      "id": "FCG-M-002",
+      "name": "防城港渔澫港区2号泊位",
+      "type": "泊位",
+      "port": "防城港",
+      "longitude": 108.346,
+      "latitude": 21.698,
+      "elevation": 1.0,
+      "description": "20万吨级矿石泊位"
+    },
+    {
+      "id": "FCG-M-003",
+      "name": "防城港散货码头",
+      "type": "码头",
+      "port": "防城港",
+      "longitude": 108.342,
+      "latitude": 21.703,
+      "elevation": 1.5,
+      "description": "煤炭及散货专用码头"
+    },
+    {
+      "id": "FCG-S-001",
+      "name": "防城港港口物流仓储区",
+      "type": "仓储区",
+      "port": "防城港",
+      "longitude": 108.35,
+      "latitude": 21.705,
+      "elevation": 3.5,
+      "description": "综合物流仓储中心"
+    },
+    {
+      "id": "FCG-S-002",
+      "name": "防城港矿石堆场",
+      "type": "仓储区",
+      "port": "防城港",
+      "longitude": 108.348,
+      "latitude": 21.695,
+      "elevation": 2.2,
+      "description": "进口矿石露天堆场"
+    },
+    {
+      "id": "FCG-O-001",
+      "name": "防城港东湾油库",
+      "type": "油库",
+      "port": "防城港",
+      "longitude": 108.338,
+      "latitude": 21.692,
+      "elevation": 1.8,
+      "description": "成品油储备库"
+    },
+    {
+      "id": "BH-M-001",
+      "name": "北海港石步岭港区码头",
+      "type": "码头",
+      "port": "北海港",
+      "longitude": 109.115,
+      "latitude": 21.478,
+      "elevation": 1.0,
+      "description": "客货综合码头"
+    },
+    {
+      "id": "BH-M-002",
+      "name": "北海港铁山港作业区泊位",
+      "type": "泊位",
+      "port": "北海港",
+      "longitude": 109.12,
+      "latitude": 21.475,
+      "elevation": 0.8,
+      "description": "5万吨级通用泊位"
+    },
+    {
+      "id": "BH-S-001",
+      "name": "北海港出口加工区仓库",
+      "type": "仓储区",
+      "port": "北海港",
+      "longitude": 109.118,
+      "latitude": 21.482,
+      "elevation": 3.0,
+      "description": "出口加工区标准厂房及仓库"
+    },
+    {
+      "id": "BH-S-002",
+      "name": "北海港冷链物流中心",
+      "type": "仓储区",
+      "port": "北海港",
+      "longitude": 109.112,
+      "latitude": 21.48,
+      "elevation": 2.5,
+      "description": "水产品冷链仓储中心"
+    },
+    {
+      "id": "BH-O-001",
+      "name": "北海港成品油库",
+      "type": "油库",
+      "port": "北海港",
+      "longitude": 109.108,
+      "latitude": 21.472,
+      "elevation": 1.5,
+      "description": "成品油及化学品储罐区"
+    },
+    {
+      "id": "QZ-M-004",
+      "name": "钦州港犀牛脚作业区码头",
+      "type": "码头",
+      "port": "钦州港",
+      "longitude": 108.605,
+      "latitude": 21.845,
+      "elevation": 0.6,
+      "description": "中小型散货码头"
+    },
+    {
+      "id": "FCG-M-004",
+      "name": "防城港江山半岛旅游码头",
+      "type": "码头",
+      "port": "防城港",
+      "longitude": 108.332,
+      "latitude": 21.688,
+      "elevation": 0.5,
+      "description": "旅游客运码头"
+    },
+    {
+      "id": "QZ-O-003",
+      "name": "钦州港沥青储罐区",
+      "type": "油库",
+      "port": "钦州港",
+      "longitude": 108.618,
+      "latitude": 21.85,
+      "elevation": 1.6,
+      "description": "道路沥青储存设施"
+    },
+    {
+      "id": "FCG-O-002",
+      "name": "防城港液体化工码头储罐",
+      "type": "油库",
+      "port": "防城港",
+      "longitude": 108.34,
+      "latitude": 21.696,
+      "elevation": 1.2,
+      "description": "液体化学品专用储罐"
+    },
+    {
+      "id": "BH-M-003",
+      "name": "北海港外沙内港码头",
+      "type": "码头",
+      "port": "北海港",
+      "longitude": 109.11,
+      "latitude": 21.485,
+      "elevation": 0.8,
+      "description": "近海渔船及小型货船码头"
+    },
+    {
+      "id": "QZ-S-003",
+      "name": "钦州港危化品仓储区",
+      "type": "仓储区",
+      "port": "钦州港",
+      "longitude": 108.63,
+      "latitude": 21.855,
+      "elevation": 5.0,
+      "description": "危险化学品专用仓库，高风险"
+    },
+    {
+      "id": "FCG-S-003",
+      "name": "防城港粮食储备库",
+      "type": "仓储区",
+      "port": "防城港",
+      "longitude": 108.352,
+      "latitude": 21.71,
+      "elevation": 4.5,
+      "description": "国家粮食储备仓库"
+    }
+  ]
+}

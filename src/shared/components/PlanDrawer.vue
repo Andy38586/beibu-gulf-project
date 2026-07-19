@@ -49,6 +49,13 @@ async function handleDelete(id) {
     await deletePlan(id)
     plans.value = plans.value.filter((p) => p.id !== id)
   } catch (e) {
+    // AUDIT-008(架构): 删除失败时提供错误反馈
+    const errorMsg = e instanceof Error ? e.message : '删除方案失败，请稍后重试'
+    if (import.meta.env.DEV) {
+      console.error('[PlanDrawer] 删除方案失败:', e)
+    }
+    // 使用alert提示用户，避免静默失败
+    alert(errorMsg)
   } finally {
     deleting.value = null
     confirmDeleteId.value = null
@@ -69,24 +76,9 @@ function formatDate(iso) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 
-// 用于 CSS v-bind 的计算属性：基于 CELL_PIXEL 的比例计算
-const confirmLineHeightCss = computed(() => `${Math.round(CELL_PIXEL * 0.275)}px`)
-const headerPaddingCss = computed(() => `${Math.round(CELL_PIXEL * 0.15)}px`)
-const headerFontSizeCss = computed(() => `${Math.round(CELL_PIXEL * 0.2)}px`)
-const closeBtnFontSizeCss = computed(() => `${Math.round(CELL_PIXEL * 0.25)}px`)
-const closeBtnPaddingCss = computed(() => `0 ${Math.round(CELL_PIXEL * 0.05)}px`)
-const bodyPaddingCss = computed(() => `${Math.round(CELL_PIXEL * 0.15)}px`)
-const statusFontSizeCss = computed(() => `${Math.round(CELL_PIXEL * 0.1625)}px`)
-const statusMarginCss = computed(() => `${Math.round(CELL_PIXEL * 0.1)}px`)
-const listGapCss = computed(() => `${Math.round(CELL_PIXEL * 0.075)}px`)
-const itemPaddingCss = computed(() => `${Math.round(CELL_PIXEL * 0.1)}px ${Math.round(CELL_PIXEL * 0.125)}px`)
-const infoGapCss = computed(() => `${Math.round(CELL_PIXEL * 0.025)}px`)
-const planNameFontSizeCss = computed(() => `${Math.round(CELL_PIXEL * 0.1625)}px`)
-const planTimeFontSizeCss = computed(() => `${Math.round(CELL_PIXEL * 0.1375)}px`)
-const actionsGapCss = computed(() => `${Math.round(CELL_PIXEL * 0.05)}px`)
-const actionBtnPaddingCss = computed(() => `${Math.round(CELL_PIXEL * 0.0375)}px ${Math.round(CELL_PIXEL * 0.1)}px`)
-const actionBtnFontSizeCss = computed(() => `${Math.round(CELL_PIXEL * 0.15)}px`)
-const confirmFontSizeCss = computed(() => `${Math.round(CELL_PIXEL * 0.1375)}px`)
+// AUDIT-007(架构)优化：使用单个 CSS 变量替代多个 v-bind 计算属性
+// 基础单位 = CELL_PIXEL，其他尺寸通过 calc() 计算
+const baseUnitCss = computed(() => `${CELL_PIXEL}px`)
 </script>
 
 <template>
@@ -142,21 +134,21 @@ const confirmFontSizeCss = computed(() => `${Math.round(CELL_PIXEL * 0.1375)}px`
   align-items: center;
   justify-content: space-between;
   border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-  padding-bottom: v-bind(headerPaddingCss);
+  padding-bottom: calc(v-bind(baseUnitCss) * 0.15);
 }
 .drawer-header h3 {
   margin: 0;
-  font-size: v-bind(headerFontSizeCss);
+  font-size: calc(v-bind(baseUnitCss) * 0.2);
   color: #fff;
 }
 .close-btn {
   background: none;
   border: none;
-  font-size: v-bind(closeBtnFontSizeCss);
+  font-size: calc(v-bind(baseUnitCss) * 0.25);
   color: rgba(255, 255, 255, 0.6);
   line-height: 1;
   cursor: pointer;
-  padding: v-bind(closeBtnPaddingCss);
+  padding: 0 calc(v-bind(baseUnitCss) * 0.05);
 }
 .close-btn:hover {
   color: #fff;
@@ -165,24 +157,24 @@ const confirmFontSizeCss = computed(() => `${Math.round(CELL_PIXEL * 0.1375)}px`
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding-top: v-bind(bodyPaddingCss);
+  padding-top: calc(v-bind(baseUnitCss) * 0.15);
 }
 .status-text {
   text-align: center;
   color: rgba(255, 255, 255, 0.6);
-  font-size: v-bind(statusFontSizeCss);
-  margin-top: v-bind(statusMarginCss);
+  font-size: calc(v-bind(baseUnitCss) * 0.1625);
+  margin-top: calc(v-bind(baseUnitCss) * 0.1);
 }
 .plan-list {
   display: flex;
   flex-direction: column;
-  gap: v-bind(listGapCss);
+  gap: calc(v-bind(baseUnitCss) * 0.075);
 }
 .plan-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: v-bind(itemPaddingCss);
+  padding: calc(v-bind(baseUnitCss) * 0.1) calc(v-bind(baseUnitCss) * 0.125);
   background: rgba(255, 255, 255, 0.08);
   border-radius: 6px;
   transition: background 0.15s;
@@ -193,11 +185,11 @@ const confirmFontSizeCss = computed(() => `${Math.round(CELL_PIXEL * 0.1375)}px`
 .plan-info {
   display: flex;
   flex-direction: column;
-  gap: v-bind(infoGapCss);
+  gap: calc(v-bind(baseUnitCss) * 0.025);
   min-width: 0;
 }
 .plan-name {
-  font-size: v-bind(planNameFontSizeCss);
+  font-size: calc(v-bind(baseUnitCss) * 0.1625);
   font-weight: 500;
   color: #fff;
   overflow: hidden;
@@ -205,18 +197,18 @@ const confirmFontSizeCss = computed(() => `${Math.round(CELL_PIXEL * 0.1375)}px`
   white-space: nowrap;
 }
 .plan-time {
-  font-size: v-bind(planTimeFontSizeCss);
+  font-size: calc(v-bind(baseUnitCss) * 0.1375);
   color: rgba(255, 255, 255, 0.5);
 }
 .plan-actions {
   display: flex;
-  gap: v-bind(actionsGapCss);
+  gap: calc(v-bind(baseUnitCss) * 0.05);
   flex-shrink: 0;
 }
 .action-btn {
-  padding: v-bind(actionBtnPaddingCss);
+  padding: calc(v-bind(baseUnitCss) * 0.0375) calc(v-bind(baseUnitCss) * 0.1);
   border-radius: 4px;
-  font-size: v-bind(actionBtnFontSizeCss);
+  font-size: calc(v-bind(baseUnitCss) * 0.15);
   border: 1px solid rgba(255, 255, 255, 0.3);
   cursor: pointer;
   background: rgba(255, 255, 255, 0.1);
@@ -243,9 +235,9 @@ const confirmFontSizeCss = computed(() => `${Math.round(CELL_PIXEL * 0.1375)}px`
   border-color: rgba(255, 138, 128, 0.5);
 }
 .confirm-hint {
-  font-size: v-bind(confirmFontSizeCss);
+  font-size: calc(v-bind(baseUnitCss) * 0.1375);
   color: #ff8a80;
-  line-height: v-bind(confirmLineHeightCss);
+  line-height: calc(v-bind(baseUnitCss) * 0.275);
 }
 .confirm-yes {
   color: #ff8a80;

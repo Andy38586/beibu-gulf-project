@@ -73,10 +73,6 @@ export class OLRenderer extends MapRenderer {
         event.pixel,
         (feature) => {
           const featureType = feature.get('featureType')
-          console.log('[OLRenderer] 点击要素:', {
-            featureType,
-            properties: feature.getProperties(),
-          })
           if (featureType) {
             const properties = feature.getProperties()
             this.emit('click', {
@@ -93,7 +89,6 @@ export class OLRenderer extends MapRenderer {
         },
       )
       if (!clickedFeature) {
-        console.log('[OLRenderer] 点击空白区域')
         this.emit('click', {
           featureType: null,
           data: null,
@@ -158,12 +153,19 @@ export class OLRenderer extends MapRenderer {
         const coordinates = item.coordinates || item.geometry?.coordinates
         if (!coordinates) return null
 
+        // AUDIT-010: 验证坐标数组有效性
+        if (!Array.isArray(coordinates) || coordinates.length === 0) return null
+
         let polygonCoords
         if (item.geometry?.type === 'MultiPolygon') {
+          // AUDIT-010: 验证MultiPolygon坐标结构
+          if (!Array.isArray(coordinates[0]) || !Array.isArray(coordinates[0][0])) return null
           polygonCoords = coordinates.map((poly) =>
             poly[0].map(([lng, lat]) => fromLonLat([lng, lat])),
           )
         } else {
+          // AUDIT-010: 验证Polygon坐标结构
+          if (!Array.isArray(coordinates[0]) || !Array.isArray(coordinates[0][0])) return null
           polygonCoords = [coordinates[0].map(([lng, lat]) => fromLonLat([lng, lat]))]
         }
         const feature = new Feature({

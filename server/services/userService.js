@@ -39,8 +39,9 @@ export async function findByUsername(username) {
 export async function createUser(username, hashedPassword) {
   return sequential(async () => {
     const users = await readAll()
+    // AUDIT-SEC-012: 使用 crypto.randomUUID() 生成不可预测的用户ID
     const newUser = {
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
       username,
       password: hashedPassword,
       createdAt: new Date().toISOString(),

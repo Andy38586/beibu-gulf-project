@@ -42,19 +42,57 @@ const { createUpdateHandler } = useAnalysisLayer()
 const spinnerSizeCss = computed(() => `${Math.round(CELL_PIXEL * 0.5)}px`)
 
 provide(MapRendererKey, currentRenderer)
+// AUDIT-005(架构): 提供 mapStore 给 useLayerManager 使用
+provide('mapStore', mapStore)
 
 let portGeoJson = null
 let boundaryGeoJson = null
 
+// AUDIT-P07: 防抖定时器，避免频繁切换引擎
+let switchDebounceTimer = null
+const SWITCH_DEBOUNCE_DELAY = 300 // 300ms 防抖延迟
+
+// AUDIT-119: 超时控制常量
+const LOAD_DATA_TIMEOUT = 10000 // 数据加载超时：10秒
+const INIT_RENDERER_TIMEOUT = 15000 // 渲染器初始化超时：15秒
+
+/**
+ * 带超时的 Promise 包装
+ * AUDIT-119: 防止加载过程无限等待
+ */
+function withTimeout(promise, timeoutMs, errorMessage) {
+  let timeoutId
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(errorMessage)), timeoutMs)
+  })
+  return Promise.race([promise, timeoutPromise]).finally(() => clearTimeout(timeoutId))
+}
+
 async function loadData() {
   try {
-    const ports = await loadPorts()
+    // AUDIT-119: 添加超时控制
+    const ports = await withTimeout(
+      loadPorts(),
+      LOAD_DATA_TIMEOUT,
+      '港口数据加载超时，请检查网络连接'
+    )
     portGeoJson = buildPortGeoJson(ports)
-    boundaryGeoJson = await loadBoundaryGeoJson((msg) => {
-      boundaryWarning.value = msg
-    })
+    boundaryGeoJson = await withTimeout(
+      loadBoundaryGeoJson((msg) => {
+        boundaryWarning.value = msg
+      }),
+      LOAD_DATA_TIMEOUT,
+      '边界数据加载超时，部分图层可能缺失'
+    )
   } catch (error) {
-    console.error('地图数据加载失败:', error)
+    // AUDIT-017: 仅在开发环境输出错误
+    if (import.meta.env.DEV) {
+      console.error('地图数据加载失败:', error)
+    }
+    // AUDIT-119: 超时错误也要显示给用户
+    if (error.message.includes('超时')) {
+      loadError.value = error.message
+    }
   }
 }
 
@@ -107,16 +145,44 @@ function setupLayers() {
     registerToggleable('boundary', '行政区划', currentRenderer.value)
   }
   if (portGeoJson) {
-    currentRenderer.value.addPointLayer(
-      'ports',
-      portGeoJson.features.map((f) => ({
-        ...f.properties,
-        lng: f.geometry.coordinates[0],
-        lat: f.geometry.coordinates[1],
-      })),
-      PORT_STYLE,
-    )
-    registerToggleable('ports', '港口位置', currentRenderer.value)
+    // AUDIT-314-004: 验证 GeoJSON Feature 完整性，过滤缺失 geometry 的 Feature
+    const validFeatures = portGeoJson.features.filter((f) => {
+      if (!f || !f.geometry || !f.geometry.coordinates) {
+        if (import.meta.env.DEV) {
+          console.warn('无效的 Feature，缺失 geometry:', f)
+        }
+        return false
+      }
+      if (!Array.isArray(f.geometry.coordinates) || f.geometry.coordinates.length < 2) {
+        if (import.meta.env.DEV) {
+          console.warn('无效的坐标数据:', f.geometry.coordinates)
+        }
+        return false
+      }
+      return true
+    })
+    
+    if (validFeatures.length > 0) {
+      currentRenderer.value.addPointLayer(
+        'ports',
+        validFeatures.map((f) => {
+          // AUDIT-018: 验证geometry.coordinates存在性
+          if (!f.geometry || !f.geometry.coordinates || !Array.isArray(f.geometry.coordinates)) {
+            if (import.meta.env.DEV) {
+              console.warn('港口Feature缺少有效坐标:', f)
+            }
+            return null
+          }
+          return {
+            ...f.properties,
+            lng: f.geometry.coordinates[0],
+            lat: f.geometry.coordinates[1],
+          }
+        }).filter(Boolean),
+        PORT_STYLE,
+      )
+      registerToggleable('ports', '港口位置', currentRenderer.value)
+    }
   }
   const updateHandler = createUpdateHandler(currentRenderer.value, registerToggleable)
   mapStore.registerAnalysisHandler(updateHandler)
@@ -133,8 +199,19 @@ function setupEvents() {
   })
 }
 async function switchMapType(type) {
-  emit('typeChange', type)
-  await initRenderer(type)
+  // AUDIT-P07: 添加防抖机制，避免快速切换导致引擎冲突
+  if (switchDebounceTimer) {
+    clearTimeout(switchDebounceTimer)
+  }
+  
+  return new Promise((resolve) => {
+    switchDebounceTimer = setTimeout(async () => {
+      emit('typeChange', type)
+      await initRenderer(type)
+      switchDebounceTimer = null
+      resolve()
+    }, SWITCH_DEBOUNCE_DELAY)
+  })
 }
 function flyTo(target, options = {}) {
   currentRenderer.value?.flyTo(target, options)

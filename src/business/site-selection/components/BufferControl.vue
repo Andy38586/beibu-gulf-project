@@ -75,6 +75,7 @@ defineExpose({ clearAll, runAnalysis, selectedKeys })
 const restorePlanData = inject('restorePlanData', ref(null))
 const editingPlan = inject('editingPlan', ref(null))
 
+// AUDIT-P06: 移除 deep watch，改为浅监听
 watch(
   restorePlanData,
   (settings) => {
@@ -94,11 +95,13 @@ watch(
           importance: value.importance,
         }
       } else {
-        console.warn('[BufferControl] 未知设施类型:', key)
+        // AUDIT-017 (错误): 仅在开发环境输出警告
+        if (import.meta.env.DEV) {
+          console.warn('[BufferControl] 未知设施类型:', key)
+        }
       }
     })
   },
-  { deep: true },
 )
 
 const { isAuthenticated } = useAuth()

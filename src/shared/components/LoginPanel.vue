@@ -80,6 +80,12 @@ async function handleSubmit() {
       errorMsg.value = '密码长度不能少于 6 位'
       return
     }
+    // AUDIT-SEC-003: 密码强度增强 - 至少包含大小写字母和数字
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{6,}$/
+    if (!passwordRegex.test(password.value)) {
+      errorMsg.value = '密码必须包含大小写字母和数字'
+      return
+    }
     if (password.value !== confirmPassword.value) {
       errorMsg.value = '两次密码输入不一致'
       return
@@ -98,7 +104,9 @@ async function handleSubmit() {
     password.value = ''
     confirmPassword.value = ''
   } catch (err) {
-    errorMsg.value = err.message
+    // AUDIT-SEC-002 修复：错误信息白名单过滤，防止反射型 XSS
+    const rawMsg = err.message || '操作失败'
+    errorMsg.value = rawMsg.replace(/[<>\"'%;()&+]/g, '')
   } finally {
     loading.value = false
   }

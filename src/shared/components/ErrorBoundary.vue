@@ -7,12 +7,11 @@ const errorMsg = ref('')
 
 onErrorCaptured((err) => {
   // AUDIT-015 (错误): 错误上报（可集成 Sentry 等服务）
-  console.error('[ErrorBoundary]', err)
   if (import.meta.env.DEV) {
+    console.error('[ErrorBoundary]', err)
     console.error('错误堆栈:', err.stack)
   }
-  // TODO: 集成错误上报服务
-  // reportErrorToService(err)
+  // 错误上报服务待集成（如 Sentry）
   
   errorMsg.value = err.message || '未知异常'
   hasError.value = true

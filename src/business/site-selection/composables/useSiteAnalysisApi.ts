@@ -1,7 +1,7 @@
 import { ref } from 'vue'
 import type { Ref } from 'vue'
 import type { AnalysisParams, AnalysisResult } from '@/types/analysis'
-import { useApiRequest } from '@/shared/composables/useApiRequest'
+import { useApiRequest, ApiError, ErrorCode } from '@/shared/composables/useApiRequest'
 
 export function useSiteAnalysisApi() {
   const { apiRequest } = useApiRequest()
@@ -9,6 +9,14 @@ export function useSiteAnalysisApi() {
   const calcError: Ref<string> = ref('')
 
   async function analyze(params: AnalysisParams): Promise<AnalysisResult> {
+    // AUDIT-P03: 请求去重，防止重复提交
+    if (calculating.value) {
+      if (import.meta.env.DEV) {
+        console.warn('[useSiteAnalysisApi] 分析请求已在进行中，忽略重复请求')
+      }
+      return { error: '正在分析中，请稍后再试', coverage: null, matchedXiaoqu: [], facilityPoi: {} }
+    }
+
     calcError.value = ''
     calculating.value = true
     try {
@@ -34,23 +42,32 @@ export function useSiteAnalysisApi() {
         facilityPoi: result.facilityPoi || {}
       }
     } catch (error) {
-      // AUDIT-008: 区分不同HTTP错误状态码
-      if (error instanceof Error) {
-        if (error.message.includes('400')) {
-          calcError.value = '参数错误，请检查输入'
-        } else if (error.message.includes('401')) {
-          calcError.value = '请先登录'
-        } else if (error.message.includes('500')) {
-          calcError.value = '服务器错误，请稍后重试'
-        } else if (error.message.includes('超时')) {
-          calcError.value = '请求超时，请稍后重试'
-        } else {
-          calcError.value = '网络异常，请稍后重试'
+      // P3-002-FIX: 使用错误码替代字符串匹配，提高可维护性
+      if (error instanceof ApiError) {
+        switch (error.code) {
+          case ErrorCode.TIMEOUT:
+            calcError.value = '请求超时，请稍后重试'
+            break
+          case ErrorCode.UNAUTHORIZED:
+            calcError.value = '请先登录'
+            break
+          case ErrorCode.SERVER_ERROR:
+            calcError.value = '服务器错误，请稍后重试'
+            break
+          case ErrorCode.NETWORK_ERROR:
+            calcError.value = '网络异常，请检查网络连接'
+            break
+          case ErrorCode.REQUEST_FAILED:
+            calcError.value = '参数错误，请检查输入'
+            break
+          default:
+            calcError.value = '网络异常，请稍后重试'
         }
       } else {
         calcError.value = '网络异常，请稍后重试'
       }
-      return { error: calcError.value, coverage: null, matchedXiaoqu: [] }
+      // AUDIT-009: 保持返回结构完整
+      return { error: calcError.value, coverage: null, matchedXiaoqu: [], facilityPoi: {} }
     } finally {
       calculating.value = false
     }

@@ -65,13 +65,22 @@ export async function create(planData) {
   })
 }
 
+// P0-003-FIX: 安全的字段白名单，防止原型链污染
+const PLAN_UPDATE_FIELDS = ['name', 'selectedKeys', 'typeSettings', 'weights', 'savedXiaoqu']
+
 export async function update(id, updates) {
   return sequential(async () => {
     const plans = await readAll()
     const index = plans.findIndex((p) => p.id === id)
     if (index === -1) return null
 
-    const updated = { ...plans[index], ...updates, id: plans[index].id, createdAt: plans[index].createdAt, updatedAt: new Date().toISOString() }
+    // P0-003-FIX: 只允许白名单字段更新，防止 __proto__/constructor 污染
+    const safeUpdates = {}
+    for (const key of PLAN_UPDATE_FIELDS) {
+      if (key in updates) safeUpdates[key] = updates[key]
+    }
+
+    const updated = { ...plans[index], ...safeUpdates, id: plans[index].id, createdAt: plans[index].createdAt, updatedAt: new Date().toISOString() }
     plans[index] = updated
     await writeAll(plans)
     return updated

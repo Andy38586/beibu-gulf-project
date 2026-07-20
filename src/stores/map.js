@@ -153,7 +153,10 @@ export const useMapStore = defineStore('map', () => {
     lastAnalysisResult.value = result
     // AUDIT-003 (状态): 持久化分析结果到 sessionStorage
     writeStoredAnalysisResult(result)
-    analysisHandler.value?.(result)
+    // AUDIT-015: 验证 analysisHandler 是否为函数
+    if (typeof analysisHandler.value === 'function') {
+      analysisHandler.value(result)
+    }
   }
 
   function registerLayer(key, label, options) {

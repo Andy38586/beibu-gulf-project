@@ -49,7 +49,7 @@ export function useGCS() {
   // Panel 到 Canvas 边缘距离 = PANEL_SPACING = 20px（V2 新增）
   const safeMargin = computed(() => SAFE_MARGIN)
 
-  // 基础间距单位 = GAP = 10px（V2 保留：用于 Grid 参考线计算）
+  // 基础间距单位 = GAP = 10px（用于 Grid 参考线计算）
   const gap = computed(() => GAP)
 
   /**

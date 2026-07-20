@@ -53,11 +53,11 @@ const toggleMarginTopCss = computed(() => `${Math.round(cellPixel.value * 0.025)
  */
 const navItems = computed(() => [
   { label: '首页', icon: '⌂', route: '/', disabled: false },
-  { label: '选址', icon: '◈', route: '/site-selection', disabled: false },
+  { label: '选址分析', icon: '◈', route: '/site-selection', disabled: false },
   { label: '吞吐量', icon: '📊', route: '/throughput', disabled: true },
-  { label: '热力图', icon: '', route: '/heatmap', disabled: true },
-  { label: '航线', icon: '✈', route: '/route-analysis', disabled: true },
-  { label: '个人', icon: '', route: '/profile', disabled: false },
+  { label: '三维分析', icon: '🌊', route: '/heatmap', disabled: false },
+  { label: '航线分析', icon: '🚢', route: '/route-analysis', disabled: true },
+  { label: '个人中心', icon: '👤', route: '/profile', disabled: false },
 ])
 
 // Dock 宽度 = 导航按钮数 + 1（检查模式按钮），随 navItems 自动扩展

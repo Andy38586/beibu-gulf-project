@@ -1,0 +1,164 @@
+/**
+ * SiteFactorPanel 样式
+ * 
+ * 职责：选址分析因子选择面板的样式定义
+ * 解决 AUDIT-012：SiteFactorPanel.vue 过大问题
+ */
+
+.factor-panel {
+  width: 100%;
+  height: 100%;
+  padding: 10px;
+  box-sizing: border-box;
+}
+
+/* 按钮网格：2 列 × 4 行（与图层控制面板一致） */
+.factor-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: repeat(4, 1fr);
+  gap: 10px;
+  height: 100%;
+}
+
+.factor-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* 默认态 / 已选态：白色按钮 */
+.factor-btn {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #333;
+  transition: all 0.2s ease;
+  padding: 6px 4px;
+  box-sizing: border-box;
+}
+
+.factor-btn:hover {
+  border-color: #409eff;
+  background: #f0f7ff;
+}
+
+.factor-dot {
+  font-size: 12px;
+  line-height: 1;
+}
+
+.factor-label {
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+/* 已选态：带重要程度标签 */
+.factor-btn.confirmed {
+  gap: 2px;
+}
+
+.factor-level {
+  font-size: 10px;
+  color: #409eff;
+  line-height: 1;
+}
+
+/* 选择态：蓝色背景 + 滑块 */
+.factor-item.selected.selecting {
+  background: #409eff;
+  border-radius: 12px;
+}
+
+.factor-slider-wrap {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 6px 8px;
+  box-sizing: border-box;
+  cursor: default;
+}
+
+.factor-slider {
+  width: 80%;
+  height: 4px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+  margin: 0;
+}
+
+.factor-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  cursor: pointer;
+  border: none;
+}
+
+.factor-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  cursor: pointer;
+  border: none;
+}
+
+.factor-importance {
+  font-size: 10px;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  text-align: center;
+}
+
+/* 操作按钮样式 */
+.action-btn.clear-btn {
+  color: #333;
+}
+
+.action-btn.clear-btn:hover {
+  border-color: #409eff;
+  color: #409eff;
+}
+
+.action-btn.analyze-btn {
+  background: #409eff;
+  color: #fff;
+  border-color: #409eff;
+}
+
+.action-btn.analyze-btn:hover:not(:disabled) {
+  background: #66b1ff;
+  border-color: #66b1ff;
+}
+
+.action-btn.analyze-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

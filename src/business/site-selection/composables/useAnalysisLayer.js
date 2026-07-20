@@ -39,6 +39,13 @@ export function buildMatchedGeoJson(matchedXiaoqu) {
           }
           return false
         }
+        // AUDIT-GIS-009: 验证坐标值范围
+        if (xq.lng < -180 || xq.lng > 180 || xq.lat < -90 || xq.lat > 90) {
+          if (import.meta.env.DEV) {
+            console.warn('小区坐标值超出有效范围:', xq)
+          }
+          return false
+        }
         return true
       })
       .map((xq) => ({

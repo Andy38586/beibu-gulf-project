@@ -1,5 +1,5 @@
-import { ref, onMounted, onUnmounted } from 'vue'
-import type { Ref } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import type { Ref, ComputedRef } from 'vue'
 import type { User, AuthResponse } from '@/types/api'
 import { useApiRequest } from './useApiRequest'
 
@@ -35,44 +35,91 @@ function writeStoredUser(user: User | null): void {
   }
 }
 
+// AUDIT-004 (架构): 模块级别单例状态，确保所有组件共享同一状态
 const user: Ref<User | null> = ref(readStoredUser())
+const { apiRequest, token, isAuthenticated, setToken, clearToken } = useApiRequest()
 
-// AUDIT-313-003: 多标签页状态同步标志
-let storageListenerAttached = false
+// AUDIT-313-003: 多标签页状态同步 - 引用计数和全局处理函数
+let storageListenerCount = 0
 
-export function useAuth() {
-  const { apiRequest, token, isAuthenticated, setToken, clearToken } = useApiRequest()
+// P1-002-FIX: 认证恢复标志，防止重复调用
+let authRestored = false
+let authRestorePromise: Promise<User | null> | null = null
 
-  /**
-   * AUDIT-313-003: 处理 storage 事件，实现多标签页 token 同步
-   * 当其他标签页登出或登录时，当前标签页自动同步状态
-   */
-  function handleStorageChange(event: StorageEvent): void {
-    if (event.key === 'auth_token') {
-      if (event.newValue === null) {
-        // 其他标签页登出了，当前标签页也要登出
-        user.value = null
-        clearToken()
-      } else if (event.newValue !== token.value) {
-        // 其他标签页登录了，当前标签页也要同步
-        // 注意：这里不能直接获取用户信息，需要重新调用 checkAuth
-        checkAuth()
-      }
+// AUDIT-004: 将 checkAuth 提升到模块级别，供 handleStorageChange 调用
+async function checkAuth(): Promise<User | null> {
+  // AUDIT-022: 使用显式布尔转换
+  if (token.value === '') return null
+  try {
+    const data = await apiRequest<{ user: User }>('/auth/me')
+    // AUDIT-007: 空值检查
+    if (!data || !data.user) {
+      throw new Error('认证响应数据无效')
     }
-    
-    if (event.key === USER_STORAGE_KEY) {
-      if (event.newValue === null) {
-        user.value = null
-      } else {
-        try {
-          user.value = JSON.parse(event.newValue)
-        } catch {
-          user.value = null
-        }
+    user.value = data.user
+    return data.user
+  } catch {
+    clearToken()
+    user.value = null
+    writeStoredUser(null)
+    return null
+  }
+}
+
+/**
+ * P1-002-FIX: 应用启动时恢复认证状态
+ * 通过调用 /api/auth/me 验证 Cookie 中的 Token 是否有效
+ */
+async function restoreAuth(): Promise<User | null> {
+  // 防止重复调用
+  if (authRestored) {
+    return user.value
+  }
+
+  // 如果已有用户信息（从 localStorage 恢复），尝试验证 Token
+  if (user.value) {
+    try {
+      const data = await apiRequest<{ user: User }>('/auth/me')
+      if (data && data.user) {
+        user.value = data.user
+        // Token 验证成功，设置一个占位 token 以启用 isAuthenticated
+        setToken('restored-from-cookie')
+        authRestored = true
+        return data.user
       }
+    } catch {
+      // Token 无效，清除用户信息
+      clearToken()
+      user.value = null
+      writeStoredUser(null)
     }
   }
 
+  authRestored = true
+  return null
+}
+
+/**
+ * P2-001-FIX: 多标签页同步 - 监听 beibu-gulf-user 变化
+ */
+function handleStorageChange(event: StorageEvent): void {
+  if (event.key === USER_STORAGE_KEY) {
+    if (event.newValue === null) {
+      // 其他标签页登出了，当前标签页也要登出
+      user.value = null
+      clearToken()
+    } else {
+      // 其他标签页登录了，当前标签页也要同步
+      try {
+        user.value = JSON.parse(event.newValue)
+      } catch {
+        user.value = null
+      }
+    }
+  }
+}
+
+export function useAuth() {
   async function login(username: string, password: string): Promise<User> {
     const data = await apiRequest<AuthResponse>('/auth/login', {
       method: 'POST',
@@ -103,45 +150,43 @@ export function useAuth() {
     return data.user
   }
 
-  function logout(): void {
-    clearToken()
-    user.value = null
-    writeStoredUser(null)
-  }
-
-  async function checkAuth(): Promise<User | null> {
-    // AUDIT-022: 使用显式布尔转换
-    if (token.value === '') return null
+  /**
+   * P2-002-FIX: 登出时调用后端API清除Cookie
+   */
+  async function logout(): Promise<void> {
     try {
-      const data = await apiRequest<{ user: User }>('/auth/me')
-      // AUDIT-007: 空值检查
-      if (!data || !data.user) {
-        throw new Error('认证响应数据无效')
+      // 调用后端登出接口，清除HttpOnly Cookie
+      await apiRequest('/auth/logout', { method: 'POST' })
+    } catch (error) {
+      // 即使后端调用失败，也清理前端状态
+      if (import.meta.env.DEV) {
+        console.warn('登出接口调用失败，但仍清理前端状态:', error)
       }
-      user.value = data.user
-      return data.user
-    } catch {
+    } finally {
+      // 清理前端状态
       clearToken()
       user.value = null
-      return null
+      writeStoredUser(null)
+      // 重置认证恢复标志，允许下次重新恢复
+      authRestored = false
     }
   }
 
-  // AUDIT-313-003: 在组件挂载时添加 storage 事件监听
+  // AUDIT-313-003: 在组件挂载时添加 storage 事件监听（引用计数）
   onMounted(() => {
-    if (!storageListenerAttached && typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && storageListenerCount === 0) {
       window.addEventListener('storage', handleStorageChange)
-      storageListenerAttached = true
     }
+    storageListenerCount++
   })
 
-  // AUDIT-313-003: 在组件卸载时移除 storage 事件监听
+  // AUDIT-313-003: 在组件卸载时移除 storage 事件监听（引用计数）
   onUnmounted(() => {
-    if (typeof window !== 'undefined') {
+    storageListenerCount--
+    if (typeof window !== 'undefined' && storageListenerCount === 0) {
       window.removeEventListener('storage', handleStorageChange)
-      storageListenerAttached = false
     }
   })
 
-  return { user, token, isAuthenticated, login, register, logout, checkAuth }
+  return { user, token, isAuthenticated, login, register, logout, checkAuth, restoreAuth }
 }

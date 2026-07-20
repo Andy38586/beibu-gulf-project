@@ -14,6 +14,11 @@ export async function register(req, res) {
     if (password.length < 6) {
       return res.status(400).json({ error: '密码长度不能少于 6 位' })
     }
+    // AUDIT-SEC-003: 密码强度增强 - 至少包含大小写字母和数字
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{6,}$/
+    if (!passwordRegex.test(password)) {
+      return res.status(400).json({ error: '密码必须包含大小写字母和数字' })
+    }
     const exists = await userService.userExists(username)
     if (exists) {
       return res.status(409).json({ error: '用户名已存在' })

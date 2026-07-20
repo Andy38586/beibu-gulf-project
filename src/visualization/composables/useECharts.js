@@ -13,6 +13,26 @@
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import * as echarts from 'echarts/core'
 
+// AUDIT-3.9-FIX: 注册 ECharts 必需组件（解决 "Component grid is used but not imported" 错误）
+import { 
+  GridComponent, 
+  TitleComponent, 
+  LegendComponent, 
+  TooltipComponent 
+} from 'echarts/components'
+import { LineChart, BarChart } from 'echarts/charts'
+import { CanvasRenderer } from 'echarts/renderers'
+
+echarts.use([
+  GridComponent,
+  TitleComponent,
+  LegendComponent,
+  TooltipComponent,
+  LineChart,
+  BarChart,
+  CanvasRenderer,
+])
+
 export function useECharts({ getOption, watchSources = [], onClick = null }) {
   const chartRef = ref(null)
   let chartInstance = null

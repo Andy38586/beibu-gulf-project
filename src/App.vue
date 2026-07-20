@@ -9,7 +9,7 @@ import { useMapStore } from '@/stores/map'
 
 const route = useRoute()
 const router = useRouter()
-const { checkAuth } = useAuth()
+const { restoreAuth } = useAuth()
 const { zoomToRegion, zoomToCity, stopBreathing } = useMapControls()
 const mapStore = useMapStore()
 
@@ -20,9 +20,21 @@ const editingPlan = ref(null)
 provide('restorePlanData', restorePlanData)
 provide('editingPlan', editingPlan)
 provide('unifiedMap', unifiedMapRef)
+// 提供 mapStore 给所有子组件（含 UnifiedMap 和 RouterView 下的业务页面）
+provide('mapStore', mapStore)
 
 function handleRequireLogin() {
   router.push('/profile')
+}
+
+// P1-001-FIX: 等待渲染器就绪后再执行缩放
+function waitForRenderer(callback, retries = 0) {
+  const renderer = unifiedMapRef.value?.getRenderer?.()
+  if (renderer) {
+    callback()
+  } else if (retries < 10) {
+    setTimeout(() => waitForRenderer(callback, retries + 1), 500)
+  }
 }
 
 watch(
@@ -30,10 +42,10 @@ watch(
   (name) => {
     stopBreathing()
     if (name === 'Home') {
-      zoomToRegion()
+      waitForRenderer(zoomToRegion)
     }
     if (name === 'SiteSelection') {
-      setTimeout(() => zoomToCity(), 500)
+      waitForRenderer(zoomToCity)
     }
   },
   { immediate: true },
@@ -54,7 +66,9 @@ watch(
 )
 
 onMounted(() => {
-  checkAuth()
+  // P1-002-FIX: 应用启动时恢复认证状态
+  // 通过 /api/auth/me 验证 Cookie 中的 Token 是否有效
+  restoreAuth()
 })
 </script>
 
@@ -86,9 +100,10 @@ onMounted(() => {
   pointer-events: none;
   z-index: 50;
 }
-.app-content > * {
-  pointer-events: auto;
-}
+/* 注意：不能在这里设置 .app-content > * { pointer-events: auto } */
+/* 原因：这会让 .gcs-analysis-page 等业务页面也变成 pointer-events: auto， */
+/* 导致整个页面成为全屏事件拦截层，阻挡下层地图容器的鼠标事件（拖拽/缩放/旋转失效） */
+/* 正确做法：由各业务页面自行控制 pointer-events，面板通过 AppLayout 的 .app-layout > * 恢复 */
 .fade-enter-active,
 .fade-leave-active {
   transition: opacity 1s ease;

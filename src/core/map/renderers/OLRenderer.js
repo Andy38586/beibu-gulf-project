@@ -148,6 +148,18 @@ export class OLRenderer extends MapRenderer {
       })
   }
   addPolygonLayer(id, features, options = {}) {
+    // AUDIT-GIS-008: 辅助函数 - 确保坐标环闭合
+    const ensureRingClosed = (ring) => {
+      if (!ring || ring.length < 3) return null
+      const first = ring[0]
+      const last = ring[ring.length - 1]
+      // 如果首尾坐标不相同，添加闭合点
+      if (first[0] !== last[0] || first[1] !== last[1]) {
+        return [...ring, first]
+      }
+      return ring
+    }
+
     const olFeatures = features
       .map((item) => {
         const coordinates = item.coordinates || item.geometry?.coordinates
@@ -160,13 +172,21 @@ export class OLRenderer extends MapRenderer {
         if (item.geometry?.type === 'MultiPolygon') {
           // AUDIT-010: 验证MultiPolygon坐标结构
           if (!Array.isArray(coordinates[0]) || !Array.isArray(coordinates[0][0])) return null
-          polygonCoords = coordinates.map((poly) =>
-            poly[0].map(([lng, lat]) => fromLonLat([lng, lat])),
-          )
+          // AUDIT-GIS-008: 验证并闭合每个多边形的坐标环
+          polygonCoords = coordinates
+            .map((poly) => {
+              const closedRing = ensureRingClosed(poly[0])
+              return closedRing ? closedRing.map(([lng, lat]) => fromLonLat([lng, lat])) : null
+            })
+            .filter((coords) => coords !== null)
+          if (polygonCoords.length === 0) return null
         } else {
           // AUDIT-010: 验证Polygon坐标结构
           if (!Array.isArray(coordinates[0]) || !Array.isArray(coordinates[0][0])) return null
-          polygonCoords = [coordinates[0].map(([lng, lat]) => fromLonLat([lng, lat]))]
+          // AUDIT-GIS-008: 验证并闭合坐标环
+          const closedRing = ensureRingClosed(coordinates[0])
+          if (!closedRing) return null
+          polygonCoords = [closedRing.map(([lng, lat]) => fromLonLat([lng, lat]))]
         }
         const feature = new Feature({
           geometry: new Polygon(polygonCoords),
@@ -234,6 +254,10 @@ export class OLRenderer extends MapRenderer {
         if (source && source.clear) {
           source.clear()
         }
+        // AUDIT-GIS-010: 调用 dispose() 释放资源
+        if (source && source.dispose) {
+          source.dispose()
+        }
       }
     }
   }
@@ -242,10 +266,14 @@ export class OLRenderer extends MapRenderer {
     if (target.layerId) {
       const layer = this._layers.get(target.layerId)
       if (layer && layer.instance) {
-        const extent = layer.instance.getSource().getExtent()
-        if (extent) {
-          view.fit(extent, { duration: 1000 })
-          return
+        // AUDIT-016: 验证 source 和 getExtent 方法存在性
+        const source = layer.instance.getSource()
+        if (source && typeof source.getExtent === 'function') {
+          const extent = source.getExtent()
+          if (extent) {
+            view.fit(extent, { duration: 1000 })
+            return
+          }
         }
       }
     }
@@ -259,7 +287,10 @@ export class OLRenderer extends MapRenderer {
     const view = this.map.getView()
     const center = toLonLat(view.getCenter())
     const zoom = view.getZoom()
-    const height = Math.max(100, 10000 * Math.pow(2, 9 - zoom))
+    // AUDIT-GIS-003: 使用更准确的 Web Mercator 高度计算公式
+    // 基于标准公式：height ≈ resolution * 256 * 156543.03392804097
+    const resolution = view.getResolution()
+    const height = Math.max(100, resolution * 256 * 156543.03392804097)
     return {
       center: { lng: center[0], lat: center[1] },
       height,
@@ -304,14 +335,19 @@ export class OLRenderer extends MapRenderer {
     const animate = () => {
       if (this._breathingLayer) {
         this._breathingLayer.changed()
-        requestAnimationFrame(animate)
+        this._breathingAnimId = requestAnimationFrame(animate)
       }
     }
-    animate()
+    this._breathingAnimId = requestAnimationFrame(animate)
   }
   stopBreathing() {
+    if (this._breathingAnimId) {
+      cancelAnimationFrame(this._breathingAnimId)
+      this._breathingAnimId = null
+    }
     if (this._breathingLayer) {
       this.map.removeLayer(this._breathingLayer)
+      this._breathingLayer.dispose()
       this._breathingLayer = null
     }
   }
@@ -326,6 +362,7 @@ export class OLRenderer extends MapRenderer {
   }
   destroy() {
     super.destroy()
+    this.stopBreathing()
     this.map?.dispose()
     this.map = null
   }

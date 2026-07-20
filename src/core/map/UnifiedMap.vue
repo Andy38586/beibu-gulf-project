@@ -1,4 +1,18 @@
 <script setup>
+/**
+ * UnifiedMap - 统一地图容器组件
+ *
+ * 严格遵循技术设计文档第三章的引擎生命周期设计：
+ * - OL容器始终存在（v-show），Cesium容器首次创建后也保留（v-show）
+ * - 两个容器和对应的Renderer都保持活跃，切换时只改变v-show
+ * - CesiumViewer单例：首次创建Viewer，之后mount/unmount复用，不销毁
+ *
+ * 生命周期流程：
+ *   首屏(mapType='2d') → v-show渲染OL容器 → initRenderer('2d', olContainer)
+ *   首次切换3d → v-show创建Cesium容器 → initRenderer('3d', cesiumContainer) → OL v-show隐藏
+ *   切回2d → Cesium v-show隐藏 → OL v-show显示（OLRenderer保持活跃）
+ *   再次切换3d → Cesium v-show显示（复用Viewer，状态保留）
+ */
 import { ref, watch, onMounted, onUnmounted, provide, nextTick, computed } from 'vue'
 import { createRenderer } from '@/core/map/renderers'
 import { MapRendererKey } from '@/core/map/composables/useMapRenderer'
@@ -15,19 +29,14 @@ const props = defineProps({
     default: '2d',
     validator: (v) => ['2d', '3d'].includes(v),
   },
-  center: {
-    type: Array,
-    default: () => [108.1, 21.5],
-  },
-  zoom: {
-    type: Number,
-    default: 9,
-  },
 })
 
 const emit = defineEmits(['typeChange', 'click', 'error'])
 
-const containerRef = ref(null)
+// 两个容器引用（OL始终存在，Cesium首次创建后保留）
+const olContainerRef = ref(null)
+const cesiumContainerRef = ref(null)
+
 const loading = ref(true)
 const switching = ref(false)
 const loadError = ref('')
@@ -35,30 +44,28 @@ const boundaryWarning = ref('')
 const currentRenderer = ref(null)
 const lastState = ref(null)
 const mapStore = useMapStore()
+
+// 两个渲染器实例（OL始终存在，Cesium首次创建后保留）
+const olRenderer = ref(null)
+const cesiumRenderer = ref(null)
+
+// Cesium容器是否已初始化（首次创建后保留）
+const cesiumInitialized = ref(false)
+
+provide(MapRendererKey, currentRenderer)
+provide('mapStore', mapStore)
+
 const { registerBaseLayerWithRenderer, registerToggleable, clearLayers } = useLayerManager()
 const { createUpdateHandler } = useAnalysisLayer()
 
-// 用于 CSS v-bind 的计算属性：loading spinner 尺寸基于 CELL_PIXEL
 const spinnerSizeCss = computed(() => `${Math.round(CELL_PIXEL * 0.5)}px`)
-
-provide(MapRendererKey, currentRenderer)
-// AUDIT-005(架构): 提供 mapStore 给 useLayerManager 使用
-provide('mapStore', mapStore)
 
 let portGeoJson = null
 let boundaryGeoJson = null
 
-// AUDIT-P07: 防抖定时器，避免频繁切换引擎
-let switchDebounceTimer = null
-const SWITCH_DEBOUNCE_DELAY = 300 // 300ms 防抖延迟
-
-// AUDIT-119: 超时控制常量
-const LOAD_DATA_TIMEOUT = 10000 // 数据加载超时：10秒
-const INIT_RENDERER_TIMEOUT = 15000 // 渲染器初始化超时：15秒
-
 /**
  * 带超时的 Promise 包装
- * AUDIT-119: 防止加载过程无限等待
+ * 防止加载过程无限等待
  */
 function withTimeout(promise, timeoutMs, errorMessage) {
   let timeoutId
@@ -68,125 +75,196 @@ function withTimeout(promise, timeoutMs, errorMessage) {
   return Promise.race([promise, timeoutPromise]).finally(() => clearTimeout(timeoutId))
 }
 
+/**
+ * 等待容器元素获得实际尺寸（浏览器完成 layout/reflow）
+ *
+ * 问题背景：v-show 切换后，Vue 的 nextTick 只保证 DOM 更新完成，
+ * 但不保证浏览器完成布局计算。此时容器的 offsetWidth/offsetHeight 可能仍为 0，
+ * 导致渲染器在错误尺寸下初始化，出现白屏。
+ *
+ * 解决方案：使用 requestAnimationFrame 等待浏览器完成布局，
+ * 确保容器有实际尺寸后再初始化/更新渲染器。
+ */
+function waitForContainerVisible(container) {
+  return new Promise((resolve) => {
+    // 如果容器已有尺寸，直接返回
+    if (container && container.offsetWidth > 0 && container.offsetHeight > 0) {
+      resolve()
+      return
+    }
+
+    let attempts = 0
+    const maxAttempts = 10 // 最多等待 10 帧（约 166ms @60fps）
+    const check = () => {
+      attempts++
+      if (container && container.offsetWidth > 0 && container.offsetHeight > 0) {
+        resolve()
+      } else if (attempts < maxAttempts) {
+        requestAnimationFrame(check)
+      } else {
+        // 超时后仍然继续，避免无限等待
+        if (import.meta.env.DEV) {
+          console.warn('waitForContainerVisible: 容器尺寸检查超时，继续执行')
+        }
+        resolve()
+      }
+    }
+    requestAnimationFrame(check)
+  })
+}
+
+/**
+ * 加载港口和边界数据（仅首次调用）
+ */
 async function loadData() {
   try {
-    // AUDIT-119: 添加超时控制
-    const ports = await withTimeout(
-      loadPorts(),
-      LOAD_DATA_TIMEOUT,
-      '港口数据加载超时，请检查网络连接'
-    )
+    const ports = await withTimeout(loadPorts(), 10000, '港口数据加载超时')
     portGeoJson = buildPortGeoJson(ports)
     boundaryGeoJson = await withTimeout(
       loadBoundaryGeoJson((msg) => {
         boundaryWarning.value = msg
       }),
-      LOAD_DATA_TIMEOUT,
-      '边界数据加载超时，部分图层可能缺失'
+      10000,
+      '边界数据加载超时',
     )
   } catch (error) {
-    // AUDIT-017: 仅在开发环境输出错误
     if (import.meta.env.DEV) {
       console.error('地图数据加载失败:', error)
     }
-    // AUDIT-119: 超时错误也要显示给用户
     if (error.message.includes('超时')) {
       loadError.value = error.message
     }
   }
 }
 
-async function initRenderer(type) {
-  if (!containerRef.value) return
-
-  if (currentRenderer.value) {
-    lastState.value = currentRenderer.value.exportState()
-    currentRenderer.value.destroy()
-    currentRenderer.value = null
+/**
+ * 初始化指定类型的渲染器（首次创建或复用）
+ * @param {'2d'|'3d'} type - 渲染器类型
+ * @param {HTMLElement} container - DOM容器
+ */
+async function initRenderer(type, container) {
+  if (!container) {
+    if (import.meta.env.DEV) {
+      console.error(`initRenderer: ${type}容器为空`)
+    }
+    return
   }
 
-  switching.value = true
-  loading.value = true
-  await nextTick()
+  // 等待容器完成浏览器布局（v-show切换后需要等待reflow）
+  await waitForContainerVisible(container)
 
   try {
-    currentRenderer.value = await createRenderer(type, containerRef.value)
-    await nextTick()
+    // 检查是否已有该类型的渲染器实例
+    const existingRenderer = type === '2d' ? olRenderer.value : cesiumRenderer.value
 
-    if (type === '2d') {
+    if (existingRenderer) {
+      // 复用已有渲染器
+      currentRenderer.value = existingRenderer
+
+      // Cesium需要重新挂载Viewer到容器（因为之前可能unmount了）
+      if (type === '3d') {
+        const { cesiumViewerManager } = await import('@/core/map/renderers/CesiumRenderer')
+        cesiumViewerManager.mount(container)
+      }
+
+      // 两个渲染器都需要更新尺寸（关键：OL切换回来时需要知道容器尺寸变了）
       currentRenderer.value.updateSize()
+
+      // 关键修复：复用渲染器时也需要重新注册图层目录
+      // 因为 layerCatalog 中的 show/hide 函数绑定的是渲染器实例
+      // 切换回来时需要让图层目录指向当前渲染器
+      setupLayers()
+    } else {
+      // 首次创建渲染器
+      const renderer = await createRenderer(type, container)
+
+      if (type === '2d') {
+        olRenderer.value = renderer
+      } else {
+        cesiumRenderer.value = renderer
+      }
+
+      currentRenderer.value = renderer
+
+      // 两个渲染器都需要更新尺寸
+      currentRenderer.value.updateSize()
+
+      // 首次创建时需要设置图层和事件
+      setupLayers()
+      setupEvents()
     }
 
-    if (lastState.value) {
-      currentRenderer.value.importState(lastState.value)
-    }
-
-    setupLayers(type)
-    setupEvents(type)
     mapStore.setMap(
       type === '2d' ? currentRenderer.value.getMap() : currentRenderer.value.getViewer(),
     )
-    mapStore.setMapType(type)
+    // 注意：mapStore.setMapType 已在 switchMapType 中提前调用
+    // 此处不再重复调用，避免 v-show 时序问题
   } catch (error) {
-    console.error(`Renderer ${type} 初始化失败:`, error)
+    if (import.meta.env.DEV) {
+      console.error(`Renderer ${type} 初始化失败:`, error)
+    }
     loadError.value = error.message || '地图初始化失败'
     emit('error', error)
-  } finally {
-    switching.value = false
-    loading.value = false
   }
 }
+
+/**
+ * 注册底图和业务图层到当前渲染器
+ *
+ * 幂等性设计：
+ * - 每次切换引擎时都会调用此函数
+ * - 通过检查渲染器内部 _layers Map 防止重复添加图层
+ * - 但始终重新注册图层目录（因为 show/hide 函数需要绑定到当前渲染器）
+ */
 function setupLayers() {
+  // 始终清空图层目录，重新注册（因为 show/hide 函数绑定的是渲染器实例）
   clearLayers()
+
+  // 注册底图图层（底图由渲染器在初始化时创建，这里只是注册到图层目录）
   registerBaseLayerWithRenderer('base-image', '影像底图', currentRenderer.value)
   registerBaseLayerWithRenderer('base-vector', '矢量底图', currentRenderer.value)
-  if (boundaryGeoJson) {
+
+  // 注册业务图层（需要检查渲染器是否已有该图层，防止重复添加）
+  if (boundaryGeoJson && !currentRenderer.value._layers.has('boundary')) {
     currentRenderer.value.addGeoJsonLayer('boundary', boundaryGeoJson, BOUNDARY_STYLE)
+  }
+  if (boundaryGeoJson) {
     registerToggleable('boundary', '行政区划', currentRenderer.value)
   }
-  if (portGeoJson) {
-    // AUDIT-314-004: 验证 GeoJSON Feature 完整性，过滤缺失 geometry 的 Feature
+
+  if (portGeoJson && !currentRenderer.value._layers.has('ports')) {
     const validFeatures = portGeoJson.features.filter((f) => {
-      if (!f || !f.geometry || !f.geometry.coordinates) {
-        if (import.meta.env.DEV) {
-          console.warn('无效的 Feature，缺失 geometry:', f)
-        }
-        return false
-      }
-      if (!Array.isArray(f.geometry.coordinates) || f.geometry.coordinates.length < 2) {
-        if (import.meta.env.DEV) {
-          console.warn('无效的坐标数据:', f.geometry.coordinates)
-        }
-        return false
-      }
-      return true
+      if (!f?.geometry?.coordinates) return false
+      if (!Array.isArray(f.geometry.coordinates) || f.geometry.coordinates.length < 2) return false
+      const [lng, lat] = f.geometry.coordinates
+      return !(lng === 0 && lat === 0)
     })
-    
     if (validFeatures.length > 0) {
       currentRenderer.value.addPointLayer(
         'ports',
-        validFeatures.map((f) => {
-          // AUDIT-018: 验证geometry.coordinates存在性
-          if (!f.geometry || !f.geometry.coordinates || !Array.isArray(f.geometry.coordinates)) {
-            if (import.meta.env.DEV) {
-              console.warn('港口Feature缺少有效坐标:', f)
-            }
-            return null
-          }
-          return {
+        validFeatures
+          .map((f) => ({
             ...f.properties,
             lng: f.geometry.coordinates[0],
             lat: f.geometry.coordinates[1],
-          }
-        }).filter(Boolean),
+          }))
+          .filter(Boolean),
         PORT_STYLE,
       )
-      registerToggleable('ports', '港口位置', currentRenderer.value)
     }
   }
+  if (portGeoJson) {
+    registerToggleable('ports', '港口位置', currentRenderer.value)
+  }
+
+  // 注册分析结果处理函数
   const updateHandler = createUpdateHandler(currentRenderer.value, registerToggleable)
   mapStore.registerAnalysisHandler(updateHandler)
 }
+
+/**
+ * 绑定点击事件
+ */
 function setupEvents() {
   currentRenderer.value.on('click', (event) => {
     const { featureType, data, coordinate } = event.detail
@@ -198,49 +276,125 @@ function setupEvents() {
     emit('click', { featureType, data, coordinate })
   })
 }
-async function switchMapType(type) {
-  // AUDIT-P07: 添加防抖机制，避免快速切换导致引擎冲突
-  if (switchDebounceTimer) {
-    clearTimeout(switchDebounceTimer)
-  }
-  
-  return new Promise((resolve) => {
-    switchDebounceTimer = setTimeout(async () => {
-      emit('typeChange', type)
-      await initRenderer(type)
-      switchDebounceTimer = null
-      resolve()
-    }, SWITCH_DEBOUNCE_DELAY)
-  })
+
+/**
+ * 获取当前类型对应的容器
+ * v-if切换后需要nextTick等待DOM更新
+ */
+function getContainer(type) {
+  return type === '2d' ? olContainerRef.value : cesiumContainerRef.value
 }
+
+/**
+ * 切换地图类型
+ * 策略：OL和Cesium容器都始终存在（v-show），渲染器实例保留不销毁
+ * 切换时只改变v-show，不需要销毁/重建渲染器
+ *
+ * 关键时序：
+ * 1. v-show 切换 → Vue nextTick 保证 DOM patch 完成
+ * 2. waitForContainerVisible → requestAnimationFrame 保证浏览器完成 layout/reflow
+ * 3. 渲染器 updateSize() → 基于正确容器尺寸重绘
+ *
+ * 错误处理：
+ * - 如果新类型初始化失败，需要回滚 mapStore.mapType 到旧值
+ * - 避免容器因 mapType 错误而被 v-show 隐藏
+ */
+async function switchMapType(newType) {
+  if (switching.value) return
+
+  const oldType = mapStore.mapType
+  switching.value = true
+  loading.value = true
+
+  if (import.meta.env.DEV) {
+    console.log(`[UnifiedMap] switchMapType: ${oldType} → ${newType}`)
+  }
+
+  try {
+    if (oldType !== newType) {
+      mapStore.setMapType(newType)
+      if (import.meta.env.DEV) {
+        console.log(`[UnifiedMap] mapStore.mapType 更新为: ${mapStore.mapType}`)
+      }
+    }
+
+    // 首次切换到3D时，v-if 创建 Cesium 容器
+    if (newType === '3d' && !cesiumInitialized.value) {
+      cesiumInitialized.value = true
+      // 双重 nextTick 确保 Vue 完成 DOM patch 和 ref 绑定
+      // 第一个 nextTick：DOM 更新队列处理
+      // 第二个 nextTick：ref 绑定完成
+      await nextTick()
+      await nextTick()
+    }
+
+    const container = getContainer(newType)
+    if (!container) {
+      throw new Error(`${newType}容器未就绪（ref绑定失败）`)
+    }
+
+    // initRenderer 内部会通过 waitForContainerVisible 等待浏览器完成 layout
+    await initRenderer(newType, container)
+
+    emit('typeChange', newType)
+  } catch (error) {
+    if (import.meta.env.DEV) {
+      console.error(`切换到 ${newType} 失败:`, error)
+    }
+    loadError.value = error.message || '地图切换失败'
+
+    // 关键修复：初始化失败时，回滚 mapStore.mapType 到旧值
+    // 避免容器因 mapType 错误而被 v-show 隐藏
+    if (oldType !== newType) {
+      mapStore.setMapType(oldType)
+    }
+
+    emit('error', error)
+  } finally {
+    switching.value = false
+    loading.value = false
+  }
+}
+
 function flyTo(target, options = {}) {
   currentRenderer.value?.flyTo(target, options)
 }
+
 function getRenderer() {
   return currentRenderer.value
 }
+
 function startBreathing(lng, lat) {
   currentRenderer.value?.startBreathing(lng, lat)
 }
+
 function stopBreathing() {
   currentRenderer.value?.stopBreathing()
 }
+
+// 监听mapType变化，直接调用switchMapType
+// 策略：OL和Cesium容器都始终存在（v-show），渲染器实例保留不销毁
 watch(
   () => props.mapType,
   async (newType) => {
     await switchMapType(newType)
   },
 )
+
 onMounted(async () => {
   await loadData()
-  await initRenderer(props.mapType)
+  // 首次挂载：v-if已渲染默认类型的容器
+  const container = getContainer(props.mapType)
+  await initRenderer(props.mapType, container)
 })
+
 onUnmounted(() => {
   if (currentRenderer.value) {
     currentRenderer.value.destroy()
     currentRenderer.value = null
   }
 })
+
 defineExpose({
   switchMapType,
   flyTo,
@@ -252,7 +406,16 @@ defineExpose({
 
 <template>
   <div class="unified-map-wrapper">
-    <div ref="containerRef" class="map-container" :class="{ switching }"></div>
+    <!-- OL容器：始终存在，通过v-show控制显示 -->
+    <div v-show="mapType === '2d'" ref="olContainerRef" class="map-container"></div>
+
+    <!-- Cesium容器：首次创建后保留，通过v-show控制显示 -->
+    <div
+      v-if="cesiumInitialized"
+      v-show="mapType === '3d'"
+      ref="cesiumContainerRef"
+      class="map-container"
+    ></div>
 
     <Transition name="fade">
       <div v-if="loading || switching" class="map-loading">
@@ -262,7 +425,6 @@ defineExpose({
     </Transition>
 
     <p v-if="loadError" class="map-error">{{ loadError }}</p>
-
     <div v-if="boundaryWarning" class="boundary-warning">{{ boundaryWarning }}</div>
   </div>
 </template>
@@ -279,10 +441,9 @@ defineExpose({
   width: 100%;
   height: 100%;
   transition: opacity 0.3s ease;
-}
-
-.map-container.switching {
-  opacity: 0.5;
+  /* 关键修复：确保地图容器可以接收鼠标事件 */
+  /* 即使父元素设置了 pointer-events: none，地图容器本身也需要响应事件 */
+  pointer-events: auto;
 }
 
 .map-loading {

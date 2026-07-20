@@ -80,7 +80,10 @@ export function buildTypeCoverage(points, radiusKm) {
   )
   
   // 过滤掉无效的缓冲区
-  const validBuffers = buffers.filter((b) => b && b.geometry && b.geometry.coordinates)
+  // AUDIT-GIS-004: 验证坐标数组长度
+  const validBuffers = buffers.filter((b) => 
+    b && b.geometry && b.geometry.coordinates && b.geometry.coordinates.length > 0
+  )
   if (validBuffers.length === 0) {
     // AUDIT-016 (错误): 仅在开发环境输出警告
     if (process.env.NODE_ENV === 'development') {
@@ -93,17 +96,26 @@ export function buildTypeCoverage(points, radiusKm) {
   
   try {
     const unionResult = turf.union(turf.featureCollection(validBuffers))
-    // 验证 union 结果
+    // AUDIT-GIS-001: 验证 union 结果，处理 MultiPolygon 情况
     if (!unionResult || !unionResult.geometry) {
-      // AUDIT-016 (错误): 仅在开发环境输出警告
       if (process.env.NODE_ENV === 'development') {
         console.warn('union 返回无效结果')
       }
       return null
     }
+    
+    // AUDIT-GIS-007: 如果返回 MultiPolygon，保留所有 Polygon 作为覆盖区域
+    // 返回第一个 Polygon 作为主覆盖区域，但记录所有 Polygon 的坐标
+    if (unionResult.geometry.type === 'MultiPolygon') {
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('turf.union 返回 MultiPolygon，保留所有 Polygon')
+      }
+      // 返回完整的 MultiPolygon，而不是只返回第一个
+      return unionResult
+    }
+    
     return unionResult
   } catch (error) {
-    // AUDIT-016 (错误): 仅在开发环境输出错误
     if (process.env.NODE_ENV === 'development') {
       console.error('turf.union 失败:', error.message)
       console.error('缓冲区数量:', validBuffers.length)
@@ -179,6 +191,13 @@ export function filterMatchedXiaoqu(xiaoquData, finalArea, spatialIndex = null) 
       // AUDIT-016 (错误): 仅在开发环境输出警告
       if (process.env.NODE_ENV === 'development') {
         console.warn('小区坐标无效:', xq)
+      }
+      return false
+    }
+    // AUDIT-314-003: 检查坐标是否在北部湾业务区域内（经度 105-115，纬度 18-25）
+    if (xq.lng < 105 || xq.lng > 115 || xq.lat < 18 || xq.lat > 25) {
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('小区坐标不在北部湾业务区域内:', xq)
       }
       return false
     }

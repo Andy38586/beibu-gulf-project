@@ -24,12 +24,13 @@ import SiteFactorPanel from './components/SiteFactorPanel.vue'
 import SiteLayerPanel from './components/SiteLayerPanel.vue'
 import XiaoquResultPanel from './components/XiaoquResultPanel.vue'
 import RadarChart from '@/visualization/charts/RadarChart.vue'
+import ErrorPopup from './components/ErrorPopup.vue'
 import { useMapControls } from '@/core/map/composables/useMapControls'
 import { useMapStore } from '@/stores/map'
 import { usePlans } from '@/shared/composables/usePlans'
 import { useSiteSelectionStateStore } from '@/stores/siteSelectionState'
 import { useLayerManager } from '@/core/map/composables/useLayerManager'
-import { FACILITY_CONFIG } from './composables/useFacilities'
+import { FACILITY_CONFIG } from './composables/facilityConfig'
 import { FACILITY_LABELS } from '@/shared/utils/facilityLabels'
 import type { ScoredXiaoqu } from '@/types/xiaoqu'
 import type { FacilityType, TypeSetting, FacilityPoint } from '@/types/facility'
@@ -61,6 +62,10 @@ const factorPanelRef = ref<InstanceType<typeof SiteFactorPanel> | null>(null)
 
 /** 小区结果面板引用（用于获取/恢复状态） */
 const xiaoquResultPanelRef = ref<InstanceType<typeof XiaoquResultPanel> | null>(null)
+
+/** P2-004-FIX: 错误弹窗状态 */
+const showErrorPopup = ref<boolean>(false)
+const errorMessage = ref<string>('')
 
 /** 限制显示前8个小区 */
 const displayXiaoqu = computed<ScoredXiaoqu[]>(() => matchedXiaoqu.value.slice(0, 8))
@@ -166,30 +171,53 @@ async function handleSaveXiaoqu(data: { planId: string | null; xiaoqu: ScoredXia
         currentPlanId.value = pid
       }
     } catch (error) {
-      console.error('自动创建方案失败:', error)
+      // P2-004-FIX: 显示错误提示
+      errorMessage.value = error instanceof Error ? error.message : '自动创建方案失败'
+      showErrorPopup.value = true
+      if (import.meta.env.DEV) {
+        console.error('自动创建方案失败:', error)
+      }
       return
     }
   }
   if (!pid) return
   try {
     await saveXiaoqu(pid, data.xiaoqu)
-    console.log('小区保存成功:', data.xiaoqu.name)
+    // AUDIT-004: 移除调试日志，仅在开发环境输出
+    if (import.meta.env.DEV) {
+      console.log('小区保存成功:', data.xiaoqu.name)
+    }
   } catch (error) {
-    console.error('保存小区失败:', error)
+    // P2-004-FIX: 显示错误提示
+    errorMessage.value = error instanceof Error ? error.message : '保存小区失败'
+    showErrorPopup.value = true
+    if (import.meta.env.DEV) {
+      console.error('保存小区失败:', error)
+    }
   }
 }
 
 /** 从方案中移除小区 */
 async function handleRemoveXiaoqu(data: { planId: string | null; xiaoquId: string }): Promise<void> {
   if (!data.planId) {
-    console.warn('未选择方案，无法移除小区')
+    // P2-004-FIX: 显示错误提示
+    errorMessage.value = '未选择方案，无法移除小区'
+    showErrorPopup.value = true
     return
   }
   try {
     await removeXiaoqu(data.planId, data.xiaoquId)
-    console.log('小区移除成功')
+    // AUDIT-005: 移除调试日志，仅在开发环境输出
+    if (import.meta.env.DEV) {
+      console.log('小区移除成功')
+    }
   } catch (error) {
-    console.error('移除小区失败:', error)
+    // P2-004-FIX: 显示错误提示
+    errorMessage.value = error instanceof Error ? error.message : '移除小区失败'
+    showErrorPopup.value = true
+    if (import.meta.env.DEV) {
+      console.error('移除小区失败:', error)
+    }
   }
 }
 
@@ -289,8 +317,17 @@ onMounted(() => {
   } else {
     // 非个人中心返回，清除旧分析图层
     clearAnalysisLayers()
-    // 正常初始化
-    setTimeout(() => zoomToCity(), 300)
+    // P1-001-FIX: 等待渲染器就绪后再缩放，最多重试10次
+    let retries = 0
+    const tryZoom = () => {
+      if (mapInstance.value?.getRenderer?.()) {
+        zoomToCity()
+      } else if (retries < 10) {
+        retries++
+        setTimeout(tryZoom, 500)
+      }
+    }
+    tryZoom()
   }
 })
 
@@ -307,6 +344,7 @@ onUnmounted(() => {
         <!-- 左上：小区雷达图 4×4（显示选中小区或第一名） -->
         <GcsPanel :w="4" :h="4" anchor="top-left" :offset-x="0" :offset-y="1.25">
           <RadarChart
+            :visible="true"
             :embedded="true"
             :xiaoqu="displayXiaoquForRadar"
             :selected-types="selectedTypes"
@@ -340,6 +378,13 @@ onUnmounted(() => {
         </GcsPanel>
       </template>
     </AppLayout>
+
+    <!-- P2-004-FIX: 错误提示弹窗 -->
+    <ErrorPopup
+      :visible="showErrorPopup"
+      :message="errorMessage"
+      @close="showErrorPopup = false"
+    />
   </div>
 </template>
 

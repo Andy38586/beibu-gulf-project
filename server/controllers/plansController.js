@@ -33,6 +33,13 @@ export async function createOne(req, res) {
     if (!name || !selectedKeys) {
       return res.status(400).json({ error: '缺少必要字段: name, selectedKeys' })
     }
+    
+    // AUDIT-SEC-004: 方案名称正则校验（仅允许中文、字母、数字、下划线、连字符、空格，长度 1-50）
+    const nameRegex = /^[\u4e00-\u9fa5a-zA-Z0-9_\-\s]{1,50}$/
+    if (!nameRegex.test(name)) {
+      return res.status(400).json({ error: '方案名称只能包含中文、字母、数字、下划线、连字符和空格，且长度不超过 50 字符' })
+    }
+    
     const existing = await plansRepo.findAllByUserId(req.user.id)
     if (existing.some(p => p.name === name)) {
       return res.status(409).json({ error: '方案名称已存在' })

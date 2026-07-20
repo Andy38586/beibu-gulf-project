@@ -1,0 +1,165 @@
+/**
+ * XiaoquResultPanel 样式
+ * 
+ * 职责：小区结果面板的样式定义
+ * 解决 AUDIT-013：XiaoquResultPanel.vue 过大问题
+ */
+
+.xiaoqu-result-panel {
+  width: 100%;
+  height: 100%;
+  padding: 10px;
+  box-sizing: border-box;
+}
+
+/* 按钮网格：2列×4行 */
+.xiaoqu-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: repeat(4, 1fr);
+  gap: 10px;
+  height: 100%;
+}
+
+.xiaoqu-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* 小区按钮基础样式 */
+.xiaoqu-btn {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #333;
+  transition: all 0.2s ease;
+  padding: 6px 4px;
+  box-sizing: border-box;
+}
+
+.xiaoqu-btn:hover {
+  border-color: #409eff;
+  background: #f0f7ff;
+}
+
+/* 已保存状态：蓝色 */
+.xiaoqu-btn.saved {
+  background: #409eff;
+  color: #fff;
+  border-color: #409eff;
+}
+
+.xiaoqu-btn.saved:hover {
+  background: #66b1ff;
+  border-color: #66b1ff;
+}
+
+/* 排名 */
+.xiaoqu-rank {
+  font-size: 11px;
+  opacity: 0.7;
+  line-height: 1;
+}
+
+/* 小区名称 */
+.xiaoqu-name {
+  font-weight: 500;
+  line-height: 1.2;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  max-width: 100%;
+}
+
+/* 分数 */
+.xiaoqu-score {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.xiaoqu-btn.saved .xiaoqu-score {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.xiaoqu-btn:not(.saved) .xiaoqu-score {
+  color: #409eff;
+}
+
+/* 操作模式容器 */
+.operation-mode {
+  background: #409eff;
+  border-radius: 12px;
+  padding: 8px;
+  gap: 6px;
+}
+
+/* 操作按钮 */
+.op-btn {
+  flex: 1;
+  height: 100%;
+  border: none;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+/* 保存按钮 */
+.save-btn {
+  background: rgba(255, 255, 255, 0.3);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.save-btn:hover {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+.save-btn.active {
+  background: #fff;
+  color: #409eff;
+}
+
+/* 取消保存按钮 */
+.remove-btn {
+  background: rgba(255, 255, 255, 0.3);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.remove-btn:hover {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+.remove-btn.active {
+  background: #fff;
+  color: #f56c6c;
+}
+
+/* 空状态提示 */
+.empty-hint {
+  grid-column: 1 / -1;
+  grid-row: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #999;
+  font-size: 14px;
+  text-align: center;
+}

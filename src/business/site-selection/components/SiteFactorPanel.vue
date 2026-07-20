@@ -21,7 +21,7 @@
 
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { FACILITY_CONFIG } from '../composables/useFacilities'
+import { FACILITY_CONFIG } from '../composables/facilityConfig'
 import { useSiteAnalysisApi } from '../composables/useSiteAnalysisApi'
 import { useAuth } from '@/shared/composables/useAuth'
 import ErrorPopup from './ErrorPopup.vue'
@@ -136,7 +136,9 @@ function clearAll(): void {
 async function runAnalysis(): Promise<void> {
   // AUDIT-105: 防重复提交守卫
   if (calculating.value) {
-    console.warn('分析正在进行中，请勿重复点击')
+    // P2-003-FIX: 向用户展示可视化反馈
+    popupMessage.value = '分析正在进行中，请稍候'
+    showPopup.value = true
     return
   }
   

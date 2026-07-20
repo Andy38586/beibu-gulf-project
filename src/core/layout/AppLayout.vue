@@ -167,7 +167,13 @@ const cityButtons = [
       <slot name="right">
         <!-- 右上：雷达图 4×4 -->
         <GcsPanel :w="4" :h="4" anchor="top-right" :offset-x="0" :offset-y="1.25">
-          <RadarChart />
+          <RadarChart 
+            :visible="true" 
+            :xiaoqu="null" 
+            :selected-types="[]" 
+            :embedded="false" 
+            :facility-poi="{}" 
+          />
         </GcsPanel>
         <!-- 右下：图层控制 4×4（接入真实功能） -->
         <GcsPanel :w="4" :h="4" anchor="top-right" :offset-x="0" :offset-y="5.5">

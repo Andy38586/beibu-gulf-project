@@ -11,23 +11,17 @@
  * 1. 点击综合评分 → 在评分上方弹出具体得分（1列6行）
  * 2. 点击其他地方关闭浮窗
  * 3. 点击雷达图轴名称 → 显示该设施POI图层（互斥）
+ *
+ * AUDIT-002(架构): 使用 useECharts composable 复用通用图表逻辑
+ * AUDIT-006(架构): 使用 useRadarChart composable 拆分逻辑，减少文件行数
  */
 
-import { ref, watch, onMounted, onBeforeUnmount, nextTick, computed } from 'vue'
-import * as echarts from 'echarts/core'
-import { RadarChart as EChartsRadarChart } from 'echarts/charts'
-import { TooltipComponent } from 'echarts/components'
-import { CanvasRenderer } from 'echarts/renderers'
-
-// 注册 ECharts 组件
-echarts.use([EChartsRadarChart, TooltipComponent, CanvasRenderer])
-import { FACILITY_LABELS } from '@/shared/utils/facilityLabels'
-import { FACILITY_CONFIG } from '@/business/site-selection/composables/useFacilities'
+import { ref, watch, nextTick, computed, onBeforeUnmount } from 'vue'
 import { useGCS } from '@/core/layout/useGCS.js'
+import { useRadarChart } from './composables/useRadarChart'
 import RadarScoreTooltip from './components/RadarScoreTooltip.vue'
 import type { ScoredXiaoqu } from '@/types/xiaoqu'
-import type { FacilityPoint, FacilityType } from '@/types/facility'
-import type { ECharts } from 'echarts'
+import type { FacilityPoint } from '@/types/facility'
 
 interface Props {
   visible: boolean
@@ -39,12 +33,15 @@ interface Props {
 
 interface Emits {
   (e: 'close'): void
-  (e: 'show-facility-layer', data: {
-    type: string
-    poiList: FacilityPoint[]
-    color: string
-    label: string
-  }): void
+  (
+    e: 'show-facility-layer',
+    data: {
+      type: string
+      poiList: FacilityPoint[]
+      color: string
+      label: string
+    },
+  ): void
   (e: 'hide-facility-layer'): void
 }
 
@@ -53,197 +50,54 @@ const props = withDefaults(defineProps<Props>(), {
   xiaoqu: null,
   selectedTypes: () => [],
   embedded: false,
-  facilityPoi: () => ({})
+  facilityPoi: () => ({}),
 })
 
 const emit = defineEmits<Emits>()
 
 const chartRef = ref<HTMLElement | null>(null)
 const panelRef = ref<HTMLElement | null>(null)
-let chartInstance: ECharts | null = null
-let resizeObserver: ResizeObserver | null = null
-let isRendering = false
 
 const { cellPixel } = useGCS()
 const unitPx = computed(() => cellPixel.value * 0.1)
-/** 0.2 cell 间距 */
 const spacingPx = computed(() => cellPixel.value * 0.2)
 
 /** 弹窗尺寸：2×3 cell（Teleport 到 body 后 v-bind 失效，用 inline style） */
 const tooltipW = computed(() => cellPixel.value * 2)
 const tooltipH = computed(() => cellPixel.value * 3)
 
-/** 浮窗状态 */
-const tooltipVisible = ref<boolean>(false)
-const tooltipPosition = ref<{ left: number; top: number }>({ left: 0, top: 0 })
+/** 使用 useRadarChart composable 处理雷达图逻辑 */
+const {
+  tooltipVisible,
+  tooltipPosition,
+  renderRadar,
+  handleScoreClick,
+  handleGlobalClick,
+  setupResizeObserver,
+} = useRadarChart({
+  getChartRef: () => chartRef.value,
+  getProps: () => props,
+  emit,
+})
 
-/** 当前选中的设施类型 */
-const activeFacilityType = ref<string | null>(null)
-
-/** 获取设施颜色 */
-function getFacilityColor(key: string): string {
-  return FACILITY_CONFIG[key as FacilityType]?.color || '#666'
-}
-
-/** 渲染雷达图 */
-function renderRadar(): void {
-  if (!chartRef.value || isRendering) return
-  // 确保容器有实际尺寸再初始化
-  const w = chartRef.value.clientWidth
-  const h = chartRef.value.clientHeight
-  if (w < 10 || h < 10) {
-    // 容器尺寸为 0，延迟重试（setTimeout 比 rAF 更可靠）
-    setTimeout(() => renderRadar(), 100)
-    return
-  }
-  isRendering = true
-  
-  // AUDIT-315-004: 复用ECharts实例，避免频繁销毁重建
-  if (!chartInstance) {
-    chartInstance = echarts.init(chartRef.value)
-    
-    // 监听雷达图点击事件（轴名称点击）- 只需绑定一次
-    chartInstance.on('click', (params: any) => {
-      if (params.componentType === 'radar' && params.name) {
-        const key = props.selectedTypes.find((k) => FACILITY_LABELS[k as FacilityType] === params.name)
-        if (key) {
-          handleFacilityClick(key)
-        }
-      }
-    })
-  }
-
-  const indicators = props.selectedTypes.map((key) => ({
-    name: FACILITY_LABELS[key as FacilityType] || key,
-    max: 100,
-  }))
-  const values = props.selectedTypes.map((key) => props.xiaoqu?.breakdown?.[key] ?? 0)
-  const name = props.xiaoqu?.name || ''
-
-  chartInstance.setOption({
-    backgroundColor: 'transparent',
-    tooltip: { show: false },
-    radar: {
-      indicator: indicators,
-      radius: '75%',
-      center: ['50%', '50%'],
-      axisName: {
-        color: '#409eff',
-        fontSize: 12,
-        fontWeight: 500,
-        cursor: 'pointer',
-      },
-      splitLine: { lineStyle: { color: '#eee' } },
-      splitArea: {
-        areaStyle: {
-          color: ['rgba(255,255,255,0.1)', 'rgba(255,255,255,0.3)'],
-        },
-      },
-      axisLine: { lineStyle: { color: '#ddd' } },
-    },
-    series: [
-      {
-        type: 'radar',
-        symbolSize: 6,
-        lineStyle: { width: 2, color: '#409eff' },
-        itemStyle: { color: '#409eff' },
-        data: [
-          {
-            value: values,
-            name: name,
-            areaStyle: { opacity: 0.3, color: '#409eff' },
-          },
-        ],
-      },
-    ],
-  })
-
-  isRendering = false
-}
-
-/** 点击综合评分 */
-function handleScoreClick(): void {
-  if (tooltipVisible.value) {
-    tooltipVisible.value = false
-    return
-  }
-
-  // 定位到评分文字上方，水平居中（Teleport 到 body，用视口坐标）
-  const scoreEl = document.querySelector('.score-text')
-  if (scoreEl) {
-    const rect = scoreEl.getBoundingClientRect()
-    let left = rect.left + rect.width / 2 - tooltipW.value / 2
-    let top = rect.top - tooltipH.value - 8
-
-    // 边界检测：确保弹窗在视口内
-    const viewportW = window.innerWidth
-    const viewportH = window.innerHeight
-
-    // 水平居中，但不超出左右边界
-    if (left < 10) left = 10
-    if (left + tooltipW.value > viewportW - 10) left = viewportW - tooltipW.value - 10
-
-    // 如果上方空间不够，显示在下方
-    if (top < 10) {
-      top = rect.bottom + 8
-    }
-
-    // 如果下方也不够，确保至少显示在视口内
-    if (top + tooltipH.value > viewportH - 10) {
-      top = viewportH - tooltipH.value - 10
-    }
-
-    tooltipPosition.value = { left, top }
-    tooltipVisible.value = true
-  }
-}
-
-/** 点击其他地方关闭浮窗 */
-function handleGlobalClick(e: MouseEvent): void {
-  const tooltipEl = document.querySelector('.radar-tooltip')
-  const scoreEl = document.querySelector('.score-text')
-
-  if (
-    tooltipVisible.value &&
-    tooltipEl &&
-    !tooltipEl.contains(e.target) &&
-    !scoreEl?.contains(e.target)
-  ) {
-    tooltipVisible.value = false
-  }
-}
-
-/** 点击设施名称（显示POI图层） */
-function handleFacilityClick(key: string): void {
-  if (activeFacilityType.value === key) {
-    activeFacilityType.value = null
-    emit('hide-facility-layer')
-    return
-  }
-
-  activeFacilityType.value = key
-  emit('show-facility-layer', {
-    type: key,
-    poiList: props.facilityPoi[key] || [],
-    color: getFacilityColor(key),
-    label: FACILITY_LABELS[key as FacilityType],
-  })
-}
+// P1-005-FIX: 标记监听器是否已添加，防止泄漏
+let globalClickListenerAdded = false
 
 watch(
   () => tooltipVisible.value,
   (val) => {
     if (val) {
-      setTimeout(() => window.addEventListener('click', handleGlobalClick), 100)
+      // P1-005-FIX: 立即添加监听器，不使用 setTimeout 延迟
+      if (!globalClickListenerAdded) {
+        window.addEventListener('click', handleGlobalClick)
+        globalClickListenerAdded = true
+      }
     } else {
       window.removeEventListener('click', handleGlobalClick)
+      globalClickListenerAdded = false
     }
   },
 )
-
-function handleResize(): void {
-  chartInstance?.resize()
-}
 
 watch(
   () => props.visible,
@@ -265,28 +119,10 @@ watch(
   },
 )
 
-/** 设置 ResizeObserver */
-function setupResizeObserver(): void {
-  resizeObserver?.disconnect()
-  if (chartRef.value) {
-    resizeObserver = new ResizeObserver(() => {
-      nextTick(() => renderRadar())
-    })
-    resizeObserver.observe(chartRef.value)
-  }
-}
-
-onMounted(() => {
-  window.addEventListener('resize', handleResize)
-  setupResizeObserver()
-})
-
+// P1-005-FIX: 组件卸载时清理全局监听器
 onBeforeUnmount(() => {
-  chartInstance?.dispose()
-  chartInstance = null
   window.removeEventListener('click', handleGlobalClick)
-  window.removeEventListener('resize', handleResize)
-  resizeObserver?.disconnect()
+  globalClickListenerAdded = false
 })
 </script>
 

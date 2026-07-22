@@ -20,14 +20,13 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, onBeforeRouteLeave } from 'vue-router'
 import AppLayout from '@/core/layout/AppLayout.vue'
 import GcsPanel from '@/core/layout/components/GcsPanel.vue'
-import SiteFactorPanel from './components/SiteFactorPanel.vue'
-import SiteLayerPanel from './components/SiteLayerPanel.vue'
-import XiaoquResultPanel from './components/XiaoquResultPanel.vue'
+import SiteAnalysisControlPanel from './components/SiteAnalysisControlPanel.vue'
+import LayerControlPanel from '@/shared/components/LayerControlPanel.vue'
+import PaginatedListPanel from '@/shared/components/PaginatedListPanel.vue'
 import RadarChart from '@/visualization/charts/RadarChart.vue'
-import ErrorPopup from './components/ErrorPopup.vue'
+import ErrorPopup from '@/shared/components/ErrorPopup.vue'
 import { useMapControls } from '@/core/map/composables/useMapControls'
 import { useMapStore } from '@/stores/map'
-import { usePlans } from '@/shared/composables/usePlans'
 import { useSiteSelectionStateStore } from '@/stores/siteSelectionState'
 import { useLayerManager } from '@/core/map/composables/useLayerManager'
 import { FACILITY_CONFIG } from './composables/facilityConfig'
@@ -39,7 +38,6 @@ import type { AnalysisResult } from '@/types/analysis'
 const router = useRouter()
 const { flyTo, startBreathing, stopBreathing, zoomToCity, zoomToDistrict, mapInstance } = useMapControls()
 const mapStore = useMapStore()
-const { saveXiaoqu, removeXiaoqu, createPlan } = usePlans()
 const stateStore = useSiteSelectionStateStore()
 const { registerToggleable, toggleLayer } = useLayerManager()
 
@@ -58,10 +56,10 @@ const currentPlanId = ref<string | null>(null)
 const activeFacilityLayerKey = ref<string | null>(null)
 
 /** 因子面板引用（用于获取/恢复状态） */
-const factorPanelRef = ref<InstanceType<typeof SiteFactorPanel> | null>(null)
+const factorPanelRef = ref<InstanceType<typeof SiteAnalysisControlPanel> | null>(null)
 
-/** 小区结果面板引用（用于获取/恢复状态） */
-const xiaoquResultPanelRef = ref<InstanceType<typeof XiaoquResultPanel> | null>(null)
+/** 小区列表面板引用（用于获取/恢复状态） */
+const favoriteListRef = ref<InstanceType<typeof PaginatedListPanel> | null>(null)
 
 /** P2-004-FIX: 错误弹窗状态 */
 const showErrorPopup = ref<boolean>(false)
@@ -78,10 +76,11 @@ const displayXiaoquForRadar = computed<ScoredXiaoqu | null>(() => selectedXiaoqu
 
 /** 处理分析结果 */
 function handleResult(result: Partial<AnalysisResult>): void {
+  console.log('[SiteSelection] 收到分析结果:', result)
   mapStore.setAnalysisResult(result)
   matchedXiaoqu.value = result.matchedXiaoqu || []
-  selectedTypes.value = (result as any).selectedTypes || []
-  facilityPoi.value = (result as any).facilityPoi || {}
+  selectedTypes.value = result.selectedTypes || []
+  facilityPoi.value = result.facilityPoi || {}
   selectedXiaoqu.value = null
   mapStore.setSelectedXiaoqu(null)
   stopBreathing()
@@ -144,80 +143,30 @@ function handleHideFacilityLayer(): void {
   activeFacilityLayerKey.value = null
 }
 
-/** 点击小区列表项 */
-function handleSelectXiaoqu(xq: ScoredXiaoqu): void {
-  selectedXiaoqu.value = xq
-  mapStore.setSelectedXiaoqu(xq)
-  if ((xq as any).lon && (xq as any).lat) {
-    startBreathing((xq as any).lon, (xq as any).lat)
-    flyTo({ lng: (xq as any).lon, lat: (xq as any).lat }, { height: 5000 })
+/** 点击小区列表项（地图可视化已由FavoriteListPanel内置处理） */
+function handleSelectXiaoqu(xq: any): void {
+  // 更新本地状态，用于雷达图传参
+  console.log('[SiteSelection] 点击小区:', xq)
+  console.log('[SiteSelection] breakdown:', xq.breakdown)
+  
+  // 规范化字段名称（兼容 lon/lng）
+  const normalizedXq: ScoredXiaoqu = {
+    id: xq.id,
+    name: xq.name,
+    lng: xq.lng ?? xq.lon ?? 0,
+    lat: xq.lat ?? xq.latitude ?? 0,
+    score: xq.score ?? 0,
+    breakdown: xq.breakdown || {},
   }
+  
+  selectedXiaoqu.value = normalizedXq
 }
 
-/** 保存小区到方案（无方案时自动创建） */
-async function handleSaveXiaoqu(data: { planId: string | null; xiaoqu: ScoredXiaoqu }): Promise<void> {
-  let pid = data.planId
-  if (!pid) {
-    // 自动创建方案：名称=分析结果时间戳
-    const planName = `选址方案_${new Date().toLocaleTimeString()}`
-    const typeSettings: Record<string, TypeSetting> = {}
-    selectedTypes.value.forEach((key) => {
-      typeSettings[key] = { selected: true, importance: 3, defaultRadius: 0 }
-    })
-    try {
-      const plan = await createPlan(planName, typeSettings)
-      pid = plan?.id || null
-      if (pid) {
-        currentPlanId.value = pid
-      }
-    } catch (error) {
-      // P2-004-FIX: 显示错误提示
-      errorMessage.value = error instanceof Error ? error.message : '自动创建方案失败'
-      showErrorPopup.value = true
-      if (import.meta.env.DEV) {
-        console.error('自动创建方案失败:', error)
-      }
-      return
-    }
-  }
-  if (!pid) return
-  try {
-    await saveXiaoqu(pid, data.xiaoqu)
-    // AUDIT-004: 移除调试日志，仅在开发环境输出
-    if (import.meta.env.DEV) {
-      console.log('小区保存成功:', data.xiaoqu.name)
-    }
-  } catch (error) {
-    // P2-004-FIX: 显示错误提示
-    errorMessage.value = error instanceof Error ? error.message : '保存小区失败'
-    showErrorPopup.value = true
-    if (import.meta.env.DEV) {
-      console.error('保存小区失败:', error)
-    }
-  }
-}
-
-/** 从方案中移除小区 */
-async function handleRemoveXiaoqu(data: { planId: string | null; xiaoquId: string }): Promise<void> {
-  if (!data.planId) {
-    // P2-004-FIX: 显示错误提示
-    errorMessage.value = '未选择方案，无法移除小区'
-    showErrorPopup.value = true
-    return
-  }
-  try {
-    await removeXiaoqu(data.planId, data.xiaoquId)
-    // AUDIT-005: 移除调试日志，仅在开发环境输出
-    if (import.meta.env.DEV) {
-      console.log('小区移除成功')
-    }
-  } catch (error) {
-    // P2-004-FIX: 显示错误提示
-    errorMessage.value = error instanceof Error ? error.message : '移除小区失败'
-    showErrorPopup.value = true
-    if (import.meta.env.DEV) {
-      console.error('移除小区失败:', error)
-    }
+/** 收藏状态变化时同步方案ID */
+function handleFavoriteChange(data: { item: ScoredXiaoqu; isFavorite: boolean }): void {
+  const planId = favoriteListRef.value?.getCurrentPlanId()
+  if (planId && !currentPlanId.value) {
+    currentPlanId.value = planId
   }
 }
 
@@ -240,7 +189,7 @@ onBeforeRouteLeave((to) => {
  */
 function saveCurrentState(): void {
   const factorSettings = factorPanelRef.value?.getSettings?.() || null
-  const savedXiaoquIds = xiaoquResultPanelRef.value?.getSavedIds?.() || []
+  const savedXiaoquIds = favoriteListRef.value?.getSavedIds?.() || []
 
   stateStore.saveState({
     factorSettings,
@@ -268,9 +217,9 @@ function restoreState(): boolean {
     factorPanelRef.value.restoreSettings((savedState as any).factorSettings)
   }
 
-  // 恢复小区结果面板状态
-  if ((savedState as any).savedXiaoquIds && xiaoquResultPanelRef.value?.restoreSavedIds) {
-    xiaoquResultPanelRef.value.restoreSavedIds((savedState as any).savedXiaoquIds)
+  // 恢复小区结果面板状态（方案ID从savedXiaoquIds推断，实际收藏由服务端管理）
+  if ((savedState as any).currentPlanId) {
+    currentPlanId.value = (savedState as any).currentPlanId
   }
 
   // 如果有分析结果，触发结果更新
@@ -355,7 +304,7 @@ onUnmounted(() => {
         </GcsPanel>
         <!-- 左下：图层控制面板 4×4 -->
         <GcsPanel :w="4" :h="4" anchor="top-left" :offset-x="0" :offset-y="5.5">
-          <SiteLayerPanel />
+          <LayerControlPanel />
         </GcsPanel>
       </template>
 
@@ -363,18 +312,26 @@ onUnmounted(() => {
       <template #right>
         <!-- 右上：设施因子选择面板 4×4 -->
         <GcsPanel :w="4" :h="4" anchor="top-right" :offset-x="0" :offset-y="1.25">
-          <SiteFactorPanel ref="factorPanelRef" @result-update="handleResult" />
+          <SiteAnalysisControlPanel ref="factorPanelRef" @result-update="handleResult" />
         </GcsPanel>
-        <!-- 右下：小区结果面板 4×4（8个按钮，双状态） -->
+        <!-- 右下：小区名单列表 4×4 -->
         <GcsPanel :w="4" :h="4" anchor="top-right" :offset-x="0" :offset-y="5.5">
-          <XiaoquResultPanel
-            ref="xiaoquResultPanelRef"
-            :xiaoqu-list="displayXiaoqu"
-            :plan-id="currentPlanId"
-            @select-xiaoqu="handleSelectXiaoqu"
-            @save-xiaoqu="handleSaveXiaoqu"
-            @remove-xiaoqu="handleRemoveXiaoqu"
-          />
+          <PaginatedListPanel
+            ref="favoriteListRef"
+            :items="displayXiaoqu"
+            :page-size="4"
+            title="小区名单"
+            empty-text="暂无分析结果"
+            plan-type="site-selection"
+            @click-item="handleSelectXiaoqu"
+            @favorite-change="handleFavoriteChange"
+          >
+            <template #item="{ item: xq, index }">
+              <span class="xq-rank">{{ index + 1 }}</span>
+              <span class="xq-name">{{ xq.name }}</span>
+              <span class="xq-score">{{ xq.score }}分</span>
+            </template>
+          </PaginatedListPanel>
         </GcsPanel>
       </template>
     </AppLayout>
@@ -393,5 +350,32 @@ onUnmounted(() => {
   width: 100%;
   height: 100%;
   pointer-events: none;
+}
+
+.xq-rank {
+  color: #909399;
+  font-size: 12px;
+  width: 20px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.xq-name {
+  color: #303133;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  text-align: center;
+  min-width: 0;
+}
+
+.xq-score {
+  color: #409eff;
+  font-weight: 600;
+  flex-shrink: 0;
+  min-width: 50px;
+  text-align: right;
 }
 </style>

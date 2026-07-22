@@ -107,6 +107,9 @@ export const useMapStore = defineStore('map', () => {
   const layerCatalog = ref([])
   const baseLayerKey = ref(readStoredBaseLayer())
 
+  /** 当前渲染器引用（由UnifiedMap设置，供业务组件访问） */
+  const currentRenderer = shallowRef(null)
+
   const analysisHandler = ref(null)
   // AUDIT-003 (状态): 从 sessionStorage 恢复分析结果
   const lastAnalysisResult = ref(readStoredAnalysisResult())
@@ -116,6 +119,15 @@ export const useMapStore = defineStore('map', () => {
 
   function setMap(instance) {
     map.value = instance
+  }
+
+  /**
+   * 设置当前渲染器
+   * 由UnifiedMap在渲染器初始化/切换时调用
+   * @param {MapRenderer|null} renderer - 渲染器实例
+   */
+  function setCurrentRenderer(renderer) {
+    currentRenderer.value = renderer
   }
 
   // AUDIT-012: 删除重复函数，保留 setMapType
@@ -226,6 +238,30 @@ export const useMapStore = defineStore('map', () => {
     }
   }
 
+  /**
+   * 注册可切换图层（支持指定初始可见性）
+   * @param {string} key - 图层唯一标识
+   * @param {string} label - 图层显示名称
+   * @param {Function} show - 显示图层的回调
+   * @param {Function} hide - 隐藏图层的回调
+   * @param {boolean} [visible=false] - 初始可见性，默认false
+   */
+  function registerToggleableWithVisibility(key, label, show, hide, visible = false) {
+    const existing = layerCatalog.value.find((e) => e.key === key)
+    const shouldVisible = existing ? existing.visible : visible
+
+    registerLayer(key, label, {
+      visible: shouldVisible,
+      category: 'business',
+      show,
+      hide,
+    })
+
+    if (shouldVisible) {
+      show()
+    }
+  }
+
   function toggleLayer(key) {
     const entry = layerCatalog.value.find((e) => e.key === key)
     // AUDIT-024: 验证entry存在性
@@ -318,6 +354,7 @@ export const useMapStore = defineStore('map', () => {
     activePanel,
     selectedXiaoqu,
     setMap,
+    setCurrentRenderer,
     setMapType,
     setSelectedPort,
     clearSelectedPort,
@@ -326,6 +363,7 @@ export const useMapStore = defineStore('map', () => {
     registerLayer,
     registerBaseLayer,
     registerToggleable,
+    registerToggleableWithVisibility,
     toggleLayer,
     removeLayer,
     clearLayerCatalog,

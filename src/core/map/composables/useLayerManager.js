@@ -53,6 +53,18 @@ export function useLayerManager() {
     store.registerBaseLayer(key, label, showFn, hideFn)
   }
 
+  /**
+   * 注册可切换图层（支持指定初始可见性）
+   * @param {string} key - 图层唯一标识
+   * @param {string} label - 图层显示名称
+   * @param {Function} show - 显示图层的回调
+   * @param {Function} hide - 隐藏图层的回调
+   * @param {boolean} [visible=false] - 初始可见性
+   */
+  function registerToggleableWithVisibility(key, label, show, hide, visible = false) {
+    store.registerToggleableWithVisibility(key, label, show, hide, visible)
+  }
+
   function toggleLayer(key) {
     store.toggleLayer(key)
   }
@@ -62,6 +74,7 @@ export function useLayerManager() {
     registerBaseLayer,
     registerBaseLayerWithRenderer,
     registerToggleable,
+    registerToggleableWithVisibility,
     toggleLayer,
     layerCatalog,
   }

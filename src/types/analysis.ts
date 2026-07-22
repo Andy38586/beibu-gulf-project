@@ -18,6 +18,7 @@ export interface AnalysisResult {
   coverage: Feature<Geometry> | null
   matchedXiaoqu: ScoredXiaoqu[]
   facilityPoi?: Record<string, import('./facility').FacilityPoint[]>
+  selectedTypes?: string[]
 }
 
 // 分析状态（前端组件内部使用）

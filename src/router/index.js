@@ -14,12 +14,12 @@ const routes = [
     component: () => import('@/business/site-selection/SiteSelectionPage.vue'),
     meta: { engine: '2d', title: '选址分析' },
   },
-  // GCS阶段1：新增三维港口分析路由，复用原热力图路由路径
+  // Flood分析路由（原GCS分析），复用原热力图路由路径
   {
     path: '/heatmap',
-    name: 'GCSAnalysis',
-    component: () => import('@/business/gcs-analysis/GCSAnalysisPage.vue'),
-    meta: { engine: '3d', title: '三维港口分析' },
+    name: 'FloodAnalysis',
+    component: () => import('@/business/flood-analysis/FloodAnalysisPage.vue'),
+    meta: { engine: '3d', title: '浸没分析' },
   },
   // P0-001-FIX: 移除 requiresAuth，允许未登录用户访问登录面板
   {

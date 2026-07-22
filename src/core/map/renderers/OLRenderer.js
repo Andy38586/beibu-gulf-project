@@ -287,22 +287,51 @@ export class OLRenderer extends MapRenderer {
     const view = this.map.getView()
     const center = toLonLat(view.getCenter())
     const zoom = view.getZoom()
-    // AUDIT-GIS-003: 使用更准确的 Web Mercator 高度计算公式
-    // 基于标准公式：height ≈ resolution * 256 * 156543.03392804097
-    const resolution = view.getResolution()
-    const height = Math.max(100, resolution * 256 * 156543.03392804097)
-    return {
+
+    const state = {
       center: { lng: center[0], lat: center[1] },
-      height,
+      zoom,
     }
+
+    // 调试日志：输出OL相机状态
+    if (import.meta.env.DEV) {
+      console.log('[OLRenderer._getCameraState] 导出状态:', state)
+    }
+
+    return state
   }
   _setCameraState(state) {
+    // 调试日志：输出导入的原始状态
+    if (import.meta.env.DEV) {
+      console.log('[OLRenderer._setCameraState] 导入原始状态:', state)
+    }
+
     const view = this.map.getView()
     view.setCenter(fromLonLat([state.center.lng, state.center.lat]))
-    if (state.height) {
-      const safeHeight = Math.max(100, state.height)
-      const zoom = 9 - Math.log2(safeHeight / 10000)
-      view.setZoom(zoom)
+
+    // 从 Cesium 的 height 反算 OL zoom
+    // 关键修复：系数必须与 CesiumRenderer._setCameraState 中的系数完全一致
+    // 保证 zoom ↔ height 双向转换数学互逆，避免累积误差
+    // 正公式（Cesium）：height = 300000000 / 2^zoom
+    // 反公式（OL）：  zoom = log2(300000000 / height)
+    if (state.height != null) {
+      // 与 CesiumRenderer 保持一致的最低高度限制（200m）
+      const safeHeight = Math.max(200, state.height)
+      const zoom = Math.log2(300000000 / safeHeight)
+
+      if (import.meta.env.DEV) {
+        console.log('[OLRenderer._setCameraState] 从Cesium height转换zoom:', {
+          height: state.height,
+          heightKm: (state.height / 1000).toFixed(2) + 'km',
+          calculatedZoom: zoom,
+        })
+      }
+
+      // 限制zoom范围，避免超出天地图瓦片支持范围
+      const clampedZoom = Math.min(Math.max(zoom, 9), 18)
+      view.setZoom(clampedZoom)
+    } else if (state.zoom != null) {
+      view.setZoom(state.zoom)
     }
   }
   setBaseLayer(type) {

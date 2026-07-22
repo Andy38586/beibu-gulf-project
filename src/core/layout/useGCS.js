@@ -30,6 +30,14 @@ import { CELL_PADDING, GAP, PANEL_SPACING, SAFE_MARGIN, getCellPixelByViewport }
  *   panelContentSize: (w: number, h: number) => { width: number, height: number },
  *   panelPosition: (w: number, h: number, anchor: string, offsetX?: number, offsetY?: number) => {
  *     left: string, top: string, width: string, height: string
+ *   },
+ *   css: {
+ *     cell8px: import('vue').ComputedRef<string>,
+ *     cell16px: import('vue').ComputedRef<string>,
+ *     cell40px: import('vue').ComputedRef<string>,
+ *     fontSizeTitle: import('vue').ComputedRef<string>,
+ *     fontSizeBody: import('vue').ComputedRef<string>,
+ *     fontSizeSmall: import('vue').ComputedRef<string>
  *   }
  * }}
  */
@@ -177,6 +185,28 @@ export function useGCS() {
   let resizeTimer = null
 
   /**
+   * CSS 尺寸工具集（用于 v-bind() 场景）
+   * 提供常用尺寸的字符串格式，避免组件重复写计算属性
+   * 使用方式：const { css } = useGCS(); 在 CSS 中 v-bind(css.cell8px)
+   */
+  const css = {
+    // 间距尺寸
+    /** 8px = 0.1 cell */
+    cell8px: computed(() => `${cellPixel.value * 0.1}px`),
+    /** 16px = 0.2 cell */
+    cell16px: computed(() => `${cellPixel.value * 0.2}px`),
+    /** 40px = 0.5 cell */
+    cell40px: computed(() => `${cellPixel.value * 0.5}px`),
+    // 字号尺寸（根据项目规范）
+    /** 标题字号 = 0.2 cell (约 16px) */
+    fontSizeTitle: computed(() => `${cellPixel.value * 0.2}px`),
+    /** 正文/列表字号 = 0.175 cell (约 14px) */
+    fontSizeBody: computed(() => `${cellPixel.value * 0.175}px`),
+    /** 辅助/小字号 = 0.15 cell (约 12px) */
+    fontSizeSmall: computed(() => `${cellPixel.value * 0.15}px`),
+  }
+
+  /**
    * 根据当前视口更新 CELL_PIXEL 和视口尺寸
    */
   function updateCellPixel() {
@@ -216,5 +246,13 @@ export function useGCS() {
     cellSize,
     panelContentSize,
     panelPosition, // V2 新增：PPS 引擎核心函数
+    css, // V2 新增：CSS v-bind() 专用工具（保留向后兼容）
+    // V2 优化：直接平铺 CSS 变量，避免组件二次解构
+    cell8px: css.cell8px,
+    cell16px: css.cell16px,
+    cell40px: css.cell40px,
+    fontSizeTitle: css.fontSizeTitle,
+    fontSizeBody: css.fontSizeBody,
+    fontSizeSmall: css.fontSizeSmall,
   }
 }

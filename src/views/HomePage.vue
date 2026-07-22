@@ -7,7 +7,7 @@
  */
 
 import AppLayout from '@/core/layout/AppLayout.vue'
-import InfoPanel from '@/visualization/panels/InfoPanel.vue'
+import PortInfoPanel from '@/visualization/panels/PortInfoPanel.vue'
 import { useMapStore } from '@/stores/map'
 
 const mapStore = useMapStore()
@@ -16,7 +16,7 @@ const mapStore = useMapStore()
 <template>
   <div class="home-page">
     <AppLayout />
-    <InfoPanel v-if="mapStore.selectedPort" :selectedPort="mapStore.selectedPort" />
+    <PortInfoPanel v-if="mapStore.selectedPort" :selectedPort="mapStore.selectedPort" />
   </div>
 </template>
 

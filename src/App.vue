@@ -37,29 +37,50 @@ function waitForRenderer(callback, retries = 0) {
   }
 }
 
-watch(
-  () => route.name,
-  (name) => {
-    stopBreathing()
-    if (name === 'Home') {
-      waitForRenderer(zoomToRegion)
-    }
-    if (name === 'SiteSelection') {
-      waitForRenderer(zoomToCity)
-    }
-  },
-  { immediate: true },
-)
-
 /**
- * 地图引擎由路由元信息决定，禁止业务组件手动切换。
- * 未来新增 3D 路由时，只需在 route.meta 中声明 engine: '3d'。
+ * 合并路由监听器：统一处理路由变化和地图引擎切换
+ *
+ * 关键修复：避免 route.name watcher 在引擎切换时覆盖 importState 设置的相机位置
+ * 通过检测 meta.engine 是否变化来区分"路由导航"和"引擎切换"
  */
 watch(
-  () => route.meta?.engine,
-  (engine) => {
-    if (engine && ['2d', '3d'].includes(engine)) {
-      mapStore.setMapType(engine)
+  () => ({
+    name: route.name,
+    engine: route.meta?.engine,
+  }),
+  (newRoute, oldRoute) => {
+    stopBreathing()
+
+    // 检测是否是引擎切换场景（engine 发生变化）
+    const isEngineSwitch =
+      oldRoute?.engine && newRoute.engine && oldRoute.engine !== newRoute.engine
+
+    if (import.meta.env.DEV) {
+      console.log('[App.vue] route watcher triggered:', {
+        newName: newRoute.name,
+        oldName: oldRoute?.name,
+        newEngine: newRoute.engine,
+        oldEngine: oldRoute?.engine,
+        isEngineSwitch,
+      })
+    }
+
+    // 更新地图引擎类型
+    if (newRoute.engine && ['2d', '3d'].includes(newRoute.engine)) {
+      mapStore.setMapType(newRoute.engine)
+    }
+
+    // 关键修复：仅在非引擎切换场景下执行相机重置
+    // 引擎切换时，相机位置由 UnifiedMap 的 importState 管理
+    if (!isEngineSwitch) {
+      if (newRoute.name === 'Home') {
+        waitForRenderer(zoomToRegion)
+      }
+      if (newRoute.name === 'SiteSelection') {
+        waitForRenderer(zoomToCity)
+      }
+    } else if (import.meta.env.DEV) {
+      console.log('[App.vue] 引擎切换场景，跳过相机重置（由 importState 管理）')
     }
   },
   { immediate: true },
@@ -101,7 +122,7 @@ onMounted(() => {
   z-index: 50;
 }
 /* 注意：不能在这里设置 .app-content > * { pointer-events: auto } */
-/* 原因：这会让 .gcs-analysis-page 等业务页面也变成 pointer-events: auto， */
+/* 原因：这会让 .flood-analysis-page 等业务页面也变成 pointer-events: auto， */
 /* 导致整个页面成为全屏事件拦截层，阻挡下层地图容器的鼠标事件（拖拽/缩放/旋转失效） */
 /* 正确做法：由各业务页面自行控制 pointer-events，面板通过 AppLayout 的 .app-layout > * 恢复 */
 .fade-enter-active,

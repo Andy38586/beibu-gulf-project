@@ -17,7 +17,10 @@ export enum ErrorCode {
  * 自定义API错误类，携带错误码
  */
 export class ApiError extends Error {
-  constructor(message: string, public code: ErrorCode) {
+  constructor(
+    message: string,
+    public code: ErrorCode,
+  ) {
     super(message)
     this.name = 'ApiError'
   }
@@ -25,12 +28,6 @@ export class ApiError extends Error {
 
 const token: Ref<string> = ref('')
 const API_BASE: string = import.meta.env.VITE_API_BASE || '/api'
-
-function loadToken(): void {
-  // AUDIT-SEC-001 修复：移除 localStorage 读取，改用 Cookie 通道
-  // Cookie 由浏览器自动管理，无需手动读取
-  token.value = ''
-}
 
 function setToken(t: string): void {
   // AUDIT-SEC-001 修复：移除 localStorage 写入，Token 仅通过 HttpOnly Cookie 存储
@@ -49,7 +46,8 @@ interface RequestOptions extends RequestInit {
 }
 
 export function useApiRequest() {
-  loadToken()
+  // AUDIT-SEC-001: Cookie 通道认证，token 仅由 setToken() 设置
+  // 不再调用 loadToken()，避免每次调用时重置 token 状态
 
   // 泛型函数，支持调用方推导返回值类型
   async function apiRequest<T = unknown>(path: string, options: RequestOptions = {}): Promise<T> {

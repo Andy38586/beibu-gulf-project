@@ -64,14 +64,26 @@ export const useGcsStore = defineStore('gcs', () => {
   const showFloodArea = ref(false)
   /** 是否显示受影响POI */
   const showFloodPOI = ref(false)
+  /** 淹没分析统计数据（来自floodStatistics.json） */
+  const floodStatistics = ref(null)
+  /** 淹没范围GeoJSON特征（来自floodArea.json，用于地图渲染） */
+  const floodFeatures = ref([])
+  /** 当前淹没水位对应的风险等级 */
+  const floodRiskLevel = ref('')
 
   /**
    * 启动淹没分析
+   * @param {Object} statistics - 统计数据
+   * @param {Array} features - 淹没范围GeoJSON特征
+   * @param {string} riskLevel - 风险等级
    */
-  function startFloodAnalysis() {
+  function startFloodAnalysis(statistics, features, riskLevel) {
     floodActive.value = true
     showFloodArea.value = true
     showFloodPOI.value = true
+    floodStatistics.value = statistics || null
+    floodFeatures.value = features || []
+    floodRiskLevel.value = riskLevel || ''
   }
 
   /**
@@ -81,6 +93,9 @@ export const useGcsStore = defineStore('gcs', () => {
     floodActive.value = false
     showFloodArea.value = false
     showFloodPOI.value = false
+    floodStatistics.value = null
+    floodFeatures.value = []
+    floodRiskLevel.value = ''
   }
 
   // ==================== 港口影响分析状态 ====================
@@ -160,6 +175,9 @@ export const useGcsStore = defineStore('gcs', () => {
     floodActive,
     showFloodArea,
     showFloodPOI,
+    floodStatistics,
+    floodFeatures,
+    floodRiskLevel,
     startFloodAnalysis,
     resetFloodAnalysis,
     

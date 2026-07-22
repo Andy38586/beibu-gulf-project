@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * SiteFactorPanel - 选址分析因子选择面板
+ * SiteAnalysisControlPanel - 选址分析操作控制面板
  *
  * 布局：4×4 Panel，内部 2 列 × 4 行网格（与图层控制面板一致）
  * - 第 1-3 行：6 个设施因子按钮
@@ -24,7 +24,7 @@ import { useRouter } from 'vue-router'
 import { FACILITY_CONFIG } from '../composables/facilityConfig'
 import { useSiteAnalysisApi } from '../composables/useSiteAnalysisApi'
 import { useAuth } from '@/shared/composables/useAuth'
-import ErrorPopup from './ErrorPopup.vue'
+import ErrorPopup from '@/shared/components/ErrorPopup.vue'
 import type { FacilityType, TypeSetting } from '@/types/facility'
 import type { AnalysisResult } from '@/types/analysis'
 
@@ -129,7 +129,7 @@ function clearAll(): void {
     v.selecting = false
     clearTimer(key)
   })
-  emit('result-update', { coverage: null, matchedXiaoqu: [] })
+  emit('result-update', { coverage: null, matchedXiaoqu: [], facilityPoi: {}, selectedTypes: [] })
 }
 
 /** 开始分析 */
@@ -172,6 +172,8 @@ async function runAnalysis(): Promise<void> {
   emit('result-update', {
     coverage: result.coverage ?? null,
     matchedXiaoqu: result.matchedXiaoqu ?? [],
+    facilityPoi: result.facilityPoi ?? {},
+    selectedTypes: selectedKeys.value,
   })
 }
 

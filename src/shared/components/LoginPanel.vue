@@ -13,9 +13,12 @@
 
 import { ref, computed } from 'vue'
 import { useAuth } from '@/shared/composables/useAuth'
-import { CELL_PIXEL } from '@/core/layout/config.js'
+import { useGCS } from '@/core/layout/useGCS.js'
 
 const { login, register, logout, user } = useAuth()
+const { cellPixel, css } = useGCS()
+// 解构出 CSS 变量供 v-bind() 使用
+const { cell16px } = css
 
 const mode = ref('login') // 'login' | 'register'
 const username = ref('')
@@ -24,19 +27,20 @@ const confirmPassword = ref('')
 const errorMsg = ref('')
 const loading = ref(false)
 
-// CSS v-bind 计算属性
-const panelPaddingCss = computed(() => `${CELL_PIXEL * 0.125}px`) // 10px
-const titleFontSizeCss = computed(() => `${CELL_PIXEL * 0.225}px`) // 18px
-const inputHeightCss = computed(() => `${CELL_PIXEL * 0.5}px`) // 40px
-const inputFontSizeCss = computed(() => `${CELL_PIXEL * 0.175}px`) // 14px
-const btnFontSizeCss = computed(() => `${CELL_PIXEL * 0.175}px`) // 14px
-const errorFontSizeCss = computed(() => `${CELL_PIXEL * 0.15}px`) // 12px
+// CSS v-bind 计算属性（使用响应式 cellPixel，随视口变化）
+const panelPaddingCss = computed(() => `${cellPixel.value * 0.125}px`) // 10px
+const titleFontSizeCss = computed(() => `${cellPixel.value * 0.225}px`) // 18px
+const inputHeightCss = computed(() => `${cellPixel.value * 0.5}px`) // 40px
+const inputFontSizeCss = computed(() => `${cellPixel.value * 0.175}px`) // 14px
+const btnFontSizeCss = computed(() => `${cellPixel.value * 0.175}px`) // 14px
+const errorFontSizeCss = computed(() => `${cellPixel.value * 0.15}px`) // 12px
+const avatarFontSizeCss = computed(() => `${cellPixel.value * 0.6}px`) // 48px = 0.6cell
 // 1.8×0.8 Cell 按钮尺寸
-const modeBtnWidthCss = computed(() => `${CELL_PIXEL * 1.8}px`) // 144px
-const modeBtnHeightCss = computed(() => `${CELL_PIXEL * 0.8}px`) // 64px
+const modeBtnWidthCss = computed(() => `${cellPixel.value * 1.8}px`) // 144px
+const modeBtnHeightCss = computed(() => `${cellPixel.value * 0.8}px`) // 64px
 // 3.8×0.8 Cell 表单控件尺寸（输入框 + 提交按钮 + 退出按钮）
-const formWidthCss = computed(() => `${CELL_PIXEL * 3.8}px`) // 304px
-const formHeightCss = computed(() => `${CELL_PIXEL * 0.8}px`) // 64px
+const formWidthCss = computed(() => `${cellPixel.value * 3.8}px`) // 304px
+const formHeightCss = computed(() => `${cellPixel.value * 0.8}px`) // 64px
 
 function switchMode(m) {
   mode.value = m
@@ -185,9 +189,6 @@ async function handleLogout() {
         <div class="user-status">已登录</div>
       </div>
     </template>
-
-    <!-- 底部：退出登录按钮（3.8×0.8 Cell） -->
-    <button v-if="user" class="logout-btn" @click="handleLogout">退出登录</button>
   </div>
 </template>
 
@@ -205,7 +206,7 @@ async function handleLogout() {
 /* 登录/注册切换按钮（1.8×0.8 Cell） */
 .mode-buttons {
   display: flex;
-  gap: 10px;
+  gap: 10px; /* 非8的整数倍，保留 */
   justify-content: center;
 }
 
@@ -237,7 +238,7 @@ async function handleLogout() {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 10px; /* 非8的整数倍，保留 */
   justify-content: flex-start;
   align-items: center;
 }
@@ -245,7 +246,7 @@ async function handleLogout() {
 .form-input {
   width: v-bind(formWidthCss);
   height: v-bind(formHeightCss);
-  padding: 0 12px;
+  padding: 0 12px; /* 12px 非8的整数倍，保留 */
   border: 1px solid #e0e0e0;
   border-radius: 8px;
   font-size: v-bind(inputFontSizeCss);
@@ -299,11 +300,11 @@ async function handleLogout() {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 16px;
+  gap: v-bind(cell16px);
 }
 
 .avatar-icon {
-  font-size: 48px;
+  font-size: v-bind(avatarFontSizeCss); /* 48px = 0.6cell */
   line-height: 1;
 }
 

@@ -22,6 +22,10 @@ import { loadBoundaryGeoJson, BOUNDARY_STYLE } from '@/core/map/composables/useB
 import { useAnalysisLayer } from '@/business/site-selection/composables/useAnalysisLayer'
 import { useLayerManager } from '@/core/map/composables/useLayerManager'
 import { CELL_PIXEL } from '@/core/layout/config.js'
+import { useGCS } from '@/core/layout/useGCS.js'
+
+// 直接从 useGCS 解构 CSS 变量供 v-bind() 使用
+const { cell8px } = useGCS()
 
 const props = defineProps({
   mapType: {
@@ -42,7 +46,6 @@ const switching = ref(false)
 const loadError = ref('')
 const boundaryWarning = ref('')
 const currentRenderer = ref(null)
-const lastState = ref(null)
 const mapStore = useMapStore()
 
 // 两个渲染器实例（OL始终存在，Cesium首次创建后保留）
@@ -160,6 +163,7 @@ async function initRenderer(type, container) {
     if (existingRenderer) {
       // 复用已有渲染器
       currentRenderer.value = existingRenderer
+      mapStore.setCurrentRenderer(existingRenderer)
 
       // Cesium需要重新挂载Viewer到容器（因为之前可能unmount了）
       if (type === '3d') {
@@ -185,6 +189,7 @@ async function initRenderer(type, container) {
       }
 
       currentRenderer.value = renderer
+      mapStore.setCurrentRenderer(renderer)
 
       // 两个渲染器都需要更新尺寸
       currentRenderer.value.updateSize()
@@ -302,16 +307,42 @@ function getContainer(type) {
 async function switchMapType(newType) {
   if (switching.value) return
 
-  const oldType = mapStore.mapType
+  // 关键修复：使用当前渲染器的实际类型，而非 mapStore.mapType
+  // 因为 mapStore.mapType 可能已被 App.vue 的 route.meta.engine watcher 提前更新
+  // 但 currentRenderer 还是旧的渲染器实例
+  const oldType = currentRenderer.value?.getType() || mapStore.mapType
   switching.value = true
   loading.value = true
 
   if (import.meta.env.DEV) {
     console.log(`[UnifiedMap] switchMapType: ${oldType} → ${newType}`)
+    console.log(
+      `[UnifiedMap] mapStore.mapType=${mapStore.mapType}, currentRenderer.type=${currentRenderer.value?.getType()}`,
+    )
+  }
+
+  // 如果 oldType 和 newType 相同，无需切换
+  if (oldType === newType) {
+    if (import.meta.env.DEV) {
+      console.log('[UnifiedMap] 类型相同，跳过切换')
+    }
+    switching.value = false
+    loading.value = false
+    return
   }
 
   try {
-    if (oldType !== newType) {
+    // 关键修复：切换前导出旧渲染器的相机状态
+    let cameraState = null
+    if (currentRenderer.value) {
+      cameraState = currentRenderer.value.exportState()
+      if (import.meta.env.DEV) {
+        console.log('[UnifiedMap] 导出相机状态:', cameraState)
+      }
+    }
+
+    // 更新 mapStore（如果还未更新）
+    if (mapStore.mapType !== newType) {
       mapStore.setMapType(newType)
       if (import.meta.env.DEV) {
         console.log(`[UnifiedMap] mapStore.mapType 更新为: ${mapStore.mapType}`)
@@ -335,6 +366,14 @@ async function switchMapType(newType) {
 
     // initRenderer 内部会通过 waitForContainerVisible 等待浏览器完成 layout
     await initRenderer(newType, container)
+
+    // 关键修复：切换后导入新渲染器的相机状态
+    if (cameraState && currentRenderer.value) {
+      currentRenderer.value.importState(cameraState)
+      if (import.meta.env.DEV) {
+        console.log('[UnifiedMap] 导入相机状态完成')
+      }
+    }
 
     emit('typeChange', newType)
   } catch (error) {
@@ -386,6 +425,7 @@ onMounted(async () => {
   // 首次挂载：v-if已渲染默认类型的容器
   const container = getContainer(props.mapType)
   await initRenderer(props.mapType, container)
+  loading.value = false
 })
 
 onUnmounted(() => {
@@ -455,7 +495,7 @@ defineExpose({
   justify-content: center;
   background: rgba(255, 255, 255, 0.85);
   z-index: 100;
-  gap: 12px;
+  gap: 12px; /* 12px 非8的整数倍，保留 */
 }
 
 .loading-spinner {
@@ -478,21 +518,21 @@ defineExpose({
 
 .map-error {
   position: absolute;
-  top: 10px;
-  left: 10px;
+  top: 10px; /* 10px 非8的整数倍，保留 */
+  left: 10px; /* 10px 非8的整数倍，保留 */
   color: #e74c3c;
   background: rgba(255, 255, 255, 0.9);
-  padding: 8px 12px;
+  padding: v-bind(cell8px) 12px; /* 12px 非8的整数倍，保留 */
   border-radius: 6px;
   z-index: 100;
 }
 
 .boundary-warning {
   position: absolute;
-  bottom: 10px;
-  left: 10px;
+  bottom: 10px; /* 10px 非8的整数倍，保留 */
+  left: 10px; /* 10px 非8的整数倍，保留 */
   background: rgba(255, 200, 0, 0.9);
-  padding: 6px 12px;
+  padding: 6px 12px; /* 6px/12px 非8的整数倍，保留 */
   border-radius: 6px;
   font-size: 13px;
   z-index: 90;

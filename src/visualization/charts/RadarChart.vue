@@ -29,6 +29,8 @@ interface Props {
   selectedTypes: string[]
   embedded: boolean
   facilityPoi: Record<string, FacilityPoint[]>
+  /** 雷达图标题，默认显示"xx小区评分详情图" */
+  title?: string
 }
 
 interface Emits {
@@ -51,6 +53,14 @@ const props = withDefaults(defineProps<Props>(), {
   selectedTypes: () => [],
   embedded: false,
   facilityPoi: () => ({}),
+  title: '',
+})
+
+/** 动态标题：优先使用传入的title，否则显示"xx小区评分详情图" */
+const displayTitle = computed(() => {
+  if (props.title) return props.title
+  if (props.xiaoqu?.name) return `${props.xiaoqu.name}评分详情图`
+  return '评分详情图'
 })
 
 const emit = defineEmits<Emits>()
@@ -110,7 +120,8 @@ watch(
 
 watch(
   [() => props.xiaoqu, () => props.selectedTypes, () => props.facilityPoi],
-  () => {
+  ([newXiaoqu, newTypes, newPoi]) => {
+    console.log('[RadarChart] 数据变化:', { xiaoqu: newXiaoqu, types: newTypes, poi: newPoi })
     setupResizeObserver()
     nextTick(() => renderRadar())
   },
@@ -128,8 +139,8 @@ onBeforeUnmount(() => {
 
 <template>
   <div ref="panelRef" class="radar-panel">
-    <!-- 顶部：小区名称 -->
-    <div v-if="xiaoqu" class="xiaoqu-name">{{ xiaoqu.name }}</div>
+    <!-- 顶部：评分详情图标题（与浸没分析标题样式一致：16px/600加粗） -->
+    <div class="radar-title">{{ displayTitle }}</div>
 
     <!-- 中部：雷达图容器 -->
     <div class="radar-container">
@@ -163,17 +174,16 @@ onBeforeUnmount(() => {
   position: relative;
 }
 
-/* 小区名称：距 panel 顶部 0.2 cell */
-.xiaoqu-name {
-  font-size: 14px;
-  font-weight: 500;
-  color: #333;
+/* 标题：与浸没分析标题样式一致（16px/600加粗/不顶格） */
+.radar-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
   text-align: center;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  margin-top: calc(2 * v-bind(unitPx));
-  margin-bottom: calc(2 * v-bind(unitPx));
+  padding: calc(4 * v-bind(unitPx)) 0 calc(2 * v-bind(unitPx)) 0;
 }
 
 /* 雷达图容器：flex 占满剩余空间，内部用 absolute 确保 ECharts 有确定尺寸 */

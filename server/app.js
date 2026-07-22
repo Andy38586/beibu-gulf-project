@@ -6,6 +6,7 @@ import facilitiesRouter from './routes/facilities.js'
 import siteAnalysisRouter from './routes/siteAnalysis.js'
 import authRouter from './routes/auth.js'
 import plansRouter from './routes/plans.js'
+import gcsRouter from './routes/gcs.js'
 
 const app = express()
 
@@ -22,6 +23,7 @@ app.use('/api/facilities', facilitiesRouter)
 app.use('/api/site-analysis', siteAnalysisRouter)
 app.use('/api/auth', authRouter)
 app.use('/api/plans', plansRouter)
+app.use('/api/gcs', gcsRouter)
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' })
 })

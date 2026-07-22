@@ -38,7 +38,7 @@ const { chartRef } = useECharts({
     title: {
       text: props.title,
       left: 'center',
-      textStyle: { color: '#333', fontSize: 14, fontWeight: 500 },
+      textStyle: { color: '#303133', fontSize: 16, fontWeight: 600 },
     },
     tooltip: { trigger: 'axis' },
     legend: {

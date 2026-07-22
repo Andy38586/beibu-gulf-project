@@ -1,4 +1,11 @@
 <script setup>
+/**
+ * PortInfoPanel - 港口信息展示面板
+ *
+ * 功能：显示选中港口的详细信息（地址、电话、类型、经纬度）
+ *
+ * 布局：绝对定位，右上角
+ */
 import { computed } from 'vue'
 import { useGCS } from '@/core/layout/useGCS.js'
 
@@ -11,7 +18,7 @@ const unitPx = computed(() => cellPixel.value * 0.1)
 </script>
 
 <template>
-  <div class="info-panel" v-if="selectedPort">
+  <div class="port-info-panel" v-if="selectedPort">
     <h2>{{ selectedPort.name }}</h2>
     <div class="info-item">
       <span>📍 地址：</span>
@@ -33,7 +40,7 @@ const unitPx = computed(() => cellPixel.value * 0.1)
 </template>
 
 <style scoped>
-.info-panel {
+.port-info-panel {
   position: absolute;
   top: calc(8.5 * v-bind(unitPx));
   right: calc(1.5 * v-bind(unitPx));
@@ -49,7 +56,7 @@ const unitPx = computed(() => cellPixel.value * 0.1)
   flex-direction: column;
   gap: v-bind(unitPx);
 }
-.info-panel h2 {
+.port-info-panel h2 {
   margin: 0;
   font-size: calc(2.25 * v-bind(unitPx));
   color: #333;

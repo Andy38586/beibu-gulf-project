@@ -1,31 +1,35 @@
 <script setup>
 /**
- * SiteLayerPanel - 选址分析图层控制面板
+ * LayerControlPanel - 通用图层控制面板（公共组件）
  *
  * 职责：
- * 1. 显示 8 个图层按钮（2 列 × 4 行）
+ * 1. 显示图层按钮（2列网格布局）
  * 2. 接入真实图层管理（useLayerManager）
  * 3. 底图互斥（影像/矢量只能选一个）
  * 4. 业务图层无互斥（可多选）
  *
- * 图层列表（8 个）：
- * - 影像底图（base-image，底图类）
- * - 矢量底图（base-vector，底图类）
- * - 行政区划（boundary，业务类）
- * - 港口位置（ports，业务类）
- * - 选址缓冲区（analysis-buffer，业务类）
- * - 选址结果（analysis-result，业务类）
- * - 热力图（heatmap，业务类，占位）
- * - 雷达图（radar，业务类，占位）
+ * 被引用：首页、选址分析、浸没分析
  */
 
 import { computed } from 'vue'
 import { useLayerManager } from '@/core/map/composables/useLayerManager'
+import { useGCS } from '@/core/layout/useGCS.js'
 
 const { layerCatalog, toggleLayer } = useLayerManager()
+const { cellPixel, css } = useGCS()
+// 解构出 CSS 变量供 v-bind() 使用
+const { cell8px } = css
+
+/** 按钮尺寸：1.8宽 × 0.8高（cell单位） */
+const btnWidthCss = computed(() => `${cellPixel.value * 1.8}px`)   // 144px
+const btnHeightCss = computed(() => `${cellPixel.value * 0.8}px`)  // 64px
+/** 字体大小：0.175cell = 14px（基准），0.1cell = 8px（小字） */
+const labelFontSizeCss = computed(() => `${cellPixel.value * 0.175}px`)  // 14px
+const iconFontSizeCss = computed(() => `${cellPixel.value * 0.2}px`)     // 16px
 
 /** 图层按钮列表（按显示顺序） */
 const layerButtons = computed(() => {
+  // 优先按预定义顺序显示，未匹配的图层追加到末尾
   const order = [
     'base-image',
     'base-vector',
@@ -33,15 +37,20 @@ const layerButtons = computed(() => {
     'ports',
     'analysis-coverage',
     'analysis-matched',
+    'gcs-water-surface',
+    'gcs-flood-area',
+    'gcs-facilities',
   ]
-  return order
+  const ordered = order
     .map((key) => layerCatalog.value.find((l) => l.key === key))
     .filter(Boolean)
-    .map((layer) => ({
-      key: layer.key,
-      label: layer.label,
-      active: layer.visible,
-    }))
+  const orderedKeys = new Set(ordered.map((l) => l.key))
+  const extra = layerCatalog.value.filter((l) => !orderedKeys.has(l.key))
+  return [...ordered, ...extra].map((layer) => ({
+    key: layer.key,
+    label: layer.label,
+    active: layer.visible,
+  }))
 })
 
 /** 图层图标映射 */
@@ -51,6 +60,9 @@ function getLayerIcon(label) {
   if (label.includes('行政')) return ''
   if (label.includes('覆盖') || label.includes('缓冲')) return '◎'
   if (label.includes('匹配') || label.includes('结果')) return '◈'
+  if (label.includes('水面')) return ''
+  if (label.includes('淹没')) return '🌊'
+  if (label.includes('设施')) return '🏭'
   return ''
 }
 
@@ -81,17 +93,17 @@ function handleToggle(key) {
 .layer-panel {
   width: 100%;
   height: 100%;
-  padding: 10px;
+  padding: v-bind(cell8px);
   box-sizing: border-box;
 }
 
-/* 图层按钮网格：2 列 × 4 行 */
+/* 图层按钮网格：2列，自动行数 */
 .layer-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  grid-template-rows: repeat(4, 1fr);
-  gap: 10px;
+  gap: v-bind(cell8px);
   height: 100%;
+  align-content: start;
 }
 
 .layer-btn {
@@ -99,16 +111,19 @@ function handleToggle(key) {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: v-bind(cell8px);
+  width: v-bind(btnWidthCss);
+  height: v-bind(btnHeightCss);
   border: 1px solid #e0e0e0;
   border-radius: 12px;
   background: #ffffff;
   color: #333;
   cursor: pointer;
-  font-size: 13px;
+  font-size: v-bind(labelFontSizeCss);
   transition: all 0.2s ease;
-  padding: 6px 4px;
+  padding: v-bind(cell8px) 4px;
   box-sizing: border-box;
+  justify-self: center;
 }
 
 .layer-btn:hover {
@@ -123,7 +138,7 @@ function handleToggle(key) {
 }
 
 .layer-icon {
-  font-size: 16px;
+  font-size: v-bind(iconFontSizeCss);
   line-height: 1;
 }
 

@@ -1,3 +1,9 @@
+:root {
+  /* GCS Cell 单位换算（8px 的整数倍 → Cell） */
+  --gcs-cell-48px: 0.6cell; /* 48px = 0.6 × 80px */
+  --gcs-cell-16px: 0.2cell; /* 16px = 0.2 × 80px */
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -24,8 +30,8 @@ body {
 }
 
 .loading-spinner {
-  width: 48px;
-  height: 48px;
+  width: 48px; /* 48px = 0.6cell */
+  height: 48px; /* 48px = 0.6cell */
   border: 4px solid rgba(64, 158, 255, 0.3);
   border-top-color: #409eff;
   border-radius: 50%;
@@ -33,7 +39,7 @@ body {
 }
 
 .loading-text {
-  margin-top: 16px;
+  margin-top: 16px; /* 16px = 0.2cell */
   color: #409eff;
   font-size: 14px;
 }

@@ -19,70 +19,28 @@
  * </AppLayout>
  */
 
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useGCS } from './useGCS.js'
 import BottomNavBar from './components/BottomNavBar.vue'
 import GcsInspectionOverlay from './components/GcsInspectionOverlay.vue'
 import GcsPanel from './components/GcsPanel.vue'
-import GcsButton from './components/GcsButton.vue'
 import NavButton from './components/NavButton.vue'
+import PanelTitle from '@/shared/components/PanelTitle.vue'
 import LineChart from '@/visualization/charts/LineChart.vue'
 import BarChart from '@/visualization/charts/BarChart.vue'
 import RadarChart from '@/visualization/charts/RadarChart.vue'
-import SiteLayerPanel from '@/business/site-selection/components/SiteLayerPanel.vue'
-import { useLayerManager } from '@/core/map/composables/useLayerManager'
+import LayerControlPanel from '@/shared/components/LayerControlPanel.vue'
 import { useScreenActions } from '@/shared/composables/useScreenActions.js'
 
 const route = useRoute()
-const { showPanels, showTopArea } = useGCS()
-const { layerCatalog, toggleLayer } = useLayerManager()
+const { showPanels, showTopArea, css } = useGCS()
+// 解构出 CSS 变量供 v-bind() 使用
+const { cell8px } = css
 const { flyToCity, goProfileOrBack, userButtonLabel } = useScreenActions()
 
 // 检查模式状态
 const inspectionMode = ref(false)
-
-/**
- * 图层控制：所有已注册图层
- */
-const allLayers = computed(() => layerCatalog.value)
-
-/**
- * 根据图层标签返回对应图标
- */
-function getLayerIcon(label) {
-  if (label.includes('底图') || label.includes('影像') || label.includes('矢量')) return '🗺'
-  if (label.includes('港口')) return '⚓'
-  if (label.includes('航线')) return '✈'
-  if (label.includes('行政') || label.includes('边界')) return '⛭'
-  return '◈'
-}
-
-/**
- * 未来图层占位（暂无实际功能）
- */
-const futureLayers = [
-  { key: 'port-throughput', label: '港口吞吐量', icon: '📊', disabled: true },
-  { key: 'heatmap', label: '热力图', icon: '🔥', disabled: true },
-  { key: 'radar', label: '雷达图', icon: '📡', disabled: true },
-  { key: 'factor-1', label: '交通便捷度', icon: '🚗', disabled: true },
-  { key: 'factor-2', label: '人口密度', icon: '', disabled: true },
-  { key: 'factor-3', label: '经济水平', icon: '💰', disabled: true },
-]
-
-/**
- * 图层控制按钮（8 个，1.8×0.8 Cell 尺寸，无业务响应）
- */
-const layerButtons = [
-  { label: '影像底图', icon: '🗺' },
-  { label: '矢量底图', icon: '🗺' },
-  { label: '行政区划', icon: '⛭' },
-  { label: '港口位置', icon: '' },
-  { label: '港口吞吐量', icon: '📊' },
-  { label: '热力图', icon: '' },
-  { label: '雷达图', icon: '📡' },
-  { label: '交通便捷度', icon: '🚗' },
-]
 
 /**
  * 折线图数据（默认数据，与旧版 Zone2 一致）
@@ -106,15 +64,6 @@ const barData = {
     { name: '2024年', data: [230, 180, 170] },
   ],
 }
-
-/**
- * 城市按钮配置
- */
-const cityButtons = [
-  { label: '钦州', city: '钦州' },
-  { label: '北海', city: '北海' },
-  { label: '防城港', city: '防城港' },
-]
 </script>
 
 <template>
@@ -129,7 +78,7 @@ const cityButtons = [
       :offset-y="0"
       class="title-panel"
     >
-      <div class="title-text">{{ route.meta?.title || '北部湾智慧港口平台' }}</div>
+      <PanelTitle :title="route.meta?.title || '北部湾智慧港口平台'" />
     </GcsPanel>
 
     <!-- 顶部按钮组 Panel（4×1，右上，第一行，与 Title 同行） -->
@@ -167,17 +116,17 @@ const cityButtons = [
       <slot name="right">
         <!-- 右上：雷达图 4×4 -->
         <GcsPanel :w="4" :h="4" anchor="top-right" :offset-x="0" :offset-y="1.25">
-          <RadarChart 
-            :visible="true" 
-            :xiaoqu="null" 
-            :selected-types="[]" 
-            :embedded="false" 
-            :facility-poi="{}" 
+          <RadarChart
+            :visible="true"
+            :xiaoqu="null"
+            :selected-types="[]"
+            :embedded="false"
+            :facility-poi="{}"
           />
         </GcsPanel>
         <!-- 右下：图层控制 4×4（接入真实功能） -->
         <GcsPanel :w="4" :h="4" anchor="top-right" :offset-x="0" :offset-y="5.5">
-          <SiteLayerPanel />
+          <LayerControlPanel />
         </GcsPanel>
       </slot>
     </div>
@@ -203,20 +152,11 @@ const cityButtons = [
   pointer-events: auto;
 }
 
-/* Title Panel 内部样式 */
+/* Title Panel 容器样式 */
 .title-panel {
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-.title-text {
-  font-size: 20px;
-  font-weight: 600;
-  color: #333;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 /* 顶部按钮组 Panel 内部样式 */
@@ -244,8 +184,8 @@ const cityButtons = [
   align-items: flex-start;
   align-content: flex-start;
   justify-content: center;
-  gap: 10px;
-  padding: 10px;
+  gap: 10px; /* 10px 非8的整数倍，保留 */
+  padding: 10px; /* 10px 非8的整数倍，保留 */
   box-sizing: border-box;
 }
 
@@ -254,14 +194,14 @@ const cityButtons = [
   font-size: 16px;
   font-weight: 600;
   color: #333;
-  padding: 8px 0;
+  padding: v-bind(cell8px) 0;
 }
 
 .layer-divider {
   flex: none;
   height: 1px;
   background-color: #f0f0f0;
-  margin: 8px 0;
+  margin: v-bind(cell8px) 0;
 }
 
 .layer-buttons {
@@ -270,6 +210,6 @@ const cityButtons = [
   display: flex;
   flex-wrap: wrap;
   align-content: flex-start;
-  gap: 10px;
+  gap: 10px; /* 10px 非8的整数倍，保留 */
 }
 </style>

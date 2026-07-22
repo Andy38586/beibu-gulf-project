@@ -1,15 +1,20 @@
-<script setup>
+<script setup lang="ts">
 /**
  * ProfilePage - 个人中心（用户工作台）
  *
  * 继承 AppLayout 布局基座：
  * - 左侧：默认可视化面板（折线图 + 柱状图）
- * - 右侧：单个 4×8 Panel，放置 LoginPanel（登录/注册/退出）
- * - PlanSaveModal：方案重命名弹窗
+ * - 右侧：单个 4×8 Panel，放置 LoginPanel + 收藏夹
+ *
+ * 功能：
+ * 1. 登录/注册/退出
+ * 2. 收藏夹：按方案分组显示已收藏的小区/设施
+ * 3. 方案重命名、删除、加载
  *
  * 布局规格：
  * - 右侧 Panel 4×8 Cell，anchor=top-right, offset-y=1.25
- * - LoginPanel 内部：登录/注册按钮 1.8×0.8 并排，退出按钮 3.8×0.8 底部
+ * - 上半部分：LoginPanel
+ * - 下半部分：收藏夹列表
  */
 
 import { ref, watch, onMounted } from 'vue'
@@ -19,32 +24,48 @@ import AppLayout from '@/core/layout/AppLayout.vue'
 import GcsPanel from '@/core/layout/components/GcsPanel.vue'
 import LoginPanel from '@/shared/components/LoginPanel.vue'
 import PlanSaveModal from '@/shared/components/PlanSaveModal.vue'
+import PaginatedListPanel from '@/shared/components/PaginatedListPanel.vue'
 import { usePlans } from '@/shared/composables/usePlans'
 import { useAuth } from '@/shared/composables/useAuth'
+import type { Plan } from '@/types/plan'
+import type { SavedXiaoqu } from '@/types/xiaoqu'
 
 const router = useRouter()
-const { updatePlan, getPlans, deletePlan, loading: plansLoading, deleting: plansDeleting } = usePlans()
-const { user } = useAuth()
+const { updatePlan, getPlans, deletePlan, removeXiaoqu, loading: plansLoading, deleting: plansDeleting } = usePlans()
+const { user, logout } = useAuth()
+
+/**
+ * 处理退出登录
+ */
+async function handleLogout() {
+  await logout()
+  // 清空方案列表和展开状态
+  plansList.value = []
+  plansError.value = ''
+  expandedPlanId.value = null
+}
 
 const restorePlanData = inject('restorePlanData', ref(null))
 const editingPlan = inject('editingPlan', ref(null))
 
 const showSaveModal = ref(false)
-const editingNamePlan = ref(null)
+const editingNamePlan = ref<Plan | null>(null)
 const saveError = ref('')
 const savingName = ref(false)
 
-// AUDIT-110: 方案列表加载和删除的错误处理
+/** 方案列表（含收藏内容） */
 const plansError = ref('')
-const plansList = ref([])
+const plansList = ref<Plan[]>([])
+
+/** 当前展开的方案ID */
+const expandedPlanId = ref<string | null>(null)
 
 /**
- * 加载方案列表
- * AUDIT-110: 添加错误提示
+ * 加载方案列表（含已收藏小区）
  */
 async function loadPlans() {
   if (!user.value) return
-  
+
   plansError.value = ''
   try {
     plansList.value = await getPlans()
@@ -58,15 +79,16 @@ async function loadPlans() {
 
 /**
  * 删除方案
- * AUDIT-110: 添加错误提示和确认弹窗
  */
-async function handleDeletePlan(plan) {
+async function handleDeletePlan(plan: Plan) {
   if (!confirm(`确定要删除方案"${plan.name}"吗？`)) return
-  
+
   plansError.value = ''
   try {
     await deletePlan(plan.id)
-    // 删除成功后重新加载列表
+    if (expandedPlanId.value === plan.id) {
+      expandedPlanId.value = null
+    }
     await loadPlans()
   } catch (error) {
     plansError.value = error.message || '删除失败，请稍后重试'
@@ -74,6 +96,70 @@ async function handleDeletePlan(plan) {
       console.error('[ProfilePage] 删除方案失败:', error)
     }
   }
+}
+
+/**
+ * 切换方案展开/收起
+ */
+function togglePlan(planId: string) {
+  expandedPlanId.value = expandedPlanId.value === planId ? null : planId
+}
+
+/**
+ * 加载方案到选址分析页
+ */
+function handleLoadPlan(plan: Plan) {
+  restorePlanData.value = plan.typeSettings || {}
+  editingPlan.value = plan
+  router.push('/site-selection')
+}
+
+/**
+ * 编辑方案名称
+ */
+function handleEditPlan(plan: Plan) {
+  editingNamePlan.value = plan
+  saveError.value = ''
+  showSaveModal.value = true
+}
+
+/**
+ * 保存方案名称
+ */
+async function handleSaveName(name: string) {
+  if (!editingNamePlan.value) return
+  savingName.value = true
+  saveError.value = ''
+  try {
+    await updatePlan(editingNamePlan.value.id, name.trim(), editingNamePlan.value.typeSettings)
+    showSaveModal.value = false
+    await loadPlans()
+  } catch (e) {
+    saveError.value = e.message || '重命名失败'
+  } finally {
+    savingName.value = false
+  }
+}
+
+/**
+ * 收藏状态变化后重新加载
+ */
+async function handleFavoriteChange() {
+  await loadPlans()
+}
+
+/**
+ * 判断方案是否包含选址分析类型的小区（score > 0）
+ */
+function getSiteXiaoqu(plan: Plan): SavedXiaoqu[] {
+  return plan.savedXiaoqu?.filter((xq) => xq.score > 0) || []
+}
+
+/**
+ * 判断方案是否包含浸没分析类型的设施（score === 0）
+ */
+function getFloodFacilities(plan: Plan): SavedXiaoqu[] {
+  return plan.savedXiaoqu?.filter((xq) => !xq.score || xq.score === 0) || []
 }
 
 // 监听用户登录状态，自动加载方案列表
@@ -85,9 +171,10 @@ watch(
     } else {
       plansList.value = []
       plansError.value = ''
+      expandedPlanId.value = null
     }
   },
-  { immediate: true }
+  { immediate: true },
 )
 
 onMounted(() => {
@@ -95,32 +182,6 @@ onMounted(() => {
     loadPlans()
   }
 })
-
-function handleLoadPlan(plan) {
-  restorePlanData.value = plan.typeSettings || {}
-  editingPlan.value = plan
-  router.push('/site-selection')
-}
-
-function handleEditPlan(plan) {
-  editingNamePlan.value = plan
-  saveError.value = ''
-  showSaveModal.value = true
-}
-
-async function handleSaveName(name) {
-  if (!editingNamePlan.value) return
-  savingName.value = true
-  saveError.value = ''
-  try {
-    await updatePlan(editingNamePlan.value.id, name.trim(), editingNamePlan.value.typeSettings)
-    showSaveModal.value = false
-  } catch (e) {
-    saveError.value = e.message || '重命名失败'
-  } finally {
-    savingName.value = false
-  }
-}
 </script>
 
 <template>
@@ -128,37 +189,105 @@ async function handleSaveName(name) {
     <AppLayout>
       <!-- 左侧：不传 slot，使用 AppLayout 默认可视化面板（折线图 + 柱状图） -->
 
-      <!-- 右侧：单个 4×8 Panel，放置 LoginPanel -->
+      <!-- 右侧：单个 4×8 Panel -->
       <template #right>
         <GcsPanel :w="4" :h="8" anchor="top-right" :offset-x="0" :offset-y="1.25">
-          <LoginPanel />
-          
-          <!-- AUDIT-110: 方案列表错误提示 -->
-          <div v-if="plansError" class="plans-error">
-            {{ plansError }}
-          </div>
-          
-          <!-- AUDIT-109: 方案列表 Loading 状态 -->
-          <div v-if="plansLoading" class="plans-loading">
-            加载中...
-          </div>
-          
-          <!-- 方案列表（如果有） -->
-          <div v-if="plansList.length > 0" class="plans-list">
-            <div v-for="plan in plansList" :key="plan.id" class="plan-item">
-              <span class="plan-name">{{ plan.name }}</span>
-              <div class="plan-actions">
-                <button class="action-btn load-btn" @click="handleLoadPlan(plan)">加载</button>
-                <button class="action-btn edit-btn" @click="handleEditPlan(plan)">编辑</button>
-                <button 
-                  class="action-btn delete-btn" 
-                  :disabled="plansDeleting"
-                  @click="handleDeletePlan(plan)"
-                >
-                  {{ plansDeleting ? '删除中...' : '删除' }}
-                </button>
+          <div class="profile-content">
+            <!-- 顶部：登录面板（用户信息区域） -->
+            <LoginPanel />
+
+            <!-- 中部：收藏夹内容 -->
+            <div class="favorites-container">
+              <!-- 错误提示 -->
+              <div v-if="plansError" class="plans-error">
+                {{ plansError }}
+              </div>
+
+              <!-- 加载状态 -->
+              <div v-if="plansLoading" class="plans-loading">
+                加载中...
+              </div>
+
+              <!-- 收藏夹标题 -->
+              <div v-if="user && plansList.length > 0" class="favorites-header">
+                <span class="favorites-title">我的收藏</span>
+                <span class="favorites-count">{{ plansList.length }}个方案</span>
+              </div>
+
+              <!-- 方案列表（可展开查看收藏内容） -->
+              <div v-if="user && plansList.length > 0" class="plans-list">
+                <div v-for="plan in plansList" :key="plan.id" class="plan-group">
+                  <!-- 方案头部 -->
+                  <div class="plan-header" @click="togglePlan(plan.id)">
+                    <span class="plan-toggle">{{ expandedPlanId === plan.id ? '▼' : '▶' }}</span>
+                    <span class="plan-name">{{ plan.name }}</span>
+                    <span class="plan-count">{{ plan.savedXiaoqu?.length || 0 }}项</span>
+                  </div>
+
+                  <!-- 展开内容：操作按钮 + 收藏列表 -->
+                  <div v-if="expandedPlanId === plan.id" class="plan-detail">
+                    <!-- 操作按钮 -->
+                    <div class="plan-actions">
+                      <button class="action-btn load-btn" @click="handleLoadPlan(plan)">加载</button>
+                      <button class="action-btn edit-btn" @click="handleEditPlan(plan)">重命名</button>
+                      <button
+                        class="action-btn delete-btn"
+                        :disabled="plansDeleting"
+                        @click="handleDeletePlan(plan)"
+                      >
+                        {{ plansDeleting ? '删除中...' : '删除' }}
+                      </button>
+                    </div>
+
+                    <!-- 选址分析收藏（如果有） -->
+                    <div v-if="getSiteXiaoqu(plan).length > 0" class="fav-section">
+                      <div class="fav-section-title">选址分析</div>
+                      <PaginatedListPanel
+                        :items="getSiteXiaoqu(plan)"
+                        :page-size="3"
+                        :show-favorite="true"
+                        :map-interaction="false"
+                        plan-type="site-selection"
+                        @favorite-change="handleFavoriteChange"
+                      >
+                        <template #item="{ item: xq, index }">
+                          <span class="xq-rank">{{ index + 1 }}</span>
+                          <span class="xq-name">{{ xq.name }}</span>
+                          <span class="xq-score">{{ xq.score }}分</span>
+                        </template>
+                      </PaginatedListPanel>
+                    </div>
+
+                    <!-- 浸没分析收藏（如果有） -->
+                    <div v-if="getFloodFacilities(plan).length > 0" class="fav-section">
+                      <div class="fav-section-title">浸没分析</div>
+                      <PaginatedListPanel
+                        :items="getFloodFacilities(plan)"
+                        :page-size="3"
+                        :show-favorite="true"
+                        :map-interaction="false"
+                        plan-type="flood"
+                        @favorite-change="handleFavoriteChange"
+                      >
+                        <template #item="{ item: facility }">
+                          <span class="facility-name">{{ facility.name }}</span>
+                        </template>
+                      </PaginatedListPanel>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 空状态：已登录但无收藏 -->
+              <div v-if="user && !plansLoading && plansList.length === 0" class="empty-favorites">
+                <div class="empty-icon">⭐</div>
+                <div class="empty-text">暂无收藏</div>
+                <div class="empty-hint">去选址分析或浸没分析收藏内容吧</div>
               </div>
             </div>
+
+            <!-- 底部：退出登录按钮 -->
+            <button v-if="user" class="logout-btn" @click="handleLogout">退出登录</button>
           </div>
         </GcsPanel>
       </template>
@@ -169,7 +298,7 @@ async function handleSaveName(name) {
       :visible="showSaveModal"
       :saving="savingName"
       :error-msg="saveError"
-      :initial-name="editingNamePlan?.name || ''"
+      :initial-name="editingPlan?.name || ''"
       @close="showSaveModal = false"
       @save="handleSaveName"
     />
@@ -183,7 +312,15 @@ async function handleSaveName(name) {
   pointer-events: none;
 }
 
-/* AUDIT-110: 方案列表错误提示 */
+.profile-content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow-y: auto;
+  pointer-events: auto;
+}
+
+/* 方案列表错误提示 */
 .plans-error {
   margin-top: 12px;
   padding: 8px 12px;
@@ -192,10 +329,9 @@ async function handleSaveName(name) {
   border-radius: 6px;
   color: #ff4d4f;
   font-size: 13px;
-  pointer-events: auto;
 }
 
-/* AUDIT-109: 方案列表 Loading 状态 */
+/* 方案列表 Loading 状态 */
 .plans-loading {
   margin-top: 12px;
   padding: 8px 12px;
@@ -204,41 +340,91 @@ async function handleSaveName(name) {
   font-size: 13px;
 }
 
-/* 方案列表 */
-.plans-list {
-  margin-top: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  pointer-events: auto;
-}
-
-.plan-item {
+/* 收藏夹标题 */
+.favorites-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 12px;
-  background: #f5f5f5;
-  border-radius: 6px;
+  margin-top: 12px;
+  padding: 8px 4px;
+}
+
+.favorites-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.favorites-count {
+  font-size: 12px;
+  color: #909399;
+}
+
+/* 方案列表 */
+.plans-list {
+  display: flex;
+  flex-direction: column;
   gap: 8px;
+  margin-bottom: 12px;
+}
+
+.plan-group {
+  background: #f5f7fa;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.plan-header {
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  gap: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.plan-header:hover {
+  background: #eef1f6;
+}
+
+.plan-toggle {
+  font-size: 10px;
+  color: #909399;
+  width: 12px;
+  flex-shrink: 0;
 }
 
 .plan-name {
   flex: 1;
   font-size: 13px;
-  color: #333;
+  font-weight: 500;
+  color: #303133;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.plan-count {
+  font-size: 12px;
+  color: #909399;
+  flex-shrink: 0;
+}
+
+.plan-detail {
+  padding: 8px 12px 12px;
+  background: #fff;
+  border-top: 1px solid #ebeef5;
+}
+
 .plan-actions {
   display: flex;
   gap: 6px;
+  margin-bottom: 10px;
 }
 
 .action-btn {
-  padding: 4px 10px;
+  flex: 1;
+  padding: 5px 0;
   border: 1px solid #d9d9d9;
   border-radius: 4px;
   background: #fff;
@@ -273,6 +459,113 @@ async function handleSaveName(name) {
 }
 
 .delete-btn:hover:not(:disabled) {
+  background: #ff4d4f;
+  color: #fff;
+}
+
+/* 收藏分区 */
+.fav-section {
+  margin-bottom: 10px;
+}
+
+.fav-section:last-child {
+  margin-bottom: 0;
+}
+
+.fav-section-title {
+  font-size: 12px;
+  color: #909399;
+  margin-bottom: 6px;
+  padding-left: 4px;
+}
+
+.fav-section :deep(.favorite-list-panel) {
+  background: #f5f7fa;
+}
+
+/* 小区列表样式 */
+.xq-rank {
+  color: #909399;
+  font-size: 12px;
+  width: 20px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.xq-name {
+  color: #303133;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  text-align: center;
+  min-width: 0;
+  font-size: 12px;
+}
+
+.xq-score {
+  color: #409eff;
+  font-weight: 600;
+  flex-shrink: 0;
+  font-size: 12px;
+}
+
+.facility-name {
+  color: #303133;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  font-size: 12px;
+}
+
+/* 空收藏状态 */
+.empty-favorites {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 30px 20px;
+  gap: 6px;
+}
+
+.empty-icon {
+  font-size: 32px;
+  opacity: 0.5;
+}
+
+.empty-text {
+  font-size: 14px;
+  color: #606266;
+  font-weight: 500;
+}
+
+.empty-hint {
+  font-size: 12px;
+  color: #909399;
+}
+
+/* 退出登录按钮（3.8×0.8 Cell） */
+.logout-btn {
+  width: calc(80px * 3.8);
+  height: calc(80px * 0.8);
+  border: 1px solid #ff4d4f;
+  border-radius: 8px;
+  background: #fff;
+  color: #ff4d4f;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: auto;
+  margin-bottom: 20px;
+  align-self: center;
+  flex-shrink: 0;
+}
+
+.logout-btn:hover {
   background: #ff4d4f;
   color: #fff;
 }

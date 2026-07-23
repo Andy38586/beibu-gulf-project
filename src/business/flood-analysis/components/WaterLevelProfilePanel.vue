@@ -14,17 +14,25 @@
  */
 
 import { ref, onMounted, onUnmounted, watch } from 'vue'
-import { useGcsStore } from '@/stores/gcsStore'
+import { useWaterLevelStore } from '@/stores/waterLevelStore'
+import { useProfileStore } from '@/stores/profileStore'
 import { useGCS } from '@/core/layout/useGCS.js'
+import { useApiRequest } from '@/shared/composables/useApiRequest'
 import { ElSelect, ElOption, ElMessage, ElSlider } from 'element-plus'
-import * as echarts from 'echarts'
+import * as echarts from 'echarts/core'
+import { LineChart } from 'echarts/charts'
+import { GridComponent, TitleComponent, LegendComponent, TooltipComponent } from 'echarts/components'
+import { CanvasRenderer } from 'echarts/renderers'
 
-const gcsStore = useGcsStore()
+echarts.use([LineChart, GridComponent, TitleComponent, LegendComponent, TooltipComponent, CanvasRenderer])
+
+const { apiRequest } = useApiRequest()
+const waterLevelStore = useWaterLevelStore()
+const profileStore = useProfileStore()
 // 直接从 useGCS 解构 CSS 变量供 v-bind() 使用
 const { cell8px, cell16px } = useGCS()
 
-/** 本地水位状态（用于Slider绑定） */
-const localWaterLevel = ref(gcsStore.waterLevel)
+const localWaterLevel = ref(waterLevelStore.waterLevel)
 
 /**
  * 可点击刻度标记配置
@@ -39,7 +47,7 @@ const scaleMarks = [
  * 监听Store水位变化，同步到本地
  */
 watch(
-  () => gcsStore.waterLevel,
+  () => waterLevelStore.waterLevel,
   (newLevel) => {
     localWaterLevel.value = newLevel
   },
@@ -51,15 +59,12 @@ watch(
  * 防抖由父组件FloodAnalysisPage统一处理（500ms）
  */
 function onSliderChange(value) {
-  gcsStore.setWaterLevel(value)
+  waterLevelStore.setWaterLevel(value)
 }
 
-/**
- * 点击刻度标记，跳转到对应水位
- */
 function setWaterLevelByMark(value) {
   localWaterLevel.value = value
-  gcsStore.setWaterLevel(value)
+  waterLevelStore.setWaterLevel(value)
 }
 
 /** 剖面线列表 */
@@ -80,15 +85,14 @@ const chartContainerRef = ref(null)
  */
 async function loadProfiles() {
   try {
-    const response = await fetch('/api/gcs/terrain-profiles')
-    const result = await response.json()
+    const result = await apiRequest('/gcs/terrain-profiles')
 
     if (result.code === 200 && result.data) {
       profiles.value = result.data
       // 默认选择第一条剖面线
       if (profiles.value.length > 0) {
         selectedProfileId.value = profiles.value[0].id
-        gcsStore.setSelectedProfile(profiles.value[0].id)
+        profileStore.setSelectedProfile(profiles.value[0].id)
       }
     } else {
       ElMessage.error('加载剖面线数据失败')
@@ -138,7 +142,7 @@ function updateChart() {
   const elevations = profile.points.map((p) => p.elevation)
 
   // 获取当前水位
-  const waterLevel = gcsStore.waterLevel
+  const waterLevel = waterLevelStore.waterLevel
 
   // 配置ECharts选项
   const option = {
@@ -227,7 +231,7 @@ function updateChart() {
  * 监听剖面线选择变化
  */
 watch(selectedProfileId, (newId) => {
-  gcsStore.setSelectedProfile(newId)
+  profileStore.setSelectedProfile(newId)
   updateChart()
 })
 
@@ -235,7 +239,7 @@ watch(selectedProfileId, (newId) => {
  * 监听水位变化，更新图表中的水位线
  */
 watch(
-  () => gcsStore.waterLevel,
+  () => waterLevelStore.waterLevel,
   () => {
     if (chartInstance && selectedProfileId.value) {
       updateChart()

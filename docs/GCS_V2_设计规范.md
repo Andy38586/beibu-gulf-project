@@ -812,6 +812,104 @@ panels:
 
 ---
 
+## 补丁 A：CSS 工具集（实践补充）
+
+> 本补丁记录规范发布后在 `useGCS.js` 实现中新增的工具函数和约定。  
+> 不修改原有规范内容，仅追加说明。
+
+### A.1 背景
+
+Vue 3 的 `v-bind()` 在 CSS 中不支持对象属性访问（如 `v-bind(css.cell8px)` 在旧版本会报错）。  
+为了解决此问题，`useGCS.js` 在 V2 实现中新增了 `css` 对象和一组平铺变量。
+
+### A.2 `css` 对象
+
+```js
+const { css } = useGCS()
+// 在 CSS 中：v-bind(css.cell8px)
+```
+
+`css` 对象包含以下属性：
+
+| 属性 | 计算方式 | 默认值 (CELL_PIXEL=80) | 用途 |
+|---|---|---|---|
+| `cell8px` | `cellPixel × 0.1` | 8px | 极小的间距/内边距 |
+| `cell16px` | `cellPixel × 0.2` | 16px | 中等间距/内边距 |
+| `cell40px` | `cellPixel × 0.5` | 40px | 大间距/面板内部区块间距 |
+| `fontSizeTitle` | **固定 16px** | 16px | 面板标题字号 |
+| `fontSizeBody` | **固定 14px** | 14px | 正文/列表字号 |
+| `fontSizeSmall` | **固定 12px** | 12px | 辅助/标注字号 |
+
+**命名说明**：`cell8px` 的名称为习惯命名（表示"常用于 8px 场景"），实际值随 `CELL_PIXEL` 响应式变化。  
+当 `CELL_PIXEL=90` 时 `cell8px` 实际为 9px，`CELL_PIXEL=70` 时为 7px。
+
+### A.3 字号标准（与响应式解耦）
+
+**设计决策**：字号不参与响应式缩放。与 Panel 尺寸不同，字号适用于固定档位：
+
+| 层级 | 值 | CSS 变量名 | 场景 |
+|---|---|---|---|
+| 标题 | 16px | `fontSizeTitle` | 面板标题、GcsPanel 标题栏 |
+| 正文 | 14px | `fontSizeBody` | 列表项、统计数字、描述文字 |
+| 辅助 | 12px | `fontSizeSmall` | 标注、时间戳、次要信息 |
+
+**理由**：字号跟随 `CELL_PIXEL` 变化会导致：
+- 1920px 视口下标题变成 18px（`90 × 0.2`），过大
+- 768px 视口下正文变成 11.5px（`70 × 0.165`），过小
+- 用户感知的"字号一致性"比"比例一致性"更重要
+
+在 `useGCS.js` 实现中，字号当前使用 `cellPixel × 倍数` 计算（响应式），**建议改为固定 `px` 值**：
+
+```js
+// 建议修改为固定值（当前为响应式，不够合理）
+fontSizeTitle: computed(() => '16px'),
+fontSizeBody: computed(() => '14px'),
+fontSizeSmall: computed(() => '12px'),
+```
+
+### A.4 平铺变量（Flattened Variables）
+
+为了减少组件的重复解构代码，`useGCS` 的返回值直接平铺了常用 CSS 变量：
+
+```js
+return {
+  css,                       // 对象形式，通过解构获取
+  cell8px: css.cell8px,      // 平铺形式，直接解构
+  cell16px: css.cell16px,
+  cell40px: css.cell40px,
+  fontSizeTitle: css.fontSizeTitle,
+  fontSizeBody: css.fontSizeBody,
+  fontSizeSmall: css.fontSizeSmall,
+}
+```
+
+**两种使用方式等价**：
+
+```js
+// 方式 A：通过 css 对象
+const { css } = useGCS()
+// → v-bind(css.cell8px)
+
+// 方式 B：直接解构（推荐，更简洁）
+const { cell8px } = useGCS()
+// → v-bind(cell8px)
+```
+
+**推荐使用方式 B**，减少一层嵌套。
+
+### A.5 `GRID_SIZE` 导出状态
+
+`config.js` 中定义了 `GRID_SIZE = 100`，但当前未在 `useGCS` 返回值中导出。  
+原因：检查模式（Inspection Mode）尚未完整实现。实现时需补加。
+
+对 GcsInspectionOverlay.vue 的提示：
+```js
+// 届时在 useGCS 中追加
+const gridSize = computed(() => GRID_SIZE)  // 100px（固定值，不响应式）
+```
+
+---
+
 **文档结束。**
 
 **核心回顾：**
@@ -820,3 +918,5 @@ panels:
 2. 不存在容器，不存在区域，只有 Panel 实例
 3. 间距统一 2×GAP = 20px，无例外
 4. Panel 用 Cell 定义尺寸，布局引擎计算像素位置
+5. 字号固定档位（16/14/12px），不参与响应式缩放
+6. CSS 变量通过 `useGCS().css` 或平铺形式获取

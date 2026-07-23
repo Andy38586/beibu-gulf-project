@@ -11,10 +11,14 @@
  */
 
 import { computed } from 'vue'
-import { useGcsStore } from '@/stores/gcsStore'
+import { useFloodStore } from '@/stores/floodStore'
+import { usePortImpactStore } from '@/stores/portImpactStore'
+import { useWaterLevelStore } from '@/stores/waterLevelStore'
 import { useGCS } from '@/core/layout/useGCS.js'
 
-const gcsStore = useGcsStore()
+const floodStore = useFloodStore()
+const portImpactStore = usePortImpactStore()
+const waterLevelStore = useWaterLevelStore()
 const { cellPixel, css } = useGCS()
 // 解构出 CSS 变量供 v-bind() 使用
 const { cell8px, cell16px, cell40px } = css
@@ -46,7 +50,7 @@ function formatLoss(loss) {
 
 /** 影响等级（根据总损失计算） */
 const impactLevel = computed(() => {
-  const loss = gcsStore.totalLoss
+  const loss = portImpactStore.totalLoss
   if (loss === 0) return '无'
   if (loss < 10000) return '低'
   if (loss < 50000) return '中'
@@ -67,23 +71,23 @@ const showReport = computed(() => true)
 
     <!-- 灰色内容区：3.8宽×2.8高，距标题下方0.6cell、左右各0.1cell -->
     <div class="report-content" v-if="showReport" :style="contentStyle">
-      <div class="info-item" v-if="gcsStore.floodStatistics">
+      <div class="info-item" v-if="floodStore.floodStatistics">
         <span class="info-label">淹没面积</span>
-        <span class="info-value">{{ gcsStore.floodStatistics.floodArea || 0 }} km²</span>
+        <span class="info-value">{{ floodStore.floodStatistics.floodArea || 0 }} km²</span>
       </div>
-      <div class="info-item" v-if="gcsStore.floodStatistics">
+      <div class="info-item" v-if="floodStore.floodStatistics">
         <span class="info-label">平均水深</span>
-        <span class="info-value">{{ gcsStore.floodStatistics.averageDepth || 0 }} m</span>
+        <span class="info-value">{{ floodStore.floodStatistics.averageDepth || 0 }} m</span>
       </div>
-      <div class="info-item" v-if="gcsStore.floodStatistics">
+      <div class="info-item" v-if="floodStore.floodStatistics">
         <span class="info-label">最大水深</span>
-        <span class="info-value">{{ gcsStore.floodStatistics.maxDepth || 0 }} m</span>
+        <span class="info-value">{{ floodStore.floodStatistics.maxDepth || 0 }} m</span>
       </div>
       <div class="info-item">
         <span class="info-label">受影响设施</span>
         <span class="info-value"
           >{{
-            gcsStore.affectedFacilities.length || gcsStore.floodStatistics?.affectedFacilities || 0
+            portImpactStore.affectedFacilities.length || floodStore.floodStatistics?.affectedFacilities || 0
           }}
           个</span
         >
@@ -92,7 +96,7 @@ const showReport = computed(() => true)
         <span class="info-label">预估损失</span>
         <span class="info-value highlight"
           >{{
-            formatLoss(gcsStore.totalLoss || gcsStore.floodStatistics?.estimatedLoss || 0)
+            formatLoss(portImpactStore.totalLoss || floodStore.floodStatistics?.estimatedLoss || 0)
           }}元</span
         >
       </div>
@@ -100,15 +104,15 @@ const showReport = computed(() => true)
         <span class="info-label">影响等级</span>
         <span class="info-value">{{ impactLevel }}</span>
       </div>
-      <div class="info-item" v-if="gcsStore.floodStatistics?.affectedPorts?.length > 0">
+      <div class="info-item" v-if="floodStore.floodStatistics?.affectedPorts?.length > 0">
         <span class="info-label">受影响港口</span>
-        <span class="info-value">{{ gcsStore.floodStatistics.affectedPorts.join('、') }}</span>
+        <span class="info-value">{{ floodStore.floodStatistics.affectedPorts.join('、') }}</span>
       </div>
     </div>
 
     <!-- 无数据提示 -->
     <div class="no-data-section" v-else>
-      <div class="no-data-text">当前水位：{{ gcsStore.waterLevel.toFixed(1) }} m</div>
+      <div class="no-data-text">当前水位：{{ waterLevelStore.waterLevel.toFixed(1) }} m</div>
       <div class="no-data-hint">开始分析后显示浸没报告</div>
     </div>
   </div>

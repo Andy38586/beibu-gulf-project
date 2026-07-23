@@ -222,31 +222,15 @@ export const useMapStore = defineStore('map', () => {
     }
   }
 
-  function registerToggleable(key, label, show, hide) {
-    const existing = layerCatalog.value.find((e) => e.key === key)
-    const shouldVisible = existing ? existing.visible : true
-
-    registerLayer(key, label, {
-      visible: shouldVisible,
-      category: 'business',
-      show,
-      hide,
-    })
-
-    if (shouldVisible) {
-      show()
-    }
-  }
-
   /**
-   * 注册可切换图层（支持指定初始可见性）
+   * 注册可切换图层
    * @param {string} key - 图层唯一标识
    * @param {string} label - 图层显示名称
    * @param {Function} show - 显示图层的回调
    * @param {Function} hide - 隐藏图层的回调
-   * @param {boolean} [visible=false] - 初始可见性，默认false
+   * @param {boolean} [visible=true] - 初始可见性
    */
-  function registerToggleableWithVisibility(key, label, show, hide, visible = false) {
+  function registerToggleable(key, label, show, hide, visible = true) {
     const existing = layerCatalog.value.find((e) => e.key === key)
     const shouldVisible = existing ? existing.visible : visible
 
@@ -363,7 +347,6 @@ export const useMapStore = defineStore('map', () => {
     registerLayer,
     registerBaseLayer,
     registerToggleable,
-    registerToggleableWithVisibility,
     toggleLayer,
     removeLayer,
     clearLayerCatalog,

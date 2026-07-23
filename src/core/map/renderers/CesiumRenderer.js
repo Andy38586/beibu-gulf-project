@@ -615,7 +615,8 @@ export class CesiumRenderer extends MapRenderer {
       duration: 1,
       orientation: {
         heading: CesiumMath.toRadians(options.heading || 0),
-        pitch: CesiumMath.toRadians(options.pitch || -60),
+        // 默认俯视 -90°（与 OL 2D 平坦视图一致），避免引擎切换时 pickEllipsoid 因倾斜产生偏移
+        pitch: CesiumMath.toRadians(options.pitch ?? -90),
         roll: 0,
       },
     })
@@ -624,16 +625,34 @@ export class CesiumRenderer extends MapRenderer {
   _getCameraState() {
     const camera = this.viewer.camera
 
-    // 使用 positionCartographic：相机位置垂直投影到椭球面
-    // 不因相机 tilt/heading 变化而产生中心点偏移
     const posCartographic = camera.positionCartographic
-    const center = {
-      lng: CesiumMath.toDegrees(posCartographic.longitude),
-      lat: CesiumMath.toDegrees(posCartographic.latitude),
-    }
 
-    // 导出 tilt 角度，供 _setCameraState 恢复时使用
+    // 导出 pitch（恢复时用）
     const pitchDeg = CesiumMath.toDegrees(camera.pitch)
+
+    // 两种方式获取中心点：
+    // 1. positionCartographic: 相机正下方地面点（不受 tilt 影响）
+    // 2. pickEllipsoid: 屏幕中心射线地面点（用户实际注视点，受 tilt 影响）
+    // 优先用 pickEllipsoid（OL 无 tilt 概念，取其"用户想看的点"），
+    // 失败时回退到 positionCartographic
+    const screenCenter = new Cartesian2(
+      this.viewer.container.clientWidth / 2,
+      this.viewer.container.clientHeight / 2,
+    )
+    const cartesian = camera.pickEllipsoid(screenCenter)
+    let center
+    if (cartesian) {
+      const cartographic = Cartographic.fromCartesian(cartesian)
+      center = {
+        lng: CesiumMath.toDegrees(cartographic.longitude),
+        lat: CesiumMath.toDegrees(cartographic.latitude),
+      }
+    } else {
+      center = {
+        lng: CesiumMath.toDegrees(posCartographic.longitude),
+        lat: CesiumMath.toDegrees(posCartographic.latitude),
+      }
+    }
 
     const state = {
       center,
@@ -647,6 +666,7 @@ export class CesiumRenderer extends MapRenderer {
         height: state.height,
         heightKm: (state.height / 1000).toFixed(2) + 'km',
         pitch: pitchDeg.toFixed(2) + '°',
+        usingPick: cartesian !== null,
       })
     }
 

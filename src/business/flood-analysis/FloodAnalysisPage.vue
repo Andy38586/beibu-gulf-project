@@ -22,7 +22,7 @@
  * - AppLayout提供布局基座，业务路由仅替换slot内容
  */
 
-import { onMounted, onUnmounted, watch, nextTick } from 'vue'
+import { onUnmounted, watch, nextTick } from 'vue'
 import AppLayout from '@/core/layout/AppLayout.vue'
 import GcsPanel from '@/core/layout/components/GcsPanel.vue'
 import { useGcsStore } from '@/stores/gcsStore'
@@ -154,16 +154,6 @@ watch(
   },
   { immediate: true },
 )
-
-/**
- * 兜底：组件挂载后延迟注册
- * 防止 watch immediate 时渲染器尚未就绪
- */
-onMounted(() => {
-  setTimeout(() => {
-    registerGcsLayers()
-  }, 1500)
-})
 
 /**
  * 监听水位变化，自动触发淹没分析和影响评估

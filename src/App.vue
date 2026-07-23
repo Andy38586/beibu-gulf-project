@@ -99,7 +99,7 @@ onMounted(() => {
     <main class="app-content">
       <ErrorBoundary>
         <RouterView v-slot="{ Component }">
-          <transition name="fade" mode="out-in">
+          <transition name="fade">
             <component :is="Component" @require-login="handleRequireLogin" />
           </transition>
         </RouterView>

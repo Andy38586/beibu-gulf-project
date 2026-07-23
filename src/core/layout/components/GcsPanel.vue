@@ -51,13 +51,18 @@ const { cellPixel, panelPosition } = useGCS()
  */
 const panelStyle = computed(() => {
   const pos = panelPosition(props.w, props.h, props.anchor, props.offsetX, props.offsetY)
+  // 最后一层防御：如果计算出的宽高为 0，用 cell 单位 × 默认 80px 兜底
+  const wPx = parseFloat(pos.width) || (props.w * 80)
+  const hPx = parseFloat(pos.height) || (props.h * 80)
   return {
     position: 'absolute',
-    left: pos.left,
-    top: pos.top,
-    width: pos.width,
-    height: pos.height,
-    borderRadius: `${cellPixel.value * 0.15}px`,
+    left: pos.left || '20px',
+    top: pos.top || '20px',
+    width: `${wPx}px`,
+    height: `${hPx}px`,
+    minWidth: `${props.w * 80}px`,
+    minHeight: `${props.h * 80}px`,
+    borderRadius: `${(cellPixel.value > 0 ? cellPixel.value : 80) * 0.15}px`,
     backgroundColor: '#ffffff',
     boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
     boxSizing: 'border-box',

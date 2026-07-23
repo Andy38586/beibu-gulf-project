@@ -70,9 +70,15 @@ export function useGCS() {
   // BUGFIX-P3-05: 模块级单例，不重复创建状态
   ensureResizeListener()
 
-  // 防御：若 cellPixel 在路由切换期间被意外清零，强制重算
-  if (cellPixel.value <= 0 || windowWidth.value <= 0) {
+  // 激进防御：任何情况下 cellPixel 或 windowWidth 非法，立即重算
+  // 解决路由切换后 Panel 不可见的硬问题
+  const ww = windowWidth.value
+  const cp = cellPixel.value
+  if (cp <= 0 || !isFinite(cp) || ww <= 0 || !isFinite(ww)) {
     updateCellPixel()
+    // 若重算后仍无效，设定最低兜底值
+    if (cellPixel.value <= 0) cellPixel.value = 80
+    if (windowWidth.value <= 0) windowWidth.value = 1920
   }
 
   // Panel 间距 = 2 × GAP = 20px（V2 新增）
@@ -157,11 +163,11 @@ export function useGCS() {
    *   bottom-right:  left = W - S - (offsetX+w)*C,  top = H - S - (offsetY+h)*C
    */
   function panelPosition(w, h, anchor, offsetX = 0, offsetY = 0) {
-    // C 若为 0 则面板不可见，回退到默认 80px cell
+    // 所有关键值都加兜底，防止 NaN 或 0 导致面板不可见
     const C = cellPixel.value > 0 ? cellPixel.value : 80
     const S = PANEL_SPACING
-    const W = windowWidth.value
-    const H = windowHeight.value
+    const W = windowWidth.value > 0 ? windowWidth.value : 1920
+    const H = windowHeight.value > 0 ? windowHeight.value : 1080
 
     let left, top
 

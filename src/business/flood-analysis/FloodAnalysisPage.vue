@@ -23,7 +23,7 @@
  */
 
 import { onMounted, onUnmounted, watch, nextTick } from 'vue'
-import { onBeforeRouteLeave } from 'vue-router'
+import { onBeforeRouteLeave, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useFloodStateStore } from '@/stores/floodState'
 import AppLayout from '@/core/layout/AppLayout.vue'
@@ -49,6 +49,16 @@ const mapStore = useMapStore()
 const { layerCatalog, registerToggleable } = useLayerManager()
 
 const floodStateStore = useFloodStateStore()
+
+const route = useRoute()
+
+/** 路由切换守卫：响应到达时校验当前路由是否仍为 3D，防止切回 2D 后过期数据污染渲染器 */
+function shouldRenderForCurrentRoute() {
+  const expected = route.meta?.engine
+  const actual = mapStore.currentRenderer?.getType?.()
+  if (!expected || !actual) return false
+  return expected === actual
+}
 
 /** 状态恢复标志：恢复状态时禁止 watch 触发重复 API 请求 */
 let stateRestored = false
@@ -137,14 +147,6 @@ async function registerGcsLayers() {
   if (unmounted) return
 
   gcsLayersRegistered = true
-
-  // 注册后重新触发一次分析（覆盖初始 API 加载完成前的渲染器未就绪场景）
-  analysisTimer = setTimeout(() => {
-    // BUGFIX-P2-02: 新 seq
-    const seq = ++analysisSeq
-    triggerFloodAnalysis(waterLevelStore.waterLevel, seq)
-    triggerImpactAssessment(waterLevelStore.waterLevel, seq)
-  }, ANALYSIS_DELAY)
 
   // 注册水面图层（默认开启）
   registerToggleable(
@@ -288,6 +290,8 @@ async function triggerFloodAnalysis(waterLevel, seq) {
     if (floodAreasData.code === 200 && statisticsData.code === 200) {
       // BUGFIX-P2-02: 已有更新请求，丢弃过期响应
       if (seq !== analysisSeq) return
+      // 如果当前路由不再是 3D，丢弃过期响应防止污染 2D 渲染器
+      if (!shouldRenderForCurrentRoute()) return
       // BUGFIX-P2-07: 实际档位与请求不一致时提示，��义透明
       if (floodAreasData.data.actualWaterLevel !== undefined && floodAreasData.data.actualWaterLevel !== waterLevel) {
         console.info(`[GCS] 请求水位 ${waterLevel}m，实际使用数据档位 ${floodAreasData.data.actualWaterLevel}m`)
@@ -329,6 +333,8 @@ async function triggerImpactAssessment(waterLevel, seq) {
     if (data.code === 200) {
       // BUGFIX-P2-02: 已有更新请求，丢弃过期响应
       if (seq !== analysisSeq) return
+      // 如果当前路由不再是 3D，丢弃过期响应防止污染 2D 渲染器
+      if (!shouldRenderForCurrentRoute()) return
       const result = data.data
       const facilities = result.affectedFacilities || []
       const totalLoss = result.totalLoss || 0
@@ -353,12 +359,27 @@ async function triggerImpactAssessment(waterLevel, seq) {
  * @param {Array} features - GeoJSON特征数组
  */
 function renderFloodAreas(features) {
-  const renderer = mapStore.currentRenderer
+  let renderer = mapStore.currentRenderer
   console.log('[DIAG] renderFloodAreas called', { 'renderer?': !!renderer, 'rendererType': renderer?.getType?.(), 'features.len': features?.length })
   if (!renderer) {
-    console.warn('[DIAG] renderFloodAreas: renderer is null/undefined')
+    // 渲染器尚未就绪，100ms 后重试，最多 10 次（≈1s 窗口）
+    const start = Date.now()
+    const retry = setInterval(() => {
+      renderer = mapStore.currentRenderer
+      if (renderer) {
+        clearInterval(retry)
+        doRenderFloodAreas(renderer, features)
+      } else if (Date.now() - start > 10000) {
+        clearInterval(retry)
+        console.warn('[DIAG] renderFloodAreas: 等待渲染器超时，放弃本次渲染')
+      }
+    }, 100)
     return
   }
+  doRenderFloodAreas(renderer, features)
+}
+
+function doRenderFloodAreas(renderer, features) {
 
   // 先移除旧的淹没范围图层
   renderer.removeLayer(FLOOD_LAYER_ID)
@@ -392,10 +413,26 @@ function renderFloodAreas(features) {
  * @param {Array} facilities - 受影响设施列表
  */
 function renderAffectedFacilities(facilities) {
-  const renderer = mapStore.currentRenderer
+  let renderer = mapStore.currentRenderer
   if (!renderer) {
+    // 渲染器尚未就绪，100ms 后重试
+    const start = Date.now()
+    const retry = setInterval(() => {
+      renderer = mapStore.currentRenderer
+      if (renderer) {
+        clearInterval(retry)
+        doRenderAffectedFacilities(renderer, facilities)
+      } else if (Date.now() - start > 10000) {
+        clearInterval(retry)
+        console.warn('[DIAG] renderAffectedFacilities: 等待渲染器超时')
+      }
+    }, 100)
     return
   }
+  doRenderAffectedFacilities(renderer, facilities)
+}
+
+function doRenderAffectedFacilities(renderer, facilities) {
 
   // 先移除旧图层
   renderer.removeLayer(FACILITY_LAYER_ID)

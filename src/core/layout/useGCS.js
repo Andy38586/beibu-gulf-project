@@ -96,8 +96,8 @@ export function useGCS() {
    * - showTopArea: 是否显示顶部 Panel 组（Title + 城市按钮）
    * - 底部导航条始终显示，确保任何尺寸下都能切换业务
    */
-  const showPanels = computed(() => windowWidth.value >= 768)
-  const showTopArea = computed(() => windowWidth.value >= 768)
+  const showPanels = computed(() => import.meta.env.DEV ? true : windowWidth.value >= 768)
+  const showTopArea = computed(() => import.meta.env.DEV ? true : windowWidth.value >= 768)
 
   /**
    * 计算 w×h 个 Cell 占据的总尺寸（CSS 字符串格式）

@@ -1,35 +1,12 @@
-import fs from 'fs/promises'
 import path from 'path'
 import { fileURLToPath } from 'url'
+import { createFileStore } from '../utils/fileStore.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const DATA_FILE = path.join(__dirname, '../data/users.json')
 
-let writeLock = Promise.resolve()
-function sequential(fn) {
-  const next = writeLock.then(fn, fn)
-  writeLock = next.then(
-    () => {},
-    () => {},
-  )
-  return next
-}
-
-async function readAll() {
-  try {
-    const content = await fs.readFile(DATA_FILE, 'utf-8')
-    return JSON.parse(content)
-  } catch (error) {
-    if (error.code === 'ENOENT') {
-      return []
-    }
-    throw error
-  }
-}
-
-async function writeAll(users) {
-  await fs.writeFile(DATA_FILE, JSON.stringify(users, null, 2), 'utf-8')
-}
+// BUGFIX-R-01: 复用 createFileStore 工厂（users 无缓存，useCache: false）
+const { sequential, readAll, writeAll } = createFileStore(DATA_FILE, { useCache: false })
 
 export async function findByUsername(username) {
   const users = await readAll()

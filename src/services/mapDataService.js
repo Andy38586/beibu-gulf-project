@@ -1,20 +1,40 @@
 import { MAP_CONFIG } from '@/core/config/map'
 
-const cache = new Map()
+// BUGFIX-P3-06: 缓存加 TTL + in-flight Promise 去重
+const CACHE_TTL = 5 * 60 * 1000
+const dataCache = new Map() // url -> { data, cachedAt }
+const pendingCache = new Map() // url -> Promise
 
 async function fetchData(url) {
-  if (cache.has(url)) {
-    return cache.get(url)
+  // TTL 检查
+  const hit = dataCache.get(url)
+  if (hit && Date.now() - hit.cachedAt < CACHE_TTL) {
+    return hit.data
+  }
+  // in-flight 去重：同 URL 已有请求在途，共享同一个 Promise
+  if (pendingCache.has(url)) {
+    return pendingCache.get(url)
   }
 
-  const response = await fetch(url)
-  if (!response.ok) {
-    throw new Error(`请求失败: ${url}, HTTP ${response.status}`)
-  }
+  const p = fetch(url)
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error(`请求失败: ${url}, HTTP ${response.status}`)
+      }
+      return response.json()
+    })
+    .then((data) => {
+      dataCache.set(url, { data, cachedAt: Date.now() })
+      pendingCache.delete(url)
+      return data
+    })
+    .catch((err) => {
+      pendingCache.delete(url)
+      throw err
+    })
 
-  const data = await response.json()
-  cache.set(url, data)
-  return data
+  pendingCache.set(url, p)
+  return p
 }
 
 export const mapDataService = {
@@ -73,13 +93,14 @@ export const mapDataService = {
   },
 
   clearCache() {
-    cache.clear()
+    dataCache.clear()
+    pendingCache.clear()
   },
 
   getCacheStatus() {
     return {
-      ports: cache.has(MAP_CONFIG.DATA_PATHS.ports),
-      boundary: cache.has(MAP_CONFIG.DATA_PATHS.boundary),
+      ports: dataCache.has(MAP_CONFIG.DATA_PATHS.ports),
+      boundary: dataCache.has(MAP_CONFIG.DATA_PATHS.boundary),
     }
   },
 }

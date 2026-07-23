@@ -13,8 +13,33 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { CELL_PADDING, GAP, PANEL_SPACING, SAFE_MARGIN, getCellPixelByViewport } from './config.js'
 
+// BUGFIX-P3-05: GCS 状态模块级单��，全部组件共享同一套响应式状态 + 一个 resize 监听
+const windowWidth = ref(typeof window !== 'undefined' ? window.innerWidth : 1920)
+const windowHeight = ref(typeof window !== 'undefined' ? window.innerHeight : 1080)
+const cellPixel = ref(getCellPixelByViewport(windowWidth.value))
+let resizeTimer = null
+let listenerRegistered = false
+
+function updateCellPixel() {
+  const w = typeof window !== 'undefined' ? window.innerWidth : 1920
+  windowWidth.value = w
+  windowHeight.value = typeof window !== 'undefined' ? window.innerHeight : 1080
+  cellPixel.value = getCellPixelByViewport(w)
+}
+
+function onResize() {
+  clearTimeout(resizeTimer)
+  resizeTimer = setTimeout(updateCellPixel, 150)
+}
+
+function ensureResizeListener() {
+  if (listenerRegistered || typeof window === 'undefined') return
+  window.addEventListener('resize', onResize)
+  listenerRegistered = true
+}
+
 /**
- * 使用 GCS 布局系统
+ * 使用 GCS 布局系统（模块级单例，返回共享引用）
  * @returns {{
  *   windowWidth: import('vue').Ref<number>,
  *   windowHeight: import('vue').Ref<number>,
@@ -42,14 +67,8 @@ import { CELL_PADDING, GAP, PANEL_SPACING, SAFE_MARGIN, getCellPixelByViewport }
  * }}
  */
 export function useGCS() {
-  // 当前视口宽度
-  const windowWidth = ref(typeof window !== 'undefined' ? window.innerWidth : 1920)
-
-  // 当前视口高度（V2 新增，用于 PPS 计算）
-  const windowHeight = ref(typeof window !== 'undefined' ? window.innerHeight : 1080)
-
-  // 当前 Cell 像素值，根据视口宽度动态查表
-  const cellPixel = ref(getCellPixelByViewport(windowWidth.value))
+  // BUGFIX-P3-05: 模块级单例，不重复创建状态
+  ensureResizeListener()
 
   // Panel 间距 = 2 × GAP = 20px（V2 新增）
   const panelSpacing = computed(() => PANEL_SPACING)
@@ -197,13 +216,10 @@ export function useGCS() {
     cell16px: computed(() => `${cellPixel.value * 0.2}px`),
     /** 40px = 0.5 cell */
     cell40px: computed(() => `${cellPixel.value * 0.5}px`),
-    // 字号尺寸（根据项目规范）
-    /** 标题字号 = 0.2 cell (约 16px) */
-    fontSizeTitle: computed(() => `${cellPixel.value * 0.2}px`),
-    /** 正文/列表字号 = 0.175 cell (约 14px) */
-    fontSizeBody: computed(() => `${cellPixel.value * 0.175}px`),
-    /** 辅助/小字号 = 0.15 cell (约 12px) */
-    fontSizeSmall: computed(() => `${cellPixel.value * 0.15}px`),
+    // BUGFIX-R-04: 字号固定 px，与 cell 网格解耦（GCS_V2 规范：16/14/12px）
+    fontSizeTitle: computed(() => '16px'),
+    fontSizeBody: computed(() => '14px'),
+    fontSizeSmall: computed(() => '12px'),
   }
 
   /**
@@ -218,20 +234,6 @@ export function useGCS() {
   /**
    * 防抖 resize 处理（150ms）
    */
-  function onResize() {
-    clearTimeout(resizeTimer)
-    resizeTimer = setTimeout(updateCellPixel, 150)
-  }
-
-  onMounted(() => {
-    window.addEventListener('resize', onResize)
-  })
-
-  onUnmounted(() => {
-    window.removeEventListener('resize', onResize)
-    clearTimeout(resizeTimer)
-  })
-
   return {
     windowWidth,
     windowHeight, // V2 新增

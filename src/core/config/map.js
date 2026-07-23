@@ -1,5 +1,11 @@
+// BUGFIX-P3-07: 天地图 KEY 仅从环境变量读取，缺失时显式报错
+const TIANDITU_KEY = import.meta.env.VITE_TIANDITU_KEY
+if (!TIANDITU_KEY) {
+  console.error('[map/config] 缺少 VITE_TIANDITU_KEY 环境变量，天地图底图将无法加载')
+}
+
 export const MAP_CONFIG = {
-  TIANDITU_KEY: import.meta.env.VITE_TIANDITU_KEY || 'e4cef34602f9d6226f7d142990ab614e',
+  TIANDITU_KEY,
   BASE_LAYERS: {
     image: {
       name: '影像底图',
@@ -48,4 +54,27 @@ export function buildTiandituUrl(layerCode) {
     '{key}',
     MAP_CONFIG.TIANDITU_KEY,
   )
+}
+
+/**
+ * 相机 zoom ↔ height 互逆转换
+ *
+ * zoom↔height 经验公式（基于 MAP_CONFIG.VIEW_LEVELS 校准）：
+ *   height = 300000000 / 2^zoom
+ *   zoom   = log2(300000000 / height)
+ *
+ * zoom=9  → 585938m ≈ 586km (接近 REGION 的 800km)
+ * zoom=12 → 73242m  ≈ 73km  (接近 CITY 的 80km)
+ * zoom=14 → 18311m  ≈ 18km  (接近 DISTRICT 的 8km)
+ */
+
+/** zoom → height（OL → Cesium） */
+export function zoomToHeight(zoom) {
+  return 300000000 / Math.pow(2, zoom)
+}
+
+/** height → zoom（Cesium → OL） */
+export function heightToZoom(height) {
+  const safeHeight = Math.max(200, height)
+  return Math.log2(300000000 / safeHeight)
 }

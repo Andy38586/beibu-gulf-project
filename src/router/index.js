@@ -35,24 +35,5 @@ const router = createRouter({
   routes,
 })
 
-/**
- * 路由守卫：保护需要登录的路由
- * AUDIT-3.9-FIX: 改用 Cookie 检测认证状态（HttpOnly Cookie 由浏览器自动携带）
- * 不再依赖 localStorage 中的 auth_token（已迁移至 HttpOnly Cookie）
- */
-router.beforeEach((to, from, next) => {
-  if (to.meta.requiresAuth) {
-    // 通过检查 document.cookie 无法读取 HttpOnly Cookie，
-    // 改用 /api/auth/me 接口验证登录状态会导致异步复杂度增加。
-    // 简化方案：检查 localStorage 中的用户信息（useAuth 持久化的 userInfo）
-    const hasUser = localStorage.getItem('beibu-gulf-user')
-    if (!hasUser) {
-      // 未登录，跳转到首页（登录面板在首页）
-      next({ name: 'Home' })
-      return
-    }
-  }
-  next()
-})
-
+// BUGFIX-P3-12: 删除路由守卫死代码。四条路由 meta 均无 requiresAuth（P0-001 已移除），beforeEach 永不触发。
 export default router

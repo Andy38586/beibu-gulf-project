@@ -1,43 +1,13 @@
 // 依赖文件在 server/data/ 中的相对位置，勿移动此文件
-import fs from 'fs/promises'
 import path from 'path'
 import { fileURLToPath } from 'url'
-
-// 内存缓存：避免每次读操作都访问磁盘，解决并发读写不一致问题
-let cache = null
-let writeLock = Promise.resolve()
-function sequential(fn) {
-  const next = writeLock.then(fn, fn)
-  writeLock = next.then(
-    () => {},
-    () => {},
-  )
-  return next
-}
+import { createFileStore } from '../utils/fileStore.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const DATA_FILE = path.join(__dirname, '../data/plans.json')
 
-async function readAll() {
-  // 优先使用内存缓存，避免并发读文件导致数据不一致
-  if (cache !== null) return cache
-  try {
-    const content = await fs.readFile(DATA_FILE, 'utf-8')
-    cache = JSON.parse(content)
-    return cache
-  } catch (error) {
-    if (error.code === 'ENOENT') {
-      cache = []
-      return cache
-    }
-    throw error
-  }
-}
-async function writeAll(plans) {
-  await fs.writeFile(DATA_FILE, JSON.stringify(plans, null, 2), 'utf-8')
-  // 写入后立即更新缓存，保证后续读操作拿到最新数据
-  cache = plans
-}
+// BUGFIX-R-01: 复用 createFileStore 工厂，消除与 markersRepo/userService 的重复基础设施
+const { sequential, readAll, writeAll } = createFileStore(DATA_FILE)
 
 export async function findAllByUserId(userId) {
   const plans = await readAll()

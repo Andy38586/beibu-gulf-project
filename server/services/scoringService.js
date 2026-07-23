@@ -12,11 +12,12 @@ export const DEFAULT_WEIGHTS = {
 function distanceScore(xq, points, maxDistanceKm, decayFn) {
   if (!points || points.length === 0) return 0
   const xqPoint = turf.point([xq.lng, xq.lat])
-  const nearest = Math.min(
-    ...points.map((p) =>
-      turf.distance(xqPoint, turf.point([p.lng, p.lat]), { units: 'kilometers' }),
-    ),
-  )
+  // BUGFIX-P3-08: 循环求最小值，避免大数组 spread 栈溢出
+  let nearest = Infinity
+  for (const p of points) {
+    const d = turf.distance(xqPoint, turf.point([p.lng, p.lat]), { units: 'kilometers' })
+    if (d < nearest) nearest = d
+  }
   return decayFn(nearest, maxDistanceKm)
 }
 export function scoreXiaoqu(

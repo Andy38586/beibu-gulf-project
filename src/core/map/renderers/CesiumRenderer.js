@@ -624,53 +624,29 @@ export class CesiumRenderer extends MapRenderer {
   _getCameraState() {
     const camera = this.viewer.camera
 
-    // 方法1：使用 positionCartographic（相机正下方的点）
+    // 使用 positionCartographic：相机位置垂直投影到椭球面
+    // 不因相机 tilt/heading 变化而产生中心点偏移
     const posCartographic = camera.positionCartographic
-    const centerFromPosition = {
+    const center = {
       lng: CesiumMath.toDegrees(posCartographic.longitude),
       lat: CesiumMath.toDegrees(posCartographic.latitude),
     }
 
-    // 方法2：使用 pickEllipsoid（屏幕中心点指向的地面点）
-    // 这才是 OL center 的真正对应：视图中心对应的地理坐标
-    const screenCenter = new Cartesian2(
-      this.viewer.container.clientWidth / 2,
-      this.viewer.container.clientHeight / 2,
-    )
-    const cartesian = camera.pickEllipsoid(screenCenter)
-    let centerFromPick
-    if (cartesian) {
-      const cartographic = Cartographic.fromCartesian(cartesian)
-      centerFromPick = {
-        lng: CesiumMath.toDegrees(cartographic.longitude),
-        lat: CesiumMath.toDegrees(cartographic.latitude),
-      }
-    } else {
-      centerFromPick = null
-    }
-
-    // 获取相机朝向（用于调试）
+    // 导出 tilt 角度，供 _setCameraState 恢复时使用
     const pitchDeg = CesiumMath.toDegrees(camera.pitch)
 
-    // 使用 pickEllipsoid 的结果作为中心点（如果可用）
-    // 因为这才是用户看到的视图中心
-    const center = centerFromPick || centerFromPosition
-
     const state = {
-      center: center,
+      center,
       height: posCartographic.height,
+      pitch: pitchDeg,
     }
 
-    // 详细调试日志
     if (import.meta.env.DEV) {
       console.log('[CesiumRenderer._getCameraState] 导出状态:', {
         center: state.center,
         height: state.height,
         heightKm: (state.height / 1000).toFixed(2) + 'km',
         pitch: pitchDeg.toFixed(2) + '°',
-        centerFromPosition: centerFromPosition,
-        centerFromPick: centerFromPick,
-        usingPick: centerFromPick !== null,
       })
     }
 
@@ -694,11 +670,15 @@ export class CesiumRenderer extends MapRenderer {
     // 限制height范围：最低200m（避免贴地），最高1000000m（避免视角太高）
     height = Math.max(200, Math.min(height, 1000000))
 
+    // 恢复 pitch：优先使用导出的值，其次 -90（垂直俯视，与 OL 2D 平坦视图对应）
+    const pitch = state.pitch != null ? state.pitch : -90
+
     if (import.meta.env.DEV) {
       console.log('[CesiumRenderer._setCameraState] 最终设置:', {
         center: state.center,
         height: height,
         heightKm: (height / 1000).toFixed(2) + 'km',
+        pitch: pitch + '°',
       })
     }
 
@@ -711,7 +691,7 @@ export class CesiumRenderer extends MapRenderer {
       duration: 3.0,
       orientation: {
         heading: 0,
-        pitch: CesiumMath.toRadians(-90),
+        pitch: CesiumMath.toRadians(pitch),
         roll: 0,
       },
     })

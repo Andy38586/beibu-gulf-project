@@ -13,13 +13,12 @@
  *   切回2d → Cesium v-show隐藏 → OL v-show显示（OLRenderer保持活跃）
  *   再次切换3d → Cesium v-show显示（复用Viewer，状态保留）
  */
-import { ref, watch, onMounted, onUnmounted, provide, nextTick, computed } from 'vue'
+import { ref, watch, onMounted, onUnmounted, provide, nextTick, computed, readonly } from 'vue'
 import { createRenderer } from '@/core/map/renderers'
 import { MapRendererKey } from '@/core/map/composables/useMapRenderer'
 import { useMapStore } from '@/stores/map'
 import { loadPorts, buildPortGeoJson, PORT_STYLE } from '@/core/map/composables/usePortLayer'
 import { loadBoundaryGeoJson, BOUNDARY_STYLE } from '@/core/map/composables/useBoundaryLayer'
-import { useAnalysisLayer } from '@/business/site-selection/composables/useAnalysisLayer'
 import { useLayerManager } from '@/core/map/composables/useLayerManager'
 import { CELL_PIXEL } from '@/core/layout/config.js'
 import { useGCS } from '@/core/layout/useGCS.js'
@@ -46,6 +45,7 @@ const switching = ref(false)
 const loadError = ref('')
 const boundaryWarning = ref('')
 const currentRenderer = ref(null)
+const rendererReady = ref(false)
 const mapStore = useMapStore()
 
 // 两个渲染器实例（OL始终存在，Cesium首次创建后保留）
@@ -57,9 +57,9 @@ const cesiumInitialized = ref(false)
 
 provide(MapRendererKey, currentRenderer)
 provide('mapStore', mapStore)
+provide('rendererReady', readonly(rendererReady))
 
 const { registerBaseLayerWithRenderer, registerToggleable, clearLayers } = useLayerManager()
-const { createUpdateHandler } = useAnalysisLayer()
 
 const spinnerSizeCss = computed(() => `${Math.round(CELL_PIXEL * 0.5)}px`)
 
@@ -164,6 +164,7 @@ async function initRenderer(type, container) {
       // 复用已有渲染器
       currentRenderer.value = existingRenderer
       mapStore.setCurrentRenderer(existingRenderer)
+      rendererReady.value = true
 
       // Cesium需要重新挂载Viewer到容器（因为之前可能unmount了）
       if (type === '3d') {
@@ -190,6 +191,7 @@ async function initRenderer(type, container) {
 
       currentRenderer.value = renderer
       mapStore.setCurrentRenderer(renderer)
+      rendererReady.value = true
 
       // 两个渲染器都需要更新尺寸
       currentRenderer.value.updateSize()
@@ -262,9 +264,6 @@ function setupLayers() {
     registerToggleable('ports', '港口位置', currentRenderer.value)
   }
 
-  // 注册分析结果处理函数
-  const updateHandler = createUpdateHandler(currentRenderer.value, registerToggleable)
-  mapStore.registerAnalysisHandler(updateHandler)
 }
 
 /**

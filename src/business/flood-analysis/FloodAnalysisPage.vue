@@ -83,8 +83,8 @@ function registerGcsLayers() {
   }
 
   const renderer = mapStore.currentRenderer?.value
-  if (!renderer || renderer.getType() !== 'cesium') {
-    console.warn('[GCS] registerGcsLayers: 渲染器未就绪', renderer?.getType())
+  if (!renderer) {
+    console.warn('[GCS] registerGcsLayers: 渲染器未就绪')
     return
   }
 
@@ -146,7 +146,7 @@ function registerGcsLayers() {
 watch(
   () => mapStore.currentRenderer?.value,
   (renderer) => {
-    if (renderer && renderer.getType() === 'cesium') {
+    if (renderer) {
       nextTick(() => {
         registerGcsLayers()
       })
@@ -273,7 +273,7 @@ async function triggerImpactAssessment(waterLevel) {
  */
 function renderFloodAreas(features) {
   const renderer = mapStore.currentRenderer?.value
-  if (!renderer || renderer.getType() !== 'cesium') {
+  if (!renderer) {
     return
   }
 
@@ -312,7 +312,7 @@ function renderFloodAreas(features) {
  */
 function renderAffectedFacilities(facilities) {
   const renderer = mapStore.currentRenderer?.value
-  if (!renderer || renderer.getType() !== 'cesium') {
+  if (!renderer) {
     return
   }
 
@@ -395,7 +395,7 @@ watch(
   () => gcsStore.waterLevel,
   (newLevel) => {
     const renderer = mapStore.currentRenderer?.value
-    if (!renderer || renderer.getType() !== 'cesium') {
+    if (!renderer) {
       return
     }
 
@@ -411,7 +411,7 @@ watch(
 onUnmounted(() => {
   // 移除水面
   const renderer = mapStore.currentRenderer?.value
-  if (renderer && renderer.getType() === 'cesium') {
+  if (renderer) {
     renderer.removeWaterSurface(WATER_SURFACE_ID)
   }
 

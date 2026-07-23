@@ -389,6 +389,41 @@ export class OLRenderer extends MapRenderer {
   updateSize() {
     this.map?.updateSize()
   }
+  addWaterSurface(_id, _coordinates, _height, _options) {
+    if (import.meta.env.DEV) {
+      console.warn('[OLRenderer] addWaterSurface 不支持 2D 渲染器')
+    }
+    return false
+  }
+
+  updateWaterLevel(_id, _newHeight) {
+    if (import.meta.env.DEV) {
+      console.warn('[OLRenderer] updateWaterLevel 不支持 2D 渲染器')
+    }
+    return false
+  }
+
+  removeWaterSurface(_id) {
+    if (import.meta.env.DEV) {
+      console.warn('[OLRenderer] removeWaterSurface 不支持 2D 渲染器')
+    }
+    return false
+  }
+
+  removeAllWaterSurfaces() {
+    if (import.meta.env.DEV) {
+      console.warn('[OLRenderer] removeAllWaterSurfaces 不支持 2D 渲染器')
+    }
+    return false
+  }
+
+  setWaterSurfaceVisibility(_id, _visible) {
+    if (import.meta.env.DEV) {
+      console.warn('[OLRenderer] setWaterSurfaceVisibility 不支持 2D 渲染器')
+    }
+    return false
+  }
+
   destroy() {
     super.destroy()
     this.stopBreathing()

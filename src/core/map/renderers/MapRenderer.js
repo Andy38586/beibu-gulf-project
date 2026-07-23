@@ -139,4 +139,53 @@ export class MapRenderer {
   }
 
   _setCameraState(_state) {}
+
+  addWaterSurface(_id, _coordinates, _height = 0, _options = {}) {
+    if (import.meta.env.DEV) {
+      console.warn(`${this.getType()} addWaterSurface 未实现（仅 3D 渲染器支持）`)
+    }
+    return false
+  }
+
+  updateWaterLevel(_id, _newHeight) {
+    if (import.meta.env.DEV) {
+      console.warn(`${this.getType()} updateWaterLevel 未实现（仅 3D 渲染器支持）`)
+    }
+    return false
+  }
+
+  removeWaterSurface(_id) {
+    if (import.meta.env.DEV) {
+      console.warn(`${this.getType()} removeWaterSurface 未实现（仅 3D 渲染器支持）`)
+    }
+    return false
+  }
+
+  removeAllWaterSurfaces() {
+    if (import.meta.env.DEV) {
+      console.warn(`${this.getType()} removeAllWaterSurfaces 未实现（仅 3D 渲染器支持）`)
+    }
+    return false
+  }
+
+  setWaterSurfaceVisibility(_id, _visible) {
+    if (import.meta.env.DEV) {
+      console.warn(`${this.getType()} setWaterSurfaceVisibility 未实现（仅 3D 渲染器支持）`)
+    }
+    return false
+  }
+
+  startBreathing(_lng, _lat) {
+    if (import.meta.env.DEV) {
+      console.warn(`${this.getType()} startBreathing 未实现（仅 3D 渲染器支持）`)
+    }
+    return false
+  }
+
+  stopBreathing() {
+    if (import.meta.env.DEV) {
+      console.warn(`${this.getType()} stopBreathing 未实现（仅 3D 渲染器支持）`)
+    }
+    return false
+  }
 }

@@ -27,6 +27,7 @@ import RadarChart from '@/visualization/charts/RadarChart.vue'
 import ErrorPopup from '@/shared/components/ErrorPopup.vue'
 import { useMapControls } from '@/core/map/composables/useMapControls'
 import { useMapStore } from '@/stores/map'
+import { useAnalysisLayer } from './composables/useAnalysisLayer'
 import { useSiteSelectionStateStore } from '@/stores/siteSelectionState'
 import { useLayerManager } from '@/core/map/composables/useLayerManager'
 import { FACILITY_CONFIG } from './composables/facilityConfig'
@@ -40,6 +41,7 @@ const { flyTo, startBreathing, stopBreathing, zoomToCity, zoomToDistrict, mapIns
 const mapStore = useMapStore()
 const stateStore = useSiteSelectionStateStore()
 const { registerToggleable, toggleLayer } = useLayerManager()
+const { createUpdateHandler } = useAnalysisLayer()
 
 /** 分析结果 */
 const matchedXiaoqu = ref<ScoredXiaoqu[]>([])
@@ -77,6 +79,14 @@ const displayXiaoquForRadar = computed<ScoredXiaoqu | null>(() => selectedXiaoqu
 /** 处理分析结果 */
 function handleResult(result: Partial<AnalysisResult>): void {
   console.log('[SiteSelection] 收到分析结果:', result)
+
+  // 注册分析结果处理函数（从 UnifiedMap 移入业务层，切断 core→business 依赖）
+  const renderer = mapInstance.value?.getRenderer?.()
+  if (renderer && !mapStore.analysisHandler?.value) {
+    const updateHandler = createUpdateHandler(renderer, registerToggleable)
+    mapStore.registerAnalysisHandler(updateHandler)
+  }
+
   mapStore.setAnalysisResult(result)
   matchedXiaoqu.value = result.matchedXiaoqu || []
   selectedTypes.value = result.selectedTypes || []

@@ -287,8 +287,10 @@ export class OLRenderer extends MapRenderer {
         }
       }
     }
+    // BUGFIX-P3-01: 兼容数据源 lon 字段（ports.json）和接口 lng 字段
+    const lng = target.lng ?? target.lon
     view.animate({
-      center: fromLonLat([target.lng, target.lat]),
+      center: fromLonLat([lng, target.lat]),
       zoom: options.zoom || view.getZoom(),
       duration: 1000,
     })

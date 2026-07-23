@@ -600,7 +600,10 @@ export class CesiumRenderer extends MapRenderer {
       }
     }
     const height = options?.height ?? 5000
-    const destination = Cartesian3.fromDegrees(target.lng, target.lat, height)
+    // BUGFIX-P3-01: 兼容数据源 lon 字段（ports.json）和接口 lng 字段
+    const lng = target.lng ?? target.lon
+    const lat = target.lat
+    const destination = Cartesian3.fromDegrees(lng, lat, height)
     this.viewer.camera.flyTo({
       destination,
       // BUGFIX-P1-10: Cesium duration 单位为秒（原 1000 秒 ≈ 16.6 分钟）

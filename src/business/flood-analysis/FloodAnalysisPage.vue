@@ -59,6 +59,9 @@ let analysisTimer = null
 // BUGFIX-P2-02: 请求序号，仅最新一代响应允许写 store
 let analysisSeq = 0
 
+// BUGFIX: 组件卸载标记，阻止 registerGcsLayers 中 await 后的操作
+let unmounted = false
+
 /** 防抖延迟（毫秒） */
 const ANALYSIS_DELAY = 500
 
@@ -129,6 +132,10 @@ async function registerGcsLayers() {
     return
   }
 
+  // BUGFIX-P3-02: 先加载水面坐标，再设注册标志（防止 await 期间卸载导致竞态）
+  const waterCoords = await loadWaterAreaCoordinates()
+  if (unmounted) return
+
   gcsLayersRegistered = true
 
   // 注册后重新触发一次分析（覆盖初始 API 加载完成前的渲染器未就绪场景）
@@ -140,9 +147,6 @@ async function registerGcsLayers() {
   }, ANALYSIS_DELAY)
 
   // 注册水面图层（默认开启）
-  // 水面用自定义回调而非传 renderer，因为 addWaterSurface 不走 _layers
-  // BUGFIX-P3-02: 先加载水面坐标再注册
-  const waterCoords = await loadWaterAreaCoordinates()
   registerToggleable(
     'gcs-water-surface',
     '水面',
@@ -483,6 +487,14 @@ watch(
  * 确保离开三维分析页面后清理所有分析数据
  */
 onUnmounted(() => {
+  unmounted = true
+
+  // 清除防抖分析定时器，避免卸载后残留触发
+  if (analysisTimer) {
+    clearTimeout(analysisTimer)
+    analysisTimer = null
+  }
+
   // 移除水面
   const renderer = mapStore.currentRenderer
   if (renderer) {

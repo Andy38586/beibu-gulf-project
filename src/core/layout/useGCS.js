@@ -70,6 +70,11 @@ export function useGCS() {
   // BUGFIX-P3-05: 模块级单例，不重复创建状态
   ensureResizeListener()
 
+  // 防御：若 cellPixel 在路由切换期间被意外清零，强制重算
+  if (cellPixel.value <= 0 || windowWidth.value <= 0) {
+    updateCellPixel()
+  }
+
   // Panel 间距 = 2 × GAP = 20px（V2 新增）
   const panelSpacing = computed(() => PANEL_SPACING)
 
@@ -152,7 +157,8 @@ export function useGCS() {
    *   bottom-right:  left = W - S - (offsetX+w)*C,  top = H - S - (offsetY+h)*C
    */
   function panelPosition(w, h, anchor, offsetX = 0, offsetY = 0) {
-    const C = cellPixel.value
+    // C 若为 0 则面板不可见，回退到默认 80px cell
+    const C = cellPixel.value > 0 ? cellPixel.value : 80
     const S = PANEL_SPACING
     const W = windowWidth.value
     const H = windowHeight.value

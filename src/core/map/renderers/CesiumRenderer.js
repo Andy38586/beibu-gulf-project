@@ -16,8 +16,9 @@ import {
   PerInstanceColorAppearance,
   GeometryInstance,
   ColorGeometryInstanceAttribute,
+  PointGraphics,
 } from 'cesium'
-import { MAP_CONFIG, buildTiandituUrl } from '@/core/config/map'
+import { MAP_CONFIG, buildTiandituUrl, zoomToHeight } from '@/core/config/map'
 
 /**
  * CesiumViewer单例管理器
@@ -299,17 +300,22 @@ export class CesiumRenderer extends MapRenderer {
    */
   _setupCameraDebounce() {
     const DEBOUNCE_DELAY = 300
-    this.viewer.camera.changed.addEventListener(() => {
+    // BUGFIX-P1-12: 保存监听器引用，供 destroy 移除，防止泄漏与 TypeError
+    this._cameraChangedHandler = () => {
       // 清除之前的防抖定时器
       if (this._cameraDebounceTimer) {
         clearTimeout(this._cameraDebounceTimer)
       }
       // 设置新的防抖定时器
       this._cameraDebounceTimer = setTimeout(() => {
-        this.viewer.scene.requestRender()
+        // BUGFIX-P1-12: viewer 可能已置空，防御
+        if (this.viewer) {
+          this.viewer.scene.requestRender()
+        }
         this._cameraDebounceTimer = null
       }, DEBOUNCE_DELAY)
-    })
+    }
+    this.viewer.camera.changed.addEventListener(this._cameraChangedHandler)
   }
 
   _setupZoomLimits() {
@@ -325,30 +331,10 @@ export class CesiumRenderer extends MapRenderer {
     controller.enableLook = true
   }
 
-  /**
-   * 重写destroy方法：3D→2D切换时卸载DOM，但不销毁Viewer实例
-   * 这样再次进入3D路由时可以复用Viewer，保留状态
-   */
-  destroy() {
-    // 卸载DOM（不销毁Viewer）
-    cesiumViewerManager.unmount()
-    // 清理当前Renderer的图层和事件
-    super.destroy()
-  }
-
   _positionCamera() {
     this.viewer.scene.globe.enableLighting = true
-    const { center, heading, pitch, roll } = MAP_CONFIG.CAMERA
-    const destination = Cartesian3.fromDegrees(center.lng, center.lat, center.height)
-    // 使用 setView 而非 flyTo，避免异步动画覆盖后续的 importState
-    this.viewer.camera.setView({
-      destination,
-      orientation: {
-        heading: CesiumMath.toRadians(heading),
-        pitch: CesiumMath.toRadians(pitch),
-        roll,
-      },
-    })
+    // 不主动定位相机，保持 Cesium 默认的远距离视角（美国上空）
+    // 后续 _setCameraState 的 flyTo 会从该位置飞向目标，产生"地球飞转"效果
   }
 
   _initBaseLayers() {
@@ -530,15 +516,29 @@ export class CesiumRenderer extends MapRenderer {
     try {
       const dataSource = await GeoJsonDataSource.load(geojson)
 
+      if (import.meta.env.DEV) {
+        console.log(`[CesiumRenderer] GeoJSON ${id} entities:`, dataSource.entities.values.length)
+      }
       dataSource.entities.values.forEach((entity) => {
         entity.properties.featureType = options.featureType || 'geojson'
         if (entity.polygon) {
+          entity.polygon.height = 0.5
           entity.polygon.material = Color.fromCssColorString(
             options.fillColor || 'rgba(77,171,247,0.15)',
           )
           entity.polygon.outline = true
           entity.polygon.outlineColor = Color.fromCssColorString(options.strokeColor || '#4dabf7')
           entity.polygon.outlineWidth = options.strokeWidth || 2
+        } else if (entity.position) {
+          // BUGFIX-P1-11: 点要素用 PointGraphics 替代默认图钉，支持 markerColor/markerSize
+          const markerColor = Color.fromCssColorString(options.markerColor || '#409eff')
+          entity.billboard = undefined
+          entity.point = new PointGraphics({
+            pixelSize: options.markerSize || 10,
+            color: markerColor,
+            outlineColor: Color.WHITE,
+            outlineWidth: 2,
+          })
         }
       })
       this.viewer.dataSources.add(dataSource)
@@ -603,7 +603,8 @@ export class CesiumRenderer extends MapRenderer {
     const destination = Cartesian3.fromDegrees(target.lng, target.lat, height)
     this.viewer.camera.flyTo({
       destination,
-      duration: 1000,
+      // BUGFIX-P1-10: Cesium duration 单位为秒（原 1000 秒 ≈ 16.6 分钟）
+      duration: 1,
       orientation: {
         heading: CesiumMath.toRadians(options.heading || 0),
         pitch: CesiumMath.toRadians(options.pitch || -60),
@@ -677,20 +678,7 @@ export class CesiumRenderer extends MapRenderer {
     // 计算高度：优先使用 height，其次从 OL 的 zoom 转换
     let height = state.height
     if (height == null && state.zoom != null) {
-      // OL zoom 转 Cesium height 的经验公式（基于 MAP_CONFIG.VIEW_LEVELS 校准）：
-      // height = 300000000 / 2^zoom
-      // zoom=9 → 585938m ≈ 586km (接近 REGION 的 800km)
-      // zoom=12 → 73242m ≈ 73km (接近 CITY 的 80km)
-      // zoom=14 → 18311m ≈ 18km (接近 DISTRICT 的 8km)
-      height = 300000000 / Math.pow(2, state.zoom)
-
-      if (import.meta.env.DEV) {
-        console.log('[CesiumRenderer._setCameraState] 从OL zoom转换高度:', {
-          zoom: state.zoom,
-          calculatedHeight: height,
-          heightKm: (height / 1000).toFixed(2) + 'km',
-        })
-      }
+      height = zoomToHeight(state.zoom)
     }
     if (height == null) {
       height = MAP_CONFIG.CAMERA.center.height
@@ -708,10 +696,11 @@ export class CesiumRenderer extends MapRenderer {
 
     const destination = Cartesian3.fromDegrees(state.center.lng, state.center.lat, height)
 
-    // 使用 setView 立即设置相机位置
-    // pitch=-90 表示垂直俯视，与 OL 2D 视角一致
-    this.viewer.camera.setView({
+    // 从 Cesium 默认远距离视角（美国上空）飞向北部湾，产生"地球飞转"效果
+    // duration 3s 保证足够时间完成跨半球飞行，又不至于太慢
+    this.viewer.camera.flyTo({
       destination,
+      duration: 3.0,
       orientation: {
         heading: 0,
         pitch: CesiumMath.toRadians(-90),
@@ -913,6 +902,11 @@ export class CesiumRenderer extends MapRenderer {
    * 仅从DOM卸载，保留Viewer实例供下次复用
    */
   destroy() {
+    // BUGFIX-P1-12: 移除相机监听器
+    if (this.viewer && this._cameraChangedHandler) {
+      this.viewer.camera.changed.removeEventListener(this._cameraChangedHandler)
+      this._cameraChangedHandler = null
+    }
     super.destroy()
     this.stopBreathing()
     // 清理相机防抖定时器，防止内存泄漏

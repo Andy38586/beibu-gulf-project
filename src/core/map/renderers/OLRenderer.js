@@ -11,7 +11,7 @@ import Polygon from 'ol/geom/Polygon'
 import Feature from 'ol/Feature'
 import GeoJSON from 'ol/format/GeoJSON'
 import { Style, Fill, Stroke, Circle, Text } from 'ol/style'
-import { buildTiandituUrl, MAP_CONFIG } from '@/core/config/map'
+import { buildTiandituUrl, MAP_CONFIG, heightToZoom } from '@/core/config/map'
 
 export class OLRenderer extends MapRenderer {
   constructor(container) {
@@ -226,11 +226,21 @@ export class OLRenderer extends MapRenderer {
     features.forEach((feature) => {
       feature.set('featureType', options.featureType || 'geojson')
     })
-    const style = this._createPolygonStyle(options)
-
+    // BUGFIX-P1-11: 按几何类型分派样式，点要素支持 markerColor/markerSize
+    const polygonStyle = this._createPolygonStyle(options)
+    const pointStyle = new Style({
+      image: new Circle({
+        radius: (options.markerSize || 10) / 2,
+        fill: new Fill({ color: options.markerColor || '#409eff' }),
+        stroke: new Stroke({ color: '#fff', width: 2 }),
+      }),
+    })
     const vectorLayer = new VectorLayer({
       source: new VectorSource({ features }),
-      style,
+      style: (feature) => {
+        const geom = feature.getGeometry()
+        return geom.getType() === 'Point' ? pointStyle : polygonStyle
+      },
     })
     this.map.addLayer(vectorLayer)
     this._layers.set(id, {
@@ -310,24 +320,8 @@ export class OLRenderer extends MapRenderer {
     view.setCenter(fromLonLat([state.center.lng, state.center.lat]))
 
     // 从 Cesium 的 height 反算 OL zoom
-    // 关键修复：系数必须与 CesiumRenderer._setCameraState 中的系数完全一致
-    // 保证 zoom ↔ height 双向转换数学互逆，避免累积误差
-    // 正公式（Cesium）：height = 300000000 / 2^zoom
-    // 反公式（OL）：  zoom = log2(300000000 / height)
     if (state.height != null) {
-      // 与 CesiumRenderer 保持一致的最低高度限制（200m）
-      const safeHeight = Math.max(200, state.height)
-      const zoom = Math.log2(300000000 / safeHeight)
-
-      if (import.meta.env.DEV) {
-        console.log('[OLRenderer._setCameraState] 从Cesium height转换zoom:', {
-          height: state.height,
-          heightKm: (state.height / 1000).toFixed(2) + 'km',
-          calculatedZoom: zoom,
-        })
-      }
-
-      // 限制zoom范围，避免超出天地图瓦片支持范围
+      const zoom = heightToZoom(state.height)
       const clampedZoom = Math.min(Math.max(zoom, 9), 18)
       view.setZoom(clampedZoom)
     } else if (state.zoom != null) {

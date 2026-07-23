@@ -12,10 +12,10 @@
  */
 
 import { computed } from 'vue'
-import { useGcsStore } from '@/stores/gcsStore'
+import { usePortImpactStore } from '@/stores/portImpactStore'
 import PaginatedListPanel from '@/shared/components/PaginatedListPanel.vue'
 
-const gcsStore = useGcsStore()
+const portImpactStore = usePortImpactStore()
 
 /**
  * 获取设施类型对应的中文标签
@@ -34,17 +34,20 @@ function getFacilityTypeLabel(type) {
  * 格式化损失金额
  */
 function formatLoss(loss) {
-  if (loss >= 10000) {
-    return (loss / 10000).toFixed(1) + ' 亿'
+  // BUGFIX-P3-15: 非法输入防御
+  const v = Number(loss)
+  if (!isFinite(v)) return '—'
+  if (v >= 10000) {
+    return (v / 10000).toFixed(1) + '万'
   }
-  return loss.toFixed(0) + ' 万'
+  return v.toFixed(0)
 }
 
 /**
  * 按损失金额排序的设施列表（降序）
  */
 const sortedFacilities = computed(() => {
-  const facilities = gcsStore.affectedFacilities || []
+  const facilities = portImpactStore.affectedFacilities || []
   return [...facilities].sort((a, b) => b.loss - a.loss)
 })
 </script>

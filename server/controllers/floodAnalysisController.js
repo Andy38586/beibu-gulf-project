@@ -64,13 +64,16 @@ export async function getFloodAreas(req, res) {
         })
       }
 
-      // 找到最接近的水位区间
+      // 向上取档（返回 >= 请求水位的最低档位）
       const floodZone = data.floodZones.find((zone) => zone.waterLevel >= level)
       if (floodZone) {
         return res.json({
           code: 200,
           data: {
             waterLevel: floodZone.waterLevel,
+            // BUGFIX-P2-07: 显式区分请求水位与实际数据档位
+            requestedWaterLevel: level,
+            actualWaterLevel: floodZone.waterLevel,
             riskLevel: floodZone.riskLevel,
             features: floodZone.features,
           },
@@ -224,7 +227,7 @@ export async function analyzeDisaster(req, res) {
     const facilityData = await readJsonData('facilityPoints.json')
     const floodData = await readJsonData('floodArea.json')
 
-    // 找到对应水位的淹没范围
+    // 向上取档（返回 >= 请求水位的最低档位）
     const floodZone = floodData.floodZones.find((zone) => zone.waterLevel >= level)
 
     if (!floodZone) {
@@ -260,7 +263,9 @@ export async function analyzeDisaster(req, res) {
     res.json({
       code: 200,
       data: {
-        waterLevel: level,
+        // BUGFIX-P2-07: 返回实际档位水位，消除请求值与实际档位的错配
+        waterLevel: floodZone.waterLevel,
+        requestedWaterLevel: level,
         riskLevel: floodZone.riskLevel,
         affectedFacilities,
         totalLoss: Math.round(totalLoss),

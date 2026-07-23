@@ -43,6 +43,9 @@ const stateStore = useSiteSelectionStateStore()
 const { registerToggleable, toggleLayer } = useLayerManager()
 const { createUpdateHandler } = useAnalysisLayer()
 
+// BUGFIX-P3-04: 保存定时器 id，卸载时清理悬挂定时器
+let tryZoomTimer: ReturnType<typeof setTimeout> | null = null
+
 /** 分析结果 */
 const matchedXiaoqu = ref<ScoredXiaoqu[]>([])
 const selectedTypes = ref<string[]>([])
@@ -296,7 +299,8 @@ onMounted(() => {
         zoomToCity()
       } else if (retries < 10) {
         retries++
-        setTimeout(tryZoom, 500)
+        // BUGFIX-P3-04: 保存定时器 id，卸载时清理
+        tryZoomTimer = setTimeout(tryZoom, 500)
       }
     }
     tryZoom()
@@ -305,6 +309,11 @@ onMounted(() => {
 
 onUnmounted(() => {
   stopBreathing()
+  // BUGFIX-P3-04: 清理悬挂的 tryZoom 定时器
+  if (tryZoomTimer) {
+    clearTimeout(tryZoomTimer)
+    tryZoomTimer = null
+  }
 })
 </script>
 

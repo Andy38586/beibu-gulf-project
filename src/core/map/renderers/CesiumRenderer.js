@@ -686,8 +686,8 @@ export class CesiumRenderer extends MapRenderer {
     // 限制height范围：最低200m（避免贴地），最高1000000m（避免视角太高）
     height = Math.max(200, Math.min(height, 1000000))
 
-    // 恢复 pitch：优先使用导出的值，其次 -90（垂直俯视，与 OL 2D 平坦视图对应）
-    const pitch = state.pitch != null ? state.pitch : -90
+    // pitch 强制 -90° 俯视，不与 OL 之间传递倾斜状态（OL 无 pitch 概念）
+    const pitch = -90
 
     if (import.meta.env.DEV) {
       console.log('[CesiumRenderer._setCameraState] 最终设置:', {

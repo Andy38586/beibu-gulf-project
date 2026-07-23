@@ -30,6 +30,7 @@ import type { AnalysisResult } from '@/types/analysis'
 
 interface Emits {
   (e: 'result-update', result: Partial<AnalysisResult>): void
+  (e: 'analysis-error', message: string): void
 }
 
 const router = useRouter()
@@ -167,6 +168,8 @@ async function runAnalysis(): Promise<void> {
   if (calcError.value) {
     popupMessage.value = calcError.value || '网络异常，请重试'
     showPopup.value = true
+    // BUGFIX-P3-03: 向页面级错误弹窗传递错误
+    emit('analysis-error', calcError.value)
     return
   }
   emit('result-update', {

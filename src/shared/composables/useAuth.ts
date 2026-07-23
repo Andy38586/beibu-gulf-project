@@ -3,6 +3,13 @@ import type { Ref, ComputedRef } from 'vue'
 import type { User, AuthResponse } from '@/types/api'
 import { useApiRequest } from './useApiRequest'
 
+// BUGFIX-P2-06: 登出时重置全部业务 store，防止跨账号数据残留
+import { useSiteSelectionStateStore } from '@/stores/siteSelectionState'
+import { useFloodStateStore } from '@/stores/floodState'
+import { useFloodStore } from '@/stores/floodStore'
+import { usePortImpactStore } from '@/stores/portImpactStore'
+import { useWaterLevelStore } from '@/stores/waterLevelStore'
+
 /** localStorage 键：持久化用户信息 */
 const USER_STORAGE_KEY = 'beibu-gulf-user'
 
@@ -108,6 +115,7 @@ function handleStorageChange(event: StorageEvent): void {
       // 其他标签页登出了，当前标签页也要登出
       user.value = null
       clearToken()
+      resetBusinessStores() // BUGFIX-P2-06
     } else {
       // 其他标签页登录了，当前标签页也要同步
       try {
@@ -116,6 +124,19 @@ function handleStorageChange(event: StorageEvent): void {
         user.value = null
       }
     }
+  }
+}
+
+// BUGFIX-P2-06: 登出时重置全部业务 store，防止跨账号数据残留
+function resetBusinessStores(): void {
+  try {
+    useSiteSelectionStateStore().clearState()
+    useFloodStateStore().clearState()
+    useFloodStore().resetFloodAnalysis()
+    usePortImpactStore().resetPortImpact()
+    useWaterLevelStore().resetWaterLevel()
+  } catch {
+    // store 未激活等异常不阻断登出
   }
 }
 
@@ -169,6 +190,7 @@ export function useAuth() {
       writeStoredUser(null)
       // 重置认证恢复标志，允许下次重新恢复
       authRestored = false
+      resetBusinessStores() // BUGFIX-P2-06
     }
   }
 

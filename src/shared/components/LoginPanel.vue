@@ -180,6 +180,8 @@ async function handleLogout() {
         <div class="user-name">{{ user.username }}</div>
         <div class="user-status">已登录</div>
       </div>
+      <!-- BUGFIX-P1-13: 复用已有 handleLogout 与 .logout-btn 样式，补登出途径 -->
+      <button class="logout-btn" @click="handleLogout">退出登录</button>
     </template>
   </div>
 </template>

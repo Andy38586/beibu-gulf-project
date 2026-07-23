@@ -79,6 +79,8 @@ const displayXiaoquForRadar = computed<ScoredXiaoqu | null>(() => selectedXiaoqu
 /** 处理分析结果 */
 function handleResult(result: Partial<AnalysisResult>): void {
   console.log('[SiteSelection] 收到分析结果:', result)
+  // BUGFIX-P3-03: 页面级错误弹窗接线
+  showErrorPopup.value = false
 
   // 注册分析结果处理函数（从 UnifiedMap 移入业务层，切断 core→business 依赖）
   const renderer = mapInstance.value?.getRenderer?.()
@@ -97,6 +99,12 @@ function handleResult(result: Partial<AnalysisResult>): void {
   if (matchedXiaoqu.value.length > 0) {
     zoomToDistrict()
   }
+}
+
+// BUGFIX-P3-03: 接线启用页面级错误弹窗（此前 showErrorPopup 为死代码）
+function handleAnalysisError(message: string): void {
+  errorMessage.value = message || '选址分析失败，请稍后重试'
+  showErrorPopup.value = true
 }
 
 /**
@@ -205,6 +213,7 @@ function saveCurrentState(): void {
     factorSettings,
     matchedXiaoqu: matchedXiaoqu.value,
     selectedTypes: selectedTypes.value,
+    facilityPoi: facilityPoi.value, // BUGFIX-P1-05: 补保存设施POI
     currentPlanId: currentPlanId.value,
     savedXiaoquIds,
   })
@@ -220,6 +229,7 @@ function restoreState(): boolean {
   // 恢复分析结果
   matchedXiaoqu.value = (savedState as any).matchedXiaoqu || []
   selectedTypes.value = (savedState as any).selectedTypes || []
+  facilityPoi.value = (savedState as any).facilityPoi || {} // BUGFIX-P1-05
   currentPlanId.value = (savedState as any).currentPlanId || null
 
   // 恢复因子面板状态
@@ -234,8 +244,11 @@ function restoreState(): boolean {
 
   // 如果有分析结果，触发结果更新
   if (matchedXiaoqu.value.length > 0) {
+    // BUGFIX-P1-05: 传全量字段，避免 handleResult 用空值覆盖已恢复状态
     handleResult({
       matchedXiaoqu: matchedXiaoqu.value,
+      selectedTypes: selectedTypes.value,
+      facilityPoi: facilityPoi.value,
     })
   }
 
@@ -322,7 +335,7 @@ onUnmounted(() => {
       <template #right>
         <!-- 右上：设施因子选择面板 4×4 -->
         <GcsPanel :w="4" :h="4" anchor="top-right" :offset-x="0" :offset-y="1.25">
-          <SiteAnalysisControlPanel ref="factorPanelRef" @result-update="handleResult" />
+          <SiteAnalysisControlPanel ref="factorPanelRef" @result-update="handleResult" @analysis-error="handleAnalysisError" />
         </GcsPanel>
         <!-- 右下：小区名单列表 4×4 -->
         <GcsPanel :w="4" :h="4" anchor="top-right" :offset-x="0" :offset-y="5.5">

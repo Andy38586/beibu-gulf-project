@@ -11,6 +11,20 @@ export interface Plan {
   savedXiaoqu: SavedXiaoqu[]
   createdAt: string
   updatedAt: string
+  /** 业务类型：'flood' | 'site-selection' | undefined（旧数据无此字段） */
+  businessType?: string
+  /** 浸没方案水位（仅 flood 类型有值） */
+  waterLevel?: number
+  /** 浸没方案统计数据（仅 flood 类型有值） */
+  floodStatistics?: any
+  /** 浸没方案特征数据（仅 flood 类型有值） */
+  floodFeatures?: any[]
+  /** 浸没方案受影响设施（仅 flood 类型有值） */
+  affectedFacilities?: any[]
+  /** 浸没方案总损失（仅 flood 类型有值） */
+  totalLoss?: number
+  /** 浸没方案风险等级（仅 flood 类型有值，BUGFIX-P2-03） */
+  floodRiskLevel?: string
 }
 
 // 创建方案参数

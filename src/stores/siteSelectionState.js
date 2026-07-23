@@ -32,6 +32,9 @@ export const useSiteSelectionStateStore = defineStore('siteSelectionState', () =
   /** 已保存的小区ID集合 */
   const savedXiaoquIds = ref([])
 
+  /** 设施POI数据（BUGFIX-P1-05） */
+  const facilityPoi = ref({})
+
   /**
    * 保存状态（跳转到个人中心前调用）
    */
@@ -41,6 +44,7 @@ export const useSiteSelectionStateStore = defineStore('siteSelectionState', () =
     selectedTypes.value = data.selectedTypes
     currentPlanId.value = data.currentPlanId
     savedXiaoquIds.value = data.savedXiaoquIds
+    facilityPoi.value = data.facilityPoi || {} // BUGFIX-P1-05
     hasState.value = true
   }
 
@@ -56,6 +60,7 @@ export const useSiteSelectionStateStore = defineStore('siteSelectionState', () =
       selectedTypes: selectedTypes.value,
       currentPlanId: currentPlanId.value,
       savedXiaoquIds: savedXiaoquIds.value,
+      facilityPoi: facilityPoi.value, // BUGFIX-P1-05
     }
 
     // 清除状态，避免重复恢复
@@ -73,6 +78,7 @@ export const useSiteSelectionStateStore = defineStore('siteSelectionState', () =
     selectedTypes.value = []
     currentPlanId.value = null
     savedXiaoquIds.value = []
+    facilityPoi.value = {} // BUGFIX-P1-05
   }
 
   return {

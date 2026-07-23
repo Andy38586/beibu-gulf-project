@@ -7,7 +7,8 @@ const props = defineProps({
   errorMsg: String,
   initialName: { type: String, default: '' },
 })
-const emit = defineEmits(['close', 'save'])
+// BUGFIX-P3-14: 声明 error 事件，校验失败才能对外反馈
+const emit = defineEmits(['close', 'save', 'error'])
 
 const planName = ref('')
 const dialogVisible = ref(false)

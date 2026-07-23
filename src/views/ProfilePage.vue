@@ -27,23 +27,14 @@ import PlanSaveModal from '@/shared/components/PlanSaveModal.vue'
 import PaginatedListPanel from '@/shared/components/PaginatedListPanel.vue'
 import { usePlans } from '@/shared/composables/usePlans'
 import { useAuth } from '@/shared/composables/useAuth'
+import { useFloodStateStore } from '@/stores/floodState'
 import type { Plan } from '@/types/plan'
 import type { SavedXiaoqu } from '@/types/xiaoqu'
 
 const router = useRouter()
 const { updatePlan, getPlans, deletePlan, removeXiaoqu, loading: plansLoading, deleting: plansDeleting } = usePlans()
-const { user, logout } = useAuth()
-
-/**
- * 处理退出登录
- */
-async function handleLogout() {
-  await logout()
-  // 清空方案列表和展开状态
-  plansList.value = []
-  plansError.value = ''
-  expandedPlanId.value = null
-}
+const { user } = useAuth()
+const floodStateStore = useFloodStateStore()
 
 const restorePlanData = inject('restorePlanData', ref(null))
 const editingPlan = inject('editingPlan', ref(null))
@@ -106,12 +97,32 @@ function togglePlan(planId: string) {
 }
 
 /**
- * 加载方案到选址分析页
+ * 加载方案到对应业务页面
+ * 根据 businessType 路由到选址分析或浸没分析
  */
 function handleLoadPlan(plan: Plan) {
+  if (plan.businessType === 'flood') {
+    loadFloodPlan(plan)
+    return
+  }
   restorePlanData.value = plan.typeSettings || {}
   editingPlan.value = plan
   router.push('/site-selection')
+}
+
+/**
+ * 加载浸没分析方案：保存状态到 floodStateStore 后跳转
+ */
+function loadFloodPlan(plan: Plan) {
+  floodStateStore.saveState({
+    waterLevel: plan.waterLevel || 0,
+    floodStatistics: plan.floodStatistics,
+    floodFeatures: plan.floodFeatures,
+    floodRiskLevel: plan.floodRiskLevel, // BUGFIX-P2-03: 补传风险等级
+    affectedFacilities: plan.affectedFacilities,
+    totalLoss: plan.totalLoss,
+  })
+  router.push('/heatmap')
 }
 
 /**
@@ -176,12 +187,6 @@ watch(
   },
   { immediate: true },
 )
-
-onMounted(() => {
-  if (user.value) {
-    loadPlans()
-  }
-})
 </script>
 
 <template>
@@ -286,21 +291,22 @@ onMounted(() => {
               </div>
             </div>
 
-            <!-- 底部：退出登录按钮 -->
-            <button v-if="user" class="logout-btn" @click="handleLogout">退出登录</button>
           </div>
         </GcsPanel>
       </template>
     </AppLayout>
 
     <!-- 方案重命名弹窗 -->
+    <!-- BUGFIX-P1-04: 重命名弹窗初始名使用 editingNamePlan -->
+    <!-- BUGFIX-P3-14: 监听 error 事件，校验失败时显示错误 -->
     <PlanSaveModal
       :visible="showSaveModal"
       :saving="savingName"
       :error-msg="saveError"
-      :initial-name="editingPlan?.name || ''"
+      :initial-name="editingNamePlan?.name || ''"
       @close="showSaveModal = false"
       @save="handleSaveName"
+      @error="(msg) => (saveError = msg)"
     />
   </div>
 </template>
@@ -545,28 +551,5 @@ onMounted(() => {
 .empty-hint {
   font-size: 12px;
   color: #909399;
-}
-
-/* 退出登录按钮（3.8×0.8 Cell） */
-.logout-btn {
-  width: calc(80px * 3.8);
-  height: calc(80px * 0.8);
-  border: 1px solid #ff4d4f;
-  border-radius: 8px;
-  background: #fff;
-  color: #ff4d4f;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  margin-top: auto;
-  margin-bottom: 20px;
-  align-self: center;
-  flex-shrink: 0;
-}
-
-.logout-btn:hover {
-  background: #ff4d4f;
-  color: #fff;
 }
 </style>

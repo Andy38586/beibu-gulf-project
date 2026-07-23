@@ -68,7 +68,9 @@ export async function create(planData) {
 }
 
 // P0-003-FIX: 安全的字段白名单，防止原型链污染
-const PLAN_UPDATE_FIELDS = ['name', 'selectedKeys', 'typeSettings', 'weights', 'savedXiaoqu']
+// BUGFIX-P2-03: 白名单补 flood 系字段，浸没方案才能被更新保存
+const PLAN_UPDATE_FIELDS = ['name', 'selectedKeys', 'typeSettings', 'weights', 'savedXiaoqu',
+  'businessType', 'waterLevel', 'floodStatistics', 'floodFeatures', 'floodRiskLevel', 'affectedFacilities', 'totalLoss']
 
 export async function update(id, updates) {
   return sequential(async () => {

@@ -25,6 +25,12 @@
  * Emits:
  *   - click-item="{ item }" — 点击列表项
  *   - favorite-change="{ item, isFavorite }" — 收藏状态变化
+ *
+ * 命名说明：
+ * - 前端统一称"收藏"，后端 API 和数据库字段统一称"saved/save"
+ * - `savedXiaoqu` 字段名沿用后端约定，前端不做转换以降低复杂度
+ * - `isFavorite()` 是前端展示概念，调用 `saveXiaoqu/removeXiaoqu`
+ * - `doSave/doRemove` 内部方法，对应后端 `saveXiaoqu/removeXiaoqu`
  */
 
 import { ref, computed, watch } from 'vue'
@@ -34,6 +40,7 @@ import { useAuth } from '@/shared/composables/useAuth'
 import { useMapStore } from '@/stores/map'
 import { useMapControls } from '@/core/map/composables/useMapControls'
 import { ElButton, ElMessage } from 'element-plus'
+import ErrorPopup from '@/shared/components/ErrorPopup.vue'
 import type { SavedXiaoqu } from '@/types/xiaoqu'
 
 interface Props {
@@ -74,6 +81,9 @@ const { flyTo, startBreathing } = useMapControls()
 
 /** 统一的登录状态判断：使用 isAuthenticated 而非 user.value */
 const isLoggedIn = computed(() => isAuthenticated.value)
+
+/** 登录弹窗控制 */
+const showLoginPopup = ref(false)
 
 /** 当前选中的项（用于地图可视化） */
 const selectedItem = ref<any>(null)
@@ -119,7 +129,7 @@ function isFavorite(itemId: string): boolean {
  */
 async function toggleFavorite(item: any) {
   if (!isLoggedIn.value) {
-    ElMessage.warning('请先登录后再收藏')
+    showLoginPopup.value = true
     return
   }
 
@@ -357,6 +367,12 @@ defineExpose({
         </ElButton>
       </div>
     </div>
+    <ErrorPopup
+      v-if="showLoginPopup"
+      :visible="showLoginPopup"
+      mode="login"
+      @close="showLoginPopup = false"
+    />
   </div>
 </template>
 

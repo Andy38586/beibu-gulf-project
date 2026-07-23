@@ -41,12 +41,15 @@ export function usePlans() {
     }
     saving.value = true
     try {
-      const selectedKeys = Object.entries(typeSettings)
+      // BUGFIX-P1-03: flood 方案无 typeSettings，兼容为空对象避免 TypeError
+      const settings = typeSettings ?? {}
+      const selectedKeys = Object.entries(settings)
         .filter(([, v]) => v.selected)
         .map(([k]) => k)
-      return apiRequest<Plan>('/plans', {
+      // BUGFIX-P1-02: await 使 finally 等待请求完成后再复位，防重复提交生效
+      return await apiRequest<Plan>('/plans', {
         method: 'POST',
-        body: JSON.stringify({ name, selectedKeys, typeSettings }),
+        body: JSON.stringify({ name, selectedKeys, typeSettings: settings }),
       })
     } finally {
       saving.value = false
@@ -74,12 +77,15 @@ export function usePlans() {
   ): Promise<Plan> {
     updating.value = true
     try {
-      const selectedKeys = Object.entries(typeSettings)
+      // BUGFIX-P1-03: flood 方案无 typeSettings，兼容为空对象避免 TypeError
+      const settings = typeSettings ?? {}
+      const selectedKeys = Object.entries(settings)
         .filter(([, v]) => v.selected)
         .map(([k]) => k)
-      return apiRequest<Plan>(`/plans/${id}`, {
+      // BUGFIX-P1-02: await 使 finally 等待请求完成后再复位，防重复提交生效
+      return await apiRequest<Plan>(`/plans/${id}`, {
         method: 'PUT',
-        body: JSON.stringify({ name, selectedKeys, typeSettings }),
+        body: JSON.stringify({ name, selectedKeys, typeSettings: settings }),
       })
     } finally {
       updating.value = false

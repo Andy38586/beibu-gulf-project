@@ -114,7 +114,6 @@ class CesiumViewerManager {
     if (viewerContainer === el) {
       this.isMounted = true
       this.viewer.resize()
-      this.viewer.useDefaultRenderLoop = true
       this.viewer.scene.requestRenderMode = false
       this.viewer.scene.requestRender()
       this._enableCameraControls()
@@ -130,8 +129,7 @@ class CesiumViewerManager {
     // 防止复用时之前的 unmount 状态影响交互
     this.isMounted = true
     this.viewer.resize()
-    // 恢复持续渲染循环 + 关闭 requestRenderMode
-    this.viewer.useDefaultRenderLoop = true
+    // 恢复持续渲染模式
     this.viewer.scene.requestRenderMode = false
     this.viewer.scene.requestRender()
     // 确保相机控制器的交互能力正常（拖拽、旋转、缩放等）
@@ -172,8 +170,6 @@ class CesiumViewerManager {
       this.isMounted = false
       // 暂停渲染，降低GPU占用
       this.viewer.scene.requestRenderMode = true
-      // 完全停止 Cesium 默认渲染循环，防止二页面与 OL 争 GPU 导致卡死
-      this.viewer.useDefaultRenderLoop = false
       // 启动空闲销毁定时器（30秒后自动销毁释放内存）
       this._startIdleDestroyTimer()
     }

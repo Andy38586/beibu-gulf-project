@@ -1,7 +1,11 @@
 import { Router } from 'express'
 import * as floodAnalysisController from '../controllers/floodAnalysisController.js'
+import { authenticate } from '../middleware/auth.js'
 
 const router = Router()
+
+// BUGFIX-P2-11: 与其他业务路由对齐，全部端点需登录
+router.use(authenticate)
 
 /**
  * GCS三维港口分析系统API路由

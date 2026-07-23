@@ -24,7 +24,10 @@ export function resolveRadiusSettings(selectedKeys, typeSettings) {
       if (process.env.NODE_ENV === 'development') {
         console.warn(`设施类型 ${key} 的缓冲区半径无效: ${radius}`)
       }
-      throw new Error(`设施类型 ${key} 的缓冲区半径计算失败`)
+      // BUGFIX-P1-08: 参数错误带码抛出，控制器据码返 400
+      const err = new Error(`半径参数无效: ${radius}`)
+      err.code = 'INVALID_PARAMS'
+      throw err
     }
     
     resolved[key] = { selected: true, radius }

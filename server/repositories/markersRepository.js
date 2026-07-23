@@ -45,21 +45,29 @@ export async function findById(id) {
   const markers = await readAll()
   return markers.find((m) => m.id === id)
 }
+
+// BUGFIX-P0-02: 按归属用户查询
+export async function findByUserId(userId) {
+  const markers = await readAll()
+  return markers.filter((m) => m.userId === userId)
+}
 export async function create(markerData) {
   return sequential(async () => {
   const markers = await readAll()
   const newMarker = {
-    id: Date.now().toString(),
+    // BUGFIX-P2-09: UUID 防并发碰撞，与 userService 对齐
+    id: crypto.randomUUID(),
     ...markerData,
     createdAt: new Date().toISOString(),
   }
-  markers.push(newMarker)
-  await writeAll(markers)
+  // BUGFIX-P2-10: 不原地修改缓存数组，构造新数组，写盘失败时缓存不脏
+  const next = [...markers, newMarker]
+  await writeAll(next)
   return newMarker
   })
 }
-// P0-003-FIX: 安全的字段白名单，防止原型链污染
-const MARKER_UPDATE_FIELDS = ['name', 'lng', 'lat', 'type', 'description', 'userId']
+// BUGFIX-P0-02: 白名单移除 userId，禁止篡改归属；description → note 见 BUGFIX-P1-07
+const MARKER_UPDATE_FIELDS = ['name', 'lng', 'lat', 'type', 'note']
 
 export async function update(id, updates) {
   return sequential(async () => {
@@ -73,9 +81,11 @@ export async function update(id, updates) {
     if (key in updates) safeUpdates[key] = updates[key]
   }
 
-  markers[index] = { ...markers[index], ...safeUpdates, updatedAt: new Date().toISOString() }
-  await writeAll(markers)
-  return markers[index]
+  const updated = { ...markers[index], ...safeUpdates, updatedAt: new Date().toISOString() }
+  // BUGFIX-P2-10: 不原地修改缓存数组，构造新数组，写盘失败时缓存不脏
+  const next = markers.map((m, i) => (i === index ? updated : m))
+  await writeAll(next)
+  return updated
   })
 }
 export async function remove(id) {

@@ -2,6 +2,25 @@ import bcrypt from 'bcryptjs'
 import * as userService from '../services/userService.js'
 import { generateToken } from '../middleware/auth.js'
 
+// BUGFIX-R-03: 提取公共 cookie 设置，register/login 复用
+function setAuthCookie(res, token) {
+  // AUDIT-SEC-001: 使用 HttpOnly Cookie 存储 token
+  res.cookie('auth_token', token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 天
+  })
+}
+
+// BUGFIX-P1-14: 历史转义密码兼容（与前端旧版 escapePassword 规则一致）
+function escapeHtmlLegacy(str) {
+  return str.replace(/[&<>"']/g, (char) => {
+    const escapeMap = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }
+    return escapeMap[char]
+  })
+}
+
 export async function register(req, res) {
   try {
     const { username, password } = req.body
@@ -26,17 +45,14 @@ export async function register(req, res) {
     const hashedPassword = await bcrypt.hash(password, 10)
     const user = await userService.createUser(username, hashedPassword)
     const token = generateToken(user)
-    
-    // AUDIT-SEC-001: 使用 HttpOnly Cookie 存储 token
-    res.cookie('auth_token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 天
-    })
+    setAuthCookie(res, token)
     
     res.status(201).json({ token, user })
   } catch (error) {
+    // BUGFIX-P1-06: 并发注册冲突返回 409
+    if (error.code === 'DUPLICATE_USERNAME') {
+      return res.status(409).json({ error: '用户名已存在' })
+    }
     // AUDIT-016 (错误): 使用结构化日志替代 console
     if (process.env.NODE_ENV !== 'test') {
       console.error('注册失败:', error.message)
@@ -55,19 +71,23 @@ export async function login(req, res) {
     if (!user) {
       return res.status(401).json({ error: '用户名或密码错误' })
     }
-    const valid = await bcrypt.compare(password, user.password)
+    // BUGFIX-P1-14: 双通道比对 + 静默迁移
+    let valid = await bcrypt.compare(password, user.password)
+    if (!valid) {
+      // BUGFIX-P1-14: 旧版前端转义密码的存量账号回退通道
+      const legacy = escapeHtmlLegacy(password)
+      if (legacy !== password && (await bcrypt.compare(legacy, user.password))) {
+        valid = true
+        // 静默迁移：用原始密码重哈希，下次登录走正常通道
+        const rehashed = await bcrypt.hash(password, 10)
+        await userService.updatePassword(user.id, rehashed)
+      }
+    }
     if (!valid) {
       return res.status(401).json({ error: '用户名或密码错误' })
     }
     const token = generateToken(user)
-    
-    // AUDIT-SEC-001: 使用 HttpOnly Cookie 存储 token
-    res.cookie('auth_token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 天
-    })
+    setAuthCookie(res, token)
     
     res.json({ token, user: { id: user.id, username: user.username, createdAt: user.createdAt } })
   } catch (error) {

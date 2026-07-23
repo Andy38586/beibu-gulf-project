@@ -48,14 +48,6 @@ function switchMode(m) {
   confirmPassword.value = ''
 }
 
-// AUDIT-SEC-010: 密码特殊字符转义，防止XSS攻击
-function escapePassword(pwd) {
-  return pwd.replace(/[&<>"']/g, (char) => {
-    const escapeMap = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }
-    return escapeMap[char]
-  })
-}
-
 async function handleSubmit() {
   errorMsg.value = ''
   const trimmedUsername = username.value.trim()
@@ -97,11 +89,11 @@ async function handleSubmit() {
   }
   loading.value = true
   try {
-    const escapedPassword = escapePassword(password.value)
+    // BUGFIX-P1-14: 密码不再 HTML 转义，原样传输（后端 bcrypt 处理，转义无安全收益）
     if (mode.value === 'login') {
-      await login(trimmedUsername, escapedPassword)
+      await login(trimmedUsername, password.value)
     } else {
-      await register(trimmedUsername, escapedPassword)
+      await register(trimmedUsername, password.value)
     }
     // 成功后清空表单
     username.value = ''
@@ -110,7 +102,7 @@ async function handleSubmit() {
   } catch (err) {
     // AUDIT-SEC-002 修复：错误信息白名单过滤，防止反射型 XSS
     const rawMsg = err.message || '操作失败'
-    errorMsg.value = rawMsg.replace(/[<>\"'%;()&+]/g, '')
+    errorMsg.value = rawMsg.replace(/[<>"'%;()&+]/g, '')
   } finally {
     loading.value = false
   }

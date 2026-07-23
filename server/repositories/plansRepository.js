@@ -53,14 +53,16 @@ export async function create(planData) {
   return sequential(async () => {
     const plans = await readAll()
     const newPlan = {
-      id: Date.now().toString(),
+      // BUGFIX-P2-09: UUID 防并发碰撞，与 userService 对齐
+      id: crypto.randomUUID(),
       ...planData,
       savedXiaoqu: [], // 已保存的小区列表
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     }
-    plans.push(newPlan)
-    await writeAll(plans)
+    // BUGFIX-P2-10: 不原地修改缓存数组，构造新数组，写盘失败时缓存不脏
+    const next = [...plans, newPlan]
+    await writeAll(next)
     return newPlan
   })
 }
@@ -81,8 +83,9 @@ export async function update(id, updates) {
     }
 
     const updated = { ...plans[index], ...safeUpdates, id: plans[index].id, createdAt: plans[index].createdAt, updatedAt: new Date().toISOString() }
-    plans[index] = updated
-    await writeAll(plans)
+    // BUGFIX-P2-10: 不原地修改缓存数组，构造新数组，写盘失败时缓存不脏
+    const next = plans.map((p, i) => (i === index ? updated : p))
+    await writeAll(next)
     return updated
   })
 }
@@ -108,24 +111,23 @@ export async function saveXiaoqu(planId, xiaoqu) {
     const plan = plans.find((p) => p.id === planId)
     if (!plan) return null
 
-    // 初始化 savedXiaoqu 数组（兼容旧数据）
-    if (!plan.savedXiaoqu) plan.savedXiaoqu = []
-
-    // 检查是否已存在
-    const exists = plan.savedXiaoqu.some((xq) => xq.id === xiaoqu.id)
-    if (exists) {
+    const existing = plan.savedXiaoqu || []
+    let newSavedXiaoqu
+    if (existing.some((xq) => xq.id === xiaoqu.id)) {
       // 更新已存在的小区
-      plan.savedXiaoqu = plan.savedXiaoqu.map((xq) =>
+      newSavedXiaoqu = existing.map((xq) =>
         xq.id === xiaoqu.id ? { ...xiaoqu, savedAt: new Date().toISOString() } : xq
       )
     } else {
       // 添加新小区
-      plan.savedXiaoqu.push({ ...xiaoqu, savedAt: new Date().toISOString() })
+      newSavedXiaoqu = [...existing, { ...xiaoqu, savedAt: new Date().toISOString() }]
     }
 
-    plan.updatedAt = new Date().toISOString()
-    await writeAll(plans)
-    return plan
+    // BUGFIX-P2-10: 构造新 plan + 新 plans 数组，杜绝原地修改
+    const updatedPlan = { ...plan, savedXiaoqu: newSavedXiaoqu, updatedAt: new Date().toISOString() }
+    const next = plans.map((p) => (p.id === planId ? updatedPlan : p))
+    await writeAll(next)
+    return updatedPlan
   })
 }
 
@@ -140,18 +142,18 @@ export async function removeXiaoqu(planId, xiaoquId) {
     const plan = plans.find((p) => p.id === planId)
     if (!plan) return null
 
-    if (!plan.savedXiaoqu) plan.savedXiaoqu = []
+    const existing = plan.savedXiaoqu || []
+    const newSavedXiaoqu = existing.filter((xq) => xq.id !== xiaoquId)
 
-    const beforeLength = plan.savedXiaoqu.length
-    plan.savedXiaoqu = plan.savedXiaoqu.filter((xq) => xq.id !== xiaoquId)
-
-    if (plan.savedXiaoqu.length === beforeLength) {
+    if (newSavedXiaoqu.length === existing.length) {
       // 没有找到要移除的小区
       return plan
     }
 
-    plan.updatedAt = new Date().toISOString()
-    await writeAll(plans)
-    return plan
+    // BUGFIX-P2-10: 构造新 plan + 新 plans 数组，杜绝原地修改
+    const updatedPlan = { ...plan, savedXiaoqu: newSavedXiaoqu, updatedAt: new Date().toISOString() }
+    const next = plans.map((p) => (p.id === planId ? updatedPlan : p))
+    await writeAll(next)
+    return updatedPlan
   })
 }

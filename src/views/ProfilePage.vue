@@ -17,7 +17,7 @@
  * - 下半部分：收藏夹列表
  */
 
-import { ref, watch, computed } from 'vue'
+import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { inject } from 'vue'
 import { ElMessageBox } from 'element-plus'
@@ -28,7 +28,6 @@ import PlanSaveModal from '@/shared/components/PlanSaveModal.vue'
 import PaginatedListPanel from '@/shared/components/PaginatedListPanel.vue'
 import { usePlans } from '@/shared/composables/usePlans'
 import { useAuth } from '@/shared/composables/useAuth'
-import { useFavoriteStore } from '@/stores/favoriteStore'
 import { useFloodStateStore } from '@/stores/floodState'
 import type { Plan } from '@/types/plan'
 import type { SavedXiaoqu } from '@/types/xiaoqu'
@@ -36,7 +35,6 @@ import type { SavedXiaoqu } from '@/types/xiaoqu'
 const router = useRouter()
 const { updatePlan, getPlans, deletePlan, loading: plansLoading, deleting: plansDeleting } = usePlans()
 const { user } = useAuth()
-const favStore = useFavoriteStore()
 const floodStateStore = useFloodStateStore()
 
 const restorePlanData = inject('restorePlanData', ref(null))
@@ -46,9 +44,6 @@ const showSaveModal = ref(false)
 const editingNamePlan = ref<Plan | null>(null)
 const saveError = ref('')
 const savingName = ref(false)
-
-/** 本地收藏夹：新增文件夹名称 */
-const newFolderName = ref('')
 
 /** 方案列表（含收藏内容） */
 const plansError = ref('')
@@ -173,20 +168,6 @@ async function handleFavoriteChange() {
   await loadPlans()
 }
 
-/** 本地收藏夹操作 */
-function handleAddFolder() {
-  const name = newFolderName.value.trim()
-  if (!name) return
-  favStore.addFolder(name)
-  newFolderName.value = ''
-}
-function handleRemoveFolder(id) { favStore.removeFolder(id) }
-function handleToggleFolder(id) { favStore.toggleFolder(id) }
-function handleRemoveFavItem(itemId, folderId) { favStore.removeFromFolder(itemId, folderId) }
-function handleMoveFavItem(itemId, fromId, toId) { favStore.moveItem(itemId, fromId, toId) }
-function targetFolders(excludeId) { return favStore.folders.filter(f => f.id !== excludeId) }
-const totalLocalFavs = computed(() => favStore.folders.reduce((s, f) => s + f.items.length, 0))
-
 /**
  * 判断方案是否包含选址分析类型的小区（score > 0）
  */
@@ -226,43 +207,10 @@ watch(
       <template #right>
         <GcsPanel :w="4" :h="8" anchor="top-right" :offset-x="0" :offset-y="1.25">
           <div class="profile-content">
-            <!-- 顶部：登录面板 -->
+            <!-- 顶部：登录面板（用户信息区域） -->
             <LoginPanel />
 
-            <!-- 本地收藏夹（文件夹结构，localStorage 持久化） -->
-            <div class="local-fav-section">
-              <div class="section-header">
-                <span class="section-title">收藏夹</span>
-                <span v-if="totalLocalFavs" class="section-count">{{ totalLocalFavs }} 项</span>
-              </div>
-              <!-- 新增文件夹 -->
-              <div class="add-folder-row">
-                <input v-model="newFolderName" class="folder-input" placeholder="新收藏夹名称" @keyup.enter="handleAddFolder" />
-                <button class="add-btn" @click="handleAddFolder">+ 新增</button>
-              </div>
-              <!-- 文件夹列表 -->
-              <div v-for="f in favStore.folders" :key="f.id" class="local-folder">
-                <div class="folder-bar" @click="handleToggleFolder(f.id)">
-                  <span class="folder-arrow">{{ f.expanded ? '▼' : '▶' }}</span>
-                  <span class="folder-name">{{ f.name }}</span>
-                  <span class="folder-n">{{ f.items.length }}</span>
-                  <button v-if="f.id !== 'default'" class="folder-x" @click.stop="handleRemoveFolder(f.id)">×</button>
-                </div>
-                <div v-if="f.expanded" class="folder-body">
-                  <div v-if="f.items.length === 0" class="empty-hint">暂无收藏</div>
-                  <div v-for="item in f.items" :key="item.id" class="local-item">
-                    <span class="item-t">{{ item.title }}</span>
-                    <select v-if="targetFolders(f.id).length" class="move-sel" @change="e => { if(e.target.value){handleMoveFavItem(item.id, f.id, e.target.value);e.target.value=''} }" @click.stop>
-                      <option value="">移至</option>
-                      <option v-for="t in targetFolders(f.id)" :key="t.id" :value="t.id">{{ t.name }}</option>
-                    </select>
-                    <button class="item-x" @click.stop="handleRemoveFavItem(item.id, f.id)">×</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- 中部：方案收藏（服务端） -->
+            <!-- 中部：收藏夹内容 -->
             <div class="favorites-container">
               <!-- 错误提示 -->
               <div v-if="plansError" class="plans-error">
@@ -613,48 +561,4 @@ watch(
   font-size: 12px;
   color: #909399;
 }
-
-/* 本地收藏夹 */
-.local-fav-section {
-  margin-top: 10px;
-  padding: 0 4px;
-  flex-shrink: 0;
-}
-.section-header {
-  display: flex; justify-content: space-between; align-items: center;
-  margin-bottom: 6px;
-}
-.section-title { font-size: 14px; font-weight: 600; color: #303133; }
-.section-count { font-size: 11px; color: #909399; }
-.add-folder-row { display: flex; gap: 4px; margin-bottom: 6px; }
-.folder-input {
-  flex: 1; border: 1px solid #dcdfe6; border-radius: 4px;
-  padding: 3px 6px; font-size: 12px; outline: none;
-}
-.folder-input:focus { border-color: #409eff; }
-.add-btn {
-  flex-shrink: 0; background: #409eff; color: #fff; border: none;
-  border-radius: 4px; padding: 3px 8px; font-size: 12px; cursor: pointer;
-}
-.local-folder { background: #f5f7fa; border-radius: 4px; margin-bottom: 4px; overflow: hidden; }
-.folder-bar {
-  display: flex; align-items: center; gap: 4px;
-  padding: 6px 8px; cursor: pointer; font-size: 13px;
-}
-.folder-arrow { font-size: 9px; color: #909399; width: 10px; }
-.folder-name { flex: 1; font-weight: 500; color: #303133; }
-.folder-n { font-size: 11px; color: #c0c4cc; }
-.folder-x { border: none; background: none; color: #c0c4cc; font-size: 14px; cursor: pointer; }
-.folder-x:hover { color: #f56c6c; }
-.folder-body { padding: 0 6px 4px; }
-.empty-hint { padding: 8px 0; text-align: center; font-size: 12px; color: #c0c4cc; }
-.local-item {
-  display: flex; align-items: center; gap: 4px;
-  padding: 4px 6px; margin-bottom: 2px; background: #fff; border-radius: 3px;
-  font-size: 12px;
-}
-.item-t { flex: 1; color: #303133; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.move-sel { font-size: 10px; border: 1px solid #e4e7ed; border-radius: 2px; padding: 0 2px; color: #606266; }
-.item-x { border: none; background: none; color: #c0c4cc; font-size: 13px; cursor: pointer; }
-.item-x:hover { color: #f56c6c; }
 </style>

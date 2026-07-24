@@ -25,7 +25,7 @@ import SiteAnalysisControlPanel from './components/SiteAnalysisControlPanel.vue'
 import LayerControlPanel from '@/shared/components/LayerControlPanel.vue'
 import PaginatedListPanel from '@/shared/components/PaginatedListPanel.vue'
 import RadarChart from '@/visualization/charts/RadarChart.vue'
-import ErrorPopup from '@/shared/components/ErrorPopup.vue'
+import { showError } from '@/shared/utils/errorHandler'
 import { useMapControls } from '@/core/map/composables/useMapControls'
 import { useMapStore } from '@/stores/map'
 import { useAnalysisLayer } from './composables/useAnalysisLayer'
@@ -64,9 +64,10 @@ const factorPanelRef = ref<InstanceType<typeof SiteAnalysisControlPanel> | null>
 /** 小区列表面板引用（用于获取/恢复状态） */
 const favoriteListRef = ref<InstanceType<typeof PaginatedListPanel> | null>(null)
 
-/** P2-004-FIX: 错误弹窗状态 */
-const showErrorPopup = ref<boolean>(false)
-const errorMessage = ref<string>('')
+/** 处理分析错误（来自因子面板的 calcError） */
+function handleAnalysisError(message: string): void {
+  showError(message, { fallback: '选址分析失败，请调整筛选条件后重试' })
+}
 
 /** 限制显示前8个小区 */
 const displayXiaoqu = computed<ScoredXiaoqu[]>(() => matchedXiaoqu.value.slice(0, 8))
@@ -82,8 +83,6 @@ const displayXiaoquForRadar = computed<ScoredXiaoqu | null>(
 /** 处理分析结果 */
 function handleResult(result: Partial<AnalysisResult>): void {
   logger.debug('[SiteSelection] 收到分析结果:', result)
-  // FIX:P3-03: 页面级错误弹窗接线
-  showErrorPopup.value = false
 
   // 注册分析结果处理函数（通过 BusinessLayerManager 管理图层）
   if (!mapStore.analysisHandler) {
@@ -101,12 +100,6 @@ function handleResult(result: Partial<AnalysisResult>): void {
   if (matchedXiaoqu.value.length > 0) {
     zoomToDistrict()
   }
-}
-
-// FIX:P3-03: 接线启用页面级错误弹窗（此前 showErrorPopup 为死代码）
-function handleAnalysisError(message: string): void {
-  errorMessage.value = message || '选址分析失败，请稍后重试'
-  showErrorPopup.value = true
 }
 
 /**
@@ -369,9 +362,6 @@ onUnmounted(() => {
         </GcsPanel>
       </template>
     </AppLayout>
-
-    <!-- P2-004-FIX: 错误提示弹窗 -->
-    <ErrorPopup :visible="showErrorPopup" :message="errorMessage" @close="showErrorPopup = false" />
   </div>
 </template>
 

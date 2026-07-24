@@ -37,10 +37,11 @@ import { ref, computed, watch } from 'vue'
 import { useGCS } from '@/core/layout/useGCS.js'
 import { usePlans } from '@/shared/composables/usePlans'
 import { useAuth } from '@/shared/composables/useAuth'
+import { useRouter } from 'vue-router'
 import { useMapStore } from '@/stores/map'
 import { useMapControls } from '@/core/map/composables/useMapControls'
-import { ElButton, ElMessage } from 'element-plus'
-import ErrorPopup from '@/shared/components/ErrorPopup.vue'
+import { ElButton, ElMessage, ElMessageBox } from 'element-plus'
+import { showError } from '@/shared/utils/errorHandler'
 import { logger } from '@/shared/utils/logger'
 import type { SavedXiaoqu } from '@/types/plan'
 
@@ -80,12 +81,10 @@ const { createPlan, saveXiaoqu, removeXiaoqu } = usePlans()
 const { isAuthenticated } = useAuth()
 const mapStore = useMapStore()
 const { flyTo, startBreathing } = useMapControls()
+const router = useRouter()
 
 /** 统一的登录状态判断：使用 isAuthenticated 而非 user.value */
 const isLoggedIn = computed(() => isAuthenticated.value)
-
-/** 登录弹窗控制 */
-const showLoginPopup = ref(false)
 
 /** 当前选中的项（用于地图可视化） */
 const selectedItem = ref<any>(null)
@@ -131,7 +130,13 @@ function isFavorite(itemId: string): boolean {
  */
 async function toggleFavorite(item: any) {
   if (!isLoggedIn.value) {
-    showLoginPopup.value = true
+    ElMessageBox.confirm('收藏功能需要登录，是否前往登录？', '未登录', {
+      confirmButtonText: '去登录',
+      cancelButtonText: '取消',
+      type: 'warning',
+    }).then(() => {
+      router.push('/profile')
+    }).catch(() => {})
     return
   }
 
@@ -149,17 +154,18 @@ async function toggleFavorite(item: any) {
 async function doSave(item: any) {
   if (!currentPlanId.value) {
     try {
+      const ts = Date.now().toString().slice(-8)
       const planName =
         props.planType === 'flood'
-          ? `浸没分析收藏_${new Date().toLocaleTimeString()}`
-          : `选址方案_${new Date().toLocaleTimeString()}`
+          ? `浸没分析收藏${ts}`
+          : `选址分析收藏${ts}`
       const plan = await createPlan(planName, {})
       currentPlanId.value = plan?.id || null
       if (plan) {
         savedItems.value = plan.savedXiaoqu || []
       }
     } catch (error) {
-      ElMessage.error('创建收藏方案失败')
+      showError(error, { fallback: '创建收藏失败，请稍后重试' })
       if (import.meta.env.DEV) {
         console.error('[PaginatedListPanel] 创建方案失败:', error)
       }
@@ -176,7 +182,7 @@ async function doSave(item: any) {
     ElMessage.success(`已收藏：${item.name}`)
     emit('favorite-change', { item, isFavorite: true })
   } catch (error) {
-    ElMessage.error('收藏失败')
+    showError(error, { fallback: '收藏失败，请稍后重试' })
     if (import.meta.env.DEV) {
       console.error('[PaginatedListPanel] 收藏失败:', error)
     }
@@ -188,7 +194,7 @@ async function doSave(item: any) {
  */
 async function doRemove(item: any) {
   if (!currentPlanId.value) {
-    ElMessage.warning('未找到收藏方案')
+    showError('未找到收藏方案，请先收藏一个小区')
     return
   }
   try {
@@ -197,7 +203,7 @@ async function doRemove(item: any) {
     ElMessage.success(`已取消收藏：${item.name}`)
     emit('favorite-change', { item, isFavorite: false })
   } catch (error) {
-    ElMessage.error('取消收藏失败')
+    showError(error, { fallback: '取消收藏失败，请稍后重试' })
     if (import.meta.env.DEV) {
       console.error('[PaginatedListPanel] 取消收藏失败:', error)
     }
@@ -369,12 +375,6 @@ defineExpose({
         </ElButton>
       </div>
     </div>
-    <ErrorPopup
-      v-if="showLoginPopup"
-      :visible="showLoginPopup"
-      mode="login"
-      @close="showLoginPopup = false"
-    />
   </div>
 </template>
 

@@ -5,7 +5,7 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { FACILITY_CONFIG } from '../composables/facilityConfig'
 import { useSiteAnalysisApi } from '../composables/useSiteAnalysisApi'
 import type { AnalysisResult, TypeSetting, FacilityType } from '@/types/analysis'
-import ErrorPopup from '@/shared/components/ErrorPopup.vue'
+import { showError, showWarning } from '@/shared/utils/errorHandler'
 
 interface Emits {
   (_e: 'result-update', _result: Partial<AnalysisResult>): void
@@ -42,10 +42,6 @@ const selectedKeys = computed<string[]>(() =>
 )
 
 const { analyze, calculating, calcError } = useSiteAnalysisApi()
-
-/** 弹窗状态 */
-const showPopup = ref<boolean>(false)
-const popupMessage = ref<string>('')
 
 /** 清除指定因子的计时器 */
 function clearTimer(key: string): void {
@@ -123,8 +119,7 @@ async function runAnalysis(): Promise<void> {
   // 先确认所有选择
   confirmAll()
   if (selectedKeys.value.length === 0) {
-    popupMessage.value = '请至少选择一种设施类型'
-    showPopup.value = true
+    showWarning('请至少选择一种设施类型')
     return
   }
   // 构造后端期望的 typeSettings 格式
@@ -142,9 +137,7 @@ async function runAnalysis(): Promise<void> {
     typeSettings: apiTypeSettings,
   })
   if (calcError.value) {
-    popupMessage.value = calcError.value || '网络异常，请重试'
-    showPopup.value = true
-    // FIX:P3-03: 向页面级错误弹窗传递错误
+    showError(calcError.value, { fallback: '选址分析失败，请稍后重试' })
     emit('analysis-error', calcError.value)
     return
   }
@@ -154,20 +147,6 @@ async function runAnalysis(): Promise<void> {
     facilityPoi: result.facilityPoi ?? {},
     selectedTypes: selectedKeys.value,
   })
-}
-
-/** 重试分析 */
-async function handleRetry(): Promise<void> {
-  showPopup.value = false
-  popupMessage.value = ''
-  await runAnalysis()
-}
-
-/** 关闭弹窗 */
-function handleClosePopup(): void {
-  showPopup.value = false
-  popupMessage.value = ''
-  calcError.value = ''
 }
 
 /** 重要性标签 */
@@ -290,14 +269,6 @@ defineExpose({
         <span class="factor-label">{{ calculating ? '分析中...' : '开始分析' }}</span>
       </button>
     </div>
-
-    <!-- 错误/提示弹窗 -->
-    <ErrorPopup
-      :visible="showPopup"
-      :message="popupMessage"
-      @close="handleClosePopup"
-      @retry="handleRetry"
-    />
   </div>
 </template>
 

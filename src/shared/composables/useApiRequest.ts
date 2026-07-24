@@ -97,7 +97,7 @@ export function useApiRequest() {
       clearTimeout(timeoutId)
       if (error instanceof Error) {
         if (error.name === 'AbortError') {
-          throw new ApiError('请求超时，请稍后重试', ErrorCode.TIMEOUT)
+          throw new ApiError('请求超时，请检查网络后重试', ErrorCode.TIMEOUT)
         }
         if (error instanceof TypeError && error.message.includes('fetch')) {
           throw new ApiError('网络异常，请检查网络连接', ErrorCode.NETWORK_ERROR)

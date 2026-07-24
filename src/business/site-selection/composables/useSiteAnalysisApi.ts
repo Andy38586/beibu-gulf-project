@@ -46,25 +46,25 @@ export function useSiteAnalysisApi() {
       if (error instanceof ApiError) {
         switch (error.code) {
           case ErrorCode.TIMEOUT:
-            calcError.value = '请求超时，请稍后重试'
+            calcError.value = '选址分析请求超时，请检查网络后重试'
             break
           case ErrorCode.UNAUTHORIZED:
-            calcError.value = '请先登录'
+            calcError.value = '请先登录后再进行分析'
             break
           case ErrorCode.SERVER_ERROR:
-            calcError.value = '服务器错误，请稍后重试'
+            calcError.value = '选址分析服务异常，请稍后重试'
             break
           case ErrorCode.NETWORK_ERROR:
-            calcError.value = '网络异常，请检查网络连接'
+            calcError.value = '选址分析网络异常，请检查连接'
             break
           case ErrorCode.REQUEST_FAILED:
-            calcError.value = '参数错误，请检查输入'
+            calcError.value = '选址分析参数异常，请调整筛选条件后重试'
             break
           default:
-            calcError.value = '网络异常，请稍后重试'
+            calcError.value = '选址分析失败，请稍后重试'
         }
       } else {
-        calcError.value = '网络异常，请稍后重试'
+        calcError.value = '选址分析网络异常，请稍后重试'
       }
       // FIX:009: 保持返回结构完整
       return { error: calcError.value, coverage: null, matchedXiaoqu: [], facilityPoi: {} }

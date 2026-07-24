@@ -77,12 +77,9 @@ export function useApiRequest() {
       const data = await res.json().catch(() => ({}))
 
       if (res.status === 401) {
-        clearToken()
-        const router = (await import('@/router')).default
-        if (router.currentRoute.value.path !== '/') {
-          router.push('/')
-        }
-        throw new ApiError('登录已过期，请重新登录', ErrorCode.UNAUTHORIZED)
+        // 不在这里 clearToken/redirect：401 可能只是某个接口需要登录
+        // 调用方自行决定是否提示登录（选址分析不需要，收藏才需要）
+        throw new ApiError('请先登录', ErrorCode.UNAUTHORIZED)
       }
 
       if (!res.ok) {

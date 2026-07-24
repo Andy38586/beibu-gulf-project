@@ -5,7 +5,7 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { FACILITY_CONFIG } from '../composables/facilityConfig'
 import { useSiteAnalysisApi } from '../composables/useSiteAnalysisApi'
 import type { AnalysisResult, TypeSetting, FacilityType } from '@/types/analysis'
-import { showError, showWarning } from '@/shared/utils/errorHandler'
+import { showWarning } from '@/shared/utils/errorHandler'
 
 interface Emits {
   (_e: 'result-update', _result: Partial<AnalysisResult>): void
@@ -137,7 +137,7 @@ async function runAnalysis(): Promise<void> {
     typeSettings: apiTypeSettings,
   })
   if (calcError.value) {
-    showError(calcError.value, { fallback: '选址分析失败，请稍后重试' })
+    // 只通过 emit 传递，由页面级统一处理（避免重复弹窗）
     emit('analysis-error', calcError.value)
     return
   }

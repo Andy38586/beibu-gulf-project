@@ -1,119 +1,142 @@
 /**
  * useForecastLayer — 预测分析图层管理
  *
- * 通过 BusinessLayerManager 管理动态图层生命周期。
- * 组件不再直接调用 renderer 方法。
+ * 每个指标对应独立图层，key 格式: forecast-{indicator}
+ * 切换指标时自动显隐，LayerControlPanel 列出全部 4 个条目
  */
-import { computed } from 'vue'
+import { computed, watch, nextTick } from 'vue'
+import { showError } from '@/shared/utils/errorHandler'
 import { useForecastState } from '@/stores/forecastState'
 import { useBusinessLayers } from '@/core/map/composables/useBusinessLayers'
-import { useApiRequest } from '@/shared/composables/useApiRequest'
+import { useForecastRequest } from './useForecastRequest'
 import { useMapStore } from '@/stores/map'
+
+const INDICATORS = ['throughput', 'berth', 'traffic', 'pressure']
+const INDICATOR_LABELS = {
+  throughput: '吞吐量热力',
+  berth: '泊位分布',
+  traffic: '船舶流量',
+  pressure: '物流压力',
+}
+const LAYER_TYPES = {
+  throughput: 'heatmap',
+  berth: 'geojson',
+  traffic: 'geojson',
+  pressure: 'geojson',
+}
+const FEATURE_TYPES = {
+  berth: 'forecast-berth',
+  traffic: 'forecast-traffic',
+  pressure: 'forecast-pressure',
+}
 
 export function useForecastLayer() {
   const forecastState = useForecastState()
   const mapStore = useMapStore()
   const { manager } = useBusinessLayers()
-  const { apiRequest } = useApiRequest()
-
-  const currentLayerKey = 'forecast-layer'
-  let layerReqSeq = 0
+  const { forecastApiRequest } = useForecastRequest()
 
   const renderer = computed(() => mapStore.currentRenderer)
 
-  const INDICATOR_LABELS = {
-    throughput: '吞吐量热力',
-    berth: '泊位利用率',
-    traffic: '船舶流量',
-    pressure: '物流压力',
-  }
+  // 合并 watch：同时监听 renderer 和 activeIndicator，确保图层状态同步
+  watch(
+    [() => renderer.value, () => forecastState.activeIndicator],
+    async ([r, newInd], [_oldR, oldInd]) => {
+      if (!r) return
+      
+      // 延迟到下一帧，确保渲染器完全初始化
+      await nextTick()
+      
+      // 渲染器就绪时注册全部 4 个图层
+      for (const indicator of INDICATORS) {
+        const key = `forecast-${indicator}`
+        if (manager.has(key)) continue
+        const isActive = indicator === newInd
+        manager.register(key, {
+          label: INDICATOR_LABELS[indicator],
+          layerType: LAYER_TYPES[indicator],
+          data: null,
+          options: getLayerOptions(indicator),
+          visible: isActive,
+        })
+      }
+      
+      // 指标切换时更新图层可见性
+      if (oldInd && oldInd !== newInd) {
+        const oldKey = `forecast-${oldInd}`
+        if (manager.has(oldKey)) manager.setVisible(oldKey, false)
+      }
+      const newKey = `forecast-${newInd}`
+      if (manager.has(newKey)) manager.setVisible(newKey, true)
+    },
+    { immediate: true },
+  )
 
-  function getLayerType(indicator) {
-    if (indicator === 'throughput') return 'heatmap'
-    return 'geojson'
-  }
-
-  function getLayerOptions(indicator, geojson) {
+  function getLayerOptions(indicator) {
     if (indicator === 'throughput') {
       return { weightField: 'value', radius: 20, blur: 15 }
     }
-    // berth / traffic / pressure 的 per-feature 样式由各自的 style 回调处理
-    return {}
+    const ft = FEATURE_TYPES[indicator]
+    return ft ? { featureType: ft } : {}
   }
 
-  function getGeoJsonOptions(indicator) {
-    if (indicator === 'berth') return { featureType: 'forecast-berth' }
-    if (indicator === 'traffic') return { featureType: 'forecast-traffic' }
-    if (indicator === 'pressure') return { featureType: 'forecast-pressure' }
-    return {}
+  function getRenderData(layerType, geojson) {
+    if (layerType === 'heatmap') return geojson.features || []
+    return geojson
   }
 
-  async function updateForecastLayer() {
+  async function updateForecastLayer(transactionId, signal) {
     const r = renderer.value
     if (!r) return
 
     const indicator = forecastState.activeIndicator
     const rawTime = forecastState.currentTime
     const time = rawTime.includes('-') ? rawTime : `${rawTime}-12`
+    const key = `forecast-${indicator}`
 
-    try {
-      const seq = ++layerReqSeq
-      const confidence = forecastState.confidenceThresholds[indicator] || 0.8
-      const response = await apiRequest(`/forecast/map?indicator=${indicator}&time=${time}&confidence=${confidence}`)
-
-      if (seq !== layerReqSeq) return
-
-      if (response.code !== 200 || !response.data) {
-        if (import.meta.env.DEV) console.warn('[useForecastLayer] 数据为空', response)
-        return
-      }
-
-      const geojson = response.data
-      const layerType = getLayerType(indicator)
-      const label = INDICATOR_LABELS[indicator] || indicator
-      const baseOptions = getLayerOptions(indicator, geojson)
-      const geojsonOptions = getGeoJsonOptions(indicator)
-
-      const options = { ...baseOptions, ...geojsonOptions }
-      const existingMeta = manager.getMeta(currentLayerKey)
-
-      // 指标切换导致 layerType 变化时，先移除旧图层再重新注册
-      if (existingMeta && existingMeta.layerType !== layerType) {
-        manager.remove(currentLayerKey)
-      }
-
-      if (!manager.has(currentLayerKey)) {
-        // 首次注册 → 默认显示
-        manager.register(currentLayerKey, {
-          label,
-          layerType,
-          data: getRenderData(layerType, geojson, indicator),
-          options,
+    // 检查图层是否已注册，若未注册则先注册
+    if (!manager.has(key)) {
+      await nextTick()
+      if (!manager.has(key)) {
+        manager.register(key, {
+          label: INDICATOR_LABELS[indicator],
+          layerType: LAYER_TYPES[indicator],
+          data: null,
+          options: getLayerOptions(indicator),
           visible: true,
         })
-      } else {
-        // 已注册 → 只更新数据，不改变 visible
-        manager.updateData(currentLayerKey, {
-          data: getRenderData(layerType, geojson, indicator),
-          options,
-        })
       }
-    } catch (e) {
-      if (import.meta.env.DEV) console.error('[useForecastLayer] 更新预测图层失败:', e)
     }
-  }
 
-  function getRenderData(layerType, geojson, indicator) {
-    if (layerType === 'heatmap') {
-      // 热力图需要 features 数组
-      return geojson.features || []
+    try {
+      const confidence = forecastState.confidenceThresholds[indicator] || 0.8
+      const response = await forecastApiRequest(
+        `/forecast/map?indicator=${indicator}&time=${time}&confidence=${confidence}`,
+        transactionId,
+        signal
+      )
+
+      // 事务过期或请求被取消
+      if (response === null) return
+      if (response.code !== 200 || !response.data) return
+
+      const geojson = response.data
+      const layerType = LAYER_TYPES[indicator]
+      const data = getRenderData(layerType, geojson)
+      const options = getLayerOptions(indicator)
+
+      manager.updateData(key, { data, options })
+    } catch (e) {
+      if (import.meta.env.DEV) console.error('[useForecastLayer] 更新失败:', e)
+      showError(e, { fallback: '更新地图图层失败' })
     }
-    return geojson
   }
 
   function removeForecastLayer() {
-    manager.remove(currentLayerKey)
-    forecastState.activeForecastLayer = null
+    for (const indicator of INDICATORS) {
+      const key = `forecast-${indicator}`
+      if (manager.has(key)) manager.remove(key)
+    }
   }
 
   return { updateForecastLayer, removeForecastLayer, renderer }

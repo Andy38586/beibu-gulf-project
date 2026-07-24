@@ -7,7 +7,21 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 const DATA_DIR = join(__dirname, '../../public/data/forecast')
 
 async function readDataFile(filename) {
-  return JSON.parse(await readFile(join(DATA_DIR, filename), 'utf-8'))
+  try {
+    return JSON.parse(await readFile(join(DATA_DIR, filename), 'utf-8'))
+  } catch (err) {
+    if (err.code === 'ENOENT') {
+      const indicator = filename.replace('.json', '')
+      console.warn(`[forecastService] 指标数据文件缺失: ${filename}（${indicator}），返回空结构`)
+      // 返回空结构，避免前端报错
+      return {
+        indicator,
+        unit: '',
+        data: {}
+      }
+    }
+    throw err
+  }
 }
 
 // 缓存引擎计算结果，场景参数变化时失效

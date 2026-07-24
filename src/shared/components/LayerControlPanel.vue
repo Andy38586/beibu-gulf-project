@@ -42,7 +42,10 @@ const layerButtons = computed(() => {
     'gcs-water-surface',
     'gcs-flood-area',
     'gcs-facilities',
-    'forecast-layer',
+    'forecast-throughput',
+    'forecast-berth',
+    'forecast-traffic',
+    'forecast-pressure',
   ]
   const ordered = order
     .map((key) => layerCatalog.value.find((l) => l.key === key))

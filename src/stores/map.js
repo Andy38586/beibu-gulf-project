@@ -284,7 +284,10 @@ export const useMapStore = defineStore('map', () => {
     const idx = layerCatalog.value.findIndex((e) => e.key === key)
     if (idx < 0) return
     const entry = layerCatalog.value[idx]
-    entry.hide.forEach((fn) => fn())
+    // 旧机制图层（registerToggleable）有 show/hide 回调，新机制（registerBusinessLayer）没有
+    if (entry.hide) {
+      entry.hide.forEach((fn) => fn())
+    }
     layerCatalog.value.splice(idx, 1)
   }
 

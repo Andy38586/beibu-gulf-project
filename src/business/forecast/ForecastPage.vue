@@ -1,9 +1,24 @@
-<!-- FORECAST: 预测分析业务页面
-     布局：左侧 LineChart(4×4) + BarChart(4×4)
-           右侧 ForecastControlPanel(4×4) + LayerControlPanel(4×4) -->
+<!--
+  /**
+   * @arch-note 预测分析模块
+   *
+   * 当前阶段：架构验证期，使用 mock 数据跑通 2D 热力图 + 时间轴播放链路
+   * 数据状态：src/mock/forecast/ 为 AI 生成的模拟港口吞吐量时序数据
+   * 待接入：真实港口生产数据（毕业论文阶段替换）
+   *
+   * 本模块验证目标：
+   * 1. BusinessLayerManager 的 heatmap adapter 能否独立注册/销毁
+   * 2. 2D 渲染器在不依赖 3D 引擎时的纯 2D 业务承载能力
+   * 3. 时间轴驱动下的图层增量更新性能
+   */
+
+  FORECAST: 预测分析业务页面
+  布局：左侧 LineChart(4×4) + BarChart(4×4)
+        右侧 ForecastControlPanel(4×4) + LayerControlPanel(4×4)
+-->
 <script setup>
 import { ref, watch, onMounted, onUnmounted } from 'vue'
-import { ElMessage } from 'element-plus'
+import { showError, handleAsync } from '@/shared/utils/errorHandler'
 import AppLayout from '@/core/layout/AppLayout.vue'
 import GcsPanel from '@/core/layout/components/GcsPanel.vue'
 import LineChart from '@/visualization/charts/LineChart.vue'
@@ -12,13 +27,13 @@ import LayerControlPanel from '@/shared/components/LayerControlPanel.vue'
 import ForecastControlPanel from './components/ForecastControlPanel.vue'
 import { useForecastState } from '@/stores/forecastState'
 import { useForecastLayer } from './composables/useForecastLayer'
-import { useApiRequest } from '@/shared/composables/useApiRequest'
+import { useForecastRequest } from './composables/useForecastRequest'
 import { useMapStore } from '@/stores/map'
 
 const forecastState = useForecastState()
 const mapStore = useMapStore()
 const { updateForecastLayer, removeForecastLayer, renderer } = useForecastLayer()
-const { apiRequest } = useApiRequest()
+const { forecastApiRequest, startTransaction, cancelAll } = useForecastRequest()
 
 const lineXData = ref([])
 const lineSeries = ref([])
@@ -29,27 +44,15 @@ const lineViewportXMin = ref('2023-01')
 const lineViewportXMax = ref('2029-12')
 
 const requestCache = new Map()
-let timeSeriesReqSeq = 0
-let portComparisonReqSeq = 0
-let throttleBlockUntil = 0
-let trailingTimer = null
-const MIN_INTERVAL = 300
-const TRAILING_DELAY = 250
+let debounceTimer = null
+const DEBOUNCE_DELAY = 300
 
-// 发展情景映射（业务语义层，未来可替换为真实算法参数）
-const SCENARIO_CONFIG = {
-  0.8: { label: '保守发展', factor: 0.8 },
-  1.0: { label: '基准发展', factor: 1.0 },
-  1.2: { label: '高速发展', factor: 1.2 },
-}
-function getScenarioLabel(value) {
-  const v = Math.round(value * 20) / 20  // 对齐到 0.05 步长
-  return SCENARIO_CONFIG[v]?.label || `情景 ${(value * 100).toFixed(0)}%`
-}
+// P2-01: 加载状态反馈
+const isLoading = ref(false)
 
 onMounted(() => { forecastState.reset(); requestCache.clear() })
 
-async function loadTimeSeriesData() {
+async function loadTimeSeriesData(transactionId, signal) {
   console.log('[ForecastPage] loadTimeSeriesData called')
   try {
     const indicator = forecastState.activeIndicator
@@ -60,9 +63,13 @@ async function loadTimeSeriesData() {
 
     // 全量数据: 首次 API 获取后缓存，后续只做窗口截取
     if (!requestCache.has(cacheKey)) {
-      const seq = ++timeSeriesReqSeq
-      const resp = await apiRequest(`/forecast/timeseries?indicator=${indicator}&granularity=${granularity}&confidence=${confidence}`)
-      if (seq !== timeSeriesReqSeq) return
+      const resp = await forecastApiRequest(
+        `/forecast/timeseries?indicator=${indicator}&granularity=${granularity}&confidence=${confidence}`,
+        transactionId,
+        signal
+      )
+      // 事务过期或请求被取消
+      if (resp === null) return
       if (resp.code === 200 && resp.data?.series) {
         requestCache.set(cacheKey, { allSeries: resp.data.series })
       }
@@ -71,27 +78,38 @@ async function loadTimeSeriesData() {
     const cached = requestCache.get(cacheKey)
     if (!cached?.allSeries) return
 
-    // 7年窗口跟随滑块滑动: [滑块年份-3, 滑块年份+4)
+    const allData = cached.allSeries[0]?.data || []
+    if (!allData.length) return
+
+    // 7年窗口: [slider-3, slider+3]，钳制在数据实际范围内防止空白
     const [sliderYear, sliderMonth] = forecastState.currentTime.split('-').map(Number)
     const isYear = forecastState.timeGranularity === 'year'
     const fmt = (y, m) => isYear ? String(y) : `${y}-${String(m || 1).padStart(2, '0')}`
-    const windowStart = fmt(sliderYear - 3, sliderMonth)
-    const windowEnd = fmt(sliderYear + 3, 12)
+    const dataMin = allData[0].time
+    const dataMax = allData[allData.length - 1].time
+
+    const rawStart = fmt(sliderYear - 3, sliderMonth)
+    const rawEnd = fmt(sliderYear + 3, 12)
+    const windowStart = rawStart >= dataMin ? rawStart : dataMin
+    const windowEnd = rawEnd <= dataMax ? rawEnd : dataMax
 
     lineViewportXMin.value = windowStart
     lineViewportXMax.value = windowEnd
 
     const inWindow = (d) => d.time >= windowStart && d.time <= windowEnd
 
-    lineXData.value = (cached.allSeries[0]?.data || []).filter(inWindow).map((d) => d.time)
+    lineXData.value = allData.filter(inWindow).map((d) => d.time)
     lineSeries.value = cached.allSeries.map((s) => ({
       name: s.portName,
       data: (s.data || []).filter(inWindow).map((d) => d.value),
     }))
-  } catch (e) { console.error('[ForecastPage] loadTimeSeriesData error:', e); ElMessage.error('加载趋势数据失败') }
+  } catch (e) {
+    console.error('[ForecastPage] loadTimeSeriesData error:', e)
+    showError(e, { fallback: '加载趋势数据失败' })
+  }
 }
 
-async function loadPortComparisonData() {
+async function loadPortComparisonData(transactionId, signal) {
   console.log('[ForecastPage] loadPortComparisonData called')
   try {
     const indicator = forecastState.activeIndicator
@@ -100,75 +118,93 @@ async function loadPortComparisonData() {
     console.log('[ForecastPage] loadPortComparisonData:', { indicator, time })
     const confidence = forecastState.confidenceThresholds[indicator] || 0.8
     const cacheKey = `cmp:${indicator}:${time}:${confidence}`
-    if (requestCache.has(cacheKey)) { const c = requestCache.get(cacheKey); barXData.value = c.xData; barSeries.value = c.series; return }
-    const seq = ++portComparisonReqSeq
-    const resp = await apiRequest(`/forecast/indicator/${indicator}?time=${time}&confidence=${confidence}`)
+    if (requestCache.has(cacheKey)) {
+      // 事务检查：即使缓存命中也要验证事务有效性
+      const { isTransactionValid } = useForecastRequest()
+      if (!isTransactionValid(transactionId)) return
+      const c = requestCache.get(cacheKey)
+      barXData.value = c.xData
+      barSeries.value = c.series
+      return
+    }
+    const resp = await forecastApiRequest(
+      `/forecast/indicator/${indicator}?time=${time}&confidence=${confidence}`,
+      transactionId,
+      signal
+    )
     console.log('[ForecastPage] loadPortComparisonData response:', resp)
-    if (seq !== portComparisonReqSeq) return
+    // 事务过期或请求被取消
+    if (resp === null) return
     if (resp.code === 200 && resp.data?.ports) {
       const p = resp.data.ports; const cy = forecastState.currentTime.split('-')[0]
       barXData.value = ['钦州港', '北海港', '防城港']
       barSeries.value = [{ name: cy + '年', data: [p.qinzhou?.value || 0, p.beihai?.value || 0, p.fangchenggang?.value || 0] }]
       requestCache.set(cacheKey, { xData: barXData.value, series: barSeries.value })
     }
-  } catch (e) { console.error('[ForecastPage] loadPortComparisonData error:', e); ElMessage.error('加载对比数据失败') }
+  } catch (e) {
+    console.error('[ForecastPage] loadPortComparisonData error:', e)
+    showError(e, { fallback: '加载对比数据失败' })
+  }
 }
 
 watch(() => mapStore.currentRenderer, (r) => {
   console.log('[ForecastPage] renderer watch triggered:', r ? 'renderer ready' : 'renderer null')
   if (r) {
     console.log('[ForecastPage] loading data...')
-    loadTimeSeriesData()
-    loadPortComparisonData()
-    updateForecastLayer()
+    doForecastUpdate()
   } else {
     console.log('[ForecastPage] renderer is null, waiting...')
   }
 }, { immediate: true })
 
-// 自适应节流 + 尾随防抖: 快拖 300ms 保底刷新，停止 250ms 最终修正
+// 统一的预测更新函数：启动新事务，保证三个请求原子性
 async function doForecastUpdate() {
-  if (renderer.value) await Promise.all([loadTimeSeriesData(), loadPortComparisonData(), updateForecastLayer()])
+  if (!renderer.value) return
+  
+  // P2-01: 设置加载状态
+  isLoading.value = true
+  
+  try {
+    // 启动新事务，取消旧请求
+    const { transactionId, signal } = startTransaction()
+    
+    // 三个请求共享同一事务，保证数据一致性
+    await Promise.all([
+      loadTimeSeriesData(transactionId, signal),
+      loadPortComparisonData(transactionId, signal),
+      updateForecastLayer(transactionId, signal)
+    ])
+  } finally {
+    // P2-01: 清除加载状态
+    isLoading.value = false
+  }
 }
 
-watch(() => [forecastState.currentTime, forecastState.activeIndicator], () => {
-  const now = Date.now()
-
-  // 每次滑块变动都重置尾随防抖 —— 保证最终位置一定刷新
-  clearTimeout(trailingTimer)
-  trailingTimer = setTimeout(() => doForecastUpdate(), TRAILING_DELAY)
-
-  // 节流: 300ms 内只触发一次，快拖时至少 300ms 刷新一次，图表不白
-  if (now < throttleBlockUntil) return
-  throttleBlockUntil = now + MIN_INTERVAL
-  doForecastUpdate()
-})
-
-watch(() => forecastState.timeGranularity, () => {
-  if (renderer.value) {
-    loadTimeSeriesData()
-    loadPortComparisonData()
-    updateForecastLayer()
-  }
-})
-
-// 发展情景/置信度变化 → 刷新过滤后的数据
+// 合并 watch：监听 indicator、time、confidence 三个核心状态
+// 使用纯防抖(300ms)，停止操作后统一刷新，避免双触发
 watch(
-  () => forecastState.confidenceThresholds[forecastState.activeIndicator],
+  () => [
+    forecastState.activeIndicator,
+    forecastState.currentTime,
+    forecastState.confidenceThresholds[forecastState.activeIndicator]
+  ],
   () => {
-    if (renderer.value) {
-      loadTimeSeriesData()
-      loadPortComparisonData()
-      updateForecastLayer()
-    }
-  },
+    // 每次状态变化都重置防抖定时器
+    clearTimeout(debounceTimer)
+    debounceTimer = setTimeout(() => doForecastUpdate(), DEBOUNCE_DELAY)
+  }
 )
 
-onUnmounted(() => { removeForecastLayer(); forecastState.reset() })
+onUnmounted(() => { 
+  cancelAll()
+  removeForecastLayer()
+  requestCache.clear()
+  forecastState.reset() 
+})
 </script>
 
 <template>
-  <div class="forecast-page">
+  <div class="forecast-page" v-loading="isLoading" element-loading-text="加载预测数据中...">
     <AppLayout>
       <template #left>
         <GcsPanel :w="4" :h="4" anchor="top-left" :offset-x="0" :offset-y="1.25">

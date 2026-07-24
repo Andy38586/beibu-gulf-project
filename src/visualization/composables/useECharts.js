@@ -44,11 +44,12 @@ export function useECharts({ getOption, watchSources = [], onClick = null }) {
 
   /**
    * 更新图表配置
+   * 使用增量更新模式：notMerge=false 保留现有配置，lazyUpdate=true 延迟渲染提升性能
    */
   function updateChart() {
     if (!chartInstance) return
     const option = getOption()
-    chartInstance.setOption(option, false)
+    chartInstance.setOption(option, { notMerge: false, lazyUpdate: true })
   }
 
   /**

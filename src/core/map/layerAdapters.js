@@ -16,8 +16,7 @@ export const LAYER_ADAPTERS = {
       renderer.addHeatmapLayer(key, data, options)
     },
     update: (renderer, key, data, options) => {
-      renderer.removeLayer(key)
-      renderer.addHeatmapLayer(key, data, options)
+      renderer.updateHeatmapLayer(key, data, options)
     },
     remove: (renderer, key) => {
       renderer.removeLayer(key)
@@ -67,7 +66,7 @@ export const LAYER_ADAPTERS = {
     create: (renderer, key, data, options) => {
       renderer.addWaterSurface(key, data.coordinates, data.height, options)
     },
-    update: (renderer, key, data, options) => {
+    update: (renderer, key, data, _options) => {
       renderer.updateWaterLevel(key, data.height)
     },
     remove: (renderer, key) => {

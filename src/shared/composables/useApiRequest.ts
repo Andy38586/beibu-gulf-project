@@ -39,6 +39,7 @@ interface RequestOptions {
   method?: string
   body?: string
   headers?: Record<string, string>
+  signal?: AbortSignal
 }
 
 export function useApiRequest() {
@@ -59,12 +60,17 @@ export function useApiRequest() {
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 10000)
 
+    // 如果外部传入 signal，使用 AbortSignal.any 组合
+    const signal = options.signal 
+      ? AbortSignal.any([controller.signal, options.signal])
+      : controller.signal
+
     try {
       const res = await fetch(`${API_BASE}${path}`, {
         ...options,
         headers,
         credentials: 'include', // FIX:SEC-001 修复：自动携带 HttpOnly Cookie
-        signal: controller.signal,
+        signal,
       })
       clearTimeout(timeoutId)
 

@@ -26,7 +26,8 @@ export class OLRenderer extends MapRenderer {
     const view = new View({
       center: fromLonLat([MAP_CONFIG.CAMERA.center.lng, MAP_CONFIG.CAMERA.center.lat]),
       zoom: 9,
-      minZoom: 9,
+      minZoom: 6,
+      maxZoom: 20,
     })
     this.map = new Map({
       target: this.container,
@@ -306,6 +307,33 @@ export class OLRenderer extends MapRenderer {
     return layer
   }
 
+  updateHeatmapLayer(id, features, options = {}) {
+    const entry = this._layers.get(id)
+    if (!entry) return false
+
+    const source = entry.instance.getSource()
+    if (!source) return false
+
+    const { weightField: _weightField = 'value' } = options
+
+    const olFeatures = features.map((f) => {
+      const [lng, lat] = f.geometry.coordinates
+      const feature = new Feature({
+        geometry: new Point(fromLonLat([lng, lat])),
+      })
+      Object.entries(f.properties || {}).forEach(([key, value]) => {
+        feature.set(key, value)
+      })
+      return feature
+    })
+
+    source.clear()
+    source.addFeatures(olFeatures)
+    // 更新层内缓存的 options 以便后续使用
+    if (options) entry.options = options
+    return true
+  }
+
   _doSetVisibility(id, visible) {
     const layer = this._layers.get(id)
     if (layer && layer.instance) {
@@ -369,16 +397,24 @@ export class OLRenderer extends MapRenderer {
     logger.debug('[OLRenderer._setCameraState] 导入原始状态:', state)
 
     const view = this.map.getView()
-    view.setCenter(fromLonLat([state.center.lng, state.center.lat]))
+    let zoom
 
     // 从 Cesium 的 height 反算 OL zoom
     if (state.height != null) {
-      const zoom = heightToZoom(state.height)
-      const clampedZoom = Math.min(Math.max(zoom, 9), 18)
-      view.setZoom(clampedZoom)
+      zoom = heightToZoom(state.height)
     } else if (state.zoom != null) {
-      view.setZoom(state.zoom)
+      zoom = state.zoom
     }
+
+    // 钳制在合法范围内
+    const clampedZoom = zoom != null ? Math.min(Math.max(zoom, 6), 20) : view.getZoom()
+
+    // 原子设置 center+zoom，避免分离调用触发的动画冲突导致 view 状态错乱
+    view.animate({
+      center: fromLonLat([state.center.lng, state.center.lat]),
+      zoom: clampedZoom,
+      duration: 0,
+    })
   }
   setBaseLayer(type) {
     this.baseLayers.image.forEach((l) => l.setVisible(type === 'image'))

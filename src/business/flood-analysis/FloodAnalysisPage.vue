@@ -17,7 +17,6 @@
  */
 import { onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { onBeforeRouteLeave, useRoute } from 'vue-router'
-import { ElMessage } from 'element-plus'
 import { useFloodStateStore } from '@/stores/floodState'
 import AppLayout from '@/core/layout/AppLayout.vue'
 import GcsPanel from '@/core/layout/components/GcsPanel.vue'
@@ -28,6 +27,7 @@ import { usePortImpactStore } from '@/stores/portImpactStore'
 import { useMapStore } from '@/stores/map'
 import { useBusinessLayers } from '@/core/map/composables/useBusinessLayers'
 import { floodAdapter } from '@/services/adapters'
+import { showError } from '@/shared/utils/errorHandler'
 import WaterLevelProfilePanel from './components/WaterLevelProfilePanel.vue'
 import FloodAnalysisReportPanel from './components/FloodAnalysisReportPanel.vue'
 import AffectedFacilityListPanel from './components/AffectedFacilityListPanel.vue'
@@ -256,7 +256,7 @@ async function triggerFloodAnalysis(waterLevel, seq) {
     // 在地图上渲染淹没范围
     renderFloodAreas(features)
   } catch (error) {
-    ElMessage.error('淹没分析失败，请检查网络连接')
+    showError(error, { fallback: '淹没分析失败，请检查网络连接' })
     console.error('[GCS] 淹没分析失败:', error)
   }
 }
@@ -290,7 +290,7 @@ async function triggerImpactAssessment(waterLevel, seq) {
     // 在地图上渲染受影响设施
     renderAffectedFacilities(affectedFacilities)
   } catch (error) {
-    ElMessage.error('影响评估失败，请检查网络连接')
+    showError(error, { fallback: '影响评估失败，请检查网络连接' })
     console.error('[GCS] 影响评估失败:', error)
   }
 }

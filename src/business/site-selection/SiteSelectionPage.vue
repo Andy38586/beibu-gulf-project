@@ -262,21 +262,20 @@ function restoreState(): boolean {
  * 从 mapStore catalog 和 renderer 中同时移除
  */
 function clearAnalysisLayers(): void {
-  const renderer = mapInstance.value?.getRenderer?.()
-
-  // 清除分析覆盖范围和匹配小区图层
-  mapStore.removeLayer('analysis-coverage')
-  mapStore.removeLayer('analysis-matched')
-  if (renderer) {
-    renderer.removeLayer('analysis-coverage')
-    renderer.removeLayer('analysis-matched')
+  // 通过 Manager 统一管理生命周期，不直接操作 renderer 和 mapStore
+  if (businessLayerManager.has('analysis-coverage')) {
+    businessLayerManager.remove('analysis-coverage')
+  }
+  if (businessLayerManager.has('analysis-matched')) {
+    businessLayerManager.remove('analysis-matched')
   }
 
   // 清除设施POI图层
   if (activeFacilityLayerKey.value) {
+    const r = mapInstance.value?.getRenderer?.()
     mapStore.removeLayer(activeFacilityLayerKey.value)
-    if (renderer) {
-      renderer.removeLayer(activeFacilityLayerKey.value)
+    if (r) {
+      r.removeLayer(activeFacilityLayerKey.value)
     }
     activeFacilityLayerKey.value = null
   }

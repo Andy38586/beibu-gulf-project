@@ -135,7 +135,7 @@ describe('UnifiedMap Integration Tests', () => {
     await flushPromises()
     await new Promise(resolve => setTimeout(resolve, 50))
 
-    const renderer2dInstance = createRenderer.mock.results[0].value
+    const _renderer2dInstance = createRenderer.mock.results[0].value
 
     await wrapper.setProps({ mapType: '3d' })
     await new Promise(resolve => setTimeout(resolve, 100))

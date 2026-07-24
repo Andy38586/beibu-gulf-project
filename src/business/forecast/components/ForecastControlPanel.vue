@@ -35,6 +35,16 @@ function toggleBtn(key) {
 }
 
 function onSliderInput(key) { resetTimer(key) }
+
+// P2-03: 置信度滑块防抖
+let confidenceDebounceTimer = null
+function onConfidenceSliderInput(key, value) {
+  if (confidenceDebounceTimer) clearTimeout(confidenceDebounceTimer)
+  confidenceDebounceTimer = setTimeout(() => {
+    forecastState.setConfidenceThreshold(key, Number(value))
+    onSliderInput(key)
+  }, 300)
+}
 function confirmBtn(key) { if (btnStates[key].selecting) { btnStates[key].selecting = false; clearTimer(key) } }
 function resetTimer(key) { clearTimer(key); timers[key] = setTimeout(() => confirmBtn(key), CONFIRM_DELAY) }
 function clearTimer(key) { if (timers[key]) { clearTimeout(timers[key]); timers[key] = null } }
@@ -131,7 +141,7 @@ onUnmounted(() => stopPlayback())
           <span class="ind-label-s">{{ ind.label }}</span>
           <input type="range" min="0.8" max="1.2" step="0.05" :value="getConf(ind.key)"
             class="conf-slider"
-            @input="forecastState.setConfidenceThreshold(ind.key, Number($event.target.value)); onSliderInput(ind.key)" />
+            @input="onConfidenceSliderInput(ind.key, $event.target.value)" />
           <span class="conf-pct">{{ (getConf(ind.key) * 100).toFixed(0) }}%</span>
         </div>
       </div>

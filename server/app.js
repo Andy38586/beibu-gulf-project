@@ -38,7 +38,7 @@ app.use((req, res) => {
 })
 
 // P1-003-FIX: 全局错误处理中间件，防止未捕获异常泄露堆栈信息
-app.use((err, req, res, next) => {
+app.use((err, req, res, _next) => {
   // FIX:016: 仅在开发环境输出详细错误
   if (process.env.NODE_ENV !== 'test') {
     console.error('未捕获的服务器错误:', err.message)

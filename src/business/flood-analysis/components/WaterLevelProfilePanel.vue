@@ -18,6 +18,7 @@ import { useWaterLevelStore } from '@/stores/waterLevelStore'
 import { useProfileStore } from '@/stores/profileStore'
 import { useGCS } from '@/core/layout/useGCS.js'
 import { useApiRequest } from '@/shared/composables/useApiRequest'
+import { showError } from '@/shared/utils/errorHandler'
 import { ElSelect, ElOption, ElMessage, ElSlider } from 'element-plus'
 import * as echarts from 'echarts/core'
 import { LineChart } from 'echarts/charts'
@@ -95,11 +96,11 @@ async function loadProfiles() {
         profileStore.setSelectedProfile(profiles.value[0].id)
       }
     } else {
-      ElMessage.error('加载剖面线数据失败')
+      showError('加载剖面线数据失败')
     }
   } catch (error) {
     console.error('加载剖面线失败:', error)
-    ElMessage.error('加载剖面线数据失败')
+    showError(error, { fallback: '加载剖面线数据失败' })
   }
 }
 
@@ -224,7 +225,8 @@ function updateChart() {
     ],
   }
 
-  chartInstance.setOption(option, true)
+  // 使用增量更新模式：notMerge=false 保留现有配置，lazyUpdate=true 延迟渲染提升性能
+  chartInstance.setOption(option, { notMerge: false, lazyUpdate: true })
 }
 
 /**

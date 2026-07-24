@@ -58,8 +58,6 @@ export function buildTypeCoverage(points, radiusKm) {
   const validPoints = uniquePoints.filter((p) => {
     const isValid = p && typeof p.lng === 'number' && typeof p.lat === 'number' && 
                     !isNaN(p.lng) && !isNaN(p.lat) &&
-                    p.lng >= -180 && p.lng <= 180 && 
-                    p.lat >= -90 && p.lat <= 90 &&
                     !(p.lng === 0 && p.lat === 0) && // 过滤[0,0]异常坐标
                     p.lng >= 105 && p.lng <= 115 && // 北部湾经度范围
                     p.lat >= 18 && p.lat <= 25      // 北部湾纬度范围

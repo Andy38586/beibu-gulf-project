@@ -13,6 +13,8 @@ export function useChartBase(props, emit, chartType, seriesConfig) {
    * 不要原地 push/splice，否则不会触发更新。
    */
   function buildOption() {
+    const dataLen = (props.xData || []).length
+    const dense = dataLen > 24 // 月粒度超过 24 个点自动间隔
     return {
       backgroundColor: 'transparent',
       grid: { top: 40, right: 16, bottom: 40, left: 40 },
@@ -32,7 +34,11 @@ export function useChartBase(props, emit, chartType, seriesConfig) {
         type: 'category',
         data: props.xData || [],
         axisLine: { lineStyle: { color: '#ddd' } },
-        axisLabel: { color: '#666', fontSize: 10 },
+        axisLabel: {
+          color: '#666',
+          fontSize: 10,
+          ...(dense ? { interval: 2, rotate: 30 } : {}),
+        },
         ...(props.xMin ? { min: props.xMin } : {}),
         ...(props.xMax ? { max: props.xMax } : {}),
       },
@@ -40,7 +46,10 @@ export function useChartBase(props, emit, chartType, seriesConfig) {
         type: 'value',
         splitLine: { lineStyle: { color: '#eee' } },
         axisLabel: { color: '#666', fontSize: 10 },
+        ...(props.yUnit ? { name: props.yUnit, nameTextStyle: { fontSize: 10, color: '#999' } } : {}),
       },
+      animationDuration: 300,
+      animationEasing: 'linear',
       series: (props.series || []).map((s) => ({
         name: s.name,
         type: chartType,

@@ -35,6 +35,13 @@ export class MapRenderer {
     return false
   }
 
+  updateHeatmapLayer(_id, _features, _options = {}) {
+    if (import.meta.env.DEV) {
+      console.warn(`${this.getType()} updateHeatmapLayer 未实现`)
+    }
+    return false
+  }
+
   setVisibility(id, visible) {
     const layer = this._layers.get(id)
     if (layer) {

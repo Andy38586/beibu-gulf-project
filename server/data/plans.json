@@ -303,5 +303,61 @@
     "weights": null,
     "createdAt": "2026-07-18T05:07:03.809Z",
     "updatedAt": "2026-07-18T05:07:03.809Z"
+  },
+  {
+    "id": "9af94373-9cc7-4c56-84f8-f7e3daf23b5c",
+    "userId": "1782469103303",
+    "name": "选址分析收藏01726407",
+    "selectedKeys": [],
+    "typeSettings": {},
+    "weights": null,
+    "savedXiaoqu": [
+      {
+        "id": "B0L2PRR3L7",
+        "name": "腾龙阁小区",
+        "score": 85.2,
+        "lng": 108.618109,
+        "lat": 21.950412,
+        "breakdown": {
+          "hospital": 92.6,
+          "primary_school": 82.5,
+          "middle_school": 84.1,
+          "park": 85.2,
+          "bus_station": 74.4,
+          "mall": 87.4
+        },
+        "savedAt": "2026-07-24T14:02:06.434Z"
+      }
+    ],
+    "createdAt": "2026-07-24T14:02:06.420Z",
+    "updatedAt": "2026-07-24T14:02:06.434Z"
+  },
+  {
+    "id": "79316123-a1c6-4aa5-b71a-33d722b8527e",
+    "userId": "1782469103303",
+    "name": "选址分析收藏01733481",
+    "selectedKeys": [],
+    "typeSettings": {},
+    "weights": null,
+    "savedXiaoqu": [
+      {
+        "id": "B0L2PRR3L7",
+        "name": "腾龙阁小区",
+        "score": 85.2,
+        "lng": 108.618109,
+        "lat": 21.950412,
+        "breakdown": {
+          "hospital": 92.6,
+          "primary_school": 82.5,
+          "middle_school": 84.1,
+          "park": 85.2,
+          "bus_station": 74.4,
+          "mall": 87.4
+        },
+        "savedAt": "2026-07-24T14:02:13.496Z"
+      }
+    ],
+    "createdAt": "2026-07-24T14:02:13.485Z",
+    "updatedAt": "2026-07-24T14:02:13.496Z"
   }
 ]

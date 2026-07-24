@@ -28,13 +28,6 @@ const routes = [
     component: () => import('@/business/flood-analysis/FloodAnalysisPage.vue'),
     meta: { engine: '3d', title: '浸没分析' },
   },
-  // 架构验证：新增第四业务——港口碳排放分析（不修改任何核心引擎代码）
-  {
-    path: '/carbon',
-    name: 'CarbonAnalysis',
-    component: () => import('@/business/carbon-analysis/CarbonAnalysisPage.vue'),
-    meta: { engine: '2d', title: '碳排放分析' },
-  },
   // P0-001-FIX: 移除 requiresAuth，允许未登录用户访问登录面板
   {
     path: '/profile',

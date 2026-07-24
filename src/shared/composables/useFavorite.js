@@ -3,7 +3,7 @@
  *
  * 使用方式（在任何页面中）：
  *   const { isFav, toggleFav } = useFavorite()
- *   toggleFav({ type: 'page', title: '碳排放分析', route: '/carbon' })
+ *   toggleFav({ type: 'page', title: '选址分析', route: '/site-selection' })
  */
 
 import { useFavoriteStore } from '@/stores/favoriteStore'

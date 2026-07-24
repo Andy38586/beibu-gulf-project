@@ -7,4 +7,3 @@
 
 export { forecastAdapter } from './forecastAdapter'
 export { floodAdapter } from './floodAdapter'
-export { carbonAdapter } from './carbonAdapter'

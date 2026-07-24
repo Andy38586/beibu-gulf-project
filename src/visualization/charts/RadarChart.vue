@@ -12,8 +12,8 @@
  * 2. 点击其他地方关闭浮窗
  * 3. 点击雷达图轴名称 → 显示该设施POI图层（互斥）
  *
- * AUDIT-002(架构): 使用 useECharts composable 复用通用图表逻辑
- * AUDIT-006(架构): 使用 useRadarChart composable 拆分逻辑，减少文件行数
+ * FIX:002(架构): 使用 useECharts composable 复用通用图表逻辑
+ * FIX:006(架构): 使用 useRadarChart composable 拆分逻辑，减少文件行数
  */
 
 import { ref, watch, nextTick, computed, onBeforeUnmount } from 'vue'
@@ -22,6 +22,7 @@ import { useRadarChart } from './composables/useRadarChart'
 import RadarScoreTooltip from './components/RadarScoreTooltip.vue'
 import type { ScoredXiaoqu } from '@/types/xiaoqu'
 import type { FacilityPoint } from '@/types/facility'
+import { logger } from '@/shared/utils/logger'
 
 interface Props {
   visible: boolean
@@ -34,17 +35,17 @@ interface Props {
 }
 
 interface Emits {
-  (e: 'close'): void
+  (_e: 'close'): void
   (
-    e: 'show-facility-layer',
-    data: {
+    _e: 'show-facility-layer',
+    _data: {
       type: string
       poiList: FacilityPoint[]
       color: string
       label: string
     },
   ): void
-  (e: 'hide-facility-layer'): void
+  (_e: 'hide-facility-layer'): void
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -70,11 +71,6 @@ const panelRef = ref<HTMLElement | null>(null)
 
 const { cellPixel } = useGCS()
 const unitPx = computed(() => cellPixel.value * 0.1)
-const spacingPx = computed(() => cellPixel.value * 0.2)
-
-/** 弹窗尺寸：2×3 cell（Teleport 到 body 后 v-bind 失效，用 inline style） */
-const tooltipW = computed(() => cellPixel.value * 2)
-const tooltipH = computed(() => cellPixel.value * 3)
 
 /** 使用 useRadarChart composable 处理雷达图逻辑 */
 const {
@@ -121,7 +117,7 @@ watch(
 watch(
   [() => props.xiaoqu, () => props.selectedTypes, () => props.facilityPoi],
   ([newXiaoqu, newTypes, newPoi]) => {
-    console.log('[RadarChart] 数据变化:', { xiaoqu: newXiaoqu, types: newTypes, poi: newPoi })
+    logger.debug('[RadarChart] 数据变化:', { xiaoqu: newXiaoqu, types: newTypes, poi: newPoi })
     setupResizeObserver()
     nextTick(() => renderRadar())
   },

@@ -9,7 +9,7 @@ export async function analyze(req, res) {
       return res.status(400).json({ error: '缺少必要参数: selectedKeys, typeSettings' })
     }
     
-    // AUDIT-103/104: 校验权重范围（1-5）
+    // FIX:103/104: 校验权重范围（1-5）
     if (typeSettings) {
       for (const [key, setting] of Object.entries(typeSettings)) {
         if (setting.importance !== undefined) {
@@ -32,7 +32,7 @@ export async function analyze(req, res) {
       facilityData[key] = await facilitiesRepo.findByType(key)
     }
 
-    // BUGFIX-P1-08: 半径校验（typeSettings 各项 radius 若提供必须为正数）
+    // FIX:P1-08: 半径校验（typeSettings 各项 radius 若提供必须为正数）
     for (const [key, setting] of Object.entries(typeSettings)) {
       if (setting.radius !== undefined) {
         const radius = Number(setting.radius)
@@ -42,7 +42,7 @@ export async function analyze(req, res) {
       }
     }
 
-    // BUGFIX-P2-08: 权重校验（若提供，逐项为 0~10 的有限数）
+    // FIX:P2-08: 权重校验（若提供，逐项为 0~10 的有限数）
     if (weights !== undefined) {
       if (typeof weights !== 'object' || weights === null || Array.isArray(weights)) {
         return res.status(400).json({ error: 'weights 应为对象' })
@@ -64,13 +64,13 @@ export async function analyze(req, res) {
       xiaoquData,
       weights,
     })
-    // BUGFIX-P1-09: 业务失败以 422 返回，不再用 200 携带错误体
+    // FIX:P1-09: 业务失败以 422 返回，不再用 200 携带错误体
     if (result && result.error) {
       return res.status(422).json({ error: result.error })
     }
     res.json(result)
   } catch (error) {
-    // BUGFIX-P1-08: 参数错误返回 400
+    // FIX:P1-08: 参数错误返回 400
     if (error.code === 'INVALID_PARAMS') {
       return res.status(400).json({ error: error.message })
     }

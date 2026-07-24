@@ -12,6 +12,8 @@ const props = defineProps({
       { name: '防城港', data: [80, 95, 110, 125, 150, 170] },
     ],
   },
+  xMin: { type: String, default: '' },
+  xMax: { type: String, default: '' },
 })
 
 const emit = defineEmits(['select'])

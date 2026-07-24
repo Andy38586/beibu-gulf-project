@@ -13,9 +13,11 @@
 
 import { computed } from 'vue'
 import { useLayerManager } from '@/core/map/composables/useLayerManager'
+import { useBusinessLayers } from '@/core/map/composables/useBusinessLayers'
 import { useGCS } from '@/core/layout/useGCS.js'
 
 const { layerCatalog, toggleLayer } = useLayerManager()
+const { manager: businessLayerManager } = useBusinessLayers()
 const { cellPixel, css } = useGCS()
 // 解构出 CSS 变量供 v-bind() 使用
 const { cell8px } = css
@@ -40,6 +42,7 @@ const layerButtons = computed(() => {
     'gcs-water-surface',
     'gcs-flood-area',
     'gcs-facilities',
+    'forecast-layer',
   ]
   const ordered = order
     .map((key) => layerCatalog.value.find((l) => l.key === key))
@@ -63,11 +66,19 @@ function getLayerIcon(label) {
   if (label.includes('水面')) return ''
   if (label.includes('淹没')) return '🌊'
   if (label.includes('设施')) return '🏭'
+  if (label.includes('预测') || label.includes('吞吐') || label.includes('泊位') || label.includes('流量') || label.includes('压力')) return '📈'
   return ''
 }
 
 /** 点击图层按钮 */
 function handleToggle(key) {
+  // 业务图层（有 layerType 字段，无 show/hide 回调）→ 走 Manager.setVisible
+  const catalogEntry = layerCatalog.value.find((e) => e.key === key)
+  if (catalogEntry && catalogEntry.layerType) {
+    businessLayerManager.setVisible(key, !catalogEntry.visible)
+    return
+  }
+  // 底图、边界、港口等旧机制图层 → 走原来的 toggleLayer
   toggleLayer(key)
 }
 </script>

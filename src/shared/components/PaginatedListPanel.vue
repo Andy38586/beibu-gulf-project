@@ -41,7 +41,8 @@ import { useMapStore } from '@/stores/map'
 import { useMapControls } from '@/core/map/composables/useMapControls'
 import { ElButton, ElMessage } from 'element-plus'
 import ErrorPopup from '@/shared/components/ErrorPopup.vue'
-import type { SavedXiaoqu } from '@/types/xiaoqu'
+import { logger } from '@/shared/utils/logger'
+import type { SavedXiaoqu } from '@/types/plan'
 
 interface Props {
   items: any[]
@@ -55,8 +56,8 @@ interface Props {
 }
 
 interface Emits {
-  (e: 'click-item', item: any): void
-  (e: 'favorite-change', data: { item: any; isFavorite: boolean }): void
+  (_e: 'click-item', _item: any): void
+  (_e: 'favorite-change', _data: { item: any; isFavorite: boolean }): void
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -73,7 +74,8 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<Emits>()
 
 // 从 useGCS 解构 CSS 变量供 v-bind() 使用
-const { cell8px, cell16px, cell40px, fontSizeTitle, fontSizeBody, fontSizeSmall } = useGCS()
+const { css } = useGCS()
+const { cell8px, cell16px, cell40px, fontSizeTitle, fontSizeBody, fontSizeSmall } = css
 const { createPlan, saveXiaoqu, removeXiaoqu } = usePlans()
 const { isAuthenticated } = useAuth()
 const mapStore = useMapStore()
@@ -231,8 +233,8 @@ function goToPage(page: number) {
 function handleItemClick(item: any) {
   selectedItem.value = item
 
-  console.log('[PaginatedListPanel] 点击项:', item)
-  console.log('[PaginatedListPanel] breakdown:', item.breakdown)
+  logger.debug('[PaginatedListPanel] 点击项:', item)
+  logger.debug('[PaginatedListPanel] breakdown:', item.breakdown)
 
   // 兼容 lon/lng 字段（使用 ?? 因为 0 是有效值）
   const lng = item.lng ?? item.lon

@@ -1,19 +1,7 @@
-/**
- * GCS V2 响应式布局 composable
- *
- * 提供基于 Cell 的尺寸计算函数，并监听窗口 resize 事件动态调整 CELL_PIXEL。
- * 所有使用 GCS 的组件都应通过此 composable 获取尺寸，禁止直接引用 config.js 中的常量。
- *
- * V2 变更：
- * - 新增 panelSpacing 和 safeMargin 返回值
- * - 新增 windowHeight 响应式变量
- * - 新增 panelPosition 函数（PPS 引擎核心）
- */
-
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+// GCS V2 响应式布局 composable：Cell 尺寸计算 + resize 适配，模块级单例共享
+import { computed, ref } from 'vue'
 import { CELL_PADDING, GAP, PANEL_SPACING, SAFE_MARGIN, getCellPixelByViewport } from './config.js'
 
-// BUGFIX-P3-05: GCS 状态模块级单��，全部组件共享同一套响应式状态 + 一个 resize 监听
 const windowWidth = ref(typeof window !== 'undefined' ? window.innerWidth : 1920)
 const windowHeight = ref(typeof window !== 'undefined' ? window.innerHeight : 1080)
 const cellPixel = ref(getCellPixelByViewport(windowWidth.value))
@@ -38,40 +26,10 @@ function ensureResizeListener() {
   listenerRegistered = true
 }
 
-/**
- * 使用 GCS 布局系统（模块级单例，返回共享引用）
- * @returns {{
- *   windowWidth: import('vue').Ref<number>,
- *   windowHeight: import('vue').Ref<number>,
- *   cellPixel: import('vue').Ref<number>,
- *   gap: import('vue').ComputedRef<number>,
- *   panelSpacing: import('vue').ComputedRef<number>,
- *   safeMargin: import('vue').ComputedRef<number>,
- *   padding: number,
- *   showPanels: import('vue').ComputedRef<boolean>,
- *   showTopArea: import('vue').ComputedRef<boolean>,
- *   cell: (w: number, h: number) => { width: string, height: string },
- *   cellSize: (w: number, h: number) => { width: number, height: number },
- *   panelContentSize: (w: number, h: number) => { width: number, height: number },
- *   panelPosition: (w: number, h: number, anchor: string, offsetX?: number, offsetY?: number) => {
- *     left: string, top: string, width: string, height: string
- *   },
- *   css: {
- *     cell8px: import('vue').ComputedRef<string>,
- *     cell16px: import('vue').ComputedRef<string>,
- *     cell40px: import('vue').ComputedRef<string>,
- *     fontSizeTitle: import('vue').ComputedRef<string>,
- *     fontSizeBody: import('vue').ComputedRef<string>,
- *     fontSizeSmall: import('vue').ComputedRef<string>
- *   }
- * }}
- */
 export function useGCS() {
-  // BUGFIX-P3-05: 模块级单例，不重复创建状态
   ensureResizeListener()
 
-  // 激进防御：任何情况下 cellPixel 或 windowWidth 非法，立即重算
-  // 解决路由切换后 Panel 不可见的硬问题
+  // 防御：cellPixel/windowWidth 非法时重算，解决路由切换后 Panel 不可见
   const ww = windowWidth.value
   const cp = cellPixel.value
   if (cp <= 0 || !isFinite(cp) || ww <= 0 || !isFinite(ww)) {
@@ -197,7 +155,7 @@ export function useGCS() {
         top = H - S - (offsetY + h) * C
         break
       default:
-        // AUDIT-017 (错误): 仅在开发环境输出警告
+        // FIX:017 (错误): 仅在开发环境输出警告
         if (import.meta.env.DEV) {
           console.warn(`[GCS] Unknown anchor: ${anchor}, fallback to top-left`)
         }
@@ -213,8 +171,6 @@ export function useGCS() {
     }
   }
 
-  let resizeTimer = null
-
   /**
    * CSS 尺寸工具集（用于 v-bind() 场景）
    * 提供常用尺寸的字符串格式，避免组件重复写计算属性
@@ -228,7 +184,7 @@ export function useGCS() {
     cell16px: computed(() => `${cellPixel.value * 0.2}px`),
     /** 40px = 0.5 cell */
     cell40px: computed(() => `${cellPixel.value * 0.5}px`),
-    // BUGFIX-R-04: 字号固定 px，与 cell 网格解耦（GCS_V2 规范：16/14/12px）
+    // FIX:R-04: 字号固定 px，与 cell 网格解耦（GCS_V2 规范：16/14/12px）
     fontSizeTitle: computed(() => '16px'),
     fontSizeBody: computed(() => '14px'),
     fontSizeSmall: computed(() => '12px'),

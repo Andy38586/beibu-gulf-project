@@ -1,9 +1,9 @@
-import { ref, computed, onMounted, onUnmounted } from 'vue'
-import type { Ref, ComputedRef } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
+import type { Ref } from 'vue'
 import type { User, AuthResponse } from '@/types/api'
 import { useApiRequest } from './useApiRequest'
 
-// BUGFIX-P2-06: 登出时重置全部业务 store，防止跨账号数据残留
+// FIX:P2-06: 登出时重置全部业务 store，防止跨账号数据残留
 import { useSiteSelectionStateStore } from '@/stores/siteSelectionState'
 import { useFloodStateStore } from '@/stores/floodState'
 import { useFloodStore } from '@/stores/floodStore'
@@ -42,24 +42,23 @@ function writeStoredUser(user: User | null): void {
   }
 }
 
-// AUDIT-004 (架构): 模块级别单例状态，确保所有组件共享同一状态
+// FIX:004 (架构): 模块级别单例状态，确保所有组件共享同一状态
 const user: Ref<User | null> = ref(readStoredUser())
 const { apiRequest, token, isAuthenticated, setToken, clearToken } = useApiRequest()
 
-// AUDIT-313-003: 多标签页状态同步 - 引用计数和全局处理函数
+// FIX:313-003: 多标签页状态同步 - 引用计数和全局处理函数
 let storageListenerCount = 0
 
 // P1-002-FIX: 认证恢复标志，防止重复调用
 let authRestored = false
-let authRestorePromise: Promise<User | null> | null = null
 
-// AUDIT-004: 将 checkAuth 提升到模块级别，供 handleStorageChange 调用
+// FIX:004: 将 checkAuth 提升到模块级别，供 handleStorageChange 调用
 async function checkAuth(): Promise<User | null> {
-  // AUDIT-022: 使用显式布尔转换
+  // FIX:022: 使用显式布尔转换
   if (token.value === '') return null
   try {
     const data = await apiRequest<{ user: User }>('/auth/me')
-    // AUDIT-007: 空值检查
+    // FIX:007: 空值检查
     if (!data || !data.user) {
       throw new Error('认证响应数据无效')
     }
@@ -115,7 +114,7 @@ function handleStorageChange(event: StorageEvent): void {
       // 其他标签页登出了，当前标签页也要登出
       user.value = null
       clearToken()
-      resetBusinessStores() // BUGFIX-P2-06
+      resetBusinessStores() // FIX:P2-06
     } else {
       // 其他标签页登录了，当前标签页也要同步
       try {
@@ -127,7 +126,7 @@ function handleStorageChange(event: StorageEvent): void {
   }
 }
 
-// BUGFIX-P2-06: 登出时重置全部业务 store，防止跨账号数据残留
+// FIX:P2-06: 登出时重置全部业务 store，防止跨账号数据残留
 function resetBusinessStores(): void {
   try {
     useSiteSelectionStateStore().clearState()
@@ -146,7 +145,7 @@ export function useAuth() {
       method: 'POST',
       body: JSON.stringify({ username, password }),
     })
-    // AUDIT-005: 空值检查
+    // FIX:005: 空值检查
     if (!data || !data.token || !data.user) {
       throw new Error('登录响应数据无效')
     }
@@ -161,7 +160,7 @@ export function useAuth() {
       method: 'POST',
       body: JSON.stringify({ username, password }),
     })
-    // AUDIT-006: 空值检查
+    // FIX:006: 空值检查
     if (!data || !data.token || !data.user) {
       throw new Error('注册响应数据无效')
     }
@@ -190,11 +189,11 @@ export function useAuth() {
       writeStoredUser(null)
       // 重置认证恢复标志，允许下次重新恢复
       authRestored = false
-      resetBusinessStores() // BUGFIX-P2-06
+      resetBusinessStores() // FIX:P2-06
     }
   }
 
-  // AUDIT-313-003: 在组件挂载时添加 storage 事件监听（引用计数）
+  // FIX:313-003: 在组件挂载时添加 storage 事件监听（引用计数）
   onMounted(() => {
     if (typeof window !== 'undefined' && storageListenerCount === 0) {
       window.addEventListener('storage', handleStorageChange)
@@ -202,7 +201,7 @@ export function useAuth() {
     storageListenerCount++
   })
 
-  // AUDIT-313-003: 在组件卸载时移除 storage 事件监听（引用计数）
+  // FIX:313-003: 在组件卸载时移除 storage 事件监听（引用计数）
   onUnmounted(() => {
     storageListenerCount--
     if (typeof window !== 'undefined' && storageListenerCount === 0) {

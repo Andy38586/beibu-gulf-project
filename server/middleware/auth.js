@@ -13,7 +13,7 @@ if (!JWT_SECRET) {
 }
 
 if (!isProd && JWT_SECRET === DEV_SECRET) {
-  // AUDIT-016 (错误): 仅在非测试环境输出警告
+  // FIX:016 (错误): 仅在非测试环境输出警告
   if (process.env.NODE_ENV !== 'test') {
     console.warn(
       '[WARN] 当前使用默认开发密钥，仅适用于本地开发！\n' +
@@ -23,7 +23,7 @@ if (!isProd && JWT_SECRET === DEV_SECRET) {
 }
 
 export function authenticate(req, res, next) {
-  // AUDIT-SEC-001: 优先从 cookie 读取 token，兼容从 header 读取
+  // FIX:SEC-001: 优先从 cookie 读取 token，兼容从 header 读取
   let token = req.cookies?.auth_token
   if (!token) {
     const header = req.headers.authorization

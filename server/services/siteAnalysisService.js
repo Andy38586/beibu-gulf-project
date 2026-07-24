@@ -18,13 +18,13 @@ export function resolveRadiusSettings(selectedKeys, typeSettings) {
     const setting = typeSettings[key]
     const radius = importanceToRadius(setting.defaultRadius, setting.importance)
     
-    // AUDIT-106: 校验半径必须为正数
+    // FIX:106: 校验半径必须为正数
     if (radius <= 0 || isNaN(radius)) {
-      // AUDIT-016 (错误): 仅在开发环境输出警告
+      // FIX:016 (错误): 仅在开发环境输出警告
       if (process.env.NODE_ENV === 'development') {
         console.warn(`设施类型 ${key} 的缓冲区半径无效: ${radius}`)
       }
-      // BUGFIX-P1-08: 参数错误带码抛出，控制器据码返 400
+      // FIX:P1-08: 参数错误带码抛出，控制器据码返 400
       const err = new Error(`半径参数无效: ${radius}`)
       err.code = 'INVALID_PARAMS'
       throw err
@@ -37,12 +37,12 @@ export function resolveRadiusSettings(selectedKeys, typeSettings) {
 export function buildTypeCoverage(points, radiusKm) {
   if (!points || points.length === 0) return null
   
-  // AUDIT-315-001: 性能优化提示 - 大量POI数据建议实现聚类或空间索引
+  // FIX:315-001: 性能优化提示 - 大量POI数据建议实现聚类或空间索引
   if (points.length > 1000 && process.env.NODE_ENV === 'development') {
     console.warn(`[性能优化] POI数据量较大(${points.length}条)，建议实现聚类或空间索引优化`)
   }
   
-  // AUDIT-314-002: POI数据去重（基于坐标）
+  // FIX:314-002: POI数据去重（基于坐标）
   const uniquePoints = []
   const seenCoords = new Set()
   for (const p of points) {
@@ -53,7 +53,7 @@ export function buildTypeCoverage(points, radiusKm) {
     }
   }
   
-  // AUDIT-314-003: 过滤异常坐标[0,0]和不在北部湾范围内的坐标
+  // FIX:314-003: 过滤异常坐标[0,0]和不在北部湾范围内的坐标
   // 北部湾范围：经度 105-115，纬度 18-25
   const validPoints = uniquePoints.filter((p) => {
     const isValid = p && typeof p.lng === 'number' && typeof p.lat === 'number' && 
@@ -63,7 +63,7 @@ export function buildTypeCoverage(points, radiusKm) {
                     !(p.lng === 0 && p.lat === 0) && // 过滤[0,0]异常坐标
                     p.lng >= 105 && p.lng <= 115 && // 北部湾经度范围
                     p.lat >= 18 && p.lat <= 25      // 北部湾纬度范围
-    // AUDIT-016 (错误): 仅在开发环境输出警告
+    // FIX:016 (错误): 仅在开发环境输出警告
     if (!isValid && process.env.NODE_ENV === 'development') {
       console.warn('无效的坐标点:', p)
     }
@@ -71,7 +71,7 @@ export function buildTypeCoverage(points, radiusKm) {
   })
   
   if (validPoints.length === 0) {
-    // AUDIT-016 (错误): 仅在开发环境输出警告
+    // FIX:016 (错误): 仅在开发环境输出警告
     if (process.env.NODE_ENV === 'development') {
       console.warn('没有有效的坐标点')
     }
@@ -83,12 +83,12 @@ export function buildTypeCoverage(points, radiusKm) {
   )
   
   // 过滤掉无效的缓冲区
-  // AUDIT-GIS-004: 验证坐标数组长度
+  // FIX:GIS-004: 验证坐标数组长度
   const validBuffers = buffers.filter((b) => 
     b && b.geometry && b.geometry.coordinates && b.geometry.coordinates.length > 0
   )
   if (validBuffers.length === 0) {
-    // AUDIT-016 (错误): 仅在开发环境输出警告
+    // FIX:016 (错误): 仅在开发环境输出警告
     if (process.env.NODE_ENV === 'development') {
       console.warn('没有有效的缓冲区')
     }
@@ -99,7 +99,7 @@ export function buildTypeCoverage(points, radiusKm) {
   
   try {
     const unionResult = turf.union(turf.featureCollection(validBuffers))
-    // AUDIT-GIS-001: 验证 union 结果，处理 MultiPolygon 情况
+    // FIX:GIS-001: 验证 union 结果，处理 MultiPolygon 情况
     if (!unionResult || !unionResult.geometry) {
       if (process.env.NODE_ENV === 'development') {
         console.warn('union 返回无效结果')
@@ -107,7 +107,7 @@ export function buildTypeCoverage(points, radiusKm) {
       return null
     }
     
-    // AUDIT-GIS-007: 如果返回 MultiPolygon，保留所有 Polygon 作为覆盖区域
+    // FIX:GIS-007: 如果返回 MultiPolygon，保留所有 Polygon 作为覆盖区域
     // 返回第一个 Polygon 作为主覆盖区域，但记录所有 Polygon 的坐标
     if (unionResult.geometry.type === 'MultiPolygon') {
       if (process.env.NODE_ENV === 'development') {
@@ -140,7 +140,7 @@ export function intersectCoverages(coverages, selectedKeys) {
       // 验证输入几何对象
       if (!result.geometry || !result.geometry.coordinates || 
           !entries[i].coverage.geometry || !entries[i].coverage.geometry.coordinates) {
-        // AUDIT-016 (错误): 仅在开发环境输出警告
+        // FIX:016 (错误): 仅在开发环境输出警告
         if (process.env.NODE_ENV === 'development') {
           console.warn(`无效的几何对象，跳过 ${entries[i].key}`)
         }
@@ -157,7 +157,7 @@ export function intersectCoverages(coverages, selectedKeys) {
       
       result = intersectResult
     } catch (error) {
-      // AUDIT-016 (错误): 仅在开发环境输出错误
+      // FIX:016 (错误): 仅在开发环境输出错误
       if (process.env.NODE_ENV === 'development') {
         console.error(`turf.intersect 失败 (${entries[i].key}):`, error.message)
       }
@@ -168,9 +168,9 @@ export function intersectCoverages(coverages, selectedKeys) {
   return { area: result, failKey: null }
 }
 export function filterMatchedXiaoqu(xiaoquData, finalArea, spatialIndex = null) {
-  // AUDIT-314-001: 检查 xiaoquData 是否为空或 null
+  // FIX:314-001: 检查 xiaoquData 是否为空或 null
   if (!xiaoquData || xiaoquData.length === 0) {
-    // AUDIT-016 (错误): 仅在开发环境输出警告
+    // FIX:016 (错误): 仅在开发环境输出警告
     if (process.env.NODE_ENV === 'development') {
       console.warn('小区数据为空')
     }
@@ -179,11 +179,11 @@ export function filterMatchedXiaoqu(xiaoquData, finalArea, spatialIndex = null) 
   
   const candidates = spatialIndex ? queryByPolygon(spatialIndex, finalArea) : xiaoquData
   
-  // AUDIT-314-004: 验证 GeoJSON Feature 完整性
+  // FIX:314-004: 验证 GeoJSON Feature 完整性
   return candidates.filter((xq) => {
     // 检查必要字段
     if (!xq || typeof xq.lng !== 'number' || typeof xq.lat !== 'number') {
-      // AUDIT-016 (错误): 仅在开发环境输出警告
+      // FIX:016 (错误): 仅在开发环境输出警告
       if (process.env.NODE_ENV === 'development') {
         console.warn('小区数据缺少坐标字段:', xq)
       }
@@ -191,13 +191,13 @@ export function filterMatchedXiaoqu(xiaoquData, finalArea, spatialIndex = null) 
     }
     // 检查坐标有效性
     if (isNaN(xq.lng) || isNaN(xq.lat) || xq.lng < -180 || xq.lng > 180 || xq.lat < -90 || xq.lat > 90) {
-      // AUDIT-016 (错误): 仅在开发环境输出警告
+      // FIX:016 (错误): 仅在开发环境输出警告
       if (process.env.NODE_ENV === 'development') {
         console.warn('小区坐标无效:', xq)
       }
       return false
     }
-    // AUDIT-314-003: 检查坐标是否在北部湾业务区域内（经度 105-115，纬度 18-25）
+    // FIX:314-003: 检查坐标是否在北部湾业务区域内（经度 105-115，纬度 18-25）
     if (xq.lng < 105 || xq.lng > 115 || xq.lat < 18 || xq.lat > 25) {
       if (process.env.NODE_ENV === 'development') {
         console.warn('小区坐标不在北部湾业务区域内:', xq)
@@ -207,7 +207,7 @@ export function filterMatchedXiaoqu(xiaoquData, finalArea, spatialIndex = null) 
     try {
       return turf.booleanPointInPolygon(turf.point([xq.lng, xq.lat]), finalArea)
     } catch (error) {
-      // AUDIT-016 (错误): 仅在开发环境输出警告
+      // FIX:016 (错误): 仅在开发环境输出警告
       if (process.env.NODE_ENV === 'development') {
         console.warn('空间判断失败:', error.message, xq)
       }

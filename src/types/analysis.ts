@@ -2,6 +2,10 @@ import type { Feature, Geometry } from 'geojson'
 import type { FacilityType, TypeSetting } from './facility'
 import type { ScoredXiaoqu } from './xiaoqu'
 
+// 重新导出类型，方便其他模块引用
+export type { FacilityType, TypeSetting } from './facility'
+export type { ScoredXiaoqu } from './xiaoqu'
+
 // 分析请求参数（前端 → 后端）
 export interface AnalysisParams {
   selectedKeys: FacilityType[]

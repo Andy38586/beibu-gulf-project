@@ -12,6 +12,8 @@ node_modules
 dist
 dist-ssr
 dist-verify
+dist_new
+dist_tmp
 coverage
 *.local
 
@@ -44,3 +46,6 @@ server/data/plans.json
 .env
 .env.production
 .env.local
+
+# WorkBuddy
+.workbuddy/

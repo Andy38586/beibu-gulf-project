@@ -41,6 +41,7 @@ const { flyToCity, goProfileOrBack, userButtonLabel } = useScreenActions()
 
 // 检查模式状态
 const inspectionMode = ref(false)
+const isDev = import.meta.env.DEV
 
 /**
  * 折线图数据（默认数据，与旧版 Zone2 一致）
@@ -134,8 +135,8 @@ const barData = {
     <!-- 底部导航 -->
     <BottomNavBar v-model:inspectionMode="inspectionMode" />
 
-    <!-- 检查模式 -->
-    <GcsInspectionOverlay :enabled="inspectionMode" />
+    <!-- 检查模式（仅开发环境） -->
+    <GcsInspectionOverlay v-if="isDev && inspectionMode" :enabled="inspectionMode" />
   </div>
 </template>
 

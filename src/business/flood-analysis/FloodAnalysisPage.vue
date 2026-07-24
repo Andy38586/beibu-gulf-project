@@ -1,27 +1,5 @@
 <script setup>
-/**
- * FloodAnalysisPage - 浸没分析页面
- *
- * 职责：
- * 1. 继承Home Layout（AppLayout）
- * 2. 使用Cesium引擎（由App.vue根据route.meta.engine='3d'自动切换）
- * 3. 为业务模块提供面板容器
- * 4. 管理GCS状态生命周期
- * 5. 自动响应水位变化，实时更新分析报告和设施清单
- *
- * 布局结构（4面板，4×4 Cell）：
- * - 左上：浸没分析报告（合并港口影响+风险分析）
- * - 左下：受影响设施清单（分页显示）
- * - 右上：剖面分析面板
- * - 右下：水位动态模拟（整合滑块控制）
- *
- * 架构说明：
- * - UnifiedMap已在App.vue根级别挂载，无需重复引入
- * - 引擎切换由App.vue监听route.meta.engine自动处理
- * - Cesium实例由CesiumViewerManager单例缓存，离开路由不销毁
- * - AppLayout提供布局基座，业务路由仅替换slot内容
- */
-
+// 浸没分析页面：4面板布局(左上报告/左下设施/右上剖面/右下水��)，Cesium引擎
 import { onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { onBeforeRouteLeave, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
@@ -33,12 +11,13 @@ import { useWaterLevelStore } from '@/stores/waterLevelStore'
 import { useFloodStore } from '@/stores/floodStore'
 import { usePortImpactStore } from '@/stores/portImpactStore'
 import { useMapStore } from '@/stores/map'
-import { useLayerManager } from '@/core/map/composables/useLayerManager'
+import { useBusinessLayers } from '@/core/map/composables/useBusinessLayers'
 import { useApiRequest } from '@/shared/composables/useApiRequest'
 import WaterLevelProfilePanel from './components/WaterLevelProfilePanel.vue'
 import FloodAnalysisReportPanel from './components/FloodAnalysisReportPanel.vue'
 import AffectedFacilityListPanel from './components/AffectedFacilityListPanel.vue'
 import LayerControlPanel from '@/shared/components/LayerControlPanel.vue'
+import { logger } from '@/shared/utils/logger'
 
 const { apiRequest } = useApiRequest()
 const gcsStore = useGcsStore()
@@ -46,13 +25,12 @@ const waterLevelStore = useWaterLevelStore()
 const floodStore = useFloodStore()
 const portImpactStore = usePortImpactStore()
 const mapStore = useMapStore()
-const { layerCatalog, registerToggleable } = useLayerManager()
+const { manager: businessLayerManager } = useBusinessLayers()
 
 const floodStateStore = useFloodStateStore()
 
 const route = useRoute()
 
-/** 路由切换守卫：响应到达时校验当前路由是否仍为 3D，防止切回 2D 后过期数据污染渲染器 */
 function shouldRenderForCurrentRoute() {
   const expected = route.meta?.engine
   const actual = mapStore.currentRenderer?.getType?.()
@@ -66,32 +44,18 @@ let stateRestored = false
 /** 防抖定时器 */
 let analysisTimer = null
 
-// BUGFIX-P2-02: 请求序号，仅最新一代响应允许写 store
+// 请求序号，仅最新响应写 store；防止切回2D后数据污染渲染器
 let analysisSeq = 0
-
-// BUGFIX: 组件卸载标记，阻止 registerGcsLayers 中 await 后的操作
 let unmounted = false
 
-/** 防抖延迟（毫秒） */
 const ANALYSIS_DELAY = 500
 
-/**
- * 水面图层ID
- * 用于标识和管理水面Entity
- */
-const WATER_SURFACE_ID = 'main-water-surface'
+const WATER_SURFACE_ID = 'gcs-water-surface'
 
-/** 淹没范围图层ID（与目录 key 一致，使 setVisibility 能查到 _layers） */
 const FLOOD_LAYER_ID = 'gcs-flood-area'
-
-/** 受影响设施图层ID（与目录 key 一致） */
 const FACILITY_LAYER_ID = 'gcs-facilities'
 
-/**
- * 示例水面区域坐标（钦州港附近海域）
- * 实际项目中应该从floodArea.json加载
- */
-// BUGFIX-P3-02: 水面坐标从 public/data/water-area.json 加���，硬编码仅作兜底
+// FIX:P3-02: 钦州港附近水面坐标兜底，实际�� water-area.json 加载
 const FALLBACK_WATER_AREA_COORDINATES = [
   [108.615, 21.855],
   [108.62, 21.855],
@@ -107,13 +71,16 @@ let cachedWaterAreaCoords = null
 async function loadWaterAreaCoordinates() {
   if (cachedWaterAreaCoords) return cachedWaterAreaCoords
   try {
-    const res = await fetch('/data/water-area.json')
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 10000)
+    const res = await fetch('/data/water-area.json', { signal: controller.signal })
+    clearTimeout(timeoutId)
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
     const data = await res.json()
     cachedWaterAreaCoords = data.coordinates
     return cachedWaterAreaCoords
   } catch {
-    if (process.env.NODE_ENV === 'development') {
+    if (import.meta.env.DEV) {
       console.warn('[GCS] water-area.json 加载失败，使用兜底坐标')
     }
     return FALLBACK_WATER_AREA_COORDINATES
@@ -123,57 +90,46 @@ async function loadWaterAreaCoordinates() {
 /** 图层是否已注册（防止重复注册） */
 let gcsLayersRegistered = false
 
-/**
- * 注册浸没分析图层到图层控制面板
- *
- * 关键设计（与选址分析一致）：
- * registerToggleable(key, label, renderer) → store 生成的 show/hide 回调为
- *   renderer.setVisibility(key, true/false)
- * 即使 layer 尚未 add 到 Cesium，setVisibility 会存入 _pendingVisibility，
- * 后续 addGeoJsonLayer 时自动应用可见性
- */
+// 注册业务图层到 BusinessLayerManager
+// 首次 register 只建 catalog 条目，不渲染（数据尚未就绪）
+// API 返回数据后通过 updateData 渲染
 async function registerGcsLayers() {
-  if (gcsLayersRegistered) {
-    return
-  }
+  if (gcsLayersRegistered) return
 
-  const renderer = mapStore.currentRenderer
-  if (!renderer) {
-    return
-  }
-
-  // BUGFIX-P3-02: 先加载水面坐标，再设注册标志（防止 await 期间卸载导致竞态）
   const waterCoords = await loadWaterAreaCoordinates()
   if (unmounted) return
 
   gcsLayersRegistered = true
 
-  // 注册水面图层（默认开启）
-  registerToggleable(
-    'gcs-water-surface',
-    '水面',
-    () => {
-      renderer.addWaterSurface(WATER_SURFACE_ID, waterCoords, waterLevelStore.waterLevel, {
-        color: 'rgba(64, 158, 255, 0.5)',
-      })
-    },
-    () => {
-      renderer.removeWaterSurface(WATER_SURFACE_ID)
-    },
-    true,
-  )
+  // 水面图层
+  businessLayerManager.register(WATER_SURFACE_ID, {
+    label: '水面',
+    layerType: 'waterSurface',
+    data: { coordinates: waterCoords, height: waterLevelStore.waterLevel },
+    options: { color: 'rgba(64, 158, 255, 0.5)' },
+    visible: true,
+  })
 
-  // 淹没范围：传 renderer，store 自建 setVisibility 回调（与选址分析一致）
-  registerToggleable('gcs-flood-area', '淹没范围', renderer, undefined, true)
+  // 淹没范围图层（无初始数据，等待 API 返回）
+  businessLayerManager.register(FLOOD_LAYER_ID, {
+    label: '淹没范围',
+    layerType: 'geojson',
+    data: null,
+    options: {},
+    visible: true,
+  })
 
-  // 受影响设施：传 renderer，同上
-  registerToggleable('gcs-facilities', '受影响设施', renderer, undefined, true)
+  // 受影响设施图层（无初始数据，等待 API 返回）
+  businessLayerManager.register(FACILITY_LAYER_ID, {
+    label: '受影响设施',
+    layerType: 'points',
+    data: null,
+    options: {},
+    visible: true,
+  })
 }
 
-/**
- * 监听渲染器就绪，注册浸没分析图层
- * 渲染器就绪时自动注册图层到控制面板
- */
+// 渲染器就绪时自动注册图层到控制面板
 watch(
   () => mapStore.currentRenderer,
   (renderer) => {
@@ -186,9 +142,6 @@ watch(
   { immediate: true },
 )
 
-/**
- * 路由守卫：跳转到个人中心时保存状态
- */
 onBeforeRouteLeave((to) => {
   if (to.path === '/profile') {
     saveCurrentState()
@@ -197,9 +150,6 @@ onBeforeRouteLeave((to) => {
   }
 })
 
-/**
- * 保存当前浸没分析状态
- */
 function saveCurrentState() {
   floodStateStore.saveState({
     waterLevel: waterLevelStore.waterLevel,
@@ -236,21 +186,14 @@ onMounted(() => {
     }
 
     if (savedState.affectedFacilities) {
-      portImpactStore.setPortImpactResult(
-        savedState.affectedFacilities,
-        savedState.totalLoss,
-      )
+      portImpactStore.setPortImpactResult(savedState.affectedFacilities, savedState.totalLoss)
     }
 
     stateRestored = false
   }
 })
 
-/**
- * 监听水位变化，自动触发淹没分析和影响评估
- * 使用防抖（0.5秒）避免频繁调用
- * immediate: true 确保进入路由时立即触发一次分析
- */
+// 水位变化防抖500ms后自动触发淹没问题分析和影响评估
 watch(
   () => waterLevelStore.waterLevel,
   (newLevel) => {
@@ -261,9 +204,9 @@ watch(
     }
 
     analysisTimer = setTimeout(() => {
-      // BUGFIX-P2-02: 递增请求序号
+      // FIX:P2-02: 递增请求序号
       const seq = ++analysisSeq
-      console.log('[GCS] 防抖结束，触发分析，水位:', newLevel, 'seq:', seq)
+      logger.debug('[GCS] 防抖结束，触发分析，水位:', newLevel, 'seq:', seq)
       triggerFloodAnalysis(newLevel, seq)
       triggerImpactAssessment(newLevel, seq)
     }, ANALYSIS_DELAY)
@@ -271,13 +214,9 @@ watch(
   { immediate: true },
 )
 
-/**
- * 触发淹没分析
- * @param {number} waterLevel - 当前水位
- */
 async function triggerFloodAnalysis(waterLevel, seq) {
   try {
-    console.log('[GCS] 触发淹没分析，水位:', waterLevel, 'seq:', seq)
+    logger.debug('[GCS] 触发淹没分析，水位:', waterLevel, 'seq:', seq)
 
     // 并行请求淹没范围和统计数据
     const [floodAreasData, statisticsData] = await Promise.all([
@@ -285,22 +224,27 @@ async function triggerFloodAnalysis(waterLevel, seq) {
       apiRequest(`/gcs/flood-statistics?waterLevel=${waterLevel}`),
     ])
 
-    console.log('[GCS] 淹没分析响应:', { floodAreasData, statisticsData })
+    logger.debug('[GCS] 淹没分析响应:', { floodAreasData, statisticsData })
 
     if (floodAreasData.code === 200 && statisticsData.code === 200) {
-      // BUGFIX-P2-02: 已有更新请求，丢弃过期响应
+      // FIX:P2-02: 已有更新请求，丢弃过期响应
       if (seq !== analysisSeq) return
       // 如果当前路由不再是 3D，丢弃过期响应防止污染 2D 渲染器
       if (!shouldRenderForCurrentRoute()) return
-      // BUGFIX-P2-07: 实际档位与请求不一致时提示，��义透明
-      if (floodAreasData.data.actualWaterLevel !== undefined && floodAreasData.data.actualWaterLevel !== waterLevel) {
-        console.info(`[GCS] 请求水位 ${waterLevel}m，实际使用数据档位 ${floodAreasData.data.actualWaterLevel}m`)
+      // FIX:P2-07: 实际档位与请求不一致时提示，��义透明
+      if (
+        floodAreasData.data.actualWaterLevel !== undefined &&
+        floodAreasData.data.actualWaterLevel !== waterLevel
+      ) {
+        logger.info(
+          `[GCS] 请求水位 ${waterLevel}m，实际使用数据档位 ${floodAreasData.data.actualWaterLevel}m`,
+        )
       }
       const features = floodAreasData.data.features || []
       const statistics = statisticsData.data
       const riskLevel = floodAreasData.data.riskLevel || '无风险'
 
-      console.log('[GCS] 更新淹没分析数据:', { statistics, features: features.length, riskLevel })
+      logger.debug('[GCS] 更新淹没分析数据:', { statistics, features: features.length, riskLevel })
 
       floodStore.startFloodAnalysis(statistics, features, riskLevel)
 
@@ -315,23 +259,19 @@ async function triggerFloodAnalysis(waterLevel, seq) {
   }
 }
 
-/**
- * 触发影响评估
- * @param {number} waterLevel - 当前水位
- */
 async function triggerImpactAssessment(waterLevel, seq) {
   try {
-    console.log('[GCS] 触发影响评估，水位:', waterLevel, 'seq:', seq)
+    logger.debug('[GCS] 触发影响评估，水位:', waterLevel, 'seq:', seq)
 
     // 调用灾害评估接口
     const data = await apiRequest('/gcs/analysis/disaster', {
       method: 'POST',
       body: JSON.stringify({ waterLevel }),
     })
-    console.log('[GCS] 影响评估响应:', data)
+    logger.debug('[GCS] 影响评估响应:', data)
 
     if (data.code === 200) {
-      // BUGFIX-P2-02: 已有更新请求，丢弃过期响应
+      // FIX:P2-02: 已有更新请求，丢弃过期响应
       if (seq !== analysisSeq) return
       // 如果当前路由不再是 3D，丢弃过期响应防止污染 2D 渲染器
       if (!shouldRenderForCurrentRoute()) return
@@ -339,7 +279,7 @@ async function triggerImpactAssessment(waterLevel, seq) {
       const facilities = result.affectedFacilities || []
       const totalLoss = result.totalLoss || 0
 
-      console.log('[GCS] 更新影响评估数据:', { facilities: facilities.length, totalLoss })
+      logger.debug('[GCS] 更新影响评估数据:', { facilities: facilities.length, totalLoss })
 
       portImpactStore.setPortImpactResult(facilities, totalLoss)
 
@@ -354,94 +294,32 @@ async function triggerImpactAssessment(waterLevel, seq) {
   }
 }
 
-/**
- * 在地图上渲染淹没范围多边形
- * @param {Array} features - GeoJSON特征数组
- */
 function renderFloodAreas(features) {
-  let renderer = mapStore.currentRenderer
-  console.log('[DIAG] renderFloodAreas called', { 'renderer?': !!renderer, 'rendererType': renderer?.getType?.(), 'features.len': features?.length })
-  if (!renderer) {
-    // 渲染器尚未就绪，100ms 后重试，最多 10 次（≈1s 窗口）
-    const start = Date.now()
-    const retry = setInterval(() => {
-      renderer = mapStore.currentRenderer
-      if (renderer) {
-        clearInterval(retry)
-        doRenderFloodAreas(renderer, features)
-      } else if (Date.now() - start > 10000) {
-        clearInterval(retry)
-        console.warn('[DIAG] renderFloodAreas: 等待渲染器超时，放弃本次渲染')
-      }
-    }, 100)
-    return
-  }
-  doRenderFloodAreas(renderer, features)
-}
+  if (!features || features.length === 0) return
 
-function doRenderFloodAreas(renderer, features) {
+  const riskLevel = floodStore.floodRiskLevel
+  const fillColor = getRiskFillColor(riskLevel)
+  const strokeColor = getRiskColor(riskLevel)
 
-  // 先移除旧的淹没范围图层
-  renderer.removeLayer(FLOOD_LAYER_ID)
-
-  if (!features || features.length === 0) {
-    return
-  }
-
-  // 构建 GeoJSON 对象
   const geojson = {
     type: 'FeatureCollection',
     features: features,
   }
 
-  // 根据风险等级确定颜色
-  const riskLevel = floodStore.floodRiskLevel
-  const fillColor = getRiskFillColor(riskLevel)
-  const strokeColor = getRiskColor(riskLevel)
-
-  // 添加淹没范围图层
-  renderer.addGeoJsonLayer(FLOOD_LAYER_ID, geojson, {
-    fillColor: fillColor,
-    strokeColor: strokeColor,
-    strokeWidth: 2,
-    featureType: 'flood-area',
+  businessLayerManager.updateData(FLOOD_LAYER_ID, {
+    data: geojson,
+    options: {
+      fillColor,
+      strokeColor,
+      strokeWidth: 2,
+      featureType: 'flood-area',
+    },
   })
 }
 
-/**
- * 在地图上渲染受影响设施点
- * @param {Array} facilities - 受影响设施列表
- */
 function renderAffectedFacilities(facilities) {
-  let renderer = mapStore.currentRenderer
-  if (!renderer) {
-    // 渲染器尚未就绪，100ms 后重试
-    const start = Date.now()
-    const retry = setInterval(() => {
-      renderer = mapStore.currentRenderer
-      if (renderer) {
-        clearInterval(retry)
-        doRenderAffectedFacilities(renderer, facilities)
-      } else if (Date.now() - start > 10000) {
-        clearInterval(retry)
-        console.warn('[DIAG] renderAffectedFacilities: 等待渲染器超时')
-      }
-    }, 100)
-    return
-  }
-  doRenderAffectedFacilities(renderer, facilities)
-}
+  if (!facilities || facilities.length === 0) return
 
-function doRenderAffectedFacilities(renderer, facilities) {
-
-  // 先移除旧图层
-  renderer.removeLayer(FACILITY_LAYER_ID)
-
-  if (!facilities || facilities.length === 0) {
-    return
-  }
-
-  // 构建 GeoJSON 点要素集合
   const geojson = {
     type: 'FeatureCollection',
     features: facilities.map((f) => ({
@@ -461,19 +339,16 @@ function doRenderAffectedFacilities(renderer, facilities) {
     })),
   }
 
-  // 添加设施点图层（使用红色标记）
-  renderer.addGeoJsonLayer(FACILITY_LAYER_ID, geojson, {
-    markerColor: '#F56C6C',
-    markerSize: 10,
-    featureType: 'facility-point',
+  businessLayerManager.updateData(FACILITY_LAYER_ID, {
+    data: geojson,
+    options: {
+      markerColor: '#F56C6C',
+      markerSize: 10,
+      featureType: 'facility-point',
+    },
   })
 }
 
-/**
- * 获取风险等级对应的颜色
- * @param {string} riskLevel - 风险等级
- * @returns {string} 颜色值
- */
 function getRiskColor(riskLevel) {
   const colorMap = {
     无风险: '#909399',
@@ -486,11 +361,6 @@ function getRiskColor(riskLevel) {
   return colorMap[riskLevel] || '#909399'
 }
 
-/**
- * 获取风险等级对应的填充颜色（半透明）
- * @param {string} riskLevel - 风险等级
- * @returns {string} 颜色值
- */
 function getRiskFillColor(riskLevel) {
   const colorMap = {
     无风险: 'rgba(144, 147, 153, 0.3)',
@@ -503,47 +373,32 @@ function getRiskFillColor(riskLevel) {
   return colorMap[riskLevel] || 'rgba(144, 147, 153, 0.3)'
 }
 
-/**
- * 监听水位变化，更新水面高度
- * 使用节流避免频繁渲染
- */
+// 水位变化时更新水面高度
 watch(
   () => waterLevelStore.waterLevel,
   (newLevel) => {
-    const renderer = mapStore.currentRenderer
-    if (!renderer) {
-      return
-    }
-
-    renderer.updateWaterLevel(WATER_SURFACE_ID, newLevel)
+    if (!businessLayerManager.has(WATER_SURFACE_ID)) return
+    businessLayerManager.updateData(WATER_SURFACE_ID, {
+      data: { coordinates: cachedWaterAreaCoords || FALLBACK_WATER_AREA_COORDINATES, height: newLevel },
+    })
   },
 )
 
-/**
- * 组件卸载时重置GCS状态
- * 确保离开三维分析页面后清理所有分析数据
- */
 onUnmounted(() => {
   unmounted = true
 
-  // 清除防抖分析定时器，避免卸载后残留触发
+  // 清除防抖分析定时器
   if (analysisTimer) {
     clearTimeout(analysisTimer)
     analysisTimer = null
   }
 
-  // 移除水面
-  const renderer = mapStore.currentRenderer
-  if (renderer) {
-    renderer.removeWaterSurface(WATER_SURFACE_ID)
-  }
+  // Manager 统一清理业务图层
+  businessLayerManager.remove(WATER_SURFACE_ID)
+  businessLayerManager.remove(FLOOD_LAYER_ID)
+  businessLayerManager.remove(FACILITY_LAYER_ID)
 
-  // 从 LayerControlPanel 移除已注册的三个图层
-  mapStore.removeLayer('gcs-water-surface')
-  mapStore.removeLayer('gcs-flood-area')
-  mapStore.removeLayer('gcs-facilities')
-
-  // 重置图层注册标志
+  // 重置注册标志
   gcsLayersRegistered = false
 
   gcsStore.resetAll()
@@ -551,31 +406,24 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <!-- BUGFIX-P2-01: 类名与样式表统一为 flood-analysis-page -->
+  <!-- FIX:P2-01: 类名与样式表统一 -->
   <div class="flood-analysis-page">
-    <!-- 继承Home Layout，仅替换左右slot内容 -->
     <AppLayout>
-      <!-- 左侧面板组 -->
       <template #left>
-        <!-- 左上：浸没分析报告 -->
         <GcsPanel :w="4" :h="4" anchor="top-left" :offset-x="0" :offset-y="1.25">
           <FloodAnalysisReportPanel />
         </GcsPanel>
 
-        <!-- 左下：受影响设施清单 -->
         <GcsPanel :w="4" :h="4" anchor="top-left" :offset-x="0" :offset-y="5.5">
           <AffectedFacilityListPanel />
         </GcsPanel>
       </template>
 
-      <!-- 右侧面板组 -->
       <template #right>
-        <!-- 右上：剖面分析面板（包含水位滑块） -->
         <GcsPanel :w="4" :h="4" anchor="top-right" :offset-x="0" :offset-y="1.25">
           <WaterLevelProfilePanel />
         </GcsPanel>
 
-        <!-- 右下：通用图层控制面板 -->
         <GcsPanel :w="4" :h="4" anchor="top-right" :offset-x="0" :offset-y="5.5">
           <LayerControlPanel />
         </GcsPanel>
@@ -590,16 +438,9 @@ onUnmounted(() => {
   height: 100%;
   position: relative;
   overflow: hidden;
-  /* 关键：让鼠标事件穿透到下层地图容器 */
+  /* 让鼠标事件穿透到下层地图，面板通过 :deep(.gcs-panel) 恢复 */
   pointer-events: none;
 }
-
-/* 注意：不能使用 :deep(*) 通配符设置 pointer-events: none */
-/* 原因：Vue scoped 样式中 :deep(*) 的选择器特异性(0,2,0)高于 */
-/* UnifiedMap 的 .map-container(0,1,0)，会覆盖地图容器的 pointer-events: auto */
-/* 导致 Cesium canvas 无法接收鼠标事件（拖拽/缩放/旋转全部失效） */
-/* 正确做法：.flood-analysis-page 自身 pointer-events: none 即可穿透事件 */
-/* 面板通过 :deep(.gcs-panel) 恢复 pointer-events: auto */
 
 /* 仅面板恢复鼠标事件 */
 .flood-analysis-page :deep(.gcs-panel) {

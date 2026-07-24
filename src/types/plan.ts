@@ -1,5 +1,8 @@
-import type { FacilityType, TypeSetting } from './facility'
+import type { TypeSetting } from './facility'
 import type { SavedXiaoqu } from './xiaoqu'
+
+// 重新导出类型，方便其他模块引用
+export type { SavedXiaoqu } from './xiaoqu'
 
 // 方案（后端 plans.json 中的一条记录）
 export interface Plan {
@@ -23,7 +26,7 @@ export interface Plan {
   affectedFacilities?: any[]
   /** 浸没方案总损失（仅 flood 类型有值） */
   totalLoss?: number
-  /** 浸没方案风险等级（仅 flood 类型有值，BUGFIX-P2-03） */
+  /** 浸没方案风险等级（仅 flood 类型有值，FIX:P2-03） */
   floodRiskLevel?: string
 }
 

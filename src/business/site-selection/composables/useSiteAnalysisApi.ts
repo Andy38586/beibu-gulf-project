@@ -9,7 +9,7 @@ export function useSiteAnalysisApi() {
   const calcError: Ref<string> = ref('')
 
   async function analyze(params: AnalysisParams): Promise<AnalysisResult> {
-    // AUDIT-P03: 请求去重，防止重复提交
+    // FIX:P03: 请求去重，防止重复提交
     if (calculating.value) {
       if (import.meta.env.DEV) {
         console.warn('[useSiteAnalysisApi] 分析请求已在进行中，忽略重复请求')
@@ -26,7 +26,7 @@ export function useSiteAnalysisApi() {
       })
       if (result.error) {
         calcError.value = result.error
-        // AUDIT-009: 返回完整的错误对象结构
+        // FIX:009: 返回完整的错误对象结构
         return { 
           error: result.error, 
           coverage: null, 
@@ -34,7 +34,7 @@ export function useSiteAnalysisApi() {
           facilityPoi: {}
         }
       }
-      // AUDIT-009: 确保返回对象结构完整
+      // FIX:009: 确保返回对象结构完整
       return {
         error: null,
         coverage: result.coverage || null,
@@ -42,7 +42,7 @@ export function useSiteAnalysisApi() {
         facilityPoi: result.facilityPoi || {}
       }
     } catch (error) {
-      // P3-002-FIX: 使用错误码替代字符串匹配，提高可维护性
+      // FIX:P3-002: 使用错误码替代字符串匹配，提高可维护性
       if (error instanceof ApiError) {
         switch (error.code) {
           case ErrorCode.TIMEOUT:
@@ -66,7 +66,7 @@ export function useSiteAnalysisApi() {
       } else {
         calcError.value = '网络异常，请稍后重试'
       }
-      // AUDIT-009: 保持返回结构完整
+      // FIX:009: 保持返回结构完整
       return { error: calcError.value, coverage: null, matchedXiaoqu: [], facilityPoi: {} }
     } finally {
       calculating.value = false

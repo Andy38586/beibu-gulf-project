@@ -1,12 +1,12 @@
 /**
  * 加载北部湾边界 GeoJSON 数据
  * 
- * AUDIT-GIS-002: 文件编码说明
+ * FIX:GIS-002: 文件编码说明
  * - 文件编码：UTF-8（无 BOM）
  * - 浏览器 fetch 会自动处理 UTF-8 编码
  * - 如果在 PowerShell 终端调试，请使用：Get-Content file.geojson -Encoding UTF8
  * 
- * AUDIT-P01: 添加缓存机制和加载优化
+ * FIX:P01: 添加缓存机制和加载优化
  * - 使用 sessionStorage 缓存已加载的数据，避免重复请求
  * - 添加超时控制（10秒）
  * - 添加重试机制（最多3次）
@@ -20,16 +20,12 @@ export async function loadBoundaryGeoJson(onError) {
   const MAX_RETRIES = 3
   const TIMEOUT_MS = 10000
 
-  // AUDIT-P01: 检查缓存
+  // FIX:P01: 检查缓存
   try {
     const cached = sessionStorage.getItem(CACHE_KEY)
     if (cached) {
       const { data, timestamp } = JSON.parse(cached)
       if (Date.now() - timestamp < CACHE_EXPIRY) {
-        // AUDIT-006: 移除调试日志，仅在开发环境输出
-        if (import.meta.env.DEV) {
-          console.log('[useBoundaryLayer] 使用缓存的边界数据')
-        }
         return data
       }
     }
@@ -37,7 +33,7 @@ export async function loadBoundaryGeoJson(onError) {
     // 缓存读取失败，继续加载
   }
 
-  // AUDIT-P01: 带重试和超时的加载
+  // FIX:P01: 带重试和超时的加载
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
       const controller = new AbortController()
@@ -59,7 +55,7 @@ export async function loadBoundaryGeoJson(onError) {
         throw new Error('GeoJSON 格式无效：缺少 features 数组')
       }
 
-      // AUDIT-015: 验证feature.properties存在性
+      // FIX:015: 验证feature.properties存在性
       geojson.features.forEach((f) => {
         if (!f.properties) {
           f.properties = {}
@@ -67,7 +63,7 @@ export async function loadBoundaryGeoJson(onError) {
         f.properties.featureType = 'boundary'
       })
 
-      // AUDIT-P01: 缓存数据
+      // FIX:P01: 缓存数据
       try {
         sessionStorage.setItem(
           CACHE_KEY,
@@ -90,7 +86,7 @@ export async function loadBoundaryGeoJson(onError) {
       }
 
       if (isLastAttempt) {
-        // AUDIT-017 (错误): 仅在开发环境输出错误
+        // FIX:017 (错误): 仅在开发环境输出错误
         if (import.meta.env.DEV) {
           console.error('边界数据加载失败:', error)
         }

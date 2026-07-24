@@ -19,45 +19,21 @@ import {
   PointGraphics,
 } from 'cesium'
 import { MAP_CONFIG, buildTiandituUrl, zoomToHeight } from '@/core/config/map'
+import { logger } from '@/shared/utils/logger'
 
-/**
- * CesiumViewer单例管理器
- *
- * 职责：
- * 1. 管理全局唯一的Viewer实例（单例模式）
- * 2. 支持按需挂载/卸载DOM（不销毁Viewer）
- * 3. 隐藏时暂停渲染（requestRenderMode），降低GPU占用
- * 4. 30秒空闲自动销毁，释放内存
- *
- * 生命周期：
- * - create() → 首次创建Viewer（仅调用一次）
- * - mount(el) → 挂载到指定DOM容器（可多次调用）
- * - unmount() → 从DOM移除，保留实例（可多次调用）
- * - destroy() → 真正销毁（空闲30秒后自动调用，或手动调用）
- */
+// CesiumViewer单例：全局唯一Viewer，按需mount/unmount复用，30s空闲自动销毁
 class CesiumViewerManager {
   constructor() {
-    /** @type {Viewer|null} 全局唯一的Viewer实例 */
     this.viewer = null
-    /** @type {boolean} 当前是否已挂载到DOM */
     this.isMounted = false
-    /** @type {boolean} 底图是否已初始化（防止重复添加） */
     this._baseLayersInitialized = false
-    /** @type {number|null} 空闲销毁定时器ID */
     this._idleDestroyTimer = null
-    /** @type {number} 空闲销毁延迟时间（毫秒） */
     this.IDLE_DESTROY_DELAY = 30000
-    /** @type {Object} 底图图层引用（复用时供新Renderer实例获取） */
     this._baseLayers = { image: [], vector: [] }
   }
 
-  /**
-   * 创建Viewer单例（首次调用时创建，后续调用返回已有实例）
-   * @param {HTMLElement} container - DOM容器
-   * @returns {Viewer} Viewer实例
-   */
+  // 首次创建Viewer，后续调用返回已有实例
   create(container) {
-    // 清除空闲销毁定时器（用户回来了）
     this._clearIdleDestroyTimer()
 
     if (this.viewer) {
@@ -84,18 +60,6 @@ class CesiumViewerManager {
     return this.viewer
   }
 
-  /**
-   * 挂载到指定DOM容器
-   *
-   * 无论viewer是否已在正确容器中，都确保：
-   * 1. isMounted 标记为 true
-   * 2. viewer 尺寸正确更新
-   * 3. requestRenderMode 设置为 false（持续渲染以支持交互）
-   * 4. 相机控制器交互能力正常启用
-   *
-   * @param {HTMLElement} el - 目标DOM容器
-   * @returns {boolean} 是否挂载成功
-   */
   mount(el) {
     if (!this.viewer) {
       return false
@@ -182,9 +146,7 @@ class CesiumViewerManager {
   _startIdleDestroyTimer() {
     this._clearIdleDestroyTimer()
     this._idleDestroyTimer = setTimeout(() => {
-      if (import.meta.env.DEV) {
-        console.log('[CesiumViewerManager] 30秒空闲，自动销毁Viewer释放内存')
-      }
+      logger.debug('[CesiumViewerManager] 30秒空闲，自动销毁Viewer释放内存')
       this.destroy()
     }, this.IDLE_DESTROY_DELAY)
   }
@@ -199,18 +161,10 @@ class CesiumViewerManager {
     }
   }
 
-  /**
-   * 获取单例
-   * @returns {Viewer|null}
-   */
   getInstance() {
     return this.viewer
   }
 
-  /**
-   * 检查底图是否已初始化
-   * @returns {boolean}
-   */
   isBaseLayersInitialized() {
     return this._baseLayersInitialized
   }
@@ -300,7 +254,7 @@ export class CesiumRenderer extends MapRenderer {
    */
   _setupCameraDebounce() {
     const DEBOUNCE_DELAY = 300
-    // BUGFIX-P1-12: 保存监听器引用，供 destroy 移除，防止泄漏与 TypeError
+    // FIX:P1-12: 保存监听器引用，供 destroy 移除，防止泄漏与 TypeError
     this._cameraChangedHandler = () => {
       // 清除之前的防抖定时器
       if (this._cameraDebounceTimer) {
@@ -308,7 +262,7 @@ export class CesiumRenderer extends MapRenderer {
       }
       // 设置新的防抖定时器
       this._cameraDebounceTimer = setTimeout(() => {
-        // BUGFIX-P1-12: viewer 可能已置空，防御
+        // FIX:P1-12: viewer 可能已置空，防御
         if (this.viewer) {
           this.viewer.scene.requestRender()
         }
@@ -514,12 +468,14 @@ export class CesiumRenderer extends MapRenderer {
   }
 
   async addGeoJsonLayer(id, geojson, options = {}) {
+    // 幂等：先清除同 id 旧图层，防止 dataSource 累积
+    const existing = this._layers.get(id)
+    if (existing) this._doRemoveLayer(existing)
+
     try {
       const dataSource = await GeoJsonDataSource.load(geojson)
 
-      if (import.meta.env.DEV) {
-        console.log(`[CesiumRenderer] GeoJSON ${id} entities:`, dataSource.entities.values.length)
-      }
+      logger.debug(`[CesiumRenderer] GeoJSON ${id} entities:`, dataSource.entities.values.length)
       dataSource.entities.values.forEach((entity) => {
         entity.properties.featureType = options.featureType || 'geojson'
         if (entity.polygon) {
@@ -531,7 +487,7 @@ export class CesiumRenderer extends MapRenderer {
           entity.polygon.outlineColor = Color.fromCssColorString(options.strokeColor || '#4dabf7')
           entity.polygon.outlineWidth = options.strokeWidth || 2
         } else if (entity.position) {
-          // BUGFIX-P1-11: 点要素用 PointGraphics 替代默认图钉，支持 markerColor/markerSize
+          // FIX:P1-11: 点要素用 PointGraphics 替代默认图钉，支持 markerColor/markerSize
           const markerColor = Color.fromCssColorString(options.markerColor || '#409eff')
           entity.billboard = undefined
           entity.point = new PointGraphics({
@@ -601,13 +557,13 @@ export class CesiumRenderer extends MapRenderer {
       }
     }
     const height = options?.height ?? 5000
-    // BUGFIX-P3-01: 兼容数据源 lon 字段（ports.json）和接口 lng 字段
+    // FIX:P3-01: 兼容数据源 lon 字段（ports.json）和接口 lng 字段
     const lng = target.lng ?? target.lon
     const lat = target.lat
     const destination = Cartesian3.fromDegrees(lng, lat, height)
     this.viewer.camera.flyTo({
       destination,
-      // BUGFIX-P1-10: Cesium duration 单位为秒（原 1000 秒 ≈ 16.6 分钟）
+      // FIX:P1-10: Cesium duration 单位为秒（原 1000 秒 ≈ 16.6 分钟）
       duration: 1,
       orientation: {
         heading: CesiumMath.toRadians(options.heading || 0),
@@ -656,24 +612,19 @@ export class CesiumRenderer extends MapRenderer {
       pitch: pitchDeg,
     }
 
-    if (import.meta.env.DEV) {
-      console.log('[CesiumRenderer._getCameraState] 导出状态:', {
-        center: state.center,
-        height: state.height,
-        heightKm: (state.height / 1000).toFixed(2) + 'km',
-        pitch: pitchDeg.toFixed(2) + '°',
-        usingPick: cartesian !== null,
-      })
-    }
+    logger.debug('[CesiumRenderer._getCameraState] 导出状态:', {
+      center: state.center,
+      height: state.height,
+      heightKm: (state.height / 1000).toFixed(2) + 'km',
+      pitch: pitchDeg.toFixed(2) + '°',
+      usingPick: cartesian !== null,
+    })
 
     return state
   }
 
   _setCameraState(state) {
-    // 调试日志：输出导入的原始状态
-    if (import.meta.env.DEV) {
-      console.log('[CesiumRenderer._setCameraState] 导入原始状态:', state)
-    }
+    logger.debug('[CesiumRenderer._setCameraState] 导入原始状态:', state)
 
     // 计算高度：优先使用 height，其次从 OL 的 zoom 转换
     let height = state.height
@@ -689,14 +640,12 @@ export class CesiumRenderer extends MapRenderer {
     // pitch 强制 -90° 俯视，不与 OL 之间传递倾斜状态（OL 无 pitch 概念）
     const pitch = -90
 
-    if (import.meta.env.DEV) {
-      console.log('[CesiumRenderer._setCameraState] 最终设置:', {
-        center: state.center,
-        height: height,
-        heightKm: (height / 1000).toFixed(2) + 'km',
-        pitch: pitch + '°',
-      })
-    }
+    logger.debug('[CesiumRenderer._setCameraState] 最终设置:', {
+      center: state.center,
+      height: height,
+      heightKm: (height / 1000).toFixed(2) + 'km',
+      pitch: pitch + '°',
+    })
 
     const destination = Cartesian3.fromDegrees(state.center.lng, state.center.lat, height)
 
@@ -764,28 +713,11 @@ export class CesiumRenderer extends MapRenderer {
     this._breathingAnimation = null
   }
 
-  /**
-   * 添加水面Primitive（半透明水面）
-   *
-   * 使用Primitive API实现高性能水面渲染，支持动态更新高度。
-   * P0性能优化：Primitive比Entity API性能更好，适合大规模几何体。
-   *
-   * @param {string} id - 水面图层ID
-   * @param {Array} coordinates - 水面边界坐标 [[lng, lat], ...]
-   * @param {number} height - 水面高度（米）
-   * @param {Object} options - 样式选项 { color }
-   */
+  // 使用Primitive API而非Entity，适合大规模几何体
   addWaterSurface(id, coordinates, height = 0, options = {}) {
-    // 如果已存在，先移除
     this.removeWaterSurface(id)
-
-    // 将经纬度坐标转换为Cartesian3位置数组（带高度偏移）
     const positions = coordinates.map((coord) => Cartesian3.fromDegrees(coord[0], coord[1], height))
-
-    // 创建多边形层次结构
     const hierarchy = new PolygonHierarchy(positions)
-
-    // 创建多边形几何体
     const geometry = new PolygonGeometry({
       polygonHierarchy: hierarchy,
       vertexFormat: PerInstanceColorAppearance.VERTEX_FORMAT,
@@ -906,7 +838,7 @@ export class CesiumRenderer extends MapRenderer {
    * 仅从DOM卸载，保留Viewer实例供下次复用
    */
   destroy() {
-    // BUGFIX-P1-12: 移除相机监听器
+    // FIX:P1-12: 移除相机监听器
     if (this.viewer && this._cameraChangedHandler) {
       this.viewer.camera.changed.removeEventListener(this._cameraChangedHandler)
       this._cameraChangedHandler = null

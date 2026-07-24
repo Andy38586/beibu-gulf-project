@@ -1,19 +1,8 @@
-/**
- * useECharts - ECharts 通用 composable
- * 
- * 职责：封装 ECharts 实例的初始化、更新、销毁逻辑
- * 解决 AUDIT-002(架构)：图表组件重复逻辑问题
- * 
- * @param {Object} options - 配置选项
- * @param {Function} options.getOption - 获取 ECharts option 的函数
- * @param {Array} options.watchSources - 需要监听的数据源数组
- * @param {Function} options.onClick - 点击事件处理函数（可选）
- * @returns {Object} - 返回 chartRef、updateChart、getInstance
- */
+// ECharts 通用 composable：封装实例初始化/更新/销毁
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import * as echarts from 'echarts/core'
 
-// AUDIT-3.9-FIX: 注册 ECharts 必需组件（解决 "Component grid is used but not imported" 错误）
+// FIX:P3-09: 注册必需组件（解决 "Component grid is used but not imported" 错误）
 import { 
   GridComponent, 
   TitleComponent, 
@@ -59,7 +48,7 @@ export function useECharts({ getOption, watchSources = [], onClick = null }) {
   function updateChart() {
     if (!chartInstance) return
     const option = getOption()
-    chartInstance.setOption(option, true)
+    chartInstance.setOption(option, false)
   }
 
   /**

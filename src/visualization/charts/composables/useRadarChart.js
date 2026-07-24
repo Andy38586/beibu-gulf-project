@@ -2,7 +2,7 @@
  * useRadarChart - 雷达图逻辑 composable
  * 
  * 职责：封装雷达图的渲染、交互和事件处理逻辑
- * 解决 AUDIT-006：RadarChart.vue 过大问题
+ * 解决 FIX:006：RadarChart.vue 过大问题
  * 
  * @param {Object} options - 配置选项
  * @param {Function} options.getChartRef - 获取图表 DOM 元素
@@ -10,7 +10,7 @@
  * @param {Function} options.emit - 事件发射器
  * @returns {Object} - 返回雷达图相关的方法和状态
  */
-import { ref, computed, nextTick, onMounted, onBeforeUnmount } from 'vue'
+import { ref, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import * as echarts from 'echarts/core'
 import { RadarChart as EChartsRadarChart } from 'echarts/charts'
 import { TooltipComponent } from 'echarts/components'

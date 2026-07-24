@@ -5,7 +5,7 @@ import { createFileStore } from '../utils/fileStore.js'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const DATA_FILE = path.join(__dirname, '../data/users.json')
 
-// BUGFIX-R-01: 复用 createFileStore 工厂（users 无缓存，useCache: false）
+// FIX:R-01: 复用 createFileStore 工厂（users 无缓存，useCache: false）
 const { sequential, readAll, writeAll } = createFileStore(DATA_FILE, { useCache: false })
 
 export async function findByUsername(username) {
@@ -16,13 +16,13 @@ export async function findByUsername(username) {
 export async function createUser(username, hashedPassword) {
   return sequential(async () => {
     const users = await readAll()
-    // BUGFIX-P1-06: 锁内查重，消除 TOCTOU 竞态
+    // FIX:P1-06: 锁内查重，消除 TOCTOU 竞态
     if (users.some((u) => u.username === username)) {
       const err = new Error('用户名已存在')
       err.code = 'DUPLICATE_USERNAME'
       throw err
     }
-    // AUDIT-SEC-012: 使用 crypto.randomUUID() 生成不可预测的用户ID
+    // FIX:SEC-012: 使用 crypto.randomUUID() 生成不可预测的用户ID
     const newUser = {
       id: crypto.randomUUID(),
       username,
@@ -40,7 +40,7 @@ export async function userExists(username) {
   return user !== null
 }
 
-// BUGFIX-P1-14: 支持登录成功后静默迁移密码哈希
+// FIX:P1-14: 支持登录成功后静默迁移密码哈希
 export async function updatePassword(userId, hashedPassword) {
   return sequential(async () => {
     const users = await readAll()

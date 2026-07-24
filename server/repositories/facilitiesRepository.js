@@ -16,7 +16,7 @@ const FILE_MAP = {
 }
 
 const cache = new Map()
-// BUGFIX-P3-09: 缓存加 TTL（5 分钟），过期自动重载
+// FIX:P3-09: 缓存加 TTL（5 分钟），过期自动重载
 const CACHE_TTL = 5 * 60 * 1000
 
 async function readJsonFile(filename) {
@@ -31,13 +31,6 @@ async function readJsonFile(filename) {
   return data
 }
 
-export function invalidateCache(type) {
-  if (type && FILE_MAP[type]) {
-    cache.delete(FILE_MAP[type])
-  } else {
-    cache.clear()
-  }
-}
 export async function findByType(type) {
   const filename = FILE_MAP[type]
   if (!filename) return null

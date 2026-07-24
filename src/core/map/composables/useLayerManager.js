@@ -1,13 +1,7 @@
 import { computed, inject } from 'vue'
 
-/**
- * useLayerManager - 图层管理 composable
- * 
- * 职责：提供图层注册、切换、清理等功能
- * 通过依赖注入获取 store，避免直接耦合
- */
+// 图层管理 composable：通过 inject('mapStore') 解耦
 export function useLayerManager() {
-  // 通过 inject 获取 mapStore，避免直接依赖
   const store = inject('mapStore')
   
   if (!store) {

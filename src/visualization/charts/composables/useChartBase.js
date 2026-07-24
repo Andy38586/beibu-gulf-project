@@ -33,6 +33,8 @@ export function useChartBase(props, emit, chartType, seriesConfig) {
         data: props.xData || [],
         axisLine: { lineStyle: { color: '#ddd' } },
         axisLabel: { color: '#666', fontSize: 10 },
+        ...(props.xMin ? { min: props.xMin } : {}),
+        ...(props.xMax ? { max: props.xMax } : {}),
       },
       yAxis: {
         type: 'value',
@@ -50,7 +52,7 @@ export function useChartBase(props, emit, chartType, seriesConfig) {
 
   return useECharts({
     getOption: buildOption,
-    watchSources: [() => props.title, () => props.xData, () => props.series],
+    watchSources: [() => props.title, () => props.xData, () => props.series, () => props.xMin, () => props.xMax],
     onClick: handleClick,
   })
 }

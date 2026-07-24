@@ -6,7 +6,7 @@ import { createFileStore } from '../utils/fileStore.js'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const DATA_FILE = path.join(__dirname, '../data/plans.json')
 
-// BUGFIX-R-01: 复用 createFileStore 工厂，消除与 markersRepo/userService 的重复基础设施
+// FIX:R-01: 复用 createFileStore 工厂，消除与 markersRepo/userService 的重复基础设施
 const { sequential, readAll, writeAll } = createFileStore(DATA_FILE)
 
 export async function findAllByUserId(userId) {
@@ -23,14 +23,14 @@ export async function create(planData) {
   return sequential(async () => {
     const plans = await readAll()
     const newPlan = {
-      // BUGFIX-P2-09: UUID 防并发碰撞，与 userService 对齐
+      // FIX:P2-09: UUID 防并发碰撞，与 userService 对齐
       id: crypto.randomUUID(),
       ...planData,
       savedXiaoqu: [], // 已保存的小区列表
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     }
-    // BUGFIX-P2-10: 不原地修改缓存数组，构造新数组，写盘失败时缓存不脏
+    // FIX:P2-10: 不原地修改缓存数组，构造新数组，写盘失败时缓存不脏
     const next = [...plans, newPlan]
     await writeAll(next)
     return newPlan
@@ -38,7 +38,7 @@ export async function create(planData) {
 }
 
 // P0-003-FIX: 安全的字段白名单，防止原型链污染
-// BUGFIX-P2-03: 白名单补 flood 系字段，浸没方案才能被更新保存
+// FIX:P2-03: 白名单补 flood 系字段，浸没方案才能被更新保存
 const PLAN_UPDATE_FIELDS = ['name', 'selectedKeys', 'typeSettings', 'weights', 'savedXiaoqu',
   'businessType', 'waterLevel', 'floodStatistics', 'floodFeatures', 'floodRiskLevel', 'affectedFacilities', 'totalLoss']
 
@@ -55,7 +55,7 @@ export async function update(id, updates) {
     }
 
     const updated = { ...plans[index], ...safeUpdates, id: plans[index].id, createdAt: plans[index].createdAt, updatedAt: new Date().toISOString() }
-    // BUGFIX-P2-10: 不原地修改缓存数组，构造新数组，写盘失败时缓存不脏
+    // FIX:P2-10: 不原地修改缓存数组，构造新数组，写盘失败时缓存不脏
     const next = plans.map((p, i) => (i === index ? updated : p))
     await writeAll(next)
     return updated
@@ -95,7 +95,7 @@ export async function saveXiaoqu(planId, xiaoqu) {
       newSavedXiaoqu = [...existing, { ...xiaoqu, savedAt: new Date().toISOString() }]
     }
 
-    // BUGFIX-P2-10: 构造新 plan + 新 plans 数组，杜绝原地修改
+    // FIX:P2-10: 构造新 plan + 新 plans 数组，杜绝原地修改
     const updatedPlan = { ...plan, savedXiaoqu: newSavedXiaoqu, updatedAt: new Date().toISOString() }
     const next = plans.map((p) => (p.id === planId ? updatedPlan : p))
     await writeAll(next)
@@ -122,7 +122,7 @@ export async function removeXiaoqu(planId, xiaoquId) {
       return plan
     }
 
-    // BUGFIX-P2-10: 构造新 plan + 新 plans 数组，杜绝原地修改
+    // FIX:P2-10: 构造新 plan + 新 plans 数组，杜绝原地修改
     const updatedPlan = { ...plan, savedXiaoqu: newSavedXiaoqu, updatedAt: new Date().toISOString() }
     const next = plans.map((p) => (p.id === planId ? updatedPlan : p))
     await writeAll(next)

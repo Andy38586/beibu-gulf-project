@@ -30,7 +30,6 @@ const loading = ref(false)
 // CSS v-bind 计算属性（使用响应式 cellPixel，随视口变化）
 const panelPaddingCss = computed(() => `${cellPixel.value * 0.125}px`) // 10px
 const titleFontSizeCss = computed(() => `${cellPixel.value * 0.225}px`) // 18px
-const inputHeightCss = computed(() => `${cellPixel.value * 0.5}px`) // 40px
 const inputFontSizeCss = computed(() => `${cellPixel.value * 0.175}px`) // 14px
 const btnFontSizeCss = computed(() => `${cellPixel.value * 0.175}px`) // 14px
 const errorFontSizeCss = computed(() => `${cellPixel.value * 0.15}px`) // 12px
@@ -52,19 +51,19 @@ async function handleSubmit() {
   errorMsg.value = ''
   const trimmedUsername = username.value.trim()
   
-  // AUDIT-019: 使用显式布尔转换
+  // FIX:019: 使用显式布尔转换
   if (username.value.trim() === '' || password.value === '') {
     errorMsg.value = '请填写用户名和密码'
     return
   }
   
-  // AUDIT-101: 用户名长度校验（2-20 字符）
+  // FIX:101: 用户名长度校验（2-20 字符）
   if (trimmedUsername.length < 2 || trimmedUsername.length > 20) {
     errorMsg.value = '用户名长度应在 2-20 个字符之间'
     return
   }
   
-  // AUDIT-102: 用户名特殊字符校验（仅允许字母、数字、中文、下划线）
+  // FIX:102: 用户名特殊字符校验（仅允许字母、数字、中文、下划线）
   const usernameRegex = /^[\u4e00-\u9fa5a-zA-Z0-9_]+$/
   if (!usernameRegex.test(trimmedUsername)) {
     errorMsg.value = '用户名只能包含字母、数字、中文和下划线'
@@ -76,7 +75,7 @@ async function handleSubmit() {
       errorMsg.value = '密码长度不能少于 6 位'
       return
     }
-    // AUDIT-SEC-003: 密码强度增强 - 至少包含大小写字母和数字
+    // FIX:SEC-003: 密码强度增强 - 至少包含大小写字母和数字
     const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{6,}$/
     if (!passwordRegex.test(password.value)) {
       errorMsg.value = '密码必须包含大小写字母和数字'
@@ -89,7 +88,7 @@ async function handleSubmit() {
   }
   loading.value = true
   try {
-    // BUGFIX-P1-14: 密码不再 HTML 转义，原样传输（后端 bcrypt 处理，转义无安全收益）
+    // FIX:P1-14: 密码不再 HTML 转义，原样传输（后端 bcrypt 处理，转义无安全收益）
     if (mode.value === 'login') {
       await login(trimmedUsername, password.value)
     } else {
@@ -100,7 +99,7 @@ async function handleSubmit() {
     password.value = ''
     confirmPassword.value = ''
   } catch (err) {
-    // AUDIT-SEC-002 修复：错误信息白名单过滤，防止反射型 XSS
+    // FIX:SEC-002 修复：错误信息白名单过滤，防止反射型 XSS
     const rawMsg = err.message || '操作失败'
     errorMsg.value = rawMsg.replace(/[<>"'%;()&+]/g, '')
   } finally {
@@ -180,7 +179,7 @@ async function handleLogout() {
         <div class="user-name">{{ user.username }}</div>
         <div class="user-status">已登录</div>
       </div>
-      <!-- BUGFIX-P1-13: 复用已有 handleLogout 与 .logout-btn 样式，补登出途径 -->
+      <!-- FIX:P1-13: 复用已有 handleLogout 与 .logout-btn 样式，补登出途径 -->
       <button class="logout-btn" @click="handleLogout">退出登录</button>
     </template>
   </div>

@@ -1,18 +1,5 @@
 <script setup>
-/**
- * UnifiedMap - 统一地图容器组件
- *
- * 严格遵循技术设计文档第三章的引擎生命周期设计：
- * - OL容器始终存在（v-show），Cesium容器首次创建后也保留（v-show）
- * - 两个容器和对应的Renderer都保持活跃，切换时只改变v-show
- * - CesiumViewer单例：首次创建Viewer，之后mount/unmount复用，不销毁
- *
- * 生命周期流程：
- *   首屏(mapType='2d') → v-show渲染OL容器 → initRenderer('2d', olContainer)
- *   首次切换3d → v-show创建Cesium容器 → initRenderer('3d', cesiumContainer) → OL v-show隐藏
- *   切回2d → Cesium v-show隐藏 → OL v-show显示（OLRenderer保持活跃）
- *   再次切换3d → Cesium v-show显示（复用Viewer，状态保留）
- */
+// 统一地图容器：OL/Cesium双引擎，v-show切换，渲染器实例复用不销毁
 import { ref, watch, onMounted, onUnmounted, provide, nextTick, computed } from 'vue'
 import { createRenderer } from '@/core/map/renderers'
 import { MapRendererKey } from '@/core/map/composables/useMapRenderer'
@@ -22,8 +9,8 @@ import { loadBoundaryGeoJson, BOUNDARY_STYLE } from '@/core/map/composables/useB
 import { useLayerManager } from '@/core/map/composables/useLayerManager'
 import { CELL_PIXEL } from '@/core/layout/config.js'
 import { useGCS } from '@/core/layout/useGCS.js'
+import { logger } from '@/shared/utils/logger'
 
-// 直接从 useGCS 解构 CSS 变量供 v-bind() 使用
 const { cell8px } = useGCS()
 
 const props = defineProps({
@@ -46,12 +33,8 @@ const loadError = ref('')
 const boundaryWarning = ref('')
 const currentRenderer = ref(null)
 const mapStore = useMapStore()
-
-// 两个渲染器实例（OL始终存在，Cesium首次创建后保留）
 const olRenderer = ref(null)
 const cesiumRenderer = ref(null)
-
-// Cesium容器是否已初始化（首次创建后保留）
 const cesiumInitialized = ref(false)
 
 provide(MapRendererKey, currentRenderer)
@@ -64,10 +47,6 @@ const spinnerSizeCss = computed(() => `${Math.round(CELL_PIXEL * 0.5)}px`)
 let portGeoJson = null
 let boundaryGeoJson = null
 
-/**
- * 带超时的 Promise 包装
- * 防止加载过程无限等待
- */
 function withTimeout(promise, timeoutMs, errorMessage) {
   let timeoutId
   const timeoutPromise = new Promise((_, reject) => {
@@ -76,26 +55,15 @@ function withTimeout(promise, timeoutMs, errorMessage) {
   return Promise.race([promise, timeoutPromise]).finally(() => clearTimeout(timeoutId))
 }
 
-/**
- * 等待容器元素获得实际尺寸（浏览器完成 layout/reflow）
- *
- * 问题背景：v-show 切换后，Vue 的 nextTick 只保证 DOM 更新完成，
- * 但不保证浏览器完成布局计算。此时容器的 offsetWidth/offsetHeight 可能仍为 0，
- * 导致渲染器在错误尺寸下初始化，出现白屏。
- *
- * 解决方案：使用 requestAnimationFrame 等待浏览器完成布局，
- * 确保容器有实际尺寸后再初始化/更新渲染器。
- */
+// v-show切换后浏览器未必完成layout，用rAF等待容器有实际尺寸再初始化渲染器
 function waitForContainerVisible(container) {
   return new Promise((resolve) => {
-    // 如果容器已有尺寸，直接返回
     if (container && container.offsetWidth > 0 && container.offsetHeight > 0) {
       resolve()
       return
     }
-
     let attempts = 0
-    const maxAttempts = 10 // 最多等待 10 帧（约 166ms @60fps）
+    const maxAttempts = 10
     const check = () => {
       attempts++
       if (container && container.offsetWidth > 0 && container.offsetHeight > 0) {
@@ -103,7 +71,6 @@ function waitForContainerVisible(container) {
       } else if (attempts < maxAttempts) {
         requestAnimationFrame(check)
       } else {
-        // 超时后仍然继续，避免无限等待
         if (import.meta.env.DEV) {
           console.warn('waitForContainerVisible: 容器尺寸检查超时，继续执行')
         }
@@ -114,9 +81,6 @@ function waitForContainerVisible(container) {
   })
 }
 
-/**
- * 加载港口和边界数据（仅首次调用）
- */
 async function loadData() {
   try {
     const ports = await withTimeout(loadPorts(), 10000, '港口数据加载超时')
@@ -151,11 +115,9 @@ async function initRenderer(type, container) {
     return
   }
 
-  // 等待容器完成浏览器布局（v-show切换后需要等待reflow）
   await waitForContainerVisible(container)
 
   try {
-    // 检查是否已有该类型的渲染器实例
     const existingRenderer = type === '2d' ? olRenderer.value : cesiumRenderer.value
 
     if (existingRenderer) {
@@ -163,21 +125,15 @@ async function initRenderer(type, container) {
       currentRenderer.value = existingRenderer
       mapStore.setCurrentRenderer(existingRenderer)
 
-      // Cesium需要重新挂载Viewer到容器（因为之前可能unmount了）
       if (type === '3d') {
         const { cesiumViewerManager } = await import('@/core/map/renderers/CesiumRenderer')
         cesiumViewerManager.mount(container)
       }
 
-      // 两个渲染器都需要更新尺寸（关键：OL切换回来时需要知道容器尺寸变了）
       currentRenderer.value.updateSize()
-
-      // 关键修复：复用渲染器时也需要重新注册图层目录
-      // 因为 layerCatalog 中的 show/hide 函数绑定的是渲染器实例
-      // 切换回来时需要让图层目录指向当前渲染器
+      // 图层目录的show/hide绑定的是渲染器实例，切换回来需重新注册
       setupLayers()
     } else {
-      // 首次创建渲染器
       const renderer = await createRenderer(type, container)
 
       if (type === '2d') {
@@ -188,11 +144,7 @@ async function initRenderer(type, container) {
 
       currentRenderer.value = renderer
       mapStore.setCurrentRenderer(renderer)
-
-      // 两个渲染器都需要更新尺寸
       currentRenderer.value.updateSize()
-
-      // 首次创建时需要设置图层和事件
       setupLayers()
       setupEvents()
     }
@@ -200,8 +152,6 @@ async function initRenderer(type, container) {
     mapStore.setMap(
       type === '2d' ? currentRenderer.value.getMap() : currentRenderer.value.getViewer(),
     )
-    // 注意：mapStore.setMapType 已在 switchMapType 中提前调用
-    // 此处不再重复调用，避免 v-show 时序问题
   } catch (error) {
     if (import.meta.env.DEV) {
       console.error(`Renderer ${type} 初始化失败:`, error)
@@ -211,23 +161,14 @@ async function initRenderer(type, container) {
   }
 }
 
-/**
- * 注册底图和业务图层到当前渲染器
- *
- * 幂等性设计：
- * - 每次切换引擎时都会调用此函数
- * - 通过检查渲染器内部 _layers Map 防止重复添加图层
- * - 但始终重新注册图层目录（因为 show/hide 函数需要绑定到当前渲染器）
- */
+// 每次切换引擎时重新注册图层目录（show/hide绑定当前渲染器实例）
+// _layers Map检查防止重复添加图层
 function setupLayers() {
-  // 始终清空图层目录，重新注册（因为 show/hide 函数绑定的是渲染器实例）
   clearLayers()
 
-  // 注册底图图层（底图由渲染器在初始化时创建，这里只是注册到图层目录）
   registerBaseLayerWithRenderer('base-image', '影像底图', currentRenderer.value)
   registerBaseLayerWithRenderer('base-vector', '矢量底图', currentRenderer.value)
 
-  // 注册业务图层（需要检查渲染器是否已有该图层，防止重复添加）
   if (boundaryGeoJson && !currentRenderer.value._layers.has('boundary')) {
     currentRenderer.value.addGeoJsonLayer('boundary', boundaryGeoJson, BOUNDARY_STYLE)
   }
@@ -262,9 +203,6 @@ function setupLayers() {
 
 }
 
-/**
- * 绑定点击事件
- */
 function setupEvents() {
   currentRenderer.value.on('click', (event) => {
     const { featureType, data, coordinate } = event.detail
@@ -277,79 +215,44 @@ function setupEvents() {
   })
 }
 
-/**
- * 获取当前类型对应的容器
- * v-if切换后需要nextTick等待DOM更新
- */
 function getContainer(type) {
   return type === '2d' ? olContainerRef.value : cesiumContainerRef.value
 }
 
-/**
- * 切换地图类型
- * 策略：OL和Cesium容器都始终存在（v-show），渲染器实例保留不销毁
- * 切换时只改变v-show，不需要销毁/重建渲染器
- *
- * 关键时序：
- * 1. v-show 切换 → Vue nextTick 保证 DOM patch 完成
- * 2. waitForContainerVisible → requestAnimationFrame 保证浏览器完成 layout/reflow
- * 3. 渲染器 updateSize() → 基于正确容器尺寸重绘
- *
- * 错误处理：
- * - 如果新类型初始化失败，需要回滚 mapStore.mapType 到旧值
- * - 避免容器因 mapType 错误而被 v-show 隐藏
- */
+// 双引擎切换：v-show控制显示，渲染器实例保留复用，失败时回滚mapType
 async function switchMapType(newType) {
   if (switching.value) return
 
-  // 关键修复：使用当前渲染器的实际类型，而非 mapStore.mapType
-  // 因为 mapStore.mapType 可能已被 App.vue 的 route.meta.engine watcher 提前更新
-  // 但 currentRenderer 还是旧的渲染器实例
+  // 用渲染器实际类型而非mapStore.mapType，后者可能已被route.meta.engine提前更新
   const oldType = currentRenderer.value?.getType() || mapStore.mapType
   switching.value = true
   loading.value = true
 
-  if (import.meta.env.DEV) {
-    console.log(`[UnifiedMap] switchMapType: ${oldType} → ${newType}`)
-    console.log(
-      `[UnifiedMap] mapStore.mapType=${mapStore.mapType}, currentRenderer.type=${currentRenderer.value?.getType()}`,
-    )
-  }
+  logger.debug(`[UnifiedMap] switchMapType: ${oldType} → ${newType}`)
+  logger.debug(
+    `[UnifiedMap] mapStore.mapType=${mapStore.mapType}, currentRenderer.type=${currentRenderer.value?.getType()}`,
+  )
 
   // 如果 oldType 和 newType 相同，无需切换
   if (oldType === newType) {
-    if (import.meta.env.DEV) {
-      console.log('[UnifiedMap] 类型相同，跳过切换')
-    }
+    logger.debug('[UnifiedMap] 类型相同，跳过切换')
     switching.value = false
     loading.value = false
     return
   }
 
   try {
-    // 关键修复：切换前导出旧渲染器的相机状态
     let cameraState = null
     if (currentRenderer.value) {
       cameraState = currentRenderer.value.exportState()
-      if (import.meta.env.DEV) {
-        console.log('[UnifiedMap] 导出相机状态:', cameraState)
-      }
     }
 
-    // 更新 mapStore（如果还未更新）
     if (mapStore.mapType !== newType) {
       mapStore.setMapType(newType)
-      if (import.meta.env.DEV) {
-        console.log(`[UnifiedMap] mapStore.mapType 更新为: ${mapStore.mapType}`)
-      }
     }
 
-    // 首次切换到3D时，v-if 创建 Cesium 容器
     if (newType === '3d' && !cesiumInitialized.value) {
       cesiumInitialized.value = true
-      // 双重 nextTick 确保 Vue 完成 DOM patch 和 ref 绑定
-      // 第一个 nextTick：DOM 更新队列处理
-      // 第二个 nextTick：ref 绑定完成
       await nextTick()
       await nextTick()
     }
@@ -359,15 +262,11 @@ async function switchMapType(newType) {
       throw new Error(`${newType}容器未就绪（ref绑定失败）`)
     }
 
-    // initRenderer 内部会通过 waitForContainerVisible 等待浏览器完成 layout
+    // initRenderer 内部 waitForContainerVisible 等待浏览器 layout
     await initRenderer(newType, container)
 
-    // 关键修复：切换后导入新渲染器的相机状态
     if (cameraState && currentRenderer.value) {
       currentRenderer.value.importState(cameraState)
-      if (import.meta.env.DEV) {
-        console.log('[UnifiedMap] 导入相机状态完成')
-      }
     }
 
     emit('typeChange', newType)
@@ -377,8 +276,7 @@ async function switchMapType(newType) {
     }
     loadError.value = error.message || '地图切换失败'
 
-    // 关键修复：初始化失败时，回滚 mapStore.mapType 到旧值
-    // 避免容器因 mapType 错误而被 v-show 隐藏
+    // 初始化失败时回滚 mapStore.mapType，避免容器因 v-show 被隐藏
     if (oldType !== newType) {
       mapStore.setMapType(oldType)
     }
@@ -441,10 +339,8 @@ defineExpose({
 
 <template>
   <div class="unified-map-wrapper">
-    <!-- OL容器：始终存在，通过v-show控制显示 -->
     <div v-show="mapType === '2d'" ref="olContainerRef" class="map-container"></div>
 
-    <!-- Cesium容器：首次创建后保留，通过v-show控制显示 -->
     <div
       v-if="cesiumInitialized"
       v-show="mapType === '3d'"
@@ -476,8 +372,7 @@ defineExpose({
   width: 100%;
   height: 100%;
   transition: opacity 0.3s ease;
-  /* 关键修复：确保地图容器可以接收鼠标事件 */
-  /* 即使父元素设置了 pointer-events: none，地图容器本身也需要响应事件 */
+  /* 确保地图容器可以接收鼠标事件，即使父元素设置了 pointer-events: none */
   pointer-events: auto;
 }
 

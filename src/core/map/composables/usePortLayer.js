@@ -9,14 +9,14 @@ export function buildPortGeoJson(portsData) {
     type: 'FeatureCollection',
     features: portsData
       .filter((port) => {
-        // AUDIT-016: 验证port.lon和port.lat字段存在性
+        // FIX:016: 验证port.lon和port.lat字段存在性
         if (port.lon === undefined || port.lat === undefined) {
           if (import.meta.env.DEV) {
             console.warn('港口数据缺少坐标字段:', port)
           }
           return false
         }
-        // AUDIT-016: 验证坐标有效性
+        // FIX:016: 验证坐标有效性
         if (typeof port.lon !== 'number' || typeof port.lat !== 'number') {
           if (import.meta.env.DEV) {
             console.warn('港口坐标字段类型无效:', port)

@@ -17,7 +17,8 @@
  */
 
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useRouter, onBeforeRouteLeave } from 'vue-router'
+import { onBeforeRouteLeave } from 'vue-router'
+import type { ScoredXiaoqu, FacilityPoint, AnalysisResult } from '@/types/analysis'
 import AppLayout from '@/core/layout/AppLayout.vue'
 import GcsPanel from '@/core/layout/components/GcsPanel.vue'
 import SiteAnalysisControlPanel from './components/SiteAnalysisControlPanel.vue'
@@ -28,22 +29,19 @@ import ErrorPopup from '@/shared/components/ErrorPopup.vue'
 import { useMapControls } from '@/core/map/composables/useMapControls'
 import { useMapStore } from '@/stores/map'
 import { useAnalysisLayer } from './composables/useAnalysisLayer'
+import { useBusinessLayers } from '@/core/map/composables/useBusinessLayers'
 import { useSiteSelectionStateStore } from '@/stores/siteSelectionState'
 import { useLayerManager } from '@/core/map/composables/useLayerManager'
-import { FACILITY_CONFIG } from './composables/facilityConfig'
-import { FACILITY_LABELS } from '@/shared/utils/facilityLabels'
-import type { ScoredXiaoqu } from '@/types/xiaoqu'
-import type { FacilityType, TypeSetting, FacilityPoint } from '@/types/facility'
-import type { AnalysisResult } from '@/types/analysis'
+import { logger } from '@/shared/utils/logger'
 
-const router = useRouter()
-const { flyTo, startBreathing, stopBreathing, zoomToCity, zoomToDistrict, mapInstance } = useMapControls()
+const { stopBreathing, zoomToCity, zoomToDistrict, mapInstance } = useMapControls()
 const mapStore = useMapStore()
 const stateStore = useSiteSelectionStateStore()
-const { registerToggleable, toggleLayer } = useLayerManager()
+const { registerToggleable } = useLayerManager()
+const { manager: businessLayerManager } = useBusinessLayers()
 const { createUpdateHandler } = useAnalysisLayer()
 
-// BUGFIX-P3-04: 保存定时器 id，卸载时清理悬挂定时器
+// FIX:P3-04: 保存定时器 id，卸载时清理悬挂定时器
 let tryZoomTimer: ReturnType<typeof setTimeout> | null = null
 
 /** 分析结果 */
@@ -77,18 +75,19 @@ const displayXiaoqu = computed<ScoredXiaoqu[]>(() => matchedXiaoqu.value.slice(0
 const topXiaoqu = computed<ScoredXiaoqu | null>(() => matchedXiaoqu.value[0] || null)
 
 /** 当前显示的小区（优先显示选中的，否则显示第一名） */
-const displayXiaoquForRadar = computed<ScoredXiaoqu | null>(() => selectedXiaoqu.value || topXiaoqu.value)
+const displayXiaoquForRadar = computed<ScoredXiaoqu | null>(
+  () => selectedXiaoqu.value || topXiaoqu.value,
+)
 
 /** 处理分析结果 */
 function handleResult(result: Partial<AnalysisResult>): void {
-  console.log('[SiteSelection] 收到分析结果:', result)
-  // BUGFIX-P3-03: 页面级错误弹窗接线
+  logger.debug('[SiteSelection] 收到分析结果:', result)
+  // FIX:P3-03: 页面级错误弹窗接线
   showErrorPopup.value = false
 
-  // 注册分析结果处理函数（从 UnifiedMap 移入业务层，切断 core→business 依赖）
-  const renderer = mapInstance.value?.getRenderer?.()
-  if (renderer && !mapStore.analysisHandler?.value) {
-    const updateHandler = createUpdateHandler(renderer, registerToggleable)
+  // 注册分析结果处理函数（通过 BusinessLayerManager 管理图层）
+  if (!mapStore.analysisHandler) {
+    const updateHandler = createUpdateHandler(businessLayerManager)
     mapStore.registerAnalysisHandler(updateHandler)
   }
 
@@ -104,7 +103,7 @@ function handleResult(result: Partial<AnalysisResult>): void {
   }
 }
 
-// BUGFIX-P3-03: 接线启用页面级错误弹窗（此前 showErrorPopup 为死代码）
+// FIX:P3-03: 接线启用页面级错误弹窗（此前 showErrorPopup 为死代码）
 function handleAnalysisError(message: string): void {
   errorMessage.value = message || '选址分析失败，请稍后重试'
   showErrorPopup.value = true
@@ -167,9 +166,9 @@ function handleHideFacilityLayer(): void {
 /** 点击小区列表项（地图可视化已由FavoriteListPanel内置处理） */
 function handleSelectXiaoqu(xq: any): void {
   // 更新本地状态，用于雷达图传参
-  console.log('[SiteSelection] 点击小区:', xq)
-  console.log('[SiteSelection] breakdown:', xq.breakdown)
-  
+  logger.debug('[SiteSelection] 点击小区:', xq)
+  logger.debug('[SiteSelection] breakdown:', xq.breakdown)
+
   // 规范化字段名称（兼容 lon/lng）
   const normalizedXq: ScoredXiaoqu = {
     id: xq.id,
@@ -179,12 +178,12 @@ function handleSelectXiaoqu(xq: any): void {
     score: xq.score ?? 0,
     breakdown: xq.breakdown || {},
   }
-  
+
   selectedXiaoqu.value = normalizedXq
 }
 
 /** 收藏状态变化时同步方案ID */
-function handleFavoriteChange(data: { item: ScoredXiaoqu; isFavorite: boolean }): void {
+function handleFavoriteChange(_data: { item: ScoredXiaoqu; isFavorite: boolean }): void {
   const planId = favoriteListRef.value?.getCurrentPlanId()
   if (planId && !currentPlanId.value) {
     currentPlanId.value = planId
@@ -216,7 +215,7 @@ function saveCurrentState(): void {
     factorSettings,
     matchedXiaoqu: matchedXiaoqu.value,
     selectedTypes: selectedTypes.value,
-    facilityPoi: facilityPoi.value, // BUGFIX-P1-05: 补保存设施POI
+    facilityPoi: facilityPoi.value, // FIX:P1-05: 补保存设施POI
     currentPlanId: currentPlanId.value,
     savedXiaoquIds,
   })
@@ -232,7 +231,7 @@ function restoreState(): boolean {
   // 恢复分析结果
   matchedXiaoqu.value = (savedState as any).matchedXiaoqu || []
   selectedTypes.value = (savedState as any).selectedTypes || []
-  facilityPoi.value = (savedState as any).facilityPoi || {} // BUGFIX-P1-05
+  facilityPoi.value = (savedState as any).facilityPoi || {} // FIX:P1-05
   currentPlanId.value = (savedState as any).currentPlanId || null
 
   // 恢复因子面板状态
@@ -247,7 +246,7 @@ function restoreState(): boolean {
 
   // 如果有分析结果，触发结果更新
   if (matchedXiaoqu.value.length > 0) {
-    // BUGFIX-P1-05: 传全量字段，避免 handleResult 用空值覆盖已恢复状态
+    // FIX:P1-05: 传全量字段，避免 handleResult 用空值覆盖已恢复状态
     handleResult({
       matchedXiaoqu: matchedXiaoqu.value,
       selectedTypes: selectedTypes.value,
@@ -299,7 +298,7 @@ onMounted(() => {
         zoomToCity()
       } else if (retries < 10) {
         retries++
-        // BUGFIX-P3-04: 保存定时器 id，卸载时清理
+        // FIX:P3-04: 保存定时器 id，卸载时清理
         tryZoomTimer = setTimeout(tryZoom, 500)
       }
     }
@@ -309,7 +308,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   stopBreathing()
-  // BUGFIX-P3-04: 清理悬挂的 tryZoom 定时器
+  // FIX:P3-04: 清理悬挂的 tryZoom 定时器
   if (tryZoomTimer) {
     clearTimeout(tryZoomTimer)
     tryZoomTimer = null
@@ -344,7 +343,11 @@ onUnmounted(() => {
       <template #right>
         <!-- 右上：设施因子选择面板 4×4 -->
         <GcsPanel :w="4" :h="4" anchor="top-right" :offset-x="0" :offset-y="1.25">
-          <SiteAnalysisControlPanel ref="factorPanelRef" @result-update="handleResult" @analysis-error="handleAnalysisError" />
+          <SiteAnalysisControlPanel
+            ref="factorPanelRef"
+            @result-update="handleResult"
+            @analysis-error="handleAnalysisError"
+          />
         </GcsPanel>
         <!-- 右下：小区名单列表 4×4 -->
         <GcsPanel :w="4" :h="4" anchor="top-right" :offset-x="0" :offset-y="5.5">
@@ -369,11 +372,7 @@ onUnmounted(() => {
     </AppLayout>
 
     <!-- P2-004-FIX: 错误提示弹窗 -->
-    <ErrorPopup
-      :visible="showErrorPopup"
-      :message="errorMessage"
-      @close="showErrorPopup = false"
-    />
+    <ErrorPopup :visible="showErrorPopup" :message="errorMessage" @close="showErrorPopup = false" />
   </div>
 </template>
 

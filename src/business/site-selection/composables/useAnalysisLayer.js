@@ -25,21 +25,18 @@ export function buildMatchedGeoJson(matchedXiaoqu) {
     type: 'FeatureCollection',
     features: matchedXiaoqu
       .filter((xq) => {
-        // AUDIT-017: 验证xq.lng和xq.lat字段存在性
         if (xq.lng === undefined || xq.lat === undefined) {
           if (import.meta.env.DEV) {
             console.warn('小区数据缺少坐标字段:', xq)
           }
           return false
         }
-        // AUDIT-017: 验证坐标有效性
         if (typeof xq.lng !== 'number' || typeof xq.lat !== 'number') {
           if (import.meta.env.DEV) {
             console.warn('小区坐标字段类型无效:', xq)
           }
           return false
         }
-        // AUDIT-GIS-009: 验证坐标值范围
         if (xq.lng < -180 || xq.lng > 180 || xq.lat < -90 || xq.lat > 90) {
           if (import.meta.env.DEV) {
             console.warn('小区坐标值超出有效范围:', xq)
@@ -76,15 +73,15 @@ export const MATCHED_STYLE = {
 }
 
 /**
- * AUDIT-025: 闭包模式说明
- * 
- * isUpdating 和 pendingResult 在 useAnalysisLayer 函数内部声明，
- * 通过 createUpdateHandler 返回的闭包访问，这是正确的闭包模式。
- * 每次调用 useAnalysisLayer() 都会创建新的闭包作用域，
- * 确保不同组件实例的状态相互独立。
+ * 创建选址分析结果处理函数
+ *
+ * 通过 BusinessLayerManager 管理图层生命周期，
+ * 不再直接调用 renderer 方法。
+ *
+ * @param {BusinessLayerManager} businessLayerManager
+ * @returns {Function} setAnalysisResult(result)
  */
 export function useAnalysisLayer() {
-  // 闭包内部状态，仅对 createUpdateHandler 返回的函数可见
   let isUpdating = false
   let pendingResult = null
 
@@ -112,7 +109,7 @@ export function useAnalysisLayer() {
     return layers
   }
 
-  function createUpdateHandler(renderer, registerToggleableFn) {
+  function createUpdateHandler(businessLayerManager) {
     return async function setAnalysisResult(result) {
       if (isUpdating) {
         pendingResult = result
@@ -120,26 +117,21 @@ export function useAnalysisLayer() {
       }
       isUpdating = true
       try {
-        renderer.removeLayer('analysis-coverage')
-        renderer.removeLayer('analysis-matched')
-
         const layers = getAnalysisLayers(result)
         for (const layer of layers) {
-          if (layer.style.featureType === 'analysis-coverage') {
-            await renderer.addGeoJsonLayer(layer.id, layer.geojson, layer.style)
+          if (!businessLayerManager.has(layer.id)) {
+            businessLayerManager.register(layer.id, {
+              label: layer.label,
+              layerType: 'geojson',
+              data: layer.geojson,
+              options: layer.style,
+              visible: true,
+            })
           } else {
-            renderer.addPointLayer(
-              layer.id,
-              layer.geojson.features.map((f) => ({
-                ...f.properties,
-                lon: f.geometry.coordinates[0],
-                lat: f.geometry.coordinates[1],
-              })),
-              layer.style,
-            )
-          }
-          if (registerToggleableFn) {
-            registerToggleableFn(layer.id, layer.label, renderer)
+            businessLayerManager.updateData(layer.id, {
+              data: layer.geojson,
+              options: layer.style,
+            })
           }
         }
       } finally {

@@ -2,9 +2,9 @@ import bcrypt from 'bcryptjs'
 import * as userService from '../services/userService.js'
 import { generateToken } from '../middleware/auth.js'
 
-// BUGFIX-R-03: 提取公共 cookie 设置，register/login 复用
+// FIX:R-03: 提取公共 cookie 设置，register/login 复用
 function setAuthCookie(res, token) {
-  // AUDIT-SEC-001: 使用 HttpOnly Cookie 存储 token
+  // FIX:SEC-001: 使用 HttpOnly Cookie 存储 token
   res.cookie('auth_token', token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
@@ -13,7 +13,7 @@ function setAuthCookie(res, token) {
   })
 }
 
-// BUGFIX-P1-14: 历史转义密码兼容（与前端旧版 escapePassword 规则一致）
+// FIX:P1-14: 历史转义密码兼容（与前端旧版 escapePassword 规则一致）
 function escapeHtmlLegacy(str) {
   return str.replace(/[&<>"']/g, (char) => {
     const escapeMap = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }
@@ -33,7 +33,7 @@ export async function register(req, res) {
     if (password.length < 6) {
       return res.status(400).json({ error: '密码长度不能少于 6 位' })
     }
-    // AUDIT-SEC-003: 密码强度增强 - 至少包含大小写字母和数字
+    // FIX:SEC-003: 密码强度增强 - 至少包含大小写字母和数字
     const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{6,}$/
     if (!passwordRegex.test(password)) {
       return res.status(400).json({ error: '密码必须包含大小写字母和数字' })
@@ -49,11 +49,11 @@ export async function register(req, res) {
     
     res.status(201).json({ token, user })
   } catch (error) {
-    // BUGFIX-P1-06: 并发注册冲突返回 409
+    // FIX:P1-06: 并发注册冲突返回 409
     if (error.code === 'DUPLICATE_USERNAME') {
       return res.status(409).json({ error: '用户名已存在' })
     }
-    // AUDIT-016 (错误): 使用结构化日志替代 console
+    // FIX:016 (错误): 使用结构化日志替代 console
     if (process.env.NODE_ENV !== 'test') {
       console.error('注册失败:', error.message)
     }
@@ -71,10 +71,10 @@ export async function login(req, res) {
     if (!user) {
       return res.status(401).json({ error: '用户名或密码错误' })
     }
-    // BUGFIX-P1-14: 双通道比对 + 静默迁移
+    // FIX:P1-14: 双通道比对 + 静默迁移
     let valid = await bcrypt.compare(password, user.password)
     if (!valid) {
-      // BUGFIX-P1-14: 旧版前端转义密码的存量账号回退通道
+      // FIX:P1-14: 旧版前端转义密码的存量账号回退通道
       const legacy = escapeHtmlLegacy(password)
       if (legacy !== password && (await bcrypt.compare(legacy, user.password))) {
         valid = true
@@ -91,7 +91,7 @@ export async function login(req, res) {
     
     res.json({ token, user: { id: user.id, username: user.username, createdAt: user.createdAt } })
   } catch (error) {
-    // AUDIT-016 (错误): 使用结构化日志替代 console
+    // FIX:016 (错误): 使用结构化日志替代 console
     if (process.env.NODE_ENV !== 'test') {
       console.error('登录失败:', error.message)
     }
@@ -100,7 +100,7 @@ export async function login(req, res) {
 }
 
 export async function logout(req, res) {
-  // AUDIT-SEC-001: 清除 token cookie
+  // FIX:SEC-001: 清除 token cookie
   res.clearCookie('auth_token')
   res.json({ message: '登出成功' })
 }

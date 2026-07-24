@@ -1,40 +1,16 @@
 <script setup lang="ts">
-/**
- * SiteAnalysisControlPanel - 选址分析操作控制面板
- *
- * 布局：4×4 Panel，内部 2 列 × 4 行网格（与图层控制面板一致）
- * - 第 1-3 行：6 个设施因子按钮
- * - 第 4 行：清空选择 + 开始分析
- *
- * 按钮三种状态：
- * - 默认态：白色按钮，仅显示设施名称
- * - 选择态：蓝色按钮，显示滑块（在意程度 1-5），3s 无操作自动确认
- * - 已选态：白色按钮，显示设施名称 + 重要程度标签
- *
- * 交互流程：
- * 1. 点击默认态按钮 → 进入选择态（显示滑块）
- * 2. 拖动滑块调整重要程度（每次操作重置 3s 计时器）
- * 3. 3s 无操作 → 自动进入已选态
- * 4. 点击已选态按钮 → 重新进入选择态
- * 5. 点击面板外部任意位置 → 立即结束所有选择态
- */
-
+// 选址分析控制面板：4×4 Panel，2列×4行网格，6个设施因子按钮 + 清空/分析
+// 按钮三态：默认(白) → 选择(蓝,滑块,3s自动确认) → 已选(白+重要程度标签)
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
 import { FACILITY_CONFIG } from '../composables/facilityConfig'
 import { useSiteAnalysisApi } from '../composables/useSiteAnalysisApi'
-import { useAuth } from '@/shared/composables/useAuth'
+import type { AnalysisResult, TypeSetting, FacilityType } from '@/types/analysis'
 import ErrorPopup from '@/shared/components/ErrorPopup.vue'
-import type { FacilityType, TypeSetting } from '@/types/facility'
-import type { AnalysisResult } from '@/types/analysis'
 
 interface Emits {
-  (e: 'result-update', result: Partial<AnalysisResult>): void
-  (e: 'analysis-error', message: string): void
+  (_e: 'result-update', _result: Partial<AnalysisResult>): void
+  (_e: 'analysis-error', _message: string): void
 }
-
-const router = useRouter()
-const { isAuthenticated } = useAuth()
 
 const emit = defineEmits<Emits>()
 
@@ -135,14 +111,14 @@ function clearAll(): void {
 
 /** 开始分析 */
 async function runAnalysis(): Promise<void> {
-  // AUDIT-105: 防重复提交守卫
+  // FIX:105: 防重复提交守卫
   if (calculating.value) {
     // P2-003-FIX: 向用户展示可视化反馈
     popupMessage.value = '分析正在进行中，请稍候'
     showPopup.value = true
     return
   }
-  
+
   calcError.value = ''
   // 先确认所有选择
   confirmAll()
@@ -168,7 +144,7 @@ async function runAnalysis(): Promise<void> {
   if (calcError.value) {
     popupMessage.value = calcError.value || '网络异常，请重试'
     showPopup.value = true
-    // BUGFIX-P3-03: 向页面级错误弹窗传递错误
+    // FIX:P3-03: 向页面级错误弹窗传递错误
     emit('analysis-error', calcError.value)
     return
   }
@@ -231,30 +207,21 @@ onUnmounted(() => {
   })
 })
 
-/**
- * 获取当前因子设置状态（用于状态保存）
- */
 function getSettings() {
   return JSON.parse(JSON.stringify(typeSettings))
 }
 
-/**
- * 恢复因子设置状态（用于状态恢复）
- */
-function restoreSettings(settings) {
+function restoreSettings(settings: Record<string, any>) {
   if (!settings) return
   Object.entries(settings).forEach(([key, value]) => {
     if (typeSettings[key]) {
       typeSettings[key].selected = value.selected || false
       typeSettings[key].importance = value.importance || 3
-      typeSettings[key].selecting = false // 恢复时不进入选择态
+      typeSettings[key].selecting = false
     }
   })
 }
 
-/**
- * 暴露方法供父组件调用
- */
 defineExpose({
   getSettings,
   restoreSettings,

@@ -34,7 +34,7 @@ function getFacilityTypeLabel(type) {
  * 格式化损失金额
  */
 function formatLoss(loss) {
-  // BUGFIX-P3-15: 非法输入防御
+  // FIX:P3-15: 非法输入防御
   const v = Number(loss)
   if (!isFinite(v)) return '—'
   if (v >= 10000) {

@@ -17,9 +17,10 @@
  * - 下半部分：收藏夹列表
  */
 
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { inject } from 'vue'
+import { ElMessageBox } from 'element-plus'
 import AppLayout from '@/core/layout/AppLayout.vue'
 import GcsPanel from '@/core/layout/components/GcsPanel.vue'
 import LoginPanel from '@/shared/components/LoginPanel.vue'
@@ -32,7 +33,7 @@ import type { Plan } from '@/types/plan'
 import type { SavedXiaoqu } from '@/types/xiaoqu'
 
 const router = useRouter()
-const { updatePlan, getPlans, deletePlan, removeXiaoqu, loading: plansLoading, deleting: plansDeleting } = usePlans()
+const { updatePlan, getPlans, deletePlan, loading: plansLoading, deleting: plansDeleting } = usePlans()
 const { user } = useAuth()
 const floodStateStore = useFloodStateStore()
 
@@ -72,7 +73,15 @@ async function loadPlans() {
  * 删除方案
  */
 async function handleDeletePlan(plan: Plan) {
-  if (!confirm(`确定要删除方案"${plan.name}"吗？`)) return
+  try {
+    await ElMessageBox.confirm(`确定要删除方案"${plan.name}"吗？`, '删除确认', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    })
+  } catch {
+    return
+  }
 
   plansError.value = ''
   try {
@@ -118,7 +127,7 @@ function loadFloodPlan(plan: Plan) {
     waterLevel: plan.waterLevel || 0,
     floodStatistics: plan.floodStatistics,
     floodFeatures: plan.floodFeatures,
-    floodRiskLevel: plan.floodRiskLevel, // BUGFIX-P2-03: 补传风险等级
+    floodRiskLevel: plan.floodRiskLevel, // FIX:P2-03: 补传风险等级
     affectedFacilities: plan.affectedFacilities,
     totalLoss: plan.totalLoss,
   })
@@ -297,8 +306,8 @@ watch(
     </AppLayout>
 
     <!-- 方案重命名弹窗 -->
-    <!-- BUGFIX-P1-04: 重命名弹窗初始名使用 editingNamePlan -->
-    <!-- BUGFIX-P3-14: 监听 error 事件，校验失败时显示错误 -->
+    <!-- FIX:P1-04: 重命名弹窗初始名使用 editingNamePlan -->
+    <!-- FIX:P3-14: 监听 error 事件，校验失败时显示错误 -->
     <PlanSaveModal
       :visible="showSaveModal"
       :saving="savingName"

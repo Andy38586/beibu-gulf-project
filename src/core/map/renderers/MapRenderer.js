@@ -25,6 +25,16 @@ export class MapRenderer {
     throw new Error(`${this.getType()} addGeoJsonLayer 未实现`)
   }
 
+  // TODO:0.1: 新增热力图图层抽象方法
+  // FIX:偏3: 原设计文档使用 addGeoJsonLayer({type:'heatmap'})，但现有接口不支持
+  // 正确做法：独立方法，子类按需实现
+  addHeatmapLayer(_id, _features, _options = {}) {
+    if (import.meta.env.DEV) {
+      console.warn(`${this.getType()} addHeatmapLayer 未实现（仅 2D 渲染器支持）`)
+    }
+    return false
+  }
+
   setVisibility(id, visible) {
     const layer = this._layers.get(id)
     if (layer) {

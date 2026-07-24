@@ -17,7 +17,7 @@
 import { useGCS } from '@/core/layout/useGCS.js'
 import { useRouter } from 'vue-router'
 
-const props = defineProps({
+defineProps({
   visible: { type: Boolean, default: false },
   message: { type: String, default: '网络异常，请重试' },
   /** 弹窗模式：'error' 或 'login' */

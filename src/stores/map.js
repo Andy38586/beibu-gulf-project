@@ -1,13 +1,10 @@
 import { defineStore } from 'pinia'
 import { shallowRef, ref } from 'vue'
 
-/** localStorage 键：持久化选中的底图图层 key */
+/** localStorage 键：底图、地图类型、选中港口；sessionStorage：分析结果 */
 const BASE_LAYER_STORAGE_KEY = 'beibu-gulf-base-layer'
-/** localStorage 键：持久化地图类型（2d/3d） */
 const MAP_TYPE_STORAGE_KEY = 'beibu-gulf-map-type'
-/** localStorage 键：持久化选中的港口 */
 const SELECTED_PORT_STORAGE_KEY = 'beibu-gulf-selected-port'
-/** sessionStorage 键：持久化分析结果（会话级别） */
 const ANALYSIS_RESULT_STORAGE_KEY = 'beibu-gulf-analysis-result'
 
 function readStoredBaseLayer() {
@@ -28,31 +25,12 @@ function writeStoredBaseLayer(key) {
   }
 }
 
-function readStoredMapType() {
-  if (typeof window === 'undefined') return '2d'
-  try {
-    return window.localStorage.getItem(MAP_TYPE_STORAGE_KEY) || '2d'
-  } catch {
-    return '2d'
-  }
-}
-
 function writeStoredMapType(type) {
   if (typeof window === 'undefined') return
   try {
     window.localStorage.setItem(MAP_TYPE_STORAGE_KEY, type)
   } catch {
     // 忽略隐私模式等写入失败场景
-  }
-}
-
-function readStoredSelectedPort() {
-  if (typeof window === 'undefined') return null
-  try {
-    const stored = window.localStorage.getItem(SELECTED_PORT_STORAGE_KEY)
-    return stored ? JSON.parse(stored) : null
-  } catch {
-    return null
   }
 }
 
@@ -69,10 +47,6 @@ function writeStoredSelectedPort(port) {
   }
 }
 
-/**
- * 从 sessionStorage 读取分析结果
- * @returns {object | null}
- */
 function readStoredAnalysisResult() {
   if (typeof window === 'undefined') return null
   try {
@@ -83,10 +57,6 @@ function readStoredAnalysisResult() {
   }
 }
 
-/**
- * 将分析结果写入 sessionStorage
- * @param {object | null} result
- */
 function writeStoredAnalysisResult(result) {
   if (typeof window === 'undefined') return
   try {
@@ -111,7 +81,7 @@ export const useMapStore = defineStore('map', () => {
   const currentRenderer = shallowRef(null)
 
   const analysisHandler = ref(null)
-  // AUDIT-003 (状态): 从 sessionStorage 恢复分析结果
+  // FIX:003 (状态): 从 sessionStorage 恢复分析结果
   const lastAnalysisResult = ref(readStoredAnalysisResult())
 
   const activePanel = ref('none')
@@ -121,17 +91,13 @@ export const useMapStore = defineStore('map', () => {
     map.value = instance
   }
 
-  /**
-   * 设置当前渲染器
-   * 由UnifiedMap在渲染器初始化/切换时调用
-   * @param {MapRenderer|null} renderer - 渲染器实例
-   */
+  // 由 UnifiedMap 在渲染器初始化/切换时调用
   function setCurrentRenderer(renderer) {
     currentRenderer.value = renderer
   }
 
-  // AUDIT-012: 删除重复函数，保留 setMapType
-  // AUDIT-004 (状态): 持久化地图类型
+  // FIX:012: 删除重复函数，保留 setMapType
+  // FIX:004 (状态): 持久化地图类型
   function setMapType(type) {
     mapType.value = type
     writeStoredMapType(type)
@@ -148,7 +114,7 @@ export const useMapStore = defineStore('map', () => {
   }
 
   function registerAnalysisHandler(handler) {
-    // AUDIT-023: 验证handler是否为函数
+    // FIX:023: 验证handler是否为函数
     if (typeof handler !== 'function') {
       if (import.meta.env.DEV) {
         console.warn('registerAnalysisHandler: handler必须是函数类型')
@@ -163,9 +129,9 @@ export const useMapStore = defineStore('map', () => {
 
   function setAnalysisResult(result) {
     lastAnalysisResult.value = result
-    // AUDIT-003 (状态): 持久化分析结果到 sessionStorage
+    // FIX:003 (状态): 持久化分析结果到 sessionStorage
     writeStoredAnalysisResult(result)
-    // AUDIT-015: 验证 analysisHandler 是否为函数
+    // FIX:015: 验证 analysisHandler 是否为函数
     if (typeof analysisHandler.value === 'function') {
       analysisHandler.value(result)
     }
@@ -222,14 +188,6 @@ export const useMapStore = defineStore('map', () => {
     }
   }
 
-  /**
-   * 注册可切换图层
-   * @param {string} key - 图层唯一标识
-   * @param {string} label - 图层显示名称
-   * @param {Function} show - 显示图层的回调
-   * @param {Function} hide - 隐藏图层的回调
-   * @param {boolean} [visible=true] - 初始可见性
-   */
   function registerToggleable(key, label, show, hide, visible = true) {
     const existing = layerCatalog.value.find((e) => e.key === key)
     const shouldVisible = existing ? existing.visible : visible
@@ -246,9 +204,39 @@ export const useMapStore = defineStore('map', () => {
     }
   }
 
+  /**
+   * 注册业务图层到 layerCatalog
+   *
+   * 与 registerToggleable 不同：
+   * - 不存储 show/hide 回调函数
+   * - 不触发 toggle，直接设 visible
+   * - catalog 条目只有元数据（key/label/layerType/visible/category）
+   * - LayerControlPanel 只读此条目，不做渲染操作
+   *
+   * @param {string} key
+   * @param {string} label
+   * @param {string} layerType
+   * @param {boolean} visible
+   */
+  function registerBusinessLayer(key, label, layerType, visible = true) {
+    const existing = layerCatalog.value.find((e) => e.key === key)
+    if (existing) {
+      existing.visible = visible
+      existing.layerType = layerType
+      return
+    }
+    layerCatalog.value.push({
+      key,
+      label,
+      layerType,
+      visible,
+      category: 'business',
+    })
+  }
+
   function toggleLayer(key) {
     const entry = layerCatalog.value.find((e) => e.key === key)
-    // AUDIT-024: 验证entry存在性
+    // FIX:024: 验证entry存在性
     if (!entry) {
       if (import.meta.env.DEV) {
         console.warn(`toggleLayer: 未找到key为"${key}"的图层`)
@@ -292,10 +280,6 @@ export const useMapStore = defineStore('map', () => {
     }
   }
 
-  /**
-   * 移除指定图层（从 catalog 中删除并调用 hide）
-   * 用于进入选址分析页前清除旧的分析图层
-   */
   function removeLayer(key) {
     const idx = layerCatalog.value.findIndex((e) => e.key === key)
     if (idx < 0) return
@@ -334,6 +318,7 @@ export const useMapStore = defineStore('map', () => {
     selectedPort,
     layerCatalog,
     baseLayerKey,
+    currentRenderer,
     analysisHandler,
     activePanel,
     selectedXiaoqu,
@@ -347,6 +332,7 @@ export const useMapStore = defineStore('map', () => {
     registerLayer,
     registerBaseLayer,
     registerToggleable,
+    registerBusinessLayer,
     toggleLayer,
     removeLayer,
     clearLayerCatalog,

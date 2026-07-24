@@ -1,4 +1,4 @@
-// BUGFIX-R-01: 文件存储工厂，统一缓存/写锁基础设施（markers/plans/users 共用）
+// FIX:R-01: 文件存储工厂，统一缓存/写锁基础设施（markers/plans/users 共用）
 import fs from 'fs/promises'
 
 export function createFileStore(filePath, { useCache = true } = {}) {

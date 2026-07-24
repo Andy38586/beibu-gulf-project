@@ -11,7 +11,9 @@ import Polygon from 'ol/geom/Polygon'
 import Feature from 'ol/Feature'
 import GeoJSON from 'ol/format/GeoJSON'
 import { Style, Fill, Stroke, Circle, Text } from 'ol/style'
+import Heatmap from 'ol/layer/Heatmap'
 import { buildTiandituUrl, MAP_CONFIG, heightToZoom } from '@/core/config/map'
+import { logger } from '@/shared/utils/logger'
 
 export class OLRenderer extends MapRenderer {
   constructor(container) {
@@ -148,7 +150,7 @@ export class OLRenderer extends MapRenderer {
       })
   }
   addPolygonLayer(id, features, options = {}) {
-    // AUDIT-GIS-008: 辅助函数 - 确保坐标环闭合
+    // FIX:GIS-008: 辅助函数 - 确保坐标环闭合
     const ensureRingClosed = (ring) => {
       if (!ring || ring.length < 3) return null
       const first = ring[0]
@@ -165,14 +167,14 @@ export class OLRenderer extends MapRenderer {
         const coordinates = item.coordinates || item.geometry?.coordinates
         if (!coordinates) return null
 
-        // AUDIT-010: 验证坐标数组有效性
+        // FIX:010: 验证坐标数组有效性
         if (!Array.isArray(coordinates) || coordinates.length === 0) return null
 
         let polygonCoords
         if (item.geometry?.type === 'MultiPolygon') {
-          // AUDIT-010: 验证MultiPolygon坐标结构
+          // FIX:010: 验证MultiPolygon坐标结构
           if (!Array.isArray(coordinates[0]) || !Array.isArray(coordinates[0][0])) return null
-          // AUDIT-GIS-008: 验证并闭合每个多边形的坐标环
+          // FIX:GIS-008: 验证并闭合每个多边形的坐标环
           polygonCoords = coordinates
             .map((poly) => {
               const closedRing = ensureRingClosed(poly[0])
@@ -181,9 +183,9 @@ export class OLRenderer extends MapRenderer {
             .filter((coords) => coords !== null)
           if (polygonCoords.length === 0) return null
         } else {
-          // AUDIT-010: 验证Polygon坐标结构
+          // FIX:010: 验证Polygon坐标结构
           if (!Array.isArray(coordinates[0]) || !Array.isArray(coordinates[0][0])) return null
-          // AUDIT-GIS-008: 验证并闭合坐标环
+          // FIX:GIS-008: 验证并闭合坐标环
           const closedRing = ensureRingClosed(coordinates[0])
           if (!closedRing) return null
           polygonCoords = [closedRing.map(([lng, lat]) => fromLonLat([lng, lat]))]
@@ -226,7 +228,7 @@ export class OLRenderer extends MapRenderer {
     features.forEach((feature) => {
       feature.set('featureType', options.featureType || 'geojson')
     })
-    // BUGFIX-P1-11: 按几何类型分派样式，点要素支持 markerColor/markerSize
+    // FIX:P1-11: 按几何类型分派样式，点要素支持 markerColor/markerSize
     const polygonStyle = this._createPolygonStyle(options)
     const pointStyle = new Style({
       image: new Circle({
@@ -235,12 +237,14 @@ export class OLRenderer extends MapRenderer {
         stroke: new Stroke({ color: '#fff', width: 2 }),
       }),
     })
+    // TODO:4.0: 支持 options.style 回调，用于 per-feature 样式（预测分析等业务需要）
+    const defaultStyle = (feature) => {
+      const geom = feature.getGeometry()
+      return geom.getType() === 'Point' ? pointStyle : polygonStyle
+    }
     const vectorLayer = new VectorLayer({
       source: new VectorSource({ features }),
-      style: (feature) => {
-        const geom = feature.getGeometry()
-        return geom.getType() === 'Point' ? pointStyle : polygonStyle
-      },
+      style: options.style || defaultStyle,
     })
     this.map.addLayer(vectorLayer)
     this._layers.set(id, {
@@ -250,6 +254,58 @@ export class OLRenderer extends MapRenderer {
     })
     this._applyPendingVisibility(id)
   }
+
+  // TODO:0.1: 新增热力图图层方法
+  // FIX:偏3: 原设计文档使用 addGeoJsonLayer({type:'heatmap'})，但现有接口不支持
+  // 正确做法：独立方法 + 参考 OpenLayers Heatmap 官方示例
+  addHeatmapLayer(id, features, options = {}) {
+    const {
+      weightField = 'value',
+      radius = 20,
+      blur = 15,
+      gradient = ['#00f', '#0ff', '#0f0', '#ff0', '#f00'],
+      opacity = 0.6,
+    } = options
+
+    // 将 features 数组转为 OpenLayers Feature
+    const olFeatures = features.map((f) => {
+      const [lng, lat] = f.geometry.coordinates
+      const feature = new Feature({
+        geometry: new Point(fromLonLat([lng, lat])),
+      })
+      // 将 properties 展开为 feature 属性（weightField 对应的值用于热力权重）
+      Object.entries(f.properties || {}).forEach(([key, value]) => {
+        feature.set(key, value)
+      })
+      return feature
+    })
+
+    const source = new VectorSource({ features: olFeatures })
+
+    const layer = new Heatmap({
+      source,
+      radius: Number(radius),
+      blur: Number(blur),
+      weight: (feature) => {
+        const val = feature.get(weightField)
+        return val !== undefined && val !== null ? Number(val) : 0
+      },
+      gradient,
+      opacity,
+    })
+
+    layer.set('id', id)
+    this.map.addLayer(layer)
+    this._layers.set(id, {
+      instance: layer,
+      visible: true,
+      options,
+    })
+    this._applyPendingVisibility(id)
+
+    return layer
+  }
+
   _doSetVisibility(id, visible) {
     const layer = this._layers.get(id)
     if (layer && layer.instance) {
@@ -264,7 +320,7 @@ export class OLRenderer extends MapRenderer {
         if (source && source.clear) {
           source.clear()
         }
-        // AUDIT-GIS-010: 调用 dispose() 释放资源
+        // FIX:GIS-010: 调用 dispose() 释放资源
         if (source && source.dispose) {
           source.dispose()
         }
@@ -276,7 +332,7 @@ export class OLRenderer extends MapRenderer {
     if (target.layerId) {
       const layer = this._layers.get(target.layerId)
       if (layer && layer.instance) {
-        // AUDIT-016: 验证 source 和 getExtent 方法存在性
+        // FIX:016: 验证 source 和 getExtent 方法存在性
         const source = layer.instance.getSource()
         if (source && typeof source.getExtent === 'function') {
           const extent = source.getExtent()
@@ -287,7 +343,7 @@ export class OLRenderer extends MapRenderer {
         }
       }
     }
-    // BUGFIX-P3-01: 兼容数据源 lon 字段（ports.json）和接口 lng 字段
+    // FIX:P3-01: 兼容数据源 lon 字段（ports.json）和接口 lng 字段
     const lng = target.lng ?? target.lon
     view.animate({
       center: fromLonLat([lng, target.lat]),
@@ -305,18 +361,12 @@ export class OLRenderer extends MapRenderer {
       zoom,
     }
 
-    // 调试日志：输出OL相机状态
-    if (import.meta.env.DEV) {
-      console.log('[OLRenderer._getCameraState] 导出状态:', state)
-    }
+    logger.debug('[OLRenderer._getCameraState] 导出状态:', state)
 
     return state
   }
   _setCameraState(state) {
-    // 调试日志：输出导入的原始状态
-    if (import.meta.env.DEV) {
-      console.log('[OLRenderer._setCameraState] 导入原始状态:', state)
-    }
+    logger.debug('[OLRenderer._setCameraState] 导入原始状态:', state)
 
     const view = this.map.getView()
     view.setCenter(fromLonLat([state.center.lng, state.center.lat]))

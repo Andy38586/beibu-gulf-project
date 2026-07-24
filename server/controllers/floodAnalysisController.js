@@ -71,7 +71,7 @@ export async function getFloodAreas(req, res) {
           code: 200,
           data: {
             waterLevel: floodZone.waterLevel,
-            // BUGFIX-P2-07: 显式区分请求水位与实际数据档位
+            // FIX:P2-07: 显式区分请求水位与实际数据档位
             requestedWaterLevel: level,
             actualWaterLevel: floodZone.waterLevel,
             riskLevel: floodZone.riskLevel,
@@ -263,7 +263,7 @@ export async function analyzeDisaster(req, res) {
     res.json({
       code: 200,
       data: {
-        // BUGFIX-P2-07: 返回实际档位水位，消除请求值与实际档位的错配
+        // FIX:P2-07: 返回实际档位水位，消除请求值与实际档位的错配
         waterLevel: floodZone.waterLevel,
         requestedWaterLevel: level,
         riskLevel: floodZone.riskLevel,

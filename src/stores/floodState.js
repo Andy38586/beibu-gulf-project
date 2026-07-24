@@ -6,7 +6,7 @@ import { ref } from 'vue'
  *
  * 用途：
  * - P2-2: 跳转到个人中心页时保存当前分析状态，返回时恢复
- * - P3-3: 从个人中心加载历史浸没方案时保存方案数据，跳转后恢复
+ * - FIX:P3-3: 从个人中心加载历史浸没方案时保存方案数据，跳转后恢复
  *
  * 触发条件：
  * - 仅当从浸没分析页跳转到个人中心（/profile）时保存状态
@@ -27,7 +27,7 @@ export const useFloodStateStore = defineStore('floodState', () => {
     waterLevel.value = data.waterLevel
     floodStatistics.value = data.floodStatistics
     floodFeatures.value = data.floodFeatures
-    floodRiskLevel.value = data.floodRiskLevel ?? '无风险' // BUGFIX-P2-03: 兼容缺省
+    floodRiskLevel.value = data.floodRiskLevel ?? '无风险' // FIX:P2-03: 兼容缺省
     affectedFacilities.value = data.affectedFacilities
     totalLoss.value = data.totalLoss
     hasState.value = true

@@ -25,10 +25,10 @@ function getPolygonBBox(polygon) {
   let minY = Infinity, maxY = -Infinity
   
   for (const poly of polygons) {
-    // AUDIT-GIS-006: 验证 poly[0] 存在性
+    // FIX:GIS-006: 验证 poly[0] 存在性
     if (!poly || !poly[0] || poly[0].length === 0) continue
     
-    // AUDIT-GIS-005: 遍历所有环（外环 + 内环）
+    // FIX:GIS-005: 遍历所有环（外环 + 内环）
     for (const ring of poly) {
       if (!Array.isArray(ring)) continue
       for (const [x, y] of ring) {
@@ -41,7 +41,7 @@ function getPolygonBBox(polygon) {
     }
   }
   
-  // AUDIT-GIS-005: 如果没有有效坐标，返回默认 BBox
+  // FIX:GIS-005: 如果没有有效坐标，返回默认 BBox
   if (minX === Infinity) {
     return { minX: 0, minY: 0, maxX: 0, maxY: 0 }
   }

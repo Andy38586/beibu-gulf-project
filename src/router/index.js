@@ -14,6 +14,13 @@ const routes = [
     component: () => import('@/business/site-selection/SiteSelectionPage.vue'),
     meta: { engine: '2d', title: '选址分析' },
   },
+  // TODO:2.1b: 新增预测分析路由
+  {
+    path: '/forecast',
+    name: 'Forecast',
+    component: () => import('@/business/forecast/ForecastPage.vue'),
+    meta: { engine: '2d', title: '预测分析' },
+  },
   // Flood分析路由（原GCS分析），复用原热力图路由路径
   {
     path: '/heatmap',
@@ -35,5 +42,5 @@ const router = createRouter({
   routes,
 })
 
-// BUGFIX-P3-12: 删除路由守卫死代码。四条路由 meta 均无 requiresAuth（P0-001 已移除），beforeEach 永不触发。
+// FIX:P3-12: 删除路由守卫死代码。四条路由 meta 均无 requiresAuth（P0-001 已移除），beforeEach 永不触发。
 export default router

@@ -6,7 +6,7 @@ const hasError = ref(false)
 const errorMsg = ref('')
 
 onErrorCaptured((err) => {
-  // AUDIT-015 (错误): 错误上报（可集成 Sentry 等服务）
+  // FIX:015 (错误): 错误上报（可集成 Sentry 等服务）
   if (import.meta.env.DEV) {
     console.error('[ErrorBoundary]', err)
     console.error('错误堆栈:', err.stack)

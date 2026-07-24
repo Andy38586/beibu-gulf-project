@@ -3,7 +3,7 @@
  * RadarScoreTooltip - 雷达图得分弹窗组件
  * 
  * 职责：显示雷达图的具体得分（1列6行网格布局）
- * 解决 AUDIT-006(架构)：拆分RadarChart组件
+ * 解决 FIX:006(架构)：拆分RadarChart组件
  */
 
 import { computed } from 'vue'
@@ -11,7 +11,7 @@ import { FACILITY_LABELS } from '@/shared/utils/facilityLabels'
 import { FACILITY_CONFIG } from '@/business/site-selection/composables/useFacilities'
 import { useGCS } from '@/core/layout/useGCS.js'
 
-const props = defineProps({
+defineProps({
   visible: { type: Boolean, default: false },
   xiaoqu: { type: Object, default: null },
   selectedTypes: { type: Array, default: () => [] },

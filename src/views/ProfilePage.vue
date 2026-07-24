@@ -24,6 +24,7 @@ import { ElMessageBox } from 'element-plus'
 import AppLayout from '@/core/layout/AppLayout.vue'
 import GcsPanel from '@/core/layout/components/GcsPanel.vue'
 import LoginPanel from '@/shared/components/LoginPanel.vue'
+import FavoritePanel from '@/shared/components/FavoritePanel.vue'
 import PlanSaveModal from '@/shared/components/PlanSaveModal.vue'
 import PaginatedListPanel from '@/shared/components/PaginatedListPanel.vue'
 import { usePlans } from '@/shared/composables/usePlans'
@@ -41,6 +42,7 @@ const restorePlanData = inject('restorePlanData', ref(null))
 const editingPlan = inject('editingPlan', ref(null))
 
 const showSaveModal = ref(false)
+const showFavorite = ref(false)
 const editingNamePlan = ref<Plan | null>(null)
 const saveError = ref('')
 const savingName = ref(false)
@@ -210,6 +212,11 @@ watch(
             <!-- 顶部：登录面板（用户信息区域） -->
             <LoginPanel />
 
+            <!-- 本地收藏夹按钮 -->
+            <div class="local-fav-btn" @click="showFavorite = true">
+              ⭐ 打开收藏夹
+            </div>
+
             <!-- 中部：收藏夹内容 -->
             <div class="favorites-container">
               <!-- 错误提示 -->
@@ -304,6 +311,9 @@ watch(
         </GcsPanel>
       </template>
     </AppLayout>
+
+    <!-- 收藏夹抽屉 -->
+    <FavoritePanel :visible="showFavorite" @close="showFavorite = false" />
 
     <!-- 方案重命名弹窗 -->
     <!-- FIX:P1-04: 重命名弹窗初始名使用 editingNamePlan -->
@@ -561,4 +571,20 @@ watch(
   font-size: 12px;
   color: #909399;
 }
+
+/* 本地收藏夹按钮 */
+.local-fav-btn {
+  margin: 10px 0;
+  padding: 8px 12px;
+  background: #f0f7ff;
+  border: 1px solid #d9ecff;
+  border-radius: 6px;
+  text-align: center;
+  font-size: 13px;
+  color: #409eff;
+  cursor: pointer;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+.local-fav-btn:hover { background: #ecf5ff; }
 </style>

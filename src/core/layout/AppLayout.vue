@@ -31,6 +31,7 @@ import LineChart from '@/visualization/charts/LineChart.vue'
 import BarChart from '@/visualization/charts/BarChart.vue'
 import RadarChart from '@/visualization/charts/RadarChart.vue'
 import LayerControlPanel from '@/shared/components/LayerControlPanel.vue'
+import FavoritePanel from '@/shared/components/FavoritePanel.vue'
 import { useScreenActions } from '@/shared/composables/useScreenActions.js'
 
 const route = useRoute()
@@ -41,6 +42,7 @@ const { flyToCity, goProfileOrBack, userButtonLabel } = useScreenActions()
 
 // 检查模式状态
 const inspectionMode = ref(false)
+const showFavorite = ref(false)
 const isDev = import.meta.env.DEV
 
 /**
@@ -133,7 +135,10 @@ const barData = {
     </div>
 
     <!-- 底部导航 -->
-    <BottomNavBar v-model:inspectionMode="inspectionMode" />
+    <BottomNavBar v-model:inspectionMode="inspectionMode" @open-favorite="showFavorite = true" />
+
+    <!-- 收藏夹抽屉 -->
+    <FavoritePanel :visible="showFavorite" @close="showFavorite = false" />
 
     <!-- 检查模式（仅开发环境） -->
     <GcsInspectionOverlay v-if="isDev && inspectionMode" :enabled="inspectionMode" />

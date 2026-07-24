@@ -29,6 +29,8 @@ import GcsPanel from './GcsPanel.vue'
 import NavButton from './NavButton.vue'
 import { useGCS } from '../useGCS.js'
 
+const emit = defineEmits(['open-favorite'])
+
 const route = useRoute()
 const router = useRouter()
 const { cellPixel } = useGCS()
@@ -56,7 +58,7 @@ const navItems = computed(() => [
   { label: '选址分析', icon: '◈', route: '/site-selection', disabled: false },
   { label: '预测分析', icon: '📊', route: '/forecast', disabled: false },
   { label: '浸没分析', icon: '🌊', route: '/heatmap', disabled: false },
-  { label: '航线分析', icon: '🚢', route: '/route-analysis', disabled: true },
+  { label: '收藏夹', icon: '⭐', action: 'favorite', disabled: false },
   { label: '个人中心', icon: '👤', route: '/profile', disabled: false },
 ])
 
@@ -71,8 +73,12 @@ function isActive(item) {
 }
 
 function handleClick(item) {
-  if (item.disabled || !item.route) return
-  router.push(item.route)
+  if (item.disabled) return
+  if (item.action === 'favorite') {
+    emit('open-favorite')
+    return
+  }
+  if (item.route) router.push(item.route)
 }
 </script>
 

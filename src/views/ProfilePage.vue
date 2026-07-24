@@ -23,6 +23,7 @@ import { inject } from 'vue'
 import { ElMessageBox } from 'element-plus'
 import AppLayout from '@/core/layout/AppLayout.vue'
 import GcsPanel from '@/core/layout/components/GcsPanel.vue'
+import LoginPanel from '@/shared/components/LoginPanel.vue'
 import PlanSaveModal from '@/shared/components/PlanSaveModal.vue'
 import PaginatedListPanel from '@/shared/components/PaginatedListPanel.vue'
 import { usePlans } from '@/shared/composables/usePlans'
@@ -33,7 +34,7 @@ import type { SavedXiaoqu } from '@/types/xiaoqu'
 
 const router = useRouter()
 const { updatePlan, getPlans, deletePlan, loading: plansLoading, deleting: plansDeleting } = usePlans()
-const { user, logout } = useAuth()
+const { user } = useAuth()
 const floodStateStore = useFloodStateStore()
 
 const restorePlanData = inject('restorePlanData', ref(null))
@@ -167,11 +168,6 @@ async function handleFavoriteChange() {
   await loadPlans()
 }
 
-async function handleLogout() {
-  await logout()
-  plansList.value = []
-}
-
 /**
  * 判断方案是否包含选址分析类型的小区（score > 0）
  */
@@ -211,38 +207,63 @@ watch(
       <template #right>
         <GcsPanel :w="4" :h="8" anchor="top-right" :offset-x="0" :offset-y="1.25">
           <div class="profile-content">
-            <!-- 顶部：用户名居中 -->
-            <div class="profile-top">
-              <div v-if="user" class="username">{{ user.username }}</div>
-              <div v-else class="username guest">未登录</div>
-            </div>
+            <!-- 顶部：登录面板（用户信息区域） -->
+            <LoginPanel />
 
-            <!-- 收藏夹（面板第一个四分位线起） -->
+            <!-- 中部：收藏夹内容 -->
             <div class="favorites-container">
-              <div v-if="plansError" class="plans-error">{{ plansError }}</div>
-              <div v-if="plansLoading" class="plans-loading">加载中...</div>
+              <!-- 错误提示 -->
+              <div v-if="plansError" class="plans-error">
+                {{ plansError }}
+              </div>
 
+              <!-- 加载状态 -->
+              <div v-if="plansLoading" class="plans-loading">
+                加载中...
+              </div>
+
+              <!-- 收藏夹标题 -->
               <div v-if="user && plansList.length > 0" class="favorites-header">
                 <span class="favorites-title">我的收藏</span>
                 <span class="favorites-count">{{ plansList.length }}个方案</span>
               </div>
 
+              <!-- 方案列表（可展开查看收藏内容） -->
               <div v-if="user && plansList.length > 0" class="plans-list">
                 <div v-for="plan in plansList" :key="plan.id" class="plan-group">
+                  <!-- 方案头部 -->
                   <div class="plan-header" @click="togglePlan(plan.id)">
                     <span class="plan-toggle">{{ expandedPlanId === plan.id ? '▼' : '▶' }}</span>
                     <span class="plan-name">{{ plan.name }}</span>
                     <span class="plan-count">{{ plan.savedXiaoqu?.length || 0 }}项</span>
                   </div>
+
+                  <!-- 展开内容：操作按钮 + 收藏列表 -->
                   <div v-if="expandedPlanId === plan.id" class="plan-detail">
+                    <!-- 操作按钮 -->
                     <div class="plan-actions">
                       <button class="action-btn load-btn" @click="handleLoadPlan(plan)">加载</button>
                       <button class="action-btn edit-btn" @click="handleEditPlan(plan)">重命名</button>
-                      <button class="action-btn delete-btn" :disabled="plansDeleting" @click="handleDeletePlan(plan)">{{ plansDeleting ? '删除中...' : '删除' }}</button>
+                      <button
+                        class="action-btn delete-btn"
+                        :disabled="plansDeleting"
+                        @click="handleDeletePlan(plan)"
+                      >
+                        {{ plansDeleting ? '删除中...' : '删除' }}
+                      </button>
                     </div>
+
+                    <!-- 选址分析收藏（如果有） -->
                     <div v-if="getSiteXiaoqu(plan).length > 0" class="fav-section">
                       <div class="fav-section-title">选址分析</div>
-                      <PaginatedListPanel :items="getSiteXiaoqu(plan)" :page-size="3" :show-favorite="true" :map-interaction="false" plan-type="site-selection" @favorite-change="handleFavoriteChange">
+                      <PaginatedListPanel
+                        :items="getSiteXiaoqu(plan)"
+                        :page-size="3"
+                        :show-favorite="true"
+                        :map-interaction="false"
+                        plan-type="site-selection"
+                        @favorite-change="handleFavoriteChange"
+                      >
                         <template #item="{ item: xq, index }">
                           <span class="xq-rank">{{ index + 1 }}</span>
                           <span class="xq-name">{{ xq.name }}</span>
@@ -250,9 +271,18 @@ watch(
                         </template>
                       </PaginatedListPanel>
                     </div>
+
+                    <!-- 浸没分析收藏（如果有） -->
                     <div v-if="getFloodFacilities(plan).length > 0" class="fav-section">
                       <div class="fav-section-title">浸没分析</div>
-                      <PaginatedListPanel :items="getFloodFacilities(plan)" :page-size="3" :show-favorite="true" :map-interaction="false" plan-type="flood" @favorite-change="handleFavoriteChange">
+                      <PaginatedListPanel
+                        :items="getFloodFacilities(plan)"
+                        :page-size="3"
+                        :show-favorite="true"
+                        :map-interaction="false"
+                        plan-type="flood"
+                        @favorite-change="handleFavoriteChange"
+                      >
                         <template #item="{ item: facility }">
                           <span class="facility-name">{{ facility.name }}</span>
                         </template>
@@ -262,6 +292,7 @@ watch(
                 </div>
               </div>
 
+              <!-- 空状态：已登录但无收藏 -->
               <div v-if="user && !plansLoading && plansList.length === 0" class="empty-favorites">
                 <div class="empty-icon">⭐</div>
                 <div class="empty-text">暂无收藏</div>
@@ -269,10 +300,6 @@ watch(
               </div>
             </div>
 
-            <!-- 底部：退出登录 -->
-            <div class="profile-bottom">
-              <button v-if="user" class="logout-btn" @click="handleLogout">退出登录</button>
-            </div>
           </div>
         </GcsPanel>
       </template>
@@ -304,51 +331,9 @@ watch(
   display: flex;
   flex-direction: column;
   height: 100%;
+  overflow-y: auto;
   pointer-events: auto;
 }
-
-/* 顶部用户名 */
-.profile-top {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px 12px 12px;
-  flex-shrink: 0;
-}
-.username {
-  font-size: 18px;
-  font-weight: 600;
-  color: #303133;
-}
-.username.guest { color: #909399; font-size: 15px; }
-
-/* 收藏夹（占据主要空间，从25%位置开始） */
-.favorites-container {
-  flex: 1;
-  overflow-y: auto;
-  padding: 0 12px;
-  margin-top: 20px; /* 从第一个四分位线开始 */
-}
-
-/* 底部退出 */
-.profile-bottom {
-  flex-shrink: 0;
-  padding: 12px;
-  display: flex;
-  justify-content: center;
-}
-.logout-btn {
-  width: 100%;
-  padding: 10px 0;
-  border: 1px solid #dcdfe6;
-  border-radius: 6px;
-  background: #fff;
-  color: #909399;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-.logout-btn:hover { color: #f56c6c; border-color: #f56c6c; background: #fef0f0; }
 
 /* 方案列表错误提示 */
 .plans-error {

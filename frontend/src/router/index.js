@@ -1,5 +1,4 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { useAuth } from '@/shared/composables/useAuth'
 
 const routes = [
   {
@@ -13,7 +12,7 @@ const routes = [
     path: '/site-selection',
     name: 'SiteSelection',
     component: () => import('@/business/site-selection/SiteSelectionPage.vue'),
-    meta: { engine: '2d', title: '选址分析', requiresAuth: true },
+    meta: { engine: '2d', title: '选址分析' },
   },
   // 预测分析：公开数据，前端路由不要求认证（与后端 routes/forecast.js 无 authenticate 一致）
   {
@@ -23,36 +22,24 @@ const routes = [
     meta: { engine: '2d', title: '预测分析' },
   },
   // 浸没分析（原 GCS 分析）
+  // 注：路由不再要求登录。收藏保存时才在 PaginatedListPanel 弹登录提示。
   {
     path: '/flood-analysis',
     name: 'FloodAnalysis',
     component: () => import('@/business/flood-analysis/FloodAnalysisPage.vue'),
-    meta: { engine: '3d', title: '浸没分析', requiresAuth: true },
+    meta: { engine: '3d', title: '浸没分析' },
   },
   {
     path: '/profile',
     name: 'Profile',
     component: () => import('@/views/ProfilePage.vue'),
-    meta: { engine: '2d', title: '个人中心', requiresAuth: true },
+    meta: { engine: '2d', title: '个人中心' },
   },
 ]
 
 const router = createRouter({
   history: createWebHistory(),
   routes,
-})
-
-// 路由守卫：保护需要认证的业务页面
-router.beforeEach((to, from, next) => {
-  if (to.meta.requiresAuth) {
-    const auth = useAuth()
-    if (!auth.isAuthenticated.value) {
-      // 未登录，重定向到首页并弹出登录面板
-      next({ path: '/', query: { showLogin: '1' } })
-      return
-    }
-  }
-  next()
 })
 
 export default router

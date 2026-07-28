@@ -34,6 +34,9 @@ jobs:
       - name: Run lint
         run: npm run lint
 
+      - name: Architecture contract (dependency-cruiser)
+        run: npm run cruise
+
       - name: Type check
         run: npm run typecheck
 

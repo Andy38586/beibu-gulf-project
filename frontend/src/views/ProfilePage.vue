@@ -20,7 +20,6 @@
 import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { inject } from 'vue'
-import { ElMessageBox } from 'element-plus'
 import AppLayout from '@/core/layout/AppLayout.vue'
 import GcsPanel from '@/core/layout/components/GcsPanel.vue'
 import LoginPanel from '@/shared/components/LoginPanel.vue'

@@ -6,10 +6,6 @@
  * 无需关心数据来自 Mock 还是真实 API/数据库。
  */
 
-import { useApiRequest } from '@/shared/composables/useApiRequest'
-
-const { apiRequest } = useApiRequest()
-
 // ==================== 数据源配置 ====================
 let _dataSource: 'mock' | 'api' = 'mock'
 
@@ -44,6 +40,14 @@ async function _fetchMockWaterArea(): Promise<[number, number][]> {
     }
     return FALLBACK_WATER_AREA_COORDINATES
   }
+}
+
+async function _fetchMockJson<T>(url: string, signal?: AbortSignal): Promise<T> {
+  const res = await fetch(url, { signal })
+  if (!res.ok) {
+    throw new Error(`[FloodAdapter] 静态 fixture 加载失败: ${url} (HTTP ${res.status})`)
+  }
+  return (await res.json()) as T
 }
 
 interface FloodAnalysisResult {
@@ -85,28 +89,24 @@ export const floodAdapter = {
   },
 
   async getFloodAnalysis(
-    waterLevel: number,
+    _waterLevel: number,
     { signal }: RequestOptions = {}
   ): Promise<FloodAnalysisResult> {
     if (_dataSource === 'mock') {
-      const [floodAreasData, statisticsData] = await Promise.all([
-        apiRequest<Record<string, unknown>>(`/gcs/flood-areas?waterLevel=${waterLevel}`, {
-          signal,
-        }),
-        apiRequest<Record<string, unknown>>(`/gcs/flood-statistics?waterLevel=${waterLevel}`, {
-          signal,
-        }),
+      const [floodAreasRes, statisticsRes] = await Promise.all([
+        _fetchMockJson<{ code: number; data: Record<string, unknown> }>('/data/flood-areas.json', signal),
+        _fetchMockJson<{ code: number; data: Record<string, unknown> }>('/data/flood-statistics.json', signal),
       ])
 
-      if (floodAreasData.code !== 200 || statisticsData.code !== 200) {
+      if (floodAreasRes.code !== 200 || statisticsRes.code !== 200) {
         throw new Error('[FloodAdapter] 淹没分析响应异常')
       }
 
-      const floodData = floodAreasData.data as Record<string, unknown> | undefined
+      const floodData = floodAreasRes.data as Record<string, unknown> | undefined
 
       return {
         features: (floodData?.features as unknown[]) || [],
-        statistics: statisticsData.data,
+        statistics: statisticsRes.data,
         riskLevel: (floodData?.riskLevel as string) || '无风险',
         actualWaterLevel: floodData?.actualWaterLevel as number | undefined,
       }
@@ -115,21 +115,20 @@ export const floodAdapter = {
   },
 
   async getImpactAssessment(
-    waterLevel: number,
+    _waterLevel: number,
     { signal }: RequestOptions = {}
   ): Promise<ImpactAssessmentResult> {
     if (_dataSource === 'mock') {
-      const data = await apiRequest<Record<string, unknown>>('/gcs/analysis/disaster', {
-        method: 'POST',
-        body: JSON.stringify({ waterLevel }),
-        signal,
-      })
+      const res = await _fetchMockJson<{ code: number; data: Record<string, unknown> }>(
+        '/data/disaster.json',
+        signal
+      )
 
-      if (data.code !== 200) {
+      if (res.code !== 200) {
         throw new Error('[FloodAdapter] 影响评估响应异常')
       }
 
-      const result = data.data as Record<string, unknown> | undefined
+      const result = res.data as Record<string, unknown> | undefined
       return {
         affectedFacilities: (result?.affectedFacilities as unknown[]) || [],
         totalLoss: (result?.totalLoss as number) || 0,

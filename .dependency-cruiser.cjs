@@ -53,6 +53,9 @@ module.exports = {
   ],
   options: {
     doNotFollow: 'node_modules',
+    // 解析 @/ 别名（vite alias 定义在 frontend/tsconfig.app.json 的 paths），否则规则匹配不到
+    tsConfig: { fileName: 'tsconfig.cruise.json' },
+    tsPreCompilationDeps: true,
     exclude: {
       path: '(node_modules|__tests__|dist|\\.test\\.)',
     },

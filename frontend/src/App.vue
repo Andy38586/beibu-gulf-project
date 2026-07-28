@@ -93,6 +93,18 @@ watch(
   { immediate: true }
 )
 
+// 引擎切换（2D↔3D）后，旧 renderer 销毁、新 renderer 上没有业务图层。
+// registry 在 App 级持久，业务页面不会因切换而重新 register，
+// 因此监听 currentRenderer 变化，把已注册且可见的图层重绘到新 renderer（修复 D06）。
+watch(
+  () => mapStore.currentRenderer,
+  (renderer, oldRenderer) => {
+    if (renderer && oldRenderer && renderer !== oldRenderer) {
+      businessLayerManager.reapplyAll(renderer)
+    }
+  }
+)
+
 onMounted(() => {
   // 应用启动时恢复认证状态
   // 通过 /api/auth/me 验证 Cookie 中的 Token 是否有效
@@ -102,7 +114,9 @@ onMounted(() => {
 
 <template>
   <div class="app-layout">
-    <UnifiedMap ref="unifiedMapRef" :map-type="mapStore.mapType" />
+    <ErrorBoundary>
+      <UnifiedMap ref="unifiedMapRef" :map-type="mapStore.mapType" />
+    </ErrorBoundary>
     <main class="app-content">
       <ErrorBoundary>
         <RouterView v-slot="{ Component }">

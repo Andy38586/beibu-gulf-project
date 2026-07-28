@@ -16,6 +16,7 @@ import { buildTiandituUrl, MAP_CONFIG, heightToZoom } from '@/core/config/map'
 import { logger } from '@/shared/utils/logger'
 import { normalizePoint } from '@/types/crs'
 import { createSpatialIndex, VIEWPORT_CULL_THRESHOLD } from '@/shared/utils/spatialIndex'
+import { LAYER_DEFAULTS } from '@/shared/constants/colors'
 
 export class OLRenderer extends MapRenderer {
   constructor(container) {
@@ -204,8 +205,8 @@ export class OLRenderer extends MapRenderer {
       return new Style({
         image: new Circle({
           radius: options.size || 12,
-          fill: new Fill({ color: options.color || '#409eff' }),
-          stroke: new Stroke({ color: '#fff', width: 2 }),
+          fill: new Fill({ color: options.color || LAYER_DEFAULTS.color }),
+          stroke: new Stroke({ color: LAYER_DEFAULTS.outline, width: 2 }),
         }),
       })
     }
@@ -213,14 +214,14 @@ export class OLRenderer extends MapRenderer {
       new Style({
         image: new Circle({
           radius: options.size || 12,
-          fill: new Fill({ color: options.color || '#409eff' }),
-          stroke: new Stroke({ color: '#fff', width: 2 }),
+          fill: new Fill({ color: options.color || LAYER_DEFAULTS.color }),
+          stroke: new Stroke({ color: LAYER_DEFAULTS.outline, width: 2 }),
         }),
         text: new Text({
           text: feature.get(options.labelField),
           font: '12px sans-serif',
-          fill: new Fill({ color: '#000' }),
-          stroke: new Stroke({ color: '#fff', width: 2 }),
+          fill: new Fill({ color: LAYER_DEFAULTS.text }),
+          stroke: new Stroke({ color: LAYER_DEFAULTS.outline, width: 2 }),
           offsetY: 15,
         }),
       })
@@ -292,7 +293,7 @@ export class OLRenderer extends MapRenderer {
     return new Style({
       fill: new Fill({ color: options.fillColor || 'rgba(77,171,247,0.15)' }),
       stroke: new Stroke({
-        color: options.strokeColor || '#4dabf7',
+        color: options.strokeColor || LAYER_DEFAULTS.stroke,
         width: options.strokeWidth || 2,
       }),
     })
@@ -309,8 +310,8 @@ export class OLRenderer extends MapRenderer {
     const pointStyle = new Style({
       image: new Circle({
         radius: (options.markerSize || 10) / 2,
-        fill: new Fill({ color: options.markerColor || '#409eff' }),
-        stroke: new Stroke({ color: '#fff', width: 2 }),
+        fill: new Fill({ color: options.markerColor || LAYER_DEFAULTS.marker }),
+        stroke: new Stroke({ color: LAYER_DEFAULTS.outline, width: 2 }),
       }),
     })
     // TODO: 支持 options.style 回调，用于 per-feature 样式
@@ -338,7 +339,7 @@ export class OLRenderer extends MapRenderer {
       weightField = 'value',
       radius = 20,
       blur = 15,
-      gradient = ['#00f', '#0ff', '#0f0', '#ff0', '#f00'],
+      gradient = LAYER_DEFAULTS.heatmapGradient,
       opacity = 0.6,
     } = options
 
@@ -516,7 +517,7 @@ export class OLRenderer extends MapRenderer {
         image: new Circle({
           radius,
           fill: new Fill({ color: `rgba(64,158,255,${alpha})` }),
-          stroke: new Stroke({ color: '#fff', width: 2 }),
+          stroke: new Stroke({ color: LAYER_DEFAULTS.outline, width: 2 }),
         }),
       })
     }

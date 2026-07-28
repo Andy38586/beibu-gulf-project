@@ -20,6 +20,7 @@ import {
 } from 'cesium'
 import { MAP_CONFIG, buildTiandituUrl, zoomToHeight } from '@/core/config/map'
 import { logger } from '@/shared/utils/logger'
+import { LAYER_DEFAULTS } from '@/shared/constants/colors'
 
 // CesiumViewer单例：全局唯一Viewer，按需mount/unmount复用，30s空闲自动销毁
 class CesiumViewerManager {
@@ -388,7 +389,7 @@ export class CesiumRenderer extends MapRenderer {
         position: Cartesian3.fromDegrees(lng, item.lat),
         point: {
           pixelSize: options.size || 12,
-          color: Color.fromCssColorString(options.color || '#409eff'),
+          color: Color.fromCssColorString(options.color || LAYER_DEFAULTS.color),
           outlineColor: Color.WHITE,
           outlineWidth: 2,
         },
@@ -441,7 +442,7 @@ export class CesiumRenderer extends MapRenderer {
               hierarchy: new PolygonHierarchy(outerRing, holes),
               material: Color.fromCssColorString(options.fillColor || 'rgba(77,171,247,0.15)'),
               outline: true,
-              outlineColor: Color.fromCssColorString(options.strokeColor || '#4dabf7'),
+              outlineColor: Color.fromCssColorString(options.strokeColor || LAYER_DEFAULTS.stroke),
               outlineWidth: options.strokeWidth || 2,
             },
             properties: { ...item, featureType: options.featureType || 'polygon' },
@@ -486,11 +487,11 @@ export class CesiumRenderer extends MapRenderer {
             options.fillColor || 'rgba(77,171,247,0.15)'
           )
           entity.polygon.outline = true
-          entity.polygon.outlineColor = Color.fromCssColorString(options.strokeColor || '#4dabf7')
+          entity.polygon.outlineColor = Color.fromCssColorString(options.strokeColor || LAYER_DEFAULTS.stroke)
           entity.polygon.outlineWidth = options.strokeWidth || 2
         } else if (entity.position) {
           // 点要素用 PointGraphics 替代默认图钉，支持 markerColor/markerSize
-          const markerColor = Color.fromCssColorString(options.markerColor || '#409eff')
+          const markerColor = Color.fromCssColorString(options.markerColor || LAYER_DEFAULTS.marker)
           entity.billboard = undefined
           entity.point = new PointGraphics({
             pixelSize: options.markerSize || 10,

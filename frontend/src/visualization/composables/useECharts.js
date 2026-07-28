@@ -25,6 +25,7 @@ echarts.use([
 export function useECharts({ getOption, watchSources = [], onClick = null }) {
   const chartRef = ref(null)
   let chartInstance = null
+  let resizeObserver = null
 
   /**
    * 初始化图表
@@ -40,6 +41,12 @@ export function useECharts({ getOption, watchSources = [], onClick = null }) {
     }
 
     window.addEventListener('resize', handleResize)
+    // 容器尺寸变化（抽屉展开、面板重排、响应式布局）也要触发 resize；
+    // 仅监听 window.resize 会在抽屉/流布局下失效，图表保持旧尺寸
+    if (typeof ResizeObserver !== 'undefined' && chartRef.value) {
+      resizeObserver = new ResizeObserver(() => handleResize())
+      resizeObserver.observe(chartRef.value)
+    }
   }
 
   /**
@@ -64,6 +71,10 @@ export function useECharts({ getOption, watchSources = [], onClick = null }) {
    */
   function disposeChart() {
     window.removeEventListener('resize', handleResize)
+    if (resizeObserver) {
+      resizeObserver.disconnect()
+      resizeObserver = null
+    }
     if (onClick && chartInstance) {
       chartInstance.off('click', onClick)
     }

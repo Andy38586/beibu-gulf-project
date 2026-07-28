@@ -17,6 +17,7 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useGCS } from '../useGCS.js'
 import { SAFE_MARGIN, PANEL_SPACING, GRID_SIZE, CELL_PIXEL } from '../config.js'
+import { INSPECTION_COLORS } from '@/shared/constants/colors'
 
 interface Props {
   enabled?: boolean
@@ -351,7 +352,7 @@ const alignmentStatus = computed(() => {
           :y1="0"
           :x2="(col - 1) * GRID_SIZE"
           :y2="viewportHeight"
-          stroke="#ff6b6b"
+          :stroke="INSPECTION_COLORS.primary"
           stroke-width="1"
           stroke-dasharray="4,4"
           opacity="0.4"
@@ -363,7 +364,7 @@ const alignmentStatus = computed(() => {
           :y1="(row - 1) * GRID_SIZE"
           :x2="viewportWidth"
           :y2="(row - 1) * GRID_SIZE"
-          stroke="#ff6b6b"
+          :stroke="INSPECTION_COLORS.primary"
           stroke-width="1"
           stroke-dasharray="4,4"
           opacity="0.4"
@@ -376,7 +377,7 @@ const alignmentStatus = computed(() => {
           :key="cell.id"
           :x="cell.x + 4"
           :y="cell.y + 14"
-          fill="#ff6b6b"
+          :fill="INSPECTION_COLORS.primary"
           font-size="10"
           font-family="monospace"
           opacity="0.6"
@@ -489,13 +490,13 @@ const alignmentStatus = computed(() => {
 
 .panel-boundary {
   position: absolute;
-  border: 2px dashed #ffa502;
+  border: 2px dashed v-bind(INSPECTION_COLORS.warn);
   background: rgba(255, 165, 2, 0.08);
   pointer-events: none;
 }
 
 .panel-boundary.misaligned {
-  border-color: #ff3838;
+  border-color: v-bind(INSPECTION_COLORS.danger);
   background: rgba(255, 56, 56, 0.1);
 }
 
@@ -503,7 +504,7 @@ const alignmentStatus = computed(() => {
   position: absolute;
   top: v-bind(labelOffsetCss);
   left: v-bind(labelOffsetCss);
-  color: #ffa502;
+  color: v-bind(INSPECTION_COLORS.warn);
   font-size: v-bind(labelFontSizeSmallCss);
   font-family: monospace;
   font-weight: bold;
@@ -514,13 +515,13 @@ const alignmentStatus = computed(() => {
 
 .dock-boundary {
   position: absolute;
-  border: 2px solid #ff6b6b;
+  border: 2px solid v-bind(INSPECTION_COLORS.primary);
   background: rgba(255, 107, 107, 0.08);
   pointer-events: none;
 }
 
 .dock-boundary.misaligned {
-  border-color: #ff3838;
+  border-color: v-bind(INSPECTION_COLORS.danger);
   background: rgba(255, 56, 56, 0.1);
 }
 
@@ -528,7 +529,7 @@ const alignmentStatus = computed(() => {
   position: absolute;
   top: v-bind(labelOffsetCss);
   left: v-bind(labelOffsetCss);
-  color: #ff6b6b;
+  color: v-bind(INSPECTION_COLORS.primary);
   font-size: v-bind(labelFontSizeMediumCss);
   font-family: monospace;
   font-weight: bold;
@@ -556,7 +557,7 @@ const alignmentStatus = computed(() => {
   font-size: v-bind(infoTitleFontSizeCss);
   font-weight: bold;
   margin-bottom: v-bind(infoTitleMarginCss);
-  color: #ffd93d;
+  color: v-bind(INSPECTION_COLORS.highlight);
   border-bottom: 1px solid rgba(255, 255, 255, 0.2);
   padding-bottom: v-bind(infoTitlePaddingCss);
 }
@@ -568,20 +569,20 @@ const alignmentStatus = computed(() => {
 }
 
 .info-label {
-  color: #95a5a6;
+  color: v-bind(INSPECTION_COLORS.muted);
 }
 
 .info-value {
-  color: #2ecc71;
+  color: v-bind(INSPECTION_COLORS.ok);
   font-weight: bold;
 }
 
 .info-value.pass {
-  color: #2ecc71;
+  color: v-bind(INSPECTION_COLORS.ok);
 }
 
 .info-value.fail {
-  color: #ff3838;
+  color: v-bind(INSPECTION_COLORS.danger);
 }
 
 .issues-list {
@@ -591,7 +592,7 @@ const alignmentStatus = computed(() => {
 }
 
 .issue-item {
-  color: #ff3838;
+  color: v-bind(INSPECTION_COLORS.danger);
   font-size: v-bind(labelFontSizeSmallCss);
   margin-bottom: 4px;
   word-break: break-all;

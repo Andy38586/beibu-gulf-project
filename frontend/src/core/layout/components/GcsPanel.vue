@@ -75,6 +75,6 @@ const panelStyle = computed(() => {
 
 <style scoped>
 .gcs-panel {
-  color: var(--gcs-bg-panel);
+  color: var(--gcs-text-regular);
 }
 </style>

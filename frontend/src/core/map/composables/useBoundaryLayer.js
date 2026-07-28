@@ -14,6 +14,8 @@
  * @param {Function} onError - 错误回调函数
  * @returns {Promise<Object|null>} GeoJSON 数据或 null
  */
+import { LAYER_DEFAULTS } from '@/shared/constants/colors'
+
 export async function loadBoundaryGeoJson(onError) {
   const CACHE_KEY = 'beibu-gulf-boundary-cache'
   const CACHE_EXPIRY = 24 * 60 * 60 * 1000 // 24小时缓存有效期
@@ -100,7 +102,7 @@ export async function loadBoundaryGeoJson(onError) {
 }
 
 export const BOUNDARY_STYLE = {
-  strokeColor: '#4dabf7',
+  strokeColor: LAYER_DEFAULTS.stroke,
   strokeWidth: 2,
   fillColor: 'rgba(77,171,247,0.15)',
   featureType: 'boundary',

@@ -73,7 +73,7 @@ export class BusinessLayerManager {
     if (!adapter) return
 
     // 保存元数据
-    this._registry.set(key, { layerType, options })
+    this._registry.set(key, { layerType, options, data })
 
     // 注册到 layerCatalog（只存元数据，不存 renderer 对象）
     this._mapStore.registerBusinessLayer(key, label, layerType, visible)
@@ -112,6 +112,10 @@ export class BusinessLayerManager {
     if (options) {
       meta.options = { ...meta.options, ...options }
     }
+    // 持久化数据，供引擎切换后 reapplyAll 重绘
+    if (data !== undefined) {
+      meta.data = data
+    }
 
     // 查找 catalog 条目确认可见性
     const catalogEntry = this._mapStore.layerCatalog.find((e) => e.key === key)
@@ -123,6 +127,27 @@ export class BusinessLayerManager {
     const renderer = this._getRenderer()
     if (renderer) {
       adapter.update(renderer, key, data, meta.options)
+    }
+  }
+
+  /**
+   * 将已注册且可见的业务图层重新应用到指定 renderer
+   *
+   * 用于 2D↔3D 引擎切换后：旧 renderer 被销毁，新 renderer 上没有图层。
+   * registry 在 App 级持久，业务页面不会因切换引擎而重新 register，
+   * 因此在 renderer 切换时把内存中的图层数据重绘到新 renderer。
+   *
+   * @param {object} [renderer] - 目标 renderer，默认取当前 renderer
+   */
+  reapplyAll(renderer = this._getRenderer()) {
+    if (!renderer) return
+    for (const [key, meta] of this._registry.entries()) {
+      if (meta.data == null) continue
+      const catalogEntry = this._mapStore.layerCatalog.find((e) => e.key === key)
+      if (!catalogEntry || !catalogEntry.visible) continue
+      const adapter = this._getAdapter(meta.layerType)
+      if (!adapter) continue
+      adapter.create(renderer, key, meta.data, meta.options)
     }
   }
 

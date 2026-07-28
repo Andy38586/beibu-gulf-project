@@ -1,4 +1,5 @@
 import { mapDataService } from '@/services/mapDataService'
+import { FACILITY_COLORS } from '@/shared/constants/colors'
 
 export async function loadPorts() {
   return await mapDataService.getPorts()
@@ -41,7 +42,7 @@ export function buildPortGeoJson(portsData) {
 
 export const PORT_STYLE = {
   size: 12,
-  color: '#409eff',
+  color: FACILITY_COLORS[0],
   labelField: 'name',
   featureType: 'port',
 }

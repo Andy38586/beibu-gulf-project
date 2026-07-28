@@ -1,3 +1,5 @@
+import { FACILITY_COLORS } from '@/shared/constants/colors'
+
 export function buildCoverageGeoJson(coverage) {
   if (!coverage) {
     return { type: 'FeatureCollection', features: [] }
@@ -61,14 +63,14 @@ export function buildMatchedGeoJson(matchedXiaoqu) {
 
 export const COVERAGE_STYLE = {
   fillColor: 'rgba(64, 158, 255, 0.15)',
-  strokeColor: '#409eff',
+  strokeColor: FACILITY_COLORS[0],
   strokeWidth: 1,
   featureType: 'analysis-coverage',
 }
 
 export const MATCHED_STYLE = {
   size: 6,
-  color: '#e74c3c',
+  color: FACILITY_COLORS[2],
   featureType: 'analysis-matched',
 }
 

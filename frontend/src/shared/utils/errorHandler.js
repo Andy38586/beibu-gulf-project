@@ -5,7 +5,6 @@
  * 后续可接入 Sentry / 日志服务 / 错误上报。
  */
 
-import { ElMessage } from 'element-plus'
 import { logger } from './logger'
 
 /**

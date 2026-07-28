@@ -23,6 +23,8 @@ import { ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useGCS } from './useGCS.js'
 import BottomNavBar from './components/BottomNavBar.vue'
+import MobileDrawer from './components/MobileDrawer.vue'
+import { useMobileDrawer } from './useMobileDrawer'
 import GcsInspectionOverlay from './components/GcsInspectionOverlay.vue'
 import GcsPanel from './components/GcsPanel.vue'
 import NavButton from './components/NavButton.vue'
@@ -38,6 +40,8 @@ const { showPanels, showTopArea, css } = useGCS()
 // 解构出 CSS 变量供 v-bind() 使用
 const { cell8px } = css
 const { flyToCity, goProfileOrBack, userButtonLabel } = useScreenActions()
+// 移动端业务面板抽屉的开关状态（模块级单例，FAB 与抽屉共享）
+const { drawerOpen, toggleDrawer, closeDrawer } = useMobileDrawer()
 
 // 检查模式状态
 const inspectionMode = ref(false)
@@ -69,6 +73,8 @@ const barData = {
 
 <template>
   <div class="app-layout">
+    <!-- ===== 桌面端：绝对定位 PPS 面板（≥768px） ===== -->
+    <template v-if="showPanels">
     <!-- Title Panel（4×1，左上，第一行） -->
     <GcsPanel
       v-show="showTopArea"
@@ -131,6 +137,18 @@ const barData = {
         </GcsPanel>
       </slot>
     </div>
+    </template>
+
+    <!-- ===== 移动端：抽屉承载业务面板（<768px） ===== -->
+    <template v-else>
+      <button type="button" class="mobile-fab" aria-label="打开业务面板" @click="toggleDrawer">
+        ☰ 面板
+      </button>
+      <MobileDrawer :open="drawerOpen" @close="closeDrawer">
+        <slot name="left" />
+        <slot name="right" />
+      </MobileDrawer>
+    </template>
 
     <!-- 底部导航 -->
     <BottomNavBar v-model:inspectionMode="inspectionMode" />
@@ -212,5 +230,28 @@ const barData = {
   flex-wrap: wrap;
   align-content: flex-start;
   gap: 10px; /* 10px 非8的整数倍，保留 */
+}
+
+/* 移动端浮动按钮：打开业务面板抽屉（仅 <768px 由 v-else 渲染） */
+.mobile-fab {
+  position: absolute;
+  right: 16px;
+  bottom: 88px;
+  z-index: 70;
+  width: 56px;
+  height: 56px;
+  border: none;
+  border-radius: var(--gcs-radius-round);
+  background: var(--gcs-color-primary);
+  color: var(--gcs-text-inverse);
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow: var(--gcs-shadow-md);
+  cursor: pointer;
+  pointer-events: auto;
+  transition: transform 0.1s ease;
+}
+.mobile-fab:active {
+  transform: scale(0.96);
 }
 </style>

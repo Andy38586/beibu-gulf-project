@@ -18,6 +18,11 @@ export default defineConfig([
     languageOptions: {
       globals: {
         ...globals.browser,
+        // unplugin-auto-import 按需注入的 Element Plus API（脚本中直接使用，无显式 import）
+        ElMessage: 'readonly',
+        ElMessageBox: 'readonly',
+        ElNotification: 'readonly',
+        ElLoading: 'readonly',
       },
     },
   },

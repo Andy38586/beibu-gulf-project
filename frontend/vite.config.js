@@ -5,6 +5,9 @@ import vue from '@vitejs/plugin-vue'
 import vueDevTools from 'vite-plugin-vue-devtools'
 import cesium from 'vite-plugin-cesium'
 import { visualizer } from 'rollup-plugin-visualizer'
+import AutoImport from 'unplugin-auto-import/vite'
+import Components from 'unplugin-vue-components/vite'
+import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
 
 /**
  * 移除 vite-plugin-cesium 自动注入的 Cesium script/css 标签
@@ -32,6 +35,12 @@ export default defineConfig({
   plugins: [
     vue(),
     vueDevTools(),
+    AutoImport({
+      resolvers: [ElementPlusResolver()],
+    }),
+    Components({
+      resolvers: [ElementPlusResolver()],
+    }),
     // node_modules 实际位于项目根（frontend/ 的上一级）。本配置随 vite 以 cwd=frontend 运行，
     // 插件默认按 cwd 拼接 node_modules/cesium，会导致 dev/构建都找不到 Cesium 静态资源。
     // 故显式用绝对路径指向真实位置。
@@ -82,8 +91,6 @@ export default defineConfig({
             if (id.includes('/echarts/')) return 'echarts'
             // Element Plus UI 组件库
             if (id.includes('/element-plus/') || id.includes('/@element-plus/')) return 'ui-vendor'
-            // Turf.js 地理空间分析
-            if (id.includes('/@turf/')) return 'turf'
           }
         },
         // 资源文件命名

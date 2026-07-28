@@ -20,7 +20,6 @@ import { useGCS } from '@/core/layout/useGCS.js'
 import { useApiRequest } from '@/shared/composables/useApiRequest'
 import { showError } from '@/shared/utils/errorHandler'
 import { logger } from '@/shared/utils/logger'
-import { ElSelect, ElOption, ElSlider } from 'element-plus'
 import * as echarts from 'echarts/core'
 import type { EChartsType } from 'echarts/core'
 import { LineChart } from 'echarts/charts'
@@ -31,6 +30,7 @@ import {
   TooltipComponent,
 } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
+import { PROFILE_COLORS } from '@/shared/constants/colors'
 
 echarts.use([
   LineChart,
@@ -234,11 +234,11 @@ function updateChart() {
         data: elevations,
         smooth: true,
         lineStyle: {
-          color: '#67C23A',
+          color: PROFILE_COLORS.safe,
           width: 2,
         },
         itemStyle: {
-          color: '#67C23A',
+          color: PROFILE_COLORS.safe,
         },
         areaStyle: {
           color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
@@ -252,12 +252,12 @@ function updateChart() {
         type: 'line',
         data: distances.map(() => waterLevel),
         lineStyle: {
-          color: '#409EFF',
+          color: PROFILE_COLORS.water,
           width: 2,
           type: 'dashed',
         },
         itemStyle: {
-          color: '#409EFF',
+          color: PROFILE_COLORS.water,
         },
         symbol: 'none',
       },

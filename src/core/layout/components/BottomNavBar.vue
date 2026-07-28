@@ -1,8 +1,7 @@
-<script>
+<script lang="ts">
 export default { name: 'GcsBottomNavBar' }
 </script>
-
-<script setup>
+<script setup lang="ts">
 /**
  * BottomNavBar - 底部业务导航条
  *
@@ -55,7 +54,7 @@ const navItems = computed(() => [
   { label: '首页', icon: '⌂', route: '/', disabled: false },
   { label: '选址分析', icon: '◈', route: '/site-selection', disabled: false },
   { label: '预测分析', icon: '📊', route: '/forecast', disabled: false },
-  { label: '浸没分析', icon: '🌊', route: '/heatmap', disabled: false },
+  { label: '浸没分析', icon: '🌊', route: '/flood-analysis', disabled: false },
   { label: '航线分析', icon: '🚢', route: '/route-analysis', disabled: true },
   { label: '个人中心', icon: '👤', route: '/profile', disabled: false },
 ])
@@ -132,24 +131,24 @@ function handleClick(item) {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: #fff;
-  border: 2px solid #e0e0e0;
-  border-radius: 8px;
+  background: var(--gcs-bg-panel);
+  border: 2px solid var(--gcs-border-default);
+  border-radius: var(--gcs-radius-md);
   cursor: pointer;
   transition: all 0.2s ease;
   font-size: v-bind(toggleFontSizeCss);
-  color: #333;
+  color: var(--gcs-text-regular);
 }
 
 .inspection-toggle:hover {
-  background: #f5f5f5;
-  border-color: #4ecdc4;
+  background: var(--gcs-bg-container);
+  border-color: var(--gcs-color-primary);
 }
 
 .inspection-toggle.active {
-  background: #4ecdc4;
-  border-color: #4ecdc4;
-  color: #fff;
+  background: var(--gcs-color-primary);
+  border-color: var(--gcs-color-primary);
+  color: var(--gcs-bg-panel);
 }
 
 .inspection-toggle .button-label {

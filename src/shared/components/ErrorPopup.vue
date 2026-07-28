@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 /**
  * ErrorPopup - 通用提示弹窗
  *
@@ -17,14 +17,23 @@
 import { useGCS } from '@/core/layout/useGCS.js'
 import { useRouter } from 'vue-router'
 
-defineProps({
-  visible: { type: Boolean, default: false },
-  message: { type: String, default: '网络异常，请重试' },
+interface Props {
+  visible?: boolean
+  message?: string
   /** 弹窗模式：'error' 或 'login' */
-  mode: { type: String, default: 'error', validator: (v) => ['error', 'login'].includes(v) },
+  mode?: 'error' | 'login'
+}
+
+withDefaults(defineProps<Props>(), {
+  visible: false,
+  message: '网络异常，请重试',
+  mode: 'error',
 })
 
-const emit = defineEmits(['close', 'retry'])
+const emit = defineEmits<{
+  'close': []
+  'retry': []
+}>()
 const router = useRouter()
 
 const { panelPosition } = useGCS()
@@ -52,10 +61,16 @@ function handleLogin() {
 
         <!-- 错误图标 -->
         <div class="error-icon">
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="12" cy="12" r="10" stroke="#E74C3C" stroke-width="2"/>
-            <path d="M12 8V13" stroke="#E74C3C" stroke-width="2" stroke-linecap="round"/>
-            <circle cx="12" cy="16" r="1" fill="#E74C3C"/>
+          <svg
+            width="48"
+            height="48"
+            viewBox="0 0 24 24"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <circle cx="12" cy="12" r="10" stroke="var(--gcs-color-error)" stroke-width="2" />
+            <path d="M12 8V13" stroke="var(--gcs-color-error)" stroke-width="2" stroke-linecap="round" />
+            <circle cx="12" cy="16" r="1" fill="var(--gcs-color-error)" />
           </svg>
         </div>
 
@@ -65,20 +80,10 @@ function handleLogin() {
         <!-- 底部按钮组：两个并列按钮 -->
         <div class="button-group">
           <!-- 主按钮（蓝色）：重试 或 去登录 -->
-          <button
-            v-if="mode === 'login'"
-            class="action-btn primary-btn"
-            @click="handleLogin"
-          >
+          <button v-if="mode === 'login'" class="action-btn primary-btn" @click="handleLogin">
             去登录
           </button>
-          <button
-            v-else
-            class="action-btn primary-btn"
-            @click="handleRetry"
-          >
-            重试
-          </button>
+          <button v-else class="action-btn primary-btn" @click="handleRetry">重试</button>
 
           <!-- 次按钮（白色）：取消 -->
           <button class="action-btn cancel-btn" @click="handleClose">取消</button>
@@ -96,15 +101,15 @@ function handleLogin() {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.3);
+  background: var(--gcs-bg-overlay);
   backdrop-filter: blur(2px);
 }
 
 .error-popup-panel {
   position: absolute;
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  background: var(--gcs-bg-panel-translucent);
+  border-radius: var(--gcs-radius-lg);
+  box-shadow: var(--gcs-shadow-md);
   padding: 20px;
   box-sizing: border-box;
   display: flex;
@@ -121,12 +126,12 @@ function handleLogin() {
   width: 28px;
   height: 28px;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--gcs-radius-sm);
   background: transparent;
   font-size: 20px;
   line-height: 1;
   cursor: pointer;
-  color: #999;
+  color: var(--gcs-text-muted);
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
@@ -134,8 +139,8 @@ function handleLogin() {
 }
 
 .close-btn:hover {
-  background: #f0f0f0;
-  color: #333;
+  background: var(--gcs-border-light);
+  color: var(--gcs-text-regular);
 }
 
 .error-icon {
@@ -146,7 +151,7 @@ function handleLogin() {
 .error-message {
   margin: 0;
   font-size: 15px;
-  color: #333;
+  color: var(--gcs-text-primary);
   text-align: center;
   line-height: 1.5;
 }
@@ -161,10 +166,10 @@ function handleLogin() {
 
 /* 操作按钮基础样式（1.8×0.8 cell 规格） */
 .action-btn {
-  width: 144px; /* 1.8 × 80px */
-  height: 64px; /* 0.8 × 80px */
+  width: 144px;
+  height: 64px;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--gcs-radius-md);
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
@@ -173,12 +178,12 @@ function handleLogin() {
 
 /* 主按钮（蓝色）：重试/去登录 */
 .primary-btn {
-  background: #409eff;
-  color: #fff;
+  background: var(--gcs-color-primary);
+  color: var(--gcs-text-inverse);
 }
 
 .primary-btn:hover {
-  background: #66b1ff;
+  background: var(--gcs-color-primary-hover);
 }
 
 .primary-btn:active {
@@ -187,14 +192,14 @@ function handleLogin() {
 
 /* 取消按钮（白色） */
 .cancel-btn {
-  background: #ffffff;
-  color: #333;
-  border: 1px solid #e0e0e0;
+  background: var(--gcs-bg-elevated);
+  color: var(--gcs-text-regular);
+  border: 1px solid var(--gcs-border-default);
 }
 
 .cancel-btn:hover {
-  border-color: #409eff;
-  background: #f0f7ff;
+  border-color: var(--gcs-color-primary);
+  background: var(--gcs-bg-hover);
 }
 
 .cancel-btn:active {

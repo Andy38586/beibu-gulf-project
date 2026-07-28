@@ -2,6 +2,7 @@ import { readFile } from 'fs/promises'
 import { join } from 'path'
 import { fileURLToPath } from 'url'
 import { dirname } from 'path'
+import { BusinessError, ErrorCode } from '../utils/BusinessError.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -21,7 +22,7 @@ async function readJsonData(filename) {
  * 获取基准水位数据
  * GET /api/gcs/water-levels
  */
-export async function getWaterLevels(req, res) {
+export async function getWaterLevels(req, res, next) {
   try {
     const data = await readJsonData('waterLevel.json')
     res.json({
@@ -34,12 +35,10 @@ export async function getWaterLevels(req, res) {
       message: 'success',
     })
   } catch (error) {
-    console.error('获取水位数据失败:', error)
-    res.status(500).json({
-      code: 500,
-      data: null,
-      message: '获取水位数据失败',
-    })
+    if (!(error instanceof BusinessError)) {
+      console.error('获取水位数据失败:', error)
+    }
+    next(error)
   }
 }
 
@@ -48,7 +47,7 @@ export async function getWaterLevels(req, res) {
  * GET /api/gcs/flood-areas?waterLevel=2.5
  * @param {number} waterLevel - 水位高度（米）
  */
-export async function getFloodAreas(req, res) {
+export async function getFloodAreas(req, res, next) {
   try {
     const { waterLevel } = req.query
     const data = await readJsonData('floodArea.json')
@@ -57,11 +56,7 @@ export async function getFloodAreas(req, res) {
     if (waterLevel !== undefined) {
       const level = parseFloat(waterLevel)
       if (isNaN(level)) {
-        return res.status(400).json({
-          code: 400,
-          data: null,
-          message: '水位参数无效',
-        })
+        throw new BusinessError(ErrorCode.INVALID_PARAMS, '水位参数无效')
       }
 
       // 向上取档（返回 >= 请求水位的最低档位）
@@ -71,7 +66,7 @@ export async function getFloodAreas(req, res) {
           code: 200,
           data: {
             waterLevel: floodZone.waterLevel,
-            // FIX:P2-07: 显式区分请求水位与实际数据档位
+            // @arch-note P2-07: 显式区分请求水位与实际数据档位
             requestedWaterLevel: level,
             actualWaterLevel: floodZone.waterLevel,
             riskLevel: floodZone.riskLevel,
@@ -100,12 +95,10 @@ export async function getFloodAreas(req, res) {
       message: 'success',
     })
   } catch (error) {
-    console.error('获取淹没范围失败:', error)
-    res.status(500).json({
-      code: 500,
-      data: null,
-      message: '获取淹没范围失败',
-    })
+    if (!(error instanceof BusinessError)) {
+      console.error('获取淹没范围失败:', error)
+    }
+    next(error)
   }
 }
 
@@ -113,7 +106,7 @@ export async function getFloodAreas(req, res) {
  * 获取统计数据
  * GET /api/gcs/flood-statistics?waterLevel=2.5
  */
-export async function getFloodStatistics(req, res) {
+export async function getFloodStatistics(req, res, next) {
   try {
     const { waterLevel } = req.query
     const data = await readJsonData('floodStatistics.json')
@@ -121,11 +114,7 @@ export async function getFloodStatistics(req, res) {
     if (waterLevel !== undefined) {
       const level = parseFloat(waterLevel)
       if (isNaN(level)) {
-        return res.status(400).json({
-          code: 400,
-          data: null,
-          message: '水位参数无效',
-        })
+        throw new BusinessError(ErrorCode.INVALID_PARAMS, '水位参数无效')
       }
 
       // 找到最接近的水位统计
@@ -151,12 +140,10 @@ export async function getFloodStatistics(req, res) {
       message: 'success',
     })
   } catch (error) {
-    console.error('获取统计数据失败:', error)
-    res.status(500).json({
-      code: 500,
-      data: null,
-      message: '获取统计数据失败',
-    })
+    if (!(error instanceof BusinessError)) {
+      console.error('获取统计数据失败:', error)
+    }
+    next(error)
   }
 }
 
@@ -164,7 +151,7 @@ export async function getFloodStatistics(req, res) {
  * 获取剖面数据
  * GET /api/gcs/terrain-profiles
  */
-export async function getTerrainProfiles(req, res) {
+export async function getTerrainProfiles(req, res, next) {
   try {
     const data = await readJsonData('terrainProfile.json')
     res.json({
@@ -173,12 +160,10 @@ export async function getTerrainProfiles(req, res) {
       message: 'success',
     })
   } catch (error) {
-    console.error('获取剖面数据失败:', error)
-    res.status(500).json({
-      code: 500,
-      data: null,
-      message: '获取剖面数据失败',
-    })
+    if (!(error instanceof BusinessError)) {
+      console.error('获取剖面数据失败:', error)
+    }
+    next(error)
   }
 }
 
@@ -186,7 +171,7 @@ export async function getTerrainProfiles(req, res) {
  * 获取设施点数据
  * GET /api/gcs/facilities
  */
-export async function getFacilities(req, res) {
+export async function getFacilities(req, res, next) {
   try {
     const data = await readJsonData('facilityPoints.json')
     res.json({
@@ -195,12 +180,10 @@ export async function getFacilities(req, res) {
       message: 'success',
     })
   } catch (error) {
-    console.error('获取设施数据失败:', error)
-    res.status(500).json({
-      code: 500,
-      data: null,
-      message: '获取设施数据失败',
-    })
+    if (!(error instanceof BusinessError)) {
+      console.error('获取设施数据失败:', error)
+    }
+    next(error)
   }
 }
 
@@ -209,16 +192,12 @@ export async function getFacilities(req, res) {
  * POST /api/gcs/analysis/disaster
  * @param {number} waterLevel - 水位高度
  */
-export async function analyzeDisaster(req, res) {
+export async function analyzeDisaster(req, res, next) {
   try {
     const { waterLevel } = req.body
 
     if (waterLevel === undefined || isNaN(parseFloat(waterLevel))) {
-      return res.status(400).json({
-        code: 400,
-        data: null,
-        message: '缺少水位参数',
-      })
+      throw new BusinessError(ErrorCode.INVALID_PARAMS, '缺少水位参数')
     }
 
     const level = parseFloat(waterLevel)
@@ -250,8 +229,8 @@ export async function analyzeDisaster(req, res) {
         name: facility.name,
         type: facility.type,
         port: facility.port,
-        longitude: facility.longitude,
-        latitude: facility.latitude,
+        lng: facility.lng,
+        lat: facility.lat,
         elevation: facility.elevation,
         value: facility.value,
         damageRate: facility.damageRate,
@@ -263,7 +242,7 @@ export async function analyzeDisaster(req, res) {
     res.json({
       code: 200,
       data: {
-        // FIX:P2-07: 返回实际档位水位，消除请求值与实际档位的错配
+        // @arch-note P2-07: 返回实际档位水位，消除请求值与实际档位的错配
         waterLevel: floodZone.waterLevel,
         requestedWaterLevel: level,
         riskLevel: floodZone.riskLevel,
@@ -273,11 +252,9 @@ export async function analyzeDisaster(req, res) {
       message: 'success',
     })
   } catch (error) {
-    console.error('灾害评估失败:', error)
-    res.status(500).json({
-      code: 500,
-      data: null,
-      message: '灾害评估失败',
-    })
+    if (!(error instanceof BusinessError)) {
+      console.error('灾害评估失败:', error)
+    }
+    next(error)
   }
 }

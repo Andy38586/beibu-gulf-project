@@ -47,7 +47,7 @@ module.exports = {
       name: 'no-circular',
       severity: 'warn',
       comment: '禁止循环依赖',
-      from: { },
+      from: {},
       to: { circular: true },
     },
   ],

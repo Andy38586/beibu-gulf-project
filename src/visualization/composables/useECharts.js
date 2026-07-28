@@ -2,12 +2,12 @@
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import * as echarts from 'echarts/core'
 
-// FIX:P3-09: 注册必需组件（解决 "Component grid is used but not imported" 错误）
-import { 
-  GridComponent, 
-  TitleComponent, 
-  LegendComponent, 
-  TooltipComponent 
+// 注册必需组件（解决 "Component grid is used but not imported" 错误）
+import {
+  GridComponent,
+  TitleComponent,
+  LegendComponent,
+  TooltipComponent,
 } from 'echarts/components'
 import { LineChart, BarChart } from 'echarts/charts'
 import { CanvasRenderer } from 'echarts/renderers'
@@ -34,7 +34,7 @@ export function useECharts({ getOption, watchSources = [], onClick = null }) {
 
     chartInstance = echarts.init(chartRef.value)
     updateChart()
-    
+
     if (onClick) {
       chartInstance.on('click', onClick)
     }

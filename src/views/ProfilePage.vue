@@ -28,17 +28,29 @@ import PlanSaveModal from '@/shared/components/PlanSaveModal.vue'
 import PaginatedListPanel from '@/shared/components/PaginatedListPanel.vue'
 import { usePlans } from '@/shared/composables/usePlans'
 import { useAuth } from '@/shared/composables/useAuth'
-import { useFloodStateStore } from '@/stores/floodState'
+import { useFloodState } from '@/stores/floodState'
+import { useGCS } from '@/core/layout/useGCS.js'
+import { logger } from '@/shared/utils/logger'
+
+const { css } = useGCS()
 import type { Plan } from '@/types/plan'
 import type { SavedXiaoqu } from '@/types/xiaoqu'
+import type { TypeSetting } from '@/types/facility'
+import type { FloodStatistics, FloodFeature, AffectedFacility } from '@/types/business/base'
 
 const router = useRouter()
-const { updatePlan, getPlans, deletePlan, loading: plansLoading, deleting: plansDeleting } = usePlans()
+const {
+  updatePlan,
+  getPlans,
+  deletePlan,
+  loading: plansLoading,
+  deleting: plansDeleting,
+} = usePlans()
 const { user } = useAuth()
-const floodStateStore = useFloodStateStore()
+const floodStore = useFloodState()
 
-const restorePlanData = inject('restorePlanData', ref(null))
-const editingPlan = inject('editingPlan', ref(null))
+const restorePlanData = inject('restorePlanData', ref<Record<string, TypeSetting> | null>(null))
+const editingPlan = inject('editingPlan', ref<Plan | null>(null))
 
 const showSaveModal = ref(false)
 const editingNamePlan = ref<Plan | null>(null)
@@ -62,9 +74,9 @@ async function loadPlans() {
   try {
     plansList.value = await getPlans()
   } catch (error) {
-    plansError.value = error.message || '方案列表加载失败，请稍后重试'
+    plansError.value = (error as Error).message || '方案列表加载失败，请稍后重试'
     if (import.meta.env.DEV) {
-      console.error('[ProfilePage] 加载方案列表失败:', error)
+      logger.error('[ProfilePage] 加载方案列表失败:', error)
     }
   }
 }
@@ -91,9 +103,9 @@ async function handleDeletePlan(plan: Plan) {
     }
     await loadPlans()
   } catch (error) {
-    plansError.value = error.message || '删除失败，请稍后重试'
+    plansError.value = (error as Error).message || '删除失败，请稍后重试'
     if (import.meta.env.DEV) {
-      console.error('[ProfilePage] 删除方案失败:', error)
+      logger.error('[ProfilePage] 删除方案失败:', error)
     }
   }
 }
@@ -120,18 +132,18 @@ function handleLoadPlan(plan: Plan) {
 }
 
 /**
- * 加载浸没分析方案：保存状态到 floodStateStore 后跳转
+ * 加载浸没分析方案：保存状态到 floodStore 后跳转
  */
 function loadFloodPlan(plan: Plan) {
-  floodStateStore.saveState({
+  floodStore.saveState({
     waterLevel: plan.waterLevel || 0,
-    floodStatistics: plan.floodStatistics,
-    floodFeatures: plan.floodFeatures,
-    floodRiskLevel: plan.floodRiskLevel, // FIX:P2-03: 补传风险等级
-    affectedFacilities: plan.affectedFacilities,
-    totalLoss: plan.totalLoss,
+    floodStatistics: (plan.floodStatistics ?? null) as FloodStatistics | null,
+    floodFeatures: plan.floodFeatures as unknown as FloodFeature[],
+    floodRiskLevel: plan.floodRiskLevel as string, // 补传风险等级
+    affectedFacilities: plan.affectedFacilities as unknown as AffectedFacility[],
+    totalLoss: plan.totalLoss as number,
   })
-  router.push('/heatmap')
+  router.push('/flood-analysis')
 }
 
 /**
@@ -155,7 +167,7 @@ async function handleSaveName(name: string) {
     showSaveModal.value = false
     await loadPlans()
   } catch (e) {
-    saveError.value = e.message || '重命名失败'
+    saveError.value = (e as Error).message || '重命名失败'
   } finally {
     savingName.value = false
   }
@@ -194,7 +206,7 @@ watch(
       expandedPlanId.value = null
     }
   },
-  { immediate: true },
+  { immediate: true }
 )
 </script>
 
@@ -218,9 +230,7 @@ watch(
               </div>
 
               <!-- 加载状态 -->
-              <div v-if="plansLoading" class="plans-loading">
-                加载中...
-              </div>
+              <div v-if="plansLoading" class="plans-loading">加载中...</div>
 
               <!-- 收藏夹标题 -->
               <div v-if="user && plansList.length > 0" class="favorites-header">
@@ -242,8 +252,12 @@ watch(
                   <div v-if="expandedPlanId === plan.id" class="plan-detail">
                     <!-- 操作按钮 -->
                     <div class="plan-actions">
-                      <button class="action-btn load-btn" @click="handleLoadPlan(plan)">加载</button>
-                      <button class="action-btn edit-btn" @click="handleEditPlan(plan)">重命名</button>
+                      <button class="action-btn load-btn" @click="handleLoadPlan(plan)">
+                        加载
+                      </button>
+                      <button class="action-btn edit-btn" @click="handleEditPlan(plan)">
+                        重命名
+                      </button>
                       <button
                         class="action-btn delete-btn"
                         :disabled="plansDeleting"
@@ -299,15 +313,14 @@ watch(
                 <div class="empty-hint">去选址分析或浸没分析收藏内容吧</div>
               </div>
             </div>
-
           </div>
         </GcsPanel>
       </template>
     </AppLayout>
 
     <!-- 方案重命名弹窗 -->
-    <!-- FIX:P1-04: 重命名弹窗初始名使用 editingNamePlan -->
-    <!-- FIX:P3-14: 监听 error 事件，校验失败时显示错误 -->
+    <!-- 重命名弹窗初始名使用 editingNamePlan -->
+    <!-- 监听 error 事件，校验失败时显示错误 -->
     <PlanSaveModal
       :visible="showSaveModal"
       :saving="savingName"
@@ -331,18 +344,49 @@ watch(
   display: flex;
   flex-direction: column;
   height: 100%;
-  overflow-y: auto;
+  overflow: hidden;
   pointer-events: auto;
+}
+
+/* LoginPanel（用户名区域）占上方 1/4 */
+.profile-content > :first-child {
+  flex: 0 0 25%;
+  overflow: visible;
+}
+
+/* 确保 LoginPanel 内部布局正常，退出按钮固定在底部 */
+.profile-content > :first-child :deep(.login-panel) {
+  height: 100%;
+  position: relative;
+}
+
+.profile-content > :first-child :deep(.user-info-area) {
+  flex: 1;
+  justify-content: flex-start;
+  padding-top: 8px;
+}
+
+/* 退出按钮固定在离 panel 底部 0.1 cell 处 */
+.profile-content > :first-child :deep(.logout-btn) {
+  margin-top: auto;
+  margin-bottom: v-bind(css.cell8px);
+}
+
+/* 收藏夹占下方 3/4（从上四分位线开始） */
+.favorites-container {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 /* 方案列表错误提示 */
 .plans-error {
   margin-top: 12px;
   padding: 8px 12px;
-  background: #fff2f0;
-  border: 1px solid #ffccc7;
+  background: var(--gcs-color-error-bg);
+  border: 1px solid var(--gcs-color-error-border);
   border-radius: 6px;
-  color: #ff4d4f;
+  color: var(--gcs-color-error);
   font-size: 13px;
 }
 
@@ -351,7 +395,7 @@ watch(
   margin-top: 12px;
   padding: 8px 12px;
   text-align: center;
-  color: #999;
+  color: var(--gcs-text-muted);
   font-size: 13px;
 }
 
@@ -367,12 +411,12 @@ watch(
 .favorites-title {
   font-size: 15px;
   font-weight: 600;
-  color: #303133;
+  color: var(--gcs-text-primary);
 }
 
 .favorites-count {
   font-size: 12px;
-  color: #909399;
+  color: var(--gcs-text-muted);
 }
 
 /* 方案列表 */
@@ -384,7 +428,7 @@ watch(
 }
 
 .plan-group {
-  background: #f5f7fa;
+  background: var(--gcs-bg-container);
   border-radius: 6px;
   overflow: hidden;
 }
@@ -399,12 +443,12 @@ watch(
 }
 
 .plan-header:hover {
-  background: #eef1f6;
+  background: var(--gcs-bg-container);
 }
 
 .plan-toggle {
   font-size: 10px;
-  color: #909399;
+  color: var(--gcs-text-muted);
   width: 12px;
   flex-shrink: 0;
 }
@@ -413,7 +457,7 @@ watch(
   flex: 1;
   font-size: 13px;
   font-weight: 500;
-  color: #303133;
+  color: var(--gcs-text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -421,14 +465,14 @@ watch(
 
 .plan-count {
   font-size: 12px;
-  color: #909399;
+  color: var(--gcs-text-muted);
   flex-shrink: 0;
 }
 
 .plan-detail {
   padding: 8px 12px 12px;
-  background: #fff;
-  border-top: 1px solid #ebeef5;
+  background: var(--gcs-bg-panel);
+  border-top: 1px solid var(--gcs-border-light);
 }
 
 .plan-actions {
@@ -440,17 +484,17 @@ watch(
 .action-btn {
   flex: 1;
   padding: 5px 0;
-  border: 1px solid #d9d9d9;
+  border: 1px solid var(--gcs-border-default);
   border-radius: 4px;
-  background: #fff;
+  background: var(--gcs-bg-panel);
   font-size: 12px;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .action-btn:hover:not(:disabled) {
-  border-color: #409eff;
-  color: #409eff;
+  border-color: var(--gcs-color-primary);
+  color: var(--gcs-color-primary);
 }
 
 .action-btn:disabled {
@@ -459,23 +503,23 @@ watch(
 }
 
 .load-btn {
-  color: #409eff;
-  border-color: #409eff;
+  color: var(--gcs-color-primary);
+  border-color: var(--gcs-color-primary);
 }
 
 .edit-btn {
-  color: #52c41a;
-  border-color: #52c41a;
+  color: var(--gcs-color-success);
+  border-color: var(--gcs-color-success);
 }
 
 .delete-btn {
-  color: #ff4d4f;
-  border-color: #ff4d4f;
+  color: var(--gcs-color-error);
+  border-color: var(--gcs-color-error);
 }
 
 .delete-btn:hover:not(:disabled) {
-  background: #ff4d4f;
-  color: #fff;
+  background: var(--gcs-color-error);
+  color: var(--gcs-bg-panel);
 }
 
 /* 收藏分区 */
@@ -489,18 +533,18 @@ watch(
 
 .fav-section-title {
   font-size: 12px;
-  color: #909399;
+  color: var(--gcs-text-muted);
   margin-bottom: 6px;
   padding-left: 4px;
 }
 
 .fav-section :deep(.favorite-list-panel) {
-  background: #f5f7fa;
+  background: var(--gcs-bg-container);
 }
 
 /* 小区列表样式 */
 .xq-rank {
-  color: #909399;
+  color: var(--gcs-text-muted);
   font-size: 12px;
   width: 20px;
   text-align: center;
@@ -508,7 +552,7 @@ watch(
 }
 
 .xq-name {
-  color: #303133;
+  color: var(--gcs-text-primary);
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
@@ -520,14 +564,14 @@ watch(
 }
 
 .xq-score {
-  color: #409eff;
+  color: var(--gcs-color-primary);
   font-weight: 600;
   flex-shrink: 0;
   font-size: 12px;
 }
 
 .facility-name {
-  color: #303133;
+  color: var(--gcs-text-primary);
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
@@ -553,12 +597,12 @@ watch(
 
 .empty-text {
   font-size: 14px;
-  color: #606266;
+  color: var(--gcs-text-secondary);
   font-weight: 500;
 }
 
 .empty-hint {
   font-size: 12px;
-  color: #909399;
+  color: var(--gcs-text-muted);
 }
 </style>

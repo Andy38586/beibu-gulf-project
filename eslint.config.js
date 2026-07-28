@@ -2,7 +2,6 @@ import { defineConfig, globalIgnores } from 'eslint/config'
 import globals from 'globals'
 import js from '@eslint/js'
 import pluginVue from 'eslint-plugin-vue'
-import pluginOxlint from 'eslint-plugin-oxlint'
 import skipFormatting from 'eslint-config-prettier/flat'
 import tsParser from '@typescript-eslint/parser'
 import vueParser from 'vue-eslint-parser'
@@ -41,10 +40,18 @@ export default defineConfig([
     },
   },
 
+  {
+    // 根目录的构建/测试配置文件运行在 Node 环境
+    files: ['vite.config.js', 'vitest.config.js'],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+      },
+    },
+  },
+
   js.configs.recommended,
   ...pluginVue.configs['flat/essential'],
-
-  ...pluginOxlint.buildFromOxlintConfigFile('.oxlintrc.json'),
 
   skipFormatting,
 
@@ -74,7 +81,10 @@ export default defineConfig([
 
   {
     rules: {
-      'no-unused-vars': ['error', { caughtErrors: 'none', argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+      'no-unused-vars': [
+        'error',
+        { caughtErrors: 'none', argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
+      ],
       'no-empty': 'off',
       'no-useless-assignment': 'off',
     },

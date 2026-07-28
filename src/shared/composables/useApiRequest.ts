@@ -1,35 +1,37 @@
 import { ref, computed } from 'vue'
 import type { Ref, ComputedRef } from 'vue'
 
-// FIX:P3-002: 错误码枚举替代字符串匹配
-export enum ErrorCode {
-  _TIMEOUT = 'TIMEOUT',
-  _NETWORK_ERROR = 'NETWORK_ERROR',
-  _UNAUTHORIZED = 'UNAUTHORIZED',
-  _SERVER_ERROR = 'SERVER_ERROR',
-  _REQUEST_FAILED = 'REQUEST_FAILED',
-}
+// 错误码：使用 as const 对象 + 联合类型，避免 enum 在 ESLint 下的成员误报
+export const ErrorCode = {
+  TIMEOUT: 'TIMEOUT',
+  NETWORK_ERROR: 'NETWORK_ERROR',
+  UNAUTHORIZED: 'UNAUTHORIZED',
+  SERVER_ERROR: 'SERVER_ERROR',
+  REQUEST_FAILED: 'REQUEST_FAILED',
+} as const
+
+export type ErrorCodeValue = (typeof ErrorCode)[keyof typeof ErrorCode]
 
 export class ApiError extends Error {
-  constructor(
-    message: string,
-    public _code: ErrorCode,
-  ) {
+  code: ErrorCodeValue
+  constructor(message: string, code: ErrorCodeValue) {
     super(message)
     this.name = 'ApiError'
+    this.code = code
   }
 }
 
 const token: Ref<string> = ref('')
 const API_BASE: string = import.meta.env.VITE_API_BASE || '/api'
+const API_TIMEOUT_MS: number = 10000
 
 function setToken(t: string): void {
-  // FIX:SEC-001 修复：移除 localStorage 写入，Token 仅通过 HttpOnly Cookie 存储
+  // Token 仅写入内存，认证主通道是 HttpOnly Cookie
   token.value = t
 }
 
 function clearToken(): void {
-  // FIX:SEC-001 修复：移除 localStorage 清理，Cookie 由后端 clearCookie 清理
+  // 清内存 token，Cookie 由后端 clearCookie 清理
   token.value = ''
 }
 
@@ -43,25 +45,22 @@ interface RequestOptions {
 }
 
 export function useApiRequest() {
-  // FIX:SEC-001: Cookie 通道认证，token 仅由 setToken() 设置
-  // 不再调用 loadToken()，避免每次调用时重置 token 状态
+  // token 为模块级单例，由 setToken/clearToken 维护，不在每次调用时重新加载
 
-  // 泛型函数，支持调用方推导返回值类型
   async function apiRequest<T = unknown>(path: string, options: RequestOptions = {}): Promise<T> {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       ...options.headers,
     }
 
-    if (token.value !== '') {
-      headers['Authorization'] = `Bearer ${token.value}`
-    }
+    // 认证统一通过 HttpOnly Cookie（credentials: 'include'），不发 Bearer header
+    // token.value 仅用于前端判断 isAuthenticated，不参与请求传输
 
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 10000)
+    const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS)
 
     // 如果外部传入 signal，使用 AbortSignal.any 组合
-    const signal = options.signal 
+    const signal = options.signal
       ? AbortSignal.any([controller.signal, options.signal])
       : controller.signal
 
@@ -69,12 +68,22 @@ export function useApiRequest() {
       const res = await fetch(`${API_BASE}${path}`, {
         ...options,
         headers,
-        credentials: 'include', // FIX:SEC-001 修复：自动携带 HttpOnly Cookie
+        credentials: 'include',
         signal,
       })
       clearTimeout(timeoutId)
 
-      const data = await res.json().catch(() => ({}))
+      // 响应体可能为空或非 JSON，分别处理避免错误信息丢失
+      const text = await res.text()
+      let data: Record<string, unknown> = {}
+      if (text) {
+        try {
+          data = JSON.parse(text)
+        } catch {
+          // JSON 解析失败时把原始文本作为 error 信息保留
+          data = { error: text.slice(0, 200) }
+        }
+      }
 
       if (res.status === 401) {
         // 不在这里 clearToken/redirect：401 可能只是某个接口需要登录
@@ -84,14 +93,23 @@ export function useApiRequest() {
 
       if (!res.ok) {
         if (res.status === 500) {
-          throw new ApiError(data.error || '服务器错误，请稍后重试', ErrorCode.SERVER_ERROR)
+          throw new ApiError(
+            (data.error as string) || '服务器错误，请稍后重试',
+            ErrorCode.SERVER_ERROR
+          )
         }
-        throw new ApiError(data.error || `请求失败 HTTP ${res.status}`, ErrorCode.REQUEST_FAILED)
+        throw new ApiError(
+          (data.error as string) || `请求失败 HTTP ${res.status}`,
+          ErrorCode.REQUEST_FAILED
+        )
       }
 
       return data as T
     } catch (error) {
       clearTimeout(timeoutId)
+      if (error instanceof ApiError) {
+        throw error
+      }
       if (error instanceof Error) {
         if (error.name === 'AbortError') {
           throw new ApiError('请求超时，请检查网络后重试', ErrorCode.TIMEOUT)

@@ -38,15 +38,16 @@ import { useGCS } from '@/core/layout/useGCS.js'
 import { usePlans } from '@/shared/composables/usePlans'
 import { useAuth } from '@/shared/composables/useAuth'
 import { useRouter } from 'vue-router'
-import { useMapStore } from '@/stores/map'
+import { useMapStore } from '@/stores/mapStore'
 import { useMapControls } from '@/core/map/composables/useMapControls'
 import { ElButton, ElMessage, ElMessageBox } from 'element-plus'
 import { showError } from '@/shared/utils/errorHandler'
 import { logger } from '@/shared/utils/logger'
 import type { SavedXiaoqu } from '@/types/plan'
+import type { ScoredXiaoqu } from '@/types/xiaoqu'
 
 interface Props {
-  items: any[]
+  items: ScoredXiaoqu[]
   pageSize?: number
   title?: string
   emptyText?: string
@@ -57,8 +58,8 @@ interface Props {
 }
 
 interface Emits {
-  (_e: 'click-item', _item: any): void
-  (_e: 'favorite-change', _data: { item: any; isFavorite: boolean }): void
+  (_e: 'click-item', _item: ScoredXiaoqu): void
+  (_e: 'favorite-change', _data: { item: ScoredXiaoqu; isFavorite: boolean }): void
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -87,7 +88,7 @@ const router = useRouter()
 const isLoggedIn = computed(() => isAuthenticated.value)
 
 /** 当前选中的项（用于地图可视化） */
-const selectedItem = ref<any>(null)
+const selectedItem = ref<ScoredXiaoqu | null>(null)
 
 /** 当前方案ID（用于收藏功能） */
 const currentPlanId = ref<string | null>(null)
@@ -126,17 +127,18 @@ function isFavorite(itemId: string): boolean {
 
 /**
  * 切换收藏状态
- * @param {any} item — 列表项
  */
-async function toggleFavorite(item: any) {
+async function toggleFavorite(item: ScoredXiaoqu) {
   if (!isLoggedIn.value) {
     ElMessageBox.confirm('收藏功能需要登录，是否前往登录？', '未登录', {
       confirmButtonText: '去登录',
       cancelButtonText: '取消',
       type: 'warning',
-    }).then(() => {
-      router.push('/profile')
-    }).catch(() => {})
+    })
+      .then(() => {
+        router.push('/profile')
+      })
+      .catch(() => {})
     return
   }
 
@@ -151,14 +153,11 @@ async function toggleFavorite(item: any) {
 /**
  * 添加收藏
  */
-async function doSave(item: any) {
+async function doSave(item: ScoredXiaoqu) {
   if (!currentPlanId.value) {
     try {
       const ts = Date.now().toString().slice(-8)
-      const planName =
-        props.planType === 'flood'
-          ? `浸没分析收藏${ts}`
-          : `选址分析收藏${ts}`
+      const planName = props.planType === 'flood' ? `浸没分析收藏${ts}` : `选址分析收藏${ts}`
       const plan = await createPlan(planName, {})
       currentPlanId.value = plan?.id || null
       if (plan) {
@@ -167,7 +166,7 @@ async function doSave(item: any) {
     } catch (error) {
       showError(error, { fallback: '创建收藏失败，请稍后重试' })
       if (import.meta.env.DEV) {
-        console.error('[PaginatedListPanel] 创建方案失败:', error)
+        logger.error('[PaginatedListPanel] 创建方案失败:', error)
       }
       return
     }
@@ -184,7 +183,7 @@ async function doSave(item: any) {
   } catch (error) {
     showError(error, { fallback: '收藏失败，请稍后重试' })
     if (import.meta.env.DEV) {
-      console.error('[PaginatedListPanel] 收藏失败:', error)
+      logger.error('[PaginatedListPanel] 收藏失败:', error)
     }
   }
 }
@@ -192,7 +191,7 @@ async function doSave(item: any) {
 /**
  * 取消收藏
  */
-async function doRemove(item: any) {
+async function doRemove(item: ScoredXiaoqu) {
   if (!currentPlanId.value) {
     showError('未找到收藏方案，请先收藏一个小区')
     return
@@ -205,7 +204,7 @@ async function doRemove(item: any) {
   } catch (error) {
     showError(error, { fallback: '取消收藏失败，请稍后重试' })
     if (import.meta.env.DEV) {
-      console.error('[PaginatedListPanel] 取消收藏失败:', error)
+      logger.error('[PaginatedListPanel] 取消收藏失败:', error)
     }
   }
 }
@@ -213,12 +212,12 @@ async function doRemove(item: any) {
 /**
  * 将列表项转换为 SavedXiaoqu 格式
  */
-function toSavedXiaoqu(item: any): SavedXiaoqu {
+function toSavedXiaoqu(item: ScoredXiaoqu): SavedXiaoqu {
   return {
     id: item.id,
     name: item.name,
     score: item.score ?? 0,
-    lng: item.lng ?? item.lon ?? 0,
+    lng: item.lng ?? 0,
     lat: item.lat ?? 0,
     breakdown: item.breakdown || {},
   } as SavedXiaoqu
@@ -236,15 +235,14 @@ function goToPage(page: number) {
  * 内置地图可视化逻辑：flyTo + 呼吸动画
  * 同时通过emit传参给父组件（用于雷达图等）
  */
-function handleItemClick(item: any) {
+function handleItemClick(item: ScoredXiaoqu) {
   selectedItem.value = item
 
   logger.debug('[PaginatedListPanel] 点击项:', item)
   logger.debug('[PaginatedListPanel] breakdown:', item.breakdown)
 
-  // 兼容 lon/lng 字段（使用 ?? 因为 0 是有效值）
-  const lng = item.lng ?? item.lon
-  const lat = item.lat ?? item.latitude
+  const lng = item.lng
+  const lat = item.lat
 
   // 规范化数据对象，确保字段一致性
   const normalizedItem = {
@@ -254,8 +252,7 @@ function handleItemClick(item: any) {
   }
 
   // 仅在启用地图交互时执行地图操作
-  if (props.mapInteraction && lng !== undefined && lat !== undefined) {
-    // 设置选中项到mapStore（用于地图标记）
+  if (props.mapInteraction) {
     if (props.planType === 'site-selection') {
       mapStore.setSelectedXiaoqu(normalizedItem)
     }
@@ -276,7 +273,7 @@ watch(
   () => props.items.length,
   () => {
     currentPage.value = 1
-  },
+  }
 )
 
 /**
@@ -385,8 +382,8 @@ defineExpose({
   display: flex;
   flex-direction: column;
   padding: 0;
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 8px;
+  background: var(--gcs-bg-panel-translucent);
+  border-radius: var(--gcs-radius-md);
   box-sizing: border-box;
 }
 
@@ -401,7 +398,7 @@ defineExpose({
 .header-title {
   font-size: v-bind(fontSizeTitle);
   font-weight: 600;
-  color: #303133;
+  color: var(--gcs-text-primary);
 }
 
 /* 灰色背景板：距外层panel 0.1cell，距标题 0.1cell */
@@ -411,8 +408,8 @@ defineExpose({
   flex-direction: column;
   margin: 0 v-bind(cell8px) v-bind(cell8px) v-bind(cell8px);
   padding: v-bind(cell8px);
-  background: #f5f7fa;
-  border-radius: 6px;
+  background: var(--gcs-bg-container);
+  border-radius: var(--gcs-radius-sm);
   box-sizing: border-box;
   overflow: hidden;
   min-height: 0;
@@ -433,7 +430,7 @@ defineExpose({
   align-items: center;
   gap: v-bind(cell8px);
   padding: v-bind(cell8px) 10px;
-  background: #fff;
+  background: var(--gcs-bg-panel);
   border-radius: 4px;
   white-space: nowrap;
   flex-shrink: 0;
@@ -442,7 +439,7 @@ defineExpose({
 }
 
 .list-item:hover {
-  background: #f0f7ff;
+  background: var(--gcs-bg-hover);
 }
 
 .no-data-section {
@@ -457,13 +454,13 @@ defineExpose({
 
 .no-data-text {
   font-size: v-bind(fontSizeBody);
-  color: #303133;
+  color: var(--gcs-text-primary);
   font-weight: 500;
 }
 
 .no-data-hint {
   font-size: v-bind(fontSizeSmall);
-  color: #909399;
+  color: var(--gcs-text-muted);
 }
 
 .pagination-section {
@@ -480,22 +477,22 @@ defineExpose({
   align-items: center;
   gap: 4px;
   font-size: v-bind(fontSizeBody);
-  color: #303133;
+  color: var(--gcs-text-primary);
   min-width: 60px;
   justify-content: center;
 }
 
 .current-page {
   font-weight: 600;
-  color: #409eff;
+  color: var(--gcs-color-primary);
 }
 
 .page-separator {
-  color: #909399;
+  color: var(--gcs-text-muted);
 }
 
 .total-pages {
-  color: #606266;
+  color: var(--gcs-text-secondary);
 }
 
 .pagination-section .el-button {

@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 /**
  * GcsButton - 按钮 Panel
  *
@@ -20,25 +20,33 @@
 import { computed } from 'vue'
 import { useGCS } from '../useGCS.js'
 
-const props = defineProps({
-  label: { type: String, default: '' },
-  icon: { type: String, default: '' },
-  disabled: { type: Boolean, default: false },
-  active: { type: Boolean, default: false },
-  w: { type: Number, default: 2 },
-  h: { type: Number, default: 1 },
+interface Props {
+  label?: string
+  icon?: string
+  disabled?: boolean
+  active?: boolean
+  w?: number
+  h?: number
+}
+const props = withDefaults(defineProps<Props>(), {
+  label: '',
+  icon: '',
+  disabled: false,
+  active: false,
+  w: 2,
+  h: 1,
 })
 
-const emit = defineEmits(['click'])
+const emit = defineEmits<{ 'click': [] }>()
 
 const { cell, cellPixel } = useGCS()
 
 const buttonStyle = computed(() => ({
   ...cell(props.w, props.h),
   borderRadius: `${cellPixel.value * 0.15}px`,
-  backgroundColor: props.active ? '#409eff' : '#ffffff',
-  color: props.active ? '#ffffff' : '#333333',
-  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+  backgroundColor: props.active ? 'var(--gcs-color-primary)' : 'var(--gcs-bg-panel)',
+  color: props.active ? 'var(--gcs-text-inverse)' : 'var(--gcs-text-regular)',
+  boxShadow: 'var(--gcs-shadow-sm)',
   fontSize: `${cellPixel.value * 0.18}px`,
 }))
 
@@ -79,8 +87,10 @@ function handleClick() {
   border: none;
   outline: none;
   cursor: pointer;
-  color: #fff;
-  transition: background-color 0.2s ease, transform 0.1s ease;
+  color: var(--gcs-bg-panel);
+  transition:
+    background-color 0.2s ease,
+    transform 0.1s ease;
 }
 
 .gcs-button:hover:not(:disabled) {

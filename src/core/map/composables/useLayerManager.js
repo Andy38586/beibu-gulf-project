@@ -3,7 +3,7 @@ import { computed, inject } from 'vue'
 // 图层管理 composable：通过 inject('mapStore') 解耦
 export function useLayerManager() {
   const store = inject('mapStore')
-  
+
   if (!store) {
     console.warn('[useLayerManager] mapStore 未注入，请在父组件中提供')
     return {
@@ -15,7 +15,7 @@ export function useLayerManager() {
       layerCatalog: computed(() => []),
     }
   }
-  
+
   const layerCatalog = computed(() => store.layerCatalog)
 
   function clearLayers() {
@@ -28,7 +28,13 @@ export function useLayerManager() {
 
   function registerToggleable(key, label, rendererOrShow, hide, visible = undefined) {
     if (typeof rendererOrShow === 'object' && rendererOrShow.setVisibility) {
-      store.registerToggleable(key, label, () => rendererOrShow.setVisibility(key, true), () => rendererOrShow.setVisibility(key, false), visible)
+      store.registerToggleable(
+        key,
+        label,
+        () => rendererOrShow.setVisibility(key, true),
+        () => rendererOrShow.setVisibility(key, false),
+        visible
+      )
     } else {
       store.registerToggleable(key, label, rendererOrShow, hide, visible)
     }

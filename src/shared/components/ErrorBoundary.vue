@@ -1,18 +1,19 @@
 <!-- src/components/common/ErrorBoundary.vue -->
-<script setup>
+<script setup lang="ts">
 import { ref, onErrorCaptured } from 'vue'
+import { logger } from '@/shared/utils/logger'
 
 const hasError = ref(false)
 const errorMsg = ref('')
 
 onErrorCaptured((err) => {
-  // FIX:015 (错误): 错误上报（可集成 Sentry 等服务）
+  // 错误上报（可集成 Sentry 等服务）
   if (import.meta.env.DEV) {
-    console.error('[ErrorBoundary]', err)
-    console.error('错误堆栈:', err.stack)
+    logger.error('[ErrorBoundary]', err)
+    logger.error('错误堆栈:', err.stack)
   }
   // 错误上报服务待集成（如 Sentry）
-  
+
   errorMsg.value = err.message || '未知异常'
   hasError.value = true
   return false // 阻止冒泡到全局

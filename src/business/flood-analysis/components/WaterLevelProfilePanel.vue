@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 /**
  * WaterLevelProfilePanel - 水位滑块与剖面分析控制面板
  *
@@ -19,13 +19,50 @@ import { useProfileStore } from '@/stores/profileStore'
 import { useGCS } from '@/core/layout/useGCS.js'
 import { useApiRequest } from '@/shared/composables/useApiRequest'
 import { showError } from '@/shared/utils/errorHandler'
-import { ElSelect, ElOption, ElMessage, ElSlider } from 'element-plus'
+import { logger } from '@/shared/utils/logger'
+import { ElSelect, ElOption, ElSlider } from 'element-plus'
 import * as echarts from 'echarts/core'
+import type { EChartsType } from 'echarts/core'
 import { LineChart } from 'echarts/charts'
-import { GridComponent, TitleComponent, LegendComponent, TooltipComponent } from 'echarts/components'
+import {
+  GridComponent,
+  TitleComponent,
+  LegendComponent,
+  TooltipComponent,
+} from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 
-echarts.use([LineChart, GridComponent, TitleComponent, LegendComponent, TooltipComponent, CanvasRenderer])
+echarts.use([
+  LineChart,
+  GridComponent,
+  TitleComponent,
+  LegendComponent,
+  TooltipComponent,
+  CanvasRenderer,
+])
+
+/** 剖面线数据结构（对应后端 terrainProfile.json） */
+interface TerrainProfilePoint {
+  distance: number
+  lng: number
+  lat: number
+  elevation: number
+}
+
+interface TerrainProfile {
+  id: string
+  name: string
+  port?: string
+  description?: string
+  points: TerrainProfilePoint[]
+}
+
+/** API 响应通用结构 */
+interface ApiResponse<T> {
+  code: number
+  data: T
+  message?: string
+}
 
 const { apiRequest } = useApiRequest()
 const waterLevelStore = useWaterLevelStore()
@@ -51,7 +88,7 @@ watch(
   () => waterLevelStore.waterLevel,
   (newLevel) => {
     localWaterLevel.value = newLevel
-  },
+  }
 )
 
 /**
@@ -69,16 +106,16 @@ function setWaterLevelByMark(value) {
 }
 
 /** 剖面线列表 */
-const profiles = ref([])
+const profiles = ref<TerrainProfile[]>([])
 
 /** 当前选中的剖面线ID */
-const selectedProfileId = ref(null)
+const selectedProfileId = ref<string | null>(null)
 
 /** ECharts实例 */
-let chartInstance = null
+let chartInstance: EChartsType | null = null
 
 /** ECharts容器DOM引用 */
-const chartContainerRef = ref(null)
+const chartContainerRef = ref<HTMLElement | null>(null)
 
 /**
  * 加载剖面线数据
@@ -86,7 +123,7 @@ const chartContainerRef = ref(null)
  */
 async function loadProfiles() {
   try {
-    const result = await apiRequest('/gcs/terrain-profiles')
+    const result = await apiRequest<ApiResponse<TerrainProfile[]>>('/gcs/terrain-profiles')
 
     if (result.code === 200 && result.data) {
       profiles.value = result.data
@@ -99,7 +136,7 @@ async function loadProfiles() {
       showError('加载剖面线数据失败')
     }
   } catch (error) {
-    console.error('加载剖面线失败:', error)
+    logger.error('加载剖面线失败:', error)
     showError(error, { fallback: '加载剖面线数据失败' })
   }
 }
@@ -132,6 +169,9 @@ function updateChart() {
   if (!chartInstance) {
     initChart()
   }
+  if (!chartInstance) {
+    return
+  }
 
   const profile = getCurrentProfile()
   if (!profile) {
@@ -142,7 +182,6 @@ function updateChart() {
   const distances = profile.points.map((p) => p.distance)
   const elevations = profile.points.map((p) => p.elevation)
 
-  // 获取当前水位
   const waterLevel = waterLevelStore.waterLevel
 
   // 配置ECharts选项
@@ -246,7 +285,7 @@ watch(
     if (chartInstance && selectedProfileId.value) {
       updateChart()
     }
-  },
+  }
 )
 
 /**
@@ -353,7 +392,7 @@ onUnmounted(() => {
 .header-title {
   font-size: 16px;
   font-weight: 600;
-  color: #303133;
+  color: var(--gcs-text-primary);
 }
 
 .profile-select {
@@ -368,7 +407,7 @@ onUnmounted(() => {
 
 .control-label {
   font-size: 13px;
-  color: #606266;
+  color: var(--gcs-text-secondary);
 }
 
 .action-buttons {
@@ -400,7 +439,7 @@ onUnmounted(() => {
   justify-content: space-between;
   align-items: center;
   font-size: 11px;
-  color: #909399;
+  color: var(--gcs-text-muted);
   padding: 2px 0;
 }
 
@@ -410,12 +449,12 @@ onUnmounted(() => {
 }
 
 .scale-mark.clickable {
-  color: #409eff;
+  color: var(--gcs-color-primary);
   font-weight: 500;
 }
 
 .scale-mark.clickable:hover {
-  color: #66b1ff;
+  color: var(--gcs-color-primary-hover);
   text-decoration: underline;
 }
 </style>

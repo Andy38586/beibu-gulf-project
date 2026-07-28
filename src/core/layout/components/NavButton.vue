@@ -1,8 +1,7 @@
-<script>
+<script lang="ts">
 export default { name: 'GcsNavButton' }
 </script>
-
-<script setup>
+<script setup lang="ts">
 /**
  * NavButton - 1×1 导航按钮
  *
@@ -24,14 +23,20 @@ export default { name: 'GcsNavButton' }
 
 import GcsButton from './GcsButton.vue'
 
-defineProps({
-  label: { type: String, default: '' },
-  icon: { type: String, default: '' },
-  disabled: { type: Boolean, default: false },
-  active: { type: Boolean, default: false },
+interface Props {
+  label?: string
+  icon?: string
+  disabled?: boolean
+  active?: boolean
+}
+withDefaults(defineProps<Props>(), {
+  label: '',
+  icon: '',
+  disabled: false,
+  active: false,
 })
 
-defineEmits(['click'])
+defineEmits<{ 'click': [] }>()
 </script>
 
 <template>

@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 /**
  * HomePage - 首页
  *
@@ -8,7 +8,7 @@
 
 import AppLayout from '@/core/layout/AppLayout.vue'
 import PortInfoPanel from '@/visualization/panels/PortInfoPanel.vue'
-import { useMapStore } from '@/stores/map'
+import { useMapStore } from '@/stores/mapStore'
 
 const mapStore = useMapStore()
 </script>
@@ -16,7 +16,10 @@ const mapStore = useMapStore()
 <template>
   <div class="home-page">
     <AppLayout />
-    <PortInfoPanel v-if="mapStore.selectedPort" :selectedPort="mapStore.selectedPort" />
+    <PortInfoPanel
+      v-if="mapStore.selectedPort"
+      :selectedPort="mapStore.selectedPort as unknown as Record<string, unknown>"
+    />
   </div>
 </template>
 

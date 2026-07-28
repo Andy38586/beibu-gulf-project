@@ -49,3 +49,8 @@ server/data/plans.json
 
 # WorkBuddy
 .workbuddy/
+
+# Tokens and secrets
+*.token
+*token*.txt
+test_token*

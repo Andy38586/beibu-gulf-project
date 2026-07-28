@@ -1,9 +1,9 @@
 /**
  * useRadarChart - 雷达图逻辑 composable
- * 
+ *
  * 职责：封装雷达图的渲染、交互和事件处理逻辑
- * 解决 FIX:006：RadarChart.vue 过大问题
- * 
+ * RadarChart.vue 过大问题
+ *
  * @param {Object} options - 配置选项
  * @param {Function} options.getChartRef - 获取图表 DOM 元素
  * @param {Function} options.getProps - 获取组件 props
@@ -42,13 +42,13 @@ export function useRadarChart({ getChartRef, getProps, emit }) {
   function renderRadar() {
     const chartRef = getChartRef()
     const props = getProps()
-    
+
     if (!chartRef || isRendering) return
-    
+
     const w = chartRef.clientWidth
     const h = chartRef.clientHeight
-    
-    // P1-006-FIX: 容器尺寸不足时重试，最多重试10次（1秒）
+
+    // 容器尺寸不足时重试，最多重试10次（1秒）
     if (w < 10 || h < 10) {
       const retryCount = (chartRef._radarRetryCount || 0) + 1
       if (retryCount > 10) {
@@ -65,17 +65,15 @@ export function useRadarChart({ getChartRef, getProps, emit }) {
     if (chartRef._radarRetryCount) {
       chartRef._radarRetryCount = 0
     }
-    
+
     isRendering = true
-    
+
     if (!chartInstance) {
       chartInstance = echarts.init(chartRef)
-      
+
       chartInstance.on('click', (params) => {
         if (params.componentType === 'radar' && params.name) {
-          const key = props.selectedTypes.find(
-            (k) => FACILITY_LABELS[k] === params.name
-          )
+          const key = props.selectedTypes.find((k) => FACILITY_LABELS[k] === params.name)
           if (key) {
             handleFacilityClick(key)
           }
@@ -87,11 +85,9 @@ export function useRadarChart({ getChartRef, getProps, emit }) {
       name: FACILITY_LABELS[key] || key,
       max: 100,
     }))
-    
-    const values = props.selectedTypes.map(
-      (key) => props.xiaoqu?.breakdown?.[key] ?? 0
-    )
-    
+
+    const values = props.selectedTypes.map((key) => props.xiaoqu?.breakdown?.[key] ?? 0)
+
     const name = props.xiaoqu?.name || ''
 
     chartInstance.setOption({
@@ -185,7 +181,7 @@ export function useRadarChart({ getChartRef, getProps, emit }) {
   /** 点击设施名称（显示 POI 图层） */
   function handleFacilityClick(key) {
     const props = getProps()
-    
+
     if (activeFacilityType.value === key) {
       activeFacilityType.value = null
       emit('hide-facility-layer')
@@ -208,7 +204,7 @@ export function useRadarChart({ getChartRef, getProps, emit }) {
   /** 设置 ResizeObserver */
   function setupResizeObserver() {
     const chartRef = getChartRef()
-    
+
     resizeObserver?.disconnect()
     if (chartRef) {
       resizeObserver = new ResizeObserver(() => {

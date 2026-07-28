@@ -38,7 +38,7 @@ const confirmTimers: Record<string, ReturnType<typeof setTimeout> | null> = {}
 const selectedKeys = computed<string[]>(() =>
   Object.entries(typeSettings)
     .filter(([, v]) => v.selected)
-    .map(([k]) => k),
+    .map(([k]) => k)
 )
 
 const { analyze, calculating, calcError } = useSiteAnalysisApi()
@@ -107,11 +107,10 @@ function clearAll(): void {
 
 /** 开始分析 */
 async function runAnalysis(): Promise<void> {
-  // FIX:105: 防重复提交守卫
+  // 防重复提交守卫
   if (calculating.value) {
-    // P2-003-FIX: 向用户展示可视化反馈
-    popupMessage.value = '分析正在进行中，请稍候'
-    showPopup.value = true
+    // 向用户展示可视化反馈
+    showWarning('分析正在进行中，请稍候')
     return
   }
 
@@ -164,7 +163,7 @@ const facilityList = computed(() =>
     key,
     ...conf,
     setting: typeSettings[key],
-  })),
+  }))
 )
 
 /** 点击外部区域立即结束所有选择态 */
@@ -307,20 +306,20 @@ defineExpose({
   align-items: center;
   justify-content: center;
   gap: 4px;
-  background: #ffffff;
-  border: 1px solid #e0e0e0;
+  background: var(--gcs-bg-panel);
+  border: 1px solid var(--gcs-border-default);
   border-radius: 12px;
   cursor: pointer;
   font-size: 13px;
-  color: #333;
+  color: var(--gcs-text-regular);
   transition: all 0.2s ease;
   padding: 6px 4px;
   box-sizing: border-box;
 }
 
 .factor-btn:hover {
-  border-color: #409eff;
-  background: #f0f7ff;
+  border-color: var(--gcs-color-primary);
+  background: var(--gcs-bg-hover);
 }
 
 .factor-dot {
@@ -340,13 +339,13 @@ defineExpose({
 
 .factor-level {
   font-size: 10px;
-  color: #409eff;
+  color: var(--gcs-color-primary);
   line-height: 1;
 }
 
 /* 选择态：蓝色背景 + 滑块 */
 .factor-item.selected.selecting {
-  background: #409eff;
+  background: var(--gcs-color-primary);
   border-radius: 12px;
 }
 
@@ -381,7 +380,7 @@ defineExpose({
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: #fff;
+  background: var(--gcs-bg-panel);
   cursor: pointer;
   border: none;
 }
@@ -390,14 +389,14 @@ defineExpose({
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: #fff;
+  background: var(--gcs-bg-panel);
   cursor: pointer;
   border: none;
 }
 
 .factor-importance {
   font-size: 10px;
-  color: #fff;
+  color: var(--gcs-bg-panel);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -407,23 +406,23 @@ defineExpose({
 
 /* 操作按钮样式 */
 .action-btn.clear-btn {
-  color: #333;
+  color: var(--gcs-text-regular);
 }
 
 .action-btn.clear-btn:hover {
-  border-color: #409eff;
-  color: #409eff;
+  border-color: var(--gcs-color-primary);
+  color: var(--gcs-color-primary);
 }
 
 .action-btn.analyze-btn {
-  background: #409eff;
-  color: #fff;
-  border-color: #409eff;
+  background: var(--gcs-color-primary);
+  color: var(--gcs-bg-panel);
+  border-color: var(--gcs-color-primary);
 }
 
 .action-btn.analyze-btn:hover:not(:disabled) {
-  background: #66b1ff;
-  border-color: #66b1ff;
+  background: var(--gcs-color-primary-hover);
+  border-color: var(--gcs-color-primary-hover);
 }
 
 .action-btn.analyze-btn:disabled {

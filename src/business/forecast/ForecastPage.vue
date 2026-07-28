@@ -1,6 +1,6 @@
 <!--
   /**
-   * @arch-note 预测分析模块
+   * 预测分析模块
    *
    * 当前阶段：架构验证期，使用 mock 数据跑通 2D 热力图 + 时间轴播放链路
    * 数据状态：src/mock/forecast/ 为 AI 生成的模拟港口吞吐量时序数据
@@ -16,9 +16,9 @@
   布局：左侧 LineChart(4×4) + BarChart(4×4)
         右侧 ForecastControlPanel(4×4) + LayerControlPanel(4×4)
 -->
-<script setup>
+<script setup lang="ts">
 import { ref, watch, onMounted, onUnmounted } from 'vue'
-import { showError, handleAsync } from '@/shared/utils/errorHandler'
+import { showError, handleAuthError, isAuthError } from '@/shared/utils/errorHandler'
 import AppLayout from '@/core/layout/AppLayout.vue'
 import GcsPanel from '@/core/layout/components/GcsPanel.vue'
 import LineChart from '@/visualization/charts/LineChart.vue'
@@ -28,7 +28,8 @@ import ForecastControlPanel from './components/ForecastControlPanel.vue'
 import { useForecastState } from '@/stores/forecastState'
 import { useForecastLayer } from './composables/useForecastLayer'
 import { useForecastRequest } from './composables/useForecastRequest'
-import { useMapStore } from '@/stores/map'
+import { useMapStore } from '@/stores/mapStore'
+import { logger } from '@/shared/utils/logger'
 
 const forecastState = useForecastState()
 const mapStore = useMapStore()
@@ -38,26 +39,29 @@ const { forecastApiRequest, startTransaction, cancelAll } = useForecastRequest()
 const lineXData = ref([])
 const lineSeries = ref([])
 const barXData = ref(['钦州港', '北海港', '防城港'])
-const barSeries = ref([])
+const barSeries = ref<Array<{ name: string; data: number[] }>>([])
 
 const lineViewportXMin = ref('2023-01')
 const lineViewportXMax = ref('2029-12')
 
 const requestCache = new Map()
-let debounceTimer = null
+let debounceTimer: ReturnType<typeof setTimeout> | null = null
 const DEBOUNCE_DELAY = 300
 
 // P2-01: 加载状态反馈
 const isLoading = ref(false)
 
-onMounted(() => { forecastState.reset(); requestCache.clear() })
+onMounted(() => {
+  forecastState.reset()
+  requestCache.clear()
+})
 
 async function loadTimeSeriesData(transactionId, signal) {
-  console.log('[ForecastPage] loadTimeSeriesData called')
+  logger.debug('[ForecastPage] loadTimeSeriesData called')
   try {
     const indicator = forecastState.activeIndicator
     const granularity = forecastState.timeGranularity
-    console.log('[ForecastPage] loadTimeSeriesData:', { indicator, granularity })
+    logger.debug('[ForecastPage] loadTimeSeriesData:', { indicator, granularity })
     const confidence = forecastState.confidenceThresholds[indicator] || 0.8
     const cacheKey = `ts:${indicator}:${granularity}:${confidence}`
 
@@ -84,7 +88,7 @@ async function loadTimeSeriesData(transactionId, signal) {
     // 7年窗口: [slider-3, slider+3]，钳制在数据实际范围内防止空白
     const [sliderYear, sliderMonth] = forecastState.currentTime.split('-').map(Number)
     const isYear = forecastState.timeGranularity === 'year'
-    const fmt = (y, m) => isYear ? String(y) : `${y}-${String(m || 1).padStart(2, '0')}`
+    const fmt = (y, m) => (isYear ? String(y) : `${y}-${String(m || 1).padStart(2, '0')}`)
     const dataMin = allData[0].time
     const dataMax = allData[allData.length - 1].time
 
@@ -104,18 +108,22 @@ async function loadTimeSeriesData(transactionId, signal) {
       data: (s.data || []).filter(inWindow).map((d) => d.value),
     }))
   } catch (e) {
-    console.error('[ForecastPage] loadTimeSeriesData error:', e)
+    logger.error('[ForecastPage] loadTimeSeriesData error:', e)
+    if (isAuthError(e)) {
+      handleAuthError()
+      return
+    }
     showError(e, { fallback: '加载趋势数据失败' })
   }
 }
 
 async function loadPortComparisonData(transactionId, signal) {
-  console.log('[ForecastPage] loadPortComparisonData called')
+  logger.debug('[ForecastPage] loadPortComparisonData called')
   try {
     const indicator = forecastState.activeIndicator
     const rawTime = forecastState.currentTime
     const time = rawTime.includes('-') ? rawTime : `${rawTime}-12`
-    console.log('[ForecastPage] loadPortComparisonData:', { indicator, time })
+    logger.debug('[ForecastPage] loadPortComparisonData:', { indicator, time })
     const confidence = forecastState.confidenceThresholds[indicator] || 0.8
     const cacheKey = `cmp:${indicator}:${time}:${confidence}`
     if (requestCache.has(cacheKey)) {
@@ -132,47 +140,61 @@ async function loadPortComparisonData(transactionId, signal) {
       transactionId,
       signal
     )
-    console.log('[ForecastPage] loadPortComparisonData response:', resp)
+    logger.debug('[ForecastPage] loadPortComparisonData response:', resp)
     // 事务过期或请求被取消
     if (resp === null) return
     if (resp.code === 200 && resp.data?.ports) {
-      const p = resp.data.ports; const cy = forecastState.currentTime.split('-')[0]
+      const p = resp.data.ports
+      const cy = forecastState.currentTime.split('-')[0]
       barXData.value = ['钦州港', '北海港', '防城港']
-      barSeries.value = [{ name: cy + '年', data: [p.qinzhou?.value || 0, p.beihai?.value || 0, p.fangchenggang?.value || 0] }]
+      barSeries.value = [
+        {
+          name: cy + '年',
+          data: [p.qinzhou?.value || 0, p.beihai?.value || 0, p.fangchenggang?.value || 0],
+        },
+      ]
       requestCache.set(cacheKey, { xData: barXData.value, series: barSeries.value })
     }
   } catch (e) {
-    console.error('[ForecastPage] loadPortComparisonData error:', e)
+    logger.error('[ForecastPage] loadPortComparisonData error:', e)
+    if (isAuthError(e)) {
+      handleAuthError()
+      return
+    }
     showError(e, { fallback: '加载对比数据失败' })
   }
 }
 
-watch(() => mapStore.currentRenderer, (r) => {
-  console.log('[ForecastPage] renderer watch triggered:', r ? 'renderer ready' : 'renderer null')
-  if (r) {
-    console.log('[ForecastPage] loading data...')
-    doForecastUpdate()
-  } else {
-    console.log('[ForecastPage] renderer is null, waiting...')
-  }
-}, { immediate: true })
+watch(
+  () => mapStore.currentRenderer,
+  (r) => {
+    logger.debug('[ForecastPage] renderer watch triggered:', r ? 'renderer ready' : 'renderer null')
+    if (r) {
+      logger.debug('[ForecastPage] loading data...')
+      doForecastUpdate()
+    } else {
+      logger.debug('[ForecastPage] renderer is null, waiting...')
+    }
+  },
+  { immediate: true }
+)
 
 // 统一的预测更新函数：启动新事务，保证三个请求原子性
 async function doForecastUpdate() {
   if (!renderer.value) return
-  
+
   // P2-01: 设置加载状态
   isLoading.value = true
-  
+
   try {
     // 启动新事务，取消旧请求
     const { transactionId, signal } = startTransaction()
-    
+
     // 三个请求共享同一事务，保证数据一致性
     await Promise.all([
       loadTimeSeriesData(transactionId, signal),
       loadPortComparisonData(transactionId, signal),
-      updateForecastLayer(transactionId, signal)
+      updateForecastLayer(transactionId, signal),
     ])
   } finally {
     // P2-01: 清除加载状态
@@ -186,20 +208,20 @@ watch(
   () => [
     forecastState.activeIndicator,
     forecastState.currentTime,
-    forecastState.confidenceThresholds[forecastState.activeIndicator]
+    forecastState.confidenceThresholds[forecastState.activeIndicator],
   ],
   () => {
     // 每次状态变化都重置防抖定时器
-    clearTimeout(debounceTimer)
+    clearTimeout(debounceTimer ?? undefined)
     debounceTimer = setTimeout(() => doForecastUpdate(), DEBOUNCE_DELAY)
   }
 )
 
-onUnmounted(() => { 
+onUnmounted(() => {
   cancelAll()
   removeForecastLayer()
   requestCache.clear()
-  forecastState.reset() 
+  forecastState.reset()
 })
 </script>
 
@@ -208,7 +230,13 @@ onUnmounted(() => {
     <AppLayout>
       <template #left>
         <GcsPanel :w="4" :h="4" anchor="top-left" :offset-x="0" :offset-y="1.25">
-          <LineChart title="预测趋势" :x-data="lineXData" :series="lineSeries" :x-min="lineViewportXMin" :x-max="lineViewportXMax" />
+          <LineChart
+            title="预测趋势"
+            :x-data="lineXData"
+            :series="lineSeries"
+            :x-min="lineViewportXMin"
+            :x-max="lineViewportXMax"
+          />
         </GcsPanel>
         <GcsPanel :w="4" :h="4" anchor="top-left" :offset-x="0" :offset-y="5.5">
           <BarChart title="港口对比" :x-data="barXData" :series="barSeries" />
@@ -227,6 +255,12 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-.forecast-page { width:100%; height:100%; pointer-events:none; }
-.forecast-page :deep(.gcs-panel) { pointer-events:auto; }
+.forecast-page {
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.forecast-page :deep(.gcs-panel) {
+  pointer-events: auto;
+}
 </style>

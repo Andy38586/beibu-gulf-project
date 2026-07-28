@@ -17,7 +17,7 @@ async function readDataFile(filename) {
       return {
         indicator,
         unit: '',
-        data: {}
+        data: {},
       }
     }
     throw err
@@ -69,7 +69,10 @@ export async function getMapData(indicator, time, scenarioLevel = 1.0) {
     if (!spatial?.features) continue
 
     const spatialValues = generateSpatialValues(
-      port.historical, port.forecast, time, spatial.features
+      port.historical,
+      port.forecast,
+      time,
+      spatial.features
     )
 
     for (const feature of spatialValues) {
@@ -86,13 +89,17 @@ export async function getMapData(indicator, time, scenarioLevel = 1.0) {
     }
   }
 
-  return { indicator: computed.indicator, unit: computed.unit, time, type: 'FeatureCollection', features }
+  return {
+    indicator: computed.indicator,
+    unit: computed.unit,
+    time,
+    type: 'FeatureCollection',
+    features,
+  }
 }
 
 export async function getPortData(portId, indicator, start, end) {
-  const indicators = indicator
-    ? [indicator]
-    : ['throughput', 'berth', 'traffic', 'pressure']
+  const indicators = indicator ? [indicator] : ['throughput', 'berth', 'traffic', 'pressure']
   const result = { portId, portName: '', indicators: {} }
 
   for (const ind of indicators) {
@@ -130,8 +137,7 @@ export async function getIndicatorData(type, time, portId, scenarioLevel = 1.0) 
     let value = null
     if (time) {
       const point =
-        port.historical.find((d) => d.time === time) ||
-        port.forecast.find((d) => d.time === time)
+        port.historical.find((d) => d.time === time) || port.forecast.find((d) => d.time === time)
       value = point?.value || null
     }
     result.ports[pid] = {
@@ -145,7 +151,14 @@ export async function getIndicatorData(type, time, portId, scenarioLevel = 1.0) 
   return result
 }
 
-export async function getTimeSeriesData(indicator, portId, start, end, granularity, scenarioLevel = 1.0) {
+export async function getTimeSeriesData(
+  indicator,
+  portId,
+  start,
+  end,
+  granularity,
+  scenarioLevel = 1.0
+) {
   const computed = await getOrComputeForecast(indicator, scenarioLevel)
   const ports = portId ? [portId] : Object.keys(computed.ports)
   const series = []
@@ -175,5 +188,10 @@ export async function getTimeSeriesData(indicator, portId, start, end, granulari
     series.push({ portId: pid, portName: port.portName, data: allData })
   }
 
-  return { indicator: computed.indicator, unit: computed.unit, granularity: granularity || 'month', series }
+  return {
+    indicator: computed.indicator,
+    unit: computed.unit,
+    granularity: granularity || 'month',
+    series,
+  }
 }

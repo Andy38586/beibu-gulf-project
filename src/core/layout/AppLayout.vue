@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 /**
  * AppLayout - GCS V2 布局基座（Layout Base）
  *
@@ -79,7 +79,7 @@ const barData = {
       :offset-y="0"
       class="title-panel"
     >
-      <PanelTitle :title="route.meta?.title || '北部湾智慧港口平台'" />
+      <PanelTitle :title="(route.meta?.title as string) || '北部湾智慧港口平台'" />
     </GcsPanel>
 
     <!-- 顶部按钮组 Panel（4×1，右上，第一行，与 Title 同行） -->
@@ -194,14 +194,14 @@ const barData = {
   flex: none;
   font-size: 16px;
   font-weight: 600;
-  color: #333;
+  color: var(--gcs-text-regular);
   padding: v-bind(cell8px) 0;
 }
 
 .layer-divider {
   flex: none;
   height: 1px;
-  background-color: #f0f0f0;
+  background-color: var(--gcs-border-light);
   margin: v-bind(cell8px) 0;
 }
 

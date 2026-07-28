@@ -155,7 +155,7 @@ export function useGCS() {
         top = H - S - (offsetY + h) * C
         break
       default:
-        // FIX:017 (错误): 仅在开发环境输出警告
+        // 仅在开发环境输出警告
         if (import.meta.env.DEV) {
           console.warn(`[GCS] Unknown anchor: ${anchor}, fallback to top-left`)
         }
@@ -184,7 +184,7 @@ export function useGCS() {
     cell16px: computed(() => `${cellPixel.value * 0.2}px`),
     /** 40px = 0.5 cell */
     cell40px: computed(() => `${cellPixel.value * 0.5}px`),
-    // FIX:R-04: 字号固定 px，与 cell 网格解耦（GCS_V2 规范：16/14/12px）
+    // 字号固定 px，与 cell 网格解耦（GCS_V2 规范：16/14/12px）
     fontSizeTitle: computed(() => '16px'),
     fontSizeBody: computed(() => '14px'),
     fontSizeSmall: computed(() => '12px'),

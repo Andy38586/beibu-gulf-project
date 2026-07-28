@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 /**
  * GcsInspectionOverlay - GCS 检查模式覆盖层
  *
@@ -18,8 +18,11 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useGCS } from '../useGCS.js'
 import { SAFE_MARGIN, PANEL_SPACING, GRID_SIZE, CELL_PIXEL } from '../config.js'
 
-const props = defineProps({
-  enabled: { type: Boolean, default: false },
+interface Props {
+  enabled?: boolean
+}
+const props = withDefaults(defineProps<Props>(), {
+  enabled: false,
 })
 
 const { cellPixel, gap, padding } = useGCS()
@@ -29,7 +32,7 @@ const labelOffsetCss = computed(() => `${Math.round(CELL_PIXEL * 0.05)}px`)
 const labelFontSizeSmallCss = computed(() => `${Math.round(CELL_PIXEL * 0.1375)}px`)
 const labelFontSizeMediumCss = computed(() => `${Math.round(CELL_PIXEL * 0.15)}px`)
 const labelPaddingCss = computed(
-  () => `${Math.round(CELL_PIXEL * 0.025)}px ${Math.round(CELL_PIXEL * 0.075)}px`,
+  () => `${Math.round(CELL_PIXEL * 0.025)}px ${Math.round(CELL_PIXEL * 0.075)}px`
 )
 
 // 信息面板样式（基于 CELL_PIXEL 的比例）
@@ -46,12 +49,29 @@ const infoItemMarginCss = computed(() => `${Math.round(CELL_PIXEL * 0.1)}px`)
 const viewportWidth = ref(typeof window !== 'undefined' ? window.innerWidth : 1920)
 const viewportHeight = ref(typeof window !== 'undefined' ? window.innerHeight : 1080)
 
+// DOM 动态测量的元素边界结构
+interface MeasuredRect {
+  id: string
+  label: string
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+interface AlignmentIssue {
+  name: string
+  field: string
+  value: number
+  expected: number | string
+}
+
 // 从 DOM 动态测量的元素边界
-const measuredPanels = ref([])
-const measuredDock = ref(null)
+const measuredPanels = ref<MeasuredRect[]>([])
+const measuredDock = ref<MeasuredRect | null>(null)
 
 // 对齐验证结果
-const alignmentIssues = ref([])
+const alignmentIssues = ref<AlignmentIssue[]>([])
 
 /**
  * 更新视口尺寸
@@ -110,7 +130,7 @@ function measureAll() {
   // Dock 使用独立的 GcsPanel，从 Panel 列表中排除，避免重复检测
   // 仅保留实际可见（尺寸大于 0）的 Panel
   measuredPanels.value = measureElements('.gcs-panel:not(.dock-panel)', 'Panel').filter(
-    (panel) => panel.width > 0 && panel.height > 0,
+    (panel) => panel.width > 0 && panel.height > 0
   )
   measuredDock.value = measureElement('.bottom-nav-bar', 'Dock')
   validateAlignment()
@@ -163,7 +183,7 @@ function isCellAligned(value) {
  * @param {number} value - 实际值
  * @param {string} [expected] - 预期值描述（默认 Cell 倍数）
  */
-function recordIssue(name, field, value, expected) {
+function recordIssue(name: string, field: string, value: number, expected?: number | string) {
   alignmentIssues.value.push({
     name,
     field,
@@ -182,7 +202,11 @@ function recordIssue(name, field, value, expected) {
  * @param {boolean} options.skipX
  * @param {boolean} options.skipY
  */
-function validateRect(name, rect, options = {}) {
+function validateRect(
+  name: string,
+  rect: MeasuredRect,
+  options: { skipX?: boolean; skipY?: boolean } = {}
+) {
   if (!options.skipX && !isPpsAligned(rect.x)) {
     recordIssue(name, 'x', rect.x, `PPS formula (left/right/center)`)
   }
@@ -285,7 +309,7 @@ watch(
     if (enabled) {
       requestAnimationFrame(measureAll)
     }
-  },
+  }
 )
 
 // 计算 Grid 参考线行列数（V2 使用 GRID_SIZE 而非 cellPixel）
@@ -294,7 +318,7 @@ const gridRows = computed(() => Math.floor(viewportHeight.value / GRID_SIZE))
 
 // 生成 Grid 参考线数据（V2 使用 GRID_SIZE）
 const gridLines = computed(() => {
-  const result = []
+  const result: { id: string; row: number; col: number; x: number; y: number }[] = []
   for (let row = 0; row < gridRows.value; row++) {
     for (let col = 0; col < gridCols.value; col++) {
       result.push({
@@ -518,7 +542,7 @@ const alignmentStatus = computed(() => {
   top: v-bind(infoPanelOffsetCss);
   right: v-bind(infoPanelOffsetCss);
   background: rgba(0, 0, 0, 0.85);
-  color: #fff;
+  color: var(--gcs-bg-panel);
   padding: v-bind(infoPanelPaddingCss);
   border-radius: 8px;
   font-family: monospace;

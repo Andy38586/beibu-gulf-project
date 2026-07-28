@@ -9,15 +9,15 @@ export function buildPortGeoJson(portsData) {
     type: 'FeatureCollection',
     features: portsData
       .filter((port) => {
-        // FIX:016: 验证port.lon和port.lat字段存在性
-        if (port.lon === undefined || port.lat === undefined) {
+        // 验证port.lng和port.lat字段存在性
+        if (port.lng === undefined || port.lat === undefined) {
           if (import.meta.env.DEV) {
             console.warn('港口数据缺少坐标字段:', port)
           }
           return false
         }
-        // FIX:016: 验证坐标有效性
-        if (typeof port.lon !== 'number' || typeof port.lat !== 'number') {
+        // 验证坐标有效性
+        if (typeof port.lng !== 'number' || typeof port.lat !== 'number') {
           if (import.meta.env.DEV) {
             console.warn('港口坐标字段类型无效:', port)
           }
@@ -29,7 +29,7 @@ export function buildPortGeoJson(portsData) {
         type: 'Feature',
         geometry: {
           type: 'Point',
-          coordinates: [port.lon, port.lat],
+          coordinates: [port.lng, port.lat],
         },
         properties: {
           ...port,

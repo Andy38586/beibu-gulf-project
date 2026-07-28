@@ -17,9 +17,21 @@ describe('Spatial Index (R-tree)', () => {
     it('should handle empty data', () => {
       const tree = createSpatialIndex([])
       expect(tree).toBeDefined()
-      expect(queryByPolygon(tree, {
-        geometry: { coordinates: [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]] },
-      })).toEqual([])
+      expect(
+        queryByPolygon(tree, {
+          geometry: {
+            coordinates: [
+              [
+                [0, 0],
+                [1, 0],
+                [1, 1],
+                [0, 1],
+                [0, 0],
+              ],
+            ],
+          },
+        })
+      ).toEqual([])
     })
   })
 

@@ -2627,7 +2627,7 @@ export async function loadBoundaryGeoJson(onError) {
       }
 
       const geojson = await response.json()
-      
+
       // 防御性检查：确保 features 数组存在
       if (!Array.isArray(geojson.features)) {
         throw new Error(''GeoJSON 格式无效：缺少 features 数组'')
@@ -2725,7 +2725,7 @@ import { computed, inject } from 'vue''
 // 图层管理 composable：通过 inject(''mapStore'') 解耦
 export function useLayerManager() {
   const store = inject(''mapStore'')
-  
+
   if (!store) {
     console.warn(''[useLayerManager] mapStore 未注入，请在父组件中提供'')
     return {
@@ -2737,7 +2737,7 @@ export function useLayerManager() {
       layerCatalog: computed(() => []),
     }
   }
-  
+
   const layerCatalog = computed(() => store.layerCatalog)
 
   function clearLayers() {
@@ -3443,7 +3443,9 @@ function handleClick() {
   outline: none;
   cursor: pointer;
   color: #fff;
-  transition: background-color 0.2s ease, transform 0.1s ease;
+  transition:
+    background-color 0.2s ease,
+    transform 0.1s ease;
 }
 
 .gcs-button:hover:not(:disabled) {
@@ -5336,7 +5338,7 @@ async function loadPortComparisonData(transactionId, signal) {
     console.log(''[ForecastPage] loadPortComparisonData:'', { indicator, time })
     const confidence = forecastState.confidenceThresholds[indicator] || 0.8
     const cacheKey = `cmp:${indicator}:${time}:${confidence}`
-    
+
     // P0-3: 缓存命中时也检查事务有效性，防止旧数据覆盖新数据
     let cached = cacheGet(cacheKey)
     if (cached) {
@@ -5344,7 +5346,7 @@ async function loadPortComparisonData(transactionId, signal) {
       barSeries.value = cached.series
       return
     }
-    
+
     const resp = await forecastApiRequest(
       `/forecast/indicator/${indicator}?time=${time}&confidence=${confidence}`,
       transactionId,
@@ -5375,14 +5377,14 @@ watch(() => mapStore.currentRenderer, (r) => {
 // 统一的预测更新函数：启动新事务，保证三个请求原子性
 async function doForecastUpdate() {
   if (!renderer.value) return
-  
+
   // P2-01: 设置加载状态
   isLoading.value = true
-  
+
   try {
     // 启动新事务，取消旧请求
     const { transactionId, signal } = startTransaction()
-    
+
     // 三个请求共享同一事务，保证数据一致性
     await Promise.all([
       loadTimeSeriesData(transactionId, signal),
@@ -5430,10 +5432,10 @@ watch(
   }
 )
 
-onUnmounted(() => { 
+onUnmounted(() => {
   cancelAll()
   removeForecastLayer()
-  forecastState.reset() 
+  forecastState.reset()
 })
 </script>
 
@@ -5442,7 +5444,13 @@ onUnmounted(() => {
     <AppLayout>
       <template #left>
         <GcsPanel :w="4" :h="4" anchor="top-left" :offset-x="0" :offset-y="1.25">
-          <LineChart title="预测趋势" :x-data="lineXData" :series="lineSeries" :x-min="lineViewportXMin" :x-max="lineViewportXMax" />
+          <LineChart
+            title="预测趋势"
+            :x-data="lineXData"
+            :series="lineSeries"
+            :x-min="lineViewportXMin"
+            :x-max="lineViewportXMax"
+          />
         </GcsPanel>
         <GcsPanel :w="4" :h="4" anchor="top-left" :offset-x="0" :offset-y="5.5">
           <BarChart title="港口对比" :x-data="barXData" :series="barSeries" />
@@ -5461,8 +5469,14 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-.forecast-page { width:100%; height:100%; pointer-events:none; }
-.forecast-page :deep(.gcs-panel) { pointer-events:auto; }
+.forecast-page {
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.forecast-page :deep(.gcs-panel) {
+  pointer-events: auto;
+}
 </style>
 ```
 
@@ -5591,23 +5605,35 @@ onUnmounted(() => stopPlayback())
     <!-- ===== 上半：4 个指标按钮（2×2）===== -->
     <div class="btn-grid">
       <div
-        v-for="ind in INDICATORS" :key="ind.key"
+        v-for="ind in INDICATORS"
+        :key="ind.key"
         :class="[''btn-cell'', { sel: btnStates[ind.key].selected, ing: btnStates[ind.key].selecting }]"
         @mousedown.stop
       >
         <template v-if="!btnStates[ind.key].selecting">
-          <button :class="[''ind-btn'', { ok: btnStates[ind.key].selected }]" @click.stop="toggleBtn(ind.key)">
+          <button
+            :class="[''ind-btn'', { ok: btnStates[ind.key].selected }]"
+            @click.stop="toggleBtn(ind.key)"
+          >
             <span class="ind-icon">{{ ind.icon }}</span>
             <span class="ind-label">{{ ind.label }}</span>
-            <span v-if="btnStates[ind.key].selected" class="ind-conf">{{ (getConf(ind.key) * 100).toFixed(0) }}%</span>
+            <span v-if="btnStates[ind.key].selected" class="ind-conf"
+              >{{ (getConf(ind.key) * 100).toFixed(0) }}%</span
+            >
           </button>
         </template>
         <div v-else class="slider-cell" @click.stop>
           <span class="ind-icon">{{ ind.icon }}</span>
           <span class="ind-label-s">{{ ind.label }}</span>
-          <input type="range" min="0.8" max="1.2" step="0.05" :value="getConf(ind.key)"
+          <input
+            type="range"
+            min="0.8"
+            max="1.2"
+            step="0.05"
+            :value="getConf(ind.key)"
             class="conf-slider"
-            @input="onConfidenceSliderInput(ind.key, $event.target.value)" />
+            @input="onConfidenceSliderInput(ind.key, $event.target.value)"
+          />
           <span class="conf-pct">{{ (getConf(ind.key) * 100).toFixed(0) }}%</span>
         </div>
       </div>
@@ -5620,69 +5646,258 @@ onUnmounted(() => stopPlayback())
         <label class="gr-toggle"><input type="checkbox" v-model="isYearMode" />年</label>
       </div>
       <div class="time-slider-wrap">
-        <input type="range" :min="0" :max="maxSteps" :value="currentStep" @input="onSlider" class="t-slider" />
+        <input
+          type="range"
+          :min="0"
+          :max="maxSteps"
+          :value="currentStep"
+          @input="onSlider"
+          class="t-slider"
+        />
         <div class="t-ticks">
-          <span v-for="m in YEAR_MARKS" :key="m.year" class="t-tick clickable"
-            :style="{ left: yearMarkPosition(m.year) + ''%'' }"
-            @click="jumpToYear(m.year)">{{ m.label }}</span>
+          <span
+            v-for="m in YEAR_MARKS"
+            :key="m.year"
+            class="t-tick clickable"
+            :style="{ left: yearMarkPosition(m.year) + ('' % '') }"
+            @click="jumpToYear(m.year)"
+            >{{ m.label }}</span
+          >
         </div>
       </div>
       <div class="time-acts">
-        <button @click="togglePlay" class="act-btn">{{ forecastState.isPlaying ? ''⏸'' : ''▶'' }}</button>
+        <button @click="togglePlay" class="act-btn">
+          {{ forecastState.isPlaying ? ''⏸'' : ''▶'' }}
+        </button>
       </div>
     </div>
   </div>
 </template>
 
 <style scoped>
-.forecast-ctrl { width:100%; height:100%; display:flex; flex-direction:column; padding:10px; box-sizing:border-box; gap:10px; }
+.forecast-ctrl {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 10px;
+  box-sizing: border-box;
+  gap: 10px;
+}
 
 /* ===== 按钮网格 ===== */
-.btn-grid { display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr; gap:8px; flex:1; min-height:0; }
-.btn-cell { border-radius:12px; transition:all .2s; }
-.btn-cell.sel { background:#e6f4ff; border:1px solid #409eff; }
-.btn-cell.ing { background:#409eff; border:1px solid #409eff; }
+.btn-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 8px;
+  flex: 1;
+  min-height: 0;
+}
+.btn-cell {
+  border-radius: 12px;
+  transition: all 0.2s;
+}
+.btn-cell.sel {
+  background: #e6f4ff;
+  border: 1px solid #409eff;
+}
+.btn-cell.ing {
+  background: #409eff;
+  border: 1px solid #409eff;
+}
 
-.ind-btn { width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px;
-  border:1px solid #e0e0e0; border-radius:12px; background:#fff; cursor:pointer; padding:6px 4px; box-sizing:border-box; color:#333; }
-.ind-btn:hover { border-color:#409eff; background:#f0f7ff; }
-.ind-btn.ok { border-color:#409eff; }
-.ind-icon { font-size:18px; line-height:1; }
-.ind-label { font-size:13px; font-weight:500; }
-.ind-conf { font-size:10px; color:#409eff; }
+.ind-btn {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  background: #fff;
+  cursor: pointer;
+  padding: 6px 4px;
+  box-sizing: border-box;
+  color: #333;
+}
+.ind-btn:hover {
+  border-color: #409eff;
+  background: #f0f7ff;
+}
+.ind-btn.ok {
+  border-color: #409eff;
+}
+.ind-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+.ind-label {
+  font-size: 13px;
+  font-weight: 500;
+}
+.ind-conf {
+  font-size: 10px;
+  color: #409eff;
+}
 
 /* 置信度滑块 */
-.slider-cell { width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; padding:4px 8px; box-sizing:border-box; cursor:default; }
-.slider-cell .ind-icon { font-size:16px; }
-.slider-cell .ind-label-s { font-size:11px; color:#fff; }
-.conf-slider { width:80%; height:4px; -webkit-appearance:none; appearance:none; background:rgba(255,255,255,.4); border-radius:2px; outline:none; cursor:pointer; }
-.conf-slider::-webkit-slider-thumb { -webkit-appearance:none; width:14px; height:14px; border-radius:50%; background:#fff; cursor:pointer; }
-.conf-slider::-moz-range-thumb { width:14px; height:14px; border-radius:50%; background:#fff; cursor:pointer; border:none; }
-.conf-pct { font-size:10px; color:#fff; font-weight:600; }
+.slider-cell {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 4px 8px;
+  box-sizing: border-box;
+  cursor: default;
+}
+.slider-cell .ind-icon {
+  font-size: 16px;
+}
+.slider-cell .ind-label-s {
+  font-size: 11px;
+  color: #fff;
+}
+.conf-slider {
+  width: 80%;
+  height: 4px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+.conf-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  cursor: pointer;
+}
+.conf-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  cursor: pointer;
+  border: none;
+}
+.conf-pct {
+  font-size: 10px;
+  color: #fff;
+  font-weight: 600;
+}
 
 /* ===== 时间滑块 ===== */
-.time-section { flex-shrink:0; display:flex; flex-direction:column; gap:6px; }
-.time-header { display:flex; align-items:center; justify-content:space-between; }
-.time-label { font-size:14px; font-weight:600; color:#409eff; }
-.gr-toggle { display:flex; align-items:center; gap:3px; font-size:12px; color:#666; cursor:pointer; }
-.gr-toggle input { cursor:pointer; }
+.time-section {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.time-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.time-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #409eff;
+}
+.gr-toggle {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 12px;
+  color: #666;
+  cursor: pointer;
+}
+.gr-toggle input {
+  cursor: pointer;
+}
 
-.time-slider-wrap { position:relative; padding-bottom:20px; }
-.t-slider { width:100%; height:6px; -webkit-appearance:none; appearance:none;
-  background:linear-gradient(to right,#e0e0e0,#409eff); border-radius:3px; outline:none; cursor:pointer; }
-.t-slider::-webkit-slider-thumb { -webkit-appearance:none; width:18px; height:18px; border-radius:50%;
-  background:#409eff; cursor:pointer; border:2px solid #fff; box-shadow:0 1px 4px rgba(0,0,0,.2); }
-.t-slider::-moz-range-thumb { width:18px; height:18px; border-radius:50%;
-  background:#409eff; cursor:pointer; border:2px solid #fff; box-shadow:0 1px 4px rgba(0,0,0,.2); }
+.time-slider-wrap {
+  position: relative;
+  padding-bottom: 20px;
+}
+.t-slider {
+  width: 100%;
+  height: 6px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: linear-gradient(to right, #e0e0e0, #409eff);
+  border-radius: 3px;
+  outline: none;
+  cursor: pointer;
+}
+.t-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #409eff;
+  cursor: pointer;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+.t-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #409eff;
+  cursor: pointer;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
 
-.t-ticks { position:absolute; bottom:0; left:0; right:0; height:18px; }
-.t-tick { position:absolute; transform:translateX(-50%); font-size:11px; color:#999; white-space:nowrap; }
-.t-tick.clickable { color:#409eff; font-weight:500; cursor:pointer; }
-.t-tick.clickable:hover { color:#66b1ff; text-decoration:underline; }
+.t-ticks {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 18px;
+}
+.t-tick {
+  position: absolute;
+  transform: translateX(-50%);
+  font-size: 11px;
+  color: #999;
+  white-space: nowrap;
+}
+.t-tick.clickable {
+  color: #409eff;
+  font-weight: 500;
+  cursor: pointer;
+}
+.t-tick.clickable:hover {
+  color: #66b1ff;
+  text-decoration: underline;
+}
 
-.time-acts { display:flex; justify-content:center; }
-.act-btn { padding:4px 14px; background:#f5f5f5; border:1px solid #ddd; border-radius:6px; font-size:14px; cursor:pointer; color:#333; }
-.act-btn:hover { background:#e8e8e8; }
+.time-acts {
+  display: flex;
+  justify-content: center;
+}
+.act-btn {
+  padding: 4px 14px;
+  background: #f5f5f5;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  color: #333;
+}
+.act-btn:hover {
+  background: #e8e8e8;
+}
 </style>
 ```
 
@@ -5728,10 +5943,10 @@ export function useForecastLayer() {
     [() => renderer.value, () => forecastState.activeIndicator],
     async ([r, newInd], [_oldR, oldInd]) => {
       if (!r) return
-      
+
       // P0-1a: 等待 nextTick 确保渲染器完全初始化
       await nextTick()
-      
+
       // 渲染器就绪时注册全部 4 个图层
       for (const indicator of INDICATORS) {
         const key = `forecast-${indicator}`
@@ -5745,7 +5960,7 @@ export function useForecastLayer() {
           visible: isActive,
         })
       }
-      
+
       // 指标切换时更新图层可见性
       if (oldInd && oldInd !== newInd) {
         const oldKey = `forecast-${oldInd}`
@@ -5850,11 +6065,11 @@ function startTransaction() {
   if (currentAbortController) {
     currentAbortController.abort()
   }
-  
+
   // 生成新事务 ID
   currentTransactionId++
   currentAbortController = new AbortController()
-  
+
   return {
     transactionId: currentTransactionId,
     signal: currentAbortController.signal,
@@ -5882,10 +6097,10 @@ async function forecastApiRequest(path, transactionId, signal) {
   if (!isTransactionValid(transactionId)) {
     return null
   }
-  
+
   try {
     isLoading.value = true
-    
+
     // 直接使用 fetch，传入 signal 实现真正的请求取消
     const res = await fetch(`${API_BASE}${path}`, {
       method: ''GET'',
@@ -5895,14 +6110,14 @@ async function forecastApiRequest(path, transactionId, signal) {
       credentials: ''include'',
       signal, // 传入外部的 AbortSignal
     })
-    
+
     const data = await res.json().catch(() => ({}))
-    
+
     // 再次检查事务是否仍然有效（可能在 await 期间被取消）
     if (!isTransactionValid(transactionId)) {
       return null
     }
-    
+
     // 处理 401 未授权
     if (res.status === 401) {
       const router = (await import(''@/router'')).default
@@ -5911,19 +6126,19 @@ async function forecastApiRequest(path, transactionId, signal) {
       }
       throw new Error(''登录已过期，请重新登录'')
     }
-    
+
     // 处理其他错误
     if (!res.ok) {
       throw new Error(data.error || `请求失败 HTTP ${res.status}`)
     }
-    
+
     return data
   } catch (error) {
     // 如果是取消错误，返回 null
     if (error.name === ''AbortError'') {
       return null
     }
-    
+
     // 其他错误向上抛出
     throw error
   } finally {
@@ -6722,7 +6937,9 @@ const showReport = computed(() => true)
         <span class="info-label">受影响设施</span>
         <span class="info-value"
           >{{
-            portImpactStore.affectedFacilities.length || floodStore.floodStatistics?.affectedFacilities || 0
+            portImpactStore.affectedFacilities.length ||
+            floodStore.floodStatistics?.affectedFacilities ||
+            0
           }}
           个</span
         >
@@ -8394,9 +8611,9 @@ export function useSiteAnalysisApi() {
       if (result.error) {
         calcError.value = result.error
         // FIX:009: 返回完整的错误对象结构
-        return { 
-          error: result.error, 
-          coverage: null, 
+        return {
+          error: result.error,
+          coverage: null,
           matchedXiaoqu: [],
           facilityPoi: {}
         }
@@ -8462,7 +8679,7 @@ onErrorCaptured((err) => {
     console.error(''错误堆栈:'', err.stack)
   }
   // 错误上报服务待集成（如 Sentry）
-  
+
   errorMsg.value = err.message || ''未知异常''
   hasError.value = true
   return false // 阻止冒泡到全局
@@ -8550,10 +8767,16 @@ function handleLogin() {
 
         <!-- 错误图标 -->
         <div class="error-icon">
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="12" cy="12" r="10" stroke="#E74C3C" stroke-width="2"/>
-            <path d="M12 8V13" stroke="#E74C3C" stroke-width="2" stroke-linecap="round"/>
-            <circle cx="12" cy="16" r="1" fill="#E74C3C"/>
+          <svg
+            width="48"
+            height="48"
+            viewBox="0 0 24 24"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <circle cx="12" cy="12" r="10" stroke="#E74C3C" stroke-width="2" />
+            <path d="M12 8V13" stroke="#E74C3C" stroke-width="2" stroke-linecap="round" />
+            <circle cx="12" cy="16" r="1" fill="#E74C3C" />
           </svg>
         </div>
 
@@ -8563,20 +8786,10 @@ function handleLogin() {
         <!-- 底部按钮组：两个并列按钮 -->
         <div class="button-group">
           <!-- 主按钮（蓝色）：重试 或 去登录 -->
-          <button
-            v-if="mode === ''login''"
-            class="action-btn primary-btn"
-            @click="handleLogin"
-          >
+          <button v-if="mode === ''login''" class="action-btn primary-btn" @click="handleLogin">
             去登录
           </button>
-          <button
-            v-else
-            class="action-btn primary-btn"
-            @click="handleRetry"
-          >
-            重试
-          </button>
+          <button v-else class="action-btn primary-btn" @click="handleRetry">重试</button>
 
           <!-- 次按钮（白色）：取消 -->
           <button class="action-btn cancel-btn" @click="handleClose">取消</button>
@@ -8939,26 +9152,26 @@ function switchMode(m) {
 async function handleSubmit() {
   errorMsg.value = ''
   const trimmedUsername = username.value.trim()
-  
+
   // FIX:019: 使用显式布尔转换
   if (username.value.trim() === '' || password.value === '') {
     errorMsg.value = '请填写用户名和密码'
     return
   }
-  
+
   // FIX:101: 用户名长度校验（2-20 字符）
   if (trimmedUsername.length < 2 || trimmedUsername.length > 20) {
     errorMsg.value = '用户名长度应在 2-20 个字符之间'
     return
   }
-  
+
   // FIX:102: 用户名特殊字符校验（仅允许字母、数字、中文、下划线）
   const usernameRegex = /^[\u4e00-\u9fa5a-zA-Z0-9_]+$/
   if (!usernameRegex.test(trimmedUsername)) {
     errorMsg.value = '用户名只能包含字母、数字、中文和下划线'
     return
   }
-  
+
   if (mode.value === 'register') {
     if (password.value.length < 6) {
       errorMsg.value = '密码长度不能少于 6 位'
@@ -9833,14 +10046,14 @@ watch(
 function handleConfirm() {
   const name = planName.value.trim()
   if (!name) return
-  
+
   // FIX:SEC-004: 方案名称正则校验（仅允许中文、字母、数字、下划线、连字符、空格）
   const nameRegex = /^[\u4e00-\u9fa5a-zA-Z0-9_\-\s]{1,50}$/
   if (!nameRegex.test(name)) {
     emit(''error'', ''方案名称只能包含中文、字母、数字、下划线、连字符和空格，且长度不超过 50 字符'')
     return
   }
-  
+
   emit(''save'', name)
 }
 
@@ -9853,7 +10066,14 @@ function onClose() {
 <template>
   <el-dialog v-model="dialogVisible" title="保存方案" width="320px" @close="onClose">
     <el-form class="save-form" @submit.prevent="handleConfirm">
-      <el-input v-model="planName" placeholder="请输入方案名称" size="small" maxlength="50" show-word-limit autofocus />
+      <el-input
+        v-model="planName"
+        placeholder="请输入方案名称"
+        size="small"
+        maxlength="50"
+        show-word-limit
+        autofocus
+      />
       <div v-if="errorMsg" class="modal-error">{{ errorMsg }}</div>
     </el-form>
     <template #footer>
@@ -10784,7 +11004,7 @@ onBeforeUnmount(() => {
 <script setup>
 /**
  * RadarScoreTooltip - 雷达图得分弹窗组件
- * 
+ *
  * 职责：显示雷达图的具体得分（1列6行网格布局）
  * 解决 FIX:006(架构)：拆分RadarChart组件
  */
@@ -10993,12 +11213,12 @@ export function useRadarChart({ getChartRef, getProps, emit }) {
   function renderRadar() {
     const chartRef = getChartRef()
     const props = getProps()
-    
+
     if (!chartRef || isRendering) return
-    
+
     const w = chartRef.clientWidth
     const h = chartRef.clientHeight
-    
+
     // P1-006-FIX: 容器尺寸不足时重试，最多重试10次（1秒）
     if (w < 10 || h < 10) {
       const retryCount = (chartRef._radarRetryCount || 0) + 1
@@ -11016,12 +11236,12 @@ export function useRadarChart({ getChartRef, getProps, emit }) {
     if (chartRef._radarRetryCount) {
       chartRef._radarRetryCount = 0
     }
-    
+
     isRendering = true
-    
+
     if (!chartInstance) {
       chartInstance = echarts.init(chartRef)
-      
+
       chartInstance.on(''click'', (params) => {
         if (params.componentType === ''radar'' && params.name) {
           const key = props.selectedTypes.find(
@@ -11038,11 +11258,11 @@ export function useRadarChart({ getChartRef, getProps, emit }) {
       name: FACILITY_LABELS[key] || key,
       max: 100,
     }))
-    
+
     const values = props.selectedTypes.map(
       (key) => props.xiaoqu?.breakdown?.[key] ?? 0
     )
-    
+
     const name = props.xiaoqu?.name || ''''
 
     chartInstance.setOption({
@@ -11136,7 +11356,7 @@ export function useRadarChart({ getChartRef, getProps, emit }) {
   /** 点击设施名称（显示 POI 图层） */
   function handleFacilityClick(key) {
     const props = getProps()
-    
+
     if (activeFacilityType.value === key) {
       activeFacilityType.value = null
       emit(''hide-facility-layer'')
@@ -11159,7 +11379,7 @@ export function useRadarChart({ getChartRef, getProps, emit }) {
   /** 设置 ResizeObserver */
   function setupResizeObserver() {
     const chartRef = getChartRef()
-    
+
     resizeObserver?.disconnect()
     if (chartRef) {
       resizeObserver = new ResizeObserver(() => {
@@ -11201,11 +11421,11 @@ import { ref, onMounted, onUnmounted, watch } from 'vue''
 import * as echarts from ''echarts/core''
 
 // FIX:P3-09: 注册必需组件（解决 "Component grid is used but not imported" 错误）
-import { 
-  GridComponent, 
-  TitleComponent, 
-  LegendComponent, 
-  TooltipComponent 
+import {
+  GridComponent,
+  TitleComponent,
+  LegendComponent,
+  TooltipComponent
 } from ''echarts/components''
 import { LineChart, BarChart } from ''echarts/charts''
 import { CanvasRenderer } from ''echarts/renderers''
@@ -11232,7 +11452,7 @@ export function useECharts({ getOption, watchSources = [], onClick = null }) {
 
     chartInstance = echarts.init(chartRef.value)
     updateChart()
-    
+
     if (onClick) {
       chartInstance.on(''click'', onClick)
     }
@@ -12312,8 +12532,8 @@ watch(
 </style>
 ```
 
-
 ---
+
 # 后端 API 层
 
 ## 后端 - 入口与应用配置
@@ -12645,7 +12865,7 @@ export async function register(req, res) {
     const user = await userService.createUser(username, hashedPassword)
     const token = generateToken(user)
     setAuthCookie(res, token)
-    
+
     res.status(201).json({ token, user })
   } catch (error) {
     // FIX:P1-06: 并发注册冲突返回 409
@@ -12687,7 +12907,7 @@ export async function login(req, res) {
     }
     const token = generateToken(user)
     setAuthCookie(res, token)
-    
+
     res.json({ token, user: { id: user.id, username: user.username, createdAt: user.createdAt } })
   } catch (error) {
     // FIX:016 (错误): 使用结构化日志替代 console
@@ -13220,13 +13440,13 @@ export async function createOne(req, res) {
     if (!name || !selectedKeys) {
       return res.status(400).json({ error: ''缺少必要字段: name, selectedKeys'' })
     }
-    
+
     // FIX:SEC-004: 方案名称正则校验（仅允许中文、字母、数字、下划线、连字符、空格，长度 1-50）
     const nameRegex = /^[\u4e00-\u9fa5a-zA-Z0-9_\-\s]{1,50}$/
     if (!nameRegex.test(name)) {
       return res.status(400).json({ error: ''方案名称只能包含中文、字母、数字、下划线、连字符和空格，且长度不超过 50 字符'' })
     }
-    
+
     const existing = await plansRepo.findAllByUserId(req.user.id)
     if (existing.some(p => p.name === name)) {
       return res.status(409).json({ error: ''方案名称已存在'' })
@@ -13359,21 +13579,21 @@ export async function analyze(req, res) {
     if (!selectedKeys || !typeSettings) {
       return res.status(400).json({ error: ''缺少必要参数: selectedKeys, typeSettings'' })
     }
-    
+
     // FIX:103/104: 校验权重范围（1-5）
     if (typeSettings) {
       for (const [key, setting] of Object.entries(typeSettings)) {
         if (setting.importance !== undefined) {
           const importance = Number(setting.importance)
           if (isNaN(importance) || importance < 1 || importance > 5) {
-            return res.status(400).json({ 
-              error: `设施类型 ${key} 的权重值无效，应在 1-5 之间` 
+            return res.status(400).json({
+              error: `设施类型 ${key} 的权重值无效，应在 1-5 之间`
             })
           }
         }
       }
     }
-    
+
     const facilityData = {}
     const validTypes = facilitiesRepo.getAvailableTypes()
     for (const key of selectedKeys) {
@@ -13854,7 +14074,7 @@ export function resolveRadiusSettings(selectedKeys, typeSettings) {
   selectedKeys.forEach((key) => {
     const setting = typeSettings[key]
     const radius = importanceToRadius(setting.defaultRadius, setting.importance)
-    
+
     // FIX:106: 校验半径必须为正数
     if (radius <= 0 || isNaN(radius)) {
       // FIX:016 (错误): 仅在开发环境输出警告
@@ -13866,19 +14086,19 @@ export function resolveRadiusSettings(selectedKeys, typeSettings) {
       err.code = ''INVALID_PARAMS''
       throw err
     }
-    
+
     resolved[key] = { selected: true, radius }
   })
   return resolved
 }
 export function buildTypeCoverage(points, radiusKm) {
   if (!points || points.length === 0) return null
-  
+
   // FIX:315-001: 性能优化提示 - 大量POI数据建议实现聚类或空间索引
   if (points.length > 1000 && process.env.NODE_ENV === ''development'') {
     console.warn(`[性能优化] POI数据量较大(${points.length}条)，建议实现聚类或空间索引优化`)
   }
-  
+
   // FIX:314-002: POI数据去重（基于坐标）
   const uniquePoints = []
   const seenCoords = new Set()
@@ -13889,11 +14109,11 @@ export function buildTypeCoverage(points, radiusKm) {
       uniquePoints.push(p)
     }
   }
-  
+
   // FIX:314-003: 过滤异常坐标[0,0]和不在北部湾范围内的坐标
   // 北部湾范围：经度 105-115，纬度 18-25
   const validPoints = uniquePoints.filter((p) => {
-    const isValid = p && typeof p.lng === ''number'' && typeof p.lat === ''number'' && 
+    const isValid = p && typeof p.lng === ''number'' && typeof p.lat === ''number'' &&
                     !isNaN(p.lng) && !isNaN(p.lat) &&
                     !(p.lng === 0 && p.lat === 0) && // 过滤[0,0]异常坐标
                     p.lng >= 105 && p.lng <= 115 && // 北部湾经度范围
@@ -13904,7 +14124,7 @@ export function buildTypeCoverage(points, radiusKm) {
     }
     return isValid
   })
-  
+
   if (validPoints.length === 0) {
     // FIX:016 (错误): 仅在开发环境输出警告
     if (process.env.NODE_ENV === ''development'') {
@@ -13912,14 +14132,14 @@ export function buildTypeCoverage(points, radiusKm) {
     }
     return null
   }
-  
+
   const buffers = validPoints.map((p) =>
     turf.buffer(turf.point([p.lng, p.lat]), radiusKm, { units: ''kilometers'' }),
   )
-  
+
   // 过滤掉无效的缓冲区
   // FIX:GIS-004: 验证坐标数组长度
-  const validBuffers = buffers.filter((b) => 
+  const validBuffers = buffers.filter((b) =>
     b && b.geometry && b.geometry.coordinates && b.geometry.coordinates.length > 0
   )
   if (validBuffers.length === 0) {
@@ -13929,9 +14149,9 @@ export function buildTypeCoverage(points, radiusKm) {
     }
     return null
   }
-  
+
   if (validBuffers.length === 1) return validBuffers[0]
-  
+
   try {
     const unionResult = turf.union(turf.featureCollection(validBuffers))
     // FIX:GIS-001: 验证 union 结果，处理 MultiPolygon 情况
@@ -13941,7 +14161,7 @@ export function buildTypeCoverage(points, radiusKm) {
       }
       return null
     }
-    
+
     // FIX:GIS-007: 如果返回 MultiPolygon，保留所有 Polygon 作为覆盖区域
     // 返回第一个 Polygon 作为主覆盖区域，但记录所有 Polygon 的坐标
     if (unionResult.geometry.type === ''MultiPolygon'') {
@@ -13951,7 +14171,7 @@ export function buildTypeCoverage(points, radiusKm) {
       // 返回完整的 MultiPolygon，而不是只返回第一个
       return unionResult
     }
-    
+
     return unionResult
   } catch (error) {
     if (process.env.NODE_ENV === ''development'') {
@@ -13965,15 +14185,15 @@ export function intersectCoverages(coverages, selectedKeys) {
   const entries = coverages
     .map((c, i) => ({ key: selectedKeys[i], coverage: c }))
     .filter((e) => e.coverage && e.coverage.geometry)
-  
+
   if (entries.length === 0) return { area: null, failKey: null }
-  
+
   let result = entries[0].coverage
-  
+
   for (let i = 1; i < entries.length; i++) {
     try {
       // 验证输入几何对象
-      if (!result.geometry || !result.geometry.coordinates || 
+      if (!result.geometry || !result.geometry.coordinates ||
           !entries[i].coverage.geometry || !entries[i].coverage.geometry.coordinates) {
         // FIX:016 (错误): 仅在开发环境输出警告
         if (process.env.NODE_ENV === ''development'') {
@@ -13981,15 +14201,15 @@ export function intersectCoverages(coverages, selectedKeys) {
         }
         continue
       }
-      
+
       const intersectResult = turf.intersect(
         turf.featureCollection([result, entries[i].coverage])
       )
-      
+
       if (!intersectResult || !intersectResult.geometry) {
         return { area: null, failKey: entries[i].key }
       }
-      
+
       result = intersectResult
     } catch (error) {
       // FIX:016 (错误): 仅在开发环境输出错误
@@ -13999,7 +14219,7 @@ export function intersectCoverages(coverages, selectedKeys) {
       return { area: null, failKey: entries[i].key }
     }
   }
-  
+
   return { area: result, failKey: null }
 }
 export function filterMatchedXiaoqu(xiaoquData, finalArea, spatialIndex = null) {
@@ -14011,9 +14231,9 @@ export function filterMatchedXiaoqu(xiaoquData, finalArea, spatialIndex = null) 
     }
     return []
   }
-  
+
   const candidates = spatialIndex ? queryByPolygon(spatialIndex, finalArea) : xiaoquData
-  
+
   // FIX:314-004: 验证 GeoJSON Feature 完整性
   return candidates.filter((xq) => {
     // 检查必要字段
@@ -14187,11 +14407,11 @@ function getPolygonBBox(polygon) {
   const polygons = type === ''MultiPolygon'' ? coordinates : [coordinates]
   let minX = Infinity, maxX = -Infinity
   let minY = Infinity, maxY = -Infinity
-  
+
   for (const poly of polygons) {
     // FIX:GIS-006: 验证 poly[0] 存在性
     if (!poly || !poly[0] || poly[0].length === 0) continue
-    
+
     // FIX:GIS-005: 遍历所有环（外环 + 内环）
     for (const ring of poly) {
       if (!Array.isArray(ring)) continue
@@ -14204,12 +14424,12 @@ function getPolygonBBox(polygon) {
       }
     }
   }
-  
+
   // FIX:GIS-005: 如果没有有效坐标，返回默认 BBox
   if (minX === Infinity) {
     return { minX: 0, minY: 0, maxX: 0, maxY: 0 }
   }
-  
+
   return { minX, minY, maxX, maxY }
 }
 ```

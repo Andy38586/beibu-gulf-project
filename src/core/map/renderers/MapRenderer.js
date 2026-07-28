@@ -13,6 +13,24 @@ export class MapRenderer {
     throw new Error(`${this.getType()} init 未实现`)
   }
 
+  updateSize() {
+    throw new Error(`${this.getType()} updateSize 未实现`)
+  }
+
+  getMap() {
+    if (import.meta.env.DEV) {
+      console.warn(`${this.getType()} getMap 未实现（仅 2D 渲染器支持）`)
+    }
+    return /** @type {any} */ (null)
+  }
+
+  getViewer() {
+    if (import.meta.env.DEV) {
+      console.warn(`${this.getType()} getViewer 未实现（仅 3D 渲染器支持）`)
+    }
+    return /** @type {any} */ (null)
+  }
+
   addPointLayer(_id, _features, _options = {}) {
     throw new Error(`${this.getType()} addPointLayer 未实现`)
   }
@@ -25,8 +43,7 @@ export class MapRenderer {
     throw new Error(`${this.getType()} addGeoJsonLayer 未实现`)
   }
 
-  // TODO:0.1: 新增热力图图层抽象方法
-  // FIX:偏3: 原设计文档使用 addGeoJsonLayer({type:'heatmap'})，但现有接口不支持
+  // 原设计文档使用 addGeoJsonLayer({type:'heatmap'})，但现有接口不支持
   // 正确做法：独立方法，子类按需实现
   addHeatmapLayer(_id, _features, _options = {}) {
     if (import.meta.env.DEV) {
@@ -104,7 +121,7 @@ export class MapRenderer {
   }
 
   exportState() {
-    const state = {}
+    const state = /** @type {Record<string, any>} */ ({})
     for (const [id, layer] of this._layers) {
       state[id] = { visible: layer.visible }
     }

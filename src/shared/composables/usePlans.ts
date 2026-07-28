@@ -4,6 +4,7 @@ import type { Plan } from '@/types/plan'
 import type { TypeSetting } from '@/types/facility'
 import type { SavedXiaoqu } from '@/types/xiaoqu'
 import { useApiRequest } from './useApiRequest'
+import { logger } from '@/shared/utils/logger'
 
 export function usePlans() {
   const { apiRequest, isAuthenticated } = useApiRequest()
@@ -16,14 +17,14 @@ export function usePlans() {
     loading.value = true
     try {
       const data = await apiRequest<Plan[]>('/plans')
-      // FIX:008: 类型验证
+      // 类型验证
       if (!Array.isArray(data)) {
         throw new Error('方案列表数据格式无效')
       }
       return data
     } catch (error) {
       if (import.meta.env.DEV) {
-        console.error('[usePlans] getPlans failed:', error)
+        logger.error('[usePlans] getPlans failed:', error)
       }
       throw error
     } finally {
@@ -33,20 +34,20 @@ export function usePlans() {
 
   async function createPlan(
     name: string,
-    typeSettings: Record<string, TypeSetting>,
+    typeSettings: Record<string, TypeSetting>
   ): Promise<Plan> {
-    // FIX:108: 保存方案前检查登录状态
+    // 保存方案前检查登录状态
     if (!isAuthenticated.value) {
       throw new Error('请先登录')
     }
     saving.value = true
     try {
-      // FIX:P1-03: flood 方案无 typeSettings，兼容为空对象避免 TypeError
+      // flood 方案无 typeSettings，兼容为空对象避免 TypeError
       const settings = typeSettings ?? {}
       const selectedKeys = Object.entries(settings)
         .filter(([, v]) => v.selected)
         .map(([k]) => k)
-      // FIX:P1-02: await 使 finally 等待请求完成后再复位，防重复提交生效
+      // await 使 finally 等待请求完成后再复位，防重复提交生效
       return await apiRequest<Plan>('/plans', {
         method: 'POST',
         body: JSON.stringify({ name, selectedKeys, typeSettings: settings }),
@@ -57,7 +58,7 @@ export function usePlans() {
   }
 
   async function deletePlan(id: string): Promise<void> {
-    // FIX:108: 删除方案前检查登录状态，与createPlan/updatePlan保持一致
+    // 删除方案前检查登录状态，与createPlan/updatePlan保持一致
     if (!isAuthenticated.value) {
       throw new Error('请先登录')
     }
@@ -66,7 +67,7 @@ export function usePlans() {
       await apiRequest(`/plans/${id}`, { method: 'DELETE' })
     } catch (error) {
       if (import.meta.env.DEV) {
-        console.error('[usePlans] deletePlan failed:', error)
+        logger.error('[usePlans] deletePlan failed:', error)
       }
       throw error
     } finally {
@@ -77,20 +78,20 @@ export function usePlans() {
   async function updatePlan(
     id: string,
     name: string,
-    typeSettings: Record<string, TypeSetting>,
+    typeSettings: Record<string, TypeSetting>
   ): Promise<Plan> {
-    // FIX:108: 更新方案前检查登录状态，与createPlan保持一致
+    // 更新方案前检查登录状态，与createPlan保持一致
     if (!isAuthenticated.value) {
       throw new Error('请先登录')
     }
     updating.value = true
     try {
-      // FIX:P1-03: flood 方案无 typeSettings，兼容为空对象避免 TypeError
+      // flood 方案无 typeSettings，兼容为空对象避免 TypeError
       const settings = typeSettings ?? {}
       const selectedKeys = Object.entries(settings)
         .filter(([, v]) => v.selected)
         .map(([k]) => k)
-      // FIX:P1-02: await 使 finally 等待请求完成后再复位，防重复提交生效
+      // await 使 finally 等待请求完成后再复位，防重复提交生效
       return await apiRequest<Plan>(`/plans/${id}`, {
         method: 'PUT',
         body: JSON.stringify({ name, selectedKeys, typeSettings: settings }),
@@ -101,7 +102,7 @@ export function usePlans() {
   }
 
   async function saveXiaoqu(planId: string, xiaoqu: SavedXiaoqu): Promise<Plan> {
-    // FIX:108: 保存小区前检查登录状态
+    // 保存小区前检查登录状态
     if (!isAuthenticated.value) {
       throw new Error('请先登录')
     }

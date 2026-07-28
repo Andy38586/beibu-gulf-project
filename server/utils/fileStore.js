@@ -1,4 +1,4 @@
-// FIX:R-01: 文件存储工厂，统一缓存/写锁基础设施（markers/plans/users 共用）
+// @arch-note R-01: 文件存储工厂，统一缓存/写锁基础设施（markers/plans/users 共用）
 import fs from 'fs/promises'
 
 export function createFileStore(filePath, { useCache = true } = {}) {
@@ -7,7 +7,10 @@ export function createFileStore(filePath, { useCache = true } = {}) {
 
   function sequential(fn) {
     const next = writeLock.then(fn, fn)
-    writeLock = next.then(() => {}, () => {})
+    writeLock = next.then(
+      () => {},
+      () => {}
+    )
     return next
   }
 
@@ -28,8 +31,23 @@ export function createFileStore(filePath, { useCache = true } = {}) {
   }
 
   async function writeAll(data) {
-    await fs.writeFile(filePath, JSON.stringify(data, null, 2), 'utf-8')
-    if (useCache) cache = data
+    // 原子写入：先写临时文件，再 rename
+    const tmpPath = `${filePath}.tmp`
+    const content = JSON.stringify(data, null, 2)
+
+    try {
+      await fs.writeFile(tmpPath, content, 'utf-8')
+      await fs.rename(tmpPath, filePath)
+      if (useCache) cache = data
+    } catch (error) {
+      // 清理临时文件
+      try {
+        await fs.unlink(tmpPath)
+      } catch {
+        // 忽略清理错误
+      }
+      throw error
+    }
   }
 
   return { sequential, readAll, writeAll }

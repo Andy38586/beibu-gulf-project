@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 /**
  * AffectedFacilityListPanel - 受影响设施清单面板（浸没分析专用）
  *
@@ -14,13 +14,15 @@
 import { computed } from 'vue'
 import { usePortImpactStore } from '@/stores/portImpactStore'
 import PaginatedListPanel from '@/shared/components/PaginatedListPanel.vue'
+import type { ScoredXiaoqu } from '@/types/xiaoqu'
 
 const portImpactStore = usePortImpactStore()
 
 /**
  * 获取设施类型对应的中文标签
  */
-function getFacilityTypeLabel(type) {
+function getFacilityTypeLabel(type: string | undefined) {
+  if (!type) return ''
   const typeMap = {
     泊位: '泊位',
     码头: '码头',
@@ -33,8 +35,8 @@ function getFacilityTypeLabel(type) {
 /**
  * 格式化损失金额
  */
-function formatLoss(loss) {
-  // FIX:P3-15: 非法输入防御
+function formatLoss(loss: number | undefined) {
+  // 非法输入防御
   const v = Number(loss)
   if (!isFinite(v)) return '—'
   if (v >= 10000) {
@@ -46,9 +48,9 @@ function formatLoss(loss) {
 /**
  * 按损失金额排序的设施列表（降序）
  */
-const sortedFacilities = computed(() => {
+const sortedFacilities = computed<ScoredXiaoqu[]>(() => {
   const facilities = portImpactStore.affectedFacilities || []
-  return [...facilities].sort((a, b) => b.loss - a.loss)
+  return [...facilities].sort((a, b) => b.loss - a.loss) as unknown as ScoredXiaoqu[]
 })
 </script>
 
@@ -82,7 +84,7 @@ const sortedFacilities = computed(() => {
 }
 
 .facility-name {
-  color: #303133;
+  color: var(--gcs-text-primary);
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
@@ -92,13 +94,13 @@ const sortedFacilities = computed(() => {
 }
 
 .facility-type {
-  color: #909399;
+  color: var(--gcs-text-muted);
   font-size: 12px;
   flex-shrink: 0;
 }
 
 .facility-loss {
-  color: #f56c6c;
+  color: var(--gcs-color-danger);
   font-weight: 600;
   flex-shrink: 0;
   min-width: 70px;

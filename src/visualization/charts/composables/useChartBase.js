@@ -7,7 +7,7 @@ export function useChartBase(props, emit, chartType, seriesConfig) {
   }
 
   /**
-   * P0-01-FIX: option 必须在每次调用时现取 props 构建。
+   * option 必须在每次调用时现取 props 构建。
    * 修复前 baseOption 为 setup 时的一次性快照，导致 props 更新后图表永不刷新。
    * 注意：watch 为浅监听，父组件更新数据时必须替换数组/对象引用（不可变更新），
    * 不要原地 push/splice，否则不会触发更新。
@@ -46,7 +46,9 @@ export function useChartBase(props, emit, chartType, seriesConfig) {
         type: 'value',
         splitLine: { lineStyle: { color: '#eee' } },
         axisLabel: { color: '#666', fontSize: 10 },
-        ...(props.yUnit ? { name: props.yUnit, nameTextStyle: { fontSize: 10, color: '#999' } } : {}),
+        ...(props.yUnit
+          ? { name: props.yUnit, nameTextStyle: { fontSize: 10, color: '#999' } }
+          : {}),
       },
       animationDuration: 300,
       animationEasing: 'linear',
@@ -61,7 +63,13 @@ export function useChartBase(props, emit, chartType, seriesConfig) {
 
   return useECharts({
     getOption: buildOption,
-    watchSources: [() => props.title, () => props.xData, () => props.series, () => props.xMin, () => props.xMax],
+    watchSources: [
+      () => props.title,
+      () => props.xData,
+      () => props.series,
+      () => props.xMin,
+      () => props.xMax,
+    ],
     onClick: handleClick,
   })
 }

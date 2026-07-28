@@ -12,8 +12,8 @@
  * 2. 点击其他地方关闭浮窗
  * 3. 点击雷达图轴名称 → 显示该设施POI图层（互斥）
  *
- * FIX:002(架构): 使用 useECharts composable 复用通用图表逻辑
- * FIX:006(架构): 使用 useRadarChart composable 拆分逻辑，减少文件行数
+ * 使用 useECharts composable 复用通用图表逻辑
+ * 使用 useRadarChart composable 拆分逻辑，减少文件行数
  */
 
 import { ref, watch, nextTick, computed, onBeforeUnmount } from 'vue'
@@ -43,7 +43,7 @@ interface Emits {
       poiList: FacilityPoint[]
       color: string
       label: string
-    },
+    }
   ): void
   (_e: 'hide-facility-layer'): void
 }
@@ -67,7 +67,6 @@ const displayTitle = computed(() => {
 const emit = defineEmits<Emits>()
 
 const chartRef = ref<HTMLElement | null>(null)
-const panelRef = ref<HTMLElement | null>(null)
 
 const { cellPixel } = useGCS()
 const unitPx = computed(() => cellPixel.value * 0.1)
@@ -86,14 +85,14 @@ const {
   emit,
 })
 
-// P1-005-FIX: 标记监听器是否已添加，防止泄漏
+// 标记监听器是否已添加，防止泄漏
 let globalClickListenerAdded = false
 
 watch(
   () => tooltipVisible.value,
   (val) => {
     if (val) {
-      // P1-005-FIX: 立即添加监听器，不使用 setTimeout 延迟
+      // 立即添加监听器，不使用 setTimeout 延迟
       if (!globalClickListenerAdded) {
         window.addEventListener('click', handleGlobalClick)
         globalClickListenerAdded = true
@@ -102,7 +101,7 @@ watch(
       window.removeEventListener('click', handleGlobalClick)
       globalClickListenerAdded = false
     }
-  },
+  }
 )
 
 watch(
@@ -111,7 +110,7 @@ watch(
     if (val) {
       nextTick(() => renderRadar())
     }
-  },
+  }
 )
 
 watch(
@@ -123,10 +122,10 @@ watch(
   },
   {
     flush: 'post',
-  },
+  }
 )
 
-// P1-005-FIX: 组件卸载时清理全局监听器
+// 组件卸载时清理全局监听器
 onBeforeUnmount(() => {
   window.removeEventListener('click', handleGlobalClick)
   globalClickListenerAdded = false
@@ -134,7 +133,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div ref="panelRef" class="radar-panel">
+  <div class="radar-panel">
     <!-- 顶部：评分详情图标题（与浸没分析标题样式一致：16px/600加粗） -->
     <div class="radar-title">{{ displayTitle }}</div>
 
@@ -174,7 +173,7 @@ onBeforeUnmount(() => {
 .radar-title {
   font-size: 16px;
   font-weight: 600;
-  color: #303133;
+  color: var(--gcs-text-primary);
   text-align: center;
   white-space: nowrap;
   overflow: hidden;
@@ -198,14 +197,14 @@ onBeforeUnmount(() => {
 }
 
 .empty-state {
-  color: #999;
+  color: var(--gcs-text-muted);
   font-size: 13px;
   text-align: center;
 }
 
 /* 综合评分：距雷达图 0.2 cell，距 panel 底部 0.2 cell */
 .score-text {
-  color: #409eff;
+  color: var(--gcs-color-primary);
   font-weight: 500;
   margin: 0;
   font-size: 14px;
@@ -220,6 +219,6 @@ onBeforeUnmount(() => {
 }
 
 .score-text.clickable:hover {
-  color: #66b1ff;
+  color: var(--gcs-color-primary-hover);
 }
 </style>

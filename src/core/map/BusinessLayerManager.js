@@ -100,7 +100,9 @@ export class BusinessLayerManager {
   updateData(key, { data, options }) {
     const meta = this._registry.get(key)
     if (!meta) {
-      throw new Error(`[BusinessLayerManager] 图层 "${key}" 未注册，请先调用 register('${key}', ...)`)
+      throw new Error(
+        `[BusinessLayerManager] 图层 "${key}" 未注册，请先调用 register('${key}', ...)`
+      )
     }
 
     const adapter = this._getAdapter(meta.layerType)
@@ -191,5 +193,14 @@ export class BusinessLayerManager {
    */
   getMeta(key) {
     return this._registry.get(key) || null
+  }
+
+  /**
+   * 销毁管理器，清理所有业务图层
+   */
+  destroy() {
+    this.removeAll()
+    this._registry.clear()
+    this._mapStore = null
   }
 }

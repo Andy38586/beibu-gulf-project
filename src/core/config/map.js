@@ -1,4 +1,4 @@
-// FIX:P3-07: 天地图 KEY 仅从环境变量读取，缺失时显式报错
+// 天地图 KEY 仅从环境变量读取，缺失时显式报错
 const TIANDITU_KEY = import.meta.env.VITE_TIANDITU_KEY
 if (!TIANDITU_KEY) {
   console.error('[map/config] 缺少 VITE_TIANDITU_KEY 环境变量，天地图底图将无法加载')
@@ -52,7 +52,7 @@ export const MAP_CONFIG = {
 export function buildTiandituUrl(layerCode) {
   return MAP_CONFIG.TIANDITU_URL.replace('{layerCode}', layerCode).replace(
     '{key}',
-    MAP_CONFIG.TIANDITU_KEY,
+    MAP_CONFIG.TIANDITU_KEY
   )
 }
 

@@ -254,15 +254,14 @@ export class CesiumRenderer extends MapRenderer {
    */
   _setupCameraDebounce() {
     const DEBOUNCE_DELAY = 300
-    // FIX:P1-12: 保存监听器引用，供 destroy 移除，防止泄漏与 TypeError
+    // 保存监听器引用，供 destroy 移除，防止泄漏与 TypeError
     this._cameraChangedHandler = () => {
       // 清除之前的防抖定时器
       if (this._cameraDebounceTimer) {
         clearTimeout(this._cameraDebounceTimer)
       }
-      // 设置新的防抖定时器
       this._cameraDebounceTimer = setTimeout(() => {
-        // FIX:P1-12: viewer 可能已置空，防御
+        // viewer 可能已置空，防御
         if (this.viewer) {
           this.viewer.scene.requestRender()
         }
@@ -302,25 +301,25 @@ export class CesiumRenderer extends MapRenderer {
       new UrlTemplateImageryProvider({
         url: buildTiandituUrl(MAP_CONFIG.BASE_LAYERS.image.layers[0]),
         maximumLevel: 18,
-      }),
+      })
     )
     const imageAnnotationLayer = this.viewer.imageryLayers.addImageryProvider(
       new UrlTemplateImageryProvider({
         url: buildTiandituUrl(MAP_CONFIG.BASE_LAYERS.image.layers[1]),
         maximumLevel: 18,
-      }),
+      })
     )
     const vectorBaseProvider = this.viewer.imageryLayers.addImageryProvider(
       new UrlTemplateImageryProvider({
         url: buildTiandituUrl(MAP_CONFIG.BASE_LAYERS.vector.layers[0]),
         maximumLevel: 18,
-      }),
+      })
     )
     const vectorAnnotationProvider = this.viewer.imageryLayers.addImageryProvider(
       new UrlTemplateImageryProvider({
         url: buildTiandituUrl(MAP_CONFIG.BASE_LAYERS.vector.layers[1]),
         maximumLevel: 18,
-      }),
+      })
     )
     vectorBaseProvider.show = false
     vectorAnnotationProvider.show = false
@@ -338,7 +337,8 @@ export class CesiumRenderer extends MapRenderer {
   }
 
   _setupClickHandler() {
-    this.viewer.screenSpaceEventHandler.setInputAction((click) => {
+    this._screenSpaceEventHandler = this.viewer.screenSpaceEventHandler
+    this._screenSpaceEventHandler.setInputAction((click) => {
       const pickedObject = this.viewer.scene.pick(click.position)
       const cartesian = this.viewer.camera.pickEllipsoid(click.position)
       const coordinate = cartesian ? this._cartesianToLonLatArray(cartesian) : null
@@ -381,9 +381,11 @@ export class CesiumRenderer extends MapRenderer {
     const entities = []
 
     features.forEach((item) => {
+      // 防御性编程：优先使用 lng，兼容可能的 lon 字段
+      const lng = item.lng ?? item.lon ?? 0
       const entity = this.viewer.entities.add({
         id: `${id}-${item.id || item.name}`,
-        position: Cartesian3.fromDegrees(item.lon, item.lat),
+        position: Cartesian3.fromDegrees(lng, item.lat),
         point: {
           pixelSize: options.size || 12,
           color: Color.fromCssColorString(options.color || '#409eff'),
@@ -481,13 +483,13 @@ export class CesiumRenderer extends MapRenderer {
         if (entity.polygon) {
           entity.polygon.height = 0.5
           entity.polygon.material = Color.fromCssColorString(
-            options.fillColor || 'rgba(77,171,247,0.15)',
+            options.fillColor || 'rgba(77,171,247,0.15)'
           )
           entity.polygon.outline = true
           entity.polygon.outlineColor = Color.fromCssColorString(options.strokeColor || '#4dabf7')
           entity.polygon.outlineWidth = options.strokeWidth || 2
         } else if (entity.position) {
-          // FIX:P1-11: 点要素用 PointGraphics 替代默认图钉，支持 markerColor/markerSize
+          // 点要素用 PointGraphics 替代默认图钉，支持 markerColor/markerSize
           const markerColor = Color.fromCssColorString(options.markerColor || '#409eff')
           entity.billboard = undefined
           entity.point = new PointGraphics({
@@ -557,13 +559,13 @@ export class CesiumRenderer extends MapRenderer {
       }
     }
     const height = options?.height ?? 5000
-    // FIX:P3-01: 兼容数据源 lon 字段（ports.json）和接口 lng 字段
-    const lng = target.lng ?? target.lon
+    // 防御性编程：优先使用 lng，兼容可能的 lon 字段
+    const lng = target.lng ?? target.lon ?? 0
     const lat = target.lat
     const destination = Cartesian3.fromDegrees(lng, lat, height)
     this.viewer.camera.flyTo({
       destination,
-      // FIX:P1-10: Cesium duration 单位为秒（原 1000 秒 ≈ 16.6 分钟）
+      // Cesium duration 单位为秒（原 1000 秒 ≈ 16.6 分钟）
       duration: 1,
       orientation: {
         heading: CesiumMath.toRadians(options.heading || 0),
@@ -589,7 +591,7 @@ export class CesiumRenderer extends MapRenderer {
     // 失败时回退到 positionCartographic
     const screenCenter = new Cartesian2(
       this.viewer.container.clientWidth / 2,
-      this.viewer.container.clientHeight / 2,
+      this.viewer.container.clientHeight / 2
     )
     const cartesian = camera.pickEllipsoid(screenCenter)
     let center
@@ -723,24 +725,21 @@ export class CesiumRenderer extends MapRenderer {
       vertexFormat: PerInstanceColorAppearance.VERTEX_FORMAT,
     })
 
-    // 创建几何实例（包含颜色信息）
     const instance = new GeometryInstance({
       geometry: geometry,
       attributes: {
         color: ColorGeometryInstanceAttribute.fromColor(
-          Color.fromCssColorString(options.color || 'rgba(64, 158, 255, 0.5)'),
+          Color.fromCssColorString(options.color || 'rgba(64, 158, 255, 0.5)')
         ),
       },
       id: `water-${id}`,
     })
 
-    // 创建外观（支持透明度）
     const appearance = new PerInstanceColorAppearance({
       translucent: true,
       closed: false,
     })
 
-    // 创建Primitive并添加到场景
     const primitive = new Primitive({
       geometryInstances: instance,
       appearance: appearance,
@@ -838,11 +837,24 @@ export class CesiumRenderer extends MapRenderer {
    * 仅从DOM卸载，保留Viewer实例供下次复用
    */
   destroy() {
-    // FIX:P1-12: 移除相机监听器
+    // 移除相机监听器
     if (this.viewer && this._cameraChangedHandler) {
       this.viewer.camera.changed.removeEventListener(this._cameraChangedHandler)
       this._cameraChangedHandler = null
     }
+
+    // 清理屏幕事件处理器，防止内存泄漏
+    if (this._screenSpaceEventHandler) {
+      this._screenSpaceEventHandler.removeInputAction(ScreenSpaceEventType.LEFT_CLICK)
+      this._screenSpaceEventHandler = null
+    }
+
+    // 清理水面图层 Map，防止内存泄漏
+    if (this._waterSurfaces) {
+      this.removeAllWaterSurfaces()
+      this._waterSurfaces = null
+    }
+
     super.destroy()
     this.stopBreathing()
     // 清理相机防抖定时器，防止内存泄漏

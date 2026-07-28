@@ -3,12 +3,12 @@ import type { Ref } from 'vue'
 import type { User, AuthResponse } from '@/types/api'
 import { useApiRequest } from './useApiRequest'
 
-// FIX:P2-06: 登出时重置全部业务 store，防止跨账号数据残留
+// 登出时重置全部业务 store，防止跨账号数据残留
 import { useSiteSelectionStateStore } from '@/stores/siteSelectionState'
-import { useFloodStateStore } from '@/stores/floodState'
-import { useFloodStore } from '@/stores/floodStore'
+import { useFloodState } from '@/stores/floodState'
 import { usePortImpactStore } from '@/stores/portImpactStore'
 import { useWaterLevelStore } from '@/stores/waterLevelStore'
+import { useProfileStore } from '@/stores/profileStore'
 
 /** localStorage 键：持久化用户信息 */
 const USER_STORAGE_KEY = 'beibu-gulf-user'
@@ -42,23 +42,23 @@ function writeStoredUser(user: User | null): void {
   }
 }
 
-// FIX:004 (架构): 模块级别单例状态，确保所有组件共享同一状态
+// 模块级别单例状态，确保所有组件共享同一状态
 const user: Ref<User | null> = ref(readStoredUser())
 const { apiRequest, token, isAuthenticated, setToken, clearToken } = useApiRequest()
 
-// FIX:313-003: 多标签页状态同步 - 引用计数和全局处理函数
+// 多标签页状态同步 - 引用计数和全局处理函数
 let storageListenerCount = 0
 
-// P1-002-FIX: 认证恢复标志，防止重复调用
+// 认证恢复标志，防止重复调用
 let authRestored = false
 
-// FIX:004: 将 checkAuth 提升到模块级别，供 handleStorageChange 调用
+// 将 checkAuth 提升到模块级别，供 handleStorageChange 调用
 async function checkAuth(): Promise<User | null> {
-  // FIX:022: 使用显式布尔转换
+  // 使用显式布尔转换
   if (token.value === '') return null
   try {
     const data = await apiRequest<{ user: User }>('/auth/me')
-    // FIX:007: 空值检查
+    // 空值检查
     if (!data || !data.user) {
       throw new Error('认证响应数据无效')
     }
@@ -73,7 +73,7 @@ async function checkAuth(): Promise<User | null> {
 }
 
 /**
- * P1-002-FIX: 应用启动时恢复认证状态
+ * 应用启动时恢复认证状态
  * 通过调用 /api/auth/me 验证 Cookie 中的 Token 是否有效
  */
 async function restoreAuth(): Promise<User | null> {
@@ -106,7 +106,7 @@ async function restoreAuth(): Promise<User | null> {
 }
 
 /**
- * P2-001-FIX: 多标签页同步 - 监听 beibu-gulf-user 变化
+ * 多标签页同步 - 监听 beibu-gulf-user 变化
  */
 function handleStorageChange(event: StorageEvent): void {
   if (event.key === USER_STORAGE_KEY) {
@@ -114,7 +114,7 @@ function handleStorageChange(event: StorageEvent): void {
       // 其他标签页登出了，当前标签页也要登出
       user.value = null
       clearToken()
-      resetBusinessStores() // FIX:P2-06
+      resetBusinessStores()
     } else {
       // 其他标签页登录了，当前标签页也要同步
       try {
@@ -126,14 +126,14 @@ function handleStorageChange(event: StorageEvent): void {
   }
 }
 
-// FIX:P2-06: 登出时重置全部业务 store，防止跨账号数据残留
+// 登出时重置全部业务 store，防止跨账号数据残留
 function resetBusinessStores(): void {
   try {
     useSiteSelectionStateStore().clearState()
-    useFloodStateStore().clearState()
-    useFloodStore().resetFloodAnalysis()
+    useFloodState().clearState()
     usePortImpactStore().resetPortImpact()
     useWaterLevelStore().resetWaterLevel()
+    useProfileStore().resetProfile()
   } catch {
     // store 未激活等异常不阻断登出
   }
@@ -145,7 +145,7 @@ export function useAuth() {
       method: 'POST',
       body: JSON.stringify({ username, password }),
     })
-    // FIX:005: 空值检查
+    // 空值检查
     if (!data || !data.token || !data.user) {
       throw new Error('登录响应数据无效')
     }
@@ -160,7 +160,7 @@ export function useAuth() {
       method: 'POST',
       body: JSON.stringify({ username, password }),
     })
-    // FIX:006: 空值检查
+    // 空值检查
     if (!data || !data.token || !data.user) {
       throw new Error('注册响应数据无效')
     }
@@ -171,7 +171,7 @@ export function useAuth() {
   }
 
   /**
-   * P2-002-FIX: 登出时调用后端API清除Cookie
+   * 登出时调用后端API清除Cookie
    */
   async function logout(): Promise<void> {
     try {
@@ -189,11 +189,11 @@ export function useAuth() {
       writeStoredUser(null)
       // 重置认证恢复标志，允许下次重新恢复
       authRestored = false
-      resetBusinessStores() // FIX:P2-06
+      resetBusinessStores()
     }
   }
 
-  // FIX:313-003: 在组件挂载时添加 storage 事件监听（引用计数）
+  // 在组件挂载时添加 storage 事件监听（引用计数）
   onMounted(() => {
     if (typeof window !== 'undefined' && storageListenerCount === 0) {
       window.addEventListener('storage', handleStorageChange)
@@ -201,7 +201,7 @@ export function useAuth() {
     storageListenerCount++
   })
 
-  // FIX:313-003: 在组件卸载时移除 storage 事件监听（引用计数）
+  // 在组件卸载时移除 storage 事件监听（引用计数）
   onUnmounted(() => {
     storageListenerCount--
     if (typeof window !== 'undefined' && storageListenerCount === 0) {

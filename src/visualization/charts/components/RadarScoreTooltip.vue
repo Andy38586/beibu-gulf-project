@@ -1,9 +1,9 @@
-<script setup>
+<script setup lang="ts">
 /**
  * RadarScoreTooltip - 雷达图得分弹窗组件
- * 
+ *
  * 职责：显示雷达图的具体得分（1列6行网格布局）
- * 解决 FIX:006(架构)：拆分RadarChart组件
+ * 拆分RadarChart组件
  */
 
 import { computed } from 'vue'
@@ -11,11 +11,18 @@ import { FACILITY_LABELS } from '@/shared/utils/facilityLabels'
 import { FACILITY_CONFIG } from '@/business/site-selection/composables/useFacilities'
 import { useGCS } from '@/core/layout/useGCS.js'
 
-defineProps({
-  visible: { type: Boolean, default: false },
-  xiaoqu: { type: Object, default: null },
-  selectedTypes: { type: Array, default: () => [] },
-  position: { type: Object, default: () => ({ left: 0, top: 0 }) },
+interface Props {
+  visible?: boolean
+  xiaoqu?: { breakdown?: Record<string, number> } | null
+  selectedTypes?: string[]
+  position?: { left: number; top: number }
+}
+
+withDefaults(defineProps<Props>(), {
+  visible: false,
+  xiaoqu: null,
+  selectedTypes: () => [],
+  position: () => ({ left: 0, top: 0 }),
 })
 
 const { cellPixel } = useGCS()
@@ -63,7 +70,7 @@ function getFacilityColor(key) {
   position: fixed;
   z-index: 1000;
   background: rgba(255, 255, 255, 0.98);
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--gcs-border-default);
   border-radius: 8px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
   box-sizing: border-box;
@@ -84,7 +91,7 @@ function getFacilityColor(key) {
   justify-content: space-between;
   padding: 0 calc(1 * v-bind(unitPx));
   font-size: 15px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--gcs-border-light);
 }
 
 .tooltip-item:last-child {

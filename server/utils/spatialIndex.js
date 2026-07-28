@@ -1,4 +1,5 @@
 import RBush from 'rbush'
+import { booleanPointInPolygon, point } from '@turf/turf'
 
 export function createSpatialIndex(xiaoquData) {
   const tree = new RBush()
@@ -14,21 +15,40 @@ export function createSpatialIndex(xiaoquData) {
 }
 
 export function queryByPolygon(tree, polygon) {
-  const bbox = getPolygonBBox(polygon)
-  return tree.search(bbox).map((item) => item.data)
+  // 规范化 polygon：确保 geometry.type 存在（@turf 7.x 要求完整 GeoJSON geometry）
+  const normalizedPolygon = {
+    type: 'Feature',
+    geometry: {
+      type: polygon.geometry?.type || 'Polygon',
+      coordinates: polygon.geometry?.coordinates || [],
+    },
+  }
+
+  // 第一步：BBox 粗筛（快速过滤）
+  const bbox = getPolygonBBox(normalizedPolygon)
+  const candidates = tree.search(bbox)
+
+  // 第二步：精确点在多边形内判定（使用 turf）
+  return candidates
+    .filter((item) => {
+      const pt = point([item.data.lng, item.data.lat])
+      return booleanPointInPolygon(pt, normalizedPolygon)
+    })
+    .map((item) => item.data)
 }
 
 function getPolygonBBox(polygon) {
   const { type, coordinates } = polygon.geometry
   const polygons = type === 'MultiPolygon' ? coordinates : [coordinates]
-  let minX = Infinity, maxX = -Infinity
-  let minY = Infinity, maxY = -Infinity
-  
+  let minX = Infinity,
+    maxX = -Infinity
+  let minY = Infinity,
+    maxY = -Infinity
+
   for (const poly of polygons) {
-    // FIX:GIS-006: 验证 poly[0] 存在性
     if (!poly || !poly[0] || poly[0].length === 0) continue
-    
-    // FIX:GIS-005: 遍历所有环（外环 + 内环）
+
+    // 遍历所有环（外环 + 内环）
     for (const ring of poly) {
       if (!Array.isArray(ring)) continue
       for (const [x, y] of ring) {
@@ -40,11 +60,11 @@ function getPolygonBBox(polygon) {
       }
     }
   }
-  
-  // FIX:GIS-005: 如果没有有效坐标，返回默认 BBox
+
+  // 如果没有有效坐标，返回默认 BBox
   if (minX === Infinity) {
     return { minX: 0, minY: 0, maxX: 0, maxY: 0 }
   }
-  
+
   return { minX, minY, maxX, maxY }
 }

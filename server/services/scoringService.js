@@ -12,7 +12,7 @@ export const DEFAULT_WEIGHTS = {
 function distanceScore(xq, points, maxDistanceKm, decayFn) {
   if (!points || points.length === 0) return 0
   const xqPoint = turf.point([xq.lng, xq.lat])
-  // FIX:P3-08: 循环求最小值，避免大数组 spread 栈溢出
+  // @arch-note P3-08: 循环求最小值，避免大数组 spread 栈溢出
   let nearest = Infinity
   for (const p of points) {
     const d = turf.distance(xqPoint, turf.point([p.lng, p.lat]), { units: 'kilometers' })
@@ -25,7 +25,7 @@ export function scoreXiaoqu(
   facilityData,
   typeSettings,
   weights = DEFAULT_WEIGHTS,
-  decayFn = linearDecay,
+  decayFn = linearDecay
 ) {
   return xiaoquList.map((xq) => {
     let totalScore = 0

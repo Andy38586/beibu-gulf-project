@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 /**
  * LoginPanel - 登录/注册面板（4×8 Cell）
  *
@@ -50,32 +50,32 @@ function switchMode(m) {
 async function handleSubmit() {
   errorMsg.value = ''
   const trimmedUsername = username.value.trim()
-  
-  // FIX:019: 使用显式布尔转换
+
+  // 使用显式布尔转换
   if (username.value.trim() === '' || password.value === '') {
     errorMsg.value = '请填写用户名和密码'
     return
   }
-  
-  // FIX:101: 用户名长度校验（2-20 字符）
+
+  // 用户名长度校验（2-20 字符）
   if (trimmedUsername.length < 2 || trimmedUsername.length > 20) {
     errorMsg.value = '用户名长度应在 2-20 个字符之间'
     return
   }
-  
-  // FIX:102: 用户名特殊字符校验（仅允许字母、数字、中文、下划线）
+
+  // 用户名特殊字符校验（仅允许字母、数字、中文、下划线）
   const usernameRegex = /^[\u4e00-\u9fa5a-zA-Z0-9_]+$/
   if (!usernameRegex.test(trimmedUsername)) {
     errorMsg.value = '用户名只能包含字母、数字、中文和下划线'
     return
   }
-  
+
   if (mode.value === 'register') {
     if (password.value.length < 6) {
       errorMsg.value = '密码长度不能少于 6 位'
       return
     }
-    // FIX:SEC-003: 密码强度增强 - 至少包含大小写字母和数字
+    // 密码强度增强 - 至少包含大小写字母和数字
     const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{6,}$/
     if (!passwordRegex.test(password.value)) {
       errorMsg.value = '密码必须包含大小写字母和数字'
@@ -88,7 +88,7 @@ async function handleSubmit() {
   }
   loading.value = true
   try {
-    // FIX:P1-14: 密码不再 HTML 转义，原样传输（后端 bcrypt 处理，转义无安全收益）
+    // 密码不再 HTML 转义，原样传输（后端 bcrypt 处理，转义无安全收益）
     if (mode.value === 'login') {
       await login(trimmedUsername, password.value)
     } else {
@@ -99,8 +99,8 @@ async function handleSubmit() {
     password.value = ''
     confirmPassword.value = ''
   } catch (err) {
-    // FIX:SEC-002 修复：错误信息白名单过滤，防止反射型 XSS
-    const rawMsg = err.message || '操作失败'
+    // 错误信息白名单过滤，防止反射型 XSS
+    const rawMsg = (err as Error).message || '操作失败'
     errorMsg.value = rawMsg.replace(/[<>"'%;()&+]/g, '')
   } finally {
     loading.value = false
@@ -179,7 +179,7 @@ async function handleLogout() {
         <div class="user-name">{{ user.username }}</div>
         <div class="user-status">已登录</div>
       </div>
-      <!-- FIX:P1-13: 复用已有 handleLogout 与 .logout-btn 样式，补登出途径 -->
+      <!-- 复用已有 handleLogout 与 .logout-btn 样式，补登出途径 -->
       <button class="logout-btn" @click="handleLogout">退出登录</button>
     </template>
   </div>
@@ -206,24 +206,24 @@ async function handleLogout() {
 .mode-btn {
   width: v-bind(modeBtnWidthCss);
   height: v-bind(modeBtnHeightCss);
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  background: #fff;
+  border: 1px solid var(--gcs-border-default);
+  border-radius: var(--gcs-radius-md);
+  background: var(--gcs-bg-panel);
   font-size: v-bind(btnFontSizeCss);
-  color: #333;
+  color: var(--gcs-text-regular);
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .mode-btn:hover {
-  border-color: #409eff;
-  background: #f0f7ff;
+  border-color: var(--gcs-color-primary);
+  background: var(--gcs-bg-hover);
 }
 
 .mode-btn.active {
-  background: #409eff;
-  color: #fff;
-  border-color: #409eff;
+  background: var(--gcs-color-primary);
+  color: var(--gcs-text-inverse);
+  border-color: var(--gcs-color-primary);
 }
 
 /* 表单区域 */
@@ -240,26 +240,26 @@ async function handleLogout() {
   width: v-bind(formWidthCss);
   height: v-bind(formHeightCss);
   padding: 0 12px; /* 12px 非8的整数倍，保留 */
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
+  border: 1px solid var(--gcs-border-default);
+  border-radius: var(--gcs-radius-md);
   font-size: v-bind(inputFontSizeCss);
-  color: #333;
+  color: var(--gcs-text-regular);
   box-sizing: border-box;
   outline: none;
   transition: border-color 0.2s ease;
 }
 
 .form-input:focus {
-  border-color: #409eff;
+  border-color: var(--gcs-color-primary);
 }
 
 .form-input::placeholder {
-  color: #999;
+  color: var(--gcs-text-muted);
 }
 
 .error-text {
   font-size: v-bind(errorFontSizeCss);
-  color: #ff4d4f;
+  color: var(--gcs-color-error);
   text-align: center;
   margin: 4px 0;
 }
@@ -268,9 +268,9 @@ async function handleLogout() {
   width: v-bind(formWidthCss);
   height: v-bind(formHeightCss);
   border: none;
-  border-radius: 8px;
-  background: #409eff;
-  color: #fff;
+  border-radius: var(--gcs-radius-md);
+  background: var(--gcs-color-primary);
+  color: var(--gcs-text-inverse);
   font-size: v-bind(btnFontSizeCss);
   font-weight: 500;
   cursor: pointer;
@@ -278,7 +278,7 @@ async function handleLogout() {
 }
 
 .submit-btn:hover:not(:disabled) {
-  background: #66b1ff;
+  background: var(--gcs-color-primary-hover);
 }
 
 .submit-btn:disabled {
@@ -304,22 +304,22 @@ async function handleLogout() {
 .user-name {
   font-size: v-bind(titleFontSizeCss);
   font-weight: 600;
-  color: #333;
+  color: var(--gcs-text-primary);
 }
 
 .user-status {
   font-size: v-bind(errorFontSizeCss);
-  color: #52c41a;
+  color: var(--gcs-color-success);
 }
 
 /* 退出登录按钮（3.8×0.8 Cell） */
 .logout-btn {
   width: v-bind(formWidthCss);
   height: v-bind(formHeightCss);
-  border: 1px solid #ff4d4f;
-  border-radius: 8px;
-  background: #fff;
-  color: #ff4d4f;
+  border: 1px solid var(--gcs-color-error);
+  border-radius: var(--gcs-radius-md);
+  background: var(--gcs-bg-panel);
+  color: var(--gcs-color-error);
   font-size: v-bind(btnFontSizeCss);
   font-weight: 500;
   cursor: pointer;
@@ -329,7 +329,7 @@ async function handleLogout() {
 }
 
 .logout-btn:hover {
-  background: #ff4d4f;
-  color: #fff;
+  background: var(--gcs-color-error);
+  color: var(--gcs-text-inverse);
 }
 </style>

@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 /**
  * PortInfoPanel - 港口信息展示面板
  *
@@ -9,9 +9,11 @@
 import { computed } from 'vue'
 import { useGCS } from '@/core/layout/useGCS.js'
 
-defineProps({
-  selectedPort: Object,
-})
+interface Props {
+  selectedPort?: Record<string, unknown>
+}
+
+defineProps<Props>()
 
 const { cellPixel } = useGCS()
 const unitPx = computed(() => cellPixel.value * 0.1)
@@ -34,7 +36,7 @@ const unitPx = computed(() => cellPixel.value * 0.1)
     </div>
     <div class="info-item">
       <span>🌐 经纬度：</span>
-      <span>{{ selectedPort.lon }}, {{ selectedPort.lat }}</span>
+      <span>{{ selectedPort.lng }}, {{ selectedPort.lat }}</span>
     </div>
   </div>
 </template>
@@ -59,11 +61,11 @@ const unitPx = computed(() => cellPixel.value * 0.1)
 .port-info-panel h2 {
   margin: 0;
   font-size: calc(2.25 * v-bind(unitPx));
-  color: #333;
+  color: var(--gcs-text-regular);
 }
 .info-item {
   font-size: calc(1.75 * v-bind(unitPx));
-  color: #444;
+  color: var(--gcs-text-regular);
   line-height: 1.4;
 }
 </style>

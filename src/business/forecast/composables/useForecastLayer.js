@@ -5,11 +5,11 @@
  * 切换指标时自动显隐，LayerControlPanel 列出全部 4 个条目
  */
 import { computed, watch, nextTick } from 'vue'
-import { showError } from '@/shared/utils/errorHandler'
+import { showError, handleAuthError, isAuthError } from '@/shared/utils/errorHandler'
 import { useForecastState } from '@/stores/forecastState'
 import { useBusinessLayers } from '@/core/map/composables/useBusinessLayers'
 import { useForecastRequest } from './useForecastRequest'
-import { useMapStore } from '@/stores/map'
+import { useMapStore } from '@/stores/mapStore'
 
 const INDICATORS = ['throughput', 'berth', 'traffic', 'pressure']
 const INDICATOR_LABELS = {
@@ -43,10 +43,10 @@ export function useForecastLayer() {
     [() => renderer.value, () => forecastState.activeIndicator],
     async ([r, newInd], [_oldR, oldInd]) => {
       if (!r) return
-      
+
       // 延迟到下一帧，确保渲染器完全初始化
       await nextTick()
-      
+
       // 渲染器就绪时注册全部 4 个图层
       for (const indicator of INDICATORS) {
         const key = `forecast-${indicator}`
@@ -60,7 +60,7 @@ export function useForecastLayer() {
           visible: isActive,
         })
       }
-      
+
       // 指标切换时更新图层可见性
       if (oldInd && oldInd !== newInd) {
         const oldKey = `forecast-${oldInd}`
@@ -69,7 +69,7 @@ export function useForecastLayer() {
       const newKey = `forecast-${newInd}`
       if (manager.has(newKey)) manager.setVisible(newKey, true)
     },
-    { immediate: true },
+    { immediate: true }
   )
 
   function getLayerOptions(indicator) {
@@ -127,6 +127,10 @@ export function useForecastLayer() {
 
       manager.updateData(key, { data, options })
     } catch (e) {
+      if (isAuthError(e)) {
+        handleAuthError()
+        return
+      }
       if (import.meta.env.DEV) console.error('[useForecastLayer] 更新失败:', e)
       showError(e, { fallback: '更新地图图层失败' })
     }

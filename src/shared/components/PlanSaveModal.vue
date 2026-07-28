@@ -1,14 +1,22 @@
-<script setup>
+<script setup lang="ts">
 import { ref, watch } from 'vue'
 
-const props = defineProps({
-  visible: Boolean,
-  saving: Boolean,
-  errorMsg: String,
-  initialName: { type: String, default: '' },
+interface Props {
+  visible?: boolean
+  saving?: boolean
+  errorMsg?: string
+  initialName?: string
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  initialName: '',
 })
-// FIX:P3-14: 声明 error 事件，校验失败才能对外反馈
-const emit = defineEmits(['close', 'save', 'error'])
+// 声明 error 事件，校验失败才能对外反馈
+const emit = defineEmits<{
+  'close': []
+  'save': [name: string]
+  'error': [message: string]
+}>()
 
 const planName = ref('')
 const dialogVisible = ref(false)
@@ -18,20 +26,20 @@ watch(
   (v) => {
     dialogVisible.value = v
     if (v) planName.value = props.initialName || ''
-  },
+  }
 )
 
 function handleConfirm() {
   const name = planName.value.trim()
   if (!name) return
-  
-  // FIX:SEC-004: 方案名称正则校验（仅允许中文、字母、数字、下划线、连字符、空格）
+
+  // 方案名称正则校验（仅允许中文、字母、数字、下划线、连字符、空格）
   const nameRegex = /^[\u4e00-\u9fa5a-zA-Z0-9_\-\s]{1,50}$/
   if (!nameRegex.test(name)) {
     emit('error', '方案名称只能包含中文、字母、数字、下划线、连字符和空格，且长度不超过 50 字符')
     return
   }
-  
+
   emit('save', name)
 }
 
@@ -44,7 +52,14 @@ function onClose() {
 <template>
   <el-dialog v-model="dialogVisible" title="保存方案" width="320px" @close="onClose">
     <el-form class="save-form" @submit.prevent="handleConfirm">
-      <el-input v-model="planName" placeholder="请输入方案名称" size="small" maxlength="50" show-word-limit autofocus />
+      <el-input
+        v-model="planName"
+        placeholder="请输入方案名称"
+        size="small"
+        maxlength="50"
+        show-word-limit
+        autofocus
+      />
       <div v-if="errorMsg" class="modal-error">{{ errorMsg }}</div>
     </el-form>
     <template #footer>
@@ -69,7 +84,7 @@ function onClose() {
   gap: 14px;
 }
 .modal-error {
-  color: #e74c3c;
+  color: var(--gcs-color-error);
   font-size: 13px;
   margin: 0;
 }

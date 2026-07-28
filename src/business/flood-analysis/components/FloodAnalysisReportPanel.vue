@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 /**
  * FloodAnalysisReportPanel - 浸没分析报告面板
  *
@@ -11,12 +11,12 @@
  */
 
 import { computed } from 'vue'
-import { useFloodStore } from '@/stores/floodStore'
+import { useFloodState } from '@/stores/floodState'
 import { usePortImpactStore } from '@/stores/portImpactStore'
 import { useWaterLevelStore } from '@/stores/waterLevelStore'
 import { useGCS } from '@/core/layout/useGCS.js'
 
-const floodStore = useFloodStore()
+const floodStore = useFloodState()
 const portImpactStore = usePortImpactStore()
 const waterLevelStore = useWaterLevelStore()
 const { cellPixel, css } = useGCS()
@@ -60,6 +60,12 @@ const impactLevel = computed(() => {
 
 /** 始终显示报告内容 */
 const showReport = computed(() => true)
+
+/** 受影响港口列表（从 floodStatistics 提取并类型收窄） */
+const affectedPorts = computed<string[]>(() => {
+  const ports = floodStore.floodStatistics?.affectedPorts
+  return Array.isArray(ports) ? (ports as string[]) : []
+})
 </script>
 
 <template>
@@ -87,7 +93,9 @@ const showReport = computed(() => true)
         <span class="info-label">受影响设施</span>
         <span class="info-value"
           >{{
-            portImpactStore.affectedFacilities.length || floodStore.floodStatistics?.affectedFacilities || 0
+            portImpactStore.affectedFacilities.length ||
+            floodStore.floodStatistics?.affectedFacilities ||
+            0
           }}
           个</span
         >
@@ -104,9 +112,9 @@ const showReport = computed(() => true)
         <span class="info-label">影响等级</span>
         <span class="info-value">{{ impactLevel }}</span>
       </div>
-      <div class="info-item" v-if="floodStore.floodStatistics?.affectedPorts?.length > 0">
+      <div class="info-item" v-if="affectedPorts.length > 0">
         <span class="info-label">受影响港口</span>
-        <span class="info-value">{{ floodStore.floodStatistics.affectedPorts.join('、') }}</span>
+        <span class="info-value">{{ affectedPorts.join('、') }}</span>
       </div>
     </div>
 
@@ -143,7 +151,7 @@ const showReport = computed(() => true)
 .header-title {
   font-size: 16px;
   font-weight: 600;
-  color: #303133;
+  color: var(--gcs-text-primary);
 }
 
 /*
@@ -156,7 +164,7 @@ const showReport = computed(() => true)
   position: absolute;
   display: flex;
   flex-direction: column;
-  background: #f5f7fa;
+  background: var(--gcs-bg-container);
   border-radius: 6px;
   box-sizing: border-box;
   /* 内容区域在灰色面板内居中 */
@@ -183,16 +191,16 @@ const showReport = computed(() => true)
 }
 
 .info-label {
-  color: #606266;
+  color: var(--gcs-text-secondary);
 }
 
 .info-value {
-  color: #303133;
+  color: var(--gcs-text-primary);
   font-weight: 500;
 }
 
 .info-value.highlight {
-  color: #f56c6c;
+  color: var(--gcs-color-danger);
   font-weight: 600;
 }
 
@@ -209,12 +217,12 @@ const showReport = computed(() => true)
 
 .no-data-text {
   font-size: 14px;
-  color: #303133;
+  color: var(--gcs-text-primary);
   font-weight: 500;
 }
 
 .no-data-hint {
   font-size: 12px;
-  color: #909399;
+  color: var(--gcs-text-muted);
 }
 </style>

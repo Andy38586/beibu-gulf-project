@@ -53,22 +53,22 @@
     {
       "id": "qinzhou-station",
       "name": "钦州港潮汐站",
-      "longitude": 108.618,
-      "latitude": 21.865,
+      "lng": 108.618,
+      "lat": 21.865,
       "port": "钦州港"
     },
     {
       "id": "fangchenggang-station",
       "name": "防城港潮汐站",
-      "longitude": 108.345,
-      "latitude": 21.705,
+      "lng": 108.345,
+      "lat": 21.705,
       "port": "防城港"
     },
     {
       "id": "beihai-station",
       "name": "北海港潮汐站",
-      "longitude": 109.115,
-      "latitude": 21.478,
+      "lng": 109.115,
+      "lat": 21.478,
       "port": "北海港"
     }
   ]

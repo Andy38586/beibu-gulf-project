@@ -27,10 +27,11 @@ import PaginatedListPanel from '@/shared/components/PaginatedListPanel.vue'
 import RadarChart from '@/visualization/charts/RadarChart.vue'
 import { showError } from '@/shared/utils/errorHandler'
 import { useMapControls } from '@/core/map/composables/useMapControls'
-import { useMapStore } from '@/stores/map'
+import { useMapStore } from '@/stores/mapStore'
 import { useAnalysisLayer } from './composables/useAnalysisLayer'
 import { useBusinessLayers } from '@/core/map/composables/useBusinessLayers'
 import { useSiteSelectionStateStore } from '@/stores/siteSelectionState'
+import type { SiteSelectionState } from '@/stores/siteSelectionState'
 import { useLayerManager } from '@/core/map/composables/useLayerManager'
 import { logger } from '@/shared/utils/logger'
 
@@ -39,9 +40,11 @@ const mapStore = useMapStore()
 const stateStore = useSiteSelectionStateStore()
 const { registerToggleable } = useLayerManager()
 const { manager: businessLayerManager } = useBusinessLayers()
-const { createUpdateHandler } = useAnalysisLayer()
+const { createUpdateHandler } = useAnalysisLayer() as unknown as {
+  createUpdateHandler: (_manager: unknown) => (_result: unknown) => Promise<void>
+}
 
-// FIX:P3-04: 保存定时器 id，卸载时清理悬挂定时器
+// 保存定时器 id，卸载时清理悬挂定时器
 let tryZoomTimer: ReturnType<typeof setTimeout> | null = null
 
 /** 分析结果 */
@@ -77,7 +80,7 @@ const topXiaoqu = computed<ScoredXiaoqu | null>(() => matchedXiaoqu.value[0] || 
 
 /** 当前显示的小区（优先显示选中的，否则显示第一名） */
 const displayXiaoquForRadar = computed<ScoredXiaoqu | null>(
-  () => selectedXiaoqu.value || topXiaoqu.value,
+  () => selectedXiaoqu.value || topXiaoqu.value
 )
 
 /** 处理分析结果 */
@@ -126,7 +129,7 @@ function handleShowFacilityLayer(data: {
 
   const layerKey = `facility-poi-${type}`
   const points = poiList.map((p) => ({
-    lon: p.lng,
+    lng: p.lng,
     lat: p.lat,
     name: p.name || label,
   }))
@@ -157,17 +160,16 @@ function handleHideFacilityLayer(): void {
 }
 
 /** 点击小区列表项（地图可视化已由FavoriteListPanel内置处理） */
-function handleSelectXiaoqu(xq: any): void {
+function handleSelectXiaoqu(xq: ScoredXiaoqu): void {
   // 更新本地状态，用于雷达图传参
   logger.debug('[SiteSelection] 点击小区:', xq)
   logger.debug('[SiteSelection] breakdown:', xq.breakdown)
 
-  // 规范化字段名称（兼容 lon/lng）
   const normalizedXq: ScoredXiaoqu = {
     id: xq.id,
     name: xq.name,
-    lng: xq.lng ?? xq.lon ?? 0,
-    lat: xq.lat ?? xq.latitude ?? 0,
+    lng: xq.lng ?? 0,
+    lat: xq.lat ?? 0,
     score: xq.score ?? 0,
     breakdown: xq.breakdown || {},
   }
@@ -208,7 +210,7 @@ function saveCurrentState(): void {
     factorSettings,
     matchedXiaoqu: matchedXiaoqu.value,
     selectedTypes: selectedTypes.value,
-    facilityPoi: facilityPoi.value, // FIX:P1-05: 补保存设施POI
+    facilityPoi: facilityPoi.value, // 补保存设施POI
     currentPlanId: currentPlanId.value,
     savedXiaoquIds,
   })
@@ -222,24 +224,25 @@ function restoreState(): boolean {
   if (!savedState) return false
 
   // 恢复分析结果
-  matchedXiaoqu.value = (savedState as any).matchedXiaoqu || []
-  selectedTypes.value = (savedState as any).selectedTypes || []
-  facilityPoi.value = (savedState as any).facilityPoi || {} // FIX:P1-05
-  currentPlanId.value = (savedState as any).currentPlanId || null
+  matchedXiaoqu.value = (savedState as SiteSelectionState).matchedXiaoqu || []
+  selectedTypes.value = (savedState as SiteSelectionState).selectedTypes || []
+  facilityPoi.value = (savedState as SiteSelectionState).facilityPoi || {}
+  currentPlanId.value = (savedState as SiteSelectionState).currentPlanId || null
 
   // 恢复因子面板状态
-  if ((savedState as any).factorSettings && factorPanelRef.value?.restoreSettings) {
-    factorPanelRef.value.restoreSettings((savedState as any).factorSettings)
+  const factorSettings = (savedState as SiteSelectionState).factorSettings
+  if (factorSettings && factorPanelRef.value?.restoreSettings) {
+    factorPanelRef.value.restoreSettings(factorSettings)
   }
 
   // 恢复小区结果面板状态（方案ID从savedXiaoquIds推断，实际收藏由服务端管理）
-  if ((savedState as any).currentPlanId) {
-    currentPlanId.value = (savedState as any).currentPlanId
+  if ((savedState as SiteSelectionState).currentPlanId) {
+    currentPlanId.value = (savedState as SiteSelectionState).currentPlanId
   }
 
   // 如果有分析结果，触发结果更新
   if (matchedXiaoqu.value.length > 0) {
-    // FIX:P1-05: 传全量字段，避免 handleResult 用空值覆盖已恢复状态
+    // 传全量字段，避免 handleResult 用空值覆盖已恢复状态
     handleResult({
       matchedXiaoqu: matchedXiaoqu.value,
       selectedTypes: selectedTypes.value,
@@ -283,14 +286,14 @@ onMounted(() => {
   } else {
     // 非个人中心返回，清除旧分析图层
     clearAnalysisLayers()
-    // P1-001-FIX: 等待渲染器就绪后再缩放，最多重试10次
+    // 等待渲染器就绪后再缩放，最多重试10次
     let retries = 0
     const tryZoom = () => {
       if (mapInstance.value?.getRenderer?.()) {
         zoomToCity()
       } else if (retries < 10) {
         retries++
-        // FIX:P3-04: 保存定时器 id，卸载时清理
+        // 保存定时器 id，卸载时清理
         tryZoomTimer = setTimeout(tryZoom, 500)
       }
     }
@@ -300,7 +303,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   stopBreathing()
-  // FIX:P3-04: 清理悬挂的 tryZoom 定时器
+  // 清理悬挂的 tryZoom 定时器
   if (tryZoomTimer) {
     clearTimeout(tryZoomTimer)
     tryZoomTimer = null
@@ -373,7 +376,7 @@ onUnmounted(() => {
 }
 
 .xq-rank {
-  color: #909399;
+  color: var(--gcs-text-muted);
   font-size: 12px;
   width: 20px;
   text-align: center;
@@ -381,7 +384,7 @@ onUnmounted(() => {
 }
 
 .xq-name {
-  color: #303133;
+  color: var(--gcs-text-primary);
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
@@ -392,7 +395,7 @@ onUnmounted(() => {
 }
 
 .xq-score {
-  color: #409eff;
+  color: var(--gcs-color-primary);
   font-weight: 600;
   flex-shrink: 0;
   min-width: 50px;

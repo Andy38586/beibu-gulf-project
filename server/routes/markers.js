@@ -4,7 +4,7 @@ import { authenticate } from '../middleware/auth.js'
 
 const router = Router()
 
-// FIX:P0-02: 标记为个人数据，全部接口需登录
+// @arch-note P0-02: 标记为个人数据，全部接口需登录
 router.use(authenticate)
 
 router.get('/', markersController.getAll) // R - 读取列表（按用户过滤）

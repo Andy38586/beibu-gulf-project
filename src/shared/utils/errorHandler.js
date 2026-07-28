@@ -1,27 +1,16 @@
 /**
  * 统一错误处理
  *
- * v1.5 冻结版本：集中管理错误出口，替换分散的 ElMessage.error / console.error
- *
- * 使用方式：
- *   import { showError, handleAsync } from '@/shared/utils/errorHandler'
- *
- *   // 直接显示
- *   showError('加载失败')
- *   showError(new Error('网络异常'))
- *
- *   // 包装异步操作
- *   await handleAsync(fetchData(), '数据加载失败')
- *
- * 影响范围：低。只替换错误展示出口，不修改业务逻辑。
- * 后续扩展：可接入 Sentry / 日志服务 / 错误上报。
+ * 集中管理错误出口，替换分散的 ElMessage.error / console.error。
+ * 后续可接入 Sentry / 日志服务 / 错误上报。
  */
 
 import { ElMessage } from 'element-plus'
+import { logger } from './logger'
 
 /**
  * 统一的用户错误提示
- * @param {string|Error} error - 错误信息或 Error 对象
+ * @param {*} error - 错误信息（string | Error | unknown，catch 块的 e 为 unknown）
  * @param {object} [options]
  * @param {string} [options.fallback] - 无法提取信息时的兜底文案
  * @param {boolean} [options.silent] - 静默模式（仅 console，不弹窗）
@@ -41,12 +30,10 @@ export function showError(error, options = {}) {
     message = error.message
   }
 
-  // 开发环境输出详细信息
   if (import.meta.env.DEV) {
-    console.error('[ErrorHandler]', error)
+    logger.error('[ErrorHandler]', error)
   }
 
-  // 用户提示
   if (!silent) {
     ElMessage.error(message)
   }
@@ -57,17 +44,46 @@ export function showError(error, options = {}) {
  * @param {Promise} promise - 异步操作
  * @param {string} [fallback] - 错误兜底文案
  * @returns {Promise} - 包装后的 Promise
- *
- * @example
- *   const data = await handleAsync(fetch('/api/data'), '数据加载失败')
  */
 export async function handleAsync(promise, fallback) {
   try {
     return await promise
   } catch (error) {
     showError(error, { fallback })
-    throw error // 仍然抛出，让业务层自行决定是否继续
+    throw error
   }
+}
+
+/**
+ * 统一的 401 认证失效处理
+ *
+ * 所有请求层（useApiRequest / useForecastRequest）在 401 时不主动 redirect，
+ * 由调用方识别 401 后调用此函数，统一执行：清理认证状态 + 跳转首页 + 弹登录面板。
+ *
+ * @param {object} [router] - 可选传入 vue-router 实例，避免动态 import
+ */
+export async function handleAuthError(router) {
+  const { useAuth } = await import('@/shared/composables/useAuth')
+  const auth = useAuth()
+  await auth.logout()
+
+  const r = router || (await import('@/router')).default
+  if (r.currentRoute.value.path !== '/') {
+    r.push({ path: '/', query: { showLogin: '1' } })
+  }
+}
+
+/**
+ * 判断错误是否为 401 认证失效
+ * @param {unknown} error
+ * @returns {boolean}
+ */
+export function isAuthError(error) {
+  if (!error) return false
+  if (error instanceof Error) {
+    return error.code === 'UNAUTHORIZED' || error.message.includes('请先登录')
+  }
+  return false
 }
 
 /**
@@ -75,7 +91,7 @@ export async function handleAsync(promise, fallback) {
  */
 export function showWarning(message) {
   if (import.meta.env.DEV) {
-    console.warn('[ErrorHandler:Warning]', message)
+    logger.warn('[ErrorHandler:Warning]', message)
   }
   ElMessage.warning(message)
 }
@@ -87,4 +103,4 @@ export function showSuccess(message) {
   ElMessage.success(message)
 }
 
-export default { showError, handleAsync, showWarning, showSuccess }
+export default { showError, handleAsync, handleAuthError, isAuthError, showWarning, showSuccess }

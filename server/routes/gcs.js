@@ -4,7 +4,7 @@ import { authenticate } from '../middleware/auth.js'
 
 const router = Router()
 
-// FIX:P2-11: 与其他业务路由对齐，全部端点需登录
+// @arch-note P2-11: 与其他业务路由对齐，全部端点需登录
 router.use(authenticate)
 
 /**

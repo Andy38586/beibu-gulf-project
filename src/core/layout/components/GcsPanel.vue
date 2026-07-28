@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 /**
  * GcsPanel - GCS V2 Panel 容器
  *
@@ -23,27 +23,22 @@
 import { computed } from 'vue'
 import { useGCS } from '../useGCS.js'
 
-const props = defineProps({
-  w: { type: Number, required: true },
-  h: { type: Number, required: true },
-  anchor: {
-    type: String,
-    default: 'top-left',
-    validator: (v) =>
-      [
-        'top-left',
-        'top-right',
-        'top-center',
-        'bottom-center',
-        'bottom-left',
-        'bottom-right',
-      ].includes(v),
-  },
-  offsetX: { type: Number, default: 0 },
-  offsetY: { type: Number, default: 0 },
+interface Props {
+  w: number
+  h: number
+  /** 锚点位置：用联合字面量类型约束，替代运行时 validator */
+  anchor?: 'top-left' | 'top-right' | 'top-center' | 'bottom-center' | 'bottom-left' | 'bottom-right'
+  offsetX?: number
+  offsetY?: number
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  anchor: 'top-left',
+  offsetX: 0,
+  offsetY: 0,
 })
 
-const { cellPixel, panelPosition } = useGCS()
+const { panelPosition } = useGCS()
 
 /**
  * 计算 Panel 的 CSS 样式
@@ -52,22 +47,22 @@ const { cellPixel, panelPosition } = useGCS()
 const panelStyle = computed(() => {
   const pos = panelPosition(props.w, props.h, props.anchor, props.offsetX, props.offsetY)
   // 最后一层防御：如果计算出的宽高为 0，用 cell 单位 × 默认 80px 兜底
-  const wPx = parseFloat(pos.width) || (props.w * 80)
-  const hPx = parseFloat(pos.height) || (props.h * 80)
+  const wPx = parseFloat(pos.width) || props.w * 80
+  const hPx = parseFloat(pos.height) || props.h * 80
   return {
-    position: 'absolute',
+    position: 'absolute' as const,
     left: pos.left || '20px',
     top: pos.top || '20px',
     width: `${wPx}px`,
     height: `${hPx}px`,
     minWidth: `${props.w * 80}px`,
     minHeight: `${props.h * 80}px`,
-    borderRadius: `${(cellPixel.value > 0 ? cellPixel.value : 80) * 0.15}px`,
-    backgroundColor: '#ffffff',
-    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-    boxSizing: 'border-box',
-    overflow: 'hidden',
-    pointerEvents: 'auto',
+    borderRadius: 'var(--gcs-radius-md)',
+    backgroundColor: 'var(--gcs-bg-panel)',
+    boxShadow: 'var(--gcs-shadow-sm)',
+    boxSizing: 'border-box' as const,
+    overflow: 'hidden' as const,
+    pointerEvents: 'auto' as const,
   }
 })
 </script>
@@ -80,6 +75,6 @@ const panelStyle = computed(() => {
 
 <style scoped>
 .gcs-panel {
-  color: #fff;
+  color: var(--gcs-bg-panel);
 }
 </style>

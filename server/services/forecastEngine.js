@@ -33,9 +33,8 @@ export function computeForecast(historicalData, scenarioLevel = 1.0, forecastMon
       growthRates.push((curr.value - yearAgo.value) / yearAgo.value)
     }
   }
-  const avgAnnualGrowth = growthRates.length > 0
-    ? growthRates.reduce((a, b) => a + b, 0) / growthRates.length
-    : 0.05
+  const avgAnnualGrowth =
+    growthRates.length > 0 ? growthRates.reduce((a, b) => a + b, 0) / growthRates.length : 0.05
 
   // 3. 生成预测序列
   const lastHistorical = sorted[sorted.length - 1]
@@ -50,7 +49,8 @@ export function computeForecast(historicalData, scenarioLevel = 1.0, forecastMon
 
     const yearsFromBase = i / 12
     // 趋势外推: 基值 × (1 + 年增长率 × 情景系数)^年数
-    const trendValue = lastHistorical.value * Math.pow(1 + avgAnnualGrowth * scenarioLevel, yearsFromBase)
+    const trendValue =
+      lastHistorical.value * Math.pow(1 + avgAnnualGrowth * scenarioLevel, yearsFromBase)
 
     // 季节性调整（简单月均比例）
     const seasonalFactor = getSeasonalFactor(sorted, month)
@@ -59,7 +59,12 @@ export function computeForecast(historicalData, scenarioLevel = 1.0, forecastMon
     // 预测可信度随预测年限衰减（非统计学置信区间）
     const reliability = Math.max(0.25, 1 - yearsFromBase * 0.06)
 
-    forecast.push({ time, value, type: 'forecast', reliability: Math.round(reliability * 100) / 100 })
+    forecast.push({
+      time,
+      value,
+      type: 'forecast',
+      reliability: Math.round(reliability * 100) / 100,
+    })
   }
 
   return {
@@ -115,7 +120,7 @@ export function generateSpatialValues(historicalData, forecast, timePoint, spati
 
       // 中心高、边缘低的权重衰减
       const weight = 0.5 + 0.5 * (1 - dist / 0.05) + Math.random() * 0.1
-      const scatterValue = Math.round(baseValue / scatterPoints * weight * 5)
+      const scatterValue = Math.round((baseValue / scatterPoints) * weight * 5)
 
       result.push({
         type: 'Feature',

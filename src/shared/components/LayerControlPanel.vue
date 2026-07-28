@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 /**
  * LayerControlPanel - 通用图层控制面板（公共组件）
  *
@@ -23,11 +23,11 @@ const { cellPixel, css } = useGCS()
 const { cell8px } = css
 
 /** 按钮尺寸：1.8宽 × 0.8高（cell单位） */
-const btnWidthCss = computed(() => `${cellPixel.value * 1.8}px`)   // 144px
-const btnHeightCss = computed(() => `${cellPixel.value * 0.8}px`)  // 64px
+const btnWidthCss = computed(() => `${cellPixel.value * 1.8}px`) // 144px
+const btnHeightCss = computed(() => `${cellPixel.value * 0.8}px`) // 64px
 /** 字体大小：0.175cell = 14px（基准），0.1cell = 8px（小字） */
-const labelFontSizeCss = computed(() => `${cellPixel.value * 0.175}px`)  // 14px
-const iconFontSizeCss = computed(() => `${cellPixel.value * 0.2}px`)     // 16px
+const labelFontSizeCss = computed(() => `${cellPixel.value * 0.175}px`) // 14px
+const iconFontSizeCss = computed(() => `${cellPixel.value * 0.2}px`) // 16px
 
 /** 图层按钮列表（按显示顺序） */
 const layerButtons = computed(() => {
@@ -47,9 +47,7 @@ const layerButtons = computed(() => {
     'forecast-traffic',
     'forecast-pressure',
   ]
-  const ordered = order
-    .map((key) => layerCatalog.value.find((l) => l.key === key))
-    .filter(Boolean)
+  const ordered = order.map((key) => layerCatalog.value.find((l) => l.key === key)).filter(Boolean)
   const orderedKeys = new Set(ordered.map((l) => l.key))
   const extra = layerCatalog.value.filter((l) => !orderedKeys.has(l.key))
   return [...ordered, ...extra].map((layer) => ({
@@ -60,7 +58,7 @@ const layerButtons = computed(() => {
 })
 
 /** 图层图标映射 */
-function getLayerIcon(label) {
+function getLayerIcon(label: string): string {
   if (label.includes('底图') || label.includes('影像') || label.includes('矢量')) return '🗺'
   if (label.includes('港口')) return ''
   if (label.includes('行政')) return ''
@@ -69,7 +67,14 @@ function getLayerIcon(label) {
   if (label.includes('水面')) return ''
   if (label.includes('淹没')) return '🌊'
   if (label.includes('设施')) return '🏭'
-  if (label.includes('预测') || label.includes('吞吐') || label.includes('泊位') || label.includes('流量') || label.includes('压力')) return '📈'
+  if (
+    label.includes('预测') ||
+    label.includes('吞吐') ||
+    label.includes('泊位') ||
+    label.includes('流量') ||
+    label.includes('压力')
+  )
+    return '📈'
   return ''
 }
 
@@ -128,10 +133,10 @@ function handleToggle(key) {
   gap: v-bind(cell8px);
   width: v-bind(btnWidthCss);
   height: v-bind(btnHeightCss);
-  border: 1px solid #e0e0e0;
-  border-radius: 12px;
-  background: #ffffff;
-  color: #333;
+  border: 1px solid var(--gcs-border-default);
+  border-radius: var(--gcs-radius-lg);
+  background: var(--gcs-bg-panel);
+  color: var(--gcs-text-regular);
   cursor: pointer;
   font-size: v-bind(labelFontSizeCss);
   transition: all 0.2s ease;
@@ -141,14 +146,14 @@ function handleToggle(key) {
 }
 
 .layer-btn:hover {
-  border-color: #409eff;
-  background: #f0f7ff;
+  border-color: var(--gcs-color-primary);
+  background: var(--gcs-bg-hover);
 }
 
 .layer-btn.active {
-  background: #409eff;
-  color: #fff;
-  border-color: #409eff;
+  background: var(--gcs-color-primary);
+  color: var(--gcs-text-inverse);
+  border-color: var(--gcs-color-primary);
 }
 
 .layer-icon {

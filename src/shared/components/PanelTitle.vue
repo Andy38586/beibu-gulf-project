@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 /**
  * PanelTitle - 通用面板标题组件
  *
@@ -24,11 +24,12 @@ const { cell8px } = css
 /** 标题字号 = 0.4 cell，适配 1 cell 高的标题面板 */
 const titleFontSize = computed(() => `${cellPixel.value * 0.4}px`)
 
-defineProps({
-  title: {
-    type: String,
-    default: '',
-  },
+interface Props {
+  title?: string
+}
+
+withDefaults(defineProps<Props>(), {
+  title: '',
 })
 </script>
 
@@ -51,7 +52,7 @@ defineProps({
 .panel-title-text {
   font-size: v-bind(titleFontSize);
   font-weight: 600;
-  color: #303133;
+  color: var(--gcs-text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

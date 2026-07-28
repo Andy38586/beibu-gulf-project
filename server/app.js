@@ -1,5 +1,7 @@
 import express from 'express'
 import cors from 'cors'
+import helmet from 'helmet'
+import rateLimit from 'express-rate-limit'
 import cookieParser from 'cookie-parser'
 import markersRouter from './routes/markers.js'
 import facilitiesRouter from './routes/facilities.js'
@@ -9,15 +11,37 @@ import plansRouter from './routes/plans.js'
 // TODO:1.2: 注册预测分析路由
 import forecastRouter from './routes/forecast.js'
 import gcsRouter from './routes/gcs.js'
+import { BusinessError } from './utils/BusinessError.js'
 
 const app = express()
 
-// P1-004-FIX: CORS origin 从环境变量读取，支持生产部署
+// 安全中间件：设置 HTTP 安全头
+app.use(helmet())
+
+// 限流中间件：防止暴力破解和 DDoS
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 分钟
+  max: 100, // 每个 IP 最多 100 次请求
+  message: { error: '请求过于频繁，请稍后再试' },
+})
+app.use('/api/', limiter)
+
+// 登录接口更严格的限流
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 分钟
+  max: 5, // 每个 IP 最多 5 次登录尝试
+  message: { error: '登录尝试过于频繁，请 15 分钟后再试' },
+})
+app.use('/api/auth/login', authLimiter)
+
+// @arch-note P1-004: CORS origin 从环境变量读取，支持生产部署
 const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:5173'
-app.use(cors({
-  origin: CORS_ORIGIN,
-  credentials: true,
-}))
+app.use(
+  cors({
+    origin: CORS_ORIGIN,
+    credentials: true,
+  })
+)
 app.use(express.json())
 app.use(cookieParser())
 app.use('/api/markers', markersRouter)
@@ -32,14 +56,18 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' })
 })
 
-// FIX:009 (错误): 404错误处理中间件
+// [FIXED 009] 404错误处理中间件
 app.use((req, res) => {
   res.status(404).json({ error: '接口不存在' })
 })
 
-// P1-003-FIX: 全局错误处理中间件，防止未捕获异常泄露堆栈信息
+// @arch-note P1-003: 全局错误处理中间件，防止未捕获异常泄露堆栈信息
 app.use((err, req, res, _next) => {
-  // FIX:016: 仅在开发环境输出详细错误
+  // BusinessError 统一携带 code + status，按码返回对应 HTTP 状态码
+  if (err instanceof BusinessError) {
+    return res.status(err.status).json({ code: err.code, error: err.message })
+  }
+  // [FIXED 016] 仅在开发环境输出详细错误
   if (process.env.NODE_ENV !== 'test') {
     console.error('未捕获的服务器错误:', err.message)
   }

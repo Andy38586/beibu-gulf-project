@@ -14,12 +14,17 @@ import { Style, Fill, Stroke, Circle, Text } from 'ol/style'
 import Heatmap from 'ol/layer/Heatmap'
 import { buildTiandituUrl, MAP_CONFIG, heightToZoom } from '@/core/config/map'
 import { logger } from '@/shared/utils/logger'
+import { normalizePoint } from '@/types/crs'
+import { createSpatialIndex, VIEWPORT_CULL_THRESHOLD } from '@/shared/utils/spatialIndex'
 
 export class OLRenderer extends MapRenderer {
   constructor(container) {
     super(container)
     this.map = null
     this.baseLayers = { image: [], vector: [] }
+    // 视口裁剪：大数量点图层（>阈值）的 R-tree 索引 + moveend 监听
+    this._cullLayers = new Map() // id -> { source, index, allFeatures, options }
+    this._moveendKey = null
     this._initMap()
   }
   _initMap() {
@@ -89,7 +94,7 @@ export class OLRenderer extends MapRenderer {
         },
         {
           layerFilter: (layer) => !layer.get('isBaseMap'),
-        },
+        }
       )
       if (!clickedFeature) {
         this.emit('click', {
@@ -102,15 +107,24 @@ export class OLRenderer extends MapRenderer {
   }
 
   addPointLayer(id, features, options = {}) {
+    const style = this._createPointStyle(options)
+
+    // 大数量点图层启用视口裁剪：R-tree 索引 + moveend 增量更新
+    if (features.length > VIEWPORT_CULL_THRESHOLD) {
+      this._addCulledPointLayer(id, features, options, style)
+      return
+    }
+
     const olFeatures = features.map((item) => {
+      // 数据入口归一化：统一 lng/lon/longitude 字段名为标准 GeoPoint
+      const { lng, lat } = normalizePoint(item)
       const feature = new Feature({
-        geometry: new Point(fromLonLat([item.lon, item.lat])),
+        geometry: new Point(fromLonLat([lng, lat])),
       })
       const featureType = options?.featureType || item?.featureType || 'point'
       feature.setProperties({ ...item, featureType })
       return feature
     })
-    const style = this._createPointStyle(options)
 
     const vectorLayer = new VectorLayer({
       source: new VectorSource({ features: olFeatures }),
@@ -123,6 +137,67 @@ export class OLRenderer extends MapRenderer {
       options,
     })
     this._applyPendingVisibility(id)
+  }
+
+  /**
+   * 大数量点图层的视口裁剪加载
+   * 构建 R-tree 索引（EPSG:3857），初始只渲染视口内要素，moveend 时增量更新
+   */
+  _addCulledPointLayer(id, features, options, style) {
+    const featureType = options?.featureType || 'point'
+    // 构建 R-tree 索引项：[minX, minY, maxX, maxY] + 原始数据
+    const index = createSpatialIndex()
+    const indexItems = features.map((item) => {
+      const { lng, lat } = normalizePoint(item)
+      const coord = fromLonLat([lng, lat])
+      return { minX: coord[0], minY: coord[1], maxX: coord[0], maxY: coord[1], data: item }
+    })
+    index.load(indexItems)
+
+    const source = new VectorSource()
+    const vectorLayer = new VectorLayer({ source, style })
+    this.map.addLayer(vectorLayer)
+    this._layers.set(id, { instance: vectorLayer, visible: true, options })
+    this._applyPendingVisibility(id)
+
+    this._cullLayers.set(id, { source, index, options, featureType })
+    this._ensureMoveendListener()
+
+    // 初始加载视口内要素
+    this._refreshCulledLayer(id)
+
+    if (import.meta.env.DEV) {
+      logger.info(`[OLRenderer] 图层 ${id} 启用视口裁剪，共 ${features.length} 个要素`)
+    }
+  }
+
+  /** 确保 moveend 监听只注册一次 */
+  _ensureMoveendListener() {
+    if (this._moveendKey) return
+    this._moveendKey = this.map.on('moveend', () => {
+      for (const id of this._cullLayers.keys()) {
+        this._refreshCulledLayer(id)
+      }
+    })
+  }
+
+  /** 刷新单个裁剪图层：查询当前视口内要素并替换 source */
+  _refreshCulledLayer(id) {
+    const entry = this._cullLayers.get(id)
+    if (!entry) return
+
+    const extent = this.map.getView().calculateExtent(this.map.getSize())
+    const visible = entry.index.query(extent)
+
+    const olFeatures = visible.map((item) => {
+      const { lng, lat } = normalizePoint(item.data)
+      const feature = new Feature({ geometry: new Point(fromLonLat([lng, lat])) })
+      feature.setProperties({ ...item.data, featureType: entry.featureType })
+      return feature
+    })
+
+    entry.source.clear()
+    entry.source.addFeatures(olFeatures)
   }
   _createPointStyle(options) {
     if (!options.labelField) {
@@ -151,7 +226,7 @@ export class OLRenderer extends MapRenderer {
       })
   }
   addPolygonLayer(id, features, options = {}) {
-    // FIX:GIS-008: 辅助函数 - 确保坐标环闭合
+    // 辅助函数 - 确保坐标环闭合
     const ensureRingClosed = (ring) => {
       if (!ring || ring.length < 3) return null
       const first = ring[0]
@@ -168,14 +243,14 @@ export class OLRenderer extends MapRenderer {
         const coordinates = item.coordinates || item.geometry?.coordinates
         if (!coordinates) return null
 
-        // FIX:010: 验证坐标数组有效性
+        // 验证坐标数组有效性
         if (!Array.isArray(coordinates) || coordinates.length === 0) return null
 
         let polygonCoords
         if (item.geometry?.type === 'MultiPolygon') {
-          // FIX:010: 验证MultiPolygon坐标结构
+          // 验证MultiPolygon坐标结构
           if (!Array.isArray(coordinates[0]) || !Array.isArray(coordinates[0][0])) return null
-          // FIX:GIS-008: 验证并闭合每个多边形的坐标环
+          // 验证并闭合每个多边形的坐标环
           polygonCoords = coordinates
             .map((poly) => {
               const closedRing = ensureRingClosed(poly[0])
@@ -184,9 +259,9 @@ export class OLRenderer extends MapRenderer {
             .filter((coords) => coords !== null)
           if (polygonCoords.length === 0) return null
         } else {
-          // FIX:010: 验证Polygon坐标结构
+          // 验证Polygon坐标结构
           if (!Array.isArray(coordinates[0]) || !Array.isArray(coordinates[0][0])) return null
-          // FIX:GIS-008: 验证并闭合坐标环
+          // 验证并闭合坐标环
           const closedRing = ensureRingClosed(coordinates[0])
           if (!closedRing) return null
           polygonCoords = [closedRing.map(([lng, lat]) => fromLonLat([lng, lat]))]
@@ -229,7 +304,7 @@ export class OLRenderer extends MapRenderer {
     features.forEach((feature) => {
       feature.set('featureType', options.featureType || 'geojson')
     })
-    // FIX:P1-11: 按几何类型分派样式，点要素支持 markerColor/markerSize
+    // 按几何类型分派样式，点要素支持 markerColor/markerSize
     const polygonStyle = this._createPolygonStyle(options)
     const pointStyle = new Style({
       image: new Circle({
@@ -238,7 +313,7 @@ export class OLRenderer extends MapRenderer {
         stroke: new Stroke({ color: '#fff', width: 2 }),
       }),
     })
-    // TODO:4.0: 支持 options.style 回调，用于 per-feature 样式（预测分析等业务需要）
+    // TODO: 支持 options.style 回调，用于 per-feature 样式
     const defaultStyle = (feature) => {
       const geom = feature.getGeometry()
       return geom.getType() === 'Point' ? pointStyle : polygonStyle
@@ -256,8 +331,7 @@ export class OLRenderer extends MapRenderer {
     this._applyPendingVisibility(id)
   }
 
-  // TODO:0.1: 新增热力图图层方法
-  // FIX:偏3: 原设计文档使用 addGeoJsonLayer({type:'heatmap'})，但现有接口不支持
+  // 原设计文档使用 addGeoJsonLayer({type:'heatmap'})，但现有接口不支持
   // 正确做法：独立方法 + 参考 OpenLayers Heatmap 官方示例
   addHeatmapLayer(id, features, options = {}) {
     const {
@@ -304,7 +378,7 @@ export class OLRenderer extends MapRenderer {
     })
     this._applyPendingVisibility(id)
 
-    return layer
+    return true
   }
 
   updateHeatmapLayer(id, features, options = {}) {
@@ -348,11 +422,19 @@ export class OLRenderer extends MapRenderer {
         if (source && source.clear) {
           source.clear()
         }
-        // FIX:GIS-010: 调用 dispose() 释放资源
         if (source && source.dispose) {
           source.dispose()
         }
       }
+    }
+  }
+
+  /** 移除视口裁剪图层时清理索引和监听 */
+  _removeCullLayer(id) {
+    this._cullLayers.delete(id)
+    if (this._cullLayers.size === 0 && this._moveendKey) {
+      this.map.un(this._moveendKey.type, this._moveendKey.listener)
+      this._moveendKey = null
     }
   }
   _doFlyTo(target, options = {}) {
@@ -360,7 +442,7 @@ export class OLRenderer extends MapRenderer {
     if (target.layerId) {
       const layer = this._layers.get(target.layerId)
       if (layer && layer.instance) {
-        // FIX:016: 验证 source 和 getExtent 方法存在性
+        // 验证 source 和 getExtent 方法存在性
         const source = layer.instance.getSource()
         if (source && typeof source.getExtent === 'function') {
           const extent = source.getExtent()
@@ -371,10 +453,10 @@ export class OLRenderer extends MapRenderer {
         }
       }
     }
-    // FIX:P3-01: 兼容数据源 lon 字段（ports.json）和接口 lng 字段
-    const lng = target.lng ?? target.lon
+    // 数据入口归一化：统一 lng/lon/longitude 字段名
+    const { lng, lat } = normalizePoint(target)
     view.animate({
-      center: fromLonLat([lng, target.lat]),
+      center: fromLonLat([lng, lat]),
       zoom: options.zoom || view.getZoom(),
       duration: 1000,
     })
@@ -509,6 +591,12 @@ export class OLRenderer extends MapRenderer {
   destroy() {
     super.destroy()
     this.stopBreathing()
+    // 清理视口裁剪图层
+    this._cullLayers.clear()
+    if (this._moveendKey) {
+      this.map?.un(this._moveendKey.type, this._moveendKey.listener)
+      this._moveendKey = null
+    }
     this.map?.dispose()
     this.map = null
   }

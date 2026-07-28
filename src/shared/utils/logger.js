@@ -1,4 +1,4 @@
-// FIX:P3-11: 统一 logger，生产环境自动静默 debug/info
+// 统一 logger，生产环境自动静默 debug/info
 const isDev = import.meta.env.DEV
 
 export const logger = {

@@ -1,0 +1,120 @@
+/**
+ * GCS 业务数据基础模型
+ *
+ * 定义所有 GIS 数据特征的基础类型。
+ * 业务模块（浸没分析、选址分析、预测分析）继承此基础结构扩展自有属性。
+ *
+ * 坐标系统约定：
+ *   全项目统一 WGS84(EPSG:4326) lng/lat，投影到 Web Mercator(EPSG:3857) 由 OL/Cesium 内部处理。
+ *   北部湾区域横跨 108°E，处于 UTM 49N/50N 交界带，前端不直接做投影运算。
+ */
+
+// ===== 通用 GIS 要素 =====
+
+/** 坐标点（业务层统一使用 lng/lat，WGS84 地理坐标系） */
+export interface GeoPoint {
+  lng: number
+  lat: number
+}
+
+/** 带属性标注的点 */
+export interface AnnotatedPoint extends GeoPoint {
+  id: string
+  name: string
+  [key: string]: unknown
+}
+
+/** 通用 GIS 要素 */
+export interface GcsFeature<T extends Record<string, unknown> = Record<string, unknown>> {
+  geometry: {
+    type: 'Point' | 'Polygon' | 'MultiPolygon'
+    coordinates: number[] | number[][] | number[][][]
+  }
+  properties: T
+}
+
+/** 带计算得分的要素 */
+export interface ScoredFeature<T extends Record<string, unknown> = Record<string, unknown>> {
+  feature: GcsFeature<T>
+  score: number
+  breakdown: Record<string, number>
+}
+
+// ===== 浸没分析业务类型 =====
+
+/** 淹没统计数据 */
+export interface FloodStatistics {
+  totalArea: number // 淹没总面积（平方米）
+  riskLevel: string // 风险等级
+  affectedCount: number // 受影响设施数量
+  [key: string]: unknown
+}
+
+/** 淹没区域要素（GeoJSON Feature） */
+export interface FloodFeature {
+  type: 'Feature'
+  geometry: {
+    type: 'Polygon' | 'MultiPolygon'
+    coordinates: number[][][] | number[][][][]
+  }
+  properties: {
+    riskLevel: string
+    depth?: number
+    [key: string]: unknown
+  }
+}
+
+/** 受影响设施 */
+export interface AffectedFacility {
+  id: string
+  name: string
+  type: string
+  lng: number
+  lat: number
+  port?: string
+  loss: number
+  damageRate: number
+}
+
+/** 淹没分析保存状态 */
+export interface FloodSavedState {
+  waterLevel: number
+  floodStatistics: FloodStatistics | null
+  floodFeatures: FloodFeature[]
+  floodRiskLevel: string
+  affectedFacilities: AffectedFacility[]
+  totalLoss: number
+}
+
+/** 淹没分析消费状态 */
+export interface FloodConsumedState {
+  waterLevel: number
+  floodStatistics: FloodStatistics | null
+  floodFeatures: FloodFeature[]
+  floodRiskLevel: string
+  affectedFacilities?: AffectedFacility[]
+  totalLoss?: number
+}
+
+// ===== 预测分析业务类型 =====
+
+/** 预测时间范围 */
+export interface ForecastTimeRange {
+  start: string
+  end: string
+  current: string
+}
+
+/** 置信度阈值 */
+export interface ConfidenceThresholds {
+  throughput: number
+  berth: number
+  traffic: number
+  pressure: number
+  [key: string]: number
+}
+
+/** 预测数据缓存 */
+export interface ForecastData {
+  [key: string]: unknown
+}

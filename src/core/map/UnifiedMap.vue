@@ -1,9 +1,10 @@
-<script setup>
+<script setup lang="ts">
 // 统一地图容器：OL/Cesium双引擎，v-show切换，渲染器实例复用不销毁
 import { ref, watch, onMounted, onUnmounted, provide, nextTick, computed } from 'vue'
 import { createRenderer } from '@/core/map/renderers'
+import type { MapRenderer } from '@/core/map/renderers/MapRenderer'
 import { MapRendererKey } from '@/core/map/composables/useMapRenderer'
-import { useMapStore } from '@/stores/map'
+import { useMapStore } from '@/stores/mapStore'
 import { loadPorts, buildPortGeoJson, PORT_STYLE } from '@/core/map/composables/usePortLayer'
 import { loadBoundaryGeoJson, BOUNDARY_STYLE } from '@/core/map/composables/useBoundaryLayer'
 import { useLayerManager } from '@/core/map/composables/useLayerManager'
@@ -13,28 +14,31 @@ import { logger } from '@/shared/utils/logger'
 
 const { cell8px } = useGCS()
 
-const props = defineProps({
-  mapType: {
-    type: String,
-    default: '2d',
-    validator: (v) => ['2d', '3d'].includes(v),
-  },
+interface Props {
+  mapType?: '2d' | '3d'
+}
+const props = withDefaults(defineProps<Props>(), {
+  mapType: '2d',
 })
 
-const emit = defineEmits(['typeChange', 'click', 'error'])
+const emit = defineEmits<{
+  'typeChange': [newType: '2d' | '3d']
+  'click': [payload: { featureType: string; data: unknown; coordinate: unknown }]
+  'error': [error: Error]
+}>()
 
 // 两个容器引用（OL始终存在，Cesium首次创建后保留）
-const olContainerRef = ref(null)
-const cesiumContainerRef = ref(null)
+const olContainerRef = ref<HTMLElement | null>(null)
+const cesiumContainerRef = ref<HTMLElement | null>(null)
 
 const loading = ref(true)
 const switching = ref(false)
 const loadError = ref('')
 const boundaryWarning = ref('')
-const currentRenderer = ref(null)
+const currentRenderer = ref<MapRenderer | null>(null)
 const mapStore = useMapStore()
-const olRenderer = ref(null)
-const cesiumRenderer = ref(null)
+const olRenderer = ref<MapRenderer | null>(null)
+const cesiumRenderer = ref<MapRenderer | null>(null)
 const cesiumInitialized = ref(false)
 
 provide(MapRendererKey, currentRenderer)
@@ -44,12 +48,12 @@ const { registerBaseLayerWithRenderer, registerToggleable, clearLayers } = useLa
 
 const spinnerSizeCss = computed(() => `${Math.round(CELL_PIXEL * 0.5)}px`)
 
-let portGeoJson = null
-let boundaryGeoJson = null
+let portGeoJson: any = null
+let boundaryGeoJson: any = null
 
 function withTimeout(promise, timeoutMs, errorMessage) {
   let timeoutId
-  const timeoutPromise = new Promise((_, reject) => {
+  const timeoutPromise = new Promise<unknown>((_, reject) => {
     timeoutId = setTimeout(() => reject(new Error(errorMessage)), timeoutMs)
   })
   return Promise.race([promise, timeoutPromise]).finally(() => clearTimeout(timeoutId))
@@ -57,7 +61,7 @@ function withTimeout(promise, timeoutMs, errorMessage) {
 
 // v-show切换后浏览器未必完成layout，用rAF等待容器有实际尺寸再初始化渲染器
 function waitForContainerVisible(container) {
-  return new Promise((resolve) => {
+  return new Promise<void>((resolve) => {
     if (container && container.offsetWidth > 0 && container.offsetHeight > 0) {
       resolve()
       return
@@ -72,7 +76,7 @@ function waitForContainerVisible(container) {
         requestAnimationFrame(check)
       } else {
         if (import.meta.env.DEV) {
-          console.warn('waitForContainerVisible: 容器尺寸检查超时，继续执行')
+          logger.warn('waitForContainerVisible: 容器尺寸检查超时，继续执行')
         }
         resolve()
       }
@@ -90,14 +94,15 @@ async function loadData() {
         boundaryWarning.value = msg
       }),
       10000,
-      '边界数据加载超时',
+      '边界数据加载超时'
     )
   } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error))
     if (import.meta.env.DEV) {
-      console.error('地图数据加载失败:', error)
+      logger.error('地图数据加载失败:', err)
     }
-    if (error.message.includes('超时')) {
-      loadError.value = error.message
+    if (err.message.includes('超时')) {
+      loadError.value = err.message
     }
   }
 }
@@ -110,7 +115,7 @@ async function loadData() {
 async function initRenderer(type, container) {
   if (!container) {
     if (import.meta.env.DEV) {
-      console.error(`initRenderer: ${type}容器为空`)
+      logger.error(`initRenderer: ${type}容器为空`)
     }
     return
   }
@@ -130,11 +135,11 @@ async function initRenderer(type, container) {
         cesiumViewerManager.mount(container)
       }
 
-      currentRenderer.value.updateSize()
+      existingRenderer.updateSize()
       // 图层目录的show/hide绑定的是渲染器实例，切换回来需重新注册
       setupLayers()
     } else {
-      const renderer = await createRenderer(type, container)
+      const renderer = (await createRenderer(type, container)) as unknown as MapRenderer
 
       if (type === '2d') {
         olRenderer.value = renderer
@@ -144,39 +149,42 @@ async function initRenderer(type, container) {
 
       currentRenderer.value = renderer
       mapStore.setCurrentRenderer(renderer)
-      currentRenderer.value.updateSize()
+      renderer.updateSize()
       setupLayers()
       setupEvents()
     }
 
     mapStore.setMap(
-      type === '2d' ? currentRenderer.value.getMap() : currentRenderer.value.getViewer(),
+      (type === '2d' ? currentRenderer.value?.getMap() : currentRenderer.value?.getViewer()) ?? null
     )
   } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error))
     if (import.meta.env.DEV) {
-      console.error(`Renderer ${type} 初始化失败:`, error)
+      logger.error(`Renderer ${type} 初始化失败:`, err)
     }
-    loadError.value = error.message || '地图初始化失败'
-    emit('error', error)
+    loadError.value = err.message || '地图初始化失败'
+    emit('error', err)
   }
 }
 
 // 每次切换引擎时重新注册图层目录（show/hide绑定当前渲染器实例）
 // _layers Map检查防止重复添加图层
 function setupLayers() {
+  const renderer = currentRenderer.value
+  if (!renderer) return
   clearLayers()
 
-  registerBaseLayerWithRenderer('base-image', '影像底图', currentRenderer.value)
-  registerBaseLayerWithRenderer('base-vector', '矢量底图', currentRenderer.value)
+  registerBaseLayerWithRenderer('base-image', '影像底图', renderer)
+  registerBaseLayerWithRenderer('base-vector', '矢量底图', renderer)
 
-  if (boundaryGeoJson && !currentRenderer.value._layers.has('boundary')) {
-    currentRenderer.value.addGeoJsonLayer('boundary', boundaryGeoJson, BOUNDARY_STYLE)
+  if (boundaryGeoJson && !renderer._layers.has('boundary')) {
+    renderer.addGeoJsonLayer('boundary', boundaryGeoJson, BOUNDARY_STYLE)
   }
   if (boundaryGeoJson) {
-    registerToggleable('boundary', '行政区划', currentRenderer.value)
+    registerToggleable('boundary', '行政区划', renderer)
   }
 
-  if (portGeoJson && !currentRenderer.value._layers.has('ports')) {
+  if (portGeoJson && !renderer._layers.has('ports')) {
     const validFeatures = portGeoJson.features.filter((f) => {
       if (!f?.geometry?.coordinates) return false
       if (!Array.isArray(f.geometry.coordinates) || f.geometry.coordinates.length < 2) return false
@@ -184,7 +192,7 @@ function setupLayers() {
       return !(lng === 0 && lat === 0)
     })
     if (validFeatures.length > 0) {
-      currentRenderer.value.addPointLayer(
+      renderer.addPointLayer(
         'ports',
         validFeatures
           .map((f) => ({
@@ -193,18 +201,19 @@ function setupLayers() {
             lat: f.geometry.coordinates[1],
           }))
           .filter(Boolean),
-        PORT_STYLE,
+        PORT_STYLE
       )
     }
   }
   if (portGeoJson) {
-    registerToggleable('ports', '港口位置', currentRenderer.value)
+    registerToggleable('ports', '港口位置', renderer)
   }
-
 }
 
 function setupEvents() {
-  currentRenderer.value.on('click', (event) => {
+  const renderer = currentRenderer.value
+  if (!renderer) return
+  renderer.on('click', (event) => {
     const { featureType, data, coordinate } = event.detail
     if (featureType === 'port' && data) {
       mapStore.setSelectedPort(data)
@@ -224,13 +233,13 @@ async function switchMapType(newType) {
   if (switching.value) return
 
   // 用渲染器实际类型而非mapStore.mapType，后者可能已被route.meta.engine提前更新
-  const oldType = currentRenderer.value?.getType() || mapStore.mapType
+  const oldType = (currentRenderer.value?.getType() || mapStore.mapType) as '2d' | '3d'
   switching.value = true
   loading.value = true
 
   logger.debug(`[UnifiedMap] switchMapType: ${oldType} → ${newType}`)
   logger.debug(
-    `[UnifiedMap] mapStore.mapType=${mapStore.mapType}, currentRenderer.type=${currentRenderer.value?.getType()}`,
+    `[UnifiedMap] mapStore.mapType=${mapStore.mapType}, currentRenderer.type=${currentRenderer.value?.getType()}`
   )
 
   // 如果 oldType 和 newType 相同，无需切换
@@ -242,7 +251,7 @@ async function switchMapType(newType) {
   }
 
   try {
-    let cameraState = null
+    let cameraState: any = null
     if (currentRenderer.value) {
       cameraState = currentRenderer.value.exportState()
     }
@@ -271,17 +280,18 @@ async function switchMapType(newType) {
 
     emit('typeChange', newType)
   } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error))
     if (import.meta.env.DEV) {
-      console.error(`切换到 ${newType} 失败:`, error)
+      logger.error(`切换到 ${newType} 失败:`, err)
     }
-    loadError.value = error.message || '地图切换失败'
+    loadError.value = err.message || '地图切换失败'
 
     // 初始化失败时回滚 mapStore.mapType，避免容器因 v-show 被隐藏
     if (oldType !== newType) {
       mapStore.setMapType(oldType)
     }
 
-    emit('error', error)
+    emit('error', err)
   } finally {
     switching.value = false
     loading.value = false
@@ -310,7 +320,7 @@ watch(
   () => props.mapType,
   async (newType) => {
     await switchMapType(newType)
-  },
+  }
 )
 
 onMounted(async () => {
@@ -391,8 +401,8 @@ defineExpose({
 .loading-spinner {
   width: v-bind(spinnerSizeCss);
   height: v-bind(spinnerSizeCss);
-  border: 4px solid #f3f3f3;
-  border-top: 4px solid #409eff;
+  border: 4px solid var(--gcs-bg-container);
+  border-top: 4px solid var(--gcs-color-primary);
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -410,7 +420,7 @@ defineExpose({
   position: absolute;
   top: 10px; /* 10px 非8的整数倍，保留 */
   left: 10px; /* 10px 非8的整数倍，保留 */
-  color: #e74c3c;
+  color: var(--gcs-color-error);
   background: rgba(255, 255, 255, 0.9);
   padding: v-bind(cell8px) 12px; /* 12px 非8的整数倍，保留 */
   border-radius: 6px;

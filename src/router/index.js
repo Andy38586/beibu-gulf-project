@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { useAuth } from '@/shared/composables/useAuth'
 
 const routes = [
   {
@@ -12,28 +13,27 @@ const routes = [
     path: '/site-selection',
     name: 'SiteSelection',
     component: () => import('@/business/site-selection/SiteSelectionPage.vue'),
-    meta: { engine: '2d', title: '选址分析' },
+    meta: { engine: '2d', title: '选址分析', requiresAuth: true },
   },
-  // TODO:2.1b: 新增预测分析路由
+  // 预测分析：公开数据，前端路由不要求认证（与后端 routes/forecast.js 无 authenticate 一致）
   {
     path: '/forecast',
     name: 'Forecast',
     component: () => import('@/business/forecast/ForecastPage.vue'),
     meta: { engine: '2d', title: '预测分析' },
   },
-  // Flood分析路由（原GCS分析），复用原热力图路由路径
+  // 浸没分析（原 GCS 分析）
   {
-    path: '/heatmap',
+    path: '/flood-analysis',
     name: 'FloodAnalysis',
     component: () => import('@/business/flood-analysis/FloodAnalysisPage.vue'),
-    meta: { engine: '3d', title: '浸没分析' },
+    meta: { engine: '3d', title: '浸没分析', requiresAuth: true },
   },
-  // P0-001-FIX: 移除 requiresAuth，允许未登录用户访问登录面板
   {
     path: '/profile',
     name: 'Profile',
     component: () => import('@/views/ProfilePage.vue'),
-    meta: { engine: '2d', title: '个人中心' },
+    meta: { engine: '2d', title: '个人中心', requiresAuth: true },
   },
 ]
 
@@ -42,5 +42,17 @@ const router = createRouter({
   routes,
 })
 
-// FIX:P3-12: 删除路由守卫死代码。四条路由 meta 均无 requiresAuth（P0-001 已移除），beforeEach 永不触发。
+// 路由守卫：保护需要认证的业务页面
+router.beforeEach((to, from, next) => {
+  if (to.meta.requiresAuth) {
+    const auth = useAuth()
+    if (!auth.isAuthenticated.value) {
+      // 未登录，重定向到首页并弹出登录面板
+      next({ path: '/', query: { showLogin: '1' } })
+      return
+    }
+  }
+  next()
+})
+
 export default router

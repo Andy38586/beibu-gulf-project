@@ -1,11 +1,11 @@
-<script setup>
+<script setup lang="ts">
 import { RouterView, useRoute, useRouter } from 'vue-router'
 import { onMounted, provide, ref, watch } from 'vue'
 import UnifiedMap from '@/core/map/UnifiedMap.vue'
 import ErrorBoundary from '@/shared/components/ErrorBoundary.vue'
 import { useAuth } from '@/shared/composables/useAuth'
 import { useMapControls } from '@/core/map/composables/useMapControls'
-import { useMapStore } from '@/stores/map'
+import { useMapStore } from '@/stores/mapStore'
 import { BusinessLayerManager } from '@/core/map/BusinessLayerManager'
 import { BUSINESS_LAYER_MANAGER_KEY } from '@/core/map/composables/useBusinessLayers'
 import { logger } from '@/shared/utils/logger'
@@ -16,7 +16,7 @@ const { restoreAuth } = useAuth()
 const { zoomToRegion, zoomToCity, stopBreathing } = useMapControls()
 const mapStore = useMapStore()
 
-const unifiedMapRef = ref(null)
+const unifiedMapRef = ref<{ getRenderer: () => unknown } | null>(null)
 const restorePlanData = ref(null)
 const editingPlan = ref(null)
 
@@ -35,7 +35,7 @@ function handleRequireLogin() {
   router.push('/profile')
 }
 
-// P1-001-FIX: 等待渲染器就绪后再执行缩放
+// 等待渲染器就绪后再执行缩放
 function waitForRenderer(callback, retries = 0) {
   const renderer = unifiedMapRef.value?.getRenderer?.()
   if (renderer) {
@@ -72,8 +72,9 @@ watch(
     })
 
     // 更新地图引擎类型
-    if (newRoute.engine && ['2d', '3d'].includes(newRoute.engine)) {
-      mapStore.setMapType(newRoute.engine)
+    const engine = newRoute.engine as string
+    if (engine && ['2d', '3d'].includes(engine)) {
+      mapStore.setMapType(engine as '2d' | '3d')
     }
 
     // 关键修复：仅在非引擎切换场景下执行相机重置
@@ -89,11 +90,11 @@ watch(
       logger.debug('[App.vue] 引擎切换场景，跳过相机重置（由 importState 管理）')
     }
   },
-  { immediate: true },
+  { immediate: true }
 )
 
 onMounted(() => {
-  // P1-002-FIX: 应用启动时恢复认证状态
+  // 应用启动时恢复认证状态
   // 通过 /api/auth/me 验证 Cookie 中的 Token 是否有效
   restoreAuth()
 })

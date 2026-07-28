@@ -58,6 +58,13 @@
 
 ---
 
+## 构建与性能
+
+- 构建体积分析：`npm run build:analyze`，生成 `dist/stats.html` 可视化报告
+- 分包策略及首屏加载分析详见 [`docs/performance.md`](docs/performance.md)
+
+---
+
 ## 架构
 
 ### Renderer Adapter 模式
@@ -220,13 +227,13 @@ beibu-gulf-project/
 
 ### 浏览器兼容性
 
-| 浏览器 | 最低版本 | 说明 |
-|--------|---------|------|
-| Chrome | 89+ | 推荐，完整支持 CSS v-bind 和所有现代特性 |
-| Edge | 89+ | 推荐，基于 Chromium |
-| Firefox | 114+ | 完整支持 |
-| Safari | 14.1+ | 完整支持 CSS v-bind |
-| IE | 不支持 | 项目使用现代 JavaScript 特性，不支持 IE |
+| 浏览器  | 最低版本 | 说明                                     |
+| ------- | -------- | ---------------------------------------- |
+| Chrome  | 89+      | 推荐，完整支持 CSS v-bind 和所有现代特性 |
+| Edge    | 89+      | 推荐，基于 Chromium                      |
+| Firefox | 114+     | 完整支持                                 |
+| Safari  | 14.1+    | 完整支持 CSS v-bind                      |
+| IE      | 不支持   | 项目使用现代 JavaScript 特性，不支持 IE  |
 
 **说明**：项目使用 Vue 3、CSS v-bind、ResizeObserver 等现代特性，已配置 browserslist 和 polyfill 确保兼容性。如需支持旧版浏览器，请参考 `package.json` 中的 browserslist 配置。
 

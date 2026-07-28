@@ -2,6 +2,7 @@ import { ref } from 'vue'
 import type { Ref } from 'vue'
 import type { AnalysisParams, AnalysisResult } from '@/types/analysis'
 import { useApiRequest, ApiError, ErrorCode } from '@/shared/composables/useApiRequest'
+import { logger } from '@/shared/utils/logger'
 
 export function useSiteAnalysisApi() {
   const { apiRequest } = useApiRequest()
@@ -9,10 +10,10 @@ export function useSiteAnalysisApi() {
   const calcError: Ref<string> = ref('')
 
   async function analyze(params: AnalysisParams): Promise<AnalysisResult> {
-    // FIX:P03: 请求去重，防止重复提交
+    // 请求去重，防止重复提交
     if (calculating.value) {
       if (import.meta.env.DEV) {
-        console.warn('[useSiteAnalysisApi] 分析请求已在进行中，忽略重复请求')
+        logger.warn('[useSiteAnalysisApi] 分析请求已在进行中，忽略重复请求')
       }
       return { error: '正在分析中，请稍后再试', coverage: null, matchedXiaoqu: [], facilityPoi: {} }
     }
@@ -26,23 +27,21 @@ export function useSiteAnalysisApi() {
       })
       if (result.error) {
         calcError.value = result.error
-        // FIX:009: 返回完整的错误对象结构
-        return { 
-          error: result.error, 
-          coverage: null, 
+        return {
+          error: result.error,
+          coverage: null,
           matchedXiaoqu: [],
-          facilityPoi: {}
+          facilityPoi: {},
         }
       }
-      // FIX:009: 确保返回对象结构完整
       return {
         error: null,
         coverage: result.coverage || null,
         matchedXiaoqu: result.matchedXiaoqu || [],
-        facilityPoi: result.facilityPoi || {}
+        facilityPoi: result.facilityPoi || {},
       }
     } catch (error) {
-      // FIX:P3-002: 使用错误码替代字符串匹配，提高可维护性
+      // 用错误码分派，避免字符串匹配
       if (error instanceof ApiError) {
         switch (error.code) {
           case ErrorCode.TIMEOUT:
@@ -66,7 +65,6 @@ export function useSiteAnalysisApi() {
       } else {
         calcError.value = '选址分析网络异常，请稍后重试'
       }
-      // FIX:009: 保持返回结构完整
       return { error: calcError.value, coverage: null, matchedXiaoqu: [], facilityPoi: {} }
     } finally {
       calculating.value = false

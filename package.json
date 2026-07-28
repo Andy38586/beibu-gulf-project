@@ -4,17 +4,19 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
-    "test": "vitest run",
-    "test:watch": "vitest",
+    "dev": "cd frontend && vite",
+    "build": "cd frontend && vite build",
+    "preview": "cd frontend && vite preview",
+    "test": "cd frontend && vitest run",
+    "test:watch": "cd frontend && vitest",
     "lint": "eslint . --cache",
     "lint:fix": "eslint . --fix --cache",
-    "typecheck": "vue-tsc --noEmit -p tsconfig.app.json",
+    "typecheck": "vue-tsc --noEmit -p frontend/tsconfig.app.json",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "build:analyze": "set ANALYZE=true && vite build"
+    "build:analyze": "cd frontend && set ANALYZE=true && vite build",
+    "dev:server": "npm --prefix backend run dev",
+    "dev:all": "run-p dev dev:server"
   },
   "dependencies": {
     "@turf/turf": "^7.3.5",

@@ -1,11 +1,13 @@
-# 北部湾港 WebGIS API 契约文档
+# 北部湾港 WebGIS 平台 — API 契约文档
 
-> **版本**：2.0
-> **编写日期**：2026-07-27
-> **基准代码**：server/ 后端全量扫描（31 个端点）
-> **定位**：本文档描述后端 API 的**实际行为契约**——请求结构、响应结构、认证要求、限流策略。这些契约只在 API 大版本升级时才会变更，与具体 bug 无关。
-> **用法**：前端开发查阅本文件即可理解所有接口的请求/响应结构。如发现代码行为与本文件不一致，以代码为准并提 issue 更新本文件。
-> **关联**：具体的 bug、待修问题见 `待解决问题.md`，不在本文档中描述。
+> **定位**: 本文档描述后端 API 的**实际行为契约**——请求结构、响应结构、认证要求、限流策略。这些契约只在 API 大版本升级时才会变更，与具体 bug 无关。
+> **读者**: 前端/后端开发者，或后续接手本项目的 AI。读完应能准确拼接任意接口的请求与响应，不误用响应格式。
+> **版本**: 2.0
+> **编制**: 2026-07-27
+> **基准代码**: server/ 后端全量扫描（31 个端点）
+> **用法**: 前端开发查阅本文件即可理解所有接口的请求/响应结构。如发现代码行为与本文件不一致，以代码为准并提 issue 更新本文件。
+> **关联**: 具体的 bug、待修问题见 `待解决问题.md`，不在本文档中描述。
+> **原则**: 每个端点的字段名、默认值、错误文案均来自 `server/` 实际代码扫描，非凭空设计；同一模块内响应格式保持一致。
 
 ---
 
@@ -25,7 +27,7 @@
 
 ## 1. 通用约定
 
-### 1.1 Base URL
+### 1.1 基础地址（Base URL）
 
 ```
 开发环境: http://localhost:5173/api
@@ -56,16 +58,16 @@
 
 ### 1.3 认证方式
 
-JWT + HttpOnly Cookie 双通道机制：
+**认证以 HttpOnly Cookie 单通道为主**（对应 D04 决策：防 XSS 抓取令牌）：
 
 1. **登录后**：后端 `authController.setAuthCookie` 设置 `auth_token` HttpOnly Cookie（7 天有效期，`sameSite: 'strict'`，生产环境强制 HTTPS）
-2. **后续请求**：后端 `middleware/auth.js` 的 `authenticate` 函数**优先从 Cookie 读取** `auth_token`，若无则 fallback 到 `Authorization: Bearer <token>` header
-3. **前端**：`useApiRequest.ts` 同时启用两个通道——`credentials: 'include'` 自动携带 Cookie，且若内存中存在 token 则附加 `Authorization: Bearer` header
+2. **前端请求**：`useApiRequest.ts` 仅通过 `credentials: 'include'` 自动携带 Cookie，**不发送 `Authorization: Bearer` header**（已删除；全文件无 Bearer 发送逻辑）
+3. **后端校验**：`middleware/auth.js` 的 `authenticate` 函数**优先从 Cookie 读取** `auth_token`；作为服务端 fallback，无 Cookie 时仍兼容 `Authorization: Bearer <token>` header（便于非浏览器客户端 / 调试）。**浏览器前端实际只走 Cookie 通道**
 4. **认证失败**：
    - 未提供令牌：`401 { error: '未提供认证令牌' }`
    - 令牌无效/过期：`401 { error: '认证令牌无效或已过期' }`
 
-> **关于双通道**：Cookie 通道是主通道（HttpOnly 防 XSS 抓取），Bearer header 通道为 fallback。两者并存的设计取舍详见 `待解决问题.md` D04（模块级变量 `token` 无法主动清除，需登出接口由后端清 Cookie）。
+> **关于通道**：Cookie 通道是**唯一的前端通道**（HttpOnly 防 XSS）；Bearer header 仅作为后端兼容 fallback，前端已不再发送。历史"双通道"设计见 `待解决问题.md` D04 / `已解决问题.md` R16。
 
 ### 1.4 限流
 
@@ -753,10 +755,10 @@ GET /api/gcs/terrain-profiles
 
 获取浸没分析相关的港口设施清单。
 
+> **字段命名注意（待修债务，详见 `待解决问题.md` D05）**：此端点返回 `longitude` / `latitude`（全称），与项目前端规范 `lng` / `lat`（缩写）不一致。原因是数据源 `facilityPoints.json` 使用全称。**这是已知债务，计划统一为 `lng` / `lat`**。当前前端通过 `src/types/crs.ts` 的 `normalizePoint()` 归一化处理，业务代码不直接处理 `longitude`。
+
 ```
 GET /api/gcs/facilities
-
-> **字段命名注意（待修债务，详见 `待解决问题.md` D05）**：此端点返回 `longitude` / `latitude`（全称），与项目前端规范 `lng` / `lat`（缩写）不一致。原因是数据源 `facilityPoints.json` 使用全称。**这是已知债务，计划统一为 `lng` / `lat`**。当前前端通过 `src/types/crs.ts` 的 `normalizePoint()` 归一化处理，业务代码不直接处理 `longitude`。
 
 // 成功 200
 {
@@ -785,13 +787,13 @@ GET /api/gcs/facilities
 
 执行完整的灾害评估（淹没区域 + 设施影响 + 经济损失）。
 
+> **字段命名注意（待修债务，同 §7 `/api/gcs/facilities`，详见 `待解决问题.md` D05）**：`affectedFacilities` 中的坐标字段为 `longitude` / `latitude`（全称），计划统一为 `lng` / `lat`。
+
 ```
 POST /api/gcs/analysis/disaster
 Content-Type: application/json
 
 { "waterLevel": 2.5 }
-
-> **字段命名注意（待修债务，同 §7 `/api/gcs/facilities`，详见 `待解决问题.md` D05）**：`affectedFacilities` 中的坐标字段为 `longitude` / `latitude`（全称），计划统一为 `lng` / `lat`。
 
 // 成功 200
 {
@@ -842,7 +844,7 @@ Content-Type: application/json
 **模块**：`server/routes/forecast.js` + `server/controllers/forecastController.js`
 **格式**：混合格式（GCS-like，成功无 `message` 字段，错误用 `error` 不是 `message`）
 
-> ⚠️ **认证策略**：`/api/forecast/*` 不需要认证。预测数据视为公开数据，与需认证的业务模块（plans/markers/gcs 等）安全策略不同。此为稳定设计决策，变更需同步更新本文档和 `项目根基.md` §8.4。
+> **认证策略**：`/api/forecast/*` 不需要认证。预测数据视为公开数据，与需认证的业务模块（plans/markers/gcs 等）安全策略不同。此为稳定设计决策，变更需同步更新本文档和 `项目根基.md` §8.4。
 
 ### GET /api/forecast
 
@@ -933,6 +935,18 @@ GET /api/forecast/indicator/throughput?time=2026-07&portId=qinzhou&confidence=0.
 
 获取特定港口的预测数据。**该路由必须放在最后注册**，避免吞噬 `/map`、`/timeseries` 等路径。
 
+```js
+// ❌ 错误：/:portId 在前会吞噬后续路由
+router.get('/:portId', getPortForecast)   // 先匹配，/map 永远到不了
+router.get('/map', getForecastMapData)
+
+// ✅ 正确：/:portId 放最后（server/routes/forecast.js 实际顺序）
+router.get('/map', getForecastMapData)
+router.get('/timeseries', getTimeSeriesData)
+router.get('/indicator/:type', getIndicatorData)
+router.get('/:portId', getPortForecast)    // 最后注册
+```
+
 ```
 GET /api/forecast/qinzhou?indicator=throughput&start=2024-01&end=2026-12
 
@@ -982,4 +996,4 @@ GET /api/health
 
 ---
 
-> **维护说明**：本文档描述 API 的稳定契约，只在 API 大版本升级时变更。如发现代码与本文档不一致，应以代码为准并提 issue 更新本文件。具体的 bug、待修问题、技术债务记录在 `待解决问题.md` 和 `技术债务清单.md` 中，不在本文档描述。
+> **维护说明**: 本文档描述 API 的稳定契约，只在 API 大版本升级时变更。如发现代码与本文档不一致，应以代码为准并提 issue 更新本文件。具体的 bug、待修问题、技术债务记录在 `待解决问题.md` 和 `技术债务清单.md` 中，不在本文档描述。

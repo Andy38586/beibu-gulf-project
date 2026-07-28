@@ -10,9 +10,10 @@ import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { BusinessError, ErrorCode } from '../utils/BusinessError.js'
 
-// @arch-note 偏8: 统一数据路径为 public/data/forecast/
+// @arch-note 偏8: 预测数据存放于 frontend/public/data/forecast/（前端 Mock 静态源，
+// 后端读取同一份）。__dirname=backend/controllers，上溯两级到项目根再进入 frontend/public。
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const DATA_PATH = join(__dirname, '../../public/data/forecast/index.json')
+const DATA_PATH = join(__dirname, '../../frontend/public/data/forecast/index.json')
 
 export async function getForecastOverview(req, res, next) {
   try {

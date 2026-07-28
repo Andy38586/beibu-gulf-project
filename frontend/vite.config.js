@@ -32,7 +32,13 @@ export default defineConfig({
   plugins: [
     vue(),
     vueDevTools(),
-    cesium(),
+    // node_modules 实际位于项目根（frontend/ 的上一级）。本配置随 vite 以 cwd=frontend 运行，
+    // 插件默认按 cwd 拼接 node_modules/cesium，会导致 dev/构建都找不到 Cesium 静态资源。
+    // 故显式用绝对路径指向真实位置。
+    cesium({
+      cesiumBuildRootPath: fileURLToPath(new URL('../node_modules/cesium/Build', import.meta.url)),
+      cesiumBuildPath: fileURLToPath(new URL('../node_modules/cesium/Build/Cesium/', import.meta.url)),
+    }),
     removeCesiumHtmlTags(),
     // 打包分析：生成 dist/stats.html，ANALYZE=true 时自动打开浏览器
     visualizer({

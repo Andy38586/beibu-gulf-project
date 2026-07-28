@@ -1,0 +1,14 @@
+{
+  "code": 200,
+  "data": {
+    "waterLevel": 2.5,
+    "riskLevel": "低风险",
+    "riskLevelCode": 1,
+    "floodArea": 0.85,
+    "averageDepth": 0.6,
+    "maxDepth": 1.2,
+    "affectedFacilities": 3,
+    "estimatedLoss": 120.5
+  },
+  "message": "success"
+}

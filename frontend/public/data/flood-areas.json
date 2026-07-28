@@ -1,0 +1,31 @@
+{
+  "code": 200,
+  "data": {
+    "features": [
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [108.60, 21.84],
+              [108.66, 21.84],
+              [108.66, 21.90],
+              [108.60, 21.90],
+              [108.60, 21.84]
+            ]
+          ]
+        },
+        "properties": {
+          "port": "铁山港",
+          "areaName": "铁山港淹没区",
+          "waterLevel": 2.5
+        }
+      }
+    ],
+    "riskLevel": "低风险",
+    "riskLevelCode": 1,
+    "actualWaterLevel": 2.5
+  },
+  "message": "success"
+}

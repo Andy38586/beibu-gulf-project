@@ -23,7 +23,7 @@ export default defineConfig([
   },
 
   {
-    files: ['server/**/*.js'],
+    files: ['backend/**/*.js'],
     languageOptions: {
       globals: {
         ...globals.node,
@@ -42,7 +42,7 @@ export default defineConfig([
 
   {
     // 根目录的构建/测试配置文件运行在 Node 环境
-    files: ['vite.config.js', 'vitest.config.js'],
+    files: ['frontend/vite.config.js', 'vitest.config.js'],
     languageOptions: {
       globals: {
         ...globals.node,

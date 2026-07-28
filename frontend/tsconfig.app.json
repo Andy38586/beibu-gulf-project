@@ -20,7 +20,7 @@
 
     /* Linting */
     "strict": true,
-    "noImplicitAny": false,
+    "noImplicitAny": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
@@ -30,5 +30,5 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue", "src/**/*.js"]
+  "include": ["./src/**/*.ts", "./src/**/*.tsx", "./src/**/*.vue", "./src/**/*.js"]
 }

@@ -9,7 +9,7 @@ import siteAnalysisRouter from './routes/siteAnalysis.js'
 import authRouter from './routes/auth.js'
 import plansRouter from './routes/plans.js'
 import forecastRouter from './routes/forecast.js'
-import gcsRouter from './routes/gcs.js'
+import floodRouter from './routes/floodAnalysis.js'
 import { BusinessError } from './utils/BusinessError.js'
 
 const app = express()
@@ -49,7 +49,7 @@ app.use('/api/site-analysis', siteAnalysisRouter)
 app.use('/api/auth', authRouter)
 app.use('/api/plans', plansRouter)
 app.use('/api/forecast', forecastRouter)
-app.use('/api/gcs', gcsRouter)
+app.use('/api/flood', floodRouter)
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' })
 })

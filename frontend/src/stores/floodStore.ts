@@ -5,7 +5,7 @@ import { usePortImpactStore } from './portImpactStore'
 import { useProfileStore } from './profileStore'
 import { useWaterLevelStore } from './waterLevelStore'
 
-export const useGcsStore = defineStore('gcs', () => {
+export const useFloodStore = defineStore('floodReset', () => {
   function resetAll(): void {
     useWaterLevelStore().resetWaterLevel()
     useProfileStore().resetProfile()

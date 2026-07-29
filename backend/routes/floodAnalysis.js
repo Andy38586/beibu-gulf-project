@@ -8,7 +8,7 @@ const router = Router()
 router.use(authenticate)
 
 /**
- * GCS三维港口分析系统API路由
+ * 洪水分析系统API路由
  *
  * 数据接口：
  * - GET /water-levels      获取基准水位数据
@@ -25,31 +25,31 @@ router.use(authenticate)
 
 /**
  * 获取基准水位数据
- * GET /api/gcs/water-levels
+ * GET /api/flood/water-levels
  */
 router.get('/water-levels', floodAnalysisController.getWaterLevels)
 
 /**
  * 获取淹没范围数据
- * GET /api/gcs/flood-areas?waterLevel=2.5
+ * GET /api/flood/flood-areas?waterLevel=2.5
  */
 router.get('/flood-areas', floodAnalysisController.getFloodAreas)
 
 /**
  * 获取统计数据
- * GET /api/gcs/flood-statistics?waterLevel=2.5
+ * GET /api/flood/flood-statistics?waterLevel=2.5
  */
 router.get('/flood-statistics', floodAnalysisController.getFloodStatistics)
 
 /**
  * 获取剖面数据
- * GET /api/gcs/terrain-profiles
+ * GET /api/flood/terrain-profiles
  */
 router.get('/terrain-profiles', floodAnalysisController.getTerrainProfiles)
 
 /**
  * 获取设施点数据
- * GET /api/gcs/facilities
+ * GET /api/flood/facilities
  */
 router.get('/facilities', floodAnalysisController.getFacilities)
 
@@ -57,7 +57,7 @@ router.get('/facilities', floodAnalysisController.getFacilities)
 
 /**
  * 灾害评估
- * POST /api/gcs/analysis/disaster
+ * POST /api/flood/analysis/disaster
  * Body: { waterLevel: number }
  */
 router.post('/analysis/disaster', floodAnalysisController.analyzeDisaster)

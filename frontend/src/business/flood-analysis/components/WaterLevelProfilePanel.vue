@@ -125,7 +125,7 @@ const chartContainerRef = ref<HTMLElement | null>(null)
  */
 async function loadProfiles() {
   try {
-    const result = await apiRequest<ApiResponse<TerrainProfile[]>>('/gcs/terrain-profiles')
+    const result = await apiRequest<ApiResponse<TerrainProfile[]>>('/flood/terrain-profiles')
 
     if (result.code === 200 && result.data) {
       profiles.value = result.data

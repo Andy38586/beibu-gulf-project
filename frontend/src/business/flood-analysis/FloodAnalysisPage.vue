@@ -26,7 +26,7 @@ import LayerControlPanel from '@/shared/components/LayerControlPanel.vue'
 import { showError } from '@/shared/utils/errorHandler'
 import { logger } from '@/shared/utils/logger'
 import { useFloodState } from '@/stores/floodState'
-import { useGcsStore } from '@/stores/gcsStore'
+import { useFloodStore } from '@/stores/floodStore'
 import { useMapStore } from '@/stores/mapStore'
 import { usePortImpactStore } from '@/stores/portImpactStore'
 import { useWaterLevelStore } from '@/stores/waterLevelStore'
@@ -36,7 +36,7 @@ import AffectedFacilityListPanel from './components/AffectedFacilityListPanel.vu
 import FloodAnalysisReportPanel from './components/FloodAnalysisReportPanel.vue'
 import WaterLevelProfilePanel from './components/WaterLevelProfilePanel.vue'
 
-const gcsStore = useGcsStore()
+const floodResetStore = useFloodStore()
 const waterLevelStore = useWaterLevelStore()
 const floodStore = useFloodState()
 const portImpactStore = usePortImpactStore()
@@ -68,10 +68,10 @@ let impactAbortController: AbortController | null = null
 
 const ANALYSIS_DELAY = 500
 
-const WATER_SURFACE_ID = 'gcs-water-surface'
+const WATER_SURFACE_ID = 'flood-water-surface'
 
-const FLOOD_LAYER_ID = 'gcs-flood-area'
-const FACILITY_LAYER_ID = 'gcs-facilities'
+const FLOOD_LAYER_ID = 'flood-area'
+const FACILITY_LAYER_ID = 'flood-facilities'
 
 // 通过 floodAdapter 加载水域坐标（Mock 数据，架构验证阶段）
 // 生产阶段仅需 floodAdapter.setDataSource('api')，此处代码无需修改
@@ -213,7 +213,7 @@ watch(
     analysisTimer = setTimeout(() => {
       // 递增请求序号
       const seq = ++analysisSeq
-      logger.debug('[GCS] 防抖结束，触发分析，水位:', newLevel, 'seq:', seq)
+      logger.debug('[Flood] 防抖结束，触发分析，水位:', newLevel, 'seq:', seq)
       triggerFloodAnalysis(newLevel, seq)
       triggerImpactAssessment(newLevel, seq)
     }, ANALYSIS_DELAY)
@@ -230,13 +230,13 @@ async function triggerFloodAnalysis(waterLevel: number, seq: number) {
   const signal = floodAbortController.signal
 
   try {
-    logger.debug('[GCS] 触发淹没分析，水位:', waterLevel, 'seq:', seq)
+    logger.debug('[Flood] 触发淹没分析，水位:', waterLevel, 'seq:', seq)
 
     // 通过 floodAdapter 获取淹没分析结果（Adapter 隔离数据源，业务层无需修改）
     const { features, statistics, riskLevel, actualWaterLevel } =
       await floodAdapter.getFloodAnalysis(waterLevel, { signal })
 
-    logger.debug('[GCS] 淹没分析响应:', { features: features.length, statistics, riskLevel })
+    logger.debug('[Flood] 淹没分析响应:', { features: features.length, statistics, riskLevel })
 
     // 已有更新请求，丢弃过期响应
     if (seq !== analysisSeq) return
@@ -244,10 +244,10 @@ async function triggerFloodAnalysis(waterLevel: number, seq: number) {
     if (!shouldRenderForCurrentRoute()) return
     // 实际档位与请求不一致时提示
     if (actualWaterLevel !== undefined && actualWaterLevel !== waterLevel) {
-      logger.info(`[GCS] 请求水位 ${waterLevel}m，实际使用数据档位 ${actualWaterLevel}m`)
+      logger.info(`[Flood] 请求水位 ${waterLevel}m，实际使用数据档位 ${actualWaterLevel}m`)
     }
 
-    logger.debug('[GCS] 更新淹没分析数据:', { statistics, features: features.length, riskLevel })
+    logger.debug('[Flood] 更新淹没分析数据:', { statistics, features: features.length, riskLevel })
 
     floodStore.startFloodAnalysis(
       statistics as FloodStatistics,
@@ -259,7 +259,7 @@ async function triggerFloodAnalysis(waterLevel: number, seq: number) {
     renderFloodAreas(features as FloodFeature[])
   } catch (error) {
     showError(error, { fallback: '淹没分析失败，请检查网络连接' })
-    logger.error('[GCS] 淹没分析失败:', error)
+    logger.error('[Flood] 淹没分析失败:', error)
   }
 }
 
@@ -272,21 +272,21 @@ async function triggerImpactAssessment(waterLevel: number, seq: number) {
   const signal = impactAbortController.signal
 
   try {
-    logger.debug('[GCS] 触发影响评估，水位:', waterLevel, 'seq:', seq)
+    logger.debug('[Flood] 触发影响评估，水位:', waterLevel, 'seq:', seq)
 
     // 通过 floodAdapter 获取影响评估结果（Adapter 隔离数据源）
     const { affectedFacilities, totalLoss } = await floodAdapter.getImpactAssessment(waterLevel, {
       signal,
     })
 
-    logger.debug('[GCS] 影响评估响应:', { facilities: affectedFacilities.length, totalLoss })
+    logger.debug('[Flood] 影响评估响应:', { facilities: affectedFacilities.length, totalLoss })
 
     // 已有更新请求，丢弃过期响应
     if (seq !== analysisSeq) return
     // 如果当前路由不再是 3D，丢弃过期响应防止污染 2D 渲染器
     if (!shouldRenderForCurrentRoute()) return
 
-    logger.debug('[GCS] 更新影响评估数据:', { facilities: affectedFacilities.length, totalLoss })
+    logger.debug('[Flood] 更新影响评估数据:', { facilities: affectedFacilities.length, totalLoss })
 
     portImpactStore.setPortImpactResult(affectedFacilities as AffectedFacility[], totalLoss)
 
@@ -294,7 +294,7 @@ async function triggerImpactAssessment(waterLevel: number, seq: number) {
     renderAffectedFacilities(affectedFacilities as AffectedFacility[])
   } catch (error) {
     showError(error, { fallback: '影响评估失败，请检查网络连接' })
-    logger.error('[GCS] 影响评估失败:', error)
+    logger.error('[Flood] 影响评估失败:', error)
   }
 }
 
@@ -432,7 +432,7 @@ onUnmounted(() => {
   floodAdapter.clearCache()
   cachedWaterAreaCoords = null
 
-  gcsStore.resetAll()
+  floodResetStore.resetAll()
 })
 </script>
 

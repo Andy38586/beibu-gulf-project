@@ -20,7 +20,7 @@ async function readJsonData(filename) {
 
 /**
  * 获取基准水位数据
- * GET /api/gcs/water-levels
+ * GET /api/flood/water-levels
  */
 export async function getWaterLevels(req, res, next) {
   try {
@@ -44,7 +44,7 @@ export async function getWaterLevels(req, res, next) {
 
 /**
  * 获取淹没范围数据
- * GET /api/gcs/flood-areas?waterLevel=2.5
+ * GET /api/flood/flood-areas?waterLevel=2.5
  * @param {number} waterLevel - 水位高度（米）
  */
 export async function getFloodAreas(req, res, next) {
@@ -104,7 +104,7 @@ export async function getFloodAreas(req, res, next) {
 
 /**
  * 获取统计数据
- * GET /api/gcs/flood-statistics?waterLevel=2.5
+ * GET /api/flood/flood-statistics?waterLevel=2.5
  */
 export async function getFloodStatistics(req, res, next) {
   try {
@@ -149,7 +149,7 @@ export async function getFloodStatistics(req, res, next) {
 
 /**
  * 获取剖面数据
- * GET /api/gcs/terrain-profiles
+ * GET /api/flood/terrain-profiles
  */
 export async function getTerrainProfiles(req, res, next) {
   try {
@@ -169,7 +169,7 @@ export async function getTerrainProfiles(req, res, next) {
 
 /**
  * 获取设施点数据
- * GET /api/gcs/facilities
+ * GET /api/flood/facilities
  */
 export async function getFacilities(req, res, next) {
   try {
@@ -189,7 +189,7 @@ export async function getFacilities(req, res, next) {
 
 /**
  * 灾害评估
- * POST /api/gcs/analysis/disaster
+ * POST /api/flood/analysis/disaster
  * @param {number} waterLevel - 水位高度
  */
 export async function analyzeDisaster(req, res, next) {

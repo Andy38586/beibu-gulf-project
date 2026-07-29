@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * AffectedFacilityListPanel - 受影响设施清单面板（浸没分析专用）
+ * AffectedFacilityListPanel - 受影响设施清单面板（洪水分析专用）
  *
  * 功能：
  * 1. 显示受影响设施清单，按损失金额排名

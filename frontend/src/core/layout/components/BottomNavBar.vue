@@ -24,9 +24,11 @@ export default { name: 'GcsBottomNavBar' }
 
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+
+import { useGCS } from '../useGCS.js'
+
 import GcsPanel from './GcsPanel.vue'
 import NavButton from './NavButton.vue'
-import { useGCS } from '../useGCS.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -64,12 +66,12 @@ const dockCellCount = computed(() => navItems.value.length + 1)
 
 // V2 变更：Dock 定位改用 PPS 的 bottom-center 锚点，不再需要手动管理视口尺寸
 
-function isActive(item) {
+function isActive(item: { route?: string }) {
   if (!item.route) return false
   return route.path === item.route
 }
 
-function handleClick(item) {
+function handleClick(item: { route?: string; disabled?: boolean }) {
   if (item.disabled || !item.route) return
   router.push(item.route)
 }

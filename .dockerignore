@@ -1,0 +1,12 @@
+node_modules
+frontend/node_modules
+dist
+frontend/dist
+.git
+*.md
+docs
+.husky
+build*.log
+typecheck*.log
+lint.log
+.DS_Store

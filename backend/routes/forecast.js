@@ -1,4 +1,3 @@
-// TODO:1.2: 预测分析路由注册
 import express from 'express'
 const router = express.Router()
 import {

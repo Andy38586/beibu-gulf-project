@@ -1,7 +1,12 @@
+import type { FeatureCollection } from 'geojson'
+
 import { MAP_CONFIG } from '@/core/config/map'
+import type { Port } from '@/types'
+import { isInBeibuGulf } from '@/types/crs'
 
 // 缓存加 TTL + in-flight Promise 去重
 const CACHE_TTL = 5 * 60 * 1000
+const FETCH_TIMEOUT_MS = 10000
 const dataCache = new Map<string, { data: unknown; cachedAt: number }>()
 const pendingCache = new Map<string, Promise<unknown>>()
 
@@ -15,25 +20,23 @@ async function fetchData(url: string): Promise<unknown> {
   }
 
   const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), 10000)
+  const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS)
 
-  const p = fetch(url, { signal: controller.signal })
-    .then((response) => {
+  // 先占位 pendingCache，再启动 fetch，消除"fetch 启动到 set 之间"的竞态窗口
+  const p = (async () => {
+    try {
+      const response = await fetch(url, { signal: controller.signal })
       if (!response.ok) {
         throw new Error(`请求失败: ${url}, HTTP ${response.status}`)
       }
-      return response.json()
-    })
-    .then((data) => {
+      const data = await response.json()
       dataCache.set(url, { data, cachedAt: Date.now() })
-      pendingCache.delete(url)
       return data
-    })
-    .catch((err) => {
+    } finally {
       pendingCache.delete(url)
-      throw err
-    })
-    .finally(() => clearTimeout(timeoutId))
+      clearTimeout(timeoutId)
+    }
+  })()
 
   pendingCache.set(url, p)
   return p
@@ -45,24 +48,39 @@ interface CacheStatus {
 }
 
 export const mapDataService = {
-  async getPorts(): Promise<unknown> {
+  async getPorts(): Promise<Port[]> {
     try {
       const data = await fetchData(MAP_CONFIG.DATA_PATHS.ports)
       if (!Array.isArray(data)) {
         throw new Error(`港口数据格式异常：期望数组类型，实际收到 ${typeof data}`)
       }
-      return data
+      const ports = data as Port[]
+
+      // 6.4 CRS 边界守卫接入数据入口：过滤明显越界的异常坐标，防止污染地图渲染
+      const inRegion: Port[] = []
+      const outOfRegion: Port[] = []
+      for (const p of ports) {
+        ;(isInBeibuGulf({ lng: p.lng, lat: p.lat }) ? inRegion : outOfRegion).push(p)
+      }
+      if (import.meta.env.DEV && outOfRegion.length > 0) {
+        console.warn('[crs] 已过滤越界港口坐标（北部湾边界外，疑似数据异常）:', outOfRegion)
+      }
+      return inRegion
     } catch (error) {
       if (error instanceof Error && error.message.includes('格式异常')) {
-        console.error('港口数据格式验证失败:', error)
+        if (import.meta.env.DEV) {
+          console.error('港口数据格式验证失败:', error)
+        }
         throw Object.assign(new Error('港口数据格式不正确，请联系管理员'), { cause: error })
       }
-      console.error('加载港口数据失败:', error)
+      if (import.meta.env.DEV) {
+        console.error('加载港口数据失败:', error)
+      }
       throw error
     }
   },
 
-  async getBoundary(): Promise<unknown> {
+  async getBoundary(): Promise<FeatureCollection> {
     try {
       const data = (await fetchData(MAP_CONFIG.DATA_PATHS.boundary)) as Record<
         string,
@@ -87,16 +105,20 @@ export const mapDataService = {
       if (validFeatures.length === 0) {
         throw new Error('边界数据中无有效的feature')
       }
-      return { ...data, features: validFeatures }
+      return { ...data, features: validFeatures } as FeatureCollection
     } catch (error) {
       if (
         error instanceof Error &&
         (error.message.includes('格式') || error.message.includes('feature'))
       ) {
-        console.error('边界数据格式验证失败:', error)
+        if (import.meta.env.DEV) {
+          console.error('边界数据格式验证失败:', error)
+        }
         throw Object.assign(new Error('边界数据格式不正确，请联系管理员'), { cause: error })
       }
-      console.error('加载边界数据失败:', error)
+      if (import.meta.env.DEV) {
+        console.error('加载边界数据失败:', error)
+      }
       throw error
     }
   },

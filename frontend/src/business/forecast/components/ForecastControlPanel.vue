@@ -4,7 +4,8 @@
      下半：时间轴滑块 + 3 个可点击刻度（2018 / 2025 / 2035）
      滑块是唯一交互入口，直接驱动数据刷新 -->
 <script setup lang="ts">
-import { reactive, computed, onMounted, onUnmounted } from 'vue'
+import { computed, onMounted, onUnmounted, reactive } from 'vue'
+
 import { useForecastState } from '@/stores/forecastState'
 
 const forecastState = useForecastState()
@@ -21,9 +22,9 @@ const INDICATORS = [
 const btnStates = reactive(
   Object.fromEntries(INDICATORS.map((i) => [i.key, { selected: false, selecting: false }]))
 )
-const timers = {}
+const timers: Record<string, ReturnType<typeof setTimeout> | null> = {}
 
-function toggleBtn(key) {
+function toggleBtn(key: string) {
   const s = btnStates[key]
   if (!s.selected) {
     Object.keys(btnStates).forEach((k) => {
@@ -39,30 +40,30 @@ function toggleBtn(key) {
   }
 }
 
-function onSliderInput(key) {
+function onSliderInput(key: string) {
   resetTimer(key)
 }
 
 // P2-03: 置信度滑块防抖
 let confidenceDebounceTimer: ReturnType<typeof setTimeout> | null = null
-function onConfidenceSliderInput(key, value) {
+function onConfidenceSliderInput(key: string, value: string) {
   if (confidenceDebounceTimer) clearTimeout(confidenceDebounceTimer)
   confidenceDebounceTimer = setTimeout(() => {
     forecastState.setConfidenceThreshold(key, Number(value))
     onSliderInput(key)
   }, 300)
 }
-function confirmBtn(key) {
+function confirmBtn(key: string) {
   if (btnStates[key].selecting) {
     btnStates[key].selecting = false
     clearTimer(key)
   }
 }
-function resetTimer(key) {
+function resetTimer(key: string) {
   clearTimer(key)
   timers[key] = setTimeout(() => confirmBtn(key), CONFIRM_DELAY)
 }
-function clearTimer(key) {
+function clearTimer(key: string) {
   if (timers[key]) {
     clearTimeout(timers[key])
     timers[key] = null
@@ -73,11 +74,11 @@ function confirmAll() {
     if (btnStates[k].selecting) confirmBtn(k)
   })
 }
-function handleGlobalClick(e) {
-  if (!e.target.closest('.forecast-ctrl')) confirmAll()
+function handleGlobalClick(e: Event) {
+  if (!(e.target as HTMLElement).closest('.forecast-ctrl')) confirmAll()
 }
 
-function getConf(key) {
+function getConf(key: string) {
   return forecastState.confidenceThresholds[key] ?? 0.8
 }
 
@@ -108,13 +109,13 @@ const currentStep = computed(() => {
   return isYearMode.value ? y - BASE_YEAR : (y - BASE_YEAR) * 12 + (m - 1)
 })
 
-function stepToTime(step) {
+function stepToTime(step: number) {
   if (isYearMode.value) return String(BASE_YEAR + step)
   return `${BASE_YEAR + Math.floor(step / 12)}-${String((step % 12) + 1).padStart(2, '0')}`
 }
 
-function onSlider(e) {
-  forecastState.setCurrentTime(stepToTime(Number(e.target.value)))
+function onSlider(e: Event) {
+  forecastState.setCurrentTime(stepToTime(Number((e.target as HTMLInputElement).value)))
 }
 
 const YEAR_MARKS = [
@@ -127,12 +128,12 @@ const YEAR_MARKS = [
   { year: END_YEAR, step: (END_YEAR - BASE_YEAR) * 12, label: `${END_YEAR}.1` },
 ]
 
-function yearMarkPosition(year) {
+function yearMarkPosition(year: number) {
   if (isYearMode.value) return ((year - BASE_YEAR) / (END_YEAR - BASE_YEAR)) * 100
   return (((year - BASE_YEAR) * 12) / maxSteps.value) * 100
 }
 
-function jumpToYear(year) {
+function jumpToYear(year: number) {
   forecastState.setCurrentTime(`${year}-01`)
 }
 
@@ -213,7 +214,7 @@ onUnmounted(() => stopPlayback())
     <div class="time-section">
       <div class="time-header">
         <span class="time-label">{{ displayTime }}</span>
-        <label class="gr-toggle"><input type="checkbox" v-model="isYearMode" />年</label>
+        <label class="gr-toggle"><input v-model="isYearMode" type="checkbox" />年</label>
       </div>
       <div class="time-slider-wrap">
         <input
@@ -221,8 +222,8 @@ onUnmounted(() => stopPlayback())
           :min="0"
           :max="maxSteps"
           :value="currentStep"
-          @input="onSlider"
           class="t-slider"
+          @input="onSlider"
         />
         <div class="t-ticks">
           <span
@@ -236,7 +237,7 @@ onUnmounted(() => stopPlayback())
         </div>
       </div>
       <div class="time-acts">
-        <button @click="togglePlay" class="act-btn">
+        <button class="act-btn" @click="togglePlay">
           {{ forecastState.isPlaying ? '⏸' : '▶' }}
         </button>
       </div>

@@ -1,16 +1,19 @@
 <script setup lang="ts">
 // 统一地图容器：OL/Cesium双引擎，v-show切换，渲染器实例复用不销毁
-import { ref, watch, onMounted, onUnmounted, provide, nextTick, computed } from 'vue'
-import { createRenderer } from '@/core/map/renderers'
-import type { MapRenderer } from '@/core/map/renderers/MapRenderer'
-import { MapRendererKey } from '@/core/map/composables/useMapRenderer'
-import { useMapStore } from '@/stores/mapStore'
-import { loadPorts, buildPortGeoJson, PORT_STYLE } from '@/core/map/composables/usePortLayer'
-import { loadBoundaryGeoJson, BOUNDARY_STYLE } from '@/core/map/composables/useBoundaryLayer'
-import { useLayerManager } from '@/core/map/composables/useLayerManager'
+import type { Feature, FeatureCollection, Point } from 'geojson'
+import { computed, nextTick, onMounted, onUnmounted, provide, ref, watch } from 'vue'
+
 import { CELL_PIXEL } from '@/core/layout/config.js'
 import { useGCS } from '@/core/layout/useGCS.js'
+import { BOUNDARY_STYLE, loadBoundaryGeoJson } from '@/core/map/composables/useBoundaryLayer'
+import { useLayerManager } from '@/core/map/composables/useLayerManager'
+import { MapRendererKey } from '@/core/map/composables/useMapRenderer'
+import { buildPortGeoJson, loadPorts, PORT_STYLE } from '@/core/map/composables/usePortLayer'
+import { createRenderer } from '@/core/map/renderers'
+import type { MapRenderer } from '@/core/map/renderers/MapRenderer'
 import { logger } from '@/shared/utils/logger'
+import { useMapStore } from '@/stores/mapStore'
+import type { FlyToOptions, FlyToTarget, MapRendererEventMap, Port, RendererState } from '@/types'
 
 const { cell8px } = useGCS()
 
@@ -22,9 +25,9 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const emit = defineEmits<{
-  'typeChange': [newType: '2d' | '3d']
-  'click': [payload: { featureType: string; data: unknown; coordinate: unknown }]
-  'error': [error: Error]
+  typeChange: [newType: '2d' | '3d']
+  click: [payload: MapRendererEventMap['click']]
+  error: [error: Error]
 }>()
 
 // 两个容器引用（OL始终存在，Cesium首次创建后保留）
@@ -33,6 +36,7 @@ const cesiumContainerRef = ref<HTMLElement | null>(null)
 
 const loading = ref(true)
 const switching = ref(false)
+const pendingSwitchType = ref<'2d' | '3d' | null>(null)
 const loadError = ref('')
 const boundaryWarning = ref('')
 const currentRenderer = ref<MapRenderer | null>(null)
@@ -48,19 +52,26 @@ const { registerBaseLayerWithRenderer, registerToggleable, clearLayers } = useLa
 
 const spinnerSizeCss = computed(() => `${Math.round(CELL_PIXEL * 0.5)}px`)
 
-let portGeoJson: any = null
-let boundaryGeoJson: any = null
+let portGeoJson: FeatureCollection | null = null
+let boundaryGeoJson: FeatureCollection | null = null
 
-function withTimeout(promise, timeoutMs, errorMessage) {
-  let timeoutId
-  const timeoutPromise = new Promise<unknown>((_, reject) => {
+const LOAD_TIMEOUT_MS = 10000
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, errorMessage: string): Promise<T> {
+  // 注意：Promise.race 超时后底层 fetch 仍在执行（mapDataService 内部已有 10s AbortController 兜底）。
+  // 此处仅用于给调用方更早的错误反馈，底层资源由 mapDataService 的 controller 清理。
+  let timeoutId: ReturnType<typeof setTimeout>
+  const timeoutPromise = new Promise<never>((_, reject) => {
     timeoutId = setTimeout(() => reject(new Error(errorMessage)), timeoutMs)
   })
   return Promise.race([promise, timeoutPromise]).finally(() => clearTimeout(timeoutId))
 }
 
 // v-show切换后浏览器未必完成layout，用rAF等待容器有实际尺寸再初始化渲染器
-function waitForContainerVisible(container) {
+// rafIds 收集器供 onUnmounted 取消，防止组件卸载后回调仍执行
+const _pendingRafIds = new Set<number>()
+
+function waitForContainerVisible(container: HTMLElement | null): Promise<void> {
   return new Promise<void>((resolve) => {
     if (container && container.offsetWidth > 0 && container.offsetHeight > 0) {
       resolve()
@@ -68,32 +79,38 @@ function waitForContainerVisible(container) {
     }
     let attempts = 0
     const maxAttempts = 10
+    let currentRafId: number
     const check = () => {
       attempts++
       if (container && container.offsetWidth > 0 && container.offsetHeight > 0) {
+        _pendingRafIds.delete(currentRafId)
         resolve()
       } else if (attempts < maxAttempts) {
-        requestAnimationFrame(check)
+        _pendingRafIds.delete(currentRafId)
+        currentRafId = requestAnimationFrame(check)
+        _pendingRafIds.add(currentRafId)
       } else {
+        _pendingRafIds.delete(currentRafId)
         if (import.meta.env.DEV) {
           logger.warn('waitForContainerVisible: 容器尺寸检查超时，继续执行')
         }
         resolve()
       }
     }
-    requestAnimationFrame(check)
+    currentRafId = requestAnimationFrame(check)
+    _pendingRafIds.add(currentRafId)
   })
 }
 
 async function loadData() {
   try {
-    const ports = await withTimeout(loadPorts(), 10000, '港口数据加载超时')
-    portGeoJson = buildPortGeoJson(ports)
+    const ports = await withTimeout(loadPorts(), LOAD_TIMEOUT_MS, '港口数据加载超时')
+    portGeoJson = buildPortGeoJson(ports) as FeatureCollection
     boundaryGeoJson = await withTimeout(
-      loadBoundaryGeoJson((msg) => {
+      loadBoundaryGeoJson((msg: string) => {
         boundaryWarning.value = msg
       }),
-      10000,
+      LOAD_TIMEOUT_MS,
       '边界数据加载超时'
     )
   } catch (error) {
@@ -101,8 +118,11 @@ async function loadData() {
     if (import.meta.env.DEV) {
       logger.error('地图数据加载失败:', err)
     }
+    // 所有加载失败都向用户展示错误信息，不仅限于超时
     if (err.message.includes('超时')) {
       loadError.value = err.message
+    } else {
+      loadError.value = '地图数据加载失败，请刷新重试'
     }
   }
 }
@@ -112,7 +132,7 @@ async function loadData() {
  * @param {'2d'|'3d'} type - 渲染器类型
  * @param {HTMLElement} container - DOM容器
  */
-async function initRenderer(type, container) {
+async function initRenderer(type: '2d' | '3d', container: HTMLElement | null) {
   if (!container) {
     if (import.meta.env.DEV) {
       logger.error(`initRenderer: ${type}容器为空`)
@@ -168,7 +188,20 @@ async function initRenderer(type, container) {
 }
 
 // 每次切换引擎时重新注册图层目录（show/hide绑定当前渲染器实例）
-// _layers Map检查防止重复添加图层
+// 用 hasLayer 公开 API 检查图层是否已存在，避免直读渲染器私有 _layers
+/**
+ * 检查图层是否已存在（防止重复添加）
+ * 优先使用渲染器公开 API hasLayer（已在 MapRenderer 接口与基类实现），
+ * 降级用 _layers 私有属性（向后兼容，仅当 hasLayer 未实现时触发）。
+ */
+function hasLayer(renderer: MapRenderer, id: string): boolean {
+  if (typeof renderer.hasLayer === 'function') {
+    return renderer.hasLayer(id)
+  }
+  // 降级：直接读取 _layers（hasLayer 已实现后此分支不会执行）
+  return renderer._layers?.has(id) ?? false
+}
+
 function setupLayers() {
   const renderer = currentRenderer.value
   if (!renderer) return
@@ -177,15 +210,15 @@ function setupLayers() {
   registerBaseLayerWithRenderer('base-image', '影像底图', renderer)
   registerBaseLayerWithRenderer('base-vector', '矢量底图', renderer)
 
-  if (boundaryGeoJson && !renderer._layers.has('boundary')) {
+  if (boundaryGeoJson && !hasLayer(renderer, 'boundary')) {
     renderer.addGeoJsonLayer('boundary', boundaryGeoJson, BOUNDARY_STYLE)
   }
   if (boundaryGeoJson) {
     registerToggleable('boundary', '行政区划', renderer)
   }
 
-  if (portGeoJson && !renderer._layers.has('ports')) {
-    const validFeatures = portGeoJson.features.filter((f) => {
+  if (portGeoJson && !hasLayer(renderer, 'ports')) {
+    const validFeatures = (portGeoJson.features as Feature<Point>[]).filter((f) => {
       if (!f?.geometry?.coordinates) return false
       if (!Array.isArray(f.geometry.coordinates) || f.geometry.coordinates.length < 2) return false
       const [lng, lat] = f.geometry.coordinates
@@ -213,10 +246,11 @@ function setupLayers() {
 function setupEvents() {
   const renderer = currentRenderer.value
   if (!renderer) return
-  renderer.on('click', (event) => {
+  renderer.on('click', (event: CustomEvent<MapRendererEventMap['click']>) => {
     const { featureType, data, coordinate } = event.detail
     if (featureType === 'port' && data) {
-      mapStore.setSelectedPort(data)
+      // featureType === 'port' 时 data 为港口属性，类型系统无法通过判别收窄，需断言
+      mapStore.setSelectedPort(data as unknown as Port)
     } else {
       mapStore.clearSelectedPort()
     }
@@ -224,13 +258,17 @@ function setupEvents() {
   })
 }
 
-function getContainer(type) {
+function getContainer(type: '2d' | '3d') {
   return type === '2d' ? olContainerRef.value : cesiumContainerRef.value
 }
 
 // 双引擎切换：v-show控制显示，渲染器实例保留复用，失败时回滚mapType
-async function switchMapType(newType) {
-  if (switching.value) return
+// 重入保护：切换进行中时排队最新请求，完成后自动执行（仅保留最后一个）
+async function switchMapType(newType: '2d' | '3d') {
+  if (switching.value) {
+    pendingSwitchType.value = newType
+    return
+  }
 
   // 用渲染器实际类型而非mapStore.mapType，后者可能已被route.meta.engine提前更新
   const oldType = (currentRenderer.value?.getType() || mapStore.mapType) as '2d' | '3d'
@@ -251,7 +289,7 @@ async function switchMapType(newType) {
   }
 
   try {
-    let cameraState: any = null
+    let cameraState: RendererState | null = null
     if (currentRenderer.value) {
       cameraState = currentRenderer.value.exportState()
     }
@@ -295,10 +333,16 @@ async function switchMapType(newType) {
   } finally {
     switching.value = false
     loading.value = false
+    // 处理切换期间排队的最新请求（仅保留最后一个）
+    const pending = pendingSwitchType.value
+    pendingSwitchType.value = null
+    if (pending !== null) {
+      nextTick(() => switchMapType(pending))
+    }
   }
 }
 
-function flyTo(target, options = {}) {
+function flyTo(target: FlyToTarget, options: FlyToOptions = {}) {
   currentRenderer.value?.flyTo(target, options)
 }
 
@@ -306,7 +350,7 @@ function getRenderer() {
   return currentRenderer.value
 }
 
-function startBreathing(lng, lat) {
+function startBreathing(lng: number, lat: number) {
   currentRenderer.value?.startBreathing(lng, lat)
 }
 
@@ -332,6 +376,10 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  // 取消所有待执行的 rAF 回调，防止组件卸载后仍操作 DOM
+  _pendingRafIds.forEach((id) => cancelAnimationFrame(id))
+  _pendingRafIds.clear()
+
   if (currentRenderer.value) {
     currentRenderer.value.destroy()
     currentRenderer.value = null

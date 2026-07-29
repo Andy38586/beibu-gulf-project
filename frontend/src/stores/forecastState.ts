@@ -1,7 +1,9 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
-import type { Ref, ComputedRef } from 'vue'
-import type { ForecastTimeRange, ConfidenceThresholds } from '@/types/business/base'
+import type { ComputedRef, Ref, ShallowRef } from 'vue'
+import { computed, ref, shallowRef } from 'vue'
+
+import type { ForecastSeries } from '@/types/api/forecast'
+import type { ConfidenceThresholds, ForecastTimeRange } from '@/types/business/base'
 
 export const useForecastState = defineStore('forecast', () => {
   const currentTime: Ref<string> = ref('2025-12')
@@ -25,9 +27,10 @@ export const useForecastState = defineStore('forecast', () => {
   })
 
   const activeForecastLayer: Ref<string | null> = ref(null)
-  const dataCache: Ref<Map<string, unknown>> = ref(new Map())
+  // shallowRef：Map 是可变结构，深度响应无意义且浪费性能（§7.7 约定）
+  const dataCache: ShallowRef<Map<string, ForecastSeries>> = shallowRef(new Map())
 
-  const currentData: ComputedRef<unknown | null> = computed(() => {
+  const currentData: ComputedRef<ForecastSeries | null> = computed(() => {
     return dataCache.value.get(currentTime.value) ?? null
   })
 
@@ -47,8 +50,11 @@ export const useForecastState = defineStore('forecast', () => {
     confidenceThresholds.value[indicator] = value
   }
 
-  function cacheData(time: string, data: unknown): void {
-    dataCache.value.set(time, data)
+  function cacheData(time: string, data: ForecastSeries): void {
+    // shallowRef 下需重赋值 .value 引用才能触发响应式（computed 才能侦测 Map 内部变更）
+    const newMap = new Map(dataCache.value)
+    newMap.set(time, data)
+    dataCache.value = newMap
   }
 
   function clearCache(): void {

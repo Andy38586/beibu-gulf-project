@@ -8,7 +8,6 @@ import facilitiesRouter from './routes/facilities.js'
 import siteAnalysisRouter from './routes/siteAnalysis.js'
 import authRouter from './routes/auth.js'
 import plansRouter from './routes/plans.js'
-// TODO:1.2: 注册预测分析路由
 import forecastRouter from './routes/forecast.js'
 import gcsRouter from './routes/gcs.js'
 import { BusinessError } from './utils/BusinessError.js'
@@ -49,7 +48,6 @@ app.use('/api/facilities', facilitiesRouter)
 app.use('/api/site-analysis', siteAnalysisRouter)
 app.use('/api/auth', authRouter)
 app.use('/api/plans', plansRouter)
-// TODO:1.2: 注册预测分析路由
 app.use('/api/forecast', forecastRouter)
 app.use('/api/gcs', gcsRouter)
 app.get('/api/health', (req, res) => {

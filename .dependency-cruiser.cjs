@@ -37,9 +37,16 @@ module.exports = {
       to: { path: '^frontend/src/(business|views)/' },
     },
     {
+      name: 'shared-imports-business',
+      comment: 'shared 层是通用基础设施，不应反向依赖业务层',
+      severity: 'error',
+      from: { path: '^frontend/src/shared/' },
+      to: { path: '^frontend/src/(business|views)/' },
+    },
+    {
       name: 'visualization-should-not-import-business',
       comment: '可视化层是通用资产，不应反向依赖具体业务',
-      severity: 'warn',
+      severity: 'error',
       from: { path: '^frontend/src/visualization/' },
       to: { path: '^frontend/src/business/' },
     },

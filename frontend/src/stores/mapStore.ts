@@ -1,7 +1,8 @@
 import { defineStore } from 'pinia'
-import { shallowRef, ref } from 'vue'
 import type { Ref, ShallowRef } from 'vue'
-import type { Port, MapType, LayerEntry, RegisterLayerOptions } from '@/types'
+import { ref, shallowRef } from 'vue'
+
+import type { LayerEntry, LayerType, MapType, Port, RegisterLayerOptions } from '@/types'
 import type { MapRenderer } from '@/types'
 import type { ScoredXiaoqu } from '@/types'
 
@@ -77,10 +78,13 @@ function writeStoredAnalysisResult(result: unknown): void {
 }
 
 export const useMapStore = defineStore('map', () => {
-  const map: ShallowRef<MapRenderer | null> = shallowRef(null)
+  // map 存储地图引擎实例（OL Map / Cesium Viewer），非渲染器，用 unknown 避免误用
+  const map: ShallowRef<unknown> = shallowRef(null)
   const selectedPort: Ref<Port | null> = ref(null)
   const mapType: Ref<MapType> = ref('2d')
-  const layerCatalog: Ref<LayerEntry[]> = ref([])
+  // shallowRef：layerCatalog 是元数据数组，内部条目变更由各 action 触发
+  // 不需要深度代理每个 LayerEntry 对象，避免 50 个图层注册触发 50 次深度响应式追踪
+  const layerCatalog: ShallowRef<LayerEntry[]> = shallowRef([])
   const baseLayerKey: Ref<string | null> = ref(readStoredBaseLayer())
 
   /** 当前渲染器引用（由UnifiedMap设置，供业务组件访问） */
@@ -93,7 +97,7 @@ export const useMapStore = defineStore('map', () => {
   const activePanel: Ref<string> = ref('none')
   const selectedXiaoqu: Ref<ScoredXiaoqu | null> = ref(null)
 
-  function setMap(instance: MapRenderer | null): void {
+  function setMap(instance: unknown): void {
     map.value = instance
   }
 
@@ -148,18 +152,24 @@ export const useMapStore = defineStore('map', () => {
 
     const existingIndex = layerCatalog.value.findIndex((e: LayerEntry) => e.key === key)
     if (existingIndex >= 0) {
-      const existing = layerCatalog.value[existingIndex]
-      if (show) existing.show!.push(show)
-      if (hide) existing.hide!.push(hide)
+      // @arch-note C03: 已存在则替换 show/hide 回调（而非追加），防止重注册导致回调重复执行
+      layerCatalog.value = layerCatalog.value.map((e: LayerEntry) => {
+        if (e.key !== key) return e
+        const next: LayerEntry = { ...e }
+        if (show) next.show = show
+        if (hide) next.hide = hide
+        return next
+      })
     } else {
-      layerCatalog.value.push({
+      const newEntry: LayerEntry = {
         key,
         label,
         visible,
         category,
-        show: show ? [show] : [() => {}],
-        hide: hide ? [hide] : [() => {}],
-      })
+        show: show ?? [() => {}],
+        hide: hide ?? [() => {}],
+      }
+      layerCatalog.value = [...layerCatalog.value, newEntry]
     }
   }
 
@@ -171,12 +181,14 @@ export const useMapStore = defineStore('map', () => {
     const shouldVisible = existing ? existing.visible : storedKey ? key === storedKey : isFirstBase
 
     const wrappedShow = () => {
-      layerCatalog.value
-        .filter((e: LayerEntry) => e.category === 'base' && e.key !== key)
-        .forEach((e: LayerEntry) => {
-          e.visible = false
-          e.hide!.forEach((fn) => fn())
-        })
+      // 隐藏其它底图（不可变更新，配合 shallowRef）
+      layerCatalog.value = layerCatalog.value.map((e: LayerEntry) => {
+        if (e.category === 'base' && e.key !== key) {
+          e.hide?.forEach((fn) => fn())
+          return { ...e, visible: false }
+        }
+        return e
+      })
       baseLayerKey.value = key
       writeStoredBaseLayer(key)
       show()
@@ -185,8 +197,8 @@ export const useMapStore = defineStore('map', () => {
     registerLayer(key, label, {
       visible: shouldVisible,
       category: 'base',
-      show: wrappedShow,
-      hide,
+      show: [wrappedShow],
+      hide: [hide],
     })
 
     if (shouldVisible) {
@@ -219,8 +231,8 @@ export const useMapStore = defineStore('map', () => {
     registerLayer(key, label, {
       visible: shouldVisible,
       category: 'business',
-      show: showFn,
-      hide: hideFn,
+      show: [showFn],
+      hide: hideFn ? [hideFn] : undefined,
     })
 
     if (shouldVisible) {
@@ -240,22 +252,25 @@ export const useMapStore = defineStore('map', () => {
   function registerBusinessLayer(
     key: string,
     label: string,
-    layerType: string,
+    layerType: LayerType,
     visible: boolean = true
   ): void {
     const existing = layerCatalog.value.find((e: LayerEntry) => e.key === key)
     if (existing) {
-      existing.visible = visible
-      existing.layerType = layerType
+      // 已存在：更新可见性与 layerType（不可变更新，配合 shallowRef）
+      layerCatalog.value = layerCatalog.value.map((e: LayerEntry) =>
+        e.key === key ? { ...e, visible, layerType } : e
+      )
       return
     }
-    layerCatalog.value.push({
+    const newEntry: LayerEntry = {
       key,
       label,
       layerType,
       visible,
       category: 'business',
-    })
+    }
+    layerCatalog.value = [...layerCatalog.value, newEntry]
   }
 
   function toggleLayer(key: string): void {
@@ -281,27 +296,42 @@ export const useMapStore = defineStore('map', () => {
       return
     }
 
-    layerCatalog.value
-      .filter((e: LayerEntry) => e.category === 'base')
-      .forEach((e: LayerEntry) => {
-        e.visible = false
-        e.hide!.forEach((fn) => fn())
-      })
+    // 隐藏其它底图并将当前底图设为可见（不可变更新，配合 shallowRef）
+    const updated = layerCatalog.value.map((e: LayerEntry) => {
+      if (e.category === 'base' && e.key !== entry.key) {
+        e.hide?.forEach((fn) => fn())
+        return { ...e, visible: false }
+      }
+      if (e.key === entry.key) {
+        return { ...e, visible: true }
+      }
+      return e
+    })
+    layerCatalog.value = updated
 
-    entry.visible = true
     baseLayerKey.value = entry.key
     writeStoredBaseLayer(entry.key)
-    entry.show!.forEach((fn) => fn())
+    entry.show?.forEach((fn) => fn())
   }
 
   function handleBusinessLayerToggle(entry: LayerEntry): void {
-    entry.visible = !entry.visible
+    const newVisible = !entry.visible
+    // 不可变更新 visible（配合 shallowRef）
+    layerCatalog.value = layerCatalog.value.map((e: LayerEntry) =>
+      e.key === entry.key ? { ...e, visible: newVisible } : e
+    )
 
-    if (entry.visible) {
-      entry.show!.forEach((fn) => fn())
-    } else {
-      entry.hide!.forEach((fn) => fn())
+    // 旧机制（registerToggleable）的图层有 show/hide 回调
+    // 新机制（registerBusinessLayer）的图层无 show/hide，由 BusinessLayerManager.setVisible 处理
+    if (entry.show && entry.show.length > 0) {
+      if (newVisible) {
+        entry.show.forEach((fn) => fn())
+      } else {
+        entry.hide?.forEach((fn) => fn())
+      }
     }
+    // 新机制图层：show/hide 不存在，不做任何操作
+    // 可见性由 LayerControlPanel 调用 businessLayerManager.setVisible 控制
   }
 
   function removeLayer(key: string): void {
@@ -309,14 +339,40 @@ export const useMapStore = defineStore('map', () => {
     if (idx < 0) return
     const entry = layerCatalog.value[idx]
     // 旧机制图层（registerToggleable）有 show/hide 回调，新机制（registerBusinessLayer）没有
-    if (entry.hide) {
+    if (entry.hide && entry.hide.length > 0) {
       entry.hide.forEach((fn) => fn())
     }
-    layerCatalog.value.splice(idx, 1)
+    // 不可变删除（配合 shallowRef）
+    layerCatalog.value = layerCatalog.value.filter((_, i) => i !== idx)
   }
 
   function clearLayerCatalog(): void {
     layerCatalog.value = []
+  }
+
+  /**
+   * 设置图层可见性（通过 action 修改，确保 Pinia 正确追踪）
+   *
+   * BusinessLayerManager.setVisible 调用此方法，
+   * 不直接修改 catalogEntry.visible（绕过 action 会导致 reactivity 不追踪、
+   * Pinia DevTools 无 action 记录）。
+   *
+   * 不可变更新（配合 shallowRef）：返回新数组引用以触发响应式。
+   *
+   * @param key - 图层 key
+   * @param visible - 可见性
+   */
+  function setLayerVisible(key: string, visible: boolean): void {
+    const idx = layerCatalog.value.findIndex((e: LayerEntry) => e.key === key)
+    if (idx < 0) {
+      if (import.meta.env.DEV) {
+        console.warn(`setLayerVisible: 未找到key为"${key}"的图层`)
+      }
+      return
+    }
+    layerCatalog.value = layerCatalog.value.map((e: LayerEntry) =>
+      e.key === key ? { ...e, visible } : e
+    )
   }
 
   function setActivePanel(panelName: string): void {
@@ -363,6 +419,7 @@ export const useMapStore = defineStore('map', () => {
     toggleLayer,
     removeLayer,
     clearLayerCatalog,
+    setLayerVisible,
     setActivePanel,
     closePanel,
     setSelectedXiaoqu,

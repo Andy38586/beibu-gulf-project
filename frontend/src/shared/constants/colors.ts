@@ -15,6 +15,27 @@
 // 索引约定：0=port 1=safe 2=danger 3=boundary
 export const FACILITY_COLORS = ['#409eff', '#67C23A', '#e74c3c', '#4dabf7'] as const
 
+/**
+ * 设施配色映射（从 business 层提升到 shared）
+ *
+ * 为什么在 shared/constants：
+ * - visualization 层（useRadarChart / RadarScoreTooltip）需要设施色值渲染雷达图
+ * - business 层（facilityConfig）也需要色值配置
+ * - 将色值集中在 shared，两层都从此取，避免 visualization → business 跨层依赖
+ *   （dependency-cruiser 规则 visualization-should-not-import-business 为 warn 级）
+ *
+ * 业务逻辑（半径、权重等）仍保留在
+ * business/site-selection/composables/facilityConfig.js
+ */
+export const FACILITY_COLORS_MAP: Record<string, string> = {
+  hospital: '#e74c3c',
+  primary_school: '#3498db',
+  middle_school: '#9b59b6',
+  park: '#2ecc71',
+  bus_station: '#f39c12',
+  mall: '#1abc9c',
+}
+
 // 图层默认回退色（renderer 在无 options 覆盖时使用）
 export const LAYER_DEFAULTS = {
   color: '#409eff', // 默认点 / 要素色

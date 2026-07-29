@@ -64,7 +64,8 @@ export default defineConfig({
   },
   build: {
     // 构建目标：现代浏览器，支持动态导入
-    target: 'es2015',
+    // 升级到 es2020：项目大量使用可选链 ?. / 空值合并 ??，无需降级语法，产物更小、性能更好
+    target: 'es2020',
     // 输出目录
     outDir: 'dist',
     // 不自动清空输出目录（sandbox 安全机制冲突，由外部手动清理）

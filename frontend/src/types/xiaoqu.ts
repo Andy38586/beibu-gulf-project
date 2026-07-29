@@ -13,7 +13,7 @@ export interface Xiaoqu {
 // score = ∑(facilityType 权重 × 衰减函数值)，详见 scoringService.js
 export interface ScoredXiaoqu extends Xiaoqu {
   score: number
-  breakdown: Record<string, number> // key 是 FacilityType，但不强约束避免 turf 计算报错
+  breakdown: Record<string, number> // key 是 FacilityType，不强约束以避免后端 turf 计算报错（前端零 turf import）
   // 浸没分析扩展字段（受影响设施复用此类型，PaginatedListPanel 通用渲染）
   type?: string
   loss?: number

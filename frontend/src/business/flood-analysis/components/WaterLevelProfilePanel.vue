@@ -13,24 +13,25 @@
  * 位置：右上（top-right）
  */
 
-import { ref, onMounted, onUnmounted, watch } from 'vue'
-import { useWaterLevelStore } from '@/stores/waterLevelStore'
-import { useProfileStore } from '@/stores/profileStore'
-import { useGCS } from '@/core/layout/useGCS.js'
-import { useApiRequest } from '@/shared/composables/useApiRequest'
-import { showError } from '@/shared/utils/errorHandler'
-import { logger } from '@/shared/utils/logger'
-import * as echarts from 'echarts/core'
-import type { EChartsType } from 'echarts/core'
 import { LineChart } from 'echarts/charts'
 import {
   GridComponent,
-  TitleComponent,
   LegendComponent,
+  TitleComponent,
   TooltipComponent,
 } from 'echarts/components'
+import type { EChartsType } from 'echarts/core'
+import * as echarts from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
+import { onMounted, onUnmounted, ref, watch } from 'vue'
+
+import { useGCS } from '@/core/layout/useGCS.js'
+import { useApiRequest } from '@/shared/composables/useApiRequest'
 import { PROFILE_COLORS } from '@/shared/constants/colors'
+import { showError } from '@/shared/utils/errorHandler'
+import { logger } from '@/shared/utils/logger'
+import { useProfileStore } from '@/stores/profileStore'
+import { useWaterLevelStore } from '@/stores/waterLevelStore'
 
 echarts.use([
   LineChart,
@@ -96,11 +97,12 @@ watch(
  * 用户拖动Slider时触发，直接更新Store
  * 防抖由父组件FloodAnalysisPage统一处理（500ms）
  */
-function onSliderChange(value) {
-  waterLevelStore.setWaterLevel(value)
+function onSliderChange(value: number | number[]) {
+  const level = Array.isArray(value) ? value[0] : value
+  waterLevelStore.setWaterLevel(level)
 }
 
-function setWaterLevelByMark(value) {
+function setWaterLevelByMark(value: number) {
   localWaterLevel.value = value
   waterLevelStore.setWaterLevel(value)
 }
@@ -188,10 +190,10 @@ function updateChart() {
   const option = {
     tooltip: {
       trigger: 'axis',
-      formatter: (params) => {
+      formatter: (params: any) => {
         const distance = params[0].axisValue
         let content = `距离: ${distance}m<br/>`
-        params.forEach((param) => {
+        params.forEach((param: any) => {
           content += `${param.marker}${param.seriesName}: ${param.value}m<br/>`
         })
         return content

@@ -1,0 +1,2241 @@
+{
+  "indicator": "traffic",
+  "unit": "艘次/月",
+  "data": {
+    "qinzhou": {
+      "historical": [
+        {
+          "time": "2018-01",
+          "value": 106,
+          "type": "historical"
+        },
+        {
+          "time": "2018-02",
+          "value": 116,
+          "type": "historical"
+        },
+        {
+          "time": "2018-03",
+          "value": 111,
+          "type": "historical"
+        },
+        {
+          "time": "2018-04",
+          "value": 117,
+          "type": "historical"
+        },
+        {
+          "time": "2018-05",
+          "value": 131,
+          "type": "historical"
+        },
+        {
+          "time": "2018-06",
+          "value": 144,
+          "type": "historical"
+        },
+        {
+          "time": "2018-07",
+          "value": 129,
+          "type": "historical"
+        },
+        {
+          "time": "2018-08",
+          "value": 156,
+          "type": "historical"
+        },
+        {
+          "time": "2018-09",
+          "value": 140,
+          "type": "historical"
+        },
+        {
+          "time": "2018-10",
+          "value": 165,
+          "type": "historical"
+        },
+        {
+          "time": "2018-11",
+          "value": 139,
+          "type": "historical"
+        },
+        {
+          "time": "2018-12",
+          "value": 151,
+          "type": "historical"
+        },
+        {
+          "time": "2019-01",
+          "value": 145,
+          "type": "historical"
+        },
+        {
+          "time": "2019-02",
+          "value": 150,
+          "type": "historical"
+        },
+        {
+          "time": "2019-03",
+          "value": 163,
+          "type": "historical"
+        },
+        {
+          "time": "2019-04",
+          "value": 168,
+          "type": "historical"
+        },
+        {
+          "time": "2019-05",
+          "value": 184,
+          "type": "historical"
+        },
+        {
+          "time": "2019-06",
+          "value": 156,
+          "type": "historical"
+        },
+        {
+          "time": "2019-07",
+          "value": 188,
+          "type": "historical"
+        },
+        {
+          "time": "2019-08",
+          "value": 170,
+          "type": "historical"
+        },
+        {
+          "time": "2019-09",
+          "value": 195,
+          "type": "historical"
+        },
+        {
+          "time": "2019-10",
+          "value": 179,
+          "type": "historical"
+        },
+        {
+          "time": "2019-11",
+          "value": 171,
+          "type": "historical"
+        },
+        {
+          "time": "2019-12",
+          "value": 180,
+          "type": "historical"
+        },
+        {
+          "time": "2020-01",
+          "value": 195,
+          "type": "historical"
+        },
+        {
+          "time": "2020-02",
+          "value": 194,
+          "type": "historical"
+        },
+        {
+          "time": "2020-03",
+          "value": 210,
+          "type": "historical"
+        },
+        {
+          "time": "2020-04",
+          "value": 199,
+          "type": "historical"
+        },
+        {
+          "time": "2020-05",
+          "value": 205,
+          "type": "historical"
+        },
+        {
+          "time": "2020-06",
+          "value": 206,
+          "type": "historical"
+        },
+        {
+          "time": "2020-07",
+          "value": 194,
+          "type": "historical"
+        },
+        {
+          "time": "2020-08",
+          "value": 201,
+          "type": "historical"
+        },
+        {
+          "time": "2020-09",
+          "value": 205,
+          "type": "historical"
+        },
+        {
+          "time": "2020-10",
+          "value": 216,
+          "type": "historical"
+        },
+        {
+          "time": "2020-11",
+          "value": 214,
+          "type": "historical"
+        },
+        {
+          "time": "2020-12",
+          "value": 226,
+          "type": "historical"
+        },
+        {
+          "time": "2021-01",
+          "value": 227,
+          "type": "historical"
+        },
+        {
+          "time": "2021-02",
+          "value": 228,
+          "type": "historical"
+        },
+        {
+          "time": "2021-03",
+          "value": 226,
+          "type": "historical"
+        },
+        {
+          "time": "2021-04",
+          "value": 223,
+          "type": "historical"
+        },
+        {
+          "time": "2021-05",
+          "value": 250,
+          "type": "historical"
+        },
+        {
+          "time": "2021-06",
+          "value": 231,
+          "type": "historical"
+        },
+        {
+          "time": "2021-07",
+          "value": 234,
+          "type": "historical"
+        },
+        {
+          "time": "2021-08",
+          "value": 263,
+          "type": "historical"
+        },
+        {
+          "time": "2021-09",
+          "value": 245,
+          "type": "historical"
+        },
+        {
+          "time": "2021-10",
+          "value": 246,
+          "type": "historical"
+        },
+        {
+          "time": "2021-11",
+          "value": 271,
+          "type": "historical"
+        },
+        {
+          "time": "2021-12",
+          "value": 260,
+          "type": "historical"
+        },
+        {
+          "time": "2022-01",
+          "value": 254,
+          "type": "historical"
+        },
+        {
+          "time": "2022-02",
+          "value": 270,
+          "type": "historical"
+        },
+        {
+          "time": "2022-03",
+          "value": 263,
+          "type": "historical"
+        },
+        {
+          "time": "2022-04",
+          "value": 260,
+          "type": "historical"
+        },
+        {
+          "time": "2022-05",
+          "value": 270,
+          "type": "historical"
+        },
+        {
+          "time": "2022-06",
+          "value": 297,
+          "type": "historical"
+        },
+        {
+          "time": "2022-07",
+          "value": 301,
+          "type": "historical"
+        },
+        {
+          "time": "2022-08",
+          "value": 297,
+          "type": "historical"
+        },
+        {
+          "time": "2022-09",
+          "value": 304,
+          "type": "historical"
+        },
+        {
+          "time": "2022-10",
+          "value": 281,
+          "type": "historical"
+        },
+        {
+          "time": "2022-11",
+          "value": 293,
+          "type": "historical"
+        },
+        {
+          "time": "2022-12",
+          "value": 312,
+          "type": "historical"
+        },
+        {
+          "time": "2023-01",
+          "value": 282,
+          "type": "historical"
+        },
+        {
+          "time": "2023-02",
+          "value": 308,
+          "type": "historical"
+        },
+        {
+          "time": "2023-03",
+          "value": 315,
+          "type": "historical"
+        },
+        {
+          "time": "2023-04",
+          "value": 308,
+          "type": "historical"
+        },
+        {
+          "time": "2023-05",
+          "value": 322,
+          "type": "historical"
+        },
+        {
+          "time": "2023-06",
+          "value": 327,
+          "type": "historical"
+        },
+        {
+          "time": "2023-07",
+          "value": 304,
+          "type": "historical"
+        },
+        {
+          "time": "2023-08",
+          "value": 330,
+          "type": "historical"
+        },
+        {
+          "time": "2023-09",
+          "value": 315,
+          "type": "historical"
+        },
+        {
+          "time": "2023-10",
+          "value": 335,
+          "type": "historical"
+        },
+        {
+          "time": "2023-11",
+          "value": 329,
+          "type": "historical"
+        },
+        {
+          "time": "2023-12",
+          "value": 347,
+          "type": "historical"
+        },
+        {
+          "time": "2024-01",
+          "value": 327,
+          "type": "historical"
+        },
+        {
+          "time": "2024-02",
+          "value": 338,
+          "type": "historical"
+        },
+        {
+          "time": "2024-03",
+          "value": 324,
+          "type": "historical"
+        },
+        {
+          "time": "2024-04",
+          "value": 334,
+          "type": "historical"
+        },
+        {
+          "time": "2024-05",
+          "value": 365,
+          "type": "historical"
+        },
+        {
+          "time": "2024-06",
+          "value": 365,
+          "type": "historical"
+        },
+        {
+          "time": "2024-07",
+          "value": 341,
+          "type": "historical"
+        },
+        {
+          "time": "2024-08",
+          "value": 345,
+          "type": "historical"
+        },
+        {
+          "time": "2024-09",
+          "value": 369,
+          "type": "historical"
+        },
+        {
+          "time": "2024-10",
+          "value": 358,
+          "type": "historical"
+        },
+        {
+          "time": "2024-11",
+          "value": 378,
+          "type": "historical"
+        },
+        {
+          "time": "2024-12",
+          "value": 358,
+          "type": "historical"
+        },
+        {
+          "time": "2025-01",
+          "value": 387,
+          "type": "historical"
+        },
+        {
+          "time": "2025-02",
+          "value": 377,
+          "type": "historical"
+        },
+        {
+          "time": "2025-03",
+          "value": 394,
+          "type": "historical"
+        },
+        {
+          "time": "2025-04",
+          "value": 367,
+          "type": "historical"
+        },
+        {
+          "time": "2025-05",
+          "value": 397,
+          "type": "historical"
+        },
+        {
+          "time": "2025-06",
+          "value": 384,
+          "type": "historical"
+        },
+        {
+          "time": "2025-07",
+          "value": 397,
+          "type": "historical"
+        },
+        {
+          "time": "2025-08",
+          "value": 412,
+          "type": "historical"
+        },
+        {
+          "time": "2025-09",
+          "value": 390,
+          "type": "historical"
+        },
+        {
+          "time": "2025-10",
+          "value": 410,
+          "type": "historical"
+        },
+        {
+          "time": "2025-11",
+          "value": 388,
+          "type": "historical"
+        },
+        {
+          "time": "2025-12",
+          "value": 410,
+          "type": "historical"
+        }
+      ],
+      "forecast": [
+        {
+          "time": "2026-01",
+          "value": 413,
+          "type": "forecast",
+          "confidence": 0.95
+        },
+        {
+          "time": "2026-02",
+          "value": 412,
+          "type": "forecast",
+          "confidence": 0.94
+        },
+        {
+          "time": "2026-03",
+          "value": 413,
+          "type": "forecast",
+          "confidence": 0.93
+        },
+        {
+          "time": "2026-04",
+          "value": 413,
+          "type": "forecast",
+          "confidence": 0.93
+        },
+        {
+          "time": "2026-05",
+          "value": 413,
+          "type": "forecast",
+          "confidence": 0.92
+        },
+        {
+          "time": "2026-06",
+          "value": 414,
+          "type": "forecast",
+          "confidence": 0.92
+        },
+        {
+          "time": "2026-07",
+          "value": 413,
+          "type": "forecast",
+          "confidence": 0.91
+        },
+        {
+          "time": "2026-08",
+          "value": 414,
+          "type": "forecast",
+          "confidence": 0.91
+        },
+        {
+          "time": "2026-09",
+          "value": 413,
+          "type": "forecast",
+          "confidence": 0.9
+        },
+        {
+          "time": "2026-10",
+          "value": 413,
+          "type": "forecast",
+          "confidence": 0.9
+        },
+        {
+          "time": "2026-11",
+          "value": 413,
+          "type": "forecast",
+          "confidence": 0.89
+        },
+        {
+          "time": "2026-12",
+          "value": 413,
+          "type": "forecast",
+          "confidence": 0.89
+        },
+        {
+          "time": "2027-01",
+          "value": 449,
+          "type": "forecast",
+          "confidence": 0.88
+        },
+        {
+          "time": "2027-06",
+          "value": 450,
+          "type": "forecast",
+          "confidence": 0.87
+        },
+        {
+          "time": "2027-12",
+          "value": 449,
+          "type": "forecast",
+          "confidence": 0.86
+        },
+        {
+          "time": "2028-06",
+          "value": 486,
+          "type": "forecast",
+          "confidence": 0.83
+        },
+        {
+          "time": "2028-12",
+          "value": 485,
+          "type": "forecast",
+          "confidence": 0.81
+        },
+        {
+          "time": "2029-06",
+          "value": 522,
+          "type": "forecast",
+          "confidence": 0.78
+        },
+        {
+          "time": "2029-12",
+          "value": 521,
+          "type": "forecast",
+          "confidence": 0.76
+        },
+        {
+          "time": "2030-06",
+          "value": 558,
+          "type": "forecast",
+          "confidence": 0.73
+        },
+        {
+          "time": "2030-12",
+          "value": 557,
+          "type": "forecast",
+          "confidence": 0.71
+        },
+        {
+          "time": "2031-06",
+          "value": 594,
+          "type": "forecast",
+          "confidence": 0.68
+        },
+        {
+          "time": "2031-12",
+          "value": 593,
+          "type": "forecast",
+          "confidence": 0.65
+        },
+        {
+          "time": "2032-06",
+          "value": 630,
+          "type": "forecast",
+          "confidence": 0.62
+        },
+        {
+          "time": "2032-12",
+          "value": 629,
+          "type": "forecast",
+          "confidence": 0.59
+        },
+        {
+          "time": "2033-06",
+          "value": 666,
+          "type": "forecast",
+          "confidence": 0.56
+        },
+        {
+          "time": "2033-12",
+          "value": 665,
+          "type": "forecast",
+          "confidence": 0.53
+        },
+        {
+          "time": "2034-06",
+          "value": 702,
+          "type": "forecast",
+          "confidence": 0.5
+        },
+        {
+          "time": "2034-12",
+          "value": 701,
+          "type": "forecast",
+          "confidence": 0.47
+        },
+        {
+          "time": "2035-06",
+          "value": 738,
+          "type": "forecast",
+          "confidence": 0.44
+        },
+        {
+          "time": "2035-12",
+          "value": 737,
+          "type": "forecast",
+          "confidence": 0.4
+        }
+      ],
+      "spatial": {
+        "type": "FeatureCollection",
+        "features": [
+          {
+            "type": "Feature",
+            "geometry": {
+              "type": "Point",
+              "coordinates": [108.62, 21.95]
+            },
+            "properties": {
+              "portId": "qinzhou",
+              "portName": "钦州港",
+              "values": {
+                "2018-01": 106,
+                "2018-06": 144,
+                "2018-12": 151,
+                "2019-01": 145,
+                "2019-06": 156,
+                "2019-12": 180,
+                "2020-01": 195,
+                "2020-06": 206,
+                "2020-12": 226,
+                "2021-01": 227,
+                "2021-06": 231,
+                "2021-12": 260,
+                "2022-01": 254,
+                "2022-06": 297,
+                "2022-12": 312,
+                "2023-01": 282,
+                "2023-06": 327,
+                "2023-12": 347,
+                "2024-01": 327,
+                "2024-06": 365,
+                "2024-12": 358,
+                "2025-01": 387,
+                "2025-06": 384,
+                "2025-12": 410,
+                "2026-01": 413,
+                "2026-02": 412,
+                "2026-03": 413,
+                "2026-04": 413,
+                "2026-05": 413,
+                "2026-06": 414,
+                "2026-07": 413,
+                "2026-08": 414,
+                "2026-09": 413,
+                "2026-10": 413,
+                "2026-11": 413,
+                "2026-12": 413,
+                "2027-01": 449,
+                "2027-06": 450,
+                "2027-12": 449,
+                "2028-06": 486,
+                "2028-12": 485,
+                "2029-06": 522,
+                "2029-12": 521,
+                "2030-06": 558,
+                "2030-12": 557,
+                "2031-06": 594,
+                "2031-12": 593,
+                "2032-06": 630,
+                "2032-12": 629,
+                "2033-06": 666,
+                "2033-12": 665,
+                "2034-06": 702,
+                "2034-12": 701,
+                "2035-06": 738,
+                "2035-12": 737
+              }
+            }
+          }
+        ]
+      }
+    },
+    "beihai": {
+      "historical": [
+        {
+          "time": "2018-01",
+          "value": 74,
+          "type": "historical"
+        },
+        {
+          "time": "2018-02",
+          "value": 89,
+          "type": "historical"
+        },
+        {
+          "time": "2018-03",
+          "value": 90,
+          "type": "historical"
+        },
+        {
+          "time": "2018-04",
+          "value": 83,
+          "type": "historical"
+        },
+        {
+          "time": "2018-05",
+          "value": 89,
+          "type": "historical"
+        },
+        {
+          "time": "2018-06",
+          "value": 92,
+          "type": "historical"
+        },
+        {
+          "time": "2018-07",
+          "value": 82,
+          "type": "historical"
+        },
+        {
+          "time": "2018-08",
+          "value": 88,
+          "type": "historical"
+        },
+        {
+          "time": "2018-09",
+          "value": 91,
+          "type": "historical"
+        },
+        {
+          "time": "2018-10",
+          "value": 96,
+          "type": "historical"
+        },
+        {
+          "time": "2018-11",
+          "value": 95,
+          "type": "historical"
+        },
+        {
+          "time": "2018-12",
+          "value": 103,
+          "type": "historical"
+        },
+        {
+          "time": "2019-01",
+          "value": 101,
+          "type": "historical"
+        },
+        {
+          "time": "2019-02",
+          "value": 95,
+          "type": "historical"
+        },
+        {
+          "time": "2019-03",
+          "value": 102,
+          "type": "historical"
+        },
+        {
+          "time": "2019-04",
+          "value": 115,
+          "type": "historical"
+        },
+        {
+          "time": "2019-05",
+          "value": 114,
+          "type": "historical"
+        },
+        {
+          "time": "2019-06",
+          "value": 104,
+          "type": "historical"
+        },
+        {
+          "time": "2019-07",
+          "value": 111,
+          "type": "historical"
+        },
+        {
+          "time": "2019-08",
+          "value": 113,
+          "type": "historical"
+        },
+        {
+          "time": "2019-09",
+          "value": 125,
+          "type": "historical"
+        },
+        {
+          "time": "2019-10",
+          "value": 123,
+          "type": "historical"
+        },
+        {
+          "time": "2019-11",
+          "value": 112,
+          "type": "historical"
+        },
+        {
+          "time": "2019-12",
+          "value": 125,
+          "type": "historical"
+        },
+        {
+          "time": "2020-01",
+          "value": 121,
+          "type": "historical"
+        },
+        {
+          "time": "2020-02",
+          "value": 114,
+          "type": "historical"
+        },
+        {
+          "time": "2020-03",
+          "value": 116,
+          "type": "historical"
+        },
+        {
+          "time": "2020-04",
+          "value": 133,
+          "type": "historical"
+        },
+        {
+          "time": "2020-05",
+          "value": 140,
+          "type": "historical"
+        },
+        {
+          "time": "2020-06",
+          "value": 127,
+          "type": "historical"
+        },
+        {
+          "time": "2020-07",
+          "value": 140,
+          "type": "historical"
+        },
+        {
+          "time": "2020-08",
+          "value": 131,
+          "type": "historical"
+        },
+        {
+          "time": "2020-09",
+          "value": 134,
+          "type": "historical"
+        },
+        {
+          "time": "2020-10",
+          "value": 133,
+          "type": "historical"
+        },
+        {
+          "time": "2020-11",
+          "value": 133,
+          "type": "historical"
+        },
+        {
+          "time": "2020-12",
+          "value": 147,
+          "type": "historical"
+        },
+        {
+          "time": "2021-01",
+          "value": 149,
+          "type": "historical"
+        },
+        {
+          "time": "2021-02",
+          "value": 147,
+          "type": "historical"
+        },
+        {
+          "time": "2021-03",
+          "value": 149,
+          "type": "historical"
+        },
+        {
+          "time": "2021-04",
+          "value": 154,
+          "type": "historical"
+        },
+        {
+          "time": "2021-05",
+          "value": 156,
+          "type": "historical"
+        },
+        {
+          "time": "2021-06",
+          "value": 162,
+          "type": "historical"
+        },
+        {
+          "time": "2021-07",
+          "value": 161,
+          "type": "historical"
+        },
+        {
+          "time": "2021-08",
+          "value": 164,
+          "type": "historical"
+        },
+        {
+          "time": "2021-09",
+          "value": 158,
+          "type": "historical"
+        },
+        {
+          "time": "2021-10",
+          "value": 163,
+          "type": "historical"
+        },
+        {
+          "time": "2021-11",
+          "value": 154,
+          "type": "historical"
+        },
+        {
+          "time": "2021-12",
+          "value": 172,
+          "type": "historical"
+        },
+        {
+          "time": "2022-01",
+          "value": 161,
+          "type": "historical"
+        },
+        {
+          "time": "2022-02",
+          "value": 175,
+          "type": "historical"
+        },
+        {
+          "time": "2022-03",
+          "value": 161,
+          "type": "historical"
+        },
+        {
+          "time": "2022-04",
+          "value": 164,
+          "type": "historical"
+        },
+        {
+          "time": "2022-05",
+          "value": 180,
+          "type": "historical"
+        },
+        {
+          "time": "2022-06",
+          "value": 180,
+          "type": "historical"
+        },
+        {
+          "time": "2022-07",
+          "value": 188,
+          "type": "historical"
+        },
+        {
+          "time": "2022-08",
+          "value": 190,
+          "type": "historical"
+        },
+        {
+          "time": "2022-09",
+          "value": 188,
+          "type": "historical"
+        },
+        {
+          "time": "2022-10",
+          "value": 184,
+          "type": "historical"
+        },
+        {
+          "time": "2022-11",
+          "value": 178,
+          "type": "historical"
+        },
+        {
+          "time": "2022-12",
+          "value": 184,
+          "type": "historical"
+        },
+        {
+          "time": "2023-01",
+          "value": 182,
+          "type": "historical"
+        },
+        {
+          "time": "2023-02",
+          "value": 197,
+          "type": "historical"
+        },
+        {
+          "time": "2023-03",
+          "value": 197,
+          "type": "historical"
+        },
+        {
+          "time": "2023-04",
+          "value": 187,
+          "type": "historical"
+        },
+        {
+          "time": "2023-05",
+          "value": 200,
+          "type": "historical"
+        },
+        {
+          "time": "2023-06",
+          "value": 208,
+          "type": "historical"
+        },
+        {
+          "time": "2023-07",
+          "value": 193,
+          "type": "historical"
+        },
+        {
+          "time": "2023-08",
+          "value": 193,
+          "type": "historical"
+        },
+        {
+          "time": "2023-09",
+          "value": 201,
+          "type": "historical"
+        },
+        {
+          "time": "2023-10",
+          "value": 198,
+          "type": "historical"
+        },
+        {
+          "time": "2023-11",
+          "value": 215,
+          "type": "historical"
+        },
+        {
+          "time": "2023-12",
+          "value": 211,
+          "type": "historical"
+        },
+        {
+          "time": "2024-01",
+          "value": 204,
+          "type": "historical"
+        },
+        {
+          "time": "2024-02",
+          "value": 208,
+          "type": "historical"
+        },
+        {
+          "time": "2024-03",
+          "value": 211,
+          "type": "historical"
+        },
+        {
+          "time": "2024-04",
+          "value": 208,
+          "type": "historical"
+        },
+        {
+          "time": "2024-05",
+          "value": 224,
+          "type": "historical"
+        },
+        {
+          "time": "2024-06",
+          "value": 220,
+          "type": "historical"
+        },
+        {
+          "time": "2024-07",
+          "value": 225,
+          "type": "historical"
+        },
+        {
+          "time": "2024-08",
+          "value": 227,
+          "type": "historical"
+        },
+        {
+          "time": "2024-09",
+          "value": 222,
+          "type": "historical"
+        },
+        {
+          "time": "2024-10",
+          "value": 223,
+          "type": "historical"
+        },
+        {
+          "time": "2024-11",
+          "value": 223,
+          "type": "historical"
+        },
+        {
+          "time": "2024-12",
+          "value": 228,
+          "type": "historical"
+        },
+        {
+          "time": "2025-01",
+          "value": 226,
+          "type": "historical"
+        },
+        {
+          "time": "2025-02",
+          "value": 235,
+          "type": "historical"
+        },
+        {
+          "time": "2025-03",
+          "value": 226,
+          "type": "historical"
+        },
+        {
+          "time": "2025-04",
+          "value": 242,
+          "type": "historical"
+        },
+        {
+          "time": "2025-05",
+          "value": 248,
+          "type": "historical"
+        },
+        {
+          "time": "2025-06",
+          "value": 236,
+          "type": "historical"
+        },
+        {
+          "time": "2025-07",
+          "value": 243,
+          "type": "historical"
+        },
+        {
+          "time": "2025-08",
+          "value": 251,
+          "type": "historical"
+        },
+        {
+          "time": "2025-09",
+          "value": 243,
+          "type": "historical"
+        },
+        {
+          "time": "2025-10",
+          "value": 254,
+          "type": "historical"
+        },
+        {
+          "time": "2025-11",
+          "value": 250,
+          "type": "historical"
+        },
+        {
+          "time": "2025-12",
+          "value": 249,
+          "type": "historical"
+        }
+      ],
+      "forecast": [
+        {
+          "time": "2026-01",
+          "value": 250,
+          "type": "forecast",
+          "confidence": 0.95
+        },
+        {
+          "time": "2026-02",
+          "value": 250,
+          "type": "forecast",
+          "confidence": 0.94
+        },
+        {
+          "time": "2026-03",
+          "value": 251,
+          "type": "forecast",
+          "confidence": 0.93
+        },
+        {
+          "time": "2026-04",
+          "value": 251,
+          "type": "forecast",
+          "confidence": 0.93
+        },
+        {
+          "time": "2026-05",
+          "value": 251,
+          "type": "forecast",
+          "confidence": 0.92
+        },
+        {
+          "time": "2026-06",
+          "value": 251,
+          "type": "forecast",
+          "confidence": 0.92
+        },
+        {
+          "time": "2026-07",
+          "value": 251,
+          "type": "forecast",
+          "confidence": 0.91
+        },
+        {
+          "time": "2026-08",
+          "value": 251,
+          "type": "forecast",
+          "confidence": 0.91
+        },
+        {
+          "time": "2026-09",
+          "value": 251,
+          "type": "forecast",
+          "confidence": 0.9
+        },
+        {
+          "time": "2026-10",
+          "value": 251,
+          "type": "forecast",
+          "confidence": 0.9
+        },
+        {
+          "time": "2026-11",
+          "value": 251,
+          "type": "forecast",
+          "confidence": 0.89
+        },
+        {
+          "time": "2026-12",
+          "value": 251,
+          "type": "forecast",
+          "confidence": 0.89
+        },
+        {
+          "time": "2027-01",
+          "value": 272,
+          "type": "forecast",
+          "confidence": 0.88
+        },
+        {
+          "time": "2027-06",
+          "value": 273,
+          "type": "forecast",
+          "confidence": 0.87
+        },
+        {
+          "time": "2027-12",
+          "value": 273,
+          "type": "forecast",
+          "confidence": 0.86
+        },
+        {
+          "time": "2028-06",
+          "value": 294,
+          "type": "forecast",
+          "confidence": 0.83
+        },
+        {
+          "time": "2028-12",
+          "value": 294,
+          "type": "forecast",
+          "confidence": 0.81
+        },
+        {
+          "time": "2029-06",
+          "value": 316,
+          "type": "forecast",
+          "confidence": 0.78
+        },
+        {
+          "time": "2029-12",
+          "value": 316,
+          "type": "forecast",
+          "confidence": 0.76
+        },
+        {
+          "time": "2030-06",
+          "value": 338,
+          "type": "forecast",
+          "confidence": 0.73
+        },
+        {
+          "time": "2030-12",
+          "value": 338,
+          "type": "forecast",
+          "confidence": 0.71
+        },
+        {
+          "time": "2031-06",
+          "value": 359,
+          "type": "forecast",
+          "confidence": 0.68
+        },
+        {
+          "time": "2031-12",
+          "value": 359,
+          "type": "forecast",
+          "confidence": 0.65
+        },
+        {
+          "time": "2032-06",
+          "value": 381,
+          "type": "forecast",
+          "confidence": 0.62
+        },
+        {
+          "time": "2032-12",
+          "value": 381,
+          "type": "forecast",
+          "confidence": 0.59
+        },
+        {
+          "time": "2033-06",
+          "value": 402,
+          "type": "forecast",
+          "confidence": 0.56
+        },
+        {
+          "time": "2033-12",
+          "value": 402,
+          "type": "forecast",
+          "confidence": 0.53
+        },
+        {
+          "time": "2034-06",
+          "value": 424,
+          "type": "forecast",
+          "confidence": 0.5
+        },
+        {
+          "time": "2034-12",
+          "value": 424,
+          "type": "forecast",
+          "confidence": 0.47
+        },
+        {
+          "time": "2035-06",
+          "value": 446,
+          "type": "forecast",
+          "confidence": 0.44
+        },
+        {
+          "time": "2035-12",
+          "value": 446,
+          "type": "forecast",
+          "confidence": 0.4
+        }
+      ],
+      "spatial": {
+        "type": "FeatureCollection",
+        "features": [
+          {
+            "type": "Feature",
+            "geometry": {
+              "type": "Point",
+              "coordinates": [109.12, 21.48]
+            },
+            "properties": {
+              "portId": "beihai",
+              "portName": "北海港",
+              "values": {
+                "2018-01": 74,
+                "2018-06": 92,
+                "2018-12": 103,
+                "2019-01": 101,
+                "2019-06": 104,
+                "2019-12": 125,
+                "2020-01": 121,
+                "2020-06": 127,
+                "2020-12": 147,
+                "2021-01": 149,
+                "2021-06": 162,
+                "2021-12": 172,
+                "2022-01": 161,
+                "2022-06": 180,
+                "2022-12": 184,
+                "2023-01": 182,
+                "2023-06": 208,
+                "2023-12": 211,
+                "2024-01": 204,
+                "2024-06": 220,
+                "2024-12": 228,
+                "2025-01": 226,
+                "2025-06": 236,
+                "2025-12": 249,
+                "2026-01": 250,
+                "2026-02": 250,
+                "2026-03": 251,
+                "2026-04": 251,
+                "2026-05": 251,
+                "2026-06": 251,
+                "2026-07": 251,
+                "2026-08": 251,
+                "2026-09": 251,
+                "2026-10": 251,
+                "2026-11": 251,
+                "2026-12": 251,
+                "2027-01": 272,
+                "2027-06": 273,
+                "2027-12": 273,
+                "2028-06": 294,
+                "2028-12": 294,
+                "2029-06": 316,
+                "2029-12": 316,
+                "2030-06": 338,
+                "2030-12": 338,
+                "2031-06": 359,
+                "2031-12": 359,
+                "2032-06": 381,
+                "2032-12": 381,
+                "2033-06": 402,
+                "2033-12": 402,
+                "2034-06": 424,
+                "2034-12": 424,
+                "2035-06": 446,
+                "2035-12": 446
+              }
+            }
+          }
+        ]
+      }
+    },
+    "fangchenggang": {
+      "historical": [
+        {
+          "time": "2018-01",
+          "value": 106,
+          "type": "historical"
+        },
+        {
+          "time": "2018-02",
+          "value": 91,
+          "type": "historical"
+        },
+        {
+          "time": "2018-03",
+          "value": 97,
+          "type": "historical"
+        },
+        {
+          "time": "2018-04",
+          "value": 119,
+          "type": "historical"
+        },
+        {
+          "time": "2018-05",
+          "value": 108,
+          "type": "historical"
+        },
+        {
+          "time": "2018-06",
+          "value": 114,
+          "type": "historical"
+        },
+        {
+          "time": "2018-07",
+          "value": 109,
+          "type": "historical"
+        },
+        {
+          "time": "2018-08",
+          "value": 113,
+          "type": "historical"
+        },
+        {
+          "time": "2018-09",
+          "value": 122,
+          "type": "historical"
+        },
+        {
+          "time": "2018-10",
+          "value": 133,
+          "type": "historical"
+        },
+        {
+          "time": "2018-11",
+          "value": 137,
+          "type": "historical"
+        },
+        {
+          "time": "2018-12",
+          "value": 141,
+          "type": "historical"
+        },
+        {
+          "time": "2019-01",
+          "value": 139,
+          "type": "historical"
+        },
+        {
+          "time": "2019-02",
+          "value": 125,
+          "type": "historical"
+        },
+        {
+          "time": "2019-03",
+          "value": 132,
+          "type": "historical"
+        },
+        {
+          "time": "2019-04",
+          "value": 140,
+          "type": "historical"
+        },
+        {
+          "time": "2019-05",
+          "value": 131,
+          "type": "historical"
+        },
+        {
+          "time": "2019-06",
+          "value": 152,
+          "type": "historical"
+        },
+        {
+          "time": "2019-07",
+          "value": 138,
+          "type": "historical"
+        },
+        {
+          "time": "2019-08",
+          "value": 142,
+          "type": "historical"
+        },
+        {
+          "time": "2019-09",
+          "value": 153,
+          "type": "historical"
+        },
+        {
+          "time": "2019-10",
+          "value": 150,
+          "type": "historical"
+        },
+        {
+          "time": "2019-11",
+          "value": 159,
+          "type": "historical"
+        },
+        {
+          "time": "2019-12",
+          "value": 155,
+          "type": "historical"
+        },
+        {
+          "time": "2020-01",
+          "value": 162,
+          "type": "historical"
+        },
+        {
+          "time": "2020-02",
+          "value": 166,
+          "type": "historical"
+        },
+        {
+          "time": "2020-03",
+          "value": 156,
+          "type": "historical"
+        },
+        {
+          "time": "2020-04",
+          "value": 164,
+          "type": "historical"
+        },
+        {
+          "time": "2020-05",
+          "value": 176,
+          "type": "historical"
+        },
+        {
+          "time": "2020-06",
+          "value": 162,
+          "type": "historical"
+        },
+        {
+          "time": "2020-07",
+          "value": 172,
+          "type": "historical"
+        },
+        {
+          "time": "2020-08",
+          "value": 183,
+          "type": "historical"
+        },
+        {
+          "time": "2020-09",
+          "value": 182,
+          "type": "historical"
+        },
+        {
+          "time": "2020-10",
+          "value": 191,
+          "type": "historical"
+        },
+        {
+          "time": "2020-11",
+          "value": 188,
+          "type": "historical"
+        },
+        {
+          "time": "2020-12",
+          "value": 202,
+          "type": "historical"
+        },
+        {
+          "time": "2021-01",
+          "value": 197,
+          "type": "historical"
+        },
+        {
+          "time": "2021-02",
+          "value": 194,
+          "type": "historical"
+        },
+        {
+          "time": "2021-03",
+          "value": 188,
+          "type": "historical"
+        },
+        {
+          "time": "2021-04",
+          "value": 199,
+          "type": "historical"
+        },
+        {
+          "time": "2021-05",
+          "value": 197,
+          "type": "historical"
+        },
+        {
+          "time": "2021-06",
+          "value": 208,
+          "type": "historical"
+        },
+        {
+          "time": "2021-07",
+          "value": 218,
+          "type": "historical"
+        },
+        {
+          "time": "2021-08",
+          "value": 204,
+          "type": "historical"
+        },
+        {
+          "time": "2021-09",
+          "value": 202,
+          "type": "historical"
+        },
+        {
+          "time": "2021-10",
+          "value": 218,
+          "type": "historical"
+        },
+        {
+          "time": "2021-11",
+          "value": 220,
+          "type": "historical"
+        },
+        {
+          "time": "2021-12",
+          "value": 231,
+          "type": "historical"
+        },
+        {
+          "time": "2022-01",
+          "value": 230,
+          "type": "historical"
+        },
+        {
+          "time": "2022-02",
+          "value": 214,
+          "type": "historical"
+        },
+        {
+          "time": "2022-03",
+          "value": 231,
+          "type": "historical"
+        },
+        {
+          "time": "2022-04",
+          "value": 220,
+          "type": "historical"
+        },
+        {
+          "time": "2022-05",
+          "value": 224,
+          "type": "historical"
+        },
+        {
+          "time": "2022-06",
+          "value": 236,
+          "type": "historical"
+        },
+        {
+          "time": "2022-07",
+          "value": 239,
+          "type": "historical"
+        },
+        {
+          "time": "2022-08",
+          "value": 242,
+          "type": "historical"
+        },
+        {
+          "time": "2022-09",
+          "value": 232,
+          "type": "historical"
+        },
+        {
+          "time": "2022-10",
+          "value": 252,
+          "type": "historical"
+        },
+        {
+          "time": "2022-11",
+          "value": 240,
+          "type": "historical"
+        },
+        {
+          "time": "2022-12",
+          "value": 259,
+          "type": "historical"
+        },
+        {
+          "time": "2023-01",
+          "value": 259,
+          "type": "historical"
+        },
+        {
+          "time": "2023-02",
+          "value": 244,
+          "type": "historical"
+        },
+        {
+          "time": "2023-03",
+          "value": 260,
+          "type": "historical"
+        },
+        {
+          "time": "2023-04",
+          "value": 256,
+          "type": "historical"
+        },
+        {
+          "time": "2023-05",
+          "value": 262,
+          "type": "historical"
+        },
+        {
+          "time": "2023-06",
+          "value": 271,
+          "type": "historical"
+        },
+        {
+          "time": "2023-07",
+          "value": 280,
+          "type": "historical"
+        },
+        {
+          "time": "2023-08",
+          "value": 272,
+          "type": "historical"
+        },
+        {
+          "time": "2023-09",
+          "value": 263,
+          "type": "historical"
+        },
+        {
+          "time": "2023-10",
+          "value": 286,
+          "type": "historical"
+        },
+        {
+          "time": "2023-11",
+          "value": 286,
+          "type": "historical"
+        },
+        {
+          "time": "2023-12",
+          "value": 269,
+          "type": "historical"
+        },
+        {
+          "time": "2024-01",
+          "value": 282,
+          "type": "historical"
+        },
+        {
+          "time": "2024-02",
+          "value": 275,
+          "type": "historical"
+        },
+        {
+          "time": "2024-03",
+          "value": 281,
+          "type": "historical"
+        },
+        {
+          "time": "2024-04",
+          "value": 301,
+          "type": "historical"
+        },
+        {
+          "time": "2024-05",
+          "value": 302,
+          "type": "historical"
+        },
+        {
+          "time": "2024-06",
+          "value": 282,
+          "type": "historical"
+        },
+        {
+          "time": "2024-07",
+          "value": 285,
+          "type": "historical"
+        },
+        {
+          "time": "2024-08",
+          "value": 295,
+          "type": "historical"
+        },
+        {
+          "time": "2024-09",
+          "value": 303,
+          "type": "historical"
+        },
+        {
+          "time": "2024-10",
+          "value": 292,
+          "type": "historical"
+        },
+        {
+          "time": "2024-11",
+          "value": 295,
+          "type": "historical"
+        },
+        {
+          "time": "2024-12",
+          "value": 297,
+          "type": "historical"
+        },
+        {
+          "time": "2025-01",
+          "value": 303,
+          "type": "historical"
+        },
+        {
+          "time": "2025-02",
+          "value": 314,
+          "type": "historical"
+        },
+        {
+          "time": "2025-03",
+          "value": 316,
+          "type": "historical"
+        },
+        {
+          "time": "2025-04",
+          "value": 320,
+          "type": "historical"
+        },
+        {
+          "time": "2025-05",
+          "value": 331,
+          "type": "historical"
+        },
+        {
+          "time": "2025-06",
+          "value": 315,
+          "type": "historical"
+        },
+        {
+          "time": "2025-07",
+          "value": 332,
+          "type": "historical"
+        },
+        {
+          "time": "2025-08",
+          "value": 332,
+          "type": "historical"
+        },
+        {
+          "time": "2025-09",
+          "value": 336,
+          "type": "historical"
+        },
+        {
+          "time": "2025-10",
+          "value": 334,
+          "type": "historical"
+        },
+        {
+          "time": "2025-11",
+          "value": 337,
+          "type": "historical"
+        },
+        {
+          "time": "2025-12",
+          "value": 342,
+          "type": "historical"
+        }
+      ],
+      "forecast": [
+        {
+          "time": "2026-01",
+          "value": 344,
+          "type": "forecast",
+          "confidence": 0.95
+        },
+        {
+          "time": "2026-02",
+          "value": 344,
+          "type": "forecast",
+          "confidence": 0.94
+        },
+        {
+          "time": "2026-03",
+          "value": 344,
+          "type": "forecast",
+          "confidence": 0.93
+        },
+        {
+          "time": "2026-04",
+          "value": 345,
+          "type": "forecast",
+          "confidence": 0.93
+        },
+        {
+          "time": "2026-05",
+          "value": 345,
+          "type": "forecast",
+          "confidence": 0.92
+        },
+        {
+          "time": "2026-06",
+          "value": 345,
+          "type": "forecast",
+          "confidence": 0.92
+        },
+        {
+          "time": "2026-07",
+          "value": 345,
+          "type": "forecast",
+          "confidence": 0.91
+        },
+        {
+          "time": "2026-08",
+          "value": 345,
+          "type": "forecast",
+          "confidence": 0.91
+        },
+        {
+          "time": "2026-09",
+          "value": 345,
+          "type": "forecast",
+          "confidence": 0.9
+        },
+        {
+          "time": "2026-10",
+          "value": 345,
+          "type": "forecast",
+          "confidence": 0.9
+        },
+        {
+          "time": "2026-11",
+          "value": 345,
+          "type": "forecast",
+          "confidence": 0.89
+        },
+        {
+          "time": "2026-12",
+          "value": 345,
+          "type": "forecast",
+          "confidence": 0.89
+        },
+        {
+          "time": "2027-01",
+          "value": 374,
+          "type": "forecast",
+          "confidence": 0.88
+        },
+        {
+          "time": "2027-06",
+          "value": 375,
+          "type": "forecast",
+          "confidence": 0.87
+        },
+        {
+          "time": "2027-12",
+          "value": 375,
+          "type": "forecast",
+          "confidence": 0.86
+        },
+        {
+          "time": "2028-06",
+          "value": 405,
+          "type": "forecast",
+          "confidence": 0.83
+        },
+        {
+          "time": "2028-12",
+          "value": 405,
+          "type": "forecast",
+          "confidence": 0.81
+        },
+        {
+          "time": "2029-06",
+          "value": 435,
+          "type": "forecast",
+          "confidence": 0.78
+        },
+        {
+          "time": "2029-12",
+          "value": 435,
+          "type": "forecast",
+          "confidence": 0.76
+        },
+        {
+          "time": "2030-06",
+          "value": 465,
+          "type": "forecast",
+          "confidence": 0.73
+        },
+        {
+          "time": "2030-12",
+          "value": 465,
+          "type": "forecast",
+          "confidence": 0.71
+        },
+        {
+          "time": "2031-06",
+          "value": 495,
+          "type": "forecast",
+          "confidence": 0.68
+        },
+        {
+          "time": "2031-12",
+          "value": 495,
+          "type": "forecast",
+          "confidence": 0.65
+        },
+        {
+          "time": "2032-06",
+          "value": 525,
+          "type": "forecast",
+          "confidence": 0.62
+        },
+        {
+          "time": "2032-12",
+          "value": 525,
+          "type": "forecast",
+          "confidence": 0.59
+        },
+        {
+          "time": "2033-06",
+          "value": 555,
+          "type": "forecast",
+          "confidence": 0.56
+        },
+        {
+          "time": "2033-12",
+          "value": 555,
+          "type": "forecast",
+          "confidence": 0.53
+        },
+        {
+          "time": "2034-06",
+          "value": 585,
+          "type": "forecast",
+          "confidence": 0.5
+        },
+        {
+          "time": "2034-12",
+          "value": 585,
+          "type": "forecast",
+          "confidence": 0.47
+        },
+        {
+          "time": "2035-06",
+          "value": 615,
+          "type": "forecast",
+          "confidence": 0.44
+        },
+        {
+          "time": "2035-12",
+          "value": 615,
+          "type": "forecast",
+          "confidence": 0.4
+        }
+      ],
+      "spatial": {
+        "type": "FeatureCollection",
+        "features": [
+          {
+            "type": "Feature",
+            "geometry": {
+              "type": "Point",
+              "coordinates": [108.35, 21.77]
+            },
+            "properties": {
+              "portId": "fangchenggang",
+              "portName": "防城港",
+              "values": {
+                "2018-01": 106,
+                "2018-06": 114,
+                "2018-12": 141,
+                "2019-01": 139,
+                "2019-06": 152,
+                "2019-12": 155,
+                "2020-01": 162,
+                "2020-06": 162,
+                "2020-12": 202,
+                "2021-01": 197,
+                "2021-06": 208,
+                "2021-12": 231,
+                "2022-01": 230,
+                "2022-06": 236,
+                "2022-12": 259,
+                "2023-01": 259,
+                "2023-06": 271,
+                "2023-12": 269,
+                "2024-01": 282,
+                "2024-06": 282,
+                "2024-12": 297,
+                "2025-01": 303,
+                "2025-06": 315,
+                "2025-12": 342,
+                "2026-01": 344,
+                "2026-02": 344,
+                "2026-03": 344,
+                "2026-04": 345,
+                "2026-05": 345,
+                "2026-06": 345,
+                "2026-07": 345,
+                "2026-08": 345,
+                "2026-09": 345,
+                "2026-10": 345,
+                "2026-11": 345,
+                "2026-12": 345,
+                "2027-01": 374,
+                "2027-06": 375,
+                "2027-12": 375,
+                "2028-06": 405,
+                "2028-12": 405,
+                "2029-06": 435,
+                "2029-12": 435,
+                "2030-06": 465,
+                "2030-12": 465,
+                "2031-06": 495,
+                "2031-12": 495,
+                "2032-06": 525,
+                "2032-12": 525,
+                "2033-06": 555,
+                "2033-12": 555,
+                "2034-06": 585,
+                "2034-12": 585,
+                "2035-06": 615,
+                "2035-12": 615
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

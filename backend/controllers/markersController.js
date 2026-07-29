@@ -19,6 +19,10 @@ export async function getOne(req, res, next) {
     if (!marker) {
       throw new BusinessError(ErrorCode.NOT_FOUND, '标注不存在')
     }
+    // @arch-note SEC-001: 归属校验，非本人标注返回 403（与 updateOne/deleteOne 对齐）
+    if (marker.userId !== req.user.id) {
+      throw new BusinessError(ErrorCode.FORBIDDEN, '无权查看他人标注')
+    }
     res.json(marker)
   } catch (error) {
     if (!(error instanceof BusinessError)) {

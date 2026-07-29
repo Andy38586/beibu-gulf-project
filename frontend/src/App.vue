@@ -1,14 +1,15 @@
 <script setup lang="ts">
-import { RouterView, useRoute, useRouter } from 'vue-router'
 import { onMounted, provide, ref, watch } from 'vue'
+import { RouterView, useRoute, useRouter } from 'vue-router'
+
+import { BusinessLayerManager } from '@/core/map/BusinessLayerManager'
+import { BUSINESS_LAYER_MANAGER_KEY } from '@/core/map/composables/useBusinessLayers'
+import { useMapControls } from '@/core/map/composables/useMapControls'
 import UnifiedMap from '@/core/map/UnifiedMap.vue'
 import ErrorBoundary from '@/shared/components/ErrorBoundary.vue'
 import { useAuth } from '@/shared/composables/useAuth'
-import { useMapControls } from '@/core/map/composables/useMapControls'
-import { useMapStore } from '@/stores/mapStore'
-import { BusinessLayerManager } from '@/core/map/BusinessLayerManager'
-import { BUSINESS_LAYER_MANAGER_KEY } from '@/core/map/composables/useBusinessLayers'
 import { logger } from '@/shared/utils/logger'
+import { useMapStore } from '@/stores/mapStore'
 
 const route = useRoute()
 const router = useRouter()
@@ -36,7 +37,7 @@ function handleRequireLogin() {
 }
 
 // 等待渲染器就绪后再执行缩放
-function waitForRenderer(callback, retries = 0) {
+function waitForRenderer(callback: () => void, retries = 0) {
   const renderer = unifiedMapRef.value?.getRenderer?.()
   if (renderer) {
     callback()

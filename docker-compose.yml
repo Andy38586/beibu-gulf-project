@@ -1,0 +1,16 @@
+# 北部湾港 WebGIS 智慧分析平台 —— 本地一键编排
+# 用法：docker compose up --build
+#   前端：  http://localhost:8080
+#   后端 API：http://localhost:8080/api/...（经 nginx 反向代理）
+#   后端直连：http://localhost:3000
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: beibu-gulf-webgis:latest
+    container_name: beibu-gulf-webgis
+    ports:
+      - "8080:80"      # nginx（前端 + API 代理）
+      - "3000:3000"    # 后端直连（可选）
+    restart: unless-stopped

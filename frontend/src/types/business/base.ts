@@ -21,6 +21,8 @@ export interface GeoPoint {
 export interface AnnotatedPoint extends GeoPoint {
   id: string
   name: string
+  /** 开放扩展：点要素可携带业务属性（如 port、type），
+   *  供渲染器/弹窗按需读取。参考 §7.7。 */
   [key: string]: unknown
 }
 
@@ -30,6 +32,7 @@ export interface GcsFeature<T extends Record<string, unknown> = Record<string, u
     type: 'Point' | 'Polygon' | 'MultiPolygon'
     coordinates: number[] | number[][] | number[][][]
   }
+  /** 泛型属性，由具体业务类型参数化（如 FloodFeature.properties、ScoredFeature.properties）。 */
   properties: T
 }
 
@@ -47,6 +50,8 @@ export interface FloodStatistics {
   totalArea: number // 淹没总面积（平方米）
   riskLevel: string // 风险等级
   affectedCount: number // 受影响设施数量
+  /** 开放扩展：淹没统计可携带额外指标（如 affectedPopulation、economicLoss）。
+   *  参考 §7.7。 */
   [key: string]: unknown
 }
 
@@ -60,6 +65,8 @@ export interface FloodFeature {
   properties: {
     riskLevel: string
     depth?: number
+    /** 开放扩展：淹没要素可携带 areaId、submergedArea 等业务属性。
+     *  参考 §7.7。 */
     [key: string]: unknown
   }
 }
@@ -111,6 +118,8 @@ export interface ConfidenceThresholds {
   berth: number
   traffic: number
   pressure: number
+  /** 开放扩展：未来可能新增指标（如 gdp、population）的置信度阈值。
+   *  参考 §7.7。 */
   [key: string]: number
 }
 

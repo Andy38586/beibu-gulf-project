@@ -1,26 +1,28 @@
-import { MapRenderer } from './MapRenderer'
 import {
-  Viewer,
-  Cartesian3,
-  Cartesian2,
-  Color,
-  PolygonHierarchy,
-  UrlTemplateImageryProvider,
-  Math as CesiumMath,
-  ScreenSpaceEventType,
-  GeoJsonDataSource,
-  Cartographic,
   CallbackProperty,
-  Primitive,
-  PolygonGeometry,
-  PerInstanceColorAppearance,
-  GeometryInstance,
+  Cartesian2,
+  Cartesian3,
+  Cartographic,
+  Color,
   ColorGeometryInstanceAttribute,
+  GeoJsonDataSource,
+  GeometryInstance,
+  Math as CesiumMath,
+  PerInstanceColorAppearance,
   PointGraphics,
+  PolygonGeometry,
+  PolygonHierarchy,
+  Primitive,
+  ScreenSpaceEventType,
+  UrlTemplateImageryProvider,
+  Viewer,
 } from 'cesium'
-import { MAP_CONFIG, buildTiandituUrl, zoomToHeight } from '@/core/config/map'
-import { logger } from '@/shared/utils/logger'
+
+import { buildTiandituUrl, MAP_CONFIG, zoomToHeight } from '@/core/config/map'
 import { LAYER_DEFAULTS } from '@/shared/constants/colors'
+import { logger } from '@/shared/utils/logger'
+
+import { MapRenderer } from './MapRenderer'
 
 // CesiumViewer单例：全局唯一Viewer，按需mount/unmount复用，30s空闲自动销毁
 class CesiumViewerManager {
@@ -50,7 +52,6 @@ class CesiumViewerManager {
       navigationHelpButton: false,
       timeline: false,
       animation: false,
-      creditContainer: document.createElement('div'),
       // 禁用 requestRenderMode，让场景在可见时持续渲染以支持拖拽交互
       // 仅在 unmount 时启用 requestRenderMode 暂停渲染降低 GPU 占用
       requestRenderMode: false,
@@ -178,6 +179,23 @@ class CesiumViewerManager {
   }
 
   /**
+   * 设置底图引用（供复用时新 CesiumRenderer 实例获取）
+   * 公开方法，替代直写私有属性 _baseLayers
+   * @param {{ image: unknown[], vector: unknown[] }} layers
+   */
+  setBaseLayers(layers) {
+    this._baseLayers = layers
+  }
+
+  /**
+   * 获取底图引用
+   * @returns {{ image: unknown[], vector: unknown[] } | null}
+   */
+  getBaseLayers() {
+    return this._baseLayers || null
+  }
+
+  /**
    * 真正销毁Viewer（一般不调用）
    */
   destroy() {
@@ -230,8 +248,8 @@ export class CesiumRenderer extends MapRenderer {
       this._positionCamera()
       this._initBaseLayers()
     } else {
-      // 复用时从单例管理器获取底图引用
-      this.baseLayers = cesiumViewerManager._baseLayers
+      // 复用时从单例管理器获取底图引用（公开方法）
+      this.baseLayers = cesiumViewerManager.getBaseLayers()
     }
 
     // 每次都需要重新绑定事件（因为事件处理器绑定到当前Renderer实例）
@@ -328,11 +346,11 @@ export class CesiumRenderer extends MapRenderer {
     this.baseLayers.image = [imageBaseLayer, imageAnnotationLayer]
     this.baseLayers.vector = [vectorBaseProvider, vectorAnnotationProvider]
 
-    // 关键修复：将底图引用存储到单例管理器，供复用时新Renderer实例获取
-    cesiumViewerManager._baseLayers = {
+    // 关键修复：将底图引用存储到单例管理器，供复用时新Renderer实例获取（公开方法）
+    cesiumViewerManager.setBaseLayers({
       image: this.baseLayers.image,
       vector: this.baseLayers.vector,
-    }
+    })
 
     cesiumViewerManager.markBaseLayersInitialized()
   }
@@ -373,53 +391,187 @@ export class CesiumRenderer extends MapRenderer {
   }
 
   addPointLayer(id, features, options = {}) {
-    // P0性能优化：Entity数量控制，超过1000个时警告
+    // 幂等：先清除同 id 旧图层，防止 Entity 累积 + 相机监听器泄漏
+    const existing = this._layers.get(id)
+    if (existing) this._doRemoveLayer(existing)
+
+    // P0性能优化：Entity数量控制 + 视口裁剪（>1000 时仅渲染视口内要素）
     const totalEntities = this.viewer.entities.values.length + features.length
     if (totalEntities > 1000 && import.meta.env.DEV) {
-      console.warn(`[CesiumRenderer] Entity数量(${totalEntities})超过1000，可能影响帧率`)
+      console.warn(`[CesiumRenderer] Entity数量(${totalEntities})超过1000，启动视口裁剪`)
     }
 
-    const entities = []
+    // 视口裁剪：仅添加当前视口内的点
+    const bbox = this._getViewportBBox()
 
-    features.forEach((item) => {
+    const entities = []
+    features.forEach((item, index) => {
       // 防御性编程：优先使用 lng，兼容可能的 lon 字段
       const lng = item.lng ?? item.lon ?? 0
-      const entity = this.viewer.entities.add({
-        id: `${id}-${item.id || item.name}`,
-        position: Cartesian3.fromDegrees(lng, item.lat),
-        point: {
-          pixelSize: options.size || 12,
-          color: Color.fromCssColorString(options.color || LAYER_DEFAULTS.color),
-          outlineColor: Color.WHITE,
-          outlineWidth: 2,
-        },
-        label: options.labelField
-          ? {
-              text: item[options.labelField],
-              font: '12px sans-serif',
-              fillColor: Color.BLACK,
-              showBackground: true,
-              backgroundColor: Color.WHITE.withAlpha(0.8),
-              verticalOrigin: 1,
-              pixelOffset: new Cartesian2(0, 15),
-            }
-          : undefined,
-        properties: { ...item, featureType: options.featureType || 'point' },
-      })
-      entities.push(entity)
+      if (bbox && !this._isInViewport(lng, item.lat, bbox)) return
+      const entity = this._createCesiumPointEntity(id, item, index, options)
+      if (entity) entities.push(entity)
     })
+
+    if (entities.length === 0 && import.meta.env.DEV) {
+      console.warn(`[CesiumRenderer] 图层 ${id} 视口内无可见要素（总 ${features.length} 个）`)
+    }
 
     this._layers.set(id, {
       instance: entities,
       visible: true,
       options,
+      // 保存原始 features 供视口变化时增量更新
+      allFeatures: features,
     })
     this._applyPendingVisibility(id)
     // 触发渲染
     this.viewer.scene.requestRender()
+
+    // 注册相机变化监听，视口变化时增量更新
+    this._setupViewportListener(id)
+  }
+
+  /**
+   * 创建并添加一个 Cesium 点 Entity（含 label / properties）
+   * 供 addPointLayer 与 _updateCulledLayer 复用，保证实体构建逻辑单一来源。
+   * @returns {object|null}
+   */
+  _createCesiumPointEntity(id, item, index, options) {
+    const lng = item.lng ?? item.lon ?? 0
+    return this.viewer.entities.add({
+      id: `${id}-${item.id || item.name || index}`,
+      position: Cartesian3.fromDegrees(lng, item.lat),
+      point: {
+        pixelSize: options.size || 12,
+        color: Color.fromCssColorString(options.color || LAYER_DEFAULTS.color),
+        outlineColor: Color.WHITE,
+        outlineWidth: 2,
+      },
+      label: options.labelField
+        ? {
+            text: item[options.labelField],
+            font: '12px sans-serif',
+            fillColor: Color.BLACK,
+            showBackground: true,
+            backgroundColor: Color.WHITE.withAlpha(0.8),
+            verticalOrigin: 1,
+            pixelOffset: new Cartesian2(0, 15),
+          }
+        : undefined,
+      properties: { ...item, featureType: options.featureType || 'point' },
+    })
+  }
+
+  /**
+   * 计算当前相机视口的经纬度范围（简化估算）
+   *
+   * ⚠️ 注意：Cesium `camera.positionCartographic` 的 longitude/latitude 单位为**弧度**，
+   * 必须用 CesiumMath.toDegrees 转换为角度后再与要素经纬度比较。
+   *
+   * @returns {{west:number, east:number, south:number, north:number} | null}
+   */
+  _getViewportBBox() {
+    if (!this.viewer) return null
+    const camera = this.viewer.camera
+    const cartographic = camera.positionCartographic
+    if (!cartographic) return null
+    // 根据相机高度估算视口范围（简化版）
+    // 高度越高，视口范围越大
+    const height = cartographic.height
+    if (height > 5000000) return null // 太高不做裁剪
+    // 粗略估算：1 度 ≈ 111km，视口半宽 ≈ height / 2 / 111000 * 1.5（余量）
+    const halfRange = Math.min((height / 111000) * 1.5, 10) // 上限 10 度
+    const centerLon = CesiumMath.toDegrees(cartographic.longitude)
+    const centerLat = CesiumMath.toDegrees(cartographic.latitude)
+    return {
+      west: centerLon - halfRange,
+      east: centerLon + halfRange,
+      south: centerLat - halfRange,
+      north: centerLat + halfRange,
+    }
+  }
+
+  /**
+   * 判断点是否在当前视口内
+   */
+  _isInViewport(lng, lat, bbox) {
+    if (!bbox) return true // 无视口信息时不裁剪
+    return lng >= bbox.west && lng <= bbox.east && lat >= bbox.south && lat <= bbox.north
+  }
+
+  /**
+   * 为点图层注册视口变化监听
+   * 相机移动时，增量添加/移除视口内外的要素（requestAnimationFrame 防抖）
+   */
+  _setupViewportListener(id) {
+    const layer = this._layers.get(id)
+    if (!layer || !layer.allFeatures) return
+
+    // 防抖：相机移动时频繁触发，用 requestAnimationFrame 合并
+    let rafId = null
+    const updateHandler = () => {
+      if (rafId) cancelAnimationFrame(rafId)
+      rafId = requestAnimationFrame(() => {
+        this._updateCulledLayer(id)
+        rafId = null
+      })
+    }
+
+    // 移除旧监听（如果存在）
+    if (layer.cameraListener) {
+      this.viewer.camera.changed.removeEventListener(layer.cameraListener)
+    }
+
+    this.viewer.camera.changed.addEventListener(updateHandler)
+    layer.cameraListener = updateHandler
+  }
+
+  /**
+   * 视口变化时增量更新裁剪图层：移除离开视口的 Entity，添加新进入视口的 Entity
+   */
+  _updateCulledLayer(id) {
+    const layer = this._layers.get(id)
+    if (!layer || !layer.allFeatures || !layer.visible) return
+
+    const bbox = this._getViewportBBox()
+    if (!bbox) return
+
+    // 计算应显示的要素 ID 集合（ID 与 _createCesiumPointEntity 保持一致：id-index）
+    const shouldShow = new Set()
+    layer.allFeatures.forEach((item, index) => {
+      const lng = item.lng ?? item.lon ?? 0
+      if (this._isInViewport(lng, item.lat, bbox)) {
+        shouldShow.add(`${id}-${item.id || item.name || index}`)
+      }
+    })
+
+    // 移除不在视口内的 Entity
+    for (const entity of layer.instance) {
+      if (!shouldShow.has(entity.id)) {
+        this.viewer.entities.remove(entity)
+      }
+    }
+
+    // 添加新进入视口的 Entity
+    const existingIds = new Set(layer.instance.map((e) => e.id))
+    layer.allFeatures.forEach((item, index) => {
+      const entityId = `${id}-${item.id || item.name || index}`
+      if (shouldShow.has(entityId) && !existingIds.has(entityId)) {
+        const entity = this._createCesiumPointEntity(id, item, index, layer.options)
+        if (entity) layer.instance.push(entity)
+      }
+    })
+
+    // 清理已移除的 Entity 引用
+    layer.instance = layer.instance.filter((e) => this.viewer.entities.contains(e))
   }
 
   addPolygonLayer(id, features, options = {}) {
+    // 幂等：先清除同 id 旧图层，防止 Entity 累积
+    const existing = this._layers.get(id)
+    if (existing) this._doRemoveLayer(existing)
+
     const entities = []
 
     features.forEach((item) => {
@@ -440,7 +592,7 @@ export class CesiumRenderer extends MapRenderer {
           const entity = this.viewer.entities.add({
             polygon: {
               hierarchy: new PolygonHierarchy(outerRing, holes),
-              material: Color.fromCssColorString(options.fillColor || 'rgba(77,171,247,0.15)'),
+              material: Color.fromCssColorString(options.fillColor || LAYER_DEFAULTS.fill),
               outline: true,
               outlineColor: Color.fromCssColorString(options.strokeColor || LAYER_DEFAULTS.stroke),
               outlineWidth: options.strokeWidth || 2,
@@ -475,19 +627,31 @@ export class CesiumRenderer extends MapRenderer {
     const existing = this._layers.get(id)
     if (existing) this._doRemoveLayer(existing)
 
+    // 异步竞态保护：用 token 标记当前请求，await 后检查是否仍为最新
+    this._geoJsonTokens = this._geoJsonTokens || new Map()
+    const token = Symbol(id)
+    this._geoJsonTokens.set(id, token)
+
     try {
       const dataSource = await GeoJsonDataSource.load(geojson)
 
+      // await 后检查：若有更新的同 id 请求，丢弃本次结果
+      if (this._geoJsonTokens.get(id) !== token) return
+
       logger.debug(`[CesiumRenderer] GeoJSON ${id} entities:`, dataSource.entities.values.length)
       dataSource.entities.values.forEach((entity) => {
+        // @arch-note SEC-018: properties 可能为 undefined（无属性的 GeoJSON 要素），判空避免崩溃
+        if (!entity.properties) entity.properties = {}
         entity.properties.featureType = options.featureType || 'geojson'
         if (entity.polygon) {
           entity.polygon.height = 0.5
           entity.polygon.material = Color.fromCssColorString(
-            options.fillColor || 'rgba(77,171,247,0.15)'
+            options.fillColor || LAYER_DEFAULTS.fill
           )
           entity.polygon.outline = true
-          entity.polygon.outlineColor = Color.fromCssColorString(options.strokeColor || LAYER_DEFAULTS.stroke)
+          entity.polygon.outlineColor = Color.fromCssColorString(
+            options.strokeColor || LAYER_DEFAULTS.stroke
+          )
           entity.polygon.outlineWidth = options.strokeWidth || 2
         } else if (entity.position) {
           // 点要素用 PointGraphics 替代默认图钉，支持 markerColor/markerSize
@@ -503,6 +667,12 @@ export class CesiumRenderer extends MapRenderer {
       })
       this.viewer.dataSources.add(dataSource)
 
+      // 再次检查 token，防止 await 期间被新请求覆盖
+      if (this._geoJsonTokens.get(id) !== token) {
+        this.viewer.dataSources.remove(dataSource, true)
+        return
+      }
+
       this._layers.set(id, {
         instance: dataSource,
         visible: true,
@@ -511,6 +681,9 @@ export class CesiumRenderer extends MapRenderer {
       this._applyPendingVisibility(id)
       this.viewer.scene.requestRender()
     } catch (error) {
+      if (this._geoJsonTokens.get(id) === token) {
+        this._geoJsonTokens.delete(id)
+      }
       if (import.meta.env.DEV) {
         console.error(`GeoJSON图层 ${id} 加载失败`, error)
       }
@@ -533,13 +706,19 @@ export class CesiumRenderer extends MapRenderer {
   }
 
   _doRemoveLayer(layer) {
+    // 移除视口监听（视口裁剪点图层特有，其它图层为 undefined）
+    if (layer.cameraListener) {
+      this.viewer.camera.changed.removeEventListener(layer.cameraListener)
+      layer.cameraListener = null
+    }
     if (layer.instance) {
       if (Array.isArray(layer.instance)) {
         layer.instance.forEach((entity) => {
           if (entity) this.viewer.entities.remove(entity)
         })
       } else {
-        this.viewer.dataSources.remove(layer.instance)
+        // 第二参数 destroy=true 让 Cesium 在移除时销毁 dataSource，防止内存泄漏
+        this.viewer.dataSources.remove(layer.instance, true)
       }
       this.viewer.scene.requestRender()
     }
@@ -679,6 +858,8 @@ export class CesiumRenderer extends MapRenderer {
     this.stopBreathing()
     const startTime = Date.now()
     const center = Cartesian3.fromDegrees(lng, lat)
+    // 预解析呼吸灯基准色（源自 LAYER_DEFAULTS.color = '#409eff'，即 rgb(64,158,255)）
+    const baseColor = Color.fromCssColorString(LAYER_DEFAULTS.color)
     this._breathingEntity = this.viewer.entities.add({
       position: center,
       point: {
@@ -689,7 +870,7 @@ export class CesiumRenderer extends MapRenderer {
         color: new CallbackProperty(() => {
           const elapsed = (Date.now() - startTime) / 1000
           const alpha = 0.5 + Math.sin(elapsed * Math.PI * 2) * 0.3
-          return Color.fromCssColorString(`rgba(64,158,255,${alpha})`)
+          return baseColor.withAlpha(alpha)
         }, false),
         outlineColor: Color.WHITE,
         outlineWidth: 2,
@@ -719,47 +900,57 @@ export class CesiumRenderer extends MapRenderer {
   // 使用Primitive API而非Entity，适合大规模几何体
   addWaterSurface(id, coordinates, height = 0, options = {}) {
     this.removeWaterSurface(id)
-    const positions = coordinates.map((coord) => Cartesian3.fromDegrees(coord[0], coord[1], height))
-    const hierarchy = new PolygonHierarchy(positions)
-    const geometry = new PolygonGeometry({
-      polygonHierarchy: hierarchy,
-      vertexFormat: PerInstanceColorAppearance.VERTEX_FORMAT,
-    })
+    try {
+      const positions = coordinates.map((coord) =>
+        Cartesian3.fromDegrees(coord[0], coord[1], height)
+      )
+      const hierarchy = new PolygonHierarchy(positions)
+      const geometry = new PolygonGeometry({
+        polygonHierarchy: hierarchy,
+        vertexFormat: PerInstanceColorAppearance.VERTEX_FORMAT,
+      })
 
-    const instance = new GeometryInstance({
-      geometry: geometry,
-      attributes: {
-        color: ColorGeometryInstanceAttribute.fromColor(
-          Color.fromCssColorString(options.color || 'rgba(64, 158, 255, 0.5)')
-        ),
-      },
-      id: `water-${id}`,
-    })
+      const instance = new GeometryInstance({
+        geometry: geometry,
+        attributes: {
+          color: ColorGeometryInstanceAttribute.fromColor(
+            // 水面色复用 LAYER_DEFAULTS.color（#409eff），保留 0.5 透明度以维持水面半透明观感
+            Color.fromCssColorString(options.color || LAYER_DEFAULTS.color).withAlpha(0.5)
+          ),
+        },
+        id: `water-${id}`,
+      })
 
-    const appearance = new PerInstanceColorAppearance({
-      translucent: true,
-      closed: false,
-    })
+      const appearance = new PerInstanceColorAppearance({
+        translucent: true,
+        closed: false,
+      })
 
-    const primitive = new Primitive({
-      geometryInstances: instance,
-      appearance: appearance,
-      asynchronous: false,
-    })
+      const primitive = new Primitive({
+        geometryInstances: instance,
+        appearance: appearance,
+        asynchronous: false,
+      })
 
-    this.viewer.scene.primitives.add(primitive)
+      this.viewer.scene.primitives.add(primitive)
 
-    // 保存水面状态供后续更新使用
-    this._waterSurfaces = this._waterSurfaces || new Map()
-    this._waterSurfaces.set(id, {
-      primitive: primitive,
-      height: height,
-      coordinates: coordinates,
-      options: options,
-      visible: true,
-    })
+      // 保存水面状态供后续更新使用
+      this._waterSurfaces = this._waterSurfaces || new Map()
+      this._waterSurfaces.set(id, {
+        primitive: primitive,
+        height: height,
+        coordinates: coordinates,
+        options: options,
+        visible: true,
+      })
 
-    this.viewer.scene.requestRender()
+      this.viewer.scene.requestRender()
+    } catch (e) {
+      // 坐标无效或几何体构建失败时不中断调用方
+      if (import.meta.env.DEV) {
+        console.warn(`[CesiumRenderer] 水面图层 ${id} 创建失败:`, e)
+      }
+    }
   }
 
   /**

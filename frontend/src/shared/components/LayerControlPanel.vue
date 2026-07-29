@@ -12,9 +12,10 @@
  */
 
 import { computed } from 'vue'
-import { useLayerManager } from '@/core/map/composables/useLayerManager'
-import { useBusinessLayers } from '@/core/map/composables/useBusinessLayers'
+
 import { useGCS } from '@/core/layout/useGCS.js'
+import { useBusinessLayers } from '@/core/map/composables/useBusinessLayers'
+import { useLayerManager } from '@/core/map/composables/useLayerManager'
 
 const { layerCatalog, toggleLayer } = useLayerManager()
 const { manager: businessLayerManager } = useBusinessLayers()
@@ -47,13 +48,15 @@ const layerButtons = computed(() => {
     'forecast-traffic',
     'forecast-pressure',
   ]
-  const ordered = order.map((key) => layerCatalog.value.find((l) => l.key === key)).filter(Boolean)
-  const orderedKeys = new Set(ordered.map((l) => l.key))
-  const extra = layerCatalog.value.filter((l) => !orderedKeys.has(l.key))
+  const ordered = order
+    .map((key) => layerCatalog.value.find((l: any) => l.key === key))
+    .filter(Boolean)
+  const orderedKeys = new Set(ordered.map((l: any) => l.key))
+  const extra = layerCatalog.value.filter((l: any) => !orderedKeys.has(l.key))
   return [...ordered, ...extra].map((layer) => ({
-    key: layer.key,
-    label: layer.label,
-    active: layer.visible,
+    key: layer!.key,
+    label: layer!.label,
+    active: layer!.visible,
   }))
 })
 
@@ -79,9 +82,9 @@ function getLayerIcon(label: string): string {
 }
 
 /** 点击图层按钮 */
-function handleToggle(key) {
+function handleToggle(key: string) {
   // 业务图层（有 layerType 字段，无 show/hide 回调）→ 走 Manager.setVisible
-  const catalogEntry = layerCatalog.value.find((e) => e.key === key)
+  const catalogEntry = layerCatalog.value.find((e: any) => e.key === key)
   if (catalogEntry && catalogEntry.layerType) {
     businessLayerManager.setVisible(key, !catalogEntry.visible)
     return

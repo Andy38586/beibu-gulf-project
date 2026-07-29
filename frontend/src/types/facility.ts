@@ -12,7 +12,7 @@ export type FacilityType =
 export interface FacilityConfig {
   label: string
   color: string
-  defaultRadius: number // 缓冲半径（米），用于 turf.buffer 空间运算
+  defaultRadius: number // 缓冲半径（米），后端 siteAnalysisService 用 turf.buffer 计算
 }
 
 // 设施点（POI，来自 server/data/qz_*.json）

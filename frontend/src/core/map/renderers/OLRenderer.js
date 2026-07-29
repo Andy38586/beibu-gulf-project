@@ -1,22 +1,24 @@
-import { MapRenderer } from './MapRenderer'
-import Map from 'ol/Map'
-import View from 'ol/View'
-import { fromLonLat, toLonLat } from 'ol/proj'
-import VectorSource from 'ol/source/Vector'
-import VectorLayer from 'ol/layer/Vector'
-import TileLayer from 'ol/layer/Tile'
-import XYZ from 'ol/source/XYZ'
-import Point from 'ol/geom/Point'
-import Polygon from 'ol/geom/Polygon'
 import Feature from 'ol/Feature'
 import GeoJSON from 'ol/format/GeoJSON'
-import { Style, Fill, Stroke, Circle, Text } from 'ol/style'
+import Point from 'ol/geom/Point'
+import Polygon from 'ol/geom/Polygon'
 import Heatmap from 'ol/layer/Heatmap'
-import { buildTiandituUrl, MAP_CONFIG, heightToZoom } from '@/core/config/map'
-import { logger } from '@/shared/utils/logger'
-import { normalizePoint } from '@/types/crs'
-import { createSpatialIndex, VIEWPORT_CULL_THRESHOLD } from '@/shared/utils/spatialIndex'
+import TileLayer from 'ol/layer/Tile'
+import VectorLayer from 'ol/layer/Vector'
+import Map from 'ol/Map'
+import { fromLonLat, toLonLat } from 'ol/proj'
+import VectorSource from 'ol/source/Vector'
+import XYZ from 'ol/source/XYZ'
+import { Circle, Fill, Stroke, Style, Text } from 'ol/style'
+import View from 'ol/View'
+
+import { buildTiandituUrl, heightToZoom, MAP_CONFIG } from '@/core/config/map'
 import { LAYER_DEFAULTS } from '@/shared/constants/colors'
+import { logger } from '@/shared/utils/logger'
+import { createSpatialIndex, VIEWPORT_CULL_THRESHOLD } from '@/shared/utils/spatialIndex'
+import { normalizePoint } from '@/types/crs'
+
+import { MapRenderer } from './MapRenderer'
 
 export class OLRenderer extends MapRenderer {
   constructor(container) {
@@ -291,7 +293,7 @@ export class OLRenderer extends MapRenderer {
   }
   _createPolygonStyle(options) {
     return new Style({
-      fill: new Fill({ color: options.fillColor || 'rgba(77,171,247,0.15)' }),
+      fill: new Fill({ color: options.fillColor || LAYER_DEFAULTS.fill }),
       stroke: new Stroke({
         color: options.strokeColor || LAYER_DEFAULTS.stroke,
         width: options.strokeWidth || 2,
@@ -345,7 +347,7 @@ export class OLRenderer extends MapRenderer {
 
     // 将 features 数组转为 OpenLayers Feature
     const olFeatures = features.map((f) => {
-      const [lng, lat] = f.geometry.coordinates
+      const [lng, lat] = normalizePoint(f.geometry.coordinates)
       const feature = new Feature({
         geometry: new Point(fromLonLat([lng, lat])),
       })
@@ -392,7 +394,7 @@ export class OLRenderer extends MapRenderer {
     const { weightField: _weightField = 'value' } = options
 
     const olFeatures = features.map((f) => {
-      const [lng, lat] = f.geometry.coordinates
+      const [lng, lat] = normalizePoint(f.geometry.coordinates)
       const feature = new Feature({
         geometry: new Point(fromLonLat([lng, lat])),
       })

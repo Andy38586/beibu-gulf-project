@@ -40,9 +40,9 @@ __screenshots__/
 
 # Vite
 *.timestamp-*-*.mjs
-# .gitignore 
-server/data/users.json
-server/data/plans.json
+# 运行时用户库与计划库（含敏感数据，不提交）
+backend/data/users.json
+backend/data/plans.json
 .env
 .env.production
 .env.local

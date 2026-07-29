@@ -1,4 +1,3 @@
-// TODO:1.2: 预测分析控制器
 import {
   getMapData,
   getPortData,
@@ -10,10 +9,10 @@ import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { BusinessError, ErrorCode } from '../utils/BusinessError.js'
 
-// @arch-note 偏8: 预测数据存放于 frontend/public/data/forecast/（前端 Mock 静态源，
-// 后端读取同一份）。__dirname=backend/controllers，上溯两级到项目根再进入 frontend/public。
+// @arch-note 偏8: 预测数据存放于 backend/data/forecast/（阶段六 6.3 从 frontend/public 迁移，
+// 解耦后端对前端目录的硬编码依赖）。__dirname=backend/controllers，上溯一级到 backend 再进入 data/forecast。
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const DATA_PATH = join(__dirname, '../../frontend/public/data/forecast/index.json')
+const DATA_PATH = join(__dirname, '../data/forecast/index.json')
 
 export async function getForecastOverview(req, res, next) {
   try {

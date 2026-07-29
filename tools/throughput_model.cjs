@@ -1,11 +1,27 @@
+/**
+ * 吞吐量预测模型脚本（季节分解 + 线性回归 + MAPE 校验）
+ *
+ * 用途：生成 backend/data/forecast/throughput_model.json
+ *   - 输入：backend/data/forecast/throughput.json（三港历史吞吐量）
+ *   - 输出：backend/data/forecast/throughput_model.json（2026-2035 预测 + 回测指标）
+ *   - 方法：12 月中心移动平均提取趋势，季节指数分解，线性回归外推，
+ *           误差比率校正，MAPE 评估预测偏差
+ *
+ * 运行：npm run forecast:model
+ *
+ * 模型信息：
+ *   - 训练期：2018-2022
+ *   - 验证期：2023-2025
+ *   - 预测期：2026-2035
+ */
 const fs = require('fs')
 const path = require('path')
 
-const DATA_PATH = path.join(__dirname, '..', 'public', 'data', 'forecast', 'throughput.json')
+const DATA_PATH = path.join(__dirname, '..', 'backend', 'data', 'forecast', 'throughput.json')
 const OUTPUT_PATH = path.join(
   __dirname,
   '..',
-  'public',
+  'backend',
   'data',
   'forecast',
   'throughput_model.json'

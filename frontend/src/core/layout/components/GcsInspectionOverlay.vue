@@ -15,9 +15,11 @@
  */
 
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
-import { useGCS } from '../useGCS.js'
-import { SAFE_MARGIN, PANEL_SPACING, GRID_SIZE, CELL_PIXEL } from '../config.js'
+
 import { INSPECTION_COLORS } from '@/shared/constants/colors'
+
+import { CELL_PIXEL, GRID_SIZE, PANEL_SPACING, SAFE_MARGIN } from '../config.js'
+import { useGCS } from '../useGCS.js'
 
 interface Props {
   enabled?: boolean
@@ -88,7 +90,7 @@ function updateViewport() {
  * @param {string} label - 显示标签
  * @returns {{ id: string, label: string, x: number, y: number, width: number, height: number } | null}
  */
-function measureElement(selector, label) {
+function measureElement(selector: string, label: string): MeasuredRect | null {
   const el = document.querySelector(selector)
   if (!el) return null
   const rect = el.getBoundingClientRect()
@@ -108,7 +110,7 @@ function measureElement(selector, label) {
  * @param {string} prefix - 标签前缀
  * @returns {Array<{ id: string, label: string, x: number, y: number, width: number, height: number }>}
  */
-function measureElements(selector, prefix) {
+function measureElements(selector: string, prefix: string): MeasuredRect[] {
   return Array.from(document.querySelectorAll(selector)).map((el, index) => {
     const rect = el.getBoundingClientRect()
     return {
@@ -146,7 +148,7 @@ function measureAll() {
  * @param {number} value
  * @returns {boolean}
  */
-function isPpsAligned(value) {
+function isPpsAligned(value: number) {
   const C = cellPixel.value
   const S = SAFE_MARGIN
   const W = viewportWidth.value
@@ -172,7 +174,7 @@ function isPpsAligned(value) {
  * @param {number} value
  * @returns {boolean}
  */
-function isCellAligned(value) {
+function isCellAligned(value: number) {
   const remainder = value % cellPixel.value
   return remainder <= 1 || remainder >= cellPixel.value - 1
 }
@@ -223,7 +225,7 @@ function validateRect(
  * 由于 Dock 需要吸附到 Cell 网格，允许在吸附后与绝对中心存在最多半个 Cell 的偏移
  * @param {{ x: number, width: number }} dockRect
  */
-function validateDockCenter(dockRect) {
+function validateDockCenter(dockRect: { x: number; width: number }) {
   const expectedX = (viewportWidth.value - dockRect.width) / 2
   const diff = Math.abs(dockRect.x - expectedX)
   if (diff > cellPixel.value / 2 + 1) {
@@ -242,7 +244,13 @@ function validateDockCenter(dockRect) {
  * offset>0 的 Panel 边缘更远，所以只需检查最小间距
  * @param {{ label: string, x: number, y: number, width: number, height: number }} panel
  */
-function validateEdgeSpacing(panel) {
+function validateEdgeSpacing(panel: {
+  label: string
+  x: number
+  y: number
+  width: number
+  height: number
+}) {
   const minSpacing = SAFE_MARGIN
 
   // 上边缘：必须 >= SAFE_MARGIN

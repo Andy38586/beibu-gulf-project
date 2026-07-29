@@ -1,5 +1,5 @@
-import { ref, computed } from 'vue'
-import type { Ref, ComputedRef } from 'vue'
+import type { ComputedRef, Ref } from 'vue'
+import { computed, ref } from 'vue'
 
 // 错误码：使用 as const 对象 + 联合类型，避免 enum 在 ESLint 下的成员误报
 export const ErrorCode = {
@@ -74,8 +74,9 @@ export function useApiRequest() {
       clearTimeout(timeoutId)
 
       // 响应体可能为空或非 JSON，分别处理避免错误信息丢失
+      // data 用 unknown 而非 Record<string, unknown>，因为 JSON.parse 可返回任意 JSON 值
       const text = await res.text()
-      let data: Record<string, unknown> = {}
+      let data: unknown = undefined
       if (text) {
         try {
           data = JSON.parse(text)
@@ -92,18 +93,22 @@ export function useApiRequest() {
       }
 
       if (!res.ok) {
+        // 安全窄化：data 可能为非对象（如纯字符串/数字），用 typeof + in 守卫
+        const errMsg =
+          typeof data === 'object' && data !== null && 'error' in data
+            ? String((data as Record<string, unknown>).error)
+            : ''
         if (res.status === 500) {
-          throw new ApiError(
-            (data.error as string) || '服务器错误，请稍后重试',
-            ErrorCode.SERVER_ERROR
-          )
+          throw new ApiError(errMsg || '服务器错误，请稍后重试', ErrorCode.SERVER_ERROR)
         }
-        throw new ApiError(
-          (data.error as string) || `请求失败 HTTP ${res.status}`,
-          ErrorCode.REQUEST_FAILED
-        )
+        throw new ApiError(errMsg || `请求失败 HTTP ${res.status}`, ErrorCode.REQUEST_FAILED)
       }
 
+      /**
+       * 注意：此处 `as T` 是类型断言，无运行时 schema 校验。
+       * 调用方通过泛型参数 T 声明期望的响应类型，但实际响应结构
+       * 由后端契约保证。若需运行时校验，见决策项 D-4（zod/valibot）。
+       */
       return data as T
     } catch (error) {
       clearTimeout(timeoutId)
@@ -112,7 +117,14 @@ export function useApiRequest() {
       }
       if (error instanceof Error) {
         if (error.name === 'AbortError') {
-          throw new ApiError('请求超时，请检查网络后重试', ErrorCode.TIMEOUT)
+          // @arch-note SEC-021: 区分内部超时 abort vs 外部 signal 主动取消
+          // controller 由本函数内部的 setTimeout 触发 abort → 超时
+          // options.signal 由调用方主动 abort → 取消（非错误，不提示"超时"）
+          if (controller.signal.aborted) {
+            throw new ApiError('请求超时，请检查网络后重试', ErrorCode.TIMEOUT)
+          }
+          // 外部取消：抛 REQUEST_FAILED 供调用方按需处理（多数调用方已忽略此错误）
+          throw new ApiError('请求已取消', ErrorCode.REQUEST_FAILED)
         }
         if (error instanceof TypeError && error.message.includes('fetch')) {
           throw new ApiError('网络异常，请检查网络连接', ErrorCode.NETWORK_ERROR)

@@ -18,24 +18,25 @@
  */
 
 import { ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
 import { inject } from 'vue'
+import { useRouter } from 'vue-router'
+
 import AppLayout from '@/core/layout/AppLayout.vue'
 import GcsPanel from '@/core/layout/components/GcsPanel.vue'
-import LoginPanel from '@/shared/components/LoginPanel.vue'
-import PlanSaveModal from '@/shared/components/PlanSaveModal.vue'
-import PaginatedListPanel from '@/shared/components/PaginatedListPanel.vue'
-import { usePlans } from '@/shared/composables/usePlans'
-import { useAuth } from '@/shared/composables/useAuth'
-import { useFloodState } from '@/stores/floodState'
 import { useGCS } from '@/core/layout/useGCS.js'
+import LoginPanel from '@/shared/components/LoginPanel.vue'
+import PaginatedListPanel from '@/shared/components/PaginatedListPanel.vue'
+import PlanSaveModal from '@/shared/components/PlanSaveModal.vue'
+import { useAuth } from '@/shared/composables/useAuth'
+import { usePlans } from '@/shared/composables/usePlans'
 import { logger } from '@/shared/utils/logger'
+import { useFloodState } from '@/stores/floodState'
 
 const { css } = useGCS()
+import type { AffectedFacility, FloodFeature, FloodStatistics } from '@/types/business/base'
+import type { TypeSetting } from '@/types/facility'
 import type { Plan } from '@/types/plan'
 import type { SavedXiaoqu } from '@/types/xiaoqu'
-import type { TypeSetting } from '@/types/facility'
-import type { FloodStatistics, FloodFeature, AffectedFacility } from '@/types/business/base'
 
 const router = useRouter()
 const {
@@ -131,15 +132,60 @@ function handleLoadPlan(plan: Plan) {
 }
 
 /**
+ * 最小类型守卫：校验对象是否具备 FloodFeature 的必需字段
+ */
+function isFloodFeature(obj: unknown): obj is FloodFeature {
+  if (typeof obj !== 'object' || obj === null) return false
+  const o = obj as Record<string, unknown>
+  return o.type === 'Feature' && typeof o.geometry === 'object' && o.geometry !== null
+}
+
+/** 最小类型守卫：校验数组元素是否全部为 FloodFeature */
+function isFloodFeatureArray(data: unknown): data is FloodFeature[] {
+  return Array.isArray(data) && data.every(isFloodFeature)
+}
+
+/** 最小类型守卫：校验对象是否具备 AffectedFacility 的必需字段 */
+function isAffectedFacility(obj: unknown): obj is AffectedFacility {
+  if (typeof obj !== 'object' || obj === null) return false
+  const o = obj as Record<string, unknown>
+  return (
+    typeof o.id === 'string' &&
+    typeof o.name === 'string' &&
+    typeof o.lng === 'number' &&
+    typeof o.lat === 'number'
+  )
+}
+
+function isAffectedFacilityArray(data: unknown): data is AffectedFacility[] {
+  return Array.isArray(data) && data.every(isAffectedFacility)
+}
+
+/**
  * 加载浸没分析方案：保存状态到 floodStore 后跳转
+ *
+ * 方案字段为 unknown，使用类型守卫做最小运行时校验后收窄，
+ * 不通过则降级为空数组，避免裸断言导致后续运行时崩溃。
  */
 function loadFloodPlan(plan: Plan) {
+  const floodFeatures = isFloodFeatureArray(plan.floodFeatures) ? plan.floodFeatures : []
+  const affectedFacilities = isAffectedFacilityArray(plan.affectedFacilities)
+    ? plan.affectedFacilities
+    : []
+
+  if (!isFloodFeatureArray(plan.floodFeatures) && import.meta.env.DEV) {
+    console.warn('[ProfilePage] 方案 floodFeatures 数据格式异常，已降级为空数组')
+  }
+  if (!isAffectedFacilityArray(plan.affectedFacilities) && import.meta.env.DEV) {
+    console.warn('[ProfilePage] 方案 affectedFacilities 数据格式异常，已降级为空数组')
+  }
+
   floodStore.saveState({
     waterLevel: plan.waterLevel || 0,
     floodStatistics: (plan.floodStatistics ?? null) as FloodStatistics | null,
-    floodFeatures: plan.floodFeatures as unknown as FloodFeature[],
+    floodFeatures,
     floodRiskLevel: plan.floodRiskLevel as string, // 补传风险等级
-    affectedFacilities: plan.affectedFacilities as unknown as AffectedFacility[],
+    affectedFacilities,
     totalLoss: plan.totalLoss as number,
   })
   router.push('/flood-analysis')

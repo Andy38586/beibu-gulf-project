@@ -5,8 +5,8 @@
  * 验证其在 props 变化前后返回不同的（新的）数据。
  * 这样测试聚焦"快照 bug"本身，不依赖 jsdom 中 echarts 的真实渲染。
  */
-import { describe, it, expect, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { describe, expect, it, vi } from 'vitest'
 
 interface Captured {
   getOption: (() => any) | null
@@ -19,7 +19,7 @@ const { captured } = vi.hoisted<{ captured: Captured }>(() => ({
 }))
 
 vi.mock('@/visualization/composables/useECharts', () => ({
-  useECharts: (opts) => {
+  useECharts: (opts: any) => {
     captured.getOption = opts.getOption
     return {
       chartRef: { value: null },
@@ -31,8 +31,8 @@ vi.mock('@/visualization/composables/useECharts', () => ({
   },
 }))
 
-import LineChart from '../../LineChart.vue'
 import BarChart from '../../BarChart.vue'
+import LineChart from '../../LineChart.vue'
 
 describe('P0-01 回归：useChartBase 不得返回过期快照', () => {
   it('LineChart：xData/series 更新后 getOption 返回新数据', async () => {

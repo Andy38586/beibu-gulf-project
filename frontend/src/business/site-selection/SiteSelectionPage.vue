@@ -16,24 +16,26 @@
  * - 跳转到其他路由时清除状态
  */
 
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
-import type { ScoredXiaoqu, FacilityPoint, AnalysisResult } from '@/types/analysis'
+
 import AppLayout from '@/core/layout/AppLayout.vue'
 import GcsPanel from '@/core/layout/components/GcsPanel.vue'
-import SiteAnalysisControlPanel from './components/SiteAnalysisControlPanel.vue'
+import { useBusinessLayers } from '@/core/map/composables/useBusinessLayers'
+import { useLayerManager } from '@/core/map/composables/useLayerManager'
+import { useMapControls } from '@/core/map/composables/useMapControls'
 import LayerControlPanel from '@/shared/components/LayerControlPanel.vue'
 import PaginatedListPanel from '@/shared/components/PaginatedListPanel.vue'
-import RadarChart from '@/visualization/charts/RadarChart.vue'
 import { showError } from '@/shared/utils/errorHandler'
-import { useMapControls } from '@/core/map/composables/useMapControls'
-import { useMapStore } from '@/stores/mapStore'
-import { useAnalysisLayer } from './composables/useAnalysisLayer'
-import { useBusinessLayers } from '@/core/map/composables/useBusinessLayers'
-import { useSiteSelectionStateStore } from '@/stores/siteSelectionState'
-import type { SiteSelectionState } from '@/stores/siteSelectionState'
-import { useLayerManager } from '@/core/map/composables/useLayerManager'
 import { logger } from '@/shared/utils/logger'
+import { useMapStore } from '@/stores/mapStore'
+import type { SiteSelectionState } from '@/stores/siteSelectionState'
+import { useSiteSelectionStateStore } from '@/stores/siteSelectionState'
+import type { AnalysisResult, FacilityPoint, ScoredXiaoqu } from '@/types/analysis'
+import RadarChart from '@/visualization/charts/RadarChart.vue'
+
+import SiteAnalysisControlPanel from './components/SiteAnalysisControlPanel.vue'
+import { useAnalysisLayer } from './composables/useAnalysisLayer'
 
 const { stopBreathing, zoomToCity, zoomToDistrict, mapInstance } = useMapControls()
 const mapStore = useMapStore()
@@ -308,6 +310,8 @@ onUnmounted(() => {
     clearTimeout(tryZoomTimer)
     tryZoomTimer = null
   }
+  // 清理设施 POI 图层，防止卸载后图层残留
+  handleHideFacilityLayer()
 })
 </script>
 

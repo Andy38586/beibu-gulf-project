@@ -7,9 +7,10 @@
  */
 
 import { computed } from 'vue'
-import { FACILITY_LABELS } from '@/shared/utils/facilityLabels'
-import { FACILITY_CONFIG } from '@/business/site-selection/composables/useFacilities'
+
 import { useGCS } from '@/core/layout/useGCS.js'
+import { FACILITY_COLORS_MAP } from '@/shared/constants/colors'
+import { FACILITY_LABELS } from '@/shared/utils/facilityLabels'
 
 interface Props {
   visible?: boolean
@@ -32,9 +33,9 @@ const tooltipW = computed(() => cellPixel.value * 2)
 const tooltipH = computed(() => cellPixel.value * 3)
 const unitPx = computed(() => cellPixel.value * 0.1)
 
-/** 获取设施颜色 */
-function getFacilityColor(key) {
-  return FACILITY_CONFIG[key]?.color || '#666'
+/** 获取设施颜色（从 shared 色值映射取，不依赖 business 层） */
+function getFacilityColor(key: string) {
+  return FACILITY_COLORS_MAP[key] || '#666'
 }
 </script>
 

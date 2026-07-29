@@ -15,24 +15,26 @@
  *    - 架构验证阶段：dataSource='mock'，使用示意性数据
  *    - 生产阶段：floodAdapter.setDataSource('api')，业务代码零改动
  */
-import { onMounted, onUnmounted, watch, nextTick } from 'vue'
+import { nextTick, onMounted, onUnmounted, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute } from 'vue-router'
+
 import AppLayout from '@/core/layout/AppLayout.vue'
 import GcsPanel from '@/core/layout/components/GcsPanel.vue'
-import { useGcsStore } from '@/stores/gcsStore'
-import { useWaterLevelStore } from '@/stores/waterLevelStore'
-import { useFloodState } from '@/stores/floodState'
-import { usePortImpactStore } from '@/stores/portImpactStore'
-import { useMapStore } from '@/stores/mapStore'
 import { useBusinessLayers } from '@/core/map/composables/useBusinessLayers'
 import { floodAdapter } from '@/services/adapters/floodAdapter'
-import { showError } from '@/shared/utils/errorHandler'
-import WaterLevelProfilePanel from './components/WaterLevelProfilePanel.vue'
-import FloodAnalysisReportPanel from './components/FloodAnalysisReportPanel.vue'
-import AffectedFacilityListPanel from './components/AffectedFacilityListPanel.vue'
 import LayerControlPanel from '@/shared/components/LayerControlPanel.vue'
+import { showError } from '@/shared/utils/errorHandler'
 import { logger } from '@/shared/utils/logger'
-import type { FloodStatistics, FloodFeature, AffectedFacility } from '@/types/business/base'
+import { useFloodState } from '@/stores/floodState'
+import { useGcsStore } from '@/stores/gcsStore'
+import { useMapStore } from '@/stores/mapStore'
+import { usePortImpactStore } from '@/stores/portImpactStore'
+import { useWaterLevelStore } from '@/stores/waterLevelStore'
+import type { AffectedFacility, FloodFeature, FloodStatistics } from '@/types/business/base'
+
+import AffectedFacilityListPanel from './components/AffectedFacilityListPanel.vue'
+import FloodAnalysisReportPanel from './components/FloodAnalysisReportPanel.vue'
+import WaterLevelProfilePanel from './components/WaterLevelProfilePanel.vue'
 
 const gcsStore = useGcsStore()
 const waterLevelStore = useWaterLevelStore()
@@ -286,10 +288,7 @@ async function triggerImpactAssessment(waterLevel: number, seq: number) {
 
     logger.debug('[GCS] 更新影响评估数据:', { facilities: affectedFacilities.length, totalLoss })
 
-    portImpactStore.setPortImpactResult(
-      affectedFacilities as AffectedFacility[],
-      totalLoss
-    )
+    portImpactStore.setPortImpactResult(affectedFacilities as AffectedFacility[], totalLoss)
 
     // 在地图上渲染受影响设施
     renderAffectedFacilities(affectedFacilities as AffectedFacility[])
@@ -299,7 +298,7 @@ async function triggerImpactAssessment(waterLevel: number, seq: number) {
   }
 }
 
-function renderFloodAreas(features) {
+function renderFloodAreas(features: FloodFeature[]) {
   if (!features || features.length === 0) return
 
   // 检查图层是否已注册，若未注册则先注册
@@ -333,7 +332,7 @@ function renderFloodAreas(features) {
   })
 }
 
-function renderAffectedFacilities(facilities) {
+function renderAffectedFacilities(facilities: AffectedFacility[]) {
   if (!facilities || facilities.length === 0) return
 
   // 检查图层是否已注册，若未注册则先注册
@@ -376,8 +375,8 @@ function renderAffectedFacilities(facilities) {
   })
 }
 
-function getRiskColor(riskLevel) {
-  const colorMap = {
+function getRiskColor(riskLevel: string) {
+  const colorMap: Record<string, string> = {
     无风险: '#909399',
     低风险: '#67C23A',
     中风险: '#E6A23C',
@@ -388,8 +387,8 @@ function getRiskColor(riskLevel) {
   return colorMap[riskLevel] || '#909399'
 }
 
-function getRiskFillColor(riskLevel) {
-  const colorMap = {
+function getRiskFillColor(riskLevel: string) {
+  const colorMap: Record<string, string> = {
     无风险: 'rgba(144, 147, 153, 0.3)',
     低风险: 'rgba(103, 194, 58, 0.3)',
     中风险: 'rgba(230, 162, 60, 0.3)',

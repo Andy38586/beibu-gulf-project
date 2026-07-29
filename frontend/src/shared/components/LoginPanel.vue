@@ -11,9 +11,10 @@
  * 功能：复用 useAuth 的登录/注册/登出逻辑，默认显示登录表单。
  */
 
-import { ref, computed } from 'vue'
-import { useAuth } from '@/shared/composables/useAuth'
+import { computed, ref } from 'vue'
+
 import { useGCS } from '@/core/layout/useGCS.js'
+import { useAuth } from '@/shared/composables/useAuth'
 
 const { login, register, logout, user } = useAuth()
 const { cellPixel, css } = useGCS()
@@ -41,7 +42,7 @@ const modeBtnHeightCss = computed(() => `${cellPixel.value * 0.8}px`) // 64px
 const formWidthCss = computed(() => `${cellPixel.value * 3.8}px`) // 304px
 const formHeightCss = computed(() => `${cellPixel.value * 0.8}px`) // 64px
 
-function switchMode(m) {
+function switchMode(m: string) {
   mode.value = m
   errorMsg.value = ''
   confirmPassword.value = ''

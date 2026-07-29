@@ -11,10 +11,11 @@
  */
 
 import { computed } from 'vue'
+
+import { useGCS } from '@/core/layout/useGCS.js'
 import { useFloodState } from '@/stores/floodState'
 import { usePortImpactStore } from '@/stores/portImpactStore'
 import { useWaterLevelStore } from '@/stores/waterLevelStore'
-import { useGCS } from '@/core/layout/useGCS.js'
 
 const floodStore = useFloodState()
 const portImpactStore = usePortImpactStore()
@@ -41,7 +42,7 @@ const contentStyle = computed(() => {
 })
 
 /** 格式化损失金额 */
-function formatLoss(loss) {
+function formatLoss(loss: number) {
   if (loss >= 10000) {
     return (loss / 10000).toFixed(1) + ' 亿'
   }
@@ -76,16 +77,16 @@ const affectedPorts = computed<string[]>(() => {
     </div>
 
     <!-- 灰色内容区：3.8宽×2.8高，距标题下方0.6cell、左右各0.1cell -->
-    <div class="report-content" v-if="showReport" :style="contentStyle">
-      <div class="info-item" v-if="floodStore.floodStatistics">
+    <div v-if="showReport" class="report-content" :style="contentStyle">
+      <div v-if="floodStore.floodStatistics" class="info-item">
         <span class="info-label">淹没面积</span>
         <span class="info-value">{{ floodStore.floodStatistics.floodArea || 0 }} km²</span>
       </div>
-      <div class="info-item" v-if="floodStore.floodStatistics">
+      <div v-if="floodStore.floodStatistics" class="info-item">
         <span class="info-label">平均水深</span>
         <span class="info-value">{{ floodStore.floodStatistics.averageDepth || 0 }} m</span>
       </div>
-      <div class="info-item" v-if="floodStore.floodStatistics">
+      <div v-if="floodStore.floodStatistics" class="info-item">
         <span class="info-label">最大水深</span>
         <span class="info-value">{{ floodStore.floodStatistics.maxDepth || 0 }} m</span>
       </div>
@@ -104,7 +105,9 @@ const affectedPorts = computed<string[]>(() => {
         <span class="info-label">预估损失</span>
         <span class="info-value highlight"
           >{{
-            formatLoss(portImpactStore.totalLoss || floodStore.floodStatistics?.estimatedLoss || 0)
+            formatLoss(
+              Number(portImpactStore.totalLoss || floodStore.floodStatistics?.estimatedLoss || 0)
+            )
           }}元</span
         >
       </div>
@@ -112,14 +115,14 @@ const affectedPorts = computed<string[]>(() => {
         <span class="info-label">影响等级</span>
         <span class="info-value">{{ impactLevel }}</span>
       </div>
-      <div class="info-item" v-if="affectedPorts.length > 0">
+      <div v-if="affectedPorts.length > 0" class="info-item">
         <span class="info-label">受影响港口</span>
         <span class="info-value">{{ affectedPorts.join('、') }}</span>
       </div>
     </div>
 
     <!-- 无数据提示 -->
-    <div class="no-data-section" v-else>
+    <div v-else class="no-data-section">
       <div class="no-data-text">当前水位：{{ waterLevelStore.waterLevel.toFixed(1) }} m</div>
       <div class="no-data-hint">开始分析后显示浸没报告</div>
     </div>

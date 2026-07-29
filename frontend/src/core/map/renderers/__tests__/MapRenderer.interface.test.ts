@@ -1,27 +1,30 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+
 import { MapRenderer } from '../MapRenderer'
 
 class MockRenderer extends MapRenderer {
-  constructor(container) {
+  constructor(container: any) {
     super(container)
   }
 
   async init() {}
-  addPointLayer(_id, _features, _options) {}
-  addPolygonLayer(_id, _features, _options) {}
-  addGeoJsonLayer(_id, _geojson, _options) {}
+  addPointLayer(_id: any, _features: any, _options: any) {}
+  addPolygonLayer(_id: any, _features: any, _options: any) {}
+  addGeoJsonLayer(_id: any, _geojson: any, _options: any) {}
   getType() {
     return 'mock'
   }
-  _doSetVisibility(_id, _visible) {}
-  _doRemoveLayer(_layer) {}
-  _doFlyTo(_target, _options) {}
+  _doSetVisibility(_id: any, _visible: any) {}
+  _doRemoveLayer(_layer: any) {}
+  _doFlyTo(_target: any, _options: any) {}
 }
 
 describe('MapRenderer Interface', () => {
   describe('Abstract Class Protection', () => {
     it('should throw error when instantiating MapRenderer directly', () => {
-      expect(() => new MapRenderer('test-container')).toThrow('MapRenderer是抽象类，不能直接实例化')
+      expect(() => new MapRenderer({} as HTMLElement)).toThrow(
+        'MapRenderer是抽象类，不能直接实例化'
+      )
     })
 
     it('should allow instantiating subclass', () => {
@@ -94,8 +97,8 @@ describe('MapRenderer Interface', () => {
         layer2: { visible: true },
       })
 
-      expect(renderer._layers.get('layer1').visible).toBe(false)
-      expect(renderer._layers.get('layer2').visible).toBe(true)
+      expect(renderer._layers.get('layer1')!.visible).toBe(false)
+      expect(renderer._layers.get('layer2')!.visible).toBe(true)
     })
 
     it('should handle empty state', () => {
@@ -114,7 +117,7 @@ describe('MapRenderer Interface', () => {
 
       renderer.setVisibility('layer1', false)
 
-      expect(renderer._layers.get('layer1').visible).toBe(false)
+      expect(renderer._layers.get('layer1')!.visible).toBe(false)
     })
 
     it('should queue pending visibility for non-existent layer', () => {
@@ -133,7 +136,7 @@ describe('MapRenderer Interface', () => {
       renderer._layers.set('layer1', { instance: {}, visible: true })
       renderer._applyPendingVisibility('layer1')
 
-      expect(renderer._layers.get('layer1').visible).toBe(false)
+      expect(renderer._layers.get('layer1')!.visible).toBe(false)
       expect(renderer._pendingVisibility.has('layer1')).toBe(false)
     })
 

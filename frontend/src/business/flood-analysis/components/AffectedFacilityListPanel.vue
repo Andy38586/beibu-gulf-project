@@ -12,8 +12,9 @@
  */
 
 import { computed } from 'vue'
-import { usePortImpactStore } from '@/stores/portImpactStore'
+
 import PaginatedListPanel from '@/shared/components/PaginatedListPanel.vue'
+import { usePortImpactStore } from '@/stores/portImpactStore'
 import type { ScoredXiaoqu } from '@/types/xiaoqu'
 
 const portImpactStore = usePortImpactStore()
@@ -23,7 +24,7 @@ const portImpactStore = usePortImpactStore()
  */
 function getFacilityTypeLabel(type: string | undefined) {
   if (!type) return ''
-  const typeMap = {
+  const typeMap: Record<string, string> = {
     泊位: '泊位',
     码头: '码头',
     仓储区: '仓储',
@@ -50,7 +51,22 @@ function formatLoss(loss: number | undefined) {
  */
 const sortedFacilities = computed<ScoredXiaoqu[]>(() => {
   const facilities = portImpactStore.affectedFacilities || []
-  return [...facilities].sort((a, b) => b.loss - a.loss) as unknown as ScoredXiaoqu[]
+  // AffectedFacility 与 ScoredXiaoqu 字段不兼容（缺少 score/breakdown），
+  // 通过映射转换为合法的 ScoredXiaoqu，避免裸 as unknown as 断言。
+  return [...facilities]
+    .sort((a, b) => b.loss - a.loss)
+    .map(
+      (f): ScoredXiaoqu => ({
+        id: f.id,
+        name: f.name,
+        lng: f.lng,
+        lat: f.lat,
+        score: 0,
+        breakdown: {},
+        type: f.type,
+        loss: f.loss,
+      })
+    )
 })
 </script>
 

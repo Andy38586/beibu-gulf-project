@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs'
+import jwt from 'jsonwebtoken'
 import * as userService from '../services/userService.js'
 import { generateToken } from '../middleware/auth.js'
 import { BusinessError } from '../utils/BusinessError.js'
@@ -101,6 +102,19 @@ export async function login(req, res) {
 }
 
 export async function logout(req, res) {
+  // @arch-note SEC-007: 吊销令牌——解码 cookie 中的 token（不校验过期）并自增 tokenVersion，
+  // 使该 token 后续在 authenticate 校验时因 tokenVersion 不匹配而失效。
+  const token = req.cookies?.auth_token
+  if (token) {
+    try {
+      const decoded = jwt.decode(token)
+      if (decoded?.id) {
+        await userService.updateTokenVersion(decoded.id)
+      }
+    } catch {
+      // 解码失败不影响登出流程，仍清除 cookie
+    }
+  }
   // @arch-note SEC-001: 清除 token cookie
   res.clearCookie('auth_token')
   res.json({ message: '登出成功' })

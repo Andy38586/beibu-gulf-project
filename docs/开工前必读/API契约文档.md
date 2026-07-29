@@ -4,10 +4,10 @@
 > **读者**: 前端/后端开发者，或后续接手本项目的 AI。读完应能准确拼接任意接口的请求与响应，不误用响应格式。
 > **版本**: 2.0
 > **编制**: 2026-07-27
-> **基准代码**: server/ 后端全量扫描（31 个端点）
+> **基准代码**: backend/ 后端全量扫描（31 个端点）
 > **用法**: 前端开发查阅本文件即可理解所有接口的请求/响应结构。如发现代码行为与本文件不一致，以代码为准并提 issue 更新本文件。
 > **关联**: 具体的 bug、待修问题见 `待解决问题.md`，不在本文档中描述。
-> **原则**: 每个端点的字段名、默认值、错误文案均来自 `server/` 实际代码扫描，非凭空设计；同一模块内响应格式保持一致。
+> **原则**: 每个端点的字段名、默认值、错误文案均来自 `backend/` 实际代码扫描，非凭空设计；同一模块内响应格式保持一致。
 
 ---
 
@@ -82,7 +82,7 @@
 
 ## 2. 认证
 
-**模块**：`server/routes/auth.js` + `server/controllers/authController.js`
+**模块**：`backend/routes/auth.js` + `backend/controllers/authController.js`
 **格式**：RESTful
 
 ### POST /api/auth/register
@@ -169,7 +169,7 @@ GET /api/auth/me
 
 ## 3. 选址分析
 
-**模块**：`server/routes/siteAnalysis.js` + `server/controllers/siteAnalysisController.js`
+**模块**：`backend/routes/siteAnalysis.js` + `backend/controllers/siteAnalysisController.js`
 **格式**：RESTful
 
 ### POST /api/site-analysis
@@ -247,7 +247,7 @@ Content-Type: application/json
 
 ## 4. 设施数据
 
-**模块**：`server/routes/facilities.js` + `server/controllers/facilitiesController.js`
+**模块**：`backend/routes/facilities.js` + `backend/controllers/facilitiesController.js`
 **格式**：RESTful
 
 > 设施数据直接返回 JSON 文件原始内容（数组），**不做包装**。设施类型与文件映射见 `facilitiesRepository.FILE_MAP`。
@@ -306,7 +306,7 @@ GET /api/facilities/hospital
 
 ## 5. 方案管理
 
-**模块**：`server/routes/plans.js` + `server/controllers/plansController.js`
+**模块**：`backend/routes/plans.js` + `backend/controllers/plansController.js`
 **格式**：RESTful
 
 > 所有端点需认证。操作自动校验归属，非本人返回 403。响应**直接返回方案对象**，不包装在 `{ plan: ... }` 中。
@@ -485,7 +485,7 @@ DELETE /api/plans/1234567890/xiaoqu/xiaoqu-001
 
 ## 6. 标注管理
 
-**模块**：`server/routes/markers.js` + `server/controllers/markersController.js`
+**模块**：`backend/routes/markers.js` + `backend/controllers/markersController.js`
 **格式**：RESTful
 
 > 所有端点需认证。创建时 `userId` 强制从 token 获取。更新/删除校验归属。响应**直接返回标注对象**，不包装在 `{ marker: ... }` 中。
@@ -593,7 +593,7 @@ DELETE /api/markers/1234567890
 
 ## 7. 浸没分析
 
-**模块**：`server/routes/gcs.js` + `server/controllers/floodAnalysisController.js`
+**模块**：`backend/routes/gcs.js` + `backend/controllers/floodAnalysisController.js`
 **格式**：GCS 标准（`{ code, data, message }`）
 
 > 所有端点需认证（`router.use(authenticate)`）。核心机制：**向上取档**——传入 `waterLevel` 时，匹配数据中 `>=` 请求值的最低档位。例如请求 2.5m，数据档位有 2.0/3.0/5.0，则返回 3.0m 的数据。
@@ -837,11 +837,24 @@ Content-Type: application/json
 500 { "code": 500, "data": null, "message": "灾害评估失败" }
 ```
 
+### 数据源说明（前端 Adapter 状态，2026-07-28）
+
+**当前状态**：浸没分析前端模块**仅支持 mock 数据**，未接入真实后端 API。
+
+- `floodAdapter.ts` 的 `api` 数据源分支统一 `throw new Error('[FloodAdapter] 真实 API 尚未接入，请先调用 setDataSource("mock")')`
+  （`getWaterArea` / `getFloodAnalysis` / `getImpactAssessment` / `getDEM` 四个方法均如此）
+- 后端实际存在 `/api/gcs/*` 系列端点（见本 § 各端点），但前端尚未通过 `floodAdapter` 调用它们
+- Mock 数据来源：`public/data/*.json`（`flood-areas.json` / `flood-statistics.json` / `disaster.json` / `water-area.json`）
+
+**接入真实 API 的步骤**：
+1. 在 `floodAdapter.ts` 的 `api` 分支中实现真实 `fetch` 逻辑（对接 `/api/gcs/flood-areas`、`/api/gcs/flood-statistics`、`/api/gcs/analysis/disaster` 等）
+2. 切换数据源：`floodAdapter.setDataSource('api')`
+
 ---
 
 ## 8. 预测分析
 
-**模块**：`server/routes/forecast.js` + `server/controllers/forecastController.js`
+**模块**：`backend/routes/forecast.js` + `backend/controllers/forecastController.js`
 **格式**：混合格式（GCS-like，成功无 `message` 字段，错误用 `error` 不是 `message`）
 
 > **认证策略**：`/api/forecast/*` 不需要认证。预测数据视为公开数据，与需认证的业务模块（plans/markers/gcs 等）安全策略不同。此为稳定设计决策，变更需同步更新本文档和 `项目根基.md` §8.4。
@@ -940,7 +953,7 @@ GET /api/forecast/indicator/throughput?time=2026-07&portId=qinzhou&confidence=0.
 router.get('/:portId', getPortForecast)   // 先匹配，/map 永远到不了
 router.get('/map', getForecastMapData)
 
-// ✅ 正确：/:portId 放最后（server/routes/forecast.js 实际顺序）
+// ✅ 正确：/:portId 放最后（backend/routes/forecast.js 实际顺序）
 router.get('/map', getForecastMapData)
 router.get('/timeseries', getTimeSeriesData)
 router.get('/indicator/:type', getIndicatorData)

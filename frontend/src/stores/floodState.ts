@@ -1,12 +1,15 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { computed, ref } from 'vue'
+
 import type {
-  FloodStatistics,
-  FloodFeature,
   AffectedFacility,
-  FloodSavedState,
   FloodConsumedState,
+  FloodFeature,
+  FloodSavedState,
+  FloodStatistics,
 } from '@/types/business/base'
+
+import { createPersistedState } from './factories/createPersistedState'
 
 /**
  * 浸没分析统一 Store（Setup Store 风格）
@@ -21,6 +24,14 @@ import type {
  * - consumeState 一次性返回全部字段，调用方无需跨 store 组合
  * - clearState 彻底重置（UI + 数据 + 持久化快照），用于登出/离开页面
  */
+
+/** 仅持久化快照部分（不含当前分析数据） */
+interface FloodPersistedSnapshot {
+  waterLevel: number
+  affectedFacilities: AffectedFacility[]
+  totalLoss: number
+}
+
 export const useFloodState = defineStore('flood', () => {
   // ─── UI 控制 ───────────────────────────────────────────────
   const floodActive = ref(false)
@@ -32,11 +43,8 @@ export const useFloodState = defineStore('flood', () => {
   const floodFeatures = ref<FloodFeature[]>([])
   const floodRiskLevel = ref('无风险')
 
-  // ─── 持久化快照（仅 saveState/consumeState 使用） ─────────
-  const hasPersistedState = ref(false)
-  const persistedWaterLevel = ref(0)
-  const persistedAffectedFacilities = ref<AffectedFacility[]>([])
-  const persistedTotalLoss = ref(0)
+  // ─── 持久化快照（使用工厂） ─────────────────────────────
+  const persisted = createPersistedState<FloodPersistedSnapshot>()
 
   // ─── 计算属性 ──────────────────────────────────────────────
   const hasAnalysisData = computed(() => floodStatistics.value !== null)
@@ -67,7 +75,10 @@ export const useFloodState = defineStore('flood', () => {
   // ─── 跨页面状态持久化 ──────────────────────────────────────
   /**
    * 保存当前分析状态（用于离开页面前快照）
-   * 接收完整 FloodSavedState，内部持久化全部字段
+   *
+   * 与 siteSelectionState 不同：floodState 在保存快照时
+   * 还需同步更新当前分析数据（floodStatistics 等），
+   * 因此不能完全委托给工厂，而是用工厂管理快照部分。
    */
   function saveState(payload: FloodSavedState): void {
     if (payload.floodStatistics) {
@@ -75,42 +86,37 @@ export const useFloodState = defineStore('flood', () => {
       floodFeatures.value = payload.floodFeatures
       floodRiskLevel.value = payload.floodRiskLevel
     }
-    persistedWaterLevel.value = payload.waterLevel
-    persistedAffectedFacilities.value = payload.affectedFacilities || []
-    persistedTotalLoss.value = payload.totalLoss || 0
-    hasPersistedState.value = true
+    persisted.saveState({
+      waterLevel: payload.waterLevel,
+      affectedFacilities: payload.affectedFacilities || [],
+      totalLoss: payload.totalLoss || 0,
+    })
   }
 
   /**
    * 消费已保存的状态（用于进入页面时恢复）
-   * 返回 null 表示无已保存状态
-   * 一次性消费：调用后清除持久化标志，但保留当前分析数据供页面使用
+   *
+   * 从工厂读取快照 + 从当前分析数据组合返回
    */
   function consumeState(): FloodConsumedState | null {
-    if (!hasPersistedState.value) return null
+    const snapshot = persisted.consumeState()
+    if (!snapshot) return null
 
-    const result: FloodConsumedState = {
-      waterLevel: persistedWaterLevel.value,
+    return {
+      waterLevel: snapshot.waterLevel,
       floodStatistics: floodStatistics.value,
       floodFeatures: floodFeatures.value,
       floodRiskLevel: floodRiskLevel.value,
-      affectedFacilities: persistedAffectedFacilities.value,
-      totalLoss: persistedTotalLoss.value,
+      affectedFacilities: snapshot.affectedFacilities,
+      totalLoss: snapshot.totalLoss,
     }
-
-    hasPersistedState.value = false
-    return result
   }
 
   /**
    * 彻底重置（UI + 分析数据 + 持久化快照）
-   * 用于登出/离开页面
    */
   function clearState(): void {
-    hasPersistedState.value = false
-    persistedWaterLevel.value = 0
-    persistedAffectedFacilities.value = []
-    persistedTotalLoss.value = 0
+    persisted.clearPersistedState()
     resetFloodAnalysis()
   }
 
@@ -126,7 +132,7 @@ export const useFloodState = defineStore('flood', () => {
     // 计算属性
     hasAnalysisData,
     // 持久化
-    hasPersistedState,
+    hasPersistedState: persisted.hasPersistedState,
     // 方法
     startFloodAnalysis,
     resetFloodAnalysis,

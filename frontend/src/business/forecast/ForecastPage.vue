@@ -17,24 +17,36 @@
         右侧 ForecastControlPanel(4×4) + LayerControlPanel(4×4)
 -->
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted } from 'vue'
-import { showError, handleAuthError, isAuthError } from '@/shared/utils/errorHandler'
+import { onMounted, onUnmounted, ref, watch } from 'vue'
+
 import AppLayout from '@/core/layout/AppLayout.vue'
 import GcsPanel from '@/core/layout/components/GcsPanel.vue'
-import LineChart from '@/visualization/charts/LineChart.vue'
-import BarChart from '@/visualization/charts/BarChart.vue'
+import { forecastAdapter } from '@/services/adapters/forecastAdapter'
 import LayerControlPanel from '@/shared/components/LayerControlPanel.vue'
-import ForecastControlPanel from './components/ForecastControlPanel.vue'
+import { handleAuthError, isAuthError, showError } from '@/shared/utils/errorHandler'
+import { logger } from '@/shared/utils/logger'
 import { useForecastState } from '@/stores/forecastState'
+import { useMapStore } from '@/stores/mapStore'
+import BarChart from '@/visualization/charts/BarChart.vue'
+import LineChart from '@/visualization/charts/LineChart.vue'
+
+import ForecastControlPanel from './components/ForecastControlPanel.vue'
 import { useForecastLayer } from './composables/useForecastLayer'
 import { useForecastRequest } from './composables/useForecastRequest'
-import { useMapStore } from '@/stores/mapStore'
-import { logger } from '@/shared/utils/logger'
 
 const forecastState = useForecastState()
 const mapStore = useMapStore()
 const { updateForecastLayer, removeForecastLayer, renderer } = useForecastLayer()
-const { forecastApiRequest, startTransaction, cancelAll } = useForecastRequest()
+const {
+  runInTransaction,
+  startTransaction,
+  isTransactionValid,
+  cancelAll,
+  isLoading: isTransactionLoading,
+} = useForecastRequest()
+
+// 绑定到事务 loading 状态，消除本地 isLoading 与事务间的竞态
+const isLoading = isTransactionLoading
 
 const lineXData = ref([])
 const lineSeries = ref([])
@@ -48,15 +60,12 @@ const requestCache = new Map()
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 const DEBOUNCE_DELAY = 300
 
-// P2-01: 加载状态反馈
-const isLoading = ref(false)
-
 onMounted(() => {
   forecastState.reset()
   requestCache.clear()
 })
 
-async function loadTimeSeriesData(transactionId, signal) {
+async function loadTimeSeriesData(transactionId: number, signal: AbortSignal) {
   logger.debug('[ForecastPage] loadTimeSeriesData called')
   try {
     const indicator = forecastState.activeIndicator
@@ -67,15 +76,14 @@ async function loadTimeSeriesData(transactionId, signal) {
 
     // 全量数据: 首次 API 获取后缓存，后续只做窗口截取
     if (!requestCache.has(cacheKey)) {
-      const resp = await forecastApiRequest(
-        `/forecast/timeseries?indicator=${indicator}&granularity=${granularity}&confidence=${confidence}`,
-        transactionId,
-        signal
+      const data = await runInTransaction(
+        () => forecastAdapter.getTimeSeries(indicator, granularity, confidence, signal),
+        transactionId
       )
       // 事务过期或请求被取消
-      if (resp === null) return
-      if (resp.code === 200 && resp.data?.series) {
-        requestCache.set(cacheKey, { allSeries: resp.data.series })
+      if (data === null) return
+      if (data?.series) {
+        requestCache.set(cacheKey, { allSeries: data.series })
       }
     }
 
@@ -88,7 +96,8 @@ async function loadTimeSeriesData(transactionId, signal) {
     // 7年窗口: [slider-3, slider+3]，钳制在数据实际范围内防止空白
     const [sliderYear, sliderMonth] = forecastState.currentTime.split('-').map(Number)
     const isYear = forecastState.timeGranularity === 'year'
-    const fmt = (y, m) => (isYear ? String(y) : `${y}-${String(m || 1).padStart(2, '0')}`)
+    const fmt = (y: number, m: number) =>
+      isYear ? String(y) : `${y}-${String(m || 1).padStart(2, '0')}`
     const dataMin = allData[0].time
     const dataMax = allData[allData.length - 1].time
 
@@ -100,13 +109,15 @@ async function loadTimeSeriesData(transactionId, signal) {
     lineViewportXMin.value = windowStart
     lineViewportXMax.value = windowEnd
 
-    const inWindow = (d) => d.time >= windowStart && d.time <= windowEnd
+    const inWindow = (d: { time: string }) => d.time >= windowStart && d.time <= windowEnd
 
-    lineXData.value = allData.filter(inWindow).map((d) => d.time)
-    lineSeries.value = cached.allSeries.map((s) => ({
-      name: s.portName,
-      data: (s.data || []).filter(inWindow).map((d) => d.value),
-    }))
+    lineXData.value = allData.filter(inWindow).map((d: { time: string }) => d.time)
+    lineSeries.value = cached.allSeries.map(
+      (s: { portName: string; data: Array<{ time: string; value: number }> }) => ({
+        name: s.portName,
+        data: (s.data || []).filter(inWindow).map((d: { value: number }) => d.value),
+      })
+    )
   } catch (e) {
     logger.error('[ForecastPage] loadTimeSeriesData error:', e)
     if (isAuthError(e)) {
@@ -117,7 +128,7 @@ async function loadTimeSeriesData(transactionId, signal) {
   }
 }
 
-async function loadPortComparisonData(transactionId, signal) {
+async function loadPortComparisonData(transactionId: number, signal: AbortSignal) {
   logger.debug('[ForecastPage] loadPortComparisonData called')
   try {
     const indicator = forecastState.activeIndicator
@@ -128,23 +139,21 @@ async function loadPortComparisonData(transactionId, signal) {
     const cacheKey = `cmp:${indicator}:${time}:${confidence}`
     if (requestCache.has(cacheKey)) {
       // 事务检查：即使缓存命中也要验证事务有效性
-      const { isTransactionValid } = useForecastRequest()
       if (!isTransactionValid(transactionId)) return
       const c = requestCache.get(cacheKey)
       barXData.value = c.xData
       barSeries.value = c.series
       return
     }
-    const resp = await forecastApiRequest(
-      `/forecast/indicator/${indicator}?time=${time}&confidence=${confidence}`,
-      transactionId,
-      signal
+    const data = await runInTransaction(
+      () => forecastAdapter.getIndicatorComparison(indicator, time, confidence, signal),
+      transactionId
     )
-    logger.debug('[ForecastPage] loadPortComparisonData response:', resp)
+    logger.debug('[ForecastPage] loadPortComparisonData response:', data)
     // 事务过期或请求被取消
-    if (resp === null) return
-    if (resp.code === 200 && resp.data?.ports) {
-      const p = resp.data.ports
+    if (data === null) return
+    if (data?.ports) {
+      const p = data.ports
       const cy = forecastState.currentTime.split('-')[0]
       barXData.value = ['钦州港', '北海港', '防城港']
       barSeries.value = [
@@ -180,26 +189,19 @@ watch(
 )
 
 // 统一的预测更新函数：启动新事务，保证三个请求原子性
+// isLoading 由 useForecastRequest 单例管理，事务内自动设置/清除，无竞态
 async function doForecastUpdate() {
   if (!renderer.value) return
 
-  // P2-01: 设置加载状态
-  isLoading.value = true
+  // 启动新事务，取消旧请求
+  const { transactionId, signal } = startTransaction()
 
-  try {
-    // 启动新事务，取消旧请求
-    const { transactionId, signal } = startTransaction()
-
-    // 三个请求共享同一事务，保证数据一致性
-    await Promise.all([
-      loadTimeSeriesData(transactionId, signal),
-      loadPortComparisonData(transactionId, signal),
-      updateForecastLayer(transactionId, signal),
-    ])
-  } finally {
-    // P2-01: 清除加载状态
-    isLoading.value = false
-  }
+  // 三个请求共享同一事务，保证数据一致性
+  await Promise.all([
+    loadTimeSeriesData(transactionId, signal),
+    loadPortComparisonData(transactionId, signal),
+    updateForecastLayer(transactionId, signal),
+  ])
 }
 
 // 合并 watch：监听 indicator、time、confidence 三个核心状态
@@ -218,6 +220,11 @@ watch(
 )
 
 onUnmounted(() => {
+  // 清理防抖定时器，避免卸载后触发 doForecastUpdate
+  if (debounceTimer) {
+    clearTimeout(debounceTimer)
+    debounceTimer = null
+  }
   cancelAll()
   removeForecastLayer()
   requestCache.clear()
@@ -226,7 +233,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="forecast-page" v-loading="isLoading" element-loading-text="加载预测数据中...">
+  <div v-loading="isLoading" class="forecast-page" element-loading-text="加载预测数据中...">
     <AppLayout>
       <template #left>
         <GcsPanel :w="4" :h="4" anchor="top-left" :offset-x="0" :offset-y="1.25">

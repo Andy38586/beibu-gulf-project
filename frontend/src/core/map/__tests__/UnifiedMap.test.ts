@@ -1,10 +1,14 @@
-import { describe, it, expect, vi, beforeEach, afterEach, beforeAll, afterAll } from 'vitest'
-import { mount, flushPromises, type VueWrapper } from '@vue/test-utils'
+import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
+import type { Point } from 'geojson'
 import { createPinia, setActivePinia } from 'pinia'
-import UnifiedMap from '../UnifiedMap.vue'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+
 import { buildPortGeoJson, PORT_STYLE } from '@/core/map/composables/usePortLayer'
 import { createRenderer } from '@/core/map/renderers'
 import { useMapStore } from '@/stores/mapStore'
+import type { Port } from '@/types'
+
+import UnifiedMap from '../UnifiedMap.vue'
 
 // vi.mock 在运行时将 createRenderer 替换为 mock，但 TS 仍按真实模块推断类型，
 // 这里用 vi.mocked 放宽为 MockedFunction 以便访问 .mock / .mockImplementation API。
@@ -33,9 +37,9 @@ vi.mock('@/core/map/composables/usePortLayer', () => ({
   loadPorts: vi
     .fn()
     .mockResolvedValue([{ id: 1, name: 'test-port', lng: 108.1, lat: 21.5, type: 'container' }]),
-  buildPortGeoJson: (ports) => ({
+  buildPortGeoJson: (ports: any) => ({
     type: 'FeatureCollection',
-    features: ports.map((port) => ({
+    features: ports.map((port: any) => ({
       type: 'Feature',
       geometry: { type: 'Point', coordinates: [port.lng, port.lat] },
       properties: { ...port, featureType: 'port' },
@@ -58,7 +62,7 @@ vi.mock('@/core/map/composables/useBoundaryLayer', () => ({
 }))
 
 vi.mock('@/core/map/renderers', () => {
-  const createMockRenderer = (type) => ({
+  const createMockRenderer = (type: any) => ({
     _layers: new Map(),
     on: vi.fn(),
     off: vi.fn(),
@@ -90,8 +94,8 @@ function makeMountOptions(store: ReturnType<typeof useMapStore>) {
 
 describe('UnifiedMap Integration Tests', () => {
   let wrapper: VueWrapper<InstanceType<typeof UnifiedMap>>
-  let pinia
-  let mapStore
+  let pinia: ReturnType<typeof createPinia>
+  let mapStore: any
 
   beforeEach(() => {
     pinia = createPinia()
@@ -170,7 +174,7 @@ describe('UnifiedMap Integration Tests', () => {
     await new Promise((resolve) => setTimeout(resolve, 50))
 
     const renderer = mockedCreateRenderer.mock.results[0].value
-    const clickHandler = renderer.on.mock.calls.find((c) => c[0] === 'click')?.[1]
+    const clickHandler = renderer.on.mock.calls.find((c: any) => c[0] === 'click')?.[1]
 
     expect(clickHandler).toBeDefined()
 
@@ -200,13 +204,13 @@ describe('Composable + Renderer Integration', () => {
       { id: 2, name: 'port2', lng: 108.2, lat: 21.6, type: 'bulk' },
     ]
 
-    const geojson = buildPortGeoJson(ports)
+    const geojson = buildPortGeoJson(ports as unknown as Port[])
 
     expect(geojson.type).toBe('FeatureCollection')
     expect(geojson.features.length).toBe(2)
     expect(geojson.features[0].geometry.type).toBe('Point')
-    expect(geojson.features[0].geometry.coordinates).toEqual([108.1, 21.5])
-    expect(geojson.features[0].properties.featureType).toBe('port')
+    expect((geojson.features[0].geometry as Point).coordinates).toEqual([108.1, 21.5])
+    expect(geojson.features[0].properties!.featureType).toBe('port')
   })
 
   it('PORT_STYLE should have required properties', () => {
@@ -219,8 +223,8 @@ describe('Composable + Renderer Integration', () => {
 
 describe('UnifiedMap Click Interaction Tests', () => {
   let wrapper: VueWrapper<InstanceType<typeof UnifiedMap>>
-  let mapStore
-  let pinia
+  let mapStore: any
+  let pinia: ReturnType<typeof createPinia>
 
   beforeEach(() => {
     pinia = createPinia()
@@ -244,7 +248,7 @@ describe('UnifiedMap Click Interaction Tests', () => {
     await new Promise((resolve) => setTimeout(resolve, 50))
 
     const renderer = mockedCreateRenderer.mock.results[0].value
-    const clickHandler = renderer.on.mock.calls.find((c) => c[0] === 'click')?.[1]
+    const clickHandler = renderer.on.mock.calls.find((c: any) => c[0] === 'click')?.[1]
 
     clickHandler({
       detail: {
@@ -273,7 +277,7 @@ describe('UnifiedMap Click Interaction Tests', () => {
     expect(mapStore.selectedPort).not.toBeNull()
 
     const renderer = mockedCreateRenderer.mock.results[0].value
-    const clickHandler = renderer.on.mock.calls.find((c) => c[0] === 'click')?.[1]
+    const clickHandler = renderer.on.mock.calls.find((c: any) => c[0] === 'click')?.[1]
 
     clickHandler({
       detail: {
@@ -301,7 +305,7 @@ describe('UnifiedMap Click Interaction Tests', () => {
     mapStore.setSelectedPort({ id: 1, name: 'test-port' })
 
     const renderer = mockedCreateRenderer.mock.results[0].value
-    const clickHandler = renderer.on.mock.calls.find((c) => c[0] === 'click')?.[1]
+    const clickHandler = renderer.on.mock.calls.find((c: any) => c[0] === 'click')?.[1]
 
     clickHandler({
       detail: {
@@ -319,8 +323,8 @@ describe('UnifiedMap Click Interaction Tests', () => {
 
 describe('UnifiedMap Layer State Persistence', () => {
   let wrapper: VueWrapper<InstanceType<typeof UnifiedMap>>
-  let pinia
-  let mapStore
+  let pinia: ReturnType<typeof createPinia>
+  let mapStore: any
 
   beforeEach(() => {
     pinia = createPinia()
@@ -362,8 +366,8 @@ describe('UnifiedMap Layer State Persistence', () => {
 
 describe('UnifiedMap Error Handling', () => {
   let wrapper: VueWrapper<InstanceType<typeof UnifiedMap>>
-  let pinia
-  let mapStore
+  let pinia: ReturnType<typeof createPinia>
+  let mapStore: any
 
   beforeEach(() => {
     pinia = createPinia()

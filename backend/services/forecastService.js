@@ -4,7 +4,7 @@ import { fileURLToPath } from 'url'
 import { computeForecast, generateSpatialValues } from './forecastEngine.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const DATA_DIR = join(__dirname, '../../frontend/public/data/forecast')
+const DATA_DIR = join(__dirname, '../data/forecast')
 
 async function readDataFile(filename) {
   try {

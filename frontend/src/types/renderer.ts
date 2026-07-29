@@ -15,8 +15,9 @@
  *   子类对 "本引擎不支持" 的方法返回 false + DEV warn
  */
 
-import type { GeoPoint } from '@/types/business/base'
 import type { FeatureCollection } from 'geojson'
+
+import type { GeoPoint } from '@/types/business/base'
 
 // ===== 基础坐标类型 =====
 
@@ -25,6 +26,9 @@ export interface PointFeature {
   lng: number
   lat: number
   name?: string
+  /** 开放扩展：业务层可附加任意属性（如 id、type、featureType），
+   *  渲染器通过 options.labelField 等按需读取。
+   *  参考 §7.7 索引签名设计约定。 */
   [key: string]: unknown
 }
 
@@ -51,6 +55,16 @@ export interface LayerOptions {
   zIndex?: number
   markerColor?: string
   markerSize?: number
+  // GeoJSON 多边形样式
+  strokeColor?: string
+  strokeWidth?: number
+  fillColor?: string
+  // 点图层样式
+  size?: number
+  color?: string
+  labelField?: string
+  // 业务要素类型标识（如 'port' / 'boundary'）
+  featureType?: string
 }
 
 /** 水面选项（3D Only） */
@@ -73,13 +87,26 @@ export interface CameraState {
 
 /** 渲染器导出状态 */
 export interface RendererState {
+  /** 图层 ID → 图层状态（含 visible）。
+   *  特殊键 `_camera` 存储 CameraState（用于 2D/3D 切换时视角传递）。
+   *  参考 §7.7。 */
   [layerId: string]: { visible: boolean } | CameraState
 }
 
 // ===== 事件 =====
 
 export interface MapRendererEventMap {
-  click: { lng: number; lat: number; feature?: unknown }
+  /**
+   * 点击事件。
+   * - featureType: 命中要素的类型标识（如 'port' / 'forecast-berth'），未命中为 null
+   * - data: 命中要素的属性对象，未命中为 null
+   * - coordinate: 点击位置的 [lng, lat] 数组
+   */
+  click: {
+    featureType: string | null
+    data: Record<string, unknown> | null
+    coordinate: [number, number] | null
+  }
   'pointer-move': { lng: number; lat: number }
   'camera-changed': CameraState
 }
@@ -112,6 +139,9 @@ export interface MapRenderer {
   /** 移除图层 */
   removeLayer(_id: string): void
 
+  /** 检查图层是否已存在（公开方法，替代直读 _layers 私有 Map） */
+  hasLayer(_id: string): boolean
+
   /** 飞往目标位置 */
   flyTo(_target: FlyToTarget, _options?: FlyToOptions): void
 
@@ -140,13 +170,16 @@ export interface MapRenderer {
   /** 事件监听 */
   on<K extends keyof MapRendererEventMap>(
     _event: K,
-    _handler: (_data: MapRendererEventMap[K]) => void
+    _handler: (event: CustomEvent<MapRendererEventMap[K]>) => void
   ): void
+  on(_event: string, _handler: EventListenerOrEventListenerObject): void
   off<K extends keyof MapRendererEventMap>(
     _event: K,
-    _handler: (_data: MapRendererEventMap[K]) => void
+    _handler: (event: CustomEvent<MapRendererEventMap[K]>) => void
   ): void
+  off(_event: string, _handler: EventListenerOrEventListenerObject): void
   emit<K extends keyof MapRendererEventMap>(_event: K, _data: MapRendererEventMap[K]): void
+  emit(_event: string, _data: unknown): void
 
   /** 获取渲染器类型标识 */
   getType(): string

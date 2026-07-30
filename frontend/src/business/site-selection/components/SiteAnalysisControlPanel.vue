@@ -1,11 +1,13 @@
 <script setup lang="ts">
 // 选址分析控制面板：4×4 Panel，2列×4行网格，6个设施因子按钮 + 清空/分析
 // 按钮三态：默认(白) → 选择(蓝,滑块,3s自动确认) → 已选(白+重要程度标签)
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
+
+import { showWarning } from '@/shared/utils/errorHandler'
+import type { AnalysisResult, FacilityType, TypeSetting } from '@/types/analysis'
+
 import { FACILITY_CONFIG } from '../composables/facilityConfig'
 import { useSiteAnalysisApi } from '../composables/useSiteAnalysisApi'
-import type { AnalysisResult, TypeSetting, FacilityType } from '@/types/analysis'
-import { showWarning } from '@/shared/utils/errorHandler'
 
 interface Emits {
   (_e: 'result-update', _result: Partial<AnalysisResult>): void
@@ -207,7 +209,7 @@ defineExpose({
 </script>
 
 <template>
-  <div class="factor-panel" ref="panelRef">
+  <div ref="panelRef" class="factor-panel">
     <!-- 8 个按钮，2 列 × 4 行 -->
     <div class="factor-grid">
       <!-- 6 个设施因子按钮 -->
@@ -236,11 +238,11 @@ defineExpose({
         >
           <span class="factor-dot" :style="{ color: item.color }">●</span>
           <input
+            v-model.number="item.setting.importance"
             type="range"
             class="factor-slider"
             min="1"
             max="5"
-            v-model.number="item.setting.importance"
             @input="resetConfirmTimer(item.key)"
             @mousedown.stop
             @click.stop
@@ -306,20 +308,20 @@ defineExpose({
   align-items: center;
   justify-content: center;
   gap: 4px;
-  background: var(--gcs-bg-panel);
-  border: 1px solid var(--gcs-border-default);
+  background: var(--GCS-bg-panel);
+  border: 1px solid var(--GCS-border-default);
   border-radius: 12px;
   cursor: pointer;
   font-size: 13px;
-  color: var(--gcs-text-regular);
+  color: var(--GCS-text-regular);
   transition: all 0.2s ease;
   padding: 6px 4px;
   box-sizing: border-box;
 }
 
 .factor-btn:hover {
-  border-color: var(--gcs-color-primary);
-  background: var(--gcs-bg-hover);
+  border-color: var(--GCS-color-primary);
+  background: var(--GCS-bg-hover);
 }
 
 .factor-dot {
@@ -339,13 +341,13 @@ defineExpose({
 
 .factor-level {
   font-size: 10px;
-  color: var(--gcs-color-primary);
+  color: var(--GCS-color-primary);
   line-height: 1;
 }
 
 /* 选择态：蓝色背景 + 滑块 */
 .factor-item.selected.selecting {
-  background: var(--gcs-color-primary);
+  background: var(--GCS-color-primary);
   border-radius: 12px;
 }
 
@@ -380,7 +382,7 @@ defineExpose({
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: var(--gcs-bg-panel);
+  background: var(--GCS-bg-panel);
   cursor: pointer;
   border: none;
 }
@@ -389,14 +391,14 @@ defineExpose({
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: var(--gcs-bg-panel);
+  background: var(--GCS-bg-panel);
   cursor: pointer;
   border: none;
 }
 
 .factor-importance {
   font-size: 10px;
-  color: var(--gcs-bg-panel);
+  color: var(--GCS-bg-panel);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -406,23 +408,23 @@ defineExpose({
 
 /* 操作按钮样式 */
 .action-btn.clear-btn {
-  color: var(--gcs-text-regular);
+  color: var(--GCS-text-regular);
 }
 
 .action-btn.clear-btn:hover {
-  border-color: var(--gcs-color-primary);
-  color: var(--gcs-color-primary);
+  border-color: var(--GCS-color-primary);
+  color: var(--GCS-color-primary);
 }
 
 .action-btn.analyze-btn {
-  background: var(--gcs-color-primary);
-  color: var(--gcs-bg-panel);
-  border-color: var(--gcs-color-primary);
+  background: var(--GCS-color-primary);
+  color: var(--GCS-bg-panel);
+  border-color: var(--GCS-color-primary);
 }
 
 .action-btn.analyze-btn:hover:not(:disabled) {
-  background: var(--gcs-color-primary-hover);
-  border-color: var(--gcs-color-primary-hover);
+  background: var(--GCS-color-primary-hover);
+  border-color: var(--GCS-color-primary-hover);
 }
 
 .action-btn.analyze-btn:disabled {

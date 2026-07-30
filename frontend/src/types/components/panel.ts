@@ -2,9 +2,9 @@
  * GCS 组件类型定义 - Panel
  */
 
-// ===== GcsPanel =====
+// ===== GCSPanel =====
 
-export interface GcsPanelProps {
+export interface GCSPanelProps {
   /** 宽度（Cell 单位） */
   w: number
   /** 高度（Cell 单位） */
@@ -19,14 +19,14 @@ export interface GcsPanelProps {
   panelClass?: string
 }
 
-export interface GcsPanelEmits {
+export interface GCSPanelEmits {
   (_e: 'panel-ready', _el: HTMLElement): void
   (_e: 'panel-resize', _size: { w: number; h: number }): void
 }
 
-// ===== GcsButton =====
+// ===== GCSButton =====
 
-export interface GcsButtonProps {
+export interface GCSButtonProps {
   label: string
   icon?: string
   disabled?: boolean
@@ -35,6 +35,6 @@ export interface GcsButtonProps {
   h?: number
 }
 
-export interface GcsButtonEmits {
+export interface GCSButtonEmits {
   (_e: 'click'): void
 }

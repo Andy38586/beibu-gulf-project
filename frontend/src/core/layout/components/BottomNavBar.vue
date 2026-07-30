@@ -1,5 +1,5 @@
 <script lang="ts">
-export default { name: 'GcsBottomNavBar' }
+export default { name: 'GCSBottomNavBar' }
 </script>
 <script setup lang="ts">
 /**
@@ -19,7 +19,7 @@ export default { name: 'GcsBottomNavBar' }
  * - 移除 SAFE_MARGIN 导入（不再需要手动计算 Dock 位置）
  * - 移除 onMounted/onUnmounted（不再需要手动管理视口尺寸）
  * - 移除 viewportWidth/viewportHeight/dockLeft/dockCellX/dockCellY
- * - GcsPanel 改用 anchor="bottom-center" 由 PPS 引擎自动定位
+ * - GCSPanel 改用 anchor="bottom-center" 由 PPS 引擎自动定位
  */
 
 import { computed } from 'vue'
@@ -27,7 +27,7 @@ import { useRoute, useRouter } from 'vue-router'
 
 import { useGCS } from '../useGCS.js'
 
-import GcsPanel from './GcsPanel.vue'
+import GCSPanel from './GCSPanel.vue'
 import NavButton from './NavButton.vue'
 
 const route = useRoute()
@@ -78,7 +78,7 @@ function handleClick(item: { route?: string; disabled?: boolean }) {
 </script>
 
 <template>
-  <GcsPanel
+  <GCSPanel
     :w="dockCellCount"
     :h="1"
     anchor="bottom-center"
@@ -107,7 +107,7 @@ function handleClick(item: { route?: string; disabled?: boolean }) {
         <span class="button-icon">🔍</span>
       </button>
     </div>
-  </GcsPanel>
+  </GCSPanel>
 </template>
 
 <style scoped>
@@ -133,24 +133,24 @@ function handleClick(item: { route?: string; disabled?: boolean }) {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: var(--gcs-bg-panel);
-  border: 2px solid var(--gcs-border-default);
-  border-radius: var(--gcs-radius-md);
+  background: var(--GCS-bg-panel);
+  border: 2px solid var(--GCS-border-default);
+  border-radius: var(--GCS-radius-md);
   cursor: pointer;
   transition: all 0.2s ease;
   font-size: v-bind(toggleFontSizeCss);
-  color: var(--gcs-text-regular);
+  color: var(--GCS-text-regular);
 }
 
 .inspection-toggle:hover {
-  background: var(--gcs-bg-container);
-  border-color: var(--gcs-color-primary);
+  background: var(--GCS-bg-container);
+  border-color: var(--GCS-color-primary);
 }
 
 .inspection-toggle.active {
-  background: var(--gcs-color-primary);
-  border-color: var(--gcs-color-primary);
-  color: var(--gcs-bg-panel);
+  background: var(--GCS-color-primary);
+  border-color: var(--GCS-color-primary);
+  color: var(--GCS-bg-panel);
 }
 
 .inspection-toggle .button-label {

@@ -16,6 +16,7 @@
  */
 
 import { computed } from 'vue'
+
 import { useGCS } from '@/core/layout/useGCS.js'
 
 const { css, cellPixel } = useGCS()
@@ -52,7 +53,7 @@ withDefaults(defineProps<Props>(), {
 .panel-title-text {
   font-size: v-bind(titleFontSize);
   font-weight: 600;
-  color: var(--gcs-text-primary);
+  color: var(--GCS-text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

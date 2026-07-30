@@ -9,7 +9,7 @@
  *
  * V2 阶段 3 变更：
  * - 移除 TopArea 组件引用（改为独立 Panel 集合）
- * - 折线图/柱状图/雷达图/图层控制直接放入 GcsPanel slot
+ * - 折线图/柱状图/雷达图/图层控制直接放入 GCSPanel slot
  * - 标题 + 城市按钮 + 个人中心按钮渲染为独立 Panel
  *
  * 使用方式：
@@ -21,19 +21,21 @@
 
 import { ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { useGCS } from './useGCS.js'
-import BottomNavBar from './components/BottomNavBar.vue'
-import MobileDrawer from './components/MobileDrawer.vue'
-import { useMobileDrawer } from './useMobileDrawer'
-import GcsInspectionOverlay from './components/GcsInspectionOverlay.vue'
-import GcsPanel from './components/GcsPanel.vue'
-import NavButton from './components/NavButton.vue'
-import PanelTitle from '@/shared/components/PanelTitle.vue'
-import LineChart from '@/visualization/charts/LineChart.vue'
-import BarChart from '@/visualization/charts/BarChart.vue'
-import RadarChart from '@/visualization/charts/RadarChart.vue'
+
 import LayerControlPanel from '@/shared/components/LayerControlPanel.vue'
+import PanelTitle from '@/shared/components/PanelTitle.vue'
 import { useScreenActions } from '@/shared/composables/useScreenActions.js'
+import BarChart from '@/visualization/charts/BarChart.vue'
+import LineChart from '@/visualization/charts/LineChart.vue'
+import RadarChart from '@/visualization/charts/RadarChart.vue'
+
+import BottomNavBar from './components/BottomNavBar.vue'
+import GCSInspectionOverlay from './components/GCSInspectionOverlay.vue'
+import GCSPanel from './components/GCSPanel.vue'
+import MobileDrawer from './components/MobileDrawer.vue'
+import NavButton from './components/NavButton.vue'
+import { useGCS } from './useGCS.js'
+import { useMobileDrawer } from './useMobileDrawer'
 
 const route = useRoute()
 const { showPanels, showTopArea, css } = useGCS()
@@ -75,68 +77,68 @@ const barData = {
   <div class="app-layout">
     <!-- ===== 桌面端：绝对定位 PPS 面板（≥768px） ===== -->
     <template v-if="showPanels">
-    <!-- Title Panel（4×1，左上，第一行） -->
-    <GcsPanel
-      v-show="showTopArea"
-      :w="4"
-      :h="1"
-      anchor="top-left"
-      :offset-x="0"
-      :offset-y="0"
-      class="title-panel"
-    >
-      <PanelTitle :title="(route.meta?.title as string) || '北部湾智慧港口平台'" />
-    </GcsPanel>
+      <!-- Title Panel（4×1，左上，第一行） -->
+      <GCSPanel
+        v-show="showTopArea"
+        :w="4"
+        :h="1"
+        anchor="top-left"
+        :offset-x="0"
+        :offset-y="0"
+        class="title-panel"
+      >
+        <PanelTitle :title="(route.meta?.title as string) || '北部湾智慧港口平台'" />
+      </GCSPanel>
 
-    <!-- 顶部按钮组 Panel（4×1，右上，第一行，与 Title 同行） -->
-    <GcsPanel
-      v-show="showTopArea"
-      :w="4"
-      :h="1"
-      anchor="top-right"
-      :offset-x="0"
-      :offset-y="0"
-      class="top-button-panel"
-    >
-      <div class="top-button-inner">
-        <NavButton label="钦州" @click="flyToCity('钦州')" />
-        <NavButton label="北海" @click="flyToCity('北海')" />
-        <NavButton label="防城港" @click="flyToCity('防城港')" />
-        <NavButton :label="userButtonLabel" icon="👤" @click="goProfileOrBack" />
-      </div>
-    </GcsPanel>
+      <!-- 顶部按钮组 Panel（4×1，右上，第一行，与 Title 同行） -->
+      <GCSPanel
+        v-show="showTopArea"
+        :w="4"
+        :h="1"
+        anchor="top-right"
+        :offset-x="0"
+        :offset-y="0"
+        class="top-button-panel"
+      >
+        <div class="top-button-inner">
+          <NavButton label="钦州" @click="flyToCity('钦州')" />
+          <NavButton label="北海" @click="flyToCity('北海')" />
+          <NavButton label="防城港" @click="flyToCity('防城港')" />
+          <NavButton :label="userButtonLabel" icon="👤" @click="goProfileOrBack" />
+        </div>
+      </GCSPanel>
 
-    <!-- 左侧 Panel 组 -->
-    <slot name="left">
-      <!-- 左上：折线图 4×4 -->
-      <GcsPanel :w="4" :h="4" anchor="top-left" :offset-x="0" :offset-y="1.25">
-        <LineChart title="港口吞吐量趋势" :x-data="chartData.labels" :series="chartData.series" />
-      </GcsPanel>
-      <!-- 左下：柱状图 4×4 -->
-      <GcsPanel :w="4" :h="4" anchor="top-left" :offset-x="0" :offset-y="5.5">
-        <BarChart title="港口吞吐量对比" :x-data="barData.labels" :series="barData.series" />
-      </GcsPanel>
-    </slot>
-
-    <!-- 右侧 Panel 组 -->
-    <div v-show="showPanels">
-      <slot name="right">
-        <!-- 右上：雷达图 4×4 -->
-        <GcsPanel :w="4" :h="4" anchor="top-right" :offset-x="0" :offset-y="1.25">
-          <RadarChart
-            :visible="true"
-            :xiaoqu="null"
-            :selected-types="[]"
-            :embedded="false"
-            :facility-poi="{}"
-          />
-        </GcsPanel>
-        <!-- 右下：图层控制 4×4（接入真实功能） -->
-        <GcsPanel :w="4" :h="4" anchor="top-right" :offset-x="0" :offset-y="5.5">
-          <LayerControlPanel />
-        </GcsPanel>
+      <!-- 左侧 Panel 组 -->
+      <slot name="left">
+        <!-- 左上：折线图 4×4 -->
+        <GCSPanel :w="4" :h="4" anchor="top-left" :offset-x="0" :offset-y="1.25">
+          <LineChart title="港口吞吐量趋势" :x-data="chartData.labels" :series="chartData.series" />
+        </GCSPanel>
+        <!-- 左下：柱状图 4×4 -->
+        <GCSPanel :w="4" :h="4" anchor="top-left" :offset-x="0" :offset-y="5.5">
+          <BarChart title="港口吞吐量对比" :x-data="barData.labels" :series="barData.series" />
+        </GCSPanel>
       </slot>
-    </div>
+
+      <!-- 右侧 Panel 组 -->
+      <div v-show="showPanels">
+        <slot name="right">
+          <!-- 右上：雷达图 4×4 -->
+          <GCSPanel :w="4" :h="4" anchor="top-right" :offset-x="0" :offset-y="1.25">
+            <RadarChart
+              :visible="true"
+              :xiaoqu="null"
+              :selected-types="[]"
+              :embedded="false"
+              :facility-poi="{}"
+            />
+          </GCSPanel>
+          <!-- 右下：图层控制 4×4（接入真实功能） -->
+          <GCSPanel :w="4" :h="4" anchor="top-right" :offset-x="0" :offset-y="5.5">
+            <LayerControlPanel />
+          </GCSPanel>
+        </slot>
+      </div>
     </template>
 
     <!-- ===== 移动端：抽屉承载业务面板（<768px） ===== -->
@@ -151,10 +153,10 @@ const barData = {
     </template>
 
     <!-- 底部导航 -->
-    <BottomNavBar v-model:inspectionMode="inspectionMode" />
+    <BottomNavBar v-model:inspection-mode="inspectionMode" />
 
     <!-- 检查模式（仅开发环境） -->
-    <GcsInspectionOverlay v-if="isDev && inspectionMode" :enabled="inspectionMode" />
+    <GCSInspectionOverlay v-if="isDev && inspectionMode" :enabled="inspectionMode" />
   </div>
 </template>
 
@@ -212,14 +214,14 @@ const barData = {
   flex: none;
   font-size: 16px;
   font-weight: 600;
-  color: var(--gcs-text-regular);
+  color: var(--GCS-text-regular);
   padding: v-bind(cell8px) 0;
 }
 
 .layer-divider {
   flex: none;
   height: 1px;
-  background-color: var(--gcs-border-light);
+  background-color: var(--GCS-border-light);
   margin: v-bind(cell8px) 0;
 }
 
@@ -241,12 +243,12 @@ const barData = {
   width: 56px;
   height: 56px;
   border: none;
-  border-radius: var(--gcs-radius-round);
-  background: var(--gcs-color-primary);
-  color: var(--gcs-text-inverse);
+  border-radius: var(--GCS-radius-round);
+  background: var(--GCS-color-primary);
+  color: var(--GCS-text-inverse);
   font-size: 14px;
   font-weight: 600;
-  box-shadow: var(--gcs-shadow-md);
+  box-shadow: var(--GCS-shadow-md);
   cursor: pointer;
   pointer-events: auto;
   transition: transform 0.1s ease;

@@ -1,5 +1,5 @@
 <script lang="ts">
-export default { name: 'GcsNavButton' }
+export default { name: 'GCSNavButton' }
 </script>
 <script setup lang="ts">
 /**
@@ -11,8 +11,8 @@ export default { name: 'GcsNavButton' }
  * 3. 支持 normal / active / disabled 三种状态
  *
  * 设计说明：
- * - 本组件复用 GcsButton 的视觉与交互逻辑，仅固定尺寸为 1×1
- * - 避免与 GcsButton 重复实现样式，保持平台按钮风格统一
+ * - 本组件复用 GCSButton 的视觉与交互逻辑，仅固定尺寸为 1×1
+ * - 避免与 GCSButton 重复实现样式，保持平台按钮风格统一
  *
  * Props:
  * - label: 按钮文字
@@ -21,7 +21,7 @@ export default { name: 'GcsNavButton' }
  * - active: 是否处于激活/选中态
  */
 
-import GcsButton from './GcsButton.vue'
+import GCSButton from './GCSButton.vue'
 
 interface Props {
   label?: string
@@ -36,11 +36,11 @@ withDefaults(defineProps<Props>(), {
   active: false,
 })
 
-defineEmits<{ 'click': [] }>()
+defineEmits<{ click: [] }>()
 </script>
 
 <template>
-  <GcsButton
+  <GCSButton
     :w="0.8"
     :h="0.8"
     :label="label"

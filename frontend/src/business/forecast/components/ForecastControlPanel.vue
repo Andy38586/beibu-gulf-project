@@ -270,12 +270,12 @@ onUnmounted(() => stopPlayback())
   transition: all 0.2s;
 }
 .btn-cell.sel {
-  background: var(--gcs-bg-active);
-  border: 1px solid var(--gcs-color-primary);
+  background: var(--GCS-bg-active);
+  border: 1px solid var(--GCS-color-primary);
 }
 .btn-cell.ing {
-  background: var(--gcs-color-primary);
-  border: 1px solid var(--gcs-color-primary);
+  background: var(--GCS-color-primary);
+  border: 1px solid var(--GCS-color-primary);
 }
 
 .ind-btn {
@@ -286,20 +286,20 @@ onUnmounted(() => stopPlayback())
   align-items: center;
   justify-content: center;
   gap: 3px;
-  border: 1px solid var(--gcs-border-default);
+  border: 1px solid var(--GCS-border-default);
   border-radius: 12px;
-  background: var(--gcs-bg-panel);
+  background: var(--GCS-bg-panel);
   cursor: pointer;
   padding: 6px 4px;
   box-sizing: border-box;
-  color: var(--gcs-text-regular);
+  color: var(--GCS-text-regular);
 }
 .ind-btn:hover {
-  border-color: var(--gcs-color-primary);
-  background: var(--gcs-bg-hover);
+  border-color: var(--GCS-color-primary);
+  background: var(--GCS-bg-hover);
 }
 .ind-btn.ok {
-  border-color: var(--gcs-color-primary);
+  border-color: var(--GCS-color-primary);
 }
 .ind-icon {
   font-size: 18px;
@@ -311,7 +311,7 @@ onUnmounted(() => stopPlayback())
 }
 .ind-conf {
   font-size: 10px;
-  color: var(--gcs-color-primary);
+  color: var(--GCS-color-primary);
 }
 
 /* 置信度滑块 */
@@ -332,7 +332,7 @@ onUnmounted(() => stopPlayback())
 }
 .slider-cell .ind-label-s {
   font-size: 11px;
-  color: var(--gcs-bg-panel);
+  color: var(--GCS-bg-panel);
 }
 .conf-slider {
   width: 80%;
@@ -349,20 +349,20 @@ onUnmounted(() => stopPlayback())
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: var(--gcs-bg-panel);
+  background: var(--GCS-bg-panel);
   cursor: pointer;
 }
 .conf-slider::-moz-range-thumb {
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: var(--gcs-bg-panel);
+  background: var(--GCS-bg-panel);
   cursor: pointer;
   border: none;
 }
 .conf-pct {
   font-size: 10px;
-  color: var(--gcs-bg-panel);
+  color: var(--GCS-bg-panel);
   font-weight: 600;
 }
 
@@ -381,14 +381,14 @@ onUnmounted(() => stopPlayback())
 .time-label {
   font-size: 14px;
   font-weight: 600;
-  color: var(--gcs-color-primary);
+  color: var(--GCS-color-primary);
 }
 .gr-toggle {
   display: flex;
   align-items: center;
   gap: 3px;
   font-size: 12px;
-  color: var(--gcs-text-secondary);
+  color: var(--GCS-text-secondary);
   cursor: pointer;
 }
 .gr-toggle input {
@@ -404,7 +404,7 @@ onUnmounted(() => stopPlayback())
   height: 6px;
   -webkit-appearance: none;
   appearance: none;
-  background: linear-gradient(to right, var(--gcs-border-default), var(--gcs-color-primary));
+  background: linear-gradient(to right, var(--GCS-border-default), var(--GCS-color-primary));
   border-radius: 3px;
   outline: none;
   cursor: pointer;
@@ -414,18 +414,18 @@ onUnmounted(() => stopPlayback())
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: var(--gcs-color-primary);
+  background: var(--GCS-color-primary);
   cursor: pointer;
-  border: 2px solid var(--gcs-bg-panel);
+  border: 2px solid var(--GCS-bg-panel);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
 }
 .t-slider::-moz-range-thumb {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: var(--gcs-color-primary);
+  background: var(--GCS-color-primary);
   cursor: pointer;
-  border: 2px solid var(--gcs-bg-panel);
+  border: 2px solid var(--GCS-bg-panel);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
 }
 
@@ -440,16 +440,16 @@ onUnmounted(() => stopPlayback())
   position: absolute;
   transform: translateX(-50%);
   font-size: 11px;
-  color: var(--gcs-text-muted);
+  color: var(--GCS-text-muted);
   white-space: nowrap;
 }
 .t-tick.clickable {
-  color: var(--gcs-color-primary);
+  color: var(--GCS-color-primary);
   font-weight: 500;
   cursor: pointer;
 }
 .t-tick.clickable:hover {
-  color: var(--gcs-color-primary-hover);
+  color: var(--GCS-color-primary-hover);
   text-decoration: underline;
 }
 
@@ -459,14 +459,14 @@ onUnmounted(() => stopPlayback())
 }
 .act-btn {
   padding: 4px 14px;
-  background: var(--gcs-bg-container);
-  border: 1px solid var(--gcs-border-default);
+  background: var(--GCS-bg-container);
+  border: 1px solid var(--GCS-border-default);
   border-radius: 6px;
   font-size: 14px;
   cursor: pointer;
-  color: var(--gcs-text-regular);
+  color: var(--GCS-text-regular);
 }
 .act-btn:hover {
-  background: var(--gcs-border-default);
+  background: var(--GCS-border-default);
 }
 </style>

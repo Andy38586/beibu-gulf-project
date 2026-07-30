@@ -3,7 +3,7 @@
  *
  * 为什么存在这个文件：
  * OL / Cesium 渲染到 canvas / WebGL，ECharts 渲染到 canvas / SVG，
- * 这些渲染目标无法解析 CSS 变量（var(--gcs-*)），必须用具体色值。
+ * 这些渲染目标无法解析 CSS 变量（var(--GCS-*)），必须用具体色值。
  * 因此「渲染层颜色」集中在这里，而「DOM/CSS 层颜色」集中在 style.css 的 CSS Token。
  *
  * 约定（见 docs/工程规范与性能参考.md）：
@@ -54,7 +54,7 @@ export const PROFILE_COLORS = {
   safe: '#67C23A',
 } as const
 
-// 开发验收用的 QA 覆盖层调试色（GcsInspectionOverlay）
+// 开发验收用的 QA 覆盖层调试色（GCSInspectionOverlay）
 export const INSPECTION_COLORS = {
   primary: '#ff6b6b',
   warn: '#ffa502',

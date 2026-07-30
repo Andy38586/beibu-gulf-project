@@ -27,6 +27,8 @@ import type { LayerType } from '@/types/core/layerManager'
 
 import { LAYER_ADAPTERS } from './layerAdapters'
 
+const DEV = import.meta.env.DEV
+
 /** mapStore 最小接口 — 仅声明 BusinessLayerManager 实际使用的方法 */
 interface MapStoreLike {
   currentRenderer: MapRenderer | null
@@ -76,7 +78,7 @@ export class BusinessLayerManager {
   private _getAdapter(layerType: LayerType) {
     const adapter = LAYER_ADAPTERS[layerType]
     if (!adapter) {
-      console.warn(`[BusinessLayerManager] 未知 layerType: ${layerType}`)
+      if (DEV) console.warn(`[BusinessLayerManager] 未知 layerType: ${layerType}`)
       return null
     }
     return adapter
@@ -90,7 +92,7 @@ export class BusinessLayerManager {
     { label, layerType, data, options = {}, visible = true }: LayerDescriptor
   ): void {
     if (this._registry.has(key)) {
-      console.warn(`[BusinessLayerManager] 图层 ${key} 已注册，请使用 updateData 更新数据`)
+      if (DEV) console.warn(`[BusinessLayerManager] 图层 ${key} 已注册，请使用 updateData 更新数据`)
       return
     }
 
@@ -177,7 +179,7 @@ export class BusinessLayerManager {
   setVisible(key: string, visible: boolean): void {
     const catalogEntry = this._mapStore?.layerCatalog.find((e) => e.key === key)
     if (!catalogEntry) {
-      console.warn(`[BusinessLayerManager] 图层 ${key} 不在 catalog 中`)
+      if (DEV) console.warn(`[BusinessLayerManager] 图层 ${key} 不在 catalog 中`)
       return
     }
 

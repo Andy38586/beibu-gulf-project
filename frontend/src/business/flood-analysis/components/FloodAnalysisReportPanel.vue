@@ -154,7 +154,7 @@ const affectedPorts = computed<string[]>(() => {
 .header-title {
   font-size: 16px;
   font-weight: 600;
-  color: var(--gcs-text-primary);
+  color: var(--GCS-text-primary);
 }
 
 /*
@@ -167,7 +167,7 @@ const affectedPorts = computed<string[]>(() => {
   position: absolute;
   display: flex;
   flex-direction: column;
-  background: var(--gcs-bg-container);
+  background: var(--GCS-bg-container);
   border-radius: 6px;
   box-sizing: border-box;
   /* 内容区域在灰色面板内居中 */
@@ -194,16 +194,16 @@ const affectedPorts = computed<string[]>(() => {
 }
 
 .info-label {
-  color: var(--gcs-text-secondary);
+  color: var(--GCS-text-secondary);
 }
 
 .info-value {
-  color: var(--gcs-text-primary);
+  color: var(--GCS-text-primary);
   font-weight: 500;
 }
 
 .info-value.highlight {
-  color: var(--gcs-color-danger);
+  color: var(--GCS-color-danger);
   font-weight: 600;
 }
 
@@ -220,12 +220,12 @@ const affectedPorts = computed<string[]>(() => {
 
 .no-data-text {
   font-size: 14px;
-  color: var(--gcs-text-primary);
+  color: var(--GCS-text-primary);
   font-weight: 500;
 }
 
 .no-data-hint {
   font-size: 12px;
-  color: var(--gcs-text-muted);
+  color: var(--GCS-text-muted);
 }
 </style>

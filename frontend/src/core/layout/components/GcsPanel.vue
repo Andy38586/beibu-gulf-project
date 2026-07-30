@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * GcsPanel - GCS V2 Panel 容器
+ * GCSPanel - GCS V2 Panel 容器
  *
  * 统一视觉语言：
  * - 位置和尺寸基于 anchor + offset + w + h 的 PPS 定位系统
@@ -21,13 +21,20 @@
  */
 
 import { computed } from 'vue'
+
 import { useGCS } from '../useGCS.js'
 
 interface Props {
   w: number
   h: number
   /** 锚点位置：用联合字面量类型约束，替代运行时 validator */
-  anchor?: 'top-left' | 'top-right' | 'top-center' | 'bottom-center' | 'bottom-left' | 'bottom-right'
+  anchor?:
+    | 'top-left'
+    | 'top-right'
+    | 'top-center'
+    | 'bottom-center'
+    | 'bottom-left'
+    | 'bottom-right'
   offsetX?: number
   offsetY?: number
 }
@@ -57,9 +64,9 @@ const panelStyle = computed(() => {
     height: `${hPx}px`,
     minWidth: `${props.w * 80}px`,
     minHeight: `${props.h * 80}px`,
-    borderRadius: 'var(--gcs-radius-md)',
-    backgroundColor: 'var(--gcs-bg-panel)',
-    boxShadow: 'var(--gcs-shadow-sm)',
+    borderRadius: 'var(--GCS-radius-md)',
+    backgroundColor: 'var(--GCS-bg-panel)',
+    boxShadow: 'var(--GCS-shadow-sm)',
     boxSizing: 'border-box' as const,
     overflow: 'hidden' as const,
     pointerEvents: 'auto' as const,
@@ -68,13 +75,13 @@ const panelStyle = computed(() => {
 </script>
 
 <template>
-  <div class="gcs-panel" :style="panelStyle">
+  <div class="GCS-panel" :style="panelStyle">
     <slot />
   </div>
 </template>
 
 <style scoped>
-.gcs-panel {
-  color: var(--gcs-text-regular);
+.GCS-panel {
+  color: var(--GCS-text-regular);
 }
 </style>

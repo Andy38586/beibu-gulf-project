@@ -41,19 +41,19 @@
 | 格式         | 成功特征                                             | 错误特征                                                               | 使用模块                                                     |
 | ------------ | ---------------------------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------ |
 | **RESTful**  | HTTP 2xx + 直接返回数据                              | HTTP 4xx/5xx + `{ error: string }`                                     | auth / markers / facilities / plans / site-analysis / health |
-| **GCS 标准** | HTTP 200 + `{ code: 200, data, message: 'success' }` | HTTP 4xx/5xx + `{ code: 4xx/5xx, data: null, message }`                | gcs（浸没分析）                                              |
+| **洪涝标准** | HTTP 200 + `{ code: 200, data, message: 'success' }` | HTTP 4xx/5xx + `{ code: 4xx/5xx, data: null, message }`                | 洪涝（浸没分析）                                              |
 | **混合格式** | HTTP 200 + `{ code: 200, data }`（无 message）       | HTTP 4xx/5xx + `{ code: 4xx/5xx, error }`（字段名 error 不是 message） | forecast（预测分析）                                         |
 
 **关键差异**：
 - RESTful 格式：成功响应直接返回数据本体（数组或对象），不包装；错误响应用 `error` 字段
-- GCS 格式：成功响应用 `data` 字段包装；错误响应用 `message` 字段
+- 洪涝格式：成功响应用 `data` 字段包装；错误响应用 `message` 字段
 - 混合格式：成功响应用 `data` 字段包装但无 `message`；错误响应用 `error` 字段
 - 三种格式的错误响应 HTTP 状态码都是真实的 4xx/5xx（并非包装成 HTTP 200）
 
 **调用方注意事项**：
 
 - RESTful 格式接口用 `res.ok` / `res.status` + `data.error` 判断
-- GCS/混合格式接口用 `data.code === 200` 判断成功
+- 洪涝/混合格式接口用 `data.code === 200` 判断成功
 - `useApiRequest.ts` 已统一处理：`res.status === 401` 抛 `ErrorCode.UNAUTHORIZED`，`!res.ok` 抛 `ErrorCode.REQUEST_FAILED`
 
 ### 1.3 认证方式
@@ -593,17 +593,17 @@ DELETE /api/markers/1234567890
 
 ## 7. 浸没分析
 
-**模块**：`backend/routes/gcs.js` + `backend/controllers/floodAnalysisController.js`
-**格式**：GCS 标准（`{ code, data, message }`）
+**模块**：`backend/routes/floodAnalysis.js` + `backend/controllers/floodAnalysisController.js`
+**格式**：洪涝标准（`{ code, data, message }`）
 
 > 所有端点需认证（`router.use(authenticate)`）。核心机制：**向上取档**——传入 `waterLevel` 时，匹配数据中 `>=` 请求值的最低档位。例如请求 2.5m，数据档位有 2.0/3.0/5.0，则返回 3.0m 的数据。
 
-### GET /api/gcs/water-levels
+### GET /api/flood/water-levels
 
 获取可用水位档位和水文基准信息。
 
 ```
-GET /api/gcs/water-levels
+GET /api/flood/water-levels
 
 // 成功 200
 {
@@ -623,12 +623,12 @@ GET /api/gcs/water-levels
 500 { "code": 500, "data": null, "message": "获取水位数据失败" }
 ```
 
-### GET /api/gcs/flood-areas
+### GET /api/flood/flood-areas
 
 获取指定水位的淹没区域。
 
 ```
-GET /api/gcs/flood-areas?waterLevel=2.5
+GET /api/flood/flood-areas?waterLevel=2.5
 
 // 成功 200（指定 waterLevel 时）
 {
@@ -681,12 +681,12 @@ GET /api/gcs/flood-areas?waterLevel=2.5
 
 **注意**：`features[].properties` 字段为 `port` / `areaName` / `waterLevel`，**不包含 `depth` 和 `area` 字段**（淹没面积在 `/flood-statistics` 端点的 `floodArea` 字段中）。
 
-### GET /api/gcs/flood-statistics
+### GET /api/flood/flood-statistics
 
 获取指定水位的淹没统计数据。
 
 ```
-GET /api/gcs/flood-statistics?waterLevel=2.5
+GET /api/flood/flood-statistics?waterLevel=2.5
 
 // 成功 200（指定 waterLevel 时）
 {
@@ -727,12 +727,12 @@ GET /api/gcs/flood-statistics?waterLevel=2.5
 
 **单位**：`floodArea` 单位是 **km²（平方千米）**，不是 ㎡（平方米）。`averageDepth` / `maxDepth` / `waterLevel` 单位是**米**。`estimatedLoss` 单位是**万元**。
 
-### GET /api/gcs/terrain-profiles
+### GET /api/flood/terrain-profiles
 
 获取预定义的地形剖面数据。
 
 ```
-GET /api/gcs/terrain-profiles
+GET /api/flood/terrain-profiles
 
 // 成功 200
 {
@@ -751,14 +751,14 @@ GET /api/gcs/terrain-profiles
 500 { "code": 500, "data": null, "message": "获取剖面数据失败" }
 ```
 
-### GET /api/gcs/facilities
+### GET /api/flood/facilities
 
 获取浸没分析相关的港口设施清单。
 
 > **字段命名注意（待修债务，详见 `待解决问题.md` D05）**：此端点返回 `longitude` / `latitude`（全称），与项目前端规范 `lng` / `lat`（缩写）不一致。原因是数据源 `facilityPoints.json` 使用全称。**这是已知债务，计划统一为 `lng` / `lat`**。当前前端通过 `src/types/crs.ts` 的 `normalizePoint()` 归一化处理，业务代码不直接处理 `longitude`。
 
 ```
-GET /api/gcs/facilities
+GET /api/flood/facilities
 
 // 成功 200
 {
@@ -783,14 +783,14 @@ GET /api/gcs/facilities
 500 { "code": 500, "data": null, "message": "获取设施数据失败" }
 ```
 
-### POST /api/gcs/analysis/disaster
+### POST /api/flood/analysis/disaster
 
 执行完整的灾害评估（淹没区域 + 设施影响 + 经济损失）。
 
-> **字段命名注意（待修债务，同 §7 `/api/gcs/facilities`，详见 `待解决问题.md` D05）**：`affectedFacilities` 中的坐标字段为 `longitude` / `latitude`（全称），计划统一为 `lng` / `lat`。
+> **字段命名注意（待修债务，同 §7 `/api/flood/facilities`，详见 `待解决问题.md` D05）**：`affectedFacilities` 中的坐标字段为 `longitude` / `latitude`（全称），计划统一为 `lng` / `lat`。
 
 ```
-POST /api/gcs/analysis/disaster
+POST /api/flood/analysis/disaster
 Content-Type: application/json
 
 { "waterLevel": 2.5 }
@@ -843,11 +843,11 @@ Content-Type: application/json
 
 - `floodAdapter.ts` 的 `api` 数据源分支统一 `throw new Error('[FloodAdapter] 真实 API 尚未接入，请先调用 setDataSource("mock")')`
   （`getWaterArea` / `getFloodAnalysis` / `getImpactAssessment` / `getDEM` 四个方法均如此）
-- 后端实际存在 `/api/gcs/*` 系列端点（见本 § 各端点），但前端尚未通过 `floodAdapter` 调用它们
+- 后端实际存在 `/api/flood/*` 系列端点（见本 § 各端点），但前端尚未通过 `floodAdapter` 调用它们
 - Mock 数据来源：`public/data/*.json`（`flood-areas.json` / `flood-statistics.json` / `disaster.json` / `water-area.json`）
 
 **接入真实 API 的步骤**：
-1. 在 `floodAdapter.ts` 的 `api` 分支中实现真实 `fetch` 逻辑（对接 `/api/gcs/flood-areas`、`/api/gcs/flood-statistics`、`/api/gcs/analysis/disaster` 等）
+1. 在 `floodAdapter.ts` 的 `api` 分支中实现真实 `fetch` 逻辑（对接 `/api/flood/flood-areas`、`/api/flood/flood-statistics`、`/api/flood/analysis/disaster` 等）
 2. 切换数据源：`floodAdapter.setDataSource('api')`
 
 ---
@@ -855,9 +855,9 @@ Content-Type: application/json
 ## 8. 预测分析
 
 **模块**：`backend/routes/forecast.js` + `backend/controllers/forecastController.js`
-**格式**：混合格式（GCS-like，成功无 `message` 字段，错误用 `error` 不是 `message`）
+**格式**：混合格式（洪涝式，成功无 `message` 字段，错误用 `error` 不是 `message`）
 
-> **认证策略**：`/api/forecast/*` 不需要认证。预测数据视为公开数据，与需认证的业务模块（plans/markers/gcs 等）安全策略不同。此为稳定设计决策，变更需同步更新本文档和 `项目根基.md` §8.4。
+> **认证策略**：`/api/forecast/*` 不需要认证。预测数据视为公开数据，与需认证的业务模块（plans/markers/flood 等）安全策略不同。此为稳定设计决策，变更需同步更新本文档和 `项目根基.md` §8.4。
 
 ### GET /api/forecast
 
@@ -996,7 +996,7 @@ GET /api/health
 | 设施数据 | `/api/facilities`    |   2    |  需   | RESTful | `routes/facilities.js`   |
 | 方案管理 | `/api/plans`         |   7    |  需   | RESTful | `routes/plans.js`        |
 | 标注管理 | `/api/markers`       |   5    |  需   | RESTful | `routes/markers.js`      |
-| 浸没分析 | `/api/gcs`           |   6    |  需   | GCS标准 | `routes/gcs.js`          |
+| 浸没分析 | `/api/flood`           |   6    |  需   | 洪涝标准 | `routes/floodAnalysis.js`          |
 | 预测分析 | `/api/forecast`      |   5    |  否   |  混合   | `routes/forecast.js`     |
 | 健康检查 | `/api/health`        |   1    |  否   | RESTful | `app.js` (内联)          |
 

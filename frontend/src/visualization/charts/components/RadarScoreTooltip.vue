@@ -71,7 +71,7 @@ function getFacilityColor(key: string) {
   position: fixed;
   z-index: 1000;
   background: rgba(255, 255, 255, 0.98);
-  border: 1px solid var(--gcs-border-default);
+  border: 1px solid var(--GCS-border-default);
   border-radius: 8px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
   box-sizing: border-box;
@@ -92,7 +92,7 @@ function getFacilityColor(key: string) {
   justify-content: space-between;
   padding: 0 calc(1 * v-bind(unitPx));
   font-size: 15px;
-  border-bottom: 1px solid var(--gcs-border-light);
+  border-bottom: 1px solid var(--GCS-border-light);
 }
 
 .tooltip-item:last-child {

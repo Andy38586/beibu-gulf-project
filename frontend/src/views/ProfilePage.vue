@@ -22,7 +22,7 @@ import { inject } from 'vue'
 import { useRouter } from 'vue-router'
 
 import AppLayout from '@/core/layout/AppLayout.vue'
-import GcsPanel from '@/core/layout/components/GcsPanel.vue'
+import GCSPanel from '@/core/layout/components/GCSPanel.vue'
 import { useGCS } from '@/core/layout/useGCS.js'
 import LoginPanel from '@/shared/components/LoginPanel.vue'
 import PaginatedListPanel from '@/shared/components/PaginatedListPanel.vue'
@@ -262,7 +262,7 @@ watch(
 
       <!-- 右侧：单个 4×8 Panel -->
       <template #right>
-        <GcsPanel :w="4" :h="8" anchor="top-right" :offset-x="0" :offset-y="1.25">
+        <GCSPanel :w="4" :h="8" anchor="top-right" :offset-x="0" :offset-y="1.25">
           <div class="profile-content">
             <!-- 顶部：登录面板（用户信息区域） -->
             <LoginPanel />
@@ -359,7 +359,7 @@ watch(
               </div>
             </div>
           </div>
-        </GcsPanel>
+        </GCSPanel>
       </template>
     </AppLayout>
 
@@ -428,10 +428,10 @@ watch(
 .plans-error {
   margin-top: 12px;
   padding: 8px 12px;
-  background: var(--gcs-color-error-bg);
-  border: 1px solid var(--gcs-color-error-border);
+  background: var(--GCS-color-error-bg);
+  border: 1px solid var(--GCS-color-error-border);
   border-radius: 6px;
-  color: var(--gcs-color-error);
+  color: var(--GCS-color-error);
   font-size: 13px;
 }
 
@@ -440,7 +440,7 @@ watch(
   margin-top: 12px;
   padding: 8px 12px;
   text-align: center;
-  color: var(--gcs-text-muted);
+  color: var(--GCS-text-muted);
   font-size: 13px;
 }
 
@@ -456,12 +456,12 @@ watch(
 .favorites-title {
   font-size: 15px;
   font-weight: 600;
-  color: var(--gcs-text-primary);
+  color: var(--GCS-text-primary);
 }
 
 .favorites-count {
   font-size: 12px;
-  color: var(--gcs-text-muted);
+  color: var(--GCS-text-muted);
 }
 
 /* 方案列表 */
@@ -473,7 +473,7 @@ watch(
 }
 
 .plan-group {
-  background: var(--gcs-bg-container);
+  background: var(--GCS-bg-container);
   border-radius: 6px;
   overflow: hidden;
 }
@@ -488,12 +488,12 @@ watch(
 }
 
 .plan-header:hover {
-  background: var(--gcs-bg-container);
+  background: var(--GCS-bg-container);
 }
 
 .plan-toggle {
   font-size: 10px;
-  color: var(--gcs-text-muted);
+  color: var(--GCS-text-muted);
   width: 12px;
   flex-shrink: 0;
 }
@@ -502,7 +502,7 @@ watch(
   flex: 1;
   font-size: 13px;
   font-weight: 500;
-  color: var(--gcs-text-primary);
+  color: var(--GCS-text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -510,14 +510,14 @@ watch(
 
 .plan-count {
   font-size: 12px;
-  color: var(--gcs-text-muted);
+  color: var(--GCS-text-muted);
   flex-shrink: 0;
 }
 
 .plan-detail {
   padding: 8px 12px 12px;
-  background: var(--gcs-bg-panel);
-  border-top: 1px solid var(--gcs-border-light);
+  background: var(--GCS-bg-panel);
+  border-top: 1px solid var(--GCS-border-light);
 }
 
 .plan-actions {
@@ -529,17 +529,17 @@ watch(
 .action-btn {
   flex: 1;
   padding: 5px 0;
-  border: 1px solid var(--gcs-border-default);
+  border: 1px solid var(--GCS-border-default);
   border-radius: 4px;
-  background: var(--gcs-bg-panel);
+  background: var(--GCS-bg-panel);
   font-size: 12px;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .action-btn:hover:not(:disabled) {
-  border-color: var(--gcs-color-primary);
-  color: var(--gcs-color-primary);
+  border-color: var(--GCS-color-primary);
+  color: var(--GCS-color-primary);
 }
 
 .action-btn:disabled {
@@ -548,23 +548,23 @@ watch(
 }
 
 .load-btn {
-  color: var(--gcs-color-primary);
-  border-color: var(--gcs-color-primary);
+  color: var(--GCS-color-primary);
+  border-color: var(--GCS-color-primary);
 }
 
 .edit-btn {
-  color: var(--gcs-color-success);
-  border-color: var(--gcs-color-success);
+  color: var(--GCS-color-success);
+  border-color: var(--GCS-color-success);
 }
 
 .delete-btn {
-  color: var(--gcs-color-error);
-  border-color: var(--gcs-color-error);
+  color: var(--GCS-color-error);
+  border-color: var(--GCS-color-error);
 }
 
 .delete-btn:hover:not(:disabled) {
-  background: var(--gcs-color-error);
-  color: var(--gcs-bg-panel);
+  background: var(--GCS-color-error);
+  color: var(--GCS-bg-panel);
 }
 
 /* 收藏分区 */
@@ -578,18 +578,18 @@ watch(
 
 .fav-section-title {
   font-size: 12px;
-  color: var(--gcs-text-muted);
+  color: var(--GCS-text-muted);
   margin-bottom: 6px;
   padding-left: 4px;
 }
 
 .fav-section :deep(.favorite-list-panel) {
-  background: var(--gcs-bg-container);
+  background: var(--GCS-bg-container);
 }
 
 /* 小区列表样式 */
 .xq-rank {
-  color: var(--gcs-text-muted);
+  color: var(--GCS-text-muted);
   font-size: 12px;
   width: 20px;
   text-align: center;
@@ -597,7 +597,7 @@ watch(
 }
 
 .xq-name {
-  color: var(--gcs-text-primary);
+  color: var(--GCS-text-primary);
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
@@ -609,14 +609,14 @@ watch(
 }
 
 .xq-score {
-  color: var(--gcs-color-primary);
+  color: var(--GCS-color-primary);
   font-weight: 600;
   flex-shrink: 0;
   font-size: 12px;
 }
 
 .facility-name {
-  color: var(--gcs-text-primary);
+  color: var(--GCS-text-primary);
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
@@ -642,12 +642,12 @@ watch(
 
 .empty-text {
   font-size: 14px;
-  color: var(--gcs-text-secondary);
+  color: var(--GCS-text-secondary);
   font-weight: 500;
 }
 
 .empty-hint {
   font-size: 12px;
-  color: var(--gcs-text-muted);
+  color: var(--GCS-text-muted);
 }
 </style>

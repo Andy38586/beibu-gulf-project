@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * GcsButton - 按钮 Panel
+ * GCSButton - 按钮 Panel
  *
  * 统一视觉规则：
  * - 默认占 2×1 Cell
@@ -18,6 +18,7 @@
  */
 
 import { computed } from 'vue'
+
 import { useGCS } from '../useGCS.js'
 
 interface Props {
@@ -37,16 +38,16 @@ const props = withDefaults(defineProps<Props>(), {
   h: 1,
 })
 
-const emit = defineEmits<{ 'click': [] }>()
+const emit = defineEmits<{ click: [] }>()
 
 const { cell, cellPixel } = useGCS()
 
 const buttonStyle = computed(() => ({
   ...cell(props.w, props.h),
   borderRadius: `${cellPixel.value * 0.15}px`,
-  backgroundColor: props.active ? 'var(--gcs-color-primary)' : 'var(--gcs-bg-panel)',
-  color: props.active ? 'var(--gcs-text-inverse)' : 'var(--gcs-text-regular)',
-  boxShadow: 'var(--gcs-shadow-sm)',
+  backgroundColor: props.active ? 'var(--GCS-color-primary)' : 'var(--GCS-bg-panel)',
+  color: props.active ? 'var(--GCS-text-inverse)' : 'var(--GCS-text-regular)',
+  boxShadow: 'var(--GCS-shadow-sm)',
   fontSize: `${cellPixel.value * 0.18}px`,
 }))
 
@@ -66,7 +67,7 @@ function handleClick() {
 <template>
   <button
     type="button"
-    class="gcs-button"
+    class="GCS-button"
     :style="buttonStyle"
     :disabled="disabled"
     @click="handleClick"
@@ -77,7 +78,7 @@ function handleClick() {
 </template>
 
 <style scoped>
-.gcs-button {
+.GCS-button {
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -87,21 +88,21 @@ function handleClick() {
   border: none;
   outline: none;
   cursor: pointer;
-  color: var(--gcs-bg-panel);
+  color: var(--GCS-bg-panel);
   transition:
     background-color 0.2s ease,
     transform 0.1s ease;
 }
 
-.gcs-button:hover:not(:disabled) {
+.GCS-button:hover:not(:disabled) {
   background-color: rgba(255, 255, 255, 0.22);
 }
 
-.gcs-button:active:not(:disabled) {
+.GCS-button:active:not(:disabled) {
   transform: scale(0.98);
 }
 
-.gcs-button:disabled {
+.GCS-button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }

@@ -7,6 +7,7 @@
  * 布局：绝对定位，右上角
  */
 import { computed } from 'vue'
+
 import { useGCS } from '@/core/layout/useGCS.js'
 
 interface Props {
@@ -20,7 +21,7 @@ const unitPx = computed(() => cellPixel.value * 0.1)
 </script>
 
 <template>
-  <div class="port-info-panel" v-if="selectedPort">
+  <div v-if="selectedPort" class="port-info-panel">
     <h2>{{ selectedPort.name }}</h2>
     <div class="info-item">
       <span>📍 地址：</span>
@@ -61,11 +62,11 @@ const unitPx = computed(() => cellPixel.value * 0.1)
 .port-info-panel h2 {
   margin: 0;
   font-size: calc(2.25 * v-bind(unitPx));
-  color: var(--gcs-text-regular);
+  color: var(--GCS-text-regular);
 }
 .info-item {
   font-size: calc(1.75 * v-bind(unitPx));
-  color: var(--gcs-text-regular);
+  color: var(--GCS-text-regular);
   line-height: 1.4;
 }
 </style>

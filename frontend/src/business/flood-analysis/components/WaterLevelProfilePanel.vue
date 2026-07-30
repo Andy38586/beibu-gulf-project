@@ -394,7 +394,7 @@ onUnmounted(() => {
 .header-title {
   font-size: 16px;
   font-weight: 600;
-  color: var(--gcs-text-primary);
+  color: var(--GCS-text-primary);
 }
 
 .profile-select {
@@ -409,7 +409,7 @@ onUnmounted(() => {
 
 .control-label {
   font-size: 13px;
-  color: var(--gcs-text-secondary);
+  color: var(--GCS-text-secondary);
 }
 
 .action-buttons {
@@ -441,7 +441,7 @@ onUnmounted(() => {
   justify-content: space-between;
   align-items: center;
   font-size: 11px;
-  color: var(--gcs-text-muted);
+  color: var(--GCS-text-muted);
   padding: 2px 0;
 }
 
@@ -451,12 +451,12 @@ onUnmounted(() => {
 }
 
 .scale-mark.clickable {
-  color: var(--gcs-color-primary);
+  color: var(--GCS-color-primary);
   font-weight: 500;
 }
 
 .scale-mark.clickable:hover {
-  color: var(--gcs-color-primary-hover);
+  color: var(--GCS-color-primary-hover);
   text-decoration: underline;
 }
 </style>

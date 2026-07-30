@@ -19,7 +19,7 @@ import { nextTick, onMounted, onUnmounted, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute } from 'vue-router'
 
 import AppLayout from '@/core/layout/AppLayout.vue'
-import GcsPanel from '@/core/layout/components/GcsPanel.vue'
+import GCSPanel from '@/core/layout/components/GCSPanel.vue'
 import { useBusinessLayers } from '@/core/map/composables/useBusinessLayers'
 import { floodAdapter } from '@/services/adapters/floodAdapter'
 import LayerControlPanel from '@/shared/components/LayerControlPanel.vue'
@@ -84,18 +84,18 @@ async function loadWaterAreaCoordinates() {
 }
 
 /** 图层是否已注册（防止重复注册） */
-let gcsLayersRegistered = false
+let floodLayersRegistered = false
 
 // 注册业务图层到 BusinessLayerManager
 // 首次 register 只建 catalog 条目，不渲染（数据尚未就绪）
 // API 返回数据后通过 updateData 渲染
-async function registerGcsLayers() {
-  if (gcsLayersRegistered) return
+async function registerFloodLayers() {
+  if (floodLayersRegistered) return
 
   const waterCoords = await loadWaterAreaCoordinates()
   if (unmounted) return
 
-  gcsLayersRegistered = true
+  floodLayersRegistered = true
 
   // 水面图层
   businessLayerManager.register(WATER_SURFACE_ID, {
@@ -131,7 +131,7 @@ watch(
   (renderer) => {
     if (renderer) {
       nextTick(() => {
-        registerGcsLayers()
+        registerFloodLayers()
       })
     }
   },
@@ -426,7 +426,7 @@ onUnmounted(() => {
   businessLayerManager.remove(FACILITY_LAYER_ID)
 
   // 重置注册标志
-  gcsLayersRegistered = false
+  floodLayersRegistered = false
 
   // 清除 adapter 缓存
   floodAdapter.clearCache()
@@ -441,23 +441,23 @@ onUnmounted(() => {
   <div class="flood-analysis-page">
     <AppLayout>
       <template #left>
-        <GcsPanel :w="4" :h="4" anchor="top-left" :offset-x="0" :offset-y="1.25">
+        <GCSPanel :w="4" :h="4" anchor="top-left" :offset-x="0" :offset-y="1.25">
           <FloodAnalysisReportPanel />
-        </GcsPanel>
+        </GCSPanel>
 
-        <GcsPanel :w="4" :h="4" anchor="top-left" :offset-x="0" :offset-y="5.5">
+        <GCSPanel :w="4" :h="4" anchor="top-left" :offset-x="0" :offset-y="5.5">
           <AffectedFacilityListPanel />
-        </GcsPanel>
+        </GCSPanel>
       </template>
 
       <template #right>
-        <GcsPanel :w="4" :h="4" anchor="top-right" :offset-x="0" :offset-y="1.25">
+        <GCSPanel :w="4" :h="4" anchor="top-right" :offset-x="0" :offset-y="1.25">
           <WaterLevelProfilePanel />
-        </GcsPanel>
+        </GCSPanel>
 
-        <GcsPanel :w="4" :h="4" anchor="top-right" :offset-x="0" :offset-y="5.5">
+        <GCSPanel :w="4" :h="4" anchor="top-right" :offset-x="0" :offset-y="5.5">
           <LayerControlPanel />
-        </GcsPanel>
+        </GCSPanel>
       </template>
     </AppLayout>
   </div>
@@ -472,7 +472,7 @@ onUnmounted(() => {
   pointer-events: none;
 }
 
-.flood-analysis-page :deep(.gcs-panel) {
+.flood-analysis-page :deep(.GCS-panel) {
   pointer-events: auto;
 }
 
@@ -501,7 +501,7 @@ onUnmounted(() => {
 }
 
 /* Cesium 3D路由禁用backdrop-filter，避免WebGL性能问题 */
-.flood-analysis-page :deep(.gcs-panel) {
+.flood-analysis-page :deep(.GCS-panel) {
   backdrop-filter: none !important;
   background: rgba(255, 255, 255, 0.95) !important;
 }

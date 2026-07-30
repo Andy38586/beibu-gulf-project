@@ -207,24 +207,24 @@ async function handleLogout() {
 .mode-btn {
   width: v-bind(modeBtnWidthCss);
   height: v-bind(modeBtnHeightCss);
-  border: 1px solid var(--gcs-border-default);
-  border-radius: var(--gcs-radius-md);
-  background: var(--gcs-bg-panel);
+  border: 1px solid var(--GCS-border-default);
+  border-radius: var(--GCS-radius-md);
+  background: var(--GCS-bg-panel);
   font-size: v-bind(btnFontSizeCss);
-  color: var(--gcs-text-regular);
+  color: var(--GCS-text-regular);
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .mode-btn:hover {
-  border-color: var(--gcs-color-primary);
-  background: var(--gcs-bg-hover);
+  border-color: var(--GCS-color-primary);
+  background: var(--GCS-bg-hover);
 }
 
 .mode-btn.active {
-  background: var(--gcs-color-primary);
-  color: var(--gcs-text-inverse);
-  border-color: var(--gcs-color-primary);
+  background: var(--GCS-color-primary);
+  color: var(--GCS-text-inverse);
+  border-color: var(--GCS-color-primary);
 }
 
 /* 表单区域 */
@@ -241,26 +241,26 @@ async function handleLogout() {
   width: v-bind(formWidthCss);
   height: v-bind(formHeightCss);
   padding: 0 12px; /* 12px 非8的整数倍，保留 */
-  border: 1px solid var(--gcs-border-default);
-  border-radius: var(--gcs-radius-md);
+  border: 1px solid var(--GCS-border-default);
+  border-radius: var(--GCS-radius-md);
   font-size: v-bind(inputFontSizeCss);
-  color: var(--gcs-text-regular);
+  color: var(--GCS-text-regular);
   box-sizing: border-box;
   outline: none;
   transition: border-color 0.2s ease;
 }
 
 .form-input:focus {
-  border-color: var(--gcs-color-primary);
+  border-color: var(--GCS-color-primary);
 }
 
 .form-input::placeholder {
-  color: var(--gcs-text-muted);
+  color: var(--GCS-text-muted);
 }
 
 .error-text {
   font-size: v-bind(errorFontSizeCss);
-  color: var(--gcs-color-error);
+  color: var(--GCS-color-error);
   text-align: center;
   margin: 4px 0;
 }
@@ -269,9 +269,9 @@ async function handleLogout() {
   width: v-bind(formWidthCss);
   height: v-bind(formHeightCss);
   border: none;
-  border-radius: var(--gcs-radius-md);
-  background: var(--gcs-color-primary);
-  color: var(--gcs-text-inverse);
+  border-radius: var(--GCS-radius-md);
+  background: var(--GCS-color-primary);
+  color: var(--GCS-text-inverse);
   font-size: v-bind(btnFontSizeCss);
   font-weight: 500;
   cursor: pointer;
@@ -279,7 +279,7 @@ async function handleLogout() {
 }
 
 .submit-btn:hover:not(:disabled) {
-  background: var(--gcs-color-primary-hover);
+  background: var(--GCS-color-primary-hover);
 }
 
 .submit-btn:disabled {
@@ -305,22 +305,22 @@ async function handleLogout() {
 .user-name {
   font-size: v-bind(titleFontSizeCss);
   font-weight: 600;
-  color: var(--gcs-text-primary);
+  color: var(--GCS-text-primary);
 }
 
 .user-status {
   font-size: v-bind(errorFontSizeCss);
-  color: var(--gcs-color-success);
+  color: var(--GCS-color-success);
 }
 
 /* 退出登录按钮（3.8×0.8 Cell） */
 .logout-btn {
   width: v-bind(formWidthCss);
   height: v-bind(formHeightCss);
-  border: 1px solid var(--gcs-color-error);
-  border-radius: var(--gcs-radius-md);
-  background: var(--gcs-bg-panel);
-  color: var(--gcs-color-error);
+  border: 1px solid var(--GCS-color-error);
+  border-radius: var(--GCS-radius-md);
+  background: var(--GCS-bg-panel);
+  color: var(--GCS-color-error);
   font-size: v-bind(btnFontSizeCss);
   font-weight: 500;
   cursor: pointer;
@@ -330,7 +330,7 @@ async function handleLogout() {
 }
 
 .logout-btn:hover {
-  background: var(--gcs-color-error);
-  color: var(--gcs-text-inverse);
+  background: var(--GCS-color-error);
+  color: var(--GCS-text-inverse);
 }
 </style>

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * GcsInspectionOverlay - GCS 检查模式覆盖层
+ * GCSInspectionOverlay - GCS 检查模式覆盖层
  *
  * 职责：
  * 1. 可视化 Cell 网格边界和编号
@@ -130,9 +130,9 @@ function measureElements(selector: string, prefix: string): MeasuredRect[] {
  */
 function measureAll() {
   if (typeof window === 'undefined') return
-  // Dock 使用独立的 GcsPanel，从 Panel 列表中排除，避免重复检测
+  // Dock 使用独立的 GCSPanel，从 Panel 列表中排除，避免重复检测
   // 仅保留实际可见（尺寸大于 0）的 Panel
-  measuredPanels.value = measureElements('.gcs-panel:not(.dock-panel)', 'Panel').filter(
+  measuredPanels.value = measureElements('.GCS-panel:not(.dock-panel)', 'Panel').filter(
     (panel) => panel.width > 0 && panel.height > 0
   )
   measuredDock.value = measureElement('.bottom-nav-bar', 'Dock')
@@ -349,7 +349,7 @@ const alignmentStatus = computed(() => {
 </script>
 
 <template>
-  <div v-if="enabled" class="gcs-inspection-overlay">
+  <div v-if="enabled" class="GCS-inspection-overlay">
     <!-- Grid 参考线层（V2 使用 GRID_SIZE = 100px） -->
     <svg class="cell-grid" :width="viewportWidth" :height="viewportHeight">
       <g class="cell-boundaries">
@@ -479,7 +479,7 @@ const alignmentStatus = computed(() => {
 </template>
 
 <style scoped>
-.gcs-inspection-overlay {
+.GCS-inspection-overlay {
   position: fixed;
   inset: 0;
   pointer-events: none;
@@ -551,7 +551,7 @@ const alignmentStatus = computed(() => {
   top: v-bind(infoPanelOffsetCss);
   right: v-bind(infoPanelOffsetCss);
   background: rgba(0, 0, 0, 0.85);
-  color: var(--gcs-bg-panel);
+  color: var(--GCS-bg-panel);
   padding: v-bind(infoPanelPaddingCss);
   border-radius: 8px;
   font-family: monospace;

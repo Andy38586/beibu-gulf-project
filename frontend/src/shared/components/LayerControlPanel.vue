@@ -136,10 +136,10 @@ function handleToggle(key: string) {
   gap: v-bind(cell8px);
   width: v-bind(btnWidthCss);
   height: v-bind(btnHeightCss);
-  border: 1px solid var(--gcs-border-default);
-  border-radius: var(--gcs-radius-lg);
-  background: var(--gcs-bg-panel);
-  color: var(--gcs-text-regular);
+  border: 1px solid var(--GCS-border-default);
+  border-radius: var(--GCS-radius-lg);
+  background: var(--GCS-bg-panel);
+  color: var(--GCS-text-regular);
   cursor: pointer;
   font-size: v-bind(labelFontSizeCss);
   transition: all 0.2s ease;
@@ -149,14 +149,14 @@ function handleToggle(key: string) {
 }
 
 .layer-btn:hover {
-  border-color: var(--gcs-color-primary);
-  background: var(--gcs-bg-hover);
+  border-color: var(--GCS-color-primary);
+  background: var(--GCS-bg-hover);
 }
 
 .layer-btn.active {
-  background: var(--gcs-color-primary);
-  color: var(--gcs-text-inverse);
-  border-color: var(--gcs-color-primary);
+  background: var(--GCS-color-primary);
+  color: var(--GCS-text-inverse);
+  border-color: var(--GCS-color-primary);
 }
 
 .layer-icon {

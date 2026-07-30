@@ -21,7 +21,7 @@ const routes = [
     component: () => import('@/business/forecast/ForecastPage.vue'),
     meta: { engine: '2d', title: '预测分析' },
   },
-  // 浸没分析（原 GCS 分析）
+  // 浸没分析（洪涝分析）
   // 注：路由不再要求登录。收藏保存时才在 PaginatedListPanel 弹登录提示。
   {
     path: '/flood-analysis',

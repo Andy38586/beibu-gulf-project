@@ -20,7 +20,7 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 
 import AppLayout from '@/core/layout/AppLayout.vue'
-import GcsPanel from '@/core/layout/components/GcsPanel.vue'
+import GCSPanel from '@/core/layout/components/GCSPanel.vue'
 import { useBusinessLayers } from '@/core/map/composables/useBusinessLayers'
 import { useLayerManager } from '@/core/map/composables/useLayerManager'
 import { useMapControls } from '@/core/map/composables/useMapControls'
@@ -310,8 +310,9 @@ onUnmounted(() => {
     clearTimeout(tryZoomTimer)
     tryZoomTimer = null
   }
-  // 清理设施 POI 图层，防止卸载后图层残留
-  handleHideFacilityLayer()
+  // @arch-note a013: 统一清理所有分析图层（analysis-coverage/analysis-matched + 设施POI）
+  // clearAnalysisLayers 内部已处理设施 POI，不再单独调 handleHideFacilityLayer 避免双清
+  clearAnalysisLayers()
 })
 </script>
 
@@ -321,7 +322,7 @@ onUnmounted(() => {
       <!-- 左侧：左上雷达图 + 左下图层控制 -->
       <template #left>
         <!-- 左上：小区雷达图 4×4（显示选中小区或第一名） -->
-        <GcsPanel :w="4" :h="4" anchor="top-left" :offset-x="0" :offset-y="1.25">
+        <GCSPanel :w="4" :h="4" anchor="top-left" :offset-x="0" :offset-y="1.25">
           <RadarChart
             :visible="true"
             :embedded="true"
@@ -331,25 +332,25 @@ onUnmounted(() => {
             @show-facility-layer="handleShowFacilityLayer"
             @hide-facility-layer="handleHideFacilityLayer"
           />
-        </GcsPanel>
+        </GCSPanel>
         <!-- 左下：图层控制面板 4×4 -->
-        <GcsPanel :w="4" :h="4" anchor="top-left" :offset-x="0" :offset-y="5.5">
+        <GCSPanel :w="4" :h="4" anchor="top-left" :offset-x="0" :offset-y="5.5">
           <LayerControlPanel />
-        </GcsPanel>
+        </GCSPanel>
       </template>
 
       <!-- 右侧：右上因子面板 + 右下小区名单 -->
       <template #right>
         <!-- 右上：设施因子选择面板 4×4 -->
-        <GcsPanel :w="4" :h="4" anchor="top-right" :offset-x="0" :offset-y="1.25">
+        <GCSPanel :w="4" :h="4" anchor="top-right" :offset-x="0" :offset-y="1.25">
           <SiteAnalysisControlPanel
             ref="factorPanelRef"
             @result-update="handleResult"
             @analysis-error="handleAnalysisError"
           />
-        </GcsPanel>
+        </GCSPanel>
         <!-- 右下：小区名单列表 4×4 -->
-        <GcsPanel :w="4" :h="4" anchor="top-right" :offset-x="0" :offset-y="5.5">
+        <GCSPanel :w="4" :h="4" anchor="top-right" :offset-x="0" :offset-y="5.5">
           <PaginatedListPanel
             ref="favoriteListRef"
             :items="displayXiaoqu"
@@ -366,7 +367,7 @@ onUnmounted(() => {
               <span class="xq-score">{{ xq.score }}分</span>
             </template>
           </PaginatedListPanel>
-        </GcsPanel>
+        </GCSPanel>
       </template>
     </AppLayout>
   </div>
@@ -380,7 +381,7 @@ onUnmounted(() => {
 }
 
 .xq-rank {
-  color: var(--gcs-text-muted);
+  color: var(--GCS-text-muted);
   font-size: 12px;
   width: 20px;
   text-align: center;
@@ -388,7 +389,7 @@ onUnmounted(() => {
 }
 
 .xq-name {
-  color: var(--gcs-text-primary);
+  color: var(--GCS-text-primary);
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
@@ -399,7 +400,7 @@ onUnmounted(() => {
 }
 
 .xq-score {
-  color: var(--gcs-color-primary);
+  color: var(--GCS-color-primary);
   font-weight: 600;
   flex-shrink: 0;
   min-width: 50px;

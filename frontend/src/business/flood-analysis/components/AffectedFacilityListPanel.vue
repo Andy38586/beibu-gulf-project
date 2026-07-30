@@ -100,7 +100,7 @@ const sortedFacilities = computed<ScoredXiaoqu[]>(() => {
 }
 
 .facility-name {
-  color: var(--gcs-text-primary);
+  color: var(--GCS-text-primary);
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
@@ -110,13 +110,13 @@ const sortedFacilities = computed<ScoredXiaoqu[]>(() => {
 }
 
 .facility-type {
-  color: var(--gcs-text-muted);
+  color: var(--GCS-text-muted);
   font-size: 12px;
   flex-shrink: 0;
 }
 
 .facility-loss {
-  color: var(--gcs-color-danger);
+  color: var(--GCS-color-danger);
   font-weight: 600;
   flex-shrink: 0;
   min-width: 70px;

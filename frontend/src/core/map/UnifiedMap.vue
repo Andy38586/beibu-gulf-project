@@ -449,8 +449,8 @@ defineExpose({
 .loading-spinner {
   width: v-bind(spinnerSizeCss);
   height: v-bind(spinnerSizeCss);
-  border: 4px solid var(--gcs-bg-container);
-  border-top: 4px solid var(--gcs-color-primary);
+  border: 4px solid var(--GCS-bg-container);
+  border-top: 4px solid var(--GCS-color-primary);
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -468,7 +468,7 @@ defineExpose({
   position: absolute;
   top: 10px; /* 10px 非8的整数倍，保留 */
   left: 10px; /* 10px 非8的整数倍，保留 */
-  color: var(--gcs-color-error);
+  color: var(--GCS-color-error);
   background: rgba(255, 255, 255, 0.9);
   padding: v-bind(cell8px) 12px; /* 12px 非8的整数倍，保留 */
   border-radius: 6px;

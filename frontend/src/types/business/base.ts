@@ -1,5 +1,5 @@
 /**
- * GCS 业务数据基础模型
+ * GIS 业务数据基础模型
  *
  * 定义所有 GIS 数据特征的基础类型。
  * 业务模块（浸没分析、选址分析、预测分析）继承此基础结构扩展自有属性。
@@ -27,7 +27,7 @@ export interface AnnotatedPoint extends GeoPoint {
 }
 
 /** 通用 GIS 要素 */
-export interface GcsFeature<T extends Record<string, unknown> = Record<string, unknown>> {
+export interface GeoFeature<T extends Record<string, unknown> = Record<string, unknown>> {
   geometry: {
     type: 'Point' | 'Polygon' | 'MultiPolygon'
     coordinates: number[] | number[][] | number[][][]
@@ -38,7 +38,7 @@ export interface GcsFeature<T extends Record<string, unknown> = Record<string, u
 
 /** 带计算得分的要素 */
 export interface ScoredFeature<T extends Record<string, unknown> = Record<string, unknown>> {
-  feature: GcsFeature<T>
+  feature: GeoFeature<T>
   score: number
   breakdown: Record<string, number>
 }

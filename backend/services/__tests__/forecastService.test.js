@@ -86,13 +86,11 @@ describe('forecastService', () => {
       )
     })
 
-    it('数据文件缺失时优雅降级，返回空 FeatureCollection', async () => {
+    it('数据文件缺失时抛 NOT_FOUND（不再优雅降级返空）', async () => {
       mockReadFile.mockRejectedValue(makeEnoentError())
-      const result = await forecastService.getMapData('throughput', '2020-01')
-      expect(result.indicator).toBe('throughput')
-      expect(result.unit).toBe('')
-      expect(result.features).toEqual([])
-      expect(result.type).toBe('FeatureCollection')
+      await expect(forecastService.getMapData('throughput', '2020-01')).rejects.toThrow(
+        '指标数据文件不存在'
+      )
     })
 
     it('非 ENOENT 错误应向上抛出', async () => {
@@ -180,11 +178,9 @@ describe('forecastService', () => {
       expect(result.indicators).toEqual({})
     })
 
-    it('所有指标文件缺失时优雅降级', async () => {
+    it('所有指标文件缺失时抛 NOT_FOUND', async () => {
       mockReadFile.mockRejectedValue(makeEnoentError())
-      const result = await forecastService.getPortData('p1')
-      expect(result.portName).toBe('')
-      expect(result.indicators).toEqual({})
+      await expect(forecastService.getPortData('p1')).rejects.toThrow('指标数据文件不存在')
     })
 
     it('start/end 参数同时过滤历史与预测数据', async () => {
@@ -246,12 +242,11 @@ describe('forecastService', () => {
       expect(result.ports.p1.value).toBeNull()
     })
 
-    it('数据文件缺失时返回空 ports（优雅降级）', async () => {
+    it('数据文件缺失时抛 NOT_FOUND（不再优雅降级）', async () => {
       mockReadFile.mockRejectedValue(makeEnoentError())
-      const result = await forecastService.getIndicatorData('throughput', '2020-01')
-      expect(result.indicator).toBe('throughput')
-      expect(result.unit).toBe('')
-      expect(result.ports).toEqual({})
+      await expect(
+        forecastService.getIndicatorData('throughput', '2020-01')
+      ).rejects.toThrow('指标数据文件不存在')
     })
   })
 

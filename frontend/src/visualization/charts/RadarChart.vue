@@ -16,13 +16,15 @@
  * 使用 useRadarChart composable 拆分逻辑，减少文件行数
  */
 
-import { ref, watch, nextTick, computed, onBeforeUnmount } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
+
 import { useGCS } from '@/core/layout/useGCS.js'
-import { useRadarChart } from './composables/useRadarChart'
-import RadarScoreTooltip from './components/RadarScoreTooltip.vue'
-import type { ScoredXiaoqu } from '@/types/xiaoqu'
-import type { FacilityPoint } from '@/types/facility'
 import { logger } from '@/shared/utils/logger'
+import type { FacilityPoint } from '@/types/facility'
+import type { ScoredXiaoqu } from '@/types/xiaoqu'
+
+import RadarScoreTooltip from './components/RadarScoreTooltip.vue'
+import { useRadarChart } from './composables/useRadarChart'
 
 interface Props {
   visible: boolean
@@ -152,7 +154,7 @@ onBeforeUnmount(() => {
     <RadarScoreTooltip
       :visible="tooltipVisible"
       :xiaoqu="xiaoqu"
-      :selectedTypes="selectedTypes"
+      :selected-types="selectedTypes"
       :position="tooltipPosition"
     />
   </div>
@@ -173,7 +175,7 @@ onBeforeUnmount(() => {
 .radar-title {
   font-size: 16px;
   font-weight: 600;
-  color: var(--gcs-text-primary);
+  color: var(--GCS-text-primary);
   text-align: center;
   white-space: nowrap;
   overflow: hidden;
@@ -197,14 +199,14 @@ onBeforeUnmount(() => {
 }
 
 .empty-state {
-  color: var(--gcs-text-muted);
+  color: var(--GCS-text-muted);
   font-size: 13px;
   text-align: center;
 }
 
 /* 综合评分：距雷达图 0.2 cell，距 panel 底部 0.2 cell */
 .score-text {
-  color: var(--gcs-color-primary);
+  color: var(--GCS-color-primary);
   font-weight: 500;
   margin: 0;
   font-size: 14px;
@@ -219,6 +221,6 @@ onBeforeUnmount(() => {
 }
 
 .score-text.clickable:hover {
-  color: var(--gcs-color-primary-hover);
+  color: var(--GCS-color-primary-hover);
 }
 </style>

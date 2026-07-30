@@ -33,15 +33,16 @@
  * - `doSave/doRemove` 内部方法，对应后端 `saveXiaoqu/removeXiaoqu`
  */
 
-import { ref, computed, watch } from 'vue'
-import { useGCS } from '@/core/layout/useGCS.js'
-import { usePlans } from '@/shared/composables/usePlans'
-import { useAuth } from '@/shared/composables/useAuth'
+import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { useMapStore } from '@/stores/mapStore'
+
+import { useGCS } from '@/core/layout/useGCS.js'
 import { useMapControls } from '@/core/map/composables/useMapControls'
+import { useAuth } from '@/shared/composables/useAuth'
+import { usePlans } from '@/shared/composables/usePlans'
 import { showError } from '@/shared/utils/errorHandler'
 import { logger } from '@/shared/utils/logger'
+import { useMapStore } from '@/stores/mapStore'
 import type { SavedXiaoqu } from '@/types/plan'
 import type { ScoredXiaoqu } from '@/types/xiaoqu'
 
@@ -308,18 +309,18 @@ defineExpose({
 <template>
   <div class="paginated-list-panel">
     <!-- 标题区 -->
-    <div class="panel-header" v-if="title">
+    <div v-if="title" class="panel-header">
       <div class="header-title">{{ title }}</div>
     </div>
 
     <!-- 灰色背景板（包裹列表和分页） -->
     <div class="gray-container">
       <!-- 列表内容区 -->
-      <div class="list-content" v-if="hasData">
+      <div v-if="hasData" class="list-content">
         <div
-          class="list-item"
           v-for="(item, index) in currentPageItems"
           :key="item.id || index"
+          class="list-item"
           @click="handleItemClick(item)"
         >
           <slot name="item" :item="item" :index="index" />
@@ -337,15 +338,15 @@ defineExpose({
       </div>
 
       <!-- 无数据提示 -->
-      <div class="no-data-section" v-else>
+      <div v-else class="no-data-section">
         <slot name="empty">
           <div class="no-data-text">{{ emptyText }}</div>
-          <div class="no-data-hint" v-if="emptyHint">{{ emptyHint }}</div>
+          <div v-if="emptyHint" class="no-data-hint">{{ emptyHint }}</div>
         </slot>
       </div>
 
       <!-- 分页控制区 -->
-      <div class="pagination-section" v-if="needPagination">
+      <div v-if="needPagination" class="pagination-section">
         <ElButton size="small" :disabled="currentPage === 1" @click="goToPage(1)">
           &lt;&lt;
         </ElButton>
@@ -381,8 +382,8 @@ defineExpose({
   display: flex;
   flex-direction: column;
   padding: 0;
-  background: var(--gcs-bg-panel-translucent);
-  border-radius: var(--gcs-radius-md);
+  background: var(--GCS-bg-panel-translucent);
+  border-radius: var(--GCS-radius-md);
   box-sizing: border-box;
 }
 
@@ -397,7 +398,7 @@ defineExpose({
 .header-title {
   font-size: v-bind(fontSizeTitle);
   font-weight: 600;
-  color: var(--gcs-text-primary);
+  color: var(--GCS-text-primary);
 }
 
 /* 灰色背景板：距外层panel 0.1cell，距标题 0.1cell */
@@ -407,8 +408,8 @@ defineExpose({
   flex-direction: column;
   margin: 0 v-bind(cell8px) v-bind(cell8px) v-bind(cell8px);
   padding: v-bind(cell8px);
-  background: var(--gcs-bg-container);
-  border-radius: var(--gcs-radius-sm);
+  background: var(--GCS-bg-container);
+  border-radius: var(--GCS-radius-sm);
   box-sizing: border-box;
   overflow: hidden;
   min-height: 0;
@@ -429,7 +430,7 @@ defineExpose({
   align-items: center;
   gap: v-bind(cell8px);
   padding: v-bind(cell8px) 10px;
-  background: var(--gcs-bg-panel);
+  background: var(--GCS-bg-panel);
   border-radius: 4px;
   white-space: nowrap;
   flex-shrink: 0;
@@ -438,7 +439,7 @@ defineExpose({
 }
 
 .list-item:hover {
-  background: var(--gcs-bg-hover);
+  background: var(--GCS-bg-hover);
 }
 
 .no-data-section {
@@ -453,13 +454,13 @@ defineExpose({
 
 .no-data-text {
   font-size: v-bind(fontSizeBody);
-  color: var(--gcs-text-primary);
+  color: var(--GCS-text-primary);
   font-weight: 500;
 }
 
 .no-data-hint {
   font-size: v-bind(fontSizeSmall);
-  color: var(--gcs-text-muted);
+  color: var(--GCS-text-muted);
 }
 
 .pagination-section {
@@ -476,22 +477,22 @@ defineExpose({
   align-items: center;
   gap: 4px;
   font-size: v-bind(fontSizeBody);
-  color: var(--gcs-text-primary);
+  color: var(--GCS-text-primary);
   min-width: 60px;
   justify-content: center;
 }
 
 .current-page {
   font-weight: 600;
-  color: var(--gcs-color-primary);
+  color: var(--GCS-color-primary);
 }
 
 .page-separator {
-  color: var(--gcs-text-muted);
+  color: var(--GCS-text-muted);
 }
 
 .total-pages {
-  color: var(--gcs-text-secondary);
+  color: var(--GCS-text-secondary);
 }
 
 .pagination-section .el-button {

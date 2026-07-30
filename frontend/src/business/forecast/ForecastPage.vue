@@ -20,7 +20,7 @@
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 
 import AppLayout from '@/core/layout/AppLayout.vue'
-import GcsPanel from '@/core/layout/components/GcsPanel.vue'
+import GCSPanel from '@/core/layout/components/GCSPanel.vue'
 import { forecastAdapter } from '@/services/adapters/forecastAdapter'
 import LayerControlPanel from '@/shared/components/LayerControlPanel.vue'
 import { handleAuthError, isAuthError, showError } from '@/shared/utils/errorHandler'
@@ -236,7 +236,7 @@ onUnmounted(() => {
   <div v-loading="isLoading" class="forecast-page" element-loading-text="加载预测数据中...">
     <AppLayout>
       <template #left>
-        <GcsPanel :w="4" :h="4" anchor="top-left" :offset-x="0" :offset-y="1.25">
+        <GCSPanel :w="4" :h="4" anchor="top-left" :offset-x="0" :offset-y="1.25">
           <LineChart
             title="预测趋势"
             :x-data="lineXData"
@@ -244,18 +244,18 @@ onUnmounted(() => {
             :x-min="lineViewportXMin"
             :x-max="lineViewportXMax"
           />
-        </GcsPanel>
-        <GcsPanel :w="4" :h="4" anchor="top-left" :offset-x="0" :offset-y="5.5">
+        </GCSPanel>
+        <GCSPanel :w="4" :h="4" anchor="top-left" :offset-x="0" :offset-y="5.5">
           <BarChart title="港口对比" :x-data="barXData" :series="barSeries" />
-        </GcsPanel>
+        </GCSPanel>
       </template>
       <template #right>
-        <GcsPanel :w="4" :h="4" anchor="top-right" :offset-x="0" :offset-y="1.25">
+        <GCSPanel :w="4" :h="4" anchor="top-right" :offset-x="0" :offset-y="1.25">
           <ForecastControlPanel />
-        </GcsPanel>
-        <GcsPanel :w="4" :h="4" anchor="top-right" :offset-x="0" :offset-y="5.5">
+        </GCSPanel>
+        <GCSPanel :w="4" :h="4" anchor="top-right" :offset-x="0" :offset-y="5.5">
           <LayerControlPanel />
-        </GcsPanel>
+        </GCSPanel>
       </template>
     </AppLayout>
   </div>
@@ -267,7 +267,7 @@ onUnmounted(() => {
   height: 100%;
   pointer-events: none;
 }
-.forecast-page :deep(.gcs-panel) {
+.forecast-page :deep(.GCS-panel) {
   pointer-events: auto;
 }
 </style>

@@ -37,7 +37,6 @@ interface Props {
 }
 
 interface Emits {
-  (_e: 'close'): void
   (
     _e: 'show-facility-layer',
     _data: {

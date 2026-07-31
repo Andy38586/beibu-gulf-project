@@ -49,7 +49,7 @@ const unitPx = computed(() => cellPixel.value * 0.1)
   right: calc(1.5 * v-bind(unitPx));
   width: calc(35 * v-bind(unitPx));
   z-index: 55;
-  background: rgba(255, 255, 255, 0.95);
+  background: var(--GCS-bg-panel-translucent);
   border-radius: calc(1.25 * v-bind(unitPx));
   box-shadow: 0 calc(0.5 * v-bind(unitPx)) calc(2.25 * v-bind(unitPx)) rgba(0, 0, 0, 0.2);
   padding: calc(1.5 * v-bind(unitPx));

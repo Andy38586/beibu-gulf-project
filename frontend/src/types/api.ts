@@ -1,5 +1,5 @@
-import type { Plan } from './plan'
 import type { AnalysisResult } from './analysis'
+import type { Plan } from './plan'
 
 // 认证相关
 export interface User {
@@ -9,7 +9,8 @@ export interface User {
 }
 
 export interface AuthResponse {
-  token: string
+  /** @deprecated d038: token 已移至 HttpOnly Cookie，响应体不再回传 */
+  token?: string
   user: User
 }
 

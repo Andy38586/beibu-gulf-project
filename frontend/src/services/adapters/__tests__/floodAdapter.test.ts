@@ -93,9 +93,11 @@ describe('floodAdapter', () => {
   })
 
   describe('api 模式', () => {
-    it('应抛出未实现错误', async () => {
+    it('getWaterArea 应回退到静态坐标（后端无此端点）', async () => {
       floodAdapter.setDataSource('api')
-      await expect(floodAdapter.getWaterArea()).rejects.toThrow('尚未接入')
+      const coords = await floodAdapter.getWaterArea()
+      expect(Array.isArray(coords)).toBe(true)
+      expect(coords.length).toBeGreaterThan(0)
     })
   })
 })

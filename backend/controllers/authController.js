@@ -49,7 +49,7 @@ export async function register(req, res) {
     const token = generateToken(user)
     setAuthCookie(res, token)
 
-    res.status(201).json({ token, user })
+    res.status(201).json({ user })
   } catch (error) {
     // @arch-note P1-06: BusinessError 统一携带 status（并发注册冲突返回 409）
     if (error instanceof BusinessError) {
@@ -91,7 +91,7 @@ export async function login(req, res) {
     const token = generateToken(user)
     setAuthCookie(res, token)
 
-    res.json({ token, user: { id: user.id, username: user.username, createdAt: user.createdAt } })
+    res.json({ user: { id: user.id, username: user.username, createdAt: user.createdAt } })
   } catch (error) {
     // [FIXED 016] 使用结构化日志替代 console
     if (process.env.NODE_ENV !== 'test') {

@@ -46,7 +46,7 @@ const cesiumRenderer = ref<MapRenderer | null>(null)
 const cesiumInitialized = ref(false)
 
 provide(MapRendererKey, currentRenderer)
-provide('mapStore', mapStore)
+// mapStore 已由 App.vue 统一 provide，此处不再重复（z025）
 
 const { registerBaseLayerWithRenderer, registerToggleable, clearLayers } = useLayerManager()
 
@@ -57,12 +57,16 @@ let boundaryGeoJson: FeatureCollection | null = null
 
 const LOAD_TIMEOUT_MS = 10000
 
+/** 组件级 abort：卸载后阻止异步回调继续写 ref（z024） */
+const loadAbort = new AbortController()
+
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, errorMessage: string): Promise<T> {
-  // 注意：Promise.race 超时后底层 fetch 仍在执行（mapDataService 内部已有 10s AbortController 兜底）。
-  // 此处仅用于给调用方更早的错误反馈，底层资源由 mapDataService 的 controller 清理。
   let timeoutId: ReturnType<typeof setTimeout>
   const timeoutPromise = new Promise<never>((_, reject) => {
-    timeoutId = setTimeout(() => reject(new Error(errorMessage)), timeoutMs)
+    timeoutId = setTimeout(() => {
+      loadAbort.abort()
+      reject(new Error(errorMessage))
+    }, timeoutMs)
   })
   return Promise.race([promise, timeoutPromise]).finally(() => clearTimeout(timeoutId))
 }
@@ -105,6 +109,7 @@ function waitForContainerVisible(container: HTMLElement | null): Promise<void> {
 async function loadData() {
   try {
     const ports = await withTimeout(loadPorts(), LOAD_TIMEOUT_MS, '港口数据加载超时')
+    if (loadAbort.signal.aborted) return
     portGeoJson = buildPortGeoJson(ports) as FeatureCollection
     boundaryGeoJson = await withTimeout(
       loadBoundaryGeoJson((msg: string) => {
@@ -114,6 +119,7 @@ async function loadData() {
       '边界数据加载超时'
     )
   } catch (error) {
+    if (loadAbort.signal.aborted) return
     const err = error instanceof Error ? error : new Error(String(error))
     if (import.meta.env.DEV) {
       logger.error('地图数据加载失败:', err)
@@ -376,6 +382,9 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  // z024: 卸载时 abort，阻止未完成的异步回调继续写 ref
+  loadAbort.abort()
+
   // 取消所有待执行的 rAF 回调，防止组件卸载后仍操作 DOM
   _pendingRafIds.forEach((id) => cancelAnimationFrame(id))
   _pendingRafIds.clear()

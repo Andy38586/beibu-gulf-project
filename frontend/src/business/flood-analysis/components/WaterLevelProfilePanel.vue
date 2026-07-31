@@ -380,7 +380,7 @@ onUnmounted(() => {
   flex-direction: column;
   padding: v-bind(cell16px);
   gap: 12px;
-  background: rgba(255, 255, 255, 0.95);
+  background: var(--GCS-bg-panel-translucent);
   border-radius: 8px;
   box-sizing: border-box;
 }

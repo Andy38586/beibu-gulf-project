@@ -6,11 +6,14 @@
  * 无需关心数据来自 Mock 还是真实 API/数据库。
  */
 
+import { useApiRequest } from '@/shared/composables/useApiRequest'
 import { logger } from '@/shared/utils/logger'
 import type { AffectedFacility, FloodFeature, FloodStatistics } from '@/types/business/base'
 
 // ==================== 数据源配置 ====================
 let _dataSource: 'mock' | 'api' = 'mock'
+
+const { apiRequest } = useApiRequest()
 
 const FALLBACK_WATER_AREA_COORDINATES: [number, number][] = [
   [108.615, 21.855],
@@ -178,14 +181,19 @@ export const floodAdapter = {
     if (_dataSource === 'mock') {
       return _fetchMockWaterArea()
     }
-    throw new Error('[FloodAdapter] 真实 API 尚未接入，请先调用 setDataSource("mock")')
+    // api 模式：从后端获取水域坐标（复用 mock 静态数据，后端无此端点）
+    return _fetchMockWaterArea()
   },
 
   async getFloodAnalysis(
-    _waterLevel: number,
+    waterLevel: number,
     { signal }: RequestOptions = {}
   ): Promise<FloodAnalysisResult> {
     if (_dataSource === 'mock') {
+      // b019: mock 数据为静态单档位，不响应水位参数
+      logger.warn(
+        `[FloodAdapter] mock 模式不响应水位参数（请求 ${waterLevel}m，固定返回 2.5m 档位）`
+      )
       const [floodAreasRes, statisticsRes] = await Promise.all([
         _fetchMockJson<{ code: number; data: Record<string, unknown> }>(
           '/data/flood-areas.json',
@@ -211,14 +219,36 @@ export const floodAdapter = {
         actualWaterLevel: floodData?.actualWaterLevel as number | undefined,
       }
     }
-    throw new Error('[FloodAdapter] 真实 API 尚未接入，请先调用 setDataSource("mock")')
+    // api 模式：调用后端 /flood/flood-areas + /flood/flood-statistics
+    const [floodAreasRes, statisticsRes] = await Promise.all([
+      apiRequest<{ code: number; data: Record<string, unknown> }>(
+        `/flood/flood-areas?waterLevel=${waterLevel}`,
+        { signal }
+      ),
+      apiRequest<{ code: number; data: Record<string, unknown> }>(
+        `/flood/flood-statistics?waterLevel=${waterLevel}`,
+        { signal }
+      ),
+    ])
+
+    const floodData = floodAreasRes.data as Record<string, unknown> | undefined
+    const riskLevel = (floodData?.riskLevel as string) || '无风险'
+    const actualWaterLevel = floodData?.actualWaterLevel as number | undefined
+
+    return {
+      features: _mapFloodFeatures(floodData?.features, riskLevel),
+      statistics: _mapFloodStatistics(statisticsRes.data as Record<string, unknown>, riskLevel),
+      riskLevel,
+      actualWaterLevel,
+    }
   },
 
   async getImpactAssessment(
-    _waterLevel: number,
+    waterLevel: number,
     { signal }: RequestOptions = {}
   ): Promise<ImpactAssessmentResult> {
     if (_dataSource === 'mock') {
+      logger.warn(`[FloodAdapter] mock 影响评估不响应水位参数（请求 ${waterLevel}m）`)
       const res = await _fetchMockJson<{ code: number; data: Record<string, unknown> }>(
         '/data/disaster.json',
         signal
@@ -235,14 +265,27 @@ export const floodAdapter = {
         totalLoss,
       }
     }
-    throw new Error('[FloodAdapter] 真实 API 尚未接入，请先调用 setDataSource("mock")')
+    // api 模式：调用后端 /flood/analysis/disaster
+    const res = await apiRequest<{ code: number; data: Record<string, unknown> }>(
+      '/flood/analysis/disaster',
+      {
+        method: 'POST',
+        body: JSON.stringify({ waterLevel }),
+        signal,
+      }
+    )
+
+    const result = res.data as Record<string, unknown> | undefined
+    const totalLoss = (result?.totalLoss as number) || 0
+    return {
+      affectedFacilities: _mapAffectedFacilities(result?.affectedFacilities, totalLoss),
+      totalLoss,
+    }
   },
 
   async getDEM(_region: unknown): Promise<Record<string, string>> {
-    if (_dataSource === 'mock') {
-      return { source: 'mock', note: '后端已使用模拟 DEM 数据' }
-    }
-    throw new Error('[FloodAdapter] 真实 DEM 尚未接入，请先调用 setDataSource("mock")')
+    // DEM 管线未就绪，无论哪种模式均返回 mock 标注
+    return { source: 'mock', note: 'DEM 管线待接入（A 路线增量③）' }
   },
 
   clearCache(): void {

@@ -1,8 +1,10 @@
-import { ref } from 'vue'
 import type { Ref } from 'vue'
-import type { AnalysisParams, AnalysisResult } from '@/types/analysis'
-import { useApiRequest, ApiError, ErrorCode } from '@/shared/composables/useApiRequest'
+import { ref } from 'vue'
+
+import { useApiRequest } from '@/shared/composables/useApiRequest'
+import { showError } from '@/shared/utils/errorHandler'
 import { logger } from '@/shared/utils/logger'
+import type { AnalysisParams, AnalysisResult } from '@/types/analysis'
 
 export function useSiteAnalysisApi() {
   const { apiRequest } = useApiRequest()
@@ -41,30 +43,9 @@ export function useSiteAnalysisApi() {
         facilityPoi: result.facilityPoi || {},
       }
     } catch (error) {
-      // 用错误码分派，避免字符串匹配
-      if (error instanceof ApiError) {
-        switch (error.code) {
-          case ErrorCode.TIMEOUT:
-            calcError.value = '选址分析请求超时，请检查网络后重试'
-            break
-          case ErrorCode.UNAUTHORIZED:
-            calcError.value = '请先登录后再进行分析'
-            break
-          case ErrorCode.SERVER_ERROR:
-            calcError.value = '选址分析服务异常，请稍后重试'
-            break
-          case ErrorCode.NETWORK_ERROR:
-            calcError.value = '选址分析网络异常，请检查连接'
-            break
-          case ErrorCode.REQUEST_FAILED:
-            calcError.value = '选址分析参数异常，请调整筛选条件后重试'
-            break
-          default:
-            calcError.value = '选址分析失败，请稍后重试'
-        }
-      } else {
-        calcError.value = '选址分析网络异常，请稍后重试'
-      }
+      // z031: 统一走 errorHandler，消除手写 switch 与全站口径不一致
+      showError(error, { fallback: '选址分析失败，请稍后重试' })
+      calcError.value = error instanceof Error ? error.message : '选址分析失败，请稍后重试'
       return { error: calcError.value, coverage: null, matchedXiaoqu: [], facilityPoi: {} }
     } finally {
       calculating.value = false

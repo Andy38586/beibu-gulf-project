@@ -23,7 +23,8 @@ import GCSPanel from '@/core/layout/components/GCSPanel.vue'
 import { useBusinessLayers } from '@/core/map/composables/useBusinessLayers'
 import { floodAdapter } from '@/services/adapters/floodAdapter'
 import LayerControlPanel from '@/shared/components/LayerControlPanel.vue'
-import { showError } from '@/shared/utils/errorHandler'
+import { FLOOD_RISK_COLORS, FLOOD_RISK_DEFAULT } from '@/shared/constants/colors'
+import { showError, showWarning } from '@/shared/utils/errorHandler'
 import { logger } from '@/shared/utils/logger'
 import { useFloodState } from '@/stores/floodState'
 import { useFloodStore } from '@/stores/floodStore'
@@ -242,9 +243,9 @@ async function triggerFloodAnalysis(waterLevel: number, seq: number) {
     if (seq !== analysisSeq) return
     // 如果当前路由不再是 3D，丢弃过期响应防止污染 2D 渲染器
     if (!shouldRenderForCurrentRoute()) return
-    // 实际档位与请求不一致时提示
+    // b020: 实际档位与请求不一致时 UI 提示（非仅 console）
     if (actualWaterLevel !== undefined && actualWaterLevel !== waterLevel) {
-      logger.info(`[Flood] 请求水位 ${waterLevel}m，实际使用数据档位 ${actualWaterLevel}m`)
+      showWarning(`当前水位 ${waterLevel}m 无精确数据，已使用 ${actualWaterLevel}m 档位`)
     }
 
     logger.debug('[Flood] 更新淹没分析数据:', { statistics, features: features.length, riskLevel })
@@ -376,27 +377,11 @@ function renderAffectedFacilities(facilities: AffectedFacility[]) {
 }
 
 function getRiskColor(riskLevel: string) {
-  const colorMap: Record<string, string> = {
-    无风险: '#909399',
-    低风险: '#67C23A',
-    中风险: '#E6A23C',
-    高风险: '#F56C6C',
-    极高风险: '#F56C6C',
-    灾难级: '#F56C6C',
-  }
-  return colorMap[riskLevel] || '#909399'
+  return (FLOOD_RISK_COLORS[riskLevel] ?? FLOOD_RISK_DEFAULT).stroke
 }
 
 function getRiskFillColor(riskLevel: string) {
-  const colorMap: Record<string, string> = {
-    无风险: 'rgba(144, 147, 153, 0.3)',
-    低风险: 'rgba(103, 194, 58, 0.3)',
-    中风险: 'rgba(230, 162, 60, 0.3)',
-    高风险: 'rgba(245, 108, 108, 0.3)',
-    极高风险: 'rgba(245, 108, 108, 0.4)',
-    灾难级: 'rgba(245, 108, 108, 0.5)',
-  }
-  return colorMap[riskLevel] || 'rgba(144, 147, 153, 0.3)'
+  return (FLOOD_RISK_COLORS[riskLevel] ?? FLOOD_RISK_DEFAULT).fill
 }
 
 // 水位变化时更新水面高度
@@ -503,6 +488,6 @@ onUnmounted(() => {
 /* Cesium 3D路由禁用backdrop-filter，避免WebGL性能问题 */
 .flood-analysis-page :deep(.GCS-panel) {
   backdrop-filter: none !important;
-  background: rgba(255, 255, 255, 0.95) !important;
+  background: var(--GCS-bg-panel-translucent) !important;
 }
 </style>

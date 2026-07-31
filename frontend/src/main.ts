@@ -5,6 +5,8 @@ import { createApp } from 'vue'
 
 import App from './App.vue'
 import router from './router'
+import { floodAdapter } from './services/adapters/floodAdapter'
+import { forecastAdapter } from './services/adapters/forecastAdapter'
 import { logger } from './shared/utils/logger'
 
 /**
@@ -30,6 +32,11 @@ function validateEnv(): void {
 }
 
 validateEnv()
+
+// b024: 数据源由环境变量驱动，默认 mock，生产部署时设 VITE_DATA_SOURCE=api
+const dataSource = (import.meta.env.VITE_DATA_SOURCE as 'mock' | 'api') || 'mock'
+forecastAdapter.setDataSource(dataSource)
+floodAdapter.setDataSource(dataSource)
 
 // ResizeObserver polyfill for Safari < 13.1
 if (typeof window !== 'undefined' && !('ResizeObserver' in window)) {
@@ -62,6 +69,14 @@ app.config.errorHandler = (
     // 可以集成错误上报服务（如 Sentry）
     // reportErrorToService(err, info)
   }
+}
+
+// z029: 窗口级兖底——捕获未被 Vue errorHandler 覆盖的错误
+window.onerror = (message, source, lineno, colno, error) => {
+  logger.error('[window.onerror]', { message, source, lineno, colno, error })
+}
+window.onunhandledrejection = (event: PromiseRejectionEvent) => {
+  logger.error('[unhandledrejection]', event.reason)
 }
 
 app.mount('#app')

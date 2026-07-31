@@ -15,14 +15,12 @@ import { computed } from 'vue'
 import { useGCS } from '@/core/layout/useGCS.js'
 import { useFloodState } from '@/stores/floodState'
 import { usePortImpactStore } from '@/stores/portImpactStore'
-import { useWaterLevelStore } from '@/stores/waterLevelStore'
 
 const floodStore = useFloodState()
 const portImpactStore = usePortImpactStore()
-const waterLevelStore = useWaterLevelStore()
 const { cellPixel, css } = useGCS()
 // 解构出 CSS 变量供 v-bind() 使用
-const { cell8px, cell16px, cell40px } = css
+const { cell16px } = css
 
 /**
  * 计算灰色内容区样式（基于cell单位，响应式布局）
@@ -59,9 +57,6 @@ const impactLevel = computed(() => {
   return '极高'
 })
 
-/** 始终显示报告内容 */
-const showReport = computed(() => true)
-
 /** 受影响港口列表（从 floodStatistics 提取并类型收窄） */
 const affectedPorts = computed<string[]>(() => {
   const ports = floodStore.floodStatistics?.affectedPorts
@@ -77,7 +72,7 @@ const affectedPorts = computed<string[]>(() => {
     </div>
 
     <!-- 灰色内容区：3.8宽×2.8高，距标题下方0.6cell、左右各0.1cell -->
-    <div v-if="showReport" class="report-content" :style="contentStyle">
+    <div class="report-content" :style="contentStyle">
       <div v-if="floodStore.floodStatistics" class="info-item">
         <span class="info-label">淹没面积</span>
         <span class="info-value">{{ floodStore.floodStatistics.floodArea || 0 }} km²</span>
@@ -120,12 +115,6 @@ const affectedPorts = computed<string[]>(() => {
         <span class="info-value">{{ affectedPorts.join('、') }}</span>
       </div>
     </div>
-
-    <!-- 无数据提示 -->
-    <div v-else class="no-data-section">
-      <div class="no-data-text">当前水位：{{ waterLevelStore.waterLevel.toFixed(1) }} m</div>
-      <div class="no-data-hint">开始分析后显示浸没报告</div>
-    </div>
   </div>
 </template>
 
@@ -134,7 +123,7 @@ const affectedPorts = computed<string[]>(() => {
   width: 100%;
   height: 100%;
   padding: 0;
-  background: rgba(255, 255, 255, 0.95);
+  background: var(--GCS-bg-panel-translucent);
   border-radius: 8px;
   box-sizing: border-box;
   display: flex;
@@ -205,27 +194,5 @@ const affectedPorts = computed<string[]>(() => {
 .info-value.highlight {
   color: var(--GCS-color-danger);
   font-weight: 600;
-}
-
-/* 无数据提示 */
-.no-data-section {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: v-bind(cell40px) 20px;
-  gap: v-bind(cell8px);
-  flex: 1;
-}
-
-.no-data-text {
-  font-size: 14px;
-  color: var(--GCS-text-primary);
-  font-weight: 500;
-}
-
-.no-data-hint {
-  font-size: 12px;
-  color: var(--GCS-text-muted);
 }
 </style>

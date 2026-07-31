@@ -1,14 +1,15 @@
-import { ref, onMounted, onUnmounted } from 'vue'
 import type { Ref } from 'vue'
-import type { User, AuthResponse } from '@/types/api'
-import { useApiRequest } from './useApiRequest'
+import { onMounted, onUnmounted, ref } from 'vue'
 
-// 登出时重置全部业务 store，防止跨账号数据残留
-import { useSiteSelectionStateStore } from '@/stores/siteSelectionState'
 import { useFloodState } from '@/stores/floodState'
 import { usePortImpactStore } from '@/stores/portImpactStore'
-import { useWaterLevelStore } from '@/stores/waterLevelStore'
 import { useProfileStore } from '@/stores/profileStore'
+// 登出时重置全部业务 store，防止跨账号数据残留
+import { useSiteSelectionStateStore } from '@/stores/siteSelectionState'
+import { useWaterLevelStore } from '@/stores/waterLevelStore'
+import type { AuthResponse, User } from '@/types/api'
+
+import { useApiRequest } from './useApiRequest'
 
 /** localStorage 键：持久化用户信息 */
 const USER_STORAGE_KEY = 'beibu-gulf-user'
@@ -73,35 +74,31 @@ async function checkAuth(): Promise<User | null> {
 }
 
 /**
- * 应用启动时恢复认证状态
- * 通过调用 /api/auth/me 验证 Cookie 中的 Token 是否有效
+ * 应用启动时恢复认证状态（d033：始终以 Cookie 为权威）
+ * 无论 localStorage 有无 user，均尝试 /auth/me 验证 Cookie
  */
 async function restoreAuth(): Promise<User | null> {
   // 防止重复调用
   if (authRestored) {
     return user.value
   }
-
-  // 如果已有用户信息（从 localStorage 恢复），尝试验证 Token
-  if (user.value) {
-    try {
-      const data = await apiRequest<{ user: User }>('/auth/me')
-      if (data && data.user) {
-        user.value = data.user
-        // Token 验证成功，设置一个占位 token 以启用 isAuthenticated
-        setToken('restored-from-cookie')
-        authRestored = true
-        return data.user
-      }
-    } catch {
-      // Token 无效，清除用户信息
-      clearToken()
-      user.value = null
-      writeStoredUser(null)
-    }
-  }
-
   authRestored = true
+
+  try {
+    const data = await apiRequest<{ user: User }>('/auth/me')
+    if (data && data.user) {
+      user.value = data.user
+      writeStoredUser(data.user)
+      // Cookie 有效，设置占位 token 启用 isAuthenticated
+      setToken('restored-from-cookie')
+      return data.user
+    }
+  } catch {
+    // Cookie 无效或过期，清除前端状态
+    clearToken()
+    user.value = null
+    writeStoredUser(null)
+  }
   return null
 }
 
@@ -145,11 +142,11 @@ export function useAuth() {
       method: 'POST',
       body: JSON.stringify({ username, password }),
     })
-    // 空值检查
-    if (!data || !data.token || !data.user) {
+    if (!data || !data.user) {
       throw new Error('登录响应数据无效')
     }
-    setToken(data.token)
+    // d038: token 由 HttpOnly Cookie 携带，前端仅设占位符启用 isAuthenticated
+    setToken('cookie-auth')
     user.value = data.user
     writeStoredUser(data.user)
     return data.user
@@ -160,11 +157,11 @@ export function useAuth() {
       method: 'POST',
       body: JSON.stringify({ username, password }),
     })
-    // 空值检查
-    if (!data || !data.token || !data.user) {
+    if (!data || !data.user) {
       throw new Error('注册响应数据无效')
     }
-    setToken(data.token)
+    // d038: 同 login，token 走 Cookie
+    setToken('cookie-auth')
     user.value = data.user
     writeStoredUser(data.user)
     return data.user

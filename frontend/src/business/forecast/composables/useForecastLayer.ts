@@ -16,6 +16,8 @@ import { useForecastState } from '@/stores/forecastState'
 import { useMapStore } from '@/stores/mapStore'
 import type { LayerOptions, LayerType, MapRenderer } from '@/types'
 
+import { DEFAULT_CONFIDENCE } from '../constants'
+
 import { useForecastRequest } from './useForecastRequest'
 
 const INDICATORS = ['throughput', 'berth', 'traffic', 'pressure'] as const
@@ -128,7 +130,7 @@ export function useForecastLayer(): UseForecastLayerReturn {
     }
 
     try {
-      const confidence = forecastState.confidenceThresholds[indicator] || 0.8
+      const confidence = forecastState.confidenceThresholds[indicator] || DEFAULT_CONFIDENCE
       const geojson = await runInTransaction(
         () => forecastAdapter.getMapData(indicator, time, confidence, signal),
         transactionId

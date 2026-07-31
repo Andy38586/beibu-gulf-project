@@ -40,10 +40,11 @@ function formatLoss(loss: number | undefined) {
   // 非法输入防御
   const v = Number(loss)
   if (!isFinite(v)) return '—'
+  // 基础单位：万元；>= 10000万 换算为亿
   if (v >= 10000) {
-    return (v / 10000).toFixed(1) + '万'
+    return (v / 10000).toFixed(1) + '亿'
   }
-  return v.toFixed(0)
+  return v.toFixed(0) + '万'
 }
 
 /**

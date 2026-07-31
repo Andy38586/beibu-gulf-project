@@ -33,6 +33,7 @@ import LineChart from '@/visualization/charts/LineChart.vue'
 import ForecastControlPanel from './components/ForecastControlPanel.vue'
 import { useForecastLayer } from './composables/useForecastLayer'
 import { useForecastRequest } from './composables/useForecastRequest'
+import { DEFAULT_CONFIDENCE, PORT_NAMES } from './constants'
 
 const forecastState = useForecastState()
 const mapStore = useMapStore()
@@ -50,7 +51,7 @@ const isLoading = isTransactionLoading
 
 const lineXData = ref([])
 const lineSeries = ref([])
-const barXData = ref(['钦州港', '北海港', '防城港'])
+const barXData = ref([...PORT_NAMES])
 const barSeries = ref<Array<{ name: string; data: number[] }>>([])
 
 const lineViewportXMin = ref('2023-01')
@@ -71,7 +72,7 @@ async function loadTimeSeriesData(transactionId: number, signal: AbortSignal) {
     const indicator = forecastState.activeIndicator
     const granularity = forecastState.timeGranularity
     logger.debug('[ForecastPage] loadTimeSeriesData:', { indicator, granularity })
-    const confidence = forecastState.confidenceThresholds[indicator] || 0.8
+    const confidence = forecastState.confidenceThresholds[indicator] || DEFAULT_CONFIDENCE
     const cacheKey = `ts:${indicator}:${granularity}:${confidence}`
 
     // 全量数据: 首次 API 获取后缓存，后续只做窗口截取
@@ -135,7 +136,7 @@ async function loadPortComparisonData(transactionId: number, signal: AbortSignal
     const rawTime = forecastState.currentTime
     const time = rawTime.includes('-') ? rawTime : `${rawTime}-12`
     logger.debug('[ForecastPage] loadPortComparisonData:', { indicator, time })
-    const confidence = forecastState.confidenceThresholds[indicator] || 0.8
+    const confidence = forecastState.confidenceThresholds[indicator] || DEFAULT_CONFIDENCE
     const cacheKey = `cmp:${indicator}:${time}:${confidence}`
     if (requestCache.has(cacheKey)) {
       // 事务检查：即使缓存命中也要验证事务有效性
@@ -155,7 +156,7 @@ async function loadPortComparisonData(transactionId: number, signal: AbortSignal
     if (data?.ports) {
       const p = data.ports
       const cy = forecastState.currentTime.split('-')[0]
-      barXData.value = ['钦州港', '北海港', '防城港']
+      barXData.value = [...PORT_NAMES]
       barSeries.value = [
         {
           name: cy + '年',

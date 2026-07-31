@@ -14,7 +14,9 @@ export default defineConfig([
     files: ['**/*.{vue,js,mjs,jsx,ts,tsx}'],
   },
 
-  globalIgnores(['**/dist/**', '**/dist-ssr/**', '**/coverage/**']),
+  // 任何以 dist 开头的构建产物目录都跳过（dist / dist-ssr / dist-tmp / dist_verify_* 等），
+  // 避免把打包后的第三方库（Cesium/echarts/openlayers）和 chunk 误当源码 lint。
+  globalIgnores(['**/dist*/**', '**/coverage/**', '**/node_modules/**']),
 
   {
     languageOptions: {
@@ -25,6 +27,11 @@ export default defineConfig([
         ElMessageBox: 'readonly',
         ElNotification: 'readonly',
         ElLoading: 'readonly',
+        // Cesium 库以全局变量形式注入（UMD / CDN / vite 外部化），非业务未定义变量
+        Cesium: 'readonly',
+        CESIUM_BASE_URL: 'readonly',
+        CESIUM_WORKERS: 'readonly',
+        CESIUM_VERSION: 'readonly',
       },
     },
   },
@@ -69,6 +76,17 @@ export default defineConfig([
   // 新增：TypeScript recommended 规则集（关闭 no-explicit-any，阶段 10 清零后可改为 'error'）
   ...tseslint.configs.recommended,
   ...pluginVue.configs['flat/recommended'],
+
+  // TypeScript 规则仅对 .ts/.tsx/.vue 有意义；对纯 .js 误报（no-unused-expressions 等）。
+  // 在 .js 上关闭这几条 TS 规则（它们本就不该作用于无类型注解的 JS）。
+  {
+    files: ['**/*.js', '**/*.mjs', '**/*.cjs', '**/*.jsx'],
+    rules: {
+      '@typescript-eslint/no-unused-expressions': 'off',
+      '@typescript-eslint/no-this-alias': 'off',
+      '@typescript-eslint/no-array-constructor': 'off',
+    },
+  },
 
   skipFormatting,
 

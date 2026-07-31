@@ -33,6 +33,14 @@ const authLimiter = rateLimit({
 })
 app.use('/api/auth/login', authLimiter)
 
+// 注册接口专属限流（d037：防批量注册）
+const registerLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: { error: '注册尝试过于频繁，请 15 分钟后再试' },
+})
+app.use('/api/auth/register', registerLimiter)
+
 // @arch-note P1-004: CORS origin 从环境变量读取，支持生产部署
 const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:5173'
 app.use(

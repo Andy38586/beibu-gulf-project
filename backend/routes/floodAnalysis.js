@@ -4,24 +4,21 @@ import { authenticate } from '../middleware/auth.js'
 
 const router = Router()
 
-// @arch-note P2-11: 与其他业务路由对齐，全部端点需登录
-router.use(authenticate)
-
 /**
  * 洪水分析系统API路由
  *
- * 数据接口：
+ * 数据接口（免鉴权，d036：与前端 mock 模式一致，未登录也能查看）：
  * - GET /water-levels      获取基准水位数据
  * - GET /flood-areas       获取淹没范围（支持waterLevel参数）
  * - GET /flood-statistics  获取统计数据（支持waterLevel参数）
  * - GET /terrain-profiles  获取剖面数据
  * - GET /facilities        获取设施点数据
  *
- * 分析接口：
+ * 分析接口（需登录）：
  * - POST /analysis/disaster 灾害评估
  */
 
-// ==================== 数据接口 ====================
+// ==================== 数据接口（免鉴权） ====================
 
 /**
  * 获取基准水位数据
@@ -53,7 +50,8 @@ router.get('/terrain-profiles', floodAnalysisController.getTerrainProfiles)
  */
 router.get('/facilities', floodAnalysisController.getFacilities)
 
-// ==================== 分析接口 ====================
+// ==================== 分析接口（需登录） ====================
+router.use(authenticate)
 
 /**
  * 灾害评估

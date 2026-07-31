@@ -18,6 +18,26 @@ async function readJsonData(filename) {
   return JSON.parse(data)
 }
 
+/** 水位上限（米）—— 超出此值视为非法输入 */
+const MAX_WATER_LEVEL = 100
+
+/**
+ * 校验水位参数（d034：isFinite + 范围校验）
+ * @param {unknown} raw - 原始输入（query/body）
+ * @returns {number} 合法水位值
+ * @throws {BusinessError} 参数无效时抛出
+ */
+function validateWaterLevel(raw) {
+  const level = parseFloat(raw)
+  if (!Number.isFinite(level) || level < 0 || level > MAX_WATER_LEVEL) {
+    throw new BusinessError(
+      ErrorCode.INVALID_PARAMS,
+      `水位参数无效（需 0–${MAX_WATER_LEVEL} 的有限数值）`
+    )
+  }
+  return level
+}
+
 /**
  * 获取基准水位数据
  * GET /api/flood/water-levels
@@ -54,10 +74,7 @@ export async function getFloodAreas(req, res, next) {
 
     // 如果指定了水位，返回该水位对应的淹没范围
     if (waterLevel !== undefined) {
-      const level = parseFloat(waterLevel)
-      if (isNaN(level)) {
-        throw new BusinessError(ErrorCode.INVALID_PARAMS, '水位参数无效')
-      }
+      const level = validateWaterLevel(waterLevel)
 
       // 向上取档（返回 >= 请求水位的最低档位）
       const floodZone = data.floodZones.find((zone) => zone.waterLevel >= level)
@@ -112,10 +129,7 @@ export async function getFloodStatistics(req, res, next) {
     const data = await readJsonData('floodStatistics.json')
 
     if (waterLevel !== undefined) {
-      const level = parseFloat(waterLevel)
-      if (isNaN(level)) {
-        throw new BusinessError(ErrorCode.INVALID_PARAMS, '水位参数无效')
-      }
+      const level = validateWaterLevel(waterLevel)
 
       // 找到最接近的水位统计
       const stats = data.statistics.find((s) => s.waterLevel >= level)
@@ -196,11 +210,11 @@ export async function analyzeDisaster(req, res, next) {
   try {
     const { waterLevel } = req.body
 
-    if (waterLevel === undefined || isNaN(parseFloat(waterLevel))) {
+    if (waterLevel === undefined) {
       throw new BusinessError(ErrorCode.INVALID_PARAMS, '缺少水位参数')
     }
 
-    const level = parseFloat(waterLevel)
+    const level = validateWaterLevel(waterLevel)
 
     // 读取设施数据和淹没范围
     const facilityData = await readJsonData('facilityPoints.json')

@@ -24,13 +24,14 @@ import { useRouter } from 'vue-router'
 import AppLayout from '@/core/layout/AppLayout.vue'
 import GCSPanel from '@/core/layout/components/GCSPanel.vue'
 import { useGCS } from '@/core/layout/useGCS.js'
-import LoginPanel from '@/shared/components/LoginPanel.vue'
 import PaginatedListPanel from '@/shared/components/PaginatedListPanel.vue'
 import PlanSaveModal from '@/shared/components/PlanSaveModal.vue'
 import { useAuth } from '@/shared/composables/useAuth'
 import { usePlans } from '@/shared/composables/usePlans'
 import { logger } from '@/shared/utils/logger'
 import { useFloodState } from '@/stores/floodState'
+
+import LoginPanel from './LoginPanel.vue'
 
 const { css } = useGCS()
 import type { AffectedFacility, FloodFeature, FloodStatistics } from '@/types/business/base'
@@ -264,11 +265,11 @@ watch(
       <template #right>
         <GCSPanel :w="4" :h="8" anchor="top-right" :offset-x="0" :offset-y="1.25">
           <div class="profile-content">
-            <!-- 顶部：登录面板（用户信息区域） -->
-            <LoginPanel />
+            <!-- c013: 两张屏 v-if 互换——未登录显示登录面板，已登录显示个人中心 -->
+            <LoginPanel v-if="!user" />
 
-            <!-- 中部：收藏夹内容 -->
-            <div class="favorites-container">
+            <!-- 个人中心：收藏夹内容（仅登录后显示） -->
+            <div v-else class="favorites-container">
               <!-- 错误提示 -->
               <div v-if="plansError" class="plans-error">
                 {{ plansError }}
@@ -583,7 +584,7 @@ watch(
   padding-left: 4px;
 }
 
-.fav-section :deep(.favorite-list-panel) {
+.fav-section :deep(.paginated-list-panel) {
   background: var(--GCS-bg-container);
 }
 

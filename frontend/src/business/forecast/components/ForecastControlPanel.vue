@@ -8,6 +8,8 @@ import { computed, onMounted, onUnmounted, reactive } from 'vue'
 
 import { useForecastState } from '@/stores/forecastState'
 
+import { BASE_YEAR, DEFAULT_CONFIDENCE, END_YEAR } from '../constants'
+
 const forecastState = useForecastState()
 const CONFIRM_DELAY = 3000
 
@@ -79,7 +81,7 @@ function handleGlobalClick(e: Event) {
 }
 
 function getConf(key: string) {
-  return forecastState.confidenceThresholds[key] ?? 0.8
+  return forecastState.confidenceThresholds[key] ?? DEFAULT_CONFIDENCE
 }
 
 onMounted(() => {
@@ -96,9 +98,6 @@ const isYearMode = computed({
   get: () => forecastState.timeGranularity === 'year',
   set: (v) => forecastState.setTimeGranularity(v ? 'year' : 'month'),
 })
-
-const BASE_YEAR = 2023
-const END_YEAR = 2035
 
 const maxSteps = computed(() =>
   isYearMode.value ? END_YEAR - BASE_YEAR : (END_YEAR - BASE_YEAR + 1) * 12

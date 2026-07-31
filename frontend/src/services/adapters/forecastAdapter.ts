@@ -120,7 +120,7 @@ function _lookupValue(values: Record<string, number>, time: string): number | nu
   return values[nearest] ?? null
 }
 
-let _dataSource: 'mock' | 'api' = 'api'
+let _dataSource: 'mock' | 'api' = 'mock'
 
 async function _fetchMock(indicator: string): Promise<ForecastSeries> {
   const url = `${MOCK_BASE}/${indicator}.json`

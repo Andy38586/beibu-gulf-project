@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import type { ComputedRef, Ref, ShallowRef } from 'vue'
 import { computed, ref, shallowRef } from 'vue'
 
+import { DEFAULT_CONFIDENCE } from '@/business/forecast/constants'
 import type { ForecastSeries } from '@/types/api/forecast'
 import type { ConfidenceThresholds, ForecastTimeRange } from '@/types/business/base'
 
@@ -20,10 +21,10 @@ export const useForecastState = defineStore('forecast', () => {
   const activeIndicator: Ref<string> = ref('throughput')
 
   const confidenceThresholds: Ref<ConfidenceThresholds> = ref({
-    throughput: 0.8,
-    berth: 0.8,
-    traffic: 0.8,
-    pressure: 0.8,
+    throughput: DEFAULT_CONFIDENCE,
+    berth: DEFAULT_CONFIDENCE,
+    traffic: DEFAULT_CONFIDENCE,
+    pressure: DEFAULT_CONFIDENCE,
   })
 
   const activeForecastLayer: Ref<string | null> = ref(null)
@@ -68,7 +69,12 @@ export const useForecastState = defineStore('forecast', () => {
     isPlaying.value = false
     playSpeed.value = 500
     activeIndicator.value = 'throughput'
-    confidenceThresholds.value = { throughput: 0.8, berth: 0.8, traffic: 0.8, pressure: 0.8 }
+    confidenceThresholds.value = {
+      throughput: DEFAULT_CONFIDENCE,
+      berth: DEFAULT_CONFIDENCE,
+      traffic: DEFAULT_CONFIDENCE,
+      pressure: DEFAULT_CONFIDENCE,
+    }
     activeForecastLayer.value = null
     dataCache.value = new Map()
   }

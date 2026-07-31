@@ -68,8 +68,8 @@ export default defineConfig({
     target: 'es2020',
     // 输出目录
     outDir: 'dist',
-    // 不自动清空输出目录（sandbox 安全机制冲突，由外部手动清理）
-    emptyOutDir: false,
+    // 构建前清空输出目录，避免历史 chunk 堆积（Vite 8 已无 sandbox 冲突）
+    emptyOutDir: true,
     // 启用源码映射（生产环境可关闭）
     sourcemap: false,
     // 压缩选项（Vite 8 默认使用 rolldown 内置压缩，无需单独指定 esbuild）

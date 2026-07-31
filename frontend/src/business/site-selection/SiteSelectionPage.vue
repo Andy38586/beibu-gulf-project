@@ -22,7 +22,6 @@ import { onBeforeRouteLeave } from 'vue-router'
 import AppLayout from '@/core/layout/AppLayout.vue'
 import GCSPanel from '@/core/layout/components/GCSPanel.vue'
 import { useBusinessLayers } from '@/core/map/composables/useBusinessLayers'
-import { useLayerManager } from '@/core/map/composables/useLayerManager'
 import { useMapControls } from '@/core/map/composables/useMapControls'
 import LayerControlPanel from '@/shared/components/LayerControlPanel.vue'
 import PaginatedListPanel from '@/shared/components/PaginatedListPanel.vue'
@@ -40,7 +39,6 @@ import { useAnalysisLayer } from './composables/useAnalysisLayer'
 const { stopBreathing, zoomToCity, zoomToDistrict, mapInstance } = useMapControls()
 const mapStore = useMapStore()
 const stateStore = useSiteSelectionStateStore()
-const { registerToggleable } = useLayerManager()
 const { manager: businessLayerManager } = useBusinessLayers()
 const { createUpdateHandler } = useAnalysisLayer() as unknown as {
   createUpdateHandler: (_manager: unknown) => (_result: unknown) => Promise<void>
@@ -109,6 +107,7 @@ function handleResult(result: Partial<AnalysisResult>): void {
 
 /**
  * 显示指定设施的POI图层（互斥，只显示一个）
+ * a014: 统一经 businessLayerManager 注册，不再直调 renderer
  */
 function handleShowFacilityLayer(data: {
   type: string
@@ -116,13 +115,9 @@ function handleShowFacilityLayer(data: {
   color: string
   label: string
 }): void {
-  const renderer = mapInstance.value?.getRenderer?.()
-  if (!renderer) return
-
   // 先移除旧的设施POI图层
   if (activeFacilityLayerKey.value) {
-    renderer.removeLayer(activeFacilityLayerKey.value)
-    mapStore.removeLayer(activeFacilityLayerKey.value)
+    businessLayerManager.remove(activeFacilityLayerKey.value)
     activeFacilityLayerKey.value = null
   }
 
@@ -136,14 +131,19 @@ function handleShowFacilityLayer(data: {
     name: p.name || label,
   }))
 
-  renderer.addPointLayer(layerKey, points, {
-    size: 8,
-    color,
-    labelField: 'name',
-    featureType: layerKey,
+  businessLayerManager.register(layerKey, {
+    label: `${label} POI`,
+    layerType: 'points',
+    data: points,
+    options: {
+      size: 8,
+      color,
+      labelField: 'name',
+      featureType: layerKey,
+    },
+    visible: true,
   })
 
-  registerToggleable(layerKey, `${label} POI`, renderer)
   activeFacilityLayerKey.value = layerKey
 }
 
@@ -152,12 +152,7 @@ function handleShowFacilityLayer(data: {
  */
 function handleHideFacilityLayer(): void {
   if (!activeFacilityLayerKey.value) return
-
-  const renderer = mapInstance.value?.getRenderer?.()
-  if (renderer) {
-    renderer.removeLayer(activeFacilityLayerKey.value)
-  }
-  mapStore.removeLayer(activeFacilityLayerKey.value)
+  businessLayerManager.remove(activeFacilityLayerKey.value)
   activeFacilityLayerKey.value = null
 }
 

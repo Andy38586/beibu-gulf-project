@@ -1,6 +1,0 @@
-# 前端 lint + format（仅检查暂存文件）
-# husky v9：直接写命令，不需要 source _/husky.sh
-# 注意：git 执行 hook 时 cwd 默认即为仓库根，故此处不 `cd frontend`。
-# .lintstagedrc.json 放在仓库根，glob 为 `frontend/src/**/*.{ts,vue,js}`（git 根相对路径），
-# 从仓库根运行 lint-staged 才能正确匹配暂存的前端文件。
-npx lint-staged

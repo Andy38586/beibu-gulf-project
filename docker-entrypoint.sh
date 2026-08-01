@@ -1,11 +1,79 @@
 #!/bin/sh
-# 启动后端（express，监听 3000）
+# 北部湾港 WebGIS 容器启动脚本
+# 职责：条件生成 HTTPS 配置 → 启动后端 + nginx → 优雅关停
+
+# === 1. 条件生成 HTTPS 配置（证书存在时才启用 443） ===
+if [ -f /etc/nginx/certs/fullchain.pem ] && [ -f /etc/nginx/certs/privkey.pem ]; then
+  cat > /etc/nginx/http.d/https.conf <<'EOF'
+server {
+    listen 443 ssl;
+    server_name localhost;
+    ssl_certificate     /etc/nginx/certs/fullchain.pem;
+    ssl_certificate_key /etc/nginx/certs/privkey.pem;
+    ssl_protocols       TLSv1.2 TLSv1.3;
+    ssl_ciphers         HIGH:!aNULL:!MD5;
+    ssl_prefer_server_ciphers on;
+    ssl_session_cache   shared:SSL:10m;
+    ssl_session_timeout 10m;
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    location / {
+        root /app/frontend/dist;
+        try_files $uri $uri/ /index.html;
+    }
+    location /api/ {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+    location /assets/ {
+        root /app/frontend/dist;
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+    location /data/ {
+        root /app/frontend/dist;
+        expires 7d;
+        add_header Cache-Control "public";
+    }
+    location /cesium/ {
+        root /app/frontend/dist;
+        expires 30d;
+        add_header Cache-Control "public";
+    }
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml;
+    gzip_min_length 1000;
+}
+EOF
+  echo "[entrypoint] TLS 证书已检测，HTTPS (443) 已启用"
+else
+  # 确保无残留配置（容器复用时）
+  rm -f /etc/nginx/http.d/https.conf
+  echo "[entrypoint] 未检测到 TLS 证书，仅 HTTP (80) 服务"
+fi
+
+# === 2. 启动后端（express，监听 3000） ===
 cd /app/backend && node index.js &
 BACKEND_PID=$!
 
-# 启动 nginx（代理前端静态资源 + /api 反向代理）
+# === 3. 启动 nginx ===
 nginx -g 'daemon off;' &
 NGINX_PID=$!
+
+# === 4. 优雅关停：转发 SIGTERM/SIGINT 给子进程 ===
+shutdown() {
+  echo "[entrypoint] 收到关停信号，正在优雅停止..."
+  kill -TERM $BACKEND_PID 2>/dev/null
+  kill -QUIT $NGINX_PID 2>/dev/null
+  wait $BACKEND_PID $NGINX_PID 2>/dev/null
+  exit 0
+}
+trap shutdown TERM INT
 
 # 等待任一进程退出
 wait -n $BACKEND_PID $NGINX_PID

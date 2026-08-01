@@ -114,10 +114,10 @@ export interface ForecastTimeRange {
 
 /** 置信度阈值 */
 export interface ConfidenceThresholds {
-  throughput: number
+  cargo: number
+  container: number
   berth: number
   traffic: number
-  pressure: number
   /** 开放扩展：未来可能新增指标（如 gdp、population）的置信度阈值。
    *  参考 §7.7。 */
   [key: string]: number

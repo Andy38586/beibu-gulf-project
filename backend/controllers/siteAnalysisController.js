@@ -1,13 +1,14 @@
 import { runSiteAnalysis } from '../services/siteAnalysisService.js'
 import * as facilitiesRepo from '../repositories/facilitiesRepository.js'
-import { BusinessError } from '../utils/BusinessError.js'
+import { BusinessError, ErrorCode } from '../utils/BusinessError.js'
+import { sendSuccess } from '../utils/response.js'
 
-export async function analyze(req, res) {
+export async function analyze(req, res, next) {
   try {
     const { selectedKeys, typeSettings, weights } = req.body
 
     if (!selectedKeys || !typeSettings) {
-      return res.status(400).json({ error: '缺少必要参数: selectedKeys, typeSettings' })
+      throw new BusinessError(ErrorCode.INVALID_PARAMS, '缺少必要参数: selectedKeys, typeSettings')
     }
 
     // @arch-note 103/104: 校验权重范围（1-5）
@@ -16,9 +17,10 @@ export async function analyze(req, res) {
         if (setting.importance !== undefined) {
           const importance = Number(setting.importance)
           if (isNaN(importance) || importance < 1 || importance > 5) {
-            return res.status(400).json({
-              error: `设施类型 ${key} 的权重值无效，应在 1-5 之间`,
-            })
+            throw new BusinessError(
+              ErrorCode.INVALID_PARAMS,
+              `设施类型 ${key} 的权重值无效，应在 1-5 之间`
+            )
           }
         }
       }
@@ -28,9 +30,10 @@ export async function analyze(req, res) {
     const validTypes = facilitiesRepo.getAvailableTypes()
     for (const key of selectedKeys) {
       if (!validTypes.includes(key)) {
-        return res
-          .status(400)
-          .json({ error: `未知设施类型: ${key}，可用类型: ${validTypes.join(', ')}` })
+        throw new BusinessError(
+          ErrorCode.INVALID_PARAMS,
+          `未知设施类型: ${key}，可用类型: ${validTypes.join(', ')}`
+        )
       }
       facilityData[key] = await facilitiesRepo.findByType(key)
     }
@@ -40,7 +43,7 @@ export async function analyze(req, res) {
       if (setting.radius !== undefined) {
         const radius = Number(setting.radius)
         if (isNaN(radius) || radius <= 0) {
-          return res.status(400).json({ error: `设施类型 ${key} 的半径无效，应为正数` })
+          throw new BusinessError(ErrorCode.INVALID_PARAMS, `设施类型 ${key} 的半径无效，应为正数`)
         }
       }
     }
@@ -48,12 +51,12 @@ export async function analyze(req, res) {
     // @arch-note P2-08: 权重校验（若提供，逐项为 0~10 的有限数）
     if (weights !== undefined) {
       if (typeof weights !== 'object' || weights === null || Array.isArray(weights)) {
-        return res.status(400).json({ error: 'weights 应为对象' })
+        throw new BusinessError(ErrorCode.INVALID_PARAMS, 'weights 应为对象')
       }
       for (const [key, w] of Object.entries(weights)) {
         const weight = Number(w)
         if (isNaN(weight) || !isFinite(weight) || weight < 0 || weight > 10) {
-          return res.status(400).json({ error: `权重 ${key} 无效，应为 0-10 之间的数字` })
+          throw new BusinessError(ErrorCode.INVALID_PARAMS, `权重 ${key} 无效，应为 0-10 之间的数字`)
         }
       }
     }
@@ -69,15 +72,10 @@ export async function analyze(req, res) {
     })
     // @arch-note P1-09: 业务失败以 422 返回，不再用 200 携带错误体
     if (result && result.error) {
-      return res.status(422).json({ error: result.error })
+      throw new BusinessError(ErrorCode.ANALYSIS_FAILED, result.error)
     }
-    res.json(result)
+    sendSuccess(res, result)
   } catch (error) {
-    // @arch-note P1-08: BusinessError 统一携带 status，按码返回
-    if (error instanceof BusinessError) {
-      return res.status(error.status).json({ error: error.message })
-    }
-    console.error('选址分析失败:', error)
-    res.status(500).json({ error: '选址分析计算失败' })
+    next(error)
   }
 }

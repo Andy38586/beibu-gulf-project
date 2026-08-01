@@ -1,4 +1,4 @@
-// 港口（来自 public/data/ports.json）
+// 港口（来自 backend/data/ports.json，经 GET /api/ports 返回）
 // 已统一使用 lng/lat 命名规范（规范 3.1）
 export interface Port {
   id: string

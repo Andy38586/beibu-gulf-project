@@ -10,12 +10,20 @@ import authRouter from './routes/auth.js'
 import plansRouter from './routes/plans.js'
 import forecastRouter from './routes/forecast.js'
 import floodRouter from './routes/floodAnalysis.js'
+import portsRouter from './routes/ports.js'
 import { BusinessError } from './utils/BusinessError.js'
+import { logger } from './utils/logger.js'
+import { sendSuccess } from './utils/response.js'
 
 const app = express()
 
 // 安全中间件：设置 HTTP 安全头
 app.use(helmet())
+
+// 健康检查端点（置于限流器之前，避免探针触发限流）
+app.get('/api/health', (req, res) => {
+  sendSuccess(res, { status: 'ok' })
+})
 
 // 限流中间件：防止暴力破解和 DDoS
 const limiter = rateLimit({
@@ -49,7 +57,7 @@ app.use(
     credentials: true,
   })
 )
-app.use(express.json())
+app.use(express.json({ limit: '1mb' }))
 app.use(cookieParser())
 app.use('/api/markers', markersRouter)
 app.use('/api/facilities', facilitiesRouter)
@@ -58,9 +66,7 @@ app.use('/api/auth', authRouter)
 app.use('/api/plans', plansRouter)
 app.use('/api/forecast', forecastRouter)
 app.use('/api/flood', floodRouter)
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok' })
-})
+app.use('/api/ports', portsRouter)
 
 // [FIXED 009] 404错误处理中间件
 app.use((req, res) => {
@@ -74,9 +80,7 @@ app.use((err, req, res, _next) => {
     return res.status(err.status).json({ code: err.code, error: err.message })
   }
   // [FIXED 016] 仅在开发环境输出详细错误
-  if (process.env.NODE_ENV !== 'test') {
-    console.error('未捕获的服务器错误:', err.message)
-  }
+  logger.error('未捕获的服务器错误:', err.message)
   res.status(500).json({
     error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message,
   })

@@ -1,0 +1,1269 @@
+{
+  "indicator": "cargo",
+  "unit": "万吨",
+  "data": {
+    "qinzhou": {
+      "historical": [
+        {
+          "time": "2021-01",
+          "value": 1313.75,
+          "type": "historical"
+        },
+        {
+          "time": "2021-02",
+          "value": 1088.95,
+          "type": "historical"
+        },
+        {
+          "time": "2021-03",
+          "value": 1408.91,
+          "type": "historical"
+        },
+        {
+          "time": "2021-04",
+          "value": 1486.72,
+          "type": "historical"
+        },
+        {
+          "time": "2021-05",
+          "value": 1380.55,
+          "type": "historical"
+        },
+        {
+          "time": "2021-06",
+          "value": 1330.82,
+          "type": "historical"
+        },
+        {
+          "time": "2021-07",
+          "value": 1319.05,
+          "type": "historical"
+        },
+        {
+          "time": "2021-08",
+          "value": 1377.67,
+          "type": "historical"
+        },
+        {
+          "time": "2021-09",
+          "value": 1425.59,
+          "type": "historical"
+        },
+        {
+          "time": "2021-10",
+          "value": 1329.11,
+          "type": "historical"
+        },
+        {
+          "time": "2021-11",
+          "value": 1564.75,
+          "type": "historical"
+        },
+        {
+          "time": "2021-12",
+          "value": 1673.04,
+          "type": "historical"
+        },
+        {
+          "time": "2022-01",
+          "value": 1386.35,
+          "type": "historical"
+        },
+        {
+          "time": "2022-02",
+          "value": 980.03,
+          "type": "historical"
+        },
+        {
+          "time": "2022-03",
+          "value": 1470.12,
+          "type": "historical"
+        },
+        {
+          "time": "2022-04",
+          "value": 1468.13,
+          "type": "historical"
+        },
+        {
+          "time": "2022-05",
+          "value": 1493.29,
+          "type": "historical"
+        },
+        {
+          "time": "2022-06",
+          "value": 1540.54,
+          "type": "historical"
+        },
+        {
+          "time": "2022-07",
+          "value": 1370.99,
+          "type": "historical"
+        },
+        {
+          "time": "2022-08",
+          "value": 1316.5,
+          "type": "historical"
+        },
+        {
+          "time": "2022-09",
+          "value": 1402.07,
+          "type": "historical"
+        },
+        {
+          "time": "2022-10",
+          "value": 1490.28,
+          "type": "historical"
+        },
+        {
+          "time": "2022-11",
+          "value": 1654.44,
+          "type": "historical"
+        },
+        {
+          "time": "2022-12",
+          "value": 1784.0,
+          "type": "historical"
+        },
+        {
+          "time": "2023-01",
+          "value": 1468.5,
+          "type": "historical"
+        },
+        {
+          "time": "2023-02",
+          "value": 1323.79,
+          "type": "historical"
+        },
+        {
+          "time": "2023-03",
+          "value": 1452.54,
+          "type": "historical"
+        },
+        {
+          "time": "2023-04",
+          "value": 1625.02,
+          "type": "historical"
+        },
+        {
+          "time": "2023-05",
+          "value": 1701.05,
+          "type": "historical"
+        },
+        {
+          "time": "2023-06",
+          "value": 1605.73,
+          "type": "historical"
+        },
+        {
+          "time": "2023-07",
+          "value": 1533.97,
+          "type": "historical"
+        },
+        {
+          "time": "2023-08",
+          "value": 1664.53,
+          "type": "historical"
+        },
+        {
+          "time": "2023-09",
+          "value": 1658.26,
+          "type": "historical"
+        },
+        {
+          "time": "2023-10",
+          "value": 1546.26,
+          "type": "historical"
+        },
+        {
+          "time": "2023-11",
+          "value": 1770.59,
+          "type": "historical"
+        },
+        {
+          "time": "2023-12",
+          "value": 1962.98,
+          "type": "historical"
+        },
+        {
+          "time": "2024-01",
+          "value": 1604.28,
+          "type": "historical"
+        },
+        {
+          "time": "2024-02",
+          "value": 1451.7,
+          "type": "historical"
+        },
+        {
+          "time": "2024-03",
+          "value": 1776.56,
+          "type": "historical"
+        },
+        {
+          "time": "2024-04",
+          "value": 1745.79,
+          "type": "historical"
+        },
+        {
+          "time": "2024-05",
+          "value": 1778.97,
+          "type": "historical"
+        },
+        {
+          "time": "2024-06",
+          "value": 1815.0,
+          "type": "historical"
+        },
+        {
+          "time": "2024-07",
+          "value": 1609.65,
+          "type": "historical"
+        },
+        {
+          "time": "2024-08",
+          "value": 1813.17,
+          "type": "historical"
+        },
+        {
+          "time": "2024-09",
+          "value": 1765.21,
+          "type": "historical"
+        },
+        {
+          "time": "2024-10",
+          "value": 1673.06,
+          "type": "historical"
+        },
+        {
+          "time": "2024-11",
+          "value": 1813.73,
+          "type": "historical"
+        },
+        {
+          "time": "2024-12",
+          "value": 1917.4,
+          "type": "historical"
+        },
+        {
+          "time": "2025-01",
+          "value": 1731.94,
+          "type": "historical"
+        },
+        {
+          "time": "2025-02",
+          "value": 1521.49,
+          "type": "historical"
+        },
+        {
+          "time": "2025-03",
+          "value": 1846.84,
+          "type": "historical"
+        },
+        {
+          "time": "2025-04",
+          "value": 1949.05,
+          "type": "historical"
+        },
+        {
+          "time": "2025-05",
+          "value": 2116.44,
+          "type": "historical"
+        },
+        {
+          "time": "2025-06",
+          "value": 1971.39,
+          "type": "historical"
+        },
+        {
+          "time": "2025-07",
+          "value": 1856.36,
+          "type": "historical"
+        },
+        {
+          "time": "2025-08",
+          "value": 1900.35,
+          "type": "historical"
+        },
+        {
+          "time": "2025-09",
+          "value": 1792.49,
+          "type": "historical"
+        },
+        {
+          "time": "2025-10",
+          "value": 2000.47,
+          "type": "historical"
+        },
+        {
+          "time": "2025-11",
+          "value": 1845.12,
+          "type": "historical"
+        },
+        {
+          "time": "2025-12",
+          "value": 2044.42,
+          "type": "historical"
+        },
+        {
+          "time": "2026-01",
+          "value": 1851.93,
+          "type": "historical"
+        },
+        {
+          "time": "2026-02",
+          "value": 1559.34,
+          "type": "historical"
+        },
+        {
+          "time": "2026-03",
+          "value": 1880.82,
+          "type": "historical"
+        },
+        {
+          "time": "2026-04",
+          "value": 1780.4,
+          "type": "historical"
+        },
+        {
+          "time": "2026-05",
+          "value": 1756.34,
+          "type": "historical"
+        },
+        {
+          "time": "2026-06",
+          "value": 1840.93,
+          "type": "historical"
+        }
+      ],
+      "spatial": {
+        "type": "FeatureCollection",
+        "features": [
+          {
+            "type": "Feature",
+            "geometry": {
+              "type": "Point",
+              "coordinates": [
+                108.62,
+                21.95
+              ]
+            },
+            "properties": {
+              "portId": "qinzhou",
+              "portName": "钦州港",
+              "values": {
+                "2021-01": 1313.75,
+                "2021-02": 1088.95,
+                "2021-03": 1408.91,
+                "2021-04": 1486.72,
+                "2021-05": 1380.55,
+                "2021-06": 1330.82,
+                "2021-07": 1319.05,
+                "2021-08": 1377.67,
+                "2021-09": 1425.59,
+                "2021-10": 1329.11,
+                "2021-11": 1564.75,
+                "2021-12": 1673.04,
+                "2022-01": 1386.35,
+                "2022-02": 980.03,
+                "2022-03": 1470.12,
+                "2022-04": 1468.13,
+                "2022-05": 1493.29,
+                "2022-06": 1540.54,
+                "2022-07": 1370.99,
+                "2022-08": 1316.5,
+                "2022-09": 1402.07,
+                "2022-10": 1490.28,
+                "2022-11": 1654.44,
+                "2022-12": 1784.0,
+                "2023-01": 1468.5,
+                "2023-02": 1323.79,
+                "2023-03": 1452.54,
+                "2023-04": 1625.02,
+                "2023-05": 1701.05,
+                "2023-06": 1605.73,
+                "2023-07": 1533.97,
+                "2023-08": 1664.53,
+                "2023-09": 1658.26,
+                "2023-10": 1546.26,
+                "2023-11": 1770.59,
+                "2023-12": 1962.98,
+                "2024-01": 1604.28,
+                "2024-02": 1451.7,
+                "2024-03": 1776.56,
+                "2024-04": 1745.79,
+                "2024-05": 1778.97,
+                "2024-06": 1815.0,
+                "2024-07": 1609.65,
+                "2024-08": 1813.17,
+                "2024-09": 1765.21,
+                "2024-10": 1673.06,
+                "2024-11": 1813.73,
+                "2024-12": 1917.4,
+                "2025-01": 1731.94,
+                "2025-02": 1521.49,
+                "2025-03": 1846.84,
+                "2025-04": 1949.05,
+                "2025-05": 2116.44,
+                "2025-06": 1971.39,
+                "2025-07": 1856.36,
+                "2025-08": 1900.35,
+                "2025-09": 1792.49,
+                "2025-10": 2000.47,
+                "2025-11": 1845.12,
+                "2025-12": 2044.42,
+                "2026-01": 1851.93,
+                "2026-02": 1559.34,
+                "2026-03": 1880.82,
+                "2026-04": 1780.4,
+                "2026-05": 1756.34,
+                "2026-06": 1840.93
+              }
+            }
+          }
+        ]
+      }
+    },
+    "beihai": {
+      "historical": [
+        {
+          "time": "2021-01",
+          "value": 304.84,
+          "type": "historical"
+        },
+        {
+          "time": "2021-02",
+          "value": 300.73,
+          "type": "historical"
+        },
+        {
+          "time": "2021-03",
+          "value": 330.35,
+          "type": "historical"
+        },
+        {
+          "time": "2021-04",
+          "value": 290.25,
+          "type": "historical"
+        },
+        {
+          "time": "2021-05",
+          "value": 331.99,
+          "type": "historical"
+        },
+        {
+          "time": "2021-06",
+          "value": 330.0,
+          "type": "historical"
+        },
+        {
+          "time": "2021-07",
+          "value": 374.85,
+          "type": "historical"
+        },
+        {
+          "time": "2021-08",
+          "value": 351.0,
+          "type": "historical"
+        },
+        {
+          "time": "2021-09",
+          "value": 408.16,
+          "type": "historical"
+        },
+        {
+          "time": "2021-10",
+          "value": 409.68,
+          "type": "historical"
+        },
+        {
+          "time": "2021-11",
+          "value": 423.01,
+          "type": "historical"
+        },
+        {
+          "time": "2021-12",
+          "value": 467.8,
+          "type": "historical"
+        },
+        {
+          "time": "2022-01",
+          "value": 384.0,
+          "type": "historical"
+        },
+        {
+          "time": "2022-02",
+          "value": 239.31,
+          "type": "historical"
+        },
+        {
+          "time": "2022-03",
+          "value": 339.92,
+          "type": "historical"
+        },
+        {
+          "time": "2022-04",
+          "value": 432.35,
+          "type": "historical"
+        },
+        {
+          "time": "2022-05",
+          "value": 378.92,
+          "type": "historical"
+        },
+        {
+          "time": "2022-06",
+          "value": 364.76,
+          "type": "historical"
+        },
+        {
+          "time": "2022-07",
+          "value": 369.24,
+          "type": "historical"
+        },
+        {
+          "time": "2022-08",
+          "value": 351.67,
+          "type": "historical"
+        },
+        {
+          "time": "2022-09",
+          "value": 376.64,
+          "type": "historical"
+        },
+        {
+          "time": "2022-10",
+          "value": 419.06,
+          "type": "historical"
+        },
+        {
+          "time": "2022-11",
+          "value": 354.57,
+          "type": "historical"
+        },
+        {
+          "time": "2022-12",
+          "value": 407.9,
+          "type": "historical"
+        },
+        {
+          "time": "2023-01",
+          "value": 365.41,
+          "type": "historical"
+        },
+        {
+          "time": "2023-02",
+          "value": 354.28,
+          "type": "historical"
+        },
+        {
+          "time": "2023-03",
+          "value": 468.18,
+          "type": "historical"
+        },
+        {
+          "time": "2023-04",
+          "value": 428.72,
+          "type": "historical"
+        },
+        {
+          "time": "2023-05",
+          "value": 431.34,
+          "type": "historical"
+        },
+        {
+          "time": "2023-06",
+          "value": 549.59,
+          "type": "historical"
+        },
+        {
+          "time": "2023-07",
+          "value": 478.38,
+          "type": "historical"
+        },
+        {
+          "time": "2023-08",
+          "value": 548.21,
+          "type": "historical"
+        },
+        {
+          "time": "2023-09",
+          "value": 461.43,
+          "type": "historical"
+        },
+        {
+          "time": "2023-10",
+          "value": 501.84,
+          "type": "historical"
+        },
+        {
+          "time": "2023-11",
+          "value": 352.64,
+          "type": "historical"
+        },
+        {
+          "time": "2023-12",
+          "value": 360.59,
+          "type": "historical"
+        },
+        {
+          "time": "2024-01",
+          "value": 450.74,
+          "type": "historical"
+        },
+        {
+          "time": "2024-02",
+          "value": 367.59,
+          "type": "historical"
+        },
+        {
+          "time": "2024-03",
+          "value": 453.53,
+          "type": "historical"
+        },
+        {
+          "time": "2024-04",
+          "value": 478.78,
+          "type": "historical"
+        },
+        {
+          "time": "2024-05",
+          "value": 587.2,
+          "type": "historical"
+        },
+        {
+          "time": "2024-06",
+          "value": 523.43,
+          "type": "historical"
+        },
+        {
+          "time": "2024-07",
+          "value": 490.36,
+          "type": "historical"
+        },
+        {
+          "time": "2024-08",
+          "value": 496.12,
+          "type": "historical"
+        },
+        {
+          "time": "2024-09",
+          "value": 476.88,
+          "type": "historical"
+        },
+        {
+          "time": "2024-10",
+          "value": 389.1,
+          "type": "historical"
+        },
+        {
+          "time": "2024-11",
+          "value": 431.09,
+          "type": "historical"
+        },
+        {
+          "time": "2024-12",
+          "value": 441.03,
+          "type": "historical"
+        },
+        {
+          "time": "2025-01",
+          "value": 403.72,
+          "type": "historical"
+        },
+        {
+          "time": "2025-02",
+          "value": 319.06,
+          "type": "historical"
+        },
+        {
+          "time": "2025-03",
+          "value": 452.69,
+          "type": "historical"
+        },
+        {
+          "time": "2025-04",
+          "value": 431.97,
+          "type": "historical"
+        },
+        {
+          "time": "2025-05",
+          "value": 393.0,
+          "type": "historical"
+        },
+        {
+          "time": "2025-06",
+          "value": 498.91,
+          "type": "historical"
+        },
+        {
+          "time": "2025-07",
+          "value": 436.76,
+          "type": "historical"
+        },
+        {
+          "time": "2025-08",
+          "value": 524.26,
+          "type": "historical"
+        },
+        {
+          "time": "2025-09",
+          "value": 484.02,
+          "type": "historical"
+        },
+        {
+          "time": "2025-10",
+          "value": 519.84,
+          "type": "historical"
+        },
+        {
+          "time": "2025-11",
+          "value": 445.49,
+          "type": "historical"
+        },
+        {
+          "time": "2025-12",
+          "value": 476.38,
+          "type": "historical"
+        },
+        {
+          "time": "2026-01",
+          "value": 452.59,
+          "type": "historical"
+        },
+        {
+          "time": "2026-02",
+          "value": 373.22,
+          "type": "historical"
+        },
+        {
+          "time": "2026-03",
+          "value": 475.55,
+          "type": "historical"
+        },
+        {
+          "time": "2026-04",
+          "value": 487.11,
+          "type": "historical"
+        },
+        {
+          "time": "2026-05",
+          "value": 545.54,
+          "type": "historical"
+        },
+        {
+          "time": "2026-06",
+          "value": 541.72,
+          "type": "historical"
+        }
+      ],
+      "spatial": {
+        "type": "FeatureCollection",
+        "features": [
+          {
+            "type": "Feature",
+            "geometry": {
+              "type": "Point",
+              "coordinates": [
+                109.12,
+                21.48
+              ]
+            },
+            "properties": {
+              "portId": "beihai",
+              "portName": "北海港",
+              "values": {
+                "2021-01": 304.84,
+                "2021-02": 300.73,
+                "2021-03": 330.35,
+                "2021-04": 290.25,
+                "2021-05": 331.99,
+                "2021-06": 330.0,
+                "2021-07": 374.85,
+                "2021-08": 351.0,
+                "2021-09": 408.16,
+                "2021-10": 409.68,
+                "2021-11": 423.01,
+                "2021-12": 467.8,
+                "2022-01": 384.0,
+                "2022-02": 239.31,
+                "2022-03": 339.92,
+                "2022-04": 432.35,
+                "2022-05": 378.92,
+                "2022-06": 364.76,
+                "2022-07": 369.24,
+                "2022-08": 351.67,
+                "2022-09": 376.64,
+                "2022-10": 419.06,
+                "2022-11": 354.57,
+                "2022-12": 407.9,
+                "2023-01": 365.41,
+                "2023-02": 354.28,
+                "2023-03": 468.18,
+                "2023-04": 428.72,
+                "2023-05": 431.34,
+                "2023-06": 549.59,
+                "2023-07": 478.38,
+                "2023-08": 548.21,
+                "2023-09": 461.43,
+                "2023-10": 501.84,
+                "2023-11": 352.64,
+                "2023-12": 360.59,
+                "2024-01": 450.74,
+                "2024-02": 367.59,
+                "2024-03": 453.53,
+                "2024-04": 478.78,
+                "2024-05": 587.2,
+                "2024-06": 523.43,
+                "2024-07": 490.36,
+                "2024-08": 496.12,
+                "2024-09": 476.88,
+                "2024-10": 389.1,
+                "2024-11": 431.09,
+                "2024-12": 441.03,
+                "2025-01": 403.72,
+                "2025-02": 319.06,
+                "2025-03": 452.69,
+                "2025-04": 431.97,
+                "2025-05": 393.0,
+                "2025-06": 498.91,
+                "2025-07": 436.76,
+                "2025-08": 524.26,
+                "2025-09": 484.02,
+                "2025-10": 519.84,
+                "2025-11": 445.49,
+                "2025-12": 476.38,
+                "2026-01": 452.59,
+                "2026-02": 373.22,
+                "2026-03": 475.55,
+                "2026-04": 487.11,
+                "2026-05": 545.54,
+                "2026-06": 541.72
+              }
+            }
+          }
+        ]
+      }
+    },
+    "fangchenggang": {
+      "historical": [
+        {
+          "time": "2021-01",
+          "value": 1261.01,
+          "type": "historical"
+        },
+        {
+          "time": "2021-02",
+          "value": 1062.44,
+          "type": "historical"
+        },
+        {
+          "time": "2021-03",
+          "value": 1199.07,
+          "type": "historical"
+        },
+        {
+          "time": "2021-04",
+          "value": 1241.3,
+          "type": "historical"
+        },
+        {
+          "time": "2021-05",
+          "value": 1297.93,
+          "type": "historical"
+        },
+        {
+          "time": "2021-06",
+          "value": 1359.37,
+          "type": "historical"
+        },
+        {
+          "time": "2021-07",
+          "value": 1400.83,
+          "type": "historical"
+        },
+        {
+          "time": "2021-08",
+          "value": 1289.85,
+          "type": "historical"
+        },
+        {
+          "time": "2021-09",
+          "value": 1288.69,
+          "type": "historical"
+        },
+        {
+          "time": "2021-10",
+          "value": 1090.67,
+          "type": "historical"
+        },
+        {
+          "time": "2021-11",
+          "value": 1148.69,
+          "type": "historical"
+        },
+        {
+          "time": "2021-12",
+          "value": 1160.42,
+          "type": "historical"
+        },
+        {
+          "time": "2022-01",
+          "value": 1436.57,
+          "type": "historical"
+        },
+        {
+          "time": "2022-02",
+          "value": 1122.82,
+          "type": "historical"
+        },
+        {
+          "time": "2022-03",
+          "value": 1255.67,
+          "type": "historical"
+        },
+        {
+          "time": "2022-04",
+          "value": 1348.14,
+          "type": "historical"
+        },
+        {
+          "time": "2022-05",
+          "value": 1286.39,
+          "type": "historical"
+        },
+        {
+          "time": "2022-06",
+          "value": 1234.75,
+          "type": "historical"
+        },
+        {
+          "time": "2022-07",
+          "value": 1214.11,
+          "type": "historical"
+        },
+        {
+          "time": "2022-08",
+          "value": 1138.21,
+          "type": "historical"
+        },
+        {
+          "time": "2022-09",
+          "value": 1208.83,
+          "type": "historical"
+        },
+        {
+          "time": "2022-10",
+          "value": 1274.98,
+          "type": "historical"
+        },
+        {
+          "time": "2022-11",
+          "value": 1421.5,
+          "type": "historical"
+        },
+        {
+          "time": "2022-12",
+          "value": 1416.88,
+          "type": "historical"
+        },
+        {
+          "time": "2023-01",
+          "value": 1458.27,
+          "type": "historical"
+        },
+        {
+          "time": "2023-02",
+          "value": 1218.28,
+          "type": "historical"
+        },
+        {
+          "time": "2023-03",
+          "value": 1621.84,
+          "type": "historical"
+        },
+        {
+          "time": "2023-04",
+          "value": 1608.18,
+          "type": "historical"
+        },
+        {
+          "time": "2023-05",
+          "value": 1679.37,
+          "type": "historical"
+        },
+        {
+          "time": "2023-06",
+          "value": 1638.27,
+          "type": "historical"
+        },
+        {
+          "time": "2023-07",
+          "value": 1599.85,
+          "type": "historical"
+        },
+        {
+          "time": "2023-08",
+          "value": 1652.95,
+          "type": "historical"
+        },
+        {
+          "time": "2023-09",
+          "value": 1694.13,
+          "type": "historical"
+        },
+        {
+          "time": "2023-10",
+          "value": 1653.79,
+          "type": "historical"
+        },
+        {
+          "time": "2023-11",
+          "value": 1708.5,
+          "type": "historical"
+        },
+        {
+          "time": "2023-12",
+          "value": 1855.58,
+          "type": "historical"
+        },
+        {
+          "time": "2024-01",
+          "value": 1582.54,
+          "type": "historical"
+        },
+        {
+          "time": "2024-02",
+          "value": 1244.79,
+          "type": "historical"
+        },
+        {
+          "time": "2024-03",
+          "value": 1328.97,
+          "type": "historical"
+        },
+        {
+          "time": "2024-04",
+          "value": 1557.42,
+          "type": "historical"
+        },
+        {
+          "time": "2024-05",
+          "value": 1583.01,
+          "type": "historical"
+        },
+        {
+          "time": "2024-06",
+          "value": 1604.3,
+          "type": "historical"
+        },
+        {
+          "time": "2024-07",
+          "value": 1634.71,
+          "type": "historical"
+        },
+        {
+          "time": "2024-08",
+          "value": 1737.38,
+          "type": "historical"
+        },
+        {
+          "time": "2024-09",
+          "value": 1369.66,
+          "type": "historical"
+        },
+        {
+          "time": "2024-10",
+          "value": 1561.83,
+          "type": "historical"
+        },
+        {
+          "time": "2024-11",
+          "value": 1663.11,
+          "type": "historical"
+        },
+        {
+          "time": "2024-12",
+          "value": 1651.12,
+          "type": "historical"
+        },
+        {
+          "time": "2025-01",
+          "value": 1706.58,
+          "type": "historical"
+        },
+        {
+          "time": "2025-02",
+          "value": 1473.9,
+          "type": "historical"
+        },
+        {
+          "time": "2025-03",
+          "value": 1612.47,
+          "type": "historical"
+        },
+        {
+          "time": "2025-04",
+          "value": 1877.23,
+          "type": "historical"
+        },
+        {
+          "time": "2025-05",
+          "value": 1786.98,
+          "type": "historical"
+        },
+        {
+          "time": "2025-06",
+          "value": 1747.72,
+          "type": "historical"
+        },
+        {
+          "time": "2025-07",
+          "value": 1766.1,
+          "type": "historical"
+        },
+        {
+          "time": "2025-08",
+          "value": 1847.47,
+          "type": "historical"
+        },
+        {
+          "time": "2025-09",
+          "value": 1704.9,
+          "type": "historical"
+        },
+        {
+          "time": "2025-10",
+          "value": 1790.86,
+          "type": "historical"
+        },
+        {
+          "time": "2025-11",
+          "value": 1784.35,
+          "type": "historical"
+        },
+        {
+          "time": "2025-12",
+          "value": 1491.84,
+          "type": "historical"
+        },
+        {
+          "time": "2026-01",
+          "value": 1734.67,
+          "type": "historical"
+        },
+        {
+          "time": "2026-02",
+          "value": 1384.36,
+          "type": "historical"
+        },
+        {
+          "time": "2026-03",
+          "value": 1540.39,
+          "type": "historical"
+        },
+        {
+          "time": "2026-04",
+          "value": 1891.89,
+          "type": "historical"
+        },
+        {
+          "time": "2026-05",
+          "value": 1669.29,
+          "type": "historical"
+        },
+        {
+          "time": "2026-06",
+          "value": 1596.28,
+          "type": "historical"
+        }
+      ],
+      "spatial": {
+        "type": "FeatureCollection",
+        "features": [
+          {
+            "type": "Feature",
+            "geometry": {
+              "type": "Point",
+              "coordinates": [
+                108.35,
+                21.77
+              ]
+            },
+            "properties": {
+              "portId": "fangchenggang",
+              "portName": "防城港",
+              "values": {
+                "2021-01": 1261.01,
+                "2021-02": 1062.44,
+                "2021-03": 1199.07,
+                "2021-04": 1241.3,
+                "2021-05": 1297.93,
+                "2021-06": 1359.37,
+                "2021-07": 1400.83,
+                "2021-08": 1289.85,
+                "2021-09": 1288.69,
+                "2021-10": 1090.67,
+                "2021-11": 1148.69,
+                "2021-12": 1160.42,
+                "2022-01": 1436.57,
+                "2022-02": 1122.82,
+                "2022-03": 1255.67,
+                "2022-04": 1348.14,
+                "2022-05": 1286.39,
+                "2022-06": 1234.75,
+                "2022-07": 1214.11,
+                "2022-08": 1138.21,
+                "2022-09": 1208.83,
+                "2022-10": 1274.98,
+                "2022-11": 1421.5,
+                "2022-12": 1416.88,
+                "2023-01": 1458.27,
+                "2023-02": 1218.28,
+                "2023-03": 1621.84,
+                "2023-04": 1608.18,
+                "2023-05": 1679.37,
+                "2023-06": 1638.27,
+                "2023-07": 1599.85,
+                "2023-08": 1652.95,
+                "2023-09": 1694.13,
+                "2023-10": 1653.79,
+                "2023-11": 1708.5,
+                "2023-12": 1855.58,
+                "2024-01": 1582.54,
+                "2024-02": 1244.79,
+                "2024-03": 1328.97,
+                "2024-04": 1557.42,
+                "2024-05": 1583.01,
+                "2024-06": 1604.3,
+                "2024-07": 1634.71,
+                "2024-08": 1737.38,
+                "2024-09": 1369.66,
+                "2024-10": 1561.83,
+                "2024-11": 1663.11,
+                "2024-12": 1651.12,
+                "2025-01": 1706.58,
+                "2025-02": 1473.9,
+                "2025-03": 1612.47,
+                "2025-04": 1877.23,
+                "2025-05": 1786.98,
+                "2025-06": 1747.72,
+                "2025-07": 1766.1,
+                "2025-08": 1847.47,
+                "2025-09": 1704.9,
+                "2025-10": 1790.86,
+                "2025-11": 1784.35,
+                "2025-12": 1491.84,
+                "2026-01": 1734.67,
+                "2026-02": 1384.36,
+                "2026-03": 1540.39,
+                "2026-04": 1891.89,
+                "2026-05": 1669.29,
+                "2026-06": 1596.28
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

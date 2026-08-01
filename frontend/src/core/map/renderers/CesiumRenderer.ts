@@ -1,3 +1,4 @@
+// 渐进迁移：Cesium 渲染器，类型注解待逐步补充（D-6 技术债）
 import {
   CallbackProperty,
   Cartesian2,
@@ -398,7 +399,7 @@ export class CesiumRenderer extends MapRenderer {
     // P0性能优化：Entity数量控制 + 视口裁剪（>1000 时仅渲染视口内要素）
     const totalEntities = this.viewer.entities.values.length + features.length
     if (totalEntities > 1000 && import.meta.env.DEV) {
-      console.warn(`[CesiumRenderer] Entity数量(${totalEntities})超过1000，启动视口裁剪`)
+      logger.debug(`[CesiumRenderer] Entity数量(${totalEntities})超过1000，启动视口裁剪`)
     }
 
     // 视口裁剪：仅添加当前视口内的点
@@ -414,7 +415,7 @@ export class CesiumRenderer extends MapRenderer {
     })
 
     if (entities.length === 0 && import.meta.env.DEV) {
-      console.warn(`[CesiumRenderer] 图层 ${id} 视口内无可见要素（总 ${features.length} 个）`)
+      logger.debug(`[CesiumRenderer] 图层 ${id} 视口内无可见要素（总 ${features.length} 个）`)
     }
 
     this._layers.set(id, {
@@ -602,7 +603,7 @@ export class CesiumRenderer extends MapRenderer {
           entities.push(entity)
         } catch (e) {
           if (import.meta.env.DEV) {
-            console.warn('创建多边形实体失败:', e)
+            logger.warn('创建多边形实体失败:', e)
           }
         }
       }
@@ -685,7 +686,7 @@ export class CesiumRenderer extends MapRenderer {
         this._geoJsonTokens.delete(id)
       }
       if (import.meta.env.DEV) {
-        console.error(`GeoJSON图层 ${id} 加载失败`, error)
+        logger.error(`GeoJSON图层 ${id} 加载失败`, error)
       }
       options.onError?.('GeoJSON数据加载失败')
     }
@@ -948,7 +949,7 @@ export class CesiumRenderer extends MapRenderer {
     } catch (e) {
       // 坐标无效或几何体构建失败时不中断调用方
       if (import.meta.env.DEV) {
-        console.warn(`[CesiumRenderer] 水面图层 ${id} 创建失败:`, e)
+        logger.warn(`[CesiumRenderer] 水面图层 ${id} 创建失败:`, e)
       }
     }
   }
@@ -966,7 +967,7 @@ export class CesiumRenderer extends MapRenderer {
     const waterSurface = this._waterSurfaces?.get(id)
     if (!waterSurface) {
       if (import.meta.env.DEV) {
-        console.warn(`水面图层 ${id} 不存在，无法更新水位`)
+        logger.warn(`水面图层 ${id} 不存在，无法更新水位`)
       }
       return
     }

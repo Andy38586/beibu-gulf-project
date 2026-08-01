@@ -42,6 +42,8 @@ interface RequestOptions {
   body?: string
   headers?: Record<string, string>
   signal?: AbortSignal
+  /** GET 查询参数，内部用 URLSearchParams 拼接（无需手写模板字符串） */
+  params?: Record<string, string | number | boolean | undefined | null>
 }
 
 export function useApiRequest() {
@@ -64,9 +66,25 @@ export function useApiRequest() {
       ? AbortSignal.any([controller.signal, options.signal])
       : controller.signal
 
+    // P2-1: 统一 query 参数构造，避免手写模板字符串
+    let fullPath = path
+    if (options.params) {
+      const searchParams = new URLSearchParams()
+      for (const [key, value] of Object.entries(options.params)) {
+        if (value !== undefined && value !== null) {
+          searchParams.set(key, String(value))
+        }
+      }
+      const qs = searchParams.toString()
+      if (qs) {
+        fullPath += `${path.includes('?') ? '&' : '?'}${qs}`
+      }
+    }
+
     try {
-      const res = await fetch(`${API_BASE}${path}`, {
-        ...options,
+      const res = await fetch(`${API_BASE}${fullPath}`, {
+        method: options.method,
+        body: options.body,
         headers,
         credentials: 'include',
         signal,
@@ -105,10 +123,18 @@ export function useApiRequest() {
       }
 
       /**
-       * 注意：此处 `as T` 是类型断言，无运行时 schema 校验。
-       * 调用方通过泛型参数 T 声明期望的响应类型，但实际响应结构
-       * 由后端契约保证。若需运行时校验，见决策项 D-4（zod/valibot）。
+       * P1-1 响应契约收口：自动解包信封式响应。
+       * 后端统一返回 { code, data }，此处自动提取 data 部分，
+       * 调用方始终拿到业务数据 T，无需手动 .data。
        */
+      if (
+        typeof data === 'object' &&
+        data !== null &&
+        'code' in data &&
+        'data' in (data as Record<string, unknown>)
+      ) {
+        return (data as Record<string, unknown>).data as T
+      }
       return data as T
     } catch (error) {
       clearTimeout(timeoutId)

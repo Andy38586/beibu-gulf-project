@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken'
 import * as userService from '../services/userService.js'
+import { logger } from '../utils/logger.js'
 
 // 强制要求环境变量配置 JWT_SECRET
 const JWT_SECRET = process.env.JWT_SECRET
@@ -27,7 +28,7 @@ if (JWT_SECRET.length < 32) {
 // 开发环境警告：如果使用的是弱密钥
 if (process.env.NODE_ENV !== 'production' && process.env.NODE_ENV !== 'test') {
   if (JWT_SECRET.length < 64 || JWT_SECRET.match(/^(test|dev|demo|example)/i)) {
-    console.warn(
+    logger.warn(
       '[WARN] 当前 JWT_SECRET 强度不足，仅适用于本地开发！\n' +
         "       生产环境请使用: node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\""
     )

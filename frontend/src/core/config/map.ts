@@ -1,7 +1,9 @@
 // 天地图 KEY 仅从环境变量读取，缺失时显式报错
+import { logger } from '@/shared/utils/logger'
+
 const TIANDITU_KEY: string = import.meta.env.VITE_TIANDITU_KEY
 if (!TIANDITU_KEY) {
-  console.error('[map/config] 缺少 VITE_TIANDITU_KEY 环境变量，天地图底图将无法加载')
+  logger.error('[map/config] 缺少 VITE_TIANDITU_KEY 环境变量，天地图底图将无法加载')
 }
 
 /** 天地图底图图层配置 */
@@ -76,8 +78,9 @@ export const MAP_CONFIG: MapConfig = {
   },
   TIANDITU_URL: 'https://t0.tianditu.gov.cn/DataServer?T={layerCode}&x={x}&y={y}&l={z}&tk={key}',
   DATA_PATHS: {
-    ports: '/data/ports.json',
-    boundary: '/beibu-gulf-merged-data.geojson',
+    // 港口数据已收归后端单源（backend/data/ports.json），经公开接口返回
+    ports: '/api/ports',
+    boundary: '/data/site-selection/boundary.geojson',
   },
   CAMERA: {
     center: { lng: 108.5752963, lat: 21.760409, height: 10000 },

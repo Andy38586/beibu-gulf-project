@@ -48,28 +48,20 @@ const props = withDefaults(defineProps<Props>(), {
 const { panelPosition } = useGCS()
 
 /**
- * 计算 Panel 的 CSS 样式
- * 通过 panelPosition 函数获取位置和尺寸
+ * c016: 输出 CSS 变量而非直接内联定位属性。
+ * 外部组件可通过 :deep(.GCS-panel) { --gcs-panel-left: ... } 覆盖，无需 !important。
  */
 const panelStyle = computed(() => {
   const pos = panelPosition(props.w, props.h, props.anchor, props.offsetX, props.offsetY)
-  // 最后一层防御：如果计算出的宽高为 0，用 cell 单位 × 默认 80px 兜底
   const wPx = parseFloat(pos.width) || props.w * 80
   const hPx = parseFloat(pos.height) || props.h * 80
   return {
-    position: 'absolute' as const,
-    left: pos.left || '20px',
-    top: pos.top || '20px',
-    width: `${wPx}px`,
-    height: `${hPx}px`,
-    minWidth: `${props.w * 80}px`,
-    minHeight: `${props.h * 80}px`,
-    borderRadius: 'var(--GCS-radius-md)',
-    backgroundColor: 'var(--GCS-bg-panel)',
-    boxShadow: 'var(--GCS-shadow-sm)',
-    boxSizing: 'border-box' as const,
-    overflow: 'hidden' as const,
-    pointerEvents: 'auto' as const,
+    '--gcs-panel-left': pos.left || '20px',
+    '--gcs-panel-top': pos.top || '20px',
+    '--gcs-panel-width': `${wPx}px`,
+    '--gcs-panel-height': `${hPx}px`,
+    '--gcs-panel-min-width': `${props.w * 80}px`,
+    '--gcs-panel-min-height': `${props.h * 80}px`,
   }
 })
 </script>
@@ -82,6 +74,20 @@ const panelStyle = computed(() => {
 
 <style scoped>
 .GCS-panel {
+  /* c016: 定位属性消费 CSS 变量，外部可通过 :deep 覆盖变量而非 !important */
+  position: absolute;
+  left: var(--gcs-panel-left, 20px);
+  top: var(--gcs-panel-top, 20px);
+  width: var(--gcs-panel-width, 320px);
+  height: var(--gcs-panel-height, 240px);
+  min-width: var(--gcs-panel-min-width, 80px);
+  min-height: var(--gcs-panel-min-height, 80px);
+  border-radius: var(--GCS-radius-md);
+  background-color: var(--GCS-bg-panel);
+  box-shadow: var(--GCS-shadow-sm);
+  box-sizing: border-box;
+  overflow: hidden;
+  pointer-events: auto;
   color: var(--GCS-text-regular);
 }
 </style>

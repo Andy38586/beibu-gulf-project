@@ -41,9 +41,9 @@ function makePortData(portId, portName, months = 24, baseValue = 1000) {
   }
 }
 
-const throughputData = {
-  indicator: 'throughput',
-  unit: 'TEU',
+const cargoData = {
+  indicator: 'cargo',
+  unit: '万吨',
   data: {
     p1: makePortData('p1', '港口A'),
     p2: makePortData('p2', '港口B'),
@@ -66,11 +66,11 @@ describe('forecastService', () => {
 
   describe('getMapData', () => {
     it('正常加载并格式化为 FeatureCollection', async () => {
-      mockReadFile.mockResolvedValue(JSON.stringify(throughputData))
-      const result = await forecastService.getMapData('throughput', '2020-01')
+      mockReadFile.mockResolvedValue(JSON.stringify(cargoData))
+      const result = await forecastService.getMapData('cargo', '2020-01')
       expect(result.type).toBe('FeatureCollection')
-      expect(result.indicator).toBe('throughput')
-      expect(result.unit).toBe('TEU')
+      expect(result.indicator).toBe('cargo')
+      expect(result.unit).toBe('万吨')
       expect(result.time).toBe('2020-01')
       expect(result.features.length).toBeGreaterThan(0)
       // 2 个港口 × 40 个散射点
@@ -78,8 +78,8 @@ describe('forecastService', () => {
     })
 
     it('feature.properties 仅暴露 portId/portName/value/reliability', async () => {
-      mockReadFile.mockResolvedValue(JSON.stringify(throughputData))
-      const result = await forecastService.getMapData('throughput', '2020-01')
+      mockReadFile.mockResolvedValue(JSON.stringify(cargoData))
+      const result = await forecastService.getMapData('cargo', '2020-01')
       const props = result.features[0].properties
       expect(Object.keys(props).sort()).toEqual(
         ['portId', 'portName', 'reliability', 'value'].sort()
@@ -88,7 +88,7 @@ describe('forecastService', () => {
 
     it('数据文件缺失时抛 NOT_FOUND（不再优雅降级返空）', async () => {
       mockReadFile.mockRejectedValue(makeEnoentError())
-      await expect(forecastService.getMapData('throughput', '2020-01')).rejects.toThrow(
+      await expect(forecastService.getMapData('cargo', '2020-01')).rejects.toThrow(
         '指标数据文件不存在'
       )
     })
@@ -96,20 +96,20 @@ describe('forecastService', () => {
     it('非 ENOENT 错误应向上抛出', async () => {
       const err = Object.assign(new Error('permission denied'), { code: 'EACCES' })
       mockReadFile.mockRejectedValue(err)
-      await expect(forecastService.getMapData('throughput', '2020-01')).rejects.toThrow()
+      await expect(forecastService.getMapData('cargo', '2020-01')).rejects.toThrow()
     })
 
     it('空间数据缺失时跳过该港口', async () => {
       const data = {
-        indicator: 'throughput',
+        indicator: 'cargo',
         unit: 'TEU',
         data: {
-          p1: { historical: throughputData.data.p1.historical, spatial: null },
-          p2: throughputData.data.p2,
+          p1: { historical: cargoData.data.p1.historical, spatial: null },
+          p2: cargoData.data.p2,
         },
       }
       mockReadFile.mockResolvedValue(JSON.stringify(data))
-      const result = await forecastService.getMapData('throughput', '2020-01')
+      const result = await forecastService.getMapData('cargo', '2020-01')
       // 仅 p2 贡献 40 个 feature
       expect(result.features).toHaveLength(40)
       for (const f of result.features) {
@@ -118,62 +118,50 @@ describe('forecastService', () => {
     })
 
     it('相同指标与情景级别时复用引擎缓存', async () => {
-      mockReadFile.mockResolvedValue(JSON.stringify(throughputData))
-      await forecastService.getMapData('throughput', '2020-01', 1.0)
-      await forecastService.getMapData('throughput', '2020-06', 1.0)
+      mockReadFile.mockResolvedValue(JSON.stringify(cargoData))
+      await forecastService.getMapData('cargo', '2020-01', 1.0)
+      await forecastService.getMapData('cargo', '2020-06', 1.0)
       expect(mockReadFile).toHaveBeenCalledTimes(1)
     })
 
     it('不同情景级别不命中缓存', async () => {
-      mockReadFile.mockResolvedValue(JSON.stringify(throughputData))
-      await forecastService.getMapData('throughput', '2020-01', 1.0)
-      await forecastService.getMapData('throughput', '2020-01', 1.2)
+      mockReadFile.mockResolvedValue(JSON.stringify(cargoData))
+      await forecastService.getMapData('cargo', '2020-01', 1.0)
+      await forecastService.getMapData('cargo', '2020-01', 1.2)
       expect(mockReadFile).toHaveBeenCalledTimes(2)
     })
   })
 
   describe('getPortData', () => {
     it('指定单一指标加载该港口数据', async () => {
-      mockReadFile.mockResolvedValue(JSON.stringify(throughputData))
-      const result = await forecastService.getPortData('p1', 'throughput')
+      mockReadFile.mockResolvedValue(JSON.stringify(cargoData))
+      const result = await forecastService.getPortData('p1', 'cargo')
       expect(result.portId).toBe('p1')
       expect(result.portName).toBe('港口A')
-      expect(result.indicators.throughput.unit).toBe('TEU')
-      expect(result.indicators.throughput.historical.length).toBeGreaterThan(0)
-      expect(result.indicators.throughput.forecast.length).toBeGreaterThan(0)
+      expect(result.indicators.cargo.unit).toBe('万吨')
+      expect(result.indicators.cargo.historical.length).toBeGreaterThan(0)
+      expect(result.indicators.cargo.forecast.length).toBeGreaterThan(0)
     })
 
-    it('未指定指标时加载默认 4 个指标', async () => {
+    it('未指定指标时加载默认 2 个真实指标（cargo/container）', async () => {
       mockReadFile.mockImplementation((path) => {
-        if (path.endsWith('throughput.json')) {
-          return Promise.resolve(JSON.stringify(throughputData))
+        if (path.endsWith('cargo.json')) {
+          return Promise.resolve(JSON.stringify(cargoData))
         }
-        if (path.endsWith('berth.json')) {
+        if (path.endsWith('container.json')) {
           return Promise.resolve(
-            JSON.stringify({ indicator: 'berth', unit: '个', data: { p1: makePortData('p1', '港口A') } })
-          )
-        }
-        if (path.endsWith('traffic.json')) {
-          return Promise.resolve(
-            JSON.stringify({ indicator: 'traffic', unit: '辆', data: { p1: makePortData('p1', '港口A') } })
-          )
-        }
-        if (path.endsWith('pressure.json')) {
-          return Promise.resolve(
-            JSON.stringify({ indicator: 'pressure', unit: '指数', data: { p1: makePortData('p1', '港口A') } })
+            JSON.stringify({ indicator: 'container', unit: 'TEU', data: { p1: makePortData('p1', '港口A') } })
           )
         }
         return Promise.reject(makeEnoentError())
       })
       const result = await forecastService.getPortData('p1')
-      expect(Object.keys(result.indicators).sort()).toEqual(
-        ['berth', 'pressure', 'throughput', 'traffic'].sort()
-      )
+      expect(Object.keys(result.indicators).sort()).toEqual(['cargo', 'container'])
     })
 
     it('端口不存在时返回空 indicators', async () => {
-      mockReadFile.mockResolvedValue(JSON.stringify(throughputData))
-      const result = await forecastService.getPortData('nonexistent', 'throughput')
+      mockReadFile.mockResolvedValue(JSON.stringify(cargoData))
+      const result = await forecastService.getPortData('nonexistent', 'cargo')
       expect(result.portName).toBe('')
       expect(result.indicators).toEqual({})
     })
@@ -184,10 +172,10 @@ describe('forecastService', () => {
     })
 
     it('start/end 参数同时过滤历史与预测数据', async () => {
-      mockReadFile.mockResolvedValue(JSON.stringify(throughputData))
-      const result = await forecastService.getPortData('p1', 'throughput', '2020-06', '2025-06')
-      const hist = result.indicators.throughput.historical
-      const fc = result.indicators.throughput.forecast
+      mockReadFile.mockResolvedValue(JSON.stringify(cargoData))
+      const result = await forecastService.getPortData('p1', 'cargo', '2020-06', '2025-06')
+      const hist = result.indicators.cargo.historical
+      const fc = result.indicators.cargo.forecast
       expect(hist.length).toBeGreaterThan(0)
       expect(fc.length).toBeGreaterThan(0)
       for (const d of hist) {
@@ -203,57 +191,57 @@ describe('forecastService', () => {
 
   describe('getIndicatorData', () => {
     it('不指定 portId 时返回全部港口', async () => {
-      mockReadFile.mockResolvedValue(JSON.stringify(throughputData))
-      const result = await forecastService.getIndicatorData('throughput', '2020-01')
+      mockReadFile.mockResolvedValue(JSON.stringify(cargoData))
+      const result = await forecastService.getIndicatorData('cargo', '2020-01')
       expect(Object.keys(result.ports).sort()).toEqual(['p1', 'p2'])
       expect(result.ports.p1.portName).toBe('港口A')
       expect(result.ports.p2.portName).toBe('港口B')
     })
 
     it('指定 portId 时仅返回该港口', async () => {
-      mockReadFile.mockResolvedValue(JSON.stringify(throughputData))
-      const result = await forecastService.getIndicatorData('throughput', '2020-01', 'p1')
+      mockReadFile.mockResolvedValue(JSON.stringify(cargoData))
+      const result = await forecastService.getIndicatorData('cargo', '2020-01', 'p1')
       expect(Object.keys(result.ports)).toEqual(['p1'])
     })
 
     it('提供时间参数匹配历史值', async () => {
-      mockReadFile.mockResolvedValue(JSON.stringify(throughputData))
-      const result = await forecastService.getIndicatorData('throughput', '2020-01', 'p1')
+      mockReadFile.mockResolvedValue(JSON.stringify(cargoData))
+      const result = await forecastService.getIndicatorData('cargo', '2020-01', 'p1')
       // makePortData 中 2020-01 的值为 baseValue = 1000
       expect(result.ports.p1.value).toBe(1000)
     })
 
     it('提供时间参数匹配预测值', async () => {
-      mockReadFile.mockResolvedValue(JSON.stringify(throughputData))
+      mockReadFile.mockResolvedValue(JSON.stringify(cargoData))
       // 2022-01 为第一条预测
-      const result = await forecastService.getIndicatorData('throughput', '2022-01', 'p1')
+      const result = await forecastService.getIndicatorData('cargo', '2022-01', 'p1')
       expect(result.ports.p1.value).toBeGreaterThan(0)
     })
 
     it('时间不匹配时 value 为 null', async () => {
-      mockReadFile.mockResolvedValue(JSON.stringify(throughputData))
-      const result = await forecastService.getIndicatorData('throughput', '1999-01', 'p1')
+      mockReadFile.mockResolvedValue(JSON.stringify(cargoData))
+      const result = await forecastService.getIndicatorData('cargo', '1999-01', 'p1')
       expect(result.ports.p1.value).toBeNull()
     })
 
     it('不提供时间参数时 value 为 null', async () => {
-      mockReadFile.mockResolvedValue(JSON.stringify(throughputData))
-      const result = await forecastService.getIndicatorData('throughput', undefined, 'p1')
+      mockReadFile.mockResolvedValue(JSON.stringify(cargoData))
+      const result = await forecastService.getIndicatorData('cargo', undefined, 'p1')
       expect(result.ports.p1.value).toBeNull()
     })
 
     it('数据文件缺失时抛 NOT_FOUND（不再优雅降级）', async () => {
       mockReadFile.mockRejectedValue(makeEnoentError())
       await expect(
-        forecastService.getIndicatorData('throughput', '2020-01')
+        forecastService.getIndicatorData('cargo', '2020-01')
       ).rejects.toThrow('指标数据文件不存在')
     })
   })
 
   describe('getTimeSeriesData', () => {
     it('拼接历史与预测时间序列', async () => {
-      mockReadFile.mockResolvedValue(JSON.stringify(throughputData))
-      const result = await forecastService.getTimeSeriesData('throughput', 'p1')
+      mockReadFile.mockResolvedValue(JSON.stringify(cargoData))
+      const result = await forecastService.getTimeSeriesData('cargo', 'p1')
       expect(result.series).toHaveLength(1)
       const series = result.series[0]
       // 24 历史 + 120 预测 = 144
@@ -263,9 +251,9 @@ describe('forecastService', () => {
     })
 
     it('start/end 过滤时间序列', async () => {
-      mockReadFile.mockResolvedValue(JSON.stringify(throughputData))
+      mockReadFile.mockResolvedValue(JSON.stringify(cargoData))
       const result = await forecastService.getTimeSeriesData(
-        'throughput',
+        'cargo',
         'p1',
         '2020-06',
         '2021-06'
@@ -277,9 +265,9 @@ describe('forecastService', () => {
     })
 
     it('year 粒度按年聚合为 YYYY 时间格式', async () => {
-      mockReadFile.mockResolvedValue(JSON.stringify(throughputData))
+      mockReadFile.mockResolvedValue(JSON.stringify(cargoData))
       const result = await forecastService.getTimeSeriesData(
-        'throughput',
+        'cargo',
         'p1',
         undefined,
         undefined,
@@ -298,9 +286,9 @@ describe('forecastService', () => {
     })
 
     it('year 粒度 value 为年均值（整数）', async () => {
-      mockReadFile.mockResolvedValue(JSON.stringify(throughputData))
+      mockReadFile.mockResolvedValue(JSON.stringify(cargoData))
       const result = await forecastService.getTimeSeriesData(
-        'throughput',
+        'cargo',
         'p1',
         undefined,
         undefined,
@@ -312,14 +300,14 @@ describe('forecastService', () => {
     })
 
     it('默认 granularity 为 month', async () => {
-      mockReadFile.mockResolvedValue(JSON.stringify(throughputData))
-      const result = await forecastService.getTimeSeriesData('throughput', 'p1')
+      mockReadFile.mockResolvedValue(JSON.stringify(cargoData))
+      const result = await forecastService.getTimeSeriesData('cargo', 'p1')
       expect(result.granularity).toBe('month')
     })
 
     it('不指定 portId 时返回所有港口序列', async () => {
-      mockReadFile.mockResolvedValue(JSON.stringify(throughputData))
-      const result = await forecastService.getTimeSeriesData('throughput')
+      mockReadFile.mockResolvedValue(JSON.stringify(cargoData))
+      const result = await forecastService.getTimeSeriesData('cargo')
       expect(result.series).toHaveLength(2)
       const portIds = result.series.map((s) => s.portId).sort()
       expect(portIds).toEqual(['p1', 'p2'])

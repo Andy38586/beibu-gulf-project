@@ -1,3 +1,5 @@
+import { logger } from '../utils/logger.js'
+
 const IMPORTANCE_FACTOR = {
   1: 0.4,
   2: 0.7,
@@ -11,11 +13,11 @@ function importanceToFactor(importance) {
   const raw = Number(importance)
   const n = Math.round(raw)
   if (!isFinite(raw) || n < 1 || n > 5) {
-    console.warn(`[importanceMapping] 无效 importance: ${importance}，已按 3 处理`)
+    logger.warn(`[importanceMapping] 无效 importance: ${importance}，已按 3 处理`)
     return IMPORTANCE_FACTOR[3]
   }
   if (n !== raw) {
-    console.warn(`[importanceMapping] importance ${importance} 非整数，已取整为 ${n}`)
+    logger.debug(`[importanceMapping] importance ${importance} 非整数，已取整为 ${n}`)
   }
   return IMPORTANCE_FACTOR[n]
 }

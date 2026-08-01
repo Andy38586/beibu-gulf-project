@@ -1,3 +1,4 @@
+// 渐进迁移：OL 渲染器，类型注解待逐步补充（D-6 技术债）
 import Feature from 'ol/Feature'
 import GeoJSON from 'ol/format/GeoJSON'
 import Point from 'ol/geom/Point'
@@ -558,35 +559,35 @@ export class OLRenderer extends MapRenderer {
   }
   addWaterSurface(_id, _coordinates, _height, _options) {
     if (import.meta.env.DEV) {
-      console.warn('[OLRenderer] addWaterSurface 不支持 2D 渲染器')
+      logger.debug('[OLRenderer] addWaterSurface 不支持 2D 渲染器')
     }
     return false
   }
 
   updateWaterLevel(_id, _newHeight) {
     if (import.meta.env.DEV) {
-      console.warn('[OLRenderer] updateWaterLevel 不支持 2D 渲染器')
+      logger.debug('[OLRenderer] updateWaterLevel 不支持 2D 渲染器')
     }
     return false
   }
 
   removeWaterSurface(_id) {
     if (import.meta.env.DEV) {
-      console.warn('[OLRenderer] removeWaterSurface 不支持 2D 渲染器')
+      logger.debug('[OLRenderer] removeWaterSurface 不支持 2D 渲染器')
     }
     return false
   }
 
   removeAllWaterSurfaces() {
     if (import.meta.env.DEV) {
-      console.warn('[OLRenderer] removeAllWaterSurfaces 不支持 2D 渲染器')
+      logger.debug('[OLRenderer] removeAllWaterSurfaces 不支持 2D 渲染器')
     }
     return false
   }
 
   setWaterSurfaceVisibility(_id, _visible) {
     if (import.meta.env.DEV) {
-      console.warn('[OLRenderer] setWaterSurfaceVisibility 不支持 2D 渲染器')
+      logger.debug('[OLRenderer] setWaterSurfaceVisibility 不支持 2D 渲染器')
     }
     return false
   }

@@ -22,12 +22,11 @@
  * - updateData 不覆盖 visible 状态
  */
 
+import { logger } from '@/shared/utils/logger'
 import type { LayerEntry, LayerOptions, MapRenderer } from '@/types'
 import type { LayerType } from '@/types/core/layerManager'
 
 import { LAYER_ADAPTERS } from './layerAdapters'
-
-const DEV = import.meta.env.DEV
 
 /** mapStore 最小接口 — 仅声明 BusinessLayerManager 实际使用的方法 */
 interface MapStoreLike {
@@ -78,7 +77,7 @@ export class BusinessLayerManager {
   private _getAdapter(layerType: LayerType) {
     const adapter = LAYER_ADAPTERS[layerType]
     if (!adapter) {
-      if (DEV) console.warn(`[BusinessLayerManager] 未知 layerType: ${layerType}`)
+      logger.debug(`[BusinessLayerManager] 未知 layerType: ${layerType}`)
       return null
     }
     return adapter
@@ -92,7 +91,7 @@ export class BusinessLayerManager {
     { label, layerType, data, options = {}, visible = true }: LayerDescriptor
   ): void {
     if (this._registry.has(key)) {
-      if (DEV) console.warn(`[BusinessLayerManager] 图层 ${key} 已注册，请使用 updateData 更新数据`)
+      logger.debug(`[BusinessLayerManager] 图层 ${key} 已注册，请使用 updateData 更新数据`)
       return
     }
 
@@ -179,7 +178,7 @@ export class BusinessLayerManager {
   setVisible(key: string, visible: boolean): void {
     const catalogEntry = this._mapStore?.layerCatalog.find((e) => e.key === key)
     if (!catalogEntry) {
-      if (DEV) console.warn(`[BusinessLayerManager] 图层 ${key} 不在 catalog 中`)
+      logger.debug(`[BusinessLayerManager] 图层 ${key} 不在 catalog 中`)
       return
     }
 

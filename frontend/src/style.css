@@ -58,6 +58,18 @@
   --GCS-radius-lg: 12px; /* 大按钮、弹性容器 */
   --GCS-radius-xl: 16px; /* 特殊圆角 */
   --GCS-radius-round: 50%; /* 圆形（滑块拇指、loading） */
+
+  /* ===== z-index 刻度系统（a017） =====
+   * 统一管理层级，避免各组件随意写数字导致遮挡混乱。
+   * 使用方式：z-index: var(--GCS-z-xxx); */
+  --GCS-z-map: 1;            /* 地图容器（最底层） */
+  --GCS-z-map-overlay: 90;   /* 地图内部覆盖物（boundary-warning 等） */
+  --GCS-z-map-status: 100;   /* 地图状态提示（loading/error） */
+  --GCS-z-panel: 200;        /* GCS 业务面板 */
+  --GCS-z-panel-float: 300;  /* 浮动面板（PortInfo 等） */
+  --GCS-z-drawer: 400;       /* 抽屉/侧滑 */
+  --GCS-z-modal: 500;        /* 弹窗 */
+  --GCS-z-message: 600;      /* ElMessage 全局提示 */
 }
 
 /* ===== 全局重置 ===== */
@@ -185,4 +197,37 @@ body {
 .drawer-enter-from .GCS-drawer__sheet,
 .drawer-leave-to .GCS-drawer__sheet {
   transform: translateX(100%);
+}
+
+/* ===== c017: 公共滑块 thumb 样式（消除 3 处重复） =====
+ * 使用方式：input[type=range] 加 class="gcs-slider" */
+.gcs-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(to right, var(--GCS-border-default), var(--GCS-color-primary));
+  outline: none;
+  cursor: pointer;
+}
+.gcs-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: var(--GCS-radius-round);
+  background: var(--GCS-bg-panel);
+  border: none;
+  box-shadow: var(--GCS-shadow-sm);
+  cursor: pointer;
+}
+.gcs-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: var(--GCS-radius-round);
+  background: var(--GCS-bg-panel);
+  border: none;
+  box-shadow: var(--GCS-shadow-sm);
+  cursor: pointer;
 }

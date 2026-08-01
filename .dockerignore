@@ -10,3 +10,16 @@ build*.log
 typecheck*.log
 lint.log
 .DS_Store
+
+# 密钥与运行时环境不进镜像（改为 compose 运行时注入，详见 docker-compose.yml）
+# 仅排除真实密钥文件，保留 backend/.env.example 作为镜像内参考模板
+backend/.env
+backend/.env.*
+!backend/.env.example
+
+# 运行时数据（用户库/方案库/端口/POI，含 PII）不进镜像
+# 改为 compose 运行时 volume 挂载 ./backend/data:/app/backend/data，详见 docker-compose.yml
+backend/data/
+
+# TLS 证书通过 compose volume 挂载，不烘焙进镜像
+certs/

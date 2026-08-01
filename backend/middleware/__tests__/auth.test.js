@@ -93,6 +93,7 @@ describe('authController.logout — 令牌吊销（阶段六 6.5）', () => {
     await authController.logout(req, res)
     expect(userService.updateTokenVersion).toHaveBeenCalledWith('u1')
     expect(res.clearCookie).toHaveBeenCalled()
-    expect(res.json).toHaveBeenCalledWith({ message: '登出成功' })
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(res.json).toHaveBeenCalledWith({ code: 200, data: { message: '登出成功' } })
   })
 })

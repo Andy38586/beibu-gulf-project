@@ -7,24 +7,24 @@ import type { ForecastSeries } from '@/types/api/forecast'
 import type { ConfidenceThresholds, ForecastTimeRange } from '@/types/business/base'
 
 export const useForecastState = defineStore('forecast', () => {
-  const currentTime: Ref<string> = ref('2025-12')
+  const currentTime: Ref<string> = ref('2026-06')
 
   const timeRange: Ref<ForecastTimeRange> = ref({
-    start: '2023-01',
-    end: '2035-12',
-    current: '2025-12',
+    start: '2021-01',
+    end: '2031-12',
+    current: '2026-06',
   })
 
   const timeGranularity: Ref<string> = ref('month')
   const isPlaying: Ref<boolean> = ref(false)
   const playSpeed: Ref<number> = ref(500)
-  const activeIndicator: Ref<string> = ref('throughput')
+  const activeIndicator: Ref<string> = ref('cargo')
 
   const confidenceThresholds: Ref<ConfidenceThresholds> = ref({
-    throughput: DEFAULT_CONFIDENCE,
+    cargo: DEFAULT_CONFIDENCE,
+    container: DEFAULT_CONFIDENCE,
     berth: DEFAULT_CONFIDENCE,
     traffic: DEFAULT_CONFIDENCE,
-    pressure: DEFAULT_CONFIDENCE,
   })
 
   const activeForecastLayer: Ref<string | null> = ref(null)
@@ -63,17 +63,17 @@ export const useForecastState = defineStore('forecast', () => {
   }
 
   function reset(): void {
-    currentTime.value = '2025-12'
-    timeRange.value = { start: '2023-01', end: '2035-12', current: '2025-12' }
+    currentTime.value = '2026-06'
+    timeRange.value = { start: '2021-01', end: '2031-12', current: '2026-06' }
     timeGranularity.value = 'month'
     isPlaying.value = false
     playSpeed.value = 500
-    activeIndicator.value = 'throughput'
+    activeIndicator.value = 'cargo'
     confidenceThresholds.value = {
-      throughput: DEFAULT_CONFIDENCE,
+      cargo: DEFAULT_CONFIDENCE,
+      container: DEFAULT_CONFIDENCE,
       berth: DEFAULT_CONFIDENCE,
       traffic: DEFAULT_CONFIDENCE,
-      pressure: DEFAULT_CONFIDENCE,
     }
     activeForecastLayer.value = null
     dataCache.value = new Map()

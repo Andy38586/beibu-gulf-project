@@ -20,6 +20,7 @@ import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 
 import { FACILITY_COLORS_MAP } from '@/shared/constants/colors'
 import { FACILITY_LABELS } from '@/shared/utils/facilityLabels'
+import { logger } from '@/shared/utils/logger'
 import type { FacilityPoint } from '@/types/facility'
 import type { ScoredXiaoqu } from '@/types/xiaoqu'
 
@@ -110,9 +111,7 @@ export function useRadarChart({
       const container = chartRef as RadarChartContainer
       const retryCount = (container._radar_retryCount || 0) + 1
       if (retryCount > 10) {
-        if (import.meta.env.DEV) {
-          console.warn('雷达图容器尺寸持续不足，放弃渲染')
-        }
+        logger.debug('雷达图容器尺寸持续不足，放弃渲染')
         return
       }
       container._radar_retryCount = retryCount

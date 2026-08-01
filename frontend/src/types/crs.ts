@@ -10,6 +10,8 @@
  * 字段名约定：全项目统一使用 lng/lat（不用 lon/longitude）
  */
 
+import { logger } from '@/shared/utils/logger'
+
 /** 支持的坐标参考系统 */
 export type CRS = 'EPSG:4326' | 'EPSG:4490' | 'EPSG:3857' | 'EPSG:4547'
 
@@ -55,13 +57,15 @@ export function normalizePoint(input: LaxPoint): GeoPoint<CRS> {
   const lng = input.lng ?? input.lon ?? input.longitude
   const lat = input.lat ?? input.latitude
 
-  if ((lng === undefined || lat === undefined) && import.meta.env.DEV) {
-    console.warn('[crs] 坐标字段缺失，已回退为 0,0:', input)
+  if (lng === undefined || lat === undefined) {
+    logger.debug('[crs] 坐标字段缺失，已回退为 0,0:', input)
   }
 
   // 运行时 CRS 校验：如果声明了非默认 CRS，dev 模式告警
-  if (input.crs && input.crs !== DEFAULT_CRS && input.crs !== 'EPSG:4490' && import.meta.env.DEV) {
-    console.warn(`[crs] 数据 CRS 为 ${input.crs}，渲染层按 ${DEFAULT_CRS} 处理。CGCS2000(4490) 与 WGS84(4326) 在 web 地图精度下可互换。`)
+  if (input.crs && input.crs !== DEFAULT_CRS && input.crs !== 'EPSG:4490') {
+    logger.debug(
+      `[crs] 数据 CRS 为 ${input.crs}，渲染层按 ${DEFAULT_CRS} 处理。CGCS2000(4490) 与 WGS84(4326) 在 web 地图精度下可互换。`
+    )
   }
 
   return {

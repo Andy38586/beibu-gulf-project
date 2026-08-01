@@ -35,7 +35,9 @@ validateEnv()
 
 // b024: 数据源由环境变量驱动，默认 mock，生产部署时设 VITE_DATA_SOURCE=api
 const dataSource = (import.meta.env.VITE_DATA_SOURCE as 'mock' | 'api') || 'mock'
-forecastAdapter.setDataSource(dataSource)
+// 预测分析：真实指标（cargo/container）走后端 API；合成指标（berth/traffic）由 adapter
+// 按 INDICATOR_SOURCE 回退到前端静态 fixture（public/data/forecast/*）。全局默认设为 'api'。
+forecastAdapter.setDataSource('api')
 floodAdapter.setDataSource(dataSource)
 
 // ResizeObserver polyfill for Safari < 13.1

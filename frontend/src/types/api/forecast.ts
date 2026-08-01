@@ -6,7 +6,7 @@
  * ── D1 校正说明（重要）──
  * 最初的设计稿把"统一结构"设想为：
  *     ForecastIndicator { time: string; value: number; level: number }
- * 但实测 mock 数据（throughput.json / berth.json）中【不存在 level 字段】，
+ * 但实测真实数据（cargo.json / berth.json）中【不存在 level 字段】，
  * 取而代之的是 type 判别字段（'historical' | 'forecast'）。
  * 因此统一为 ForecastPoint，用 type 而不是 level 作为历史/预测的区分。
  *
@@ -36,7 +36,7 @@ export interface ForecastPortSeries {
 
 /** 预测指标完整响应（对应 public/data/forecast/*.json 顶层） */
 export interface ForecastSeries {
-  /** 指标标识，如 "throughput"（吞吐量）/ "berth"（泊位利用率） */
+  /** 指标标识，如 "cargo"（货物吞吐量）/ "container"（集装箱吞吐量）/ "berth"（泊位利用率） */
   indicator: string
   /** 单位，如 "万吨" / "%" */
   unit: string
@@ -48,4 +48,4 @@ export interface ForecastSeries {
  * 已知指标名（宽松联合：已知值 + 兜底 string）。
  * 用于 adapter 返回时给调用方一点提示，但不强制穷举。
  */
-export type ForecastIndicatorName = 'throughput' | 'berth' | (string & {})
+export type ForecastIndicatorName = 'cargo' | 'container' | 'berth' | 'traffic' | (string & {})

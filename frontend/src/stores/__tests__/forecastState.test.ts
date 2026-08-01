@@ -41,10 +41,10 @@ describe('useForecastState', () => {
   describe('初始状态', () => {
     it('应有合理默认值', () => {
       const store = useForecastState()
-      expect(store.currentTime).toBe('2025-12')
-      expect(store.timeRange.start).toBe('2023-01')
-      expect(store.timeRange.end).toBe('2035-12')
-      expect(store.activeIndicator).toBe('throughput')
+      expect(store.currentTime).toBe('2026-06')
+      expect(store.timeRange.start).toBe('2021-01')
+      expect(store.timeRange.end).toBe('2031-12')
+      expect(store.activeIndicator).toBe('cargo')
       expect(store.isPlaying).toBe(false)
       expect(store.currentData).toBeNull()
     })
@@ -55,7 +55,7 @@ describe('useForecastState', () => {
       const store = useForecastState()
       store.setCurrentTime('2030-06')
       expect(store.currentTime).toBe('2030-06')
-      expect(store.timeRange.current).toBe('2025-12')
+      expect(store.timeRange.current).toBe('2026-06')
     })
   })
 
@@ -78,9 +78,9 @@ describe('useForecastState', () => {
   describe('cacheData / currentData', () => {
     it('应按当前时间暴露缓存数据', () => {
       const store = useForecastState()
-      const payload = makeSeries('throughput')
-      store.cacheData('2025-12', payload)
-      expect(store.dataCache.get('2025-12')).toEqual(payload)
+      const payload = makeSeries('cargo')
+      store.cacheData('2026-06', payload)
+      expect(store.dataCache.get('2026-06')).toEqual(payload)
       expect(store.currentData).toEqual(payload)
     })
 
@@ -102,7 +102,7 @@ describe('useForecastState', () => {
   describe('clearCache', () => {
     it('应清空数据缓存', () => {
       const store = useForecastState()
-      store.cacheData('2025-12', makeSeries('throughput'))
+      store.cacheData('2026-06', makeSeries('cargo'))
       store.clearCache()
       expect(store.currentData).toBeNull()
       expect(store.dataCache.size).toBe(0)
@@ -118,10 +118,10 @@ describe('useForecastState', () => {
 
       store.reset()
 
-      expect(store.currentTime).toBe('2025-12')
-      expect(store.activeIndicator).toBe('throughput')
+      expect(store.currentTime).toBe('2026-06')
+      expect(store.activeIndicator).toBe('cargo')
       expect(store.currentData).toBeNull()
-      expect(store.confidenceThresholds.throughput).toBe(0.8)
+      expect(store.confidenceThresholds.cargo).toBe(0.8)
     })
   })
 })

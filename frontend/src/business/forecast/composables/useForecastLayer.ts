@@ -12,6 +12,7 @@ import { useBusinessLayers } from '@/core/map/composables/useBusinessLayers'
 import type { ForecastMapData } from '@/services/adapters/forecastAdapter'
 import { forecastAdapter } from '@/services/adapters/forecastAdapter'
 import { handleAuthError, isAuthError, showError } from '@/shared/utils/errorHandler'
+import { logger } from '@/shared/utils/logger'
 import { useForecastState } from '@/stores/forecastState'
 import { useMapStore } from '@/stores/mapStore'
 import type { LayerOptions, LayerType, MapRenderer } from '@/types'
@@ -20,23 +21,22 @@ import { DEFAULT_CONFIDENCE } from '../constants'
 
 import { useForecastRequest } from './useForecastRequest'
 
-const INDICATORS = ['throughput', 'berth', 'traffic', 'pressure'] as const
+const INDICATORS = ['cargo', 'container', 'berth', 'traffic'] as const
 const INDICATOR_LABELS: Record<string, string> = {
-  throughput: '吞吐量热力',
+  cargo: '货物吞吐量热力',
+  container: '集装箱吞吐量热力',
   berth: '泊位分布',
   traffic: '船舶流量',
-  pressure: '物流压力',
 }
 const LAYER_TYPES: Record<string, LayerType> = {
-  throughput: 'heatmap',
+  cargo: 'heatmap',
+  container: 'heatmap',
   berth: 'geojson',
   traffic: 'geojson',
-  pressure: 'geojson',
 }
 const FEATURE_TYPES: Record<string, string> = {
   berth: 'forecast-berth',
   traffic: 'forecast-traffic',
-  pressure: 'forecast-pressure',
 }
 
 /** useForecastLayer 返回值 */
@@ -89,10 +89,14 @@ export function useForecastLayer(): UseForecastLayerReturn {
   )
 
   function getLayerOptions(indicator: string): LayerOptions {
-    if (indicator === 'throughput') {
-      // heatmap 专属字段（weightField/radius/blur）不在 LayerOptions 内，
-      // 由 heatmap adapter 按业务契约读取；此处断言以保持运行时数据不变。
-      return { weightField: 'value', radius: 20, blur: 15 } as unknown as LayerOptions
+    if (indicator === 'cargo' || indicator === 'container') {
+      // a015: 显式传入 gradient，使热力图色带可配置（不再依赖 renderer 默认值）
+      return {
+        weightField: 'value',
+        radius: 20,
+        blur: 15,
+        gradient: ['#00f', '#0ff', '#0f0', '#ff0', '#f00'],
+      } as unknown as LayerOptions
     }
     const ft = FEATURE_TYPES[indicator]
     return ft ? { featureType: ft } : {}
@@ -150,7 +154,7 @@ export function useForecastLayer(): UseForecastLayerReturn {
         handleAuthError()
         return
       }
-      if (import.meta.env.DEV) console.error('[useForecastLayer] 更新失败:', e)
+      if (import.meta.env.DEV) logger.debug('[useForecastLayer] 更新失败:', e)
       showError(e, { fallback: '更新地图图层失败' })
     }
   }

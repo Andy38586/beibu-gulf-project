@@ -2,7 +2,9 @@ import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import * as userService from '../services/userService.js'
 import { generateToken } from '../middleware/auth.js'
-import { BusinessError } from '../utils/BusinessError.js'
+import { BusinessError, ErrorCode } from '../utils/BusinessError.js'
+import { logger } from '../utils/logger.js'
+import { sendSuccess } from '../utils/response.js'
 
 // @arch-note R-03: 提取公共 cookie 设置，register/login 复用
 function setAuthCookie(res, token) {
@@ -23,55 +25,48 @@ function escapeHtmlLegacy(str) {
   })
 }
 
-export async function register(req, res) {
+export async function register(req, res, next) {
   try {
     const { username, password } = req.body
     if (!username || !password) {
-      return res.status(400).json({ error: '用户名和密码不能为空' })
+      throw new BusinessError(ErrorCode.INVALID_PARAMS, '用户名和密码不能为空')
     }
     if (username.length < 2 || username.length > 20) {
-      return res.status(400).json({ error: '用户名长度应在 2-20 个字符之间' })
+      throw new BusinessError(ErrorCode.INVALID_PARAMS, '用户名长度应在 2-20 个字符之间')
     }
     if (password.length < 6) {
-      return res.status(400).json({ error: '密码长度不能少于 6 位' })
+      throw new BusinessError(ErrorCode.INVALID_PARAMS, '密码长度不能少于 6 位')
     }
     // @arch-note SEC-003: 密码强度增强 - 至少包含大小写字母和数字
     const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{6,}$/
     if (!passwordRegex.test(password)) {
-      return res.status(400).json({ error: '密码必须包含大小写字母和数字' })
+      throw new BusinessError(ErrorCode.INVALID_PARAMS, '密码必须包含大小写字母和数字')
     }
     const exists = await userService.userExists(username)
     if (exists) {
-      return res.status(409).json({ error: '用户名已存在' })
+      throw new BusinessError(ErrorCode.DUPLICATE_USERNAME, '用户名已存在')
     }
     const hashedPassword = await bcrypt.hash(password, 10)
     const user = await userService.createUser(username, hashedPassword)
     const token = generateToken(user)
     setAuthCookie(res, token)
 
-    res.status(201).json({ user })
+    logger.audit('REGISTER', { userId: user.id, username, ip: req.ip })
+    sendSuccess(res, { user }, 201)
   } catch (error) {
-    // @arch-note P1-06: BusinessError 统一携带 status（并发注册冲突返回 409）
-    if (error instanceof BusinessError) {
-      return res.status(error.status).json({ error: error.message })
-    }
-    // [FIXED 016] 使用结构化日志替代 console
-    if (process.env.NODE_ENV !== 'test') {
-      console.error('注册失败:', error.message)
-    }
-    res.status(500).json({ error: '注册失败' })
+    next(error)
   }
 }
 
-export async function login(req, res) {
+export async function login(req, res, next) {
   try {
     const { username, password } = req.body
     if (!username || !password) {
-      return res.status(400).json({ error: '用户名和密码不能为空' })
+      throw new BusinessError(ErrorCode.INVALID_PARAMS, '用户名和密码不能为空')
     }
     const user = await userService.findByUsername(username)
     if (!user) {
-      return res.status(401).json({ error: '用户名或密码错误' })
+      throw new BusinessError(ErrorCode.UNAUTHORIZED, '用户名或密码错误')
     }
     // @arch-note P1-14: 双通道比对 + 静默迁移
     let valid = await bcrypt.compare(password, user.password)
@@ -86,18 +81,15 @@ export async function login(req, res) {
       }
     }
     if (!valid) {
-      return res.status(401).json({ error: '用户名或密码错误' })
+      throw new BusinessError(ErrorCode.UNAUTHORIZED, '用户名或密码错误')
     }
     const token = generateToken(user)
     setAuthCookie(res, token)
 
-    res.json({ user: { id: user.id, username: user.username, createdAt: user.createdAt } })
+    logger.audit('LOGIN', { userId: user.id, username: user.username, ip: req.ip })
+    sendSuccess(res, { user: { id: user.id, username: user.username, createdAt: user.createdAt } })
   } catch (error) {
-    // [FIXED 016] 使用结构化日志替代 console
-    if (process.env.NODE_ENV !== 'test') {
-      console.error('登录失败:', error.message)
-    }
-    res.status(500).json({ error: '登录失败' })
+    next(error)
   }
 }
 
@@ -117,9 +109,10 @@ export async function logout(req, res) {
   }
   // @arch-note SEC-001: 清除 token cookie
   res.clearCookie('auth_token')
-  res.json({ message: '登出成功' })
+  logger.audit('LOGOUT', { ip: req.ip })
+  sendSuccess(res, { message: '登出成功' })
 }
 
 export async function me(req, res) {
-  res.json({ user: req.user })
+  sendSuccess(res, { user: req.user })
 }

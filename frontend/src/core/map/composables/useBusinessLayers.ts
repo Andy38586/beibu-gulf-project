@@ -13,6 +13,7 @@ import type { InjectionKey } from 'vue'
 import { inject } from 'vue'
 
 import type { BusinessLayerManager } from '@/core/map/BusinessLayerManager'
+import { logger } from '@/shared/utils/logger'
 
 /**
  * useBusinessLayers 返回的 manager 形态
@@ -37,7 +38,7 @@ export function useBusinessLayers(): UseBusinessLayersReturn {
   const manager = inject(BUSINESS_LAYER_MANAGER_KEY)
 
   if (!manager) {
-    console.warn('[useBusinessLayers] BusinessLayerManager 未注入，请确认 UnifiedMap 已 provide')
+    logger.warn('[useBusinessLayers] BusinessLayerManager 未注入，请确认 UnifiedMap 已 provide')
     return {
       manager: {
         register: () => {},

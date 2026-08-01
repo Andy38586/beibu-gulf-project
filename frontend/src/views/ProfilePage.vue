@@ -17,8 +17,7 @@
  * - 下半部分：收藏夹列表
  */
 
-import { ref, watch } from 'vue'
-import { inject } from 'vue'
+import { computed, inject, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 import AppLayout from '@/core/layout/AppLayout.vue'
@@ -33,7 +32,7 @@ import { useFloodState } from '@/stores/floodState'
 
 import LoginPanel from './LoginPanel.vue'
 
-const { css } = useGCS()
+const { css, cellPixel } = useGCS()
 import type { AffectedFacility, FloodFeature, FloodStatistics } from '@/types/business/base'
 import type { TypeSetting } from '@/types/facility'
 import type { Plan } from '@/types/plan'
@@ -47,8 +46,16 @@ const {
   loading: plansLoading,
   deleting: plansDeleting,
 } = usePlans()
-const { user } = useAuth()
+const { user, logout } = useAuth()
 const floodStore = useFloodState()
+
+/* 个人中心布局尺寸（GCS cell 单位） */
+const avatarSizeCss = computed(() => `${cellPixel.value * 1.2}px`)
+const avatarFontCss = computed(() => `${cellPixel.value * 0.5}px`)
+const logoutWidthCss = computed(() => `${cellPixel.value * 3.8}px`)
+const logoutHeightCss = computed(() => `${cellPixel.value * 0.8}px`)
+const logoutFontCss = computed(() => `${cellPixel.value * 0.175}px`)
+const avatarText = computed(() => (user.value?.username || '?').charAt(0).toUpperCase())
 
 const restorePlanData = inject('restorePlanData', ref<Record<string, TypeSetting> | null>(null))
 const editingPlan = inject('editingPlan', ref<Plan | null>(null))
@@ -174,11 +181,11 @@ function loadFloodPlan(plan: Plan) {
     ? plan.affectedFacilities
     : []
 
-  if (!isFloodFeatureArray(plan.floodFeatures) && import.meta.env.DEV) {
-    console.warn('[ProfilePage] 方案 floodFeatures 数据格式异常，已降级为空数组')
+  if (!isFloodFeatureArray(plan.floodFeatures)) {
+    logger.debug('[ProfilePage] 方案 floodFeatures 数据格式异常，已降级为空数组')
   }
-  if (!isAffectedFacilityArray(plan.affectedFacilities) && import.meta.env.DEV) {
-    console.warn('[ProfilePage] 方案 affectedFacilities 数据格式异常，已降级为空数组')
+  if (!isAffectedFacilityArray(plan.affectedFacilities)) {
+    logger.debug('[ProfilePage] 方案 affectedFacilities 数据格式异常，已降级为空数组')
   }
 
   floodStore.saveState({
@@ -227,6 +234,15 @@ async function handleFavoriteChange() {
 }
 
 /**
+ * 退出登录：复用 useAuth.logout（清 HttpOnly Cookie + localStorage + 业务 store）
+ * 之前退出按钮只写在 LoginPanel 的"已登录分支"，而登录态下 ProfilePage 并不挂载
+ * LoginPanel（v-if="!user"），导致按钮不可达。此处把入口接出来。
+ */
+async function handleLogout() {
+  await logout()
+}
+
+/**
  * 判断方案是否包含选址分析类型的小区（score > 0）
  */
 function getSiteXiaoqu(plan: Plan): SavedXiaoqu[] {
@@ -266,97 +282,110 @@ watch(
         <GCSPanel :w="4" :h="8" anchor="top-right" :offset-x="0" :offset-y="1.25">
           <div class="profile-content">
             <!-- c013: 两张屏 v-if 互换——未登录显示登录面板，已登录显示个人中心 -->
-            <LoginPanel v-if="!user" />
+            <LoginPanel v-if="!user" class="profile-login" />
 
             <!-- 个人中心：收藏夹内容（仅登录后显示） -->
-            <div v-else class="favorites-container">
-              <!-- 错误提示 -->
-              <div v-if="plansError" class="plans-error">
-                {{ plansError }}
+            <div v-else class="profile-logged-in">
+              <!-- 顶部：默认头像 + 用户名（占上四分位 ~25%） -->
+              <div class="profile-header">
+                <div class="profile-avatar">{{ avatarText }}</div>
+                <span class="profile-username">{{ user?.username }}</span>
               </div>
 
-              <!-- 加载状态 -->
-              <div v-if="plansLoading" class="plans-loading">加载中...</div>
+              <!-- 从上四分位线往下：抽屉型收藏（一个方案=一个抽屉，可装多个小区/设施） -->
+              <div class="favorites-container">
+                <!-- 错误提示 -->
+                <div v-if="plansError" class="plans-error">
+                  {{ plansError }}
+                </div>
 
-              <!-- 收藏夹标题 -->
-              <div v-if="user && plansList.length > 0" class="favorites-header">
-                <span class="favorites-title">我的收藏</span>
-                <span class="favorites-count">{{ plansList.length }}个方案</span>
-              </div>
+                <!-- 加载状态 -->
+                <div v-if="plansLoading" class="plans-loading">加载中...</div>
 
-              <!-- 方案列表（可展开查看收藏内容） -->
-              <div v-if="user && plansList.length > 0" class="plans-list">
-                <div v-for="plan in plansList" :key="plan.id" class="plan-group">
-                  <!-- 方案头部 -->
-                  <div class="plan-header" @click="togglePlan(plan.id)">
-                    <span class="plan-toggle">{{ expandedPlanId === plan.id ? '▼' : '▶' }}</span>
-                    <span class="plan-name">{{ plan.name }}</span>
-                    <span class="plan-count">{{ plan.savedXiaoqu?.length || 0 }}项</span>
-                  </div>
+                <!-- 收藏夹标题 -->
+                <div v-if="user && plansList.length > 0" class="favorites-header">
+                  <span class="favorites-title">我的收藏</span>
+                  <span class="favorites-count">{{ plansList.length }}个方案</span>
+                </div>
 
-                  <!-- 展开内容：操作按钮 + 收藏列表 -->
-                  <div v-if="expandedPlanId === plan.id" class="plan-detail">
-                    <!-- 操作按钮 -->
-                    <div class="plan-actions">
-                      <button class="action-btn load-btn" @click="handleLoadPlan(plan)">
-                        加载
-                      </button>
-                      <button class="action-btn edit-btn" @click="handleEditPlan(plan)">
-                        重命名
-                      </button>
-                      <button
-                        class="action-btn delete-btn"
-                        :disabled="plansDeleting"
-                        @click="handleDeletePlan(plan)"
-                      >
-                        {{ plansDeleting ? '删除中...' : '删除' }}
-                      </button>
+                <!-- 方案列表（可展开查看收藏内容） -->
+                <div v-if="user && plansList.length > 0" class="plans-list">
+                  <div v-for="plan in plansList" :key="plan.id" class="plan-group">
+                    <!-- 方案头部 -->
+                    <div class="plan-header" @click="togglePlan(plan.id)">
+                      <span class="plan-toggle">{{ expandedPlanId === plan.id ? '▼' : '▶' }}</span>
+                      <span class="plan-name">{{ plan.name }}</span>
+                      <span class="plan-count">{{ plan.savedXiaoqu?.length || 0 }}项</span>
                     </div>
 
-                    <!-- 选址分析收藏（如果有） -->
-                    <div v-if="getSiteXiaoqu(plan).length > 0" class="fav-section">
-                      <div class="fav-section-title">选址分析</div>
-                      <PaginatedListPanel
-                        :items="getSiteXiaoqu(plan)"
-                        :page-size="3"
-                        :show-favorite="true"
-                        :map-interaction="false"
-                        plan-type="site-selection"
-                        @favorite-change="handleFavoriteChange"
-                      >
-                        <template #item="{ item: xq, index }">
-                          <span class="xq-rank">{{ index + 1 }}</span>
-                          <span class="xq-name">{{ xq.name }}</span>
-                          <span class="xq-score">{{ xq.score }}分</span>
-                        </template>
-                      </PaginatedListPanel>
-                    </div>
+                    <!-- 展开内容：操作按钮 + 收藏列表 -->
+                    <div v-if="expandedPlanId === plan.id" class="plan-detail">
+                      <!-- 操作按钮 -->
+                      <div class="plan-actions">
+                        <button class="action-btn load-btn" @click="handleLoadPlan(plan)">
+                          加载
+                        </button>
+                        <button class="action-btn edit-btn" @click="handleEditPlan(plan)">
+                          重命名
+                        </button>
+                        <button
+                          class="action-btn delete-btn"
+                          :disabled="plansDeleting"
+                          @click="handleDeletePlan(plan)"
+                        >
+                          {{ plansDeleting ? '删除中...' : '删除' }}
+                        </button>
+                      </div>
 
-                    <!-- 浸没分析收藏（如果有） -->
-                    <div v-if="getFloodFacilities(plan).length > 0" class="fav-section">
-                      <div class="fav-section-title">浸没分析</div>
-                      <PaginatedListPanel
-                        :items="getFloodFacilities(plan)"
-                        :page-size="3"
-                        :show-favorite="true"
-                        :map-interaction="false"
-                        plan-type="flood"
-                        @favorite-change="handleFavoriteChange"
-                      >
-                        <template #item="{ item: facility }">
-                          <span class="facility-name">{{ facility.name }}</span>
-                        </template>
-                      </PaginatedListPanel>
+                      <!-- 选址分析收藏（如果有） -->
+                      <div v-if="getSiteXiaoqu(plan).length > 0" class="fav-section">
+                        <div class="fav-section-title">选址分析</div>
+                        <PaginatedListPanel
+                          :items="getSiteXiaoqu(plan)"
+                          :page-size="3"
+                          :show-favorite="true"
+                          :map-interaction="false"
+                          plan-type="site-selection"
+                          @favorite-change="handleFavoriteChange"
+                        >
+                          <template #item="{ item: xq, index }">
+                            <span class="xq-rank">{{ index + 1 }}</span>
+                            <span class="xq-name">{{ xq.name }}</span>
+                            <span class="xq-score">{{ xq.score }}分</span>
+                          </template>
+                        </PaginatedListPanel>
+                      </div>
+
+                      <!-- 浸没分析收藏（如果有） -->
+                      <div v-if="getFloodFacilities(plan).length > 0" class="fav-section">
+                        <div class="fav-section-title">浸没分析</div>
+                        <PaginatedListPanel
+                          :items="getFloodFacilities(plan)"
+                          :page-size="3"
+                          :show-favorite="true"
+                          :map-interaction="false"
+                          plan-type="flood"
+                          @favorite-change="handleFavoriteChange"
+                        >
+                          <template #item="{ item: facility }">
+                            <span class="facility-name">{{ facility.name }}</span>
+                          </template>
+                        </PaginatedListPanel>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
 
-              <!-- 空状态：已登录但无收藏 -->
-              <div v-if="user && !plansLoading && plansList.length === 0" class="empty-favorites">
-                <div class="empty-icon">⭐</div>
-                <div class="empty-text">暂无收藏</div>
-                <div class="empty-hint">去选址分析或浸没分析收藏内容吧</div>
+                <!-- 空状态：已登录但无收藏 -->
+                <div v-if="user && !plansLoading && plansList.length === 0" class="empty-favorites">
+                  <div class="empty-icon">⭐</div>
+                  <div class="empty-text">暂无收藏</div>
+                  <div class="empty-hint">去选址分析或浸没分析收藏内容吧</div>
+                </div>
+              </div>
+              <!-- 最底部：退出登录按钮（0.8×3.8 Cell，沿用原视觉语言） -->
+              <div class="logout-bar">
+                <button class="logout-btn-bottom" @click="handleLogout">退出登录</button>
               </div>
             </div>
           </div>
@@ -394,35 +423,87 @@ watch(
   pointer-events: auto;
 }
 
-/* LoginPanel（用户名区域）占上方 1/4 */
-.profile-content > :first-child {
+/* 未登录：登录面板占满整个 Panel */
+.profile-login {
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+/* 已登录：内部三段式（顶部头像+用户名 / 中段抽屉收藏 / 底部退出） */
+.profile-logged-in {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 顶部：默认头像 + 用户名（占上四分位 ~25%） */
+.profile-header {
   flex: 0 0 25%;
-  overflow: visible;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border-bottom: 1px solid var(--GCS-border-light);
 }
 
-/* 确保 LoginPanel 内部布局正常，退出按钮固定在底部 */
-.profile-content > :first-child :deep(.login-panel) {
-  height: 100%;
-  position: relative;
+.profile-avatar {
+  width: v-bind(avatarSizeCss);
+  height: v-bind(avatarSizeCss);
+  border-radius: 50%;
+  background: var(--GCS-color-primary);
+  color: var(--GCS-text-inverse);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: v-bind(avatarFontCss);
+  font-weight: 600;
+  flex-shrink: 0;
+  user-select: none;
 }
 
-.profile-content > :first-child :deep(.user-info-area) {
-  flex: 1;
-  justify-content: flex-start;
-  padding-top: 8px;
+.profile-username {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--GCS-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
 }
 
-/* 退出按钮固定在离 panel 底部 0.1 cell 处 */
-.profile-content > :first-child :deep(.logout-btn) {
-  margin-top: auto;
-  margin-bottom: v-bind(css.cell8px);
-}
-
-/* 收藏夹占下方 3/4（从上四分位线开始） */
+/* 收藏区：从上四分位线往下，可滚动（抽屉型） */
 .favorites-container {
   flex: 1 1 0;
   min-height: 0;
   overflow-y: auto;
+}
+
+/* 最底部：退出登录按钮（0.8×3.8 Cell，沿用原视觉语言） */
+.logout-bar {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: center;
+  padding: v-bind(css.cell8px) 0;
+}
+
+.logout-btn-bottom {
+  width: v-bind(logoutWidthCss);
+  height: v-bind(logoutHeightCss);
+  border: 1px solid var(--GCS-color-error);
+  border-radius: var(--GCS-radius-md);
+  background: var(--GCS-bg-panel);
+  color: var(--GCS-color-error);
+  font-size: v-bind(logoutFontCss);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.logout-btn-bottom:hover {
+  background: var(--GCS-color-error);
+  color: var(--GCS-text-inverse);
 }
 
 /* 方案列表错误提示 */

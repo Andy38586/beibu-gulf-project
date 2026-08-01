@@ -1,5 +1,6 @@
 import type { FeatureCollection } from 'geojson'
 
+import { logger } from '@/shared/utils/logger'
 import type {
   CameraState,
   FlyToOptions,
@@ -55,16 +56,12 @@ export class MapRenderer {
   }
 
   getMap(): unknown {
-    if (import.meta.env.DEV) {
-      console.warn(`${this.getType()} getMap 未实现（仅 2D 渲染器支持）`)
-    }
+    logger.debug(`${this.getType()} getMap 未实现（仅 2D 渲染器支持）`)
     return null
   }
 
   getViewer(): unknown {
-    if (import.meta.env.DEV) {
-      console.warn(`${this.getType()} getViewer 未实现（仅 3D 渲染器支持）`)
-    }
+    logger.debug(`${this.getType()} getViewer 未实现（仅 3D 渲染器支持）`)
     return null
   }
 
@@ -83,16 +80,12 @@ export class MapRenderer {
   // 原设计文档使用 addGeoJsonLayer({type:'heatmap'})，但现有接口不支持
   // 正确做法：独立方法，子类按需实现
   addHeatmapLayer(_id: string, _features: PointFeature[], _options: LayerOptions = {}): boolean {
-    if (import.meta.env.DEV) {
-      console.warn(`${this.getType()} addHeatmapLayer 未实现（仅 2D 渲染器支持）`)
-    }
+    logger.debug(`${this.getType()} addHeatmapLayer 未实现（仅 2D 渲染器支持）`)
     return false
   }
 
   updateHeatmapLayer(_id: string, _features: PointFeature[], _options: LayerOptions = {}): boolean {
-    if (import.meta.env.DEV) {
-      console.warn(`${this.getType()} updateHeatmapLayer 未实现`)
-    }
+    logger.debug(`${this.getType()} updateHeatmapLayer 未实现`)
     return false
   }
 
@@ -248,51 +241,37 @@ export class MapRenderer {
     _height: number = 0,
     _options: WaterSurfaceOptions = {}
   ): boolean {
-    if (import.meta.env.DEV) {
-      console.warn(`${this.getType()} addWaterSurface 未实现（仅 3D 渲染器支持）`)
-    }
+    logger.debug(`${this.getType()} addWaterSurface 未实现（仅 3D 渲染器支持）`)
     return false
   }
 
   updateWaterLevel(_id: string, _newHeight: number): boolean {
-    if (import.meta.env.DEV) {
-      console.warn(`${this.getType()} updateWaterLevel 未实现（仅 3D 渲染器支持）`)
-    }
+    logger.debug(`${this.getType()} updateWaterLevel 未实现（仅 3D 渲染器支持）`)
     return false
   }
 
   removeWaterSurface(_id: string): boolean {
-    if (import.meta.env.DEV) {
-      console.warn(`${this.getType()} removeWaterSurface 未实现（仅 3D 渲染器支持）`)
-    }
+    logger.debug(`${this.getType()} removeWaterSurface 未实现（仅 3D 渲染器支持）`)
     return false
   }
 
   removeAllWaterSurfaces(): boolean {
-    if (import.meta.env.DEV) {
-      console.warn(`${this.getType()} removeAllWaterSurfaces 未实现（仅 3D 渲染器支持）`)
-    }
+    logger.debug(`${this.getType()} removeAllWaterSurfaces 未实现（仅 3D 渲染器支持）`)
     return false
   }
 
   setWaterSurfaceVisibility(_id: string, _visible: boolean): boolean {
-    if (import.meta.env.DEV) {
-      console.warn(`${this.getType()} setWaterSurfaceVisibility 未实现（仅 3D 渲染器支持）`)
-    }
+    logger.debug(`${this.getType()} setWaterSurfaceVisibility 未实现（仅 3D 渲染器支持）`)
     return false
   }
 
   startBreathing(_lng: number, _lat: number): boolean {
-    if (import.meta.env.DEV) {
-      console.warn(`${this.getType()} startBreathing 未实现（仅 3D 渲染器支持）`)
-    }
+    logger.debug(`${this.getType()} startBreathing 未实现（仅 3D 渲染器支持）`)
     return false
   }
 
   stopBreathing(): boolean {
-    if (import.meta.env.DEV) {
-      console.warn(`${this.getType()} stopBreathing 未实现（仅 3D 渲染器支持）`)
-    }
+    logger.debug(`${this.getType()} stopBreathing 未实现（仅 3D 渲染器支持）`)
     return false
   }
 }

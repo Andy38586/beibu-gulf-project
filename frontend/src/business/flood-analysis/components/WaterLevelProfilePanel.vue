@@ -58,12 +58,7 @@ interface TerrainProfile {
   points: TerrainProfilePoint[]
 }
 
-/** API 响应通用结构 */
-interface ApiResponse<T> {
-  code: number
-  data: T
-  message?: string
-}
+/** API 响应通用结构（已由 apiRequest 自动解包，此接口仅保留供历史参考） */
 
 const { apiRequest } = useApiRequest()
 const waterLevelStore = useWaterLevelStore()
@@ -125,10 +120,10 @@ const chartContainerRef = ref<HTMLElement | null>(null)
  */
 async function loadProfiles() {
   try {
-    const result = await apiRequest<ApiResponse<TerrainProfile[]>>('/flood/terrain-profiles')
+    const result = await apiRequest<TerrainProfile[]>('/flood/terrain-profiles')
 
-    if (result.code === 200 && result.data) {
-      profiles.value = result.data
+    if (result && Array.isArray(result)) {
+      profiles.value = result
       // 默认选择第一条剖面线
       if (profiles.value.length > 0) {
         selectedProfileId.value = profiles.value[0].id

@@ -10,7 +10,7 @@ const DATA_DIR = join(__dirname, '../data/forecast')
 // @arch-note SEC-013: 指标白名单——仅允许 index.json 中声明过的合法指标，
 // 拒绝路径遍历（..）及非法指标名。forecast 路由保持公开（稳定设计决策），
 // 但不代表接受任意输入。
-const ALLOWED_INDICATORS = new Set(['throughput', 'berth', 'traffic', 'pressure', 'development'])
+const ALLOWED_INDICATORS = new Set(['cargo', 'container'])
 
 const MAX_CACHE_SIZE = 100
 
@@ -123,7 +123,7 @@ export async function getMapData(indicator, time, scenarioLevel = 1.0) {
 }
 
 export async function getPortData(portId, indicator, start, end) {
-  const indicators = indicator ? [indicator] : ['throughput', 'berth', 'traffic', 'pressure']
+  const indicators = indicator ? [indicator] : ['cargo', 'container']
   const result = { portId, portName: '', indicators: {} }
 
   for (const ind of indicators) {

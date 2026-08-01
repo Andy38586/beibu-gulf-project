@@ -11,7 +11,7 @@ node_modules
 .DS_Store
 dist
 dist-ssr
-dist-verify
+dist-verify*
 dist_new
 dist_tmp
 dist-tmp
@@ -55,6 +55,7 @@ backend/data/plans.json
 
 # 本地开发工具与残渣（不提交到远程）
 .husky/
+.gdal_work/
 mac-framed-site-selection.png
 frontend/typecheck-errors.txt
 old_bundle_tmp.js
@@ -63,3 +64,6 @@ old_bundle_tmp.js
 *.token
 *token*.txt
 test_token*
+
+# TLS 证书（私钥敏感，不提交）
+certs/

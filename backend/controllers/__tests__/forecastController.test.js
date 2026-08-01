@@ -31,7 +31,9 @@ import {
 } from '../../services/forecastService.js'
 
 function createRes() {
-  return { json: vi.fn() }
+  const res = { json: vi.fn(), status: vi.fn() }
+  res.status.mockReturnValue(res)
+  return res
 }
 function createNext() {
   return vi.fn()
@@ -55,7 +57,7 @@ describe('getForecastMapData', () => {
   })
 
   it('缺少 time → next 收到 BusinessError(INVALID_PARAMS)', async () => {
-    const req = { query: { indicator: 'throughput' } }
+    const req = { query: { indicator: 'cargo' } }
     const res = createRes()
     const next = createNext()
     await getForecastMapData(req, res, next)
@@ -67,13 +69,14 @@ describe('getForecastMapData', () => {
   })
 
   it('参数齐全 → res.json({code:200,data})，data 来自 mock service', async () => {
-    const mockData = { indicator: 'throughput', unit: '万吨', features: [] }
+    const mockData = { indicator: 'cargo', unit: '万吨', features: [] }
     getMapData.mockResolvedValue(mockData)
-    const req = { query: { indicator: 'throughput', time: '2025', confidence: '0.9' } }
+    const req = { query: { indicator: 'cargo', time: '2025', confidence: '0.9' } }
     const res = createRes()
     const next = createNext()
     await getForecastMapData(req, res, next)
-    expect(getMapData).toHaveBeenCalledWith('throughput', '2025', 0.9)
+    expect(getMapData).toHaveBeenCalledWith('cargo', '2025', 0.9)
+    expect(res.status).toHaveBeenCalledWith(200)
     expect(res.json).toHaveBeenCalledWith({ code: 200, data: mockData })
     expect(next).not.toHaveBeenCalled()
   })
@@ -86,13 +89,14 @@ describe('getForecastMapData', () => {
     const next = createNext()
     await getForecastMapData(req, res, next)
     expect(getMapData).toHaveBeenCalledWith('berth', '2025', 1.0)
+    expect(res.status).toHaveBeenCalledWith(200)
     expect(res.json).toHaveBeenCalledWith({ code: 200, data: mockData })
   })
 
   it('service 抛错 → next(error)', async () => {
     const boom = new Error('compute failed')
     getMapData.mockRejectedValue(boom)
-    const req = { query: { indicator: 'throughput', time: '2025' } }
+    const req = { query: { indicator: 'cargo', time: '2025' } }
     const res = createRes()
     const next = createNext()
     await getForecastMapData(req, res, next)
@@ -110,6 +114,7 @@ describe('getForecastOverview', () => {
     const next = createNext()
     await getForecastOverview(req, res, next)
     expect(readFile).toHaveBeenCalledTimes(1)
+    expect(res.status).toHaveBeenCalledWith(200)
     expect(res.json).toHaveBeenCalledWith({ code: 200, data: indexData })
     expect(next).not.toHaveBeenCalled()
   })
@@ -130,11 +135,12 @@ describe('getPortForecast', () => {
   it('正常 → res.json({code:200,data})，data 来自 mock service', async () => {
     const mockData = { portId: 'p1', portName: '钦州港', indicators: {} }
     getPortData.mockResolvedValue(mockData)
-    const req = { params: { portId: 'p1' }, query: { indicator: 'throughput', start: '2024', end: '2025' } }
+    const req = { params: { portId: 'p1' }, query: { indicator: 'cargo', start: '2024', end: '2025' } }
     const res = createRes()
     const next = createNext()
     await getPortForecast(req, res, next)
-    expect(getPortData).toHaveBeenCalledWith('p1', 'throughput', '2024', '2025')
+    expect(getPortData).toHaveBeenCalledWith('p1', 'cargo', '2024', '2025')
+    expect(res.status).toHaveBeenCalledWith(200)
     expect(res.json).toHaveBeenCalledWith({ code: 200, data: mockData })
     expect(next).not.toHaveBeenCalled()
   })
@@ -153,13 +159,14 @@ describe('getPortForecast', () => {
 
 describe('getIndicatorData', () => {
   it('正常 → res.json({code:200,data})，data 来自 mock service', async () => {
-    const mockData = { indicator: 'throughput', unit: '万吨', ports: {} }
+    const mockData = { indicator: 'cargo', unit: '万吨', ports: {} }
     queryIndicator.mockResolvedValue(mockData)
-    const req = { params: { type: 'throughput' }, query: { time: '2025', portId: 'p1' } }
+    const req = { params: { type: 'cargo' }, query: { time: '2025', portId: 'p1' } }
     const res = createRes()
     const next = createNext()
     await getIndicatorData(req, res, next)
-    expect(queryIndicator).toHaveBeenCalledWith('throughput', '2025', 'p1', 1.0)
+    expect(queryIndicator).toHaveBeenCalledWith('cargo', '2025', 'p1', 1.0)
+    expect(res.status).toHaveBeenCalledWith(200)
     expect(res.json).toHaveBeenCalledWith({ code: 200, data: mockData })
     expect(next).not.toHaveBeenCalled()
   })
@@ -167,7 +174,7 @@ describe('getIndicatorData', () => {
   it('service 抛错 → next(error)', async () => {
     const boom = new Error('indicator failed')
     queryIndicator.mockRejectedValue(boom)
-    const req = { params: { type: 'throughput' }, query: {} }
+    const req = { params: { type: 'cargo' }, query: {} }
     const res = createRes()
     const next = createNext()
     await getIndicatorData(req, res, next)
@@ -178,15 +185,16 @@ describe('getIndicatorData', () => {
 
 describe('getTimeSeriesData', () => {
   it('正常 → res.json({code:200,data})，data 来自 mock service', async () => {
-    const mockData = { indicator: 'throughput', unit: '万吨', granularity: 'year', series: [] }
+    const mockData = { indicator: 'cargo', unit: '万吨', granularity: 'year', series: [] }
     queryTimeSeries.mockResolvedValue(mockData)
     const req = {
-      query: { indicator: 'throughput', portId: 'p1', start: '2024', end: '2025', granularity: 'year' },
+      query: { indicator: 'cargo', portId: 'p1', start: '2024', end: '2025', granularity: 'year' },
     }
     const res = createRes()
     const next = createNext()
     await getTimeSeriesData(req, res, next)
-    expect(queryTimeSeries).toHaveBeenCalledWith('throughput', 'p1', '2024', '2025', 'year', 1.0)
+    expect(queryTimeSeries).toHaveBeenCalledWith('cargo', 'p1', '2024', '2025', 'year', 1.0)
+    expect(res.status).toHaveBeenCalledWith(200)
     expect(res.json).toHaveBeenCalledWith({ code: 200, data: mockData })
     expect(next).not.toHaveBeenCalled()
   })
@@ -194,7 +202,7 @@ describe('getTimeSeriesData', () => {
   it('service 抛错 → next(error)', async () => {
     const boom = new Error('series failed')
     queryTimeSeries.mockRejectedValue(boom)
-    const req = { query: { indicator: 'throughput' } }
+    const req = { query: { indicator: 'cargo' } }
     const res = createRes()
     const next = createNext()
     await getTimeSeriesData(req, res, next)

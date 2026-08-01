@@ -1,14 +1,14 @@
 {
   "metadata": {
     "version": "1.0",
-    "lastUpdated": "2025-12-31",
+    "lastUpdated": "2026-07-31",
     "ports": [
       { "id": "qinzhou", "name": "钦州港", "lat": 21.95, "lng": 108.62 },
       { "id": "beihai", "name": "北海港", "lat": 21.48, "lng": 109.12 },
       { "id": "fangchenggang", "name": "防城港", "lat": 21.77, "lng": 108.35 }
     ],
-    "indicators": ["throughput", "berth", "traffic", "pressure", "development"]
+    "indicators": ["cargo", "container"]
   },
-  "historical": { "start": "2018-01", "end": "2025-12" },
-  "forecast": { "start": "2026-01", "end": "2035-12" }
+  "historical": { "start": "2021-01", "end": "2026-06" },
+  "forecast": { "start": "2026-01", "end": "2031-12" }
 }

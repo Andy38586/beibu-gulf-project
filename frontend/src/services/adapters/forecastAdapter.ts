@@ -15,13 +15,14 @@
  */
 
 import { useApiRequest } from '@/shared/composables/useApiRequest'
-import { logger } from '@/shared/utils/logger'
 import type { ForecastSeries } from '@/types/api/forecast'
+
+import { resolveDataSource, setAdapterDataSource } from '../dataSourceConfig'
 
 /**
  * 指标索引（对应 public/data/forecast/index.json 的结构）。
  *
- * 注意：mock 文件的 metadata.indicators 是字符串数组（如 ["throughput","berth"]），
+ * 注意：index.json 的 indicators 是字符串数组（如 ["cargo","container","berth","traffic"]），
  * 非 Array<{key,label,unit}>。此类型如实反映数据事实。
  */
 export interface ForecastIndicatorIndex {
@@ -107,6 +108,24 @@ interface _MockForecastFile {
 
 const MOCK_BASE = '/data/forecast'
 
+/**
+ * 每个指标的数据来源：
+ * - 真实数据（cargo/container）走后端 API（backend/data/forecast，经 /api/forecast/* 返回）；
+ * - 示意性合成数据（berth/traffic）放前端静态 fixture（public/data/forecast/*.json）。
+ * 由此实现「同一页面两种取数方式」：真实指标走 API、合成指标走静态文件。
+ * 未显式声明的指标回退到全局 _dataSource（由 main.ts 设为 'api'）。
+ */
+const INDICATOR_SOURCE: Record<string, 'api' | 'mock'> = {
+  berth: 'mock',
+  traffic: 'mock',
+}
+
+const ADAPTER_NAME = 'forecast'
+
+function _resolveSource(indicator: string): 'api' | 'mock' {
+  return INDICATOR_SOURCE[indicator] ?? resolveDataSource(ADAPTER_NAME)
+}
+
 /** 在 mock values 字典中查找指定时间的值，找不到时取最近的前一个时间点 */
 function _lookupValue(values: Record<string, number>, time: string): number | null {
   if (values[time] != null) return values[time]
@@ -119,8 +138,6 @@ function _lookupValue(values: Record<string, number>, time: string): number | nu
   }
   return values[nearest] ?? null
 }
-
-let _dataSource: 'mock' | 'api' = 'mock'
 
 async function _fetchMock(indicator: string): Promise<ForecastSeries> {
   const url = `${MOCK_BASE}/${indicator}.json`
@@ -140,23 +157,13 @@ async function _fetchMockIndex(): Promise<ForecastIndicatorIndex> {
   return (await res.json()) as ForecastIndicatorIndex
 }
 
-/** 后端统一响应包裹 */
-interface ApiEnvelope<T> {
-  code: number
-  data: T
-}
-
 export const forecastAdapter = {
   get dataSource(): string {
-    return _dataSource
+    return resolveDataSource(ADAPTER_NAME)
   },
 
   setDataSource(mode: 'mock' | 'api'): void {
-    if (mode !== 'mock' && mode !== 'api') {
-      throw new Error(`[ForecastAdapter] 无效的数据源模式: ${mode}，仅支持 'mock' 或 'api'`)
-    }
-    _dataSource = mode
-    logger.info(`[ForecastAdapter] 数据源切换为: ${mode}`)
+    setAdapterDataSource(ADAPTER_NAME, mode)
   },
 
   /**
@@ -169,7 +176,7 @@ export const forecastAdapter = {
     confidence: number,
     signal?: AbortSignal
   ): Promise<TimeSeriesResponse> {
-    if (_dataSource === 'mock') {
+    if (_resolveSource(indicator) === 'mock') {
       // mock 模式无 timeseries 端点，回退到单指标文件并组装为 series 结构
       const series = await _fetchMock(indicator)
       const result: TimeSeriesResponse = {
@@ -207,9 +214,12 @@ export const forecastAdapter = {
     }
     // api 模式
     const { apiRequest } = useApiRequest()
-    const path = `/forecast/timeseries?indicator=${indicator}&granularity=${granularity}&confidence=${confidence}`
-    const resp = await apiRequest<ApiEnvelope<TimeSeriesResponse>>(path, { method: 'GET', signal })
-    return resp.data
+    const resp = await apiRequest<TimeSeriesResponse>('/forecast/timeseries', {
+      method: 'GET',
+      signal,
+      params: { indicator, granularity, confidence },
+    })
+    return resp
   },
 
   /**
@@ -222,7 +232,7 @@ export const forecastAdapter = {
     confidence: number,
     signal?: AbortSignal
   ): Promise<IndicatorComparisonResponse> {
-    if (_dataSource === 'mock') {
+    if (_resolveSource(indicator) === 'mock') {
       // mock 模式无 indicator/:type 端点，回退到单指标文件取指定时间点的值
       const series = await _fetchMock(indicator)
       const ports: IndicatorComparisonResponse['ports'] = {}
@@ -240,12 +250,12 @@ export const forecastAdapter = {
     }
     // api 模式
     const { apiRequest } = useApiRequest()
-    const path = `/forecast/indicator/${indicator}?time=${time}&confidence=${confidence}`
-    const resp = await apiRequest<ApiEnvelope<IndicatorComparisonResponse>>(path, {
+    const resp = await apiRequest<IndicatorComparisonResponse>(`/forecast/indicator/${indicator}`, {
       method: 'GET',
       signal,
+      params: { time, confidence },
     })
-    return resp.data
+    return resp
   },
 
   /**
@@ -259,7 +269,7 @@ export const forecastAdapter = {
     confidence: number,
     signal?: AbortSignal
   ): Promise<ForecastMapData> {
-    if (_dataSource === 'mock') {
+    if (_resolveSource(indicator) === 'mock') {
       const url = `${MOCK_BASE}/${indicator}.json`
       const res = await fetch(url, { signal })
       if (!res.ok) {
@@ -296,9 +306,12 @@ export const forecastAdapter = {
     }
     // api 模式
     const { apiRequest } = useApiRequest()
-    const path = `/forecast/map?indicator=${indicator}&time=${time}&confidence=${confidence}`
-    const resp = await apiRequest<ApiEnvelope<ForecastMapData>>(path, { method: 'GET', signal })
-    return resp.data
+    const resp = await apiRequest<ForecastMapData>('/forecast/map', {
+      method: 'GET',
+      signal,
+      params: { indicator, time, confidence },
+    })
+    return resp
   },
 
   /**
@@ -306,7 +319,7 @@ export const forecastAdapter = {
    * 保留供需要原始 ForecastSeries 结构的调用方使用。
    */
   async getIndicatorData(indicator: string): Promise<ForecastSeries> {
-    if (_dataSource === 'mock') {
+    if (_resolveSource(indicator) === 'mock') {
       return _fetchMock(indicator)
     }
     // api 模式无单文件端点，走 timeseries 并取第一个 series
@@ -328,14 +341,14 @@ export const forecastAdapter = {
   },
 
   async getAvailableIndicators(): Promise<ForecastIndicatorIndex> {
-    if (_dataSource === 'mock') {
+    if (resolveDataSource(ADAPTER_NAME) === 'mock') {
       return _fetchMockIndex()
     }
     // api 模式调 /forecast/overview
     const { apiRequest } = useApiRequest()
-    const resp = await apiRequest<ApiEnvelope<ForecastIndicatorIndex>>('/forecast/overview', {
+    const resp = await apiRequest<ForecastIndicatorIndex>('/forecast/overview', {
       method: 'GET',
     })
-    return resp.data
+    return resp
   },
 }

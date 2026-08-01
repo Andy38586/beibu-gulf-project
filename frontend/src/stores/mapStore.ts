@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import type { Ref, ShallowRef } from 'vue'
 import { ref, shallowRef } from 'vue'
 
+import { logger } from '@/shared/utils/logger'
 import type { LayerEntry, LayerType, MapType, Port, RegisterLayerOptions } from '@/types'
 import type { MapRenderer } from '@/types'
 import type { ScoredXiaoqu } from '@/types'
@@ -54,7 +55,8 @@ function writeStoredSelectedPort(port: Port | null): void {
   }
 }
 
-function readStoredAnalysisResult(): unknown {
+/** z026: 收窄为结构化类型（core 层不反向依赖业务 AnalysisResult，业务层读取时自行 cast） */
+function readStoredAnalysisResult(): Record<string, unknown> | null {
   if (typeof window === 'undefined') return null
   try {
     const stored = window.sessionStorage.getItem(ANALYSIS_RESULT_STORAGE_KEY)
@@ -64,7 +66,7 @@ function readStoredAnalysisResult(): unknown {
   }
 }
 
-function writeStoredAnalysisResult(result: unknown): void {
+function writeStoredAnalysisResult(result: Record<string, unknown> | null): void {
   if (typeof window === 'undefined') return
   try {
     if (result) {
@@ -90,9 +92,9 @@ export const useMapStore = defineStore('map', () => {
   /** 当前渲染器引用（由UnifiedMap设置，供业务组件访问） */
   const currentRenderer: ShallowRef<MapRenderer | null> = shallowRef(null)
 
-  const analysisHandler: Ref<((_result: unknown) => void) | null> = ref(null)
-  // 从 sessionStorage 恢复分析结果
-  const lastAnalysisResult: Ref<unknown> = ref(readStoredAnalysisResult())
+  const analysisHandler: Ref<((_result: Record<string, unknown>) => void) | null> = ref(null)
+  // z026: 从 sessionStorage 恢复分析结果（收窄为 Record，业务层自行 cast）
+  const lastAnalysisResult: Ref<Record<string, unknown> | null> = ref(readStoredAnalysisResult())
 
   const activePanel: Ref<string> = ref('none')
   const selectedXiaoqu: Ref<ScoredXiaoqu | null> = ref(null)
@@ -123,12 +125,10 @@ export const useMapStore = defineStore('map', () => {
     writeStoredSelectedPort(null)
   }
 
-  function registerAnalysisHandler(handler: (_result: unknown) => void): void {
+  function registerAnalysisHandler(handler: (_result: Record<string, unknown>) => void): void {
     // 验证handler是否为函数
     if (typeof handler !== 'function') {
-      if (import.meta.env.DEV) {
-        console.warn('registerAnalysisHandler: handler必须是函数类型')
-      }
+      logger.debug('registerAnalysisHandler: handler必须是函数类型')
       return
     }
     analysisHandler.value = handler
@@ -137,7 +137,7 @@ export const useMapStore = defineStore('map', () => {
     }
   }
 
-  function setAnalysisResult(result: unknown): void {
+  function setAnalysisResult(result: Record<string, unknown>): void {
     lastAnalysisResult.value = result
     // 持久化分析结果到 sessionStorage
     writeStoredAnalysisResult(result)
@@ -277,9 +277,7 @@ export const useMapStore = defineStore('map', () => {
     const entry = layerCatalog.value.find((e: LayerEntry) => e.key === key)
     // 验证entry存在性
     if (!entry) {
-      if (import.meta.env.DEV) {
-        console.warn(`toggleLayer: 未找到key为"${key}"的图层`)
-      }
+      logger.debug(`toggleLayer: 未找到key为“${key}”的图层`)
       return
     }
 
@@ -365,9 +363,7 @@ export const useMapStore = defineStore('map', () => {
   function setLayerVisible(key: string, visible: boolean): void {
     const idx = layerCatalog.value.findIndex((e: LayerEntry) => e.key === key)
     if (idx < 0) {
-      if (import.meta.env.DEV) {
-        console.warn(`setLayerVisible: 未找到key为"${key}"的图层`)
-      }
+      logger.debug(`setLayerVisible: 未找到key为“${key}”的图层`)
       return
     }
     layerCatalog.value = layerCatalog.value.map((e: LayerEntry) =>

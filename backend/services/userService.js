@@ -6,8 +6,8 @@ import { BusinessError, ErrorCode } from '../utils/BusinessError.js'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const DATA_FILE = path.join(__dirname, '../data/users.json')
 
-// @arch-note R-01: 复用 createFileStore 工厂（users 无缓存，useCache: false）
-const { sequential, readAll, writeAll } = createFileStore(DATA_FILE, { useCache: false })
+// d045: 启用缓存，消除认证层每次请求读盘（writeAll 自动同步 cache，单进程安全）
+const { sequential, readAll, writeAll } = createFileStore(DATA_FILE, { useCache: true })
 
 export async function findByUsername(username) {
   const users = await readAll()

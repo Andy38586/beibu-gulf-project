@@ -9,33 +9,32 @@
 
 ## 数据说明
 
-| 文件               | 指标         | 时间范围          | 粒度 |
-| ------------------ | ------------ | ----------------- | ---- |
-| `throughput.json`  | 吞吐量预测   | 2023-01 ~ 2035-12 | 月   |
-| `berth.json`       | 泊位利用率   | 2023-01 ~ 2035-12 | 月   |
-| `traffic.json`     | 航道流量     | 2023-01 ~ 2035-12 | 月   |
-| `pressure.json`    | 港口压力指数 | 2023-01 ~ 2035-12 | 月   |
-| `development.json` | 发展趋势     | 2023-01 ~ 2035-12 | 月   |
+按「真实数据归后端、示意数据归前端」原则分库存放（2026-07-31 起）：
+
+- **真实数据（后端单源）** → `backend/data/forecast/`，经 `/api/forecast/*` 返回：
+  - `cargo.json`（货物吞吐量，万吨，2021–2026 真实，桌面 CSV）
+  - `container.json`（集装箱吞吐量，TEU，2021–2026 真实，桌面 CSV）
+- **示意性合成数据（前端 fixture）** → `frontend/public/data/forecast/`，作静态文件：
+  - `berth.json`（泊位利用率，2018–2025 生成）
+  - `traffic.json`（船舶流量，2018–2025 生成）
+- `throughput_model.json` 为独立的预测模型产物，不参与接口。
+
+指标顺序（UI 排序）：货物 → 集装箱 → 泊位利用率 → 船舶流量。
 
 ## 重要声明
 
-**这不是生产数据。** 所有数值均为示意性随机生成，不具备真实港口业务参考价值。
+**cargo / container 为真实港口统计口径数据**（北部湾港 2021–2026 月度吞吐量，
+来源：广西产业园区改革发展办公室官网）。预测值由后端 `forecastService.computeForecast`
+按近 5 年月均增长率趋势外推 + 季节性因子生成，仅作架构验证演示，非官方预测。
+berth / traffic 为示意性生成数据，仅前端静态展示（无后端预测引擎参与）。
 
-## 替换方式
+## 数据接入方式（同一页面两种取数方式）
 
-只替换 `forecastAdapter.js` 中的 Data Adapter 实现：
+`forecastAdapter` 按指标来源分流（`INDICATOR_SOURCE`）：
 
-```js
-// 当前（Mock）
-getForecastData(indicator, time) {
-  return fetch(`/data/forecast/${indicator}.json`)
-}
+- **cargo / container** → 全局默认 `api` → `GET /api/forecast/*`（后端读 `backend/data/forecast/`）。
+- **berth / traffic** → `mock` → `fetch('/data/forecast/{indicator}.json')`（前端静态 fixture）。
 
-// 将来（真实 API）
-getForecastData(indicator, time) {
-  return axios.get(`/api/v2/forecast/${indicator}`, { params: { time } })
-}
-```
-
+即「一个预测页面两种请求方式」：真实指标走 API、合成指标走静态文件。
 业务层（`useForecastRequest`、`ForecastPage`、`ForecastControlPanel`）无需修改。
 渲染层（`useForecastLayer`）无需修改。

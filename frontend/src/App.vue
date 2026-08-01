@@ -7,7 +7,7 @@ import { BUSINESS_LAYER_MANAGER_KEY } from '@/core/map/composables/useBusinessLa
 import { useMapControls } from '@/core/map/composables/useMapControls'
 import UnifiedMap from '@/core/map/UnifiedMap.vue'
 import ErrorBoundary from '@/shared/components/ErrorBoundary.vue'
-import { useAuth } from '@/shared/composables/useAuth'
+import { initAuthStorageListener, useAuth } from '@/shared/composables/useAuth'
 import { logger } from '@/shared/utils/logger'
 import { useMapStore } from '@/stores/mapStore'
 
@@ -110,6 +110,8 @@ onMounted(() => {
   // 应用启动时恢复认证状态
   // 通过 /api/auth/me 验证 Cookie 中的 Token 是否有效
   restoreAuth()
+  // 单点注册多标签页 storage 同步监听（无需组件上下文，不会抛错）
+  initAuthStorageListener()
 })
 </script>
 

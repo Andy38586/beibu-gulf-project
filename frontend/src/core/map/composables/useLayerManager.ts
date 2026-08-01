@@ -2,6 +2,7 @@ import type { ComputedRef } from 'vue'
 import { computed, inject } from 'vue'
 
 import type { MapRenderer } from '@/core/map/renderers/MapRenderer'
+import { logger } from '@/shared/utils/logger'
 import { useMapStore } from '@/stores/mapStore'
 import type { LayerEntry, ToggleableHandler } from '@/types'
 
@@ -39,7 +40,7 @@ export function useLayerManager(): UseLayerManagerReturn {
   const store = inject<MapStore>('mapStore')
 
   if (!store) {
-    console.warn('[useLayerManager] mapStore 未注入，请在父组件中提供')
+    logger.warn('[useLayerManager] mapStore 未注入，请在父组件中提供')
     return {
       clearLayers: () => {},
       registerBaseLayer: () => {},

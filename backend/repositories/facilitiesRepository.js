@@ -6,13 +6,13 @@ import { fileURLToPath } from 'url'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 const FILE_MAP = {
-  hospital: 'qz_hospital.json',
-  primary_school: 'qz_primary_school.json',
-  middle_school: 'qz_middle_school.json',
-  park: 'qz_park.json',
-  bus_station: 'qz_bus_station.json',
-  mall: 'qz_mall_and_supermarket.json',
-  xiaoqu: 'xiaoqu.json',
+  hospital: 'site-selection/qz_hospital.json',
+  primary_school: 'site-selection/qz_primary_school.json',
+  middle_school: 'site-selection/qz_middle_school.json',
+  park: 'site-selection/qz_park.json',
+  bus_station: 'site-selection/qz_bus_station.json',
+  mall: 'site-selection/qz_mall_and_supermarket.json',
+  xiaoqu: 'site-selection/xiaoqu.json',
 }
 
 const cache = new Map()

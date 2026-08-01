@@ -43,10 +43,10 @@ const layerButtons = computed(() => {
     'flood-water-surface',
     'flood-area',
     'flood-facilities',
-    'forecast-throughput',
+    'forecast-cargo',
     'forecast-berth',
     'forecast-traffic',
-    'forecast-pressure',
+    'forecast-container',
   ]
   const ordered = order
     .map((key) => layerCatalog.value.find((l: any) => l.key === key))

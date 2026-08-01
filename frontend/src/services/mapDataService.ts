@@ -1,6 +1,7 @@
 import type { FeatureCollection } from 'geojson'
 
 import { MAP_CONFIG } from '@/core/config/map'
+import { logger } from '@/shared/utils/logger'
 import type { Port } from '@/types'
 import { isInBeibuGulf } from '@/types/crs'
 
@@ -62,20 +63,16 @@ export const mapDataService = {
       for (const p of ports) {
         ;(isInBeibuGulf({ lng: p.lng, lat: p.lat }) ? inRegion : outOfRegion).push(p)
       }
-      if (import.meta.env.DEV && outOfRegion.length > 0) {
-        console.warn('[crs] 已过滤越界港口坐标（北部湾边界外，疑似数据异常）:', outOfRegion)
+      if (outOfRegion.length > 0) {
+        logger.debug('[crs] 已过滤越界港口坐标（北部湾边界外，疑似数据异常）:', outOfRegion)
       }
       return inRegion
     } catch (error) {
       if (error instanceof Error && error.message.includes('格式异常')) {
-        if (import.meta.env.DEV) {
-          console.error('港口数据格式验证失败:', error)
-        }
+        logger.error('港口数据格式验证失败:', error)
         throw Object.assign(new Error('港口数据格式不正确，请联系管理员'), { cause: error })
       }
-      if (import.meta.env.DEV) {
-        console.error('加载港口数据失败:', error)
-      }
+      logger.error('加载港口数据失败:', error)
       throw error
     }
   },
@@ -95,9 +92,7 @@ export const mapDataService = {
       }
       const validFeatures = features.filter((f: Record<string, unknown> | null, index: number) => {
         if (!f || !f.geometry || !(f.geometry as Record<string, unknown>).coordinates) {
-          if (import.meta.env.DEV) {
-            console.warn(`边界数据第${index}个feature结构无效:`, f)
-          }
+          logger.debug(`边界数据第${index}个feature结构无效:`, f)
           return false
         }
         return true
@@ -111,14 +106,10 @@ export const mapDataService = {
         error instanceof Error &&
         (error.message.includes('格式') || error.message.includes('feature'))
       ) {
-        if (import.meta.env.DEV) {
-          console.error('边界数据格式验证失败:', error)
-        }
+        logger.error('边界数据格式验证失败:', error)
         throw Object.assign(new Error('边界数据格式不正确，请联系管理员'), { cause: error })
       }
-      if (import.meta.env.DEV) {
-        console.error('加载边界数据失败:', error)
-      }
+      logger.error('加载边界数据失败:', error)
       throw error
     }
   },

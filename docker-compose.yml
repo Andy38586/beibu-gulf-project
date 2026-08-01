@@ -10,7 +10,19 @@ services:
       dockerfile: Dockerfile
     image: beibu-gulf-webgis:latest
     container_name: beibu-gulf-webgis
+    # 运行时注入密钥与端口：env_file 在容器启动期读取本地 backend/.env，
+    # 不会烘焙进镜像；environment 的 NODE_ENV=production 优先级高于 env_file。
+    env_file:
+      - ./backend/.env
+    environment:
+      - NODE_ENV=production
+    # 运行时数据通过 volume 挂载，不烘焙进镜像（backend/data 已在 .dockerignore 排除）
+    volumes:
+      - ./backend/data:/app/backend/data
+      # TLS 证书（可选）：将 fullchain.pem + privkey.pem 放入 ./certs/ 即启用 HTTPS
+      - ./certs:/etc/nginx/certs:ro
     ports:
       - "8080:80"      # nginx（前端 + API 代理）
+      - "8443:443"    # nginx HTTPS（需 ./certs/ 下有证书）
       - "3000:3000"    # 后端直连（可选）
     restart: unless-stopped

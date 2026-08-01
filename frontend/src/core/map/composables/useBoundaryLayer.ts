@@ -16,7 +16,9 @@
  */
 import type { FeatureCollection } from 'geojson'
 
+import { MAP_CONFIG } from '@/core/config/map'
 import { LAYER_DEFAULTS } from '@/shared/constants/colors'
+import { logger } from '@/shared/utils/logger'
 import type { LayerOptions } from '@/types'
 
 export async function loadBoundaryGeoJson(
@@ -46,7 +48,7 @@ export async function loadBoundaryGeoJson(
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS)
 
-      const response = await fetch('/beibu-gulf-merged-data.geojson', {
+      const response = await fetch(MAP_CONFIG.DATA_PATHS.boundary, {
         signal: controller.signal,
       })
       clearTimeout(timeoutId)
@@ -84,7 +86,7 @@ export async function loadBoundaryGeoJson(
       const isLastAttempt = attempt === MAX_RETRIES
 
       if (import.meta.env.DEV) {
-        console.warn(
+        logger.debug(
           `[useBoundaryLayer] 加载失败 (第${attempt}次):`,
           isTimeout ? '超时' : e.message
         )
@@ -92,9 +94,7 @@ export async function loadBoundaryGeoJson(
 
       if (isLastAttempt) {
         // 仅在开发环境输出错误
-        if (import.meta.env.DEV) {
-          console.error('边界数据加载失败:', e)
-        }
+        logger.error('边界数据加载失败:', e)
         onError?.('边界数据加载失败，图层可能缺失')
         return null
       }

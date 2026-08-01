@@ -1,13 +1,15 @@
 import * as plansRepo from '../repositories/plansRepository.js'
 import { BusinessError, ErrorCode } from '../utils/BusinessError.js'
+import { logger } from '../utils/logger.js'
+import { sendSuccess } from '../utils/response.js'
 
 export async function getAll(req, res, next) {
   try {
     const plans = await plansRepo.findAllByUserId(req.user.id)
-    res.json(plans)
+    sendSuccess(res, plans)
   } catch (error) {
     if (!(error instanceof BusinessError)) {
-      console.error('获取方案列表失败:', error)
+      logger.error('获取方案列表失败:', error)
     }
     next(error)
   }
@@ -22,10 +24,10 @@ export async function getOne(req, res, next) {
     if (plan.userId !== req.user.id) {
       throw new BusinessError(ErrorCode.FORBIDDEN, '无权访问该方案')
     }
-    res.json(plan)
+    sendSuccess(res, plan)
   } catch (error) {
     if (!(error instanceof BusinessError)) {
-      console.error('获取方案失败:', error)
+      logger.error('获取方案失败:', error)
     }
     next(error)
   }
@@ -59,10 +61,10 @@ export async function createOne(req, res, next) {
       typeSettings: typeSettings || {},
       weights: weights || null,
     })
-    res.status(201).json(newPlan)
+    sendSuccess(res, newPlan, 201)
   } catch (error) {
     if (!(error instanceof BusinessError)) {
-      console.error('创建方案失败:', error)
+      logger.error('创建方案失败:', error)
     }
     next(error)
   }
@@ -91,10 +93,10 @@ export async function updateOne(req, res, next) {
     if (weights !== undefined) updates.weights = weights
 
     const updated = await plansRepo.update(req.params.id, updates)
-    res.json(updated)
+    sendSuccess(res, updated)
   } catch (error) {
     if (!(error instanceof BusinessError)) {
-      console.error('更新方案失败:', error)
+      logger.error('更新方案失败:', error)
     }
     next(error)
   }
@@ -116,7 +118,7 @@ export async function deleteOne(req, res, next) {
     res.status(204).send()
   } catch (error) {
     if (!(error instanceof BusinessError)) {
-      console.error('删除方案失败:', error)
+      logger.error('删除方案失败:', error)
     }
     next(error)
   }
@@ -143,10 +145,10 @@ export async function saveXiaoquToOne(req, res, next) {
     }
 
     const updated = await plansRepo.saveXiaoqu(req.params.id, xiaoqu)
-    res.json(updated)
+    sendSuccess(res, updated)
   } catch (error) {
     if (!(error instanceof BusinessError)) {
-      console.error('保存小区失败:', error)
+      logger.error('保存小区失败:', error)
     }
     next(error)
   }
@@ -167,10 +169,10 @@ export async function removeXiaoquFromOne(req, res, next) {
     }
 
     const updated = await plansRepo.removeXiaoqu(req.params.id, req.params.xiaoquId)
-    res.json(updated)
+    sendSuccess(res, updated)
   } catch (error) {
     if (!(error instanceof BusinessError)) {
-      console.error('移除小区失败:', error)
+      logger.error('移除小区失败:', error)
     }
     next(error)
   }

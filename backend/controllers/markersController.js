@@ -1,14 +1,16 @@
 import * as markersRepo from '../repositories/markersRepository.js'
 import { BusinessError, ErrorCode } from '../utils/BusinessError.js'
+import { logger } from '../utils/logger.js'
+import { sendSuccess } from '../utils/response.js'
 
 export async function getAll(req, res, next) {
   try {
     // @arch-note P0-02: 只返回当前用户的标记
     const markers = await markersRepo.findByUserId(req.user.id)
-    res.json(markers)
+    sendSuccess(res, markers)
   } catch (error) {
     if (!(error instanceof BusinessError)) {
-      console.error('获取标注列表失败:', error)
+      logger.error('获取标注列表失败:', error)
     }
     next(error)
   }
@@ -23,10 +25,10 @@ export async function getOne(req, res, next) {
     if (marker.userId !== req.user.id) {
       throw new BusinessError(ErrorCode.FORBIDDEN, '无权查看他人标注')
     }
-    res.json(marker)
+    sendSuccess(res, marker)
   } catch (error) {
     if (!(error instanceof BusinessError)) {
-      console.error('获取标注失败:', error)
+      logger.error('获取标注失败:', error)
     }
     next(error)
   }
@@ -46,10 +48,10 @@ export async function createOne(req, res, next) {
       note: note || '',
       userId: req.user.id,
     })
-    res.status(201).json(newMarker)
+    sendSuccess(res, newMarker, 201)
   } catch (error) {
     if (!(error instanceof BusinessError)) {
-      console.error('创建标注失败:', error)
+      logger.error('创建标注失败:', error)
     }
     next(error)
   }
@@ -68,10 +70,10 @@ export async function updateOne(req, res, next) {
     if (!updated) {
       throw new BusinessError(ErrorCode.NOT_FOUND, '标注不存在')
     }
-    res.json(updated)
+    sendSuccess(res, updated)
   } catch (error) {
     if (!(error instanceof BusinessError)) {
-      console.error('更新标注失败:', error)
+      logger.error('更新标注失败:', error)
     }
     next(error)
   }
@@ -93,7 +95,7 @@ export async function deleteOne(req, res, next) {
     res.status(204).send()
   } catch (error) {
     if (!(error instanceof BusinessError)) {
-      console.error('删除标注失败:', error)
+      logger.error('删除标注失败:', error)
     }
     next(error)
   }

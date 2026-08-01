@@ -1,6 +1,7 @@
 import type { Ref } from 'vue'
-import { onMounted, onUnmounted, ref } from 'vue'
+import { ref } from 'vue'
 
+import { logger } from '@/shared/utils/logger'
 import { useFloodState } from '@/stores/floodState'
 import { usePortImpactStore } from '@/stores/portImpactStore'
 import { useProfileStore } from '@/stores/profileStore'
@@ -47,8 +48,8 @@ function writeStoredUser(user: User | null): void {
 const user: Ref<User | null> = ref(readStoredUser())
 const { apiRequest, token, isAuthenticated, setToken, clearToken } = useApiRequest()
 
-// 多标签页状态同步 - 引用计数和全局处理函数
-let storageListenerCount = 0
+// 多标签页状态同步 - 全局单例监听（由 App.vue 启动时一次性注册）
+let storageListenerRegistered = false
 
 // 认证恢复标志，防止重复调用
 let authRestored = false
@@ -136,6 +137,16 @@ function resetBusinessStores(): void {
   }
 }
 
+/**
+ * 注册多标签页 storage 同步监听（仅执行一次）
+ * 应在 App.vue onMounted 中调用，无需组件上下文，不会抛错
+ */
+export function initAuthStorageListener(): void {
+  if (storageListenerRegistered || typeof window === 'undefined') return
+  storageListenerRegistered = true
+  window.addEventListener('storage', handleStorageChange)
+}
+
 export function useAuth() {
   async function login(username: string, password: string): Promise<User> {
     const data = await apiRequest<AuthResponse>('/auth/login', {
@@ -176,9 +187,7 @@ export function useAuth() {
       await apiRequest('/auth/logout', { method: 'POST' })
     } catch (error) {
       // 即使后端调用失败，也清理前端状态
-      if (import.meta.env.DEV) {
-        console.warn('登出接口调用失败，但仍清理前端状态:', error)
-      }
+      logger.debug('登出接口调用失败，但仍清理前端状态:', error)
     } finally {
       // 清理前端状态
       clearToken()
@@ -189,22 +198,6 @@ export function useAuth() {
       resetBusinessStores()
     }
   }
-
-  // 在组件挂载时添加 storage 事件监听（引用计数）
-  onMounted(() => {
-    if (typeof window !== 'undefined' && storageListenerCount === 0) {
-      window.addEventListener('storage', handleStorageChange)
-    }
-    storageListenerCount++
-  })
-
-  // 在组件卸载时移除 storage 事件监听（引用计数）
-  onUnmounted(() => {
-    storageListenerCount--
-    if (typeof window !== 'undefined' && storageListenerCount === 0) {
-      window.removeEventListener('storage', handleStorageChange)
-    }
-  })
 
   return { user, token, isAuthenticated, login, register, logout, checkAuth, restoreAuth }
 }

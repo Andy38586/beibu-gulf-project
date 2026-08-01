@@ -49,13 +49,11 @@ export default defineConfig({
       cesiumBuildPath: fileURLToPath(new URL('../node_modules/cesium/Build/Cesium/', import.meta.url)),
     }),
     removeCesiumHtmlTags(),
-    // 打包分析：生成 dist/stats.html，ANALYZE=true 时自动打开浏览器
-    visualizer({
-      open: process.env.ANALYZE === 'true',
-      gzipSize: true,
-      brotliSize: true,
-      filename: 'dist/stats.html',
-    }),
+    // 打包分析：仅在 ANALYZE=true 时生成 dist/stats.html 并自动打开浏览器
+    // 避免每次 build 无条件产出 ~1.3MB 分析文件随产物部署
+    ...(process.env.ANALYZE === 'true'
+      ? [visualizer({ open: true, gzipSize: true, brotliSize: true, filename: 'dist/stats.html' })]
+      : []),
   ],
   resolve: {
     alias: {
@@ -91,6 +89,8 @@ export default defineConfig({
             // ECharts 图表库
             if (id.includes('/echarts/')) return 'echarts'
             // Element Plus UI 组件库
+            // c011 已知权衡：110KB gzip 为按需打包真实代价（ElSelect/ElSlider/ElMessage 依赖树），
+            // 非全量引入。若后续压首屏，可细分 ui-vendor 或换轻量组件。
             if (id.includes('/element-plus/') || id.includes('/@element-plus/')) return 'ui-vendor'
           }
         },

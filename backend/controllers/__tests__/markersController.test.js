@@ -39,7 +39,7 @@ describe('markersController.getOne — IDOR 归属校验', () => {
     const res = createRes()
     const next = createNext()
     await getOne(req, res, next)
-    expect(res.json).toHaveBeenCalledWith(marker)
+    expect(res.json).toHaveBeenCalledWith({ code: 200, data: marker })
     expect(next).not.toHaveBeenCalled()
   })
 

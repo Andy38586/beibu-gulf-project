@@ -2,6 +2,7 @@ import type { Feature, FeatureCollection, Geometry } from 'geojson'
 
 import type { BusinessLayerManager } from '@/core/map/BusinessLayerManager'
 import { FACILITY_COLORS } from '@/shared/constants/colors'
+import { logger } from '@/shared/utils/logger'
 import type { AnalysisResult, LayerOptions, ScoredXiaoqu } from '@/types'
 
 export function buildCoverageGeoJson(
@@ -37,21 +38,15 @@ export function buildMatchedGeoJson(matchedXiaoqu: ScoredXiaoqu[]): FeatureColle
         const lng = xq.lng as number | undefined
         const lat = xq.lat as number | undefined
         if (lng === undefined || lat === undefined) {
-          if (import.meta.env.DEV) {
-            console.warn('小区数据缺少坐标字段:', xq)
-          }
+          logger.debug('小区数据缺少坐标字段:', xq)
           return false
         }
         if (typeof lng !== 'number' || typeof lat !== 'number') {
-          if (import.meta.env.DEV) {
-            console.warn('小区坐标字段类型无效:', xq)
-          }
+          logger.debug('小区坐标字段类型无效:', xq)
           return false
         }
         if (lng < -180 || lng > 180 || lat < -90 || lat > 90) {
-          if (import.meta.env.DEV) {
-            console.warn('小区坐标值超出有效范围:', xq)
-          }
+          logger.debug('小区坐标值超出有效范围:', xq)
           return false
         }
         return true

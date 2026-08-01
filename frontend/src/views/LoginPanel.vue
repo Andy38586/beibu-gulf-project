@@ -1,14 +1,14 @@
 <script setup lang="ts">
 /**
- * LoginPanel - 登录/注册面板（4×8 Cell）
+ * LoginPanel - 纯登录/注册表单面板
  *
  * 布局规格：
- * - 顶部：标题 "个人主页"（1×0.5 Cell）
- * - 第2行：登录/注册按钮并排（各 1.8×0.8 Cell，中间留 0.4 Cell 间隙）
- * - 中间区域：用户名/密码输入框 + 错误提示 + 提交按钮
- * - 底部：退出登录按钮（3.8×0.8 Cell）
+ * - 顶部：登录 / 注册 切换按钮（并排）
+ * - 登录态：用户名 + 密码 + 登录按钮
+ * - 注册态：用户名 + 密码 + 确认密码 + 注册按钮
  *
- * 功能：复用 useAuth 的登录/注册/登出逻辑，默认显示登录表单。
+ * 已登录态不在此组件内处理（由父级 ProfilePage 的 v-if="!user" 控制挂载），
+ * 本组件只负责未登录时的登录/注册表单。
  */
 
 import { computed, ref } from 'vue'
@@ -16,10 +16,8 @@ import { computed, ref } from 'vue'
 import { useGCS } from '@/core/layout/useGCS.js'
 import { useAuth } from '@/shared/composables/useAuth'
 
-const { login, register, logout, user } = useAuth()
-const { cellPixel, css } = useGCS()
-// 解构出 CSS 变量供 v-bind() 使用
-const { cell16px } = css
+const { login, register } = useAuth()
+const { cellPixel } = useGCS()
 
 const mode = ref('login') // 'login' | 'register'
 const username = ref('')
@@ -30,11 +28,9 @@ const loading = ref(false)
 
 // CSS v-bind 计算属性（使用响应式 cellPixel，随视口变化）
 const panelPaddingCss = computed(() => `${cellPixel.value * 0.125}px`) // 10px
-const titleFontSizeCss = computed(() => `${cellPixel.value * 0.225}px`) // 18px
 const inputFontSizeCss = computed(() => `${cellPixel.value * 0.175}px`) // 14px
 const btnFontSizeCss = computed(() => `${cellPixel.value * 0.175}px`) // 14px
 const errorFontSizeCss = computed(() => `${cellPixel.value * 0.15}px`) // 12px
-const avatarFontSizeCss = computed(() => `${cellPixel.value * 0.6}px`) // 48px = 0.6cell
 // 1.8×0.8 Cell 按钮尺寸
 const modeBtnWidthCss = computed(() => `${cellPixel.value * 1.8}px`) // 144px
 const modeBtnHeightCss = computed(() => `${cellPixel.value * 0.8}px`) // 64px
@@ -107,82 +103,60 @@ async function handleSubmit() {
     loading.value = false
   }
 }
-
-async function handleLogout() {
-  await logout()
-  mode.value = 'login'
-  username.value = ''
-  password.value = ''
-  confirmPassword.value = ''
-}
 </script>
 
 <template>
   <div class="login-panel">
-    <!-- 未登录状态：登录/注册表单 -->
-    <template v-if="!user">
-      <!-- 登录/注册切换按钮（1.8×0.8 Cell 并排） -->
-      <div class="mode-buttons">
-        <button class="mode-btn" :class="{ active: mode === 'login' }" @click="switchMode('login')">
-          登录
-        </button>
-        <button
-          class="mode-btn"
-          :class="{ active: mode === 'register' }"
-          @click="switchMode('register')"
-        >
-          注册
-        </button>
-      </div>
+    <!-- 登录/注册切换按钮（并排） -->
+    <div class="mode-buttons">
+      <button class="mode-btn" :class="{ active: mode === 'login' }" @click="switchMode('login')">
+        登录
+      </button>
+      <button
+        class="mode-btn"
+        :class="{ active: mode === 'register' }"
+        @click="switchMode('register')"
+      >
+        注册
+      </button>
+    </div>
 
-      <!-- 表单区域 -->
-      <div class="form-area">
-        <input
-          v-model="username"
-          class="form-input"
-          type="text"
-          placeholder="用户名"
-          autocomplete="username"
-          @keydown.enter="handleSubmit"
-        />
-        <input
-          v-model="password"
-          class="form-input"
-          type="password"
-          placeholder="密码"
-          autocomplete="current-password"
-          @keydown.enter="handleSubmit"
-        />
-        <input
-          v-if="mode === 'register'"
-          v-model="confirmPassword"
-          class="form-input"
-          type="password"
-          placeholder="确认密码"
-          autocomplete="new-password"
-          @keydown.enter="handleSubmit"
-        />
+    <!-- 表单区域 -->
+    <div class="form-area">
+      <input
+        v-model="username"
+        class="form-input"
+        type="text"
+        placeholder="用户名"
+        autocomplete="username"
+        @keydown.enter="handleSubmit"
+      />
+      <input
+        v-model="password"
+        class="form-input"
+        type="password"
+        placeholder="密码"
+        autocomplete="current-password"
+        @keydown.enter="handleSubmit"
+      />
+      <input
+        v-if="mode === 'register'"
+        v-model="confirmPassword"
+        class="form-input"
+        type="password"
+        placeholder="确认密码"
+        autocomplete="new-password"
+        @keydown.enter="handleSubmit"
+      />
 
-        <!-- 错误提示 -->
-        <div v-if="errorMsg" class="error-text">{{ errorMsg }}</div>
+      <!-- 错误提示 -->
+      <div v-if="errorMsg" class="error-text">{{ errorMsg }}</div>
 
-        <!-- 提交按钮 -->
-        <button class="submit-btn" :disabled="loading" @click="handleSubmit">
-          {{ loading ? '处理中...' : mode === 'login' ? '登录' : '注册' }}
-        </button>
-      </div>
-    </template>
-
-    <!-- 已登录状态：用户信息 -->
-    <template v-else>
-      <div class="user-info-area">
-        <div class="avatar-icon"></div>
-        <div class="user-name">{{ user.username }}</div>
-        <div class="user-status">已登录</div>
-      </div>
-      <!-- 复用已有 handleLogout 与 .logout-btn 样式，补登出途径 -->
-      <button class="logout-btn" @click="handleLogout">退出登录</button>
-    </template>
+      <!-- 提交按钮 -->
+      <button class="submit-btn" :disabled="loading" @click="handleSubmit">
+        {{ loading ? '处理中...' : mode === 'login' ? '登录' : '注册' }}
+      </button>
+    </div>
   </div>
 </template>
 
@@ -285,52 +259,5 @@ async function handleLogout() {
 .submit-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
-}
-
-/* 用户信息区域 */
-.user-info-area {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: v-bind(cell16px);
-}
-
-.avatar-icon {
-  font-size: v-bind(avatarFontSizeCss); /* 48px = 0.6cell */
-  line-height: 1;
-}
-
-.user-name {
-  font-size: v-bind(titleFontSizeCss);
-  font-weight: 600;
-  color: var(--GCS-text-primary);
-}
-
-.user-status {
-  font-size: v-bind(errorFontSizeCss);
-  color: var(--GCS-color-success);
-}
-
-/* 退出登录按钮（3.8×0.8 Cell） */
-.logout-btn {
-  width: v-bind(formWidthCss);
-  height: v-bind(formHeightCss);
-  border: 1px solid var(--GCS-color-error);
-  border-radius: var(--GCS-radius-md);
-  background: var(--GCS-bg-panel);
-  color: var(--GCS-color-error);
-  font-size: v-bind(btnFontSizeCss);
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  margin-top: auto;
-  align-self: center;
-}
-
-.logout-btn:hover {
-  background: var(--GCS-color-error);
-  color: var(--GCS-text-inverse);
 }
 </style>

@@ -17,8 +17,8 @@ import { forecastAdapter } from '../forecastAdapter'
 
 // 内联 fixture（结构与 public/data/forecast/*.json 同构，不依赖大文件）
 const fixtures: Record<string, unknown> = {
-  throughput: {
-    indicator: 'throughput',
+  cargo: {
+    indicator: 'cargo',
     unit: '万吨',
     data: { qinzhou: {}, beihai: {}, fangchenggang: {} },
   },
@@ -30,10 +30,10 @@ const fixtures: Record<string, unknown> = {
   index: {
     metadata: {
       version: '1.0',
-      indicators: ['throughput', 'berth', 'traffic', 'pressure', 'development'],
+      indicators: ['cargo', 'container', 'berth', 'traffic'],
     },
-    historical: { start: '2018-01', end: '2025-12' },
-    forecast: { start: '2026-01', end: '2035-12' },
+    historical: { start: '2021-01', end: '2026-06' },
+    forecast: { start: '2026-01', end: '2031-12' },
   },
 }
 
@@ -68,12 +68,12 @@ describe('forecastAdapter', () => {
 
   describe('getIndicatorData', () => {
     it('应返回 ForecastSeries 类型数据', async () => {
-      const data = (await forecastAdapter.getIndicatorData('throughput')) as unknown as Record<
+      const data = (await forecastAdapter.getIndicatorData('cargo')) as unknown as Record<
         string,
         unknown
       >
       expect(data).toBeDefined()
-      expect(data.indicator).toBe('throughput')
+      expect(data.indicator).toBe('cargo')
       expect(data.unit).toBeDefined()
       expect(data.data).toBeDefined()
     })

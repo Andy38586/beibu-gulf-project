@@ -15,10 +15,10 @@ const CONFIRM_DELAY = 3000
 
 // ===== 四个指标 =====
 const INDICATORS = [
-  { key: 'throughput', label: '吞吐量', icon: '📦' },
+  { key: 'cargo', label: '货物', icon: '📦' },
+  { key: 'container', label: '集装箱', icon: '📋' },
   { key: 'berth', label: '泊位利用率', icon: '⚓' },
   { key: 'traffic', label: '船舶流量', icon: '🚢' },
-  { key: 'pressure', label: '物流压力', icon: '📊' },
 ]
 
 const btnStates = reactive(
@@ -86,7 +86,7 @@ function getConf(key: string) {
 
 onMounted(() => {
   document.addEventListener('click', handleGlobalClick)
-  btnStates.throughput.selected = true
+  btnStates.cargo.selected = true
 })
 onUnmounted(() => {
   document.removeEventListener('click', handleGlobalClick)

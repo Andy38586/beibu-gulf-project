@@ -3,6 +3,9 @@ import { join } from 'path'
 import { fileURLToPath } from 'url'
 import { dirname } from 'path'
 import { BusinessError, ErrorCode } from '../utils/BusinessError.js'
+import { logger } from '../utils/logger.js'
+import { sendSuccess } from '../utils/response.js'
+import { assessDisaster } from '../services/floodService.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -45,18 +48,14 @@ function validateWaterLevel(raw) {
 export async function getWaterLevels(req, res, next) {
   try {
     const data = await readJsonData('waterLevel.json')
-    res.json({
-      code: 200,
-      data: {
-        baseLevels: data.baseLevels,
-        simulationRange: data.simulationRange,
-        tidalStations: data.tidalStations,
-      },
-      message: 'success',
+    sendSuccess(res, {
+      baseLevels: data.baseLevels,
+      simulationRange: data.simulationRange,
+      tidalStations: data.tidalStations,
     })
   } catch (error) {
     if (!(error instanceof BusinessError)) {
-      console.error('获取水位数据失败:', error)
+      logger.error('获取水位数据失败:', error)
     }
     next(error)
   }
@@ -79,41 +78,29 @@ export async function getFloodAreas(req, res, next) {
       // 向上取档（返回 >= 请求水位的最低档位）
       const floodZone = data.floodZones.find((zone) => zone.waterLevel >= level)
       if (floodZone) {
-        return res.json({
-          code: 200,
-          data: {
-            waterLevel: floodZone.waterLevel,
-            // @arch-note P2-07: 显式区分请求水位与实际数据档位
-            requestedWaterLevel: level,
-            actualWaterLevel: floodZone.waterLevel,
-            riskLevel: floodZone.riskLevel,
-            features: floodZone.features,
-          },
-          message: 'success',
+        return sendSuccess(res, {
+          waterLevel: floodZone.waterLevel,
+          // @arch-note P2-07: 显式区分请求水位与实际数据档位
+          requestedWaterLevel: level,
+          actualWaterLevel: floodZone.waterLevel,
+          riskLevel: floodZone.riskLevel,
+          features: floodZone.features,
         })
       }
 
       // 如果水位超出范围，返回空
-      return res.json({
-        code: 200,
-        data: {
-          waterLevel: level,
-          riskLevel: '无',
-          features: [],
-        },
-        message: 'success',
+      return sendSuccess(res, {
+        waterLevel: level,
+        riskLevel: '无',
+        features: [],
       })
     }
 
     // 未指定水位，返回所有淹没范围
-    res.json({
-      code: 200,
-      data: data.floodZones,
-      message: 'success',
-    })
+    sendSuccess(res, data.floodZones)
   } catch (error) {
     if (!(error instanceof BusinessError)) {
-      console.error('获取淹没范围失败:', error)
+      logger.error('获取淹没范围失败:', error)
     }
     next(error)
   }
@@ -134,28 +121,16 @@ export async function getFloodStatistics(req, res, next) {
       // 找到最接近的水位统计
       const stats = data.statistics.find((s) => s.waterLevel >= level)
       if (stats) {
-        return res.json({
-          code: 200,
-          data: stats,
-          message: 'success',
-        })
+        return sendSuccess(res, stats)
       }
 
-      return res.json({
-        code: 200,
-        data: null,
-        message: '未找到对应水位的统计数据',
-      })
+      return sendSuccess(res, null)
     }
 
-    res.json({
-      code: 200,
-      data: data.statistics,
-      message: 'success',
-    })
+    sendSuccess(res, data.statistics)
   } catch (error) {
     if (!(error instanceof BusinessError)) {
-      console.error('获取统计数据失败:', error)
+      logger.error('获取统计数据失败:', error)
     }
     next(error)
   }
@@ -168,14 +143,10 @@ export async function getFloodStatistics(req, res, next) {
 export async function getTerrainProfiles(req, res, next) {
   try {
     const data = await readJsonData('terrainProfile.json')
-    res.json({
-      code: 200,
-      data: data.profiles,
-      message: 'success',
-    })
+    sendSuccess(res, data.profiles)
   } catch (error) {
     if (!(error instanceof BusinessError)) {
-      console.error('获取剖面数据失败:', error)
+      logger.error('获取剖面数据失败:', error)
     }
     next(error)
   }
@@ -188,14 +159,10 @@ export async function getTerrainProfiles(req, res, next) {
 export async function getFacilities(req, res, next) {
   try {
     const data = await readJsonData('facilityPoints.json')
-    res.json({
-      code: 200,
-      data: data.facilities,
-      message: 'success',
-    })
+    sendSuccess(res, data.facilities)
   } catch (error) {
     if (!(error instanceof BusinessError)) {
-      console.error('获取设施数据失败:', error)
+      logger.error('获取设施数据失败:', error)
     }
     next(error)
   }
@@ -223,51 +190,20 @@ export async function analyzeDisaster(req, res, next) {
     // 向上取档（返回 >= 请求水位的最低档位）
     const floodZone = floodData.floodZones.find((zone) => zone.waterLevel >= level)
 
-    if (!floodZone) {
-      return res.json({
-        code: 200,
-        data: {
-          affectedFacilities: [],
-          totalLoss: 0,
-          riskLevel: '无',
-        },
-        message: 'success',
-      })
-    }
+    // d041: 业务计算委托给 floodService
+    const result = assessDisaster(facilityData.facilities, level, floodZone)
 
-    // 简化的灾害评估：根据水位和风险等级计算损失
-    const affectedFacilities = facilityData.facilities
-      .filter((facility) => facility.elevation <= level)
-      .map((facility) => ({
-        id: facility.id,
-        name: facility.name,
-        type: facility.type,
-        port: facility.port,
-        lng: facility.lng,
-        lat: facility.lat,
-        elevation: facility.elevation,
-        value: facility.value,
-        damageRate: facility.damageRate,
-        loss: facility.value * facility.damageRate,
-      }))
-
-    const totalLoss = affectedFacilities.reduce((sum, f) => sum + f.loss, 0)
-
-    res.json({
-      code: 200,
-      data: {
-        // @arch-note P2-07: 返回实际档位水位，消除请求值与实际档位的错配
-        waterLevel: floodZone.waterLevel,
-        requestedWaterLevel: level,
-        riskLevel: floodZone.riskLevel,
-        affectedFacilities,
-        totalLoss: Math.round(totalLoss),
-      },
-      message: 'success',
+    sendSuccess(res, {
+      // @arch-note P2-07: 返回实际档位水位，消除请求值与实际档位的错配
+      waterLevel: result.waterLevel,
+      requestedWaterLevel: level,
+      riskLevel: result.riskLevel,
+      affectedFacilities: result.affectedFacilities,
+      totalLoss: result.totalLoss,
     })
   } catch (error) {
     if (!(error instanceof BusinessError)) {
-      console.error('灾害评估失败:', error)
+      logger.error('灾害评估失败:', error)
     }
     next(error)
   }

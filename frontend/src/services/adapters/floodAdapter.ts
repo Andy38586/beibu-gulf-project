@@ -7,13 +7,17 @@
  */
 
 import { useApiRequest } from '@/shared/composables/useApiRequest'
+import { loadStatic } from '@/shared/utils/loadStatic'
 import { logger } from '@/shared/utils/logger'
 import type { AffectedFacility, FloodFeature, FloodStatistics } from '@/types/business/base'
 
-// ==================== 数据源配置 ====================
-let _dataSource: 'mock' | 'api' = 'mock'
+import { resolveDataSource, setAdapterDataSource } from '../dataSourceConfig'
+
+// ==================== 数据源配置（委托给统一 dataSourceConfig） ====================
 
 const { apiRequest } = useApiRequest()
+
+const ADAPTER_NAME = 'flood'
 
 const FALLBACK_WATER_AREA_COORDINATES: [number, number][] = [
   [108.615, 21.855],
@@ -25,20 +29,13 @@ const FALLBACK_WATER_AREA_COORDINATES: [number, number][] = [
   [108.615, 21.855],
 ]
 
-// ==================== 内部 Mock 实现 ====================
-const FETCH_TIMEOUT_MS = 10000
+// ==================== 内部 Mock 实现（统一使用 loadStatic） ====================
 let _cachedWaterAreaCoords: [number, number][] | null = null
 
 async function _fetchMockWaterArea(): Promise<[number, number][]> {
   if (_cachedWaterAreaCoords) return _cachedWaterAreaCoords
   try {
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS)
-    const res = await fetch('/data/water-area.json', { signal: controller.signal })
-    clearTimeout(timeoutId)
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
-    const data = await res.json()
-    // 校验 coordinates 字段存在且为非空数组，防止 undefined 被缓存
+    const data = await loadStatic<{ coordinates?: [number, number][] }>('/data/water-area.json')
     if (!Array.isArray(data?.coordinates) || data.coordinates.length === 0) {
       throw new Error('water-area.json 缺少 coordinates 数组')
     }
@@ -46,36 +43,16 @@ async function _fetchMockWaterArea(): Promise<[number, number][]> {
     _cachedWaterAreaCoords = coords
     return coords
   } catch {
-    if (import.meta.env.DEV) {
-      console.warn('[FloodAdapter] water-area.json 加载失败，使用兜底坐标')
-    }
+    logger.debug('[FloodAdapter] water-area.json 加载失败，使用兆底坐标')
     return FALLBACK_WATER_AREA_COORDINATES
   }
 }
 
 /**
- * 加载 Mock JSON 并断言为指定类型
- *
- * 注意：此处使用 `as T` 类型断言，无运行时 schema 校验。
- * Mock 数据由项目维护（public/data/*.json），结构可控。
- * 若未来接入真实 API，建议引入 zod/valibot 做运行时校验（见决策项 D-4）。
- *
- * 超时保护：10s，与 _fetchMockWaterArea 一致，防止 mock 文件加载慢时挂死。
+ * 加载 Mock JSON（统一使用 loadStatic，超时 10s + 去重）
  */
 async function _fetchMockJson<T>(url: string, signal?: AbortSignal): Promise<T> {
-  const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS)
-  // 合并外部 signal（若存在）
-  const combinedSignal = signal ? AbortSignal.any([controller.signal, signal]) : controller.signal
-  try {
-    const res = await fetch(url, { signal: combinedSignal })
-    if (!res.ok) {
-      throw new Error(`[FloodAdapter] 静态 fixture 加载失败: ${url} (HTTP ${res.status})`)
-    }
-    return (await res.json()) as T
-  } finally {
-    clearTimeout(timeoutId)
-  }
+  return loadStatic<T>(url, { signal, cacheTTL: 0 })
 }
 
 interface FloodAnalysisResult {
@@ -166,19 +143,15 @@ function _mapAffectedFacilities(rawFacilities: unknown, totalLoss: number): Affe
 
 export const floodAdapter = {
   get dataSource(): string {
-    return _dataSource
+    return resolveDataSource(ADAPTER_NAME)
   },
 
   setDataSource(mode: 'mock' | 'api'): void {
-    if (mode !== 'mock' && mode !== 'api') {
-      throw new Error(`[FloodAdapter] 无效的数据源模式: ${mode}，仅支持 'mock' 或 'api'`)
-    }
-    _dataSource = mode
-    logger.info(`[FloodAdapter] 数据源切换为: ${mode}`)
+    setAdapterDataSource(ADAPTER_NAME, mode)
   },
 
   async getWaterArea(): Promise<[number, number][]> {
-    if (_dataSource === 'mock') {
+    if (resolveDataSource(ADAPTER_NAME) === 'mock') {
       return _fetchMockWaterArea()
     }
     // api 模式：从后端获取水域坐标（复用 mock 静态数据，后端无此端点）
@@ -189,7 +162,7 @@ export const floodAdapter = {
     waterLevel: number,
     { signal }: RequestOptions = {}
   ): Promise<FloodAnalysisResult> {
-    if (_dataSource === 'mock') {
+    if (resolveDataSource(ADAPTER_NAME) === 'mock') {
       // b019: mock 数据为静态单档位，不响应水位参数
       logger.warn(
         `[FloodAdapter] mock 模式不响应水位参数（请求 ${waterLevel}m，固定返回 2.5m 档位）`
@@ -221,23 +194,23 @@ export const floodAdapter = {
     }
     // api 模式：调用后端 /flood/flood-areas + /flood/flood-statistics
     const [floodAreasRes, statisticsRes] = await Promise.all([
-      apiRequest<{ code: number; data: Record<string, unknown> }>(
-        `/flood/flood-areas?waterLevel=${waterLevel}`,
-        { signal }
-      ),
-      apiRequest<{ code: number; data: Record<string, unknown> }>(
-        `/flood/flood-statistics?waterLevel=${waterLevel}`,
-        { signal }
-      ),
+      apiRequest<Record<string, unknown>>('/flood/flood-areas', {
+        params: { waterLevel },
+        signal,
+      }),
+      apiRequest<Record<string, unknown>>('/flood/flood-statistics', {
+        params: { waterLevel },
+        signal,
+      }),
     ])
 
-    const floodData = floodAreasRes.data as Record<string, unknown> | undefined
+    const floodData = floodAreasRes as Record<string, unknown> | undefined
     const riskLevel = (floodData?.riskLevel as string) || '无风险'
     const actualWaterLevel = floodData?.actualWaterLevel as number | undefined
 
     return {
       features: _mapFloodFeatures(floodData?.features, riskLevel),
-      statistics: _mapFloodStatistics(statisticsRes.data as Record<string, unknown>, riskLevel),
+      statistics: _mapFloodStatistics(statisticsRes as Record<string, unknown>, riskLevel),
       riskLevel,
       actualWaterLevel,
     }
@@ -247,7 +220,7 @@ export const floodAdapter = {
     waterLevel: number,
     { signal }: RequestOptions = {}
   ): Promise<ImpactAssessmentResult> {
-    if (_dataSource === 'mock') {
+    if (resolveDataSource(ADAPTER_NAME) === 'mock') {
       logger.warn(`[FloodAdapter] mock 影响评估不响应水位参数（请求 ${waterLevel}m）`)
       const res = await _fetchMockJson<{ code: number; data: Record<string, unknown> }>(
         '/data/disaster.json',
@@ -266,16 +239,13 @@ export const floodAdapter = {
       }
     }
     // api 模式：调用后端 /flood/analysis/disaster
-    const res = await apiRequest<{ code: number; data: Record<string, unknown> }>(
-      '/flood/analysis/disaster',
-      {
-        method: 'POST',
-        body: JSON.stringify({ waterLevel }),
-        signal,
-      }
-    )
+    const res = await apiRequest<Record<string, unknown>>('/flood/analysis/disaster', {
+      method: 'POST',
+      body: JSON.stringify({ waterLevel }),
+      signal,
+    })
 
-    const result = res.data as Record<string, unknown> | undefined
+    const result = res as Record<string, unknown> | undefined
     const totalLoss = (result?.totalLoss as number) || 0
     return {
       affectedFacilities: _mapAffectedFacilities(result?.affectedFacilities, totalLoss),

@@ -4,6 +4,7 @@ import { linearDecay } from './decayFunctions.js'
 import { importanceToRadius } from './importanceMapping.js'
 import { createSpatialIndex, queryByPolygon } from '../utils/spatialIndex.js'
 import { BusinessError, ErrorCode } from '../utils/BusinessError.js'
+import { logger } from '../utils/logger.js'
 
 const TOP_N = 10
 
@@ -21,10 +22,7 @@ export function resolveRadiusSettings(selectedKeys, typeSettings) {
 
     // @arch-note 106: 校验半径必须为正数
     if (radius <= 0 || isNaN(radius)) {
-      // [FIXED 016] 仅在开发环境输出警告
-      if (process.env.NODE_ENV === 'development') {
-        console.warn(`设施类型 ${key} 的缓冲区半径无效: ${radius}`)
-      }
+      logger.debug(`设施类型 ${key} 的缓冲区半径无效: ${radius}`)
       // @arch-note P1-08: 参数错误带码抛出，控制器据码返 400
       throw new BusinessError(ErrorCode.INVALID_PARAMS, `半径参数无效: ${radius}`)
     }
@@ -37,8 +35,8 @@ export function buildTypeCoverage(points, radiusKm) {
   if (!points || points.length === 0) return null
 
   // @arch-note 315-001: 性能优化提示 - 大量POI数据建议实现聚类或空间索引
-  if (points.length > 1000 && process.env.NODE_ENV === 'development') {
-    console.warn(`[性能优化] POI数据量较大(${points.length}条)，建议实现聚类或空间索引优化`)
+  if (points.length > 1000) {
+    logger.debug(`[性能优化] POI数据量较大(${points.length}条)，建议实现聚类或空间索引优化`)
   }
 
   // @arch-note 314-002: POI数据去重（基于坐标）
@@ -67,17 +65,14 @@ export function buildTypeCoverage(points, radiusKm) {
       p.lat >= 18 &&
       p.lat <= 25 // 北部湾纬度范围
     // [FIXED 016] 仅在开发环境输出警告
-    if (!isValid && process.env.NODE_ENV === 'development') {
-      console.warn('无效的坐标点:', p)
+    if (!isValid) {
+      logger.debug('无效的坐标点:', p)
     }
     return isValid
   })
 
   if (validPoints.length === 0) {
-    // [FIXED 016] 仅在开发环境输出警告
-    if (process.env.NODE_ENV === 'development') {
-      console.warn('没有有效的坐标点')
-    }
+    logger.debug('没有有效的坐标点')
     return null
   }
 
@@ -91,10 +86,7 @@ export function buildTypeCoverage(points, radiusKm) {
     (b) => b && b.geometry && b.geometry.coordinates && b.geometry.coordinates.length > 0
   )
   if (validBuffers.length === 0) {
-    // [FIXED 016] 仅在开发环境输出警告
-    if (process.env.NODE_ENV === 'development') {
-      console.warn('没有有效的缓冲区')
-    }
+    logger.debug('没有有效的缓冲区')
     return null
   }
 
@@ -104,28 +96,21 @@ export function buildTypeCoverage(points, radiusKm) {
     const unionResult = turf.union(turf.featureCollection(validBuffers))
     // @arch-note GIS-001: 验证 union 结果，处理 MultiPolygon 情况
     if (!unionResult || !unionResult.geometry) {
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('union 返回无效结果')
-      }
+      logger.debug('union 返回无效结果')
       return null
     }
 
     // @arch-note GIS-007: 如果返回 MultiPolygon，保留所有 Polygon 作为覆盖区域
     // 返回第一个 Polygon 作为主覆盖区域，但记录所有 Polygon 的坐标
     if (unionResult.geometry.type === 'MultiPolygon') {
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('turf.union 返回 MultiPolygon，保留所有 Polygon')
-      }
+      logger.debug('turf.union 返回 MultiPolygon，保留所有 Polygon')
       // 返回完整的 MultiPolygon，而不是只返回第一个
       return unionResult
     }
 
     return unionResult
   } catch (error) {
-    if (process.env.NODE_ENV === 'development') {
-      console.error('turf.union 失败:', error.message)
-      console.error('缓冲区数量:', validBuffers.length)
-    }
+    logger.error('turf.union 失败:', error.message, '缓冲区数量:', validBuffers.length)
     return null
   }
 }
@@ -147,10 +132,7 @@ export function intersectCoverages(coverages, selectedKeys) {
         !entries[i].coverage.geometry ||
         !entries[i].coverage.geometry.coordinates
       ) {
-        // [FIXED 016] 仅在开发环境输出警告
-        if (process.env.NODE_ENV === 'development') {
-          console.warn(`无效的几何对象，跳过 ${entries[i].key}`)
-        }
+        logger.debug(`无效的几何对象，跳过 ${entries[i].key}`)
         continue
       }
 
@@ -162,10 +144,7 @@ export function intersectCoverages(coverages, selectedKeys) {
 
       result = intersectResult
     } catch (error) {
-      // [FIXED 016] 仅在开发环境输出错误
-      if (process.env.NODE_ENV === 'development') {
-        console.error(`turf.intersect 失败 (${entries[i].key}):`, error.message)
-      }
+      logger.error(`turf.intersect 失败 (${entries[i].key}):`, error.message)
       return { area: null, failKey: entries[i].key }
     }
   }
@@ -175,10 +154,7 @@ export function intersectCoverages(coverages, selectedKeys) {
 export function filterMatchedXiaoqu(xiaoquData, finalArea, spatialIndex = null) {
   // @arch-note 314-001: 检查 xiaoquData 是否为空或 null
   if (!xiaoquData || xiaoquData.length === 0) {
-    // [FIXED 016] 仅在开发环境输出警告
-    if (process.env.NODE_ENV === 'development') {
-      console.warn('小区数据为空')
-    }
+    logger.debug('小区数据为空')
     return []
   }
 
@@ -188,10 +164,7 @@ export function filterMatchedXiaoqu(xiaoquData, finalArea, spatialIndex = null) 
   return candidates.filter((xq) => {
     // 检查必要字段
     if (!xq || typeof xq.lng !== 'number' || typeof xq.lat !== 'number') {
-      // [FIXED 016] 仅在开发环境输出警告
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('小区数据缺少坐标字段:', xq)
-      }
+      logger.debug('小区数据缺少坐标字段:', xq)
       return false
     }
     // 检查坐标有效性
@@ -203,26 +176,18 @@ export function filterMatchedXiaoqu(xiaoquData, finalArea, spatialIndex = null) 
       xq.lat < -90 ||
       xq.lat > 90
     ) {
-      // [FIXED 016] 仅在开发环境输出警告
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('小区坐标无效:', xq)
-      }
+      logger.debug('小区坐标无效:', xq)
       return false
     }
     // @arch-note 314-003: 检查坐标是否在北部湾业务区域内（经度 105-115，纬度 18-25）
     if (xq.lng < 105 || xq.lng > 115 || xq.lat < 18 || xq.lat > 25) {
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('小区坐标不在北部湾业务区域内:', xq)
-      }
+      logger.debug('小区坐标不在北部湾业务区域内:', xq)
       return false
     }
     try {
       return turf.booleanPointInPolygon(turf.point([xq.lng, xq.lat]), finalArea)
     } catch (error) {
-      // [FIXED 016] 仅在开发环境输出警告
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('空间判断失败:', error.message, xq)
-      }
+      logger.debug('空间判断失败:', error.message, xq)
       return false
     }
   })

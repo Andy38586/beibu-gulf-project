@@ -374,6 +374,33 @@ export const useMapStore = defineStore('map', () => {
     selectedXiaoqu.value = null
   }
 
+  /**
+   * b037: 统一重置地图业务交互状态（登出/业务切换时调用）
+   *
+   * 设计边界（@arch-note）：
+   * - 清：selectedPort / activePanel / selectedXiaoqu / analysisHandler / lastAnalysisResult
+   *   （含 sessionStorage 持久化，b035 要求）/ layerCatalog 业务条目（保留 base 底图条目）
+   * - 保留：mapType / baseLayerKey（用户偏好，审计明确要求保留）
+   * - 保留：currentRenderer / map —— 渲染器由 UnifiedMap 组件持有生命周期，
+   *   登出时组件未卸载，清空会造成 BLM._getRenderer() 返回 null 与业务图层失效；
+   *   layerCatalog base 底图条目由 UnifiedMap.setupLayers 在引擎切换时重建，登出无切换，
+   *   保留 base 条目避免 LayerControlPanel 底图区域永久空白。
+   */
+  function resetMapState(): void {
+    selectedPort.value = null
+    // 仅清业务条目，保留 base 底图条目（最小影响）
+    layerCatalog.value = layerCatalog.value.filter((e: LayerEntry) => e.category !== 'business')
+    analysisHandler.value = null
+    lastAnalysisResult.value = null
+    activePanel.value = 'none'
+    selectedXiaoqu.value = null
+    try {
+      window.sessionStorage.removeItem(ANALYSIS_RESULT_STORAGE_KEY)
+    } catch {
+      // 隐私模式等写入失败场景
+    }
+  }
+
   function setSelectedXiaoqu(xiaoqu: ScoredXiaoqu | null): void {
     selectedXiaoqu.value = xiaoqu
   }
@@ -405,6 +432,7 @@ export const useMapStore = defineStore('map', () => {
     setLayerVisible,
     setActivePanel,
     closePanel,
+    resetMapState,
     setSelectedXiaoqu,
   }
 })

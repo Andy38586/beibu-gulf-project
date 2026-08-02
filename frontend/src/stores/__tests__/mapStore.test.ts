@@ -10,12 +10,21 @@ vi.stubGlobal('localStorage', {
   removeItem: (k: string) => storage.delete(k),
 })
 
+// mock sessionStorage（b037 resetMapState 清除分析结果持久化）
+const sessionStore = new Map<string, string>()
+vi.stubGlobal('sessionStorage', {
+  getItem: (k: string) => sessionStore.get(k) ?? null,
+  setItem: (k: string, v: string) => sessionStore.set(k, v),
+  removeItem: (k: string) => sessionStore.delete(k),
+})
+
 import { useMapStore } from '../mapStore'
 
 describe('mapStore', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     storage.clear()
+    sessionStore.clear()
   })
 
   describe('setMapType', () => {
@@ -137,6 +146,54 @@ describe('mapStore', () => {
       }
       store.registerAnalysisHandler(badHandler)
       expect(() => store.setAnalysisResult({ a: 1 })).not.toThrow()
+    })
+  })
+
+  describe('resetMapState (b037)', () => {
+    it('应清空 selectedPort/analysisHandler/lastAnalysisResult 与 sessionStorage，保留 mapType/baseLayerKey', () => {
+      const store = useMapStore()
+      // 准备：写入业务交互状态
+      store.setSelectedPort({ id: 'p1', name: '测试港口' } as never)
+      store.setMapType('3d')
+      store.setAnalysisResult({ foo: 'bar' })
+      store.registerAnalysisHandler(() => {})
+      store.setActivePanel('port-info')
+      // sessionStorage 应有持久化分析结果
+      expect(sessionStore.size).toBeGreaterThan(0)
+
+      store.resetMapState()
+
+      // 清空项
+      expect(store.selectedPort).toBeNull()
+      expect(store.analysisHandler).toBeNull()
+      expect(store.activePanel).toBe('none')
+      // sessionStorage 已清除（lastAnalysisResult 持久化被移除）
+      expect(sessionStore.size).toBe(0)
+      // lastAnalysisResult 内部状态通过行为验证：reset 后注册新 handler 不应触发回放
+      const replaySpy = vi.fn()
+      store.registerAnalysisHandler(replaySpy)
+      expect(replaySpy).not.toHaveBeenCalled()
+      // 保留项（用户偏好）
+      expect(store.mapType).toBe('3d')
+    })
+
+    it('应清空 layerCatalog 业务条目但保留 base 底图条目', () => {
+      const store = useMapStore()
+      store.registerLayer('base-image', '影像底图', {
+        visible: true,
+        category: 'base',
+        show: [() => {}],
+        hide: [() => {}],
+      })
+      store.registerBusinessLayer('biz-1', '业务图层', 'geojson', true)
+      store.registerBusinessLayer('biz-2', '业务图层2', 'points', true)
+      expect(store.layerCatalog).toHaveLength(3)
+
+      store.resetMapState()
+
+      expect(store.layerCatalog).toHaveLength(1)
+      expect(store.layerCatalog[0].key).toBe('base-image')
+      expect(store.layerCatalog[0].category).toBe('base')
     })
   })
 })

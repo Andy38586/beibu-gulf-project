@@ -3,6 +3,7 @@ import { ref } from 'vue'
 
 import { logger } from '@/shared/utils/logger'
 import { useFloodState } from '@/stores/floodState'
+import { useMapStore } from '@/stores/mapStore'
 import { usePortImpactStore } from '@/stores/portImpactStore'
 import { useProfileStore } from '@/stores/profileStore'
 // 登出时重置全部业务 store，防止跨账号数据残留
@@ -132,6 +133,8 @@ function resetBusinessStores(): void {
     usePortImpactStore().resetPortImpact()
     useWaterLevelStore().resetWaterLevel()
     useProfileStore().resetProfile()
+    // b035+b043: 重置地图业务交互状态，清 analysisHandler 闭包与 sessionStorage
+    useMapStore().resetMapState()
   } catch {
     // store 未激活等异常不阻断登出
   }

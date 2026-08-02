@@ -249,19 +249,22 @@ function setupLayers() {
   }
 }
 
+// a025: 具名回调，保存引用供 off 解绑（MapRenderer 事件注册/移除配对契约）
+function handleRendererClick(event: CustomEvent<MapRendererEventMap['click']>): void {
+  const { featureType, data, coordinate } = event.detail
+  if (featureType === 'port' && data) {
+    // featureType === 'port' 时 data 为港口属性，类型系统无法通过判别收窄，需断言
+    mapStore.setSelectedPort(data as unknown as Port)
+  } else {
+    mapStore.clearSelectedPort()
+  }
+  emit('click', { featureType, data, coordinate })
+}
+
 function setupEvents() {
   const renderer = currentRenderer.value
   if (!renderer) return
-  renderer.on('click', (event: CustomEvent<MapRendererEventMap['click']>) => {
-    const { featureType, data, coordinate } = event.detail
-    if (featureType === 'port' && data) {
-      // featureType === 'port' 时 data 为港口属性，类型系统无法通过判别收窄，需断言
-      mapStore.setSelectedPort(data as unknown as Port)
-    } else {
-      mapStore.clearSelectedPort()
-    }
-    emit('click', { featureType, data, coordinate })
-  })
+  renderer.on('click', handleRendererClick)
 }
 
 function getContainer(type: '2d' | '3d') {
@@ -394,6 +397,11 @@ onUnmounted(() => {
   // a023: 停止可能排队的引擎切换（卸载后不再执行异步 initRenderer）
   switching.value = false
   pendingSwitchType.value = null
+
+  // a025: 引擎切换/卸载前解绑 click 监听（注册/移除配对契约）
+  if (currentRenderer.value) {
+    currentRenderer.value.off?.('click', handleRendererClick)
+  }
 
   // a023: 遍历销毁两个缓存渲染器（而非只销毁当前渲染器），销毁后 ref 显式置空
   const cachedRenderers = [olRenderer.value, cesiumRenderer.value]

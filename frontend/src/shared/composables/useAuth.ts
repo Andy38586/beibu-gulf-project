@@ -3,6 +3,7 @@ import { ref } from 'vue'
 
 import { logger } from '@/shared/utils/logger'
 import { useFloodState } from '@/stores/floodState'
+import { useForecastState } from '@/stores/forecastState'
 import { useMapStore } from '@/stores/mapStore'
 import { usePortImpactStore } from '@/stores/portImpactStore'
 import { useProfileStore } from '@/stores/profileStore'
@@ -135,6 +136,8 @@ function resetBusinessStores(): void {
     useProfileStore().resetProfile()
     // b035+b043: 重置地图业务交互状态，清 analysisHandler 闭包与 sessionStorage
     useMapStore().resetMapState()
+    // b036: 预测页状态复位（含 dataCache 清空）
+    useForecastState().reset()
   } catch {
     // store 未激活等异常不阻断登出
   }

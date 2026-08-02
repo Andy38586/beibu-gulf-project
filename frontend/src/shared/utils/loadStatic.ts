@@ -5,12 +5,15 @@
  * - 统一超时（默认 10s）
  * - 可选内存缓存（TTL 5min）
  * - in-flight Promise 去重（同一 URL 并发只发一次请求）
+ * - 缓存大小上限（z050-FE）：超过 MAX_CACHE_SIZE 时按 LRU 近似淘汰最旧插入项
  *
  * 使用方：mapDataService、forecastAdapter mock 分支、floodAdapter mock 分支。
  */
 
 const DEFAULT_TIMEOUT_MS = 10000
 const DEFAULT_CACHE_TTL = 5 * 60 * 1000
+// z050-FE: 缓存硬上限，防止长会话内存膨胀
+const MAX_CACHE_SIZE = 100
 
 const cache = new Map<string, { data: unknown; cachedAt: number }>()
 const pending = new Map<string, Promise<unknown>>()
@@ -22,6 +25,18 @@ export interface LoadStaticOptions {
   cacheTTL?: number
   /** 外部取消信号 */
   signal?: AbortSignal
+}
+
+/**
+ * z050-FE: 写入缓存前检查上限，超限删除最旧插入项（Map 迭代序即插入序，
+ * keys().next().value 即最旧键，近似 LRU 淘汰）。
+ */
+function setCache(url: string, data: unknown): void {
+  if (cache.size >= MAX_CACHE_SIZE) {
+    const oldestKey = cache.keys().next().value
+    if (oldestKey !== undefined) cache.delete(oldestKey)
+  }
+  cache.set(url, { data, cachedAt: Date.now() })
 }
 
 /**
@@ -63,7 +78,7 @@ export async function loadStatic<T = unknown>(
       }
       const data = await response.json()
       if (cacheTTL > 0) {
-        cache.set(url, { data, cachedAt: Date.now() })
+        setCache(url, data)
       }
       return data
     } finally {

@@ -28,6 +28,8 @@ export async function loadBoundaryGeoJson(
   const CACHE_KEY = 'beibu-gulf-boundary-cache'
   const CACHE_EXPIRY = 24 * 60 * 60 * 1000 // 24小时缓存有效期
   const MAX_RETRIES = 3
+  // z050-FE: sessionStorage 写入大小硬上限（500KB 字符），超限仅留内存层不持久化
+  const SESSION_STORAGE_MAX_CHARS = 500_000
 
   // 检查缓存
   try {
@@ -63,7 +65,18 @@ export async function loadBoundaryGeoJson(
 
       // 缓存数据
       try {
-        sessionStorage.setItem(CACHE_KEY, JSON.stringify({ data: geojson, timestamp: Date.now() }))
+        // z050-FE: 大小检查——边界数据 ~几十 KB，超 500KB 视为异常膨胀，仅留内存层
+        const serialized = JSON.stringify({
+          data: geojson,
+          timestamp: Date.now(),
+        })
+        if (serialized.length > SESSION_STORAGE_MAX_CHARS) {
+          logger.debug(
+            `[useBoundaryLayer] 缓存条目过大 (${serialized.length} chars)，跳过 sessionStorage 持久化`
+          )
+        } else {
+          sessionStorage.setItem(CACHE_KEY, serialized)
+        }
       } catch {
         // 缓存写入失败不影响功能
       }

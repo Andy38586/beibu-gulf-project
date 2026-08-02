@@ -57,7 +57,16 @@ const barSeries = ref<Array<{ name: string; data: number[] }>>([])
 const lineViewportXMin = ref('2023-01')
 const lineViewportXMax = ref('2029-12')
 
+// z050-FE: requestCache 大小上限，超限删除最早键（Map 迭代序即插入序，近似 LRU）
+const MAX_CACHE_ENTRIES = 50
 const requestCache = new Map()
+function setRequestCache(key: string, value: unknown): void {
+  if (requestCache.size >= MAX_CACHE_ENTRIES) {
+    const oldestKey = requestCache.keys().next().value
+    if (oldestKey !== undefined) requestCache.delete(oldestKey)
+  }
+  requestCache.set(key, value)
+}
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 const DEBOUNCE_DELAY = 300
 
@@ -84,7 +93,7 @@ async function loadTimeSeriesData(transactionId: number, signal: AbortSignal) {
       // 事务过期或请求被取消
       if (data === null) return
       if (data?.series) {
-        requestCache.set(cacheKey, { allSeries: data.series })
+        setRequestCache(cacheKey, { allSeries: data.series })
       }
     }
 
@@ -163,7 +172,7 @@ async function loadPortComparisonData(transactionId: number, signal: AbortSignal
           data: [p.qinzhou?.value || 0, p.beihai?.value || 0, p.fangchenggang?.value || 0],
         },
       ]
-      requestCache.set(cacheKey, { xData: barXData.value, series: barSeries.value })
+      setRequestCache(cacheKey, { xData: barXData.value, series: barSeries.value })
     }
   } catch (e) {
     logger.error('[ForecastPage] loadPortComparisonData error:', e)

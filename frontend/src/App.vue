@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, provide, ref, watch } from 'vue'
+import { onMounted, onUnmounted, provide, ref, watch } from 'vue'
 import { RouterView, useRoute, useRouter } from 'vue-router'
 
 import { BusinessLayerManager } from '@/core/map/BusinessLayerManager'
@@ -117,6 +117,11 @@ onMounted(() => {
   restoreAuth()
   // 单点注册多标签页 storage 同步监听（无需组件上下文，不会抛错）
   initAuthStorageListener()
+})
+
+onUnmounted(() => {
+  // a024: 根组件卸载时销毁图层管理器，释放 _registry 持有的图层元数据
+  businessLayerManager.destroy()
 })
 </script>
 

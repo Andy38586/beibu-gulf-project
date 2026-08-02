@@ -57,6 +57,17 @@ function createFetchMock() {
   })
 }
 
+// api 模式 getWaterArea 走后端 /flood/water-area 端点（D-4=A），返回信封式 { code, data }
+const API_BASE = (import.meta.env.VITE_API_BASE as string) || '/api'
+fixtures[`${API_BASE}/flood/water-area`] = {
+  code: 200,
+  data: [
+    [108.615, 21.855],
+    [108.62, 21.855],
+    [108.622, 21.858],
+  ],
+}
+
 describe('floodAdapter', () => {
   beforeEach(() => {
     floodAdapter.setDataSource('mock')

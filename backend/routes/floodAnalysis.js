@@ -55,6 +55,12 @@ router.get('/terrain-profiles', floodAnalysisController.getTerrainProfiles)
  */
 router.get('/facilities', floodAnalysisController.getFacilities)
 
+/**
+ * 获取水域坐标数据
+ * GET /api/flood/water-area
+ */
+router.get('/water-area', floodAnalysisController.getWaterArea)
+
 // ==================== 分析接口（需登录） ====================
 router.use(authenticate)
 

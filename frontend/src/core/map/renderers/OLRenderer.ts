@@ -43,6 +43,13 @@ export class OLRenderer extends MapRenderer {
     this._cullLayers = new Map() // id -> { source, index, allFeatures, options }
     /** @type {import('./renderers').OLRendererState['_moveendKey']} */
     this._moveendKey = null
+    // a026: pointer-move / camera-changed 事件处理器与防抖定时器引用（供 destroy 注销）
+    /** @type {Function|null} */
+    this._pointerMoveHandler = null
+    /** @type {Object|null} */
+    this._cameraChangedKey = null
+    /** @type {number|null} */
+    this._cameraDebounceTimer = null
     this._initMap()
   }
   _initMap() {
@@ -59,6 +66,7 @@ export class OLRenderer extends MapRenderer {
     })
     this._initBaseLayers()
     this._setupClickHandler()
+    this._setupPointerHandlers()
   }
   _initBaseLayers() {
     const imageLayers = MAP_CONFIG.BASE_LAYERS.image.layers.map((code) => {
@@ -87,8 +95,14 @@ export class OLRenderer extends MapRenderer {
     this.baseLayers.image = imageLayers
     this.baseLayers.vector = vectorLayers
 
-    imageLayers.forEach((l) => this.map.addLayer(l))
-    vectorLayers.forEach((l) => this.map.addLayer(l))
+    imageLayers.forEach((l) => {
+      l.setZIndex(LAYER_DEFAULTS.zIndexBase)
+      this.map.addLayer(l)
+    })
+    vectorLayers.forEach((l) => {
+      l.setZIndex(LAYER_DEFAULTS.zIndexBase)
+      this.map.addLayer(l)
+    })
   }
   _setupClickHandler() {
     this.map.on('click', (event) => {
@@ -124,6 +138,27 @@ export class OLRenderer extends MapRenderer {
     })
   }
 
+  /** a026: 补齐 MapRendererEventMap 声明的 pointer-move / camera-changed 事件实现 */
+  _setupPointerHandlers() {
+    // pointer-move：实时回传鼠标经纬度（坐标从 EPSG:3857 反算到 WGS84）
+    this._pointerMoveHandler = (evt) => {
+      const coord = toLonLat(evt.coordinate)
+      this.emit('pointer-move', { lng: coord[0], lat: coord[1] })
+    }
+    this.map.on('pointermove', this._pointerMoveHandler)
+
+    // camera-changed：moveend 防抖后回传相机状态（避免每帧触发刷爆订阅方）
+    this._cameraChangedKey = this.map.on('moveend', () => {
+      if (this._cameraDebounceTimer) {
+        clearTimeout(this._cameraDebounceTimer)
+      }
+      this._cameraDebounceTimer = setTimeout(() => {
+        this.emit('camera-changed', this._getCameraState())
+        this._cameraDebounceTimer = null
+      }, 300)
+    })
+  }
+
   addPointLayer(id, features, options = {}) {
     const style = this._createPointStyle(options)
 
@@ -148,6 +183,7 @@ export class OLRenderer extends MapRenderer {
       source: new VectorSource({ features: olFeatures }),
       style,
     })
+    vectorLayer.setZIndex(options.zIndex ?? LAYER_DEFAULTS.zIndex)
     this.map.addLayer(vectorLayer)
     this._layers.set(id, {
       instance: vectorLayer,
@@ -174,6 +210,7 @@ export class OLRenderer extends MapRenderer {
 
     const source = new VectorSource()
     const vectorLayer = new VectorLayer({ source, style })
+    vectorLayer.setZIndex(options.zIndex ?? LAYER_DEFAULTS.zIndex)
     this.map.addLayer(vectorLayer)
     this._layers.set(id, { instance: vectorLayer, visible: true, options })
     this._applyPendingVisibility(id)
@@ -298,6 +335,7 @@ export class OLRenderer extends MapRenderer {
       source: new VectorSource({ features: olFeatures }),
       style,
     })
+    vectorLayer.setZIndex(options.zIndex ?? LAYER_DEFAULTS.zIndex)
     this.map.addLayer(vectorLayer)
     this._layers.set(id, {
       instance: vectorLayer,
@@ -340,6 +378,7 @@ export class OLRenderer extends MapRenderer {
       source: new VectorSource({ features }),
       style: options.style || defaultStyle,
     })
+    vectorLayer.setZIndex(options.zIndex ?? LAYER_DEFAULTS.zIndex)
     this.map.addLayer(vectorLayer)
     this._layers.set(id, {
       instance: vectorLayer,
@@ -383,6 +422,7 @@ export class OLRenderer extends MapRenderer {
       source,
       opacity: options.opacity ?? 0.7,
     })
+    layer.setZIndex(options.zIndex ?? LAYER_DEFAULTS.zIndex)
     this.map.addLayer(layer)
     this._layers.set(id, {
       instance: layer,
@@ -432,6 +472,7 @@ export class OLRenderer extends MapRenderer {
     })
 
     layer.set('id', id)
+    layer.setZIndex(options.zIndex ?? LAYER_DEFAULTS.zIndex)
     this.map.addLayer(layer)
     this._layers.set(id, {
       instance: layer,
@@ -596,6 +637,8 @@ export class OLRenderer extends MapRenderer {
       source: new VectorSource({ features: [breathingFeature] }),
       style: breathingStyle,
     })
+    // a031: 呼吸动画层必须置顶（覆盖业务层），保持改动前"最后 add 即最上"的视觉语义
+    this._breathingLayer.setZIndex(LAYER_DEFAULTS.zIndexOverlay)
     this.map.addLayer(this._breathingLayer)
     const animate = () => {
       if (this._breathingLayer) {
@@ -668,6 +711,19 @@ export class OLRenderer extends MapRenderer {
     if (this._moveendKey) {
       this.map?.un(this._moveendKey.type, this._moveendKey.listener)
       this._moveendKey = null
+    }
+    // a026: 注销 pointer-move / camera-changed 监听与防抖定时器
+    if (this._pointerMoveHandler) {
+      this.map?.un('pointermove', this._pointerMoveHandler)
+      this._pointerMoveHandler = null
+    }
+    if (this._cameraChangedKey) {
+      this.map?.un(this._cameraChangedKey.type, this._cameraChangedKey.listener)
+      this._cameraChangedKey = null
+    }
+    if (this._cameraDebounceTimer) {
+      clearTimeout(this._cameraDebounceTimer)
+      this._cameraDebounceTimer = null
     }
     this.map?.dispose()
     this.map = null

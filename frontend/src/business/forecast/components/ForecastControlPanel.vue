@@ -15,10 +15,11 @@ const CONFIRM_DELAY = 3000
 
 // ===== 四个指标 =====
 const INDICATORS = [
-  { key: 'cargo', label: '货物', icon: '📦' },
-  { key: 'container', label: '集装箱', icon: '📋' },
-  { key: 'berth', label: '泊位利用率', icon: '⚓' },
-  { key: 'traffic', label: '船舶流量', icon: '🚢' },
+  { key: 'cargo', label: '货物', icon: '📦', synthetic: false },
+  { key: 'container', label: '集装箱', icon: '📋', synthetic: false },
+  // berth / traffic 为示意性合成数据（非实测），UI 显示「（模拟）」角标（b025 / D-2=A）
+  { key: 'berth', label: '泊位利用率', icon: '⚓', synthetic: true },
+  { key: 'traffic', label: '船舶流量', icon: '🚢', synthetic: true },
 ]
 
 const btnStates = reactive(
@@ -187,6 +188,7 @@ onUnmounted(() => stopPlayback())
           >
             <span class="ind-icon">{{ ind.icon }}</span>
             <span class="ind-label">{{ ind.label }}</span>
+            <span v-if="ind.synthetic" class="ind-synth">（模拟）</span>
             <span v-if="btnStates[ind.key].selected" class="ind-conf"
               >{{ (getConf(ind.key) * 100).toFixed(0) }}%</span
             >
@@ -195,6 +197,7 @@ onUnmounted(() => stopPlayback())
         <div v-else class="slider-cell" @click.stop>
           <span class="ind-icon">{{ ind.icon }}</span>
           <span class="ind-label-s">{{ ind.label }}</span>
+          <span v-if="ind.synthetic" class="ind-synth">（模拟）</span>
           <input
             type="range"
             min="0.8"
@@ -307,6 +310,11 @@ onUnmounted(() => stopPlayback())
 .ind-label {
   font-size: 13px;
   font-weight: 500;
+}
+.ind-synth {
+  font-size: 10px;
+  color: var(--GCS-color-warning, #e6a23c);
+  margin-left: 2px;
 }
 .ind-conf {
   font-size: 10px;

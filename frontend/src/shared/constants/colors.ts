@@ -42,10 +42,15 @@ export const LAYER_DEFAULTS = {
   stroke: '#4dabf7', // 默认描边（边界 / 多边形）
   marker: '#409eff', // 默认标记色
   fillColor: '#4dabf7', // 默认填充色（polygon / geojson）
+  boundaryFill: 'rgba(77,171,247,0.15)', // a032: 边界图层填充（从 useBoundaryLayer 提取的硬编码字面量）
   fill: 'rgba(77, 171, 247, 0.2)',
   outline: '#ffffff', // 描边 / 外框白
   text: '#000000', // 标注文字黑
   heatmapGradient: ['#00f', '#0ff', '#0f0', '#ff0', '#f00'],
+  // a031: 图层叠放层级（OL setZIndex 默认值，消除对 addLayer 调用顺序的依赖）
+  zIndex: 10, // 业务图层默认层级
+  zIndexBase: 0, // 底图
+  zIndexOverlay: 100, // 覆盖层（水面 / 呼吸动画 / 淹没）
 } as const
 
 // 水位剖面图系列色

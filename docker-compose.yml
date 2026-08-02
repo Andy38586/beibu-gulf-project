@@ -8,7 +8,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: beibu-gulf-webgis:latest
+    # d064: 镜像版本 tag（回滚用）。部署时传 IMAGE_TAG=<上一版本tag> 即可切回旧版；
+    # 不传则默认 latest。配合 scripts/rollback.sh 使用。
+    image: beibu-gulf-webgis:${IMAGE_TAG:-latest}
     container_name: beibu-gulf-webgis
     # 运行时注入密钥与端口：env_file 在容器启动期读取本地 backend/.env，
     # 不会烘焙进镜像；environment 的 NODE_ENV=production 优先级高于 env_file。

@@ -1,6 +1,7 @@
 <!-- src/components/common/ErrorBoundary.vue -->
 <script setup lang="ts">
-import { ref, onErrorCaptured } from 'vue'
+import { onErrorCaptured, ref } from 'vue'
+
 import { logger } from '@/shared/utils/logger'
 
 const hasError = ref(false)

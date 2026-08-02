@@ -31,8 +31,15 @@ WORKDIR /app
 # 强制生产模式；JWT_SECRET/PORT 由 compose 在容器运行期注入，绝不烘焙进镜像
 ENV NODE_ENV=production
 
-# 安装 nginx（提供前端静态资源 + API 反向代理）
-RUN apk add --no-cache nginx
+# d061: 安装 nginx + su-exec。
+# su-exec 让后端进程以非 root 用户运行（容器逃逸时无法以 root 获得宿主机权限）；
+# nginx 仍由 entrypoint 以 root 拉起（需绑定 80/443）。
+RUN apk add --no-cache nginx su-exec
+
+# d061: 创建非 root 用户 nodeapp（uid 1000），并预备可写的数据/日志目录
+RUN adduser -D -u 1000 nodeapp \
+  && mkdir -p /app/backend/data /app/backend/logs \
+  && chown -R nodeapp:nodeapp /app/backend/data /app/backend/logs
 
 # 后端运行时依赖与源码
 COPY --from=backend-builder /app/backend ./backend
@@ -49,8 +56,8 @@ RUN chmod +x /app/docker-entrypoint.sh
 
 EXPOSE 80 443 3000
 
-# 健康检查：编排/负载均衡器可探测容器存活
+# d063: 健康检查探就绪（readiness 查数据目录可读性），编排/负载均衡器据此判定容器可用
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD wget -qO- http://127.0.0.1:3000/api/health || exit 1
+  CMD wget -qO- http://127.0.0.1:3000/api/health/ready || exit 1
 
 CMD ["/app/docker-entrypoint.sh"]

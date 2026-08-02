@@ -182,8 +182,10 @@ export const floodAdapter = {
     if (resolveDataSource(ADAPTER_NAME) === 'mock') {
       return _fetchMockWaterArea()
     }
-    // api 模式：从后端获取水域坐标（复用 mock 静态数据，后端无此端点）
-    return _fetchMockWaterArea()
+    // api 模式：从后端只读端点获取水域坐标（D-4=A：后端 /flood/water-area 端点，
+    // 数据与前端 water-area.json 同源，前后端共用同一份静态坐标）。
+    const coords = await apiRequest<[number, number][]>('/flood/water-area')
+    return coords
   },
 
   async getFloodAnalysis(
@@ -306,8 +308,10 @@ export const floodAdapter = {
   },
 
   async getDEM(_region: unknown): Promise<Record<string, string>> {
-    // DEM 管线未就绪，无论哪种模式均返回 mock 标注
-    return { source: 'mock', note: 'DEM 管线待接入（A 路线增量③）' }
+    // DEM 高程数据当前由 dem-hillshade 图层（静态 COG dem_hillshade.tif）直接消费，
+    // 本方法为预留接口，暂无运行期调用方（b029 / D-3=A 核实）。
+    // 三维水面为预设水位档位可视化（非真实高程演算），真地形见 D-10 决策。
+    return { source: 'dem-pipeline', note: 'DEM 由 dem-hillshade 图层消费，getDEM 为预留钩子（无调用方）' }
   },
 
   clearCache(): void {

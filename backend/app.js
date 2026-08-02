@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
 import rateLimit from 'express-rate-limit'
 import cookieParser from 'cookie-parser'
+import { readdir } from 'fs/promises'
 import markersRouter from './routes/markers.js'
 import facilitiesRouter from './routes/facilities.js'
 import siteAnalysisRouter from './routes/siteAnalysis.js'
@@ -19,6 +20,7 @@ import { sendSuccess } from './utils/response.js'
 
 const app = express()
 const __dirname = dirname(fileURLToPath(import.meta.url))
+const isDev = process.env.NODE_ENV === 'development'
 
 // @arch-note P1-027: trust proxy — 生产部署经 nginx 反代，若未信任代理，
 // rateLimit 按 127.0.0.1 统一计数 → 登录/全局限流形同虚设（所有人共享同一 IP 配额）。
@@ -35,6 +37,32 @@ app.use(helmet())
 app.get('/api/health', (req, res) => {
   sendSuccess(res, { status: 'ok' })
 })
+
+// d063: liveness（/api/health）保持极简（进程活）；
+// readiness（/api/health/ready）查关键依赖（数据目录可读性），供编排器/HEALTHCHECK 探就绪。
+export async function checkDataDirReadable() {
+  try {
+    await readdir(join(__dirname, 'data'))
+    return true
+  } catch {
+    return false
+  }
+}
+
+export async function readinessHandler(req, res, next) {
+  try {
+    const checks = { dataDir: await checkDataDirReadable() }
+    const ready = Object.values(checks).every(Boolean)
+    res.status(ready ? 200 : 503).json({
+      status: ready ? 'ready' : 'degraded',
+      checks,
+    })
+  } catch (e) {
+    next(e)
+  }
+}
+
+app.get('/api/health/ready', readinessHandler)
 
 // 限流中间件：防止暴力破解和 DDoS
 const limiter = rateLimit({
@@ -70,6 +98,23 @@ app.use(
 )
 app.use(express.json({ limit: '1mb' }))
 app.use(cookieParser())
+
+// d065: 请求日志中间件（仅打日志、不修改请求）。
+// dev 下输出 方法/路径/状态码/耗时，请求体经 sanitize 脱敏（password/token/secret 打码）。
+// 生产环境 debug 静默，不输出请求日志。
+import { sanitize } from './middleware/logSanitizer.js'
+app.use((req, res, next) => {
+  const start = Date.now()
+  res.on('finish', () => {
+    if (isDev) {
+      logger.debug(
+        `[req] ${req.method} ${req.originalUrl} ${res.statusCode} ${Date.now() - start}ms`,
+        sanitize(req.body)
+      )
+    }
+  })
+  next()
+})
 
 // 静态资源托管：DEM 派生产物（hillshade COG、terrain 瓦片），供前端 /static/dem/* 访问
 // 真数据统一放后端，便于未来移交 PostGIS/PgSQL

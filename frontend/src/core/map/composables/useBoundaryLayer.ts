@@ -110,6 +110,6 @@ export async function loadBoundaryGeoJson(
 export const BOUNDARY_STYLE: LayerOptions = {
   strokeColor: LAYER_DEFAULTS.stroke,
   strokeWidth: 2,
-  fillColor: 'rgba(77,171,247,0.15)',
+  fillColor: LAYER_DEFAULTS.boundaryFill,
   featureType: 'boundary',
 }

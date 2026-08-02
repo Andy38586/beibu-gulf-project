@@ -17,7 +17,7 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const emit = defineEmits<{
-  'select': [dataIndex: number]
+  select: [dataIndex: number]
 }>()
 
 const { chartRef } = useChartBase(props, emit, 'bar', {

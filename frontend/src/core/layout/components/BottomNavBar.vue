@@ -39,7 +39,7 @@ const { cellPixel } = useGCS()
  * - 用于开发验收，验证 GCS 是否正确落地
  * - 生产环境默认关闭
  */
-const inspectionMode = defineModel('inspectionMode', { type: Boolean, default: false })
+const inspectionMode = defineModel<boolean>('inspectionMode', { default: false })
 
 // 暴露给 CSS v-bind 使用的计算属性
 const toggleSizeCss = computed(() => `${Math.round(cellPixel.value * 0.75)}px`)

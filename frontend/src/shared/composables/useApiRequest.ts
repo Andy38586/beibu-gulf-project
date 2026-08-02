@@ -1,6 +1,8 @@
 import type { ComputedRef, Ref } from 'vue'
 import { computed, ref } from 'vue'
 
+import { unwrapEnvelope } from '@/shared/utils/responseEnvelope'
+
 // 错误码：使用 as const 对象 + 联合类型，避免 enum 在 ESLint 下的成员误报
 export const ErrorCode = {
   TIMEOUT: 'TIMEOUT',
@@ -50,6 +52,39 @@ export function useApiRequest() {
   // token 为模块级单例，由 setToken/clearToken 维护，不在每次调用时重新加载
 
   async function apiRequest<T = unknown>(path: string, options: RequestOptions = {}): Promise<T> {
+    // z049: GET 幂等请求在超时/网络错误时线性退避重试（POST 不重试，避免重复写操作）
+    const MAX_RETRIES = 3
+    const RETRYABLE_CODES: ErrorCodeValue[] = [ErrorCode.TIMEOUT, ErrorCode.NETWORK_ERROR]
+    const RETRY_DELAY_MS = 800
+
+    let lastError: unknown
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        return await _singleRequest<T>(path, options)
+      } catch (error) {
+        const isGet = (options.method ?? 'GET').toUpperCase() === 'GET'
+        const code = error instanceof ApiError ? error.code : null
+        const isRetryable = code !== null && RETRYABLE_CODES.includes(code)
+        // 外部主动取消（options.signal 已 abort）→ 不重试
+        const isExternalCancel =
+          error instanceof ApiError && code === ErrorCode.REQUEST_FAILED && options.signal?.aborted
+        if (!isGet || !isRetryable || isExternalCancel || attempt === MAX_RETRIES) {
+          throw error
+        }
+        lastError = error
+        // 线性退避：0.8s / 1.6s / 2.4s
+        await new Promise((r) => setTimeout(r, RETRY_DELAY_MS * attempt))
+      }
+    }
+    throw lastError
+  }
+
+  /**
+   * z049: 单次请求实现（原 apiRequest 函数体整体抽出）。
+   * 仅负责 headers/params/超时/fetch/信封解包/错误映射，不含重试逻辑；
+   * 每次调用新建 AbortController，超时计时天然重置，支持重试。
+   */
+  async function _singleRequest<T = unknown>(path: string, options: RequestOptions): Promise<T> {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       ...options.headers,
@@ -124,18 +159,10 @@ export function useApiRequest() {
 
       /**
        * P1-1 响应契约收口：自动解包信封式响应。
-       * 后端统一返回 { code, data }，此处自动提取 data 部分，
-       * 调用方始终拿到业务数据 T，无需手动 .data。
+       * 后端统一返回 { code, data }，此处经公共 unwrapEnvelope 提取 data 部分，
+       * 调用方始终拿到业务数据 T，无需手动 .data（z063 抽出的唯一事实源）。
        */
-      if (
-        typeof data === 'object' &&
-        data !== null &&
-        'code' in data &&
-        'data' in (data as Record<string, unknown>)
-      ) {
-        return (data as Record<string, unknown>).data as T
-      }
-      return data as T
+      return unwrapEnvelope<T>(data)
     } catch (error) {
       clearTimeout(timeoutId)
       if (error instanceof ApiError) {

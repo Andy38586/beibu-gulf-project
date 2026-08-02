@@ -109,16 +109,24 @@ interface _MockForecastFile {
 const MOCK_BASE = '/data/forecast'
 
 /**
- * 每个指标的数据来源：
- * - 真实数据（cargo/container）走后端 API（backend/data/forecast，经 /api/forecast/* 返回）；
- * - 示意性合成数据（berth/traffic）放前端静态 fixture（public/data/forecast/*.json）。
- * 由此实现「同一页面两种取数方式」：真实指标走 API、合成指标走静态文件。
- * 未显式声明的指标回退到全局 _dataSource（由 main.ts 设为 'api'）。
+ * 各指标取数来源（诚实标注，b025 / D-2=A）：
+ * - cargo / container 为真实港口吞吐量指标，走后端 API；
+ * - berth（泊位利用率）/ traffic（船舶流量）为**示意性合成数据**，放前端静态 fixture
+ *   （public/data/forecast/*.json），非实测值；UI 侧通过 SYNTHETIC_INDICATORS
+ *   对这两个指标显示「（模拟）」角标，避免面试/演示时误读为真实数据。
+ * 未显式声明的指标回退到全局 dataSource（由 main.ts 经 adapter.setDataSource 驱动）。
  */
 const INDICATOR_SOURCE: Record<string, 'api' | 'mock'> = {
   berth: 'mock',
   traffic: 'mock',
 }
+
+/** 合成（非实测）指标集合，供 UI 诚实标注（b025 / D-2=A） */
+export const SYNTHETIC_INDICATORS = new Set(
+  Object.entries(INDICATOR_SOURCE)
+    .filter(([, src]) => src === 'mock')
+    .map(([key]) => key)
+)
 
 const ADAPTER_NAME = 'forecast'
 

@@ -17,11 +17,10 @@ function jsonResponse(data: unknown, status = 200) {
 describe('useApiRequest', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.useFakeTimers()
   })
 
   afterEach(() => {
-    vi.useRealTimers()
+    // 本文件统一使用真实定时器：请求内的 10s 超时在 mock 响应后均被 clearTimeout 清除，不会真实等待
   })
 
   describe('token 管理', () => {
@@ -89,12 +88,57 @@ describe('useApiRequest', () => {
       })
     })
 
-    it('网络异常抛 NETWORK_ERROR', async () => {
+    it('网络异常抛 NETWORK_ERROR（含重试，最终仍抛出）', async () => {
       mockFetch.mockRejectedValue(new TypeError('fetch failed'))
       const { apiRequest } = useApiRequest()
       await expect(apiRequest('/offline')).rejects.toMatchObject({
         code: ErrorCode.NETWORK_ERROR,
       })
+      // GET + NETWORK_ERROR 可重试，最多 3 次（线性退避 0.8/1.6/2.4s，真实定时器下约 2.4s）
+      expect(mockFetch).toHaveBeenCalledTimes(3)
+    })
+  })
+
+  describe('请求重试 (z049)', () => {
+    it('GET 网络错误重试，第3次成功时返回结果且 fetch 调用3次', async () => {
+      mockFetch
+        .mockRejectedValueOnce(new TypeError('fetch failed'))
+        .mockRejectedValueOnce(new TypeError('fetch failed'))
+        .mockResolvedValueOnce(jsonResponse({ code: 200, data: { ok: true } }))
+      const { apiRequest } = useApiRequest()
+      await expect(apiRequest('/test')).resolves.toEqual({ ok: true })
+      expect(mockFetch).toHaveBeenCalledTimes(3)
+    })
+
+    it('POST 失败不重试', async () => {
+      mockFetch.mockRejectedValue(new TypeError('fetch failed'))
+      const { apiRequest } = useApiRequest()
+      await expect(apiRequest('/submit', { method: 'POST', body: '{}' })).rejects.toMatchObject({
+        code: ErrorCode.NETWORK_ERROR,
+      })
+      expect(mockFetch).toHaveBeenCalledTimes(1)
+    })
+
+    it('外部主动取消（已 abort 的 signal）不重试', async () => {
+      const ac = new AbortController()
+      ac.abort()
+      // 模拟 fetch 因 signal abort 抛出的 AbortError：
+      // 必须为 Error 实例且 name='AbortError' 才会被 _singleRequest 转换为 ApiError.REQUEST_FAILED
+      const abortErr = new Error('The operation was aborted')
+      abortErr.name = 'AbortError'
+      mockFetch.mockRejectedValue(abortErr)
+      const { apiRequest } = useApiRequest()
+      await expect(apiRequest('/test', { signal: ac.signal })).rejects.toMatchObject({
+        code: ErrorCode.REQUEST_FAILED,
+      })
+      expect(mockFetch).toHaveBeenCalledTimes(1)
+    })
+
+    it('非重试错误码（500）不重试', async () => {
+      mockFetch.mockResolvedValue(jsonResponse({ error: '内部错误' }, 500))
+      const { apiRequest } = useApiRequest()
+      await expect(apiRequest('/fail')).rejects.toMatchObject({ code: ErrorCode.SERVER_ERROR })
+      expect(mockFetch).toHaveBeenCalledTimes(1)
     })
   })
 

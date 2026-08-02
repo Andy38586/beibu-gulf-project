@@ -1,5 +1,6 @@
-import { describe, it, expect, beforeEach } from 'vitest'
-import { createSpatialIndex, VIEWPORT_CULL_THRESHOLD, type IndexedItem } from '../spatialIndex'
+import { beforeEach, describe, expect, it } from 'vitest'
+
+import { createSpatialIndex, type IndexedItem, VIEWPORT_CULL_THRESHOLD } from '../spatialIndex'
 
 interface POI {
   id: number | string

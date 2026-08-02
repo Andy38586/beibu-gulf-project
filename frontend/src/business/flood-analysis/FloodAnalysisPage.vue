@@ -2,9 +2,10 @@
 /**
  * 浸没分析模块
  *
- * 当前阶段：架构验证期，使用 mock DEM 数据跑通 3D 水面 Primitive + 高程过滤链路
- * 数据状态：src/mock/flood/ 为模拟高程数据
- * 待接入：真实 DEM 数据（毕业论文阶段通过自然资源局获取）
+ * 数据状态（b029 / D-3=A 核实）：
+ * - 真实地形：DEM 山体阴影由 dem-hillshade 图层加载 dem_hillshade.tif（COG，tools/dem-pipeline 生成），已真实接入；
+ * - 3D 水面：预设水位档位可视化（非真实高程演算，真地形/地形 Provider 见 D-10 决策）；
+ * - src/mock/flood/ 仅为接口文档，无运行期调用方（floodAdapter.getDEM 为预留钩子，当前无消费点）。
  *
  * 本模块验证目标：
  * 1. BusinessLayerManager 的 waterSurface adapter 能否独立注册/销毁
@@ -80,8 +81,8 @@ const FACILITY_LAYER_ID = 'flood-facilities'
 /** 真实地形（DEM 山体阴影）图层 ID——DEM 数据仅属洪涝分析（a017），洪涝页独享此 key */
 const DEM_HILLSHADE_LAYER_ID = 'dem-hillshade'
 
-// 通过 floodAdapter 加载水域坐标（Mock 数据，架构验证阶段）
-// 生产阶段仅需 floodAdapter.setDataSource('api')，此处代码无需修改
+// 通过 floodAdapter 加载水域坐标（mock 走静态文件，api 走后端 /flood/water-area 端点，D-4）
+// 业务代码无需修改：adapter 按 dataSource 自动切换取数来源。
 let cachedWaterAreaCoords: [number, number][] | null = null
 
 async function loadWaterAreaCoordinates() {

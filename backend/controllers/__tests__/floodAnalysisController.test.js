@@ -8,7 +8,14 @@ vi.mock('fs/promises', () => ({
 }))
 
 import { readFile } from 'fs/promises'
-import { getFloodAreas, getFloodStatistics, analyzeDisaster, _clearCacheForTest } from '../floodAnalysisController.js'
+import {
+  getFloodAreas,
+  getFloodStatistics,
+  analyzeDisaster,
+  readJsonData,
+  _readCache,
+  _clearCacheForTest,
+} from '../floodAnalysisController.js'
 
 // 构造 mock req/res/next
 function mockReqRes(query = {}, body = {}) {
@@ -142,6 +149,20 @@ describe('floodAnalysisController', () => {
       } finally {
         nowSpy.mockRestore()
       }
+    })
+  })
+
+  describe('readJsonData - 缓存大小上限 (z050-BE)', () => {
+    it('超过上限淘汰最旧条目，保留最新', async () => {
+      readFile.mockImplementation((p) => Promise.resolve(JSON.stringify({ f: String(p) })))
+      _clearCacheForTest()
+      for (let i = 0; i < 25; i++) {
+        await readJsonData(`file${i}.json`)
+      }
+      // 上限 20，最旧 file0 应被淘汰，最新 file24 应保留
+      expect(_readCache.size).toBeLessThanOrEqual(20)
+      expect(_readCache.has('file0.json')).toBe(false)
+      expect(_readCache.has('file24.json')).toBe(true)
     })
   })
 })

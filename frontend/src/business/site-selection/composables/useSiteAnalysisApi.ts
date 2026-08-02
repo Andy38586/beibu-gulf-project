@@ -3,22 +3,20 @@ import { ref } from 'vue'
 
 import { useApiRequest } from '@/shared/composables/useApiRequest'
 import { handleAuthError, isAuthError, showError } from '@/shared/utils/errorHandler'
-import { logger } from '@/shared/utils/logger'
 import type { AnalysisParams, AnalysisResult } from '@/types/analysis'
 
 export function useSiteAnalysisApi() {
   const { apiRequest } = useApiRequest()
   const calculating: Ref<boolean> = ref(false)
   const calcError: Ref<string> = ref('')
+  // b041: 在途请求取消句柄；新请求优先取消旧请求，组件卸载时静默取消
+  let abortController: AbortController | null = null
 
   async function analyze(params: AnalysisParams): Promise<AnalysisResult> {
-    // 请求去重，防止重复提交
-    if (calculating.value) {
-      if (import.meta.env.DEV) {
-        logger.warn('[useSiteAnalysisApi] 分析请求已在进行中，忽略重复请求')
-      }
-      return { error: '正在分析中，请稍后再试', coverage: null, matchedXiaoqu: [], facilityPoi: {} }
-    }
+    // b041: 新请求优先——取消上一个在途请求（快速连点用户期望看到最新结果）
+    abortController?.abort()
+    const controller = new AbortController()
+    abortController = controller
 
     calcError.value = ''
     calculating.value = true
@@ -26,6 +24,7 @@ export function useSiteAnalysisApi() {
       const result = await apiRequest<AnalysisResult>('/site-analysis', {
         method: 'POST',
         body: JSON.stringify(params),
+        signal: controller.signal,
       })
       if (result.error) {
         calcError.value = result.error
@@ -43,6 +42,10 @@ export function useSiteAnalysisApi() {
         facilityPoi: result.facilityPoi || {},
       }
     } catch (error) {
+      // b041: 主动取消（新请求抢占 / 组件卸载）— 静默返回，不弹错误、不触发软登录
+      if (controller.signal.aborted) {
+        return { error: null, coverage: null, matchedXiaoqu: [], facilityPoi: {} }
+      }
       // 401：site-analysis 整路由需登录，走统一软登录（与 forecast 侧一致）
       if (isAuthError(error)) {
         await handleAuthError()
@@ -56,5 +59,12 @@ export function useSiteAnalysisApi() {
     }
   }
 
-  return { analyze, calculating, calcError }
+  // b041: 取消在途请求并复位加载态（供调用方 onUnmounted 调用）
+  function cancel(): void {
+    abortController?.abort()
+    abortController = null
+    calculating.value = false
+  }
+
+  return { analyze, calculating, calcError, cancel }
 }

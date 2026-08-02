@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia'
-import type { ScoredXiaoqu } from '@/types/xiaoqu'
+
 import type { FacilityPoint, TypeSetting } from '@/types/facility'
+import type { ScoredXiaoqu } from '@/types/xiaoqu'
+
 import { createPersistedState } from './factories/createPersistedState'
 
 export interface SiteSelectionState {

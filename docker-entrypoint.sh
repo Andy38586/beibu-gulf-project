@@ -70,8 +70,12 @@ else
   echo "[entrypoint] 未检测到 TLS 证书，仅 HTTP (80) 服务"
 fi
 
-# === 2. 启动后端（express，监听 3000） ===
-cd /app/backend && node index.js &
+# === 2. 启动后端（express，监听 3000，以非 root 用户 nodeapp 运行，d061） ===
+# 数据卷以 root 挂载，启动前降权给 nodeapp 以可写（注册/收藏/标记写盘）
+if [ -d /app/backend/data ]; then
+  chown -R nodeapp:nodeapp /app/backend/data
+fi
+cd /app/backend && su-exec nodeapp node index.js &
 BACKEND_PID=$!
 
 # === 3. 启动 nginx ===

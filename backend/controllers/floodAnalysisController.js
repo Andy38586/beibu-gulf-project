@@ -17,16 +17,27 @@ const __dirname = dirname(__filename)
  */
 // REQ-3（阶段2）: flood 5 个数据接口公开可高频访问，原每次请求 readFile 无缓存。
 // 加模块级 Map + TTL（复用 facilitiesRepository.js 成熟模式）；纯读路径、数据为部署时静态，TTL 足够。
-const _readCache = new Map()
+// z050-BE: 读盘缓存（模块级 Map + TTL）。导出供测试访问。
+export const _readCache = new Map()
 const READ_CACHE_TTL_MS = 5 * 60 * 1000
-async function readJsonData(filename) {
+// z050-BE: 读盘缓存大小上限。flood 数据文件数量（~5）远小于 20，近似 LRU 一行实现即可。
+const READ_CACHE_MAX_SIZE = 20
+function setReadCache(filename, data) {
+  if (_readCache.size >= READ_CACHE_MAX_SIZE) {
+    // 淘汰最早插入的条目（Map 保持插入顺序）
+    const oldestKey = _readCache.keys().next().value
+    if (oldestKey !== undefined) _readCache.delete(oldestKey)
+  }
+  _readCache.set(filename, { data, cachedAt: Date.now() })
+}
+export async function readJsonData(filename) {
   const hit = _readCache.get(filename)
   if (hit && Date.now() - hit.cachedAt < READ_CACHE_TTL_MS) {
     return hit.data
   }
   const filePath = join(__dirname, '../data/flood', filename)
   const data = JSON.parse(await readFile(filePath, 'utf-8'))
-  _readCache.set(filename, { data, cachedAt: Date.now() })
+  setReadCache(filename, data)
   return data
 }
 

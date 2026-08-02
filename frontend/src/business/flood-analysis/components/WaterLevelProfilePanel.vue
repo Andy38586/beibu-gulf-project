@@ -33,6 +33,18 @@ import { logger } from '@/shared/utils/logger'
 import { useProfileStore } from '@/stores/profileStore'
 import { useWaterLevelStore } from '@/stores/waterLevelStore'
 
+/**
+ * ECharts tooltip formatter 参数（axis 触发时为数组）。
+ * 用本地最小接口替代 `any`，避免脆弱的 echarts 深路径类型导入；
+ * setOption 接收宽松的 EChartsCoreOption，formatter 在边界处不被严格校验。
+ */
+interface TooltipFormatterParam {
+  axisValue?: string | number
+  marker?: string
+  seriesName?: string
+  value?: unknown
+}
+
 echarts.use([
   LineChart,
   GridComponent,
@@ -189,10 +201,10 @@ function updateChart() {
   const option = {
     tooltip: {
       trigger: 'axis',
-      formatter: (params: any) => {
-        const distance = params[0].axisValue
+      formatter: (params: TooltipFormatterParam[]) => {
+        const distance = params[0]?.axisValue
         let content = `距离: ${distance}m<br/>`
-        params.forEach((param: any) => {
+        params.forEach((param: TooltipFormatterParam) => {
           content += `${param.marker}${param.seriesName}: ${param.value}m<br/>`
         })
         return content

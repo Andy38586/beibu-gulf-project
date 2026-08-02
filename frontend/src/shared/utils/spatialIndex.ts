@@ -1,14 +1,16 @@
 /**
  * 前端空间索引工具（基于 rbush）
  *
- * 与后端 server/utils/spatialIndex.js 对应，用于前端大数据量要素的视口裁剪。
+ * 与后端 backend/utils/spatialIndex.js 实现不同（前后端同名不同义）：
+ * 前端 = 视口裁剪（rbush 矩形查询）；后端 = 多边形覆盖查询（turf/queryByPolygon）。
+ * 同名勿相互引用或混用。
  * 当 POI 数量超过阈值（默认 1000）时，构建 R-tree 索引，视口变化时只查询视口内要素，
  * 避免全量渲染导致的性能问题。
  *
  * 坐标系：索引使用 EPSG:3857（Web Mercator），与 OpenLayers view 一致
  */
-import RBush from 'rbush'
 import type { BBox } from 'rbush'
+import RBush from 'rbush'
 
 /** 触发视口裁剪的要素数量阈值 */
 export const VIEWPORT_CULL_THRESHOLD = 1000

@@ -213,6 +213,15 @@ class CesiumViewerManager {
       this._baseLayersInitialized = false
     }
   }
+
+  /**
+   * a029: 显式真正销毁接口（应用退出 / HMR / 测试场景）。
+   * 等价于 destroy()，保留命名以匹配审计要求；常规卸载仍走 unmount() 保留复用。
+   */
+  destroyViewer() {
+    this._clearIdleDestroyTimer()
+    this.destroy()
+  }
 }
 
 // 全局单例管理器
@@ -297,6 +306,8 @@ export class CesiumRenderer extends MapRenderer {
         // viewer 可能已置空，防御
         if (this.viewer) {
           this.viewer.scene.requestRender()
+          // a026: 相机变化防抖后回传状态（复用 _cameraChangedHandler，勿新增监听）
+          this.emit('camera-changed', this._getCameraState())
         }
         this._cameraDebounceTimer = null
       }, DEBOUNCE_DELAY)
@@ -394,6 +405,21 @@ export class CesiumRenderer extends MapRenderer {
         coordinate,
       })
     }, ScreenSpaceEventType.LEFT_CLICK)
+
+    // a026: pointer-move 事件（补齐 MapRendererEventMap 声明）
+    this._screenSpaceEventHandler.setInputAction((movement) => {
+      const cartesian = this.viewer.camera.pickEllipsoid(
+        movement.endPosition,
+        this.viewer.scene.globe.ellipsoid
+      )
+      if (cartesian) {
+        const carto = Cartographic.fromCartesian(cartesian)
+        this.emit('pointer-move', {
+          lng: CesiumMath.toDegrees(carto.longitude),
+          lat: CesiumMath.toDegrees(carto.latitude),
+        })
+      }
+    }, ScreenSpaceEventType.MOUSE_MOVE)
   }
 
   _cartesianToLonLatArray(cartesian) {
@@ -1132,6 +1158,7 @@ export class CesiumRenderer extends MapRenderer {
     // 清理屏幕事件处理器，防止内存泄漏
     if (this._screenSpaceEventHandler) {
       this._screenSpaceEventHandler.removeInputAction(ScreenSpaceEventType.LEFT_CLICK)
+      this._screenSpaceEventHandler.removeInputAction(ScreenSpaceEventType.MOUSE_MOVE)
       this._screenSpaceEventHandler = null
     }
 
@@ -1152,6 +1179,15 @@ export class CesiumRenderer extends MapRenderer {
     cesiumViewerManager._clearIdleDestroyTimer()
     // 不销毁Viewer，只从DOM卸载
     cesiumViewerManager.unmount()
+    this.viewer = null
+  }
+
+  /**
+   * a029: 显式真正销毁 Viewer（仅测试 / HMR / 应用退出场景使用；
+   * 常规卸载走 destroy() 保留复用语义）。
+   */
+  destroyViewer() {
+    cesiumViewerManager.destroyViewer()
     this.viewer = null
   }
 }

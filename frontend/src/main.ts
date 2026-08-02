@@ -33,11 +33,13 @@ function validateEnv(): void {
 
 validateEnv()
 
-// b024: 数据源由环境变量驱动，默认 mock，生产部署时设 VITE_DATA_SOURCE=api
-const dataSource = (import.meta.env.VITE_DATA_SOURCE as 'mock' | 'api') || 'mock'
+// b024/b031(D-1=A): 数据源由环境变量驱动，默认 api（生产安全；未配置不再静默打包 mock）。
+// 本地离线开发需显式设 VITE_DATA_SOURCE=mock（写入 .env.local，优先级高于 .env）。
+const dataSource = (import.meta.env.VITE_DATA_SOURCE as 'mock' | 'api' | undefined) || 'api'
 // 预测分析：真实指标（cargo/container）走后端 API；合成指标（berth/traffic）由 adapter
-// 按 INDICATOR_SOURCE 回退到前端静态 fixture（public/data/forecast/*）。全局默认设为 'api'。
-forecastAdapter.setDataSource('api')
+// 按 INDICATOR_SOURCE 回退到前端静态 fixture（public/data/forecast/*）。
+// 两个 adapter 统一由 dataSource 驱动，移除 forecast 硬编码 'api' 覆盖（D-1=A，避免绕过全局语义）。
+forecastAdapter.setDataSource(dataSource)
 floodAdapter.setDataSource(dataSource)
 
 // ResizeObserver polyfill for Safari < 13.1
@@ -68,8 +70,16 @@ app.config.errorHandler = (
   if (import.meta.env.DEV) {
     logger.error('错误详情:', { err, instance, info })
   } else {
-    // 可以集成错误上报服务（如 Sentry）
-    // reportErrorToService(err, info)
+    // z046: 错误上报接入路径（按 D-15=A 决策，暂缓接入，仅文档化）。
+    // logger 已预留 addLogTransport 钩子（见 shared/utils/logger.ts），Sentry 账号 + DSN
+    // 就绪后按以下步骤一行接入，无需改动业务代码：
+    // 1) 安装依赖：npm i @sentry/vue
+    // 2) import * as Sentry from '@sentry/vue'
+    // 3) 在 app.mount('#app') 之前调用：
+    //    Sentry.init({ app, dsn: '<DSN>', release: __APP_VERSION__, environment: import.meta.env.MODE })
+    // 4) 接入 transport（一行）：
+    //    logger.addLogTransport((entry) =>
+    //      Sentry.captureMessage(`[${entry.level}] ${entry.args.map(String).join(' ')}`))
   }
 }
 

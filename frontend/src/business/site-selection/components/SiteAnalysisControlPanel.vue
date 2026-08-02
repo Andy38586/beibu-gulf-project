@@ -43,7 +43,7 @@ const selectedKeys = computed<string[]>(() =>
     .map(([k]) => k)
 )
 
-const { analyze, calculating, calcError } = useSiteAnalysisApi()
+const { analyze, calculating, calcError, cancel } = useSiteAnalysisApi()
 
 /** 清除指定因子的计时器 */
 function clearTimer(key: string): void {
@@ -181,6 +181,8 @@ onMounted(() => {
 
 onUnmounted(() => {
   document.removeEventListener('click', handleGlobalClick)
+  // b041: 卸载时取消在途选址分析请求，避免回调写入已卸载组件
+  cancel()
   // 清理所有计时器
   Object.values(confirmTimers).forEach((timer) => {
     if (timer) clearTimeout(timer)

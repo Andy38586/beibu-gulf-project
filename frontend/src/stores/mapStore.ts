@@ -10,6 +10,8 @@ import type { ScoredXiaoqu } from '@/types'
 /** localStorage 键：底图；sessionStorage：分析结果 */
 const BASE_LAYER_STORAGE_KEY = 'beibu-gulf-base-layer'
 const ANALYSIS_RESULT_STORAGE_KEY = 'beibu-gulf-analysis-result'
+// b042: 分析结果持久化版本号——schema 变化时升版，旧版本数据自动丢弃避免污染新结构
+const ANALYSIS_RESULT_VERSION = 1
 
 function readStoredBaseLayer(): string | null {
   if (typeof window === 'undefined') return null
@@ -36,7 +38,19 @@ function readStoredAnalysisResult(): Record<string, unknown> | null {
   if (typeof window === 'undefined') return null
   try {
     const stored = window.sessionStorage.getItem(ANALYSIS_RESULT_STORAGE_KEY)
-    return stored ? JSON.parse(stored) : null
+    if (!stored) return null
+    const parsed = JSON.parse(stored)
+    // b042: 版本校验——旧格式（无 version）或无 data 字段一律丢弃
+    if (
+      !parsed ||
+      typeof parsed !== 'object' ||
+      parsed.version !== ANALYSIS_RESULT_VERSION ||
+      !('data' in parsed)
+    ) {
+      window.sessionStorage.removeItem(ANALYSIS_RESULT_STORAGE_KEY)
+      return null
+    }
+    return parsed.data as Record<string, unknown>
   } catch {
     return null
   }
@@ -46,7 +60,11 @@ function writeStoredAnalysisResult(result: Record<string, unknown> | null): void
   if (typeof window === 'undefined') return
   try {
     if (result) {
-      window.sessionStorage.setItem(ANALYSIS_RESULT_STORAGE_KEY, JSON.stringify(result))
+      // b042: 包装 { version, data }，配合读取端版本校验
+      window.sessionStorage.setItem(
+        ANALYSIS_RESULT_STORAGE_KEY,
+        JSON.stringify({ version: ANALYSIS_RESULT_VERSION, data: result })
+      )
     } else {
       window.sessionStorage.removeItem(ANALYSIS_RESULT_STORAGE_KEY)
     }

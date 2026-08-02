@@ -196,4 +196,63 @@ describe('mapStore', () => {
       expect(store.layerCatalog[0].category).toBe('base')
     })
   })
+
+  describe('分析结果持久化版本校验 (b042)', () => {
+    it('写入端使用 { version, data } 包装', () => {
+      const store = useMapStore()
+      store.setAnalysisResult({ foo: 'bar' })
+      const raw = sessionStore.get('beibu-gulf-analysis-result')
+      expect(raw).toBeDefined()
+      const parsed = JSON.parse(raw!)
+      expect(parsed.version).toBe(1)
+      expect(parsed.data).toEqual({ foo: 'bar' })
+    })
+
+    it('读取端遇到旧格式（无 version）应丢弃并清空 sessionStorage', () => {
+      // 模拟旧格式数据（b042 升级前的写入）
+      sessionStore.set('beibu-gulf-analysis-result', JSON.stringify({ foo: 'legacy' }))
+      // 重新创建 store 实例触发 readStoredAnalysisResult
+      setActivePinia(createPinia())
+      const store = useMapStore()
+      // 旧格式应被丢弃：注册新 handler 不会触发回放
+      const replaySpy = vi.fn()
+      store.registerAnalysisHandler(replaySpy)
+      expect(replaySpy).not.toHaveBeenCalled()
+      // sessionStorage 中的旧格式应被清除
+      expect(sessionStore.has('beibu-gulf-analysis-result')).toBe(false)
+    })
+
+    it('读取端遇到 version 不匹配应丢弃', () => {
+      sessionStore.set(
+        'beibu-gulf-analysis-result',
+        JSON.stringify({ version: 999, data: { foo: 'future' } })
+      )
+      setActivePinia(createPinia())
+      const store = useMapStore()
+      const replaySpy = vi.fn()
+      store.registerAnalysisHandler(replaySpy)
+      expect(replaySpy).not.toHaveBeenCalled()
+    })
+
+    it('读取端遇到缺 data 字段应丢弃', () => {
+      sessionStore.set('beibu-gulf-analysis-result', JSON.stringify({ version: 1, noData: true }))
+      setActivePinia(createPinia())
+      const store = useMapStore()
+      const replaySpy = vi.fn()
+      store.registerAnalysisHandler(replaySpy)
+      expect(replaySpy).not.toHaveBeenCalled()
+    })
+
+    it('读取端遇到合法 { version, data } 应正常回放', () => {
+      sessionStore.set(
+        'beibu-gulf-analysis-result',
+        JSON.stringify({ version: 1, data: { foo: 'valid' } })
+      )
+      setActivePinia(createPinia())
+      const store = useMapStore()
+      const replaySpy = vi.fn()
+      store.registerAnalysisHandler(replaySpy)
+      expect(replaySpy).toHaveBeenCalledWith({ foo: 'valid' })
+    })
+  })
 })

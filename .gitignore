@@ -67,3 +67,29 @@ test_token*
 
 # TLS 证书（私钥敏感，不提交）
 certs/
+
+# DEM 预处理流水线中间产物（保留本地，不提交；可由 tools/dem-pipeline/*.ps1 重新生成）
+# 拼接中间产物
+backend/data/flood/dem/*.vrt
+backend/data/flood/dem/_inputs.txt
+# SAGA grid 中间产物（.sgrd/.sdat/.mgrd/.prj 及辅助文件）
+backend/data/flood/dem/*.sgrd
+backend/data/flood/dem/*.sdat
+backend/data/flood/dem/*.sdat.aux.xml
+backend/data/flood/dem/*.mgrd
+backend/data/flood/dem/dem_mosaic.prj
+backend/data/flood/dem/filled_utm48n.prj
+# DEM 栅格产物（大文件 46~308MB，可由 tools/dem-pipeline 重新生成，不提交）
+backend/data/flood/dem/*.tif
+backend/static/dem/*.tif
+
+# Python flood-service
+backend/flood-service/.venv/
+__pycache__/
+*.pyc
+
+# 本地审查/审计文档（不入库，仅本机留存）
+docs/审查体系专项/
+docs/深度代码审计-2026-08-02/
+docs/代码审计/
+docs/项目代码深度审查指标体系.md

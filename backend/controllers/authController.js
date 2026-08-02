@@ -99,12 +99,14 @@ export async function logout(req, res) {
   const token = req.cookies?.auth_token
   if (token) {
     try {
-      const decoded = jwt.decode(token)
+      // @arch-note SEC-007: 验签后再吊销——jwt.verify 校验签名，伪造 token 视为无效直接放行，
+      // 避免任意构造 payload 即让他人 tokenVersion 自增（DoS）。原 jwt.decode 仅解 base64 不验签，存在漏洞。
+      const decoded = jwt.verify(token, process.env.JWT_SECRET)
       if (decoded?.id) {
         await userService.updateTokenVersion(decoded.id)
       }
     } catch {
-      // 解码失败不影响登出流程，仍清除 cookie
+      // 签名无效（伪造 token / 过期）不影响登出流程，仍清除 cookie，但不吊销合法用户
     }
   }
   // @arch-note SEC-001: 清除 token cookie

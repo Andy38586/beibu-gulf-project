@@ -69,12 +69,16 @@ const { cell8px, cell16px } = useGCS()
 const localWaterLevel = ref(waterLevelStore.waterLevel)
 
 /**
- * 可点击刻度标记配置
+ * 可点击刻度标记配置（洪水口径，基于 DEM 实测高程 + 实测淹没验证）
+ * 钦北防城市/港口 DEM 高程：北海港 12m、防城港 13m、钦州港 14m、北海市区 19m。
+ * 实测（连通性淹没）：15m 进全部港口；20m 进全部城市+港口。
+ * a023: 滑块范围 0~20m（洪水浸没，非潮汐）。
  */
 const scaleMarks = [
-  { label: '平均海平面', value: 2.5 },
-  { label: '设计高潮位', value: 4.5 },
-  { label: '极端最高水位', value: 6.8 },
+  { label: '海平面', value: 0 },
+  { label: '滩涂淹没', value: 2 },
+  { label: '港口进水', value: 15 },
+  { label: '全面淹没', value: 20 },
 ]
 
 /**
@@ -347,7 +351,7 @@ onUnmounted(() => {
       <ElSlider
         v-model="localWaterLevel"
         :min="0"
-        :max="10"
+        :max="20"
         :step="0.1"
         :show-tooltip="false"
         @input="onSliderChange"

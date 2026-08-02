@@ -54,9 +54,16 @@ interface UpdateDataPayload {
 
 /** 内部注册表条目 */
 interface RegistryEntry {
+  /** 图层面板显示名（catalog 被引擎切换清空后由 reapplyAll 重建条目时使用） */
+  label: string
   layerType: LayerType
   options: LayerOptions
   data: unknown
+  /** 图层可见性（App 级持久，独立于 layerCatalog）
+   * @arch-note a016-D06: catalog 会被引擎切换时的 clearLayerCatalog() 清空，
+   * reapplyAll 若依赖 catalog 找条目会全部跳过 → 业务图层 2D↔3D 切换后丢失。
+   * 可见性以本 registry 为准，reapplyAll/setVisible 不依赖 catalog。 */
+  visible: boolean
 }
 
 export class BusinessLayerManager {
@@ -98,8 +105,8 @@ export class BusinessLayerManager {
     const adapter = this._getAdapter(layerType)
     if (!adapter) return
 
-    // 保存元数据
-    this._registry.set(key, { layerType, options, data })
+    // 保存元数据（可见性存 registry，不依赖 catalog —— 引擎切换时 catalog 会被清空）
+    this._registry.set(key, { label, layerType, options, data, visible })
 
     // 注册到 layerCatalog（只存元数据，不存 renderer 对象）
     this._mapStore?.registerBusinessLayer(key, label, layerType, visible)
@@ -133,14 +140,13 @@ export class BusinessLayerManager {
     if (options) {
       meta.options = { ...meta.options, ...options }
     }
-    // 持久化数据，供引擎切换后 reapplyAll 重绘
+    // 更新数据
     if (data !== undefined) {
       meta.data = data
     }
 
-    // 查找 catalog 条目确认可见性
-    const catalogEntry = this._mapStore?.layerCatalog.find((e) => e.key === key)
-    if (!catalogEntry || !catalogEntry.visible) {
+    // 可见性以 registry 为准（不依赖 catalog —— 引擎切换时 catalog 被清空）
+    if (!meta.visible) {
       return
     }
 
@@ -157,16 +163,35 @@ export class BusinessLayerManager {
    * 用于 2D↔3D 引擎切换后：旧 renderer 被销毁，新 renderer 上没有图层。
    * registry 在 App 级持久，业务页面不会因切换引擎而重新 register，
    * 因此在 renderer 切换时把内存中的图层数据重绘到新 renderer。
+   *
+   * @arch-note a016-D06: 可见性以本类 _registry 为准（register/setVisible 维护），
+   * 不依赖 layerCatalog —— 引擎切换时 UnifiedMap.setupLayers→clearLayers→clearLayerCatalog
+   * 会把 catalog 清空，若此处仍查 catalog 则所有业务图层被跳过，切换后直接丢失。
+   * @arch-note a018-D06: clearLayerCatalog 同样清掉了业务图层的 catalog 条目，
+   * 若只重绘视觉实例，LayerControlPanel 会丢失勾选项（水面/淹没/设施/真实地形消失）。
+   * 此处按 registry 重建缺失的 catalog 条目（幂等：已存在则跳过，visible 以 registry 为准）。
+   * @arch-note a020: adapter.create 必须逐层容错 —— 单个图层渲染失败（如 Cesium
+   * DeveloperError）不应中断整个 reapplyAll，否则排在其后的图层全部丢到新引擎。
+   * 引擎切换是批量重绘，任何一层失败只 warn 该层并继续。
    */
   reapplyAll(renderer: MapRenderer | null = this._getRenderer()): void {
     if (!renderer) return
     for (const [key, meta] of this._registry.entries()) {
       if (meta.data == null) continue
-      const catalogEntry = this._mapStore?.layerCatalog.find((e) => e.key === key)
-      if (!catalogEntry || !catalogEntry.visible) continue
+      if (!meta.visible) continue
       const adapter = this._getAdapter(meta.layerType)
       if (!adapter) continue
-      adapter.create(renderer, key, meta.data, meta.options)
+      // 重建被 clearLayerCatalog 清掉的目录条目（不移除不覆盖，只补缺）
+      const catalog = this._mapStore?.layerCatalog ?? []
+      if (!catalog.some((e: LayerEntry) => e.key === key)) {
+        this._mapStore?.registerBusinessLayer(key, meta.label, meta.layerType, meta.visible)
+      }
+      try {
+        adapter.create(renderer, key, meta.data, meta.options)
+      } catch (e) {
+        // a020: 单层失败不拖垮整批（引擎切换时其它图层仍应上屏）
+        logger.warn(`[BusinessLayerManager] reapplyAll 重绘图层 ${key} 失败（已跳过该层）:`, e)
+      }
     }
   }
 
@@ -176,14 +201,14 @@ export class BusinessLayerManager {
    * LayerControlPanel 通过此方法控制图层显隐，不直接操作 renderer。
    */
   setVisible(key: string, visible: boolean): void {
-    const catalogEntry = this._mapStore?.layerCatalog.find((e) => e.key === key)
-    if (!catalogEntry) {
-      logger.debug(`[BusinessLayerManager] 图层 ${key} 不在 catalog 中`)
+    const meta = this._registry.get(key)
+    if (!meta) {
+      logger.debug(`[BusinessLayerManager] 图层 ${key} 不在 registry 中`)
       return
     }
 
-    // 通过 store action 修改可见性，不直接改 catalogEntry.visible
-    // 好处：Pinia 正确追踪状态变更、DevTools 可记录 action、未来可加 side effect
+    // 先更新 registry 可见性（reapplyAll 的数据源），再更新 catalog（UI 展示）
+    meta.visible = visible
     this._mapStore?.setLayerVisible(key, visible)
     const renderer = this._getRenderer()
     if (!renderer) return
@@ -212,6 +237,33 @@ export class BusinessLayerManager {
     }
 
     this._mapStore?.removeLayer(key)
+  }
+
+  /**
+   * 从指定 renderer 移除所有业务图层的视觉实例（不删除 registry 条目）。
+   *
+   * 用于 2D↔3D 引擎切换：UnifiedMap 的 OL/Cesium 渲染器实例长期复用、不销毁，
+   * 业务图层会在两个渲染器上都留下视觉实例。切换时必须把「停用(old)」与
+   * 「将启用(new)」渲染器上的实例清空，只保留 reapplyAll 按 registry 重绘的图层，
+   * 否则：
+   *  - 孤儿图层（如洪涝页 dem-hillshade GeoTIFF）跨页残留，切回该引擎时被渲染，
+   *    抛 "Rendering array data is not yet supported" 崩掉整个渲染循环；
+   *  - reapplyAll 对同 key 再次 add 会叠加重复图层。
+   *
+   * 注意：只遍历 registry 中的条目。registry 之外的孤儿（如本方法介入前已残留的）
+   * 由渲染器自身在切换时重建/销毁保证，本方法负责防止新孤儿形成。
+   */
+  removeAllFromRenderer(renderer: MapRenderer | null): void {
+    if (!renderer) return
+    for (const [key, meta] of this._registry.entries()) {
+      const adapter = this._getAdapter(meta.layerType)
+      if (!adapter) continue
+      try {
+        adapter.remove(renderer, key)
+      } catch (e) {
+        logger.warn(`[BusinessLayerManager] 从渲染器移除图层 ${key} 失败:`, e)
+      }
+    }
   }
 
   /** 批量移除所有已注册的业务图层 */

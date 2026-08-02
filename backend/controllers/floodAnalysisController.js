@@ -15,10 +15,24 @@ const __dirname = dirname(__filename)
  * @param {string} filename - 文件名
  * @returns {Promise<Object>} 解析后的JSON数据
  */
+// REQ-3（阶段2）: flood 5 个数据接口公开可高频访问，原每次请求 readFile 无缓存。
+// 加模块级 Map + TTL（复用 facilitiesRepository.js 成熟模式）；纯读路径、数据为部署时静态，TTL 足够。
+const _readCache = new Map()
+const READ_CACHE_TTL_MS = 5 * 60 * 1000
 async function readJsonData(filename) {
+  const hit = _readCache.get(filename)
+  if (hit && Date.now() - hit.cachedAt < READ_CACHE_TTL_MS) {
+    return hit.data
+  }
   const filePath = join(__dirname, '../data/flood', filename)
-  const data = await readFile(filePath, 'utf-8')
-  return JSON.parse(data)
+  const data = JSON.parse(await readFile(filePath, 'utf-8'))
+  _readCache.set(filename, { data, cachedAt: Date.now() })
+  return data
+}
+
+/** 测试用：清空模块级读盘缓存，避免跨用例污染（REQ-3） */
+export function _clearCacheForTest() {
+  _readCache.clear()
 }
 
 /** 水位上限（米）—— 超出此值视为非法输入 */

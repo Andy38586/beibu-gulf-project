@@ -79,6 +79,15 @@ export class MapRenderer {
 
   // 原设计文档使用 addGeoJsonLayer({type:'heatmap'})，但现有接口不支持
   // 正确做法：独立方法，子类按需实现
+  /**
+   * 添加 GeoTIFF 栅格图层（2D Only）
+   * 用于加载真实 DEM 山体阴影/高程着色 COG。3D 渲染器不实现，继承此默认返回 false。
+   */
+  addGeoTIFFLayer(_id: string, _url: string, _options: LayerOptions = {}): boolean {
+    logger.debug(`${this.getType()} addGeoTIFFLayer 未实现（仅 2D 渲染器支持）`)
+    return false
+  }
+
   addHeatmapLayer(_id: string, _features: PointFeature[], _options: LayerOptions = {}): boolean {
     logger.debug(`${this.getType()} addHeatmapLayer 未实现（仅 2D 渲染器支持）`)
     return false

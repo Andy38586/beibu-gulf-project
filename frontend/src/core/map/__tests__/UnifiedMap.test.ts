@@ -1,3 +1,4 @@
+// UnifiedMap 组件挂载集成回归测试（地图渲染链路）
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import type { Point } from 'geojson'
 import { createPinia, setActivePinia } from 'pinia'
@@ -396,5 +397,42 @@ describe('UnifiedMap Error Handling', () => {
 
     expect(wrapper.emitted('error')).toBeTruthy()
     expect((wrapper.emitted('error')![0][0] as Error).message).toBe('Renderer init failed')
+  })
+})
+
+describe('UnifiedMap switchMapType no-op (LIF-6)', () => {
+  let wrapper: VueWrapper<InstanceType<typeof UnifiedMap>>
+  let mapStore: any
+  let pinia: ReturnType<typeof createPinia>
+
+  beforeEach(() => {
+    pinia = createPinia()
+    setActivePinia(pinia)
+    vi.clearAllMocks()
+    mapStore = useMapStore()
+  })
+
+  afterEach(() => {
+    wrapper?.unmount()
+  })
+
+  it('should early-return without re-creating renderer when switching to the same type', async () => {
+    wrapper = mount(UnifiedMap, {
+      props: { mapType: '2d' },
+      ...makeMountOptions(mapStore),
+    })
+
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    await flushPromises()
+    await new Promise((resolve) => setTimeout(resolve, 50))
+
+    const callsBefore = mockedCreateRenderer.mock.calls.length
+
+    // 同类型切换（2d → 2d）应走 no-op 分支
+    await wrapper.vm.switchMapType('2d')
+    await flushPromises()
+
+    // 不应再次调用 createRenderer（验证 early-return 生效）
+    expect(mockedCreateRenderer.mock.calls.length).toBe(callsBefore)
   })
 })

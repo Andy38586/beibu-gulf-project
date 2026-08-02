@@ -2,7 +2,9 @@ import { defineStore } from 'pinia'
 import type { ComputedRef, Ref, ShallowRef } from 'vue'
 import { computed, ref, shallowRef } from 'vue'
 
-import { DEFAULT_CONFIDENCE } from '@/business/forecast/constants'
+// 分层铁律：stores → business 禁止引。DEFAULT_CONFIDENCE 是 store 初始化所需共享常量，
+// 故从 shared/constants 取（business/forecast/constants 已 re-export 同源值）。
+import { BASE_YEAR, DEFAULT_CONFIDENCE, END_YEAR } from '@/shared/constants/forecast'
 import type { ForecastSeries } from '@/types/api/forecast'
 import type { ConfidenceThresholds, ForecastTimeRange } from '@/types/business/base'
 
@@ -10,8 +12,8 @@ export const useForecastState = defineStore('forecast', () => {
   const currentTime: Ref<string> = ref('2026-06')
 
   const timeRange: Ref<ForecastTimeRange> = ref({
-    start: '2021-01',
-    end: '2031-12',
+    start: `${BASE_YEAR}-01`,
+    end: `${END_YEAR}-12`,
     current: '2026-06',
   })
 
@@ -64,7 +66,7 @@ export const useForecastState = defineStore('forecast', () => {
 
   function reset(): void {
     currentTime.value = '2026-06'
-    timeRange.value = { start: '2021-01', end: '2031-12', current: '2026-06' }
+    timeRange.value = { start: `${BASE_YEAR}-01`, end: `${END_YEAR}-12`, current: '2026-06' }
     timeGranularity.value = 'month'
     isPlaying.value = false
     playSpeed.value = 500

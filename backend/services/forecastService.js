@@ -39,7 +39,10 @@ async function readDataFile(filename) {
 
 // @arch-note SEC-014: 缓存引擎计算结果，场景参数变化时失效。
 // 加 MAX_CACHE_SIZE 上限防止匿名攻击者枚举 confidence 制造内存放大。
+// REQ-2（阶段2）: 缓存条目增加 cachedAt 时间戳，超过 CACHE_TTL_MS 自动重算，
+// 避免 data/forecast/*.json 更新后缓存永不失效（返回陈旧预测）。LRU 逐出仍保留。
 const engineCache = new Map()
+const CACHE_TTL_MS = 5 * 60 * 1000
 
 function getCacheKey(indicator, scenarioLevel) {
   return `${indicator}:${scenarioLevel}`
@@ -53,7 +56,13 @@ function _evictOldest() {
 async function getOrComputeForecast(indicator, scenarioLevel) {
   validateIndicator(indicator)
   const key = getCacheKey(indicator, scenarioLevel)
-  if (engineCache.has(key)) return engineCache.get(key)
+  const hit = engineCache.get(key)
+  if (hit) {
+    // REQ-2（阶段2）: TTL 命中则复用；过期则重算（下方会刷新时间戳）
+    if (Date.now() - hit.cachedAt < CACHE_TTL_MS) {
+      return hit.data
+    }
+  }
 
   const data = await readDataFile(indicator + '.json')
   const result = { indicator: data.indicator, unit: data.unit, ports: {} }
@@ -79,7 +88,7 @@ async function getOrComputeForecast(indicator, scenarioLevel) {
   if (engineCache.size >= MAX_CACHE_SIZE) {
     _evictOldest()
   }
-  engineCache.set(key, result)
+  engineCache.set(key, { data: result, cachedAt: Date.now() })
   return result
 }
 

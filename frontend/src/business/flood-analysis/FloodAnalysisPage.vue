@@ -47,9 +47,13 @@ const { manager: businessLayerManager } = useBusinessLayers()
 const route = useRoute()
 
 function shouldRenderForCurrentRoute() {
-  const expected = route.meta?.engine
   const actual = mapStore.currentRenderer?.getType?.()
-  if (!expected || !actual) return false
+  if (!actual) return false
+  // a022: online 模式返回 4326 实时演算结果，2D/3D 均可渲染——不做引擎强约束
+  // （原 3D-only 守卫是静态档位时代的防御：防 2D 引擎污染 3D 渲染器）。
+  // 仅在 api/mock 静态档位模式保持 3D-only。
+  if (floodAdapter.dataSource === 'online') return true
+  const expected = route.meta?.engine
   return expected === actual
 }
 
@@ -73,6 +77,8 @@ const WATER_SURFACE_ID = 'flood-water-surface'
 
 const FLOOD_LAYER_ID = 'flood-area'
 const FACILITY_LAYER_ID = 'flood-facilities'
+/** 真实地形（DEM 山体阴影）图层 ID——DEM 数据仅属洪涝分析（a017），洪涝页独享此 key */
+const DEM_HILLSHADE_LAYER_ID = 'dem-hillshade'
 
 // 通过 floodAdapter 加载水域坐标（Mock 数据，架构验证阶段）
 // 生产阶段仅需 floodAdapter.setDataSource('api')，此处代码无需修改
@@ -122,6 +128,17 @@ async function registerFloodLayers() {
     layerType: 'points',
     data: null,
     options: {},
+    visible: true,
+  })
+
+  // 真实地形图层（DEM 山体阴影，A 路线增量①）
+  // 方案 §5.3 验收标准明确"洪涝页可勾选「真实地形」图层"——DEM 数据仅属洪涝分析（a017）
+  // 2D 走 OL GeoTIFF COG；3D 走 Cesium hillshade PNG 贴图回退（addGeoTIFFLayer 内部 .tif→.png）
+  businessLayerManager.register(DEM_HILLSHADE_LAYER_ID, {
+    label: '真实地形',
+    layerType: 'geotiff',
+    data: '/static/dem/dem_hillshade.tif',
+    options: { opacity: 0.7 },
     visible: true,
   })
 }
@@ -243,6 +260,8 @@ async function triggerFloodAnalysis(waterLevel: number, seq: number) {
     if (seq !== analysisSeq) return
     // 如果当前路由不再是 3D，丢弃过期响应防止污染 2D 渲染器
     if (!shouldRenderForCurrentRoute()) return
+    // P0-5 修复：页面已卸载则丢弃响应，页面离开后图层不复活（最强守卫）
+    if (unmounted) return
     // b020: 实际档位与请求不一致时 UI 提示（非仅 console）
     if (actualWaterLevel !== undefined && actualWaterLevel !== waterLevel) {
       showWarning(`当前水位 ${waterLevel}m 无精确数据，已使用 ${actualWaterLevel}m 档位`)
@@ -286,6 +305,8 @@ async function triggerImpactAssessment(waterLevel: number, seq: number) {
     if (seq !== analysisSeq) return
     // 如果当前路由不再是 3D，丢弃过期响应防止污染 2D 渲染器
     if (!shouldRenderForCurrentRoute()) return
+    // P0-5 修复：页面已卸载则丢弃响应，页面离开后图层不复活（最强守卫）
+    if (unmounted) return
 
     logger.debug('[Flood] 更新影响评估数据:', { facilities: affectedFacilities.length, totalLoss })
 
@@ -347,27 +368,22 @@ function renderAffectedFacilities(facilities: AffectedFacility[]) {
     })
   }
 
-  const geojson = {
-    type: 'FeatureCollection',
-    features: facilities.map((f) => ({
-      type: 'Feature',
-      geometry: {
-        type: 'Point',
-        coordinates: [f.lng || 0, f.lat || 0],
-      },
-      properties: {
-        id: f.id,
-        name: f.name,
-        type: f.type,
-        port: f.port,
-        loss: f.loss,
-        damageRate: f.damageRate,
-      },
-    })),
-  }
+  // P0-2 修复：points 图层注册的图层，data 必须为点数组（与 points adapter 契约一致）。
+  // 原实现传 FeatureCollection 对象 → adapter 直接 as PointFeature[] 透传给 addPointLayer →
+  // features.length / features.map 报 TypeError，异常被 catch 误弹「影响评估失败」。改为点数组。
+  const points = facilities.map((f) => ({
+    lng: f.lng || 0,
+    lat: f.lat || 0,
+    id: f.id,
+    name: f.name,
+    type: f.type,
+    port: f.port,
+    loss: f.loss,
+    damageRate: f.damageRate,
+  }))
 
   businessLayerManager.updateData(FACILITY_LAYER_ID, {
-    data: geojson,
+    data: points,
     options: {
       markerColor: '#F56C6C',
       markerSize: 10,
@@ -399,6 +415,10 @@ watch(
 onUnmounted(() => {
   unmounted = true
 
+  // P0-5 修复：中止在途请求，避免迟到响应在图层已移除后重新注册（孤儿复活）
+  floodAbortController?.abort()
+  impactAbortController?.abort()
+
   // 清除防抖分析定时器
   if (analysisTimer) {
     clearTimeout(analysisTimer)
@@ -409,6 +429,7 @@ onUnmounted(() => {
   businessLayerManager.remove(WATER_SURFACE_ID)
   businessLayerManager.remove(FLOOD_LAYER_ID)
   businessLayerManager.remove(FACILITY_LAYER_ID)
+  businessLayerManager.remove(DEM_HILLSHADE_LAYER_ID)
 
   // 重置注册标志
   floodLayersRegistered = false

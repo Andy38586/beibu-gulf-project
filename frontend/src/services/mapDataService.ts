@@ -30,7 +30,17 @@ async function fetchData(url: string): Promise<unknown> {
       if (!response.ok) {
         throw new Error(`请求失败: ${url}, HTTP ${response.status}`)
       }
-      const data = await response.json()
+      const raw = await response.json()
+      // @arch-note P1-1: 统一信封解包（{ code, data } → data），与 useApiRequest 契约一致。
+      // mapDataService 用原生 fetch（保留 TTL 缓存/去重/超时），此前不解包 → getPorts
+      // 收到 {code,data} 对象 → Array.isArray 失败 → 港口+行政区划都不显示（z033 根修）。
+      // REQ-1（阶段2）: 去掉 `Object.keys(raw).length === 2` 约束，与 useApiRequest
+      // 基准契约（仅要求含 code+data）对齐。后端响应若带 message/timestamp 等扩展字段，
+      // 此前解包失败 → getPorts 收到对象 → Array.isArray 失败 → 港口不显示（F-3）。
+      const data =
+        raw && typeof raw === 'object' && 'code' in raw && 'data' in raw
+          ? (raw as Record<string, unknown>).data
+          : raw
       dataCache.set(url, { data, cachedAt: Date.now() })
       return data
     } finally {
@@ -77,6 +87,7 @@ export const mapDataService = {
     }
   },
 
+  // @audit-note DAT-4 预留未接入：当前边界加载由 useBoundaryLayer 承担，本方法保留作备用，请勿删除
   async getBoundary(): Promise<FeatureCollection> {
     try {
       const data = (await fetchData(MAP_CONFIG.DATA_PATHS.boundary)) as Record<

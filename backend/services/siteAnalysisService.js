@@ -18,6 +18,14 @@ export function resolveRadiusSettings(selectedKeys, typeSettings) {
   const resolved = {}
   selectedKeys.forEach((key) => {
     const setting = typeSettings[key]
+    // @arch-note P1-21: 防御 selectedKeys 与 typeSettings 键集不一致（API 公开，恶意/异常请求可缺键）
+    // 此前 setting 为 undefined 时 setting.defaultRadius 抛 TypeError → 500
+    if (!setting || typeof setting !== 'object') {
+      throw new BusinessError(
+        ErrorCode.INVALID_PARAMS,
+        `设施类型 ${key} 缺少 typeSettings 配置`
+      )
+    }
     const radius = importanceToRadius(setting.defaultRadius, setting.importance)
 
     // @arch-note 106: 校验半径必须为正数
@@ -202,6 +210,10 @@ export function rankXiaoqu(matched, facilityData, radiusSettings, weights) {
  * @param {Object} finalArea - 覆盖范围 GeoJSON
  * @param {Array} selectedKeys - 选中的设施类型
  * @returns {Object} 各类型设施POI { type: [{lng, lat, name}] }
+ *
+ * @arch-note P1-perf: 复用空间索引（createSpatialIndex + queryByPolygon）做 BBox 粗筛，
+ * 避免逐点 booleanPointInPolygon 退化为 O(F) 全量精确判定。
+ * 与 filterMatchedXiaoqu 的空间索引策略对齐；POI 量大时显著降 CPU。
  */
 export function filterFacilitiesInCoverage(facilityData, finalArea, selectedKeys) {
   const result = {}
@@ -211,10 +223,16 @@ export function filterFacilitiesInCoverage(facilityData, finalArea, selectedKeys
       result[key] = []
       return
     }
-    result[key] = points.filter((p) => {
-      if (!p || typeof p.lng !== 'number' || typeof p.lat !== 'number') return false
-      return turf.booleanPointInPolygon(turf.point([p.lng, p.lat]), finalArea)
-    })
+    // 设施点可能缺 lng/lat 字段（脏数据防御，与 filterMatchedXiaoqu 一致）
+    const validPoints = points.filter(
+      (p) => p && typeof p.lng === 'number' && typeof p.lat === 'number'
+    )
+    if (validPoints.length === 0) {
+      result[key] = []
+      return
+    }
+    const index = createSpatialIndex(validPoints)
+    result[key] = queryByPolygon(index, finalArea)
   })
   return result
 }

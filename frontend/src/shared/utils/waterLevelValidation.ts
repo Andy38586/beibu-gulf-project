@@ -4,6 +4,9 @@
  * 与后端 backend/controllers/floodAnalysisController.js 的 validateWaterLevel
  * 保持同一契约：0–100 的有限数值。
  * 前端在发起请求前做快速校验，减少无效网络请求。
+ *
+ * @audit-note DAT-4 预留未接入：当前无前端调用方（校验下沉至后端 floodAnalysisController），
+ * 保留与后端契约对齐的常量/校验逻辑，请勿删除
  */
 
 /** 水位上限（米）—— 与后端 MAX_WATER_LEVEL 保持一致 */

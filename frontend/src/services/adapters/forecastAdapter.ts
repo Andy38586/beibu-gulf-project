@@ -317,6 +317,7 @@ export const forecastAdapter = {
   /**
    * 获取单指标完整数据（mock 模式专用，api 模式走 getTimeSeries）。
    * 保留供需要原始 ForecastSeries 结构的调用方使用。
+   * @audit-note DAT-4 预留未接入：无生产调用方（仅有 forecastAdapter.test.ts 覆盖），保留作预留 API
    */
   async getIndicatorData(indicator: string): Promise<ForecastSeries> {
     if (_resolveSource(indicator) === 'mock') {
@@ -340,6 +341,7 @@ export const forecastAdapter = {
     return { indicator: ts.indicator, unit: ts.unit, data }
   },
 
+  // @audit-note DAT-4 预留未接入：无生产调用方（仅有 forecastAdapter.test.ts 覆盖），保留作预留 API
   async getAvailableIndicators(): Promise<ForecastIndicatorIndex> {
     if (resolveDataSource(ADAPTER_NAME) === 'mock') {
       return _fetchMockIndex()

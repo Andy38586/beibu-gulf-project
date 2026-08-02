@@ -30,6 +30,14 @@ server {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
     }
+    location /flood-online/ {
+        rewrite ^/flood-online(/.*)$ $1 break;
+        proxy_pass http://127.0.0.1:8000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
     location /assets/ {
         root /app/frontend/dist;
         expires 1y;
@@ -38,6 +46,11 @@ server {
     location /data/ {
         root /app/frontend/dist;
         expires 7d;
+        add_header Cache-Control "public";
+    }
+    location /static/ {
+        alias /app/backend/static/;
+        expires 30d;
         add_header Cache-Control "public";
     }
     location /cesium/ {

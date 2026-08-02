@@ -1,3 +1,4 @@
+// mapStore 状态回归测试（地图状态链路）
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -115,6 +116,27 @@ describe('mapStore', () => {
 
       store.setCurrentRenderer(null)
       expect(store.currentRenderer).toBeNull()
+    })
+  })
+
+  describe('registerAnalysisHandler / setAnalysisResult (LIF-4)', () => {
+    it('回放抛出异常的 handler 不应抛出未捕获错误', () => {
+      const store = useMapStore()
+      const badHandler = () => {
+        throw new Error('replay boom')
+      }
+      // 先写入 lastAnalysisResult 使 registerAnalysisHandler 触发同步回放
+      store.setAnalysisResult({ foo: 'bar' })
+      expect(() => store.registerAnalysisHandler(badHandler)).not.toThrow()
+    })
+
+    it('setAnalysisResult 调用抛出异常的 handler 不应抛出', () => {
+      const store = useMapStore()
+      const badHandler = () => {
+        throw new Error('call boom')
+      }
+      store.registerAnalysisHandler(badHandler)
+      expect(() => store.setAnalysisResult({ a: 1 })).not.toThrow()
     })
   })
 })

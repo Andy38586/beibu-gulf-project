@@ -1,3 +1,4 @@
+// forecastService 回归测试（R-11 缓存失效 / R-15 年聚合）
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 
 // 使用 vi.hoisted 保证 mock 引用能在被提升的 vi.mock 工厂中使用
@@ -311,6 +312,40 @@ describe('forecastService', () => {
       expect(result.series).toHaveLength(2)
       const portIds = result.series.map((s) => s.portId).sort()
       expect(portIds).toEqual(['p1', 'p2'])
+    })
+  })
+
+  describe('getMapData - 缓存 TTL 失效 (REQ-2)', () => {
+    it('TTL 内（同指标同情景）复用缓存，不重读盘', async () => {
+      mockReadFile.mockResolvedValue(JSON.stringify(cargoData))
+      await forecastService.getMapData('cargo', '2020-01', 1.0)
+      await forecastService.getMapData('cargo', '2020-06', 1.0)
+      expect(mockReadFile).toHaveBeenCalledTimes(1)
+    })
+
+    it('TTL 过期（>5min）后重新读盘并刷新缓存', async () => {
+      const nowSpy = vi.spyOn(Date, 'now')
+      let t = 1_700_000_000_000
+      nowSpy.mockImplementation(() => t)
+      try {
+        mockReadFile.mockResolvedValue(JSON.stringify(cargoData))
+        await forecastService.getMapData('cargo', '2020-01', 1.0)
+        expect(mockReadFile).toHaveBeenCalledTimes(1)
+
+        // 篡改源数据（首港历史首点）
+        const updated = JSON.parse(JSON.stringify(cargoData))
+        updated.data.p1.historical[0].value = 999999
+        mockReadFile.mockResolvedValue(JSON.stringify(updated))
+
+        // 前进 6 分钟，超过 CACHE_TTL_MS(5min)
+        t += 6 * 60 * 1000
+        const second = await forecastService.getMapData('cargo', '2020-01', 1.0)
+        expect(mockReadFile).toHaveBeenCalledTimes(2)
+        // 重算后特征数量不变（2 港 × 40 点）
+        expect(second.features).toHaveLength(80)
+      } finally {
+        nowSpy.mockRestore()
+      }
     })
   })
 })

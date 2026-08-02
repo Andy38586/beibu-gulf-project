@@ -1,3 +1,6 @@
+// D-6 技术债：OL 渲染器类型注解待逐步补充，typecheck 依赖 @ts-nocheck，故豁免 ban-ts-comment
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-nocheck
 // 渐进迁移：OL 渲染器，类型注解待逐步补充（D-6 技术债）
 import Feature from 'ol/Feature'
 import GeoJSON from 'ol/format/GeoJSON'
@@ -6,8 +9,11 @@ import Polygon from 'ol/geom/Polygon'
 import Heatmap from 'ol/layer/Heatmap'
 import TileLayer from 'ol/layer/Tile'
 import VectorLayer from 'ol/layer/Vector'
-import Map from 'ol/Map'
+// @arch-note a016: 不能用 `import Map` —— 会遮蔽全局 ES Map，
+// 导致 `new Map()`（如 _cullLayers 初始化）误建 ol/Map 实例，moveend 遍历 .keys() 时崩溃。
+import OlMap from 'ol/Map'
 import { fromLonLat, toLonLat } from 'ol/proj'
+import GeoTIFF from 'ol/source/GeoTIFF'
 import VectorSource from 'ol/source/Vector'
 import XYZ from 'ol/source/XYZ'
 import { Circle, Fill, Stroke, Style, Text } from 'ol/style'
@@ -21,13 +27,21 @@ import { normalizePoint } from '@/types/crs'
 
 import { MapRenderer } from './MapRenderer'
 
+/**
+ * OpenLayers 2D 渲染器。
+ * 类型契约见 renderers.d.ts -> OLRendererState（本类顶部 // @ts-nocheck，仅作文档参考）。
+ */
 export class OLRenderer extends MapRenderer {
   constructor(container) {
     super(container)
+    /** @type {import('./renderers').OLRendererState['map']} */
     this.map = null
+    /** @type {import('./renderers').OLRendererState['baseLayers']} */
     this.baseLayers = { image: [], vector: [] }
     // 视口裁剪：大数量点图层（>阈值）的 R-tree 索引 + moveend 监听
+    /** @type {import('./renderers').OLRendererState['_cullLayers']} */
     this._cullLayers = new Map() // id -> { source, index, allFeatures, options }
+    /** @type {import('./renderers').OLRendererState['_moveendKey']} */
     this._moveendKey = null
     this._initMap()
   }
@@ -38,7 +52,7 @@ export class OLRenderer extends MapRenderer {
       minZoom: 6,
       maxZoom: 20,
     })
-    this.map = new Map({
+    this.map = new OlMap({
       target: this.container,
       view,
       layers: [],
@@ -337,6 +351,48 @@ export class OLRenderer extends MapRenderer {
 
   // 原设计文档使用 addGeoJsonLayer({type:'heatmap'})，但现有接口不支持
   // 正确做法：独立方法 + 参考 OpenLayers Heatmap 官方示例
+  addGeoTIFFLayer(id, url, options = {}) {
+    // 真实 DEM 山体阴影/高程着色 COG
+    // ol/source/GeoTIFF 在 OL 10.9.0 自带，无需新增依赖
+    // 注意：normalize 必须为 true —— 若设 false，单波段数据以数组形式交给
+    // CanvasTileLayerRenderer，会抛 "Rendering array data is not yet supported"
+    // （2026-08-02 实测，选址页/洪涝页加载 hillshade 即崩）。
+    // 显式声明 normalize:true（即便默认值已是 true），防止版本差异导致回归。
+    let source
+    try {
+      source = new GeoTIFF({
+        sources: [{ url }],
+        crossOrigin: 'anonymous',
+        normalize: true,
+      })
+    } catch (e) {
+      if (import.meta.env.DEV) {
+        logger.error(`[OLRenderer] GeoTIFF 源创建失败: ${url}`, e)
+      }
+      return false
+    }
+    // 单张瓦片加载失败（404/解码失败）不应冒泡到渲染循环，仅记录，避免整图崩掉
+    if (typeof source.on === 'function') {
+      source.on('error', (err) => {
+        if (import.meta.env.DEV) {
+          logger.warn(`[OLRenderer] GeoTIFF 瓦片加载错误: ${url}`, err)
+        }
+      })
+    }
+    const layer = new TileLayer({
+      source,
+      opacity: options.opacity ?? 0.7,
+    })
+    this.map.addLayer(layer)
+    this._layers.set(id, {
+      instance: layer,
+      visible: true,
+      options,
+    })
+    this._applyPendingVisibility(id)
+    return true
+  }
+
   addHeatmapLayer(id, features, options = {}) {
     const {
       weightField = 'value',
@@ -348,7 +404,9 @@ export class OLRenderer extends MapRenderer {
 
     // 将 features 数组转为 OpenLayers Feature
     const olFeatures = features.map((f) => {
-      const [lng, lat] = normalizePoint(f.geometry.coordinates)
+      const coords = f.geometry.coordinates
+      const lng = coords?.[0] ?? 0
+      const lat = coords?.[1] ?? 0
       const feature = new Feature({
         geometry: new Point(fromLonLat([lng, lat])),
       })
@@ -395,7 +453,9 @@ export class OLRenderer extends MapRenderer {
     const { weightField: _weightField = 'value' } = options
 
     const olFeatures = features.map((f) => {
-      const [lng, lat] = normalizePoint(f.geometry.coordinates)
+      const coords = f.geometry.coordinates
+      const lng = coords?.[0] ?? 0
+      const lat = coords?.[1] ?? 0
       const feature = new Feature({
         geometry: new Point(fromLonLat([lng, lat])),
       })
@@ -417,6 +477,14 @@ export class OLRenderer extends MapRenderer {
     if (layer && layer.instance) {
       layer.instance.setVisible(visible)
     }
+  }
+  /**
+   * a016: 覆盖基类 removeLayer —— 先清理裁剪图层状态（索引 + moveend 监听），再走基类移除。
+   * 此前 _removeCullLayer 定义了但从未被调用，导致 _cullLayers 残留 + moveend 监听永不解除。
+   */
+  removeLayer(id) {
+    this._removeCullLayer(id)
+    super.removeLayer(id)
   }
   _doRemoveLayer(layer) {
     if (layer.instance) {

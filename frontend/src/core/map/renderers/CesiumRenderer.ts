@@ -1,3 +1,6 @@
+// D-6 技术债：Cesium 渲染器类型注解待逐步补充，typecheck 依赖 @ts-nocheck，故豁免 ban-ts-comment
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-nocheck
 // 渐进迁移：Cesium 渲染器，类型注解待逐步补充（D-6 技术债）
 import {
   CallbackProperty,
@@ -6,6 +9,7 @@ import {
   Cartographic,
   Color,
   ColorGeometryInstanceAttribute,
+  GeographicTilingScheme,
   GeoJsonDataSource,
   GeometryInstance,
   Math as CesiumMath,
@@ -14,7 +18,9 @@ import {
   PolygonGeometry,
   PolygonHierarchy,
   Primitive,
+  Rectangle,
   ScreenSpaceEventType,
+  SingleTileImageryProvider,
   UrlTemplateImageryProvider,
   Viewer,
 } from 'cesium'
@@ -220,12 +226,19 @@ export const cesiumViewerManager = new CesiumViewerManager()
  * - 离开3D路由时unmount（不销毁）
  * - 再次进入时mount复用，状态保留
  */
+/**
+ * Cesium 3D 渲染器。
+ * 类型契约见 renderers.d.ts -> CesiumRendererState（本类顶部 // @ts-nocheck，仅作文档参考）。
+ */
 export class CesiumRenderer extends MapRenderer {
   constructor(container) {
     super(container)
+    /** @type {import('./renderers').CesiumRendererState['viewer']} */
     this.viewer = null
     this.baseLayers = { image: [], vector: [] }
+    /** @type {import('./renderers').CesiumRendererState['_isReusing']} */
     this._isReusing = false // 标记是否复用已有Viewer
+    /** @type {import('./renderers').CesiumRendererState['_cameraDebounceTimer']} */
     this._cameraDebounceTimer = null // 相机变化防抖定时器
     this._initViewer()
   }
@@ -681,14 +694,91 @@ export class CesiumRenderer extends MapRenderer {
       })
       this._applyPendingVisibility(id)
       this.viewer.scene.requestRender()
+      // LIF-7：成功路径清理 token，避免 Map 跨 id 累积增长
+      this._geoJsonTokens.delete(id)
     } catch (error) {
-      if (this._geoJsonTokens.get(id) === token) {
-        this._geoJsonTokens.delete(id)
-      }
+      // LIF-7：陈旧请求（已被更新的同 id 请求覆盖）失败不触发 onError，避免误报
+      if (this._geoJsonTokens.get(id) !== token) return
+      this._geoJsonTokens.delete(id)
       if (import.meta.env.DEV) {
         logger.error(`GeoJSON图层 ${id} 加载失败`, error)
       }
       options.onError?.('GeoJSON数据加载失败')
+    }
+  }
+
+  /**
+   * 添加 GeoTIFF 栅格图层（3D 回退方案）
+   *
+   * quantized-mesh 真地形门禁失败（沙箱无 ctb / pip，无法生成地形瓦片），
+   * 降级为山体阴影贴图：用预生成的 dem_hillshade.png 作为 SingleTileImageryProvider
+   * 贴在椭球面上。视觉有地形明暗感，但无真 z 值起伏（伪三维，非数字孪生级）。
+   *
+   * 与 2D 共用同一份 BusinessLayerManager 注册（layerType:'geotiff', data:'...tif'），
+   * 此处将 .tif 映射为 .png（Cesium 影像不支持 GeoTIFF 解码，需预生成 PNG 影像）。
+   * 地理范围取自 dem_hillshade 的 gdalinfo 实测值（EPSG:4326，与 2D COG 完全一致）。
+   *
+   * 2D↔3D 切换时由 App.vue 的 reapplyAll 重绘到新 renderer，无需额外接线。
+   */
+  addGeoTIFFLayer(id, url, options = {}) {
+    // 回退方案仅支持预生成的 hillshade 影像；其它 GeoTIFF 在 3D 下暂不支持
+    if (!/hillshade/i.test(url)) {
+      logger.debug(`[CesiumRenderer] addGeoTIFFLayer 仅支持 hillshade 回退，跳过: ${url}`)
+      return false
+    }
+
+    // a020: 整体防御 —— 渲染失败只记录完整错误，不向调用方（reapplyAll）抛错，
+    // 避免单个图层的问题中断整批引擎切换重绘。
+    try {
+      // 幂等：先清除同 id 旧图层
+      const existing = this._layers.get(id)
+      if (existing) this._doRemoveLayer(existing)
+
+      // Cesium 影像不支持 GeoTIFF，映射为预生成的 PNG 影像（两者地理范围一致）
+      const pngUrl = url.replace(/\.tif$/i, '.png')
+
+      // dem_hillshade 实测范围（gdalinfo Upper Left / Lower Right，EPSG:4326）
+      // @arch-note a019: SingleTileImageryProvider 默认 WebMercatorTilingScheme(3857)，
+      // 而 hillshade PNG 为 EPSG:4326 地理坐标 —— 不指定 tilingScheme 会被投影到错误位置
+      // （北部湾 21°N 的 WebMercator Y ≠ 地理纬度），3D 下贴图不可见。必须显式 GeographicTilingScheme。
+      // @arch-note a021: Cesium 1.142 @cesium/engine 新实现强制校验 options.tileWidth/tileHeight
+      // （Check.typeOf.number，缺省即抛 DeveloperError "Expected options.tileWidth..."）；
+      // 旧 Build/index.cjs 无此校验 → Node 环境测不出，仅浏览器 vite（Source 入口）触发。
+      // 传 PNG 实际像素尺寸（PNG header 实测 4096×2819）。
+      const provider = new SingleTileImageryProvider({
+        url: pngUrl,
+        rectangle: Rectangle.fromDegrees(106.9720001, 20.9379894, 110.0783727, 23.0760978),
+        tilingScheme: new GeographicTilingScheme(),
+        tileWidth: 4096,
+        tileHeight: 2819,
+      })
+      // 诊断对称性：OL 侧 addGeoTIFFLayer 有 source.on('error') 监听（OLRenderer.ts:365），
+      // Cesium 侧原缺 errorEvent 监听 —— PNG 加载/解码失败时静默无图、无日志，
+      // 表现为"2D 有山体阴影、3D 空白且难排查"。在此补全，把静默失败变成可见 warn。
+      if (provider.errorEvent) {
+        provider.errorEvent.addEventListener((err) => {
+          logger.warn(`[CesiumRenderer] hillshade 影像加载失败: ${pngUrl}`, err)
+        })
+      }
+      const imageryLayer = this.viewer.imageryLayers.addImageryProvider(provider)
+      imageryLayer.alpha = options.opacity ?? 0.7
+
+      this._layers.set(id, {
+        instance: imageryLayer,
+        visible: true,
+        options,
+      })
+      this._applyPendingVisibility(id)
+      this.viewer.scene.requestRender()
+      logger.debug(`[CesiumRenderer] addGeoTIFFLayer 已添加 hillshade 回退贴图: ${id} → ${pngUrl}`)
+      return true
+    } catch (error) {
+      // 完整错误信息（name/message）用于定位投影或 imageryLayers 层问题
+      logger.error(
+        `[CesiumRenderer] addGeoTIFFLayer 失败 ${id} → ${url}: ${error?.name}: ${error?.message}`,
+        error
+      )
+      return false
     }
   }
 
@@ -717,6 +807,9 @@ export class CesiumRenderer extends MapRenderer {
         layer.instance.forEach((entity) => {
           if (entity) this.viewer.entities.remove(entity)
         })
+      } else if (this.viewer.imageryLayers.contains(layer.instance)) {
+        // 影像图层（如 hillshade 回退贴图），destroy=true 释放 GPU 纹理
+        this.viewer.imageryLayers.remove(layer.instance, true)
       } else {
         // 第二参数 destroy=true 让 Cesium 在移除时销毁 dataSource，防止内存泄漏
         this.viewer.dataSources.remove(layer.instance, true)

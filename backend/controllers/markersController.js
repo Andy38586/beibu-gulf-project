@@ -37,14 +37,27 @@ export async function createOne(req, res, next) {
   try {
     const { name, lng, lat, note } = req.body
 
-    if (!name || lng === undefined || lat === undefined) {
+    // B-2（阶段6 复核）: null 不是合法坐标——`null === undefined` 为 false 会让
+    // `{"lng": null}` 绕过必填检查，且 Number(null)=0 通过数值校验后被存为 (0, lat)。
+    if (!name || lng === undefined || lng === null || lat === undefined || lat === null) {
       throw new BusinessError(ErrorCode.INVALID_PARAMS, '缺少必要字段: name, lng, lat')
+    }
+    // @arch-note M-01: 坐标数值 + 范围校验（防 NaN/字符串/越界坐标污染后续空间计算）
+    if (
+      !Number.isFinite(Number(lng)) ||
+      !Number.isFinite(Number(lat)) ||
+      Number(lng) < -180 ||
+      Number(lng) > 180 ||
+      Number(lat) < -90 ||
+      Number(lat) > 90
+    ) {
+      throw new BusinessError(ErrorCode.INVALID_PARAMS, '坐标无效: lng ∈ [-180,180], lat ∈ [-90,90]')
     }
     // @arch-note P0-02: 归属强制取自登录身份，不接受客户端传入
     const newMarker = await markersRepo.create({
       name,
-      lng,
-      lat,
+      lng: Number(lng),
+      lat: Number(lat),
       note: note || '',
       userId: req.user.id,
     })
@@ -65,6 +78,32 @@ export async function updateOne(req, res, next) {
     }
     if (existing.userId !== req.user.id) {
       throw new BusinessError(ErrorCode.FORBIDDEN, '无权操作他人标注')
+    }
+    // @arch-note M-01: 更新坐标同样校验数值/范围（与 createOne 对齐）
+    const { lng, lat } = req.body
+    if (lng !== undefined || lat !== undefined) {
+      // B-2（阶段6 复核）: null 是无效更新值——`lng ?? existing.lng` 会用旧值通过校验，
+      // 但下方 `Number(null)=0` 会把坐标篡改为 0。此处直接拒绝。
+      if (lng === null || lat === null) {
+        throw new BusinessError(ErrorCode.INVALID_PARAMS, '坐标无效: null 不是合法坐标值')
+      }
+      const checkLng = lng ?? existing.lng
+      const checkLat = lat ?? existing.lat
+      if (
+        !Number.isFinite(Number(checkLng)) ||
+        !Number.isFinite(Number(checkLat)) ||
+        Number(checkLng) < -180 ||
+        Number(checkLng) > 180 ||
+        Number(checkLat) < -90 ||
+        Number(checkLat) > 90
+      ) {
+        throw new BusinessError(
+          ErrorCode.INVALID_PARAMS,
+          '坐标无效: lng ∈ [-180,180], lat ∈ [-90,90]'
+        )
+      }
+      if (lng !== undefined) req.body.lng = Number(lng)
+      if (lat !== undefined) req.body.lat = Number(lat)
     }
     const updated = await markersRepo.update(req.params.id, req.body)
     if (!updated) {

@@ -141,6 +141,34 @@ function _mapAffectedFacilities(rawFacilities: unknown, totalLoss: number): Affe
   })
 }
 
+/**
+ * online 模式：在线演算风险等级（按淹没面积 + 水位双因子，配合实测数据阈值）
+ * 实测参考：0.5m≈652km² 低、2.0m≈2593km² 中、3.5m≈4539km² 中、8.0m≈10943km² 高
+ */
+function _riskLevelFromFlood(floodedKm2: number, level: number): string {
+  if (floodedKm2 <= 0) return '无风险'
+  if (floodedKm2 >= 6000 || level >= 6) return '高风险'
+  if (floodedKm2 >= 2000 || level >= 3) return '中风险'
+  return '低风险'
+}
+
+/** online 模式：调用 FastAPI 在线演算服务（vite proxy /flood-online → localhost:8000） */
+async function _fetchOnlineFlood(
+  waterLevel: number,
+  signal?: AbortSignal
+): Promise<{
+  level: number
+  featureCount: number
+  floodedKm2: number
+  features: FloodFeature[]
+}> {
+  const res = await fetch(`/flood-online/api/flood/online?level=${waterLevel}`, { signal })
+  if (!res.ok) {
+    throw new Error(`[FloodAdapter] 在线演算服务异常: HTTP ${res.status}`)
+  }
+  return res.json()
+}
+
 export const floodAdapter = {
   get dataSource(): string {
     return resolveDataSource(ADAPTER_NAME)
@@ -162,6 +190,25 @@ export const floodAdapter = {
     waterLevel: number,
     { signal }: RequestOptions = {}
   ): Promise<FloodAnalysisResult> {
+    // online 模式：FastAPI 实时演算（连通性淹没），业务层零改动（N4 adapter 隔离）
+    if (resolveDataSource(ADAPTER_NAME) === 'online') {
+      const data = await _fetchOnlineFlood(waterLevel, signal)
+      const riskLevel = _riskLevelFromFlood(data.floodedKm2 ?? 0, data.level ?? waterLevel)
+      const features = (data.features ?? []).map((f) => ({
+        ...f,
+        properties: { ...f.properties, riskLevel },
+      })) as FloodFeature[]
+      return {
+        features,
+        statistics: {
+          totalArea: Math.round((data.floodedKm2 ?? 0) * 1e6), // km² → m²
+          riskLevel,
+          affectedCount: 0,
+        } as FloodStatistics,
+        riskLevel,
+        actualWaterLevel: data.level,
+      }
+    }
     if (resolveDataSource(ADAPTER_NAME) === 'mock') {
       // b019: mock 数据为静态单档位，不响应水位参数
       logger.warn(
@@ -220,6 +267,11 @@ export const floodAdapter = {
     waterLevel: number,
     { signal }: RequestOptions = {}
   ): Promise<ImpactAssessmentResult> {
+    // online 模式：实时演算仅出淹没面，设施影响评估暂不提供（MVP，后续可接 DEM+设施叠加）
+    if (resolveDataSource(ADAPTER_NAME) === 'online') {
+      logger.debug(`[FloodAdapter] online 模式不评估设施影响（水位 ${waterLevel}m），返回空`)
+      return { affectedFacilities: [], totalLoss: 0 }
+    }
     if (resolveDataSource(ADAPTER_NAME) === 'mock') {
       logger.warn(`[FloodAdapter] mock 影响评估不响应水位参数（请求 ${waterLevel}m）`)
       const res = await _fetchMockJson<{ code: number; data: Record<string, unknown> }>(

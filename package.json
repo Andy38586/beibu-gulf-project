@@ -16,7 +16,9 @@
     "format:check": "prettier --check .",
     "build:analyze": "cd frontend && set ANALYZE=true && vite build",
     "cruise": "dependency-cruiser -c .dependency-cruiser.cjs -T err frontend/src",
-    "dev:server": "npm --prefix backend run dev",
+    "dev:express": "npm --prefix backend run dev",
+    "dev:flood": "cd backend/flood-service && .venv\\Scripts\\python.exe -m uvicorn main:app --port 8000 --log-level warning",
+    "dev:server": "run-p dev:express dev:flood",
     "dev:all": "run-p dev dev:server",
     "forecast:model": "node tools/throughput_model.cjs",
     "prepare": "husky"

@@ -291,6 +291,8 @@ async function switchMapType(newType: '2d' | '3d') {
     logger.debug('[UnifiedMap] 类型相同，跳过切换')
     switching.value = false
     loading.value = false
+    // LIF-6：同类型提前返回时清空排队请求，避免悬挂
+    pendingSwitchType.value = null
     return
   }
 

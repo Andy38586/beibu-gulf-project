@@ -97,10 +97,15 @@ watch(
 // 引擎切换（2D↔3D）后，旧 renderer 销毁、新 renderer 上没有业务图层。
 // registry 在 App 级持久，业务页面不会因切换而重新 register，
 // 因此监听 currentRenderer 变化，把已注册且可见的图层重绘到新 renderer（修复 D06）。
+// 切换前必须清空 old/new 两个渲染器上的业务图层视觉实例：OL/Cesium 实例长期复用不销毁，
+// 否则上一个页面留在非激活渲染器上的孤儿图层（如 dem-hillshade GeoTIFF）会在切回该引擎时
+// 被渲染并崩掉渲染循环，且 reapplyAll 重复 add 同 key 会叠加图层。
 watch(
   () => mapStore.currentRenderer,
   (renderer, oldRenderer) => {
     if (renderer && oldRenderer && renderer !== oldRenderer) {
+      businessLayerManager.removeAllFromRenderer(oldRenderer)
+      businessLayerManager.removeAllFromRenderer(renderer)
       businessLayerManager.reapplyAll(renderer)
     }
   }

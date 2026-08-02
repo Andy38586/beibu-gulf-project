@@ -29,8 +29,11 @@ export async function createUser(username, hashedPassword) {
       createdAt: new Date().toISOString(),
       tokenVersion: 0,
     }
-    users.push(newUser)
-    await writeAll(users)
+    // @arch-note P2-10: 不原地修改缓存数组，构造新数组，写盘失败时缓存不脏
+    //（此前 users.push(newUser) 直接变异 readAll 返回的 cache 引用，
+    //  若 writeAll 失败，cache 已被污染 → 内存出现磁盘不存在的"幽灵用户"）
+    const next = [...users, newUser]
+    await writeAll(next)
     return {
       id: newUser.id,
       username: newUser.username,
@@ -56,9 +59,13 @@ export async function updateTokenVersion(id) {
     const users = await readAll()
     const target = users.find((u) => u.id === id)
     if (!target) return false
-    target.tokenVersion = (target.tokenVersion ?? 0) + 1
-    await writeAll(users)
-    return target.tokenVersion
+    const newVersion = (target.tokenVersion ?? 0) + 1
+    // @arch-note P2-10: 构造新对象 + 新数组，不原地修改缓存（对齐 createUser/plansRepository）
+    const next = users.map((u) =>
+      u.id === id ? { ...u, tokenVersion: newVersion } : u
+    )
+    await writeAll(next)
+    return newVersion
   })
 }
 
@@ -68,8 +75,11 @@ export async function updatePassword(userId, hashedPassword) {
     const users = await readAll()
     const target = users.find((u) => u.id === userId)
     if (!target) return false
-    target.password = hashedPassword
-    await writeAll(users)
+    // @arch-note P2-10: 构造新对象 + 新数组，不原地修改缓存（对齐 createUser/plansRepository）
+    const next = users.map((u) =>
+      u.id === userId ? { ...u, password: hashedPassword } : u
+    )
+    await writeAll(next)
     return true
   })
 }

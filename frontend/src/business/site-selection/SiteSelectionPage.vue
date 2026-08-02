@@ -263,13 +263,10 @@ function clearAnalysisLayers(): void {
     businessLayerManager.remove('analysis-matched')
   }
 
-  // 清除设施POI图层
+  // 清除设施POI图层 — 走 manager 统一生命周期（与上面两块一致），避免绕过 manager 残留在 _registry 中
+  // 导致引擎切换时 App.vue reapplyAll 按 registry 重绘出已删图层的「孤儿复活」（P0-4）
   if (activeFacilityLayerKey.value) {
-    const r = mapInstance.value?.getRenderer?.()
-    mapStore.removeLayer(activeFacilityLayerKey.value)
-    if (r) {
-      r.removeLayer(activeFacilityLayerKey.value)
-    }
+    businessLayerManager.remove(activeFacilityLayerKey.value)
     activeFacilityLayerKey.value = null
   }
 }
@@ -307,6 +304,7 @@ onUnmounted(() => {
   }
   // @arch-note a013: 统一清理所有分析图层（analysis-coverage/analysis-matched + 设施POI）
   // clearAnalysisLayers 内部已处理设施 POI，不再单独调 handleHideFacilityLayer 避免双清
+  // @arch-note a017: DEM 山体阴影（真实地形）图层仅属洪涝分析，选址页不注册不清理
   clearAnalysisLayers()
 })
 </script>

@@ -96,7 +96,7 @@ export function useForecastLayer(): UseForecastLayerReturn {
         radius: 20,
         blur: 15,
         gradient: ['#00f', '#0ff', '#0f0', '#ff0', '#f00'],
-      } as unknown as LayerOptions
+      }
     }
     const ft = FEATURE_TYPES[indicator]
     return ft ? { featureType: ft } : {}

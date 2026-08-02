@@ -1,10 +1,13 @@
-import { ref } from 'vue'
 import type { Ref } from 'vue'
-import type { Plan } from '@/types/plan'
-import type { TypeSetting } from '@/types/facility'
-import type { SavedXiaoqu } from '@/types/xiaoqu'
-import { useApiRequest } from './useApiRequest'
+import { ref } from 'vue'
+
+import { handleAuthError, isAuthError } from '@/shared/utils/errorHandler'
 import { logger } from '@/shared/utils/logger'
+import type { TypeSetting } from '@/types/facility'
+import type { Plan } from '@/types/plan'
+import type { SavedXiaoqu } from '@/types/xiaoqu'
+
+import { useApiRequest } from './useApiRequest'
 
 export function usePlans() {
   const { apiRequest, isAuthenticated } = useApiRequest()
@@ -23,6 +26,10 @@ export function usePlans() {
       }
       return data
     } catch (error) {
+      if (isAuthError(error)) {
+        await handleAuthError()
+        throw error
+      }
       if (import.meta.env.DEV) {
         logger.error('[usePlans] getPlans failed:', error)
       }
@@ -36,7 +43,7 @@ export function usePlans() {
     name: string,
     typeSettings: Record<string, TypeSetting>
   ): Promise<Plan> {
-    // 保存方案前检查登录状态
+    // 保存方案前检查登录状态（软校验：UI 层已拦截，此处兜底）
     if (!isAuthenticated.value) {
       throw new Error('请先登录')
     }
@@ -52,6 +59,16 @@ export function usePlans() {
         method: 'POST',
         body: JSON.stringify({ name, selectedKeys, typeSettings: settings }),
       })
+    } catch (error) {
+      // 401（Cookie 过期但前端 token 未同步）：统一走软登录提示
+      if (isAuthError(error)) {
+        await handleAuthError()
+        throw error
+      }
+      if (import.meta.env.DEV) {
+        logger.error('[usePlans] createPlan failed:', error)
+      }
+      throw error
     } finally {
       saving.value = false
     }
@@ -66,6 +83,10 @@ export function usePlans() {
     try {
       await apiRequest(`/plans/${id}`, { method: 'DELETE' })
     } catch (error) {
+      if (isAuthError(error)) {
+        await handleAuthError()
+        throw error
+      }
       if (import.meta.env.DEV) {
         logger.error('[usePlans] deletePlan failed:', error)
       }
@@ -96,26 +117,57 @@ export function usePlans() {
         method: 'PUT',
         body: JSON.stringify({ name, selectedKeys, typeSettings: settings }),
       })
+    } catch (error) {
+      if (isAuthError(error)) {
+        await handleAuthError()
+        throw error
+      }
+      if (import.meta.env.DEV) {
+        logger.error('[usePlans] updatePlan failed:', error)
+      }
+      throw error
     } finally {
       updating.value = false
     }
   }
 
   async function saveXiaoqu(planId: string, xiaoqu: SavedXiaoqu): Promise<Plan> {
-    // 保存小区前检查登录状态
+    // 保存小区前检查登录状态（软校验：UI 层已拦截，此处兜底）
     if (!isAuthenticated.value) {
       throw new Error('请先登录')
     }
-    return apiRequest<Plan>(`/plans/${planId}/xiaoqu`, {
-      method: 'POST',
-      body: JSON.stringify({ xiaoqu }),
-    })
+    try {
+      return await apiRequest<Plan>(`/plans/${planId}/xiaoqu`, {
+        method: 'POST',
+        body: JSON.stringify({ xiaoqu }),
+      })
+    } catch (error) {
+      if (isAuthError(error)) {
+        await handleAuthError()
+        throw error
+      }
+      if (import.meta.env.DEV) {
+        logger.error('[usePlans] saveXiaoqu failed:', error)
+      }
+      throw error
+    }
   }
 
   async function removeXiaoqu(planId: string, xiaoquId: string): Promise<Plan> {
-    return apiRequest<Plan>(`/plans/${planId}/xiaoqu/${xiaoquId}`, {
-      method: 'DELETE',
-    })
+    try {
+      return await apiRequest<Plan>(`/plans/${planId}/xiaoqu/${xiaoquId}`, {
+        method: 'DELETE',
+      })
+    } catch (error) {
+      if (isAuthError(error)) {
+        await handleAuthError()
+        throw error
+      }
+      if (import.meta.env.DEV) {
+        logger.error('[usePlans] removeXiaoqu failed:', error)
+      }
+      throw error
+    }
   }
 
   return {

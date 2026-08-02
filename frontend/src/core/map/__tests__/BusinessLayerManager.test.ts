@@ -1,3 +1,4 @@
+// BusinessLayerManager 适配器数据形状护栏回归测试（R-6 / TS-2）
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { MapRenderer } from '@/types'
@@ -158,6 +159,175 @@ describe('BusinessLayerManager', () => {
       manager.reapplyAll(newRenderer as unknown as MapRenderer)
 
       expect(newRenderer.addPointLayer).toHaveBeenCalled()
+    })
+
+    it('catalog 被 clearLayerCatalog 清空后（引擎切换）reapplyAll 仍应重绘', () => {
+      manager.register('survivor-layer', {
+        label: '清空后重绘',
+        layerType: 'points',
+        data: [{ lng: 108, lat: 21 }],
+        visible: true,
+      })
+
+      // 模拟 UnifiedMap.setupLayers → clearLayers → clearLayerCatalog 清空目录
+      mapStore.layerCatalog.length = 0
+
+      const newRenderer = { addPointLayer: vi.fn() }
+      manager.reapplyAll(newRenderer as unknown as MapRenderer)
+
+      // 可见性存于 registry，不受 catalog 清空影响 → 必须重绘
+      expect(newRenderer.addPointLayer).toHaveBeenCalledTimes(1)
+      expect(newRenderer.addPointLayer).toHaveBeenCalledWith(
+        'survivor-layer',
+        [{ lng: 108, lat: 21 }],
+        {}
+      )
+    })
+
+    it('catalog 被清空后 reapplyAll 应重建面板条目（a018：切 3D 后图层控制面板丢勾选项）', () => {
+      manager.register('panel-layer', {
+        label: '真实地形',
+        layerType: 'geotiff',
+        data: '/static/dem/dem_hillshade.tif',
+        visible: true,
+      })
+
+      // 引擎切换：UnifiedMap.setupLayers → clearLayerCatalog 清空目录
+      mapStore.layerCatalog.length = 0
+
+      const newRenderer = { addGeoTIFFLayer: vi.fn() }
+      manager.reapplyAll(newRenderer as unknown as MapRenderer)
+
+      // 面板条目必须重建（label 来自 registry，visible 以 registry 为准）
+      expect(mapStore.registerBusinessLayer).toHaveBeenCalledWith(
+        'panel-layer',
+        '真实地形',
+        'geotiff',
+        true
+      )
+      expect(mapStore.layerCatalog.some((e: MockCatalogEntry) => e.key === 'panel-layer')).toBe(
+        true
+      )
+      // 视觉实例照常重绘
+      expect(newRenderer.addGeoTIFFLayer).toHaveBeenCalledTimes(1)
+    })
+
+    it('catalog 已有条目时 reapplyAll 不应重复注册（幂等）', () => {
+      manager.register('dup-panel-layer', {
+        label: '已有条目',
+        layerType: 'points',
+        data: [{ lng: 108, lat: 21 }],
+        visible: true,
+      })
+      mapStore.registerBusinessLayer.mockClear()
+      mapStore.layerCatalog.length = 1 // 模拟 catalog 未被清空（条目仍在）
+
+      const newRenderer = { addPointLayer: vi.fn() }
+      manager.reapplyAll(newRenderer as unknown as MapRenderer)
+
+      // 条目已存在 → 不重复注册
+      expect(mapStore.registerBusinessLayer).not.toHaveBeenCalled()
+      expect(newRenderer.addPointLayer).toHaveBeenCalledTimes(1)
+    })
+
+    it('不可见图层（registry.visible=false）不应重绘', () => {
+      manager.register('hidden-layer', {
+        label: '隐藏图层',
+        layerType: 'points',
+        data: [{ lng: 108, lat: 21 }],
+        visible: true,
+      })
+      // 先通过 setVisible 隐藏（registry.visible 同步更新）
+      const renderer = { setVisibility: vi.fn(), addPointLayer: vi.fn() }
+      mapStore.currentRenderer = renderer
+      manager.setVisible('hidden-layer', false)
+
+      const newRenderer = { addPointLayer: vi.fn() }
+      manager.reapplyAll(newRenderer as unknown as MapRenderer)
+
+      expect(newRenderer.addPointLayer).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('removeAllFromRenderer', () => {
+    it('应从指定 renderer 移除视觉实例但保留 registry（防止跨引擎孤儿图层）', () => {
+      const olRenderer = { addPointLayer: vi.fn(), removeLayer: vi.fn() }
+      mapStore.currentRenderer = olRenderer
+
+      // 模拟洪涝页在 2D(OL) 注册 dem-hillshade GeoTIFF（注册时立即渲染）
+      manager.register('leak-layer', {
+        label: '泄漏测试',
+        layerType: 'points',
+        data: [{ lng: 108, lat: 21 }],
+        visible: true,
+      })
+      // 注册时立即渲染（visible && data != null）
+      expect(olRenderer.addPointLayer).toHaveBeenCalledTimes(1)
+
+      // 模拟切到 3D：从 OL 清掉视觉实例（不删 registry）
+      manager.removeAllFromRenderer(olRenderer as unknown as MapRenderer)
+      expect(olRenderer.removeLayer).toHaveBeenCalledWith('leak-layer')
+      expect(manager.has('leak-layer')).toBe(true) // registry 仍在
+
+      // 切到 Cesium 后 reapplyAll 重绘到新 renderer
+      const cesiumRenderer = { addPointLayer: vi.fn(), removeLayer: vi.fn() }
+      manager.reapplyAll(cesiumRenderer as unknown as MapRenderer)
+      expect(cesiumRenderer.addPointLayer).toHaveBeenCalledTimes(1)
+      // OL 上不应二次渲染（已被 removeAllFromRenderer 清理，不会成为孤儿）
+      expect(olRenderer.addPointLayer).toHaveBeenCalledTimes(1)
+    })
+
+    it('renderer 为 null 时安全跳过（不抛错）', () => {
+      manager.register('null-rm', {
+        label: '空渲染器',
+        layerType: 'points',
+        data: [{ lng: 108, lat: 21 }],
+        visible: true,
+      })
+      expect(() => manager.removeAllFromRenderer(null)).not.toThrow()
+      expect(manager.has('null-rm')).toBe(true)
+    })
+  })
+
+  describe('adapter 数据形状守卫 (TS-2)', () => {
+    it('points 收到 FeatureCollection 对象应抛"必须是 PointFeature[]"', () => {
+      const renderer = { addPointLayer: vi.fn() }
+      mapStore.currentRenderer = renderer as unknown as MapRenderer
+      expect(() =>
+        manager.register('bad-points', {
+          label: '错误形状',
+          layerType: 'points',
+          data: { type: 'FeatureCollection' },
+          visible: true,
+        })
+      ).toThrow(/必须是 PointFeature\[\]/)
+    })
+
+    it('points 收到 PointFeature[] 应正常注册且不抛错', () => {
+      const renderer = { addPointLayer: vi.fn() }
+      mapStore.currentRenderer = renderer as unknown as MapRenderer
+      expect(() =>
+        manager.register('good-points', {
+          label: '正确形状',
+          layerType: 'points',
+          data: [{ lng: 108, lat: 21 }],
+          visible: true,
+        })
+      ).not.toThrow()
+      expect(renderer.addPointLayer).toHaveBeenCalledTimes(1)
+    })
+
+    it('geojson 收到非 FeatureCollection 应抛"必须是 FeatureCollection"', () => {
+      const renderer = { addGeoJsonLayer: vi.fn(), removeLayer: vi.fn() }
+      mapStore.currentRenderer = renderer as unknown as MapRenderer
+      expect(() =>
+        manager.register('bad-geojson', {
+          label: '错误形状',
+          layerType: 'geojson',
+          data: [{ lng: 108, lat: 21 }],
+          visible: true,
+        })
+      ).toThrow(/必须是 FeatureCollection/)
     })
   })
 })

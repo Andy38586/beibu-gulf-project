@@ -14,6 +14,8 @@
  * - mode='login'：显示"去登录"和"取消"按钮
  */
 
+// @audit-note DAT-4 预留未接入：当前无组件消费此通用弹窗，作为预留能力保留，请勿删除
+
 import { useRouter } from 'vue-router'
 
 import { useGCS } from '@/core/layout/useGCS.js'

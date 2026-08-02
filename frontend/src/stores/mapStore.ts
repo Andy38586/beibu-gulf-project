@@ -7,10 +7,8 @@ import type { LayerEntry, LayerType, MapType, Port, RegisterLayerOptions } from 
 import type { MapRenderer } from '@/types'
 import type { ScoredXiaoqu } from '@/types'
 
-/** localStorage 键：底图、地图类型、选中港口；sessionStorage：分析结果 */
+/** localStorage 键：底图；sessionStorage：分析结果 */
 const BASE_LAYER_STORAGE_KEY = 'beibu-gulf-base-layer'
-const MAP_TYPE_STORAGE_KEY = 'beibu-gulf-map-type'
-const SELECTED_PORT_STORAGE_KEY = 'beibu-gulf-selected-port'
 const ANALYSIS_RESULT_STORAGE_KEY = 'beibu-gulf-analysis-result'
 
 function readStoredBaseLayer(): string | null {
@@ -27,28 +25,6 @@ function writeStoredBaseLayer(key: string | null): void {
   try {
     if (key) {
       window.localStorage.setItem(BASE_LAYER_STORAGE_KEY, key)
-    }
-  } catch {
-    // 忽略隐私模式等写入失败场景
-  }
-}
-
-function writeStoredMapType(type: string): void {
-  if (typeof window === 'undefined') return
-  try {
-    window.localStorage.setItem(MAP_TYPE_STORAGE_KEY, type)
-  } catch {
-    // 忽略隐私模式等写入失败场景
-  }
-}
-
-function writeStoredSelectedPort(port: Port | null): void {
-  if (typeof window === 'undefined') return
-  try {
-    if (port) {
-      window.localStorage.setItem(SELECTED_PORT_STORAGE_KEY, JSON.stringify(port))
-    } else {
-      window.localStorage.removeItem(SELECTED_PORT_STORAGE_KEY)
     }
   } catch {
     // 忽略隐私模式等写入失败场景
@@ -108,21 +84,18 @@ export const useMapStore = defineStore('map', () => {
     currentRenderer.value = renderer
   }
 
-  // 删除重复函数，保留 setMapType
-  // 持久化地图类型
+  // 地图类型仅内存态（DAT-5：原 localStorage 写入为无读取方的死写入，已移除）；
+  // 刷新后回退默认 '2d'，与改动前行为一致，无回归。
   function setMapType(type: MapType): void {
     mapType.value = type
-    writeStoredMapType(type)
   }
 
   function setSelectedPort(port: Port | null): void {
     selectedPort.value = port
-    writeStoredSelectedPort(port)
   }
 
   function clearSelectedPort(): void {
     selectedPort.value = null
-    writeStoredSelectedPort(null)
   }
 
   function registerAnalysisHandler(handler: (_result: Record<string, unknown>) => void): void {
@@ -133,7 +106,12 @@ export const useMapStore = defineStore('map', () => {
     }
     analysisHandler.value = handler
     if (lastAnalysisResult.value) {
-      handler(lastAnalysisResult.value)
+      // LIF-4：回放可能抛错（旧结果结构不兼容/恢复逻辑异常），包 try/catch 避免 unhandledrejection
+      try {
+        handler(lastAnalysisResult.value)
+      } catch (e) {
+        logger.debug('[mapStore] analysisHandler 回放失败:', e)
+      }
     }
   }
 
@@ -143,7 +121,12 @@ export const useMapStore = defineStore('map', () => {
     writeStoredAnalysisResult(result)
     // 验证 analysisHandler 是否为函数
     if (typeof analysisHandler.value === 'function') {
-      analysisHandler.value(result)
+      // LIF-4：handler 调用可能抛错，包 try/catch 防止未捕获异常中断调用链
+      try {
+        analysisHandler.value(result)
+      } catch (e) {
+        logger.debug('[mapStore] analysisHandler 调用失败:', e)
+      }
     }
   }
 
@@ -327,9 +310,13 @@ export const useMapStore = defineStore('map', () => {
       } else {
         entry.hide?.forEach((fn) => fn())
       }
+      return
     }
-    // 新机制图层：show/hide 不存在，不做任何操作
-    // 可见性由 LayerControlPanel 调用 businessLayerManager.setVisible 控制
+    // LIF-5 防御：新机制图层（无 show/hide 回调）不应经 toggleLayer 控制，
+    // 必须由 BusinessLayerManager.setVisible 驱动。此处仅告警，不改动 catalog 结果（已置新 visible）。
+    logger.warn(
+      `[mapStore] 图层 "${entry.key}" 为新机制图层，应通过 BusinessLayerManager.setVisible 控制可见性，而非 toggleLayer`
+    )
   }
 
   function removeLayer(key: string): void {

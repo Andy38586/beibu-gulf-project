@@ -16,12 +16,7 @@ import type { LayerOptions } from '@/types/renderer'
  * 业务图层类型，对应 LAYER_ADAPTERS 注册表的 key。
  * 改这里 = 改图层能力清单，渲染器侧需同步实现对应 adapter。
  */
-export type LayerType =
-  | 'heatmap'
-  | 'geojson'
-  | 'points'
-  | 'polygon'
-  | 'waterSurface'
+export type LayerType = 'heatmap' | 'geojson' | 'points' | 'polygon' | 'waterSurface' | 'geotiff'
 
 /**
  * 业务图层元数据 —— BusinessLayerManager._registry 的条目形状。
@@ -55,3 +50,16 @@ export interface LayerMeta {
  * 正确做法是扩展 @/types/renderer 的 LayerOptions（加可选字段），
  * 而不是在 LayerMeta 旁边另起一套——避免类型漂移。
  */
+
+/**
+ * 水面图层数据载荷（3D Only，waterSurface adapter 入参）。
+ *
+ * 从 layerAdapters.ts 提升为共享类型（TS-3）：消除 adapter 内部重复声明，
+ * 让"水面数据形状"成为单一事实来源，业务层构造 payload 时也能复用本类型。
+ */
+export interface WaterSurfaceData {
+  /** 水面边界多边形坐标环（[lng, lat][]） */
+  coordinates: [number, number][]
+  /** 水面高程（米） */
+  height: number
+}

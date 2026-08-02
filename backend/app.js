@@ -1,6 +1,8 @@
 import express from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
+import { fileURLToPath } from 'url'
+import { dirname, join } from 'path'
 import rateLimit from 'express-rate-limit'
 import cookieParser from 'cookie-parser'
 import markersRouter from './routes/markers.js'
@@ -16,6 +18,15 @@ import { logger } from './utils/logger.js'
 import { sendSuccess } from './utils/response.js'
 
 const app = express()
+const __dirname = dirname(fileURLToPath(import.meta.url))
+
+// @arch-note P1-027: trust proxy — 生产部署经 nginx 反代，若未信任代理，
+// rateLimit 按 127.0.0.1 统一计数 → 登录/全局限流形同虚设（所有人共享同一 IP 配额）。
+// 数字 1 = 信任最近 1 跳代理（nginx）。直接反代部署（无 nginx）时不受影响（req.ip=直连 IP）。
+// REQ-6（阶段2）: 原 `Number(...) || 1` 对 "0" 失效（Number("0")=0 为 falsy → 回落 1），
+// 无法表达"不信任代理"。改为显式判断：非负有限值原样生效，否则默认 1。
+const trustProxyHops = Number(process.env.TRUST_PROXY_HOPS)
+app.set('trust proxy', Number.isFinite(trustProxyHops) && trustProxyHops >= 0 ? trustProxyHops : 1)
 
 // 安全中间件：设置 HTTP 安全头
 app.use(helmet())
@@ -59,6 +70,11 @@ app.use(
 )
 app.use(express.json({ limit: '1mb' }))
 app.use(cookieParser())
+
+// 静态资源托管：DEM 派生产物（hillshade COG、terrain 瓦片），供前端 /static/dem/* 访问
+// 真数据统一放后端，便于未来移交 PostGIS/PgSQL
+app.use('/static', express.static(join(__dirname, 'static')))
+
 app.use('/api/markers', markersRouter)
 app.use('/api/facilities', facilitiesRouter)
 app.use('/api/site-analysis', siteAnalysisRouter)

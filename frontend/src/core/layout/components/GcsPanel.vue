@@ -49,19 +49,20 @@ const { panelPosition } = useGCS()
 
 /**
  * c016: 输出 CSS 变量而非直接内联定位属性。
- * 外部组件可通过 :deep(.GCS-panel) { --gcs-panel-left: ... } 覆盖，无需 !important。
+ * 外部组件可通过 :deep(.GCS-panel) { --GCS-panel-left: ... } 覆盖，无需 !important。
+ * GCS 铁律：变量一律全大写前缀 --GCS-*（原 --gcs-panel-* 小写违规，z041 修正）。
  */
 const panelStyle = computed(() => {
   const pos = panelPosition(props.w, props.h, props.anchor, props.offsetX, props.offsetY)
   const wPx = parseFloat(pos.width) || props.w * 80
   const hPx = parseFloat(pos.height) || props.h * 80
   return {
-    '--gcs-panel-left': pos.left || '20px',
-    '--gcs-panel-top': pos.top || '20px',
-    '--gcs-panel-width': `${wPx}px`,
-    '--gcs-panel-height': `${hPx}px`,
-    '--gcs-panel-min-width': `${props.w * 80}px`,
-    '--gcs-panel-min-height': `${props.h * 80}px`,
+    '--GCS-panel-left': pos.left || '20px',
+    '--GCS-panel-top': pos.top || '20px',
+    '--GCS-panel-width': `${wPx}px`,
+    '--GCS-panel-height': `${hPx}px`,
+    '--GCS-panel-min-width': `${props.w * 80}px`,
+    '--GCS-panel-min-height': `${props.h * 80}px`,
   }
 })
 </script>
@@ -76,12 +77,12 @@ const panelStyle = computed(() => {
 .GCS-panel {
   /* c016: 定位属性消费 CSS 变量，外部可通过 :deep 覆盖变量而非 !important */
   position: absolute;
-  left: var(--gcs-panel-left, 20px);
-  top: var(--gcs-panel-top, 20px);
-  width: var(--gcs-panel-width, 320px);
-  height: var(--gcs-panel-height, 240px);
-  min-width: var(--gcs-panel-min-width, 80px);
-  min-height: var(--gcs-panel-min-height, 80px);
+  left: var(--GCS-panel-left, 20px);
+  top: var(--GCS-panel-top, 20px);
+  width: var(--GCS-panel-width, 320px);
+  height: var(--GCS-panel-height, 240px);
+  min-width: var(--GCS-panel-min-width, 80px);
+  min-height: var(--GCS-panel-min-height, 80px);
   border-radius: var(--GCS-radius-md);
   background-color: var(--GCS-bg-panel);
   box-shadow: var(--GCS-shadow-sm);

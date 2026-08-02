@@ -18,7 +18,15 @@ export function assessDisaster(facilities, level, floodZone) {
   }
 
   const affectedFacilities = facilities
-    .filter((facility) => facility.elevation <= level)
+    .filter(
+      // B-9（阶段6 复核）: elevation 缺失/null 时 `null <= level` 被 JS 隐式转 0 → 假阳性。
+      // 与 filterFacilitiesInCoverage 的脏数据防御对齐：仅接受有限数值。
+      (facility) =>
+        facility.elevation !== null &&
+        facility.elevation !== undefined &&
+        Number.isFinite(Number(facility.elevation)) &&
+        facility.elevation <= level
+    )
     .map((facility) => ({
       id: facility.id,
       name: facility.name,
@@ -29,7 +37,8 @@ export function assessDisaster(facilities, level, floodZone) {
       elevation: facility.elevation,
       value: facility.value,
       damageRate: facility.damageRate,
-      loss: facility.value * facility.damageRate,
+      // B-9: value/damageRate 缺失时避免 `undefined * 0.5 = NaN` 污染 totalLoss（NaN 经 JSON 序列化为 null）
+      loss: (Number(facility.value) || 0) * (Number(facility.damageRate) || 0),
     }))
 
   const totalLoss = Math.round(affectedFacilities.reduce((sum, f) => sum + f.loss, 0))

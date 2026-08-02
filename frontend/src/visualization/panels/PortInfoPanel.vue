@@ -51,6 +51,8 @@ const unitPx = computed(() => cellPixel.value * 0.1)
   z-index: 55;
   background: var(--GCS-bg-panel-translucent);
   border-radius: calc(1.25 * v-bind(unitPx));
+  /* DAT-3: 面板阴影 = 黑 20% 透明，遵循 --GCS-shadow-* 同族约定；尺寸随 unitPx 响应缩放，
+     无等价固定 token（固定 px 的 --GCS-shadow-* 会破坏响应式尺寸），故保留原值 */
   box-shadow: 0 calc(0.5 * v-bind(unitPx)) calc(2.25 * v-bind(unitPx)) rgba(0, 0, 0, 0.2);
   padding: calc(1.5 * v-bind(unitPx));
   max-height: 80vh;

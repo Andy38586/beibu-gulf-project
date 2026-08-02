@@ -65,6 +65,17 @@ export interface LayerOptions {
   labelField?: string
   // 业务要素类型标识（如 'port' / 'boundary'）
   featureType?: string
+  // 栅格图层透明度（GeoTIFF hillshade 等，0-1）
+  opacity?: number
+  // ── 热力图选项（2D Only，a015：显式传入使色带/权重可配置）──
+  /** 热力图色带（CSS 颜色字符串数组，从低到高） */
+  gradient?: string[]
+  /** 权重字段名（feature 属性中作为权重的 key，如 'value'） */
+  weightField?: string
+  /** 热力点半径（像素） */
+  radius?: number
+  /** 热力模糊半径（像素） */
+  blur?: number
 }
 
 /** 水面选项（3D Only） */
@@ -128,6 +139,9 @@ export interface MapRenderer {
 
   /** 添加 GeoJSON 图层 */
   addGeoJsonLayer(_id: string, _geojson: FeatureCollection, _options?: LayerOptions): void
+
+  /** 添加 GeoTIFF 栅格图层（2D Only，真实 DEM 山体阴影/高程着色） */
+  addGeoTIFFLayer?(_id: string, _url: string, _options?: LayerOptions): boolean
 
   /** 添加热力图（2D Only） */
   addHeatmapLayer?(_id: string, _features: PointFeature[], _options?: LayerOptions): boolean

@@ -20,11 +20,10 @@ import { useLayerManager } from '@/core/map/composables/useLayerManager'
 const { layerCatalog, toggleLayer } = useLayerManager()
 const { manager: businessLayerManager } = useBusinessLayers()
 const { cellPixel, css } = useGCS()
-// 解构出 CSS 变量供 v-bind() 使用
-const { cell8px } = css
+// 解构出 CSS 变量供 v-bind() 使用（cell8px=0.1cell 面板边缘；cell16px=0.2cell 按钮间间隙）
+const { cell8px, cell16px } = css
 
-/** 按钮尺寸：1.8宽 × 0.8高（cell单位） */
-const btnWidthCss = computed(() => `${cellPixel.value * 1.8}px`) // 144px
+/** 按钮高度：0.8 cell（网格行高，按钮 width 100% 填充列） */
 const btnHeightCss = computed(() => `${cellPixel.value * 0.8}px`) // 64px
 /** 字体大小：0.175cell = 14px（基准），0.1cell = 8px（小字） */
 const labelFontSizeCss = computed(() => `${cellPixel.value * 0.175}px`) // 14px
@@ -43,6 +42,7 @@ const layerButtons = computed(() => {
     'flood-water-surface',
     'flood-area',
     'flood-facilities',
+    'dem-hillshade',
     'forecast-cargo',
     'forecast-berth',
     'forecast-traffic',
@@ -70,6 +70,7 @@ function getLayerIcon(label: string): string {
   if (label.includes('水面')) return ''
   if (label.includes('淹没')) return '🌊'
   if (label.includes('设施')) return '🏭'
+  if (label.includes('地形')) return '⛰'
   if (
     label.includes('预测') ||
     label.includes('吞吐') ||
@@ -119,11 +120,15 @@ function handleToggle(key: string) {
   box-sizing: border-box;
 }
 
-/* 图层按钮网格：2列，自动行数 */
+/* 图层按钮网格：GCS 规格 —— 面板边缘 0.1cell(padding)，按钮间 0.2cell(gap)，
+   按钮 1.8×0.8cell 占满网格单元：4×4 面板内 2列×4行共 8 按钮正好填满。
+   列用 1.8fr 均分（1.8fr×2 + gap 0.2cell = 内容宽 3.8cell，精确等于 1.8cell/按钮）；
+   行高固定 0.8cell，不足 8 个按钮时从顶部排、底部留白（边缘 0.1cell 仍保持）。 */
 .layer-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: v-bind(cell8px);
+  grid-template-columns: repeat(2, 1.8fr);
+  grid-auto-rows: v-bind(btnHeightCss);
+  gap: v-bind(cell16px);
   height: 100%;
   align-content: start;
 }
@@ -134,8 +139,8 @@ function handleToggle(key: string) {
   align-items: center;
   justify-content: center;
   gap: v-bind(cell8px);
-  width: v-bind(btnWidthCss);
-  height: v-bind(btnHeightCss);
+  width: 100%;
+  height: 100%;
   border: 1px solid var(--GCS-border-default);
   border-radius: var(--GCS-radius-lg);
   background: var(--GCS-bg-panel);
@@ -145,7 +150,6 @@ function handleToggle(key: string) {
   transition: all 0.2s ease;
   padding: v-bind(cell8px) 4px;
   box-sizing: border-box;
-  justify-self: center;
 }
 
 .layer-btn:hover {

@@ -8,7 +8,7 @@ vi.mock('fs/promises', () => ({
 }))
 
 import { readFile } from 'fs/promises'
-import { getFloodAreas, getFloodStatistics, analyzeDisaster } from '../floodAnalysisController.js'
+import { getFloodAreas, getFloodStatistics, analyzeDisaster, _clearCacheForTest } from '../floodAnalysisController.js'
 
 // 构造 mock req/res/next
 function mockReqRes(query = {}, body = {}) {
@@ -40,6 +40,7 @@ const MOCK_STATISTICS = JSON.stringify({
 describe('floodAnalysisController', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    _clearCacheForTest()
   })
 
   describe('getFloodAreas - 水位校验 (d034)', () => {
@@ -114,6 +115,33 @@ describe('floodAnalysisController', () => {
       const { req, res, next } = mockReqRes({}, { waterLevel: 'Infinity' })
       await analyzeDisaster(req, res, next)
       expect(next).toHaveBeenCalledWith(expect.any(BusinessError))
+    })
+  })
+
+  describe('readJsonData - 读盘缓存 (REQ-3)', () => {
+    it('getFloodAreas 连续两次调用只读盘一次', async () => {
+      readFile.mockResolvedValue(MOCK_FLOOD_AREA)
+      const { req, res, next } = mockReqRes({ waterLevel: '2.5' })
+      await getFloodAreas(req, res, next)
+      await getFloodAreas(req, res, next)
+      expect(readFile).toHaveBeenCalledTimes(1)
+    })
+
+    it('TTL 过期后重新读盘', async () => {
+      const nowSpy = vi.spyOn(Date, 'now')
+      let t = 1_700_000_000_000
+      nowSpy.mockImplementation(() => t)
+      try {
+        readFile.mockResolvedValue(MOCK_FLOOD_AREA)
+        const { req, res, next } = mockReqRes({ waterLevel: '2.5' })
+        await getFloodAreas(req, res, next)
+        expect(readFile).toHaveBeenCalledTimes(1)
+        t += 6 * 60 * 1000
+        await getFloodAreas(req, res, next)
+        expect(readFile).toHaveBeenCalledTimes(2)
+      } finally {
+        nowSpy.mockRestore()
+      }
     })
   })
 })

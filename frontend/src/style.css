@@ -99,12 +99,14 @@ body {
   align-items: center;
   justify-content: center;
   height: 100vh;
+  /* DAT-3: 加载页暗色底，全仓唯一使用，无对应 --GCS-* 语义变量（YAGNI 不新建），保留 */
   background: #1a1a2e;
 }
 
 .loading-spinner {
   width: 48px;
   height: 48px;
+  /* DAT-3: 加载圈边框 = 主色 primary(#409EFF) 30% 透明度；无对应 alpha 语义变量，保留 */
   border: 4px solid rgba(64, 158, 255, 0.3);
   border-top-color: var(--GCS-color-primary);
   border-radius: var(--GCS-radius-round);

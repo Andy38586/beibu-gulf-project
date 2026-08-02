@@ -15,6 +15,11 @@
  */
 
 export function computeForecast(historicalData, scenarioLevel = 1.0, forecastMonths = 120) {
+  // REQ-4（阶段2）: 输入边界防御。防止 Infinity/NaN/负数/0 透传导致 Math.pow 产出
+  // 非有限值（引擎内部序列化 null）。controller 已做收口，此处为双保险。
+  if (!Number.isFinite(scenarioLevel) || scenarioLevel <= 0) {
+    scenarioLevel = 1.0
+  }
   if (!historicalData || historicalData.length < 12) {
     return { forecast: [], metadata: { error: '历史数据不足（至少需要 12 个月）' } }
   }
@@ -98,6 +103,27 @@ function getSeasonalFactor(historical, targetMonth) {
  * 生成空间热力数据（单个时间点）
  * 基于预测值按比例分配到各空间点位
  */
+/**
+ * REQ-5（阶段2）: 确定性伪随机。
+ * 原每请求 Math.random 生成散射点 → 同 timePoint 重复请求热力图抖动、无法 HTTP 缓存。
+ * 改用固定种子 LCG（Park-Miller），种子由 timePoint + 港口索引哈希得到，
+ * 保持每港口 40 点 ±0.05° 散射半径与权重公式不变，仅替换随机源。
+ */
+function seededRandom(seed) {
+  let s = seed % 2147483647
+  if (s <= 0) s += 2147483646
+  return () => (s = (s * 16807) % 2147483647) / 2147483647
+}
+
+function _hashSeed(str) {
+  let h = 2166136261
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i)
+    h = Math.imul(h, 16777619)
+  }
+  return h >>> 0
+}
+
 export function generateSpatialValues(historicalData, forecast, timePoint, spatialFeatures) {
   const allValues = [...historicalData, ...forecast]
   const timeEntry = allValues.find((d) => d.time === timePoint)
@@ -105,21 +131,23 @@ export function generateSpatialValues(historicalData, forecast, timePoint, spati
 
   const result = []
 
-  for (const feature of spatialFeatures) {
+  spatialFeatures.forEach((feature, featureIndex) => {
     const [lng, lat] = feature.geometry.coordinates
     const baseValue = timeEntry.value
+    // 每港口独立种子：相同 timePoint + 港口索引 → 固定散射点序列
+    const rng = seededRandom(_hashSeed(`${timePoint}:${featureIndex}`))
 
     // 每个港口中心生成散射点，填补热力图（原始只有 3 个点，热力层不可见）
     const scatterPoints = 40
     for (let i = 0; i < scatterPoints; i++) {
-      // 在港口中心 ~5km 半径内随机散射
-      const angle = Math.random() * Math.PI * 2
-      const dist = Math.random() * 0.05 * (0.5 + Math.random() * 0.5) // 0.025~0.05°
+      // 在港口中心 ~5km 半径内随机散射（确定性）
+      const angle = rng() * Math.PI * 2
+      const dist = rng() * 0.05 * (0.5 + rng() * 0.5) // 0.025~0.05°
       const scatterLng = lng + Math.cos(angle) * dist
       const scatterLat = lat + Math.sin(angle) * dist
 
       // 中心高、边缘低的权重衰减
-      const weight = 0.5 + 0.5 * (1 - dist / 0.05) + Math.random() * 0.1
+      const weight = 0.5 + 0.5 * (1 - dist / 0.05) + rng() * 0.1
       const scatterValue = Math.round((baseValue / scatterPoints) * weight * 5)
 
       result.push({
@@ -134,7 +162,7 @@ export function generateSpatialValues(historicalData, forecast, timePoint, spati
         },
       })
     }
-  }
+  })
 
   return result
 }

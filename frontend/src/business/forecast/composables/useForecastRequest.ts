@@ -81,9 +81,18 @@ async function runInTransaction<T>(
 
     return result
   } catch (error) {
-    // 事务被取消时静默返回 null
-    if (error instanceof ApiError && error.code === ErrorCode.TIMEOUT) {
-      if (!isTransactionValid(transactionId)) return null
+    // 事务被取消时静默返回 null。涵盖两类取消：
+    //  1. TIMEOUT —— 本函数内部 setTimeout 触发 abort（网络超时）
+    //  2. REQUEST_FAILED('请求已取消') —— 外部/更新的事务通过 startTransaction 主动 abort
+    //     例如切页瞬间 doForecastUpdate 被触发多次，后一次 startTransaction 会 abort 掉
+    //     前一批在途请求，若照常抛出则会被 showError 弹 toast，属于误报。
+    // 仅当「事务已失效」时吞掉，事务仍有效（最新请求）的真实错误照常抛出。
+    if (
+      error instanceof ApiError &&
+      (error.code === ErrorCode.TIMEOUT || error.code === ErrorCode.REQUEST_FAILED) &&
+      !isTransactionValid(transactionId)
+    ) {
+      return null
     }
     throw error
   } finally {
@@ -96,6 +105,7 @@ async function runInTransaction<T>(
 /**
  * 获取当前事务信息
  * 用于需要共享事务 ID 的场景（如一次预测任务的三个请求）
+ * @audit-note DAT-4 预留未接入：事务共享 API 当前无调用方，保留作预留，请勿删除
  */
 function getCurrentTransaction() {
   return {

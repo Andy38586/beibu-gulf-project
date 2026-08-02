@@ -1,3 +1,4 @@
+// forecastEngine 回归测试（R-13 确定性）
 import { describe, it, expect } from 'vitest'
 import { computeForecast, generateSpatialValues } from '../forecastEngine.js'
 
@@ -319,6 +320,63 @@ describe('Forecast Engine', () => {
         expect(f.geometry.type).toBe('Point')
         expect(f.geometry.coordinates).toHaveLength(2)
       }
+    })
+  })
+
+  describe('computeForecast - scenarioLevel 防御 (REQ-4)', () => {
+    it('Infinity 回落 1.0 且不产出 Infinity', () => {
+      const result = computeForecast(generateHistorical(24), Infinity)
+      expect(result.metadata.scenarioLevel).toBe(1.0)
+      for (const p of result.forecast) {
+        expect(Number.isFinite(p.value)).toBe(true)
+      }
+    })
+
+    it('NaN 回落 1.0', () => {
+      const result = computeForecast(generateHistorical(24), NaN)
+      expect(result.metadata.scenarioLevel).toBe(1.0)
+    })
+
+    it('负数回落 1.0', () => {
+      const result = computeForecast(generateHistorical(24), -5)
+      expect(result.metadata.scenarioLevel).toBe(1.0)
+    })
+
+    it('0 回落 1.0', () => {
+      const result = computeForecast(generateHistorical(24), 0)
+      expect(result.metadata.scenarioLevel).toBe(1.0)
+    })
+  })
+
+  describe('generateSpatialValues - 确定性 (REQ-5)', () => {
+    function makeFeature(portId, portName, lng = 108.4, lat = 22.9) {
+      return {
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: [lng, lat] },
+        properties: { portId, portName },
+      }
+    }
+
+    it('同参数两次调用输出完全一致', () => {
+      const historical = [{ time: '2024-01', value: 1000, reliability: 1 }]
+      const features = [makeFeature('p1', '港口A'), makeFeature('p2', '港口B')]
+      const a = generateSpatialValues(historical, [], '2024-01', features)
+      const b = generateSpatialValues(historical, [], '2024-01', features)
+      expect(a).toEqual(b)
+    })
+
+    it('不同 timePoint 输出不同', () => {
+      const features = [makeFeature('p1', '港口A')]
+      const a = generateSpatialValues([{ time: '2024-01', value: 1000, reliability: 1 }], [], '2024-01', features)
+      const b = generateSpatialValues([{ time: '2024-02', value: 1000, reliability: 1 }], [], '2024-02', features)
+      expect(a).not.toEqual(b)
+    })
+
+    it('同 timePoint 不同港口索引输出不同', () => {
+      const features = [makeFeature('p1', '港口A'), makeFeature('p2', '港口B')]
+      const a = generateSpatialValues([{ time: '2024-01', value: 1000, reliability: 1 }], [], '2024-01', [features[0]])
+      const b = generateSpatialValues([{ time: '2024-01', value: 1000, reliability: 1 }], [], '2024-01', [features[1]])
+      expect(a).not.toEqual(b)
     })
   })
 })

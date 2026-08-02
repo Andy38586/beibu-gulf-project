@@ -5,6 +5,8 @@
  * 消除 Forecast/Flood/SiteSelection 各自维护竞态/取消的重复代码。
  *
  * 仅复杂业务页使用；简单页保持 onMounted 直接调用（D-4 克制）。
+ *
+ * @audit-note DAT-4 预留未接入：当前无调用方，作为通用工具保留，请勿删除
  */
 import type { Ref, ShallowRef } from 'vue'
 import { ref, shallowRef } from 'vue'

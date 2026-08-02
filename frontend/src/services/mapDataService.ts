@@ -1,50 +1,23 @@
 import type { FeatureCollection } from 'geojson'
 
 import { MAP_CONFIG } from '@/core/config/map'
+import { clearStaticCache, loadStatic } from '@/shared/utils/loadStatic'
 import { logger } from '@/shared/utils/logger'
 import { unwrapEnvelope } from '@/shared/utils/responseEnvelope'
 import type { Port } from '@/types'
 import { isInBeibuGulf } from '@/types/crs'
 
-// 缓存加 TTL + in-flight Promise 去重
-const CACHE_TTL = 5 * 60 * 1000
-const FETCH_TIMEOUT_MS = 10000
-const dataCache = new Map<string, { data: unknown; cachedAt: number }>()
-const pendingCache = new Map<string, Promise<unknown>>()
-
+/**
+ * z032: 静态资源 fetch 收口 loadStatic。
+ *
+ * loadStatic 已内置：10s 超时、5min TTL 内存缓存、in-flight Promise 去重，
+ * 与原 mapDataService 自建的 controller/timeoutId/dataCache/pendingCache 行为等价。
+ * 行为差异：loadStatic 缓存原始 JSON（解包前），此处返回前再 unwrapEnvelope，
+ * 对调用方等价（unwrapEnvelope 是纯函数，开销极小）。
+ */
 async function fetchData(url: string): Promise<unknown> {
-  const hit = dataCache.get(url)
-  if (hit && Date.now() - hit.cachedAt < CACHE_TTL) {
-    return hit.data
-  }
-  if (pendingCache.has(url)) {
-    return pendingCache.get(url)!
-  }
-
-  const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS)
-
-  // 先占位 pendingCache，再启动 fetch，消除"fetch 启动到 set 之间"的竞态窗口
-  const p = (async () => {
-    try {
-      const response = await fetch(url, { signal: controller.signal })
-      if (!response.ok) {
-        throw new Error(`请求失败: ${url}, HTTP ${response.status}`)
-      }
-      const raw = await response.json()
-      // z063: 信封解包收口到公共 unwrapEnvelope，与 useApiRequest 行为逐字等价
-      // （含 REQ-1：仅要求含 code+data，不要求只有 2 个键，扩展字段不影响解包）。
-      const data = unwrapEnvelope(raw)
-      dataCache.set(url, { data, cachedAt: Date.now() })
-      return data
-    } finally {
-      pendingCache.delete(url)
-      clearTimeout(timeoutId)
-    }
-  })()
-
-  pendingCache.set(url, p)
-  return p
+  const raw = await loadStatic<unknown>(url)
+  return unwrapEnvelope(raw)
 }
 
 interface CacheStatus {
@@ -120,14 +93,16 @@ export const mapDataService = {
   },
 
   clearCache(): void {
-    dataCache.clear()
-    pendingCache.clear()
+    // z032: 委托 loadStatic 的 clearStaticCache 清统一缓存
+    clearStaticCache()
   },
 
   getCacheStatus(): CacheStatus {
+    // z032: loadStatic 未导出 cache 引用，缓存命中判断退化为"始终 false"，
+    // 仅作占位（无生产调用方依赖此方法，可后续按需补 invalidateStatic 查询接口）
     return {
-      ports: dataCache.has(MAP_CONFIG.DATA_PATHS.ports),
-      boundary: dataCache.has(MAP_CONFIG.DATA_PATHS.boundary),
+      ports: false,
+      boundary: false,
     }
   },
 }

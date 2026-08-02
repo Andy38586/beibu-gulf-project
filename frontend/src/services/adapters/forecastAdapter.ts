@@ -15,6 +15,7 @@
  */
 
 import { useApiRequest } from '@/shared/composables/useApiRequest'
+import { loadStatic } from '@/shared/utils/loadStatic'
 import type { ForecastSeries } from '@/types/api/forecast'
 
 import { resolveDataSource, setAdapterDataSource } from '../dataSourceConfig'
@@ -148,21 +149,15 @@ function _lookupValue(values: Record<string, number>, time: string): number | nu
 }
 
 async function _fetchMock(indicator: string): Promise<ForecastSeries> {
+  // z032: 静态资源 fetch 收口 loadStatic（统一超时 + TTL 缓存 + in-flight 去重）
   const url = `${MOCK_BASE}/${indicator}.json`
-  const res = await fetch(url)
-  if (!res.ok) {
-    throw new Error(`[ForecastAdapter] Mock 数据加载失败: ${indicator} (HTTP ${res.status})`)
-  }
-  return (await res.json()) as ForecastSeries
+  return loadStatic<ForecastSeries>(url)
 }
 
 async function _fetchMockIndex(): Promise<ForecastIndicatorIndex> {
+  // z032: 静态资源 fetch 收口 loadStatic
   const url = `${MOCK_BASE}/index.json`
-  const res = await fetch(url)
-  if (!res.ok) {
-    throw new Error(`[ForecastAdapter] Mock 指标索引加载失败 (HTTP ${res.status})`)
-  }
-  return (await res.json()) as ForecastIndicatorIndex
+  return loadStatic<ForecastIndicatorIndex>(url)
 }
 
 export const forecastAdapter = {
@@ -279,13 +274,8 @@ export const forecastAdapter = {
   ): Promise<ForecastMapData> {
     if (_resolveSource(indicator) === 'mock') {
       const url = `${MOCK_BASE}/${indicator}.json`
-      const res = await fetch(url, { signal })
-      if (!res.ok) {
-        throw new Error(
-          `[ForecastAdapter] Mock 地图数据加载失败: ${indicator} (HTTP ${res.status})`
-        )
-      }
-      const file = (await res.json()) as _MockForecastFile
+      // z032: 静态资源 fetch 收口 loadStatic（透传 signal 支持事务取消）
+      const file = await loadStatic<_MockForecastFile>(url, { signal })
       const features: ForecastMapData['features'] = []
       for (const portId in file.data) {
         const port = file.data[portId]

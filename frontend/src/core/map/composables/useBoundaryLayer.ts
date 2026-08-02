@@ -18,6 +18,7 @@ import type { FeatureCollection } from 'geojson'
 
 import { MAP_CONFIG } from '@/core/config/map'
 import { LAYER_DEFAULTS } from '@/shared/constants/colors'
+import { loadStatic } from '@/shared/utils/loadStatic'
 import { logger } from '@/shared/utils/logger'
 import type { LayerOptions } from '@/types'
 
@@ -27,7 +28,6 @@ export async function loadBoundaryGeoJson(
   const CACHE_KEY = 'beibu-gulf-boundary-cache'
   const CACHE_EXPIRY = 24 * 60 * 60 * 1000 // 24小时缓存有效期
   const MAX_RETRIES = 3
-  const TIMEOUT_MS = 10000
 
   // 检查缓存
   try {
@@ -42,22 +42,11 @@ export async function loadBoundaryGeoJson(
     // 缓存读取失败，继续加载
   }
 
-  // 带重试和超时的加载
+  // z032: 静态资源 fetch 收口 loadStatic（统一超时 10s + TTL 内存缓存），
+  // 外层保留 3 次重试 + 线性退避（loadStatic 自身不重试，z049 仅作用于 useApiRequest）
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS)
-
-      const response = await fetch(MAP_CONFIG.DATA_PATHS.boundary, {
-        signal: controller.signal,
-      })
-      clearTimeout(timeoutId)
-
-      if (!response.ok) {
-        throw new Error('边界数据加载失败')
-      }
-
-      const geojson: FeatureCollection = await response.json()
+      const geojson = await loadStatic<FeatureCollection>(MAP_CONFIG.DATA_PATHS.boundary)
 
       // 防御性检查：确保 features 数组存在
       if (!Array.isArray(geojson.features)) {
@@ -82,14 +71,10 @@ export async function loadBoundaryGeoJson(
       return geojson
     } catch (error) {
       const e = error as Error
-      const isTimeout = e.name === 'AbortError'
       const isLastAttempt = attempt === MAX_RETRIES
 
       if (import.meta.env.DEV) {
-        logger.debug(
-          `[useBoundaryLayer] 加载失败 (第${attempt}次):`,
-          isTimeout ? '超时' : e.message
-        )
+        logger.debug(`[useBoundaryLayer] 加载失败 (第${attempt}次):`, e.message)
       }
 
       if (isLastAttempt) {

@@ -153,6 +153,16 @@ export function initAuthStorageListener(): void {
   window.addEventListener('storage', handleStorageChange)
 }
 
+/**
+ * z067: 解除多标签页 storage 监听（与 initAuthStorageListener 配对）
+ * 由 App.vue onUnmounted 调用
+ */
+export function removeAuthStorageListener(): void {
+  if (!storageListenerRegistered) return
+  storageListenerRegistered = false
+  window.removeEventListener('storage', handleStorageChange)
+}
+
 export function useAuth() {
   async function login(username: string, password: string): Promise<User> {
     const data = await apiRequest<AuthResponse>('/auth/login', {

@@ -7,7 +7,11 @@ import { BUSINESS_LAYER_MANAGER_KEY } from '@/core/map/composables/useBusinessLa
 import { useMapControls } from '@/core/map/composables/useMapControls'
 import UnifiedMap from '@/core/map/UnifiedMap.vue'
 import ErrorBoundary from '@/shared/components/ErrorBoundary.vue'
-import { initAuthStorageListener, useAuth } from '@/shared/composables/useAuth'
+import {
+  initAuthStorageListener,
+  removeAuthStorageListener,
+  useAuth,
+} from '@/shared/composables/useAuth'
 import { logger } from '@/shared/utils/logger'
 import { useMapStore } from '@/stores/mapStore'
 
@@ -122,6 +126,8 @@ onMounted(() => {
 onUnmounted(() => {
   // a024: 根组件卸载时销毁图层管理器，释放 _registry 持有的图层元数据
   businessLayerManager.destroy()
+  // z067: 解除多标签页 storage 监听（与 initAuthStorageListener 配对）
+  removeAuthStorageListener()
 })
 </script>
 

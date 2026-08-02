@@ -33,6 +33,16 @@ export const useForecastState = defineStore('forecast', () => {
   // shallowRef：Map 是可变结构，深度响应无意义且浪费性能（§7.7 约定）
   const dataCache: ShallowRef<Map<string, ForecastSeries>> = shallowRef(new Map())
 
+  /**
+   * b039: 请求事务状态迁入 store（消除 useForecastRequest 模块级可变状态）。
+   * - activeTransactionId：当前事务 ID，新事务 +1，旧事务 ID 失效
+   * - isRequesting：当前是否有请求在途（替代原模块级 isLoading ref）
+   * AbortController 不可序列化、不响应式，仍由 useForecastRequest 实例级持有，
+   * 通过 startTransaction 返回的 signal 透传给 adapter。
+   */
+  const activeTransactionId: Ref<number> = ref(0)
+  const isRequesting: Ref<boolean> = ref(false)
+
   const currentData: ComputedRef<ForecastSeries | null> = computed(() => {
     return dataCache.value.get(currentTime.value) ?? null
   })
@@ -64,6 +74,15 @@ export const useForecastState = defineStore('forecast', () => {
     dataCache.value = new Map()
   }
 
+  /**
+   * b039: 事务状态重置——配合 useForecastRequest.cancelAll 与组件卸载使用，
+   * 使事务 ID 失效并复位 isRequesting。reset() 也调用此方法。
+   */
+  function resetTransactionState(): void {
+    activeTransactionId.value = 0
+    isRequesting.value = false
+  }
+
   function reset(): void {
     currentTime.value = '2026-06'
     timeRange.value = { start: `${BASE_YEAR}-01`, end: `${END_YEAR}-12`, current: '2026-06' }
@@ -79,6 +98,8 @@ export const useForecastState = defineStore('forecast', () => {
     }
     activeForecastLayer.value = null
     dataCache.value = new Map()
+    // b039: 一并复位事务状态（与批次1 Part 6 联动：登出/路由切换重置全链路）
+    resetTransactionState()
   }
 
   return {
@@ -92,12 +113,15 @@ export const useForecastState = defineStore('forecast', () => {
     activeForecastLayer,
     dataCache,
     currentData,
+    activeTransactionId,
+    isRequesting,
     setCurrentTime,
     setTimeGranularity,
     setActiveIndicator,
     setConfidenceThreshold,
     cacheData,
     clearCache,
+    resetTransactionState,
     reset,
   }
 })

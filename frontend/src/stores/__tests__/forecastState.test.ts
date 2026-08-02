@@ -124,4 +124,30 @@ describe('useForecastState', () => {
       expect(store.confidenceThresholds.cargo).toBe(0.8)
     })
   })
+
+  describe('事务状态 (b039)', () => {
+    it('初始 activeTransactionId=0, isRequesting=false', () => {
+      const store = useForecastState()
+      expect(store.activeTransactionId).toBe(0)
+      expect(store.isRequesting).toBe(false)
+    })
+
+    it('resetTransactionState 复位事务 ID 与 isRequesting', () => {
+      const store = useForecastState()
+      store.activeTransactionId = 5
+      store.isRequesting = true
+      store.resetTransactionState()
+      expect(store.activeTransactionId).toBe(0)
+      expect(store.isRequesting).toBe(false)
+    })
+
+    it('reset() 也复位事务状态（与批次1 Part 6 联动）', () => {
+      const store = useForecastState()
+      store.activeTransactionId = 99
+      store.isRequesting = true
+      store.reset()
+      expect(store.activeTransactionId).toBe(0)
+      expect(store.isRequesting).toBe(false)
+    })
+  })
 })

@@ -2,6 +2,7 @@ import type { FeatureCollection } from 'geojson'
 
 import { MAP_CONFIG } from '@/core/config/map'
 import { logger } from '@/shared/utils/logger'
+import { unwrapEnvelope } from '@/shared/utils/responseEnvelope'
 import type { Port } from '@/types'
 import { isInBeibuGulf } from '@/types/crs'
 
@@ -31,16 +32,9 @@ async function fetchData(url: string): Promise<unknown> {
         throw new Error(`请求失败: ${url}, HTTP ${response.status}`)
       }
       const raw = await response.json()
-      // @arch-note P1-1: 统一信封解包（{ code, data } → data），与 useApiRequest 契约一致。
-      // mapDataService 用原生 fetch（保留 TTL 缓存/去重/超时），此前不解包 → getPorts
-      // 收到 {code,data} 对象 → Array.isArray 失败 → 港口+行政区划都不显示（z033 根修）。
-      // REQ-1（阶段2）: 去掉 `Object.keys(raw).length === 2` 约束，与 useApiRequest
-      // 基准契约（仅要求含 code+data）对齐。后端响应若带 message/timestamp 等扩展字段，
-      // 此前解包失败 → getPorts 收到对象 → Array.isArray 失败 → 港口不显示（F-3）。
-      const data =
-        raw && typeof raw === 'object' && 'code' in raw && 'data' in raw
-          ? (raw as Record<string, unknown>).data
-          : raw
+      // z063: 信封解包收口到公共 unwrapEnvelope，与 useApiRequest 行为逐字等价
+      // （含 REQ-1：仅要求含 code+data，不要求只有 2 个键，扩展字段不影响解包）。
+      const data = unwrapEnvelope(raw)
       dataCache.set(url, { data, cachedAt: Date.now() })
       return data
     } finally {

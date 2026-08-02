@@ -1,0 +1,793 @@
+# 工程规范与性能参考
+
+> **合并说明**：本文档由原 `CODING_STYLE.md`（编码规范）与 `performance.md`（构建体积与性能分析）合并而成，作为工程规范与性能参考的唯一底稿。
+> - 第一部分「编码规范」来自 `CODING_STYLE.md`（v1.0，2026-07-27，维护人：姜皓源）
+> - 第二部分「构建体积与性能分析架构」来自 `performance.md`（Vite + Rolldown，具体版本见 `package.json`）
+>
+> 定位：不是从 Airbnb 或 Google 抄的通用规范。规范从北部湾项目代码里长出来，每个规则都有具体项目文件可对照；性能数据以构建实测为准，**当前构建体积/Chunk 大小等时效性数据统一移交至 `../首屏加载性能评估-2026-07-29.md`，本文档只保留长期稳定的架构原则**。
+>
+> **v2 修订说明（2026-07-28）**：本次修订仅做歧义精确化与时效性剥离，不改变原文档任何规则的原意。
+> - 修正：全文 `server/` 路径统一为实际目录 `backend/`；示例代码 `@/stores/map` 改为实际路径 `@/stores/mapStore`；删除指向不存在的 `docs/GCS工程规范.md` 的引用；补全 `ErrorCode` 实际字段；目录树补 `useGCS.js` 位置；`.vscode/settings.json` 加损坏标注。
+> - 剥离：原 §10「渐进式迁移计划」（含 ✅/⏳ 状态、预估时间）迁出至 `../待解决问题.md`；原第二部分的具体 KB/MB 数字、时间戳、百分比迁出至 `../首屏加载性能评估-2026-07-29.md`，本文档只保留分包策略与懒加载的架构原则。
+> - 旧版本 `工程规范与性能参考.md` 已于 2026-07-29 整合删除：其编码规范内容（含纠错）已并入本文；性能时效数字见 `../首屏加载性能评估-2026-07-29.md`；§10 渐进式迁移计划见 `../待解决问题.md`。
+
+---
+
+# 第一部分：编码规范（原 CODING_STYLE.md）
+
+> **版本**：1.0
+> **编制**：2026-07-27
+> **维护人**：姜皓源（如需联系当前负责人，请通过 `git log` 查询）
+> **语言**：中文，术语使用 GIS 英文原词
+> **定位**：不是从 Airbnb 或 Google 抄的通用规范。这套规范从北部湾项目代码里长出来，每一个规则都有具体的项目文件可以对照。
+
+---
+
+## 目录
+
+1. [核心原则](#1-核心原则)
+2. [文件组织与命名](#2-文件组织与命名)
+3. [命名规范](#3-命名规范)
+4. [注释规范](#4-注释规范)
+5. [Vue 组件规范](#5-vue-组件规范)
+6. [后端规范（Express / NestJS）](#6-后端规范express--nestjs)
+7. [Git 提交规范](#7-git-提交规范)
+8. [工具配置](#8-工具配置)
+9. [自检表](#9-自检表)
+
+> **已迁出**：原 §10「渐进式迁移计划」（含 ✅/⏳ 迁移状态与"预估 30min"等时间估算）属时效性内容，已整节迁至 `../待解决问题.md`。
+
+---
+
+## 1. 核心原则
+
+记住这三条，规范的其余部分是它们的展开：
+
+```
+1. 地理术语优先于通用术语
+   lng/lat（不是 lon/lat） ｜ elevation（不是 altitude） ｜ feature（不是 item） ｜ crs（不是 coordSystem）
+
+2. 代码自解释，注释写"为什么"和"地理背景"
+   不写 "// 遍历数组"
+   写 "// 北部湾区域存在大量凹多边形，turf.union 可能返回 MultiPolygon，需降级处理"
+
+3. 双引擎思维渗透到命名
+   凡是可能同时存在 2D/3D 两种实现的，必须用策略模式命名（Renderer / Adapter / Strategy）
+```
+
+---
+
+## 2. 文件组织与命名
+
+### 2.1 目录结构（已固定，不可再改）
+
+```
+src/
+  types/              # 全局类型契约
+    business/         #   业务数据模型（小区、设施、洪水……）
+    components/       #   组件 Props/Emits 类型
+  core/               # 引擎层
+    config/           #   天地图配置、地图常量
+    map/              #   地图引擎
+      renderers/      #     渲染器实现（OL + Cesium）
+      composables/    #     地图相关组合式函数
+    layout/           #   GCS 面板系统
+      components/     #     GCSPanel / GCSButton / BottomNavBar……
+      useGCS.js       #     GCS 尺寸与 v-bind 计算（直接置于 layout 根，不在 composables/）
+  business/           # 业务模块
+    site-selection/   #   选址分析
+    flood-analysis/   #   浸没分析
+    forecast/         #   预测分析
+      components/      #     业务专属组件
+      composables/    #     业务专属组合式函数
+  stores/             # Pinia Store（统一 Setup Store 语法）
+  shared/             # 跨业务复用
+    components/       #   通用组件
+    composables/      #   通用组合式函数
+    utils/            #   纯工具函数
+  visualization/      # 可视化
+    charts/           #   图表组件
+      composables/    #     ECharts 组合式函数
+    panels/           #   信息面板
+  router/             # Vue Router
+  views/              # 通用页面（HomePage / ProfilePage）
+  services/           # 静态数据服务 + Adapter
+    adapters/         #   数据源适配器（mock / API）
+backend/
+  routes/             # 路由注册（只转发，不写逻辑）
+  controllers/        # 请求解析 + 响应组装
+  services/           # 业务逻辑（选址评分 / 空间计算 / 水文模拟）
+  middleware/         # 横切关注点（auth / error / logger）
+  repositories/       # 数据访问（JSON 读写 + 缓存）
+  utils/              # 纯函数工具（含 BusinessError 等业务错误类）
+  data/               # 业务数据文件（JSON）
+```
+
+> **路径说明**：后端代码目录名为 `backend/`（不是 `server/`）。`package.json` 的 `dev:server` 脚本里通过 `npm --prefix backend run dev` 启动后端，与此处目录名一致。
+
+### 2.2 文件命名
+
+| 类型 | 规则 | 示例 | 禁止 |
+|------|------|------|------|
+| Vue 页面组件 | `PascalCase + Page.vue` | `SiteSelectionPage.vue` / `FloodAnalysisPage.vue` | `siteSelection.vue` |
+| Vue 面板组件 | `PascalCase + Panel.vue` | `GCSPanel.vue` / `LayerControlPanel.vue` | `GCSPanel.vue` |
+| Vue 通用组件 | `PascalCase.vue` | `NavButton.vue` / `ErrorPopup.vue` | `nav-button.vue` |
+| TS/JS 模块 | `camelCase.ts` | `useMapRenderer.ts` / `useGCS.ts` | `UseMapRenderer.ts` |
+| Store | `camelCase + Store/State.ts` | `floodState.ts` / `siteSelectionState.ts` / `mapStore.ts` | `useFloodStore.ts` |
+| 类型定义 | `camelCase.ts`（在 `types/` 下） | `renderer.ts` / `xiaoqu.ts` | `IRenderer.ts` / `types.ts` |
+| 测试文件 | `原文件名.test.ts` | `map.test.ts` / `useApiRequest.test.ts` | `map-spec.ts` |
+
+> **Store 后缀说明**：项目当前 `Store` 与 `State` 两种后缀并存（如 `mapStore.ts` / `waterLevelStore.ts` 用 `Store`，`floodState.ts` / `forecastState.ts` / `siteSelectionState.ts` 用 `State`）。新文件任选其一即可，**不需要重命名已有文件**。
+
+### 2.3 Barrel 导出原则
+
+**不要**大量使用 `index.ts` barrel 导出。
+
+```
+✅ 唯一例外：types/index.ts（类型目录以 barrel 为统一入口是合理的）
+
+❌ stores/index.ts     → import { useMapStore } from '@/stores'（多余的抽象层）
+❌ shared/index.ts     → 同上
+❌ components/index.ts → 同上
+```
+
+显式导入路径的好处：
+1. IDE 可以精准跳转到具体文件
+2. tree-shaking 不会因为 barrel 导出而失效
+3. 新人读代码时能一眼看到文件来源
+
+> **配套要求**：因为禁止 barrel，Store 的导入路径必须包含文件全名。例如 `useMapStore` 位于 `stores/mapStore.ts`，导入应写 `import { useMapStore } from '@/stores/mapStore'`，**不要**写 `@/stores/map`（后者要求文件名是 `map.ts` 或存在 barrel，二者均不符合现状）。
+
+---
+
+## 3. 命名规范
+
+### 3.1 地理术语词汇表
+
+| 场景 | 使用 | 弃用 | 理由 |
+|------|------|------|------|
+| 经纬度 | `lng`, `lat` | `lon`, `latitude` | GIS 行业惯例；lon 易与 London 缩写混淆 |
+| 海拔高程 | `elevation` | `altitude`, `height` | elevation = 大地水准面高程；height = 相对高度 |
+| 坐标数组 | `coordinates` | `points`, `path` | GeoJSON 规范术语 |
+| 单个要素 | `feature` | `item`, `data` | GeoJSON Feature（geometry + properties） |
+| 要素集合 | `featureCollection` | `list`, `array` | GeoJSON FeatureCollection |
+| 投影坐标 | `projectedX`, `projectedY` | `x`, `y` | 必须与地理坐标 `lng/lat` 区分 |
+| 缓冲区 | `bufferRadius` / `bufferDistance` | `range`, `distance` | buffer 是 GIS 专有空间操作 |
+| 渲染器实例 | `olRenderer`, `csRenderer` | `map1`, `map2` | 一眼看出双引擎身份 |
+
+> **历史字段归一化**：`types/crs.ts` 的 `normalizePoint` 函数显式接受 `lon`/`longitude`/`latitude` 等历史字段名并归一化为 `lng`/`lat`。这是应对历史数据源的务实设计，**不是**鼓励新代码使用历史字段。新代码必须用 `lng`/`lat`，只有读取历史数据文件时才通过 `normalizePoint` 归一化。
+
+### 3.2 变量命名
+
+```ts
+// ✅ 正确
+const portLngLat: [number, number] = [108.6, 21.9]
+const bufferDistance = 3000  // 米
+const featureCollection = turf.featureCollection([pointFeature])
+const affectedFacilities: FloodFeature[] = []
+
+// ❌ 错误
+const portPosition = [108.6, 21.9]   // 是 lngLat 还是 projectedXY？
+const range = 3000                    // 什么范围？
+const features = [...]                // 可能是 Feature[] 或 FeatureCollection
+const data = []                       // 太泛
+```
+
+### 3.3 函数命名
+
+规则：`动词 + 地理对象 + 动作细节`
+
+```ts
+// ✅ 正确
+function queryFacilitiesByPolygon(polygon: PolygonFeature): FacilityFeature[]
+function flyToCoordinate(lng: number, lat: number, elevation?: number): void
+function calculateBufferUnion(features: FeatureCollection): Polygon | MultiPolygon
+
+// ❌ 错误
+function getData()          // 什么 data？
+function handleClick()      // 点击了什么？哪张地图？
+function doAnalysis()       // 什么分析？
+```
+
+### 3.4 类型与接口
+
+```ts
+// ✅ 正确：无 I/T 前缀，业务语义优先
+interface MapRenderer {
+  readonly engine: 'ol' | 'cesium'
+  addPointLayer(id: string, features: PointFeature[], options?: LayerOptions): void
+  destroy(): void
+}
+
+interface SiteSelectionParams {
+  selectedKeys: FacilityType[]
+  typeSettings: Record<FacilityType, TypeConfig>
+  weights?: Partial<Record<FactorType, number>>
+}
+
+// ❌ 错误
+interface IMapRenderer {}    // 不要 I 前缀（Java 遗毒）
+type TFeature = {}           // 不要 T 前缀
+```
+
+### 3.5 常量
+
+```ts
+// ✅ 正确：模块级常量 + 语义分组 + as const
+export const CRS = {
+  WGS84: 'EPSG:4326',
+  WEB_MERCATOR: 'EPSG:3857',
+  CGCS2000: 'EPSG:4490',   // 坐标系术语，豁免于 GCS 全大写约束（见 3.6）
+} as const
+
+export const DEFAULT_BUFFER_RADIUS = 3000   // 米，选址默认缓冲半径
+export const MAX_SELECTABLE_FACILITIES = 5
+
+// ❌ 错误
+const BUFFER = 3000        // 什么单位？什么语义？
+const CRS_WGS84 = 4326     // 不是 EPSG 编码，容易混淆
+```
+
+---
+
+### 3.6 GCS 缩写书写规范与坐标系豁免
+
+**铁律：`GCS` 的唯一合法写法是全大写 `GCS`。**
+
+`GCS` 是 **Global Component Style**（全局组件样式系统，本项目布局/样式基础设施）的缩写。指代它时**只允许全大写**；`Gcs` / `gcs`（含历史上出现的 `gcsStore` / `GcsPanel` / `--gcs-*`）一律视为**违规命名**，已于 2026-07-30 全量改正为 `GCSPanel` / `GCSButton` / `GCSInspectionOverlay` / `--GCS-*`。
+
+**坐标系术语豁免**：`GCS` 按"独立词 / 词边界"判定。`CGCS2000`（国家 2000 大地坐标系，EPSG:4490，见 3.5 常量 `CRS.CGCS2000` 与 `src/types/crs.ts`）子串虽含 `GCS`，但含义是 "Geodetic Coordinate System"，与 Global Component Style 无关，**不算违规**，保留原样。
+
+| 写法 | 判定 | 说明 |
+|------|------|------|
+| `GCS`、`GCSPanel`、`--GCS-*`、`useGCS` | ✅ 合法 | Global Component Style |
+| `CGCS2000`、`CRS.CGCS2000` | ✅ 合法（豁免） | 坐标系术语 |
+| `Gcs`、`gcs`、`GcsPanel`、`--gcs-*` | ❌ 违规 | 须改为全大写 |
+
+## 4. 注释规范
+
+### 4.1 不写的注释（代码自解释）
+
+```ts
+// ❌ 不要写这些 —— 代码本身已经在说
+// 遍历设施数组
+facilities.forEach(f => { ... })
+
+// 设置地图中心
+map.setCenter([lng, lat])
+
+// 创建新图层
+const layer = new VectorLayer({ ... })
+```
+
+### 4.2 要写的注释（地理背景 + 工程决策）
+
+```ts
+// ✅ 写"为什么选这个坐标系"
+// 北部湾区域横跨 108°E，处于 UTM 49N 和 50N 交界带。
+// 前端展示统一用 WGS84(EPSG:4326)，投影到 Web Mercator 由 OL/Cesium 内部处理。
+const DISPLAY_CRS = 'EPSG:4326'
+
+// ✅ 写"Turf.js 的已知坑"
+// turf.union 在输入多边形存在共享边界时可能返回 MultiPolygon，
+// 下游业务组件（SiteSelectionPage）只接受 Polygon，需做几何降级。
+const merged = turf.union(featureA, featureB)
+const normalized = merged.geometry.type === 'MultiPolygon'
+  ? turf.convex(merged)            // 退而求其次用凸包
+  : merged
+
+// ✅ 写"性能决策"
+// xiaoqu.json 约 1200 个要素，全量遍历在移动端会掉帧。
+// 第一步：rbush BBox 过滤（O(log n)）→ 第二步：turf.distance 精确计算（O(m), m << n）
+const candidates = spatialIndex.search(bbox)
+const matched = candidates.filter(f => turf.distance(f, target) <= bufferRadius)
+
+// ✅ 写"数据档位的设计意图"
+// 洪涝浸没分析使用"向上取档"策略：请求 2.5m 水位时实际返回 3.0m 档位数据。
+// 这是故意为之 —— 宁可高估风险（多返回淹没区域），不可低估（遗漏潜在受灾设施）。
+// 前端通过对比 requestedWaterLevel / actualWaterLevel 感知档位差异。
+```
+
+### 4.3 文件头注释（可选，但鼓励留个人印记）
+
+```ts
+/**
+ * 选址分析评分引擎
+ *
+ * 北部湾港口区域设施分布稀疏，传统"最近距离"评分会过度惩罚边缘小区。
+ * 本算法采用"可达性衰减函数"：距离 < bufferRadius 时线性衰减，> bufferRadius 时归零。
+ *
+ * @author 姜皓源
+ * @since 2026-03
+ */
+```
+
+> **注意**：不写 `@param` `@returns` 这类 JSDoc 重复代码的八股文。TypeScript 已经提供了参数类型，不需要再写一遍。
+
+### 4.4 标记约定（已存在，保持不变）
+
+```
+FIX: <编号或描述>      // Bug，需要修
+TODO: <描述>           // 计划中的功能
+@arch-note <描述>      // 架构层面的设计意图说明
+```
+
+使用示例：
+
+```ts
+// @arch-note 这里用 shallowRef 而不是 ref，因为 layerCatalog 是
+// 大型对象数组，深层响应式会触发 50 次重渲染；我们只需要引用变化时重渲染。
+const layerCatalog = shallowRef<LayerEntry[]>([])
+```
+
+```ts
+// TODO: 把硬编码的默认图表数据接数据库
+// FIX: SLP-12 queryByPolygon 凹多边形误匹配，需加 booleanPointInPolygon 二次过滤
+```
+
+> 三者均为行内 `//` 注释标记，不是 JSDoc 块标记。`@arch-note` 与 `TODO`/`FIX` 同级，用于标注"此处代码看似奇怪，但属架构有意为之"。
+
+---
+
+## 5. Vue 组件规范
+
+### 5.1 单文件组件结构
+
+```vue
+<script setup lang="ts">
+// 1. 类型导入（import type）
+import type { MapRenderer, PointFeature } from '@/types'
+
+// 2. 组件导入
+import GCSPanel from '@/core/layout/components/GCSPanel.vue'
+
+// 3. 组合式函数（注意：禁止 barrel，必须写完整文件名）
+import { useMapStore } from '@/stores/mapStore'
+const mapStore = useMapStore()
+
+// 4. Props / Emits 定义
+interface Props { title: string; visible?: boolean }
+const props = withDefaults(defineProps<Props>(), { visible: false })
+const emit = defineEmits<{ close: []; confirm: [result: AnalysisResult] }>()
+
+// 5. 响应式数据（ref → computed → 方法 → 生命周期）
+const selectedFeature = ref<Feature | null>(null)
+
+function handleSelect(feature: Feature) { ... }
+
+onMounted(() => { ... })
+onUnmounted(() => { ... })
+</script>
+
+<template>
+  <!-- 语义化 HTML + GCS 组件 -->
+  <GCSPanel :w="4" :h="6" anchor="top-left">
+    <div class="panel-content">
+      <h3 class="panel-title">{{ title }}</h3>
+    </div>
+  </GCSPanel>
+</template>
+
+<style scoped>
+.panel-title {
+  color: var(--GCS-text-primary);
+  font-size: 16px;
+}
+</style>
+```
+
+### 5.2 Props / Emits
+
+```ts
+// ✅ 用 withDefaults + 泛型 + 元组坐标
+interface Props {
+  title: string
+  visible?: boolean
+  initialLngLat?: [number, number]  // [lng, lat]，元组比对象更紧凑
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  visible: false,
+  initialLngLat: () => [108.6, 21.9],  // 钦州市中心
+})
+
+const emit = defineEmits<{
+  close: []
+  confirm: [result: AnalysisResult]
+}>()
+
+// ❌ 禁止
+// const { title } = defineProps<...>()   // 解构会丢失响应性
+// const emit = defineEmits(['close'])    // 无类型
+```
+
+### 5.3 模板规则
+
+```vue
+<!-- ✅ 正确 -->
+<GCSPanel :w="4" :h="4" anchor="top-left" :offset-x="0" :offset-y="1.25">
+  <PanelTitle :text="title" />
+  <div class="content">...</div>
+</GCSPanel>
+
+<!-- ❌ 禁止 -->
+<!-- v-for 和 v-if 不要同级 -->
+<!-- 不要 $refs（用模板 ref） -->
+```
+
+### 5.4 样式规则
+
+- 全部使用 `var(--GCS-xxx)` 引用全局 CSS 变量，禁止硬编码色值
+- GCS 尺寸通过 `useGCS()`（位于 `core/layout/useGCS.js`）的 `v-bind()` 动态计算
+- `pointer-events: none` 在页面根元素 → `:deep(.GCS-panel) { pointer-events: auto }` 恢复面板交互
+
+> **GCS 规范文档**：原引用的 `docs/GCS工程规范.md` 当前尚未独立成文。GCS 关键规则以本文档 §5 + 项目源码 `frontend/src/core/layout/` 为准；如需查阅实现细节，直接读 `useGCS.js` 与 `GCSPanel.vue`。
+
+---
+
+## 6. 后端规范（Express / NestJS）
+
+### 6.1 三层严格分离
+
+```
+backend/routes/       — 只做路由注册和中间件挂载，不写逻辑
+backend/controllers/  — 只做请求解析 + 响应组装
+backend/services/     — 写业务逻辑（选址评分 / 空间计算 / 水文模型）
+```
+
+```js
+// ✅ backend/routes/siteAnalysis.js
+router.post('/site-analysis', authenticate, siteAnalysisController.analyze)
+
+// ✅ backend/controllers/siteAnalysisController.js
+export const analyze = async (req, res, next) => {
+  try {
+    const { selectedKeys, typeSettings, weights } = req.body
+    const result = await siteAnalysisService.calculate(selectedKeys, typeSettings, weights)
+    res.status(200).json(result)
+  } catch (err) {
+    next(err)  // 统一错误处理中间件
+  }
+}
+
+// ✅ backend/services/siteAnalysisService.js
+export const calculate = async (selectedKeys, typeSettings, weights) => {
+  // 选址评分核心算法 —— 写在这里
+}
+```
+
+### 6.2 错误处理：统一错误码
+
+不要直接 `throw new Error('xxx')`，用业务错误类。错误类定义位于 `backend/utils/BusinessError.js`：
+
+```js
+// backend/utils/BusinessError.js 的实际错误码表（共 7 项）
+const ErrorCode = {
+  INVALID_PARAMS:      { code: 400001, status: 400, message: '参数验证失败' },
+  UNAUTHORIZED:        { code: 401001, status: 401, message: '认证令牌无效或已过期' },
+  FORBIDDEN:           { code: 403001, status: 403, message: '无权访问此资源' },
+  NOT_FOUND:           { code: 404001, status: 404, message: '资源不存在' },
+  DUPLICATE_USERNAME:  { code: 409001, status: 409, message: '用户名已存在' },
+  DUPLICATE_RESOURCE:  { code: 409002, status: 409, message: '资源已存在' },
+  ANALYSIS_FAILED:     { code: 422001, status: 422, message: '分析计算失败' },
+}
+
+class BusinessError extends Error {
+  constructor(errorCode, detail = '') {
+    super(detail || errorCode.message)
+    this.name = 'BusinessError'
+    this.code = errorCode.code
+    this.status = errorCode.status
+  }
+}
+
+// 使用
+import { BusinessError, ErrorCode } from '../utils/BusinessError.js'
+throw new BusinessError(ErrorCode.ANALYSIS_FAILED, 'turf.union 返回类型不一致')
+```
+
+> **错误码命名约定**：`<HTTP status><业务序号>`，例如 `400001` = HTTP 400 + 0001。新增错误码时按此规则扩展，不要复用已存在的 code。
+
+### 6.3 NestJS 迁移注意
+
+如果后续用 NestJS 替代 Express，保持三层分离：
+
+```
+Express          →  NestJS
+routes/          →  @Controller 装饰器
+controllers/      →  Controller 类中的方法
+services/        →  @Injectable() Provider
+middleware/      →  Guard / Interceptor / Pipe
+```
+
+---
+
+## 7. Git 提交规范
+
+### 7.1 格式
+
+```
+<type>(<scope>): <subject>
+
+<body>  — 写"为什么改"和"影响范围"
+```
+
+### 7.2 Type 定义
+
+| Type | 使用场景 | 示例 |
+|------|---------|------|
+| `feat` | 新增业务功能 | `feat(flood): 新增港口浸没分析水位滑块交互` |
+| `fix` | 修复 bug | `fix(auth): 修复 JWT 硬编码密钥泄露` |
+| `refactor` | 重构，不新增功能 | `refactor(store): stores/map.ts 重命名为 mapStore.ts 符合命名规范` |
+| `perf` | 性能优化 | `perf(ol): 矢量图层添加 rbush 空间索引` |
+| `docs` | 文档 | `docs(api): 补充选址分析接口契约` |
+| `style` | 纯格式调整 | `style: 统一 ESLint + Prettier 配置`（`style` 通常不带 scope） |
+| `chore` | 工程化杂项 | `chore(ci): 添加 GitHub Actions 构建流水线` |
+
+### 7.3 Scope 定义
+
+| Scope | 含义 | 涉及目录 |
+|-------|------|---------|
+| `core` | 引擎层 | `src/core/map/` / `src/core/layout/` |
+| `business` | 业务模块 | `src/business/` |
+| `store` | Pinia 状态管理 | `src/stores/` |
+| `api` | 后端接口 | `backend/` |
+| `gis` | 空间分析 / Turf.js / 坐标系 | `src/core/map/` + `src/services/` |
+| `deps` | 依赖升级 | `package.json` |
+
+> **路径同步说明**：`api` scope 对应的实际目录是 `backend/`（早期文档误写为 `server/`，已修正）。
+
+### 7.4 示例
+
+```
+feat(site-selection): 选址分析支持多设施权重自定义
+
+之前权重硬编码在 scoringService 中，无法适配不同港口区域。
+现在将 weights 暴露为接口参数，前端通过滑块实时调整。
+
+影响范围：SiteSelectionPage / useSiteSelectionStore / siteAnalysisService
+
+
+fix(gis): 修复 queryByPolygon 仅用 BBox 导致凹多边形误匹配
+
+北部湾区域海岸线曲折，小区边界多为凹多边形。
+原实现仅用 rbush BBox 查询，外接矩形内非多边形区域的设施被错误返回。
+现增加 turf.booleanPointInPolygon 二次精确过滤。
+
+Closes #<issue-number>
+```
+
+> commit 示例中 issue 编号属示例占位，实际以 GitHub issue 编号为准。
+
+---
+
+## 8. 工具配置
+
+### 8.1 VS Code（`.vscode/settings.json`，提交到仓库）
+
+下面是项目期望的 VS Code 配置（规范层面）：
+
+```json
+{
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  },
+  "typescript.preferences.importModuleSpecifier": "relative",
+  "eslint.validate": ["javascript", "typescript", "vue"],
+  "files.associations": {
+    "*.env.*": "dotenv"
+  }
+}
+```
+
+> ⚠️ **已知问题**：实际仓库的 `.vscode/settings.json` 当前文件损坏（仅有 33 字节截断内容），上述配置未生效。此属仓库 bug，已登记在 `../待解决问题.md`，修复前请开发者按上表手动配置本地 VS Code。
+
+### 8.2 package.json scripts
+
+```json
+{
+  "scripts": {
+    "dev": "cd frontend && vite",
+    "build": "cd frontend && vite build",
+    "preview": "cd frontend && vite preview",
+    "test": "cd frontend && vitest run",
+    "test:watch": "cd frontend && vitest",
+    "lint": "eslint . --cache",
+    "lint:fix": "eslint . --fix --cache",
+    "typecheck": "vue-tsc --noEmit -p frontend/tsconfig.app.json",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "build:analyze": "cd frontend && set ANALYZE=true && vite build",
+    "cruise": "dependency-cruiser -c .dependency-cruiser.cjs -T err frontend/src",
+    "dev:server": "npm --prefix backend run dev",
+    "dev:all": "run-p dev dev:server",
+    "prepare": "husky"
+  }
+}
+```
+
+> **`prepare` 与 Husky/lint-staged 说明**：
+> - `prepare` 脚本由 npm 在 `npm install` 后自动执行，用于安装 Husky git 钩子（`.husky/pre-commit`）。
+> - 钩子内容：`npx lint-staged`，对暂存文件执行 eslint + prettier。
+> - lint-staged 配置在仓库根 `.lintstagedrc.json`：`"frontend/src/**/*.{ts,vue,js}": ["eslint --fix", "prettier --write"]`。
+> - 后端暂存文件当前不在 lint-staged 范围内。
+
+### 8.3 CI 流水线（`.github/workflows/ci.yml`）
+
+```yaml
+name: CI
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-and-build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [22.x]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci
+      - name: Check format
+        run: npm run format:check
+      - name: Run lint
+        run: npm run lint
+      - name: Architecture contract (dependency-cruiser)
+        run: npm run cruise
+      - name: Type check
+        run: npm run typecheck
+      - name: Run frontend tests
+        run: npm test
+      - name: Build project
+        run: npm run build
+
+  backend-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [22.x]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+          cache-dependency-path: backend/package.json
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm install
+      - name: Run backend tests
+        working-directory: backend
+        run: npm test
+```
+
+> Node 版本要求以 `package.json` 的 `engines` 字段为准（当前要求 `^22.18.0 || >=24.12.0`），CI 矩阵需与之对齐。
+
+---
+
+## 9. 自检表
+
+提交代码前，问自己这 5 个问题：
+
+| # | 检查项 | 标准 | 反例 |
+|---|--------|------|------|
+| 1 | 坐标变量叫什么？ | `lng` / `lat` / `elevation` | `lon` / `latitude` / `height` |
+| 2 | 空间对象叫什么？ | `feature` / `featureCollection` / `geometry` | `item` / `list` / `shape` |
+| 3 | 注释写了什么？ | "为什么这样设计" + "地理/业务背景" | "做什么" / "遍历数组" |
+| 4 | 渲染器怎么命名？ | `OLRenderer` / `CesiumRenderer` / `BaseRenderer` | `map1` / `map2` / `map3D` |
+| 5 | Git 提交信息？ | `type(scope): 做什么 + 为什么`，带地理语义 | `fix bug` / `update code` |
+
+---
+
+> **自述**：这不是从网上抄的规范模板。里面的每一行都和北部湾项目对齐 —— 你可以打开项目里的任意文件，对照着看这条规范是否已经在用、是否应该用。
+
+---
+
+# 第二部分：构建体积与性能分析架构（原 performance.md）
+
+> **本部分定位调整**：原 `performance.md` 包含大量具体 KB/MB 数字、构建时间百分比、"✅ 已完成（2026-07-XX）"时间戳等时效性内容。本版本只保留**长期稳定的架构原则与设计意图**；具体的 Chunk 大小、首屏字节数、构建时间等**实测数据请查阅 `../首屏加载性能评估-2026-07-29.md`**（该文件随每次构建实测更新）。
+> **构建工具**：Vite + Rolldown（具体版本见 `package.json` 的 `dependencies`/`devDependencies`）
+
+---
+
+## 一、分包策略设计意图
+
+### 1.1 manualChunks 分组原则
+
+`frontend/vite.config.js` 的 `manualChunks` 函数按依赖来源分组：
+
+| Chunk 名 | 包含依赖 | 设计意图 |
+|----------|---------|---------|
+| `vue-vendor` | `vue` / `vue-router` / `pinia` | Vue 运行时核心，体积小、变动少，独立缓存收益高 |
+| `openlayers` | `ol` | 2D 地图引擎，首屏核心依赖 |
+| `cesium` | `cesium` | 3D 地图引擎，**实际不进 Vite chunk**（见 §二） |
+| `echarts` | `echarts` | 图表库，体积大，仅预测页面用 |
+| `ui-vendor` | `element-plus` / `@element-plus` | UI 组件库，按需引入 |
+
+> **架构原则**：分包的目的不是"切得越细越好"，而是：(1) 让高频变动的业务代码与稳定的依赖分离，最大化浏览器缓存命中；(2) 让大体积依赖独立成块，便于按需加载与缓存。
+
+### 1.2 Cesium 分包的特殊情况
+
+`vite-plugin-cesium` 通过 `rollup-plugin-external-globals` 将 Cesium 标记为 external，**不会被打入 Vite chunk**。`manualChunks` 中的 `cesium` 规则在文档意图层面保留，但对构建产物无实际效果。
+
+Cesium 的实际加载策略（架构层面）：
+- 构建时：`vite-plugin-cesium` 复制 `node_modules/cesium/Build/Cesium/` → `dist/cesium/`
+- 构建时：`removeCesiumHtmlTags()` post-plugin 移除 `vite-plugin-cesium` 自动注入的 HTML 标签
+- 运行时：`renderers/index.js` 中的 `ensureCesiumLoaded()` 在首次切 3D 时动态注入 `<script src="/cesium/Cesium.js">`
+- `CesiumRenderer` 本身仍通过动态导入按需加载
+
+> **设计原则**：Cesium 库体积大（MB 级）、3D 视图非首屏必需，故采用"构建时静态复制 + 运行时动态注入"的双阶段懒加载，避免 5.7MB 主库阻塞首帧。
+
+---
+
+## 二、动态导入与懒加载架构
+
+| 模块 | 导入方式 | 架构意图 |
+|------|----------|----------|
+| CesiumRenderer | `await import('./CesiumRenderer')` | 渲染器代码按需加载，2D-only 用户不下载 3D 渲染器 |
+| Cesium 库 | `renderers/index.js` 运行时注入 script | 5.7MB 主库仅在切 3D 时加载 |
+| ECharts | 通过 ForecastPage 动态导入 | 仅预测页面加载图表库 |
+| OpenLayers | 首屏静态导入 | 2D 地图是首屏核心功能，预加载合理 |
+| Turf.js | — | 前端未使用，仅后端依赖 |
+
+> **架构原则**：动态导入的判定标准是"是否首屏必需"。地图引擎、Vue 运行时、UI 框架属首屏必需；3D 引擎、图表库、路由级页面属按需加载。
+
+---
+
+## 三、构建分析工具
+
+```bash
+# 生成 stats.html（构建体积可视化）
+npm run build:analyze
+
+# 文件位置
+dist/stats.html
+```
+
+> `rollup-plugin-visualizer` 集成在 `vite.config.js` 中，`ANALYZE=true` 环境变量控制是否自动打开浏览器。每次构建都会生成 `dist/stats.html`，可用于持续监控体积变化。
+
+---
+
+## 四、性能优化架构原则（保留项）
+
+以下为项目已落地的性能架构决策，**具体降本数字（KB / %）见 `../首屏加载性能评估-2026-07-29.md`**：
+
+1. **Cesium 懒加载**：通过 `removeCesiumHtmlTags()` post-plugin + `ensureCesiumLoaded()` 运行时动态加载，将 Cesium 主库移出首屏。
+2. **Element Plus 按需引入**：使用 `unplugin-auto-import` + `unplugin-vue-components`（`ElementPlusResolver`），仅打包实际使用到的组件，避免全量 CSS 进首屏。
+3. **路由级懒加载**：5 个页面全部 `() => import()`，页级代码不进首屏。
+4. **依赖独立分包**：vue / ol / echarts / element-plus 各自独立 chunk，便于浏览器缓存。
+
+> **未来优化方向**（待决策，登记在 `../待解决问题.md`）：
+> - echarts 首屏延迟初始化（用 `requestIdleCallback` 把解析移出首帧关键路径）
+> - Cesium 使用压缩版（切换 `CesiumUnminified` → `Cesium` 或 CDN 加载 gzip/brotli）
+
+---
+
+## 五、面试话术（架构层）
+
+> "项目的构建体积优化在架构层面做了以下工作：
+>
+> 1. **分包策略**：通过 Vite 的 `manualChunks` 将 Vue 运行时、Element Plus、OpenLayers、ECharts 分别拆成独立 chunk，利用浏览器缓存；业务代码与依赖分离。
+> 2. **动态导入**：Cesium 3D 渲染器通过 `await import()` 按需加载，ECharts 只在预测分析页面加载；Cesium 主库通过运行时 `ensureCesiumLoaded()` 动态注入 `<script>` 标签，避免 5.7MB 阻塞首帧。
+> 3. **按需引入**：Element Plus 通过 `unplugin-auto-import` + `unplugin-vue-components` 按需引入，避免全量 CSS 进首屏。
+> 4. **打包分析**：集成 `rollup-plugin-visualizer`，每次 `npm run build:analyze` 生成可视化报告，持续监控体积变化。
+>
+> 具体数字（首屏体积、gzip 后大小、降幅百分比）见 `../首屏加载性能评估-2026-07-29.md` 的最新实测。"

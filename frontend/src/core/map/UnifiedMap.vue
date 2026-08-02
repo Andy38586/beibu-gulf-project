@@ -391,28 +391,10 @@ onUnmounted(() => {
   _pendingRafIds.forEach((id) => cancelAnimationFrame(id))
   _pendingRafIds.clear()
 
-  // a023: 停止可能排队的引擎切换（卸载后不再执行异步 initRenderer）
-  switching.value = false
-  pendingSwitchType.value = null
-
-  // a023: 遍历销毁两个缓存渲染器（而非只销毁当前渲染器），销毁后 ref 显式置空
-  const cachedRenderers = [olRenderer.value, cesiumRenderer.value]
-  cachedRenderers.forEach((r) => {
-    if (r) {
-      try {
-        r.destroy()
-      } catch (e) {
-        if (import.meta.env.DEV) logger.warn('[UnifiedMap] 渲染器销毁失败:', e)
-      }
-    }
-  })
-  olRenderer.value = null
-  cesiumRenderer.value = null
-  currentRenderer.value = null
-  cesiumInitialized.value = false
-
-  // a023: store 悬空引用清除
-  mapStore.setCurrentRenderer(null)
+  if (currentRenderer.value) {
+    currentRenderer.value.destroy()
+    currentRenderer.value = null
+  }
 })
 
 defineExpose({

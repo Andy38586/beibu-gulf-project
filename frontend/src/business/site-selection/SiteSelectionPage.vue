@@ -172,6 +172,8 @@ function handleSelectXiaoqu(xq: ScoredXiaoqu): void {
   }
 
   selectedXiaoqu.value = normalizedXq
+  // z053: 从 PaginatedListPanel 上提至此（shared 不再依赖 stores）
+  mapStore.setSelectedXiaoqu(normalizedXq)
 }
 
 /** 收藏状态变化时同步方案ID */

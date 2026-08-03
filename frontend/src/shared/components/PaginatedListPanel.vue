@@ -42,7 +42,6 @@ import { useAuth } from '@/shared/composables/useAuth'
 import { usePlans } from '@/shared/composables/usePlans'
 import { showError } from '@/shared/utils/errorHandler'
 import { logger } from '@/shared/utils/logger'
-import { useMapStore } from '@/stores/mapStore'
 import type { SavedXiaoqu } from '@/types/plan'
 import type { ScoredXiaoqu } from '@/types/xiaoqu'
 
@@ -80,7 +79,6 @@ const { css } = useGCS()
 const { cell8px, cell16px, cell40px, fontSizeTitle, fontSizeBody, fontSizeSmall } = css
 const { createPlan, saveXiaoqu, removeXiaoqu } = usePlans()
 const { isAuthenticated } = useAuth()
-const mapStore = useMapStore()
 const { flyTo, startBreathing } = useMapControls()
 const router = useRouter()
 
@@ -253,10 +251,6 @@ function handleItemClick(item: ScoredXiaoqu) {
 
   // 仅在启用地图交互时执行地图操作
   if (props.mapInteraction) {
-    if (props.planType === 'site-selection') {
-      mapStore.setSelectedXiaoqu(normalizedItem)
-    }
-
     // 触发呼吸动画
     startBreathing(lng, lat)
 

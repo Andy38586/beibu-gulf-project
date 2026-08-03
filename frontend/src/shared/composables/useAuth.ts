@@ -2,14 +2,6 @@ import type { Ref } from 'vue'
 import { ref } from 'vue'
 
 import { logger } from '@/shared/utils/logger'
-import { useFloodState } from '@/stores/floodState'
-import { useForecastState } from '@/stores/forecastState'
-import { useMapStore } from '@/stores/mapStore'
-import { usePortImpactStore } from '@/stores/portImpactStore'
-import { useProfileStore } from '@/stores/profileStore'
-// 登出时重置全部业务 store，防止跨账号数据残留
-import { useSiteSelectionStateStore } from '@/stores/siteSelectionState'
-import { useWaterLevelStore } from '@/stores/waterLevelStore'
 import type { AuthResponse, User } from '@/types/api'
 import { userSchema } from '@/types/schemas'
 
@@ -125,7 +117,7 @@ function handleStorageChange(event: StorageEvent): void {
       // 其他标签页登出了，当前标签页也要登出
       user.value = null
       clearToken()
-      resetBusinessStores()
+      resetHandler()
     } else {
       // 其他标签页登录了，当前标签页也要同步
       try {
@@ -143,21 +135,12 @@ function handleStorageChange(event: StorageEvent): void {
   }
 }
 
-// 登出时重置全部业务 store，防止跨账号数据残留
-function resetBusinessStores(): void {
-  try {
-    useSiteSelectionStateStore().clearState()
-    useFloodState().clearState()
-    usePortImpactStore().resetPortImpact()
-    useWaterLevelStore().resetWaterLevel()
-    useProfileStore().resetProfile()
-    // b035+b043: 重置地图业务交互状态，清 analysisHandler 闭包与 sessionStorage
-    useMapStore().resetMapState()
-    // b036: 预测页状态复位（含 dataCache 清空）
-    useForecastState().reset()
-  } catch {
-    // store 未激活等异常不阻断登出
-  }
+// z053: store 重置逻辑上提，useAuth 不依赖 stores 层
+// 由 App.vue 注册实际的 store 重置函数
+export type ResetHandler = () => void
+let resetHandler: ResetHandler = () => {}
+export function setResetStoresHandler(handler: ResetHandler): void {
+  resetHandler = handler
 }
 
 /**
@@ -228,7 +211,7 @@ export function useAuth() {
       writeStoredUser(null)
       // 重置认证恢复标志，允许下次重新恢复
       authRestored = false
-      resetBusinessStores()
+      resetHandler()
     }
   }
 

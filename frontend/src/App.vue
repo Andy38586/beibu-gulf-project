@@ -17,10 +17,17 @@ import ErrorBoundary from '@/shared/components/ErrorBoundary.vue'
 import {
   initAuthStorageListener,
   removeAuthStorageListener,
+  setResetStoresHandler,
   useAuth,
 } from '@/shared/composables/useAuth'
 import { logger } from '@/shared/utils/logger'
+import { useFloodState } from '@/stores/floodState'
+import { useForecastState } from '@/stores/forecastState'
 import { useMapStore } from '@/stores/mapStore'
+import { usePortImpactStore } from '@/stores/portImpactStore'
+import { useProfileStore } from '@/stores/profileStore'
+import { useSiteSelectionStateStore } from '@/stores/siteSelectionState'
+import { useWaterLevelStore } from '@/stores/waterLevelStore'
 import type { TypeSetting } from '@/types/facility'
 import type { Plan } from '@/types/plan'
 
@@ -44,6 +51,24 @@ provide(MAP_STORE_KEY, mapStore)
 // 因为 RouterView 下的业务组件是 UnifiedMap 的兄弟节点，不是子节点
 const businessLayerManager = new BusinessLayerManager(mapStore)
 provide(BUSINESS_LAYER_MANAGER_KEY, businessLayerManager)
+
+// z053: 注册 store 重置 handler（登出/多标签页同步时调用）
+// useAuth 不再直接依赖 stores 层，由 App.vue（拥有 store 组合）注入重置逻辑
+setResetStoresHandler(() => {
+  try {
+    useSiteSelectionStateStore().clearState()
+    useFloodState().clearState()
+    usePortImpactStore().resetPortImpact()
+    useWaterLevelStore().resetWaterLevel()
+    useProfileStore().resetProfile()
+    // b035+b043: 重置地图业务交互状态，清 analysisHandler 闭包与 sessionStorage
+    useMapStore().resetMapState()
+    // b036: 预测页状态复位（含 dataCache 清空）
+    useForecastState().reset()
+  } catch {
+    // store 未激活等异常不阻断登出
+  }
+})
 
 function handleRequireLogin() {
   router.push('/profile')

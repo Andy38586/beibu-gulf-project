@@ -30,7 +30,14 @@ const btnHeightCss = computed(() => `${cellPixel.value * 0.8}px`) // 64px
 const labelFontSizeCss = computed(() => `${cellPixel.value * 0.175}px`) // 14px
 const iconFontSizeCss = computed(() => `${cellPixel.value * 0.2}px`) // 16px
 
-/** 图层按钮列表（按显示顺序） */
+/**
+ * 图层按钮列表（按显示顺序）
+ *
+ * @arch-note a030 (D-11=A): business 类条目（layerType 非空）的可见性以
+ * BusinessLayerManager._registry 为唯一权威源，catalog 仅作 reactivity 触发器。
+ * 切换引擎时 clearLayerCatalog 清空 catalog，reapplyAll 重建条目时 visible
+ * 从 registry 读取，杜绝双副本失步。base 类条目无 registry 副本，仍读 catalog。
+ */
 const layerButtons = computed(() => {
   // 优先按预定义顺序显示，未匹配的图层追加到末尾
   const order = [
@@ -57,7 +64,10 @@ const layerButtons = computed(() => {
   return [...ordered, ...extra].map((layer) => ({
     key: layer.key,
     label: layer.label,
-    active: layer.visible,
+    // a030: business 类条目读 registry 权威源；base 类读 catalog
+    active: layer.layerType
+      ? (businessLayerManager.getMeta(layer.key)?.visible ?? layer.visible)
+      : layer.visible,
   }))
 })
 
@@ -88,10 +98,14 @@ function handleToggle(key: string) {
   // 业务图层（有 layerType 字段，无 show/hide 回调）→ 走 Manager.setVisible
   const catalogEntry = layerCatalog.value.find((e: LayerEntry) => e.key === key)
   if (catalogEntry && catalogEntry.layerType) {
-    businessLayerManager.setVisible(key, !catalogEntry.visible)
+    // a030: 可见性以 registry 为权威源（catalog 可能与 registry 失步），
+    // 从 registry 读当前值再取反，避免 catalog 滞后导致 toggle 方向错误
+    const registryVisible = businessLayerManager.getMeta(key)?.visible
+    const currentVisible = registryVisible ?? catalogEntry.visible
+    businessLayerManager.setVisible(key, !currentVisible)
     return
   }
-  // 底图、边界、港口等旧机制图层 → 走原来的 toggleLayer
+  // 底图等旧机制图层 → 走原来的 toggleLayer
   toggleLayer(key)
 }
 </script>

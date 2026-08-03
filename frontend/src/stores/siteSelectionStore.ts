@@ -19,7 +19,7 @@ export interface SiteSelectionState {
  * 使用 createPersistedState 工厂提供统一的 saveState/consumeState/clearState API。
  * 快照数据整体存储于 persistedState，不再分散到各业务字段。
  */
-export const useSiteSelectionStore = defineStore('siteSelectionState', () => {
+export const useSiteSelectionStore = defineStore('siteSelection', () => {
   const persisted = createPersistedState<SiteSelectionState>()
 
   return {

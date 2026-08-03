@@ -12,7 +12,7 @@ import { useFloodStore } from '../floodStore'
  * - startFloodAnalysis
  * - saveState / consumeState（跨页面持久化快照）
  * - clearState
- * 经核对：本测试断言与真实 store 实现（frontend/src/stores/floodState.ts）一致。
+ * 经核对：本测试断言与真实 store 实现（frontend/src/stores/floodStore.ts）一致。
  */
 describe('useFloodStore', () => {
   beforeEach(() => {

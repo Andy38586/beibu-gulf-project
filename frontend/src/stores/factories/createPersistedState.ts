@@ -3,7 +3,7 @@ import { ref } from 'vue'
 
 /**
  * 跨页面持久化状态工厂
- * 提炼自 siteSelectionState / floodState 共同的 saveState/consumeState/clearState 模式。
+ * 提炼自 siteSelectionStore / floodStore 共同的 saveState/consumeState/clearState 模式。
  * 业务 store 通过组合此工厂获得统一的持久化 API，避免重复样板代码。
  * 语义：
  * - saveState(data): 写入快照，标记 hasPersistedState = true

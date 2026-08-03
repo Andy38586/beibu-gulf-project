@@ -73,7 +73,7 @@ export const useFloodStore = defineStore('flood', () => {
   // ─── 跨页面状态持久化 ──────────────────────────────────────
   /**
    * 保存当前分析状态（用于离开页面前快照）
-   * 与 siteSelectionState 不同：floodState 在保存快照时
+   * 与 siteSelectionStore 不同：floodStore 在保存快照时
    * 还需同步更新当前分析数据（floodStatistics 等），
    * 因此不能完全委托给工厂，而是用工厂管理快照部分。
    */

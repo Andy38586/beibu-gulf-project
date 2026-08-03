@@ -51,7 +51,7 @@ function handleRetry() {
 
 function handleLogin() {
   emit('close') // 先关闭弹窗
-  router.push('/profile') // 跳转到登录页
+  void router.push('/profile') // 跳转到登录页
 }
 </script>
 

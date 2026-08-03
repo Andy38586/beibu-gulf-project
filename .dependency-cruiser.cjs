@@ -38,10 +38,14 @@ module.exports = {
     },
     {
       name: 'renderers-cross-reference',
-      comment: '渲染器间不应互相引用（各自独立）',
+      comment: '渲染器间不应互相引用（OLRenderer 与 CesiumRenderer 各自独立；CesiumRenderer 内部 helper 不算互引）',
       severity: 'error',
-      from: { path: 'frontend/src/core/map/renderers/', pathNot: 'index\\.js' },
-      to: { path: 'frontend/src/core/map/renderers/', pathNot: '(MapRenderer|index\\.js)' },
+      from: { path: 'frontend/src/core/map/renderers/', pathNot: 'index\\.(js|ts)' },
+      to: {
+        path: 'frontend/src/core/map/renderers/',
+        pathNot:
+          '(MapRenderer|index\\.(js|ts)|CesiumWaterSurface|CesiumViewportCulling|CesiumLayerRegistrar|CesiumEvents)',
+      },
     },
     {
       name: 'stores-imports-business',

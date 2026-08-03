@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+
+import EmptyState from '@/shared/components/EmptyState.vue'
+
 import { useChartBase } from './composables/useChartBase'
 
 interface Props {
@@ -25,16 +29,39 @@ const { chartRef } = useChartBase(props, emit, 'bar', {
   itemStyle: { borderRadius: [4, 4, 0, 0] },
 })
 
+/**
+ * c029：series 为空或全空数据时显示统一 EmptyState 占位。
+ * chartRef 始终挂载（useECharts 流程不变），EmptyState 以 absolute 浮层覆盖。
+ */
+const hasData = computed(() => {
+  if (!props.series || props.series.length === 0) return false
+  return props.series.some((s) => s.data && s.data.length > 0)
+})
+
 defineExpose({ chartRef })
 </script>
 
 <template>
-  <div ref="chartRef" class="bar-chart"></div>
+  <div class="bar-chart-container">
+    <div ref="chartRef" class="bar-chart"></div>
+    <EmptyState v-if="!hasData" class="bar-chart-empty" />
+  </div>
 </template>
 
 <style scoped>
+.bar-chart-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
 .bar-chart {
   width: 100%;
   height: 100%;
+}
+
+.bar-chart-empty {
+  position: absolute;
+  inset: 0;
 }
 </style>

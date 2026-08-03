@@ -152,7 +152,7 @@ export function useForecastLayer(): UseForecastLayerReturn {
       manager.updateData(key, { data, options })
     } catch (e) {
       if (isAuthError(e)) {
-        handleAuthError(router)
+        void handleAuthError(router)
         return
       }
       if (import.meta.env.DEV) logger.debug('[useForecastLayer] 更新失败:', e)

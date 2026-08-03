@@ -133,10 +133,10 @@ async function loadTimeSeriesData(transactionId: number, signal: AbortSignal) {
   } catch (e) {
     logger.error('[ForecastPage] loadTimeSeriesData error:', e)
     if (isAuthError(e)) {
-      handleAuthError(router)
+      void handleAuthError(router)
       return
     }
-    showError(e, { fallback: '加载趋势数据失败' })
+    showError(e, { fallback: '加载趋势数据失败', retry: () => void doForecastUpdate() })
   }
 }
 
@@ -179,10 +179,10 @@ async function loadPortComparisonData(transactionId: number, signal: AbortSignal
   } catch (e) {
     logger.error('[ForecastPage] loadPortComparisonData error:', e)
     if (isAuthError(e)) {
-      handleAuthError(router)
+      void handleAuthError(router)
       return
     }
-    showError(e, { fallback: '加载对比数据失败' })
+    showError(e, { fallback: '加载对比数据失败', retry: () => void doForecastUpdate() })
   }
 }
 
@@ -192,7 +192,7 @@ watch(
     logger.debug('[ForecastPage] renderer watch triggered:', r ? 'renderer ready' : 'renderer null')
     if (r) {
       logger.debug('[ForecastPage] loading data...')
-      doForecastUpdate()
+      void doForecastUpdate()
     } else {
       logger.debug('[ForecastPage] renderer is null, waiting...')
     }

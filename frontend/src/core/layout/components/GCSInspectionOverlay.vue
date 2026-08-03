@@ -469,7 +469,11 @@ const alignmentStatus = computed(() => {
 
       <!-- 对齐问题列表 -->
       <div v-if="alignmentIssues.length > 0" class="issues-list">
-        <div v-for="(issue, index) in alignmentIssues" :key="index" class="issue-item">
+        <div
+          v-for="(issue, index) in alignmentIssues"
+          :key="`${issue.name}-${index}`"
+          class="issue-item"
+        >
           {{ issue.name }} {{ issue.field }}={{ issue.value }}px (expected {{ issue.expected }})
         </div>
       </div>

@@ -15,12 +15,13 @@ import { logger } from './logger'
  * @param {object} [options]
  * @param {string} [options.fallback] - 无法提取信息时的兜底文案
  * @param {boolean} [options.silent] - 静默模式（仅 console，不弹窗）
+ * @param {function} [options.retry] - c027: 重试回调。提供时用确认弹窗（带"重试"按钮）替代普通 toast
  */
 export function showError(
   error: unknown,
-  options: { fallback?: string; silent?: boolean } = {}
+  options: { fallback?: string; silent?: boolean; retry?: () => void } = {}
 ): void {
-  const { fallback = '操作失败，请稍后重试', silent = false } = options
+  const { fallback = '操作失败，请稍后重试', silent = false, retry } = options
 
   let message: string = fallback
 
@@ -39,7 +40,18 @@ export function showError(
   }
 
   if (!silent) {
-    ElMessage.error(message)
+    if (retry) {
+      // c027: 有重试回调时，用确认弹窗（带重试按钮）替代普通 toast
+      ElMessageBox.confirm(message, '加载失败', {
+        confirmButtonText: '重试',
+        cancelButtonText: '取消',
+        type: 'error',
+      })
+        .then(() => retry())
+        .catch(() => {})
+    } else {
+      ElMessage.error(message)
+    }
   }
 }
 
@@ -77,7 +89,7 @@ export async function handleAuthError(router: Router): Promise<void> {
   await auth.logout()
 
   if (router.currentRoute.value.path !== '/') {
-    router.push({ path: '/', query: { showLogin: '1' } })
+    void router.push({ path: '/', query: { showLogin: '1' } })
   }
 }
 

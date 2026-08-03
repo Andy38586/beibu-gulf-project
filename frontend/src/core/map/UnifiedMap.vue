@@ -350,7 +350,7 @@ async function switchMapType(newType: '2d' | '3d') {
     const pending = pendingSwitchType.value
     pendingSwitchType.value = null
     if (pending !== null) {
-      nextTick(() => switchMapType(pending))
+      void nextTick(() => switchMapType(pending))
     }
   }
 }

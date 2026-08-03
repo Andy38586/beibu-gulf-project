@@ -149,8 +149,8 @@ watch(
   () => mapStore.currentRenderer,
   (renderer) => {
     if (renderer) {
-      nextTick(() => {
-        registerFloodLayers()
+      void nextTick(() => {
+        void registerFloodLayers()
       })
     }
   },
@@ -233,8 +233,8 @@ watch(
       // 递增请求序号
       const seq = ++analysisSeq
       logger.debug('[Flood] 防抖结束，触发分析，水位:', newLevel, 'seq:', seq)
-      triggerFloodAnalysis(newLevel, seq)
-      triggerImpactAssessment(newLevel, seq)
+      void triggerFloodAnalysis(newLevel, seq)
+      void triggerImpactAssessment(newLevel, seq)
     }, ANALYSIS_DELAY)
   },
   { immediate: true }
@@ -279,7 +279,10 @@ async function triggerFloodAnalysis(waterLevel: number, seq: number) {
     // 在地图上渲染淹没范围
     renderFloodAreas(features as FloodFeature[])
   } catch (error) {
-    showError(error, { fallback: '淹没分析失败，请检查网络连接' })
+    showError(error, {
+      fallback: '淹没分析失败，请检查网络连接',
+      retry: () => void triggerFloodAnalysis(waterLevel, seq),
+    })
     logger.error('[Flood] 淹没分析失败:', error)
   }
 }
@@ -316,7 +319,10 @@ async function triggerImpactAssessment(waterLevel: number, seq: number) {
     // 在地图上渲染受影响设施
     renderAffectedFacilities(affectedFacilities as AffectedFacility[])
   } catch (error) {
-    showError(error, { fallback: '影响评估失败，请检查网络连接' })
+    showError(error, {
+      fallback: '影响评估失败，请检查网络连接',
+      retry: () => void triggerImpactAssessment(waterLevel, seq),
+    })
     logger.error('[Flood] 影响评估失败:', error)
   }
 }

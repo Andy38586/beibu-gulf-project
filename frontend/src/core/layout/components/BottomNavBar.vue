@@ -60,7 +60,7 @@ function isActive(item: { path?: string }) {
 
 function handleClick(item: { path?: string; disabled?: boolean }) {
   if (item.disabled || !item.path) return
-  router.push(item.path)
+  void router.push(item.path)
 }
 </script>
 

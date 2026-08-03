@@ -82,7 +82,7 @@ registerNavItems([
 ])
 
 function handleRequireLogin() {
-  router.push('/profile')
+  void router.push('/profile')
 }
 
 // 等待渲染器就绪后再执行缩放
@@ -163,7 +163,7 @@ watch(
 onMounted(() => {
   // 应用启动时恢复认证状态
   // 通过 /api/auth/me 验证 Cookie 中的 Token 是否有效
-  restoreAuth()
+  void restoreAuth()
   // 单点注册多标签页 storage 同步监听（无需组件上下文，不会抛错）
   initAuthStorageListener()
 })

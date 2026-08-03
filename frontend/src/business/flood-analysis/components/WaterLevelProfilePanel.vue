@@ -150,7 +150,7 @@ async function loadProfiles() {
     }
   } catch (error) {
     logger.error('加载剖面线失败:', error)
-    showError(error, { fallback: '加载剖面线数据失败' })
+    showError(error, { fallback: '加载剖面线数据失败', retry: () => void loadProfiles() })
   }
 }
 
@@ -305,7 +305,7 @@ watch(
  * 组件挂载时初始化
  */
 onMounted(() => {
-  loadProfiles()
+  void loadProfiles()
   initChart()
 
   // 监听窗口大小变化

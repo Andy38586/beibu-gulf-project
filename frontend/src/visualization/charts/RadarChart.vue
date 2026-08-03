@@ -109,7 +109,7 @@ watch(
   () => props.visible,
   (val) => {
     if (val) {
-      nextTick(() => renderRadar())
+      void nextTick(() => renderRadar())
     }
   }
 )
@@ -119,7 +119,7 @@ watch(
   ([newXiaoqu, newTypes, newPoi]) => {
     logger.debug('[RadarChart] 数据变化:', { xiaoqu: newXiaoqu, types: newTypes, poi: newPoi })
     setupResizeObserver()
-    nextTick(() => renderRadar())
+    void nextTick(() => renderRadar())
   },
   {
     flush: 'post',

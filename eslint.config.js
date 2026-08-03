@@ -16,7 +16,7 @@ export default defineConfig([
 
   // 任何以 dist 开头的构建产物目录都跳过（dist / dist-ssr / dist-tmp / dist_verify_* 等），
   // 避免把打包后的第三方库（Cesium/echarts/openlayers）和 chunk 误当源码 lint。
-  globalIgnores(['**/dist*/**', '**/coverage/**', '**/node_modules/**']),
+  globalIgnores(['**/dist*/**', '**/coverage/**', '**/node_modules/**', '**/.venv/**']),
 
   {
     languageOptions: {
@@ -97,6 +97,7 @@ export default defineConfig([
       parserOptions: {
         ecmaVersion: 2022,
         sourceType: 'module',
+        project: './frontend/tsconfig.app.json',
       },
     },
   },
@@ -110,6 +111,7 @@ export default defineConfig([
         ecmaVersion: 2022,
         sourceType: 'module',
         extraFileExtensions: ['.vue'],
+        project: './frontend/tsconfig.app.json',
       },
     },
   },
@@ -148,6 +150,23 @@ export default defineConfig([
       'no-console': process.env.NODE_ENV === 'production' ? 'error' : 'warn',
       'no-empty': 'off',
       'no-useless-assignment': 'off',
+      // z069: prefer-const 强制未重新赋值的 let 改 const（纯机械替换，可 --fix）
+      // 存量已清零（2026-08-03）。批次7 完工后已升 error。
+      'prefer-const': 'error',
+      // z070: vue/no-ref-as-operand 检测 ref 漏 .value（运行时 bug）。
+      // 存量为 0（2026-08-03 摸底无违规），直接 error 阻断新增。
+      'vue/no-ref-as-operand': 'error',
+      // z056: no-floating-promises 见下方 typed-linting 专属块（仅 .ts/.vue）
+    },
+  },
+
+  {
+    // z056: no-floating-promises 需要 typed linting（parserOptions.project）。
+    // 仅对 .ts/.vue 启用（已在上方对应块设置 project）；.js/.cjs 无类型信息不启用。
+    // 存量 26 处已清零（2026-08-03），升 error 阻断新增。
+    files: ['**/*.ts', '**/*.tsx', '**/*.vue'],
+    rules: {
+      '@typescript-eslint/no-floating-promises': 'error',
     },
   },
 

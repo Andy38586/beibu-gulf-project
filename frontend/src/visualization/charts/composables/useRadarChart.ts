@@ -266,7 +266,7 @@ export function useRadarChart({
     resizeObserver?.disconnect()
     if (chartRef) {
       resizeObserver = new ResizeObserver(() => {
-        nextTick(() => renderRadar())
+        void nextTick(() => renderRadar())
       })
       resizeObserver.observe(chartRef)
     }

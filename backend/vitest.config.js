@@ -7,5 +7,19 @@ export default defineConfig({
     environment: 'node',
     globals: true,
     include: ['**/*.test.js'],
+    coverage: {
+      provider: 'v8',
+      include: ['**/*.js'],
+      exclude: [
+        'node_modules/**',
+        '**/__tests__/**',
+        '**/*.test.js',
+        'vitest.config.js',
+        'coverage/**',
+      ],
+      reporter: ['text-summary', 'html', 'lcov', 'json-summary'],
+      reportOnFailure: true,
+      thresholds: { lines: 50, functions: 45, branches: 50, statements: 50 },
+    },
   },
 })

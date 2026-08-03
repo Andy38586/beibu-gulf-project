@@ -162,7 +162,7 @@ function handleLoadPlan(plan: Plan) {
   }
   restorePlanData.value = plan.typeSettings || {}
   editingPlan.value = plan
-  router.push('/site-selection')
+  void router.push('/site-selection')
 }
 
 /**
@@ -222,7 +222,7 @@ function loadFloodPlan(plan: Plan) {
     affectedFacilities,
     totalLoss: plan.totalLoss as number,
   })
-  router.push('/flood-analysis')
+  void router.push('/flood-analysis')
 }
 
 /**
@@ -287,7 +287,7 @@ watch(
   () => user.value,
   (newUser) => {
     if (newUser) {
-      loadPlans()
+      void loadPlans()
     } else {
       plansList.value = []
       plansError.value = ''

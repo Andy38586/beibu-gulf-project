@@ -54,7 +54,7 @@ export function useScreenActions(): UseScreenActionsReturn {
    * 回到首页
    */
   function goHome(): void {
-    router.push('/')
+    void router.push('/')
   }
 
   /**
@@ -64,14 +64,14 @@ export function useScreenActions(): UseScreenActionsReturn {
    */
   function goProfileOrBack(): void {
     if (isHome.value) {
-      router.push('/profile')
+      void router.push('/profile')
       return
     }
     // 历史栈存在上一页则返回，否则回到首页
     if (window.history.state?.back) {
-      router.back()
+      void router.back()
     } else {
-      router.push('/')
+      void router.push('/')
     }
   }
 

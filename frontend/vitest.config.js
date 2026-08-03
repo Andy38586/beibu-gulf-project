@@ -9,6 +9,20 @@ export default defineConfig({
     globals: true,
     coverage: {
       provider: 'v8',
+      include: ['src/**/*.{ts,vue}'],
+      exclude: [
+        'src/**/*.d.ts',
+        'src/**/__tests__/**',
+        'src/**/*.test.ts',
+        'src/mock/**',
+        'src/types/**',
+        'src/env.d.ts',
+        'src/auto-imports.d.ts',
+        'src/components.d.ts',
+      ],
+      reporter: ['text-summary', 'html', 'lcov', 'json-summary'],
+      reportOnFailure: true,
+      thresholds: { lines: 25, functions: 20, branches: 15, statements: 25 },
     },
   },
   resolve: {

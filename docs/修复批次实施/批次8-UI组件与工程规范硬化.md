@@ -30,7 +30,7 @@ c006/z033 已提供 refresh 能力，但数据消费组件 error 分支普遍缺
 2. 手工：断网触发错误 → 点重试 → 恢复后数据加载成功。
 
 ### 完成检查
-- [ ] 独立 commit：`feat(c027): 数据错误态补重试按钮（复用现有 refresh）`
+- [x] 独立 commit：`feat(c027): 数据错误态补重试按钮（复用现有 refresh）`
 
 ---
 
@@ -50,7 +50,7 @@ c006/z033 已提供 refresh 能力，但数据消费组件 error 分支普遍缺
 2. 开发审查工具打开 GCS 检查面板无渲染告警。
 
 ### 完成检查
-- [ ] 独立 commit：`fix(c028): GCSInspectionOverlay 列表 key 改唯一复合键`
+- [x] 独立 commit：`fix(c028): GCSInspectionOverlay 列表 key 改唯一复合键`
 
 ---
 
@@ -77,7 +77,7 @@ withDefaults(defineProps<{ message?: string }>(), { message: '暂无数据' })
 2. 手工：预测页/洪涝页无数据时显示"暂无数据"占位。
 
 ### 完成检查
-- [ ] 独立 commit：`feat(c029): 统一 EmptyState 组件并接入图表空态`
+- [x] 独立 commit：`feat(c029): 统一 EmptyState 组件并接入图表空态`
 
 ---
 
@@ -140,7 +140,7 @@ withDefaults(defineProps<{ message?: string }>(), { message: '暂无数据' })
 2. typecheck 不受影响。
 
 ### 完成检查
-- [ ] 独立 commit：`chore(z056): 启用 no-floating-promises 并清理存量浮动 Promise`
+- [x] 独立 commit：`chore(z056): 启用 no-floating-promises 并清理存量浮动 Promise`
 
 ---
 
@@ -171,11 +171,11 @@ coverage: {
 2. CI YAML 语法正确。
 
 ### 完成检查
-- [ ] 独立 commit：`ci(z057): vitest coverage 阈值 + CI 跑 coverage`
+- [x] 独立 commit：`ci(z057): vitest coverage 阈值 + CI 跑 coverage`
 
 ---
 
-## Part 8 · z064（P2）无集成/E2E 测试 —— ⏸️ 等 D-16
+## Part 8 · z064（P2）无集成/E2E 测试 —— ⏸️ 暂缓（D-16=C 用户决策）
 
 ### 现状（审计）
 仅单元测试；无集成测试目录、无 E2E 框架。

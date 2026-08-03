@@ -132,7 +132,7 @@ async function toggleFavorite(item: ScoredXiaoqu) {
       type: 'warning',
     })
       .then(() => {
-        router.push('/profile')
+        void router.push('/profile')
       })
       .catch(() => {})
     return

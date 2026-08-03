@@ -9,7 +9,7 @@ import { clearStaticCache, loadStatic } from '@/shared'
 import { logger } from '@/shared'
 import { unwrapEnvelope } from '@/shared'
 import type { Port } from '@/types'
-import { isInBeibuGulf } from '@/types/crs'
+import { isInBeibuGulf } from '@/shared'
 
 /**
  * 静态资源 fetch 收口 loadStatic。

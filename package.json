@@ -15,7 +15,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "build:analyze": "cd frontend && vite build --mode analyze",
-    "cruise": "dependency-cruiser -c .dependency-cruiser.cjs -T err frontend/src",
+    "cruise": "dependency-cruiser -c .dependency-cruiser.cjs -T err frontend/src backend",
     "dev:express": "npm --prefix backend run dev",
     "dev:flood": "node tools/run-flood.cjs",
     "dev:server": "run-p dev:express dev:flood",

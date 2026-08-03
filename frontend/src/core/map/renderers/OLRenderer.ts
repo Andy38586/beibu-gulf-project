@@ -24,7 +24,7 @@ import { buildTiandituUrl, heightToZoom, MAP_CONFIG } from '@/core/config/map'
 import { LAYER_DEFAULTS } from '@/shared'
 import { logger } from '@/shared'
 import { createSpatialIndex, VIEWPORT_CULL_THRESHOLD } from '@/shared'
-import { normalizePoint } from '@/types/crs'
+import { normalizePoint } from '@/shared'
 
 import { MapRenderer } from './MapRenderer'
 

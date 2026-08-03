@@ -83,6 +83,15 @@ module.exports = {
       to: { path: '^frontend/src/business/' },
     },
     {
+      name: 'types-not-import-shared',
+      comment:
+        '分层契约（架构审查收口）：types/ 为纯类型层,禁止 import shared 运行时工具——' +
+        '曾发生 types/crs.ts 引 logger 的反向依赖（normalizePoint 等已移 shared/utils/crs）。',
+      severity: 'error',
+      from: { path: '^frontend/src/types/' },
+      to: { path: '^frontend/src/shared/' },
+    },
+    {
       name: 'no-circular',
       severity: 'error',
       comment: '禁止循环依赖（z055 升级 error）',

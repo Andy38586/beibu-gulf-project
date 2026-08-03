@@ -1,0 +1,16 @@
+// shared/index.ts — 公开 API 入口
+// components/ 不 re-export（Vue 组件保持直接路径 import）
+export * from './composables/useApiRequest'
+export * from './composables/useAsyncData'
+export * from './composables/useAuth'
+export * from './composables/usePlans'
+export * from './constants/colors'
+export * from './constants/forecast'
+export * from './layout/config'
+export * from './layout/useGCS'
+export * from './utils/errorHandler'
+export * from './utils/facilityLabels'
+export * from './utils/loadStatic'
+export * from './utils/logger'
+export * from './utils/responseEnvelope'
+export * from './utils/spatialIndex'

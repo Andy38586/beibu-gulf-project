@@ -13,11 +13,11 @@
  */
 import type { InjectionKey, Ref } from 'vue'
 
-import type { FlyToOptions, FlyToTarget } from '@/types'
 import type { MapRenderer } from '@/core/map/renderers/MapRenderer'
-import type { Plan } from '@/types/plan'
+import type { useMapStore } from '@/stores'
+import type { FlyToOptions, FlyToTarget } from '@/types'
 import type { TypeSetting } from '@/types/facility'
-import type { useMapStore } from '@/stores/mapStore'
+import type { Plan } from '@/types/plan'
 
 /** UnifiedMap 组件通过 defineExpose 暴露的地图控制接口（与 UnifiedMap.vue 暴露成员一致） */
 export interface UnifiedMapExposed {

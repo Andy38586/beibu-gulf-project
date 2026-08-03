@@ -14,8 +14,8 @@ import {
 } from 'cesium'
 
 import { buildTiandituUrl, MAP_CONFIG, zoomToHeight } from '@/core/config/map'
-import { LAYER_DEFAULTS } from '@/shared/constants/colors'
-import { logger } from '@/shared/utils/logger'
+import { LAYER_DEFAULTS } from '@/shared'
+import { logger } from '@/shared'
 
 import { destroyEvents, setupCameraDebounce, setupClickHandler } from './CesiumEvents'
 import {

@@ -17,9 +17,9 @@
 import type { FeatureCollection } from 'geojson'
 
 import { MAP_CONFIG } from '@/core/config/map'
-import { LAYER_DEFAULTS } from '@/shared/constants/colors'
-import { loadStatic } from '@/shared/utils/loadStatic'
-import { logger } from '@/shared/utils/logger'
+import { LAYER_DEFAULTS } from '@/shared'
+import { loadStatic } from '@/shared'
+import { logger } from '@/shared'
 import type { LayerOptions } from '@/types'
 import { boundaryCacheSchema } from '@/types/schemas'
 

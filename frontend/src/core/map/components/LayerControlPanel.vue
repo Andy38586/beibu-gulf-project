@@ -15,7 +15,7 @@ import { computed } from 'vue'
 
 import { useBusinessLayers } from '@/core/map/composables/useBusinessLayers'
 import { useLayerManager } from '@/core/map/composables/useLayerManager'
-import { useGCS } from '@/shared/layout/useGCS.js'
+import { useGCS } from '@/shared'
 import type { LayerEntry } from '@/types'
 
 const { layerCatalog, toggleLayer } = useLayerManager()

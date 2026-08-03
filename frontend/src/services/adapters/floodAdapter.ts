@@ -6,9 +6,9 @@
  * 无需关心数据来自 Mock 还是真实 API/数据库。
  */
 
-import { useApiRequest } from '@/shared/composables/useApiRequest'
-import { loadStatic } from '@/shared/utils/loadStatic'
-import { logger } from '@/shared/utils/logger'
+import { useApiRequest } from '@/shared'
+import { loadStatic } from '@/shared'
+import { logger } from '@/shared'
 import type { AffectedFacility, FloodFeature, FloodStatistics } from '@/types/business/base'
 import { floodOnlineResponseSchema } from '@/types/schemas'
 

@@ -10,7 +10,7 @@
 import { fromLonLat } from 'ol/proj'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { VIEWPORT_CULL_THRESHOLD } from '@/shared/utils/spatialIndex'
+import { VIEWPORT_CULL_THRESHOLD } from '@/shared'
 
 // ==================== Mock ol/Map 与 ol/View ====================
 const moveendListeners: Array<{ type: string; listener: (...args: unknown[]) => void }> = []

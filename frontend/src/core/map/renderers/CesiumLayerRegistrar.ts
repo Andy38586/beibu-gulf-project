@@ -26,8 +26,8 @@ import {
   SingleTileImageryProvider,
 } from 'cesium'
 
-import { LAYER_DEFAULTS } from '@/shared/constants/colors'
-import { logger } from '@/shared/utils/logger'
+import { LAYER_DEFAULTS } from '@/shared'
+import { logger } from '@/shared'
 
 /**
  * 添加点图层（含视口裁剪：>1000 Entity 时仅渲染视口内要素）

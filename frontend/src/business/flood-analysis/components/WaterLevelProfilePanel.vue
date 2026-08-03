@@ -25,13 +25,13 @@ import * as echarts from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 
-import { useApiRequest } from '@/shared/composables/useApiRequest'
-import { PROFILE_COLORS } from '@/shared/constants/colors'
-import { useGCS } from '@/shared/layout/useGCS.js'
-import { showError } from '@/shared/utils/errorHandler'
-import { logger } from '@/shared/utils/logger'
-import { useProfileStore } from '@/stores/profileStore'
-import { useWaterLevelStore } from '@/stores/waterLevelStore'
+import { useApiRequest } from '@/shared'
+import { PROFILE_COLORS } from '@/shared'
+import { useGCS } from '@/shared'
+import { showError } from '@/shared'
+import { logger } from '@/shared'
+import { useProfileStore } from '@/stores'
+import { useWaterLevelStore } from '@/stores'
 
 /**
  * ECharts tooltip formatter 参数（axis 触发时为数组）。

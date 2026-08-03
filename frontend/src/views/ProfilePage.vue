@@ -20,16 +20,16 @@
 import { computed, inject, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
+import { EDITING_PLAN_KEY, RESTORE_PLAN_DATA_KEY } from '@/core'
 import AppLayout from '@/core/layout/AppLayout.vue'
 import GCSPanel from '@/core/layout/components/GCSPanel.vue'
-import { EDITING_PLAN_KEY, RESTORE_PLAN_DATA_KEY } from '@/core/provideKeys'
+import { useAuth } from '@/shared'
+import { usePlans } from '@/shared'
+import { useGCS } from '@/shared'
+import { logger } from '@/shared'
 import PaginatedListPanel from '@/shared/components/PaginatedListPanel.vue'
 import PlanSaveModal from '@/shared/components/PlanSaveModal.vue'
-import { useAuth } from '@/shared/composables/useAuth'
-import { usePlans } from '@/shared/composables/usePlans'
-import { useGCS } from '@/shared/layout/useGCS.js'
-import { logger } from '@/shared/utils/logger'
-import { useFloodState } from '@/stores/floodState'
+import { useFloodState } from '@/stores'
 
 import LoginPanel from './LoginPanel.vue'
 

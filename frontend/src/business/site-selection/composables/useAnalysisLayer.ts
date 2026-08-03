@@ -1,8 +1,8 @@
 import type { Feature, FeatureCollection, Geometry } from 'geojson'
 
-import type { BusinessLayerManager } from '@/core/map/BusinessLayerManager'
-import { FACILITY_COLORS } from '@/shared/constants/colors'
-import { logger } from '@/shared/utils/logger'
+import type { BusinessLayerManager } from '@/core'
+import { FACILITY_COLORS } from '@/shared'
+import { logger } from '@/shared'
 import type { AnalysisResult, LayerOptions, ScoredXiaoqu } from '@/types'
 
 export function buildCoverageGeoJson(

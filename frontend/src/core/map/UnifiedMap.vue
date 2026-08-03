@@ -10,10 +10,10 @@ import { MapRendererKey } from '@/core/map/composables/useMapRenderer'
 import { buildPortGeoJson, loadPorts, PORT_STYLE } from '@/core/map/composables/usePortLayer'
 import { createRenderer } from '@/core/map/renderers'
 import type { MapRenderer } from '@/core/map/renderers/MapRenderer'
-import { CELL_PIXEL } from '@/shared/layout/config.js'
-import { useGCS } from '@/shared/layout/useGCS.js'
-import { logger } from '@/shared/utils/logger'
-import { useMapStore } from '@/stores/mapStore'
+import { CELL_PIXEL } from '@/shared'
+import { useGCS } from '@/shared'
+import { logger } from '@/shared'
+import { useMapStore } from '@/stores'
 import type {
   FlyToOptions,
   FlyToTarget,

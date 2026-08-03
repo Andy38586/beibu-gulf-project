@@ -1,9 +1,13 @@
 import type { FeatureCollection } from 'geojson'
 
+// 收口例外：MAP_CONFIG 走深路径 @/core/config/map 而非 @/core。
+// 原因：core/index.ts re-export usePortLayer → usePortLayer 依赖 @/services → services/index.ts
+// re-export mapDataService → 若 mapDataService 再走 @/core 会形成 core↔services 循环依赖（no-circular）。
+// @/core/config/map 是无反向依赖的叶子配置模块，直接 import 安全。
 import { MAP_CONFIG } from '@/core/config/map'
-import { clearStaticCache, loadStatic } from '@/shared/utils/loadStatic'
-import { logger } from '@/shared/utils/logger'
-import { unwrapEnvelope } from '@/shared/utils/responseEnvelope'
+import { clearStaticCache, loadStatic } from '@/shared'
+import { logger } from '@/shared'
+import { unwrapEnvelope } from '@/shared'
 import type { Port } from '@/types'
 import { isInBeibuGulf } from '@/types/crs'
 

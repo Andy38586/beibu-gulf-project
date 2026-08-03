@@ -9,7 +9,7 @@
 import { computed } from 'vue'
 
 import AppLayout from '@/core/layout/AppLayout.vue'
-import { useMapStore } from '@/stores/mapStore'
+import { useMapStore } from '@/stores'
 import PortInfoPanel from '@/visualization/panels/PortInfoPanel.vue'
 
 const mapStore = useMapStore()

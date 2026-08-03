@@ -3,7 +3,7 @@
 // 按钮三态：默认(白) → 选择(蓝,滑块,3s自动确认) → 已选(白+重要程度标签)
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 
-import { showWarning } from '@/shared/utils/errorHandler'
+import { showWarning } from '@/shared'
 import type { AnalysisResult, FacilityType, TypeSetting } from '@/types/analysis'
 
 import { FACILITY_CONFIG } from '../composables/facilityConfig'

@@ -18,9 +18,9 @@ import { CanvasRenderer } from 'echarts/renderers'
 import type { Ref } from 'vue'
 import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 
-import { FACILITY_COLORS_MAP } from '@/shared/constants/colors'
-import { FACILITY_LABELS } from '@/shared/utils/facilityLabels'
-import { logger } from '@/shared/utils/logger'
+import { FACILITY_COLORS_MAP } from '@/shared'
+import { FACILITY_LABELS } from '@/shared'
+import { logger } from '@/shared'
 import type { FacilityPoint } from '@/types/facility'
 import type { ScoredXiaoqu } from '@/types/xiaoqu'
 

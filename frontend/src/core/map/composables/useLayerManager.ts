@@ -3,8 +3,8 @@ import { computed, inject } from 'vue'
 
 import type { MapRenderer } from '@/core/map/renderers/MapRenderer'
 import { MAP_STORE_KEY } from '@/core/provideKeys'
-import { logger } from '@/shared/utils/logger'
-import { useMapStore } from '@/stores/mapStore'
+import { logger } from '@/shared'
+import { useMapStore } from '@/stores'
 import type { LayerEntry, ToggleableHandler } from '@/types'
 
 /** mapStore 实例类型（由 useMapStore 推断） */

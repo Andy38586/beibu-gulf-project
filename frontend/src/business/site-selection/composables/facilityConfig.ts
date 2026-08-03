@@ -8,8 +8,8 @@
  *   visualization 层重复的标签常量；business → shared 合法，不违反分层红线）。
  */
 
-import { FACILITY_COLORS_MAP } from '@/shared/constants/colors'
-import { FACILITY_LABELS } from '@/shared/utils/facilityLabels'
+import { FACILITY_COLORS_MAP } from '@/shared'
+import { FACILITY_LABELS } from '@/shared'
 import type { FacilityConfigMap } from '@/types'
 
 export const FACILITY_CONFIG: FacilityConfigMap = {

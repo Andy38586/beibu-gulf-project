@@ -1,5 +1,5 @@
 // 天地图 KEY 仅从环境变量读取，缺失时显式报错
-import { logger } from '@/shared/utils/logger'
+import { logger } from '@/shared'
 
 const TIANDITU_KEY: string = import.meta.env.VITE_TIANDITU_KEY
 if (!TIANDITU_KEY) {

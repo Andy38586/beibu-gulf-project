@@ -21,9 +21,9 @@ import { Circle, Fill, Stroke, Style, Text } from 'ol/style'
 import View from 'ol/View'
 
 import { buildTiandituUrl, heightToZoom, MAP_CONFIG } from '@/core/config/map'
-import { LAYER_DEFAULTS } from '@/shared/constants/colors'
-import { logger } from '@/shared/utils/logger'
-import { createSpatialIndex, VIEWPORT_CULL_THRESHOLD } from '@/shared/utils/spatialIndex'
+import { LAYER_DEFAULTS } from '@/shared'
+import { logger } from '@/shared'
+import { createSpatialIndex, VIEWPORT_CULL_THRESHOLD } from '@/shared'
 import { normalizePoint } from '@/types/crs'
 
 import { MapRenderer } from './MapRenderer'

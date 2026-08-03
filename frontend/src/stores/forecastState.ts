@@ -4,7 +4,7 @@ import { computed, ref, shallowRef } from 'vue'
 
 // 分层铁律：stores → business 禁止引。DEFAULT_CONFIDENCE 是 store 初始化所需共享常量，
 // 故从 shared/constants 取（business/forecast/constants 已 re-export 同源值）。
-import { BASE_YEAR, DEFAULT_CONFIDENCE, END_YEAR } from '@/shared/constants/forecast'
+import { BASE_YEAR, DEFAULT_CONFIDENCE, END_YEAR } from '@/shared'
 import type { ForecastSeries } from '@/types/api/forecast'
 import type { ConfidenceThresholds, ForecastTimeRange } from '@/types/business/base'
 

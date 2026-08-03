@@ -2,8 +2,8 @@ import type { Ref } from 'vue'
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 
-import { useApiRequest } from '@/shared/composables/useApiRequest'
-import { handleAuthError, isAuthError, showError } from '@/shared/utils/errorHandler'
+import { useApiRequest } from '@/shared'
+import { handleAuthError, isAuthError, showError } from '@/shared'
 import type { AnalysisParams, AnalysisResult } from '@/types/analysis'
 
 export function useSiteAnalysisApi() {

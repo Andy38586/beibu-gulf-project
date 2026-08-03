@@ -12,9 +12,9 @@
 
 import { computed } from 'vue'
 
-import { useGCS } from '@/shared/layout/useGCS.js'
-import { useFloodState } from '@/stores/floodState'
-import { usePortImpactStore } from '@/stores/portImpactStore'
+import { useGCS } from '@/shared'
+import { useFloodState } from '@/stores'
+import { usePortImpactStore } from '@/stores'
 
 const floodStore = useFloodState()
 const portImpactStore = usePortImpactStore()

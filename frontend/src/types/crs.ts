@@ -10,7 +10,7 @@
  * 字段名约定：全项目统一使用 lng/lat（不用 lon/longitude）
  */
 
-import { logger } from '@/shared/utils/logger'
+import { logger } from '@/shared'
 
 /** 支持的坐标参考系统 */
 export type CRS = 'EPSG:4326' | 'EPSG:4490' | 'EPSG:3857' | 'EPSG:4547'

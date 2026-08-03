@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import type { Ref, ShallowRef } from 'vue'
 import { ref, shallowRef } from 'vue'
 
-import { logger } from '@/shared/utils/logger'
+import { logger } from '@/shared'
 import type { LayerEntry, LayerType, MapType, Port, RegisterLayerOptions } from '@/types'
 import type { MapRenderer } from '@/types'
 import type { ScoredXiaoqu } from '@/types'

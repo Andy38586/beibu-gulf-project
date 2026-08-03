@@ -14,7 +14,7 @@
  */
 import { describe, expect, it, vi } from 'vitest'
 
-import { LAYER_ADAPTERS } from '@/core/map/layerAdapters'
+import { LAYER_ADAPTERS } from '@/core'
 import type { MapRenderer } from '@/types'
 
 describe('P0-2 洪涝受影响设施 — points adapter 契约（点数组）', () => {

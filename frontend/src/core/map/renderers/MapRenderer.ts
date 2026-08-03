@@ -1,6 +1,6 @@
 import type { FeatureCollection } from 'geojson'
 
-import { logger } from '@/shared/utils/logger'
+import { logger } from '@/shared'
 import type {
   CameraState,
   FlyToOptions,

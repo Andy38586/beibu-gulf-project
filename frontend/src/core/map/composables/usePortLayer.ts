@@ -1,8 +1,8 @@
 import type { FeatureCollection } from 'geojson'
 
-import { mapDataService } from '@/services/mapDataService'
-import { FACILITY_COLORS } from '@/shared/constants/colors'
-import { logger } from '@/shared/utils/logger'
+import { mapDataService } from '@/services'
+import { FACILITY_COLORS } from '@/shared'
+import { logger } from '@/shared'
 import type { LayerOptions, Port } from '@/types'
 
 export async function loadPorts(): Promise<Port[]> {

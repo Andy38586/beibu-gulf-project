@@ -2,32 +2,32 @@
 import { onMounted, onUnmounted, provide, ref, watch } from 'vue'
 import { RouterView, useRoute, useRouter } from 'vue-router'
 
-import { BusinessLayerManager } from '@/core/map/BusinessLayerManager'
-import { BUSINESS_LAYER_MANAGER_KEY } from '@/core/map/composables/useBusinessLayers'
-import { useMapControls } from '@/core/map/composables/useMapControls'
-import UnifiedMap from '@/core/map/UnifiedMap.vue'
+import { BusinessLayerManager } from '@/core'
+import { BUSINESS_LAYER_MANAGER_KEY } from '@/core'
+import { useMapControls } from '@/core'
 import {
   EDITING_PLAN_KEY,
   MAP_STORE_KEY,
   RESTORE_PLAN_DATA_KEY,
   UNIFIED_MAP_KEY,
   type UnifiedMapExposed,
-} from '@/core/provideKeys'
-import ErrorBoundary from '@/shared/components/ErrorBoundary.vue'
+} from '@/core'
+import UnifiedMap from '@/core/map/UnifiedMap.vue'
 import {
   initAuthStorageListener,
   removeAuthStorageListener,
   setResetStoresHandler,
   useAuth,
-} from '@/shared/composables/useAuth'
-import { logger } from '@/shared/utils/logger'
-import { useFloodState } from '@/stores/floodState'
-import { useForecastState } from '@/stores/forecastState'
-import { useMapStore } from '@/stores/mapStore'
-import { usePortImpactStore } from '@/stores/portImpactStore'
-import { useProfileStore } from '@/stores/profileStore'
-import { useSiteSelectionStateStore } from '@/stores/siteSelectionState'
-import { useWaterLevelStore } from '@/stores/waterLevelStore'
+} from '@/shared'
+import { logger } from '@/shared'
+import ErrorBoundary from '@/shared/components/ErrorBoundary.vue'
+import { useFloodState } from '@/stores'
+import { useForecastState } from '@/stores'
+import { useMapStore } from '@/stores'
+import { usePortImpactStore } from '@/stores'
+import { useProfileStore } from '@/stores'
+import { useSiteSelectionStateStore } from '@/stores'
+import { useWaterLevelStore } from '@/stores'
 import type { TypeSetting } from '@/types/facility'
 import type { Plan } from '@/types/plan'
 

@@ -17,7 +17,7 @@ import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { useMapControls } from '@/core/map/composables/useMapControls'
-import { useAuth } from '@/shared/composables/useAuth'
+import { useAuth } from '@/shared'
 
 /** 城市坐标配置（北部湾三港） */
 interface CityCenter {

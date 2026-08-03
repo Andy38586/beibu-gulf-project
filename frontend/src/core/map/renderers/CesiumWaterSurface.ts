@@ -17,8 +17,8 @@ import {
   Primitive,
 } from 'cesium'
 
-import { LAYER_DEFAULTS } from '@/shared/constants/colors'
-import { logger } from '@/shared/utils/logger'
+import { LAYER_DEFAULTS } from '@/shared'
+import { logger } from '@/shared'
 
 /** 水面状态条目 */
 interface WaterSurfaceEntry {

@@ -19,8 +19,8 @@
  */
 import { computed, type ComputedRef } from 'vue'
 
-import { ApiError, ErrorCode } from '@/shared/composables/useApiRequest'
-import { useForecastState } from '@/stores/forecastState'
+import { ApiError, ErrorCode } from '@/shared'
+import { useForecastState } from '@/stores'
 
 export function useForecastRequest() {
   const forecastState = useForecastState()

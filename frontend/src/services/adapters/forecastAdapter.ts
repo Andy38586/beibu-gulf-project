@@ -14,8 +14,8 @@
  * 非 Array<{key,label,unit}>。后者是早期设计稿的设想，与真实 mock 不符，已校正。
  */
 
-import { useApiRequest } from '@/shared/composables/useApiRequest'
-import { loadStatic } from '@/shared/utils/loadStatic'
+import { useApiRequest } from '@/shared'
+import { loadStatic } from '@/shared'
 import type { ForecastSeries } from '@/types/api/forecast'
 
 import { resolveDataSource, setAdapterDataSource } from '../dataSourceConfig'

@@ -13,9 +13,9 @@
 
 import { computed } from 'vue'
 
-import { useMapControls } from '@/core/map/composables/useMapControls'
+import { useMapControls } from '@/core'
 import PaginatedListPanel from '@/shared/components/PaginatedListPanel.vue'
-import { usePortImpactStore } from '@/stores/portImpactStore'
+import { usePortImpactStore } from '@/stores'
 import type { ScoredXiaoqu } from '@/types/xiaoqu'
 
 const portImpactStore = usePortImpactStore()

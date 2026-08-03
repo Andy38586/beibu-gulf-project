@@ -8,9 +8,9 @@
 
 import { computed } from 'vue'
 
-import { FACILITY_COLORS_MAP } from '@/shared/constants/colors'
-import { useGCS } from '@/shared/layout/useGCS.js'
-import { FACILITY_LABELS } from '@/shared/utils/facilityLabels'
+import { FACILITY_COLORS_MAP } from '@/shared'
+import { useGCS } from '@/shared'
+import { FACILITY_LABELS } from '@/shared'
 
 interface Props {
   visible?: boolean

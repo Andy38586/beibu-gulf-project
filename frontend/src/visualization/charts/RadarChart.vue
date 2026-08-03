@@ -18,8 +18,8 @@
 
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 
-import { useGCS } from '@/shared/layout/useGCS.js'
-import { logger } from '@/shared/utils/logger'
+import { useGCS } from '@/shared'
+import { logger } from '@/shared'
 import type { FacilityPoint } from '@/types/facility'
 import type { ScoredXiaoqu } from '@/types/xiaoqu'
 

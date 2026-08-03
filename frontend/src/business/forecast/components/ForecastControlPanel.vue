@@ -6,8 +6,8 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, reactive } from 'vue'
 
-import { SYNTHETIC_INDICATORS } from '@/services/adapters/forecastAdapter'
-import { useForecastState } from '@/stores/forecastState'
+import { SYNTHETIC_INDICATORS } from '@/services'
+import { useForecastState } from '@/stores'
 
 import { BASE_YEAR, DEFAULT_CONFIDENCE, END_YEAR } from '../constants'
 

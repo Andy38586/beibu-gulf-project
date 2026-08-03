@@ -22,7 +22,7 @@
  * - updateData 不覆盖 visible 状态
  */
 
-import { logger } from '@/shared/utils/logger'
+import { logger } from '@/shared'
 import type { LayerEntry, LayerOptions, MapRenderer } from '@/types'
 import type { LayerType } from '@/types/core/layerManager'
 

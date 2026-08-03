@@ -8,7 +8,7 @@ import { BusinessLayerManager } from '@/core/map/BusinessLayerManager'
 import { BUSINESS_LAYER_MANAGER_KEY } from '@/core/map/composables/useBusinessLayers'
 import { buildPortGeoJson, PORT_STYLE } from '@/core/map/composables/usePortLayer'
 import { createRenderer } from '@/core/map/renderers'
-import { useMapStore } from '@/stores/mapStore'
+import { useMapStore } from '@/stores'
 import type { Port } from '@/types'
 
 import UnifiedMap from '../UnifiedMap.vue'

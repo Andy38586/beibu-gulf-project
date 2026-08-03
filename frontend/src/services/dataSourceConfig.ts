@@ -9,12 +9,12 @@
  * 使用方：forecastAdapter、floodAdapter、main.ts 初始化。
  */
 
-import { logger } from '@/shared/utils/logger'
+import { logger } from '@/shared'
 
 export type DataSourceMode = 'mock' | 'api' | 'online'
 
 /** 全局默认数据源（由 main.ts 在启动时经 adapter.setDataSource 驱动；此处默认值与代码默认 api 保持一致，D-1=A） */
-let globalDataSource: DataSourceMode = 'api'
+const globalDataSource: DataSourceMode = 'api'
 
 /** 各 adapter 的独立覆盖（未设置时回退到全局） */
 // @audit-note DAT-8：adapterOverrides 为「覆盖优先于全局」的运行时映射，当前一次性初始化

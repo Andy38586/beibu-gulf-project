@@ -18,7 +18,7 @@ import { flushPromises, shallowMount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { useMapStore } from '@/stores/mapStore'
+import { useMapStore } from '@/stores'
 
 const h = vi.hoisted(() => {
   const mockManager = {

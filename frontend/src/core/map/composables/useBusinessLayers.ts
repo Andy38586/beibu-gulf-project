@@ -13,7 +13,7 @@ import type { InjectionKey } from 'vue'
 import { inject } from 'vue'
 
 import type { BusinessLayerManager } from '@/core/map/BusinessLayerManager'
-import { logger } from '@/shared/utils/logger'
+import { logger } from '@/shared'
 
 /**
  * useBusinessLayers 返回的 manager 形态

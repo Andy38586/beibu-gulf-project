@@ -82,10 +82,19 @@ const DEM_HILLSHADE_LAYER_ID = 'dem-hillshade'
 // 业务代码无需修改：adapter 按 dataSource 自动切换取数来源。
 let cachedWaterAreaCoords: [number, number][] | null = null
 
-async function loadWaterAreaCoordinates() {
+// b046: 水域坐标加载链路健壮性——原实现无 try/catch（getWaterArea 抛错 → 未捕获 rejection）、
+// 不传 signal（不可取消）。现失败降级 null（水面图层跳过,其余图层照常）;signal 支持卸载取消。
+async function loadWaterAreaCoordinates(signal?: AbortSignal): Promise<[number, number][] | null> {
   if (cachedWaterAreaCoords) return cachedWaterAreaCoords
-  cachedWaterAreaCoords = await floodAdapter.getWaterArea()
-  return cachedWaterAreaCoords
+  try {
+    cachedWaterAreaCoords = await floodAdapter.getWaterArea(signal)
+    return cachedWaterAreaCoords
+  } catch (error) {
+    if (!signal?.aborted) {
+      logger.warn('[FloodAnalysisPage] 水域坐标加载失败，水面图层跳过:', error)
+    }
+    return null
+  }
 }
 
 /** 图层是否已注册（防止重复注册） */
@@ -94,22 +103,24 @@ let floodLayersRegistered = false
 // 注册业务图层到 BusinessLayerManager
 // 首次 register 只建 catalog 条目，不渲染（数据尚未就绪）
 // API 返回数据后通过 updateData 渲染
-async function registerFloodLayers() {
+async function registerFloodLayers(signal?: AbortSignal) {
   if (floodLayersRegistered) return
 
-  const waterCoords = await loadWaterAreaCoordinates()
+  const waterCoords = await loadWaterAreaCoordinates(signal)
   if (unmounted) return
 
   floodLayersRegistered = true
 
-  // 水面图层
-  businessLayerManager.register(WATER_SURFACE_ID, {
-    label: '水面',
-    layerType: 'waterSurface',
-    data: { coordinates: waterCoords, height: waterLevelStore.waterLevel },
-    options: { color: 'rgba(64, 158, 255, 0.5)' },
-    visible: true,
-  })
+  // 水面图层（b046: 坐标加载失败时跳过注册——避免空坐标渲染）
+  if (waterCoords) {
+    businessLayerManager.register(WATER_SURFACE_ID, {
+      label: '水面',
+      layerType: 'waterSurface',
+      data: { coordinates: waterCoords, height: waterLevelStore.waterLevel },
+      options: { color: 'rgba(64, 158, 255, 0.5)' },
+      visible: true,
+    })
+  }
 
   // 淹没范围图层（无初始数据，等待 API 返回）
   businessLayerManager.register(FLOOD_LAYER_ID, {
@@ -147,7 +158,8 @@ watch(
   (renderer) => {
     if (renderer) {
       void nextTick(() => {
-        void registerFloodLayers()
+        // b046: 透传 abort signal,卸载时中止在途水域坐标请求
+        void registerFloodLayers(floodAbortController?.signal)
       })
     }
   },

@@ -205,7 +205,8 @@ export const floodAdapter = {
     setAdapterDataSource(ADAPTER_NAME, mode)
   },
 
-  async getWaterArea(): Promise<[number, number][]> {
+  // b046: 增加 signal 参数——水域坐标请求可随组件卸载/新请求取消
+  async getWaterArea(signal?: AbortSignal): Promise<[number, number][]> {
     if (resolveDataSource(ADAPTER_NAME) === 'mock') {
       return _fetchMockWaterArea()
     }
@@ -213,6 +214,7 @@ export const floodAdapter = {
     // 数据与前端 water-area.json 同源，前后端共用同一份静态坐标）。
     const coords = await apiRequest<[number, number][]>('/flood/water-area', {
       schema: waterAreaSchema,
+      signal,
     })
     return coords
   },

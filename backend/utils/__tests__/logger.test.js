@@ -19,11 +19,10 @@ beforeAll(async () => {
 })
 
 afterEach(async () => {
-  await rm(LOG_DIR, { recursive: true, force: true })
-  await mkdtemp(join(tmpdir(), 'gcs-log-')).then((d) => {
-    LOG_DIR = d
-    process.env.LOG_DIR = d
-  })
+  // d062: 清空 LOG_DIR 内文件，但不替换目录——logger 模块在 import 时已捕获 LOG_DIR 常量，
+  // 替换目录会导致 logger 仍写旧目录而测试读新目录（files[0] 为 undefined）。
+  const files = await readdir(LOG_DIR).catch(() => [])
+  await Promise.all(files.map((f) => rm(join(LOG_DIR, f), { force: true })))
 })
 
 describe('logger (d062) 文件化 + 轮转', () => {
@@ -40,15 +39,21 @@ describe('logger (d062) 文件化 + 轮转', () => {
   it('error 落盘含 [ERROR]', async () => {
     await appendLogLine('error', ['boom', { code: 500 }])
     const files = await readdir(LOG_DIR)
-    const content = await readFile(join(LOG_DIR, files[0]), 'utf-8')
+    const logFile = files.find((f) => f.startsWith('app-') && f.endsWith('.log'))
+    expect(logFile).toBeDefined()
+    const content = await readFile(join(LOG_DIR, logFile), 'utf-8')
     expect(content).toContain('[ERROR]')
     expect(content).toContain('"code":500')
   })
 
   it('logger.warn 公共 API 可用并落盘', async () => {
     logger.warn('via public api')
+    // emit 内部 fire-and-forget 调 appendLogLine（异步 I/O），需等待落盘完成再读
+    await new Promise((r) => setTimeout(r, 100))
     const files = await readdir(LOG_DIR)
-    const content = await readFile(join(LOG_DIR, files[0]), 'utf-8')
+    const logFile = files.find((f) => f.startsWith('app-') && f.endsWith('.log'))
+    expect(logFile).toBeDefined()
+    const content = await readFile(join(LOG_DIR, logFile), 'utf-8')
     expect(content).toContain('via public api')
   })
 })

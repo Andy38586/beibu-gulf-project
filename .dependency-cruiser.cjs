@@ -92,6 +92,15 @@ module.exports = {
       to: { path: '^frontend/src/shared/' },
     },
     {
+      name: 'services-not-import-core',
+      comment:
+        '分层契约：services 禁止 import core。唯一例外为叶子配置 core/config/map' +
+        '（mapDataService 深路径引用,走 @/core 会形成 core↔services 循环,详见该文件注释）。',
+      severity: 'error',
+      from: { path: '^frontend/src/services/' },
+      to: { path: '^frontend/src/core/', pathNot: '^frontend/src/core/config/map' },
+    },
+    {
       name: 'no-circular',
       severity: 'error',
       comment: '禁止循环依赖（z055 升级 error）',

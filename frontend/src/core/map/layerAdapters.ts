@@ -57,6 +57,12 @@ interface LayerAdapter {
   create: (renderer: MapRenderer, key: string, data: unknown, options: LayerOptions) => void
   update: (renderer: MapRenderer, key: string, data: unknown, options: LayerOptions) => void
   remove: (renderer: MapRenderer, key: string) => void
+  /**
+   * 可选显隐分派（P0-4）。
+   * 默认走 renderer.setVisibility（_layers 内图层）；特殊图层（如水面存于
+   * _waterSurfaces 而非 _layers）提供此分支直接委派,避免落入 _pendingVisibility 失效。
+   */
+  setVisibility?: (renderer: MapRenderer, key: string, visible: boolean) => void
 }
 
 export const LAYER_ADAPTERS: Record<LayerType, LayerAdapter> = {
@@ -142,6 +148,12 @@ export const LAYER_ADAPTERS: Record<LayerType, LayerAdapter> = {
     remove: (renderer, key) => {
       if (!isWater3DCapable(renderer)) return
       renderer.removeWaterSurface(key)
+    },
+    // P0-4: 水面不在 renderer._layers（存于 _waterSurfaces）,默认 setVisibility 会落入
+    // _pendingVisibility 永不生效——此处直接委派 setWaterSurfaceVisibility
+    setVisibility: (renderer, key, visible) => {
+      if (!isWater3DCapable(renderer)) return
+      renderer.setWaterSurfaceVisibility(key, visible)
     },
   },
 

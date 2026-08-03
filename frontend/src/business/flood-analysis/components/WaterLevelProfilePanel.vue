@@ -31,6 +31,7 @@ import { showError } from '@/shared'
 import { logger } from '@/shared'
 import { useProfileStore } from '@/stores'
 import { useWaterLevelStore } from '@/stores'
+import { terrainProfileSchema } from '@/types/schemas'
 
 /**
  * ECharts tooltip formatter 参数（axis 触发时为数组）。
@@ -135,7 +136,9 @@ const chartContainerRef = ref<HTMLElement | null>(null)
  */
 async function loadProfiles() {
   try {
-    const result = await apiRequest<TerrainProfile[]>('/flood/terrain-profiles')
+    const result = await apiRequest<TerrainProfile[]>('/flood/terrain-profiles', {
+      schema: terrainProfileSchema,
+    })
 
     if (result && Array.isArray(result)) {
       profiles.value = result

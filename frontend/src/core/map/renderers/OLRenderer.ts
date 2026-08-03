@@ -661,7 +661,9 @@ export class OLRenderer extends MapRenderer {
     }
   }
   getType() {
-    return 'ol'
+    // P0-1: 返回 '2d'（与 MapType 一致）——原 'ol' 导致 switchMapType 的 oldType 与
+    // v-show 的 mapType === '2d'/'3d' 比较错位（回滚 setMapType('ol') 白屏、同类型短路死代码）
+    return '2d'
   }
   getMap() {
     return this.map

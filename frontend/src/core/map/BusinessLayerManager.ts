@@ -149,9 +149,18 @@ export class BusinessLayerManager {
     // 可见 → 更新图层
     const renderer = this._getRenderer()
     if (renderer) {
-      perfTimeFn(`layer:update:${meta.layerType}`, () =>
-        adapter.update(renderer, key, meta.data, meta.options)
-      )
+      // P0-3: 图层实例缺失（注册时 data 为 null 跳过了 create,如 forecast 热力图
+      // `data: null` 注册后数据到达）时补建,否则 adapter.update 因无 entry 直接失败,
+      // 图层永不上屏（预测页热力图首屏缺失的根因）
+      if (meta.data != null && !renderer.hasLayer(key)) {
+        perfTimeFn(`layer:create:${meta.layerType}`, () =>
+          adapter.create(renderer, key, meta.data, meta.options)
+        )
+      } else {
+        perfTimeFn(`layer:update:${meta.layerType}`, () =>
+          adapter.update(renderer, key, meta.data, meta.options)
+        )
+      }
     }
   }
 
@@ -208,9 +217,14 @@ export class BusinessLayerManager {
     const renderer = this._getRenderer()
     if (!renderer) return
 
-    // 用 renderer.setVisibility 来显隐，不销毁图层
-    // 图层数据仍保留在 renderer 内部，toggle 回来时直接可见
-    renderer.setVisibility(key, visible)
+    // P0-4: 特殊图层（waterSurface 存于 _waterSurfaces 而非 _layers）经 adapter 分派,
+    // 其余走 renderer.setVisibility 显隐（不销毁图层,数据保留, toggle 回来直接可见）
+    const adapter = this._getAdapter(meta.layerType)
+    if (adapter?.setVisibility) {
+      adapter.setVisibility(renderer, key, visible)
+    } else {
+      renderer.setVisibility(key, visible)
+    }
   }
 
   /**

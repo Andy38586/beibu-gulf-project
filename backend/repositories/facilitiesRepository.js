@@ -3,6 +3,8 @@ import fs from 'fs/promises'
 import path from 'path'
 import { fileURLToPath } from 'url'
 
+import { createReadCache } from '../utils/createReadCache.js'
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 const FILE_MAP = {
@@ -15,19 +17,16 @@ const FILE_MAP = {
   xiaoqu: 'site-selection/xiaoqu.json',
 }
 
-const cache = new Map()
-// 缓存加 TTL（5 分钟），过期自动重载
-const CACHE_TTL = 5 * 60 * 1000
+// 统一只读缓存（createReadCache：TTL + LRU 上限,数据流收口②）
+const cache = createReadCache({ maxSize: 20 })
 
 async function readJsonFile(filename) {
   const cached = cache.get(filename)
-  if (cached && Date.now() - cached.cachedAt < CACHE_TTL) {
-    return cached.data
-  }
+  if (cached !== undefined) return cached
   const filePath = path.join(__dirname, '../data', filename)
   const content = await fs.readFile(filePath, 'utf-8')
   const data = JSON.parse(content)
-  cache.set(filename, { data, cachedAt: Date.now() })
+  cache.set(filename, data)
   return data
 }
 

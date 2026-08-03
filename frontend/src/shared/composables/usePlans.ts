@@ -6,6 +6,7 @@ import { handleAuthError, isAuthError } from '@/shared/utils/errorHandler'
 import { logger } from '@/shared/utils/logger'
 import type { TypeSetting } from '@/types/facility'
 import type { Plan } from '@/types/plan'
+import { planSchema } from '@/types/schemas'
 import type { SavedXiaoqu } from '@/types/xiaoqu'
 
 import { useApiRequest } from './useApiRequest'
@@ -17,11 +18,20 @@ export function usePlans() {
   const updating: Ref<boolean> = ref(false)
   const loading: Ref<boolean> = ref(false)
   const deleting: Ref<boolean> = ref(false)
+  // P0-5: 在途请求取消句柄——getPlans 读操作可取消（新请求 abort 旧 + 组件卸载 cancel）；
+  // 写操作（create/update/delete）不打断,避免误取消已提交的写请求
+  let abortController: AbortController | null = null
 
   async function getPlans(): Promise<Plan[]> {
+    abortController?.abort()
+    const controller = new AbortController()
+    abortController = controller
     loading.value = true
     try {
-      const data = await apiRequest<Plan[]>('/plans')
+      const data = await apiRequest<Plan[]>('/plans', {
+        schema: planSchema.array(),
+        signal: controller.signal,
+      })
       // 类型验证
       if (!Array.isArray(data)) {
         throw new Error('方案列表数据格式无效')
@@ -38,7 +48,15 @@ export function usePlans() {
       throw error
     } finally {
       loading.value = false
+      if (abortController === controller) abortController = null
     }
+  }
+
+  /** P0-5: 取消在途 getPlans 请求（供组件 onUnmounted 调用） */
+  function cancel(): void {
+    abortController?.abort()
+    abortController = null
+    loading.value = false
   }
 
   async function createPlan(
@@ -60,6 +78,7 @@ export function usePlans() {
       return await apiRequest<Plan>('/plans', {
         method: 'POST',
         body: JSON.stringify({ name, selectedKeys, typeSettings: settings }),
+        schema: planSchema,
       })
     } catch (error) {
       // 401（Cookie 过期但前端 token 未同步）：统一走软登录提示
@@ -118,6 +137,7 @@ export function usePlans() {
       return await apiRequest<Plan>(`/plans/${id}`, {
         method: 'PUT',
         body: JSON.stringify({ name, selectedKeys, typeSettings: settings }),
+        schema: planSchema,
       })
     } catch (error) {
       if (isAuthError(error)) {
@@ -142,6 +162,7 @@ export function usePlans() {
       return await apiRequest<Plan>(`/plans/${planId}/xiaoqu`, {
         method: 'POST',
         body: JSON.stringify({ xiaoqu }),
+        schema: planSchema,
       })
     } catch (error) {
       if (isAuthError(error)) {
@@ -159,6 +180,7 @@ export function usePlans() {
     try {
       return await apiRequest<Plan>(`/plans/${planId}/xiaoqu/${xiaoquId}`, {
         method: 'DELETE',
+        schema: planSchema,
       })
     } catch (error) {
       if (isAuthError(error)) {
@@ -179,6 +201,7 @@ export function usePlans() {
     deletePlan,
     saveXiaoqu,
     removeXiaoqu,
+    cancel,
     saving,
     updating,
     loading,

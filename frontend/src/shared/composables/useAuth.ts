@@ -3,7 +3,7 @@ import { ref } from 'vue'
 
 import { logger } from '@/shared/utils/logger'
 import type { AuthResponse, User } from '@/types/api'
-import { userSchema } from '@/types/schemas'
+import { authResponseSchema, userSchema } from '@/types/schemas'
 
 import { useApiRequest } from './useApiRequest'
 
@@ -63,7 +63,7 @@ async function checkAuth(): Promise<User | null> {
   // 使用显式布尔转换
   if (token.value === '') return null
   try {
-    const data = await apiRequest<{ user: User }>('/auth/me')
+    const data = await apiRequest<{ user: User }>('/auth/me', { schema: authResponseSchema })
     // 空值检查
     if (!data || !data.user) {
       throw new Error('认证响应数据无效')
@@ -90,7 +90,7 @@ async function restoreAuth(): Promise<User | null> {
   authRestored = true
 
   try {
-    const data = await apiRequest<{ user: User }>('/auth/me')
+    const data = await apiRequest<{ user: User }>('/auth/me', { schema: authResponseSchema })
     if (data && data.user) {
       user.value = data.user
       writeStoredUser(data.user)
@@ -168,6 +168,7 @@ export function useAuth() {
     const data = await apiRequest<AuthResponse>('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ username, password }),
+      schema: authResponseSchema,
     })
     if (!data || !data.user) {
       throw new Error('登录响应数据无效')
@@ -183,6 +184,7 @@ export function useAuth() {
     const data = await apiRequest<AuthResponse>('/auth/register', {
       method: 'POST',
       body: JSON.stringify({ username, password }),
+      schema: authResponseSchema,
     })
     if (!data || !data.user) {
       throw new Error('注册响应数据无效')

@@ -2,6 +2,7 @@ import { readFile } from 'fs/promises'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { computeForecast, generateSpatialValues } from './forecastEngine.js'
+import { createReadCache } from '../utils/createReadCache.js'
 import { BusinessError, ErrorCode } from '../utils/BusinessError.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -41,31 +42,20 @@ async function readDataFile(filename) {
 }
 
 // 缓存引擎计算结果，场景参数变化时失效。
-// 加 MAX_CACHE_SIZE 上限防止匿名攻击者枚举 confidence 制造内存放大。
-// 缓存条目增加 cachedAt 时间戳，超过 CACHE_TTL_MS 自动重算，
-// 避免 data/forecast/*.json 更新后缓存永不失效（返回陈旧预测）。LRU 逐出仍保留。
-const engineCache = new Map()
-const CACHE_TTL_MS = 5 * 60 * 1000
+// 统一只读缓存（createReadCache：TTL + LRU 上限,数据流收口②）。
+// 上限防匿名攻击者枚举 confidence 制造内存放大；TTL 避免 data/forecast/*.json
+// 更新后缓存永不失效（返回陈旧预测）。上限值见顶部 MAX_CACHE_SIZE。
+const engineCache = createReadCache({ maxSize: MAX_CACHE_SIZE })
 
 function getCacheKey(indicator, scenarioLevel) {
   return `${indicator}:${scenarioLevel}`
-}
-
-function _evictOldest() {
-  const firstKey = engineCache.keys().next().value
-  if (firstKey) engineCache.delete(firstKey)
 }
 
 async function getOrComputeForecast(indicator, scenarioLevel) {
   validateIndicator(indicator)
   const key = getCacheKey(indicator, scenarioLevel)
   const hit = engineCache.get(key)
-  if (hit) {
-    // TTL 命中则复用；过期则重算（下方会刷新时间戳）
-    if (Date.now() - hit.cachedAt < CACHE_TTL_MS) {
-      return hit.data
-    }
-  }
+  if (hit !== undefined) return hit
 
   const data = await readDataFile(indicator + '.json')
   const result = { indicator: data.indicator, unit: data.unit, ports: {} }
@@ -87,11 +77,7 @@ async function getOrComputeForecast(indicator, scenarioLevel) {
     }
   }
 
-  // 缓存上限保护
-  if (engineCache.size >= MAX_CACHE_SIZE) {
-    _evictOldest()
-  }
-  engineCache.set(key, { data: result, cachedAt: Date.now() })
+  engineCache.set(key, result)
   return result
 }
 

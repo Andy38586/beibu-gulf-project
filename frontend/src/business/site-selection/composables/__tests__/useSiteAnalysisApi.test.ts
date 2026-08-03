@@ -50,7 +50,7 @@ describe('useSiteAnalysisApi', () => {
   describe('analyze 成功路径', () => {
     it('正常返回分析结果并复位 calculating', async () => {
       mockFetch.mockResolvedValueOnce(
-        envelopeResponse({ coverage: null, matchedXiaoqu: [], facilityPoi: {} })
+        envelopeResponse({ error: null, coverage: null, matchedXiaoqu: [], facilityPoi: {} })
       )
       const { analyze, calculating } = useSiteAnalysisApi()
 
@@ -64,7 +64,7 @@ describe('useSiteAnalysisApi', () => {
     })
 
     it('接口返回业务 error 时写入 calcError', async () => {
-      mockFetch.mockResolvedValueOnce(envelopeResponse({ error: '参数不足' }))
+      mockFetch.mockResolvedValueOnce(envelopeResponse({ error: '参数不足', coverage: null }))
       const { analyze, calcError } = useSiteAnalysisApi()
 
       const result = await analyze(ANALYSIS_PARAMS)

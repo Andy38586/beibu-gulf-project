@@ -8,7 +8,7 @@
  * EDITING_PLAN_KEY 由 App.vue 顶层 provide，此处 inject 拿到同一 ref 引用，赋值对
  * 主页面/目标业务页可见。
  */
-import { inject, ref, watch } from 'vue'
+import { inject, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { EDITING_PLAN_KEY, RESTORE_PLAN_DATA_KEY } from '@/core'
@@ -28,11 +28,17 @@ const {
   updatePlan,
   getPlans,
   deletePlan,
+  cancel: cancelPlansRequest,
   loading: plansLoading,
   deleting: plansDeleting,
 } = usePlans()
 const { user } = useAuth()
 const floodStore = useFloodStore()
+
+// P0-5: 组件卸载时取消在途 getPlans 请求,避免迟到响应写入已卸载组件
+onUnmounted(() => {
+  cancelPlansRequest()
+})
 
 const restorePlanData = inject(RESTORE_PLAN_DATA_KEY, ref<Record<string, TypeSetting> | null>(null))
 const editingPlan = inject(EDITING_PLAN_KEY, ref<Plan | null>(null))

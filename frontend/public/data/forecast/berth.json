@@ -680,7 +680,10 @@
             "type": "Feature",
             "geometry": {
               "type": "Point",
-              "coordinates": [108.62, 21.95]
+              "coordinates": [
+                108.62,
+                21.95
+              ]
             },
             "properties": {
               "portId": "qinzhou",
@@ -1425,7 +1428,10 @@
             "type": "Feature",
             "geometry": {
               "type": "Point",
-              "coordinates": [109.12, 21.48]
+              "coordinates": [
+                109.12,
+                21.48
+              ]
             },
             "properties": {
               "portId": "beihai",
@@ -2170,7 +2176,10 @@
             "type": "Feature",
             "geometry": {
               "type": "Point",
-              "coordinates": [108.35, 21.77]
+              "coordinates": [
+                108.35,
+                21.77
+              ]
             },
             "properties": {
               "portId": "fangchenggang",
@@ -2237,5 +2246,6 @@
         ]
       }
     }
-  }
+  },
+  "_contractVersion": 1
 }

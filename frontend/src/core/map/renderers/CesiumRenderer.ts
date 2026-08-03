@@ -658,7 +658,8 @@ export class CesiumRenderer extends MapRenderer {
   }
 
   getType() {
-    return 'cesium'
+    // P0-1: 返回 '3d'（与 MapType 一致）,理由同 OLRenderer
+    return '3d'
   }
 
   getViewer() {

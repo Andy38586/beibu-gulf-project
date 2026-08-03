@@ -307,6 +307,13 @@ async function switchMapType(newType: '2d' | '3d') {
       cameraState = currentRenderer.value.exportState()
     }
 
+    // P0-2: 3D→2D 时 unmount Cesium（暂停渲染 + 启动 30s 空闲销毁）。
+    // 30s 内切回 3D 由 mount() 的 _clearIdleDestroyTimer 取消销毁,不会误杀 Viewer。
+    if (oldType === '3d' && newType === '2d') {
+      const { cesiumViewerManager } = await import('@/core/map/renderers/CesiumRenderer')
+      cesiumViewerManager.unmount()
+    }
+
     if (mapStore.mapType !== newType) {
       mapStore.setMapType(newType)
     }

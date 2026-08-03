@@ -21,6 +21,7 @@
     "dev:server": "run-p dev:express dev:flood",
     "dev:all": "run-p dev dev:server",
     "forecast:model": "node tools/throughput_model.cjs",
+    "mock:contract": "node scripts/check-mock-contract.cjs",
     "prepare": "husky"
   },
   "dependencies": {

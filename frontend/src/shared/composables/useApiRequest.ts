@@ -40,7 +40,7 @@ function clearToken(): void {
 
 const isAuthenticated: ComputedRef<boolean> = computed(() => token.value !== '')
 
-interface RequestOptions<T = unknown> {
+interface RequestOptions {
   method?: string
   body?: string
   headers?: Record<string, string>
@@ -51,17 +51,25 @@ interface RequestOptions<T = unknown> {
    * 可选 zod schema，传入则对信封解包后的 data 做 safeParse 运行时校验，
    * 替代裸 `as T` 断言；不传入则保持 `as T` 行为（向后兼容）。
    * 校验失败抛 ApiError(REQUEST_FAILED)（不在重试码列表内，不会触发 z049 重试）。
+   *
+   * 类型说明：schema 输出声明为 ZodType<unknown> 而非 ZodType<T>——
+   * 校验只负责运行时形状把关（拒绝畸形响应），业务类型仍由 T 声明。
+   * 若强绑 ZodType<T>，宽松 schema（如 z.looseObject）的推断类型与业务
+   * interface 常因可选字段/嵌套 Record 不完全一致而编译失败（P0-1 接入实践）。
    */
-  schema?: ZodType<T>
+  schema?: ZodType<unknown>
+  /**
+   * 是否解包信封（{ code, data } → data）。
+   * 默认 true。跨服务调用（如 FastAPI /flood-online 返回裸 JSON 无信封）时
+   * 传 false 跳过解包——统一入口规则仍生效（禁止裸 fetch），仅信封契约不同。
+   */
+  envelope?: boolean
 }
 
 export function useApiRequest() {
   // token 为模块级单例，由 setToken/clearToken 维护，不在每次调用时重新加载
 
-  async function apiRequest<T = unknown>(
-    path: string,
-    options: RequestOptions<T> = {}
-  ): Promise<T> {
+  async function apiRequest<T = unknown>(path: string, options: RequestOptions = {}): Promise<T> {
     // GET 幂等请求在超时/网络错误时线性退避重试（POST 不重试，避免重复写操作）
     const MAX_RETRIES = 3
     const RETRYABLE_CODES: ErrorCodeValue[] = [ErrorCode.TIMEOUT, ErrorCode.NETWORK_ERROR]
@@ -94,7 +102,7 @@ export function useApiRequest() {
    * 仅负责 headers/params/超时/fetch/信封解包/错误映射，不含重试逻辑；
    * 每次调用新建 AbortController，超时计时天然重置，支持重试。
    */
-  async function _singleRequest<T = unknown>(path: string, options: RequestOptions<T>): Promise<T> {
+  async function _singleRequest<T = unknown>(path: string, options: RequestOptions): Promise<T> {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       ...options.headers,
@@ -171,8 +179,9 @@ export function useApiRequest() {
        * P1-1 响应契约收口：自动解包信封式响应。
        * 后端统一返回 { code, data }，此处经公共 unwrapEnvelope 提取 data 部分，
        * 调用方始终拿到业务数据 T，无需手动 .data（z063 抽出的唯一事实源）。
+       * 跨服务调用（FastAPI 裸 JSON）传 envelope: false 跳过解包。
        */
-      const unwrapped = unwrapEnvelope<T>(data)
+      const unwrapped = options.envelope === false ? (data as T) : unwrapEnvelope<T>(data)
 
       // 若调用方传入 schema，用 safeParse 替代裸 `as T` 断言做运行时校验。
       // 校验失败抛 ApiError(REQUEST_FAILED)，不在 z049 重试码列表内（响应数据错误不可重试）。
@@ -181,7 +190,7 @@ export function useApiRequest() {
         if (!result.success) {
           throw new ApiError('响应数据格式校验失败', ErrorCode.REQUEST_FAILED)
         }
-        return result.data
+        return result.data as T
       }
 
       return unwrapped

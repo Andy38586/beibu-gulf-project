@@ -14,6 +14,12 @@
 import { useApiRequest } from '@/shared'
 import { loadStatic } from '@/shared'
 import type { ForecastSeries } from '@/types/api/forecast'
+import {
+  forecastIndicatorIndexSchema,
+  forecastMapDataSchema,
+  indicatorComparisonResponseSchema,
+  timeSeriesResponseSchema,
+} from '@/types/schemas'
 
 import { resolveDataSource, setAdapterDataSource } from '../dataSourceConfig'
 
@@ -217,6 +223,7 @@ export const forecastAdapter = {
       method: 'GET',
       signal,
       params: { indicator, granularity, confidence },
+      schema: timeSeriesResponseSchema,
     })
     return resp
   },
@@ -253,6 +260,7 @@ export const forecastAdapter = {
       method: 'GET',
       signal,
       params: { time, confidence },
+      schema: indicatorComparisonResponseSchema,
     })
     return resp
   },
@@ -304,6 +312,7 @@ export const forecastAdapter = {
       method: 'GET',
       signal,
       params: { indicator, time, confidence },
+      schema: forecastMapDataSchema,
     })
     return resp
   },
@@ -344,6 +353,7 @@ export const forecastAdapter = {
     const { apiRequest } = useApiRequest()
     const resp = await apiRequest<ForecastIndicatorIndex>('/forecast/overview', {
       method: 'GET',
+      schema: forecastIndicatorIndexSchema,
     })
     return resp
   },

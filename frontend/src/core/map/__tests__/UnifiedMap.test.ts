@@ -80,7 +80,7 @@ vi.mock('@/core/map/renderers', () => {
     updateSize: vi.fn(),
     getMap: vi.fn().mockReturnValue({}),
     getViewer: vi.fn().mockReturnValue({}),
-    getType: vi.fn().mockReturnValue(type === '2d' ? 'ol' : 'cesium'),
+    getType: vi.fn().mockReturnValue(type === '2d' ? '2d' : '3d'),
   })
 
   const createRenderer = vi.fn((type) => createMockRenderer(type))

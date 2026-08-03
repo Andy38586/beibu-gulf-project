@@ -95,6 +95,27 @@ GIS 应用中，地图工具栏、分析面板、图例、详情卡片等组件�
 
 ---
 
+## 数据准备（DEM 与洪涝分析）
+
+洪涝分析模块依赖 ASTER GDEM 30m 真实栅格。仓库内的产物与 git 忽略的产物分工如下：
+
+| 文件 | 状态 | 用途 |
+|---|---|---|
+| `backend/static/dem/dem_hillshade.tif` | ✅ 已入 git（COG：6 级 overview + 512 分块 + LZW） | 2D 洪涝页「真实地形」图层，浏览器按 tile 拉取 |
+| `backend/static/dem/dem_hillshade.png` | ✅ 已入 git（5.8MB） | 3D 降级贴图（Cesium 无真 z 值，视觉明暗） |
+| `backend/data/flood/dem/filled_utm48n_cut.tif`（约 169MB） | 🚫 gitignored，需本地生成 | 洪涝 **online** 模式的连通性演算输入 |
+| `backend/data/flood/floodArea.json` 等 4 个 JSON | ✅ 已入 git（DEM 派生，3MB） | api/mock 模式的洪涝数据 |
+
+**clone 后注意事项**：`filled_utm48n_cut.tif`（169MB）不在仓库中。洪涝 **online** 模式（`VITE_DATA_SOURCE=online`）需先运行 DEM 流水线生成该文件；**mock / api** 模式不受影响，开箱即用。
+
+**DEM 生成流水线**：`tools/dem-pipeline/`（01-mosaic → 02-fill-sinks → 03-reproject-4326 → 04-generate-flood-data → 05-fix-facility-elevation）。脚本为 Windows PowerShell + QGIS GDAL 环境，且输入路径硬编码了本地目录（ASTER GDEM 30m 原始 tile），在其它机器上运行需按本机环境调整路径与 GDAL 位置。完整步骤见各脚本头部注释。
+
+**洪涝在线演算服务**（`backend/flood-service`，FastAPI + uvicorn，端口 8000）：
+- 首次运行需创建 Python venv 并安装依赖：`cd backend/flood-service && python -m venv .venv && .venv/Scripts/pip install -r requirements.txt`（Windows；macOS/Linux 将 `Scripts` 换为 `bin`）
+- 启动脚本 `npm run dev:flood` 已跨平台（`tools/run-flood.cjs` 自动按平台解析 venv 解释器）；Windows 下亦可直接运行 `backend/flood-service/start.bat`
+
+---
+
 ## 项目展示
 
 ### 选址分析页面

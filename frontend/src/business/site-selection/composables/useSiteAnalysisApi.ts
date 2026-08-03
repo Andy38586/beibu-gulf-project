@@ -2,13 +2,12 @@ import type { Ref } from 'vue'
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 
-import { useApiRequest } from '@/shared'
+import { siteAnalysisAdapter } from '@/services'
 import { handleAuthError, isAuthError, showError } from '@/shared'
 import type { AnalysisParams, AnalysisResult } from '@/types/analysis'
 
 export function useSiteAnalysisApi() {
   const router = useRouter()
-  const { apiRequest } = useApiRequest()
   const calculating: Ref<boolean> = ref(false)
   const calcError: Ref<string> = ref('')
   // 在途请求取消句柄；新请求优先取消旧请求，组件卸载时静默取消
@@ -23,11 +22,7 @@ export function useSiteAnalysisApi() {
     calcError.value = ''
     calculating.value = true
     try {
-      const result = await apiRequest<AnalysisResult>('/site-analysis', {
-        method: 'POST',
-        body: JSON.stringify(params),
-        signal: controller.signal,
-      })
+      const result = await siteAnalysisAdapter.analyze(params, controller.signal)
       if (result.error) {
         calcError.value = result.error
         return {

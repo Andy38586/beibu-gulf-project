@@ -8,8 +8,15 @@
 import { useApiRequest } from '@/shared'
 import { loadStatic } from '@/shared'
 import { logger } from '@/shared'
+import { unwrapEnvelope } from '@/shared'
 import type { AffectedFacility, FloodFeature, FloodStatistics } from '@/types/business/base'
-import { floodOnlineResponseSchema } from '@/types/schemas'
+import {
+  floodAreasResponseSchema,
+  floodDisasterResponseSchema,
+  floodOnlineResponseSchema,
+  floodStatisticsResponseSchema,
+  waterAreaSchema,
+} from '@/types/schemas'
 
 import { resolveDataSource, setAdapterDataSource } from '../dataSourceConfig'
 
@@ -159,6 +166,8 @@ function _riskLevelFromFlood(floodedKm2: number, level: number): string {
 }
 
 /** online 模式：调用 FastAPI 在线演算服务（vite proxy /flood-online → localhost:8000）
+ * 经统一入口 useApiRequest（envelope: false——FastAPI 返回裸 JSON 无信封,
+ * 统一入口规则仍生效,禁止裸 fetch）
  * 用 floodOnlineResponseSchema.safeParse 替代裸 `res.json() as {...}` 隐式断言 */
 async function _fetchOnlineFlood(
   waterLevel: number,
@@ -169,18 +178,17 @@ async function _fetchOnlineFlood(
   floodedKm2: number
   features: FloodFeature[]
 }> {
-  const res = await fetch(`/flood-online/api/flood/online?level=${waterLevel}`, { signal })
-  if (!res.ok) {
-    throw new Error(`[FloodAdapter] 在线演算服务异常: HTTP ${res.status}`)
-  }
-  const raw = await res.json()
-  const result = floodOnlineResponseSchema.safeParse(raw)
-  if (!result.success) {
-    logger.warn('[FloodAdapter] 在线演算响应数据校验失败:', result.error.issues)
-    throw new Error('[FloodAdapter] 在线演算响应数据格式校验失败')
-  }
+  const raw = await apiRequest<unknown>('/flood-online/api/flood/online', {
+    method: 'GET',
+    params: { level: waterLevel },
+    signal,
+    envelope: false,
+    // P0-1 统一入口：校验交给 apiRequest 的 schema 选项（envelope:false → 校验的是裸响应),
+    // 与其余 16 处 schema 接入保持一致,去掉手动 safeParse
+    schema: floodOnlineResponseSchema,
+  })
   // features 元素类型由下游 map+as FloodFeature[] 收窄（与原裸 `res.json()` 一致的元素处理）
-  return result.data as {
+  return raw as {
     level: number
     featureCount: number
     floodedKm2: number
@@ -203,7 +211,9 @@ export const floodAdapter = {
     }
     // api 模式：从后端只读端点获取水域坐标（D-4=A：后端 /flood/water-area 端点，
     // 数据与前端 water-area.json 同源，前后端共用同一份静态坐标）。
-    const coords = await apiRequest<[number, number][]>('/flood/water-area')
+    const coords = await apiRequest<[number, number][]>('/flood/water-area', {
+      schema: waterAreaSchema,
+    })
     return coords
   },
 
@@ -223,6 +233,9 @@ export const floodAdapter = {
         features,
         statistics: {
           totalArea: Math.round((data.floodedKm2 ?? 0) * 1e6), // km² → m²
+          // P0-3: 补 floodArea(km²)——FloodAnalysisReportPanel 读的是 floodArea,
+          // 原 online 分支缺失导致面板显示 0 km²(被 || 0 静默掩盖)
+          floodArea: data.floodedKm2 ?? 0,
           riskLevel,
           affectedCount: 0,
         },
@@ -265,10 +278,12 @@ export const floodAdapter = {
       apiRequest<Record<string, unknown>>('/flood/flood-areas', {
         params: { waterLevel },
         signal,
+        schema: floodAreasResponseSchema,
       }),
       apiRequest<Record<string, unknown>>('/flood/flood-statistics', {
         params: { waterLevel },
         signal,
+        schema: floodStatisticsResponseSchema,
       }),
     ])
 
@@ -304,7 +319,8 @@ export const floodAdapter = {
         throw new Error('[FloodAdapter] 影响评估响应异常')
       }
 
-      const result = res.data as Record<string, unknown> | undefined
+      // 信封解包统一走 unwrapEnvelope（mock 文件为 { code, data } 结构）
+      const result = unwrapEnvelope<Record<string, unknown>>(res)
       const totalLoss = (result?.totalLoss as number) || 0
       return {
         affectedFacilities: _mapAffectedFacilities(result?.affectedFacilities, totalLoss),
@@ -316,6 +332,7 @@ export const floodAdapter = {
       method: 'POST',
       body: JSON.stringify({ waterLevel }),
       signal,
+      schema: floodDisasterResponseSchema,
     })
 
     const result = res as Record<string, unknown> | undefined

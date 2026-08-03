@@ -26,5 +26,6 @@
     ],
     "totalLoss": 120.5
   },
-  "message": "success"
+  "message": "success",
+  "_contractVersion": 1
 }

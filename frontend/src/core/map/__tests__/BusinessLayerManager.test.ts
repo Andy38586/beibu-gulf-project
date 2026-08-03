@@ -329,4 +329,98 @@ describe('BusinessLayerManager', () => {
       ).toThrow(/必须是 FeatureCollection/)
     })
   })
+
+  describe('updateData 补建缺失图层（P0-3 回归）', () => {
+    it('注册 data 为 null 的图层,数据到达时补 create 而非 update（热力图首屏根因）', () => {
+      const renderer = {
+        hasLayer: vi.fn().mockReturnValue(false),
+        addHeatmapLayer: vi.fn(),
+        updateHeatmapLayer: vi.fn(),
+      }
+      mapStore.currentRenderer = renderer as unknown as MapRenderer
+      manager.register('forecast-cargo', {
+        label: '热力',
+        layerType: 'heatmap',
+        data: null,
+        visible: true,
+      })
+      manager.updateData('forecast-cargo', { data: [{ lng: 108, lat: 21, value: 1 }] })
+
+      expect(renderer.addHeatmapLayer).toHaveBeenCalledTimes(1)
+      expect(renderer.updateHeatmapLayer).not.toHaveBeenCalled()
+    })
+
+    it('图层实例已存在时 updateData 走 update 不走 create', () => {
+      const renderer = {
+        hasLayer: vi.fn().mockReturnValue(true),
+        addHeatmapLayer: vi.fn(),
+        updateHeatmapLayer: vi.fn(),
+      }
+      mapStore.currentRenderer = renderer as unknown as MapRenderer
+      manager.register('forecast-cargo', {
+        label: '热力',
+        layerType: 'heatmap',
+        data: null,
+        visible: true,
+      })
+      manager.updateData('forecast-cargo', { data: [{ lng: 108, lat: 21, value: 1 }] })
+
+      expect(renderer.updateHeatmapLayer).toHaveBeenCalledTimes(1)
+      expect(renderer.addHeatmapLayer).not.toHaveBeenCalled()
+    })
+
+    it('不可见图层 updateData 不建不更（保持现有语义）', () => {
+      const renderer = {
+        hasLayer: vi.fn(),
+        addHeatmapLayer: vi.fn(),
+        updateHeatmapLayer: vi.fn(),
+      }
+      mapStore.currentRenderer = renderer as unknown as MapRenderer
+      manager.register('hidden', {
+        label: '隐藏',
+        layerType: 'heatmap',
+        data: null,
+        visible: false,
+      })
+      manager.updateData('hidden', { data: [{ lng: 108, lat: 21, value: 1 }] })
+
+      expect(renderer.addHeatmapLayer).not.toHaveBeenCalled()
+      expect(renderer.updateHeatmapLayer).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('setVisible 特殊图层分派（P0-4 回归）', () => {
+    it('waterSurface 图层经 adapter.setVisibility 委派 setWaterSurfaceVisibility', () => {
+      const renderer = {
+        setWaterSurfaceVisibility: vi.fn(),
+        addWaterSurface: vi.fn(),
+        updateWaterLevel: vi.fn(),
+        removeWaterSurface: vi.fn(),
+      }
+      mapStore.currentRenderer = renderer as unknown as MapRenderer
+      manager.register('water', {
+        label: '水面',
+        layerType: 'waterSurface',
+        data: { coordinates: [[108, 21]], height: 2 },
+        visible: true,
+      })
+      manager.setVisible('water', false)
+
+      expect(renderer.setWaterSurfaceVisibility).toHaveBeenCalledWith('water', false)
+    })
+
+    it('普通图层仍走 renderer.setVisibility', () => {
+      const renderer = { setVisibility: vi.fn(), addPointLayer: vi.fn() }
+      mapStore.currentRenderer = renderer as unknown as MapRenderer
+      manager.register('pts', {
+        label: '点',
+        layerType: 'points',
+        data: [{ lng: 108, lat: 21 }],
+        visible: true,
+      })
+      manager.setVisible('pts', false)
+
+      expect(renderer.setVisibility).toHaveBeenCalledWith('pts', false)
+    })
+  })
 })

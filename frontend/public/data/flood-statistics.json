@@ -10,5 +10,6 @@
     "affectedFacilities": 3,
     "estimatedLoss": 120.5
   },
-  "message": "success"
+  "message": "success",
+  "_contractVersion": 1
 }

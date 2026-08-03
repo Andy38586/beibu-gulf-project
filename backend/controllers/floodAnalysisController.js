@@ -3,6 +3,7 @@ import { join } from 'path'
 import { fileURLToPath } from 'url'
 import { dirname } from 'path'
 import { BusinessError, ErrorCode } from '../utils/BusinessError.js'
+import { createReadCache } from '../utils/createReadCache.js'
 import { logger } from '../utils/logger.js'
 import { sendSuccess } from '../utils/response.js'
 import { assessDisaster } from '../services/floodService.js'
@@ -16,28 +17,17 @@ const __dirname = dirname(__filename)
  * @returns {Promise<Object>} 解析后的JSON数据
  */
 // flood 5 个数据接口公开可高频访问，原每次请求 readFile 无缓存。
-// 加模块级 Map + TTL（复用 facilitiesRepository.js 成熟模式）；纯读路径、数据为部署时静态，TTL 足够。
-// 读盘缓存（模块级 Map + TTL）。导出供测试访问。
-export const _readCache = new Map()
-const READ_CACHE_TTL_MS = 5 * 60 * 1000
-// 读盘缓存大小上限。flood 数据文件数量（~5）远小于 20，近似 LRU 一行实现即可。
-const READ_CACHE_MAX_SIZE = 20
-function setReadCache(filename, data) {
-  if (_readCache.size >= READ_CACHE_MAX_SIZE) {
-    // 淘汰最早插入的条目（Map 保持插入顺序）
-    const oldestKey = _readCache.keys().next().value
-    if (oldestKey !== undefined) _readCache.delete(oldestKey)
-  }
-  _readCache.set(filename, { data, cachedAt: Date.now() })
-}
+// 统一只读缓存（createReadCache：TTL + LRU 上限,数据流收口②）。
+// 纯读路径、数据为部署时静态,TTL 足够;上限 20 > 实际文件数(~5)。
+// 导出供测试访问（.size/.has 兼容原 Map 用法）。
+export const _readCache = createReadCache({ maxSize: 20 })
+
 export async function readJsonData(filename) {
   const hit = _readCache.get(filename)
-  if (hit && Date.now() - hit.cachedAt < READ_CACHE_TTL_MS) {
-    return hit.data
-  }
+  if (hit !== undefined) return hit
   const filePath = join(__dirname, '../data/flood', filename)
   const data = JSON.parse(await readFile(filePath, 'utf-8'))
-  setReadCache(filename, data)
+  _readCache.set(filename, data)
   return data
 }
 

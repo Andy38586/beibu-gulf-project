@@ -21,6 +21,7 @@ import { LAYER_DEFAULTS } from '@/shared/constants/colors'
 import { loadStatic } from '@/shared/utils/loadStatic'
 import { logger } from '@/shared/utils/logger'
 import type { LayerOptions } from '@/types'
+import { boundaryCacheSchema } from '@/types/schemas'
 
 export async function loadBoundaryGeoJson(
   onError?: (msg: string) => void
@@ -32,13 +33,19 @@ export async function loadBoundaryGeoJson(
   const SESSION_STORAGE_MAX_CHARS = 500_000
 
   // 检查缓存
+  // z045: 用 boundaryCacheSchema.safeParse 替代裸 JSON.parse + as 断言；
+  // 校验失败清缓存降级为重新 fetch（不抛错）
   try {
     const cached = sessionStorage.getItem(CACHE_KEY)
     if (cached) {
-      const { data, timestamp } = JSON.parse(cached)
-      if (Date.now() - timestamp < CACHE_EXPIRY) {
-        return data
+      const result = boundaryCacheSchema.safeParse(JSON.parse(cached))
+      if (result.success && Date.now() - result.data.timestamp < CACHE_EXPIRY) {
+        return result.data.data as FeatureCollection
       }
+      if (!result.success) {
+        logger.warn('[useBoundaryLayer] 缓存数据校验失败，已清除并重新拉取')
+      }
+      sessionStorage.removeItem(CACHE_KEY)
     }
   } catch {
     // 缓存读取失败，继续加载

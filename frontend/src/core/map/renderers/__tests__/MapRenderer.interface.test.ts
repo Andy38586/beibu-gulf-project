@@ -1,22 +1,25 @@
+import type { FeatureCollection } from 'geojson'
 import { describe, expect, it, vi } from 'vitest'
+
+import type { FlyToOptions, LayerOptions, PointFeature, PolygonFeature } from '@/types'
 
 import { MapRenderer } from '../MapRenderer'
 
 class MockRenderer extends MapRenderer {
-  constructor(container: any) {
-    super(container)
+  constructor(container: unknown) {
+    super(container as unknown as HTMLElement)
   }
 
   async init() {}
-  addPointLayer(_id: any, _features: any, _options: any) {}
-  addPolygonLayer(_id: any, _features: any, _options: any) {}
-  addGeoJsonLayer(_id: any, _geojson: any, _options: any) {}
+  addPointLayer(_id: string, _features: PointFeature[], _options: LayerOptions = {}) {}
+  addPolygonLayer(_id: string, _features: PolygonFeature[], _options: LayerOptions = {}) {}
+  addGeoJsonLayer(_id: string, _geojson: FeatureCollection, _options: LayerOptions = {}) {}
   getType() {
     return 'mock'
   }
-  _doSetVisibility(_id: any, _visible: any) {}
-  _doRemoveLayer(_layer: any) {}
-  _doFlyTo(_target: any, _options: any) {}
+  _doSetVisibility(_id: string, _visible: boolean) {}
+  _doRemoveLayer(_layer: unknown) {}
+  _doFlyTo(_target: unknown, _options: FlyToOptions) {}
 }
 
 describe('MapRenderer Interface', () => {

@@ -6,6 +6,13 @@ import { BusinessLayerManager } from '@/core/map/BusinessLayerManager'
 import { BUSINESS_LAYER_MANAGER_KEY } from '@/core/map/composables/useBusinessLayers'
 import { useMapControls } from '@/core/map/composables/useMapControls'
 import UnifiedMap from '@/core/map/UnifiedMap.vue'
+import {
+  EDITING_PLAN_KEY,
+  MAP_STORE_KEY,
+  RESTORE_PLAN_DATA_KEY,
+  UNIFIED_MAP_KEY,
+  type UnifiedMapExposed,
+} from '@/core/provideKeys'
 import ErrorBoundary from '@/shared/components/ErrorBoundary.vue'
 import {
   initAuthStorageListener,
@@ -14,6 +21,8 @@ import {
 } from '@/shared/composables/useAuth'
 import { logger } from '@/shared/utils/logger'
 import { useMapStore } from '@/stores/mapStore'
+import type { TypeSetting } from '@/types/facility'
+import type { Plan } from '@/types/plan'
 
 const route = useRoute()
 const router = useRouter()
@@ -21,15 +30,15 @@ const { restoreAuth } = useAuth()
 const { zoomToRegion, zoomToCity, stopBreathing } = useMapControls()
 const mapStore = useMapStore()
 
-const unifiedMapRef = ref<{ getRenderer: () => unknown } | null>(null)
-const restorePlanData = ref(null)
-const editingPlan = ref(null)
+const unifiedMapRef = ref<UnifiedMapExposed | null>(null)
+const restorePlanData = ref<Record<string, TypeSetting> | null>(null)
+const editingPlan = ref<Plan | null>(null)
 
-provide('restorePlanData', restorePlanData)
-provide('editingPlan', editingPlan)
-provide('unifiedMap', unifiedMapRef)
+provide(RESTORE_PLAN_DATA_KEY, restorePlanData)
+provide(EDITING_PLAN_KEY, editingPlan)
+provide(UNIFIED_MAP_KEY, unifiedMapRef)
 // 提供 mapStore 给所有子组件（含 UnifiedMap 和 RouterView 下的业务页面）
-provide('mapStore', mapStore)
+provide(MAP_STORE_KEY, mapStore)
 
 // 提供 BusinessLayerManager — 必须在 App.vue 而非 UnifiedMap，
 // 因为 RouterView 下的业务组件是 UnifiedMap 的兄弟节点，不是子节点

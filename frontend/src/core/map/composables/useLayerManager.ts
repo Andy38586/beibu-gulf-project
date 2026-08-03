@@ -2,6 +2,7 @@ import type { ComputedRef } from 'vue'
 import { computed, inject } from 'vue'
 
 import type { MapRenderer } from '@/core/map/renderers/MapRenderer'
+import { MAP_STORE_KEY } from '@/core/provideKeys'
 import { logger } from '@/shared/utils/logger'
 import { useMapStore } from '@/stores/mapStore'
 import type { LayerEntry, ToggleableHandler } from '@/types'
@@ -35,9 +36,9 @@ interface UseLayerManagerReturn {
   layerCatalog: ComputedRef<LayerEntry[]>
 }
 
-// 图层管理 composable：通过 inject('mapStore') 解耦
+// 图层管理 composable：通过 inject(MAP_STORE_KEY) 解耦
 export function useLayerManager(): UseLayerManagerReturn {
-  const store = inject<MapStore>('mapStore')
+  const store = inject<MapStore>(MAP_STORE_KEY)
 
   if (!store) {
     logger.warn('[useLayerManager] mapStore 未注入，请在父组件中提供')

@@ -2,6 +2,7 @@
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-nocheck
 // 渐进迁移：OL 渲染器，类型注解待逐步补充（D-6 技术债）
+// z042 基线：移除 @ts-nocheck 后 171 个 typecheck 错误（2026-08-03 统计），待后续批次渐进修复
 import Feature from 'ol/Feature'
 import GeoJSON from 'ol/format/GeoJSON'
 import Point from 'ol/geom/Point'

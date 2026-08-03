@@ -6,6 +6,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, reactive } from 'vue'
 
+import { SYNTHETIC_INDICATORS } from '@/services/adapters/forecastAdapter'
 import { useForecastState } from '@/stores/forecastState'
 
 import { BASE_YEAR, DEFAULT_CONFIDENCE, END_YEAR } from '../constants'
@@ -14,13 +15,14 @@ const forecastState = useForecastState()
 const CONFIRM_DELAY = 3000
 
 // ===== 四个指标 =====
+// synthetic 标志由 forecastAdapter.SYNTHETIC_INDICATORS 派生（单一事实源，b025 / D-2=A）：
+// berth/traffic 为示意性合成数据（非实测），UI 显示「（模拟）」角标。
 const INDICATORS = [
-  { key: 'cargo', label: '货物', icon: '📦', synthetic: false },
-  { key: 'container', label: '集装箱', icon: '📋', synthetic: false },
-  // berth / traffic 为示意性合成数据（非实测），UI 显示「（模拟）」角标（b025 / D-2=A）
-  { key: 'berth', label: '泊位利用率', icon: '⚓', synthetic: true },
-  { key: 'traffic', label: '船舶流量', icon: '🚢', synthetic: true },
-]
+  { key: 'cargo', label: '货物', icon: '📦' },
+  { key: 'container', label: '集装箱', icon: '📋' },
+  { key: 'berth', label: '泊位利用率', icon: '⚓' },
+  { key: 'traffic', label: '船舶流量', icon: '🚢' },
+].map((i) => ({ ...i, synthetic: SYNTHETIC_INDICATORS.has(i.key) }))
 
 const btnStates = reactive(
   Object.fromEntries(INDICATORS.map((i) => [i.key, { selected: false, selecting: false }]))

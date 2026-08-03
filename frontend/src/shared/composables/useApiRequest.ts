@@ -1,5 +1,6 @@
 import type { ComputedRef, Ref } from 'vue'
 import { computed, ref } from 'vue'
+import type { ZodType } from 'zod'
 
 import { unwrapEnvelope } from '@/shared/utils/responseEnvelope'
 
@@ -39,19 +40,28 @@ function clearToken(): void {
 
 const isAuthenticated: ComputedRef<boolean> = computed(() => token.value !== '')
 
-interface RequestOptions {
+interface RequestOptions<T = unknown> {
   method?: string
   body?: string
   headers?: Record<string, string>
   signal?: AbortSignal
   /** GET 查询参数，内部用 URLSearchParams 拼接（无需手写模板字符串） */
   params?: Record<string, string | number | boolean | undefined | null>
+  /**
+   * z045: 可选 zod schema，传入则对信封解包后的 data 做 safeParse 运行时校验，
+   * 替代裸 `as T` 断言；不传入则保持 `as T` 行为（向后兼容）。
+   * 校验失败抛 ApiError(REQUEST_FAILED)（不在重试码列表内，不会触发 z049 重试）。
+   */
+  schema?: ZodType<T>
 }
 
 export function useApiRequest() {
   // token 为模块级单例，由 setToken/clearToken 维护，不在每次调用时重新加载
 
-  async function apiRequest<T = unknown>(path: string, options: RequestOptions = {}): Promise<T> {
+  async function apiRequest<T = unknown>(
+    path: string,
+    options: RequestOptions<T> = {}
+  ): Promise<T> {
     // z049: GET 幂等请求在超时/网络错误时线性退避重试（POST 不重试，避免重复写操作）
     const MAX_RETRIES = 3
     const RETRYABLE_CODES: ErrorCodeValue[] = [ErrorCode.TIMEOUT, ErrorCode.NETWORK_ERROR]
@@ -84,7 +94,7 @@ export function useApiRequest() {
    * 仅负责 headers/params/超时/fetch/信封解包/错误映射，不含重试逻辑；
    * 每次调用新建 AbortController，超时计时天然重置，支持重试。
    */
-  async function _singleRequest<T = unknown>(path: string, options: RequestOptions): Promise<T> {
+  async function _singleRequest<T = unknown>(path: string, options: RequestOptions<T>): Promise<T> {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       ...options.headers,
@@ -162,7 +172,19 @@ export function useApiRequest() {
        * 后端统一返回 { code, data }，此处经公共 unwrapEnvelope 提取 data 部分，
        * 调用方始终拿到业务数据 T，无需手动 .data（z063 抽出的唯一事实源）。
        */
-      return unwrapEnvelope<T>(data)
+      const unwrapped = unwrapEnvelope<T>(data)
+
+      // z045: 若调用方传入 schema，用 safeParse 替代裸 `as T` 断言做运行时校验。
+      // 校验失败抛 ApiError(REQUEST_FAILED)，不在 z049 重试码列表内（响应数据错误不可重试）。
+      if (options.schema) {
+        const result = options.schema.safeParse(unwrapped)
+        if (!result.success) {
+          throw new ApiError('响应数据格式校验失败', ErrorCode.REQUEST_FAILED)
+        }
+        return result.data
+      }
+
+      return unwrapped
     } catch (error) {
       clearTimeout(timeoutId)
       if (error instanceof ApiError) {

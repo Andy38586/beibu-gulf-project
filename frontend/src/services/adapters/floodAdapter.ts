@@ -10,6 +10,7 @@ import { useApiRequest } from '@/shared/composables/useApiRequest'
 import { loadStatic } from '@/shared/utils/loadStatic'
 import { logger } from '@/shared/utils/logger'
 import type { AffectedFacility, FloodFeature, FloodStatistics } from '@/types/business/base'
+import { floodOnlineResponseSchema } from '@/types/schemas'
 
 import { resolveDataSource, setAdapterDataSource } from '../dataSourceConfig'
 
@@ -100,18 +101,24 @@ function _mapFloodFeatures(rawFeatures: unknown, fallbackRiskLevel: string): Flo
   })
 }
 
-/** 将 mock flood-statistics.json 的 data 映射为 FloodStatistics */
+/** 将 mock/api flood-statistics 响应映射为 FloodStatistics
+ * b033: 显式字段映射，不再 spread raw + as 断言 */
 function _mapFloodStatistics(
   raw: Record<string, unknown> | undefined,
   fallbackRiskLevel: string
 ): FloodStatistics {
   const r = raw ?? {}
   return {
-    ...(r as object),
-    totalArea: (r.totalArea as number) ?? (r.floodArea as number) ?? 0,
     riskLevel: (r.riskLevel as string) ?? fallbackRiskLevel,
-    affectedCount: (r.affectedCount as number) ?? (r.affectedFacilities as number) ?? 0,
-  } as FloodStatistics
+    waterLevel: r.waterLevel as number | undefined,
+    floodArea: r.floodArea as number | undefined,
+    averageDepth: r.averageDepth as number | undefined,
+    maxDepth: r.maxDepth as number | undefined,
+    affectedFacilities: r.affectedFacilities as number | undefined,
+    affectedPorts: r.affectedPorts as string[] | undefined,
+    estimatedLoss: r.estimatedLoss as number | undefined,
+    description: r.description as string | undefined,
+  }
 }
 
 /** 将 mock disaster.json 的 affectedFacilities 映射为 AffectedFacility[] */
@@ -152,7 +159,8 @@ function _riskLevelFromFlood(floodedKm2: number, level: number): string {
   return '低风险'
 }
 
-/** online 模式：调用 FastAPI 在线演算服务（vite proxy /flood-online → localhost:8000） */
+/** online 模式：调用 FastAPI 在线演算服务（vite proxy /flood-online → localhost:8000）
+ * z045: 用 floodOnlineResponseSchema.safeParse 替代裸 `res.json() as {...}` 隐式断言 */
 async function _fetchOnlineFlood(
   waterLevel: number,
   signal?: AbortSignal
@@ -166,7 +174,19 @@ async function _fetchOnlineFlood(
   if (!res.ok) {
     throw new Error(`[FloodAdapter] 在线演算服务异常: HTTP ${res.status}`)
   }
-  return res.json()
+  const raw = await res.json()
+  const result = floodOnlineResponseSchema.safeParse(raw)
+  if (!result.success) {
+    logger.warn('[FloodAdapter] 在线演算响应数据校验失败:', result.error.issues)
+    throw new Error('[FloodAdapter] 在线演算响应数据格式校验失败')
+  }
+  // features 元素类型由下游 map+as FloodFeature[] 收窄（与原裸 `res.json()` 一致的元素处理）
+  return result.data as {
+    level: number
+    featureCount: number
+    floodedKm2: number
+    features: FloodFeature[]
+  }
 }
 
 export const floodAdapter = {
@@ -206,7 +226,7 @@ export const floodAdapter = {
           totalArea: Math.round((data.floodedKm2 ?? 0) * 1e6), // km² → m²
           riskLevel,
           affectedCount: 0,
-        } as FloodStatistics,
+        },
         riskLevel,
         actualWaterLevel: data.level,
       }
@@ -311,7 +331,10 @@ export const floodAdapter = {
     // DEM 高程数据当前由 dem-hillshade 图层（静态 COG dem_hillshade.tif）直接消费，
     // 本方法为预留接口，暂无运行期调用方（b029 / D-3=A 核实）。
     // 三维水面为预设水位档位可视化（非真实高程演算），真地形见 D-10 决策。
-    return { source: 'dem-pipeline', note: 'DEM 由 dem-hillshade 图层消费，getDEM 为预留钩子（无调用方）' }
+    return {
+      source: 'dem-pipeline',
+      note: 'DEM 由 dem-hillshade 图层消费，getDEM 为预留钩子（无调用方）',
+    }
   },
 
   clearCache(): void {

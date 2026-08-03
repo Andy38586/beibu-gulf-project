@@ -51,9 +51,14 @@ function createFetchMock() {
   return vi.fn(async (url: string) => {
     const body = fixtures[url]
     if (body === undefined) {
-      return { ok: false, status: 404, json: async () => ({}) }
+      return { ok: false, status: 404, json: async () => ({}), text: async () => '' }
     }
-    return { ok: true, status: 200, json: async () => body }
+    return {
+      ok: true,
+      status: 200,
+      json: async () => body,
+      text: async () => JSON.stringify(body),
+    }
   })
 }
 
@@ -104,7 +109,7 @@ describe('floodAdapter', () => {
   })
 
   describe('api 模式', () => {
-    it('getWaterArea 应回退到静态坐标（后端无此端点）', async () => {
+    it('getWaterArea 应走后端 /flood/water-area 端点返回坐标数组（D-4=A）', async () => {
       floodAdapter.setDataSource('api')
       const coords = await floodAdapter.getWaterArea()
       expect(Array.isArray(coords)).toBe(true)

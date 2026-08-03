@@ -6,6 +6,7 @@ import { logger } from '@/shared/utils/logger'
 import type { LayerEntry, LayerType, MapType, Port, RegisterLayerOptions } from '@/types'
 import type { MapRenderer } from '@/types'
 import type { ScoredXiaoqu } from '@/types'
+import { analysisResultSchema } from '@/types/schemas'
 
 /** localStorage 键：底图；sessionStorage：分析结果 */
 const BASE_LAYER_STORAGE_KEY = 'beibu-gulf-base-layer'
@@ -33,7 +34,8 @@ function writeStoredBaseLayer(key: string | null): void {
   }
 }
 
-/** z026: 收窄为结构化类型（core 层不反向依赖业务 AnalysisResult，业务层读取时自行 cast） */
+/** z026: 收窄为结构化类型（core 层不反向依赖业务 AnalysisResult，业务层读取时自行 cast）
+ * z045: 版本校验后用 analysisResultSchema.safeParse 替代 `as Record<string, unknown>` 断言 */
 function readStoredAnalysisResult(): Record<string, unknown> | null {
   if (typeof window === 'undefined') return null
   try {
@@ -50,7 +52,14 @@ function readStoredAnalysisResult(): Record<string, unknown> | null {
       window.sessionStorage.removeItem(ANALYSIS_RESULT_STORAGE_KEY)
       return null
     }
-    return parsed.data as Record<string, unknown>
+    // z045: safeParse 替代 `parsed.data as Record<string, unknown>`
+    const result = analysisResultSchema.safeParse(parsed.data)
+    if (!result.success) {
+      logger.warn('[mapStore] 分析结果数据校验失败，已清除:', result.error.issues)
+      window.sessionStorage.removeItem(ANALYSIS_RESULT_STORAGE_KEY)
+      return null
+    }
+    return result.data
   } catch {
     return null
   }

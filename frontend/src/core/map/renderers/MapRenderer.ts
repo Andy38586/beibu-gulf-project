@@ -164,11 +164,11 @@ export class MapRenderer {
     handler: (event: CustomEvent<MapRendererEventMap[K]>) => void
   ): void
   on(event: string, handler: EventListenerOrEventListenerObject): void
-  // 实现签名：泛型 handler (event: CustomEvent<...>) => void 与 EventListener 参数逆变不兼容，
-  // 用 any 绕过重载兼容性检查（运行时 EventTarget 能正确分发 CustomEvent 到 handler）
+  // 实现签名用 unknown：泛型 handler (CustomEvent<T>)=>void 与 EventListener 参数逆变不兼容，
+  // unknown 是顶层类型可接受所有重载的 handler，体内窄化为 EventListener 供 EventTarget API 消费
 
-  on(event: string, handler: any): void {
-    this._eventBus.addEventListener(event, handler)
+  on(event: string, handler: unknown): void {
+    this._eventBus.addEventListener(event, handler as EventListener)
   }
 
   off<K extends keyof MapRendererEventMap>(
@@ -177,8 +177,8 @@ export class MapRenderer {
   ): void
   off(event: string, handler: EventListenerOrEventListenerObject): void
 
-  off(event: string, handler: any): void {
-    this._eventBus.removeEventListener(event, handler)
+  off(event: string, handler: unknown): void {
+    this._eventBus.removeEventListener(event, handler as EventListener)
   }
 
   emit<K extends keyof MapRendererEventMap>(event: K, data: MapRendererEventMap[K]): void

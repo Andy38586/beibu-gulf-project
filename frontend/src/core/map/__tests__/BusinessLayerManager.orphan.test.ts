@@ -17,16 +17,26 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { MapRenderer } from '@/types'
+import type { LayerType } from '@/types/core/layerManager'
 
 import { BusinessLayerManager } from '../BusinessLayerManager'
 
+/** mock catalog 条目 */
+interface MockCatalogEntry {
+  key: string
+  label: string
+  layerType: LayerType
+  visible: boolean
+  category: 'base' | 'business'
+}
+
 function createMockMapStore() {
-  const catalog: any[] = []
+  const catalog: MockCatalogEntry[] = []
   return {
     layerCatalog: catalog,
     currentRenderer: null as MapRenderer | null,
     registerBusinessLayer: vi.fn(
-      (key: string, _label: string, _layerType: string, _visible: boolean) => {
+      (key: string, _label: string, _layerType: LayerType, _visible: boolean) => {
         catalog.push({
           key,
           label: _label,
@@ -46,7 +56,7 @@ function createMockMapStore() {
 
 describe('P0-4 POI 图层孤儿复活 — manager.remove 语义', () => {
   let manager: BusinessLayerManager
-  let mapStore: any
+  let mapStore: ReturnType<typeof createMockMapStore>
 
   beforeEach(() => {
     mapStore = createMockMapStore()
@@ -61,12 +71,16 @@ describe('P0-4 POI 图层孤儿复活 — manager.remove 语义', () => {
       visible: true,
     })
     expect(manager.has('facility-poi-hospital')).toBe(true)
-    expect(mapStore.layerCatalog.some((e: any) => e.key === 'facility-poi-hospital')).toBe(true)
+    expect(
+      mapStore.layerCatalog.some((e: MockCatalogEntry) => e.key === 'facility-poi-hospital')
+    ).toBe(true)
 
     manager.remove('facility-poi-hospital')
 
     expect(manager.has('facility-poi-hospital')).toBe(false)
-    expect(mapStore.layerCatalog.some((e: any) => e.key === 'facility-poi-hospital')).toBe(false)
+    expect(
+      mapStore.layerCatalog.some((e: MockCatalogEntry) => e.key === 'facility-poi-hospital')
+    ).toBe(false)
   })
 
   it('remove 后 reapplyAll 不会重建该 key（renderer 未被调用）', () => {

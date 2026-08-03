@@ -49,7 +49,7 @@ function createMockMapStore() {
 describe('BusinessLayerManager', () => {
   let manager: BusinessLayerManager
 
-  let mapStore: any
+  let mapStore: ReturnType<typeof createMockMapStore>
 
   beforeEach(() => {
     mapStore = createMockMapStore()
@@ -115,7 +115,7 @@ describe('BusinessLayerManager', () => {
       })
 
       const renderer = { setVisibility: vi.fn() }
-      mapStore.currentRenderer = renderer
+      mapStore.currentRenderer = renderer as unknown as MapRenderer
 
       manager.setVisible('vis-layer', false)
 
@@ -125,7 +125,7 @@ describe('BusinessLayerManager', () => {
       expect(renderer.setVisibility).toHaveBeenCalledWith('vis-layer', false)
       // catalog 条目 visible 被 store action 更新
       const entry = mapStore.layerCatalog.find((e: MockCatalogEntry) => e.key === 'vis-layer')
-      expect(entry.visible).toBe(false)
+      expect(entry!.visible).toBe(false)
     })
   })
 
@@ -239,7 +239,7 @@ describe('BusinessLayerManager', () => {
       })
       // 先通过 setVisible 隐藏（registry.visible 同步更新）
       const renderer = { setVisibility: vi.fn(), addPointLayer: vi.fn() }
-      mapStore.currentRenderer = renderer
+      mapStore.currentRenderer = renderer as unknown as MapRenderer
       manager.setVisible('hidden-layer', false)
 
       const newRenderer = { addPointLayer: vi.fn() }
@@ -252,7 +252,7 @@ describe('BusinessLayerManager', () => {
   describe('removeAllFromRenderer', () => {
     it('应从指定 renderer 移除视觉实例但保留 registry（防止跨引擎孤儿图层）', () => {
       const olRenderer = { addPointLayer: vi.fn(), removeLayer: vi.fn() }
-      mapStore.currentRenderer = olRenderer
+      mapStore.currentRenderer = olRenderer as unknown as MapRenderer
 
       // 模拟洪涝页在 2D(OL) 注册 dem-hillshade GeoTIFF（注册时立即渲染）
       manager.register('leak-layer', {

@@ -8,8 +8,28 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
 
+/**
+ * 图表 option 结构化类型：useECharts 的 getOption 返回 Record<string, unknown>，
+ * 但测试需访问具体属性（xAxis/series/title 等），故定义此接口供测试断言使用。
+ * 仅声明测试实际访问的字段，保持与 ECharts option 结构一致。
+ */
+interface ChartOptionLike {
+  backgroundColor: string
+  grid: { top: number; right: number; bottom: number; left: number }
+  title: {
+    text: string
+    left: string
+    textStyle: { color: string; fontSize: number; fontWeight: number }
+  }
+  tooltip: { trigger: string }
+  legend: { bottom: number }
+  xAxis: { data: unknown[]; type: string }
+  yAxis: { type: string }
+  series: Array<{ data: unknown[]; type: string; smooth?: boolean; name?: string }>
+}
+
 interface Captured {
-  getOption: (() => any) | null
+  getOption: (() => ChartOptionLike) | null
   updateChartCalls: number
 }
 
@@ -19,8 +39,10 @@ const { captured } = vi.hoisted<{ captured: Captured }>(() => ({
 }))
 
 vi.mock('@/visualization/composables/useECharts', () => ({
-  useECharts: (opts: any) => {
-    captured.getOption = opts.getOption
+  useECharts: (opts: { getOption: () => Record<string, unknown> }) => {
+    // useChartBase 传入的 getOption 实际返回 ChartOptionLike 结构，
+    // 此处断言为具体类型以便测试通过 captured.getOption() 访问属性
+    captured.getOption = opts.getOption as unknown as () => ChartOptionLike
     return {
       chartRef: { value: null },
       updateChart: () => {

@@ -23,6 +23,7 @@ import { useRouter } from 'vue-router'
 import AppLayout from '@/core/layout/AppLayout.vue'
 import GCSPanel from '@/core/layout/components/GCSPanel.vue'
 import { useGCS } from '@/core/layout/useGCS.js'
+import { EDITING_PLAN_KEY, RESTORE_PLAN_DATA_KEY } from '@/core/provideKeys'
 import PaginatedListPanel from '@/shared/components/PaginatedListPanel.vue'
 import PlanSaveModal from '@/shared/components/PlanSaveModal.vue'
 import { useAuth } from '@/shared/composables/useAuth'
@@ -57,8 +58,8 @@ const logoutHeightCss = computed(() => `${cellPixel.value * 0.8}px`)
 const logoutFontCss = computed(() => `${cellPixel.value * 0.175}px`)
 const avatarText = computed(() => (user.value?.username || '?').charAt(0).toUpperCase())
 
-const restorePlanData = inject('restorePlanData', ref<Record<string, TypeSetting> | null>(null))
-const editingPlan = inject('editingPlan', ref<Plan | null>(null))
+const restorePlanData = inject(RESTORE_PLAN_DATA_KEY, ref<Record<string, TypeSetting> | null>(null))
+const editingPlan = inject(EDITING_PLAN_KEY, ref<Plan | null>(null))
 
 const showSaveModal = ref(false)
 const editingNamePlan = ref<Plan | null>(null)

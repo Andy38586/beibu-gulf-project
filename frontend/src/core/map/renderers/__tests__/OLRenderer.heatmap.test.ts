@@ -10,14 +10,28 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ==================== Mock ol/Map 与 ol/View ====================
-const moveendListeners: Array<{ type: string; listener: (...args: any[]) => void }> = []
+const moveendListeners: Array<{ type: string; listener: (...args: unknown[]) => void }> = []
+
+interface FakeViewOptions {
+  center?: [number, number]
+  zoom?: number
+}
+
+interface FakeMapOptions {
+  target?: unknown
+  view?: FakeView
+}
+
+interface FakeHeatmapOptions {
+  source?: unknown
+}
 
 class FakeView {
   _extent: [number, number, number, number] = [0, 0, 0, 0]
   _center: [number, number] = [0, 0]
   _zoom = 9
 
-  constructor(options: any = {}) {
+  constructor(options: FakeViewOptions = {}) {
     if (options?.center) this._center = options.center
     if (options?.zoom != null) this._zoom = options.zoom
   }
@@ -46,15 +60,15 @@ class FakeMap {
   target: unknown
   view: FakeView
   layers: unknown[] = []
-  listeners: Map<string, Set<(...args: any[]) => void>> = new Map()
+  listeners: Map<string, Set<(...args: unknown[]) => void>> = new Map()
   disposed = false
 
-  constructor(options: any = {}) {
+  constructor(options: FakeMapOptions = {}) {
     this.target = options.target
     this.view = options.view || new FakeView()
   }
 
-  on(type: string, listener: (...args: any[]) => void) {
+  on(type: string, listener: (...args: unknown[]) => void) {
     if (!this.listeners.has(type)) this.listeners.set(type, new Set())
     this.listeners.get(type)!.add(listener)
     const key = { type, listener }
@@ -62,7 +76,7 @@ class FakeMap {
     return key
   }
 
-  un(type: string, listener: (...args: any[]) => void) {
+  un(type: string, listener: (...args: unknown[]) => void) {
     this.listeners.get(type)?.delete(listener)
     const idx = moveendListeners.findIndex((k) => k.type === type && k.listener === listener)
     if (idx !== -1) moveendListeners.splice(idx, 1)
@@ -98,11 +112,11 @@ class FakeMap {
 // ol/layer/Heatmap 在构造时调用 createGradient → canvas.getContext('2d').createLinearGradient，
 // jsdom 无 canvas 实现会返回 null 而抛错。mock 掉，仅保留 addHeatmapLayer 用到的接口。
 class FakeHeatmap {
-  source: any
+  source: unknown
   _props: Record<string, unknown>
   _visible: boolean
 
-  constructor(options: any = {}) {
+  constructor(options: FakeHeatmapOptions = {}) {
     this.source = options.source
     this._props = {}
     this._visible = true
@@ -145,18 +159,37 @@ function makeHeatFeatures(n: number) {
 }
 
 // ==================== 测试 ====================
+interface OLHeatFeatureLike {
+  getGeometry(): { getCoordinates(): [number, number]; getType(): string }
+  get(key: string): unknown
+}
+interface OLHeatSourceLike {
+  getFeatures(): OLHeatFeatureLike[]
+}
+interface OLHeatLayerInstanceLike {
+  getSource(): OLHeatSourceLike
+}
+
+/**
+ * 白盒测试访问类型：OLRenderer.ts 带 @ts-nocheck，运行时成员 map
+ * 未声明在类型中，需显式暴露供 afterEach 检查 disposed 状态。
+ */
+type OLRendererTestAccess = InstanceType<typeof OLRenderer> & {
+  map: unknown
+}
+
 describe('OLRenderer 热力图（P0-1）', () => {
-  let renderer: any
+  let renderer: OLRendererTestAccess | undefined
   let container: HTMLElement
 
   beforeEach(() => {
     moveendListeners.length = 0
     container = document.createElement('div')
-    renderer = new OLRenderer(container)
+    renderer = new OLRenderer(container) as unknown as OLRendererTestAccess
   })
 
   afterEach(() => {
-    if (renderer?.map && !renderer.map.disposed) {
+    if (renderer?.map && !(renderer.map as { disposed: boolean }).disposed) {
       renderer.destroy()
     }
   })
@@ -164,20 +197,22 @@ describe('OLRenderer 热力图（P0-1）', () => {
   describe('addHeatmapLayer', () => {
     it('用例A：传入 GeoJSON Feature 数组不抛错，图层注册成功', () => {
       const features = makeHeatFeatures(3)
-      expect(() => renderer.addHeatmapLayer('heat', features, {})).not.toThrow()
-      expect(renderer._layers.get('heat')).toBeTruthy()
+      expect(() => renderer!.addHeatmapLayer('heat', features, {})).not.toThrow()
+      expect(renderer!._layers.get('heat')).toBeTruthy()
     })
 
     it('用例C：coordinates 缺失时回退 (0,0) 不抛错', () => {
       const features = [{ geometry: {}, properties: { value: 1 } }]
-      expect(() => renderer.addHeatmapLayer('heat-empty', features, {})).not.toThrow()
-      expect(renderer._layers.get('heat-empty')).toBeTruthy()
+      expect(() => renderer!.addHeatmapLayer('heat-empty', features, {})).not.toThrow()
+      expect(renderer!._layers.get('heat-empty')).toBeTruthy()
     })
 
     it('坐标正确写入要素（lng/lat 取自数组）', () => {
       const features = makeHeatFeatures(1)
-      renderer.addHeatmapLayer('heat-1', features, {})
-      const source = renderer._layers.get('heat-1').instance.getSource()
+      renderer!.addHeatmapLayer('heat-1', features, {})
+      const source = (
+        renderer!._layers.get('heat-1')!.instance as OLHeatLayerInstanceLike
+      ).getSource()
       const [feature] = source.getFeatures()
       const geom = feature.getGeometry()
       const [x, y] = geom.getCoordinates()
@@ -192,15 +227,17 @@ describe('OLRenderer 热力图（P0-1）', () => {
   describe('updateHeatmapLayer', () => {
     it('用例B：更新后 source 要素数等于新数据长度', () => {
       const initial = makeHeatFeatures(2)
-      renderer.addHeatmapLayer('heat-upd', initial, {})
+      renderer!.addHeatmapLayer('heat-upd', initial, {})
       const updated = makeHeatFeatures(5)
-      expect(() => renderer.updateHeatmapLayer('heat-upd', updated, {})).not.toThrow()
-      const source = renderer._layers.get('heat-upd').instance.getSource()
+      expect(() => renderer!.updateHeatmapLayer('heat-upd', updated, {})).not.toThrow()
+      const source = (
+        renderer!._layers.get('heat-upd')!.instance as OLHeatLayerInstanceLike
+      ).getSource()
       expect(source.getFeatures()).toHaveLength(5)
     })
 
     it('更新不存在的图层安全返回 false', () => {
-      expect(renderer.updateHeatmapLayer('nope', makeHeatFeatures(1), {})).toBe(false)
+      expect(renderer!.updateHeatmapLayer('nope', makeHeatFeatures(1), {})).toBe(false)
     })
   })
 })

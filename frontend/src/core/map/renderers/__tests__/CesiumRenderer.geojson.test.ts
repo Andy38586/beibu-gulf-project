@@ -1,13 +1,15 @@
 // CesiumRenderer GeoJSON 加载回归测试（Cesium 引擎渲染链路，D 系列资源治理）
+import type { FeatureCollection } from 'geojson'
 import { describe, expect, it, vi } from 'vitest'
 
 // 全量 mock cesium：提供显式具名导出（避免递归 Proxy 在 vitest 模块加载期崩溃），
 // 仅暴露 GeoJsonDataSource.load 供测试可控（默认 resolve 空 entities）。
 vi.mock('cesium', () => {
   // 任意 cesium 对象：构造/调用/读属性都返回安全的链式 mock
-  function makeChainable(): any {
+  // 返回类型为 object：ProxyHandler 的 apply/construct trap 签名要求返回 object
+  function makeChainable(): object {
     return new Proxy(function () {}, {
-      get(_t: any, prop: any) {
+      get(_t: unknown, prop: string | symbol) {
         if (prop === 'then') return undefined // 避免被当作 thenable
         if (prop === 'fromCssColorString') return () => ({})
         return makeChainable()
@@ -23,7 +25,7 @@ vi.mock('cesium', () => {
 
   class MockCesiumClass {
     constructor() {
-      return makeChainable()
+      return makeChainable() as unknown as MockCesiumClass
     }
   }
 
@@ -59,10 +61,18 @@ import { GeoJsonDataSource } from 'cesium'
 
 import { CesiumRenderer } from '../CesiumRenderer'
 
-const mockGeoJson = {
+const mockGeoJson: FeatureCollection = {
   type: 'FeatureCollection',
   features: [],
-} as any
+}
+
+/**
+ * 白盒测试访问类型：CesiumRenderer.ts 带 @ts-nocheck，运行时成员 _geoJsonTokens
+ * 未声明在类型中，需显式暴露供测试断言 token Map 状态。
+ */
+type CesiumRendererTestAccess = InstanceType<typeof CesiumRenderer> & {
+  _geoJsonTokens: Map<string, unknown>
+}
 
 /**
  * LIF-7 验收：addGeoJsonLayer 的 _geoJsonTokens 管理
@@ -70,11 +80,11 @@ const mockGeoJson = {
  * 2. 陈旧（被更新的同 id 请求覆盖）请求失败时不触发 onError
  */
 describe('CesiumRenderer.addGeoJsonLayer (LIF-7)', () => {
-  function createRenderer(): any {
+  function createRenderer(): CesiumRendererTestAccess {
     // container 用带 appendChild 的 mock，避免复用路径 CesiumViewerManager.mount 时崩溃
     // （cesiumViewerManager 是模块级单例，第二次构造会命中复用分支调用 el.appendChild）
     const container = { appendChild: vi.fn(), removeChild: vi.fn() } as unknown as HTMLElement
-    return new CesiumRenderer(container)
+    return new CesiumRenderer(container) as unknown as CesiumRendererTestAccess
   }
 
   it('成功加载后回收 token（_geoJsonTokens 不累积）', async () => {
@@ -94,7 +104,9 @@ describe('CesiumRenderer.addGeoJsonLayer (LIF-7)', () => {
     const onError2 = vi.fn()
 
     // 两次加载都失败，模拟并发竞态：第一次先设 token1，第二次覆盖为 token2
-    ;(GeoJsonDataSource.load as any).mockRejectedValue(new Error('load failed'))
+    ;(GeoJsonDataSource.load as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new Error('load failed')
+    )
 
     const p1 = renderer.addGeoJsonLayer('layer-stale', mockGeoJson, { onError: onError1 })
     const p2 = renderer.addGeoJsonLayer('layer-stale', mockGeoJson, { onError: onError2 })

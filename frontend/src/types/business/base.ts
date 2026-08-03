@@ -45,14 +45,26 @@ export interface ScoredFeature<T extends Record<string, unknown> = Record<string
 
 // ===== 浸没分析业务类型 =====
 
-/** 淹没统计数据 */
+/** 淹没统计数据
+ *
+ * b033: 契约对齐——移除 [key: string]: unknown 索引签名逃生舱，
+ * 显式声明后端 floodStatistics.json 返回的字段 + adapter 派生字段。
+ * riskLevel 为必填（所有数据源均提供）；其余字段按数据源可选。
+ */
 export interface FloodStatistics {
-  totalArea: number // 淹没总面积（平方米）
-  riskLevel: string // 风险等级
-  affectedCount: number // 受影响设施数量
-  /** 开放扩展：淹没统计可携带额外指标（如 affectedPopulation、economicLoss）。
-   *  参考 §7.7。 */
-  [key: string]: unknown
+  riskLevel: string // 风险等级（所有数据源均提供）
+  // —— 后端 floodStatistics.json 原始字段（mock/api 模式有值，online 模式缺失）——
+  waterLevel?: number // 水位档位（m）
+  floodArea?: number // 淹没面积（km²）
+  averageDepth?: number // 平均水深（m）
+  maxDepth?: number // 最大水深（m）
+  affectedFacilities?: number // 受影响设施数量（计数，非数组）
+  affectedPorts?: string[] // 受影响港口列表
+  estimatedLoss?: number // 预估损失（万元）
+  description?: string // 情景描述
+  // —— adapter 派生字段（online 模式有值，mock/api 模式可能缺失）——
+  totalArea?: number // 淹没总面积（平方米，online 模式由 floodedKm2 换算）
+  affectedCount?: number // 受影响设施数量（与 affectedFacilities 同语义，online 模式占位）
 }
 
 /** 淹没区域要素（GeoJSON Feature） */

@@ -13,14 +13,24 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { VIEWPORT_CULL_THRESHOLD } from '@/shared/utils/spatialIndex'
 
 // ==================== Mock ol/Map 与 ol/View ====================
-const moveendListeners: Array<{ type: string; listener: (...args: any[]) => void }> = []
+const moveendListeners: Array<{ type: string; listener: (...args: unknown[]) => void }> = []
+
+interface FakeViewOptions {
+  center?: [number, number]
+  zoom?: number
+}
+
+interface FakeMapOptions {
+  target?: unknown
+  view?: FakeView
+}
 
 class FakeView {
   _extent: [number, number, number, number] = [0, 0, 0, 0]
   _center: [number, number] = [0, 0]
   _zoom = 9
 
-  constructor(options: any = {}) {
+  constructor(options: FakeViewOptions = {}) {
     if (options?.center) this._center = options.center
     if (options?.zoom != null) this._zoom = options.zoom
   }
@@ -49,15 +59,15 @@ class FakeMap {
   target: unknown
   view: FakeView
   layers: unknown[] = []
-  listeners: Map<string, Set<(...args: any[]) => void>> = new Map()
+  listeners: Map<string, Set<(...args: unknown[]) => void>> = new Map()
   disposed = false
 
-  constructor(options: any = {}) {
+  constructor(options: FakeMapOptions = {}) {
     this.target = options.target
     this.view = options.view || new FakeView()
   }
 
-  on(type: string, listener: (...args: any[]) => void) {
+  on(type: string, listener: (...args: unknown[]) => void) {
     if (!this.listeners.has(type)) this.listeners.set(type, new Set())
     this.listeners.get(type)!.add(listener)
     const key = { type, listener }
@@ -65,7 +75,7 @@ class FakeMap {
     return key
   }
 
-  un(type: string, listener: (...args: any[]) => void) {
+  un(type: string, listener: (...args: unknown[]) => void) {
     this.listeners.get(type)?.delete(listener)
     const idx = moveendListeners.findIndex((k) => k.type === type && k.listener === listener)
     if (idx !== -1) moveendListeners.splice(idx, 1)
@@ -131,13 +141,39 @@ function extentAround(anchor: [number, number]): [number, number, number, number
 }
 
 /** 从 source 读取已渲染要素 id 集合 */
-function sourceFeatureIds(source: any): Set<string> {
-  return new Set(source.getFeatures().map((f: any) => f.get('id')))
+interface OLCullFeatureLike {
+  get(key: string): unknown
+}
+interface OLCullSourceLike {
+  getFeatures(): OLCullFeatureLike[]
+  clear(): void
+}
+interface OLCullEntryLike {
+  source: OLCullSourceLike
+}
+interface OLCullMapLike {
+  getView(): { setExtent(extent: [number, number, number, number]): void }
+  trigger(type: string, event?: unknown): void
+  disposed: boolean
+}
+
+/**
+ * 白盒测试访问类型：OLRenderer.ts 带 @ts-nocheck，运行时成员 map/_cullLayers/_refreshCulledLayer
+ * 未声明在类型中，需显式暴露供测试断言裁剪逻辑内部状态。
+ */
+type OLRendererTestAccess = InstanceType<typeof OLRenderer> & {
+  map: unknown
+  _cullLayers: Map<string, OLCullEntryLike>
+  _refreshCulledLayer(id: string): void
+}
+
+function sourceFeatureIds(source: OLCullSourceLike): Set<string> {
+  return new Set(source.getFeatures().map((f) => f.get('id') as string))
 }
 
 // ==================== 测试 ====================
 describe('OLRenderer 视口裁剪集成（a016）', () => {
-  let renderer: any
+  let renderer: OLRendererTestAccess | undefined
   let container: HTMLElement
   /** 超过阈值的点数，保证 addPointLayer 走裁剪路径 */
   const N = VIEWPORT_CULL_THRESHOLD + 10
@@ -145,13 +181,13 @@ describe('OLRenderer 视口裁剪集成（a016）', () => {
   beforeEach(() => {
     moveendListeners.length = 0
     container = document.createElement('div')
-    renderer = new OLRenderer(container)
+    renderer = new OLRenderer(container) as unknown as OLRendererTestAccess
     // 将视图范围初始化为钦州港区域
-    renderer.map.getView().setExtent(extentAround(QINZHOU))
+    ;(renderer.map as OLCullMapLike).getView().setExtent(extentAround(QINZHOU))
   })
 
   afterEach(() => {
-    if (renderer?.map && !renderer.map.disposed) {
+    if (renderer?.map && !(renderer.map as OLCullMapLike).disposed) {
       renderer.destroy()
     }
   })
@@ -159,17 +195,17 @@ describe('OLRenderer 视口裁剪集成（a016）', () => {
   describe('阈值路由（VIEWPORT_CULL_THRESHOLD=1000）', () => {
     it('超过阈值走裁剪路径：构建 R-tree 索引并注册 moveend 监听', () => {
       const features = makePoints(QINZHOU, N, 'qz')
-      renderer.addPointLayer('culled', features, {})
+      renderer!.addPointLayer('culled', features, {})
 
-      expect(renderer._cullLayers.has('culled')).toBe(true)
+      expect(renderer!._cullLayers.has('culled')).toBe(true)
       expect(moveendListeners).toHaveLength(1)
     })
 
     it('未超阈值走普通路径：不建索引、不注册 moveend 监听', () => {
       const features = makePoints(QINZHOU, 10, 'small')
-      renderer.addPointLayer('plain', features, {})
+      renderer!.addPointLayer('plain', features, {})
 
-      expect(renderer._cullLayers.has('plain')).toBe(false)
+      expect(renderer!._cullLayers.has('plain')).toBe(false)
       expect(moveendListeners).toHaveLength(0)
     })
   })
@@ -178,9 +214,9 @@ describe('OLRenderer 视口裁剪集成（a016）', () => {
     it('视口内要素渲染，视口外要素被裁剪', () => {
       const inView = makePoints(QINZHOU, N, 'in')
       const outView = makePoints(FANGCHENG, 5, 'out')
-      renderer.addPointLayer('mixed', [...inView, ...outView], {})
+      renderer!.addPointLayer('mixed', [...inView, ...outView], {})
 
-      const entry = renderer._cullLayers.get('mixed')
+      const entry = renderer!._cullLayers.get('mixed') as OLCullEntryLike
       const ids = sourceFeatureIds(entry.source)
 
       expect(ids.size).toBe(N)
@@ -190,9 +226,9 @@ describe('OLRenderer 视口裁剪集成（a016）', () => {
 
     it('要素 properties 透传（featureType + 原始字段）', () => {
       const features = makePoints(QINZHOU, N, 'prop')
-      renderer.addPointLayer('props', features, { featureType: 'poi' })
+      renderer!.addPointLayer('props', features, { featureType: 'poi' })
 
-      const entry = renderer._cullLayers.get('props')
+      const entry = renderer!._cullLayers.get('props') as OLCullEntryLike
       const [feature] = entry.source.getFeatures()
       expect(feature.get('featureType')).toBe('poi')
       expect(feature.get('name')).toMatch(/^prop-point-\d+$/)
@@ -203,17 +239,17 @@ describe('OLRenderer 视口裁剪集成（a016）', () => {
     it('视口移动后 source 内容替换为新视口要素', () => {
       const qinzhou = makePoints(QINZHOU, N, 'qz')
       const fangcheng = makePoints(FANGCHENG, N, 'fc')
-      renderer.addPointLayer('move', [...qinzhou, ...fangcheng], {})
+      renderer!.addPointLayer('move', [...qinzhou, ...fangcheng], {})
 
       // 初始视口在钦州港 → 只渲染 qz 点
-      let ids = sourceFeatureIds(renderer._cullLayers.get('move').source)
+      let ids = sourceFeatureIds((renderer!._cullLayers.get('move') as OLCullEntryLike).source)
       expect(ids.size).toBe(N)
       expect([...ids].every((id) => String(id).startsWith('qz'))).toBe(true)
 
       // 移动视口到防城港并触发 moveend → 只渲染 fc 点
-      renderer.map.getView().setExtent(extentAround(FANGCHENG))
-      renderer.map.trigger('moveend')
-      ids = sourceFeatureIds(renderer._cullLayers.get('move').source)
+      ;(renderer!.map as OLCullMapLike).getView().setExtent(extentAround(FANGCHENG))
+      ;(renderer!.map as OLCullMapLike).trigger('moveend')
+      ids = sourceFeatureIds((renderer!._cullLayers.get('move') as OLCullEntryLike).source)
 
       expect(ids.size).toBe(N)
       expect([...ids].every((id) => String(id).startsWith('fc'))).toBe(true)
@@ -221,59 +257,64 @@ describe('OLRenderer 视口裁剪集成（a016）', () => {
     })
 
     it('moveend 监听只注册一次（多图层共享）', () => {
-      renderer.addPointLayer('a', makePoints(QINZHOU, N, 'a'), {})
-      renderer.addPointLayer('b', makePoints(QINZHOU, N, 'b'), {})
-      renderer.addPointLayer('c', makePoints(QINZHOU, N, 'c'), {})
+      renderer!.addPointLayer('a', makePoints(QINZHOU, N, 'a'), {})
+      renderer!.addPointLayer('b', makePoints(QINZHOU, N, 'b'), {})
+      renderer!.addPointLayer('c', makePoints(QINZHOU, N, 'c'), {})
 
       expect(moveendListeners).toHaveLength(1)
     })
 
     it('moveend 事件刷新全部裁剪图层', () => {
-      renderer.addPointLayer('m1', makePoints(QINZHOU, N, 'm1'), {})
-      renderer.addPointLayer('m2', makePoints(QINZHOU, N + 7, 'm2'), {})
+      renderer!.addPointLayer('m1', makePoints(QINZHOU, N, 'm1'), {})
+      renderer!.addPointLayer('m2', makePoints(QINZHOU, N + 7, 'm2'), {})
 
       // 清空 source 以验证 moveend 会重新填充
-      renderer._cullLayers.get('m1').source.clear()
-      renderer._cullLayers.get('m2').source.clear()
-      expect(renderer._cullLayers.get('m1').source.getFeatures()).toHaveLength(0)
+      ;(renderer!._cullLayers.get('m1') as OLCullEntryLike).source.clear()
+      ;(renderer!._cullLayers.get('m2') as OLCullEntryLike).source.clear()
+      expect(
+        (renderer!._cullLayers.get('m1') as OLCullEntryLike).source.getFeatures()
+      ).toHaveLength(0)
+      ;(renderer!.map as OLCullMapLike).getView().setExtent(extentAround(QINZHOU))
+      ;(renderer!.map as OLCullMapLike).trigger('moveend')
 
-      renderer.map.getView().setExtent(extentAround(QINZHOU))
-      renderer.map.trigger('moveend')
-
-      expect(renderer._cullLayers.get('m1').source.getFeatures()).toHaveLength(N)
-      expect(renderer._cullLayers.get('m2').source.getFeatures()).toHaveLength(N + 7)
+      expect(
+        (renderer!._cullLayers.get('m1') as OLCullEntryLike).source.getFeatures()
+      ).toHaveLength(N)
+      expect(
+        (renderer!._cullLayers.get('m2') as OLCullEntryLike).source.getFeatures()
+      ).toHaveLength(N + 7)
     })
   })
 
   describe('监听生命周期（removeLayer / destroy）', () => {
     it('移除唯一裁剪图层后 moveend 监听被解除', () => {
-      renderer.addPointLayer('solo', makePoints(QINZHOU, N, 'solo'), {})
+      renderer!.addPointLayer('solo', makePoints(QINZHOU, N, 'solo'), {})
       expect(moveendListeners).toHaveLength(1)
 
-      renderer.removeLayer('solo')
-      expect(renderer._cullLayers.has('solo')).toBe(false)
+      renderer!.removeLayer('solo')
+      expect(renderer!._cullLayers.has('solo')).toBe(false)
       expect(moveendListeners).toHaveLength(0)
     })
 
     it('存在多个裁剪图层时移除一个不解除监听', () => {
-      renderer.addPointLayer('k1', makePoints(QINZHOU, N, 'k1'), {})
-      renderer.addPointLayer('k2', makePoints(QINZHOU, N, 'k2'), {})
+      renderer!.addPointLayer('k1', makePoints(QINZHOU, N, 'k1'), {})
+      renderer!.addPointLayer('k2', makePoints(QINZHOU, N, 'k2'), {})
 
-      renderer.removeLayer('k1')
+      renderer!.removeLayer('k1')
       expect(moveendListeners).toHaveLength(1)
 
-      renderer.removeLayer('k2')
+      renderer!.removeLayer('k2')
       expect(moveendListeners).toHaveLength(0)
     })
 
     it('destroy 清理全部裁剪图层与监听', () => {
-      const map = renderer.map
-      renderer.addPointLayer('d1', makePoints(QINZHOU, N, 'd1'), {})
-      renderer.addPointLayer('d2', makePoints(QINZHOU, N, 'd2'), {})
+      const map = renderer!.map as OLCullMapLike
+      renderer!.addPointLayer('d1', makePoints(QINZHOU, N, 'd1'), {})
+      renderer!.addPointLayer('d2', makePoints(QINZHOU, N, 'd2'), {})
       expect(moveendListeners).toHaveLength(1)
 
-      renderer.destroy()
-      expect(renderer._cullLayers.size).toBe(0)
+      renderer!.destroy()
+      expect(renderer!._cullLayers.size).toBe(0)
       expect(moveendListeners).toHaveLength(0)
       expect(map.disposed).toBe(true)
     })
@@ -281,21 +322,23 @@ describe('OLRenderer 视口裁剪集成（a016）', () => {
 
   describe('空视口/空图层边界', () => {
     it('空要素数组不抛错', () => {
-      expect(() => renderer.addPointLayer('empty', [], {})).not.toThrow()
+      expect(() => renderer!.addPointLayer('empty', [], {})).not.toThrow()
     })
 
     it('刷新不存在的图层为 no-op', () => {
-      expect(() => renderer._refreshCulledLayer('nonexistent')).not.toThrow()
+      expect(() => renderer!._refreshCulledLayer('nonexistent')).not.toThrow()
     })
 
     it('移动视口到无要素区域后 source 为空', () => {
-      renderer.addPointLayer('far', makePoints(QINZHOU, N, 'far'), {})
+      renderer!.addPointLayer('far', makePoints(QINZHOU, N, 'far'), {})
 
       // 视口移动到远离任何点的位置（上海附近）
-      renderer.map.getView().setExtent(extentAround([121.0, 31.0]))
-      renderer.map.trigger('moveend')
+      ;(renderer!.map as OLCullMapLike).getView().setExtent(extentAround([121.0, 31.0]))
+      ;(renderer!.map as OLCullMapLike).trigger('moveend')
 
-      expect(renderer._cullLayers.get('far').source.getFeatures()).toHaveLength(0)
+      expect(
+        (renderer!._cullLayers.get('far') as OLCullEntryLike).source.getFeatures()
+      ).toHaveLength(0)
     })
   })
 })

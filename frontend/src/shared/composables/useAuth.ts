@@ -11,6 +11,7 @@ import { useProfileStore } from '@/stores/profileStore'
 import { useSiteSelectionStateStore } from '@/stores/siteSelectionState'
 import { useWaterLevelStore } from '@/stores/waterLevelStore'
 import type { AuthResponse, User } from '@/types/api'
+import { userSchema } from '@/types/schemas'
 
 import { useApiRequest } from './useApiRequest'
 
@@ -19,12 +20,21 @@ const USER_STORAGE_KEY = 'beibu-gulf-user'
 
 /**
  * 从 localStorage 读取用户信息
+ * z045: 用 userSchema.safeParse 替代裸 `as User` 断言，校验失败清缓存返回 null
  */
 function readStoredUser(): User | null {
   if (typeof window === 'undefined') return null
   try {
     const stored = window.localStorage.getItem(USER_STORAGE_KEY)
-    return stored ? JSON.parse(stored) : null
+    if (!stored) return null
+    // z045: safeParse 替代 JSON.parse(stored) as User
+    const result = userSchema.safeParse(JSON.parse(stored))
+    if (!result.success) {
+      logger.warn('[useAuth] localStorage 用户数据校验失败，已清除:', result.error.issues)
+      window.localStorage.removeItem(USER_STORAGE_KEY)
+      return null
+    }
+    return result.data as User
   } catch {
     return null
   }
@@ -107,6 +117,7 @@ async function restoreAuth(): Promise<User | null> {
 
 /**
  * 多标签页同步 - 监听 beibu-gulf-user 变化
+ * z045: 其他标签页写入的用户数据同样经 userSchema 校验，失败则视为登出
  */
 function handleStorageChange(event: StorageEvent): void {
   if (event.key === USER_STORAGE_KEY) {
@@ -118,7 +129,13 @@ function handleStorageChange(event: StorageEvent): void {
     } else {
       // 其他标签页登录了，当前标签页也要同步
       try {
-        user.value = JSON.parse(event.newValue)
+        const result = userSchema.safeParse(JSON.parse(event.newValue))
+        if (result.success) {
+          user.value = result.data as User
+        } else {
+          logger.warn('[useAuth] storage 同步数据校验失败:', result.error.issues)
+          user.value = null
+        }
       } catch {
         user.value = null
       }

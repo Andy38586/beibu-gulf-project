@@ -134,6 +134,9 @@ app.use((req, res) => {
 app.use((err, req, res, _next) => {
   // BusinessError 统一携带 code + status，按码返回对应 HTTP 状态码
   if (err instanceof BusinessError) {
+    // z072: 业务错误也落 warn 日志（生产可观测——此前业务错误不落日志,线上排查无据）
+    // 仅记 code/status/message,不记堆栈(预期错误,避免噪音)
+    logger.warn(`[BusinessError] ${err.status} ${err.code}: ${err.message}`)
     return res.status(err.status).json({ code: err.code, error: err.message })
   }
   // 仅在开发环境输出详细错误

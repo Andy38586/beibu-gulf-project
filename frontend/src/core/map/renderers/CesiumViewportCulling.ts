@@ -17,22 +17,43 @@ export interface ViewportBBox {
 }
 
 /**
- * 计算当前相机视口的经纬度范围（简化估算）
+ * 计算当前相机视口的经纬度范围
  * ⚠️ 注意：Cesium `camera.positionCartographic` 的 longitude/latitude 单位为**弧度**，
  * 必须用 CesiumMath.toDegrees 转换为角度后再与要素经纬度比较。
+ *
+ * a019: 优先用 camera.computeViewRectangle(scene.globe) 取**真实视口四角投影**
+ * 覆盖范围——替代原圆形/方形估算（原 `halfRange = (height/111000)*1.5` 在
+ * pitch≠-90 倾斜视角下会把视口边缘 POI 错误裁剪）。computeViewRectangle 不可用
+ * （场景未渲染/globe 缺失）时回退原估算。
+ *
  * @param renderer CesiumRenderer 实例（访问 viewer）
  * @returns 视口范围；太高（>5000km）或无相机时返回 null（不裁剪）
  */
 export function getViewportBBox(renderer: any): ViewportBBox | null {
   if (!renderer.viewer) return null
   const camera = renderer.viewer.camera
+  const scene = renderer.viewer.scene
   const cartographic = camera.positionCartographic
   if (!cartographic) return null
-  // 根据相机高度估算视口范围（简化版）
-  // 高度越高，视口范围越大
   const height = cartographic.height
   if (height > 5000000) return null // 太高不做裁剪
-  // 粗略估算：1 度 ≈ 111km，视口半宽 ≈ height / 2 / 111000 * 1.5（余量）
+
+  // a019: 真实视口四角投影（倾斜视角下边缘 POI 不再误裁）
+  try {
+    const rect = camera.computeViewRectangle(scene?.globe)
+    if (rect) {
+      return {
+        west: CesiumMath.toDegrees(rect.west),
+        east: CesiumMath.toDegrees(rect.east),
+        south: CesiumMath.toDegrees(rect.south),
+        north: CesiumMath.toDegrees(rect.north),
+      }
+    }
+  } catch {
+    // computeViewRectangle 在场景未渲染等场景可能抛错——回退下方估算
+  }
+
+  // 兜底：相机高度圆形估算（原逻辑,仅真实投影不可用时的近似）
   const halfRange = Math.min((height / 111000) * 1.5, 10) // 上限 10 度
   const centerLon = CesiumMath.toDegrees(cartographic.longitude)
   const centerLat = CesiumMath.toDegrees(cartographic.latitude)

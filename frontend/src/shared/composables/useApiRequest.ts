@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import type { ZodType } from 'zod'
 
 import { unwrapEnvelope } from '@/shared/utils/responseEnvelope'
+import { logger } from '../utils/logger'
 
 // 错误码：使用 as const 对象 + 联合类型，避免 enum 在 ESLint 下的成员误报
 export const ErrorCode = {
@@ -103,6 +104,11 @@ export function useApiRequest() {
    * 每次调用新建 AbortController，超时计时天然重置，支持重试。
    */
   async function _singleRequest<T = unknown>(path: string, options: RequestOptions): Promise<T> {
+    // z048: 请求日志(dev-only)——故障时定位"数据在哪一跳丢失"
+    if (import.meta.env.DEV) {
+      logger.debug(`[apiRequest] → ${options.method ?? 'GET'} ${path}`, options.params ?? undefined)
+    }
+
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       ...options.headers,
@@ -182,6 +188,14 @@ export function useApiRequest() {
        * 跨服务调用（FastAPI 裸 JSON）传 envelope: false 跳过解包。
        */
       const unwrapped = options.envelope === false ? (data as T) : unwrapEnvelope<T>(data)
+
+      // z048: 响应日志(dev-only)
+      if (import.meta.env.DEV) {
+        logger.debug(`[apiRequest] ← ${res.status} ${path}`, {
+          envelope: options.envelope === false ? 'raw' : 'envelope',
+          schema: options.schema ? 'zod' : 'none',
+        })
+      }
 
       // 若调用方传入 schema，用 safeParse 替代裸 `as T` 断言做运行时校验。
       // 校验失败抛 ApiError(REQUEST_FAILED)，不在 z049 重试码列表内（响应数据错误不可重试）。

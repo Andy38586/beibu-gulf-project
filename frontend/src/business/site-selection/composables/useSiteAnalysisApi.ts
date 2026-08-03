@@ -1,11 +1,13 @@
 import type { Ref } from 'vue'
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 
 import { useApiRequest } from '@/shared/composables/useApiRequest'
 import { handleAuthError, isAuthError, showError } from '@/shared/utils/errorHandler'
 import type { AnalysisParams, AnalysisResult } from '@/types/analysis'
 
 export function useSiteAnalysisApi() {
+  const router = useRouter()
   const { apiRequest } = useApiRequest()
   const calculating: Ref<boolean> = ref(false)
   const calcError: Ref<string> = ref('')
@@ -48,7 +50,7 @@ export function useSiteAnalysisApi() {
       }
       // 401：site-analysis 整路由需登录，走统一软登录（与 forecast 侧一致）
       if (isAuthError(error)) {
-        await handleAuthError()
+        await handleAuthError(router)
       }
       // z031: 统一走 errorHandler，消除手写 switch 与全站口径不一致
       showError(error, { fallback: '选址分析失败，请稍后重试' })

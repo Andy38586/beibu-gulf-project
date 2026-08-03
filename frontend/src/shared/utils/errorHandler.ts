@@ -64,16 +64,20 @@ export async function handleAsync<T>(promise: Promise<T>, fallback?: string): Pr
  * 所有请求层（useApiRequest / useForecastRequest）在 401 时不主动 redirect，
  * 由调用方识别 401 后调用此函数，统一执行：清理认证状态 + 跳转首页 + 弹登录面板。
  *
- * @param {object} [router] - 可选传入 vue-router 实例，避免动态 import
+ * z044: router 改为必选参数（调用方通过 useRouter() 传入），移除动态 import('@/router')
+ * 兜底——动态 import 是 errorHandler→router→business→errorHandler 循环链的根源。
+ * useAuth 仍保留动态 import（避免 useAuth→errorHandler 的静态循环，useAuth 内部调用
+ * showError）。
+ *
+ * @param {Router} router - vue-router 实例（调用方通过 useRouter() 传入）
  */
-export async function handleAuthError(router?: unknown): Promise<void> {
+export async function handleAuthError(router: Router): Promise<void> {
   const { useAuth } = await import('@/shared/composables/useAuth')
   const auth = useAuth()
   await auth.logout()
 
-  const r = (router || (await import('@/router')).default) as Router
-  if (r.currentRoute.value.path !== '/') {
-    r.push({ path: '/', query: { showLogin: '1' } })
+  if (router.currentRoute.value.path !== '/') {
+    router.push({ path: '/', query: { showLogin: '1' } })
   }
 }
 

@@ -18,6 +18,7 @@
 -->
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 
 import AppLayout from '@/core/layout/AppLayout.vue'
 import GCSPanel from '@/core/layout/components/GCSPanel.vue'
@@ -37,6 +38,7 @@ import { DEFAULT_CONFIDENCE, PORT_NAMES } from './constants'
 
 const forecastState = useForecastState()
 const mapStore = useMapStore()
+const router = useRouter()
 const { updateForecastLayer, removeForecastLayer, renderer } = useForecastLayer()
 const {
   runInTransaction,
@@ -131,7 +133,7 @@ async function loadTimeSeriesData(transactionId: number, signal: AbortSignal) {
   } catch (e) {
     logger.error('[ForecastPage] loadTimeSeriesData error:', e)
     if (isAuthError(e)) {
-      handleAuthError()
+      handleAuthError(router)
       return
     }
     showError(e, { fallback: '加载趋势数据失败' })
@@ -177,7 +179,7 @@ async function loadPortComparisonData(transactionId: number, signal: AbortSignal
   } catch (e) {
     logger.error('[ForecastPage] loadPortComparisonData error:', e)
     if (isAuthError(e)) {
-      handleAuthError()
+      handleAuthError(router)
       return
     }
     showError(e, { fallback: '加载对比数据失败' })

@@ -6,6 +6,7 @@
  */
 import type { ComputedRef } from 'vue'
 import { computed, nextTick, watch } from 'vue'
+import { useRouter } from 'vue-router'
 
 import type { BusinessLayerManager } from '@/core/map/BusinessLayerManager'
 import { useBusinessLayers } from '@/core/map/composables/useBusinessLayers'
@@ -47,6 +48,7 @@ interface UseForecastLayerReturn {
 }
 
 export function useForecastLayer(): UseForecastLayerReturn {
+  const router = useRouter()
   const forecastState = useForecastState()
   const mapStore = useMapStore()
   const { manager } = useBusinessLayers() as { manager: BusinessLayerManager }
@@ -151,7 +153,7 @@ export function useForecastLayer(): UseForecastLayerReturn {
       manager.updateData(key, { data, options })
     } catch (e) {
       if (isAuthError(e)) {
-        handleAuthError()
+        handleAuthError(router)
         return
       }
       if (import.meta.env.DEV) logger.debug('[useForecastLayer] 更新失败:', e)

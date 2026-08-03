@@ -1,5 +1,6 @@
 import type { Ref } from 'vue'
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 
 import { handleAuthError, isAuthError } from '@/shared/utils/errorHandler'
 import { logger } from '@/shared/utils/logger'
@@ -10,6 +11,7 @@ import type { SavedXiaoqu } from '@/types/xiaoqu'
 import { useApiRequest } from './useApiRequest'
 
 export function usePlans() {
+  const router = useRouter()
   const { apiRequest, isAuthenticated } = useApiRequest()
   const saving: Ref<boolean> = ref(false)
   const updating: Ref<boolean> = ref(false)
@@ -27,7 +29,7 @@ export function usePlans() {
       return data
     } catch (error) {
       if (isAuthError(error)) {
-        await handleAuthError()
+        await handleAuthError(router)
         throw error
       }
       if (import.meta.env.DEV) {
@@ -62,7 +64,7 @@ export function usePlans() {
     } catch (error) {
       // 401（Cookie 过期但前端 token 未同步）：统一走软登录提示
       if (isAuthError(error)) {
-        await handleAuthError()
+        await handleAuthError(router)
         throw error
       }
       if (import.meta.env.DEV) {
@@ -84,7 +86,7 @@ export function usePlans() {
       await apiRequest(`/plans/${id}`, { method: 'DELETE' })
     } catch (error) {
       if (isAuthError(error)) {
-        await handleAuthError()
+        await handleAuthError(router)
         throw error
       }
       if (import.meta.env.DEV) {
@@ -119,7 +121,7 @@ export function usePlans() {
       })
     } catch (error) {
       if (isAuthError(error)) {
-        await handleAuthError()
+        await handleAuthError(router)
         throw error
       }
       if (import.meta.env.DEV) {
@@ -143,7 +145,7 @@ export function usePlans() {
       })
     } catch (error) {
       if (isAuthError(error)) {
-        await handleAuthError()
+        await handleAuthError(router)
         throw error
       }
       if (import.meta.env.DEV) {
@@ -160,7 +162,7 @@ export function usePlans() {
       })
     } catch (error) {
       if (isAuthError(error)) {
-        await handleAuthError()
+        await handleAuthError(router)
         throw error
       }
       if (import.meta.env.DEV) {

@@ -25,6 +25,7 @@ export default { name: 'GCSBottomNavBar' }
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
+import { navItems } from '@/core/layout/navConfig'
 import { useGCS } from '@/shared'
 
 import GCSPanel from './GCSPanel.vue'
@@ -47,33 +48,19 @@ const toggleFontSizeCss = computed(() => `${Math.round(cellPixel.value * 0.15)}p
 const toggleIconSizeCss = computed(() => `${Math.round(cellPixel.value * 0.175)}px`)
 const toggleMarginTopCss = computed(() => `${Math.round(cellPixel.value * 0.025)}px`)
 
-/**
- * 底部导航按钮配置
- * - 已启用：首页、选址分析、个人中心
- * - 未启用：吞吐量、热力图、航线分析（disabled 占位）
- */
-const navItems = computed(() => [
-  { label: '首页', icon: '⌂', route: '/', disabled: false },
-  { label: '选址分析', icon: '◈', route: '/site-selection', disabled: false },
-  { label: '预测分析', icon: '📊', route: '/forecast', disabled: false },
-  { label: '浸没分析', icon: '🌊', route: '/flood-analysis', disabled: false },
-  { label: '航线分析', icon: '🚢', route: '/route-analysis', disabled: true },
-  { label: '个人中心', icon: '👤', route: '/profile', disabled: false },
-])
-
 // Dock 宽度 = 导航按钮数 + 1（检查模式按钮），随 navItems 自动扩展
 const dockCellCount = computed(() => navItems.value.length + 1)
 
 // V2 变更：Dock 定位改用 PPS 的 bottom-center 锚点，不再需要手动管理视口尺寸
 
-function isActive(item: { route?: string }) {
-  if (!item.route) return false
-  return route.path === item.route
+function isActive(item: { path?: string }) {
+  if (!item.path) return false
+  return route.path === item.path
 }
 
-function handleClick(item: { route?: string; disabled?: boolean }) {
-  if (item.disabled || !item.route) return
-  router.push(item.route)
+function handleClick(item: { path?: string; disabled?: boolean }) {
+  if (item.disabled || !item.path) return
+  router.push(item.path)
 }
 </script>
 

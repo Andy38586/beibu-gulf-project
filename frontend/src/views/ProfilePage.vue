@@ -3,7 +3,7 @@
  * ProfilePage - 个人中心（用户工作台）
  *
  * 继承 AppLayout 布局基座：
- * - 左侧：默认可视化面板（折线图 + 柱状图）
+ * - 左侧：港口吞吐量折线图 + 柱状图（c023 从 AppLayout 下沉到本页）
  * - 右侧：单个 4×8 Panel，放置 LoginPanel + 收藏夹
  *
  * 功能：
@@ -30,6 +30,8 @@ import { logger } from '@/shared'
 import PaginatedListPanel from '@/shared/components/PaginatedListPanel.vue'
 import PlanSaveModal from '@/shared/components/PlanSaveModal.vue'
 import { useFloodState } from '@/stores'
+import BarChart from '@/visualization/charts/BarChart.vue'
+import LineChart from '@/visualization/charts/LineChart.vue'
 
 import LoginPanel from './LoginPanel.vue'
 
@@ -49,6 +51,29 @@ const {
 } = usePlans()
 const { user, logout } = useAuth()
 const floodStore = useFloodState()
+
+/**
+ * 折线图数据（c023 从 AppLayout 下沉到本页）
+ */
+const chartData = {
+  labels: ['2019', '2020', '2021', '2022', '2023', '2024'],
+  series: [
+    { name: '钦州港', data: [120, 132, 101, 134, 190, 230] },
+    { name: '北海港', data: [90, 110, 120, 115, 140, 180] },
+    { name: '防城港', data: [80, 95, 110, 125, 150, 170] },
+  ],
+}
+
+/**
+ * 柱状图数据（c023 从 AppLayout 下沉到本页）
+ */
+const barData = {
+  labels: ['钦州港', '北海港', '防城港'],
+  series: [
+    { name: '2023年', data: [190, 140, 150] },
+    { name: '2024年', data: [230, 180, 170] },
+  ],
+}
 
 /* 个人中心布局尺寸（GCS cell 单位） */
 const avatarSizeCss = computed(() => `${cellPixel.value * 1.2}px`)
@@ -276,7 +301,15 @@ watch(
 <template>
   <div class="profile-page">
     <AppLayout>
-      <!-- 左侧：不传 slot，使用 AppLayout 默认可视化面板（折线图 + 柱状图） -->
+      <!-- 左侧：折线图 + 柱状图（c023 从 AppLayout 下沉到本页） -->
+      <template #left>
+        <GCSPanel :w="4" :h="4" anchor="top-left" :offset-x="0" :offset-y="1.25">
+          <LineChart title="港口吞吐量趋势" :x-data="chartData.labels" :series="chartData.series" />
+        </GCSPanel>
+        <GCSPanel :w="4" :h="4" anchor="top-left" :offset-x="0" :offset-y="5.5">
+          <BarChart title="港口吞吐量对比" :x-data="barData.labels" :series="barData.series" />
+        </GCSPanel>
+      </template>
 
       <!-- 右侧：单个 4×8 Panel -->
       <template #right>

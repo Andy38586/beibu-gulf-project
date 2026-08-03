@@ -26,8 +26,6 @@ import { useScreenActions } from '@/core/layout/composables/useScreenActions.js'
 import LayerControlPanel from '@/core/map/components/LayerControlPanel.vue'
 import { useGCS } from '@/shared'
 import PanelTitle from '@/shared/components/PanelTitle.vue'
-import BarChart from '@/visualization/charts/BarChart.vue'
-import LineChart from '@/visualization/charts/LineChart.vue'
 import RadarChart from '@/visualization/charts/RadarChart.vue'
 
 import BottomNavBar from './components/BottomNavBar.vue'
@@ -48,29 +46,6 @@ const { drawerOpen, toggleDrawer, closeDrawer } = useMobileDrawer()
 // 检查模式状态
 const inspectionMode = ref(false)
 const isDev = import.meta.env.DEV
-
-/**
- * 折线图数据（默认数据，与旧版 Zone2 一致）
- */
-const chartData = {
-  labels: ['2019', '2020', '2021', '2022', '2023', '2024'],
-  series: [
-    { name: '钦州港', data: [120, 132, 101, 134, 190, 230] },
-    { name: '北海港', data: [90, 110, 120, 115, 140, 180] },
-    { name: '防城港', data: [80, 95, 110, 125, 150, 170] },
-  ],
-}
-
-/**
- * 柱状图数据（默认数据，与旧版 Zone5 一致）
- */
-const barData = {
-  labels: ['钦州港', '北海港', '防城港'],
-  series: [
-    { name: '2023年', data: [190, 140, 150] },
-    { name: '2024年', data: [230, 180, 170] },
-  ],
-}
 </script>
 
 <template>
@@ -108,17 +83,8 @@ const barData = {
         </div>
       </GCSPanel>
 
-      <!-- 左侧 Panel 组 -->
-      <slot name="left">
-        <!-- 左上：折线图 4×4 -->
-        <GCSPanel :w="4" :h="4" anchor="top-left" :offset-x="0" :offset-y="1.25">
-          <LineChart title="港口吞吐量趋势" :x-data="chartData.labels" :series="chartData.series" />
-        </GCSPanel>
-        <!-- 左下：柱状图 4×4 -->
-        <GCSPanel :w="4" :h="4" anchor="top-left" :offset-x="0" :offset-y="5.5">
-          <BarChart title="港口吞吐量对比" :x-data="barData.labels" :series="barData.series" />
-        </GCSPanel>
-      </slot>
+      <!-- 左侧 Panel 组（c023：默认内容移除，由业务页通过 #left slot 注入） -->
+      <slot name="left" />
 
       <!-- 右侧 Panel 组 -->
       <div v-show="showPanels">

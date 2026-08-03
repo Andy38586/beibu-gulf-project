@@ -5,6 +5,7 @@ import { RouterView, useRoute, useRouter } from 'vue-router'
 import { BusinessLayerManager } from '@/core'
 import { BUSINESS_LAYER_MANAGER_KEY } from '@/core'
 import { useMapControls } from '@/core'
+import { registerNavItems } from '@/core'
 import {
   EDITING_PLAN_KEY,
   MAP_STORE_KEY,
@@ -69,6 +70,16 @@ setResetStoresHandler(() => {
     // store 未激活等异常不阻断登出
   }
 })
+
+// c023: 注册底部导航项（业务路由由 App 注入，core/layout 不再硬编码）
+registerNavItems([
+  { label: '首页', icon: '⌂', path: '/', disabled: false },
+  { label: '选址分析', icon: '◈', path: '/site-selection', disabled: false },
+  { label: '预测分析', icon: '📊', path: '/forecast', disabled: false },
+  { label: '浸没分析', icon: '🌊', path: '/flood-analysis', disabled: false },
+  { label: '航线分析', icon: '🚢', path: '/route-analysis', disabled: true },
+  { label: '个人中心', icon: '👤', path: '/profile', disabled: false },
+])
 
 function handleRequireLogin() {
   router.push('/profile')

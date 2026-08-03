@@ -8,7 +8,7 @@
  */
 import { computed } from 'vue'
 
-import { useGCS } from '@/core/layout/useGCS.js'
+import { useGCS } from '@/shared/layout/useGCS.js'
 
 interface Props {
   selectedPort?: Record<string, unknown>

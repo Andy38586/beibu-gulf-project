@@ -12,7 +12,7 @@
 
 import { computed } from 'vue'
 
-import { useGCS } from '@/core/layout/useGCS.js'
+import { useGCS } from '@/shared/layout/useGCS.js'
 import { useFloodState } from '@/stores/floodState'
 import { usePortImpactStore } from '@/stores/portImpactStore'
 

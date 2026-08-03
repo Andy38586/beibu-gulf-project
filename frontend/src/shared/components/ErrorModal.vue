@@ -18,7 +18,7 @@
 
 import { useRouter } from 'vue-router'
 
-import { useGCS } from '@/core/layout/useGCS.js'
+import { useGCS } from '@/shared/layout/useGCS.js'
 
 interface Props {
   visible?: boolean

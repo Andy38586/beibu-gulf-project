@@ -17,9 +17,8 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 
 import { INSPECTION_COLORS } from '@/shared/constants/colors'
-
-import { CELL_PIXEL, GRID_SIZE, PANEL_SPACING, SAFE_MARGIN } from '../config.js'
-import { useGCS } from '../useGCS.js'
+import { CELL_PIXEL, GRID_SIZE, PANEL_SPACING, SAFE_MARGIN } from '@/shared/layout/config.js'
+import { useGCS } from '@/shared/layout/useGCS.js'
 
 interface Props {
   enabled?: boolean

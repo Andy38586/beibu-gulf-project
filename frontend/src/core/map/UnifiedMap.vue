@@ -3,8 +3,6 @@
 import type { Feature, FeatureCollection, Point } from 'geojson'
 import { computed, nextTick, onMounted, onUnmounted, provide, ref, watch } from 'vue'
 
-import { CELL_PIXEL } from '@/core/layout/config.js'
-import { useGCS } from '@/core/layout/useGCS.js'
 import { BOUNDARY_STYLE, loadBoundaryGeoJson } from '@/core/map/composables/useBoundaryLayer'
 import { useBusinessLayers } from '@/core/map/composables/useBusinessLayers'
 import { useLayerManager } from '@/core/map/composables/useLayerManager'
@@ -12,6 +10,8 @@ import { MapRendererKey } from '@/core/map/composables/useMapRenderer'
 import { buildPortGeoJson, loadPorts, PORT_STYLE } from '@/core/map/composables/usePortLayer'
 import { createRenderer } from '@/core/map/renderers'
 import type { MapRenderer } from '@/core/map/renderers/MapRenderer'
+import { CELL_PIXEL } from '@/shared/layout/config.js'
+import { useGCS } from '@/shared/layout/useGCS.js'
 import { logger } from '@/shared/utils/logger'
 import { useMapStore } from '@/stores/mapStore'
 import type {

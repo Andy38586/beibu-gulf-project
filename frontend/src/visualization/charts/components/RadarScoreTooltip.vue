@@ -8,8 +8,8 @@
 
 import { computed } from 'vue'
 
-import { useGCS } from '@/core/layout/useGCS.js'
 import { FACILITY_COLORS_MAP } from '@/shared/constants/colors'
+import { useGCS } from '@/shared/layout/useGCS.js'
 import { FACILITY_LABELS } from '@/shared/utils/facilityLabels'
 
 interface Props {

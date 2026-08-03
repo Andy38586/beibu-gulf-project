@@ -22,9 +22,10 @@
 import { ref } from 'vue'
 import { useRoute } from 'vue-router'
 
-import LayerControlPanel from '@/shared/components/LayerControlPanel.vue'
+import { useScreenActions } from '@/core/layout/composables/useScreenActions.js'
+import LayerControlPanel from '@/core/map/components/LayerControlPanel.vue'
 import PanelTitle from '@/shared/components/PanelTitle.vue'
-import { useScreenActions } from '@/shared/composables/useScreenActions.js'
+import { useGCS } from '@/shared/layout/useGCS.js'
 import BarChart from '@/visualization/charts/BarChart.vue'
 import LineChart from '@/visualization/charts/LineChart.vue'
 import RadarChart from '@/visualization/charts/RadarChart.vue'
@@ -34,7 +35,6 @@ import GCSInspectionOverlay from './components/GCSInspectionOverlay.vue'
 import GCSPanel from './components/GCSPanel.vue'
 import MobileDrawer from './components/MobileDrawer.vue'
 import NavButton from './components/NavButton.vue'
-import { useGCS } from './useGCS.js'
 import { useMobileDrawer } from './useMobileDrawer'
 
 const route = useRoute()

@@ -25,7 +25,7 @@ export default { name: 'GCSBottomNavBar' }
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
-import { useGCS } from '../useGCS.js'
+import { useGCS } from '@/shared/layout/useGCS.js'
 
 import GCSPanel from './GCSPanel.vue'
 import NavButton from './NavButton.vue'

@@ -21,9 +21,9 @@ import { onBeforeRouteLeave } from 'vue-router'
 
 import AppLayout from '@/core/layout/AppLayout.vue'
 import GCSPanel from '@/core/layout/components/GCSPanel.vue'
+import LayerControlPanel from '@/core/map/components/LayerControlPanel.vue'
 import { useBusinessLayers } from '@/core/map/composables/useBusinessLayers'
 import { useMapControls } from '@/core/map/composables/useMapControls'
-import LayerControlPanel from '@/shared/components/LayerControlPanel.vue'
 import PaginatedListPanel from '@/shared/components/PaginatedListPanel.vue'
 import { showError } from '@/shared/utils/errorHandler'
 import { logger } from '@/shared/utils/logger'
@@ -36,7 +36,8 @@ import RadarChart from '@/visualization/charts/RadarChart.vue'
 import SiteAnalysisControlPanel from './components/SiteAnalysisControlPanel.vue'
 import { useAnalysisLayer } from './composables/useAnalysisLayer'
 
-const { stopBreathing, zoomToCity, zoomToDistrict, mapInstance } = useMapControls()
+const { flyTo, startBreathing, stopBreathing, zoomToCity, zoomToDistrict, mapInstance } =
+  useMapControls()
 const mapStore = useMapStore()
 const stateStore = useSiteSelectionStateStore()
 const { manager: businessLayerManager } = useBusinessLayers()
@@ -174,6 +175,9 @@ function handleSelectXiaoqu(xq: ScoredXiaoqu): void {
   selectedXiaoqu.value = normalizedXq
   // z053: 从 PaginatedListPanel 上提至此（shared 不再依赖 stores）
   mapStore.setSelectedXiaoqu(normalizedXq)
+  // z054: 从 PaginatedListPanel 上提至此（shared 不再依赖 core）
+  startBreathing(normalizedXq.lng, normalizedXq.lat)
+  flyTo({ lng: normalizedXq.lng, lat: normalizedXq.lat }, { height: 1000 })
 }
 
 /** 收藏状态变化时同步方案ID */

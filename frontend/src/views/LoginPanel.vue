@@ -13,8 +13,8 @@
 
 import { computed, ref } from 'vue'
 
-import { useGCS } from '@/core/layout/useGCS.js'
 import { useAuth } from '@/shared/composables/useAuth'
+import { useGCS } from '@/shared/layout/useGCS.js'
 
 const { login, register } = useAuth()
 const { cellPixel } = useGCS()

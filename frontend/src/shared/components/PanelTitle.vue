@@ -17,7 +17,7 @@
 
 import { computed } from 'vue'
 
-import { useGCS } from '@/core/layout/useGCS.js'
+import { useGCS } from '@/shared/layout/useGCS.js'
 
 const { css, cellPixel } = useGCS()
 const { cell8px } = css

@@ -36,10 +36,9 @@
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
-import { useGCS } from '@/core/layout/useGCS.js'
-import { useMapControls } from '@/core/map/composables/useMapControls'
 import { useAuth } from '@/shared/composables/useAuth'
 import { usePlans } from '@/shared/composables/usePlans'
+import { useGCS } from '@/shared/layout/useGCS.js'
 import { showError } from '@/shared/utils/errorHandler'
 import { logger } from '@/shared/utils/logger'
 import type { SavedXiaoqu } from '@/types/plan'
@@ -79,7 +78,6 @@ const { css } = useGCS()
 const { cell8px, cell16px, cell40px, fontSizeTitle, fontSizeBody, fontSizeSmall } = css
 const { createPlan, saveXiaoqu, removeXiaoqu } = usePlans()
 const { isAuthenticated } = useAuth()
-const { flyTo, startBreathing } = useMapControls()
 const router = useRouter()
 
 /** 统一的登录状态判断：使用 isAuthenticated 而非 user.value */
@@ -249,15 +247,7 @@ function handleItemClick(item: ScoredXiaoqu) {
     lat,
   }
 
-  // 仅在启用地图交互时执行地图操作
-  if (props.mapInteraction) {
-    // 触发呼吸动画
-    startBreathing(lng, lat)
-
-    // 飞行到目标位置（放大到街道级别，比district的8000更近）
-    flyTo({ lng, lat }, { height: 1000 })
-  }
-
+  // z054: 移除 useMapControls（shared 不依赖 core），地图交互由父组件通过 click-item 事件处理
   // 通过emit传参给父组件（用于雷达图等），传递规范化后的数据
   emit('click-item', normalizedItem)
 }

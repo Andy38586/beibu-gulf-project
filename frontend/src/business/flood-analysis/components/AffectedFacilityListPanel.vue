@@ -13,11 +13,13 @@
 
 import { computed } from 'vue'
 
+import { useMapControls } from '@/core/map/composables/useMapControls'
 import PaginatedListPanel from '@/shared/components/PaginatedListPanel.vue'
 import { usePortImpactStore } from '@/stores/portImpactStore'
 import type { ScoredXiaoqu } from '@/types/xiaoqu'
 
 const portImpactStore = usePortImpactStore()
+const { flyTo, startBreathing } = useMapControls()
 
 /**
  * 获取设施类型对应的中文标签
@@ -69,6 +71,12 @@ const sortedFacilities = computed<ScoredXiaoqu[]>(() => {
       })
     )
 })
+
+/** z054: 从 PaginatedListPanel 上提的地图交互（shared 不再依赖 core） */
+function handleItemClick(item: ScoredXiaoqu): void {
+  startBreathing(item.lng, item.lat)
+  flyTo({ lng: item.lng, lat: item.lat }, { height: 1000 })
+}
 </script>
 
 <template>
@@ -79,6 +87,7 @@ const sortedFacilities = computed<ScoredXiaoqu[]>(() => {
     empty-text="暂无受影响设施"
     empty-hint="开始评估后显示设施清单"
     plan-type="flood"
+    @click-item="handleItemClick"
   >
     <template #item="{ item: facility }">
       <div class="facility-info">

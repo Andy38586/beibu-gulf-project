@@ -22,12 +22,12 @@ import { useRouter } from 'vue-router'
 
 import AppLayout from '@/core/layout/AppLayout.vue'
 import GCSPanel from '@/core/layout/components/GCSPanel.vue'
-import { useGCS } from '@/core/layout/useGCS.js'
 import { EDITING_PLAN_KEY, RESTORE_PLAN_DATA_KEY } from '@/core/provideKeys'
 import PaginatedListPanel from '@/shared/components/PaginatedListPanel.vue'
 import PlanSaveModal from '@/shared/components/PlanSaveModal.vue'
 import { useAuth } from '@/shared/composables/useAuth'
 import { usePlans } from '@/shared/composables/usePlans'
+import { useGCS } from '@/shared/layout/useGCS.js'
 import { logger } from '@/shared/utils/logger'
 import { useFloodState } from '@/stores/floodState'
 

@@ -19,7 +19,7 @@
 
 import { computed } from 'vue'
 
-import { useGCS } from '../useGCS.js'
+import { useGCS } from '@/shared/layout/useGCS.js'
 
 interface Props {
   label?: string

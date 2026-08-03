@@ -31,12 +31,12 @@ WORKDIR /app
 # 强制生产模式；JWT_SECRET/PORT 由 compose 在容器运行期注入，绝不烘焙进镜像
 ENV NODE_ENV=production
 
-# d061: 安装 nginx + su-exec。
+# d068: 安装 nginx + su-exec。（原 8.2 d061，重编号消除与主清单 d061-trust proxy 冲突）
 # su-exec 让后端进程以非 root 用户运行（容器逃逸时无法以 root 获得宿主机权限）；
 # nginx 仍由 entrypoint 以 root 拉起（需绑定 80/443）。
 RUN apk add --no-cache nginx su-exec
 
-# d061: 创建非 root 用户 nodeapp（uid 1000），并预备可写的数据/日志目录
+# d068: 创建非 root 用户 nodeapp（uid 1000），并预备可写的数据/日志目录
 RUN adduser -D -u 1000 nodeapp \
   && mkdir -p /app/backend/data /app/backend/logs \
   && chown -R nodeapp:nodeapp /app/backend/data /app/backend/logs

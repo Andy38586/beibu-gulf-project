@@ -333,7 +333,16 @@ onUnmounted(() => {
         </GCSPanel>
         <!-- 左下：图层控制面板 4×4 -->
         <GCSPanel :w="4" :h="4" anchor="top-left" :offset-x="0" :offset-y="5.5">
-          <LayerControlPanel />
+          <LayerControlPanel
+            :layer-order="[
+              'base-image',
+              'base-vector',
+              'boundary',
+              'ports',
+              'analysis-coverage',
+              'analysis-matched',
+            ]"
+          />
         </GCSPanel>
       </template>
 

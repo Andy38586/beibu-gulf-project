@@ -9,6 +9,9 @@
  * 4. 业务图层无互斥（可多选）
  *
  * 被引用：首页、选址分析、浸没分析
+ *
+ * c024：图层显示顺序由 props.layerOrder 注入，core 不再硬编码业务图层 key。
+ * 默认仅含核心常驻层顺序，业务页通过 :layer-order 传入业务图层排序。
  */
 
 import { computed } from 'vue'
@@ -17,6 +20,16 @@ import { useBusinessLayers } from '@/core/map/composables/useBusinessLayers'
 import { useLayerManager } from '@/core/map/composables/useLayerManager'
 import { useGCS } from '@/shared'
 import type { LayerEntry } from '@/types'
+
+interface Props {
+  /** 图层显示顺序（c024：由业务页注入，core 不再硬编码业务 key） */
+  layerOrder?: string[]
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  // 默认仅核心常驻层顺序；业务图层未列出的追加到末尾（按 catalog 注册序）
+  layerOrder: () => ['base-image', 'base-vector', 'boundary', 'ports'],
+})
 
 const { layerCatalog, toggleLayer } = useLayerManager()
 const { manager: businessLayerManager } = useBusinessLayers()
@@ -39,23 +52,8 @@ const iconFontSizeCss = computed(() => `${cellPixel.value * 0.2}px`) // 16px
  * 从 registry 读取，杜绝双副本失步。base 类条目无 registry 副本，仍读 catalog。
  */
 const layerButtons = computed(() => {
-  // 优先按预定义顺序显示，未匹配的图层追加到末尾
-  const order = [
-    'base-image',
-    'base-vector',
-    'boundary',
-    'ports',
-    'analysis-coverage',
-    'analysis-matched',
-    'flood-water-surface',
-    'flood-area',
-    'flood-facilities',
-    'dem-hillshade',
-    'forecast-cargo',
-    'forecast-berth',
-    'forecast-traffic',
-    'forecast-container',
-  ]
+  // c024: order 由 props 注入，core 不再硬编码业务图层 key
+  const order = props.layerOrder
   const ordered = order
     .map((key) => layerCatalog.value.find((l: LayerEntry) => l.key === key))
     .filter((l): l is LayerEntry => l !== undefined)

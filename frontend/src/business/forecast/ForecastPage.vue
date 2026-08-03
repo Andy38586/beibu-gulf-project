@@ -266,7 +266,18 @@ onUnmounted(() => {
           <ForecastControlPanel />
         </GCSPanel>
         <GCSPanel :w="4" :h="4" anchor="top-right" :offset-x="0" :offset-y="5.5">
-          <LayerControlPanel />
+          <LayerControlPanel
+            :layer-order="[
+              'base-image',
+              'base-vector',
+              'boundary',
+              'ports',
+              'forecast-cargo',
+              'forecast-berth',
+              'forecast-traffic',
+              'forecast-container',
+            ]"
+          />
         </GCSPanel>
       </template>
     </AppLayout>

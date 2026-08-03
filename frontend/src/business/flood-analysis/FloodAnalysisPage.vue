@@ -24,7 +24,6 @@ import AppLayout from '@/core/layout/AppLayout.vue'
 import GCSPanel from '@/core/layout/components/GCSPanel.vue'
 import LayerControlPanel from '@/core/map/components/LayerControlPanel.vue'
 import { floodAdapter } from '@/services'
-import { FLOOD_RISK_COLORS, FLOOD_RISK_DEFAULT } from '@/shared'
 import { showError, showWarning } from '@/shared'
 import { logger } from '@/shared'
 import { useFloodState } from '@/stores'
@@ -37,6 +36,7 @@ import type { AffectedFacility, FloodFeature, FloodStatistics } from '@/types/bu
 import AffectedFacilityListPanel from './components/AffectedFacilityListPanel.vue'
 import FloodAnalysisReportPanel from './components/FloodAnalysisReportPanel.vue'
 import WaterLevelProfilePanel from './components/WaterLevelProfilePanel.vue'
+import { FLOOD_RISK_COLORS, FLOOD_RISK_DEFAULT } from './constants/colors'
 
 const floodResetStore = useFloodStore()
 const waterLevelStore = useWaterLevelStore()
@@ -463,7 +463,18 @@ onUnmounted(() => {
         </GCSPanel>
 
         <GCSPanel :w="4" :h="4" anchor="top-right" :offset-x="0" :offset-y="5.5">
-          <LayerControlPanel />
+          <LayerControlPanel
+            :layer-order="[
+              'base-image',
+              'base-vector',
+              'boundary',
+              'ports',
+              'flood-water-surface',
+              'flood-area',
+              'flood-facilities',
+              'dem-hillshade',
+            ]"
+          />
         </GCSPanel>
       </template>
     </AppLayout>

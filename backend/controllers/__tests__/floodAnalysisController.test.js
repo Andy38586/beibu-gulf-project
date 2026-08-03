@@ -12,6 +12,7 @@ import {
   getFloodAreas,
   getFloodStatistics,
   analyzeDisaster,
+  getWaterArea,
   readJsonData,
   _readCache,
   _clearCacheForTest,
@@ -41,6 +42,17 @@ const MOCK_STATISTICS = JSON.stringify({
     { waterLevel: 1.0, floodArea: 0.5 },
     { waterLevel: 3.0, floodArea: 2.0 },
     { waterLevel: 5.0, floodArea: 5.0 },
+  ],
+})
+
+// b032 / D-4=A：水域坐标端点 fixture（结构与 backend/data/flood/water-area.json 同构）
+const MOCK_WATER_AREA = JSON.stringify({
+  id: 'main-water-area',
+  name: '钦州港附近海域',
+  coordinates: [
+    [108.615, 21.855],
+    [108.62, 21.855],
+    [108.622, 21.858],
   ],
 })
 
@@ -121,6 +133,36 @@ describe('floodAnalysisController', () => {
     it('Infinity 应触发业务错误', async () => {
       const { req, res, next } = mockReqRes({}, { waterLevel: 'Infinity' })
       await analyzeDisaster(req, res, next)
+      expect(next).toHaveBeenCalledWith(expect.any(BusinessError))
+    })
+  })
+
+  describe('getWaterArea - 水域坐标端点 (b032 / D-4=A)', () => {
+    it('正常应返回坐标数组（data 为 [[lng,lat],...]）', async () => {
+      readFile.mockResolvedValue(MOCK_WATER_AREA)
+      const { req, res, next } = mockReqRes()
+      await getWaterArea(req, res, next)
+      expect(next).not.toHaveBeenCalled()
+      const response = res.json.mock.calls[0][0]
+      expect(response.code).toBe(200)
+      expect(Array.isArray(response.data)).toBe(true)
+      expect(response.data).toHaveLength(3)
+      expect(response.data[0]).toEqual([108.615, 21.855])
+    })
+
+    it('coordinates 缺失应触发业务错误（NOT_FOUND）', async () => {
+      readFile.mockResolvedValue(JSON.stringify({ id: 'x', name: 'x' }))
+      const { req, res, next } = mockReqRes()
+      await getWaterArea(req, res, next)
+      expect(next).toHaveBeenCalledWith(expect.any(BusinessError))
+      const err = next.mock.calls[0][0]
+      expect(err.status).toBe(404)
+    })
+
+    it('coordinates 为空数组应触发业务错误', async () => {
+      readFile.mockResolvedValue(JSON.stringify({ id: 'x', name: 'x', coordinates: [] }))
+      const { req, res, next } = mockReqRes()
+      await getWaterArea(req, res, next)
       expect(next).toHaveBeenCalledWith(expect.any(BusinessError))
     })
   })

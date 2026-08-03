@@ -194,6 +194,29 @@ export async function getFacilities(req, res, next) {
 }
 
 /**
+ * 获取水域坐标数据
+ * GET /api/flood/water-area
+ *
+ * b032 / D-4=A：后端只读端点，返回水域边界坐标数组。
+ * 数据源 backend/data/flood/water-area.json（与前端 public/data/water-area.json 同源），
+ * 返回 data 字段为 [[lng, lat], ...] 坐标数组，匹配前端 floodAdapter.getWaterArea 的消费形状。
+ */
+export async function getWaterArea(req, res, next) {
+  try {
+    const data = await readJsonData('water-area.json')
+    if (!Array.isArray(data?.coordinates) || data.coordinates.length === 0) {
+      throw new BusinessError(ErrorCode.NOT_FOUND, '水域坐标数据缺失或格式无效')
+    }
+    sendSuccess(res, data.coordinates)
+  } catch (error) {
+    if (!(error instanceof BusinessError)) {
+      logger.error('获取水域坐标失败:', error)
+    }
+    next(error)
+  }
+}
+
+/**
  * 灾害评估
  * POST /api/flood/analysis/disaster
  * @param {number} waterLevel - 水位高度

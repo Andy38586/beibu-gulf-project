@@ -1,6 +1,5 @@
 /**
  * 统一错误处理
- *
  * 集中管理错误出口，替换分散的 ElMessage.error / console.error。
  * 后续可接入 Sentry / 日志服务 / 错误上报。
  */
@@ -41,7 +40,7 @@ export function showError(
 
   if (!silent) {
     if (retry) {
-      // c027: 有重试回调时，用确认弹窗（带重试按钮）替代普通 toast
+      // 有重试回调时，用确认弹窗（带重试按钮）替代普通 toast
       ElMessageBox.confirm(message, '加载失败', {
         confirmButtonText: '重试',
         cancelButtonText: '取消',
@@ -72,15 +71,12 @@ export async function handleAsync<T>(promise: Promise<T>, fallback?: string): Pr
 
 /**
  * 统一的 401 认证失效处理
- *
  * 所有请求层（useApiRequest / useForecastRequest）在 401 时不主动 redirect，
  * 由调用方识别 401 后调用此函数，统一执行：清理认证状态 + 跳转首页 + 弹登录面板。
- *
- * z044: router 改为必选参数（调用方通过 useRouter() 传入），移除动态 import('@/router')
+ * router 改为必选参数（调用方通过 useRouter() 传入），移除动态 import('@/router')
  * 兜底——动态 import 是 errorHandler→router→business→errorHandler 循环链的根源。
  * useAuth 仍保留动态 import（避免 useAuth→errorHandler 的静态循环，useAuth 内部调用
  * showError）。
- *
  * @param {Router} router - vue-router 实例（调用方通过 useRouter() 传入）
  */
 export async function handleAuthError(router: Router): Promise<void> {

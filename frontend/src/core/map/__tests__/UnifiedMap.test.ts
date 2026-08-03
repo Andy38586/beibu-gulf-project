@@ -89,7 +89,7 @@ vi.mock('@/core/map/renderers', () => {
 })
 
 function makeMountOptions(store: ReturnType<typeof useMapStore>) {
-  // a033: 提供 BusinessLayerManager 实例（boundary/ports 收口到 BLM）
+  // 提供 BusinessLayerManager 实例（boundary/ports 收口到 BLM）
   const businessLayerManager = new BusinessLayerManager(store)
   return {
     global: {

@@ -6,7 +6,6 @@ import { dirname, join } from 'path'
 import rateLimit from 'express-rate-limit'
 import cookieParser from 'cookie-parser'
 import { readdir } from 'fs/promises'
-import markersRouter from './routes/markers.js'
 import facilitiesRouter from './routes/facilities.js'
 import siteAnalysisRouter from './routes/siteAnalysis.js'
 import authRouter from './routes/auth.js'
@@ -22,10 +21,10 @@ const app = express()
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const isDev = process.env.NODE_ENV === 'development'
 
-// @arch-note P1-027: trust proxy — 生产部署经 nginx 反代，若未信任代理，
+// trust proxy — 生产部署经 nginx 反代，若未信任代理，
 // rateLimit 按 127.0.0.1 统一计数 → 登录/全局限流形同虚设（所有人共享同一 IP 配额）。
 // 数字 1 = 信任最近 1 跳代理（nginx）。直接反代部署（无 nginx）时不受影响（req.ip=直连 IP）。
-// REQ-6（阶段2）: 原 `Number(...) || 1` 对 "0" 失效（Number("0")=0 为 falsy → 回落 1），
+// 原 `Number(...) || 1` 对 "0" 失效（Number("0")=0 为 falsy → 回落 1），
 // 无法表达"不信任代理"。改为显式判断：非负有限值原样生效，否则默认 1。
 const trustProxyHops = Number(process.env.TRUST_PROXY_HOPS)
 app.set('trust proxy', Number.isFinite(trustProxyHops) && trustProxyHops >= 0 ? trustProxyHops : 1)
@@ -38,7 +37,7 @@ app.get('/api/health', (req, res) => {
   sendSuccess(res, { status: 'ok' })
 })
 
-// d063: liveness（/api/health）保持极简（进程活）；
+// liveness（/api/health）保持极简（进程活）；
 // readiness（/api/health/ready）查关键依赖（数据目录可读性），供编排器/HEALTHCHECK 探就绪。
 export async function checkDataDirReadable() {
   try {
@@ -88,7 +87,7 @@ const registerLimiter = rateLimit({
 })
 app.use('/api/auth/register', registerLimiter)
 
-// @arch-note P1-004: CORS origin 从环境变量读取，支持生产部署
+// CORS origin 从环境变量读取，支持生产部署
 const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:5173'
 app.use(
   cors({
@@ -99,7 +98,7 @@ app.use(
 app.use(express.json({ limit: '1mb' }))
 app.use(cookieParser())
 
-// d065: 请求日志中间件（仅打日志、不修改请求）。
+// 请求日志中间件（仅打日志、不修改请求）。
 // dev 下输出 方法/路径/状态码/耗时，请求体经 sanitize 脱敏（password/token/secret 打码）。
 // 生产环境 debug 静默，不输出请求日志。
 import { sanitize } from './middleware/logSanitizer.js'
@@ -120,7 +119,6 @@ app.use((req, res, next) => {
 // 真数据统一放后端，便于未来移交 PostGIS/PgSQL
 app.use('/static', express.static(join(__dirname, 'static')))
 
-app.use('/api/markers', markersRouter)
 app.use('/api/facilities', facilitiesRouter)
 app.use('/api/site-analysis', siteAnalysisRouter)
 app.use('/api/auth', authRouter)
@@ -129,18 +127,18 @@ app.use('/api/forecast', forecastRouter)
 app.use('/api/flood', floodRouter)
 app.use('/api/ports', portsRouter)
 
-// [FIXED 009] 404错误处理中间件
+// 404错误处理中间件
 app.use((req, res) => {
   res.status(404).json({ error: '接口不存在' })
 })
 
-// @arch-note P1-003: 全局错误处理中间件，防止未捕获异常泄露堆栈信息
+// 全局错误处理中间件，防止未捕获异常泄露堆栈信息
 app.use((err, req, res, _next) => {
   // BusinessError 统一携带 code + status，按码返回对应 HTTP 状态码
   if (err instanceof BusinessError) {
     return res.status(err.status).json({ code: err.code, error: err.message })
   }
-  // [FIXED 016] 仅在开发环境输出详细错误
+  // 仅在开发环境输出详细错误
   logger.error('未捕获的服务器错误:', err.message)
   res.status(500).json({
     error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message,

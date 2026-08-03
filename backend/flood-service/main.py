@@ -64,14 +64,18 @@ def flood_online(
     with _cache_lock:
         hit = _cached_level.get(key)
         if hit is not None:
+            # 访问刷新顺序 → 真 LRU（Python 3.8+ dict 保插入序）
+            _cached_level.move_to_end(key)
             return hit
     engine = _engine_module()
     t0 = time.time()
     result = run_online_flood(key)
     result["elapsedMs"] = round((time.time() - t0) * 1000)
     with _cache_lock:
+        # 满 64 档时淘汰最久未访问的条目（popitem(last=False) 移除最旧），
+        # 取代原 clear() 全清——滑块跨 64 档时不再周期性全量 miss（d069）
         if len(_cached_level) >= 64:
-            _cached_level.clear()
+            _cached_level.popitem(last=False)
         _cached_level[key] = result
     return result
 

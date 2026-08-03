@@ -1,11 +1,9 @@
 /**
- * z045: 外部数据边界 zod 运行时校验 schema 集中定义
- *
+ * 外部数据边界 zod 运行时校验 schema 集中定义
  * 设计原则：
  * - 与现有 `types/` 下的 interface 并存，不替换原有类型声明
  * - schema 用于外部数据边界（HTTP 响应、localStorage、sessionStorage、JSON.parse）的运行时校验
  * - 用 `z.infer<>` 导出类型供边界文件使用，原始 interface 仍为业务层主类型
- *
  * zod 版本：v4（z.record 需 (keyType, valueType) 双参数；passthrough 已弃用，用 z.looseObject）
  */
 import { z } from 'zod'
@@ -22,7 +20,7 @@ export const userSchema = z.object({
 export type UserParsed = z.infer<typeof userSchema>
 
 // ==================== ② AnalysisResult Storage Schema ====================
-// z026: core 层（mapStore）不反向依赖业务 AnalysisResult，存储层用 Record<string, unknown>。
+// core 层（mapStore）不反向依赖业务 AnalysisResult，存储层用 Record<string, unknown>。
 // 此 schema 仅校验反序列化结果为 plain object（拒绝 null/array/primitive），
 // 不约束具体字段——业务层读取时自行 cast 为 AnalysisResult。
 export const analysisResultSchema = z.record(z.string(), z.unknown())

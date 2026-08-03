@@ -1,13 +1,11 @@
 <script setup lang="ts">
 /**
  * GCSButton - 按钮 Panel
- *
  * 统一视觉规则：
  * - 默认占 2×1 Cell
  * - 文字优先显示，图标位于文字下方（如果提供）
  * - 尺寸基于 CELL_PIXEL 计算
  * - 白色实体背景，带 hover 反馈
- *
  * Props:
  * - label: 按钮文字
  * - icon: 图标字符/类名（可选）

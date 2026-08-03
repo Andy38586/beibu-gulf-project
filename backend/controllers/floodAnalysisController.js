@@ -15,12 +15,12 @@ const __dirname = dirname(__filename)
  * @param {string} filename - 文件名
  * @returns {Promise<Object>} 解析后的JSON数据
  */
-// REQ-3（阶段2）: flood 5 个数据接口公开可高频访问，原每次请求 readFile 无缓存。
+// flood 5 个数据接口公开可高频访问，原每次请求 readFile 无缓存。
 // 加模块级 Map + TTL（复用 facilitiesRepository.js 成熟模式）；纯读路径、数据为部署时静态，TTL 足够。
-// z050-BE: 读盘缓存（模块级 Map + TTL）。导出供测试访问。
+// 读盘缓存（模块级 Map + TTL）。导出供测试访问。
 export const _readCache = new Map()
 const READ_CACHE_TTL_MS = 5 * 60 * 1000
-// z050-BE: 读盘缓存大小上限。flood 数据文件数量（~5）远小于 20，近似 LRU 一行实现即可。
+// 读盘缓存大小上限。flood 数据文件数量（~5）远小于 20，近似 LRU 一行实现即可。
 const READ_CACHE_MAX_SIZE = 20
 function setReadCache(filename, data) {
   if (_readCache.size >= READ_CACHE_MAX_SIZE) {
@@ -105,7 +105,7 @@ export async function getFloodAreas(req, res, next) {
       if (floodZone) {
         return sendSuccess(res, {
           waterLevel: floodZone.waterLevel,
-          // @arch-note P2-07: 显式区分请求水位与实际数据档位
+          // 显式区分请求水位与实际数据档位
           requestedWaterLevel: level,
           actualWaterLevel: floodZone.waterLevel,
           riskLevel: floodZone.riskLevel,
@@ -196,7 +196,6 @@ export async function getFacilities(req, res, next) {
 /**
  * 获取水域坐标数据
  * GET /api/flood/water-area
- *
  * b032 / D-4=A：后端只读端点，返回水域边界坐标数组。
  * 数据源 backend/data/flood/water-area.json（与前端 public/data/water-area.json 同源），
  * 返回 data 字段为 [[lng, lat], ...] 坐标数组，匹配前端 floodAdapter.getWaterArea 的消费形状。
@@ -238,11 +237,11 @@ export async function analyzeDisaster(req, res, next) {
     // 向上取档（返回 >= 请求水位的最低档位）
     const floodZone = floodData.floodZones.find((zone) => zone.waterLevel >= level)
 
-    // d041: 业务计算委托给 floodService
+    // 业务计算委托给 floodService
     const result = assessDisaster(facilityData.facilities, level, floodZone)
 
     sendSuccess(res, {
-      // @arch-note P2-07: 返回实际档位水位，消除请求值与实际档位的错配
+      // 返回实际档位水位，消除请求值与实际档位的错配
       waterLevel: result.waterLevel,
       requestedWaterLevel: level,
       riskLevel: result.riskLevel,

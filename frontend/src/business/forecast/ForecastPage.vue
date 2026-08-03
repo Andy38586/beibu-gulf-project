@@ -1,11 +1,9 @@
 <!--
   /**
    * 预测分析模块
-   *
    * 当前阶段：架构验证期，使用 mock 数据跑通 2D 热力图 + 时间轴播放链路
    * 数据状态：src/mock/forecast/ 为 AI 生成的模拟港口吞吐量时序数据
    * 待接入：真实港口生产数据（毕业论文阶段替换）
-   *
    * 本模块验证目标：
    * 1. BusinessLayerManager 的 heatmap adapter 能否独立注册/销毁
    * 2. 2D 渲染器在不依赖 3D 引擎时的纯 2D 业务承载能力
@@ -26,7 +24,7 @@ import LayerControlPanel from '@/core/map/components/LayerControlPanel.vue'
 import { forecastAdapter } from '@/services'
 import { handleAuthError, isAuthError, showError } from '@/shared'
 import { logger } from '@/shared'
-import { useForecastState } from '@/stores'
+import { useForecastStore } from '@/stores'
 import { useMapStore } from '@/stores'
 import BarChart from '@/visualization/charts/BarChart.vue'
 import LineChart from '@/visualization/charts/LineChart.vue'
@@ -36,7 +34,7 @@ import { useForecastLayer } from './composables/useForecastLayer'
 import { useForecastRequest } from './composables/useForecastRequest'
 import { DEFAULT_CONFIDENCE, PORT_NAMES } from './constants'
 
-const forecastState = useForecastState()
+const forecastState = useForecastStore()
 const mapStore = useMapStore()
 const router = useRouter()
 const { updateForecastLayer, removeForecastLayer, renderer } = useForecastLayer()
@@ -59,7 +57,7 @@ const barSeries = ref<Array<{ name: string; data: number[] }>>([])
 const lineViewportXMin = ref('2023-01')
 const lineViewportXMax = ref('2029-12')
 
-// z050-FE: requestCache 大小上限，超限删除最早键（Map 迭代序即插入序，近似 LRU）
+// requestCache 大小上限，超限删除最早键（Map 迭代序即插入序，近似 LRU）
 const MAX_CACHE_ENTRIES = 50
 const requestCache = new Map()
 function setRequestCache(key: string, value: unknown): void {

@@ -16,7 +16,7 @@ const FILE_MAP = {
 }
 
 const cache = new Map()
-// @arch-note P3-09: 缓存加 TTL（5 分钟），过期自动重载
+// 缓存加 TTL（5 分钟），过期自动重载
 const CACHE_TTL = 5 * 60 * 1000
 
 async function readJsonFile(filename) {

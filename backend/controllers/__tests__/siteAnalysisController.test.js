@@ -1,13 +1,11 @@
 // @vitest-environment node
 /**
  * siteAnalysisController.analyze 回归测试（B-4 / P0 半径校验）
- *
  * 背景：siteAnalysisController.js:43 校验 typeSettings 各项 radius（若提供必须为正数），
  * 非法 radius（NaN / <=0）应返回 400（INVALID_PARAMS），不进入 runSiteAnalysis。
- *
  * 本测试锁定（审计编号：B-4）：
- *   - radius 为负 / 非数字 → 400，且不调用 runSiteAnalysis
- *   - radius 合法 → 进入 runSiteAnalysis 并正常返回
+ * - radius 为负 / 非数字 → 400，且不调用 runSiteAnalysis
+ * - radius 合法 → 进入 runSiteAnalysis 并正常返回
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { BusinessError, ErrorCode } from '../../utils/BusinessError.js'
@@ -22,7 +20,11 @@ vi.mock('../../services/siteAnalysisService.js', () => ({
   runSiteAnalysis: vi.fn(),
 }))
 
-import { getAvailableTypes, findByType, findXiaoqu } from '../../repositories/facilitiesRepository.js'
+import {
+  getAvailableTypes,
+  findByType,
+  findXiaoqu,
+} from '../../repositories/facilitiesRepository.js'
 import { runSiteAnalysis } from '../../services/siteAnalysisService.js'
 import { analyze } from '../siteAnalysisController.js'
 
@@ -113,8 +115,6 @@ describe('siteAnalysisController.analyze — radius 校验（B-4）', () => {
     await analyze(req, res, next)
     expect(runSiteAnalysis).toHaveBeenCalledTimes(1)
     expect(next).not.toHaveBeenCalled()
-    expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({ code: 200 })
-    )
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 200 }))
   })
 })

@@ -1,6 +1,5 @@
 /**
- * P0-01 回归测试：图表 props 更新必须反映到 getOption 输出
- *
+ * 回归测试：图表 props 更新必须反映到 getOption 输出
  * 策略：mock useECharts，捕获 useChartBase 传入的 getOption，
  * 验证其在 props 变化前后返回不同的（新的）数据。
  * 这样测试聚焦"快照 bug"本身，不依赖 jsdom 中 echarts 的真实渲染。

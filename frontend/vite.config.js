@@ -27,11 +27,11 @@ function removeCesiumHtmlTags() {
       return html
         .replace(/<link rel="stylesheet" href="\/cesium\/Widgets\/widgets\.css">\s*/g, '')
         .replace(/<script src="\/cesium\/Cesium\.js"><\/script>\s*/g, '')
-    }
+    },
   }
 }
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [
     vue(),
     vueDevTools(),
@@ -46,12 +46,15 @@ export default defineConfig({
     // 故显式用绝对路径指向真实位置。
     cesium({
       cesiumBuildRootPath: fileURLToPath(new URL('../node_modules/cesium/Build', import.meta.url)),
-      cesiumBuildPath: fileURLToPath(new URL('../node_modules/cesium/Build/Cesium/', import.meta.url)),
+      cesiumBuildPath: fileURLToPath(
+        new URL('../node_modules/cesium/Build/Cesium/', import.meta.url)
+      ),
     }),
     removeCesiumHtmlTags(),
-    // 打包分析：仅在 ANALYZE=true 时生成 dist/stats.html 并自动打开浏览器
+    // 打包分析：仅在 --mode analyze 时生成 dist/stats.html 并自动打开浏览器
     // 避免每次 build 无条件产出 ~1.3MB 分析文件随产物部署
-    ...(process.env.ANALYZE === 'true'
+    // （旧实现读 process.env.ANALYZE，需 Windows-only 的 set/cross-env；mode 方案全平台一致）
+    ...(mode === 'analyze'
       ? [visualizer({ open: true, gzipSize: true, brotliSize: true, filename: 'dist/stats.html' })]
       : []),
   ],
@@ -126,4 +129,4 @@ export default defineConfig({
       },
     },
   },
-})
+}))

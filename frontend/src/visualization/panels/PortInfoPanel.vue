@@ -1,9 +1,7 @@
 <script setup lang="ts">
 /**
  * PortInfoPanel - 港口信息展示面板
- *
  * 功能：显示选中港口的详细信息（地址、电话、类型、经纬度）
- *
  * 布局：绝对定位，右上角
  */
 import { computed } from 'vue'

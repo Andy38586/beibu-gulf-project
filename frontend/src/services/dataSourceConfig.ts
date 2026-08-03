@@ -1,11 +1,9 @@
 /**
  * 统一数据源配置
- *
  * 收口各 adapter 内部散落的 `_dataSource` 变量：
  * - 全局默认数据源由环境变量 VITE_DATA_SOURCE 驱动
  * - 各 adapter 可通过 setDataSource 独立覆盖
  * - 提供统一查询接口，消除各 adapter 内部 if/else 重复
- *
  * 使用方：forecastAdapter、floodAdapter、main.ts 初始化。
  */
 
@@ -17,7 +15,7 @@ export type DataSourceMode = 'mock' | 'api' | 'online'
 const globalDataSource: DataSourceMode = 'api'
 
 /** 各 adapter 的独立覆盖（未设置时回退到全局） */
-// @audit-note DAT-8：adapterOverrides 为「覆盖优先于全局」的运行时映射，当前一次性初始化
+// 为「覆盖优先于全局」的运行时映射，当前一次性初始化
 // （main.ts），无清理需求；若未来运行时动态切换数据源，需显式提供 unset 清理以免残留覆盖
 // （YAGNI：暂不加清理代码，仅标注语义）。
 const adapterOverrides = new Map<string, DataSourceMode>()

@@ -1,6 +1,5 @@
 /**
  * OLRenderer 视口裁剪集成测试（a016）
- *
  * 覆盖链路：addPointLayer 阈值路由 → _addCulledPointLayer → _refreshCulledLayer → moveend 增量刷新
  * 策略：
  * - mock ol/Map 与 ol/View（渲染层需真实 DOM，裁剪逻辑与渲染无关）
@@ -14,6 +13,14 @@ import { VIEWPORT_CULL_THRESHOLD } from '@/shared'
 
 // ==================== Mock ol/Map 与 ol/View ====================
 const moveendListeners: Array<{ type: string; listener: (...args: unknown[]) => void }> = []
+
+/**
+ * 引入的常驻 camera-changed moveend 监听基线数。
+ * OLRenderer 构造时即注册 `_cameraChangedKey = map.on('moveend', ...)`（防抖回传相机状态），
+ * 故未启用裁剪时 moveendListeners=1；启用裁剪后 moveendListeners=2（camera-changed + 裁剪）。
+ * 本测试聚焦裁剪监听生命周期，故用 BASE 常量表达"裁剪相关 moveend 数 = 总数 - BASE"。
+ */
+const CAMERA_MOVEEND_BASE = 1
 
 interface FakeViewOptions {
   center?: [number, number]
@@ -198,7 +205,7 @@ describe('OLRenderer 视口裁剪集成（a016）', () => {
       renderer!.addPointLayer('culled', features, {})
 
       expect(renderer!._cullLayers.has('culled')).toBe(true)
-      expect(moveendListeners).toHaveLength(1)
+      expect(moveendListeners).toHaveLength(1 + CAMERA_MOVEEND_BASE)
     })
 
     it('未超阈值走普通路径：不建索引、不注册 moveend 监听', () => {
@@ -206,7 +213,7 @@ describe('OLRenderer 视口裁剪集成（a016）', () => {
       renderer!.addPointLayer('plain', features, {})
 
       expect(renderer!._cullLayers.has('plain')).toBe(false)
-      expect(moveendListeners).toHaveLength(0)
+      expect(moveendListeners).toHaveLength(0 + CAMERA_MOVEEND_BASE)
     })
   })
 
@@ -261,7 +268,7 @@ describe('OLRenderer 视口裁剪集成（a016）', () => {
       renderer!.addPointLayer('b', makePoints(QINZHOU, N, 'b'), {})
       renderer!.addPointLayer('c', makePoints(QINZHOU, N, 'c'), {})
 
-      expect(moveendListeners).toHaveLength(1)
+      expect(moveendListeners).toHaveLength(1 + CAMERA_MOVEEND_BASE)
     })
 
     it('moveend 事件刷新全部裁剪图层', () => {
@@ -289,11 +296,11 @@ describe('OLRenderer 视口裁剪集成（a016）', () => {
   describe('监听生命周期（removeLayer / destroy）', () => {
     it('移除唯一裁剪图层后 moveend 监听被解除', () => {
       renderer!.addPointLayer('solo', makePoints(QINZHOU, N, 'solo'), {})
-      expect(moveendListeners).toHaveLength(1)
+      expect(moveendListeners).toHaveLength(1 + CAMERA_MOVEEND_BASE)
 
       renderer!.removeLayer('solo')
       expect(renderer!._cullLayers.has('solo')).toBe(false)
-      expect(moveendListeners).toHaveLength(0)
+      expect(moveendListeners).toHaveLength(0 + CAMERA_MOVEEND_BASE)
     })
 
     it('存在多个裁剪图层时移除一个不解除监听', () => {
@@ -301,17 +308,17 @@ describe('OLRenderer 视口裁剪集成（a016）', () => {
       renderer!.addPointLayer('k2', makePoints(QINZHOU, N, 'k2'), {})
 
       renderer!.removeLayer('k1')
-      expect(moveendListeners).toHaveLength(1)
+      expect(moveendListeners).toHaveLength(1 + CAMERA_MOVEEND_BASE)
 
       renderer!.removeLayer('k2')
-      expect(moveendListeners).toHaveLength(0)
+      expect(moveendListeners).toHaveLength(0 + CAMERA_MOVEEND_BASE)
     })
 
     it('destroy 清理全部裁剪图层与监听', () => {
       const map = renderer!.map as OLCullMapLike
       renderer!.addPointLayer('d1', makePoints(QINZHOU, N, 'd1'), {})
       renderer!.addPointLayer('d2', makePoints(QINZHOU, N, 'd2'), {})
-      expect(moveendListeners).toHaveLength(1)
+      expect(moveendListeners).toHaveLength(1 + CAMERA_MOVEEND_BASE)
 
       renderer!.destroy()
       expect(renderer!._cullLayers.size).toBe(0)

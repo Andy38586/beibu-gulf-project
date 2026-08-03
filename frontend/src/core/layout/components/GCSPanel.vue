@@ -1,17 +1,14 @@
 <script setup lang="ts">
 /**
  * GCSPanel - GCS V2 Panel 容器
- *
  * 统一视觉语言：
  * - 位置和尺寸基于 anchor + offset + w + h 的 PPS 定位系统
  * - 圆角 = CELL_PIXEL × 0.15
  * - 白色实体背景 + 轻阴影
- *
  * V2 变更：
  * - 移除 x/y props（旧 Grid 坐标）
  * - 新增 anchor/offsetX/offsetY props（PPS 定位）
  * - 位置由 useGCS().panelPosition() 计算
- *
  * Props:
  * - w: 横向 Cell 数（必须）
  * - h: 纵向 Cell 数（必须）
@@ -48,7 +45,7 @@ const props = withDefaults(defineProps<Props>(), {
 const { panelPosition } = useGCS()
 
 /**
- * c016: 输出 CSS 变量而非直接内联定位属性。
+ * 输出 CSS 变量而非直接内联定位属性。
  * 外部组件可通过 :deep(.GCS-panel) { --GCS-panel-left: ... } 覆盖，无需 !important。
  * GCS 铁律：变量一律全大写前缀 --GCS-*（原 --gcs-panel-* 小写违规，z041 修正）。
  */

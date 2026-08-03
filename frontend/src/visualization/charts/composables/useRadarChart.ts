@@ -1,9 +1,7 @@
 /**
  * useRadarChart - 雷达图逻辑 composable
- *
  * 职责：封装雷达图的渲染、交互和事件处理逻辑
  * RadarChart.vue 过大问题
- *
  * @param options - 配置选项
  * @param options.getChartRef - 获取图表 DOM 元素
  * @param options.getProps - 获取组件 props
@@ -18,6 +16,7 @@ import { CanvasRenderer } from 'echarts/renderers'
 import type { Ref } from 'vue'
 import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 
+import { perfMark, perfMeasure } from '@/core/perf/PerfReporter'
 import { FACILITY_COLORS_MAP } from '@/shared'
 import { FACILITY_LABELS } from '@/shared'
 import { logger } from '@/shared'
@@ -148,6 +147,7 @@ export function useRadarChart({
 
     const name = props.xiaoqu?.name || ''
 
+    perfMark('echarts:radar:start')
     chartInstance.setOption({
       backgroundColor: 'transparent',
       tooltip: { show: false },
@@ -185,6 +185,8 @@ export function useRadarChart({
         },
       ],
     })
+    perfMark('echarts:radar:end')
+    perfMeasure('echarts:setOption:radar', 'echarts:radar:start', 'echarts:radar:end')
 
     isRendering = false
   }

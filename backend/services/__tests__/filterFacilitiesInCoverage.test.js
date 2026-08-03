@@ -1,7 +1,6 @@
 // @vitest-environment node
 /**
  * siteAnalysisService.filterFacilitiesInCoverage 测试
- *
  * 覆盖：空间索引版本（bbox 粗筛 + queryByPolygon）对原逐点 booleanPointInPolygon 的等价性。
  * 场景：覆盖范围内设施被保留、范围外被剔除、无效坐标被防御。
  */

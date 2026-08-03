@@ -4,7 +4,6 @@ import { floodAdapter } from '../floodAdapter'
 
 /**
  * floodAdapter 单测
- *
  * 与 forecastAdapter 同理：Adapter 内部 fetch('/data/*.json')，vitest 无服务器，
  * 故用 vi.stubGlobal 接管 global.fetch，按 URL 返回与真实 fixture 同构的内联数据。
  * getWaterArea 在 fetch 失败时会回退到兜底坐标，本测试覆盖正常返回路径。

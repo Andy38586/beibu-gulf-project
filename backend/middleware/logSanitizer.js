@@ -1,5 +1,5 @@
 /**
- * d065: 请求日志脱敏中间件（仅打日志、不修改请求）。
+ * 请求日志脱敏中间件（仅打日志、不修改请求）。
  * password / token / secret / authorization / cookie 等敏感字段在输出前打码，
  * 防止未来请求日志泄漏凭据。
  */
@@ -19,9 +19,7 @@ export function sanitize(value, key = '') {
   }
   if (Array.isArray(value)) return value.map((v) => sanitize(v))
   if (value && typeof value === 'object') {
-    return Object.fromEntries(
-      Object.entries(value).map(([k, v]) => [k, sanitize(v, k)])
-    )
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, sanitize(v, k)]))
   }
   return value
 }

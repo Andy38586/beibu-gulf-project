@@ -1,6 +1,5 @@
 /**
  * 预测分析域常量（c018：消除散落魔法值）
- *
  * DEFAULT_CONFIDENCE 已上提到 shared/constants/forecast.ts（stores 层需要引用，
  * 按分层铁律 stores → business 禁止引，故共享常量归 shared）。
  * 此处 re-export 保持业务侧既有引用零改动。

@@ -25,7 +25,7 @@ describe('health - readiness (d063)', () => {
   })
 
   it('降级：数据目录不可读 → 503 degraded', async () => {
-    // d063: 通过 mock fs/promises 让 readdir 失败，验证 readiness 返回 503
+    // 通过 mock fs/promises 让 readdir 失败，验证 readiness 返回 503
     vi.doMock('fs/promises', () => ({
       readdir: vi.fn().mockRejectedValue(new Error('ENOENT')),
     }))

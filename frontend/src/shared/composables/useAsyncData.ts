@@ -1,15 +1,12 @@
 /**
  * useAsyncData — 通用异步数据管理（z034）
- *
  * 封装 loading/error/data/refresh/cancel 五元组，
  * 消除 Forecast/Flood/SiteSelection 各自维护竞态/取消的重复代码。
- *
  * 仅复杂业务页使用；简单页保持 onMounted 直接调用（D-4 克制）。
- *
- * @audit-note DAT-4 预留未接入：当前无调用方，作为通用工具保留，请勿删除
+ * 预留未接入：当前无调用方，作为通用工具保留，请勿删除
  * @internal c031 标注：原审计称"仅 AppLayout 1 个消费方"，实际当前 0 调用方。
- *   useScreenActions 已由批次7 z054 迁移至 core/layout/composables/（伪 shared 问题已解）。
- *   本文件保留在 shared/composables/ 作为通用工具，待首个消费方接入后自然脱离"伪 shared"标签。
+ * useScreenActions 已由批次7 z054 迁移至 core/layout/composables/（伪 shared 问题已解）。
+ * 本文件保留在 shared/composables/ 作为通用工具，待首个消费方接入后自然脱离"伪 shared"标签。
  */
 import type { Ref, ShallowRef } from 'vue'
 import { ref, shallowRef } from 'vue'

@@ -41,7 +41,7 @@ export async function createOne(req, res, next) {
       throw new BusinessError(ErrorCode.INVALID_PARAMS, '缺少必要字段: name, selectedKeys')
     }
 
-    // @arch-note SEC-004: 方案名称正则校验（仅允许中文、字母、数字、下划线、连字符、空格，长度 1-50）
+    // 方案名称正则校验（仅允许中文、字母、数字、下划线、连字符、空格，长度 1-50）
     const nameRegex = /^[\u4e00-\u9fa5a-zA-Z0-9_\-\s]{1,50}$/
     if (!nameRegex.test(name)) {
       throw new BusinessError(

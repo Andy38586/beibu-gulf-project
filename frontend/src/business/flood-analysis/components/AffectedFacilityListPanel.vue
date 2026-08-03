@@ -1,12 +1,10 @@
 <script setup lang="ts">
 /**
  * AffectedFacilityListPanel - 受影响设施清单面板（洪水分析专用）
- *
  * 功能：
  * 1. 显示受影响设施清单，按损失金额排名
  * 2. 分页显示，每页4个设施
  * 3. 收藏功能对接usePlans，与选址分析共用保存小区接口
- *
  * 布局：4×4 Cell
  * 位置：左下（bottom-left）
  */

@@ -6,9 +6,9 @@ import { BusinessError, ErrorCode } from '../utils/BusinessError.js'
 import { logger } from '../utils/logger.js'
 import { sendSuccess } from '../utils/response.js'
 
-// @arch-note R-03: 提取公共 cookie 设置，register/login 复用
+// 提取公共 cookie 设置，register/login 复用
 function setAuthCookie(res, token) {
-  // @arch-note SEC-001: 使用 HttpOnly Cookie 存储 token
+  // 使用 HttpOnly Cookie 存储 token
   res.cookie('auth_token', token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
@@ -17,7 +17,7 @@ function setAuthCookie(res, token) {
   })
 }
 
-// @arch-note P1-14: 历史转义密码兼容（与前端旧版 escapePassword 规则一致）
+// 历史转义密码兼容（与前端旧版 escapePassword 规则一致）
 function escapeHtmlLegacy(str) {
   return str.replace(/[&<>"']/g, (char) => {
     const escapeMap = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }
@@ -37,7 +37,7 @@ export async function register(req, res, next) {
     if (password.length < 6) {
       throw new BusinessError(ErrorCode.INVALID_PARAMS, '密码长度不能少于 6 位')
     }
-    // @arch-note SEC-003: 密码强度增强 - 至少包含大小写字母和数字
+    // 密码强度增强 - 至少包含大小写字母和数字
     const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{6,}$/
     if (!passwordRegex.test(password)) {
       throw new BusinessError(ErrorCode.INVALID_PARAMS, '密码必须包含大小写字母和数字')
@@ -68,10 +68,10 @@ export async function login(req, res, next) {
     if (!user) {
       throw new BusinessError(ErrorCode.UNAUTHORIZED, '用户名或密码错误')
     }
-    // @arch-note P1-14: 双通道比对 + 静默迁移
+    // 双通道比对 + 静默迁移
     let valid = await bcrypt.compare(password, user.password)
     if (!valid) {
-      // @arch-note P1-14: 旧版前端转义密码的存量账号回退通道
+      // 旧版前端转义密码的存量账号回退通道
       const legacy = escapeHtmlLegacy(password)
       if (legacy !== password && (await bcrypt.compare(legacy, user.password))) {
         valid = true
@@ -94,12 +94,12 @@ export async function login(req, res, next) {
 }
 
 export async function logout(req, res) {
-  // @arch-note SEC-007: 吊销令牌——解码 cookie 中的 token（不校验过期）并自增 tokenVersion，
+  // 吊销令牌——解码 cookie 中的 token（不校验过期）并自增 tokenVersion，
   // 使该 token 后续在 authenticate 校验时因 tokenVersion 不匹配而失效。
   const token = req.cookies?.auth_token
   if (token) {
     try {
-      // @arch-note SEC-007: 验签后再吊销——jwt.verify 校验签名，伪造 token 视为无效直接放行，
+      // 验签后再吊销——jwt.verify 校验签名，伪造 token 视为无效直接放行，
       // 避免任意构造 payload 即让他人 tokenVersion 自增（DoS）。原 jwt.decode 仅解 base64 不验签，存在漏洞。
       const decoded = jwt.verify(token, process.env.JWT_SECRET)
       if (decoded?.id) {
@@ -109,7 +109,7 @@ export async function logout(req, res) {
       // 签名无效（伪造 token / 过期）不影响登出流程，仍清除 cookie，但不吊销合法用户
     }
   }
-  // @arch-note SEC-001: 清除 token cookie
+  // 清除 token cookie
   res.clearCookie('auth_token')
   logger.audit('LOGOUT', { ip: req.ip })
   sendSuccess(res, { message: '登出成功' })

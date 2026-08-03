@@ -39,11 +39,10 @@ function createMockMapStore() {
 
 /**
  * BusinessLayerManager 单测
- *
  * 实施计划 08「步骤 3 蓝图」对 setVisible 的断言（manager 应通过 mapStore.setLayerVisible 改可见性）
  * 与实际实现一致，予以保留。真实实现见 BusinessLayerManager.ts:
- *   - this._mapStore.setLayerVisible(key, visible)：经 Pinia action 改写 visible（DevTools 可追踪）
- *   - renderer.setVisibility(key, visible)：显隐图层但不销毁（数据仍保留在 renderer 内）
+ * - this._mapStore.setLayerVisible(key, visible)：经 Pinia action 改写 visible（DevTools 可追踪）
+ * - renderer.setVisibility(key, visible)：显隐图层但不销毁（数据仍保留在 renderer 内）
  * 本用例据此断言两者均被调用、且 catalog 条目的 visible 经 store action 更新。
  */
 describe('BusinessLayerManager', () => {

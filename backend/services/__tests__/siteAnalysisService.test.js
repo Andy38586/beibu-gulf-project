@@ -1,9 +1,8 @@
 // @vitest-environment node
 /**
  * siteAnalysisService 回归测试（R-14 选址流水线 + R-10 半径校验服务级）
- *
  * R-14：runSiteAnalysis 端到端（mock facilityData / xiaoquData）→ 断言返回结构
- *        { error, coverage, matchedXiaoqu[], facilityPoi{} }，覆盖选址核心链路。
+ * { error, coverage, matchedXiaoqu[], facilityPoi{} }，覆盖选址核心链路。
  * R-10：resolveRadiusSettings 对非法半径（0 / 负）抛 INVALID_PARAMS（服务级兜底）。
  */
 import { describe, it, expect } from 'vitest'
@@ -62,14 +61,21 @@ describe('siteAnalysisService.runSiteAnalysis — 选址流水线（R-14）', ()
       hospital: [{ lng: 108.6, lat: 21.85 }],
       school: [{ lng: 114.5, lat: 24.5 }],
     }
-    const result = runSiteAnalysis({ selectedKeys, typeSettings, facilityData: farFacilityData, xiaoquData })
+    const result = runSiteAnalysis({
+      selectedKeys,
+      typeSettings,
+      facilityData: farFacilityData,
+      xiaoquData,
+    })
     expect(result.error).toBeTruthy()
   })
 })
 
 describe('siteAnalysisService.resolveRadiusSettings — 半径校验（R-10 服务级）', () => {
   it('合法 defaultRadius → 返回 resolved radius', () => {
-    const resolved = resolveRadiusSettings(['hospital'], { hospital: { defaultRadius: 3, importance: 3 } })
+    const resolved = resolveRadiusSettings(['hospital'], {
+      hospital: { defaultRadius: 3, importance: 3 },
+    })
     expect(resolved.hospital.radius).toBe(3)
   })
 

@@ -1,4 +1,4 @@
-// D-6 技术债：Cesium 渲染器类型注解待逐步补充，typecheck 依赖 @ts-nocheck，故豁免 ban-ts-comment
+// 技术债：Cesium 渲染器类型注解待逐步补充，typecheck 依赖 @ts-nocheck，故豁免 ban-ts-comment
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-nocheck
 // 渐进迁移：Cesium 渲染器，类型注解待逐步补充（D-6 技术债）
@@ -124,7 +124,6 @@ class CesiumViewerManager {
 
   /**
    * 启用相机控制器的所有交互能力
-   *
    * 确保拖拽、旋转、缩放、倾斜等交互可用。
    * 在首次创建和每次挂载时调用，防止状态被意外修改。
    */
@@ -226,7 +225,7 @@ class CesiumViewerManager {
   }
 
   /**
-   * a029: 显式真正销毁接口（应用退出 / HMR / 测试场景）。
+   * 显式真正销毁接口（应用退出 / HMR / 测试场景）。
    * 等价于 destroy()，保留命名以匹配审计要求；常规卸载仍走 unmount() 保留复用。
    */
   destroyViewer() {
@@ -240,7 +239,6 @@ export const cesiumViewerManager = new CesiumViewerManager()
 
 /**
  * CesiumRenderer - Cesium三维渲染器
- *
  * 基于单例缓存+按需挂载策略：
  * - 首次进入3D路由时创建Viewer
  * - 离开3D路由时unmount（不销毁）
@@ -301,12 +299,11 @@ export class CesiumRenderer extends MapRenderer {
 
   /**
    * P1性能优化：相机变化防抖
-   *
    * 监听相机移动事件，300ms防抖后才触发渲染和状态同步。
    * 避免拖拽/缩放过程中频繁更新，降低CPU/GPU负载。
    */
   _setupCameraDebounce() {
-    // z058: 委托至 CesiumEvents.ts（纯搬移，逻辑零变化）
+    // 委托至 CesiumEvents.ts（纯搬移，逻辑零变化）
     setupCameraDebounce(this)
   }
 
@@ -376,12 +373,12 @@ export class CesiumRenderer extends MapRenderer {
   }
 
   _setupClickHandler() {
-    // z058: 委托至 CesiumEvents.ts（纯搬移，逻辑零变化）
+    // 委托至 CesiumEvents.ts（纯搬移，逻辑零变化）
     setupClickHandler(this)
   }
 
   addPointLayer(id, features, options = {}) {
-    // z058: 委托至 CesiumLayerRegistrar.ts（纯搬移，逻辑零变化）
+    // 委托至 CesiumLayerRegistrar.ts（纯搬移，逻辑零变化）
     return addPointLayer(this, id, features, options)
   }
 
@@ -391,20 +388,18 @@ export class CesiumRenderer extends MapRenderer {
    * @returns {object|null}
    */
   _createCesiumPointEntity(id, item, index, options) {
-    // z058: 委托至 CesiumLayerRegistrar.ts（纯搬移，逻辑零变化）
+    // 委托至 CesiumLayerRegistrar.ts（纯搬移，逻辑零变化）
     return createCesiumPointEntity(this, id, item, index, options)
   }
 
   /**
    * 计算当前相机视口的经纬度范围（简化估算）
-   *
    * ⚠️ 注意：Cesium `camera.positionCartographic` 的 longitude/latitude 单位为**弧度**，
    * 必须用 CesiumMath.toDegrees 转换为角度后再与要素经纬度比较。
-   *
    * @returns {{west:number, east:number, south:number, north:number} | null}
    */
   _getViewportBBox() {
-    // z058: 委托至 CesiumViewportCulling.ts（纯搬移，逻辑零变化）
+    // 委托至 CesiumViewportCulling.ts（纯搬移，逻辑零变化）
     return getViewportBBox(this)
   }
 
@@ -412,7 +407,7 @@ export class CesiumRenderer extends MapRenderer {
    * 判断点是否在当前视口内
    */
   _isInViewport(lng, lat, bbox) {
-    // z058: 委托至 CesiumViewportCulling.ts（纯搬移，逻辑零变化）
+    // 委托至 CesiumViewportCulling.ts（纯搬移，逻辑零变化）
     return isInViewport(lng, lat, bbox)
   }
 
@@ -421,7 +416,7 @@ export class CesiumRenderer extends MapRenderer {
    * 相机移动时，增量添加/移除视口内外的要素（requestAnimationFrame 防抖）
    */
   _setupViewportListener(id) {
-    // z058: 委托至 CesiumViewportCulling.ts（纯搬移，逻辑零变化）
+    // 委托至 CesiumViewportCulling.ts（纯搬移，逻辑零变化）
     setupViewportListener(this, id)
   }
 
@@ -429,45 +424,42 @@ export class CesiumRenderer extends MapRenderer {
    * 视口变化时增量更新裁剪图层：移除离开视口的 Entity，添加新进入视口的 Entity
    */
   _updateCulledLayer(id) {
-    // z058: 委托至 CesiumViewportCulling.ts（纯搬移，逻辑零变化）
+    // 委托至 CesiumViewportCulling.ts（纯搬移，逻辑零变化）
     updateCulledLayer(this, id)
   }
 
   addPolygonLayer(id, features, options = {}) {
-    // z058: 委托至 CesiumLayerRegistrar.ts（纯搬移，逻辑零变化）
+    // 委托至 CesiumLayerRegistrar.ts（纯搬移，逻辑零变化）
     return addPolygonLayer(this, id, features, options)
   }
 
   async addGeoJsonLayer(id, geojson, options = {}) {
-    // z058: 委托至 CesiumLayerRegistrar.ts（纯搬移，逻辑零变化）
+    // 委托至 CesiumLayerRegistrar.ts（纯搬移，逻辑零变化）
     return addGeoJsonLayer(this, id, geojson, options)
   }
 
   /**
    * 添加 GeoTIFF 栅格图层（3D 回退方案）
-   *
    * quantized-mesh 真地形门禁失败（沙箱无 ctb / pip，无法生成地形瓦片），
    * 降级为山体阴影贴图：用预生成的 dem_hillshade.png 作为 SingleTileImageryProvider
    * 贴在椭球面上。视觉有地形明暗感，但无真 z 值起伏（伪三维，非数字孪生级）。
-   *
    * 与 2D 共用同一份 BusinessLayerManager 注册（layerType:'geotiff', data:'...tif'），
    * 此处将 .tif 映射为 .png（Cesium 影像不支持 GeoTIFF 解码，需预生成 PNG 影像）。
    * 地理范围取自 dem_hillshade 的 gdalinfo 实测值（EPSG:4326，与 2D COG 完全一致）。
-   *
    * 2D↔3D 切换时由 App.vue 的 reapplyAll 重绘到新 renderer，无需额外接线。
    */
   addGeoTIFFLayer(id, url, options = {}) {
-    // z058: 委托至 CesiumLayerRegistrar.ts（纯搬移，逻辑零变化）
+    // 委托至 CesiumLayerRegistrar.ts（纯搬移，逻辑零变化）
     return addGeoTIFFLayer(this, id, url, options)
   }
 
   _doSetVisibility(id, visible) {
-    // z058: 委托至 CesiumLayerRegistrar.ts（纯搬移，逻辑零变化）
+    // 委托至 CesiumLayerRegistrar.ts（纯搬移，逻辑零变化）
     return doSetVisibility(this, id, visible)
   }
 
   _doRemoveLayer(layer) {
-    // z058: 委托至 CesiumLayerRegistrar.ts（纯搬移，逻辑零变化）
+    // 委托至 CesiumLayerRegistrar.ts（纯搬移，逻辑零变化）
     return doRemoveLayer(this, layer)
   }
 
@@ -644,7 +636,7 @@ export class CesiumRenderer extends MapRenderer {
     this._breathingAnimation = null
   }
 
-  // z058: 水面方法委托至 CesiumWaterSurface.ts（纯搬移，逻辑零变化）
+  // 水面方法委托至 CesiumWaterSurface.ts（纯搬移，逻辑零变化）
   addWaterSurface(id, coordinates, height = 0, options = {}) {
     return addWaterSurface(this, id, coordinates, height, options)
   }
@@ -683,7 +675,7 @@ export class CesiumRenderer extends MapRenderer {
    * 仅从DOM卸载，保留Viewer实例供下次复用
    */
   destroy() {
-    // z058: 事件监听清理委托至 CesiumEvents.ts（相机监听 + 屏幕事件处理器）
+    // 事件监听清理委托至 CesiumEvents.ts（相机监听 + 屏幕事件处理器）
     destroyEvents(this)
 
     // 清理水面图层 Map，防止内存泄漏
@@ -707,7 +699,7 @@ export class CesiumRenderer extends MapRenderer {
   }
 
   /**
-   * a029: 显式真正销毁 Viewer（仅测试 / HMR / 应用退出场景使用；
+   * 显式真正销毁 Viewer（仅测试 / HMR / 应用退出场景使用；
    * 常规卸载走 destroy() 保留复用语义）。
    */
   destroyViewer() {

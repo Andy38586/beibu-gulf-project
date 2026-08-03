@@ -1,12 +1,10 @@
 /**
  * 坐标参考系统（CRS）类型定义
- *
  * 项目约定：
  * - 业务数据统一使用 EPSG:4326（WGS84）地理坐标系
  * - 北部湾港口数据按国标应使用 CGCS2000（EPSG:4490），与 WGS84 在 web 地图精度下可互换
  * - 渲染层由 OpenLayers/Cesium 内部投影到 EPSG:3857（Web Mercator）
  * - 前端不直接做投影运算，仅声明 CRS 并在数据入口校验
- *
  * 字段名约定：全项目统一使用 lng/lat（不用 lon/longitude）
  */
 
@@ -46,11 +44,10 @@ export interface LaxPoint {
  * 将宽松坐标点归一化为标准 GeoPoint
  * 优先级：lng > lon > longitude；lat > latitude
  * 缺失值默认 0（避免 OL/Cesium 渲染崩溃），并在 dev 模式告警
- *
  * @example
  * const p = normalizePoint(facility)  // facility 可能是 { longitude, latitude }
  * if (p.crs && p.crs !== DEFAULT_CRS) {
- *   throw new Error(`不支持的 CRS: ${p.crs}`)
+ * throw new Error(`不支持的 CRS: ${p.crs}`)
  * }
  */
 export function normalizePoint(input: LaxPoint): GeoPoint<CRS> {

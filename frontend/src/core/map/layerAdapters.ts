@@ -1,18 +1,23 @@
 /**
  * Layer Adapter Registry
- *
  * 每种 layerType 对应一组 adapter 函数：
  * - create(renderer, key, data, options) → 首次创建图层
  * - update(renderer, key, data, options) → 更新图层数据
  * - remove(renderer, key)               → 销毁图层
- *
  * Manager 不关心具体渲染逻辑，只查 registry 调 adapter。
  * 新增 layerType 只需在这里加条目，不碰 Manager。
  */
 
 import type { FeatureCollection } from 'geojson'
 
-import type { LayerOptions, MapRenderer, PointFeature, PolygonFeature } from '@/types'
+import { logger } from '@/shared'
+import type {
+  LayerOptions,
+  MapRenderer,
+  PointFeature,
+  PolygonFeature,
+  Water3DCapability,
+} from '@/types'
 import type { LayerType, WaterSurfaceData } from '@/types/core/layerManager'
 
 // ===== 数据形状守卫（TS-2：根治 H-1/H-2 类"静默错误形状"bug）=====
@@ -40,6 +45,11 @@ function assertPolygonArray(data: unknown): asserts data is PolygonFeature[] {
   if (!Array.isArray(data)) {
     throw new Error(`[layerAdapters] polygon 图层数据必须是 PolygonFeature[]，实际: ${typeof data}`)
   }
+}
+
+/** 水面能力检查（a036）：渲染器是否实现 Water3DCapability（仅 CesiumRenderer） */
+function isWater3DCapable(renderer: MapRenderer): renderer is MapRenderer & Water3DCapability {
+  return typeof (renderer as Partial<Water3DCapability>).addWaterSurface === 'function'
 }
 
 /** Adapter 函数签名 */
@@ -111,17 +121,27 @@ export const LAYER_ADAPTERS: Record<LayerType, LayerAdapter> = {
   },
 
   waterSurface: {
-    // addWaterSurface 等在接口中为可选（3D Only），此处断言非空
+    // 水面为 3D 专有能力（a036 拆分后 Water3DCapability），OLRenderer 无此方法。
+    // 能力检查替代原基类 no-op stub：2D 渲染器（引擎切换/reapplyAll 场景）上跳过并 warn，
+    // 不再依赖"返回 false 的空实现"。
     create: (renderer, key, data, options) => {
+      if (!isWater3DCapable(renderer)) {
+        logger.warn(
+          `[layerAdapters] waterSurface 图层仅 3D 渲染器支持，当前 ${renderer.getType()} 跳过: ${key}`
+        )
+        return
+      }
       const payload = data as WaterSurfaceData
-      renderer.addWaterSurface!(key, payload.coordinates, payload.height, options)
+      renderer.addWaterSurface(key, payload.coordinates, payload.height, options)
     },
     update: (renderer, key, data, _options) => {
+      if (!isWater3DCapable(renderer)) return
       const payload = data as WaterSurfaceData
-      renderer.updateWaterLevel!(key, payload.height)
+      renderer.updateWaterLevel(key, payload.height)
     },
     remove: (renderer, key) => {
-      renderer.removeWaterSurface!(key)
+      if (!isWater3DCapable(renderer)) return
+      renderer.removeWaterSurface(key)
     },
   },
 

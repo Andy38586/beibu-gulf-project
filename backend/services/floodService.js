@@ -1,6 +1,5 @@
 /**
  * floodService — 洪涝灾害评估业务逻辑（d041）
- *
  * 从 floodAnalysisController 抽出的计算层，与 forecast/site-analysis 分层对齐。
  * Controller 只负责参数校验 + 响应格式化，业务计算在此完成。
  */

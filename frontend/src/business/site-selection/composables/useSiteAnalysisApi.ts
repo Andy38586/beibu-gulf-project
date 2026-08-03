@@ -11,11 +11,11 @@ export function useSiteAnalysisApi() {
   const { apiRequest } = useApiRequest()
   const calculating: Ref<boolean> = ref(false)
   const calcError: Ref<string> = ref('')
-  // b041: 在途请求取消句柄；新请求优先取消旧请求，组件卸载时静默取消
+  // 在途请求取消句柄；新请求优先取消旧请求，组件卸载时静默取消
   let abortController: AbortController | null = null
 
   async function analyze(params: AnalysisParams): Promise<AnalysisResult> {
-    // b041: 新请求优先——取消上一个在途请求（快速连点用户期望看到最新结果）
+    // 新请求优先——取消上一个在途请求（快速连点用户期望看到最新结果）
     abortController?.abort()
     const controller = new AbortController()
     abortController = controller
@@ -44,7 +44,7 @@ export function useSiteAnalysisApi() {
         facilityPoi: result.facilityPoi || {},
       }
     } catch (error) {
-      // b041: 主动取消（新请求抢占 / 组件卸载）— 静默返回，不弹错误、不触发软登录
+      // 主动取消（新请求抢占 / 组件卸载）— 静默返回，不弹错误、不触发软登录
       if (controller.signal.aborted) {
         return { error: null, coverage: null, matchedXiaoqu: [], facilityPoi: {} }
       }
@@ -52,7 +52,7 @@ export function useSiteAnalysisApi() {
       if (isAuthError(error)) {
         await handleAuthError(router)
       }
-      // z031: 统一走 errorHandler，消除手写 switch 与全站口径不一致
+      // 统一走 errorHandler，消除手写 switch 与全站口径不一致
       showError(error, { fallback: '选址分析失败，请稍后重试' })
       calcError.value = error instanceof Error ? error.message : '选址分析失败，请稍后重试'
       return { error: calcError.value, coverage: null, matchedXiaoqu: [], facilityPoi: {} }
@@ -61,7 +61,7 @@ export function useSiteAnalysisApi() {
     }
   }
 
-  // b041: 取消在途请求并复位加载态（供调用方 onUnmounted 调用）
+  // 取消在途请求并复位加载态（供调用方 onUnmounted 调用）
   function cancel(): void {
     abortController?.abort()
     abortController = null

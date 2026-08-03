@@ -12,8 +12,7 @@ import type { Port } from '@/types'
 import { isInBeibuGulf } from '@/types/crs'
 
 /**
- * z032: 静态资源 fetch 收口 loadStatic。
- *
+ * 静态资源 fetch 收口 loadStatic。
  * loadStatic 已内置：10s 超时、5min TTL 内存缓存、in-flight Promise 去重，
  * 与原 mapDataService 自建的 controller/timeoutId/dataCache/pendingCache 行为等价。
  * 行为差异：loadStatic 缓存原始 JSON（解包前），此处返回前再 unwrapEnvelope，
@@ -58,7 +57,7 @@ export const mapDataService = {
     }
   },
 
-  // @audit-note DAT-4 预留未接入：当前边界加载由 useBoundaryLayer 承担，本方法保留作备用，请勿删除
+  // 预留未接入：当前边界加载由 useBoundaryLayer 承担，本方法保留作备用，请勿删除
   async getBoundary(): Promise<FeatureCollection> {
     try {
       const data = (await fetchData(MAP_CONFIG.DATA_PATHS.boundary)) as Record<
@@ -97,12 +96,12 @@ export const mapDataService = {
   },
 
   clearCache(): void {
-    // z032: 委托 loadStatic 的 clearStaticCache 清统一缓存
+    // 委托 loadStatic 的 clearStaticCache 清统一缓存
     clearStaticCache()
   },
 
   getCacheStatus(): CacheStatus {
-    // z032: loadStatic 未导出 cache 引用，缓存命中判断退化为"始终 false"，
+    // loadStatic 未导出 cache 引用，缓存命中判断退化为"始终 false"，
     // 仅作占位（无生产调用方依赖此方法，可后续按需补 invalidateStatic 查询接口）
     return {
       ports: false,

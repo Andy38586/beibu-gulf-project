@@ -1,6 +1,5 @@
 /**
  * navConfig - 底部导航项配置（c023：core/layout 业务污染治理）
- *
  * 职责：提供导航项的注册机制，由业务层（App.vue）注入具体路由，
  * core/layout 不再硬编码业务路由。
  */

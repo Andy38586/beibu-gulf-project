@@ -8,7 +8,7 @@ import { BASE_YEAR, DEFAULT_CONFIDENCE, END_YEAR } from '@/shared'
 import type { ForecastSeries } from '@/types/api/forecast'
 import type { ConfidenceThresholds, ForecastTimeRange } from '@/types/business/base'
 
-export const useForecastState = defineStore('forecast', () => {
+export const useForecastStore = defineStore('forecast', () => {
   const currentTime: Ref<string> = ref('2026-06')
 
   const timeRange: Ref<ForecastTimeRange> = ref({
@@ -34,7 +34,7 @@ export const useForecastState = defineStore('forecast', () => {
   const dataCache: ShallowRef<Map<string, ForecastSeries>> = shallowRef(new Map())
 
   /**
-   * b039: 请求事务状态迁入 store（消除 useForecastRequest 模块级可变状态）。
+   * 请求事务状态迁入 store（消除 useForecastRequest 模块级可变状态）。
    * - activeTransactionId：当前事务 ID，新事务 +1，旧事务 ID 失效
    * - isRequesting：当前是否有请求在途（替代原模块级 isLoading ref）
    * AbortController 不可序列化、不响应式，仍由 useForecastRequest 实例级持有，
@@ -75,7 +75,7 @@ export const useForecastState = defineStore('forecast', () => {
   }
 
   /**
-   * b039: 事务状态重置——配合 useForecastRequest.cancelAll 与组件卸载使用，
+   * 事务状态重置——配合 useForecastRequest.cancelAll 与组件卸载使用，
    * 使事务 ID 失效并复位 isRequesting。reset() 也调用此方法。
    */
   function resetTransactionState(): void {
@@ -98,7 +98,7 @@ export const useForecastState = defineStore('forecast', () => {
     }
     activeForecastLayer.value = null
     dataCache.value = new Map()
-    // b039: 一并复位事务状态（与批次1 Part 6 联动：登出/路由切换重置全链路）
+    // 一并复位事务状态（与批次1 Part 6 联动：登出/路由切换重置全链路）
     resetTransactionState()
   }
 

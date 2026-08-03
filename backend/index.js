@@ -3,12 +3,12 @@ import { logger } from './utils/logger.js'
 
 const PORT = process.env.PORT || 3000
 
-// @arch-note 010: 添加未捕获的 Promise 拒绝处理
+// 添加未捕获的 Promise 拒绝处理
 process.on('unhandledRejection', (reason, _promise) => {
   logger.error('未处理的 Promise 拒绝:', reason)
 })
 
-// @arch-note 010: 添加未捕获的异常处理
+// 添加未捕获的异常处理
 process.on('uncaughtException', (error) => {
   logger.error('未捕获的异常:', error)
   process.exit(1)

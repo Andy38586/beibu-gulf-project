@@ -1,7 +1,6 @@
 <script setup lang="ts">
 /**
  * RadarScoreTooltip - 雷达图得分弹窗组件
- *
  * 职责：显示雷达图的具体得分（1列6行网格布局）
  * 拆分RadarChart组件
  */

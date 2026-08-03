@@ -1,12 +1,10 @@
 /**
  * GIS 业务数据基础模型
- *
  * 定义所有 GIS 数据特征的基础类型。
  * 业务模块（浸没分析、选址分析、预测分析）继承此基础结构扩展自有属性。
- *
  * 坐标系统约定：
- *   全项目统一 WGS84(EPSG:4326) lng/lat，投影到 Web Mercator(EPSG:3857) 由 OL/Cesium 内部处理。
- *   北部湾区域横跨 108°E，处于 UTM 49N/50N 交界带，前端不直接做投影运算。
+ * 全项目统一 WGS84(EPSG:4326) lng/lat，投影到 Web Mercator(EPSG:3857) 由 OL/Cesium 内部处理。
+ * 北部湾区域横跨 108°E，处于 UTM 49N/50N 交界带，前端不直接做投影运算。
  */
 
 // ===== 通用 GIS 要素 =====
@@ -22,7 +20,7 @@ export interface AnnotatedPoint extends GeoPoint {
   id: string
   name: string
   /** 开放扩展：点要素可携带业务属性（如 port、type），
-   *  供渲染器/弹窗按需读取。参考 §7.7。 */
+   * 供渲染器/弹窗按需读取。参考 §7.7。 */
   [key: string]: unknown
 }
 
@@ -46,8 +44,7 @@ export interface ScoredFeature<T extends Record<string, unknown> = Record<string
 // ===== 浸没分析业务类型 =====
 
 /** 淹没统计数据
- *
- * b033: 契约对齐——移除 [key: string]: unknown 索引签名逃生舱，
+ * 契约对齐——移除 [key: string]: unknown 索引签名逃生舱，
  * 显式声明后端 floodStatistics.json 返回的字段 + adapter 派生字段。
  * riskLevel 为必填（所有数据源均提供）；其余字段按数据源可选。
  */
@@ -78,7 +75,7 @@ export interface FloodFeature {
     riskLevel: string
     depth?: number
     /** 开放扩展：淹没要素可携带 areaId、submergedArea 等业务属性。
-     *  参考 §7.7。 */
+     * 参考 §7.7。 */
     [key: string]: unknown
   }
 }
@@ -131,7 +128,7 @@ export interface ConfidenceThresholds {
   berth: number
   traffic: number
   /** 开放扩展：未来可能新增指标（如 gdp、population）的置信度阈值。
-   *  参考 §7.7。 */
+   * 参考 §7.7。 */
   [key: string]: number
 }
 

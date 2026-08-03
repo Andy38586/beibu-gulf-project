@@ -1,10 +1,8 @@
 /**
  * OLRenderer 热力图回归测试（P0-1）
- *
  * 验证 addHeatmapLayer / updateHeatmapLayer 在收到 GeoJSON Feature 数组时
  * 不再因 `normalizePoint(coordinates[])` 数组解构抛 `TypeError: object is not iterable`。
  * 修复：改为直接取数组元素 coords?.[0] / coords?.[1]。
- *
  * 沿用 OLRenderer.culling.test.ts 的 mock 策略：mock ol/Map 与 ol/View（无需真实 DOM 渲染）。
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -133,6 +131,9 @@ class FakeHeatmap {
   setVisible(v: boolean) {
     this._visible = v
   }
+  // OLRenderer.addHeatmapLayer 调用 layer.setZIndex(LAYER_DEFAULTS.zIndex)
+  // mock 需补此方法，否则 "layer.setZIndex is not a function"
+  setZIndex(_z: number) {}
   dispose() {}
 }
 

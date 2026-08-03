@@ -1,16 +1,13 @@
 /**
  * 加载北部湾边界 GeoJSON 数据
- *
  * 文件编码说明
  * - 文件编码：UTF-8（无 BOM）
  * - 浏览器 fetch 会自动处理 UTF-8 编码
  * - 如果在 PowerShell 终端调试，请使用：Get-Content file.geojson -Encoding UTF8
- *
  * 添加缓存机制和加载优化
  * - 使用 sessionStorage 缓存已加载的数据，避免重复请求
  * - 添加超时控制（10秒）
  * - 添加重试机制（最多3次）
- *
  * @param {Function} onError - 错误回调函数
  * @returns {Promise<Object|null>} GeoJSON 数据或 null
  */
@@ -29,11 +26,11 @@ export async function loadBoundaryGeoJson(
   const CACHE_KEY = 'beibu-gulf-boundary-cache'
   const CACHE_EXPIRY = 24 * 60 * 60 * 1000 // 24小时缓存有效期
   const MAX_RETRIES = 3
-  // z050-FE: sessionStorage 写入大小硬上限（500KB 字符），超限仅留内存层不持久化
+  // sessionStorage 写入大小硬上限（500KB 字符），超限仅留内存层不持久化
   const SESSION_STORAGE_MAX_CHARS = 500_000
 
   // 检查缓存
-  // z045: 用 boundaryCacheSchema.safeParse 替代裸 JSON.parse + as 断言；
+  // 用 boundaryCacheSchema.safeParse 替代裸 JSON.parse + as 断言；
   // 校验失败清缓存降级为重新 fetch（不抛错）
   try {
     const cached = sessionStorage.getItem(CACHE_KEY)
@@ -51,7 +48,7 @@ export async function loadBoundaryGeoJson(
     // 缓存读取失败，继续加载
   }
 
-  // z032: 静态资源 fetch 收口 loadStatic（统一超时 10s + TTL 内存缓存），
+  // 静态资源 fetch 收口 loadStatic（统一超时 10s + TTL 内存缓存），
   // 外层保留 3 次重试 + 线性退避（loadStatic 自身不重试，z049 仅作用于 useApiRequest）
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
@@ -72,7 +69,7 @@ export async function loadBoundaryGeoJson(
 
       // 缓存数据
       try {
-        // z050-FE: 大小检查——边界数据 ~几十 KB，超 500KB 视为异常膨胀，仅留内存层
+        // 大小检查——边界数据 ~几十 KB，超 500KB 视为异常膨胀，仅留内存层
         const serialized = JSON.stringify({
           data: geojson,
           timestamp: Date.now(),

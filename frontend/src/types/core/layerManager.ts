@@ -1,10 +1,8 @@
 /**
  * BusinessLayerManager 强类型元数据（types/core/layerManager.ts）
- *
  * ── D2 决策 ──
  * LayerMeta 复用【已有的】LayerOptions（定义于 @/types/renderer），
  * 不另起一套样式类型；data 保持 unknown，由具体 adapter 内部按业务契约收窄。
- *
  * LayerType 从 BusinessLayerManager.js 注释里的字符串字面量
  * 提升为正式联合类型，与 LAYER_ADAPTERS 注册表的 key 对齐。
  * （这是"把散落的业务约束收口成类型"的典型动作。）
@@ -20,7 +18,6 @@ export type LayerType = 'heatmap' | 'geojson' | 'points' | 'polygon' | 'waterSur
 
 /**
  * 业务图层元数据 —— BusinessLayerManager._registry 的条目形状。
- *
  * 注意：当前 .js 版本的 register() 实际只存了 { layerType, options }，
  * 没有持久化 data（data 仅在注册时立即渲染）。TS 化时补上 data/label/visible，
  * 让元数据完整、可被 updateData / getMeta 复用，而不必每次从 renderer 反查。
@@ -53,7 +50,6 @@ export interface LayerMeta {
 
 /**
  * 水面图层数据载荷（3D Only，waterSurface adapter 入参）。
- *
  * 从 layerAdapters.ts 提升为共享类型（TS-3）：消除 adapter 内部重复声明，
  * 让"水面数据形状"成为单一事实来源，业务层构造 payload 时也能复用本类型。
  */

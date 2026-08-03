@@ -4,15 +4,13 @@ import { forecastAdapter } from '../forecastAdapter'
 
 /**
  * forecastAdapter 单测
- *
  * 注意：Adapter 内部通过 fetch('/data/forecast/*.json') 拉取 mock 数据。
  * vitest 环境无静态服务器、且 Node fetch 不支持相对 URL，因此用 vi.stubGlobal
  * 接管 global.fetch，按 URL 返回与真实 fixture 同构的内联数据。
- *
  * ⚠️ 与实施计划 08 文档的偏差：
- *   文档断言 getAvailableIndicators() 返回对象含顶层 `indicators` 字段，
- *   但真实 index.json 的 indicators 嵌套在 `metadata.indicators` 下（见 public/data/forecast/index.json）。
- *   这里按真实结构断言，避免测试误判。
+ * 文档断言 getAvailableIndicators() 返回对象含顶层 `indicators` 字段，
+ * 但真实 index.json 的 indicators 嵌套在 `metadata.indicators` 下（见 public/data/forecast/index.json）。
+ * 这里按真实结构断言，避免测试误判。
  */
 
 // 内联 fixture（结构与 public/data/forecast/*.json 同构，不依赖大文件）

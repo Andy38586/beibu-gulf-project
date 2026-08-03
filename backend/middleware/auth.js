@@ -36,7 +36,7 @@ if (process.env.NODE_ENV !== 'production' && process.env.NODE_ENV !== 'test') {
 }
 
 export async function authenticate(req, res, next) {
-  // @arch-note SEC-001: 优先从 cookie 读取 token，兼容从 header 读取
+  // 优先从 cookie 读取 token，兼容从 header 读取
   let token = req.cookies?.auth_token
   if (!token) {
     const header = req.headers.authorization
@@ -51,7 +51,7 @@ export async function authenticate(req, res, next) {
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET)
-    // @arch-note SEC-007: 校验 tokenVersion，令牌吊销后旧 token 失效
+    // 校验 tokenVersion，令牌吊销后旧 token 失效
     const user = await userService.findById(decoded.id)
     if (!user) {
       return res.status(401).json({ error: '认证令牌无效或已过期' })

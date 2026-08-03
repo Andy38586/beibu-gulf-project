@@ -1,18 +1,16 @@
 /**
  * MapRenderer 抽象接口
- *
  * 双引擎策略模式的核心契约：OpenLayers（2D）与 Cesium（3D）必须实现此接口。
  * 业务层通过此接口操作地图，不直接依赖 OL 或 Cesium API，实现 2D/3D 无感切换。
- *
  * 北部湾港 WebGIS 采用双引擎架构：
- *   - 2D 引擎（OLRenderer）：天地图底图 + 矢量叠加，适合选址分析等平面空间运算
- *   - 3D 引擎（CesiumRenderer）：地形 + 水面可视化，适合浸没分析的立体呈现
- *   引擎切换时通过 exportState/importState 传递 CameraState，保证视角连续。
- *
+ * - 2D 引擎（OLRenderer）：天地图底图 + 矢量叠加，适合选址分析等平面空间运算
+ * - 3D 引擎（CesiumRenderer）：地形 + 水面可视化，适合浸没分析的立体呈现
+ * 引擎切换时通过 exportState/importState 传递 CameraState，保证视角连续。
  * 可选方法（?）：
  * - 2D Only: addHeatmapLayer / updateHeatmapLayer
- * - 3D Only: addWaterSurface / updateWaterLevel / removeWaterSurface / startBreathing / stopBreathing
- *   子类对 "本引擎不支持" 的方法返回 false + DEV warn
+ * - 3D Only: 水面能力见 Water3DCapability 接口（OLRenderer 不支持,业务侧能力检查后调用）
+ * - 呼吸动画（startBreathing/stopBreathing）：双引擎公共能力（OL 矢量圈 / Cesium 实体动画）
+ * 子类对 "本引擎不支持" 的方法返回 false + DEV warn
  */
 
 import type { FeatureCollection } from 'geojson'
@@ -27,8 +25,8 @@ export interface PointFeature {
   lat: number
   name?: string
   /** 开放扩展：业务层可附加任意属性（如 id、type、featureType），
-   *  渲染器通过 options.labelField 等按需读取。
-   *  参考 §7.7 索引签名设计约定。 */
+   * 渲染器通过 options.labelField 等按需读取。
+   * 参考 §7.7 索引签名设计约定。 */
   [key: string]: unknown
 }
 
@@ -84,6 +82,31 @@ export interface WaterSurfaceOptions {
   opacity?: number
 }
 
+/**
+ * 水面效果能力接口（3D Only，a036 拆分产物）
+ *
+ * 背景：水面 5 方法原声明在 MapRenderer 基类/接口上，导致基类为 2D 引擎背负
+ * 3D 契约（ISP 违反），OLRenderer 只能提供 no-op stub。
+ * 现拆为独立能力接口，仅 CesiumRenderer 实现；业务侧（layerAdapters 的
+ * waterSurface 分支）调用前做能力检查：`typeof renderer.addWaterSurface === 'function'`，
+ * 不支持的渲染器（OL）跳过并 warn。
+ *
+ * 注意：呼吸动画（startBreathing/stopBreathing）是双引擎公共能力（OL 矢量圈 /
+ * Cesium 实体动画），保留在 MapRenderer 接口上，不属本接口。
+ */
+export interface Water3DCapability {
+  addWaterSurface(
+    id: string,
+    coordinates: [number, number][],
+    height: number,
+    options?: WaterSurfaceOptions
+  ): boolean
+  updateWaterLevel(id: string, newHeight: number): boolean
+  removeWaterSurface(id: string): boolean
+  removeAllWaterSurfaces(): boolean
+  setWaterSurfaceVisibility(id: string, visible: boolean): boolean
+}
+
 // ===== 状态持久化 =====
 
 /** Camera 状态（用于 2D/3D 切换） */
@@ -99,8 +122,8 @@ export interface CameraState {
 /** 渲染器导出状态 */
 export interface RendererState {
   /** 图层 ID → 图层状态（含 visible）。
-   *  特殊键 `_camera` 存储 CameraState（用于 2D/3D 切换时视角传递）。
-   *  参考 §7.7。 */
+   * 特殊键 `_camera` 存储 CameraState（用于 2D/3D 切换时视角传递）。
+   * 参考 §7.7。 */
   [layerId: string]: { visible: boolean } | CameraState
 }
 
@@ -165,19 +188,9 @@ export interface MapRenderer {
   /** 导入状态 */
   importState(_state: RendererState): void
 
-  /** 水面效果（3D Only） */
-  addWaterSurface?(
-    _id: string,
-    _coordinates: [number, number][],
-    _height: number,
-    _options?: WaterSurfaceOptions
-  ): boolean
-  updateWaterLevel?(_id: string, _newHeight: number): boolean
-  removeWaterSurface?(_id: string): boolean
-  removeAllWaterSurfaces?(): boolean
-  setWaterSurfaceVisibility?(_id: string, _visible: boolean): boolean
+  /** 水面效果（3D Only，能力接口见 Water3DCapability） */
 
-  /** 呼吸灯效果 */
+  /** 呼吸灯效果（双引擎公共能力：OL 矢量动画圈 / Cesium 实体动画） */
   startBreathing?(_lng: number, _lat: number): void
   stopBreathing?(): void
 

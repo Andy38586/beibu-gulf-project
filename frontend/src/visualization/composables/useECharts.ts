@@ -13,6 +13,8 @@ import { CanvasRenderer } from 'echarts/renderers'
 import type { Ref, WatchSource } from 'vue'
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 
+import { perfTimeFn } from '@/core/perf/PerfReporter'
+
 echarts.use([
   GridComponent,
   TitleComponent,
@@ -82,7 +84,11 @@ export function useECharts({
   function updateChart(): void {
     if (!chartInstance) return
     const option = getOption()
-    chartInstance.setOption(option, { notMerge: false, lazyUpdate: true })
+    // perfTimeFn 闭包内 TS 无法收窄 chartInstance（const 收窄不跨箭头函数），先取局部常量
+    const inst = chartInstance
+    perfTimeFn('echarts:setOption', () => {
+      inst.setOption(option, { notMerge: false, lazyUpdate: true })
+    })
   }
 
   /**

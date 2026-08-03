@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 
 import type { ForecastSeries } from '@/types/api/forecast'
 
-import { useForecastState } from '../forecastState'
+import { useForecastStore } from '../forecastStore'
 
 /**
  * 构造最小合法的 ForecastSeries，仅用于 store 行为测试。
@@ -23,8 +23,7 @@ function makeSeries(indicator: string): ForecastSeries {
 }
 
 /**
- * useForecastState 单测
- *
+ * useForecastStore 单测
  * 实施计划 08 文档未给出 forecastState 的测试代码，此处按真实 store 实现
  * （frontend/src/stores/forecastState.ts）补齐全测，覆盖：
  * - 初始状态默认值
@@ -33,14 +32,14 @@ function makeSeries(indicator: string): ForecastSeries {
  * - setConfidenceThreshold / clearCache
  * - reset 恢复默认
  */
-describe('useForecastState', () => {
+describe('useForecastStore', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
   })
 
   describe('初始状态', () => {
     it('应有合理默认值', () => {
-      const store = useForecastState()
+      const store = useForecastStore()
       expect(store.currentTime).toBe('2026-06')
       expect(store.timeRange.start).toBe('2021-01')
       expect(store.timeRange.end).toBe('2031-12')
@@ -52,7 +51,7 @@ describe('useForecastState', () => {
 
   describe('setCurrentTime', () => {
     it('应更新当前时间（不影响 timeRange.current）', () => {
-      const store = useForecastState()
+      const store = useForecastStore()
       store.setCurrentTime('2030-06')
       expect(store.currentTime).toBe('2030-06')
       expect(store.timeRange.current).toBe('2026-06')
@@ -61,7 +60,7 @@ describe('useForecastState', () => {
 
   describe('setActiveIndicator', () => {
     it('应切换激活指标', () => {
-      const store = useForecastState()
+      const store = useForecastStore()
       store.setActiveIndicator('berth')
       expect(store.activeIndicator).toBe('berth')
     })
@@ -69,7 +68,7 @@ describe('useForecastState', () => {
 
   describe('setTimeGranularity', () => {
     it('应更新时间粒度', () => {
-      const store = useForecastState()
+      const store = useForecastStore()
       store.setTimeGranularity('year')
       expect(store.timeGranularity).toBe('year')
     })
@@ -77,7 +76,7 @@ describe('useForecastState', () => {
 
   describe('cacheData / currentData', () => {
     it('应按当前时间暴露缓存数据', () => {
-      const store = useForecastState()
+      const store = useForecastStore()
       const payload = makeSeries('cargo')
       store.cacheData('2026-06', payload)
       expect(store.dataCache.get('2026-06')).toEqual(payload)
@@ -85,7 +84,7 @@ describe('useForecastState', () => {
     })
 
     it('未缓存当前时间时 currentData 为 null', () => {
-      const store = useForecastState()
+      const store = useForecastStore()
       store.cacheData('2030-01', makeSeries('berth'))
       expect(store.currentData).toBeNull()
     })
@@ -93,7 +92,7 @@ describe('useForecastState', () => {
 
   describe('setConfidenceThreshold', () => {
     it('应更新对应指标的置信度阈值', () => {
-      const store = useForecastState()
+      const store = useForecastStore()
       store.setConfidenceThreshold('berth', 0.9)
       expect(store.confidenceThresholds.berth).toBe(0.9)
     })
@@ -101,7 +100,7 @@ describe('useForecastState', () => {
 
   describe('clearCache', () => {
     it('应清空数据缓存', () => {
-      const store = useForecastState()
+      const store = useForecastStore()
       store.cacheData('2026-06', makeSeries('cargo'))
       store.clearCache()
       expect(store.currentData).toBeNull()
@@ -111,7 +110,7 @@ describe('useForecastState', () => {
 
   describe('reset', () => {
     it('应恢复默认状态', () => {
-      const store = useForecastState()
+      const store = useForecastStore()
       store.setCurrentTime('2030-01')
       store.setActiveIndicator('traffic')
       store.cacheData('2030-01', makeSeries('berth'))
@@ -127,13 +126,13 @@ describe('useForecastState', () => {
 
   describe('事务状态 (b039)', () => {
     it('初始 activeTransactionId=0, isRequesting=false', () => {
-      const store = useForecastState()
+      const store = useForecastStore()
       expect(store.activeTransactionId).toBe(0)
       expect(store.isRequesting).toBe(false)
     })
 
     it('resetTransactionState 复位事务 ID 与 isRequesting', () => {
-      const store = useForecastState()
+      const store = useForecastStore()
       store.activeTransactionId = 5
       store.isRequesting = true
       store.resetTransactionState()
@@ -142,7 +141,7 @@ describe('useForecastState', () => {
     })
 
     it('reset() 也复位事务状态（与批次1 Part 6 联动）', () => {
-      const store = useForecastState()
+      const store = useForecastStore()
       store.activeTransactionId = 99
       store.isRequesting = true
       store.reset()

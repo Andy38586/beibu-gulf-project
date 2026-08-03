@@ -48,7 +48,7 @@ interface RequestOptions<T = unknown> {
   /** GET 查询参数，内部用 URLSearchParams 拼接（无需手写模板字符串） */
   params?: Record<string, string | number | boolean | undefined | null>
   /**
-   * z045: 可选 zod schema，传入则对信封解包后的 data 做 safeParse 运行时校验，
+   * 可选 zod schema，传入则对信封解包后的 data 做 safeParse 运行时校验，
    * 替代裸 `as T` 断言；不传入则保持 `as T` 行为（向后兼容）。
    * 校验失败抛 ApiError(REQUEST_FAILED)（不在重试码列表内，不会触发 z049 重试）。
    */
@@ -62,7 +62,7 @@ export function useApiRequest() {
     path: string,
     options: RequestOptions<T> = {}
   ): Promise<T> {
-    // z049: GET 幂等请求在超时/网络错误时线性退避重试（POST 不重试，避免重复写操作）
+    // GET 幂等请求在超时/网络错误时线性退避重试（POST 不重试，避免重复写操作）
     const MAX_RETRIES = 3
     const RETRYABLE_CODES: ErrorCodeValue[] = [ErrorCode.TIMEOUT, ErrorCode.NETWORK_ERROR]
     const RETRY_DELAY_MS = 800
@@ -90,7 +90,7 @@ export function useApiRequest() {
   }
 
   /**
-   * z049: 单次请求实现（原 apiRequest 函数体整体抽出）。
+   * 单次请求实现（原 apiRequest 函数体整体抽出）。
    * 仅负责 headers/params/超时/fetch/信封解包/错误映射，不含重试逻辑；
    * 每次调用新建 AbortController，超时计时天然重置，支持重试。
    */
@@ -174,7 +174,7 @@ export function useApiRequest() {
        */
       const unwrapped = unwrapEnvelope<T>(data)
 
-      // z045: 若调用方传入 schema，用 safeParse 替代裸 `as T` 断言做运行时校验。
+      // 若调用方传入 schema，用 safeParse 替代裸 `as T` 断言做运行时校验。
       // 校验失败抛 ApiError(REQUEST_FAILED)，不在 z049 重试码列表内（响应数据错误不可重试）。
       if (options.schema) {
         const result = options.schema.safeParse(unwrapped)
@@ -192,7 +192,7 @@ export function useApiRequest() {
       }
       if (error instanceof Error) {
         if (error.name === 'AbortError') {
-          // @arch-note SEC-021: 区分内部超时 abort vs 外部 signal 主动取消
+          // 区分内部超时 abort vs 外部 signal 主动取消
           // controller 由本函数内部的 setTimeout 触发 abort → 超时
           // options.signal 由调用方主动 abort → 取消（非错误，不提示"超时"）
           if (controller.signal.aborted) {

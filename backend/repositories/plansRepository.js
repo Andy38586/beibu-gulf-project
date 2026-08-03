@@ -6,7 +6,7 @@ import { createFileStore } from '../utils/fileStore.js'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const DATA_FILE = path.join(__dirname, '../data/plans.json')
 
-// @arch-note R-01: 复用 createFileStore 工厂，消除与 markersRepo/userService 的重复基础设施
+// 复用 createFileStore 工厂，消除与 userService 的重复基础设施
 const { sequential, readAll, writeAll } = createFileStore(DATA_FILE)
 
 export async function findAllByUserId(userId) {
@@ -23,22 +23,22 @@ export async function create(planData) {
   return sequential(async () => {
     const plans = await readAll()
     const newPlan = {
-      // @arch-note P2-09: UUID 防并发碰撞，与 userService 对齐
+      // UUID 防并发碰撞，与 userService 对齐
       id: crypto.randomUUID(),
       ...planData,
       savedXiaoqu: [], // 已保存的小区列表
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     }
-    // @arch-note P2-10: 不原地修改缓存数组，构造新数组，写盘失败时缓存不脏
+    // 不原地修改缓存数组，构造新数组，写盘失败时缓存不脏
     const next = [...plans, newPlan]
     await writeAll(next)
     return newPlan
   })
 }
 
-// @arch-note P0-003: 安全的字段白名单，防止原型链污染
-// @arch-note P2-03: 白名单补 flood 系字段，浸没方案才能被更新保存
+// 安全的字段白名单，防止原型链污染
+// 白名单补 flood 系字段，浸没方案才能被更新保存
 const PLAN_UPDATE_FIELDS = [
   'name',
   'selectedKeys',
@@ -60,7 +60,7 @@ export async function update(id, updates) {
     const index = plans.findIndex((p) => p.id === id)
     if (index === -1) return null
 
-    // @arch-note P0-003: 只允许白名单字段更新，防止 __proto__/constructor 污染
+    // 只允许白名单字段更新，防止 __proto__/constructor 污染
     const safeUpdates = {}
     for (const key of PLAN_UPDATE_FIELDS) {
       if (key in updates) safeUpdates[key] = updates[key]
@@ -73,7 +73,7 @@ export async function update(id, updates) {
       createdAt: plans[index].createdAt,
       updatedAt: new Date().toISOString(),
     }
-    // @arch-note P2-10: 不原地修改缓存数组，构造新数组，写盘失败时缓存不脏
+    // 不原地修改缓存数组，构造新数组，写盘失败时缓存不脏
     const next = plans.map((p, i) => (i === index ? updated : p))
     await writeAll(next)
     return updated
@@ -113,7 +113,7 @@ export async function saveXiaoqu(planId, xiaoqu) {
       newSavedXiaoqu = [...existing, { ...xiaoqu, savedAt: new Date().toISOString() }]
     }
 
-    // @arch-note P2-10: 构造新 plan + 新 plans 数组，杜绝原地修改
+    // 构造新 plan + 新 plans 数组，杜绝原地修改
     const updatedPlan = {
       ...plan,
       savedXiaoqu: newSavedXiaoqu,
@@ -144,7 +144,7 @@ export async function removeXiaoqu(planId, xiaoquId) {
       return plan
     }
 
-    // @arch-note P2-10: 构造新 plan + 新 plans 数组，杜绝原地修改
+    // 构造新 plan + 新 plans 数组，杜绝原地修改
     const updatedPlan = {
       ...plan,
       savedXiaoqu: newSavedXiaoqu,

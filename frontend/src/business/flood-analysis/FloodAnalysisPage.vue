@@ -1,20 +1,18 @@
 <script setup lang="ts">
 /**
  * 浸没分析模块
- *
  * 数据状态（b029 / D-3=A 核实）：
  * - 真实地形：DEM 山体阴影由 dem-hillshade 图层加载 dem_hillshade.tif（COG，tools/dem-pipeline 生成），已真实接入；
  * - 3D 水面：预设水位档位可视化（非真实高程演算，真地形/地形 Provider 见 D-10 决策）；
  * - src/mock/flood/ 仅为接口文档，无运行期调用方（floodAdapter.getDEM 为预留钩子，当前无消费点）。
- *
  * 本模块验证目标：
  * 1. BusinessLayerManager 的 waterSurface adapter 能否独立注册/销毁
  * 2. 3D 渲染器（CesiumRenderer）在不依赖 2D 引擎时的纯 3D 业务承载能力
  * 3. Cesium Primitive API 动态构建水面几何体的能力
  * 4. 相机状态（height<->zoom）在 2D<->3D 切换时的同步机制
  * 5. Data Adapter 隔离：floodAdapter 是业务层与数据源的唯一接口
- *    - 架构验证阶段：dataSource='mock'，使用示意性数据
- *    - 生产阶段：floodAdapter.setDataSource('api')，业务代码零改动
+ * - 架构验证阶段：dataSource='mock'，使用示意性数据
+ * - 生产阶段：floodAdapter.setDataSource('api')，业务代码零改动
  */
 import { nextTick, onMounted, onUnmounted, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute } from 'vue-router'
@@ -26,10 +24,10 @@ import LayerControlPanel from '@/core/map/components/LayerControlPanel.vue'
 import { floodAdapter } from '@/services'
 import { showError, showWarning } from '@/shared'
 import { logger } from '@/shared'
-import { useFloodState } from '@/stores'
 import { useFloodStore } from '@/stores'
 import { useMapStore } from '@/stores'
 import { usePortImpactStore } from '@/stores'
+import { useProfileStore } from '@/stores'
 import { useWaterLevelStore } from '@/stores'
 import type { AffectedFacility, FloodFeature, FloodStatistics } from '@/types/business/base'
 
@@ -38,9 +36,8 @@ import FloodAnalysisReportPanel from './components/FloodAnalysisReportPanel.vue'
 import WaterLevelProfilePanel from './components/WaterLevelProfilePanel.vue'
 import { FLOOD_RISK_COLORS, FLOOD_RISK_DEFAULT } from './constants/colors'
 
-const floodResetStore = useFloodStore()
 const waterLevelStore = useWaterLevelStore()
-const floodStore = useFloodState()
+const floodStore = useFloodStore()
 const portImpactStore = usePortImpactStore()
 const mapStore = useMapStore()
 const { manager: businessLayerManager } = useBusinessLayers()
@@ -50,7 +47,7 @@ const route = useRoute()
 function shouldRenderForCurrentRoute() {
   const actual = mapStore.currentRenderer?.getType?.()
   if (!actual) return false
-  // a022: online 模式返回 4326 实时演算结果，2D/3D 均可渲染——不做引擎强约束
+  // online 模式返回 4326 实时演算结果，2D/3D 均可渲染——不做引擎强约束
   // （原 3D-only 守卫是静态档位时代的防御：防 2D 引擎污染 3D 渲染器）。
   // 仅在 api/mock 静态档位模式保持 3D-only。
   if (floodAdapter.dataSource === 'online') return true
@@ -263,7 +260,7 @@ async function triggerFloodAnalysis(waterLevel: number, seq: number) {
     if (!shouldRenderForCurrentRoute()) return
     // P0-5 修复：页面已卸载则丢弃响应，页面离开后图层不复活（最强守卫）
     if (unmounted) return
-    // b020: 实际档位与请求不一致时 UI 提示（非仅 console）
+    // 实际档位与请求不一致时 UI 提示（非仅 console）
     if (actualWaterLevel !== undefined && actualWaterLevel !== waterLevel) {
       showWarning(`当前水位 ${waterLevel}m 无精确数据，已使用 ${actualWaterLevel}m 档位`)
     }
@@ -445,7 +442,11 @@ onUnmounted(() => {
   floodAdapter.clearCache()
   cachedWaterAreaCoords = null
 
-  floodResetStore.resetAll()
+  // 原 floodStore(19 行 resetAll 壳)已删除并入本钩子(A 整合):页面卸载时复位洪涝相关 store
+  useWaterLevelStore().resetWaterLevel()
+  useProfileStore().resetProfile()
+  useFloodStore().resetFloodAnalysis()
+  usePortImpactStore().resetPortImpact()
 })
 </script>
 

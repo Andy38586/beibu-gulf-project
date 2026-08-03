@@ -1,8 +1,8 @@
-// D-6 技术债：OL 渲染器类型注解待逐步补充，typecheck 依赖 @ts-nocheck，故豁免 ban-ts-comment
+// 技术债：OL 渲染器类型注解待逐步补充，typecheck 依赖 @ts-nocheck，故豁免 ban-ts-comment
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-nocheck
 // 渐进迁移：OL 渲染器，类型注解待逐步补充（D-6 技术债）
-// z042 基线：移除 @ts-nocheck 后 171 个 typecheck 错误（2026-08-03 统计），待后续批次渐进修复
+// 基线：移除 @ts-nocheck 后 171 个 typecheck 错误（2026-08-03 统计），待后续批次渐进修复
 import Feature from 'ol/Feature'
 import GeoJSON from 'ol/format/GeoJSON'
 import Point from 'ol/geom/Point'
@@ -10,7 +10,7 @@ import Polygon from 'ol/geom/Polygon'
 import Heatmap from 'ol/layer/Heatmap'
 import TileLayer from 'ol/layer/Tile'
 import VectorLayer from 'ol/layer/Vector'
-// @arch-note a016: 不能用 `import Map` —— 会遮蔽全局 ES Map，
+// 不能用 `import Map` —— 会遮蔽全局 ES Map，
 // 导致 `new Map()`（如 _cullLayers 初始化）误建 ol/Map 实例，moveend 遍历 .keys() 时崩溃。
 import OlMap from 'ol/Map'
 import { fromLonLat, toLonLat } from 'ol/proj'
@@ -44,7 +44,7 @@ export class OLRenderer extends MapRenderer {
     this._cullLayers = new Map() // id -> { source, index, allFeatures, options }
     /** @type {import('./renderers').OLRendererState['_moveendKey']} */
     this._moveendKey = null
-    // a026: pointer-move / camera-changed 事件处理器与防抖定时器引用（供 destroy 注销）
+    // pointer-move / camera-changed 事件处理器与防抖定时器引用（供 destroy 注销）
     /** @type {Function|null} */
     this._pointerMoveHandler = null
     /** @type {Object|null} */
@@ -521,7 +521,7 @@ export class OLRenderer extends MapRenderer {
     }
   }
   /**
-   * a016: 覆盖基类 removeLayer —— 先清理裁剪图层状态（索引 + moveend 监听），再走基类移除。
+   * 覆盖基类 removeLayer —— 先清理裁剪图层状态（索引 + moveend 监听），再走基类移除。
    * 此前 _removeCullLayer 定义了但从未被调用，导致 _cullLayers 残留 + moveend 监听永不解除。
    */
   removeLayer(id) {
@@ -638,7 +638,7 @@ export class OLRenderer extends MapRenderer {
       source: new VectorSource({ features: [breathingFeature] }),
       style: breathingStyle,
     })
-    // a031: 呼吸动画层必须置顶（覆盖业务层），保持改动前"最后 add 即最上"的视觉语义
+    // 呼吸动画层必须置顶（覆盖业务层），保持改动前"最后 add 即最上"的视觉语义
     this._breathingLayer.setZIndex(LAYER_DEFAULTS.zIndexOverlay)
     this.map.addLayer(this._breathingLayer)
     const animate = () => {
@@ -669,40 +669,9 @@ export class OLRenderer extends MapRenderer {
   updateSize() {
     this.map?.updateSize()
   }
-  addWaterSurface(_id, _coordinates, _height, _options) {
-    if (import.meta.env.DEV) {
-      logger.debug('[OLRenderer] addWaterSurface 不支持 2D 渲染器')
-    }
-    return false
-  }
-
-  updateWaterLevel(_id, _newHeight) {
-    if (import.meta.env.DEV) {
-      logger.debug('[OLRenderer] updateWaterLevel 不支持 2D 渲染器')
-    }
-    return false
-  }
-
-  removeWaterSurface(_id) {
-    if (import.meta.env.DEV) {
-      logger.debug('[OLRenderer] removeWaterSurface 不支持 2D 渲染器')
-    }
-    return false
-  }
-
-  removeAllWaterSurfaces() {
-    if (import.meta.env.DEV) {
-      logger.debug('[OLRenderer] removeAllWaterSurfaces 不支持 2D 渲染器')
-    }
-    return false
-  }
-
-  setWaterSurfaceVisibility(_id, _visible) {
-    if (import.meta.env.DEV) {
-      logger.debug('[OLRenderer] setWaterSurfaceVisibility 不支持 2D 渲染器')
-    }
-    return false
-  }
+  // 水面 5 方法为 3D 专有能力（Water3DCapability），OLRenderer 不实现——
+  // 调用方（layerAdapters waterSurface 分支）做能力检查后跳过 2D 渲染器（a036）。
+  // 2D 呼吸动画（startBreathing/stopBreathing）为公共能力，实现见上方。
 
   destroy() {
     super.destroy()
@@ -713,7 +682,7 @@ export class OLRenderer extends MapRenderer {
       this.map?.un(this._moveendKey.type, this._moveendKey.listener)
       this._moveendKey = null
     }
-    // a026: 注销 pointer-move / camera-changed 监听与防抖定时器
+    // 注销 pointer-move / camera-changed 监听与防抖定时器
     if (this._pointerMoveHandler) {
       this.map?.un('pointermove', this._pointerMoveHandler)
       this._pointerMoveHandler = null

@@ -7,11 +7,11 @@
 import { computed, onMounted, onUnmounted, reactive } from 'vue'
 
 import { SYNTHETIC_INDICATORS } from '@/services'
-import { useForecastState } from '@/stores'
+import { useForecastStore } from '@/stores'
 
 import { BASE_YEAR, DEFAULT_CONFIDENCE, END_YEAR } from '../constants'
 
-const forecastState = useForecastState()
+const forecastState = useForecastStore()
 const CONFIRM_DELAY = 3000
 
 // ===== 四个指标 =====
@@ -49,7 +49,7 @@ function onSliderInput(key: string) {
   resetTimer(key)
 }
 
-// P2-03: 置信度滑块防抖
+// 置信度滑块防抖
 let confidenceDebounceTimer: ReturnType<typeof setTimeout> | null = null
 function onConfidenceSliderInput(key: string, value: string) {
   if (confidenceDebounceTimer) clearTimeout(confidenceDebounceTimer)

@@ -96,10 +96,8 @@ interface UseAnalysisLayerReturn {
 
 /**
  * 创建选址分析结果处理函数
- *
  * 通过 BusinessLayerManager 管理图层生命周期，
  * 不再直接调用 renderer 方法。
- *
  * @param {BusinessLayerManager} businessLayerManager
  * @returns {Function} setAnalysisResult(result)
  */

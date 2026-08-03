@@ -1,6 +1,9 @@
 import type { RouteRecordRaw } from 'vue-router'
 import { createRouter, createWebHistory } from 'vue-router'
 
+import { buildBusinessRoutes } from '@/business/manifest'
+
+// 业务路由由 manifest 生成（路径/name/engine/title 一处声明,新增业务只改 business/manifest.ts）
 const routes: RouteRecordRaw[] = [
   {
     path: '/',
@@ -8,28 +11,7 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/HomePage.vue'),
     meta: { engine: '2d', title: '北部湾智慧港口平台' },
   },
-  // Phase 4-B：路径从 /buffer 调整为 /site-selection
-  {
-    path: '/site-selection',
-    name: 'SiteSelection',
-    component: () => import('@/business/site-selection/SiteSelectionPage.vue'),
-    meta: { engine: '2d', title: '选址分析' },
-  },
-  // 预测分析：公开数据，前端路由不要求认证（与后端 routes/forecast.js 无 authenticate 一致）
-  {
-    path: '/forecast',
-    name: 'Forecast',
-    component: () => import('@/business/forecast/ForecastPage.vue'),
-    meta: { engine: '2d', title: '预测分析' },
-  },
-  // 浸没分析（洪涝分析）
-  // 注：路由不再要求登录。收藏保存时才在 PaginatedListPanel 弹登录提示。
-  {
-    path: '/flood-analysis',
-    name: 'FloodAnalysis',
-    component: () => import('@/business/flood-analysis/FloodAnalysisPage.vue'),
-    meta: { engine: '3d', title: '浸没分析' },
-  },
+  ...buildBusinessRoutes(),
   {
     path: '/profile',
     name: 'Profile',

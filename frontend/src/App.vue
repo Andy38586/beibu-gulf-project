@@ -6,6 +6,7 @@ import { BusinessLayerManager } from '@/core'
 import { BUSINESS_LAYER_MANAGER_KEY } from '@/core'
 import { useMapControls } from '@/core'
 import { registerNavItems } from '@/core'
+import { businessModules } from '@/business/manifest'
 import {
   EDITING_PLAN_KEY,
   MAP_STORE_KEY,
@@ -22,12 +23,12 @@ import {
 } from '@/shared'
 import { logger } from '@/shared'
 import ErrorBoundary from '@/shared/components/ErrorBoundary.vue'
-import { useFloodState } from '@/stores'
-import { useForecastState } from '@/stores'
+import { useFloodStore } from '@/stores'
+import { useForecastStore } from '@/stores'
 import { useMapStore } from '@/stores'
 import { usePortImpactStore } from '@/stores'
 import { useProfileStore } from '@/stores'
-import { useSiteSelectionStateStore } from '@/stores'
+import { useSiteSelectionStore } from '@/stores'
 import { useWaterLevelStore } from '@/stores'
 import type { TypeSetting } from '@/types/facility'
 import type { Plan } from '@/types/plan'
@@ -53,31 +54,34 @@ provide(MAP_STORE_KEY, mapStore)
 const businessLayerManager = new BusinessLayerManager(mapStore)
 provide(BUSINESS_LAYER_MANAGER_KEY, businessLayerManager)
 
-// z053: 注册 store 重置 handler（登出/多标签页同步时调用）
+// 注册 store 重置 handler（登出/多标签页同步时调用）
 // useAuth 不再直接依赖 stores 层，由 App.vue（拥有 store 组合）注入重置逻辑
 setResetStoresHandler(() => {
   try {
-    useSiteSelectionStateStore().clearState()
-    useFloodState().clearState()
+    useSiteSelectionStore().clearState()
+    useFloodStore().clearState()
     usePortImpactStore().resetPortImpact()
     useWaterLevelStore().resetWaterLevel()
     useProfileStore().resetProfile()
-    // b035+b043: 重置地图业务交互状态，清 analysisHandler 闭包与 sessionStorage
+    // 重置地图业务交互状态，清 analysisHandler 闭包与 sessionStorage
     useMapStore().resetMapState()
-    // b036: 预测页状态复位（含 dataCache 清空）
-    useForecastState().reset()
+    // 预测页状态复位（含 dataCache 清空）
+    useForecastStore().reset()
   } catch {
     // store 未激活等异常不阻断登出
   }
 })
 
-// c023: 注册底部导航项（业务路由由 App 注入，core/layout 不再硬编码）
+// 注册底部导航项：首页/个人中心为静态项,业务项由 manifest 生成（z075）
+// core/layout 不硬编码业务路由；新增业务只改 business/manifest.ts
 registerNavItems([
   { label: '首页', icon: '⌂', path: '/', disabled: false },
-  { label: '选址分析', icon: '◈', path: '/site-selection', disabled: false },
-  { label: '预测分析', icon: '📊', path: '/forecast', disabled: false },
-  { label: '浸没分析', icon: '🌊', path: '/flood-analysis', disabled: false },
-  { label: '航线分析', icon: '🚢', path: '/route-analysis', disabled: true },
+  ...businessModules.map((m) => ({
+    label: m.navLabel,
+    icon: m.navIcon,
+    path: m.path,
+    disabled: !!m.navDisabled,
+  })),
   { label: '个人中心', icon: '👤', path: '/profile', disabled: false },
 ])
 
@@ -97,7 +101,6 @@ function waitForRenderer(callback: () => void, retries = 0) {
 
 /**
  * 合并路由监听器：统一处理路由变化和地图引擎切换
- *
  * 关键修复：避免 route.name watcher 在引擎切换时覆盖 importState 设置的相机位置
  * 通过检测 meta.engine 是否变化来区分"路由导航"和"引擎切换"
  */
@@ -169,9 +172,9 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  // a024: 根组件卸载时销毁图层管理器，释放 _registry 持有的图层元数据
+  // 根组件卸载时销毁图层管理器，释放 _registry 持有的图层元数据
   businessLayerManager.destroy()
-  // z067: 解除多标签页 storage 监听（与 initAuthStorageListener 配对）
+  // 解除多标签页 storage 监听（与 initAuthStorageListener 配对）
   removeAuthStorageListener()
 })
 </script>

@@ -1,11 +1,9 @@
 /**
  * 跨组件 provide / inject 注入键（InjectionKey）
- *
  * 用类型化 InjectionKey 替代字符串 key：
  * 1. key 拼写错误在编译期暴露，不再靠运行时 undefined 排查；
  * 2. 消费方不再需要手动类型断言（ref<T|null> 由 provider 端保证）；
  * 3. 与 App.vue 的 4 个 provide 一一对应。
- *
  * 对应消费方：
  * - RESTORE_PLAN_DATA_KEY / EDITING_PLAN_KEY → ProfilePage
  * - UNIFIED_MAP_KEY → useMapControls

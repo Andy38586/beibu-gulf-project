@@ -1,13 +1,11 @@
 <script setup lang="ts">
 /**
  * GCSInspectionOverlay - GCS 检查模式覆盖层
- *
  * 职责：
  * 1. 可视化 Cell 网格边界和编号
  * 2. 动态检测并显示 Panel / Dock / Container / TopArea 的实际边界
  * 3. 自动验证各元素是否与 Cell 网格对齐
  * 4. 显示当前 GCS 参数与对齐状态
- *
  * 设计说明：
  * - 仅用于开发验收，生产环境默认关闭
  * - 禁止拖拽、换位、动态编辑等交互功能

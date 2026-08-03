@@ -70,7 +70,7 @@ export function scoreXiaoqu(
   weights = DEFAULT_WEIGHTS,
   decayFn = linearDecay
 ) {
-  // d047: 预构建各设施类型的空间索引，避免每个小区重复遍历
+  // 预构建各设施类型的空间索引，避免每个小区重复遍历
   const facilityIndexes = {}
   for (const key of Object.keys(typeSettings)) {
     const points = facilityData[key]

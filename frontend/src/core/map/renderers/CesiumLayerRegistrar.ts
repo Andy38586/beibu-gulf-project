@@ -1,15 +1,12 @@
 /**
  * CesiumLayerRegistrar — Cesium 3D 图层注册与移除
- *
- * z058 拆分：从 CesiumRenderer.ts 纯搬移，逻辑零变化。
+ * 拆分：从 CesiumRenderer.ts 纯搬移，逻辑零变化。
  * 负责 entity / dataSource / imageryLayer 的添加、移除、可见性切换。
- *
  * 图层状态存储在 renderer._layers（Map<id, LayerState>）：
  * - instance：Entity 数组 / GeoJsonDataSource / ImageryLayer
  * - allFeatures：点图层的原始全量要素（供视口裁剪增量更新）
  * - cameraListener：视口裁剪点图层的相机变化监听器
  * - visible / options：可见性与图层选项
- *
  * 跨模块依赖（均通过 renderer 实例委托，保持单一调度入口）：
  * - 视口裁剪：renderer._getViewportBBox / _isInViewport / _setupViewportListener
  * - 异步竞态 token：renderer._geoJsonTokens
@@ -31,7 +28,6 @@ import { logger } from '@/shared'
 
 /**
  * 添加点图层（含视口裁剪：>1000 Entity 时仅渲染视口内要素）
- *
  * @param renderer CesiumRenderer 实例
  * @param id 图层ID
  * @param features 点要素数组
@@ -93,7 +89,9 @@ export function createCesiumPointEntity(
 ): any {
   const lng = item.lng ?? item.lon ?? 0
   return renderer.viewer.entities.add({
-    id: `${id}-${item.id || item.name || index}`,
+    // 末尾固定追加 index：同图层内存在同名要素时，name 相同的实体 id 会碰撞，
+    // Cesium entities.add 对重复 id 会覆盖旧实体 → 要素丢失 + 视口裁剪增删错乱
+    id: `${id}-${item.id || item.name || 'p'}-${index}`,
     position: Cartesian3.fromDegrees(lng, item.lat),
     point: {
       pixelSize: options.size || 12,
@@ -118,7 +116,6 @@ export function createCesiumPointEntity(
 
 /**
  * 添加多边形图层（支持 Polygon / MultiPolygon）
- *
  * @param renderer CesiumRenderer 实例
  * @param id 图层ID
  * @param features 多边形要素数组
@@ -188,7 +185,6 @@ export function addPolygonLayer(
 
 /**
  * 异步加载 GeoJSON 图层（含竞态保护 token）
- *
  * @param renderer CesiumRenderer 实例
  * @param id 图层ID
  * @param geojson GeoJSON FeatureCollection
@@ -217,7 +213,7 @@ export async function addGeoJsonLayer(
 
     logger.debug(`[CesiumRenderer] GeoJSON ${id} entities:`, dataSource.entities.values.length)
     dataSource.entities.values.forEach((entity: any) => {
-      // @arch-note SEC-018: properties 可能为 undefined（无属性的 GeoJSON 要素），判空避免崩溃
+      // properties 可能为 undefined（无属性的 GeoJSON 要素），判空避免崩溃
       if (!entity.properties) entity.properties = {}
       entity.properties.featureType = options.featureType || 'geojson'
       if (entity.polygon) {
@@ -270,17 +266,13 @@ export async function addGeoJsonLayer(
 
 /**
  * 添加 GeoTIFF 栅格图层（3D 回退方案）
- *
  * quantized-mesh 真地形门禁失败（沙箱无 ctb / pip，无法生成地形瓦片），
  * 降级为山体阴影贴图：用预生成的 dem_hillshade.png 作为 SingleTileImageryProvider
  * 贴在椭球面上。视觉有地形明暗感，但无真 z 值起伏（伪三维，非数字孪生级）。
- *
  * 与 2D 共用同一份 BusinessLayerManager 注册（layerType:'geotiff', data:'...tif'），
  * 此处将 .tif 映射为 .png（Cesium 影像不支持 GeoTIFF 解码，需预生成 PNG 影像）。
  * 地理范围取自 dem_hillshade 的 gdalinfo 实测值（EPSG:4326，与 2D COG 完全一致）。
- *
  * 2D↔3D 切换时由 App.vue 的 reapplyAll 重绘到新 renderer，无需额外接线。
- *
  * @param renderer CesiumRenderer 实例
  * @param id 图层ID
  * @param url GeoTIFF 文件 URL（仅支持 hillshade 回退）
@@ -299,7 +291,7 @@ export function addGeoTIFFLayer(
     return false
   }
 
-  // a020: 整体防御 —— 渲染失败只记录完整错误，不向调用方（reapplyAll）抛错，
+  // 整体防御 —— 渲染失败只记录完整错误，不向调用方（reapplyAll）抛错，
   // 避免单个图层的问题中断整批引擎切换重绘。
   try {
     // 幂等：先清除同 id 旧图层
@@ -310,10 +302,10 @@ export function addGeoTIFFLayer(
     const pngUrl = url.replace(/\.tif$/i, '.png')
 
     // dem_hillshade 实测范围（gdalinfo Upper Left / Lower Right，EPSG:4326）
-    // @arch-note a019: SingleTileImageryProvider 默认 WebMercatorTilingScheme(3857)，
+    // SingleTileImageryProvider 默认 WebMercatorTilingScheme(3857)，
     // 而 hillshade PNG 为 EPSG:4326 地理坐标 —— 不指定 tilingScheme 会被投影到错误位置
     // （北部湾 21°N 的 WebMercator Y ≠ 地理纬度），3D 下贴图不可见。必须显式 GeographicTilingScheme。
-    // @arch-note a021: Cesium 1.142 @cesium/engine 新实现强制校验 options.tileWidth/tileHeight
+    // Cesium 1.142 @cesium/engine 新实现强制校验 options.tileWidth/tileHeight
     // （Check.typeOf.number，缺省即抛 DeveloperError "Expected options.tileWidth..."）；
     // 旧 Build/index.cjs 无此校验 → Node 环境测不出，仅浏览器 vite（Source 入口）触发。
     // 传 PNG 实际像素尺寸（PNG header 实测 4096×2819）。
@@ -356,9 +348,7 @@ export function addGeoTIFFLayer(
 
 /**
  * 设置图层可见性（供 MapRenderer基类 setVisibility 调用）
- *
  * Entity 数组逐个设置 show；dataSource / imageryLayer 直接设 show。
- *
  * @param renderer CesiumRenderer 实例
  * @param id 图层ID
  * @param visible 是否可见
@@ -379,11 +369,9 @@ export function doSetVisibility(renderer: any, id: string, visible: boolean): vo
 
 /**
  * 移除图层实例（供 MapRenderer基类 removeLayer / destroy 调用）
- *
  * - 移除视口裁剪监听（点图层特有）
  * - Entity 数组逐个 remove；imageryLayer 用 remove(,true) 释放 GPU 纹理；
- *   dataSource 用 remove(,true) 销毁防止内存泄漏
- *
+ * dataSource 用 remove(,true) 销毁防止内存泄漏
  * @param renderer CesiumRenderer 实例
  * @param layer 图层状态条目
  */

@@ -3,27 +3,25 @@ import { beforeEach, describe, expect, it } from 'vitest'
 
 import type { FloodFeature, FloodStatistics } from '@/types/business/base'
 
-import { useFloodState } from '../floodState'
+import { useFloodStore } from '../floodStore'
 
 /**
- * useFloodState 单测
- *
+ * useFloodStore 单测
  * 覆盖工厂化（Setup Store）后的核心 API：
  * - 初始状态
  * - startFloodAnalysis
  * - saveState / consumeState（跨页面持久化快照）
  * - clearState
- *
  * 经核对：本测试断言与真实 store 实现（frontend/src/stores/floodState.ts）一致。
  */
-describe('useFloodState', () => {
+describe('useFloodStore', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
   })
 
   describe('初始状态', () => {
     it('应为无分析数据', () => {
-      const store = useFloodState()
+      const store = useFloodStore()
       expect(store.floodActive).toBe(false)
       expect(store.floodStatistics).toBeNull()
       expect(store.hasAnalysisData).toBe(false)
@@ -33,7 +31,7 @@ describe('useFloodState', () => {
 
   describe('startFloodAnalysis', () => {
     it('应正确设置分析数据', () => {
-      const store = useFloodState()
+      const store = useFloodStore()
       const stats: FloodStatistics = { totalArea: 1000, riskLevel: '低', affectedCount: 5 }
       const features: FloodFeature[] = []
 
@@ -48,7 +46,7 @@ describe('useFloodState', () => {
 
   describe('saveState / consumeState', () => {
     it('应正确保存和恢复状态', () => {
-      const store = useFloodState()
+      const store = useFloodStore()
       const stats: FloodStatistics = { totalArea: 2000, riskLevel: '中', affectedCount: 10 }
 
       store.saveState({
@@ -76,7 +74,7 @@ describe('useFloodState', () => {
 
   describe('clearState', () => {
     it('应彻底重置所有状态', () => {
-      const store = useFloodState()
+      const store = useFloodStore()
       store.startFloodAnalysis({ totalArea: 100, riskLevel: '低', affectedCount: 1 }, [], '低')
       store.saveState({
         waterLevel: 3,

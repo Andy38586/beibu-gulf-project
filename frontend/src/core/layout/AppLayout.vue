@@ -1,21 +1,18 @@
 <script setup lang="ts">
 /**
  * AppLayout - GCS V2 布局基座（Layout Base）
- *
  * 职责：
  * 1. 通过 PPS 定位所有 Panel（无容器、无 Zone、无 TopArea）
  * 2. 提供 slot 供业务路由注入自定义 Panel 内容
  * 3. 管理检查模式状态
- *
  * V2 阶段 3 变更：
  * - 移除 TopArea 组件引用（改为独立 Panel 集合）
  * - 折线图/柱状图/雷达图/图层控制直接放入 GCSPanel slot
  * - 标题 + 城市按钮 + 个人中心按钮渲染为独立 Panel
- *
  * 使用方式：
  * <AppLayout>
- *   <template #left>自定义左侧内容</template>
- *   <template #right>自定义右侧内容</template>
+ * <template #left>自定义左侧内容</template>
+ * <template #right>自定义右侧内容</template>
  * </AppLayout>
  */
 

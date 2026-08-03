@@ -4,6 +4,7 @@ import type { ComponentPublicInstance } from 'vue'
 import { createApp } from 'vue'
 
 import App from './App.vue'
+import { initPerfReporter } from './core/perf/PerfReporter'
 import router from './router'
 import { floodAdapter } from './services/adapters/floodAdapter'
 import { forecastAdapter } from './services/adapters/forecastAdapter'
@@ -33,7 +34,10 @@ function validateEnv(): void {
 
 validateEnv()
 
-// b024/b031(D-1=A): 数据源由环境变量驱动，默认 api（生产安全；未配置不再静默打包 mock）。
+// Phase 0 性能埋点：尽早挂载观察者，捕获 FCP/LCP/TTI/longtask（dev-only，不进生产包）
+initPerfReporter()
+
+// 数据源由环境变量驱动，默认 api（生产安全；未配置不再静默打包 mock）。
 // 本地离线开发需显式设 VITE_DATA_SOURCE=mock（写入 .env.local，优先级高于 .env）。
 const dataSource = (import.meta.env.VITE_DATA_SOURCE as 'mock' | 'api' | undefined) || 'api'
 // 预测分析：真实指标（cargo/container）走后端 API；合成指标（berth/traffic）由 adapter
@@ -70,20 +74,20 @@ app.config.errorHandler = (
   if (import.meta.env.DEV) {
     logger.error('错误详情:', { err, instance, info })
   } else {
-    // z046: 错误上报接入路径（按 D-15=A 决策，暂缓接入，仅文档化）。
+    // 错误上报接入路径（按 D-15=A 决策，暂缓接入，仅文档化）。
     // logger 已预留 addLogTransport 钩子（见 shared/utils/logger.ts），Sentry 账号 + DSN
     // 就绪后按以下步骤一行接入，无需改动业务代码：
     // 1) 安装依赖：npm i @sentry/vue
     // 2) import * as Sentry from '@sentry/vue'
     // 3) 在 app.mount('#app') 之前调用：
-    //    Sentry.init({ app, dsn: '<DSN>', release: __APP_VERSION__, environment: import.meta.env.MODE })
+    // Sentry.init({ app, dsn: '<DSN>', release: __APP_VERSION__, environment: import.meta.env.MODE })
     // 4) 接入 transport（一行）：
-    //    logger.addLogTransport((entry) =>
-    //      Sentry.captureMessage(`[${entry.level}] ${entry.args.map(String).join(' ')}`))
+    // logger.addLogTransport((entry) =>
+    // Sentry.captureMessage(`[${entry.level}] ${entry.args.map(String).join(' ')}`))
   }
 }
 
-// z029: 窗口级兖底——捕获未被 Vue errorHandler 覆盖的错误
+// 窗口级兖底——捕获未被 Vue errorHandler 覆盖的错误
 window.onerror = (message, source, lineno, colno, error) => {
   logger.error('[window.onerror]', { message, source, lineno, colno, error })
 }

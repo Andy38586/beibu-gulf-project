@@ -1,11 +1,9 @@
 /**
  * 设施配置常量
- *
  * 定义各类设施的标签、颜色和默认缓冲区半径。
- *
  * - color 字段统一引用 shared/constants/colors 的 FACILITY_COLORS_MAP（单一事实源）。
  * - label 字段引用 shared/utils/facilityLabels 的 FACILITY_LABELS（DAT-1：消除与
- *   visualization 层重复的标签常量；business → shared 合法，不违反分层红线）。
+ * visualization 层重复的标签常量；business → shared 合法，不违反分层红线）。
  */
 
 import { FACILITY_COLORS_MAP } from '@/shared'

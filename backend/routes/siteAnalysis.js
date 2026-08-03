@@ -4,7 +4,7 @@ import { authenticate } from '../middleware/auth.js'
 
 const router = Router()
 
-// @arch-note SEC-006: 选址分析接口需要登录认证
+// 选址分析接口需要登录认证
 router.post('/', authenticate, siteAnalysisController.analyze)
 
 export default router

@@ -43,7 +43,7 @@ function createNext() {
 
 beforeEach(() => {
   vi.clearAllMocks()
-  // REQ-3: overview 模块级缓存跨用例保留，必须清理避免用例间污染（与 flood 测试同模式）
+  // overview 模块级缓存跨用例保留，必须清理避免用例间污染（与 flood 测试同模式）
   _clearOverviewCacheForTest()
 })
 
@@ -151,7 +151,10 @@ describe('getPortForecast', () => {
   it('正常 → res.json({code:200,data})，data 来自 mock service', async () => {
     const mockData = { portId: 'p1', portName: '钦州港', indicators: {} }
     getPortData.mockResolvedValue(mockData)
-    const req = { params: { portId: 'p1' }, query: { indicator: 'cargo', start: '2024', end: '2025' } }
+    const req = {
+      params: { portId: 'p1' },
+      query: { indicator: 'cargo', start: '2024', end: '2025' },
+    }
     const res = createRes()
     const next = createNext()
     await getPortForecast(req, res, next)
@@ -260,7 +263,10 @@ describe('confidence 钳制 (REQ-4)', () => {
 
   it('getIndicatorData: 非法 confidence 回落 1.0', async () => {
     queryIndicator.mockResolvedValue({ indicator: 'cargo', unit: '万吨', ports: {} })
-    const req = { params: { type: 'cargo' }, query: { time: '2025', portId: 'p1', confidence: 'abc' } }
+    const req = {
+      params: { type: 'cargo' },
+      query: { time: '2025', portId: 'p1', confidence: 'abc' },
+    }
     const res = createRes()
     const next = createNext()
     await getIndicatorData(req, res, next)
@@ -268,8 +274,22 @@ describe('confidence 钳制 (REQ-4)', () => {
   })
 
   it('getTimeSeriesData: 非法 confidence 回落 1.0', async () => {
-    queryTimeSeries.mockResolvedValue({ indicator: 'cargo', unit: '万吨', granularity: 'year', series: [] })
-    const req = { query: { indicator: 'cargo', portId: 'p1', start: '2024', end: '2025', granularity: 'year', confidence: '-5' } }
+    queryTimeSeries.mockResolvedValue({
+      indicator: 'cargo',
+      unit: '万吨',
+      granularity: 'year',
+      series: [],
+    })
+    const req = {
+      query: {
+        indicator: 'cargo',
+        portId: 'p1',
+        start: '2024',
+        end: '2025',
+        granularity: 'year',
+        confidence: '-5',
+      },
+    }
     const res = createRes()
     const next = createNext()
     await getTimeSeriesData(req, res, next)

@@ -8,7 +8,7 @@ const IMPORTANCE_FACTOR = {
   5: 2.2,
 }
 
-// @arch-note P3-10: 非表项输入取整夹取并告警，拒绝静默兜底
+// 非表项输入取整夹取并告警，拒绝静默兜底
 function importanceToFactor(importance) {
   const raw = Number(importance)
   const n = Math.round(raw)

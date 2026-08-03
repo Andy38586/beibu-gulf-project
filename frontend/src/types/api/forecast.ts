@@ -1,15 +1,12 @@
 /**
  * 预测分析数据模型（types/api/forecast.ts）
- *
  * 对应 public/data/forecast/*.json 的真实结构。
- *
  * ── D1 校正说明（重要）──
  * 最初的设计稿把"统一结构"设想为：
- *     ForecastIndicator { time: string; value: number; level: number }
+ * ForecastIndicator { time: string; value: number; level: number }
  * 但实测真实数据（cargo.json / berth.json）中【不存在 level 字段】，
  * 取而代之的是 type 判别字段（'historical' | 'forecast'）。
  * 因此统一为 ForecastPoint，用 type 而不是 level 作为历史/预测的区分。
- *
  * 这是"数据流类型"由数据事实决定的例子：AI 不替业务发明字段，
  * 只把已存在的数据形状如实类型化。若你后续想加"置信度等级"之类，
  * 那是新增业务字段，在 ForecastPoint 上扩一个可选属性即可。

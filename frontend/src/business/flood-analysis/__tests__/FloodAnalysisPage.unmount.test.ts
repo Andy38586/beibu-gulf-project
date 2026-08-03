@@ -1,17 +1,14 @@
 // @vitest-environment jsdom
 /**
  * FloodAnalysisPage 卸载守卫回归测试（H-4 / P0-5 / R-4）
- *
  * 背景（P0-5 修复）：页面卸载（onUnmounted）时：
- *   1. 中止在途请求（floodAbortController.abort / impactAbortController.abort），
- *      使迟到的响应无法再触达渲染器；
- *   2. 置 unmounted=true，triggerFloodAnalysis/triggerImpactAssessment 在拿到响应后
- *      经 `if (unmounted) return` 直接返回，绝不调用 manager.register → 页面离开后图层不复活。
- *
+ * 1. 中止在途请求（floodAbortController.abort / impactAbortController.abort），
+ * 使迟到的响应无法再触达渲染器；
+ * 2. 置 unmounted=true，triggerFloodAnalysis/triggerImpactAssessment 在拿到响应后
+ * 经 `if (unmounted) return` 直接返回，绝不调用 manager.register → 页面离开后图层不复活。
  * 本测试锁定（审计编号：H-4 / P0-5 / R-4）：
- *   - wrapper.unmount() 后，在途分析的 AbortSignal.aborted === true（在途请求被 abort）；
- *   - 卸载后解析迟到响应，manager.register('flood-area') 调用次数与挂载时一致（迟到响应未重新注册）。
- *
+ * - wrapper.unmount() 后，在途分析的 AbortSignal.aborted === true（在途请求被 abort）；
+ * - 卸载后解析迟到响应，manager.register('flood-area') 调用次数与挂载时一致（迟到响应未重新注册）。
  * 仅 mock 外部依赖（useBusinessLayers 的 manager、floodAdapter、vue-router），不 mock 被测组件内部。
  */
 import { flushPromises, shallowMount } from '@vue/test-utils'

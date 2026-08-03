@@ -7,7 +7,7 @@ import { BusinessError, ErrorCode } from '../utils/BusinessError.js'
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const DATA_DIR = join(__dirname, '../data/forecast')
 
-// @arch-note SEC-013: 指标白名单——仅允许 index.json 中声明过的合法指标，
+// 指标白名单——仅允许 index.json 中声明过的合法指标，
 // 拒绝路径遍历（..）及非法指标名。forecast 路由保持公开（稳定设计决策），
 // 但不代表接受任意输入。
 const ALLOWED_INDICATORS = new Set(['cargo', 'container'])
@@ -31,15 +31,18 @@ async function readDataFile(filename) {
     return JSON.parse(await readFile(join(DATA_DIR, filename), 'utf-8'))
   } catch (err) {
     if (err.code === 'ENOENT') {
-      throw new BusinessError(ErrorCode.NOT_FOUND, `指标数据文件不存在: ${filename.replace('.json', '')}`)
+      throw new BusinessError(
+        ErrorCode.NOT_FOUND,
+        `指标数据文件不存在: ${filename.replace('.json', '')}`
+      )
     }
     throw err
   }
 }
 
-// @arch-note SEC-014: 缓存引擎计算结果，场景参数变化时失效。
+// 缓存引擎计算结果，场景参数变化时失效。
 // 加 MAX_CACHE_SIZE 上限防止匿名攻击者枚举 confidence 制造内存放大。
-// REQ-2（阶段2）: 缓存条目增加 cachedAt 时间戳，超过 CACHE_TTL_MS 自动重算，
+// 缓存条目增加 cachedAt 时间戳，超过 CACHE_TTL_MS 自动重算，
 // 避免 data/forecast/*.json 更新后缓存永不失效（返回陈旧预测）。LRU 逐出仍保留。
 const engineCache = new Map()
 const CACHE_TTL_MS = 5 * 60 * 1000
@@ -58,7 +61,7 @@ async function getOrComputeForecast(indicator, scenarioLevel) {
   const key = getCacheKey(indicator, scenarioLevel)
   const hit = engineCache.get(key)
   if (hit) {
-    // REQ-2（阶段2）: TTL 命中则复用；过期则重算（下方会刷新时间戳）
+    // TTL 命中则复用；过期则重算（下方会刷新时间戳）
     if (Date.now() - hit.cachedAt < CACHE_TTL_MS) {
       return hit.data
     }

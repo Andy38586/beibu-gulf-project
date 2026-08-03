@@ -1,12 +1,10 @@
 /**
  * useBusinessLayers
- *
  * Vue composable: inject BusinessLayerManager 实例。
  * 业务模块通过此 composable 获取 manager，不直接访问 renderer。
- *
  * 使用方式：
- *   const { manager } = useBusinessLayers()
- *   manager.register('my-layer', { label: 'xxx', layerType: 'heatmap', data: [...] })
+ * const { manager } = useBusinessLayers()
+ * manager.register('my-layer', { label: 'xxx', layerType: 'heatmap', data: [...] })
  */
 
 import type { InjectionKey } from 'vue'
@@ -17,7 +15,6 @@ import { logger } from '@/shared'
 
 /**
  * useBusinessLayers 返回的 manager 形态
- *
  * 取 BusinessLayerManager 的公开方法子集（与未注入时返回的 no-op 桩保持一致）。
  * 业务组件通过此 composable 仅使用这些方法；reapplyAll / destroy 由 App.vue 直接调用实例。
  */

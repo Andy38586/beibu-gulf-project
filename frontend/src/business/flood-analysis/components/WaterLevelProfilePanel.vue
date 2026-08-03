@@ -1,14 +1,12 @@
 <script setup lang="ts">
 /**
  * WaterLevelProfilePanel - 水位滑块与剖面分析控制面板
- *
  * 功能：
  * 1. 水位滑块控制（0-10m，0.1步长）
  * 2. 可点击刻度标记（平均海平面/设计高潮位/极端最高水位）
  * 3. 下拉选择4条预设剖面线
  * 4. 自动显示ECharts高程剖面图
  * 5. 叠加当前水位线（随水位变化自动更新）
- *
  * 布局：4×4 Cell
  * 位置：右上（top-right）
  */
@@ -25,6 +23,7 @@ import * as echarts from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 
+import { perfTimeFn } from '@/core/perf/PerfReporter'
 import { useApiRequest } from '@/shared'
 import { PROFILE_COLORS } from '@/shared'
 import { useGCS } from '@/shared'
@@ -84,7 +83,7 @@ const localWaterLevel = ref(waterLevelStore.waterLevel)
  * 可点击刻度标记配置（洪水口径，基于 DEM 实测高程 + 实测淹没验证）
  * 钦北防城市/港口 DEM 高程：北海港 12m、防城港 13m、钦州港 14m、北海市区 19m。
  * 实测（连通性淹没）：15m 进全部港口；20m 进全部城市+港口。
- * a023: 滑块范围 0~20m（洪水浸没，非潮汐）。
+ * 滑块范围 0~20m（洪水浸没，非潮汐）。
  */
 const scaleMarks = [
   { label: '海平面', value: 0 },
@@ -278,7 +277,11 @@ function updateChart() {
   }
 
   // 使用增量更新模式：notMerge=false 保留现有配置，lazyUpdate=true 延迟渲染提升性能
-  chartInstance.setOption(option, { notMerge: false, lazyUpdate: true })
+  // perfTimeFn 闭包内 TS 无法收窄 chartInstance，故先取局部常量
+  const inst = chartInstance
+  perfTimeFn('echarts:setOption:waterLevel', () => {
+    inst.setOption(option, { notMerge: false, lazyUpdate: true })
+  })
 }
 
 /**

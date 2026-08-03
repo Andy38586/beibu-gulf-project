@@ -1,10 +1,8 @@
 /**
  * mapDataService 信封解包测试（z033 根修回归防线）
- *
  * 背景：mapDataService 用原生 fetch（保留 TTL 缓存/去重/超时），
  * 后端统一返回 { code, data } 信封。此前不解包 → getPorts 收到 object
  * → Array.isArray 失败 → 港口 + 行政区划（同 try 块连带）都不显示。
- *
  * 本测试锁定：fetchData 对信封的解包行为 + getPorts 返回数组。
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'

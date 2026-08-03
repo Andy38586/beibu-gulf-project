@@ -1,15 +1,12 @@
 /**
  * Forecast Data Adapter
- *
  * 职责：隔离预测分析业务层与数据源。
- *
  * 接入状态（2026-07-29）：
  * - ForecastPage 已通过 useForecastRequest → forecastAdapter.getTimeSeries / getIndicatorComparison 取数，
- *   不再直接调 useApiRequest，Adapter 模式一致性已恢复。
+ * 不再直接调 useApiRequest，Adapter 模式一致性已恢复。
  * - mock 模式：读取 public/data/forecast/*.json 静态 fixture。
  * - api 模式：通过 useApiRequest 调用后端 /forecast/timeseries、/forecast/indicator/:type，
- *   支持事务取消（AbortSignal 透传）。
- *
+ * 支持事务取消（AbortSignal 透传）。
  * 注意：ForecastIndicatorIndex.indicators 当前为字符串数组（对齐 index.json 的 metadata.indicators），
  * 非 Array<{key,label,unit}>。后者是早期设计稿的设想，与真实 mock 不符，已校正。
  */
@@ -22,7 +19,6 @@ import { resolveDataSource, setAdapterDataSource } from '../dataSourceConfig'
 
 /**
  * 指标索引（对应 public/data/forecast/index.json 的结构）。
- *
  * 注意：index.json 的 indicators 是字符串数组（如 ["cargo","container","berth","traffic"]），
  * 非 Array<{key,label,unit}>。此类型如实反映数据事实。
  */
@@ -113,8 +109,8 @@ const MOCK_BASE = '/data/forecast'
  * 各指标取数来源（诚实标注，b025 / D-2=A）：
  * - cargo / container 为真实港口吞吐量指标，走后端 API；
  * - berth（泊位利用率）/ traffic（船舶流量）为**示意性合成数据**，放前端静态 fixture
- *   （public/data/forecast/*.json），非实测值；UI 侧通过 SYNTHETIC_INDICATORS
- *   对这两个指标显示「（模拟）」角标，避免面试/演示时误读为真实数据。
+ * （public/data/forecast/*.json），非实测值；UI 侧通过 SYNTHETIC_INDICATORS
+ * 对这两个指标显示「（模拟）」角标，避免面试/演示时误读为真实数据。
  * 未显式声明的指标回退到全局 dataSource（由 main.ts 经 adapter.setDataSource 驱动）。
  */
 const INDICATOR_SOURCE: Record<string, 'api' | 'mock'> = {
@@ -149,13 +145,13 @@ function _lookupValue(values: Record<string, number>, time: string): number | nu
 }
 
 async function _fetchMock(indicator: string): Promise<ForecastSeries> {
-  // z032: 静态资源 fetch 收口 loadStatic（统一超时 + TTL 缓存 + in-flight 去重）
+  // 静态资源 fetch 收口 loadStatic（统一超时 + TTL 缓存 + in-flight 去重）
   const url = `${MOCK_BASE}/${indicator}.json`
   return loadStatic<ForecastSeries>(url)
 }
 
 async function _fetchMockIndex(): Promise<ForecastIndicatorIndex> {
-  // z032: 静态资源 fetch 收口 loadStatic
+  // 静态资源 fetch 收口 loadStatic
   const url = `${MOCK_BASE}/index.json`
   return loadStatic<ForecastIndicatorIndex>(url)
 }
@@ -274,7 +270,7 @@ export const forecastAdapter = {
   ): Promise<ForecastMapData> {
     if (_resolveSource(indicator) === 'mock') {
       const url = `${MOCK_BASE}/${indicator}.json`
-      // z032: 静态资源 fetch 收口 loadStatic（透传 signal 支持事务取消）
+      // 静态资源 fetch 收口 loadStatic（透传 signal 支持事务取消）
       const file = await loadStatic<_MockForecastFile>(url, { signal })
       const features: ForecastMapData['features'] = []
       for (const portId in file.data) {
@@ -315,7 +311,7 @@ export const forecastAdapter = {
   /**
    * 获取单指标完整数据（mock 模式专用，api 模式走 getTimeSeries）。
    * 保留供需要原始 ForecastSeries 结构的调用方使用。
-   * @audit-note DAT-4 预留未接入：无生产调用方（仅有 forecastAdapter.test.ts 覆盖），保留作预留 API
+   * 预留未接入：无生产调用方（仅有 forecastAdapter.test.ts 覆盖），保留作预留 API
    */
   async getIndicatorData(indicator: string): Promise<ForecastSeries> {
     if (_resolveSource(indicator) === 'mock') {
@@ -339,7 +335,7 @@ export const forecastAdapter = {
     return { indicator: ts.indicator, unit: ts.unit, data }
   },
 
-  // @audit-note DAT-4 预留未接入：无生产调用方（仅有 forecastAdapter.test.ts 覆盖），保留作预留 API
+  // 预留未接入：无生产调用方（仅有 forecastAdapter.test.ts 覆盖），保留作预留 API
   async getAvailableIndicators(): Promise<ForecastIndicatorIndex> {
     if (resolveDataSource(ADAPTER_NAME) === 'mock') {
       return _fetchMockIndex()

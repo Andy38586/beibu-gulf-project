@@ -181,7 +181,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   document.removeEventListener('click', handleGlobalClick)
-  // b041: 卸载时取消在途选址分析请求，避免回调写入已卸载组件
+  // 卸载时取消在途选址分析请求，避免回调写入已卸载组件
   cancel()
   // 清理所有计时器
   Object.values(confirmTimers).forEach((timer) => {

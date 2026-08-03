@@ -1,6 +1,5 @@
 /**
  * useForecastLayer — 预测分析图层管理
- *
  * 每个指标对应独立图层，key 格式: forecast-{indicator}
  * 切换指标时自动显隐，LayerControlPanel 列出全部 4 个条目
  */
@@ -13,7 +12,7 @@ import type { ForecastMapData } from '@/services'
 import { forecastAdapter } from '@/services'
 import { handleAuthError, isAuthError, showError } from '@/shared'
 import { logger } from '@/shared'
-import { useForecastState } from '@/stores'
+import { useForecastStore } from '@/stores'
 import { useMapStore } from '@/stores'
 import type { LayerOptions, LayerType, MapRenderer } from '@/types'
 
@@ -48,7 +47,7 @@ interface UseForecastLayerReturn {
 
 export function useForecastLayer(): UseForecastLayerReturn {
   const router = useRouter()
-  const forecastState = useForecastState()
+  const forecastState = useForecastStore()
   const mapStore = useMapStore()
   const { manager } = useBusinessLayers() as { manager: BusinessLayerManager }
   const { runInTransaction } = useForecastRequest()
@@ -91,7 +90,7 @@ export function useForecastLayer(): UseForecastLayerReturn {
 
   function getLayerOptions(indicator: string): LayerOptions {
     if (indicator === 'cargo' || indicator === 'container') {
-      // a015: 显式传入 gradient，使热力图色带可配置（不再依赖 renderer 默认值）
+      // 显式传入 gradient，使热力图色带可配置（不再依赖 renderer 默认值）
       return {
         weightField: 'value',
         radius: 20,

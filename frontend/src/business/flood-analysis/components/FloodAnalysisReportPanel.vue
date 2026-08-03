@@ -1,22 +1,20 @@
 <script setup lang="ts">
 /**
  * FloodAnalysisReportPanel - 浸没分析报告面板
- *
  * 功能：
  * 1. 显示浸没分析关键信息（淹没面积、水深、损失等）
  * 2. 自动响应水位变化，实时更新数据
  * 3. 灰色区域：3.8宽×2.8高，距标题下方0.6cell、左右各0.1cell
- *
  * 布局：4×4 Cell，左上位置
  */
 
 import { computed } from 'vue'
 
 import { useGCS } from '@/shared'
-import { useFloodState } from '@/stores'
+import { useFloodStore } from '@/stores'
 import { usePortImpactStore } from '@/stores'
 
-const floodStore = useFloodState()
+const floodStore = useFloodStore()
 const portImpactStore = usePortImpactStore()
 const { cellPixel, css } = useGCS()
 // 解构出 CSS 变量供 v-bind() 使用

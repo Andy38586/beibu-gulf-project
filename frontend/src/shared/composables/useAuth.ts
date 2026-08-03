@@ -12,14 +12,14 @@ const USER_STORAGE_KEY = 'beibu-gulf-user'
 
 /**
  * 从 localStorage 读取用户信息
- * z045: 用 userSchema.safeParse 替代裸 `as User` 断言，校验失败清缓存返回 null
+ * 用 userSchema.safeParse 替代裸 `as User` 断言，校验失败清缓存返回 null
  */
 function readStoredUser(): User | null {
   if (typeof window === 'undefined') return null
   try {
     const stored = window.localStorage.getItem(USER_STORAGE_KEY)
     if (!stored) return null
-    // z045: safeParse 替代 JSON.parse(stored) as User
+    // safeParse 替代 JSON.parse(stored) as User
     const result = userSchema.safeParse(JSON.parse(stored))
     if (!result.success) {
       logger.warn('[useAuth] localStorage 用户数据校验失败，已清除:', result.error.issues)
@@ -109,7 +109,7 @@ async function restoreAuth(): Promise<User | null> {
 
 /**
  * 多标签页同步 - 监听 beibu-gulf-user 变化
- * z045: 其他标签页写入的用户数据同样经 userSchema 校验，失败则视为登出
+ * 其他标签页写入的用户数据同样经 userSchema 校验，失败则视为登出
  */
 function handleStorageChange(event: StorageEvent): void {
   if (event.key === USER_STORAGE_KEY) {
@@ -135,7 +135,7 @@ function handleStorageChange(event: StorageEvent): void {
   }
 }
 
-// z053: store 重置逻辑上提，useAuth 不依赖 stores 层
+// store 重置逻辑上提，useAuth 不依赖 stores 层
 // 由 App.vue 注册实际的 store 重置函数
 export type ResetHandler = () => void
 let resetHandler: ResetHandler = () => {}
@@ -154,7 +154,7 @@ export function initAuthStorageListener(): void {
 }
 
 /**
- * z067: 解除多标签页 storage 监听（与 initAuthStorageListener 配对）
+ * 解除多标签页 storage 监听（与 initAuthStorageListener 配对）
  * 由 App.vue onUnmounted 调用
  */
 export function removeAuthStorageListener(): void {
@@ -172,7 +172,7 @@ export function useAuth() {
     if (!data || !data.user) {
       throw new Error('登录响应数据无效')
     }
-    // d038: token 由 HttpOnly Cookie 携带，前端仅设占位符启用 isAuthenticated
+    // token 由 HttpOnly Cookie 携带，前端仅设占位符启用 isAuthenticated
     setToken('cookie-auth')
     user.value = data.user
     writeStoredUser(data.user)
@@ -187,7 +187,7 @@ export function useAuth() {
     if (!data || !data.user) {
       throw new Error('注册响应数据无效')
     }
-    // d038: 同 login，token 走 Cookie
+    // 同 login，token 走 Cookie
     setToken('cookie-auth')
     user.value = data.user
     writeStoredUser(data.user)

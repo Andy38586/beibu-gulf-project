@@ -119,11 +119,9 @@ export function buildTiandituUrl(layerCode: string): string {
 
 /**
  * 相机 zoom ↔ height 互逆转换
- *
  * zoom↔height 经验公式（基于 MAP_CONFIG.VIEW_LEVELS 校准）：
- *   height = 300000000 / 2^zoom
- *   zoom   = log2(300000000 / height)
- *
+ * height = 300000000 / 2^zoom
+ * zoom   = log2(300000000 / height)
  * zoom=9  → 585938m ≈ 586km (接近 REGION 的 800km)
  * zoom=12 → 73242m  ≈ 73km  (接近 CITY 的 80km)
  * zoom=14 → 18311m  ≈ 18km  (接近 DISTRICT 的 8km)

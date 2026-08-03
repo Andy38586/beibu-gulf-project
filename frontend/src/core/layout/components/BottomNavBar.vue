@@ -4,17 +4,14 @@ export default { name: 'GCSBottomNavBar' }
 <script setup lang="ts">
 /**
  * BottomNavBar - 底部业务导航条
- *
  * 职责：
  * 1. 作为唯一业务导航入口，承载 6 个核心功能按钮 + 1 个检查模式按钮
  * 2. 居中悬浮于视口底部
  * 3. 当前路由对应按钮自动高亮
- *
  * 设计说明：
  * - 容器宽度根据 navItems.length + 1 自动计算（+1 为检查模式按钮）
  * - 内部 6 个 1×1 NavButton + 1 个检查按钮等分容器宽度
  * - 未实现业务使用 disabled 态占位，保持导航结构稳定
- *
  * V2 变更：
  * - 移除 SAFE_MARGIN 导入（不再需要手动计算 Dock 位置）
  * - 移除 onMounted/onUnmounted（不再需要手动管理视口尺寸）

@@ -1,9 +1,7 @@
 /**
  * CesiumEvents — Cesium 3D 事件监听管理
- *
- * z058 拆分：从 CesiumRenderer.ts 纯搬移，逻辑零变化。
+ * 拆分：从 CesiumRenderer.ts 纯搬移，逻辑零变化。
  * 负责 click / pointer-move / camera-changed 事件的注册与清理。
- *
  * 事件状态存储在 renderer 实例上：
  * - renderer._screenSpaceEventHandler：屏幕事件处理器（click / mouse-move）
  * - renderer._cameraChangedHandler：相机变化监听器（防抖后 emit camera-changed）
@@ -23,10 +21,8 @@ export function cartesianToLonLatArray(cartesian: any): [number, number] {
 
 /**
  * P1性能优化：相机变化防抖
- *
  * 监听相机移动事件，300ms防抖后才触发渲染和状态同步。
  * 避免拖拽/缩放过程中频繁更新，降低CPU/GPU负载。
- *
  * @param renderer CesiumRenderer 实例（访问 viewer / emit / _getCameraState）
  */
 export function setupCameraDebounce(renderer: any): void {
@@ -41,7 +37,7 @@ export function setupCameraDebounce(renderer: any): void {
       // viewer 可能已置空，防御
       if (renderer.viewer) {
         renderer.viewer.scene.requestRender()
-        // a026: 相机变化防抖后回传状态（复用 _cameraChangedHandler，勿新增监听）
+        // 相机变化防抖后回传状态（复用 _cameraChangedHandler，勿新增监听）
         renderer.emit('camera-changed', renderer._getCameraState())
       }
       renderer._cameraDebounceTimer = null
@@ -52,10 +48,8 @@ export function setupCameraDebounce(renderer: any): void {
 
 /**
  * 设置点击与鼠标移动事件监听
- *
  * - LEFT_CLICK：拾取要素 properties 并 emit click（含 featureType / data / coordinate）
  * - MOUSE_MOVE：a026 补齐 pointer-move 事件（emit 鼠标地面经纬度）
- *
  * @param renderer CesiumRenderer 实例（访问 viewer / emit）
  */
 export function setupClickHandler(renderer: any): void {
@@ -84,7 +78,7 @@ export function setupClickHandler(renderer: any): void {
     })
   }, ScreenSpaceEventType.LEFT_CLICK)
 
-  // a026: pointer-move 事件（补齐 MapRendererEventMap 声明）
+  // pointer-move 事件（补齐 MapRendererEventMap 声明）
   renderer._screenSpaceEventHandler.setInputAction((movement: any) => {
     const cartesian = renderer.viewer.camera.pickEllipsoid(
       movement.endPosition,
@@ -102,10 +96,8 @@ export function setupClickHandler(renderer: any): void {
 
 /**
  * 清理事件监听（供 destroy 调用）
- *
  * - 移除相机变化监听器
  * - 清理屏幕事件处理器（LEFT_CLICK / MOUSE_MOVE）
- *
  * @param renderer CesiumRenderer 实例
  */
 export function destroyEvents(renderer: any): void {

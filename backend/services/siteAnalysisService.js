@@ -18,20 +18,17 @@ export function resolveRadiusSettings(selectedKeys, typeSettings) {
   const resolved = {}
   selectedKeys.forEach((key) => {
     const setting = typeSettings[key]
-    // @arch-note P1-21: 防御 selectedKeys 与 typeSettings 键集不一致（API 公开，恶意/异常请求可缺键）
+    // 防御 selectedKeys 与 typeSettings 键集不一致（API 公开，恶意/异常请求可缺键）
     // 此前 setting 为 undefined 时 setting.defaultRadius 抛 TypeError → 500
     if (!setting || typeof setting !== 'object') {
-      throw new BusinessError(
-        ErrorCode.INVALID_PARAMS,
-        `设施类型 ${key} 缺少 typeSettings 配置`
-      )
+      throw new BusinessError(ErrorCode.INVALID_PARAMS, `设施类型 ${key} 缺少 typeSettings 配置`)
     }
     const radius = importanceToRadius(setting.defaultRadius, setting.importance)
 
-    // @arch-note 106: 校验半径必须为正数
+    // 校验半径必须为正数
     if (radius <= 0 || isNaN(radius)) {
       logger.debug(`设施类型 ${key} 的缓冲区半径无效: ${radius}`)
-      // @arch-note P1-08: 参数错误带码抛出，控制器据码返 400
+      // 参数错误带码抛出，控制器据码返 400
       throw new BusinessError(ErrorCode.INVALID_PARAMS, `半径参数无效: ${radius}`)
     }
 
@@ -42,12 +39,12 @@ export function resolveRadiusSettings(selectedKeys, typeSettings) {
 export function buildTypeCoverage(points, radiusKm) {
   if (!points || points.length === 0) return null
 
-  // @arch-note 315-001: 性能优化提示 - 大量POI数据建议实现聚类或空间索引
+  // 性能优化提示 - 大量POI数据建议实现聚类或空间索引
   if (points.length > 1000) {
     logger.debug(`[性能优化] POI数据量较大(${points.length}条)，建议实现聚类或空间索引优化`)
   }
 
-  // @arch-note 314-002: POI数据去重（基于坐标）
+  // POI数据去重（基于坐标）
   const uniquePoints = []
   const seenCoords = new Set()
   for (const p of points) {
@@ -58,7 +55,7 @@ export function buildTypeCoverage(points, radiusKm) {
     }
   }
 
-  // @arch-note 314-003: 过滤异常坐标[0,0]和不在北部湾范围内的坐标
+  // 过滤异常坐标[0,0]和不在北部湾范围内的坐标
   // 北部湾范围：经度 105-115，纬度 18-25
   const validPoints = uniquePoints.filter((p) => {
     const isValid =
@@ -72,7 +69,7 @@ export function buildTypeCoverage(points, radiusKm) {
       p.lng <= 115 && // 北部湾经度范围
       p.lat >= 18 &&
       p.lat <= 25 // 北部湾纬度范围
-    // [FIXED 016] 仅在开发环境输出警告
+    // 仅在开发环境输出警告
     if (!isValid) {
       logger.debug('无效的坐标点:', p)
     }
@@ -89,7 +86,7 @@ export function buildTypeCoverage(points, radiusKm) {
   )
 
   // 过滤掉无效的缓冲区
-  // @arch-note GIS-004: 验证坐标数组长度
+  // 验证坐标数组长度
   const validBuffers = buffers.filter(
     (b) => b && b.geometry && b.geometry.coordinates && b.geometry.coordinates.length > 0
   )
@@ -102,13 +99,13 @@ export function buildTypeCoverage(points, radiusKm) {
 
   try {
     const unionResult = turf.union(turf.featureCollection(validBuffers))
-    // @arch-note GIS-001: 验证 union 结果，处理 MultiPolygon 情况
+    // 验证 union 结果，处理 MultiPolygon 情况
     if (!unionResult || !unionResult.geometry) {
       logger.debug('union 返回无效结果')
       return null
     }
 
-    // @arch-note GIS-007: 如果返回 MultiPolygon，保留所有 Polygon 作为覆盖区域
+    // 如果返回 MultiPolygon，保留所有 Polygon 作为覆盖区域
     // 返回第一个 Polygon 作为主覆盖区域，但记录所有 Polygon 的坐标
     if (unionResult.geometry.type === 'MultiPolygon') {
       logger.debug('turf.union 返回 MultiPolygon，保留所有 Polygon')
@@ -160,7 +157,7 @@ export function intersectCoverages(coverages, selectedKeys) {
   return { area: result, failKey: null }
 }
 export function filterMatchedXiaoqu(xiaoquData, finalArea, spatialIndex = null) {
-  // @arch-note 314-001: 检查 xiaoquData 是否为空或 null
+  // 检查 xiaoquData 是否为空或 null
   if (!xiaoquData || xiaoquData.length === 0) {
     logger.debug('小区数据为空')
     return []
@@ -168,7 +165,7 @@ export function filterMatchedXiaoqu(xiaoquData, finalArea, spatialIndex = null) 
 
   const candidates = spatialIndex ? queryByPolygon(spatialIndex, finalArea) : xiaoquData
 
-  // @arch-note 314-004: 验证 GeoJSON Feature 完整性
+  // 验证 GeoJSON Feature 完整性
   return candidates.filter((xq) => {
     // 检查必要字段
     if (!xq || typeof xq.lng !== 'number' || typeof xq.lat !== 'number') {
@@ -187,7 +184,7 @@ export function filterMatchedXiaoqu(xiaoquData, finalArea, spatialIndex = null) 
       logger.debug('小区坐标无效:', xq)
       return false
     }
-    // @arch-note 314-003: 检查坐标是否在北部湾业务区域内（经度 105-115，纬度 18-25）
+    // 检查坐标是否在北部湾业务区域内（经度 105-115，纬度 18-25）
     if (xq.lng < 105 || xq.lng > 115 || xq.lat < 18 || xq.lat > 25) {
       logger.debug('小区坐标不在北部湾业务区域内:', xq)
       return false
@@ -210,8 +207,7 @@ export function rankXiaoqu(matched, facilityData, radiusSettings, weights) {
  * @param {Object} finalArea - 覆盖范围 GeoJSON
  * @param {Array} selectedKeys - 选中的设施类型
  * @returns {Object} 各类型设施POI { type: [{lng, lat, name}] }
- *
- * @arch-note P1-perf: 复用空间索引（createSpatialIndex + queryByPolygon）做 BBox 粗筛，
+ * 复用空间索引（createSpatialIndex + queryByPolygon）做 BBox 粗筛，
  * 避免逐点 booleanPointInPolygon 退化为 O(F) 全量精确判定。
  * 与 filterMatchedXiaoqu 的空间索引策略对齐；POI 量大时显著降 CPU。
  */

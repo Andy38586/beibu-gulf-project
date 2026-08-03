@@ -1,9 +1,7 @@
 /**
  * 统一成功响应工具
- *
  * 所有 controller 的成功响应统一使用 sendSuccess，保证信封格式一致：
  * { code: 200, data: <payload> }
- *
  * 前端 useApiRequest 的自动解包依赖此契约：
  * 检测到 `code` + `data` 字段时自动返回 data 部分。
  */

@@ -1,31 +1,26 @@
 <script setup lang="ts">
 /**
  * PaginatedListPanel - 通用分页列表面板（公共组件）
- *
  * 功能：
  * 1. 分页展示列表项，支持 << / < / > / >> 翻页
  * 2. 每项支持自定义插槽渲染
  * 3. 内置收藏/取消收藏逻辑（对接 usePlans）
  * 4. 接入真实登录判断
  * 5. isFavorite 基于 Plan.savedXiaoqu 真实判断
- *
  * Props:
- *   - items: Array — 数据源
- *   - pageSize: Number — 每页条数（默认4）
- *   - title: String — 面板标题
- *   - emptyText: String — 空状态主文案
- *   - emptyHint: String — 空状态副文案
- *   - planType: 'site-selection' | 'flood' — 方案类型，用于自动创建方案时命名
- *   - showFavorite: Boolean — 是否显示收藏按钮（默认true）
- *
+ * - items: Array — 数据源
+ * - pageSize: Number — 每页条数（默认4）
+ * - title: String — 面板标题
+ * - emptyText: String — 空状态主文案
+ * - emptyHint: String — 空状态副文案
+ * - planType: 'site-selection' | 'flood' — 方案类型，用于自动创建方案时命名
+ * - showFavorite: Boolean — 是否显示收藏按钮（默认true）
  * Slots:
- *   - #item="{ item, index }" — 自定义单项内容
- *   - #empty — 自定义空状态（可选）
- *
+ * - #item="{ item, index }" — 自定义单项内容
+ * - #empty — 自定义空状态（可选）
  * Emits:
- *   - click-item="{ item }" — 点击列表项
- *   - favorite-change="{ item, isFavorite }" — 收藏状态变化
- *
+ * - click-item="{ item }" — 点击列表项
+ * - favorite-change="{ item, isFavorite }" — 收藏状态变化
  * 命名说明：
  * - 前端统一称"收藏"，后端 API 和数据库字段统一称"saved/save"
  * - `savedXiaoqu` 字段名沿用后端约定，前端不做转换以降低复杂度
@@ -247,7 +242,7 @@ function handleItemClick(item: ScoredXiaoqu) {
     lat,
   }
 
-  // z054: 移除 useMapControls（shared 不依赖 core），地图交互由父组件通过 click-item 事件处理
+  // 移除 useMapControls（shared 不依赖 core），地图交互由父组件通过 click-item 事件处理
   // 通过emit传参给父组件（用于雷达图等），传递规范化后的数据
   emit('click-item', normalizedItem)
 }

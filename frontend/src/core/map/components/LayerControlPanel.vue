@@ -1,16 +1,13 @@
 <script setup lang="ts">
 /**
  * LayerControlPanel - 通用图层控制面板（公共组件）
- *
  * 职责：
  * 1. 显示图层按钮（2列网格布局）
  * 2. 接入真实图层管理（useLayerManager）
  * 3. 底图互斥（影像/矢量只能选一个）
  * 4. 业务图层无互斥（可多选）
- *
  * 被引用：首页、选址分析、浸没分析
- *
- * c024：图层显示顺序由 props.layerOrder 注入，core 不再硬编码业务图层 key。
+ * 图层显示顺序由 props.layerOrder 注入，core 不再硬编码业务图层 key。
  * 默认仅含核心常驻层顺序，业务页通过 :layer-order 传入业务图层排序。
  */
 
@@ -45,14 +42,13 @@ const iconFontSizeCss = computed(() => `${cellPixel.value * 0.2}px`) // 16px
 
 /**
  * 图层按钮列表（按显示顺序）
- *
- * @arch-note a030 (D-11=A): business 类条目（layerType 非空）的可见性以
+ * business 类条目（layerType 非空）的可见性以
  * BusinessLayerManager._registry 为唯一权威源，catalog 仅作 reactivity 触发器。
  * 切换引擎时 clearLayerCatalog 清空 catalog，reapplyAll 重建条目时 visible
  * 从 registry 读取，杜绝双副本失步。base 类条目无 registry 副本，仍读 catalog。
  */
 const layerButtons = computed(() => {
-  // c024: order 由 props 注入，core 不再硬编码业务图层 key
+  // order 由 props 注入，core 不再硬编码业务图层 key
   const order = props.layerOrder
   const ordered = order
     .map((key) => layerCatalog.value.find((l: LayerEntry) => l.key === key))
@@ -62,7 +58,7 @@ const layerButtons = computed(() => {
   return [...ordered, ...extra].map((layer) => ({
     key: layer.key,
     label: layer.label,
-    // a030: business 类条目读 registry 权威源；base 类读 catalog
+    // business 类条目读 registry 权威源；base 类读 catalog
     active: layer.layerType
       ? (businessLayerManager.getMeta(layer.key)?.visible ?? layer.visible)
       : layer.visible,
@@ -96,7 +92,7 @@ function handleToggle(key: string) {
   // 业务图层（有 layerType 字段，无 show/hide 回调）→ 走 Manager.setVisible
   const catalogEntry = layerCatalog.value.find((e: LayerEntry) => e.key === key)
   if (catalogEntry && catalogEntry.layerType) {
-    // a030: 可见性以 registry 为权威源（catalog 可能与 registry 失步），
+    // 可见性以 registry 为权威源（catalog 可能与 registry 失步），
     // 从 registry 读当前值再取反，避免 catalog 滞后导致 toggle 方向错误
     const registryVisible = businessLayerManager.getMeta(key)?.visible
     const currentVisible = registryVisible ?? catalogEntry.visible

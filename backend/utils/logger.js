@@ -1,16 +1,14 @@
 /**
  * 后端统一结构化 logger
- *
  * - debug/info：仅 development 环境输出
  * - warn/error：生产保留（test 环境静默）
  * - audit：操作审计日志，生产保留（d043）
  * - 格式：[ISO timestamp] [LEVEL] message
- *
- * d062：在保留现有 API（debug/info/warn/error/audit）签名不变的前提下，
+ * 在保留现有 API（debug/info/warn/error/audit）签名不变的前提下，
  * 增加文件输出 + 按天轮转（零依赖实现，避免引入 winston 等 npm 依赖）：
- *   - 文件命名 app-YYYY-MM-DD.log，单文件超过 20MB 追加序号滚动
- *   - 保留 14 天，超出自动清理
- *   - 业务代码 `import { logger }` 全部零改动
+ * - 文件命名 app-YYYY-MM-DD.log，单文件超过 20MB 追加序号滚动
+ * - 保留 14 天，超出自动清理
+ * - 业务代码 `import { logger }` 全部零改动
  */
 
 import { appendFile, mkdir, readdir, stat, unlink } from 'fs/promises'
@@ -21,7 +19,7 @@ const isDev = process.env.NODE_ENV === 'development'
 const isTest = process.env.NODE_ENV === 'test'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-// d062: 日志目录，可通过 LOG_DIR 覆盖（容器内默认 /app/backend/logs）
+// 日志目录，可通过 LOG_DIR 覆盖（容器内默认 /app/backend/logs）
 const LOG_DIR = process.env.LOG_DIR || join(__dirname, '../logs')
 const MAX_SIZE = 20 * 1024 * 1024 // 单文件 20MB 上限
 const MAX_FILES = 14 // 保留 14 天
@@ -39,7 +37,7 @@ function stringify(arg) {
   }
 }
 
-// d062: 超过保留期的日志文件清理（仅在打开新文件时触发，避免每行扫描）
+// 超过保留期的日志文件清理（仅在打开新文件时触发，避免每行扫描）
 async function cleanupOld() {
   let files
   try {
@@ -63,7 +61,7 @@ async function cleanupOld() {
   )
 }
 
-// d062: 选择当日文件，必要时按大小滚动，并异步清理旧文件
+// 选择当日文件，必要时按大小滚动，并异步清理旧文件
 async function rotateAndAppend(line) {
   const stamp = new Date().toISOString().slice(0, 10)
   const base = join(LOG_DIR, `app-${stamp}.log`)
@@ -87,7 +85,7 @@ async function rotateAndAppend(line) {
 }
 
 /**
- * d062: 写一行日志到文件（异步、fire-and-forget）。
+ * 写一行日志到文件（异步、fire-and-forget）。
  * 导出仅供测试 await，不影响业务 API。
  */
 export async function appendLogLine(level, args) {

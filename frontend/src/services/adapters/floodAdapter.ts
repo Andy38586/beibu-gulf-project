@@ -1,6 +1,5 @@
 /**
  * Flood Data Adapter
- *
  * 职责：隔离浸没分析业务层与数据源。
  * 业务层（FloodAnalysisPage）通过此 Adapter 获取数据，
  * 无需关心数据来自 Mock 还是真实 API/数据库。
@@ -102,7 +101,7 @@ function _mapFloodFeatures(rawFeatures: unknown, fallbackRiskLevel: string): Flo
 }
 
 /** 将 mock/api flood-statistics 响应映射为 FloodStatistics
- * b033: 显式字段映射，不再 spread raw + as 断言 */
+ * 显式字段映射，不再 spread raw + as 断言 */
 function _mapFloodStatistics(
   raw: Record<string, unknown> | undefined,
   fallbackRiskLevel: string
@@ -160,7 +159,7 @@ function _riskLevelFromFlood(floodedKm2: number, level: number): string {
 }
 
 /** online 模式：调用 FastAPI 在线演算服务（vite proxy /flood-online → localhost:8000）
- * z045: 用 floodOnlineResponseSchema.safeParse 替代裸 `res.json() as {...}` 隐式断言 */
+ * 用 floodOnlineResponseSchema.safeParse 替代裸 `res.json() as {...}` 隐式断言 */
 async function _fetchOnlineFlood(
   waterLevel: number,
   signal?: AbortSignal
@@ -232,7 +231,7 @@ export const floodAdapter = {
       }
     }
     if (resolveDataSource(ADAPTER_NAME) === 'mock') {
-      // b019: mock 数据为静态单档位，不响应水位参数
+      // mock 数据为静态单档位，不响应水位参数
       logger.warn(
         `[FloodAdapter] mock 模式不响应水位参数（请求 ${waterLevel}m，固定返回 2.5m 档位）`
       )

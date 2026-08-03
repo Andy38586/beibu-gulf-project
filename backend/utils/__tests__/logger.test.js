@@ -11,7 +11,7 @@ let LOG_DIR
 beforeAll(async () => {
   LOG_DIR = await mkdtemp(join(tmpdir(), 'gcs-log-'))
   process.env.LOG_DIR = LOG_DIR
-  // d062: 生产环境才会落盘（test 环境静默）
+  // 生产环境才会落盘（test 环境静默）
   process.env.NODE_ENV = 'production'
   const mod = await import('../logger.js')
   logger = mod.logger
@@ -19,7 +19,7 @@ beforeAll(async () => {
 })
 
 afterEach(async () => {
-  // d062: 清空 LOG_DIR 内文件，但不替换目录——logger 模块在 import 时已捕获 LOG_DIR 常量，
+  // 清空 LOG_DIR 内文件，但不替换目录——logger 模块在 import 时已捕获 LOG_DIR 常量，
   // 替换目录会导致 logger 仍写旧目录而测试读新目录（files[0] 为 undefined）。
   const files = await readdir(LOG_DIR).catch(() => [])
   await Promise.all(files.map((f) => rm(join(LOG_DIR, f), { force: true })))

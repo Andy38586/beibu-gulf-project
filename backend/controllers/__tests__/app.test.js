@@ -2,12 +2,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 /**
- * REQ-6（阶段2）: trust proxy 配置。
+ * trust proxy 配置。
  * 原 `Number(process.env.TRUST_PROXY_HOPS) || 1` 对 "0" 失效（Number("0")=0 为 falsy → 回落 1），
  * 无法表达"不信任代理"。改为显式判断非负有限值。
  * 通过动态 import + 每次重置模块来隔离不同环境变量下的取值。
  * 注意：本文件位于 backend/controllers/__tests__/，app.js 在 backend/ 根，故相对路径为 ../../app.js。
- *
  * 导入 app.js 会间接触发 middleware/auth.js 的模块顶层校验（JWT_SECRET）。
  * 测试环境需先置位一个测试用密钥，避免 import 时抛 FATAL（与 REQ-6 逻辑无关）。
  */

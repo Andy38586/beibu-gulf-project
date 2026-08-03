@@ -1,9 +1,7 @@
 /**
  * 洪涝风险等级配色（c024：从 shared/constants/colors 下沉到业务层）
- *
- * c015：从 FloodAnalysisPage 抽取到常量文件
- * c024：从 shared 移入 business/flood-analysis（仅洪水业务使用，不属于通用资产）
- *
+ * 从 FloodAnalysisPage 抽取到常量文件
+ * 从 shared 移入 business/flood-analysis（仅洪水业务使用，不属于通用资产）
  * stroke: 边界线色；fill: 填充色（带透明度）
  */
 export const FLOOD_RISK_COLORS: Record<string, { stroke: string; fill: string }> = {

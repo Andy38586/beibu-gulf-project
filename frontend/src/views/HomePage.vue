@@ -1,10 +1,9 @@
 <script setup lang="ts">
 /**
  * HomePage - 首页
- *
  * 职责：作为 Layout Base 的承载页面，渲染 GCS 四象限布局。
  * Phase 3-A 已接入 AppLayout；当前仅保留 InfoPanel 用于展示选中港口信息。
- * c023：港口吞吐量图表从 AppLayout 下沉到本页（业务数据由业务页持有）。
+ * 港口吞吐量图表从 AppLayout 下沉到本页（业务数据由业务页持有）。
  */
 
 import { computed } from 'vue'

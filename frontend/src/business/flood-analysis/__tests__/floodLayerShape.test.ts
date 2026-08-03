@@ -1,15 +1,12 @@
 /**
  * 洪涝受影响设施图层形状回归测试（P0-2）
- *
  * 根因：原 renderAffectedFacilities 把 FeatureCollection 对象传给注册为 layerType:'points' 的图层，
  * points adapter 将 data 原样 as PointFeature[] 透传给 addPointLayer → features.length / features.map 抛 TypeError。
- *
  * 修复（方案A）：data 改为点数组（每个元素含数字 lng/lat + 业务字段），与 points adapter 契约一致。
- *
  * 本测试直接验证 points adapter 消费「点数组」时：
- *   1. 不抛错；
- *   2. addPointLayer 收到的第二个参数是数组；
- *   3. 数组元素为含数字 lng/lat 的对象，且携带业务字段（id/name/type/loss/damageRate）。
+ * 1. 不抛错；
+ * 2. addPointLayer 收到的第二个参数是数组；
+ * 3. 数组元素为含数字 lng/lat 的对象，且携带业务字段（id/name/type/loss/damageRate）。
  * 这正是修复后 renderAffectedFacilities 所喂入的数据形状。
  */
 import { describe, expect, it, vi } from 'vitest'

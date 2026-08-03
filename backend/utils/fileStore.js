@@ -1,4 +1,4 @@
-// @arch-note R-01: 文件存储工厂，统一缓存/写锁基础设施（markers/plans/users 共用）
+// 文件存储工厂，统一缓存/写锁基础设施（plans/users 共用）
 import fs from 'fs/promises'
 
 export function createFileStore(filePath, { useCache = true } = {}) {
@@ -14,9 +14,9 @@ export function createFileStore(filePath, { useCache = true } = {}) {
     return next
   }
 
-  // @audit-note DAT-7：readAll 命中缓存时直接返回对象引用（非深拷贝，避免每请求结构化克隆开销）。
+  // 命中缓存时直接返回对象引用（非深拷贝，避免每请求结构化克隆开销）。
   // 调用方必须以不可变方式更新（构造新数组/对象）后再 writeAll，避免原地修改污染缓存且不落盘。
-  // 当前 3 个调用方（markers/plans/users）均已规范，无需加防御性深拷贝。
+  // 当前 2 个调用方（plans/users）均已规范，无需加防御性深拷贝。
   async function readAll() {
     if (useCache && cache !== null) return cache
     try {

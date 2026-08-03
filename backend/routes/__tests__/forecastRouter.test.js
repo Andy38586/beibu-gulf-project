@@ -1,7 +1,6 @@
 // @vitest-environment node
 /**
  * forecast 路由分发测试（R-1/b026 回归防线）
- *
  * 背景：前端 forecastAdapter.ts:349 调 GET /forecast/overview 获取可用指标索引。
  * 修复前后端无 /overview 路由，请求落入 /:portId → getPortForecast('overview') → 空数据。
  * 本测试锁定：/overview 必须分发到 getForecastOverview，而非被 /:portId 兜底。

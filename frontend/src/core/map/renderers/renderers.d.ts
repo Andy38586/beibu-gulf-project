@@ -1,15 +1,12 @@
 /**
  * 渲染器模块类型声明
- *
  * MapRenderer 已迁移为 .ts（类型内联）。OLRenderer.ts / CesiumRenderer.ts 现已为 .ts，
  * 但顶部带 `// @ts-nocheck`（D-6 技术债），类型注解待逐步补充。
- *
  * 本 d.ts 当前【未被任何模块 import】（renderers/index.ts 自行定义 createRenderer 并从
  * ./OLRenderer 取类；真实的 cesiumViewerManager 是 CesiumRenderer.ts 的 export const）。
  * 即：本文件目前是 inert（有声明、无消费方），与 OLRenderer.ts/CesiumRenderer.ts 处于
  * 不同模块作用域，typecheck 不产生重复/冲突声明。保留它作为 @ts-nocheck 最终移除时的
  * 类型契约参考（TS-1：OLRendererState / CesiumRendererState）。
- *
  * 子类继承父类方法签名，仅声明自身特有的额外方法/成员。
  */
 
@@ -19,7 +16,6 @@ import type { MapRenderer } from './MapRenderer'
 
 /**
  * Cesium Viewer 最小类型接口
- *
  * 仅声明项目实际使用的 Viewer 属性/方法，避免引入完整 Cesium 类型依赖。
  * 完整类型见 Cesium API 文档：Cesium.Viewer
  */

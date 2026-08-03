@@ -12,7 +12,6 @@ type MapStore = ReturnType<typeof useMapStore>
 
 /**
  * 渲染器底图切换能力（OL/Cesium 子类实现，基类 MapRenderer 未声明该方法）
- *
  * registerBaseLayerWithRenderer 接收的 renderer 运行时为 OLRenderer/CesiumRenderer 实例，
  * 静态类型为基类 MapRenderer，故在此用结构化接口描述所需能力。
  */

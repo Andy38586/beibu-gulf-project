@@ -10,7 +10,6 @@ import type {
   PointFeature,
   PolygonFeature,
   RendererState,
-  WaterSurfaceOptions,
 } from '@/types'
 
 /** 图层状态（_layers Map 的值类型） */
@@ -27,7 +26,6 @@ type NormalizedFlyToTarget =
 
 /**
  * MapRenderer 抽象基类
- *
  * 双引擎策略模式的基类：OpenLayers（2D）与 Cesium（3D）子类各自实现抽象方法。
  * 业务层通过 MapRenderer 接口（@/types）操作地图，不直接依赖 OL 或 Cesium API。
  */
@@ -116,6 +114,10 @@ export class MapRenderer {
   }
 
   removeLayer(id: string): void {
+    // 无论图层实例是否存在，都清除待定可见性：
+    // pending 记录的是过期意图，否则同 id 重新注册（如 visible:true）
+    // 会被旧值（如 false）覆盖，导致面板与地图失步
+    this._pendingVisibility.delete(id)
     const layer = this._layers.get(id)
     if (!layer) return
 
@@ -125,7 +127,6 @@ export class MapRenderer {
 
   /**
    * 检查图层是否已存在
-   *
    * 公开方法，替代业务层直读 `this._layers.has(id)` 私有属性
    * （如 UnifiedMap.vue 中 boundary/ports 重复添加检查）。
    */
@@ -201,9 +202,9 @@ export class MapRenderer {
 
   importState(state: RendererState): void {
     const camera = state._camera as CameraState | undefined
-    delete state._camera
 
     for (const [id, cfg] of Object.entries(state)) {
+      if (id === '_camera') continue
       if (cfg && typeof cfg === 'object' && 'visible' in cfg) {
         this.setVisibility(id, cfg.visible)
       }
@@ -243,44 +244,18 @@ export class MapRenderer {
 
   _setCameraState(_state: CameraState): void {}
 
-  // 3D Only 方法（子类按需覆盖）
-  addWaterSurface(
-    _id: string,
-    _coordinates: [number, number][],
-    _height: number = 0,
-    _options: WaterSurfaceOptions = {}
-  ): boolean {
-    logger.debug(`${this.getType()} addWaterSurface 未实现（仅 3D 渲染器支持）`)
-    return false
-  }
+  // 水面 5 方法已拆至 Water3DCapability 能力接口（a036），基类不再声明——
+  // 否则基类为 2D 引擎背负 3D 契约（ISP 违反），OLRenderer 只能 no-op stub。
+  // 调用方（layerAdapters waterSurface 分支）做能力检查后调用。
 
-  updateWaterLevel(_id: string, _newHeight: number): boolean {
-    logger.debug(`${this.getType()} updateWaterLevel 未实现（仅 3D 渲染器支持）`)
-    return false
-  }
-
-  removeWaterSurface(_id: string): boolean {
-    logger.debug(`${this.getType()} removeWaterSurface 未实现（仅 3D 渲染器支持）`)
-    return false
-  }
-
-  removeAllWaterSurfaces(): boolean {
-    logger.debug(`${this.getType()} removeAllWaterSurfaces 未实现（仅 3D 渲染器支持）`)
-    return false
-  }
-
-  setWaterSurfaceVisibility(_id: string, _visible: boolean): boolean {
-    logger.debug(`${this.getType()} setWaterSurfaceVisibility 未实现（仅 3D 渲染器支持）`)
-    return false
-  }
-
+  // 呼吸动画：双引擎公共能力（OL 矢量圈 / Cesium 实体动画），子类各自实现
   startBreathing(_lng: number, _lat: number): boolean {
-    logger.debug(`${this.getType()} startBreathing 未实现（仅 3D 渲染器支持）`)
+    logger.debug(`${this.getType()} startBreathing 未实现`)
     return false
   }
 
   stopBreathing(): boolean {
-    logger.debug(`${this.getType()} stopBreathing 未实现（仅 3D 渲染器支持）`)
+    logger.debug(`${this.getType()} stopBreathing 未实现`)
     return false
   }
 }

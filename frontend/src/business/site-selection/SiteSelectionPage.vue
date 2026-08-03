@@ -1,15 +1,12 @@
 <script setup lang="ts">
 /**
  * SiteSelectionPage - 选址分析业务页
- *
  * 布局（继承 Home Layout，替换 slot 内容）：
  * - 左上（4×4）：第一名小区雷达图
  * - 左下（4×4）：图层控制面板（接入真实功能）
  * - 右上（4×4）：设施因子选择面板（6 按钮 + 滑块 + 清空/分析）
  * - 右下（4×4）：小区名单列表
- *
  * 顶部标题 + 城市按钮 + 底部导航条固定不变。
- *
  * 状态保存机制：
  * - 跳转到个人中心（/profile）时保存当前状态
  * - 从个人中心返回时恢复状态
@@ -28,7 +25,7 @@ import { logger } from '@/shared'
 import PaginatedListPanel from '@/shared/components/PaginatedListPanel.vue'
 import type { SiteSelectionState } from '@/stores'
 import { useMapStore } from '@/stores'
-import { useSiteSelectionStateStore } from '@/stores'
+import { useSiteSelectionStore } from '@/stores'
 import type { AnalysisResult, FacilityPoint, ScoredXiaoqu } from '@/types/analysis'
 import RadarChart from '@/visualization/charts/RadarChart.vue'
 
@@ -38,7 +35,7 @@ import { useAnalysisLayer } from './composables/useAnalysisLayer'
 const { flyTo, startBreathing, stopBreathing, zoomToCity, zoomToDistrict, mapInstance } =
   useMapControls()
 const mapStore = useMapStore()
-const stateStore = useSiteSelectionStateStore()
+const stateStore = useSiteSelectionStore()
 const { manager: businessLayerManager } = useBusinessLayers()
 const { createUpdateHandler } = useAnalysisLayer() as unknown as {
   createUpdateHandler: (_manager: unknown) => (_result: unknown) => Promise<void>
@@ -107,7 +104,7 @@ function handleResult(result: Partial<AnalysisResult>): void {
 
 /**
  * 显示指定设施的POI图层（互斥，只显示一个）
- * a014: 统一经 businessLayerManager 注册，不再直调 renderer
+ * 统一经 businessLayerManager 注册，不再直调 renderer
  */
 function handleShowFacilityLayer(data: {
   type: string
@@ -172,9 +169,9 @@ function handleSelectXiaoqu(xq: ScoredXiaoqu): void {
   }
 
   selectedXiaoqu.value = normalizedXq
-  // z053: 从 PaginatedListPanel 上提至此（shared 不再依赖 stores）
+  // 从 PaginatedListPanel 上提至此（shared 不再依赖 stores）
   mapStore.setSelectedXiaoqu(normalizedXq)
-  // z054: 从 PaginatedListPanel 上提至此（shared 不再依赖 core）
+  // 从 PaginatedListPanel 上提至此（shared 不再依赖 core）
   startBreathing(normalizedXq.lng, normalizedXq.lat)
   flyTo({ lng: normalizedXq.lng, lat: normalizedXq.lat }, { height: 1000 })
 }
@@ -307,9 +304,9 @@ onUnmounted(() => {
     clearTimeout(tryZoomTimer)
     tryZoomTimer = null
   }
-  // @arch-note a013: 统一清理所有分析图层（analysis-coverage/analysis-matched + 设施POI）
+  // 统一清理所有分析图层（analysis-coverage/analysis-matched + 设施POI）
   // clearAnalysisLayers 内部已处理设施 POI，不再单独调 handleHideFacilityLayer 避免双清
-  // @arch-note a017: DEM 山体阴影（真实地形）图层仅属洪涝分析，选址页不注册不清理
+  // DEM 山体阴影（真实地形）图层仅属洪涝分析，选址页不注册不清理
   clearAnalysisLayers()
 })
 </script>

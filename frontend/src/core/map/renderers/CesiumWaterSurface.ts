@@ -1,9 +1,7 @@
 /**
  * CesiumWaterSurface — Cesium 3D 水面 Primitive 管理
- *
- * z058 拆分：从 CesiumRenderer.ts 纯搬移，逻辑零变化。
+ * 拆分：从 CesiumRenderer.ts 纯搬移，逻辑零变化。
  * 使用 Primitive API（适合大规模几何体），通过重建 Primitive 实现水位更新。
- *
  * 水面状态存储在 renderer._waterSurfaces（Map<id, {primitive, height, coordinates, options, visible}>）。
  */
 import {
@@ -94,10 +92,8 @@ export function addWaterSurface(
 
 /**
  * 更新水位高度
- *
  * 通过重建 Primitive 实现水位更新。
  * 保留原始坐标和样式选项，仅改变高度。
- *
  * @param renderer CesiumRenderer 实例
  * @param id 水面图层ID
  * @param newHeight 新的高度（米）

@@ -57,7 +57,7 @@ provide(MapRendererKey, currentRenderer)
 // mapStore 已由 App.vue 统一 provide，此处不再重复（z025）
 
 const { registerBaseLayerWithRenderer, clearLayers } = useLayerManager()
-// a033 (D-12=B): 核心常驻层（boundary/ports）收口到 BLM，与业务图层统一管理
+// 核心常驻层（boundary/ports）收口到 BLM，与业务图层统一管理
 const { manager: businessLayerManager } = useBusinessLayers()
 
 const spinnerSizeCss = computed(() => `${Math.round(CELL_PIXEL * 0.5)}px`)
@@ -213,7 +213,7 @@ function setupLayers() {
   registerBaseLayerWithRenderer('base-image', '影像底图', renderer)
   registerBaseLayerWithRenderer('base-vector', '矢量底图', renderer)
 
-  // a033 (D-12=B): 核心常驻层（boundary/ports）收口到 BusinessLayerManager，
+  // 核心常驻层（boundary/ports）收口到 BusinessLayerManager，
   // 与业务图层统一走 registry。register 仅首次创建视觉实例 + catalog 条目，
   // 引擎切换时 registry 持久、setupLayers 内 register 跳过（已注册），
   // 由 App.vue 的 reapplyAll 把图层数据重绘到新 renderer 并重建 catalog 条目。
@@ -251,7 +251,7 @@ function setupLayers() {
   }
 }
 
-// a025: 具名回调，保存引用供 off 解绑（MapRenderer 事件注册/移除配对契约）
+// 具名回调，保存引用供 off 解绑（MapRenderer 事件注册/移除配对契约）
 function handleRendererClick(event: CustomEvent<MapRendererEventMap['click']>): void {
   const { featureType, data, coordinate } = event.detail
   if (featureType === 'port' && data) {
@@ -389,23 +389,23 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
-  // z024: 卸载时 abort，阻止未完成的异步回调继续写 ref
+  // 卸载时 abort，阻止未完成的异步回调继续写 ref
   loadAbort.abort()
 
   // 取消所有待执行的 rAF 回调，防止组件卸载后仍操作 DOM
   _pendingRafIds.forEach((id) => cancelAnimationFrame(id))
   _pendingRafIds.clear()
 
-  // a023: 停止可能排队的引擎切换（卸载后不再执行异步 initRenderer）
+  // 停止可能排队的引擎切换（卸载后不再执行异步 initRenderer）
   switching.value = false
   pendingSwitchType.value = null
 
-  // a025: 引擎切换/卸载前解绑 click 监听（注册/移除配对契约）
+  // 引擎切换/卸载前解绑 click 监听（注册/移除配对契约）
   if (currentRenderer.value) {
     currentRenderer.value.off?.('click', handleRendererClick)
   }
 
-  // a023: 遍历销毁两个缓存渲染器（而非只销毁当前渲染器），销毁后 ref 显式置空
+  // 遍历销毁两个缓存渲染器（而非只销毁当前渲染器），销毁后 ref 显式置空
   const cachedRenderers = [olRenderer.value, cesiumRenderer.value]
   cachedRenderers.forEach((r) => {
     if (r) {
@@ -421,7 +421,7 @@ onUnmounted(() => {
   currentRenderer.value = null
   cesiumInitialized.value = false
 
-  // a023: store 悬空引用清除
+  // store 悬空引用清除
   mapStore.setCurrentRenderer(null)
 })
 

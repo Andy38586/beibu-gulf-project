@@ -57,26 +57,6 @@ function validateWaterLevel(raw) {
 }
 
 /**
- * 获取基准水位数据
- * GET /api/flood/water-levels
- */
-export async function getWaterLevels(req, res, next) {
-  try {
-    const data = await readJsonData('waterLevel.json')
-    sendSuccess(res, {
-      baseLevels: data.baseLevels,
-      simulationRange: data.simulationRange,
-      tidalStations: data.tidalStations,
-    })
-  } catch (error) {
-    if (!(error instanceof BusinessError)) {
-      logger.error('获取水位数据失败:', error)
-    }
-    next(error)
-  }
-}
-
-/**
  * 获取淹没范围数据
  * GET /api/flood/flood-areas?waterLevel=2.5
  * @param {number} waterLevel - 水位高度（米）
@@ -162,22 +142,6 @@ export async function getTerrainProfiles(req, res, next) {
   } catch (error) {
     if (!(error instanceof BusinessError)) {
       logger.error('获取剖面数据失败:', error)
-    }
-    next(error)
-  }
-}
-
-/**
- * 获取设施点数据
- * GET /api/flood/facilities
- */
-export async function getFacilities(req, res, next) {
-  try {
-    const data = await readJsonData('facilityPoints.json')
-    sendSuccess(res, data.facilities)
-  } catch (error) {
-    if (!(error instanceof BusinessError)) {
-      logger.error('获取设施数据失败:', error)
     }
     next(error)
   }

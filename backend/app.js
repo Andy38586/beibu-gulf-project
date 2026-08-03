@@ -6,7 +6,6 @@ import { dirname, join } from 'path'
 import rateLimit from 'express-rate-limit'
 import cookieParser from 'cookie-parser'
 import { readdir } from 'fs/promises'
-import facilitiesRouter from './routes/facilities.js'
 import siteAnalysisRouter from './routes/siteAnalysis.js'
 import authRouter from './routes/auth.js'
 import plansRouter from './routes/plans.js'
@@ -119,7 +118,6 @@ app.use((req, res, next) => {
 // 真数据统一放后端，便于未来移交 PostGIS/PgSQL
 app.use('/static', express.static(join(__dirname, 'static')))
 
-app.use('/api/facilities', facilitiesRouter)
 app.use('/api/site-analysis', siteAnalysisRouter)
 app.use('/api/auth', authRouter)
 app.use('/api/plans', plansRouter)

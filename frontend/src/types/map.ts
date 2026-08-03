@@ -1,12 +1,17 @@
 // 港口（来自 backend/data/ports.json，经 GET /api/ports 返回）
 // 已统一使用 lng/lat 命名规范（规范 3.1）
+// P1-b: 补齐 type/phone 字段（PortInfoPanel 已在消费,原类型缺口;删除虚挂的 description——
+// ports.json 实际无该字段）
 export interface Port {
   id: string
   name: string
   address: string
   lng: number
   lat: number
-  description?: string
+  /** 港口类型（ports.json 字段,如"客运港"） */
+  type?: string
+  /** 联系电话（ports.json 字段） */
+  phone?: string
 }
 
 import type { LayerType } from '@/types/core/layerManager'

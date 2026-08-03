@@ -55,6 +55,8 @@ export interface FloodStatistics {
   floodArea?: number // 淹没面积（km²）
   averageDepth?: number // 平均水深（m）
   maxDepth?: number // 最大水深（m）
+  // P1-a 语义区分: 本字段为「受影响设施数量(计数)」,与 FloodSavedState/FloodConsumedState
+  // 的 affectedFacilities(设施数组)同名不同型——勿混用;数组字段见 FloodSavedState
   affectedFacilities?: number // 受影响设施数量（计数，非数组）
   affectedPorts?: string[] // 受影响港口列表
   estimatedLoss?: number // 预估损失（万元）
@@ -98,6 +100,8 @@ export interface FloodSavedState {
   floodStatistics: FloodStatistics | null
   floodFeatures: FloodFeature[]
   floodRiskLevel: string
+  // P1-a 语义区分: 本字段为「受影响设施数组」,与 FloodStatistics.affectedFacilities(计数)
+  // 同名不同型;计数见 FloodStatistics,勿混用
   affectedFacilities: AffectedFacility[]
   totalLoss: number
 }

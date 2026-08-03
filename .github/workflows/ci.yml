@@ -11,7 +11,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # d060 (P1): 依赖安全扫描。独立 job，high+ 漏洞阻断构建。
+  # d067 (P1): 依赖安全扫描。独立 job，high+ 漏洞阻断构建。（原 8.2 d060，重编号消除与主清单 d060-typeSettings 冲突）
   # 使用官方 npm registry（npmmirror 镜像无 audit 端点，d042 教训）。
   audit:
     runs-on: ubuntu-latest

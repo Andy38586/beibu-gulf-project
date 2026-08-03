@@ -13,12 +13,14 @@ describe('sanitize (d065) 请求日志脱敏', () => {
   })
 
   it('authorization 键打码', () => {
-    const out = sanitize({ authorization: 'Bearer xyz' }, 'authorization')
+    // 直接传字符串值：敏感 key + 字符串值 → 保留前 2 字符（与 password 用例一致）
+    const out = sanitize('Bearer xyz', 'authorization')
     expect(out).toBe('Be***')
   })
 
   it('cookie 键打码', () => {
-    const out = sanitize({ cookie: 'sessionid=abc' }, 'cookie')
+    // 直接传字符串值：敏感 key + 字符串值 → 保留前 2 字符（与 password 用例一致）
+    const out = sanitize('sessionid=abc', 'cookie')
     expect(out).toBe('se***')
   })
 

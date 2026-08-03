@@ -4,6 +4,8 @@ import type { Point } from 'geojson'
 import { createPinia, setActivePinia } from 'pinia'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { BusinessLayerManager } from '@/core/map/BusinessLayerManager'
+import { BUSINESS_LAYER_MANAGER_KEY } from '@/core/map/composables/useBusinessLayers'
 import { buildPortGeoJson, PORT_STYLE } from '@/core/map/composables/usePortLayer'
 import { createRenderer } from '@/core/map/renderers'
 import { useMapStore } from '@/stores/mapStore'
@@ -38,9 +40,9 @@ vi.mock('@/core/map/composables/usePortLayer', () => ({
   loadPorts: vi
     .fn()
     .mockResolvedValue([{ id: 1, name: 'test-port', lng: 108.1, lat: 21.5, type: 'container' }]),
-  buildPortGeoJson: (ports: any) => ({
+  buildPortGeoJson: (ports: Port[]) => ({
     type: 'FeatureCollection',
-    features: ports.map((port: any) => ({
+    features: ports.map((port: Port) => ({
       type: 'Feature',
       geometry: { type: 'Point', coordinates: [port.lng, port.lat] },
       properties: { ...port, featureType: 'port' },
@@ -63,7 +65,7 @@ vi.mock('@/core/map/composables/useBoundaryLayer', () => ({
 }))
 
 vi.mock('@/core/map/renderers', () => {
-  const createMockRenderer = (type: any) => ({
+  const createMockRenderer = (type: string) => ({
     _layers: new Map(),
     on: vi.fn(),
     off: vi.fn(),
@@ -87,8 +89,15 @@ vi.mock('@/core/map/renderers', () => {
 })
 
 function makeMountOptions(store: ReturnType<typeof useMapStore>) {
+  // a033: 提供 BusinessLayerManager 实例（boundary/ports 收口到 BLM）
+  const businessLayerManager = new BusinessLayerManager(store)
   return {
-    global: { provide: { mapStore: store } },
+    global: {
+      provide: {
+        mapStore: store,
+        [BUSINESS_LAYER_MANAGER_KEY]: businessLayerManager,
+      },
+    },
     attachTo: document.body!,
   }
 }
@@ -96,7 +105,7 @@ function makeMountOptions(store: ReturnType<typeof useMapStore>) {
 describe('UnifiedMap Integration Tests', () => {
   let wrapper: VueWrapper<InstanceType<typeof UnifiedMap>>
   let pinia: ReturnType<typeof createPinia>
-  let mapStore: any
+  let mapStore: ReturnType<typeof useMapStore>
 
   beforeEach(() => {
     pinia = createPinia()
@@ -175,7 +184,7 @@ describe('UnifiedMap Integration Tests', () => {
     await new Promise((resolve) => setTimeout(resolve, 50))
 
     const renderer = mockedCreateRenderer.mock.results[0].value
-    const clickHandler = renderer.on.mock.calls.find((c: any) => c[0] === 'click')?.[1]
+    const clickHandler = renderer.on.mock.calls.find((c: unknown[]) => c[0] === 'click')?.[1]
 
     expect(clickHandler).toBeDefined()
 
@@ -224,7 +233,7 @@ describe('Composable + Renderer Integration', () => {
 
 describe('UnifiedMap Click Interaction Tests', () => {
   let wrapper: VueWrapper<InstanceType<typeof UnifiedMap>>
-  let mapStore: any
+  let mapStore: ReturnType<typeof useMapStore>
   let pinia: ReturnType<typeof createPinia>
 
   beforeEach(() => {
@@ -249,7 +258,7 @@ describe('UnifiedMap Click Interaction Tests', () => {
     await new Promise((resolve) => setTimeout(resolve, 50))
 
     const renderer = mockedCreateRenderer.mock.results[0].value
-    const clickHandler = renderer.on.mock.calls.find((c: any) => c[0] === 'click')?.[1]
+    const clickHandler = renderer.on.mock.calls.find((c: unknown[]) => c[0] === 'click')?.[1]
 
     clickHandler({
       detail: {
@@ -274,11 +283,11 @@ describe('UnifiedMap Click Interaction Tests', () => {
     await flushPromises()
     await new Promise((resolve) => setTimeout(resolve, 50))
 
-    mapStore.setSelectedPort({ id: 1, name: 'test-port' })
+    mapStore.setSelectedPort({ id: 1, name: 'test-port' } as unknown as Port)
     expect(mapStore.selectedPort).not.toBeNull()
 
     const renderer = mockedCreateRenderer.mock.results[0].value
-    const clickHandler = renderer.on.mock.calls.find((c: any) => c[0] === 'click')?.[1]
+    const clickHandler = renderer.on.mock.calls.find((c: unknown[]) => c[0] === 'click')?.[1]
 
     clickHandler({
       detail: {
@@ -303,10 +312,10 @@ describe('UnifiedMap Click Interaction Tests', () => {
     await flushPromises()
     await new Promise((resolve) => setTimeout(resolve, 50))
 
-    mapStore.setSelectedPort({ id: 1, name: 'test-port' })
+    mapStore.setSelectedPort({ id: 1, name: 'test-port' } as unknown as Port)
 
     const renderer = mockedCreateRenderer.mock.results[0].value
-    const clickHandler = renderer.on.mock.calls.find((c: any) => c[0] === 'click')?.[1]
+    const clickHandler = renderer.on.mock.calls.find((c: unknown[]) => c[0] === 'click')?.[1]
 
     clickHandler({
       detail: {
@@ -325,7 +334,7 @@ describe('UnifiedMap Click Interaction Tests', () => {
 describe('UnifiedMap Layer State Persistence', () => {
   let wrapper: VueWrapper<InstanceType<typeof UnifiedMap>>
   let pinia: ReturnType<typeof createPinia>
-  let mapStore: any
+  let mapStore: ReturnType<typeof useMapStore>
 
   beforeEach(() => {
     pinia = createPinia()
@@ -368,7 +377,7 @@ describe('UnifiedMap Layer State Persistence', () => {
 describe('UnifiedMap Error Handling', () => {
   let wrapper: VueWrapper<InstanceType<typeof UnifiedMap>>
   let pinia: ReturnType<typeof createPinia>
-  let mapStore: any
+  let mapStore: ReturnType<typeof useMapStore>
 
   beforeEach(() => {
     pinia = createPinia()
@@ -402,7 +411,7 @@ describe('UnifiedMap Error Handling', () => {
 
 describe('UnifiedMap switchMapType no-op (LIF-6)', () => {
   let wrapper: VueWrapper<InstanceType<typeof UnifiedMap>>
-  let mapStore: any
+  let mapStore: ReturnType<typeof useMapStore>
   let pinia: ReturnType<typeof createPinia>
 
   beforeEach(() => {

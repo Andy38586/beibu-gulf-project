@@ -6,6 +6,7 @@ import { computed, nextTick, onMounted, onUnmounted, provide, ref, watch } from 
 import { CELL_PIXEL } from '@/core/layout/config.js'
 import { useGCS } from '@/core/layout/useGCS.js'
 import { BOUNDARY_STYLE, loadBoundaryGeoJson } from '@/core/map/composables/useBoundaryLayer'
+import { useBusinessLayers } from '@/core/map/composables/useBusinessLayers'
 import { useLayerManager } from '@/core/map/composables/useLayerManager'
 import { MapRendererKey } from '@/core/map/composables/useMapRenderer'
 import { buildPortGeoJson, loadPorts, PORT_STYLE } from '@/core/map/composables/usePortLayer'
@@ -13,7 +14,14 @@ import { createRenderer } from '@/core/map/renderers'
 import type { MapRenderer } from '@/core/map/renderers/MapRenderer'
 import { logger } from '@/shared/utils/logger'
 import { useMapStore } from '@/stores/mapStore'
-import type { FlyToOptions, FlyToTarget, MapRendererEventMap, Port, RendererState } from '@/types'
+import type {
+  FlyToOptions,
+  FlyToTarget,
+  MapRendererEventMap,
+  PointFeature,
+  Port,
+  RendererState,
+} from '@/types'
 
 const { cell8px } = useGCS()
 
@@ -48,7 +56,9 @@ const cesiumInitialized = ref(false)
 provide(MapRendererKey, currentRenderer)
 // mapStore 已由 App.vue 统一 provide，此处不再重复（z025）
 
-const { registerBaseLayerWithRenderer, registerToggleable, clearLayers } = useLayerManager()
+const { registerBaseLayerWithRenderer, clearLayers } = useLayerManager()
+// a033 (D-12=B): 核心常驻层（boundary/ports）收口到 BLM，与业务图层统一管理
+const { manager: businessLayerManager } = useBusinessLayers()
 
 const spinnerSizeCss = computed(() => `${Math.round(CELL_PIXEL * 0.5)}px`)
 
@@ -194,19 +204,6 @@ async function initRenderer(type: '2d' | '3d', container: HTMLElement | null) {
 }
 
 // 每次切换引擎时重新注册图层目录（show/hide绑定当前渲染器实例）
-// 用 hasLayer 公开 API 检查图层是否已存在，避免直读渲染器私有 _layers
-/**
- * 检查图层是否已存在（防止重复添加）
- * 优先使用渲染器公开 API hasLayer（已在 MapRenderer 接口与基类实现），
- * 降级用 _layers 私有属性（向后兼容，仅当 hasLayer 未实现时触发）。
- */
-function hasLayer(renderer: MapRenderer, id: string): boolean {
-  if (typeof renderer.hasLayer === 'function') {
-    return renderer.hasLayer(id)
-  }
-  // 降级：直接读取 _layers（hasLayer 已实现后此分支不会执行）
-  return renderer._layers?.has(id) ?? false
-}
 
 function setupLayers() {
   const renderer = currentRenderer.value
@@ -216,14 +213,20 @@ function setupLayers() {
   registerBaseLayerWithRenderer('base-image', '影像底图', renderer)
   registerBaseLayerWithRenderer('base-vector', '矢量底图', renderer)
 
-  if (boundaryGeoJson && !hasLayer(renderer, 'boundary')) {
-    renderer.addGeoJsonLayer('boundary', boundaryGeoJson, BOUNDARY_STYLE)
-  }
-  if (boundaryGeoJson) {
-    registerToggleable('boundary', '行政区划', renderer)
+  // a033 (D-12=B): 核心常驻层（boundary/ports）收口到 BusinessLayerManager，
+  // 与业务图层统一走 registry。register 仅首次创建视觉实例 + catalog 条目，
+  // 引擎切换时 registry 持久、setupLayers 内 register 跳过（已注册），
+  // 由 App.vue 的 reapplyAll 把图层数据重绘到新 renderer 并重建 catalog 条目。
+  if (boundaryGeoJson && !businessLayerManager.has('boundary')) {
+    businessLayerManager.register('boundary', {
+      label: '行政区划',
+      layerType: 'geojson',
+      data: boundaryGeoJson,
+      options: BOUNDARY_STYLE,
+    })
   }
 
-  if (portGeoJson && !hasLayer(renderer, 'ports')) {
+  if (portGeoJson && !businessLayerManager.has('ports')) {
     const validFeatures = (portGeoJson.features as Feature<Point>[]).filter((f) => {
       if (!f?.geometry?.coordinates) return false
       if (!Array.isArray(f.geometry.coordinates) || f.geometry.coordinates.length < 2) return false
@@ -231,21 +234,20 @@ function setupLayers() {
       return !(lng === 0 && lat === 0)
     })
     if (validFeatures.length > 0) {
-      renderer.addPointLayer(
-        'ports',
-        validFeatures
-          .map((f) => ({
-            ...f.properties,
-            lng: f.geometry.coordinates[0],
-            lat: f.geometry.coordinates[1],
-          }))
-          .filter(Boolean),
-        PORT_STYLE
-      )
+      const portFeatures: PointFeature[] = validFeatures
+        .map((f) => ({
+          ...f.properties,
+          lng: f.geometry.coordinates[0],
+          lat: f.geometry.coordinates[1],
+        }))
+        .filter(Boolean) as PointFeature[]
+      businessLayerManager.register('ports', {
+        label: '港口位置',
+        layerType: 'points',
+        data: portFeatures,
+        options: PORT_STYLE,
+      })
     }
-  }
-  if (portGeoJson) {
-    registerToggleable('ports', '港口位置', renderer)
   }
 }
 

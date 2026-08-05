@@ -373,6 +373,15 @@ export class CesiumRenderer extends MapRenderer {
       return
     }
 
+    // 底图瓦片加载失败可见性（排查用）：Cesium 底图失败默认静默（仅 console 内部报错），
+    // 首次失败 warn 一次带错误信息，避免每个瓦片刷屏。
+    this._imageryErrorLogged = false
+    this.viewer.imageryLayers.errorEvent.addEventListener((err: unknown) => {
+      if (this._imageryErrorLogged) return
+      this._imageryErrorLogged = true
+      logger.warn('[CesiumRenderer] 底图瓦片加载失败（首次）:', err instanceof Error ? err.message : err)
+    })
+
     // 关键：Cesium 的 UrlTemplateImageryProvider 只认内置占位符（x/y/z/s/…），
     // buildTiandituUrl 模板里的 {layerCode}/{key} 会被原样留在 URL 里发出去
     // （buildImageResource 对未知 tag 直接跳过）→ 天地图收到 {layerCode} 字面量

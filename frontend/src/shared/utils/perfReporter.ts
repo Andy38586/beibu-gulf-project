@@ -87,7 +87,6 @@ const state: PerfState = {
 }
 
 let started = false
-let rafId = 0
 
 /** 打点（时间点标记） */
 export function perfMark(name: string): void {
@@ -322,9 +321,9 @@ export function initPerfReporter(): void {
       if (fps < f.min) f.min = fps
       if (dt > LONG_FRAME_MS) f.longFrames += 1
     }
-    rafId = requestAnimationFrame(sample)
+    requestAnimationFrame(sample)
   }
-  rafId = requestAnimationFrame(sample)
+  requestAnimationFrame(sample)
 
   const api = {
     state,

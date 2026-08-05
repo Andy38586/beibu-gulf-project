@@ -8,19 +8,16 @@ import {
   Cartesian2,
   Cartesian3,
   Cartographic,
+  CesiumTerrainProvider,
   Color,
   ComponentDatatype,
-  Event,
-  GeographicTilingScheme,
   Geometry,
   GeometryAttribute,
   GeometryInstance,
-  HeightmapTerrainData,
   Math as CesiumMath,
   PerInstanceColorAppearance,
   Primitive,
   PrimitiveType,
-  Rectangle,
   UrlTemplateImageryProvider,
   Viewer,
 } from 'cesium'
@@ -309,12 +306,12 @@ export class CesiumRenderer extends MapRenderer {
     if (!this._isReusing) {
       this._positionCamera()
       this._initBaseLayers()
-      // 真 3D 地形（用户拍板方案：只加载切片数据、不走瓦片网络请求）：
-      // 一次 fetch dem_elev.bin（全量高程）→ 内存切片 TerrainProvider（_setupTerrain 内实现），
-      // 椭球面变真 z 值起伏，天地图影像自动贴到地形 mesh 上。
-      // 成功置 _terrainReady → 业务层 addGeoTIFFLayer 跳过 hillshade 伪三维回退、
-      // 已添加的 _hillshadeLayer 隐藏；失败静默降级保持 hillshade 全量贴图（现状基线）。
-      // （全量 mesh _setupFullDem 因 vite dev Cesium worker 兼容问题暂弃，代码保留）
+      // 真 3D 地形（瓦片加载，用户拍板 2026-08-06）：
+      // CesiumTerrainProvider 按需 LOD 加载 heightmap-1.0 瓦片（backend/static/terrain/，
+      // CTB 预切片 z0-12，Int16 输入 + 标准命令生成）。Cesium 按相机距离只拉需要的层级，
+      // 不像全量 mesh 一次性算完 75 万顶点（用户实测卡爆），也不像内存切片每次请求
+      // 重采样（之前方案）。成功置 _terrainReady → hillshade 回退退场；失败静默降级
+      // 保持 hillshade 全量贴图（998920d 稳定基线）。
       void this._setupTerrain()
     } else {
       // 复用时从单例管理器获取底图引用（公开方法）
@@ -451,103 +448,35 @@ export class CesiumRenderer extends MapRenderer {
     }
   }
 
-  /**
-   * 真 3D 地形：内存切片 TerrainProvider（用户拍板：只加载切片数据、不走瓦片网络请求）。
-   *
-   * 一次 fetch dem_elev.bin（1000×750 Int16 全量高程，1.5MB）→ 内存持有；
-   * 自定义 TerrainProvider 按 Cesium 瓦片坐标从内存裁剪子区域，重采样 65×65 为
-   * HeightmapTerrainData 返回 —— 零瓦片网络请求（不走 CesiumTerrainProvider 的
-   * 按需 .terrain 请求），也绕开裸 Geometry+Primitive 的 vite worker 兼容问题。
-   * 成功置 _terrainReady → hillshade 回退贴图退场。失败静默降级（hillshade 保持）。
-   */
+  /** 真地形接入：/static/terrain/ 目录 → CesiumTerrainProvider。失败静默降级（不阻塞 Viewer）。 */
   async _setupTerrain() {
     try {
       const viewer = this.viewer
       if (!viewer) return
-      const resp = await fetch('/static/dem/dem_elev.bin')
-      if (!resp.ok) throw new Error(`dem_elev.bin HTTP ${resp.status}`)
-      const buf = new Int16Array(await resp.arrayBuffer())
-      const W = 1000
-      const H = 750
-      if (buf.length !== W * H) throw new Error(`dem_elev.bin 尺寸不符: ${buf.length}`)
-      // dem_elev.bin 地理范围（gdalinfo 实测，EPSG:4326）
-      const LON_MIN = 107.36
-      const LON_MAX = 109.99
-      const LAT_MIN = 20.78
-      const LAT_MAX = 22.8
-      const RECT = Rectangle.fromDegrees(LON_MIN, LAT_MIN, LON_MAX, LAT_MAX)
-      const tilingScheme = new GeographicTilingScheme({
-        numberOfLevelZeroTilesX: 1,
-        numberOfLevelZeroTilesY: 1,
-        rectangle: RECT,
+      // CesiumTerrainProvider.fromUrl 把传入 URL 当 baseUrl（目录），fetch `${url}layer.json`
+      // 取瓦片清单（实测：传文件 URL '.../layer.json' 会拼成 '.../layer.json/layer.json' 404，
+      // 然后 fallback 内置默认 tiles='layer.json/{z}/{x}/{y}.terrain' v=1.0.0）。
+      // 因此必须传**目录 URL**（尾斜杠）。瓦片路径由 layer.json 的 tiles 模板解析。
+      const provider = await CesiumTerrainProvider.fromUrl('/static/terrain/', {
+        // CTB 输出的 .terrain 是 gzip 压缩流（文件头 1f 8b），Cesium 自动识别解压，
+        // 无需服务器 Content-Encoding；请求端 gzip 由 Resource 层处理
+        requestVertexNormals: true,
       })
-      const TILE = 65 // HeightmapTerrainData 标准网格尺寸
-
-      // 内存切片 TerrainProvider：requestTileGeometry 从 Int16 数组裁剪对应瓦片区域
-      const provider = {
-        tilingScheme,
-        errorEvent: new Event(),
-        ready: true,
-        readyPromise: Promise.resolve(true),
-        hasWaterMask: false,
-        hasVertexNormals: false,
-        credit: undefined,
-        availability: undefined,
-        getTileDataAvailable: () => true,
-        getLevelMaximumGeometricError: (level: number) => {
-          // 每级最大几何误差：Cesium 用它判断该级别瓦片是否需要细分。
-          // 指数衰减（level 0 = 瓦片对角距离），保证拉近时能加载更细内存切片。
-          return tilingScheme.rectangle.width / Math.pow(2, level)
-        },
-        requestTileGeometry(x: number, y: number, level: number) {
-          const rect = tilingScheme.tileXYToRectangle(x, y, level)
-          // 瓦片地理范围 → DEM 像素范围（钳制到网格内）
-          const px0 = Math.max(0, Math.floor(((rect.west - LON_MIN) / (LON_MAX - LON_MIN)) * (W - 1)))
-          const px1 = Math.min(W - 1, Math.ceil(((rect.east - LON_MIN) / (LON_MAX - LON_MIN)) * (W - 1)))
-          const py0 = Math.max(0, Math.floor(((LAT_MAX - rect.north) / (LAT_MAX - LAT_MIN)) * (H - 1)))
-          const py1 = Math.min(H - 1, Math.ceil(((LAT_MAX - rect.south) / (LAT_MAX - LAT_MIN)) * (H - 1)))
-          // 双线性重采样到 65×65
-          const buffer = new Int16Array(TILE * TILE)
-          for (let ty = 0; ty < TILE; ty++) {
-            const sy = py0 + Math.round(((py1 - py0) * ty) / (TILE - 1))
-            for (let tx = 0; tx < TILE; tx++) {
-              const sx = px0 + Math.round(((px1 - px0) * tx) / (TILE - 1))
-              let e = buf[sy * W + sx]
-              if (e >= 32000) e = 0 // nodata(32767) → 海平面
-              buffer[ty * TILE + tx] = e
-            }
-          }
-          return Promise.resolve(
-            new HeightmapTerrainData({
-              buffer,
-              width: TILE,
-              height: TILE,
-              structure: {
-                heightScale: 1, // dem_elev.bin 直接存米（Int16，max 1452）
-                heightOffset: 0,
-                elementsPerHeight: 1,
-                stride: 1,
-                elementMultiplier: 1,
-                isBigEndian: false,
-              },
-            })
-          )
-        },
-      }
-
       // viewer 可能已被 30s 闲置销毁，销毁后属性清空访问即崩
       if (!viewer || !viewer.scene || viewer.isDestroyed()) return
       viewer.terrainProvider = provider
       this._terrainReady = true
-      // 真地形就绪后 hillshade 伪三维回退贴图退场（真 z 起伏 + Cesium 光照取代）
+      // 真地形就绪后 hillshade 伪三维回退贴图退场：它是 70% 不透明灰白单张图，
+      // 盖在天地图底图之上（addImageryProvider 默认顶层），不隐藏会"底图消失"。
       if (this._hillshadeLayer) {
         this._hillshadeLayer.show = false
         logger.debug('[CesiumRenderer] 真地形就绪，隐藏 hillshade 回退贴图')
       }
       viewer.scene.requestRender()
-      logger.debug(`[CesiumRenderer] 真地形接入成功（内存切片，${W}x${H} 一次加载）`)
+      logger.debug('[CesiumRenderer] 真地形接入成功: /static/terrain/layer.json')
     } catch (e) {
-      // 无数据或加载失败 → 保持椭球面 + hillshade 回退（现状基线）
+      // 无瓦片产物或加载失败 → 保持椭球面 + hillshade 回退（现状行为）
+      // 带上失败原因便于排查（常见：dev 未重启 vite / 后端未起 / 瓦片目录缺失）
       logger.warn('[CesiumRenderer] 真地形接入跳过:', e instanceof Error ? e.message : e)
     }
   }

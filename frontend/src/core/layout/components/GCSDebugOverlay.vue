@@ -597,8 +597,15 @@ onUnmounted(() => {
 .GCS-debug-overlay {
   position: fixed;
   inset: 0;
-  pointer-events: none;
   z-index: 55;
+}
+
+/* 关键：pointer-events 不继承，仅根容器 none 不够——SVG 网格线/标签/HUD 子元素
+   默认 auto 仍会拦截鼠标。通配符强制全层穿透：调试模式只展示、不接收任何事件，
+   拖拽地图/操作面板/切换路由均不受影响。 */
+.GCS-debug-overlay,
+.GCS-debug-overlay * {
+  pointer-events: none !important;
 }
 
 .cell-grid {

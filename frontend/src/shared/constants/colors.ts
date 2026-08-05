@@ -55,7 +55,7 @@ export const PROFILE_COLORS = {
   safe: '#67C23A',
 } as const
 
-// 开发验收用的 QA 覆盖层调试色（GCSInspectionOverlay）
+// 开发验收用的 QA 覆盖层调试色（GCSDebugOverlay）
 export const INSPECTION_COLORS = {
   primary: '#ff6b6b',
   warn: '#ffa502',

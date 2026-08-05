@@ -1,22 +1,25 @@
 <script setup lang="ts">
 /**
- * GCSInspectionOverlay - GCS 检查模式覆盖层
+ * GCSDebugOverlay - 调试模式覆盖层（原 GCSInspectionOverlay 改名 + 扩展，2026-08-05）
  * 职责：
- * 1. 可视化 Cell 网格边界和编号
- * 2. 动态检测并显示 Panel / Dock / Container / TopArea 的实际边界
- * 3. 自动验证各元素是否与 Cell 网格对齐
- * 4. 显示当前 GCS 参数与对齐状态
+ * 1. 可视化 Cell 网格边界和编号（GCS 验收）
+ * 2. 动态检测并显示 Panel / Dock / Container / TopArea 的实际边界 + 对齐验证
+ * 3. 性能监控信息（MC F3 风格）：FPS / 长帧 / 接口 TOP / 错误 / 首屏 / 图层图表耗时
+ *    —— 数据来自 shared/utils/perfReporter（生产可用，VITE_PERF_ENABLED=false 时为空）
+ * 4. 地图上下文：当前引擎（2D/3D）/ 渲染器 / 路由
  * 设计说明：
- * - 仅用于开发验收，生产环境默认关闭
- * - 禁止拖拽、换位、动态编辑等交互功能
- * - 边界信息通过 DOM getBoundingClientRect 动态获取，确保反映真实渲染结果
+ * - 覆盖层整体 pointer-events: none，网格 + 信息面板均不拦截鼠标（可正常操作地图）
+ * - 信息面板左上角半透明文字风格（仿 MC F3），不遮挡内容
  */
 
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 
 import { INSPECTION_COLORS } from '@/shared'
 import { CELL_PIXEL, GRID_SIZE, PANEL_SPACING, SAFE_MARGIN } from '@/shared'
 import { useGCS } from '@/shared'
+import { buildPerfReport } from '@/shared/utils/perfReporter'
+import { useMapStore } from '@/stores'
 
 interface Props {
   enabled?: boolean
@@ -296,19 +299,9 @@ function handleResize() {
   measureAll()
 }
 
-onMounted(() => {
-  window.addEventListener('resize', handleResize)
-  // 首次开启时 DOM 可能尚未完全渲染，延迟测量
-  if (props.enabled) {
-    requestAnimationFrame(measureAll)
-  }
-})
+// 当调试模式开启时重新测量（挂载/事件监听统一在下方 onMounted/onUnmounted）
 
-onUnmounted(() => {
-  window.removeEventListener('resize', handleResize)
-})
-
-// 当检查模式开启时重新测量
+// 当调试模式开启时重新测量
 watch(
   () => props.enabled,
   (enabled) => {
@@ -343,10 +336,115 @@ const gridLines = computed(() => {
 const alignmentStatus = computed(() => {
   return alignmentIssues.value.length === 0 ? 'PASS' : `FAIL (${alignmentIssues.value.length})`
 })
+
+// ===== 性能监控数据（MC F3 风格信息面板） =====
+const route = useRoute()
+const mapStore = useMapStore()
+const perfReport = ref<Record<string, unknown>>({})
+let perfTimer: ReturnType<typeof setInterval> | null = null
+
+function refreshPerf(): void {
+  perfReport.value = buildPerfReport()
+}
+
+// 地图上下文
+const engineInfo = computed(() => {
+  const rendererType = mapStore.currentRenderer?.getType?.() ?? 'none'
+  return {
+    engine: mapStore.mapType,
+    renderer: rendererType,
+    route: String(route.name ?? '-'),
+  }
+})
+
+// FPS 区
+const fpsInfo = computed(() => {
+  const f = perfReport.value.fps as { avg?: number; min?: number; longFrames?: number } | undefined
+  return {
+    avg: (f?.avg ?? 0).toFixed(1),
+    min: f?.min != null && f.min > 0 ? f.min.toFixed(1) : '—',
+    longFrames: f?.longFrames ?? 0,
+  }
+})
+
+interface ApiRow {
+  path: string
+  count: number
+  avg: number
+  max: number
+  p50: number
+  p95: number
+}
+
+// 慢接口 TOP5（按 max 排序）
+const slowApis = computed<ApiRow[]>(() => {
+  const api = perfReport.value.api as Record<string, Omit<ApiRow, 'path'>> | undefined
+  if (!api) return []
+  return Object.entries(api)
+    .map(([path, b]) => ({ path, ...b }))
+    .sort((a, b) => b.max - a.max)
+    .slice(0, 5)
+})
+
+// 错误计数
+const errorInfo = computed(() => {
+  const e = perfReport.value.errors as Record<string, number> | undefined
+  return e ?? {}
+})
+const errorTotal = computed(() => Object.values(errorInfo.value).reduce((s, n) => s + n, 0))
+
+// 首屏 / Web Vitals
+const vitalsInfo = computed(() => {
+  const r = perfReport.value as {
+    fcp?: number
+    lcp?: number
+    cls?: number
+    tti?: number
+    longtasks?: number
+  }
+  return {
+    fcp: r.fcp != null ? r.fcp.toFixed(0) : '—',
+    lcp: r.lcp != null ? r.lcp.toFixed(0) : '—',
+    cls: r.cls != null ? r.cls.toFixed(3) : '—',
+    tti: r.tti != null ? r.tti.toFixed(0) : '—',
+    longtasks: r.longtasks ?? 0,
+  }
+})
+
+// 图层 / 图表耗时 TOP4（按 max 排序）
+const timerInfo = computed(() => {
+  const t = perfReport.value.timers as
+    | Record<string, { count: number; total: number; max: number }>
+    | undefined
+  if (!t) return []
+  return Object.entries(t)
+    .sort((a, b) => b[1].max - a[1].max)
+    .slice(0, 4)
+    .map(([name, v]) => ({
+      name,
+      avg: v.count > 0 ? v.total / v.count : 0,
+      max: v.max,
+    }))
+})
+
+onMounted(() => {
+  window.addEventListener('resize', handleResize)
+  refreshPerf()
+  perfTimer = setInterval(refreshPerf, 1000)
+  // 首次开启时 DOM 可能尚未完全渲染，延迟测量
+  if (props.enabled) {
+    requestAnimationFrame(measureAll)
+  }
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize)
+  if (perfTimer) clearInterval(perfTimer)
+})
 </script>
 
 <template>
-  <div v-if="enabled" class="GCS-inspection-overlay">
+  <div v-if="enabled" class="GCS-debug-overlay">
     <!-- Grid 参考线层（V2 使用 GRID_SIZE = 100px） -->
     <svg class="cell-grid" :width="viewportWidth" :height="viewportHeight">
       <g class="cell-boundaries">
@@ -427,51 +525,67 @@ const alignmentStatus = computed(() => {
       </div>
     </div>
 
-    <!-- 参数信息面板 -->
-    <div class="info-panel">
-      <div class="info-title">GCS Inspection Mode</div>
-      <div class="info-item">
-        <span class="info-label">CELL_PIXEL:</span>
-        <span class="info-value">{{ cellPixel }}px</span>
+    <!-- 调试信息面板（MC F3 风格：左上角半透明文字，不拦截鼠标） -->
+    <div class="debug-hud">
+      <div class="hud-title">调试模式 Debug Mode</div>
+
+      <div class="hud-sec">── 地图 ──</div>
+      <div class="hud-item">
+        <span class="hud-k">引擎</span><span class="hud-v">{{ engineInfo.engine }}</span>
+        <span class="hud-k">渲染器</span><span class="hud-v">{{ engineInfo.renderer }}</span>
       </div>
-      <div class="info-item">
-        <span class="info-label">GAP:</span>
-        <span class="info-value">{{ gap }}px</span>
+      <div class="hud-item">
+        <span class="hud-k">路由</span><span class="hud-v">{{ engineInfo.route }}</span>
       </div>
-      <div class="info-item">
-        <span class="info-label">PADDING:</span>
-        <span class="info-value">{{ padding }}px</span>
+
+      <div class="hud-sec">── 性能 ──</div>
+      <div class="hud-item">
+        <span class="hud-k">FPS</span><span class="hud-v">{{ fpsInfo.avg }}</span>
+        <span class="hud-k">min</span><span class="hud-v">{{ fpsInfo.min }}</span>
+        <span class="hud-k">长帧&gt;50ms</span><span class="hud-v warn">{{ fpsInfo.longFrames }}</span>
       </div>
-      <div class="info-item">
-        <span class="info-label">SAFE_MARGIN:</span>
-        <span class="info-value">{{ SAFE_MARGIN }}px</span>
+      <div v-for="a in slowApis" :key="a.path" class="hud-item">
+        <span class="hud-k api-path">{{ a.path }}</span>
+        <span class="hud-v">{{ a.p50.toFixed(0) }}/{{ a.p95.toFixed(0) }}ms ({{ a.count }})</span>
       </div>
-      <div class="info-item">
-        <span class="info-label">PANEL_SPACING:</span>
-        <span class="info-value">{{ PANEL_SPACING }}px</span>
+      <div class="hud-item">
+        <span class="hud-k">错误</span><span class="hud-v warn">{{ errorTotal }}</span>
+        <span class="hud-k">vue</span><span class="hud-v">{{ errorInfo.vue ?? 0 }}</span>
+        <span class="hud-k">script</span><span class="hud-v">{{ errorInfo.script ?? 0 }}</span>
+        <span class="hud-k">promise</span><span class="hud-v">{{ errorInfo.promise ?? 0 }}</span>
       </div>
-      <div class="info-item">
-        <span class="info-label">GRID_SIZE:</span>
-        <span class="info-value">{{ GRID_SIZE }}px</span>
+      <div class="hud-item">
+        <span class="hud-k">FCP</span><span class="hud-v">{{ vitalsInfo.fcp }}</span>
+        <span class="hud-k">LCP</span><span class="hud-v">{{ vitalsInfo.lcp }}</span>
+        <span class="hud-k">CLS</span><span class="hud-v">{{ vitalsInfo.cls }}</span>
+        <span class="hud-k">TTI</span><span class="hud-v">{{ vitalsInfo.tti }}</span>
       </div>
-      <div class="info-item">
-        <span class="info-label">Grid:</span>
-        <span class="info-value">{{ gridCols }}×{{ gridRows }}</span>
+      <div v-for="t in timerInfo" :key="t.name" class="hud-item">
+        <span class="hud-k api-path">{{ t.name }}</span>
+        <span class="hud-v">{{ t.avg.toFixed(1) }}/{{ t.max.toFixed(0) }}ms</span>
       </div>
-      <div class="info-item">
-        <span class="info-label">Alignment:</span>
-        <span class="info-value" :class="alignmentStatus === 'PASS' ? 'pass' : 'fail'">
+
+      <div class="hud-sec">── GCS ──</div>
+      <div class="hud-item">
+        <span class="hud-k">CELL</span><span class="hud-v">{{ cellPixel }}px</span>
+        <span class="hud-k">GAP</span><span class="hud-v">{{ gap }}px</span>
+        <span class="hud-k">PAD</span><span class="hud-v">{{ padding }}px</span>
+      </div>
+      <div class="hud-item">
+        <span class="hud-k">SAFE</span><span class="hud-v">{{ SAFE_MARGIN }}px</span>
+        <span class="hud-k">SPACING</span><span class="hud-v">{{ PANEL_SPACING }}px</span>
+        <span class="hud-k">GRID</span><span class="hud-v">{{ GRID_SIZE }}px</span>
+      </div>
+      <div class="hud-item">
+        <span class="hud-k">Grid</span><span class="hud-v">{{ gridCols }}×{{ gridRows }}</span>
+        <span class="hud-k">对齐</span>
+        <span class="hud-v" :class="alignmentStatus === 'PASS' ? 'pass' : 'fail'">
           {{ alignmentStatus }}
         </span>
       </div>
 
-      <!-- 对齐问题列表 -->
-      <div v-if="alignmentIssues.length > 0" class="issues-list">
-        <div
-          v-for="(issue, index) in alignmentIssues"
-          :key="`${issue.name}-${index}`"
-          class="issue-item"
-        >
+      <div v-if="alignmentIssues.length > 0" class="hud-issues">
+        <div v-for="(issue, index) in alignmentIssues" :key="`${issue.name}-${index}`">
           {{ issue.name }} {{ issue.field }}={{ issue.value }}px (expected {{ issue.expected }})
         </div>
       </div>
@@ -480,16 +594,11 @@ const alignmentStatus = computed(() => {
 </template>
 
 <style scoped>
-.GCS-inspection-overlay {
+.GCS-debug-overlay {
   position: fixed;
   inset: 0;
   pointer-events: none;
   z-index: 55;
-}
-
-/* 信息面板需要可交互（如果有交互元素） */
-.info-panel {
-  pointer-events: auto;
 }
 
 .cell-grid {
@@ -547,63 +656,79 @@ const alignmentStatus = computed(() => {
   border-radius: 3px;
 }
 
-.info-panel {
+/* 调试信息 HUD（MC F3 风格）：左上角、半透明、纯文字、不拦截鼠标 */
+.debug-hud {
   position: absolute;
   top: v-bind(infoPanelOffsetCss);
-  right: v-bind(infoPanelOffsetCss);
-  background: rgba(0, 0, 0, 0.85);
-  color: var(--GCS-bg-panel);
+  left: v-bind(infoPanelOffsetCss);
+  background: rgba(0, 0, 0, 0.45);
+  color: #e8e8e8;
   padding: v-bind(infoPanelPaddingCss);
-  border-radius: 8px;
+  border-radius: 6px;
   font-family: monospace;
-  font-size: v-bind(infoPanelFontSizeCss);
+  font-size: 11px;
+  line-height: 1.5;
   min-width: v-bind(infoPanelMinWidthCss);
-  max-width: 320px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  max-width: 340px;
+  pointer-events: none;
 }
 
-.info-title {
+.hud-title {
   font-size: v-bind(infoTitleFontSizeCss);
   font-weight: bold;
   margin-bottom: v-bind(infoTitleMarginCss);
   color: v-bind(INSPECTION_COLORS.highlight);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.25);
   padding-bottom: v-bind(infoTitlePaddingCss);
 }
 
-.info-item {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: v-bind(infoItemMarginCss);
+.hud-sec {
+  margin-top: v-bind(infoItemMarginCss);
+  color: v-bind(INSPECTION_COLORS.primary);
+  font-weight: bold;
 }
 
-.info-label {
+.hud-item {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 1px;
+  flex-wrap: wrap;
+}
+
+.hud-k {
   color: v-bind(INSPECTION_COLORS.muted);
 }
 
-.info-value {
+.hud-v {
   color: v-bind(INSPECTION_COLORS.ok);
   font-weight: bold;
 }
 
-.info-value.pass {
+.hud-v.warn {
+  color: v-bind(INSPECTION_COLORS.warn);
+}
+
+.hud-v.pass {
   color: v-bind(INSPECTION_COLORS.ok);
 }
 
-.info-value.fail {
+.hud-v.fail {
   color: v-bind(INSPECTION_COLORS.danger);
 }
 
-.issues-list {
+.api-path {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hud-issues {
   margin-top: v-bind(infoItemMarginCss);
   padding-top: v-bind(infoItemMarginCss);
-  border-top: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.issue-item {
+  border-top: 1px solid rgba(255, 255, 255, 0.25);
   color: v-bind(INSPECTION_COLORS.danger);
-  font-size: v-bind(labelFontSizeSmallCss);
-  margin-bottom: 4px;
   word-break: break-all;
 }
 </style>

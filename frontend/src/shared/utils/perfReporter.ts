@@ -62,7 +62,7 @@ interface PerfState {
 const PERF_ENABLED = import.meta.env.VITE_PERF_ENABLED !== 'false'
 const IS_DEV = import.meta.env.DEV
 
-/** 埋点是否启用（供 PerfPanel 等 UI 判断展示） */
+/** 埋点是否启用（供调试模式等 UI 判断展示） */
 export function isPerfEnabled(): boolean {
   return PERF_ENABLED
 }

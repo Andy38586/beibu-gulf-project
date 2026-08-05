@@ -23,7 +23,6 @@ import {
 } from '@/shared'
 import { logger } from '@/shared'
 import ErrorBoundary from '@/shared/components/ErrorBoundary.vue'
-import PerfPanel from '@/shared/components/PerfPanel.vue'
 import { useFloodStore } from '@/stores'
 import { useForecastStore } from '@/stores'
 import { useMapStore } from '@/stores'
@@ -192,8 +191,6 @@ onUnmounted(() => {
         </RouterView>
       </ErrorBoundary>
     </main>
-    <!-- 性能监控悬浮面板（埋点数据可视化；VITE_PERF_ENABLED=false 时自动隐藏） -->
-    <PerfPanel />
   </div>
 </template>
 

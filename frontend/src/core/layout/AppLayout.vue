@@ -4,7 +4,7 @@
  * 职责：
  * 1. 通过 PPS 定位所有 Panel（无容器、无 Zone、无 TopArea）
  * 2. 提供 slot 供业务路由注入自定义 Panel 内容
- * 3. 管理检查模式状态
+ * 3. 管理调试模式状态
  * V2 阶段 3 变更：
  * - 移除 TopArea 组件引用（改为独立 Panel 集合）
  * - 折线图/柱状图/雷达图/图层控制直接放入 GCSPanel slot
@@ -26,7 +26,7 @@ import PanelTitle from '@/shared/components/PanelTitle.vue'
 import RadarChart from '@/visualization/charts/RadarChart.vue'
 
 import BottomNavBar from './components/BottomNavBar.vue'
-import GCSInspectionOverlay from './components/GCSInspectionOverlay.vue'
+import GCSDebugOverlay from './components/GCSDebugOverlay.vue'
 import GCSPanel from './components/GCSPanel.vue'
 import MobileDrawer from './components/MobileDrawer.vue'
 import NavButton from './components/NavButton.vue'
@@ -40,9 +40,8 @@ const { flyToCity, goProfileOrBack, userButtonLabel } = useScreenActions()
 // 移动端业务面板抽屉的开关状态（模块级单例，FAB 与抽屉共享）
 const { drawerOpen, toggleDrawer, closeDrawer } = useMobileDrawer()
 
-// 检查模式状态
-const inspectionMode = ref(false)
-const isDev = import.meta.env.DEV
+// 调试模式状态（网格 + 性能监控，类似 MC F3；生产可用）
+const debugMode = ref(false)
 </script>
 
 <template>
@@ -116,10 +115,10 @@ const isDev = import.meta.env.DEV
     </template>
 
     <!-- 底部导航 -->
-    <BottomNavBar v-model:inspection-mode="inspectionMode" />
+    <BottomNavBar v-model:debug-mode="debugMode" />
 
-    <!-- 检查模式（仅开发环境） -->
-    <GCSInspectionOverlay v-if="isDev && inspectionMode" :enabled="inspectionMode" />
+    <!-- 调试模式：网格参考线 + 性能监控信息（MC F3 风格，不拦截鼠标，生产可用） -->
+    <GCSDebugOverlay v-if="debugMode" :enabled="debugMode" />
   </div>
 </template>
 

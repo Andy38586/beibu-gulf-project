@@ -5,12 +5,12 @@ export default { name: 'GCSBottomNavBar' }
 /**
  * BottomNavBar - 底部业务导航条
  * 职责：
- * 1. 作为唯一业务导航入口，承载 6 个核心功能按钮 + 1 个检查模式按钮
+ * 1. 作为唯一业务导航入口，承载 6 个核心功能按钮 + 1 个调试模式按钮
  * 2. 居中悬浮于视口底部
  * 3. 当前路由对应按钮自动高亮
  * 设计说明：
- * - 容器宽度根据 navItems.length + 1 自动计算（+1 为检查模式按钮）
- * - 内部 6 个 1×1 NavButton + 1 个检查按钮等分容器宽度
+ * - 容器宽度根据 navItems.length + 1 自动计算（+1 为调试模式按钮）
+ * - 内部 6 个 1×1 NavButton + 1 个调试按钮等分容器宽度
  * - 未实现业务使用 disabled 态占位，保持导航结构稳定
  * V2 变更：
  * - 移除 SAFE_MARGIN 导入（不再需要手动计算 Dock 位置）
@@ -33,11 +33,11 @@ const router = useRouter()
 const { cellPixel } = useGCS()
 
 /**
- * 检查模式开关状态
- * - 用于开发验收，验证 GCS 是否正确落地
- * - 生产环境默认关闭
+ * 调试模式开关状态
+ * - 网格参考线（GCS 验收）+ 性能监控信息（MC F3 风格）
+ * - 生产可用（性能监控演示/排查）
  */
-const inspectionMode = defineModel<boolean>('inspectionMode', { default: false })
+const debugMode = defineModel<boolean>('debugMode', { default: false })
 
 // 暴露给 CSS v-bind 使用的计算属性
 const toggleSizeCss = computed(() => `${Math.round(cellPixel.value * 0.75)}px`)
@@ -45,7 +45,7 @@ const toggleFontSizeCss = computed(() => `${Math.round(cellPixel.value * 0.15)}p
 const toggleIconSizeCss = computed(() => `${Math.round(cellPixel.value * 0.175)}px`)
 const toggleMarginTopCss = computed(() => `${Math.round(cellPixel.value * 0.025)}px`)
 
-// Dock 宽度 = 导航按钮数 + 1（检查模式按钮），随 navItems 自动扩展
+// Dock 宽度 = 导航按钮数 + 1（调试模式按钮），随 navItems 自动扩展
 const dockCellCount = computed(() => navItems.value.length + 1)
 
 // V2 变更：Dock 定位改用 PPS 的 bottom-center 锚点，不再需要手动管理视口尺寸
@@ -80,14 +80,14 @@ function handleClick(item: { path?: string; disabled?: boolean }) {
         :active="isActive(item)"
         @click="handleClick(item)"
       />
-      <!-- 检查模式开关按钮 -->
+      <!-- 调试模式开关按钮 -->
       <button
         type="button"
         class="inspection-toggle"
-        :class="{ active: inspectionMode }"
-        @click="inspectionMode = !inspectionMode"
+        :class="{ active: debugMode }"
+        @click="debugMode = !debugMode"
       >
-        <span class="button-label">检查</span>
+        <span class="button-label">调试</span>
         <span class="button-icon">🔍</span>
       </button>
     </div>

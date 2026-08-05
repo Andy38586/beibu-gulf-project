@@ -41,7 +41,6 @@ const labelPaddingCss = computed(
 // 信息面板样式（基于 CELL_PIXEL 的比例）
 const infoPanelOffsetCss = computed(() => `${Math.round(CELL_PIXEL * 0.25)}px`)
 const infoPanelPaddingCss = computed(() => `${Math.round(CELL_PIXEL * 0.2)}px`)
-const infoPanelFontSizeCss = computed(() => `${Math.round(CELL_PIXEL * 0.1625)}px`)
 const infoPanelMinWidthCss = computed(() => `${Math.round(CELL_PIXEL * 2.5)}px`)
 const infoTitleFontSizeCss = computed(() => `${Math.round(CELL_PIXEL * 0.175)}px`)
 const infoTitleMarginCss = computed(() => `${Math.round(CELL_PIXEL * 0.15)}px`)

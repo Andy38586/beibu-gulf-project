@@ -334,9 +334,15 @@ export function addGeoTIFFLayer(
     }
     const imageryLayer = renderer.viewer.imageryLayers.addImageryProvider(provider)
     imageryLayer.alpha = options.opacity ?? 0.7
-    // 记录 hillshade 图层引用：真地形异步就绪（可能晚于本图层添加）后隐藏它，
-    // 避免盖住天地图底图（_setupTerrain 成功回调里检查 _terrainReady 处理）
+    // 记录 hillshade 图层引用：保留字段供真地形接入后回调使用
     renderer._hillshadeLayer = imageryLayer
+    // hillshade 永远置于底层（被天地图底图覆盖，避免遮挡底图）：
+    // - 旧逻辑仅在真地形就绪后 show=false（db36edc），但当前真地形 CTB 瓦片输出格式
+    //   bug 暂未解决，_terrainReady 永 false → hillshade 一直显示盖住底图。
+    // - 改：始终 lowerToBottom，让天地图作为最上层覆盖 hillshade。视觉效果：
+    //   有真地形时（天地图贴到地形 mesh 上）hillshade 完全不可见；无真地形时
+    //   hillshade 被天地图覆盖也不可见——彻底让位给底图。
+    renderer.viewer.imageryLayers.lowerToBottom(imageryLayer)
 
     renderer._layers.set(id, {
       instance: imageryLayer,

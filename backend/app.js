@@ -130,7 +130,19 @@ app.use((req, res, next) => {
 
 // 静态资源托管：DEM 派生产物（hillshade COG、terrain 瓦片），供前端 /static/dem/* 访问
 // 真数据统一放后端，便于未来移交 PostGIS/PgSQL
-app.use('/static', express.static(join(__dirname, 'static')))
+// .terrain 是 CTB quantized-mesh 输出（磁盘上即 gzip 压缩流 1f8b），
+// CesiumTerrainProvider 期望 raw bytes 自行解压；需 setHeaders 声明 Content-Encoding: gzip
+// 让浏览器自动解压。无头+实测：未声明时 Cesium RangeError Invalid typed array length 80+亿。
+app.use(
+  '/static',
+  express.static(join(__dirname, 'static'), {
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith('.terrain')) {
+        res.setHeader('Content-Encoding', 'gzip')
+      }
+    },
+  })
+)
 
 app.use('/api/site-analysis', siteAnalysisRouter)
 app.use('/api/auth', authRouter)

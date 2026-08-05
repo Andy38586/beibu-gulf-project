@@ -301,7 +301,10 @@ export class CesiumRenderer extends MapRenderer {
       // 真地形（quantized-mesh 瓦片，CTB 预切片）异步接入：
       // 有 terrain/layer.json → 挂 CesiumTerrainProvider，球面变真 z 值起伏；
       // 无产物 → 静默保持椭球面，hillshade 回退贴图不受影响。
-      void this._setupTerrain()
+      // 临时禁用（2026-08-05 排查 CTB 瓦片输出格式 bug：heights 全 0 + center
+      // 坐标系错位导致 Cesium RangeError Invalid typed array length 80+亿；
+      // 真地形排查与 tools/dem-pipeline 数据源修复合并处理）。启用时去掉注释。
+      // void this._setupTerrain()
     } else {
       // 复用时从单例管理器获取底图引用（公开方法）
       this.baseLayers = cesiumViewerManager.getBaseLayers()
@@ -343,13 +346,16 @@ export class CesiumRenderer extends MapRenderer {
     controller.enableLook = true
   }
 
-  /** 真地形接入：/static/terrain/layer.json → CesiumTerrainProvider。失败静默降级（不阻塞 Viewer）。 */
+  /** 真地形接入：/static/terrain/ 目录 → CesiumTerrainProvider。失败静默降级（不阻塞 Viewer）。 */
   async _setupTerrain() {
     try {
       const viewer = this.viewer
       if (!viewer) return
-      // 瓦片路径由 layer.json 的 tiles 模板解析（绝对路径 /static/terrain/{z}/{x}/{y}.terrain）
-      const provider = await CesiumTerrainProvider.fromUrl('/static/terrain/layer.json', {
+      // CesiumTerrainProvider.fromUrl 把传入 URL 当 baseUrl（目录），fetch `${url}layer.json`
+      // 取瓦片清单（实测：传文件 URL '.../layer.json' 会拼成 '.../layer.json/layer.json' 404，
+      // 然后 fallback 内置默认 tiles='layer.json/{z}/{x}/{y}.terrain' v=1.0.0）。
+      // 因此必须传**目录 URL**（尾斜杠）。瓦片路径由 layer.json 的 tiles 模板解析。
+      const provider = await CesiumTerrainProvider.fromUrl('/static/terrain/', {
         // CTB 输出的 .terrain 是 gzip 压缩流（文件头 1f 8b），Cesium 自动识别解压，
         // 无需服务器 Content-Encoding；请求端 gzip 由 Resource 层处理
         requestVertexNormals: true,

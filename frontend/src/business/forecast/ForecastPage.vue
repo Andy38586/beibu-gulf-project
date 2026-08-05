@@ -22,7 +22,7 @@ import AppLayout from '@/core/layout/AppLayout.vue'
 import GCSPanel from '@/core/layout/components/GCSPanel.vue'
 import LayerControlPanel from '@/core/map/components/LayerControlPanel.vue'
 import { forecastAdapter } from '@/services'
-import { handleAuthError, isAuthError, showError } from '@/shared'
+import { ApiError, handleAuthError, isAuthError, showError } from '@/shared'
 import { logger } from '@/shared'
 import { useForecastStore } from '@/stores'
 import { useMapStore } from '@/stores'
@@ -53,6 +53,11 @@ const lineXData = ref([])
 const lineSeries = ref([])
 const barXData = ref([...PORT_NAMES])
 const barSeries = ref<Array<{ name: string; data: number[] }>>([])
+
+// 柱状图固定对比的真指标（cargo/container 为真实吞吐量；berth/traffic 为合成数据不入图）。
+// 3 港 × 2 指标 = 6 柱；后续接入更多真指标后扩为 4 指标 → 3 港 × 4 = 12 柱
+const BAR_INDICATORS = ['cargo', 'container'] as const
+const BAR_INDICATOR_LABELS: Record<string, string> = { cargo: '货物吞吐量', container: '集装箱吞吐量' }
 
 const lineViewportXMin = ref('2023-01')
 const lineViewportXMax = ref('2029-12')
@@ -103,7 +108,8 @@ async function loadTimeSeriesData(transactionId: number, signal: AbortSignal) {
     const allData = cached.allSeries[0]?.data || []
     if (!allData.length) return
 
-    // 7年窗口: [slider-3, slider+3]，钳制在数据实际范围内防止空白
+    // 12 个月窗口：当前时间点往前 11 步（月粒度 11 个月 / 年粒度 11 年，共 12 个点），
+    // 钳制在数据实际范围内防止空白
     const [sliderYear, sliderMonth] = forecastState.currentTime.split('-').map(Number)
     const isYear = forecastState.timeGranularity === 'year'
     const fmt = (y: number, m: number) =>
@@ -111,8 +117,13 @@ async function loadTimeSeriesData(transactionId: number, signal: AbortSignal) {
     const dataMin = allData[0].time
     const dataMax = allData[allData.length - 1].time
 
-    const rawStart = fmt(sliderYear - 3, sliderMonth)
-    const rawEnd = fmt(sliderYear + 3, 12)
+    const rawStart = isYear
+      ? fmt(sliderYear - 11, 1)
+      : (() => {
+          const total = sliderYear * 12 + (sliderMonth - 1) - 11
+          return fmt(Math.floor(total / 12), (total % 12) + 1)
+        })()
+    const rawEnd = fmt(sliderYear, sliderMonth)
     const windowStart = rawStart >= dataMin ? rawStart : dataMin
     const windowEnd = rawEnd <= dataMax ? rawEnd : dataMax
 
@@ -141,12 +152,12 @@ async function loadTimeSeriesData(transactionId: number, signal: AbortSignal) {
 async function loadPortComparisonData(transactionId: number, signal: AbortSignal) {
   logger.debug('[ForecastPage] loadPortComparisonData called')
   try {
-    const indicator = forecastState.activeIndicator
     const rawTime = forecastState.currentTime
     const time = rawTime.includes('-') ? rawTime : `${rawTime}-12`
-    logger.debug('[ForecastPage] loadPortComparisonData:', { indicator, time })
-    const confidence = forecastState.confidenceThresholds[indicator] || DEFAULT_CONFIDENCE
-    const cacheKey = `cmp:${indicator}:${time}:${confidence}`
+    const confKey = BAR_INDICATORS.map(
+      (i) => forecastState.confidenceThresholds[i] ?? DEFAULT_CONFIDENCE
+    ).join(',')
+    const cacheKey = `cmp:${time}:${confKey}`
     if (requestCache.has(cacheKey)) {
       // 事务检查：即使缓存命中也要验证事务有效性
       if (!isTransactionValid(transactionId)) return
@@ -155,29 +166,40 @@ async function loadPortComparisonData(transactionId: number, signal: AbortSignal
       barSeries.value = c.series
       return
     }
-    const data = await runInTransaction(
-      () => forecastAdapter.getIndicatorComparison(indicator, time, confidence, signal),
-      transactionId
+    // 双真指标并行请求（3 港 × 2 指标 = 6 柱）
+    const results = await Promise.all(
+      BAR_INDICATORS.map((ind) =>
+        runInTransaction(
+          () =>
+            forecastAdapter.getIndicatorComparison(
+              ind,
+              time,
+              forecastState.confidenceThresholds[ind] || DEFAULT_CONFIDENCE,
+              signal
+            ),
+          transactionId
+        )
+      )
     )
-    logger.debug('[ForecastPage] loadPortComparisonData response:', data)
-    // 事务过期或请求被取消
-    if (data === null) return
-    if (data?.ports) {
-      const p = data.ports
-      const cy = forecastState.currentTime.split('-')[0]
-      barXData.value = [...PORT_NAMES]
-      barSeries.value = [
-        {
-          name: cy + '年',
-          data: [p.qinzhou?.value || 0, p.beihai?.value || 0, p.fangchenggang?.value || 0],
-        },
-      ]
-      setRequestCache(cacheKey, { xData: barXData.value, series: barSeries.value })
-    }
+    // 任一请求事务过期 → 整体跳过本次渲染（等下一次状态变化）
+    if (results.some((r) => r === null)) return
+    barXData.value = [...PORT_NAMES]
+    barSeries.value = BAR_INDICATORS.map((ind, i) => {
+      const p = results[i]?.ports
+      return {
+        name: BAR_INDICATOR_LABELS[ind],
+        data: [p?.qinzhou?.value || 0, p?.beihai?.value || 0, p?.fangchenggang?.value || 0],
+      }
+    })
+    setRequestCache(cacheKey, { xData: barXData.value, series: barSeries.value })
   } catch (e) {
     logger.error('[ForecastPage] loadPortComparisonData error:', e)
     if (isAuthError(e)) {
       void handleAuthError(router)
+      return
+    }
+    // 播放中命中后端限流（429）：静默降级不弹窗（同 useForecastLayer）
+    if (forecastState.isPlaying && e instanceof ApiError && e.message.includes('过于频繁')) {
       return
     }
     showError(e, { fallback: '加载对比数据失败', retry: () => void doForecastUpdate() })

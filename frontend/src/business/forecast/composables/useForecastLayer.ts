@@ -10,7 +10,7 @@ import { useRouter } from 'vue-router'
 import { type BusinessLayerManager, useBusinessLayers } from '@/core'
 import type { ForecastMapData } from '@/services'
 import { forecastAdapter } from '@/services'
-import { handleAuthError, isAuthError, showError } from '@/shared'
+import { ApiError, handleAuthError, isAuthError, showError } from '@/shared'
 import { logger } from '@/shared'
 import { useForecastStore } from '@/stores'
 import { useMapStore } from '@/stores'
@@ -110,6 +110,15 @@ export function useForecastLayer(): UseForecastLayerReturn {
     return geojson
   }
 
+  // 地图热力图 LRU 缓存：同一 (indicator, time, confidence) 只向后端请求一次。
+  // 时间轴播放/拖动会反复经过同一时间点，缓存让重放零请求，
+  // 配合后端 forecast 专属宽松限流，一轮播放（月粒度 ~216 步）不再触发 429。
+  const MAX_MAP_CACHE = 100
+  const mapRequestCache = new Map<string, ForecastMapData>()
+  function mapCacheKey(indicator: string, time: string, confidence: number): string {
+    return `map:${indicator}:${time}:${confidence}`
+  }
+
   async function updateForecastLayer(transactionId: number, signal: AbortSignal): Promise<void> {
     const r = renderer.value
     if (!r) return
@@ -135,6 +144,17 @@ export function useForecastLayer(): UseForecastLayerReturn {
 
     try {
       const confidence = forecastState.confidenceThresholds[indicator] || DEFAULT_CONFIDENCE
+      const cacheKey = mapCacheKey(indicator, time, confidence)
+      const layerType = LAYER_TYPES[indicator]
+      const options = getLayerOptions(indicator)
+
+      // LRU 命中：播放/拖动重放同一时间点，直接渲染缓存，零请求
+      const cached = mapRequestCache.get(cacheKey)
+      if (cached) {
+        manager.updateData(key, { data: getRenderData(layerType, cached), options })
+        return
+      }
+
       const geojson = await runInTransaction(
         () => forecastAdapter.getMapData(indicator, time, confidence, signal),
         transactionId
@@ -144,14 +164,23 @@ export function useForecastLayer(): UseForecastLayerReturn {
       if (geojson === null) return
       if (!geojson) return
 
-      const layerType = LAYER_TYPES[indicator]
-      const data = getRenderData(layerType, geojson)
-      const options = getLayerOptions(indicator)
+      // 写缓存（LRU 上限，超限删最早键）
+      if (mapRequestCache.size >= MAX_MAP_CACHE) {
+        const oldestKey = mapRequestCache.keys().next().value
+        if (oldestKey !== undefined) mapRequestCache.delete(oldestKey)
+      }
+      mapRequestCache.set(cacheKey, geojson)
 
-      manager.updateData(key, { data, options })
+      manager.updateData(key, { data: getRenderData(layerType, geojson), options })
     } catch (e) {
       if (isAuthError(e)) {
         void handleAuthError(router)
+        return
+      }
+      // 播放中命中后端限流（429）：静默降级不弹窗，播放继续，后续时间点自动恢复。
+      // 播放是连续高频交互，弹窗会打断演示；手动操作（拖滑块/点指标）的限流照常提示。
+      if (forecastState.isPlaying && e instanceof ApiError && e.message.includes('过于频繁')) {
+        if (import.meta.env.DEV) logger.debug('[useForecastLayer] 播放中请求被限流，跳过该时间点:', e.message)
         return
       }
       if (import.meta.env.DEV) logger.debug('[useForecastLayer] 更新失败:', e)

@@ -63,12 +63,26 @@ export async function readinessHandler(req, res, next) {
 app.get('/api/health/ready', readinessHandler)
 
 // 限流中间件：防止暴力破解和 DDoS
+// 预测分析接口（/api/forecast/*）为合法高频交互（时间轴播放月粒度一轮 ~400+ 请求，
+// 拖动滑块/置信度反复触发），豁免全局限流，由下方 forecastLimiter 专属宽松限流管理。
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 分钟
   max: 100, // 每个 IP 最多 100 次请求
   message: { error: '请求过于频繁，请稍后再试' },
+  // 注意：app.use('/api/', ...) 内 req.path 已去掉 /api/ 前缀，须用 originalUrl 判断
+  skip: (req) => req.originalUrl.startsWith('/api/forecast'),
 })
 app.use('/api/', limiter)
+
+// 预测分析接口专属宽松限流：一轮月粒度播放 ~216 时间点 × 2 接口 ≈ 432 请求，
+// 全局限流 100/15min 必触发；分析接口只读、无认证爆破风险，500/15min 足够单用户正常使用
+// （前端另有 LRU 缓存：重放/往返命中缓存零请求，实际播放轮次远低于上限）。
+const forecastLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 500,
+  message: { error: '请求过于频繁，请稍后再试' },
+})
+app.use('/api/forecast', forecastLimiter)
 
 // 登录接口更严格的限流
 const authLimiter = rateLimit({

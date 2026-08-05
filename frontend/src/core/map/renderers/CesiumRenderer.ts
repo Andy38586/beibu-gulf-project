@@ -118,8 +118,9 @@ class CesiumViewerManager {
       viewer.scene.requestRender()
       logger.debug('[CesiumRenderer] 真地形接入成功: /static/terrain/layer.json')
     } catch (e) {
-      // 无瓦片产物或加载失败 → 保持椭球面 + hillshade 回退（现状行为），仅日志提示
-      logger.debug('[CesiumRenderer] 真地形接入跳过（无瓦片产物或加载失败）:', e)
+      // 无瓦片产物或加载失败 → 保持椭球面 + hillshade 回退（现状行为）
+      // 带上失败原因便于排查（常见：dev 未重启 vite / 后端未起 / 瓦片目录缺失）
+      logger.warn('[CesiumRenderer] 真地形接入跳过:', e instanceof Error ? e.message : e)
     }
   }
 

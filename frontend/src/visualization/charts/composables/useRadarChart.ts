@@ -16,7 +16,7 @@ import { CanvasRenderer } from 'echarts/renderers'
 import type { Ref } from 'vue'
 import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 
-import { perfMark, perfMeasure } from '@/core/perf/PerfReporter'
+import { perfMark, perfMeasure } from '@/shared/utils/perfReporter'
 import { FACILITY_COLORS_MAP } from '@/shared'
 import { FACILITY_LABELS } from '@/shared'
 import { logger } from '@/shared'

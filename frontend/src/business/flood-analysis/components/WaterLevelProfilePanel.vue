@@ -23,7 +23,7 @@ import * as echarts from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 
-import { perfTimeFn } from '@/core/perf/PerfReporter'
+import { perfTimeFn } from '@/shared/utils/perfReporter'
 import { useApiRequest } from '@/shared'
 import { PROFILE_COLORS } from '@/shared'
 import { useGCS } from '@/shared'

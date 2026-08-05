@@ -4,7 +4,7 @@ import type { ComponentPublicInstance } from 'vue'
 import { createApp } from 'vue'
 
 import App from './App.vue'
-import { initPerfReporter } from './core/perf/PerfReporter'
+import { initPerfReporter, perfReportError } from './shared/utils/perfReporter'
 import router from './router'
 import { floodAdapter } from './services/adapters/floodAdapter'
 import { forecastAdapter } from './services/adapters/forecastAdapter'
@@ -72,6 +72,8 @@ app.config.errorHandler = (
   info: string
 ): void => {
   logger.error('[Global Error]', err, info)
+  // 性能埋点：Vue 渲染/生命周期错误计数（生产可见）
+  perfReportError('vue')
   // 在开发环境显示详细错误，生产环境显示友好提示
   if (import.meta.env.DEV) {
     logger.error('错误详情:', { err, instance, info })
@@ -89,12 +91,14 @@ app.config.errorHandler = (
   }
 }
 
-// 窗口级兖底——捕获未被 Vue errorHandler 覆盖的错误
+// 窗口级兜底——捕获未被 Vue errorHandler 覆盖的错误
 window.onerror = (message, source, lineno, colno, error) => {
   logger.error('[window.onerror]', { message, source, lineno, colno, error })
+  perfReportError('script')
 }
 window.onunhandledrejection = (event: PromiseRejectionEvent) => {
   logger.error('[unhandledrejection]', event.reason)
+  perfReportError('promise')
 }
 
 app.mount('#app')

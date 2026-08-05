@@ -105,9 +105,10 @@ describe('UnifiedMap 3D 渲染器重建（Bug B：30s 闲置销毁后二次创�
   let mapStore: ReturnType<typeof useMapStore>
 
   beforeAll(async () => {
+    // 并行跑全量时 jsdom 环境初始化慢（~40s），动态 import CesiumRenderer 需放宽钩子超时
     const mod = await import('@/core/map/renderers/CesiumRenderer')
     cesiumViewerManager = mod.cesiumViewerManager
-  })
+  }, 30000)
 
   beforeEach(() => {
     pinia = createPinia()

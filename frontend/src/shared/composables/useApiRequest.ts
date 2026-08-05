@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import type { ZodType } from 'zod'
 
 import { unwrapEnvelope } from '@/shared/utils/responseEnvelope'
+import { perfRecordApi } from '@/shared/utils/perfReporter'
 import { logger } from '../utils/logger'
 
 // 错误码：使用 as const 对象 + 联合类型，避免 enum 在 ESLint 下的成员误报
@@ -78,6 +79,8 @@ export function useApiRequest() {
 
     let lastError: unknown
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      // 接口耗时打点（每次尝试单独记录，path 不含 query 分桶）
+      const start = performance.now()
       try {
         return await _singleRequest<T>(path, options)
       } catch (error) {
@@ -93,6 +96,8 @@ export function useApiRequest() {
         lastError = error
         // 线性退避：0.8s / 1.6s / 2.4s
         await new Promise((r) => setTimeout(r, RETRY_DELAY_MS * attempt))
+      } finally {
+        perfRecordApi(path, performance.now() - start)
       }
     }
     throw lastError

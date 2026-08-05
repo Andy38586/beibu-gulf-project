@@ -13,7 +13,7 @@ import { CanvasRenderer } from 'echarts/renderers'
 import type { Ref, WatchSource } from 'vue'
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 
-import { perfTimeFn } from '@/core/perf/PerfReporter'
+import { perfTimeFn } from '@/shared/utils/perfReporter'
 
 echarts.use([
   GridComponent,

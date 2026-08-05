@@ -1,4 +1,4 @@
-import { perfMark, perfMeasure, recordCesium } from '@/core/perf/PerfReporter'
+import { perfMark, perfMeasure, recordCesium } from '@/shared/utils/perfReporter'
 
 import type { MapRenderer } from './MapRenderer'
 import { OLRenderer } from './OLRenderer'

@@ -333,15 +333,15 @@ export function addGeoTIFFLayer(
       })
     }
     const imageryLayer = renderer.viewer.imageryLayers.addImageryProvider(provider)
-    imageryLayer.alpha = options.opacity ?? 0.7
-    // 记录 hillshade 图层引用：保留字段供真地形接入后回调使用
+    // 全量 hillshade 贴图模式（用户拍板，2026-08-05）：
+    // - 顶层叠加 + 半透明（默认 alpha 0.45）：山体明暗叠在天地图上，既全量一次加载
+    //   又能看到地形立体感，不遮挡底图（之前 alpha 0.7 顶层会盖死底图，lowerToBottom
+    //   又会完全被天地图盖住看不到明暗——两个极端都试过，取半透明顶层中间态）。
+    // - 真 3D mesh（_setupFullDem Primitive）在 vite dev 有 Cesium worker 兼容问题
+    //   暂禁用，hillshade 全量贴图作为过渡方案。
+    imageryLayer.alpha = options.opacity ?? 0.45
+    // 记录 hillshade 图层引用（真地形 mesh 恢复后隐藏/降级用）
     renderer._hillshadeLayer = imageryLayer
-    // hillshade 永远置于底层（被天地图底图覆盖，避免遮挡底图）：
-    // - 旧逻辑仅在真地形就绪后 show=false（db36edc），但当前真地形 CTB 瓦片输出格式
-    //   bug 暂未解决，_terrainReady 永 false → hillshade 一直显示盖住底图。
-    // - 改：始终 lowerToBottom，让天地图作为最上层覆盖 hillshade。视觉效果：
-    //   有真地形时（天地图贴到地形 mesh 上）hillshade 完全不可见；无真地形时
-    //   hillshade 被天地图覆盖也不可见——彻底让位给底图。
     renderer.viewer.imageryLayers.lowerToBottom(imageryLayer)
 
     renderer._layers.set(id, {

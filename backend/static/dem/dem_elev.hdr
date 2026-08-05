@@ -1,0 +1,17 @@
+ENVI
+description = {
+backend/static/dem/dem_elev.bin}
+samples = 1000
+lines   = 750
+bands   = 1
+header offset = 0
+file type = ENVI Standard
+data type = 2
+interleave = bsq
+byte order = 0
+map info = {Geographic Lat/Lon, 1, 1, 107.36, 22.8, 0.00263, 0.00269333333333333,WGS-84}
+coordinate system string = {GEOGCS["GCS_WGS_1984",DATUM["D_WGS_1984",SPHEROID["WGS_1984",6378137.0,298.257223563]],PRIMEM["Greenwich",0.0],UNIT["Degree",0.0174532925199433]]}
+band names = {
+Band 1}
+data ignore value = 32767
+default bands = {1}

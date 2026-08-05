@@ -3,13 +3,20 @@
 // @ts-nocheck
 // 渐进迁移：Cesium 渲染器，类型注解待逐步补充（D-6 技术债）
 import {
+  BoundingSphere,
   CallbackProperty,
   Cartesian2,
   Cartesian3,
   Cartographic,
-  CesiumTerrainProvider,
   Color,
+  ComponentDatatype,
+  Geometry,
+  GeometryAttribute,
+  GeometryInstance,
   Math as CesiumMath,
+  PerInstanceColorAppearance,
+  Primitive,
+  PrimitiveType,
   UrlTemplateImageryProvider,
   Viewer,
 } from 'cesium'
@@ -298,12 +305,12 @@ export class CesiumRenderer extends MapRenderer {
     if (!this._isReusing) {
       this._positionCamera()
       this._initBaseLayers()
-      // 真地形（quantized-mesh 瓦片，CTB 预切片）异步接入：
-      // 有 terrain/layer.json → 挂 CesiumTerrainProvider，球面变真 z 值起伏；
-      // 无产物 → 静默保持椭球面，hillshade 回退贴图不受影响。
-      // 2026-08-05 修复：CTB 输入必须 Int16（Float32 输出 heights 全 0）+ 标准命令
-      // -f Mesh -C -N；layer.json tiles 绝对路径；express .terrain 声明 gzip。
-      void this._setupTerrain()
+      // 真地形：全量 DEM mesh（一次性加载整个高程网格，不切瓦片、无 LOD）。
+      // 临时禁用（2026-08-05）：裸 Geometry + Primitive 在 vite dev 下 Cesium
+      // worker 兼容问题（createFunction is not a function）导致渲染循环崩溃，
+      // 改为 hillshade 全量贴图模式（addGeoTIFFLayer 顶层半透明）。mesh 代码保留，
+      // 待 vite/Cesium worker 兼容修复或生产构建验证后恢复。
+      // void this._setupFullDem()
     } else {
       // 复用时从单例管理器获取底图引用（公开方法）
       this.baseLayers = cesiumViewerManager.getBaseLayers()
@@ -343,6 +350,100 @@ export class CesiumRenderer extends MapRenderer {
     controller.enableZoom = true
     controller.enableTilt = true
     controller.enableLook = true
+  }
+
+  /**
+   * 全量 DEM 真地形（用户拍板方案，2026-08-05）：
+   * 一次性 fetch 整个高程网格（backend/static/dem/dem_elev.bin，1000×750 Int16，
+   * GDAL 降采样自 dem_4326_cut.tif），构建单一 Cesium Primitive 三角网格——
+   * 不切瓦片、无 LOD、无 terrainProvider（瓦片链路在真实浏览器不稳定）。
+   * nodata（>=32000，南海海洋区）→ 0 海平面。失败静默降级（保持椭球+底图）。
+   */
+  async _setupFullDem() {
+    try {
+      const viewer = this.viewer
+      if (!viewer) return
+      const resp = await fetch('/static/dem/dem_elev.bin')
+      if (!resp.ok) throw new Error(`dem_elev.bin HTTP ${resp.status}`)
+      const buf = new Int16Array(await resp.arrayBuffer())
+      const W = 1000
+      const H = 750
+      if (buf.length !== W * H) throw new Error(`dem_elev.bin 尺寸不符: ${buf.length}`)
+      // dem_4326_cut.tif 地理范围（gdalinfo 实测，EPSG:4326）
+      const LON_MIN = 106.9720001
+      const LON_MAX = 110.0783727
+      const LAT_MIN = 20.9379894
+      const LAT_MAX = 23.0760978
+      // 顶点位置（ECEF，75 万点 ≈ 9MB）
+      // 官方 sandcastle 自定义 Geometry 标准：DOUBLE + Float64Array（Cesium 内部转换）
+      const positions = new Float64Array(W * H * 3)
+      let k = 0
+      for (let y = 0; y < H; y++) {
+        const lat = LAT_MAX - (y / (H - 1)) * (LAT_MAX - LAT_MIN)
+        for (let x = 0; x < W; x++) {
+          const lon = LON_MIN + (x / (W - 1)) * (LON_MAX - LON_MIN)
+          let e = buf[y * W + x]
+          if (e >= 32000) e = 0 // nodata → 海平面
+          const c = Cartesian3.fromDegrees(lon, lat, e)
+          positions[k++] = c.x
+          positions[k++] = c.y
+          positions[k++] = c.z
+        }
+      }
+      // 三角索引（每 2×2 格点 2 三角形，150 万索引 ≈ 6MB）
+      const indices = new Uint32Array((W - 1) * (H - 1) * 6)
+      let ii = 0
+      for (let y = 0; y < H - 1; y++) {
+        for (let x = 0; x < W - 1; x++) {
+          const a = y * W + x
+          const b = a + 1
+          const c = a + W
+          const d = c + 1
+          indices[ii++] = a
+          indices[ii++] = b
+          indices[ii++] = c
+          indices[ii++] = b
+          indices[ii++] = d
+          indices[ii++] = c
+        }
+      }
+      const geometry = new Geometry({
+        attributes: {
+          position: new GeometryAttribute({
+            componentDatatype: ComponentDatatype.DOUBLE,
+            componentsPerAttribute: 3,
+            values: positions,
+          }),
+        },
+        indices,
+        primitiveType: PrimitiveType.TRIANGLES,
+        // boundingSphere 显式提供（Primitive 视锥剔除需要）
+        boundingSphere: BoundingSphere.fromVertices(positions),
+      })
+      // 裸 Geometry 同步渲染必须手动补 boundingSphereCV：
+      // Primitive 同步路径对裸 Geometry 走 cloneGeometry（不做 pipeline），而
+      // createVertexArray 渲染时访问 geometry.boundingSphereCV.center —— 该字段
+      // 官方 pipeline 用 BoundingSphere.fromVertices 设置（内置生成器如 PolygonGeometry
+      // 的 createGeometry 内部处理），裸 Geometry 需手动等值赋值。异步 worker 路径
+      // 在 vite dev 下不可靠（_workerName/createFunction 均踩坑），用同步模式。
+      geometry.boundingSphereCV = BoundingSphere.fromVertices(positions)
+      const primitive = new Primitive({
+        geometryInstances: new GeometryInstance({ geometry }),
+        appearance: new PerInstanceColorAppearance({
+          // flat: 关闭逐顶点光照（无 normals 也能渲染，官方自定义 Geometry 标准用法）
+          flat: true,
+          translucent: false,
+        }),
+        // 同步模式（vite dev 下 Cesium worker 加载不可靠）；boundingSphereCV 已手动补
+        asynchronous: false,
+      })
+      viewer.scene.primitives.add(primitive)
+      this._demPrimitive = primitive
+      logger.debug(`[CesiumRenderer] 全量 DEM mesh 加载成功: ${W}x${H}`)
+    } catch (e) {
+      // 无数据/加载失败 → 保持椭球 + 天地图底图（现状行为），仅日志提示
+      logger.warn('[CesiumRenderer] 全量 DEM 加载失败:', e instanceof Error ? e.message : e)
+    }
   }
 
   /** 真地形接入：/static/terrain/ 目录 → CesiumTerrainProvider。失败静默降级（不阻塞 Viewer）。 */

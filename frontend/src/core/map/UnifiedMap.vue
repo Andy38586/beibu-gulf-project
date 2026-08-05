@@ -163,11 +163,15 @@ async function initRenderer(type: '2d' | '3d', container: HTMLElement | null) {
 
     // 3D 复用前检查 viewer 是否存活：CesiumViewerManager 有 30s 闲置销毁机制
     // （离开 3D 超过 30s 后自动销毁 viewer），销毁后旧 CesiumRenderer 实例已失效
-    // （this.viewer=null），直接复用会白屏——清理旧实例，走下方首次创建分支二次创建。
+    // （this.viewer 指向已销毁对象，属性访问会抛错），直接复用会白屏。
+    // 注意：此处不能调 existingRenderer.destroy() —— 其内部（destroyEvents 等）
+    // 会访问 this.viewer.scene/camera，而 viewer 已被 Cesium destroy，访问即抛
+    // TypeError（Cannot read properties of undefined）。viewer 的 Cesium 资源已随
+    // viewer.destroy() 清理，旧实例仅需丢弃引用交给 GC（防抖定时器回调自带
+    // viewer 空值防御，见 setupCameraDebounce）。
     if (existingRenderer && type === '3d') {
       const { cesiumViewerManager } = await import('@/core/map/renderers/CesiumRenderer')
       if (!cesiumViewerManager.getInstance()) {
-        existingRenderer.destroy()
         existingRenderer = null
         cesiumRenderer.value = null
       }

@@ -92,36 +92,8 @@ class CesiumViewerManager {
     this.viewer.scene.globe.showGroundAtmosphere = false
     this.viewer.scene.fog.enabled = false
 
-    // 真地形（quantized-mesh 瓦片，CTB 预切片）异步接入：
-    // 有 terrain/layer.json（本地预切片产物）→ 挂 CesiumTerrainProvider，球面变真 z 值起伏；
-    // 无产物（未切片环境/生产镜像缺 volume）→ 静默保持椭球面，hillshade 贴图回退不受影响。
-    void this._setupTerrain()
-
     this.isMounted = true
     return this.viewer
-  }
-
-  /** 真地形接入：/static/terrain/layer.json → CesiumTerrainProvider。失败静默降级（不阻塞 Viewer）。 */
-  async _setupTerrain() {
-    try {
-      const viewer = this.viewer
-      if (!viewer) return
-      // 相对瓦片路径 {z}/{x}/{y}.terrain 由 layer.json 的 tiles 模板解析（backend/static 托管）
-      const provider = await CesiumTerrainProvider.fromUrl('/static/terrain/layer.json', {
-        // CTB 输出的 .terrain 是 gzip 压缩流（文件头 1f 8b），Cesium 自动识别解压，
-        // 无需服务器 Content-Encoding；请求端 gzip 由 Resource 层处理
-        requestVertexNormals: true,
-      })
-      // viewer 可能已被 30s 闲置销毁，销毁后属性清空访问即崩
-      if (!viewer || !viewer.scene || viewer.isDestroyed()) return
-      viewer.terrainProvider = provider
-      viewer.scene.requestRender()
-      logger.debug('[CesiumRenderer] 真地形接入成功: /static/terrain/layer.json')
-    } catch (e) {
-      // 无瓦片产物或加载失败 → 保持椭球面 + hillshade 回退（现状行为）
-      // 带上失败原因便于排查（常见：dev 未重启 vite / 后端未起 / 瓦片目录缺失）
-      logger.warn('[CesiumRenderer] 真地形接入跳过:', e instanceof Error ? e.message : e)
-    }
   }
 
   mount(el) {
@@ -298,6 +270,11 @@ export class CesiumRenderer extends MapRenderer {
     this._isReusing = false // 标记是否复用已有Viewer
     /** @type {import('./renderers').CesiumRendererState['_cameraDebounceTimer']} */
     this._cameraDebounceTimer = null // 相机变化防抖定时器
+    /** 真地形就绪标志：_setupTerrain 成功后置 true；业务层 addGeoTIFFLayer 据此
+     *  跳过 hillshade 回退贴图（真地形 z 起伏 + Cesium 光照取代伪三维明暗图）。 */
+    this._terrainReady = false
+    /** hillshade 回退贴图引用：真地形就绪后隐藏，避免盖住天地图底图 */
+    this._hillshadeLayer = null
     this._initViewer()
   }
 
@@ -319,6 +296,10 @@ export class CesiumRenderer extends MapRenderer {
     if (!this._isReusing) {
       this._positionCamera()
       this._initBaseLayers()
+      // 真地形（quantized-mesh 瓦片，CTB 预切片）异步接入：
+      // 有 terrain/layer.json → 挂 CesiumTerrainProvider，球面变真 z 值起伏；
+      // 无产物 → 静默保持椭球面，hillshade 回退贴图不受影响。
+      void this._setupTerrain()
     } else {
       // 复用时从单例管理器获取底图引用（公开方法）
       this.baseLayers = cesiumViewerManager.getBaseLayers()
@@ -358,6 +339,36 @@ export class CesiumRenderer extends MapRenderer {
     controller.enableZoom = true
     controller.enableTilt = true
     controller.enableLook = true
+  }
+
+  /** 真地形接入：/static/terrain/layer.json → CesiumTerrainProvider。失败静默降级（不阻塞 Viewer）。 */
+  async _setupTerrain() {
+    try {
+      const viewer = this.viewer
+      if (!viewer) return
+      // 瓦片路径由 layer.json 的 tiles 模板解析（绝对路径 /static/terrain/{z}/{x}/{y}.terrain）
+      const provider = await CesiumTerrainProvider.fromUrl('/static/terrain/layer.json', {
+        // CTB 输出的 .terrain 是 gzip 压缩流（文件头 1f 8b），Cesium 自动识别解压，
+        // 无需服务器 Content-Encoding；请求端 gzip 由 Resource 层处理
+        requestVertexNormals: true,
+      })
+      // viewer 可能已被 30s 闲置销毁，销毁后属性清空访问即崩
+      if (!viewer || !viewer.scene || viewer.isDestroyed()) return
+      viewer.terrainProvider = provider
+      this._terrainReady = true
+      // 真地形就绪后 hillshade 伪三维回退贴图退场：它是 70% 不透明灰白单张图，
+      // 盖在天地图底图之上（addImageryProvider 默认顶层），不隐藏会"底图消失"。
+      if (this._hillshadeLayer) {
+        this._hillshadeLayer.show = false
+        logger.debug('[CesiumRenderer] 真地形就绪，隐藏 hillshade 回退贴图')
+      }
+      viewer.scene.requestRender()
+      logger.debug('[CesiumRenderer] 真地形接入成功: /static/terrain/layer.json')
+    } catch (e) {
+      // 无瓦片产物或加载失败 → 保持椭球面 + hillshade 回退（现状行为）
+      // 带上失败原因便于排查（常见：dev 未重启 vite / 后端未起 / 瓦片目录缺失）
+      logger.warn('[CesiumRenderer] 真地形接入跳过:', e instanceof Error ? e.message : e)
+    }
   }
 
   _positionCamera() {

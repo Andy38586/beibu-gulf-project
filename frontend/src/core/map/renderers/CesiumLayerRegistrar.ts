@@ -291,6 +291,14 @@ export function addGeoTIFFLayer(
     return false
   }
 
+  // 真地形已就绪时 hillshade 回退贴图不再需要：
+  // 它是 70% 不透明灰白单张图，盖在天地图底图之上（addImageryProvider 默认顶层），
+  // 会遮挡底图（表现为"3D 无底图"）。真地形 z 起伏 + Cesium 光照已取代伪三维明暗。
+  if (renderer._terrainReady) {
+    logger.debug(`[CesiumRenderer] 真地形已就绪，跳过 hillshade 回退贴图: ${id}`)
+    return true
+  }
+
   // 整体防御 —— 渲染失败只记录完整错误，不向调用方（reapplyAll）抛错，
   // 避免单个图层的问题中断整批引擎切换重绘。
   try {
@@ -326,6 +334,9 @@ export function addGeoTIFFLayer(
     }
     const imageryLayer = renderer.viewer.imageryLayers.addImageryProvider(provider)
     imageryLayer.alpha = options.opacity ?? 0.7
+    // 记录 hillshade 图层引用：真地形异步就绪（可能晚于本图层添加）后隐藏它，
+    // 避免盖住天地图底图（_setupTerrain 成功回调里检查 _terrainReady 处理）
+    renderer._hillshadeLayer = imageryLayer
 
     renderer._layers.set(id, {
       instance: imageryLayer,

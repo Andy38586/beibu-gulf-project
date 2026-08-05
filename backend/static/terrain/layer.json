@@ -7,7 +7,7 @@
   "attribution": "",
   "schema": "tms",
   "extensions": [ "octvertexnormals" ],
-  "tiles": [ "{z}/{x}/{y}.terrain?v={version}" ],
+  "tiles": [ "/static/terrain/{z}/{x}/{y}.terrain?v={version}" ],
   "projection": "EPSG:4326",
   "bounds": [ 0.00, -90.00, 180.00, 90.00 ],
   "available": [

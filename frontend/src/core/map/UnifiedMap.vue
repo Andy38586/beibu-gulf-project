@@ -159,7 +159,19 @@ async function initRenderer(type: '2d' | '3d', container: HTMLElement | null) {
   await waitForContainerVisible(container)
 
   try {
-    const existingRenderer = type === '2d' ? olRenderer.value : cesiumRenderer.value
+    let existingRenderer = type === '2d' ? olRenderer.value : cesiumRenderer.value
+
+    // 3D 复用前检查 viewer 是否存活：CesiumViewerManager 有 30s 闲置销毁机制
+    // （离开 3D 超过 30s 后自动销毁 viewer），销毁后旧 CesiumRenderer 实例已失效
+    // （this.viewer=null），直接复用会白屏——清理旧实例，走下方首次创建分支二次创建。
+    if (existingRenderer && type === '3d') {
+      const { cesiumViewerManager } = await import('@/core/map/renderers/CesiumRenderer')
+      if (!cesiumViewerManager.getInstance()) {
+        existingRenderer.destroy()
+        existingRenderer = null
+        cesiumRenderer.value = null
+      }
+    }
 
     if (existingRenderer) {
       // 复用已有渲染器

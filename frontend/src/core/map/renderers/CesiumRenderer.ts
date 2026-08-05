@@ -147,15 +147,11 @@ class CesiumViewerManager {
       return
     }
 
-    const viewerContainer = this.viewer.container
-    if (viewerContainer && viewerContainer.parentNode) {
-      viewerContainer.parentNode.removeChild(viewerContainer)
-      this.isMounted = false
-      // 暂停渲染，降低GPU占用
-      this.viewer.scene.requestRenderMode = true
-      // 启动空闲销毁定时器（30秒后自动销毁释放内存）
-      this._startIdleDestroyTimer()
-    }
+    this.isMounted = false
+    // 暂停渲染，降低GPU占用（容器由 Vue v-show 隐藏为 display:none，此处停止渲染循环即可）
+    this.viewer.scene.requestRenderMode = true
+    // 启动空闲销毁定时器（30秒后自动销毁释放内存）
+    this._startIdleDestroyTimer()
   }
 
   /**

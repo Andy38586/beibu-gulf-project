@@ -61,6 +61,12 @@ interface PerfState {
 /** 生产开关：默认开（纯聚合开销 <0.1%），VITE_PERF_ENABLED=false 显式关闭 */
 const PERF_ENABLED = import.meta.env.VITE_PERF_ENABLED !== 'false'
 const IS_DEV = import.meta.env.DEV
+
+/** 埋点是否启用（供 PerfPanel 等 UI 判断展示） */
+export function isPerfEnabled(): boolean {
+  return PERF_ENABLED
+}
+
 /** 长帧阈值（业界标准）：单帧 >50ms 视为掉帧 */
 const LONG_FRAME_MS = 50
 /** 接口分位样本窗口 */

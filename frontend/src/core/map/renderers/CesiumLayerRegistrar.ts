@@ -347,7 +347,9 @@ export function addGeoTIFFLayer(
     imageryLayer.alpha = options.opacity ?? 0.85
     // 记录 hillshade 图层引用（真地形 mesh 恢复后隐藏/降级用）
     renderer._hillshadeLayer = imageryLayer
-    renderer.viewer.imageryLayers.lowerToBottom(imageryLayer)
+    // 注意：此函数尾部原有一处 lowerToBottom(imageryLayer) 残留（5c7f6e7 引入，
+    // 5730705 只删了前一处）——把 hillshade 沉到最底层被天地图盖住，用户永远
+    // 看不到 DEM 图层。已删除：hillshade 保持顶层（天地图之上），alpha 半透明叠加。
 
     renderer._layers.set(id, {
       instance: imageryLayer,

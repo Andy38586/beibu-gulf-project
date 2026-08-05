@@ -275,6 +275,8 @@ export class CesiumRenderer extends MapRenderer {
     this._terrainReady = false
     /** hillshade 回退贴图引用：真地形就绪后隐藏，避免盖住天地图底图 */
     this._hillshadeLayer = null
+    /** 底图瓦片失败 warn 只打一次（防每个瓦片刷屏） */
+    this._imageryErrorLogged = false
     this._initViewer()
   }
 
@@ -384,14 +386,18 @@ export class CesiumRenderer extends MapRenderer {
       return
     }
 
-    // 底图瓦片加载失败可见性（排查用）：Cesium 底图失败默认静默（仅 console 内部报错），
-    // 首次失败 warn 一次带错误信息，避免每个瓦片刷屏。
-    this._imageryErrorLogged = false
-    this.viewer.imageryLayers.errorEvent.addEventListener((err: unknown) => {
-      if (this._imageryErrorLogged) return
-      this._imageryErrorLogged = true
-      logger.warn('[CesiumRenderer] 底图瓦片加载失败（首次）:', err instanceof Error ? err.message : err)
-    })
+    // 底图瓦片加载失败可见性（排查用）：注意 ImageryLayerCollection 没有 errorEvent
+    // （仅有 layerAdded/layerRemoved/layerMoved/layerShown/layerHidden），errorEvent
+    // 在 ImageryProvider 上（与 addGeoTIFFLayer 的 hillshade 监听同模式）。挂 collection
+    // 会抛 TypeError 导致 3D 初始化失败——已踩坑（2026-08-05 20:29）。首次失败 warn 一次。
+    const attachImageryErrorLog = (provider: UrlTemplateImageryProvider) => {
+      if (!provider?.errorEvent) return
+      provider.errorEvent.addEventListener((err: unknown) => {
+        if (this._imageryErrorLogged) return
+        this._imageryErrorLogged = true
+        logger.warn('[CesiumRenderer] 底图瓦片加载失败（首次）:', err instanceof Error ? err.message : err)
+      })
+    }
 
     // 关键：Cesium 的 UrlTemplateImageryProvider 只认内置占位符（x/y/z/s/…），
     // buildTiandituUrl 模板里的 {layerCode}/{key} 会被原样留在 URL 里发出去
@@ -402,18 +408,18 @@ export class CesiumRenderer extends MapRenderer {
         .replace('{layerCode}', layerCode)
         .replace('{key}', MAP_CONFIG.TIANDITU_KEY)
 
-    const imageBaseLayer = this.viewer.imageryLayers.addImageryProvider(
-      new UrlTemplateImageryProvider({
-        url: tiandituUrlForCesium(MAP_CONFIG.BASE_LAYERS.image.layers[0]),
-        maximumLevel: 18,
-      })
-    )
-    const imageAnnotationLayer = this.viewer.imageryLayers.addImageryProvider(
-      new UrlTemplateImageryProvider({
-        url: tiandituUrlForCesium(MAP_CONFIG.BASE_LAYERS.image.layers[1]),
-        maximumLevel: 18,
-      })
-    )
+    const imageBaseProvider = new UrlTemplateImageryProvider({
+      url: tiandituUrlForCesium(MAP_CONFIG.BASE_LAYERS.image.layers[0]),
+      maximumLevel: 18,
+    })
+    attachImageryErrorLog(imageBaseProvider)
+    const imageBaseLayer = this.viewer.imageryLayers.addImageryProvider(imageBaseProvider)
+    const imageAnnotationProvider = new UrlTemplateImageryProvider({
+      url: tiandituUrlForCesium(MAP_CONFIG.BASE_LAYERS.image.layers[1]),
+      maximumLevel: 18,
+    })
+    attachImageryErrorLog(imageAnnotationProvider)
+    const imageAnnotationLayer = this.viewer.imageryLayers.addImageryProvider(imageAnnotationProvider)
     const vectorBaseProvider = this.viewer.imageryLayers.addImageryProvider(
       new UrlTemplateImageryProvider({
         url: tiandituUrlForCesium(MAP_CONFIG.BASE_LAYERS.vector.layers[0]),

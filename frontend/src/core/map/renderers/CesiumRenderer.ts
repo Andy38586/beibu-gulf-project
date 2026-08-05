@@ -301,10 +301,9 @@ export class CesiumRenderer extends MapRenderer {
       // 真地形（quantized-mesh 瓦片，CTB 预切片）异步接入：
       // 有 terrain/layer.json → 挂 CesiumTerrainProvider，球面变真 z 值起伏；
       // 无产物 → 静默保持椭球面，hillshade 回退贴图不受影响。
-      // 临时禁用（2026-08-05 排查 CTB 瓦片输出格式 bug：heights 全 0 + center
-      // 坐标系错位导致 Cesium RangeError Invalid typed array length 80+亿；
-      // 真地形排查与 tools/dem-pipeline 数据源修复合并处理）。启用时去掉注释。
-      // void this._setupTerrain()
+      // 2026-08-05 修复：CTB 输入必须 Int16（Float32 输出 heights 全 0）+ 标准命令
+      // -f Mesh -C -N；layer.json tiles 绝对路径；express .terrain 声明 gzip。
+      void this._setupTerrain()
     } else {
       // 复用时从单例管理器获取底图引用（公开方法）
       this.baseLayers = cesiumViewerManager.getBaseLayers()

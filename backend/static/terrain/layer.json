@@ -1,6 +1,6 @@
 {
   "tilejson": "2.1.0",
-  "name": "dem_4326_cut",
+  "name": "dem_int16",
   "description": "",
   "version": "1.1.0",
   "format": "quantized-mesh-1.0",

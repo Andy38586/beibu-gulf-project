@@ -373,27 +373,36 @@ export class CesiumRenderer extends MapRenderer {
       return
     }
 
+    // 关键：Cesium 的 UrlTemplateImageryProvider 只认内置占位符（x/y/z/s/…），
+    // buildTiandituUrl 模板里的 {layerCode}/{key} 会被原样留在 URL 里发出去
+    // （buildImageResource 对未知 tag 直接跳过）→ 天地图收到 {layerCode} 字面量
+    // → 请求失败底图空白。OL 自实现模板替换所以正常。这里预替换为字面值。
+    const tiandituUrlForCesium = (layerCode: string) =>
+      buildTiandituUrl(layerCode)
+        .replace('{layerCode}', layerCode)
+        .replace('{key}', MAP_CONFIG.TIANDITU_KEY)
+
     const imageBaseLayer = this.viewer.imageryLayers.addImageryProvider(
       new UrlTemplateImageryProvider({
-        url: buildTiandituUrl(MAP_CONFIG.BASE_LAYERS.image.layers[0]),
+        url: tiandituUrlForCesium(MAP_CONFIG.BASE_LAYERS.image.layers[0]),
         maximumLevel: 18,
       })
     )
     const imageAnnotationLayer = this.viewer.imageryLayers.addImageryProvider(
       new UrlTemplateImageryProvider({
-        url: buildTiandituUrl(MAP_CONFIG.BASE_LAYERS.image.layers[1]),
+        url: tiandituUrlForCesium(MAP_CONFIG.BASE_LAYERS.image.layers[1]),
         maximumLevel: 18,
       })
     )
     const vectorBaseProvider = this.viewer.imageryLayers.addImageryProvider(
       new UrlTemplateImageryProvider({
-        url: buildTiandituUrl(MAP_CONFIG.BASE_LAYERS.vector.layers[0]),
+        url: tiandituUrlForCesium(MAP_CONFIG.BASE_LAYERS.vector.layers[0]),
         maximumLevel: 18,
       })
     )
     const vectorAnnotationProvider = this.viewer.imageryLayers.addImageryProvider(
       new UrlTemplateImageryProvider({
-        url: buildTiandituUrl(MAP_CONFIG.BASE_LAYERS.vector.layers[1]),
+        url: tiandituUrlForCesium(MAP_CONFIG.BASE_LAYERS.vector.layers[1]),
         maximumLevel: 18,
       })
     )

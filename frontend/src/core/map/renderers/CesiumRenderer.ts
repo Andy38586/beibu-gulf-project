@@ -70,11 +70,26 @@ class CesiumViewerManager {
       navigationHelpButton: false,
       timeline: false,
       animation: false,
-      // 禁用 requestRenderMode，让场景在可见时持续渲染以支持拖拽交互
-      // 仅在 unmount 时启用 requestRenderMode 暂停渲染降低 GPU 占用
-      requestRenderMode: false,
+      // 240Hz 渲染治理（2026-08-05，拖拽掉帧 50avg/20min 优化）：
+      // - requestRenderMode: true —— 静止零渲染（省 GPU/CPU）。相机交互（拖拽/缩放/
+      //   旋转）由 Cesium 内部自动 requestRender，不影响交互；图层/水面/相机防抖/动画
+      //   等全部动态更新路径均已显式 requestRender（CesiumLayerRegistrar/CesiumWaterSurface
+      //   /CesiumEvents/startBreathing 均有调用），无"画面不刷新"风险。
+      // - highDynamicRange/fxaa/antialias 关闭 —— 240Hz 屏每帧预算仅 ~6ms（160fps），
+      //   HDR 后处理 + FXAA + MSAA 是拖拽掉帧的主要 GPU 开销来源。
+      requestRenderMode: true,
       maximumRenderTimeChange: Infinity,
+      highDynamicRange: false,
+      fxaa: false,
+      contextOptions: { webgl: { antialias: false } },
     })
+
+    // LOD 粗一级（默认 2 → 4）：globe 网格面数约减半，拖拽更流畅；
+    // 真地形瓦片接入后配合瓦片 LOD 效果更明显（视觉可接受，远处地形略简）。
+    this.viewer.scene.maximumScreenSpaceError = 4
+    // 关大气地面散射与雾（240Hz 下每帧计算的视觉开销，非业务必需）
+    this.viewer.scene.globe.showGroundAtmosphere = false
+    this.viewer.scene.fog.enabled = false
 
     this.isMounted = true
     return this.viewer

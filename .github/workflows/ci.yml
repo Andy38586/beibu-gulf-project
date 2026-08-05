@@ -94,7 +94,12 @@ jobs:
         run: npm test -- --coverage
 
       - name: Build project
+        # 天地图 key 由 GitHub Secrets 注入（构建期打包进前端产物）。
+        # 缺失时 vite 用 .env 占位符构建 → 生产镜像底图 404（与本地 dev 行为不一致）。
+        # 配置：Settings → Secrets and variables → Actions → New secret: TIANDITU_KEY
         run: npm run build
+        env:
+          VITE_TIANDITU_KEY: ${{ secrets.TIANDITU_KEY }}
 
   backend-tests:
     runs-on: ubuntu-latest

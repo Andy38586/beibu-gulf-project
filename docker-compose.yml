@@ -21,6 +21,9 @@ services:
     # 运行时数据通过 volume 挂载，不烘焙进镜像（backend/data 已在 .dockerignore 排除）
     volumes:
       - ./backend/data:/app/backend/data
+      # DEM 静态产物（tif 67MB 被 gitignore、CI 镜像不含；本地含 → CI/本地镜像不一致）。
+      # 统一 volume 挂载，镜像瘦身且 CI/本地行为一致；接入数据库/对象存储后替换此方案。
+      - ./backend/static/dem:/app/backend/static/dem
       # TLS 证书（可选）：将 fullchain.pem + privkey.pem 放入 ./certs/ 即启用 HTTPS
       - ./certs:/etc/nginx/certs:ro
     ports:

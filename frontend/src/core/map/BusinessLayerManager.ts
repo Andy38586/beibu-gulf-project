@@ -111,9 +111,16 @@ export class BusinessLayerManager {
     // 如果可见且有数据，立即渲染
     if (visible && data != null) {
       const renderer = this._getRenderer()
+      logger.debug(
+        `[BusinessLayerManager] register ${key}: visible=${visible} data=${data != null} renderer=${!!renderer}`
+      )
       if (renderer) {
         perfTimeFn(`layer:create:${layerType}`, () => adapter.create(renderer, key, data, options))
       }
+    } else {
+      logger.debug(
+        `[BusinessLayerManager] register ${key} 暂不渲染: visible=${visible} data=${data != null}`
+      )
     }
   }
 
@@ -183,7 +190,10 @@ export class BusinessLayerManager {
     if (!renderer) return
     for (const [key, meta] of this._registry.entries()) {
       if (meta.data == null) continue
-      if (!meta.visible) continue
+      if (!meta.visible) {
+        logger.debug(`[BusinessLayerManager] reapplyAll ${key} 跳过（visible=false）`)
+        continue
+      }
       const adapter = this._getAdapter(meta.layerType)
       if (!adapter) continue
       // 重建被 clearLayerCatalog 清掉的目录条目（不移除不覆盖，只补缺）

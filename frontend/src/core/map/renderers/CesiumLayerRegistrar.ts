@@ -285,6 +285,10 @@ export function addGeoTIFFLayer(
   url: string,
   options: any = {}
 ): boolean {
+  // 入口可见性日志（排查"图层没挂载"）：无论走哪个分支都打印，用户刷新后
+  // 控制台搜 addGeoTIFFLayer 即可定位（调用了/跳过了/URL 是什么）
+  logger.debug(`[CesiumRenderer] addGeoTIFFLayer 调用: id=${id} url=${url} terrainReady=${renderer._terrainReady}`)
+
   // 回退方案仅支持预生成的 hillshade 影像；其它 GeoTIFF 在 3D 下暂不支持
   if (!/hillshade/i.test(url)) {
     logger.debug(`[CesiumRenderer] addGeoTIFFLayer 仅支持 hillshade 回退，跳过: ${url}`)

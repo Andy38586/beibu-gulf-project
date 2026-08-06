@@ -153,4 +153,33 @@ describe('useApiRequest', () => {
       expect(calledUrl).not.toContain('empty')
     })
   })
+
+  describe('API_BASE 前缀判定 (d071)', () => {
+    // d071：/flood-online 开头（vite proxy → FastAPI 8000）不加 /api 前缀，
+    // 否则变成 /api/flood-online/... 命中 /api 规则转发到 Express（无此路由）404
+    it('/flood-online 路径不加 /api 前缀（跨服务直通）', async () => {
+      mockFetch.mockResolvedValue(jsonResponse({ level: 3.5, features: [] }))
+      const { apiRequest } = useApiRequest()
+      await apiRequest('/flood-online/online?level=3.5', { envelope: false })
+      expect(mockFetch.mock.calls[0][0]).toBe('/flood-online/online?level=3.5')
+      expect(mockFetch.mock.calls[0][0]).not.toContain('/api/')
+    })
+
+    it('普通路径加 /api 前缀', async () => {
+      mockFetch.mockResolvedValue(jsonResponse({ code: 200, data: null }))
+      const { apiRequest } = useApiRequest()
+      await apiRequest('/forecast/overview')
+      expect(mockFetch.mock.calls[0][0]).toBe('/api/forecast/overview')
+    })
+
+    it('/flood-online 子路径（含 params 拼查询）同样不加前缀', async () => {
+      mockFetch.mockResolvedValue(jsonResponse({ level: 5.0, features: [] }))
+      const { apiRequest } = useApiRequest()
+      await apiRequest('/flood-online/online', { params: { level: 5.0 }, envelope: false })
+      const calledUrl = mockFetch.mock.calls[0][0]
+      expect(calledUrl.startsWith('/flood-online/online')).toBe(true)
+      expect(calledUrl).not.toContain('/api/')
+      expect(calledUrl).toContain('level=5')
+    })
+  })
 })

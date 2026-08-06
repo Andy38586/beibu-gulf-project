@@ -405,6 +405,17 @@ watch(
 
 onMounted(async () => {
   await loadData()
+  if (loadAbort.signal.aborted) return
+  // a042 防御：初始 mapType='3d' 且 Cesium 容器未渲染（模板 v-if="cesiumInitialized"
+  // 初值 false）时，直接 getContainer('3d') 拿到 null → initRenderer 静默 return →
+  // 白图。正常路径下 App.vue route watch immediate 先置 '2d'（路由未解析），
+  // 导航完成后 prop 变化走 switchMapType——但该时序脆弱（若挂载前路由已解析为
+  // engine:'3d' 即触发）。此处兜底：先置标志+nextTick 等容器挂载再 initRenderer。
+  if (props.mapType === '3d' && !cesiumInitialized.value) {
+    cesiumInitialized.value = true
+    await nextTick()
+    await nextTick()
+  }
   // 首次挂载：v-if已渲染默认类型的容器
   const container = getContainer(props.mapType)
   await initRenderer(props.mapType, container)

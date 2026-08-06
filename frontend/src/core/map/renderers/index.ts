@@ -7,31 +7,41 @@ export { MapRenderer, OLRenderer }
 
 // Cesium 动态加载状态（模块级单例，防止重复加载）
 let _cesiumLoadPromise: Promise<void> | null = null
+let _preloadScheduled = false
 
 /**
- * Cesium 空闲预热（Phase 2，2026-08-06）
- * 首屏渲染完成后，用浏览器空闲时段预取 Cesium 全局脚本（5.7MB）：
- * - 仅预取（<link rel=preload>），不执行——避免抢占首屏带宽与 CPU
- * - 用户切 3D 时 ensureCesiumLoaded() 命中浏览器缓存，脚本近乎即时就绪
- * - 幂等：Cesium 已加载/已预热过则跳过
- * - 降级：requestIdleCallback 不可用时（旧浏览器）直接执行，不影响功能
+ * Cesium 空闲预热（Phase 2 升级版，2026-08-06）
+ *
+ * 原实现仅 <link rel=preload> 预取到浏览器缓存（不执行）——用户实测"第一次进浸没分析
+ * 还是很卡"：进 3D 时 ensureCesiumLoaded 注入 <script> 仍要现场解析执行 5.7MB 脚本。
+ *
+ * 升级为**真正执行加载**（交互优先队列）：
+ * 1. 首屏渲染完成后，requestIdleCallback 空闲时段执行 ensureCesiumLoaded()
+ *    （注入 script 下载+解析执行 Cesium.js）+ 预热 CesiumRenderer 模块 chunk
+ * 2. 与 createRenderer 共享 _cesiumLoadPromise——用户点击进 3D 时：
+ *    - preload 已跑完 → ensureCesiumLoaded 秒回，只差 new Viewer（~52ms）
+ *    - preload 未跑（用户快速进 3D）→ createRenderer 直接触发加载，用户操作优先
+ *    - preload 正在跑 → 共享同一 promise，无重复下载/执行（浏览器同 URL 复用）
+ * 3. 幂等：window.Cesium 就绪 / 已调度 / 已预热均跳过；失败静默（优化手段不阻断功能）
  */
 export function preloadCesium(): void {
   try {
     if ((window as unknown as Record<string, unknown>).Cesium) return
-    if (document.querySelector('link[href*="/cesium/Cesium.js"][rel="preload"]')) return
+    if (_preloadScheduled) return
+    _preloadScheduled = true
 
     const idle = (
       window as unknown as { requestIdleCallback?: (cb: () => void) => void }
     ).requestIdleCallback
     const doPreload = () => {
-      const link = document.createElement('link')
-      link.rel = 'preload'
-      link.as = 'script'
-      link.href = '/cesium/Cesium.js'
-      document.head.appendChild(link)
+      // 真正执行加载（与 ensureCesiumLoaded 共享 promise，3D 入口幂等秒回）
+      void ensureCesiumLoaded().then(() => {
+        // 预热 CesiumRenderer 模块 chunk（CesiumWaterSurface/LayerRegistrar 等），
+        // 进 3D 时不再现场拉 chunk
+        void import('./CesiumRenderer')
+      })
       if (import.meta.env.DEV) {
-        console.debug('[renderers] Cesium 已空闲预取 /cesium/Cesium.js')
+        console.debug('[renderers] Cesium 空闲预热（执行加载）已启动')
       }
     }
     if (idle) idle(doPreload)

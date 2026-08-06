@@ -126,6 +126,29 @@ describe('BusinessLayerManager', () => {
       const entry = mapStore.layerCatalog.find((e: MockCatalogEntry) => e.key === 'vis-layer')
       expect(entry!.visible).toBe(false)
     })
+
+    it('b058: visible:false 注册的图层打开时补建（setVisible(true) → adapter.create）', () => {
+      // register(visible:false) 不 create（BLM.register 判据 visible && data != null）
+      manager.register('late-layer', {
+        label: '延迟补建测试',
+        layerType: 'geotiff',
+        data: '/static/dem/dem_hillshade.tif',
+        visible: false,
+      })
+
+      const renderer = { setVisibility: vi.fn(), hasLayer: vi.fn(() => false), addGeoTIFFLayer: vi.fn() }
+      mapStore.currentRenderer = renderer as unknown as MapRenderer
+
+      // 打开 → 图层未创建 → 必须补建（否则 setVisibility 落入 pending = 死按钮）
+      manager.setVisible('late-layer', true)
+
+      expect(renderer.addGeoTIFFLayer).toHaveBeenCalledWith(
+        'late-layer',
+        '/static/dem/dem_hillshade.tif',
+        expect.anything()
+      )
+      expect(renderer.setVisibility).toHaveBeenCalledWith('late-layer', true)
+    })
   })
 
   describe('remove', () => {

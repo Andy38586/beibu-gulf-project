@@ -133,6 +133,18 @@ def mask_to_geojson(
         poly = poly.simplify(simplify_tol, preserve_topology=True)
         if poly.is_empty or poly.geom_type != "Polygon" or poly.area < 250_000:
             continue  # < 0.25 km²（UTM m²）
+        # b057: 过滤小内环（<0.25 km² 的未淹没斑块）——沿海岸细碎条带淹没区多边形化后
+        # 产生"外环包围海面 + 数千内环"的巨型复杂几何（实测 15m 档 3163 内环），
+        # 渲染时外环覆盖海面、hole 挖空不完全 → 用户看到"多边形大部分在海上"。
+        # 只保留大的洞（海湾/大湖），小斑块并入外环（视觉可接受，几何大幅简化）。
+        if len(poly.interiors) > 0:
+            keep_holes = [ring for ring in poly.interiors if abs(ring.area) >= 250_000]
+            if len(keep_holes) < len(poly.interiors):
+                from shapely.geometry import Polygon as ShapelyPolygon
+
+                poly = (
+                    ShapelyPolygon(poly.exterior, keep_holes) if keep_holes else ShapelyPolygon(poly.exterior)
+                )
         # 转 4326 并记录面积（度² 用于排序）
         g4326 = _utm_to_4326(poly)
         area_deg2 = _polygon_area_deg2(_shape_to_geojson(g4326))

@@ -840,6 +840,17 @@ export class CesiumRenderer extends MapRenderer {
     return setWaterSurfaceVisibility(this, id, visible)
   }
 
+  /**
+   * 覆写基类 hasLayer：水面存于 _waterSurfaces（不在 _layers），基类查不到。
+   * BLM.updateData 用 hasLayer 判"图层缺失补 create vs 已存在走 update"——
+   * 不覆写时水面每次水位变化都被判缺失 → 走 create → addWaterSurface
+   * remove+add 全量重建 Primitive，增量更新（updateWaterLevel 替换
+   * geometryInstances）永远走不到（06908b5 写的增量是死代码）。
+   */
+  hasLayer(id) {
+    return super.hasLayer(id) || (this._waterSurfaces?.has(id) ?? false)
+  }
+
   getType() {
     // P0-1: 返回 '3d'（与 MapType 一致）,理由同 OLRenderer
     return '3d'

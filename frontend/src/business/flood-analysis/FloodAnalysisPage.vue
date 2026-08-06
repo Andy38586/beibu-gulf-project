@@ -87,6 +87,7 @@ let cachedWaterAreaCoords: [number, number][] | null = null
 
 // b046: 水域坐标加载链路健壮性——原实现无 try/catch（getWaterArea 抛错 → 未捕获 rejection）、
 // 不传 signal（不可取消）。现失败降级 null（水面图层跳过,其余图层照常）;signal 支持卸载取消。
+// 2026-08-06 收尾：失败不再纯静默——showWarning 告知用户"水面图层不可用"（不阻塞其余图层）。
 async function loadWaterAreaCoordinates(signal?: AbortSignal): Promise<[number, number][] | null> {
   if (cachedWaterAreaCoords) return cachedWaterAreaCoords
   try {
@@ -95,6 +96,7 @@ async function loadWaterAreaCoordinates(signal?: AbortSignal): Promise<[number, 
   } catch (error) {
     if (!signal?.aborted) {
       logger.warn('[FloodAnalysisPage] 水域坐标加载失败，水面图层跳过:', error)
+      showWarning('水域数据加载失败，水面图层暂不可用（其余图层正常）')
     }
     return null
   }

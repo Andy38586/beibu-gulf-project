@@ -92,19 +92,19 @@ export const MAP_CONFIG: MapConfig = {
     REGION: {
       center: { lng: 108.5752963, lat: 21.760409 },
       height: 1600000,
-      zoom: 8,
+      zoom: 9,
       label: '北部湾区域',
     },
     CITY: {
       center: { lng: 108.61, lat: 21.94 },
       height: 160000,
-      zoom: 11,
+      zoom: 12,
       label: '钦州市',
     },
     DISTRICT: {
       center: { lng: 108.61, lat: 21.94 },
       height: 16000,
-      zoom: 13,
+      zoom: 14,
       label: '区级',
     },
   },

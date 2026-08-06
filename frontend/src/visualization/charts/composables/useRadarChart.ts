@@ -148,8 +148,10 @@ export function useRadarChart({
     const name = props.xiaoqu?.name || ''
 
     perfMark('echarts:radar:start')
-    chartInstance.setOption({
-      backgroundColor: 'transparent',
+    // 增量更新（D-7）：merge 保留轴/样式，replaceMerge:['series'] 替换数据系列
+    chartInstance.setOption(
+      {
+        backgroundColor: 'transparent',
       tooltip: { show: false },
       radar: {
         indicator: indicators,
@@ -184,7 +186,9 @@ export function useRadarChart({
           ],
         },
       ],
-    })
+      },
+      { notMerge: false, replaceMerge: ['series'], lazyUpdate: true }
+    )
     perfMark('echarts:radar:end')
     perfMeasure('echarts:setOption:radar', 'echarts:radar:start', 'echarts:radar:end')
 

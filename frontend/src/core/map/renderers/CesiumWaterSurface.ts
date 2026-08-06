@@ -3,6 +3,11 @@
  * 拆分：从 CesiumRenderer.ts 纯搬移，逻辑零变化。
  * 使用 Primitive API（适合大规模几何体），通过重建 Primitive 实现水位更新。
  * 水面状态存储在 renderer._waterSurfaces（Map<id, {primitive, height, coordinates, options, visible}>）。
+ *
+ * 2026-08-06 增量更新（D-7）：updateWaterLevel 不再 remove+add 重建 Primitive——
+ * 重建会让旧几何销毁、新几何异步构建，中间有空窗 → 水位拖动时水面"一闪一闪"。
+ * 改为：复用同一 Primitive，仅替换 geometryInstances（同步构建新几何并赋值，
+ * Cesium 在下一帧用新几何重绘），Primitive 对象、可见性、颜色缓冲全部复用。
  */
 import {
   Cartesian3,
@@ -28,6 +33,33 @@ interface WaterSurfaceEntry {
 }
 
 /**
+ * 构建水面 GeometryInstance（供 create 与 update 复用，避免重复代码）
+ */
+function buildWaterInstance(
+  coordinates: [number, number][],
+  height: number,
+  options: Record<string, unknown>
+): GeometryInstance {
+  const positions = coordinates.map((coord) => Cartesian3.fromDegrees(coord[0], coord[1], height))
+  const hierarchy = new PolygonHierarchy(positions)
+  const geometry = new PolygonGeometry({
+    polygonHierarchy: hierarchy,
+    vertexFormat: PerInstanceColorAppearance.VERTEX_FORMAT,
+  })
+
+  return new GeometryInstance({
+    geometry: geometry,
+    attributes: {
+      color: ColorGeometryInstanceAttribute.fromColor(
+        // 水面色复用 LAYER_DEFAULTS.color（#409eff），保留 0.5 透明度以维持水面半透明观感
+        Color.fromCssColorString((options.color as string) || LAYER_DEFAULTS.color).withAlpha(0.5)
+      ),
+    },
+    id: `water-${height}`,
+  })
+}
+
+/**
  * 添加水面 Primitive
  * @param renderer CesiumRenderer 实例（访问 viewer / _waterSurfaces）
  */
@@ -40,23 +72,7 @@ export function addWaterSurface(
 ): void {
   removeWaterSurface(renderer, id)
   try {
-    const positions = coordinates.map((coord) => Cartesian3.fromDegrees(coord[0], coord[1], height))
-    const hierarchy = new PolygonHierarchy(positions)
-    const geometry = new PolygonGeometry({
-      polygonHierarchy: hierarchy,
-      vertexFormat: PerInstanceColorAppearance.VERTEX_FORMAT,
-    })
-
-    const instance = new GeometryInstance({
-      geometry: geometry,
-      attributes: {
-        color: ColorGeometryInstanceAttribute.fromColor(
-          // 水面色复用 LAYER_DEFAULTS.color（#409eff），保留 0.5 透明度以维持水面半透明观感
-          Color.fromCssColorString((options.color as string) || LAYER_DEFAULTS.color).withAlpha(0.5)
-        ),
-      },
-      id: `water-${id}`,
-    })
+    const instance = buildWaterInstance(coordinates, height, options)
 
     const appearance = new PerInstanceColorAppearance({
       translucent: true,
@@ -91,9 +107,10 @@ export function addWaterSurface(
 }
 
 /**
- * 更新水位高度
- * 通过重建 Primitive 实现水位更新。
- * 保留原始坐标和样式选项，仅改变高度。
+ * 更新水位高度（增量更新，D-7 2026-08-06）
+ * 复用同一 Primitive，仅替换 geometryInstances（同步构建新几何）：
+ * - 不 remove/add → 无空窗 → 水位拖动不再"一闪一闪"
+ * - 不重建 Primitive → 保留 GPU 缓冲复用路径，减少 GC/状态清理
  * @param renderer CesiumRenderer 实例
  * @param id 水面图层ID
  * @param newHeight 新的高度（米）
@@ -107,8 +124,24 @@ export function updateWaterLevel(renderer: any, id: string, newHeight: number): 
     return
   }
 
-  // 用新高度重建水面
-  addWaterSurface(renderer, id, waterSurface.coordinates, newHeight, waterSurface.options)
+  // 高度未变化 → 跳过（滑块拖动可能触发同值更新）
+  if (waterSurface.height === newHeight) return
+
+  try {
+    // 同步构建新几何并替换到同一 Primitive（不销毁旧 Primitive）
+    waterSurface.primitive.geometryInstances = buildWaterInstance(
+      waterSurface.coordinates,
+      newHeight,
+      waterSurface.options
+    )
+    waterSurface.height = newHeight
+    renderer.viewer.scene.requestRender()
+  } catch (e) {
+    // 构建失败保持旧水位（不闪、不崩），仅日志
+    if (import.meta.env.DEV) {
+      logger.warn(`[CesiumRenderer] 水面 ${id} 水位更新失败（保持旧水位）:`, e)
+    }
+  }
 }
 
 /**

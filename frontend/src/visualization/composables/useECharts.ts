@@ -79,7 +79,11 @@ export function useECharts({
 
   /**
    * 更新图表配置
-   * 使用增量更新模式：notMerge=false 保留现有配置，lazyUpdate=true 延迟渲染提升性能
+   * 增量更新模式（D-7，2026-08-06）：
+   * - notMerge=false 保留现有配置（轴/图例/样式不重建）
+   * - replaceMerge:['series'] 整体替换 series（防旧 series 残留导致闪烁/串线）
+   * - lazyUpdate=true 延迟渲染，同一帧多次更新合并为一次
+   * series 稳定 id 由 useChartBase 在 buildOption 中给出（seriesConfig.id 或 name 派生）
    */
   function updateChart(): void {
     if (!chartInstance) return
@@ -87,7 +91,7 @@ export function useECharts({
     // perfTimeFn 闭包内 TS 无法收窄 chartInstance（const 收窄不跨箭头函数），先取局部常量
     const inst = chartInstance
     perfTimeFn('echarts:setOption', () => {
-      inst.setOption(option, { notMerge: false, lazyUpdate: true })
+      inst.setOption(option, { notMerge: false, replaceMerge: ['series'], lazyUpdate: true })
     })
   }
 

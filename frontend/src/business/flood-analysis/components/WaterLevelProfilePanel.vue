@@ -279,11 +279,13 @@ function updateChart() {
     ],
   }
 
-  // 使用增量更新模式：notMerge=false 保留现有配置，lazyUpdate=true 延迟渲染提升性能
+  // 增量更新模式（D-7）：notMerge=false 保留现有配置，replaceMerge:['series']
+  // 防旧 series 残留（水位拖动时系列数稳定但数据变化，整体替换系列最干净），
+  // lazyUpdate=true 延迟渲染提升性能
   // perfTimeFn 闭包内 TS 无法收窄 chartInstance，故先取局部常量
   const inst = chartInstance
   perfTimeFn('echarts:setOption:waterLevel', () => {
-    inst.setOption(option, { notMerge: false, lazyUpdate: true })
+    inst.setOption(option, { notMerge: false, replaceMerge: ['series'], lazyUpdate: true })
   })
 }
 

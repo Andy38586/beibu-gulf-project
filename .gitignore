@@ -88,10 +88,8 @@ backend/data/flood/dem/filled_utm48n.prj
 backend/data/flood/dem/*.tif
 backend/static/dem/*.tif
 
-# Python flood-service（微服务代码本地运行，不入库；数据在 backend/data/flood/ 保留入库）
+# Python flood-service（代码入 git；仅排除 venv/缓存）
 backend/flood-service/.venv/
-backend/flood-service/*.py
-backend/flood-service/tests/
 __pycache__/
 *.pyc
 

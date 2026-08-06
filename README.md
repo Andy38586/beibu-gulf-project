@@ -109,7 +109,7 @@ GIS 应用中，地图工具栏、分析面板、图例、详情卡片等组件�
 
 **clone 后注意事项**：`filled_utm48n_cut.tif`（169MB）不在仓库中。洪涝 **online** 模式（`VITE_DATA_SOURCE=online`）需先运行 DEM 流水线生成该文件；**mock / api** 模式不受影响，开箱即用。
 
-**flood-service（FastAPI）部署**：`backend/flood-service/*.py`（main/flood_engine/precompute_levels）**不入 git**（本地运行，`gitignore` 排除）。online 模式上线需**单独部署 flood-service**（与 Express 双后端）：代码单独传输/打包到服务器，配好 venv（requirements.txt 已入库）与 DEM 文件后 `uvicorn main:app --port 8000` 启动；或明确"上线只发静态 JSON（api 模式）、online 演算不做"。
+**flood-service（FastAPI）部署**：`backend/flood-service/*.py`（main/flood_engine/precompute_levels/tests）**已入 git**，clone 即得代码。online 模式上线需**单独部署 flood-service**（与 Express 双后端）：clone 后 `cd backend/flood-service && python -m venv .venv && .venv/Scripts/pip install -r requirements.txt`，配好 DEM 文件（`filled_utm48n_cut.tif`，见下方流水线）后 `uvicorn main:app --port 8000` 启动；或明确"上线只发静态 JSON（api 模式）、online 演算不做"。
 
 **DEM 生成流水线**：`tools/dem-pipeline/`（01-mosaic → 02-fill-sinks → 03-reproject-4326 → 04-generate-flood-data → 05-fix-facility-elevation）。脚本为 Windows PowerShell + QGIS GDAL 环境，且输入路径硬编码了本地目录（ASTER GDEM 30m 原始 tile），在其它机器上运行需按本机环境调整路径与 GDAL 位置。完整步骤见各脚本头部注释。
 

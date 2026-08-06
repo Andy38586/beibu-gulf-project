@@ -1,5 +1,5 @@
 """
-flood-service 回归测试（d072 / d069 守护）
+flood-service 回归测试（d072 / d069 / 预计算查表 守护）
 
 覆盖：
 - test_same_level_second_request_cache_hit_no_500：d072 回归——同水位二次请求
@@ -7,10 +7,14 @@ flood-service 回归测试（d072 / d069 守护）
   → AttributeError 500）。
 - test_lru_eviction_after_64_levels：d069 语义——满 64 档后 popitem(last=False)
   淘汰最久未访问，跨 64 档不周期性全量 miss，且淘汰路径不抛 500。
+- test_precomputed_level_lookup：预计算档位表命中 → 秒回数据、零演算（性能优化：
+  滑块拖动不再在线演算）。
 
 DEM 隔离：flood_engine.load_dem 依赖 169MB gitignored DEM 文件，测试用
 monkeypatch 替换 _engine_module（跳过 load_dem）与 run_online_flood（返回
 固定结果），只测 HTTP 层 + 缓存行为，不依赖真实 DEM。
+预计算表隔离：client fixture 默认 monkeypatch _load_levels 返回空表（走 LRU
+演算路径，d072/d069 行为不变）；查表测试单独注入假表。
 """
 
 import types
@@ -39,6 +43,8 @@ def _reset_cache():
 @pytest.fixture()
 def client(monkeypatch):
     monkeypatch.setattr(main_mod, "_engine_module", lambda: _make_fake_engine())
+    # 隔离真实预计算档位表：默认空表 → 走 LRU 演算路径（d072/d069 行为不变）
+    monkeypatch.setattr(main_mod, "_load_levels", lambda: {})
     return TestClient(main_mod.app)
 
 
@@ -50,6 +56,33 @@ def test_health(client):
     resp = client.get("/health")
     assert resp.status_code == 200
     assert resp.json()["status"] == "ok"
+
+
+def test_precomputed_level_lookup(client, monkeypatch):
+    """预计算档位表命中：秒回档位数据、零演算（滑块拖动不再在线演算）"""
+    fake_table = {
+        "3.5": {"featureCount": 1, "floodedKm2": 4538.75, "features": [{"type": "Feature"}]},
+    }
+    monkeypatch.setattr(main_mod, "_load_levels", lambda: fake_table)
+    calls: list[float] = []
+    monkeypatch.setattr(
+        main_mod, "run_online_flood", lambda level: (calls.append(level), _fake_run(level))[1]
+    )
+
+    r = client.get("/api/flood/online?level=3.5")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["featureCount"] == 1
+    assert body["floodedKm2"] == 4538.75
+    assert body["level"] == 3.5  # 回显档位（与滑块 step=0.1 对齐，无提示噪音）
+    assert len(calls) == 0  # 查表命中 → 零在线演算
+
+    # 0.1m 档位（滑块 step）同样命中——任意档秒回
+    fake_table["3.4"] = {"featureCount": 1, "floodedKm2": 4500.0, "features": []}
+    r2 = client.get("/api/flood/online?level=3.4")
+    assert r2.status_code == 200
+    assert r2.json()["floodedKm2"] == 4500.0
+    assert len(calls) == 0
 
 
 def test_same_level_second_request_cache_hit_no_500(client, monkeypatch):

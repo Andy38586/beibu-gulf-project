@@ -173,9 +173,13 @@ def _polygon_area_deg2(geom: dict) -> float:
     return abs(area) / 2.0
 
 
-def run_online_flood(level: float, downsample: int = DOWNSAMPLE) -> dict:
+def run_online_flood(level: float, downsample: int = DOWNSAMPLE, simplify_tol: float = 180.0) -> dict:
     """
     在线演算入口：给定水位（米，DEM 高程基准），返回 4326 淹没 GeoJSON + 统计。
+
+    simplify_tol：多边形简化容差（米，UTM 系）。默认 180m（1.5 个 120m 像元）；
+    预计算档位表（precompute_levels.py）传更大值（300m）压缩数据量——
+    视觉差异可忽略（相对 240m 像元），文件体积显著下降。
 
     Returns:
       {
@@ -192,7 +196,7 @@ def run_online_flood(level: float, downsample: int = DOWNSAMPLE) -> dict:
     px_area_km2 = (30 * downsample / 1000.0) ** 2
     flooded_km2 = flooded_px * px_area_km2
 
-    features = mask_to_geojson(mask, transform, crs)
+    features = mask_to_geojson(mask, transform, crs, simplify_tol=simplify_tol)
     return {
         "level": level,
         "downsample": downsample,

@@ -58,6 +58,76 @@ def test_health(client):
     assert resp.json()["status"] == "ok"
 
 
+def test_flood_impact_spatial_filter(client, monkeypatch):
+    """d073 impact：淹没多边形 ∩ 设施点（空间筛选）→ 受影响设施 + 总损失"""
+    fake_table = {
+        "15.0": {
+            "featureCount": 1,
+            "floodedKm2": 100.0,
+            "features": [
+                {
+                    "type": "Feature",
+                    "geometry": {
+                        "type": "Polygon",
+                        "coordinates": [
+                            [
+                                [108.3, 21.6],
+                                [108.4, 21.6],
+                                [108.4, 21.8],
+                                [108.3, 21.8],
+                                [108.3, 21.6],
+                            ]
+                        ],
+                    },
+                    "properties": {"area": 1.0},
+                }
+            ],
+        }
+    }
+    monkeypatch.setattr(main_mod, "_load_levels", lambda: fake_table)
+    fake_facilities = [
+        {
+            "id": "A",
+            "name": "多边形内设施",
+            "type": "泊位",
+            "lng": 108.35,
+            "lat": 21.7,
+            "port": "X",
+            "value": 1000,
+            "damageRate": 0.5,
+        },
+        {
+            "id": "B",
+            "name": "多边形外设施",
+            "type": "仓储",
+            "lng": 110.0,
+            "lat": 30.0,
+            "port": "Y",
+            "value": 2000,
+            "damageRate": 0.5,
+        },
+    ]
+    monkeypatch.setattr(main_mod, "_load_facilities", lambda: fake_facilities)
+
+    r = client.get("/api/flood/impact?level=15")
+    assert r.status_code == 200
+    body = r.json()
+    assert len(body["affectedFacilities"]) == 1  # 只有多边形内的 A
+    assert body["affectedFacilities"][0]["id"] == "A"
+    assert body["affectedFacilities"][0]["loss"] == 500  # 1000 × 0.5
+    assert body["totalLoss"] == 500
+
+
+def test_flood_impact_no_features_empty(client, monkeypatch):
+    """d073 impact：档位无淹没多边形（如低水位）→ 空设施 + 0 损失"""
+    monkeypatch.setattr(main_mod, "_load_levels", lambda: {})
+    r = client.get("/api/flood/impact?level=5")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["affectedFacilities"] == []
+    assert body["totalLoss"] == 0
+
+
 def test_precomputed_level_lookup(client, monkeypatch):
     """预计算档位表命中：秒回档位数据、零演算（滑块拖动不再在线演算）"""
     fake_table = {

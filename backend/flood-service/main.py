@@ -32,7 +32,7 @@ from pathlib import Path
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 
-from flood_engine import run_online_flood
+from flood_engine import compute_impact, run_online_flood
 
 
 @asynccontextmanager
@@ -87,6 +87,27 @@ def _load_levels() -> dict[str, dict]:
     return _levels_cache
 
 
+# 设施影响评估数据（backend/data/flood/facilityPoints.json——25 个 curated 港口设施，
+# 含 elevation/value/damageRate；空间筛选见 flood_engine.compute_impact）
+FACILITIES_FILE = (
+    Path(__file__).resolve().parents[1] / "data" / "flood" / "facilityPoints.json"
+)
+_facilities_cache: list[dict] | None = None
+
+
+def _load_facilities() -> list[dict]:
+    """懒加载设施清单（进程内只读一次；缺失/损坏降级为空列表 → 影响评估返回空）。"""
+    global _facilities_cache
+    if _facilities_cache is None:
+        try:
+            _facilities_cache = json.loads(
+                FACILITIES_FILE.read_text(encoding="utf-8")
+            ).get("facilities", [])
+        except (FileNotFoundError, json.JSONDecodeError, AttributeError):
+            _facilities_cache = []
+    return _facilities_cache
+
+
 @lru_cache(maxsize=1)
 def _engine_module():
     # 首请求触发 DEM 模块级加载（一次 ~1s），后续演算只算 mask/label/shapes
@@ -128,6 +149,24 @@ def flood_online(
             _cached_level.popitem(last=False)
         _cached_level[key] = result
     return result
+
+
+@app.get("/api/flood/impact")
+def flood_impact(
+    level: float = Query(..., ge=-1, le=25, description="水位（米，DEM 高程基准）"),
+):
+    """
+    设施影响评估：预计算档位表的淹没多边形 ∩ 设施点（空间筛选）→ 受影响设施 + 总损失。
+
+    与 /api/flood/online 共用档位表——滑块拖动时两个请求都查表秒回，零演算。
+    2026-08-06 新增（原 online 模式影响评估返回空，前端受影响设施/损失一直为空）。
+    """
+    key = round(level, 1)
+    pre = _load_levels().get(str(key))
+    features = pre.get("features", []) if pre else []
+    if not features:
+        return {"level": key, "affectedFacilities": [], "totalLoss": 0}
+    return compute_impact(key, features, _load_facilities())
 
 
 @app.get("/health")

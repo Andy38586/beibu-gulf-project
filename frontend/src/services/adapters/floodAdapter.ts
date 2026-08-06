@@ -208,7 +208,9 @@ export const floodAdapter = {
     return resolveDataSource(ADAPTER_NAME)
   },
 
-  setDataSource(mode: 'static' | 'api'): void {
+  // 类型补全 'online'（2026-08-06：原仅 'static'|'api'，与 DataSourceMode 三值不符——
+  // 与 main.ts:38 断言漏 'online' 同源；运行时本就支持 online（VITE_DATA_SOURCE=online））
+  setDataSource(mode: 'static' | 'api' | 'online'): void {
     setAdapterDataSource(ADAPTER_NAME, mode)
   },
 
@@ -324,10 +326,19 @@ export const floodAdapter = {
     waterLevel: number,
     { signal }: RequestOptions = {}
   ): Promise<ImpactAssessmentResult> {
-    // online 模式：实时演算仅出淹没面，设施影响评估暂不提供（MVP，后续可接 DEM+设施叠加）
+    // online 模式：FastAPI 预计算档位表 → 空间筛选设施影响（2026-08-06 补齐，
+    // 原实现返回空——受影响设施/损失一直为空的洞）
     if (resolveDataSource(ADAPTER_NAME) === 'online') {
-      logger.debug(`[FloodAdapter] online 模式不评估设施影响（水位 ${waterLevel}m），返回空`)
-      return { affectedFacilities: [], totalLoss: 0 }
+      const res = await apiRequest<Record<string, unknown>>('/flood-online/api/flood/impact', {
+        params: { level: waterLevel },
+        signal,
+        // FastAPI 返回裸 JSON（无 {code,data} 信封），与 getFloodAnalysis online 分支一致
+        envelope: false,
+      })
+      const result = res as Record<string, unknown> | undefined
+      const affectedFacilities = (result?.affectedFacilities as AffectedFacility[]) || []
+      const totalLoss = (result?.totalLoss as number) || 0
+      return { affectedFacilities, totalLoss }
     }
     if (resolveDataSource(ADAPTER_NAME) === 'static') {
       logger.warn(`[FloodAdapter] static 影响评估不响应水位参数（请求 ${waterLevel}m）`)

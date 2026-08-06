@@ -156,6 +156,64 @@ def _shape_to_geojson(geom) -> dict:
     return mapping(geom)
 
 
+def compute_impact(level: float, features: list[dict], facilities: list[dict]) -> dict:
+    """
+    设施影响评估：淹没多边形 ∩ 设施点 → 受影响设施 + 总损失（2026-08-06 新增）。
+
+    空间筛选语义：设施点落在任一淹没多边形内 → 计入受影响。
+    （淹没多边形本身即"与海面连通且 DEM<=level"的区域——点在多边形内已蕴含
+    "设施所在地被淹"的高程语义，无需再比对 facility.elevation。）
+
+    损失模型（value/damageRate 为合理假设的估算值，非实测）：
+      loss = value × damageRate
+      totalLoss = Σ loss
+    value 取自 facilityPoints.json（万元，资产价值估算），damageRate 按设施类型
+    （油库 0.9x / 泊位码头 0.8x / 仓储 0.4~0.6x）——可接受为"合理造假"。
+
+    Returns:
+      {"level", "affectedFacilities": [{id,name,type,lng,lat,port,loss,damageRate}], "totalLoss"}
+    """
+    from shapely.geometry import Point, shape
+
+    polys = []
+    for f in features:
+        geom = f.get("geometry") if isinstance(f, dict) else None
+        if geom and geom.get("type") in ("Polygon", "MultiPolygon"):
+            try:
+                polys.append(shape(geom))
+            except Exception:  # noqa: BLE001 —— 单多边形解析失败跳过
+                continue
+    if not polys:
+        return {"level": level, "affectedFacilities": [], "totalLoss": 0}
+
+    affected: list[dict] = []
+    total_loss = 0.0
+    for fac in facilities:
+        try:
+            pt = Point(float(fac["lng"]), float(fac["lat"]))
+        except (KeyError, TypeError, ValueError):
+            continue
+        if not any(poly.contains(pt) for poly in polys):
+            continue
+        damage_rate = float(fac.get("damageRate", 0.1))
+        value = float(fac.get("value", 0))
+        loss = value * damage_rate
+        affected.append(
+            {
+                "id": fac.get("id", ""),
+                "name": fac.get("name", ""),
+                "type": fac.get("type", ""),
+                "lng": fac["lng"],
+                "lat": fac["lat"],
+                "port": fac.get("port", ""),
+                "loss": round(loss),
+                "damageRate": damage_rate,
+            }
+        )
+        total_loss += loss
+    return {"level": level, "affectedFacilities": affected, "totalLoss": round(total_loss)}
+
+
 def _polygon_area_deg2(geom: dict) -> float:
     """多边形面积近似（度²，用于碎片过滤与排序，不做精确投影面积）。"""
     coords = geom.get("coordinates", [])

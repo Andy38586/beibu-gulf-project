@@ -403,6 +403,23 @@ watch(
   }
 )
 
+// a043: 地图无 resize 响应（窗口缩放/侧栏折叠/抽屉后 canvas 失配）——挂 ResizeObserver
+// 观察两个地图容器，尺寸变化 → 当前渲染器 updateSize（Cesium viewer.resize / OL map.updateSize）。
+// 用 ResizeObserver 而非 window.resize：侧栏折叠/抽屉导致的容器尺寸变化窗口尺寸不变，
+// 只有容器级观察能捕获。v-show 隐藏容器切回时也触发回调 → 顺带修复切换后 canvas 尺寸。
+let resizeObserver: ResizeObserver | null = null
+
+function watchContainerSize(container: HTMLElement | null): void {
+  if (!container || resizeObserver) return
+  resizeObserver = new ResizeObserver(() => {
+    // 防抖：连续 resize 事件合并（Cesium resize 有布局开销，避免高频触发）
+    if (resizeObserver) {
+      currentRenderer.value?.updateSize()
+    }
+  })
+  resizeObserver.observe(container)
+}
+
 onMounted(async () => {
   await loadData()
   if (loadAbort.signal.aborted) return
@@ -420,11 +437,25 @@ onMounted(async () => {
   const container = getContainer(props.mapType)
   await initRenderer(props.mapType, container)
   loading.value = false
+
+  // a043: 观察 OL 容器（常驻）；Cesium 容器 v-if 出现后由 cesiumInitialized watch 观察
+  watchContainerSize(olContainerRef.value)
+})
+
+// a043: Cesium 容器首次创建（cesiumInitialized → true）后观察其尺寸变化
+watch(cesiumInitialized, (init) => {
+  if (init) {
+    void nextTick(() => watchContainerSize(cesiumContainerRef.value))
+  }
 })
 
 onUnmounted(() => {
   // 卸载时 abort，阻止未完成的异步回调继续写 ref
   loadAbort.abort()
+
+  // a043: 断开容器尺寸观察（注册/移除配对契约，防泄漏）
+  resizeObserver?.disconnect()
+  resizeObserver = null
 
   // 取消所有待执行的 rAF 回调，防止组件卸载后仍操作 DOM
   _pendingRafIds.forEach((id) => cancelAnimationFrame(id))

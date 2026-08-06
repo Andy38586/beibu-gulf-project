@@ -16,6 +16,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { useMapStore } from '@/stores'
+import { useWaterLevelStore } from '@/stores'
 
 const h = vi.hoisted(() => {
   const mockManager = {
@@ -26,16 +27,15 @@ const h = vi.hoisted(() => {
     reapplyAll: vi.fn(),
     removeAllFromRenderer: vi.fn(),
   }
-  let floodResolve: ((v: unknown) => void) | null = null
-  let floodSignal: AbortSignal | null = null
+  // a048: 每次 getFloodAnalysis 调用独立记录 signal 与 resolve（多次分析场景）
+  const floodCalls: { signal: AbortSignal | null; resolve: (v: unknown) => void }[] = []
   const getWaterArea = vi.fn().mockResolvedValue([
     [108.5, 21.7],
     [108.6, 21.8],
   ])
   const getFloodAnalysis = vi.fn((_level: number, opts?: { signal?: AbortSignal }) => {
-    floodSignal = opts?.signal ?? null
     return new Promise((resolve) => {
-      floodResolve = resolve
+      floodCalls.push({ signal: opts?.signal ?? null, resolve })
     })
   })
   // 影响评估请求保持 pending，避免其分支调用 manager（聚焦洪涝分析 abort 路径）
@@ -49,8 +49,7 @@ const h = vi.hoisted(() => {
     getImpactAssessment,
     clearCache,
     setDataSource,
-    getFloodResolve: () => floodResolve,
-    getFloodSignal: () => floodSignal,
+    getFloodCalls: () => floodCalls,
   }
 })
 
@@ -95,28 +94,48 @@ describe('FloodAnalysisPage 卸载守卫（H-4 / P0-5 / R-4）', () => {
     const mapStore = useMapStore()
     mapStore.currentRenderer = { getType: () => 'ol' } as never
     await flushPromises()
-    // 推进防抖定时器（ANALYSIS_DELAY=500ms），触发一次洪涝分析（在途）
-    vi.advanceTimersByTime(600)
+
+    // a048 滑块联动：首屏 immediate watch 跳过自动分析（等待用户操作）。
+    // 第一次操作滑块 → 分析①（正常在途）
+    useWaterLevelStore().setWaterLevel(8)
     await flushPromises()
+    vi.advanceTimersByTime(600) // 推进防抖定时器
+    await flushPromises()
+    expect(h.getFloodCalls().length).toBe(1)
 
-    const signal = h.getFloodSignal()
-    expect(signal).toBeTruthy()
-
-    // 挂载时 registerFloodLayers 已注册 'flood-area'
+    // 分析① 正常响应 → renderFloodAreas 经 has() 兜底注册 'flood-area'（a048 联动）
+    h.getFloodCalls()[0].resolve({
+      features: [
+        {
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: [108.5, 21.7] },
+          properties: {},
+        },
+      ],
+      statistics: {},
+      riskLevel: '中',
+    })
+    await flushPromises()
     const registerBefore = h.mockManager.register.mock.calls.filter(
       (c) => c[0] === 'flood-area'
     ).length
     expect(registerBefore).toBeGreaterThanOrEqual(1)
 
-    // 卸载 → onUnmounted 应 abort 在途请求
+    // 第二次操作滑块 → 分析②（在途，本次要卸载）
+    useWaterLevelStore().setWaterLevel(9)
+    await flushPromises()
+    vi.advanceTimersByTime(600)
+    await flushPromises()
+    const signal = h.getFloodCalls()[1].signal
+    expect(signal).toBeTruthy()
+
+    // 卸载 → onUnmounted 应 abort 在途请求（分析②）
     wrapper.unmount()
     await flushPromises()
     expect(signal!.aborted).toBe(true)
 
-    // 解析迟到响应：因 unmounted=true，renderFloodAreas 不应再次 register
-    const resolve = h.getFloodResolve()
-    expect(resolve).toBeTypeOf('function')
-    resolve!({
+    // 解析迟到响应（分析②）：因 unmounted=true，renderFloodAreas 不应再次 register
+    h.getFloodCalls()[1].resolve({
       features: [
         {
           type: 'Feature',

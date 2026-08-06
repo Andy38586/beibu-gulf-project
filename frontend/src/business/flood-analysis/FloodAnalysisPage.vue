@@ -131,23 +131,9 @@ async function registerFloodLayers(signal?: AbortSignal) {
     })
   }
 
-  // 淹没范围图层（无初始数据，等待 API 返回）
-  businessLayerManager.register(FLOOD_LAYER_ID, {
-    label: '淹没范围',
-    layerType: 'geojson',
-    data: null,
-    options: {},
-    visible: true,
-  })
-
-  // 受影响设施图层（无初始数据，等待 API 返回）
-  businessLayerManager.register(FACILITY_LAYER_ID, {
-    label: '受影响设施',
-    layerType: 'points',
-    data: null,
-    options: {},
-    visible: true,
-  })
+  // 淹没范围图层（a048 联动设计：默认不注册——滑块未操作时面板无开关、地图不渲染；
+  // 滑块首次操作 → renderFloodAreas 的 has() 兜底自动注册+渲染+面板出现，之后固定显示）
+  // 受影响设施图层（同上，a048 联动设计）
 
   // 真实地形图层（DEM 山体阴影，A 路线增量①）
   // 方案 §5.3 验收标准明确"洪涝页可勾选「真实地形」图层"——DEM 数据仅属洪涝分析（a017）
@@ -237,11 +223,25 @@ onMounted(async () => {
   }
 })
 
+// a048 滑块联动设计（2026-08-06 用户拍板）：
+// - 进路由未操作滑块 → 淹没范围/受影响设施 不注册（面板无开关、地图不渲染）
+// - 滑块首次操作 → renderFloodAreas/renderAffectedFacilities 的 has() 兜底自动注册
+//   （面板出现 + 渲染），之后固定显示
+// - 刷新/离开路由 → 回到默认（onUnmounted 移除图层 + 本标志复位）
+let sliderInteracted = false
+
 // 水位变化防抖500ms后自动触发淹没问题分析和影响评估
+// a048: immediate 首屏触发（用户未操作滑块）跳过自动分析——初始化不显示淹没图层
 watch(
   () => waterLevelStore.waterLevel,
   (newLevel) => {
     if (stateRestored) return
+
+    if (!sliderInteracted) {
+      sliderInteracted = true
+      logger.debug('[Flood] 首屏初始化水位，跳过自动分析（等待用户操作滑块触发）')
+      return
+    }
 
     if (analysisTimer) {
       clearTimeout(analysisTimer)

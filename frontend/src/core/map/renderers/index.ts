@@ -9,6 +9,39 @@ export { MapRenderer, OLRenderer }
 let _cesiumLoadPromise: Promise<void> | null = null
 
 /**
+ * Cesium 空闲预热（Phase 2，2026-08-06）
+ * 首屏渲染完成后，用浏览器空闲时段预取 Cesium 全局脚本（5.7MB）：
+ * - 仅预取（<link rel=preload>），不执行——避免抢占首屏带宽与 CPU
+ * - 用户切 3D 时 ensureCesiumLoaded() 命中浏览器缓存，脚本近乎即时就绪
+ * - 幂等：Cesium 已加载/已预热过则跳过
+ * - 降级：requestIdleCallback 不可用时（旧浏览器）直接执行，不影响功能
+ */
+export function preloadCesium(): void {
+  try {
+    if ((window as unknown as Record<string, unknown>).Cesium) return
+    if (document.querySelector('link[href*="/cesium/Cesium.js"][rel="preload"]')) return
+
+    const idle = (
+      window as unknown as { requestIdleCallback?: (cb: () => void) => void }
+    ).requestIdleCallback
+    const doPreload = () => {
+      const link = document.createElement('link')
+      link.rel = 'preload'
+      link.as = 'script'
+      link.href = '/cesium/Cesium.js'
+      document.head.appendChild(link)
+      if (import.meta.env.DEV) {
+        console.debug('[renderers] Cesium 已空闲预取 /cesium/Cesium.js')
+      }
+    }
+    if (idle) idle(doPreload)
+    else doPreload()
+  } catch {
+    // 预热失败静默——只是优化手段，不影响功能
+  }
+}
+
+/**
  * 确保 Cesium 全局就绪（幂等）
  * vite-plugin-cesium 将 `import { Viewer } from 'cesium'` 转换为 `window.Cesium.Viewer` 引用，
  * 但 Cesium.js（5.7MB）不再在 HTML head 中同步加载。此函数在切 3D 时动态注入 <script> 标签，

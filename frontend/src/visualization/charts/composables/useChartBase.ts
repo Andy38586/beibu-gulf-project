@@ -72,6 +72,7 @@ export function useChartBase(
       animationDuration: 300,
       animationEasing: 'linear',
       series: (props.series || []).map((s) => ({
+        id: s.name, // 稳定 id（D-7）：配合 replaceMerge:['series']，series 增减时正确对位
         name: s.name,
         type: chartType,
         data: s.data || [],

@@ -15,6 +15,7 @@ import {
   type UnifiedMapExposed,
 } from '@/core'
 import UnifiedMap from '@/core/map/UnifiedMap.vue'
+import { preloadCesium } from '@/core/map/renderers'
 import {
   initAuthStorageListener,
   removeAuthStorageListener,
@@ -169,6 +170,8 @@ onMounted(() => {
   void restoreAuth()
   // 单点注册多标签页 storage 同步监听（无需组件上下文，不会抛错）
   initAuthStorageListener()
+  // Phase 2：首屏后空闲预取 Cesium 脚本（5.7MB），进 3D 时 warm，灭切换卡顿
+  preloadCesium()
 })
 
 onUnmounted(() => {

@@ -61,6 +61,9 @@ let stateRestored = false
 /** 防抖定时器 */
 let analysisTimer: ReturnType<typeof setTimeout> | null = null
 
+/** 水面高度更新防抖定时器（独立于分析防抖，避免互相 clearTimeout 打断） */
+let waterSurfaceTimer: ReturnType<typeof setTimeout> | null = null
+
 // 请求序号，仅最新响应写 store；防止切回2D后数据污染渲染器
 let analysisSeq = 0
 let unmounted = false
@@ -417,14 +420,20 @@ function getRiskFillColor(riskLevel: string) {
 }
 
 // 水位变化时更新水面高度
+// 防抖 500ms（与 ANALYSIS_DELAY 同节奏）：滑块拖动期间合并为一次更新，
+// 避免每帧触发几何重建（配合 CesiumWaterSurface 增量更新，灭闪烁）
 watch(
   () => waterLevelStore.waterLevel,
   (newLevel) => {
     if (!businessLayerManager.has(WATER_SURFACE_ID)) return
     if (!cachedWaterAreaCoords) return
-    businessLayerManager.updateData(WATER_SURFACE_ID, {
-      data: { coordinates: cachedWaterAreaCoords, height: newLevel },
-    })
+    if (waterSurfaceTimer) clearTimeout(waterSurfaceTimer)
+    waterSurfaceTimer = setTimeout(() => {
+      if (unmounted) return
+      businessLayerManager.updateData(WATER_SURFACE_ID, {
+        data: { coordinates: cachedWaterAreaCoords, height: newLevel },
+      })
+    }, ANALYSIS_DELAY)
   }
 )
 
@@ -439,6 +448,10 @@ onUnmounted(() => {
   if (analysisTimer) {
     clearTimeout(analysisTimer)
     analysisTimer = null
+  }
+  if (waterSurfaceTimer) {
+    clearTimeout(waterSurfaceTimer)
+    waterSurfaceTimer = null
   }
 
   // Manager 统一清理业务图层

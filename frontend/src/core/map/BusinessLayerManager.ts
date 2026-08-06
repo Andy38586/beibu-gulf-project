@@ -189,6 +189,14 @@ export class BusinessLayerManager {
   reapplyAll(renderer: MapRenderer | null = this._getRenderer()): void {
     if (!renderer) return
     for (const [key, meta] of this._registry.entries()) {
+      // a046：目录条目重建必须在 data==null 判断之前——data==null 的图层
+      // （如 flood-area 等 API 返回后渲染）引擎切换时被 clearLayerCatalog 清掉后，
+      // 原实现先 continue 跳过了重建 → 面板开关永久丢失（地图照常渲染=渲染与面板脱节）。
+      // 条目重建不依赖 data，仅依赖 registry（label/layerType/visible）。
+      const catalog = this._mapStore?.layerCatalog ?? []
+      if (!catalog.some((e: LayerEntry) => e.key === key)) {
+        this._mapStore?.registerBusinessLayer(key, meta.label, meta.layerType, meta.visible)
+      }
       if (meta.data == null) continue
       if (!meta.visible) {
         logger.debug(`[BusinessLayerManager] reapplyAll ${key} 跳过（visible=false）`)
@@ -196,11 +204,6 @@ export class BusinessLayerManager {
       }
       const adapter = this._getAdapter(meta.layerType)
       if (!adapter) continue
-      // 重建被 clearLayerCatalog 清掉的目录条目（不移除不覆盖，只补缺）
-      const catalog = this._mapStore?.layerCatalog ?? []
-      if (!catalog.some((e: LayerEntry) => e.key === key)) {
-        this._mapStore?.registerBusinessLayer(key, meta.label, meta.layerType, meta.visible)
-      }
       try {
         adapter.create(renderer, key, meta.data, meta.options)
       } catch (e) {

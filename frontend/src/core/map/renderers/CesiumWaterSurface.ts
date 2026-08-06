@@ -129,11 +129,10 @@ export function updateWaterLevel(renderer: any, id: string, newHeight: number): 
 
   try {
     // 同步构建新几何并替换到同一 Primitive（不销毁旧 Primitive）
-    waterSurface.primitive.geometryInstances = buildWaterInstance(
-      waterSurface.coordinates,
-      newHeight,
-      waterSurface.options
-    )
+    // Cesium 类型将 geometryInstances 标为只读，但运行时支持替换（增量更新依赖此行为，
+    // 06908b5 引入时未跑 typecheck 的遗留错误）——用断言绕过类型只读标注
+    ;(waterSurface.primitive as { geometryInstances: unknown }).geometryInstances =
+      buildWaterInstance(waterSurface.coordinates, newHeight, waterSurface.options)
     waterSurface.height = newHeight
     renderer.viewer.scene.requestRender()
   } catch (e) {

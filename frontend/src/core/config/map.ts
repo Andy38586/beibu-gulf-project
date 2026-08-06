@@ -91,20 +91,20 @@ export const MAP_CONFIG: MapConfig = {
   VIEW_LEVELS: {
     REGION: {
       center: { lng: 108.5752963, lat: 21.760409 },
-      height: 800000,
-      zoom: 9,
+      height: 1600000,
+      zoom: 8,
       label: '北部湾区域',
     },
     CITY: {
       center: { lng: 108.61, lat: 21.94 },
-      height: 80000,
-      zoom: 12,
+      height: 160000,
+      zoom: 11,
       label: '钦州市',
     },
     DISTRICT: {
       center: { lng: 108.61, lat: 21.94 },
-      height: 8000,
-      zoom: 14,
+      height: 16000,
+      zoom: 13,
       label: '区级',
     },
   },

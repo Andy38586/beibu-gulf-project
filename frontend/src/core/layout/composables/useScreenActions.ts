@@ -26,9 +26,9 @@ interface CityCenter {
 }
 
 const CITY_CENTERS: Record<string, CityCenter> = {
-  钦州: { lng: 108.590379, lat: 21.726917, height: 50000, zoom: 11 },
-  防城港: { lng: 108.340973, lat: 21.617689, height: 50000, zoom: 11 },
-  北海: { lng: 109.130658, lat: 21.418792, height: 50000, zoom: 11 },
+  钦州: { lng: 108.590379, lat: 21.726917, height: 100000, zoom: 10 },
+  防城港: { lng: 108.340973, lat: 21.617689, height: 100000, zoom: 10 },
+  北海: { lng: 109.130658, lat: 21.418792, height: 100000, zoom: 10 },
 }
 
 /** useScreenActions 返回值结构 */

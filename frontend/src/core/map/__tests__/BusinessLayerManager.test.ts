@@ -246,6 +246,26 @@ describe('BusinessLayerManager', () => {
 
       expect(newRenderer.addPointLayer).not.toHaveBeenCalled()
     })
+
+    it('data==null 的图层（如 flood-area 等 API 返回后渲染）也应重建面板条目（a046）', () => {
+      manager.register('flood-area', {
+        label: '淹没范围',
+        layerType: 'geojson',
+        data: null,
+        visible: true,
+      })
+      // 引擎切换：clearLayerCatalog 清空目录（数据未就绪时 data 仍为 null）
+      mapStore.layerCatalog.length = 0
+
+      const newRenderer = { addGeoJsonLayer: vi.fn() }
+      manager.reapplyAll(newRenderer as unknown as MapRenderer)
+
+      // 面板条目必须重建（data==null 不渲染但开关不能丢——渲染与面板脱节的根因）
+      expect(mapStore.registerBusinessLayer).toHaveBeenCalledWith('flood-area', '淹没范围', 'geojson', true)
+      expect(mapStore.layerCatalog.some((e: MockCatalogEntry) => e.key === 'flood-area')).toBe(true)
+      // data==null → 不触发视觉创建
+      expect(newRenderer.addGeoJsonLayer).not.toHaveBeenCalled()
+    })
   })
 
   describe('removeAllFromRenderer', () => {

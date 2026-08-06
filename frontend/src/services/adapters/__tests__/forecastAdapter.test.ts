@@ -4,7 +4,7 @@ import { forecastAdapter } from '../forecastAdapter'
 
 /**
  * forecastAdapter 单测
- * 注意：Adapter 内部通过 fetch('/data/forecast/*.json') 拉取 mock 数据。
+ * 注意：Adapter 内部通过 fetch('/data/forecast/*.json') 拉取 static 数据。
  * vitest 环境无静态服务器、且 Node fetch 不支持相对 URL，因此用 vi.stubGlobal
  * 接管 global.fetch，按 URL 返回与真实 fixture 同构的内联数据。
  * ⚠️ 与实施计划 08 文档的偏差：
@@ -35,7 +35,7 @@ const fixtures: Record<string, unknown> = {
   },
 }
 
-function createFetchMock() {
+function createFetchStatic() {
   return vi.fn(async (url: string) => {
     const match = url.match(/\/data\/forecast\/(.+)\.json$/)
     const key = match ? match[1] : null
@@ -49,14 +49,14 @@ function createFetchMock() {
 
 describe('forecastAdapter', () => {
   beforeEach(() => {
-    forecastAdapter.setDataSource('mock')
-    vi.stubGlobal('fetch', createFetchMock())
+    forecastAdapter.setDataSource('static')
+    vi.stubGlobal('fetch', createFetchStatic())
   })
 
   describe('setDataSource', () => {
-    it('应正确切换到 mock 模式', () => {
-      forecastAdapter.setDataSource('mock')
-      expect(forecastAdapter.dataSource).toBe('mock')
+    it('应正确切换到 static 模式', () => {
+      forecastAdapter.setDataSource('static')
+      expect(forecastAdapter.dataSource).toBe('static')
     })
 
     it('应拒绝无效模式', () => {
@@ -76,7 +76,7 @@ describe('forecastAdapter', () => {
       expect(data.data).toBeDefined()
     })
 
-    it('mock 模式下应返回有效数据结构', async () => {
+    it('static 模式下应返回有效数据结构', async () => {
       const data = await forecastAdapter.getIndicatorData('berth')
       expect(data).toHaveProperty('indicator')
       expect(data).toHaveProperty('unit')

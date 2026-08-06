@@ -11,7 +11,7 @@
  * 3. Cesium Primitive API 动态构建水面几何体的能力
  * 4. 相机状态（height<->zoom）在 2D<->3D 切换时的同步机制
  * 5. Data Adapter 隔离：floodAdapter 是业务层与数据源的唯一接口
- * - 架构验证阶段：dataSource='mock'，使用示意性数据
+ * - 架构验证阶段：dataSource='static'（前端静态资源直读）
  * - 生产阶段：floodAdapter.setDataSource('api')，业务代码零改动
  */
 import { nextTick, onMounted, onUnmounted, watch } from 'vue'

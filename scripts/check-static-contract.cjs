@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
- * check-mock-contract.cjs — mock 数据契约护栏（数据流契约 R-mock,⑤）
+ * check-static-contract.cjs — 静态数据契约护栏（public/data vs backend/data）（数据流契约 R-mock,⑤）
  *
- * 背景：mock(frontend/public/data)与 api(backend/data)两套数据物理隔离,
+ * 背景：static(frontend/public/data)与 api(backend/data)两套数据物理隔离,
  * 但契约必须一致——否则"mock 通、api 断"的漂移会在演示时爆。
  *
  * 校验规则：
@@ -11,8 +11,8 @@
  * 3. 每个文件必须带 `_contractVersion`（顶层,版本升级时递增,旧 mock 自动拒绝）
  *
  * 用法：
- *   node scripts/check-mock-contract.cjs        # 校验(不通过 exit 1)
- *   node scripts/check-mock-contract.cjs --fix  # 自动注入缺失的 _contractVersion
+ *   node scripts/check-static-contract.cjs        # 校验(不通过 exit 1)
+ *   node scripts/check-static-contract.cjs --fix  # 自动注入缺失的 _contractVersion
  */
 const fs = require('node:fs')
 const path = require('node:path')

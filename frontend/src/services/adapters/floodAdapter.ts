@@ -2,7 +2,7 @@
  * Flood Data Adapter
  * 职责：隔离浸没分析业务层与数据源。
  * 业务层（FloodAnalysisPage）通过此 Adapter 获取数据，
- * 无需关心数据来自 Mock 还是真实 API/数据库。
+ * 无需关心数据来自 static 静态资源还是真实 API/数据库。
  */
 
 import { useApiRequest } from '@/shared'
@@ -36,10 +36,10 @@ const FALLBACK_WATER_AREA_COORDINATES: [number, number][] = [
   [108.615, 21.855],
 ]
 
-// ==================== 内部 Mock 实现（统一使用 loadStatic） ====================
+// ==================== 内部 static 实现（统一使用 loadStatic） ====================
 let _cachedWaterAreaCoords: [number, number][] | null = null
 
-async function _fetchMockWaterArea(): Promise<[number, number][]> {
+async function _fetchStaticWaterArea(): Promise<[number, number][]> {
   if (_cachedWaterAreaCoords) return _cachedWaterAreaCoords
   try {
     const data = await loadStatic<{ coordinates?: [number, number][] }>('/data/water-area.json')
@@ -56,9 +56,9 @@ async function _fetchMockWaterArea(): Promise<[number, number][]> {
 }
 
 /**
- * 加载 Mock JSON（统一使用 loadStatic，超时 10s + 去重）
+ * 加载 static JSON（统一使用 loadStatic，超时 10s + 去重）
  */
-async function _fetchMockJson<T>(url: string, signal?: AbortSignal): Promise<T> {
+async function _fetchStaticJson<T>(url: string, signal?: AbortSignal): Promise<T> {
   return loadStatic<T>(url, { signal, cacheTTL: 0 })
 }
 
@@ -78,8 +78,8 @@ interface RequestOptions {
   signal?: AbortSignal
 }
 
-// ==================== Mock 字段映射（N4: adapter 层做映射，不改类型定义） ====================
-// Mock 数据字段名与 types/business/base.ts 的类型定义存在差异：
+// ==================== static 字段映射（N4: adapter 层做映射，不改类型定义） ====================
+// static 数据字段名与 types/business/base.ts 的类型定义存在差异：
 // - FloodFeature.properties 缺 riskLevel（需从顶层 riskLevel 补入）
 // - FloodStatistics: floodArea → totalArea, affectedFacilities → affectedCount
 // - AffectedFacility: longitude → lng, latitude → lat, 缺 id/loss/damageRate（从 impact 派生）
@@ -91,7 +91,7 @@ const IMPACT_DAMAGE_RATE: Record<string, number> = {
   轻度: 0.2,
 }
 
-/** 将 mock flood-areas.json 的 features 映射为 FloodFeature[] */
+/** 将 static flood-areas.json 的 features 映射为 FloodFeature[] */
 function _mapFloodFeatures(rawFeatures: unknown, fallbackRiskLevel: string): FloodFeature[] {
   if (!Array.isArray(rawFeatures)) return []
   return rawFeatures.map((f) => {
@@ -107,7 +107,7 @@ function _mapFloodFeatures(rawFeatures: unknown, fallbackRiskLevel: string): Flo
   })
 }
 
-/** 将 mock/api flood-statistics 响应映射为 FloodStatistics
+/** 将 static/api flood-statistics 响应映射为 FloodStatistics
  * 显式字段映射，不再 spread raw + as 断言 */
 function _mapFloodStatistics(
   raw: Record<string, unknown> | undefined,
@@ -127,7 +127,7 @@ function _mapFloodStatistics(
   }
 }
 
-/** 将 mock disaster.json 的 affectedFacilities 映射为 AffectedFacility[] */
+/** 将 static disaster.json 的 affectedFacilities 映射为 AffectedFacility[] */
 function _mapAffectedFacilities(rawFacilities: unknown, totalLoss: number): AffectedFacility[] {
   if (!Array.isArray(rawFacilities)) return []
   const totalDamageRate = rawFacilities.reduce((sum, f) => {
@@ -201,14 +201,14 @@ export const floodAdapter = {
     return resolveDataSource(ADAPTER_NAME)
   },
 
-  setDataSource(mode: 'mock' | 'api'): void {
+  setDataSource(mode: 'static' | 'api'): void {
     setAdapterDataSource(ADAPTER_NAME, mode)
   },
 
   // b046: 增加 signal 参数——水域坐标请求可随组件卸载/新请求取消
   async getWaterArea(signal?: AbortSignal): Promise<[number, number][]> {
-    if (resolveDataSource(ADAPTER_NAME) === 'mock') {
-      return _fetchMockWaterArea()
+    if (resolveDataSource(ADAPTER_NAME) === 'static') {
+      return _fetchStaticWaterArea()
     }
     // api 模式：从后端只读端点获取水域坐标（D-4=A：后端 /flood/water-area 端点，
     // 数据与前端 water-area.json 同源，前后端共用同一份静态坐标）。
@@ -245,17 +245,17 @@ export const floodAdapter = {
         actualWaterLevel: data.level,
       }
     }
-    if (resolveDataSource(ADAPTER_NAME) === 'mock') {
-      // mock 数据为静态单档位，不响应水位参数
+    if (resolveDataSource(ADAPTER_NAME) === 'static') {
+      // static 数据为静态单档位，不响应水位参数
       logger.warn(
-        `[FloodAdapter] mock 模式不响应水位参数（请求 ${waterLevel}m，固定返回 2.5m 档位）`
+        `[FloodAdapter] static 模式不响应水位参数（请求 ${waterLevel}m，固定返回 2.5m 档位）`
       )
       const [floodAreasRes, statisticsRes] = await Promise.all([
-        _fetchMockJson<{ code: number; data: Record<string, unknown> }>(
+        _fetchStaticJson<{ code: number; data: Record<string, unknown> }>(
           '/data/flood-areas.json',
           signal
         ),
-        _fetchMockJson<{ code: number; data: Record<string, unknown> }>(
+        _fetchStaticJson<{ code: number; data: Record<string, unknown> }>(
           '/data/flood-statistics.json',
           signal
         ),
@@ -310,9 +310,9 @@ export const floodAdapter = {
       logger.debug(`[FloodAdapter] online 模式不评估设施影响（水位 ${waterLevel}m），返回空`)
       return { affectedFacilities: [], totalLoss: 0 }
     }
-    if (resolveDataSource(ADAPTER_NAME) === 'mock') {
-      logger.warn(`[FloodAdapter] mock 影响评估不响应水位参数（请求 ${waterLevel}m）`)
-      const res = await _fetchMockJson<{ code: number; data: Record<string, unknown> }>(
+    if (resolveDataSource(ADAPTER_NAME) === 'static') {
+      logger.warn(`[FloodAdapter] static 影响评估不响应水位参数（请求 ${waterLevel}m）`)
+      const res = await _fetchStaticJson<{ code: number; data: Record<string, unknown> }>(
         '/data/disaster.json',
         signal
       )
@@ -321,7 +321,7 @@ export const floodAdapter = {
         throw new Error('[FloodAdapter] 影响评估响应异常')
       }
 
-      // 信封解包统一走 unwrapEnvelope（mock 文件为 { code, data } 结构）
+      // 信封解包统一走 unwrapEnvelope（static 文件为 { code, data } 结构）
       const result = unwrapEnvelope<Record<string, unknown>>(res)
       const totalLoss = (result?.totalLoss as number) || 0
       return {

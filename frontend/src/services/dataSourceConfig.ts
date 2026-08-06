@@ -5,11 +5,15 @@
  * - 各 adapter 可通过 setDataSource 独立覆盖
  * - 提供统一查询接口，消除各 adapter 内部 if/else 重复
  * 使用方：forecastAdapter、floodAdapter、main.ts 初始化。
+ *
+ * 数据源三态（2026-08-06 规范命名，原 'mock' 更名为 'static'——名实相符：
+ * 前端直读 public/data 静态资源（boundary/berth/traffic 等真实数据），
+ * 非"假数据"；api=Express 后端静态接口；online=FastAPI 实时演算）。
  */
 
 import { logger } from '@/shared'
 
-export type DataSourceMode = 'mock' | 'api' | 'online'
+export type DataSourceMode = 'static' | 'api' | 'online'
 
 /** 全局默认数据源（由 main.ts 在启动时经 adapter.setDataSource 驱动；此处默认值与代码默认 api 保持一致，D-1=A） */
 const globalDataSource: DataSourceMode = 'api'
@@ -29,9 +33,9 @@ const adapterOverrides = new Map<string, DataSourceMode>()
  * @param mode - 数据源模式
  */
 export function setAdapterDataSource(adapterName: string, mode: DataSourceMode): void {
-  if (mode !== 'mock' && mode !== 'api' && mode !== 'online') {
+  if (mode !== 'static' && mode !== 'api' && mode !== 'online') {
     throw new Error(
-      `[DataSourceConfig] ${adapterName}: 无效的数据源模式: ${mode}，仅支持 'mock' / 'api' / 'online'`
+      `[DataSourceConfig] ${adapterName}: 无效的数据源模式: ${mode}，仅支持 'static' / 'api' / 'online'`
     )
   }
   adapterOverrides.set(adapterName, mode)

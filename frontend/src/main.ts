@@ -39,8 +39,8 @@ validateEnv()
 initPerfReporter()
 
 // 数据源由环境变量驱动，默认 api（生产安全；未配置不再静默打包 mock）。
-// 本地离线开发需显式设 VITE_DATA_SOURCE=mock（写入 .env.local，优先级高于 .env）。
-const dataSource = (import.meta.env.VITE_DATA_SOURCE as 'mock' | 'api' | undefined) || 'api'
+// 本地离线开发需显式设 VITE_DATA_SOURCE=static（写入 .env.local，优先级高于 .env）。
+const dataSource = (import.meta.env.VITE_DATA_SOURCE as 'static' | 'api' | undefined) || 'api'
 // 预测分析：真实指标（cargo/container）走后端 API；合成指标（berth/traffic）由 adapter
 // 按 INDICATOR_SOURCE 回退到前端静态 fixture（public/data/forecast/*）。
 // 三个 adapter 统一由 dataSource 驱动，移除 forecast 硬编码 'api' 覆盖（D-1=A，避免绕过全局语义）。

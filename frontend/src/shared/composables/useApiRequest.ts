@@ -146,7 +146,11 @@ export function useApiRequest() {
     }
 
     try {
-      const res = await fetch(`${API_BASE}${fullPath}`, {
+      // P1-2: API_BASE 前缀拼接——以 /flood-online 开头（vite proxy → FastAPI 8000）
+      // 的路径不加 /api 前缀：加了会变成 /api/flood-online/... 命中 /api 规则转发到
+      // Express（无此路由 → 404 接口不存在），永远到不了 FastAPI（2026-08-06 实锤）。
+      const url = path.startsWith('/flood-online') ? fullPath : `${API_BASE}${fullPath}`
+      const res = await fetch(url, {
         method: options.method,
         body: options.body,
         headers,

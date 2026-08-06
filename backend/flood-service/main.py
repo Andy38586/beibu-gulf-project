@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import threading
 import time
+from collections import OrderedDict
 from functools import lru_cache
 
 from fastapi import FastAPI, Query
@@ -43,8 +44,10 @@ app.add_middleware(
 )
 
 # 档位缓存：水位取整到 0.1m，最近 64 档 LRU（滑块拖动时重复档位秒回）
+# 必须用 OrderedDict——move_to_end/popitem(last=False) 是其方法；
+# 普通 dict 无 move_to_end，命中缓存即 AttributeError 500（2026-08-06 实锤修复）
 _cache_lock = threading.Lock()
-_cached_level: dict[float, dict] = {}
+_cached_level: OrderedDict[float, dict] = OrderedDict()
 
 
 @lru_cache(maxsize=1)

@@ -5,7 +5,7 @@ import type { MapRenderer } from '@/core/map/renderers/MapRenderer'
 import { MAP_STORE_KEY } from '@/core/provideKeys'
 import { logger } from '@/shared'
 import { useMapStore } from '@/stores'
-import type { LayerEntry, ToggleableHandler } from '@/types'
+import type { LayerEntry } from '@/types'
 
 /** mapStore 实例类型（由 useMapStore 推断） */
 type MapStore = ReturnType<typeof useMapStore>
@@ -24,13 +24,6 @@ interface UseLayerManagerReturn {
   clearLayers: () => void
   registerBaseLayer: (key: string, label: string, show: () => void, hide: () => void) => void
   registerBaseLayerWithRenderer: (key: string, label: string, renderer: MapRenderer) => void
-  registerToggleable: (
-    key: string,
-    label: string,
-    rendererOrShow: ToggleableHandler,
-    hide?: (() => void) | undefined,
-    visible?: boolean
-  ) => void
   toggleLayer: (key: string) => void
   layerCatalog: ComputedRef<LayerEntry[]>
 }
@@ -45,7 +38,6 @@ export function useLayerManager(): UseLayerManagerReturn {
       clearLayers: () => {},
       registerBaseLayer: () => {},
       registerBaseLayerWithRenderer: () => {},
-      registerToggleable: () => {},
       toggleLayer: () => {},
       layerCatalog: computed<LayerEntry[]>(() => []),
     }
@@ -60,26 +52,6 @@ export function useLayerManager(): UseLayerManagerReturn {
 
   function registerBaseLayer(key: string, label: string, show: () => void, hide: () => void): void {
     s.registerBaseLayer(key, label, show, hide)
-  }
-
-  function registerToggleable(
-    key: string,
-    label: string,
-    rendererOrShow: ToggleableHandler,
-    hide?: (() => void) | undefined,
-    visible?: boolean
-  ): void {
-    if (typeof rendererOrShow === 'object' && rendererOrShow.setVisibility) {
-      s.registerToggleable(
-        key,
-        label,
-        () => rendererOrShow.setVisibility(key, true),
-        () => rendererOrShow.setVisibility(key, false),
-        visible
-      )
-    } else {
-      s.registerToggleable(key, label, rendererOrShow, hide, visible)
-    }
   }
 
   function registerBaseLayerWithRenderer(key: string, label: string, renderer: MapRenderer): void {
@@ -101,7 +73,6 @@ export function useLayerManager(): UseLayerManagerReturn {
     clearLayers,
     registerBaseLayer,
     registerBaseLayerWithRenderer,
-    registerToggleable,
     toggleLayer,
     layerCatalog,
   }

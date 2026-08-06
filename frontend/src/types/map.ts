@@ -43,11 +43,6 @@ export interface RegisterLayerOptions {
   hide?: Array<() => void>
 }
 
-/** registerToggleable 参数（show 可以是渲染器或函数） */
-export type ToggleableHandler =
-  | (() => void)
-  | { setVisibility: (_id: string, _visible: boolean) => void }
-
 // 面板名称
 // 使用 (string & {}) 而非裸 string，保留字面量收窄与 IDE 自动补全
 // 参考 types/api/forecast.ts 中 ForecastIndicatorName 的同类写法

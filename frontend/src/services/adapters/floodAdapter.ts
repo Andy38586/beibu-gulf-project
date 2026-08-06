@@ -375,16 +375,6 @@ export const floodAdapter = {
     }
   },
 
-  async getDEM(_region: unknown): Promise<Record<string, string>> {
-    // DEM 高程数据当前由 dem-hillshade 图层（静态 COG dem_hillshade.tif）直接消费，
-    // 本方法为预留接口，暂无运行期调用方（b029 / D-3=A 核实）。
-    // 三维水面为预设水位档位可视化（非真实高程演算），真地形见 D-10 决策。
-    return {
-      source: 'dem-pipeline',
-      note: 'DEM 由 dem-hillshade 图层消费，getDEM 为预留钩子（无调用方）',
-    }
-  },
-
   clearCache(): void {
     _cachedWaterAreaCoords = null
     _onlineLevelCache.clear()

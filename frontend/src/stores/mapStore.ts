@@ -216,40 +216,6 @@ export const useMapStore = defineStore('map', () => {
     }
   }
 
-  function registerToggleable(
-    key: string,
-    label: string,
-    showOrRenderer: (() => void) | { setVisibility: (_id: string, _visible: boolean) => void },
-    hide: (() => void) | undefined,
-    visible: boolean = true
-  ): void {
-    const existing = layerCatalog.value.find((e: LayerEntry) => e.key === key)
-    const shouldVisible = existing ? existing.visible : visible
-
-    // 兼容：showOrRenderer 可能是渲染器对象或函数
-    const showFn: () => void =
-      typeof showOrRenderer === 'function'
-        ? showOrRenderer
-        : () => showOrRenderer.setVisibility(key, true)
-
-    const hideFn: (() => void) | undefined = hide
-      ? hide
-      : typeof showOrRenderer !== 'function' && 'setVisibility' in showOrRenderer
-        ? () => showOrRenderer.setVisibility(key, false)
-        : undefined
-
-    registerLayer(key, label, {
-      visible: shouldVisible,
-      category: 'business',
-      show: [showFn],
-      hide: hideFn ? [hideFn] : undefined,
-    })
-
-    if (shouldVisible) {
-      showFn()
-    }
-  }
-
   /**
    * 注册业务图层到 layerCatalog
    * 与 registerToggleable 不同：
@@ -446,7 +412,6 @@ export const useMapStore = defineStore('map', () => {
     setAnalysisResult,
     registerLayer,
     registerBaseLayer,
-    registerToggleable,
     registerBusinessLayer,
     toggleLayer,
     removeLayer,

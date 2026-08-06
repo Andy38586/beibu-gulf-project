@@ -46,7 +46,7 @@ const fixtures: Record<string, unknown> = {
   },
 }
 
-function createFetchMock() {
+function createFetchStatic() {
   return vi.fn(async (url: string) => {
     const body = fixtures[url]
     if (body === undefined) {
@@ -74,9 +74,9 @@ fixtures[`${API_BASE}/flood/water-area`] = {
 
 describe('floodAdapter', () => {
   beforeEach(() => {
-    floodAdapter.setDataSource('mock')
+    floodAdapter.setDataSource('static')
     floodAdapter.clearCache()
-    vi.stubGlobal('fetch', createFetchMock())
+    vi.stubGlobal('fetch', createFetchStatic())
   })
 
   describe('getWaterArea', () => {

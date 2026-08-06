@@ -4,11 +4,11 @@
  * 接入状态（2026-07-29）：
  * - ForecastPage 已通过 useForecastRequest → forecastAdapter.getTimeSeries / getIndicatorComparison 取数，
  * 不再直接调 useApiRequest，Adapter 模式一致性已恢复。
- * - mock 模式：读取 public/data/forecast/*.json 静态 fixture。
+ * - static 模式：读取 public/data/forecast/*.json 静态 fixture。
  * - api 模式：通过 useApiRequest 调用后端 /forecast/timeseries、/forecast/indicator/:type，
  * 支持事务取消（AbortSignal 透传）。
  * 注意：ForecastIndicatorIndex.indicators 当前为字符串数组（对齐 index.json 的 metadata.indicators），
- * 非 Array<{key,label,unit}>。后者是早期设计稿的设想，与真实 mock 不符，已校正。
+ * 非 Array<{key,label,unit}>。后者是早期设计稿的设想，与真实 static 数据不符，已校正。
  */
 
 import { useApiRequest } from '@/shared'
@@ -85,11 +85,11 @@ export interface ForecastMapData {
 }
 
 /**
- * Mock JSON 原始结构（比 ForecastSeries 多 spatial 字段）。
+ * static JSON 原始结构（比 ForecastSeries 多 spatial 字段）。
  * ForecastSeries 类型仅描述 historical/forecast，不含 spatial；
- * 此处为 adapter 内部使用的真实 mock 文件形状。
+ * 此处为 adapter 内部使用的真实 static 文件形状。
  */
-interface _MockForecastFile {
+interface _StaticForecastFile {
   indicator: string
   unit: string
   data: Record<
@@ -109,7 +109,7 @@ interface _MockForecastFile {
   >
 }
 
-const MOCK_BASE = '/data/forecast'
+const STATIC_BASE = '/data/forecast'
 
 /**
  * 各指标取数来源（诚实标注，b025 / D-2=A）：
@@ -119,25 +119,25 @@ const MOCK_BASE = '/data/forecast'
  * 对这两个指标显示「（模拟）」角标，避免面试/演示时误读为真实数据。
  * 未显式声明的指标回退到全局 dataSource（由 main.ts 经 adapter.setDataSource 驱动）。
  */
-const INDICATOR_SOURCE: Record<string, 'api' | 'mock'> = {
-  berth: 'mock',
-  traffic: 'mock',
+const INDICATOR_SOURCE: Record<string, 'api' | 'static'> = {
+  berth: 'static',
+  traffic: 'static',
 }
 
 /** 合成（非实测）指标集合，供 UI 诚实标注（b025 / D-2=A） */
 export const SYNTHETIC_INDICATORS = new Set(
   Object.entries(INDICATOR_SOURCE)
-    .filter(([, src]) => src === 'mock')
+    .filter(([, src]) => src === 'static')
     .map(([key]) => key)
 )
 
 const ADAPTER_NAME = 'forecast'
 
-function _resolveSource(indicator: string): 'api' | 'mock' {
+function _resolveSource(indicator: string): 'api' | 'static' {
   return INDICATOR_SOURCE[indicator] ?? resolveDataSource(ADAPTER_NAME)
 }
 
-/** 在 mock values 字典中查找指定时间的值，找不到时取最近的前一个时间点 */
+/** 在 static values 字典中查找指定时间的值，找不到时取最近的前一个时间点 */
 function _lookupValue(values: Record<string, number>, time: string): number | null {
   if (values[time] != null) return values[time]
   const times = Object.keys(values).sort()
@@ -150,15 +150,15 @@ function _lookupValue(values: Record<string, number>, time: string): number | nu
   return values[nearest] ?? null
 }
 
-async function _fetchMock(indicator: string): Promise<ForecastSeries> {
+async function _fetchStatic(indicator: string): Promise<ForecastSeries> {
   // 静态资源 fetch 收口 loadStatic（统一超时 + TTL 缓存 + in-flight 去重）
-  const url = `${MOCK_BASE}/${indicator}.json`
+  const url = `${STATIC_BASE}/${indicator}.json`
   return loadStatic<ForecastSeries>(url)
 }
 
-async function _fetchMockIndex(): Promise<ForecastIndicatorIndex> {
+async function _fetchStaticIndex(): Promise<ForecastIndicatorIndex> {
   // 静态资源 fetch 收口 loadStatic
-  const url = `${MOCK_BASE}/index.json`
+  const url = `${STATIC_BASE}/index.json`
   return loadStatic<ForecastIndicatorIndex>(url)
 }
 
@@ -167,7 +167,7 @@ export const forecastAdapter = {
     return resolveDataSource(ADAPTER_NAME)
   },
 
-  setDataSource(mode: 'mock' | 'api'): void {
+  setDataSource(mode: 'static' | 'api'): void {
     setAdapterDataSource(ADAPTER_NAME, mode)
   },
 
@@ -181,9 +181,9 @@ export const forecastAdapter = {
     confidence: number,
     signal?: AbortSignal
   ): Promise<TimeSeriesResponse> {
-    if (_resolveSource(indicator) === 'mock') {
-      // mock 模式无 timeseries 端点，回退到单指标文件并组装为 series 结构
-      const series = await _fetchMock(indicator)
+    if (_resolveSource(indicator) === 'static') {
+      // static 模式无 timeseries 端点，回退到单指标文件并组装为 series 结构
+      const series = await _fetchStatic(indicator)
       const result: TimeSeriesResponse = {
         indicator: series.indicator,
         unit: series.unit,
@@ -238,9 +238,9 @@ export const forecastAdapter = {
     confidence: number,
     signal?: AbortSignal
   ): Promise<IndicatorComparisonResponse> {
-    if (_resolveSource(indicator) === 'mock') {
-      // mock 模式无 indicator/:type 端点，回退到单指标文件取指定时间点的值
-      const series = await _fetchMock(indicator)
+    if (_resolveSource(indicator) === 'static') {
+      // static 模式无 indicator/:type 端点，回退到单指标文件取指定时间点的值
+      const series = await _fetchStatic(indicator)
       const ports: IndicatorComparisonResponse['ports'] = {}
       Object.entries(series.data).forEach(([portId, portSeries]) => {
         const allData = [...(portSeries.historical || []), ...(portSeries.forecast || [])]
@@ -268,7 +268,7 @@ export const forecastAdapter = {
   /**
    * 获取地图热力图数据（FeatureCollection）。
    * api 模式调用后端 /forecast/map，支持 signal 取消。
-   * mock 模式读取 indicator JSON 的 spatial 字段并按 time 插值。
+   * static 模式读取 indicator JSON 的 spatial 字段并按 time 插值。
    */
   async getMapData(
     indicator: string,
@@ -276,10 +276,10 @@ export const forecastAdapter = {
     confidence: number,
     signal?: AbortSignal
   ): Promise<ForecastMapData> {
-    if (_resolveSource(indicator) === 'mock') {
-      const url = `${MOCK_BASE}/${indicator}.json`
+    if (_resolveSource(indicator) === 'static') {
+      const url = `${STATIC_BASE}/${indicator}.json`
       // 静态资源 fetch 收口 loadStatic（透传 signal 支持事务取消）
-      const file = await loadStatic<_MockForecastFile>(url, { signal })
+      const file = await loadStatic<_StaticForecastFile>(url, { signal })
       const features: ForecastMapData['features'] = []
       for (const portId in file.data) {
         const port = file.data[portId]
@@ -318,13 +318,13 @@ export const forecastAdapter = {
   },
 
   /**
-   * 获取单指标完整数据（mock 模式专用，api 模式走 getTimeSeries）。
+   * 获取单指标完整数据（static 模式专用，api 模式走 getTimeSeries）。
    * 保留供需要原始 ForecastSeries 结构的调用方使用。
    * 预留未接入：无生产调用方（仅有 forecastAdapter.test.ts 覆盖），保留作预留 API
    */
   async getIndicatorData(indicator: string): Promise<ForecastSeries> {
-    if (_resolveSource(indicator) === 'mock') {
-      return _fetchMock(indicator)
+    if (_resolveSource(indicator) === 'static') {
+      return _fetchStatic(indicator)
     }
     // api 模式无单文件端点，走 timeseries 并取第一个 series
     const ts = await this.getTimeSeries(indicator, 'month', 1.0)
@@ -346,8 +346,8 @@ export const forecastAdapter = {
 
   // 预留未接入：无生产调用方（仅有 forecastAdapter.test.ts 覆盖），保留作预留 API
   async getAvailableIndicators(): Promise<ForecastIndicatorIndex> {
-    if (resolveDataSource(ADAPTER_NAME) === 'mock') {
-      return _fetchMockIndex()
+    if (resolveDataSource(ADAPTER_NAME) === 'static') {
+      return _fetchStaticIndex()
     }
     // api 模式调 /forecast/overview
     const { apiRequest } = useApiRequest()

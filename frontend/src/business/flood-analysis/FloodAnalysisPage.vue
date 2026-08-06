@@ -293,10 +293,9 @@ async function triggerFloodAnalysis(waterLevel: number, seq: number) {
     // 在地图上渲染淹没范围
     renderFloodAreas(features as FloodFeature[])
   } catch (error) {
-    showError(error, {
-      fallback: '淹没分析失败，请检查网络连接',
-      retry: () => void triggerFloodAnalysis(waterLevel, seq),
-    })
+    // d073: 淹没分析失败用 toast 而非 modal——滑块场景失败后拖动即自动重试，
+    // "重试"按钮是伪需求，modal 纯打断；取消类错误已由 errorHandler 静默过滤
+    showError(error, { fallback: '淹没分析失败，请检查网络连接' })
     logger.error('[Flood] 淹没分析失败:', error)
   }
 }
@@ -333,10 +332,8 @@ async function triggerImpactAssessment(waterLevel: number, seq: number) {
     // 在地图上渲染受影响设施
     renderAffectedFacilities(affectedFacilities as AffectedFacility[])
   } catch (error) {
-    showError(error, {
-      fallback: '影响评估失败，请检查网络连接',
-      retry: () => void triggerImpactAssessment(waterLevel, seq),
-    })
+    // d073: 同淹没分析——滑块场景失败后拖动即自动重试，toast 即可
+    showError(error, { fallback: '影响评估失败，请检查网络连接' })
     logger.error('[Flood] 影响评估失败:', error)
   }
 }

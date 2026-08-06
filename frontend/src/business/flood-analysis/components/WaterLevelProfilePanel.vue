@@ -152,7 +152,8 @@ async function loadProfiles() {
     }
   } catch (error) {
     logger.error('加载剖面线失败:', error)
-    showError(error, { fallback: '加载剖面线数据失败', retry: () => void loadProfiles() })
+    // d073: 剖面线失败用 toast——重新选择剖面/切换水位即自动重试，无需 modal
+    showError(error, { fallback: '加载剖面线数据失败' })
   }
 }
 

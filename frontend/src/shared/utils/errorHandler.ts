@@ -6,6 +6,7 @@
 
 import type { Router } from 'vue-router'
 
+import { ApiError, ErrorCode } from '../composables/useApiRequest'
 import { logger } from './logger'
 
 /**
@@ -21,6 +22,14 @@ export function showError(
   options: { fallback?: string; silent?: boolean; retry?: () => void } = {}
 ): void {
   const { fallback = '操作失败，请稍后重试', silent = false, retry } = options
+
+  // d073: 用户主动取消（新请求 abort 旧请求等）→ 静默，不弹任何提示。
+  // useApiRequest 把外部 signal abort 转成 ApiError(REQUEST_FAILED, '请求已取消')——
+  // 非原生 AbortError，下方 name==='AbortError' 过滤拦不住；滑块高频拖动时
+  // 每个被取消的在途请求都会弹 modal，必须在此统一吞掉。
+  if (error instanceof ApiError && error.code === ErrorCode.REQUEST_FAILED && error.message === '请求已取消') {
+    return
+  }
 
   let message: string = fallback
 

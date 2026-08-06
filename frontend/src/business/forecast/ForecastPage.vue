@@ -145,7 +145,8 @@ async function loadTimeSeriesData(transactionId: number, signal: AbortSignal) {
       void handleAuthError(router)
       return
     }
-    showError(e, { fallback: '加载趋势数据失败', retry: () => void doForecastUpdate() })
+    // d073: 趋势数据失败用 toast——时间/指标切换即自动重试，无需 modal
+    showError(e, { fallback: '加载趋势数据失败' })
   }
 }
 
@@ -202,7 +203,8 @@ async function loadPortComparisonData(transactionId: number, signal: AbortSignal
     if (forecastState.isPlaying && e instanceof ApiError && e.message.includes('过于频繁')) {
       return
     }
-    showError(e, { fallback: '加载对比数据失败', retry: () => void doForecastUpdate() })
+    // d073: 对比数据失败用 toast——切换时间/指标即自动重试，无需 modal
+    showError(e, { fallback: '加载对比数据失败' })
   }
 }
 

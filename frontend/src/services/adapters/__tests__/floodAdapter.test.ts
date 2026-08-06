@@ -44,11 +44,29 @@ const fixtures: Record<string, unknown> = {
       totalLoss: 120.5,
     },
   },
+  // online 模式：FastAPI /flood-online 返回裸 JSON（无信封），envelope:false 直传
+  '/flood-online/api/flood/impact': {
+    level: 15,
+    affectedFacilities: [
+      {
+        id: 'FCG-M-001',
+        name: '防城港渔澫港区1号泊位',
+        type: '泊位',
+        lng: 108.345,
+        lat: 21.7,
+        port: '防城港',
+        loss: 17000,
+        damageRate: 0.85,
+      },
+    ],
+    totalLoss: 17000,
+  },
 }
 
 function createFetchStatic() {
   return vi.fn(async (url: string) => {
-    const body = fixtures[url]
+    // apiRequest 会把 params 拼成 query string——按 ? 截断匹配 fixture key
+    const body = fixtures[url.split('?')[0]]
     if (body === undefined) {
       return { ok: false, status: 404, json: async () => ({}), text: async () => '' }
     }
@@ -104,6 +122,15 @@ describe('floodAdapter', () => {
       expect(result).toHaveProperty('affectedFacilities')
       expect(result).toHaveProperty('totalLoss')
       expect(Array.isArray(result.affectedFacilities)).toBe(true)
+    })
+
+    it('online 模式应调 /flood-online/api/flood/impact 并透传裸 JSON（d073 补齐影响评估）', async () => {
+      floodAdapter.setDataSource('online')
+      const result = await floodAdapter.getImpactAssessment(15)
+      expect(result.affectedFacilities).toHaveLength(1)
+      expect(result.affectedFacilities[0].id).toBe('FCG-M-001')
+      expect(result.affectedFacilities[0].loss).toBe(17000)
+      expect(result.totalLoss).toBe(17000)
     })
   })
 

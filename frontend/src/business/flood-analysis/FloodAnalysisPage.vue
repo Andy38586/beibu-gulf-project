@@ -72,7 +72,11 @@ let unmounted = false
 let floodAbortController: AbortController | null = null
 let impactAbortController: AbortController | null = null
 
-const ANALYSIS_DELAY = 500
+// 防抖时长：500→100ms（性能优化 2026-08-06）
+// 实测滑块端到端感知延迟 70% 来自 500ms 防抖（setToReqMs 505ms）；
+// 100ms 将感知延迟从 ~700ms 压到 ~330ms。竞态由 AbortController 新请求优先语义
+// + errorHandler 取消静默（z081）兜底，高频请求不会弹窗。
+const ANALYSIS_DELAY = 100
 
 const WATER_SURFACE_ID = 'flood-water-surface'
 

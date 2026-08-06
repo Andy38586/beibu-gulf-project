@@ -39,6 +39,13 @@ const FALLBACK_WATER_AREA_COORDINATES: [number, number][] = [
 // ==================== 内部 static 实现（统一使用 loadStatic） ====================
 let _cachedWaterAreaCoords: [number, number][] | null = null
 
+// 档位结果缓存（online，2026-08-06 性能优化②）：round(level,1) 同档位秒回——
+// 滑块来回拖/重复档位不重发请求、不重绘淹没多边形（FastAPI 有后端 LRU，
+// 但前端每档仍全量请求+全量重建 entity，此缓存消除重复档位的整条链路）；
+// 规模与后端 LRU 一致（64 档），FIFO 淘汰
+const _onlineLevelCache = new Map<number, FloodAnalysisResult>()
+const MAX_ONLINE_LEVEL_CACHE = 64
+
 async function _fetchStaticWaterArea(): Promise<[number, number][]> {
   if (_cachedWaterAreaCoords) return _cachedWaterAreaCoords
   try {
@@ -225,13 +232,18 @@ export const floodAdapter = {
   ): Promise<FloodAnalysisResult> {
     // online 模式：FastAPI 实时演算（连通性淹没），业务层零改动（N4 adapter 隔离）
     if (resolveDataSource(ADAPTER_NAME) === 'online') {
+      // 档位缓存：同档位直接复用上次结果（滑块来回拖秒回，不重发请求不重绘）
+      const levelKey = Math.round(waterLevel * 10) / 10
+      const hit = _onlineLevelCache.get(levelKey)
+      if (hit) return hit
+
       const data = await _fetchOnlineFlood(waterLevel, signal)
       const riskLevel = _riskLevelFromFlood(data.floodedKm2 ?? 0, data.level ?? waterLevel)
       const features = (data.features ?? []).map((f) => ({
         ...f,
         properties: { ...f.properties, riskLevel },
       })) as FloodFeature[]
-      return {
+      const result: FloodAnalysisResult = {
         features,
         statistics: {
           totalArea: Math.round((data.floodedKm2 ?? 0) * 1e6), // km² → m²
@@ -244,6 +256,13 @@ export const floodAdapter = {
         riskLevel,
         actualWaterLevel: data.level,
       }
+      // FIFO 淘汰（与后端 64 档 LRU 同规模）；先淘汰最旧再插入
+      if (_onlineLevelCache.size >= MAX_ONLINE_LEVEL_CACHE) {
+        const oldestKey = _onlineLevelCache.keys().next().value
+        if (oldestKey !== undefined) _onlineLevelCache.delete(oldestKey)
+      }
+      _onlineLevelCache.set(levelKey, result)
+      return result
     }
     if (resolveDataSource(ADAPTER_NAME) === 'static') {
       // static 数据为静态单档位，不响应水位参数
@@ -357,5 +376,6 @@ export const floodAdapter = {
 
   clearCache(): void {
     _cachedWaterAreaCoords = null
+    _onlineLevelCache.clear()
   },
 }

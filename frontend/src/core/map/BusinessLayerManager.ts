@@ -230,9 +230,19 @@ export class BusinessLayerManager {
     const renderer = this._getRenderer()
     if (!renderer) return
 
+    const adapter = this._getAdapter(meta.layerType)
+    if (!adapter) return
+
+    // b058: 打开未创建的图层 → 先补建。register(visible:false) 不 create（BLM.register
+    // 判据 `visible && data != null`），_layers 无该图层 → 直接 setVisibility 落入
+    // _pendingVisibility 永不生效（无后续 create 触发 _applyPendingVisibility）→ 面板
+    // 打开变"死按钮"。与 a040 updateData 补建同款语义：打开 + 有数据 + 未创建 → create。
+    if (visible && meta.data != null && !renderer.hasLayer(key)) {
+      adapter.create(renderer, key, meta.data, meta.options)
+    }
+
     // P0-4: 特殊图层（waterSurface 存于 _waterSurfaces 而非 _layers）经 adapter 分派,
     // 其余走 renderer.setVisibility 显隐（不销毁图层,数据保留, toggle 回来直接可见）
-    const adapter = this._getAdapter(meta.layerType)
     if (adapter?.setVisibility) {
       adapter.setVisibility(renderer, key, visible)
     } else {

@@ -122,7 +122,10 @@ class CesiumViewerManager {
     if (viewerContainer === el) {
       this.isMounted = true
       this.viewer.resize()
-      this.viewer.scene.requestRenderMode = false
+      // 2026-08-06 a047: 保持 requestRenderMode=true（按需渲染）——create() 已论证
+      // 所有动态路径（图层/水面/相机防抖/动画）均显式 requestRender，无"不刷新"风险；
+      // 此处曾无条件置 false（持续渲染），240Hz 屏静止时 GPU 全速空转 → 掉帧至 17fps。
+      // requestRender() 触发当前帧刷新，相机交互由 Cesium 内部自动 requestRender。
       this.viewer.scene.requestRender()
       this._enableCameraControls()
       return true
@@ -137,8 +140,7 @@ class CesiumViewerManager {
     // 防止复用时之前的 unmount 状态影响交互
     this.isMounted = true
     this.viewer.resize()
-    // 恢复持续渲染模式
-    this.viewer.scene.requestRenderMode = false
+    // a047: 同上方——保持按需渲染，仅刷新当前帧（unmount 已置 true，无需改）
     this.viewer.scene.requestRender()
     // 确保相机控制器的交互能力正常（拖拽、旋转、缩放等）
     this._enableCameraControls()

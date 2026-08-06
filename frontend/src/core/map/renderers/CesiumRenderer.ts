@@ -740,8 +740,11 @@ export class CesiumRenderer extends MapRenderer {
     if (height == null) {
       height = MAP_CONFIG.CAMERA.center.height
     }
-    // 限制height范围：最低200m（避免贴地），最高1000000m（避免视角太高）
-    height = Math.max(200, Math.min(height, 1000000))
+    // 限制height范围：最低200m（避免贴地），最高2000000m（避免视角太高）。
+    // 2026-08-06 上限 1000000→2000000：用户要求 Cesium 相机高度调高一倍
+    // （VIEW_LEVELS.REGION 800km→1600km），原上限 1000km 会把 1600km 钳到 1000km，
+    // "调高一倍"实际只生效 1.25 倍。1600km 约 0.25 地球半径，Cesium 视角安全。
+    height = Math.max(200, Math.min(height, 2000000))
 
     // pitch 强制 -90° 俯视，不与 OL 之间传递倾斜状态（OL 无 pitch 概念）
     const pitch = -90

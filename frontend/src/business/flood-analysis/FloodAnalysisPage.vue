@@ -138,12 +138,15 @@ async function registerFloodLayers(signal?: AbortSignal) {
   // 真实地形图层（DEM 山体阴影，A 路线增量①）
   // 方案 §5.3 验收标准明确"洪涝页可勾选「真实地形」图层"——DEM 数据仅属洪涝分析（a017）
   // 2D 走 OL GeoTIFF COG；3D 走 Cesium hillshade PNG 贴图回退（addGeoTIFFLayer 内部 .tif→.png）
+  // b058: 默认不显示（visible:false）——原 visible:true 在渲染器未就绪时注册（watch immediate
+  // 时序），面板显示"开"但地图无渲染（先关再开才显示=状态不同步）。默认关→面板/地图一致，
+  // 用户需要时在面板打开即渲染。
   businessLayerManager.register(DEM_HILLSHADE_LAYER_ID, {
     label: '真实地形',
     layerType: 'geotiff',
     data: '/static/dem/dem_hillshade.tif',
     options: { opacity: 0.7 },
-    visible: true,
+    visible: false,
   })
 }
 

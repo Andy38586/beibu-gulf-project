@@ -128,6 +128,14 @@ async function loadData() {
       LOAD_TIMEOUT_MS,
       '边界数据加载超时'
     )
+
+    // b058: 数据就绪后补一次 setupLayers——boundary/ports 注册依赖 boundaryGeoJson 已加载
+    // （setupLayers :236 `if (boundaryGeoJson && !has('boundary'))`），若路由切换/引擎
+    // 切换先于 loadData 完成执行，registry 里没有 boundary/ports → reapplyAll 无东西可
+    // 重建 → 行政区划/港口图层"有时候被卡掉"（用户实测）。数据就绪后补注册幂等（已注册跳过）。
+    if (currentRenderer.value) {
+      void nextTick(() => setupLayers())
+    }
   } catch (error) {
     if (loadAbort.signal.aborted) return
     const err = error instanceof Error ? error : new Error(String(error))

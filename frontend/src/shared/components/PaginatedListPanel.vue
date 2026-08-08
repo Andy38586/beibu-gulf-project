@@ -35,6 +35,7 @@ import { useAuth } from '@/shared/composables/useAuth'
 import { usePlans } from '@/shared/composables/usePlans'
 import { useGCS } from '@/shared/layout/useGCS.js'
 import { showError } from '@/shared/utils/errorHandler'
+import { showModal, showToast } from '@/shared/utils/gcsFeedback'
 import { logger } from '@/shared/utils/logger'
 import type { SavedXiaoqu } from '@/types/plan'
 import type { ScoredXiaoqu } from '@/types/xiaoqu'
@@ -127,15 +128,12 @@ function isFavorite(itemId: string): boolean {
  */
 async function toggleFavorite(item: ScoredXiaoqu) {
   if (!isLoggedIn.value) {
-    ElMessageBox.confirm('收藏功能需要登录，是否前往登录？', '未登录', {
-      confirmButtonText: '去登录',
-      cancelButtonText: '取消',
-      type: 'warning',
+    // 2026-08-08 打磨：ElMessageBox.confirm → GCSModal（login 模式：去登录/取消）
+    showModal({
+      message: '收藏功能需要登录，是否前往登录？',
+      mode: 'login',
+      onConfirm: () => void router.push('/profile'),
     })
-      .then(() => {
-        void router.push('/profile')
-      })
-      .catch(() => {})
     return
   }
 
@@ -175,7 +173,7 @@ async function doSave(item: ScoredXiaoqu) {
     const xiaoquData = toSavedXiaoqu(item)
     const plan = await saveXiaoqu(currentPlanId.value, xiaoquData)
     savedItems.value = plan?.savedXiaoqu || []
-    ElMessage.success(`已收藏：${item.name}`)
+    showToast(`已收藏：${item.name}`, 'success')
     emit('favorite-change', { item, isFavorite: true })
   } catch (error) {
     showError(error, { fallback: '收藏失败，请稍后重试' })
@@ -196,7 +194,7 @@ async function doRemove(item: ScoredXiaoqu) {
   try {
     const plan = await removeXiaoqu(currentPlanId.value, item.id)
     savedItems.value = plan?.savedXiaoqu || []
-    ElMessage.success(`已取消收藏：${item.name}`)
+    showToast(`已取消收藏：${item.name}`, 'success')
     emit('favorite-change', { item, isFavorite: false })
   } catch (error) {
     showError(error, { fallback: '取消收藏失败，请稍后重试' })

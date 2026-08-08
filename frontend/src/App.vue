@@ -28,6 +28,8 @@ import { useFloodStore } from '@/stores'
 import { useForecastStore } from '@/stores'
 import { useMapStore } from '@/stores'
 import { siteSelectionPersisted } from '@/stores'
+import GCSModal from '@/shared/components/GCSModal.vue'
+import GCSToast from '@/shared/components/GCSToast.vue'
 import type { TypeSetting } from '@/types/facility'
 import type { Plan } from '@/types/plan'
 
@@ -213,6 +215,9 @@ onUnmounted(() => {
         </RouterView>
       </ErrorBoundary>
     </main>
+    <!-- 全局 GCS 反馈层（2026-08-08 打磨：替换 ElMessageBox/ElMessage） -->
+    <GCSModal />
+    <GCSToast />
   </div>
 </template>
 

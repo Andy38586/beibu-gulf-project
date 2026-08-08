@@ -12,8 +12,8 @@ import { inject, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { EDITING_PLAN_KEY, RESTORE_PLAN_DATA_KEY } from '@/core'
-import { useAuth } from '@/shared'
-import { usePlans } from '@/shared'
+import { useAuth, usePlans } from '@/shared'
+import { showModal } from '@/shared/utils/gcsFeedback'
 import { logger } from '@/shared'
 import PaginatedListPanel from '@/shared/components/PaginatedListPanel.vue'
 import PlanSaveModal from '@/shared/components/PlanSaveModal.vue'
@@ -74,22 +74,22 @@ async function loadPlans() {
 
 /**
  * 删除方案
+ * 2026-08-08 打磨：ElMessageBox.confirm → GCSModal（confirm 模式：确定/取消，
+ * 取消 = 不触发 onConfirm 仅关闭弹窗）
  */
-async function handleDeletePlan(plan: Plan) {
-  try {
-    await ElMessageBox.confirm(`确定要删除方案"${plan.name}"吗？`, '删除确认', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning',
-    })
-  } catch {
-    return
-  }
+function handleDeletePlan(plan: Plan) {
+  showModal({
+    message: `确定要删除方案"${plan.name}"吗？`,
+    mode: 'confirm',
+    onConfirm: () => void doDeletePlan(plan.id),
+  })
+}
 
+async function doDeletePlan(id: string): Promise<void> {
   plansError.value = ''
   try {
-    await deletePlan(plan.id)
-    if (expandedPlanId.value === plan.id) {
+    await deletePlan(id)
+    if (expandedPlanId.value === id) {
       expandedPlanId.value = null
     }
     await loadPlans()

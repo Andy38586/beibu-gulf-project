@@ -7,6 +7,7 @@
 import type { Router } from 'vue-router'
 
 import { ApiError, ErrorCode } from '../composables/useApiRequest'
+import { showModal, showToast } from './gcsFeedback'
 import { logger } from './logger'
 
 /**
@@ -49,16 +50,11 @@ export function showError(
 
   if (!silent) {
     if (retry) {
-      // 有重试回调时，用确认弹窗（带重试按钮）替代普通 toast
-      ElMessageBox.confirm(message, '加载失败', {
-        confirmButtonText: '重试',
-        cancelButtonText: '取消',
-        type: 'error',
-      })
-        .then(() => retry())
-        .catch(() => {})
+      // 有重试回调时，用 GCS 确认弹窗（重试/取消，4×3 cell）替代普通 toast——
+      // 2026-08-08 打磨：替换 Element Plus ElMessageBox.confirm（视觉走 GCS 网格）
+      showModal({ message, mode: 'error', onConfirm: retry })
     } else {
-      ElMessage.error(message)
+      showToast(message, 'error')
     }
   }
 }
@@ -121,14 +117,14 @@ export function showWarning(message: string): void {
   if (import.meta.env.DEV) {
     logger.warn('[ErrorHandler:Warning]', message)
   }
-  ElMessage.warning(message)
+  showToast(message, 'warning')
 }
 
 /**
  * 统一的成功提示
  */
 export function showSuccess(message: string): void {
-  ElMessage.success(message)
+  showToast(message, 'success')
 }
 
 export default { showError, handleAsync, handleAuthError, isAuthError, showWarning, showSuccess }

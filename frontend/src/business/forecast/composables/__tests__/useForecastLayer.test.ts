@@ -5,6 +5,10 @@ import { ApiError, ErrorCode } from '@/shared'
 import { useForecastStore } from '@/stores/forecastStore'
 import { useMapStore } from '@/stores/mapStore'
 
+// vi.mock 工厂被 hoist 到文件顶部，工厂内不能引用顶层 const——
+// 用 vi.hoisted 定义 mock 函数（2026-08-08：修复 Cannot access before initialization）
+const { mockApiRequest } = vi.hoisted(() => ({ mockApiRequest: vi.fn() }))
+
 // mock vue-router
 vi.mock('vue-router', () => ({
   useRouter: () => ({ push: vi.fn() }),
@@ -27,8 +31,7 @@ vi.mock('@/core', async (importOriginal) => {
 })
 
 // mock useApiRequest（2026-08-08：forecastAdapter 已删，useForecastLayer 直连统一入口，
-// 请求由 mockApiRequest 控制）
-const mockApiRequest = vi.fn()
+// 请求由 mockApiRequest 控制；mockApiRequest 由 vi.hoisted 提供，见文件顶部）
 
 // mock @/shared 的副作用函数 + useApiRequest
 vi.mock('@/shared', async (importOriginal) => {

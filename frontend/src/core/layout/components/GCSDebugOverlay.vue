@@ -30,6 +30,38 @@ const props = withDefaults(defineProps<Props>(), {
 
 const { cellPixel, gap, padding } = useGCS()
 
+// ===== GCS 反馈测试入口（2026-08-08 打磨）=====
+// 调试面板可直接触发 modal/toast 预览——走与生产完全相同的 gcsFeedback 单例，
+// 确保调试看到的反馈层与正式一致（不用再靠业务操作触发）
+import { showModal, showToast } from '@/shared/utils/gcsFeedback'
+
+function testErrorModal(): void {
+  showModal({
+    message: '网络异常，请检查网络连接后重试',
+    mode: 'error',
+    onConfirm: () => showToast('已重试', 'success'),
+  })
+}
+function testLoginModal(): void {
+  showModal({ message: '收藏功能需要登录，是否前往登录？', mode: 'login' })
+}
+function testConfirmModal(): void {
+  showModal({
+    message: '确定要删除方案"调试测试方案"吗？',
+    mode: 'confirm',
+    onConfirm: () => showToast('已删除', 'success'),
+  })
+}
+function testSuccessToast(): void {
+  showToast('操作成功', 'success')
+}
+function testWarningToast(): void {
+  showToast('警告：数据未保存', 'warning')
+}
+function testErrorToast(): void {
+  showToast('操作失败，请重试', 'error')
+}
+
 // 用于 CSS v-bind 的计算属性：标签位置（基于 CELL_PIXEL 的比例）
 const labelOffsetCss = computed(() => `${Math.round(CELL_PIXEL * 0.05)}px`)
 const labelFontSizeSmallCss = computed(() => `${Math.round(CELL_PIXEL * 0.1375)}px`)
@@ -588,6 +620,19 @@ onUnmounted(() => {
           {{ issue.name }} {{ issue.field }}={{ issue.value }}px (expected {{ issue.expected }})
         </div>
       </div>
+
+      <!-- GCS 反馈测试（2026-08-08 打磨：modal/toast 预览入口，与生产共用 gcsFeedback 单例） -->
+      <div class="hud-sec">── GCS 反馈测试 ──</div>
+      <div class="feedback-test">
+        <button class="feedback-btn" @click="testErrorModal">Error Modal</button>
+        <button class="feedback-btn" @click="testLoginModal">Login Modal</button>
+        <button class="feedback-btn" @click="testConfirmModal">Confirm Modal</button>
+      </div>
+      <div class="feedback-test">
+        <button class="feedback-btn" @click="testSuccessToast">Toast ✓</button>
+        <button class="feedback-btn" @click="testWarningToast">Toast ⚠</button>
+        <button class="feedback-btn" @click="testErrorToast">Toast ✗</button>
+      </div>
     </div>
   </div>
 </template>
@@ -736,5 +781,29 @@ onUnmounted(() => {
   border-top: 1px solid rgba(255, 255, 255, 0.25);
   color: v-bind(INSPECTION_COLORS.danger);
   word-break: break-all;
+}
+
+/* GCS 反馈测试按钮：覆盖层整体 pointer-events:none !important（通配符），
+   按钮需 auto !important 才能抢回点击（普通 auto 被 !important 压制，按不动） */
+.feedback-test {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: v-bind(infoItemMarginCss);
+}
+.feedback-btn {
+  pointer-events: auto !important;
+  padding: 4px 8px;
+  font-size: 11px;
+  line-height: 1.4;
+  background: rgba(0, 0, 0, 0.35);
+  color: #e6f4ff;
+  border: 1px solid rgba(230, 244, 255, 0.4);
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: monospace;
+}
+.feedback-btn:hover {
+  background: rgba(0, 0, 0, 0.55);
 }
 </style>

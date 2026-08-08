@@ -1,7 +1,8 @@
 <script setup lang="ts">
 /**
  * GCSToast - 全局轻提示（GCS 标准，编程式）
- * 规格（用户定）：2cell 宽 × 1cell 高，语义色轻提示（success/warning/error），自动消失。
+ * 规格（用户定）：2cell 宽 × 0.5cell 高（2026-08-08 用户调矮：原 1cell 太高），
+ * 语义色轻提示（success/warning/error），自动消失。
  * 由 App.vue 挂载一次，全局通过 showToast(message, type) 触发（gcsFeedback 单例），
  * 替换 Element Plus ElMessage。
  */
@@ -48,7 +49,7 @@ onBeforeUnmount(() => {
         :key="item.id"
         class="GCS-toast"
         :class="`GCS-toast--${item.type}`"
-        :style="cell(2, 1)"
+        :style="cell(2, 0.5)"
       >
         <span class="GCS-toast-dot" />
         <span class="GCS-toast-message">{{ item.message }}</span>
@@ -69,6 +70,8 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 8px;
   pointer-events: none;
+  /* 2026-08-08：不加 max-height/overflow 裁切——裁切会水平切断 toast 导致"变细"；
+     队列上限由 gcsFeedback.showToast 控制（最多 4 条，第 5 条来最早的淡出） */
 }
 
 .GCS-toast {
@@ -106,7 +109,7 @@ onBeforeUnmount(() => {
   line-height: 1.4;
 }
 
-/* 进出场动画 */
+/* 进出场动画（新 toast 从顶部进入占一号位，老 toast 顺移下移用 move 过渡） */
 .GCS-toast-enter-active,
 .GCS-toast-leave-active {
   transition: opacity 0.2s ease, transform 0.2s ease;
@@ -115,5 +118,9 @@ onBeforeUnmount(() => {
 .GCS-toast-leave-to {
   opacity: 0;
   transform: translateY(-8px);
+}
+/* TransitionGroup 位置变化（老 toast 被挤到下一位）——平滑下移 */
+.GCS-toast-move {
+  transition: transform 0.2s ease;
 }
 </style>

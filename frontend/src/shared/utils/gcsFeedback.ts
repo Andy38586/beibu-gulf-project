@@ -78,7 +78,17 @@ export function confirmModal(): void {
   cb?.()
 }
 
-/** 轻提示 toast（2×1 cell，GCSToast 组件订阅渲染并自动消失） */
+/** toast 队列上限：最多同时展示 4 条（2026-08-08 用户定）
+ * 位次语义：一号位=最接近屏幕顶部（最新），四号位=最底部（最老）。
+ * 新 toast unshift 进顶部，老 toast 顺移下移；第 5 条触发时四号位（最老）淡出。 */
+const MAX_TOAST_COUNT = 4
+
+/** 轻提示 toast（2×0.5 cell，GCSToast 组件订阅渲染并自动消失） */
 export function showToast(message: string, type: GCSToastType = 'success'): void {
-  gcsToastState.items.push({ id: ++toastSeq, message, type })
+  // 超出上限：移除四号位（数组尾部 = 最老）——TransitionGroup 自动播放 leave 淡出
+  if (gcsToastState.items.length >= MAX_TOAST_COUNT) {
+    gcsToastState.items.pop()
+  }
+  // unshift：新 toast 占一号位（顶部），老 toast 顺移下移
+  gcsToastState.items.unshift({ id: ++toastSeq, message, type })
 }

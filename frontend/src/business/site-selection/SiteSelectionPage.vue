@@ -23,8 +23,8 @@ import LayerControlPanel from '@/core/map/components/LayerControlPanel.vue'
 import { showError } from '@/shared'
 import { logger } from '@/shared'
 import PaginatedListPanel from '@/shared/components/PaginatedListPanel.vue'
-import { siteSelectionPersisted, useMapStore } from '@/stores'
 import type { SiteSelectionState } from '@/stores'
+import { siteSelectionPersisted, useMapStore } from '@/stores'
 import type { AnalysisResult, FacilityPoint, ScoredXiaoqu } from '@/types/analysis'
 import RadarChart from '@/visualization/charts/RadarChart.vue'
 
@@ -39,6 +39,9 @@ const { manager: businessLayerManager } = useBusinessLayers()
 const { createUpdateHandler } = useAnalysisLayer() as unknown as {
   createUpdateHandler: (_manager: unknown) => (_result: unknown) => Promise<void>
 }
+// 2026-08-08：分析图层更新回调由页面组件自持（直连 businessLayerManager），
+// 不再注入 mapStore 等待 setAnalysisResult 回调——store 已不含分析回调机制
+const updateAnalysisHandler = createUpdateHandler(businessLayerManager)
 
 // 保存定时器 id，卸载时清理悬挂定时器
 let tryZoomTimer: ReturnType<typeof setTimeout> | null = null
@@ -83,19 +86,13 @@ const displayXiaoquForRadar = computed<ScoredXiaoqu | null>(
 function handleResult(result: Partial<AnalysisResult>): void {
   logger.debug('[SiteSelection] 收到分析结果:', result)
 
-  // 注册分析结果处理函数（通过 BusinessLayerManager 管理图层）
-  if (!mapStore.analysisHandler) {
-    const updateHandler = createUpdateHandler(businessLayerManager)
-    mapStore.registerAnalysisHandler(updateHandler)
-  }
-
+  // 2026-08-08：mapStore 只负责结果持久化，图层更新直调页面自持的 updateAnalysisHandler
   mapStore.setAnalysisResult(result)
+  void updateAnalysisHandler(result)
   matchedXiaoqu.value = result.matchedXiaoqu || []
   selectedTypes.value = result.selectedTypes || []
   facilityPoi.value = result.facilityPoi || {}
   selectedXiaoqu.value = null
-  // 2026-08-08：删除 mapStore.setSelectedXiaoqu 死镜像写入——store 那份全仓无人读
-  // （页面本地 ref 才是真实状态），详见"假镜像"问题。
   stopBreathing()
   if (matchedXiaoqu.value.length > 0) {
     zoomToDistrict()
@@ -169,8 +166,6 @@ function handleSelectXiaoqu(xq: ScoredXiaoqu): void {
   }
 
   selectedXiaoqu.value = normalizedXq
-  // 2026-08-08：删除 mapStore.setSelectedXiaoqu 死镜像写入（store 那份全仓无人读，
-  // 页面本地 ref 才是真实状态）；mapStore 的 setSelectedXiaoqu 定义保留（用户定，不重构 store）。
 }
 
 /** 2026-08-08：跳转封装进 PaginatedListPanel（flyTo 回调 prop），与浸没分析统一 */

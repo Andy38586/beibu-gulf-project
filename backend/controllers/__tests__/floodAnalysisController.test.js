@@ -1,5 +1,6 @@
 // @vitest-environment node
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
 import { BusinessError } from '../../utils/BusinessError.js'
 
 // 隔离 fs，避免依赖真实数据文件
@@ -8,14 +9,13 @@ vi.mock('fs/promises', () => ({
 }))
 
 import { readFile } from 'fs/promises'
+
+import { _cache, _clearCacheForTest, readStaticJson } from '../../utils/readStaticJson.js'
 import {
+  analyzeDisaster,
   getFloodAreas,
   getFloodStatistics,
-  analyzeDisaster,
   getWaterArea,
-  readJsonData,
-  _readCache,
-  _clearCacheForTest,
 } from '../floodAnalysisController.js'
 
 // 构造 mock req/res/next
@@ -67,9 +67,7 @@ describe('floodAnalysisController', () => {
       readFile.mockResolvedValue(MOCK_FLOOD_AREA)
       const { req, res, next } = mockReqRes({ waterLevel: '2.5' })
       await getFloodAreas(req, res, next)
-      expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({ code: 200 })
-      )
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 200 }))
     })
 
     it('Infinity 应触发业务错误', async () => {
@@ -111,9 +109,7 @@ describe('floodAnalysisController', () => {
       readFile.mockResolvedValue(MOCK_STATISTICS)
       const { req, res, next } = mockReqRes({ waterLevel: '3.0' })
       await getFloodStatistics(req, res, next)
-      expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({ code: 200 })
-      )
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 200 }))
     })
 
     it('Infinity 应触发业务错误', async () => {
@@ -167,7 +163,7 @@ describe('floodAnalysisController', () => {
     })
   })
 
-  describe('readJsonData - 读盘缓存 (REQ-3)', () => {
+  describe('readStaticJson（utils 统一入口） - 读盘缓存 (REQ-3)', () => {
     it('getFloodAreas 连续两次调用只读盘一次', async () => {
       readFile.mockResolvedValue(MOCK_FLOOD_AREA)
       const { req, res, next } = mockReqRes({ waterLevel: '2.5' })
@@ -194,17 +190,17 @@ describe('floodAnalysisController', () => {
     })
   })
 
-  describe('readJsonData - 缓存大小上限 (z050-BE)', () => {
+  describe('readStaticJson（utils 统一入口） - 缓存大小上限 (z050-BE)', () => {
     it('超过上限淘汰最旧条目，保留最新', async () => {
       readFile.mockImplementation((p) => Promise.resolve(JSON.stringify({ f: String(p) })))
       _clearCacheForTest()
       for (let i = 0; i < 25; i++) {
-        await readJsonData(`file${i}.json`)
+        await readStaticJson(`file${i}.json`)
       }
       // 上限 20，最旧 file0 应被淘汰，最新 file24 应保留
-      expect(_readCache.size).toBeLessThanOrEqual(20)
-      expect(_readCache.has('file0.json')).toBe(false)
-      expect(_readCache.has('file24.json')).toBe(true)
+      expect(_cache.size).toBeLessThanOrEqual(20)
+      expect(_cache.has('file0.json')).toBe(false)
+      expect(_cache.has('file24.json')).toBe(true)
     })
   })
 })

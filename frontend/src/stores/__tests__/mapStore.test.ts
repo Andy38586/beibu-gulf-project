@@ -105,35 +105,21 @@ describe('mapStore', () => {
     })
   })
 
-  describe('registerAnalysisHandler / setAnalysisResult (LIF-4)', () => {
-    it('回放抛出异常的 handler 不应抛出未捕获错误', () => {
+  describe('setAnalysisResult（2026-08-08：store 只持久化，不再持有/调用分析回调）', () => {
+    it('写入结果并更新 lastAnalysisResult 与 sessionStorage', () => {
       const store = useMapStore()
-      const badHandler = () => {
-        throw new Error('replay boom')
-      }
-      // 先写入 lastAnalysisResult 使 registerAnalysisHandler 触发同步回放
-      store.setAnalysisResult({ foo: 'bar' })
-      expect(() => store.registerAnalysisHandler(badHandler)).not.toThrow()
-    })
-
-    it('setAnalysisResult 调用抛出异常的 handler 不应抛出', () => {
-      const store = useMapStore()
-      const badHandler = () => {
-        throw new Error('call boom')
-      }
-      store.registerAnalysisHandler(badHandler)
-      expect(() => store.setAnalysisResult({ a: 1 })).not.toThrow()
+      expect(() => store.setAnalysisResult({ foo: 'bar' })).not.toThrow()
+      expect(store.lastAnalysisResult).toEqual({ foo: 'bar' })
     })
   })
 
   describe('resetMapState (b037)', () => {
-    it('应清空 selectedPort/analysisHandler/lastAnalysisResult 与 sessionStorage，保留 mapType/baseLayerKey', () => {
+    it('应清空 selectedPort/lastAnalysisResult 与 sessionStorage，保留 mapType/baseLayerKey', () => {
       const store = useMapStore()
       // 准备：写入业务交互状态
       store.setSelectedPort({ id: 'p1', name: '测试港口' } as never)
       store.setMapType('3d')
       store.setAnalysisResult({ foo: 'bar' })
-      store.registerAnalysisHandler(() => {})
       // sessionStorage 应有持久化分析结果
       expect(sessionStore.size).toBeGreaterThan(0)
 
@@ -141,13 +127,9 @@ describe('mapStore', () => {
 
       // 清空项
       expect(store.selectedPort).toBeNull()
-      expect(store.analysisHandler).toBeNull()
+      expect(store.lastAnalysisResult).toBeNull()
       // sessionStorage 已清除（lastAnalysisResult 持久化被移除）
       expect(sessionStore.size).toBe(0)
-      // lastAnalysisResult 内部状态通过行为验证：reset 后注册新 handler 不应触发回放
-      const replaySpy = vi.fn()
-      store.registerAnalysisHandler(replaySpy)
-      expect(replaySpy).not.toHaveBeenCalled()
       // 保留项（用户偏好）
       expect(store.mapType).toBe('3d')
     })
@@ -184,10 +166,8 @@ describe('mapStore', () => {
       // 重新创建 store 实例触发 readStoredAnalysisResult
       setActivePinia(createPinia())
       const store = useMapStore()
-      // 旧格式应被丢弃：注册新 handler 不会触发回放
-      const replaySpy = vi.fn()
-      store.registerAnalysisHandler(replaySpy)
-      expect(replaySpy).not.toHaveBeenCalled()
+      // 旧格式应被丢弃：lastAnalysisResult 为空
+      expect(store.lastAnalysisResult).toBeNull()
       // sessionStorage 中的旧格式应被清除
       expect(sessionStore.has('beibu-gulf-analysis-result')).toBe(false)
     })
@@ -199,30 +179,24 @@ describe('mapStore', () => {
       )
       setActivePinia(createPinia())
       const store = useMapStore()
-      const replaySpy = vi.fn()
-      store.registerAnalysisHandler(replaySpy)
-      expect(replaySpy).not.toHaveBeenCalled()
+      expect(store.lastAnalysisResult).toBeNull()
     })
 
     it('读取端遇到缺 data 字段应丢弃', () => {
       sessionStore.set('beibu-gulf-analysis-result', JSON.stringify({ version: 1, noData: true }))
       setActivePinia(createPinia())
       const store = useMapStore()
-      const replaySpy = vi.fn()
-      store.registerAnalysisHandler(replaySpy)
-      expect(replaySpy).not.toHaveBeenCalled()
+      expect(store.lastAnalysisResult).toBeNull()
     })
 
-    it('读取端遇到合法 { version, data } 应正常回放', () => {
+    it('读取端遇到合法 { version, data } 应正常恢复 lastAnalysisResult', () => {
       sessionStore.set(
         'beibu-gulf-analysis-result',
         JSON.stringify({ version: 1, data: { foo: 'valid' } })
       )
       setActivePinia(createPinia())
       const store = useMapStore()
-      const replaySpy = vi.fn()
-      store.registerAnalysisHandler(replaySpy)
-      expect(replaySpy).toHaveBeenCalledWith({ foo: 'valid' })
+      expect(store.lastAnalysisResult).toEqual({ foo: 'valid' })
     })
   })
 })

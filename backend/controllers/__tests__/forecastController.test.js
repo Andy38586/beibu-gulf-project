@@ -1,6 +1,7 @@
 // @vitest-environment node
 // forecastController 回归测试（R-12 confidence 钳制）
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
 import { BusinessError, ErrorCode } from '../../utils/BusinessError.js'
 
 // 隔离 service 层，避免真实计算 / 文件 IO
@@ -17,20 +18,21 @@ vi.mock('fs/promises', () => ({
 }))
 
 import { readFile } from 'fs/promises'
+
 import {
-  getForecastOverview,
-  getForecastMapData,
-  getPortForecast,
-  getIndicatorData,
-  getTimeSeriesData,
-  _clearOverviewCacheForTest,
-} from '../forecastController.js'
-import {
+  getIndicatorData as queryIndicator,
   getMapData,
   getPortData,
-  getIndicatorData as queryIndicator,
   getTimeSeriesData as queryTimeSeries,
 } from '../../services/forecastService.js'
+import { _clearCacheForTest } from '../../utils/readStaticJson.js'
+import {
+  getForecastMapData,
+  getForecastOverview,
+  getIndicatorData,
+  getPortForecast,
+  getTimeSeriesData,
+} from '../forecastController.js'
 
 function createRes() {
   const res = { json: vi.fn(), status: vi.fn() }
@@ -43,8 +45,8 @@ function createNext() {
 
 beforeEach(() => {
   vi.clearAllMocks()
-  // overview 模块级缓存跨用例保留，必须清理避免用例间污染（与 flood 测试同模式）
-  _clearOverviewCacheForTest()
+  // 统一只读缓存（readStaticJson）跨用例保留，必须清理避免用例间污染（与 flood 测试同模式）
+  _clearCacheForTest()
 })
 
 describe('getForecastMapData', () => {

@@ -1,40 +1,8 @@
-import { readFile } from 'fs/promises'
-import { join } from 'path'
-import { fileURLToPath } from 'url'
-import { dirname } from 'path'
-import { BusinessError, ErrorCode } from '../utils/BusinessError.js'
-import { createReadCache } from '../utils/createReadCache.js'
-import { logger } from '../utils/logger.js'
-import { sendSuccess } from '../utils/response.js'
 import { assessDisaster } from '../services/floodService.js'
-
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = dirname(__filename)
-
-/**
- * 读取JSON数据文件
- * @param {string} filename - 文件名
- * @returns {Promise<Object>} 解析后的JSON数据
- */
-// flood 5 个数据接口公开可高频访问，原每次请求 readFile 无缓存。
-// 统一只读缓存（createReadCache：TTL + LRU 上限,数据流收口②）。
-// 纯读路径、数据为部署时静态,TTL 足够;上限 20 > 实际文件数(~5)。
-// 导出供测试访问（.size/.has 兼容原 Map 用法）。
-export const _readCache = createReadCache({ maxSize: 20 })
-
-export async function readJsonData(filename) {
-  const hit = _readCache.get(filename)
-  if (hit !== undefined) return hit
-  const filePath = join(__dirname, '../data/flood', filename)
-  const data = JSON.parse(await readFile(filePath, 'utf-8'))
-  _readCache.set(filename, data)
-  return data
-}
-
-/** 测试用：清空模块级读盘缓存，避免跨用例污染（REQ-3） */
-export function _clearCacheForTest() {
-  _readCache.clear()
-}
+import { BusinessError, ErrorCode } from '../utils/BusinessError.js'
+import { logger } from '../utils/logger.js'
+import { readStaticJson } from '../utils/readStaticJson.js'
+import { sendSuccess } from '../utils/response.js'
 
 /** 水位上限（米）—— 超出此值视为非法输入 */
 const MAX_WATER_LEVEL = 100
@@ -64,7 +32,7 @@ function validateWaterLevel(raw) {
 export async function getFloodAreas(req, res, next) {
   try {
     const { waterLevel } = req.query
-    const data = await readJsonData('floodArea.json')
+    const data = await readStaticJson('flood/floodArea.json')
 
     // 如果指定了水位，返回该水位对应的淹没范围
     if (waterLevel !== undefined) {
@@ -114,7 +82,7 @@ export async function getFloodAreas(req, res, next) {
 export async function getFloodStatistics(req, res, next) {
   try {
     const { waterLevel } = req.query
-    const data = await readJsonData('floodStatistics.json')
+    const data = await readStaticJson('flood/floodStatistics.json')
 
     if (waterLevel !== undefined) {
       const level = validateWaterLevel(waterLevel)
@@ -143,7 +111,7 @@ export async function getFloodStatistics(req, res, next) {
  */
 export async function getTerrainProfiles(req, res, next) {
   try {
-    const data = await readJsonData('terrainProfile.json')
+    const data = await readStaticJson('flood/terrainProfile.json')
     sendSuccess(res, data.profiles)
   } catch (error) {
     if (!(error instanceof BusinessError)) {
@@ -162,7 +130,7 @@ export async function getTerrainProfiles(req, res, next) {
  */
 export async function getWaterArea(req, res, next) {
   try {
-    const data = await readJsonData('water-area.json')
+    const data = await readStaticJson('flood/water-area.json')
     if (!Array.isArray(data?.coordinates) || data.coordinates.length === 0) {
       throw new BusinessError(ErrorCode.NOT_FOUND, '水域坐标数据缺失或格式无效')
     }
@@ -191,8 +159,8 @@ export async function analyzeDisaster(req, res, next) {
     const level = validateWaterLevel(waterLevel)
 
     // 读取设施数据和淹没范围
-    const facilityData = await readJsonData('facilityPoints.json')
-    const floodData = await readJsonData('floodArea.json')
+    const facilityData = await readStaticJson('flood/facilityPoints.json')
+    const floodData = await readStaticJson('flood/floodArea.json')
 
     // 向上取档（返回 >= 请求水位的最低档位）
     const floodZone = floodData.floodZones.find((zone) => zone.waterLevel >= level)

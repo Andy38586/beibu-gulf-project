@@ -4,7 +4,7 @@
 // （P10 审查：装饰化 repository，零逻辑）。静态只读数据直接在此读，
 // repository 层只保留有真实职责的 plans（CRUD + 用户归属校验）。
 // 缓存复用 createReadCache（TTL + LRU 上限，与 flood controller 同源）。
-import fs from 'fs/promises'
+import { readFile } from 'fs/promises'
 import path from 'path'
 import { fileURLToPath } from 'url'
 
@@ -23,8 +23,16 @@ export async function readStaticJson(filename) {
   const cached = cache.get(filename)
   if (cached !== undefined) return cached
   const filePath = path.join(__dirname, '../data', filename)
-  const content = await fs.readFile(filePath, 'utf-8')
+  const content = await readFile(filePath, 'utf-8')
   const data = JSON.parse(content)
   cache.set(filename, data)
   return data
+}
+
+// 测试钩子：与历史 flood controller 导出同形（REQ-3/z050-BE 用例直接操纵缓存）
+export const _cache = cache
+
+/** 测试用：清空统一只读缓存，避免跨用例污染 */
+export function _clearCacheForTest() {
+  cache.clear()
 }

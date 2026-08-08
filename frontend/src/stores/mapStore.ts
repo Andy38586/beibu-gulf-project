@@ -5,7 +5,6 @@ import { ref, shallowRef } from 'vue'
 import { logger } from '@/shared'
 import type { LayerEntry, LayerType, MapType, Port } from '@/types'
 import type { MapRenderer } from '@/types'
-import type { ScoredXiaoqu } from '@/types'
 import { analysisResultSchema } from '@/types/schemas'
 
 /** localStorage 键：底图；sessionStorage：分析结果 */
@@ -95,11 +94,8 @@ export const useMapStore = defineStore('map', () => {
   /** 当前渲染器引用（由UnifiedMap设置，供业务组件访问） */
   const currentRenderer: ShallowRef<MapRenderer | null> = shallowRef(null)
 
-  const analysisHandler: Ref<((_result: Record<string, unknown>) => void) | null> = ref(null)
   // 从 sessionStorage 恢复分析结果（收窄为 Record，业务层自行 cast）
   const lastAnalysisResult: Ref<Record<string, unknown> | null> = ref(readStoredAnalysisResult())
-
-  const selectedXiaoqu: Ref<ScoredXiaoqu | null> = ref(null)
 
   function setMap(instance: unknown): void {
     map.value = instance
@@ -124,36 +120,12 @@ export const useMapStore = defineStore('map', () => {
     selectedPort.value = null
   }
 
-  function registerAnalysisHandler(handler: (_result: Record<string, unknown>) => void): void {
-    // 验证handler是否为函数
-    if (typeof handler !== 'function') {
-      logger.debug('registerAnalysisHandler: handler必须是函数类型')
-      return
-    }
-    analysisHandler.value = handler
-    if (lastAnalysisResult.value) {
-      // LIF-4：回放可能抛错（旧结果结构不兼容/恢复逻辑异常），包 try/catch 避免 unhandledrejection
-      try {
-        handler(lastAnalysisResult.value)
-      } catch (e) {
-        logger.debug('[mapStore] analysisHandler 回放失败:', e)
-      }
-    }
-  }
-
+  // 2026-08-08：mapStore 不再持有分析回调（analysisHandler/registerAnalysisHandler/回放已删）——
+  // 回调由选址页自持（createUpdateHandler 直连），store 只负责结果数据的会话持久化。
   function setAnalysisResult(result: Record<string, unknown>): void {
     lastAnalysisResult.value = result
     // 持久化分析结果到 sessionStorage
     writeStoredAnalysisResult(result)
-    // 验证 analysisHandler 是否为函数
-    if (typeof analysisHandler.value === 'function') {
-      // LIF-4：handler 调用可能抛错，包 try/catch 防止未捕获异常中断调用链
-      try {
-        analysisHandler.value(result)
-      } catch (e) {
-        logger.debug('[mapStore] analysisHandler 调用失败:', e)
-      }
-    }
   }
 
   /**
@@ -265,7 +237,7 @@ export const useMapStore = defineStore('map', () => {
   /**
    * 统一重置地图业务交互状态（登出/业务切换时调用）
    * 设计边界（@arch-note）：
-   * - 清：selectedPort / selectedXiaoqu / analysisHandler / lastAnalysisResult
+   * - 清：selectedPort / lastAnalysisResult
    * （含 sessionStorage 持久化，b035 要求）/ layerCatalog 业务条目（保留 base 底图条目）
    * - 保留：mapType / baseLayerKey（用户偏好，审计明确要求保留）
    * - 保留：currentRenderer / map —— 渲染器由 UnifiedMap 组件持有生命周期，
@@ -277,18 +249,12 @@ export const useMapStore = defineStore('map', () => {
     selectedPort.value = null
     // 仅清业务条目，保留 base 底图条目（最小影响）
     layerCatalog.value = layerCatalog.value.filter((e: LayerEntry) => e.category !== 'business')
-    analysisHandler.value = null
     lastAnalysisResult.value = null
-    selectedXiaoqu.value = null
     try {
       window.sessionStorage.removeItem(ANALYSIS_RESULT_STORAGE_KEY)
     } catch {
       // 隐私模式等写入失败场景
     }
-  }
-
-  function setSelectedXiaoqu(xiaoqu: ScoredXiaoqu | null): void {
-    selectedXiaoqu.value = xiaoqu
   }
 
   return {
@@ -298,14 +264,12 @@ export const useMapStore = defineStore('map', () => {
     layerCatalog,
     baseLayerKey,
     currentRenderer,
-    analysisHandler,
-    selectedXiaoqu,
+    lastAnalysisResult,
     setMap,
     setCurrentRenderer,
     setMapType,
     setSelectedPort,
     clearSelectedPort,
-    registerAnalysisHandler,
     setAnalysisResult,
     registerBaseLayer,
     registerBusinessLayer,
@@ -314,6 +278,5 @@ export const useMapStore = defineStore('map', () => {
     clearLayerCatalog,
     setLayerVisible,
     resetMapState,
-    setSelectedXiaoqu,
   }
 })

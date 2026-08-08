@@ -12,5 +12,5 @@ class MockResizeObserver {
   disconnect(): void {}
 }
 
-// @ts-expect-error 测试环境全局补丁（jsdom 未定义）
+// DOM lib 已定义 ResizeObserver，赋值类型兼容（运行时 jsdom 缺失才需补丁）
 globalThis.ResizeObserver = globalThis.ResizeObserver || MockResizeObserver

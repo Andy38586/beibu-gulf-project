@@ -2,12 +2,15 @@ import type { Ref } from 'vue'
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 
-import { siteAnalysisAdapter } from '@/services'
-import { handleAuthError, isAuthError, showError } from '@/shared'
+import { useApiRequest, handleAuthError, isAuthError, showError } from '@/shared'
 import type { AnalysisParams, AnalysisResult } from '@/types/analysis'
+import { siteAnalysisResponseSchema } from '@/types/schemas'
 
 export function useSiteAnalysisApi() {
   const router = useRouter()
+  // 2026-08-08：siteAnalysisAdapter（纯透传）已删除——选址分析仅 api 态（后端 POST /site-analysis），
+  // 直连 useApiRequest 统一入口（信封解包 + zod 校验），竞态守卫保留在业务层
+  const { apiRequest } = useApiRequest()
   const calculating: Ref<boolean> = ref(false)
   const calcError: Ref<string> = ref('')
   // 在途请求取消句柄；新请求优先取消旧请求，组件卸载时静默取消
@@ -22,7 +25,12 @@ export function useSiteAnalysisApi() {
     calcError.value = ''
     calculating.value = true
     try {
-      const result = await siteAnalysisAdapter.analyze(params, controller.signal)
+      const result = await apiRequest<AnalysisResult>('/site-analysis', {
+        method: 'POST',
+        body: JSON.stringify(params),
+        signal: controller.signal,
+        schema: siteAnalysisResponseSchema,
+      })
       if (result.error) {
         calcError.value = result.error
         return {

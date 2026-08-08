@@ -125,11 +125,14 @@ describe('forecastService', () => {
       expect(mockReadFile).toHaveBeenCalledTimes(1)
     })
 
-    it('不同情景级别不命中缓存', async () => {
+    it('不同情景级别不命中引擎缓存（文件级缓存命中，仅读一次文件）', async () => {
+      // 2026-08-08：readDataFile 收敛到 readStaticJson（文件级 TTL/LRU 缓存）——
+      // 同指标文件两次调用只读一次（文件缓存命中）；引擎缓存按 (indicator, scenarioLevel)
+      // 独立 key，1.0/1.2 不互相命中（各自重新计算），但数据读取复用缓存。
       mockReadFile.mockResolvedValue(JSON.stringify(cargoData))
       await forecastService.getMapData('cargo', '2020-01', 1.0)
       await forecastService.getMapData('cargo', '2020-01', 1.2)
-      expect(mockReadFile).toHaveBeenCalledTimes(2)
+      expect(mockReadFile).toHaveBeenCalledTimes(1)
     })
   })
 

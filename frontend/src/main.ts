@@ -8,7 +8,6 @@ import { initPerfReporter, perfReportError } from './shared/utils/perfReporter'
 import router from './router'
 import { floodAdapter } from './services/adapters/floodAdapter'
 import { forecastAdapter } from './services/adapters/forecastAdapter'
-import { siteAnalysisAdapter } from './services/adapters/siteAnalysisAdapter'
 import { logger } from './shared/utils/logger'
 
 /**
@@ -43,10 +42,10 @@ initPerfReporter()
 const dataSource = (import.meta.env.VITE_DATA_SOURCE as 'static' | 'api' | undefined) || 'api'
 // 预测分析：真实指标（cargo/container）走后端 API；合成指标（berth/traffic）由 adapter
 // 按 INDICATOR_SOURCE 回退到前端静态 fixture（public/data/forecast/*）。
-// 三个 adapter 统一由 dataSource 驱动，移除 forecast 硬编码 'api' 覆盖（D-1=A，避免绕过全局语义）。
+// 两个 adapter 统一由 dataSource 驱动，移除 forecast 硬编码 'api' 覆盖（D-1=A，避免绕过全局语义）。
+// 2026-08-08：siteAnalysisAdapter 已删除（选址仅 api 态，直连 useApiRequest）——不再 setDataSource。
 forecastAdapter.setDataSource(dataSource)
 floodAdapter.setDataSource(dataSource)
-siteAnalysisAdapter.setDataSource(dataSource)
 
 // ResizeObserver polyfill for Safari < 13.1
 if (typeof window !== 'undefined' && !('ResizeObserver' in window)) {

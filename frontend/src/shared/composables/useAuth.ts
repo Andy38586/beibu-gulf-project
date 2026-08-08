@@ -58,26 +58,6 @@ let storageListenerRegistered = false
 // 认证恢复标志，防止重复调用
 let authRestored = false
 
-// 将 checkAuth 提升到模块级别，供 handleStorageChange 调用
-async function checkAuth(): Promise<User | null> {
-  // 使用显式布尔转换
-  if (token.value === '') return null
-  try {
-    const data = await apiRequest<{ user: User }>('/auth/me', { schema: authResponseSchema })
-    // 空值检查
-    if (!data || !data.user) {
-      throw new Error('认证响应数据无效')
-    }
-    user.value = data.user
-    return data.user
-  } catch {
-    clearToken()
-    user.value = null
-    writeStoredUser(null)
-    return null
-  }
-}
-
 /**
  * 应用启动时恢复认证状态（d033：始终以 Cookie 为权威）
  * 无论 localStorage 有无 user，均尝试 /auth/me 验证 Cookie
@@ -211,5 +191,5 @@ export function useAuth() {
     }
   }
 
-  return { user, token, isAuthenticated, login, register, logout, checkAuth, restoreAuth }
+  return { user, token, isAuthenticated, login, register, logout, restoreAuth }
 }

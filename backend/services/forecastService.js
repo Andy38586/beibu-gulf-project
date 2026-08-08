@@ -1,12 +1,7 @@
-import { readFile } from 'fs/promises'
-import { join, dirname } from 'path'
-import { fileURLToPath } from 'url'
 import { computeForecast, generateSpatialValues } from './forecastEngine.js'
 import { createReadCache } from '../utils/createReadCache.js'
+import { readStaticJson } from '../utils/readStaticJson.js'
 import { BusinessError, ErrorCode } from '../utils/BusinessError.js'
-
-const __dirname = dirname(fileURLToPath(import.meta.url))
-const DATA_DIR = join(__dirname, '../data/forecast')
 
 // 指标白名单——仅允许 index.json 中声明过的合法指标，
 // 拒绝路径遍历（..）及非法指标名。forecast 路由保持公开（稳定设计决策），
@@ -27,9 +22,11 @@ function validateIndicator(indicator) {
   }
 }
 
+// 2026-08-08：读文件逻辑收敛到 utils/readStaticJson（数据流收口②，TTL+LRU 缓存同源）。
+// 文件级缓存与下方 engineCache 同为 createReadCache 语义，数据更新受 TTL 约束一致。
 async function readDataFile(filename) {
   try {
-    return JSON.parse(await readFile(join(DATA_DIR, filename), 'utf-8'))
+    return await readStaticJson(`forecast/${filename}`)
   } catch (err) {
     if (err.code === 'ENOENT') {
       throw new BusinessError(

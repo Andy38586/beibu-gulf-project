@@ -17,13 +17,14 @@
  */
 import { computed, type ComputedRef } from 'vue'
 
-import { ApiError, ErrorCode } from '@/shared'
+import { ApiError, ErrorCode, useLatestRequest } from '@/shared'
 import { useForecastStore } from '@/stores'
 
 export function useForecastRequest() {
   const forecastState = useForecastStore()
-  // 实例级 AbortController（不进 store：不可序列化、不响应式）
-  let abortController: AbortController | null = null
+  // 竞态守卫收敛到 useLatestRequest（请求封装统一，"取消+竞态"一套实现）；
+  // AbortController 实例不进 store（不可序列化、不响应式）
+  const { createSignal, cancel: cancelRequest } = useLatestRequest()
 
   // 透传 store 的 isRequesting 作为响应式 isLoading（保留原接口契约）
   const isLoading: ComputedRef<boolean> = computed(() => forecastState.isRequesting)
@@ -31,19 +32,15 @@ export function useForecastRequest() {
   /**
    * 开始新事务
    * 调用时机：状态变化前（indicator/time/confidence 改变前）
-   * 效果：取消旧事务，生成新事务 ID
+   * 效果：取消旧事务（createSignal 内部 abort 上一个 signal），生成新事务 ID
    */
   function startTransaction() {
-    if (abortController) {
-      abortController.abort()
-    }
-
     forecastState.activeTransactionId += 1
-    abortController = new AbortController()
+    const signal = createSignal()
 
     return {
       transactionId: forecastState.activeTransactionId,
-      signal: abortController.signal,
+      signal,
     }
   }
 
@@ -111,11 +108,8 @@ export function useForecastRequest() {
    * 用于组件卸载等场景
    */
   function cancelAll() {
-    if (abortController) {
-      abortController.abort()
-    }
+    cancelRequest()
     forecastState.resetTransactionState()
-    abortController = null
   }
 
   return {

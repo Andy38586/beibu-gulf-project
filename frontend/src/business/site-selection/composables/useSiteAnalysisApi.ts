@@ -2,25 +2,23 @@ import type { Ref } from 'vue'
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 
-import { useApiRequest, handleAuthError, isAuthError, showError } from '@/shared'
+import { useApiRequest, handleAuthError, isAuthError, showError, useLatestRequest } from '@/shared'
 import type { AnalysisParams, AnalysisResult } from '@/types/analysis'
 import { siteAnalysisResponseSchema } from '@/types/schemas'
 
 export function useSiteAnalysisApi() {
   const router = useRouter()
   // 2026-08-08：siteAnalysisAdapter（纯透传）已删除——选址分析仅 api 态（后端 POST /site-analysis），
-  // 直连 useApiRequest 统一入口（信封解包 + zod 校验），竞态守卫保留在业务层
+  // 直连 useApiRequest 统一入口（信封解包 + zod 校验）；
+  // 竞态守卫收敛到 useLatestRequest（请求封装统一，"取消+竞态"一套实现）
   const { apiRequest } = useApiRequest()
+  const { createSignal, cancel: cancelRequest } = useLatestRequest()
   const calculating: Ref<boolean> = ref(false)
   const calcError: Ref<string> = ref('')
-  // 在途请求取消句柄；新请求优先取消旧请求，组件卸载时静默取消
-  let abortController: AbortController | null = null
 
   async function analyze(params: AnalysisParams): Promise<AnalysisResult> {
     // 新请求优先——取消上一个在途请求（快速连点用户期望看到最新结果）
-    abortController?.abort()
-    const controller = new AbortController()
-    abortController = controller
+    const signal = createSignal()
 
     calcError.value = ''
     calculating.value = true
@@ -28,7 +26,7 @@ export function useSiteAnalysisApi() {
       const result = await apiRequest<AnalysisResult>('/site-analysis', {
         method: 'POST',
         body: JSON.stringify(params),
-        signal: controller.signal,
+        signal,
         schema: siteAnalysisResponseSchema,
       })
       if (result.error) {
@@ -48,7 +46,7 @@ export function useSiteAnalysisApi() {
       }
     } catch (error) {
       // 主动取消（新请求抢占 / 组件卸载）— 静默返回，不弹错误、不触发软登录
-      if (controller.signal.aborted) {
+      if (signal.aborted) {
         return { error: null, coverage: null, matchedXiaoqu: [], facilityPoi: {} }
       }
       // 401：site-analysis 整路由需登录，走统一软登录（与 forecast 侧一致）
@@ -66,8 +64,7 @@ export function useSiteAnalysisApi() {
 
   // 取消在途请求并复位加载态（供调用方 onUnmounted 调用）
   function cancel(): void {
-    abortController?.abort()
-    abortController = null
+    cancelRequest()
     calculating.value = false
   }
 

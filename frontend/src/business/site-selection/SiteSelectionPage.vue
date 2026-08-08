@@ -95,7 +95,8 @@ function handleResult(result: Partial<AnalysisResult>): void {
   selectedTypes.value = result.selectedTypes || []
   facilityPoi.value = result.facilityPoi || {}
   selectedXiaoqu.value = null
-  mapStore.setSelectedXiaoqu(null)
+  // 2026-08-08：删除 mapStore.setSelectedXiaoqu 死镜像写入——store 那份全仓无人读
+  // （页面本地 ref 才是真实状态），详见"假镜像"问题。
   stopBreathing()
   if (matchedXiaoqu.value.length > 0) {
     zoomToDistrict()
@@ -169,8 +170,8 @@ function handleSelectXiaoqu(xq: ScoredXiaoqu): void {
   }
 
   selectedXiaoqu.value = normalizedXq
-  // 从 PaginatedListPanel 上提至此（shared 不再依赖 stores）
-  mapStore.setSelectedXiaoqu(normalizedXq)
+  // 2026-08-08：删除 mapStore.setSelectedXiaoqu 死镜像写入（store 那份全仓无人读，
+  // 页面本地 ref 才是真实状态）；mapStore 的 setSelectedXiaoqu 定义保留（用户定，不重构 store）。
 }
 
 /** 2026-08-08：跳转封装进 PaginatedListPanel（flyTo 回调 prop），与浸没分析统一 */

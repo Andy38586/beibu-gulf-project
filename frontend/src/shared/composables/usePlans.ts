@@ -10,6 +10,7 @@ import { planSchema } from '@/types/schemas'
 import type { SavedXiaoqu } from '@/types/xiaoqu'
 
 import { useApiRequest } from './useApiRequest'
+import { useLatestRequest } from './useLatestRequest'
 
 export function usePlans() {
   const router = useRouter()
@@ -18,19 +19,17 @@ export function usePlans() {
   const updating: Ref<boolean> = ref(false)
   const loading: Ref<boolean> = ref(false)
   const deleting: Ref<boolean> = ref(false)
-  // P0-5: 在途请求取消句柄——getPlans 读操作可取消（新请求 abort 旧 + 组件卸载 cancel）；
+  // 2026-08-08：getPlans 读操作的竞态守卫收敛到 useLatestRequest（请求封装统一）；
   // 写操作（create/update/delete）不打断,避免误取消已提交的写请求
-  let abortController: AbortController | null = null
+  const { createSignal, cancel: cancelRequest } = useLatestRequest()
 
   async function getPlans(): Promise<Plan[]> {
-    abortController?.abort()
-    const controller = new AbortController()
-    abortController = controller
+    const signal = createSignal()
     loading.value = true
     try {
       const data = await apiRequest<Plan[]>('/plans', {
         schema: planSchema.array(),
-        signal: controller.signal,
+        signal,
       })
       // 类型验证
       if (!Array.isArray(data)) {
@@ -48,14 +47,12 @@ export function usePlans() {
       throw error
     } finally {
       loading.value = false
-      if (abortController === controller) abortController = null
     }
   }
 
   /** P0-5: 取消在途 getPlans 请求（供组件 onUnmounted 调用） */
   function cancel(): void {
-    abortController?.abort()
-    abortController = null
+    cancelRequest()
     loading.value = false
   }
 

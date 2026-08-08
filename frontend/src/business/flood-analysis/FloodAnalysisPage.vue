@@ -23,7 +23,7 @@ import AppLayout from '@/core/layout/AppLayout.vue'
 import GCSPanel from '@/core/layout/components/GCSPanel.vue'
 import LayerControlPanel from '@/core/map/components/LayerControlPanel.vue'
 import { floodAdapter } from '@/services'
-import { showError, showWarning } from '@/shared'
+import { showError, showWarning, useLatestRequest } from '@/shared'
 import { logger } from '@/shared'
 import { useFloodStore } from '@/stores'
 import { useMapStore } from '@/stores'
@@ -65,9 +65,11 @@ let waterSurfaceTimer: ReturnType<typeof setTimeout> | null = null
 let analysisSeq = 0
 let unmounted = false
 
-// 请求取消控制器
-let floodAbortController: AbortController | null = null
-let impactAbortController: AbortController | null = null
+// 2026-08-08：flood/impact 两路竞态守卫收敛到 useLatestRequest（请求封装统一），
+// 各持独立实例（淹没分析与影响评估互不干扰）
+const { createSignal: createFloodSignal, cancel: cancelFlood, getCurrentSignal: getFloodSignal } =
+  useLatestRequest()
+const { createSignal: createImpactSignal, cancel: cancelImpact } = useLatestRequest()
 
 // 防抖时长：500→100ms（性能优化 2026-08-06）
 // 实测滑块端到端感知延迟 70% 来自 500ms 防抖（setToReqMs 505ms）；
@@ -168,7 +170,7 @@ watch(
     if (renderer) {
       void nextTick(() => {
         // b046: 透传 abort signal,卸载时中止在途水域坐标请求
-        void registerFloodLayers(floodAbortController?.signal)
+        void registerFloodLayers(getFloodSignal())
       })
     }
   },
@@ -273,12 +275,8 @@ watch(
 )
 
 async function triggerFloodAnalysis(waterLevel: number, seq: number) {
-  // 取消之前的请求
-  if (floodAbortController) {
-    floodAbortController.abort()
-  }
-  floodAbortController = new AbortController()
-  const signal = floodAbortController.signal
+  // 新请求优先——createFloodSignal 内部 abort 上一路在途请求
+  const signal = createFloodSignal()
 
   try {
     logger.debug('[Flood] 触发淹没分析，水位:', waterLevel, 'seq:', seq)
@@ -319,12 +317,8 @@ async function triggerFloodAnalysis(waterLevel: number, seq: number) {
 }
 
 async function triggerImpactAssessment(waterLevel: number, seq: number) {
-  // 取消之前的请求
-  if (impactAbortController) {
-    impactAbortController.abort()
-  }
-  impactAbortController = new AbortController()
-  const signal = impactAbortController.signal
+  // 新请求优先——createImpactSignal 内部 abort 上一路在途请求
+  const signal = createImpactSignal()
 
   try {
     logger.debug('[Flood] 触发影响评估，水位:', waterLevel, 'seq:', seq)
@@ -458,8 +452,8 @@ onUnmounted(() => {
   unmounted = true
 
   // P0-5 修复：中止在途请求，避免迟到响应在图层已移除后重新注册（孤儿复活）
-  floodAbortController?.abort()
-  impactAbortController?.abort()
+  cancelFlood()
+  cancelImpact()
 
   // 清除防抖分析定时器
   if (analysisTimer) {

@@ -18,13 +18,13 @@ import {
   waterAreaSchema,
 } from '@/types/schemas'
 
-import { resolveDataSource, setAdapterDataSource } from '../dataSourceConfig'
-
-// ==================== 数据源配置（委托给统一 dataSourceConfig） ====================
+// ==================== 数据源模式（2026-08-08 dataSourceConfig 撤销后内部化） ====================
+// 原统一 dataSourceConfig（adapterOverrides Map + 优先级回退）仅服务 floodAdapter 一个使用方，
+// static 消费者已随数据搬后端删除——机制名存实亡，改为模块级简单变量。
+type FloodDataSourceMode = 'api' | 'online'
+let dataSource: FloodDataSourceMode = 'api'
 
 const { apiRequest } = useApiRequest()
-
-const ADAPTER_NAME = 'flood'
 
 // 档位结果缓存（online，2026-08-06 性能优化②）：round(level,1) 同档位秒回——
 // 滑块来回拖/重复档位不重发请求、不重绘淹没多边形（FastAPI 有后端 LRU，
@@ -93,13 +93,12 @@ async function _fetchOnlineFlood(
 
 export const floodAdapter = {
   get dataSource(): string {
-    return resolveDataSource(ADAPTER_NAME)
+    return dataSource
   },
 
-  // 类型补全 'online'（2026-08-06：原仅 'static'|'api'，与 DataSourceMode 三值不符——
-  // 与 main.ts:38 断言漏 'online' 同源；运行时本就支持 online（VITE_DATA_SOURCE=online））
+  // 2026-08-08：dataSourceConfig 撤销后内部赋值（api=Express 后端 / online=FastAPI 实时演算）
   setDataSource(mode: 'api' | 'online'): void {
-    setAdapterDataSource(ADAPTER_NAME, mode)
+    dataSource = mode
   },
 
   // b046: 增加 signal 参数——水域坐标请求可随组件卸载/新请求取消
@@ -118,7 +117,7 @@ export const floodAdapter = {
     { signal }: RequestOptions = {}
   ): Promise<FloodAnalysisResult> {
     // online 模式：FastAPI 实时演算（连通性淹没），业务层零改动（N4 adapter 隔离）
-    if (resolveDataSource(ADAPTER_NAME) === 'online') {
+    if (dataSource === 'online') {
       // 档位缓存：同档位直接复用上次结果（滑块来回拖秒回，不重发请求不重绘）
       const levelKey = Math.round(waterLevel * 10) / 10
       const hit = _onlineLevelCache.get(levelKey)
@@ -187,7 +186,7 @@ export const floodAdapter = {
   ): Promise<ImpactAssessmentResult> {
     // online 模式：FastAPI 预计算档位表 → 空间筛选设施影响（2026-08-06 补齐，
     // 原实现返回空——受影响设施/损失一直为空的洞）
-    if (resolveDataSource(ADAPTER_NAME) === 'online') {
+    if (dataSource === 'online') {
       const res = await apiRequest<Record<string, unknown>>('/flood-online/api/flood/impact', {
         params: { level: waterLevel },
         signal,

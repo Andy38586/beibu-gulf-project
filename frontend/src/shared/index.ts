@@ -2,6 +2,7 @@
 // components/ 不 re-export（Vue 组件保持直接路径 import）
 export * from './composables/useApiRequest'
 export * from './composables/useAuth'
+export * from './composables/useLatestRequest'
 export * from './composables/usePlans'
 export * from './constants/colors'
 export * from './constants/forecast'

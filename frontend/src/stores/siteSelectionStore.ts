@@ -1,5 +1,3 @@
-import { defineStore } from 'pinia'
-
 import type { FacilityPoint, TypeSetting } from '@/types/facility'
 import type { ScoredXiaoqu } from '@/types/xiaoqu'
 
@@ -15,17 +13,16 @@ export interface SiteSelectionState {
 }
 
 /**
- * 选址分析跨页面状态 store
- * 使用 createPersistedState 工厂提供统一的 saveState/consumeState/clearState API。
- * 快照数据整体存储于 persistedState，不再分散到各业务字段。
+ * 选址分析跨页面状态持久化（2026-08-08 空壳去化）
+ * 原为 Pinia defineStore 纯透传 createPersistedState 的空壳（无业务状态，
+ * 共享语义仅靠 Pinia 单例）——改为模块级单例（模块变量天然单例），
+ * 功能完全等价：App.vue 登出清理与 SiteSelectionPage 保存/恢复共享同一快照。
  */
-export const useSiteSelectionStore = defineStore('siteSelection', () => {
-  const persisted = createPersistedState<SiteSelectionState>()
+const persisted = createPersistedState<SiteSelectionState>()
 
-  return {
-    hasPersistedState: persisted.hasPersistedState,
-    saveState: persisted.saveState,
-    consumeState: persisted.consumeState,
-    clearState: persisted.clearPersistedState,
-  }
-})
+export const siteSelectionPersisted = {
+  hasPersistedState: persisted.hasPersistedState,
+  saveState: persisted.saveState,
+  consumeState: persisted.consumeState,
+  clearState: persisted.clearPersistedState,
+}

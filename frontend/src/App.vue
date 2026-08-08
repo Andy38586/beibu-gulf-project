@@ -27,7 +27,7 @@ import ErrorBoundary from '@/shared/components/ErrorBoundary.vue'
 import { useFloodStore } from '@/stores'
 import { useForecastStore } from '@/stores'
 import { useMapStore } from '@/stores'
-import { useSiteSelectionStore } from '@/stores'
+import { siteSelectionPersisted } from '@/stores'
 import type { TypeSetting } from '@/types/facility'
 import type { Plan } from '@/types/plan'
 
@@ -53,9 +53,9 @@ provide(MAP_STORE_KEY, mapStore)
 const businessLayerManager = new BusinessLayerManager(mapStore)
 provide(BUSINESS_LAYER_MANAGER_KEY, businessLayerManager)
 
-// 图层渲染失败 → UI 层 toast（2026-08-08：manager 只上报 layer-error 事件，
-// 不感知 UI——展示方式由上层决定，未来可扩展错误面板/日志/自动重试）
-businessLayerManager.on('layer-error', ({ label }: { label: string }) => {
+// 图层渲染失败 → UI 层 toast（2026-08-08：manager 只上报错误回调、不感知 UI——
+// 展示方式由上层决定；原 on/_emit 事件发射器已收敛为 setErrorHandler 单一回调）
+businessLayerManager.setErrorHandler(({ label }: { label: string }) => {
   showWarning(`图层「${label}」加载失败，请再点击一次重试`)
 })
 
@@ -63,7 +63,7 @@ businessLayerManager.on('layer-error', ({ label }: { label: string }) => {
 // 重置逻辑整合进 App.vue 组件内，watch(user) 驱动（user 变 null = 登出/多标签页登出）
 function resetStores(): void {
   try {
-    useSiteSelectionStore().clearState()
+    siteSelectionPersisted.clearState()
     // P3：waterLevel/portImpact/profile 已并入 floodStore，clearState 全量清（含持久化快照）
     useFloodStore().clearState()
     // 重置地图业务交互状态，清 analysisHandler 闭包与 sessionStorage

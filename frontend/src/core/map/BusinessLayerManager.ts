@@ -72,22 +72,18 @@ interface RegistryEntry {
 export class BusinessLayerManager {
   private _mapStore: MapStoreLike | null
   private _registry: Map<string, RegistryEntry>
-  /** 事件监听器（当前仅 'layer-error'）——UI 层注册，manager 不感知 UI */
-  private _listeners = new Map<string, Set<(payload: LayerErrorPayload) => void>>()
+  /** 图层错误回调（2026-08-08：原完整事件发射器仅服务 'layer-error' 单事件单监听，
+   * 收敛为单一回调注入——UI 层注册，manager 不感知 UI；YAGNI 收缩） */
+  private _errorHandler: ((payload: LayerErrorPayload) => void) | null = null
 
   constructor(mapStore: MapStoreLike) {
     this._mapStore = mapStore
     this._registry = new Map()
   }
 
-  /** 监听 BLM 事件（如 'layer-error'）——App.vue 注册 toast，未来可扩展错误面板/日志 */
-  on(event: string, handler: (payload: LayerErrorPayload) => void): void {
-    if (!this._listeners.has(event)) this._listeners.set(event, new Set())
-    this._listeners.get(event)!.add(handler)
-  }
-
-  private _emit(event: string, payload: LayerErrorPayload): void {
-    this._listeners.get(event)?.forEach((handler) => handler(payload))
+  /** 注册图层错误回调（App.vue 注入 toast；仅一个监听方，无需事件总线） */
+  setErrorHandler(handler: (payload: LayerErrorPayload) => void): void {
+    this._errorHandler = handler
   }
 
   /** 获取当前活跃的 renderer（动态，不缓存） */
@@ -113,7 +109,7 @@ export class BusinessLayerManager {
       | (MapRenderer & { clearPendingVisibility?: (id: string) => void })
       | null
     renderer?.clearPendingVisibility?.(key)
-    this._emit('layer-error', { key, label })
+    this._errorHandler?.({ key, label })
   }
 
   /** 获取 layerType 对应的 adapter */

@@ -47,6 +47,14 @@ export interface MapViewLevel {
   label: string
 }
 
+/** 城市 flyTo 坐标（北部湾三港，按钮定位用）——2026-08-08 自 useScreenActions 收归地图配置单一权威源 */
+export interface CityFlyToTarget {
+  lng: number
+  lat: number
+  height: number
+  zoom: number
+}
+
 /** 视图层级集合 */
 export interface MapViewLevels {
   REGION: MapViewLevel
@@ -62,6 +70,7 @@ export interface MapConfig {
   DATA_PATHS: MapDataPaths
   CAMERA: MapCameraConfig
   VIEW_LEVELS: MapViewLevels
+  CITY_CENTERS: Record<string, CityFlyToTarget>
 }
 
 export const MAP_CONFIG: MapConfig = {
@@ -107,6 +116,13 @@ export const MAP_CONFIG: MapConfig = {
       zoom: 14,
       label: '区级',
     },
+  },
+  // 城市按钮 flyTo 坐标（2026-08-08 自 useScreenActions 收归，原值不变——
+  // 与 VIEW_LEVELS 语义不同：前者是三港定位，后者是相机层级档位，勿合并）
+  CITY_CENTERS: {
+    钦州: { lng: 108.590379, lat: 21.726917, height: 100000, zoom: 11 },
+    防城港: { lng: 108.340973, lat: 21.617689, height: 100000, zoom: 11 },
+    北海: { lng: 109.130658, lat: 21.418792, height: 100000, zoom: 11 },
   },
 }
 

@@ -23,9 +23,8 @@ import LayerControlPanel from '@/core/map/components/LayerControlPanel.vue'
 import { showError } from '@/shared'
 import { logger } from '@/shared'
 import PaginatedListPanel from '@/shared/components/PaginatedListPanel.vue'
+import { siteSelectionPersisted, useMapStore } from '@/stores'
 import type { SiteSelectionState } from '@/stores'
-import { useMapStore } from '@/stores'
-import { useSiteSelectionStore } from '@/stores'
 import type { AnalysisResult, FacilityPoint, ScoredXiaoqu } from '@/types/analysis'
 import RadarChart from '@/visualization/charts/RadarChart.vue'
 
@@ -35,7 +34,7 @@ import { useAnalysisLayer } from './composables/useAnalysisLayer'
 const { flyTo, startBreathing, stopBreathing, zoomToCity, zoomToDistrict, mapInstance } =
   useMapControls()
 const mapStore = useMapStore()
-const stateStore = useSiteSelectionStore()
+const stateStore = siteSelectionPersisted
 const { manager: businessLayerManager } = useBusinessLayers()
 const { createUpdateHandler } = useAnalysisLayer() as unknown as {
   createUpdateHandler: (_manager: unknown) => (_result: unknown) => Promise<void>

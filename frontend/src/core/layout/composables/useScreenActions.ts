@@ -15,21 +15,11 @@ import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { useMapControls } from '@/core/map/composables/useMapControls'
+import { MAP_CONFIG } from '@/core/config/map'
 import { useAuth } from '@/shared'
 
-/** 城市坐标配置（北部湾三港） */
-interface CityCenter {
-  lng: number
-  lat: number
-  height: number
-  zoom: number
-}
-
-const CITY_CENTERS: Record<string, CityCenter> = {
-  钦州: { lng: 108.590379, lat: 21.726917, height: 100000, zoom: 11 },
-  防城港: { lng: 108.340973, lat: 21.617689, height: 100000, zoom: 11 },
-  北海: { lng: 109.130658, lat: 21.418792, height: 100000, zoom: 11 },
-}
+// 城市坐标 2026-08-08 收归 MAP_CONFIG.CITY_CENTERS（地图配置单一权威源），
+// 不再在本文件散落硬编码（原注释"坐标来自 ports.json 不硬编码"与实现不符，已修正）
 
 /** useScreenActions 返回值结构 */
 export interface UseScreenActionsReturn {
@@ -88,7 +78,7 @@ export function useScreenActions(): UseScreenActionsReturn {
    * @param {string} city - 城市名：钦州 / 防城港 / 北海
    */
   function flyToCity(city: string): void {
-    const target = CITY_CENTERS[city]
+    const target = MAP_CONFIG.CITY_CENTERS[city]
     if (!target) return
     flyTo({ lng: target.lng, lat: target.lat }, { height: target.height, zoom: target.zoom })
   }

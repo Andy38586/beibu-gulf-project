@@ -11,6 +11,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { VIEWPORT_CULL_THRESHOLD } from '@/shared'
 
+// threads 池下 ol/source/GeoTIFF 依赖的 web-worker 在嵌套 worker 环境崩溃
+// （workerData undefined）；本测试不覆盖 GeoTIFF 图层，mock 掉避免模块加载失败。
+// 注意：此 mock 曾被 git checkout 覆盖（2026-08-07），若 threads 下该文件 0 test 失败先检查。
+vi.mock('ol/source/GeoTIFF', () => ({ default: class GeoTIFFMock {} }))
+
 // ==================== Mock ol/Map 与 ol/View ====================
 const moveendListeners: Array<{ type: string; listener: (...args: unknown[]) => void }> = []
 

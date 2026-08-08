@@ -171,9 +171,12 @@ function handleSelectXiaoqu(xq: ScoredXiaoqu): void {
   selectedXiaoqu.value = normalizedXq
   // 从 PaginatedListPanel 上提至此（shared 不再依赖 stores）
   mapStore.setSelectedXiaoqu(normalizedXq)
-  // 从 PaginatedListPanel 上提至此（shared 不再依赖 core）
-  startBreathing(normalizedXq.lng, normalizedXq.lat)
-  flyTo({ lng: normalizedXq.lng, lat: normalizedXq.lat }, { height: 1000 })
+}
+
+/** 2026-08-08：跳转封装进 PaginatedListPanel（flyTo 回调 prop），与浸没分析统一 */
+function flyToXiaoqu(xq: ScoredXiaoqu): void {
+  startBreathing(xq.lng ?? 0, xq.lat ?? 0)
+  flyTo({ lng: xq.lng ?? 0, lat: xq.lat ?? 0 }, { height: 1000 })
 }
 
 /** 收藏状态变化时同步方案ID */
@@ -328,8 +331,40 @@ onUnmounted(() => {
             @hide-facility-layer="handleHideFacilityLayer"
           />
         </GCSPanel>
-        <!-- 左下：图层控制面板 4×4 -->
+        <!-- 左下：小区名单列表 4×4（2026-08-08 与图层控制互换位置） -->
         <GCSPanel :w="4" :h="4" anchor="top-left" :offset-x="0" :offset-y="5.5">
+          <PaginatedListPanel
+            ref="favoriteListRef"
+            :items="displayXiaoqu"
+            :page-size="4"
+            title="小区名单"
+            empty-text="暂无分析结果"
+            plan-type="site-selection"
+            :fly-to="flyToXiaoqu"
+            @click-item="handleSelectXiaoqu"
+            @favorite-change="handleFavoriteChange"
+          >
+            <template #item="{ item: xq, index }">
+              <span class="xq-rank">{{ index + 1 }}</span>
+              <span class="xq-name">{{ xq.name }}</span>
+              <span class="xq-score">{{ xq.score }}分</span>
+            </template>
+          </PaginatedListPanel>
+        </GCSPanel>
+      </template>
+
+      <!-- 右侧：右上因子面板 + 右下图层控制 -->
+      <template #right>
+        <!-- 右上：设施因子选择面板 4×4 -->
+        <GCSPanel :w="4" :h="4" anchor="top-right" :offset-x="0" :offset-y="1.25">
+          <SiteAnalysisControlPanel
+            ref="factorPanelRef"
+            @result-update="handleResult"
+            @analysis-error="handleAnalysisError"
+          />
+        </GCSPanel>
+        <!-- 右下：图层控制面板 4×4（2026-08-08 与小区名单互换位置） -->
+        <GCSPanel :w="4" :h="4" anchor="top-right" :offset-x="0" :offset-y="5.5">
           <LayerControlPanel
             :layer-order="[
               'base-image',
@@ -340,37 +375,6 @@ onUnmounted(() => {
               'analysis-matched',
             ]"
           />
-        </GCSPanel>
-      </template>
-
-      <!-- 右侧：右上因子面板 + 右下小区名单 -->
-      <template #right>
-        <!-- 右上：设施因子选择面板 4×4 -->
-        <GCSPanel :w="4" :h="4" anchor="top-right" :offset-x="0" :offset-y="1.25">
-          <SiteAnalysisControlPanel
-            ref="factorPanelRef"
-            @result-update="handleResult"
-            @analysis-error="handleAnalysisError"
-          />
-        </GCSPanel>
-        <!-- 右下：小区名单列表 4×4 -->
-        <GCSPanel :w="4" :h="4" anchor="top-right" :offset-x="0" :offset-y="5.5">
-          <PaginatedListPanel
-            ref="favoriteListRef"
-            :items="displayXiaoqu"
-            :page-size="4"
-            title="小区名单"
-            empty-text="暂无分析结果"
-            plan-type="site-selection"
-            @click-item="handleSelectXiaoqu"
-            @favorite-change="handleFavoriteChange"
-          >
-            <template #item="{ item: xq, index }">
-              <span class="xq-rank">{{ index + 1 }}</span>
-              <span class="xq-name">{{ xq.name }}</span>
-              <span class="xq-score">{{ xq.score }}分</span>
-            </template>
-          </PaginatedListPanel>
         </GCSPanel>
       </template>
     </AppLayout>

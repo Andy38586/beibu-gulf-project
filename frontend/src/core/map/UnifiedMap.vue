@@ -5,7 +5,6 @@ import { computed, nextTick, onMounted, onUnmounted, provide, ref, watch } from 
 
 import { BOUNDARY_STYLE, loadBoundaryGeoJson } from '@/core/map/composables/useBoundaryLayer'
 import { useBusinessLayers } from '@/core/map/composables/useBusinessLayers'
-import { useLayerManager } from '@/core/map/composables/useLayerManager'
 import { MapRendererKey } from '@/core/map/composables/useMapRenderer'
 import { buildPortGeoJson, loadPorts, PORT_STYLE } from '@/core/map/composables/usePortLayer'
 import { createRenderer } from '@/core/map/renderers'
@@ -56,7 +55,8 @@ const cesiumInitialized = ref(false)
 provide(MapRendererKey, currentRenderer)
 // mapStore 已由 App.vue 统一 provide，此处不再重复（z025）
 
-const { registerBaseLayerWithRenderer, clearLayers } = useLayerManager()
+// P6：useLayerManager 已删（双轨制只留新机制）——底图注册走 mapStore.registerBaseLayer
+// （纯建条目，互斥切换由 mapStore.setBaseLayer + baseLayerKey 管理），清理走 clearLayerCatalog
 // 核心常驻层（boundary/ports）收口到 BLM，与业务图层统一管理
 const { manager: businessLayerManager } = useBusinessLayers()
 
@@ -188,7 +188,6 @@ async function initRenderer(type: '2d' | '3d', container: HTMLElement | null) {
     if (existingRenderer) {
       // 复用已有渲染器
       currentRenderer.value = existingRenderer
-      mapStore.setCurrentRenderer(existingRenderer)
 
       if (type === '3d') {
         const { cesiumViewerManager } = await import('@/core/map/renderers/CesiumRenderer')
@@ -198,6 +197,11 @@ async function initRenderer(type: '2d' | '3d', container: HTMLElement | null) {
       existingRenderer.updateSize()
       // 图层目录的show/hide绑定的是渲染器实例，切换回来需重新注册
       setupLayers()
+      // 顺序关键（2026-08-08）：setCurrentRenderer 触发 App.vue watch 清理
+      // 孤儿图层（removeAllFromRenderer），随后 reapplyAll 重建业务条目+实例——
+      // 顺序反了会"面板先显示后撤掉"（reapplyAll 重建 → setupLayers clearLayers 清空）
+      mapStore.setCurrentRenderer(existingRenderer)
+      businessLayerManager.reapplyAll(existingRenderer)
     } else {
       const renderer = (await createRenderer(type, container)) as unknown as MapRenderer
 
@@ -208,10 +212,13 @@ async function initRenderer(type: '2d' | '3d', container: HTMLElement | null) {
       }
 
       currentRenderer.value = renderer
-      mapStore.setCurrentRenderer(renderer)
       renderer.updateSize()
       setupLayers()
       setupEvents()
+      mapStore.setCurrentRenderer(renderer)
+      // 业务图层重建统一在此（不依赖 App.vue watch——单测/独立使用场景无 App.vue）：
+      // setupLayers 已清 catalog，此处作为最后一步重建，面板状态稳定
+      businessLayerManager.reapplyAll(renderer)
     }
 
     mapStore.setMap(
@@ -232,15 +239,26 @@ async function initRenderer(type: '2d' | '3d', container: HTMLElement | null) {
 function setupLayers() {
   const renderer = currentRenderer.value
   if (!renderer) return
-  clearLayers()
+  // P6：useLayerManager.clearLayers 已删，直连 mapStore
+  mapStore.clearLayerCatalog()
 
-  registerBaseLayerWithRenderer('base-image', '影像底图', renderer)
-  registerBaseLayerWithRenderer('base-vector', '矢量底图', renderer)
+  // P6：底图条目走 mapStore.registerBaseLayer（纯建条目，互斥切换由 setBaseLayer 管理）
+  mapStore.registerBaseLayer('base-image', '影像底图')
+  mapStore.registerBaseLayer('base-vector', '矢量底图')
+
+  // 应用当前底图到新渲染器（P6：setBaseLayer 只处理"切换"；初始化/引擎切换后
+  // 底图状态在此同步——旧机制靠 show 回调初始化，已删）
+  const activeBaseKey = mapStore.baseLayerKey ?? 'base-image'
+  const baseRenderer = renderer as MapRenderer & { setBaseLayer?: (type: string) => void }
+  baseRenderer.setBaseLayer?.(activeBaseKey === 'base-image' ? 'image' : 'vector')
 
   // 核心常驻层（boundary/ports）收口到 BusinessLayerManager，
   // 与业务图层统一走 registry。register 仅首次创建视觉实例 + catalog 条目，
   // 引擎切换时 registry 持久、setupLayers 内 register 跳过（已注册），
   // 由 App.vue 的 reapplyAll 把图层数据重绘到新 renderer 并重建 catalog 条目。
+  logger.debug(
+    `[UnifiedMap] setupLayers: boundaryGeoJson=${!!boundaryGeoJson} hasBoundary=${businessLayerManager.has('boundary')} portGeoJson=${!!portGeoJson} hasPorts=${businessLayerManager.has('ports')}`
+  )
   if (boundaryGeoJson && !businessLayerManager.has('boundary')) {
     businessLayerManager.register('boundary', {
       label: '行政区划',
@@ -418,14 +436,23 @@ watch(
 let resizeObserver: ResizeObserver | null = null
 
 function watchContainerSize(container: HTMLElement | null): void {
-  if (!container || resizeObserver) return
-  resizeObserver = new ResizeObserver(() => {
-    // 防抖：连续 resize 事件合并（Cesium resize 有布局开销，避免高频触发）
-    if (resizeObserver) {
-      currentRenderer.value?.updateSize()
-    }
-  })
-  resizeObserver.observe(container)
+  // a043 防御：环境不支持 ResizeObserver（jsdom / 老浏览器）时静默跳过。
+  // 若不检测，`new ResizeObserver(...)` 抛错发生在赋值语句上 → resizeObserver
+  // 保持 null → watch(cesiumInitialized) 再次触发时拦截不住、反复重试 →
+  // unhandled rejection（实测 jsdom 下 16 个，且测试进程挂起）。
+  if (!container || resizeObserver || typeof ResizeObserver === 'undefined') return
+  try {
+    resizeObserver = new ResizeObserver(() => {
+      // 防抖：连续 resize 事件合并（Cesium resize 有布局开销，避免高频触发）
+      if (resizeObserver) {
+        currentRenderer.value?.updateSize()
+      }
+    })
+    resizeObserver.observe(container)
+  } catch {
+    // 构造/观察失败（个别环境）→ 复位并退出，下次触发仍可重试，但不抛错
+    resizeObserver = null
+  }
 }
 
 onMounted(async () => {
@@ -483,9 +510,19 @@ onUnmounted(() => {
   cachedRenderers.forEach((r) => {
     if (r) {
       try {
-        r.destroy()
+        if (r === cesiumRenderer.value) {
+          // Cesium：常规卸载走 unmount（viewer 保留 + 30s 空闲销毁），符合
+          // cesiumViewerManager 设计（"常规卸载仍走 unmount() 保留复用"）。
+          // 直接 destroy() 会销毁 viewer → 路由重挂只能重建（慢），且新实例
+          // 空 _layers + 注册/重绘时序竞争 → "回来只有 cesium 实例没有图层"
+          // （用户实测 2026-08-08）。destroy 仅应用退出/HMR/测试场景。
+          ;(r as unknown as { unmount?: () => void }).unmount?.()
+        } else {
+          // OL 无复用设计，正常销毁
+          r.destroy()
+        }
       } catch (e) {
-        if (import.meta.env.DEV) logger.warn('[UnifiedMap] 渲染器销毁失败:', e)
+        if (import.meta.env.DEV) logger.warn('[UnifiedMap] 渲染器卸载失败:', e)
       }
     }
   })

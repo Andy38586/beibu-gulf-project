@@ -16,7 +16,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { useMapStore } from '@/stores'
-import { useWaterLevelStore } from '@/stores'
+import { useFloodStore } from '@/stores'
 
 const h = vi.hoisted(() => {
   const mockManager = {
@@ -97,7 +97,7 @@ describe('FloodAnalysisPage 卸载守卫（H-4 / P0-5 / R-4）', () => {
 
     // a048 滑块联动：首屏 immediate watch 跳过自动分析（等待用户操作）。
     // 第一次操作滑块 → 分析①（正常在途）
-    useWaterLevelStore().setWaterLevel(8)
+    useFloodStore().setWaterLevel(8)
     await flushPromises()
     vi.advanceTimersByTime(600) // 推进防抖定时器
     await flushPromises()
@@ -122,7 +122,7 @@ describe('FloodAnalysisPage 卸载守卫（H-4 / P0-5 / R-4）', () => {
     expect(registerBefore).toBeGreaterThanOrEqual(1)
 
     // 第二次操作滑块 → 分析②（在途，本次要卸载）
-    useWaterLevelStore().setWaterLevel(9)
+    useFloodStore().setWaterLevel(9)
     await flushPromises()
     vi.advanceTimersByTime(600)
     await flushPromises()

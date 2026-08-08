@@ -1,5 +1,3 @@
-import type { FeatureCollection } from 'geojson'
-
 // 收口例外：MAP_CONFIG 走深路径 @/core/config/map 而非 @/core。
 // 原因：core/index.ts re-export usePortLayer → usePortLayer 依赖 @/services → services/index.ts
 // re-export mapDataService → 若 mapDataService 再走 @/core 会形成 core↔services 循环依赖（no-circular）。
@@ -21,11 +19,6 @@ import { isInBeibuGulf } from '@/shared'
 async function fetchData(url: string): Promise<unknown> {
   const raw = await loadStatic<unknown>(url)
   return unwrapEnvelope(raw)
-}
-
-interface CacheStatus {
-  ports: boolean
-  boundary: boolean
 }
 
 export const mapDataService = {
@@ -57,55 +50,8 @@ export const mapDataService = {
     }
   },
 
-  // 预留未接入：当前边界加载由 useBoundaryLayer 承担，本方法保留作备用，请勿删除
-  async getBoundary(): Promise<FeatureCollection> {
-    try {
-      const data = (await fetchData(MAP_CONFIG.DATA_PATHS.boundary)) as Record<
-        string,
-        unknown
-      > | null
-      if (!data || typeof data !== 'object') {
-        throw new Error('边界数据为空或格式无效')
-      }
-      const features = data.features
-      if (!features || !Array.isArray(features)) {
-        throw new Error('边界数据缺少features数组或格式不正确')
-      }
-      const validFeatures = features.filter((f: Record<string, unknown> | null, index: number) => {
-        if (!f || !f.geometry || !(f.geometry as Record<string, unknown>).coordinates) {
-          logger.debug(`边界数据第${index}个feature结构无效:`, f)
-          return false
-        }
-        return true
-      })
-      if (validFeatures.length === 0) {
-        throw new Error('边界数据中无有效的feature')
-      }
-      return { ...data, features: validFeatures } as FeatureCollection
-    } catch (error) {
-      if (
-        error instanceof Error &&
-        (error.message.includes('格式') || error.message.includes('feature'))
-      ) {
-        logger.error('边界数据格式验证失败:', error)
-        throw Object.assign(new Error('边界数据格式不正确，请联系管理员'), { cause: error })
-      }
-      logger.error('加载边界数据失败:', error)
-      throw error
-    }
-  },
-
   clearCache(): void {
     // 委托 loadStatic 的 clearStaticCache 清统一缓存
     clearStaticCache()
-  },
-
-  getCacheStatus(): CacheStatus {
-    // loadStatic 未导出 cache 引用，缓存命中判断退化为"始终 false"，
-    // 仅作占位（无生产调用方依赖此方法，可后续按需补 invalidateStatic 查询接口）
-    return {
-      ports: false,
-      boundary: false,
-    }
   },
 }

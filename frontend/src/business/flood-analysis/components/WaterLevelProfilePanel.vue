@@ -29,8 +29,7 @@ import { PROFILE_COLORS } from '@/shared'
 import { useGCS } from '@/shared'
 import { showError } from '@/shared'
 import { logger } from '@/shared'
-import { useProfileStore } from '@/stores'
-import { useWaterLevelStore } from '@/stores'
+import { useFloodStore } from '@/stores'
 import { terrainProfileSchema } from '@/types/schemas'
 
 /**
@@ -73,12 +72,11 @@ interface TerrainProfile {
 /** API 响应通用结构（已由 apiRequest 自动解包，此接口仅保留供历史参考） */
 
 const { apiRequest } = useApiRequest()
-const waterLevelStore = useWaterLevelStore()
-const profileStore = useProfileStore()
+const floodStore = useFloodStore()
 // 直接从 useGCS 解构 CSS 变量供 v-bind() 使用
 const { cell8px, cell16px } = useGCS()
 
-const localWaterLevel = ref(waterLevelStore.waterLevel)
+const localWaterLevel = ref(floodStore.waterLevel)
 
 /**
  * 可点击刻度标记配置（洪水口径，基于 DEM 实测高程 + 实测淹没验证）
@@ -97,7 +95,7 @@ const scaleMarks = [
  * 监听Store水位变化，同步到本地
  */
 watch(
-  () => waterLevelStore.waterLevel,
+  () => floodStore.waterLevel,
   (newLevel) => {
     localWaterLevel.value = newLevel
   }
@@ -110,12 +108,12 @@ watch(
  */
 function onSliderChange(value: number | number[]) {
   const level = Array.isArray(value) ? value[0] : value
-  waterLevelStore.setWaterLevel(level)
+  floodStore.setWaterLevel(level)
 }
 
 function setWaterLevelByMark(value: number) {
   localWaterLevel.value = value
-  waterLevelStore.setWaterLevel(value)
+  floodStore.setWaterLevel(value)
 }
 
 /** 剖面线列表 */
@@ -145,7 +143,7 @@ async function loadProfiles() {
       // 默认选择第一条剖面线
       if (profiles.value.length > 0) {
         selectedProfileId.value = profiles.value[0].id
-        profileStore.setSelectedProfile(profiles.value[0].id)
+        floodStore.setSelectedProfile(profiles.value[0].id)
       }
     } else {
       showError('加载剖面线数据失败')
@@ -198,7 +196,7 @@ function updateChart() {
   const distances = profile.points.map((p) => p.distance)
   const elevations = profile.points.map((p) => p.elevation)
 
-  const waterLevel = waterLevelStore.waterLevel
+  const waterLevel = floodStore.waterLevel
 
   // 配置ECharts选项
   const option = {
@@ -294,7 +292,7 @@ function updateChart() {
  * 监听剖面线选择变化
  */
 watch(selectedProfileId, (newId) => {
-  profileStore.setSelectedProfile(newId)
+  floodStore.setSelectedProfile(newId)
   updateChart()
 })
 
@@ -302,7 +300,7 @@ watch(selectedProfileId, (newId) => {
  * 监听水位变化，更新图表中的水位线
  */
 watch(
-  () => waterLevelStore.waterLevel,
+  () => floodStore.waterLevel,
   () => {
     if (chartInstance && selectedProfileId.value) {
       updateChart()

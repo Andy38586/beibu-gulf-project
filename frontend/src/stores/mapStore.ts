@@ -3,7 +3,7 @@ import type { Ref, ShallowRef } from 'vue'
 import { ref, shallowRef } from 'vue'
 
 import { logger } from '@/shared'
-import type { LayerEntry, LayerType, MapType, Port, RegisterLayerOptions } from '@/types'
+import type { LayerEntry, LayerType, MapType, Port } from '@/types'
 import type { MapRenderer } from '@/types'
 import type { ScoredXiaoqu } from '@/types'
 import { analysisResultSchema } from '@/types/schemas'
@@ -99,7 +99,6 @@ export const useMapStore = defineStore('map', () => {
   // 从 sessionStorage 恢复分析结果（收窄为 Record，业务层自行 cast）
   const lastAnalysisResult: Ref<Record<string, unknown> | null> = ref(readStoredAnalysisResult())
 
-  const activePanel: Ref<string> = ref('none')
   const selectedXiaoqu: Ref<ScoredXiaoqu | null> = ref(null)
 
   function setMap(instance: unknown): void {
@@ -157,63 +156,18 @@ export const useMapStore = defineStore('map', () => {
     }
   }
 
-  function registerLayer(key: string, label: string, options: RegisterLayerOptions): void {
-    const { visible = false, category = 'business', show, hide } = options
-
-    const existingIndex = layerCatalog.value.findIndex((e: LayerEntry) => e.key === key)
-    if (existingIndex >= 0) {
-      // 已存在则替换 show/hide 回调（而非追加），防止重注册导致回调重复执行
-      layerCatalog.value = layerCatalog.value.map((e: LayerEntry) => {
-        if (e.key !== key) return e
-        const next: LayerEntry = { ...e }
-        if (show) next.show = show
-        if (hide) next.hide = hide
-        return next
-      })
-    } else {
-      const newEntry: LayerEntry = {
-        key,
-        label,
-        visible,
-        category,
-        show: show ?? [() => {}],
-        hide: hide ?? [() => {}],
-      }
-      layerCatalog.value = [...layerCatalog.value, newEntry]
-    }
-  }
-
-  function registerBaseLayer(key: string, label: string, show: () => void, hide: () => void): void {
+  /**
+   * 注册底图条目（P6：旧回调版已删——底图切换统一走 setBaseLayer + baseLayerKey）。
+   * 幂等：UnifiedMap.setupLayers 每次引擎切换都调，已存在则跳过。
+   */
+  function registerBaseLayer(key: string, label: string): void {
     const existing = layerCatalog.value.find((e: LayerEntry) => e.key === key)
+    if (existing) return
     const isFirstBase = layerCatalog.value.every((e: LayerEntry) => e.category !== 'base')
-    // 优先以 localStorage 中持久化的底图 key 为准；未设置时默认第一个底图可见
+    // 优先以 localStorage 持久化的底图 key 为准；未设置时默认第一个底图可见
     const storedKey = baseLayerKey.value
-    const shouldVisible = existing ? existing.visible : storedKey ? key === storedKey : isFirstBase
-
-    const wrappedShow = () => {
-      // 隐藏其它底图（不可变更新，配合 shallowRef）
-      layerCatalog.value = layerCatalog.value.map((e: LayerEntry) => {
-        if (e.category === 'base' && e.key !== key) {
-          e.hide?.forEach((fn) => fn())
-          return { ...e, visible: false }
-        }
-        return e
-      })
-      baseLayerKey.value = key
-      writeStoredBaseLayer(key)
-      show()
-    }
-
-    registerLayer(key, label, {
-      visible: shouldVisible,
-      category: 'base',
-      show: [wrappedShow],
-      hide: [hide],
-    })
-
-    if (shouldVisible) {
-      wrappedShow()
-    }
+    const visible = storedKey ? key === storedKey : isFirstBase
+    layerCatalog.value = [...layerCatalog.value, { key, label, visible, category: 'base' }]
   }
 
   /**
@@ -248,77 +202,38 @@ export const useMapStore = defineStore('map', () => {
     layerCatalog.value = [...layerCatalog.value, newEntry]
   }
 
-  function toggleLayer(key: string): void {
+  /**
+   * 切换当前底图（P6：互斥选择——同一时刻仅一个底图可见）。
+   * 取代旧 toggleLayer 底图分支（show/hide 回调机制已删，registerToggleable 已删）。
+   * 权威源：baseLayerKey（localStorage 持久化）；catalog base 条目 visible 同步镜像。
+   * LayerControlPanel 底图按钮直接调用此 action。
+   */
+  function setBaseLayer(key: string): void {
     const entry = layerCatalog.value.find((e: LayerEntry) => e.key === key)
-    // 验证entry存在性
-    if (!entry) {
-      logger.debug(`toggleLayer: 未找到key为“${key}”的图层`)
-      return
-    }
+    if (!entry || entry.category !== 'base') return
+    if (baseLayerKey.value === key && entry.visible) return // 已是当前底图
 
-    if (entry.category === 'base') {
-      handleBaseLayerToggle(entry)
-    } else {
-      handleBusinessLayerToggle(entry)
-    }
-  }
-
-  function handleBaseLayerToggle(entry: LayerEntry): void {
-    if (entry.visible) {
-      // 底图必须保留一个可见，避免地图无背景
-      return
-    }
-
-    // 隐藏其它底图并将当前底图设为可见（不可变更新，配合 shallowRef）
-    const updated = layerCatalog.value.map((e: LayerEntry) => {
-      if (e.category === 'base' && e.key !== entry.key) {
-        e.hide?.forEach((fn) => fn())
-        return { ...e, visible: false }
-      }
-      if (e.key === entry.key) {
-        return { ...e, visible: true }
-      }
-      return e
+    // 互斥更新 catalog（base 条目只保留一个 visible，不可变更新配合 shallowRef）
+    layerCatalog.value = layerCatalog.value.map((e: LayerEntry) => {
+      if (e.category !== 'base') return e
+      return { ...e, visible: e.key === key }
     })
-    layerCatalog.value = updated
 
-    baseLayerKey.value = entry.key
-    writeStoredBaseLayer(entry.key)
-    entry.show?.forEach((fn) => fn())
-  }
+    baseLayerKey.value = key
+    writeStoredBaseLayer(key)
 
-  function handleBusinessLayerToggle(entry: LayerEntry): void {
-    const newVisible = !entry.visible
-    // 不可变更新 visible（配合 shallowRef）
-    layerCatalog.value = layerCatalog.value.map((e: LayerEntry) =>
-      e.key === entry.key ? { ...e, visible: newVisible } : e
-    )
-
-    // 旧机制（registerToggleable）的图层有 show/hide 回调
-    // 新机制（registerBusinessLayer）的图层无 show/hide，由 BusinessLayerManager.setVisible 处理
-    if (entry.show && entry.show.length > 0) {
-      if (newVisible) {
-        entry.show.forEach((fn) => fn())
-      } else {
-        entry.hide?.forEach((fn) => fn())
-      }
-      return
-    }
-    // LIF-5 防御：新机制图层（无 show/hide 回调）不应经 toggleLayer 控制，
-    // 必须由 BusinessLayerManager.setVisible 驱动。此处仅告警，不改动 catalog 结果（已置新 visible）。
-    logger.warn(
-      `[mapStore] 图层 "${entry.key}" 为新机制图层，应通过 BusinessLayerManager.setVisible 控制可见性，而非 toggleLayer`
-    )
+    // 当前渲染器切换底图引擎（OLRenderer/CesiumRenderer 均有 setBaseLayer('image'|'vector')）
+    const renderer = currentRenderer.value as
+      | (MapRenderer & { setBaseLayer?: (type: string) => void })
+      | null
+    renderer?.setBaseLayer?.(key === 'base-image' ? 'image' : 'vector')
   }
 
   function removeLayer(key: string): void {
     const idx = layerCatalog.value.findIndex((e: LayerEntry) => e.key === key)
     if (idx < 0) return
-    const entry = layerCatalog.value[idx]
-    // 旧机制图层（registerToggleable）有 show/hide 回调，新机制（registerBusinessLayer）没有
-    if (entry.hide && entry.hide.length > 0) {
-      entry.hide.forEach((fn) => fn())
-    }
+    // P6：旧机制 show/hide 回调已删（registerToggleable/registerLayer 移除），
+    // 显隐统一由 BusinessLayerManager.setVisible 驱动——此处仅删条目
     // 不可变删除（配合 shallowRef）
     layerCatalog.value = layerCatalog.value.filter((_, i) => i !== idx)
   }
@@ -347,26 +262,10 @@ export const useMapStore = defineStore('map', () => {
     )
   }
 
-  function setActivePanel(panelName: string): void {
-    if (activePanel.value === panelName) {
-      activePanel.value = 'none'
-    } else {
-      activePanel.value = panelName
-      if (panelName === 'port-info') {
-        selectedXiaoqu.value = null
-      }
-    }
-  }
-
-  function closePanel(): void {
-    activePanel.value = 'none'
-    selectedXiaoqu.value = null
-  }
-
   /**
    * 统一重置地图业务交互状态（登出/业务切换时调用）
    * 设计边界（@arch-note）：
-   * - 清：selectedPort / activePanel / selectedXiaoqu / analysisHandler / lastAnalysisResult
+   * - 清：selectedPort / selectedXiaoqu / analysisHandler / lastAnalysisResult
    * （含 sessionStorage 持久化，b035 要求）/ layerCatalog 业务条目（保留 base 底图条目）
    * - 保留：mapType / baseLayerKey（用户偏好，审计明确要求保留）
    * - 保留：currentRenderer / map —— 渲染器由 UnifiedMap 组件持有生命周期，
@@ -380,7 +279,6 @@ export const useMapStore = defineStore('map', () => {
     layerCatalog.value = layerCatalog.value.filter((e: LayerEntry) => e.category !== 'business')
     analysisHandler.value = null
     lastAnalysisResult.value = null
-    activePanel.value = 'none'
     selectedXiaoqu.value = null
     try {
       window.sessionStorage.removeItem(ANALYSIS_RESULT_STORAGE_KEY)
@@ -401,7 +299,6 @@ export const useMapStore = defineStore('map', () => {
     baseLayerKey,
     currentRenderer,
     analysisHandler,
-    activePanel,
     selectedXiaoqu,
     setMap,
     setCurrentRenderer,
@@ -410,15 +307,12 @@ export const useMapStore = defineStore('map', () => {
     clearSelectedPort,
     registerAnalysisHandler,
     setAnalysisResult,
-    registerLayer,
     registerBaseLayer,
     registerBusinessLayer,
-    toggleLayer,
+    setBaseLayer,
     removeLayer,
     clearLayerCatalog,
     setLayerVisible,
-    setActivePanel,
-    closePanel,
     resetMapState,
     setSelectedXiaoqu,
   }

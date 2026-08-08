@@ -19,7 +19,7 @@ import { preloadCesium } from '@/core/map/renderers'
 import {
   initAuthStorageListener,
   removeAuthStorageListener,
-  setResetStoresHandler,
+  showWarning,
   useAuth,
 } from '@/shared'
 import { logger } from '@/shared'
@@ -27,16 +27,14 @@ import ErrorBoundary from '@/shared/components/ErrorBoundary.vue'
 import { useFloodStore } from '@/stores'
 import { useForecastStore } from '@/stores'
 import { useMapStore } from '@/stores'
-import { usePortImpactStore } from '@/stores'
-import { useProfileStore } from '@/stores'
 import { useSiteSelectionStore } from '@/stores'
-import { useWaterLevelStore } from '@/stores'
 import type { TypeSetting } from '@/types/facility'
 import type { Plan } from '@/types/plan'
 
 const route = useRoute()
 const router = useRouter()
-const { restoreAuth } = useAuth()
+// P9：user 供 watch 驱动 store 重置（登出/多标签页登出）
+const { restoreAuth, user: authUser } = useAuth()
 const { zoomToRegion, zoomToCity, stopBreathing } = useMapControls()
 const mapStore = useMapStore()
 
@@ -55,15 +53,19 @@ provide(MAP_STORE_KEY, mapStore)
 const businessLayerManager = new BusinessLayerManager(mapStore)
 provide(BUSINESS_LAYER_MANAGER_KEY, businessLayerManager)
 
-// 注册 store 重置 handler（登出/多标签页同步时调用）
-// useAuth 不再直接依赖 stores 层，由 App.vue（拥有 store 组合）注入重置逻辑
-setResetStoresHandler(() => {
+// 图层渲染失败 → UI 层 toast（2026-08-08：manager 只上报 layer-error 事件，
+// 不感知 UI——展示方式由上层决定，未来可扩展错误面板/日志/自动重试）
+businessLayerManager.on('layer-error', ({ label }: { label: string }) => {
+  showWarning(`图层「${label}」加载失败，请再点击一次重试`)
+})
+
+// store 重置（2026-08-08 P9）：去掉 setResetStoresHandler 注册回调——
+// 重置逻辑整合进 App.vue 组件内，watch(user) 驱动（user 变 null = 登出/多标签页登出）
+function resetStores(): void {
   try {
     useSiteSelectionStore().clearState()
+    // P3：waterLevel/portImpact/profile 已并入 floodStore，clearState 全量清（含持久化快照）
     useFloodStore().clearState()
-    usePortImpactStore().resetPortImpact()
-    useWaterLevelStore().resetWaterLevel()
-    useProfileStore().resetProfile()
     // 重置地图业务交互状态，清 analysisHandler 闭包与 sessionStorage
     useMapStore().resetMapState()
     // 预测页状态复位（含 dataCache 清空）
@@ -71,7 +73,13 @@ setResetStoresHandler(() => {
   } catch {
     // store 未激活等异常不阻断登出
   }
-})
+}
+watch(
+  () => authUser.value,
+  (u) => {
+    if (!u) resetStores()
+  }
+)
 
 // 注册底部导航项：首页/个人中心为静态项,业务项由 manifest 生成（z075）
 // core/layout 不硬编码业务路由；新增业务只改 business/manifest.ts
@@ -149,19 +157,30 @@ watch(
 
 // 引擎切换（2D↔3D）后，旧 renderer 销毁、新 renderer 上没有业务图层。
 // registry 在 App 级持久，业务页面不会因切换而重新 register，
-// 因此监听 currentRenderer 变化，把已注册且可见的图层重绘到新 renderer（修复 D06）。
-// 切换前必须清空 old/new 两个渲染器上的业务图层视觉实例：OL/Cesium 实例长期复用不销毁，
-// 否则上一个页面留在非激活渲染器上的孤儿图层（如 dem-hillshade GeoTIFF）会在切回该引擎时
-// 被渲染并崩掉渲染循环，且 reapplyAll 重复 add 同 key 会叠加图层。
+// 因此监听 currentRenderer 变化，清理两个渲染器上残留的业务图层视觉实例：
+// OL/Cesium 实例长期复用不销毁，否则上一个页面留在非激活渲染器上的孤儿图层
+// （如 dem-hillshade GeoTIFF）会在切回该引擎时被渲染并崩掉渲染循环。
+// 注意：业务图层重建不在此处做——统一由 UnifiedMap.initRenderer 尾部 reapplyAll
+// 负责（在 setupLayers 之后，保证"清 catalog → 重建条目"顺序，且单测无 App.vue
+// 也能重建；此处若也 reapplyAll 会与 initRenderer 重复 create 导致图层叠加）。
+//
+// flush: 'sync' 关键（2026-08-08）：Vue watch 默认 flush:'pre' 异步执行——
+// setCurrentRenderer 触发 watcher 但回调被排入微任务队列，reapplyAll 同步执行
+// 先于 watcher → 图层创建后立即被 watcher 的 removeAllFromRenderer 删除。
+// Cesium boundary 因 addGeoJsonLayer 是 async（_layers 未 set）逃过删除，
+// 而 ports/OL boundary 因同步 add 被删 → "2D 不显示"+"面板蓝但图上没有"。
+// 改为 flush:'sync' 后 watcher 在 setCurrentRenderer 调用栈内同步执行，
+// 先于 reapplyAll → 清理孤儿图层 → reapplyAll 重建，顺序正确。
 watch(
   () => mapStore.currentRenderer,
   (renderer, oldRenderer) => {
-    if (renderer && oldRenderer && renderer !== oldRenderer) {
+    if (!renderer) return
+    if (oldRenderer && oldRenderer !== renderer) {
       businessLayerManager.removeAllFromRenderer(oldRenderer)
       businessLayerManager.removeAllFromRenderer(renderer)
-      businessLayerManager.reapplyAll(renderer)
     }
-  }
+  },
+  { flush: 'sync' }
 )
 
 onMounted(() => {

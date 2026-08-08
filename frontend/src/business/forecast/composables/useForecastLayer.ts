@@ -16,7 +16,7 @@ import { useForecastStore } from '@/stores'
 import { useMapStore } from '@/stores'
 import type { LayerOptions, LayerType, MapRenderer } from '@/types'
 
-import { DEFAULT_CONFIDENCE } from '../constants'
+import { DEFAULT_CONFIDENCE } from '@/shared'
 
 import { useForecastRequest } from './useForecastRequest'
 

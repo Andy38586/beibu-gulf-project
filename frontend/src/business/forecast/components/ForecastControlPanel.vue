@@ -9,7 +9,7 @@ import { computed, onMounted, onUnmounted, reactive } from 'vue'
 import { SYNTHETIC_INDICATORS } from '@/services'
 import { useForecastStore } from '@/stores'
 
-import { BASE_YEAR, DEFAULT_CONFIDENCE, END_YEAR } from '../constants'
+import { BASE_YEAR, DEFAULT_CONFIDENCE, END_YEAR } from '@/shared'
 
 const forecastState = useForecastStore()
 const CONFIRM_DELAY = 3000

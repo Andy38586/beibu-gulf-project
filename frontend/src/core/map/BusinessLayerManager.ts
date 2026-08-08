@@ -25,6 +25,12 @@ import type { LayerType } from '@/types/core/layerManager'
 
 import { LAYER_ADAPTERS } from './layerAdapters'
 
+/** BLM 事件载荷：图层渲染失败（manager 只上报，不决定 UI——UI 层 App.vue 监听 → toast） */
+export interface LayerErrorPayload {
+  key: string
+  label: string
+}
+
 /** mapStore 最小接口 — 仅声明 BusinessLayerManager 实际使用的方法 */
 interface MapStoreLike {
   currentRenderer: MapRenderer | null
@@ -66,15 +72,48 @@ interface RegistryEntry {
 export class BusinessLayerManager {
   private _mapStore: MapStoreLike | null
   private _registry: Map<string, RegistryEntry>
+  /** 事件监听器（当前仅 'layer-error'）——UI 层注册，manager 不感知 UI */
+  private _listeners = new Map<string, Set<(payload: LayerErrorPayload) => void>>()
 
   constructor(mapStore: MapStoreLike) {
     this._mapStore = mapStore
     this._registry = new Map()
   }
 
+  /** 监听 BLM 事件（如 'layer-error'）——App.vue 注册 toast，未来可扩展错误面板/日志 */
+  on(event: string, handler: (payload: LayerErrorPayload) => void): void {
+    if (!this._listeners.has(event)) this._listeners.set(event, new Set())
+    this._listeners.get(event)!.add(handler)
+  }
+
+  private _emit(event: string, payload: LayerErrorPayload): void {
+    this._listeners.get(event)?.forEach((handler) => handler(payload))
+  }
+
   /** 获取当前活跃的 renderer（动态，不缓存） */
   private _getRenderer(): MapRenderer | null {
     return this._mapStore?.currentRenderer ?? null
+  }
+
+  /**
+   * create 失败统一处理（2026-08-08 用户要求）：不自动重试、不在图层控制上做文章——
+   * ①回滚状态（registry/catalog visible=false → 按钮白）；②清 pending（防幽灵意图）；
+   * ③**上报 layer-error 事件**（manager 不决定 UI——App.vue 监听 → toast）。
+   * 单变量原则不变：visible 是唯一状态，失败回滚后"白 = 没显示"真实一致。
+   */
+  private _handleCreateFailure(key: string, label: string): void {
+    const meta = this._registry.get(key)
+    if (meta) {
+      meta.visible = false
+      this._mapStore?.setLayerVisible(key, false)
+    }
+    // 清待定可见性（防幽灵：pending 记录的是过期意图，create 失败后残留会在
+    // 下次 create 时错误应用）
+    const renderer = this._getRenderer() as
+      | (MapRenderer & { clearPendingVisibility?: (id: string) => void })
+      | null
+    renderer?.clearPendingVisibility?.(key)
+    this._emit('layer-error', { key, label })
   }
 
   /** 获取 layerType 对应的 adapter */
@@ -115,7 +154,19 @@ export class BusinessLayerManager {
         `[BusinessLayerManager] register ${key}: visible=${visible} data=${data != null} renderer=${!!renderer}`
       )
       if (renderer) {
-        perfTimeFn(`layer:create:${layerType}`, () => adapter.create(renderer, key, data, options))
+        // 注意：同步 throw（数据形状守卫 points/geojson 校验）保持向上抛——
+        // TS-2 测试断言 register 对非法数据抛错。但 Cesium 的 addGeoJsonLayer 是
+        // async（内部 await GeoJsonDataSource.load），且失败在内部 catch + onError
+        // （不抛 rejection）——必须注入 onError 感知。失败 → 回滚状态 + toast
+        // （用户再按一次重试，不做自动重试）。
+        const createOptions = {
+          ...options,
+          onError: () => this._handleCreateFailure(key, label),
+        }
+        const result = perfTimeFn(`layer:create:${layerType}`, () =>
+          adapter.create(renderer, key, data, createOptions)
+        )
+        Promise.resolve(result).catch(() => this._handleCreateFailure(key, label))
       }
     } else {
       logger.debug(
@@ -160,13 +211,23 @@ export class BusinessLayerManager {
       // `data: null` 注册后数据到达）时补建,否则 adapter.update 因无 entry 直接失败,
       // 图层永不上屏（预测页热力图首屏缺失的根因）
       if (meta.data != null && !renderer.hasLayer(key)) {
-        perfTimeFn(`layer:create:${meta.layerType}`, () =>
-          adapter.create(renderer, key, meta.data, meta.options)
+        const createOptions = {
+          ...meta.options,
+          // 失败 → 回滚状态 + toast（用户再按一次重试）
+          onError: () => this._handleCreateFailure(key, meta.label),
+        }
+        const r = perfTimeFn(`layer:create:${meta.layerType}`, () =>
+          adapter.create(renderer, key, meta.data, createOptions)
         )
+        // async create（Cesium geojson）rejection 兜底，防 unhandled rejection 吞错
+        Promise.resolve(r).catch(() => this._handleCreateFailure(key, meta.label))
       } else {
-        perfTimeFn(`layer:update:${meta.layerType}`, () =>
+        const r = perfTimeFn(`layer:update:${meta.layerType}`, () =>
           adapter.update(renderer, key, meta.data, meta.options)
         )
+        Promise.resolve(r).catch((e) => {
+          logger.warn(`[BusinessLayerManager] updateData update ${key} 失败（异步）:`, e)
+        })
       }
     }
   }
@@ -188,6 +249,9 @@ export class BusinessLayerManager {
    */
   reapplyAll(renderer: MapRenderer | null = this._getRenderer()): void {
     if (!renderer) return
+    logger.debug(
+      `[BusinessLayerManager] reapplyAll 开始: renderer=${renderer.getType?.() ?? 'unknown'} registry=${this._registry.size}个图层`
+    )
     for (const [key, meta] of this._registry.entries()) {
       // a046：目录条目重建必须在 data==null 判断之前——data==null 的图层
       // （如 flood-area 等 API 返回后渲染）引擎切换时被 clearLayerCatalog 清掉后，
@@ -197,15 +261,46 @@ export class BusinessLayerManager {
       if (!catalog.some((e: LayerEntry) => e.key === key)) {
         this._mapStore?.registerBusinessLayer(key, meta.label, meta.layerType, meta.visible)
       }
-      if (meta.data == null) continue
+      if (meta.data == null) {
+        logger.debug(`[BusinessLayerManager] reapplyAll ${key} 跳过（data 未就绪）`)
+        continue
+      }
       if (!meta.visible) {
         logger.debug(`[BusinessLayerManager] reapplyAll ${key} 跳过（visible=false）`)
         continue
       }
       const adapter = this._getAdapter(meta.layerType)
       if (!adapter) continue
+      // 防 pending 幽灵（2026-08-08 用户实测"按钮蓝但 2D 不显示"根因）：reapplyAll
+      // 是"按 registry 重建"，实例重建后 _applyPendingVisibility 会把旧的 pending 意图
+      // （如用户之前关闭时的 false）应用上去 → 图层被隐藏但按钮蓝。重建必须清 pending，
+      // 以 registry.visible 为唯一依据。
+      ;(renderer as unknown as { clearPendingVisibility?: (id: string) => void })
+        ?.clearPendingVisibility?.(key)
+      // hasLayer 防御：mock/测试 renderer 可能无此方法（无则视为未创建 → 走 create）
+      if (typeof renderer.hasLayer === 'function' && renderer.hasLayer(key)) {
+        // 实例已存在（如 setupLayers/register 已 create）→ 强制同步可见性，
+        // 防实例 visible=false 与 registry true 脱节（waterSurface 走 adapter 分派）
+        if (adapter.setVisibility) {
+          adapter.setVisibility(renderer, key, true)
+        } else {
+          renderer.setVisibility(key, true)
+        }
+        logger.debug(`[BusinessLayerManager] reapplyAll ${key} 已存在，同步可见性`)
+        continue
+      }
+      logger.debug(
+        `[BusinessLayerManager] reapplyAll ${key} → create（layerType=${meta.layerType}）`
+      )
       try {
-        adapter.create(renderer, key, meta.data, meta.options)
+        const createOptions = {
+          ...meta.options,
+          // 失败 → 回滚状态 + toast（用户再按一次重试，不做自动重试）
+          onError: () => this._handleCreateFailure(key, meta.label),
+        }
+        const result = adapter.create(renderer, key, meta.data, createOptions)
+        // async create（Cesium geojson）rejection 兜底：同步 try/catch 抓不到
+        Promise.resolve(result).catch(() => this._handleCreateFailure(key, meta.label))
       } catch (e) {
         // 单层失败不拖垮整批（引擎切换时其它图层仍应上屏）
         logger.warn(`[BusinessLayerManager] reapplyAll 重绘图层 ${key} 失败（已跳过该层）:`, e)
@@ -238,7 +333,14 @@ export class BusinessLayerManager {
     // _pendingVisibility 永不生效（无后续 create 触发 _applyPendingVisibility）→ 面板
     // 打开变"死按钮"。与 a040 updateData 补建同款语义：打开 + 有数据 + 未创建 → create。
     if (visible && meta.data != null && !renderer.hasLayer(key)) {
-      adapter.create(renderer, key, meta.data, meta.options)
+      const createOptions = {
+        ...meta.options,
+        // 失败 → 回滚状态 + toast（用户再按一次重试）
+        onError: () => this._handleCreateFailure(key, meta.label),
+      }
+      const result = adapter.create(renderer, key, meta.data, createOptions)
+      // async create（Cesium geojson）rejection 兜底
+      Promise.resolve(result).catch(() => this._handleCreateFailure(key, meta.label))
     }
 
     // P0-4: 特殊图层（waterSurface 存于 _waterSurfaces 而非 _layers）经 adapter 分派,
@@ -261,7 +363,13 @@ export class BusinessLayerManager {
       if (adapter) {
         const renderer = this._getRenderer()
         if (renderer) {
-          perfTimeFn(`layer:remove:${meta.layerType}`, () => adapter.remove(renderer, key))
+          // adapter.remove 失败不中断 registry 删除——否则图层残留在 registry，
+          // 引擎/路由切换时 reapplyAll 会把 A 页图层重绘到 B 页（"3D 数据加载到 2D"）
+          try {
+            perfTimeFn(`layer:remove:${meta.layerType}`, () => adapter.remove(renderer, key))
+          } catch (e) {
+            logger.warn(`[BusinessLayerManager] remove ${key} 渲染器清理失败（继续删 registry）:`, e)
+          }
         }
       }
       this._registry.delete(key)
@@ -310,6 +418,24 @@ export class BusinessLayerManager {
   /** 获取图层元数据 */
   getMeta(key: string): RegistryEntry | null {
     return this._registry.get(key) ?? null
+  }
+
+  /**
+   * 图层真实可见性（2026-08-08 按钮状态统一）：读渲染器实例状态（isLayerVisible），
+   * 无渲染器/实例时退回 registry 意图。LayerControlPanel 按钮蓝/白以此为权威源——
+   * 按钮蓝 = 图层真的在显示，杜绝"意图 true 但实例未创建"的状态脱节。
+   */
+  isLayerVisible(key: string): boolean {
+    const meta = this._registry.get(key)
+    if (!meta) return false
+    const renderer = this._getRenderer()
+    const rendererWithQuery = renderer as (MapRenderer & {
+      isLayerVisible?: (id: string) => boolean
+    }) | null
+    if (rendererWithQuery && typeof rendererWithQuery.isLayerVisible === 'function') {
+      return rendererWithQuery.isLayerVisible(key)
+    }
+    return meta.visible
   }
 
   /** 销毁管理器，清理所有业务图层 */

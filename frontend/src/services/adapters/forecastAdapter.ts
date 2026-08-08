@@ -15,29 +15,12 @@ import { useApiRequest } from '@/shared'
 import { loadStatic } from '@/shared'
 import type { ForecastSeries } from '@/types/api/forecast'
 import {
-  forecastIndicatorIndexSchema,
   forecastMapDataSchema,
   indicatorComparisonResponseSchema,
   timeSeriesResponseSchema,
 } from '@/types/schemas'
 
 import { resolveDataSource, setAdapterDataSource } from '../dataSourceConfig'
-
-/**
- * 指标索引（对应 public/data/forecast/index.json 的结构）。
- * 注意：index.json 的 indicators 是字符串数组（如 ["cargo","container","berth","traffic"]），
- * 非 Array<{key,label,unit}>。此类型如实反映数据事实。
- */
-export interface ForecastIndicatorIndex {
-  metadata: {
-    version: string
-    lastUpdated: string
-    ports: Array<{ id: string; name: string; lat: number; lng: number }>
-    indicators: string[]
-  }
-  historical: { start: string; end: string }
-  forecast: { start: string; end: string }
-}
 
 /** timeseries 响应（对应后端 /forecast/timeseries 的 data 字段） */
 export interface TimeSeriesResponse {
@@ -154,12 +137,6 @@ async function _fetchStatic(indicator: string): Promise<ForecastSeries> {
   // 静态资源 fetch 收口 loadStatic（统一超时 + TTL 缓存 + in-flight 去重）
   const url = `${STATIC_BASE}/${indicator}.json`
   return loadStatic<ForecastSeries>(url)
-}
-
-async function _fetchStaticIndex(): Promise<ForecastIndicatorIndex> {
-  // 静态资源 fetch 收口 loadStatic
-  const url = `${STATIC_BASE}/index.json`
-  return loadStatic<ForecastIndicatorIndex>(url)
 }
 
 export const forecastAdapter = {
@@ -313,47 +290,6 @@ export const forecastAdapter = {
       signal,
       params: { indicator, time, confidence },
       schema: forecastMapDataSchema,
-    })
-    return resp
-  },
-
-  /**
-   * 获取单指标完整数据（static 模式专用，api 模式走 getTimeSeries）。
-   * 保留供需要原始 ForecastSeries 结构的调用方使用。
-   * 预留未接入：无生产调用方（仅有 forecastAdapter.test.ts 覆盖），保留作预留 API
-   */
-  async getIndicatorData(indicator: string): Promise<ForecastSeries> {
-    if (_resolveSource(indicator) === 'static') {
-      return _fetchStatic(indicator)
-    }
-    // api 模式无单文件端点，走 timeseries 并取第一个 series
-    const ts = await this.getTimeSeries(indicator, 'month', 1.0)
-    // 组装为 ForecastSeries 结构（近似）
-    const data: Record<
-      string,
-      {
-        historical: Array<{ time: string; value: number; type: 'historical' | 'forecast' }>
-        forecast?: Array<{ time: string; value: number; type: 'historical' | 'forecast' }>
-      }
-    > = {}
-    ts.series.forEach((s) => {
-      const historical = s.data.filter((d) => d.type === 'historical')
-      const forecast = s.data.filter((d) => d.type === 'forecast')
-      data[s.portId] = { historical, forecast }
-    })
-    return { indicator: ts.indicator, unit: ts.unit, data }
-  },
-
-  // 预留未接入：无生产调用方（仅有 forecastAdapter.test.ts 覆盖），保留作预留 API
-  async getAvailableIndicators(): Promise<ForecastIndicatorIndex> {
-    if (resolveDataSource(ADAPTER_NAME) === 'static') {
-      return _fetchStaticIndex()
-    }
-    // api 模式调 /forecast/overview
-    const { apiRequest } = useApiRequest()
-    const resp = await apiRequest<ForecastIndicatorIndex>('/forecast/overview', {
-      method: 'GET',
-      schema: forecastIndicatorIndexSchema,
     })
     return resp
   },

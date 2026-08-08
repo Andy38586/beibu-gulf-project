@@ -1,8 +1,7 @@
 <!--
   /**
    * 预测分析模块
-   * 当前阶段：架构验证期，使用 mock 数据跑通 2D 热力图 + 时间轴播放链路
-   * 数据状态：src/mock/forecast/ 为 AI 生成的模拟港口吞吐量时序数据
+   * 当前阶段：架构验证期，使用前端静态 JSON（public/data/forecast）跑通 2D 热力图 + 时间轴播放链路
    * 待接入：真实港口生产数据（毕业论文阶段替换）
    * 本模块验证目标：
    * 1. BusinessLayerManager 的 heatmap adapter 能否独立注册/销毁
@@ -16,7 +15,7 @@
 -->
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { onBeforeRouteLeave, useRouter } from 'vue-router'
 
 import AppLayout from '@/core/layout/AppLayout.vue'
 import GCSPanel from '@/core/layout/components/GCSPanel.vue'
@@ -26,13 +25,15 @@ import { ApiError, handleAuthError, isAuthError, showError } from '@/shared'
 import { logger } from '@/shared'
 import { useForecastStore } from '@/stores'
 import { useMapStore } from '@/stores'
+import type { ForecastSavedState } from '@/stores/forecastStore'
 import BarChart from '@/visualization/charts/BarChart.vue'
 import LineChart from '@/visualization/charts/LineChart.vue'
 
 import ForecastControlPanel from './components/ForecastControlPanel.vue'
 import { useForecastLayer } from './composables/useForecastLayer'
 import { useForecastRequest } from './composables/useForecastRequest'
-import { DEFAULT_CONFIDENCE, PORT_NAMES } from './constants'
+// P7：兼容层 business/forecast/constants.ts 已删，常量统一从 @/shared 取
+import { DEFAULT_CONFIDENCE, PORT_NAMES } from '@/shared'
 
 const forecastState = useForecastStore()
 const mapStore = useMapStore()
@@ -43,11 +44,7 @@ const {
   startTransaction,
   isTransactionValid,
   cancelAll,
-  isLoading: isTransactionLoading,
 } = useForecastRequest()
-
-// 绑定到事务 loading 状态，消除本地 isLoading 与事务间的竞态
-const isLoading = isTransactionLoading
 
 const lineXData = ref([])
 const lineSeries = ref([])
@@ -75,7 +72,52 @@ function setRequestCache(key: string, value: unknown): void {
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 const DEBOUNCE_DELAY = 300
 
+/**
+ * 跳转个人中心（登录）→ 保存全部状态；其它路由离开保持原行为（onUnmounted reset 清态）。
+ * 与 SiteSelectionPage/FloodAnalysisPage 的「跳登录保存、返回恢复」链路对齐（2026-08-08）。
+ */
+onBeforeRouteLeave((to) => {
+  if (to.path === '/profile') {
+    saveForecastState()
+  }
+})
+
+/** 保存当前状态到 store 快照（requestCache 序列化为数组，避免引用连带清空） */
+function saveForecastState(): void {
+  forecastState.saveState({
+    currentTime: forecastState.currentTime,
+    timeGranularity: forecastState.timeGranularity,
+    playSpeed: forecastState.playSpeed,
+    activeIndicator: forecastState.activeIndicator,
+    confidenceThresholds: { ...forecastState.confidenceThresholds },
+    activeForecastLayer: forecastState.activeForecastLayer,
+    dataCache: Array.from(forecastState.dataCache.entries()),
+    requestCache: Array.from(requestCache.entries()),
+  })
+}
+
+/** 恢复快照：写回 store 状态 + 请求缓存；renderer watch（immediate）兜底触发加载 */
+function restoreForecastState(saved: ForecastSavedState): void {
+  forecastState.setCurrentTime(saved.currentTime)
+  forecastState.setTimeGranularity(saved.timeGranularity)
+  forecastState.setActiveIndicator(saved.activeIndicator)
+  forecastState.playSpeed = saved.playSpeed
+  forecastState.confidenceThresholds = { ...saved.confidenceThresholds }
+  forecastState.activeForecastLayer = saved.activeForecastLayer
+  // shallowRef 需重赋值引用才触发响应式
+  forecastState.dataCache = new Map(saved.dataCache)
+  requestCache.clear()
+  saved.requestCache.forEach(([k, v]) => requestCache.set(k, v))
+}
+
 onMounted(() => {
+  // 「跳登录返回」优先恢复快照（不 reset——reset 会清掉刚恢复的状态）；
+  // 无快照（正常进入/刷新）才走原初始化
+  const savedState = forecastState.consumeState()
+  if (savedState) {
+    restoreForecastState(savedState)
+    return
+  }
   forecastState.reset()
   requestCache.clear()
 })
@@ -223,7 +265,7 @@ watch(
 )
 
 // 统一的预测更新函数：启动新事务，保证三个请求原子性
-// isLoading 由 useForecastRequest 单例管理，事务内自动设置/清除，无竞态
+// （2026-08-08：v-loading 蒙版已移除，事务 loading 状态不再绑定 UI）
 async function doForecastUpdate() {
   if (!renderer.value) return
 
@@ -267,7 +309,8 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div v-loading="isLoading" class="forecast-page" element-loading-text="加载预测数据中...">
+  <!-- 2026-08-08：移除 v-loading 白色蒙版（用户判定粗糙，后续做动画替代） -->
+  <div class="forecast-page">
     <AppLayout>
       <template #left>
         <GCSPanel :w="4" :h="4" anchor="top-left" :offset-x="0" :offset-y="1.25">

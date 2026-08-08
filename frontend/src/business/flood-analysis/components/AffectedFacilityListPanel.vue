@@ -13,10 +13,10 @@ import { computed } from 'vue'
 
 import { useMapControls } from '@/core'
 import PaginatedListPanel from '@/shared/components/PaginatedListPanel.vue'
-import { usePortImpactStore } from '@/stores'
+import { useFloodStore } from '@/stores'
 import type { ScoredXiaoqu } from '@/types/xiaoqu'
 
-const portImpactStore = usePortImpactStore()
+const floodStore = useFloodStore()
 const { flyTo, startBreathing } = useMapControls()
 
 /**
@@ -51,7 +51,7 @@ function formatLoss(loss: number | undefined) {
  * 按损失金额排序的设施列表（降序）
  */
 const sortedFacilities = computed<ScoredXiaoqu[]>(() => {
-  const facilities = portImpactStore.affectedFacilities || []
+  const facilities = floodStore.affectedFacilities || []
   // AffectedFacility 与 ScoredXiaoqu 字段不兼容（缺少 score/breakdown），
   // 通过映射转换为合法的 ScoredXiaoqu，避免裸 as unknown as 断言。
   return [...facilities]
@@ -70,8 +70,8 @@ const sortedFacilities = computed<ScoredXiaoqu[]>(() => {
     )
 })
 
-/** z054: 从 PaginatedListPanel 上提的地图交互（shared 不再依赖 core） */
-function handleItemClick(item: ScoredXiaoqu): void {
+/** 2026-08-08：跳转逻辑封装进 PaginatedListPanel（flyTo 回调 prop），此处注入实现 */
+function flyToFacility(item: ScoredXiaoqu): void {
   startBreathing(item.lng, item.lat)
   flyTo({ lng: item.lng, lat: item.lat }, { height: 1000 })
 }
@@ -85,7 +85,7 @@ function handleItemClick(item: ScoredXiaoqu): void {
     empty-text="暂无受影响设施"
     empty-hint="开始评估后显示设施清单"
     plan-type="flood"
-    @click-item="handleItemClick"
+    :fly-to="flyToFacility"
   >
     <template #item="{ item: facility }">
       <div class="facility-info">

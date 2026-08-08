@@ -98,16 +98,6 @@ describe('useForecastStore', () => {
     })
   })
 
-  describe('clearCache', () => {
-    it('应清空数据缓存', () => {
-      const store = useForecastStore()
-      store.cacheData('2026-06', makeSeries('cargo'))
-      store.clearCache()
-      expect(store.currentData).toBeNull()
-      expect(store.dataCache.size).toBe(0)
-    })
-  })
-
   describe('reset', () => {
     it('应恢复默认状态', () => {
       const store = useForecastStore()

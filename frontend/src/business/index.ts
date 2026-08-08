@@ -4,7 +4,7 @@
 export * from './manifest'
 export * from './forecast/composables/useForecastLayer'
 export * from './forecast/composables/useForecastRequest'
-export * from './forecast/constants'
+// P7：forecast/constants 兼容层已删，常量统一从 @/shared 取
 export * from './site-selection/composables/facilityConfig'
 export * from './site-selection/composables/useAnalysisLayer'
 export * from './site-selection/composables/useSiteAnalysisApi'

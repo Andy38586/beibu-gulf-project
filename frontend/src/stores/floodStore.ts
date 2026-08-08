@@ -41,6 +41,19 @@ export const useFloodStore = defineStore('flood', () => {
   const floodFeatures = ref<FloodFeature[]>([])
   const floodRiskLevel = ref('无风险')
 
+  // ─── 水位控制（P3：并入原 waterLevelStore） ───────────────
+  const waterLevel = ref(0)
+  const waterLevelActive = ref(false)
+
+  // ─── 港口影响（P3：并入原 portImpactStore） ───────────────
+  const portImpactActive = ref(false)
+  const affectedFacilities = ref<AffectedFacility[]>([])
+  const totalLoss = ref(0)
+
+  // ─── 剖面档案（P3：并入原 profileStore） ──────────────────
+  const selectedProfileId = ref<string | null>(null)
+  const profileActive = ref(false)
+
   // ─── 持久化快照（使用工厂） ─────────────────────────────
   const persisted = createPersistedState<FloodPersistedSnapshot>()
 
@@ -68,6 +81,51 @@ export const useFloodStore = defineStore('flood', () => {
     floodStatistics.value = null
     floodFeatures.value = []
     floodRiskLevel.value = '无风险'
+  }
+
+  // ─── 水位控制（P3：原 waterLevelStore） ───────────────────
+  // LIF-3：*Active 单向置位——0 显式同步为 false
+  function setWaterLevel(level: number): void {
+    waterLevel.value = level
+    waterLevelActive.value = level > 0
+  }
+
+  function resetWaterLevel(): void {
+    waterLevel.value = 0
+    waterLevelActive.value = false
+  }
+
+  // ─── 港口影响（P3：原 portImpactStore） ───────────────────
+  // LIF-3：*Active 单向置位——空数组显式同步为 false
+  function setPortImpactResult(facilities: AffectedFacility[], loss: number): void {
+    affectedFacilities.value = facilities
+    totalLoss.value = loss
+    portImpactActive.value = facilities.length > 0
+  }
+
+  function resetPortImpact(): void {
+    portImpactActive.value = false
+    affectedFacilities.value = []
+    totalLoss.value = 0
+  }
+
+  // ─── 剖面档案（P3：原 profileStore） ───────────────────────
+  // LIF-3：*Active 单向置位——null 显式同步为 false
+  function setSelectedProfile(profileId: string | null): void {
+    selectedProfileId.value = profileId
+    profileActive.value = profileId !== null
+  }
+
+  function resetProfile(): void {
+    selectedProfileId.value = null
+    profileActive.value = false
+  }
+
+  // ─── 子状态统一重置（P3：onUnmounted 用——不清 flood 分析，保留跨页面数据） ───
+  function resetSubStates(): void {
+    resetWaterLevel()
+    resetPortImpact()
+    resetProfile()
   }
 
   // ─── 跨页面状态持久化 ──────────────────────────────────────
@@ -109,11 +167,12 @@ export const useFloodStore = defineStore('flood', () => {
   }
 
   /**
-   * 彻底重置（UI + 分析数据 + 持久化快照）
+   * 彻底重置（UI + 分析数据 + 子状态 + 持久化快照）
    */
   function clearState(): void {
     persisted.clearPersistedState()
     resetFloodAnalysis()
+    resetSubStates()
   }
 
   return {
@@ -125,6 +184,24 @@ export const useFloodStore = defineStore('flood', () => {
     floodStatistics,
     floodFeatures,
     floodRiskLevel,
+    // 水位控制（P3）
+    waterLevel,
+    waterLevelActive,
+    setWaterLevel,
+    resetWaterLevel,
+    // 港口影响（P3）
+    portImpactActive,
+    affectedFacilities,
+    totalLoss,
+    setPortImpactResult,
+    resetPortImpact,
+    // 剖面档案（P3）
+    selectedProfileId,
+    profileActive,
+    setSelectedProfile,
+    resetProfile,
+    // 子状态重置（P3）
+    resetSubStates,
     // 计算属性
     hasAnalysisData,
     // 持久化

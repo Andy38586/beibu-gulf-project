@@ -42,41 +42,14 @@ describe('mapStore', () => {
     })
   })
 
-  describe('registerLayer', () => {
-    it('应注册新图层到 catalog', () => {
-      const store = useMapStore()
-      store.registerLayer('test-layer', '测试图层', {
-        visible: true,
-        category: 'business',
-        show: [() => {}],
-        hide: [() => {}],
-      })
-      expect(store.layerCatalog).toHaveLength(1)
-      expect(store.layerCatalog[0].key).toBe('test-layer')
-      expect(store.layerCatalog[0].label).toBe('测试图层')
-      expect(store.layerCatalog[0].visible).toBe(true)
-    })
-
-    it('重复注册同 key 应替换回调而非追加', () => {
-      const store = useMapStore()
-      const show1 = vi.fn()
-      const show2 = vi.fn()
-      store.registerLayer('dup', 'A', { visible: true, show: [show1] })
-      store.registerLayer('dup', 'B', { visible: false, show: [show2] })
-      expect(store.layerCatalog).toHaveLength(1)
-      expect(store.layerCatalog[0].label).toBe('A') // label 不更新
-    })
-  })
-
   describe('registerBusinessLayer', () => {
-    it('应注册业务图层（无 show/hide 回调）', () => {
+    it('应注册业务图层（仅元数据，P6 无 show/hide 回调字段）', () => {
       const store = useMapStore()
       store.registerBusinessLayer('biz-1', '业务图层', 'geojson', true)
       const entry = store.layerCatalog.find((e) => e.key === 'biz-1')
       expect(entry).toBeDefined()
       expect(entry!.layerType).toBe('geojson')
       expect(entry!.visible).toBe(true)
-      expect(entry!.show).toBeUndefined()
     })
 
     it('重复注册应更新 visible 和 layerType', () => {
@@ -90,29 +63,33 @@ describe('mapStore', () => {
     })
   })
 
-  describe('toggleLayer', () => {
-    it('应切换图层可见性并执行 show/hide 回调', () => {
+  describe('registerBaseLayer / setBaseLayer（P6 底图互斥）', () => {
+    it('首个底图默认可见，setBaseLayer 切换互斥', () => {
       const store = useMapStore()
-      const show = vi.fn()
-      const hide = vi.fn()
-      store.registerLayer('toggle-test', '切换测试', {
-        visible: true,
-        show: [show],
-        hide: [hide],
-      })
+      store.registerBaseLayer('base-image', '影像底图')
+      store.registerBaseLayer('base-vector', '矢量底图')
+      // 默认第一个底图可见
+      expect(store.layerCatalog.find((e) => e.key === 'base-image')!.visible).toBe(true)
+      expect(store.layerCatalog.find((e) => e.key === 'base-vector')!.visible).toBe(false)
 
-      store.toggleLayer('toggle-test')
-      expect(store.layerCatalog[0].visible).toBe(false)
-      expect(hide).toHaveBeenCalled()
+      store.setBaseLayer('base-vector')
+      // 互斥：vector 可见、image 隐藏、baseLayerKey 更新
+      expect(store.layerCatalog.find((e) => e.key === 'base-vector')!.visible).toBe(true)
+      expect(store.layerCatalog.find((e) => e.key === 'base-image')!.visible).toBe(false)
+      expect(store.baseLayerKey).toBe('base-vector')
+    })
 
-      store.toggleLayer('toggle-test')
-      expect(store.layerCatalog[0].visible).toBe(true)
-      expect(show).toHaveBeenCalled()
+    it('重复 setBaseLayer 同 key 为 no-op（不重复渲染）', () => {
+      const store = useMapStore()
+      store.registerBaseLayer('base-image', '影像底图')
+      store.setBaseLayer('base-image')
+      expect(store.baseLayerKey).toBe('base-image')
+      expect(store.layerCatalog.find((e) => e.key === 'base-image')!.visible).toBe(true)
     })
 
     it('不存在的 key 不应报错', () => {
       const store = useMapStore()
-      expect(() => store.toggleLayer('nonexistent')).not.toThrow()
+      expect(() => store.setBaseLayer('nonexistent')).not.toThrow()
     })
   })
 
@@ -157,7 +134,6 @@ describe('mapStore', () => {
       store.setMapType('3d')
       store.setAnalysisResult({ foo: 'bar' })
       store.registerAnalysisHandler(() => {})
-      store.setActivePanel('port-info')
       // sessionStorage 应有持久化分析结果
       expect(sessionStore.size).toBeGreaterThan(0)
 
@@ -166,7 +142,6 @@ describe('mapStore', () => {
       // 清空项
       expect(store.selectedPort).toBeNull()
       expect(store.analysisHandler).toBeNull()
-      expect(store.activePanel).toBe('none')
       // sessionStorage 已清除（lastAnalysisResult 持久化被移除）
       expect(sessionStore.size).toBe(0)
       // lastAnalysisResult 内部状态通过行为验证：reset 后注册新 handler 不应触发回放
@@ -179,12 +154,7 @@ describe('mapStore', () => {
 
     it('应清空 layerCatalog 业务条目但保留 base 底图条目', () => {
       const store = useMapStore()
-      store.registerLayer('base-image', '影像底图', {
-        visible: true,
-        category: 'base',
-        show: [() => {}],
-        hide: [() => {}],
-      })
+      store.registerBaseLayer('base-image', '影像底图')
       store.registerBusinessLayer('biz-1', '业务图层', 'geojson', true)
       store.registerBusinessLayer('biz-2', '业务图层2', 'points', true)
       expect(store.layerCatalog).toHaveLength(3)

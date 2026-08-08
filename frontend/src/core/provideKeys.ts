@@ -7,7 +7,7 @@
  * 对应消费方：
  * - RESTORE_PLAN_DATA_KEY / EDITING_PLAN_KEY → ProfilePage
  * - UNIFIED_MAP_KEY → useMapControls
- * - MAP_STORE_KEY → useLayerManager
+ * - MAP_STORE_KEY → mapStore（P6：useLayerManager 已删）
  */
 import type { InjectionKey, Ref } from 'vue'
 

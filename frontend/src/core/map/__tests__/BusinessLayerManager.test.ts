@@ -202,7 +202,8 @@ describe('BusinessLayerManager', () => {
       expect(newRenderer.addPointLayer).toHaveBeenCalledWith(
         'survivor-layer',
         [{ lng: 108, lat: 21 }],
-        {}
+        // 2026-08-08：BLM create 注入 onError（失败回滚意图），options 不再为空
+        expect.objectContaining({ onError: expect.any(Function) })
       )
     })
 

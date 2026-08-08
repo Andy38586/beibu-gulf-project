@@ -4,7 +4,7 @@
  * 数据状态（b029 / D-3=A 核实）：
  * - 真实地形：DEM 山体阴影由 dem-hillshade 图层加载 dem_hillshade.tif（COG，tools/dem-pipeline 生成），已真实接入；
  * - 3D 水面：预设水位档位可视化（非真实高程演算，真地形/地形 Provider 见 D-10 决策）；
- * - src/mock/flood/ 仅为接口文档，无运行期调用方（floodAdapter.getDEM 为预留钩子，当前无消费点）。
+ * - 数据链路：前端静态 JSON（public/data）+ online 演算（FastAPI），mock 目录与预留接口已清理（P1/P12）。
  * 本模块验证目标：
  * 1. BusinessLayerManager 的 waterSurface adapter 能否独立注册/销毁
  * 2. 3D 渲染器（CesiumRenderer）在不依赖 2D 引擎时的纯 3D 业务承载能力
@@ -26,9 +26,6 @@ import { showError, showWarning } from '@/shared'
 import { logger } from '@/shared'
 import { useFloodStore } from '@/stores'
 import { useMapStore } from '@/stores'
-import { usePortImpactStore } from '@/stores'
-import { useProfileStore } from '@/stores'
-import { useWaterLevelStore } from '@/stores'
 import type { AffectedFacility, FloodFeature, FloodStatistics } from '@/types/business/base'
 
 import AffectedFacilityListPanel from './components/AffectedFacilityListPanel.vue'
@@ -36,9 +33,8 @@ import FloodAnalysisReportPanel from './components/FloodAnalysisReportPanel.vue'
 import WaterLevelProfilePanel from './components/WaterLevelProfilePanel.vue'
 import { FLOOD_RISK_COLORS, FLOOD_RISK_DEFAULT } from './constants/colors'
 
-const waterLevelStore = useWaterLevelStore()
+// P3：waterLevel/portImpact/profile 三 store 已并入 floodStore，统一从此取
 const floodStore = useFloodStore()
-const portImpactStore = usePortImpactStore()
 const mapStore = useMapStore()
 const { manager: businessLayerManager } = useBusinessLayers()
 
@@ -122,13 +118,19 @@ async function registerFloodLayers(signal?: AbortSignal) {
 
   // 水面图层（b046: 坐标加载失败时跳过注册——避免空坐标渲染）
   if (waterCoords) {
-    businessLayerManager.register(WATER_SURFACE_ID, {
-      label: '水面',
-      layerType: 'waterSurface',
-      data: { coordinates: waterCoords, height: waterLevelStore.waterLevel },
-      options: { color: 'rgba(64, 158, 255, 0.5)' },
-      visible: true,
-    })
+    try {
+      businessLayerManager.register(WATER_SURFACE_ID, {
+        label: '水面',
+        layerType: 'waterSurface',
+        data: { coordinates: waterCoords, height: floodStore.waterLevel },
+        options: { color: 'rgba(64, 158, 255, 0.5)' },
+        visible: true,
+      })
+    } catch (e) {
+      // 单图层注册失败（如 Cesium viewer 刚复用未就绪 create 抛错）不中断后续注册，
+      // 否则真实地形等图层连带缺失（用户实测"回来只有 cesium 实例没有图层"）
+      logger.warn('[FloodAnalysisPage] 水面图层注册失败（已跳过该层）:', e)
+    }
   }
 
   // 淹没范围图层（a048 联动设计：默认不注册——滑块未操作时面板无开关、地图不渲染；
@@ -141,13 +143,21 @@ async function registerFloodLayers(signal?: AbortSignal) {
   // b058: 默认不显示（visible:false）——原 visible:true 在渲染器未就绪时注册（watch immediate
   // 时序），面板显示"开"但地图无渲染（先关再开才显示=状态不同步）。默认关→面板/地图一致，
   // 用户需要时在面板打开即渲染。
-  businessLayerManager.register(DEM_HILLSHADE_LAYER_ID, {
-    label: '真实地形',
-    layerType: 'geotiff',
-    data: '/static/dem/dem_hillshade.tif',
-    options: { opacity: 0.7 },
-    visible: false,
-  })
+  try {
+    businessLayerManager.register(DEM_HILLSHADE_LAYER_ID, {
+      label: '真实地形',
+      layerType: 'geotiff',
+      data: '/static/dem/dem_hillshade.tif',
+      options: { opacity: 0.7 },
+      // 默认不显示（2026-08-08 用户要求状态对齐）：2D/3D 统一 visible:false，
+      // 面板开关初始"关"，点击后才显示山影影像。3D 真地形（z 起伏）是地图
+      // 基础能力独立常驻，不受此开关影响。
+      visible: false,
+    })
+  } catch (e) {
+    // 单图层注册失败不中断（与水面同款容错）
+    logger.warn('[FloodAnalysisPage] 真实地形图层注册失败（已跳过该层）:', e)
+  }
 }
 
 // 渲染器就绪时自动注册图层到控制面板
@@ -174,12 +184,12 @@ onBeforeRouteLeave((to) => {
 
 function saveCurrentState() {
   floodStore.saveState({
-    waterLevel: waterLevelStore.waterLevel,
+    waterLevel: floodStore.waterLevel,
     floodStatistics: floodStore.floodStatistics,
     floodFeatures: floodStore.floodFeatures,
     floodRiskLevel: floodStore.floodRiskLevel,
-    affectedFacilities: portImpactStore.affectedFacilities,
-    totalLoss: portImpactStore.totalLoss,
+    affectedFacilities: floodStore.affectedFacilities,
+    totalLoss: floodStore.totalLoss,
   })
 }
 
@@ -197,7 +207,7 @@ onMounted(async () => {
 
     stateRestored = true
 
-    waterLevelStore.setWaterLevel(savedState.waterLevel)
+    floodStore.setWaterLevel(savedState.waterLevel)
 
     if (savedState.floodStatistics) {
       floodStore.startFloodAnalysis(
@@ -208,7 +218,7 @@ onMounted(async () => {
     }
 
     if (savedState.affectedFacilities) {
-      portImpactStore.setPortImpactResult(savedState.affectedFacilities, savedState.totalLoss ?? 0)
+      floodStore.setPortImpactResult(savedState.affectedFacilities, savedState.totalLoss ?? 0)
     }
 
     // 等待图层��册完成
@@ -236,7 +246,7 @@ let sliderInteracted = false
 // 水位变化防抖500ms后自动触发淹没问题分析和影响评估
 // a048: immediate 首屏触发（用户未操作滑块）跳过自动分析——初始化不显示淹没图层
 watch(
-  () => waterLevelStore.waterLevel,
+  () => floodStore.waterLevel,
   (newLevel) => {
     if (stateRestored) return
 
@@ -334,7 +344,7 @@ async function triggerImpactAssessment(waterLevel: number, seq: number) {
 
     logger.debug('[Flood] 更新影响评估数据:', { facilities: affectedFacilities.length, totalLoss })
 
-    portImpactStore.setPortImpactResult(affectedFacilities as AffectedFacility[], totalLoss)
+    floodStore.setPortImpactResult(affectedFacilities as AffectedFacility[], totalLoss)
 
     // 在地图上渲染受影响设施
     renderAffectedFacilities(affectedFacilities as AffectedFacility[])
@@ -429,7 +439,7 @@ function getRiskFillColor(riskLevel: string) {
 // 防抖 500ms（与 ANALYSIS_DELAY 同节奏）：滑块拖动期间合并为一次更新，
 // 避免每帧触发几何重建（配合 CesiumWaterSurface 增量更新，灭闪烁）
 watch(
-  () => waterLevelStore.waterLevel,
+  () => floodStore.waterLevel,
   (newLevel) => {
     if (!businessLayerManager.has(WATER_SURFACE_ID)) return
     if (!cachedWaterAreaCoords) return
@@ -473,11 +483,9 @@ onUnmounted(() => {
   floodAdapter.clearCache()
   cachedWaterAreaCoords = null
 
-  // 原 floodStore(19 行 resetAll 壳)已删除并入本钩子(A 整合):页面卸载时复位洪涝相关 store
-  useWaterLevelStore().resetWaterLevel()
-  useProfileStore().resetProfile()
-  useFloodStore().resetFloodAnalysis()
-  usePortImpactStore().resetPortImpact()
+  // P3：三 store 已并入 floodStore——卸载时复位（保持原语义：子状态 + flood 分析数据）
+  floodStore.resetSubStates()
+  floodStore.resetFloodAnalysis()
 })
 </script>
 

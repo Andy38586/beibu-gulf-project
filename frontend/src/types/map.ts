@@ -17,30 +17,14 @@ export interface Port {
 import type { LayerType } from '@/types/core/layerManager'
 
 // 图层条目（map store 的 layerCatalog 元素）
-// 两种形态：
-// 1. registerLayer/registerToggleable: 含 show/hide 回调
-// 2. registerBusinessLayer: 含 layerType，无 show/hide
+// P6：show/hide 回调机制已删（registerLayer/registerToggleable 移除）——
+// 图层显隐统一由 BusinessLayerManager.setVisible 驱动，条目仅存元数据
 export interface LayerEntry {
   key: string
   label: string
   visible: boolean
   category: 'base' | 'business'
-  show?: Array<() => void>
-  hide?: Array<() => void>
   layerType?: LayerType
-}
-
-/**
- * registerLayer 选项
- * show/hide 声明为数组，与 LayerEntry.show/hide 形状一致。
- * registerBaseLayer / registerToggleable 仍接受单个函数，在内部包装为数组后传入；
- * registerLayer 直接存储数组，不再二次包装（避免 (() => void)[][] 双重数组）。
- */
-export interface RegisterLayerOptions {
-  visible?: boolean
-  category?: 'base' | 'business'
-  show?: Array<() => void>
-  hide?: Array<() => void>
 }
 
 // 面板名称

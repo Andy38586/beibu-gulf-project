@@ -63,33 +63,4 @@ describe('forecastAdapter', () => {
       expect(() => forecastAdapter.setDataSource('invalid' as never)).toThrow()
     })
   })
-
-  describe('getIndicatorData', () => {
-    it('应返回 ForecastSeries 类型数据', async () => {
-      const data = (await forecastAdapter.getIndicatorData('cargo')) as unknown as Record<
-        string,
-        unknown
-      >
-      expect(data).toBeDefined()
-      expect(data.indicator).toBe('cargo')
-      expect(data.unit).toBeDefined()
-      expect(data.data).toBeDefined()
-    })
-
-    it('static 模式下应返回有效数据结构', async () => {
-      const data = await forecastAdapter.getIndicatorData('berth')
-      expect(data).toHaveProperty('indicator')
-      expect(data).toHaveProperty('unit')
-      expect(data).toHaveProperty('data')
-    })
-  })
-
-  describe('getAvailableIndicators', () => {
-    it('应返回指标索引（真实结构：metadata.indicators）', async () => {
-      const index = (await forecastAdapter.getAvailableIndicators()) as Record<string, any>
-      expect(index).toHaveProperty('metadata')
-      expect(Array.isArray(index.metadata.indicators)).toBe(true)
-      expect(index.metadata.indicators.length).toBeGreaterThan(0)
-    })
-  })
 })

@@ -107,6 +107,21 @@ export interface Water3DCapability {
   setWaterSurfaceVisibility(id: string, visible: boolean): boolean
 }
 
+// ===== 渲染器可选能力接口（P11：2D/3D 专用方法收敛，对齐 Water3DCapability）=====
+// 基类不再为单引擎方法背负打空拳契约（ISP 违反），调用方经类型守卫检查后调用。
+// 守卫函数在 core/map/layerAdapters.ts（types 层不引 core，避免循环依赖）。
+
+/** GeoTIFF 栅格图层能力（2D COG / 3D hillshade 影像——双引擎各自实现） */
+export interface GeoTIFFCapability {
+  addGeoTIFFLayer(id: string, url: string, options?: LayerOptions): boolean
+}
+
+/** 热力图能力（2D Only——OL 专属，Cesium 无对应实现） */
+export interface HeatmapCapability {
+  addHeatmapLayer(id: string, features: PointFeature[], options?: LayerOptions): boolean
+  updateHeatmapLayer(id: string, features: PointFeature[], options?: LayerOptions): boolean
+}
+
 // ===== 状态持久化 =====
 
 /** Camera 状态（用于 2D/3D 切换） */
@@ -163,12 +178,9 @@ export interface MapRenderer {
   /** 添加 GeoJSON 图层 */
   addGeoJsonLayer(_id: string, _geojson: FeatureCollection, _options?: LayerOptions): void
 
-  /** 添加 GeoTIFF 栅格图层（2D Only，真实 DEM 山体阴影/高程着色） */
-  addGeoTIFFLayer?(_id: string, _url: string, _options?: LayerOptions): boolean
-
-  /** 添加热力图（2D Only） */
-  addHeatmapLayer?(_id: string, _features: PointFeature[], _options?: LayerOptions): boolean
-  updateHeatmapLayer?(_id: string, _features: PointFeature[], _options?: LayerOptions): boolean
+  // P11：addGeoTIFFLayer/addHeatmapLayer/updateHeatmapLayer 已收敛为可选能力接口
+  // （GeoTIFFCapability/HeatmapCapability，见上方定义）——调用方经类型守卫确认
+  // 支持后调用，不再在 MapRenderer 主接口上声明可选方法。
 
   /** 设置图层显隐 */
   setVisibility(_id: string, _visible: boolean): void

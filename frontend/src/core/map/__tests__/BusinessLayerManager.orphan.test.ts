@@ -116,7 +116,8 @@ describe('P0-4 POI 图层孤儿复活 — manager.remove 语义', () => {
     expect(newRenderer.addPointLayer).toHaveBeenCalledWith(
       'facility-poi-keep',
       [{ lng: 108, lat: 21 }],
-      {}
+      // 2026-08-08：BLM create 注入 onError（失败回滚意图），options 不再为空
+      expect.objectContaining({ onError: expect.any(Function) })
     )
   })
 })

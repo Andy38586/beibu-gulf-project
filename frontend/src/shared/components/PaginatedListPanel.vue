@@ -48,6 +48,12 @@ interface Props {
   planType?: 'site-selection' | 'flood'
   showFavorite?: boolean
   mapInteraction?: boolean
+  /**
+   * 点击列表项时自动跳转到对应对象（2026-08-08 用户要求封装进组件）：
+   * shared 组件不依赖 core（useMapControls），由业务层注入跳转实现——
+   * 浸没/选址统一传 flyTo+startBreathing，点击即跳转，页面不再各自处理。
+   */
+  flyTo?: (item: ScoredXiaoqu) => void
 }
 
 interface Emits {
@@ -242,7 +248,9 @@ function handleItemClick(item: ScoredXiaoqu) {
     lat,
   }
 
-  // 移除 useMapControls（shared 不依赖 core），地图交互由父组件通过 click-item 事件处理
+  // 地图交互由业务层注入 flyTo 回调（shared 不依赖 core——2026-08-08 封装进组件）
+  props.flyTo?.(normalizedItem)
+
   // 通过emit传参给父组件（用于雷达图等），传递规范化后的数据
   emit('click-item', normalizedItem)
 }

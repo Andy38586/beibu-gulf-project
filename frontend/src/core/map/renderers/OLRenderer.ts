@@ -30,19 +30,15 @@ import { MapRenderer } from './MapRenderer'
 
 /**
  * OpenLayers 2D 渲染器。
- * 类型契约见 renderers.d.ts -> OLRendererState（本类顶部 // @ts-nocheck，仅作文档参考）。
+ * 类型契约：本类字段类型随 @ts-nocheck 保留为运行期 JSDoc 参考（renderers.d.ts 已删，见 P1）。
  */
 export class OLRenderer extends MapRenderer {
   constructor(container) {
     super(container)
-    /** @type {import('./renderers').OLRendererState['map']} */
     this.map = null
-    /** @type {import('./renderers').OLRendererState['baseLayers']} */
     this.baseLayers = { image: [], vector: [] }
     // 视口裁剪：大数量点图层（>阈值）的 R-tree 索引 + moveend 监听
-    /** @type {import('./renderers').OLRendererState['_cullLayers']} */
     this._cullLayers = new Map() // id -> { source, index, allFeatures, options }
-    /** @type {import('./renderers').OLRendererState['_moveendKey']} */
     this._moveendKey = null
     // pointer-move / camera-changed 事件处理器与防抖定时器引用（供 destroy 注销）
     /** @type {Function|null} */
@@ -569,9 +565,16 @@ export class OLRenderer extends MapRenderer {
     }
     // 数据入口归一化：统一 lng/lon/longitude 字段名
     const { lng, lat } = normalizePoint(target)
+    // 2026-08-08：zoom 与位置同时变化（对齐 Cesium 的 camera.flyTo 语义）——
+    // 调用方传 {height}（如 flyTo({lng,lat},{height:1000})），OL 分支原来只认
+    // options.zoom、忽略 height → 2D 只动 center 不动缩放（用户实测"选址无跳转动画"）。
+    // 现在 height → heightToZoom 转换，位置+缩放同步动画。
+    const zoom =
+      options.zoom ??
+      (options.height != null ? heightToZoom(options.height) : view.getZoom())
     view.animate({
       center: fromLonLat([lng, lat]),
-      zoom: options.zoom || view.getZoom(),
+      zoom,
       duration: 1000,
     })
   }

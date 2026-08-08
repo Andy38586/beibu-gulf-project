@@ -107,18 +107,6 @@ export function useForecastRequest() {
   }
 
   /**
-   * 获取当前事务信息
-   * 用于需要共享事务 ID 的场景（如一次预测任务的三个请求）
-   * 预留未接入：事务共享 API 当前无调用方，保留作预留，请勿删除
-   */
-  function getCurrentTransaction() {
-    return {
-      transactionId: forecastState.activeTransactionId,
-      signal: abortController?.signal,
-    }
-  }
-
-  /**
    * 取消所有请求
    * 用于组件卸载等场景
    */
@@ -135,7 +123,6 @@ export function useForecastRequest() {
     startTransaction,
     isTransactionValid,
     runInTransaction,
-    getCurrentTransaction,
     cancelAll,
   }
 }

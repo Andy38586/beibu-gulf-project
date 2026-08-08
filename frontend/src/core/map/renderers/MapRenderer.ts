@@ -75,26 +75,10 @@ export class MapRenderer {
     throw new Error(`${this.getType()} addGeoJsonLayer 未实现`)
   }
 
-  // 原设计文档使用 addGeoJsonLayer({type:'heatmap'})，但现有接口不支持
-  // 正确做法：独立方法，子类按需实现
-  /**
-   * 添加 GeoTIFF 栅格图层（2D Only）
-   * 用于加载真实 DEM 山体阴影/高程着色 COG。3D 渲染器不实现，继承此默认返回 false。
-   */
-  addGeoTIFFLayer(_id: string, _url: string, _options: LayerOptions = {}): boolean {
-    logger.debug(`${this.getType()} addGeoTIFFLayer 未实现（仅 2D 渲染器支持）`)
-    return false
-  }
-
-  addHeatmapLayer(_id: string, _features: PointFeature[], _options: LayerOptions = {}): boolean {
-    logger.debug(`${this.getType()} addHeatmapLayer 未实现（仅 2D 渲染器支持）`)
-    return false
-  }
-
-  updateHeatmapLayer(_id: string, _features: PointFeature[], _options: LayerOptions = {}): boolean {
-    logger.debug(`${this.getType()} updateHeatmapLayer 未实现`)
-    return false
-  }
+  // P11：addGeoTIFFLayer/addHeatmapLayer/updateHeatmapLayer 已收敛为可选能力接口
+  // （GeoTIFFCapability/HeatmapCapability，types/renderer.ts）——基类不再打空拳，
+  // 调用方（layerAdapters）经类型守卫（typeof 检查）确认支持后调用，
+  // 不支持的渲染器跳过并 warn（对齐 Water3DCapability 的 a036 模式）。
 
   setVisibility(id: string, visible: boolean): void {
     const layer = this._layers.get(id)
@@ -111,6 +95,14 @@ export class MapRenderer {
       this.setVisibility(id, this._pendingVisibility.get(id) as boolean)
       this._pendingVisibility.delete(id)
     }
+  }
+
+  /**
+   * 清除某图层的待定可见性（2026-08-08）：create 失败后调用——pending 记录的是
+   * 过期意图（BLM 已回滚 visible=false），残留会在下次 create 时被错误应用 → 幽灵状态。
+   */
+  clearPendingVisibility(id: string): void {
+    this._pendingVisibility.delete(id)
   }
 
   removeLayer(id: string): void {
@@ -132,6 +124,17 @@ export class MapRenderer {
    */
   hasLayer(id: string): boolean {
     return this._layers.has(id)
+  }
+
+  /**
+   * 图层真实可见性（2026-08-08 P6 后续）：读 _layers 实例的 visible——
+   * 图层控制面板按钮状态以此为权威源（按钮蓝 = 图层真的在显示）。
+   * 与 hasLayer 的区别：hasLayer 只问"实例存在"，本方法问"实例存在且可见"。
+   * 子类（CesiumRenderer）对非 _layers 存储（waterSurface）覆写本方法。
+   */
+  isLayerVisible(id: string): boolean {
+    const layer = this._layers.get(id)
+    return layer ? layer.visible : false
   }
 
   flyTo(target: FlyToTarget, options: FlyToOptions = {}): void {

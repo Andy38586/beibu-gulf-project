@@ -65,6 +65,8 @@ vi.mock('@/core/map/renderers', () => {
     exportState: vi.fn().mockReturnValue({}),
     importState: vi.fn(),
     destroy: vi.fn(),
+    // UnifiedMap onUnmounted 对 Cesium 渲染器走 unmount（保留 viewer，见 2026-08-08 修复）
+    unmount: vi.fn(),
     updateSize: vi.fn(),
     getMap: vi.fn().mockReturnValue({}),
     getViewer: vi.fn().mockReturnValue({}),

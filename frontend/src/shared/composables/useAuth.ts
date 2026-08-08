@@ -114,10 +114,9 @@ async function restoreAuth(): Promise<User | null> {
 function handleStorageChange(event: StorageEvent): void {
   if (event.key === USER_STORAGE_KEY) {
     if (event.newValue === null) {
-      // 其他标签页登出了，当前标签页也要登出
+      // 其他标签页登出了，当前标签页也要登出（store 重置由 App.vue watch(user) 驱动）
       user.value = null
       clearToken()
-      resetHandler()
     } else {
       // 其他标签页登录了，当前标签页也要同步
       try {
@@ -135,13 +134,9 @@ function handleStorageChange(event: StorageEvent): void {
   }
 }
 
-// store 重置逻辑上提，useAuth 不依赖 stores 层
-// 由 App.vue 注册实际的 store 重置函数
-export type ResetHandler = () => void
-let resetHandler: ResetHandler = () => {}
-export function setResetStoresHandler(handler: ResetHandler): void {
-  resetHandler = handler
-}
+// store 重置（2026-08-08 P9）：不再用 setResetStoresHandler 注册回调——
+// 重置逻辑移到 App.vue 组件内，用 watch(user) 驱动（user 变 null → 重置）。
+// 此处删除模块级 resetHandler，消除"重置逻辑藏在注册时序里"的耦合。
 
 /**
  * 注册多标签页 storage 同步监听（仅执行一次）
@@ -207,13 +202,12 @@ export function useAuth() {
       // 即使后端调用失败，也清理前端状态
       logger.debug('登出接口调用失败，但仍清理前端状态:', error)
     } finally {
-      // 清理前端状态
+      // 清理前端状态（store 重置由 App.vue watch(user) 驱动）
       clearToken()
       user.value = null
       writeStoredUser(null)
       // 重置认证恢复标志，允许下次重新恢复
       authRestored = false
-      resetHandler()
     }
   }
 

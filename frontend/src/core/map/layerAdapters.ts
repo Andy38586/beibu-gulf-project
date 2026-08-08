@@ -12,6 +12,8 @@ import type { FeatureCollection } from 'geojson'
 
 import { logger } from '@/shared'
 import type {
+  GeoTIFFCapability,
+  HeatmapCapability,
   LayerOptions,
   MapRenderer,
   PointFeature,
@@ -52,6 +54,16 @@ function isWater3DCapable(renderer: MapRenderer): renderer is MapRenderer & Wate
   return typeof (renderer as Partial<Water3DCapability>).addWaterSurface === 'function'
 }
 
+/** GeoTIFF 能力检查（P11）：2D COG / 3D hillshade 各自实现 addGeoTIFFLayer */
+function isGeoTIFFCapable(renderer: MapRenderer): renderer is MapRenderer & GeoTIFFCapability {
+  return typeof (renderer as Partial<GeoTIFFCapability>).addGeoTIFFLayer === 'function'
+}
+
+/** 热力图能力检查（P11）：仅 OL 实现（2D Only） */
+function isHeatmapCapable(renderer: MapRenderer): renderer is MapRenderer & HeatmapCapability {
+  return typeof (renderer as Partial<HeatmapCapability>).addHeatmapLayer === 'function'
+}
+
 /** Adapter 函数签名 */
 interface LayerAdapter {
   create: (renderer: MapRenderer, key: string, data: unknown, options: LayerOptions) => void
@@ -67,14 +79,22 @@ interface LayerAdapter {
 
 export const LAYER_ADAPTERS: Record<LayerType, LayerAdapter> = {
   heatmap: {
-    // addHeatmapLayer/updateHeatmapLayer 在接口中为可选（2D Only），此处断言非空
+    // P11：addHeatmapLayer 为可选能力（HeatmapCapability，2D Only）——类型守卫替代 ! 断言
     create: (renderer, key, data, options) => {
       assertPointArray(data)
-      renderer.addHeatmapLayer!(key, data, options)
+      if (!isHeatmapCapable(renderer)) {
+        logger.warn(`[layerAdapters] heatmap 图层 ${key} 当前渲染器不支持，跳过`)
+        return
+      }
+      renderer.addHeatmapLayer(key, data, options)
     },
     update: (renderer, key, data, options) => {
       assertPointArray(data)
-      renderer.updateHeatmapLayer!(key, data, options)
+      if (!isHeatmapCapable(renderer)) {
+        logger.warn(`[layerAdapters] heatmap 图层 ${key} 更新跳过（渲染器不支持）`)
+        return
+      }
+      renderer.updateHeatmapLayer(key, data, options)
     },
     remove: (renderer, key) => {
       renderer.removeLayer(key)
@@ -158,14 +178,24 @@ export const LAYER_ADAPTERS: Record<LayerType, LayerAdapter> = {
   },
 
   geotiff: {
-    // addGeoTIFFLayer 在接口中为可选（2D Only），此处断言非空
+    // P11：addGeoTIFFLayer 为可选能力（GeoTIFFCapability，双引擎实现）——类型守卫替代 ! 断言
     // data 为 COG 文件 URL 字符串（如 '/static/dem/dem_hillshade.tif'）
+    // 2026-08-08（方案 A）：3D 下 DEM 也是独立影像图层（addGeoTIFFLayer 始终创建
+    // _layers 实例），与普通图层走同一 setVisibility 语义，不再特殊处理 terrainProvider。
     create: (renderer, key, data, options) => {
-      renderer.addGeoTIFFLayer!(key, data as string, options)
+      if (!isGeoTIFFCapable(renderer)) {
+        logger.warn(`[layerAdapters] geotiff 图层 ${key} 当前渲染器不支持，跳过`)
+        return
+      }
+      renderer.addGeoTIFFLayer(key, data as string, options)
     },
     update: (renderer, key, data, options) => {
+      if (!isGeoTIFFCapable(renderer)) {
+        logger.warn(`[layerAdapters] geotiff 图层 ${key} 更新跳过（渲染器不支持）`)
+        return
+      }
       renderer.removeLayer(key)
-      renderer.addGeoTIFFLayer!(key, data as string, options)
+      renderer.addGeoTIFFLayer(key, data as string, options)
     },
     remove: (renderer, key) => {
       renderer.removeLayer(key)

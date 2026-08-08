@@ -12,10 +12,8 @@ import { computed } from 'vue'
 
 import { useGCS } from '@/shared'
 import { useFloodStore } from '@/stores'
-import { usePortImpactStore } from '@/stores'
 
 const floodStore = useFloodStore()
-const portImpactStore = usePortImpactStore()
 const { cellPixel, css } = useGCS()
 // 解构出 CSS 变量供 v-bind() 使用
 const { cell16px } = css
@@ -47,7 +45,7 @@ function formatLoss(loss: number) {
 
 /** 影响等级（根据总损失计算） */
 const impactLevel = computed(() => {
-  const loss = portImpactStore.totalLoss
+  const loss = floodStore.totalLoss
   if (loss === 0) return '无'
   if (loss < 10000) return '低'
   if (loss < 50000) return '中'
@@ -87,7 +85,7 @@ const affectedPorts = computed<string[]>(() => {
         <span class="info-label">受影响设施</span>
         <span class="info-value"
           >{{
-            portImpactStore.affectedFacilities.length ||
+            floodStore.affectedFacilities.length ||
             floodStore.floodStatistics?.affectedFacilities ||
             0
           }}
@@ -99,7 +97,7 @@ const affectedPorts = computed<string[]>(() => {
         <span class="info-value highlight"
           >{{
             formatLoss(
-              Number(portImpactStore.totalLoss || floodStore.floodStatistics?.estimatedLoss || 0)
+              Number(floodStore.totalLoss || floodStore.floodStatistics?.estimatedLoss || 0)
             )
           }}元</span
         >

@@ -3,8 +3,8 @@
  * LayerControlPanel - 通用图层控制面板（公共组件）
  * 职责：
  * 1. 显示图层按钮（2列网格布局）
- * 2. 接入真实图层管理（useLayerManager）
- * 3. 底图互斥（影像/矢量只能选一个）
+ * 2. 接入图层管理：业务图层走 BusinessLayerManager（registry 权威源）、底图走 mapStore.setBaseLayer（P6 双轨收尾）
+ * 3. 底图互斥（影像/矢量只能选一个，baseLayerKey 权威源）
  * 4. 业务图层无互斥（可多选）
  * 被引用：首页、选址分析、浸没分析
  * 图层显示顺序由 props.layerOrder 注入，core 不再硬编码业务图层 key。
@@ -14,8 +14,8 @@
 import { computed } from 'vue'
 
 import { useBusinessLayers } from '@/core/map/composables/useBusinessLayers'
-import { useLayerManager } from '@/core/map/composables/useLayerManager'
 import { useGCS } from '@/shared'
+import { useMapStore } from '@/stores'
 import type { LayerEntry } from '@/types'
 
 interface Props {
@@ -28,7 +28,9 @@ const props = withDefaults(defineProps<Props>(), {
   layerOrder: () => ['base-image', 'base-vector', 'boundary', 'ports'],
 })
 
-const { layerCatalog, toggleLayer } = useLayerManager()
+// P6：useLayerManager 已删——layerCatalog 直连 mapStore，底图切换走 mapStore.setBaseLayer
+const mapStore = useMapStore()
+const layerCatalog = computed(() => mapStore.layerCatalog)
 const { manager: businessLayerManager } = useBusinessLayers()
 const { cellPixel, css } = useGCS()
 // 解构出 CSS 变量供 v-bind() 使用（cell8px=0.1cell 面板边缘；cell16px=0.2cell 按钮间间隙）
@@ -45,7 +47,8 @@ const iconFontSizeCss = computed(() => `${cellPixel.value * 0.2}px`) // 16px
  * business 类条目（layerType 非空）的可见性以
  * BusinessLayerManager._registry 为唯一权威源，catalog 仅作 reactivity 触发器。
  * 切换引擎时 clearLayerCatalog 清空 catalog，reapplyAll 重建条目时 visible
- * 从 registry 读取，杜绝双副本失步。base 类条目无 registry 副本，仍读 catalog。
+ * 从 registry 读取，杜绝双副本失步。base 类条目（无 layerType）以
+ * mapStore.baseLayerKey 为权威源（P6：底图是互斥选择，非独立显隐）。
  */
 const layerButtons = computed(() => {
   // order 由 props 注入，core 不再硬编码业务图层 key
@@ -58,10 +61,12 @@ const layerButtons = computed(() => {
   return [...ordered, ...extra].map((layer) => ({
     key: layer.key,
     label: layer.label,
-    // business 类条目读 registry 权威源；base 类读 catalog
+    // 单变量原则（2026-08-08 用户要求）：按钮状态 = 图层控制状态（registry.visible，
+    // BLM 唯一权威），点击切换同一变量。create 失败由 BLM 自动重试兜底——
+    // 稳态"蓝 = 图层在显示"，不存在第二个状态变量。
     active: layer.layerType
       ? (businessLayerManager.getMeta(layer.key)?.visible ?? layer.visible)
-      : layer.visible,
+      : mapStore.baseLayerKey === layer.key,
   }))
 })
 
@@ -92,15 +97,15 @@ function handleToggle(key: string) {
   // 业务图层（有 layerType 字段，无 show/hide 回调）→ 走 Manager.setVisible
   const catalogEntry = layerCatalog.value.find((e: LayerEntry) => e.key === key)
   if (catalogEntry && catalogEntry.layerType) {
-    // 可见性以 registry 为权威源（catalog 可能与 registry 失步），
-    // 从 registry 读当前值再取反，避免 catalog 滞后导致 toggle 方向错误
+    // 单变量原则：从 registry 读图层控制状态（与按钮显示同一变量）再取反——
+    // 按钮蓝→点一下关、白→点一下开，永远一次生效（不读实例状态避免错位）
     const registryVisible = businessLayerManager.getMeta(key)?.visible
     const currentVisible = registryVisible ?? catalogEntry.visible
     businessLayerManager.setVisible(key, !currentVisible)
     return
   }
-  // 底图等旧机制图层 → 走原来的 toggleLayer
-  toggleLayer(key)
+  // 底图等 base 类条目（无 layerType）→ 走 mapStore.setBaseLayer（P6：互斥选择）
+  mapStore.setBaseLayer(key)
 }
 </script>
 

@@ -43,19 +43,6 @@ export function normalizePoint(input: LaxPoint): GeoPoint<CRS> {
 }
 
 /**
- * 校验点的 CRS 是否符合预期
- * @throws {Error} 如果 CRS 不匹配且不是默认的 4326
- */
-export function assertCRS(point: GeoPoint, expected: CRS = DEFAULT_CRS): void {
-  if (point.crs && point.crs !== expected) {
-    throw new Error(
-      `CRS 不匹配: 期望 ${expected}，实际 ${point.crs}。` +
-        `北部湾港口数据应统一使用 EPSG:4326（WGS84）或 EPSG:4490（CGCS2000）。`
-    )
-  }
-}
-
-/**
  * 北部湾业务区域边界（EPSG:4326）
  * 用于数据入口校验，过滤明显越界的异常坐标
  */

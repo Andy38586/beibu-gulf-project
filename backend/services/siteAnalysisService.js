@@ -1,7 +1,5 @@
 import * as turf from '@turf/turf'
-import { scoreXiaoqu, DEFAULT_WEIGHTS } from './scoringService.js'
-import { linearDecay } from './decayFunctions.js'
-import { importanceToRadius } from './importanceMapping.js'
+import { scoreXiaoqu, DEFAULT_WEIGHTS, linearDecay, importanceToRadius } from './scoringService.js'
 import { createSpatialIndex, queryByPolygon } from '../utils/spatialIndex.js'
 import { BusinessError, ErrorCode } from '../utils/BusinessError.js'
 import { logger } from '../utils/logger.js'

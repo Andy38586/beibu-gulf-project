@@ -60,21 +60,6 @@ export function showError(
 }
 
 /**
- * 包装异步操作，自动处理错误
- * @param {Promise} promise - 异步操作
- * @param {string} [fallback] - 错误兜底文案
- * @returns {Promise} - 包装后的 Promise
- */
-export async function handleAsync<T>(promise: Promise<T>, fallback?: string): Promise<T> {
-  try {
-    return await promise
-  } catch (error) {
-    showError(error, { fallback })
-    throw error
-  }
-}
-
-/**
  * 统一的 401 认证失效处理
  * 所有请求层（useApiRequest / useForecastRequest）在 401 时不主动 redirect，
  * 由调用方识别 401 后调用此函数，统一执行：清理认证状态 + 跳转首页 + 弹登录面板。
@@ -120,11 +105,5 @@ export function showWarning(message: string): void {
   showToast(message, 'warning')
 }
 
-/**
- * 统一的成功提示
- */
-export function showSuccess(message: string): void {
-  showToast(message, 'success')
-}
-
-export default { showError, handleAsync, handleAuthError, isAuthError, showWarning, showSuccess }
+// 2026-08-09：handleAsync/showSuccess 零调用方死方法已删（成功提示直接用 showToast）
+export default { showError, handleAuthError, isAuthError, showWarning }

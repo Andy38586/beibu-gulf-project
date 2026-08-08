@@ -1,6 +1,48 @@
 import * as turf from '@turf/turf'
 import RBush from 'rbush'
-import { linearDecay } from './decayFunctions.js'
+import { logger } from '../utils/logger.js'
+
+// ==================== 合并自 decayFunctions.js / importanceMapping.js ====================
+// 2026-08-09：原三文件过细拆分（decayFunctions 4 行 / importanceMapping 28 行 /
+// scoringService 98 行，均仅 siteAnalysisService 一处消费）——合并为本文件，
+// 删 decayFunctions.js / importanceMapping.js。
+
+/** 线性距离衰减：距离 >= maxDistance 得 0 分，否则按比例线性衰减（百分制） */
+export const linearDecay = (distance, maxDistance) => {
+  if (distance >= maxDistance) return 0
+  return (1 - distance / maxDistance) * 100
+}
+
+/** 重要程度 → 半径放大系数（1~5 档） */
+const IMPORTANCE_FACTOR = {
+  1: 0.4,
+  2: 0.7,
+  3: 1.0,
+  4: 1.5,
+  5: 2.2,
+}
+
+// 非表项输入取整夹取并告警，拒绝静默兜底
+function importanceToFactor(importance) {
+  const raw = Number(importance)
+  const n = Math.round(raw)
+  if (!isFinite(raw) || n < 1 || n > 5) {
+    logger.warn(`[importanceMapping] 无效 importance: ${importance}，已按 3 处理`)
+    return IMPORTANCE_FACTOR[3]
+  }
+  if (n !== raw) {
+    logger.debug(`[importanceMapping] importance ${importance} 非整数，已取整为 ${n}`)
+  }
+  return IMPORTANCE_FACTOR[n]
+}
+
+/** 按重要程度放大默认设施半径 */
+export function importanceToRadius(defaultRadius, importance) {
+  const factor = importanceToFactor(importance)
+  return Math.round(defaultRadius * factor * 10) / 10
+}
+
+// ==================== 选址评分核心 ====================
 
 export const DEFAULT_WEIGHTS = {
   hospital: 1.2,

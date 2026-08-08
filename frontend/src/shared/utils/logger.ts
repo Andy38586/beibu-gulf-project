@@ -2,7 +2,8 @@
  * 统一 logger（z032：结构化输出）
  * - debug/info：仅 DEV 环境输出
  * - warn/error：生产保留（脱敏，无变量展开）
- * - 预留 transport 钩子，未来接 Sentry 等上报服务
+ * 2026-08-09：addLogTransport/transports 零调用方死代码已删（Sentry 接入时再补，
+ * 见 main.ts 注释预留）
  */
 const isDev = import.meta.env.DEV
 
@@ -15,13 +16,6 @@ interface LogEntry {
   args: unknown[]
 }
 
-/** 预留 transport 钩子（未来接 Sentry / 自建上报） */
-const transports: Array<(entry: LogEntry) => void> = []
-
-export function addLogTransport(fn: (entry: LogEntry) => void): void {
-  transports.push(fn)
-}
-
 function emit(level: LogLevel, args: unknown[]): void {
   const entry: LogEntry = {
     level,
@@ -31,14 +25,6 @@ function emit(level: LogLevel, args: unknown[]): void {
   // 控制台输出
   const fn = level === 'debug' ? console.log : console[level]
   fn(`[${entry.timestamp}] [${level.toUpperCase()}]`, ...args)
-  // transport 上报
-  for (const t of transports) {
-    try {
-      t(entry)
-    } catch {
-      // transport 异常不阻断业务
-    }
-  }
 }
 
 export const logger = {

@@ -43,16 +43,18 @@ export const useFloodStore = defineStore('flood', () => {
 
   // ─── 水位控制（P3：并入原 waterLevelStore） ───────────────
   const waterLevel = ref(0)
-  const waterLevelActive = ref(false)
+  // 2026-08-09：*Active 改 computed 派生（原手动 ref + 单向置位是"派生状态镜像"，
+  // setter 忘同步即漂移；现在由真实状态自动推导，删 6 处手动赋值）
+  const waterLevelActive = computed(() => waterLevel.value > 0)
 
   // ─── 港口影响（P3：并入原 portImpactStore） ───────────────
-  const portImpactActive = ref(false)
   const affectedFacilities = ref<AffectedFacility[]>([])
   const totalLoss = ref(0)
+  const portImpactActive = computed(() => affectedFacilities.value.length > 0)
 
   // ─── 剖面档案（P3：并入原 profileStore） ──────────────────
   const selectedProfileId = ref<string | null>(null)
-  const profileActive = ref(false)
+  const profileActive = computed(() => selectedProfileId.value !== null)
 
   // ─── 持久化快照（使用工厂） ─────────────────────────────
   const persisted = createPersistedState<FloodPersistedSnapshot>()
@@ -84,41 +86,35 @@ export const useFloodStore = defineStore('flood', () => {
   }
 
   // ─── 水位控制（P3：原 waterLevelStore） ───────────────────
-  // LIF-3：*Active 单向置位——0 显式同步为 false
+  // *Active 由 computed 派生（waterLevel > 0），setter 无需手动同步
   function setWaterLevel(level: number): void {
     waterLevel.value = level
-    waterLevelActive.value = level > 0
   }
 
   function resetWaterLevel(): void {
     waterLevel.value = 0
-    waterLevelActive.value = false
   }
 
   // ─── 港口影响（P3：原 portImpactStore） ───────────────────
-  // LIF-3：*Active 单向置位——空数组显式同步为 false
+  // *Active 由 computed 派生（affectedFacilities 非空），setter 无需手动同步
   function setPortImpactResult(facilities: AffectedFacility[], loss: number): void {
     affectedFacilities.value = facilities
     totalLoss.value = loss
-    portImpactActive.value = facilities.length > 0
   }
 
   function resetPortImpact(): void {
-    portImpactActive.value = false
     affectedFacilities.value = []
     totalLoss.value = 0
   }
 
-  // ─── 剖面档案（P3：原 profileStore） ───────────────────────
-  // LIF-3：*Active 单向置位——null 显式同步为 false
+  // ─── 剖面档案（P3：原 profileStore） ───────────────────
+  // *Active 由 computed 派生（selectedProfileId 非 null），setter 无需手动同步
   function setSelectedProfile(profileId: string | null): void {
     selectedProfileId.value = profileId
-    profileActive.value = profileId !== null
   }
 
   function resetProfile(): void {
     selectedProfileId.value = null
-    profileActive.value = false
   }
 
   // ─── 子状态统一重置（P3：onUnmounted 用——不清 flood 分析，保留跨页面数据） ───

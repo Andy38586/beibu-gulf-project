@@ -6,7 +6,14 @@ import { BusinessError, ErrorCode } from '../utils/BusinessError.js'
 // 指标白名单——仅允许 index.json 中声明过的合法指标，
 // 拒绝路径遍历（..）及非法指标名。forecast 路由保持公开（稳定设计决策），
 // 但不代表接受任意输入。
-const ALLOWED_INDICATORS = new Set(['cargo', 'container'])
+// 2026-08-08 数据搬后端：berth/traffic 由前端静态 fixture 移入 backend/data/forecast/，
+// 与 cargo/container 统一走后端接口（前端 INDICATOR_SOURCE 硬编码已移除）。
+const ALLOWED_INDICATORS = new Set(['cargo', 'container', 'berth', 'traffic'])
+
+// 合成（非实测）指标：berth（泊位利用率）/ traffic（船舶流量）为示意性合成数据，
+// 数据文件自带 historical+forecast，不走吞吐量预测模型（throughput 模型仅适用
+// cargo/container 吞吐量指标）；与数据文件 metadata.source: 'synthetic' 对应。
+const SYNTHETIC_INDICATORS = new Set(['berth', 'traffic'])
 
 const MAX_CACHE_SIZE = 100
 
@@ -63,14 +70,18 @@ async function getOrComputeForecast(indicator, scenarioLevel) {
     const spatial = portData.spatial
     const portName = spatial?.features?.[0]?.properties?.portName || portId
 
-    const engineResult = computeForecast(historical, scenarioLevel)
+    // 合成指标（berth/traffic）：文件自带 forecast 直接透传，不走吞吐量模型
+    // （见顶部 SYNTHETIC_INDICATORS 说明）；真实指标（cargo/container）由模型演算。
+    const engineResult = SYNTHETIC_INDICATORS.has(indicator)
+      ? null
+      : computeForecast(historical, scenarioLevel)
 
     result.ports[portId] = {
       portName,
       historical,
-      forecast: engineResult.forecast,
+      forecast: engineResult ? engineResult.forecast : portData.forecast || [],
       spatial,
-      metadata: engineResult.metadata,
+      metadata: engineResult?.metadata,
     }
   }
 

@@ -5,7 +5,8 @@
     "unit": "米",
     "version": "1.0.0",
     "createdAt": "2026-07-19",
-    "updatedAt": "2026-08-01"
+    "updatedAt": "2026-08-01",
+    "source": "simulated"
   },
   "floodZones": [
     {

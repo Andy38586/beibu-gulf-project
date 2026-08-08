@@ -1,8 +1,8 @@
 <!--
   /**
    * 预测分析模块
-   * 当前阶段：架构验证期，使用前端静态 JSON（public/data/forecast）跑通 2D 热力图 + 时间轴播放链路
-   * 待接入：真实港口生产数据（毕业论文阶段替换）
+   * 当前阶段：纯 API 链路（2026-08-08 数据搬后端）——cargo/container 真实吞吐量（后端模型预测），
+   * berth/traffic 合成示意（后端数据文件 source: synthetic）；前端静态 JSON 已全部移除。
    * 本模块验证目标：
    * 1. BusinessLayerManager 的 heatmap adapter 能否独立注册/销毁
    * 2. 2D 渲染器在不依赖 3D 引擎时的纯 2D 业务承载能力
@@ -20,12 +20,17 @@ import { onBeforeRouteLeave, useRouter } from 'vue-router'
 import AppLayout from '@/core/layout/AppLayout.vue'
 import GCSPanel from '@/core/layout/components/GCSPanel.vue'
 import LayerControlPanel from '@/core/map/components/LayerControlPanel.vue'
-import { forecastAdapter } from '@/services'
-import { ApiError, handleAuthError, isAuthError, showError } from '@/shared'
+import { ApiError, handleAuthError, isAuthError, showError, useApiRequest } from '@/shared'
 import { logger } from '@/shared'
 import { useForecastStore } from '@/stores'
 import { useMapStore } from '@/stores'
 import type { ForecastSavedState } from '@/stores/forecastStore'
+import {
+  indicatorComparisonResponseSchema,
+  timeSeriesResponseSchema,
+  type IndicatorComparisonResponseParsed,
+  type TimeSeriesResponseParsed,
+} from '@/types/schemas'
 import BarChart from '@/visualization/charts/BarChart.vue'
 import LineChart from '@/visualization/charts/LineChart.vue'
 
@@ -35,6 +40,7 @@ import { useForecastRequest } from './composables/useForecastRequest'
 // P7：兼容层 business/forecast/constants.ts 已删，常量统一从 @/shared 取
 import { DEFAULT_CONFIDENCE, PORT_NAMES } from '@/shared'
 
+const { apiRequest } = useApiRequest()
 const forecastState = useForecastStore()
 const mapStore = useMapStore()
 const router = useRouter()
@@ -133,8 +139,15 @@ async function loadTimeSeriesData(transactionId: number, signal: AbortSignal) {
 
     // 全量数据: 首次 API 获取后缓存，后续只做窗口截取
     if (!requestCache.has(cacheKey)) {
+      // 2026-08-08：forecastAdapter 已删（预测纯 api），直连统一入口 useApiRequest
       const data = await runInTransaction(
-        () => forecastAdapter.getTimeSeries(indicator, granularity, confidence, signal),
+        () =>
+          apiRequest<TimeSeriesResponseParsed>('/forecast/timeseries', {
+            method: 'GET',
+            params: { indicator, granularity, confidence },
+            signal,
+            schema: timeSeriesResponseSchema,
+          }),
         transactionId
       )
       // 事务过期或请求被取消
@@ -214,12 +227,15 @@ async function loadPortComparisonData(transactionId: number, signal: AbortSignal
       BAR_INDICATORS.map((ind) =>
         runInTransaction(
           () =>
-            forecastAdapter.getIndicatorComparison(
-              ind,
-              time,
-              forecastState.confidenceThresholds[ind] || DEFAULT_CONFIDENCE,
-              signal
-            ),
+            apiRequest<IndicatorComparisonResponseParsed>(`/forecast/indicator/${ind}`, {
+              method: 'GET',
+              params: {
+                time,
+                confidence: forecastState.confidenceThresholds[ind] || DEFAULT_CONFIDENCE,
+              },
+              signal,
+              schema: indicatorComparisonResponseSchema,
+            }),
           transactionId
         )
       )

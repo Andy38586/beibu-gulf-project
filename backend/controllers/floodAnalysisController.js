@@ -79,7 +79,13 @@ export async function getFloodAreas(req, res, next) {
           requestedWaterLevel: level,
           actualWaterLevel: floodZone.waterLevel,
           riskLevel: floodZone.riskLevel,
-          features: floodZone.features,
+          // 前端类型契约要求 FloodFeature.properties 含 riskLevel，
+          // 原前端 adapter 用映射层补（static/api 双分支），此处后端权威注入，
+          // 前端映射层可整体删除（2026-08-08 数据搬后端）
+          features: floodZone.features.map((f) => ({
+            ...f,
+            properties: { ...f.properties, riskLevel: floodZone.riskLevel },
+          })),
         })
       }
 

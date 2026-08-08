@@ -8,13 +8,13 @@ import { computed, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { type BusinessLayerManager, useBusinessLayers } from '@/core'
-import type { ForecastMapData } from '@/services'
-import { forecastAdapter } from '@/services'
-import { ApiError, handleAuthError, isAuthError, showError } from '@/shared'
+import { ApiError, handleAuthError, isAuthError, showError, useApiRequest } from '@/shared'
 import { logger } from '@/shared'
 import { useForecastStore } from '@/stores'
 import { useMapStore } from '@/stores'
+import type { ForecastMapData } from '@/types/api/forecast'
 import type { LayerOptions, LayerType, MapRenderer } from '@/types'
+import { forecastMapDataSchema } from '@/types/schemas'
 
 import { DEFAULT_CONFIDENCE } from '@/shared'
 
@@ -51,6 +51,7 @@ export function useForecastLayer(): UseForecastLayerReturn {
   const mapStore = useMapStore()
   const { manager } = useBusinessLayers() as { manager: BusinessLayerManager }
   const { runInTransaction } = useForecastRequest()
+  const { apiRequest } = useApiRequest()
 
   const renderer = computed<MapRenderer | null>(() => mapStore.currentRenderer)
 
@@ -156,7 +157,14 @@ export function useForecastLayer(): UseForecastLayerReturn {
       }
 
       const geojson = await runInTransaction(
-        () => forecastAdapter.getMapData(indicator, time, confidence, signal),
+        // 2026-08-08：forecastAdapter 已删（预测纯 api），直连统一入口 useApiRequest
+        () =>
+          apiRequest<ForecastMapData>('/forecast/map', {
+            method: 'GET',
+            params: { indicator, time, confidence },
+            signal,
+            schema: forecastMapDataSchema,
+          }),
         transactionId
       )
 

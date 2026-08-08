@@ -4,7 +4,7 @@
  * - 全局默认数据源由环境变量 VITE_DATA_SOURCE 驱动
  * - 各 adapter 可通过 setDataSource 独立覆盖
  * - 提供统一查询接口，消除各 adapter 内部 if/else 重复
- * 使用方：forecastAdapter、floodAdapter、main.ts 初始化。
+ * 使用方：floodAdapter、main.ts 初始化。（2026-08-08：forecastAdapter/siteAnalysisAdapter 已删）
  *
  * 数据源三态（2026-08-06 规范命名，原 'mock' 更名为 'static'——名实相符：
  * 前端直读 public/data 静态资源（boundary/berth/traffic 等真实数据），

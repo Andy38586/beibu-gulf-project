@@ -46,3 +46,24 @@ export interface ForecastSeries {
  * 用于 adapter 返回时给调用方一点提示，但不强制穷举。
  */
 export type ForecastIndicatorName = 'cargo' | 'container' | 'berth' | 'traffic' | (string & {})
+
+/**
+ * 地图热力图响应（对应后端 /forecast/map 的 data 字段）。
+ * 2026-08-08 自 forecastAdapter 迁入（adapter 删除后类型归类型层）。
+ */
+export interface ForecastMapData {
+  indicator: string
+  unit: string
+  time: string
+  type: 'FeatureCollection'
+  features: Array<{
+    type: 'Feature'
+    geometry: { type: string; coordinates: number[] }
+    properties: {
+      portId: string
+      portName: string
+      value: number
+      reliability: number
+    }
+  }>
+}

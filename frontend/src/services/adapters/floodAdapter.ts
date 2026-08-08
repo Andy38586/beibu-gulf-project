@@ -1,14 +1,14 @@
 /**
  * Flood Data Adapter
  * 职责：隔离浸没分析业务层与数据源。
- * 业务层（FloodAnalysisPage）通过此 Adapter 获取数据，
- * 无需关心数据来自 static 静态资源还是真实 API/数据库。
+ * 业务层（FloodAnalysisPage）通过此 Adapter 获取数据。
+ * 数据链路（2026-08-08 数据搬后端后）：
+ * - api 模式：Express 后端 /flood/* 端点（floodArea/floodStatistics/water-area/analysis/disaster）
+ * - online 模式：flood-service FastAPI 实时演算（/flood-online/api/flood/*）
+ * static 模式与字段映射层已删除——前端静态 JSON 全部移交后端，字段由后端对齐类型契约。
  */
 
 import { useApiRequest } from '@/shared'
-import { loadStatic } from '@/shared'
-import { logger } from '@/shared'
-import { unwrapEnvelope } from '@/shared'
 import type { AffectedFacility, FloodFeature, FloodStatistics } from '@/types/business/base'
 import {
   floodAreasResponseSchema,
@@ -26,48 +26,12 @@ const { apiRequest } = useApiRequest()
 
 const ADAPTER_NAME = 'flood'
 
-const FALLBACK_WATER_AREA_COORDINATES: [number, number][] = [
-  [108.615, 21.855],
-  [108.62, 21.855],
-  [108.622, 21.858],
-  [108.621, 21.862],
-  [108.618, 21.863],
-  [108.614, 21.861],
-  [108.615, 21.855],
-]
-
-// ==================== 内部 static 实现（统一使用 loadStatic） ====================
-let _cachedWaterAreaCoords: [number, number][] | null = null
-
 // 档位结果缓存（online，2026-08-06 性能优化②）：round(level,1) 同档位秒回——
 // 滑块来回拖/重复档位不重发请求、不重绘淹没多边形（FastAPI 有后端 LRU，
 // 但前端每档仍全量请求+全量重建 entity，此缓存消除重复档位的整条链路）；
 // 规模与后端 LRU 一致（64 档），FIFO 淘汰
 const _onlineLevelCache = new Map<number, FloodAnalysisResult>()
 const MAX_ONLINE_LEVEL_CACHE = 64
-
-async function _fetchStaticWaterArea(): Promise<[number, number][]> {
-  if (_cachedWaterAreaCoords) return _cachedWaterAreaCoords
-  try {
-    const data = await loadStatic<{ coordinates?: [number, number][] }>('/data/water-area.json')
-    if (!Array.isArray(data?.coordinates) || data.coordinates.length === 0) {
-      throw new Error('water-area.json 缺少 coordinates 数组')
-    }
-    const coords: [number, number][] = data.coordinates
-    _cachedWaterAreaCoords = coords
-    return coords
-  } catch {
-    logger.debug('[FloodAdapter] water-area.json 加载失败，使用兆底坐标')
-    return FALLBACK_WATER_AREA_COORDINATES
-  }
-}
-
-/**
- * 加载 static JSON（统一使用 loadStatic，超时 10s + 去重）
- */
-async function _fetchStaticJson<T>(url: string, signal?: AbortSignal): Promise<T> {
-  return loadStatic<T>(url, { signal, cacheTTL: 0 })
-}
 
 interface FloodAnalysisResult {
   features: FloodFeature[]
@@ -83,82 +47,6 @@ interface ImpactAssessmentResult {
 
 interface RequestOptions {
   signal?: AbortSignal
-}
-
-// ==================== static 字段映射（N4: adapter 层做映射，不改类型定义） ====================
-// static 数据字段名与 types/business/base.ts 的类型定义存在差异：
-// - FloodFeature.properties 缺 riskLevel（需从顶层 riskLevel 补入）
-// - FloodStatistics: floodArea → totalArea, affectedFacilities → affectedCount
-// - AffectedFacility: longitude → lng, latitude → lat, 缺 id/loss/damageRate（从 impact 派生）
-
-/** 影响等级 → 损坏率映射 */
-const IMPACT_DAMAGE_RATE: Record<string, number> = {
-  重度: 0.8,
-  中度: 0.5,
-  轻度: 0.2,
-}
-
-/** 将 static flood-areas.json 的 features 映射为 FloodFeature[] */
-function _mapFloodFeatures(rawFeatures: unknown, fallbackRiskLevel: string): FloodFeature[] {
-  if (!Array.isArray(rawFeatures)) return []
-  return rawFeatures.map((f) => {
-    const props = (f.properties ?? {}) as Record<string, unknown>
-    return {
-      type: 'Feature' as const,
-      geometry: f.geometry,
-      properties: {
-        ...props,
-        riskLevel: (props.riskLevel as string) ?? fallbackRiskLevel,
-      },
-    } as FloodFeature
-  })
-}
-
-/** 将 static/api flood-statistics 响应映射为 FloodStatistics
- * 显式字段映射，不再 spread raw + as 断言 */
-function _mapFloodStatistics(
-  raw: Record<string, unknown> | undefined,
-  fallbackRiskLevel: string
-): FloodStatistics {
-  const r = raw ?? {}
-  return {
-    riskLevel: (r.riskLevel as string) ?? fallbackRiskLevel,
-    waterLevel: r.waterLevel as number | undefined,
-    floodArea: r.floodArea as number | undefined,
-    averageDepth: r.averageDepth as number | undefined,
-    maxDepth: r.maxDepth as number | undefined,
-    affectedFacilities: r.affectedFacilities as number | undefined,
-    affectedPorts: r.affectedPorts as string[] | undefined,
-    estimatedLoss: r.estimatedLoss as number | undefined,
-    description: r.description as string | undefined,
-  }
-}
-
-/** 将 static disaster.json 的 affectedFacilities 映射为 AffectedFacility[] */
-function _mapAffectedFacilities(rawFacilities: unknown, totalLoss: number): AffectedFacility[] {
-  if (!Array.isArray(rawFacilities)) return []
-  const totalDamageRate = rawFacilities.reduce((sum, f) => {
-    const impact = (f as Record<string, unknown>).impact as string
-    return sum + (IMPACT_DAMAGE_RATE[impact] ?? 0.1)
-  }, 0)
-  return rawFacilities.map((f, index) => {
-    const raw = f as Record<string, unknown>
-    const impact = raw.impact as string
-    const damageRate = IMPACT_DAMAGE_RATE[impact] ?? 0.1
-    return {
-      id: String(raw.id ?? raw.name ?? index),
-      name: (raw.name as string) ?? '',
-      type: (raw.type as string) ?? '',
-      lng: (raw.lng as number) ?? (raw.longitude as number) ?? 0,
-      lat: (raw.lat as number) ?? (raw.latitude as number) ?? 0,
-      port: raw.port as string | undefined,
-      loss:
-        totalDamageRate > 0
-          ? Math.round(totalLoss * (damageRate / totalDamageRate) * 100) / 100
-          : 0,
-      damageRate,
-    }
-  })
 }
 
 /**
@@ -210,17 +98,14 @@ export const floodAdapter = {
 
   // 类型补全 'online'（2026-08-06：原仅 'static'|'api'，与 DataSourceMode 三值不符——
   // 与 main.ts:38 断言漏 'online' 同源；运行时本就支持 online（VITE_DATA_SOURCE=online））
-  setDataSource(mode: 'static' | 'api' | 'online'): void {
+  setDataSource(mode: 'api' | 'online'): void {
     setAdapterDataSource(ADAPTER_NAME, mode)
   },
 
   // b046: 增加 signal 参数——水域坐标请求可随组件卸载/新请求取消
   async getWaterArea(signal?: AbortSignal): Promise<[number, number][]> {
-    if (resolveDataSource(ADAPTER_NAME) === 'static') {
-      return _fetchStaticWaterArea()
-    }
-    // api 模式：从后端只读端点获取水域坐标（D-4=A：后端 /flood/water-area 端点，
-    // 数据与前端 water-area.json 同源，前后端共用同一份静态坐标）。
+    // 后端只读端点获取水域坐标（D-4=A：后端 /flood/water-area 端点，
+    // 原与前端 water-area.json 同源，2026-08-08 数据搬后端后前端文件删除，仅此一条链路）
     const coords = await apiRequest<[number, number][]>('/flood/water-area', {
       schema: waterAreaSchema,
       signal,
@@ -266,37 +151,9 @@ export const floodAdapter = {
       _onlineLevelCache.set(levelKey, result)
       return result
     }
-    if (resolveDataSource(ADAPTER_NAME) === 'static') {
-      // static 数据为静态单档位，不响应水位参数
-      logger.warn(
-        `[FloodAdapter] static 模式不响应水位参数（请求 ${waterLevel}m，固定返回 2.5m 档位）`
-      )
-      const [floodAreasRes, statisticsRes] = await Promise.all([
-        _fetchStaticJson<{ code: number; data: Record<string, unknown> }>(
-          '/data/flood-areas.json',
-          signal
-        ),
-        _fetchStaticJson<{ code: number; data: Record<string, unknown> }>(
-          '/data/flood-statistics.json',
-          signal
-        ),
-      ])
-
-      if (floodAreasRes.code !== 200 || statisticsRes.code !== 200) {
-        throw new Error('[FloodAdapter] 淹没分析响应异常')
-      }
-
-      const floodData = floodAreasRes.data as Record<string, unknown> | undefined
-      const riskLevel = (floodData?.riskLevel as string) || '无风险'
-
-      return {
-        features: _mapFloodFeatures(floodData?.features, riskLevel),
-        statistics: _mapFloodStatistics(statisticsRes.data as Record<string, unknown>, riskLevel),
-        riskLevel,
-        actualWaterLevel: floodData?.actualWaterLevel as number | undefined,
-      }
-    }
     // api 模式：调用后端 /flood/flood-areas + /flood/flood-statistics
+    // （后端已按类型契约返回：features.properties 含 riskLevel、statistics 字段名一致——
+    // 原 _mapFloodFeatures/_mapFloodStatistics 映射层已删除，直接透传）
     const [floodAreasRes, statisticsRes] = await Promise.all([
       apiRequest<Record<string, unknown>>('/flood/flood-areas', {
         params: { waterLevel },
@@ -315,8 +172,10 @@ export const floodAdapter = {
     const actualWaterLevel = floodData?.actualWaterLevel as number | undefined
 
     return {
-      features: _mapFloodFeatures(floodData?.features, riskLevel),
-      statistics: _mapFloodStatistics(statisticsRes as Record<string, unknown>, riskLevel),
+      features: (floodData?.features as FloodFeature[]) || [],
+      // 后端 statistics 字段与类型契约一致（floodArea/averageDepth/...），
+      // 经 schema 校验后透传；Record → FloodStatistics 需 unknown 中转（TS2352）
+      statistics: statisticsRes as unknown as FloodStatistics,
       riskLevel,
       actualWaterLevel,
     }
@@ -340,26 +199,9 @@ export const floodAdapter = {
       const totalLoss = (result?.totalLoss as number) || 0
       return { affectedFacilities, totalLoss }
     }
-    if (resolveDataSource(ADAPTER_NAME) === 'static') {
-      logger.warn(`[FloodAdapter] static 影响评估不响应水位参数（请求 ${waterLevel}m）`)
-      const res = await _fetchStaticJson<{ code: number; data: Record<string, unknown> }>(
-        '/data/disaster.json',
-        signal
-      )
-
-      if (res.code !== 200) {
-        throw new Error('[FloodAdapter] 影响评估响应异常')
-      }
-
-      // 信封解包统一走 unwrapEnvelope（static 文件为 { code, data } 结构）
-      const result = unwrapEnvelope<Record<string, unknown>>(res)
-      const totalLoss = (result?.totalLoss as number) || 0
-      return {
-        affectedFacilities: _mapAffectedFacilities(result?.affectedFacilities, totalLoss),
-        totalLoss,
-      }
-    }
     // api 模式：调用后端 /flood/analysis/disaster
+    // （后端 assessDisaster 已返回 lng/lat/loss/damageRate 全字段，
+    // 原 _mapAffectedFacilities + IMPACT_DAMAGE_RATE 映射层已删除，直接透传）
     const res = await apiRequest<Record<string, unknown>>('/flood/analysis/disaster', {
       method: 'POST',
       body: JSON.stringify({ waterLevel }),
@@ -370,13 +212,12 @@ export const floodAdapter = {
     const result = res as Record<string, unknown> | undefined
     const totalLoss = (result?.totalLoss as number) || 0
     return {
-      affectedFacilities: _mapAffectedFacilities(result?.affectedFacilities, totalLoss),
+      affectedFacilities: (result?.affectedFacilities as AffectedFacility[]) || [],
       totalLoss,
     }
   },
 
   clearCache(): void {
-    _cachedWaterAreaCoords = null
     _onlineLevelCache.clear()
   },
 }

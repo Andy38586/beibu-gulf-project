@@ -26,30 +26,22 @@ vi.mock('@/core', async (importOriginal) => {
   }
 })
 
-// mock forecastAdapter（getMapData 由测试控制）
-vi.mock('@/services', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/services')>()
-  return {
-    ...actual,
-    forecastAdapter: {
-      ...actual.forecastAdapter,
-      getMapData: vi.fn(),
-    },
-  }
-})
+// mock useApiRequest（2026-08-08：forecastAdapter 已删，useForecastLayer 直连统一入口，
+// 请求由 mockApiRequest 控制）
+const mockApiRequest = vi.fn()
 
-// mock @/shared 的副作用函数
+// mock @/shared 的副作用函数 + useApiRequest
 vi.mock('@/shared', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/shared')>()
   return {
     ...actual,
+    useApiRequest: () => ({ apiRequest: mockApiRequest }),
     handleAuthError: vi.fn(),
     showError: vi.fn(),
   }
 })
 
 import { handleAuthError, showError } from '@/shared'
-import { forecastAdapter } from '@/services'
 
 import { useForecastLayer } from '../useForecastLayer'
 import { useForecastRequest } from '../useForecastRequest'
@@ -72,13 +64,13 @@ describe('useForecastLayer', () => {
     expect(mockManager.updateData).not.toHaveBeenCalled()
   })
 
-  it('成功路径: adapter 返回 geojson 后 updateData 到对应图层 key', async () => {
+  it('成功路径: apiRequest 返回 geojson 后 updateData 到对应图层 key', async () => {
     const mapStore = useMapStore()
     mapStore.currentRenderer = fakeRenderer as never
     const forecastStore = useForecastStore()
     forecastStore.activeIndicator = 'cargo'
 
-    ;(forecastAdapter.getMapData as ReturnType<typeof vi.fn>).mockResolvedValue({
+    mockApiRequest.mockResolvedValue({
       features: [{ id: 1 }],
     })
 
@@ -88,11 +80,12 @@ describe('useForecastLayer', () => {
 
     await updateForecastLayer(t.transactionId, t.signal)
 
-    expect(forecastAdapter.getMapData).toHaveBeenCalledWith(
-      'cargo',
-      expect.any(String),
-      expect.any(Number),
-      expect.any(AbortSignal)
+    expect(mockApiRequest).toHaveBeenCalledWith(
+      '/forecast/map',
+      expect.objectContaining({
+        params: expect.objectContaining({ indicator: 'cargo' }),
+        signal: expect.any(AbortSignal),
+      })
     )
     expect(mockManager.updateData).toHaveBeenCalledWith(
       'forecast-cargo',
@@ -100,11 +93,11 @@ describe('useForecastLayer', () => {
     )
   })
 
-  it('adapter 返回 null（事务取消）时跳过 updateData', async () => {
+  it('apiRequest 返回 null（事务取消）时跳过 updateData', async () => {
     const mapStore = useMapStore()
     mapStore.currentRenderer = fakeRenderer as never
 
-    ;(forecastAdapter.getMapData as ReturnType<typeof vi.fn>).mockResolvedValue(null)
+    mockApiRequest.mockResolvedValue(null)
 
     const { startTransaction } = useForecastRequest()
     const { updateForecastLayer } = useForecastLayer()
@@ -119,7 +112,7 @@ describe('useForecastLayer', () => {
     const mapStore = useMapStore()
     mapStore.currentRenderer = fakeRenderer as never
 
-    ;(forecastAdapter.getMapData as ReturnType<typeof vi.fn>).mockRejectedValue(
+    mockApiRequest.mockRejectedValue(
       new ApiError('请先登录', ErrorCode.UNAUTHORIZED)
     )
 

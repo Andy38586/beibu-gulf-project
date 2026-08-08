@@ -6,7 +6,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, reactive } from 'vue'
 
-import { SYNTHETIC_INDICATORS } from '@/services'
 import { useForecastStore } from '@/stores'
 
 import { BASE_YEAR, DEFAULT_CONFIDENCE, END_YEAR } from '@/shared'
@@ -15,8 +14,10 @@ const forecastState = useForecastStore()
 const CONFIRM_DELAY = 3000
 
 // ===== 四个指标 =====
-// synthetic 标志由 forecastAdapter.SYNTHETIC_INDICATORS 派生（单一事实源，b025 / D-2=A）：
-// berth/traffic 为示意性合成数据（非实测），UI 显示「（模拟）」角标。
+// synthetic 标志：berth/traffic 为示意性合成数据（非实测），UI 显示「（模拟）」角标。
+// 2026-08-08：数据搬后端后，合成标注来源为后端数据文件 metadata.source: 'synthetic'
+// （backend/data/forecast/berth.json / traffic.json），此处保持固定集合与之对应。
+const SYNTHETIC_INDICATORS = new Set(['berth', 'traffic'])
 const INDICATORS = [
   { key: 'cargo', label: '货物', icon: '📦' },
   { key: 'container', label: '集装箱', icon: '📋' },

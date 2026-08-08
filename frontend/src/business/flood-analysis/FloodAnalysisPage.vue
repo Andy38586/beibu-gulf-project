@@ -4,7 +4,8 @@
  * 数据状态（b029 / D-3=A 核实）：
  * - 真实地形：DEM 山体阴影由 dem-hillshade 图层加载 dem_hillshade.tif（COG，tools/dem-pipeline 生成），已真实接入；
  * - 3D 水面：预设水位档位可视化（非真实高程演算，真地形/地形 Provider 见 D-10 决策）；
- * - 数据链路：前端静态 JSON（public/data）+ online 演算（FastAPI），mock 目录与预留接口已清理（P1/P12）。
+ * - 数据链路：api（Express 后端，floodArea/floodStatistics/water-area/disaster）
+ *   + online 演算（flood-service FastAPI）；前端静态 JSON 已全部移除（2026-08-08 数据搬后端）。
  * 本模块验证目标：
  * 1. BusinessLayerManager 的 waterSurface adapter 能否独立注册/销毁
  * 2. 3D 渲染器（CesiumRenderer）在不依赖 2D 引擎时的纯 3D 业务承载能力

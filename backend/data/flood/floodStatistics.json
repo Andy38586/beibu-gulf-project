@@ -9,7 +9,8 @@
     },
     "version": "1.0.0",
     "createdAt": "2026-07-19",
-    "updatedAt": "2026-08-01"
+    "updatedAt": "2026-08-01",
+    "source": "simulated"
   },
   "statistics": [
     {
@@ -30,7 +31,7 @@
       "riskLevelCode": 1,
       "floodArea": 3299.31,
       "averageDepth": 0.8,
-      "maxDepth": 7.0,
+      "maxDepth": 7,
       "affectedFacilities": 0,
       "affectedPorts": [],
       "estimatedLoss": 0,
@@ -42,7 +43,7 @@
       "riskLevelCode": 2,
       "floodArea": 7445.79,
       "averageDepth": 2.23,
-      "maxDepth": 10.0,
+      "maxDepth": 10,
       "affectedFacilities": 0,
       "affectedPorts": [],
       "estimatedLoss": 0,
@@ -54,7 +55,7 @@
       "riskLevelCode": 3,
       "floodArea": 11926.45,
       "averageDepth": 3.64,
-      "maxDepth": 13.0,
+      "maxDepth": 13,
       "affectedFacilities": 0,
       "affectedPorts": [],
       "estimatedLoss": 0,
@@ -66,7 +67,7 @@
       "riskLevelCode": 4,
       "floodArea": 14202.18,
       "averageDepth": 4.83,
-      "maxDepth": 15.0,
+      "maxDepth": 15,
       "affectedFacilities": 1,
       "affectedPorts": [
         "北海港"
@@ -80,7 +81,7 @@
       "riskLevelCode": 5,
       "floodArea": 18115.58,
       "averageDepth": 8.23,
-      "maxDepth": 20.0,
+      "maxDepth": 20,
       "affectedFacilities": 10,
       "affectedPorts": [
         "防城港",

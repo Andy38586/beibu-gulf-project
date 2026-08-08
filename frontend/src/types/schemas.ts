@@ -64,7 +64,7 @@ export const authResponseSchema = z.object({
 export type AuthResponseParsed = z.infer<typeof authResponseSchema>
 
 // ==================== ⑥ Forecast TimeSeries Schema ====================
-// forecastAdapter /forecast/timeseries 响应（TimeSeriesResponse）
+// ForecastPage /forecast/timeseries 响应（TimeSeriesResponse）
 export const forecastPointSchema = z.object({
   time: z.string(),
   value: z.number(),
@@ -87,7 +87,7 @@ export const timeSeriesResponseSchema = z.object({
 export type TimeSeriesResponseParsed = z.infer<typeof timeSeriesResponseSchema>
 
 // ==================== ⑦ Forecast IndicatorComparison Schema ====================
-// forecastAdapter /forecast/indicator/:indicator 响应（IndicatorComparisonResponse）
+// ForecastPage /forecast/indicator/:indicator 响应（IndicatorComparisonResponse）
 export const indicatorComparisonResponseSchema = z.object({
   indicator: z.string(),
   unit: z.string(),
@@ -105,7 +105,7 @@ export const indicatorComparisonResponseSchema = z.object({
 export type IndicatorComparisonResponseParsed = z.infer<typeof indicatorComparisonResponseSchema>
 
 // ==================== ⑧ Forecast Map Schema ====================
-// forecastAdapter /forecast/map 响应（ForecastMapData,GeoJSON FeatureCollection）
+// useForecastLayer /forecast/map 响应（ForecastMapData,GeoJSON FeatureCollection）
 export const forecastMapDataSchema = z.looseObject({
   indicator: z.string(),
   unit: z.string(),
@@ -130,7 +130,7 @@ export const forecastMapDataSchema = z.looseObject({
 export type ForecastMapDataParsed = z.infer<typeof forecastMapDataSchema>
 
 // ==================== ⑨ Forecast Overview Schema ====================
-// forecastAdapter /forecast/overview 响应（ForecastIndicatorIndex）
+// /forecast/overview 响应（ForecastIndicatorIndex）
 export const forecastIndicatorIndexSchema = z.object({
   metadata: z.object({
     version: z.string(),

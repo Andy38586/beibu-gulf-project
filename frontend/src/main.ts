@@ -7,7 +7,6 @@ import App from './App.vue'
 import { initPerfReporter, perfReportError } from './shared/utils/perfReporter'
 import router from './router'
 import { floodAdapter } from './services/adapters/floodAdapter'
-import { forecastAdapter } from './services/adapters/forecastAdapter'
 import { logger } from './shared/utils/logger'
 
 /**
@@ -38,13 +37,11 @@ validateEnv()
 initPerfReporter()
 
 // 数据源由环境变量驱动，默认 api（生产安全；未配置不再静默打包 mock）。
-// 本地离线开发需显式设 VITE_DATA_SOURCE=static（写入 .env.local，优先级高于 .env）。
-const dataSource = (import.meta.env.VITE_DATA_SOURCE as 'static' | 'api' | undefined) || 'api'
-// 预测分析：真实指标（cargo/container）走后端 API；合成指标（berth/traffic）由 adapter
-// 按 INDICATOR_SOURCE 回退到前端静态 fixture（public/data/forecast/*）。
-// 两个 adapter 统一由 dataSource 驱动，移除 forecast 硬编码 'api' 覆盖（D-1=A，避免绕过全局语义）。
-// 2026-08-08：siteAnalysisAdapter 已删除（选址仅 api 态，直连 useApiRequest）——不再 setDataSource。
-forecastAdapter.setDataSource(dataSource)
+// static 模式已随"前端静态数据搬后端"移除（2026-08-08）——本地离线不再支持。
+const dataSource = (import.meta.env.VITE_DATA_SOURCE as 'api' | 'online' | undefined) || 'api'
+// flood 保留双模式：api（Express 后端）/ online（flood-service FastAPI 实时演算）。
+// 2026-08-08：siteAnalysisAdapter / forecastAdapter 已删（选址/预测纯 api 直连 useApiRequest，
+// berth/traffic 已搬后端，INDICATOR_SOURCE 一并移除——不再参与三态）。
 floodAdapter.setDataSource(dataSource)
 
 // ResizeObserver polyfill for Safari < 13.1

@@ -2,13 +2,13 @@
  * useForecastRequest — 预测模块专用请求事务管理器（实例级 + store 共享）
  * 核心职责：
  * 1. 统一管理请求事务 ID，保证一次预测任务的三个请求（timeseries、comparison、map）共享同一事务
- * 2. 通过 AbortController 取消旧请求（signal 透传给 forecastAdapter）
+ * 2. 通过 AbortController 取消旧请求（signal 透传给 apiRequest）
  * 3. 检测请求是否过期（事务 ID 不匹配则丢弃）
  * 设计原则（b039 重构后）：
  * - 事务 ID 与 isRequesting 状态迁入 forecastState store，跨组件共享且可被
  * store.reset() 一并复位（登出/路由切换时统一清零，配合批次1 Part 6）
  * - AbortController 不可序列化、不响应式，仍由 useForecastRequest 实例级持有，
- * 通过 startTransaction 返回的 signal 透传给 forecastAdapter
+ * 通过 startTransaction 返回的 signal 透传给 apiRequest
  * - ForecastPage 与 useForecastLayer 各自调用 useForecastRequest() 拿到独立实例，
  * 但通过共享的 forecastState.activeTransactionId 维持事务一致性
  * - 事务粒度：一次状态变化（indicator/time/confidence）触发一个事务

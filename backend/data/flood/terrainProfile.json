@@ -5,7 +5,8 @@
     "elevationUnit": "米",
     "distanceUnit": "米",
     "version": "1.0.0",
-    "createdAt": "2026-07-19"
+    "createdAt": "2026-07-19",
+    "source": "simulated"
   },
   "profiles": [
     {
@@ -26,91 +27,91 @@
           "distance": 0,
           "lng": 108.62,
           "lat": 21.86,
-          "elevation": 17.0
+          "elevation": 17
         },
         {
           "distance": 100,
           "lng": 108.621,
           "lat": 21.861,
-          "elevation": 17.0
+          "elevation": 17
         },
         {
           "distance": 200,
           "lng": 108.622,
           "lat": 21.862,
-          "elevation": 17.0
+          "elevation": 17
         },
         {
           "distance": 300,
           "lng": 108.623,
           "lat": 21.862,
-          "elevation": 17.0
+          "elevation": 17
         },
         {
           "distance": 400,
           "lng": 108.624,
           "lat": 21.863,
-          "elevation": 17.0
+          "elevation": 17
         },
         {
           "distance": 500,
           "lng": 108.625,
           "lat": 21.863,
-          "elevation": 17.0
+          "elevation": 17
         },
         {
           "distance": 600,
           "lng": 108.626,
           "lat": 21.864,
-          "elevation": 17.0
+          "elevation": 17
         },
         {
           "distance": 700,
           "lng": 108.627,
           "lat": 21.864,
-          "elevation": 17.0
+          "elevation": 17
         },
         {
           "distance": 800,
           "lng": 108.628,
           "lat": 21.865,
-          "elevation": 17.0
+          "elevation": 17
         },
         {
           "distance": 1000,
           "lng": 108.629,
           "lat": 21.866,
-          "elevation": 17.0
+          "elevation": 17
         },
         {
           "distance": 1200,
           "lng": 108.631,
           "lat": 21.867,
-          "elevation": 17.0
+          "elevation": 17
         },
         {
           "distance": 1400,
           "lng": 108.633,
           "lat": 21.868,
-          "elevation": 17.0
+          "elevation": 17
         },
         {
           "distance": 1600,
           "lng": 108.634,
           "lat": 21.869,
-          "elevation": 17.0
+          "elevation": 17
         },
         {
           "distance": 1800,
           "lng": 108.636,
           "lat": 21.869,
-          "elevation": 17.0
+          "elevation": 17
         },
         {
           "distance": 2000,
           "lng": 108.638,
           "lat": 21.87,
-          "elevation": 17.0
+          "elevation": 17
         }
       ]
     },
@@ -132,91 +133,91 @@
           "distance": 0,
           "lng": 108.34,
           "lat": 21.7,
-          "elevation": 14.0
+          "elevation": 14
         },
         {
           "distance": 100,
           "lng": 108.341,
           "lat": 21.701,
-          "elevation": 14.0
+          "elevation": 14
         },
         {
           "distance": 200,
           "lng": 108.342,
           "lat": 21.701,
-          "elevation": 14.0
+          "elevation": 14
         },
         {
           "distance": 350,
           "lng": 108.343,
           "lat": 21.702,
-          "elevation": 14.0
+          "elevation": 14
         },
         {
           "distance": 500,
           "lng": 108.345,
           "lat": 21.703,
-          "elevation": 14.0
+          "elevation": 14
         },
         {
           "distance": 650,
           "lng": 108.346,
           "lat": 21.703,
-          "elevation": 14.0
+          "elevation": 14
         },
         {
           "distance": 800,
           "lng": 108.348,
           "lat": 21.704,
-          "elevation": 14.0
+          "elevation": 14
         },
         {
           "distance": 1000,
           "lng": 108.349,
           "lat": 21.705,
-          "elevation": 14.0
+          "elevation": 14
         },
         {
           "distance": 1200,
           "lng": 108.351,
           "lat": 21.706,
-          "elevation": 14.0
+          "elevation": 14
         },
         {
           "distance": 1400,
           "lng": 108.353,
           "lat": 21.707,
-          "elevation": 14.0
+          "elevation": 14
         },
         {
           "distance": 1600,
           "lng": 108.354,
           "lat": 21.708,
-          "elevation": 14.0
+          "elevation": 14
         },
         {
           "distance": 1800,
           "lng": 108.356,
           "lat": 21.709,
-          "elevation": 14.0
+          "elevation": 14
         },
         {
           "distance": 2000,
           "lng": 108.358,
           "lat": 21.71,
-          "elevation": 14.0
+          "elevation": 14
         },
         {
           "distance": 2250,
           "lng": 108.36,
           "lat": 21.711,
-          "elevation": 14.0
+          "elevation": 14
         },
         {
           "distance": 2500,
           "lng": 108.362,
           "lat": 21.712,
-          "elevation": 14.0
+          "elevation": 14
         }
       ]
     },
@@ -238,73 +239,73 @@
           "distance": 0,
           "lng": 109.11,
           "lat": 21.445,
-          "elevation": 9.0
+          "elevation": 9
         },
         {
           "distance": 100,
           "lng": 109.111,
           "lat": 21.446,
-          "elevation": 9.0
+          "elevation": 9
         },
         {
           "distance": 200,
           "lng": 109.112,
           "lat": 21.446,
-          "elevation": 9.0
+          "elevation": 9
         },
         {
           "distance": 300,
           "lng": 109.113,
           "lat": 21.447,
-          "elevation": 13.0
+          "elevation": 13
         },
         {
           "distance": 450,
           "lng": 109.114,
           "lat": 21.447,
-          "elevation": 10.0
+          "elevation": 10
         },
         {
           "distance": 600,
           "lng": 109.115,
           "lat": 21.448,
-          "elevation": 12.0
+          "elevation": 12
         },
         {
           "distance": 800,
           "lng": 109.116,
           "lat": 21.449,
-          "elevation": 9.0
+          "elevation": 9
         },
         {
           "distance": 1000,
           "lng": 109.118,
           "lat": 21.449,
-          "elevation": 10.0
+          "elevation": 10
         },
         {
           "distance": 1200,
           "lng": 109.119,
           "lat": 21.45,
-          "elevation": 10.0
+          "elevation": 10
         },
         {
           "distance": 1400,
           "lng": 109.121,
           "lat": 21.451,
-          "elevation": 9.0
+          "elevation": 9
         },
         {
           "distance": 1600,
           "lng": 109.123,
           "lat": 21.453,
-          "elevation": 11.0
+          "elevation": 11
         },
         {
           "distance": 1800,
           "lng": 109.125,
           "lat": 21.455,
-          "elevation": 18.0
+          "elevation": 18
         }
       ]
     },
@@ -326,67 +327,67 @@
           "distance": 0,
           "lng": 108.605,
           "lat": 21.84,
-          "elevation": 16.0
+          "elevation": 16
         },
         {
           "distance": 150,
           "lng": 108.606,
           "lat": 21.841,
-          "elevation": 16.0
+          "elevation": 16
         },
         {
           "distance": 300,
           "lng": 108.608,
           "lat": 21.842,
-          "elevation": 16.0
+          "elevation": 16
         },
         {
           "distance": 450,
           "lng": 108.609,
           "lat": 21.843,
-          "elevation": 16.0
+          "elevation": 16
         },
         {
           "distance": 600,
           "lng": 108.61,
           "lat": 21.843,
-          "elevation": 16.0
+          "elevation": 16
         },
         {
           "distance": 800,
           "lng": 108.612,
           "lat": 21.844,
-          "elevation": 16.0
+          "elevation": 16
         },
         {
           "distance": 1000,
           "lng": 108.614,
           "lat": 21.845,
-          "elevation": 16.0
+          "elevation": 16
         },
         {
           "distance": 1200,
           "lng": 108.615,
           "lat": 21.846,
-          "elevation": 16.0
+          "elevation": 16
         },
         {
           "distance": 1500,
           "lng": 108.617,
           "lat": 21.848,
-          "elevation": 16.0
+          "elevation": 16
         },
         {
           "distance": 1800,
           "lng": 108.619,
           "lat": 21.849,
-          "elevation": 16.0
+          "elevation": 16
         },
         {
           "distance": 2000,
           "lng": 108.62,
           "lat": 21.85,
-          "elevation": 16.0
+          "elevation": 16
         }
       ]
     }

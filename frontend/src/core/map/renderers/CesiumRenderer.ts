@@ -678,7 +678,8 @@ export class CesiumRenderer extends MapRenderer {
     this.viewer.camera.flyTo({
       destination,
       // Cesium duration 单位为秒（原 1000 秒 ≈ 16.6 分钟）
-      duration: 1,
+      // 2026-08-09（P1-4）：读 FlyToOptions.duration（秒）?? 默认 1
+      duration: options.duration ?? 1,
       orientation: {
         heading: CesiumMath.toRadians(options.heading || 0),
         // 默认俯视 -90°（与 OL 2D 平坦视图一致），避免引擎切换时 pickEllipsoid 因倾斜产生偏移

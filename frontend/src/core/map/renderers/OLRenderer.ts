@@ -557,7 +557,7 @@ export class OLRenderer extends MapRenderer {
         if (source && typeof source.getExtent === 'function') {
           const extent = source.getExtent()
           if (extent) {
-            view.fit(extent, { duration: 1000 })
+            view.fit(extent, { duration: options.duration ?? 1000 })
             return
           }
         }
@@ -575,7 +575,8 @@ export class OLRenderer extends MapRenderer {
     view.animate({
       center: fromLonLat([lng, lat]),
       zoom,
-      duration: 1000,
+      // 2026-08-09（P1-4）：duration 参数生效——读 FlyToOptions.duration（毫秒）?? 默认 1000
+      duration: options.duration ?? 1000,
     })
   }
   _getCameraState() {

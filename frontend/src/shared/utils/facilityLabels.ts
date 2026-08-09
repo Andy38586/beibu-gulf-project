@@ -16,3 +16,18 @@ export const FACILITY_LABELS: Record<string, string> = {
   bus_station: '公交站',
   mall: '商场',
 }
+
+/**
+ * 经济损失格式化（2026-08-09 P1-6：原洪涝两面板各定义一份 → 收拢 shared）
+ * - 非法输入防御：非有限/undefined → '—'
+ * - 基础单位万元；≥ 10000 万（1 亿）换算为亿
+ */
+export function formatLoss(loss: number | undefined): string {
+  const v = Number(loss)
+  if (!isFinite(v)) return '—'
+  if (v >= 10000) {
+    return (v / 10000).toFixed(1) + '亿'
+  }
+  return v.toFixed(0) + '万'
+}
+

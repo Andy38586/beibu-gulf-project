@@ -6,16 +6,18 @@
  * 港口吞吐量图表从 AppLayout 下沉到本页（业务数据由业务页持有）。
  */
 
-import { computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 
 import AppLayout from '@/core/layout/AppLayout.vue'
 import GCSPanel from '@/core/layout/components/GCSPanel.vue'
+import { logger, useApiRequest } from '@/shared'
 import { useMapStore } from '@/stores'
 import BarChart from '@/visualization/charts/BarChart.vue'
 import LineChart from '@/visualization/charts/LineChart.vue'
 import PortInfoPanel from '@/visualization/panels/PortInfoPanel.vue'
 
 const mapStore = useMapStore()
+const { apiRequest } = useApiRequest()
 
 /**
  * 子组件 PortInfoPanel 的 props 声明为 Record<string, unknown>，
@@ -33,26 +35,66 @@ const selectedPortRecord = computed<Record<string, unknown> | undefined>(() => {
 
 /**
  * 折线图数据（首页默认展示，c023 从 AppLayout 下沉）
+ * 2026-08-09（P0-2）：原硬编码 2019-2024 假数据 → onMounted 接
+ * /forecast/timeseries?indicator=cargo&granularity=year（后端真实三港吞吐量，
+ * 2021 起按年聚合）；接口失败图表留空，不回落假数据。
  */
-const chartData = {
-  labels: ['2019', '2020', '2021', '2022', '2023', '2024'],
-  series: [
-    { name: '钦州港', data: [120, 132, 101, 134, 190, 230] },
-    { name: '北海港', data: [90, 110, 120, 115, 140, 180] },
-    { name: '防城港', data: [80, 95, 110, 125, 150, 170] },
-  ],
-}
+const chartData = ref<{ labels: string[]; series: Array<{ name: string; data: number[] }> }>({
+  labels: [],
+  series: [],
+})
 
 /**
  * 柱状图数据（首页默认展示，c023 从 AppLayout 下沉）
+ * 与折线图同源（charts 快照最近两年对比）。
  */
-const barData = {
-  labels: ['钦州港', '北海港', '防城港'],
-  series: [
-    { name: '2023年', data: [190, 140, 150] },
-    { name: '2024年', data: [230, 180, 170] },
-  ],
+const barData = ref<{ labels: string[]; series: Array<{ name: string; data: number[] }> }>({
+  labels: [],
+  series: [],
+})
+
+/** /forecast/overview 返回的 charts 快照（预聚合年吞吐量，静态读盘零计算） */
+interface OverviewCharts {
+  indicator: string
+  unit: string
+  labels: string[]
+  series: Array<{ name: string; data: number[] }>
 }
+interface OverviewResponse {
+  metadata?: unknown
+  charts?: OverviewCharts
+}
+
+async function loadOverviewCharts(): Promise<void> {
+  try {
+    // 2026-08-09（P0-2 + 用户定）：读 overview 的 charts 静态快照——
+    // 不用 timeseries 接口（cargo.json 无 forecast 段会触发预测模型计算，首页不应跑预测）
+    const res = await apiRequest<OverviewResponse>('forecast/overview')
+    const charts = res.charts
+    if (!charts || charts.series.length === 0) return
+    chartData.value = {
+      labels: charts.labels,
+      series: charts.series,
+    }
+    // 柱状图：最近两年三港对比
+    const recentYears = charts.labels.slice(-2)
+    barData.value = {
+      labels: charts.series.map((s) => s.name),
+      series: recentYears.map((y) => ({
+        name: `${y}年`,
+        data: charts.series.map((s) => {
+          const idx = charts.labels.indexOf(y)
+          return idx >= 0 ? s.data[idx] ?? 0 : 0
+        }),
+      })),
+    }
+  } catch (error) {
+    // 接口失败：图表留空（不回落硬编码假数据，避免上线假数据）
+    logger.warn('[HomePage] 吞吐量图表数据加载失败:', error)
+  }
+}
+
+onMounted(loadOverviewCharts)
 </script>
 
 <template>

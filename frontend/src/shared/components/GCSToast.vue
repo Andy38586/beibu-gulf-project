@@ -16,10 +16,23 @@ const { cell } = useGCS()
 const TOAST_DURATION_MS = 3000
 const timers = new Map<number, ReturnType<typeof setTimeout>>()
 
-// 新 toast 入队 → 启动自动消失计时
+// 新 toast 入队 → 启动自动消失计时（3s 后原位淡出）
+// 触发信号用 id 序列而非 items.length：队列满 4 时第 5 个来的 pop+unshift
+// 长度 4→3→4 最终不变，watch length 不触发 → 新 toast 永远无定时器（08-09 修复）。
+// 消失位置不限定：定时器到点后 splice(idx,1) 移除 toast 所在位置（1/2/3/4 位均可），
+// TransitionGroup leave 动画与原位一致。
 watch(
-  () => gcsToastState.items.length,
+  () => gcsToastState.items.map((t) => t.id).join(','),
   () => {
+    // 清理已被移除（pop 挤掉/已消失）toast 的残留定时器
+    for (const id of timers.keys()) {
+      if (!gcsToastState.items.some((t) => t.id === id)) {
+        const timer = timers.get(id)
+        if (timer) clearTimeout(timer)
+        timers.delete(id)
+      }
+    }
+    // 为尚无定时器的新 toast 启动 3s 计时
     for (const item of gcsToastState.items) {
       if (timers.has(item.id)) continue
       timers.set(

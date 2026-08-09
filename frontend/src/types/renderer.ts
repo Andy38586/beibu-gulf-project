@@ -163,9 +163,6 @@ export interface MapRendererEventMap {
 // ===== 主接口 =====
 
 export interface MapRenderer {
-  /** 初始化地图实例 */
-  init(): Promise<void>
-
   /** 销毁地图，释放资源 */
   destroy(): void
 

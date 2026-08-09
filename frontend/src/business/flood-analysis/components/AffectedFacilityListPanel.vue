@@ -13,6 +13,7 @@ import { computed } from 'vue'
 
 import { useMapControls } from '@/core'
 import PaginatedListPanel from '@/shared/components/PaginatedListPanel.vue'
+import { formatLoss } from '@/shared/utils/facilityLabels'
 import { useFloodStore } from '@/stores'
 import type { ScoredXiaoqu } from '@/types/xiaoqu'
 
@@ -36,17 +37,6 @@ function getFacilityTypeLabel(type: string | undefined) {
 /**
  * 格式化损失金额
  */
-function formatLoss(loss: number | undefined) {
-  // 非法输入防御
-  const v = Number(loss)
-  if (!isFinite(v)) return '—'
-  // 基础单位：万元；>= 10000万 换算为亿
-  if (v >= 10000) {
-    return (v / 10000).toFixed(1) + '亿'
-  }
-  return v.toFixed(0) + '万'
-}
-
 /**
  * 按损失金额排序的设施列表（降序）
  */

@@ -8,10 +8,22 @@ import { computed, onMounted, onUnmounted, reactive } from 'vue'
 
 import { useForecastStore } from '@/stores'
 
-import { BASE_YEAR, DEFAULT_CONFIDENCE, END_YEAR } from '@/shared'
+import { BASE_YEAR, CONFIRM_DELAY, DEFAULT_CONFIDENCE, END_YEAR, useGCS } from '@/shared'
 
 const forecastState = useForecastStore()
-const CONFIRM_DELAY = 3000
+
+// GCS 尺寸变量（与 LayerControlPanel 对齐）：
+// cell8px=0.1cell 面板边缘内边距；cell16px=0.2cell 按钮间外边距
+const { cellPixel, css } = useGCS()
+const { cell8px, cell16px } = css
+/** 按钮高度：0.8 cell（与选址分析/LayerControlPanel 一致，固定行高，不自动拉伸） */
+const btnHeightCss = computed(() => `${cellPixel.value * 0.8}px`)
+/** 字体大小：0.175cell=14px（标签），0.2cell=16px（图标），0.15cell=12px（小字），0.125cell=10px（角标） */
+const labelFontSizeCss = computed(() => `${cellPixel.value * 0.175}px`)
+const iconFontSizeCss = computed(() => `${cellPixel.value * 0.2}px`)
+const smallFontSizeCss = computed(() => `${cellPixel.value * 0.15}px`)
+const levelFontSizeCss = computed(() => `${cellPixel.value * 0.125}px`)
+// CONFIRM_DELAY 2026-08-09（P1-5）：两面板共用 → shared/constants/ui
 
 // ===== 四个指标 =====
 // synthetic 标志：berth/traffic 为示意性合成数据（非实测），UI 显示「（模拟）」角标。
@@ -251,27 +263,28 @@ onUnmounted(() => stopPlayback())
 </template>
 
 <style scoped>
+/* 面板内边距 0.1cell（与 LayerControlPanel 一致）；段落间距 0.2cell */
 .forecast-ctrl {
   width: 100%;
   height: 100%;
   display: flex;
   flex-direction: column;
-  padding: 10px;
+  padding: v-bind(cell8px);
   box-sizing: border-box;
-  gap: 10px;
+  gap: v-bind(cell16px);
 }
 
-/* ===== 按钮网格 ===== */
+/* ===== 按钮网格：2 列 1.8fr × 行 0.8cell（与选址分析/LayerControlPanel 一致），外边距 0.2cell ===== */
 .btn-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: 1fr 1fr;
-  gap: 8px;
+  grid-template-columns: repeat(2, 1.8fr);
+  grid-auto-rows: v-bind(btnHeightCss);
+  gap: v-bind(cell16px);
   flex: 1;
   min-height: 0;
 }
 .btn-cell {
-  border-radius: 12px;
+  border-radius: var(--GCS-radius-lg);
   transition: all 0.2s;
 }
 .btn-cell.sel {
@@ -290,12 +303,12 @@ onUnmounted(() => stopPlayback())
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 3px;
+  gap: 2px;
   border: 1px solid var(--GCS-border-default);
-  border-radius: 12px;
+  border-radius: var(--GCS-radius-lg);
   background: var(--GCS-bg-panel);
   cursor: pointer;
-  padding: 6px 4px;
+  padding: v-bind(cell8px) 4px;
   box-sizing: border-box;
   color: var(--GCS-text-regular);
 }
@@ -307,24 +320,24 @@ onUnmounted(() => stopPlayback())
   border-color: var(--GCS-color-primary);
 }
 .ind-icon {
-  font-size: 18px;
+  font-size: v-bind(iconFontSizeCss);
   line-height: 1;
 }
 .ind-label {
-  font-size: 13px;
+  font-size: v-bind(labelFontSizeCss);
   font-weight: 500;
 }
 .ind-synth {
-  font-size: 10px;
+  font-size: v-bind(levelFontSizeCss);
   color: var(--GCS-color-warning, #e6a23c);
   margin-left: 2px;
 }
 .ind-conf {
-  font-size: 10px;
+  font-size: v-bind(levelFontSizeCss);
   color: var(--GCS-color-primary);
 }
 
-/* 置信度滑块 */
+/* 置信度滑块（选择态：紧凑布局，4 元素需小间距） */
 .slider-cell {
   width: 100%;
   height: 100%;
@@ -333,15 +346,15 @@ onUnmounted(() => stopPlayback())
   align-items: center;
   justify-content: center;
   gap: 2px;
-  padding: 4px 8px;
+  padding: v-bind(cell8px);
   box-sizing: border-box;
   cursor: default;
 }
 .slider-cell .ind-icon {
-  font-size: 16px;
+  font-size: v-bind(iconFontSizeCss);
 }
 .slider-cell .ind-label-s {
-  font-size: 11px;
+  font-size: v-bind(smallFontSizeCss);
   color: var(--GCS-bg-panel);
 }
 .conf-slider {
@@ -371,7 +384,7 @@ onUnmounted(() => stopPlayback())
   border: none;
 }
 .conf-pct {
-  font-size: 10px;
+  font-size: v-bind(levelFontSizeCss);
   color: var(--GCS-bg-panel);
   font-weight: 600;
 }
@@ -381,7 +394,7 @@ onUnmounted(() => stopPlayback())
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: v-bind(cell8px);
 }
 .time-header {
   display: flex;
@@ -389,15 +402,15 @@ onUnmounted(() => stopPlayback())
   justify-content: space-between;
 }
 .time-label {
-  font-size: 14px;
+  font-size: v-bind(labelFontSizeCss);
   font-weight: 600;
   color: var(--GCS-color-primary);
 }
 .gr-toggle {
   display: flex;
   align-items: center;
-  gap: 3px;
-  font-size: 12px;
+  gap: v-bind(cell8px);
+  font-size: v-bind(smallFontSizeCss);
   color: var(--GCS-text-secondary);
   cursor: pointer;
 }
@@ -407,7 +420,7 @@ onUnmounted(() => stopPlayback())
 
 .time-slider-wrap {
   position: relative;
-  padding-bottom: 20px;
+  padding-bottom: v-bind(cell16px);
 }
 .t-slider {
   width: 100%;
@@ -449,7 +462,7 @@ onUnmounted(() => stopPlayback())
 .t-tick {
   position: absolute;
   transform: translateX(-50%);
-  font-size: 11px;
+  font-size: v-bind(smallFontSizeCss);
   color: var(--GCS-text-muted);
   white-space: nowrap;
 }
@@ -468,11 +481,11 @@ onUnmounted(() => stopPlayback())
   justify-content: center;
 }
 .act-btn {
-  padding: 4px 14px;
+  padding: v-bind(cell8px) v-bind(cell16px);
   background: var(--GCS-bg-container);
   border: 1px solid var(--GCS-border-default);
-  border-radius: 6px;
-  font-size: 14px;
+  border-radius: var(--GCS-radius-lg);
+  font-size: v-bind(labelFontSizeCss);
   cursor: pointer;
   color: var(--GCS-text-regular);
 }

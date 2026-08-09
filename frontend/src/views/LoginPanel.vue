@@ -15,7 +15,8 @@ import { useAuth } from '@/shared'
 import { useGCS } from '@/shared'
 
 const { login, register } = useAuth()
-const { cellPixel } = useGCS()
+const { cellPixel, css } = useGCS()
+const { cell8px, cell16px } = css
 
 const mode = ref('login') // 'login' | 'register'
 const username = ref('')
@@ -25,7 +26,6 @@ const errorMsg = ref('')
 const loading = ref(false)
 
 // CSS v-bind 计算属性（使用响应式 cellPixel，随视口变化）
-const panelPaddingCss = computed(() => `${cellPixel.value * 0.125}px`) // 10px
 const inputFontSizeCss = computed(() => `${cellPixel.value * 0.175}px`) // 14px
 const btnFontSizeCss = computed(() => `${cellPixel.value * 0.175}px`) // 14px
 const errorFontSizeCss = computed(() => `${cellPixel.value * 0.15}px`) // 12px
@@ -164,15 +164,15 @@ async function handleSubmit() {
   height: 100%;
   display: flex;
   flex-direction: column;
-  padding: v-bind(panelPaddingCss);
+  padding: v-bind(cell8px);
   box-sizing: border-box;
-  gap: v-bind(panelPaddingCss);
+  gap: v-bind(cell16px);
 }
 
-/* 登录/注册切换按钮（1.8×0.8 Cell） */
+/* 登录/注册切换按钮（1.8×0.8 Cell），间距 0.2cell */
 .mode-buttons {
   display: flex;
-  gap: 10px; /* 非8的整数倍，保留 */
+  gap: v-bind(cell16px);
   justify-content: center;
 }
 
@@ -204,7 +204,7 @@ async function handleSubmit() {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 10px; /* 非8的整数倍，保留 */
+  gap: v-bind(cell16px);
   justify-content: flex-start;
   align-items: center;
 }

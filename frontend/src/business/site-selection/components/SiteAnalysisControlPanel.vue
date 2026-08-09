@@ -3,7 +3,7 @@
 // 按钮三态：默认(白) → 选择(蓝,滑块,3s自动确认) → 已选(白+重要程度标签)
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 
-import { showWarning } from '@/shared'
+import { CONFIRM_DELAY, showWarning, useGCS } from '@/shared'
 import type { AnalysisResult, FacilityType, TypeSetting } from '@/types/analysis'
 
 import { FACILITY_CONFIG } from '../composables/facilityConfig'
@@ -16,11 +16,21 @@ interface Emits {
 
 const emit = defineEmits<Emits>()
 
+// GCS 尺寸变量（与 LayerControlPanel 对齐）：
+// cell8px=0.1cell 面板边缘内边距；cell16px=0.2cell 按钮间外边距
+const { cellPixel, css } = useGCS()
+const { cell8px, cell16px } = css
+/** 按钮高度：0.8 cell（网格行高，与 LayerControlPanel 一致） */
+const btnHeightCss = computed(() => `${cellPixel.value * 0.8}px`)
+/** 字体大小：0.175cell=14px（标签），0.2cell=16px（圆点），0.125cell=10px（重要程度） */
+const labelFontSizeCss = computed(() => `${cellPixel.value * 0.175}px`)
+const iconFontSizeCss = computed(() => `${cellPixel.value * 0.2}px`)
+const levelFontSizeCss = computed(() => `${cellPixel.value * 0.125}px`)
+
 /** 面板元素引用（用于外部点击检测） */
 const panelRef = ref<HTMLElement | null>(null)
 
-/** 自动确认延迟（毫秒） */
-const CONFIRM_DELAY = 3000
+// CONFIRM_DELAY 2026-08-09（P1-5）：两面板共用 → shared/constants/ui
 
 /** 扩展 TypeSetting，添加 selecting 状态 */
 interface LocalTypeSetting extends TypeSetting {
@@ -276,20 +286,24 @@ defineExpose({
 </template>
 
 <style scoped>
+/* 面板内边距 0.1cell（与 LayerControlPanel 一致：按钮到面板边缘的距离） */
 .factor-panel {
   width: 100%;
   height: 100%;
-  padding: 10px;
+  padding: v-bind(cell8px);
   box-sizing: border-box;
 }
 
-/* 按钮网格：2 列 × 4 行（与图层控制面板一致） */
+/* 按钮网格：2 列 × 4 行（与 LayerControlPanel 完全一致）
+   列 1.8fr×2 + gap 0.2cell = 3.8cell 内容宽；行 0.8cell×4 + gap 0.2cell×3 = 3.8cell 内容高
+   外边距（按钮间距）0.2cell = 0.1cell+0.1cell，上下左右统一 */
 .factor-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: repeat(4, 1fr);
-  gap: 10px;
+  grid-template-columns: repeat(2, 1.8fr);
+  grid-auto-rows: v-bind(btnHeightCss);
+  gap: v-bind(cell16px);
   height: 100%;
+  align-content: start;
 }
 
 .factor-item {
@@ -301,7 +315,7 @@ defineExpose({
   height: 100%;
 }
 
-/* 默认态 / 已选态：白色按钮 */
+/* 默认态 / 已选态：白色按钮（尺寸与 LayerControlPanel 一致） */
 .factor-btn {
   width: 100%;
   height: 100%;
@@ -309,15 +323,15 @@ defineExpose({
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: v-bind(cell8px);
   background: var(--GCS-bg-panel);
   border: 1px solid var(--GCS-border-default);
-  border-radius: 12px;
+  border-radius: var(--GCS-radius-lg);
   cursor: pointer;
-  font-size: 13px;
+  font-size: v-bind(labelFontSizeCss);
   color: var(--GCS-text-regular);
   transition: all 0.2s ease;
-  padding: 6px 4px;
+  padding: v-bind(cell8px) 4px;
   box-sizing: border-box;
 }
 
@@ -327,7 +341,7 @@ defineExpose({
 }
 
 .factor-dot {
-  font-size: 12px;
+  font-size: v-bind(iconFontSizeCss);
   line-height: 1;
 }
 
@@ -336,13 +350,13 @@ defineExpose({
   line-height: 1.2;
 }
 
-/* 已选态：带重要程度标签 */
+/* 已选态：带重要程度标签（3 元素需紧凑间距） */
 .factor-btn.confirmed {
   gap: 2px;
 }
 
 .factor-level {
-  font-size: 10px;
+  font-size: v-bind(levelFontSizeCss);
   color: var(--GCS-color-primary);
   line-height: 1;
 }
@@ -350,7 +364,7 @@ defineExpose({
 /* 选择态：蓝色背景 + 滑块 */
 .factor-item.selected.selecting {
   background: var(--GCS-color-primary);
-  border-radius: 12px;
+  border-radius: var(--GCS-radius-lg);
 }
 
 .factor-slider-wrap {
@@ -360,8 +374,8 @@ defineExpose({
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  padding: 6px 8px;
+  gap: v-bind(cell8px);
+  padding: v-bind(cell8px);
   box-sizing: border-box;
   cursor: default;
 }
@@ -399,7 +413,7 @@ defineExpose({
 }
 
 .factor-importance {
-  font-size: 10px;
+  font-size: v-bind(levelFontSizeCss);
   color: var(--GCS-bg-panel);
   white-space: nowrap;
   overflow: hidden;

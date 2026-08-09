@@ -10,7 +10,7 @@
 
 import { computed } from 'vue'
 
-import { useGCS } from '@/shared'
+import { useGCS , formatLoss } from '@/shared'
 import { useFloodStore } from '@/stores'
 
 const floodStore = useFloodStore()
@@ -36,13 +36,6 @@ const contentStyle = computed(() => {
 })
 
 /** 格式化损失金额 */
-function formatLoss(loss: number) {
-  if (loss >= 10000) {
-    return (loss / 10000).toFixed(1) + ' 亿'
-  }
-  return loss.toFixed(0) + ' 万'
-}
-
 /** 影响等级（根据总损失计算） */
 const impactLevel = computed(() => {
   const loss = floodStore.totalLoss

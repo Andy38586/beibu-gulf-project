@@ -45,10 +45,6 @@ export class MapRenderer {
     this._pendingVisibility = new Map()
   }
 
-  async init(): Promise<void> {
-    throw new Error(`${this.getType()} init 未实现`)
-  }
-
   updateSize(): void {
     throw new Error(`${this.getType()} updateSize 未实现`)
   }

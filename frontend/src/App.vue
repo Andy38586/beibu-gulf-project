@@ -2,11 +2,11 @@
 import { onMounted, onUnmounted, provide, ref, watch } from 'vue'
 import { RouterView, useRoute, useRouter } from 'vue-router'
 
+import { businessModules } from '@/business/manifest'
 import { BusinessLayerManager } from '@/core'
 import { BUSINESS_LAYER_MANAGER_KEY } from '@/core'
 import { useMapControls } from '@/core'
 import { registerNavItems } from '@/core'
-import { businessModules } from '@/business/manifest'
 import {
   EDITING_PLAN_KEY,
   MAP_STORE_KEY,
@@ -14,22 +14,17 @@ import {
   UNIFIED_MAP_KEY,
   type UnifiedMapExposed,
 } from '@/core'
-import UnifiedMap from '@/core/map/UnifiedMap.vue'
 import { preloadCesium } from '@/core/map/renderers'
-import {
-  initAuthStorageListener,
-  removeAuthStorageListener,
-  showWarning,
-  useAuth,
-} from '@/shared'
+import UnifiedMap from '@/core/map/UnifiedMap.vue'
+import { initAuthStorageListener, removeAuthStorageListener, showWarning, useAuth } from '@/shared'
 import { logger } from '@/shared'
 import ErrorBoundary from '@/shared/components/ErrorBoundary.vue'
+import GCSModal from '@/shared/components/GCSModal.vue'
+import GCSToast from '@/shared/components/GCSToast.vue'
 import { useFloodStore } from '@/stores'
 import { useForecastStore } from '@/stores'
 import { useMapStore } from '@/stores'
 import { siteSelectionPersisted } from '@/stores'
-import GCSModal from '@/shared/components/GCSModal.vue'
-import GCSToast from '@/shared/components/GCSToast.vue'
 import type { TypeSetting } from '@/types/facility'
 import type { Plan } from '@/types/plan'
 
@@ -68,7 +63,7 @@ function resetStores(): void {
     siteSelectionPersisted.clearState()
     // P3：waterLevel/portImpact/profile 已并入 floodStore，clearState 全量清（含持久化快照）
     useFloodStore().clearState()
-    // 重置地图业务交互状态，清 analysisHandler 闭包与 sessionStorage
+    // 重置地图业务交互状态，清 lastAnalysisResult 会话持久化与 sessionStorage
     useMapStore().resetMapState()
     // 预测页状态复位（含 dataCache 清空）
     useForecastStore().reset()

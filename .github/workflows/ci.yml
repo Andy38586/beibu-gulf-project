@@ -81,12 +81,15 @@ jobs:
 
       # d053: secret-scan 入 CI —— gitleaks 扫当前工作树(非 git 历史,避免历史遗留 key 导致 CI 常红;
       # 历史清理走 tools/git-clean-history.sh,属一次性人工操作)。
+      # 2026-08-09 修复：/releases/latest/download 资产名带版本号（gitleaks_8.24.3_linux_x64.tar.gz），
+      # 原模板 gitleaks_${OS}_${ARCH}.tar.gz 无版本号 → 404。改固定版本下载。
       - name: Secret scan (gitleaks)
         run: |
           OS=$(uname -s | tr '[:upper:]' '[:lower:]')
           ARCH=$(uname -m)
           case "$ARCH" in x86_64|amd64) ARCH="x64";; aarch64|arm64) ARCH="arm64";; esac
-          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/latest/download/gitleaks_${OS}_${ARCH}.tar.gz" -o gitleaks.tar.gz
+          GITLEAKS_VERSION=8.24.3
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_${OS}_${ARCH}.tar.gz" -o gitleaks.tar.gz
           tar -xzf gitleaks.tar.gz
           ./gitleaks detect --redact --source . --no-banner
 

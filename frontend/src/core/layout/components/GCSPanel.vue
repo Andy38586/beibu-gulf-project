@@ -42,24 +42,28 @@ const props = withDefaults(defineProps<Props>(), {
   offsetY: 0,
 })
 
-const { panelPosition } = useGCS()
+const { panelPosition, cellPixel } = useGCS()
 
 /**
  * 输出 CSS 变量而非直接内联定位属性。
  * 外部组件可通过 :deep(.GCS-panel) { --GCS-panel-left: ... } 覆盖，无需 !important。
  * GCS 铁律：变量一律全大写前缀 --GCS-*（原 --gcs-panel-* 小写违规，z041 修正）。
+ * 2026-08-09：min-width/min-height 由硬编码 80 改为响应式 cellPixel——
+ * 原实现导致 768~960px 区间面板实际宽度大于定位宽度（右列溢出、外边距被吞），
+ * 且窄屏下面板无法等比缩小。cellPixel 最低档为 70（config.ts 档位化）。
  */
 const panelStyle = computed(() => {
   const pos = panelPosition(props.w, props.h, props.anchor, props.offsetX, props.offsetY)
   const wPx = parseFloat(pos.width) || props.w * 80
   const hPx = parseFloat(pos.height) || props.h * 80
+  const cell = cellPixel.value > 0 ? cellPixel.value : 80
   return {
     '--GCS-panel-left': pos.left || '20px',
     '--GCS-panel-top': pos.top || '20px',
     '--GCS-panel-width': `${wPx}px`,
     '--GCS-panel-height': `${hPx}px`,
-    '--GCS-panel-min-width': `${props.w * 80}px`,
-    '--GCS-panel-min-height': `${props.h * 80}px`,
+    '--GCS-panel-min-width': `${props.w * cell}px`,
+    '--GCS-panel-min-height': `${props.h * cell}px`,
   }
 })
 </script>

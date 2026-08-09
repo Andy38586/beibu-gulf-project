@@ -4,7 +4,7 @@ import { computed, ref } from 'vue'
 
 import { logger } from '@/shared/utils/logger'
 
-import { CELL_PADDING, GAP, getCellPixelByViewport, PANEL_SPACING, SAFE_MARGIN } from './config.js'
+import { CELL_PADDING, GAP, getCellPixelByViewport, LAYOUT_DESKTOP_MIN, LAYOUT_DRAWER_MIN, PANEL_SPACING, SAFE_MARGIN } from './config.js'
 
 /** 锚点类型 */
 export type Anchor =
@@ -36,6 +36,8 @@ export interface UseGCSReturn {
   padding: number
   showPanels: ComputedRef<boolean>
   showTopArea: ComputedRef<boolean>
+  /** 档位 3（<640px）：底部 nav 需紧凑化（用户决策 2026-08-09） */
+  navCompact: ComputedRef<boolean>
   cell: (w: number, h: number) => { width: string; height: string }
   cellSize: (w: number, h: number) => { width: number; height: number }
   panelContentSize: (w: number, h: number) => { width: number; height: number }
@@ -102,10 +104,13 @@ export function useGCS(): UseGCSReturn {
   const gap = computed(() => GAP)
 
   /**
-   * 响应式显隐控制
+   * 响应式显隐控制（2026-08-09 档位化）
+   * - showPanels/showTopArea：桌面等比例布局（≥3 个 4-cell 面板宽 = 960px）
+   * - navCompact：<2 个面板宽（<640px），底部 nav 需紧凑化（档位 3，nav 另行设计）
    */
-  const showPanels = computed(() => windowWidth.value >= 768)
-  const showTopArea = computed(() => windowWidth.value >= 768)
+  const showPanels = computed(() => windowWidth.value >= LAYOUT_DESKTOP_MIN)
+  const showTopArea = computed(() => windowWidth.value >= LAYOUT_DESKTOP_MIN)
+  const navCompact = computed(() => windowWidth.value < LAYOUT_DRAWER_MIN)
 
   /**
    * 计算 w×h 个 Cell 占据的总尺寸（CSS 字符串格式）
@@ -216,6 +221,7 @@ export function useGCS(): UseGCSReturn {
     padding: CELL_PADDING,
     showPanels,
     showTopArea,
+    navCompact,
     cell,
     cellSize,
     panelContentSize,

@@ -20,10 +20,9 @@ core/
 ├── config/
 │   └── map.ts               # MAP_CONFIG + buildTiandituUrl + zoomToHeight/heightToZoom
 ├── layout/
-│   ├── AppLayout.vue        # GCS V2 布局基座（PPS 定位 + slot）
-│   ├── navConfig.ts         # 导航项注册机制（registerNavItems）
+│   ├── AppLayout.vue        # GCS V2 布局基座（PPS 定位 + 抽屉菜单）
 │   ├── useMobileDrawer.ts   # 移动端抽屉状态（模块级单例）
-│   ├── components/          # BottomNavBar / GCSButton / GCSPanel / NavButton / MobileDrawer / GCSInspectionOverlay
+│   ├── components/          # BottomNavBar(3键dock) / GCSButton / GCSPanel / NavButton / MobileDrawer / DebugToggle
 │   └── composables/
 │       └── useScreenActions.ts   # goHome/goProfileOrBack/flyToCity/userButtonLabel
 └── map/
@@ -95,7 +94,7 @@ core/
 | `a025` | UnifiedMap | click 监听具名回调 + off 解绑，注册/移除配对契约 |
 | `a033 (D-12=B)` | UnifiedMap | 核心常驻层（boundary/ports）收口到 BLM，与业务图层统一走 registry |
 | `z024` | UnifiedMap | 组件级 abort（loadAbort），卸载后阻止异步回调继续写 ref |
-| `c023` | navConfig | core/layout 业务污染治理：导航项由业务层（App.vue）注入，core 不再硬编码业务路由 |
+| `c023` | 业务导航 | 2026-08-09 重构：navConfig 已删，底部 dock 固定 3 键（首页/个人中心/菜单），业务入口+城市切换统一收敛到 AppLayout 抽屉菜单（business/manifest 单一事实源） |
 
 ## 七、测试
 

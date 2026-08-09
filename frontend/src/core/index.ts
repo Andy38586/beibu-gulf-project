@@ -4,7 +4,6 @@
 // renderers/index.ts 的 createRenderer/OLRenderer 仅在 core 内部使用，不对外暴露
 export * from './config/map'
 export * from './layout/composables/useScreenActions'
-export * from './layout/navConfig'
 export * from './layout/useMobileDrawer'
 export * from './map/BusinessLayerManager'
 export * from './map/composables/useBoundaryLayer'

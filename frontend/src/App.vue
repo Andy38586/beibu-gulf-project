@@ -2,11 +2,9 @@
 import { onMounted, onUnmounted, provide, ref, watch } from 'vue'
 import { RouterView, useRoute, useRouter } from 'vue-router'
 
-import { businessModules } from '@/business/manifest'
 import { BusinessLayerManager } from '@/core'
 import { BUSINESS_LAYER_MANAGER_KEY } from '@/core'
 import { useMapControls } from '@/core'
-import { registerNavItems } from '@/core'
 import {
   EDITING_PLAN_KEY,
   MAP_STORE_KEY,
@@ -77,19 +75,6 @@ watch(
     if (!u) resetStores()
   }
 )
-
-// 注册底部导航项：首页/个人中心为静态项,业务项由 manifest 生成（z075）
-// core/layout 不硬编码业务路由；新增业务只改 business/manifest.ts
-registerNavItems([
-  { label: '首页', icon: '⌂', path: '/', disabled: false },
-  ...businessModules.map((m) => ({
-    label: m.navLabel,
-    icon: m.navIcon,
-    path: m.path,
-    disabled: !!m.navDisabled,
-  })),
-  { label: '个人中心', icon: '👤', path: '/profile', disabled: false },
-])
 
 function handleRequireLogin() {
   void router.push('/profile')

@@ -29,7 +29,8 @@ if ! id -nG | grep -qw docker; then
   sudo usermod -aG docker "$USER"
   echo "==> 已将 $USER 加入 docker 组（重新登录 SSH 生效）"
 fi
-systemctl enable --now docker || sudo systemctl enable --now docker
+# systemctl 需 root（无 sudo 会触发 polkit 密码提示卡死）
+sudo systemctl enable --now docker || true
 
 echo "==> [2/4] 项目目录 $APP_DIR"
 mkdir -p "$APP_DIR"

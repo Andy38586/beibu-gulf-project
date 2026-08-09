@@ -2,8 +2,9 @@ import type { ComputedRef, Ref } from 'vue'
 import { computed, ref } from 'vue'
 import type { ZodType } from 'zod'
 
-import { unwrapEnvelope } from '@/shared/utils/responseEnvelope'
 import { perfRecordApi } from '@/shared/utils/perfReporter'
+import { unwrapEnvelope } from '@/shared/utils/responseEnvelope'
+
 import { logger } from '../utils/logger'
 
 // 错误码：使用 as const 对象 + 联合类型，避免 enum 在 ESLint 下的成员误报
@@ -156,6 +157,9 @@ export function useApiRequest() {
         headers,
         credentials: 'include',
         signal,
+        // 2026-08-09：API 请求禁止浏览器缓存——Express 默认 ETag，刷新时 me/plans 等
+        // 返回 304，前端 fetch 将 304 视为错误（res.ok 只认 2xx）→ 误判登出/数据失败。
+        cache: 'no-store',
       })
       clearTimeout(timeoutId)
 

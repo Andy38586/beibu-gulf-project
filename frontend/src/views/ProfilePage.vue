@@ -12,7 +12,7 @@ import { defineAsyncComponent, onMounted } from 'vue'
 
 import AppLayout from '@/core/layout/AppLayout.vue'
 import GCSPanel from '@/core/layout/components/GCSPanel.vue'
-import { useAuth, useOverviewCharts } from '@/shared'
+import { useAuth, useGCS, useOverviewCharts } from '@/shared'
 import ChartLoading from '@/visualization/charts/ChartLoading.vue'
 
 import PlansPanel from './components/PlansPanel.vue'
@@ -29,11 +29,22 @@ const BarChart = defineAsyncComponent({
   loadingComponent: ChartLoading,
 })
 
-const { user } = useAuth()
+const { user, logout } = useAuth()
+const { cellPixel, css } = useGCS()
 const { chartData, barData, loadOverviewCharts } = useOverviewCharts()
 
 // 2026-08-09（P0-3）：与首页共用 useOverviewCharts，去掉本页硬编码假数据
 onMounted(loadOverviewCharts)
+
+/** 退出登录：复用 useAuth.logout（清 HttpOnly Cookie + localStorage + 业务 store） */
+async function handleLogout() {
+  await logout()
+}
+
+// 退出按钮尺寸（GCS cell 单位，原 UserInfoCard 内样式下沉）
+const logoutWidthCss = `${cellPixel.value * 3.8}px`
+const logoutHeightCss = `${cellPixel.value * 0.8}px`
+const logoutFontCss = `${cellPixel.value * 0.175}px`
 </script>
 
 <template>
@@ -56,10 +67,14 @@ onMounted(loadOverviewCharts)
             <!-- c013: 两张屏 v-if 互换——未登录显示登录面板，已登录显示个人中心 -->
             <LoginPanel v-if="!user" class="profile-login" />
 
-            <!-- 个人中心（仅登录后显示）：用户信息 + 收藏抽屉 -->
+            <!-- 个人中心（仅登录后显示）：用户信息 + 收藏抽屉 + 底部退出（2026-08-09：
+                 退出按钮独立下沉到最底部，原在 UserInfoCard 内位于收藏面板上方） -->
             <div v-else class="profile-logged-in">
               <UserInfoCard />
               <PlansPanel />
+              <div class="profile-logout-bar">
+                <button class="profile-logout-btn" @click="handleLogout">退出登录</button>
+              </div>
             </div>
           </div>
         </GCSPanel>
@@ -89,11 +104,37 @@ onMounted(loadOverviewCharts)
   min-height: 0;
 }
 
-/* 已登录：内部三段式（顶部头像+用户名 / 中段抽屉收藏 / 底部退出，由子组件各自承担） */
+/* 已登录：内部三段式（顶部头像+用户名 / 中段收藏 / 底部退出） */
 .profile-logged-in {
   flex: 1 1 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
+}
+
+/* 底部退出登录（2026-08-09：独立下沉，原在 UserInfoCard 内位于收藏上方） */
+.profile-logout-bar {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: center;
+  padding: v-bind(css.cell8px) 0;
+}
+
+.profile-logout-btn {
+  width: v-bind(logoutWidthCss);
+  height: v-bind(logoutHeightCss);
+  border: 1px solid var(--GCS-color-error);
+  border-radius: var(--GCS-radius-md);
+  background: var(--GCS-bg-panel);
+  color: var(--GCS-color-error);
+  font-size: v-bind(logoutFontCss);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.profile-logout-btn:hover {
+  background: var(--GCS-color-error);
+  color: var(--GCS-text-inverse);
 }
 </style>

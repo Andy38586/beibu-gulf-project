@@ -212,6 +212,32 @@ body {
   transform: translateX(100%);
 }
 
+/* ===== 滑块专注模式（安卓控制中心风格，2026-08-09 用户决策） =====
+ * 滑块按下时：抽屉背景/遮罩/其余面板全透明，只保留滑块所在面板；
+ * 底部 nav 不在隐藏范围（.GCS-panel 之外），避免像 bug */
+.slider-focus-mode .GCS-drawer__backdrop {
+  opacity: 0;
+}
+.slider-focus-mode .GCS-drawer__sheet {
+  background: transparent;
+  box-shadow: none;
+}
+.slider-focus-mode .GCS-drawer__header {
+  opacity: 0;
+  pointer-events: none;
+}
+.slider-focus-mode .GCS-panel {
+  opacity: 0;
+}
+.slider-focus-mode .GCS-panel.slider-focus-panel {
+  opacity: 1;
+}
+.slider-focus-mode .GCS-panel,
+.slider-focus-mode .GCS-drawer__backdrop,
+.slider-focus-mode .GCS-drawer__header {
+  transition: opacity 0.15s ease;
+}
+
 /* ===== c017: 公共滑块 thumb 样式（消除 3 处重复） =====
  * 使用方式：input[type=range] 加 class="gcs-slider" */
 .gcs-slider {

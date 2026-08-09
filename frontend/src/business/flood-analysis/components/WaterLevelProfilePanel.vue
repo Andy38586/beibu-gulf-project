@@ -23,12 +23,13 @@ import * as echarts from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 
-import { perfTimeFn } from '@/shared/utils/perfReporter'
+import { useSliderFocus } from '@/core/layout/useSliderFocus'
 import { useApiRequest } from '@/shared'
 import { PROFILE_COLORS } from '@/shared'
 import { useGCS } from '@/shared'
 import { showError } from '@/shared'
 import { logger } from '@/shared'
+import { perfTimeFn } from '@/shared/utils/perfReporter'
 import { useFloodStore } from '@/stores'
 import { terrainProfileSchema } from '@/types/schemas'
 
@@ -73,6 +74,8 @@ interface TerrainProfile {
 
 const { apiRequest } = useApiRequest()
 const floodStore = useFloodStore()
+// 滑块专注模式（安卓控制中心风格）：拖动水位滑块时隐藏其他面板，只留本面板
+const { beginSliderFocus, endSliderFocus } = useSliderFocus()
 // 直接从 useGCS 解构 CSS 变量供 v-bind() 使用
 const { cell8px, cell16px } = useGCS()
 
@@ -373,6 +376,9 @@ onUnmounted(() => {
         :max="20"
         :step="0.1"
         :show-tooltip="false"
+        @pointerdown="beginSliderFocus($event.currentTarget as HTMLElement)"
+        @pointerup="endSliderFocus"
+        @pointercancel="endSliderFocus"
         @input="onSliderChange"
         @change="onSliderChange"
       />

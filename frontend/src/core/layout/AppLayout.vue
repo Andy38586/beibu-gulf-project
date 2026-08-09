@@ -12,7 +12,7 @@
  * - 抽屉模式下（<960px）抽屉同时承载业务面板（slot left/right）
  */
 
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { type BusinessModule,businessModules } from '@/business/manifest'
@@ -30,6 +30,7 @@ import GCSPanel from './components/GCSPanel.vue'
 import MobileDrawer from './components/MobileDrawer.vue'
 import NavButton from './components/NavButton.vue'
 import { useMobileDrawer } from './useMobileDrawer'
+import { useSliderFocus } from './useSliderFocus'
 
 const route = useRoute()
 const router = useRouter()
@@ -37,9 +38,27 @@ const { showPanels, showTopArea } = useGCS()
 const { flyToCity, goProfileOrBack, userButtonLabel } = useScreenActions()
 // 抽屉开关（模块级单例，nav 菜单按钮与抽屉共享）
 const { drawerOpen, closeDrawer } = useMobileDrawer()
+// 滑块专注模式（模块级单例，滑块组件调用 begin/end）
+const { active: sliderFocusActive, activePanel: sliderActivePanel } = useSliderFocus()
 
 // 调试模式状态（网格 + 性能监控，类似 MC F3；生产可用）
 const debugMode = ref(false)
+
+// 根节点引用：专注模式 class 挂载点
+const appLayoutRef = ref<HTMLElement | null>(null)
+
+// 滑块专注模式：激活时根节点加 slider-focus-mode（CSS 透明化其他面板），
+// 滑块所在面板标记 slider-focus-panel 保持可见；底部 nav 不受影响
+watch(sliderFocusActive, (act) => {
+  const root = appLayoutRef.value
+  if (!root) return
+  root.classList.toggle('slider-focus-mode', act)
+  if (act) {
+    document.querySelectorAll('.GCS-panel').forEach((p) => {
+      p.classList.toggle('slider-focus-panel', p === sliderActivePanel.value)
+    })
+  }
+})
 
 function isActive(path: string): boolean {
   return route.path === path
@@ -54,7 +73,7 @@ function goBusiness(m: BusinessModule): void {
 </script>
 
 <template>
-  <div class="app-layout">
+  <div ref="appLayoutRef" class="app-layout">
     <!-- ===== 桌面端：绝对定位 PPS 面板（≥960px） ===== -->
     <template v-if="showPanels">
       <!-- Title Panel（4×1，左上，第一行） -->

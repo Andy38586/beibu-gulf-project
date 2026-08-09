@@ -6,11 +6,14 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, reactive } from 'vue'
 
+import { useSliderFocus } from '@/core/layout/useSliderFocus'
+import { BASE_YEAR, CONFIRM_DELAY, DEFAULT_CONFIDENCE, END_YEAR, useGCS } from '@/shared'
 import { useForecastStore } from '@/stores'
 
-import { BASE_YEAR, CONFIRM_DELAY, DEFAULT_CONFIDENCE, END_YEAR, useGCS } from '@/shared'
-
 const forecastState = useForecastStore()
+
+// 滑块专注模式（安卓控制中心风格）：拖动滑块时隐藏其他面板，只留本面板
+const { beginSliderFocus, endSliderFocus } = useSliderFocus()
 
 // GCS 尺寸变量（与 LayerControlPanel 对齐）：
 // cell8px=0.1cell 面板边缘内边距；cell16px=0.2cell 按钮间外边距
@@ -220,6 +223,9 @@ onUnmounted(() => stopPlayback())
             step="0.05"
             :value="getConf(ind.key)"
             class="conf-slider"
+            @pointerdown="beginSliderFocus($event.currentTarget as HTMLInputElement)"
+            @pointerup="endSliderFocus"
+            @pointercancel="endSliderFocus"
             @input="onConfidenceSliderInput(ind.key, ($event.target as HTMLInputElement).value)"
           />
           <span class="conf-pct">{{ (getConf(ind.key) * 100).toFixed(0) }}%</span>
@@ -240,6 +246,9 @@ onUnmounted(() => stopPlayback())
           :max="maxSteps"
           :value="currentStep"
           class="t-slider"
+          @pointerdown="beginSliderFocus($event.currentTarget as HTMLInputElement)"
+          @pointerup="endSliderFocus"
+          @pointercancel="endSliderFocus"
           @input="onSlider"
         />
         <div class="t-ticks">

@@ -1,0 +1,8 @@
+# 本机工具目录（不入 git），避免 prettier --check . 扫描第三方 bundle 噪音
+.workbuddy/
+.reasonix/
+# 构建产物
+**/dist*/
+**/coverage/
+**/node_modules/
+**/.venv/

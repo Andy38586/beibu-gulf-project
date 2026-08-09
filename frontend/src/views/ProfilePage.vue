@@ -8,40 +8,32 @@
  * P1-10 拆分：用户信息（UserInfoCard）与收藏方案管理（PlansPanel）已下沉为
  * 独立子组件，本页只负责布局与图表展示。
  */
+import { defineAsyncComponent, onMounted } from 'vue'
+
 import AppLayout from '@/core/layout/AppLayout.vue'
 import GCSPanel from '@/core/layout/components/GCSPanel.vue'
-import { useAuth } from '@/shared'
-import BarChart from '@/visualization/charts/BarChart.vue'
-import LineChart from '@/visualization/charts/LineChart.vue'
+import { useAuth, useOverviewCharts } from '@/shared'
+import ChartLoading from '@/visualization/charts/ChartLoading.vue'
 
 import PlansPanel from './components/PlansPanel.vue'
 import UserInfoCard from './components/UserInfoCard.vue'
 import LoginPanel from './LoginPanel.vue'
 
+// 2026-08-09：图表组件异步化（同首页，echarts 移出首屏关键路径）
+const LineChart = defineAsyncComponent({
+  loader: () => import('@/visualization/charts/LineChart.vue'),
+  loadingComponent: ChartLoading,
+})
+const BarChart = defineAsyncComponent({
+  loader: () => import('@/visualization/charts/BarChart.vue'),
+  loadingComponent: ChartLoading,
+})
+
 const { user } = useAuth()
+const { chartData, barData, loadOverviewCharts } = useOverviewCharts()
 
-/**
- * 折线图数据（c023 从 AppLayout 下沉到本页）
- */
-const chartData = {
-  labels: ['2019', '2020', '2021', '2022', '2023', '2024'],
-  series: [
-    { name: '钦州港', data: [120, 132, 101, 134, 190, 230] },
-    { name: '北海港', data: [90, 110, 120, 115, 140, 180] },
-    { name: '防城港', data: [80, 95, 110, 125, 150, 170] },
-  ],
-}
-
-/**
- * 柱状图数据（c023 从 AppLayout 下沉到本页）
- */
-const barData = {
-  labels: ['钦州港', '北海港', '防城港'],
-  series: [
-    { name: '2023年', data: [190, 140, 150] },
-    { name: '2024年', data: [230, 180, 170] },
-  ],
-}
+// 2026-08-09（P0-3）：与首页共用 useOverviewCharts，去掉本页硬编码假数据
+onMounted(loadOverviewCharts)
 </script>
 
 <template>

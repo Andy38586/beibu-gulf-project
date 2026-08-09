@@ -46,7 +46,10 @@ ENV NODE_ENV=production
 RUN apk add --no-cache nginx su-exec
 
 # d068: 创建非 root 用户 nodeapp（uid 1000），并预备可写的数据/日志目录
-RUN adduser -D -u 1000 nodeapp \
+# 2026-08-09 修复：node:22-alpine 镜像自带 uid 1000 的 node 用户（adduser 冲突），
+# 先删除再创建；uid 1000 必须保留（与宿主机 volume 挂载的 admin(uid 1000) 权限匹配）。
+RUN deluser node \
+  && adduser -D -u 1000 nodeapp \
   && mkdir -p /app/backend/data /app/backend/logs \
   && chown -R nodeapp:nodeapp /app/backend/data /app/backend/logs
 

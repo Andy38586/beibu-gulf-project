@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
@@ -28,9 +28,14 @@ import {
  */
 const DATA_DIR = join(__dirname, '../../../../backend/data')
 
+// plans.json 是运行时用户数据（.gitignore，不在仓库）——CI checkout 后不存在。
+// 真实数据校验在本地（有文件）执行；CI 环境跳过该用例（其余 schema 用例不受影响）。
+const plansPath = join(DATA_DIR, 'plans.json')
+const plansExist = existsSync(plansPath)
+
 describe('planSchema（真实 plans.json 全量校验）', () => {
-  it('存量 18 条 plan 记录全部通过（含无 savedXiaoqu 的旧记录）', () => {
-    const plans = JSON.parse(readFileSync(join(DATA_DIR, 'plans.json'), 'utf8'))
+  it.skipIf(!plansExist)('存量 18 条 plan 记录全部通过（含无 savedXiaoqu 的旧记录）', () => {
+    const plans = JSON.parse(readFileSync(plansPath, 'utf8'))
     expect(Array.isArray(plans)).toBe(true)
     for (const plan of plans) {
       const result = planSchema.safeParse(plan)

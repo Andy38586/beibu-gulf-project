@@ -343,6 +343,9 @@ onUnmounted(() => {
   }
 
   window.removeEventListener('resize', handleResize)
+  // 2026-08-09（P1）：组件卸载时若有滑块专注模式激活立即退出——
+  // 拖到一半切路由，pointerup 永不触发 → body.slider-focus-mode 残留 → 下页面板全透明
+  endSliderFocus()
 })
 </script>
 

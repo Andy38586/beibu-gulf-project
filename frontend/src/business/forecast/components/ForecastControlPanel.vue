@@ -32,7 +32,10 @@ const levelFontSizeCss = computed(() => `${cellPixel.value * 0.125}px`)
 // synthetic 标志：berth/traffic 为示意性合成数据（非实测），UI 显示「（模拟）」角标。
 // 2026-08-08：数据搬后端后，合成标注来源为后端数据文件 metadata.source: 'synthetic'
 // （backend/data/forecast/berth.json / traffic.json），此处保持固定集合与之对应。
+// 2026-08-09（P1）：cargo 走吞吐量模型固定基线（backend/services/modelLoader.js，
+// scenarioLevel 恒 1.0 不支持情景）——不提供置信度滑块，与后端契约一致（单一事实源在后端）。
 const SYNTHETIC_INDICATORS = new Set(['berth', 'traffic'])
+const MODEL_FIXED_INDICATORS = new Set(['cargo'])
 const INDICATORS = [
   { key: 'cargo', label: '货物', icon: '📦' },
   { key: 'container', label: '集装箱', icon: '📋' },
@@ -110,6 +113,9 @@ onMounted(() => {
 onUnmounted(() => {
   document.removeEventListener('click', handleGlobalClick)
   Object.keys(timers).forEach(clearTimer)
+  // 2026-08-09（P1）：组件卸载时若有滑块专注模式激活立即退出——
+  // 拖到一半切路由，pointerup 永不触发 → body.slider-focus-mode 残留 → 下页面板全透明
+  endSliderFocus()
 })
 
 // ===== 时间滑块 =====
@@ -216,7 +222,11 @@ onUnmounted(() => stopPlayback())
           <span class="ind-icon">{{ ind.icon }}</span>
           <span class="ind-label-s">{{ ind.label }}</span>
           <span v-if="ind.synthetic" class="ind-synth">（模拟）</span>
+          <!-- 2026-08-09（P1）：cargo 走吞吐量模型固定基线（后端 scenarioLevel 恒 1.0），
+               不提供置信度滑块——原滑块可拖但无效果（UI 撒谎）；显示模型基线标注 -->
+          <span v-if="MODEL_FIXED_INDICATORS.has(ind.key)" class="conf-fixed">模型基线</span>
           <input
+            v-else
             type="range"
             min="0.8"
             max="1.2"
@@ -396,6 +406,14 @@ onUnmounted(() => stopPlayback())
   font-size: v-bind(levelFontSizeCss);
   color: var(--GCS-bg-panel);
   font-weight: 600;
+}
+/* 模型固定基线标注（cargo 无置信度滑块，2026-08-09 P1） */
+.conf-fixed {
+  font-size: v-bind(levelFontSizeCss);
+  color: var(--GCS-text-muted);
+  font-weight: 500;
+  flex: 1;
+  text-align: center;
 }
 
 /* ===== 时间滑块 ===== */

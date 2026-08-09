@@ -120,5 +120,9 @@ export async function logout(req, res) {
 }
 
 export async function me(req, res) {
+  // 2026-08-09 修复：认证响应禁止缓存（Cache-Control: no-store）——
+  // Express 默认 ETag 缓存，刷新时 me 返回 304，前端 fetch 将 304 视为错误
+  // （res.ok 只认 2xx）→ restoreAuth 误判登出 → "刷新就掉"。认证响应本不该被缓存（安全惯例）。
+  res.set('Cache-Control', 'no-store')
   sendSuccess(res, { user: req.user })
 }

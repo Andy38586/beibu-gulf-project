@@ -226,7 +226,7 @@ body {
   opacity: 0;
   pointer-events: none;
 }
-.slider-focus-mode .GCS-panel {
+.slider-focus-mode .GCS-panel:not(.slider-focus-panel):not(.bottom-nav-bar) {
   opacity: 0;
 }
 .slider-focus-mode .GCS-panel.slider-focus-panel {

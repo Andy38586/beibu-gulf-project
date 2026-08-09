@@ -31,7 +31,7 @@ services:
       # TLS 证书（可选）：将 fullchain.pem + privkey.pem 放入 ./certs/ 即启用 HTTPS
       - ./certs:/etc/nginx/certs:ro
     ports:
-      - "8080:80"      # nginx（前端 + API 代理）
-      - "8443:443"    # nginx HTTPS（需 ./certs/ 下有证书）
-      - "3000:3000"    # 后端直连（可选）
+      - "80:80"      # nginx（前端 + API 代理；2026-08-09 改为标准 80，需停用服务器系统 nginx）
+      - "8443:443"   # nginx HTTPS（需 ./certs/ 下有证书）
+      - "3000:3000"  # 后端直连（可选）
     restart: unless-stopped

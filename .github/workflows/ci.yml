@@ -11,15 +11,13 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # d067 (P1): 依赖安全扫描。独立 job，high+ 漏洞阻断构建。（原 8.2 d060，重编号消除与主清单 d060-typeSettings 冲突）
+  # d067 (P1): 依赖安全扫描。独立 job，high+ 漏洞阻断构建。
   # 使用官方 npm registry（npmmirror 镜像无 audit 端点，d042 教训）。
-  # 2026-08-09：降级为告警（continue-on-error）——8 个 high 漏洞全在 devDependencies 工具链
-  # （brace-expansion/glob/nanoid/postcss/shell-quote/undici 等 vite 传递依赖），
-  # 不进入生产镜像（仅构建期使用）；npm audit fix 被 node engine 限制阻断
-  # （修复版要求 node 22.22+/26+）。待工具链升级时一并收敛（技术债登记）。
+  # 2026-08-09：通过 package.json overrides 修复全部 8 个漏洞
+  # （brace-expansion/dompurify/glob/nanoid/postcss/protobufjs/shell-quote/undici），
+  # 移除 continue-on-error，恢复为硬性阻断。
   audit:
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

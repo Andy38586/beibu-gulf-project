@@ -12,11 +12,11 @@ ENV VITE_TIANDITU_KEY=$VITE_TIANDITU_KEY
 WORKDIR /app
 
 # 根依赖锁文件（根 package-lock.json 存在）
-# 2026-08-09：--no-audit --no-fund——npm ci 默认跑 audit，audit 基于 lock 做 peer
-# 完整性校验（npmmirror 生成的 lock 缺 rollup peer 条目 → Missing rollup@2.80.0）；
-# 依赖审计由 CI 的 audit job 负责，构建阶段跳过。
+# 2026-08-09：npm ci → npm install——npm ci 严格校验 lock 完整性，要求包含所有
+# optional/peer 条目（如 macOS 专属 fsevents），Linux 生成 lock 时天然缺失 → 必然 EUSAGE。
+# npm install 宽容模式：优先按 lock 安装，缺条目自动补解析，生产构建足够。
 COPY package*.json ./
-RUN npm ci --no-audit --no-fund
+RUN npm install --no-audit --no-fund
 
 # 前端源码与 vite 配置
 COPY frontend/ ./frontend/
@@ -29,7 +29,7 @@ FROM node:22-alpine AS backend-builder
 
 WORKDIR /app/backend
 COPY backend/package*.json ./
-RUN npm ci --production --no-audit --no-fund
+RUN npm install --production --no-audit --no-fund
 COPY backend/ ./
 
 # ============ Stage 3: Production ============

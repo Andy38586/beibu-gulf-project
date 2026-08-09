@@ -12,15 +12,13 @@
  * - 抽屉模式下（<960px）抽屉同时承载业务面板（slot left/right）
  */
 
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
-import { type BusinessModule, businessModules } from '@/business/manifest'
 import { useScreenActions } from '@/core/layout/composables/useScreenActions'
 import LayerControlPanel from '@/core/map/components/LayerControlPanel.vue'
 import { useGCS } from '@/shared'
 import PanelTitle from '@/shared/components/PanelTitle.vue'
-import LoginPanel from '@/views/LoginPanel.vue'
 import RadarChart from '@/visualization/charts/RadarChart.vue'
 
 import BottomNavBar from './components/BottomNavBar.vue'
@@ -29,6 +27,7 @@ import GCSDebugOverlay from './components/GCSDebugOverlay.vue'
 import GCSPanel from './components/GCSPanel.vue'
 import MobileDrawer from './components/MobileDrawer.vue'
 import NavButton from './components/NavButton.vue'
+import { type NavItem,navItems } from './navConfig'
 import { useMobileDrawer } from './useMobileDrawer'
 import { useSliderFocus } from './useSliderFocus'
 
@@ -40,6 +39,11 @@ const { flyToCity, goProfileOrBack, userButtonLabel } = useScreenActions()
 const { drawerOpen, closeDrawer } = useMobileDrawer()
 // 滑块专注模式（模块级单例，滑块组件调用 begin/end）
 const { active: sliderFocusActive, activePanel: sliderActivePanel } = useSliderFocus()
+
+// 抽屉业务行：navConfig 中 type=business 的项（core 不引 business/manifest，由 App.vue 注入）
+const businessNavItems = computed<NavItem[]>(() => [
+  ...navItems.value.filter((i) => i.type === 'business'),
+])
 
 // 调试模式状态（网格 + 性能监控，类似 MC F3；生产可用）
 // 2026-08-09 用户决策：调试板块仅本地开发渲染（上线不带调试模式，无需第二套环境）——
@@ -65,10 +69,10 @@ function isActive(path: string): boolean {
   return route.path === path
 }
 
-/** 跳转业务模块并关闭抽屉 */
-function goBusiness(m: BusinessModule): void {
-  if (m.navDisabled || !m.component) return
-  void router.push(m.path)
+/** 跳转业务模块并关闭抽屉（navConfig 注入项） */
+function goBusiness(item: NavItem): void {
+  if (item.disabled || !item.path) return
+  void router.push(item.path)
   closeDrawer()
 }
 </script>
@@ -141,11 +145,11 @@ function goBusiness(m: BusinessModule): void {
         <!-- 业务入口行：滚动时冻结（sticky） -->
         <div class="drawer-menu__row drawer-menu__row--sticky" aria-label="业务功能">
           <NavButton
-            v-for="m in businessModules"
-            :key="m.name"
-            :label="m.navLabel"
-            :icon="m.navIcon"
-            :disabled="m.navDisabled"
+            v-for="m in businessNavItems"
+            :key="m.label"
+            :label="m.label"
+            :icon="m.icon"
+            :disabled="m.disabled"
             :active="isActive(m.path)"
             @click="goBusiness(m)"
           />
@@ -158,13 +162,14 @@ function goBusiness(m: BusinessModule): void {
           <NavButton :label="userButtonLabel" icon="👤" @click="goProfileOrBack" />
         </div>
         <!-- 抽屉模式（<960px）面板内容（2026-08-09 用户决策：只留功能面板，图表类纯充数不进抽屉）：
-             首页 → 图层控制；个人中心 → 登录面板；业务页 → 业务面板原样 -->
+             首页 → 图层控制（core 组件）；个人中心 → 登录面板（由 ProfilePage 经 #right slot 注入）；
+             业务页 → 业务面板原样 -->
         <template v-if="!showPanels">
           <template v-if="route.name === 'Home'">
             <GCSPanel :w="4" :h="4"><LayerControlPanel /></GCSPanel>
           </template>
           <template v-else-if="route.name === 'Profile'">
-            <LoginPanel />
+            <slot name="right" />
           </template>
           <template v-else>
             <slot name="left" />

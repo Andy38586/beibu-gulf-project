@@ -2,8 +2,10 @@
 import { onMounted, onUnmounted, provide, ref, watch } from 'vue'
 import { RouterView, useRoute, useRouter } from 'vue-router'
 
+import { businessModules } from '@/business/manifest'
 import { BusinessLayerManager } from '@/core'
 import { BUSINESS_LAYER_MANAGER_KEY } from '@/core'
+import { registerNavItems } from '@/core'
 import { useMapControls } from '@/core'
 import {
   EDITING_PLAN_KEY,
@@ -79,6 +81,20 @@ watch(
 function handleRequireLogin() {
   void router.push('/profile')
 }
+
+// 注册底部导航项（2026-08-09 重构恢复注入模式）：core/layout 不引 business，
+// 由根入口 App.vue 从 business/manifest 生成业务项注入 navConfig（分层铁律）
+registerNavItems([
+  { type: 'home', label: '首页', icon: '⌂', path: '/', disabled: false },
+  ...businessModules.map((m) => ({
+    type: 'business' as const,
+    label: m.navLabel,
+    icon: m.navIcon,
+    path: m.path,
+    disabled: !!m.navDisabled,
+  })),
+  { type: 'profile', label: '个人中心', icon: '👤', path: '/profile', disabled: false },
+])
 
 // 等待渲染器就绪后再执行缩放
 function waitForRenderer(callback: () => void, retries = 0) {

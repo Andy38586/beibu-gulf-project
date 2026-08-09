@@ -12,10 +12,11 @@ ENV VITE_TIANDITU_KEY=$VITE_TIANDITU_KEY
 WORKDIR /app
 
 # 根依赖锁文件（根 package-lock.json 存在）
-# 2026-08-09：npm ci 使用官方 registry——npmmirror 元数据与官方源不一致会导致
-# lock 校验失败（Missing rollup 等）；实测官方源国内服务器可用（718 包 46s）。
+# 2026-08-09：--no-audit --no-fund——npm ci 默认跑 audit，audit 基于 lock 做 peer
+# 完整性校验（npmmirror 生成的 lock 缺 rollup peer 条目 → Missing rollup@2.80.0）；
+# 依赖审计由 CI 的 audit job 负责，构建阶段跳过。
 COPY package*.json ./
-RUN npm ci
+RUN npm ci --no-audit --no-fund
 
 # 前端源码与 vite 配置
 COPY frontend/ ./frontend/
@@ -28,7 +29,7 @@ FROM node:22-alpine AS backend-builder
 
 WORKDIR /app/backend
 COPY backend/package*.json ./
-RUN npm ci --production
+RUN npm ci --production --no-audit --no-fund
 COPY backend/ ./
 
 # ============ Stage 3: Production ============

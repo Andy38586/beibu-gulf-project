@@ -195,7 +195,7 @@ describe('OLRenderer 热力图（P0-1）', () => {
   })
 
   afterEach(() => {
-    if (renderer?.map && !(renderer.map as { disposed: boolean }).disposed) {
+    if (renderer?.map && !(renderer.map as unknown as { disposed: boolean }).disposed) {
       renderer.destroy()
     }
   })

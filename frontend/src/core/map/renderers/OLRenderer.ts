@@ -1,23 +1,25 @@
-// 技术债：OL 渲染器类型注解待逐步补充，typecheck 依赖 @ts-nocheck，故豁免 ban-ts-comment
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-nocheck
-// 渐进迁移：OL 渲染器，类型注解待逐步补充（D-6 技术债）
-// 基线：移除 @ts-nocheck 后 171 个 typecheck 错误（2026-08-03 统计），待后续批次渐进修复
+// 2026-08-09：移除 @ts-nocheck（OL 渲染器类型补全，原 171 个 typecheck 错误渐进清零）
+import type { FeatureCollection } from 'geojson'
+import type { EventsKey } from 'ol/events'
+import type { FeatureLike } from 'ol/Feature'
 import Feature from 'ol/Feature'
 import GeoJSON from 'ol/format/GeoJSON'
 import Point from 'ol/geom/Point'
 import Polygon from 'ol/geom/Polygon'
+import type BaseLayer from 'ol/layer/Base'
 import Heatmap from 'ol/layer/Heatmap'
 import TileLayer from 'ol/layer/Tile'
 import VectorLayer from 'ol/layer/Vector'
 // 不能用 `import Map` —— 会遮蔽全局 ES Map，
 // 导致 `new Map()`（如 _cullLayers 初始化）误建 ol/Map 实例，moveend 遍历 .keys() 时崩溃。
 import OlMap from 'ol/Map'
+import type MapBrowserEvent from 'ol/MapBrowserEvent'
 import { fromLonLat, toLonLat } from 'ol/proj'
 import GeoTIFF from 'ol/source/GeoTIFF'
 import VectorSource from 'ol/source/Vector'
 import XYZ from 'ol/source/XYZ'
 import { Circle, Fill, Stroke, Style, Text } from 'ol/style'
+import type { StyleFunction } from 'ol/style/Style'
 import View from 'ol/View'
 
 import { buildTiandituUrl, heightToZoom, MAP_CONFIG } from '@/core/config/map'
@@ -25,15 +27,36 @@ import { LAYER_DEFAULTS } from '@/shared'
 import { logger } from '@/shared'
 import { createSpatialIndex, VIEWPORT_CULL_THRESHOLD } from '@/shared'
 import { normalizePoint } from '@/shared'
+import type { LayerOptions, PointFeature, PolygonFeature } from '@/types'
+import type { CameraState, FlyToOptions, FlyToTarget } from '@/types'
 
 import { MapRenderer } from './MapRenderer'
 
+/** 视口裁剪图层条目（_cullLayers 值类型，2026-08-09 类型补全） */
+interface CullLayerEntry {
+  source: VectorSource
+  index: ReturnType<typeof createSpatialIndex<PointFeature>>
+  options: LayerOptions
+  featureType: string
+}
+
 /**
  * OpenLayers 2D 渲染器。
- * 类型契约：本类字段类型随 @ts-nocheck 保留为运行期 JSDoc 参考（renderers.d.ts 已删，见 P1）。
  */
 export class OLRenderer extends MapRenderer {
-  constructor(container) {
+  // 2026-08-09 类型补全：自有字段显式声明（原 @ts-nocheck 隐藏，运行期行为不变）
+  map: OlMap | null
+  baseLayers: { image: TileLayer<XYZ>[]; vector: TileLayer<XYZ>[] }
+  _cullLayers: Map<string, CullLayerEntry>
+  _moveendKey: EventsKey | null
+  // OL on() 的 listener 参数为宽类型（Event），业务回调按需收窄（2026-08-09 类型补全）
+  _pointerMoveHandler: ((evt: unknown) => void) | null
+  _cameraChangedKey: EventsKey | null
+  _cameraDebounceTimer: ReturnType<typeof setTimeout> | null
+  _breathingLayer: VectorLayer<VectorSource> | null
+  _breathingAnimId: number | null
+
+  constructor(container: HTMLElement) {
     super(container)
     this.map = null
     this.baseLayers = { image: [], vector: [] }
@@ -41,15 +64,14 @@ export class OLRenderer extends MapRenderer {
     this._cullLayers = new Map() // id -> { source, index, allFeatures, options }
     this._moveendKey = null
     // pointer-move / camera-changed 事件处理器与防抖定时器引用（供 destroy 注销）
-    /** @type {Function|null} */
     this._pointerMoveHandler = null
-    /** @type {Object|null} */
     this._cameraChangedKey = null
-    /** @type {number|null} */
     this._cameraDebounceTimer = null
+    this._breathingLayer = null
+    this._breathingAnimId = null
     this._initMap()
   }
-  _initMap() {
+  _initMap(): void {
     const view = new View({
       center: fromLonLat([MAP_CONFIG.CAMERA.center.lng, MAP_CONFIG.CAMERA.center.lat]),
       zoom: 9,
@@ -65,8 +87,10 @@ export class OLRenderer extends MapRenderer {
     this._setupClickHandler()
     this._setupPointerHandlers()
   }
-  _initBaseLayers() {
-    const imageLayers = MAP_CONFIG.BASE_LAYERS.image.layers.map((code) => {
+  _initBaseLayers(): void {
+    const map = this.map
+    if (!map) return
+    const imageLayers = MAP_CONFIG.BASE_LAYERS.image.layers.map((code: string) => {
       const layer = new TileLayer({
         source: new XYZ({
           url: buildTiandituUrl(code),
@@ -94,19 +118,21 @@ export class OLRenderer extends MapRenderer {
 
     imageLayers.forEach((l) => {
       l.setZIndex(LAYER_DEFAULTS.zIndexBase)
-      this.map.addLayer(l)
+      map.addLayer(l)
     })
     vectorLayers.forEach((l) => {
       l.setZIndex(LAYER_DEFAULTS.zIndexBase)
-      this.map.addLayer(l)
+      map.addLayer(l)
     })
   }
-  _setupClickHandler() {
-    this.map.on('click', (event) => {
+  _setupClickHandler(): void {
+    const map = this.map
+    if (!map) return
+    map.on('click', (event) => {
       const coordinate = toLonLat(event.coordinate)
       let clickedFeature = false
 
-      this.map.forEachFeatureAtPixel(
+      map.forEachFeatureAtPixel(
         event.pixel,
         (feature) => {
           const featureType = feature.get('featureType')
@@ -120,6 +146,7 @@ export class OLRenderer extends MapRenderer {
             clickedFeature = true
             return true
           }
+          return undefined
         },
         {
           layerFilter: (layer) => !layer.get('isBaseMap'),
@@ -136,16 +163,21 @@ export class OLRenderer extends MapRenderer {
   }
 
   /** a026: 补齐 MapRendererEventMap 声明的 pointer-move / camera-changed 事件实现 */
-  _setupPointerHandlers() {
+  _setupPointerHandlers(): void {
+    const map = this.map
+    if (!map) return
     // pointer-move：实时回传鼠标经纬度（坐标从 EPSG:3857 反算到 WGS84）
     this._pointerMoveHandler = (evt) => {
-      const coord = toLonLat(evt.coordinate)
+      const coord = toLonLat((evt as MapBrowserEvent<PointerEvent>).coordinate)
       this.emit('pointer-move', { lng: coord[0], lat: coord[1] })
     }
-    this.map.on('pointermove', this._pointerMoveHandler)
+    const handler = this._pointerMoveHandler
+    if (handler) {
+      map.on('pointermove', handler)
+    }
 
     // camera-changed：moveend 防抖后回传相机状态（避免每帧触发刷爆订阅方）
-    this._cameraChangedKey = this.map.on('moveend', () => {
+    this._cameraChangedKey = map.on('moveend', () => {
       if (this._cameraDebounceTimer) {
         clearTimeout(this._cameraDebounceTimer)
       }
@@ -156,7 +188,7 @@ export class OLRenderer extends MapRenderer {
     })
   }
 
-  addPointLayer(id, features, options = {}) {
+  addPointLayer(id: string, features: PointFeature[], options: LayerOptions = {}): void {
     const style = this._createPointStyle(options)
 
     // 大数量点图层启用视口裁剪：R-tree 索引 + moveend 增量更新
@@ -165,7 +197,7 @@ export class OLRenderer extends MapRenderer {
       return
     }
 
-    const olFeatures = features.map((item) => {
+    const olFeatures = features.map((item: PointFeature) => {
       // 数据入口归一化：统一 lng/lon/longitude 字段名为标准 GeoPoint
       const { lng, lat } = normalizePoint(item)
       const feature = new Feature({
@@ -181,7 +213,7 @@ export class OLRenderer extends MapRenderer {
       style,
     })
     vectorLayer.setZIndex(options.zIndex ?? LAYER_DEFAULTS.zIndex)
-    this.map.addLayer(vectorLayer)
+    this.map?.addLayer(vectorLayer)
     this._layers.set(id, {
       instance: vectorLayer,
       visible: true,
@@ -194,11 +226,16 @@ export class OLRenderer extends MapRenderer {
    * 大数量点图层的视口裁剪加载
    * 构建 R-tree 索引（EPSG:3857），初始只渲染视口内要素，moveend 时增量更新
    */
-  _addCulledPointLayer(id, features, options, style) {
+  _addCulledPointLayer(
+    id: string,
+    features: PointFeature[],
+    options: LayerOptions,
+    style: Style | StyleFunction
+  ): void {
     const featureType = options?.featureType || 'point'
     // 构建 R-tree 索引项：[minX, minY, maxX, maxY] + 原始数据
-    const index = createSpatialIndex()
-    const indexItems = features.map((item) => {
+    const index = createSpatialIndex<PointFeature>()
+    const indexItems = features.map((item: PointFeature) => {
       const { lng, lat } = normalizePoint(item)
       const coord = fromLonLat([lng, lat])
       return { minX: coord[0], minY: coord[1], maxX: coord[0], maxY: coord[1], data: item }
@@ -208,7 +245,7 @@ export class OLRenderer extends MapRenderer {
     const source = new VectorSource()
     const vectorLayer = new VectorLayer({ source, style })
     vectorLayer.setZIndex(options.zIndex ?? LAYER_DEFAULTS.zIndex)
-    this.map.addLayer(vectorLayer)
+    this.map?.addLayer(vectorLayer)
     this._layers.set(id, { instance: vectorLayer, visible: true, options })
     this._applyPendingVisibility(id)
 
@@ -224,21 +261,24 @@ export class OLRenderer extends MapRenderer {
   }
 
   /** 确保 moveend 监听只注册一次 */
-  _ensureMoveendListener() {
+  _ensureMoveendListener(): void {
     if (this._moveendKey) return
-    this._moveendKey = this.map.on('moveend', () => {
-      for (const id of this._cullLayers.keys()) {
-        this._refreshCulledLayer(id)
-      }
-    })
+    this._moveendKey =
+      this.map?.on('moveend', () => {
+        for (const id of this._cullLayers.keys()) {
+          this._refreshCulledLayer(id)
+        }
+      }) ?? null
   }
 
   /** 刷新单个裁剪图层：查询当前视口内要素并替换 source */
-  _refreshCulledLayer(id) {
+  _refreshCulledLayer(id: string): void {
     const entry = this._cullLayers.get(id)
     if (!entry) return
 
-    const extent = this.map.getView().calculateExtent(this.map.getSize())
+    const map = this.map
+    if (!map) return
+    const extent = map.getView().calculateExtent(map.getSize()) as [number, number, number, number]
     const visible = entry.index.query(extent)
 
     const olFeatures = visible.map((item) => {
@@ -251,7 +291,7 @@ export class OLRenderer extends MapRenderer {
     entry.source.clear()
     entry.source.addFeatures(olFeatures)
   }
-  _createPointStyle(options) {
+  _createPointStyle(options: LayerOptions): Style | StyleFunction {
     if (!options.labelField) {
       return new Style({
         image: new Circle({
@@ -261,7 +301,7 @@ export class OLRenderer extends MapRenderer {
         }),
       })
     }
-    return (feature) =>
+    return (feature: FeatureLike) =>
       new Style({
         image: new Circle({
           radius: options.size || 12,
@@ -269,7 +309,7 @@ export class OLRenderer extends MapRenderer {
           stroke: new Stroke({ color: LAYER_DEFAULTS.outline, width: 2 }),
         }),
         text: new Text({
-          text: feature.get(options.labelField),
+          text: feature.get(options.labelField as string),
           font: '12px sans-serif',
           fill: new Fill({ color: LAYER_DEFAULTS.text }),
           stroke: new Stroke({ color: LAYER_DEFAULTS.outline, width: 2 }),
@@ -277,9 +317,9 @@ export class OLRenderer extends MapRenderer {
         }),
       })
   }
-  addPolygonLayer(id, features, options = {}) {
+  addPolygonLayer(id: string, features: PolygonFeature[], options: LayerOptions = {}): void {
     // 辅助函数 - 确保坐标环闭合
-    const ensureRingClosed = (ring) => {
+    const ensureRingClosed = (ring: [number, number][]): [number, number][] | null => {
       if (!ring || ring.length < 3) return null
       const first = ring[0]
       const last = ring[ring.length - 1]
@@ -291,32 +331,38 @@ export class OLRenderer extends MapRenderer {
     }
 
     const olFeatures = features
-      .map((item) => {
+      .map((item: PolygonFeature) => {
         const coordinates = item.coordinates || item.geometry?.coordinates
         if (!coordinates) return null
 
         // 验证坐标数组有效性
         if (!Array.isArray(coordinates) || coordinates.length === 0) return null
 
-        let polygonCoords
+        let polygonCoords: [number, number][][]
         if (item.geometry?.type === 'MultiPolygon') {
           // 验证MultiPolygon坐标结构
-          if (!Array.isArray(coordinates[0]) || !Array.isArray(coordinates[0][0])) return null
+          const multi = coordinates as unknown as [number, number][][][]
+          if (!Array.isArray(multi[0]) || !Array.isArray(multi[0][0])) return null
           // 验证并闭合每个多边形的坐标环
-          polygonCoords = coordinates
+          polygonCoords = multi
             .map((poly) => {
               const closedRing = ensureRingClosed(poly[0])
-              return closedRing ? closedRing.map(([lng, lat]) => fromLonLat([lng, lat])) : null
+              return closedRing
+                ? closedRing.map(([lng, lat]) => fromLonLat([lng, lat]) as [number, number])
+                : null
             })
-            .filter((coords) => coords !== null)
+            .filter((coords) => coords !== null) as [number, number][][]
           if (polygonCoords.length === 0) return null
         } else {
           // 验证Polygon坐标结构
-          if (!Array.isArray(coordinates[0]) || !Array.isArray(coordinates[0][0])) return null
+          const ring = coordinates as [number, number][]
+          if (!Array.isArray(ring[0]) || !Array.isArray(ring[0][0])) return null
           // 验证并闭合坐标环
-          const closedRing = ensureRingClosed(coordinates[0])
+          const closedRing = ensureRingClosed(ring)
           if (!closedRing) return null
-          polygonCoords = [closedRing.map(([lng, lat]) => fromLonLat([lng, lat]))]
+          polygonCoords = [
+            closedRing.map(([lng, lat]) => fromLonLat([lng, lat]) as [number, number]),
+          ]
         }
         const feature = new Feature({
           geometry: new Polygon(polygonCoords),
@@ -324,16 +370,18 @@ export class OLRenderer extends MapRenderer {
         feature.setProperties({ ...item, featureType: options.featureType || 'polygon' })
         return feature
       })
-      .filter(Boolean)
+      .filter((f) => f !== null) as Feature[]
 
     const style = this._createPolygonStyle(options)
 
+    const map = this.map
+    if (!map) return
     const vectorLayer = new VectorLayer({
       source: new VectorSource({ features: olFeatures }),
       style,
     })
     vectorLayer.setZIndex(options.zIndex ?? LAYER_DEFAULTS.zIndex)
-    this.map.addLayer(vectorLayer)
+    map.addLayer(vectorLayer)
     this._layers.set(id, {
       instance: vectorLayer,
       visible: true,
@@ -341,7 +389,7 @@ export class OLRenderer extends MapRenderer {
     })
     this._applyPendingVisibility(id)
   }
-  _createPolygonStyle(options) {
+  _createPolygonStyle(options: LayerOptions): Style {
     return new Style({
       fill: new Fill({ color: options.fillColor || LAYER_DEFAULTS.fill }),
       stroke: new Stroke({
@@ -350,7 +398,7 @@ export class OLRenderer extends MapRenderer {
       }),
     })
   }
-  addGeoJsonLayer(id, geojson, options = {}) {
+  addGeoJsonLayer(id: string, geojson: FeatureCollection, options: LayerOptions = {}): void {
     const features = new GeoJSON().readFeatures(geojson, {
       featureProjection: 'EPSG:3857',
     })
@@ -367,16 +415,16 @@ export class OLRenderer extends MapRenderer {
       }),
     })
     // TODO: 支持 options.style 回调，用于 per-feature 样式
-    const defaultStyle = (feature) => {
+    const defaultStyle = (feature: FeatureLike): Style => {
       const geom = feature.getGeometry()
-      return geom.getType() === 'Point' ? pointStyle : polygonStyle
+      return geom?.getType() === 'Point' ? pointStyle : polygonStyle
     }
     const vectorLayer = new VectorLayer({
       source: new VectorSource({ features }),
       style: options.style || defaultStyle,
     })
     vectorLayer.setZIndex(options.zIndex ?? LAYER_DEFAULTS.zIndex)
-    this.map.addLayer(vectorLayer)
+    this.map?.addLayer(vectorLayer)
     this._layers.set(id, {
       instance: vectorLayer,
       visible: true,
@@ -387,7 +435,7 @@ export class OLRenderer extends MapRenderer {
 
   // 原设计文档使用 addGeoJsonLayer({type:'heatmap'})，但现有接口不支持
   // 正确做法：独立方法 + 参考 OpenLayers Heatmap 官方示例
-  addGeoTIFFLayer(id, url, options = {}) {
+  addGeoTIFFLayer(id: string, url: string, options: LayerOptions = {}): boolean {
     // 真实 DEM 山体阴影/高程着色 COG
     // ol/source/GeoTIFF 在 OL 10.9.0 自带，无需新增依赖
     // 注意：normalize 必须为 true —— 若设 false，单波段数据以数组形式交给
@@ -396,11 +444,12 @@ export class OLRenderer extends MapRenderer {
     // 显式声明 normalize:true（即便默认值已是 true），防止版本差异导致回归。
     let source
     try {
+      // GeoTIFF options 类型未含 crossOrigin（OL 10 类型缺口），用结构化类型断言补
       source = new GeoTIFF({
         sources: [{ url }],
         crossOrigin: 'anonymous',
         normalize: true,
-      })
+      } as unknown as ConstructorParameters<typeof GeoTIFF>[0])
     } catch (e) {
       if (import.meta.env.DEV) {
         logger.error(`[OLRenderer] GeoTIFF 源创建失败: ${url}`, e)
@@ -420,7 +469,9 @@ export class OLRenderer extends MapRenderer {
       opacity: options.opacity ?? 0.7,
     })
     layer.setZIndex(options.zIndex ?? LAYER_DEFAULTS.zIndex)
-    this.map.addLayer(layer)
+    const map = this.map
+    if (!map) return false
+    map.addLayer(layer)
     this._layers.set(id, {
       instance: layer,
       visible: true,
@@ -430,7 +481,7 @@ export class OLRenderer extends MapRenderer {
     return true
   }
 
-  addHeatmapLayer(id, features, options = {}) {
+  addHeatmapLayer(id: string, features: PointFeature[], options: LayerOptions = {}): boolean {
     const {
       weightField = 'value',
       radius = 20,
@@ -441,9 +492,9 @@ export class OLRenderer extends MapRenderer {
 
     // 将 features 数组转为 OpenLayers Feature
     const olFeatures = features.map((f) => {
-      const coords = f.geometry.coordinates
-      const lng = coords?.[0] ?? 0
-      const lat = coords?.[1] ?? 0
+      const coords = f.geometry?.coordinates
+      const lng = coords?.[0] ?? f.lng ?? 0
+      const lat = coords?.[1] ?? f.lat ?? 0
       const feature = new Feature({
         geometry: new Point(fromLonLat([lng, lat])),
       })
@@ -464,13 +515,15 @@ export class OLRenderer extends MapRenderer {
         const val = feature.get(weightField)
         return val !== undefined && val !== null ? Number(val) : 0
       },
-      gradient,
+      gradient: [...gradient],
       opacity,
     })
 
     layer.set('id', id)
     layer.setZIndex(options.zIndex ?? LAYER_DEFAULTS.zIndex)
-    this.map.addLayer(layer)
+    const map = this.map
+    if (!map) return false
+    map.addLayer(layer)
     this._layers.set(id, {
       instance: layer,
       visible: true,
@@ -481,19 +534,20 @@ export class OLRenderer extends MapRenderer {
     return true
   }
 
-  updateHeatmapLayer(id, features, options = {}) {
+  updateHeatmapLayer(id: string, features: PointFeature[], options: LayerOptions = {}): boolean {
     const entry = this._layers.get(id)
     if (!entry) return false
 
-    const source = entry.instance.getSource()
+    const layer = entry.instance as VectorLayer<VectorSource>
+    const source = layer.getSource()
     if (!source) return false
 
     const { weightField: _weightField = 'value' } = options
 
     const olFeatures = features.map((f) => {
-      const coords = f.geometry.coordinates
-      const lng = coords?.[0] ?? 0
-      const lat = coords?.[1] ?? 0
+      const coords = f.geometry?.coordinates
+      const lng = coords?.[0] ?? f.lng ?? 0
+      const lat = coords?.[1] ?? f.lat ?? 0
       const feature = new Feature({
         geometry: new Point(fromLonLat([lng, lat])),
       })
@@ -510,25 +564,28 @@ export class OLRenderer extends MapRenderer {
     return true
   }
 
-  _doSetVisibility(id, visible) {
+  _doSetVisibility(id: string, visible: boolean): void {
     const layer = this._layers.get(id)
     if (layer && layer.instance) {
-      layer.instance.setVisible(visible)
+      ;(layer.instance as { setVisible: (v: boolean) => void }).setVisible(visible)
     }
   }
   /**
    * 覆盖基类 removeLayer —— 先清理裁剪图层状态（索引 + moveend 监听），再走基类移除。
    * 此前 _removeCullLayer 定义了但从未被调用，导致 _cullLayers 残留 + moveend 监听永不解除。
    */
-  removeLayer(id) {
+  removeLayer(id: string): void {
     this._removeCullLayer(id)
     super.removeLayer(id)
   }
-  _doRemoveLayer(layer) {
+  _doRemoveLayer(layer: { instance: unknown; visible: boolean; options?: LayerOptions }): void {
     if (layer.instance) {
-      this.map.removeLayer(layer.instance)
-      if (layer.instance.getSource) {
-        const source = layer.instance.getSource()
+      this.map?.removeLayer(layer.instance as BaseLayer)
+      const instance = layer.instance as {
+        getSource?: () => { clear?: () => void; dispose?: () => void }
+      }
+      if (instance.getSource) {
+        const source = instance.getSource()
         if (source && source.clear) {
           source.clear()
         }
@@ -540,31 +597,38 @@ export class OLRenderer extends MapRenderer {
   }
 
   /** 移除视口裁剪图层时清理索引和监听 */
-  _removeCullLayer(id) {
+  _removeCullLayer(id: string): void {
     this._cullLayers.delete(id)
-    if (this._cullLayers.size === 0 && this._moveendKey) {
-      this.map.un(this._moveendKey.type, this._moveendKey.listener)
+    const moveendKey = this._moveendKey
+    if (this._cullLayers.size === 0 && moveendKey) {
+      // OL 的 on/un 事件类型为字面量 union（EventsKey.type 为宽 string），cast 对齐（2026-08-09 类型补全）
+      this.map?.un(moveendKey.type as 'moveend', moveendKey.listener as any)
       this._moveendKey = null
     }
   }
-  _doFlyTo(target, options = {}) {
-    const view = this.map.getView()
-    if (target.layerId) {
+  _doFlyTo(target: FlyToTarget, options: FlyToOptions = {}): void {
+    const map = this.map
+    if (!map) return
+    const view = map.getView()
+    if ('layerId' in target && target.layerId) {
       const layer = this._layers.get(target.layerId)
       if (layer && layer.instance) {
         // 验证 source 和 getExtent 方法存在性
-        const source = layer.instance.getSource()
+        const instance = layer.instance as { getSource?: () => { getExtent?: () => unknown } }
+        const source = instance.getSource?.()
         if (source && typeof source.getExtent === 'function') {
           const extent = source.getExtent()
           if (extent) {
-            view.fit(extent, { duration: options.duration ?? 1000 })
+            view.fit(extent as [number, number, number, number], {
+              duration: options.duration ?? 1000,
+            })
             return
           }
         }
       }
     }
     // 数据入口归一化：统一 lng/lon/longitude 字段名
-    const { lng, lat } = normalizePoint(target)
+    const { lng, lat } = normalizePoint(target as { lng?: number; lat?: number; lon?: number })
     // 2026-08-08：zoom 与位置同时变化（对齐 Cesium 的 camera.flyTo 语义）——
     // 调用方传 {height}（如 flyTo({lng,lat},{height:1000})），OL 分支原来只认
     // options.zoom、忽略 height → 2D 只动 center 不动缩放（用户实测"选址无跳转动画"）。
@@ -578,25 +642,30 @@ export class OLRenderer extends MapRenderer {
       duration: options.duration ?? 1000,
     })
   }
-  _getCameraState() {
-    const view = this.map.getView()
-    const center = toLonLat(view.getCenter())
+  _getCameraState(): CameraState {
+    const view = this.map?.getView()
+    const center = view?.getCenter()
+    if (!view || !center) {
+      return { center: { lng: 0, lat: 0 }, zoom: 6 }
+    }
+    const lonLat = toLonLat(center)
     const zoom = view.getZoom()
 
-    const state = {
-      center: { lng: center[0], lat: center[1] },
-      zoom,
+    const state: CameraState = {
+      center: { lng: lonLat[0], lat: lonLat[1] },
+      zoom: zoom ?? undefined,
     }
 
     logger.debug('[OLRenderer._getCameraState] 导出状态:', state)
 
     return state
   }
-  _setCameraState(state) {
+  _setCameraState(state: CameraState): void {
     logger.debug('[OLRenderer._setCameraState] 导入原始状态:', state)
 
-    const view = this.map.getView()
-    let zoom
+    const view = this.map?.getView()
+    if (!view) return
+    let zoom: number | undefined
 
     // 从 Cesium 的 height 反算 OL zoom
     if (state.height != null) {
@@ -606,7 +675,7 @@ export class OLRenderer extends MapRenderer {
     }
 
     // 钳制在合法范围内
-    const clampedZoom = zoom != null ? Math.min(Math.max(zoom, 6), 20) : view.getZoom()
+    const clampedZoom = zoom != null ? Math.min(Math.max(zoom, 6), 20) : (view.getZoom() ?? 6)
 
     // 原子设置 center+zoom，避免分离调用触发的动画冲突导致 view 状态错乱
     view.animate({
@@ -615,11 +684,11 @@ export class OLRenderer extends MapRenderer {
       duration: 0,
     })
   }
-  setBaseLayer(type) {
+  setBaseLayer(type: 'image' | 'vector'): void {
     this.baseLayers.image.forEach((l) => l.setVisible(type === 'image'))
     this.baseLayers.vector.forEach((l) => l.setVisible(type === 'vector'))
   }
-  startBreathing(lng, lat) {
+  startBreathing(lng: number, lat: number): void {
     this.stopBreathing()
     const startTime = Date.now()
     const breathingFeature = new Feature({
@@ -643,7 +712,7 @@ export class OLRenderer extends MapRenderer {
     })
     // 呼吸动画层必须置顶（覆盖业务层），保持改动前"最后 add 即最上"的视觉语义
     this._breathingLayer.setZIndex(LAYER_DEFAULTS.zIndexOverlay)
-    this.map.addLayer(this._breathingLayer)
+    this.map?.addLayer(this._breathingLayer)
     const animate = () => {
       if (this._breathingLayer) {
         this._breathingLayer.changed()
@@ -652,13 +721,13 @@ export class OLRenderer extends MapRenderer {
     }
     this._breathingAnimId = requestAnimationFrame(animate)
   }
-  stopBreathing() {
+  stopBreathing(): void {
     if (this._breathingAnimId) {
       cancelAnimationFrame(this._breathingAnimId)
       this._breathingAnimId = null
     }
     if (this._breathingLayer) {
-      this.map.removeLayer(this._breathingLayer)
+      this.map?.removeLayer(this._breathingLayer)
       this._breathingLayer.dispose()
       this._breathingLayer = null
     }
@@ -684,16 +753,16 @@ export class OLRenderer extends MapRenderer {
     // 清理视口裁剪图层
     this._cullLayers.clear()
     if (this._moveendKey) {
-      this.map?.un(this._moveendKey.type, this._moveendKey.listener)
+      this.map?.un(this._moveendKey.type as 'moveend', this._moveendKey.listener as any)
       this._moveendKey = null
     }
     // 注销 pointer-move / camera-changed 监听与防抖定时器
     if (this._pointerMoveHandler) {
-      this.map?.un('pointermove', this._pointerMoveHandler)
+      this.map?.un('pointermove', this._pointerMoveHandler as any)
       this._pointerMoveHandler = null
     }
     if (this._cameraChangedKey) {
-      this.map?.un(this._cameraChangedKey.type, this._cameraChangedKey.listener)
+      this.map?.un(this._cameraChangedKey.type as 'moveend', this._cameraChangedKey.listener as any)
       this._cameraChangedKey = null
     }
     if (this._cameraDebounceTimer) {

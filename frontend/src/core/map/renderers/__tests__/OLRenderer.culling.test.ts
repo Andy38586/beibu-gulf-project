@@ -195,11 +195,11 @@ describe('OLRenderer 视口裁剪集成（a016）', () => {
     container = document.createElement('div')
     renderer = new OLRenderer(container) as unknown as OLRendererTestAccess
     // 将视图范围初始化为钦州港区域
-    ;(renderer.map as OLCullMapLike).getView().setExtent(extentAround(QINZHOU))
+    ;(renderer.map as unknown as OLCullMapLike).getView().setExtent(extentAround(QINZHOU))
   })
 
   afterEach(() => {
-    if (renderer?.map && !(renderer.map as OLCullMapLike).disposed) {
+    if (renderer?.map && !(renderer.map as unknown as OLCullMapLike).disposed) {
       renderer.destroy()
     }
   })
@@ -259,8 +259,8 @@ describe('OLRenderer 视口裁剪集成（a016）', () => {
       expect([...ids].every((id) => String(id).startsWith('qz'))).toBe(true)
 
       // 移动视口到防城港并触发 moveend → 只渲染 fc 点
-      ;(renderer!.map as OLCullMapLike).getView().setExtent(extentAround(FANGCHENG))
-      ;(renderer!.map as OLCullMapLike).trigger('moveend')
+      ;(renderer!.map as unknown as OLCullMapLike).getView().setExtent(extentAround(FANGCHENG))
+      ;(renderer!.map as unknown as OLCullMapLike).trigger('moveend')
       ids = sourceFeatureIds((renderer!._cullLayers.get('move') as OLCullEntryLike).source)
 
       expect(ids.size).toBe(N)
@@ -286,8 +286,8 @@ describe('OLRenderer 视口裁剪集成（a016）', () => {
       expect(
         (renderer!._cullLayers.get('m1') as OLCullEntryLike).source.getFeatures()
       ).toHaveLength(0)
-      ;(renderer!.map as OLCullMapLike).getView().setExtent(extentAround(QINZHOU))
-      ;(renderer!.map as OLCullMapLike).trigger('moveend')
+      ;(renderer!.map as unknown as OLCullMapLike).getView().setExtent(extentAround(QINZHOU))
+      ;(renderer!.map as unknown as OLCullMapLike).trigger('moveend')
 
       expect(
         (renderer!._cullLayers.get('m1') as OLCullEntryLike).source.getFeatures()
@@ -320,7 +320,7 @@ describe('OLRenderer 视口裁剪集成（a016）', () => {
     })
 
     it('destroy 清理全部裁剪图层与监听', () => {
-      const map = renderer!.map as OLCullMapLike
+      const map = renderer!.map as unknown as OLCullMapLike
       renderer!.addPointLayer('d1', makePoints(QINZHOU, N, 'd1'), {})
       renderer!.addPointLayer('d2', makePoints(QINZHOU, N, 'd2'), {})
       expect(moveendListeners).toHaveLength(1 + CAMERA_MOVEEND_BASE)
@@ -345,8 +345,8 @@ describe('OLRenderer 视口裁剪集成（a016）', () => {
       renderer!.addPointLayer('far', makePoints(QINZHOU, N, 'far'), {})
 
       // 视口移动到远离任何点的位置（上海附近）
-      ;(renderer!.map as OLCullMapLike).getView().setExtent(extentAround([121.0, 31.0]))
-      ;(renderer!.map as OLCullMapLike).trigger('moveend')
+      ;(renderer!.map as unknown as OLCullMapLike).getView().setExtent(extentAround([121.0, 31.0]))
+      ;(renderer!.map as unknown as OLCullMapLike).trigger('moveend')
 
       expect(
         (renderer!._cullLayers.get('far') as OLCullEntryLike).source.getFeatures()

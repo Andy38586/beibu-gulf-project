@@ -248,13 +248,12 @@ export class MapRenderer {
   // 调用方（layerAdapters waterSurface 分支）做能力检查后调用。
 
   // 呼吸动画：双引擎公共能力（OL 矢量圈 / Cesium 实体动画），子类各自实现
-  startBreathing(_lng: number, _lat: number): boolean {
+  // 2026-08-09：返回类型统一为 void（原 boolean 假实现与 OLRenderer 的 void 实现不兼容）
+  startBreathing(_lng: number, _lat: number): void {
     logger.debug(`${this.getType()} startBreathing 未实现`)
-    return false
   }
 
-  stopBreathing(): boolean {
+  stopBreathing(): void {
     logger.debug(`${this.getType()} stopBreathing 未实现`)
-    return false
   }
 }

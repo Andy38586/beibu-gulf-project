@@ -21,9 +21,14 @@ import type { GeoPoint } from '@/types/business/base'
 
 /** 点要素（渲染器 addPointLayer 入参） */
 export interface PointFeature {
-  lng: number
-  lat: number
+  /** 常规输入：lng/lat 坐标；GeoJSON Feature 形状（热力图）走 geometry.coordinates */
+  lng?: number
+  lat?: number
   name?: string
+  /** 兼容 GeoJSON Feature 形状（热力图等消费方传入 geometry.coordinates；
+   * 字段可选——测试/脏数据存在空 geometry，渲染器回退 (0,0)） */
+  geometry?: { type?: string; coordinates?: [number, number] }
+  properties?: Record<string, unknown>
   /** 开放扩展：业务层可附加任意属性（如 id、type、featureType），
    * 渲染器通过 options.labelField 等按需读取。
    * 参考 §7.7 索引签名设计约定。 */
@@ -32,8 +37,13 @@ export interface PointFeature {
 
 /** 多边形要素（渲染器 addPolygonLayer 入参） */
 export interface PolygonFeature {
-  coordinates: [number, number][]
+  coordinates?: [number, number][]
   properties?: Record<string, unknown>
+  /** 兼容 GeoJSON 风格输入（渲染器按 geometry.type 分派 Polygon/MultiPolygon） */
+  geometry?: { type: string; coordinates: unknown }
+  /** 业务要素类型标识（渲染器透传到 feature 属性） */
+  featureType?: string
+  [key: string]: unknown
 }
 
 // ===== FlyTo 目标 =====
@@ -65,6 +75,8 @@ export interface LayerOptions {
   featureType?: string
   // 栅格图层透明度（GeoTIFF hillshade 等，0-1）
   opacity?: number
+  // GeoJSON 图层 per-feature 样式回调（OL 渲染器消费）
+  style?: unknown
   // ── 热力图选项（2D Only，a015：显式传入使色带/权重可配置）──
   /** 热力图色带（CSS 颜色字符串数组，从低到高） */
   gradient?: string[]

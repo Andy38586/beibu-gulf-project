@@ -18,9 +18,10 @@ data/
 ├── markers.json               # 地图标记（可写，经 fileStore）
 ├── forecast/                  # 吞吐量预测数据（forecastService 读取）
 │   ├── index.json             #   指标索引/元信息
-│   ├── cargo.json             #   货物吞吐量历史 + spatial
+│   ├── cargo.json             #   货物吞吐量历史 + spatial（页面历史数据源）
 │   ├── container.json         #   集装箱吞吐量历史 + spatial
-│   └── throughput_model.json  #   吞吐量模型参数
+│   ├── throughput.json        #   吞吐量模型训练输入（三港 2018-2025 月度，随仓库提交）
+│   └── throughput_model.json  #   吞吐量模型产物（cargo 指标 2026-2035 预测 + 回测 MAPE）
 ├── site-selection/            # 选址 POI 数据（siteAnalysisService 读取）
 │   ├── xiaoqu.json            #   小区点集
 │   ├── qz_hospital.json       #   医院

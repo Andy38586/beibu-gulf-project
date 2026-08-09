@@ -1,5 +1,5 @@
 // forecastService 回归测试（R-11 缓存失效 / R-15 年聚合）
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // 使用 vi.hoisted 保证 mock 引用能在被提升的 vi.mock 工厂中使用
 const { mockReadFile } = vi.hoisted(() => ({
@@ -122,17 +122,20 @@ describe('forecastService', () => {
       mockReadFile.mockResolvedValue(JSON.stringify(cargoData))
       await forecastService.getMapData('cargo', '2020-01', 1.0)
       await forecastService.getMapData('cargo', '2020-06', 1.0)
-      expect(mockReadFile).toHaveBeenCalledTimes(1)
+      // cargo 链路额外读取 throughput_model.json（模型产物，走 readStaticJson 文件缓存）：
+      // 首次 2 次读盘（cargo.json + 模型文件），引擎缓存命中后 0 次
+      expect(mockReadFile).toHaveBeenCalledTimes(2)
     })
 
     it('不同情景级别不命中引擎缓存（文件级缓存命中，仅读一次文件）', async () => {
       // 2026-08-08：readDataFile 收敛到 readStaticJson（文件级 TTL/LRU 缓存）——
       // 同指标文件两次调用只读一次（文件缓存命中）；引擎缓存按 (indicator, scenarioLevel)
       // 独立 key，1.0/1.2 不互相命中（各自重新计算），但数据读取复用缓存。
+      // 2026-08-09：cargo 增加模型产物读取（+1 文件），文件级缓存同样生效。
       mockReadFile.mockResolvedValue(JSON.stringify(cargoData))
       await forecastService.getMapData('cargo', '2020-01', 1.0)
       await forecastService.getMapData('cargo', '2020-01', 1.2)
-      expect(mockReadFile).toHaveBeenCalledTimes(1)
+      expect(mockReadFile).toHaveBeenCalledTimes(2)
     })
   })
 
@@ -316,6 +319,59 @@ describe('forecastService', () => {
       const portIds = result.series.map((s) => s.portId).sort()
       expect(portIds).toEqual(['p1', 'p2'])
     })
+
+    it('cargo 使用吞吐量模型产物（2026-08-09 模型接入）', async () => {
+      const modelJson = {
+        ports: {
+          p1: {
+            name: '港口A',
+            backtest: { overall_mape: 2.3 },
+            predictions: [
+              { time: '2021-12', value: 100, lower: 90, upper: 110 },
+              { time: '2022-06', value: 200, lower: 180, upper: 220 },
+              { time: '2022-12', value: 300, lower: 270, upper: 330 },
+            ],
+          },
+        },
+        model_info: {
+          method: 'seasonal_decomposition_with_correction',
+          training_period: '2018-2022',
+          validation_period: '2023-2025',
+          forecast_period: '2026-2035',
+        },
+      }
+      mockReadFile.mockImplementation((path) => {
+        if (path.endsWith('throughput_model.json')) {
+          return Promise.resolve(JSON.stringify(modelJson))
+        }
+        if (path.endsWith('cargo.json')) {
+          return Promise.resolve(JSON.stringify(cargoData))
+        }
+        return Promise.reject(makeEnoentError())
+      })
+      const result = await forecastService.getTimeSeriesData('cargo', 'p1')
+      const series = result.series[0]
+      // makePortData 历史 24 个月：2020-01~2021-12；模型点 <=2021-12 丢弃，
+      // 保留 2022-06 / 2022-12，中间插 2022-07~11 → 预测 7 点
+      expect(series.data).toHaveLength(24 + 7)
+      expect(series.data[23]).toEqual({ time: '2021-12', value: 1230, type: 'historical' })
+      expect(series.data[24].time).toBe('2022-06')
+      expect(series.data[24].value).toBe(200)
+      expect(series.data[29].time).toBe('2022-11')
+      expect(series.data[29].value).toBe(Math.round(200 + (300 - 200) * (5 / 6)))
+      expect(series.data[30].time).toBe('2022-12')
+      expect(series.data[30].value).toBe(300)
+      expect(series.data.slice(24).every((d) => d.type === 'forecast')).toBe(true)
+    })
+
+    it('模型产物缺失时 cargo 降级趋势外推（不中断接口）', async () => {
+      // mockReadFile 对所有文件返回 cargoData（无模型结构）→ getModelForecast 返回 null → 降级
+      mockReadFile.mockResolvedValue(JSON.stringify(cargoData))
+      const result = await forecastService.getTimeSeriesData('cargo', 'p1')
+      const series = result.series[0]
+      // 24 历史 + 120 外推预测 = 144（原 forecastEngine 行为）
+      expect(series.data).toHaveLength(144)
+    })
   })
 
   describe('getMapData - 缓存 TTL 失效 (REQ-2)', () => {
@@ -323,7 +379,8 @@ describe('forecastService', () => {
       mockReadFile.mockResolvedValue(JSON.stringify(cargoData))
       await forecastService.getMapData('cargo', '2020-01', 1.0)
       await forecastService.getMapData('cargo', '2020-06', 1.0)
-      expect(mockReadFile).toHaveBeenCalledTimes(1)
+      // cargo 链路首次读 2 个文件（cargo.json + 模型产物），TTL 内全命中缓存
+      expect(mockReadFile).toHaveBeenCalledTimes(2)
     })
 
     it('TTL 过期（>5min）后重新读盘并刷新缓存', async () => {
@@ -333,7 +390,8 @@ describe('forecastService', () => {
       try {
         mockReadFile.mockResolvedValue(JSON.stringify(cargoData))
         await forecastService.getMapData('cargo', '2020-01', 1.0)
-        expect(mockReadFile).toHaveBeenCalledTimes(1)
+        // cargo.json + throughput_model.json 两文件各读一次
+        expect(mockReadFile).toHaveBeenCalledTimes(2)
 
         // 篡改源数据（首港历史首点）
         const updated = JSON.parse(JSON.stringify(cargoData))
@@ -343,7 +401,7 @@ describe('forecastService', () => {
         // 前进 6 分钟，超过 CACHE_TTL_MS(5min)
         t += 6 * 60 * 1000
         const second = await forecastService.getMapData('cargo', '2020-01', 1.0)
-        expect(mockReadFile).toHaveBeenCalledTimes(2)
+        expect(mockReadFile).toHaveBeenCalledTimes(4)
         // 重算后特征数量不变（2 港 × 40 点）
         expect(second.features).toHaveLength(80)
       } finally {

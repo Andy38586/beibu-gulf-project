@@ -1,7 +1,10 @@
-import { computeForecast, generateSpatialValues } from './forecastEngine.js'
-import { createReadCache } from '../utils/createReadCache.js'
-import { readStaticJson } from '../utils/readStaticJson.js'
 import { BusinessError, ErrorCode } from '../utils/BusinessError.js'
+import { createReadCache } from '../utils/createReadCache.js'
+import { logger } from '../utils/logger.js'
+import { readStaticJson } from '../utils/readStaticJson.js'
+
+import { computeForecast, generateSpatialValues } from './forecastEngine.js'
+import { getModelForecast } from './modelLoader.js'
 
 // 指标白名单——仅允许 index.json 中声明过的合法指标，
 // 拒绝路径遍历（..）及非法指标名。forecast 路由保持公开（稳定设计决策），
@@ -14,6 +17,11 @@ const ALLOWED_INDICATORS = new Set(['cargo', 'container', 'berth', 'traffic'])
 // 数据文件自带 historical+forecast，不走吞吐量预测模型（throughput 模型仅适用
 // cargo/container 吞吐量指标）；与数据文件 metadata.source: 'synthetic' 对应。
 const SYNTHETIC_INDICATORS = new Set(['berth', 'traffic'])
+
+// 正式链路使用吞吐量模型产物的指标（2026-08-09 接入）。
+// 模型为固定基线快照：scenarioLevel 恒 1.0（不支持情景参数，论文阶段再设计）；
+// 产物缺失/结构不符时降级 forecastEngine，保证接口不因模型文件问题中断。
+const MODEL_INDICATORS = new Set(['cargo'])
 
 const MAX_CACHE_SIZE = 100
 
@@ -70,18 +78,40 @@ async function getOrComputeForecast(indicator, scenarioLevel) {
     const spatial = portData.spatial
     const portName = spatial?.features?.[0]?.properties?.portName || portId
 
-    // 合成指标（berth/traffic）：文件自带 forecast 直接透传，不走吞吐量模型
-    // （见顶部 SYNTHETIC_INDICATORS 说明）；真实指标（cargo/container）由模型演算。
-    const engineResult = SYNTHETIC_INDICATORS.has(indicator)
-      ? null
-      : computeForecast(historical, scenarioLevel)
+    let forecast = null
+    let metadata = null
+
+    if (MODEL_INDICATORS.has(indicator)) {
+      // cargo：正式链路使用吞吐量模型产物（2026-08-09）。
+      // 模型为固定基线（scenarioLevel 恒 1.0）；与历史重叠月份丢弃，2027 起半年点插值补齐。
+      const lastTime = historical?.[historical.length - 1]?.time
+      const modelResult = await getModelForecast(portId, lastTime)
+      if (modelResult) {
+        forecast = modelResult.forecast
+        metadata = { ...modelResult.metadata, scenarioLevel: 1.0 }
+      } else {
+        logger.warn(`[forecastService] ${indicator}/${portId} 模型产物不可用，降级趋势外推`)
+        const engineResult = computeForecast(historical, 1.0)
+        forecast = engineResult.forecast
+        metadata = engineResult.metadata
+      }
+    } else if (SYNTHETIC_INDICATORS.has(indicator)) {
+      // 合成指标（berth/traffic）：文件自带 forecast 直接透传
+      // （见顶部 SYNTHETIC_INDICATORS 说明）
+      forecast = portData.forecast || []
+    } else {
+      // 真实指标（container 等）：趋势外推引擎演算
+      const engineResult = computeForecast(historical, scenarioLevel)
+      forecast = engineResult.forecast
+      metadata = engineResult.metadata
+    }
 
     result.ports[portId] = {
       portName,
       historical,
-      forecast: engineResult ? engineResult.forecast : portData.forecast || [],
+      forecast,
       spatial,
-      metadata: engineResult?.metadata,
+      metadata,
     }
   }
 

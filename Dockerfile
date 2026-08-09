@@ -13,7 +13,10 @@ WORKDIR /app
 
 # 根依赖锁文件（根 package-lock.json 存在）
 COPY package*.json ./
-RUN npm ci
+# 2026-08-09：npm registry 走 npmmirror 镜像（国内服务器构建 npm ci 不走官方源，避免超时；
+# GitHub Actions 构建同样可用，无副作用）
+RUN npm config set registry https://registry.npmmirror.com \
+  && npm ci
 
 # 前端源码与 vite 配置
 COPY frontend/ ./frontend/
@@ -26,7 +29,8 @@ FROM node:22-alpine AS backend-builder
 
 WORKDIR /app/backend
 COPY backend/package*.json ./
-RUN npm ci --production
+RUN npm config set registry https://registry.npmmirror.com \
+  && npm ci --production
 COPY backend/ ./
 
 # ============ Stage 3: Production ============

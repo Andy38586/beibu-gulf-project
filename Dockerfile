@@ -1,7 +1,13 @@
 # ============ Stage 1: Build Frontend ============
 # 注意：本仓库为 monorepo，依赖与 build 脚本在根 package.json（无 frontend/package.json）。
 # 前端构建由根脚本 `npm run build`（= cd frontend && vite build）触发，产物输出到 frontend/dist。
+# 2026-08-09：VITE_TIANDITU_KEY 作为构建参数传入（vite build 打包进产物）。
+# CI 由 GitHub Secrets 注入；服务器 docker compose up --build 由 compose 的 build.args 传入
+# （见 docker-compose.yml，值读自服务器项目目录 .env）——否则生产底图 404。
 FROM node:22-alpine AS frontend-builder
+
+ARG VITE_TIANDITU_KEY=
+ENV VITE_TIANDITU_KEY=$VITE_TIANDITU_KEY
 
 WORKDIR /app
 

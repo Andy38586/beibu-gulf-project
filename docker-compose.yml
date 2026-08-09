@@ -8,8 +8,12 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    # d064: 镜像版本 tag（回滚用）。部署时传 IMAGE_TAG=<上一版本tag> 即可切回旧版；
-    # 不传则默认 latest。配合 scripts/rollback.sh 使用。
+      # 2026-08-09：前端构建需要天地图 key（vite build 打包进产物）。
+      # 值读自 compose 同目录 .env（服务器部署时在项目目录配置 VITE_TIANDITU_KEY=新key）
+      args:
+        VITE_TIANDITU_KEY: ${VITE_TIANDITU_KEY:-}
+    # d064: 镜像版本 tag（回滚用）。部署时传 IMAGE_TAG=<上一版本tag> 即可切回旧版。
+    # 不传则默认 latest。配置 scripts/rollback.sh 使用。
     image: beibu-gulf-webgis:${IMAGE_TAG:-latest}
     container_name: beibu-gulf-webgis
     # 运行时注入密钥与端口：env_file 在容器启动期读取本地 backend/.env，

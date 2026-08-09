@@ -9,19 +9,34 @@
  */
 import { ref } from 'vue'
 
+import { LAYOUT_DESKTOP_MIN } from '@/shared/layout/config'
+
 /** 专注模式是否激活 */
 const active = ref(false)
 /** 当前滑块所在面板元素（closest('.GCS-panel')） */
 const activePanel = ref<HTMLElement | null>(null)
 
 export function useSliderFocus() {
-  /** 滑块按下：记录所在面板并进入专注模式 */
+  /**
+   * 滑块按下：记录所在面板并进入专注模式。
+   * 档位 1（≥960px，3 面板宽）无遮挡，专注模式不生效（2026-08-09 用户决策）。
+   * 同时在 document 上注册 pointerup/pointercancel 兜底——组件上的 @pointerup
+   * 可能因滑块组件卸载（v-if 切换）/事件被内部吞掉而丢失，导致专注模式卡死
+   * （body 常驻 slider-focus-mode，所有面板透明，"面板消失"假象，2026-08-09 实测）。
+   */
   function beginSliderFocus(el: HTMLElement | null): void {
+    if (typeof window !== 'undefined' && window.innerWidth >= LAYOUT_DESKTOP_MIN) return
+    document.removeEventListener('pointerup', endSliderFocus)
+    document.removeEventListener('pointercancel', endSliderFocus)
     activePanel.value = el?.closest('.GCS-panel') ?? null
     active.value = true
+    document.addEventListener('pointerup', endSliderFocus)
+    document.addEventListener('pointercancel', endSliderFocus)
   }
-  /** 滑块松手/取消：退出专注模式 */
+  /** 滑块松手/取消：退出专注模式（幂等，document 兜底与组件事件共用） */
   function endSliderFocus(): void {
+    document.removeEventListener('pointerup', endSliderFocus)
+    document.removeEventListener('pointercancel', endSliderFocus)
     active.value = false
     activePanel.value = null
   }

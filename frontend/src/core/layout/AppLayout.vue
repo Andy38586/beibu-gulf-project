@@ -42,17 +42,18 @@ const { drawerOpen, closeDrawer } = useMobileDrawer()
 const { active: sliderFocusActive, activePanel: sliderActivePanel } = useSliderFocus()
 
 // 调试模式状态（网格 + 性能监控，类似 MC F3；生产可用）
+// 2026-08-09 用户决策：调试板块仅本地开发渲染（上线不带调试模式，无需第二套环境）——
+// import.meta.env.DEV 在 vite dev 下为 true、build 时为 false（编译期常量），
+// 生产构建后 v-if 恒 false，调试组件不创建、不渲染。
 const debugMode = ref(false)
+const showDebug = import.meta.env.DEV
 
-// 根节点引用：专注模式 class 挂载点
-const appLayoutRef = ref<HTMLElement | null>(null)
-
-// 滑块专注模式：激活时根节点加 slider-focus-mode（CSS 透明化其他面板），
-// 滑块所在面板标记 slider-focus-panel 保持可见；底部 nav 不受影响
+// 滑块专注模式：class 挂到 body（MobileDrawer Teleport 到 body，抽屉不在 .app-layout 内，
+// 挂根节点会导致抽屉内的面板匹配不到 .slider-focus-mode 选择器，2026-08-09 实测）。
+// 激活时 body 加 slider-focus-mode（CSS 透明化其他面板），滑块所在面板标记 slider-focus-panel；
+// 底部 nav（.bottom-nav-bar）与 .slider-focus-panel 由 CSS 排除，保持可见。
 watch(sliderFocusActive, (act) => {
-  const root = appLayoutRef.value
-  if (!root) return
-  root.classList.toggle('slider-focus-mode', act)
+  document.body.classList.toggle('slider-focus-mode', act)
   if (act) {
     document.querySelectorAll('.GCS-panel').forEach((p) => {
       p.classList.toggle('slider-focus-panel', p === sliderActivePanel.value)
@@ -73,7 +74,7 @@ function goBusiness(m: BusinessModule): void {
 </script>
 
 <template>
-  <div ref="appLayoutRef" class="app-layout">
+  <div class="app-layout">
     <!-- ===== 桌面端：绝对定位 PPS 面板（≥960px） ===== -->
     <template v-if="showPanels">
       <!-- Title Panel（4×1，左上，第一行） -->
@@ -173,14 +174,15 @@ function goBusiness(m: BusinessModule): void {
       </div>
     </MobileDrawer>
 
-    <!-- 独立调试开关：固定右下、不随响应式布局变化（独立板块，删除即脱离） -->
-    <DebugToggle v-model="debugMode" />
+    <!-- 独立调试开关：仅本地开发渲染（import.meta.env.DEV），固定右下、不随响应式布局变化
+         （独立板块，生产构建不创建；如需彻底从 bundle 剔除用动态 import 方案） -->
+    <DebugToggle v-if="showDebug" v-model="debugMode" />
 
     <!-- 底部导航（3 按钮：首页/个人中心/菜单） -->
     <BottomNavBar />
 
-    <!-- 调试模式：网格参考线 + 性能监控信息（MC F3 风格，不拦截鼠标，生产可用） -->
-    <GCSDebugOverlay v-if="debugMode" :enabled="debugMode" />
+    <!-- 调试模式：网格参考线 + 性能监控信息（MC F3 风格，不拦截鼠标，仅本地开发） -->
+    <GCSDebugOverlay v-if="showDebug && debugMode" :enabled="debugMode" />
   </div>
 </template>
 

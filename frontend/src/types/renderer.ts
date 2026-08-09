@@ -54,6 +54,10 @@ export interface FlyToOptions {
   duration?: number // 毫秒（2D）/ 秒（3D，内部转换）
   zoom?: number
   height?: number
+  // Cesium 相机朝向（3D 专用；OL 忽略，2026-08-09 类型补全）
+  heading?: number
+  pitch?: number
+  roll?: number
 }
 
 // ===== 图层选项 =====
@@ -77,6 +81,8 @@ export interface LayerOptions {
   opacity?: number
   // GeoJSON 图层 per-feature 样式回调（OL 渲染器消费）
   style?: unknown
+  // GeoJSON 图层加载失败回调（Cesium 渲染器消费，2026-08-09 类型补全）
+  onError?: (err: unknown) => void
   // ── 热力图选项（2D Only，a015：显式传入使色带/权重可配置）──
   /** 热力图色带（CSS 颜色字符串数组，从低到高） */
   gradient?: string[]

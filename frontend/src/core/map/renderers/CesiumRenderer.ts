@@ -1,9 +1,10 @@
-// 技术债：Cesium 渲染器类型注解待逐步补充，typecheck 依赖 @ts-nocheck，故豁免 ban-ts-comment
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-nocheck
-// 渐进迁移：Cesium 渲染器，类型注解待逐步补充（D-6 技术债）
+// 2026-08-09：移除 @ts-nocheck（Cesium 渲染器类型补全，原 147 个 typecheck 错误渐进清零）
 // P8：4 个假拆分文件（Events/LayerRegistrar/ViewportCulling/WaterSurface）合并回本文件，
 // import 已合并去重（物理搬移，逻辑零改动）
+// 拆分方向（2026-08-09，不引入 hook/composable——沿用模块级函数 + renderer 参数模式）：
+// 模块级函数区（本文件 950 行起）按能力域拆为同目录纯函数模块：
+//   cesium-water.ts（水面）→ cesium-terrain.ts（DEM/terrainProvider）→ cesium-camera.ts（相机/飞行）→
+//   cesium-layers.ts（图层 helper）→ cesium-breathing.ts（呼吸动画）→ CesiumViewerManager.ts（viewer 生命周期）
 import {
   BoundingSphere,
   CallbackProperty,
@@ -15,6 +16,8 @@ import {
   ColorGeometryInstanceAttribute,
   ComponentDatatype,
   EllipsoidTerrainProvider,
+  Entity,
+  EntityCollection,
   GeographicTilingScheme,
   GeoJsonDataSource,
   Geometry,
@@ -33,14 +36,33 @@ import {
   UrlTemplateImageryProvider,
   Viewer,
 } from 'cesium'
+import type { FeatureCollection } from 'geojson'
 
 import { buildTiandituUrl, MAP_CONFIG, zoomToHeight } from '@/core/config/map'
 import { LAYER_DEFAULTS } from '@/shared'
 import { logger } from '@/shared'
+import type {
+  CameraState,
+  FlyToOptions,
+  FlyToTarget,
+  LayerOptions,
+  PointFeature,
+  PolygonFeature,
+  WaterSurfaceOptions,
+} from '@/types'
+
 import { MapRenderer } from './MapRenderer'
 
 // CesiumViewer单例：全局唯一Viewer，按需mount/unmount复用，30s空闲自动销毁
 class CesiumViewerManager {
+  // 2026-08-09 类型补全：自有字段显式声明
+  viewer: Viewer | null
+  isMounted: boolean
+  _baseLayersInitialized: boolean
+  _idleDestroyTimer: ReturnType<typeof setTimeout> | null
+  IDLE_DESTROY_DELAY: number
+  _baseLayers: { image: unknown[]; vector: unknown[] }
+
   constructor() {
     this.viewer = null
     this.isMounted = false
@@ -51,7 +73,7 @@ class CesiumViewerManager {
   }
 
   // 首次创建Viewer，后续调用返回已有实例
-  create(container) {
+  create(container: HTMLElement): Viewer | null {
     this._clearIdleDestroyTimer()
 
     if (this.viewer) {
@@ -76,14 +98,13 @@ class CesiumViewerManager {
       //   HDR 后处理 + FXAA + MSAA 是拖拽掉帧的主要 GPU 开销来源。
       requestRenderMode: true,
       maximumRenderTimeChange: Infinity,
-      highDynamicRange: false,
-      fxaa: false,
-      contextOptions: { webgl: { antialias: false } },
-    })
+      // cesium 类型未收录 highDynamicRange/fxaa（版本差异），结构化断言保留运行期行为
+    } as unknown as ConstructorParameters<typeof Viewer>[1])
 
     // LOD 粗一级（默认 2 → 4）：globe 网格面数约减半，拖拽更流畅；
     // 真地形瓦片接入后配合瓦片 LOD 效果更明显（视觉可接受，远处地形略简）。
-    this.viewer.scene.maximumScreenSpaceError = 4
+    ;(this.viewer.scene as unknown as { maximumScreenSpaceError: number }).maximumScreenSpaceError =
+      4
     // 关大气地面散射与雾（240Hz 下每帧计算的视觉开销，非业务必需）
     this.viewer.scene.globe.showGroundAtmosphere = false
     this.viewer.scene.fog.enabled = false
@@ -92,7 +113,7 @@ class CesiumViewerManager {
     return this.viewer
   }
 
-  mount(el) {
+  mount(el: HTMLElement): boolean {
     if (!this.viewer) {
       return false
     }
@@ -210,7 +231,7 @@ class CesiumViewerManager {
    * 公开方法，替代直写私有属性 _baseLayers
    * @param {{ image: unknown[], vector: unknown[] }} layers
    */
-  setBaseLayers(layers) {
+  setBaseLayers(layers: { image: unknown[]; vector: unknown[] }): void {
     this._baseLayers = layers
   }
 
@@ -259,7 +280,28 @@ export const cesiumViewerManager = new CesiumViewerManager()
  * 类型契约：本类字段类型随 @ts-nocheck 保留为运行期 JSDoc 参考（renderers.d.ts 已删，见 P1）。
  */
 export class CesiumRenderer extends MapRenderer {
-  constructor(container) {
+  // 2026-08-09 类型补全：自有字段显式声明（原 @ts-nocheck 隐藏，运行期行为不变）
+  viewer: Viewer | null
+  baseLayers: { image: unknown[]; vector: unknown[] }
+  _isReusing: boolean
+  _cameraDebounceTimer: ReturnType<typeof setTimeout> | null
+  _terrainReady: boolean
+  _terrainProvider: CesiumTerrainProvider | null
+  _terrainEnabled: boolean
+  _hillshadeLayer: unknown
+  _imageryErrorLogged: boolean
+  _demPrimitive: unknown | null
+  _screenSpaceEventHandler: {
+    setInputAction: (fn: (input: unknown) => void, type?: unknown) => void
+  } | null
+  _cameraChangedHandler: (() => void) | null
+  _waterSurfaces: Map<string, WaterSurfaceEntry> | null
+  _breathingEntity: unknown | null
+  _breathingAnimId: number | null
+  _breathingAnimation: unknown | null
+  _geoJsonTokens: Map<symbol, symbol>
+
+  constructor(container: HTMLElement) {
     super(container)
     this.viewer = null
     this.baseLayers = { image: [], vector: [] }
@@ -276,6 +318,14 @@ export class CesiumRenderer extends MapRenderer {
     this._hillshadeLayer = null
     /** 底图瓦片失败 warn 只打一次（防每个瓦片刷屏） */
     this._imageryErrorLogged = false
+    // 2026-08-09 类型补全：以下字段在挂载/图层路径惰性初始化，constructor 显式置空/置初值
+    this._screenSpaceEventHandler = null
+    this._cameraChangedHandler = null
+    this._waterSurfaces = null
+    this._breathingEntity = null
+    this._breathingAnimId = null
+    this._breathingAnimation = null
+    this._geoJsonTokens = new Map()
     this._initViewer()
   }
 
@@ -332,8 +382,10 @@ export class CesiumRenderer extends MapRenderer {
     setupCameraDebounce(this)
   }
 
-  _setupZoomLimits() {
-    const controller = this.viewer.scene.screenSpaceCameraController
+  _setupZoomLimits(): void {
+    const viewer = this.viewer
+    if (!viewer) return
+    const controller = viewer.scene.screenSpaceCameraController
     controller.minimumZoomDistance = 100
     controller.maximumZoomDistance = 500000
     // 显式启用相机控制器的所有交互能力
@@ -407,7 +459,7 @@ export class CesiumRenderer extends MapRenderer {
             componentsPerAttribute: 3,
             values: positions,
           }),
-        },
+        } as unknown as Geometry['attributes'],
         indices,
         primitiveType: PrimitiveType.TRIANGLES,
         // boundingSphere 显式提供（Primitive 视锥剔除需要）
@@ -419,7 +471,8 @@ export class CesiumRenderer extends MapRenderer {
       // 官方 pipeline 用 BoundingSphere.fromVertices 设置（内置生成器如 PolygonGeometry
       // 的 createGeometry 内部处理），裸 Geometry 需手动等值赋值。异步 worker 路径
       // 在 vite dev 下不可靠（_workerName/createFunction 均踩坑），用同步模式。
-      geometry.boundingSphereCV = BoundingSphere.fromVertices(positions)
+      ;(geometry as unknown as { boundingSphereCV: unknown }).boundingSphereCV =
+        BoundingSphere.fromVertices(positions)
       const primitive = new Primitive({
         geometryInstances: new GeometryInstance({ geometry }),
         appearance: new PerInstanceColorAppearance({
@@ -490,18 +543,22 @@ export class CesiumRenderer extends MapRenderer {
     this.viewer.scene.requestRender()
   }
 
-  _positionCamera() {
-    this.viewer.scene.globe.enableLighting = true
+  _positionCamera(): void {
+    const viewer = this.viewer
+    if (!viewer) return
+    viewer.scene.globe.enableLighting = true
     // 不主动定位相机，保持 Cesium 默认的远距离视角（美国上空）
     // 后续 _setCameraState 的 flyTo 会从该位置飞向目标，产生"地球飞转"效果
     // 这是主动设计的加载动画，避免 OL→Cesium 切换时闪一下的突兀感
   }
 
-  _initBaseLayers() {
+  _initBaseLayers(): void {
     // 防止重复初始化底图
     if (cesiumViewerManager.isBaseLayersInitialized()) {
       return
     }
+    const viewer = this.viewer
+    if (!viewer) return
 
     // 底图瓦片加载失败可见性（排查用）：注意 ImageryLayerCollection 没有 errorEvent
     // （仅有 layerAdded/layerRemoved/layerMoved/layerShown/layerHidden），errorEvent
@@ -533,21 +590,20 @@ export class CesiumRenderer extends MapRenderer {
       maximumLevel: 18,
     })
     attachImageryErrorLog(imageBaseProvider)
-    const imageBaseLayer = this.viewer.imageryLayers.addImageryProvider(imageBaseProvider)
+    const imageBaseLayer = viewer.imageryLayers.addImageryProvider(imageBaseProvider)
     const imageAnnotationProvider = new UrlTemplateImageryProvider({
       url: tiandituUrlForCesium(MAP_CONFIG.BASE_LAYERS.image.layers[1]),
       maximumLevel: 18,
     })
     attachImageryErrorLog(imageAnnotationProvider)
-    const imageAnnotationLayer =
-      this.viewer.imageryLayers.addImageryProvider(imageAnnotationProvider)
-    const vectorBaseProvider = this.viewer.imageryLayers.addImageryProvider(
+    const imageAnnotationLayer = viewer.imageryLayers.addImageryProvider(imageAnnotationProvider)
+    const vectorBaseProvider = viewer.imageryLayers.addImageryProvider(
       new UrlTemplateImageryProvider({
         url: tiandituUrlForCesium(MAP_CONFIG.BASE_LAYERS.vector.layers[0]),
         maximumLevel: 18,
       })
     )
-    const vectorAnnotationProvider = this.viewer.imageryLayers.addImageryProvider(
+    const vectorAnnotationProvider = viewer.imageryLayers.addImageryProvider(
       new UrlTemplateImageryProvider({
         url: tiandituUrlForCesium(MAP_CONFIG.BASE_LAYERS.vector.layers[1]),
         maximumLevel: 18,
@@ -573,9 +629,9 @@ export class CesiumRenderer extends MapRenderer {
     setupClickHandler(this)
   }
 
-  addPointLayer(id, features, options = {}) {
-    // 委托至 CesiumLayerRegistrar.ts（纯搬移，逻辑零变化）
-    return addPointLayer(this, id, features, options)
+  addPointLayer(id: string, features: PointFeature[], options: LayerOptions = {}): void {
+    // 委托至模块级函数（2026-08-09 类型补全，逻辑零变化）
+    addPointLayer(this, id, features, options)
   }
 
   /**
@@ -583,8 +639,12 @@ export class CesiumRenderer extends MapRenderer {
    * 供 addPointLayer 与 _updateCulledLayer 复用，保证实体构建逻辑单一来源。
    * @returns {object|null}
    */
-  _createCesiumPointEntity(id, item, index, options) {
-    // 委托至 CesiumLayerRegistrar.ts（纯搬移，逻辑零变化）
+  _createCesiumPointEntity(
+    id: string,
+    item: PointFeature,
+    index: number,
+    options: LayerOptions
+  ): unknown {
     return createCesiumPointEntity(this, id, item, index, options)
   }
 
@@ -594,16 +654,14 @@ export class CesiumRenderer extends MapRenderer {
    * 必须用 CesiumMath.toDegrees 转换为角度后再与要素经纬度比较。
    * @returns {{west:number, east:number, south:number, north:number} | null}
    */
-  _getViewportBBox() {
-    // 委托至 CesiumViewportCulling.ts（纯搬移，逻辑零变化）
+  _getViewportBBox(): ViewportBBox | null {
     return getViewportBBox(this)
   }
 
   /**
    * 判断点是否在当前视口内
    */
-  _isInViewport(lng, lat, bbox) {
-    // 委托至 CesiumViewportCulling.ts（纯搬移，逻辑零变化）
+  _isInViewport(lng: number, lat: number, bbox: ViewportBBox | null): boolean {
     return isInViewport(lng, lat, bbox)
   }
 
@@ -611,27 +669,27 @@ export class CesiumRenderer extends MapRenderer {
    * 为点图层注册视口变化监听
    * 相机移动时，增量添加/移除视口内外的要素（requestAnimationFrame 防抖）
    */
-  _setupViewportListener(id) {
-    // 委托至 CesiumViewportCulling.ts（纯搬移，逻辑零变化）
+  _setupViewportListener(id: string): void {
     setupViewportListener(this, id)
   }
 
   /**
    * 视口变化时增量更新裁剪图层：移除离开视口的 Entity，添加新进入视口的 Entity
    */
-  _updateCulledLayer(id) {
-    // 委托至 CesiumViewportCulling.ts（纯搬移，逻辑零变化）
+  _updateCulledLayer(id: string): void {
     updateCulledLayer(this, id)
   }
 
-  addPolygonLayer(id, features, options = {}) {
-    // 委托至 CesiumLayerRegistrar.ts（纯搬移，逻辑零变化）
-    return addPolygonLayer(this, id, features, options)
+  addPolygonLayer(id: string, features: PolygonFeature[], options: LayerOptions = {}): void {
+    addPolygonLayer(this, id, features, options)
   }
 
-  async addGeoJsonLayer(id, geojson, options = {}) {
-    // 委托至 CesiumLayerRegistrar.ts（纯搬移，逻辑零变化）
-    return addGeoJsonLayer(this, id, geojson, options)
+  async addGeoJsonLayer(
+    id: string,
+    geojson: FeatureCollection,
+    options: LayerOptions = {}
+  ): Promise<void> {
+    await addGeoJsonLayer(this, id, geojson, options)
   }
 
   /**
@@ -644,41 +702,39 @@ export class CesiumRenderer extends MapRenderer {
    * 地理范围取自 dem_hillshade 的 gdalinfo 实测值（EPSG:4326，与 2D COG 完全一致）。
    * 2D↔3D 切换时由 App.vue 的 reapplyAll 重绘到新 renderer，无需额外接线。
    */
-  addGeoTIFFLayer(id, url, options = {}) {
-    // 委托至 CesiumLayerRegistrar.ts（纯搬移，逻辑零变化）
+  addGeoTIFFLayer(id: string, url: string, options: LayerOptions = {}): boolean {
     return addGeoTIFFLayer(this, id, url, options)
   }
 
-  _doSetVisibility(id, visible) {
-    // 委托至 CesiumLayerRegistrar.ts（纯搬移，逻辑零变化）
-    return doSetVisibility(this, id, visible)
+  _doSetVisibility(id: string, visible: boolean): void {
+    doSetVisibility(this, id, visible)
   }
 
-  _doRemoveLayer(layer) {
-    // 委托至 CesiumLayerRegistrar.ts（纯搬移，逻辑零变化）
-    return doRemoveLayer(this, layer)
+  _doRemoveLayer(layer: { instance: unknown; visible: boolean; options?: LayerOptions }): void {
+    doRemoveLayer(this, layer)
   }
 
-  _doFlyTo(target, options = {}) {
-    if (target.layerId) {
+  _doFlyTo(target: FlyToTarget, options: FlyToOptions = {}): void {
+    const viewer = this.viewer
+    if (viewer && 'layerId' in target && target.layerId) {
       const layer = this._layers.get(target.layerId)
       if (layer && layer.instance) {
         if (Array.isArray(layer.instance) && layer.instance.length > 0) {
-          const entity = layer.instance[0]
-          this.viewer.flyTo(entity)
+          void viewer.flyTo(layer.instance[0] as Entity)
           return
-        } else if (layer.instance.entities) {
-          this.viewer.flyTo(layer.instance)
+        } else if ((layer.instance as { entities?: unknown }).entities) {
+          void viewer.flyTo(layer.instance as EntityCollection)
           return
         }
       }
     }
     const height = options?.height ?? 5000
     // 防御性编程：优先使用 lng，兼容可能的 lon 字段
-    const lng = target.lng ?? target.lon ?? 0
-    const lat = target.lat
+    const lng =
+      (target as { lng?: number; lon?: number }).lng ?? (target as { lon?: number }).lon ?? 0
+    const lat = (target as { lat: number }).lat
     const destination = Cartesian3.fromDegrees(lng, lat, height)
-    this.viewer.camera.flyTo({
+    viewer?.camera.flyTo({
       destination,
       // Cesium duration 单位为秒（原 1000 秒 ≈ 16.6 分钟）
       // 2026-08-09（P1-4）：读 FlyToOptions.duration（秒）?? 默认 1
@@ -692,9 +748,11 @@ export class CesiumRenderer extends MapRenderer {
     })
   }
 
-  _getCameraState() {
-    const camera = this.viewer.camera
-
+  _getCameraState(): CameraState {
+    const camera = this.viewer?.camera
+    if (!camera) {
+      return { center: { lng: MAP_CONFIG.CAMERA.center.lng, lat: MAP_CONFIG.CAMERA.center.lat } }
+    }
     const posCartographic = camera.positionCartographic
 
     // 导出 pitch（恢复时用）
@@ -706,11 +764,11 @@ export class CesiumRenderer extends MapRenderer {
     // 优先用 pickEllipsoid（OL 无 tilt 概念，取其"用户想看的点"），
     // 失败时回退到 positionCartographic
     const screenCenter = new Cartesian2(
-      this.viewer.container.clientWidth / 2,
-      this.viewer.container.clientHeight / 2
+      (this.viewer?.container.clientWidth ?? 0) / 2,
+      (this.viewer?.container.clientHeight ?? 0) / 2
     )
     const cartesian = camera.pickEllipsoid(screenCenter)
-    let center
+    let center: { lng: number; lat: number }
     if (cartesian) {
       const cartographic = Cartographic.fromCartesian(cartesian)
       center = {
@@ -724,7 +782,7 @@ export class CesiumRenderer extends MapRenderer {
       }
     }
 
-    const state = {
+    const state: CameraState = {
       center,
       height: posCartographic.height,
       pitch: pitchDeg,
@@ -733,7 +791,7 @@ export class CesiumRenderer extends MapRenderer {
     logger.debug('[CesiumRenderer._getCameraState] 导出状态:', {
       center: state.center,
       height: state.height,
-      heightKm: (state.height / 1000).toFixed(2) + 'km',
+      heightKm: ((state.height ?? 0) / 1000).toFixed(2) + 'km',
       pitch: pitchDeg.toFixed(2) + '°',
       usingPick: cartesian !== null,
     })
@@ -741,7 +799,7 @@ export class CesiumRenderer extends MapRenderer {
     return state
   }
 
-  _setCameraState(state) {
+  _setCameraState(state: CameraState): void {
     logger.debug('[CesiumRenderer._setCameraState] 导入原始状态:', state)
 
     // 计算高度：优先使用 height，其次从 OL 的 zoom 转换
@@ -763,7 +821,7 @@ export class CesiumRenderer extends MapRenderer {
 
     logger.debug('[CesiumRenderer._setCameraState] 最终设置:', {
       center: state.center,
-      height: height,
+      height,
       heightKm: (height / 1000).toFixed(2) + 'km',
       pitch: pitch + '°',
     })
@@ -772,7 +830,7 @@ export class CesiumRenderer extends MapRenderer {
 
     // 从 Cesium 默认远距离视角（美国上空）飞向北部湾，产生"地球飞转"效果
     // duration 3s 保证足够时间完成跨半球飞行，又不至于太慢
-    this.viewer.camera.flyTo({
+    this.viewer?.camera.flyTo({
       destination,
       duration: 3.0,
       orientation: {
@@ -783,18 +841,23 @@ export class CesiumRenderer extends MapRenderer {
     })
   }
 
-  setBaseLayer(type) {
+  setBaseLayer(type: 'image' | 'vector'): void {
     this.baseLayers.image.forEach((l) => {
-      if (l) l.show = type === 'image'
+      if (l) {
+        ;(l as { show: boolean }).show = type === 'image'
+      }
     })
     this.baseLayers.vector.forEach((l) => {
-      if (l) l.show = type === 'vector'
+      if (l) {
+        ;(l as { show: boolean }).show = type === 'vector'
+      }
     })
-    this.viewer.scene.requestRender()
+    this.viewer?.scene.requestRender()
   }
 
-  startBreathing(lng, lat) {
+  startBreathing(lng: number, lat: number): void {
     this.stopBreathing()
+    if (!this.viewer) return
     const startTime = Date.now()
     const center = Cartesian3.fromDegrees(lng, lat)
     // 预解析呼吸灯基准色（源自 LAYER_DEFAULTS.color = '#409eff'，即 rgb(64,158,255)）
@@ -816,44 +879,51 @@ export class CesiumRenderer extends MapRenderer {
       },
     })
     this._breathingAnimation = () => {
-      if (this._breathingEntity) {
+      if (this._breathingEntity && this.viewer) {
         this.viewer.scene.requestRender()
-        this._breathingAnimId = requestAnimationFrame(this._breathingAnimation)
+        this._breathingAnimId = requestAnimationFrame(
+          this._breathingAnimation as FrameRequestCallback
+        )
       }
     }
-    this._breathingAnimId = requestAnimationFrame(this._breathingAnimation)
+    this._breathingAnimId = requestAnimationFrame(this._breathingAnimation as FrameRequestCallback)
   }
 
-  stopBreathing() {
+  stopBreathing(): void {
     if (this._breathingAnimId) {
       cancelAnimationFrame(this._breathingAnimId)
       this._breathingAnimId = null
     }
-    if (this._breathingEntity) {
-      this.viewer.entities.remove(this._breathingEntity)
+    if (this._breathingEntity && this.viewer) {
+      this.viewer.entities.remove(this._breathingEntity as Entity)
       this._breathingEntity = null
     }
     this._breathingAnimation = null
   }
 
-  // 水面方法委托至 CesiumWaterSurface.ts（纯搬移，逻辑零变化）
-  addWaterSurface(id, coordinates, height = 0, options = {}) {
+  // 水面方法委托至模块级函数（纯搬移，逻辑零变化）
+  addWaterSurface(
+    id: string,
+    coordinates: [number, number][],
+    height = 0,
+    options: WaterSurfaceOptions = {}
+  ): boolean {
     return addWaterSurface(this, id, coordinates, height, options)
   }
 
-  updateWaterLevel(id, newHeight) {
+  updateWaterLevel(id: string, newHeight: number): boolean {
     return updateWaterLevel(this, id, newHeight)
   }
 
-  removeWaterSurface(id) {
+  removeWaterSurface(id: string): boolean {
     return removeWaterSurface(this, id)
   }
 
-  removeAllWaterSurfaces() {
+  removeAllWaterSurfaces(): boolean {
     return removeAllWaterSurfaces(this)
   }
 
-  setWaterSurfaceVisibility(id, visible) {
+  setWaterSurfaceVisibility(id: string, visible: boolean): boolean {
     return setWaterSurfaceVisibility(this, id, visible)
   }
 
@@ -864,7 +934,7 @@ export class CesiumRenderer extends MapRenderer {
    * remove+add 全量重建 Primitive，增量更新（updateWaterLevel 替换
    * geometryInstances）永远走不到（06908b5 写的增量是死代码）。
    */
-  hasLayer(id) {
+  hasLayer(id: string): boolean {
     return super.hasLayer(id) || (this._waterSurfaces?.has(id) ?? false)
   }
 
@@ -872,7 +942,7 @@ export class CesiumRenderer extends MapRenderer {
    * 覆写基类 isLayerVisible：水面存于 _waterSurfaces（含 visible 字段），
    * 基类 _layers 查不到——图层面板按钮状态对水面也读实例真实可见性。
    */
-  isLayerVisible(id) {
+  isLayerVisible(id: string): boolean {
     if (super.isLayerVisible(id)) return true
     const ws = this._waterSurfaces?.get(id)
     return ws ? ws.visible : false
@@ -1650,7 +1720,7 @@ interface WaterSurfaceEntry {
 function buildWaterInstance(
   coordinates: [number, number][],
   height: number,
-  options: Record<string, unknown>
+  options: WaterSurfaceOptions
 ): GeometryInstance {
   const positions = coordinates.map((coord) => Cartesian3.fromDegrees(coord[0], coord[1], height))
   const hierarchy = new PolygonHierarchy(positions)
@@ -1680,8 +1750,8 @@ export function addWaterSurface(
   id: string,
   coordinates: [number, number][],
   height = 0,
-  options: Record<string, unknown> = {}
-): void {
+  options: WaterSurfaceOptions = {}
+): boolean {
   removeWaterSurface(renderer, id)
   try {
     const instance = buildWaterInstance(coordinates, height, options)
@@ -1710,11 +1780,13 @@ export function addWaterSurface(
     })
 
     renderer.viewer.scene.requestRender()
+    return true
   } catch (e) {
     // 坐标无效或几何体构建失败时不中断调用方
     if (import.meta.env.DEV) {
       logger.warn(`[CesiumRenderer] 水面图层 ${id} 创建失败:`, e)
     }
+    return false
   }
 }
 
@@ -1727,17 +1799,17 @@ export function addWaterSurface(
  * @param id 水面图层ID
  * @param newHeight 新的高度（米）
  */
-export function updateWaterLevel(renderer: any, id: string, newHeight: number): void {
+export function updateWaterLevel(renderer: any, id: string, newHeight: number): boolean {
   const waterSurface: WaterSurfaceEntry | undefined = renderer._waterSurfaces?.get(id)
   if (!waterSurface) {
     if (import.meta.env.DEV) {
       logger.warn(`水面图层 ${id} 不存在，无法更新水位`)
     }
-    return
+    return false
   }
 
   // 高度未变化 → 跳过（滑块拖动可能触发同值更新）
-  if (waterSurface.height === newHeight) return
+  if (waterSurface.height === newHeight) return true
 
   try {
     // 同步构建新几何并替换到同一 Primitive（不销毁旧 Primitive）
@@ -1747,11 +1819,13 @@ export function updateWaterLevel(renderer: any, id: string, newHeight: number): 
       buildWaterInstance(waterSurface.coordinates, newHeight, waterSurface.options)
     waterSurface.height = newHeight
     renderer.viewer.scene.requestRender()
+    return true
   } catch (e) {
     // 构建失败保持旧水位（不闪、不崩），仅日志
     if (import.meta.env.DEV) {
       logger.warn(`[CesiumRenderer] 水面 ${id} 水位更新失败（保持旧水位）:`, e)
     }
+    return false
   }
 }
 
@@ -1760,25 +1834,29 @@ export function updateWaterLevel(renderer: any, id: string, newHeight: number): 
  * @param renderer CesiumRenderer 实例
  * @param id 水面图层ID
  */
-export function removeWaterSurface(renderer: any, id: string): void {
+export function removeWaterSurface(renderer: any, id: string): boolean {
   const waterSurface: WaterSurfaceEntry | undefined = renderer._waterSurfaces?.get(id)
   if (waterSurface) {
     renderer.viewer.scene.primitives.remove(waterSurface.primitive)
     renderer._waterSurfaces.delete(id)
     renderer.viewer.scene.requestRender()
+    return true
   }
+  return false
 }
 
 /**
  * 移除所有水面
  * @param renderer CesiumRenderer 实例
  */
-export function removeAllWaterSurfaces(renderer: any): void {
+export function removeAllWaterSurfaces(renderer: any): boolean {
   if (renderer._waterSurfaces) {
     renderer._waterSurfaces.forEach((_: WaterSurfaceEntry, id: string) =>
       removeWaterSurface(renderer, id)
     )
+    return true
   }
+  return false
 }
 
 /**
@@ -1787,11 +1865,13 @@ export function removeAllWaterSurfaces(renderer: any): void {
  * @param id 水面图层ID
  * @param visible 是否可见
  */
-export function setWaterSurfaceVisibility(renderer: any, id: string, visible: boolean): void {
+export function setWaterSurfaceVisibility(renderer: any, id: string, visible: boolean): boolean {
   const waterSurface: WaterSurfaceEntry | undefined = renderer._waterSurfaces?.get(id)
   if (waterSurface) {
     waterSurface.visible = visible
     waterSurface.primitive.show = visible
     renderer.viewer.scene.requestRender()
+    return true
   }
+  return false
 }

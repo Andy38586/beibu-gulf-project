@@ -91,7 +91,7 @@ jobs:
           GITLEAKS_VERSION=8.24.3
           curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_${OS}_${ARCH}.tar.gz" -o gitleaks.tar.gz
           tar -xzf gitleaks.tar.gz
-          ./gitleaks detect --redact --source . --no-banner
+          ./gitleaks detect --config gitleaks.toml --redact --source . --no-banner
 
       # d053 补充: .env 类文件禁止入库(仅允许 .env.example)
       - name: Ensure .env files are not tracked

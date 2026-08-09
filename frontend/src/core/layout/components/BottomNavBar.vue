@@ -139,15 +139,9 @@ function goBusiness(m: BusinessModule): void {
   pointer-events: auto;
 }
 
-/* 2026-08-09 防溢出兜底：仅在档位 3（<640px，nav-compact）允许按钮等比收缩 */
-.bottom-nav-bar.nav-compact :deep(.nav-inner > .GCS-button) {
-  flex: 1 1 0;
-  min-width: 0;
-}
-
-/* 档位 3（<640px）：释放 GCSPanel 的 min-width（3×cell），否则 dock 强制溢出视口。
- * 注意：.bottom-nav-bar 与 .GCS-panel 是同一元素（GCSPanel 根节点带父级 scope id），
- * 必须直接命中自身，不能用 :deep(.GCS-panel) 后代选择器（永不匹配自身，2026-08-09 实测） */
+/* 档位 3（<640px）dock 只有 3 键（210px < 视口），按钮保持固定 0.8 cell，
+ * 由 nav-inner 的 space-around 自然分配间距——2026-08-09 修正：
+ * 原 flex:1 均分让按钮占满 dock 无剩余空间，间距归零（外边距失控）。 */
 .bottom-nav-bar.nav-compact {
   min-width: 0 !important;
 }

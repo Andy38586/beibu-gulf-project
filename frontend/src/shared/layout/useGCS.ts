@@ -4,7 +4,15 @@ import { computed, ref } from 'vue'
 
 import { logger } from '@/shared/utils/logger'
 
-import { CELL_PADDING, GAP, getCellPixelByViewport, LAYOUT_DESKTOP_MIN, LAYOUT_DRAWER_MIN, PANEL_SPACING, SAFE_MARGIN } from './config.js'
+import {
+  CELL_PADDING,
+  GAP,
+  getCellPixelByViewport,
+  LAYOUT_DESKTOP_MIN,
+  LAYOUT_DRAWER_MIN,
+  PANEL_SPACING,
+  SAFE_MARGIN,
+} from './config.js'
 
 /** 锚点类型 */
 export type Anchor =

@@ -1,7 +1,7 @@
 // DebugToggle 点击链路回归测试（2026-08-09：排查"调试模式调不出来"）
 // 注意：DebugToggle 根是 Teleport，内容渲染到 document.body，须从 body 查询/触发
 import { mount } from '@vue/test-utils'
-import { beforeEach,describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import DebugToggle from '../components/DebugToggle.vue'
 

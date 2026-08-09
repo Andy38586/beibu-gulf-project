@@ -62,14 +62,14 @@
   /* ===== z-index 刻度系统（a017） =====
    * 统一管理层级，避免各组件随意写数字导致遮挡混乱。
    * 使用方式：z-index: var(--GCS-z-xxx); */
-  --GCS-z-map: 1;            /* 地图容器（最底层） */
-  --GCS-z-map-overlay: 90;   /* 地图内部覆盖物（boundary-warning 等） */
-  --GCS-z-map-status: 100;   /* 地图状态提示（loading/error） */
-  --GCS-z-panel: 200;        /* GCS 业务面板 */
-  --GCS-z-panel-float: 300;  /* 浮动面板（PortInfo 等） */
-  --GCS-z-drawer: 400;       /* 抽屉/侧滑 */
-  --GCS-z-modal: 500;        /* 弹窗 */
-  --GCS-z-message: 600;      /* ElMessage 全局提示 */
+  --GCS-z-map: 1; /* 地图容器（最底层） */
+  --GCS-z-map-overlay: 90; /* 地图内部覆盖物（boundary-warning 等） */
+  --GCS-z-map-status: 100; /* 地图状态提示（loading/error） */
+  --GCS-z-panel: 200; /* GCS 业务面板 */
+  --GCS-z-panel-float: 300; /* 浮动面板（PortInfo 等） */
+  --GCS-z-drawer: 400; /* 抽屉/侧滑 */
+  --GCS-z-modal: 500; /* 弹窗 */
+  --GCS-z-message: 600; /* ElMessage 全局提示 */
 }
 
 /* ===== 全局重置 ===== */

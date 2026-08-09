@@ -15,7 +15,7 @@
 import { ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
-import { type BusinessModule,businessModules } from '@/business/manifest'
+import { type BusinessModule, businessModules } from '@/business/manifest'
 import { useScreenActions } from '@/core/layout/composables/useScreenActions'
 import LayerControlPanel from '@/core/map/components/LayerControlPanel.vue'
 import { useGCS } from '@/shared'

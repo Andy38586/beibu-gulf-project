@@ -13,7 +13,7 @@ export default { name: 'GCSBottomNavBar' }
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
-import { type BusinessModule,businessModules } from '@/business/manifest'
+import { type BusinessModule, businessModules } from '@/business/manifest'
 import { useGCS } from '@/shared'
 
 import { useMobileDrawer } from '../useMobileDrawer'
@@ -35,8 +35,8 @@ const dockCellCount = computed(() => {
 })
 
 // dock 宽度上限（防溢出兜底）：min(dock cell 宽度, 视口宽 - 16px)
-const dockWidthCapCss = computed(() =>
-  `min(${dockCellCount.value * cellPixel.value}px, calc(100vw - 16px))`
+const dockWidthCapCss = computed(
+  () => `min(${dockCellCount.value * cellPixel.value}px, calc(100vw - 16px))`
 )
 
 function isActive(path: string): boolean {

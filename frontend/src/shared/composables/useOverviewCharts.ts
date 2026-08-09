@@ -54,8 +54,8 @@ export function useOverviewCharts() {
         series: [
           {
             name: `${charts.labels[0]} ~ ${charts.labels[charts.labels.length - 1]} 月均（${charts.unit}）`,
-            data: charts.series.map((s) =>
-              Math.round((s.data.reduce((a, b) => a + b, 0) / s.data.length) * 100) / 100
+            data: charts.series.map(
+              (s) => Math.round((s.data.reduce((a, b) => a + b, 0) / s.data.length) * 100) / 100
             ),
           },
         ],

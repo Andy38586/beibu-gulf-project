@@ -63,11 +63,13 @@ export async function readinessHandler(req, res, next) {
 app.get('/api/health/ready', readinessHandler)
 
 // 限流中间件：防止暴力破解和 DDoS
+// 2026-08-09：演示/展示场景阈值放宽——全局 1000/15min、登录 50/15min（演示反复试错/
+// 刷新不会误锁；面试展示以演示稳定优先，暴力防护语义保留）。真实多人上线再收紧。
 // 预测分析接口（/api/forecast/*）为合法高频交互（时间轴播放月粒度一轮 ~400+ 请求，
 // 拖动滑块/置信度反复触发），豁免全局限流，由下方 forecastLimiter 专属宽松限流管理。
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 分钟
-  max: 100, // 每个 IP 最多 100 次请求
+  max: 1000, // 每个 IP 最多 1000 次请求
   message: { error: '请求过于频繁，请稍后再试' },
   // 注意：app.use('/api/', ...) 内 req.path 已去掉 /api/ 前缀，须用 originalUrl 判断
   skip: (req) => req.originalUrl.startsWith('/api/forecast'),
@@ -79,23 +81,23 @@ app.use('/api/', limiter)
 // （前端另有 LRU 缓存：重放/往返命中缓存零请求，实际播放轮次远低于上限）。
 const forecastLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 500,
+  max: 1000,
   message: { error: '请求过于频繁，请稍后再试' },
 })
 app.use('/api/forecast', forecastLimiter)
 
-// 登录接口更严格的限流
+// 登录接口限流（演示放宽：50/15min，避免演示试错被锁 15 分钟）
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 分钟
-  max: 5, // 每个 IP 最多 5 次登录尝试
+  max: 50, // 每个 IP 最多 50 次登录尝试
   message: { error: '登录尝试过于频繁，请 15 分钟后再试' },
 })
 app.use('/api/auth/login', authLimiter)
 
-// 注册接口专属限流（d037：防批量注册）
+// 注册接口专属限流（d037：防批量注册；演示放宽）
 const registerLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 5,
+  max: 50,
   message: { error: '注册尝试过于频繁，请 15 分钟后再试' },
 })
 app.use('/api/auth/register', registerLimiter)

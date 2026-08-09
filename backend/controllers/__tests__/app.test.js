@@ -43,16 +43,16 @@ describe('app - trust proxy (REQ-6)', () => {
 
 /**
  * 限流分层验证（预测播放高频请求 → forecast 接口豁免全局限流）。
- * 全局 limiter(max 100/15min) 对 /api/forecast/* 走 skip（用 originalUrl 判断，
- * 注意 app.use('/api/',...) 内 req.path 已去掉 /api/ 前缀）；
- * forecast 接口由专属 forecastLimiter(max 500/15min) 管理。
+ * 全局 limiter(max 1000/15min，2026-08-09 演示放宽) 对 /api/forecast/* 走 skip
+ * （用 originalUrl 判断，注意 app.use('/api/',...) 内 req.path 已去掉 /api/ 前缀）；
+ * forecast 接口由专属 forecastLimiter(max 1000/15min) 管理。
  */
 describe('app - 限流分层（forecast 豁免全局）', () => {
   afterEach(() => {
     vi.resetModules()
   })
 
-  it('forecast 接口 101 连发不触发全局 100/15min 限流（skip 生效）', async () => {
+  it('forecast 接口 101 连发不触发全局限流（skip 生效）', async () => {
     const mod = await import('../../app.js')
     const server = mod.default.listen(0)
     const base = `http://127.0.0.1:${server.address().port}`
@@ -69,13 +69,13 @@ describe('app - 限流分层（forecast 豁免全局）', () => {
     }
   }, 30000)
 
-  it('非 forecast 接口 101 连发触发全局限流 429', async () => {
+  it('非 forecast 接口 1001 连发触发全局限流 429（演示阈值 1000/15min）', async () => {
     const mod = await import('../../app.js')
     const server = mod.default.listen(0)
     const base = `http://127.0.0.1:${server.address().port}`
     try {
       let lastStatus = 0
-      for (let i = 0; i < 101; i++) {
+      for (let i = 0; i < 1001; i++) {
         const res = await fetch(`${base}/api/ports`)
         lastStatus = res.status
         if (lastStatus === 429) break
@@ -84,5 +84,5 @@ describe('app - 限流分层（forecast 豁免全局）', () => {
     } finally {
       server.close()
     }
-  }, 30000)
+  }, 60000)
 })

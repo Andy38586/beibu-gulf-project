@@ -373,7 +373,7 @@ onUnmounted(() => {
       <ElSlider
         v-model="localWaterLevel"
         :min="0"
-        :max="20"
+        :max="15"
         :step="0.1"
         :show-tooltip="false"
         @pointerdown="beginSliderFocus($event.currentTarget as HTMLElement)"

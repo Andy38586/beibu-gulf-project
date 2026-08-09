@@ -48,6 +48,15 @@ server {
         expires 7d;
         add_header Cache-Control "public";
     }
+    location /static/terrain/ {
+        alias /app/backend/static/terrain/;
+        expires 30d;
+        add_header Cache-Control "public";
+        # 2026-08-09：.terrain 瓦片本身是 gzip 压缩流（CTB 输出），后端 Express 用
+        # Content-Encoding: gzip 响应（Cesium 才能解压 heightmap）；nginx 直发需补该头，
+        # 否则 Cesium 按原始字节解析 → RangeError: Invalid typed array length。
+        add_header Content-Encoding gzip;
+    }
     location /static/ {
         alias /app/backend/static/;
         expires 30d;

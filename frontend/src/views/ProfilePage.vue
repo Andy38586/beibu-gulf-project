@@ -45,6 +45,8 @@ async function handleLogout() {
 const logoutWidthCss = `${cellPixel.value * 3.8}px`
 const logoutHeightCss = `${cellPixel.value * 0.8}px`
 const logoutFontCss = `${cellPixel.value * 0.175}px`
+// 内边距 0.1 cell（2026-08-09：与 GCS 面板边缘规格一致）
+const logoutPaddingCss = `${cellPixel.value * 0.1}px`
 </script>
 
 <template>
@@ -112,12 +114,12 @@ const logoutFontCss = `${cellPixel.value * 0.175}px`
   flex-direction: column;
 }
 
-/* 底部退出登录（2026-08-09：独立下沉，原在 UserInfoCard 内位于收藏上方） */
+/* 底部退出登录（2026-08-09：独立下沉到最底部；内边距 0.1 cell 与 GCS 规格一致） */
 .profile-logout-bar {
   flex: 0 0 auto;
   display: flex;
   justify-content: center;
-  padding: v-bind(css.cell8px) 0;
+  padding: v-bind(logoutPaddingCss);
 }
 
 .profile-logout-btn {

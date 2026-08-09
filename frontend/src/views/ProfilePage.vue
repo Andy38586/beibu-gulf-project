@@ -30,7 +30,7 @@ const BarChart = defineAsyncComponent({
 })
 
 const { user, logout } = useAuth()
-const { cellPixel, css } = useGCS()
+const { cellPixel } = useGCS()
 const { chartData, barData, loadOverviewCharts } = useOverviewCharts()
 
 // 2026-08-09（P0-3）：与首页共用 useOverviewCharts，去掉本页硬编码假数据

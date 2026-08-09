@@ -7,11 +7,15 @@ import { logger } from '../utils/logger.js'
 import { sendSuccess } from '../utils/response.js'
 
 // 提取公共 cookie 设置，register/login 复用
-function setAuthCookie(res, token) {
+function setAuthCookie(res, token, req) {
+  // 2026-08-09 修复：Secure 由实际连接协议决定（nginx 透传 X-Forwarded-Proto），
+  // 而非 NODE_ENV——生产 HTTP（无 TLS 证书）下 Secure cookie 被浏览器拒绝保存，
+  // 登录成功立即失效（me 401 → 自动登出）。上 HTTPS 后 x-forwarded-proto=https 自动 Secure。
+  const isHttps = req?.secure || req?.headers?.['x-forwarded-proto'] === 'https'
   // 使用 HttpOnly Cookie 存储 token
   res.cookie('auth_token', token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: isHttps,
     sameSite: 'strict',
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 天
   })
@@ -49,7 +53,7 @@ export async function register(req, res, next) {
     const hashedPassword = await bcrypt.hash(password, 10)
     const user = await userService.createUser(username, hashedPassword)
     const token = generateToken(user)
-    setAuthCookie(res, token)
+    setAuthCookie(res, token, req)
 
     logger.audit('REGISTER', { userId: user.id, username, ip: req.ip })
     sendSuccess(res, { user }, 201)
@@ -84,7 +88,7 @@ export async function login(req, res, next) {
       throw new BusinessError(ErrorCode.UNAUTHORIZED, '用户名或密码错误')
     }
     const token = generateToken(user)
-    setAuthCookie(res, token)
+    setAuthCookie(res, token, req)
 
     logger.audit('LOGIN', { userId: user.id, username: user.username, ip: req.ip })
     sendSuccess(res, { user: { id: user.id, username: user.username, createdAt: user.createdAt } })

@@ -67,8 +67,11 @@ let unmounted = false
 
 // 2026-08-08：flood/impact 两路竞态守卫收敛到 useLatestRequest（请求封装统一），
 // 各持独立实例（淹没分析与影响评估互不干扰）
-const { createSignal: createFloodSignal, cancel: cancelFlood, getCurrentSignal: getFloodSignal } =
-  useLatestRequest()
+const {
+  createSignal: createFloodSignal,
+  cancel: cancelFlood,
+  getCurrentSignal: getFloodSignal,
+} = useLatestRequest()
 const { createSignal: createImpactSignal, cancel: cancelImpact } = useLatestRequest()
 
 // 防抖时长：500→100ms（性能优化 2026-08-06）

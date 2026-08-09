@@ -573,7 +573,8 @@ onUnmounted(() => {
       <div class="hud-item">
         <span class="hud-k">FPS</span><span class="hud-v">{{ fpsInfo.avg }}</span>
         <span class="hud-k">min</span><span class="hud-v">{{ fpsInfo.min }}</span>
-        <span class="hud-k">长帧&gt;50ms</span><span class="hud-v warn">{{ fpsInfo.longFrames }}</span>
+        <span class="hud-k">长帧&gt;50ms</span
+        ><span class="hud-v warn">{{ fpsInfo.longFrames }}</span>
       </div>
       <div v-for="a in slowApis" :key="a.path" class="hud-item">
         <span class="hud-k api-path">{{ a.path }}</span>

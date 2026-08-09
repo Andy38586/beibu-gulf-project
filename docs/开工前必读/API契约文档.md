@@ -31,6 +31,7 @@
 ### 1.3 错误码(双轨制,注意维度)
 
 > **两套错误码,维度不同,不互通**:
+>
 > - 前端 `useApiRequest.ts` 的 `ErrorCode`(**网络层字符串码**):TIMEOUT / NETWORK_ERROR / UNAUTHORIZED / SERVER_ERROR / REQUEST_FAILED
 > - 后端 `BusinessError.js` 的 `ErrorCode`(**业务层数字码**):如 `400001` = HTTP 400 + 0001(命名约定 `<HTTP status><业务序号>`)
 >
@@ -62,18 +63,18 @@
 > 洪涝 online 走 Vite proxy `/flood-online` → FastAPI `:8000`,带 proxy 前缀(非 `/api`,且返回裸 JSON)。
 > 本清单是**当前**接口快照,增删后更新此处。规则见 §1-§4,不随清单变化。
 
-| 模块 | 端点 | 登录 | 说明 |
-|---|---|---|---|
-| 认证 | `POST /auth/register` / `POST /auth/login` / `POST /auth/logout` | 公开 | Cookie 通道 |
-| 认证 | `GET /auth/me` | ✅ 需登录 | 当前用户信息 |
-| 选址 | `POST /site-analysis` | ✅ 需登录 | 分析(参数 zod 校验) |
-| 方案 | `GET/POST /plans`、`GET/PUT/DELETE /plans/:id`、`POST /plans/:id/xiaoqu`、`DELETE /plans/:id/xiaoqu/:xiaoquId` | ✅ 全部需登录 | CRUD |
-| 预测 | `GET /forecast/timeseries`、`GET /forecast/indicator/:indicator`、`GET /forecast/map`、`GET /forecast/overview` | 公开 | — |
-| 洪涝 | `GET /flood/water-area`、`GET /flood/terrain-profiles`、`GET /flood/flood-areas`、`GET /flood/flood-statistics` | 公开 | api 模式 |
-| 洪涝 | `POST /flood/analysis/disaster` | ✅ 需登录 | 灾害评估 |
-| 洪涝 online | `GET /flood-online/api/flood/online?level=` | 公开 | FastAPI 裸 JSON,`envelope: false` |
-| 港口 | `GET /ports` | 公开 | 只读 |
-| 健康 | `GET /health`、`GET /health/ready` | 公开 | 探针,置于限流前 |
+| 模块        | 端点                                                                                                            | 登录          | 说明                              |
+| ----------- | --------------------------------------------------------------------------------------------------------------- | ------------- | --------------------------------- |
+| 认证        | `POST /auth/register` / `POST /auth/login` / `POST /auth/logout`                                                | 公开          | Cookie 通道                       |
+| 认证        | `GET /auth/me`                                                                                                  | ✅ 需登录     | 当前用户信息                      |
+| 选址        | `POST /site-analysis`                                                                                           | ✅ 需登录     | 分析(参数 zod 校验)               |
+| 方案        | `GET/POST /plans`、`GET/PUT/DELETE /plans/:id`、`POST /plans/:id/xiaoqu`、`DELETE /plans/:id/xiaoqu/:xiaoquId`  | ✅ 全部需登录 | CRUD                              |
+| 预测        | `GET /forecast/timeseries`、`GET /forecast/indicator/:indicator`、`GET /forecast/map`、`GET /forecast/overview` | 公开          | —                                 |
+| 洪涝        | `GET /flood/water-area`、`GET /flood/terrain-profiles`、`GET /flood/flood-areas`、`GET /flood/flood-statistics` | 公开          | api 模式                          |
+| 洪涝        | `POST /flood/analysis/disaster`                                                                                 | ✅ 需登录     | 灾害评估                          |
+| 洪涝 online | `GET /flood-online/api/flood/online?level=`                                                                     | 公开          | FastAPI 裸 JSON,`envelope: false` |
+| 港口        | `GET /ports`                                                                                                    | 公开          | 只读                              |
+| 健康        | `GET /health`、`GET /health/ready`                                                                              | 公开          | 探针,置于限流前                   |
 
 **已删除接口**(勿重新添加):`/api/markers/*`(死代码)、`/api/facilities/*`、`/api/flood/water-levels`、`/api/flood/facilities`(前端零调用孤儿)。
 

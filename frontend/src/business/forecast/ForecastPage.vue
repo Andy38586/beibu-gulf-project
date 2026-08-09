@@ -45,12 +45,7 @@ const forecastState = useForecastStore()
 const mapStore = useMapStore()
 const router = useRouter()
 const { updateForecastLayer, removeForecastLayer, renderer } = useForecastLayer()
-const {
-  runInTransaction,
-  startTransaction,
-  isTransactionValid,
-  cancelAll,
-} = useForecastRequest()
+const { runInTransaction, startTransaction, isTransactionValid, cancelAll } = useForecastRequest()
 
 const lineXData = ref([])
 const lineSeries = ref([])
@@ -60,7 +55,10 @@ const barSeries = ref<Array<{ name: string; data: number[] }>>([])
 // 柱状图固定对比的真指标（cargo/container 为真实吞吐量；berth/traffic 为合成数据不入图）。
 // 3 港 × 2 指标 = 6 柱；后续接入更多真指标后扩为 4 指标 → 3 港 × 4 = 12 柱
 const BAR_INDICATORS = ['cargo', 'container'] as const
-const BAR_INDICATOR_LABELS: Record<string, string> = { cargo: '货物吞吐量', container: '集装箱吞吐量' }
+const BAR_INDICATOR_LABELS: Record<string, string> = {
+  cargo: '货物吞吐量',
+  container: '集装箱吞吐量',
+}
 
 const lineViewportXMin = ref('2023-01')
 const lineViewportXMax = ref('2029-12')

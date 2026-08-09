@@ -125,7 +125,9 @@ onBeforeUnmount(() => {
 /* 进出场动画（新 toast 从顶部进入占一号位，老 toast 顺移下移用 move 过渡） */
 .GCS-toast-enter-active,
 .GCS-toast-leave-active {
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
 }
 .GCS-toast-enter-from,
 .GCS-toast-leave-to {

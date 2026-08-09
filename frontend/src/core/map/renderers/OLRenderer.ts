@@ -570,8 +570,7 @@ export class OLRenderer extends MapRenderer {
     // options.zoom、忽略 height → 2D 只动 center 不动缩放（用户实测"选址无跳转动画"）。
     // 现在 height → heightToZoom 转换，位置+缩放同步动画。
     const zoom =
-      options.zoom ??
-      (options.height != null ? heightToZoom(options.height) : view.getZoom())
+      options.zoom ?? (options.height != null ? heightToZoom(options.height) : view.getZoom())
     view.animate({
       center: fromLonLat([lng, lat]),
       zoom,

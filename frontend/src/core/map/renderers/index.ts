@@ -30,9 +30,8 @@ export function preloadCesium(): void {
     if (_preloadScheduled) return
     _preloadScheduled = true
 
-    const idle = (
-      window as unknown as { requestIdleCallback?: (cb: () => void) => void }
-    ).requestIdleCallback
+    const idle = (window as unknown as { requestIdleCallback?: (cb: () => void) => void })
+      .requestIdleCallback
     const doPreload = () => {
       // 真正执行加载（与 ensureCesiumLoaded 共享 promise，3D 入口幂等秒回）
       void ensureCesiumLoaded().then(() => {

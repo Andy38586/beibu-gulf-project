@@ -188,7 +188,8 @@ export function useForecastLayer(): UseForecastLayerReturn {
       // 播放中命中后端限流（429）：静默降级不弹窗，播放继续，后续时间点自动恢复。
       // 播放是连续高频交互，弹窗会打断演示；手动操作（拖滑块/点指标）的限流照常提示。
       if (forecastState.isPlaying && e instanceof ApiError && e.message.includes('过于频繁')) {
-        if (import.meta.env.DEV) logger.debug('[useForecastLayer] 播放中请求被限流，跳过该时间点:', e.message)
+        if (import.meta.env.DEV)
+          logger.debug('[useForecastLayer] 播放中请求被限流，跳过该时间点:', e.message)
         return
       }
       if (import.meta.env.DEV) logger.debug('[useForecastLayer] 更新失败:', e)

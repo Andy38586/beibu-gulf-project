@@ -80,7 +80,9 @@ export async function getModelForecast(portId, afterTime) {
   try {
     model = await readStaticJson(MODEL_FILE)
   } catch (err) {
-    logger.warn(`[modelLoader] 模型产物读取失败（${err.code || err.message}），调用方应降级 forecastEngine`)
+    logger.warn(
+      `[modelLoader] 模型产物读取失败（${err.code || err.message}），调用方应降级 forecastEngine`
+    )
     return null
   }
   const port = model && model.ports ? model.ports[portId] : undefined

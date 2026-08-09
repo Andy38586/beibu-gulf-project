@@ -152,40 +152,40 @@ export function useRadarChart({
     chartInstance.setOption(
       {
         backgroundColor: 'transparent',
-      tooltip: { show: false },
-      radar: {
-        indicator: indicators,
-        radius: '75%',
-        center: ['50%', '50%'],
-        axisName: {
-          color: '#409eff',
-          fontSize: 12,
-          fontWeight: 500,
-          cursor: 'pointer',
-        },
-        splitLine: { lineStyle: { color: '#eee' } },
-        splitArea: {
-          areaStyle: {
-            color: ['rgba(255,255,255,0.1)', 'rgba(255,255,255,0.3)'],
+        tooltip: { show: false },
+        radar: {
+          indicator: indicators,
+          radius: '75%',
+          center: ['50%', '50%'],
+          axisName: {
+            color: '#409eff',
+            fontSize: 12,
+            fontWeight: 500,
+            cursor: 'pointer',
           },
-        },
-        axisLine: { lineStyle: { color: '#ddd' } },
-      },
-      series: [
-        {
-          type: 'radar',
-          symbolSize: 6,
-          lineStyle: { width: 2, color: '#409eff' },
-          itemStyle: { color: '#409eff' },
-          data: [
-            {
-              value: values,
-              name: name,
-              areaStyle: { opacity: 0.3, color: '#409eff' },
+          splitLine: { lineStyle: { color: '#eee' } },
+          splitArea: {
+            areaStyle: {
+              color: ['rgba(255,255,255,0.1)', 'rgba(255,255,255,0.3)'],
             },
-          ],
+          },
+          axisLine: { lineStyle: { color: '#ddd' } },
         },
-      ],
+        series: [
+          {
+            type: 'radar',
+            symbolSize: 6,
+            lineStyle: { width: 2, color: '#409eff' },
+            itemStyle: { color: '#409eff' },
+            data: [
+              {
+                value: values,
+                name: name,
+                areaStyle: { opacity: 0.3, color: '#409eff' },
+              },
+            ],
+          },
+        ],
       },
       { notMerge: false, replaceMerge: ['series'], lazyUpdate: true }
     )

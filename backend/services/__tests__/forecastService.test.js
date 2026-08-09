@@ -157,7 +157,11 @@ describe('forecastService', () => {
         }
         if (path.endsWith('container.json')) {
           return Promise.resolve(
-            JSON.stringify({ indicator: 'container', unit: 'TEU', data: { p1: makePortData('p1', '港口A') } })
+            JSON.stringify({
+              indicator: 'container',
+              unit: 'TEU',
+              data: { p1: makePortData('p1', '港口A') },
+            })
           )
         }
         return Promise.reject(makeEnoentError())
@@ -239,9 +243,9 @@ describe('forecastService', () => {
 
     it('数据文件缺失时抛 NOT_FOUND（不再优雅降级）', async () => {
       mockReadFile.mockRejectedValue(makeEnoentError())
-      await expect(
-        forecastService.getIndicatorData('cargo', '2020-01')
-      ).rejects.toThrow('指标数据文件不存在')
+      await expect(forecastService.getIndicatorData('cargo', '2020-01')).rejects.toThrow(
+        '指标数据文件不存在'
+      )
     })
   })
 
@@ -259,12 +263,7 @@ describe('forecastService', () => {
 
     it('start/end 过滤时间序列', async () => {
       mockReadFile.mockResolvedValue(JSON.stringify(cargoData))
-      const result = await forecastService.getTimeSeriesData(
-        'cargo',
-        'p1',
-        '2020-06',
-        '2021-06'
-      )
+      const result = await forecastService.getTimeSeriesData('cargo', 'p1', '2020-06', '2021-06')
       for (const d of result.series[0].data) {
         expect(d.time >= '2020-06').toBe(true)
         expect(d.time <= '2021-06').toBe(true)

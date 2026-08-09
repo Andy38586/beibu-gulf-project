@@ -79,7 +79,9 @@ export const businessModules: BusinessModule[] = [
 /** 由 manifest 生成业务路由（meta.engine/title 自动带;component 为 null 的占位模块跳过） */
 export function buildBusinessRoutes(): RouteRecordRaw[] {
   return businessModules
-    .filter((m): m is BusinessModule & { component: () => Promise<unknown> } => m.component !== null)
+    .filter(
+      (m): m is BusinessModule & { component: () => Promise<unknown> } => m.component !== null
+    )
     .map(
       (m) =>
         ({

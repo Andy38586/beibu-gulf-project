@@ -49,7 +49,12 @@ fixtures[`${API_BASE}/flood/flood-areas`] = {
     features: [
       {
         type: 'Feature',
-        properties: { port: '沿海区域', areaName: '沿海区域5m淹没区_1', waterLevel: 5, riskLevel: '中风险' },
+        properties: {
+          port: '沿海区域',
+          areaName: '沿海区域5m淹没区_1',
+          waterLevel: 5,
+          riskLevel: '中风险',
+        },
       },
     ],
   },

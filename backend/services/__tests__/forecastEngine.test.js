@@ -367,15 +367,35 @@ describe('Forecast Engine', () => {
 
     it('不同 timePoint 输出不同', () => {
       const features = [makeFeature('p1', '港口A')]
-      const a = generateSpatialValues([{ time: '2024-01', value: 1000, reliability: 1 }], [], '2024-01', features)
-      const b = generateSpatialValues([{ time: '2024-02', value: 1000, reliability: 1 }], [], '2024-02', features)
+      const a = generateSpatialValues(
+        [{ time: '2024-01', value: 1000, reliability: 1 }],
+        [],
+        '2024-01',
+        features
+      )
+      const b = generateSpatialValues(
+        [{ time: '2024-02', value: 1000, reliability: 1 }],
+        [],
+        '2024-02',
+        features
+      )
       expect(a).not.toEqual(b)
     })
 
     it('同 timePoint 不同港口索引输出不同', () => {
       const features = [makeFeature('p1', '港口A'), makeFeature('p2', '港口B')]
-      const a = generateSpatialValues([{ time: '2024-01', value: 1000, reliability: 1 }], [], '2024-01', [features[0]])
-      const b = generateSpatialValues([{ time: '2024-01', value: 1000, reliability: 1 }], [], '2024-01', [features[1]])
+      const a = generateSpatialValues(
+        [{ time: '2024-01', value: 1000, reliability: 1 }],
+        [],
+        '2024-01',
+        [features[0]]
+      )
+      const b = generateSpatialValues(
+        [{ time: '2024-01', value: 1000, reliability: 1 }],
+        [],
+        '2024-01',
+        [features[1]]
+      )
       expect(a).not.toEqual(b)
     })
   })

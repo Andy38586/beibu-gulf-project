@@ -30,4 +30,3 @@ export function formatLoss(loss: number | undefined): string {
   }
   return v.toFixed(0) + '万'
 }
-

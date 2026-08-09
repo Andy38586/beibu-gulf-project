@@ -38,7 +38,10 @@ describe('PerfReporter 聚合（生产可用版）', () => {
     perfTimeFn('layer:create:geojson', () => 2)
     perfTimeFn('layer:create:geojson', () => 3)
 
-    const timers = buildPerfReport().timers as Record<string, { count: number; total: number; max: number }>
+    const timers = buildPerfReport().timers as Record<
+      string,
+      { count: number; total: number; max: number }
+    >
     const t = timers['layer:create:geojson']
     expect(t.count).toBe(3)
     expect(t.max).toBeGreaterThanOrEqual(t.total / t.count)

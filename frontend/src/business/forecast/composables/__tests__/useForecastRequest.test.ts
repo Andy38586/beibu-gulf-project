@@ -105,9 +105,7 @@ describe('useForecastRequest', () => {
       const { startTransaction, runInTransaction } = useForecastRequest()
       const t = startTransaction()
 
-      const adapterFn = vi
-        .fn()
-        .mockRejectedValue(new ApiError('timeout', ErrorCode.TIMEOUT))
+      const adapterFn = vi.fn().mockRejectedValue(new ApiError('timeout', ErrorCode.TIMEOUT))
       const promise = runInTransaction(adapterFn, t.transactionId)
       startTransaction() // await 前使事务失效
 

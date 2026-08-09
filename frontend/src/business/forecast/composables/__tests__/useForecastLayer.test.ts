@@ -115,9 +115,7 @@ describe('useForecastLayer', () => {
     const mapStore = useMapStore()
     mapStore.currentRenderer = fakeRenderer as never
 
-    mockApiRequest.mockRejectedValue(
-      new ApiError('请先登录', ErrorCode.UNAUTHORIZED)
-    )
+    mockApiRequest.mockRejectedValue(new ApiError('请先登录', ErrorCode.UNAUTHORIZED))
 
     const { startTransaction } = useForecastRequest()
     const { updateForecastLayer } = useForecastLayer()
@@ -136,6 +134,11 @@ describe('useForecastLayer', () => {
     const keys = (mockManager.remove as ReturnType<typeof vi.fn>).mock.calls.map(
       (c: unknown[]) => c[0]
     )
-    expect(keys).toEqual(['forecast-cargo', 'forecast-container', 'forecast-berth', 'forecast-traffic'])
+    expect(keys).toEqual([
+      'forecast-cargo',
+      'forecast-container',
+      'forecast-berth',
+      'forecast-traffic',
+    ])
   })
 })

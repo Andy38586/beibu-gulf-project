@@ -4,11 +4,7 @@ import type { Feature, FeatureCollection, Geometry } from 'geojson'
 import type { BusinessLayerManager } from '@/core'
 import type { AnalysisResult } from '@/types'
 
-import {
-  buildCoverageGeoJson,
-  buildMatchedGeoJson,
-  useAnalysisLayer,
-} from '../useAnalysisLayer'
+import { buildCoverageGeoJson, buildMatchedGeoJson, useAnalysisLayer } from '../useAnalysisLayer'
 
 /**
  * useAnalysisLayer 单测（覆盖率方案①：业务 composable 抽测）
@@ -118,9 +114,7 @@ describe('useAnalysisLayer', () => {
     const manager = createMockManager()
 
     // 第一次 has 返回 false → register;之后 has 返回 true → updateData
-    ;(manager.has as ReturnType<typeof vi.fn>)
-      .mockReturnValueOnce(false)
-      .mockReturnValue(true)
+    ;(manager.has as ReturnType<typeof vi.fn>).mockReturnValueOnce(false).mockReturnValue(true)
 
     const handler = createUpdateHandler(manager)
     await handler({

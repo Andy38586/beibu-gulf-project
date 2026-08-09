@@ -32,5 +32,13 @@
     /* node 内置模块类型（schemas.test.ts 等读取 backend/data 真实样本做校验验证） */
     "types": ["node"]
   },
-  "include": ["./src/**/*.ts", "./src/**/*.tsx", "./src/**/*.vue", "./src/**/*.js", "./test/**/*.ts", "auto-imports.d.ts", "components.d.ts"]
+  "include": [
+    "./src/**/*.ts",
+    "./src/**/*.tsx",
+    "./src/**/*.vue",
+    "./src/**/*.js",
+    "./test/**/*.ts",
+    "auto-imports.d.ts",
+    "components.d.ts"
+  ]
 }

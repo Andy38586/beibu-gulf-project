@@ -28,7 +28,11 @@ export function showError(
   // useApiRequest 把外部 signal abort 转成 ApiError(REQUEST_FAILED, '请求已取消')——
   // 非原生 AbortError，下方 name==='AbortError' 过滤拦不住；滑块高频拖动时
   // 每个被取消的在途请求都会弹 modal，必须在此统一吞掉。
-  if (error instanceof ApiError && error.code === ErrorCode.REQUEST_FAILED && error.message === '请求已取消') {
+  if (
+    error instanceof ApiError &&
+    error.code === ErrorCode.REQUEST_FAILED &&
+    error.message === '请求已取消'
+  ) {
     return
   }
 

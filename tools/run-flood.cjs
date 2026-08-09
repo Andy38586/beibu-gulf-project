@@ -36,10 +36,14 @@ if (!existsSync(pythonInVenv)) {
   process.exit(1)
 }
 
-const child = spawn(pythonInVenv, ['-m', 'uvicorn', 'main:app', '--port', '8000', '--log-level', 'warning'], {
-  cwd: FLOOD_DIR,
-  stdio: 'inherit',
-})
+const child = spawn(
+  pythonInVenv,
+  ['-m', 'uvicorn', 'main:app', '--port', '8000', '--log-level', 'warning'],
+  {
+    cwd: FLOOD_DIR,
+    stdio: 'inherit',
+  }
+)
 
 child.on('error', (err) => {
   console.error(`[run-flood] 启动失败: ${err.message}`)

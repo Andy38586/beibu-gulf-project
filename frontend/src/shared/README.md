@@ -53,13 +53,16 @@ shared/
 ## 三、入口文件
 
 ### `index.ts`
+
 公开 API 聚合点。约定：
+
 - `components/` 目录**不 re-export**——Vue 组件保持直接路径 import（如 `@/shared/components/PanelTitle.vue`）。
 - 其余 composable / constants / layout / utils 模块全部 re-export，消费方统一从 `@/shared` 引入。
 
 ## 四、关键工具/composable 清单
 
 ### `useApiRequest`
+
 - 模块级单例 `token`（仅内存，认证主通道是 HttpOnly Cookie，`credentials: 'include'`）。
 - **信封解包**（P1-1）：后端统一返回 `{ code, data }`，经 `unwrapEnvelope` 提取 `data`，调用方始终拿业务数据。
 - **重试**（z049）：GET 幂等请求在超时/网络错误时线性退避重试（最多 3 次，0.8/1.6/2.4s）；POST 不重试。
@@ -67,29 +70,35 @@ shared/
 - **超时**：默认 10s，`AbortController` 内部超时与外部 `signal` 用 `AbortSignal.any` 组合（`@arch-note SEC-021` 区分超时 vs 主动取消）。
 
 ### `useAuth`
+
 - localStorage 持久化用户信息（key: `beibu-gulf-user`），经 `userSchema.safeParse` 校验（z045）。
 - **Cookie 权威**（d033）：`restoreAuth` 始终以 Cookie 为准，无论 localStorage 有无 user 均调 `/auth/me` 验证。
 - 多标签页 `storage` 事件同步；`setResetStoresHandler` 由 App.vue 注入 store 重置逻辑（z053，避免 useAuth 反向依赖 stores）。
 
 ### `useAsyncData`（z034）
+
 - 封装 `loading/error/data/refresh/cancel`；事务序号 `seq` 仅最新请求写 data，防竞态。
 - `@audit-note DAT-4`：当前 0 调用方，作为通用工具保留，待首个消费方接入后脱离「伪 shared」标签。简单页保持 `onMounted` 直接调用（D-4 克制）。
 
 ### `loadStatic`
+
 - 默认超时 10s、缓存 TTL 5min；in-flight Promise 去重（同 URL 并发只发一次）。
 - LRU 上限 100（z050-FE），超限删最旧插入项。
 - zod 校验（z045）：缓存命中校验失败→清缓存降级重新 fetch；fetch 结果校验失败→抛错拒绝消费。
 
 ### `useGCS` / `layout/config.ts`
+
 - GCS V2 全局布局配置，所有面板尺寸统一来源，**禁止组件硬编码 px**。
 - `CELL_PIXEL=80`、`GAP=10`（PANEL_SPACING/CELL_PADDING/SAFE_MARGIN 派生源）；`getCellPixelByViewport` 按视口宽度分级（≥1920→90，≥1366→80，≥768→70，其余→60）。
 - `useGCS` 模块级单例：`cellPixel`/`windowWidth`/`windowHeight` 全局共享，resize 防抖 150ms；`panelPosition` 锚点定位 + 兜底防 NaN。
 
 ### `spatialIndex`
+
 - 基于 rbush 的视口裁剪（EPSG:3857，与 OpenLayers view 一致），`VIEWPORT_CULL_THRESHOLD=1000`。
 - **同名不同义**：前端=视口矩形查询；后端 `backend/utils/spatialIndex.js`=多边形覆盖查询（turf）。禁止相互引用或混用。
 
 ### `errorHandler`
+
 - `showError`：统一错误提示，过滤 AbortError；`retry` 回调时用确认弹窗（c027）。
 - `handleAuthError(router)`：`router` 必选参数（z044），移除动态 `import('@/router')` 兜底以打断 `errorHandler→router→business→errorHandler` 循环链；useAuth 内仍保留动态 import 避免 `useAuth→errorHandler` 静态循环。
 
@@ -102,18 +111,18 @@ shared/
 
 ## 六、关键约束（@arch-note）
 
-| 标注 | 文件 | 约束 |
-|------|------|------|
-| 分层铁律 | 整体 | shared → core/stores/business 禁止；stores → business 禁止（故 `constants/forecast` 上提到 shared，供 store 与 business 共用，保持单向依赖） |
-| `P1-1` | responseEnvelope / useApiRequest | 响应契约收口：后端统一 `{ code, data }`，`unwrapEnvelope` 为唯一事实源，调用方不手动 `.data` |
-| `z045` | useApiRequest / useAuth / loadStatic | zod `safeParse` 替代裸 `as T` 断言做运行时校验 |
-| `z049` | useApiRequest | 仅 GET 幂等请求重试，POST 不重试（避免重复写操作） |
-| `SEC-021` | useApiRequest | 区分内部超时 abort vs 外部 signal 主动取消，取消不提示「超时」 |
-| `z044` | errorHandler | `handleAuthError(router)` 的 router 必选，移除动态 import 打断循环依赖链 |
-| `z050-FE` | loadStatic | 缓存硬上限 100，超限近似 LRU 淘汰，防长会话内存膨胀 |
-| `DAT-4` | useAsyncData | 预留未接入，当前 0 调用方，勿删除 |
-| `d033` | useAuth | Cookie 为认证权威，localStorage 仅缓存，`restoreAuth` 始终验证 Cookie |
-| 同名不同义 | spatialIndex | 前端视口裁剪 / 后端多边形覆盖，同名勿混用 |
+| 标注       | 文件                                 | 约束                                                                                                                                         |
+| ---------- | ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| 分层铁律   | 整体                                 | shared → core/stores/business 禁止；stores → business 禁止（故 `constants/forecast` 上提到 shared，供 store 与 business 共用，保持单向依赖） |
+| `P1-1`     | responseEnvelope / useApiRequest     | 响应契约收口：后端统一 `{ code, data }`，`unwrapEnvelope` 为唯一事实源，调用方不手动 `.data`                                                 |
+| `z045`     | useApiRequest / useAuth / loadStatic | zod `safeParse` 替代裸 `as T` 断言做运行时校验                                                                                               |
+| `z049`     | useApiRequest                        | 仅 GET 幂等请求重试，POST 不重试（避免重复写操作）                                                                                           |
+| `SEC-021`  | useApiRequest                        | 区分内部超时 abort vs 外部 signal 主动取消，取消不提示「超时」                                                                               |
+| `z044`     | errorHandler                         | `handleAuthError(router)` 的 router 必选，移除动态 import 打断循环依赖链                                                                     |
+| `z050-FE`  | loadStatic                           | 缓存硬上限 100，超限近似 LRU 淘汰，防长会话内存膨胀                                                                                          |
+| `DAT-4`    | useAsyncData                         | 预留未接入，当前 0 调用方，勿删除                                                                                                            |
+| `d033`     | useAuth                              | Cookie 为认证权威，localStorage 仅缓存，`restoreAuth` 始终验证 Cookie                                                                        |
+| 同名不同义 | spatialIndex                         | 前端视口裁剪 / 后端多边形覆盖，同名勿混用                                                                                                    |
 
 ## 七、测试
 

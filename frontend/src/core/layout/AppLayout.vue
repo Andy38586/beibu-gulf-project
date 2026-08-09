@@ -27,7 +27,7 @@ import GCSDebugOverlay from './components/GCSDebugOverlay.vue'
 import GCSPanel from './components/GCSPanel.vue'
 import MobileDrawer from './components/MobileDrawer.vue'
 import NavButton from './components/NavButton.vue'
-import { type NavItem,navItems } from './navConfig'
+import { type NavItem, navItems } from './navConfig'
 import { useMobileDrawer } from './useMobileDrawer'
 import { useSliderFocus } from './useSliderFocus'
 

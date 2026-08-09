@@ -25,14 +25,17 @@ import type { cesiumViewerManager as CesiumViewerManagerType } from '@/core/map/
 let cesiumViewerManager: typeof CesiumViewerManagerType
 
 vi.mock('@/core/map/composables/usePortLayer', () => ({
-  loadPorts: vi.fn().mockResolvedValue([
-    { id: 'p1', name: 'test-port', lng: 108.1, lat: 21.5, type: 'bulk' },
-  ]),
+  loadPorts: vi
+    .fn()
+    .mockResolvedValue([{ id: 'p1', name: 'test-port', lng: 108.1, lat: 21.5, type: 'bulk' }]),
   buildPortGeoJson: vi.fn((ports: unknown[]) => ({
     type: 'FeatureCollection',
     features: ports.map((p) => ({
       type: 'Feature',
-      geometry: { type: 'Point', coordinates: [(p as { lng: number }).lng, (p as { lat: number }).lat] },
+      geometry: {
+        type: 'Point',
+        coordinates: [(p as { lng: number }).lng, (p as { lat: number }).lat],
+      },
       properties: p,
     })),
   })),

@@ -136,7 +136,11 @@ describe('BusinessLayerManager', () => {
         visible: false,
       })
 
-      const renderer = { setVisibility: vi.fn(), hasLayer: vi.fn(() => false), addGeoTIFFLayer: vi.fn() }
+      const renderer = {
+        setVisibility: vi.fn(),
+        hasLayer: vi.fn(() => false),
+        addGeoTIFFLayer: vi.fn(),
+      }
       mapStore.currentRenderer = renderer as unknown as MapRenderer
 
       // 打开 → 图层未创建 → 必须补建（否则 setVisibility 落入 pending = 死按钮）
@@ -285,7 +289,12 @@ describe('BusinessLayerManager', () => {
       manager.reapplyAll(newRenderer as unknown as MapRenderer)
 
       // 面板条目必须重建（data==null 不渲染但开关不能丢——渲染与面板脱节的根因）
-      expect(mapStore.registerBusinessLayer).toHaveBeenCalledWith('flood-area', '淹没范围', 'geojson', true)
+      expect(mapStore.registerBusinessLayer).toHaveBeenCalledWith(
+        'flood-area',
+        '淹没范围',
+        'geojson',
+        true
+      )
       expect(mapStore.layerCatalog.some((e: MockCatalogEntry) => e.key === 'flood-area')).toBe(true)
       // data==null → 不触发视觉创建
       expect(newRenderer.addGeoJsonLayer).not.toHaveBeenCalled()

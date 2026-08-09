@@ -266,13 +266,15 @@ export class BusinessLayerManager {
         continue
       }
       const adapter = this._getAdapter(meta.layerType)
-      if (!adapter) continue
-      // 防 pending 幽灵（2026-08-08 用户实测"按钮蓝但 2D 不显示"根因）：reapplyAll
-      // 是"按 registry 重建"，实例重建后 _applyPendingVisibility 会把旧的 pending 意图
-      // （如用户之前关闭时的 false）应用上去 → 图层被隐藏但按钮蓝。重建必须清 pending，
-      // 以 registry.visible 为唯一依据。
-      ;(renderer as unknown as { clearPendingVisibility?: (id: string) => void })
-        ?.clearPendingVisibility?.(key)
+      if (!adapter)
+        continue
+        // 防 pending 幽灵（2026-08-08 用户实测"按钮蓝但 2D 不显示"根因）：reapplyAll
+        // 是"按 registry 重建"，实例重建后 _applyPendingVisibility 会把旧的 pending 意图
+        // （如用户之前关闭时的 false）应用上去 → 图层被隐藏但按钮蓝。重建必须清 pending，
+        // 以 registry.visible 为唯一依据。
+      ;(
+        renderer as unknown as { clearPendingVisibility?: (id: string) => void }
+      )?.clearPendingVisibility?.(key)
       // hasLayer 防御：mock/测试 renderer 可能无此方法（无则视为未创建 → 走 create）
       if (typeof renderer.hasLayer === 'function' && renderer.hasLayer(key)) {
         // 实例已存在（如 setupLayers/register 已 create）→ 强制同步可见性，
@@ -364,7 +366,10 @@ export class BusinessLayerManager {
           try {
             perfTimeFn(`layer:remove:${meta.layerType}`, () => adapter.remove(renderer, key))
           } catch (e) {
-            logger.warn(`[BusinessLayerManager] remove ${key} 渲染器清理失败（继续删 registry）:`, e)
+            logger.warn(
+              `[BusinessLayerManager] remove ${key} 渲染器清理失败（继续删 registry）:`,
+              e
+            )
           }
         }
       }
@@ -425,9 +430,11 @@ export class BusinessLayerManager {
     const meta = this._registry.get(key)
     if (!meta) return false
     const renderer = this._getRenderer()
-    const rendererWithQuery = renderer as (MapRenderer & {
-      isLayerVisible?: (id: string) => boolean
-    }) | null
+    const rendererWithQuery = renderer as
+      | (MapRenderer & {
+          isLayerVisible?: (id: string) => boolean
+        })
+      | null
     if (rendererWithQuery && typeof rendererWithQuery.isLayerVisible === 'function') {
       return rendererWithQuery.isLayerVisible(key)
     }

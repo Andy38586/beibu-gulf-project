@@ -26,9 +26,9 @@ describe('unwrapEnvelope (z063)', () => {
   })
 
   it('REQ-1: 带扩展字段（message/timestamp）的信封仍解包', () => {
-    expect(
-      unwrapEnvelope({ code: 200, data: [1, 2], message: 'ok', timestamp: 123 })
-    ).toEqual([1, 2])
+    expect(unwrapEnvelope({ code: 200, data: [1, 2], message: 'ok', timestamp: 123 })).toEqual([
+      1, 2,
+    ])
   })
 
   it('嵌套 data 原样返回内部结构', () => {

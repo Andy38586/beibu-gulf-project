@@ -15,7 +15,7 @@ import { useRoute, useRouter } from 'vue-router'
 
 import { useGCS } from '@/shared'
 
-import { type NavItem,navItems } from '../navConfig'
+import { type NavItem, navItems } from '../navConfig'
 import { useMobileDrawer } from '../useMobileDrawer'
 
 import GCSButton from './GCSButton.vue'
@@ -40,8 +40,8 @@ const visibleItems = computed<NavItem[]>(() => {
 const dockCellCount = computed(() => visibleItems.value.length + (showPanels.value ? 0 : 1))
 
 // dock 宽度上限（防溢出兜底）：min(dock cell 宽度, 视口宽 - 16px)
-const dockWidthCapCss = computed(() =>
-  `min(${dockCellCount.value * cellPixel.value}px, calc(100vw - 16px))`
+const dockWidthCapCss = computed(
+  () => `min(${dockCellCount.value * cellPixel.value}px, calc(100vw - 16px))`
 )
 
 function isActive(path: string): boolean {

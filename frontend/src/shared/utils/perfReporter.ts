@@ -228,14 +228,14 @@ function printSummary(): void {
   }
   if (state.timers.size > 0) {
     const t = [...state.timers.entries()]
-      .map(([name, a]) => `${name} avg=${(a.total / a.count).toFixed(1)}ms max=${a.max.toFixed(0)}ms`)
+      .map(
+        ([name, a]) => `${name} avg=${(a.total / a.count).toFixed(1)}ms max=${a.max.toFixed(0)}ms`
+      )
       .join(' | ')
     parts.push(`TIMERS ${t}`)
   }
   const errTotal = Object.values(state.errors).reduce((s, n) => s + n, 0)
-  parts.push(
-    `errors=${errTotal}${errTotal > 0 ? ` ${JSON.stringify(state.errors)}` : ''}`
-  )
+  parts.push(`errors=${errTotal}${errTotal > 0 ? ` ${JSON.stringify(state.errors)}` : ''}`)
   parts.push(
     `FCP=${state.fcp?.toFixed(1) ?? 'n/a'} LCP=${state.lcp?.toFixed(1) ?? 'n/a'} CLS=${state.cls.toFixed(3)} TTI=${state.tti?.toFixed(1) ?? 'n/a'} longtasks=${state.longtasks}`
   )
@@ -344,7 +344,9 @@ export function initPerfReporter(): void {
   }
   ;(window as unknown as Record<string, unknown>).__perf = api
   // eslint-disable-next-line no-console
-  console.log(`[perf] PerfReporter 已挂载${IS_DEV ? '（dev）' : '（production）'}，window.__perf.print() 查看基线`)
+  console.log(
+    `[perf] PerfReporter 已挂载${IS_DEV ? '（dev）' : '（production）'}，window.__perf.print() 查看基线`
+  )
 }
 
 export default {

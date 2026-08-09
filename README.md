@@ -37,12 +37,12 @@
 
 重构后采用分层架构，自上而下分为四层：
 
-| 层级 | 职责 |
-|------|------|
-| **Application Layer** | 页面路由、视图装配 |
-| **Business Layer** | 业务模块（选址分析、预测、洪涝分析） |
-| **GIS Core Layer** | 地图渲染抽象、图层管理 |
-| **Component System** | 通用组件与布局体系（GCS） |
+| 层级                  | 职责                                 |
+| --------------------- | ------------------------------------ |
+| **Application Layer** | 页面路由、视图装配                   |
+| **Business Layer**    | 业务模块（选址分析、预测、洪涝分析） |
+| **GIS Core Layer**    | 地图渲染抽象、图层管理               |
+| **Component System**  | 通用组件与布局体系（GCS）            |
 
 依赖方向单向自上而下：业务层依赖 GIS 核心，核心层不反向依赖业务。详细的分层规则与依赖约束记录在 `docs/` 下，此处不展开。
 
@@ -82,16 +82,16 @@ GIS 应用中，地图工具栏、分析面板、图例、详情卡片等组件�
 
 ## 技术栈
 
-| 层级 | 技术 |
-|------|------|
-| **前端框架** | Vue 3（Composition API）、Vite、Vue Router、Pinia |
-| **GIS 引擎** | OpenLayers（2D）、Cesium（3D） |
-| **空间分析** | Turf.js（后端服务） |
-| **数据可视化** | ECharts |
-| **UI 组件** | Element Plus |
-| **后端** | Node.js、Express 5（ESM） |
-| **数据** | GeoJSON、Python 数据处理脚本 |
-| **工程化** | Vitest、ESLint、Prettier、Husky、dependency-cruiser |
+| 层级           | 技术                                                |
+| -------------- | --------------------------------------------------- |
+| **前端框架**   | Vue 3（Composition API）、Vite、Vue Router、Pinia   |
+| **GIS 引擎**   | OpenLayers（2D）、Cesium（3D）                      |
+| **空间分析**   | Turf.js（后端服务）                                 |
+| **数据可视化** | ECharts                                             |
+| **UI 组件**    | Element Plus                                        |
+| **后端**       | Node.js、Express 5（ESM）                           |
+| **数据**       | GeoJSON、Python 数据处理脚本                        |
+| **工程化**     | Vitest、ESLint、Prettier、Husky、dependency-cruiser |
 
 ---
 
@@ -99,13 +99,13 @@ GIS 应用中，地图工具栏、分析面板、图例、详情卡片等组件�
 
 洪涝分析模块依赖 ASTER GDEM 30m 真实栅格。仓库内的产物与 git 忽略的产物分工如下：
 
-| 文件 | 状态 | 用途 |
-|---|---|---|
-| `backend/static/dem/dem_hillshade.tif` | ✅ 已入 git（COG：6 级 overview + 512 分块 + LZW） | 2D 洪涝页「真实地形」图层，浏览器按 tile 拉取 |
-| `backend/static/dem/dem_hillshade.png` | ✅ 已入 git（5.8MB） | 3D 降级贴图（Cesium 无真 z 值，视觉明暗） |
-| `backend/data/flood/dem/filled_utm48n_cut.tif`（约 169MB） | 🚫 gitignored，需本地生成 | 洪涝 **online** 模式的连通性演算输入 |
-| `backend/data/flood/*.json`（facilityPoints 83 设施 / floodArea / floodStatistics / water-area 等） | ✅ 已入 git | 洪涝设施影响评估（高德真实 POI）与 api 模式数据 |
-| `backend/data/flood/flood_levels.json.gz`（2.9MB，251 档） | ✅ 已入 git | 洪涝 **online** 模式预计算档位表（查表秒回，替代在线演算） |
+| 文件                                                                                                | 状态                                               | 用途                                                       |
+| --------------------------------------------------------------------------------------------------- | -------------------------------------------------- | ---------------------------------------------------------- |
+| `backend/static/dem/dem_hillshade.tif`                                                              | ✅ 已入 git（COG：6 级 overview + 512 分块 + LZW） | 2D 洪涝页「真实地形」图层，浏览器按 tile 拉取              |
+| `backend/static/dem/dem_hillshade.png`                                                              | ✅ 已入 git（5.8MB）                               | 3D 降级贴图（Cesium 无真 z 值，视觉明暗）                  |
+| `backend/data/flood/dem/filled_utm48n_cut.tif`（约 169MB）                                          | 🚫 gitignored，需本地生成                          | 洪涝 **online** 模式的连通性演算输入                       |
+| `backend/data/flood/*.json`（facilityPoints 83 设施 / floodArea / floodStatistics / water-area 等） | ✅ 已入 git                                        | 洪涝设施影响评估（高德真实 POI）与 api 模式数据            |
+| `backend/data/flood/flood_levels.json.gz`（2.9MB，251 档）                                          | ✅ 已入 git                                        | 洪涝 **online** 模式预计算档位表（查表秒回，替代在线演算） |
 
 **clone 后注意事项**：`filled_utm48n_cut.tif`（169MB）不在仓库中。洪涝 **online** 模式（`VITE_DATA_SOURCE=online`）需先运行 DEM 流水线生成该文件；**mock / api** 模式不受影响，开箱即用。
 
@@ -114,6 +114,7 @@ GIS 应用中，地图工具栏、分析面板、图例、详情卡片等组件�
 **DEM 生成流水线**：`tools/dem-pipeline/`（01-mosaic → 02-fill-sinks → 03-reproject-4326 → 04-generate-flood-data → 05-fix-facility-elevation）。脚本为 Windows PowerShell + QGIS GDAL 环境，且输入路径硬编码了本地目录（ASTER GDEM 30m 原始 tile），在其它机器上运行需按本机环境调整路径与 GDAL 位置。完整步骤见各脚本头部注释。
 
 **洪涝在线演算服务**（`backend/flood-service`，FastAPI + uvicorn，端口 8000）：
+
 - 首次运行需创建 Python venv 并安装依赖：`cd backend/flood-service && python -m venv .venv && .venv/Scripts/pip install -r requirements.txt`（Windows；macOS/Linux 将 `Scripts` 换为 `bin`）
 - 启动脚本 `npm run dev:flood` 已跨平台（`tools/run-flood.cjs` 自动按平台解析 venv 解释器）；Windows 下亦可直接运行 `backend/flood-service/start.bat`
 

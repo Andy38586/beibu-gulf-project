@@ -50,6 +50,7 @@ data/
 > `@arch-note R-01`：文件存储工厂，统一缓存/写锁基础设施（markers / plans / users 共用）。
 
 ### `createFileStore(filePath, { useCache = true })`
+
 返回 `{ sequential, readAll, writeAll }`：
 
 - **`readAll()`**：命中缓存直接返回对象引用（`@audit-note DAT-7`：非深拷贝，避免每请求结构化克隆开销）；ENOENT 返回 `[]` 并缓存空数组。
@@ -57,6 +58,7 @@ data/
 - **`sequential(fn)`**：写锁（Promise 链式串行），保证写操作顺序执行，消除 TOCTOU 竞态。
 
 ### 缓存契约（`@audit-note DAT-7`）
+
 - `readAll` 命中缓存返回对象引用（非深拷贝）。
 - **调用方必须以不可变方式更新**（构造新数组/对象）后再 `writeAll`，避免原地修改污染缓存且不落盘。
 - 当前 3 个调用方（markers / plans / users Repository）均已规范，无需加防御性深拷贝。
@@ -64,12 +66,14 @@ data/
 ## 四、数据消费关系
 
 ### 静态数据（直接 readFile）
+
 - `forecastService.js` → `data/forecast/{cargo,container}.json`：`getOrComputeForecast` 读取后调 `computeForecast` 演算，缓存 5min（`SEC-014`）；指标白名单（`SEC-013`）拒绝路径遍历。
 - `siteAnalysisService.js` → `data/site-selection/qz_*.json` + `xiaoqu.json`：经 repositories 加载后做覆盖/交集/评分。
 - `floodService.js` → `data/flood/facilityPoints.json` 等：洪涝损失评估输入。
 - `ports.json` → 后端单源，经 `/api/ports` 公开接口返回（前端 `loadPorts`）。
 
 ### 可写数据（经 fileStore）
+
 - `users.json` ← `userService.js`（`d045` 启用缓存，`P2-10` 不可变更新）。
 - `markers.json` ← `markersRepository.js`。
 - `plans.json` ← `plansRepository.js`。
@@ -77,6 +81,7 @@ data/
 ## 五、数据生成工具
 
 ### `backend/flood-service/` — 洪涝在线演算（Python FastAPI）
+
 > 独立微服务，生成 `data/flood/` 中的连通性淹没 GeoJSON。
 
 - **`flood_engine.py`**：连通性淹没演算引擎。海平面抬升模型——水从海面（DEM NoData 区域）进入，只淹没与海面 8 连通的高程低于水位的区域。
@@ -91,6 +96,7 @@ data/
 - **`flood_demo.json`**：演示数据。
 
 ### `backend/static/dem/` — 地形可视化产物
+
 - `dem_hillshade.png` / `dem_hillshade.tif` / `dem_hillshade.wld`：DEM 山体阴影栅格，供前端 2D GeoTIFF 图层加载（`addGeoTIFFLayer`）。
 
 ## 六、依赖关系
@@ -102,14 +108,14 @@ data/
 
 ## 七、关键约束（@arch-note）
 
-| 标注 | 文件 | 约束 |
-|------|------|------|
-| `R-01` | utils/fileStore.js | 文件存储工厂，markers/plans/users 共用缓存/写锁基础设施 |
-| `DAT-7` | utils/fileStore.js | readAll 命中缓存返回对象引用（非深拷贝），调用方必须不可变更新后 writeAll |
-| 原子写入 | utils/fileStore.js | writeAll 先写 .tmp 再 rename，失败清理临时文件 |
-| 写锁 | utils/fileStore.js | sequential 串行化写操作，消除 TOCTOU 竞态 |
-| `SEC-013` | forecastService | 指标白名单 cargo/container，拒绝路径遍历，data/forecast 不可接受任意输入 |
-| `SEC-014` | forecastService | 引擎结果缓存 TTL 5min，data/forecast/*.json 更新后自动失效重算 |
+| 标注      | 文件               | 约束                                                                      |
+| --------- | ------------------ | ------------------------------------------------------------------------- |
+| `R-01`    | utils/fileStore.js | 文件存储工厂，markers/plans/users 共用缓存/写锁基础设施                   |
+| `DAT-7`   | utils/fileStore.js | readAll 命中缓存返回对象引用（非深拷贝），调用方必须不可变更新后 writeAll |
+| 原子写入  | utils/fileStore.js | writeAll 先写 .tmp 再 rename，失败清理临时文件                            |
+| 写锁      | utils/fileStore.js | sequential 串行化写操作，消除 TOCTOU 竞态                                 |
+| `SEC-013` | forecastService    | 指标白名单 cargo/container，拒绝路径遍历，data/forecast 不可接受任意输入  |
+| `SEC-014` | forecastService    | 引擎结果缓存 TTL 5min，data/forecast/\*.json 更新后自动失效重算           |
 
 ## 八、备注
 

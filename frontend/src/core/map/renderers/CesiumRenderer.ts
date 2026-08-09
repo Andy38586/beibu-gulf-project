@@ -39,7 +39,6 @@ import { LAYER_DEFAULTS } from '@/shared'
 import { logger } from '@/shared'
 import { MapRenderer } from './MapRenderer'
 
-
 // CesiumViewer单例：全局唯一Viewer，按需mount/unmount复用，30s空闲自动销毁
 class CesiumViewerManager {
   constructor() {
@@ -513,7 +512,10 @@ export class CesiumRenderer extends MapRenderer {
       provider.errorEvent.addEventListener((err: unknown) => {
         if (this._imageryErrorLogged) return
         this._imageryErrorLogged = true
-        logger.warn('[CesiumRenderer] 底图瓦片加载失败（首次）:', err instanceof Error ? err.message : err)
+        logger.warn(
+          '[CesiumRenderer] 底图瓦片加载失败（首次）:',
+          err instanceof Error ? err.message : err
+        )
       })
     }
 
@@ -537,7 +539,8 @@ export class CesiumRenderer extends MapRenderer {
       maximumLevel: 18,
     })
     attachImageryErrorLog(imageAnnotationProvider)
-    const imageAnnotationLayer = this.viewer.imageryLayers.addImageryProvider(imageAnnotationProvider)
+    const imageAnnotationLayer =
+      this.viewer.imageryLayers.addImageryProvider(imageAnnotationProvider)
     const vectorBaseProvider = this.viewer.imageryLayers.addImageryProvider(
       new UrlTemplateImageryProvider({
         url: tiandituUrlForCesium(MAP_CONFIG.BASE_LAYERS.vector.layers[0]),
@@ -927,7 +930,6 @@ export class CesiumRenderer extends MapRenderer {
   }
 }
 
-
 // ===== 合并自 CesiumEvents.ts（P8 物理搬移，逻辑零改动）=====
 /**
  * CesiumEvents — Cesium 3D 事件监听管理
@@ -938,7 +940,6 @@ export class CesiumRenderer extends MapRenderer {
  * - renderer._cameraChangedHandler：相机变化监听器（防抖后 emit camera-changed）
  * - renderer._cameraDebounceTimer：相机变化防抖定时器
  */
-
 
 /**
  * Cartesian3 转经纬度数组
@@ -1060,10 +1061,6 @@ export function destroyEvents(renderer: any): void {
  * - 视口裁剪：renderer._getViewportBBox / _isInViewport / _setupViewportListener
  * - 异步竞态 token：renderer._geoJsonTokens
  */
-
-
-
-
 
 /**
  * 添加点图层（含视口裁剪：>1000 Entity 时仅渲染视口内要素）
@@ -1341,7 +1338,9 @@ export function addGeoTIFFLayer(
 ): boolean {
   // 入口可见性日志（排查"图层没挂载"）：无论走哪个分支都打印，用户刷新后
   // 控制台搜 addGeoTIFFLayer 即可定位（调用了/跳过了/URL 是什么）
-  logger.debug(`[CesiumRenderer] addGeoTIFFLayer 调用: id=${id} url=${url} terrainReady=${renderer._terrainReady}`)
+  logger.debug(
+    `[CesiumRenderer] addGeoTIFFLayer 调用: id=${id} url=${url} terrainReady=${renderer._terrainReady}`
+  )
 
   // 回退方案仅支持预生成的 hillshade 影像；其它 GeoTIFF 在 3D 下暂不支持
   if (!/hillshade/i.test(url)) {
@@ -1483,7 +1482,6 @@ export function doRemoveLayer(renderer: any, layer: any): void {
  * - layer.allFeatures：原始全量要素（供视口变化时增量更新）
  * - layer.cameraListener：相机变化监听器（requestAnimationFrame 防抖）
  */
-
 
 /** 视口经纬度范围 */
 export interface ViewportBBox {
@@ -1636,10 +1634,6 @@ export function updateCulledLayer(renderer: any, id: string): void {
  * 改为：复用同一 Primitive，仅替换 geometryInstances（同步构建新几何并赋值，
  * Cesium 在下一帧用新几何重绘），Primitive 对象、可见性、颜色缓冲全部复用。
  */
-
-
-
-
 
 /** 水面状态条目 */
 interface WaterSurfaceEntry {
@@ -1801,4 +1795,3 @@ export function setWaterSurfaceVisibility(renderer: any, id: string, visible: bo
     renderer.viewer.scene.requestRender()
   }
 }
-

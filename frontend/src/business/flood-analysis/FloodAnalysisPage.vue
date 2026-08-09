@@ -293,10 +293,9 @@ async function triggerFloodAnalysis(waterLevel: number, seq: number) {
     if (!shouldRenderForCurrentRoute()) return
     // P0-5 修复：页面已卸载则丢弃响应，页面离开后图层不复活（最强守卫）
     if (unmounted) return
-    // 实际档位与请求不一致时 UI 提示（非仅 console）
-    if (actualWaterLevel !== undefined && actualWaterLevel !== waterLevel) {
-      showWarning(`当前水位 ${waterLevel}m 无精确数据，已使用 ${actualWaterLevel}m 档位`)
-    }
+    // 2026-08-09：删除"无精确数据"警告——洪涝数据本就是档位制（6 档），
+    // 滑块每动一次都会触发该提示 → toast 爆炸；档位回显由滑块/图表自然呈现，无需打扰。
+    logger.debug('[Flood] 档位回显:', { waterLevel, actualWaterLevel })
 
     logger.debug('[Flood] 更新淹没分析数据:', { statistics, features: features.length, riskLevel })
 

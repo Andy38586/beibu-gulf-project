@@ -62,6 +62,16 @@ server {
         expires 30d;
         add_header Cache-Control "public";
     }
+    # z022: 天地图瓦片同源代理（与 nginx.conf 一致，2026-08-09 双份配置对齐）
+    location /tianditu/ {
+        proxy_pass https://t0.tianditu.gov.cn/;
+        proxy_http_version 1.1;
+        proxy_set_header Host t0.tianditu.gov.cn;
+        proxy_set_header X-Real-IP "";
+        proxy_ssl_server_name on;
+        expires 30d;
+        add_header Cache-Control "public";
+    }
     location /cesium/ {
         root /app/frontend/dist;
         expires 30d;

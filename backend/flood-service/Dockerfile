@@ -6,7 +6,11 @@ FROM python:3.12-slim
 
 WORKDIR /app/backend/flood-service
 
-# 依赖（numpy/scipy/rasterio/shapely 均走 PyPI manylinux 轮子，无需系统 GDAL）
+# 依赖（numpy/scipy/rasterio/shapely 均走 manylinux 轮子，无需系统 GDAL）
+# 2026-08-10：PIP_INDEX_URL 默认阿里云镜像——服务器为国内环境，官方 PyPI 慢/不稳；
+# 可用构建参数覆盖（--build-arg PIP_INDEX_URL=官方源）
+ARG PIP_INDEX_URL=https://mirrors.aliyun.com/pypi/simple/
+ENV PIP_INDEX_URL=$PIP_INDEX_URL
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 

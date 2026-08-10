@@ -56,10 +56,15 @@ server {
         alias /app/backend/static/terrain/;
         expires 30d;
         add_header Cache-Control "public";
-        # 2026-08-09：.terrain 瓦片本身是 gzip 压缩流（CTB 输出），后端 Express 用
-        # Content-Encoding: gzip 响应（Cesium 才能解压 heightmap）；nginx 直发需补该头，
+        # 2026-08-09：.terrain 瓦片本身是 gzip 压缩流（CTB 输出，后端 Express 也这样
+        # Content-Encoding: gzip 响应，Cesium 才能解压 heightmap）；nginx 直发需补该头，
         # 否则 Cesium 按原始字节解析 → RangeError: Invalid typed array length。
-        add_header Content-Encoding gzip;
+        # 2026-08-10 修复：gzip 头只对 .terrain 生效（嵌套 location）——原无条件 add_header
+        # 让 layer.json 被声明 gzip 但内容未压缩 → ERR_CONTENT_DECODING_FAILED → 真地形失效
+        location ~ \.terrain$ {
+            add_header Cache-Control "public";
+            add_header Content-Encoding gzip;
+        }
     }
     location /static/ {
         alias /app/backend/static/;

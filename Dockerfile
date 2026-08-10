@@ -12,11 +12,11 @@ ENV VITE_TIANDITU_KEY=$VITE_TIANDITU_KEY
 WORKDIR /app
 
 # 根依赖锁文件（根 package-lock.json 存在）
-# 2026-08-09：npm ci → npm install——npm ci 严格校验 lock 完整性，要求包含所有
-# optional/peer 条目（如 macOS 专属 fsevents），Linux 生成 lock 时天然缺失 → 必然 EUSAGE。
-# npm install 宽容模式：优先按 lock 安装，缺条目自动补解析，生产构建足够。
+# 2026-08-09：改回 npm ci——此前失败是 npmmirror 生成的不完整 lock；
+# 官方源重建（f0cce63）后 CI 的 npm ci 稳定成功，lock 对 npm ci 完整。
+# 若服务器构建再遇 EUSAGE，回退 npm install 并检查 lock。
 COPY package*.json ./
-RUN npm install --no-audit --no-fund
+RUN npm ci --no-audit --no-fund
 
 # 前端源码与 vite 配置
 COPY frontend/ ./frontend/
@@ -29,7 +29,7 @@ FROM node:22-alpine AS backend-builder
 
 WORKDIR /app/backend
 COPY backend/package*.json ./
-RUN npm install --production --no-audit --no-fund
+RUN npm ci --production --no-audit --no-fund
 COPY backend/ ./
 
 # ============ Stage 3: Production ============

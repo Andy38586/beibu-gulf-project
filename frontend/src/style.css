@@ -72,6 +72,52 @@
   --GCS-z-message: 600; /* ElMessage 全局提示 */
 }
 
+/* ===============================
+ * 暗色主题（2026-08-10）——useTheme 切换 document.documentElement[data-theme]
+ * 映射：白 → 深蓝系（#0d1b2a 底 + #e8edf4 文字）；蓝 → 高饱和橙（#ff7a1a）
+ * 语义色（error/success/warning/danger）在暗色底上提亮一档保证可读性。
+ * 只覆盖 token，组件零改动；ECharts canvas 配色见 useChartBase/useRadarChart。
+ * =============================== */
+:root[data-theme='dark'] {
+  --GCS-color-primary: #ff7a1a;
+  --GCS-color-primary-hover: #ff9147;
+  --GCS-color-primary-active: #e66a0d;
+  --GCS-color-primary-bg: #33231a;
+
+  --GCS-color-error: #ff6b6f;
+  --GCS-color-error-bg: #3a1d1f;
+  --GCS-color-error-border: #6b2a2d;
+  --GCS-color-success: #57d97c;
+  --GCS-color-warning: #f0b35a;
+  --GCS-color-danger: #ff7a7d;
+
+  --GCS-bg-canvas: #0a1420;
+  --GCS-bg-panel: #0d1b2a;
+  --GCS-bg-panel-translucent: rgba(13, 27, 42, 0.92);
+  --GCS-bg-elevated: #13263a;
+  --GCS-bg-overlay: rgba(0, 0, 0, 0.5);
+  --GCS-bg-container: #101f31;
+  --GCS-bg-hover: #17314d;
+  --GCS-bg-active: #1c3a5c;
+
+  --GCS-text-primary: #e8edf4;
+  --GCS-text-regular: #d0d7e0;
+  --GCS-text-secondary: #a8b2bd;
+  --GCS-text-muted: #7a8694;
+  --GCS-text-placeholder: #5a6675;
+  --GCS-text-inverse: #0d1b2a;
+
+  --GCS-border-default: #1f3450;
+  --GCS-border-light: #16283f;
+  --GCS-border-hover: #2c4a70;
+  --GCS-border-focus: #ff7a1a;
+
+  --GCS-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.45);
+  --GCS-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.55);
+  --GCS-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.6);
+  --GCS-shadow-float: 0 12px 36px rgba(0, 0, 0, 0.65);
+}
+
 /* ===== 全局重置 ===== */
 * {
   margin: 0;

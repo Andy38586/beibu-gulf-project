@@ -6,30 +6,27 @@
 //   cesium-water.ts（水面）→ cesium-terrain.ts（DEM/terrainProvider）→ cesium-camera.ts（相机/飞行）→
 //   cesium-layers.ts（图层 helper）→ cesium-breathing.ts（呼吸动画）→ CesiumViewerManager.ts（viewer 生命周期）
 import {
-  BoundingSphere,
   CallbackProperty,
   Cartesian2,
   Cartesian3,
   Cartographic,
   CesiumTerrainProvider,
+  ClassificationType,
   Color,
   ColorGeometryInstanceAttribute,
-  ComponentDatatype,
   EllipsoidTerrainProvider,
   Entity,
   EntityCollection,
   GeographicTilingScheme,
   GeoJsonDataSource,
-  Geometry,
-  GeometryAttribute,
   GeometryInstance,
+  HeightReference,
   Math as CesiumMath,
   PerInstanceColorAppearance,
   PointGraphics,
   PolygonGeometry,
   PolygonHierarchy,
   Primitive,
-  PrimitiveType,
   Rectangle,
   ScreenSpaceEventType,
   SingleTileImageryProvider,
@@ -290,7 +287,6 @@ export class CesiumRenderer extends MapRenderer {
   _terrainEnabled: boolean
   _hillshadeLayer: unknown
   _imageryErrorLogged: boolean
-  _demPrimitive: unknown | null
   _screenSpaceEventHandler: {
     setInputAction: (fn: (input: unknown) => void, type?: unknown) => void
   } | null
@@ -395,101 +391,6 @@ export class CesiumRenderer extends MapRenderer {
     controller.enableZoom = true
     controller.enableTilt = true
     controller.enableLook = true
-  }
-
-  /**
-   * 全量 DEM 真地形（用户拍板方案，2026-08-05）：
-   * 一次性 fetch 整个高程网格（backend/static/dem/dem_elev.bin，1000×750 Int16，
-   * GDAL 降采样自 dem_4326_cut.tif），构建单一 Cesium Primitive 三角网格——
-   * 不切瓦片、无 LOD、无 terrainProvider（瓦片链路在真实浏览器不稳定）。
-   * nodata（>=32000，南海海洋区）→ 0 海平面。失败静默降级（保持椭球+底图）。
-   */
-  async _setupFullDem() {
-    try {
-      const viewer = this.viewer
-      if (!viewer) return
-      const resp = await fetch('/static/dem/dem_elev.bin')
-      if (!resp.ok) throw new Error(`dem_elev.bin HTTP ${resp.status}`)
-      const buf = new Int16Array(await resp.arrayBuffer())
-      const W = 1000
-      const H = 750
-      if (buf.length !== W * H) throw new Error(`dem_elev.bin 尺寸不符: ${buf.length}`)
-      // dem_4326_cut.tif 地理范围（gdalinfo 实测，EPSG:4326）
-      const LON_MIN = 106.9720001
-      const LON_MAX = 110.0783727
-      const LAT_MIN = 20.9379894
-      const LAT_MAX = 23.0760978
-      // 顶点位置（ECEF，75 万点 ≈ 9MB）
-      // 官方 sandcastle 自定义 Geometry 标准：DOUBLE + Float64Array（Cesium 内部转换）
-      const positions = new Float64Array(W * H * 3)
-      let k = 0
-      for (let y = 0; y < H; y++) {
-        const lat = LAT_MAX - (y / (H - 1)) * (LAT_MAX - LAT_MIN)
-        for (let x = 0; x < W; x++) {
-          const lon = LON_MIN + (x / (W - 1)) * (LON_MAX - LON_MIN)
-          let e = buf[y * W + x]
-          if (e >= 32000) e = 0 // nodata → 海平面
-          const c = Cartesian3.fromDegrees(lon, lat, e)
-          positions[k++] = c.x
-          positions[k++] = c.y
-          positions[k++] = c.z
-        }
-      }
-      // 三角索引（每 2×2 格点 2 三角形，150 万索引 ≈ 6MB）
-      const indices = new Uint32Array((W - 1) * (H - 1) * 6)
-      let ii = 0
-      for (let y = 0; y < H - 1; y++) {
-        for (let x = 0; x < W - 1; x++) {
-          const a = y * W + x
-          const b = a + 1
-          const c = a + W
-          const d = c + 1
-          indices[ii++] = a
-          indices[ii++] = b
-          indices[ii++] = c
-          indices[ii++] = b
-          indices[ii++] = d
-          indices[ii++] = c
-        }
-      }
-      const geometry = new Geometry({
-        attributes: {
-          position: new GeometryAttribute({
-            componentDatatype: ComponentDatatype.DOUBLE,
-            componentsPerAttribute: 3,
-            values: positions,
-          }),
-        } as unknown as Geometry['attributes'],
-        indices,
-        primitiveType: PrimitiveType.TRIANGLES,
-        // boundingSphere 显式提供（Primitive 视锥剔除需要）
-        boundingSphere: BoundingSphere.fromVertices(positions),
-      })
-      // 裸 Geometry 同步渲染必须手动补 boundingSphereCV：
-      // Primitive 同步路径对裸 Geometry 走 cloneGeometry（不做 pipeline），而
-      // createVertexArray 渲染时访问 geometry.boundingSphereCV.center —— 该字段
-      // 官方 pipeline 用 BoundingSphere.fromVertices 设置（内置生成器如 PolygonGeometry
-      // 的 createGeometry 内部处理），裸 Geometry 需手动等值赋值。异步 worker 路径
-      // 在 vite dev 下不可靠（_workerName/createFunction 均踩坑），用同步模式。
-      ;(geometry as unknown as { boundingSphereCV: unknown }).boundingSphereCV =
-        BoundingSphere.fromVertices(positions)
-      const primitive = new Primitive({
-        geometryInstances: new GeometryInstance({ geometry }),
-        appearance: new PerInstanceColorAppearance({
-          // flat: 关闭逐顶点光照（无 normals 也能渲染，官方自定义 Geometry 标准用法）
-          flat: true,
-          translucent: false,
-        }),
-        // 同步模式（vite dev 下 Cesium worker 加载不可靠）；boundingSphereCV 已手动补
-        asynchronous: false,
-      })
-      viewer.scene.primitives.add(primitive)
-      this._demPrimitive = primitive
-      logger.debug(`[CesiumRenderer] 全量 DEM mesh 加载成功: ${W}x${H}`)
-    } catch (e) {
-      // 无数据/加载失败 → 保持椭球 + 天地图底图（现状行为），仅日志提示
-      logger.warn('[CesiumRenderer] 全量 DEM 加载失败:', e instanceof Error ? e.message : e)
-    }
   }
 
   /** 真地形接入：/static/terrain/ 目录 → CesiumTerrainProvider。失败静默降级（不阻塞 Viewer）。 */
@@ -1204,6 +1105,9 @@ export function createCesiumPointEntity(
       color: Color.fromCssColorString(options.color || LAYER_DEFAULTS.color),
       outlineColor: Color.WHITE,
       outlineWidth: 2,
+      // 2026-08-10（面试报告 P0-2）：CLAMP_TO_GROUND 贴地形——真地形就绪后
+      // 点落在实际地表，而非椭球绝对高（北部湾 geoid 分离约 -30~-70m，绝对高会错位）
+      heightReference: HeightReference.CLAMP_TO_GROUND,
     },
     label: options.labelField
       ? {
@@ -1263,6 +1167,10 @@ export function addPolygonLayer(
             outline: true,
             outlineColor: Color.fromCssColorString(options.strokeColor || LAYER_DEFAULTS.stroke),
             outlineWidth: options.strokeWidth || 2,
+            // 2026-08-10（面试报告 P0-2）：贴地形渲染——多边形沿真实地形起伏裁剪
+            // （淹没区不会被山体盖住/悬空），替代默认椭球绝对高（原固定 0.5m 错位）
+            heightReference: HeightReference.CLAMP_TO_GROUND,
+            classificationType: ClassificationType.TERRAIN,
           },
           properties: { ...item, featureType: options.featureType || 'polygon' },
         })
@@ -1338,7 +1246,10 @@ export async function addGeoJsonLayer(
       if (!entity.properties) entity.properties = {}
       entity.properties.featureType = options.featureType || 'geojson'
       if (entity.polygon) {
-        entity.polygon.height = 0.5
+        // 2026-08-10（面试报告 P0-2）：贴地形渲染——替代原固定 height=0.5 椭球绝对高
+        // （真地形就绪后业务面与地形的垂直错位，北部湾 geoid 分离 -30~-70m）
+        entity.polygon.heightReference = HeightReference.CLAMP_TO_GROUND
+        entity.polygon.classificationType = ClassificationType.TERRAIN
         entity.polygon.material = Color.fromCssColorString(options.fillColor || LAYER_DEFAULTS.fill)
         entity.polygon.outline = true
         entity.polygon.outlineColor = Color.fromCssColorString(
@@ -1354,6 +1265,8 @@ export async function addGeoJsonLayer(
           color: markerColor,
           outlineColor: Color.WHITE,
           outlineWidth: 2,
+          // 2026-08-10（面试报告 P0-2）：GeoJSON 点要素贴地形（同 createCesiumPointEntity）
+          heightReference: HeightReference.CLAMP_TO_GROUND,
         })
       }
     })
@@ -1464,8 +1377,8 @@ export function addGeoTIFFLayer(
     //   天地图影像在下方透出轮廓，注记层（cia_w）在更上层显示地名。
     //   教训：0.45 半透明太淡，用户视觉上'看不到 DEM 图层'——验证要从用户视觉出发，
     //   不能只看'代码不报错'。
-    // - 真 3D mesh（_setupFullDem Primitive）在 vite dev 有 Cesium worker 兼容问题
-    //   暂禁用，hillshade 全量贴图作为过渡方案。
+    // - 真 3D 已由 terrain 瓦片方案（_setupTerrain）承接（2026-08-10：
+    //   原 _setupFullDem 全量 mesh 死代码已删），hillshade 为降级兜底。
     imageryLayer.alpha = options.opacity ?? 0.85
     // 记录 hillshade 图层引用（真地形 mesh 恢复后隐藏/降级用）
     renderer._hillshadeLayer = imageryLayer

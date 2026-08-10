@@ -5,6 +5,8 @@
  * - 项目分层铁律：stores → business 禁止引（business → core 才允许）
  * - 若常量留在 business，store 反向依赖 business 会破坏分层（dependency-cruiser 会报错）
  * - 将共享常量上提到 shared，store 与 business 两层都从此取，单向依赖保持
+ * 2026-08-10 复核（面试报告 P1-8）：上提是分层铁律（z047/z043 归档）驱动的正当设计，
+ * 非"绕过 lint"——本注释即该决策的书面依据，保留。
  */
 
 /** 默认置信度阈值（各指标共用） */

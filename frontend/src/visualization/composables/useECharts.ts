@@ -13,6 +13,7 @@ import { CanvasRenderer } from 'echarts/renderers'
 import type { Ref, WatchSource } from 'vue'
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 
+import { useTheme } from '@/shared'
 import { perfTimeFn } from '@/shared/utils/perfReporter'
 
 echarts.use([
@@ -54,6 +55,11 @@ export function useECharts({
   const chartRef = ref<HTMLElement | null>(null)
   let chartInstance: ECharts | null = null
   let resizeObserver: ResizeObserver | null = null
+  // 主题变化 → 重跑 getOption 重设（canvas 不支持 CSS 变量，需显式重设颜色）
+  // 100ms 防抖合并快速连点；onUnmounted 清理订阅与定时器
+  const { onThemeChange } = useTheme()
+  let stopThemeWatch: (() => void) | null = null
+  let themeTimer: ReturnType<typeof setTimeout> | null = null
 
   /**
    * 初始化图表
@@ -116,9 +122,24 @@ export function useECharts({
     }
     chartInstance?.dispose()
     chartInstance = null
+    stopThemeWatch?.()
+    stopThemeWatch = null
+    if (themeTimer) {
+      clearTimeout(themeTimer)
+      themeTimer = null
+    }
   }
 
-  onMounted(initChart)
+  onMounted(() => {
+    initChart()
+    stopThemeWatch = onThemeChange(() => {
+      if (themeTimer) clearTimeout(themeTimer)
+      themeTimer = setTimeout(() => {
+        themeTimer = null
+        updateChart()
+      }, 100)
+    })
+  })
   onUnmounted(disposeChart)
 
   // 监听数据源变化

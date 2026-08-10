@@ -4,10 +4,11 @@ import type { ComponentPublicInstance } from 'vue'
 import { createApp } from 'vue'
 
 import App from './App.vue'
-import { initPerfReporter, perfReportError } from './shared/utils/perfReporter'
 import router from './router'
 import { floodAdapter } from './services/adapters/floodAdapter'
+import { useTheme } from './shared'
 import { logger } from './shared/utils/logger'
+import { initPerfReporter, perfReportError } from './shared/utils/perfReporter'
 
 /**
  * 启动时校验关键环境变量
@@ -60,6 +61,9 @@ const app = createApp(App)
 
 app.use(createPinia())
 app.use(router)
+
+// 主题初始化（mount 前应用 data-theme，避免首帧闪白/闪黑）
+useTheme().initTheme()
 
 // 全局错误处理，给用户反馈
 app.config.errorHandler = (

@@ -18,6 +18,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useScreenActions } from '@/core/layout/composables/useScreenActions'
 import LayerControlPanel from '@/core/map/components/LayerControlPanel.vue'
 import { useGCS } from '@/shared'
+import { useTheme } from '@/shared'
 import PanelTitle from '@/shared/components/PanelTitle.vue'
 import RadarChart from '@/visualization/charts/RadarChart.vue'
 
@@ -34,7 +35,9 @@ import { useSliderFocus } from './useSliderFocus'
 const route = useRoute()
 const router = useRouter()
 const { showPanels, showTopArea } = useGCS()
-const { flyToCity, goProfileOrBack, userButtonLabel } = useScreenActions()
+const { flyToCity } = useScreenActions()
+// 主题切换（2026-08-10）：图标 = 当前模式的另一侧（暗色显示 ☀️、亮色显示 🌙）
+const { isDark, toggleTheme } = useTheme()
 // 抽屉开关（模块级单例，nav 菜单按钮与抽屉共享）
 const { drawerOpen, closeDrawer } = useMobileDrawer()
 // 滑块专注模式（模块级单例，滑块组件调用 begin/end）
@@ -109,7 +112,13 @@ function goBusiness(item: NavItem): void {
           <NavButton label="钦州" @click="flyToCity('钦州')" />
           <NavButton label="北海" @click="flyToCity('北海')" />
           <NavButton label="防城港" @click="flyToCity('防城港')" />
-          <NavButton :label="userButtonLabel" icon="👤" @click="goProfileOrBack" />
+          <!-- 2026-08-10：个人中心入口移除（底部导航已有），改主题切换（🌙/☀️ emoji） -->
+          <NavButton
+            :icon="isDark ? '☀️' : '🌙'"
+            class="theme-toggle"
+            aria-label="切换主题"
+            @click="toggleTheme"
+          />
         </div>
       </GCSPanel>
 
@@ -154,12 +163,17 @@ function goBusiness(item: NavItem): void {
             @click="goBusiness(m)"
           />
         </div>
-        <!-- 城市切换 + 用户入口行 -->
+        <!-- 城市切换 + 主题切换行（2026-08-10：个人中心入口移除，改主题切换） -->
         <div class="drawer-menu__row" aria-label="城市切换">
           <NavButton label="钦州" @click="flyToCity('钦州')" />
           <NavButton label="北海" @click="flyToCity('北海')" />
           <NavButton label="防城港" @click="flyToCity('防城港')" />
-          <NavButton :label="userButtonLabel" icon="👤" @click="goProfileOrBack" />
+          <NavButton
+            :icon="isDark ? '☀️' : '🌙'"
+            class="theme-toggle"
+            aria-label="切换主题"
+            @click="toggleTheme"
+          />
         </div>
         <!-- 抽屉模式（<960px）面板内容（2026-08-09 用户决策：只留功能面板，图表类纯充数不进抽屉）：
              首页 → 图层控制（core 组件）；个人中心 → 登录面板（由 ProfilePage 经 #right slot 注入）；
@@ -252,5 +266,12 @@ function goBusiness(item: NavItem): void {
   z-index: 5;
   background: var(--GCS-bg-panel);
   border-bottom: 1px solid var(--GCS-border-light);
+}
+
+/* 2026-08-10：主题切换按钮 emoji 放大（默认 .button-icon 0.85em 约 12px 偏小；
+   仅作用于 .theme-toggle，不影响其他业务按钮的 icon） */
+:deep(.theme-toggle .button-icon) {
+  font-size: 1.6em;
+  margin-top: 0;
 }
 </style>

@@ -1,26 +1,7 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it } from 'vitest'
 
-import type { ForecastSeries } from '@/types/api/forecast'
-
 import { useForecastStore } from '../forecastStore'
-
-/**
- * 构造最小合法的 ForecastSeries，仅用于 store 行为测试。
- * 实施计划 03 将 cacheData 入参收窄为 ForecastSeries，
- * 故测试数据须符合该结构（不再使用任意对象）。
- */
-function makeSeries(indicator: string): ForecastSeries {
-  return {
-    indicator,
-    unit: '万吨',
-    data: {
-      qinzhou: {
-        historical: [{ time: '2025-12', value: 1, type: 'historical' }],
-      },
-    },
-  }
-}
 
 /**
  * useForecastStore 单测
@@ -28,9 +9,10 @@ function makeSeries(indicator: string): ForecastSeries {
  * （frontend/src/stores/forecastState.ts）补齐全测，覆盖：
  * - 初始状态默认值
  * - setCurrentTime / setActiveIndicator / setTimeGranularity
- * - cacheData + currentData（按 currentTime 派生的计算属性）
+ * - currentData（按 currentTime 派生的计算属性）
  * - setConfidenceThreshold / clearCache
  * - reset 恢复默认
+ * 2026-08-10（面试报告 P0-3）：cacheData 零调用已删，相关用例一并移除
  */
 describe('useForecastStore', () => {
   beforeEach(() => {
@@ -74,22 +56,6 @@ describe('useForecastStore', () => {
     })
   })
 
-  describe('cacheData / currentData', () => {
-    it('应按当前时间暴露缓存数据', () => {
-      const store = useForecastStore()
-      const payload = makeSeries('cargo')
-      store.cacheData('2026-06', payload)
-      expect(store.dataCache.get('2026-06')).toEqual(payload)
-      expect(store.currentData).toEqual(payload)
-    })
-
-    it('未缓存当前时间时 currentData 为 null', () => {
-      const store = useForecastStore()
-      store.cacheData('2030-01', makeSeries('berth'))
-      expect(store.currentData).toBeNull()
-    })
-  })
-
   describe('setConfidenceThreshold', () => {
     it('应更新对应指标的置信度阈值', () => {
       const store = useForecastStore()
@@ -103,7 +69,6 @@ describe('useForecastStore', () => {
       const store = useForecastStore()
       store.setCurrentTime('2030-01')
       store.setActiveIndicator('traffic')
-      store.cacheData('2030-01', makeSeries('berth'))
 
       store.reset()
 

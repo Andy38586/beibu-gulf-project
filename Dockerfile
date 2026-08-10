@@ -9,6 +9,11 @@ FROM node:22-alpine AS frontend-builder
 ARG VITE_TIANDITU_KEY=
 ENV VITE_TIANDITU_KEY=$VITE_TIANDITU_KEY
 
+# 2026-08-10：数据源为构建期变量（vite build 打包进产物）——生产设 online 走
+# FastAPI 连通性演算（预计算表查表秒回）；缺省 api（Express 251 档表兜底）
+ARG VITE_DATA_SOURCE=api
+ENV VITE_DATA_SOURCE=$VITE_DATA_SOURCE
+
 WORKDIR /app
 
 # 根依赖锁文件（根 package-lock.json 存在）

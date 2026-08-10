@@ -32,7 +32,8 @@ server {
     }
     location /flood-online/ {
         rewrite ^/flood-online(/.*)$ $1 break;
-        proxy_pass http://127.0.0.1:8000;
+        # 2026-08-10：独立容器（flood-service），同 docker network 服务名解析
+        proxy_pass http://flood-service:8000;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;

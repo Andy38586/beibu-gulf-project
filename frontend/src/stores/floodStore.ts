@@ -14,9 +14,11 @@ import { createPersistedState } from './factories/createPersistedState'
 /**
  * 浸没分析统一 Store（Setup Store 风格）
  * 职责：
- * - UI 控制（floodActive / showFloodArea / showFloodPOI）
  * - 分析数据（floodStatistics / floodFeatures / floodRiskLevel）
  * - 跨页面状态持久化（saveState / consumeState / clearState）
+ * 2026-08-10（面试报告 P0-3）：floodActive/showFloodArea/showFloodPOI 三个布尔
+ * 与 selectedProfileId/profileActive 链全库零消费（UI 控制已由图层状态/组件本地
+ * ref 承担；剖面选择在 WaterLevelProfilePanel 用本地 ref），已删。
  * 持久化策略：
  * - saveState 接收完整 FloodSavedState（含 waterLevel/affectedFacilities/totalLoss）
  * - consumeState 一次性返回全部字段，调用方无需跨 store 组合
@@ -31,11 +33,6 @@ interface FloodPersistedSnapshot {
 }
 
 export const useFloodStore = defineStore('flood', () => {
-  // ─── UI 控制 ───────────────────────────────────────────────
-  const floodActive = ref(false)
-  const showFloodArea = ref(false)
-  const showFloodPOI = ref(false)
-
   // ─── 分析数据 ──────────────────────────────────────────────
   const floodStatistics = ref<FloodStatistics | null>(null)
   const floodFeatures = ref<FloodFeature[]>([])
@@ -52,10 +49,6 @@ export const useFloodStore = defineStore('flood', () => {
   const totalLoss = ref(0)
   const portImpactActive = computed(() => affectedFacilities.value.length > 0)
 
-  // ─── 剖面档案（P3：并入原 profileStore） ──────────────────
-  const selectedProfileId = ref<string | null>(null)
-  const profileActive = computed(() => selectedProfileId.value !== null)
-
   // ─── 持久化快照（使用工厂） ─────────────────────────────
   const persisted = createPersistedState<FloodPersistedSnapshot>()
 
@@ -68,18 +61,12 @@ export const useFloodStore = defineStore('flood', () => {
     features: FloodFeature[],
     riskLevel: string
   ): void {
-    floodActive.value = true
-    showFloodArea.value = true
-    showFloodPOI.value = true
     floodStatistics.value = statistics
     floodFeatures.value = features
     floodRiskLevel.value = riskLevel
   }
 
   function resetFloodAnalysis(): void {
-    floodActive.value = false
-    showFloodArea.value = false
-    showFloodPOI.value = false
     floodStatistics.value = null
     floodFeatures.value = []
     floodRiskLevel.value = '无风险'
@@ -107,21 +94,10 @@ export const useFloodStore = defineStore('flood', () => {
     totalLoss.value = 0
   }
 
-  // ─── 剖面档案（P3：原 profileStore） ───────────────────
-  // *Active 由 computed 派生（selectedProfileId 非 null），setter 无需手动同步
-  function setSelectedProfile(profileId: string | null): void {
-    selectedProfileId.value = profileId
-  }
-
-  function resetProfile(): void {
-    selectedProfileId.value = null
-  }
-
   // ─── 子状态统一重置（P3：onUnmounted 用——不清 flood 分析，保留跨页面数据） ───
   function resetSubStates(): void {
     resetWaterLevel()
     resetPortImpact()
-    resetProfile()
   }
 
   // ─── 跨页面状态持久化 ──────────────────────────────────────
@@ -172,10 +148,6 @@ export const useFloodStore = defineStore('flood', () => {
   }
 
   return {
-    // UI 控制
-    floodActive,
-    showFloodArea,
-    showFloodPOI,
     // 分析数据
     floodStatistics,
     floodFeatures,
@@ -191,11 +163,6 @@ export const useFloodStore = defineStore('flood', () => {
     totalLoss,
     setPortImpactResult,
     resetPortImpact,
-    // 剖面档案（P3）
-    selectedProfileId,
-    profileActive,
-    setSelectedProfile,
-    resetProfile,
     // 子状态重置（P3）
     resetSubStates,
     // 计算属性

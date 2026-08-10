@@ -10,8 +10,11 @@ services:
       dockerfile: Dockerfile
       # 2026-08-09：前端构建需要天地图 key（vite build 打包进产物）。
       # 值读自 compose 同目录 .env（服务器部署时在项目目录配置 VITE_TIANDITU_KEY=新key）
+      # 2026-08-10：VITE_DATA_SOURCE 同样为构建期变量——生产设 online 让洪涝走
+      # FastAPI 连通性演算（预计算表查表秒回）；缺省 api（Express 查 251 档表兜底）
       args:
         VITE_TIANDITU_KEY: ${VITE_TIANDITU_KEY:-}
+        VITE_DATA_SOURCE: ${VITE_DATA_SOURCE:-api}
     # d064: 镜像版本 tag（回滚用）。部署时传 IMAGE_TAG=<上一版本tag> 即可切回旧版。
     # 不传则默认 latest。配置 scripts/rollback.sh 使用。
     image: beibu-gulf-webgis:${IMAGE_TAG:-latest}
@@ -38,4 +41,17 @@ services:
       - '443:443' # nginx HTTPS（需 ./certs/ 下有证书）——2026-08-10：标准 443 直通（原 8443 导致跳转断链）
       # 2026-08-09：移除 3000:3000 直连映射——服务器 3000 端口常被其他服务占用
       # （如 PM2），且后端经 nginx /api 代理已够用；需直连调试再放开。
+    restart: unless-stopped
+
+  # 2026-08-10（面试报告 P0-1）：洪涝在线演算服务入容器编排——FastAPI + scipy
+  # 连通性淹没（8 连通 + 海面种子）。与主容器同 docker network：
+  # nginx /flood-online/ → flood-service:8000；数据以 ro volume 共享 backend/data
+  # （flood_levels.json.gz 251 档预计算表查表秒回，演算仅 miss 兜底）。
+  # 生产前端 VITE_DATA_SOURCE=online 后，洪涝演示走本服务（真算法 + 秒回）。
+  flood-service:
+    build:
+      context: ./backend/flood-service
+    container_name: beibu-flood-service
+    volumes:
+      - ./backend/data:/app/backend/data:ro
     restart: unless-stopped

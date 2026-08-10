@@ -87,13 +87,6 @@ export const useForecastStore = defineStore('forecast', () => {
     confidenceThresholds.value[indicator] = value
   }
 
-  function cacheData(time: string, data: ForecastSeries): void {
-    // shallowRef 下需重赋值 .value 引用才能触发响应式（computed 才能侦测 Map 内部变更）
-    const newMap = new Map(dataCache.value)
-    newMap.set(time, data)
-    dataCache.value = newMap
-  }
-
   /**
    * 事务状态重置——配合 useForecastRequest.cancelAll 与组件卸载使用，
    * 使事务 ID 失效并复位 isRequesting。reset() 也调用此方法。
@@ -156,7 +149,6 @@ export const useForecastStore = defineStore('forecast', () => {
     setTimeGranularity,
     setActiveIndicator,
     setConfidenceThreshold,
-    cacheData,
     resetTransactionState,
     reset,
     // 跨页面持久化

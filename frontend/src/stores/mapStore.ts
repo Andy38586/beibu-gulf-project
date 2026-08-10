@@ -5,13 +5,9 @@ import { ref, shallowRef } from 'vue'
 import { logger } from '@/shared'
 import type { LayerEntry, LayerType, MapType, Port } from '@/types'
 import type { MapRenderer } from '@/types'
-import { analysisResultSchema } from '@/types/schemas'
 
-/** localStorage 键：底图；sessionStorage：分析结果 */
+/** localStorage 键：底图 */
 const BASE_LAYER_STORAGE_KEY = 'beibu-gulf-base-layer'
-const ANALYSIS_RESULT_STORAGE_KEY = 'beibu-gulf-analysis-result'
-// 分析结果持久化版本号——schema 变化时升版，旧版本数据自动丢弃避免污染新结构
-const ANALYSIS_RESULT_VERSION = 1
 
 function readStoredBaseLayer(): string | null {
   if (typeof window === 'undefined') return null
@@ -33,57 +29,10 @@ function writeStoredBaseLayer(key: string | null): void {
   }
 }
 
-/** z026: 收窄为结构化类型（core 层不反向依赖业务 AnalysisResult，业务层读取时自行 cast）
- * 版本校验后用 analysisResultSchema.safeParse 替代 `as Record<string, unknown>` 断言 */
-function readStoredAnalysisResult(): Record<string, unknown> | null {
-  if (typeof window === 'undefined') return null
-  try {
-    const stored = window.sessionStorage.getItem(ANALYSIS_RESULT_STORAGE_KEY)
-    if (!stored) return null
-    const parsed = JSON.parse(stored)
-    // 版本校验——旧格式（无 version）或无 data 字段一律丢弃
-    if (
-      !parsed ||
-      typeof parsed !== 'object' ||
-      parsed.version !== ANALYSIS_RESULT_VERSION ||
-      !('data' in parsed)
-    ) {
-      window.sessionStorage.removeItem(ANALYSIS_RESULT_STORAGE_KEY)
-      return null
-    }
-    // safeParse 替代 `parsed.data as Record<string, unknown>`
-    const result = analysisResultSchema.safeParse(parsed.data)
-    if (!result.success) {
-      logger.warn('[mapStore] 分析结果数据校验失败，已清除:', result.error.issues)
-      window.sessionStorage.removeItem(ANALYSIS_RESULT_STORAGE_KEY)
-      return null
-    }
-    return result.data
-  } catch {
-    return null
-  }
-}
-
-function writeStoredAnalysisResult(result: Record<string, unknown> | null): void {
-  if (typeof window === 'undefined') return
-  try {
-    if (result) {
-      // 包装 { version, data }，配合读取端版本校验
-      window.sessionStorage.setItem(
-        ANALYSIS_RESULT_STORAGE_KEY,
-        JSON.stringify({ version: ANALYSIS_RESULT_VERSION, data: result })
-      )
-    } else {
-      window.sessionStorage.removeItem(ANALYSIS_RESULT_STORAGE_KEY)
-    }
-  } catch {
-    // 忽略隐私模式等写入失败场景
-  }
-}
-
 export const useMapStore = defineStore('map', () => {
-  // map 存储地图引擎实例（OL Map / Cesium Viewer），非渲染器，用 unknown 避免误用
-  const map: ShallowRef<unknown> = shallowRef(null)
+  // 2026-08-10（面试报告 P0-3 + 台账 a048）：map/setMap/lastAnalysisResult/setAnalysisResult
+  // 及 sessionStorage 通道已删——map 字段全库零读端（write-only 死状态）；分析结果持久化
+  // 双通道中 sessionStorage 通道只写不读（恢复只走 siteSelectionPersisted 内存快照，b046）
   const selectedPort: Ref<Port | null> = ref(null)
   const mapType: Ref<MapType> = ref('2d')
   // shallowRef：layerCatalog 是元数据数组，内部条目变更由各 action 触发
@@ -93,13 +42,6 @@ export const useMapStore = defineStore('map', () => {
 
   /** 当前渲染器引用（由UnifiedMap设置，供业务组件访问） */
   const currentRenderer: ShallowRef<MapRenderer | null> = shallowRef(null)
-
-  // 从 sessionStorage 恢复分析结果（收窄为 Record，业务层自行 cast）
-  const lastAnalysisResult: Ref<Record<string, unknown> | null> = ref(readStoredAnalysisResult())
-
-  function setMap(instance: unknown): void {
-    map.value = instance
-  }
 
   // 由 UnifiedMap 在渲染器初始化/切换时调用
   function setCurrentRenderer(renderer: MapRenderer | null): void {
@@ -118,14 +60,6 @@ export const useMapStore = defineStore('map', () => {
 
   function clearSelectedPort(): void {
     selectedPort.value = null
-  }
-
-  // 2026-08-08：mapStore 不再持有分析回调（analysisHandler/registerAnalysisHandler/回放已删）——
-  // 回调由选址页自持（createUpdateHandler 直连），store 只负责结果数据的会话持久化。
-  function setAnalysisResult(result: Record<string, unknown>): void {
-    lastAnalysisResult.value = result
-    // 持久化分析结果到 sessionStorage
-    writeStoredAnalysisResult(result)
   }
 
   /**
@@ -237,10 +171,9 @@ export const useMapStore = defineStore('map', () => {
   /**
    * 统一重置地图业务交互状态（登出/业务切换时调用）
    * 设计边界（@arch-note）：
-   * - 清：selectedPort / lastAnalysisResult
-   * （含 sessionStorage 持久化，b035 要求）/ layerCatalog 业务条目（保留 base 底图条目）
+   * - 清：selectedPort / layerCatalog 业务条目（保留 base 底图条目）
    * - 保留：mapType / baseLayerKey（用户偏好，审计明确要求保留）
-   * - 保留：currentRenderer / map —— 渲染器由 UnifiedMap 组件持有生命周期，
+   * - 保留：currentRenderer —— 渲染器由 UnifiedMap 组件持有生命周期，
    * 登出时组件未卸载，清空会造成 BLM._getRenderer() 返回 null 与业务图层失效；
    * layerCatalog base 底图条目由 UnifiedMap.setupLayers 在引擎切换时重建，登出无切换，
    * 保留 base 条目避免 LayerControlPanel 底图区域永久空白。
@@ -249,28 +182,18 @@ export const useMapStore = defineStore('map', () => {
     selectedPort.value = null
     // 仅清业务条目，保留 base 底图条目（最小影响）
     layerCatalog.value = layerCatalog.value.filter((e: LayerEntry) => e.category !== 'business')
-    lastAnalysisResult.value = null
-    try {
-      window.sessionStorage.removeItem(ANALYSIS_RESULT_STORAGE_KEY)
-    } catch {
-      // 隐私模式等写入失败场景
-    }
   }
 
   return {
-    map,
     mapType,
     selectedPort,
     layerCatalog,
     baseLayerKey,
     currentRenderer,
-    lastAnalysisResult,
-    setMap,
     setCurrentRenderer,
     setMapType,
     setSelectedPort,
     clearSelectedPort,
-    setAnalysisResult,
     registerBaseLayer,
     registerBusinessLayer,
     setBaseLayer,

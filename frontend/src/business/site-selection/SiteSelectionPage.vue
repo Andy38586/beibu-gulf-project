@@ -24,7 +24,7 @@ import { showError } from '@/shared'
 import { logger } from '@/shared'
 import PaginatedListPanel from '@/shared/components/PaginatedListPanel.vue'
 import type { SiteSelectionState } from '@/stores'
-import { siteSelectionPersisted, useMapStore } from '@/stores'
+import { siteSelectionPersisted } from '@/stores'
 import type { AnalysisResult, FacilityPoint, ScoredXiaoqu } from '@/types/analysis'
 import RadarChart from '@/visualization/charts/RadarChart.vue'
 
@@ -33,7 +33,6 @@ import { useAnalysisLayer } from './composables/useAnalysisLayer'
 
 const { flyTo, startBreathing, stopBreathing, zoomToCity, zoomToDistrict, mapInstance } =
   useMapControls()
-const mapStore = useMapStore()
 const stateStore = siteSelectionPersisted
 const { manager: businessLayerManager } = useBusinessLayers()
 const { createUpdateHandler } = useAnalysisLayer() as unknown as {
@@ -86,8 +85,9 @@ const displayXiaoquForRadar = computed<ScoredXiaoqu | null>(
 function handleResult(result: Partial<AnalysisResult>): void {
   logger.debug('[SiteSelection] 收到分析结果:', result)
 
-  // 2026-08-08：mapStore 只负责结果持久化，图层更新直调页面自持的 updateAnalysisHandler
-  mapStore.setAnalysisResult(result)
+  // 2026-08-08：图层更新直调页面自持的 updateAnalysisHandler（mapStore 不再持久化
+  // 分析结果——2026-08-10 P0-3 清理：setAnalysisResult 的 sessionStorage 通道为
+  // 只写不读死状态，恢复走 siteSelectionPersisted 内存快照）
   void updateAnalysisHandler(result)
   matchedXiaoqu.value = result.matchedXiaoqu || []
   selectedTypes.value = result.selectedTypes || []

@@ -145,10 +145,9 @@ async function loadProfiles() {
 
     if (result && Array.isArray(result)) {
       profiles.value = result
-      // 默认选择第一条剖面线
+      // 默认选择第一条剖面线（2026-08-10：store.setSelectedProfile 死状态已删，仅本地 ref）
       if (profiles.value.length > 0) {
         selectedProfileId.value = profiles.value[0].id
-        floodStore.setSelectedProfile(profiles.value[0].id)
       }
     } else {
       showError('加载剖面线数据失败')
@@ -295,9 +294,10 @@ function updateChart() {
 
 /**
  * 监听剖面线选择变化
+ * 2026-08-10（面试报告 P0-3）：floodStore.selectedProfileId 为只写不读死状态已删，
+ * 此处只更新本地 ref（store 侧无读方，同步无意义）
  */
-watch(selectedProfileId, (newId) => {
-  floodStore.setSelectedProfile(newId)
+watch(selectedProfileId, () => {
   updateChart()
 })
 

@@ -8,11 +8,19 @@ vi.mock('fs/promises', () => ({
   readFile: vi.fn(),
 }))
 
+// 隔离预计算档位表（251 档 gz 资产不参与单测；查表走 mock 表）
+vi.mock('../../utils/floodLevelsStore.js', () => ({
+  loadFloodLevels: vi.fn(),
+  _clearFloodLevelsCacheForTest: vi.fn(),
+}))
+
 import { readFile } from 'fs/promises'
 
+import { loadFloodLevels } from '../../utils/floodLevelsStore.js'
 import { _cache, _clearCacheForTest, readStaticJson } from '../../utils/readStaticJson.js'
 import {
   analyzeDisaster,
+  deriveRiskLevel,
   getFloodAreas,
   getFloodStatistics,
   getWaterArea,
@@ -56,10 +64,17 @@ const MOCK_WATER_AREA = JSON.stringify({
   ],
 })
 
+// 预计算档位表 mock（0.1m 档形状与 flood_levels.json.gz 同构）
+const MOCK_LEVELS = {
+  '2.5': { featureCount: 1, floodedKm2: 3.2, features: [{ type: 'Feature', properties: {} }] },
+  '3.0': { featureCount: 1, floodedKm2: 4.1, features: [{ type: 'Feature', properties: {} }] },
+}
+
 describe('floodAnalysisController', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     _clearCacheForTest()
+    loadFloodLevels.mockResolvedValue(MOCK_LEVELS)
   })
 
   describe('getFloodAreas - 水位校验 (d034)', () => {
@@ -94,13 +109,39 @@ describe('floodAnalysisController', () => {
       expect(next).toHaveBeenCalledWith(expect.any(BusinessError))
     })
 
-    it('向上取档：请求 2.5 应返回 3.0 档位', async () => {
+    it('预计算表查表：请求 2.5 精确命中 2.5 档（0.1m 步长全量档位）', async () => {
+      readFile.mockResolvedValue(MOCK_FLOOD_AREA)
+      const { req, res, next } = mockReqRes({ waterLevel: '2.5' })
+      await getFloodAreas(req, res, next)
+      const response = res.json.mock.calls[0][0]
+      expect(response.data.actualWaterLevel).toBe(2.5)
+      expect(response.data.requestedWaterLevel).toBe(2.5)
+      // riskLevel 由水位连续派生（2.5 落在低风险段 0-2 之上）
+      expect(response.data.riskLevel).toBe('中风险')
+      expect(response.data.features[0].properties.riskLevel).toBe('中风险')
+    })
+
+    it('预计算表 miss（档位表为空）回退 6 档向上取档', async () => {
+      loadFloodLevels.mockResolvedValue({})
       readFile.mockResolvedValue(MOCK_FLOOD_AREA)
       const { req, res, next } = mockReqRes({ waterLevel: '2.5' })
       await getFloodAreas(req, res, next)
       const response = res.json.mock.calls[0][0]
       expect(response.data.actualWaterLevel).toBe(3.0)
       expect(response.data.requestedWaterLevel).toBe(2.5)
+    })
+  })
+
+  describe('deriveRiskLevel - 连续档位风险派生', () => {
+    it('语义对齐 6 档基准（0/2/5/8/10/15）', () => {
+      expect(deriveRiskLevel(0)).toBe('无风险')
+      expect(deriveRiskLevel(2)).toBe('低风险')
+      expect(deriveRiskLevel(5)).toBe('中风险')
+      expect(deriveRiskLevel(8)).toBe('高风险')
+      expect(deriveRiskLevel(10)).toBe('极高风险')
+      expect(deriveRiskLevel(15)).toBe('灾难级')
+      expect(deriveRiskLevel(12.5)).toBe('灾难级')
+      expect(deriveRiskLevel(3.5)).toBe('中风险')
     })
   })
 

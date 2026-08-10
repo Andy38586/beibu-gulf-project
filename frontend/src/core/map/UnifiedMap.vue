@@ -220,10 +220,6 @@ async function initRenderer(type: '2d' | '3d', container: HTMLElement | null) {
       // setupLayers 已清 catalog，此处作为最后一步重建，面板状态稳定
       businessLayerManager.reapplyAll(renderer)
     }
-
-    mapStore.setMap(
-      (type === '2d' ? currentRenderer.value?.getMap() : currentRenderer.value?.getViewer()) ?? null
-    )
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error))
     if (import.meta.env.DEV) {

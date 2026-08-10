@@ -2,9 +2,8 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it } from 'vitest'
 
-import type { AffectedFacility } from '@/types/business/base'
-
 import { useFloodStore } from '@/stores'
+import type { AffectedFacility } from '@/types/business/base'
 
 /**
  * LIF-3 验收：*Active 标志单向置位
@@ -32,23 +31,6 @@ describe('LIF-3 *Active 单向置位', () => {
       expect(store.portImpactActive).toBe(false)
       expect(store.affectedFacilities).toEqual([])
       expect(store.totalLoss).toBe(0)
-    })
-  })
-
-  describe('floodStore.setSelectedProfile', () => {
-    it('有 profileId 时 profileActive=true', () => {
-      const store = useFloodStore()
-      store.setSelectedProfile('p1')
-      expect(store.profileActive).toBe(true)
-    })
-
-    it('setSelectedProfile(null) 时 profileActive=false（修正）', () => {
-      const store = useFloodStore()
-      store.setSelectedProfile('p1')
-      expect(store.profileActive).toBe(true)
-      store.setSelectedProfile(null)
-      expect(store.profileActive).toBe(false)
-      expect(store.selectedProfileId).toBeNull()
     })
   })
 

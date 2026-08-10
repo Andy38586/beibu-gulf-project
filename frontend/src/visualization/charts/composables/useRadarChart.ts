@@ -16,10 +16,11 @@ import { CanvasRenderer } from 'echarts/renderers'
 import type { Ref } from 'vue'
 import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 
-import { perfMark, perfMeasure } from '@/shared/utils/perfReporter'
 import { FACILITY_COLORS_MAP } from '@/shared'
 import { FACILITY_LABELS } from '@/shared'
+import { useTheme } from '@/shared'
 import { logger } from '@/shared'
+import { perfMark, perfMeasure } from '@/shared/utils/perfReporter'
 import type { FacilityPoint } from '@/types/facility'
 import type { ScoredXiaoqu } from '@/types/xiaoqu'
 
@@ -82,6 +83,10 @@ export function useRadarChart({
   let chartInstance: ECharts | null = null
   let resizeObserver: ResizeObserver | null = null
   let isRendering = false
+  // 主题订阅：canvas 不支持 CSS 变量，主题切换后重渲染雷达图（100ms 防抖合并快速连点）
+  const { isDark, onThemeChange } = useTheme()
+  let stopThemeWatch: (() => void) | null = null
+  let themeTimer: ReturnType<typeof setTimeout> | null = null
 
   /** 浮窗状态 */
   const tooltipVisible = ref<boolean>(false)
@@ -99,6 +104,7 @@ export function useRadarChart({
   function renderRadar(): void {
     const chartRef = getChartRef()
     const props = getProps()
+    const dark = isDark.value
 
     if (!chartRef || isRendering) return
 
@@ -158,30 +164,32 @@ export function useRadarChart({
           radius: '75%',
           center: ['50%', '50%'],
           axisName: {
-            color: '#409eff',
+            color: dark ? '#ff7a1a' : '#409eff',
             fontSize: 12,
             fontWeight: 500,
             cursor: 'pointer',
           },
-          splitLine: { lineStyle: { color: '#eee' } },
+          splitLine: { lineStyle: { color: dark ? '#1f3450' : '#eee' } },
           splitArea: {
             areaStyle: {
-              color: ['rgba(255,255,255,0.1)', 'rgba(255,255,255,0.3)'],
+              color: dark
+                ? ['rgba(255,255,255,0.04)', 'rgba(255,255,255,0.12)']
+                : ['rgba(255,255,255,0.1)', 'rgba(255,255,255,0.3)'],
             },
           },
-          axisLine: { lineStyle: { color: '#ddd' } },
+          axisLine: { lineStyle: { color: dark ? '#2c4a70' : '#ddd' } },
         },
         series: [
           {
             type: 'radar',
             symbolSize: 6,
-            lineStyle: { width: 2, color: '#409eff' },
-            itemStyle: { color: '#409eff' },
+            lineStyle: { width: 2, color: dark ? '#ff7a1a' : '#409eff' },
+            itemStyle: { color: dark ? '#ff7a1a' : '#409eff' },
             data: [
               {
                 value: values,
                 name: name,
-                areaStyle: { opacity: 0.3, color: '#409eff' },
+                areaStyle: { opacity: 0.3, color: dark ? '#ff7a1a' : '#409eff' },
               },
             ],
           },
@@ -281,6 +289,13 @@ export function useRadarChart({
   onMounted(() => {
     window.addEventListener('resize', handleResize)
     setupResizeObserver()
+    stopThemeWatch = onThemeChange(() => {
+      if (themeTimer) clearTimeout(themeTimer)
+      themeTimer = setTimeout(() => {
+        themeTimer = null
+        renderRadar()
+      }, 100)
+    })
   })
 
   onBeforeUnmount(() => {
@@ -289,6 +304,12 @@ export function useRadarChart({
     window.removeEventListener('click', handleGlobalClick)
     window.removeEventListener('resize', handleResize)
     resizeObserver?.disconnect()
+    stopThemeWatch?.()
+    stopThemeWatch = null
+    if (themeTimer) {
+      clearTimeout(themeTimer)
+      themeTimer = null
+    }
   })
 
   return {

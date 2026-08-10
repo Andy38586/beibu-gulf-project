@@ -22,7 +22,6 @@ describe('useFloodStore', () => {
   describe('初始状态', () => {
     it('应为无分析数据', () => {
       const store = useFloodStore()
-      expect(store.floodActive).toBe(false)
       expect(store.floodStatistics).toBeNull()
       expect(store.hasAnalysisData).toBe(false)
       expect(store.hasPersistedState).toBe(false)
@@ -37,8 +36,6 @@ describe('useFloodStore', () => {
 
       store.startFloodAnalysis(stats, features, '低')
 
-      expect(store.floodActive).toBe(true)
-      expect(store.showFloodArea).toBe(true)
       expect(store.floodStatistics).toEqual(stats)
       expect(store.hasAnalysisData).toBe(true)
     })
@@ -87,7 +84,6 @@ describe('useFloodStore', () => {
 
       store.clearState()
 
-      expect(store.floodActive).toBe(false)
       expect(store.floodStatistics).toBeNull()
       expect(store.hasPersistedState).toBe(false)
     })

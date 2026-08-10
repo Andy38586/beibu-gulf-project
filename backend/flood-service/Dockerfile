@@ -6,6 +6,12 @@ FROM python:3.12-slim
 
 WORKDIR /app/backend/flood-service
 
+# 2026-08-10：rasterio/scipy 的 manylinux wheel 动态链接系统库，slim 镜像缺失——
+# libexpat1（rasterio XML 解析）/ libgomp1（scipy OpenMP），缺失即 ImportError 崩溃循环
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends libexpat1 libgomp1 \
+  && rm -rf /var/lib/apt/lists/*
+
 # 依赖（numpy/scipy/rasterio/shapely 均走 manylinux 轮子，无需系统 GDAL）
 # 2026-08-10：PIP_INDEX_URL 默认阿里云镜像——服务器为国内环境，官方 PyPI 慢/不稳；
 # 可用构建参数覆盖（--build-arg PIP_INDEX_URL=官方源）

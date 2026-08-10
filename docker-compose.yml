@@ -28,11 +28,14 @@ services:
       # DEM 静态产物（tif 67MB 被 gitignore、CI 镜像不含；本地含 → CI/本地镜像不一致）。
       # 统一 volume 挂载，镜像瘦身且 CI/本地行为一致；接入数据库/对象存储后替换此方案。
       - ./backend/static/dem:/app/backend/static/dem
+      # 真 3D 地形瓦片（CTB 9.1MB，与 dem 同策略 volume 挂载——服务器此前缺失
+      # terrain/ 导致 CesiumTerrainProvider layer.json 404 → 静默降级为 hillshade 2D 贴图）
+      - ./backend/static/terrain:/app/backend/static/terrain
       # TLS 证书（可选）：将 fullchain.pem + privkey.pem 放入 ./certs/ 即启用 HTTPS
       - ./certs:/etc/nginx/certs:ro
     ports:
       - '80:80' # nginx（前端 + API 代理；2026-08-09 改为标准 80，需停用服务器系统 nginx）
-      - '8443:443' # nginx HTTPS（需 ./certs/ 下有证书）
+      - '443:443' # nginx HTTPS（需 ./certs/ 下有证书）——2026-08-10：标准 443 直通（原 8443 导致跳转断链）
       # 2026-08-09：移除 3000:3000 直连映射——服务器 3000 端口常被其他服务占用
       # （如 PM2），且后端经 nginx /api 代理已够用；需直连调试再放开。
     restart: unless-stopped

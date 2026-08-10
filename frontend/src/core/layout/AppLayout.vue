@@ -172,8 +172,11 @@ function goBusiness(item: NavItem): void {
             <slot name="right" />
           </template>
           <template v-else>
-            <slot name="left" />
+            <!-- 2026-08-10：抽屉模式面板顺序——操作/控制面板（right slot：操作台+图层控制）
+                 在前，可视化面板（left slot：图表/名单/报告）在后。
+                 原 left 在前导致打开菜单首屏全是空白图表（白板），操作台在底部要滚动才能看到 -->
             <slot name="right" />
+            <slot name="left" />
           </template>
         </template>
       </div>

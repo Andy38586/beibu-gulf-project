@@ -187,11 +187,20 @@ body {
   top: auto !important;
   width: 100% !important;
   height: auto !important;
-  /* 2026-08-09：释放内联 min-width（4 cell=280px > body 内容区 270px），
+  /* 2026-08-10：释放内联 min-width（4 cell=280px > body 内容区 270px），
    * 否则面板横向溢出 → 抽屉底部出现横向滑动条 */
   min-width: 0 !important;
   min-height: 260px;
   margin-bottom: 12px;
+  /* 2026-08-10：内容不被裁剪——登录表单等高内容面板（4×8=640px 内容远超
+   * min-height 260px）原先被 overflow:hidden 裁掉大部分，只能看到顶部一截 */
+  overflow: visible;
+}
+/* 2026-08-10：解除面板内 height:100% 高度链——GCSPanel 高度自适应内容后，
+ * 子容器（.profile-content / .layer-panel 等）按自身内容撑开，
+ * 避免 flex 塌缩把登录表单压缩进 min-height 内被裁剪 */
+.GCS-drawer__body .GCS-panel > * {
+  height: auto !important;
 }
 
 /* 抽屉滑入/滑出动画 */

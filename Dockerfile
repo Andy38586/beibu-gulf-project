@@ -19,9 +19,11 @@ WORKDIR /app
 # 根依赖锁文件（根 package-lock.json 存在）
 # 2026-08-09：改回 npm ci——此前失败是 npmmirror 生成的不完整 lock；
 # 官方源重建（f0cce63）后 CI 的 npm ci 稳定成功，lock 对 npm ci 完整。
-# 若服务器构建再遇 EUSAGE，回退 npm install 并检查 lock。
+# 2026-08-10：回退 npm install——服务器构建实测 npm ci EUSAGE（lock 缺
+# rollup/fsevents 条目，npm 10.9.8 对 lockfileVersion 3 严格校验），
+# npm install 宽容模式（缺 optional/peer 条目自动补齐），部署历程记录方案。
 COPY package*.json ./
-RUN npm ci --no-audit --no-fund
+RUN npm install --no-audit --no-fund
 
 # 前端源码与 vite 配置
 COPY frontend/ ./frontend/

@@ -7,6 +7,9 @@ if [ -f /etc/nginx/certs/fullchain.pem ] && [ -f /etc/nginx/certs/privkey.pem ];
   cat > /etc/nginx/http.d/https.conf <<'EOF'
 server {
     listen 443 ssl;
+    # 2026-08-10：8443 备用 HTTPS 端口——beibu-gulf.duckdns.org 的 SNI 在
+    # 部分宽带网络被干扰（443 握手 reset），8443 通常不在 SNI 检测范围
+    listen 8443 ssl;
     server_name localhost;
     ssl_certificate     /etc/nginx/certs/fullchain.pem;
     ssl_certificate_key /etc/nginx/certs/privkey.pem;

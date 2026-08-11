@@ -21,10 +21,19 @@ import type { LayerType, WaterSurfaceData } from '@/types/core/layerManager'
 // ===== 数据形状守卫 =====
 // 仅做最小形态校验（数组 / FeatureCollection），把"静默渲染失败"变成"明确抛错"，
 // 调用方 catch 后用户可见真实文案；不做完整 schema 校验（避免过度设计）。
+
+/** 要素上限（W4-07）：超限直接抛错，防止误传超大集合拖垮渲染（潜伏 OOM 缺口） */
+const MAX_FEATURES = 500_000
+
 function assertPointArray(data: unknown): asserts data is PointFeature[] {
   if (!Array.isArray(data)) {
     throw new Error(
       `[layerAdapters] points/heatmap 图层数据必须是 PointFeature[]，实际: ${typeof data}`
+    )
+  }
+  if (data.length > MAX_FEATURES) {
+    throw new Error(
+      `[layerAdapters] 要素数超上限（${MAX_FEATURES}），实际 ${data.length}，请分批或裁剪`
     )
   }
 }
@@ -37,11 +46,22 @@ function assertFeatureCollection(data: unknown): asserts data is FeatureCollecti
   ) {
     throw new Error('[layerAdapters] geojson 图层数据必须是 FeatureCollection')
   }
+  const features = (data as FeatureCollection).features ?? []
+  if (features.length > MAX_FEATURES) {
+    throw new Error(
+      `[layerAdapters] 要素数超上限（${MAX_FEATURES}），实际 ${features.length}，请分批或裁剪`
+    )
+  }
 }
 
 function assertPolygonArray(data: unknown): asserts data is PolygonFeature[] {
   if (!Array.isArray(data)) {
     throw new Error(`[layerAdapters] polygon 图层数据必须是 PolygonFeature[]，实际: ${typeof data}`)
+  }
+  if (data.length > MAX_FEATURES) {
+    throw new Error(
+      `[layerAdapters] 要素数超上限（${MAX_FEATURES}），实际 ${data.length}，请分批或裁剪`
+    )
   }
 }
 
@@ -100,8 +120,19 @@ export const LAYER_ADAPTERS: Record<LayerType, LayerAdapter> = {
     },
     update: (renderer, key, data, options) => {
       assertFeatureCollection(data)
-      renderer.removeLayer(key)
-      renderer.addGeoJsonLayer(key, data, options)
+      // W4-06：优先走渲染器增量更新（复用 dataSource/source，避免重建闪烁）；
+      // 无增量能力的渲染器回退 remove+add
+      const updater = (
+        renderer as Partial<MapRenderer> & {
+          updateGeoJsonLayer?: (id: string, data: FeatureCollection, options: LayerOptions) => void
+        }
+      ).updateGeoJsonLayer
+      if (typeof updater === 'function') {
+        updater.call(renderer, key, data, options)
+      } else {
+        renderer.removeLayer(key)
+        renderer.addGeoJsonLayer(key, data, options)
+      }
     },
     remove: (renderer, key) => {
       renderer.removeLayer(key)

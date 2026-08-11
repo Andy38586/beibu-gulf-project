@@ -170,6 +170,12 @@ export class BusinessLayerManager {
       return
     }
 
+    // W4-14：data 为 null（清空意图）不触碰渲染器——数据形状守卫会抛错，
+    // 图层实例保留旧数据是"等新数据"的合理中间态，创建/更新由后续 updateData 触发
+    if (meta.data == null) {
+      return
+    }
+
     // 可见 → 更新图层
     const renderer = this._getRenderer()
     if (renderer) {

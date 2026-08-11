@@ -9,10 +9,12 @@ import type { AffectedFacility, FloodFeature, FloodStatistics } from '@/types/bu
 import {
   floodAreasResponseSchema,
   floodDisasterResponseSchema,
+  floodImpactResponseSchema,
   floodOnlineResponseSchema,
   floodStatisticsResponseSchema,
   waterAreaSchema,
 } from '@/types/schemas'
+import type { FloodAreasResponseParsed, FloodStatisticsResponseParsed } from '@/types/schemas'
 
 // 数据源模式：api（Express 后端）/ online（FastAPI 实时演算）；原统一 dataSourceConfig 仅此一个使用方，简化为模块级变量
 type FloodDataSourceMode = 'api' | 'online'
@@ -41,14 +43,17 @@ interface RequestOptions {
 }
 
 /**
- * online 模式风险等级：按淹没面积 + 水位双因子分段，阈值配合实测数据
- * （0.5m≈652km² 低、2.0m≈2593km² 中、3.5m≈4539km² 中、8.0m≈10943km² 高）
+ * online 模式风险等级：与后端 floodAnalysisController.deriveRiskLevel 同表（C6 副-01/[2.3]——
+ * 后端为唯一权威，消除双实现阈值分歧；6 档：0 无 / 2 低 / 5 中 / 8 高 / 10 极高 / 15 灾难级）。
+ * FastAPI 不返回 riskLevel，此映射仅为该字段补齐；api 模式 riskLevel 由后端注入直接透传。
  */
 function _riskLevelFromFlood(floodedKm2: number, level: number): string {
-  if (floodedKm2 <= 0) return '无风险'
-  if (floodedKm2 >= 6000 || level >= 6) return '高风险'
-  if (floodedKm2 >= 2000 || level >= 3) return '中风险'
-  return '低风险'
+  if (level <= 0 || floodedKm2 <= 0) return '无风险'
+  if (level <= 2) return '低风险'
+  if (level <= 5) return '中风险'
+  if (level <= 8) return '高风险'
+  if (level <= 10) return '极高风险'
+  return '灾难级'
 }
 
 /** 调用 FastAPI 实时演算（vite proxy /flood-online → localhost:8000），统一入口 useApiRequest（envelope:false——FastAPI 返回裸 JSON 无信封） */
@@ -122,7 +127,7 @@ export const floodAdapter = {
           // floodArea(km²)：面板依赖此字段，缺失会静默显示 0 km²
           floodArea: data.floodedKm2 ?? 0,
           riskLevel,
-          affectedCount: 0,
+          // affectedCount 占位死字段已移除（[3.3]：无业务消费，类型 optional）
         },
         riskLevel,
         actualWaterLevel: data.level,
@@ -137,26 +142,26 @@ export const floodAdapter = {
     }
     // api：并行取淹没范围 + 统计；后端已按类型契约返回（riskLevel/字段名一致），直接透传
     const [floodAreasRes, statisticsRes] = await Promise.all([
-      apiRequest<Record<string, unknown>>('/flood/flood-areas', {
+      apiRequest<FloodAreasResponseParsed>('/flood/flood-areas', {
         params: { waterLevel },
         signal,
         schema: floodAreasResponseSchema,
       }),
-      apiRequest<Record<string, unknown>>('/flood/flood-statistics', {
+      apiRequest<FloodStatisticsResponseParsed>('/flood/flood-statistics', {
         params: { waterLevel },
         signal,
         schema: floodStatisticsResponseSchema,
       }),
     ])
 
-    const floodData = floodAreasRes as Record<string, unknown> | undefined
+    const floodData = floodAreasRes as FloodAreasResponseParsed | undefined
     const riskLevel = (floodData?.riskLevel as string) || '无风险'
     const actualWaterLevel = floodData?.actualWaterLevel as number | undefined
 
     return {
       features: (floodData?.features as FloodFeature[]) || [],
-      // statistics 经 schema 校验后透传；Record → FloodStatistics 需 unknown 中转（TS2352）
-      statistics: statisticsRes as unknown as FloodStatistics,
+      // z.infer 同源（副-04）：schema 解析类型与业务类型字段兼容，单断言透传（原 as unknown as 双断言消除）
+      statistics: statisticsRes as FloodStatistics,
       riskLevel,
       actualWaterLevel,
     }
@@ -173,6 +178,7 @@ export const floodAdapter = {
         signal,
         // FastAPI 返回裸 JSON（无 envelope），与 getFloodAnalysis online 分支一致
         envelope: false,
+        schema: floodImpactResponseSchema,
       })
       const result = res as Record<string, unknown> | undefined
       const affectedFacilities = (result?.affectedFacilities as AffectedFacility[]) || []

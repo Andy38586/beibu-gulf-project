@@ -110,6 +110,9 @@ export default defineConfig([
         // 报 "TSConfig does not include this file" 阻塞 pre-commit
         tsconfigRootDir: fileURLToPath(new URL('./frontend', import.meta.url)),
         project: './tsconfig.app.json',
+        // 兜底：lint-staged 暂存文件在 Windows 以反斜杠路径传入时 glob 匹配可能失配，
+        // 允许落入默认项目解析（完整 type-aware 检查仍由 CI 的 eslint . 保证）
+        allowDefaultProject: ['src/**/*.ts', 'src/**/*.tsx'],
       },
     },
   },
@@ -125,6 +128,7 @@ export default defineConfig([
         extraFileExtensions: ['.vue'],
         tsconfigRootDir: fileURLToPath(new URL('./frontend', import.meta.url)),
         project: './tsconfig.app.json',
+        allowDefaultProject: ['src/**/*.vue'],
       },
     },
   },

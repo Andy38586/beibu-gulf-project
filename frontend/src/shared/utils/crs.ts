@@ -9,13 +9,18 @@ import { logger } from './logger'
 /** 默认 CRS：业务数据统一使用 WGS84 */
 export const DEFAULT_CRS: CRS = 'EPSG:4326'
 
-/** 归一化宽松坐标点为标准 GeoPoint（优先级 lng > lon > longitude；缺失回退 0,0 并 dev 告警，避免渲染崩溃） */
-export function normalizePoint(input: LaxPoint): GeoPoint<CRS> {
+/**
+ * 归一化宽松坐标点为标准 GeoPoint（优先级 lng > lon > longitude）。
+ * 坐标字段缺失时返回 null 并 dev 告警——调用方应跳过该要素（skip），
+ * 不再回退 (0,0) 哨兵（哨兵点会被渲染到几内亚湾，是数据缺陷的掩盖）。
+ */
+export function normalizePoint(input: LaxPoint): GeoPoint<CRS> | null {
   const lng = input.lng ?? input.lon ?? input.longitude
   const lat = input.lat ?? input.latitude
 
   if (lng === undefined || lat === undefined) {
-    logger.debug('[crs] 坐标字段缺失，已回退为 0,0:', input)
+    logger.debug('[crs] 坐标字段缺失，已跳过该要素:', input)
+    return null
   }
 
   // 运行时 CRS 校验：如果声明了非默认 CRS，dev 模式告警
@@ -26,8 +31,8 @@ export function normalizePoint(input: LaxPoint): GeoPoint<CRS> {
   }
 
   return {
-    lng: lng ?? 0,
-    lat: lat ?? 0,
+    lng,
+    lat,
     crs: input.crs,
   }
 }

@@ -208,15 +208,17 @@ export class OLRenderer extends MapRenderer {
       return
     }
 
-    const olFeatures = features.map((item: PointFeature) => {
-      // 数据入口归一化：统一 lng/lon/longitude 字段名为标准 GeoPoint
-      const { lng, lat } = normalizePoint(item)
+    const olFeatures = features.flatMap((item: PointFeature) => {
+      // 数据入口归一化：统一 lng/lon/longitude 字段名为标准 GeoPoint；缺失坐标跳过该要素
+      const point = normalizePoint(item)
+      if (!point) return []
+      const { lng, lat } = point
       const feature = new Feature({
         geometry: new Point(fromLonLat([lng, lat])),
       })
       const featureType = options?.featureType || item?.featureType || 'point'
       feature.setProperties({ ...item, featureType })
-      return feature
+      return [feature]
     })
 
     const vectorLayer = new VectorLayer({
@@ -241,12 +243,13 @@ export class OLRenderer extends MapRenderer {
     style: Style | StyleFunction
   ): void {
     const featureType = options?.featureType || 'point'
-    // 构建 R-tree 索引项：[minX, minY, maxX, maxY] + 原始数据
+    // 构建 R-tree 索引项：[minX, minY, maxX, maxY] + 原始数据；缺失坐标跳过
     const index = createSpatialIndex<PointFeature>()
-    const indexItems = features.map((item: PointFeature) => {
-      const { lng, lat } = normalizePoint(item)
-      const coord = fromLonLat([lng, lat])
-      return { minX: coord[0], minY: coord[1], maxX: coord[0], maxY: coord[1], data: item }
+    const indexItems = features.flatMap((item: PointFeature) => {
+      const point = normalizePoint(item)
+      if (!point) return []
+      const coord = fromLonLat([point.lng, point.lat])
+      return [{ minX: coord[0], minY: coord[1], maxX: coord[0], maxY: coord[1], data: item }]
     })
     index.load(indexItems)
 
@@ -293,11 +296,12 @@ export class OLRenderer extends MapRenderer {
     const extent = map.getView().calculateExtent(map.getSize()) as [number, number, number, number]
     const visible = entry.index.query(extent)
 
-    const olFeatures = visible.map((item) => {
-      const { lng, lat } = normalizePoint(item.data)
-      const feature = new Feature({ geometry: new Point(fromLonLat([lng, lat])) })
+    const olFeatures = visible.flatMap((item) => {
+      const point = normalizePoint(item.data)
+      if (!point) return []
+      const feature = new Feature({ geometry: new Point(fromLonLat([point.lng, point.lat])) })
       feature.setProperties({ ...item.data, featureType: entry.featureType })
-      return feature
+      return [feature]
     })
 
     entry.source.clear()
@@ -526,18 +530,19 @@ export class OLRenderer extends MapRenderer {
       opacity = 0.6,
     } = options
 
-    // 将 features 数组转为 OpenLayers Feature（坐标归一化走 normalizePoint，含 longitude 别名）
-    const olFeatures = features.map((f) => {
+    // 将 features 数组转为 OpenLayers Feature（坐标归一化走 normalizePoint，含 longitude 别名；缺失坐标跳过）
+    const olFeatures = features.flatMap((f) => {
       const coords = f.geometry?.coordinates
-      const { lng, lat } = normalizePoint(coords ? { lng: coords[0], lat: coords[1] } : f)
+      const point = normalizePoint(coords ? { lng: coords[0], lat: coords[1] } : f)
+      if (!point) return []
       const feature = new Feature({
-        geometry: new Point(fromLonLat([lng, lat])),
+        geometry: new Point(fromLonLat([point.lng, point.lat])),
       })
       // 将 properties 展开为 feature 属性（weightField 对应的值用于热力权重）
       Object.entries(f.properties || {}).forEach(([key, value]) => {
         feature.set(key, value)
       })
-      return feature
+      return [feature]
     })
 
     const source = new VectorSource({ features: olFeatures })
@@ -579,16 +584,17 @@ export class OLRenderer extends MapRenderer {
 
     const { weightField: _weightField = 'value' } = options
 
-    const olFeatures = features.map((f) => {
+    const olFeatures = features.flatMap((f) => {
       const coords = f.geometry?.coordinates
-      const { lng, lat } = normalizePoint(coords ? { lng: coords[0], lat: coords[1] } : f)
+      const point = normalizePoint(coords ? { lng: coords[0], lat: coords[1] } : f)
+      if (!point) return []
       const feature = new Feature({
-        geometry: new Point(fromLonLat([lng, lat])),
+        geometry: new Point(fromLonLat([point.lng, point.lat])),
       })
       Object.entries(f.properties || {}).forEach(([key, value]) => {
         feature.set(key, value)
       })
-      return feature
+      return [feature]
     })
 
     source.clear()
@@ -658,13 +664,14 @@ export class OLRenderer extends MapRenderer {
         }
       }
     }
-    // 数据入口归一化：统一 lng/lon/longitude 字段名
-    const { lng, lat } = normalizePoint(target as { lng?: number; lat?: number; lon?: number })
+    // 数据入口归一化：统一 lng/lon/longitude 字段名；缺失坐标不执行飞行
+    const point = normalizePoint(target as { lng?: number; lat?: number; lon?: number })
+    if (!point) return
     // height → heightToZoom 同步缩放（曾只认 options.zoom、忽略 height，2D 只有位移没有缩放动画）
     const zoom =
       options.zoom ?? (options.height != null ? heightToZoom(options.height) : view.getZoom())
     view.animate({
-      center: fromLonLat([lng, lat]),
+      center: fromLonLat([point.lng, point.lat]),
       zoom,
       // duration 读 FlyToOptions.duration（毫秒）?? 默认 1000
       duration: options.duration ?? 1000,

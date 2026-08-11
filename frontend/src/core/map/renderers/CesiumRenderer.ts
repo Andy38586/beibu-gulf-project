@@ -899,7 +899,8 @@ export function addPointLayer(
   const existing = renderer._layers.get(id)
   if (existing) renderer._doRemoveLayer(existing)
 
-  // Entity 总数超 1000 时启动视口裁剪（DEV 日志）
+  // 视口裁剪本身无条件生效（下方 _getViewportBBox + _isInViewport 过滤）；
+  // DEV 仅控制诊断日志输出（2026-08-11 澄清：非功能门控）
   const totalEntities = renderer.viewer.entities.values.length + features.length
   if (totalEntities > 1000 && import.meta.env.DEV) {
     logger.debug(`[CesiumRenderer] Entity数量(${totalEntities})超过1000，启动视口裁剪`)
@@ -910,8 +911,10 @@ export function addPointLayer(
 
   const entities: Entity[] = []
   features.forEach((item: PointFeature, index: number) => {
-    // 坐标归一化走 normalizePoint（含 longitude 别名）；缺失回退 (0,0) 防渲染崩溃
-    const { lng, lat } = normalizePoint(item)
+    // 坐标归一化走 normalizePoint（含 longitude 别名）；缺失坐标跳过该要素（不落 (0,0) 哨兵）
+    const point = normalizePoint(item)
+    if (!point) return
+    const { lng, lat } = point
     if (bbox && !renderer._isInViewport(lng, lat, bbox)) return
     const entity = createCesiumPointEntity(renderer, id, item, index, options)
     if (entity) entities.push(entity)
@@ -943,9 +946,11 @@ export function createCesiumPointEntity(
   item: PointFeature,
   index: number,
   options: LayerOptions
-): Entity {
-  // 坐标归一化走 normalizePoint（含 longitude 别名）
-  const { lng, lat } = normalizePoint(item)
+): Entity | null {
+  // 坐标归一化走 normalizePoint（含 longitude 别名）；缺失坐标返回 null 由调用方跳过
+  const point = normalizePoint(item)
+  if (!point) return null
+  const { lng, lat } = point
   return renderer.viewer.entities.add({
     // id 追加 index：同名要素 id 会碰撞，重复 id 会覆盖旧实体 → 要素丢失 + 视口裁剪增删错乱
     id: `${id}-${item.id || item.name || 'p'}-${index}`,
@@ -1393,9 +1398,11 @@ export function updateCulledLayer(renderer: any, id: string): void {
 
   // 计算应显示的要素 ID 集合（ID 与 _createCesiumPointEntity 保持一致：id-name-index）
   const shouldShow = new Set<string>()
-  layer.allFeatures.forEach((item: any, index: number) => {
-    // 坐标归一化走 normalizePoint（含 longitude 别名）
-    const { lng, lat } = normalizePoint(item)
+  layer.allFeatures.forEach((item: PointFeature, index: number) => {
+    // 坐标归一化走 normalizePoint（含 longitude 别名）；缺失坐标跳过
+    const point = normalizePoint(item)
+    if (!point) return
+    const { lng, lat } = point
     if (isInViewport(lng, lat, bbox)) {
       shouldShow.add(`${id}-${item.id || item.name || 'p'}-${index}`)
     }

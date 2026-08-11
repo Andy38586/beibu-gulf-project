@@ -171,6 +171,9 @@ export interface MapRenderer {
   /** 设置图层显隐 */
   setVisibility(_id: string, _visible: boolean): void
 
+  /** 切换底图（image 影像 / vector 矢量）——双引擎公共能力 */
+  setBaseLayer(_type: 'image' | 'vector'): void
+
   /** 移除图层 */
   removeLayer(_id: string): void
 

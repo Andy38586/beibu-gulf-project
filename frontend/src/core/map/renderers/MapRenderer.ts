@@ -233,4 +233,9 @@ export class MapRenderer {
   stopBreathing(): void {
     logger.debug(`${this.getType()} stopBreathing 未实现`)
   }
+
+  // 底图切换：双引擎公共能力（OL 图层显隐 / Cesium imagery 显隐），子类各自实现（W4-10 入接口）
+  setBaseLayer(_type: 'image' | 'vector'): void {
+    logger.debug(`${this.getType()} setBaseLayer 未实现`)
+  }
 }

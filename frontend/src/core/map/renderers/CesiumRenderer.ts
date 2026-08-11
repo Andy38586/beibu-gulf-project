@@ -795,7 +795,7 @@ export class CesiumRenderer extends MapRenderer {
  */
 
 /** Cartesian3 → [lng, lat]（角度制） */
-export function cartesianToLonLatArray(cartesian: any): [number, number] {
+export function cartesianToLonLatArray(cartesian: Cartesian3): [number, number] {
   const cartographic = Cartographic.fromCartesian(cartesian)
   return [CesiumMath.toDegrees(cartographic.longitude), CesiumMath.toDegrees(cartographic.latitude)]
 }
@@ -825,7 +825,8 @@ export function setupCameraDebounce(renderer: any): void {
 /** 点击/移动监听：LEFT_CLICK 拾取要素 properties 并 emit click；MOUSE_MOVE 回传鼠标经纬度 */
 export function setupClickHandler(renderer: any): void {
   renderer._screenSpaceEventHandler = renderer.viewer.screenSpaceEventHandler
-  renderer._screenSpaceEventHandler.setInputAction((click: any) => {
+  // Cesium 拾取事件载荷：{ position: Cartesian2 }（LEFT_CLICK）/ { endPosition }（MOUSE_MOVE）
+  renderer._screenSpaceEventHandler.setInputAction((click: { position: Cartesian2 }) => {
     const pickedObject = renderer.viewer.scene.pick(click.position)
     const cartesian = renderer.viewer.camera.pickEllipsoid(click.position)
     const coordinate = cartesian ? cartesianToLonLatArray(cartesian) : null
@@ -850,7 +851,7 @@ export function setupClickHandler(renderer: any): void {
   }, ScreenSpaceEventType.LEFT_CLICK)
 
   // pointer-move 事件（对应 MapRendererEventMap 声明）
-  renderer._screenSpaceEventHandler.setInputAction((movement: any) => {
+  renderer._screenSpaceEventHandler.setInputAction((movement: { endPosition: Cartesian2 }) => {
     const cartesian = renderer.viewer.camera.pickEllipsoid(
       movement.endPosition,
       renderer.viewer.scene.globe.ellipsoid
@@ -888,7 +889,12 @@ export function destroyEvents(renderer: any): void {
  */
 
 /** 添加点图层：Entity 数超阈值时启用视口裁剪，仅渲染视口内要素 */
-export function addPointLayer(renderer: any, id: string, features: any[], options: any = {}): void {
+export function addPointLayer(
+  renderer: any,
+  id: string,
+  features: PointFeature[],
+  options: LayerOptions = {}
+): void {
   // 幂等：先清除同 id 旧图层，防止 Entity 累积 + 相机监听器泄漏
   const existing = renderer._layers.get(id)
   if (existing) renderer._doRemoveLayer(existing)
@@ -902,8 +908,8 @@ export function addPointLayer(renderer: any, id: string, features: any[], option
   // 视口裁剪：仅添加当前视口内的点
   const bbox = renderer._getViewportBBox()
 
-  const entities: any[] = []
-  features.forEach((item: any, index: number) => {
+  const entities: Entity[] = []
+  features.forEach((item: PointFeature, index: number) => {
     // 坐标归一化走 normalizePoint（含 longitude 别名）；缺失回退 (0,0) 防渲染崩溃
     const { lng, lat } = normalizePoint(item)
     if (bbox && !renderer._isInViewport(lng, lat, bbox)) return
@@ -934,10 +940,10 @@ export function addPointLayer(renderer: any, id: string, features: any[], option
 export function createCesiumPointEntity(
   renderer: any,
   id: string,
-  item: any,
+  item: PointFeature,
   index: number,
-  options: any
-): any {
+  options: LayerOptions
+): Entity {
   // 坐标归一化走 normalizePoint（含 longitude 别名）
   const { lng, lat } = normalizePoint(item)
   return renderer.viewer.entities.add({
@@ -954,7 +960,7 @@ export function createCesiumPointEntity(
     },
     label: options.labelField
       ? {
-          text: item[options.labelField as string],
+          text: String(item[options.labelField as keyof PointFeature]),
           font: '12px sans-serif',
           fillColor: Color.BLACK,
           showBackground: true,
@@ -971,23 +977,23 @@ export function createCesiumPointEntity(
 export function addPolygonLayer(
   renderer: any,
   id: string,
-  features: any[],
-  options: any = {}
+  features: PolygonFeature[],
+  options: LayerOptions = {}
 ): void {
   // 幂等：先清除同 id 旧图层，防止 Entity 累积
   const existing = renderer._layers.get(id)
   if (existing) renderer._doRemoveLayer(existing)
 
-  const entities: any[] = []
+  const entities: Entity[] = []
 
-  features.forEach((item: any) => {
+  features.forEach((item: PolygonFeature) => {
     const coordinates = item.coordinates || item.geometry?.coordinates
     if (!coordinates) return
 
     if (!Array.isArray(coordinates) || coordinates.length === 0) return
 
     const geometryType = item.geometry?.type
-    const createPolygon = (polyCoords: any) => {
+    const createPolygon = (polyCoords: unknown) => {
       try {
         if (!Array.isArray(polyCoords) || !Array.isArray(polyCoords[0])) return
         const outerRing = polyCoords[0].map(([lng, lat]: [number, number]) =>
@@ -1018,7 +1024,7 @@ export function addPolygonLayer(
       }
     }
     if (geometryType === 'MultiPolygon') {
-      coordinates.forEach((polyCoords: any) => createPolygon(polyCoords))
+      coordinates.forEach((polyCoords: unknown) => createPolygon(polyCoords))
     } else {
       const coords = geometryType === 'Polygon' ? coordinates : coordinates[0]
       createPolygon(coords)
@@ -1034,7 +1040,9 @@ export function addPolygonLayer(
 }
 
 /** GeoJSON dataSource 样式应用（贴地形 polygon / point 样式），add/update 共用单一来源 */
-function applyGeoJsonDataSourceStyle(dataSource: any, options: any): void {
+function applyGeoJsonDataSourceStyle(dataSource: GeoJsonDataSource, options: LayerOptions): void {
+  // entity 为 Cesium 运行期对象：polygon/position 属性赋值类型过严（Property/PropertyBag），
+  // 保持 any 鸭子访问（样式应用是 Cesium 特有的运行期形态）
   dataSource.entities.values.forEach((entity: any) => {
     // properties 可能为 undefined（无属性的 GeoJSON 要素），判空避免崩溃
     if (!entity.properties) entity.properties = {}
@@ -1069,8 +1077,8 @@ function applyGeoJsonDataSourceStyle(dataSource: any, options: any): void {
 export async function addGeoJsonLayer(
   renderer: any,
   id: string,
-  geojson: any,
-  options: any = {}
+  geojson: FeatureCollection,
+  options: LayerOptions = {}
 ): Promise<void> {
   // 幂等：先清除同 id 旧图层，防止 dataSource 累积
   const existing = renderer._layers.get(id)
@@ -1117,7 +1125,7 @@ export async function addGeoJsonLayer(
     renderer.viewer.scene.requestRender()
     // 成功路径清理 token，避免 Map 跨 id 累积增长
     renderer._geoJsonTokens.delete(id)
-  } catch (error: any) {
+  } catch (error: unknown) {
     // 陈旧请求（已被更新的同 id 请求覆盖）失败不触发 onError，避免误报
     if (renderer._geoJsonTokens.get(id) !== token) return
     renderer._geoJsonTokens.delete(id)
@@ -1135,8 +1143,8 @@ export async function addGeoJsonLayer(
 export async function updateGeoJsonLayer(
   renderer: any,
   id: string,
-  geojson: any,
-  options: any = {}
+  geojson: FeatureCollection,
+  options: LayerOptions = {}
 ): Promise<void> {
   const entry = renderer._layers.get(id)
   if (!entry || !entry.instance || typeof entry.instance.load !== 'function') {
@@ -1161,7 +1169,7 @@ export async function updateGeoJsonLayer(
     renderer._applyPendingVisibility(id)
     renderer.viewer.scene.requestRender()
     renderer._geoJsonTokens.delete(id)
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (renderer._geoJsonTokens.get(id) !== token) return
     renderer._geoJsonTokens.delete(id)
     if (import.meta.env.DEV) {
@@ -1237,10 +1245,10 @@ export function addGeoTIFFLayer(
     renderer.viewer.scene.requestRender()
     logger.debug(`[CesiumRenderer] addGeoTIFFLayer 已添加 hillshade 回退贴图: ${id} → ${pngUrl}`)
     return true
-  } catch (error: any) {
+  } catch (error: unknown) {
     // 完整错误信息（name/message）用于定位投影或 imageryLayers 层问题
     logger.error(
-      `[CesiumRenderer] addGeoTIFFLayer 失败 ${id} → ${url}: ${error?.name}: ${error?.message}`,
+      `[CesiumRenderer] addGeoTIFFLayer 失败 ${id} → ${url}: ${(error as Error)?.name}: ${(error as Error)?.message}`,
       error
     )
     return false
@@ -1401,7 +1409,7 @@ export function updateCulledLayer(renderer: any, id: string): void {
   }
 
   // 添加新进入视口的 Entity
-  const existingIds = new Set<string>(layer.instance.map((e: any) => e.id))
+  const existingIds = new Set<string>(layer.instance.map((e: Entity) => e.id))
   layer.allFeatures.forEach((item: any, index: number) => {
     const entityId = `${id}-${item.id || item.name || 'p'}-${index}`
     if (shouldShow.has(entityId) && !existingIds.has(entityId)) {

@@ -231,10 +231,9 @@ function setupLayers() {
   mapStore.registerBaseLayer('base-image', '影像底图')
   mapStore.registerBaseLayer('base-vector', '矢量底图')
 
-  // 初始化/引擎切换后把当前底图同步到新渲染器（setBaseLayer 只处理切换）
+  // 初始化/引擎切换后把当前底图同步到新渲染器（setBaseLayer 只处理切换；已入 MapRenderer 接口）
   const activeBaseKey = mapStore.baseLayerKey ?? 'base-image'
-  const baseRenderer = renderer as MapRenderer & { setBaseLayer?: (type: string) => void }
-  baseRenderer.setBaseLayer?.(activeBaseKey === 'base-image' ? 'image' : 'vector')
+  renderer.setBaseLayer(activeBaseKey === 'base-image' ? 'image' : 'vector')
 
   // 核心常驻层（boundary/ports）走业务图层管理器统一注册；
   // 引擎切换时 registry 持久、此处注册幂等跳过，由 reapplyAll 重绘到新渲染器

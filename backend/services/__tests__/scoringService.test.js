@@ -7,7 +7,7 @@
  */
 import { describe, it, expect } from 'vitest'
 
-import { importanceToRadius, linearDecay, scoreXiaoqu } from '../scoringService.js'
+import { importanceToRadius, kmToDegreeOffset, linearDecay, scoreXiaoqu } from '../scoringService.js'
 
 const hospitalAt = (lng, lat) => [{ lng, lat, name: '测试医院' }]
 
@@ -63,5 +63,23 @@ describe('linearDecay / importanceToRadius — 评分辅助', () => {
   it('importanceToRadius：档位放大系数', () => {
     expect(importanceToRadius(3, 3)).toBe(3)
     expect(importanceToRadius(3, 5)).toBe(6.6) // 3 * 2.2 = 6.6
+  })
+})
+
+describe('kmToDegreeOffset — bbox 粗筛保守化（8-6）', () => {
+  it('经度偏移不小于按中心纬度换算的旧值（高纬一侧 cos 更小 → 偏移更大）', () => {
+    const { lngOffset } = kmToDegreeOffset(200, 21.85)
+    const centerBased = 200 / (111 * Math.cos((21.85 * Math.PI) / 180))
+    expect(lngOffset).toBeGreaterThanOrEqual(centerBased)
+  })
+
+  it('纬度偏移固定 km/111', () => {
+    expect(kmToDegreeOffset(111, 21.85).latOffset).toBeCloseTo(1, 5)
+  })
+
+  it('极点纬度仍有限且保守（8-1 守卫延续）', () => {
+    const { lngOffset } = kmToDegreeOffset(5, 90)
+    expect(Number.isFinite(lngOffset)).toBe(true)
+    expect(lngOffset).toBeGreaterThan(0)
   })
 })

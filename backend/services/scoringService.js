@@ -67,13 +67,23 @@ function buildFacilityIndex(points) {
 /**
  * 经纬度偏移量估算（1km ≈ 0.009° 纬度，经度随纬度变化）
  */
-function kmToDegreeOffset(km, lat) {
+/**
+ * 经纬度偏移量估算（1km ≈ 0.009° 纬度，经度随纬度变化）。
+ * 粗筛 bbox 保守化：经度偏移按纬度区间 [lat±latOffset] 内的最小 cos 计算
+ * （高纬一侧 cos 更小 → 偏移更大 → 真近点必然落入 bbox，不漏候选）
+ */
+export function kmToDegreeOffset(km, lat) {
   const latOffset = km / 111
   // 显式分母守卫：浮点 cos(90°)≈6.12e-17 恒非 0，旧 ||1 兜底永不触发 → 极点附近
   // lngOffset 爆炸（~7e14 度）致 bbox 粗筛全量退化 O(n)；|cos|<1e-6 时保守扩张 bbox
   //（粗筛语义=不漏候选，结果仍正确），Number.isFinite 兜住 NaN/Infinity 输入
-  const cosLat = Math.cos((lat * Math.PI) / 180)
-  const guardedCos = Number.isFinite(cosLat) && Math.abs(cosLat) > 1e-6 ? cosLat : 1e-6
+  const cosMin = Math.min(
+    Math.cos(((lat - latOffset) * Math.PI) / 180),
+    Math.cos(((lat + latOffset) * Math.PI) / 180)
+  )
+  // 取 |cos|：纬度区间跨过 ±90° 时 cos 变负，偏移必须始终为正（保守扩张）
+  const cosAbs = Math.abs(cosMin)
+  const guardedCos = Number.isFinite(cosAbs) && cosAbs > 1e-6 ? cosAbs : 1e-6
   const lngOffset = km / (111 * guardedCos)
   return { latOffset, lngOffset }
 }

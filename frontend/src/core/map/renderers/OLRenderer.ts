@@ -14,6 +14,7 @@ import VectorLayer from 'ol/layer/Vector'
 import OlMap from 'ol/Map'
 import type MapBrowserEvent from 'ol/MapBrowserEvent'
 import { fromLonLat, toLonLat } from 'ol/proj'
+import Cluster from 'ol/source/Cluster'
 import GeoTIFF from 'ol/source/GeoTIFF'
 import VectorSource from 'ol/source/Vector'
 import XYZ from 'ol/source/XYZ'
@@ -33,6 +34,33 @@ import { MapRenderer } from './MapRenderer'
 
 /** Web 墨卡托投影标识（View/GeoJSON 读取共用，避免字面量散落） */
 const WEB_MERCATOR = 'EPSG:3857'
+
+/**
+ * 聚合样式包装（W4-18）：Cluster 源下成员数 >1 的聚合点画大圆 + 数量标注，
+ * 单体沿用原样式（Style 或 StyleFunction）
+ */
+function withClusterStyle(base: Style | StyleFunction): StyleFunction {
+  return (feature: FeatureLike, resolution: number) => {
+    const members = feature.get('features')
+    if (Array.isArray(members) && members.length > 1) {
+      const radius = Math.min(10 + members.length, 24)
+      return new Style({
+        image: new Circle({
+          radius,
+          fill: new Fill({ color: LAYER_DEFAULTS.color }),
+          stroke: new Stroke({ color: LAYER_DEFAULTS.outline, width: 2 }),
+        }),
+        text: new Text({
+          text: String(members.length),
+          font: '12px sans-serif',
+          fill: new Fill({ color: LAYER_DEFAULTS.outline }),
+          offsetY: 0,
+        }),
+      })
+    }
+    return typeof base === 'function' ? base(feature, resolution) : base
+  }
+}
 
 /** 视口裁剪图层条目（_cullLayers 值类型） */
 interface CullLayerEntry {
@@ -73,6 +101,19 @@ export class OLRenderer extends MapRenderer {
     this._breathingLayer = null
     this._breathingAnimId = null
     this._initMap()
+  }
+
+  /**
+   * 图层默认叠放层级（差异化，消除全回退同一档位的顺序依赖）：
+   * 普通业务层 10；覆盖类（淹没范围/受影响设施/预测图层）15 叠于其上；底图 0、呼吸层 100 不变
+   */
+  _resolveLayerZIndex(options: LayerOptions): number {
+    if (options.zIndex != null) return options.zIndex
+    const ft = options.featureType
+    if (ft === 'flood-area' || ft === 'flood-facilities' || ft?.startsWith('forecast-')) {
+      return LAYER_DEFAULTS.zIndexOverlay - 85
+    }
+    return LAYER_DEFAULTS.zIndex
   }
   _initMap(): void {
     const view = new View({
@@ -225,7 +266,7 @@ export class OLRenderer extends MapRenderer {
       source: new VectorSource({ features: olFeatures }),
       style,
     })
-    vectorLayer.setZIndex(options.zIndex ?? LAYER_DEFAULTS.zIndex)
+    vectorLayer.setZIndex(this._resolveLayerZIndex(options))
     this.map?.addLayer(vectorLayer)
     this._layers.set(id, {
       instance: vectorLayer,
@@ -243,6 +284,34 @@ export class OLRenderer extends MapRenderer {
     style: Style | StyleFunction
   ): void {
     const featureType = options?.featureType || 'point'
+
+    // 聚合模式（options.cluster）：全量数据走 Cluster 源，OL 渲染端按距离聚合（替代裁剪），
+    // 聚合点显示成员数；单体沿用原样式。默认关闭——裁剪路径行为不变
+    if (options.cluster) {
+      const fullSource = new VectorSource({
+        features: features.flatMap((item: PointFeature) => {
+          const point = normalizePoint(item)
+          if (!point) return []
+          const feature = new Feature({ geometry: new Point(fromLonLat([point.lng, point.lat])) })
+          feature.setProperties({ ...item, featureType })
+          return [feature]
+        }),
+      })
+      const clusterSource = new Cluster({ distance: 40, source: fullSource })
+      const vectorLayer = new VectorLayer({
+        source: clusterSource,
+        style: withClusterStyle(style),
+      })
+      vectorLayer.setZIndex(this._resolveLayerZIndex(options))
+      this.map?.addLayer(vectorLayer)
+      this._layers.set(id, { instance: vectorLayer, visible: true, options })
+      this._applyPendingVisibility(id)
+      if (import.meta.env.DEV) {
+        logger.info(`[OLRenderer] 图层 ${id} 启用聚合渲染，共 ${features.length} 个要素`)
+      }
+      return
+    }
+
     // 构建 R-tree 索引项：[minX, minY, maxX, maxY] + 原始数据；缺失坐标跳过
     const index = createSpatialIndex<PointFeature>()
     const indexItems = features.flatMap((item: PointFeature) => {
@@ -255,7 +324,7 @@ export class OLRenderer extends MapRenderer {
 
     const source = new VectorSource()
     const vectorLayer = new VectorLayer({ source, style })
-    vectorLayer.setZIndex(options.zIndex ?? LAYER_DEFAULTS.zIndex)
+    vectorLayer.setZIndex(this._resolveLayerZIndex(options))
     this.map?.addLayer(vectorLayer)
     this._layers.set(id, { instance: vectorLayer, visible: true, options })
     this._applyPendingVisibility(id)
@@ -396,7 +465,7 @@ export class OLRenderer extends MapRenderer {
       source: new VectorSource({ features: olFeatures }),
       style,
     })
-    vectorLayer.setZIndex(options.zIndex ?? LAYER_DEFAULTS.zIndex)
+    vectorLayer.setZIndex(this._resolveLayerZIndex(options))
     this.map?.addLayer(vectorLayer)
     this._layers.set(id, {
       instance: vectorLayer,
@@ -467,7 +536,7 @@ export class OLRenderer extends MapRenderer {
       source: new VectorSource({ features }),
       style: options.style || defaultStyle,
     })
-    vectorLayer.setZIndex(options.zIndex ?? LAYER_DEFAULTS.zIndex)
+    vectorLayer.setZIndex(this._resolveLayerZIndex(options))
     this.map?.addLayer(vectorLayer)
     this._layers.set(id, {
       instance: vectorLayer,
@@ -508,7 +577,7 @@ export class OLRenderer extends MapRenderer {
       source,
       opacity: options.opacity ?? 0.7,
     })
-    layer.setZIndex(options.zIndex ?? LAYER_DEFAULTS.zIndex)
+    layer.setZIndex(this._resolveLayerZIndex(options))
     const map = this.map
     if (!map) return false
     map.addLayer(layer)
@@ -560,7 +629,7 @@ export class OLRenderer extends MapRenderer {
     })
 
     layer.set('id', id)
-    layer.setZIndex(options.zIndex ?? LAYER_DEFAULTS.zIndex)
+    layer.setZIndex(this._resolveLayerZIndex(options))
     const map = this.map
     if (!map) return false
     map.addLayer(layer)

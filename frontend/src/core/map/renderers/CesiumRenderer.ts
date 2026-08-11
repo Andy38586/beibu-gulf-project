@@ -31,7 +31,8 @@ import {
 import type { FeatureCollection } from 'geojson'
 
 import { buildTiandituUrl, MAP_CONFIG, zoomToHeight } from '@/core/config/map'
-import { LAYER_DEFAULTS } from '@/shared'
+import type { IndexedItem } from '@/shared'
+import { createSpatialIndex, LAYER_DEFAULTS } from '@/shared'
 import { logger } from '@/shared'
 import { normalizePoint } from '@/shared'
 import type {
@@ -930,6 +931,8 @@ export function addPointLayer(
     options,
     // 保存原始 features 供视口变化时增量更新
     allFeatures: features,
+    // 空间索引（W4-17）：相机移动增量更新时按视口 bbox 查询候选，替代全量遍历 O(N)
+    _spatialIndex: buildPointSpatialIndex(features),
   })
   renderer._applyPendingVisibility(id)
   // 触发渲染
@@ -937,6 +940,25 @@ export function addPointLayer(
 
   // 注册相机变化监听，视口变化时增量更新
   renderer._setupViewportListener(id)
+}
+
+/** 为点要素构建经纬度 rbush 索引（缺失坐标跳过）；供视口裁剪候选查询复用 */
+function buildPointSpatialIndex(features: PointFeature[]) {
+  const index = createSpatialIndex<{ item: PointFeature; index: number }>()
+  const items: IndexedItem<{ item: PointFeature; index: number }>[] = []
+  features.forEach((item, index) => {
+    const point = normalizePoint(item)
+    if (!point) return
+    items.push({
+      minX: point.lng,
+      minY: point.lat,
+      maxX: point.lng,
+      maxY: point.lat,
+      data: { item, index },
+    })
+  })
+  index.load(items)
+  return index
 }
 
 /** 构建 Cesium 点 Entity（含 label/properties），点图层与视口裁剪复用（构建逻辑单一来源） */
@@ -1396,9 +1418,16 @@ export function updateCulledLayer(renderer: any, id: string): void {
   const bbox = getViewportBBox(renderer)
   if (!bbox) return
 
+  // 候选集：优先 rbush 索引查询（W4-17，相机移动 O(logN)），无索引回退全量遍历
+  const candidates: Array<{ item: PointFeature; index: number }> = layer._spatialIndex
+    ? layer._spatialIndex
+        .query([bbox.west, bbox.south, bbox.east, bbox.north])
+        .map((it: IndexedItem<{ item: PointFeature; index: number }>) => it.data)
+    : layer.allFeatures.map((item: PointFeature, index: number) => ({ item, index }))
+
   // 计算应显示的要素 ID 集合（ID 与 _createCesiumPointEntity 保持一致：id-name-index）
   const shouldShow = new Set<string>()
-  layer.allFeatures.forEach((item: PointFeature, index: number) => {
+  candidates.forEach(({ item, index }: { item: PointFeature; index: number }) => {
     // 坐标归一化走 normalizePoint（含 longitude 别名）；缺失坐标跳过
     const point = normalizePoint(item)
     if (!point) return
@@ -1417,7 +1446,7 @@ export function updateCulledLayer(renderer: any, id: string): void {
 
   // 添加新进入视口的 Entity
   const existingIds = new Set<string>(layer.instance.map((e: Entity) => e.id))
-  layer.allFeatures.forEach((item: any, index: number) => {
+  candidates.forEach(({ item, index }: { item: PointFeature; index: number }) => {
     const entityId = `${id}-${item.id || item.name || 'p'}-${index}`
     if (shouldShow.has(entityId) && !existingIds.has(entityId)) {
       const entity = renderer._createCesiumPointEntity(id, item, index, layer.options)

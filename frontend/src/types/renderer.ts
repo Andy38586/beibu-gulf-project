@@ -66,6 +66,8 @@ export interface LayerOptions {
   labelField?: string
   // 业务要素类型标识（如 'port' / 'boundary'）
   featureType?: string
+  // 大数量点图层聚合渲染（OL Cluster，默认关闭走视口裁剪）
+  cluster?: boolean
   // 栅格图层透明度（GeoTIFF hillshade 等，0-1）
   opacity?: number
   // GeoJSON 图层 per-feature 样式回调（OL 渲染器消费）

@@ -8,9 +8,11 @@
 
 北部湾港 WebGIS 平台聚焦三类空间分析业务，并借分层架构验证 GIS 系统的可扩展性：
 
-- **选址分析**：多设施缓冲区叠加与面内点过滤，距离加权评分排序候选位置
-- **预测分析**：货物吞吐量预测（吞吐量模型产物，回测 MAPE ≤2.3%，功能版）+ 趋势外推，趋势可视化（ECharts）
-- **浸没分析**：基于水位与地形的三维淹没模拟（Cesium 3D）
+- **选址分析**：6 类设施多选 + 距离加权评分，后端 turf 缓冲区叠加与 RBush 面内点过滤，雷达图 6 轴评分 + 方案收藏
+- **预测分析**：4 指标趋势可视化（时间轴播放 + 地图热力），吞吐量模型产物（cargo/container 真数据，berth/traffic 诚实标注合成示意）
+- **浸没分析**：基于真 DEM 的连通性淹没演算（FastAPI scipy 8 连通 + 海面种子），251 档预计算表查表秒回，Cesium 3D 真地形 + 水面/淹没多边形渲染
+
+附加能力：HttpOnly Cookie 会话认证（tokenVersion 吊销）、暗色主题切换（深蓝+橙）、响应式三档布局（桌面/抽屉/紧凑）、CI 自动部署 + HTTPS 自动续期。
 
 ---
 
@@ -48,7 +50,7 @@
 
 ### 系统架构图
 
-![系统架构](./docs/图片/架构图.svg)
+架构分层（Application → Business → GIS Core → Backend）与依赖约束见上文表格与 `docs/` 下文档；真实界面效果见下方截图。
 
 ---
 
@@ -84,14 +86,16 @@ GIS 应用中，地图工具栏、分析面板、图例、详情卡片等组件�
 
 | 层级           | 技术                                                |
 | -------------- | --------------------------------------------------- |
-| **前端框架**   | Vue 3（Composition API）、Vite、Vue Router、Pinia   |
-| **GIS 引擎**   | OpenLayers（2D）、Cesium（3D）                      |
-| **空间分析**   | Turf.js（后端服务）                                 |
-| **数据可视化** | ECharts                                             |
-| **UI 组件**    | Element Plus                                        |
-| **后端**       | Node.js、Express 5（ESM）                           |
-| **数据**       | GeoJSON、Python 数据处理脚本                        |
-| **工程化**     | Vitest、ESLint、Prettier、Husky、dependency-cruiser |
+| **前端框架**   | Vue 3（Composition API + `<script setup>`）、Vite（Rolldown）、Vue Router、Pinia |
+| **语言与类型** | TypeScript 严格模式（@ts-nocheck 全量移除）、zod 运行时校验（HTTP 边界 100%）|
+| **GIS 引擎**   | OpenLayers（2D）、Cesium（3D，懒加载 + 真地形瓦片） |
+| **空间分析**   | Turf.js（Express 后端服务）、rbush 空间索引、scipy 连通性演算（FastAPI）|
+| **数据可视化** | ECharts（异步化，不进首屏关键路径）|
+| **UI 组件**    | Element Plus（按需引入）+ 自研 GCS 网格布局体系（含暗色主题 token）|
+| **后端**       | Node.js、Express 5（ESM，三层架构）+ FastAPI（Python 洪涝演算，独立容器）|
+| **数据**       | GeoJSON、JSON（createReadCache 缓存）、251 档预计算表（gzip）、DEM 流水线脚本 |
+| **工程化**     | Vitest（前后端 416 用例）、ESLint、Prettier、Husky/commitlint、dependency-cruiser 架构守护、gitleaks 密钥扫描 |
+| **部署**       | Docker Compose 双容器、GitHub Actions CI 自动部署、Let's Encrypt HTTPS 自动续期 |
 
 ---
 
@@ -102,14 +106,15 @@ GIS 应用中，地图工具栏、分析面板、图例、详情卡片等组件�
 | 文件                                                                                                | 状态                                               | 用途                                                       |
 | --------------------------------------------------------------------------------------------------- | -------------------------------------------------- | ---------------------------------------------------------- |
 | `backend/static/dem/dem_hillshade.tif`                                                              | ✅ 已入 git（COG：6 级 overview + 512 分块 + LZW） | 2D 洪涝页「真实地形」图层，浏览器按 tile 拉取              |
-| `backend/static/dem/dem_hillshade.png`                                                              | ✅ 已入 git（5.8MB）                               | 3D 降级贴图（Cesium 无真 z 值，视觉明暗）                  |
-| `backend/data/flood/dem/filled_utm48n_cut.tif`（约 169MB）                                          | 🚫 gitignored，需本地生成                          | 洪涝 **online** 模式的连通性演算输入                       |
+| `backend/static/dem/dem_hillshade.png`                                                              | ✅ 已入 git（5.8MB）                               | 3D 山体阴影叠加层（真地形就绪后仅作明暗增强）              |
+| `backend/static/terrain/`（CTB 瓦片 z0-12，3848 文件）                                              | ✅ 已入 git                                        | Cesium 真 3D 地形（heightmap 瓦片，z 值起伏）              |
+| `backend/data/flood/dem/filled_utm48n_cut.tif`（约 169MB）                                          | 🚫 gitignored，需本地生成                          | 洪涝 **online** 演算输入（连通性演算）                     |
 | `backend/data/flood/*.json`（facilityPoints 83 设施 / floodArea / floodStatistics / water-area 等） | ✅ 已入 git                                        | 洪涝设施影响评估（高德真实 POI）与 api 模式数据            |
-| `backend/data/flood/flood_levels.json.gz`（2.9MB，251 档）                                          | ✅ 已入 git                                        | 洪涝 **online** 模式预计算档位表（查表秒回，替代在线演算） |
+| `backend/data/flood/flood_levels.json.gz`（2.9MB，251 档）                                          | ✅ 已入 git                                        | 洪涝预计算档位表（0~25m/0.1m 步长，查表秒回，Express 与 FastAPI 共用） |
 
-**clone 后注意事项**：`filled_utm48n_cut.tif`（169MB）不在仓库中。洪涝 **online** 模式（`VITE_DATA_SOURCE=online`）需先运行 DEM 流水线生成该文件；**mock / api** 模式不受影响，开箱即用。
+**clone 后注意事项**：`filled_utm48n_cut.tif`（169MB）不在仓库中。**但它只影响"查表 miss 的越界档位"现场演算**——0~25m 全部 251 档预计算表已入库，**clone 即用、开箱秒回**；DEM 缺失时仅越界档位无法现场演算（前端不会触发）。
 
-**flood-service（FastAPI）部署**：`backend/flood-service/*.py`（main/flood_engine/precompute_levels/tests）**已入 git**，clone 即得代码。online 模式上线需**单独部署 flood-service**（与 Express 双后端）：clone 后 `cd backend/flood-service && python -m venv .venv && .venv/Scripts/pip install -r requirements.txt`，配好 DEM 文件（`filled_utm48n_cut.tif`，见下方流水线）后 `uvicorn main:app --port 8000` 启动；或明确"上线只发静态 JSON（api 模式）、online 演算不做"。
+**flood-service（FastAPI）部署**：`backend/flood-service/`（main/flood_engine/precompute_levels/tests + Dockerfile）**已入 git**。生产已容器化（docker-compose 双容器，nginx 经 `flood-service:8000` 内网反代，不暴露公网）；本地开发 `npm run dev:flood` 一键启动（跨平台 venv 解析）。
 
 **DEM 生成流水线**：`tools/dem-pipeline/`（01-mosaic → 02-fill-sinks → 03-reproject-4326 → 04-generate-flood-data → 05-fix-facility-elevation）。脚本为 Windows PowerShell + QGIS GDAL 环境，且输入路径硬编码了本地目录（ASTER GDEM 30m 原始 tile），在其它机器上运行需按本机环境调整路径与 GDAL 位置。完整步骤见各脚本头部注释。
 
@@ -124,9 +129,21 @@ GIS 应用中，地图工具栏、分析面板、图例、详情卡片等组件�
 
 ### 选址分析页面
 
-![选址分析页面](./docs/图片/选址分析截图.jpg)
+![选址分析页面](./docs/图片/选址分析截图.png)
 
 选址分析模块支持多设施类型（医院、学校、公园、公交站、商场等）的缓冲区叠加与面内点过滤，基于距离加权评分模型对候选小区综合打分并排序。
+
+### 洪涝分析 DEM 图层
+
+![洪涝分析DEM图层](./docs/图片/洪涝DEM图层.png)
+
+基于真 DEM 的连通性淹没演算（FastAPI scipy 8 连通 + 海面种子），251 档预计算表查表秒回；3D 模式叠加真地形瓦片（CTB z 值起伏）。
+
+### 暗色模式
+
+![暗色模式](./docs/图片/暗色模式.png)
+
+一键切换暗色主题（深蓝底 + 高饱和橙），全站 token 化（CSS 变量覆盖，图表同步适配）。
 
 ---
 
@@ -175,13 +192,16 @@ npm run build:analyze    # 附带体积分析报告（dist/stats.html）
 
 ### 部署
 
-项目提供 Docker 与 nginx 配置，可一键容器化部署：
+项目提供 Docker Compose 双容器编排（WebGIS 主容器 + flood-service 演算容器）+ GitHub Actions CI 自动部署：
 
 ```bash
-docker-compose up --build
+docker compose up --build -d
 ```
 
-详见 `Dockerfile`、`docker-compose.yml`、`nginx.conf`。
+- **CI 流水线**（4 job）：audit → lint-and-build（format/lint/cruise/typecheck/gitleaks/测试/build）→ backend-tests → deploy（main 分支 SSH 自动部署）
+- **HTTPS**：Let's Encrypt + duckdns DNS-01，自动续期（certbot.timer + deploy hook）
+- 生产数据源由 `VITE_DATA_SOURCE` 构建期注入（`online` = 洪涝走 FastAPI 连通性演算；`api` = Express 251 档查表）
+- 详见 `Dockerfile`、`docker-compose.yml`、`nginx.conf`、`docs/快速启动.md`
 
 ---
 

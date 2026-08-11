@@ -1,22 +1,22 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 980" font-family="'Segoe UI','Helvetica Neue',Arial,'PingFang SC','Microsoft YaHei',sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 1120" font-family="'Segoe UI','Helvetica Neue',Arial,'PingFang SC','Microsoft YaHei',sans-serif">
   <defs>
     <filter id="c1" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="16"/></filter>
     <filter id="c2" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="7"/></filter>
   </defs>
 
   <!-- background -->
-  <rect x="0" y="0" width="920" height="980" fill="#FFFFFF"/>
+  <rect x="0" y="0" width="920" height="1120" fill="#FFFFFF"/>
 
   <!-- ===== Background ribbon: AE style #3 (cloud blob) ===== -->
-  <path d="M460,70 C590,210 590,360 460,500 C330,640 330,790 460,960"
+  <path d="M460,70 C590,240 590,420 460,590 C330,760 330,940 460,1120"
         fill="none" stroke="#FF5E3A" stroke-width="50" stroke-linecap="round" stroke-opacity="0.32" filter="url(#c1)"/>
-  <path d="M460,70 C590,210 590,360 460,500 C330,640 330,790 460,960"
+  <path d="M460,70 C590,240 590,420 460,590 C330,760 330,940 460,1120"
         fill="none" stroke="#FF7A45" stroke-width="22" stroke-linecap="round" stroke-opacity="0.50" filter="url(#c2)"/>
-  <path d="M460,70 C590,210 590,360 460,500 C330,640 330,790 460,960"
+  <path d="M460,70 C590,240 590,420 460,590 C330,760 330,940 460,1120"
         fill="none" stroke="#FF9A6A" stroke-width="8" stroke-linecap="round" stroke-opacity="0.60" filter="url(#c2)"/>
 
   <!-- Title -->
-  <text x="460" y="50" text-anchor="middle" font-size="30" font-weight="700" fill="#0F172A">北部湾港 WebGIS 平台系统架构</text>
+  <text x="460" y="50" text-anchor="middle" font-size="30" font-weight="700" fill="#0F172A">北部湾港 WebGIS 平台系统架构（v2.0）</text>
 
   <!-- ============ Layer 1: Application ============ -->
   <rect x="68" y="80" width="784" height="132" rx="8" fill="#F0F9FF" fill-opacity="0.5" stroke="#409EFF" stroke-width="2"/>
@@ -24,66 +24,87 @@
   <g>
     <rect x="84" y="124" width="240" height="72" rx="8" fill="#FFFFFF" stroke="#409EFF" stroke-width="1.5"/>
     <text x="204" y="154" text-anchor="middle" font-size="15" font-weight="700" fill="#0EA5E9">Router</text>
-    <text x="204" y="174" text-anchor="middle" font-size="12" fill="#64748B">路由分发</text>
+    <text x="204" y="174" text-anchor="middle" font-size="11" fill="#64748B">manifest 驱动生成业务路由</text>
     <rect x="340" y="124" width="240" height="72" rx="8" fill="#FFFFFF" stroke="#409EFF" stroke-width="1.5"/>
     <text x="460" y="154" text-anchor="middle" font-size="15" font-weight="700" fill="#0EA5E9">Views</text>
-    <text x="460" y="174" text-anchor="middle" font-size="12" fill="#64748B">视图容器</text>
+    <text x="460" y="174" text-anchor="middle" font-size="11" fill="#64748B">首页 / 个人中心 / 登录</text>
     <rect x="596" y="124" width="240" height="72" rx="8" fill="#FFFFFF" stroke="#409EFF" stroke-width="1.5"/>
     <text x="716" y="154" text-anchor="middle" font-size="15" font-weight="700" fill="#0EA5E9">页面组件</text>
-    <text x="716" y="174" text-anchor="middle" font-size="12" fill="#64748B">Page Components</text>
+    <text x="716" y="174" text-anchor="middle" font-size="11" fill="#64748B">暗色主题切换 · 三档响应式</text>
   </g>
 
   <!-- ============ Layer 2: Business ============ -->
-  <rect x="68" y="260" width="784" height="132" rx="8" fill="#F0F9FF" fill-opacity="0.5" stroke="#409EFF" stroke-width="2"/>
+  <rect x="68" y="260" width="784" height="160" rx="8" fill="#F0F9FF" fill-opacity="0.5" stroke="#409EFF" stroke-width="2"/>
   <text x="92" y="288" font-size="15" font-weight="700" fill="#0EA5E9">Business Layer · 业务层</text>
   <g>
-    <rect x="84" y="304" width="240" height="72" rx="8" fill="#FFFFFF" stroke="#409EFF" stroke-width="1.5"/>
-    <text x="204" y="334" text-anchor="middle" font-size="15" font-weight="700" fill="#0EA5E9">Site Selection</text>
-    <text x="204" y="354" text-anchor="middle" font-size="12" fill="#64748B">选址分析</text>
-    <rect x="340" y="304" width="240" height="72" rx="8" fill="#FFFFFF" stroke="#409EFF" stroke-width="1.5"/>
-    <text x="460" y="334" text-anchor="middle" font-size="15" font-weight="700" fill="#0EA5E9">Forecast</text>
-    <text x="460" y="354" text-anchor="middle" font-size="12" fill="#64748B">趋势预测可视化</text>
-    <rect x="596" y="304" width="240" height="72" rx="8" fill="#FFFFFF" stroke="#409EFF" stroke-width="1.5"/>
-    <text x="716" y="334" text-anchor="middle" font-size="15" font-weight="700" fill="#0EA5E9">Flood Analysis</text>
-    <text x="716" y="354" text-anchor="middle" font-size="12" fill="#64748B">洪涝分析</text>
+    <rect x="84" y="304" width="224" height="72" rx="8" fill="#FFFFFF" stroke="#409EFF" stroke-width="1.5"/>
+    <text x="196" y="334" text-anchor="middle" font-size="14" font-weight="700" fill="#0EA5E9">Site Selection</text>
+    <text x="196" y="354" text-anchor="middle" font-size="11" fill="#64748B">6 设施加权 · RBush · 雷达图</text>
+    <rect x="324" y="304" width="224" height="72" rx="8" fill="#FFFFFF" stroke="#409EFF" stroke-width="1.5"/>
+    <text x="436" y="334" text-anchor="middle" font-size="14" font-weight="700" fill="#0EA5E9">Forecast</text>
+    <text x="436" y="354" text-anchor="middle" font-size="11" fill="#64748B">4 指标 · 时间轴播放 · 热力</text>
+    <rect x="564" y="304" width="224" height="72" rx="8" fill="#FFFFFF" stroke="#409EFF" stroke-width="1.5"/>
+    <text x="676" y="334" text-anchor="middle" font-size="14" font-weight="700" fill="#0EA5E9">Flood Analysis</text>
+    <text x="676" y="354" text-anchor="middle" font-size="11" fill="#64748B">水位滑块 · 剖面图 · 251 档查表</text>
+    <rect x="324" y="384" width="224" height="24" rx="6" fill="#ECF5FF" stroke="#409EFF" stroke-width="1"/>
+    <text x="436" y="400" text-anchor="middle" font-size="11" font-weight="600" fill="#409EFF">Pinia Stores · 快照工厂 · manifest 注册</text>
   </g>
 
   <!-- ============ Layer 3: GIS Core ============ -->
-  <rect x="68" y="440" width="784" height="308" rx="8" fill="#F0F9FF" fill-opacity="0.5" stroke="#409EFF" stroke-width="2"/>
-  <text x="92" y="468" font-size="15" font-weight="700" fill="#0EA5E9">GIS Core Layer · 核心层</text>
+  <rect x="68" y="468" width="784" height="308" rx="8" fill="#F0F9FF" fill-opacity="0.5" stroke="#409EFF" stroke-width="2"/>
+  <text x="92" y="496" font-size="15" font-weight="700" fill="#0EA5E9">GIS Core Layer · 核心层</text>
 
-  <rect x="340" y="484" width="240" height="72" rx="8" fill="#FFFFFF" stroke="#409EFF" stroke-width="1.5"/>
-  <text x="460" y="526" text-anchor="middle" font-size="15" font-weight="700" fill="#0EA5E9">MapRenderer Interface</text>
+  <rect x="340" y="512" width="240" height="56" rx="8" fill="#FFFFFF" stroke="#409EFF" stroke-width="1.5"/>
+  <text x="460" y="546" text-anchor="middle" font-size="14" font-weight="700" fill="#0EA5E9">MapRenderer Interface</text>
 
-  <rect x="212" y="572" width="240" height="72" rx="8" fill="#FFFFFF" stroke="#409EFF" stroke-width="1.5"/>
-  <text x="332" y="602" text-anchor="middle" font-size="15" font-weight="700" fill="#0EA5E9">OpenLayers Renderer</text>
-  <text x="332" y="622" text-anchor="middle" font-size="12" fill="#64748B">2D 实现</text>
-  <rect x="468" y="572" width="240" height="72" rx="8" fill="#FFFFFF" stroke="#409EFF" stroke-width="1.5"/>
-  <text x="588" y="602" text-anchor="middle" font-size="15" font-weight="700" fill="#0EA5E9">Cesium Renderer</text>
-  <text x="588" y="622" text-anchor="middle" font-size="12" fill="#64748B">3D 实现</text>
+  <rect x="212" y="584" width="240" height="72" rx="8" fill="#FFFFFF" stroke="#409EFF" stroke-width="1.5"/>
+  <text x="332" y="614" text-anchor="middle" font-size="14" font-weight="700" fill="#0EA5E9">OpenLayers Renderer</text>
+  <text x="332" y="634" text-anchor="middle" font-size="11" fill="#64748B">2D · 视口裁剪 · 热力</text>
+  <rect x="468" y="584" width="240" height="72" rx="8" fill="#FFFFFF" stroke="#409EFF" stroke-width="1.5"/>
+  <text x="588" y="614" text-anchor="middle" font-size="14" font-weight="700" fill="#0EA5E9">Cesium Renderer</text>
+  <text x="588" y="634" text-anchor="middle" font-size="11" fill="#64748B">3D · 懒加载 · 真地形瓦片</text>
 
-  <rect x="84" y="660" width="240" height="72" rx="8" fill="#FFFFFF" stroke="#409EFF" stroke-width="1.5"/>
-  <text x="204" y="690" text-anchor="middle" font-size="14" font-weight="700" fill="#0EA5E9">Layer Manager</text>
-  <text x="204" y="710" text-anchor="middle" font-size="11" fill="#64748B">图层管理</text>
-  <rect x="340" y="660" width="240" height="72" rx="8" fill="#FFFFFF" stroke="#409EFF" stroke-width="1.5"/>
-  <text x="460" y="690" text-anchor="middle" font-size="14" font-weight="700" fill="#0EA5E9">Layer Adapter</text>
-  <text x="460" y="710" text-anchor="middle" font-size="11" fill="#64748B">适配隔离</text>
-  <rect x="596" y="660" width="240" height="72" rx="8" fill="#FFFFFF" stroke="#409EFF" stroke-width="1.5"/>
-  <text x="716" y="690" text-anchor="middle" font-size="14" font-weight="700" fill="#0EA5E9">Spatial Utilities</text>
-  <text x="716" y="710" text-anchor="middle" font-size="11" fill="#64748B">空间工具</text>
+  <rect x="84" y="672" width="224" height="72" rx="8" fill="#FFFFFF" stroke="#409EFF" stroke-width="1.5"/>
+  <text x="196" y="702" text-anchor="middle" font-size="13" font-weight="700" fill="#0EA5E9">BusinessLayerManager</text>
+  <text x="196" y="722" text-anchor="middle" font-size="11" fill="#64748B">图层注册/显隐/引擎切换重建</text>
+  <rect x="324" y="672" width="224" height="72" rx="8" fill="#FFFFFF" stroke="#409EFF" stroke-width="1.5"/>
+  <text x="436" y="702" text-anchor="middle" font-size="13" font-weight="700" fill="#0EA5E9">Layer Adapter</text>
+  <text x="436" y="722" text-anchor="middle" font-size="11" fill="#64748B">图层类型 → 渲染方法分派</text>
+  <rect x="564" y="672" width="224" height="72" rx="8" fill="#FFFFFF" stroke="#409EFF" stroke-width="1.5"/>
+  <text x="676" y="702" text-anchor="middle" font-size="13" font-weight="700" fill="#0EA5E9">GCS 布局体系</text>
+  <text x="676" y="722" text-anchor="middle" font-size="11" fill="#64748B">80px 网格 · 暗色主题 token</text>
+  <rect x="84" y="752" width="224" height="16" rx="6" fill="#ECF5FF" stroke="#409EFF" stroke-width="1"/>
+  <text x="196" y="764" text-anchor="middle" font-size="10" fill="#64748B">能力接口：Water3D / GeoTIFF / Heatmap</text>
+  <rect x="324" y="752" width="224" height="16" rx="6" fill="#ECF5FF" stroke="#409EFF" stroke-width="1"/>
+  <text x="436" y="764" text-anchor="middle" font-size="10" fill="#64748B">zod 边界校验 · 请求唯一入口</text>
+  <rect x="564" y="752" width="224" height="16" rx="6" fill="#ECF5FF" stroke="#409EFF" stroke-width="1"/>
+  <text x="676" y="764" text-anchor="middle" font-size="10" fill="#64748B">TypeScript 严格 · @ts-nocheck 清零</text>
+  </g>
 
   <!-- ============ Layer 4: Backend ============ -->
-  <rect x="68" y="796" width="784" height="132" rx="8" fill="#F0F9FF" fill-opacity="0.5" stroke="#409EFF" stroke-width="2"/>
-  <text x="92" y="824" font-size="15" font-weight="700" fill="#0EA5E9">Backend / Data Service · 后端与数据服务</text>
+  <rect x="68" y="824" width="784" height="132" rx="8" fill="#F0F9FF" fill-opacity="0.5" stroke="#409EFF" stroke-width="2"/>
+  <text x="92" y="852" font-size="15" font-weight="700" fill="#0EA5E9">Backend · 后端与数据服务</text>
   <g>
-    <rect x="84" y="840" width="240" height="72" rx="8" fill="#FFFFFF" stroke="#409EFF" stroke-width="1.5"/>
-    <text x="204" y="870" text-anchor="middle" font-size="15" font-weight="700" fill="#0EA5E9">Express API</text>
-    <text x="204" y="890" text-anchor="middle" font-size="12" fill="#64748B">接口服务</text>
-    <rect x="340" y="840" width="240" height="72" rx="8" fill="#FFFFFF" stroke="#409EFF" stroke-width="1.5"/>
-    <text x="460" y="870" text-anchor="middle" font-size="15" font-weight="700" fill="#0EA5E9">Turf.js Spatial Analysis</text>
-    <text x="460" y="890" text-anchor="middle" font-size="12" fill="#64748B">空间计算</text>
-    <rect x="596" y="840" width="240" height="72" rx="8" fill="#FFFFFF" stroke="#409EFF" stroke-width="1.5"/>
-    <text x="716" y="870" text-anchor="middle" font-size="15" font-weight="700" fill="#0EA5E9">GeoJSON Data</text>
-    <text x="716" y="890" text-anchor="middle" font-size="12" fill="#64748B">数据资产</text>
+    <rect x="84" y="868" width="240" height="72" rx="8" fill="#FFFFFF" stroke="#409EFF" stroke-width="1.5"/>
+    <text x="204" y="898" text-anchor="middle" font-size="14" font-weight="700" fill="#0EA5E9">Express API</text>
+    <text x="204" y="918" text-anchor="middle" font-size="11" fill="#64748B">三层架构 · 信封 · BusinessError</text>
+    <rect x="340" y="868" width="240" height="72" rx="8" fill="#FFFFFF" stroke="#409EFF" stroke-width="1.5"/>
+    <text x="460" y="898" text-anchor="middle" font-size="14" font-weight="700" fill="#0EA5E9">FastAPI flood-service</text>
+    <text x="460" y="918" text-anchor="middle" font-size="11" fill="#64748B">scipy 连通性演算 · 独立容器</text>
+    <rect x="596" y="868" width="240" height="72" rx="8" fill="#FFFFFF" stroke="#409EFF" stroke-width="1.5"/>
+    <text x="716" y="898" text-anchor="middle" font-size="14" font-weight="700" fill="#0EA5E9">数据资产</text>
+    <text x="716" y="918" text-anchor="middle" font-size="11" fill="#64748B">251 档预计算表 · GeoJSON · DEM</text>
+  </g>
+
+  <!-- ============ Layer 5: Deployment ============ -->
+  <rect x="68" y="1004" width="784" height="76" rx="8" fill="#FFF7F0" fill-opacity="0.6" stroke="#FF7A45" stroke-width="2"/>
+  <text x="92" y="1032" font-size="15" font-weight="700" fill="#FF7A45">Deployment · 部署</text>
+  <g>
+    <rect x="84" y="1044" width="240" height="24" rx="6" fill="#FFFFFF" stroke="#FF7A45" stroke-width="1.2"/>
+    <text x="204" y="1060" text-anchor="middle" font-size="11" font-weight="600" fill="#E66A0D">Docker Compose 双容器</text>
+    <rect x="340" y="1044" width="240" height="24" rx="6" fill="#FFFFFF" stroke="#FF7A45" stroke-width="1.2"/>
+    <text x="460" y="1060" text-anchor="middle" font-size="11" font-weight="600" fill="#E66A0D">CI 自动部署（4 job）</text>
+    <rect x="596" y="1044" width="240" height="24" rx="6" fill="#FFFFFF" stroke="#FF7A45" stroke-width="1.2"/>
+    <text x="716" y="1060" text-anchor="middle" font-size="11" font-weight="600" fill="#E66A0D">HTTPS 自动续期</text>
   </g>
 </svg>

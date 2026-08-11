@@ -101,7 +101,7 @@ function handleMainAction(): void {
 .GCS-modal-overlay {
   position: fixed;
   inset: 0;
-  z-index: 1000;
+  z-index: var(--GCS-z-modal);
   display: flex;
   align-items: center;
   justify-content: center;

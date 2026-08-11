@@ -43,6 +43,16 @@ export const PROFILE_COLORS = {
   safe: '#67C23A',
 } as const
 
+// ECharts 图表主题色（canvas 渲染无法解析 CSS 变量，亮/暗双主题；7-03 收口图表硬编码色）
+export const CHART_COLORS = {
+  textPrimary: { light: '#303133', dark: '#e8edf4' },
+  textSecondary: { light: '#666666', dark: '#a8b2bd' },
+  textMuted: { light: '#999999', dark: '#7a8694' },
+  axisLine: { light: '#dddddd', dark: '#2c4a70' },
+  splitLine: { light: '#eeeeee', dark: '#1f3450' },
+  accent: { light: '#409eff', dark: '#ff7a1a' },
+} as const
+
 // 开发验收用的 QA 覆盖层调试色（GCSDebugOverlay）
 export const INSPECTION_COLORS = {
   primary: '#ff6b6b',

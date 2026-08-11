@@ -175,7 +175,7 @@ body {
 .GCS-drawer {
   position: fixed;
   inset: 0;
-  z-index: 1000;
+  z-index: var(--GCS-z-drawer);
 }
 .GCS-drawer__backdrop {
   position: absolute;

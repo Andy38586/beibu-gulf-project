@@ -1,4 +1,4 @@
-import { useTheme } from '@/shared'
+import { CHART_COLORS, useTheme } from '@/shared'
 import type { ChartClickParams, UseEChartsReturn } from '@/visualization/composables/useECharts'
 import { useECharts } from '@/visualization/composables/useECharts'
 
@@ -43,7 +43,7 @@ export function useChartBase(
         text: props.title,
         left: 'center',
         textStyle: {
-          color: dark ? '#e8edf4' : '#303133',
+          color: dark ? CHART_COLORS.textPrimary.dark : CHART_COLORS.textPrimary.light,
           fontSize: 16,
           fontWeight: 600,
         },
@@ -51,16 +51,21 @@ export function useChartBase(
       tooltip: { trigger: 'axis' },
       legend: {
         bottom: 0,
-        textStyle: { color: dark ? '#a8b2bd' : '#666', fontSize: 10 },
+        textStyle: {
+          color: dark ? CHART_COLORS.textSecondary.dark : CHART_COLORS.textSecondary.light,
+          fontSize: 10,
+        },
         itemWidth: 10,
         itemHeight: 6,
       },
       xAxis: {
         type: 'category',
         data: props.xData || [],
-        axisLine: { lineStyle: { color: dark ? '#2c4a70' : '#ddd' } },
+        axisLine: {
+          lineStyle: { color: dark ? CHART_COLORS.axisLine.dark : CHART_COLORS.axisLine.light },
+        },
         axisLabel: {
-          color: dark ? '#a8b2bd' : '#666',
+          color: dark ? CHART_COLORS.textSecondary.dark : CHART_COLORS.textSecondary.light,
           fontSize: 10,
           ...(dense ? { interval: 2, rotate: 30 } : {}),
         },
@@ -69,12 +74,20 @@ export function useChartBase(
       },
       yAxis: {
         type: 'value',
-        splitLine: { lineStyle: { color: dark ? '#1f3450' : '#eee' } },
-        axisLabel: { color: dark ? '#a8b2bd' : '#666', fontSize: 10 },
+        splitLine: {
+          lineStyle: { color: dark ? CHART_COLORS.splitLine.dark : CHART_COLORS.splitLine.light },
+        },
+        axisLabel: {
+          color: dark ? CHART_COLORS.textSecondary.dark : CHART_COLORS.textSecondary.light,
+          fontSize: 10,
+        },
         ...(props.yUnit
           ? {
               name: props.yUnit,
-              nameTextStyle: { fontSize: 10, color: dark ? '#7a8694' : '#999' },
+              nameTextStyle: {
+                fontSize: 10,
+                color: dark ? CHART_COLORS.textMuted.dark : CHART_COLORS.textMuted.light,
+              },
             }
           : {}),
       },

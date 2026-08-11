@@ -50,7 +50,12 @@ ENV NODE_ENV=production
 # d068: 安装 nginx + su-exec。（原 8.2 d061，重编号消除与主清单 d061-trust proxy 冲突）
 # su-exec 让后端进程以非 root 用户运行（容器逃逸时无法以 root 获得宿主机权限）；
 # nginx 仍由 entrypoint 以 root 拉起（需绑定 80/443）。
-RUN apk add --no-cache nginx su-exec
+# brotli 模块来自 alpine community 仓库（动态匹配基础镜像小版本），提供实时 brotli 压缩
+#（副-07；构建时验证：包缺失会 fail 构建，不会带病上线）
+RUN apk add --no-cache nginx su-exec \
+  && apk add --no-cache \
+    --repository "https://dl-cdn.alpinelinux.org/alpine/v$(cut -d. -f1-2 /etc/alpine-release)/community" \
+    nginx-mod-http-brotli
 
 # d068: 创建非 root 用户 nodeapp（uid 1000），并预备可写的数据/日志目录
 # 2026-08-09 修复：node:22-alpine 镜像自带 uid 1000 的 node 用户（adduser 冲突），

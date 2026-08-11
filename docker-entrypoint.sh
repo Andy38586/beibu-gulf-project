@@ -89,6 +89,11 @@ server {
     gzip on;
     gzip_types text/plain text/css application/json application/javascript text/xml application/xml;
     gzip_min_length 1000;
+    # brotli 实时压缩（与 default.conf 同配，https 独立 server 块需重复声明）
+    brotli on;
+    brotli_comp_level 6;
+    brotli_min_length 1000;
+    brotli_types text/plain text/css application/json application/javascript text/xml application/xml image/svg+xml;
 }
 EOF
   echo "[entrypoint] TLS 证书已检测，HTTPS (443) 已启用"

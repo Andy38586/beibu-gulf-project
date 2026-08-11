@@ -8,7 +8,8 @@ import { defineAsyncComponent, onMounted } from 'vue'
 
 import AppLayout from '@/core/layout/AppLayout.vue'
 import GCSPanel from '@/core/layout/components/GCSPanel.vue'
-import { useAuth, useGCS, useOverviewCharts } from '@/shared'
+import { useAuth, useGCS } from '@/shared'
+import { useOverviewCharts } from '@/business/forecast/composables/useOverviewCharts'
 import ChartLoading from '@/visualization/charts/ChartLoading.vue'
 
 import PlansPanel from './components/PlansPanel.vue'
@@ -127,7 +128,9 @@ const logoutPaddingCss = `${cellPixel.value * 0.1}px`
   font-size: v-bind(logoutFontCss);
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
 }
 
 .profile-logout-btn:hover {

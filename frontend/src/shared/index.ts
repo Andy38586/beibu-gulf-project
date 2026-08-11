@@ -3,7 +3,6 @@
 export * from './composables/useApiRequest'
 export * from './composables/useAuth'
 export * from './composables/useLatestRequest'
-export * from './composables/useOverviewCharts'
 export * from './composables/usePlans'
 export * from './constants/colors'
 export * from './constants/forecast'

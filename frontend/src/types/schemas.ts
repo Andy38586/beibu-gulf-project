@@ -123,6 +123,18 @@ export const forecastIndicatorIndexSchema = z.object({
   }),
   historical: z.object({ start: z.string(), end: z.string() }),
   forecast: z.object({ start: z.string(), end: z.string() }),
+  // 首页概览图表快照（useOverviewCharts 消费；looseObject 兼容字段演进）
+  charts: z
+    .looseObject({
+      indicator: z.string(),
+      unit: z.string(),
+      granularity: z.string().optional(),
+      start: z.string().optional(),
+      end: z.string().optional(),
+      labels: z.array(z.string()),
+      series: z.array(z.looseObject({ name: z.string(), data: z.array(z.number()) })),
+    })
+    .optional(),
 })
 
 export type ForecastIndicatorIndexParsed = z.infer<typeof forecastIndicatorIndexSchema>
@@ -225,3 +237,11 @@ export const floodDisasterResponseSchema = z.looseObject({
 })
 
 export type FloodDisasterResponseParsed = z.infer<typeof floodDisasterResponseSchema>
+
+// ⑰ /flood-online/api/flood/impact 响应（FastAPI 裸 JSON；affectedFacilities 元素由下游收窄）
+export const floodImpactResponseSchema = z.looseObject({
+  affectedFacilities: z.array(z.unknown()).optional(),
+  totalLoss: z.number().optional(),
+})
+
+export type FloodImpactResponseParsed = z.infer<typeof floodImpactResponseSchema>

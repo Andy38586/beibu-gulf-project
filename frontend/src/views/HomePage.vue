@@ -9,7 +9,7 @@ import { computed, defineAsyncComponent, onMounted } from 'vue'
 
 import AppLayout from '@/core/layout/AppLayout.vue'
 import GCSPanel from '@/core/layout/components/GCSPanel.vue'
-import { useOverviewCharts } from '@/shared'
+import { useOverviewCharts } from '@/business/forecast/composables/useOverviewCharts'
 import { useMapStore } from '@/stores'
 import ChartLoading from '@/visualization/charts/ChartLoading.vue'
 import PortInfoPanel from '@/visualization/panels/PortInfoPanel.vue'

@@ -52,6 +52,12 @@ export const useForecastStore = defineStore('forecast', () => {
   // shallowRef（浅响应式）：Map 为可变结构，深度追踪无意义且浪费性能
   const dataCache: ShallowRef<Map<string, ForecastSeries>> = shallowRef(new Map())
 
+  // 页面请求缓存（跨页面快照序列化；Map 不可直接入快照，saveState 时转数组）。
+  // 原为 ForecastPage 页面级 Map，C4 收口后迁入 store 统一管理（含快照恢复）
+  const requestCache: ShallowRef<Map<string, unknown>> = shallowRef(new Map())
+  /** requestCache 大小上限，超限删除最早键（Map 迭代序即插入序，近似 LRU） */
+  const MAX_REQUEST_CACHE_ENTRIES = 50
+
   /** 请求事务状态迁入 store（消除请求 composable 的模块级可变状态）；AbortController 不可序列化、不响应式，仍由请求实例持有并透传 signal */
   const activeTransactionId: Ref<number> = ref(0)
   const isRequesting: Ref<boolean> = ref(false)
@@ -76,6 +82,38 @@ export const useForecastStore = defineStore('forecast', () => {
     confidenceThresholds.value[indicator] = value
   }
 
+  function setIsPlaying(playing: boolean): void {
+    isPlaying.value = playing
+  }
+
+  /** 请求缓存写入（LRU 淘汰；页面/composable 统一入口，替代页面级 Map） */
+  function setRequestCache(key: string, value: unknown): void {
+    const map = requestCache.value
+    if (map.size >= MAX_REQUEST_CACHE_ENTRIES) {
+      const oldestKey = map.keys().next().value
+      if (oldestKey !== undefined) map.delete(oldestKey)
+    }
+    map.set(key, value)
+  }
+
+  /** 清空请求缓存（组件卸载时调用） */
+  function clearRequestCache(): void {
+    requestCache.value = new Map()
+  }
+
+  /** 快照恢复（跨页面登录返回）：一次性批量写回（副-05/z071——禁止调用方逐字段直改 state） */
+  function restoreState(saved: ForecastSavedState): void {
+    currentTime.value = saved.currentTime
+    timeGranularity.value = saved.timeGranularity
+    playSpeed.value = saved.playSpeed
+    activeIndicator.value = saved.activeIndicator
+    confidenceThresholds.value = { ...saved.confidenceThresholds }
+    activeForecastLayer.value = saved.activeForecastLayer
+    // shallowRef 需重赋值引用才触发响应式
+    dataCache.value = new Map(saved.dataCache)
+    requestCache.value = new Map(saved.requestCache)
+  }
+
   /** 事务状态重置（配合请求取消与组件卸载使用；reset() 也调用） */
   function resetTransactionState(): void {
     activeTransactionId.value = 0
@@ -97,6 +135,7 @@ export const useForecastStore = defineStore('forecast', () => {
     }
     activeForecastLayer.value = null
     dataCache.value = new Map()
+    requestCache.value = new Map()
     // 一并复位事务状态（登出/路由切换重置全链路）
     resetTransactionState()
   }
@@ -125,6 +164,7 @@ export const useForecastStore = defineStore('forecast', () => {
     confidenceThresholds,
     activeForecastLayer,
     dataCache,
+    requestCache,
     currentData,
     activeTransactionId,
     isRequesting,
@@ -132,6 +172,10 @@ export const useForecastStore = defineStore('forecast', () => {
     setTimeGranularity,
     setActiveIndicator,
     setConfidenceThreshold,
+    setIsPlaying,
+    setRequestCache,
+    clearRequestCache,
+    restoreState,
     resetTransactionState,
     reset,
     // 跨页面持久化

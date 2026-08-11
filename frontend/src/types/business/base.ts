@@ -53,7 +53,6 @@ export interface FloodStatistics {
   estimatedLoss?: number // 预估损失（万元）
   description?: string // 情景描述
   // —— adapter 派生字段（online 模式有值，mock/api 模式可能缺失）——
-  totalArea?: number // 淹没总面积（平方米，online 模式由 floodedKm2 换算）
   affectedCount?: number // 受影响设施数量（与 affectedFacilities 同语义，online 模式占位）
 }
 

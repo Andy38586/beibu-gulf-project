@@ -31,7 +31,7 @@ describe('useFloodStore', () => {
   describe('startFloodAnalysis', () => {
     it('应正确设置分析数据', () => {
       const store = useFloodStore()
-      const stats: FloodStatistics = { totalArea: 1000, riskLevel: '低', affectedCount: 5 }
+      const stats: FloodStatistics = { riskLevel: '低', affectedCount: 5 }
       const features: FloodFeature[] = []
 
       store.startFloodAnalysis(stats, features, '低')
@@ -44,7 +44,7 @@ describe('useFloodStore', () => {
   describe('saveState / consumeState', () => {
     it('应正确保存和恢复状态', () => {
       const store = useFloodStore()
-      const stats: FloodStatistics = { totalArea: 2000, riskLevel: '中', affectedCount: 10 }
+      const stats: FloodStatistics = { riskLevel: '中', affectedCount: 10 }
 
       store.saveState({
         waterLevel: 5,
@@ -72,7 +72,7 @@ describe('useFloodStore', () => {
   describe('clearState', () => {
     it('应彻底重置所有状态', () => {
       const store = useFloodStore()
-      store.startFloodAnalysis({ totalArea: 100, riskLevel: '低', affectedCount: 1 }, [], '低')
+      store.startFloodAnalysis({ riskLevel: '低', affectedCount: 1 }, [], '低')
       store.saveState({
         waterLevel: 3,
         floodStatistics: null,

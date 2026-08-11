@@ -221,7 +221,6 @@ export const floodStatisticsResponseSchema = z.looseObject({
   affectedPorts: z.array(z.string()).optional(),
   estimatedLoss: z.number().optional(),
   description: z.string().optional(),
-  totalArea: z.number().optional(),
   affectedCount: z.number().optional(),
 })
 

@@ -123,7 +123,6 @@ export const floodAdapter = {
       const result: FloodAnalysisResult = {
         features,
         statistics: {
-          totalArea: Math.round((data.floodedKm2 ?? 0) * 1e6), // km² → m²
           // floodArea(km²)：面板依赖此字段，缺失会静默显示 0 km²
           floodArea: data.floodedKm2 ?? 0,
           riskLevel,

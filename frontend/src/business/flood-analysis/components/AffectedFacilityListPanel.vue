@@ -66,6 +66,7 @@ function flyToFacility(item: ScoredXiaoqu): void {
     empty-text="暂无受影响设施"
     empty-hint="开始评估后显示设施清单"
     plan-type="flood"
+    plan-name-prefix="浸没分析收藏"
     :fly-to="flyToFacility"
   >
     <template #item="{ item: facility }">

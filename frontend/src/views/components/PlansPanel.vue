@@ -184,9 +184,9 @@ async function handleSaveName(name: string) {
   }
 }
 
-/** 收藏状态变化后重新加载 */
-async function handleFavoriteChange() {
-  await loadPlans()
+/** 收藏状态变化后重新加载（副-09：事件回调返回 Promise 无消费方，显式 void 防浮动） */
+function handleFavoriteChange(): void {
+  void loadPlans()
 }
 
 /** 选址分析类型的小区（score > 0） */
@@ -265,6 +265,7 @@ watch(
               :show-favorite="true"
               :map-interaction="false"
               plan-type="site-selection"
+              plan-name-prefix="选址分析收藏"
               @favorite-change="handleFavoriteChange"
             >
               <template #item="{ item: xq, index }">
@@ -284,6 +285,7 @@ watch(
               :show-favorite="true"
               :map-interaction="false"
               plan-type="flood"
+              plan-name-prefix="浸没分析收藏"
               @favorite-change="handleFavoriteChange"
             >
               <template #item="{ item: facility }">
@@ -433,7 +435,10 @@ watch(
   background: var(--GCS-bg-panel);
   font-size: 12px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease;
 }
 
 .action-btn:hover:not(:disabled) {

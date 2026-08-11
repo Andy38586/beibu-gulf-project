@@ -327,7 +327,9 @@ defineExpose({
   cursor: pointer;
   font-size: v-bind(labelFontSizeCss);
   color: var(--GCS-text-regular);
-  transition: all 0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease;
   padding: v-bind(cell8px) 4px;
   box-sizing: border-box;
 }

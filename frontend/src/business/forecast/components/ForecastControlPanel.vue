@@ -106,6 +106,11 @@ onMounted(() => {
 onUnmounted(() => {
   document.removeEventListener('click', handleGlobalClick)
   Object.keys(timers).forEach(clearTimer)
+  // 置信度滑块防抖定时器清理（副-03）：卸载后不再写 store
+  if (confidenceDebounceTimer) {
+    clearTimeout(confidenceDebounceTimer)
+    confidenceDebounceTimer = null
+  }
   // 卸载时若滑块专注模式仍激活立即退出，避免残留下页面板全透明
   endSliderFocus()
 })
@@ -161,14 +166,14 @@ const displayTime = computed(() => {
 // ===== 播放 =====
 let playbackTimer: ReturnType<typeof setInterval> | null = null
 function togglePlay() {
-  forecastState.isPlaying = !forecastState.isPlaying
+  forecastState.setIsPlaying(!forecastState.isPlaying)
   if (forecastState.isPlaying) startPlayback()
   else stopPlayback()
 }
 function startPlayback() {
   playbackTimer = setInterval(() => {
     if (!forecastState.isPlaying || currentStep.value >= maxSteps.value) {
-      forecastState.isPlaying = false
+      forecastState.setIsPlaying(false)
       stopPlayback()
       return
     }
@@ -295,7 +300,9 @@ onUnmounted(() => stopPlayback())
 }
 .btn-cell {
   border-radius: var(--GCS-radius-lg);
-  transition: all 0.2s;
+  transition:
+    background-color 0.2s,
+    border-color 0.2s;
 }
 .btn-cell.sel {
   background: var(--GCS-bg-active);
@@ -458,7 +465,7 @@ onUnmounted(() => stopPlayback())
   background: var(--GCS-color-primary);
   cursor: pointer;
   border: 2px solid var(--GCS-bg-panel);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--GCS-shadow-sm);
 }
 .t-slider::-moz-range-thumb {
   width: 18px;
@@ -467,7 +474,7 @@ onUnmounted(() => stopPlayback())
   background: var(--GCS-color-primary);
   cursor: pointer;
   border: 2px solid var(--GCS-bg-panel);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--GCS-shadow-sm);
 }
 
 .t-ticks {

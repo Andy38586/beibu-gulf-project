@@ -312,6 +312,7 @@ onUnmounted(() => {
             title="小区名单"
             empty-text="暂无分析结果"
             plan-type="site-selection"
+            plan-name-prefix="选址分析收藏"
             :fly-to="flyToXiaoqu"
             @click-item="handleSelectXiaoqu"
             @favorite-change="handleFavoriteChange"

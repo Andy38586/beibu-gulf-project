@@ -24,6 +24,8 @@ interface Props {
   emptyText?: string
   emptyHint?: string
   planType?: 'site-selection' | 'flood'
+  /** 收藏方案命名前缀（业务文案由调用方注入——副-01：shared 不硬编码业务类型名） */
+  planNamePrefix?: string
   showFavorite?: boolean
   mapInteraction?: boolean
   /** 点击列表项自动跳转（flyTo）：由业务层注入实现，页面不再各自处理 */
@@ -42,6 +44,7 @@ const props = withDefaults(defineProps<Props>(), {
   emptyText: '暂无数据',
   emptyHint: '',
   planType: 'site-selection',
+  planNamePrefix: '收藏',
   showFavorite: true,
   mapInteraction: true,
 })
@@ -118,7 +121,7 @@ async function doSave(item: ScoredXiaoqu) {
   if (!currentPlanId.value) {
     try {
       const ts = Date.now().toString().slice(-8)
-      const planName = props.planType === 'flood' ? `浸没分析收藏${ts}` : `选址分析收藏${ts}`
+      const planName = `${props.planNamePrefix}${ts}`
       const plan = await createPlan(planName, {})
       currentPlanId.value = plan?.id || null
       if (plan) {

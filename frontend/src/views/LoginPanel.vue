@@ -181,7 +181,9 @@ async function handleSubmit() {
   font-size: v-bind(btnFontSizeCss);
   color: var(--GCS-text-regular);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease;
 }
 
 .mode-btn:hover {
@@ -243,7 +245,7 @@ async function handleSubmit() {
   font-size: v-bind(btnFontSizeCss);
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background-color 0.2s ease;
 }
 
 .submit-btn:hover:not(:disabled) {

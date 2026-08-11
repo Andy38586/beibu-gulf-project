@@ -7,7 +7,7 @@ import { CanvasRenderer } from 'echarts/renderers'
 import type { Ref } from 'vue'
 import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 
-import { FACILITY_COLORS_MAP } from '@/shared'
+import { CHART_COLORS, FACILITY_COLORS_MAP } from '@/shared'
 import { FACILITY_LABELS } from '@/shared'
 import { useTheme } from '@/shared'
 import { logger } from '@/shared'
@@ -78,6 +78,8 @@ export function useRadarChart({
   const { isDark, onThemeChange } = useTheme()
   let stopThemeWatch: (() => void) | null = null
   let themeTimer: ReturnType<typeof setTimeout> | null = null
+  // 尺寸重试定时器：保存引用供 onBeforeUnmount 清理，卸载后不再重试渲染（[5.4]/[5.6]）
+  let retryTimer: ReturnType<typeof setTimeout> | null = null
 
   /** 浮窗状态 */
   const tooltipVisible = ref<boolean>(false)
@@ -111,7 +113,11 @@ export function useRadarChart({
         return
       }
       container._radar_retryCount = retryCount
-      setTimeout(() => renderRadar(), 100)
+      if (retryTimer) clearTimeout(retryTimer)
+      retryTimer = setTimeout(() => {
+        retryTimer = null
+        renderRadar()
+      }, 100)
       return
     }
     // 重置重试计数
@@ -155,12 +161,14 @@ export function useRadarChart({
           radius: '75%',
           center: ['50%', '50%'],
           axisName: {
-            color: dark ? '#ff7a1a' : '#409eff',
+            color: dark ? CHART_COLORS.accent.dark : CHART_COLORS.accent.light,
             fontSize: 12,
             fontWeight: 500,
             cursor: 'pointer',
           },
-          splitLine: { lineStyle: { color: dark ? '#1f3450' : '#eee' } },
+          splitLine: {
+            lineStyle: { color: dark ? CHART_COLORS.splitLine.dark : CHART_COLORS.splitLine.light },
+          },
           splitArea: {
             areaStyle: {
               color: dark
@@ -168,19 +176,27 @@ export function useRadarChart({
                 : ['rgba(255,255,255,0.1)', 'rgba(255,255,255,0.3)'],
             },
           },
-          axisLine: { lineStyle: { color: dark ? '#2c4a70' : '#ddd' } },
+          axisLine: {
+            lineStyle: { color: dark ? CHART_COLORS.axisLine.dark : CHART_COLORS.axisLine.light },
+          },
         },
         series: [
           {
             type: 'radar',
             symbolSize: 6,
-            lineStyle: { width: 2, color: dark ? '#ff7a1a' : '#409eff' },
-            itemStyle: { color: dark ? '#ff7a1a' : '#409eff' },
+            lineStyle: {
+              width: 2,
+              color: dark ? CHART_COLORS.accent.dark : CHART_COLORS.accent.light,
+            },
+            itemStyle: { color: dark ? CHART_COLORS.accent.dark : CHART_COLORS.accent.light },
             data: [
               {
                 value: values,
                 name: name,
-                areaStyle: { opacity: 0.3, color: dark ? '#ff7a1a' : '#409eff' },
+                areaStyle: {
+                  opacity: 0.3,
+                  color: dark ? CHART_COLORS.accent.dark : CHART_COLORS.accent.light,
+                },
               },
             ],
           },
@@ -300,6 +316,10 @@ export function useRadarChart({
     if (themeTimer) {
       clearTimeout(themeTimer)
       themeTimer = null
+    }
+    if (retryTimer) {
+      clearTimeout(retryTimer)
+      retryTimer = null
     }
   })
 

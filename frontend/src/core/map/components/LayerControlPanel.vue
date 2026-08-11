@@ -149,7 +149,9 @@ function handleToggle(key: string) {
   color: var(--GCS-text-regular);
   cursor: pointer;
   font-size: v-bind(labelFontSizeCss);
-  transition: all 0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease;
   padding: v-bind(cell8px) 4px;
   box-sizing: border-box;
 }

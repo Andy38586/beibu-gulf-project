@@ -69,11 +69,18 @@ function buildFacilityIndex(points) {
  */
 function kmToDegreeOffset(km, lat) {
   const latOffset = km / 111
-  const lngOffset = km / (111 * Math.cos((lat * Math.PI) / 180) || 1)
+  // 显式分母守卫：浮点 cos(90°)≈6.12e-17 恒非 0，旧 ||1 兜底永不触发 → 极点附近
+  // lngOffset 爆炸（~7e14 度）致 bbox 粗筛全量退化 O(n)；|cos|<1e-6 时保守扩张 bbox
+  //（粗筛语义=不漏候选，结果仍正确），Number.isFinite 兜住 NaN/Infinity 输入
+  const cosLat = Math.cos((lat * Math.PI) / 180)
+  const guardedCos = Number.isFinite(cosLat) && Math.abs(cosLat) > 1e-6 ? cosLat : 1e-6
+  const lngOffset = km / (111 * guardedCos)
   return { latOffset, lngOffset }
 }
 function distanceScore(xq, facilityIndex, maxDistanceKm, decayFn) {
-  if (!facilityIndex || facilityIndex.isEmpty?.()) return 0
+  // RBush 无 isEmpty 方法，旧 isEmpty?.() 恒 undefined → !undefined 恒真 → 评分恒 0（功能整体失效）；
+  // 改 all() 判空；facilityIndex 为 undefined（该设施类型无数据）走前分支兜底
+  if (!facilityIndex || facilityIndex.all().length === 0) return 0
 
   // bbox 粗筛：只检索 maxDistance 范围内的候选点
   const { latOffset, lngOffset } = kmToDegreeOffset(maxDistanceKm, xq.lat)

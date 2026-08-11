@@ -187,7 +187,7 @@ export async function getIndicatorData(type, time, portId, scenarioLevel = 1.0) 
     if (time) {
       const point =
         port.historical.find((d) => d.time === time) || port.forecast.find((d) => d.time === time)
-      value = point?.value || null
+      value = point?.value ?? null // 8-5：合法 0 值不被 || 当缺失
     }
     result.ports[pid] = {
       portName: port.portName,

@@ -34,8 +34,10 @@ export function assessDisaster(facilities, level, floodZone) {
       elevation: facility.elevation,
       value: facility.value,
       damageRate: facility.damageRate,
-      // value/damageRate 缺失时按 0 计，避免 NaN 污染 totalLoss
-      loss: (Number(facility.value) || 0) * (Number(facility.damageRate) || 0),
+      // value/damageRate 缺失/非数值时按 0 计（显式区分：合法 0 保留，NaN/Infinity 归 0——8-4）
+      loss:
+        (Number.isFinite(Number(facility.value)) ? Number(facility.value) : 0) *
+        (Number.isFinite(Number(facility.damageRate)) ? Number(facility.damageRate) : 0),
     }))
 
   const totalLoss = Math.round(affectedFacilities.reduce((sum, f) => sum + f.loss, 0))

@@ -31,6 +31,13 @@ const token: Ref<string> = ref('')
 const API_BASE: string = import.meta.env.VITE_API_BASE || '/api'
 const API_TIMEOUT_MS: number = 10000
 
+// 请求关联 ID 序列（[7.4]）：每次 apiRequest 自增生成，日志显式携带（并发安全，不做全局设置）
+let requestSeq = 0
+function nextRequestId(): string {
+  requestSeq += 1
+  return `r${requestSeq}-${Date.now().toString(36)}`
+}
+
 function setToken(t: string): void {
   // Token 仅写入内存，认证主通道是 HttpOnly Cookie
   token.value = t
@@ -69,13 +76,15 @@ export function useApiRequest() {
     const MAX_RETRIES = 3
     const RETRYABLE_CODES: ErrorCodeValue[] = [ErrorCode.TIMEOUT, ErrorCode.NETWORK_ERROR]
     const RETRY_DELAY_MS = 800
+    // 请求关联 ID：贯穿重试/日志/错误（[7.4] 生产可排查）
+    const rid = nextRequestId()
 
     let lastError: unknown
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
       // 接口耗时打点（按 path 分桶）
       const start = performance.now()
       try {
-        return await _singleRequest<T>(path, options)
+        return await _singleRequest<T>(path, options, rid)
       } catch (error) {
         const isGet = (options.method ?? 'GET').toUpperCase() === 'GET'
         const code = error instanceof ApiError ? error.code : null
@@ -84,6 +93,12 @@ export function useApiRequest() {
         const isExternalCancel =
           error instanceof ApiError && code === ErrorCode.REQUEST_FAILED && options.signal?.aborted
         if (!isGet || !isRetryable || isExternalCancel || attempt === MAX_RETRIES) {
+          // 失败采样日志（[7.1] 生产观测口）：重试耗尽/不可重试错误带请求 ID 输出
+          logger.sampled(
+            'info',
+            `[apiRequest:${rid}] ✗ ${options.method ?? 'GET'} ${path} 失败(${attempt}/${MAX_RETRIES})`,
+            error instanceof ApiError ? error.code : String(error)
+          )
           throw error
         }
         lastError = error
@@ -97,10 +112,17 @@ export function useApiRequest() {
   }
 
   /** 单次请求实现（不含重试）：每次调用新建 AbortController，超时计时天然重置 */
-  async function _singleRequest<T = unknown>(path: string, options: RequestOptions): Promise<T> {
+  async function _singleRequest<T = unknown>(
+    path: string,
+    options: RequestOptions,
+    rid: string
+  ): Promise<T> {
     // dev 请求日志：故障时定位数据在哪一跳丢失
     if (import.meta.env.DEV) {
-      logger.debug(`[apiRequest] → ${options.method ?? 'GET'} ${path}`, options.params ?? undefined)
+      logger.debug(
+        `[apiRequest:${rid}] → ${options.method ?? 'GET'} ${path}`,
+        options.params ?? undefined
+      )
     }
 
     const headers: Record<string, string> = {
@@ -179,16 +201,25 @@ export function useApiRequest() {
 
       // dev 响应日志
       if (import.meta.env.DEV) {
-        logger.debug(`[apiRequest] ← ${res.status} ${path}`, {
+        logger.debug(`[apiRequest:${rid}] ← ${res.status} ${path}`, {
           envelope: options.envelope === false ? 'raw' : 'envelope',
           schema: options.schema ? 'zod' : 'none',
         })
+      } else {
+        // 生产采样观测（[7.1]）：dev 全量日志被门控剥离后，成功路径也需可观测入口
+        logger.sampled('info', `[apiRequest:${rid}] ← ${res.status} ${path}`)
       }
 
       // 有 schema 则运行时校验；校验失败不可重试（响应数据错误重试无意义）
       if (options.schema) {
         const result = options.schema.safeParse(unwrapped)
         if (!result.success) {
+          // [7.1] 映射/校验失败生产可观测：记录校验问题概览（不展开字段，防敏感/噪音）
+          logger.sampled(
+            'warn',
+            `[apiRequest:${rid}] schema 校验失败 ${path}:`,
+            result.error.issues.slice(0, 3).map((i) => i.path.join('.'))
+          )
           throw new ApiError('响应数据格式校验失败', ErrorCode.REQUEST_FAILED)
         }
         return result.data as T

@@ -93,8 +93,13 @@ const registerLimiter = rateLimit({
 })
 app.use('/api/auth/register', registerLimiter)
 
-// CORS origin 从环境变量读取，支持生产部署
-const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:5173'
+// CORS origin 从环境变量读取（逗号分隔多源）；生产禁止 localhost 回退（[1.6]）——
+// 生产同域部署（nginx 反代 /api）本不需要 CORS，跨域来源必须显式配置，缺失即拒绝跨域
+const CORS_ORIGIN = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(',')
+  : process.env.NODE_ENV === 'production'
+    ? false
+    : 'http://localhost:5173'
 app.use(
   cors({
     origin: CORS_ORIGIN,

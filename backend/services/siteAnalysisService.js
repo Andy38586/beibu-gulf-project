@@ -113,6 +113,8 @@ export function buildTypeCoverage(points, radiusKm) {
     return unionResult
   } catch (error) {
     logger.error('turf.union 失败:', error.message, '缓冲区数量:', validBuffers.length)
+    // 8-13 降级契约：union 异常返回 null——调用方（buildTypeCoverage）对 null 视为
+    // "该类型覆盖缺失"走空覆盖分支，不中断整个选址流程（intersectCoverages 同样容忍 null）
     return null
   }
 }

@@ -93,7 +93,6 @@ data/
 - **`main.py`**：FastAPI 服务。`GET /api/flood/online?level=3.5` → `{level, featureCount, floodedKm2, features, elapsedMs}`；档位缓存（水位取整 0.1m，最近 64 档 LRU，滑块拖动重复档位秒回）；`@lru_cache` 首请求触发 DEM 加载。
   - 启动：`cd backend/flood-service && .venv/Scripts/python.exe -m uvicorn main:app --port 8000`。
   - 开发期 CORS 允许 Vite dev（5173），生产由 nginx 同源反代。
-- **`flood_demo.json`**：演示数据。
 
 ### `backend/static/dem/` — 地形可视化产物
 

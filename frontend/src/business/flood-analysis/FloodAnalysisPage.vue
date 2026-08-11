@@ -275,6 +275,8 @@ async function triggerFloodAnalysis(waterLevel: number, seq: number) {
     // 在地图上渲染淹没范围
     renderFloodAreas(features as FloodFeature[])
   } catch (error) {
+    // 主动取消（新请求抢占/卸载）静默——showError 只兜 AbortError/已取消 ApiError，中间形态仍会弹错（对齐 useSiteAnalysisApi.ts:48）
+    if (signal.aborted) return
     // 失败用 toast：滑块拖动即自动重试，"重试"按钮是伪需求；取消类错误已静默过滤
     showError(error, { fallback: '淹没分析失败，请检查网络连接' })
     logger.error('[Flood] 淹没分析失败:', error)
@@ -309,6 +311,8 @@ async function triggerImpactAssessment(waterLevel: number, seq: number) {
     // 在地图上渲染受影响设施
     renderAffectedFacilities(affectedFacilities as AffectedFacility[])
   } catch (error) {
+    // 主动取消（新请求抢占/卸载）静默，同 triggerFloodAnalysis
+    if (signal.aborted) return
     // 同淹没分析：失败后拖动即自动重试，toast 即可
     showError(error, { fallback: '影响评估失败，请检查网络连接' })
     logger.error('[Flood] 影响评估失败:', error)

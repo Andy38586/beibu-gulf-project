@@ -7,6 +7,7 @@ import pluginVue from 'eslint-plugin-vue'
 import skipFormatting from 'eslint-config-prettier/flat'
 import tsParser from '@typescript-eslint/parser'
 import vueParser from 'vue-eslint-parser'
+import { fileURLToPath } from 'node:url'
 
 export default defineConfig([
   {
@@ -104,7 +105,11 @@ export default defineConfig([
       parserOptions: {
         ecmaVersion: 2022,
         sourceType: 'module',
-        project: './frontend/tsconfig.app.json',
+        // tsconfigRootDir 指向 frontend：tseslint 按 tsconfigRootDir 解析 include，
+        // 否则 Windows 上 lint-staged 传入的绝对路径（git-bash 环境）与根相对 include 失配，
+        // 报 "TSConfig does not include this file" 阻塞 pre-commit
+        tsconfigRootDir: fileURLToPath(new URL('./frontend', import.meta.url)),
+        project: './tsconfig.app.json',
       },
     },
   },
@@ -118,7 +123,8 @@ export default defineConfig([
         ecmaVersion: 2022,
         sourceType: 'module',
         extraFileExtensions: ['.vue'],
-        project: './frontend/tsconfig.app.json',
+        tsconfigRootDir: fileURLToPath(new URL('./frontend', import.meta.url)),
+        project: './tsconfig.app.json',
       },
     },
   },

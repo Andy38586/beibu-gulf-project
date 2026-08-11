@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "cd frontend && vite",
-    "build": "cd frontend && vite build",
+    "build": "npm run typecheck && cd frontend && vite build",
     "preview": "cd frontend && vite preview",
     "test": "cd frontend && vitest run",
     "test:watch": "cd frontend && vitest",
@@ -76,6 +76,27 @@
     "protobufjs": "^8.7.1",
     "shell-quote": "^1.8.5",
     "undici": "^7.29.0"
+  },
+  "lint-staged": {
+    "frontend/src/**/*.{ts,vue,js}": [
+      "eslint --fix",
+      "prettier --write"
+    ]
+  },
+  "commitlint": {
+    "extends": [
+      "@commitlint/config-conventional"
+    ]
+  },
+  "prettier": {
+    "semi": false,
+    "singleQuote": true,
+    "trailingComma": "es5",
+    "printWidth": 100,
+    "tabWidth": 2,
+    "arrowParens": "always",
+    "endOfLine": "lf",
+    "vueIndentScriptAndStyle": false
   },
   "engines": {
     "node": "^22.18.0 || >=24.12.0"

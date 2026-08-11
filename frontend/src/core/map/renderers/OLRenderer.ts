@@ -31,6 +31,9 @@ import type { CameraState, FlyToOptions, FlyToTarget } from '@/types'
 
 import { MapRenderer } from './MapRenderer'
 
+/** Web 墨卡托投影标识（View/GeoJSON 读取共用，避免字面量散落——W4-04） */
+const WEB_MERCATOR = 'EPSG:3857'
+
 /** 视口裁剪图层条目（_cullLayers 值类型） */
 interface CullLayerEntry {
   source: VectorSource
@@ -49,6 +52,8 @@ export class OLRenderer extends MapRenderer {
   _pointerMoveHandler: ((evt: unknown) => void) | null
   _cameraChangedKey: EventsKey | null
   _cameraDebounceTimer: ReturnType<typeof setTimeout> | null
+  _clickKey: EventsKey | null
+  _clickHandler: ((evt: unknown) => void) | null
   _breathingLayer: VectorLayer<VectorSource> | null
   _breathingAnimId: number | null
 
@@ -59,16 +64,20 @@ export class OLRenderer extends MapRenderer {
     // 视口裁剪：大数量点图层（>阈值）的 R-tree 索引 + moveend 监听
     this._cullLayers = new Map() // id -> { source, index, allFeatures, options }
     this._moveendKey = null
-    // pointer-move / camera-changed 事件处理器与防抖定时器引用（供 destroy 注销）
+    // pointer-move / camera-changed / click 事件处理器与防抖定时器引用（供 destroy 注销）
     this._pointerMoveHandler = null
     this._cameraChangedKey = null
     this._cameraDebounceTimer = null
+    this._clickKey = null
+    this._clickHandler = null
     this._breathingLayer = null
     this._breathingAnimId = null
     this._initMap()
   }
   _initMap(): void {
     const view = new View({
+      // 显式声明投影：业务坐标为 WGS84，地图渲染统一 Web 墨卡托（W4-05）
+      projection: WEB_MERCATOR,
       center: fromLonLat([MAP_CONFIG.CAMERA.center.lng, MAP_CONFIG.CAMERA.center.lat]),
       zoom: 9,
       minZoom: 6,
@@ -124,12 +133,14 @@ export class OLRenderer extends MapRenderer {
   _setupClickHandler(): void {
     const map = this.map
     if (!map) return
-    map.on('click', (event) => {
-      const coordinate = toLonLat(event.coordinate)
+    // 具名处理器 + key 保存（W4-21）：destroy 时能注销，匿名回调无引用可解绑
+    this._clickHandler = (event: unknown) => {
+      const evt = event as MapBrowserEvent<PointerEvent>
+      const coordinate = toLonLat(evt.coordinate)
       let clickedFeature = false
 
       map.forEachFeatureAtPixel(
-        event.pixel,
+        evt.pixel,
         (feature) => {
           const featureType = feature.get('featureType')
           if (featureType) {
@@ -155,7 +166,11 @@ export class OLRenderer extends MapRenderer {
           coordinate,
         })
       }
-    })
+    }
+    const handler = this._clickHandler
+    if (handler) {
+      this._clickKey = map.on('click', handler as (evt: unknown) => void)
+    }
   }
 
   /** pointer-move / camera-changed 事件实现（对应 MapRendererEventMap 声明） */
@@ -269,6 +284,10 @@ export class OLRenderer extends MapRenderer {
     const entry = this._cullLayers.get(id)
     if (!entry) return
 
+    // 隐藏图层不参与 moveend 刷新（W4-19）：visible 是面板/registry 权威值，隐藏时跳过省查询
+    const layerEntry = this._layers.get(id)
+    if (layerEntry && layerEntry.visible === false) return
+
     const map = this.map
     if (!map) return
     const extent = map.getView().calculateExtent(map.getSize()) as [number, number, number, number]
@@ -374,13 +393,41 @@ export class OLRenderer extends MapRenderer {
       style,
     })
     vectorLayer.setZIndex(options.zIndex ?? LAYER_DEFAULTS.zIndex)
-    map.addLayer(vectorLayer)
+    this.map?.addLayer(vectorLayer)
     this._layers.set(id, {
       instance: vectorLayer,
       visible: true,
       options,
     })
     this._applyPendingVisibility(id)
+  }
+
+  /** 增量更新 GeoJSON 图层（W4-06）：复用图层实例，仅替换 source 数据，避免重建闪烁 */
+  updateGeoJsonLayer(id: string, geojson: FeatureCollection, options: LayerOptions = {}): void {
+    const entry = this._layers.get(id)
+    if (!entry || !entry.instance) {
+      this.addGeoJsonLayer(id, geojson, options)
+      return
+    }
+    const layer = entry.instance as VectorLayer<VectorSource>
+    const source = layer.getSource()
+    if (!source) {
+      this.addGeoJsonLayer(id, geojson, options)
+      return
+    }
+
+    const features = new GeoJSON().readFeatures(geojson, {
+      featureProjection: WEB_MERCATOR,
+    })
+    features.forEach((feature) => {
+      feature.set('featureType', options.featureType || 'geojson')
+    })
+    // 样式选项更新（style 是 layer 级，直接替换）
+    if (options.style) layer.setStyle(options.style)
+    entry.options = { ...entry.options, ...options }
+
+    source.clear()
+    source.addFeatures(features)
   }
   _createPolygonStyle(options: LayerOptions): Style {
     return new Style({
@@ -393,7 +440,7 @@ export class OLRenderer extends MapRenderer {
   }
   addGeoJsonLayer(id: string, geojson: FeatureCollection, options: LayerOptions = {}): void {
     const features = new GeoJSON().readFeatures(geojson, {
-      featureProjection: 'EPSG:3857',
+      featureProjection: WEB_MERCATOR,
     })
     features.forEach((feature) => {
       feature.set('featureType', options.featureType || 'geojson')
@@ -479,11 +526,10 @@ export class OLRenderer extends MapRenderer {
       opacity = 0.6,
     } = options
 
-    // 将 features 数组转为 OpenLayers Feature
+    // 将 features 数组转为 OpenLayers Feature（坐标归一化走 normalizePoint，含 longitude 别名——W4-03）
     const olFeatures = features.map((f) => {
       const coords = f.geometry?.coordinates
-      const lng = coords?.[0] ?? f.lng ?? 0
-      const lat = coords?.[1] ?? f.lat ?? 0
+      const { lng, lat } = normalizePoint(coords ? { lng: coords[0], lat: coords[1] } : f)
       const feature = new Feature({
         geometry: new Point(fromLonLat([lng, lat])),
       })
@@ -535,8 +581,7 @@ export class OLRenderer extends MapRenderer {
 
     const olFeatures = features.map((f) => {
       const coords = f.geometry?.coordinates
-      const lng = coords?.[0] ?? f.lng ?? 0
-      const lat = coords?.[1] ?? f.lat ?? 0
+      const { lng, lat } = normalizePoint(coords ? { lng: coords[0], lat: coords[1] } : f)
       const feature = new Feature({
         geometry: new Point(fromLonLat([lng, lat])),
       })
@@ -732,8 +777,15 @@ export class OLRenderer extends MapRenderer {
     // 清理视口裁剪图层
     this._cullLayers.clear()
     if (this._moveendKey) {
+      // EventsKey.listener 为 OL 宽签名，业务回调为窄类型——cast 对齐运行时注销契约（副-03）
       this.map?.un(this._moveendKey.type as 'moveend', this._moveendKey.listener as any)
       this._moveendKey = null
+    }
+    // 注销 click 监听（W4-21：具名处理器配对注销）
+    if (this._clickKey && this._clickHandler) {
+      this.map?.un(this._clickKey.type as 'click', this._clickHandler as any)
+      this._clickKey = null
+      this._clickHandler = null
     }
     // 注销 pointer-move / camera-changed 监听与防抖定时器
     if (this._pointerMoveHandler) {

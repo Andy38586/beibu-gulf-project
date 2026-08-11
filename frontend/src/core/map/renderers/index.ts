@@ -84,6 +84,8 @@ export async function createRenderer(
   container: HTMLElement
 ): Promise<MapRenderer> {
   if (type === '2d') {
+    // 契约桥接（副-06）：OLRenderer 与 MapRenderer 结构兼容（类未声明 implements，
+    // 类型差异源于私有字段/签名细节），运行时契约由 UnifiedMap 按接口调用保证
     return new OLRenderer(container) as unknown as MapRenderer
   }
 
@@ -94,6 +96,7 @@ export async function createRenderer(
   // 2. 再动态导入 CesiumRenderer（其 import cesium 已在构建期转为 window.Cesium 引用）
   const { CesiumRenderer } = await import('./CesiumRenderer')
 
+  // 契约桥接（副-06）：CesiumRenderer 动态导入无法静态实现接口，运行时按 MapRenderer 契约调用
   const renderer = new CesiumRenderer(container) as unknown as MapRenderer
   perfMark('cesium:viewer-ready')
   const scriptLoad = perfMeasure('cesium:script-load', 'cesium:load-start', 'cesium:script-onload')

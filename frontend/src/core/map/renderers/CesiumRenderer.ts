@@ -33,6 +33,7 @@ import type { FeatureCollection } from 'geojson'
 import { buildTiandituUrl, MAP_CONFIG, zoomToHeight } from '@/core/config/map'
 import { LAYER_DEFAULTS } from '@/shared'
 import { logger } from '@/shared'
+import { normalizePoint } from '@/shared'
 import type {
   CameraState,
   FlyToOptions,
@@ -76,6 +77,8 @@ class CesiumViewerManager {
       baseLayerPicker: false,
       fullscreenButton: false,
       homeButton: false,
+      // W4-26：默认 geocoder 启用会发 Ion 请求（公网依赖+隐私），显式关闭
+      geocoder: false,
       sceneModePicker: false,
       navigationHelpButton: false,
       timeline: false,
@@ -494,6 +497,15 @@ export class CesiumRenderer extends MapRenderer {
     await addGeoJsonLayer(this, id, geojson, options)
   }
 
+  /** 增量更新 GeoJSON 图层（W4-06）：复用 dataSource，避免重建闪烁 */
+  async updateGeoJsonLayer(
+    id: string,
+    geojson: FeatureCollection,
+    options: LayerOptions = {}
+  ): Promise<void> {
+    await updateGeoJsonLayer(this, id, geojson, options)
+  }
+
   /**
    * 添加 GeoTIFF 栅格图层（3D 回退方案）：Cesium 影像不支持 GeoTIFF 解码，将 .tif 映射为
    * 预生成 hillshade PNG（WGS84 经纬度坐标系，EPSG:4326）贴椭球面——山体明暗观感，无真 z 起伏（伪三维）。
@@ -892,9 +904,9 @@ export function addPointLayer(renderer: any, id: string, features: any[], option
 
   const entities: any[] = []
   features.forEach((item: any, index: number) => {
-    // 防御性编程：优先使用 lng，兼容可能的 lon 字段
-    const lng = item.lng ?? item.lon ?? 0
-    if (bbox && !renderer._isInViewport(lng, item.lat, bbox)) return
+    // 坐标归一化走 normalizePoint（含 longitude 别名，W4-02）；缺失回退 (0,0) 防渲染崩溃
+    const { lng, lat } = normalizePoint(item)
+    if (bbox && !renderer._isInViewport(lng, lat, bbox)) return
     const entity = createCesiumPointEntity(renderer, id, item, index, options)
     if (entity) entities.push(entity)
   })
@@ -926,11 +938,12 @@ export function createCesiumPointEntity(
   index: number,
   options: any
 ): any {
-  const lng = item.lng ?? item.lon ?? 0
+  // 坐标归一化走 normalizePoint（含 longitude 别名，W4-02）
+  const { lng, lat } = normalizePoint(item)
   return renderer.viewer.entities.add({
     // id 追加 index：同名要素 id 会碰撞，重复 id 会覆盖旧实体 → 要素丢失 + 视口裁剪增删错乱
     id: `${id}-${item.id || item.name || 'p'}-${index}`,
-    position: Cartesian3.fromDegrees(lng, item.lat),
+    position: Cartesian3.fromDegrees(lng, lat),
     point: {
       pixelSize: options.size || 12,
       color: Color.fromCssColorString(options.color || LAYER_DEFAULTS.color),
@@ -1020,6 +1033,38 @@ export function addPolygonLayer(
   renderer.viewer.scene.requestRender()
 }
 
+/** GeoJSON dataSource 样式应用（贴地形 polygon / point 样式），add/update 共用单一来源 */
+function applyGeoJsonDataSourceStyle(dataSource: any, options: any): void {
+  dataSource.entities.values.forEach((entity: any) => {
+    // properties 可能为 undefined（无属性的 GeoJSON 要素），判空避免崩溃
+    if (!entity.properties) entity.properties = {}
+    entity.properties.featureType = options.featureType || 'geojson'
+    if (entity.polygon) {
+      // 贴地形渲染：替代固定椭球绝对高（真地形就绪后，北部湾 geoid 分离 -30~-70m 会造成垂直错位）
+      entity.polygon.heightReference = HeightReference.CLAMP_TO_GROUND
+      entity.polygon.classificationType = ClassificationType.TERRAIN
+      entity.polygon.material = Color.fromCssColorString(options.fillColor || LAYER_DEFAULTS.fill)
+      entity.polygon.outline = true
+      entity.polygon.outlineColor = Color.fromCssColorString(
+        options.strokeColor || LAYER_DEFAULTS.stroke
+      )
+      entity.polygon.outlineWidth = options.strokeWidth || 2
+    } else if (entity.position) {
+      // 点要素用 PointGraphics 替代默认图钉，支持 markerColor/markerSize
+      const markerColor = Color.fromCssColorString(options.markerColor || LAYER_DEFAULTS.marker)
+      entity.billboard = undefined
+      entity.point = new PointGraphics({
+        pixelSize: options.markerSize || 10,
+        color: markerColor,
+        outlineColor: Color.WHITE,
+        outlineWidth: 2,
+        // GeoJSON 点要素同样贴地形（同 createCesiumPointEntity）
+        heightReference: HeightReference.CLAMP_TO_GROUND,
+      })
+    }
+  })
+}
+
 /** 异步加载 GeoJSON 图层（Symbol token 竞态保护：await 后校验仍为最新请求） */
 export async function addGeoJsonLayer(
   renderer: any,
@@ -1054,34 +1099,7 @@ export async function addGeoJsonLayer(
     if (renderer._geoJsonTokens.get(id) !== token) return
 
     logger.debug(`[CesiumRenderer] GeoJSON ${id} entities:`, dataSource.entities.values.length)
-    dataSource.entities.values.forEach((entity: any) => {
-      // properties 可能为 undefined（无属性的 GeoJSON 要素），判空避免崩溃
-      if (!entity.properties) entity.properties = {}
-      entity.properties.featureType = options.featureType || 'geojson'
-      if (entity.polygon) {
-        // 贴地形渲染：替代固定椭球绝对高（真地形就绪后，北部湾 geoid 分离 -30~-70m 会造成垂直错位）
-        entity.polygon.heightReference = HeightReference.CLAMP_TO_GROUND
-        entity.polygon.classificationType = ClassificationType.TERRAIN
-        entity.polygon.material = Color.fromCssColorString(options.fillColor || LAYER_DEFAULTS.fill)
-        entity.polygon.outline = true
-        entity.polygon.outlineColor = Color.fromCssColorString(
-          options.strokeColor || LAYER_DEFAULTS.stroke
-        )
-        entity.polygon.outlineWidth = options.strokeWidth || 2
-      } else if (entity.position) {
-        // 点要素用 PointGraphics 替代默认图钉，支持 markerColor/markerSize
-        const markerColor = Color.fromCssColorString(options.markerColor || LAYER_DEFAULTS.marker)
-        entity.billboard = undefined
-        entity.point = new PointGraphics({
-          pixelSize: options.markerSize || 10,
-          color: markerColor,
-          outlineColor: Color.WHITE,
-          outlineWidth: 2,
-          // GeoJSON 点要素同样贴地形（同 createCesiumPointEntity）
-          heightReference: HeightReference.CLAMP_TO_GROUND,
-        })
-      }
-    })
+    applyGeoJsonDataSourceStyle(dataSource, options)
     renderer.viewer.dataSources.add(dataSource)
 
     // 再次检查 token，防止 await 期间被新请求覆盖
@@ -1107,6 +1125,49 @@ export async function addGeoJsonLayer(
       logger.error(`GeoJSON图层 ${id} 加载失败`, error)
     }
     ;(options.onError as ((msg: string) => void) | undefined)?.('GeoJSON数据加载失败')
+  }
+}
+
+/**
+ * 增量更新 GeoJSON 图层（W4-06）：复用已有 dataSource 调 load 替换数据，
+ * 避免 remove+add 全量重建的闪烁与 dataSource 对象销毁开销；异步竞态沿用 token 保护。
+ */
+export async function updateGeoJsonLayer(
+  renderer: any,
+  id: string,
+  geojson: any,
+  options: any = {}
+): Promise<void> {
+  const entry = renderer._layers.get(id)
+  if (!entry || !entry.instance || typeof entry.instance.load !== 'function') {
+    // 无实例/非 dataSource（异常态）：回退重建
+    await addGeoJsonLayer(renderer, id, geojson, options)
+    return
+  }
+
+  // 与 add 同款 token 竞态保护
+  renderer._geoJsonTokens = renderer._geoJsonTokens || new Map()
+  const token = Symbol(id)
+  renderer._geoJsonTokens.set(id, token)
+
+  try {
+    const dataSource = entry.instance
+    // 样式选项先更新（load 重建 entities 后样式需重放）
+    entry.options = { ...entry.options, ...options }
+    await dataSource.load(geojson)
+
+    if (renderer._geoJsonTokens.get(id) !== token) return
+    applyGeoJsonDataSourceStyle(dataSource, entry.options)
+    renderer._applyPendingVisibility(id)
+    renderer.viewer.scene.requestRender()
+    renderer._geoJsonTokens.delete(id)
+  } catch (error: any) {
+    if (renderer._geoJsonTokens.get(id) !== token) return
+    renderer._geoJsonTokens.delete(id)
+    if (import.meta.env.DEV) {
+      logger.error(`GeoJSON图层 ${id} 增量更新失败`, error)
+    }
+    ;(options.onError as ((msg: string) => void) | undefined)?.('GeoJSON数据更新失败')
   }
 }
 
@@ -1203,10 +1264,14 @@ export function doSetVisibility(renderer: any, id: string, visible: boolean): vo
 
 /** 移除图层实例：先摘除视口裁剪监听（点图层特有），再按类型移除并释放资源 */
 export function doRemoveLayer(renderer: any, layer: any): void {
-  // 移除视口监听（视口裁剪点图层特有，其它图层为 undefined）
+  // 移除视口监听（视口裁剪点图层特有，其它图层为 undefined）；rAF 挂起也一并取消（副-04）
   if (layer.cameraListener) {
     renderer.viewer.camera.changed.removeEventListener(layer.cameraListener)
     layer.cameraListener = null
+  }
+  if (layer._viewportRafId) {
+    cancelAnimationFrame(layer._viewportRafId)
+    layer._viewportRafId = null
   }
   if (layer.instance) {
     if (Array.isArray(layer.instance)) {
@@ -1291,13 +1356,13 @@ export function setupViewportListener(renderer: any, id: string): void {
   const layer = renderer._layers.get(id)
   if (!layer || !layer.allFeatures) return
 
-  // 防抖：相机移动时频繁触发，用 requestAnimationFrame 合并
-  let rafId: number | null = null
+  // 防抖：相机移动时频繁触发，用 requestAnimationFrame 合并；rafId 存图层条目，
+  // 图层移除时随 cameraListener 一并 cancel（副-04：闭包持有无法取消）
   const updateHandler = () => {
-    if (rafId) cancelAnimationFrame(rafId)
-    rafId = requestAnimationFrame(() => {
+    if (layer._viewportRafId) cancelAnimationFrame(layer._viewportRafId)
+    layer._viewportRafId = requestAnimationFrame(() => {
       updateCulledLayer(renderer, id)
-      rafId = null
+      layer._viewportRafId = null
     })
   }
 
@@ -1321,8 +1386,9 @@ export function updateCulledLayer(renderer: any, id: string): void {
   // 计算应显示的要素 ID 集合（ID 与 _createCesiumPointEntity 保持一致：id-name-index）
   const shouldShow = new Set<string>()
   layer.allFeatures.forEach((item: any, index: number) => {
-    const lng = item.lng ?? item.lon ?? 0
-    if (isInViewport(lng, item.lat, bbox)) {
+    // 坐标归一化走 normalizePoint（含 longitude 别名，W4-02）
+    const { lng, lat } = normalizePoint(item)
+    if (isInViewport(lng, lat, bbox)) {
       shouldShow.add(`${id}-${item.id || item.name || 'p'}-${index}`)
     }
   })

@@ -1,9 +1,7 @@
 <script setup lang="ts">
 /**
- * UserInfoCard - 个人中心顶部用户信息卡
- * 职责单一：头像 + 用户名（P1-10 拆分 ProfilePage 产物）
- * 退出登录按钮在 ProfilePage 底部（2026-08-09：原在卡片内导致位于收藏面板上方，
- * 非整面板最底；退出按钮独立下沉由 ProfilePage 负责）。
+ * UserInfoCard - 个人中心顶部用户信息卡（头像 + 用户名）
+ * 退出按钮在 ProfilePage 底部，不在此卡内；
  * 直接消费 useAuth（Pinia 单例），无需 props 透传。
  */
 import { computed } from 'vue'

@@ -1,5 +1,5 @@
 /**
- * GCS 组件类型定义 - Dock / BottomNavBar
+ * GCS（网格化布局系统）组件类型定义 - Dock / BottomNavBar
  */
 
 export interface NavItem {

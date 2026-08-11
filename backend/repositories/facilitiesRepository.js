@@ -1,6 +1,4 @@
-// 依赖文件在 backend/data/ 中的相对位置，勿移动此文件
-// 2026-08-08：readJsonFile 与 utils/readStaticJson 逐字重复 → 收敛复用统一入口
-// （数据流收口②，TTL + LRU 缓存同源）
+// 设施类型 → backend/data/ 相对路径映射（勿移动此文件）；读取统一走 readStaticJson（TTL + LRU 缓存）
 import { readStaticJson } from '../utils/readStaticJson.js'
 
 const FILE_MAP = {

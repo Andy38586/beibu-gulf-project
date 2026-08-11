@@ -1,7 +1,4 @@
-// 收口例外：MAP_CONFIG 走深路径 @/core/config/map 而非 @/core。
-// 原因：core/index.ts re-export usePortLayer → usePortLayer 依赖 @/services → services/index.ts
-// re-export mapDataService → 若 mapDataService 再走 @/core 会形成 core↔services 循环依赖（no-circular）。
-// @/core/config/map 是无反向依赖的叶子配置模块，直接 import 安全。
+// 深路径导入 @/core/config/map：走 @/core 入口会形成 core↔services 循环依赖（no-circular），此模块是叶子配置
 import { MAP_CONFIG } from '@/core/config/map'
 import { clearStaticCache, loadStatic } from '@/shared'
 import { logger } from '@/shared'
@@ -10,11 +7,8 @@ import type { Port } from '@/types'
 import { isInBeibuGulf } from '@/shared'
 
 /**
- * 静态资源 fetch 收口 loadStatic。
- * loadStatic 已内置：10s 超时、5min TTL 内存缓存、in-flight Promise 去重，
- * 与原 mapDataService 自建的 controller/timeoutId/dataCache/pendingCache 行为等价。
- * 行为差异：loadStatic 缓存原始 JSON（解包前），此处返回前再 unwrapEnvelope，
- * 对调用方等价（unwrapEnvelope 是纯函数，开销极小）。
+ * 静态资源 fetch 收口 loadStatic（内置超时、TTL 缓存、in-flight 去重），
+ * 返回前解包 envelope（接口响应信封 {code,data}；unwrapEnvelope 是纯函数，开销极小）。
  */
 async function fetchData(url: string): Promise<unknown> {
   const raw = await loadStatic<unknown>(url)
@@ -30,7 +24,7 @@ export const mapDataService = {
       }
       const ports = data as Port[]
 
-      // 6.4 CRS 边界守卫接入数据入口：过滤明显越界的异常坐标，防止污染地图渲染
+      // 边界守卫：过滤北部湾范围外的异常港口坐标，防止污染地图渲染
       const inRegion: Port[] = []
       const outOfRegion: Port[] = []
       for (const p of ports) {
@@ -51,7 +45,7 @@ export const mapDataService = {
   },
 
   clearCache(): void {
-    // 委托 loadStatic 的 clearStaticCache 清统一缓存
+    // 委托 loadStatic 清统一缓存
     clearStaticCache()
   },
 }

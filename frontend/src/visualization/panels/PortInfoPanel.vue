@@ -1,9 +1,5 @@
 <script setup lang="ts">
-/**
- * PortInfoPanel - 港口信息展示面板
- * 功能：显示选中港口的详细信息（地址、电话、类型、经纬度）
- * 布局：绝对定位，右上角
- */
+/** 港口信息展示面板：显示选中港口的地址、电话、类型、经纬度。绝对定位，右上角 */
 import { computed } from 'vue'
 
 import { useGCS } from '@/shared'
@@ -49,8 +45,7 @@ const unitPx = computed(() => cellPixel.value * 0.1)
   z-index: 55;
   background: var(--GCS-bg-panel-translucent);
   border-radius: calc(1.25 * v-bind(unitPx));
-  /* DAT-3: 面板阴影 = 黑 20% 透明，遵循 --GCS-shadow-* 同族约定；尺寸随 unitPx 响应缩放，
-     无等价固定 token（固定 px 的 --GCS-shadow-* 会破坏响应式尺寸），故保留原值 */
+  /* 面板阴影：随 unitPx 响应缩放（固定 px 的 --GCS-shadow-* 会破坏响应式尺寸），故保留原值 */
   box-shadow: 0 calc(0.5 * v-bind(unitPx)) calc(2.25 * v-bind(unitPx)) rgba(0, 0, 0, 0.2);
   padding: calc(1.5 * v-bind(unitPx));
   max-height: 80vh;

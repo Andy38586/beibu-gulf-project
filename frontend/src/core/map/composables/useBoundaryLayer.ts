@@ -1,15 +1,6 @@
 /**
- * 加载北部湾边界 GeoJSON 数据
- * 文件编码说明
- * - 文件编码：UTF-8（无 BOM）
- * - 浏览器 fetch 会自动处理 UTF-8 编码
- * - 如果在 PowerShell 终端调试，请使用：Get-Content file.geojson -Encoding UTF8
- * 添加缓存机制和加载优化
- * - 使用 sessionStorage 缓存已加载的数据，避免重复请求
- * - 添加超时控制（10秒）
- * - 添加重试机制（最多3次）
- * @param {Function} onError - 错误回调函数
- * @returns {Promise<Object|null>} GeoJSON 数据或 null
+ * 加载北部湾边界 GeoJSON（静态资源，UTF-8 无 BOM）：
+ * sessionStorage 缓存（24h）+ 10s 超时 + 3 次线性退避重试。
  */
 import type { FeatureCollection } from 'geojson'
 
@@ -29,9 +20,7 @@ export async function loadBoundaryGeoJson(
   // sessionStorage 写入大小硬上限（500KB 字符），超限仅留内存层不持久化
   const SESSION_STORAGE_MAX_CHARS = 500_000
 
-  // 检查缓存
-  // 用 boundaryCacheSchema.safeParse 替代裸 JSON.parse + as 断言；
-  // 校验失败清缓存降级为重新 fetch（不抛错）
+  // 读缓存：schema 校验失败则清缓存重新 fetch（不抛错）
   try {
     const cached = sessionStorage.getItem(CACHE_KEY)
     if (cached) {
@@ -48,8 +37,8 @@ export async function loadBoundaryGeoJson(
     // 缓存读取失败，继续加载
   }
 
-  // 静态资源 fetch 收口 loadStatic（统一超时 10s + TTL 内存缓存），
-  // 外层保留 3 次重试 + 线性退避（loadStatic 自身不重试，z049 仅作用于 useApiRequest）
+  // 静态资源 fetch 收口 loadStatic（统一超时 + TTL 内存缓存），
+  // 外层保留 3 次重试 + 线性退避（loadStatic 自身不重试）
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
       const geojson = await loadStatic<FeatureCollection>(MAP_CONFIG.DATA_PATHS.boundary)
@@ -59,7 +48,7 @@ export async function loadBoundaryGeoJson(
         throw new Error('GeoJSON 格式无效：缺少 features 数组')
       }
 
-      // 验证feature.properties存在性
+      // 确保 feature.properties 存在并打上边界要素类型标记
       geojson.features.forEach((f) => {
         if (!f.properties) {
           f.properties = {}
@@ -67,9 +56,8 @@ export async function loadBoundaryGeoJson(
         f.properties.featureType = 'boundary'
       })
 
-      // 缓存数据
+      // 缓存数据（超 500KB 视为异常膨胀，仅留内存层）
       try {
-        // 大小检查——边界数据 ~几十 KB，超 500KB 视为异常膨胀，仅留内存层
         const serialized = JSON.stringify({
           data: geojson,
           timestamp: Date.now(),

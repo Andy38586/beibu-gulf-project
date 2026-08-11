@@ -53,11 +53,10 @@ const cesiumRenderer = ref<MapRenderer | null>(null)
 const cesiumInitialized = ref(false)
 
 provide(MapRendererKey, currentRenderer)
-// mapStore 已由 App.vue 统一 provide，此处不再重复（z025）
+// mapStore 已由 App.vue 统一 provide，此处不重复
 
-// P6：useLayerManager 已删（双轨制只留新机制）——底图注册走 mapStore.registerBaseLayer
-// （纯建条目，互斥切换由 mapStore.setBaseLayer + baseLayerKey 管理），清理走 clearLayerCatalog
-// 核心常驻层（boundary/ports）收口到 BLM，与业务图层统一管理
+// 底图注册走 mapStore.registerBaseLayer（互斥切换由 setBaseLayer + baseLayerKey 管理）；
+// 核心常驻层（boundary/ports）收口到业务图层管理器（BLM），与业务图层统一管理
 const { manager: businessLayerManager } = useBusinessLayers()
 
 const spinnerSizeCss = computed(() => `${Math.round(CELL_PIXEL * 0.5)}px`)
@@ -67,7 +66,7 @@ let boundaryGeoJson: FeatureCollection | null = null
 
 const LOAD_TIMEOUT_MS = 10000
 
-/** 组件级 abort：卸载后阻止异步回调继续写 ref（z024） */
+/** 组件级 abort：卸载后阻止异步回调继续写 ref */
 const loadAbort = new AbortController()
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, errorMessage: string): Promise<T> {
@@ -129,10 +128,8 @@ async function loadData() {
       '边界数据加载超时'
     )
 
-    // b058: 数据就绪后补一次 setupLayers——boundary/ports 注册依赖 boundaryGeoJson 已加载
-    // （setupLayers :236 `if (boundaryGeoJson && !has('boundary'))`），若路由切换/引擎
-    // 切换先于 loadData 完成执行，registry 里没有 boundary/ports → reapplyAll 无东西可
-    // 重建 → 行政区划/港口图层"有时候被卡掉"（用户实测）。数据就绪后补注册幂等（已注册跳过）。
+    // 数据就绪后补一次 setupLayers：boundary/ports 注册依赖数据已加载，
+    // 若路由/引擎切换先于 loadData 执行会跳过注册导致图层缺失；补注册幂等
     if (currentRenderer.value) {
       void nextTick(() => setupLayers())
     }
@@ -151,11 +148,7 @@ async function loadData() {
   }
 }
 
-/**
- * 初始化指定类型的渲染器（首次创建或复用）
- * @param {'2d'|'3d'} type - 渲染器类型
- * @param {HTMLElement} container - DOM容器
- */
+/** 初始化指定类型的渲染器（首次创建或复用） */
 async function initRenderer(type: '2d' | '3d', container: HTMLElement | null) {
   if (!container) {
     if (import.meta.env.DEV) {
@@ -169,14 +162,9 @@ async function initRenderer(type: '2d' | '3d', container: HTMLElement | null) {
   try {
     let existingRenderer = type === '2d' ? olRenderer.value : cesiumRenderer.value
 
-    // 3D 复用前检查 viewer 是否存活：CesiumViewerManager 有 30s 闲置销毁机制
-    // （离开 3D 超过 30s 后自动销毁 viewer），销毁后旧 CesiumRenderer 实例已失效
-    // （this.viewer 指向已销毁对象，属性访问会抛错），直接复用会白屏。
-    // 注意：此处不能调 existingRenderer.destroy() —— 其内部（destroyEvents 等）
-    // 会访问 this.viewer.scene/camera，而 viewer 已被 Cesium destroy，访问即抛
-    // TypeError（Cannot read properties of undefined）。viewer 的 Cesium 资源已随
-    // viewer.destroy() 清理，旧实例仅需丢弃引用交给 GC（防抖定时器回调自带
-    // viewer 空值防御，见 setupCameraDebounce）。
+    // 3D 复用前检查 viewer 是否存活：闲置超时销毁后旧渲染器实例已失效，直接复用会白屏。
+    // 不调 destroy()——viewer 已被 Cesium 销毁，destroy 内部访问 this.viewer 会抛错；
+    // 丢弃引用交给 GC 即可
     if (existingRenderer && type === '3d') {
       const { cesiumViewerManager } = await import('@/core/map/renderers/CesiumRenderer')
       if (!cesiumViewerManager.getInstance()) {
@@ -195,11 +183,10 @@ async function initRenderer(type: '2d' | '3d', container: HTMLElement | null) {
       }
 
       existingRenderer.updateSize()
-      // 图层目录的show/hide绑定的是渲染器实例，切换回来需重新注册
+      // 图层目录绑定当前渲染器实例，切回时需重新注册
       setupLayers()
-      // 顺序关键（2026-08-08）：setCurrentRenderer 触发 App.vue watch 清理
-      // 孤儿图层（removeAllFromRenderer），随后 reapplyAll 重建业务条目+实例——
-      // 顺序反了会"面板先显示后撤掉"（reapplyAll 重建 → setupLayers clearLayers 清空）
+      // 顺序关键：先 setCurrentRenderer（触发孤儿图层清理），后 reapplyAll 重建，
+      // 顺序反了面板会先显示后撤掉
       mapStore.setCurrentRenderer(existingRenderer)
       businessLayerManager.reapplyAll(existingRenderer)
     } else {
@@ -216,8 +203,7 @@ async function initRenderer(type: '2d' | '3d', container: HTMLElement | null) {
       setupLayers()
       setupEvents()
       mapStore.setCurrentRenderer(renderer)
-      // 业务图层重建统一在此（不依赖 App.vue watch——单测/独立使用场景无 App.vue）：
-      // setupLayers 已清 catalog，此处作为最后一步重建，面板状态稳定
+      // 业务图层重建统一作为最后一步（不依赖 App.vue watch，单测/独立使用场景同样成立）
       businessLayerManager.reapplyAll(renderer)
     }
   } catch (error) {
@@ -230,28 +216,25 @@ async function initRenderer(type: '2d' | '3d', container: HTMLElement | null) {
   }
 }
 
-// 每次切换引擎时重新注册图层目录（show/hide绑定当前渲染器实例）
+// 每次切换引擎时重建图层目录（绑定当前渲染器实例）
 
 function setupLayers() {
   const renderer = currentRenderer.value
   if (!renderer) return
-  // P6：useLayerManager.clearLayers 已删，直连 mapStore
+  // 先清空图层目录，再按当前引擎重建
   mapStore.clearLayerCatalog()
 
-  // P6：底图条目走 mapStore.registerBaseLayer（纯建条目，互斥切换由 setBaseLayer 管理）
+  // 底图条目仅建目录（互斥切换由 setBaseLayer + baseLayerKey 管理）
   mapStore.registerBaseLayer('base-image', '影像底图')
   mapStore.registerBaseLayer('base-vector', '矢量底图')
 
-  // 应用当前底图到新渲染器（P6：setBaseLayer 只处理"切换"；初始化/引擎切换后
-  // 底图状态在此同步——旧机制靠 show 回调初始化，已删）
+  // 初始化/引擎切换后把当前底图同步到新渲染器（setBaseLayer 只处理切换）
   const activeBaseKey = mapStore.baseLayerKey ?? 'base-image'
   const baseRenderer = renderer as MapRenderer & { setBaseLayer?: (type: string) => void }
   baseRenderer.setBaseLayer?.(activeBaseKey === 'base-image' ? 'image' : 'vector')
 
-  // 核心常驻层（boundary/ports）收口到 BusinessLayerManager，
-  // 与业务图层统一走 registry。register 仅首次创建视觉实例 + catalog 条目，
-  // 引擎切换时 registry 持久、setupLayers 内 register 跳过（已注册），
-  // 由 App.vue 的 reapplyAll 把图层数据重绘到新 renderer 并重建 catalog 条目。
+  // 核心常驻层（boundary/ports）走业务图层管理器统一注册；
+  // 引擎切换时 registry 持久、此处注册幂等跳过，由 reapplyAll 重绘到新渲染器
   logger.debug(
     `[UnifiedMap] setupLayers: boundaryGeoJson=${!!boundaryGeoJson} hasBoundary=${businessLayerManager.has('boundary')} portGeoJson=${!!portGeoJson} hasPorts=${businessLayerManager.has('ports')}`
   )
@@ -334,7 +317,7 @@ async function switchMapType(newType: '2d' | '3d') {
     logger.debug('[UnifiedMap] 类型相同，跳过切换')
     switching.value = false
     loading.value = false
-    // LIF-6：同类型提前返回时清空排队请求，避免悬挂
+    // 同类型提前返回时清空排队请求，避免悬挂
     pendingSwitchType.value = null
     return
   }
@@ -345,8 +328,7 @@ async function switchMapType(newType: '2d' | '3d') {
       cameraState = currentRenderer.value.exportState()
     }
 
-    // P0-2: 3D→2D 时 unmount Cesium（暂停渲染 + 启动 30s 空闲销毁）。
-    // 30s 内切回 3D 由 mount() 的 _clearIdleDestroyTimer 取消销毁,不会误杀 Viewer。
+    // 3D→2D 时 unmount Cesium（暂停渲染 + 启动闲置销毁；短时切回由 mount 取消销毁）
     if (oldType === '3d' && newType === '2d') {
       const { cesiumViewerManager } = await import('@/core/map/renderers/CesiumRenderer')
       cesiumViewerManager.unmount()
@@ -416,8 +398,7 @@ function stopBreathing() {
   currentRenderer.value?.stopBreathing()
 }
 
-// 监听mapType变化，直接调用switchMapType
-// 策略：OL和Cesium容器都始终存在（v-show），渲染器实例保留不销毁
+// 监听 mapType 变化触发切换；两引擎容器常驻（v-show），渲染器实例保留复用
 watch(
   () => props.mapType,
   async (newType) => {
@@ -425,21 +406,16 @@ watch(
   }
 )
 
-// a043: 地图无 resize 响应（窗口缩放/侧栏折叠/抽屉后 canvas 失配）——挂 ResizeObserver
-// 观察两个地图容器，尺寸变化 → 当前渲染器 updateSize（Cesium viewer.resize / OL map.updateSize）。
-// 用 ResizeObserver 而非 window.resize：侧栏折叠/抽屉导致的容器尺寸变化窗口尺寸不变，
-// 只有容器级观察能捕获。v-show 隐藏容器切回时也触发回调 → 顺带修复切换后 canvas 尺寸。
+// 挂 ResizeObserver 观察地图容器尺寸变化（侧栏折叠/抽屉后 canvas 失配）：
+// 窗口尺寸可能不变，只有容器级观察能捕获；v-show 切回时同样触发，顺带修复 canvas 尺寸
 let resizeObserver: ResizeObserver | null = null
 
 function watchContainerSize(container: HTMLElement | null): void {
-  // a043 防御：环境不支持 ResizeObserver（jsdom / 老浏览器）时静默跳过。
-  // 若不检测，`new ResizeObserver(...)` 抛错发生在赋值语句上 → resizeObserver
-  // 保持 null → watch(cesiumInitialized) 再次触发时拦截不住、反复重试 →
-  // unhandled rejection（实测 jsdom 下 16 个，且测试进程挂起）。
+  // 防御：环境不支持 ResizeObserver（jsdom/老浏览器）时静默跳过，避免反复重试报错
   if (!container || resizeObserver || typeof ResizeObserver === 'undefined') return
   try {
     resizeObserver = new ResizeObserver(() => {
-      // 防抖：连续 resize 事件合并（Cesium resize 有布局开销，避免高频触发）
+      // 容器尺寸变化 → 当前渲染器 updateSize（Cesium resize 有布局开销）
       if (resizeObserver) {
         currentRenderer.value?.updateSize()
       }
@@ -454,11 +430,8 @@ function watchContainerSize(container: HTMLElement | null): void {
 onMounted(async () => {
   await loadData()
   if (loadAbort.signal.aborted) return
-  // a042 防御：初始 mapType='3d' 且 Cesium 容器未渲染（模板 v-if="cesiumInitialized"
-  // 初值 false）时，直接 getContainer('3d') 拿到 null → initRenderer 静默 return →
-  // 白图。正常路径下 App.vue route watch immediate 先置 '2d'（路由未解析），
-  // 导航完成后 prop 变化走 switchMapType——但该时序脆弱（若挂载前路由已解析为
-  // engine:'3d' 即触发）。此处兜底：先置标志+nextTick 等容器挂载再 initRenderer。
+  // 兜底：初始 3D 时容器尚未渲染（v-if 依赖 cesiumInitialized），
+  // 先置标志并等 nextTick 让容器挂载后再初始化，避免白图
   if (props.mapType === '3d' && !cesiumInitialized.value) {
     cesiumInitialized.value = true
     await nextTick()
@@ -469,11 +442,11 @@ onMounted(async () => {
   await initRenderer(props.mapType, container)
   loading.value = false
 
-  // a043: 观察 OL 容器（常驻）；Cesium 容器 v-if 出现后由 cesiumInitialized watch 观察
+  // 观察 OL 容器（常驻）；Cesium 容器由下方 watch 在出现后观察
   watchContainerSize(olContainerRef.value)
 })
 
-// a043: Cesium 容器首次创建（cesiumInitialized → true）后观察其尺寸变化
+// Cesium 容器首次创建（cesiumInitialized → true）后观察其尺寸变化
 watch(cesiumInitialized, (init) => {
   if (init) {
     void nextTick(() => watchContainerSize(cesiumContainerRef.value))
@@ -484,7 +457,7 @@ onUnmounted(() => {
   // 卸载时 abort，阻止未完成的异步回调继续写 ref
   loadAbort.abort()
 
-  // a043: 断开容器尺寸观察（注册/移除配对契约，防泄漏）
+  // 断开容器尺寸观察（注册/移除配对契约，防泄漏）
   resizeObserver?.disconnect()
   resizeObserver = null
 
@@ -507,11 +480,8 @@ onUnmounted(() => {
     if (r) {
       try {
         if (r === cesiumRenderer.value) {
-          // Cesium：常规卸载走 unmount（viewer 保留 + 30s 空闲销毁），符合
-          // cesiumViewerManager 设计（"常规卸载仍走 unmount() 保留复用"）。
-          // 直接 destroy() 会销毁 viewer → 路由重挂只能重建（慢），且新实例
-          // 空 _layers + 注册/重绘时序竞争 → "回来只有 cesium 实例没有图层"
-          // （用户实测 2026-08-08）。destroy 仅应用退出/HMR/测试场景。
+          // Cesium 常规卸载走 unmount（viewer 保留复用 + 闲置销毁）；
+          // 直接 destroy 会销毁 viewer，路由重挂只能重建且容易丢失图层
           ;(r as unknown as { unmount?: () => void }).unmount?.()
         } else {
           // OL 无复用设计，正常销毁

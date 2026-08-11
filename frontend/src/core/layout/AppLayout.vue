@@ -1,15 +1,9 @@
 <script setup lang="ts">
 /**
- * AppLayout - GCS V2 布局基座（Layout Base）
- * 职责：
- * 1. 通过 PPS 定位所有 Panel（无容器、无 Zone、无 TopArea）
- * 2. 提供 slot 供业务路由注入自定义 Panel 内容
- * 3. 管理调试模式状态
- * 2026-08-09 重构（用户决策）：
- * - 底部 nav 收敛为 3 按钮（首页/个人中心/菜单）
- * - 业务入口（4 个）+ 城市切换全部移入抽屉菜单（业务行 sticky 冻结）
- * - 顶部城市切换按钮组移除；抽屉所有档位可用（桌面模式开抽屉 = 业务菜单）
- * - 抽屉模式下（<960px）抽屉同时承载业务面板（slot left/right）
+ * AppLayout - GCS（网格化布局系统）V2 布局基座
+ * 用 PPS（面板定位系统）直接定位所有 Panel（无容器/Zone/TopArea），slot（Vue 插槽）供业务页注入面板内容。
+ * 底部 nav 3 按钮（首页/个人中心/菜单），业务入口与城市切换在抽屉菜单中；
+ * 抽屉模式（<960px）下抽屉同时承载业务面板（slot left/right）。
  */
 
 import { computed, ref, watch } from 'vue'
@@ -36,29 +30,25 @@ const route = useRoute()
 const router = useRouter()
 const { showPanels, showTopArea } = useGCS()
 const { flyToCity } = useScreenActions()
-// 主题切换（2026-08-10）：图标 = 当前模式的另一侧（暗色显示 ☀️、亮色显示 🌙）
+// 主题切换：图标显示当前模式的另一侧（暗色显示 ☀️、亮色显示 🌙）
 const { isDark, toggleTheme } = useTheme()
 // 抽屉开关（模块级单例，nav 菜单按钮与抽屉共享）
 const { drawerOpen, closeDrawer } = useMobileDrawer()
 // 滑块专注模式（模块级单例，滑块组件调用 begin/end）
 const { active: sliderFocusActive, activePanel: sliderActivePanel } = useSliderFocus()
 
-// 抽屉业务行：navConfig 中 type=business 的项（core 不引 business/manifest，由 App.vue 注入）
+// 抽屉业务行：取 navConfig 中 type=business 的项（core 不引 business，由 App.vue 注入）
 const businessNavItems = computed<NavItem[]>(() => [
   ...navItems.value.filter((i) => i.type === 'business'),
 ])
 
-// 调试模式状态（网格 + 性能监控，类似 MC F3；生产可用）
-// 2026-08-09 用户决策：调试板块仅本地开发渲染（上线不带调试模式，无需第二套环境）——
-// import.meta.env.DEV 在 vite dev 下为 true、build 时为 false（编译期常量），
-// 生产构建后 v-if 恒 false，调试组件不创建、不渲染。
+// 调试模式状态（网格 + 性能监控，类似 MC F3）
+// 仅本地开发渲染：import.meta.env.DEV 是编译期常量，生产构建后 v-if 恒 false
 const debugMode = ref(false)
 const showDebug = import.meta.env.DEV
 
-// 滑块专注模式：class 挂到 body（MobileDrawer Teleport 到 body，抽屉不在 .app-layout 内，
-// 挂根节点会导致抽屉内的面板匹配不到 .slider-focus-mode 选择器，2026-08-09 实测）。
-// 激活时 body 加 slider-focus-mode（CSS 透明化其他面板），滑块所在面板标记 slider-focus-panel；
-// 底部 nav（.bottom-nav-bar）与 .slider-focus-panel 由 CSS 排除，保持可见。
+// 专注模式 class 挂 body 而非根节点：抽屉 Teleport 到 body，根节点选择器匹配不到抽屉内面板。
+// body 加 slider-focus-mode（CSS 透明化其他面板），滑块所在面板标记 slider-focus-panel，底部 nav 排除。
 watch(sliderFocusActive, (act) => {
   document.body.classList.toggle('slider-focus-mode', act)
   if (act) {
@@ -97,8 +87,7 @@ function goBusiness(item: NavItem): void {
         <PanelTitle :title="(route.meta?.title as string) || '北部湾智慧港口平台'" />
       </GCSPanel>
 
-      <!-- 顶部城市切换按钮组 Panel（4×1，右上，与 Title 同行；2026-08-09 回归——
-           档位 1（≥960px）原位显示；<960px 时城市按钮在抽屉菜单内） -->
+      <!-- 顶部城市切换按钮组（4×1 右上，档位 1 原位显示；<960px 时在抽屉菜单内） -->
       <GCSPanel
         v-show="showTopArea"
         :w="4"
@@ -112,7 +101,7 @@ function goBusiness(item: NavItem): void {
           <NavButton label="钦州" @click="flyToCity('钦州')" />
           <NavButton label="北海" @click="flyToCity('北海')" />
           <NavButton label="防城港" @click="flyToCity('防城港')" />
-          <!-- 2026-08-10：个人中心入口移除（底部导航已有），改主题切换（🌙/☀️ emoji） -->
+          <!-- 主题切换（🌙/☀️） -->
           <NavButton
             :icon="isDark ? '☀️' : '🌙'"
             class="theme-toggle"
@@ -122,7 +111,7 @@ function goBusiness(item: NavItem): void {
         </div>
       </GCSPanel>
 
-      <!-- 左侧 Panel 组（c023：默认内容移除，由业务页通过 #left slot 注入） -->
+      <!-- 左侧 Panel 组：由业务页通过 #left slot 注入 -->
       <slot name="left" />
 
       <!-- 右侧 Panel 组 -->
@@ -138,7 +127,7 @@ function goBusiness(item: NavItem): void {
               :facility-poi="{}"
             />
           </GCSPanel>
-          <!-- 右下：图层控制 4×4（接入真实功能） -->
+          <!-- 右下：图层控制 4×4 -->
           <GCSPanel :w="4" :h="4" anchor="top-right" :offset-x="0" :offset-y="5.5">
             <LayerControlPanel />
           </GCSPanel>
@@ -146,9 +135,8 @@ function goBusiness(item: NavItem): void {
       </div>
     </template>
 
-    <!-- ===== 抽屉菜单（仅 <960px，2026-08-09） =====
-         档位 2/3：业务入口（sticky 冻结首行）+ 城市切换 + 业务面板
-         档位 1（≥960px）：路由/城市按钮原位显示，菜单键不存在，抽屉不可达 -->
+    <!-- ===== 抽屉菜单（抽屉模式 <960px） =====
+         业务入口（sticky 冻结首行）+ 城市切换 + 业务面板；档位 1 时菜单键不存在 -->
     <MobileDrawer :open="drawerOpen" @close="closeDrawer">
       <div class="drawer-menu">
         <!-- 业务入口行：滚动时冻结（sticky） -->
@@ -163,7 +151,7 @@ function goBusiness(item: NavItem): void {
             @click="goBusiness(m)"
           />
         </div>
-        <!-- 城市切换 + 主题切换行（2026-08-10：个人中心入口移除，改主题切换） -->
+        <!-- 城市切换 + 主题切换行 -->
         <div class="drawer-menu__row" aria-label="城市切换">
           <NavButton label="钦州" @click="flyToCity('钦州')" />
           <NavButton label="北海" @click="flyToCity('北海')" />
@@ -175,9 +163,7 @@ function goBusiness(item: NavItem): void {
             @click="toggleTheme"
           />
         </div>
-        <!-- 抽屉模式（<960px）面板内容（2026-08-09 用户决策：只留功能面板，图表类纯充数不进抽屉）：
-             首页 → 图层控制（core 组件）；个人中心 → 登录面板（由 ProfilePage 经 #right slot 注入）；
-             业务页 → 业务面板原样 -->
+        <!-- 抽屉面板内容：只放功能面板；首页→图层控制，个人中心→right slot，业务页→left/right slot -->
         <template v-if="!showPanels">
           <template v-if="route.name === 'Home'">
             <GCSPanel :w="4" :h="4"><LayerControlPanel /></GCSPanel>
@@ -186,9 +172,7 @@ function goBusiness(item: NavItem): void {
             <slot name="right" />
           </template>
           <template v-else>
-            <!-- 2026-08-10：抽屉模式面板顺序——操作/控制面板（right slot：操作台+图层控制）
-                 在前，可视化面板（left slot：图表/名单/报告）在后。
-                 原 left 在前导致打开菜单首屏全是空白图表（白板），操作台在底部要滚动才能看到 -->
+            <!-- 操作/控制面板（right slot）在前，可视化面板（left slot）在后：避免首屏全是空白图表 -->
             <slot name="right" />
             <slot name="left" />
           </template>
@@ -196,8 +180,7 @@ function goBusiness(item: NavItem): void {
       </div>
     </MobileDrawer>
 
-    <!-- 独立调试开关：仅本地开发渲染（import.meta.env.DEV），固定右下、不随响应式布局变化
-         （独立板块，生产构建不创建；如需彻底从 bundle 剔除用动态 import 方案） -->
+    <!-- 独立调试开关：仅本地开发渲染，固定右下、不随响应式布局变化 -->
     <DebugToggle v-if="showDebug" v-model="debugMode" />
 
     <!-- 底部导航（3 按钮：首页/个人中心/菜单） -->
@@ -228,7 +211,7 @@ function goBusiness(item: NavItem): void {
   justify-content: center;
 }
 
-/* 顶部城市切换按钮组 Panel 内部样式（档位 1 原位显示） */
+/* 顶部城市切换按钮组内部样式 */
 .top-button-panel {
   display: flex;
   align-items: center;
@@ -244,7 +227,7 @@ function goBusiness(item: NavItem): void {
   box-sizing: border-box;
 }
 
-/* ===== 抽屉菜单（2026-08-09） ===== */
+/* ===== 抽屉菜单 ===== */
 .drawer-menu {
   display: flex;
   flex-direction: column;
@@ -268,8 +251,7 @@ function goBusiness(item: NavItem): void {
   border-bottom: 1px solid var(--GCS-border-light);
 }
 
-/* 2026-08-10：主题切换按钮 emoji 放大（默认 .button-icon 0.85em 约 12px 偏小；
-   仅作用于 .theme-toggle，不影响其他业务按钮的 icon） */
+/* 主题切换按钮 emoji 放大（默认偏小，仅作用于 .theme-toggle） */
 :deep(.theme-toggle .button-icon) {
   font-size: 1.6em;
   margin-top: 0;

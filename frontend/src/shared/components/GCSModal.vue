@@ -1,16 +1,9 @@
 <script setup lang="ts">
 /**
- * GCSModal - 全局确认/提示弹窗（GCS 标准，编程式）
- * 规格（用户定）：
- * - 宽 4cell 高 3cell，居中
- * - 顶部右上角：× 关闭键
- * - 底部两个 1.8×0.8 cell 按钮：主按钮（按 mode：重试/去登录/确定）+ 取消
- * 三种模式：
- * - error：主按钮"重试"（onConfirm 由调用方传入）
- * - login：主按钮"去登录"（跳 /profile）
- * - confirm：主按钮"确定"（onConfirm 必传）
- * 由 App.vue 挂载一次，全局通过 showModal()/closeModal()/confirmModal() 编程式触发
- * （gcsFeedback 单例），替换 Element Plus ElMessageBox.confirm。
+ * GCSModal — 全局确认/提示弹窗（GCS 标准，编程式）：4×3 cell 居中，
+ * 三种模式（error 重试 / login 去登录 / confirm 确定）。
+ * App.vue 挂载一次，经 showModal()/closeModal()/confirmModal() 触发（gcsFeedback 单例），
+ * 替代 Element Plus ElMessageBox.confirm。
  */
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
@@ -21,17 +14,11 @@ import { closeModal, confirmModal, gcsModalState } from '@/shared/utils/gcsFeedb
 const router = useRouter()
 const { cellPixel } = useGCS()
 
-// 最小 cell 保底（2026-08-08 方案 c）：cellPixel 随视口缩（手机 60px），
-// modal 若跟着缩会小到 240×180——保底 80px → modal 恒 ≥ 320×160（4×2），
-// 桌面照常跟随 cellPixel（90/80/70）缩放
+// cellPixel 随视口缩放（手机可至 60px），modal 保底 80px 以免缩到不可用
 const MIN_CELL_PIXEL = 80
 const effCell = computed(() => Math.max(cellPixel.value, MIN_CELL_PIXEL))
 
-// 面板：宽 4cell × 高 3cell（用户定：4×2 比例扁、内容挤 → 改回 4×3），
-// 作为 overlay flex 容器的子项（不 absolute），由 overlay 居中。
-// 不设 padding——间距全部由内部元素 margin 精确控制：
-// - 按钮"离左右 0.1cell"：面板宽 4 - 按钮行宽 3.8（1.8+0.2+1.8）居中后天然产生
-//   (4-3.8)/2 = 0.1cell，无需额外 margin
+// 面板 4×3 cell：作为 overlay flex 容器子项居中，不设 padding——按钮间距全部由内部 margin 精确控制
 const panelStyle = computed(() => ({
   width: `${4 * effCell.value}px`,
   height: `${3 * effCell.value}px`,
@@ -123,7 +110,7 @@ function handleMainAction(): void {
 }
 
 .GCS-modal-panel {
-  /* 不设 position——作为 overlay flex 容器的居中子项（2026-08-08 修复 absolute 与 flex 冲突） */
+  /* 不设 position：作为 overlay flex 容器居中子项 */
   background: var(--GCS-bg-panel-translucent);
   border-radius: var(--GCS-radius-lg);
   box-shadow: var(--GCS-shadow-md);

@@ -1,18 +1,8 @@
 <script setup lang="ts">
 /**
  * GCSButton - 按钮 Panel
- * 统一视觉规则：
- * - 默认占 2×1 Cell
- * - 文字优先显示，图标位于文字下方（如果提供）
- * - 尺寸基于 CELL_PIXEL 计算
- * - 白色实体背景，带 hover 反馈
- * Props:
- * - label: 按钮文字
- * - icon: 图标字符/类名（可选）
- * - disabled: 是否禁用
- * - active: 是否处于激活/选中态（用于图层开关等）
- * - w: 横向 Cell 数（默认 2）
- * - h: 纵向 Cell 数（默认 1）
+ * 默认 2×1 Cell，文字在上、图标在下，尺寸基于 Cell（80px 网格单元）计算；
+ * 白色实体背景 + hover 反馈。Props：label/icon/disabled/active/w/h。
  */
 
 import { computed } from 'vue'

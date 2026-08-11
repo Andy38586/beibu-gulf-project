@@ -16,8 +16,7 @@ export function resolveRadiusSettings(selectedKeys, typeSettings) {
   const resolved = {}
   selectedKeys.forEach((key) => {
     const setting = typeSettings[key]
-    // 防御 selectedKeys 与 typeSettings 键集不一致（API 公开，恶意/异常请求可缺键）
-    // 此前 setting 为 undefined 时 setting.defaultRadius 抛 TypeError → 500
+    // 防御键集不一致：API 公开，异常请求可能缺键，缺键抛业务错误而非 TypeError
     if (!setting || typeof setting !== 'object') {
       throw new BusinessError(ErrorCode.INVALID_PARAMS, `设施类型 ${key} 缺少 typeSettings 配置`)
     }
@@ -200,14 +199,8 @@ export function rankXiaoqu(matched, facilityData, radiusSettings, weights) {
   return scored.sort((a, b) => b.score - a.score).slice(0, TOP_N)
 }
 /**
- * 筛选覆盖范围内的设施POI
- * @param {Object} facilityData - 设施数据 { type: [{lng, lat, name}] }
- * @param {Object} finalArea - 覆盖范围 GeoJSON
- * @param {Array} selectedKeys - 选中的设施类型
- * @returns {Object} 各类型设施POI { type: [{lng, lat, name}] }
- * 复用空间索引（createSpatialIndex + queryByPolygon）做 BBox 粗筛，
- * 避免逐点 booleanPointInPolygon 退化为 O(F) 全量精确判定。
- * 与 filterMatchedXiaoqu 的空间索引策略对齐；POI 量大时显著降 CPU。
+ * 筛选覆盖范围内的设施 POI：空间索引 BBox 粗筛 + 点面精确判定，
+ * 避免逐点 booleanPointInPolygon 的全量遍历
  */
 export function filterFacilitiesInCoverage(facilityData, finalArea, selectedKeys) {
   const result = {}

@@ -1,11 +1,7 @@
 /**
- * Flood Data Adapter
- * 职责：隔离浸没分析业务层与数据源。
- * 业务层（FloodAnalysisPage）通过此 Adapter 获取数据。
- * 数据链路（2026-08-08 数据搬后端后）：
- * - api 模式：Express 后端 /flood/* 端点（floodArea/floodStatistics/water-area/analysis/disaster）
- * - online 模式：flood-service FastAPI 实时演算（/flood-online/api/flood/*）
- * static 模式与字段映射层已删除——前端静态 JSON 全部移交后端，字段由后端对齐类型契约。
+ * floodAdapter — 浸没分析数据适配器，隔离业务层与数据源。
+ * api 模式走 Express 后端 /flood/*；online 模式走 flood-service FastAPI 实时演算。
+ * 静态数据已移交后端，字段由后端对齐类型契约，前端不再做字段映射。
  */
 
 import { useApiRequest } from '@/shared'
@@ -18,18 +14,13 @@ import {
   waterAreaSchema,
 } from '@/types/schemas'
 
-// ==================== 数据源模式（2026-08-08 dataSourceConfig 撤销后内部化） ====================
-// 原统一 dataSourceConfig（adapterOverrides Map + 优先级回退）仅服务 floodAdapter 一个使用方，
-// static 消费者已随数据搬后端删除——机制名存实亡，改为模块级简单变量。
+// 数据源模式：api（Express 后端）/ online（FastAPI 实时演算）；原统一 dataSourceConfig 仅此一个使用方，简化为模块级变量
 type FloodDataSourceMode = 'api' | 'online'
 let dataSource: FloodDataSourceMode = 'api'
 
 const { apiRequest } = useApiRequest()
 
-// 档位结果缓存（online，2026-08-06 性能优化②）：round(level,1) 同档位秒回——
-// 滑块来回拖/重复档位不重发请求、不重绘淹没多边形（FastAPI 有后端 LRU，
-// 但前端每档仍全量请求+全量重建 entity，此缓存消除重复档位的整条链路）；
-// 规模与后端 LRU 一致（64 档），FIFO 淘汰
+// online 档位缓存：round(level,1) 同档位秒回，消除重复档位的整条请求+重绘链路；规模与后端 LRU 一致（64 档），FIFO 淘汰
 const _onlineLevelCache = new Map<number, FloodAnalysisResult>()
 const MAX_ONLINE_LEVEL_CACHE = 64
 
@@ -50,8 +41,8 @@ interface RequestOptions {
 }
 
 /**
- * online 模式：在线演算风险等级（按淹没面积 + 水位双因子，配合实测数据阈值）
- * 实测参考：0.5m≈652km² 低、2.0m≈2593km² 中、3.5m≈4539km² 中、8.0m≈10943km² 高
+ * online 模式风险等级：按淹没面积 + 水位双因子分段，阈值配合实测数据
+ * （0.5m≈652km² 低、2.0m≈2593km² 中、3.5m≈4539km² 中、8.0m≈10943km² 高）
  */
 function _riskLevelFromFlood(floodedKm2: number, level: number): string {
   if (floodedKm2 <= 0) return '无风险'
@@ -60,10 +51,7 @@ function _riskLevelFromFlood(floodedKm2: number, level: number): string {
   return '低风险'
 }
 
-/** online 模式：调用 FastAPI 在线演算服务（vite proxy /flood-online → localhost:8000）
- * 经统一入口 useApiRequest（envelope: false——FastAPI 返回裸 JSON 无信封,
- * 统一入口规则仍生效,禁止裸 fetch）
- * 用 floodOnlineResponseSchema.safeParse 替代裸 `res.json() as {...}` 隐式断言 */
+/** 调用 FastAPI 实时演算（vite proxy /flood-online → localhost:8000），统一入口 useApiRequest（envelope:false——FastAPI 返回裸 JSON 无信封） */
 async function _fetchOnlineFlood(
   waterLevel: number,
   signal?: AbortSignal
@@ -78,11 +66,10 @@ async function _fetchOnlineFlood(
     params: { level: waterLevel },
     signal,
     envelope: false,
-    // P0-1 统一入口：校验交给 apiRequest 的 schema 选项（envelope:false → 校验的是裸响应),
-    // 与其余 16 处 schema 接入保持一致,去掉手动 safeParse
+    // 校验交给 apiRequest 的 schema 选项（zod schema=运行时数据校验；envelope:false 时校验裸响应，无需手动 safeParse）
     schema: floodOnlineResponseSchema,
   })
-  // features 元素类型由下游 map+as FloodFeature[] 收窄（与原裸 `res.json()` 一致的元素处理）
+  // features 元素形状由下游 map + as FloodFeature[] 收窄
   return raw as {
     level: number
     featureCount: number
@@ -96,15 +83,14 @@ export const floodAdapter = {
     return dataSource
   },
 
-  // 2026-08-08：dataSourceConfig 撤销后内部赋值（api=Express 后端 / online=FastAPI 实时演算）
+  // api=Express 后端 / online=FastAPI 实时演算
   setDataSource(mode: 'api' | 'online'): void {
     dataSource = mode
   },
 
-  // b046: 增加 signal 参数——水域坐标请求可随组件卸载/新请求取消
+  // signal：请求可随组件卸载/新请求取消
   async getWaterArea(signal?: AbortSignal): Promise<[number, number][]> {
-    // 后端只读端点获取水域坐标（D-4=A：后端 /flood/water-area 端点，
-    // 原与前端 water-area.json 同源，2026-08-08 数据搬后端后前端文件删除，仅此一条链路）
+    // 水域坐标只读端点（数据已收归后端，前端 water-area.json 已删，仅此一条链路）
     const coords = await apiRequest<[number, number][]>('/flood/water-area', {
       schema: waterAreaSchema,
       signal,
@@ -116,7 +102,7 @@ export const floodAdapter = {
     waterLevel: number,
     { signal }: RequestOptions = {}
   ): Promise<FloodAnalysisResult> {
-    // online 模式：FastAPI 实时演算（连通性淹没），业务层零改动（N4 adapter 隔离）
+    // online：FastAPI 连通性淹没实时演算，adapter 隔离保证业务层零改动
     if (dataSource === 'online') {
       // 档位缓存：同档位直接复用上次结果（滑块来回拖秒回，不重发请求不重绘）
       const levelKey = Math.round(waterLevel * 10) / 10
@@ -133,8 +119,7 @@ export const floodAdapter = {
         features,
         statistics: {
           totalArea: Math.round((data.floodedKm2 ?? 0) * 1e6), // km² → m²
-          // P0-3: 补 floodArea(km²)——FloodAnalysisReportPanel 读的是 floodArea,
-          // 原 online 分支缺失导致面板显示 0 km²(被 || 0 静默掩盖)
+          // floodArea(km²)：面板依赖此字段，缺失会静默显示 0 km²
           floodArea: data.floodedKm2 ?? 0,
           riskLevel,
           affectedCount: 0,
@@ -150,9 +135,7 @@ export const floodAdapter = {
       _onlineLevelCache.set(levelKey, result)
       return result
     }
-    // api 模式：调用后端 /flood/flood-areas + /flood/flood-statistics
-    // （后端已按类型契约返回：features.properties 含 riskLevel、statistics 字段名一致——
-    // 原 _mapFloodFeatures/_mapFloodStatistics 映射层已删除，直接透传）
+    // api：并行取淹没范围 + 统计；后端已按类型契约返回（riskLevel/字段名一致），直接透传
     const [floodAreasRes, statisticsRes] = await Promise.all([
       apiRequest<Record<string, unknown>>('/flood/flood-areas', {
         params: { waterLevel },
@@ -172,8 +155,7 @@ export const floodAdapter = {
 
     return {
       features: (floodData?.features as FloodFeature[]) || [],
-      // 后端 statistics 字段与类型契约一致（floodArea/averageDepth/...），
-      // 经 schema 校验后透传；Record → FloodStatistics 需 unknown 中转（TS2352）
+      // statistics 经 schema 校验后透传；Record → FloodStatistics 需 unknown 中转（TS2352）
       statistics: statisticsRes as unknown as FloodStatistics,
       riskLevel,
       actualWaterLevel,
@@ -184,13 +166,12 @@ export const floodAdapter = {
     waterLevel: number,
     { signal }: RequestOptions = {}
   ): Promise<ImpactAssessmentResult> {
-    // online 模式：FastAPI 预计算档位表 → 空间筛选设施影响（2026-08-06 补齐，
-    // 原实现返回空——受影响设施/损失一直为空的洞）
+    // online：FastAPI 预计算档位表 → 空间筛选设施影响
     if (dataSource === 'online') {
       const res = await apiRequest<Record<string, unknown>>('/flood-online/api/flood/impact', {
         params: { level: waterLevel },
         signal,
-        // FastAPI 返回裸 JSON（无 {code,data} 信封），与 getFloodAnalysis online 分支一致
+        // FastAPI 返回裸 JSON（无 envelope），与 getFloodAnalysis online 分支一致
         envelope: false,
       })
       const result = res as Record<string, unknown> | undefined
@@ -198,9 +179,7 @@ export const floodAdapter = {
       const totalLoss = (result?.totalLoss as number) || 0
       return { affectedFacilities, totalLoss }
     }
-    // api 模式：调用后端 /flood/analysis/disaster
-    // （后端 assessDisaster 已返回 lng/lat/loss/damageRate 全字段，
-    // 原 _mapAffectedFacilities + IMPACT_DAMAGE_RATE 映射层已删除，直接透传）
+    // api：调用后端 /flood/analysis/disaster；后端已返回全字段，直接透传
     const res = await apiRequest<Record<string, unknown>>('/flood/analysis/disaster', {
       method: 'POST',
       body: JSON.stringify({ waterLevel }),

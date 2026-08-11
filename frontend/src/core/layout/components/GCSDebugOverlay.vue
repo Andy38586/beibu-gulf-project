@@ -1,15 +1,9 @@
 <script setup lang="ts">
 /**
- * GCSDebugOverlay - 调试模式覆盖层（原 GCSInspectionOverlay 改名 + 扩展，2026-08-05）
- * 职责：
- * 1. 可视化 Cell 网格边界和编号（GCS 验收）
- * 2. 动态检测并显示 Panel / Dock / Container / TopArea 的实际边界 + 对齐验证
- * 3. 性能监控信息（MC F3 风格）：FPS / 长帧 / 接口 TOP / 错误 / 首屏 / 图层图表耗时
- *    —— 数据来自 shared/utils/perfReporter（生产可用，VITE_PERF_ENABLED=false 时为空）
- * 4. 地图上下文：当前引擎（2D/3D）/ 渲染器 / 路由
- * 设计说明：
- * - 覆盖层整体 pointer-events: none，网格 + 信息面板均不拦截鼠标（可正常操作地图）
- * - 信息面板左上角半透明文字风格（仿 MC F3），不遮挡内容
+ * GCSDebugOverlay - 调试模式覆盖层（仅本地开发）
+ * 职责：Cell 网格可视化 + Panel/Dock 边界与对齐验证 + 性能监控
+ * （FPS/长帧/接口 TOP/错误/首屏，数据来自 perfReporter）+ 地图上下文。
+ * 设计：整体 pointer-events: none 不拦截鼠标；信息面板左上角半透明（仿 MC F3）。
  */
 
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
@@ -30,9 +24,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 const { cellPixel, gap, padding } = useGCS()
 
-// ===== GCS 反馈测试入口（2026-08-08 打磨）=====
-// 调试面板可直接触发 modal/toast 预览——走与生产完全相同的 gcsFeedback 单例，
-// 确保调试看到的反馈层与正式一致（不用再靠业务操作触发）
+// GCS 反馈测试入口：与生产共用 gcsFeedback 单例，可直接预览 modal/toast
 import { showModal, showToast } from '@/shared/utils/gcsFeedback'
 
 function testErrorModal(): void {
@@ -62,7 +54,7 @@ function testErrorToast(): void {
   showToast('操作失败，请重试', 'error')
 }
 
-// 用于 CSS v-bind 的计算属性：标签位置（基于 CELL_PIXEL 的比例）
+// CSS v-bind：标签位置（CELL_PIXEL 比例）
 const labelOffsetCss = computed(() => `${Math.round(CELL_PIXEL * 0.05)}px`)
 const labelFontSizeSmallCss = computed(() => `${Math.round(CELL_PIXEL * 0.1375)}px`)
 const labelFontSizeMediumCss = computed(() => `${Math.round(CELL_PIXEL * 0.15)}px`)
@@ -70,7 +62,7 @@ const labelPaddingCss = computed(
   () => `${Math.round(CELL_PIXEL * 0.025)}px ${Math.round(CELL_PIXEL * 0.075)}px`
 )
 
-// 信息面板样式（基于 CELL_PIXEL 的比例）
+// 信息面板样式（CELL_PIXEL 比例）
 const infoPanelOffsetCss = computed(() => `${Math.round(CELL_PIXEL * 0.25)}px`)
 const infoPanelPaddingCss = computed(() => `${Math.round(CELL_PIXEL * 0.2)}px`)
 const infoPanelMinWidthCss = computed(() => `${Math.round(CELL_PIXEL * 2.5)}px`)
@@ -107,20 +99,13 @@ const measuredDock = ref<MeasuredRect | null>(null)
 // 对齐验证结果
 const alignmentIssues = ref<AlignmentIssue[]>([])
 
-/**
- * 更新视口尺寸
- */
+/** 更新视口尺寸 */
 function updateViewport() {
   viewportWidth.value = window.innerWidth
   viewportHeight.value = window.innerHeight
 }
 
-/**
- * 获取单个元素相对于视口的边界信息
- * @param {string} selector - CSS 选择器
- * @param {string} label - 显示标签
- * @returns {{ id: string, label: string, x: number, y: number, width: number, height: number } | null}
- */
+/** 获取单个元素相对视口的边界信息 */
 function measureElement(selector: string, label: string): MeasuredRect | null {
   const el = document.querySelector(selector)
   if (!el) return null
@@ -135,12 +120,7 @@ function measureElement(selector: string, label: string): MeasuredRect | null {
   }
 }
 
-/**
- * 获取多个同类元素的边界信息
- * @param {string} selector - CSS 选择器
- * @param {string} prefix - 标签前缀
- * @returns {Array<{ id: string, label: string, x: number, y: number, width: number, height: number }>}
- */
+/** 获取多个同类元素的边界信息 */
 function measureElements(selector: string, prefix: string): MeasuredRect[] {
   return Array.from(document.querySelectorAll(selector)).map((el, index) => {
     const rect = el.getBoundingClientRect()
@@ -155,14 +135,10 @@ function measureElements(selector: string, prefix: string): MeasuredRect[] {
   })
 }
 
-/**
- * 测量所有需要检查边界的元素
- * V2 变更：移除 Container 和 TopArea 检测（V2 无 Container，TopArea 已拆分为独立 Panel）
- */
+/** 测量所有需检查边界的元素（V2 无 Container，TopArea 已拆为独立 Panel） */
 function measureAll() {
   if (typeof window === 'undefined') return
-  // Dock 使用独立的 GCSPanel，从 Panel 列表中排除，避免重复检测
-  // 仅保留实际可见（尺寸大于 0）的 Panel
+  // Dock 用独立 GCSPanel，排除避免重复检测；仅保留可见（尺寸 > 0）的 Panel
   measuredPanels.value = measureElements('.GCS-panel:not(.dock-panel)', 'Panel').filter(
     (panel) => panel.width > 0 && panel.height > 0
   )
@@ -171,52 +147,36 @@ function measureAll() {
 }
 
 /**
- * 判断数值是否符合 PPS 定位模式（允许 1px 浮点误差）
- * PPS 公式有三种模式：
- * - left 锚点:   value = SAFE_MARGIN + n × CELL_PIXEL
- * - right 锚点:  value = W - SAFE_MARGIN - n × CELL_PIXEL
- * - center 锚点: value = (W - n × CELL_PIXEL) / 2
- * @param {number} value
- * @returns {boolean}
+ * 数值是否符合 PPS 定位公式（允许 1px 误差）
+ * left: SAFE_MARGIN + n×C；right: W - SAFE_MARGIN - n×C；center: (W - n×C)/2
  */
 function isPpsAligned(value: number) {
   const C = cellPixel.value
   const S = SAFE_MARGIN
   const W = viewportWidth.value
 
-  // 模式 1: SAFE_MARGIN + n × CELL_PIXEL (left 锚点)
+  // left 锚点
   const remainder1 = (value - S) % C
   if (remainder1 <= 1 || remainder1 >= C - 1) return true
 
-  // 模式 2: W - SAFE_MARGIN - n × CELL_PIXEL (right 锚点)
+  // right 锚点
   const remainder2 = (W - S - value) % C
   if (remainder2 <= 1 || remainder2 >= C - 1) return true
 
-  // 模式 3: (W - n × CELL_PIXEL) / 2 (center 锚点)
+  // center 锚点
   const remainder3 = (W - value * 2) % C
   if (remainder3 <= 1 || remainder3 >= C - 1) return true
 
   return false
 }
 
-/**
- * 判断数值是否对齐到 Cell 网格（允许 1px 浮点误差）
- * 用于验证 Panel 尺寸（width/height）是否为 CELL_PIXEL 的整数倍
- * @param {number} value
- * @returns {boolean}
- */
+/** 数值是否为 Cell 的整数倍（允许 1px 误差，验证 Panel 尺寸） */
 function isCellAligned(value: number) {
   const remainder = value % cellPixel.value
   return remainder <= 1 || remainder >= cellPixel.value - 1
 }
 
-/**
- * 记录对齐问题
- * @param {string} name - 元素名称
- * @param {string} field - 不对齐的字段
- * @param {number} value - 实际值
- * @param {string} [expected] - 预期值描述（默认 Cell 倍数）
- */
+/** 记录对齐问题（默认预期为 Cell 倍数） */
 function recordIssue(name: string, field: string, value: number, expected?: number | string) {
   alignmentIssues.value.push({
     name,
@@ -226,16 +186,7 @@ function recordIssue(name: string, field: string, value: number, expected?: numb
   })
 }
 
-/**
- * 验证单个矩形是否符合 PPS 定位 + Cell 尺寸
- * - 位置 (x, y)：必须符合 PPS 公式 SAFE_MARGIN + n × CELL_PIXEL
- * - 尺寸 (width, height)：必须是 CELL_PIXEL 的整数倍
- * @param {string} name
- * @param {{ x: number, y: number, width: number, height: number }} rect
- * @param {Object} options
- * @param {boolean} options.skipX
- * @param {boolean} options.skipY
- */
+/** 验证单个矩形：位置符合 PPS 公式、尺寸为 Cell 整数倍（可跳过某轴） */
 function validateRect(
   name: string,
   rect: MeasuredRect,
@@ -251,11 +202,7 @@ function validateRect(
   if (!isCellAligned(rect.height)) recordIssue(name, 'height', rect.height)
 }
 
-/**
- * 验证 Dock 是否水平居中
- * 由于 Dock 需要吸附到 Cell 网格，允许在吸附后与绝对中心存在最多半个 Cell 的偏移
- * @param {{ x: number, width: number }} dockRect
- */
+/** 验证 Dock 水平居中（吸附网格，允许最多半个 Cell 偏移） */
 function validateDockCenter(dockRect: { x: number; width: number }) {
   const expectedX = (viewportWidth.value - dockRect.width) / 2
   const diff = Math.abs(dockRect.x - expectedX)
@@ -269,12 +216,7 @@ function validateDockCenter(dockRect: { x: number; width: number }) {
   }
 }
 
-/**
- * 验证 Panel 到 Canvas 边缘的间距 >= SAFE_MARGIN
- * PPS 公式保证 offset=0 的 Panel 边缘恰好在 SAFE_MARGIN 处，
- * offset>0 的 Panel 边缘更远，所以只需检查最小间距
- * @param {{ label: string, x: number, y: number, width: number, height: number }} panel
- */
+/** 验证 Panel 到屏幕边缘的间距 >= SAFE_MARGIN（offset=0 时边缘恰在 SAFE_MARGIN 处） */
 function validateEdgeSpacing(panel: {
   label: string
   x: number
@@ -284,37 +226,34 @@ function validateEdgeSpacing(panel: {
 }) {
   const minSpacing = SAFE_MARGIN
 
-  // 上边缘：必须 >= SAFE_MARGIN
+  // 上边缘
   if (panel.y < minSpacing - 1) {
     recordIssue(panel.label, 'top-edge', panel.y, `>= ${minSpacing}px`)
   }
-  // 左边缘：必须 >= SAFE_MARGIN
+  // 左边缘
   if (panel.x < minSpacing - 1) {
     recordIssue(panel.label, 'left-edge', panel.x, `>= ${minSpacing}px`)
   }
-  // 右边缘：必须 >= SAFE_MARGIN
+  // 右边缘
   const rightEdge = viewportWidth.value - (panel.x + panel.width)
   if (rightEdge < minSpacing - 1) {
     recordIssue(panel.label, 'right-edge', rightEdge, `>= ${minSpacing}px`)
   }
-  // 下边缘：必须 >= SAFE_MARGIN
+  // 下边缘
   const bottomEdge = viewportHeight.value - (panel.y + panel.height)
   if (bottomEdge < minSpacing - 1) {
     recordIssue(panel.label, 'bottom-edge', bottomEdge, `>= ${minSpacing}px`)
   }
 }
 
-/**
- * 执行所有对齐验证
- * V2 变更：移除 Container/TopArea 验证，新增间距验证
- */
+/** 执行全部对齐验证 */
 function validateAlignment() {
   alignmentIssues.value = []
 
   // 验证 Panel 的 Cell 对齐
   measuredPanels.value.forEach((panel) => validateRect(panel.label, panel))
 
-  // 验证 Panel 到 Canvas 边缘的间距
+  // 验证 Panel 到屏幕边缘的间距
   measuredPanels.value.forEach((panel) => validateEdgeSpacing(panel))
 
   // 验证 Dock 居中和 Cell 对齐
@@ -330,9 +269,7 @@ function handleResize() {
   measureAll()
 }
 
-// 当调试模式开启时重新测量（挂载/事件监听统一在下方 onMounted/onUnmounted）
-
-// 当调试模式开启时重新测量
+// 调试模式开启时重新测量
 watch(
   () => props.enabled,
   (enabled) => {
@@ -342,11 +279,11 @@ watch(
   }
 )
 
-// 计算 Grid 参考线行列数（V2 使用 GRID_SIZE 而非 cellPixel）
+// Grid 参考线行列数（基于 GRID_SIZE）
 const gridCols = computed(() => Math.floor(viewportWidth.value / GRID_SIZE))
 const gridRows = computed(() => Math.floor(viewportHeight.value / GRID_SIZE))
 
-// 生成 Grid 参考线数据（V2 使用 GRID_SIZE）
+// 生成 Grid 参考线数据
 const gridLines = computed(() => {
   const result: { id: string; row: number; col: number; x: number; y: number }[] = []
   for (let row = 0; row < gridRows.value; row++) {
@@ -462,7 +399,7 @@ onMounted(() => {
   window.addEventListener('resize', handleResize)
   refreshPerf()
   perfTimer = setInterval(refreshPerf, 1000)
-  // 首次开启时 DOM 可能尚未完全渲染，延迟测量
+  // 首次开启时 DOM 可能未渲染完，延迟测量
   if (props.enabled) {
     requestAnimationFrame(measureAll)
   }
@@ -476,7 +413,7 @@ onUnmounted(() => {
 
 <template>
   <div v-if="enabled" class="GCS-debug-overlay">
-    <!-- Grid 参考线层（V2 使用 GRID_SIZE = 100px） -->
+    <!-- Grid 参考线层（GRID_SIZE = 100px） -->
     <svg class="cell-grid" :width="viewportWidth" :height="viewportHeight">
       <g class="cell-boundaries">
         <line
@@ -556,7 +493,7 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <!-- 调试信息面板（MC F3 风格：左上角半透明文字，不拦截鼠标） -->
+    <!-- 调试信息面板（仿 MC F3：左上角半透明文字） -->
     <div class="debug-hud">
       <div class="hud-title">调试模式 Debug Mode</div>
 
@@ -622,7 +559,7 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <!-- GCS 反馈测试（2026-08-08 打磨：modal/toast 预览入口，与生产共用 gcsFeedback 单例） -->
+      <!-- GCS 反馈测试：modal/toast 预览入口，与生产共用 gcsFeedback 单例 -->
       <div class="hud-sec">── GCS 反馈测试 ──</div>
       <div class="feedback-test">
         <button class="feedback-btn" @click="testErrorModal">Error Modal</button>
@@ -645,9 +582,7 @@ onUnmounted(() => {
   z-index: 55;
 }
 
-/* 关键：pointer-events 不继承，仅根容器 none 不够——SVG 网格线/标签/HUD 子元素
-   默认 auto 仍会拦截鼠标。通配符强制全层穿透：调试模式只展示、不接收任何事件，
-   拖拽地图/操作面板/切换路由均不受影响。 */
+/* pointer-events 不继承：通配符强制全层穿透，调试模式只展示、不接收任何事件 */
 .GCS-debug-overlay,
 .GCS-debug-overlay * {
   pointer-events: none !important;
@@ -708,7 +643,7 @@ onUnmounted(() => {
   border-radius: 3px;
 }
 
-/* 调试信息 HUD（MC F3 风格）：左上角、半透明、纯文字、不拦截鼠标 */
+/* 调试信息 HUD：左上角半透明文字，不拦截鼠标 */
 .debug-hud {
   position: absolute;
   top: v-bind(infoPanelOffsetCss);
@@ -784,8 +719,7 @@ onUnmounted(() => {
   word-break: break-all;
 }
 
-/* GCS 反馈测试按钮：覆盖层整体 pointer-events:none !important（通配符），
-   按钮需 auto !important 才能抢回点击（普通 auto 被 !important 压制，按不动） */
+/* 按钮需 auto !important 抢回点击（覆盖层整体 pointer-events:none !important） */
 .feedback-test {
   display: flex;
   flex-wrap: wrap;

@@ -1,16 +1,8 @@
 <script setup lang="ts">
 /**
- * SiteSelectionPage - 选址分析业务页
- * 布局（继承 Home Layout，替换 slot 内容）：
- * - 左上（4×4）：第一名小区雷达图
- * - 左下（4×4）：图层控制面板（接入真实功能）
- * - 右上（4×4）：设施因子选择面板（6 按钮 + 滑块 + 清空/分析）
- * - 右下（4×4）：小区名单列表
- * 顶部标题 + 城市按钮 + 底部导航条固定不变。
- * 状态保存机制：
- * - 跳转到个人中心（/profile）时保存当前状态
- * - 从个人中心返回时恢复状态
- * - 跳转到其他路由时清除状态
+ * 选址分析业务页：左上雷达图（第一名/选中小区）、左下小区名单、
+ * 右上设施因子面板、右下图层控制（各 4×4）。
+ * 跳转个人中心时保存状态、返回恢复，跳其他路由清除。
  */
 
 import { computed, onMounted, onUnmounted, ref } from 'vue'
@@ -38,8 +30,7 @@ const { manager: businessLayerManager } = useBusinessLayers()
 const { createUpdateHandler } = useAnalysisLayer() as unknown as {
   createUpdateHandler: (_manager: unknown) => (_result: unknown) => Promise<void>
 }
-// 2026-08-08：分析图层更新回调由页面组件自持（直连 businessLayerManager），
-// 不再注入 mapStore 等待 setAnalysisResult 回调——store 已不含分析回调机制
+// 图层更新回调由页面直连 businessLayerManager（store 已不含分析回调机制）
 const updateAnalysisHandler = createUpdateHandler(businessLayerManager)
 
 // 保存定时器 id，卸载时清理悬挂定时器
@@ -85,9 +76,7 @@ const displayXiaoquForRadar = computed<ScoredXiaoqu | null>(
 function handleResult(result: Partial<AnalysisResult>): void {
   logger.debug('[SiteSelection] 收到分析结果:', result)
 
-  // 2026-08-08：图层更新直调页面自持的 updateAnalysisHandler（mapStore 不再持久化
-  // 分析结果——2026-08-10 P0-3 清理：setAnalysisResult 的 sessionStorage 通道为
-  // 只写不读死状态，恢复走 siteSelectionPersisted 内存快照）
+  // 图层更新直调 updateAnalysisHandler；分析结果恢复走 siteSelectionPersisted 内存快照
   void updateAnalysisHandler(result)
   matchedXiaoqu.value = result.matchedXiaoqu || []
   selectedTypes.value = result.selectedTypes || []
@@ -99,10 +88,7 @@ function handleResult(result: Partial<AnalysisResult>): void {
   }
 }
 
-/**
- * 显示指定设施的POI图层（互斥，只显示一个）
- * 统一经 businessLayerManager 注册，不再直调 renderer
- */
+/** 显示指定设施的 POI 图层（互斥，经 BLM 注册） */
 function handleShowFacilityLayer(data: {
   type: string
   poiList: FacilityPoint[]
@@ -150,7 +136,7 @@ function handleHideFacilityLayer(): void {
   activeFacilityLayerKey.value = null
 }
 
-/** 点击小区列表项（地图可视化已由FavoriteListPanel内置处理） */
+/** 点击小区列表项（地图可视化已由列表面板内置处理） */
 function handleSelectXiaoqu(xq: ScoredXiaoqu): void {
   // 更新本地状态，用于雷达图传参
   logger.debug('[SiteSelection] 点击小区:', xq)
@@ -168,7 +154,7 @@ function handleSelectXiaoqu(xq: ScoredXiaoqu): void {
   selectedXiaoqu.value = normalizedXq
 }
 
-/** 2026-08-08：跳转封装进 PaginatedListPanel（flyTo 回调 prop），与浸没分析统一 */
+/** 跳转逻辑由 PaginatedListPanel 提供（flyTo 回调 prop），与浸没分析统一 */
 function flyToXiaoqu(xq: ScoredXiaoqu): void {
   startBreathing(xq.lng ?? 0, xq.lat ?? 0)
   flyTo({ lng: xq.lng ?? 0, lat: xq.lat ?? 0 }, { height: 1000 })
@@ -182,10 +168,7 @@ function handleFavoriteChange(_data: { item: ScoredXiaoqu; isFavorite: boolean }
   }
 }
 
-/**
- * 路由守卫：离开选址分析页时保存/清除状态
- * 规则：仅当跳转到个人中心时保存状态，其他路由清除状态
- */
+/** 路由守卫：仅跳转个人中心时保存状态，其他路由清除 */
 onBeforeRouteLeave((to) => {
   if (to.path === '/profile') {
     // 跳转到个人中心，保存当前状态
@@ -250,10 +233,7 @@ function restoreState(): boolean {
   return true
 }
 
-/**
- * 清除旧的分析图层（分析覆盖范围 + 匹配小区 + 设施POI）
- * 从 mapStore catalog 和 renderer 中同时移除
- */
+/** 清除旧分析图层（覆盖范围 + 匹配小区 + 设施 POI） */
 function clearAnalysisLayers(): void {
   // 通过 Manager 统一管理生命周期，不直接操作 renderer 和 mapStore
   if (businessLayerManager.has('analysis-coverage')) {
@@ -263,8 +243,7 @@ function clearAnalysisLayers(): void {
     businessLayerManager.remove('analysis-matched')
   }
 
-  // 清除设施POI图层 — 走 manager 统一生命周期（与上面两块一致），避免绕过 manager 残留在 _registry 中
-  // 导致引擎切换时 App.vue reapplyAll 按 registry 重绘出已删图层的「孤儿复活」（P0-4）
+  // 设施 POI 图层同样走 manager 生命周期，避免绕过管理残留在注册表导致引擎切换时孤儿复活
   if (activeFacilityLayerKey.value) {
     businessLayerManager.remove(activeFacilityLayerKey.value)
     activeFacilityLayerKey.value = null
@@ -302,9 +281,7 @@ onUnmounted(() => {
     clearTimeout(tryZoomTimer)
     tryZoomTimer = null
   }
-  // 统一清理所有分析图层（analysis-coverage/analysis-matched + 设施POI）
-  // clearAnalysisLayers 内部已处理设施 POI，不再单独调 handleHideFacilityLayer 避免双清
-  // DEM 山体阴影（真实地形）图层仅属洪涝分析，选址页不注册不清理
+  // 统一清理分析图层（clearAnalysisLayers 已含设施 POI，避免双清）；DEM 图层仅属洪涝分析，不在此清理
   clearAnalysisLayers()
 })
 </script>
@@ -312,7 +289,7 @@ onUnmounted(() => {
 <template>
   <div class="site-selection-page">
     <AppLayout>
-      <!-- 左侧：左上雷达图 + 左下图层控制 -->
+      <!-- 左侧：左上雷达图 + 左下小区名单 -->
       <template #left>
         <!-- 左上：小区雷达图 4×4（显示选中小区或第一名） -->
         <GCSPanel :w="4" :h="4" anchor="top-left" :offset-x="0" :offset-y="1.25">
@@ -326,7 +303,7 @@ onUnmounted(() => {
             @hide-facility-layer="handleHideFacilityLayer"
           />
         </GCSPanel>
-        <!-- 左下：小区名单列表 4×4（2026-08-08 与图层控制互换位置） -->
+        <!-- 左下：小区名单列表 4×4 -->
         <GCSPanel :w="4" :h="4" anchor="top-left" :offset-x="0" :offset-y="5.5">
           <PaginatedListPanel
             ref="favoriteListRef"
@@ -358,7 +335,7 @@ onUnmounted(() => {
             @analysis-error="handleAnalysisError"
           />
         </GCSPanel>
-        <!-- 右下：图层控制面板 4×4（2026-08-08 与小区名单互换位置） -->
+        <!-- 右下：图层控制面板 4×4 -->
         <GCSPanel :w="4" :h="4" anchor="top-right" :offset-x="0" :offset-y="5.5">
           <LayerControlPanel
             :layer-order="[

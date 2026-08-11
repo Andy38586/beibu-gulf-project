@@ -30,7 +30,7 @@ import type { Plan } from '@/types/plan'
 
 const route = useRoute()
 const router = useRouter()
-// P9：user 供 watch 驱动 store 重置（登出/多标签页登出）
+// authUser 供 watch 驱动登出/多标签页登出时的 store 重置
 const { restoreAuth, user: authUser } = useAuth()
 const { zoomToRegion, zoomToCity, stopBreathing } = useMapControls()
 const mapStore = useMapStore()
@@ -50,18 +50,16 @@ provide(MAP_STORE_KEY, mapStore)
 const businessLayerManager = new BusinessLayerManager(mapStore)
 provide(BUSINESS_LAYER_MANAGER_KEY, businessLayerManager)
 
-// 图层渲染失败 → UI 层 toast（2026-08-08：manager 只上报错误回调、不感知 UI——
-// 展示方式由上层决定；原 on/_emit 事件发射器已收敛为 setErrorHandler 单一回调）
+// 图层渲染失败由 manager 回调上报，UI 展示方式由上层决定
 businessLayerManager.setErrorHandler(({ label }: { label: string }) => {
   showWarning(`图层「${label}」加载失败，请再点击一次重试`)
 })
 
-// store 重置（2026-08-08 P9）：去掉 setResetStoresHandler 注册回调——
-// 重置逻辑整合进 App.vue 组件内，watch(user) 驱动（user 变 null = 登出/多标签页登出）
+// 登出/多标签页登出（authUser 变 null）时统一重置各业务 store
 function resetStores(): void {
   try {
     siteSelectionPersisted.clearState()
-    // P3：waterLevel/portImpact/profile 已并入 floodStore，clearState 全量清（含持久化快照）
+    // 各业务状态已并入 floodStore，clearState 全量清（含持久化快照）
     useFloodStore().clearState()
     // 重置地图业务交互状态，清 lastAnalysisResult 会话持久化与 sessionStorage
     useMapStore().resetMapState()
@@ -82,8 +80,7 @@ function handleRequireLogin() {
   void router.push('/profile')
 }
 
-// 注册底部导航项（2026-08-09 重构恢复注入模式）：core/layout 不引 business，
-// 由根入口 App.vue 从 business/manifest 生成业务项注入 navConfig（分层铁律）
+// 注册底部导航项：core/layout 不引 business，由根入口从 manifest 注入业务导航项（分层铁律）
 registerNavItems([
   { type: 'home', label: '首页', icon: '⌂', path: '/', disabled: false },
   ...businessModules.map((m) => ({
@@ -107,9 +104,8 @@ function waitForRenderer(callback: () => void, retries = 0) {
 }
 
 /**
- * 合并路由监听器：统一处理路由变化和地图引擎切换
- * 关键修复：避免 route.name watcher 在引擎切换时覆盖 importState 设置的相机位置
- * 通过检测 meta.engine 是否变化来区分"路由导航"和"引擎切换"
+ * 统一处理路由变化与引擎切换：检测 meta.engine 变化区分二者，
+ * 避免引擎切换时 watcher 覆盖 importState 设置的相机位置
  */
 watch(
   () => ({
@@ -137,8 +133,7 @@ watch(
       mapStore.setMapType(engine as '2d' | '3d')
     }
 
-    // 关键修复：仅在非引擎切换场景下执行相机重置
-    // 引擎切换时，相机位置由 UnifiedMap 的 importState 管理
+    // 仅非引擎切换场景执行相机重置（引擎切换时相机由 importState 管理）
     if (!isEngineSwitch) {
       if (newRoute.name === 'Home') {
         waitForRenderer(zoomToRegion)
@@ -153,22 +148,10 @@ watch(
   { immediate: true }
 )
 
-// 引擎切换（2D↔3D）后，旧 renderer 销毁、新 renderer 上没有业务图层。
-// registry 在 App 级持久，业务页面不会因切换而重新 register，
-// 因此监听 currentRenderer 变化，清理两个渲染器上残留的业务图层视觉实例：
-// OL/Cesium 实例长期复用不销毁，否则上一个页面留在非激活渲染器上的孤儿图层
-// （如 dem-hillshade GeoTIFF）会在切回该引擎时被渲染并崩掉渲染循环。
-// 注意：业务图层重建不在此处做——统一由 UnifiedMap.initRenderer 尾部 reapplyAll
-// 负责（在 setupLayers 之后，保证"清 catalog → 重建条目"顺序，且单测无 App.vue
-// 也能重建；此处若也 reapplyAll 会与 initRenderer 重复 create 导致图层叠加）。
-//
-// flush: 'sync' 关键（2026-08-08）：Vue watch 默认 flush:'pre' 异步执行——
-// setCurrentRenderer 触发 watcher 但回调被排入微任务队列，reapplyAll 同步执行
-// 先于 watcher → 图层创建后立即被 watcher 的 removeAllFromRenderer 删除。
-// Cesium boundary 因 addGeoJsonLayer 是 async（_layers 未 set）逃过删除，
-// 而 ports/OL boundary 因同步 add 被删 → "2D 不显示"+"面板蓝但图上没有"。
-// 改为 flush:'sync' 后 watcher 在 setCurrentRenderer 调用栈内同步执行，
-// 先于 reapplyAll → 清理孤儿图层 → reapplyAll 重建，顺序正确。
+// 引擎切换后旧 renderer 上残留的业务图层需清理（registry 在 App 级持久，页面不会重新 register）。
+// 重建统一由 UnifiedMap.initRenderer 尾部的 reapplyAll 负责，此处只清不建，避免重复 create。
+// flush:'sync' 关键：reapplyAll 在切换调用栈内同步执行，默认异步 watcher 会晚于它触发，
+// 导致图层"先建后删"（2D 不显示）；同步 flush 保证"先清理、后重建"顺序。
 watch(
   () => mapStore.currentRenderer,
   (renderer, oldRenderer) => {
@@ -182,20 +165,14 @@ watch(
 )
 
 onMounted(() => {
-  // 应用启动时恢复认证状态
-  // 通过 /api/auth/me 验证 Cookie 中的 Token 是否有效
-  void restoreAuth()
-  // 单点注册多标签页 storage 同步监听（无需组件上下文，不会抛错）
-  initAuthStorageListener()
-  // Phase 2：首屏后空闲预取 Cesium 脚本（5.7MB），进 3D 时 warm，灭切换卡顿
-  preloadCesium()
+  void restoreAuth() // 启动时经 /api/auth/me 验证 Cookie Token
+  initAuthStorageListener() // 多标签页登录态同步
+  preloadCesium() // 空闲预取 Cesium 脚本（5.7MB），降低进 3D 切换卡顿
 })
 
 onUnmounted(() => {
-  // 根组件卸载时销毁图层管理器，释放 _registry 持有的图层元数据
-  businessLayerManager.destroy()
-  // 解除多标签页 storage 监听（与 initAuthStorageListener 配对）
-  removeAuthStorageListener()
+  businessLayerManager.destroy() // 释放图层注册表元数据
+  removeAuthStorageListener() // 与 initAuthStorageListener 配对
 })
 </script>
 
@@ -211,7 +188,7 @@ onUnmounted(() => {
         </RouterView>
       </ErrorBoundary>
     </main>
-    <!-- 全局 GCS 反馈层（2026-08-08 打磨：替换 ElMessageBox/ElMessage） -->
+    <!-- 全局 GCS 反馈层（统一提示组件，替换 ElMessageBox/ElMessage） -->
     <GCSModal />
     <GCSToast />
   </div>
@@ -230,8 +207,6 @@ onUnmounted(() => {
   pointer-events: none;
   z-index: 50;
 }
-/* 注意：不能在这里设置 .app-content > * { pointer-events: auto } */
-/* 原因：这会让 .flood-analysis-page 等业务页面也变成 pointer-events: auto， */
-/* 导致整个页面成为全屏事件拦截层，阻挡下层地图容器的鼠标事件（拖拽/缩放/旋转失效） */
-/* 正确做法：由各业务页面自行控制 pointer-events，面板通过 AppLayout 的 .app-layout > * 恢复 */
+/* 不能设 .app-content > * { pointer-events: auto }：会让业务页面成为全屏事件拦截层，
+   阻挡地图容器鼠标事件（拖拽/缩放/旋转失效）；由各业务页面自行控制，AppLayout 再恢复 */
 </style>

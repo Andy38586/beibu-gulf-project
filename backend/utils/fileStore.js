@@ -14,9 +14,8 @@ export function createFileStore(filePath, { useCache = true } = {}) {
     return next
   }
 
-  // 命中缓存时直接返回对象引用（非深拷贝，避免每请求结构化克隆开销）。
-  // 调用方必须以不可变方式更新（构造新数组/对象）后再 writeAll，避免原地修改污染缓存且不落盘。
-  // 当前 2 个调用方（plans/users）均已规范，无需加防御性深拷贝。
+  // 返回对象引用非深拷贝：调用方须以不可变方式更新（构造新数组/对象）后 writeAll，
+  // 避免原地修改污染缓存且不落盘
   async function readAll() {
     if (useCache && cache !== null) return cache
     try {

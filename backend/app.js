@@ -20,11 +20,8 @@ const app = express()
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const isDev = process.env.NODE_ENV === 'development'
 
-// trust proxy — 生产部署经 nginx 反代，若未信任代理，
-// rateLimit 按 127.0.0.1 统一计数 → 登录/全局限流形同虚设（所有人共享同一 IP 配额）。
-// 数字 1 = 信任最近 1 跳代理（nginx）。直接反代部署（无 nginx）时不受影响（req.ip=直连 IP）。
-// 原 `Number(...) || 1` 对 "0" 失效（Number("0")=0 为 falsy → 回落 1），
-// 无法表达"不信任代理"。改为显式判断：非负有限值原样生效，否则默认 1。
+// trust proxy：生产经 nginx 反代时不信任代理会让 rateLimit 按 127.0.0.1 统一计数（限流失效）。
+// 显式判断非负有限值原样生效、否则默认 1——不能用 `Number(...) || 1`，它无法表达"不信任代理"（0 是 falsy）
 const trustProxyHops = Number(process.env.TRUST_PROXY_HOPS)
 app.set('trust proxy', Number.isFinite(trustProxyHops) && trustProxyHops >= 0 ? trustProxyHops : 1)
 
@@ -36,8 +33,7 @@ app.get('/api/health', (req, res) => {
   sendSuccess(res, { status: 'ok' })
 })
 
-// liveness（/api/health）保持极简（进程活）；
-// readiness（/api/health/ready）查关键依赖（数据目录可读性），供编排器/HEALTHCHECK 探就绪。
+// liveness 只探进程存活；readiness 查关键依赖（数据目录可读），供编排器/HEALTHCHECK 使用
 export async function checkDataDirReadable() {
   try {
     await readdir(join(__dirname, 'data'))
@@ -62,11 +58,8 @@ export async function readinessHandler(req, res, next) {
 
 app.get('/api/health/ready', readinessHandler)
 
-// 限流中间件：防止暴力破解和 DDoS
-// 2026-08-09：演示/展示场景阈值放宽——全局 1000/15min、登录 50/15min（演示反复试错/
-// 刷新不会误锁；面试展示以演示稳定优先，暴力防护语义保留）。真实多人上线再收紧。
-// 预测分析接口（/api/forecast/*）为合法高频交互（时间轴播放月粒度一轮 ~400+ 请求，
-// 拖动滑块/置信度反复触发），豁免全局限流，由下方 forecastLimiter 专属宽松限流管理。
+// 限流：防暴力破解/DDoS。演示场景阈值放宽（1000/15min），真实多人上线再收紧。
+// 预测分析接口为合法高频交互（时间轴播放一轮 ~400+ 请求），豁免全局限流
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 分钟
   max: 1000, // 每个 IP 最多 1000 次请求
@@ -76,9 +69,7 @@ const limiter = rateLimit({
 })
 app.use('/api/', limiter)
 
-// 预测分析接口专属宽松限流：一轮月粒度播放 ~216 时间点 × 2 接口 ≈ 432 请求，
-// 全局限流 100/15min 必触发；分析接口只读、无认证爆破风险，500/15min 足够单用户正常使用
-// （前端另有 LRU 缓存：重放/往返命中缓存零请求，实际播放轮次远低于上限）。
+// 预测接口专属宽松限流：一轮播放 ~432 请求，只读无爆破风险；前端另有缓存，实际远低于上限
 const forecastLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 1000,
@@ -86,7 +77,7 @@ const forecastLimiter = rateLimit({
 })
 app.use('/api/forecast', forecastLimiter)
 
-// 登录接口限流（演示放宽：50/15min，避免演示试错被锁 15 分钟）
+// 登录接口限流（演示放宽，避免试错被锁 15 分钟）
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 分钟
   max: 50, // 每个 IP 最多 50 次登录尝试
@@ -94,7 +85,7 @@ const authLimiter = rateLimit({
 })
 app.use('/api/auth/login', authLimiter)
 
-// 注册接口专属限流（d037：防批量注册；演示放宽）
+// 注册接口专属限流（防批量注册；演示放宽）
 const registerLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 50,
@@ -113,9 +104,7 @@ app.use(
 app.use(express.json({ limit: '1mb' }))
 app.use(cookieParser())
 
-// 请求日志中间件（仅打日志、不修改请求）。
-// dev 下输出 方法/路径/状态码/耗时，请求体经 sanitize 脱敏（password/token/secret 打码）。
-// 生产环境 debug 静默，不输出请求日志。
+// 请求日志：仅 dev 输出，请求体经 sanitize 脱敏（敏感字段打码）
 import { sanitize } from './middleware/logSanitizer.js'
 app.use((req, res, next) => {
   const start = Date.now()
@@ -130,11 +119,8 @@ app.use((req, res, next) => {
   next()
 })
 
-// 静态资源托管：DEM 派生产物（hillshade COG、terrain 瓦片），供前端 /static/dem/* 访问
-// 真数据统一放后端，便于未来移交 PostGIS/PgSQL
-// .terrain 是 CTB quantized-mesh 输出（磁盘上即 gzip 压缩流 1f8b），
-// CesiumTerrainProvider 期望 raw bytes 自行解压；需 setHeaders 声明 Content-Encoding: gzip
-// 让浏览器自动解压。无头+实测：未声明时 Cesium RangeError Invalid typed array length 80+亿。
+// 静态资源托管（DEM 派生产物等）；.terrain 是 gzip 压缩流，须声明 Content-Encoding: gzip，
+// 否则 CesiumTerrainProvider 解压失败（Invalid typed array length）
 app.use(
   '/static',
   express.static(join(__dirname, 'static'), {
@@ -158,12 +144,11 @@ app.use((req, res) => {
   res.status(404).json({ error: '接口不存在' })
 })
 
-// 全局错误处理中间件，防止未捕获异常泄露堆栈信息
+// 全局错误处理：未捕获异常不泄露堆栈信息
 app.use((err, req, res, _next) => {
-  // BusinessError 统一携带 code + status，按码返回对应 HTTP 状态码
+  // BusinessError（业务错误类，携带 code + status）按码返回对应 HTTP 状态码；
+  // 预期错误落 warn 日志便于生产排查，不记堆栈避免噪音
   if (err instanceof BusinessError) {
-    // z072: 业务错误也落 warn 日志（生产可观测——此前业务错误不落日志,线上排查无据）
-    // 仅记 code/status/message,不记堆栈(预期错误,避免噪音)
     logger.warn(`[BusinessError] ${err.status} ${err.code}: ${err.message}`)
     return res.status(err.status).json({ code: err.code, error: err.message })
   }

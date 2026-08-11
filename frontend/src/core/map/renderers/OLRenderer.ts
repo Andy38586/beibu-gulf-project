@@ -1,4 +1,4 @@
-// 2026-08-09：移除 @ts-nocheck（OL 渲染器类型补全，原 171 个 typecheck 错误渐进清零）
+// OpenLayers 2D 渲染器：视图为 Web 墨卡托投影（EPSG:3857），业务坐标用 WGS84 经纬度（EPSG:4326）。
 import type { FeatureCollection } from 'geojson'
 import type { EventsKey } from 'ol/events'
 import type { FeatureLike } from 'ol/Feature'
@@ -10,8 +10,7 @@ import type BaseLayer from 'ol/layer/Base'
 import Heatmap from 'ol/layer/Heatmap'
 import TileLayer from 'ol/layer/Tile'
 import VectorLayer from 'ol/layer/Vector'
-// 不能用 `import Map` —— 会遮蔽全局 ES Map，
-// 导致 `new Map()`（如 _cullLayers 初始化）误建 ol/Map 实例，moveend 遍历 .keys() 时崩溃。
+// 不能 import { Map }：会遮蔽全局 ES Map，new Map()（如 _cullLayers 初始化）会误建 ol/Map 实例
 import OlMap from 'ol/Map'
 import type MapBrowserEvent from 'ol/MapBrowserEvent'
 import { fromLonLat, toLonLat } from 'ol/proj'
@@ -32,7 +31,7 @@ import type { CameraState, FlyToOptions, FlyToTarget } from '@/types'
 
 import { MapRenderer } from './MapRenderer'
 
-/** 视口裁剪图层条目（_cullLayers 值类型，2026-08-09 类型补全） */
+/** 视口裁剪图层条目（_cullLayers 值类型） */
 interface CullLayerEntry {
   source: VectorSource
   index: ReturnType<typeof createSpatialIndex<PointFeature>>
@@ -40,16 +39,13 @@ interface CullLayerEntry {
   featureType: string
 }
 
-/**
- * OpenLayers 2D 渲染器。
- */
+/** OpenLayers 2D 渲染器（实现 MapRenderer 抽象能力） */
 export class OLRenderer extends MapRenderer {
-  // 2026-08-09 类型补全：自有字段显式声明（原 @ts-nocheck 隐藏，运行期行为不变）
   map: OlMap | null
   baseLayers: { image: TileLayer<XYZ>[]; vector: TileLayer<XYZ>[] }
   _cullLayers: Map<string, CullLayerEntry>
   _moveendKey: EventsKey | null
-  // OL on() 的 listener 参数为宽类型（Event），业务回调按需收窄（2026-08-09 类型补全）
+  // OL on() 的 listener 参数为宽类型（Event），业务回调按需收窄
   _pointerMoveHandler: ((evt: unknown) => void) | null
   _cameraChangedKey: EventsKey | null
   _cameraDebounceTimer: ReturnType<typeof setTimeout> | null
@@ -162,7 +158,7 @@ export class OLRenderer extends MapRenderer {
     })
   }
 
-  /** a026: 补齐 MapRendererEventMap 声明的 pointer-move / camera-changed 事件实现 */
+  /** pointer-move / camera-changed 事件实现（对应 MapRendererEventMap 声明） */
   _setupPointerHandlers(): void {
     const map = this.map
     if (!map) return
@@ -222,10 +218,7 @@ export class OLRenderer extends MapRenderer {
     this._applyPendingVisibility(id)
   }
 
-  /**
-   * 大数量点图层的视口裁剪加载
-   * 构建 R-tree 索引（EPSG:3857），初始只渲染视口内要素，moveend 时增量更新
-   */
+  /** 大数量点图层的视口裁剪：R-tree 索引（EPSG:3857 投影坐标），初始只渲染视口内要素，moveend 增量更新 */
   _addCulledPointLayer(
     id: string,
     features: PointFeature[],
@@ -433,15 +426,11 @@ export class OLRenderer extends MapRenderer {
     this._applyPendingVisibility(id)
   }
 
-  // 原设计文档使用 addGeoJsonLayer({type:'heatmap'})，但现有接口不支持
-  // 正确做法：独立方法 + 参考 OpenLayers Heatmap 官方示例
+  // 热力图走独立方法（原设计文档的 addGeoJsonLayer({type:'heatmap'}) 方案未落地），参考 OpenLayers Heatmap 官方示例
   addGeoTIFFLayer(id: string, url: string, options: LayerOptions = {}): boolean {
-    // 真实 DEM 山体阴影/高程着色 COG
-    // ol/source/GeoTIFF 在 OL 10.9.0 自带，无需新增依赖
-    // 注意：normalize 必须为 true —— 若设 false，单波段数据以数组形式交给
-    // CanvasTileLayerRenderer，会抛 "Rendering array data is not yet supported"
-    // （2026-08-02 实测，选址页/洪涝页加载 hillshade 即崩）。
-    // 显式声明 normalize:true（即便默认值已是 true），防止版本差异导致回归。
+    // DEM（数字高程模型）山体阴影/高程着色 COG：ol/source/GeoTIFF 自带，无需新增依赖
+    // normalize 必须显式 true——false 时单波段数据以数组形式交给渲染器，
+    // 抛 "Rendering array data is not yet supported" 崩溃（防版本差异导致回归）
     let source
     try {
       // GeoTIFF options 类型未含 crossOrigin（OL 10 类型缺口），用结构化类型断言补
@@ -570,10 +559,7 @@ export class OLRenderer extends MapRenderer {
       ;(layer.instance as { setVisible: (v: boolean) => void }).setVisible(visible)
     }
   }
-  /**
-   * 覆盖基类 removeLayer —— 先清理裁剪图层状态（索引 + moveend 监听），再走基类移除。
-   * 此前 _removeCullLayer 定义了但从未被调用，导致 _cullLayers 残留 + moveend 监听永不解除。
-   */
+  /** 覆写基类 removeLayer：先清理裁剪图层状态（索引 + moveend 监听）再走基类移除，防止 _cullLayers 残留与监听泄漏 */
   removeLayer(id: string): void {
     this._removeCullLayer(id)
     super.removeLayer(id)
@@ -601,7 +587,7 @@ export class OLRenderer extends MapRenderer {
     this._cullLayers.delete(id)
     const moveendKey = this._moveendKey
     if (this._cullLayers.size === 0 && moveendKey) {
-      // OL 的 on/un 事件类型为字面量 union（EventsKey.type 为宽 string），cast 对齐（2026-08-09 类型补全）
+      // EventsKey.type 为宽 string，un 需 cast 对齐字面量 union 类型
       this.map?.un(moveendKey.type as 'moveend', moveendKey.listener as any)
       this._moveendKey = null
     }
@@ -629,16 +615,13 @@ export class OLRenderer extends MapRenderer {
     }
     // 数据入口归一化：统一 lng/lon/longitude 字段名
     const { lng, lat } = normalizePoint(target as { lng?: number; lat?: number; lon?: number })
-    // 2026-08-08：zoom 与位置同时变化（对齐 Cesium 的 camera.flyTo 语义）——
-    // 调用方传 {height}（如 flyTo({lng,lat},{height:1000})），OL 分支原来只认
-    // options.zoom、忽略 height → 2D 只动 center 不动缩放（用户实测"选址无跳转动画"）。
-    // 现在 height → heightToZoom 转换，位置+缩放同步动画。
+    // height → heightToZoom 同步缩放（曾只认 options.zoom、忽略 height，2D 只有位移没有缩放动画）
     const zoom =
       options.zoom ?? (options.height != null ? heightToZoom(options.height) : view.getZoom())
     view.animate({
       center: fromLonLat([lng, lat]),
       zoom,
-      // 2026-08-09（P1-4）：duration 参数生效——读 FlyToOptions.duration（毫秒）?? 默认 1000
+      // duration 读 FlyToOptions.duration（毫秒）?? 默认 1000
       duration: options.duration ?? 1000,
     })
   }
@@ -733,8 +716,7 @@ export class OLRenderer extends MapRenderer {
     }
   }
   getType() {
-    // P0-1: 返回 '2d'（与 MapType 一致）——原 'ol' 导致 switchMapType 的 oldType 与
-    // v-show 的 mapType === '2d'/'3d' 比较错位（回滚 setMapType('ol') 白屏、同类型短路死代码）
+    // 返回 '2d' 与 MapType 一致：原 'ol' 与 mapType==='2d'/'3d' 比较错位（切换白屏、同类型短路）
     return '2d'
   }
   getMap() {
@@ -743,10 +725,7 @@ export class OLRenderer extends MapRenderer {
   updateSize() {
     this.map?.updateSize()
   }
-  // 水面 5 方法为 3D 专有能力（Water3DCapability），OLRenderer 不实现——
-  // 调用方（layerAdapters waterSurface 分支）做能力检查后跳过 2D 渲染器（a036）。
-  // 2D 呼吸动画（startBreathing/stopBreathing）为公共能力，实现见上方。
-
+  // 水面为 3D 专有能力（Water3DCapability），调用方做能力检查后跳过 2D；呼吸动画为双引擎公共能力，实现见上方
   destroy() {
     super.destroy()
     this.stopBreathing()

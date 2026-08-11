@@ -5,11 +5,7 @@
 </template>
 
 <script setup lang="ts">
-/**
- * EmptyState — 统一空数据占位组件（c029）
- * 全项目空状态共用，避免各图表/列表各自拼写"暂无数据"。
- * 样式直接使用全局 --GCS-* 设计变量（不引入 useGCS，避免 shared → core 反向依赖）。
- */
+/** 统一空数据占位组件：全项目共用，避免各图表/列表各自拼写"暂无数据"；直接用全局 --GCS-* 变量，避免 shared → core 反向依赖 */
 withDefaults(defineProps<{ message?: string }>(), {
   message: '暂无数据',
 })

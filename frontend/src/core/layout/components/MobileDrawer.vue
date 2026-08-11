@@ -1,12 +1,8 @@
 <script setup lang="ts">
 /**
- * MobileDrawer - 移动端业务面板抽屉
- * 仅在 <768px（AppLayout 的 showPanels=false）渲染。
- * 复用 AppLayout 注入的 left/right slot 内容（图表 / 图层控制 / 分析结果），
- * 通过 style.css 中的全局规则把内部 GCSPanel 的内联绝对定位强制改为正常流布局。
- * 可访问性：
- * - role="dialog" + aria-modal，Esc 关闭，点击遮罩关闭
- * - 图表 resize 由 useECharts 的 ResizeObserver 自动处理（抽屉展开即触发）
+ * MobileDrawer - 业务面板侧滑抽屉（仅抽屉模式即窄屏渲染）
+ * 复用 AppLayout 注入的 left/right slot（Vue 插槽）内容，内部 GCSPanel 的绝对定位
+ * 由 style.css 全局规则强制改为正常流布局。role="dialog" + aria-modal，Esc/遮罩关闭。
  */
 import { onUnmounted, watch } from 'vue'
 

@@ -29,10 +29,7 @@ const { chartRef } = useChartBase(props, emit, 'bar', {
   itemStyle: { borderRadius: [4, 4, 0, 0] },
 })
 
-/**
- * series 为空或全空数据时显示统一 EmptyState 占位。
- * chartRef 始终挂载（useECharts 流程不变），EmptyState 以 absolute 浮层覆盖。
- */
+/** 无数据时以 absolute 浮层显示空态（chartRef 始终挂载） */
 const hasData = computed(() => {
   if (!props.series || props.series.length === 0) return false
   return props.series.some((s) => s.data && s.data.length > 0)

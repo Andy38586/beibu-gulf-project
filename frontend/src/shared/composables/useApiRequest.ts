@@ -51,26 +51,18 @@ interface RequestOptions {
   /** GET 查询参数，内部用 URLSearchParams 拼接（无需手写模板字符串） */
   params?: Record<string, string | number | boolean | undefined | null>
   /**
-   * 可选 zod schema，传入则对信封解包后的 data 做 safeParse 运行时校验，
-   * 替代裸 `as T` 断言；不传入则保持 `as T` 行为（向后兼容）。
-   * 校验失败抛 ApiError(REQUEST_FAILED)（不在重试码列表内，不会触发 z049 重试）。
-   *
-   * 类型说明：schema 输出声明为 ZodType<unknown> 而非 ZodType<T>——
-   * 校验只负责运行时形状把关（拒绝畸形响应），业务类型仍由 T 声明。
-   * 若强绑 ZodType<T>，宽松 schema（如 z.looseObject）的推断类型与业务
-   * interface 常因可选字段/嵌套 Record 不完全一致而编译失败（P0-1 接入实践）。
+   * 可选 zod schema（运行时校验）：传入则对解包后的 data 做 safeParse，替代裸 `as T` 断言；
+   * 校验失败抛 ApiError(REQUEST_FAILED)，不可重试（响应数据错误重试无意义）。
+   * 类型声明为 ZodType<unknown> 而非 ZodType<T>——schema 只负责运行时形状把关，
+   * 业务类型仍由调用方 T 声明，宽松 schema 才不会与业务 interface 编译冲突。
    */
   schema?: ZodType<unknown>
-  /**
-   * 是否解包信封（{ code, data } → data）。
-   * 默认 true。跨服务调用（如 FastAPI /flood-online 返回裸 JSON 无信封）时
-   * 传 false 跳过解包——统一入口规则仍生效（禁止裸 fetch），仅信封契约不同。
-   */
+  /** 是否解包响应信封（{ code, data } → data），默认 true；跨服务裸 JSON 调用传 false 跳过 */
   envelope?: boolean
 }
 
 export function useApiRequest() {
-  // token 为模块级单例，由 setToken/clearToken 维护，不在每次调用时重新加载
+  // token 为模块级单例，由 setToken/clearToken 维护
 
   async function apiRequest<T = unknown>(path: string, options: RequestOptions = {}): Promise<T> {
     // GET 幂等请求在超时/网络错误时线性退避重试（POST 不重试，避免重复写操作）
@@ -80,7 +72,7 @@ export function useApiRequest() {
 
     let lastError: unknown
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-      // 接口耗时打点（每次尝试单独记录，path 不含 query 分桶）
+      // 接口耗时打点（按 path 分桶）
       const start = performance.now()
       try {
         return await _singleRequest<T>(path, options)
@@ -104,13 +96,9 @@ export function useApiRequest() {
     throw lastError
   }
 
-  /**
-   * 单次请求实现（原 apiRequest 函数体整体抽出）。
-   * 仅负责 headers/params/超时/fetch/信封解包/错误映射，不含重试逻辑；
-   * 每次调用新建 AbortController，超时计时天然重置，支持重试。
-   */
+  /** 单次请求实现（不含重试）：每次调用新建 AbortController，超时计时天然重置 */
   async function _singleRequest<T = unknown>(path: string, options: RequestOptions): Promise<T> {
-    // z048: 请求日志(dev-only)——故障时定位"数据在哪一跳丢失"
+    // dev 请求日志：故障时定位数据在哪一跳丢失
     if (import.meta.env.DEV) {
       logger.debug(`[apiRequest] → ${options.method ?? 'GET'} ${path}`, options.params ?? undefined)
     }
@@ -120,18 +108,16 @@ export function useApiRequest() {
       ...options.headers,
     }
 
-    // 认证统一通过 HttpOnly Cookie（credentials: 'include'），不发 Bearer header
-    // token.value 仅用于前端判断 isAuthenticated，不参与请求传输
-
+    // 认证走 HttpOnly Cookie（credentials: 'include'），token 仅用于前端登录态判断，不参与传输
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS)
 
-    // 如果外部传入 signal，使用 AbortSignal.any 组合
+    // 组合外部 signal 与内部超时 signal
     const signal = options.signal
       ? AbortSignal.any([controller.signal, options.signal])
       : controller.signal
 
-    // P2-1: 统一 query 参数构造，避免手写模板字符串
+    // 统一 query 参数构造，避免手写模板字符串
     let fullPath = path
     if (options.params) {
       const searchParams = new URLSearchParams()
@@ -147,9 +133,7 @@ export function useApiRequest() {
     }
 
     try {
-      // P1-2: API_BASE 前缀拼接——以 /flood-online 开头（vite proxy → FastAPI 8000）
-      // 的路径不加 /api 前缀：加了会变成 /api/flood-online/... 命中 /api 规则转发到
-      // Express（无此路由 → 404 接口不存在），永远到不了 FastAPI（2026-08-06 实锤）。
+      // 以 /flood-online 开头（vite proxy → FastAPI）的路径不加 /api 前缀：加了会命中 /api 规则转发到 Express，永远到不了 FastAPI
       const url = path.startsWith('/flood-online') ? fullPath : `${API_BASE}${fullPath}`
       const res = await fetch(url, {
         method: options.method,
@@ -157,28 +141,24 @@ export function useApiRequest() {
         headers,
         credentials: 'include',
         signal,
-        // 2026-08-09：API 请求禁止浏览器缓存——Express 默认 ETag，刷新时 me/plans 等
-        // 返回 304，前端 fetch 将 304 视为错误（res.ok 只认 2xx）→ 误判登出/数据失败。
+        // 禁用浏览器缓存：Express 默认 ETag 返回 304，fetch 视其为错误（res.ok 只认 2xx）→ 误判登出/数据失败
         cache: 'no-store',
       })
       clearTimeout(timeoutId)
 
-      // 响应体可能为空或非 JSON，分别处理避免错误信息丢失
-      // data 用 unknown 而非 Record<string, unknown>，因为 JSON.parse 可返回任意 JSON 值
+      // 响应体可能为空或非 JSON：用 unknown 承接任意 JSON 值，解析失败保留原始文本作错误信息
       const text = await res.text()
       let data: unknown = undefined
       if (text) {
         try {
           data = JSON.parse(text)
         } catch {
-          // JSON 解析失败时把原始文本作为 error 信息保留
           data = { error: text.slice(0, 200) }
         }
       }
 
       if (res.status === 401) {
-        // 不在这里 clearToken/redirect：401 可能只是某个接口需要登录
-        // 调用方自行决定是否提示登录（选址分析不需要，收藏才需要）
+        // 401 只抛错不跳转：是否提示登录由调用方决定（选址分析不需要，收藏才需要）
         throw new ApiError('请先登录', ErrorCode.UNAUTHORIZED)
       }
 
@@ -194,15 +174,10 @@ export function useApiRequest() {
         throw new ApiError(errMsg || `请求失败 HTTP ${res.status}`, ErrorCode.REQUEST_FAILED)
       }
 
-      /**
-       * P1-1 响应契约收口：自动解包信封式响应。
-       * 后端统一返回 { code, data }，此处经公共 unwrapEnvelope 提取 data 部分，
-       * 调用方始终拿到业务数据 T，无需手动 .data（z063 抽出的唯一事实源）。
-       * 跨服务调用（FastAPI 裸 JSON）传 envelope: false 跳过解包。
-       */
+      // 统一解包响应信封（{ code, data } → data）：调用方始终拿到业务数据 T，无需手动 .data；跨服务裸 JSON 传 envelope: false 跳过
       const unwrapped = options.envelope === false ? (data as T) : unwrapEnvelope<T>(data)
 
-      // z048: 响应日志(dev-only)
+      // dev 响应日志
       if (import.meta.env.DEV) {
         logger.debug(`[apiRequest] ← ${res.status} ${path}`, {
           envelope: options.envelope === false ? 'raw' : 'envelope',
@@ -210,8 +185,7 @@ export function useApiRequest() {
         })
       }
 
-      // 若调用方传入 schema，用 safeParse 替代裸 `as T` 断言做运行时校验。
-      // 校验失败抛 ApiError(REQUEST_FAILED)，不在 z049 重试码列表内（响应数据错误不可重试）。
+      // 有 schema 则运行时校验；校验失败不可重试（响应数据错误重试无意义）
       if (options.schema) {
         const result = options.schema.safeParse(unwrapped)
         if (!result.success) {
@@ -228,13 +202,11 @@ export function useApiRequest() {
       }
       if (error instanceof Error) {
         if (error.name === 'AbortError') {
-          // 区分内部超时 abort vs 外部 signal 主动取消
-          // controller 由本函数内部的 setTimeout 触发 abort → 超时
-          // options.signal 由调用方主动 abort → 取消（非错误，不提示"超时"）
+          // 区分内部超时 abort 与外部 signal 主动取消：内部超时抛 TIMEOUT
           if (controller.signal.aborted) {
             throw new ApiError('请求超时，请检查网络后重试', ErrorCode.TIMEOUT)
           }
-          // 外部取消：抛 REQUEST_FAILED 供调用方按需处理（多数调用方已忽略此错误）
+          // 外部主动取消：抛 REQUEST_FAILED（多数调用方已忽略此错误）
           throw new ApiError('请求已取消', ErrorCode.REQUEST_FAILED)
         }
         if (error instanceof TypeError && error.message.includes('fetch')) {

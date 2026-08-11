@@ -1,14 +1,7 @@
 /**
- * business/manifest.ts — 业务模块清单（z075 收敛：路由 + 导航 + meta 一处声明）
- *
- * 目标：新增一个业务模块时,不再改 router/index.ts / App.vue 等多处散点,
- * 只需在本清单加一条 + 建 `business/<name>/` 模块目录。
- * 由本清单派生：
- * - 路由（buildBusinessRoutes → router/index.ts 展开,meta.engine/title 自动带）
- * - 底部导航（App.vue 的 registerNavItems 从 businessModules 生成）
- *
- * 保留静态路由（首页/个人中心）与业务自身资产（adapter/store/types/constants）
- * 不在本清单——前者非业务,后者是模块自有文件,新增模块本就该建。
+ * business/manifest.ts — 业务注册清单：路由 + 底部导航 + meta 一处声明。
+ * 新增业务模块只需在清单追加一条并新建 `business/<name>/` 目录，无需再改 router/App.vue；
+ * 静态路由（首页/个人中心）与模块自有资产（adapter/store/types/constants）不在此清单。
  */
 import type { RouteRecordRaw } from 'vue-router'
 
@@ -27,10 +20,7 @@ export interface BusinessModule {
   navIcon: string
   /** 导航禁用（预留模块占位,如"航线分析"未实现） */
   navDisabled?: boolean
-  /**
-   * 路由懒加载组件。
-   * null = 模块未实现（仅占位导航,不注册路由,避免解析到不存在页面）。
-   */
+  /** 路由懒加载组件；null = 模块未实现（仅占位导航，不注册路由） */
   component: (() => Promise<unknown>) | null
 }
 
@@ -76,7 +66,7 @@ export const businessModules: BusinessModule[] = [
   },
 ]
 
-/** 由 manifest 生成业务路由（meta.engine/title 自动带;component 为 null 的占位模块跳过） */
+/** 由清单生成业务路由（meta.engine/title 自动带；component 为 null 的占位模块跳过） */
 export function buildBusinessRoutes(): RouteRecordRaw[] {
   return businessModules
     .filter(

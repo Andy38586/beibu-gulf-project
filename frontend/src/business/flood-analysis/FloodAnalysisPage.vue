@@ -1,19 +1,8 @@
 <script setup lang="ts">
 /**
- * 浸没分析模块
- * 数据状态（b029 / D-3=A 核实）：
- * - 真实地形：DEM 山体阴影由 dem-hillshade 图层加载 dem_hillshade.tif（COG，tools/dem-pipeline 生成），已真实接入；
- * - 3D 水面：预设水位档位可视化（非真实高程演算，真地形/地形 Provider 见 D-10 决策）；
- * - 数据链路：api（Express 后端，floodArea/floodStatistics/water-area/disaster）
- *   + online 演算（flood-service FastAPI）；前端静态 JSON 已全部移除（2026-08-08 数据搬后端）。
- * 本模块验证目标：
- * 1. BusinessLayerManager 的 waterSurface adapter 能否独立注册/销毁
- * 2. 3D 渲染器（CesiumRenderer）在不依赖 2D 引擎时的纯 3D 业务承载能力
- * 3. Cesium Primitive API 动态构建水面几何体的能力
- * 4. 相机状态（height<->zoom）在 2D<->3D 切换时的同步机制
- * 5. Data Adapter 隔离：floodAdapter 是业务层与数据源的唯一接口
- * - 架构验证阶段：dataSource='static'（前端静态资源直读）
- * - 生产阶段：floodAdapter.setDataSource('api')，业务代码零改动
+ * 浸没分析模块：数据源经 floodAdapter（数据源适配层）隔离（Express api + FastAPI online 演算），
+ * 业务图层经 BusinessLayerManager（BLM）独立注册/销毁；3D 渲染器不依赖 2D 引擎独立承载业务，
+ * 相机（height<->zoom）2D/3D 切换同步。切换数据源仅改 adapter，业务代码零改动。
  */
 import { nextTick, onMounted, onUnmounted, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute } from 'vue-router'
@@ -34,7 +23,7 @@ import FloodAnalysisReportPanel from './components/FloodAnalysisReportPanel.vue'
 import WaterLevelProfilePanel from './components/WaterLevelProfilePanel.vue'
 import { FLOOD_RISK_COLORS, FLOOD_RISK_DEFAULT } from './constants/colors'
 
-// P3：waterLevel/portImpact/profile 三 store 已并入 floodStore，统一从此取
+// waterLevel/portImpact/profile 三 store 已并入 floodStore，统一从此取
 const floodStore = useFloodStore()
 const mapStore = useMapStore()
 const { manager: businessLayerManager } = useBusinessLayers()
@@ -44,9 +33,7 @@ const route = useRoute()
 function shouldRenderForCurrentRoute() {
   const actual = mapStore.currentRenderer?.getType?.()
   if (!actual) return false
-  // online 模式返回 4326 实时演算结果，2D/3D 均可渲染——不做引擎强约束
-  // （原 3D-only 守卫是静态档位时代的防御：防 2D 引擎污染 3D 渲染器）。
-  // 仅在 api/mock 静态档位模式保持 3D-only。
+  // online 实时演算结果 2D/3D 均可渲染；仅 api/mock 静态档位模式保持 3D-only（防 2D 引擎污染 3D 渲染器）
   if (floodAdapter.dataSource === 'online') return true
   const expected = route.meta?.engine
   return expected === actual
@@ -55,7 +42,7 @@ function shouldRenderForCurrentRoute() {
 /** 状态恢复标志：恢复状态时禁止 watch 触发重复 API 请求 */
 let stateRestored = false
 
-/** 防抖定时器 */
+/** 防抖（debounce）定时器 */
 let analysisTimer: ReturnType<typeof setTimeout> | null = null
 
 /** 水面高度更新防抖定时器（独立于分析防抖，避免互相 clearTimeout 打断） */
@@ -65,8 +52,7 @@ let waterSurfaceTimer: ReturnType<typeof setTimeout> | null = null
 let analysisSeq = 0
 let unmounted = false
 
-// 2026-08-08：flood/impact 两路竞态守卫收敛到 useLatestRequest（请求封装统一），
-// 各持独立实例（淹没分析与影响评估互不干扰）
+// flood/impact 两路竞态守卫各持独立 useLatestRequest 实例（淹没分析与影响评估互不干扰）
 const {
   createSignal: createFloodSignal,
   cancel: cancelFlood,
@@ -74,26 +60,21 @@ const {
 } = useLatestRequest()
 const { createSignal: createImpactSignal, cancel: cancelImpact } = useLatestRequest()
 
-// 防抖时长：500→100ms（性能优化 2026-08-06）
-// 实测滑块端到端感知延迟 70% 来自 500ms 防抖（setToReqMs 505ms）；
-// 100ms 将感知延迟从 ~700ms 压到 ~330ms。竞态由 AbortController 新请求优先语义
-// + errorHandler 取消静默（z081）兜底，高频请求不会弹窗。
+// 防抖 100ms：500ms 时滑块感知延迟约 70% 来自防抖等待；竞态由新请求 abort 旧请求 + 取消静默兜底
 const ANALYSIS_DELAY = 100
 
 const WATER_SURFACE_ID = 'flood-water-surface'
 
 const FLOOD_LAYER_ID = 'flood-area'
 const FACILITY_LAYER_ID = 'flood-facilities'
-/** 真实地形（DEM 山体阴影）图层 ID——DEM 数据仅属洪涝分析（a017），洪涝页独享此 key */
+/** 真实地形（DEM 数字高程模型山体阴影）图层 ID——DEM 数据仅属洪涝分析，洪涝页独享此 key */
 const DEM_HILLSHADE_LAYER_ID = 'dem-hillshade'
 
-// 通过 floodAdapter 加载水域坐标（mock 走静态文件，api 走后端 /flood/water-area 端点，D-4）
-// 业务代码无需修改：adapter 按 dataSource 自动切换取数来源。
+// 水域坐标经 floodAdapter 加载，按 dataSource（static/api）自动切换取数来源，业务代码零改动
 let cachedWaterAreaCoords: [number, number][] | null = null
 
-// b046: 水域坐标加载链路健壮性——原实现无 try/catch（getWaterArea 抛错 → 未捕获 rejection）、
-// 不传 signal（不可取消）。现失败降级 null（水面图层跳过,其余图层照常）;signal 支持卸载取消。
-// 2026-08-06 收尾：失败不再纯静默——showWarning 告知用户"水面图层不可用"（不阻塞其余图层）。
+// 水域坐标加载失败时降级 null（仅水面图层跳过，其余图层照常）：原实现无 try/catch 会抛出未捕获
+// rejection，现以 toast 告知且不阻塞其余图层；signal 支持卸载时取消在途请求
 async function loadWaterAreaCoordinates(signal?: AbortSignal): Promise<[number, number][] | null> {
   if (cachedWaterAreaCoords) return cachedWaterAreaCoords
   try {
@@ -111,9 +92,7 @@ async function loadWaterAreaCoordinates(signal?: AbortSignal): Promise<[number, 
 /** 图层是否已注册（防止重复注册） */
 let floodLayersRegistered = false
 
-// 注册业务图层到 BusinessLayerManager
-// 首次 register 只建 catalog 条目，不渲染（数据尚未就绪）
-// API 返回数据后通过 updateData 渲染
+// 首次 register 仅建 catalog 条目（数据未就绪不渲染），API 返回数据后由 updateData 渲染
 async function registerFloodLayers(signal?: AbortSignal) {
   if (floodLayersRegistered) return
 
@@ -122,7 +101,7 @@ async function registerFloodLayers(signal?: AbortSignal) {
 
   floodLayersRegistered = true
 
-  // 水面图层（b046: 坐标加载失败时跳过注册——避免空坐标渲染）
+  // 坐标加载失败时跳过水面图层注册，避免空坐标渲染
   if (waterCoords) {
     try {
       businessLayerManager.register(WATER_SURFACE_ID, {
@@ -133,31 +112,23 @@ async function registerFloodLayers(signal?: AbortSignal) {
         visible: true,
       })
     } catch (e) {
-      // 单图层注册失败（如 Cesium viewer 刚复用未就绪 create 抛错）不中断后续注册，
-      // 否则真实地形等图层连带缺失（用户实测"回来只有 cesium 实例没有图层"）
+      // 单图层注册失败（如 Cesium viewer 复用未就绪）不中断后续注册，避免其余图层连带缺失
       logger.warn('[FloodAnalysisPage] 水面图层注册失败（已跳过该层）:', e)
     }
   }
 
-  // 淹没范围图层（a048 联动设计：默认不注册——滑块未操作时面板无开关、地图不渲染；
-  // 滑块首次操作 → renderFloodAreas 的 has() 兜底自动注册+渲染+面板出现，之后固定显示）
-  // 受影响设施图层（同上，a048 联动设计）
+  // 淹没范围/受影响设施图层默认不注册：滑块未操作时面板无开关、地图不渲染；
+  // 首次操作滑块由 renderFloodAreas/renderAffectedFacilities 的 has() 兜底自动注册，之后固定显示
 
-  // 真实地形图层（DEM 山体阴影，A 路线增量①）
-  // 方案 §5.3 验收标准明确"洪涝页可勾选「真实地形」图层"——DEM 数据仅属洪涝分析（a017）
-  // 2D 走 OL GeoTIFF COG；3D 走 Cesium hillshade PNG 贴图回退（addGeoTIFFLayer 内部 .tif→.png）
-  // b058: 默认不显示（visible:false）——原 visible:true 在渲染器未就绪时注册（watch immediate
-  // 时序），面板显示"开"但地图无渲染（先关再开才显示=状态不同步）。默认关→面板/地图一致，
-  // 用户需要时在面板打开即渲染。
+  // 真实地形图层（DEM 山体阴影：2D 走 GeoTIFF COG，3D 走 PNG 贴图回退）。
+  // 默认不显示：渲染器未就绪时注册会造成面板"开"而地图无渲染的状态不同步，默认关保证面板/地图一致
   try {
     businessLayerManager.register(DEM_HILLSHADE_LAYER_ID, {
       label: '真实地形',
       layerType: 'geotiff',
       data: '/static/dem/dem_hillshade.tif',
       options: { opacity: 0.7 },
-      // 默认不显示（2026-08-08 用户要求状态对齐）：2D/3D 统一 visible:false，
-      // 面板开关初始"关"，点击后才显示山影影像。3D 真地形（z 起伏）是地图
-      // 基础能力独立常驻，不受此开关影响。
+      // 默认不显示（面板开关初始"关"）；3D 真地形（z 起伏）是地图基础能力独立常驻，不受此开关影响
       visible: false,
     })
   } catch (e) {
@@ -166,13 +137,13 @@ async function registerFloodLayers(signal?: AbortSignal) {
   }
 }
 
-// 渲染器就绪时自动注册图层到控制面板
+// 渲染器就绪时自动注册业务图层
 watch(
   () => mapStore.currentRenderer,
   (renderer) => {
     if (renderer) {
       void nextTick(() => {
-        // b046: 透传 abort signal,卸载时中止在途水域坐标请求
+        // 透传 abort signal，卸载时中止在途水域坐标请求
         void registerFloodLayers(getFloodSignal())
       })
     }
@@ -199,9 +170,7 @@ function saveCurrentState() {
   })
 }
 
-/**
- * 挂载时恢复保存的状态
- */
+/** 挂载时恢复保存的状态 */
 onMounted(async () => {
   const savedState = floodStore.consumeState()
   if (savedState) {
@@ -227,7 +196,7 @@ onMounted(async () => {
       floodStore.setPortImpactResult(savedState.affectedFacilities, savedState.totalLoss ?? 0)
     }
 
-    // 等待图层��册完成
+    // 等待图层注册完成
     await nextTick()
 
     // 主动渲染图层
@@ -242,15 +211,11 @@ onMounted(async () => {
   }
 })
 
-// a048 滑块联动设计（2026-08-06 用户拍板）：
-// - 进路由未操作滑块 → 淹没范围/受影响设施 不注册（面板无开关、地图不渲染）
-// - 滑块首次操作 → renderFloodAreas/renderAffectedFacilities 的 has() 兜底自动注册
-//   （面板出现 + 渲染），之后固定显示
-// - 刷新/离开路由 → 回到默认（onUnmounted 移除图层 + 本标志复位）
+// 滑块联动设计：未操作滑块则不注册淹没/设施图层（面板无开关、地图不渲染）；
+// 首次操作后自动注册并固定显示；刷新/离开路由回到默认
 let sliderInteracted = false
 
-// 水位变化防抖500ms后自动触发淹没问题分析和影响评估
-// a048: immediate 首屏触发（用户未操作滑块）跳过自动分析——初始化不显示淹没图层
+// 水位变化防抖后自动触发淹没分析与影响评估；immediate 首屏（未操作滑块）跳过自动分析
 watch(
   () => floodStore.waterLevel,
   (newLevel) => {
@@ -284,7 +249,7 @@ async function triggerFloodAnalysis(waterLevel: number, seq: number) {
   try {
     logger.debug('[Flood] 触发淹没分析，水位:', waterLevel, 'seq:', seq)
 
-    // 通过 floodAdapter 获取淹没分析结果（Adapter 隔离数据源，业务层无需修改）
+    // 经 floodAdapter 获取淹没分析结果（数据源隔离，业务层零改动）
     const { features, statistics, riskLevel, actualWaterLevel } =
       await floodAdapter.getFloodAnalysis(waterLevel, { signal })
 
@@ -294,10 +259,9 @@ async function triggerFloodAnalysis(waterLevel: number, seq: number) {
     if (seq !== analysisSeq) return
     // 如果当前路由不再是 3D，丢弃过期响应防止污染 2D 渲染器
     if (!shouldRenderForCurrentRoute()) return
-    // P0-5 修复：页面已卸载则丢弃响应，页面离开后图层不复活（最强守卫）
+    // 页面已卸载则丢弃响应，防止离开后图层复活
     if (unmounted) return
-    // 2026-08-09：删除"无精确数据"警告——洪涝数据本就是档位制（6 档），
-    // 滑块每动一次都会触发该提示 → toast 爆炸；档位回显由滑块/图表自然呈现，无需打扰。
+    // 洪涝数据为档位制（6 档），档位回显由滑块/图表自然呈现，无需"无精确数据"提示
     logger.debug('[Flood] 档位回显:', { waterLevel, actualWaterLevel })
 
     logger.debug('[Flood] 更新淹没分析数据:', { statistics, features: features.length, riskLevel })
@@ -311,8 +275,7 @@ async function triggerFloodAnalysis(waterLevel: number, seq: number) {
     // 在地图上渲染淹没范围
     renderFloodAreas(features as FloodFeature[])
   } catch (error) {
-    // d073: 淹没分析失败用 toast 而非 modal——滑块场景失败后拖动即自动重试，
-    // "重试"按钮是伪需求，modal 纯打断；取消类错误已由 errorHandler 静默过滤
+    // 失败用 toast：滑块拖动即自动重试，"重试"按钮是伪需求；取消类错误已静默过滤
     showError(error, { fallback: '淹没分析失败，请检查网络连接' })
     logger.error('[Flood] 淹没分析失败:', error)
   }
@@ -325,7 +288,7 @@ async function triggerImpactAssessment(waterLevel: number, seq: number) {
   try {
     logger.debug('[Flood] 触发影响评估，水位:', waterLevel, 'seq:', seq)
 
-    // 通过 floodAdapter 获取影响评估结果（Adapter 隔离数据源）
+    // 经 floodAdapter 获取影响评估结果（数据源隔离）
     const { affectedFacilities, totalLoss } = await floodAdapter.getImpactAssessment(waterLevel, {
       signal,
     })
@@ -336,7 +299,7 @@ async function triggerImpactAssessment(waterLevel: number, seq: number) {
     if (seq !== analysisSeq) return
     // 如果当前路由不再是 3D，丢弃过期响应防止污染 2D 渲染器
     if (!shouldRenderForCurrentRoute()) return
-    // P0-5 修复：页面已卸载则丢弃响应，页面离开后图层不复活（最强守卫）
+    // 页面已卸载则丢弃响应，防止离开后图层复活
     if (unmounted) return
 
     logger.debug('[Flood] 更新影响评估数据:', { facilities: affectedFacilities.length, totalLoss })
@@ -346,7 +309,7 @@ async function triggerImpactAssessment(waterLevel: number, seq: number) {
     // 在地图上渲染受影响设施
     renderAffectedFacilities(affectedFacilities as AffectedFacility[])
   } catch (error) {
-    // d073: 同淹没分析——滑块场景失败后拖动即自动重试，toast 即可
+    // 同淹没分析：失败后拖动即自动重试，toast 即可
     showError(error, { fallback: '影响评估失败，请检查网络连接' })
     logger.error('[Flood] 影响评估失败:', error)
   }
@@ -400,9 +363,7 @@ function renderAffectedFacilities(facilities: AffectedFacility[]) {
     })
   }
 
-  // P0-2 修复：points 图层注册的图层，data 必须为点数组（与 points adapter 契约一致）。
-  // 原实现传 FeatureCollection 对象 → adapter 直接 as PointFeature[] 透传给 addPointLayer →
-  // features.length / features.map 报 TypeError，异常被 catch 误弹「影响评估失败」。改为点数组。
+  // points 图层契约要求 data 为点数组：传 FeatureCollection 会被透传为点数组而报错，故映射为点数组
   const points = facilities.map((f) => ({
     lng: f.lng || 0,
     lat: f.lat || 0,
@@ -432,9 +393,7 @@ function getRiskFillColor(riskLevel: string) {
   return (FLOOD_RISK_COLORS[riskLevel] ?? FLOOD_RISK_DEFAULT).fill
 }
 
-// 水位变化时更新水面高度
-// 防抖 500ms（与 ANALYSIS_DELAY 同节奏）：滑块拖动期间合并为一次更新，
-// 避免每帧触发几何重建（配合 CesiumWaterSurface 增量更新，灭闪烁）
+// 水位变化防抖后更新水面高度（与 ANALYSIS_DELAY 同节奏），滑块拖动期间合并为一次几何更新
 watch(
   () => floodStore.waterLevel,
   (newLevel) => {
@@ -453,7 +412,7 @@ watch(
 onUnmounted(() => {
   unmounted = true
 
-  // P0-5 修复：中止在途请求，避免迟到响应在图层已移除后重新注册（孤儿复活）
+  // 中止在途请求，避免迟到响应在图层移除后重新注册（孤儿复活）
   cancelFlood()
   cancelImpact()
 
@@ -480,14 +439,13 @@ onUnmounted(() => {
   floodAdapter.clearCache()
   cachedWaterAreaCoords = null
 
-  // P3：三 store 已并入 floodStore——卸载时复位（保持原语义：子状态 + flood 分析数据）
+  // 卸载时复位 floodStore（子状态 + 淹没分析数据）
   floodStore.resetSubStates()
   floodStore.resetFloodAnalysis()
 })
 </script>
 
 <template>
-  <!-- 类名与样式表统一 -->
   <div class="flood-analysis-page">
     <AppLayout>
       <template #left>

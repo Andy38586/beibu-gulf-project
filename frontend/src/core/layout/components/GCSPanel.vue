@@ -1,20 +1,9 @@
 <script setup lang="ts">
 /**
- * GCSPanel - GCS V2 Panel 容器
- * 统一视觉语言：
- * - 位置和尺寸基于 anchor + offset + w + h 的 PPS 定位系统
- * - 圆角 = CELL_PIXEL × 0.15
- * - 白色实体背景 + 轻阴影
- * V2 变更：
- * - 移除 x/y props（旧 Grid 坐标）
- * - 新增 anchor/offsetX/offsetY props（PPS 定位）
- * - 位置由 useGCS().panelPosition() 计算
- * Props:
- * - w: 横向 Cell 数（必须）
- * - h: 纵向 Cell 数（必须）
- * - anchor: 锚点（默认 'top-left'）
- * - offsetX: 水平偏移（Cell 单位，默认 0）
- * - offsetY: 垂直偏移（Cell 单位，默认 0）
+ * GCSPanel - GCS（网格化布局系统）Panel 容器
+ * 位置与尺寸由 anchor + offset + w/h 经 PPS（面板定位系统）计算，
+ * 统一视觉：圆角 = Cell × 0.15、白色实体背景 + 轻阴影。
+ * Props：w/h 为 Cell（80px 网格单元）数（必填），anchor 锚点（默认 top-left），offsetX/Y 偏移（Cell 单位）。
  */
 
 import { computed } from 'vue'
@@ -24,7 +13,7 @@ import { useGCS } from '@/shared'
 interface Props {
   w: number
   h: number
-  /** 锚点位置：用联合字面量类型约束，替代运行时 validator */
+  /** 锚点位置（联合字面量类型约束） */
   anchor?:
     | 'top-left'
     | 'top-right'
@@ -45,12 +34,9 @@ const props = withDefaults(defineProps<Props>(), {
 const { panelPosition, cellPixel } = useGCS()
 
 /**
- * 输出 CSS 变量而非直接内联定位属性。
- * 外部组件可通过 :deep(.GCS-panel) { --GCS-panel-left: ... } 覆盖，无需 !important。
- * GCS 铁律：变量一律全大写前缀 --GCS-*（原 --gcs-panel-* 小写违规，z041 修正）。
- * 2026-08-09：min-width/min-height 由硬编码 80 改为响应式 cellPixel——
- * 原实现导致 768~960px 区间面板实际宽度大于定位宽度（右列溢出、外边距被吞），
- * 且窄屏下面板无法等比缩小。cellPixel 最低档为 70（config.ts 档位化）。
+ * 输出 CSS 变量而非内联定位属性，外部可用 :deep(.GCS-panel) 覆盖变量、无需 !important。
+ * GCS 铁律：CSS 变量一律全大写 --GCS-* 前缀。
+ * min-width/height 用响应式 cellPixel：窄屏面板等比缩小，避免实际宽度大于定位宽度而溢出。
  */
 const panelStyle = computed(() => {
   const pos = panelPosition(props.w, props.h, props.anchor, props.offsetX, props.offsetY)
@@ -76,7 +62,7 @@ const panelStyle = computed(() => {
 
 <style scoped>
 .GCS-panel {
-  /* c016: 定位属性消费 CSS 变量，外部可通过 :deep 覆盖变量而非 !important */
+  /* 定位属性消费 CSS 变量：外部可通过 :deep 覆盖而非 !important */
   position: absolute;
   left: var(--GCS-panel-left, 20px);
   top: var(--GCS-panel-top, 20px);

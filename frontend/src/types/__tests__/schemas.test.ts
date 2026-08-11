@@ -19,17 +19,12 @@ import {
 } from '../schemas'
 
 /**
- * schemas 运行时校验测试（P0-1 接入后验证）
- *
- * 关键目的：防止"schema 与真实后端响应不匹配导致运行时断链"——
- * 用 backend/data 的真实数据样本 + 构造样本双向验证：
- * - 真实数据必须通过（否则线上会抛 REQUEST_FAILED）
- * - 明显畸形数据必须被拒绝（校验有意义）
+ * schemas 运行时校验测试：用真实数据 + 构造样本双向验证——
+ * 真实数据必须通过（否则线上断链）、畸形数据必须被拒绝。
  */
 const DATA_DIR = join(__dirname, '../../../../backend/data')
 
-// plans.json 是运行时用户数据（.gitignore，不在仓库）——CI checkout 后不存在。
-// 真实数据校验在本地（有文件）执行；CI 环境跳过该用例（其余 schema 用例不受影响）。
+// plans.json 是运行时用户数据（不入库），CI 环境不存在时跳过该用例
 const plansPath = join(DATA_DIR, 'plans.json')
 const plansExist = existsSync(plansPath)
 

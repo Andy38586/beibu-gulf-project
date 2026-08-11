@@ -8,12 +8,7 @@ import { sendSuccess } from '../utils/response.js'
 /** 水位上限（米）—— 超出此值视为非法输入 */
 const MAX_WATER_LEVEL = 100
 
-/**
- * 校验水位参数（d034：isFinite + 范围校验）
- * @param {unknown} raw - 原始输入（query/body）
- * @returns {number} 合法水位值
- * @throws {BusinessError} 参数无效时抛出
- */
+/** 校验水位：有限数值且在 0–100 范围内，否则抛业务错误 */
 function validateWaterLevel(raw) {
   const level = parseFloat(raw)
   if (!Number.isFinite(level) || level < 0 || level > MAX_WATER_LEVEL) {
@@ -26,11 +21,8 @@ function validateWaterLevel(raw) {
 }
 
 /**
- * 按水位派生风险等级（连续档位映射，语义对齐 floodArea.json 6 档：
- * 0 无风险 / 2 低 / 5 中 / 8 高 / 10 极高 / 15 灾难级；预计算表档位无 riskLevel 字段，
- * 由水位分段派生，与 6 档基准语义一致）
- * @param {number} level - 水位（米）
- * @returns {string} 风险等级文案
+ * 按水位派生风险等级（6 档语义：0 无 / 2 低 / 5 中 / 8 高 / 10 极高 / 15 灾难级；
+ * 预计算档位表无 riskLevel 字段，由水位分段派生）
  */
 export function deriveRiskLevel(level) {
   if (level <= 0) return '无风险'
@@ -41,11 +33,7 @@ export function deriveRiskLevel(level) {
   return '灾难级'
 }
 
-/**
- * 预计算档位表查表（0.1m 档全量水位；与 FastAPI online 模式同源同表）。
- * 命中返回 { waterLevel, riskLevel, features }；miss 返回 null（调用方走 6 档 fallback）。
- * @param {number} level - 校验后的水位
- */
+/** 查预计算档位表（0.1m 档全量水位，与 FastAPI 同源）；miss 返回 null，调用方回退 6 档 */
 async function lookupFloodZone(level) {
   const table = await loadFloodLevels()
   const key = Math.round(level * 10) / 10
@@ -59,23 +47,19 @@ async function lookupFloodZone(level) {
 }
 
 /**
- * 获取淹没范围数据
- * GET /api/flood/flood-areas?waterLevel=2.5
- * 2026-08-10（面试报告 P0-1）：api 分支改读 251 档预计算表（flood_levels.json.gz，
- * 与 FastAPI 同源）——滑块 0.1m 步长全量档位精确响应（原 floodArea.json 仅 6 档向上取档）；
- * 预计算表缺失/越界时回退 6 档向上取档（原逻辑），行为不中断。
- * @param {number} waterLevel - 水位高度（米）
+ * GET /api/flood/flood-areas?waterLevel=2.5 — 淹没范围数据。
+ * 优先查 251 档预计算表（0.1m 步长精确响应），缺失/越界回退 6 档向上取档
  */
 export async function getFloodAreas(req, res, next) {
   try {
     const { waterLevel } = req.query
     const data = await readStaticJson('flood/floodArea.json')
 
-    // 如果指定了水位，返回该水位对应的淹没范围
+    // 指定了水位：返回对应档位淹没范围
     if (waterLevel !== undefined) {
       const level = validateWaterLevel(waterLevel)
 
-      // ① 预计算档位表查表（优先，251 档精确命中）
+      // ① 预计算档位表（251 档精确命中）
       const floodZone = (await lookupFloodZone(level)) || null
       const effectiveZone =
         floodZone ||
@@ -89,9 +73,7 @@ export async function getFloodAreas(req, res, next) {
           requestedWaterLevel: level,
           actualWaterLevel: effectiveZone.waterLevel,
           riskLevel: effectiveZone.riskLevel,
-          // 前端类型契约要求 FloodFeature.properties 含 riskLevel，
-          // 原前端 adapter 用映射层补（static/api 双分支），此处后端权威注入，
-          // 前端映射层可整体删除（2026-08-08 数据搬后端）
+          // 后端权威注入 riskLevel，满足前端 FloodFeature 类型契约，前端无需再补映射层
           features: effectiveZone.features.map((f) => ({
             ...f,
             properties: { ...f.properties, riskLevel: effectiveZone.riskLevel },
@@ -164,11 +146,8 @@ export async function getTerrainProfiles(req, res, next) {
 }
 
 /**
- * 获取水域坐标数据
- * GET /api/flood/water-area
- * b032 / D-4=A：后端只读端点，返回水域边界坐标数组。
- * 数据源 backend/data/flood/water-area.json（与前端 public/data/water-area.json 同源），
- * 返回 data 字段为 [[lng, lat], ...] 坐标数组，匹配前端 floodAdapter.getWaterArea 的消费形状。
+ * GET /api/flood/water-area — 水域边界坐标数组 [[lng, lat], ...]
+ * （与前端 floodAdapter.getWaterArea 消费形状一致）
  */
 export async function getWaterArea(req, res, next) {
   try {
@@ -185,11 +164,7 @@ export async function getWaterArea(req, res, next) {
   }
 }
 
-/**
- * 灾害评估
- * POST /api/flood/analysis/disaster
- * @param {number} waterLevel - 水位高度
- */
+/** POST /api/flood/analysis/disaster — 灾害评估（需登录） */
 export async function analyzeDisaster(req, res, next) {
   try {
     const { waterLevel } = req.body

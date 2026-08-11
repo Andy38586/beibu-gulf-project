@@ -13,10 +13,8 @@ export interface SiteSelectionState {
 }
 
 /**
- * 选址分析跨页面状态持久化（2026-08-08 空壳去化）
- * 原为 Pinia defineStore 纯透传 createPersistedState 的空壳（无业务状态，
- * 共享语义仅靠 Pinia 单例）——改为模块级单例（模块变量天然单例），
- * 功能完全等价：App.vue 登出清理与 SiteSelectionPage 保存/恢复共享同一快照。
+ * 选址分析跨页面状态持久化：模块级单例（模块变量天然单例，无业务状态，无需 Pinia），
+ * App.vue 登出清理与选址页保存/恢复共享同一快照。
  */
 const persisted = createPersistedState<SiteSelectionState>()
 

@@ -1,11 +1,7 @@
 /**
- * 前端空间索引工具（基于 rbush）
- * 与后端 backend/utils/spatialIndex.js 实现不同（前后端同名不同义）：
- * 前端 = 视口裁剪（rbush 矩形查询）；后端 = 多边形覆盖查询（turf/queryByPolygon）。
- * 同名勿相互引用或混用。
- * 当 POI 数量超过阈值（默认 1000）时，构建 R-tree 索引，视口变化时只查询视口内要素，
- * 避免全量渲染导致的性能问题。
- * 坐标系：索引使用 EPSG:3857（Web Mercator），与 OpenLayers view 一致
+ * 前端空间索引（rbush，EPSG:3857 Web Mercator，与 OpenLayers view 一致）：
+ * POI 超阈值（默认 1000）时构建 R-tree，视口变化只查询视口内要素，避免全量渲染。
+ * 与后端同名文件不同义（后端为多边形覆盖查询），勿相互引用或混用。
  */
 import type { BBox } from 'rbush'
 import RBush from 'rbush'
@@ -18,15 +14,7 @@ export interface IndexedItem<T = unknown> extends BBox {
   data: T
 }
 
-/**
- * 空间索引封装
- * @example
- * ```ts
- * const index = createSpatialIndex<POI>()
- * index.load(pois.map(p => ({ minX: p.x, minY: p.y, maxX: p.x, maxY: p.y, data: p })))
- * const visible = index.query(viewExtent)
- * ```
- */
+/** 空间索引封装（load 批量加载，query 传入视口 extent 即得可见要素） */
 export function createSpatialIndex<T = unknown>() {
   const tree = new RBush<IndexedItem<T>>()
 
@@ -35,10 +23,7 @@ export function createSpatialIndex<T = unknown>() {
     tree.load(items)
   }
 
-  /**
-   * 查询 BBox 范围内的所有要素
-   * @param extent [minX, minY, maxX, maxY]，EPSG:3857
-   */
+  /** 查询 BBox（[minX, minY, maxX, maxY]，EPSG:3857）内所有要素 */
   function query(extent: [number, number, number, number]): IndexedItem<T>[] {
     return tree.search({
       minX: extent[0],

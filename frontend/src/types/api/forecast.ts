@@ -1,15 +1,7 @@
 /**
- * 预测分析数据模型（types/api/forecast.ts）
- * 对应 public/data/forecast/*.json 的真实结构。
- * ── D1 校正说明（重要）──
- * 最初的设计稿把"统一结构"设想为：
- * ForecastIndicator { time: string; value: number; level: number }
- * 但实测真实数据（cargo.json / berth.json）中【不存在 level 字段】，
- * 取而代之的是 type 判别字段（'historical' | 'forecast'）。
- * 因此统一为 ForecastPoint，用 type 而不是 level 作为历史/预测的区分。
- * 这是"数据流类型"由数据事实决定的例子：AI 不替业务发明字段，
- * 只把已存在的数据形状如实类型化。若你后续想加"置信度等级"之类，
- * 那是新增业务字段，在 ForecastPoint 上扩一个可选属性即可。
+ * 预测分析数据模型，对应 public/data/forecast/*.json 的真实结构。
+ * 关键事实：真实数据用 type（'historical' | 'forecast'）判别历史/预测，无 level 字段；
+ * 类型只如实反映数据形状，新增字段时在 ForecastPoint 上扩可选属性即可。
  */
 
 /** 港口 id（字符串，不预设枚举，兼容未来新增港口） */
@@ -21,7 +13,7 @@ export interface ForecastPoint {
   time: string
   /** 指标值，单位见所属 ForecastSeries.unit */
   value: number
-  /** 数据性质：历史实测 或 模型预测 —— 这是真实数据里的判别字段 */
+  /** 数据性质：历史实测 或 模型预测 */
   type: 'historical' | 'forecast'
 }
 
@@ -41,16 +33,10 @@ export interface ForecastSeries {
   data: Record<PortId, ForecastPortSeries>
 }
 
-/**
- * 已知指标名（宽松联合：已知值 + 兜底 string）。
- * 用于 adapter 返回时给调用方一点提示，但不强制穷举。
- */
+/** 已知指标名（宽松联合：已知值 + 兜底 string，提示不穷举） */
 export type ForecastIndicatorName = 'cargo' | 'container' | 'berth' | 'traffic' | (string & {})
 
-/**
- * 地图热力图响应（对应后端 /forecast/map 的 data 字段）。
- * 2026-08-08 自 forecastAdapter 迁入（adapter 删除后类型归类型层）。
- */
+/** 地图热力图响应（对应后端 /forecast/map 的 data 字段） */
 export interface ForecastMapData {
   indicator: string
   unit: string

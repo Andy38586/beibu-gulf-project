@@ -6,13 +6,12 @@ import { BusinessError, ErrorCode } from '../utils/BusinessError.js'
 import { logger } from '../utils/logger.js'
 import { sendSuccess } from '../utils/response.js'
 
-// 提取公共 cookie 设置，register/login 复用
+// 公共 cookie 设置，register/login 复用
 function setAuthCookie(res, token, req) {
-  // 2026-08-09 修复：Secure 由实际连接协议决定（nginx 透传 X-Forwarded-Proto），
-  // 而非 NODE_ENV——生产 HTTP（无 TLS 证书）下 Secure cookie 被浏览器拒绝保存，
-  // 登录成功立即失效（me 401 → 自动登出）。上 HTTPS 后 x-forwarded-proto=https 自动 Secure。
+  // Secure 由实际连接协议决定（含 nginx 透传的 X-Forwarded-Proto），不能按 NODE_ENV 判断：
+  // 生产 HTTP 下 Secure cookie 会被浏览器拒绝保存，登录即失效
   const isHttps = req?.secure || req?.headers?.['x-forwarded-proto'] === 'https'
-  // 使用 HttpOnly Cookie 存储 token
+  // HttpOnly 防 XSS 窃取 token
   res.cookie('auth_token', token, {
     httpOnly: true,
     secure: isHttps,
@@ -98,13 +97,11 @@ export async function login(req, res, next) {
 }
 
 export async function logout(req, res) {
-  // 吊销令牌——解码 cookie 中的 token（不校验过期）并自增 tokenVersion，
-  // 使该 token 后续在 authenticate 校验时因 tokenVersion 不匹配而失效。
+  // 吊销令牌：验签后自增 tokenVersion，使旧 token 在后续校验时失效
   const token = req.cookies?.auth_token
   if (token) {
     try {
-      // 验签后再吊销——jwt.verify 校验签名，伪造 token 视为无效直接放行，
-      // 避免任意构造 payload 即让他人 tokenVersion 自增（DoS）。原 jwt.decode 仅解 base64 不验签，存在漏洞。
+      // 先验签再吊销：jwt.decode 不验签，伪造 payload 可致他人令牌被批量吊销（DoS）
       const decoded = jwt.verify(token, process.env.JWT_SECRET)
       if (decoded?.id) {
         await userService.updateTokenVersion(decoded.id)
@@ -120,9 +117,7 @@ export async function logout(req, res) {
 }
 
 export async function me(req, res) {
-  // 2026-08-09 修复：认证响应禁止缓存（Cache-Control: no-store）——
-  // Express 默认 ETag 缓存，刷新时 me 返回 304，前端 fetch 将 304 视为错误
-  // （res.ok 只认 2xx）→ restoreAuth 误判登出 → "刷新就掉"。认证响应本不该被缓存（安全惯例）。
+  // 认证响应禁止缓存：Express 默认 ETag 会让刷新时返回 304，前端 fetch 视为错误而误判登出
   res.set('Cache-Control', 'no-store')
   sendSuccess(res, { user: req.user })
 }

@@ -29,12 +29,8 @@ export function useChartBase(
   }
 
   /**
-   * option 必须在每次调用时现取 props 构建。
-   * 修复前 baseOption 为 setup 时的一次性快照，导致 props 更新后图表永不刷新。
-   * 注意：watch 为浅监听，父组件更新数据时必须替换数组/对象引用（不可变更新），
-   * 不要原地 push/splice，否则不会触发更新。
-   * 主题：buildOption 每次现读 useTheme().isDark（canvas 不支持 CSS 变量），
-   * 亮色值与历史一致，暗色走深色系；useECharts 订阅主题变化重跑本函数。
+   * option 每次调用时现取 props 构建（避免一次性快照导致 props 更新后图表不刷新）。
+   * watch 为浅监听：父组件更新数据必须替换数组引用（不可变更新），勿原地 push/splice
    */
   function buildOption(): Record<string, unknown> {
     const dark = isDark.value
@@ -85,7 +81,7 @@ export function useChartBase(
       animationDuration: 300,
       animationEasing: 'linear',
       series: (props.series || []).map((s) => ({
-        id: s.name, // 稳定 id（D-7）：配合 replaceMerge:['series']，series 增减时正确对位
+        id: s.name, // 稳定 id：配合 replaceMerge:['series']，series 增减时正确对位
         name: s.name,
         type: chartType,
         data: s.data || [],

@@ -1,4 +1,4 @@
-// BusinessLayerManager 适配器数据形状护栏回归测试（R-6 / TS-2）
+// BusinessLayerManager 适配器数据形状护栏回归测试
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { MapRenderer } from '@/types'
@@ -38,12 +38,8 @@ function createMockMapStore() {
 }
 
 /**
- * BusinessLayerManager 单测
- * 实施计划 08「步骤 3 蓝图」对 setVisible 的断言（manager 应通过 mapStore.setLayerVisible 改可见性）
- * 与实际实现一致，予以保留。真实实现见 BusinessLayerManager.ts:
- * - this._mapStore.setLayerVisible(key, visible)：经 Pinia action 改写 visible（DevTools 可追踪）
- * - renderer.setVisibility(key, visible)：显隐图层但不销毁（数据仍保留在 renderer 内）
- * 本用例据此断言两者均被调用、且 catalog 条目的 visible 经 store action 更新。
+ * setVisible 契约：经 mapStore.setLayerVisible（Pinia action，DevTools 可追踪）改目录条目，
+ * 同时调 renderer.setVisibility 显隐（不销毁图层）——本用例断言两者均被调用。
  */
 describe('BusinessLayerManager', () => {
   let manager: BusinessLayerManager
@@ -206,7 +202,7 @@ describe('BusinessLayerManager', () => {
       expect(newRenderer.addPointLayer).toHaveBeenCalledWith(
         'survivor-layer',
         [{ lng: 108, lat: 21 }],
-        // 2026-08-08：BLM create 注入 onError（失败回滚意图），options 不再为空
+        // BLM create 注入 onError（失败回滚意图），options 不再为空
         expect.objectContaining({ onError: expect.any(Function) })
       )
     })

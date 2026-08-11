@@ -1,6 +1,6 @@
 <script setup lang="ts">
-// 选址分析控制面板：4×4 Panel，2列×4行网格，6个设施因子按钮 + 清空/分析
-// 按钮三态：默认(白) → 选择(蓝,滑块,3s自动确认) → 已选(白+重要程度标签)
+// 选址分析控制面板：2 列×4 行网格，6 个设施因子按钮 + 清空/分析。
+// 按钮三态：默认（白）→ 选择（蓝 + 滑块，自动确认）→ 已选（白 + 重要程度标签）
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 
 import { CONFIRM_DELAY, showWarning, useGCS } from '@/shared'
@@ -16,13 +16,12 @@ interface Emits {
 
 const emit = defineEmits<Emits>()
 
-// GCS 尺寸变量（与 LayerControlPanel 对齐）：
-// cell8px=0.1cell 面板边缘内边距；cell16px=0.2cell 按钮间外边距
+// GCS 尺寸变量：cell8px=0.1cell 面板内边距；cell16px=0.2cell 按钮间距
 const { cellPixel, css } = useGCS()
 const { cell8px, cell16px } = css
-/** 按钮高度：0.8 cell（网格行高，与 LayerControlPanel 一致） */
+/** 按钮高度 0.8 cell（网格行高） */
 const btnHeightCss = computed(() => `${cellPixel.value * 0.8}px`)
-/** 字体大小：0.175cell=14px（标签），0.2cell=16px（圆点），0.125cell=10px（重要程度） */
+/** 字体档位：0.175cell 标签、0.2cell 圆点、0.125cell 重要程度 */
 const labelFontSizeCss = computed(() => `${cellPixel.value * 0.175}px`)
 const iconFontSizeCss = computed(() => `${cellPixel.value * 0.2}px`)
 const levelFontSizeCss = computed(() => `${cellPixel.value * 0.125}px`)
@@ -30,7 +29,7 @@ const levelFontSizeCss = computed(() => `${cellPixel.value * 0.125}px`)
 /** 面板元素引用（用于外部点击检测） */
 const panelRef = ref<HTMLElement | null>(null)
 
-// CONFIRM_DELAY 2026-08-09（P1-5）：两面板共用 → shared/constants/ui
+// CONFIRM_DELAY 两面板共用，统一放 shared/constants/ui
 
 /** 扩展 TypeSetting，添加 selecting 状态 */
 interface LocalTypeSetting extends TypeSetting {
@@ -286,7 +285,7 @@ defineExpose({
 </template>
 
 <style scoped>
-/* 面板内边距 0.1cell（与 LayerControlPanel 一致：按钮到面板边缘的距离） */
+/* 面板内边距 0.1cell */
 .factor-panel {
   width: 100%;
   height: 100%;
@@ -294,9 +293,7 @@ defineExpose({
   box-sizing: border-box;
 }
 
-/* 按钮网格：2 列 × 4 行（与 LayerControlPanel 完全一致）
-   列 1.8fr×2 + gap 0.2cell = 3.8cell 内容宽；行 0.8cell×4 + gap 0.2cell×3 = 3.8cell 内容高
-   外边距（按钮间距）0.2cell = 0.1cell+0.1cell，上下左右统一 */
+/* 按钮网格：2 列 × 4 行，列 1.8fr、行 0.8cell、间距 0.2cell */
 .factor-grid {
   display: grid;
   grid-template-columns: repeat(2, 1.8fr);

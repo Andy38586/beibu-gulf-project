@@ -1,8 +1,5 @@
 <script setup lang="ts">
-/**
- * ChartLoading - 图表异步加载占位（echarts 异步化后，图表 chunk 未就绪时显示）
- * 仅作布局占位，不承载业务逻辑；加载完成由异步组件替换。
- */
+/** 图表异步加载占位：仅作布局占位，加载完成由异步组件替换 */
 </script>
 
 <template>

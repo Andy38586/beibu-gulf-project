@@ -1,9 +1,8 @@
 <script setup lang="ts">
 /**
  * HomePage - 首页
- * 职责：作为 Layout Base 的承载页面，渲染 GCS 四象限布局。
- * Phase 3-A 已接入 AppLayout；当前仅保留 InfoPanel 用于展示选中港口信息。
- * 港口吞吐量图表从 AppLayout 下沉到本页（业务数据由业务页持有）。
+ * 承载 AppLayout 布局基座：左侧图表面板经 #left slot（Vue 插槽）注入；
+ * 港口吞吐量图表下沉到本页（业务数据由业务页持有）。
  */
 
 import { computed, defineAsyncComponent, onMounted } from 'vue'
@@ -15,8 +14,7 @@ import { useMapStore } from '@/stores'
 import ChartLoading from '@/visualization/charts/ChartLoading.vue'
 import PortInfoPanel from '@/visualization/panels/PortInfoPanel.vue'
 
-// 2026-08-09：图表组件异步化——echarts（~537KB raw）移出首屏关键路径，
-// 首页地图先出，图表块就绪后替换 loading 占位（预测页本就路由懒加载）
+// 图表异步化：echarts 移出首屏关键路径，就绪后替换 loading 占位
 const LineChart = defineAsyncComponent({
   loader: () => import('@/visualization/charts/LineChart.vue'),
   loadingComponent: ChartLoading,
@@ -29,11 +27,7 @@ const BarChart = defineAsyncComponent({
 const mapStore = useMapStore()
 const { chartData, barData, loadOverviewCharts } = useOverviewCharts()
 
-/**
- * 子组件 PortInfoPanel 的 props 声明为 Record<string, unknown>，
- * 而 selectedPort 实际是强类型的 Port。通过运行时类型守卫生成
- * 安全转换，移除裸 as unknown as，避免非法数据流入子组件模板。
- */
+/** 类型守卫：强类型 Port 安全转成子组件所需的 Record<string, unknown>，避免裸断言 */
 function isPortLike(data: unknown): data is Record<string, unknown> {
   return typeof data === 'object' && data !== null && !Array.isArray(data)
 }

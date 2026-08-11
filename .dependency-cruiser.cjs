@@ -17,7 +17,8 @@ module.exports = {
     },
     {
       name: 'business-cross-import-flood',
-      comment: 'flood-analysis 不应依赖其他业务模块（z055 补双向；2026-08-10 面试报告 P1-2：warn→error，CI -T err 强制拦截）',
+      comment:
+        'flood-analysis 不应依赖其他业务模块（z055 补双向；2026-08-10 面试报告 P1-2：warn→error，CI -T err 强制拦截）',
       severity: 'error',
       from: { path: '^frontend/src/business/flood-analysis/' },
       to: { path: '^frontend/src/business/(site-selection|forecast)/' },

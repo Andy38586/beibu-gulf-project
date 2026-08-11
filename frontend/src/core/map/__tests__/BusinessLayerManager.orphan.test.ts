@@ -1,15 +1,7 @@
 /**
- * 选址页 POI 图层孤儿复活回归测试（P0-4）
- * 根因：clearAnalysisLayers 对设施 POI 图层绕过 businessLayerManager，直调
- * mapStore.removeLayer + renderer.removeLayer → _registry 中条目残留 →
- * 引擎切换时 App.vue reapplyAll 按 registry 重绘出已删图层（孤儿复活）。
- * 修复：clearAnalysisLayers 改走 businessLayerManager.remove（内部已做
- * adapter.remove → _registry.delete → mapStore.removeLayer）。
- * 本测试验证 manager.remove 的语义（这正是修复后 POI 清理所依赖的行为）：
- * 1. remove 后 has(key) === false；
- * 2. remove 后 mapStore.layerCatalog 无该条目；
- * 3. remove 后 reapplyAll 不会重建该 key（renderer 未被调用）。
- * 只要 clearAnalysisLayers 走 manager.remove，便不会在 registry 残留 → 不复活。
+ * 选址页 POI 图层"孤儿复活"回归测试：图层若绕过 manager 直接删渲染器实例，
+ * registry 条目残留，引擎切换时 reapplyAll 会把它重绘回来。
+ * 本测试验证 manager.remove 的完整语义（删实例 + 删 registry + 删目录，且不复活）。
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -116,7 +108,7 @@ describe('P0-4 POI 图层孤儿复活 — manager.remove 语义', () => {
     expect(newRenderer.addPointLayer).toHaveBeenCalledWith(
       'facility-poi-keep',
       [{ lng: 108, lat: 21 }],
-      // 2026-08-08：BLM create 注入 onError（失败回滚意图），options 不再为空
+      // BLM create 注入 onError（失败回滚意图），options 不再为空
       expect.objectContaining({ onError: expect.any(Function) })
     )
   })

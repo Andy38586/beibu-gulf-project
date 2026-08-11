@@ -85,9 +85,7 @@ describe('BottomNavBar 三档位', () => {
   it('点击导航项调用 router.push', async () => {
     await setViewport(1200)
     const wrapper = mount(BottomNavBar)
-    const siteBtn = wrapper
-      .findAll('.GCS-button')
-      .find((b) => b.text().includes('选址'))!
+    const siteBtn = wrapper.findAll('.GCS-button').find((b) => b.text().includes('选址'))!
     await siteBtn.trigger('click')
     expect(mockPush).toHaveBeenCalledWith('/site-selection')
   })
@@ -95,9 +93,7 @@ describe('BottomNavBar 三档位', () => {
   it('禁用项点击不跳转', async () => {
     await setViewport(1200)
     const wrapper = mount(BottomNavBar)
-    const routeBtn = wrapper
-      .findAll('.GCS-button')
-      .find((b) => b.text().includes('航线'))!
+    const routeBtn = wrapper.findAll('.GCS-button').find((b) => b.text().includes('航线'))!
     await routeBtn.trigger('click')
     expect(mockPush).not.toHaveBeenCalled()
   })
@@ -107,9 +103,7 @@ describe('BottomNavBar 三档位', () => {
     closeDrawer()
     await setViewport(800)
     const wrapper = mount(BottomNavBar)
-    const menuBtn = wrapper
-      .findAll('.GCS-button')
-      .find((b) => b.text().includes('菜单'))!
+    const menuBtn = wrapper.findAll('.GCS-button').find((b) => b.text().includes('菜单'))!
     await menuBtn.trigger('click')
     expect(drawerOpen.value).toBe(true)
   })

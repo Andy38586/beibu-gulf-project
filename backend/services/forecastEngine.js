@@ -1,19 +1,12 @@
 /**
- * ForecastEngine — 港口吞吐量预测计算引擎
- * 算法: 历史趋势模型 + 发展情景系数
- * 当前为模拟实现，架构预留后续接入 ARIMA/XGBoost 等专业模型
- * 输入:
- * historicalData: [{ time, value }]  历史月度数据
- * scenarioLevel: 0.8~1.2            发展情景系数
- * forecastMonths: number             预测月数 (默认 120 = 10 年)
- * 输出:
- * forecast: [{ time, value, reliability }]  预测序列
- * metadata: { baseValue, baseTime, avgGrowthRate, scenarioLevel }
+ * ForecastEngine — 港口吞吐量预测引擎：历史趋势外推 × 发展情景系数。
+ * 当前为模拟实现，架构预留接入 ARIMA/XGBoost 等专业模型。
+ * 输入 historicalData [{time,value}]、scenarioLevel 0.8~1.2、forecastMonths（默认 120=10 年）；
+ * 输出 forecast [{time,value,reliability}] + metadata {baseValue, avgGrowthRate, scenarioLevel}
  */
 
 export function computeForecast(historicalData, scenarioLevel = 1.0, forecastMonths = 120) {
-  // 输入边界防御。防止 Infinity/NaN/负数/0 透传导致 Math.pow 产出
-  // 非有限值（引擎内部序列化 null）。controller 已做收口，此处为双保险。
+  // 输入边界防御：防止异常值经 Math.pow 产出非有限值（controller 已收口，此处双保险）
   if (!Number.isFinite(scenarioLevel) || scenarioLevel <= 0) {
     scenarioLevel = 1.0
   }
@@ -98,15 +91,13 @@ function getSeasonalFactor(historical, targetMonth) {
 
 /**
  * 生成空间热力数据（单个时间点）
- * ⚠️ 诚实标注（b025 / D-2=A）：散射点为**示意性合成数据**，非实测空间分布。
- * 围绕各港口中心确定性散射 40 点（种子固定，可 HTTP 缓存），仅用于热力图可视化填充，
- * 不可解读为真实港口吞吐量的空间离散。真实指标（cargo/container）走后端 API。
+ * ⚠️ 诚实标注：散射点为示意性合成数据（非实测空间分布），固定种子确定性生成
+ * （可 HTTP 缓存），仅用于热力图可视化填充，不可解读为真实吞吐量离散。
+ * 真实指标（cargo/container）走后端 API。
  */
 /**
- * 确定性伪随机。
- * 原每请求 Math.random 生成散射点 → 同 timePoint 重复请求热力图抖动、无法 HTTP 缓存。
- * 改用固定种子 LCG（Park-Miller），种子由 timePoint + 港口索引哈希得到，
- * 保持每港口 40 点 ±0.05° 散射半径与权重公式不变，仅替换随机源。
+ * 固定种子 LCG（Park-Miller）：种子由 timePoint + 港口索引哈希得到。
+ * 原 Math.random 使同 timePoint 重复请求热力图抖动且无法 HTTP 缓存
  */
 function seededRandom(seed) {
   let s = seed % 2147483647

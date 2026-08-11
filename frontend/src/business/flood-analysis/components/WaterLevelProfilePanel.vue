@@ -1,14 +1,7 @@
 <script setup lang="ts">
 /**
- * WaterLevelProfilePanel - 水位滑块与剖面分析控制面板
- * 功能：
- * 1. 水位滑块控制（0-10m，0.1步长）
- * 2. 可点击刻度标记（平均海平面/设计高潮位/极端最高水位）
- * 3. 下拉选择4条预设剖面线
- * 4. 自动显示ECharts高程剖面图
- * 5. 叠加当前水位线（随水位变化自动更新）
- * 布局：4×4 Cell
- * 位置：右上（top-right）
+ * 水位滑块与剖面分析面板：滑块控制水位（0-15m）、点击刻度标记、下拉选择预设剖面线，
+ * 自动显示高程剖面图并叠加当前水位线。布局 4×4，右上角。
  */
 
 import { LineChart } from 'echarts/charts'
@@ -33,11 +26,7 @@ import { perfTimeFn } from '@/shared/utils/perfReporter'
 import { useFloodStore } from '@/stores'
 import { terrainProfileSchema } from '@/types/schemas'
 
-/**
- * ECharts tooltip formatter 参数（axis 触发时为数组）。
- * 用本地最小接口替代 `any`，避免脆弱的 echarts 深路径类型导入；
- * setOption 接收宽松的 EChartsCoreOption，formatter 在边界处不被严格校验。
- */
+/** ECharts tooltip formatter 参数（axis 触发时为数组）：用本地最小接口替代 any，避免脆弱的深路径类型导入 */
 interface TooltipFormatterParam {
   axisValue?: string | number
   marker?: string
@@ -70,8 +59,6 @@ interface TerrainProfile {
   points: TerrainProfilePoint[]
 }
 
-/** API 响应通用结构（已由 apiRequest 自动解包，此接口仅保留供历史参考） */
-
 const { apiRequest } = useApiRequest()
 const floodStore = useFloodStore()
 // 滑块专注模式（安卓控制中心风格）：拖动水位滑块时隐藏其他面板，只留本面板
@@ -82,12 +69,9 @@ const { cell8px, cell16px } = useGCS()
 const localWaterLevel = ref(floodStore.waterLevel)
 
 /**
- * 可点击刻度标记配置（洪水口径，基于 DEM 实测高程 + 实测淹没验证）
- * 钦北防城市/港口 DEM 高程：北海港 12m、防城港 13m、钦州港 14m、北海市区 19m。
- * 实测（连通性淹没）：15m 进全部港口；20m 进全部城市+港口。
- * 滑块范围 0~15m（洪水浸没，非潮汐；后端数据档位 0/2/5/8/10/15）。
- * 2026-08-09：刻度适配 0-15m——原 15（港口进水）/20（全面淹没）在滑块上限改 15 后
- * 越界重叠（港口进水即滑块尽头）；改为 2/10/15 落在真实数据档位。
+ * 可点击刻度标记（洪水口径，基于 DEM 数字高程模型实测高程与连通性淹没实测）：
+ * 15m 进全部港口、20m 进全部城市+港口；滑块 0-15m（后端数据档位 0/2/5/8/10/15），
+ * 刻度取 2/10/15 落在真实数据档位（港口进水即滑块尽头）
  */
 const scaleMarks = [
   { label: '海平面', value: 0 },
@@ -96,9 +80,7 @@ const scaleMarks = [
   { label: '全面淹没', value: 15 },
 ]
 
-/**
- * 监听Store水位变化，同步到本地
- */
+/** 水位变化时同步到本地滑块值 */
 watch(
   () => floodStore.waterLevel,
   (newLevel) => {
@@ -106,11 +88,7 @@ watch(
   }
 )
 
-/**
- * Slider值变化处理
- * 用户拖动Slider时触发，直接更新Store
- * 防抖由父组件FloodAnalysisPage统一处理（500ms）
- */
+/** 滑块变化直接写 store；防抖由父组件统一处理 */
 function onSliderChange(value: number | number[]) {
   const level = Array.isArray(value) ? value[0] : value
   floodStore.setWaterLevel(level)
@@ -133,10 +111,7 @@ let chartInstance: EChartsType | null = null
 /** ECharts容器DOM引用 */
 const chartContainerRef = ref<HTMLElement | null>(null)
 
-/**
- * 加载剖面线数据
- * 从后端API获取所有预设剖面线
- */
+/** 从后端加载全部预设剖面线 */
 async function loadProfiles() {
   try {
     const result = await apiRequest<TerrainProfile[]>('/flood/terrain-profiles', {
@@ -145,7 +120,7 @@ async function loadProfiles() {
 
     if (result && Array.isArray(result)) {
       profiles.value = result
-      // 默认选择第一条剖面线（2026-08-10：store.setSelectedProfile 死状态已删，仅本地 ref）
+      // 默认选择第一条剖面线（仅本地 ref）
       if (profiles.value.length > 0) {
         selectedProfileId.value = profiles.value[0].id
       }
@@ -154,21 +129,17 @@ async function loadProfiles() {
     }
   } catch (error) {
     logger.error('加载剖面线失败:', error)
-    // d073: 剖面线失败用 toast——重新选择剖面/切换水位即自动重试，无需 modal
+    // 失败用 toast：重新选择剖面/切换水位即自动重试
     showError(error, { fallback: '加载剖面线数据失败' })
   }
 }
 
-/**
- * 获取当前选中的剖面数据
- */
+/** 当前选中的剖面数据 */
 function getCurrentProfile() {
   return profiles.value.find((p) => p.id === selectedProfileId.value)
 }
 
-/**
- * 初始化ECharts图表
- */
+/** 初始化图表 */
 function initChart() {
   if (!chartContainerRef.value) return
 
@@ -180,9 +151,7 @@ function initChart() {
   chartInstance = echarts.init(chartContainerRef.value)
 }
 
-/**
- * 更新剖面图表
- */
+/** 更新剖面图表 */
 function updateChart() {
   if (!chartInstance) {
     initChart()
@@ -282,9 +251,7 @@ function updateChart() {
     ],
   }
 
-  // 增量更新模式（D-7）：notMerge=false 保留现有配置，replaceMerge:['series']
-  // 防旧 series 残留（水位拖动时系列数稳定但数据变化，整体替换系列最干净），
-  // lazyUpdate=true 延迟渲染提升性能
+  // 增量更新：notMerge=false 保留轴/样式，replaceMerge:['series'] 整体替换系列防残留，lazyUpdate 延迟渲染
   // perfTimeFn 闭包内 TS 无法收窄 chartInstance，故先取局部常量
   const inst = chartInstance
   perfTimeFn('echarts:setOption:waterLevel', () => {
@@ -292,18 +259,12 @@ function updateChart() {
   })
 }
 
-/**
- * 监听剖面线选择变化
- * 2026-08-10（面试报告 P0-3）：floodStore.selectedProfileId 为只写不读死状态已删，
- * 此处只更新本地 ref（store 侧无读方，同步无意义）
- */
+/** 剖面线选择变化时更新图表（仅本地 ref，store 侧无读方） */
 watch(selectedProfileId, () => {
   updateChart()
 })
 
-/**
- * 监听水位变化，更新图表中的水位线
- */
+/** 水位变化时更新水位线 */
 watch(
   () => floodStore.waterLevel,
   () => {
@@ -313,9 +274,7 @@ watch(
   }
 )
 
-/**
- * 组件挂载时初始化
- */
+/** 挂载时加载剖面线并初始化图表 */
 onMounted(() => {
   void loadProfiles()
   initChart()
@@ -324,18 +283,14 @@ onMounted(() => {
   window.addEventListener('resize', handleResize)
 })
 
-/**
- * 处理窗口大小变化
- */
+/** 处理窗口大小变化 */
 function handleResize() {
   if (chartInstance) {
     chartInstance.resize()
   }
 }
 
-/**
- * 组件卸载时清理
- */
+/** 卸载时销毁图表并移除监听 */
 onUnmounted(() => {
   if (chartInstance) {
     chartInstance.dispose()
@@ -343,8 +298,7 @@ onUnmounted(() => {
   }
 
   window.removeEventListener('resize', handleResize)
-  // 2026-08-09（P1）：组件卸载时若有滑块专注模式激活立即退出——
-  // 拖到一半切路由，pointerup 永不触发 → body.slider-focus-mode 残留 → 下页面板全透明
+  // 卸载时若滑块专注模式仍激活立即退出，避免拖到一半切路由后残留导致下页面板全透明
   endSliderFocus()
 })
 </script>

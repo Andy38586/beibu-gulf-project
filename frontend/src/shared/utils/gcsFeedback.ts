@@ -1,13 +1,8 @@
 /**
- * GCS 反馈单例（2026-08-08 打磨：替换 ElMessage/ElMessageBox 为 GCS 标准）
- *
- * 模块级单例状态——GCSModal / GCSToast 组件订阅渲染，任意代码（组件 / 工具函数）
- * 通过 showModal / showToast / closeModal 编程式触发，替代 Element Plus 的
- * ElMessageBox.confirm / ElMessage（脱离 Element 反馈层，视觉走 GCS 网格与 --GCS-* 变量）。
- *
- * 规格（用户定）：
- * - Modal：宽 4cell 高 3cell + 顶部 × 关闭 + 两个 1.8×0.8 cell 按钮（主按钮 + 取消）
- * - Toast：2cell 宽 1cell 高轻提示，自动消失
+ * GCS 反馈单例：GCSModal/GCSToast 组件订阅渲染，任意代码（组件/工具函数）经
+ * showModal/showToast/closeModal 编程式触发，替代 Element Plus 的 ElMessageBox/ElMessage，
+ * 视觉走 GCS 网格与 --GCS-* 变量。
+ * 规格：Modal 4×3 cell；Toast 2×1 cell 自动消失。
  */
 import { reactive } from 'vue'
 
@@ -78,17 +73,15 @@ export function confirmModal(): void {
   cb?.()
 }
 
-/** toast 队列上限：最多同时展示 4 条（2026-08-08 用户定）
- * 位次语义：一号位=最接近屏幕顶部（最新），四号位=最底部（最老）。
- * 新 toast unshift 进顶部，老 toast 顺移下移；第 5 条触发时四号位（最老）淡出。 */
+// toast 队列上限 4：一号位=最新（顶部），四号位=最老；第 5 条触发时最老淡出
 const MAX_TOAST_COUNT = 4
 
 /** 轻提示 toast（2×0.5 cell，GCSToast 组件订阅渲染并自动消失） */
 export function showToast(message: string, type: GCSToastType = 'success'): void {
-  // 超出上限：移除四号位（数组尾部 = 最老）——TransitionGroup 自动播放 leave 淡出
+  // 超出上限移除最老（数组尾部），TransitionGroup 自动播放 leave 淡出
   if (gcsToastState.items.length >= MAX_TOAST_COUNT) {
     gcsToastState.items.pop()
   }
-  // unshift：新 toast 占一号位（顶部），老 toast 顺移下移
+  // 新 toast unshift 到顶部，老 toast 顺移下移
   gcsToastState.items.unshift({ id: ++toastSeq, message, type })
 }

@@ -55,8 +55,7 @@ export function useECharts({
   const chartRef = ref<HTMLElement | null>(null)
   let chartInstance: ECharts | null = null
   let resizeObserver: ResizeObserver | null = null
-  // 主题变化 → 重跑 getOption 重设（canvas 不支持 CSS 变量，需显式重设颜色）
-  // 100ms 防抖合并快速连点；onUnmounted 清理订阅与定时器
+  // 主题变化时重跑 getOption 重设颜色（canvas 不支持 CSS 变量）；100ms 防抖合并快速连点，卸载时清理
   const { onThemeChange } = useTheme()
   let stopThemeWatch: (() => void) | null = null
   let themeTimer: ReturnType<typeof setTimeout> | null = null
@@ -75,22 +74,14 @@ export function useECharts({
     }
 
     window.addEventListener('resize', handleResize)
-    // 容器尺寸变化（抽屉展开、面板重排、响应式布局）也要触发 resize；
-    // 仅监听 window.resize 会在抽屉/流布局下失效，图表保持旧尺寸
+    // 容器尺寸变化（抽屉展开、面板重排、响应式布局）也需触发 resize：仅 window.resize 在流式布局下会失效
     if (typeof ResizeObserver !== 'undefined' && chartRef.value) {
       resizeObserver = new ResizeObserver(() => handleResize())
       resizeObserver.observe(chartRef.value)
     }
   }
 
-  /**
-   * 更新图表配置
-   * 增量更新模式（D-7，2026-08-06）：
-   * - notMerge=false 保留现有配置（轴/图例/样式不重建）
-   * - replaceMerge:['series'] 整体替换 series（防旧 series 残留导致闪烁/串线）
-   * - lazyUpdate=true 延迟渲染，同一帧多次更新合并为一次
-   * series 稳定 id 由 useChartBase 在 buildOption 中给出（seriesConfig.id 或 name 派生）
-   */
+  /** 更新图表配置：增量更新（notMerge 保留轴/样式，replaceMerge 整体替换 series 防残留，lazyUpdate 合并渲染） */
   function updateChart(): void {
     if (!chartInstance) return
     const option = getOption()

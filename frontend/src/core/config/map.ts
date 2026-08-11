@@ -47,7 +47,7 @@ export interface MapViewLevel {
   label: string
 }
 
-/** 城市 flyTo 坐标（北部湾三港，按钮定位用）——2026-08-08 自 useScreenActions 收归地图配置单一权威源 */
+/** 城市 flyTo 坐标（北部湾三港，按钮定位用，收归地图配置单一权威源） */
 export interface CityFlyToTarget {
   lng: number
   lat: number
@@ -117,8 +117,7 @@ export const MAP_CONFIG: MapConfig = {
       label: '区级',
     },
   },
-  // 城市按钮 flyTo 坐标（2026-08-08 自 useScreenActions 收归，原值不变——
-  // 与 VIEW_LEVELS 语义不同：前者是三港定位，后者是相机层级档位，勿合并）
+  // 与 VIEW_LEVELS 语义不同：前者是三港按钮定位，后者是相机层级档位，勿合并
   CITY_CENTERS: {
     钦州: { lng: 108.590379, lat: 21.726917, height: 100000, zoom: 11 },
     防城港: { lng: 108.340973, lat: 21.617689, height: 100000, zoom: 11 },
@@ -134,13 +133,8 @@ export function buildTiandituUrl(layerCode: string): string {
 }
 
 /**
- * 相机 zoom ↔ height 互逆转换
- * zoom↔height 经验公式（基于 MAP_CONFIG.VIEW_LEVELS 校准）：
- * height = 300000000 / 2^zoom
- * zoom   = log2(300000000 / height)
- * zoom=9  → 585938m ≈ 586km (接近 REGION 的 800km)
- * zoom=12 → 73242m  ≈ 73km  (接近 CITY 的 80km)
- * zoom=14 → 18311m  ≈ 18km  (接近 DISTRICT 的 8km)
+ * 相机 zoom ↔ height 互逆转换（经验公式 height = 300000000 / 2^zoom，
+ * 基于 VIEW_LEVELS 校准：zoom 9/12/14 ≈ 586km/73km/18km）
  */
 
 /** zoom → height（OL → Cesium） */

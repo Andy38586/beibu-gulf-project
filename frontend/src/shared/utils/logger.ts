@@ -1,10 +1,4 @@
-/**
- * 统一 logger（z032：结构化输出）
- * - debug/info：仅 DEV 环境输出
- * - warn/error：生产保留（脱敏，无变量展开）
- * 2026-08-09：addLogTransport/transports 零调用方死代码已删（Sentry 接入时再补，
- * 见 main.ts 注释预留）
- */
+/** 统一 logger（结构化输出）：debug/info 仅 DEV 输出；warn/error 生产保留（脱敏，无变量展开） */
 const isDev = import.meta.env.DEV
 
 type LogLevel = 'debug' | 'info' | 'warn' | 'error'

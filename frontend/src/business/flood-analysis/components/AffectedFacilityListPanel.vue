@@ -1,12 +1,7 @@
 <script setup lang="ts">
 /**
- * AffectedFacilityListPanel - 受影响设施清单面板（洪水分析专用）
- * 功能：
- * 1. 显示受影响设施清单，按损失金额排名
- * 2. 分页显示，每页4个设施
- * 3. 收藏功能对接usePlans，与选址分析共用保存小区接口
- * 布局：4×4 Cell
- * 位置：左下（bottom-left）
+ * 受影响设施清单面板：按损失金额降序分页展示（每页 4 个），
+ * 收藏功能与选址分析共用保存方案接口。布局 4×4，左下角。
  */
 
 import { computed } from 'vue'
@@ -35,15 +30,11 @@ function getFacilityTypeLabel(type: string | undefined) {
 }
 
 /**
- * 格式化损失金额
- */
-/**
  * 按损失金额排序的设施列表（降序）
  */
 const sortedFacilities = computed<ScoredXiaoqu[]>(() => {
   const facilities = floodStore.affectedFacilities || []
-  // AffectedFacility 与 ScoredXiaoqu 字段不兼容（缺少 score/breakdown），
-  // 通过映射转换为合法的 ScoredXiaoqu，避免裸 as unknown as 断言。
+  // AffectedFacility 缺 score/breakdown 字段，映射为合法 ScoredXiaoqu 避免裸断言
   return [...facilities]
     .sort((a, b) => b.loss - a.loss)
     .map(
@@ -60,7 +51,7 @@ const sortedFacilities = computed<ScoredXiaoqu[]>(() => {
     )
 })
 
-/** 2026-08-08：跳转逻辑封装进 PaginatedListPanel（flyTo 回调 prop），此处注入实现 */
+/** 跳转逻辑由 PaginatedListPanel 提供（flyTo 回调 prop），此处注入实现 */
 function flyToFacility(item: ScoredXiaoqu): void {
   startBreathing(item.lng, item.lat)
   flyTo({ lng: item.lng, lat: item.lat }, { height: 1000 })

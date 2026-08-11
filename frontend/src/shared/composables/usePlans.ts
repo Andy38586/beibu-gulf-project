@@ -19,8 +19,7 @@ export function usePlans() {
   const updating: Ref<boolean> = ref(false)
   const loading: Ref<boolean> = ref(false)
   const deleting: Ref<boolean> = ref(false)
-  // 2026-08-08：getPlans 读操作的竞态守卫收敛到 useLatestRequest（请求封装统一）；
-  // 写操作（create/update/delete）不打断,避免误取消已提交的写请求
+  // 读操作竞态守卫用 useLatestRequest；写操作不打断，避免误取消已提交的写请求
   const { createSignal, cancel: cancelRequest } = useLatestRequest()
 
   async function getPlans(): Promise<Plan[]> {
@@ -50,7 +49,7 @@ export function usePlans() {
     }
   }
 
-  /** P0-5: 取消在途 getPlans 请求（供组件 onUnmounted 调用） */
+  /** 取消在途 getPlans 请求（组件卸载时调用） */
   function cancel(): void {
     cancelRequest()
     loading.value = false
@@ -78,7 +77,7 @@ export function usePlans() {
         schema: planSchema,
       })
     } catch (error) {
-      // 401（Cookie 过期但前端 token 未同步）：统一走软登录提示
+      // 401（Cookie 过期但前端 token 未同步）统一走软登录提示
       if (isAuthError(error)) {
         await handleAuthError(router)
         throw error
@@ -93,7 +92,7 @@ export function usePlans() {
   }
 
   async function deletePlan(id: string): Promise<void> {
-    // 删除方案前检查登录状态，与createPlan/updatePlan保持一致
+    // 与 create/update 一致的登录兜底
     if (!isAuthenticated.value) {
       throw new Error('请先登录')
     }
@@ -119,18 +118,16 @@ export function usePlans() {
     name: string,
     typeSettings: Record<string, TypeSetting>
   ): Promise<Plan> {
-    // 更新方案前检查登录状态，与createPlan保持一致
+    // 与 create 一致的登录兜底
     if (!isAuthenticated.value) {
       throw new Error('请先登录')
     }
     updating.value = true
     try {
-      // flood 方案无 typeSettings，兼容为空对象避免 TypeError
       const settings = typeSettings ?? {}
       const selectedKeys = Object.entries(settings)
         .filter(([, v]) => v.selected)
         .map(([k]) => k)
-      // await 使 finally 等待请求完成后再复位，防重复提交生效
       return await apiRequest<Plan>(`/plans/${id}`, {
         method: 'PUT',
         body: JSON.stringify({ name, selectedKeys, typeSettings: settings }),

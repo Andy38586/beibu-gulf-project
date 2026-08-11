@@ -44,7 +44,7 @@ export interface UseGCSReturn {
   padding: number
   showPanels: ComputedRef<boolean>
   showTopArea: ComputedRef<boolean>
-  /** 档位 3（<640px）：底部 nav 需紧凑化（用户决策 2026-08-09） */
+  /** 档位 3（<640px）：底部 nav 紧凑化 */
   navCompact: ComputedRef<boolean>
   cell: (w: number, h: number) => { width: string; height: string }
   cellSize: (w: number, h: number) => { width: number; height: number }
@@ -92,7 +92,7 @@ function ensureResizeListener(): void {
 export function useGCS(): UseGCSReturn {
   ensureResizeListener()
 
-  // 防御：cellPixel/windowWidth 非法时重算，解决路由切换后 Panel 不可见
+  // 防御：cellPixel/windowWidth 非法时重算（否则路由切换后 Panel 不可见）
   const ww = windowWidth.value
   const cp = cellPixel.value
   if (cp <= 0 || !isFinite(cp) || ww <= 0 || !isFinite(ww)) {
@@ -102,27 +102,24 @@ export function useGCS(): UseGCSReturn {
     if (windowWidth.value <= 0) windowWidth.value = 1920
   }
 
-  // Panel 间距 = 2 × GAP = 20px（V2 新增）
+  // Panel 间距 = 2 × GAP
   const panelSpacing = computed(() => PANEL_SPACING)
 
-  // Panel 到 Canvas 边缘距离 = PANEL_SPACING = 20px（V2 新增）
+  // Panel 到屏幕边缘距离 = PANEL_SPACING
   const safeMargin = computed(() => SAFE_MARGIN)
 
-  // 基础间距单位 = GAP = 10px（用于 Grid 参考线计算）
+  // 基础间距单位 = GAP（用于 Grid 参考线计算）
   const gap = computed(() => GAP)
 
   /**
-   * 响应式显隐控制（2026-08-09 档位化）
-   * - showPanels/showTopArea：桌面等比例布局（≥3 个 4-cell 面板宽 = 960px）
-   * - navCompact：<2 个面板宽（<640px），底部 nav 需紧凑化（档位 3，nav 另行设计）
+   * 响应式显隐控制（档位化）
+   * showPanels/showTopArea：≥960px（3 个 4-cell 面板宽）；navCompact：<640px
    */
   const showPanels = computed(() => windowWidth.value >= LAYOUT_DESKTOP_MIN)
   const showTopArea = computed(() => windowWidth.value >= LAYOUT_DESKTOP_MIN)
   const navCompact = computed(() => windowWidth.value < LAYOUT_DRAWER_MIN)
 
-  /**
-   * 计算 w×h 个 Cell 占据的总尺寸（CSS 字符串格式）
-   */
+  /** w×h 个 Cell 的总尺寸（CSS 字符串） */
   function cell(w: number, h: number): { width: string; height: string } {
     return {
       width: `${w * cellPixel.value}px`,
@@ -130,9 +127,7 @@ export function useGCS(): UseGCSReturn {
     }
   }
 
-  /**
-   * 计算 w×h 个 Cell 占据的像素尺寸（数值格式）
-   */
+  /** w×h 个 Cell 的像素尺寸（数值） */
   function cellSize(w: number, h: number): { width: number; height: number } {
     return {
       width: w * cellPixel.value,
@@ -140,9 +135,7 @@ export function useGCS(): UseGCSReturn {
     }
   }
 
-  /**
-   * 计算 Panel 内部内容区域的像素尺寸（数值格式）
-   */
+  /** Panel 内容区像素尺寸（减去 Cell 内边距） */
   function panelContentSize(w: number, h: number): { width: number; height: number } {
     return {
       width: w * cellPixel.value - 2 * CELL_PADDING,
@@ -150,9 +143,7 @@ export function useGCS(): UseGCSReturn {
     }
   }
 
-  /**
-   * Panel Position System - 根据锚点和偏移计算 Panel 像素位置
-   */
+  /** PPS（面板定位系统）：按锚点和偏移计算 Panel 像素位置 */
   function panelPosition(
     w: number,
     h: number,
@@ -207,9 +198,7 @@ export function useGCS(): UseGCSReturn {
     }
   }
 
-  /**
-   * CSS 尺寸工具集（用于 v-bind() 场景）
-   */
+  /** CSS 尺寸工具集（供 v-bind() 使用） */
   const css = {
     cell8px: computed(() => `${cellPixel.value * 0.1}px`),
     cell16px: computed(() => `${cellPixel.value * 0.2}px`),

@@ -1,33 +1,10 @@
 <script setup lang="ts">
 /**
- * PaginatedListPanel - 通用分页列表面板（公共组件）
- * 功能：
- * 1. 分页展示列表项，支持 << / < / > / >> 翻页
- * 2. 每项支持自定义插槽渲染
- * 3. 内置收藏/取消收藏逻辑（对接 usePlans）
- * 4. 接入真实登录判断
- * 5. isFavorite 基于 Plan.savedXiaoqu 真实判断
- * Props:
- * - items: Array — 数据源
- * - pageSize: Number — 每页条数（默认4）
- * - title: String — 面板标题
- * - emptyText: String — 空状态主文案
- * - emptyHint: String — 空状态副文案
- * - planType: 'site-selection' | 'flood' — 方案类型，用于自动创建方案时命名
- * - showFavorite: Boolean — 是否显示收藏按钮（默认true）
- * Slots:
- * - #item="{ item, index }" — 自定义单项内容
- * - #empty — 自定义空状态（可选）
- * Emits:
- * - click-item="{ item }" — 点击列表项
- * - favorite-change="{ item, isFavorite }" — 收藏状态变化
- * 命名说明：
- * - 前端统一称"收藏"，后端 API 和数据库字段统一称"saved/save"
- * - `savedXiaoqu` 字段名沿用后端约定，前端不做转换以降低复杂度
- * - `isFavorite()` 是前端展示概念，调用 `saveXiaoqu/removeXiaoqu`
- * - `doSave/doRemove` 内部方法，对应后端 `saveXiaoqu/removeXiaoqu`
+ * PaginatedListPanel — 通用分页列表面板：
+ * 分页 + 自定义插槽 + 收藏逻辑（对接 usePlans 的真实登录与 savedXiaoqu 判断）。
+ * 前端称"收藏"，后端 API/数据库称 saved/save——字段名沿用后端约定，前端不做转换；
+ * 点击项的地图跳转（flyTo）由业务层注入，shared 不依赖 core。
  */
-
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
@@ -49,11 +26,7 @@ interface Props {
   planType?: 'site-selection' | 'flood'
   showFavorite?: boolean
   mapInteraction?: boolean
-  /**
-   * 点击列表项时自动跳转到对应对象（2026-08-08 用户要求封装进组件）：
-   * shared 组件不依赖 core（useMapControls），由业务层注入跳转实现——
-   * 浸没/选址统一传 flyTo+startBreathing，点击即跳转，页面不再各自处理。
-   */
+  /** 点击列表项自动跳转（flyTo）：由业务层注入实现，页面不再各自处理 */
   flyTo?: (item: ScoredXiaoqu) => void
 }
 
@@ -115,20 +88,15 @@ const hasData = computed(() => props.items.length > 0)
 /** 是否需要分页控件 */
 const needPagination = computed(() => props.pageSize > 0 && totalPages.value > 1)
 
-/**
- * 判断项是否已收藏
- * @param {string} itemId — 项的ID
- */
+/** 判断项是否已收藏 */
 function isFavorite(itemId: string): boolean {
   return savedItems.value.some((s) => s.id === itemId)
 }
 
-/**
- * 切换收藏状态
- */
+/** 切换收藏状态 */
 async function toggleFavorite(item: ScoredXiaoqu) {
   if (!isLoggedIn.value) {
-    // 2026-08-08 打磨：ElMessageBox.confirm → GCSModal（login 模式：去登录/取消）
+    // 未登录弹 GCSModal 登录引导
     showModal({
       message: '收藏功能需要登录，是否前往登录？',
       mode: 'login',
@@ -145,9 +113,7 @@ async function toggleFavorite(item: ScoredXiaoqu) {
   }
 }
 
-/**
- * 添加收藏
- */
+/** 添加收藏：无方案时先自动创建（浸没/选址命名区分） */
 async function doSave(item: ScoredXiaoqu) {
   if (!currentPlanId.value) {
     try {
@@ -183,9 +149,7 @@ async function doSave(item: ScoredXiaoqu) {
   }
 }
 
-/**
- * 取消收藏
- */
+/** 取消收藏 */
 async function doRemove(item: ScoredXiaoqu) {
   if (!currentPlanId.value) {
     showError('未找到收藏方案，请先收藏一个小区')
@@ -204,9 +168,7 @@ async function doRemove(item: ScoredXiaoqu) {
   }
 }
 
-/**
- * 将列表项转换为 SavedXiaoqu 格式
- */
+/** 列表项转 SavedXiaoqu 格式 */
 function toSavedXiaoqu(item: ScoredXiaoqu): SavedXiaoqu {
   return {
     id: item.id,
@@ -225,11 +187,7 @@ function goToPage(page: number) {
   }
 }
 
-/**
- * 点击列表项处理
- * 内置地图可视化逻辑：flyTo + 呼吸动画
- * 同时通过emit传参给父组件（用于雷达图等）
- */
+/** 点击列表项：注入 flyTo 跳转并 emit 规范化数据给父组件（雷达图等） */
 function handleItemClick(item: ScoredXiaoqu) {
   selectedItem.value = item
 
@@ -246,10 +204,10 @@ function handleItemClick(item: ScoredXiaoqu) {
     lat,
   }
 
-  // 地图交互由业务层注入 flyTo 回调（shared 不依赖 core——2026-08-08 封装进组件）
+  // 地图交互由业务层注入（shared 不依赖 core）
   props.flyTo?.(normalizedItem)
 
-  // 通过emit传参给父组件（用于雷达图等），传递规范化后的数据
+  // 向父组件 emit 规范化数据（雷达图等用）
   emit('click-item', normalizedItem)
 }
 
@@ -261,24 +219,18 @@ watch(
   }
 )
 
-/**
- * 设置当前方案（用于外部初始化）
- */
+/** 设置当前方案（外部初始化） */
 function setCurrentPlan(planId: string, saved: SavedXiaoqu[]) {
   currentPlanId.value = planId
   savedItems.value = saved || []
 }
 
-/**
- * 获取当前方案ID
- */
+/** 获取当前方案 ID */
 function getCurrentPlanId(): string | null {
   return currentPlanId.value
 }
 
-/**
- * 获取已收藏ID列表
- */
+/** 获取已收藏 ID 列表 */
 function getSavedIds(): string[] {
   return savedItems.value.map((s) => s.id)
 }

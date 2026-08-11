@@ -1,9 +1,5 @@
-// readStaticJson — 统一"读 backend/data 静态 JSON"入口（数据流收口②）
-//
-// 背景：ports/plans 等模块的 repository 层退化为"读一个静态文件"的透传
-// （P10 审查：装饰化 repository，零逻辑）。静态只读数据直接在此读，
-// repository 层只保留有真实职责的 plans（CRUD + 用户归属校验）。
-// 缓存复用 createReadCache（TTL + LRU 上限，与 flood controller 同源）。
+// readStaticJson — 读 backend/data 静态 JSON 的统一入口（createReadCache 读文件缓存工厂，TTL + LRU）；
+// 静态只读数据在此直读，repository 层只保留有真实职责的 plans（CRUD + 用户归属校验）
 import { readFile } from 'fs/promises'
 import path from 'path'
 import { fileURLToPath } from 'url'
@@ -29,7 +25,7 @@ export async function readStaticJson(filename) {
   return data
 }
 
-// 测试钩子：与历史 flood controller 导出同形（REQ-3/z050-BE 用例直接操纵缓存）
+// 测试钩子：用例可直接操纵缓存
 export const _cache = cache
 
 /** 测试用：清空统一只读缓存，避免跨用例污染 */

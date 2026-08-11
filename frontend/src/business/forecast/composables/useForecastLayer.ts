@@ -1,6 +1,5 @@
 /**
- * useForecastLayer — 预测分析图层管理
- * 每个指标对应独立图层，key 格式: forecast-{indicator}
+ * useForecastLayer — 预测分析图层管理：每个指标对应独立图层（key: forecast-{indicator}），
  * 切换指标时自动显隐，LayerControlPanel 列出全部 4 个条目
  */
 import type { ComputedRef } from 'vue'
@@ -111,9 +110,7 @@ export function useForecastLayer(): UseForecastLayerReturn {
     return geojson
   }
 
-  // 地图热力图 LRU 缓存：同一 (indicator, time, confidence) 只向后端请求一次。
-  // 时间轴播放/拖动会反复经过同一时间点，缓存让重放零请求，
-  // 配合后端 forecast 专属宽松限流，一轮播放（月粒度 ~216 步）不再触发 429。
+  // 地图数据 LRU 缓存：同一 (indicator, time, confidence) 只请求一次，播放/拖动重放同时间点零请求
   const MAX_MAP_CACHE = 100
   const mapRequestCache = new Map<string, ForecastMapData>()
   function mapCacheKey(indicator: string, time: string, confidence: number): string {
@@ -157,7 +154,7 @@ export function useForecastLayer(): UseForecastLayerReturn {
       }
 
       const geojson = await runInTransaction(
-        // 2026-08-08：forecastAdapter 已删（预测纯 api），直连统一入口 useApiRequest
+        // 预测纯 api，直连统一入口 useApiRequest
         () =>
           apiRequest<ForecastMapData>('/forecast/map', {
             method: 'GET',
@@ -185,8 +182,7 @@ export function useForecastLayer(): UseForecastLayerReturn {
         void handleAuthError(router)
         return
       }
-      // 播放中命中后端限流（429）：静默降级不弹窗，播放继续，后续时间点自动恢复。
-      // 播放是连续高频交互，弹窗会打断演示；手动操作（拖滑块/点指标）的限流照常提示。
+      // 播放中命中限流（429）静默降级不弹窗（连续高频交互，弹窗打断演示）；手动操作照常提示
       if (forecastState.isPlaying && e instanceof ApiError && e.message.includes('过于频繁')) {
         if (import.meta.env.DEV)
           logger.debug('[useForecastLayer] 播放中请求被限流，跳过该时间点:', e.message)

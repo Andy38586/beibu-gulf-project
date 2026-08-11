@@ -1,16 +1,8 @@
 <script setup lang="ts">
 /**
- * RadarChart - 雷达图面板（简化版）
- * 布局：
- * - 顶部居中：小区名称
- * - 中部：雷达图（左右居中、上下居中，保持原大小）
- * - 底部：综合评分（蓝色字体，可点击）
- * 交互：
- * 1. 点击综合评分 → 在评分上方弹出具体得分（1列6行）
- * 2. 点击其他地方关闭浮窗
- * 3. 点击雷达图轴名称 → 显示该设施POI图层（互斥）
- * 使用 useECharts composable 复用通用图表逻辑
- * 使用 useRadarChart composable 拆分逻辑，减少文件行数
+ * 雷达图面板：顶部标题、中部雷达图、底部可点击综合评分。
+ * 点击评分弹出具体得分浮窗（1 列 6 行）；点击轴名称显示对应设施 POI 图层（互斥）。
+ * 渲染与交互逻辑封装在 useRadarChart
  */
 
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
@@ -55,7 +47,7 @@ const props = withDefaults(defineProps<Props>(), {
   title: '',
 })
 
-/** 动态标题：优先使用传入的title，否则显示"xx小区评分详情图" */
+/** 标题优先用传入值，缺省为"xx小区评分详情图" */
 const displayTitle = computed(() => {
   if (props.title) return props.title
   if (props.xiaoqu?.name) return `${props.xiaoqu.name}评分详情图`
@@ -132,7 +124,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="radar-panel">
-    <!-- 顶部：评分详情图标题（与浸没分析标题样式一致：16px/600加粗） -->
+    <!-- 顶部：标题（与浸没分析一致：16px/600 加粗） -->
     <div class="radar-title">{{ displayTitle }}</div>
 
     <!-- 中部：雷达图容器 -->
@@ -167,7 +159,7 @@ onBeforeUnmount(() => {
   position: relative;
 }
 
-/* 标题：与浸没分析标题样式一致（16px/600加粗/不顶格） */
+/* 标题：与浸没分析一致（16px/600，不顶格） */
 .radar-title {
   font-size: 16px;
   font-weight: 600;

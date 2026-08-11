@@ -9,7 +9,7 @@ export interface User {
 }
 
 export interface AuthResponse {
-  /** @deprecated d038: token 已移至 HttpOnly Cookie，响应体不再回传 */
+  /** @deprecated：token 已移至 HttpOnly Cookie，响应体不再回传 */
   token?: string
   user: User
 }

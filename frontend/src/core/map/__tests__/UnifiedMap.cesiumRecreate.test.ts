@@ -1,13 +1,6 @@
 /**
- * UnifiedMap 3D 渲染器重建集成测试（Bug B 修复验证）
- *
- * 场景：CesiumViewerManager 30s 闲置销毁 viewer 后回到 3D 路由。
- * 修复逻辑（UnifiedMap.vue initRenderer）：
- * - 复用前检查 cesiumViewerManager.getInstance()（viewer 是否存活）
- * - null（已销毁）→ 丢弃旧 CesiumRenderer 引用，走首次创建分支二次创建
- *   （不调 existingRenderer.destroy()：viewer 已被 Cesium destroy，
- *     destroy 内部访问 this.viewer.scene 会抛 TypeError）
- * - 非 null（存活）→ 直接 mount 复用
+ * 3D 渲染器重建集成测试：viewer 被闲置销毁后回到 3D，应丢弃旧实例二次创建
+ * （不调 destroy——其内部访问已销毁的 viewer 会抛错），viewer 存活则直接复用。
  */
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
@@ -68,7 +61,7 @@ vi.mock('@/core/map/renderers', () => {
     exportState: vi.fn().mockReturnValue({}),
     importState: vi.fn(),
     destroy: vi.fn(),
-    // UnifiedMap onUnmounted 对 Cesium 渲染器走 unmount（保留 viewer，见 2026-08-08 修复）
+    // UnifiedMap onUnmounted 对 Cesium 渲染器走 unmount（保留 viewer 供复用）
     unmount: vi.fn(),
     updateSize: vi.fn(),
     getMap: vi.fn().mockReturnValue({}),

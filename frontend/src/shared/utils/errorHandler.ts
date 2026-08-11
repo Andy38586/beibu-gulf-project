@@ -1,8 +1,4 @@
-/**
- * 统一错误处理
- * 集中管理错误出口，替换分散的 ElMessage.error / console.error。
- * 后续可接入 Sentry / 日志服务 / 错误上报。
- */
+/** 统一错误出口：集中管理错误提示，替换分散的 ElMessage.error / console.error，后续可接 Sentry 等上报服务 */
 
 import type { Router } from 'vue-router'
 
@@ -11,12 +7,7 @@ import { showModal, showToast } from './gcsFeedback'
 import { logger } from './logger'
 
 /**
- * 统一的用户错误提示
- * @param {*} error - 错误信息（string | Error | unknown，catch 块的 e 为 unknown）
- * @param {object} [options]
- * @param {string} [options.fallback] - 无法提取信息时的兜底文案
- * @param {boolean} [options.silent] - 静默模式（仅 console，不弹窗）
- * @param {function} [options.retry] - c027: 重试回调。提供时用确认弹窗（带"重试"按钮）替代普通 toast
+ * 统一错误提示：silent 仅记日志不弹窗；提供 retry 回调时用确认弹窗（带"重试"按钮）替代普通 toast
  */
 export function showError(
   error: unknown,
@@ -24,10 +15,7 @@ export function showError(
 ): void {
   const { fallback = '操作失败，请稍后重试', silent = false, retry } = options
 
-  // d073: 用户主动取消（新请求 abort 旧请求等）→ 静默，不弹任何提示。
-  // useApiRequest 把外部 signal abort 转成 ApiError(REQUEST_FAILED, '请求已取消')——
-  // 非原生 AbortError，下方 name==='AbortError' 过滤拦不住；滑块高频拖动时
-  // 每个被取消的在途请求都会弹 modal，必须在此统一吞掉。
+  // 用户主动取消（新请求 abort 旧请求等）→ 静默：被取消请求转为 ApiError(REQUEST_FAILED, '请求已取消')，高频场景必须在此吞掉
   if (
     error instanceof ApiError &&
     error.code === ErrorCode.REQUEST_FAILED &&
@@ -54,8 +42,7 @@ export function showError(
 
   if (!silent) {
     if (retry) {
-      // 有重试回调时，用 GCS 确认弹窗（重试/取消，4×3 cell）替代普通 toast——
-      // 2026-08-08 打磨：替换 Element Plus ElMessageBox.confirm（视觉走 GCS 网格）
+      // 有重试回调用确认弹窗替代 toast
       showModal({ message, mode: 'error', onConfirm: retry })
     } else {
       showToast(message, 'error')
@@ -64,14 +51,10 @@ export function showError(
 }
 
 /**
- * 统一的 401 认证失效处理
- * 所有请求层（useApiRequest / useForecastRequest）在 401 时不主动 redirect，
- * 由调用方识别 401 后调用此函数，统一执行：清理认证状态 + 跳转首页 + 弹登录面板。
- * router 改为必选参数（调用方通过 useRouter() 传入），移除动态 import('@/router')
- * 兜底——动态 import 是 errorHandler→router→business→errorHandler 循环链的根源。
- * useAuth 仍保留动态 import（避免 useAuth→errorHandler 的静态循环，useAuth 内部调用
- * showError）。
- * @param {Router} router - vue-router 实例（调用方通过 useRouter() 传入）
+ * 统一 401 认证失效处理：请求层不主动 redirect，由调用方识别 401 后调用——
+ * 清理认证状态 + 跳转首页 + 弹登录面板。
+ * router 必选（调用方 useRouter 传入），移除动态 import 兜底避免
+ * errorHandler→router→business→errorHandler 循环依赖；useAuth 侧保留动态 import 以打破静态循环。
  */
 export async function handleAuthError(router: Router): Promise<void> {
   const { useAuth } = await import('@/shared/composables/useAuth')
@@ -83,11 +66,7 @@ export async function handleAuthError(router: Router): Promise<void> {
   }
 }
 
-/**
- * 判断错误是否为 401 认证失效
- * @param {unknown} error
- * @returns {boolean}
- */
+/** 判断错误是否为 401 认证失效 */
 export function isAuthError(error: unknown): boolean {
   if (!error) return false
   if (error instanceof Error) {
@@ -99,9 +78,7 @@ export function isAuthError(error: unknown): boolean {
   return false
 }
 
-/**
- * 统一的警告提示（非阻塞）
- */
+/** 统一警告提示（非阻塞） */
 export function showWarning(message: string): void {
   if (import.meta.env.DEV) {
     logger.warn('[ErrorHandler:Warning]', message)
@@ -109,5 +86,4 @@ export function showWarning(message: string): void {
   showToast(message, 'warning')
 }
 
-// 2026-08-09：handleAsync/showSuccess 零调用方死方法已删（成功提示直接用 showToast）
 export default { showError, handleAuthError, isAuthError, showWarning }

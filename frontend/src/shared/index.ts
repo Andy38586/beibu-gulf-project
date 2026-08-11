@@ -1,4 +1,4 @@
-// shared/index.ts — 公开 API 入口
+// shared 公开 API 入口
 // components/ 不 re-export（Vue 组件保持直接路径 import）
 export * from './composables/useApiRequest'
 export * from './composables/useAuth'

@@ -6,21 +6,15 @@ import { readStaticJson } from '../utils/readStaticJson.js'
 import { computeForecast, generateSpatialValues } from './forecastEngine.js'
 import { getModelForecast } from './modelLoader.js'
 
-// 指标白名单——仅允许 index.json 中声明过的合法指标，
-// 拒绝路径遍历（..）及非法指标名。forecast 路由保持公开（稳定设计决策），
-// 但不代表接受任意输入。
-// 2026-08-08 数据搬后端：berth/traffic 由前端静态 fixture 移入 backend/data/forecast/，
-// 与 cargo/container 统一走后端接口（前端 INDICATOR_SOURCE 硬编码已移除）。
+// 指标白名单：拒绝路径遍历（..）与非法指标名——路由公开不代表接受任意输入；
+// berth/traffic 数据已从前端 fixture 收归后端，四指标统一走此入口
 const ALLOWED_INDICATORS = new Set(['cargo', 'container', 'berth', 'traffic'])
 
-// 合成（非实测）指标：berth（泊位利用率）/ traffic（船舶流量）为示意性合成数据，
-// 数据文件自带 historical+forecast，不走吞吐量预测模型（throughput 模型仅适用
-// cargo/container 吞吐量指标）；与数据文件 metadata.source: 'synthetic' 对应。
+// 合成指标（berth/traffic）：示意性合成数据，文件自带 historical+forecast，不走预测模型
 const SYNTHETIC_INDICATORS = new Set(['berth', 'traffic'])
 
-// 正式链路使用吞吐量模型产物的指标（2026-08-09 接入）。
-// 模型为固定基线快照：scenarioLevel 恒 1.0（不支持情景参数，论文阶段再设计）；
-// 产物缺失/结构不符时降级 forecastEngine，保证接口不因模型文件问题中断。
+// 走吞吐量模型产物的指标：模型为固定基线（scenarioLevel 恒 1.0）；
+// 产物缺失时降级 forecastEngine，接口不因模型文件问题中断
 const MODEL_INDICATORS = new Set(['cargo'])
 
 const MAX_CACHE_SIZE = 100
@@ -37,8 +31,7 @@ function validateIndicator(indicator) {
   }
 }
 
-// 2026-08-08：读文件逻辑收敛到 utils/readStaticJson（数据流收口②，TTL+LRU 缓存同源）。
-// 文件级缓存与下方 engineCache 同为 createReadCache 语义，数据更新受 TTL 约束一致。
+// 读盘统一走 readStaticJson（createReadCache=读文件缓存工厂，TTL + LRU）
 async function readDataFile(filename) {
   try {
     return await readStaticJson(`forecast/${filename}`)
@@ -53,10 +46,8 @@ async function readDataFile(filename) {
   }
 }
 
-// 缓存引擎计算结果，场景参数变化时失效。
-// 统一只读缓存（createReadCache：TTL + LRU 上限,数据流收口②）。
-// 上限防匿名攻击者枚举 confidence 制造内存放大；TTL 避免 data/forecast/*.json
-// 更新后缓存永不失效（返回陈旧预测）。上限值见顶部 MAX_CACHE_SIZE。
+// 引擎结果缓存（createReadCache 读文件缓存工厂：TTL + LRU 上限）；
+// 上限防枚举 confidence 造成内存放大，TTL 避免数据更新后返回陈旧预测
 const engineCache = createReadCache({ maxSize: MAX_CACHE_SIZE })
 
 function getCacheKey(indicator, scenarioLevel) {
@@ -82,8 +73,7 @@ async function getOrComputeForecast(indicator, scenarioLevel) {
     let metadata = null
 
     if (MODEL_INDICATORS.has(indicator)) {
-      // cargo：正式链路使用吞吐量模型产物（2026-08-09）。
-      // 模型为固定基线（scenarioLevel 恒 1.0）；与历史重叠月份丢弃，2027 起半年点插值补齐。
+      // cargo 走吞吐量模型产物（固定基线，与历史重叠月份丢弃、半年点插值补齐）
       const lastTime = historical?.[historical.length - 1]?.time
       const modelResult = await getModelForecast(portId, lastTime)
       if (modelResult) {
@@ -96,8 +86,7 @@ async function getOrComputeForecast(indicator, scenarioLevel) {
         metadata = engineResult.metadata
       }
     } else if (SYNTHETIC_INDICATORS.has(indicator)) {
-      // 合成指标（berth/traffic）：文件自带 forecast 直接透传
-      // （见顶部 SYNTHETIC_INDICATORS 说明）
+      // 合成指标：文件自带 forecast 直接透传
       forecast = portData.forecast || []
     } else {
       // 真实指标（container 等）：趋势外推引擎演算

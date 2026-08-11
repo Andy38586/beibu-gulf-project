@@ -1,20 +1,9 @@
 /**
- * modelLoader — 吞吐量预测模型产物读取（2026-08-09 接入正式服务链路）
- *
- * 读取 backend/data/forecast/throughput_model.json（生成产物，见 tools/throughput_model.cjs）。
- *
- * 数据链：
- * - 输入：backend/data/forecast/throughput.json（三港 2018-01~2025-12 吞吐量历史）
- * - 训练期 2018-2022 / 验证期 2023-2025（回测 MAPE 1.43%~2.3%）/ 预测期 2026-2035
- * - 产物可经 `npm run forecast:model` 完整复现（git 提交的产物与重跑结果逐字节一致）
- *
- * 语义契约：
- * - 模型为固定基线快照：scenarioLevel 恒 1.0（不支持情景参数，论文阶段再设计）
- * - 产物缺失/结构不符时返回 null，由调用方降级到 forecastEngine——
- *   模型不是服务可用性依赖，不因模型文件问题中断预测接口
- * - 预测粒度：2026 年逐月 + 2027~2035 每半年（6/12 月）节点；
- *   与历史重叠的月份（<= afterTime）丢弃；2027 起半年点做月度线性插值
- *   （纯可视化平滑，非模型新输出，插值点无 lower/upper）
+ * modelLoader — 读取吞吐量预测模型产物（throughput_model.json，由 tools/throughput_model.cjs 生成、
+ * `npm run forecast:model` 可复现）。训练期 2018-2022 / 验证期 2023-2025（回测 MAPE 1.43%~2.3%）/
+ * 预测期 2026-2035。
+ * 语义契约：固定基线（scenarioLevel 恒 1.0）；产物缺失返回 null，调用方降级 forecastEngine，
+ * 模型不是服务可用性依赖；预测粒度 2026 逐月 + 2027~2035 每半年，重叠月丢弃、半年点月度线性插值
  */
 import { logger } from '../utils/logger.js'
 import { readStaticJson } from '../utils/readStaticJson.js'
@@ -32,12 +21,7 @@ function timeFromOffset(off) {
   return `${y}-${String(m).padStart(2, '0')}`
 }
 
-/**
- * 模型点 → 月度预测序列：丢弃 <= afterTime 的重叠点，半年节点间线性插值。
- * 输出 [{ time, value, type: 'forecast', reliability }]（与 forecastEngine 输出同形）。
- * @param {Array<{time: string, value: number, lower?: number, upper?: number}>} points
- * @param {string|undefined} afterTime 历史末月（该月及之前的模型点丢弃）
- */
+/** 模型点 → 月度序列：丢弃 ≤ afterTime 的重叠点，半年节点间线性插值（与 forecastEngine 输出同形） */
 export function interpolateMonthly(points, afterTime) {
   const afterOff = afterTime ? monthOffset(afterTime) : -Infinity
   const kept = points
@@ -69,12 +53,7 @@ export function interpolateMonthly(points, afterTime) {
   return out
 }
 
-/**
- * 读取模型产物并返回指定港口的月度预测。
- * @param {string} portId 港口 id（qinzhou / beihai / fangchenggang）
- * @param {string|undefined} afterTime 历史末月，重叠的模型点被丢弃
- * @returns {Promise<{forecast: Array, metadata: object}|null>} 产物不可用时返回 null
- */
+/** 读取模型产物，返回指定港口的月度预测；产物不可用时返回 null（调用方降级） */
 export async function getModelForecast(portId, afterTime) {
   let model
   try {

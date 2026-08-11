@@ -1,10 +1,7 @@
 <script setup lang="ts">
 /**
- * GCSToast - 全局轻提示（GCS 标准，编程式）
- * 规格（用户定）：2cell 宽 × 0.5cell 高（2026-08-08 用户调矮：原 1cell 太高），
- * 语义色轻提示（success/warning/error），自动消失。
- * 由 App.vue 挂载一次，全局通过 showToast(message, type) 触发（gcsFeedback 单例），
- * 替换 Element Plus ElMessage。
+ * GCSToast — 全局轻提示（GCS 标准，编程式）：2×0.5 cell 语义色提示，自动消失。
+ * App.vue 挂载一次，全局经 showToast() 触发（gcsFeedback 单例），替代 Element Plus ElMessage。
  */
 import { onBeforeUnmount, watch } from 'vue'
 
@@ -16,11 +13,7 @@ const { cell } = useGCS()
 const TOAST_DURATION_MS = 3000
 const timers = new Map<number, ReturnType<typeof setTimeout>>()
 
-// 新 toast 入队 → 启动自动消失计时（3s 后原位淡出）
-// 触发信号用 id 序列而非 items.length：队列满 4 时第 5 个来的 pop+unshift
-// 长度 4→3→4 最终不变，watch length 不触发 → 新 toast 永远无定时器（08-09 修复）。
-// 消失位置不限定：定时器到点后 splice(idx,1) 移除 toast 所在位置（1/2/3/4 位均可），
-// TransitionGroup leave 动画与原位一致。
+// 触发信号用 id 序列而非 items.length：队列满时 pop+unshift 长度不变，watch length 不触发，新 toast 会永远无定时器
 watch(
   () => gcsToastState.items.map((t) => t.id).join(','),
   () => {
@@ -83,8 +76,7 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 8px;
   pointer-events: none;
-  /* 2026-08-08：不加 max-height/overflow 裁切——裁切会水平切断 toast 导致"变细"；
-     队列上限由 gcsFeedback.showToast 控制（最多 4 条，第 5 条来最早的淡出） */
+  /* 不裁切（裁切会水平切断 toast）；队列上限由 gcsFeedback.showToast 控制（最多 4 条） */
 }
 
 .GCS-toast {

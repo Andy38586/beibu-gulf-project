@@ -37,8 +37,7 @@ export async function create(planData) {
   })
 }
 
-// 安全的字段白名单，防止原型链污染
-// 白名单补 flood 系字段，浸没方案才能被更新保存
+// 更新字段白名单：防原型链污染；含 flood 系字段以支持浸没方案更新
 const PLAN_UPDATE_FIELDS = [
   'name',
   'selectedKeys',

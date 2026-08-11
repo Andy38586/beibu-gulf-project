@@ -1,14 +1,8 @@
 <script setup lang="ts">
 /**
- * LayerControlPanel - 通用图层控制面板（公共组件）
- * 职责：
- * 1. 显示图层按钮（2列网格布局）
- * 2. 接入图层管理：业务图层走 BusinessLayerManager（registry 权威源）、底图走 mapStore.setBaseLayer（P6 双轨收尾）
- * 3. 底图互斥（影像/矢量只能选一个，baseLayerKey 权威源）
- * 4. 业务图层无互斥（可多选）
- * 被引用：首页、选址分析、浸没分析
- * 图层显示顺序由 props.layerOrder 注入，core 不再硬编码业务图层 key。
- * 默认仅含核心常驻层顺序，业务页通过 :layer-order 传入业务图层排序。
+ * 通用图层控制面板：2 列网格按钮展示图层目录（layerCatalog），
+ * 业务图层经 BusinessLayerManager（BLM，registry 为权威源）切换显隐，
+ * 底图互斥单选（baseLayerKey 为权威源）；显示顺序由 props.layerOrder 注入。
  */
 
 import { computed } from 'vue'
@@ -19,7 +13,7 @@ import { useMapStore } from '@/stores'
 import type { LayerEntry } from '@/types'
 
 interface Props {
-  /** 图层显示顺序（c024：由业务页注入，core 不再硬编码业务 key） */
+  /** 图层显示顺序（由业务页注入，core 不硬编码业务 key） */
   layerOrder?: string[]
 }
 
@@ -28,7 +22,7 @@ const props = withDefaults(defineProps<Props>(), {
   layerOrder: () => ['base-image', 'base-vector', 'boundary', 'ports'],
 })
 
-// P6：useLayerManager 已删——layerCatalog 直连 mapStore，底图切换走 mapStore.setBaseLayer
+// layerCatalog 直连 mapStore，底图切换走 setBaseLayer
 const mapStore = useMapStore()
 const layerCatalog = computed(() => mapStore.layerCatalog)
 const { manager: businessLayerManager } = useBusinessLayers()
@@ -43,15 +37,12 @@ const labelFontSizeCss = computed(() => `${cellPixel.value * 0.175}px`) // 14px
 const iconFontSizeCss = computed(() => `${cellPixel.value * 0.2}px`) // 16px
 
 /**
- * 图层按钮列表（按显示顺序）
- * business 类条目（layerType 非空）的可见性以
- * BusinessLayerManager._registry 为唯一权威源，catalog 仅作 reactivity 触发器。
- * 切换引擎时 clearLayerCatalog 清空 catalog，reapplyAll 重建条目时 visible
- * 从 registry 读取，杜绝双副本失步。base 类条目（无 layerType）以
- * mapStore.baseLayerKey 为权威源（P6：底图是互斥选择，非独立显隐）。
+ * 图层按钮列表（按显示顺序）：业务条目以 BLM（业务图层管理器）registry 的
+ * visible 为唯一权威源，catalog 仅作响应式触发器（引擎切换清空后由 reapplyAll
+ * 按 registry 重建，杜绝双副本失步）；底图条目以 baseLayerKey 为权威源。
  */
 const layerButtons = computed(() => {
-  // order 由 props 注入，core 不再硬编码业务图层 key
+  // 显示顺序由 props 注入
   const order = props.layerOrder
   const ordered = order
     .map((key) => layerCatalog.value.find((l: LayerEntry) => l.key === key))
@@ -61,9 +52,7 @@ const layerButtons = computed(() => {
   return [...ordered, ...extra].map((layer) => ({
     key: layer.key,
     label: layer.label,
-    // 单变量原则（2026-08-08 用户要求）：按钮状态 = 图层控制状态（registry.visible，
-    // BLM 唯一权威），点击切换同一变量。create 失败由 BLM 自动重试兜底——
-    // 稳态"蓝 = 图层在显示"，不存在第二个状态变量。
+    // 单变量原则：按钮状态即 registry.visible（BLM 唯一权威），蓝 = 图层在显示
     active: layer.layerType
       ? (businessLayerManager.getMeta(layer.key)?.visible ?? layer.visible)
       : mapStore.baseLayerKey === layer.key,
@@ -94,17 +83,16 @@ function getLayerIcon(label: string): string {
 
 /** 点击图层按钮 */
 function handleToggle(key: string) {
-  // 业务图层（有 layerType 字段，无 show/hide 回调）→ 走 Manager.setVisible
+  // 业务图层（有 layerType 字段）→ 走 Manager.setVisible
   const catalogEntry = layerCatalog.value.find((e: LayerEntry) => e.key === key)
   if (catalogEntry && catalogEntry.layerType) {
-    // 单变量原则：从 registry 读图层控制状态（与按钮显示同一变量）再取反——
-    // 按钮蓝→点一下关、白→点一下开，永远一次生效（不读实例状态避免错位）
+    // 单变量原则：读 registry 状态再取反，一次生效（不读实例状态避免错位）
     const registryVisible = businessLayerManager.getMeta(key)?.visible
     const currentVisible = registryVisible ?? catalogEntry.visible
     businessLayerManager.setVisible(key, !currentVisible)
     return
   }
-  // 底图等 base 类条目（无 layerType）→ 走 mapStore.setBaseLayer（P6：互斥选择）
+  // 底图等 base 类条目（无 layerType）→ 走 setBaseLayer（互斥单选）
   mapStore.setBaseLayer(key)
 }
 </script>
@@ -134,7 +122,7 @@ function handleToggle(key: string) {
   box-sizing: border-box;
 }
 
-/* 图层按钮网格：GCS 规格 —— 面板边缘 0.1cell(padding)，按钮间 0.2cell(gap)，
+/* 图层按钮网格：GCS（网格化布局系统）规格 —— 面板边缘 0.1cell(padding)，按钮间 0.2cell(gap)，
    按钮 1.8×0.8cell 占满网格单元：4×4 面板内 2列×4行共 8 按钮正好填满。
    列用 1.8fr 均分（1.8fr×2 + gap 0.2cell = 内容宽 3.8cell，精确等于 1.8cell/按钮）；
    行高固定 0.8cell，不足 8 个按钮时从顶部排、底部留白（边缘 0.1cell 仍保持）。 */

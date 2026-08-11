@@ -1,16 +1,8 @@
 /**
- * MapRenderer 抽象接口
- * 双引擎策略模式的核心契约：OpenLayers（2D）与 Cesium（3D）必须实现此接口。
- * 业务层通过此接口操作地图，不直接依赖 OL 或 Cesium API，实现 2D/3D 无感切换。
- * 北部湾港 WebGIS 采用双引擎架构：
- * - 2D 引擎（OLRenderer）：天地图底图 + 矢量叠加，适合选址分析等平面空间运算
- * - 3D 引擎（CesiumRenderer）：地形 + 水面可视化，适合浸没分析的立体呈现
- * 引擎切换时通过 exportState/importState 传递 CameraState，保证视角连续。
- * 可选方法（?）：
- * - 2D Only: addHeatmapLayer / updateHeatmapLayer
- * - 3D Only: 水面能力见 Water3DCapability 接口（OLRenderer 不支持,业务侧能力检查后调用）
- * - 呼吸动画（startBreathing/stopBreathing）：双引擎公共能力（OL 矢量圈 / Cesium 实体动画）
- * 子类对 "本引擎不支持" 的方法返回 false + DEV warn
+ * MapRenderer 抽象接口：OL（2D）/Cesium（3D）双引擎的共同契约，
+ * 业务层只面向此接口操作地图，实现 2D/3D 无感切换；引擎切换用 exportState/importState 传递视角。
+ * 单引擎专有能力收敛为可选能力接口（Water3DCapability/GeoTIFFCapability/HeatmapCapability），
+ * 调用方先做能力检查再调用；呼吸动画为双引擎公共能力。
  */
 
 import type { FeatureCollection } from 'geojson'
@@ -21,17 +13,14 @@ import type { GeoPoint } from '@/types/business/base'
 
 /** 点要素（渲染器 addPointLayer 入参） */
 export interface PointFeature {
-  /** 常规输入：lng/lat 坐标；GeoJSON Feature 形状（热力图）走 geometry.coordinates */
+  /** 常规输入：lng/lat；GeoJSON Feature 形状（热力图）走 geometry.coordinates */
   lng?: number
   lat?: number
   name?: string
-  /** 兼容 GeoJSON Feature 形状（热力图等消费方传入 geometry.coordinates；
-   * 字段可选——测试/脏数据存在空 geometry，渲染器回退 (0,0)） */
+  /** 兼容 GeoJSON Feature 形状；可选——空 geometry 时渲染器回退 (0,0) */
   geometry?: { type?: string; coordinates?: [number, number] }
   properties?: Record<string, unknown>
-  /** 开放扩展：业务层可附加任意属性（如 id、type、featureType），
-   * 渲染器通过 options.labelField 等按需读取。
-   * 参考 §7.7 索引签名设计约定。 */
+  /** 开放扩展：业务层可附加任意属性（渲染器经 options.labelField 等按需读取） */
   [key: string]: unknown
 }
 
@@ -54,7 +43,7 @@ export interface FlyToOptions {
   duration?: number // 毫秒（2D）/ 秒（3D，内部转换）
   zoom?: number
   height?: number
-  // Cesium 相机朝向（3D 专用；OL 忽略，2026-08-09 类型补全）
+  // Cesium 相机朝向（3D 专用；OL 忽略）
   heading?: number
   pitch?: number
   roll?: number
@@ -81,9 +70,9 @@ export interface LayerOptions {
   opacity?: number
   // GeoJSON 图层 per-feature 样式回调（OL 渲染器消费）
   style?: unknown
-  // GeoJSON 图层加载失败回调（Cesium 渲染器消费，2026-08-09 类型补全）
+  // GeoJSON 图层加载失败回调（Cesium 渲染器消费）
   onError?: (err: unknown) => void
-  // ── 热力图选项（2D Only，a015：显式传入使色带/权重可配置）──
+  // ── 热力图选项（2D Only）──
   /** 热力图色带（CSS 颜色字符串数组，从低到高） */
   gradient?: string[]
   /** 权重字段名（feature 属性中作为权重的 key，如 'value'） */
@@ -101,16 +90,8 @@ export interface WaterSurfaceOptions {
 }
 
 /**
- * 水面效果能力接口（3D Only，a036 拆分产物）
- *
- * 背景：水面 5 方法原声明在 MapRenderer 基类/接口上，导致基类为 2D 引擎背负
- * 3D 契约（ISP 违反），OLRenderer 只能提供 no-op stub。
- * 现拆为独立能力接口，仅 CesiumRenderer 实现；业务侧（layerAdapters 的
- * waterSurface 分支）调用前做能力检查：`typeof renderer.addWaterSurface === 'function'`，
- * 不支持的渲染器（OL）跳过并 warn。
- *
- * 注意：呼吸动画（startBreathing/stopBreathing）是双引擎公共能力（OL 矢量圈 /
- * Cesium 实体动画），保留在 MapRenderer 接口上，不属本接口。
+ * 水面效果能力接口（3D Only）：3D 专有方法收敛为独立能力接口，仅 CesiumRenderer 实现，
+ * 调用方先做能力检查，不支持的渲染器跳过并 warn。呼吸动画为双引擎公共能力，留在主接口。
  */
 export interface Water3DCapability {
   addWaterSurface(
@@ -125,9 +106,9 @@ export interface Water3DCapability {
   setWaterSurfaceVisibility(id: string, visible: boolean): boolean
 }
 
-// ===== 渲染器可选能力接口（P11：2D/3D 专用方法收敛，对齐 Water3DCapability）=====
-// 基类不再为单引擎方法背负打空拳契约（ISP 违反），调用方经类型守卫检查后调用。
-// 守卫函数在 core/map/layerAdapters.ts（types 层不引 core，避免循环依赖）。
+// ===== 渲染器可选能力接口 =====
+// 单引擎专有方法收敛为能力接口（避免基类为 2D 背负 3D 契约），调用方经类型守卫检查后调用；
+// 守卫函数位于 core/map/layerAdapters.ts（types 层不引 core，避免循环依赖）
 
 /** GeoTIFF 栅格图层能力（2D COG / 3D hillshade 影像——双引擎各自实现） */
 export interface GeoTIFFCapability {
@@ -152,23 +133,15 @@ export interface CameraState {
   roll?: number
 }
 
-/** 渲染器导出状态 */
+/** 渲染器导出状态（图层 ID → { visible }，特殊键 `_camera` 存切换用视角） */
 export interface RendererState {
-  /** 图层 ID → 图层状态（含 visible）。
-   * 特殊键 `_camera` 存储 CameraState（用于 2D/3D 切换时视角传递）。
-   * 参考 §7.7。 */
   [layerId: string]: { visible: boolean } | CameraState
 }
 
 // ===== 事件 =====
 
 export interface MapRendererEventMap {
-  /**
-   * 点击事件。
-   * - featureType: 命中要素的类型标识（如 'port' / 'forecast-berth'），未命中为 null
-   * - data: 命中要素的属性对象，未命中为 null
-   * - coordinate: 点击位置的 [lng, lat] 数组
-   */
+  /** 点击事件：命中要素的类型/属性/坐标，未命中为 null */
   click: {
     featureType: string | null
     data: Record<string, unknown> | null
@@ -193,9 +166,7 @@ export interface MapRenderer {
   /** 添加 GeoJSON 图层 */
   addGeoJsonLayer(_id: string, _geojson: FeatureCollection, _options?: LayerOptions): void
 
-  // P11：addGeoTIFFLayer/addHeatmapLayer/updateHeatmapLayer 已收敛为可选能力接口
-  // （GeoTIFFCapability/HeatmapCapability，见上方定义）——调用方经类型守卫确认
-  // 支持后调用，不再在 MapRenderer 主接口上声明可选方法。
+  // addGeoTIFFLayer/addHeatmapLayer 等单引擎专有方法已收敛为上方能力接口，经类型守卫后调用
 
   /** 设置图层显隐 */
   setVisibility(_id: string, _visible: boolean): void
@@ -214,8 +185,6 @@ export interface MapRenderer {
 
   /** 导入状态 */
   importState(_state: RendererState): void
-
-  /** 水面效果（3D Only，能力接口见 Water3DCapability） */
 
   /** 呼吸灯效果（双引擎公共能力：OL 矢量动画圈 / Cesium 实体动画） */
   startBreathing?(_lng: number, _lat: number): void

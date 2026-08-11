@@ -1,12 +1,6 @@
 /**
- * CRS 运行时工具（分层收口：运行时逻辑从 types/crs 移入 shared）
- *
- * 背景（架构审查）：types/crs.ts 原混入运行时工具（normalizePoint 等）并 import
- * shared/logger,构成「types → shared 反向依赖」——types 应为纯类型层。
- * 现拆分为：
- * - types/crs.ts   纯类型声明（CRS / GeoPoint / LaxPoint）
- * - shared/utils/crs.ts  运行时常量与工具（本文件）
- * 调用方统一从 @/shared 取工具,types 层零运行时依赖。
+ * CRS 运行时常量与工具：从 types/crs 移入 shared，保持 types 为纯类型层
+ * （原 types 混入运行时逻辑并反向依赖 shared，违反分层）。
  */
 import type { CRS, GeoPoint, LaxPoint } from '@/types/crs'
 
@@ -15,11 +9,7 @@ import { logger } from './logger'
 /** 默认 CRS：业务数据统一使用 WGS84 */
 export const DEFAULT_CRS: CRS = 'EPSG:4326'
 
-/**
- * 将宽松坐标点归一化为标准 GeoPoint
- * 优先级：lng > lon > longitude；lat > latitude
- * 缺失值默认 0（避免 OL/Cesium 渲染崩溃），并在 dev 模式告警
- */
+/** 归一化宽松坐标点为标准 GeoPoint（优先级 lng > lon > longitude；缺失回退 0,0 并 dev 告警，避免渲染崩溃） */
 export function normalizePoint(input: LaxPoint): GeoPoint<CRS> {
   const lng = input.lng ?? input.lon ?? input.longitude
   const lat = input.lat ?? input.latitude
@@ -42,10 +32,7 @@ export function normalizePoint(input: LaxPoint): GeoPoint<CRS> {
   }
 }
 
-/**
- * 北部湾业务区域边界（EPSG:4326）
- * 用于数据入口校验，过滤明显越界的异常坐标
- */
+/** 北部湾业务区域边界（EPSG:4326），用于数据入口校验、过滤明显越界的异常坐标 */
 export const BEIBU_GULF_BBOX = {
   minLng: 105.0,
   maxLng: 112.0,
@@ -53,10 +40,7 @@ export const BEIBU_GULF_BBOX = {
   maxLat: 23.5,
 } as const
 
-/**
- * 校验坐标点是否在北部湾业务区域内
- * @returns true 如果在区域内
- */
+/** 校验坐标点是否在北部湾业务区域内 */
 export function isInBeibuGulf(point: GeoPoint): boolean {
   return (
     point.lng >= BEIBU_GULF_BBOX.minLng &&

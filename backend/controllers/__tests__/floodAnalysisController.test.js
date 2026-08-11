@@ -66,7 +66,7 @@ const MOCK_WATER_AREA = JSON.stringify({
 
 // 预计算档位表 mock（0.1m 档形状与 flood_levels.json.gz 同构）
 const MOCK_LEVELS = {
-  '2.5': { featureCount: 1, floodedKm2: 3.2, features: [{ type: 'Feature', properties: {} }] },
+  2.5: { featureCount: 1, floodedKm2: 3.2, features: [{ type: 'Feature', properties: {} }] },
   '3.0': { featureCount: 1, floodedKm2: 4.1, features: [{ type: 'Feature', properties: {} }] },
 }
 

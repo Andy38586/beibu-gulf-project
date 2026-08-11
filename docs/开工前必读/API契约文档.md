@@ -53,9 +53,10 @@
 
 ## 4. 限流与安全
 
-- 全局:`/api/` 100 次/15 分钟;登录/注册:5 次/15 分钟(`express-rate-limit`)
+- 全局:`/api/` **1000 次/15 分钟**;登录/注册:**50 次/15 分钟**(2026-08-09 部署演示放宽,原 100/5 太严导致演示 429 连锁;真实上线再收紧)
 - 生产必须 `helmet` + `trust proxy`(nginx 反代时配置跳数,否则限流按 127.0.0.1 失效)
 - 敏感配置只进 `.env`,禁止入 git;CI 有 gitleaks secret-scan 门禁
+- HTTPS:生产已启用 TLS 1.2/1.3(Let's Encrypt + 443 直通,2026-08-10),HttpOnly Cookie 生产 `secure` 由实际协议决定(X-Forwarded-Proto)
 
 ## 5. 接口索引(会演进,以代码为准)
 

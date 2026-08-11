@@ -24,11 +24,7 @@ type NormalizedFlyToTarget =
   | { lng: number; lat: number }
   | { layerId: string; [key: string]: unknown }
 
-/**
- * MapRenderer 抽象基类
- * 双引擎策略模式的基类：OpenLayers（2D）与 Cesium（3D）子类各自实现抽象方法。
- * 业务层通过 MapRenderer 接口（@/types）操作地图，不直接依赖 OL 或 Cesium API。
- */
+/** MapRenderer 抽象基类：双引擎策略模式——OL（2D）与 Cesium（3D）子类实现抽象方法，业务层仅依赖本接口（@/types） */
 export class MapRenderer {
   container: HTMLElement
   _layers: Map<string, LayerState>
@@ -71,10 +67,8 @@ export class MapRenderer {
     throw new Error(`${this.getType()} addGeoJsonLayer 未实现`)
   }
 
-  // P11：addGeoTIFFLayer/addHeatmapLayer/updateHeatmapLayer 已收敛为可选能力接口
-  // （GeoTIFFCapability/HeatmapCapability，types/renderer.ts）——基类不再打空拳，
-  // 调用方（layerAdapters）经类型守卫（typeof 检查）确认支持后调用，
-  // 不支持的渲染器跳过并 warn（对齐 Water3DCapability 的 a036 模式）。
+  // GeoTIFF/热力图等收敛为可选能力接口（GeoTIFFCapability/HeatmapCapability）：基类不再声明，
+  // 调用方（layerAdapters）经类型守卫（typeof 检查）确认支持后调用，避免 2D/3D 互背契约（同水面 Water3DCapability 模式）
 
   setVisibility(id: string, visible: boolean): void {
     const layer = this._layers.get(id)
@@ -93,18 +87,14 @@ export class MapRenderer {
     }
   }
 
-  /**
-   * 清除某图层的待定可见性（2026-08-08）：create 失败后调用——pending 记录的是
-   * 过期意图（BLM 已回滚 visible=false），残留会在下次 create 时被错误应用 → 幽灵状态。
-   */
+  /** 清除某图层的待定可见性：create 失败后调用，防止过期意图（业务图层管理器 BLM 已回滚 visible）在下次 create 时被错误应用 */
   clearPendingVisibility(id: string): void {
     this._pendingVisibility.delete(id)
   }
 
   removeLayer(id: string): void {
-    // 无论图层实例是否存在，都清除待定可见性：
-    // pending 记录的是过期意图，否则同 id 重新注册（如 visible:true）
-    // 会被旧值（如 false）覆盖，导致面板与地图失步
+    // 无论图层实例是否存在都清除待定可见性：pending 记录的是过期意图，否则同 id 重新注册
+    // （如 visible:true）会被旧值（如 false）覆盖，导致面板与地图失步
     this._pendingVisibility.delete(id)
     const layer = this._layers.get(id)
     if (!layer) return
@@ -113,21 +103,12 @@ export class MapRenderer {
     this._layers.delete(id)
   }
 
-  /**
-   * 检查图层是否已存在
-   * 公开方法，替代业务层直读 `this._layers.has(id)` 私有属性
-   * （如 UnifiedMap.vue 中 boundary/ports 重复添加检查）。
-   */
+  /** 图层是否已存在（公开方法，替代业务层直读私有 _layers，如 UnifiedMap.vue 重复添加检查） */
   hasLayer(id: string): boolean {
     return this._layers.has(id)
   }
 
-  /**
-   * 图层真实可见性（2026-08-08 P6 后续）：读 _layers 实例的 visible——
-   * 图层控制面板按钮状态以此为权威源（按钮蓝 = 图层真的在显示）。
-   * 与 hasLayer 的区别：hasLayer 只问"实例存在"，本方法问"实例存在且可见"。
-   * 子类（CesiumRenderer）对非 _layers 存储（waterSurface）覆写本方法。
-   */
+  /** 图层真实可见性：读 _layers 实例的 visible，作为面板按钮状态的权威源（与 hasLayer 的区别：后者只问实例存在） */
   isLayerVisible(id: string): boolean {
     const layer = this._layers.get(id)
     return layer ? layer.visible : false
@@ -164,8 +145,7 @@ export class MapRenderer {
     handler: (event: CustomEvent<MapRendererEventMap[K]>) => void
   ): void
   on(event: string, handler: EventListenerOrEventListenerObject): void
-  // 实现签名用 unknown：泛型 handler (CustomEvent<T>)=>void 与 EventListener 参数逆变不兼容，
-  // unknown 是顶层类型可接受所有重载的 handler，体内窄化为 EventListener 供 EventTarget API 消费
+  // 实现签名用 unknown：兼容泛型 handler (CustomEvent<T>)=>void 与 EventListener 的参数逆变，体内窄化后交给 EventTarget
 
   on(event: string, handler: unknown): void {
     this._eventBus.addEventListener(event, handler as EventListener)
@@ -243,12 +223,9 @@ export class MapRenderer {
 
   _setCameraState(_state: CameraState): void {}
 
-  // 水面 5 方法已拆至 Water3DCapability 能力接口（a036），基类不再声明——
-  // 否则基类为 2D 引擎背负 3D 契约（ISP 违反），OLRenderer 只能 no-op stub。
-  // 调用方（layerAdapters waterSurface 分支）做能力检查后调用。
+  // 水面为 3D 专有能力（Water3DCapability）：基类不声明，避免为 2D 引擎背负 3D 契约（ISP 违反）；调用方做能力检查后调用
 
-  // 呼吸动画：双引擎公共能力（OL 矢量圈 / Cesium 实体动画），子类各自实现
-  // 2026-08-09：返回类型统一为 void（原 boolean 假实现与 OLRenderer 的 void 实现不兼容）
+  // 呼吸动画：双引擎公共能力（OL 矢量圈 / Cesium 实体动画），子类各自实现，返回类型统一 void
   startBreathing(_lng: number, _lat: number): void {
     logger.debug(`${this.getType()} startBreathing 未实现`)
   }

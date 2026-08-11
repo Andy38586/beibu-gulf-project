@@ -10,15 +10,12 @@ import { useTheme } from './shared'
 import { logger } from './shared/utils/logger'
 import { initPerfReporter, perfReportError } from './shared/utils/perfReporter'
 
-/**
- * 启动时校验关键环境变量
- * 缺失非必需变量时告警但不阻断启动，缺失必需变量时报错
- */
+/** 启动时校验关键环境变量：必需项缺失报错，非必需项缺失告警不阻断 */
 function validateEnv(): void {
   const warnings: string[] = []
   const errors: string[] = []
 
-  // 必需：天地图 KEY（无 KEY 地图底图无法加载）
+  // 必需：天地图 KEY，缺失则底图无法加载
   if (!import.meta.env.VITE_TIANDITU_KEY) {
     errors.push('VITE_TIANDITU_KEY 缺失：地图底图无法加载，请在 .env 文件中配置')
   }
@@ -34,20 +31,15 @@ function validateEnv(): void {
 
 validateEnv()
 
-// Phase 0 性能埋点：尽早挂载观察者，捕获 FCP/LCP/TTI/longtask（dev-only，不进生产包）
+// 尽早挂载性能观察者，捕获 FCP/LCP/TTI/longtask（dev-only，不进生产包）
 initPerfReporter()
 
-// 数据源由环境变量驱动，默认 api（生产安全；未配置不再静默打包 mock）。
-// static 模式已随"前端静态数据搬后端"移除（2026-08-08）——本地离线不再支持。
+// 数据源由环境变量驱动，默认 api（生产安全）；flood 保留双模式：api（Express 后端）/ online（FastAPI 实时演算）
 const dataSource = (import.meta.env.VITE_DATA_SOURCE as 'api' | 'online' | undefined) || 'api'
-// flood 保留双模式：api（Express 后端）/ online（flood-service FastAPI 实时演算）。
-// 2026-08-08：siteAnalysisAdapter / forecastAdapter 已删（选址/预测纯 api 直连 useApiRequest，
-// berth/traffic 已搬后端，INDICATOR_SOURCE 一并移除——不再参与三态）。
 floodAdapter.setDataSource(dataSource)
 
-// ResizeObserver polyfill for Safari < 13.1
+// ResizeObserver polyfill for Safari < 13.1（按需动态导入）
 if (typeof window !== 'undefined' && !('ResizeObserver' in window)) {
-  // 动态导入 polyfill
   import('resize-observer-polyfill')
     .then(({ default: ResizeObserverPolyfill }) => {
       window.ResizeObserver = ResizeObserverPolyfill
@@ -74,20 +66,11 @@ app.config.errorHandler = (
   logger.error('[Global Error]', err, info)
   // 性能埋点：Vue 渲染/生命周期错误计数（生产可见）
   perfReportError('vue')
-  // 在开发环境显示详细错误，生产环境显示友好提示
+  // 开发环境显示详细错误，生产环境显示友好提示
   if (import.meta.env.DEV) {
     logger.error('错误详情:', { err, instance, info })
   } else {
-    // 错误上报接入路径（按 D-15=A 决策，暂缓接入，仅文档化）。
-    // logger 已预留 addLogTransport 钩子（见 shared/utils/logger.ts），Sentry 账号 + DSN
-    // 就绪后按以下步骤一行接入，无需改动业务代码：
-    // 1) 安装依赖：npm i @sentry/vue
-    // 2) import * as Sentry from '@sentry/vue'
-    // 3) 在 app.mount('#app') 之前调用：
-    // Sentry.init({ app, dsn: '<DSN>', release: __APP_VERSION__, environment: import.meta.env.MODE })
-    // 4) 接入 transport（一行）：
-    // logger.addLogTransport((entry) =>
-    // Sentry.captureMessage(`[${entry.level}] ${entry.args.map(String).join(' ')}`))
+    // 错误上报暂缓接入：logger 已预留 addLogTransport 钩子（见 shared/utils/logger.ts），Sentry 就绪后一行接入即可
   }
 }
 

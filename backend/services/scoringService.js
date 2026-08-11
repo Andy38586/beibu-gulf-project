@@ -2,10 +2,7 @@ import * as turf from '@turf/turf'
 import RBush from 'rbush'
 import { logger } from '../utils/logger.js'
 
-// ==================== 合并自 decayFunctions.js / importanceMapping.js ====================
-// 2026-08-09：原三文件过细拆分（decayFunctions 4 行 / importanceMapping 28 行 /
-// scoringService 98 行，均仅 siteAnalysisService 一处消费）——合并为本文件，
-// 删 decayFunctions.js / importanceMapping.js。
+// 原 decayFunctions / importanceMapping 与本文仅 siteAnalysisService 一处消费，合并避免过细拆分
 
 /** 线性距离衰减：距离 >= maxDistance 得 0 分，否则按比例线性衰减（百分制） */
 export const linearDecay = (distance, maxDistance) => {
@@ -53,11 +50,7 @@ export const DEFAULT_WEIGHTS = {
   mall: 0.7,
 }
 
-/**
- * 为设施点集构建 rbush 空间索引（d047：替代 O(n²) 全量遍历）
- * @param {Array<{lng:number,lat:number}>} points
- * @returns {RBush}
- */
+/** 为设施点集构建 rbush 空间索引，避免 O(n²) 全量遍历 */
 function buildFacilityIndex(points) {
   const tree = new RBush()
   const items = points.map((p) => ({

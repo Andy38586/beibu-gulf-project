@@ -1,14 +1,7 @@
 /**
- * 后端统一结构化 logger
- * - debug/info：仅 development 环境输出
- * - warn/error：生产保留（test 环境静默）
- * - audit：操作审计日志，生产保留（d043）
- * - 格式：[ISO timestamp] [LEVEL] message
- * 在保留现有 API（debug/info/warn/error/audit）签名不变的前提下，
- * 增加文件输出 + 按天轮转（零依赖实现，避免引入 winston 等 npm 依赖）：
- * - 文件命名 app-YYYY-MM-DD.log，单文件超过 20MB 追加序号滚动
- * - 保留 14 天，超出自动清理
- * - 业务代码 `import { logger }` 全部零改动
+ * 后端统一 logger：debug/info 仅 dev 输出，warn/error/audit 生产保留（test 静默）。
+ * 零依赖文件输出 + 按天轮转（app-YYYY-MM-DD.log，单文件 20MB 滚动，保留 14 天），
+ * 业务代码 import 签名不变
  */
 
 import { appendFile, mkdir, readdir, stat, unlink } from 'fs/promises'
@@ -116,6 +109,6 @@ export const logger = {
   },
   warn: (...args) => emit('warn', args),
   error: (...args) => emit('error', args),
-  /** d043: 操作审计日志（生产保留，记录成功操作） */
+  /** 操作审计日志（生产保留，记录成功操作） */
   audit: (action, detail) => emit('info', [`[AUDIT] ${action}`, detail]),
 }

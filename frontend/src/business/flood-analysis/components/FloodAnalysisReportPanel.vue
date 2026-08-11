@@ -1,11 +1,7 @@
 <script setup lang="ts">
 /**
- * FloodAnalysisReportPanel - 浸没分析报告面板
- * 功能：
- * 1. 显示浸没分析关键信息（淹没面积、水深、损失等）
- * 2. 自动响应水位变化，实时更新数据
- * 3. 灰色区域：3.8宽×2.8高，距标题下方0.6cell、左右各0.1cell
- * 布局：4×4 Cell，左上位置
+ * 浸没分析报告面板：显示淹没面积、水深、损失等关键信息，随水位变化实时更新。
+ * 布局 4×4，左上角。
  */
 
 import { computed } from 'vue'
@@ -18,12 +14,7 @@ const { cellPixel, css } = useGCS()
 // 解构出 CSS 变量供 v-bind() 使用
 const { cell16px } = css
 
-/**
- * 计算灰色内容区样式（基于cell单位，响应式布局）
- * 尺寸：3.8宽 × 2.8高（cell单位）
- * 位置：距面板顶部0.6cell、左右各0.1cell
- * 使用绝对定位，相对于.flood-analysis-report-panel
- */
+/** 灰色内容区样式：3.8×2.8 cell，距顶部 0.6cell、左右各 0.1cell，绝对定位 */
 const contentStyle = computed(() => {
   const cell = cellPixel.value
 
@@ -35,7 +26,6 @@ const contentStyle = computed(() => {
   }
 })
 
-/** 格式化损失金额 */
 /** 影响等级（根据总损失计算） */
 const impactLevel = computed(() => {
   const loss = floodStore.totalLoss
@@ -135,12 +125,7 @@ const affectedPorts = computed<string[]>(() => {
   color: var(--GCS-text-primary);
 }
 
-/*
- * 灰色内容区（绝对定位，从面板顶部算起）
- * 尺寸：3.8宽 × 2.8高（cell单位，响应式）
- * 位置：距面板顶部0.6cell、左右各0.1cell
- * 内容区域在灰色面板内上下左右居中
- */
+/* 灰色内容区：绝对定位，内容居中 */
 .report-content {
   position: absolute;
   display: flex;

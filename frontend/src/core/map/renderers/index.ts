@@ -10,19 +10,10 @@ let _cesiumLoadPromise: Promise<void> | null = null
 let _preloadScheduled = false
 
 /**
- * Cesium 空闲预热（Phase 2 升级版，2026-08-06）
- *
- * 原实现仅 <link rel=preload> 预取到浏览器缓存（不执行）——用户实测"第一次进浸没分析
- * 还是很卡"：进 3D 时 ensureCesiumLoaded 注入 <script> 仍要现场解析执行 5.7MB 脚本。
- *
- * 升级为**真正执行加载**（交互优先队列）：
- * 1. 首屏渲染完成后，requestIdleCallback 空闲时段执行 ensureCesiumLoaded()
- *    （注入 script 下载+解析执行 Cesium.js）+ 预热 CesiumRenderer 模块 chunk
- * 2. 与 createRenderer 共享 _cesiumLoadPromise——用户点击进 3D 时：
- *    - preload 已跑完 → ensureCesiumLoaded 秒回，只差 new Viewer（~52ms）
- *    - preload 未跑（用户快速进 3D）→ createRenderer 直接触发加载，用户操作优先
- *    - preload 正在跑 → 共享同一 promise，无重复下载/执行（浏览器同 URL 复用）
- * 3. 幂等：window.Cesium 就绪 / 已调度 / 已预热均跳过；失败静默（优化手段不阻断功能）
+ * Cesium 空闲预热：首屏渲染后经 requestIdleCallback 真正执行加载（下载+解析执行 Cesium.js 5.7MB，
+ * 仅 preload 缓存不解码，实测首次进 3D 仍卡）。
+ * 与 createRenderer 共享同一 _cesiumLoadPromise：已预热则秒回，未预热用户操作优先，无重复下载。
+ * 幂等：window.Cesium 就绪/已调度/已预热均跳过；失败静默（优化手段不阻断功能）。
  */
 export function preloadCesium(): void {
   try {
@@ -35,8 +26,7 @@ export function preloadCesium(): void {
     const doPreload = () => {
       // 真正执行加载（与 ensureCesiumLoaded 共享 promise，3D 入口幂等秒回）
       void ensureCesiumLoaded().then(() => {
-        // 预热 CesiumRenderer 模块 chunk（CesiumWaterSurface/LayerRegistrar 等），
-        // 进 3D 时不再现场拉 chunk
+        // 预热 CesiumRenderer 模块 chunk，进 3D 时不再现场拉取
         void import('./CesiumRenderer')
       })
       if (import.meta.env.DEV) {
@@ -51,17 +41,16 @@ export function preloadCesium(): void {
 }
 
 /**
- * 确保 Cesium 全局就绪（幂等）
- * vite-plugin-cesium 将 `import { Viewer } from 'cesium'` 转换为 `window.Cesium.Viewer` 引用，
- * 但 Cesium.js（5.7MB）不再在 HTML head 中同步加载。此函数在切 3D 时动态注入 <script> 标签，
- * 确保 CesiumRenderer 的 chunk 被求值前 window.Cesium 已就绪。
+ * 确保 window.Cesium 就绪（幂等）：vite-plugin-cesium 将 `import { Viewer }` 转为
+ * window.Cesium.Viewer 引用，但 Cesium.js 不再随 HTML 同步加载，须在 CesiumRenderer
+ * chunk 被求值前动态注入 <script>。
  */
 function ensureCesiumLoaded(): Promise<void> {
   if ((window as unknown as Record<string, unknown>).Cesium) return Promise.resolve()
   if (_cesiumLoadPromise) return _cesiumLoadPromise
 
   _cesiumLoadPromise = new Promise<void>((resolve, reject) => {
-    // Phase 0 埋点：标记 Cesium 脚本开始注入（★ 注意度量是全局脚本 onload，非 import）
+    // 埋点：脚本开始注入（度量口径为全局脚本 onload，非 import）
     perfMark('cesium:load-start')
     // 1. 注入 CSS（幂等：检查是否已存在）
     if (!document.querySelector('link[href*="Widgets/widgets.css"]')) {
@@ -89,12 +78,7 @@ function ensureCesiumLoaded(): Promise<void> {
   return _cesiumLoadPromise
 }
 
-/**
- * 创建地图渲染器
- * - 2D（OL）：静态导入，首屏即可用
- * - 3D（Cesium）：动态加载 Cesium.js + 动态导入 CesiumRenderer
- * Cesium 5.7MB 仅在用户首次切换到 3D 视图时加载，首屏零开销
- */
+/** 创建渲染器：2D 静态导入首屏可用；3D 动态加载 Cesium.js（5.7MB，仅首次切 3D 时加载）+ 动态导入 CesiumRenderer */
 export async function createRenderer(
   type: '2d' | '3d',
   container: HTMLElement

@@ -6,7 +6,7 @@ import { BusinessError, ErrorCode } from '../utils/BusinessError.js'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const DATA_FILE = path.join(__dirname, '../data/users.json')
 
-// 启用缓存，消除认证层每次请求读盘（writeAll 自动同步 cache，单进程安全）
+// 启用读缓存，避免认证层每次请求读盘（writeAll 自动同步，单进程安全）
 const { sequential, readAll, writeAll } = createFileStore(DATA_FILE, { useCache: true })
 
 export async function findByUsername(username) {
@@ -29,9 +29,7 @@ export async function createUser(username, hashedPassword) {
       createdAt: new Date().toISOString(),
       tokenVersion: 0,
     }
-    // 不原地修改缓存数组，构造新数组，写盘失败时缓存不脏
-    // （此前 users.push(newUser) 直接变异 readAll 返回的 cache 引用，
-    // 若 writeAll 失败，cache 已被污染 → 内存出现磁盘不存在的"幽灵用户"）
+    // 构造新数组而非原地修改缓存：写盘失败时缓存不脏（避免"幽灵用户"）
     const next = [...users, newUser]
     await writeAll(next)
     return {

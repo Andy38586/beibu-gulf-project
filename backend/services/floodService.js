@@ -1,7 +1,6 @@
 /**
- * floodService — 洪涝灾害评估业务逻辑（d041）
- * 从 floodAnalysisController 抽出的计算层，与 forecast/site-analysis 分层对齐。
- * Controller 只负责参数校验 + 响应格式化，业务计算在此完成。
+ * floodService — 洪涝灾害评估计算层（从 controller 抽出，与 forecast/site-analysis 分层对齐：
+ * controller 只管参数校验与响应格式化，业务计算在此完成）
  */
 
 /**
@@ -18,8 +17,7 @@ export function assessDisaster(facilities, level, floodZone) {
 
   const affectedFacilities = facilities
     .filter(
-      // B-9（阶段6 复核）: elevation 缺失/null 时 `null <= level` 被 JS 隐式转 0 → 假阳性。
-      // 与 filterFacilitiesInCoverage 的脏数据防御对齐：仅接受有限数值。
+      // 脏数据防御：elevation 缺失/null 时 `null <= level` 隐式转 0 造成假阳性，仅接受有限数值
       (facility) =>
         facility.elevation !== null &&
         facility.elevation !== undefined &&
@@ -36,7 +34,7 @@ export function assessDisaster(facilities, level, floodZone) {
       elevation: facility.elevation,
       value: facility.value,
       damageRate: facility.damageRate,
-      // B-9: value/damageRate 缺失时避免 `undefined * 0.5 = NaN` 污染 totalLoss（NaN 经 JSON 序列化为 null）
+      // value/damageRate 缺失时按 0 计，避免 NaN 污染 totalLoss
       loss: (Number(facility.value) || 0) * (Number(facility.damageRate) || 0),
     }))
 

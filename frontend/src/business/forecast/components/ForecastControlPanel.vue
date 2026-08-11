@@ -1,8 +1,5 @@
-<!-- ForecastControlPanel.vue
-     预测分析控制面板（4×4 合并版）
-     上半：4 个指标按钮（2×2），三态（默认/选择/已确认），置信度滑块
-     下半：时间轴滑块 + 3 个可点击刻度（2018 / 2025 / 2035）
-     滑块是唯一交互入口，直接驱动数据刷新 -->
+<!-- 预测分析控制面板（4×4）：上半为 4 个指标按钮（三态）+ 置信度滑块，
+     下半为时间轴滑块 + 3 个可点击刻度（2018/2025/2035）；滑块是唯一交互入口 -->
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, reactive } from 'vue'
 
@@ -15,25 +12,21 @@ const forecastState = useForecastStore()
 // 滑块专注模式（安卓控制中心风格）：拖动滑块时隐藏其他面板，只留本面板
 const { beginSliderFocus, endSliderFocus } = useSliderFocus()
 
-// GCS 尺寸变量（与 LayerControlPanel 对齐）：
-// cell8px=0.1cell 面板边缘内边距；cell16px=0.2cell 按钮间外边距
+// GCS 尺寸变量：cell8px=0.1cell 面板内边距；cell16px=0.2cell 按钮间距
 const { cellPixel, css } = useGCS()
 const { cell8px, cell16px } = css
-/** 按钮高度：0.8 cell（与选址分析/LayerControlPanel 一致，固定行高，不自动拉伸） */
+/** 按钮高度 0.8 cell（固定行高，不自动拉伸） */
 const btnHeightCss = computed(() => `${cellPixel.value * 0.8}px`)
-/** 字体大小：0.175cell=14px（标签），0.2cell=16px（图标），0.15cell=12px（小字），0.125cell=10px（角标） */
+/** 字体档位：0.175cell 标签、0.2cell 图标、0.15cell 小字、0.125cell 角标 */
 const labelFontSizeCss = computed(() => `${cellPixel.value * 0.175}px`)
 const iconFontSizeCss = computed(() => `${cellPixel.value * 0.2}px`)
 const smallFontSizeCss = computed(() => `${cellPixel.value * 0.15}px`)
 const levelFontSizeCss = computed(() => `${cellPixel.value * 0.125}px`)
-// CONFIRM_DELAY 2026-08-09（P1-5）：两面板共用 → shared/constants/ui
+// CONFIRM_DELAY 两面板共用，统一放 shared/constants/ui
 
 // ===== 四个指标 =====
-// synthetic 标志：berth/traffic 为示意性合成数据（非实测），UI 显示「（模拟）」角标。
-// 2026-08-08：数据搬后端后，合成标注来源为后端数据文件 metadata.source: 'synthetic'
-// （backend/data/forecast/berth.json / traffic.json），此处保持固定集合与之对应。
-// 2026-08-09（P1）：cargo 走吞吐量模型固定基线（backend/services/modelLoader.js，
-// scenarioLevel 恒 1.0 不支持情景）——不提供置信度滑块，与后端契约一致（单一事实源在后端）。
+// berth/traffic 为合成示意数据（后端数据文件标记 source: synthetic），UI 显示「（模拟）」角标；
+// cargo 走吞吐量模型固定基线（后端不支持情景），不提供置信度滑块（单一事实源在后端）
 const SYNTHETIC_INDICATORS = new Set(['berth', 'traffic'])
 const MODEL_FIXED_INDICATORS = new Set(['cargo'])
 const INDICATORS = [
@@ -113,8 +106,7 @@ onMounted(() => {
 onUnmounted(() => {
   document.removeEventListener('click', handleGlobalClick)
   Object.keys(timers).forEach(clearTimer)
-  // 2026-08-09（P1）：组件卸载时若有滑块专注模式激活立即退出——
-  // 拖到一半切路由，pointerup 永不触发 → body.slider-focus-mode 残留 → 下页面板全透明
+  // 卸载时若滑块专注模式仍激活立即退出，避免残留下页面板全透明
   endSliderFocus()
 })
 
@@ -222,8 +214,7 @@ onUnmounted(() => stopPlayback())
           <span class="ind-icon">{{ ind.icon }}</span>
           <span class="ind-label-s">{{ ind.label }}</span>
           <span v-if="ind.synthetic" class="ind-synth">（模拟）</span>
-          <!-- 2026-08-09（P1）：cargo 走吞吐量模型固定基线（后端 scenarioLevel 恒 1.0），
-               不提供置信度滑块——原滑块可拖但无效果（UI 撒谎）；显示模型基线标注 -->
+          <!-- cargo 走模型固定基线：不提供置信度滑块（可拖但无效果），显示基线标注 -->
           <span v-if="MODEL_FIXED_INDICATORS.has(ind.key)" class="conf-fixed">模型基线</span>
           <input
             v-else
@@ -293,7 +284,7 @@ onUnmounted(() => stopPlayback())
   gap: v-bind(cell16px);
 }
 
-/* ===== 按钮网格：2 列 1.8fr × 行 0.8cell（与选址分析/LayerControlPanel 一致），外边距 0.2cell ===== */
+/* 按钮网格：2 列 1.8fr，行高 0.8cell，间距 0.2cell */
 .btn-grid {
   display: grid;
   grid-template-columns: repeat(2, 1.8fr);
@@ -407,7 +398,7 @@ onUnmounted(() => stopPlayback())
   color: var(--GCS-bg-panel);
   font-weight: 600;
 }
-/* 模型固定基线标注（cargo 无置信度滑块，2026-08-09 P1） */
+/* 模型固定基线标注（cargo 无置信度滑块） */
 .conf-fixed {
   font-size: v-bind(levelFontSizeCss);
   color: var(--GCS-text-muted);

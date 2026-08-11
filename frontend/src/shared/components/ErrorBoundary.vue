@@ -1,4 +1,3 @@
-<!-- src/components/common/ErrorBoundary.vue -->
 <script setup lang="ts">
 import { onErrorCaptured, ref } from 'vue'
 
@@ -13,7 +12,6 @@ onErrorCaptured((err) => {
     logger.error('[ErrorBoundary]', err)
     logger.error('错误堆栈:', err.stack)
   }
-  // 错误上报服务待集成（如 Sentry）
 
   errorMsg.value = err.message || '未知异常'
   hasError.value = true

@@ -1,12 +1,8 @@
 <script setup lang="ts">
 /**
- * LoginPanel - 纯登录/注册表单面板
- * 布局规格：
- * - 顶部：登录 / 注册 切换按钮（并排）
- * - 登录态：用户名 + 密码 + 登录按钮
- * - 注册态：用户名 + 密码 + 确认密码 + 注册按钮
- * 已登录态不在此组件内处理（由父级 ProfilePage 的 v-if="!user" 控制挂载），
- * 本组件只负责未登录时的登录/注册表单。
+ * LoginPanel - 登录/注册表单面板
+ * 顶部登录/注册切换按钮；登录态含用户名+密码，注册态追加确认密码。
+ * 已登录态由父级（ProfilePage v-if="!user"）控制，本组件不处理。
  */
 
 import { computed, ref } from 'vue'
@@ -25,7 +21,7 @@ const confirmPassword = ref('')
 const errorMsg = ref('')
 const loading = ref(false)
 
-// CSS v-bind 计算属性（使用响应式 cellPixel，随视口变化）
+// CSS v-bind 计算属性（响应式 cellPixel，随视口变化）
 const inputFontSizeCss = computed(() => `${cellPixel.value * 0.175}px`) // 14px
 const btnFontSizeCss = computed(() => `${cellPixel.value * 0.175}px`) // 14px
 const errorFontSizeCss = computed(() => `${cellPixel.value * 0.15}px`) // 12px
@@ -70,7 +66,7 @@ async function handleSubmit() {
       errorMsg.value = '密码长度不能少于 6 位'
       return
     }
-    // 密码强度增强 - 至少包含大小写字母和数字
+    // 密码强度：至少包含大小写字母和数字
     const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{6,}$/
     if (!passwordRegex.test(password.value)) {
       errorMsg.value = '密码必须包含大小写字母和数字'
@@ -83,7 +79,7 @@ async function handleSubmit() {
   }
   loading.value = true
   try {
-    // 密码不再 HTML 转义，原样传输（后端 bcrypt 处理，转义无安全收益）
+    // 密码原样传输：后端 bcrypt 处理，转义无安全收益
     if (mode.value === 'login') {
       await login(trimmedUsername, password.value)
     } else {
@@ -94,7 +90,7 @@ async function handleSubmit() {
     password.value = ''
     confirmPassword.value = ''
   } catch (err) {
-    // 错误信息白名单过滤，防止反射型 XSS
+    // 错误信息过滤，防反射型 XSS
     const rawMsg = (err as Error).message || '操作失败'
     errorMsg.value = rawMsg.replace(/[<>"'%;()&+]/g, '')
   } finally {

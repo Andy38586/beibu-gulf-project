@@ -1,14 +1,9 @@
 <script setup lang="ts">
 /**
- * DebugToggle - 独立调试模式开关（2026-08-09 用户决策）
- * - 从底部 nav dock 移出：dock 只承载业务导航 + 抽屉菜单按钮（业务侧零调试依赖）
- * - 独立板块：固定右下角，不跟随响应式布局变化（桌面/抽屉档位均渲染）
- * - 1×1 cell 方块（GCSButton），与 dock 内 0.8×0.8 按钮区分
- * - Teleport 到 body：脱离 .app-layout（z-index:50 的 stacking context），
- *   z-index 1100 才能与抽屉（body 层 1000）同级竞争
- * - 显式 props/emits 而非 defineModel：Teleport 根的组件 defineModel 失效
- *   （modelValue 成为未声明 attrs，v-model 链路断裂，2026-08-09 实测）
- * - 移除方式：删掉 AppLayout 中 <DebugToggle> 与 <GCSDebugOverlay> 两处引用即完全脱离
+ * DebugToggle - 独立调试模式开关（仅本地开发）
+ * 固定右下角、不随响应式布局变化；Teleport 到 body（z-index 1100 与抽屉同级竞争）。
+ * 显式 props/emits 而非 defineModel：Teleport 根的 defineModel 会失效。
+ * 移除：删掉 AppLayout 中两处引用即完全脱离。
  */
 import GCSButton from './GCSButton.vue'
 

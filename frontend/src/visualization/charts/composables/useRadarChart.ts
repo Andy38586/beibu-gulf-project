@@ -1,13 +1,4 @@
-/**
- * useRadarChart - 雷达图逻辑 composable
- * 职责：封装雷达图的渲染、交互和事件处理逻辑
- * RadarChart.vue 过大问题
- * @param options - 配置选项
- * @param options.getChartRef - 获取图表 DOM 元素
- * @param options.getProps - 获取组件 props
- * @param options.emit - 事件发射器
- * @returns - 返回雷达图相关的方法和状态
- */
+/** useRadarChart — 雷达图渲染/交互/事件逻辑（从 RadarChart.vue 拆分） */
 import type { ECharts } from 'echarts'
 import { RadarChart as EChartsRadarChart } from 'echarts/charts'
 import { TooltipComponent } from 'echarts/components'
@@ -154,7 +145,7 @@ export function useRadarChart({
     const name = props.xiaoqu?.name || ''
 
     perfMark('echarts:radar:start')
-    // 增量更新（D-7）：merge 保留轴/样式，replaceMerge:['series'] 替换数据系列
+    // 增量更新：merge 保留轴/样式，replaceMerge 替换数据系列
     chartInstance.setOption(
       {
         backgroundColor: 'transparent',

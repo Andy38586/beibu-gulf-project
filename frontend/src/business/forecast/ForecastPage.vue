@@ -1,17 +1,10 @@
 <!--
   /**
-   * 预测分析模块
-   * 当前阶段：纯 API 链路（2026-08-08 数据搬后端）——cargo/container 真实吞吐量（后端模型预测），
-   * berth/traffic 合成示意（后端数据文件 source: synthetic）；前端静态 JSON 已全部移除。
-   * 本模块验证目标：
-   * 1. BusinessLayerManager 的 heatmap adapter 能否独立注册/销毁
-   * 2. 2D 渲染器在不依赖 3D 引擎时的纯 2D 业务承载能力
-   * 3. 时间轴驱动下的图层增量更新性能
+   * 预测分析模块：纯 API 链路（cargo/container 为后端模型预测的真实吞吐量，
+   * berth/traffic 为合成示意数据）。验证 heatmap 图层注册/销毁、
+   * 纯 2D 业务承载与时间轴驱动的图层增量更新性能。
+   * 布局：左 LineChart + BarChart，右 ForecastControlPanel + LayerControlPanel（各 4×4）
    */
-
-  FORECAST: 预测分析业务页面
-  布局：左侧 LineChart(4×4) + BarChart(4×4)
-        右侧 ForecastControlPanel(4×4) + LayerControlPanel(4×4)
 -->
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, watch } from 'vue'
@@ -37,7 +30,7 @@ import LineChart from '@/visualization/charts/LineChart.vue'
 import ForecastControlPanel from './components/ForecastControlPanel.vue'
 import { useForecastLayer } from './composables/useForecastLayer'
 import { useForecastRequest } from './composables/useForecastRequest'
-// P7：兼容层 business/forecast/constants.ts 已删，常量统一从 @/shared 取
+// 兼容层 constants.ts 已删，常量统一从 @/shared 取
 import { DEFAULT_CONFIDENCE, PORT_NAMES } from '@/shared'
 
 const { apiRequest } = useApiRequest()
@@ -52,8 +45,7 @@ const lineSeries = ref([])
 const barXData = ref([...PORT_NAMES])
 const barSeries = ref<Array<{ name: string; data: number[] }>>([])
 
-// 柱状图固定对比的真指标（cargo/container 为真实吞吐量；berth/traffic 为合成数据不入图）。
-// 3 港 × 2 指标 = 6 柱；后续接入更多真指标后扩为 4 指标 → 3 港 × 4 = 12 柱
+// 柱状图固定对比真实吞吐量指标（cargo/container；合成数据不入图），当前 3 港 × 2 指标 = 6 柱
 const BAR_INDICATORS = ['cargo', 'container'] as const
 const BAR_INDICATOR_LABELS: Record<string, string> = {
   cargo: '货物吞吐量',
@@ -76,10 +68,7 @@ function setRequestCache(key: string, value: unknown): void {
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 const DEBOUNCE_DELAY = 300
 
-/**
- * 跳转个人中心（登录）→ 保存全部状态；其它路由离开保持原行为（onUnmounted reset 清态）。
- * 与 SiteSelectionPage/FloodAnalysisPage 的「跳登录保存、返回恢复」链路对齐（2026-08-08）。
- */
+/** 跳转个人中心（登录）时保存状态，返回恢复；其它路由离开由 onUnmounted 清态 */
 onBeforeRouteLeave((to) => {
   if (to.path === '/profile') {
     saveForecastState()
@@ -115,8 +104,7 @@ function restoreForecastState(saved: ForecastSavedState): void {
 }
 
 onMounted(() => {
-  // 「跳登录返回」优先恢复快照（不 reset——reset 会清掉刚恢复的状态）；
-  // 无快照（正常进入/刷新）才走原初始化
+  // 跳登录返回优先恢复快照（不 reset，避免清掉刚恢复的状态）；无快照才走初始化
   const savedState = forecastState.consumeState()
   if (savedState) {
     restoreForecastState(savedState)
@@ -137,7 +125,7 @@ async function loadTimeSeriesData(transactionId: number, signal: AbortSignal) {
 
     // 全量数据: 首次 API 获取后缓存，后续只做窗口截取
     if (!requestCache.has(cacheKey)) {
-      // 2026-08-08：forecastAdapter 已删（预测纯 api），直连统一入口 useApiRequest
+      // 预测纯 api，直连统一入口 useApiRequest
       const data = await runInTransaction(
         () =>
           apiRequest<TimeSeriesResponseParsed>('/forecast/timeseries', {
@@ -161,8 +149,7 @@ async function loadTimeSeriesData(transactionId: number, signal: AbortSignal) {
     const allData = cached.allSeries[0]?.data || []
     if (!allData.length) return
 
-    // 12 个月窗口：当前时间点往前 11 步（月粒度 11 个月 / 年粒度 11 年，共 12 个点），
-    // 钳制在数据实际范围内防止空白
+    // 12 点窗口（当前时间往前 11 步，月/年粒度通用），钳制在数据范围内防止空白
     const [sliderYear, sliderMonth] = forecastState.currentTime.split('-').map(Number)
     const isYear = forecastState.timeGranularity === 'year'
     const fmt = (y: number, m: number) =>
@@ -198,7 +185,7 @@ async function loadTimeSeriesData(transactionId: number, signal: AbortSignal) {
       void handleAuthError(router)
       return
     }
-    // d073: 趋势数据失败用 toast——时间/指标切换即自动重试，无需 modal
+    // 失败用 toast：切换时间/指标即自动重试
     showError(e, { fallback: '加载趋势数据失败' })
   }
 }
@@ -259,7 +246,7 @@ async function loadPortComparisonData(transactionId: number, signal: AbortSignal
     if (forecastState.isPlaying && e instanceof ApiError && e.message.includes('过于频繁')) {
       return
     }
-    // d073: 对比数据失败用 toast——切换时间/指标即自动重试，无需 modal
+    // 失败用 toast：切换时间/指标即自动重试
     showError(e, { fallback: '加载对比数据失败' })
   }
 }
@@ -278,8 +265,7 @@ watch(
   { immediate: true }
 )
 
-// 统一的预测更新函数：启动新事务，保证三个请求原子性
-// （2026-08-08：v-loading 蒙版已移除，事务 loading 状态不再绑定 UI）
+// 统一预测更新：启动新事务保证三路请求原子性（loading 状态不绑定 UI）
 async function doForecastUpdate() {
   if (!renderer.value) return
 
@@ -294,8 +280,7 @@ async function doForecastUpdate() {
   ])
 }
 
-// 合并 watch：监听 indicator、time、confidence 三个核心状态
-// 使用纯防抖(300ms)，停止操作后统一刷新，避免双触发
+// 合并监听 indicator/time/confidence，纯防抖（debounce，300ms）停止操作后统一刷新，避免双触发
 watch(
   () => [
     forecastState.activeIndicator,
@@ -323,7 +308,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <!-- 2026-08-08：移除 v-loading 白色蒙版（用户判定粗糙，后续做动画替代） -->
+  <!-- 加载态不显示白色蒙版（判定粗糙），后续以动画替代 -->
   <div class="forecast-page">
     <AppLayout>
       <template #left>

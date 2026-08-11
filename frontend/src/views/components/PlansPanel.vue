@@ -1,12 +1,9 @@
 <script setup lang="ts">
 /**
  * PlansPanel - 个人中心收藏夹（方案抽屉）
- * 职责单一：方案列表加载/展开/加载到业务页/重命名/删除 + 收藏切换刷新
- * （P1-10 拆分 ProfilePage 产物）
- *
- * 依赖说明：useAuth/usePlans/useFloodStore 均为 Pinia 单例；RESTORE_PLAN_DATA_KEY /
- * EDITING_PLAN_KEY 由 App.vue 顶层 provide，此处 inject 拿到同一 ref 引用，赋值对
- * 主页面/目标业务页可见。
+ * 职责单一：方案列表加载/展开/加载到业务页/重命名/删除 + 收藏切换刷新。
+ * useAuth/usePlans/useFloodStore 为 Pinia 单例；RESTORE_PLAN_DATA_KEY/EDITING_PLAN_KEY
+ * 由 App.vue provide，此处 inject 拿到同一 ref 引用，赋值对主页面/业务页可见。
  */
 import { inject, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
@@ -35,7 +32,7 @@ const {
 const { user } = useAuth()
 const floodStore = useFloodStore()
 
-// P0-5: 组件卸载时取消在途 getPlans 请求,避免迟到响应写入已卸载组件
+// 卸载时取消在途 getPlans 请求，避免迟到响应写入已卸载组件
 onUnmounted(() => {
   cancelPlansRequest()
 })
@@ -55,9 +52,7 @@ const plansList = ref<Plan[]>([])
 /** 当前展开的方案ID */
 const expandedPlanId = ref<string | null>(null)
 
-/**
- * 加载方案列表（含已收藏小区）
- */
+/** 加载方案列表（含已收藏小区） */
 async function loadPlans() {
   if (!user.value) return
 
@@ -72,11 +67,7 @@ async function loadPlans() {
   }
 }
 
-/**
- * 删除方案
- * 2026-08-08 打磨：ElMessageBox.confirm → GCSModal（confirm 模式：确定/取消，
- * 取消 = 不触发 onConfirm 仅关闭弹窗）
- */
+/** 删除方案：GCSModal confirm 确认（取消不触发 onConfirm，仅关弹窗） */
 function handleDeletePlan(plan: Plan) {
   showModal({
     message: `确定要删除方案"${plan.name}"吗？`,
@@ -101,17 +92,12 @@ async function doDeletePlan(id: string): Promise<void> {
   }
 }
 
-/**
- * 切换方案展开/收起
- */
+/** 切换方案展开/收起 */
 function togglePlan(planId: string) {
   expandedPlanId.value = expandedPlanId.value === planId ? null : planId
 }
 
-/**
- * 加载方案到对应业务页面
- * 根据 businessType 路由到选址分析或浸没分析
- */
+/** 加载方案到对应业务页（按 businessType 路由到选址/浸没分析） */
 function handleLoadPlan(plan: Plan) {
   if (plan.businessType === 'flood') {
     loadFloodPlan(plan)
@@ -122,21 +108,19 @@ function handleLoadPlan(plan: Plan) {
   void router.push('/site-selection')
 }
 
-/**
- * 最小类型守卫：校验对象是否具备 FloodFeature 的必需字段
- */
+/** 最小类型守卫：对象是否具备 FloodFeature 必需字段 */
 function isFloodFeature(obj: unknown): obj is FloodFeature {
   if (typeof obj !== 'object' || obj === null) return false
   const o = obj as Record<string, unknown>
   return o.type === 'Feature' && typeof o.geometry === 'object' && o.geometry !== null
 }
 
-/** 最小类型守卫：校验数组元素是否全部为 FloodFeature */
+/** 最小类型守卫：数组元素是否全部为 FloodFeature */
 function isFloodFeatureArray(data: unknown): data is FloodFeature[] {
   return Array.isArray(data) && data.every(isFloodFeature)
 }
 
-/** 最小类型守卫：校验对象是否具备 AffectedFacility 的必需字段 */
+/** 最小类型守卫：对象是否具备 AffectedFacility 必需字段 */
 function isAffectedFacility(obj: unknown): obj is AffectedFacility {
   if (typeof obj !== 'object' || obj === null) return false
   const o = obj as Record<string, unknown>
@@ -152,11 +136,7 @@ function isAffectedFacilityArray(data: unknown): data is AffectedFacility[] {
   return Array.isArray(data) && data.every(isAffectedFacility)
 }
 
-/**
- * 加载浸没分析方案：保存状态到 floodStore 后跳转
- * 方案字段为 unknown，使用类型守卫做最小运行时校验后收窄，
- * 不通过则降级为空数组，避免裸断言导致后续运行时崩溃。
- */
+/** 加载浸没分析方案：类型守卫收窄后存入 floodStore 再跳转，不通过降级为空数组 */
 function loadFloodPlan(plan: Plan) {
   const floodFeatures = isFloodFeatureArray(plan.floodFeatures) ? plan.floodFeatures : []
   const affectedFacilities = isAffectedFacilityArray(plan.affectedFacilities)
@@ -181,18 +161,14 @@ function loadFloodPlan(plan: Plan) {
   void router.push('/flood-analysis')
 }
 
-/**
- * 编辑方案名称
- */
+/** 编辑方案名称 */
 function handleEditPlan(plan: Plan) {
   editingNamePlan.value = plan
   saveError.value = ''
   showSaveModal.value = true
 }
 
-/**
- * 保存方案名称
- */
+/** 保存方案名称 */
 async function handleSaveName(name: string) {
   if (!editingNamePlan.value) return
   savingName.value = true
@@ -208,28 +184,22 @@ async function handleSaveName(name: string) {
   }
 }
 
-/**
- * 收藏状态变化后重新加载
- */
+/** 收藏状态变化后重新加载 */
 async function handleFavoriteChange() {
   await loadPlans()
 }
 
-/**
- * 判断方案是否包含选址分析类型的小区（score > 0）
- */
+/** 选址分析类型的小区（score > 0） */
 function getSiteXiaoqu(plan: Plan): SavedXiaoqu[] {
   return plan.savedXiaoqu?.filter((xq) => xq.score > 0) || []
 }
 
-/**
- * 判断方案是否包含浸没分析类型的设施（score === 0）
- */
+/** 浸没分析类型的设施（score === 0） */
 function getFloodFacilities(plan: Plan): SavedXiaoqu[] {
   return plan.savedXiaoqu?.filter((xq) => !xq.score || xq.score === 0) || []
 }
 
-// 监听用户登录状态，自动加载方案列表
+// 监听登录状态：登录自动加载，登出清空
 watch(
   () => user.value,
   (newUser) => {
@@ -261,7 +231,7 @@ watch(
       <span class="favorites-count">{{ plansList.length }}个方案</span>
     </div>
 
-    <!-- 方案列表（可展开查看收藏内容） -->
+    <!-- 方案列表（可展开） -->
     <div v-if="user && plansList.length > 0" class="plans-list">
       <div v-for="plan in plansList" :key="plan.id" class="plan-group">
         <!-- 方案头部 -->
@@ -332,7 +302,7 @@ watch(
       <div class="empty-hint">去选址分析或浸没分析收藏内容吧</div>
     </div>
 
-    <!-- 方案重命名弹窗（初始名使用 editingNamePlan，error 事件时显示校验失败） -->
+    <!-- 方案重命名弹窗（初始名取 editingNamePlan，error 时显示校验失败） -->
     <PlanSaveModal
       :visible="showSaveModal"
       :saving="savingName"

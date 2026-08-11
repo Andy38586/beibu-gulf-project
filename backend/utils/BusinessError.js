@@ -1,8 +1,7 @@
 /**
- * 统一业务错误码与错误类
- * 规范 6.2：service 层不直接 throw new Error('xxx')，用 BusinessError 携带
- * 标准化 code + status，controller 层统一 instanceof 判断后返回对应 HTTP 状态码。
- * 错误码命名约定：<HTTP status><业务序号>，例如 400001 = 400 + 0001
+ * 业务错误类（BusinessError）：service 层禁止直接 throw Error，
+ * 统一携带 code + status，controller 按 instanceof 返回对应 HTTP 状态码。
+ * 错误码命名：<HTTP status><业务序号>（400001 = 400 + 0001）
  */
 
 export const ErrorCode = {

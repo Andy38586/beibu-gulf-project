@@ -3,12 +3,12 @@ import { logger } from './utils/logger.js'
 
 const PORT = process.env.PORT || 3000
 
-// 添加未捕获的 Promise 拒绝处理
+// 未捕获 Promise 拒绝：记录日志
 process.on('unhandledRejection', (reason, _promise) => {
   logger.error('未处理的 Promise 拒绝:', reason)
 })
 
-// 添加未捕获的异常处理
+// 未捕获异常：记录日志后退出，避免进程悬挂
 process.on('uncaughtException', (error) => {
   logger.error('未捕获的异常:', error)
   process.exit(1)
@@ -18,7 +18,7 @@ const server = app.listen(PORT, () => {
   logger.info(`服务器已启动，端口 ${PORT}`)
 })
 
-// === Graceful Shutdown：Docker stop 发 SIGTERM，确保进行中的请求完成后再退出 ===
+// 优雅关停：排干进行中的请求后再退出（Docker stop 发 SIGTERM）
 function gracefulShutdown(signal) {
   logger.info(`收到 ${signal}，开始优雅关停...`)
   server.close(() => {

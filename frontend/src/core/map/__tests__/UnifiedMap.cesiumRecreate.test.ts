@@ -4,14 +4,14 @@
  */
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
-import { beforeEach, beforeAll, afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { BusinessLayerManager } from '@/core/map/BusinessLayerManager'
 import { BUSINESS_LAYER_MANAGER_KEY } from '@/core/map/composables/useBusinessLayers'
 import { createRenderer } from '@/core/map/renderers'
+import type { cesiumViewerManager as CesiumViewerManagerType } from '@/core/map/renderers/CesiumRenderer'
 import UnifiedMap from '@/core/map/UnifiedMap.vue'
 import { useMapStore } from '@/stores'
-import type { cesiumViewerManager as CesiumViewerManagerType } from '@/core/map/renderers/CesiumRenderer'
 
 // CesiumRenderer 必须动态 import：顶层静态 import 会在用例收集阶段加载真实 cesium 库，
 // 导致 worker 初始化超时（收集阶段挂起）。运行时动态加载与生产路径一致。
@@ -63,6 +63,8 @@ vi.mock('@/core/map/renderers', () => {
     destroy: vi.fn(),
     // UnifiedMap onUnmounted 对 Cesium 渲染器走 unmount（保留 viewer 供复用）
     unmount: vi.fn(),
+    // W4-11：3D→2D 切换前组件调 stopBreathing（双引擎公共能力，mock 需补齐）
+    stopBreathing: vi.fn(),
     updateSize: vi.fn(),
     getMap: vi.fn().mockReturnValue({}),
     getViewer: vi.fn().mockReturnValue({}),

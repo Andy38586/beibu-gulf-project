@@ -4,7 +4,7 @@
  * 其余面板透明、只保留滑块所在面板，松手恢复（底部 nav 不受影响）。
  * 模块级单例：AppLayout 监听 active 切换 class，滑块组件调用 begin/end。
  */
-import { ref } from 'vue'
+import { onScopeDispose, ref } from 'vue'
 
 import { LAYOUT_DESKTOP_MIN } from '@/shared/layout/config'
 
@@ -36,5 +36,8 @@ export function useSliderFocus() {
     active.value = false
     activePanel.value = null
   }
+  // 副-10：作用域卸载兜底——调用方组件卸载时 document 监听随 endSliderFocus 解绑，
+  // 防止监听残留（专注模式卡死）
+  onScopeDispose(endSliderFocus)
   return { active, activePanel, beginSliderFocus, endSliderFocus }
 }

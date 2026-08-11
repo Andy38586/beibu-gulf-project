@@ -213,6 +213,9 @@ async function initRenderer(type: '2d' | '3d', container: HTMLElement | null) {
     }
     loadError.value = err.message || '地图初始化失败'
     emit('error', err)
+    // 上抛给 switchMapType 统一回滚（mapType + currentRenderer）；吞错会导致
+    // UI 已切新引擎但渲染器仍是旧实例的撕裂态（W4-08）
+    throw err
   }
 }
 
@@ -328,8 +331,10 @@ async function switchMapType(newType: '2d' | '3d') {
       cameraState = currentRenderer.value.exportState()
     }
 
-    // 3D→2D 时 unmount Cesium（暂停渲染 + 启动闲置销毁；短时切回由 mount 取消销毁）
+    // 3D→2D 时先停呼吸灯 rAF（挂在 Cesium 渲染器上，不停止会泄漏动画循环），再 unmount Cesium
+    //（暂停渲染 + 启动闲置销毁；短时切回由 mount 取消销毁）
     if (oldType === '3d' && newType === '2d') {
+      currentRenderer.value?.stopBreathing()
       const { cesiumViewerManager } = await import('@/core/map/renderers/CesiumRenderer')
       cesiumViewerManager.unmount()
     }
@@ -364,9 +369,15 @@ async function switchMapType(newType: '2d' | '3d') {
     }
     loadError.value = err.message || '地图切换失败'
 
-    // 初始化失败时回滚 mapStore.mapType，避免容器因 v-show 被隐藏
+    // 初始化失败时回滚 mapStore.mapType 与 currentRenderer（含 store 悬空引用），
+    // 避免 v-show 容器与渲染器实例类型撕裂（W4-08）
     if (oldType !== newType) {
       mapStore.setMapType(oldType)
+      const fallback = oldType === '2d' ? olRenderer.value : cesiumRenderer.value
+      if (fallback && currentRenderer.value !== fallback) {
+        currentRenderer.value = fallback
+        mapStore.setCurrentRenderer(fallback)
+      }
     }
 
     emit('error', err)
@@ -439,7 +450,12 @@ onMounted(async () => {
   }
   // 首次挂载：v-if已渲染默认类型的容器
   const container = getContainer(props.mapType)
-  await initRenderer(props.mapType, container)
+  try {
+    await initRenderer(props.mapType, container)
+  } catch {
+    // initRenderer 内部已 emit('error') + 设置 loadError；rethrow 仅服务 switchMapType 回滚，
+    // 首次挂载路径无回滚目标，此处吞掉防止 mounted hook unhandled rejection
+  }
   loading.value = false
 
   // 观察 OL 容器（常驻）；Cesium 容器由下方 watch 在出现后观察
@@ -469,10 +485,11 @@ onUnmounted(() => {
   switching.value = false
   pendingSwitchType.value = null
 
-  // 引擎切换/卸载前解绑 click 监听（注册/移除配对契约）
-  if (currentRenderer.value) {
-    currentRenderer.value.off?.('click', handleRendererClick)
-  }
+  // 引擎切换/卸载前解绑 click 监听（注册/移除配对契约；两个缓存渲染器都解绑，
+  // 仅解绑当前渲染器会在复用旧实例时残留监听——W4-22）
+  ;[olRenderer.value, cesiumRenderer.value].forEach((r) => {
+    r?.off?.('click', handleRendererClick)
+  })
 
   // 遍历销毁两个缓存渲染器（而非只销毁当前渲染器），销毁后 ref 显式置空
   const cachedRenderers = [olRenderer.value, cesiumRenderer.value]
@@ -480,9 +497,9 @@ onUnmounted(() => {
     if (r) {
       try {
         if (r === cesiumRenderer.value) {
-          // Cesium 常规卸载走 unmount（viewer 保留复用 + 闲置销毁）；
-          // 直接 destroy 会销毁 viewer，路由重挂只能重建且容易丢失图层
-          ;(r as unknown as { unmount?: () => void }).unmount?.()
+          // Cesium 常规卸载走 destroy（内部为保留 Viewer 复用的卸载语义 + 30s 空闲销毁窗口）；
+          // 类上无 unmount 方法，误调是 no-op，事件清理/水面清理/空闲销毁定时器全部跳过，WebGL 永久泄漏
+          r.destroy()
         } else {
           // OL 无复用设计，正常销毁
           r.destroy()

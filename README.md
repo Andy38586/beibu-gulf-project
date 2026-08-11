@@ -51,6 +51,7 @@
 ### 系统架构图
 
 架构分层（Application → Business → GIS Core → Backend）与依赖约束见上文表格与 `docs/` 下文档；真实界面效果见下方截图。
+![架构图](docs/图片/架构图.svg)
 
 ---
 
@@ -84,18 +85,18 @@ GIS 应用中，地图工具栏、分析面板、图例、详情卡片等组件�
 
 ## 技术栈
 
-| 层级           | 技术                                                |
-| -------------- | --------------------------------------------------- |
-| **前端框架**   | Vue 3（Composition API + `<script setup>`）、Vite（Rolldown）、Vue Router、Pinia |
-| **语言与类型** | TypeScript 严格模式（@ts-nocheck 全量移除）、zod 运行时校验（HTTP 边界 100%）|
-| **GIS 引擎**   | OpenLayers（2D）、Cesium（3D，懒加载 + 真地形瓦片） |
-| **空间分析**   | Turf.js（Express 后端服务）、rbush 空间索引、scipy 连通性演算（FastAPI）|
-| **数据可视化** | ECharts（异步化，不进首屏关键路径）|
-| **UI 组件**    | Element Plus（按需引入）+ 自研 GCS 网格布局体系（含暗色主题 token）|
-| **后端**       | Node.js、Express 5（ESM，三层架构）+ FastAPI（Python 洪涝演算，独立容器）|
-| **数据**       | GeoJSON、JSON（createReadCache 缓存）、251 档预计算表（gzip）、DEM 流水线脚本 |
+| 层级           | 技术                                                                                                          |
+| -------------- | ------------------------------------------------------------------------------------------------------------- |
+| **前端框架**   | Vue 3（Composition API + `<script setup>`）、Vite（Rolldown）、Vue Router、Pinia                              |
+| **语言与类型** | TypeScript 严格模式（@ts-nocheck 全量移除）、zod 运行时校验（HTTP 边界 100%）                                 |
+| **GIS 引擎**   | OpenLayers（2D）、Cesium（3D，懒加载 + 真地形瓦片）                                                           |
+| **空间分析**   | Turf.js（Express 后端服务）、rbush 空间索引、scipy 连通性演算（FastAPI）                                      |
+| **数据可视化** | ECharts（异步化，不进首屏关键路径）                                                                           |
+| **UI 组件**    | Element Plus（按需引入）+ 自研 GCS 网格布局体系（含暗色主题 token）                                           |
+| **后端**       | Node.js、Express 5（ESM，三层架构）+ FastAPI（Python 洪涝演算，独立容器）                                     |
+| **数据**       | GeoJSON、JSON（createReadCache 缓存）、251 档预计算表（gzip）、DEM 流水线脚本                                 |
 | **工程化**     | Vitest（前后端 416 用例）、ESLint、Prettier、Husky/commitlint、dependency-cruiser 架构守护、gitleaks 密钥扫描 |
-| **部署**       | Docker Compose 双容器、GitHub Actions CI 自动部署、Let's Encrypt HTTPS 自动续期 |
+| **部署**       | Docker Compose 双容器、GitHub Actions CI 自动部署、Let's Encrypt HTTPS 自动续期                               |
 
 ---
 
@@ -103,13 +104,13 @@ GIS 应用中，地图工具栏、分析面板、图例、详情卡片等组件�
 
 洪涝分析模块依赖 ASTER GDEM 30m 真实栅格。仓库内的产物与 git 忽略的产物分工如下：
 
-| 文件                                                                                                | 状态                                               | 用途                                                       |
-| --------------------------------------------------------------------------------------------------- | -------------------------------------------------- | ---------------------------------------------------------- |
-| `backend/static/dem/dem_hillshade.tif`                                                              | ✅ 已入 git（COG：6 级 overview + 512 分块 + LZW） | 2D 洪涝页「真实地形」图层，浏览器按 tile 拉取              |
-| `backend/static/dem/dem_hillshade.png`                                                              | ✅ 已入 git（5.8MB）                               | 3D 山体阴影叠加层（真地形就绪后仅作明暗增强）              |
-| `backend/static/terrain/`（CTB 瓦片 z0-12，3848 文件）                                              | ✅ 已入 git                                        | Cesium 真 3D 地形（heightmap 瓦片，z 值起伏）              |
-| `backend/data/flood/dem/filled_utm48n_cut.tif`（约 169MB）                                          | 🚫 gitignored，需本地生成                          | 洪涝 **online** 演算输入（连通性演算）                     |
-| `backend/data/flood/*.json`（facilityPoints 83 设施 / floodArea / floodStatistics / water-area 等） | ✅ 已入 git                                        | 洪涝设施影响评估（高德真实 POI）与 api 模式数据            |
+| 文件                                                                                                | 状态                                               | 用途                                                                   |
+| --------------------------------------------------------------------------------------------------- | -------------------------------------------------- | ---------------------------------------------------------------------- |
+| `backend/static/dem/dem_hillshade.tif`                                                              | ✅ 已入 git（COG：6 级 overview + 512 分块 + LZW） | 2D 洪涝页「真实地形」图层，浏览器按 tile 拉取                          |
+| `backend/static/dem/dem_hillshade.png`                                                              | ✅ 已入 git（5.8MB）                               | 3D 山体阴影叠加层（真地形就绪后仅作明暗增强）                          |
+| `backend/static/terrain/`（CTB 瓦片 z0-12，3848 文件）                                              | ✅ 已入 git                                        | Cesium 真 3D 地形（heightmap 瓦片，z 值起伏）                          |
+| `backend/data/flood/dem/filled_utm48n_cut.tif`（约 169MB）                                          | 🚫 gitignored，需本地生成                          | 洪涝 **online** 演算输入（连通性演算）                                 |
+| `backend/data/flood/*.json`（facilityPoints 83 设施 / floodArea / floodStatistics / water-area 等） | ✅ 已入 git                                        | 洪涝设施影响评估（高德真实 POI）与 api 模式数据                        |
 | `backend/data/flood/flood_levels.json.gz`（2.9MB，251 档）                                          | ✅ 已入 git                                        | 洪涝预计算档位表（0~25m/0.1m 步长，查表秒回，Express 与 FastAPI 共用） |
 
 **clone 后注意事项**：`filled_utm48n_cut.tif`（169MB）不在仓库中。**但它只影响"查表 miss 的越界档位"现场演算**——0~25m 全部 251 档预计算表已入库，**clone 即用、开箱秒回**；DEM 缺失时仅越界档位无法现场演算（前端不会触发）。
@@ -135,13 +136,13 @@ GIS 应用中，地图工具栏、分析面板、图例、详情卡片等组件�
 
 ### 洪涝分析 DEM 图层
 
-![洪涝分析DEM图层](./docs/图片/洪涝DEM图层.png)
+![浸没分析DEM图层](./docs/图片/浸没分析截图.png)
 
 基于真 DEM 的连通性淹没演算（FastAPI scipy 8 连通 + 海面种子），251 档预计算表查表秒回；3D 模式叠加真地形瓦片（CTB z 值起伏）。
 
 ### 暗色模式
 
-![暗色模式](./docs/图片/暗色模式.png)
+![暗色模式](./docs/图片/暗色模式截图.png)
 
 一键切换暗色主题（深蓝底 + 高饱和橙），全站 token 化（CSS 变量覆盖，图表同步适配）。
 

@@ -1,5 +1,5 @@
 /**
- * useOverviewCharts — 首页/个人中心共用港口吞吐量图表数据（专项6 副-02）：
+ * useOverviewCharts — 首页/个人中心共用港口吞吐量图表数据：
  * 请求收口 forecastAdapter（services 层），shared 不再硬编码业务 URL；
  * 统一从 /forecast/overview 静态快照读取，接口失败留空（图表空状态兜底），不回落假数据。
  */
@@ -41,7 +41,7 @@ export function useOverviewCharts() {
         ],
       }
     } catch (error) {
-      // 副-03：图表失败不再静默——友好提示一次，仍留空图（不回落假数据）
+      // 图表失败不再静默——友好提示一次，仍留空图（不回落假数据）
       logger.warn('[useOverviewCharts] 吞吐量图表数据加载失败:', error)
       showToast('图表数据加载失败，请稍后刷新', 'warning')
     }

@@ -78,7 +78,7 @@ export function useRadarChart({
   const { isDark, onThemeChange } = useTheme()
   let stopThemeWatch: (() => void) | null = null
   let themeTimer: ReturnType<typeof setTimeout> | null = null
-  // 尺寸重试定时器：保存引用供 onBeforeUnmount 清理，卸载后不再重试渲染（[5.4]/[5.6]）
+  // 尺寸重试定时器：保存引用供 onBeforeUnmount 清理，卸载后不再重试渲染
   let retryTimer: ReturnType<typeof setTimeout> | null = null
 
   /** 浮窗状态 */

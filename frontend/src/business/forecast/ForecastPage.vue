@@ -63,7 +63,7 @@ function saveForecastState(): void {
   })
 }
 
-/** 恢复快照：一次性收口到 store action（副-05/z071）；renderer watch（immediate）兜底触发加载 */
+/** 恢复快照：一次性收口到 store action；renderer watch（immediate）兜底触发加载 */
 function restoreForecastState(saved: ForecastSavedState): void {
   forecastState.restoreState(saved)
 }

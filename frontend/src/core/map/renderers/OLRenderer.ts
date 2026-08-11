@@ -31,7 +31,7 @@ import type { CameraState, FlyToOptions, FlyToTarget } from '@/types'
 
 import { MapRenderer } from './MapRenderer'
 
-/** Web 墨卡托投影标识（View/GeoJSON 读取共用，避免字面量散落——W4-04） */
+/** Web 墨卡托投影标识（View/GeoJSON 读取共用，避免字面量散落） */
 const WEB_MERCATOR = 'EPSG:3857'
 
 /** 视口裁剪图层条目（_cullLayers 值类型） */
@@ -76,7 +76,7 @@ export class OLRenderer extends MapRenderer {
   }
   _initMap(): void {
     const view = new View({
-      // 显式声明投影：业务坐标为 WGS84，地图渲染统一 Web 墨卡托（W4-05）
+      // 显式声明投影：业务坐标为 WGS84，地图渲染统一 Web 墨卡托
       projection: WEB_MERCATOR,
       center: fromLonLat([MAP_CONFIG.CAMERA.center.lng, MAP_CONFIG.CAMERA.center.lat]),
       zoom: 9,
@@ -133,7 +133,7 @@ export class OLRenderer extends MapRenderer {
   _setupClickHandler(): void {
     const map = this.map
     if (!map) return
-    // 具名处理器 + key 保存（W4-21）：destroy 时能注销，匿名回调无引用可解绑
+    // 具名处理器 + key 保存：destroy 时能注销，匿名回调无引用可解绑
     this._clickHandler = (event: unknown) => {
       const evt = event as MapBrowserEvent<PointerEvent>
       const coordinate = toLonLat(evt.coordinate)
@@ -284,7 +284,7 @@ export class OLRenderer extends MapRenderer {
     const entry = this._cullLayers.get(id)
     if (!entry) return
 
-    // 隐藏图层不参与 moveend 刷新（W4-19）：visible 是面板/registry 权威值，隐藏时跳过省查询
+    // 隐藏图层不参与 moveend 刷新：visible 是面板/registry 权威值，隐藏时跳过省查询
     const layerEntry = this._layers.get(id)
     if (layerEntry && layerEntry.visible === false) return
 
@@ -402,7 +402,7 @@ export class OLRenderer extends MapRenderer {
     this._applyPendingVisibility(id)
   }
 
-  /** 增量更新 GeoJSON 图层（W4-06）：复用图层实例，仅替换 source 数据，避免重建闪烁 */
+  /** 增量更新 GeoJSON 图层：复用图层实例，仅替换 source 数据，避免重建闪烁 */
   updateGeoJsonLayer(id: string, geojson: FeatureCollection, options: LayerOptions = {}): void {
     const entry = this._layers.get(id)
     if (!entry || !entry.instance) {
@@ -526,7 +526,7 @@ export class OLRenderer extends MapRenderer {
       opacity = 0.6,
     } = options
 
-    // 将 features 数组转为 OpenLayers Feature（坐标归一化走 normalizePoint，含 longitude 别名——W4-03）
+    // 将 features 数组转为 OpenLayers Feature（坐标归一化走 normalizePoint，含 longitude 别名）
     const olFeatures = features.map((f) => {
       const coords = f.geometry?.coordinates
       const { lng, lat } = normalizePoint(coords ? { lng: coords[0], lat: coords[1] } : f)
@@ -777,11 +777,11 @@ export class OLRenderer extends MapRenderer {
     // 清理视口裁剪图层
     this._cullLayers.clear()
     if (this._moveendKey) {
-      // EventsKey.listener 为 OL 宽签名，业务回调为窄类型——cast 对齐运行时注销契约（副-03）
+      // EventsKey.listener 为 OL 宽签名，业务回调为窄类型——cast 对齐运行时注销契约
       this.map?.un(this._moveendKey.type as 'moveend', this._moveendKey.listener as any)
       this._moveendKey = null
     }
-    // 注销 click 监听（W4-21：具名处理器配对注销）
+    // 注销 click 监听（具名处理器配对注销）
     if (this._clickKey && this._clickHandler) {
       this.map?.un(this._clickKey.type as 'click', this._clickHandler as any)
       this._clickKey = null

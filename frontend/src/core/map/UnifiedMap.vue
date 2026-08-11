@@ -214,7 +214,7 @@ async function initRenderer(type: '2d' | '3d', container: HTMLElement | null) {
     loadError.value = err.message || '地图初始化失败'
     emit('error', err)
     // 上抛给 switchMapType 统一回滚（mapType + currentRenderer）；吞错会导致
-    // UI 已切新引擎但渲染器仍是旧实例的撕裂态（W4-08）
+    // UI 已切新引擎但渲染器仍是旧实例的撕裂态
     throw err
   }
 }
@@ -370,7 +370,7 @@ async function switchMapType(newType: '2d' | '3d') {
     loadError.value = err.message || '地图切换失败'
 
     // 初始化失败时回滚 mapStore.mapType 与 currentRenderer（含 store 悬空引用），
-    // 避免 v-show 容器与渲染器实例类型撕裂（W4-08）
+    // 避免 v-show 容器与渲染器实例类型撕裂
     if (oldType !== newType) {
       mapStore.setMapType(oldType)
       const fallback = oldType === '2d' ? olRenderer.value : cesiumRenderer.value
@@ -486,7 +486,7 @@ onUnmounted(() => {
   pendingSwitchType.value = null
 
   // 引擎切换/卸载前解绑 click 监听（注册/移除配对契约；两个缓存渲染器都解绑，
-  // 仅解绑当前渲染器会在复用旧实例时残留监听——W4-22）
+  // 仅解绑当前渲染器会在复用旧实例时残留监听）
   ;[olRenderer.value, cesiumRenderer.value].forEach((r) => {
     r?.off?.('click', handleRendererClick)
   })

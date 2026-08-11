@@ -43,7 +43,7 @@ export const PROFILE_COLORS = {
   safe: '#67C23A',
 } as const
 
-// ECharts 图表主题色（canvas 渲染无法解析 CSS 变量，亮/暗双主题；7-03 收口图表硬编码色）
+// ECharts 图表主题色（canvas 渲染无法解析 CSS 变量，亮/暗双主题；收口图表硬编码色）
 export const CHART_COLORS = {
   textPrimary: { light: '#303133', dark: '#e8edf4' },
   textSecondary: { light: '#666666', dark: '#a8b2bd' },

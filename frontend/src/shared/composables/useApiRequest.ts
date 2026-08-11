@@ -31,7 +31,7 @@ const token: Ref<string> = ref('')
 const API_BASE: string = import.meta.env.VITE_API_BASE || '/api'
 const API_TIMEOUT_MS: number = 10000
 
-// 请求关联 ID 序列（[7.4]）：每次 apiRequest 自增生成，日志显式携带（并发安全，不做全局设置）
+// 请求关联 ID 序列：每次 apiRequest 自增生成，日志显式携带（并发安全，不做全局设置）
 let requestSeq = 0
 function nextRequestId(): string {
   requestSeq += 1
@@ -76,7 +76,7 @@ export function useApiRequest() {
     const MAX_RETRIES = 3
     const RETRYABLE_CODES: ErrorCodeValue[] = [ErrorCode.TIMEOUT, ErrorCode.NETWORK_ERROR]
     const RETRY_DELAY_MS = 800
-    // 请求关联 ID：贯穿重试/日志/错误（[7.4] 生产可排查）
+    // 请求关联 ID：贯穿重试/日志/错误（生产可排查）
     const rid = nextRequestId()
 
     let lastError: unknown
@@ -93,7 +93,7 @@ export function useApiRequest() {
         const isExternalCancel =
           error instanceof ApiError && code === ErrorCode.REQUEST_FAILED && options.signal?.aborted
         if (!isGet || !isRetryable || isExternalCancel || attempt === MAX_RETRIES) {
-          // 失败采样日志（[7.1] 生产观测口）：重试耗尽/不可重试错误带请求 ID 输出
+          // 失败采样日志（生产观测口）：重试耗尽/不可重试错误带请求 ID 输出
           logger.sampled(
             'info',
             `[apiRequest:${rid}] ✗ ${options.method ?? 'GET'} ${path} 失败(${attempt}/${MAX_RETRIES})`,
@@ -206,7 +206,7 @@ export function useApiRequest() {
           schema: options.schema ? 'zod' : 'none',
         })
       } else {
-        // 生产采样观测（[7.1]）：dev 全量日志被门控剥离后，成功路径也需可观测入口
+        // 生产采样观测：dev 全量日志被门控剥离后，成功路径也需可观测入口
         logger.sampled('info', `[apiRequest:${rid}] ← ${res.status} ${path}`)
       }
 
@@ -214,7 +214,7 @@ export function useApiRequest() {
       if (options.schema) {
         const result = options.schema.safeParse(unwrapped)
         if (!result.success) {
-          // [7.1] 映射/校验失败生产可观测：记录校验问题概览（不展开字段，防敏感/噪音）
+          // 映射/校验失败生产可观测：记录校验问题概览（不展开字段，防敏感/噪音）
           logger.sampled(
             'warn',
             `[apiRequest:${rid}] schema 校验失败 ${path}:`,

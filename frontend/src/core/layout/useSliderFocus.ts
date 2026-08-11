@@ -36,7 +36,7 @@ export function useSliderFocus() {
     active.value = false
     activePanel.value = null
   }
-  // 副-10：作用域卸载兜底——调用方组件卸载时 document 监听随 endSliderFocus 解绑，
+  // 作用域卸载兜底——调用方组件卸载时 document 监听随 endSliderFocus 解绑，
   // 防止监听残留（专注模式卡死）
   onScopeDispose(endSliderFocus)
   return { active, activePanel, beginSliderFocus, endSliderFocus }

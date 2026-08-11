@@ -37,7 +37,7 @@ const FEATURE_TYPES: Record<string, string> = {
   traffic: 'forecast-traffic',
 }
 
-/** 热力图色带（W4-23：显式常量，不散落魔法数组） */
+/** 热力图色带（显式常量，不散落魔法数组） */
 const FORECAST_HEATMAP_GRADIENT = ['#00f', '#0ff', '#0f0', '#ff0', '#f00']
 
 /** useForecastLayer 返回值 */
@@ -57,7 +57,7 @@ export function useForecastLayer(): UseForecastLayerReturn {
 
   const renderer = computed<MapRenderer | null>(() => mapStore.currentRenderer)
 
-  // 卸载标志（副-08）：watch 回调里 nextTick 后组件可能已卸载，
+  // 卸载标志：watch 回调里 nextTick 后组件可能已卸载，
   // 拦截防止注册孤儿图层（图层无宿主，跨路由残留）
   let disposed = false
   onScopeDispose(() => {
@@ -88,7 +88,7 @@ export function useForecastLayer(): UseForecastLayerReturn {
         })
       }
 
-      // 指标切换时更新图层可见性：old 隐藏；new 尊重 registry（W4-20）——
+      // 指标切换时更新图层可见性：old 隐藏；new 尊重 registry——
       // 用户手动隐藏过的层（renderer 已有实例）不强制重开，仅首次激活（无实例）自动显示
       if (oldInd && oldInd !== newInd) {
         const oldKey = `forecast-${oldInd}`

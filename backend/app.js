@@ -93,7 +93,7 @@ const registerLimiter = rateLimit({
 })
 app.use('/api/auth/register', registerLimiter)
 
-// CORS origin 从环境变量读取（逗号分隔多源）；生产禁止 localhost 回退（[1.6]）——
+// CORS origin 从环境变量读取（逗号分隔多源）；生产禁止 localhost 回退——
 // 生产同域部署（nginx 反代 /api）本不需要 CORS，跨域来源必须显式配置，缺失即拒绝跨域
 const CORS_ORIGIN = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(',')

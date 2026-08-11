@@ -43,8 +43,8 @@ interface RequestOptions {
 }
 
 /**
- * online 模式风险等级：与后端 floodAnalysisController.deriveRiskLevel 同表（C6 副-01/[2.3]——
- * 后端为唯一权威，消除双实现阈值分歧；6 档：0 无 / 2 低 / 5 中 / 8 高 / 10 极高 / 15 灾难级）。
+ * online 模式风险等级：与后端 floodAnalysisController.deriveRiskLevel 同表（后端为唯一权威，
+ * 消除双实现阈值分歧；6 档：0 无 / 2 低 / 5 中 / 8 高 / 10 极高 / 15 灾难级）。
  * FastAPI 不返回 riskLevel，此映射仅为该字段补齐；api 模式 riskLevel 由后端注入直接透传。
  */
 function _riskLevelFromFlood(floodedKm2: number, level: number): string {
@@ -127,7 +127,7 @@ export const floodAdapter = {
           // floodArea(km²)：面板依赖此字段，缺失会静默显示 0 km²
           floodArea: data.floodedKm2 ?? 0,
           riskLevel,
-          // affectedCount 占位死字段已移除（[3.3]：无业务消费，类型 optional）
+          // affectedCount 占位死字段已移除（无业务消费，类型 optional）
         },
         riskLevel,
         actualWaterLevel: data.level,
@@ -160,7 +160,7 @@ export const floodAdapter = {
 
     return {
       features: (floodData?.features as FloodFeature[]) || [],
-      // z.infer 同源（副-04）：schema 解析类型与业务类型字段兼容，单断言透传（原 as unknown as 双断言消除）
+      // z.infer 同源：schema 解析类型与业务类型字段兼容，单断言透传（原 as unknown as 双断言消除）
       statistics: statisticsRes as FloodStatistics,
       riskLevel,
       actualWaterLevel,

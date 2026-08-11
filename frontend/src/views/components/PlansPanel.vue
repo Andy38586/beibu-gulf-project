@@ -184,7 +184,7 @@ async function handleSaveName(name: string) {
   }
 }
 
-/** 收藏状态变化后重新加载（副-09：事件回调返回 Promise 无消费方，显式 void 防浮动） */
+/** 收藏状态变化后重新加载（事件回调返回 Promise 无消费方，显式 void 防浮动） */
 function handleFavoriteChange(): void {
   void loadPlans()
 }

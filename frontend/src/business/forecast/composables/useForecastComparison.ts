@@ -1,5 +1,5 @@
 /**
- * useForecastComparison — 港口对比（柱状图）数据 composable（专项1 [1.1][2.2][2.4]）：
+ * useForecastComparison — 港口对比（柱状图）数据 composable：
  * 请求经 forecastAdapter（service 层隔离），组件零 HTTP/字段细节；缓存存 store；
  * 双真指标并行请求共享事务，任一过期整体跳过渲染。429 播放限流静默降级与页面原实现一致。
  */

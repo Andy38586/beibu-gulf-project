@@ -101,7 +101,7 @@ export const useForecastStore = defineStore('forecast', () => {
     requestCache.value = new Map()
   }
 
-  /** 快照恢复（跨页面登录返回）：一次性批量写回（副-05/z071——禁止调用方逐字段直改 state） */
+  /** 快照恢复（跨页面登录返回）：一次性批量写回（禁止调用方逐字段直改 state） */
   function restoreState(saved: ForecastSavedState): void {
     currentTime.value = saved.currentTime
     timeGranularity.value = saved.timeGranularity

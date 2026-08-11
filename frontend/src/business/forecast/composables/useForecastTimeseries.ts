@@ -1,5 +1,5 @@
 /**
- * useForecastTimeseries — 预测趋势（折线图）数据 composable（专项1 [1.1][2.2][2.4]）：
+ * useForecastTimeseries — 预测趋势（折线图）数据 composable：
  * 请求经 forecastAdapter（service 层隔离），组件零 HTTP/字段细节；缓存迁入 store
  * （跨页面快照由 store 统一序列化），事务经 useForecastRequest 保证三路请求原子性。
  * 错误处理与页面原实现一致：401 软登录、其余 showError 统一出口。

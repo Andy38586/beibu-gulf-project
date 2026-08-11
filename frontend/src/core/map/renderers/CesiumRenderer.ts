@@ -77,7 +77,7 @@ class CesiumViewerManager {
       baseLayerPicker: false,
       fullscreenButton: false,
       homeButton: false,
-      // W4-26：默认 geocoder 启用会发 Ion 请求（公网依赖+隐私），显式关闭
+      // 默认 geocoder 启用会发 Ion 请求（公网依赖+隐私），显式关闭
       geocoder: false,
       sceneModePicker: false,
       navigationHelpButton: false,
@@ -497,7 +497,7 @@ export class CesiumRenderer extends MapRenderer {
     await addGeoJsonLayer(this, id, geojson, options)
   }
 
-  /** 增量更新 GeoJSON 图层（W4-06）：复用 dataSource，避免重建闪烁 */
+  /** 增量更新 GeoJSON 图层：复用 dataSource，避免重建闪烁 */
   async updateGeoJsonLayer(
     id: string,
     geojson: FeatureCollection,
@@ -904,7 +904,7 @@ export function addPointLayer(renderer: any, id: string, features: any[], option
 
   const entities: any[] = []
   features.forEach((item: any, index: number) => {
-    // 坐标归一化走 normalizePoint（含 longitude 别名，W4-02）；缺失回退 (0,0) 防渲染崩溃
+    // 坐标归一化走 normalizePoint（含 longitude 别名）；缺失回退 (0,0) 防渲染崩溃
     const { lng, lat } = normalizePoint(item)
     if (bbox && !renderer._isInViewport(lng, lat, bbox)) return
     const entity = createCesiumPointEntity(renderer, id, item, index, options)
@@ -938,7 +938,7 @@ export function createCesiumPointEntity(
   index: number,
   options: any
 ): any {
-  // 坐标归一化走 normalizePoint（含 longitude 别名，W4-02）
+  // 坐标归一化走 normalizePoint（含 longitude 别名）
   const { lng, lat } = normalizePoint(item)
   return renderer.viewer.entities.add({
     // id 追加 index：同名要素 id 会碰撞，重复 id 会覆盖旧实体 → 要素丢失 + 视口裁剪增删错乱
@@ -1129,7 +1129,7 @@ export async function addGeoJsonLayer(
 }
 
 /**
- * 增量更新 GeoJSON 图层（W4-06）：复用已有 dataSource 调 load 替换数据，
+ * 增量更新 GeoJSON 图层：复用已有 dataSource 调 load 替换数据，
  * 避免 remove+add 全量重建的闪烁与 dataSource 对象销毁开销；异步竞态沿用 token 保护。
  */
 export async function updateGeoJsonLayer(
@@ -1264,7 +1264,7 @@ export function doSetVisibility(renderer: any, id: string, visible: boolean): vo
 
 /** 移除图层实例：先摘除视口裁剪监听（点图层特有），再按类型移除并释放资源 */
 export function doRemoveLayer(renderer: any, layer: any): void {
-  // 移除视口监听（视口裁剪点图层特有，其它图层为 undefined）；rAF 挂起也一并取消（副-04）
+  // 移除视口监听（视口裁剪点图层特有，其它图层为 undefined）；rAF 挂起也一并取消
   if (layer.cameraListener) {
     renderer.viewer.camera.changed.removeEventListener(layer.cameraListener)
     layer.cameraListener = null
@@ -1357,7 +1357,7 @@ export function setupViewportListener(renderer: any, id: string): void {
   if (!layer || !layer.allFeatures) return
 
   // 防抖：相机移动时频繁触发，用 requestAnimationFrame 合并；rafId 存图层条目，
-  // 图层移除时随 cameraListener 一并 cancel（副-04：闭包持有无法取消）
+  // 图层移除时随 cameraListener 一并 cancel（闭包持有无法取消）
   const updateHandler = () => {
     if (layer._viewportRafId) cancelAnimationFrame(layer._viewportRafId)
     layer._viewportRafId = requestAnimationFrame(() => {
@@ -1386,7 +1386,7 @@ export function updateCulledLayer(renderer: any, id: string): void {
   // 计算应显示的要素 ID 集合（ID 与 _createCesiumPointEntity 保持一致：id-name-index）
   const shouldShow = new Set<string>()
   layer.allFeatures.forEach((item: any, index: number) => {
-    // 坐标归一化走 normalizePoint（含 longitude 别名，W4-02）
+    // 坐标归一化走 normalizePoint（含 longitude 别名）
     const { lng, lat } = normalizePoint(item)
     if (isInViewport(lng, lat, bbox)) {
       shouldShow.add(`${id}-${item.id || item.name || 'p'}-${index}`)

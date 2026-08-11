@@ -106,7 +106,7 @@ onMounted(() => {
 onUnmounted(() => {
   document.removeEventListener('click', handleGlobalClick)
   Object.keys(timers).forEach(clearTimer)
-  // 置信度滑块防抖定时器清理（副-03）：卸载后不再写 store
+  // 置信度滑块防抖定时器清理：卸载后不再写 store
   if (confidenceDebounceTimer) {
     clearTimeout(confidenceDebounceTimer)
     confidenceDebounceTimer = null

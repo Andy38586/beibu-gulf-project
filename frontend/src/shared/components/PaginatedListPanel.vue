@@ -24,7 +24,7 @@ interface Props {
   emptyText?: string
   emptyHint?: string
   planType?: 'site-selection' | 'flood'
-  /** 收藏方案命名前缀（业务文案由调用方注入——副-01：shared 不硬编码业务类型名） */
+  /** 收藏方案命名前缀（业务文案由调用方注入——shared 不硬编码业务类型名） */
   planNamePrefix?: string
   showFavorite?: boolean
   mapInteraction?: boolean

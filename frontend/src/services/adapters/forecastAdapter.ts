@@ -1,5 +1,5 @@
 /**
- * forecastAdapter — 预测数据适配器（专项1 [2.5]）：统一 Express 后端 /forecast/* 的
+ * forecastAdapter — 预测数据适配器：统一 Express 后端 /forecast/* 的
  * 请求与 zod 校验，隔离业务层与 HTTP 细节；返回业务形状，图表直接消费、零原始字段透传。
  */
 import { useApiRequest } from '@/shared'
@@ -32,7 +32,7 @@ export interface ForecastComparisonParams {
 export type ForecastComparisonResult = Pick<IndicatorComparisonResponseParsed, 'ports'>
 
 export const forecastAdapter = {
-  /** 首页概览静态快照（/forecast/overview）：图表数据，schema 校验在 HTTP 边界完成（副-02 收口） */
+  /** 首页概览静态快照（/forecast/overview）：图表数据，schema 校验在 HTTP 边界完成 */
   async getOverview(signal?: AbortSignal): Promise<ForecastIndicatorIndexParsed> {
     return apiRequest<ForecastIndicatorIndexParsed>('/forecast/overview', {
       signal,

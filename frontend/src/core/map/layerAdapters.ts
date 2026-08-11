@@ -22,7 +22,7 @@ import type { LayerType, WaterSurfaceData } from '@/types/core/layerManager'
 // 仅做最小形态校验（数组 / FeatureCollection），把"静默渲染失败"变成"明确抛错"，
 // 调用方 catch 后用户可见真实文案；不做完整 schema 校验（避免过度设计）。
 
-/** 要素上限（W4-07）：超限直接抛错，防止误传超大集合拖垮渲染（潜伏 OOM 缺口） */
+/** 要素上限：超限直接抛错，防止误传超大集合拖垮渲染（潜伏 OOM 缺口） */
 const MAX_FEATURES = 500_000
 
 function assertPointArray(data: unknown): asserts data is PointFeature[] {
@@ -120,7 +120,7 @@ export const LAYER_ADAPTERS: Record<LayerType, LayerAdapter> = {
     },
     update: (renderer, key, data, options) => {
       assertFeatureCollection(data)
-      // W4-06：优先走渲染器增量更新（复用 dataSource/source，避免重建闪烁）；
+      // 优先走渲染器增量更新（复用 dataSource/source，避免重建闪烁）；
       // 无增量能力的渲染器回退 remove+add
       const updater = (
         renderer as Partial<MapRenderer> & {

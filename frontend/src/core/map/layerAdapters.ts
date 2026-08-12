@@ -70,7 +70,7 @@ function isWater3DCapable(renderer: MapRenderer): renderer is MapRenderer & Wate
   return typeof (renderer as Partial<Water3DCapability>).addWaterSurface === 'function'
 }
 
-/** GeoTIFF 能力检查：2D COG / 3D hillshade 各自实现 addGeoTIFFLayer */
+/** GeoTIFF 能力检查：Cesium 独占（3D hillshade 贴图回退；OL 2D COG 已按 Cesium 独占定义移除） */
 function isGeoTIFFCapable(renderer: MapRenderer): renderer is MapRenderer & GeoTIFFCapability {
   return typeof (renderer as Partial<GeoTIFFCapability>).addGeoTIFFLayer === 'function'
 }
@@ -199,8 +199,8 @@ export const LAYER_ADAPTERS: Record<LayerType, LayerAdapter> = {
   },
 
   geotiff: {
-    // addGeoTIFFLayer 为可选能力（双引擎实现），经类型守卫后调用；
-    // data 为 COG 文件 URL 字符串。3D 下 DEM（数字高程模型）也是独立影像图层，
+    // addGeoTIFFLayer 为 Cesium 独占能力（3D hillshade 贴图回退；OL 2D 已按独占定义移除），
+    // 经类型守卫后调用；data 为 hillshade PNG 路径。3D 下 DEM（数字高程模型）也是独立影像图层，
     // 与普通图层走同一显隐语义，不做 terrainProvider 特殊处理
     create: (renderer, key, data, options) => {
       if (!isGeoTIFFCapable(renderer)) {

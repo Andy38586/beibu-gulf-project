@@ -15,7 +15,6 @@ import OlMap from 'ol/Map'
 import type MapBrowserEvent from 'ol/MapBrowserEvent'
 import { fromLonLat, toLonLat } from 'ol/proj'
 import Cluster from 'ol/source/Cluster'
-import GeoTIFF from 'ol/source/GeoTIFF'
 import VectorSource from 'ol/source/Vector'
 import XYZ from 'ol/source/XYZ'
 import { Circle, Fill, Stroke, Style, Text } from 'ol/style'
@@ -544,50 +543,6 @@ export class OLRenderer extends MapRenderer {
       options,
     })
     this._applyPendingVisibility(id)
-  }
-
-  // 热力图走独立方法（原设计文档的 addGeoJsonLayer({type:'heatmap'}) 方案未落地），参考 OpenLayers Heatmap 官方示例
-  addGeoTIFFLayer(id: string, url: string, options: LayerOptions = {}): boolean {
-    // DEM（数字高程模型）山体阴影/高程着色 COG：ol/source/GeoTIFF 自带，无需新增依赖
-    // normalize 必须显式 true——false 时单波段数据以数组形式交给渲染器，
-    // 抛 "Rendering array data is not yet supported" 崩溃（防版本差异导致回归）
-    let source
-    try {
-      // GeoTIFF options 类型未含 crossOrigin（OL 10 类型缺口），用结构化类型断言补
-      source = new GeoTIFF({
-        sources: [{ url }],
-        crossOrigin: 'anonymous',
-        normalize: true,
-      } as unknown as ConstructorParameters<typeof GeoTIFF>[0])
-    } catch (e) {
-      if (import.meta.env.DEV) {
-        logger.error(`[OLRenderer] GeoTIFF 源创建失败: ${url}`, e)
-      }
-      return false
-    }
-    // 单张瓦片加载失败（404/解码失败）不应冒泡到渲染循环，仅记录，避免整图崩掉
-    if (typeof source.on === 'function') {
-      source.on('error', (err) => {
-        if (import.meta.env.DEV) {
-          logger.warn(`[OLRenderer] GeoTIFF 瓦片加载错误: ${url}`, err)
-        }
-      })
-    }
-    const layer = new TileLayer({
-      source,
-      opacity: options.opacity ?? 0.7,
-    })
-    layer.setZIndex(this._resolveLayerZIndex(options))
-    const map = this.map
-    if (!map) return false
-    map.addLayer(layer)
-    this._layers.set(id, {
-      instance: layer,
-      visible: true,
-      options,
-    })
-    this._applyPendingVisibility(id)
-    return true
   }
 
   addHeatmapLayer(id: string, features: PointFeature[], options: LayerOptions = {}): boolean {

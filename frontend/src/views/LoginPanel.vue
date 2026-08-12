@@ -213,6 +213,8 @@ async function handleSubmit() {
   padding: 0 12px; /* 12px 非8的整数倍，保留 */
   border: 1px solid var(--GCS-border-default);
   border-radius: var(--GCS-radius-md);
+  /* 背景走 token：暗色模式下原生 input 默认白底会刺眼 */
+  background: var(--GCS-bg-container);
   font-size: v-bind(inputFontSizeCss);
   color: var(--GCS-text-regular);
   box-sizing: border-box;

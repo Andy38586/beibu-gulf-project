@@ -1,4 +1,6 @@
 import './style.css'
+// Element Plus 暗色主题变量（html.dark 钩子由 useTheme 同步切换；按需引入组件不含 dark 变量）
+import 'element-plus/theme-chalk/dark/css-vars.css'
 import { createPinia } from 'pinia'
 import type { ComponentPublicInstance } from 'vue'
 import { createApp } from 'vue'

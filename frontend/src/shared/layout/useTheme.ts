@@ -36,6 +36,8 @@ function applyTheme(mode: ThemeMode): void {
   theme.value = mode
   if (typeof document !== 'undefined') {
     document.documentElement.dataset.theme = mode
+    // Element Plus 暗色联动：EP 的暗色变量挂在 html.dark class（自定义 data-theme 只管业务 CSS）
+    document.documentElement.classList.toggle('dark', mode === 'dark')
   }
   safeStorage()?.setItem(THEME_STORAGE_KEY, mode)
   listeners.forEach((cb) => cb(mode))

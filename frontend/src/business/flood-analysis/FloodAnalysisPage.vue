@@ -96,7 +96,10 @@ let floodLayersRegistered = false
 async function registerFloodLayers(signal?: AbortSignal) {
   if (floodLayersRegistered) return
 
-  const waterCoords = await loadWaterAreaCoordinates(signal)
+  // 水面/DEM 为 Cesium 独占能力（2D 不提供，业务层不注册——用户拍板定义）
+  const is3D = mapStore.currentRenderer?.getType?.() === '3d'
+
+  const waterCoords = is3D ? await loadWaterAreaCoordinates(signal) : null
   if (unmounted) return
 
   floodLayersRegistered = true
@@ -120,20 +123,22 @@ async function registerFloodLayers(signal?: AbortSignal) {
   // 淹没范围/受影响设施图层默认不注册：滑块未操作时面板无开关、地图不渲染；
   // 首次操作滑块由 renderFloodAreas/renderAffectedFacilities 的 has() 兜底自动注册，之后固定显示
 
-  // 真实地形图层（DEM 山体阴影：2D 走 GeoTIFF COG，3D 走 PNG 贴图回退）。
+  // 真实地形图层（DEM 山影：3D 走 hillshade PNG 贴图回退；2D 不提供——Cesium 独占定义）。
   // 默认不显示：渲染器未就绪时注册会造成面板"开"而地图无渲染的状态不同步，默认关保证面板/地图一致
-  try {
-    businessLayerManager.register(DEM_HILLSHADE_LAYER_ID, {
-      label: '真实地形',
-      layerType: 'geotiff',
-      data: '/static/dem/dem_hillshade.tif',
-      options: { opacity: 0.7 },
-      // 默认不显示（面板开关初始"关"）；3D 真地形（z 起伏）是地图基础能力独立常驻，不受此开关影响
-      visible: false,
-    })
-  } catch (e) {
-    // 单图层注册失败不中断（与水面同款容错）
-    logger.warn('[FloodAnalysisPage] 真实地形图层注册失败（已跳过该层）:', e)
+  if (is3D) {
+    try {
+      businessLayerManager.register(DEM_HILLSHADE_LAYER_ID, {
+        label: '真实地形',
+        layerType: 'geotiff',
+        data: '/static/dem/dem_hillshade.tif',
+        options: { opacity: 0.7 },
+        // 默认不显示（面板开关初始"关"）；3D 真地形（z 起伏）是地图基础能力独立常驻，不受此开关影响
+        visible: false,
+      })
+    } catch (e) {
+      // 单图层注册失败不中断（与水面同款容错）
+      logger.warn('[FloodAnalysisPage] 真实地形图层注册失败（已跳过该层）:', e)
+    }
   }
 }
 

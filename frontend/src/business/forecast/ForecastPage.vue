@@ -180,6 +180,7 @@ onUnmounted(() => {
   height: 100%;
   pointer-events: none;
 }
+
 .forecast-page :deep(.GCS-panel) {
   pointer-events: auto;
 }

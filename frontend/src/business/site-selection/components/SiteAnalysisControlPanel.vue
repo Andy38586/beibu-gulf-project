@@ -382,9 +382,8 @@ defineExpose({
 .factor-slider {
   width: 80%;
   height: 4px;
-  -webkit-appearance: none;
   appearance: none;
-  background: rgba(255, 255, 255, 0.5);
+  background: rgb(255 255 255 / 50%);
   border-radius: 2px;
   outline: none;
   cursor: pointer;
@@ -392,7 +391,6 @@ defineExpose({
 }
 
 .factor-slider::-webkit-slider-thumb {
-  -webkit-appearance: none;
   appearance: none;
   width: 14px;
   height: 14px;

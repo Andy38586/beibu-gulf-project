@@ -45,8 +45,9 @@ const unitPx = computed(() => cellPixel.value * 0.1)
   z-index: 55;
   background: var(--GCS-bg-panel-translucent);
   border-radius: calc(1.25 * v-bind(unitPx));
+
   /* 面板阴影：随 unitPx 响应缩放（固定 px 的 --GCS-shadow-* 会破坏响应式尺寸），故保留原值 */
-  box-shadow: 0 calc(0.5 * v-bind(unitPx)) calc(2.25 * v-bind(unitPx)) rgba(0, 0, 0, 0.2);
+  box-shadow: 0 calc(0.5 * v-bind(unitPx)) calc(2.25 * v-bind(unitPx)) rgb(0 0 0 / 20%);
   padding: calc(1.5 * v-bind(unitPx));
   max-height: 80vh;
   overflow-y: auto;
@@ -54,11 +55,13 @@ const unitPx = computed(() => cellPixel.value * 0.1)
   flex-direction: column;
   gap: v-bind(unitPx);
 }
+
 .port-info-panel h2 {
   margin: 0;
   font-size: calc(2.25 * v-bind(unitPx));
   color: var(--GCS-text-regular);
 }
+
 .info-item {
   font-size: calc(1.75 * v-bind(unitPx));
   color: var(--GCS-text-regular);

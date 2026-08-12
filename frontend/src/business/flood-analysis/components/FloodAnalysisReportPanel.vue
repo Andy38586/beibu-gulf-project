@@ -133,6 +133,7 @@ const affectedPorts = computed<string[]>(() => {
   background: var(--GCS-bg-container);
   border-radius: 6px;
   box-sizing: border-box;
+
   /* 内容区域在灰色面板内居中 */
   justify-content: center;
   align-items: center;

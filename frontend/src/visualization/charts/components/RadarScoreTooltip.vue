@@ -65,10 +65,10 @@ function getFacilityColor(key: string) {
 .radar-tooltip {
   position: fixed;
   z-index: var(--GCS-z-panel-float);
-  background: rgba(255, 255, 255, 0.98);
+  background: rgb(255 255 255 / 98%);
   border: 1px solid var(--GCS-border-default);
   border-radius: 8px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 2px 12px rgb(0 0 0 / 15%);
   box-sizing: border-box;
 }
 

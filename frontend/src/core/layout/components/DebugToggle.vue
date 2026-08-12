@@ -34,6 +34,7 @@ function toggle(): void {
   position: fixed;
   right: 16px;
   bottom: 88px;
+
   /* 调试开关常驻可见：取 modal 档（高于业务面板/抽屉，低于 toast 反馈层） */
   z-index: var(--GCS-z-modal);
   box-shadow: var(--GCS-shadow-md);

@@ -83,6 +83,7 @@ function onClose() {
   flex-direction: column;
   gap: 14px;
 }
+
 .modal-error {
   color: var(--GCS-color-error);
   font-size: 13px;

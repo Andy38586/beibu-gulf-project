@@ -346,7 +346,7 @@ defineExpose({
   flex: 1;
   display: flex;
   flex-direction: column;
-  margin: 0 v-bind(cell8px) v-bind(cell8px) v-bind(cell8px);
+  margin: 0 v-bind(cell8px) v-bind(cell8px);
   padding: v-bind(cell8px);
   background: var(--GCS-bg-container);
   border-radius: var(--GCS-radius-sm);

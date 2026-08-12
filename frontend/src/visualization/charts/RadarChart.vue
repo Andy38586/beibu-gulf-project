@@ -168,7 +168,7 @@ onBeforeUnmount(() => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  padding: calc(4 * v-bind(unitPx)) 0 calc(2 * v-bind(unitPx)) 0;
+  padding: calc(4 * v-bind(unitPx)) 0 calc(2 * v-bind(unitPx));
 }
 
 /* 雷达图容器：flex 占满剩余空间，内部用 absolute 确保 ECharts 有确定尺寸 */
@@ -180,10 +180,7 @@ onBeforeUnmount(() => {
 
 .radar-chart {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
 }
 
 .empty-state {

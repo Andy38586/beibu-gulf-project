@@ -443,9 +443,11 @@ onUnmounted(() => {
   floodAdapter.clearCache()
   cachedWaterAreaCoords = null
 
-  // 卸载时复位 floodStore（子状态 + 淹没分析数据）
+  // 卸载时仅复位子状态（水位/影响评估）——分析数据保留在 store 活状态，
+  // 供"跳 /profile → 返回"时 consumeState 恢复（2026-08-11 修复：原同时调
+  // resetFloodAnalysis() 清空分析数据，导致往返恢复失效）；
+  // 离开非 /profile 路由由 onBeforeRouteLeave 的 clearState() 统一清空。
   floodStore.resetSubStates()
-  floodStore.resetFloodAnalysis()
 })
 </script>
 
@@ -506,10 +508,10 @@ onUnmounted(() => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px dashed rgba(255, 255, 255, 0.2);
+  background: rgb(255 255 255 / 5%);
+  border: 1px dashed rgb(255 255 255 / 20%);
   border-radius: 8px;
-  color: rgba(255, 255, 255, 0.6);
+  color: rgb(255 255 255 / 60%);
 }
 
 .placeholder-title {

@@ -596,13 +596,13 @@ onUnmounted(() => {
 .panel-boundary {
   position: absolute;
   border: 2px dashed v-bind(INSPECTION_COLORS.warn);
-  background: rgba(255, 165, 2, 0.08);
+  background: rgb(255 165 2 / 8%);
   pointer-events: none;
 }
 
 .panel-boundary.misaligned {
   border-color: v-bind(INSPECTION_COLORS.danger);
-  background: rgba(255, 56, 56, 0.1);
+  background: rgb(255 56 56 / 10%);
 }
 
 .panel-label {
@@ -613,7 +613,7 @@ onUnmounted(() => {
   font-size: v-bind(labelFontSizeSmallCss);
   font-family: monospace;
   font-weight: bold;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgb(0 0 0 / 60%);
   padding: v-bind(labelPaddingCss);
   border-radius: 3px;
 }
@@ -621,13 +621,13 @@ onUnmounted(() => {
 .dock-boundary {
   position: absolute;
   border: 2px solid v-bind(INSPECTION_COLORS.primary);
-  background: rgba(255, 107, 107, 0.08);
+  background: rgb(255 107 107 / 8%);
   pointer-events: none;
 }
 
 .dock-boundary.misaligned {
   border-color: v-bind(INSPECTION_COLORS.danger);
-  background: rgba(255, 56, 56, 0.1);
+  background: rgb(255 56 56 / 10%);
 }
 
 .dock-label {
@@ -638,7 +638,7 @@ onUnmounted(() => {
   font-size: v-bind(labelFontSizeMediumCss);
   font-family: monospace;
   font-weight: bold;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgb(0 0 0 / 60%);
   padding: v-bind(labelPaddingCss);
   border-radius: 3px;
 }
@@ -648,7 +648,7 @@ onUnmounted(() => {
   position: absolute;
   top: v-bind(infoPanelOffsetCss);
   left: v-bind(infoPanelOffsetCss);
-  background: rgba(0, 0, 0, 0.45);
+  background: rgb(0 0 0 / 45%);
   color: #e8e8e8;
   padding: v-bind(infoPanelPaddingCss);
   border-radius: 6px;
@@ -665,7 +665,7 @@ onUnmounted(() => {
   font-weight: bold;
   margin-bottom: v-bind(infoTitleMarginCss);
   color: v-bind(INSPECTION_COLORS.highlight);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.25);
+  border-bottom: 1px solid rgb(255 255 255 / 25%);
   padding-bottom: v-bind(infoTitlePaddingCss);
 }
 
@@ -714,7 +714,7 @@ onUnmounted(() => {
 .hud-issues {
   margin-top: v-bind(infoItemMarginCss);
   padding-top: v-bind(infoItemMarginCss);
-  border-top: 1px solid rgba(255, 255, 255, 0.25);
+  border-top: 1px solid rgb(255 255 255 / 25%);
   color: v-bind(INSPECTION_COLORS.danger);
   word-break: break-all;
 }
@@ -726,19 +726,21 @@ onUnmounted(() => {
   gap: 4px;
   margin-top: v-bind(infoItemMarginCss);
 }
+
 .feedback-btn {
   pointer-events: auto !important;
   padding: 4px 8px;
   font-size: 11px;
   line-height: 1.4;
-  background: rgba(0, 0, 0, 0.35);
+  background: rgb(0 0 0 / 35%);
   color: #e6f4ff;
-  border: 1px solid rgba(230, 244, 255, 0.4);
+  border: 1px solid rgb(230 244 255 / 40%);
   border-radius: 4px;
   cursor: pointer;
   font-family: monospace;
 }
+
 .feedback-btn:hover {
-  background: rgba(0, 0, 0, 0.55);
+  background: rgb(0 0 0 / 55%);
 }
 </style>

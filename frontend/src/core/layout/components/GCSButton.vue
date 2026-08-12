@@ -83,7 +83,7 @@ function handleClick() {
 }
 
 .GCS-button:hover:not(:disabled) {
-  background-color: rgba(255, 255, 255, 0.22);
+  background-color: rgb(255 255 255 / 22%);
 }
 
 .GCS-button:active:not(:disabled) {

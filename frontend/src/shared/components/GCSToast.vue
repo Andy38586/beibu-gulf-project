@@ -76,6 +76,7 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 8px;
   pointer-events: none;
+
   /* 不裁切（裁切会水平切断 toast）；队列上限由 gcsFeedback.showToast 控制（最多 4 条） */
 }
 
@@ -100,12 +101,15 @@ onBeforeUnmount(() => {
   border-radius: 50%;
   flex-shrink: 0;
 }
+
 .GCS-toast--success .GCS-toast-dot {
   background: var(--GCS-color-success);
 }
+
 .GCS-toast--warning .GCS-toast-dot {
   background: var(--GCS-color-warning);
 }
+
 .GCS-toast--error .GCS-toast-dot {
   background: var(--GCS-color-error);
 }
@@ -121,11 +125,13 @@ onBeforeUnmount(() => {
     opacity 0.2s ease,
     transform 0.2s ease;
 }
+
 .GCS-toast-enter-from,
 .GCS-toast-leave-to {
   opacity: 0;
   transform: translateY(-8px);
 }
+
 /* TransitionGroup 位置变化（老 toast 被挤到下一位）——平滑下移 */
 .GCS-toast-move {
   transition: transform 0.2s ease;

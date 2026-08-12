@@ -298,16 +298,19 @@ onUnmounted(() => stopPlayback())
   flex: 1;
   min-height: 0;
 }
+
 .btn-cell {
   border-radius: var(--GCS-radius-lg);
   transition:
     background-color 0.2s,
     border-color 0.2s;
 }
+
 .btn-cell.sel {
   background: var(--GCS-bg-active);
   border: 1px solid var(--GCS-color-primary);
 }
+
 .btn-cell.ing {
   background: var(--GCS-color-primary);
   border: 1px solid var(--GCS-color-primary);
@@ -329,26 +332,32 @@ onUnmounted(() => stopPlayback())
   box-sizing: border-box;
   color: var(--GCS-text-regular);
 }
+
 .ind-btn:hover {
   border-color: var(--GCS-color-primary);
   background: var(--GCS-bg-hover);
 }
+
 .ind-btn.ok {
   border-color: var(--GCS-color-primary);
 }
+
 .ind-icon {
   font-size: v-bind(iconFontSizeCss);
   line-height: 1;
 }
+
 .ind-label {
   font-size: v-bind(labelFontSizeCss);
   font-weight: 500;
 }
+
 .ind-synth {
   font-size: v-bind(levelFontSizeCss);
   color: var(--GCS-color-warning, #e6a23c);
   margin-left: 2px;
 }
+
 .ind-conf {
   font-size: v-bind(levelFontSizeCss);
   color: var(--GCS-color-primary);
@@ -367,31 +376,35 @@ onUnmounted(() => stopPlayback())
   box-sizing: border-box;
   cursor: default;
 }
+
 .slider-cell .ind-icon {
   font-size: v-bind(iconFontSizeCss);
 }
+
 .slider-cell .ind-label-s {
   font-size: v-bind(smallFontSizeCss);
   color: var(--GCS-bg-panel);
 }
+
 .conf-slider {
   width: 80%;
   height: 4px;
-  -webkit-appearance: none;
   appearance: none;
-  background: rgba(255, 255, 255, 0.4);
+  background: rgb(255 255 255 / 40%);
   border-radius: 2px;
   outline: none;
   cursor: pointer;
 }
+
 .conf-slider::-webkit-slider-thumb {
-  -webkit-appearance: none;
+  appearance: none;
   width: 14px;
   height: 14px;
   border-radius: 50%;
   background: var(--GCS-bg-panel);
   cursor: pointer;
 }
+
 .conf-slider::-moz-range-thumb {
   width: 14px;
   height: 14px;
@@ -400,11 +413,13 @@ onUnmounted(() => stopPlayback())
   cursor: pointer;
   border: none;
 }
+
 .conf-pct {
   font-size: v-bind(levelFontSizeCss);
   color: var(--GCS-bg-panel);
   font-weight: 600;
 }
+
 /* 模型固定基线标注（cargo 无置信度滑块） */
 .conf-fixed {
   font-size: v-bind(levelFontSizeCss);
@@ -421,16 +436,19 @@ onUnmounted(() => stopPlayback())
   flex-direction: column;
   gap: v-bind(cell8px);
 }
+
 .time-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
+
 .time-label {
   font-size: v-bind(labelFontSizeCss);
   font-weight: 600;
   color: var(--GCS-color-primary);
 }
+
 .gr-toggle {
   display: flex;
   align-items: center;
@@ -439,6 +457,7 @@ onUnmounted(() => stopPlayback())
   color: var(--GCS-text-secondary);
   cursor: pointer;
 }
+
 .gr-toggle input {
   cursor: pointer;
 }
@@ -447,18 +466,19 @@ onUnmounted(() => stopPlayback())
   position: relative;
   padding-bottom: v-bind(cell16px);
 }
+
 .t-slider {
   width: 100%;
   height: 6px;
-  -webkit-appearance: none;
   appearance: none;
   background: linear-gradient(to right, var(--GCS-border-default), var(--GCS-color-primary));
   border-radius: 3px;
   outline: none;
   cursor: pointer;
 }
+
 .t-slider::-webkit-slider-thumb {
-  -webkit-appearance: none;
+  appearance: none;
   width: 18px;
   height: 18px;
   border-radius: 50%;
@@ -467,6 +487,7 @@ onUnmounted(() => stopPlayback())
   border: 2px solid var(--GCS-bg-panel);
   box-shadow: var(--GCS-shadow-sm);
 }
+
 .t-slider::-moz-range-thumb {
   width: 18px;
   height: 18px;
@@ -484,6 +505,7 @@ onUnmounted(() => stopPlayback())
   right: 0;
   height: 18px;
 }
+
 .t-tick {
   position: absolute;
   transform: translateX(-50%);
@@ -491,11 +513,13 @@ onUnmounted(() => stopPlayback())
   color: var(--GCS-text-muted);
   white-space: nowrap;
 }
+
 .t-tick.clickable {
   color: var(--GCS-color-primary);
   font-weight: 500;
   cursor: pointer;
 }
+
 .t-tick.clickable:hover {
   color: var(--GCS-color-primary-hover);
   text-decoration: underline;
@@ -505,6 +529,7 @@ onUnmounted(() => stopPlayback())
   display: flex;
   justify-content: center;
 }
+
 .act-btn {
   padding: v-bind(cell8px) v-bind(cell16px);
   background: var(--GCS-bg-container);
@@ -514,6 +539,7 @@ onUnmounted(() => stopPlayback())
   cursor: pointer;
   color: var(--GCS-text-regular);
 }
+
 .act-btn:hover {
   background: var(--GCS-border-default);
 }

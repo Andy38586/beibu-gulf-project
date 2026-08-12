@@ -199,6 +199,7 @@ onUnmounted(() => {
   position: relative;
   height: 100vh;
 }
+
 .app-content {
   width: 100%;
   height: 100%;
@@ -207,6 +208,7 @@ onUnmounted(() => {
   pointer-events: none;
   z-index: 50;
 }
+
 /* 不能设 .app-content > * { pointer-events: auto }：会让业务页面成为全屏事件拦截层，
    阻挡地图容器鼠标事件（拖拽/缩放/旋转失效）；由各业务页面自行控制，AppLayout 再恢复 */
 </style>

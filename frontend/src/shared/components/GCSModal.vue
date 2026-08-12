@@ -143,6 +143,7 @@ function handleMainAction(): void {
   cursor: pointer;
   padding: 4px;
 }
+
 .GCS-modal-close:hover {
   color: var(--GCS-text-primary);
 }
@@ -177,13 +178,16 @@ function handleMainAction(): void {
   align-items: center;
   justify-content: center;
 }
+
 .GCS-btn:hover {
   filter: brightness(0.95);
 }
+
 .GCS-btn-primary {
   background: var(--GCS-color-primary);
   color: var(--GCS-text-inverse, #fff);
 }
+
 .GCS-btn-cancel {
   background: var(--GCS-bg-panel);
   color: var(--GCS-text-regular);

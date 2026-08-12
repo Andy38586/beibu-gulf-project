@@ -7,7 +7,12 @@
  */
 import { describe, it, expect } from 'vitest'
 
-import { importanceToRadius, kmToDegreeOffset, linearDecay, scoreXiaoqu } from '../scoringService.js'
+import {
+  importanceToRadius,
+  kmToDegreeOffset,
+  linearDecay,
+  scoreXiaoqu,
+} from '../scoringService.js'
 
 const hospitalAt = (lng, lat) => [{ lng, lat, name: '测试医院' }]
 

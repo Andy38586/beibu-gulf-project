@@ -6,3 +6,8 @@
 **/coverage/
 **/node_modules/
 **/.venv/
+# 问题台账文档：表格采用紧凑列宽（无对齐填充），不随 prettier 宽列对齐
+docs/待解决问题.md
+docs/已解决问题.md
+docs/问题副本-*.md
+docs/已解决后遗症-*.md

@@ -1494,7 +1494,7 @@ async function sampleTerrainHeights(
     if (!terrainProvider || !terrainProvider.availability) {
       return coordinates.map(() => 0)
     }
-    const positions = coordinates.map(([lng, lat]) => Cartesian3.fromDegrees(lng, lat))
+    const positions = coordinates.map(([lng, lat]) => Cartographic.fromDegrees(lng, lat))
     const sampled = await sampleTerrain(renderer.viewer.terrainProvider, 10, positions)
     return sampled.map((s) => s.height ?? 0)
   } catch {

@@ -25,10 +25,14 @@ export function preloadCesium(): void {
       .requestIdleCallback
     const doPreload = () => {
       // 真正执行加载（与 ensureCesiumLoaded 共享 promise，3D 入口幂等秒回）
-      void ensureCesiumLoaded().then(() => {
-        // 预热 CesiumRenderer 模块 chunk，进 3D 时不再现场拉取
-        void import('./CesiumRenderer')
-      })
+      void ensureCesiumLoaded()
+        .then(() => {
+          // 预热 CesiumRenderer 模块 chunk，进 3D 时不再现场拉取
+          void import('./CesiumRenderer')
+        })
+        .catch(() => {
+          // 预热失败静默——只是优化手段，不影响功能（进 3D 时走正式加载路径）
+        })
       if (import.meta.env.DEV) {
         console.debug('[renderers] Cesium 空闲预热（执行加载）已启动')
       }

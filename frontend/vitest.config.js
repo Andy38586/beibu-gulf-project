@@ -31,6 +31,9 @@ export default defineConfig({
       ],
       reporter: ['text-summary', 'html', 'lcov', 'json-summary'],
       reportOnFailure: true,
+      // 2026-08-11（审查副-35）：阈值低于 60% 目标——当前处于架构验证期，
+      // 覆盖率作为回归基线而非上线门禁；目标 60% 挂下一阶段（与 08-11 专项审计计划一致）。
+      // 调高前先确认实际覆盖率（npm test -- --coverage），避免 CI 假红。
       thresholds: { lines: 25, functions: 20, branches: 15, statements: 25 },
     },
   },

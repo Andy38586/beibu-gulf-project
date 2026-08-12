@@ -30,7 +30,7 @@ core/
     ├── BusinessLayerManager.ts   # 业务图层注册/更新/显隐/移除/reapplyAll
     ├── layerAdapters.ts          # LAYER_ADAPTERS 注册表（heatmap/geojson/points/polygon/waterSurface/geotiff）
     ├── components/LayerControlPanel.vue
-    ├── composables/              # useBoundaryLayer / useBusinessLayers / useLayerManager / useMapControls / useMapRenderer / usePortLayer
+    ├── composables/              # useBoundaryLayer / useBusinessLayers / useMapControls / usePortLayer
     └── renderers/
         ├── index.ts              # createRenderer 工厂（2D 静态 / 3D 动态加载 Cesium）
         ├── MapRenderer.ts        # 抽象基类（策略模式）

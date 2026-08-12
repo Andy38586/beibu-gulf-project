@@ -1,11 +1,10 @@
 <script setup lang="ts">
 // 统一地图容器：OL/Cesium双引擎，v-show切换，渲染器实例复用不销毁
 import type { Feature, FeatureCollection, Point } from 'geojson'
-import { computed, nextTick, onMounted, onUnmounted, provide, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 
 import { BOUNDARY_STYLE, loadBoundaryGeoJson } from '@/core/map/composables/useBoundaryLayer'
 import { useBusinessLayers } from '@/core/map/composables/useBusinessLayers'
-import { MapRendererKey } from '@/core/map/composables/useMapRenderer'
 import { buildPortGeoJson, loadPorts, PORT_STYLE } from '@/core/map/composables/usePortLayer'
 import { createRenderer } from '@/core/map/renderers'
 import type { MapRenderer } from '@/core/map/renderers/MapRenderer'
@@ -52,7 +51,6 @@ const olRenderer = ref<MapRenderer | null>(null)
 const cesiumRenderer = ref<MapRenderer | null>(null)
 const cesiumInitialized = ref(false)
 
-provide(MapRendererKey, currentRenderer)
 // mapStore 已由 App.vue 统一 provide，此处不重复
 
 // 底图注册走 mapStore.registerBaseLayer（互斥切换由 setBaseLayer + baseLayerKey 管理）；
@@ -561,6 +559,7 @@ defineExpose({
   width: 100%;
   height: 100%;
   transition: opacity 0.3s ease;
+
   /* 确保地图容器可以接收鼠标事件，即使父元素设置了 pointer-events: none */
   pointer-events: auto;
 }
@@ -572,7 +571,7 @@ defineExpose({
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.85);
+  background: rgb(255 255 255 / 85%);
   z-index: 100;
   gap: 12px; /* 12px 非8的整数倍，保留 */
 }
@@ -590,6 +589,7 @@ defineExpose({
   0% {
     transform: rotate(0deg);
   }
+
   100% {
     transform: rotate(360deg);
   }
@@ -600,7 +600,7 @@ defineExpose({
   top: 10px; /* 10px 非8的整数倍，保留 */
   left: 10px; /* 10px 非8的整数倍，保留 */
   color: var(--GCS-color-error);
-  background: rgba(255, 255, 255, 0.9);
+  background: rgb(255 255 255 / 90%);
   padding: v-bind(cell8px) 12px; /* 12px 非8的整数倍，保留 */
   border-radius: 6px;
   z-index: 100;
@@ -610,7 +610,7 @@ defineExpose({
   position: absolute;
   bottom: 10px; /* 10px 非8的整数倍，保留 */
   left: 10px; /* 10px 非8的整数倍，保留 */
-  background: rgba(255, 200, 0, 0.9);
+  background: rgb(255 200 0 / 90%);
   padding: 6px 12px; /* 6px/12px 非8的整数倍，保留 */
   border-radius: 6px;
   font-size: 13px;

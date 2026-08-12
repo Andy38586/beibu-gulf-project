@@ -125,4 +125,23 @@ describe('mapStore', () => {
       expect(store.layerCatalog[0].category).toBe('base')
     })
   })
+
+  describe('setLayerVisible（z038 补覆盖）', () => {
+    it('应更新 catalog 条目的 visible（不可变更新）', () => {
+      const store = useMapStore()
+      store.registerBusinessLayer('biz-1', '业务图层', 'geojson', true)
+
+      store.setLayerVisible('biz-1', false)
+
+      const entry = store.layerCatalog.find((e) => e.key === 'biz-1')
+      expect(entry!.visible).toBe(false)
+      expect(store.layerCatalog).toHaveLength(1)
+    })
+
+    it('不存在的 key 应告警且不抛错', () => {
+      const store = useMapStore()
+      expect(() => store.setLayerVisible('nonexistent', false)).not.toThrow()
+      expect(store.layerCatalog).toHaveLength(0)
+    })
+  })
 })

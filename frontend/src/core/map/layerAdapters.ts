@@ -180,7 +180,14 @@ export const LAYER_ADAPTERS: Record<LayerType, LayerAdapter> = {
         return
       }
       const payload = data as WaterSurfaceData
-      renderer.addWaterSurface(key, payload.coordinates, payload.height, options)
+      // addWaterSurface 为 async（真地形采样基准），rejection 兜底防浮动 Promise
+      void Promise.resolve(
+        renderer.addWaterSurface(key, payload.coordinates, payload.height, options)
+      ).catch((e) => {
+        if (import.meta.env.DEV) {
+          logger.warn(`[layerAdapters] 水面图层 ${key} 创建失败（异步）:`, e)
+        }
+      })
     },
     update: (renderer, key, data, _options) => {
       if (!isWater3DCapable(renderer)) return

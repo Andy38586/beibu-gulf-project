@@ -3,7 +3,7 @@ const path = require('path')
 
 const file = path.join(__dirname, '..', 'docs', '已解决问题.md')
 let content = fs.readFileSync(file, 'utf8')
-let lines = content.split('\n')
+const lines = content.split('\n')
 
 // 1. 移出 27 条设计豁免/证伪条目
 const removeIds = [
@@ -35,7 +35,7 @@ const removeIds = [
   'z017',
   'z041',
 ]
-const entryRe = /^\|\s*p\d\s*\|\s*([a-z]\d{3})[\-\s]/
+const entryRe = /^\|\s*p\d\s*\|\s*([a-z]\d{3})[-\s]/
 const kept = lines.filter((line) => {
   const m = line.match(entryRe)
   return !(m && removeIds.includes(m[1]))

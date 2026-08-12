@@ -23,6 +23,7 @@ import {
   PolygonHierarchy,
   Primitive,
   Rectangle,
+  sampleTerrain,
   ScreenSpaceEventType,
   SingleTileImageryProvider,
   UrlTemplateImageryProvider,
@@ -708,7 +709,7 @@ export class CesiumRenderer extends MapRenderer {
     coordinates: [number, number][],
     height = 0,
     options: WaterSurfaceOptions = {}
-  ): boolean {
+  ): Promise<boolean> {
     return addWaterSurface(this, id, coordinates, height, options)
   }
 
@@ -1472,15 +1473,46 @@ interface WaterSurfaceEntry {
   coordinates: [number, number][]
   options: Record<string, unknown>
   visible: boolean
+  /** 地形基准（每顶点地形高度，椭球高制）：海面抬升语义 = 基准 + 水位；无真地形时全 0 */
+  terrainBase: number[]
+}
+
+/**
+ * 采样坐标点的地形高度（椭球高制）作为水面基准。
+ * 真地形（海拔制）下椭球绝对高存在 geoid 分离（北部湾 -30~-70m），
+ * 水面直接按水位取椭球高会沉入地下不可见——必须采样地形后叠加水位。
+ * 无真地形（EllipsoidTerrainProvider）或采样失败时回退 0（旧行为）。
+ */
+async function sampleTerrainHeights(
+  renderer: any,
+  coordinates: [number, number][]
+): Promise<number[]> {
+  try {
+    const terrainProvider = renderer.viewer?.terrainProvider as
+      | { availability?: unknown }
+      | undefined
+    if (!terrainProvider || !terrainProvider.availability) {
+      return coordinates.map(() => 0)
+    }
+    const positions = coordinates.map(([lng, lat]) => Cartesian3.fromDegrees(lng, lat))
+    const sampled = await sampleTerrain(renderer.viewer.terrainProvider, 10, positions)
+    return sampled.map((s) => s.height ?? 0)
+  } catch {
+    // 采样失败不阻断水面创建，回退椭球基准（与旧行为一致）
+    return coordinates.map(() => 0)
+  }
 }
 
 /** 构建水面 GeometryInstance（create 与 update 复用，避免重复代码） */
 function buildWaterInstance(
   coordinates: [number, number][],
   height: number,
-  options: WaterSurfaceOptions
+  options: WaterSurfaceOptions,
+  terrainBase: number[] = []
 ): GeometryInstance {
-  const positions = coordinates.map((coord) => Cartesian3.fromDegrees(coord[0], coord[1], height))
+  const positions = coordinates.map((coord, i) =>
+    Cartesian3.fromDegrees(coord[0], coord[1], (terrainBase[i] ?? 0) + height)
+  )
   const hierarchy = new PolygonHierarchy(positions)
   const geometry = new PolygonGeometry({
     polygonHierarchy: hierarchy,
@@ -1499,17 +1531,18 @@ function buildWaterInstance(
   })
 }
 
-/** 添加水面 Primitive（先移除同 id 旧水面，幂等） */
-export function addWaterSurface(
+/** 添加水面 Primitive（先移除同 id 旧水面，幂等；真地形下采样基准叠加水位） */
+export async function addWaterSurface(
   renderer: any,
   id: string,
   coordinates: [number, number][],
   height = 0,
   options: WaterSurfaceOptions = {}
-): boolean {
+): Promise<boolean> {
   removeWaterSurface(renderer, id)
   try {
-    const instance = buildWaterInstance(coordinates, height, options)
+    const terrainBase = await sampleTerrainHeights(renderer, coordinates)
+    const instance = buildWaterInstance(coordinates, height, options, terrainBase)
 
     const appearance = new PerInstanceColorAppearance({
       translucent: true,
@@ -1532,6 +1565,7 @@ export function addWaterSurface(
       coordinates: coordinates,
       options: options,
       visible: true,
+      terrainBase: terrainBase,
     })
 
     renderer.viewer.scene.requestRender()
@@ -1565,7 +1599,12 @@ export function updateWaterLevel(renderer: any, id: string, newHeight: number): 
     // 同步构建新几何替换到同一 Primitive：Cesium 类型将 geometryInstances 标为只读，
     // 但运行时支持替换（增量更新依赖此行为），用断言绕过类型只读标注
     ;(waterSurface.primitive as { geometryInstances: unknown }).geometryInstances =
-      buildWaterInstance(waterSurface.coordinates, newHeight, waterSurface.options)
+      buildWaterInstance(
+        waterSurface.coordinates,
+        newHeight,
+        waterSurface.options,
+        waterSurface.terrainBase
+      )
     waterSurface.height = newHeight
     renderer.viewer.scene.requestRender()
     return true

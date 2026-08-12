@@ -101,7 +101,7 @@ export interface Water3DCapability {
     coordinates: [number, number][],
     height: number,
     options?: WaterSurfaceOptions
-  ): boolean
+  ): Promise<boolean>
   updateWaterLevel(id: string, newHeight: number): boolean
   removeWaterSurface(id: string): boolean
   removeAllWaterSurfaces(): boolean

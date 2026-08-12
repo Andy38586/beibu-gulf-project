@@ -69,6 +69,10 @@ jobs:
       - name: Run lint
         run: npm run lint
 
+      # 7-02：样式硬编码无 CI 拦截 → stylelint 接入（存量已清零，硬性阻断新增）
+      - name: Run stylelint
+        run: npm run stylelint
+
       - name: Architecture contract (dependency-cruiser)
         run: npm run cruise
 

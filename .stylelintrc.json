@@ -1,0 +1,15 @@
+{
+  "extends": ["stylelint-config-standard"],
+  "customSyntax": "postcss-html",
+  "rules": {
+    "no-descending-specificity": null,
+    "no-duplicate-selectors": null,
+    "selector-class-pattern": null,
+    "custom-property-pattern": null,
+    "keyframes-name-pattern": null,
+    "media-feature-range-notation": null,
+    "function-no-unknown": [true, { "ignoreFunctions": ["v-bind"] }],
+    "value-keyword-case": ["lower", { "ignoreFunctions": ["v-bind"] }],
+    "selector-pseudo-class-no-unknown": [true, { "ignorePseudoClasses": ["deep"] }]
+  }
+}

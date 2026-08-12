@@ -21,9 +21,11 @@ backend/.env.*
 # 改为 compose 运行时 volume 挂载 ./backend/data:/app/backend/data，详见 docker-compose.yml
 backend/data/
 
-# DEM 静态产物（dem_hillshade.tif 67MB + png 5.8MB）不进镜像：
-# tif 被 .gitignore 排除（CI checkout 不存在），本地构建却会带上 → CI 与本地镜像内容不一致，
-# 且 73MB 冗余。改为 compose volume 挂载 ./backend/static/dem:/app/backend/static/dem。
+# DEM 静态产物（dem_hillshade.tif 64MB + png 5.5MB）不进镜像：
+# tif 是 git 跟踪的交付数据（git 为唯一通道，随仓库交付到服务器；.gitignore 的
+# *.tif 规则只约束新增文件，不解除已跟踪文件的跟踪）。本地构建会带上 →
+# 与 CI 构建内容一致但镜像多约 70MB 冗余，故统一由 .dockerignore 排除，
+# 运行时以 compose volume 挂载 ./backend/static/dem:/app/backend/static/dem（CI/本地行为一致）。
 # 待接入数据库/对象存储后整体替换此方案。
 backend/static/dem/
 

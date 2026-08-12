@@ -152,8 +152,8 @@ GIS 应用中，地图工具栏、分析面板、图例、详情卡片等组件�
 
 ### 环境要求
 
-- Node.js 22+
-- npm
+- Node.js ≥ 22.18、npm
+- Docker（可选，仅容器部署用）
 
 ### 安装
 
@@ -162,6 +162,18 @@ git clone <repo-url>
 cd beibu-gulf-project
 npm install
 cd backend && npm install
+```
+
+### 必需环境变量
+
+两份 `.env` 文件（均不入 git），缺失时对应能力不可用：
+
+```bash
+# 根目录 .env（前端构建注入）
+VITE_TIANDITU_KEY=<天地图 key，申请：https://console.tianditu.gov.cn>
+
+# backend/.env（后端运行时）
+JWT_SECRET=<32+ 字符随机串，否则后端启动即抛错>
 ```
 
 ### 本地启动
@@ -182,7 +194,21 @@ npm run dev:server
 npm run dev:all
 ```
 
-前端默认 `http://localhost:5173`，后端默认 `http://localhost:3000`。
+前端默认 `http://localhost:5173`，后端默认 `http://localhost:3000`。地图/选址/预测/洪涝 api 模式全部可用（数据文件已入库）。
+
+### 洪涝 online 模式（连通性演算，可选）
+
+```bash
+# 1. 建 Python 环境（首次）
+python -m venv backend/flood-service/.venv
+backend/flood-service/.venv/Scripts/pip install -r backend/flood-service/requirements.txt
+
+# 2. 起 FastAPI（另开终端）
+npm run dev:flood   # uvicorn :8000，预计算表查表秒回
+
+# 3. 前端切 online
+#    frontend/.env.local 加 VITE_DATA_SOURCE=online
+```
 
 ### 构建与分析
 
@@ -202,7 +228,7 @@ docker compose up --build -d
 - **CI 流水线**（4 job）：audit → lint-and-build（format/lint/cruise/typecheck/gitleaks/测试/build）→ backend-tests → deploy（main 分支 SSH 自动部署）
 - **HTTPS**：Let's Encrypt + duckdns DNS-01，自动续期（certbot.timer + deploy hook）
 - 生产数据源由 `VITE_DATA_SOURCE` 构建期注入（`online` = 洪涝走 FastAPI 连通性演算；`api` = Express 251 档查表）
-- 详见 `Dockerfile`、`docker-compose.yml`、`nginx.conf`、`docs/快速启动.md`
+- 详见 `Dockerfile`、`docker-compose.yml`、`nginx.conf`
 
 ---
 

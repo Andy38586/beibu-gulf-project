@@ -332,7 +332,8 @@ async function triggerImpactAssessment(waterLevel: number, seq: number) {
 }
 
 function renderFloodAreas(features: FloodFeature[]) {
-  if (!features || features.length === 0) return
+  // 空数组也继续更新（清空图层）：水位回落至无淹没档位时，残留旧多边形会与当前水位不符
+  if (!features) return
 
   // 检查图层是否已注册，若未注册则先注册
   if (!businessLayerManager.has(FLOOD_LAYER_ID)) {
@@ -366,7 +367,8 @@ function renderFloodAreas(features: FloodFeature[]) {
 }
 
 function renderAffectedFacilities(facilities: AffectedFacility[]) {
-  if (!facilities || facilities.length === 0) return
+  // 空数组也继续更新（清空图层）：水位回落无设施被淹时，残留旧 POI 会误导（用户实测问题）
+  if (!facilities) return
 
   // 检查图层是否已注册，若未注册则先注册
   if (!businessLayerManager.has(FACILITY_LAYER_ID)) {

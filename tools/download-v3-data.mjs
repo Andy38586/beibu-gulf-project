@@ -12,6 +12,7 @@
 
 import fs from 'node:fs'
 import path from 'node:path'
+import crypto from 'node:crypto'
 
 const target = process.argv[2] ?? 'C:\\Users\\JionHappY\\Desktop\\项目数据'
 const includeOsm = process.argv.includes('--osm')
@@ -88,8 +89,32 @@ async function runBatch(urls) {
   let ok = 0
   const worker = async () => {
     while (i < urls.length) {
-      const { url, file } = urls[i++]
-      if (await download(url, file)) ok++
+      const item = urls[i++]
+      const done = await download(item.url, item.file)
+      if (done && item.md5url) {
+        // verify checksum; on mismatch delete and report FAIL
+        try {
+          const md5 = (await (await fetch(item.md5url, { signal: AbortSignal.timeout(30000) })).text())
+            .trim()
+            .split(/\s+/)[0]
+          const local = crypto
+            .createHash('md5')
+            .update(fs.readFileSync(item.file))
+            .digest('hex')
+          if (md5 === local) {
+            console.log(`[md5-ok] ${path.basename(item.file)}`)
+            ok++
+          } else {
+            console.log(`[md5-MISMATCH] ${path.basename(item.file)} -> deleting, re-run needed`)
+            fs.unlinkSync(item.file)
+          }
+        } catch (e) {
+          console.log(`[md5-skip] ${path.basename(item.file)}: ${e.message}`)
+          ok++
+        }
+      } else if (done) {
+        ok++
+      }
     }
   }
   await Promise.all(Array.from({ length: CONCURRENCY }, worker))
@@ -120,6 +145,7 @@ if (includeOsm) {
   osm.push({
     url: 'https://download.geofabrik.de/asia/china-latest.osm.pbf',
     file: path.join(dirOsm, 'china-latest.osm.pbf'),
+    md5url: 'https://download.geofabrik.de/asia/china-latest.osm.pbf.md5', // geofabrik publishes md5
   })
 }
 

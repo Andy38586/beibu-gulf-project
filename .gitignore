@@ -104,3 +104,6 @@ tools/.amap_key
 docs/*
 !docs/鏍瑰熀鏂囨。/
 !docs/鍥剧墖/
+
+# v3 数据下载临时目录（含 OSM 硬链接与大索引缓存）
+.tmp-pip/

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>北部湾 WebGIS 项目 · 数据来源与二次获取清单</title>
+<style>
+  body { font-family: "Microsoft YaHei", sans-serif; max-width: 1000px; margin: 0 auto; padding: 24px; background: #f5f6fa; color: #2d3436; }
+  h1 { border-bottom: 3px solid #0984e3; padding-bottom: 8px; }
+  h2 { color: #0984e3; margin-top: 36px; }
+  .card { background: #fff; border-radius: 8px; padding: 16px 20px; margin: 12px 0; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 13px; color: #fff; margin-right: 8px; }
+  .b-green { background: #00b894; } .b-yellow { background: #fdcb6e; color: #2d3436; } .b-red { background: #d63031; } .b-gray { background: #636e72; }
+  table { border-collapse: collapse; width: 100%; margin: 6px 0; }
+  td, th { border: 1px solid #dfe6e9; padding: 6px 10px; font-size: 14px; text-align: left; }
+  th { background: #f0f4f8; }
+  a { color: #0984e3; word-break: break-all; }
+  code { background: #eee; padding: 1px 6px; border-radius: 4px; font-size: 13px; }
+  pre { background: #2d3436; color: #dfe6e9; padding: 12px; border-radius: 6px; overflow-x: auto; font-size: 13px; }
+  .note { background: #ffeaa7; border-left: 4px solid #fdcb6e; padding: 8px 12px; margin: 8px 0; font-size: 14px; }
+  .check { color: #d63031; font-weight: bold; }
+</style>
+</head>
+<body>
+
+<h1>数据来源与二次获取清单</h1>
+<p>更新：2026-08-14 ｜ 配套：项目仓库 <code>docs/data-inventory.md</code> 与桌面「项目数据\README.md」</p>
+<div class="note">
+<b>可验证性评级说明</b>：🟢 = 有直链/脚本，任何人可复现获取 ｜ 🟡 = 需注册账号（免费）或半可复现 ｜ 🔴 = 无获取留档（本次审计发现，已补方案）
+</div>
+
+<h2>一、栅格数据</h2>
+
+<div class="card">
+<span class="badge b-green">🟢 可复现</span><b>1. Copernicus GLO-30（陆地 DEM 30m，升级主数据）</b>
+<table>
+<tr><td>来源</td><td>European Space Agency，AWS 公开桶 <a href="https://copernicus-dem-30m.s3.amazonaws.com/">copernicus-dem-30m</a>（免注册）</td></tr>
+<tr><td>URL 模式</td><td><code>https://copernicus-dem-30m.s3.amazonaws.com/Copernicus_DSM_COG_10_N{lat}_00_E{lon}_00_DEM/...tif</code></td></tr>
+<tr><td>范围/大小</td><td>N20-23 × E106-110 共 19 瓦片，706MB；注意 N20E108 为纯海域不存在</td></tr>
+<tr><td>验证</td><td>GeoTIFF 魔数、gdalinfo（EPSG:4326/1弧秒/Float32）、合并后高程 -139~1914m</td></tr>
+<tr><td>二次获取步骤</td><td>① <code>node --use-env-proxy tools/download-v3-data.mjs "C:\Users\JionHappY\Desktop\项目数据"</code> ② 断点续传自动支持 ③ 处理流水线见 README §3.1</td></tr>
+</table>
+</div>
+
+<div class="card">
+<span class="badge b-green">🟢 可复现</span><b>2. SRTM15+ V2.6（海底 DEM，陆海一体 15 弧秒）</b>
+<table>
+<tr><td>来源</td><td>UC San Diego，<a href="https://topex.ucsd.edu/pub/srtm15_plus/">topex.ucsd.edu</a>（免注册）</td></tr>
+<tr><td>URL</td><td><code>https://topex.ucsd.edu/pub/srtm15_plus/SRTM15_V2.6.nc</code>（注意下划线，6.2GB，NetCDF-4）</td></tr>
+<tr><td>验证</td><td>全量读取统计 min=-11058/max=8627 与元数据一致；北部湾裁剪版 -121.6m(海底)~1836m(陆地)</td></tr>
+<tr><td>二次获取步骤</td><td>① 脚本 <code>--bathymetry</code> 参数下载 ② <code>gdal_translate -projwin 106 24 111 20</code> 裁剪</td></tr>
+</table>
+</div>
+
+<div class="card">
+<span class="badge b-green">🟢 可复现</span><b>3. ESA WorldCover 10m（土地类型）</b>
+<table>
+<tr><td>来源</td><td>ESA，AWS 公开桶 <a href="https://esa-worldcover.s3.eu-central-1.amazonaws.com/">esa-worldcover</a>（eu-central-1，免注册，CC-BY 4.0）</td></tr>
+<tr><td>URL 模式</td><td><code>.../v200/2021/map/ESA_WorldCover_10m_2021_v200_N{lat}E{lon}_Map.tif</code>（<b>瓦片为 3°×3° 网格</b>）</td></tr>
+<tr><td>范围/大小</td><td>N18/N21 × E105/E108 共 4 瓦片 289MB；耕地掩膜（class 40）已提取 4 个 tif</td></tr>
+<tr><td>二次获取步骤</td><td>① 下载 4 瓦片 ② <code>python tools/extract-cropland.py</code> 提取耕地 ③ 其他地类（林地/水体/建成区）改 class 号即可</td></tr>
+</table>
+</div>
+
+<div class="card">
+<span class="badge b-yellow">🟡 需注册</span><b>4. ASTER GDEM 30m（浸没分析现状基线）</b>
+<table>
+<tr><td>来源</td><td>地理空间数据云 <a href="https://www.gscloud.cn/">gscloud.cn</a>（免费注册）</td></tr>
+<tr><td>范围</td><td>N21-22 × E107-109 共 6 瓦片（.img.zip），来源留档见「浸没分析\ASTER-GDEM-30m\来源：地理空间数据云.txt」</td></tr>
+<tr><td>二次获取步骤</td><td>① 注册 gscloud → 检索 ASTER GDEM 30m → 选瓦片下载 ② 处理流水线 tools/dem-pipeline 01-05</td></tr>
+</table>
+</div>
+
+<h2>二、矢量数据</h2>
+
+<div class="card">
+<span class="badge b-green">🟢 可复现</span><b>5. OSM China（路网/海岸线/水体/工业区原料）</b>
+<table>
+<tr><td>来源</td><td>Geofabrik <a href="https://download.geofabrik.de/asia/china-latest.osm.pbf">china-latest.osm.pbf</a>（ODbL，免注册）</td></tr>
+<tr><td>大小/验证</td><td>1.5GB；官方 MD5 校验通过（首版损坏→重下）；备用镜像 openstreetmap.fr</td></tr>
+<tr><td>派生产物</td><td>公路 165,111 条 / 铁路 9,481 条 / 海岸线 16,174 条 / 水体 452,977 个 / 工业区 2,687 个</td></tr>
+<tr><td>二次获取步骤</td><td>① 下载 + MD5 校验（脚本内置） ② <code>python tools/extract-roads.py</code> / <code>extract-coastline.py</code> / <code>extract-industrial.py</code> ③ 输入 PBF 需 ASCII 路径硬链接（pyosmium 限制）</td></tr>
+</table>
+</div>
+
+<div class="card">
+<span class="badge b-yellow">🟡 需注册</span><b>6. GMW 红树林 v3（11 时相）</b>
+<table>
+<tr><td>来源</td><td>UNEP-WCMC <a href="https://data.unep-wcmc.org/datasets/45">Global Mangrove Watch v3</a>（免费注册）</td></tr>
+<tr><td>内容</td><td>1996 + 2007~2010 + 2015~2020 逐年 shp；2020 年全球 107 万要素</td></tr>
+<tr><td>二次获取步骤</td><td>① 注册 UNEP-WCMC ② 下载 GMW_v3.zip ③ 解压 → 多边形\红树林\GMW_v3\</td></tr>
+</table>
+</div>
+
+<div class="card">
+<span class="badge b-yellow">🟡 需注册</span><b>7. WDPA 保护区（中国）</b>
+<table>
+<tr><td>来源</td><td>UNEP-WCMC <a href="https://www.protectedplanet.net/">Protected Planet (WDPA)</a>（免费注册）</td></tr>
+<tr><td>内容</td><td>中国 34 个保护区（points + polygons 双图层，shp/csv 三格式）</td></tr>
+<tr><td>二次获取步骤</td><td>① 注册 protectedplanet.net ② 筛选中国 → 下载 shp 包 ③ 解压两层 zip</td></tr>
+</table>
+</div>
+
+<div class="card">
+<span class="badge b-green">🟢 本次已补</span><b>8. 选址 POI（6 类设施 + 小区，钦州市）</b>
+<table>
+<tr><td>现状说明</td><td><span class="check">原数据（backend/data/site-selection/qz_*.json）为仓库既有文件，无获取留档（审计发现 🔴）</span></td></tr>
+<tr><td>本次补方案</td><td>已写抓取脚本 <code>tools/fetch-amap-poi.mjs</code>，key（tools/.amap_key）实测有效：钦州医院 366 条样例坐标正确</td></tr>
+<tr><td>API</td><td>高德开放平台 <a href="https://lbs.amap.com/api/webservice/guide/api/search">Place 搜索 API</a>（个人开发者免费，需自备 key）</td></tr>
+<tr><td>二次获取步骤</td><td>① 到 <a href="https://console.amap.com/">console.amap.com</a> 申请 Web 服务 key ② key 存入 tools/.amap_key ③ <code>node --use-env-proxy tools/fetch-amap-poi.mjs 钦州</code> ④ 输出到「项目数据\POI-高德重抓\」与原数据对比核对</td></tr>
+<tr><td>范围说明</td><td>原数据仅覆盖钦州市（钦南区 272/钦北区 285 小区等）；如需钦北防三市，脚本 city 参数改「钦州/防城港/北海」各跑一次</td></tr>
+</table>
+</div>
+
+<div class="card">
+<span class="badge b-yellow">🟡 半可复现</span><b>9. 洪涝设施（facilityPoints.json，83 个）</b>
+<table>
+<tr><td>来源</td><td>高德真实 POI（项目 README 标注）+ 处理脚本 tools/dem-pipeline/05-fix-facility-elevation.py（高程修正可复现）</td></tr>
+<tr><td>二次获取步骤</td><td>① 高德 POI 检索港口设施（油库/泊位/仓储）② 05 脚本按 DEM 修正高程 ③ 字段含 value/damageRate（估算值，已诚实标注）</td></tr>
+</table>
+</div>
+
+<div class="card">
+<span class="badge b-green">🟢 已留档</span><b>10. 港口吞吐量 2021-2026（月度，真实）</b>
+<table>
+<tr><td>来源</td><td>公开统计（交通运输部/港口集团），原始来源留档见「预测分析\21-26港口吞吐量\原始数据来源.txt」</td></tr>
+<tr><td>内容</td><td>货物 + 集装箱双序列 xlsx→清洗 csv（clean_throughput.py / stats.py 留档）</td></tr>
+<tr><td>二次获取步骤</td><td>按来源 txt 指引逐月下载 → 清洗脚本重跑</td></tr>
+</table>
+</div>
+
+<div class="card">
+<span class="badge b-red">🔴 无留档</span><b>11. ports.json（3 个港口）</b>
+<table>
+<tr><td>说明</td><td>仓库既有（北海国际客运港/钦州港口岸/防城港），坐标已核对正确，但<b>原始获取过程无留档</b>——待补：来源为公开港口名录/天地图 POI 检索，建议按 §8 高德检索补留档</td></tr>
+</table>
+</div>
+
+<h2>三、手工/人工数据</h2>
+
+<div class="card">
+<span class="badge b-yellow">🟡 半可复现</span><b>12. 平陆运河（示意线）</b>
+<table>
+<tr><td>来源</td><td>公开报道关键节点手工勾绘（平塘江口→陆屋→沙井），文件属性含 accuracy 声明</td></tr>
+<tr><td>二次获取步骤</td><td>① 查阅平陆运河集团环评公示 ② geojson.io/QGIS 沿郁江-钦江画中心线 ③ 校准 canal-schematic.geojson</td></tr>
+</table>
+</div>
+
+<div class="card">
+<span class="badge b-gray">⏳ 待获取</span><b>13. 生态保护红线 / 14. AIS 航线 / 15. 海图水深点</b>
+<table>
+<tr><td>生态红线</td><td>广西自然资源厅申请；过渡：WDPA + 三娘湾中华白海豚保护区边界（公开）</td></tr>
+<tr><td>AIS</td><td>国内不公开，公开存档或合成+标注（模块降档）</td></tr>
+<tr><td>海图水深点</td><td>出版海图数字化 / ENC 电子海图（港口尺度，SRTM15+ 460m 不够）</td></tr>
+</table>
+</div>
+
+<h2>四、用户核对清单（Checklist）</h2>
+<table>
+<tr><th>#</th><th>核对点</th><th>怎么核对</th></tr>
+<tr><td>1</td><td>GLO-30 19 瓦片</td><td>打开任一 tif：gdalinfo 显示 EPSG:4326/1弧秒；或对比 AWS 桶列表</td></tr>
+<tr><td>2</td><td>SRTM15+</td><td>文件 6.2GB；python netCDF4 打开读 z 变量</td></tr>
+<tr><td>3</td><td>WorldCover</td><td>4 瓦片 289MB；耕地掩膜 class=40 合计 52,505 km²</td></tr>
+<tr><td>4</td><td>OSM PBF</td><td>与 geofabrik 官方 MD5 比对</td></tr>
+<tr><td>5</td><td>GMW/WDPA</td><td>zip 魔数 PK；ogrinfo 要素数（红树林 107 万 / 保护区 34）</td></tr>
+<tr><td>6</td><td><b>POI 来源</b></td><td>运行 fetch-amap-poi.mjs 重抓，与 qz_*.json 数量/坐标对比（差异即说明）</td></tr>
+<tr><td>7</td><td>吞吐量</td><td>与原始 xlsx 逐月对比 csv</td></tr>
+</table>
+
+<div class="note"><b>安全提示</b>：tools/.amap_key 曾进入 git 跟踪（本次已移除跟踪并加入 .gitignore），该 key 若需继续使用建议到高德控制台<b>重置</b>；历史提交清理可用仓库内 tools/git-clean-history.sh。</div>
+
+</body>
+</html>

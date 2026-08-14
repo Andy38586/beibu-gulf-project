@@ -33,7 +33,11 @@ async function download(url, file) {
   for (let attempt = 1; attempt <= RETRIES; attempt++) {
     try {
       const headers = existing > 0 ? { Range: `bytes=${existing}-` } : {}
-      const res = await fetch(url, { headers, redirect: 'follow' })
+      const res = await fetch(url, {
+        headers,
+        redirect: 'follow',
+        signal: AbortSignal.timeout(90000), // stall guard; mid-stream abort resumes via Range
+      })
       if (res.status === 416) {
         // Range not satisfiable -> file already complete
         fs.renameSync(tmp, file)

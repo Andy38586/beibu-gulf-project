@@ -87,9 +87,9 @@
 - **验收标准**：复跑对应机械检查项，计数归零或人工确认豁免
 
 ## 7.1（P1，切片 D）
-- **证据**：frontend/src/business/site-selection/components/SiteAnalysisControlPanel.vue:202; frontend/src/core/map/composables/useBoundaryLayer.ts:27; frontend/src/shared/composables/useApiRequest.ts:176; frontend/src/shared/composables/useAuth.ts:19; frontend/src/shared/composables/useAuth.ts:90
+- **证据**：frontend/src/shared/composables/useApiRequest.ts:176; frontend/src/types/__tests__/schemas.test.ts:33(测试上下文); frontend/src/types/__tests__/schemas.test.ts:52(测试上下文); frontend/src/types/__tests__/schemas.test.ts:163(测试上下文)
 - **风险等级**：P1
-- **发现**：JSON.parse 无运行时校验 8 处(外部数据边界)
+- **发现**：JSON.parse 无运行时校验 4 处(外部数据边界)
 - **整改建议**：修复或进待解决问题清单
 - **验收标准**：复跑对应机械检查项，计数归零或人工确认豁免
 

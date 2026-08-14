@@ -222,17 +222,20 @@ const slices = [
     name: 'D', label: '第七部分 运行时类型安全', parts: [7], inds: ['7.1', '7.2', '7.3', '7.4'],
     run: async () => {
       const findings = []
-      // 7.1 JSON.parse 无校验
+      // 7.1 JSON.parse 无校验(schema.safeParse(JSON.parse(x)) 的校验词在 parse 之前 → 窗口前后各扩 120 字符)
       const jp = []
       for (const f of files) {
         const t = read(f)
         const re = /JSON\.parse\s*\(/g
         let m
         while ((m = re.exec(t))) {
-          const tail = t.slice(m.index, m.index + 120)
+          const head = t.slice(m.index, m.index + 60)
+          if (/JSON\.parse\(\s*JSON\.stringify/.test(head)) continue // 深拷贝, 非外部数据
+          const tail = t.slice(Math.max(0, m.index - 120), m.index + 120)
           if (!/zod|safeParse|validate|schema/.test(tail)) {
             const ln = t.slice(0, m.index).split('\n').length
-            jp.push(`${rel(f)}:${ln}`)
+            const ctx = /__tests__|\.test\.|\.spec\./.test(rel(f)) ? '(测试上下文)' : ''
+            jp.push(`${rel(f)}:${ln}${ctx}`)
           }
         }
       }

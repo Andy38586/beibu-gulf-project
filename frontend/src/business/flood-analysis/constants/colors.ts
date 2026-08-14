@@ -1,6 +1,9 @@
 /**
  * 洪涝风险等级配色（仅洪水业务使用，从 shared 下沉到业务层）。
  * stroke: 边界线色；fill: 填充色（带透明度）
+ * S7-01 绑定说明：本表与 shared/constants/colors.ts 的 FACILITY_COLORS 同值
+ * （#67C23A 安全 / #F56C6C 危险 / #E6A23C 警告）——语义不同（风险等级 vs 设施类型），
+ * 改 shared 同值色时需同步本表或改走 shared 引用，禁止只改一边造成双份漂移。
  */
 export const FLOOD_RISK_COLORS: Record<string, { stroke: string; fill: string }> = {
   无风险: { stroke: '#909399', fill: 'rgba(144, 147, 153, 0.3)' },

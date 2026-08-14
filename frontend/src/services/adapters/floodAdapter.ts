@@ -68,7 +68,8 @@ async function _fetchOnlineFlood(
 }> {
   const raw = await apiRequest<unknown>('/flood-online/api/flood/online', {
     method: 'GET',
-    params: { level: waterLevel },
+    // b027：参数名统一 waterLevel（原 level 与 api 模式分裂；FastAPI 端已同步改名）
+    params: { waterLevel },
     signal,
     envelope: false,
     // 校验交给 apiRequest 的 schema 选项（zod schema=运行时数据校验；envelope:false 时校验裸响应，无需手动 safeParse）
@@ -181,7 +182,8 @@ export const floodAdapter = {
     if (dataSource === 'online') {
       logger.debug(`[floodAdapter] impact online: 水位=${waterLevel}m`)
       const res = await apiRequest<Record<string, unknown>>('/flood-online/api/flood/impact', {
-        params: { level: waterLevel },
+        // b027：参数名统一 waterLevel
+        params: { waterLevel },
         signal,
         // FastAPI 返回裸 JSON（无 envelope），与 getFloodAnalysis online 分支一致
         envelope: false,

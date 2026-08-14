@@ -109,7 +109,7 @@ def test_flood_impact_spatial_filter(client, monkeypatch):
     ]
     monkeypatch.setattr(main_mod, "_load_facilities", lambda: fake_facilities)
 
-    r = client.get("/api/flood/impact?level=15")
+    r = client.get("/api/flood/impact?waterLevel=15")
     assert r.status_code == 200
     body = r.json()
     assert len(body["affectedFacilities"]) == 1  # 只有多边形内的 A
@@ -121,7 +121,7 @@ def test_flood_impact_spatial_filter(client, monkeypatch):
 def test_flood_impact_no_features_empty(client, monkeypatch):
     """d073 impact：档位无淹没多边形（如低水位）→ 空设施 + 0 损失"""
     monkeypatch.setattr(main_mod, "_load_levels", lambda: {})
-    r = client.get("/api/flood/impact?level=5")
+    r = client.get("/api/flood/impact?waterLevel=5")
     assert r.status_code == 200
     body = r.json()
     assert body["affectedFacilities"] == []
@@ -139,7 +139,7 @@ def test_precomputed_level_lookup(client, monkeypatch):
         main_mod, "run_online_flood", lambda level: (calls.append(level), _fake_run(level))[1]
     )
 
-    r = client.get("/api/flood/online?level=3.5")
+    r = client.get("/api/flood/online?waterLevel=3.5")
     assert r.status_code == 200
     body = r.json()
     assert body["featureCount"] == 1
@@ -149,7 +149,7 @@ def test_precomputed_level_lookup(client, monkeypatch):
 
     # 0.1m 档位（滑块 step）同样命中——任意档秒回
     fake_table["3.4"] = {"featureCount": 1, "floodedKm2": 4500.0, "features": []}
-    r2 = client.get("/api/flood/online?level=3.4")
+    r2 = client.get("/api/flood/online?waterLevel=3.4")
     assert r2.status_code == 200
     assert r2.json()["floodedKm2"] == 4500.0
     assert len(calls) == 0
@@ -162,11 +162,11 @@ def test_same_level_second_request_cache_hit_no_500(client, monkeypatch):
         main_mod, "run_online_flood", lambda level: (calls.append(level), _fake_run(level))[1]
     )
 
-    r1 = client.get("/api/flood/online?level=3.5")
+    r1 = client.get("/api/flood/online?waterLevel=3.5")
     assert r1.status_code == 200
 
     # bug 版（普通 dict 调 move_to_end）在这里抛 AttributeError → 500
-    r2 = client.get("/api/flood/online?level=3.5")
+    r2 = client.get("/api/flood/online?waterLevel=3.5")
     assert r2.status_code == 200, f"同水位二次请求命中缓存抛 500（d072 回归）：{r2.text}"
 
     assert r1.json() == r2.json()
@@ -183,14 +183,14 @@ def test_lru_eviction_after_64_levels(client, monkeypatch):
 
     # 64 档逐个演算（0.0~6.3）：插入前 len<64，均不触发淘汰 → 64 档全量在缓存
     for i in range(64):
-        r = client.get(f"/api/flood/online?level={i / 10}")
+        r = client.get(f"/api/flood/online?waterLevel={i / 10}")
         assert r.status_code == 200
     assert len(calls) == 64
     assert len(main_mod._cached_level) == 64
     assert 0.0 in main_mod._cached_level  # 尚未触发淘汰（淘汰发生在第 65 次插入时）
 
     # 请求新档 6.4 → 插入前 len=64 → popitem(last=False) 淘汰最旧 0.0 → 插入 6.4
-    r_new = client.get("/api/flood/online?level=6.4")
+    r_new = client.get("/api/flood/online?waterLevel=6.4")
     assert r_new.status_code == 200
     assert len(calls) == 65
     assert 0.0 not in main_mod._cached_level  # 最久未访问被淘汰
@@ -198,6 +198,6 @@ def test_lru_eviction_after_64_levels(client, monkeypatch):
     assert len(main_mod._cached_level) == 64  # 上限保持 64，不周期性全量 clear
 
     # 重新请求 0.0 → 已淘汰 → 重新演算（仍 200，淘汰路径不抛 500）
-    r_old = client.get("/api/flood/online?level=0.0")
+    r_old = client.get("/api/flood/online?waterLevel=0.0")
     assert r_old.status_code == 200
     assert len(calls) == 66

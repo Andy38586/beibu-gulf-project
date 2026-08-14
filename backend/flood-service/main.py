@@ -120,8 +120,9 @@ def _engine_module():
 
 @app.get("/api/flood/online")
 def flood_online(
-    level: float = Query(..., ge=-1, le=25, description="水位（米，DEM 高程基准，滑块 0~20m）"),
+    waterLevel: float = Query(..., ge=-1, le=25, description="水位（米，DEM 高程基准，滑块 0~20m；参数名统一 waterLevel，b027）"),
 ):
+    level = waterLevel
     key = round(level, 1)
 
     # ① 预计算档位表查表（0.1m 档，与滑块 step 对齐）——命中秒回，零演算
@@ -159,7 +160,7 @@ def flood_online(
 
 @app.get("/api/flood/impact")
 def flood_impact(
-    level: float = Query(..., ge=-1, le=25, description="水位（米，DEM 高程基准）"),
+    waterLevel: float = Query(..., ge=-1, le=25, description="水位（米，DEM 高程基准；参数名统一 waterLevel，b027）"),
 ):
     """
     设施影响评估：预计算档位表的淹没多边形 ∩ 设施点（空间筛选）→ 受影响设施 + 总损失。
@@ -167,6 +168,7 @@ def flood_impact(
     与 /api/flood/online 共用档位表——滑块拖动时两个请求都查表秒回，零演算。
     2026-08-06 新增（原 online 模式影响评估返回空，前端受影响设施/损失一直为空）。
     """
+    level = waterLevel
     key = round(level, 1)
     pre = _load_levels().get(str(key))
     features = pre.get("features", []) if pre else []

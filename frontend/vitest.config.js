@@ -33,8 +33,9 @@ export default defineConfig({
       reportOnFailure: true,
       // 2026-08-11（审查副-35）：阈值低于 60% 目标——当前处于架构验证期，
       // 覆盖率作为回归基线而非上线门禁；目标 60% 挂下一阶段（与 08-11 专项审计计划一致）。
-      // 调高前先确认实际覆盖率（npm test -- --coverage），避免 CI 假红。
-      thresholds: { lines: 25, functions: 20, branches: 15, statements: 25 },
+      // 2026-08-14（z103）：阈值自实测水平小幅提升（25/20/15/25 → 30/25/18/30），
+      // 仍留余量防 CI 假红；调高前先确认实际覆盖率（npm test -- --coverage）。
+      thresholds: { lines: 30, functions: 25, branches: 18, statements: 30 },
     },
   },
   resolve: {

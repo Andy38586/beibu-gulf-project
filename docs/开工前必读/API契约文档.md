@@ -73,8 +73,8 @@
 | 预测        | `GET /forecast/timeseries`、`GET /forecast/indicator/:indicator`、`GET /forecast/map`、`GET /forecast/overview` | 公开          | —                                 |
 | 洪涝        | `GET /flood/water-area`、`GET /flood/terrain-profiles`、`GET /flood/flood-areas`、`GET /flood/flood-statistics` | 公开          | api 模式                          |
 | 洪涝        | `POST /flood/analysis/disaster`                                                                                 | ✅ 需登录     | 灾害评估                          |
-| 洪涝 online | `GET /flood-online/api/flood/online?level=`                                                                     | 公开          | FastAPI 裸 JSON,`envelope: false` |
-| 洪涝 online | `GET /flood-online/api/flood/impact?level=`                                                                     | 公开          | 在线设施影响评估（P2-1 补录）      |
+| 洪涝 online | `GET /flood-online/api/flood/online?waterLevel=`                                                             | 公开          | FastAPI 裸 JSON,`envelope: false`（b027：参数名统一 waterLevel） |
+| 洪涝 online | `GET /flood-online/api/flood/impact?waterLevel=`                                                             | 公开          | 在线设施影响评估（P2-1 补录）      |
 | 港口        | `GET /ports`                                                                                                    | 公开          | 只读                              |
 | 健康        | `GET /health`、`GET /health/ready`                                                                              | 公开          | 探针,置于限流前                   |
 

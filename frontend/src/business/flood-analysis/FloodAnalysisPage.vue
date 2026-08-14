@@ -12,7 +12,7 @@ import AppLayout from '@/core/layout/AppLayout.vue'
 import GCSPanel from '@/core/layout/components/GCSPanel.vue'
 import LayerControlPanel from '@/core/map/components/LayerControlPanel.vue'
 import { floodAdapter } from '@/services'
-import { showError, showWarning, useLatestRequest } from '@/shared'
+import { LAYER_FILL_WATER, showError, showWarning, useLatestRequest } from '@/shared'
 import { logger } from '@/shared'
 import { useFloodStore } from '@/stores'
 import { useMapStore } from '@/stores'
@@ -116,7 +116,7 @@ async function registerFloodLayers(signal?: AbortSignal) {
         label: '水面',
         layerType: 'waterSurface',
         data: { coordinates: waterCoords, height: floodStore.waterLevel },
-        options: { color: 'rgba(64, 158, 255, 0.5)' },
+        options: { color: LAYER_FILL_WATER },
         visible: true,
       })
     } catch (e) {

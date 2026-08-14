@@ -51,6 +51,9 @@ import type {
 
 import { MapRenderer, type LayerState } from './MapRenderer'
 
+/** 相机默认俯仰角（度）：-90° 俯视（z076 提取；引擎切换刻意不传递倾斜状态——OL 无 pitch 概念） */
+const DEFAULT_CAMERA_PITCH_DEG = -90
+
 // CesiumViewer单例：全局唯一Viewer，按需mount/unmount复用，30s空闲自动销毁
 class CesiumViewerManager {
   viewer: Viewer | null
@@ -364,6 +367,8 @@ export class CesiumRenderer extends MapRenderer {
    * "真实地形"开关的 3D 语义：切换 terrainProvider（开=CTB 真地形 z 起伏，关=平坦椭球面）。
    * 3D 下 geotiff 图层无独立实例（真地形已由 provider 呈现，addGeoTIFFLayer 在 _terrainReady
    * 时跳过），开关由 layerAdapters.geotiff.setVisibility 在 3D 下调用。
+   * z105：@arch-note 预留钩子——当前无调用方（layerAdapters geotiff 走普通图层显隐语义，
+   * 不做 terrainProvider 特殊处理）；L350 状态延续逻辑依赖本方法，保留待"真实地形"UI 开关接线。
    */
   setTerrainEnabled(enabled: boolean): void {
     this._terrainEnabled = enabled
@@ -555,7 +560,8 @@ export class CesiumRenderer extends MapRenderer {
       orientation: {
         heading: CesiumMath.toRadians(options.heading || 0),
         // 默认俯视 -90°（与 OL 2D 平坦视图一致），避免引擎切换时 pickEllipsoid 因倾斜产生偏移
-        pitch: CesiumMath.toRadians(options.pitch ?? -90),
+        // z076：提为常量（刻意设计：引擎切换不传递倾斜状态，见 doSetCameraState 注释）
+        pitch: CesiumMath.toRadians(options.pitch ?? DEFAULT_CAMERA_PITCH_DEG),
         roll: 0,
       },
     })

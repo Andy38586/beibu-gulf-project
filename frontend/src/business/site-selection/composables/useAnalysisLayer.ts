@@ -1,7 +1,7 @@
 import type { Feature, FeatureCollection, Geometry } from 'geojson'
 
 import type { BusinessLayerManager } from '@/core'
-import { FACILITY_COLORS } from '@/shared'
+import { FACILITY_COLORS, LAYER_FILL_COVERAGE } from '@/shared'
 import { logger } from '@/shared'
 import type { AnalysisResult, LayerOptions, ScoredXiaoqu } from '@/types'
 
@@ -69,7 +69,7 @@ export function buildMatchedGeoJson(matchedXiaoqu: ScoredXiaoqu[]): FeatureColle
 }
 
 export const COVERAGE_STYLE: LayerOptions = {
-  fillColor: 'rgba(64, 158, 255, 0.15)',
+  fillColor: LAYER_FILL_COVERAGE,
   strokeColor: FACILITY_COLORS[0],
   strokeWidth: 1,
   featureType: 'analysis-coverage',

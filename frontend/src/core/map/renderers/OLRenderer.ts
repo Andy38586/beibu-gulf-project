@@ -75,12 +75,12 @@ export class OLRenderer extends MapRenderer {
   baseLayers: { image: TileLayer<XYZ>[]; vector: TileLayer<XYZ>[] }
   _cullLayers: Map<string, CullLayerEntry>
   _moveendKey: EventsKey | null
-  // OL on() 的 listener 参数为宽类型（Event），业务回调按需收窄
-  _pointerMoveHandler: ((evt: unknown) => void) | null
+  // C-2：listener 统一用 OL 宽签名 EventsKey['listener']，un 注销无需 as any
+  _pointerMoveHandler: EventsKey['listener'] | null
   _cameraChangedKey: EventsKey | null
   _cameraDebounceTimer: ReturnType<typeof setTimeout> | null
   _clickKey: EventsKey | null
-  _clickHandler: ((evt: unknown) => void) | null
+  _clickHandler: EventsKey['listener'] | null
   _breathingLayer: VectorLayer<VectorSource> | null
   _breathingAnimId: number | null
 
@@ -665,7 +665,7 @@ export class OLRenderer extends MapRenderer {
     const moveendKey = this._moveendKey
     if (this._cullLayers.size === 0 && moveendKey) {
       // EventsKey.type 为宽 string，un 需 cast 对齐字面量 union 类型
-      this.map?.un(moveendKey.type as 'moveend', moveendKey.listener as any)
+      this.map?.un(moveendKey.type as 'moveend', moveendKey.listener)
       this._moveendKey = null
     }
   }
@@ -811,22 +811,22 @@ export class OLRenderer extends MapRenderer {
     this._cullLayers.clear()
     if (this._moveendKey) {
       // EventsKey.listener 为 OL 宽签名，业务回调为窄类型——cast 对齐运行时注销契约
-      this.map?.un(this._moveendKey.type as 'moveend', this._moveendKey.listener as any)
+      this.map?.un(this._moveendKey.type as 'moveend', this._moveendKey.listener)
       this._moveendKey = null
     }
     // 注销 click 监听（具名处理器配对注销）
     if (this._clickKey && this._clickHandler) {
-      this.map?.un(this._clickKey.type as 'click', this._clickHandler as any)
+      this.map?.un(this._clickKey.type as 'click', this._clickHandler)
       this._clickKey = null
       this._clickHandler = null
     }
     // 注销 pointer-move / camera-changed 监听与防抖定时器
     if (this._pointerMoveHandler) {
-      this.map?.un('pointermove', this._pointerMoveHandler as any)
+      this.map?.un('pointermove', this._pointerMoveHandler)
       this._pointerMoveHandler = null
     }
     if (this._cameraChangedKey) {
-      this.map?.un(this._cameraChangedKey.type as 'moveend', this._cameraChangedKey.listener as any)
+      this.map?.un(this._cameraChangedKey.type as 'moveend', this._cameraChangedKey.listener)
       this._cameraChangedKey = null
     }
     if (this._cameraDebounceTimer) {

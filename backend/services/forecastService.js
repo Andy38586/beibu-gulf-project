@@ -51,7 +51,9 @@ async function readDataFile(filename) {
 const engineCache = createReadCache({ maxSize: MAX_CACHE_SIZE })
 
 function getCacheKey(indicator, scenarioLevel) {
-  return `${indicator}:${scenarioLevel}`
+  // 8-14：cargo 为模型固定基线（scenarioLevel 恒 1.0），前端传不同 confidence 时
+  // 键不同但结果相同 → 缓存冗余（同结果多键）；模型指标键忽略 scenarioLevel
+  return MODEL_INDICATORS.has(indicator) ? indicator : `${indicator}:${scenarioLevel}`
 }
 
 async function getOrComputeForecast(indicator, scenarioLevel) {
@@ -82,6 +84,10 @@ async function getOrComputeForecast(indicator, scenarioLevel) {
       } else {
         logger.warn(`[forecastService] ${indicator}/${portId} 模型产物不可用，降级趋势外推`)
         const engineResult = computeForecast(historical, 1.0)
+        // 8-12：历史数据不足（防御路径）错误走业务错误通道（R7），不塞进成功信封
+        if (engineResult.metadata?.error) {
+          throw new BusinessError(ErrorCode.ANALYSIS_FAILED, engineResult.metadata.error)
+        }
         forecast = engineResult.forecast
         metadata = engineResult.metadata
       }
@@ -91,6 +97,10 @@ async function getOrComputeForecast(indicator, scenarioLevel) {
     } else {
       // 真实指标（container 等）：趋势外推引擎演算
       const engineResult = computeForecast(historical, scenarioLevel)
+      // 8-12：同上，错误不塞成功信封
+      if (engineResult.metadata?.error) {
+        throw new BusinessError(ErrorCode.ANALYSIS_FAILED, engineResult.metadata.error)
+      }
       forecast = engineResult.forecast
       metadata = engineResult.metadata
     }

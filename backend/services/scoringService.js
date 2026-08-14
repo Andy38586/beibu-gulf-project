@@ -6,7 +6,9 @@ import { logger } from '../utils/logger.js'
 
 /** 线性距离衰减：距离 >= maxDistance 得 0 分，否则按比例线性衰减（百分制） */
 export const linearDecay = (distance, maxDistance) => {
-  if (distance >= maxDistance) return 0
+  // 8-9：无效坐标会使 turf.distance 返回 NaN（NaN >= 0 恒 false → 穿透到除法）；
+  // 显式守卫，NaN 距离按 0 分处理（02 §5.6 不变量 5：NaN 禁传播）
+  if (!Number.isFinite(distance) || distance >= maxDistance) return 0
   return (1 - distance / maxDistance) * 100
 }
 
@@ -50,16 +52,25 @@ export const DEFAULT_WEIGHTS = {
   mall: 0.7,
 }
 
-/** 为设施点集构建 rbush 空间索引，避免 O(n²) 全量遍历 */
+/** 为设施点集构建 rbush 空间索引，避免 O(n²) 全量遍历；8-4：无效坐标点跳过不索引 */
 function buildFacilityIndex(points) {
   const tree = new RBush()
-  const items = points.map((p) => ({
-    minX: p.lng,
-    minY: p.lat,
-    maxX: p.lng,
-    maxY: p.lat,
-    data: p,
-  }))
+  const items = []
+  for (const p of points) {
+    if (!Number.isFinite(p?.lng) || !Number.isFinite(p?.lat)) {
+      logger.warn(
+        `[scoringService] 设施点坐标无效已跳过: ${p?.id ?? p?.name ?? '(无标识)'}`
+      )
+      continue
+    }
+    items.push({
+      minX: p.lng,
+      minY: p.lat,
+      maxX: p.lng,
+      maxY: p.lat,
+      data: p,
+    })
+  }
   tree.load(items)
   return tree
 }
@@ -135,6 +146,13 @@ export function scoreXiaoqu(
     let totalScore = 0
     let totalWeight = 0
     const breakdown = {}
+
+    // 8-4：小区坐标无效时整条评分链产出 NaN（bbox 粗筛退化 + turf.distance NaN）；
+    // 无效小区按 0 分计并告警，不静默传播 NaN
+    if (!Number.isFinite(xq?.lng) || !Number.isFinite(xq?.lat)) {
+      logger.warn(`[scoringService] 小区坐标无效，按 0 分计: ${xq?.id ?? '(无标识)'}`)
+      return { ...xq, score: 0, breakdown: {} }
+    }
 
     Object.entries(typeSettings).forEach(([key, setting]) => {
       if (!setting.selected) return

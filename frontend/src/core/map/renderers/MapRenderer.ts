@@ -13,10 +13,16 @@ import type {
 } from '@/types'
 
 /** 图层状态（_layers Map 的值类型） */
-interface LayerState {
+export interface LayerState {
   instance: unknown
   visible: boolean
   options?: LayerOptions
+  /** Cesium 子类扩展：原始全量要素（culling 用）与相机监听句柄（rAF 防抖） */
+  allFeatures?: PointFeature[]
+  cameraListener?: (() => void) | null
+  /** Cesium 子类扩展：culling 用空间索引与视口 rAF 句柄 */
+  _spatialIndex?: unknown
+  _viewportRafId?: number | null
 }
 
 /** flyTo 目标归一化后的联合类型 */

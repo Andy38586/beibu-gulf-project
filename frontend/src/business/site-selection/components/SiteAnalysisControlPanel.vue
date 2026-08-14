@@ -202,14 +202,18 @@ function getSettings() {
   return JSON.parse(JSON.stringify(typeSettings))
 }
 
-function restoreSettings(settings: Record<string, any>) {
+function restoreSettings(settings: Record<string, unknown>) {
   if (!settings) return
   Object.entries(settings).forEach(([key, value]) => {
-    if (typeSettings[key]) {
-      typeSettings[key].selected = value.selected || false
-      typeSettings[key].importance = value.importance || 3
-      typeSettings[key].selecting = false
+    const cfg = typeSettings[key]
+    if (!cfg) return
+    // C-9：外部快照数据 unknown 承接，字段级守卫（防 undefined.selected 隐式解引用）
+    const v = value as { selected?: unknown; importance?: unknown } | null
+    if (v && typeof v === 'object') {
+      cfg.selected = Boolean(v.selected) || false
+      cfg.importance = typeof v.importance === 'number' ? v.importance : 3
     }
+    cfg.selecting = false
   })
 }
 

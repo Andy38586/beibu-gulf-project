@@ -552,7 +552,7 @@ defineExpose({
   position: absolute;
   inset: 0;
   overflow: hidden;
-  z-index: 1;
+  z-index: var(--GCS-z-map);
 }
 
 .map-container {
@@ -572,7 +572,7 @@ defineExpose({
   align-items: center;
   justify-content: center;
   background: rgb(255 255 255 / 85%);
-  z-index: 100;
+  z-index: var(--GCS-z-map-status);
   gap: 12px; /* 12px 非8的整数倍，保留 */
 }
 
@@ -603,7 +603,7 @@ defineExpose({
   background: rgb(255 255 255 / 90%);
   padding: v-bind(cell8px) 12px; /* 12px 非8的整数倍，保留 */
   border-radius: 6px;
-  z-index: 100;
+  z-index: var(--GCS-z-map-status);
 }
 
 .boundary-warning {
@@ -614,7 +614,7 @@ defineExpose({
   padding: 6px 12px; /* 6px/12px 非8的整数倍，保留 */
   border-radius: 6px;
   font-size: 13px;
-  z-index: 90;
+  z-index: var(--GCS-z-map-overlay);
 }
 
 .fade-enter-active,

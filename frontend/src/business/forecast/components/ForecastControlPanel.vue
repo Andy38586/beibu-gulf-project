@@ -398,20 +398,23 @@ onUnmounted(() => stopPlayback())
 
 .conf-slider::-webkit-slider-thumb {
   appearance: none;
-  width: 14px;
-  height: 14px;
+  /* S7-19：与 t-slider 统一 16px 拇指（原 14px vs 18px 不一致） */
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
   background: var(--GCS-bg-panel);
   cursor: pointer;
+  border: 2px solid var(--GCS-color-primary);
+  box-shadow: var(--GCS-shadow-sm);
 }
 
 .conf-slider::-moz-range-thumb {
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
   background: var(--GCS-bg-panel);
   cursor: pointer;
-  border: none;
+  border: 2px solid var(--GCS-color-primary);
 }
 
 .conf-pct {

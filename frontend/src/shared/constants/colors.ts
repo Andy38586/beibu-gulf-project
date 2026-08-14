@@ -29,6 +29,12 @@ export const LAYER_FILL_WATER = 'rgba(64, 158, 255, 0.5)'
 /** 覆盖层填充（useAnalysisLayer COVERAGE_STYLE） */
 export const LAYER_FILL_COVERAGE = 'rgba(64, 158, 255, 0.15)'
 
+// S7-12：剖面面积渐变 stops（success 绿 #67C23A 派生，WaterLevelProfilePanel 面积图）
+/** 剖面面积渐变-强端（近水面） */
+export const PROFILE_AREA_STOP_STRONG = 'rgba(103, 194, 58, 0.3)'
+/** 剖面面积渐变-弱端（远离水面） */
+export const PROFILE_AREA_STOP_WEAK = 'rgba(103, 194, 58, 0.05)'
+
 // 图层默认回退色（renderer 在无 options 覆盖时使用）
 export const LAYER_DEFAULTS = {
   color: '#409eff', // 默认点 / 要素色

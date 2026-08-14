@@ -37,7 +37,7 @@
   --GCS-text-regular: #333333; /* 一般按钮文字 */
   --GCS-text-secondary: #606266; /* 说明文字、info-label */
   --GCS-text-muted: #909399; /* 辅助文字、占位符 */
-  --GCS-text-placeholder: #c0c4cc; /* 输入框 placeholder */
+  --GCS-text-placeholder: #909399; /* 输入框 placeholder（S7-21：原 #c0c4cc 对比度 1.75:1 不足，提至与 muted 同档 ~3.2:1） */
   --GCS-text-inverse: #ffffff; /* 反白（蓝色背景上的文字） */
 
   /* ===== 边框色系 ===== */
@@ -104,7 +104,7 @@
   --GCS-text-regular: #d0d7e0;
   --GCS-text-secondary: #a8b2bd;
   --GCS-text-muted: #7a8694;
-  --GCS-text-placeholder: #5a6675;
+  --GCS-text-placeholder: #7a8694; /* S7-21：原 #5a6675 对比度 2.98:1，提至与 muted 同档（暗色下更清晰） */
   --GCS-text-inverse: #0d1b2a;
 
   --GCS-border-default: #1f3450;
@@ -116,6 +116,10 @@
   --GCS-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.55);
   --GCS-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.6);
   --GCS-shadow-float: 0 12px 36px rgba(0, 0, 0, 0.65);
+
+  /* S7-08/23：GCSModal/GCSToast 引用但未定义的 token 补正式定义（与 shared/layout/config.ts CELL_PIXEL 同源） */
+  --GCS-cell: 80px; /* 网格单元（≥1920→90 / ≥960→80 / <960→70，静态基准取 80） */
+  --GCS-font-size-body: 14px; /* 正文基准字号（组件 fallback 原 14px 语义化） */
 }
 
 /* ===== 全局重置 ===== */
@@ -131,6 +135,12 @@ body,
   width: 100%;
   height: 100%;
   overflow: hidden;
+}
+
+/* S7-06：键盘可访问性——自绘按钮/可交互元素统一 focus 环（原无 :focus-visible 样式） */
+:focus-visible {
+  outline: 2px solid var(--GCS-border-focus);
+  outline-offset: 2px;
 }
 
 body {

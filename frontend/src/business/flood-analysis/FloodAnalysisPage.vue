@@ -523,7 +523,7 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   background: rgb(255 255 255 / 5%);
-  border: 1px dashed rgb(255 255 255 / 20%);
+  border: 1px dashed var(--GCS-border-default);
   border-radius: 8px;
   color: rgb(255 255 255 / 60%);
 }

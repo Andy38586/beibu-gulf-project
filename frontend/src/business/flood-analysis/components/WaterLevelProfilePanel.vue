@@ -18,7 +18,7 @@ import { onMounted, onUnmounted, ref, watch } from 'vue'
 
 import { useSliderFocus } from '@/core/layout/useSliderFocus'
 import { useApiRequest } from '@/shared'
-import { PROFILE_COLORS } from '@/shared'
+import { PROFILE_AREA_STOP_STRONG, PROFILE_AREA_STOP_WEAK, PROFILE_COLORS } from '@/shared'
 import { useGCS } from '@/shared'
 import { showError } from '@/shared'
 import { logger } from '@/shared'
@@ -229,8 +229,8 @@ function updateChart() {
         },
         areaStyle: {
           color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            { offset: 0, color: 'rgba(103, 194, 58, 0.3)' },
-            { offset: 1, color: 'rgba(103, 194, 58, 0.05)' },
+            { offset: 0, color: PROFILE_AREA_STOP_STRONG },
+            { offset: 1, color: PROFILE_AREA_STOP_WEAK },
           ]),
         },
       },

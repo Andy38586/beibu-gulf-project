@@ -1,10 +1,9 @@
 import { defineStore } from 'pinia'
-import type { ComputedRef, Ref, ShallowRef } from 'vue'
-import { computed, ref, shallowRef } from 'vue'
+import type { Ref, ShallowRef } from 'vue'
+import { ref, shallowRef } from 'vue'
 
 // 分层铁律：stores 不得引用 business——初始化所需共享常量一律从 shared 取
 import { BASE_YEAR, DEFAULT_CONFIDENCE, END_YEAR } from '@/shared'
-import type { ForecastSeries } from '@/types/api/forecast'
 import type { ConfidenceThresholds, ForecastTimeRange } from '@/types/business/base'
 
 import { createPersistedState } from './factories/createPersistedState'
@@ -21,8 +20,6 @@ export interface ForecastSavedState {
   activeIndicator: string
   confidenceThresholds: ConfidenceThresholds
   activeForecastLayer: string | null
-  /** store 层数据缓存（currentData 即时可用） */
-  dataCache: Array<[string, ForecastSeries]>
   /** 页面本地请求缓存（恢复后图表零请求重建） */
   requestCache: Array<[string, unknown]>
 }
@@ -49,8 +46,8 @@ export const useForecastStore = defineStore('forecast', () => {
   })
 
   const activeForecastLayer: Ref<string | null> = ref(null)
-  // shallowRef（浅响应式）：Map 为可变结构，深度追踪无意义且浪费性能
-  const dataCache: ShallowRef<Map<string, ForecastSeries>> = shallowRef(new Map())
+  // F-7：原 dataCache/currentData 无业务写路径（死状态，currentData 恒 null），已移除；
+  // 数据缓存职责由 requestCache（LRU 上限 50）承担
 
   // 页面请求缓存（跨页面快照序列化；Map 不可直接入快照，saveState 时转数组）。
   // 原为 ForecastPage 页面级 Map，C4 收口后迁入 store 统一管理（含快照恢复）
@@ -61,10 +58,6 @@ export const useForecastStore = defineStore('forecast', () => {
   /** 请求事务状态迁入 store（消除请求 composable 的模块级可变状态）；AbortController 不可序列化、不响应式，仍由请求实例持有并透传 signal */
   const activeTransactionId: Ref<number> = ref(0)
   const isRequesting: Ref<boolean> = ref(false)
-
-  const currentData: ComputedRef<ForecastSeries | null> = computed(() => {
-    return dataCache.value.get(currentTime.value) ?? null
-  })
 
   function setCurrentTime(time: string): void {
     currentTime.value = time
@@ -110,7 +103,6 @@ export const useForecastStore = defineStore('forecast', () => {
     confidenceThresholds.value = { ...saved.confidenceThresholds }
     activeForecastLayer.value = saved.activeForecastLayer
     // shallowRef 需重赋值引用才触发响应式
-    dataCache.value = new Map(saved.dataCache)
     requestCache.value = new Map(saved.requestCache)
   }
 
@@ -134,7 +126,6 @@ export const useForecastStore = defineStore('forecast', () => {
       traffic: DEFAULT_CONFIDENCE,
     }
     activeForecastLayer.value = null
-    dataCache.value = new Map()
     requestCache.value = new Map()
     // 一并复位事务状态（登出/路由切换重置全链路）
     resetTransactionState()
@@ -168,9 +159,7 @@ export const useForecastStore = defineStore('forecast', () => {
     activeIndicator,
     confidenceThresholds,
     activeForecastLayer,
-    dataCache,
     requestCache,
-    currentData,
     activeTransactionId,
     isRequesting,
     setCurrentTime,

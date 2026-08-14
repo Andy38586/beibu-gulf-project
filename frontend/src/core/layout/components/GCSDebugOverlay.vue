@@ -12,7 +12,7 @@ import { useRoute } from 'vue-router'
 import { INSPECTION_COLORS } from '@/shared'
 import { CELL_PIXEL, GRID_SIZE, PANEL_SPACING, SAFE_MARGIN } from '@/shared'
 import { useGCS } from '@/shared'
-import { buildPerfReport } from '@/shared/utils/perfReporter'
+import { buildPerfReport } from '@/shared'
 import { useMapStore } from '@/stores'
 
 interface Props {
@@ -25,7 +25,7 @@ const props = withDefaults(defineProps<Props>(), {
 const { cellPixel, gap, padding } = useGCS()
 
 // GCS 反馈测试入口：与生产共用 gcsFeedback 单例，可直接预览 modal/toast
-import { showModal, showToast } from '@/shared/utils/gcsFeedback'
+import { showModal, showToast } from '@/shared'
 
 function testErrorModal(): void {
   showModal({

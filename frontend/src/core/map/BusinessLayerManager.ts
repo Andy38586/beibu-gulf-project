@@ -5,7 +5,7 @@
  * 关键约束：不持有 renderer 引用（动态取自 mapStore）、catalog 只存元数据、updateData 不覆盖 visible。
  */
 
-import { perfTimeFn } from '@/shared/utils/perfReporter'
+import { perfTimeFn } from '@/shared'
 import { logger } from '@/shared'
 import type { LayerEntry, LayerOptions, MapRenderer } from '@/types'
 import type { LayerType } from '@/types/core/layerManager'

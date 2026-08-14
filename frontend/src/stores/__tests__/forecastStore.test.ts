@@ -9,10 +9,10 @@ import { useForecastStore } from '../forecastStore'
  * （frontend/src/stores/forecastState.ts）补齐全测，覆盖：
  * - 初始状态默认值
  * - setCurrentTime / setActiveIndicator / setTimeGranularity
- * - currentData（按 currentTime 派生的计算属性）
  * - setConfidenceThreshold / clearCache
  * - reset 恢复默认
  * 2026-08-10（面试报告 P0-3）：cacheData 零调用已删，相关用例一并移除
+ * 2026-08-14（F-7）：dataCache/currentData 死状态移除，断言同步删除
  */
 describe('useForecastStore', () => {
   beforeEach(() => {
@@ -27,7 +27,7 @@ describe('useForecastStore', () => {
       expect(store.timeRange.end).toBe('2031-12')
       expect(store.activeIndicator).toBe('cargo')
       expect(store.isPlaying).toBe(false)
-      expect(store.currentData).toBeNull()
+      expect(store.requestCache.size).toBe(0)
     })
   })
 
@@ -74,7 +74,7 @@ describe('useForecastStore', () => {
 
       expect(store.currentTime).toBe('2026-06')
       expect(store.activeIndicator).toBe('cargo')
-      expect(store.currentData).toBeNull()
+      expect(store.requestCache.size).toBe(0)
       expect(store.confidenceThresholds.cargo).toBe(0.8)
     })
   })

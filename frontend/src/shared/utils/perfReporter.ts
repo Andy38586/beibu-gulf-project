@@ -61,6 +61,8 @@ interface PerfState {
 /** 生产开关：默认开（纯聚合开销 <0.1%），VITE_PERF_ENABLED=false 显式关闭 */
 const PERF_ENABLED = import.meta.env.VITE_PERF_ENABLED !== 'false'
 const IS_DEV = import.meta.env.DEV
+/** dev 明细 entries 环形上限（F-6：长会话防内存增长） */
+const MAX_DEV_ENTRIES = 1000
 
 /** 埋点是否启用（供调试模式等 UI 判断展示） */
 export function isPerfEnabled(): boolean {
@@ -102,7 +104,11 @@ export function perfMeasure(name: string, startMark: string, endMark: string): n
   if (s == null || e == null) return null
   const d = e - s
   state.measures[name] = d
-  if (IS_DEV) state.entries.push({ name, start: s, duration: d })
+  // F-6：dev 明细 entries 环形上限（长会话防内存增长；超出丢最旧）
+  if (IS_DEV) {
+    state.entries.push({ name, start: s, duration: d })
+    if (state.entries.length > MAX_DEV_ENTRIES) state.entries.shift()
+  }
   return d
 }
 
@@ -119,7 +125,11 @@ export function perfTimeFn<T>(name: string, fn: () => T): T {
     agg.total += d
     if (d > agg.max) agg.max = d
     state.timers.set(name, agg)
-    if (IS_DEV) state.entries.push({ name, start: s, duration: d })
+    // F-6：同 perfMeasure，entries 环形上限
+    if (IS_DEV) {
+      state.entries.push({ name, start: s, duration: d })
+      if (state.entries.length > MAX_DEV_ENTRIES) state.entries.shift()
+    }
   }
 }
 

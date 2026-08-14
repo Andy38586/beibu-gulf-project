@@ -22,7 +22,7 @@ import { PROFILE_COLORS } from '@/shared'
 import { useGCS } from '@/shared'
 import { showError } from '@/shared'
 import { logger } from '@/shared'
-import { perfTimeFn } from '@/shared/utils/perfReporter'
+import { perfTimeFn } from '@/shared'
 import { useFloodStore } from '@/stores'
 import { terrainProfileSchema } from '@/types/schemas'
 

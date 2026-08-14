@@ -58,7 +58,6 @@ function saveForecastState(): void {
     activeIndicator: forecastState.activeIndicator,
     confidenceThresholds: { ...forecastState.confidenceThresholds },
     activeForecastLayer: forecastState.activeForecastLayer,
-    dataCache: Array.from(forecastState.dataCache.entries()),
     requestCache: Array.from(forecastState.requestCache.entries()),
   })
 }

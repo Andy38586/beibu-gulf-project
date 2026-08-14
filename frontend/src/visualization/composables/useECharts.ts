@@ -14,7 +14,7 @@ import type { Ref, WatchSource } from 'vue'
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 
 import { useTheme } from '@/shared'
-import { perfTimeFn } from '@/shared/utils/perfReporter'
+import { perfTimeFn } from '@/shared'
 
 echarts.use([
   GridComponent,

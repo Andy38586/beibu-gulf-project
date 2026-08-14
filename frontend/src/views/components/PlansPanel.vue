@@ -10,7 +10,7 @@ import { useRouter } from 'vue-router'
 
 import { EDITING_PLAN_KEY, RESTORE_PLAN_DATA_KEY } from '@/core'
 import { useAuth, usePlans } from '@/shared'
-import { showModal } from '@/shared/utils/gcsFeedback'
+import { showModal } from '@/shared'
 import { logger } from '@/shared'
 import PaginatedListPanel from '@/shared/components/PaginatedListPanel.vue'
 import PlanSaveModal from '@/shared/components/PlanSaveModal.vue'

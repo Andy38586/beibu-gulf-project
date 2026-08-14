@@ -390,16 +390,18 @@ export class CesiumRenderer extends MapRenderer {
     if (!viewer) return
 
     // errorEvent 在 ImageryProvider 上而非 ImageryLayerCollection（挂后者抛 TypeError 致 3D 初始化失败）；首次失败 warn 一次
+    // F-5：回调提为具名函数便于将来显式移除；provider 生命周期与图层绑定（随图层销毁，无独立泄漏路径）
+    const imageryErrorHandler = (err: unknown) => {
+      if (this._imageryErrorLogged) return
+      this._imageryErrorLogged = true
+      logger.warn(
+        '[CesiumRenderer] 底图瓦片加载失败（首次）:',
+        err instanceof Error ? err.message : err
+      )
+    }
     const attachImageryErrorLog = (provider: UrlTemplateImageryProvider) => {
       if (!provider?.errorEvent) return
-      provider.errorEvent.addEventListener((err: unknown) => {
-        if (this._imageryErrorLogged) return
-        this._imageryErrorLogged = true
-        logger.warn(
-          '[CesiumRenderer] 底图瓦片加载失败（首次）:',
-          err instanceof Error ? err.message : err
-        )
-      })
+      provider.errorEvent.addEventListener(imageryErrorHandler)
     }
 
     // UrlTemplateImageryProvider 不识别 {layerCode}/{key} 占位符（原样发送致天地图请求失败底图空白，
@@ -1258,10 +1260,12 @@ export function addGeoTIFFLayer(
       tileHeight: 2819,
     } as any)
     // 补 PNG 加载失败监听（OL 侧 addGeoTIFFLayer 已有等价监听）：把静默无图变成可见 warn
+    // F-5：具名回调；provider 生命周期与图层绑定（hillshade 移除即销毁），无独立泄漏路径
     if (provider.errorEvent) {
-      provider.errorEvent.addEventListener((err: unknown) => {
+      const hillshadeErrorHandler = (err: unknown) => {
         logger.warn(`[CesiumRenderer] hillshade 影像加载失败: ${pngUrl}`, err)
-      })
+      }
+      provider.errorEvent.addEventListener(hillshadeErrorHandler)
     }
     const imageryLayer = renderer.viewer!.imageryLayers.addImageryProvider(provider)
     // hillshade 顶层叠加 + 默认 alpha 0.85：明暗清晰可辨（曾 0.45 太淡，用户视觉上看不到 DEM 图层；

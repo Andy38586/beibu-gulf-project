@@ -33,11 +33,16 @@ async function download(url, file) {
   for (let attempt = 1; attempt <= RETRIES; attempt++) {
     try {
       const headers = existing > 0 ? { Range: `bytes=${existing}-` } : {}
-      const res = await fetch(url, {
-        headers,
-        redirect: 'follow',
-        signal: AbortSignal.timeout(90000), // stall guard; mid-stream abort resumes via Range
-      })
+      // sliding stall guard: 120s per chunk (not per whole file) — aborts only when stuck
+      const ac = new AbortController()
+      let timer
+      const kick = () => {
+        clearTimeout(timer)
+        timer = setTimeout(() => ac.abort(), 120000)
+      }
+      kick()
+      const res = await fetch(url, { headers, redirect: 'follow', signal: ac.signal })
+      kick()
       if (res.status === 416) {
         // Range not satisfiable -> file already complete
         fs.renameSync(tmp, file)
@@ -55,10 +60,14 @@ async function download(url, file) {
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
+        kick() // got a chunk -> refresh stall timer
         if (!out.write(value)) await new Promise((r) => out.once('drain', r))
         total += value.length
       }
+      clearTimeout(timer)
       await new Promise((r) => out.end(r))
+      // Windows: rename fails if target exists -> remove stale target first
+      if (fs.existsSync(file)) fs.unlinkSync(file)
       fs.renameSync(tmp, file)
       const mb = (total / 1048576).toFixed(1)
       console.log(`[done] ${path.basename(file)} ${mb} MB`)

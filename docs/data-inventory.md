@@ -92,9 +92,9 @@
 3. 录入 `预测分析\城市发展指数\city_index.csv`（year, city, gdp, population, ...）
 4. 与吞吐量合并构造"城市发展指数"（主成分或加权）
 
-### C. 工业园区多边形（🔄 正在提取）
-- 已写 `tools/extract-industrial.py`：OSM `landuse=industrial` + bbox 过滤 → `多边形\工业园区\beibu-industrial.geojson`
-- 补充：高德 POI（`tools/.amap_key` 已有）抓"产业园区/工业园区"名称点，与 OSM 面合并
+### C. 工业园区（polygon ✅ 已提取 / POI ⏳ 计划未执行）
+- ✅ **polygon**：`tools/extract-industrial.py`：OSM `landuse=industrial` + bbox 过滤 → `多边形\工业园区\beibu-industrial.geojson`（2,687 个面，来源=Geofabrik OSM PBF，可复现）
+- ⏳ **POI（未执行，明确标注为计划）**：拟用高德 POI 抓"产业园区/工业园区"名称点与 OSM 面合并——**目前没有工业区 POI 数据**，需要时按 §二-8 的高德抓取脚本模式补抓
 
 ### D. 生态保护红线（人工申请）
 - 广西自然资源厅申请或公开图件勾绘；**过渡方案**：WDPA + 三娘湾中华白海豚保护区边界（公开）先行

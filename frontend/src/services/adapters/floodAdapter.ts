@@ -4,7 +4,7 @@
  * 静态数据已移交后端，字段由后端对齐类型契约，前端不再做字段映射。
  */
 
-import { useApiRequest } from '@/shared'
+import { logger, useApiRequest } from '@/shared'
 import type { AffectedFacility, FloodFeature, FloodStatistics } from '@/types/business/base'
 import {
   floodAreasResponseSchema,
@@ -112,9 +112,15 @@ export const floodAdapter = {
       // 档位缓存：同档位直接复用上次结果（滑块来回拖秒回，不重发请求不重绘）
       const levelKey = Math.round(waterLevel * 10) / 10
       const hit = _onlineLevelCache.get(levelKey)
-      if (hit) return hit
+      if (hit) {
+        logger.debug(`[floodAdapter] online 缓存命中档位 ${levelKey}`)
+        return hit
+      }
 
       const data = await _fetchOnlineFlood(waterLevel, signal)
+      logger.info(
+        `[floodAdapter] online 演算完成: 请求=${waterLevel}m 实际档=${data.level}m 面积=${data.floodedKm2}km² 要素=${data.featureCount}`
+      )
       const riskLevel = _riskLevelFromFlood(data.floodedKm2 ?? 0, data.level ?? waterLevel)
       const features = (data.features ?? []).map((f) => ({
         ...f,
@@ -140,6 +146,7 @@ export const floodAdapter = {
       return result
     }
     // api：并行取淹没范围 + 统计；后端已按类型契约返回（riskLevel/字段名一致），直接透传
+    logger.debug(`[floodAdapter] api 数据源请求: 水位=${waterLevel}m`)
     const [floodAreasRes, statisticsRes] = await Promise.all([
       apiRequest<FloodAreasResponseParsed>('/flood/flood-areas', {
         params: { waterLevel },
@@ -172,6 +179,7 @@ export const floodAdapter = {
   ): Promise<ImpactAssessmentResult> {
     // online：FastAPI 预计算档位表 → 空间筛选设施影响
     if (dataSource === 'online') {
+      logger.debug(`[floodAdapter] impact online: 水位=${waterLevel}m`)
       const res = await apiRequest<Record<string, unknown>>('/flood-online/api/flood/impact', {
         params: { level: waterLevel },
         signal,

@@ -6,7 +6,7 @@
 
 import { computed } from 'vue'
 
-import { FACILITY_COLORS_MAP } from '@/shared'
+import { FACILITY_COLORS_MAP, FACILITY_FALLBACK_COLOR } from '@/shared'
 import { RADAR_TOOLTIP_HEIGHT_CELL } from '@/shared'
 import { RADAR_TOOLTIP_WIDTH_CELL } from '@/shared'
 import { useGCS } from '@/shared'
@@ -35,7 +35,7 @@ const unitPx = computed(() => `${cellPixel.value * 0.1}px`)
 
 /** 获取设施颜色（从 shared 色值映射取，不依赖 business 层） */
 function getFacilityColor(key: string) {
-  return FACILITY_COLORS_MAP[key] || '#666'
+  return FACILITY_COLORS_MAP[key] || FACILITY_FALLBACK_COLOR
 }
 </script>
 

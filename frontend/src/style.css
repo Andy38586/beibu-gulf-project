@@ -9,7 +9,7 @@
   /* ===== 系统主色 =====
    * 系统只有一个交互色：#409eff 蓝色。
    * 语义状态色（error/success）统一在此定义，业务模块引用 var(--GCS-color-xxx)。 */
-  --GCS-color-primary: #409eff;
+  --GCS-color-primary: #409eff; /* S7-30 已知豁免：白字对比度 2.78:1（暗色侧 6.67:1 达标）；品牌蓝提亮改档影响全站组件，登记豁免，redesign 时统一处理 */
   --GCS-color-primary-hover: #66b1ff;
   --GCS-color-primary-active: #3a8ee6;
   --GCS-color-primary-bg: #ecf5ff;
@@ -171,7 +171,7 @@ body {
   }
 }
 
-/* ===== 移动端业务面板抽屉（响应式，<768px 由 AppLayout 渲染） ===== */
+/* ===== 移动端业务面板抽屉（响应式：<960px 由 AppLayout 渲染，断点见 02 §5.4 档位 2/3） ===== */
 .GCS-drawer {
   position: fixed;
   inset: 0;

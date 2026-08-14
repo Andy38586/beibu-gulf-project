@@ -10,6 +10,7 @@ import {
   CHART_COLORS,
   CHART_GRID,
   FACILITY_COLORS_MAP,
+  FACILITY_FALLBACK_COLOR,
   RADAR_AXIS_NAME_ALLOWANCE,
   RADAR_AXIS_NAME_FONT_SIZE,
   RADAR_AXIS_NAME_GAP,
@@ -101,7 +102,7 @@ export function useRadarChart({
 
   /** 获取设施颜色（从 shared 色值映射取，不依赖 business 层） */
   function getFacilityColor(key: string): string {
-    return FACILITY_COLORS_MAP[key] || '#666'
+    return FACILITY_COLORS_MAP[key] || FACILITY_FALLBACK_COLOR
   }
 
   /** 构建雷达图 option（每次现取容器尺寸，radius 依赖容器大小） */
@@ -115,7 +116,7 @@ export function useRadarChart({
     // 容器尺寸不足时重试，最多重试10次（1秒）
     if (w < 10 || h < 10) {
       const container = chartRef.value as RadarChartContainer | null
-      const retryCount = ((container?._radar_retryCount || 0) + 1)
+      const retryCount = (container?._radar_retryCount || 0) + 1
       if (container) {
         if (retryCount > 10) {
           logger.debug('雷达图容器尺寸持续不足，放弃渲染')

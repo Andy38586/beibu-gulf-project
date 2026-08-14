@@ -20,6 +20,9 @@ export const FACILITY_COLORS_MAP: Record<string, string> = {
   mall: '#1abc9c',
 }
 
+/** 设施未知 key 兜底色（S7-31：原两处散落 '#666' 收口；仅图表 fallback 用，未知设施类型按中性灰显示） */
+export const FACILITY_FALLBACK_COLOR = '#666666'
+
 // 图层默认回退色（renderer 在无 options 覆盖时使用）
 export const LAYER_DEFAULTS = {
   color: '#409eff', // 默认点 / 要素色

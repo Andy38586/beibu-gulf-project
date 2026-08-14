@@ -997,7 +997,7 @@
 
 **断点常量**：LAYOUT_DESKTOP_MIN=960 / LAYOUT_DRAWER_MIN=640（`shared/layout/config.ts`）
 
-**已知违约基线**：`style.css:102/:108`、`PortInfoPanel.vue:54`（2026-08 待修复）
+**已知违约基线（2026-08-14 复核）**：`PortInfoPanel.vue:50` box-shadow 半透明黑（`rgb(0 0 0 / 20%)`，可接受惯例或改 `--GCS-shadow-*`）；`style.css` 原 102/108 行现为 `:root`/dark 变量定义区，违约项已失效移除。
 
 ## 附录 E：审查执行流程建议（9 步）
 
@@ -1266,10 +1266,19 @@ const ratio=(a,b)=>{const l1=L(a),l2=L(b);return (Math.max(l1,l2)+0.05)/(Math.mi
 **命令集**：
 
 ```bash
-# 1. 死 token 检测（定义未被引用）
+# 1. 死 token 检测（定义未被引用）——排除定义文件与定义行本身，避免把 :root 定义计入"引用"造成漏报/误报
 for t in $(grep -oE -- '--GCS-[a-z0-9-]+' frontend/src/style.css | sort -u); do
-  n=$(grep -rn --include='*.vue' --include='*.css' --include='*.ts' -F "$t" frontend/src | wc -l)
-  [ "$n" -le 1 ] && echo "死 token: $t (引用 $n)"
+  n=$(grep -rn --include='*.vue' --include='*.css' --include='*.ts' -F "$t" frontend/src \
+    | grep -v 'style.css' \
+    | grep -vE '^\s*--GCS-' \
+    | wc -l)
+  [ "$n" -eq 0 ] && echo "死 token: $t"
+done
+# 1b. 仅注释引用（引用行以 // 或 /* 开头）视为未消费，单独列出供人工确认
+for t in $(grep -oE -- '--GCS-[a-z0-9-]+' frontend/src/style.css | sort -u); do
+  hits=$(grep -rn --include='*.vue' --include='*.css' --include='*.ts' -F "$t" frontend/src \
+    | grep -v 'style.css' | grep -vE '^\s*--GCS-' | grep -E ':\s*(//|/\*|<!--)' || true)
+  [ -n "$hits" ] && echo "仅注释引用: $t"
 done
 # 2. stylelint 检查
 npx stylelint 'frontend/src/**/*.vue' 'frontend/src/**/*.css' --config .stylelintrc 2>/dev/null || echo "stylelint 未配置"
@@ -1285,9 +1294,10 @@ Object.entries(map).filter(([,v])=>v.length>1).forEach(([v,ks])=>console.log('�
 ```
 
 **命中解读**：
-- 死 token（引用 ≤1，含定义自身）→ 指标 5.3/5.5，清理或确认。
+- 死 token（真实引用 0，含仅注释提及）→ 指标 5.3/5.5，清理或确认。
 - 组件内 `--GCS-` 定义 → 指标 5.4。
 - 同值多 token → 指标 5.3，合并。
+- 注：token 名互为前缀（如 --GCS-bg 与 --GCS-bg-panel）时 grep -F 会互相计入，属已知保守偏差（宁多报不漏报）。
 
 ### H.6 已知违约跟踪表（审查时维护）
 

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * DebugToggle - 独立调试模式开关（仅本地开发）
- * 固定右下角、不随响应式布局变化；Teleport 到 body（z-index 1100 与抽屉同级竞争）。
+ * 固定右下角、不随响应式布局变化；Teleport 到 body（z-index 取 --GCS-z-modal 档，见样式）。
  * 显式 props/emits 而非 defineModel：Teleport 根的 defineModel 会失效。
  * 移除：删掉 AppLayout 中两处引用即完全脱离。
  */

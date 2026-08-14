@@ -8,11 +8,16 @@ import type { MapRenderer } from '@/types'
 
 /** localStorage 键：底图 */
 const BASE_LAYER_STORAGE_KEY = 'beibu-gulf-base-layer'
+/** 合法底图 key 白名单（与 UnifiedMap.vue registerBaseLayer 注册处同源；防旧版本残留值污染） */
+const BASE_LAYER_KEYS = ['base-image', 'base-vector']
 
 function readStoredBaseLayer(): string | null {
   if (typeof window === 'undefined') return null
   try {
-    return window.localStorage.getItem(BASE_LAYER_STORAGE_KEY)
+    const key = window.localStorage.getItem(BASE_LAYER_STORAGE_KEY)
+    // 白名单校验：底图 key 集合演进后，旧 localStorage 值可能指向已不存在的底图，
+    // 直接透传会导致初始底图静默降级且面板无高亮（P1-8）
+    return key && BASE_LAYER_KEYS.includes(key) ? key : null
   } catch {
     return null
   }

@@ -127,6 +127,11 @@ def flood_online(
     pre = _load_levels().get(str(key))
     if pre is not None:
         resp = dict(pre)
+        # 水位 0 = 无淹没（02 §4.3 应然契约）；预计算 0 档存在海面种子误差
+        # （floodedKm2=6.87 但 features 空，历史缺陷 8-6）——统一修正为 0，
+        # 避免前端"淹没 6.87km²"数字与空地图矛盾（风险等级已有 level<=0 特判）
+        if key <= 0 and resp.get("floodedKm2", 0) > 0:
+            resp["floodedKm2"] = 0.0
         # 回显实际档位（滑块 step=0.1 → key == level，前端无"档位偏差"提示噪音）
         resp["level"] = key
         return resp

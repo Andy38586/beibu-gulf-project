@@ -36,12 +36,14 @@ export function deriveRiskLevel(level) {
 /** 查预计算档位表（0.1m 档全量水位，与 FastAPI 同源）；miss 返回 null，调用方回退 6 档 */
 async function lookupFloodZone(level) {
   const table = await loadFloodLevels()
-  const key = Math.round(level * 10) / 10
-  const pre = table[String(key)]
+  // 表键为 toFixed(1) 字符串格式（"0.0"/"2.5"/"15.0"），整数档必须补 .0 才能命中，
+  // 否则 3.0/4.0 等整数水位全部 miss、251 档表退化为 6 档（历史缺陷 8-1）
+  const key = (Math.round(level * 10) / 10).toFixed(1)
+  const pre = table[key]
   if (!pre?.features || pre.features.length === 0) return null
   return {
-    waterLevel: key,
-    riskLevel: deriveRiskLevel(key),
+    waterLevel: Number(key),
+    riskLevel: deriveRiskLevel(Number(key)),
     features: pre.features,
   }
 }

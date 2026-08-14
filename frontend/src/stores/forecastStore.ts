@@ -154,6 +154,11 @@ export const useForecastStore = defineStore('forecast', () => {
     return persisted.consumeState()
   }
 
+  /** 显式清空快照（登出时调用——reset() 刻意不清快照，登出必须清，见 App.vue resetStores） */
+  function clearState(): void {
+    persisted.clearPersistedState()
+  }
+
   return {
     currentTime,
     timeRange,
@@ -182,5 +187,6 @@ export const useForecastStore = defineStore('forecast', () => {
     hasPersistedState: persisted.hasPersistedState,
     saveState,
     consumeState,
+    clearState,
   }
 })

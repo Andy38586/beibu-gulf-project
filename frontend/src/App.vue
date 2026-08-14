@@ -65,6 +65,9 @@ function resetStores(): void {
     useMapStore().resetMapState()
     // 预测页状态复位（含 dataCache 清空）
     useForecastStore().reset()
+    // 预测快照残留修复（F-3）：reset() 刻意不清快照（保证卸载重置链路），
+    // 登出必须显式清，否则下次登录会恢复登出前的旧会话状态
+    useForecastStore().clearState()
   } catch {
     // store 未激活等异常不阻断登出
   }

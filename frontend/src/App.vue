@@ -24,7 +24,7 @@ import GCSToast from '@/shared/components/GCSToast.vue'
 import { useFloodStore } from '@/stores'
 import { useForecastStore } from '@/stores'
 import { useMapStore } from '@/stores'
-import { siteSelectionPersisted } from '@/stores'
+import { useSiteSelectionStore } from '@/stores'
 import type { TypeSetting } from '@/types/facility'
 import type { Plan } from '@/types/plan'
 
@@ -58,7 +58,7 @@ businessLayerManager.setErrorHandler(({ label }: { label: string }) => {
 // 登出/多标签页登出（authUser 变 null）时统一重置各业务 store
 function resetStores(): void {
   try {
-    siteSelectionPersisted.clearState()
+    useSiteSelectionStore().clearState()
     // 各业务状态已并入 floodStore，clearState 全量清（含持久化快照）
     useFloodStore().clearState()
     // 重置地图业务交互状态，清 lastAnalysisResult 会话持久化与 sessionStorage

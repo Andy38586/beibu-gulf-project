@@ -71,6 +71,16 @@ export default defineConfig([
   },
 
   {
+    // tools/、scripts/ 下的 .mjs Node 脚本（perf-bench 等基准/工具脚本）需要 node 全局
+    files: ['tools/**/*.mjs', 'scripts/**/*.mjs'],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+      },
+    },
+  },
+
+  {
     // 根目录的构建/测试配置文件运行在 Node 环境（eslint.config.js 自身也在此列）
     files: ['eslint.config.js', 'frontend/vite.config.js', 'vitest.config.js'],
     languageOptions: {

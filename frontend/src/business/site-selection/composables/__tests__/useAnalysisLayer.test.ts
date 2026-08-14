@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from 'vitest'
 import type { Feature, FeatureCollection, Geometry } from 'geojson'
+import { describe, expect, it, vi } from 'vitest'
 
 import type { BusinessLayerManager } from '@/core'
 import type { AnalysisResult } from '@/types'

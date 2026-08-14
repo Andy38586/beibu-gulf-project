@@ -1,3 +1,6 @@
+import { defineStore } from 'pinia'
+import { ref } from 'vue'
+
 import type { FacilityPoint, TypeSetting } from '@/types/facility'
 import type { ScoredXiaoqu } from '@/types/xiaoqu'
 
@@ -13,14 +16,61 @@ export interface SiteSelectionState {
 }
 
 /**
- * 选址分析跨页面状态持久化：模块级单例（模块变量天然单例，无业务状态，无需 Pinia），
- * App.vue 登出清理与选址页保存/恢复共享同一快照。
+ * 选址分析跨页面状态 store（Pinia，与 flood/forecast 状态管理范式统一）：
+ * - 跨页面持久化（saveState/consumeState/clearState）走 createPersistedState 内存快照工厂；
+ * - 请求进行态（calculating/calcError）也迁入 store，供请求 composable 与页面共享（对齐 forecast）。
+ * App.vue 登出清理与选址页保存/恢复共享同一 store 实例。
  */
-const persisted = createPersistedState<SiteSelectionState>()
+export const useSiteSelectionStore = defineStore('site-selection', () => {
+  // ─── 请求进行态 ──────────────────────────────────────────
+  const calculating = ref(false)
+  const calcError = ref('')
 
-export const siteSelectionPersisted = {
-  hasPersistedState: persisted.hasPersistedState,
-  saveState: persisted.saveState,
-  consumeState: persisted.consumeState,
-  clearState: persisted.clearPersistedState,
-}
+  // ─── 分析结果（页面运行时状态） ──────────────────────────
+  const matchedXiaoqu = ref<ScoredXiaoqu[]>([])
+  const selectedTypes = ref<string[]>([])
+  const currentPlanId = ref<string | null>(null)
+  const savedXiaoquIds = ref<string[]>([])
+  const facilityPoi = ref<Record<string, FacilityPoint[]>>({})
+
+  // ─── 跨页面持久化（工厂） ────────────────────────────────
+  const persisted = createPersistedState<SiteSelectionState>()
+
+  /** 保存当前状态到快照（跳转登录时由页面 onBeforeRouteLeave 调用） */
+  function saveState(payload: SiteSelectionState): void {
+    persisted.saveState(payload)
+  }
+
+  /** 消费已保存的状态（一次性，返回后快照清空） */
+  function consumeState(): SiteSelectionState | null {
+    return persisted.consumeState()
+  }
+
+  /** 彻底清除（登出 / 离开页面） */
+  function clearState(): void {
+    persisted.clearPersistedState()
+    matchedXiaoqu.value = []
+    selectedTypes.value = []
+    currentPlanId.value = null
+    savedXiaoquIds.value = []
+    facilityPoi.value = {}
+    calcError.value = ''
+  }
+
+  return {
+    // 请求进行态
+    calculating,
+    calcError,
+    // 分析结果
+    matchedXiaoqu,
+    selectedTypes,
+    currentPlanId,
+    savedXiaoquIds,
+    facilityPoi,
+    // 跨页面持久化
+    hasPersistedState: persisted.hasPersistedState,
+    saveState,
+    consumeState,
+    clearState,
+  }
+})

@@ -38,6 +38,10 @@ export interface UseEChartsOptions {
   getOption: () => Record<string, unknown>
   watchSources?: WatchSource<unknown>[]
   onClick?: ((params: ChartClickParams) => void) | null
+  /** 外部传入的图表容器 ref（如模板条件渲染 v-if 下的元素）。缺省时内部自建 */
+  chartRef?: Ref<HTMLElement | null>
+  /** 容器尺寸变化（resize / ResizeObserver）时是否重算 getOption。用于依赖容器尺寸的 option（如雷达 radius） */
+  recomputeOptionOnResize?: boolean
 }
 
 /** useECharts 返回值 */
@@ -51,8 +55,11 @@ export function useECharts({
   getOption,
   watchSources = [],
   onClick = null,
+  chartRef: externalChartRef,
+  recomputeOptionOnResize = false,
 }: UseEChartsOptions): UseEChartsReturn {
-  const chartRef = ref<HTMLElement | null>(null)
+  // 外部传入时复用它，否则内部自建（模板 v-if 场景 chartRef 需与组件绑定同一引用）
+  const chartRef = externalChartRef ?? ref<HTMLElement | null>(null)
   let chartInstance: ECharts | null = null
   let resizeObserver: ResizeObserver | null = null
   // 主题变化时重跑 getOption 重设颜色（canvas 不支持 CSS 变量）；100ms 防抖合并快速连点，卸载时清理
@@ -65,6 +72,8 @@ export function useECharts({
    */
   function initChart(): void {
     if (!chartRef.value) return
+    // 幂等守卫：同一容器已初始化过则跳过（v-if 重新挂载时 watch chartRef 会再次触发）
+    if (chartInstance) return
 
     chartInstance = echarts.init(chartRef.value)
     updateChart()
@@ -97,6 +106,10 @@ export function useECharts({
    */
   function handleResize(): void {
     chartInstance?.resize()
+    // 依赖容器尺寸的 option（如雷达 radius）需在 resize 后重算再应用，否则图形不随容器缩放
+    if (recomputeOptionOnResize) {
+      updateChart()
+    }
   }
 
   /**
@@ -132,6 +145,12 @@ export function useECharts({
     })
   })
   onUnmounted(disposeChart)
+
+  // 外部 chartRef 动态挂载：v-if 条件渲染（如雷达图 xiaoqu 为空时容器不存在）下，
+  // onMounted 时 chartRef 尚为 null，需在容器由空变非空时补初始化
+  watch(chartRef, (el) => {
+    if (el) initChart()
+  })
 
   // 监听数据源变化
   if (watchSources.length > 0) {

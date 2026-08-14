@@ -1,4 +1,4 @@
-import { CHART_COLORS, useTheme } from '@/shared'
+import { CHART_COLORS, CHART_GRID, useTheme } from '@/shared'
 import type { ChartClickParams, UseEChartsReturn } from '@/visualization/composables/useECharts'
 import { useECharts } from '@/visualization/composables/useECharts'
 
@@ -38,8 +38,10 @@ export function useChartBase(
     const dense = dataLen > 24 // 月粒度超过 24 个点自动间隔
     return {
       backgroundColor: 'transparent',
-      grid: { top: 40, right: 16, bottom: 40, left: 40 },
+      grid: { ...CHART_GRID },
       title: {
+        // 不显式设置 top：保持 ECharts 默认（tokens.size.m=15 + padding 5 → 文字顶边 12px），
+        // 与 CHART_TITLE_TOP 对齐（scripts/measure-title.mjs 实测；改默认前需同步该常量）
         text: props.title,
         left: 'center',
         textStyle: {

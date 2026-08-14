@@ -30,7 +30,7 @@ function writeStoredBaseLayer(key: string | null): void {
 }
 
 export const useMapStore = defineStore('map', () => {
-  // 地图与分析结果不持久化（无读取方的死状态已删）；跨页恢复只走 siteSelectionPersisted 内存快照
+  // 地图与分析结果不持久化（无读取方的死状态已删）；跨页恢复只走 useSiteSelectionStore 内存快照
   const selectedPort: Ref<Port | null> = ref(null)
   const mapType: Ref<MapType> = ref('2d')
   // shallowRef（浅响应式）：条目变更由各 action 重建数组触发，避免深度代理 50 个图层对象

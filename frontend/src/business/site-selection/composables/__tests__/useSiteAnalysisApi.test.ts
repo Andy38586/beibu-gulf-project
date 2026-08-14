@@ -1,3 +1,4 @@
+import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ApiError, ErrorCode } from '@/shared'
@@ -37,6 +38,8 @@ const ANALYSIS_PARAMS = { selectedKeys: ['hospital'], typeSettings: {} } as neve
 
 describe('useSiteAnalysisApi', () => {
   beforeEach(() => {
+    // useSiteAnalysisApi 依赖 Pinia store（useSiteSelectionStore），需激活 Pinia
+    setActivePinia(createPinia())
     vi.clearAllMocks()
     const { clearToken } = useApiRequest()
     clearToken()

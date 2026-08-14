@@ -1,19 +1,29 @@
-/** useRadarChart — 雷达图渲染/交互/事件逻辑（从 RadarChart.vue 拆分） */
-import type { ECharts } from 'echarts'
+/** useRadarChart — 雷达图渲染/交互/事件逻辑（复用 useECharts 统一图表生命周期） */
 import { RadarChart as EChartsRadarChart } from 'echarts/charts'
 import { TooltipComponent } from 'echarts/components'
 import * as echarts from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
 import type { Ref } from 'vue'
-import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { onBeforeUnmount, ref } from 'vue'
 
-import { CHART_COLORS, FACILITY_COLORS_MAP } from '@/shared'
+import {
+  CHART_COLORS,
+  CHART_GRID,
+  FACILITY_COLORS_MAP,
+  RADAR_AXIS_NAME_ALLOWANCE,
+  RADAR_AXIS_NAME_FONT_SIZE,
+  RADAR_AXIS_NAME_GAP,
+  RADAR_TOOLTIP_HEIGHT_CELL,
+  RADAR_TOOLTIP_WIDTH_CELL,
+} from '@/shared'
 import { FACILITY_LABELS } from '@/shared'
+import { useGCS } from '@/shared'
 import { useTheme } from '@/shared'
 import { logger } from '@/shared'
 import { perfMark, perfMeasure } from '@/shared/utils/perfReporter'
 import type { FacilityPoint } from '@/types/facility'
 import type { ScoredXiaoqu } from '@/types/xiaoqu'
+import { useECharts } from '@/visualization/composables/useECharts'
 
 // 注册 ECharts 组件
 echarts.use([EChartsRadarChart, TooltipComponent, CanvasRenderer])
@@ -23,6 +33,8 @@ interface RadarChartProps {
   xiaoqu: ScoredXiaoqu | null
   selectedTypes: string[]
   facilityPoi: Record<string, FacilityPoint[]>
+  /** 雷达图标题（缺省时用 "xx小区评分详情图"） */
+  title?: string
 }
 
 /** 雷达图容器元素（带重试计数的自定义属性） */
@@ -44,12 +56,14 @@ interface RadarChartEmit {
 
 /** useRadarChart 配置选项 */
 interface UseRadarChartOptions {
-  getChartRef: () => HTMLElement | null
+  /** 图表容器 ref（由组件声明并绑定模板，v-if 下 xiaoqu 为空时容器不存在） */
+  chartRef: Ref<HTMLElement | null>
+  getScoreAreaRef: () => HTMLElement | null
   getProps: () => RadarChartProps
   emit: RadarChartEmit
 }
 
-/** 浮窗位置 */
+/** 详情面板位置（viewport 坐标） */
 interface TooltipPosition {
   left: number
   top: number
@@ -67,22 +81,19 @@ interface UseRadarChartReturn {
 }
 
 export function useRadarChart({
-  getChartRef,
+  chartRef,
+  getScoreAreaRef,
   getProps,
   emit,
 }: UseRadarChartOptions): UseRadarChartReturn {
-  let chartInstance: ECharts | null = null
-  let resizeObserver: ResizeObserver | null = null
-  let isRendering = false
-  // 主题订阅：canvas 不支持 CSS 变量，主题切换后重渲染雷达图（100ms 防抖合并快速连点）
-  const { isDark, onThemeChange } = useTheme()
-  let stopThemeWatch: (() => void) | null = null
-  let themeTimer: ReturnType<typeof setTimeout> | null = null
+  const { isDark } = useTheme()
+  const { cellPixel } = useGCS()
   // 尺寸重试定时器：保存引用供 onBeforeUnmount 清理，卸载后不再重试渲染
   let retryTimer: ReturnType<typeof setTimeout> | null = null
 
   /** 浮窗状态 */
   const tooltipVisible = ref<boolean>(false)
+  /** 详情面板位置（打开时按雷达面板 rect 计算，与 RadarScoreTooltip 尺寸公式保持一致） */
   const tooltipPosition = ref<TooltipPosition>({ left: 0, top: 0 })
 
   /** 当前选中的设施类型 */
@@ -93,52 +104,36 @@ export function useRadarChart({
     return FACILITY_COLORS_MAP[key] || '#666'
   }
 
-  /** 渲染雷达图 */
-  function renderRadar(): void {
-    const chartRef = getChartRef()
+  /** 构建雷达图 option（每次现取容器尺寸，radius 依赖容器大小） */
+  function buildRadarOption(): Record<string, unknown> {
     const props = getProps()
     const dark = isDark.value
-
-    if (!chartRef || isRendering) return
-
-    const w = chartRef.clientWidth
-    const h = chartRef.clientHeight
+    const el = chartRef.value
+    const w = el?.clientWidth ?? 0
+    const h = el?.clientHeight ?? 0
 
     // 容器尺寸不足时重试，最多重试10次（1秒）
     if (w < 10 || h < 10) {
-      const container = chartRef as RadarChartContainer
-      const retryCount = (container._radar_retryCount || 0) + 1
-      if (retryCount > 10) {
-        logger.debug('雷达图容器尺寸持续不足，放弃渲染')
-        return
+      const container = chartRef.value as RadarChartContainer | null
+      const retryCount = ((container?._radar_retryCount || 0) + 1)
+      if (container) {
+        if (retryCount > 10) {
+          logger.debug('雷达图容器尺寸持续不足，放弃渲染')
+          return { backgroundColor: 'transparent' }
+        }
+        container._radar_retryCount = retryCount
       }
-      container._radar_retryCount = retryCount
       if (retryTimer) clearTimeout(retryTimer)
       retryTimer = setTimeout(() => {
         retryTimer = null
         renderRadar()
       }, 100)
-      return
+      return { backgroundColor: 'transparent' }
     }
     // 重置重试计数
-    const container = chartRef as RadarChartContainer
-    if (container._radar_retryCount) {
+    const container = chartRef.value as RadarChartContainer | null
+    if (container?._radar_retryCount) {
       container._radar_retryCount = 0
-    }
-
-    isRendering = true
-
-    if (!chartInstance) {
-      chartInstance = echarts.init(chartRef)
-
-      chartInstance.on('click', (params) => {
-        if (params.componentType === 'radar' && params.name) {
-          const key = props.selectedTypes.find((k) => FACILITY_LABELS[k] === params.name)
-          if (key) {
-            handleFacilityClick(key)
-          }
-        }
-      })
     }
 
     const indicators = props.selectedTypes.map((key) => ({
@@ -149,111 +144,74 @@ export function useRadarChart({
     const values = props.selectedTypes.map((key) => props.xiaoqu?.breakdown?.[key] ?? 0)
 
     const name = props.xiaoqu?.name || ''
+    const title = props.title || (name ? `${name}评分详情图` : '')
 
-    perfMark('echarts:radar:start')
-    // 增量更新：merge 保留轴/样式，replaceMerge 替换数据系列
-    chartInstance.setOption(
-      {
-        backgroundColor: 'transparent',
-        tooltip: { show: false },
-        radar: {
-          indicator: indicators,
-          radius: '75%',
-          center: ['50%', '50%'],
-          axisName: {
-            color: dark ? CHART_COLORS.accent.dark : CHART_COLORS.accent.light,
-            fontSize: 12,
-            fontWeight: 500,
-            cursor: 'pointer',
-          },
-          splitLine: {
-            lineStyle: { color: dark ? CHART_COLORS.splitLine.dark : CHART_COLORS.splitLine.light },
-          },
-          splitArea: {
-            areaStyle: {
-              color: dark
-                ? ['rgba(255,255,255,0.04)', 'rgba(255,255,255,0.12)']
-                : ['rgba(255,255,255,0.1)', 'rgba(255,255,255,0.3)'],
-            },
-          },
-          axisLine: {
-            lineStyle: { color: dark ? CHART_COLORS.axisLine.dark : CHART_COLORS.axisLine.light },
+    // 标题由 ECharts 绘制（与 LineChart/BarChart 一致，占 canvas 顶部 CHART_GRID.top 高度）；
+    // 雷达多边形以「标题下方剩余区域」的中心为圆心，避开标题区，radius 按可用高度计算
+    const titleSpace = CHART_GRID.top
+    const availW = w
+    const availH = Math.max(h - titleSpace, 0)
+    const radarRadius = Math.max(Math.min(availW, availH) / 2 - RADAR_AXIS_NAME_ALLOWANCE, 20)
+    const radarCenter: [number, number] = [w / 2, titleSpace + availH / 2]
+
+    return {
+      backgroundColor: 'transparent',
+      title: {
+        text: title,
+        left: 'center',
+        textStyle: {
+          color: dark ? CHART_COLORS.textPrimary.dark : CHART_COLORS.textPrimary.light,
+          fontSize: 16,
+          fontWeight: 600,
+        },
+      },
+      tooltip: { show: false },
+      radar: {
+        indicator: indicators,
+        radius: radarRadius,
+        center: radarCenter,
+        axisName: {
+          color: dark ? CHART_COLORS.accent.dark : CHART_COLORS.accent.light,
+          fontSize: RADAR_AXIS_NAME_FONT_SIZE,
+          fontWeight: 500,
+          gap: RADAR_AXIS_NAME_GAP,
+          cursor: 'pointer',
+        },
+        splitLine: {
+          lineStyle: { color: dark ? CHART_COLORS.splitLine.dark : CHART_COLORS.splitLine.light },
+        },
+        splitArea: {
+          areaStyle: {
+            color: dark
+              ? ['rgba(255,255,255,0.04)', 'rgba(255,255,255,0.12)']
+              : ['rgba(255,255,255,0.1)', 'rgba(255,255,255,0.3)'],
           },
         },
-        series: [
-          {
-            type: 'radar',
-            symbolSize: 6,
-            lineStyle: {
-              width: 2,
-              color: dark ? CHART_COLORS.accent.dark : CHART_COLORS.accent.light,
-            },
-            itemStyle: { color: dark ? CHART_COLORS.accent.dark : CHART_COLORS.accent.light },
-            data: [
-              {
-                value: values,
-                name: name,
-                areaStyle: {
-                  opacity: 0.3,
-                  color: dark ? CHART_COLORS.accent.dark : CHART_COLORS.accent.light,
-                },
-              },
-            ],
-          },
-        ],
+        axisLine: {
+          lineStyle: { color: dark ? CHART_COLORS.axisLine.dark : CHART_COLORS.axisLine.light },
+        },
       },
-      { notMerge: false, replaceMerge: ['series'], lazyUpdate: true }
-    )
-    perfMark('echarts:radar:end')
-    perfMeasure('echarts:setOption:radar', 'echarts:radar:start', 'echarts:radar:end')
-
-    isRendering = false
-  }
-
-  /** 点击综合评分 */
-  function handleScoreClick(): void {
-    if (tooltipVisible.value) {
-      tooltipVisible.value = false
-      return
-    }
-
-    const scoreEl = document.querySelector('.score-text')
-    if (scoreEl) {
-      const rect = scoreEl.getBoundingClientRect()
-      let left = rect.left + rect.width / 2 - 160
-      let top = rect.top - 240 - 8
-
-      const viewportW = window.innerWidth
-      const viewportH = window.innerHeight
-
-      if (left < 10) left = 10
-      if (left + 320 > viewportW - 10) left = viewportW - 320 - 10
-
-      if (top < 10) {
-        top = rect.bottom + 8
-      }
-
-      if (top + 240 > viewportH - 10) {
-        top = viewportH - 240 - 10
-      }
-
-      tooltipPosition.value = { left, top }
-      tooltipVisible.value = true
-    }
-  }
-
-  /** 点击其他地方关闭浮窗 */
-  function handleGlobalClick(e: MouseEvent): void {
-    const tooltipEl = document.querySelector('.radar-tooltip')
-    const scoreEl = document.querySelector('.score-text')
-
-    if (
-      tooltipVisible.value &&
-      tooltipEl &&
-      !tooltipEl.contains(e.target as Node) &&
-      !scoreEl?.contains(e.target as Node)
-    ) {
-      tooltipVisible.value = false
+      series: [
+        {
+          type: 'radar',
+          symbolSize: 6,
+          lineStyle: {
+            width: 2,
+            color: dark ? CHART_COLORS.accent.dark : CHART_COLORS.accent.light,
+          },
+          itemStyle: { color: dark ? CHART_COLORS.accent.dark : CHART_COLORS.accent.light },
+          data: [
+            {
+              value: values,
+              name: name,
+              areaStyle: {
+                opacity: 0.3,
+                color: dark ? CHART_COLORS.accent.dark : CHART_COLORS.accent.light,
+              },
+            },
+          ],
+        },
+      ],
     }
   }
 
@@ -276,47 +234,80 @@ export function useRadarChart({
     })
   }
 
-  function handleResize(): void {
-    chartInstance?.resize()
-  }
-
-  /** 设置 ResizeObserver */
-  function setupResizeObserver(): void {
-    const chartRef = getChartRef()
-
-    resizeObserver?.disconnect()
-    if (chartRef) {
-      resizeObserver = new ResizeObserver(() => {
-        void nextTick(() => renderRadar())
-      })
-      resizeObserver.observe(chartRef)
-    }
-  }
-
-  onMounted(() => {
-    window.addEventListener('resize', handleResize)
-    setupResizeObserver()
-    stopThemeWatch = onThemeChange(() => {
-      if (themeTimer) clearTimeout(themeTimer)
-      themeTimer = setTimeout(() => {
-        themeTimer = null
-        renderRadar()
-      }, 100)
-    })
+  // 统一图表生命周期委托 useECharts：init/dispose/resize/theme/watch 由它管理
+  const { updateChart, getInstance } = useECharts({
+    getOption: buildRadarOption,
+    chartRef,
+    recomputeOptionOnResize: true,
+    onClick: (params) => {
+      if (params.componentType === 'radar' && params.name) {
+        const key = getProps().selectedTypes.find((k) => FACILITY_LABELS[k] === params.name)
+        if (key) {
+          handleFacilityClick(key)
+        }
+      }
+    },
+    watchSources: [
+      () => getProps().xiaoqu,
+      () => getProps().selectedTypes,
+      () => getProps().facilityPoi,
+    ],
   })
 
-  onBeforeUnmount(() => {
-    chartInstance?.dispose()
-    chartInstance = null
-    window.removeEventListener('click', handleGlobalClick)
-    window.removeEventListener('resize', handleResize)
-    resizeObserver?.disconnect()
-    stopThemeWatch?.()
-    stopThemeWatch = null
-    if (themeTimer) {
-      clearTimeout(themeTimer)
-      themeTimer = null
+  /** 渲染雷达图（对外保留：数据变化 / 容器可见后由组件显式触发） */
+  function renderRadar(): void {
+    perfMark('echarts:radar:start')
+    updateChart()
+    perfMark('echarts:radar:end')
+    perfMeasure('echarts:setOption:radar', 'echarts:radar:start', 'echarts:radar:end')
+  }
+
+  /** 点击综合评分：打开/关闭详情面板。在雷达面板内水平居中，位于综合评分上方 */
+  function handleScoreClick(): void {
+    if (tooltipVisible.value) {
+      tooltipVisible.value = false
+      return
     }
+
+    const panelEl = chartRef.value?.closest('.radar-panel')
+    if (panelEl) {
+      const panelRect = panelEl.getBoundingClientRect()
+      const scoreRect = getScoreAreaRef()?.getBoundingClientRect() ?? null
+      const tooltipW = cellPixel.value * RADAR_TOOLTIP_WIDTH_CELL
+      const tooltipH = cellPixel.value * RADAR_TOOLTIP_HEIGHT_CELL
+      // 横向：面板内水平居中
+      const left = panelRect.left + (panelRect.width - tooltipW) / 2
+      // 纵向：紧贴综合评分上方（4px 间距），不超出面板顶部
+      const scoreTop = scoreRect ? scoreRect.top : panelRect.bottom
+      const top = Math.max(scoreTop - tooltipH + 20, panelRect.top + 4)
+      tooltipPosition.value = { left: Math.max(left, panelRect.left), top }
+    }
+
+    tooltipVisible.value = true
+  }
+
+  /** 点击其他地方关闭浮窗 */
+  function handleGlobalClick(e: MouseEvent): void {
+    const tooltipEl = document.querySelector('.radar-tooltip')
+    const scoreEl = document.querySelector('.score-text')
+
+    if (
+      tooltipVisible.value &&
+      tooltipEl &&
+      !tooltipEl.contains(e.target as Node) &&
+      !scoreEl?.contains(e.target as Node)
+    ) {
+      tooltipVisible.value = false
+    }
+  }
+
+  /** 设置 ResizeObserver：useECharts 已在 init 时内置 ResizeObserver，无需重复实现 */
+  function setupResizeObserver(): void {
+    void getInstance
+  }
+
+  onBeforeUnmount(() => {
+    // 全局点击监听由 RadarChart.vue 的 watch/卸载钩子管理；此处清理尺寸重试定时器
     if (retryTimer) {
       clearTimeout(retryTimer)
       retryTimer = null

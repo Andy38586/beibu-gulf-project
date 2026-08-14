@@ -16,20 +16,21 @@ import { showError } from '@/shared'
 import { logger } from '@/shared'
 import PaginatedListPanel from '@/shared/components/PaginatedListPanel.vue'
 import type { SiteSelectionState } from '@/stores'
-import { siteSelectionPersisted } from '@/stores'
+import { useSiteSelectionStore } from '@/stores'
 import type { AnalysisResult, FacilityPoint, ScoredXiaoqu } from '@/types/analysis'
 import RadarChart from '@/visualization/charts/RadarChart.vue'
 
 import SiteAnalysisControlPanel from './components/SiteAnalysisControlPanel.vue'
 import { useAnalysisLayer } from './composables/useAnalysisLayer'
+import { SNAPSHOT_SELECTED_TYPES, SNAPSHOT_XIAOQU } from './composables/radarSnapshot'
 
 const { flyTo, startBreathing, stopBreathing, zoomToCity, zoomToDistrict, mapInstance } =
   useMapControls()
-const stateStore = siteSelectionPersisted
+const stateStore = useSiteSelectionStore()
 const { manager: businessLayerManager } = useBusinessLayers()
-const { createUpdateHandler } = useAnalysisLayer() as unknown as {
-  createUpdateHandler: (_manager: unknown) => (_result: unknown) => Promise<void>
-}
+// useAnalysisLayer 的 createUpdateHandler 接受含 register/updateData/has 的 manager 窄接口，
+// 与页面注入的 BusinessLayerManagerLike 结构兼容，无需类型断言
+const { createUpdateHandler } = useAnalysisLayer()
 // 图层更新回调由页面直连 businessLayerManager（store 已不含分析回调机制）
 const updateAnalysisHandler = createUpdateHandler(businessLayerManager)
 
@@ -67,16 +68,21 @@ const displayXiaoqu = computed<ScoredXiaoqu[]>(() => matchedXiaoqu.value.slice(0
 /** 第一名小区（雷达图默认显示） */
 const topXiaoqu = computed<ScoredXiaoqu | null>(() => matchedXiaoqu.value[0] || null)
 
-/** 当前显示的小区（优先显示选中的，否则显示第一名） */
+/** 当前显示的小区（优先选中的，其次第一名；均无时回退默认快照，雷达图不空态） */
 const displayXiaoquForRadar = computed<ScoredXiaoqu | null>(
-  () => selectedXiaoqu.value || topXiaoqu.value
+  () => selectedXiaoqu.value || topXiaoqu.value || SNAPSHOT_XIAOQU
+)
+
+/** 雷达图指标：未分析时用快照的 6 类设施 */
+const radarSelectedTypes = computed<string[]>(() =>
+  selectedTypes.value.length > 0 ? selectedTypes.value : SNAPSHOT_SELECTED_TYPES
 )
 
 /** 处理分析结果 */
 function handleResult(result: Partial<AnalysisResult>): void {
   logger.debug('[SiteSelection] 收到分析结果:', result)
 
-  // 图层更新直调 updateAnalysisHandler；分析结果恢复走 siteSelectionPersisted 内存快照
+  // 图层更新直调 updateAnalysisHandler；分析结果恢复走 useSiteSelectionStore 内存快照
   void updateAnalysisHandler(result)
   matchedXiaoqu.value = result.matchedXiaoqu || []
   selectedTypes.value = result.selectedTypes || []
@@ -297,7 +303,7 @@ onUnmounted(() => {
             :visible="true"
             :embedded="true"
             :xiaoqu="displayXiaoquForRadar"
-            :selected-types="selectedTypes"
+            :selected-types="radarSelectedTypes"
             :facility-poi="facilityPoi"
             @show-facility-layer="handleShowFacilityLayer"
             @hide-facility-layer="handleHideFacilityLayer"

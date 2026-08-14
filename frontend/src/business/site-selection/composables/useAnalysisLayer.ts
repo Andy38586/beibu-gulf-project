@@ -5,6 +5,9 @@ import { FACILITY_COLORS } from '@/shared'
 import { logger } from '@/shared'
 import type { AnalysisResult, LayerOptions, ScoredXiaoqu } from '@/types'
 
+/** createUpdateHandler 实际使用的 manager 方法子集（与 BLM 解耦，页面传入的 manager 无需完整 BLM 类型） */
+type AnalysisLayerManager = Pick<BusinessLayerManager, 'register' | 'updateData' | 'has'>
+
 export function buildCoverageGeoJson(
   coverage: Feature<Geometry> | FeatureCollection<Geometry> | null
 ): FeatureCollection<Geometry> {
@@ -88,18 +91,18 @@ interface AnalysisLayerDescriptor {
 
 /** useAnalysisLayer 返回值 */
 interface UseAnalysisLayerReturn {
-  getAnalysisLayers: (result: AnalysisResult) => AnalysisLayerDescriptor[]
+  getAnalysisLayers: (result: Partial<AnalysisResult>) => AnalysisLayerDescriptor[]
   createUpdateHandler: (
-    businessLayerManager: BusinessLayerManager
-  ) => (result: AnalysisResult) => Promise<void>
+    businessLayerManager: AnalysisLayerManager
+  ) => (result: Partial<AnalysisResult>) => Promise<void>
 }
 
 /** 创建分析结果处理函数：经 BLM 管理图层生命周期，不直接调用 renderer */
 export function useAnalysisLayer(): UseAnalysisLayerReturn {
   let isUpdating = false
-  let pendingResult: AnalysisResult | null = null
+  let pendingResult: Partial<AnalysisResult> | null = null
 
-  function getAnalysisLayers(result: AnalysisResult): AnalysisLayerDescriptor[] {
+  function getAnalysisLayers(result: Partial<AnalysisResult>): AnalysisLayerDescriptor[] {
     const layers: AnalysisLayerDescriptor[] = []
 
     if (result.coverage) {
@@ -115,7 +118,7 @@ export function useAnalysisLayer(): UseAnalysisLayerReturn {
       layers.push({
         id: 'analysis-matched',
         label: '匹配小区',
-        geojson: buildMatchedGeoJson(result.matchedXiaoqu),
+        geojson: buildMatchedGeoJson(result.matchedXiaoqu ?? []),
         style: MATCHED_STYLE,
       })
     }
@@ -124,9 +127,9 @@ export function useAnalysisLayer(): UseAnalysisLayerReturn {
   }
 
   function createUpdateHandler(
-    businessLayerManager: BusinessLayerManager
-  ): (result: AnalysisResult) => Promise<void> {
-    return async function setAnalysisResult(result: AnalysisResult): Promise<void> {
+    businessLayerManager: AnalysisLayerManager
+  ): (result: Partial<AnalysisResult>) => Promise<void> {
+    return async function setAnalysisResult(result: Partial<AnalysisResult>): Promise<void> {
       if (isUpdating) {
         pendingResult = result
         return

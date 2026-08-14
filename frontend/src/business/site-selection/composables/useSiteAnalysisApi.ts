@@ -1,8 +1,8 @@
-import type { Ref } from 'vue'
-import { ref } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
 
-import { useApiRequest, handleAuthError, isAuthError, showError, useLatestRequest } from '@/shared'
+import { handleAuthError, isAuthError, showError, useApiRequest, useLatestRequest } from '@/shared'
+import { useSiteSelectionStore } from '@/stores'
 import type { AnalysisParams, AnalysisResult } from '@/types/analysis'
 import { siteAnalysisResponseSchema } from '@/types/schemas'
 
@@ -12,8 +12,9 @@ export function useSiteAnalysisApi() {
   // 竞态守卫统一走 useLatestRequest
   const { apiRequest } = useApiRequest()
   const { createSignal, cancel: cancelRequest } = useLatestRequest()
-  const calculating: Ref<boolean> = ref(false)
-  const calcError: Ref<string> = ref('')
+  // 请求进行态迁入 store（对齐 forecast），供页面与请求 composable 共享
+  const siteStore = useSiteSelectionStore()
+  const { calculating, calcError } = storeToRefs(siteStore)
 
   async function analyze(params: AnalysisParams): Promise<AnalysisResult> {
     // 新请求优先——取消上一个在途请求（快速连点用户期望看到最新结果）

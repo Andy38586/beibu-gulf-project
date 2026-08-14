@@ -1,11 +1,11 @@
-import * as plansRepo from '../repositories/plansRepository.js'
+import * as plansService from '../services/plansService.js'
 import { BusinessError, ErrorCode } from '../utils/BusinessError.js'
 import { logger } from '../utils/logger.js'
 import { sendSuccess } from '../utils/response.js'
 
 export async function getAll(req, res, next) {
   try {
-    const plans = await plansRepo.findAllByUserId(req.user.id)
+    const plans = await plansService.listByUser(req.user.id)
     sendSuccess(res, plans)
   } catch (error) {
     if (!(error instanceof BusinessError)) {
@@ -17,7 +17,7 @@ export async function getAll(req, res, next) {
 
 export async function getOne(req, res, next) {
   try {
-    const plan = await plansRepo.findById(req.params.id)
+    const plan = await plansService.getById(req.params.id)
     if (!plan) {
       throw new BusinessError(ErrorCode.NOT_FOUND, '方案不存在')
     }
@@ -50,11 +50,11 @@ export async function createOne(req, res, next) {
       )
     }
 
-    const existing = await plansRepo.findAllByUserId(req.user.id)
+    const existing = await plansService.listByUser(req.user.id)
     if (existing.some((p) => p.name === name)) {
       throw new BusinessError(ErrorCode.DUPLICATE_RESOURCE, '方案名称已存在')
     }
-    const newPlan = await plansRepo.create({
+    const newPlan = await plansService.create({
       userId: req.user.id,
       name,
       selectedKeys,
@@ -72,7 +72,7 @@ export async function createOne(req, res, next) {
 
 export async function updateOne(req, res, next) {
   try {
-    const plan = await plansRepo.findById(req.params.id)
+    const plan = await plansService.getById(req.params.id)
     if (!plan) {
       throw new BusinessError(ErrorCode.NOT_FOUND, '方案不存在')
     }
@@ -81,7 +81,7 @@ export async function updateOne(req, res, next) {
     }
     const { name, selectedKeys, typeSettings, weights } = req.body
     if (name !== undefined) {
-      const all = await plansRepo.findAllByUserId(req.user.id)
+      const all = await plansService.listByUser(req.user.id)
       if (all.some((p) => p.name === name && p.id !== req.params.id)) {
         throw new BusinessError(ErrorCode.DUPLICATE_RESOURCE, '方案名称已存在')
       }
@@ -92,7 +92,7 @@ export async function updateOne(req, res, next) {
     if (typeSettings !== undefined) updates.typeSettings = typeSettings
     if (weights !== undefined) updates.weights = weights
 
-    const updated = await plansRepo.update(req.params.id, updates)
+    const updated = await plansService.update(req.params.id, updates)
     sendSuccess(res, updated)
   } catch (error) {
     if (!(error instanceof BusinessError)) {
@@ -104,14 +104,14 @@ export async function updateOne(req, res, next) {
 
 export async function deleteOne(req, res, next) {
   try {
-    const plan = await plansRepo.findById(req.params.id)
+    const plan = await plansService.getById(req.params.id)
     if (!plan) {
       throw new BusinessError(ErrorCode.NOT_FOUND, '方案不存在')
     }
     if (plan.userId !== req.user.id) {
       throw new BusinessError(ErrorCode.FORBIDDEN, '无权删除该方案')
     }
-    const success = await plansRepo.remove(req.params.id)
+    const success = await plansService.remove(req.params.id)
     if (!success) {
       throw new BusinessError(ErrorCode.NOT_FOUND, '方案不存在')
     }
@@ -131,7 +131,7 @@ export async function deleteOne(req, res, next) {
  */
 export async function saveXiaoquToOne(req, res, next) {
   try {
-    const plan = await plansRepo.findById(req.params.id)
+    const plan = await plansService.getById(req.params.id)
     if (!plan) {
       throw new BusinessError(ErrorCode.NOT_FOUND, '方案不存在')
     }
@@ -144,7 +144,7 @@ export async function saveXiaoquToOne(req, res, next) {
       throw new BusinessError(ErrorCode.INVALID_PARAMS, '缺少小区信息')
     }
 
-    const updated = await plansRepo.saveXiaoqu(req.params.id, xiaoqu)
+    const updated = await plansService.saveXiaoqu(req.params.id, xiaoqu)
     sendSuccess(res, updated)
   } catch (error) {
     if (!(error instanceof BusinessError)) {
@@ -160,7 +160,7 @@ export async function saveXiaoquToOne(req, res, next) {
  */
 export async function removeXiaoquFromOne(req, res, next) {
   try {
-    const plan = await plansRepo.findById(req.params.id)
+    const plan = await plansService.getById(req.params.id)
     if (!plan) {
       throw new BusinessError(ErrorCode.NOT_FOUND, '方案不存在')
     }
@@ -168,7 +168,7 @@ export async function removeXiaoquFromOne(req, res, next) {
       throw new BusinessError(ErrorCode.FORBIDDEN, '无权修改该方案')
     }
 
-    const updated = await plansRepo.removeXiaoqu(req.params.id, req.params.xiaoquId)
+    const updated = await plansService.removeXiaoqu(req.params.id, req.params.xiaoquId)
     sendSuccess(res, updated)
   } catch (error) {
     if (!(error instanceof BusinessError)) {

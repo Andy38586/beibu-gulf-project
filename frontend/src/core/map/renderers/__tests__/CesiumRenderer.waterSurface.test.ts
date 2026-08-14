@@ -56,7 +56,7 @@ vi.mock('cesium', () => {
 import { BusinessLayerManager } from '../../BusinessLayerManager'
 import { CesiumRenderer } from '../CesiumRenderer'
 
-/** 白盒访问：@ts-nocheck 文件运行时成员需显式暴露 */
+/** 白盒访问：渲染器运行时成员（非公开类型）需显式暴露（渲染器本体无 @ts-nocheck，z065 已移除） */
 type CesiumRendererTestAccess = InstanceType<typeof CesiumRenderer> & {
   _waterSurfaces: Map<string, unknown>
   _layers: Map<string, unknown>
@@ -70,7 +70,7 @@ function createRenderer(): CesiumRendererTestAccess {
 }
 
 describe('CesiumRenderer.hasLayer 覆写（水面存于 _waterSurfaces）', () => {
-  // @ts-nocheck 渲染器运行时成员与测试访问类型合并后带具体泛型，赋值统一走断言
+  // 渲染器运行时成员与测试访问类型合并后带具体泛型，赋值统一走断言
   function setWaterSurfaces(renderer: CesiumRendererTestAccess, entries: Array<[string, unknown]>) {
     ;(renderer as { _waterSurfaces: Map<string, unknown> })._waterSurfaces = new Map(entries)
   }

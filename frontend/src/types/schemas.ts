@@ -244,3 +244,18 @@ export const floodImpactResponseSchema = z.looseObject({
 })
 
 export type FloodImpactResponseParsed = z.infer<typeof floodImpactResponseSchema>
+
+// ⑱ /api/ports 响应（后端单源 ports.json；mapDataService 消费，C-4/6 补 schema）
+export const portSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  address: z.string(),
+  lng: z.number(),
+  lat: z.number(),
+  type: z.string().optional(),
+  phone: z.string().optional(),
+})
+
+export type PortParsed = z.infer<typeof portSchema>
+
+export const portsArraySchema = z.array(portSchema)

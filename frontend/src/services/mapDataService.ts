@@ -3,6 +3,7 @@ import { MAP_CONFIG } from '@/core/config/map'
 import { clearStaticCache, loadStatic } from '@/shared'
 import { logger } from '@/shared'
 import { unwrapEnvelope } from '@/shared'
+import { portsArraySchema } from '@/types/schemas'
 import type { Port } from '@/types'
 import { isInBeibuGulf } from '@/shared'
 
@@ -19,10 +20,12 @@ export const mapDataService = {
   async getPorts(): Promise<Port[]> {
     try {
       const data = await fetchData(MAP_CONFIG.DATA_PATHS.ports)
-      if (!Array.isArray(data)) {
-        throw new Error(`港口数据格式异常：期望数组类型，实际收到 ${typeof data}`)
+      // zod 结构校验（C-4/6）：/api/ports 为 HTTP 边界，字段形状由 schema 强制，不再只依赖 Array.isArray
+      const parsed = portsArraySchema.safeParse(data)
+      if (!parsed.success) {
+        throw new Error(`港口数据格式校验失败（${parsed.error.issues.length} 项）`)
       }
-      const ports = data as Port[]
+      const ports = parsed.data as Port[]
 
       // 边界守卫：过滤北部湾范围外的异常港口坐标，防止污染地图渲染
       const inRegion: Port[] = []
@@ -35,7 +38,7 @@ export const mapDataService = {
       }
       return inRegion
     } catch (error) {
-      if (error instanceof Error && error.message.includes('格式异常')) {
+      if (error instanceof Error && error.message.includes('格式校验失败')) {
         logger.error('港口数据格式验证失败:', error)
         throw Object.assign(new Error('港口数据格式不正确，请联系管理员'), { cause: error })
       }

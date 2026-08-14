@@ -1,6 +1,6 @@
 /**
  * 后端统一 logger：debug/info 仅 dev 输出，warn/error/audit 生产保留（test 静默）。
- * 零依赖文件输出 + 按天轮转（app-YYYY-MM-DD.log，单文件 20MB 滚动，保留 14 天），
+ * 零依赖文件输出 + 按天轮转（app-YYYY-MM-DD.log，单文件 20MB 滚动，保留 30 天），
  * 业务代码 import 签名不变
  */
 
@@ -15,7 +15,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 // 日志目录，可通过 LOG_DIR 覆盖（容器内默认 /app/backend/logs）
 const LOG_DIR = process.env.LOG_DIR || join(__dirname, '../logs')
 const MAX_SIZE = 20 * 1024 * 1024 // 单文件 20MB 上限
-const MAX_FILES = 14 // 保留 14 天
+const MAX_FILES = 30 // 保留 30 天（原 14 天偏短，故障排查需跨两周回溯）
 
 let currentFile = null
 let currentSize = 0

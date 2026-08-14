@@ -170,8 +170,8 @@ interface OLCullMapLike {
 }
 
 /**
- * 白盒测试访问类型：OLRenderer.ts 带 @ts-nocheck，运行时成员 map/_cullLayers/_refreshCulledLayer
- * 未声明在类型中，需显式暴露供测试断言裁剪逻辑内部状态。
+ * 白盒测试访问类型：渲染器运行时成员 map/_cullLayers/_refreshCulledLayer
+ * 未声明在类型中，需显式暴露供测试断言裁剪逻辑内部状态（渲染器本体无 @ts-nocheck，z065 已移除）。
  */
 type OLRendererTestAccess = InstanceType<typeof OLRenderer> & {
   map: unknown

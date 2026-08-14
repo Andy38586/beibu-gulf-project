@@ -7,6 +7,9 @@ export default defineConfig({
     environment: 'node',
     globals: true,
     include: ['**/*.test.js'],
+    // 默认 5s 对 app.test/health.test 的首次冷启动（读盘+HTTP 握手）偏紧，偶发 flake（副-15）
+    testTimeout: 20000,
+    hookTimeout: 20000,
     coverage: {
       provider: 'v8',
       include: ['**/*.js'],

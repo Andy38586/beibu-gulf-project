@@ -50,14 +50,15 @@ app = FastAPI(
 )
 
 # 开发期 CORS：允许 Vite dev（5173）。生产由 nginx 同源反代，无需 CORS。
+# methods/headers 收窄到实际使用（GET 查询 + 少量 POST），不再通配（副-07）
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",
         "http://127.0.0.1:5173",
     ],
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type", "Authorization"],
 )
 
 # 档位缓存：水位取整到 0.1m，最近 64 档 LRU（滑块拖动时重复档位秒回）

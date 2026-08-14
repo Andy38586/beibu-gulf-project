@@ -526,7 +526,9 @@ export class OLRenderer extends MapRenderer {
         stroke: new Stroke({ color: LAYER_DEFAULTS.outline, width: 2 }),
       }),
     })
-    // TODO: 支持 options.style 回调，用于 per-feature 样式
+    // TODO: 支持 options.style 回调，用于 per-feature 样式。
+    // 当前业务（站点/港口/热力）均用统一样式覆盖，per-feature 样式尚无真实需求，
+    // 待新选址模块（v3）出现差异化标注时再实现，避免为假想需求预留 API。
     const defaultStyle = (feature: FeatureLike): Style => {
       const geom = feature.getGeometry()
       return geom?.getType() === 'Point' ? pointStyle : polygonStyle

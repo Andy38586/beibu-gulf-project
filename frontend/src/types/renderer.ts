@@ -17,7 +17,7 @@ export interface PointFeature {
   lng?: number
   lat?: number
   name?: string
-  /** 兼容 GeoJSON Feature 形状；可选——空 geometry 时渲染器回退 (0,0) */
+  /** 兼容 GeoJSON Feature 形状；可选——空 geometry 时渲染器跳过该要素（不落 (0,0) 哨兵，a059） */
   geometry?: { type?: string; coordinates?: [number, number] }
   properties?: Record<string, unknown>
   /** 开放扩展：业务层可附加任意属性（渲染器经 options.labelField 等按需读取） */

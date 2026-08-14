@@ -44,6 +44,7 @@ export interface FloodStatistics {
   riskLevel: string // 风险等级（所有数据源均提供）
   // —— 后端 floodStatistics.json 原始字段（mock/api 模式有值，online 模式缺失）——
   waterLevel?: number // 水位档位（m）
+  riskLevelCode?: number // 风险等级编码（floodStatistics.json 字段，P1-9 补类型）
   floodArea?: number // 淹没面积（km²）
   averageDepth?: number // 平均水深（m）
   maxDepth?: number // 最大水深（m）

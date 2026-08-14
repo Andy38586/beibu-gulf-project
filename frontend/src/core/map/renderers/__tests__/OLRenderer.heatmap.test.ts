@@ -177,7 +177,7 @@ interface OLHeatLayerInstanceLike {
 }
 
 /**
- * 白盒测试访问类型：OLRenderer.ts 带 @ts-nocheck，运行时成员 map
+ * 白盒测试访问类型：渲染器运行时成员（非公开类型）经断言暴露（渲染器本体无 @ts-nocheck，z065 已移除）
  * 未声明在类型中，需显式暴露供 afterEach 检查 disposed 状态。
  */
 type OLRendererTestAccess = InstanceType<typeof OLRenderer> & {
@@ -207,7 +207,7 @@ describe('OLRenderer 热力图（P0-1）', () => {
       expect(renderer!._layers.get('heat')).toBeTruthy()
     })
 
-    it('用例C：coordinates 缺失时回退 (0,0) 不抛错', () => {
+    it('用例C：coordinates 缺失时跳过该要素（不落 (0,0) 哨兵）不抛错', () => {
       const features = [{ geometry: {}, properties: { value: 1 } }]
       expect(() => renderer!.addHeatmapLayer('heat-empty', features, {})).not.toThrow()
       expect(renderer!._layers.get('heat-empty')).toBeTruthy()

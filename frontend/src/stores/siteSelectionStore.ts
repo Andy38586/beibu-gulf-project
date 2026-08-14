@@ -46,6 +46,21 @@ export const useSiteSelectionStore = defineStore('site-selection', () => {
     return persisted.consumeState()
   }
 
+  /**
+   * 写入分析结果（页面 handleResult / 快照恢复时调用）。
+   * 此前 matchedXiaoqu/selectedTypes/facilityPoi 仅被 clearState 清空、从未写入（死状态）——
+   * AppLayout 全局雷达图需消费同源数据，统一经此写入。
+   */
+  function setResult(result: {
+    matchedXiaoqu: ScoredXiaoqu[]
+    selectedTypes: string[]
+    facilityPoi: Record<string, FacilityPoint[]>
+  }): void {
+    matchedXiaoqu.value = result.matchedXiaoqu
+    selectedTypes.value = result.selectedTypes
+    facilityPoi.value = result.facilityPoi
+  }
+
   /** 彻底清除（登出 / 离开页面） */
   function clearState(): void {
     persisted.clearPersistedState()
@@ -67,6 +82,7 @@ export const useSiteSelectionStore = defineStore('site-selection', () => {
     currentPlanId,
     savedXiaoquIds,
     facilityPoi,
+    setResult,
     // 跨页面持久化
     hasPersistedState: persisted.hasPersistedState,
     saveState,

@@ -22,7 +22,7 @@ import RadarChart from '@/visualization/charts/RadarChart.vue'
 
 import SiteAnalysisControlPanel from './components/SiteAnalysisControlPanel.vue'
 import { useAnalysisLayer } from './composables/useAnalysisLayer'
-import { SNAPSHOT_SELECTED_TYPES, SNAPSHOT_XIAOQU } from './composables/radarSnapshot'
+import { SNAPSHOT_SELECTED_TYPES, SNAPSHOT_XIAOQU } from '@/visualization/charts/radarSnapshot'
 
 const { flyTo, startBreathing, stopBreathing, zoomToCity, zoomToDistrict, mapInstance } =
   useMapControls()
@@ -87,6 +87,12 @@ function handleResult(result: Partial<AnalysisResult>): void {
   matchedXiaoqu.value = result.matchedXiaoqu || []
   selectedTypes.value = result.selectedTypes || []
   facilityPoi.value = result.facilityPoi || {}
+  // 写入 store 供 AppLayout 全局雷达图同源消费（此前 store 结果字段为死状态）
+  stateStore.setResult({
+    matchedXiaoqu: matchedXiaoqu.value,
+    selectedTypes: selectedTypes.value,
+    facilityPoi: facilityPoi.value,
+  })
   selectedXiaoqu.value = null
   stopBreathing()
   if (matchedXiaoqu.value.length > 0) {
@@ -213,6 +219,12 @@ function restoreState(): boolean {
   matchedXiaoqu.value = (savedState as SiteSelectionState).matchedXiaoqu || []
   selectedTypes.value = (savedState as SiteSelectionState).selectedTypes || []
   facilityPoi.value = (savedState as SiteSelectionState).facilityPoi || {}
+  // 快照恢复同样写入 store（AppLayout 全局雷达图同源）
+  stateStore.setResult({
+    matchedXiaoqu: matchedXiaoqu.value,
+    selectedTypes: selectedTypes.value,
+    facilityPoi: facilityPoi.value,
+  })
   currentPlanId.value = (savedState as SiteSelectionState).currentPlanId || null
 
   // 恢复因子面板状态

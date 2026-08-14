@@ -14,7 +14,9 @@ import LayerControlPanel from '@/core/map/components/LayerControlPanel.vue'
 import { useGCS } from '@/shared'
 import { useTheme } from '@/shared'
 import PanelTitle from '@/shared/components/PanelTitle.vue'
+import { useSiteSelectionStore } from '@/stores'
 import RadarChart from '@/visualization/charts/RadarChart.vue'
+import { SNAPSHOT_SELECTED_TYPES, SNAPSHOT_XIAOQU } from '@/visualization/charts/radarSnapshot'
 
 import BottomNavBar from './components/BottomNavBar.vue'
 import DebugToggle from './components/DebugToggle.vue'
@@ -41,6 +43,15 @@ const { active: sliderFocusActive, activePanel: sliderActivePanel } = useSliderF
 const businessNavItems = computed<NavItem[]>(() => [
   ...navItems.value.filter((i) => i.type === 'business'),
 ])
+
+// 全局雷达图数据（与选址分析页同源）：分析结果第一名，无结果用快照兜底（面板不空态）
+const siteSelectionStore = useSiteSelectionStore()
+const radarXiaoqu = computed(() => siteSelectionStore.matchedXiaoqu[0] ?? SNAPSHOT_XIAOQU)
+const radarSelectedTypes = computed(() =>
+  siteSelectionStore.selectedTypes.length > 0
+    ? siteSelectionStore.selectedTypes
+    : SNAPSHOT_SELECTED_TYPES
+)
 
 // 调试模式状态（网格 + 性能监控，类似 MC F3）
 // 仅本地开发渲染：import.meta.env.DEV 是编译期常量，生产构建后 v-if 恒 false
@@ -117,14 +128,14 @@ function goBusiness(item: NavItem): void {
       <!-- 右侧 Panel 组 -->
       <div v-show="showPanels">
         <slot name="right">
-          <!-- 右上：雷达图 4×4 -->
+          <!-- 右上：雷达图 4×4（与选址分析同源：分析结果第一名，未分析时快照兜底） -->
           <GCSPanel :w="4" :h="4" anchor="top-right" :offset-x="0" :offset-y="1.25">
             <RadarChart
               :visible="true"
-              :xiaoqu="null"
-              :selected-types="[]"
+              :xiaoqu="radarXiaoqu"
+              :selected-types="radarSelectedTypes"
               :embedded="false"
-              :facility-poi="{}"
+              :facility-poi="siteSelectionStore.facilityPoi"
             />
           </GCSPanel>
           <!-- 右下：图层控制 4×4 -->

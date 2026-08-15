@@ -181,6 +181,9 @@ export type TerrainProfileParsed = z.infer<typeof terrainProfileSchema>
 // ⑬ /site-analysis 响应（GeoJSON 不深校验）
 export const siteAnalysisResponseSchema = z.looseObject({
   error: z.string().nullable(),
+  // 8-1：无重叠区域 = 合法空结果标记（02 §4.1），非错误信封
+  empty: z.boolean().optional(),
+  emptyReason: z.string().optional(),
   coverage: z.unknown().nullable(),
   matchedXiaoqu: z
     .array(

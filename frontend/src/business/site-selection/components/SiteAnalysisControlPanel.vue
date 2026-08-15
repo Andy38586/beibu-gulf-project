@@ -12,6 +12,7 @@ import { useSiteAnalysisApi } from '../composables/useSiteAnalysisApi'
 interface Emits {
   (_e: 'result-update', _result: Partial<AnalysisResult>): void
   (_e: 'analysis-error', _message: string): void
+  (_e: 'analysis-empty', _reason: string): void
 }
 
 const emit = defineEmits<Emits>()
@@ -149,6 +150,11 @@ async function runAnalysis(): Promise<void> {
   if (calcError.value) {
     // 只通过 emit 传递，由页面级统一处理（避免重复弹窗）
     emit('analysis-error', calcError.value)
+    return
+  }
+  // 8-1：无重叠区域 = 合法空结果（02 §4.1），emit 提示而非错误
+  if (result.empty) {
+    emit('analysis-empty', result.emptyReason || '所选设施类型覆盖范围无重叠区域')
     return
   }
   emit('result-update', {

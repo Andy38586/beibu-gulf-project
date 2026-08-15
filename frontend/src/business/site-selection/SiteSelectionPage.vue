@@ -12,7 +12,7 @@ import { useBusinessLayers, useMapControls } from '@/core'
 import AppLayout from '@/core/layout/AppLayout.vue'
 import GCSPanel from '@/core/layout/components/GCSPanel.vue'
 import LayerControlPanel from '@/core/map/components/LayerControlPanel.vue'
-import { showError } from '@/shared'
+import { showError, showWarning } from '@/shared'
 import { logger } from '@/shared'
 import PaginatedListPanel from '@/shared/components/PaginatedListPanel.vue'
 import type { SiteSelectionState } from '@/stores'
@@ -60,6 +60,11 @@ const favoriteListRef = ref<InstanceType<typeof PaginatedListPanel> | null>(null
 /** 处理分析错误（来自因子面板的 calcError） */
 function handleAnalysisError(message: string): void {
   showError(message, { fallback: '选址分析失败，请调整筛选条件后重试' })
+}
+
+/** 8-1：无重叠区域 = 合法业务空结果（02 §4.1），提示用户调整条件而非报错 */
+function handleAnalysisEmpty(reason: string): void {
+  showWarning(reason)
 }
 
 /** 限制显示前8个小区 */
@@ -352,6 +357,7 @@ onUnmounted(() => {
             ref="factorPanelRef"
             @result-update="handleResult"
             @analysis-error="handleAnalysisError"
+            @analysis-empty="handleAnalysisEmpty"
           />
         </GCSPanel>
         <!-- 右下：图层控制面板 4×4 -->

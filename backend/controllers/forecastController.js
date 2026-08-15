@@ -5,7 +5,7 @@ import {
   getTimeSeriesData as queryTimeSeries,
 } from '../services/forecastService.js'
 import { BusinessError, ErrorCode } from '../utils/BusinessError.js'
-import { readStaticJson } from '../utils/readStaticJson.js'
+import { readForecastIndex } from '../repositories/forecastRepository.js'
 import { sendSuccess } from '../utils/response.js'
 
 /** 情景系数收口：非有限/≤0 回退 1.0，上限 2——避免异常值经 Math.pow 产出 Infinity/NaN */
@@ -18,7 +18,7 @@ function parseConfidence(raw) {
 export async function getForecastOverview(req, res, next) {
   try {
     // 读盘统一走 readStaticJson（TTL + LRU 缓存）
-    const data = await readStaticJson('forecast/index.json')
+    const data = await readForecastIndex()
     sendSuccess(res, data)
   } catch (error) {
     next(error)

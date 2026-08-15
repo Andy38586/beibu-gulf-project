@@ -38,6 +38,17 @@ export function useSiteAnalysisApi() {
           facilityPoi: {},
         }
       }
+      // 8-1：无重叠区域是合法空结果（02 §4.1），透传 empty 标记，页面展示业务空态而非错误
+      if (result.empty) {
+        return {
+          error: null,
+          empty: true,
+          emptyReason: result.emptyReason || '所选设施类型覆盖范围无重叠区域',
+          coverage: null,
+          matchedXiaoqu: [],
+          facilityPoi: {},
+        }
+      }
       return {
         error: null,
         coverage: result.coverage || null,

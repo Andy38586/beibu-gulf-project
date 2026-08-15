@@ -39,9 +39,9 @@ function mockReqRes(query = {}, body = {}) {
 
 const MOCK_FLOOD_AREA = JSON.stringify({
   floodZones: [
-    { waterLevel: 1.0, riskLevel: '低风险', features: [] },
-    { waterLevel: 3.0, riskLevel: '中风险', features: [] },
-    { waterLevel: 5.0, riskLevel: '高风险', features: [] },
+    { waterLevel: 1.0, riskLevel: '低风险', features: [{ type: 'Feature', properties: {} }] },
+    { waterLevel: 3.0, riskLevel: '中风险', features: [{ type: 'Feature', properties: {} }] },
+    { waterLevel: 5.0, riskLevel: '高风险', features: [{ type: 'Feature', properties: {} }] },
   ],
 })
 
@@ -97,8 +97,14 @@ describe('floodAnalysisController', () => {
       expect(next).toHaveBeenCalledWith(expect.any(BusinessError))
     })
 
-    it('超过上限 100 应触发业务错误', async () => {
+    it('超过上限 25 应触发业务错误（8-11：与 FastAPI le=25 对齐）', async () => {
       const { req, res, next } = mockReqRes({ waterLevel: '150' })
+      await getFloodAreas(req, res, next)
+      expect(next).toHaveBeenCalledWith(expect.any(BusinessError))
+    })
+
+    it('26-100 之间的越界水位应触发业务错误（8-11：原 MAX=100 放行）', async () => {
+      const { req, res, next } = mockReqRes({ waterLevel: '30' })
       await getFloodAreas(req, res, next)
       expect(next).toHaveBeenCalledWith(expect.any(BusinessError))
     })
@@ -109,20 +115,28 @@ describe('floodAnalysisController', () => {
       expect(next).toHaveBeenCalledWith(expect.any(BusinessError))
     })
 
-    it('预计算表查表：请求 2.5 精确命中 2.5 档（0.1m 步长全量档位）', async () => {
+    it('api 模式 6 档向上取档：请求 2.5 → actual 3.0（8-2/8-3 回退设计，宁可高估）', async () => {
       readFile.mockResolvedValue(MOCK_FLOOD_AREA)
       const { req, res, next } = mockReqRes({ waterLevel: '2.5' })
       await getFloodAreas(req, res, next)
       const response = res.json.mock.calls[0][0]
-      expect(response.data.actualWaterLevel).toBe(2.5)
+      expect(response.data.actualWaterLevel).toBe(3.0)
       expect(response.data.requestedWaterLevel).toBe(2.5)
-      // riskLevel 由水位连续派生（2.5 落在低风险段 0-2 之上）
+      // riskLevel 与 actual 档位一致（3.0 档中风险）
       expect(response.data.riskLevel).toBe('中风险')
       expect(response.data.features[0].properties.riskLevel).toBe('中风险')
     })
 
-    it('预计算表 miss（档位表为空）回退 6 档向上取档', async () => {
-      loadFloodLevels.mockResolvedValue({})
+    it('水位恰为档位值（5.0）→ 命中该档（向上取档含等值）', async () => {
+      readFile.mockResolvedValue(MOCK_FLOOD_AREA)
+      const { req, res, next } = mockReqRes({ waterLevel: '5' })
+      await getFloodAreas(req, res, next)
+      const response = res.json.mock.calls[0][0]
+      expect(response.data.actualWaterLevel).toBe(5.0)
+      expect(response.data.riskLevel).toBe('高风险')
+    })
+
+    it('api 模式无 251 查表：2.5 直接 6 档向上取 3.0（8-2/8-3 语义）', async () => {
       readFile.mockResolvedValue(MOCK_FLOOD_AREA)
       const { req, res, next } = mockReqRes({ waterLevel: '2.5' })
       await getFloodAreas(req, res, next)

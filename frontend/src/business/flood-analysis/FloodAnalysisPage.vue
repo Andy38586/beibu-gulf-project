@@ -382,16 +382,19 @@ function renderAffectedFacilities(facilities: AffectedFacility[]) {
   }
 
   // points 图层契约要求 data 为点数组：传 FeatureCollection 会被透传为点数组而报错，故映射为点数组
-  const points = facilities.map((f) => ({
-    lng: f.lng || 0,
-    lat: f.lat || 0,
-    id: f.id,
-    name: f.name,
-    type: f.type,
-    port: f.port,
-    loss: f.loss,
-    damageRate: f.damageRate,
-  }))
+  // P0-1：无效坐标过滤而非 `|| 0` 伪装 (0,0) 哨兵（crs.ts 自注"不再回退哨兵"）
+  const points = facilities
+    .filter((f) => Number.isFinite(Number(f.lng)) && Number.isFinite(Number(f.lat)))
+    .map((f) => ({
+      lng: f.lng,
+      lat: f.lat,
+      id: f.id,
+      name: f.name,
+      type: f.type,
+      port: f.port,
+      loss: f.loss,
+      damageRate: f.damageRate,
+    }))
 
   businessLayerManager.updateData(FACILITY_LAYER_ID, {
     data: points,

@@ -53,7 +53,7 @@ describe('siteAnalysisService.runSiteAnalysis — 选址流水线（R-14）', ()
     expect(result.facilityPoi).toEqual({})
   })
 
-  it('覆盖范围无重叠 → 返回 error（intersectCoverages failKey）', () => {
+  it('覆盖范围无重叠 → 返回 empty 合法空结果标记（8-1：非 error，02 §4.1）', () => {
     // 两类设施相距极远，缓冲区无交集。
     // 注意：坐标必须在北部湾范围内（经度105-115/纬度18-25，见 buildTypeCoverage 314-003 过滤），
     // 否则该类型 coverage 为 undefined 会被 intersectCoverages 静默剔除，测不到 failKey。
@@ -67,7 +67,9 @@ describe('siteAnalysisService.runSiteAnalysis — 选址流水线（R-14）', ()
       facilityData: farFacilityData,
       xiaoquData,
     })
-    expect(result.error).toBeTruthy()
+    expect(result.error).toBeNull()
+    expect(result.empty).toBe(true)
+    expect(result.emptyReason).toContain('无重叠区域')
   })
 })
 

@@ -1,12 +1,11 @@
 import { assessDisaster } from '../services/floodService.js'
 import { BusinessError, ErrorCode } from '../utils/BusinessError.js'
-import { loadFloodLevels } from '../utils/floodLevelsStore.js'
 import { logger } from '../utils/logger.js'
-import { readStaticJson } from '../utils/readStaticJson.js'
+import { readFacilityPoints, readFloodArea, readFloodStatistics, readTerrainProfile, readWaterArea } from '../repositories/floodRepository.js'
 import { sendSuccess } from '../utils/response.js'
 
-/** 水位上限（米）—— 超出此值视为非法输入 */
-const MAX_WATER_LEVEL = 100
+/** 水位上限（米）—— 与 FastAPI 参数约束（le=25）及 02 §4.3 滑块范围一致（8-11：原 100 放宽越界） */
+const MAX_WATER_LEVEL = 25
 
 /** 校验水位：有限数值且在 0–100 范围内，否则抛业务错误 */
 function validateWaterLevel(raw) {
@@ -33,45 +32,28 @@ export function deriveRiskLevel(level) {
   return '灾难级'
 }
 
-/** 查预计算档位表（0.1m 档全量水位，与 FastAPI 同源）；miss 返回 null，调用方回退 6 档 */
-async function lookupFloodZone(level) {
-  const table = await loadFloodLevels()
-  // 表键为 toFixed(1) 字符串格式（"0.0"/"2.5"/"15.0"），整数档必须补 .0 才能命中，
-  // 否则 3.0/4.0 等整数水位全部 miss、251 档表退化为 6 档（历史缺陷 8-1）
-  const key = (Math.round(level * 10) / 10).toFixed(1)
-  const pre = table[key]
-  if (!pre?.features || pre.features.length === 0) return null
-  return {
-    waterLevel: Number(key),
-    riskLevel: deriveRiskLevel(Number(key)),
-    features: pre.features,
-  }
-}
-
 /**
  * GET /api/flood/flood-areas?waterLevel=2.5 — 淹没范围数据。
- * 优先查 251 档预计算表（0.1m 步长精确响应），缺失/越界回退 6 档向上取档
+ * api 模式：6 档向上取档（02 §4.3 应然——宁可高估风险不可低估，前端经 requested/actual 感知差异）；
+ * 251 档预计算表归 online 模式（FastAPI），Express 侧不再查表（8-2/8-3：曾致 flood-areas 与
+ * flood-statistics 档位口径分裂，且精确命中违背"宁可高估"安全语义）
  */
 export async function getFloodAreas(req, res, next) {
   try {
     const { waterLevel } = req.query
-    const data = await readStaticJson('flood/floodArea.json')
+    const data = await readFloodArea()
 
     // 指定了水位：返回对应档位淹没范围
     if (waterLevel !== undefined) {
       const level = validateWaterLevel(waterLevel)
 
-      // ① 预计算档位表（251 档精确命中）
-      const floodZone = (await lookupFloodZone(level)) || null
-      const effectiveZone =
-        floodZone ||
-        // ② fallback：6 档向上取档（返回 >= 请求水位的最低档位）
-        data.floodZones.find((zone) => zone.waterLevel >= level)
+      // 6 档向上取档（返回 >= 请求水位的最低档位）
+      const effectiveZone = data.floodZones.find((zone) => zone.waterLevel >= level)
 
       if (effectiveZone) {
         return sendSuccess(res, {
           waterLevel: effectiveZone.waterLevel,
-          // 显式区分请求水位与实际数据档位（查表命中时二者一致，无档位偏差提示）
+          // 显式区分请求水位与实际数据档位（向上取档时 actual > requested，前端可感知）
           requestedWaterLevel: level,
           actualWaterLevel: effectiveZone.waterLevel,
           riskLevel: effectiveZone.riskLevel,
@@ -83,7 +65,7 @@ export async function getFloodAreas(req, res, next) {
         })
       }
 
-      // 如果水位超出范围，返回空
+      // 水位超出档位表（>15m）：返回空淹没范围而非静默假数据（8-11：请求受 MAX 约束，此处仅兜底）
       return sendSuccess(res, {
         waterLevel: level,
         riskLevel: '无',
@@ -108,7 +90,7 @@ export async function getFloodAreas(req, res, next) {
 export async function getFloodStatistics(req, res, next) {
   try {
     const { waterLevel } = req.query
-    const data = await readStaticJson('flood/floodStatistics.json')
+    const data = await readFloodStatistics()
 
     if (waterLevel !== undefined) {
       const level = validateWaterLevel(waterLevel)
@@ -137,7 +119,7 @@ export async function getFloodStatistics(req, res, next) {
  */
 export async function getTerrainProfiles(req, res, next) {
   try {
-    const data = await readStaticJson('flood/terrainProfile.json')
+    const data = await readTerrainProfile()
     sendSuccess(res, data.profiles)
   } catch (error) {
     if (!(error instanceof BusinessError)) {
@@ -153,7 +135,7 @@ export async function getTerrainProfiles(req, res, next) {
  */
 export async function getWaterArea(req, res, next) {
   try {
-    const data = await readStaticJson('flood/water-area.json')
+    const data = await readWaterArea()
     if (!Array.isArray(data?.coordinates) || data.coordinates.length === 0) {
       throw new BusinessError(ErrorCode.NOT_FOUND, '水域坐标数据缺失或格式无效')
     }
@@ -178,13 +160,11 @@ export async function analyzeDisaster(req, res, next) {
     const level = validateWaterLevel(waterLevel)
 
     // 读取设施数据和淹没范围
-    const facilityData = await readStaticJson('flood/facilityPoints.json')
-    const floodData = await readStaticJson('flood/floodArea.json')
+    const facilityData = await readFacilityPoints()
+    const floodData = await readFloodArea()
 
-    // ① 预计算档位表查表（与 getFloodAreas 同源）；miss 回退 6 档向上取档
-    const floodZone =
-      (await lookupFloodZone(level)) ||
-      floodData.floodZones.find((zone) => zone.waterLevel >= level)
+    // 6 档向上取档（与 getFloodAreas 同口径；8-2/8-3 回退 api 6 档设计，251 查表归 online）
+    const floodZone = floodData.floodZones.find((zone) => zone.waterLevel >= level)
 
     // 业务计算委托给 floodService
     const result = assessDisaster(facilityData.facilities, level, floodZone)

@@ -27,8 +27,8 @@ describe('mapDataService 信封解包（z033）', () => {
         Promise.resolve({
           code: 200,
           data: [
-            { id: '000001', name: '北海港', lng: 109.13, lat: 21.41 },
-            { id: '000002', name: '钦州港', lng: 108.59, lat: 21.72 },
+            { id: '000001', name: '北海港', address: '银滩旅游区18号', lng: 109.13, lat: 21.41 },
+            { id: '000002', name: '钦州港', address: '勒沟西大街', lng: 108.59, lat: 21.72 },
           ],
         }),
     })
@@ -42,7 +42,10 @@ describe('mapDataService 信封解包（z033）', () => {
   it('getPorts: 非信封（直接数组）也应兼容', async () => {
     fetchMock.mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve([{ id: '000001', name: '北海港', lng: 109.13, lat: 21.41 }]),
+      json: () =>
+        Promise.resolve([
+          { id: '000001', name: '北海港', address: '银滩旅游区18号', lng: 109.13, lat: 21.41 },
+        ]),
     })
 
     const ports = await mapDataService.getPorts()
@@ -57,8 +60,8 @@ describe('mapDataService 信封解包（z033）', () => {
         Promise.resolve({
           code: 200,
           data: [
-            { id: 'ok', name: '钦州港', lng: 108.59, lat: 21.72 },
-            { id: 'bad', name: '越界港', lng: 200, lat: 100 }, // 北部湾外
+            { id: 'ok', name: '钦州港', address: '勒沟西大街', lng: 108.59, lat: 21.72 },
+            { id: 'bad', name: '越界港', address: '境外', lng: 200, lat: 100 }, // 北部湾外
           ],
         }),
     })
@@ -83,8 +86,8 @@ describe('mapDataService 信封解包（z033）', () => {
         Promise.resolve({
           code: 200,
           data: [
-            { id: '000001', name: '北海港', lng: 109.13, lat: 21.41 },
-            { id: '000002', name: '钦州港', lng: 108.59, lat: 21.72 },
+            { id: '000001', name: '北海港', address: '银滩旅游区18号', lng: 109.13, lat: 21.41 },
+            { id: '000002', name: '钦州港', address: '勒沟西大街', lng: 108.59, lat: 21.72 },
           ],
           message: 'ok',
         }),

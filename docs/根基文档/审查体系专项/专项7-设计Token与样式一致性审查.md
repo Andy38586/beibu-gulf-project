@@ -129,8 +129,7 @@
 **需要查看**：grep 命中清单、对应 file:line、豁免清单。
 **正常标准**：业务样式无色值字面量；全部走 `var(--GCS-*)`；豁免项有注释。
 **异常情况**：
-- `style.css:102` / `:108` 写死色值未走 `--GCS-*`（已知违约）。
-- `PortInfoPanel.vue:54` 写死色值（已知违约）。
+- 全局 CSS / 组件 `<style>` / script 中散落 hex/rgb/hsl/具名色字面量（grep 定位：`#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})\b`、`rgb\(`、`rgba\(`；历史反例 `style.css:102/108`、`PortInfoPanel.vue:54` 已随代码演进失效——2026-08-14 复核为空行/token 定义/flex 声明，不再作锚点）。
 - `.vue` 内 `background: #fff` 浅色硬编码（暗色下失效）。
 - ECharts option 内直接写 hex 而非引用图表 token。
 **风险等级**：P2（若导致主题/暗色失效升 P1）

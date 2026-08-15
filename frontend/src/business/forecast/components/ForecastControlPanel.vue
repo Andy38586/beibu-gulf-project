@@ -354,7 +354,7 @@ onUnmounted(() => stopPlayback())
 
 .ind-synth {
   font-size: v-bind(levelFontSizeCss);
-  color: var(--GCS-color-warning, #e6a23c);
+  color: var(--GCS-color-warning);
   margin-left: 2px;
 }
 
@@ -398,6 +398,7 @@ onUnmounted(() => stopPlayback())
 
 .conf-slider::-webkit-slider-thumb {
   appearance: none;
+
   /* S7-19：与 t-slider 统一 16px 拇指（原 14px vs 18px 不一致） */
   width: 16px;
   height: 16px;

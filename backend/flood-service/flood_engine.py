@@ -131,32 +131,40 @@ def mask_to_geojson(
         poly = shape(geom)
         # 简化（UTM 系，容差按米）；过滤极小多边形
         poly = poly.simplify(simplify_tol, preserve_topology=True)
-        if poly.is_empty or poly.geom_type != "Polygon" or poly.area < 250_000:
-            continue  # < 0.25 km²（UTM m²）
-        # b057: 过滤小内环（<0.25 km² 的未淹没斑块）——沿海岸细碎条带淹没区多边形化后
-        # 产生"外环包围海面 + 数千内环"的巨型复杂几何（实测 15m 档 3163 内环），
-        # 渲染时外环覆盖海面、hole 挖空不完全 → 用户看到"多边形大部分在海上"。
-        # 只保留大的洞（海湾/大湖），小斑块并入外环（视觉可接受，几何大幅简化）。
-        if len(poly.interiors) > 0:
-            keep_holes = [ring for ring in poly.interiors if abs(ring.area) >= 250_000]
-            if len(keep_holes) < len(poly.interiors):
-                from shapely.geometry import Polygon as ShapelyPolygon
-
-                poly = (
-                    ShapelyPolygon(poly.exterior, keep_holes) if keep_holes else ShapelyPolygon(poly.exterior)
-                )
-        # 转 4326 并记录面积（度² 用于排序）
-        g4326 = _utm_to_4326(poly)
-        area_deg2 = _polygon_area_deg2(_shape_to_geojson(g4326))
-        if area_deg2 < MIN_AREA_DEG2:
+        if poly.is_empty:
             continue
-        features.append(
-            {
-                "type": "Feature",
-                "properties": {"area": round(area_deg2, 6)},
-                "geometry": _shape_to_geojson(g4326),
-            }
-        )
+        # 8-6：简化可能产出 MultiPolygon（点接触组件/拓扑分裂）——按 part 逐个
+        # 走同一过滤链，不再整体丢弃（曾静默低估淹没面积/featureCount）
+        parts = list(poly.geoms) if poly.geom_type == "MultiPolygon" else [poly]
+        for part in parts:
+            if part.geom_type != "Polygon" or part.area < 250_000:
+                continue  # < 0.25 km²（UTM m²）
+            # b057: 过滤小内环（<0.25 km² 的未淹没斑块）——沿海岸细碎条带淹没区多边形化后
+            # 产生"外环包围海面 + 数千内环"的巨型复杂几何（实测 15m 档 3163 内环），
+            # 渲染时外环覆盖海面、hole 挖空不完全 → 用户看到"多边形大部分在海上"。
+            # 只保留大的洞（海湾/大湖），小斑块并入外环（视觉可接受，几何大幅简化）。
+            if len(part.interiors) > 0:
+                keep_holes = [ring for ring in part.interiors if abs(ring.area) >= 250_000]
+                if len(keep_holes) < len(part.interiors):
+                    from shapely.geometry import Polygon as ShapelyPolygon
+
+                    part = (
+                        ShapelyPolygon(part.exterior, keep_holes)
+                        if keep_holes
+                        else ShapelyPolygon(part.exterior)
+                    )
+            # 转 4326 并记录面积（度² 用于排序）
+            g4326 = _utm_to_4326(part)
+            area_deg2 = _polygon_area_deg2(_shape_to_geojson(g4326))
+            if area_deg2 < MIN_AREA_DEG2:
+                continue
+            features.append(
+                {
+                    "type": "Feature",
+                    "properties": {"area": round(area_deg2, 6)},
+                    "geometry": _shape_to_geojson(g4326),
+                }
+            )
 
     features.sort(key=lambda f: f["properties"]["area"], reverse=True)
     return features

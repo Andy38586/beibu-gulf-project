@@ -139,7 +139,7 @@ function handleMainAction(): void {
   background: transparent;
   font-size: 24px;
   line-height: 1;
-  color: var(--GCS-text-secondary, #909399);
+  color: var(--GCS-text-secondary);
   cursor: pointer;
   padding: 4px;
 }
@@ -185,7 +185,7 @@ function handleMainAction(): void {
 
 .GCS-btn-primary {
   background: var(--GCS-color-primary);
-  color: var(--GCS-text-inverse, #fff);
+  color: var(--GCS-text-inverse);
 }
 
 .GCS-btn-cancel {

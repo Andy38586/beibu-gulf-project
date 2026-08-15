@@ -18,12 +18,50 @@ export const analysisResultSchema = z.record(z.string(), z.unknown())
 
 export type AnalysisResultParsed = z.infer<typeof analysisResultSchema>
 
-// ③ /flood 在线演算响应（顶层字段严格校验，features 元素由下游收窄为 FloodFeature[]）
+// ②a 淹没要素 / 受影响设施元素级 schema（D1：替代 z.array(z.unknown()) 浅校验 + as 硬转——
+// geometry/coordinates 深字段在 HTTP 边界即把关，畸形数据抛 ApiError(REQUEST_FAILED) 而非穿透渲染）
+export const floodGeometrySchema = z.discriminatedUnion('type', [
+  z.object({
+    type: z.literal('Polygon'),
+    coordinates: z.array(z.array(z.array(z.number()))),
+  }),
+  z.object({
+    type: z.literal('MultiPolygon'),
+    coordinates: z.array(z.array(z.array(z.array(z.number())))),
+  }),
+])
+
+export const floodFeatureSchema = z.object({
+  type: z.literal('Feature'),
+  geometry: floodGeometrySchema,
+  // properties 开放扩展（riskLevel/depth/area 等由数据源注入），仅约束为对象
+  properties: z.record(z.string(), z.unknown()),
+})
+
+export type FloodFeatureParsed = z.infer<typeof floodFeatureSchema>
+
+export const affectedFacilitySchema = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    type: z.string(),
+    lng: z.number(),
+    lat: z.number(),
+    port: z.string().optional(),
+    loss: z.number(),
+    damageRate: z.number(),
+  })
+  // passthrough：保留数据源附加字段（Express 侧 elevation/value），不剥除
+  .passthrough()
+
+export type AffectedFacilityParsed = z.infer<typeof affectedFacilitySchema>
+
+// ③ /flood 在线演算响应（顶层字段严格校验，features 元素级深校验见 ⑭a）
 export const floodOnlineResponseSchema = z.object({
   level: z.number(),
   featureCount: z.number(),
   floodedKm2: z.number(),
-  features: z.array(z.unknown()),
+  features: z.array(floodFeatureSchema),
 })
 
 export type FloodOnlineResponseParsed = z.infer<typeof floodOnlineResponseSchema>
@@ -201,13 +239,13 @@ export const siteAnalysisResponseSchema = z.looseObject({
 
 export type SiteAnalysisResponseParsed = z.infer<typeof siteAnalysisResponseSchema>
 
-// ⑭ /flood/flood-areas 响应（features 元素为 GeoJSON Feature，由下游收窄）
+// ⑭ /flood/flood-areas 响应（features 元素级深校验：floodFeatureSchema）
 export const floodAreasResponseSchema = z.looseObject({
   waterLevel: z.number(),
   requestedWaterLevel: z.number().optional(),
   actualWaterLevel: z.number().optional(),
   riskLevel: z.string(),
-  features: z.array(z.unknown()),
+  features: z.array(floodFeatureSchema),
 })
 
 export type FloodAreasResponseParsed = z.infer<typeof floodAreasResponseSchema>
@@ -229,20 +267,20 @@ export const floodStatisticsResponseSchema = z.looseObject({
 
 export type FloodStatisticsResponseParsed = z.infer<typeof floodStatisticsResponseSchema>
 
-// ⑯ /flood/analysis/disaster 响应（affectedFacilities 元素由下游收窄）
+// ⑯ /flood/analysis/disaster 响应（affectedFacilities 元素级深校验：affectedFacilitySchema）
 export const floodDisasterResponseSchema = z.looseObject({
   waterLevel: z.number(),
   requestedWaterLevel: z.number().optional(),
   riskLevel: z.string(),
-  affectedFacilities: z.array(z.unknown()),
+  affectedFacilities: z.array(affectedFacilitySchema),
   totalLoss: z.number(),
 })
 
 export type FloodDisasterResponseParsed = z.infer<typeof floodDisasterResponseSchema>
 
-// ⑰ /flood-online/api/flood/impact 响应（FastAPI 裸 JSON；affectedFacilities 元素由下游收窄）
+// ⑰ /flood-online/api/flood/impact 响应（FastAPI 裸 JSON；affectedFacilities 元素级深校验）
 export const floodImpactResponseSchema = z.looseObject({
-  affectedFacilities: z.array(z.unknown()).optional(),
+  affectedFacilities: z.array(affectedFacilitySchema).optional(),
   totalLoss: z.number().optional(),
 })
 

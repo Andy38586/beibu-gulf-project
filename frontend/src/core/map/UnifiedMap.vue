@@ -571,7 +571,9 @@ defineExpose({
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: rgb(255 255 255 / 85%);
+
+  /* S7 P1-1：硬编码白遮罩 → 面板半透明 token（暗色随主题变深蓝，不再亮白刺眼） */
+  background: var(--GCS-bg-panel-translucent);
   z-index: var(--GCS-z-map-status);
   gap: 12px; /* 12px 非8的整数倍，保留 */
 }
@@ -600,7 +602,9 @@ defineExpose({
   top: 10px; /* 10px 非8的整数倍，保留 */
   left: 10px; /* 10px 非8的整数倍，保留 */
   color: var(--GCS-color-error);
-  background: rgb(255 255 255 / 90%);
+
+  /* S7 P1-1：硬编码白底 → 浮层背景 token（暗色随主题） */
+  background: var(--GCS-bg-elevated);
   padding: v-bind(cell8px) 12px; /* 12px 非8的整数倍，保留 */
   border-radius: 6px;
   z-index: var(--GCS-z-map-status);
@@ -610,7 +614,9 @@ defineExpose({
   position: absolute;
   bottom: 10px; /* 10px 非8的整数倍，保留 */
   left: 10px; /* 10px 非8的整数倍，保留 */
-  background: rgb(255 200 0 / 90%);
+
+  /* S7 P1-1：硬编码黄 → 语义警告色 token（暗色下柔和橙替代刺眼亮黄） */
+  background: var(--GCS-color-warning);
   padding: 6px 12px; /* 6px/12px 非8的整数倍，保留 */
   border-radius: 6px;
   font-size: 13px;

@@ -164,5 +164,8 @@ jobs:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
           SERVER_USER: ${{ secrets.SERVER_USER }}
         run: |
+          # F2：部署注入版本 tag（日期+run 号），镜像不再覆写 latest——
+          # rollback.sh 可用历史 tag 回滚（docker images 列出后 ./scripts/rollback.sh <tag>）
+          IMAGE_TAG="$(date +%Y%m%d)-${GITHUB_RUN_NUMBER}"
           ssh -o StrictHostKeyChecking=no "$SERVER_USER@$SERVER_HOST" \
-            "cd /opt/beibu-gulf && git pull --ff-only && docker compose up --build -d && docker image prune -f"
+            "cd /opt/beibu-gulf && git pull --ff-only && IMAGE_TAG='${IMAGE_TAG}' docker compose up --build -d && docker image prune -f"

@@ -18,15 +18,15 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  color: var(--GCS-text-muted, #909399);
+  color: var(--GCS-text-muted);
   font-size: 12px;
 }
 
 .chart-loading__spinner {
   width: 24px;
   height: 24px;
-  border: 3px solid var(--GCS-bg-panel, #fff);
-  border-top-color: var(--GCS-color-primary, #409eff);
+  border: 3px solid var(--GCS-bg-panel);
+  border-top-color: var(--GCS-color-primary);
   border-radius: 50%;
   animation: chart-loading-spin 0.8s linear infinite;
 }

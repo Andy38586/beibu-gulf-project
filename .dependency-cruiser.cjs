@@ -109,6 +109,38 @@ module.exports = {
       from: {},
       to: { circular: true },
     },
+    // ===== 后端六层契约（01 §四 L0-L8）：routes 仅注册 / controllers / services / repositories / utils =====
+    // 6-03：cruise 曾扫 backend 却零后端规则——补层间单向约束，防分层退化只靠人工
+    {
+      name: 'backend-routes-not-import-lower-layers',
+      comment:
+        'routes 仅注册 controller 与中间件，不得 import services/repositories/data（业务经 controller 委托）',
+      severity: 'error',
+      from: { path: '^backend/routes/' },
+      to: { path: '^backend/(services|repositories|data)/' },
+    },
+    {
+      name: 'backend-services-not-import-controllers-routes',
+      comment: 'services 不得反向依赖 controllers/routes（上层只向下委托）',
+      severity: 'error',
+      from: { path: '^backend/services/' },
+      to: { path: '^backend/(controllers|routes)/' },
+    },
+    {
+      name: 'backend-repositories-not-import-upper-layers',
+      comment: 'repositories 是数据访问叶子层，不得 import controllers/services/routes/data 文件',
+      severity: 'error',
+      from: { path: '^backend/repositories/' },
+      to: { path: '^backend/(controllers|services|routes|data)/' },
+    },
+    {
+      name: 'backend-controllers-not-read-data-files',
+      comment:
+        'controller 不得直读 data 数据文件（须经 repositories/services；6-05 收口后守护不回流）',
+      severity: 'error',
+      from: { path: '^backend/controllers/' },
+      to: { path: '^backend/data/' },
+    },
   ],
   options: {
     doNotFollow: 'node_modules',

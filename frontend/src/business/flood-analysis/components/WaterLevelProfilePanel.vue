@@ -111,11 +111,19 @@ let chartInstance: EChartsType | null = null
 /** ECharts容器DOM引用 */
 const chartContainerRef = ref<HTMLElement | null>(null)
 
+/**
+ * 剖面线请求取消控制器：卸载时 abort 在途请求。
+ * 不取消时，切页后迟到的响应仍会写 profiles/selectedProfileId（组件已销毁，
+ * Vue 对已卸载组件的 ref 写入会静默失败并伴随内存滞留）。
+ */
+const profileAbortController = new AbortController()
+
 /** 从后端加载全部预设剖面线 */
 async function loadProfiles() {
   try {
     const result = await apiRequest<TerrainProfile[]>('/flood/terrain-profiles', {
       schema: terrainProfileSchema,
+      signal: profileAbortController.signal,
     })
 
     if (result && Array.isArray(result)) {
@@ -128,6 +136,8 @@ async function loadProfiles() {
       showError('加载剖面线数据失败')
     }
   } catch (error) {
+    // 主动取消（卸载）静默——迟到的取消错误不弹 toast
+    if (profileAbortController.signal.aborted) return
     logger.error('加载剖面线失败:', error)
     // 失败用 toast：重新选择剖面/切换水位即自动重试
     showError(error, { fallback: '加载剖面线数据失败' })

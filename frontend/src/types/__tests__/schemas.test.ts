@@ -169,23 +169,64 @@ describe('flood schemas（真实数据 + 构造样本）', () => {
     const ok = floodAreasResponseSchema.safeParse({
       waterLevel: 2.5,
       riskLevel: '中风险',
-      features: [{ type: 'Feature' }],
+      features: [
+        {
+          type: 'Feature',
+          geometry: {
+            type: 'Polygon',
+            coordinates: [
+              [
+                [108, 21],
+                [109, 21],
+                [109, 22],
+                [108, 21],
+              ],
+            ],
+          },
+          properties: { riskLevel: '中风险' },
+        },
+      ],
     })
     const bad = floodAreasResponseSchema.safeParse({ features: [] }) // 缺 waterLevel/riskLevel
+    // D1：元素级深校验——geometry 缺失/坐标畸形均拒绝（原 z.array(z.unknown()) 放行）
+    const badGeom = floodAreasResponseSchema.safeParse({
+      waterLevel: 2.5,
+      riskLevel: '中风险',
+      features: [{ type: 'Feature', geometry: { type: 'Polygon', coordinates: 'oops' } }],
+    })
     expect(ok.success).toBe(true)
     expect(bad.success).toBe(false)
+    expect(badGeom.success).toBe(false)
   })
 
   it('floodDisasterResponseSchema 通过/拒绝', () => {
     const ok = floodDisasterResponseSchema.safeParse({
       waterLevel: 2.5,
       riskLevel: '中',
-      affectedFacilities: [{ id: 'f1' }],
+      affectedFacilities: [
+        {
+          id: 'f1',
+          name: '油库',
+          type: 'oil',
+          lng: 108.5,
+          lat: 21.5,
+          loss: 100,
+          damageRate: 0.9,
+        },
+      ],
       totalLoss: 100,
     })
     const bad = floodDisasterResponseSchema.safeParse({ riskLevel: '中' }) // 缺 totalLoss
+    // D1：元素级深校验——缺 loss 的畸形设施拒绝
+    const badFac = floodDisasterResponseSchema.safeParse({
+      waterLevel: 2.5,
+      riskLevel: '中',
+      affectedFacilities: [{ id: 'f1', name: '油库' }],
+      totalLoss: 100,
+    })
     expect(ok.success).toBe(true)
     expect(bad.success).toBe(false)
+    expect(badFac.success).toBe(false)
   })
 
   it('floodOnlineResponseSchema 通过/拒绝（统一入口后仍校验）', () => {

@@ -49,17 +49,19 @@ export async function loadBoundaryGeoJson(
       }
 
       // 确保 feature.properties 存在并打上边界要素类型标记
-      geojson.features.forEach((f) => {
-        if (!f.properties) {
-          f.properties = {}
-        }
-        f.properties.featureType = 'boundary'
-      })
+      // D9：克隆后再改——loadStatic 缓存命中返回原引用，就地修改会污染共享缓存
+      const tagged: FeatureCollection = {
+        ...geojson,
+        features: geojson.features.map((f) => ({
+          ...f,
+          properties: { ...f.properties, featureType: 'boundary' },
+        })),
+      }
 
       // 缓存数据（超 500KB 视为异常膨胀，仅留内存层）
       try {
         const serialized = JSON.stringify({
-          data: geojson,
+          data: tagged,
           timestamp: Date.now(),
         })
         if (serialized.length > SESSION_STORAGE_MAX_CHARS) {
@@ -73,7 +75,7 @@ export async function loadBoundaryGeoJson(
         // 缓存写入失败不影响功能
       }
 
-      return geojson
+      return tagged
     } catch (error) {
       const e = error as Error
       const isLastAttempt = attempt === MAX_RETRIES

@@ -59,6 +59,20 @@ describe('useApiRequest', () => {
       const result = await apiRequest('/test')
       expect(result).toEqual([1, 2, 3])
     })
+
+    it('HTTP 200 但信封 code≥400 显式失败（D2：错误数据不当成功解包）', async () => {
+      mockFetch.mockResolvedValue(jsonResponse({ code: 500, data: { error: '业务失败' } }, 200))
+      const { apiRequest } = useApiRequest()
+      await expect(apiRequest('/test')).rejects.toMatchObject({
+        code: ErrorCode.REQUEST_FAILED,
+      })
+    })
+
+    it('HTTP 200 信封 code=2xx 正常解包（201 等成功状态）', async () => {
+      mockFetch.mockResolvedValue(jsonResponse({ code: 201, data: { id: 1 } }, 200))
+      const { apiRequest } = useApiRequest()
+      await expect(apiRequest('/test')).resolves.toEqual({ id: 1 })
+    })
   })
 
   describe('错误处理', () => {

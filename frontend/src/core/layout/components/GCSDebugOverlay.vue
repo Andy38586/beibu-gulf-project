@@ -649,6 +649,9 @@ onUnmounted(() => {
   top: v-bind(infoPanelOffsetCss);
   left: v-bind(infoPanelOffsetCss);
   background: rgb(0 0 0 / 45%);
+
+  /* 调试 HUD 固定黑底（不随主题），文字恒浅色——刻意豁免 color-no-hex（S7 P1-3） */
+  /* stylelint-disable-next-line color-no-hex */
   color: #e8e8e8;
   padding: v-bind(infoPanelPaddingCss);
   border-radius: 6px;
@@ -733,6 +736,9 @@ onUnmounted(() => {
   font-size: 11px;
   line-height: 1.4;
   background: rgb(0 0 0 / 35%);
+
+  /* 调试反馈按钮固定黑底（不随主题），浅蓝文字恒对比——刻意豁免 color-no-hex（S7 P1-3） */
+  /* stylelint-disable-next-line color-no-hex */
   color: #e6f4ff;
   border: 1px solid rgb(230 244 255 / 40%);
   border-radius: 4px;

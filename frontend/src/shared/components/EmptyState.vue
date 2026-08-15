@@ -19,7 +19,7 @@ withDefaults(defineProps<{ message?: string }>(), {
   width: 100%;
   height: 100%;
   min-height: 64px;
-  color: var(--GCS-text-muted, #909399);
+  color: var(--GCS-text-muted);
   font-size: 13px;
   letter-spacing: 0.02em;
 }

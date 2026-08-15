@@ -10,6 +10,7 @@
     "media-feature-range-notation": null,
     "function-no-unknown": [true, { "ignoreFunctions": ["v-bind"] }],
     "value-keyword-case": ["lower", { "ignoreFunctions": ["v-bind"] }],
-    "selector-pseudo-class-no-unknown": [true, { "ignorePseudoClasses": ["deep"] }]
+    "selector-pseudo-class-no-unknown": [true, { "ignorePseudoClasses": ["deep"] }],
+    "color-no-hex": true
   }
 }

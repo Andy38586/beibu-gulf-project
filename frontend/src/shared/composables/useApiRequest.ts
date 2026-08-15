@@ -197,7 +197,21 @@ export function useApiRequest() {
       }
 
       // 统一解包响应信封（{ code, data } → data）：调用方始终拿到业务数据 T，无需手动 .data；跨服务裸 JSON 传 envelope: false 跳过
-      const unwrapped = options.envelope === false ? (data as T) : unwrapEnvelope<T>(data)
+      let unwrapped: T
+      if (options.envelope === false) {
+        unwrapped = data as T
+      } else {
+        // D2：code 契约 = 同 HTTP 状态（后端 sendSuccess code=statusCode 恒 2xx）——
+        // HTTP 2xx 但 code≥400 的业务错误信封显式失败，杜绝「错误数据被当成功解包」静默放大
+        const code =
+          typeof data === 'object' && data !== null && 'code' in data
+            ? (data as Record<string, unknown>).code
+            : undefined
+        if (typeof code === 'number' && code >= 400) {
+          throw new ApiError(`响应业务错误（code=${code}）`, ErrorCode.REQUEST_FAILED)
+        }
+        unwrapped = unwrapEnvelope<T>(data)
+      }
 
       // dev 响应日志
       if (import.meta.env.DEV) {

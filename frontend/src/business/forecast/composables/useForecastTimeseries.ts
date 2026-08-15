@@ -22,7 +22,7 @@ interface SeriesItem {
 export function useForecastTimeseries() {
   const router = useRouter()
   const forecastState = useForecastStore()
-  const { runInTransaction } = useForecastRequest()
+  const { runInTransaction, isTransactionValid } = useForecastRequest()
 
   const lineXData = ref<string[]>([])
   const lineSeries = ref<Array<{ name: string; data: number[] }>>([])
@@ -48,6 +48,10 @@ export function useForecastTimeseries() {
         if (data.series) {
           forecastState.setRequestCache(cacheKey, { allSeries: data.series })
         }
+      } else {
+        // 8-12：与 useForecastComparison 一致——缓存命中也校验事务有效性，
+        // 过期则不渲染旧数据（避免旧状态缓存覆盖新状态窗口）
+        if (!isTransactionValid(transactionId)) return
       }
 
       const entry = forecastState.requestCache.get(cacheKey) as

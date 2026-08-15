@@ -14,7 +14,13 @@ import {
   floodStatisticsResponseSchema,
   waterAreaSchema,
 } from '@/types/schemas'
-import type { FloodAreasResponseParsed, FloodStatisticsResponseParsed } from '@/types/schemas'
+import type {
+  FloodAreasResponseParsed,
+  FloodDisasterResponseParsed,
+  FloodImpactResponseParsed,
+  FloodOnlineResponseParsed,
+  FloodStatisticsResponseParsed,
+} from '@/types/schemas'
 
 // 数据源模式：api（Express 后端）/ online（FastAPI 实时演算）；原统一 dataSourceConfig 仅此一个使用方，简化为模块级变量
 type FloodDataSourceMode = 'api' | 'online'
@@ -66,7 +72,7 @@ async function _fetchOnlineFlood(
   floodedKm2: number
   features: FloodFeature[]
 }> {
-  const raw = await apiRequest<unknown>('/flood-online/api/flood/online', {
+  const raw = await apiRequest<FloodOnlineResponseParsed>('/flood-online/api/flood/online', {
     method: 'GET',
     // b027：参数名统一 waterLevel（原 level 与 api 模式分裂；FastAPI 端已同步改名）
     params: { waterLevel },
@@ -75,7 +81,8 @@ async function _fetchOnlineFlood(
     // 校验交给 apiRequest 的 schema 选项（zod schema=运行时数据校验；envelope:false 时校验裸响应，无需手动 safeParse）
     schema: floodOnlineResponseSchema,
   })
-  // features 元素形状由下游 map + as FloodFeature[] 收窄
+  // D1：schema 已对 features 元素深校验（geometry/coordinates 形状）；riskLevel 由调用方注入 properties，
+  // 此处断言仅为类型收窄（z.infer 派生类型与业务类型同源，见 types/business/base.ts）
   return raw as {
     level: number
     featureCount: number
@@ -123,6 +130,7 @@ export const floodAdapter = {
         `[floodAdapter] online 演算完成: 请求=${waterLevel}m 实际档=${data.level}m 面积=${data.floodedKm2}km² 要素=${data.featureCount}`
       )
       const riskLevel = _riskLevelFromFlood(data.floodedKm2 ?? 0, data.level ?? waterLevel)
+      // D1：schema 已深校验；此处仅补 riskLevel 注入 properties（类型收窄，非穿透）
       const features = (data.features ?? []).map((f) => ({
         ...f,
         properties: { ...f.properties, riskLevel },
@@ -161,11 +169,13 @@ export const floodAdapter = {
       }),
     ])
 
-    const floodData = floodAreasRes as FloodAreasResponseParsed | undefined
-    const riskLevel = (floodData?.riskLevel as string) || '无风险'
-    const actualWaterLevel = floodData?.actualWaterLevel as number | undefined
+    const floodData = floodAreasRes
+    const riskLevel = floodData?.riskLevel ?? '无风险'
+    const actualWaterLevel = floodData?.actualWaterLevel
 
     return {
+      // D1：schema 已深校验 features 元素；riskLevel 由后端注入（flood-areas 响应 properties 恒含），
+      // 单断言仅为类型收窄（z.infer 派生类型与业务类型同源）
       features: (floodData?.features as FloodFeature[]) || [],
       // z.infer 同源：schema 解析类型与业务类型字段兼容，单断言透传（原 as unknown as 双断言消除）
       statistics: statisticsRes as FloodStatistics,
@@ -181,7 +191,7 @@ export const floodAdapter = {
     // online：FastAPI 预计算档位表 → 空间筛选设施影响
     if (dataSource === 'online') {
       logger.debug(`[floodAdapter] impact online: 水位=${waterLevel}m`)
-      const res = await apiRequest<Record<string, unknown>>('/flood-online/api/flood/impact', {
+      const res = await apiRequest<FloodImpactResponseParsed>('/flood-online/api/flood/impact', {
         // b027：参数名统一 waterLevel
         params: { waterLevel },
         signal,
@@ -189,24 +199,23 @@ export const floodAdapter = {
         envelope: false,
         schema: floodImpactResponseSchema,
       })
-      const result = res as Record<string, unknown> | undefined
-      const affectedFacilities = (result?.affectedFacilities as AffectedFacility[]) || []
-      const totalLoss = (result?.totalLoss as number) || 0
-      return { affectedFacilities, totalLoss }
+      // D1：schema 已深校验 affectedFacilities 元素字段
+      return {
+        affectedFacilities: res?.affectedFacilities ?? [],
+        totalLoss: res?.totalLoss ?? 0,
+      }
     }
-    // api：调用后端 /flood/analysis/disaster；后端已返回全字段，直接透传
-    const res = await apiRequest<Record<string, unknown>>('/flood/analysis/disaster', {
+    // api：调用后端 /flood/analysis/disaster；后端已返回全字段，schema 深校验后直接透传
+    const res = await apiRequest<FloodDisasterResponseParsed>('/flood/analysis/disaster', {
       method: 'POST',
       body: JSON.stringify({ waterLevel }),
       signal,
       schema: floodDisasterResponseSchema,
     })
 
-    const result = res as Record<string, unknown> | undefined
-    const totalLoss = (result?.totalLoss as number) || 0
     return {
-      affectedFacilities: (result?.affectedFacilities as AffectedFacility[]) || [],
-      totalLoss,
+      affectedFacilities: res?.affectedFacilities ?? [],
+      totalLoss: res?.totalLoss ?? 0,
     }
   },
 

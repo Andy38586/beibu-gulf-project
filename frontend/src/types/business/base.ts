@@ -4,6 +4,10 @@
  * 前端不做投影运算（北部湾横跨 UTM 49N/50N 交界带）。
  */
 
+// D1：浸没要素/受影响设施与 zod schema 编译期绑定（z.infer 同源）——
+// 运行时形状由 schemas.ts 深校验把关，业务类型不再是独立漂移副本
+import type { AffectedFacilityParsed, FloodFeatureParsed } from '../schemas'
+
 // ===== 通用 GIS 要素 =====
 
 /** 坐标点（业务层统一使用 lng/lat，WGS84 地理坐标系） */
@@ -57,13 +61,8 @@ export interface FloodStatistics {
   affectedCount?: number // 受影响设施数量（与 affectedFacilities 同语义，online 模式占位）
 }
 
-/** 淹没区域要素（GeoJSON Feature） */
-export interface FloodFeature {
-  type: 'Feature'
-  geometry: {
-    type: 'Polygon' | 'MultiPolygon'
-    coordinates: number[][][] | number[][][][]
-  }
+/** 淹没区域要素（GeoJSON Feature）——从 floodFeatureSchema z.infer 派生（D1：schema 与业务类型编译期绑定） */
+export type FloodFeature = FloodFeatureParsed & {
   properties: {
     riskLevel: string
     depth?: number
@@ -72,17 +71,8 @@ export interface FloodFeature {
   }
 }
 
-/** 受影响设施 */
-export interface AffectedFacility {
-  id: string
-  name: string
-  type: string
-  lng: number
-  lat: number
-  port?: string
-  loss: number
-  damageRate: number
-}
+/** 受影响设施——从 affectedFacilitySchema z.infer 派生（D1） */
+export type AffectedFacility = AffectedFacilityParsed
 
 /** 淹没分析保存状态 */
 export interface FloodSavedState {

@@ -247,6 +247,10 @@ export class CesiumRenderer extends MapRenderer {
   _terrainEnabled: boolean
   _hillshadeLayer: unknown
   _imageryErrorLogged: boolean
+  /** 底图 errorEvent 具名回调（供 destroyEvents 注销；provider 常驻单例 Viewer，须随 renderer 销毁摘除，5.2-1） */
+  _imageryErrorHandler: ((err: unknown) => void) | null
+  /** 挂载了 errorEvent 的底图 provider（destroyEvents 逐个 removeEventListener 用） */
+  _imageryErrorProviders: UrlTemplateImageryProvider[]
   _screenSpaceEventHandler: ScreenSpaceEventHandler | null
   _cameraChangedHandler: (() => void) | null
   _waterSurfaces: Map<string, WaterSurfaceEntry> | null
@@ -271,6 +275,8 @@ export class CesiumRenderer extends MapRenderer {
     this._hillshadeLayer = null
     /** 底图瓦片失败 warn 只打一次（防每个瓦片刷屏） */
     this._imageryErrorLogged = false
+    this._imageryErrorHandler = null
+    this._imageryErrorProviders = []
     this._screenSpaceEventHandler = null
     this._cameraChangedHandler = null
     this._waterSurfaces = null
@@ -395,8 +401,9 @@ export class CesiumRenderer extends MapRenderer {
     if (!viewer) return
 
     // errorEvent 在 ImageryProvider 上而非 ImageryLayerCollection（挂后者抛 TypeError 致 3D 初始化失败）；首次失败 warn 一次
-    // F-5：回调提为具名函数便于将来显式移除；provider 生命周期与图层绑定（随图层销毁，无独立泄漏路径）
-    const imageryErrorHandler = (err: unknown) => {
+    // 5.2-1：回调提为具名函数并持到实例字段（_imageryErrorHandler/_imageryErrorProviders），
+    // destroyEvents 逐个 removeEventListener——provider 挂单例 Viewer 常驻，不移除则闭包永久持有首个 renderer 实例
+    this._imageryErrorHandler = (err: unknown) => {
       if (this._imageryErrorLogged) return
       this._imageryErrorLogged = true
       logger.warn(
@@ -405,8 +412,9 @@ export class CesiumRenderer extends MapRenderer {
       )
     }
     const attachImageryErrorLog = (provider: UrlTemplateImageryProvider) => {
-      if (!provider?.errorEvent) return
-      provider.errorEvent.addEventListener(imageryErrorHandler)
+      if (!provider?.errorEvent || !this._imageryErrorHandler) return
+      provider.errorEvent.addEventListener(this._imageryErrorHandler)
+      this._imageryErrorProviders.push(provider)
     }
 
     // UrlTemplateImageryProvider 不识别 {layerCode}/{key} 占位符（原样发送致天地图请求失败底图空白，
@@ -792,7 +800,11 @@ export class CesiumRenderer extends MapRenderer {
     this.viewer = null
   }
 
-  /** 显式真正销毁 Viewer（仅测试/HMR/应用退出；常规卸载走 destroy() 保留复用语义） */
+  /**
+   * 显式真正销毁 Viewer（供测试/工具调用）。生产路径无需调用：
+   * destroy() 内部已启动 30s 空闲销毁定时器（cesiumViewerManager.unmount），
+   * UnifiedMap 常驻 App 根组件、卸载仅发生于应用退出/HMR，届时兜底自动回收 WebGL。
+   */
   destroyViewer() {
     cesiumViewerManager.destroyViewer()
     this.viewer = null
@@ -893,6 +905,16 @@ export function destroyEvents(renderer: CesiumRenderer): void {
     renderer._screenSpaceEventHandler.removeInputAction(ScreenSpaceEventType.MOUSE_MOVE)
     renderer._screenSpaceEventHandler = null
   }
+
+  // 移除底图 errorEvent 监听（5.2-1）：provider 挂单例 Viewer 常驻，不摘除则闭包
+  // 永久持有已销毁的 renderer 实例（handler 捕获 this）。与注册顺序无关，注销即断开引用。
+  if (renderer._imageryErrorProviders.length > 0 && renderer._imageryErrorHandler) {
+    for (const provider of renderer._imageryErrorProviders) {
+      provider?.errorEvent?.removeEventListener(renderer._imageryErrorHandler)
+    }
+    renderer._imageryErrorProviders = []
+  }
+  renderer._imageryErrorHandler = null
 }
 
 // ===== 图层：点/多边形/GeoJSON/GeoTIFF 注册与移除 =====

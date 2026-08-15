@@ -45,10 +45,21 @@ fixtures[`${API_BASE}/flood/flood-areas`] = {
     waterLevel: 5,
     actualWaterLevel: 5,
     riskLevel: '中风险',
-    // 后端已按类型契约注入 riskLevel 到 feature.properties
+    // 后端已按类型契约注入 riskLevel 到 feature.properties（geometry 为合法 Polygon）
     features: [
       {
         type: 'Feature',
+        geometry: {
+          type: 'Polygon',
+          coordinates: [
+            [
+              [108.6, 21.8],
+              [108.7, 21.8],
+              [108.7, 21.9],
+              [108.6, 21.8],
+            ],
+          ],
+        },
         properties: {
           port: '沿海区域',
           areaName: '沿海区域5m淹没区_1',

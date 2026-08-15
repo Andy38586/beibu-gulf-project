@@ -138,6 +138,8 @@ export function generateSpatialValues(historicalData, forecast, timePoint, spati
 
       // 中心高、边缘低的权重衰减
       const weight = 0.5 + 0.5 * (1 - dist / 0.05) + rng() * 0.1
+      // 8-8 披露：×5 为热力图视觉放大系数（非物理量）——40 散射点总和 ≈ base×4，
+      // 仅为让热力层在默认透明度下肉眼可见（原始仅 3 点不可见）；值仍为确定性合成示意数据
       const scatterValue = Math.round((baseValue / scatterPoints) * weight * 5)
 
       result.push({

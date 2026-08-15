@@ -8,7 +8,11 @@ import { BusinessError, ErrorCode } from '../utils/BusinessError.js'
 import { readForecastIndex } from '../repositories/forecastRepository.js'
 import { sendSuccess } from '../utils/response.js'
 
-/** 情景系数收口：非有限/≤0 回退 1.0，上限 2——避免异常值经 Math.pow 产出 Infinity/NaN */
+/**
+ * 情景系数收口：非有限/≤0 回退 1.0，上限 2——避免异常值经 Math.pow 产出 Infinity/NaN。
+ * 8-9 披露：允许范围 0-2（防御上限）；前端 UI 滑块限 0.8-1.2（设计语义），
+ * API 手工传 >1.2 属「有界放大」测试通道，非 UI 可达路径。
+ */
 function parseConfidence(raw) {
   const n = Number(raw)
   if (!Number.isFinite(n) || n <= 0) return 1.0

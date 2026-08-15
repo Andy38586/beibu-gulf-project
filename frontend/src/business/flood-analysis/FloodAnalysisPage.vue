@@ -525,10 +525,12 @@ onUnmounted(() => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: rgb(255 255 255 / 5%);
+
+  /* S7 P1-2：硬编码白 rgba → 容器/token 文字色（明暗主题均可正确切换） */
+  background: var(--GCS-bg-container);
   border: 1px dashed var(--GCS-border-default);
   border-radius: 8px;
-  color: rgb(255 255 255 / 60%);
+  color: var(--GCS-text-secondary);
 }
 
 .placeholder-title {

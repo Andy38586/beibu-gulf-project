@@ -26,14 +26,15 @@ export function showError(
 
   let message: string = fallback
 
+  // 816-专项5并 1-2：消息无害化——堆栈/超长/纯英文技术串不回退直接上屏（原始串仅 DEV 日志可见）
   if (typeof error === 'string') {
-    message = error
+    message = sanitizeMessage(error, fallback)
   } else if (error instanceof Error) {
     // 过滤 AbortError（用户主动取消，不需要提示）
     if (error.name === 'AbortError') return
-    message = error.message || fallback
+    message = sanitizeMessage(error.message, fallback)
   } else if (error && typeof error === 'object' && (error as { message?: unknown }).message) {
-    message = (error as { message: string }).message
+    message = sanitizeMessage(String((error as { message: unknown }).message), fallback)
   }
 
   if (import.meta.env.DEV) {
@@ -48,6 +49,18 @@ export function showError(
       showToast(message, 'error')
     }
   }
+}
+
+/** 错误消息无害化（816-专项5并 1-2）：堆栈特征（换行）/超长（>120）/纯英文技术串 → 回退 fallback。
+ *  导出供内联错误条（如 PlansPanel .plans-error）复用同一口径 */
+export function sanitizeMessage(raw: string, fallback: string): string {
+  if (!raw) return fallback
+  const trimmed = raw.trim()
+  if (trimmed.length > 120) return fallback
+  if (trimmed.includes('\n')) return fallback
+  // 纯 ASCII 技术串（如 "fetch failed"、路径/异常类名）对中文 UI 无意义 → 回退
+  if (/^[\x20-\x7E]+$/.test(trimmed)) return fallback
+  return trimmed
 }
 
 /**

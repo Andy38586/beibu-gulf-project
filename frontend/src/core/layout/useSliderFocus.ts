@@ -4,16 +4,24 @@
  * 其余面板透明、只保留滑块所在面板，松手恢复（底部 nav 不受影响）。
  * 模块级单例：AppLayout 监听 active 切换 class，滑块组件调用 begin/end。
  */
-import { onScopeDispose, ref } from 'vue'
+import { onScopeDispose, ref, type Ref } from 'vue'
 
-import { LAYOUT_DESKTOP_MIN } from '@/shared/layout/config'
+import { LAYOUT_DESKTOP_MIN } from '@/shared'
 
 /** 专注模式是否激活 */
 const active = ref(false)
 /** 当前滑块所在面板元素（closest('.GCS-panel')） */
 const activePanel = ref<HTMLElement | null>(null)
 
-export function useSliderFocus() {
+/** 返回契约（816-专项3-0816-13：显式化，防重构时签名静默漂移） */
+export interface UseSliderFocusReturn {
+  active: Ref<boolean>
+  activePanel: Ref<HTMLElement | null>
+  beginSliderFocus: (el: HTMLElement | null) => void
+  endSliderFocus: () => void
+}
+
+export function useSliderFocus(): UseSliderFocusReturn {
   /**
    * 滑块按下：记录所在面板并进入专注模式。
    * 桌面档位（≥960px，3 面板宽）无遮挡，不生效。

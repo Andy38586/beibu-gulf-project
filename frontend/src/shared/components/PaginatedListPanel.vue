@@ -11,7 +11,7 @@ import { useRouter } from 'vue-router'
 import EmptyState from '@/shared/components/EmptyState.vue'
 import { useAuth } from '@/shared/composables/useAuth'
 import { usePlans } from '@/shared/composables/usePlans'
-import { useGCS } from '@/shared/layout/useGCS.js'
+import { useGCS } from '@/shared/layout/useGCS'
 import { showError } from '@/shared/utils/errorHandler'
 import { showModal, showToast } from '@/shared/utils/gcsFeedback'
 import { logger } from '@/shared/utils/logger'
@@ -27,6 +27,8 @@ interface Props {
   planType?: 'site-selection' | 'flood'
   /** 收藏方案命名前缀（业务文案由调用方注入——shared 不硬编码业务类型名） */
   planNamePrefix?: string
+  /** 加载进行态（02 §5.6 不变量8「空与错误分离」：loading 不得误判为空态展示） */
+  loading?: boolean
   showFavorite?: boolean
   mapInteraction?: boolean
   /** 点击列表项自动跳转（flyTo）：由业务层注入实现，页面不再各自处理 */
@@ -46,6 +48,7 @@ const props = withDefaults(defineProps<Props>(), {
   emptyHint: '',
   planType: 'site-selection',
   planNamePrefix: '收藏',
+  loading: false,
   showFavorite: true,
   mapInteraction: true,
 })
@@ -278,6 +281,16 @@ defineExpose({
         </div>
       </div>
 
+      <!-- 加载进行态（816-专项5并 1-3：loading 与空态分离，不变量8） -->
+      <div v-else-if="loading" class="no-data-section">
+        <slot name="loading">
+          <div class="loading-hint">
+            <span class="loading-spinner" aria-hidden="true"></span>
+            <span>计算中…</span>
+          </div>
+        </slot>
+      </div>
+
       <!-- 无数据提示（c057：统一走 EmptyState，含图标/引导文案） -->
       <div v-else class="no-data-section">
         <slot name="empty">
@@ -371,7 +384,7 @@ defineExpose({
   gap: v-bind(cell8px);
   padding: v-bind(cell8px) 10px;
   background: var(--GCS-bg-panel);
-  border-radius: 4px;
+  border-radius: var(--GCS-radius-sm); /* 816-S7-54：非档位 4px 归 sm */
   white-space: nowrap;
   flex-shrink: 0;
   cursor: pointer;
@@ -401,6 +414,30 @@ defineExpose({
 .no-data-hint {
   font-size: v-bind(fontSizeSmall);
   color: var(--GCS-text-muted);
+}
+
+/* 816-专项5并 1-3：计算中提示（空态与加载态分离） */
+.loading-hint {
+  display: flex;
+  align-items: center;
+  gap: v-bind(cell8px);
+  font-size: v-bind(fontSizeBody);
+  color: var(--GCS-text-secondary);
+}
+
+.loading-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--GCS-color-primary);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: gcs-spin 0.8s linear infinite;
+}
+
+@keyframes gcs-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .pagination-section {

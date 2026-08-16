@@ -59,11 +59,14 @@ backend/data/plans.json
 .reasonix/
 
 # 本地开发工具与残渣（不提交到远程）
-.husky/
+# 816-专项5主10：.husky/ 入版本库（官方推荐，fresh clone 保留本地门禁）；仅 .husky/_/husky.sh 由 prepare 重建
 .gdal_work/
 mac-framed-site-selection.png
 frontend/typecheck-errors.txt
 old_bundle_tmp.js
+
+# 816-专项5主12：审查/调试临时文件残渣（.tmp-p1.txt/.tmp-p2.txt 已删除，同类禁止入根）
+.tmp-*
 
 # Tokens and secrets
 *.token
@@ -92,6 +95,11 @@ backend/static/dem/*.tif
 backend/flood-service/.venv/
 __pycache__/
 *.pyc
+# 816-专项6 29：pytest 缓存目录（根目录与 flood-service 各一处）
+.pytest_cache/
+
+# 816-专项6 23：类型契约生成产物（types:gen 脚本产物，不提交源码区）
+frontend/src/types/generated/
 
 # 本地审查/审计文档（不入库，仅本机留存）
 审查体系专项/

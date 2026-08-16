@@ -68,7 +68,16 @@ interface RequestOptions {
   envelope?: boolean
 }
 
-export function useApiRequest() {
+/** 返回契约（816-专项3-0816-13：显式化，防重构时签名静默漂移） */
+export interface UseApiRequestReturn {
+  apiRequest: <T = unknown>(path: string, options?: RequestOptions) => Promise<T>
+  token: Ref<string>
+  isAuthenticated: ComputedRef<boolean>
+  setToken: (t: string) => void
+  clearToken: () => void
+}
+
+export function useApiRequest(): UseApiRequestReturn {
   // token 为模块级单例，由 setToken/clearToken 维护
 
   async function apiRequest<T = unknown>(path: string, options: RequestOptions = {}): Promise<T> {
@@ -156,7 +165,12 @@ export function useApiRequest() {
 
     try {
       // 以 /flood-online 开头（vite proxy → FastAPI）的路径不加 /api 前缀：加了会命中 /api 规则转发到 Express，永远到不了 FastAPI
-      const url = path.startsWith('/flood-online') ? fullPath : `${API_BASE}${fullPath}`
+      // 以 /api 开头（如 mapDataService 的 DATA_PATHS.ports='/api/ports'）视为已含前缀，不再叠加——
+      // 曾因双重拼接打成 /api/api/ports → 404 → 港口图层加载失败（816-专项1 发现3 回归，2026-08-17 修复）
+      const url =
+        path.startsWith('/flood-online') || path.startsWith('/api/')
+          ? fullPath
+          : `${API_BASE}${fullPath}`
       const res = await fetch(url, {
         method: options.method,
         body: options.body,

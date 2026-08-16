@@ -47,8 +47,14 @@ export async function getFloodAreas(req, res, next) {
     if (waterLevel !== undefined) {
       const level = validateWaterLevel(waterLevel)
 
-      // 6 档向上取档（返回 >= 请求水位的最低档位）
-      const effectiveZone = data.floodZones.find((zone) => zone.waterLevel >= level)
+      // 6 档向上取档（返回 >= 请求水位的最低档位）；
+      // Q1（816 拍板）：15 < 水位 ≤ 25 延续向上取档语义——取最高档（15m，宁可高估风险），
+      // 不再静默返回空淹没（8-6 曾致风险语义反转：水位越高显示越安全）
+      const effectiveZone =
+        data.floodZones.find((zone) => zone.waterLevel >= level) ??
+        (data.floodZones.length
+          ? data.floodZones.reduce((max, z) => (z.waterLevel > max.waterLevel ? z : max))
+          : undefined)
 
       if (effectiveZone) {
         return sendSuccess(res, {
@@ -65,10 +71,12 @@ export async function getFloodAreas(req, res, next) {
         })
       }
 
-      // 水位超出档位表（>15m）：返回空淹没范围而非静默假数据（8-11：请求受 MAX 约束，此处仅兜底）
+      // 数据表为空的防御兜底（正常路径不可达：请求 0-25 均有档位可取）
       return sendSuccess(res, {
         waterLevel: level,
-        riskLevel: '无',
+        requestedWaterLevel: level,
+        actualWaterLevel: level,
+        riskLevel: '无风险',
         features: [],
       })
     }
@@ -95,8 +103,12 @@ export async function getFloodStatistics(req, res, next) {
     if (waterLevel !== undefined) {
       const level = validateWaterLevel(waterLevel)
 
-      // 找到最接近的水位统计
-      const stats = data.statistics.find((s) => s.waterLevel >= level)
+      // 找到最接近的水位统计（向上取档；Q1 同 getFloodAreas：超档取最高档，不静默返 null）
+      const stats =
+        data.statistics.find((s) => s.waterLevel >= level) ??
+        (data.statistics.length
+          ? data.statistics.reduce((max, s) => (s.waterLevel > max.waterLevel ? s : max))
+          : undefined)
       if (stats) {
         return sendSuccess(res, stats)
       }
@@ -164,7 +176,12 @@ export async function analyzeDisaster(req, res, next) {
     const floodData = await readFloodArea()
 
     // 6 档向上取档（与 getFloodAreas 同口径；8-2/8-3 回退 api 6 档设计，251 查表归 online）
-    const floodZone = floodData.floodZones.find((zone) => zone.waterLevel >= level)
+    // Q1（816 拍板）：超档（15<水位≤25）取最高档（15m），延续向上取档语义，不静默空评估
+    const floodZone =
+      floodData.floodZones.find((zone) => zone.waterLevel >= level) ??
+      (floodData.floodZones.length
+        ? floodData.floodZones.reduce((max, z) => (z.waterLevel > max.waterLevel ? z : max))
+        : undefined)
 
     // 业务计算委托给 floodService
     const result = assessDisaster(facilityData.facilities, level, floodZone)

@@ -391,12 +391,12 @@ defineExpose({
 
 .factor-slider {
   width: 80%;
-  height: 4px;
+  height: var(--GCS-slider-track-height); /* 816-S7-44：轨道高统一 token（原 4px） */
   appearance: none;
 
   /* c052：轨道底色为 --GCS-overlay-tint 同语义变体（50% 略深，视觉与 conf-slider 区分） */
   background: rgb(255 255 255 / 50%);
-  border-radius: 2px;
+  border-radius: calc(var(--GCS-slider-track-height) / 2);
   outline: none;
   cursor: pointer;
   margin: 0;
@@ -404,8 +404,9 @@ defineExpose({
 
 .factor-slider::-webkit-slider-thumb {
   appearance: none;
-  width: 14px;
-  height: 14px;
+  /* 816-S7-44：拇指统一 --GCS-slider-thumb-size（原 14px 同值，显式引用） */
+  width: var(--GCS-slider-thumb-size);
+  height: var(--GCS-slider-thumb-size);
   border-radius: 50%;
   background: var(--GCS-bg-panel);
   cursor: pointer;
@@ -413,8 +414,8 @@ defineExpose({
 }
 
 .factor-slider::-moz-range-thumb {
-  width: 14px;
-  height: 14px;
+  width: var(--GCS-slider-thumb-size); /* 816-S7-44：统一 token */
+  height: var(--GCS-slider-thumb-size);
   border-radius: 50%;
   background: var(--GCS-bg-panel);
   cursor: pointer;
@@ -423,7 +424,9 @@ defineExpose({
 
 .factor-importance {
   font-size: v-bind(levelFontSizeCss);
-  color: var(--GCS-bg-panel);
+  color: var(
+    --GCS-text-inverse
+  ); /* 816-S7-62：bg-panel 语义为背景，前景一律 text-inverse（原数值恰等，非功能性改动） */
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -443,7 +446,9 @@ defineExpose({
 
 .action-btn.analyze-btn {
   background: var(--GCS-color-primary);
-  color: var(--GCS-bg-panel);
+  color: var(
+    --GCS-text-inverse
+  ); /* 816-S7-62：bg-panel 语义为背景，前景一律 text-inverse（原数值恰等，非功能性改动） */
   border-color: var(--GCS-color-primary);
 }
 
@@ -453,7 +458,8 @@ defineExpose({
 }
 
 .action-btn.analyze-btn:disabled {
-  opacity: 0.6;
+  /* 816-S7-47：禁用态走 text-disabled token（原裸 opacity 0.6） */
+  color: var(--GCS-text-disabled);
   cursor: not-allowed;
 }
 </style>

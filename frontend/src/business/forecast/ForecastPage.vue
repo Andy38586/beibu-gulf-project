@@ -10,15 +10,12 @@
 import { onMounted, onUnmounted, watch } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 
-import AppLayout from '@/core/layout/AppLayout.vue'
-import GCSPanel from '@/core/layout/components/GCSPanel.vue'
-import LayerControlPanel from '@/core/map/components/LayerControlPanel.vue'
+import { AppLayout, GCSPanel, LayerControlPanel } from '@/core'
 import { logger } from '@/shared'
 import { useForecastStore } from '@/stores'
 import { useMapStore } from '@/stores'
 import type { ForecastSavedState } from '@/stores/forecastStore'
-import BarChart from '@/visualization/charts/BarChart.vue'
-import LineChart from '@/visualization/charts/LineChart.vue'
+import { BarChart, ChartLoading, LineChart } from '@/visualization'
 
 import ForecastControlPanel from './components/ForecastControlPanel.vue'
 import { useForecastComparison } from './composables/useForecastComparison'
@@ -133,7 +130,6 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <!-- 加载态不显示白色蒙版（判定粗糙），后续以动画替代 -->
   <div class="forecast-page">
     <AppLayout>
       <template #left>
@@ -145,9 +141,13 @@ onUnmounted(() => {
             :x-min="lineViewportXMin"
             :x-max="lineViewportXMax"
           />
+          <!-- 816-专项5主 6：数据刷新期 loading 覆盖（isRequesting 由事务 composable 驱动），
+               原注释"加载态不绑定 UI"已废止——弱网下用户可感知更新进行中 -->
+          <ChartLoading v-if="forecastState.isRequesting" />
         </GCSPanel>
         <GCSPanel :w="4" :h="4" anchor="top-left" :offset-x="0" :offset-y="5.5">
           <BarChart title="港口对比" :x-data="barXData" :series="barSeries" />
+          <ChartLoading v-if="forecastState.isRequesting" />
         </GCSPanel>
       </template>
       <template #right>

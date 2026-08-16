@@ -1,31 +1,28 @@
 // 深路径导入 @/core/config/map：走 @/core 入口会形成 core↔services 循环依赖（no-circular），此模块是叶子配置
 import { MAP_CONFIG } from '@/core/config/map'
-import { clearStaticCache, loadStatic } from '@/shared'
 import { logger } from '@/shared'
-import { unwrapEnvelope } from '@/shared'
+import { useApiRequest } from '@/shared'
 import { portsArraySchema } from '@/types/schemas'
 import type { Port } from '@/types'
 import { isInBeibuGulf } from '@/shared'
 
-/**
- * 静态资源 fetch 收口 loadStatic（内置超时、TTL 缓存、in-flight 去重），
- * 返回前解包 envelope（接口响应信封 {code,data}；unwrapEnvelope 是纯函数，开销极小）。
- */
-async function fetchData(url: string): Promise<unknown> {
-  const raw = await loadStatic<unknown>(url)
-  return unwrapEnvelope(raw)
-}
+// 816-专项1 发现3：/api/ports 是 API 端点，统一走 useApiRequest（02 R1 明文——
+// 原 loadStatic 缺重试/401 处理，报错口径与其它 API 不一致）。
+// 注：模块级调用 useApiRequest 与专项2 1-3 同源反模式（其实现无生命周期依赖、可工作），
+// 随 b040（authStore 收口）一并迁移至实例级。
+const { apiRequest } = useApiRequest()
 
+/**
+ * 港口数据服务：API 统一入口 + zod 校验 + 北部湾边界守卫。
+ * apiRequest 已内置超时/重试/信封解包/401 处理，schema 在 HTTP 边界把关。
+ */
 export const mapDataService = {
   async getPorts(): Promise<Port[]> {
     try {
-      const data = await fetchData(MAP_CONFIG.DATA_PATHS.ports)
-      // zod 结构校验（C-4/6）：/api/ports 为 HTTP 边界，字段形状由 schema 强制，不再只依赖 Array.isArray
-      const parsed = portsArraySchema.safeParse(data)
-      if (!parsed.success) {
-        throw new Error(`港口数据格式校验失败（${parsed.error.issues.length} 项）`)
-      }
-      const ports = parsed.data as Port[]
+      // schema 校验失败抛 ApiError(REQUEST_FAILED)（C-4/6 契约：/api/ports 为 HTTP 边界）
+      const ports = await apiRequest<Port[]>(MAP_CONFIG.DATA_PATHS.ports, {
+        schema: portsArraySchema,
+      })
 
       // 边界守卫：过滤北部湾范围外的异常港口坐标，防止污染地图渲染
       const inRegion: Port[] = []
@@ -38,7 +35,7 @@ export const mapDataService = {
       }
       return inRegion
     } catch (error) {
-      if (error instanceof Error && error.message.includes('格式校验失败')) {
+      if (error instanceof Error && error.message.includes('响应数据格式校验失败')) {
         logger.error('港口数据格式验证失败:', error)
         throw Object.assign(new Error('港口数据格式不正确，请联系管理员'), { cause: error })
       }
@@ -48,7 +45,6 @@ export const mapDataService = {
   },
 
   clearCache(): void {
-    // 委托 loadStatic 清统一缓存
-    clearStaticCache()
+    // apiRequest 为无状态请求（no-store），无前端缓存可清；保留兼容接口（原 loadStatic TTL 缓存已弃用）
   },
 }

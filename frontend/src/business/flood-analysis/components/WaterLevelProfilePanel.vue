@@ -14,17 +14,15 @@ import {
 import type { EChartsType } from 'echarts/core'
 import * as echarts from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
-import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 
-import { useSliderFocus } from '@/core/layout/useSliderFocus'
-import { useApiRequest } from '@/shared'
+import { useSliderFocus } from '@/core'
 import { PROFILE_AREA_STOP_STRONG, PROFILE_AREA_STOP_WEAK, PROFILE_COLORS } from '@/shared'
 import { useGCS } from '@/shared'
-import { showError } from '@/shared'
-import { logger } from '@/shared'
 import { perfTimeFn } from '@/shared'
 import { useFloodStore } from '@/stores'
-import { terrainProfileSchema } from '@/types/schemas'
+
+import { useTerrainProfiles } from '../composables/useTerrainProfiles'
 
 /** ECharts tooltip formatter 参数（axis 触发时为数组）：用本地最小接口替代 any，避免脆弱的深路径类型导入 */
 interface TooltipFormatterParam {
@@ -43,30 +41,21 @@ echarts.use([
   CanvasRenderer,
 ])
 
-/** 剖面线数据结构（对应后端 terrainProfile.json） */
-interface TerrainProfilePoint {
-  distance: number
-  lng: number
-  lat: number
-  elevation: number
-}
+/** 剖面线数据结构见 ../composables/useTerrainProfiles（816-专项1 发现16：本地重复接口已随 R5 收口移除） */
 
-interface TerrainProfile {
-  id: string
-  name: string
-  port?: string
-  description?: string
-  points: TerrainProfilePoint[]
-}
-
-const { apiRequest } = useApiRequest()
 const floodStore = useFloodStore()
 // 滑块专注模式（安卓控制中心风格）：拖动水位滑块时隐藏其他面板，只留本面板
 const { beginSliderFocus, endSliderFocus } = useSliderFocus()
 // 直接从 useGCS 解构 CSS 变量供 v-bind() 使用
 const { cell8px, cell16px } = useGCS()
 
-const localWaterLevel = ref(floodStore.waterLevel)
+// 816-专项2 4-1：水位滑块改为「store 单一事实源」的可写 computed——
+// 原 localWaterLevel ref + watch 反向同步属双源复制模式（指标 4.1 反模式），
+// 快照恢复/外部写入（setWaterLevelByMark）均自动一致
+const localWaterLevel = computed<number>({
+  get: () => floodStore.waterLevel,
+  set: (v: number) => floodStore.setWaterLevel(v),
+})
 
 /**
  * 可点击刻度标记（洪水口径，基于 DEM 数字高程模型实测高程与连通性淹没实测）：
@@ -80,30 +69,18 @@ const scaleMarks = [
   { label: '全面淹没', value: 15 },
 ]
 
-/** 水位变化时同步到本地滑块值 */
-watch(
-  () => floodStore.waterLevel,
-  (newLevel) => {
-    localWaterLevel.value = newLevel
-  }
-)
-
-/** 滑块变化直接写 store；防抖由父组件统一处理 */
+/** 滑块变化直接写 store；防抖由父组件统一处理（可写 computed 的 set 即写 store） */
 function onSliderChange(value: number | number[]) {
   const level = Array.isArray(value) ? value[0] : value
   floodStore.setWaterLevel(level)
 }
 
 function setWaterLevelByMark(value: number) {
-  localWaterLevel.value = value
   floodStore.setWaterLevel(value)
 }
 
-/** 剖面线列表 */
-const profiles = ref<TerrainProfile[]>([])
-
-/** 当前选中的剖面线ID */
-const selectedProfileId = ref<string | null>(null)
+/** 剖面线列表与选中态（816-专项1 发现16：R5 收口至 useTerrainProfiles，组件不再直调 apiRequest） */
+const { profiles, selectedProfileId, loadProfiles, getCurrentProfile } = useTerrainProfiles()
 
 /** ECharts实例 */
 let chartInstance: EChartsType | null = null
@@ -112,42 +89,11 @@ let chartInstance: EChartsType | null = null
 const chartContainerRef = ref<HTMLElement | null>(null)
 
 /**
- * 剖面线请求取消控制器：卸载时 abort 在途请求。
+ * 剖面线请求取消控制器：卸载时 abort 在途请求（signal 透传给 useTerrainProfiles）。
  * 不取消时，切页后迟到的响应仍会写 profiles/selectedProfileId（组件已销毁，
  * Vue 对已卸载组件的 ref 写入会静默失败并伴随内存滞留）。
  */
 const profileAbortController = new AbortController()
-
-/** 从后端加载全部预设剖面线 */
-async function loadProfiles() {
-  try {
-    const result = await apiRequest<TerrainProfile[]>('/flood/terrain-profiles', {
-      schema: terrainProfileSchema,
-      signal: profileAbortController.signal,
-    })
-
-    if (result && Array.isArray(result)) {
-      profiles.value = result
-      // 默认选择第一条剖面线（仅本地 ref）
-      if (profiles.value.length > 0) {
-        selectedProfileId.value = profiles.value[0].id
-      }
-    } else {
-      showError('加载剖面线数据失败')
-    }
-  } catch (error) {
-    // 主动取消（卸载）静默——迟到的取消错误不弹 toast
-    if (profileAbortController.signal.aborted) return
-    logger.error('加载剖面线失败:', error)
-    // 失败用 toast：重新选择剖面/切换水位即自动重试
-    showError(error, { fallback: '加载剖面线数据失败' })
-  }
-}
-
-/** 当前选中的剖面数据 */
-function getCurrentProfile() {
-  return profiles.value.find((p) => p.id === selectedProfileId.value)
-}
 
 /** 初始化图表 */
 function initChart() {
@@ -286,7 +232,7 @@ watch(
 
 /** 挂载时加载剖面线并初始化图表 */
 onMounted(() => {
-  void loadProfiles()
+  void loadProfiles(profileAbortController.signal)
   initChart()
 
   // 监听窗口大小变化
@@ -385,13 +331,14 @@ onUnmounted(() => {
 }
 
 .header-title {
-  font-size: 16px;
+  font-size: var(--GCS-font-size-lg); /* 816-S7-57：面板标题字号归档 */
   font-weight: 600;
   color: var(--GCS-text-primary);
 }
 
 .profile-select {
-  width: 160px;
+  /* 816-S7-58：固定 px 宽改网格倍数（160px = 2 个 80px cell，随 cellPixel 档位缩放） */
+  width: calc(2 * var(--GCS-cell));
 }
 
 .control-section {
@@ -433,7 +380,7 @@ onUnmounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 11px;
+  font-size: var(--GCS-font-size-xs); /* 816-S7-57：越档 11px 归 12px 档 */
   color: var(--GCS-text-muted);
   padding: 2px 0;
 }

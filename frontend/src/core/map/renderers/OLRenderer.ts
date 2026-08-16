@@ -13,6 +13,7 @@ import VectorLayer from 'ol/layer/Vector'
 // 不能 import { Map }：会遮蔽全局 ES Map，new Map()（如 _cullLayers 初始化）会误建 ol/Map 实例
 import OlMap from 'ol/Map'
 import type MapBrowserEvent from 'ol/MapBrowserEvent'
+import { Attribution, Zoom } from 'ol/control'
 import { fromLonLat, toLonLat } from 'ol/proj'
 import Cluster from 'ol/source/Cluster'
 import VectorSource from 'ol/source/Vector'
@@ -33,6 +34,11 @@ import { MapRenderer } from './MapRenderer'
 
 /** Web 墨卡托投影标识（View/GeoJSON 读取共用，避免字面量散落） */
 const WEB_MERCATOR = 'EPSG:3857'
+
+/** 2D 视图层级限位（816-专项4 1.4 提常量：与 3D CAMERA_*_ZOOM_DISTANCE 对应；原散落 9/6/20） */
+const OL_VIEW_ZOOM = 9
+const OL_VIEW_MIN_ZOOM = 6
+const OL_VIEW_MAX_ZOOM = 20
 
 /**
  * 聚合样式包装（W4-18）：Cluster 源下成员数 >1 的聚合点画大圆 + 数量标注，
@@ -119,14 +125,18 @@ export class OLRenderer extends MapRenderer {
       // 显式声明投影：业务坐标为 WGS84，地图渲染统一 Web 墨卡托
       projection: WEB_MERCATOR,
       center: fromLonLat([MAP_CONFIG.CAMERA.center.lng, MAP_CONFIG.CAMERA.center.lat]),
-      zoom: 9,
-      minZoom: 6,
-      maxZoom: 20,
+      zoom: OL_VIEW_ZOOM,
+      minZoom: OL_VIEW_MIN_ZOOM,
+      maxZoom: OL_VIEW_MAX_ZOOM,
     })
     this.map = new OlMap({
       target: this.container,
       view,
       layers: [],
+      // 816-专项4 8.3（Q6 拍板）：显式 controls 对齐 3D widget 策略——原默认全开
+      // （zoom/rotate/attribution）不可配置；保留 Zoom/Attribution（基础导航 + 版权），
+      // 弃用 Rotate 等噪音控件（北部湾单区域场景，2D/3D 控件行为对称）
+      controls: [new Zoom(), new Attribution()],
     })
     this._initBaseLayers()
     this._setupClickHandler()
@@ -839,5 +849,9 @@ export class OLRenderer extends MapRenderer {
     }
     this.map?.dispose()
     this.map = null
+    // 816-专项2 3-2：清空 baseLayers 引用——已 dispose 的 TileLayer 不留在数组中，
+    // 否则渲染器对象被多处持有时不可 GC
+    this.baseLayers.image = []
+    this.baseLayers.vector = []
   }
 }

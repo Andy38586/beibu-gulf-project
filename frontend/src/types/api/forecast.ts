@@ -15,6 +15,8 @@ export interface ForecastPoint {
   value: number
   /** 数据性质：历史实测 或 模型预测 */
   type: 'historical' | 'forecast'
+  /** 816-专项3-0816-05：置信度（数据文件自带；schema 已补可选字段防止剥除） */
+  confidence?: number
 }
 
 /** 单港口的历史序列 + 可选预测序列 */

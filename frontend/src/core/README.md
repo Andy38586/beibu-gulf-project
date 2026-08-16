@@ -15,8 +15,8 @@ core 承担三类「与业务无关」的基础能力：
 
 ```
 core/
-├── index.ts                 # 公开 API 入口（re-export 非组件模块）
-├── provideKeys.ts           # 类型化 InjectionKey（4 个 provide 键）
+├── index.ts                 # 公开 API 入口（re-export 非组件模块 + 组件聚合导出）
+├── provideKeys.ts           # 类型化 InjectionKey（3 个 provide 键；BLM key 定义于 map/composables/useBusinessLayers.ts）
 ├── config/
 │   └── map.ts               # MAP_CONFIG + buildTiandituUrl + zoomToHeight/heightToZoom
 ├── layout/
@@ -35,29 +35,27 @@ core/
         ├── index.ts              # createRenderer 工厂（2D 静态 / 3D 动态加载 Cesium）
         ├── MapRenderer.ts        # 抽象基类（策略模式）
         ├── OLRenderer.ts         # OpenLayers 2D 实现
-        ├── CesiumRenderer.ts     # Cesium 3D 实现
-        ├── CesiumEvents.ts / CesiumLayerRegistrar.ts / CesiumViewportCulling.ts / CesiumWaterSurface.ts
-        └── renderers.d.ts
+        └── CesiumRenderer.ts     # Cesium 3D 实现（CesiumEvents 等拆分文件已随 P8 合并回本体，2026-08-16 816 复核）
 ```
 
 ## 三、入口文件
 
 ### `index.ts`
 
-公开 API 聚合点。约定：
+公开 API 聚合点。约定（Q4 816 拍板：全量收口，01 原则10 不豁免）：
 
-- `components/` 与 `*.vue` 组件**不 re-export**，消费方走直接路径 import（如 `@/core/map/UnifiedMap.vue`）。
-- `renderers/index.ts` 的 `createRenderer` / `OLRenderer` 仅 core 内部使用，不对外暴露。
-- renderers 子目录内部辅助文件（`CesiumEvents` / `CesiumLayerRegistrar` 等）不 re-export。
+- `components/` 与 `*.vue` 组件经 `index.ts` 聚合导出（`UnifiedMap` / `AppLayout` / `GCSPanel` / `LayerControlPanel` / `GCSButton` / `NavButton` / `MobileDrawer` / `BottomNavBar`），消费方一律走 `@/core`，**禁止深路径穿透**。
+- `DebugToggle` / `GCSDebugOverlay` 仅 DEV 构建加载（03 §三.3「仅 dev 构建加载」），不静态导出——AppLayout 以 `import.meta.env.DEV` 条件动态导入（tree-shake 语义）。
+- `renderers/index.ts` 的 `createRenderer` / `preloadCesium` 经 `@/core` 对外（App.vue 使用）；`OLRenderer` / `CesiumRenderer` 实现类不对外。
+- renderers 子目录内部文件不 re-export。
 
 ### `provideKeys.ts`
 
-用类型化 `InjectionKey` 替代字符串 key，对应 App.vue 的 4 个 provide：
+用类型化 `InjectionKey` 替代字符串 key，对应 App.vue 的 3 个 provide（BUSINESS_LAYER_MANAGER_KEY 定义于 `map/composables/useBusinessLayers.ts`）：
 
 - `RESTORE_PLAN_DATA_KEY` → ProfilePage 消费（计划恢复数据）
 - `EDITING_PLAN_KEY` → ProfilePage 消费（当前编辑计划）
 - `UNIFIED_MAP_KEY` → `useMapControls` 消费（UnifiedMap 暴露接口：flyTo/startBreathing/stopBreathing/getRenderer）
-- `MAP_STORE_KEY` → `useLayerManager` 消费（mapStore 实例）
 
 ## 四、关键机制
 
@@ -65,7 +63,7 @@ core/
 
 - **双引擎策略**：OL 与 Cesium 容器均 `v-show` 切换；渲染器实例**长期复用、不销毁**，首次创建后保留在 `olRenderer`/`cesiumRenderer` ref。
 - **Cesium 懒加载**：3D 首次切换时动态注入 `<script>` 加载 Cesium.js（5.7MB），首屏零开销；`ensureCesiumLoaded` 幂等（模块级单例 promise）。
-- **引擎切换流程**：`switchMapType` → 导出旧相机状态 → `initRenderer`（复用则 `updateSize`+`setupLayers`，新建则 `createRenderer`+`setupLayers`+`setupEvents`）→ 导入相机状态 → `emit('typeChange')`。
+- **引擎切换流程**：`switchMapType` → 导出旧相机状态 → `initRenderer`（复用则 `updateSize`+`setupLayers`，新建则 `createRenderer`+`setupLayers`+`setupEvents`）→ 导入相机状态 → `emit('type-change')`（816：kebab-case 化）。
 - **重入保护**：切换进行中排队最新请求，完成后仅执行最后一个（`pendingSwitchType`）。
 - **核心常驻层收口**（`@arch-note a033 / D-12=B`）：boundary/ports 不再由组件直管，统一收口到 BLM，与业务图层走同一 registry。
 
@@ -102,7 +100,7 @@ core/
 | `a025`          | UnifiedMap           | click 监听具名回调 + off 解绑，注册/移除配对契约                                                                                                           |
 | `a033 (D-12=B)` | UnifiedMap           | 核心常驻层（boundary/ports）收口到 BLM，与业务图层统一走 registry                                                                                          |
 | `z024`          | UnifiedMap           | 组件级 abort（loadAbort），卸载后阻止异步回调继续写 ref                                                                                                    |
-| `c023`          | 业务导航             | 2026-08-09 重构：navConfig 已删，底部 dock 固定 3 键（首页/个人中心/菜单），业务入口+城市切换统一收敛到 AppLayout 抽屉菜单（business/manifest 单一事实源） |
+| `c023`          | 业务导航             | 2026-08-09 重构：底部 dock 固定 3 键（首页/个人中心/菜单），业务入口+城市切换统一收敛到 AppLayout 抽屉菜单（business/manifest 单一事实源）；navConfig.ts 仍存在并承载导航结构，由 App.vue `registerNavItems()` 注入业务项（816 复核：README 原"已删"表述过期） |
 
 ## 七、测试
 

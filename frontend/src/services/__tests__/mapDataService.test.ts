@@ -7,11 +7,21 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-// mock 全局 fetch，隔离网络
+// mock 全局 fetch，隔离网络；apiRequest 走 res.text() 解析（非 json()），mock 需配套
 const fetchMock = vi.fn()
 vi.stubGlobal('fetch', fetchMock)
 
 import { mapDataService } from '../mapDataService'
+
+/** 构造与真实 fetch Response 同构的 mock（apiRequest 使用 res.text() 再 JSON.parse） */
+function mockResponse(body: unknown) {
+  fetchMock.mockResolvedValue({
+    ok: true,
+    status: 200,
+    text: () => Promise.resolve(JSON.stringify(body)),
+    json: () => Promise.resolve(body),
+  })
+}
 
 beforeEach(() => {
   fetchMock.mockReset()
@@ -21,16 +31,12 @@ beforeEach(() => {
 
 describe('mapDataService 信封解包（z033）', () => {
   it('getPorts: 后端 {code,data} 信封应解包为数组', async () => {
-    fetchMock.mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          code: 200,
-          data: [
-            { id: '000001', name: '北海港', address: '银滩旅游区18号', lng: 109.13, lat: 21.41 },
-            { id: '000002', name: '钦州港', address: '勒沟西大街', lng: 108.59, lat: 21.72 },
-          ],
-        }),
+    mockResponse({
+      code: 200,
+      data: [
+        { id: '000001', name: '北海港', address: '银滩旅游区18号', lng: 109.13, lat: 21.41 },
+        { id: '000002', name: '钦州港', address: '勒沟西大街', lng: 108.59, lat: 21.72 },
+      ],
     })
 
     const ports = await mapDataService.getPorts()
@@ -40,13 +46,9 @@ describe('mapDataService 信封解包（z033）', () => {
   })
 
   it('getPorts: 非信封（直接数组）也应兼容', async () => {
-    fetchMock.mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve([
-          { id: '000001', name: '北海港', address: '银滩旅游区18号', lng: 109.13, lat: 21.41 },
-        ]),
-    })
+    mockResponse([
+      { id: '000001', name: '北海港', address: '银滩旅游区18号', lng: 109.13, lat: 21.41 },
+    ])
 
     const ports = await mapDataService.getPorts()
     expect(Array.isArray(ports)).toBe(true)
@@ -54,16 +56,12 @@ describe('mapDataService 信封解包（z033）', () => {
   })
 
   it('getPorts: 越界坐标被 CRS 守卫过滤', async () => {
-    fetchMock.mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          code: 200,
-          data: [
-            { id: 'ok', name: '钦州港', address: '勒沟西大街', lng: 108.59, lat: 21.72 },
-            { id: 'bad', name: '越界港', address: '境外', lng: 200, lat: 100 }, // 北部湾外
-          ],
-        }),
+    mockResponse({
+      code: 200,
+      data: [
+        { id: 'ok', name: '钦州港', address: '勒沟西大街', lng: 108.59, lat: 21.72 },
+        { id: 'bad', name: '越界港', address: '境外', lng: 200, lat: 100 }, // 北部湾外
+      ],
     })
 
     const ports = await mapDataService.getPorts()
@@ -71,26 +69,19 @@ describe('mapDataService 信封解包（z033）', () => {
   })
 
   it('getPorts: 格式错误（非数组）应抛友好错误', async () => {
-    fetchMock.mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ code: 200, data: { not: 'array' } }),
-    })
+    mockResponse({ code: 200, data: { not: 'array' } })
 
     await expect(mapDataService.getPorts()).rejects.toThrow('港口数据格式不正确')
   })
 
   it('getPorts: 带扩展字段的 3 键信封 {code,data,message} 仍应解包为数组 (REQ-1)', async () => {
-    fetchMock.mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          code: 200,
-          data: [
-            { id: '000001', name: '北海港', address: '银滩旅游区18号', lng: 109.13, lat: 21.41 },
-            { id: '000002', name: '钦州港', address: '勒沟西大街', lng: 108.59, lat: 21.72 },
-          ],
-          message: 'ok',
-        }),
+    mockResponse({
+      code: 200,
+      data: [
+        { id: '000001', name: '北海港', address: '银滩旅游区18号', lng: 109.13, lat: 21.41 },
+        { id: '000002', name: '钦州港', address: '勒沟西大街', lng: 108.59, lat: 21.72 },
+      ],
+      message: 'ok',
     })
 
     const ports = await mapDataService.getPorts()

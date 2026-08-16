@@ -1,4 +1,4 @@
-import type { Ref } from 'vue'
+import type { ComputedRef, Ref } from 'vue'
 import { ref } from 'vue'
 
 import { logger } from '@/shared/utils/logger'
@@ -6,6 +6,17 @@ import type { AuthResponse, User } from '@/types/api'
 import { authResponseSchema, userSchema } from '@/types/schemas'
 
 import { useApiRequest } from './useApiRequest'
+
+/** 返回契约（816-专项3-0816-13：显式化，防重构时签名静默漂移） */
+export interface UseAuthReturn {
+  user: Ref<User | null>
+  token: Ref<string>
+  isAuthenticated: ComputedRef<boolean>
+  login: (username: string, password: string) => Promise<User>
+  register: (username: string, password: string) => Promise<User>
+  logout: () => Promise<void>
+  restoreAuth: () => Promise<User | null>
+}
 
 /** localStorage 键：持久化用户信息 */
 const USER_STORAGE_KEY = 'beibu-gulf-user'
@@ -117,7 +128,7 @@ export function removeAuthStorageListener(): void {
   window.removeEventListener('storage', handleStorageChange)
 }
 
-export function useAuth() {
+export function useAuth(): UseAuthReturn {
   async function login(username: string, password: string): Promise<User> {
     const data = await apiRequest<AuthResponse>('/auth/login', {
       method: 'POST',

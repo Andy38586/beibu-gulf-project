@@ -65,8 +65,11 @@ function assertPolygonArray(data: unknown): asserts data is PolygonFeature[] {
   }
 }
 
-/** 水面能力检查：渲染器是否实现 Water3DCapability（3D 专用，仅 CesiumRenderer） */
-function isWater3DCapable(renderer: MapRenderer): renderer is MapRenderer & Water3DCapability {
+/** 水面能力检查：渲染器是否实现 Water3DCapability（3D 专用，仅 CesiumRenderer）。
+ *  816-专项4 3.2：对外导出——业务页注册水面/DEM 前用能力检查替代 getType() 引擎判断（02 §5.3 能力检查设计） */
+export function isWater3DCapable(
+  renderer: MapRenderer
+): renderer is MapRenderer & Water3DCapability {
   return typeof (renderer as Partial<Water3DCapability>).addWaterSurface === 'function'
 }
 

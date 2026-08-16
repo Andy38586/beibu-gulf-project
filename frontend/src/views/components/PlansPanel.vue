@@ -12,9 +12,7 @@ import { EDITING_PLAN_KEY, RESTORE_PLAN_DATA_KEY } from '@/core'
 import { useAuth, usePlans } from '@/shared'
 import { showModal } from '@/shared'
 import { logger } from '@/shared'
-import EmptyState from '@/shared/components/EmptyState.vue'
-import PaginatedListPanel from '@/shared/components/PaginatedListPanel.vue'
-import PlanSaveModal from '@/shared/components/PlanSaveModal.vue'
+import { EmptyState, PaginatedListPanel, PlanSaveModal, sanitizeMessage } from '@/shared'
 import { useFloodStore } from '@/stores'
 import type { AffectedFacility, FloodFeature, FloodStatistics } from '@/types/business/base'
 import type { TypeSetting } from '@/types/facility'
@@ -61,7 +59,11 @@ async function loadPlans() {
   try {
     plansList.value = await getPlans()
   } catch (error) {
-    plansError.value = (error as Error).message || '方案列表加载失败，请稍后重试'
+    // 816-专项5并 1-2：内联错误条经 sanitizeMessage 无害化（技术串回退 fallback）
+    plansError.value = sanitizeMessage(
+      (error as Error).message || '',
+      '方案列表加载失败，请稍后重试'
+    )
     if (import.meta.env.DEV) {
       logger.error('[PlansPanel] 加载方案列表失败:', error)
     }
@@ -86,7 +88,8 @@ async function doDeletePlan(id: string): Promise<void> {
     }
     await loadPlans()
   } catch (error) {
-    plansError.value = (error as Error).message || '删除失败，请稍后重试'
+    // 816-专项5并 1-2：同上无害化
+    plansError.value = sanitizeMessage((error as Error).message || '', '删除失败，请稍后重试')
     if (import.meta.env.DEV) {
       logger.error('[PlansPanel] 删除方案失败:', error)
     }
@@ -179,7 +182,8 @@ async function handleSaveName(name: string) {
     showSaveModal.value = false
     await loadPlans()
   } catch (e) {
-    saveError.value = (e as Error).message || '重命名失败'
+    // 816-专项5并 1-2：同上无害化
+    saveError.value = sanitizeMessage((e as Error).message || '', '重命名失败')
   } finally {
     savingName.value = false
   }
@@ -396,7 +400,7 @@ watch(
 }
 
 .plan-toggle {
-  font-size: 10px;
+  font-size: var(--GCS-font-size-xs); /* 816-S7-57：越档 10px 归 12px 档 */
   color: var(--GCS-text-muted);
   width: 12px;
   flex-shrink: 0;
@@ -426,15 +430,17 @@ watch(
 
 .plan-actions {
   display: flex;
-  gap: 6px;
+  /* 816-S7-51：微间距归 8px 基准（原 6px 非刻度） */
+  gap: 8px;
   margin-bottom: 10px;
 }
 
 .action-btn {
   flex: 1;
-  padding: 5px 0;
+  /* 816-S7-51：垂直 padding 归 8px 基准（原 5px 非刻度） */
+  padding: 8px 0;
   border: 1px solid var(--GCS-border-default);
-  border-radius: 4px;
+  border-radius: var(--GCS-radius-sm); /* 816-S7-54：非档位 4px 归 sm */
   background: var(--GCS-bg-panel);
   font-size: 12px;
   cursor: pointer;
@@ -450,7 +456,8 @@ watch(
 }
 
 .action-btn:disabled {
-  opacity: 0.6;
+  /* 816-S7-47：禁用态走 text-disabled token（原裸 opacity 0.6） */
+  color: var(--GCS-text-disabled);
   cursor: not-allowed;
 }
 
@@ -471,7 +478,9 @@ watch(
 
 .delete-btn:hover:not(:disabled) {
   background: var(--GCS-color-error);
-  color: var(--GCS-bg-panel);
+  color: var(
+    --GCS-text-inverse
+  ); /* 816-S7-62：bg-panel 语义为背景，前景一律 text-inverse（原数值恰等，非功能性改动） */
 }
 
 /* 收藏分区 */

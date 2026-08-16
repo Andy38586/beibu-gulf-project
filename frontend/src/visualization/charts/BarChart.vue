@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-import EmptyState from '@/shared/components/EmptyState.vue'
+import { EmptyState } from '@/shared'
 
 import { useChartBase } from './composables/useChartBase'
 
 interface Props {
   title?: string
   xData?: string[]
-  series?: Array<{ name: string; data: number[] }>
+  // 816-专项1 发现18：data 允许 null（无数据空档，ECharts 原生支持），禁止调用方折叠为 0
+  series?: Array<{ name: string; data: Array<number | null> }>
 }
 
 const props = withDefaults(defineProps<Props>(), {

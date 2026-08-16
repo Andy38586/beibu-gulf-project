@@ -36,8 +36,11 @@ export type FloodGeometryParsed = z.infer<typeof floodGeometrySchema>
 export const floodFeatureSchema = z.object({
   type: z.literal('Feature'),
   geometry: floodGeometrySchema,
-  // properties 开放扩展（riskLevel/depth/area 等由数据源注入），仅约束为对象
-  properties: z.record(z.string(), z.unknown()),
+  // properties：riskLevel 业务必填（FloodFeature 契约，两数据源均在边界后注入——
+  // api 模式由 controller 注入、online 模式由 floodAdapter 注入，见各自注释）；
+  // 但原始响应边界不能强制必填：FastAPI flood_engine 仅返回 {area}（无 riskLevel），
+  // 必填会把 online 模式全部判死（816-专项3-0816-06 回归，2026-08-17 修复），故 optional
+  properties: z.looseObject({ riskLevel: z.string().optional() }),
 })
 
 export type FloodFeatureParsed = z.infer<typeof floodFeatureSchema>
@@ -93,6 +96,8 @@ export const forecastPointSchema = z.object({
   time: z.string(),
   value: z.number(),
   type: z.enum(['historical', 'forecast']),
+  // 816-专项3-0816-05：数据文件自带 confidence（berth.json 等），补可选字段防 schema 静默剥除
+  confidence: z.number().optional(),
 })
 
 export type ForecastPointParsed = z.infer<typeof forecastPointSchema>
@@ -146,6 +151,8 @@ export const forecastMapDataSchema = z.looseObject({
         portId: z.string(),
         portName: z.string(),
         value: z.number(),
+        // 816-专项3-0816-14：reliability 对齐 ForecastMapData 类型声明（原 schema 未枚举，looseObject 透传）
+        reliability: z.number().optional(),
       }),
     })
   ),
@@ -190,6 +197,8 @@ export const planSchema = z.looseObject({
   typeSettings: z.record(z.string(), z.unknown()),
   // savedXiaoqu 必须 optional：存量 plans.json 记录大多无此字段，必填会拒绝旧数据
   savedXiaoqu: z.array(z.unknown()).optional(),
+  // 816-专项3-0816-04：weights 由后端持久化（旧数据 null），前端声明但当前不消费
+  weights: z.record(z.string(), z.number()).nullable().optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
   businessType: z.string().optional(),
@@ -262,7 +271,8 @@ export const floodStatisticsResponseSchema = z.looseObject({
   floodArea: z.number().optional(),
   averageDepth: z.number().optional(),
   maxDepth: z.number().optional(),
-  affectedFacilities: z.number().optional(),
+  // 816-专项1 发现7（M5）：计数语义改名 affectedFacilityCount（原 affectedFacilities 与数组语义同名不同型）
+  affectedFacilityCount: z.number().optional(),
   affectedPorts: z.array(z.string()).optional(),
   estimatedLoss: z.number().optional(),
   description: z.string().optional(),

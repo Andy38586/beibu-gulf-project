@@ -1,0 +1,36 @@
+# 前端 lint + format（仅检查暂存文件）
+# husky v9：直接写命令，不需要 source _/husky.sh
+# 注意：git 执行 hook 时 cwd 默认即为仓库根，故此处不 `cd frontend`。
+# lint-staged 配置在根 package.json 的 "lint-staged" 字段（原 .lintstagedrc.json 已 2026-08-11 合并），
+# glob 为 `frontend/src/**/*.{ts,vue,js}`（git 根相对路径），
+# 从仓库根运行 lint-staged 才能正确匹配暂存的前端文件。
+
+# ===== 受保护文档防删除守卫（husky pre-commit）=====
+# 作用：把以下文档「提交删除/重命名」时直接拦截，防止误删固化进历史。
+# 局限：本守卫不能阻止日常 rm（本地删除），只能阻止“提交删除”。
+# 真正的防丢靠远程仓库（git push）——本地 rm 碰不到远程副本。
+# 如需故意删除某文档：编辑下方 PROTECTED 列表移除它，或 git commit --no-verify。
+# 2026-08-12：docs 台账/审计文档整体移出版本库（学习性质不公开），受保护三文档随 docs/* 忽略规则
+# 一并移出，守卫列表清空（根基文档 docs/根基文档/ 为唯一保留公开区，若需保护可在此追加）
+PROTECTED=""
+
+_changed=$(git -c core.quotepath=false diff --cached --name-status | awk '$1 ~ /^[DR]/ {print $2}')
+_bad=""
+# 2026-08-10（面试报告 P1-3）：修复变量名 bug——循环读 $PROTECTED（原写 $_PROTECTED
+# 恒为空，守卫从未生效，受保护文档删除不会被拦截）
+for _p in $PROTECTED; do
+  if echo "$_changed" | grep -qx "$_p"; then
+    _bad="$_bad$_p
+"
+  fi
+done
+if [ -n "$_bad" ]; then
+  echo "pre-commit 拦截：以下受保护文档正被删除/重命名，已阻止提交："
+  printf '%s' "$_bad"
+  echo "------------------------------------------------------------"
+  echo "如需故意删除：编辑 .husky/pre-commit 的 PROTECTED 列表，或 git commit --no-verify"
+  exit 1
+fi
+# ===== 守卫结束 =====
+
+npx lint-staged

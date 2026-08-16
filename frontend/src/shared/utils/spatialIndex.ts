@@ -14,8 +14,16 @@ export interface IndexedItem<T = unknown> extends BBox {
   data: T
 }
 
+/** 返回契约（816-专项3-0816-13：显式化，防重构时签名静默漂移） */
+export interface SpatialIndex<T = unknown> {
+  load: (items: IndexedItem<T>[]) => void
+  query: (extent: [number, number, number, number]) => IndexedItem<T>[]
+  clear: () => void
+  size: () => number
+}
+
 /** 空间索引封装（load 批量加载，query 传入视口 extent 即得可见要素） */
-export function createSpatialIndex<T = unknown>() {
+export function createSpatialIndex<T = unknown>(): SpatialIndex<T> {
   const tree = new RBush<IndexedItem<T>>()
 
   /** 批量加载要素到索引 */

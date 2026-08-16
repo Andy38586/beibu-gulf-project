@@ -3,7 +3,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, reactive } from 'vue'
 
-import { useSliderFocus } from '@/core/layout/useSliderFocus'
+import { useSliderFocus } from '@/core'
 import { BASE_YEAR, CONFIRM_DELAY, DEFAULT_CONFIDENCE, END_YEAR, useGCS } from '@/shared'
 import { useForecastStore } from '@/stores'
 
@@ -36,20 +36,33 @@ const INDICATORS = [
   { key: 'traffic', label: '船舶流量', icon: '🚢' },
 ].map((i) => ({ ...i, synthetic: SYNTHETIC_INDICATORS.has(i.key) }))
 
+// 816-专项2 4-2：selected 由 store activeIndicator 派生（getter）——
+// 快照恢复 restoreState 设置 activeIndicator 后按钮高亮自动一致（原本地双源：恢复非 cargo 时按钮仍亮 cargo）
 const btnStates = reactive(
-  Object.fromEntries(INDICATORS.map((i) => [i.key, { selected: false, selecting: false }]))
+  Object.fromEntries(
+    INDICATORS.map((i) => [
+      i.key,
+      {
+        get selected() {
+          return forecastState.activeIndicator === i.key
+        },
+        selecting: false,
+      },
+    ])
+  )
 )
 const timers: Record<string, ReturnType<typeof setTimeout> | null> = {}
 
 function toggleBtn(key: string) {
   const s = btnStates[key]
   if (!s.selected) {
+    // 取消其他按钮的 selecting 计时器并复位（selected 已派生，无需直写）
     Object.keys(btnStates).forEach((k) => {
-      btnStates[k].selected = k === key
-      btnStates[k].selecting = k === key
+      btnStates[k].selecting = false
       clearTimer(k)
     })
     forecastState.setActiveIndicator(key)
+    s.selecting = true
     resetTimer(key)
   } else if (s.selected && !s.selecting) {
     s.selecting = true
@@ -101,7 +114,6 @@ function getConf(key: string) {
 
 onMounted(() => {
   document.addEventListener('click', handleGlobalClick)
-  btnStates.cargo.selected = true
 })
 onUnmounted(() => {
   document.removeEventListener('click', handleGlobalClick)
@@ -122,7 +134,9 @@ const isYearMode = computed({
 })
 
 const maxSteps = computed(() =>
-  isYearMode.value ? END_YEAR - BASE_YEAR : (END_YEAR - BASE_YEAR + 1) * 12
+  // 816-专项8 发现2：月模式最大合法步 = (END_YEAR-BASE_YEAR)*12+11（=2031-12，stepToTime 闭合）；
+  // 原 (END_YEAR-BASE_YEAR+1)*12=132 会越界到 2032-01（02 §4.2「2031 边界闭合」）
+  isYearMode.value ? END_YEAR - BASE_YEAR : (END_YEAR - BASE_YEAR) * 12 + 11
 )
 
 const currentStep = computed(() => {
@@ -383,17 +397,19 @@ onUnmounted(() => stopPlayback())
 
 .slider-cell .ind-label-s {
   font-size: v-bind(smallFontSizeCss);
-  color: var(--GCS-bg-panel);
+  color: var(
+    --GCS-text-inverse
+  ); /* 816-S7-62：bg-panel 语义为背景，前景一律 text-inverse（原数值恰等，非功能性改动） */
 }
 
 .conf-slider {
   width: 80%;
-  height: 4px;
+  height: var(--GCS-slider-track-height); /* 816-S7-44：轨道高统一 token（原 4px） */
   appearance: none;
 
   /* c052：轨道底色走 --GCS-overlay-tint（原 rgb(255 255 255 / 40%) 硬编码） */
   background: var(--GCS-overlay-tint);
-  border-radius: 2px;
+  border-radius: calc(var(--GCS-slider-track-height) / 2);
   outline: none;
   cursor: pointer;
 }
@@ -401,9 +417,9 @@ onUnmounted(() => stopPlayback())
 .conf-slider::-webkit-slider-thumb {
   appearance: none;
 
-  /* S7-19：与 t-slider 统一 16px 拇指（原 14px vs 18px 不一致） */
-  width: 16px;
-  height: 16px;
+  /* 816-S7-44：拇指统一 --GCS-slider-thumb-size（14px，Q5 拍板全走 .gcs-slider 档；原 S7-19 统一到 16px 被本批覆盖） */
+  width: var(--GCS-slider-thumb-size);
+  height: var(--GCS-slider-thumb-size);
   border-radius: 50%;
   background: var(--GCS-bg-panel);
   cursor: pointer;
@@ -412,8 +428,8 @@ onUnmounted(() => stopPlayback())
 }
 
 .conf-slider::-moz-range-thumb {
-  width: 16px;
-  height: 16px;
+  width: var(--GCS-slider-thumb-size);
+  height: var(--GCS-slider-thumb-size);
   border-radius: 50%;
   background: var(--GCS-bg-panel);
   cursor: pointer;
@@ -422,7 +438,9 @@ onUnmounted(() => stopPlayback())
 
 .conf-pct {
   font-size: v-bind(levelFontSizeCss);
-  color: var(--GCS-bg-panel);
+  color: var(
+    --GCS-text-inverse
+  ); /* 816-S7-62：bg-panel 语义为背景，前景一律 text-inverse（原数值恰等，非功能性改动） */
   font-weight: 600;
 }
 
@@ -485,8 +503,9 @@ onUnmounted(() => stopPlayback())
 
 .t-slider::-webkit-slider-thumb {
   appearance: none;
-  width: 18px;
-  height: 18px;
+  /* 816-S7-44：拇指统一 --GCS-slider-thumb-size（14px；原 18px 时间轴大抓取面收敛） */
+  width: var(--GCS-slider-thumb-size);
+  height: var(--GCS-slider-thumb-size);
   border-radius: 50%;
   background: var(--GCS-color-primary);
   cursor: pointer;
@@ -495,8 +514,8 @@ onUnmounted(() => stopPlayback())
 }
 
 .t-slider::-moz-range-thumb {
-  width: 18px;
-  height: 18px;
+  width: var(--GCS-slider-thumb-size);
+  height: var(--GCS-slider-thumb-size);
   border-radius: 50%;
   background: var(--GCS-color-primary);
   cursor: pointer;
@@ -547,6 +566,8 @@ onUnmounted(() => stopPlayback())
 }
 
 .act-btn:hover {
-  background: var(--GCS-border-default);
+  /* 816-S7-60：hover 底改通用 --GCS-bg-hover token（原用边框色充底）；
+     面板内操作钮与地图悬浮 GCSButton 职责可区分，抽 FlatButton 留待按钮体系重构 */
+  background: var(--GCS-bg-hover);
 }
 </style>

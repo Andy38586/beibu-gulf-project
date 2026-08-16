@@ -9,7 +9,7 @@
 北部湾港 WebGIS 平台聚焦三类空间分析业务，并借分层架构验证 GIS 系统的可扩展性：
 
 - **选址分析**：6 类设施多选 + 距离加权评分，后端 turf 缓冲区叠加与 RBush 面内点过滤，雷达图 6 轴评分 + 方案收藏
-- **预测分析**：4 指标趋势可视化（时间轴播放 + 地图热力），吞吐量模型产物（cargo/container 真数据，berth/traffic 诚实标注合成示意）
+- **预测分析**：4 指标趋势可视化（时间轴播放 + 地图热力），cargo 走吞吐量模型产物、container 走确定性趋势外推引擎（均真数据；berth/traffic 诚实标注合成示意）
 - **浸没分析**：基于真 DEM 的连通性淹没演算（FastAPI scipy 8 连通 + 海面种子），251 档预计算表查表秒回，Cesium 3D 真地形 + 水面/淹没多边形渲染
 
 附加能力：HttpOnly Cookie 会话认证（tokenVersion 吊销）、暗色主题切换（深蓝+橙）、响应式三档布局（桌面/抽屉/紧凑）、CI 自动部署 + HTTPS 自动续期。
@@ -95,7 +95,7 @@ GIS 应用中，地图工具栏、分析面板、图例、详情卡片等组件�
 | **UI 组件**    | Element Plus（按需引入）+ 自研 GCS 网格布局体系（含暗色主题 token）                                           |
 | **后端**       | Node.js、Express 5（ESM，三层架构）+ FastAPI（Python 洪涝演算，独立容器）                                     |
 | **数据**       | GeoJSON、JSON（createReadCache 缓存）、251 档预计算表（gzip）、DEM 流水线脚本                                 |
-| **工程化**     | Vitest（前后端 416 用例）、ESLint、Prettier、Husky/commitlint、dependency-cruiser 架构守护、gitleaks 密钥扫描 |
+| **工程化**     | Vitest（前后端全量测试，用例数为动态状态，以 `npm test` 为准）、ESLint、Prettier、Husky/commitlint、dependency-cruiser 架构守护、gitleaks 密钥扫描 |
 | **部署**       | Docker Compose 双容器、GitHub Actions CI 自动部署、Let's Encrypt HTTPS 自动续期                               |
 
 ---

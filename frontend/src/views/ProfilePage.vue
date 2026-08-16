@@ -6,17 +6,16 @@
  */
 import { defineAsyncComponent, onMounted } from 'vue'
 
-import AppLayout from '@/core/layout/AppLayout.vue'
-import GCSPanel from '@/core/layout/components/GCSPanel.vue'
+import { AppLayout, GCSPanel } from '@/core'
 import { useAuth, useGCS } from '@/shared'
-import { useOverviewCharts } from '@/business/forecast/composables/useOverviewCharts'
-import ChartLoading from '@/visualization/charts/ChartLoading.vue'
+import { useOverviewCharts } from '@/business'
+import { ChartLoading } from '@/visualization'
 
 import PlansPanel from './components/PlansPanel.vue'
 import UserInfoCard from './components/UserInfoCard.vue'
 import LoginPanel from './LoginPanel.vue'
 
-// 图表异步化：echarts 移出首屏关键路径（同首页）
+// 图表异步化：echarts 移出首屏关键路径（同首页；loader 深路径保留——见 HomePage 注释）
 const LineChart = defineAsyncComponent({
   loader: () => import('@/visualization/charts/LineChart.vue'),
   loadingComponent: ChartLoading,

@@ -4,7 +4,7 @@
  * （跨页面快照由 store 统一序列化），事务经 useForecastRequest 保证三路请求原子性。
  * 错误处理与页面原实现一致：401 软登录、其余 showError 统一出口。
  */
-import { ref } from 'vue'
+import { ref, type Ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { handleAuthError, isAuthError, logger, showError } from '@/shared'
@@ -19,7 +19,16 @@ interface SeriesItem {
   data: Array<{ time: string; value: number }>
 }
 
-export function useForecastTimeseries() {
+/** 返回契约（816-专项3-0816-13：显式化，防重构时签名静默漂移） */
+export interface UseForecastTimeseriesReturn {
+  lineXData: Ref<string[]>
+  lineSeries: Ref<Array<{ name: string; data: number[] }>>
+  lineViewportXMin: Ref<string>
+  lineViewportXMax: Ref<string>
+  load: (transactionId: number, signal: AbortSignal) => Promise<void>
+}
+
+export function useForecastTimeseries(): UseForecastTimeseriesReturn {
   const router = useRouter()
   const forecastState = useForecastStore()
   const { runInTransaction, isTransactionValid } = useForecastRequest()

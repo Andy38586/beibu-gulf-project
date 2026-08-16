@@ -11,6 +11,30 @@ import { floodAdapter } from '../floodAdapter'
 // 内联 fixture（结构与后端 sendSuccess 信封 / FastAPI 裸 JSON 同构）
 const fixtures: Record<string, unknown> = {
   // online 模式：FastAPI /flood-online 返回裸 JSON（无信封），envelope:false 直传
+  // online 模式：FastAPI /flood-online 返回裸 JSON（无信封），envelope:false 直传
+  '/flood-online/api/flood/online': {
+    level: 5,
+    featureCount: 1,
+    floodedKm2: 12.5,
+    // 与 flood_engine.py 同构：properties 仅 {area}，无 riskLevel（由 adapter 校验后注入）
+    features: [
+      {
+        type: 'Feature',
+        geometry: {
+          type: 'Polygon',
+          coordinates: [
+            [
+              [108.6, 21.8],
+              [108.7, 21.8],
+              [108.7, 21.9],
+              [108.6, 21.8],
+            ],
+          ],
+        },
+        properties: { area: 12.5 },
+      },
+    ],
+  },
   '/flood-online/api/flood/impact': {
     level: 15,
     affectedFacilities: [
@@ -154,6 +178,16 @@ describe('floodAdapter', () => {
   })
 
   describe('online 模式（flood-service FastAPI）', () => {
+    it('getFloodAnalysis 应调 /flood-online/api/flood/online 并注入 riskLevel（FastAPI 无该字段，回归 0816-06）', async () => {
+      floodAdapter.setDataSource('online')
+      const result = await floodAdapter.getFloodAnalysis(5)
+      expect(result.features).toHaveLength(1)
+      // level 5 → 中风险（_riskLevelFromFlood 阈值表：≤5 中 / ≤8 高）
+      expect(result.features[0].properties.riskLevel).toBe('中风险')
+      expect(result.statistics.floodArea).toBe(12.5)
+      expect(result.actualWaterLevel).toBe(5)
+    })
+
     it('getImpactAssessment 应调 /flood-online/api/flood/impact 并透传裸 JSON（d073 补齐影响评估）', async () => {
       floodAdapter.setDataSource('online')
       const result = await floodAdapter.getImpactAssessment(15)

@@ -183,9 +183,8 @@ export function useRadarChart({
         },
         splitArea: {
           areaStyle: {
-            color: dark
-              ? ['rgba(255,255,255,0.04)', 'rgba(255,255,255,0.12)']
-              : ['rgba(255,255,255,0.1)', 'rgba(255,255,255,0.3)'],
+            // 816-S7-49：叠层色收敛到 CHART_COLORS（原 isDark 分支 rgba 硬编码）
+            color: CHART_COLORS.radarSplitArea[dark ? 'dark' : 'light'],
           },
         },
         axisLine: {

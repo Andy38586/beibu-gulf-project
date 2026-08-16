@@ -6,7 +6,16 @@
  * - getCurrentSignal：透传在途取消信号给子调用（如水域坐标加载与主分析共享取消）
  * - cancel：卸载时取消在途请求
  */
-export function useLatestRequest() {
+
+/** 返回契约（816-专项3-0816-13：显式化，防重构时签名静默漂移） */
+export interface UseLatestRequestReturn {
+  createSignal: () => AbortSignal
+  isLatest: (signal: AbortSignal) => boolean
+  getCurrentSignal: () => AbortSignal | undefined
+  cancel: () => void
+}
+
+export function useLatestRequest(): UseLatestRequestReturn {
   let controller: AbortController | null = null
 
   /** 新请求优先：取消旧请求并返回新 signal */

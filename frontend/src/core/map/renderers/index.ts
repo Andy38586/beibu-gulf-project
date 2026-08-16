@@ -28,7 +28,10 @@ export function preloadCesium(): void {
       void ensureCesiumLoaded()
         .then(() => {
           // 预热 CesiumRenderer 模块 chunk，进 3D 时不再现场拉取
-          void import('./CesiumRenderer')
+          // 816-专项2 7-2：动态导入失败需自身兜底（外层 catch 只管 ensureCesiumLoaded）
+          void import('./CesiumRenderer').catch(() => {
+            // 预热失败静默——进 3D 时走正式加载路径
+          })
         })
         .catch(() => {
           // 预热失败静默——只是优化手段，不影响功能（进 3D 时走正式加载路径）
@@ -74,6 +77,8 @@ function ensureCesiumLoaded(): Promise<void> {
     }
     script.onerror = () => {
       _cesiumLoadPromise = null
+      // 816-专项2 3-4：失败路径移除残留 <script> 节点，避免重复注入堆积 DOM
+      script.remove()
       reject(new Error('Cesium.js 加载失败，请检查网络连接'))
     }
     document.head.appendChild(script)

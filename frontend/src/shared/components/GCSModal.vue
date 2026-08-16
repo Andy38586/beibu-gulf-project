@@ -149,11 +149,13 @@ function handleMainAction(): void {
 }
 
 .GCS-modal-icon {
-  margin-top: 8px;
+  /* 816-S7-52：逐子 margin 表达式化（0.1 × 80px cell = 8px；容器 gap 化留待 GCSModal 重构） */
+  margin-top: calc(0.1 * var(--GCS-cell));
 }
 
 .GCS-modal-message {
-  margin: 16px 0 20px;
+  /* 816-S7-52：逐子 margin 表达式化（0.2/0.25 × cell = 16/20px） */
+  margin: calc(0.2 * var(--GCS-cell)) 0 calc(0.25 * var(--GCS-cell));
   font-size: var(--GCS-font-size-body, 14px);
   color: var(--GCS-text-primary);
   text-align: center;

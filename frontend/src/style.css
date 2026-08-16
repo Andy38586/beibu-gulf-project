@@ -4,6 +4,17 @@
    * 适用：北部湾智慧港口平台
    * 注意：CSS 变量只管理视觉样式 Token。
    * 动态布局尺寸（Cell 网格、面板定位）由 useGCS() JS 系统管理。
+   * ===============================
+   * 816-S7-66：token 改名映射（03 §三.5 SOP②「改名留映射至少一个版本」）
+   * 旧名 → 新名/去向（S7-45 删除的死 token 记录于此，供历史引用回溯）：
+   * --GCS-text-placeholder   → --GCS-text-muted（同值合并）
+   * --GCS-radius-xl          → 删除（零消费；特殊圆角用 radius-lg/round）
+   * --GCS-z-panel            → 删除（零消费；面板用 panel-float，抽屉用 drawer）
+   * --GCS-shadow-lg          → 删除（零消费；弹窗用 shadow-md/float）
+   * --GCS-bg-canvas          → 删除（零消费；canvas 底色用 bg-panel）
+   * --GCS-border-hover       → 删除（零消费；hover 边框用 border-focus/light）
+   * --GCS-color-primary-active → 删除（零消费；按压态用 primary-hover）
+   * --GCS-color-primary-bg   → 删除（零消费；浅色底用 bg-active/bg-hover）
    * =============================== */
 
   /* ===== 系统主色 =====
@@ -11,20 +22,21 @@
    * 语义状态色（error/success）统一在此定义，业务模块引用 var(--GCS-color-xxx)。 */
   --GCS-color-primary: #409eff; /* S7-30 已知豁免：白字对比度 2.78:1（暗色侧 6.67:1 达标）；品牌蓝提亮改档影响全站组件，登记豁免，redesign 时统一处理 */
   --GCS-color-primary-hover: #66b1ff;
-  --GCS-color-primary-active: #3a8ee6;
-  --GCS-color-primary-bg: #ecf5ff;
 
   /* ===== 语义状态色 ===== */
   --GCS-color-error: #ff4d4f;
   --GCS-color-error-bg: #fff2f0;
   --GCS-color-error-border: #ffccc7;
-  --GCS-color-success: #52c41a;
-  --GCS-color-warning: #e6a23c;
-  --GCS-color-danger: #f56c6c;
+  /* 816-S7-39：亮色语义色加深至 WCAG AA（白底文本 ≥4.5:1，node 实测原值 2.27/2.19/2.90 不达标）；
+     success #52c41a→#187a30(5.43)、warning #e6a23c→#a36300(4.84)、danger #f56c6c→#cc3a4d(4.91)；
+     暗色主题不动（暗底浅色本就达标） */
+  --GCS-color-success: #187a30;
+  --GCS-color-warning: #a36300;
+  --GCS-color-danger: #cc3a4d;
 
   /* ===== 背景色系 ===== */
-  --GCS-bg-canvas: #f0f2f5; /* 地图底部的 canvas 底色（加载前可见） */
-  --GCS-bg-panel: #ffffff; /* 面板默认背景 */
+  /* 816-S7-45：--GCS-bg-canvas 死 token 已删（零 var() 消费） */
+  --GCS-bg-panel: #ffffff; /* 面板默认背景（S7-48：与 bg-elevated/text-inverse 亮色同值属巧合，暗色各异，不做 var 引用收敛） */
   --GCS-bg-panel-translucent: rgba(255, 255, 255, 0.92); /* 半透明面板（玻璃化） */
   --GCS-bg-elevated: #ffffff; /* 浮层/弹窗背景 */
   --GCS-bg-overlay: rgba(0, 0, 0, 0.3); /* 遮罩层 */
@@ -36,29 +48,26 @@
 
   /* ===== 文字色系 ===== */
   --GCS-text-primary: #303133; /* 主标题、正文 */
-  --GCS-text-regular: #333333; /* 一般按钮文字 */
+  --GCS-text-regular: #333333; /* 一般按钮文字（S7-48：与 primary #303133 近同值，保留为兼容别名，新代码统一用 primary） */
   --GCS-text-secondary: #606266; /* 说明文字、info-label */
-  --GCS-text-muted: #909399; /* 辅助文字、占位符 */
-  --GCS-text-placeholder: #909399; /* 输入框 placeholder（S7-21：原 #c0c4cc 对比度 1.75:1 不足，提至与 muted 同档 ~3.2:1） */
+  --GCS-text-muted: #909399; /* 辅助文字、占位符（S7-48：原 placeholder 同值双定义已随 S7-45 删除，占位符场景直接用 muted） */
   --GCS-text-inverse: #ffffff; /* 反白（蓝色背景上的文字） */
+  --GCS-text-disabled: #c0c4cc; /* 禁用态文字（816-S7-47：03 §三.2「text：…disabled」规格落地；原组件裸 opacity 0.5/0.6 硬凑） */
 
   /* ===== 边框色系 ===== */
   --GCS-border-default: #e0e0e0; /* 默认边框（按钮、输入框、列表） */
   --GCS-border-light: #ebeef5; /* 更淡的边框 */
-  --GCS-border-hover: #c0c4cc; /* 组件 hover 时的边框 */
   --GCS-border-focus: #409eff; /* 聚焦/激活态边框 */
 
   /* ===== 阴影系统 ===== */
   --GCS-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08); /* 面板/按钮默认阴影 */
   --GCS-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.12); /* 浮层阴影 */
-  --GCS-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.15); /* 弹窗阴影 */
   --GCS-shadow-float: 0 12px 36px rgba(0, 0, 0, 0.18); /* 悬浮/拖拽态 */
 
   /* ===== 连续圆角系统（Apple-like 设计） ===== */
   --GCS-radius-sm: 6px; /* 内部容器、列表项 */
   --GCS-radius-md: 8px; /* 面板、输入框、按钮（默认值） */
   --GCS-radius-lg: 12px; /* 大按钮、弹性容器 */
-  --GCS-radius-xl: 16px; /* 特殊圆角 */
   --GCS-radius-round: 50%; /* 圆形（滑块拇指、loading） */
 
   /* ===== z-index 刻度系统（a017） =====
@@ -67,7 +76,9 @@
   --GCS-z-map: 1; /* 地图容器（最底层） */
   --GCS-z-map-overlay: 90; /* 地图内部覆盖物（boundary-warning 等） */
   --GCS-z-map-status: 100; /* 地图状态提示（loading/error） */
-  --GCS-z-panel: 200; /* GCS 业务面板 */
+  /* 816-S7-40：壳层/导航档（原 App.vue/AppLayout 散落 50、BottomNavBar 散落 60） */
+  --GCS-z-layout: 50; /* 应用壳层/布局基座 */
+  --GCS-z-nav: 60; /* 底部导航 */
   --GCS-z-panel-float: 300; /* 浮动面板（PortInfo 等） */
   --GCS-z-drawer: 400; /* 抽屉/侧滑 */
   --GCS-z-modal: 500; /* 弹窗 */
@@ -76,6 +87,12 @@
   /* S7 P1-4：曾被组件 var() 引用但亮色主题未定义的 token 补正式定义（与 dark 块同源，双主题一致） */
   --GCS-cell: 80px; /* 网格单元（≥1920→90 / ≥960→80 / <960→70，静态基准取 80） */
   --GCS-font-size-body: 14px; /* 正文基准字号（组件 fallback 原 14px 语义化） */
+  /* 816-S7-57：字号档位补齐（跨主题同值，dark 继承；03 §三.2 档位 12/13/14/16/20/24 的 12/16 档） */
+  --GCS-font-size-xs: 12px; /* 小字（角标/辅助标注；原组件散落 10/11px 越档） */
+  --GCS-font-size-lg: 16px; /* 面板标题（原三处 16px 字面量散落） */
+  /* 816-S7-44：滑块尺寸单一 token（Q5 拍板：自绘滑块全走 .gcs-slider 档） */
+  --GCS-slider-thumb-size: 14px; /* 拇指直径（原 conf 16px / t-slider 18px / factor 14px 三套） */
+  --GCS-slider-track-height: 6px; /* 轨道高（原 4px/6px 两套） */
 }
 
 /* c056：暗色主题下 OL 底图压暗（纯 CSS，零 JS）——天地图影像不再刺眼；
@@ -99,8 +116,6 @@
 :root[data-theme='dark'] {
   --GCS-color-primary: #ff7a1a;
   --GCS-color-primary-hover: #ff9147;
-  --GCS-color-primary-active: #e66a0d;
-  --GCS-color-primary-bg: #33231a;
 
   --GCS-color-error: #ff6b6f;
   --GCS-color-error-bg: #3a1d1f;
@@ -109,7 +124,7 @@
   --GCS-color-warning: #f0b35a;
   --GCS-color-danger: #ff7a7d;
 
-  --GCS-bg-canvas: #0a1420;
+  /* 816-S7-45：--GCS-bg-canvas 死 token 已删 */
   --GCS-bg-panel: #0d1b2a;
   --GCS-bg-panel-translucent: rgba(13, 27, 42, 0.92);
   --GCS-bg-elevated: #13263a;
@@ -120,20 +135,18 @@
   --GCS-bg-active: #1c3a5c;
 
   --GCS-text-primary: #e8edf4;
-  --GCS-text-regular: #d0d7e0;
+  --GCS-text-regular: #d0d7e0; /* S7-48：与 primary 近同值，兼容别名（见亮色块注释） */
   --GCS-text-secondary: #a8b2bd;
-  --GCS-text-muted: #7a8694;
-  --GCS-text-placeholder: #7a8694; /* S7-21：原 #5a6675 对比度 2.98:1，提至与 muted 同档（暗色下更清晰） */
+  --GCS-text-muted: #7a8694; /* S7-48：占位符场景直接用 muted */
   --GCS-text-inverse: #0d1b2a;
+  --GCS-text-disabled: #55677e; /* 816-S7-47：暗色禁用态文字（较 muted 再暗一档） */
 
   --GCS-border-default: #1f3450;
   --GCS-border-light: #16283f;
-  --GCS-border-hover: #2c4a70;
   --GCS-border-focus: #ff7a1a;
 
   --GCS-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.45);
   --GCS-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.55);
-  --GCS-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.6);
   --GCS-shadow-float: 0 12px 36px rgba(0, 0, 0, 0.65);
 
   /* S7-08/23：GCSModal/GCSToast 引用但未定义的 token 补正式定义（与 shared/layout/config.ts CELL_PIXEL 同源） */
@@ -158,6 +171,17 @@ body,
 
 /* S7-06：键盘可访问性——自绘按钮/可交互元素统一 focus 环（原无 :focus-visible 样式） */
 :focus-visible {
+  outline: 2px solid var(--GCS-border-focus);
+  outline-offset: 2px;
+}
+
+/* 816-S7-43：滑块 thumb 的键盘焦点环——组件内 outline:none 已移除默认环，
+   滑块拇指尺寸 14px 时 2px 环可见（webkit + firefox 双引擎） */
+input[type='range']:focus-visible::-webkit-slider-thumb {
+  outline: 2px solid var(--GCS-border-focus);
+  outline-offset: 2px;
+}
+input[type='range']:focus-visible::-moz-range-thumb {
   outline: 2px solid var(--GCS-border-focus);
   outline-offset: 2px;
 }
@@ -324,13 +348,14 @@ body {
 }
 
 /* ===== c017: 公共滑块 thumb 样式（消除 3 处重复） =====
- * 使用方式：input[type=range] 加 class="gcs-slider" */
+ * 使用方式：input[type=range] 加 class="gcs-slider"；
+ * 尺寸基准见 --GCS-slider-thumb-size/--GCS-slider-track-height（816-S7-44 单一 token） */
 .gcs-slider {
   -webkit-appearance: none;
   appearance: none;
   width: 100%;
-  height: 6px;
-  border-radius: 3px;
+  height: var(--GCS-slider-track-height);
+  border-radius: calc(var(--GCS-slider-track-height) / 2);
   background: linear-gradient(to right, var(--GCS-border-default), var(--GCS-color-primary));
   outline: none;
   cursor: pointer;
@@ -338,8 +363,8 @@ body {
 .gcs-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 14px;
-  height: 14px;
+  width: var(--GCS-slider-thumb-size);
+  height: var(--GCS-slider-thumb-size);
   border-radius: var(--GCS-radius-round);
   background: var(--GCS-bg-panel);
   border: none;
@@ -347,8 +372,8 @@ body {
   cursor: pointer;
 }
 .gcs-slider::-moz-range-thumb {
-  width: 14px;
-  height: 14px;
+  width: var(--GCS-slider-thumb-size);
+  height: var(--GCS-slider-thumb-size);
   border-radius: var(--GCS-radius-round);
   background: var(--GCS-bg-panel);
   border: none;

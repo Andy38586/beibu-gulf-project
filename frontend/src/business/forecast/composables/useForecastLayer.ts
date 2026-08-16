@@ -52,7 +52,7 @@ export function useForecastLayer(): UseForecastLayerReturn {
   const forecastState = useForecastStore()
   const mapStore = useMapStore()
   const { manager } = useBusinessLayers() as { manager: BusinessLayerManager }
-  const { runInTransaction } = useForecastRequest()
+  const { runInTransaction, isTransactionValid } = useForecastRequest()
   const { apiRequest } = useApiRequest()
 
   const renderer = computed<MapRenderer | null>(() => mapStore.currentRenderer)
@@ -164,6 +164,9 @@ export function useForecastLayer(): UseForecastLayerReturn {
       // LRU 命中：播放/拖动重放同一时间点，直接渲染缓存，零请求
       const cached = mapRequestCache.get(cacheKey)
       if (cached) {
+        // 816-专项8 发现3：缓存命中也校验事务有效性（对齐 useForecastTimeseries 8-12 模式）——
+        // 滑块快速连点（事务 A→B→C）时，旧事务 B 的缓存命中不得写回画面（「最后操作=最新结果」）
+        if (!isTransactionValid(transactionId)) return
         manager.updateData(key, { data: getRenderData(layerType, cached), options })
         return
       }

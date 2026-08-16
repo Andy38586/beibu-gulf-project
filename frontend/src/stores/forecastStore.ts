@@ -3,8 +3,8 @@ import type { Ref, ShallowRef } from 'vue'
 import { ref, shallowRef } from 'vue'
 
 // 分层铁律：stores 不得引用 business——初始化所需共享常量一律从 shared 取
-import { BASE_YEAR, DEFAULT_CONFIDENCE, END_YEAR } from '@/shared'
-import type { ConfidenceThresholds, ForecastTimeRange } from '@/types/business/base'
+import { DEFAULT_CONFIDENCE } from '@/shared'
+import type { ConfidenceThresholds } from '@/types/business/base'
 
 import { createPersistedState } from './factories/createPersistedState'
 
@@ -27,11 +27,8 @@ export interface ForecastSavedState {
 export const useForecastStore = defineStore('forecast', () => {
   const currentTime: Ref<string> = ref('2026-06')
 
-  const timeRange: Ref<ForecastTimeRange> = ref({
-    start: `${BASE_YEAR}-01`,
-    end: `${END_YEAR}-12`,
-    current: '2026-06',
-  })
+  // 816-专项2 4-4：timeRange 死状态已删除（currentTime 与 timeRange.current 双持「当前时间」，
+  // 全仓业务 0 消费；start/end 由 BASE_YEAR/END_YEAR 派生）
 
   const timeGranularity: Ref<string> = ref('month')
   const isPlaying: Ref<boolean> = ref(false)
@@ -58,6 +55,17 @@ export const useForecastStore = defineStore('forecast', () => {
   /** 请求事务状态迁入 store（消除请求 composable 的模块级可变状态）；AbortController 不可序列化、不响应式，仍由请求实例持有并透传 signal */
   const activeTransactionId: Ref<number> = ref(0)
   const isRequesting: Ref<boolean> = ref(false)
+
+  /** 事务推进（M11/Q3 816 拍板：composable 不再直改 state）——返回新事务 ID */
+  function bumpTransactionId(): number {
+    activeTransactionId.value += 1
+    return activeTransactionId.value
+  }
+
+  /** 请求进行态写入口（isRequesting 不再被 composable 直改） */
+  function setIsRequesting(v: boolean): void {
+    isRequesting.value = v
+  }
 
   function setCurrentTime(time: string): void {
     currentTime.value = time
@@ -114,7 +122,6 @@ export const useForecastStore = defineStore('forecast', () => {
 
   function reset(): void {
     currentTime.value = '2026-06'
-    timeRange.value = { start: `${BASE_YEAR}-01`, end: `${END_YEAR}-12`, current: '2026-06' }
     timeGranularity.value = 'month'
     isPlaying.value = false
     playSpeed.value = 500
@@ -152,7 +159,6 @@ export const useForecastStore = defineStore('forecast', () => {
 
   return {
     currentTime,
-    timeRange,
     timeGranularity,
     isPlaying,
     playSpeed,
@@ -162,6 +168,8 @@ export const useForecastStore = defineStore('forecast', () => {
     requestCache,
     activeTransactionId,
     isRequesting,
+    bumpTransactionId,
+    setIsRequesting,
     setCurrentTime,
     setTimeGranularity,
     setActiveIndicator,

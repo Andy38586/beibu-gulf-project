@@ -13,6 +13,66 @@ import type { cesiumViewerManager as CesiumViewerManagerType } from '@/core/map/
 import UnifiedMap from '@/core/map/UnifiedMap.vue'
 import { useMapStore } from '@/stores'
 
+// 全量 mock cesium（同 CesiumRenderer.geojson.test.ts 的 chainable 方案）：
+// 本测试只操作 cesiumViewerManager 单例（fake viewer），不 new 真实 Viewer；
+// mock 避免动态 import CesiumRenderer 加载真实 cesium 库（5.7MB，jsdom 下并行 >60s 超时）
+vi.mock('cesium', () => {
+  function makeChainable(): object {
+    return new Proxy(function () {}, {
+      get(_t: unknown, prop: string | symbol) {
+        if (prop === 'then') return undefined
+        if (prop === 'fromCssColorString') return () => ({})
+        return makeChainable()
+      },
+      apply() {
+        return makeChainable()
+      },
+      construct() {
+        return makeChainable()
+      },
+    })
+  }
+
+  class MockCesiumClass {
+    constructor() {
+      return makeChainable() as unknown as MockCesiumClass
+    }
+  }
+
+  return {
+    CallbackProperty: MockCesiumClass,
+    Cartesian2: MockCesiumClass,
+    Cartesian3: MockCesiumClass,
+    Cartographic: MockCesiumClass,
+    CesiumTerrainProvider: MockCesiumClass,
+    ClassificationType: MockCesiumClass,
+    Color: { fromCssColorString: () => ({}) },
+    ColorGeometryInstanceAttribute: MockCesiumClass,
+    EllipsoidTerrainProvider: MockCesiumClass,
+    Entity: MockCesiumClass,
+    EntityCollection: MockCesiumClass,
+    DataSource: MockCesiumClass,
+    GeographicTilingScheme: MockCesiumClass,
+    GeoJsonDataSource: { load: vi.fn().mockResolvedValue({ entities: { values: [] } }) },
+    ImageryLayer: MockCesiumClass,
+    ScreenSpaceEventHandler: MockCesiumClass,
+    GeometryInstance: MockCesiumClass,
+    HeightReference: MockCesiumClass,
+    Math: { toRadians: () => 0, fromRadians: () => 0 },
+    PerInstanceColorAppearance: MockCesiumClass,
+    PointGraphics: MockCesiumClass,
+    PolygonGeometry: MockCesiumClass,
+    PolygonHierarchy: MockCesiumClass,
+    Primitive: MockCesiumClass,
+    Rectangle: MockCesiumClass,
+    sampleTerrain: vi.fn(),
+    ScreenSpaceEventType: MockCesiumClass,
+    SingleTileImageryProvider: MockCesiumClass,
+    UrlTemplateImageryProvider: MockCesiumClass,
+    Viewer: MockCesiumClass,
+  }
+})
+
 // CesiumRenderer 必须动态 import：顶层静态 import 会在用例收集阶段加载真实 cesium 库，
 // 导致 worker 初始化超时（收集阶段挂起）。运行时动态加载与生产路径一致。
 let cesiumViewerManager: typeof CesiumViewerManagerType

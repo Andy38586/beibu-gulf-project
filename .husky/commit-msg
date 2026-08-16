@@ -1,0 +1,5 @@
+#!/usr/bin/env sh
+# husky v9：直接写命令，不需要 source _/husky.sh
+# z068：仅约束「新 commit」的 message 符合 Conventional Commits；
+# 历史 commit 不整理（git 历史哲学红线：保留原始提交轨迹、不 squash）。
+npx --no -- commitlint --edit "$1"

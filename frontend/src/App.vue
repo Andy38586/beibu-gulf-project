@@ -2,25 +2,28 @@
 import { onMounted, onUnmounted, provide, ref, watch } from 'vue'
 import { RouterView, useRoute, useRouter } from 'vue-router'
 
-import { businessModules } from '@/business/manifest'
+import { businessModules } from '@/business'
 import { BusinessLayerManager } from '@/core'
 import { BUSINESS_LAYER_MANAGER_KEY } from '@/core'
 import { registerNavItems } from '@/core'
 import { useMapControls } from '@/core'
 import {
   EDITING_PLAN_KEY,
-  MAP_STORE_KEY,
   RESTORE_PLAN_DATA_KEY,
   UNIFIED_MAP_KEY,
   type UnifiedMapExposed,
 } from '@/core'
-import { preloadCesium } from '@/core/map/renderers'
-import UnifiedMap from '@/core/map/UnifiedMap.vue'
-import { initAuthStorageListener, removeAuthStorageListener, showWarning, useAuth } from '@/shared'
+import { preloadCesium, UnifiedMap } from '@/core'
+import {
+  ErrorBoundary,
+  GCSModal,
+  GCSToast,
+  initAuthStorageListener,
+  removeAuthStorageListener,
+  showWarning,
+  useAuth,
+} from '@/shared'
 import { logger } from '@/shared'
-import ErrorBoundary from '@/shared/components/ErrorBoundary.vue'
-import GCSModal from '@/shared/components/GCSModal.vue'
-import GCSToast from '@/shared/components/GCSToast.vue'
 import { useFloodStore } from '@/stores'
 import { useForecastStore } from '@/stores'
 import { useMapStore } from '@/stores'
@@ -42,8 +45,6 @@ const editingPlan = ref<Plan | null>(null)
 provide(RESTORE_PLAN_DATA_KEY, restorePlanData)
 provide(EDITING_PLAN_KEY, editingPlan)
 provide(UNIFIED_MAP_KEY, unifiedMapRef)
-// 提供 mapStore 给所有子组件（含 UnifiedMap 和 RouterView 下的业务页面）
-provide(MAP_STORE_KEY, mapStore)
 
 // 提供 BusinessLayerManager — 必须在 App.vue 而非 UnifiedMap，
 // 因为 RouterView 下的业务组件是 UnifiedMap 的兄弟节点，不是子节点
@@ -209,7 +210,7 @@ onUnmounted(() => {
   position: relative;
   overflow: hidden;
   pointer-events: none;
-  z-index: 50;
+  z-index: var(--GCS-z-layout); /* 816-S7-40：壳层档（原散落 50） */
 }
 
 /* 不能设 .app-content > * { pointer-events: auto }：会让业务页面成为全屏事件拦截层，

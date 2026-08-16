@@ -5,9 +5,18 @@
  * 非 CSS 消费者（ECharts canvas 不支持 CSS 变量）经 onThemeChange 订阅重设；
  * 切换为单帧重绘、连点幂等，无需防抖。
  */
-import { computed, readonly, ref } from 'vue'
+import { computed, readonly, ref, type ComputedRef, type Ref } from 'vue'
 
 export type ThemeMode = 'light' | 'dark'
+
+/** 返回契约（816-专项3-0816-13：显式化，防重构时签名静默漂移） */
+export interface UseThemeReturn {
+  theme: Readonly<Ref<ThemeMode>>
+  isDark: ComputedRef<boolean>
+  initTheme: () => void
+  toggleTheme: () => void
+  onThemeChange: (cb: (mode: ThemeMode) => void) => () => void
+}
 
 const THEME_STORAGE_KEY = 'gcs-theme'
 
@@ -32,18 +41,31 @@ const theme = ref<ThemeMode>(getInitialTheme())
 
 const listeners = new Set<(mode: ThemeMode) => void>()
 
-function applyTheme(mode: ThemeMode): void {
+function applyTheme(mode: ThemeMode, persist = true): void {
   theme.value = mode
   if (typeof document !== 'undefined') {
     document.documentElement.dataset.theme = mode
     // Element Plus 暗色联动：EP 的暗色变量挂在 html.dark class（自定义 data-theme 只管业务 CSS）
     document.documentElement.classList.toggle('dark', mode === 'dark')
   }
-  safeStorage()?.setItem(THEME_STORAGE_KEY, mode)
+  if (persist) safeStorage()?.setItem(THEME_STORAGE_KEY, mode)
   listeners.forEach((cb) => cb(mode))
 }
 
-export function useTheme() {
+// 816-专项7 S7-36：系统主题变化实时跟随——仅当用户未手动选择（localStorage 无 gcs-theme）时生效；
+// 跟随系统应用不落盘（persist=false），保证手动切换后置手动优先位
+function watchSystemTheme(): void {
+  if (typeof window === 'undefined' || !window.matchMedia) return
+  const mq = window.matchMedia('(prefers-color-scheme: dark)')
+  mq.addEventListener('change', (e) => {
+    if (!safeStorage()?.getItem(THEME_STORAGE_KEY)) {
+      applyTheme(e.matches ? 'dark' : 'light', false)
+    }
+  })
+}
+watchSystemTheme()
+
+export function useTheme(): UseThemeReturn {
   /** 应用初始主题（mount 前调用，避免首帧闪白/闪黑） */
   function initTheme(): void {
     applyTheme(theme.value)

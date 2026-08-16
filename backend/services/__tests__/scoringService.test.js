@@ -57,6 +57,57 @@ describe('scoreXiaoqu — 选址评分核心（8-3）', () => {
     )
     expect(Number.isFinite(result[0].score)).toBe(true)
   })
+
+  // 816-专项8 发现10：NaN/坏坐标防御分支的触发测试（02 §5.6 不变量 5「NaN 禁传播」无锁定，
+  // 防御分支回退无人察觉——历史实锤坏数据静默算进结果）
+  it('linearDecay(NaN, 5) = 0（:11 NaN 守卫可触发）', () => {
+    expect(linearDecay(NaN, 5)).toBe(0)
+  })
+
+  it('设施含 NaN 坐标 → 被 buildFacilityIndex 跳过，结果无 NaN（:60-64 守卫）', () => {
+    const result = scoreXiaoqu(
+      [{ id: 'xq1', lng: 108.6, lat: 21.85 }],
+      {
+        hospital: [
+          { lng: NaN, lat: 21.85, name: '坏设施' },
+          { lng: 108.6, lat: 21.85, name: '好医院' },
+        ],
+      },
+      typeSettings
+    )
+    expect(Number.isFinite(result[0].score)).toBe(true)
+    expect(Number.isFinite(result[0].breakdown.hospital)).toBe(true)
+  })
+
+  it('小区含 NaN 坐标 → 按 0 分处理且 breakdown 非 NaN（:152-155 守卫）', () => {
+    const result = scoreXiaoqu(
+      [{ id: 'xq1', lng: NaN, lat: 21.85 }],
+      { hospital: hospitalAt(108.6, 21.85) },
+      typeSettings
+    )
+    expect(result[0].score).toBe(0)
+    expect(Number.isFinite(result[0].breakdown.hospital)).toBe(true)
+  })
+
+  // 816-专项8 发现12：加权平均公式与「无设施拉低总分」语义锁定（02 §4.1 应然契约，
+  // 原 9 个用例从未断言多类型合并后的 score 数值）
+  it('加权平均：无设施因子 0 分且权重计入分母（固定期望值）', () => {
+    const xq = [{ id: 'xq1', lng: 108.6, lat: 21.85 }]
+    const facility = {
+      hospital: [], // 无设施 → 0 分
+      school: [{ lng: 108.6, lat: 21.85, name: '测试小学' }], // 同点 → 满分 100
+    }
+    const settings = {
+      hospital: { selected: true, radius: 5 },
+      school: { selected: true, radius: 5 },
+    }
+    // 等权重：(0×1 + 100×1)/(1+1) = 50 —— 无设施因子把总分从 100 拉低到 50
+    const equal = scoreXiaoqu(xq, facility, settings, { hospital: 1, school: 1 })
+    expect(equal[0].score).toBe(50)
+    // 权重 0 因子不贡献分子（仍计入分母，恒等）：(0×0 + 100×1)/(0+1) = 100
+    const zeroWeight = scoreXiaoqu(xq, facility, settings, { hospital: 0, school: 1 })
+    expect(zeroWeight[0].score).toBe(100)
+  })
 })
 
 describe('linearDecay / importanceToRadius — 评分辅助', () => {

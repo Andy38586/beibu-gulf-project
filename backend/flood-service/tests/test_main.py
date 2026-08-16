@@ -229,3 +229,34 @@ def test_lookup_miss_falls_back_to_lru_compute(client, monkeypatch):
     assert r3.status_code == 200
     assert r3.json()["floodedKm2"] == 4538.75
     assert len(calls) == 1
+
+
+def test_out_of_table_level_falls_back_not_500(client, monkeypatch):
+    """816-专项8 发现11：表外档（15.1，miss）回退 LRU 演算必须 200 不 500（02 §4.3 档位边界语义防线）"""
+    fake_table = {"3.5": {"featureCount": 1, "floodedKm2": 4538.75, "features": []}}
+    monkeypatch.setattr(main_mod, "_load_levels", lambda: fake_table)
+    calls: list[float] = []
+    monkeypatch.setattr(
+        main_mod, "run_online_flood", lambda level: (calls.append(level), _fake_run(level))[1]
+    )
+
+    r = client.get("/api/flood/online?waterLevel=15.1")
+    assert r.status_code == 200, f"表外档 miss 回退抛 500：{r.text}"
+    assert r.json()["level"] == 15.1
+    assert len(calls) == 1  # 走兜底演算而非查表
+
+
+def test_upper_bound_25_hits_precomputed(client, monkeypatch):
+    """816-专项8 发现11：251 档上界 25.0 必须查表命中（02 §4.3：档位表 0.0-25.0）"""
+    fake_table = {"25.0": {"featureCount": 1, "floodedKm2": 1234.5, "features": []}}
+    monkeypatch.setattr(main_mod, "_load_levels", lambda: fake_table)
+    calls: list[float] = []
+    monkeypatch.setattr(
+        main_mod, "run_online_flood", lambda level: (calls.append(level), _fake_run(level))[1]
+    )
+
+    r = client.get("/api/flood/online?waterLevel=25.0")
+    assert r.status_code == 200
+    assert r.json()["floodedKm2"] == 1234.5  # 表内档数据直返
+    assert r.json()["level"] == 25.0
+    assert len(calls) == 0  # 上界命中 → 零演算

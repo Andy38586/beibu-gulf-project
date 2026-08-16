@@ -138,7 +138,7 @@ GIS 应用中浮动组件（工具栏、分析面板、图例、详情卡片）�
 - 请求唯一入口：API 走 `useApiRequest`、静态走 `loadStatic`，禁止裸 fetch。
 - 图层统一经 BLM 管理，禁止直接操作 renderer 图层。
 - 后端读文件缓存统一 `createReadCache`，禁止自研 cache Map。
-- 跨层 import 走 index 入口（`@/shared` / `@/core` / `@/stores` / `@/services` / `@/business`），禁止深路径穿透。
+- 跨层 import 走 index 入口（`@/shared` / `@/core` / `@/stores` / `@/services` / `@/business` / `@/visualization`），禁止深路径穿透（Q4 816 拍板；懒加载 import() 属构建优化保留深路径）。
 
 ---
 
@@ -537,9 +537,10 @@ Express 应用装配顺序（中间件顺序敏感）：
 | createReadCache.js | 读文件缓存工厂（TTL 5min + LRU/FIFO 淘汰 + 容量上限） |
 | readStaticJson.js | 读 `backend/data/` JSON 统一入口（带缓存）；测试钩子 `_clearCacheForTest` |
 | fileStore.js | `createFileStore`：文件存储工厂（读缓存 + 写锁 + 原子写入 tmp+rename） |
-| floodLevelsStore.js | `loadFloodLevels()`：读 `flood_levels.json.gz`（gzip 解压缓存） |
 | logger.js | 分级日志 + audit |
 | spatialIndex.js | **后端版** RBush 多边形覆盖查询（`createSpatialIndex` + `queryByPolygon`，BBox 粗筛 + booleanPointInPolygon） |
+
+> 816-专项6 12：`floodLevelsStore.js`（251 档 gz 加载器）已删除——Express 侧自 8-2/8-3 回退 6 档 floodArea.json 后无生产消费者（251 档表仅 FastAPI 消费）。
 
 ## 9. 依赖
 
@@ -550,7 +551,7 @@ Express 应用装配顺序（中间件顺序敏感）：
 ## 10. 测试
 - `backend/controllers/__tests__/`：`app.test.js`、`auth.test.js`。
 - `backend/services/` 与 `backend/utils/` 含 vitest 用例。
-- 测试钩子：`_cache` / `_clearCacheForTest`（readStaticJson）、`_clearFloodLevelsCacheForTest`（floodLevelsStore）。
+- 测试钩子：`_cache` / `_clearCacheForTest`（readStaticJson）。
 - `vitest.config.js`：后端测试配置。
 
 ---
@@ -626,7 +627,7 @@ result = connected & flooded              # 真正的淹没区
 
 - 文件：`backend/data/flood/flood_levels.json.gz`（2.9MB，251 档，0~25m/0.1m 步长）。
 - 由 `precompute_levels.py` 多进程生成。
-- 与 Express 后端共用同表（`utils/floodLevelsStore.js` 加载同一 gzip）。
+- 与 Express 后端分工：Express 侧 6 档（0/2/5/8/10/15）走 `floodArea.json`（8-2/8-3 回退）；251 档预计算表仅 FastAPI 消费（816-专项6 12：floodLevelsStore.js 已删）。
 - **查表命中秒回（<10ms）**，消灭滑块拖动延迟；查表 miss（表缺失/越界档）回退 LRU 动态演算兜底。
 
 ## 5. 前端数据源双模式对照
@@ -637,7 +638,7 @@ result = connected & flooded              # 真正的淹没区
 | online（FastAPI） | `/flood-online/api/flood/online` | `/flood-online/api/flood/impact` |
 
 - 生产 `VITE_DATA_SOURCE=online` 走 FastAPI 真算法；缺省 `api` 走 Express 查表兜底。
-- 两端风险等级映射保持同表（`deriveRiskLevel`，6 档：0 无 / 2 低 / 5 中 / 8 高 / 10 极高 / 15 灾难级）。
+- 两端风险等级映射保持同表（`deriveRiskLevel`，6 档：0 无风险 / 2 低 / 5 中 / 8 高 / 10 极高 / 15 灾难级；Q2 816 拍板：0 档统一「无风险」）。
 
 ## 6. 依赖与 Docker
 
@@ -877,7 +878,7 @@ npm test                # 前端 Vitest（frontend/）
 cd backend && npm test  # 后端 Vitest
 ```
 
-- 前后端合计 416 用例。
+- 前后端全量测试（用例数为动态状态，以 `npm test` 为准；816：README 与本文档均已去除硬编码数字）。
 - 架构守护：`npm run cruise`（dependency-cruiser，0 violation 红线）。
 - Lint：`npm run lint` / `npm run stylelint` / `npm run typecheck` / `npm run format`。
 

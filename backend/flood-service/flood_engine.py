@@ -106,11 +106,13 @@ def mask_to_geojson(
     mask: np.ndarray,
     transform: Affine,
     crs: object,
-    simplify_tol: float = 180.0,
+    simplify_tol: float = 300.0,
 ) -> list[dict]:
     """
     淹没 mask → EPSG:4326 多边形（GeoJSON Feature 列表）。
-    simplify_tol：Douglas-Peucker 简化容差（米，UTM 系；默认 180m=1.5 个 120m 像元）。
+    simplify_tol：Douglas-Peucker 简化容差（米，UTM 系；默认 300m，与预计算档位表一致——
+    816-专项8 发现5：原 180 与 precompute_levels.py 的 300 不一致，违反 02 §4.3「查表=兜底」契约；
+    统一 300 保证查表命中与兜底演算几何同容差）。
     先简化再转 4326：UTM 等距投影下容差几何意义一致，避免 4326 度容差在纬向上的畸变。
     """
     import rasterio
@@ -251,13 +253,13 @@ def _polygon_area_deg2(geom: dict) -> float:
     return abs(area) / 2.0
 
 
-def run_online_flood(level: float, downsample: int = DOWNSAMPLE, simplify_tol: float = 180.0) -> dict:
+def run_online_flood(level: float, downsample: int = DOWNSAMPLE, simplify_tol: float = 300.0) -> dict:
     """
     在线演算入口：给定水位（米，DEM 高程基准），返回 4326 淹没 GeoJSON + 统计。
 
-    simplify_tol：多边形简化容差（米，UTM 系）。默认 180m（1.5 个 120m 像元）；
-    预计算档位表（precompute_levels.py）传更大值（300m）压缩数据量——
-    视觉差异可忽略（相对 240m 像元），文件体积显著下降。
+    simplify_tol：多边形简化容差（米，UTM 系）。默认 300m，与预计算档位表一致
+    （816-专项8 发现5：原 180 vs precompute 300 双通道不一致，统一为表侧容差；
+    视觉差异可忽略（相对 240m 像元），文件体积已由预计算侧控制）。
 
     Returns:
       {

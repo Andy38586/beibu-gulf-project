@@ -14,7 +14,8 @@ import * as turf from '@turf/turf'
 export function assessDisaster(facilities, level, floodZone) {
   if (!floodZone || !Array.isArray(floodZone.features) || floodZone.features.length === 0) {
     // 无淹没多边形（0 档/无匹配档位）→ 无受影响设施（02 §4.3：水位 0 = 无淹没）
-    return { affectedFacilities: [], totalLoss: 0, riskLevel: '无', waterLevel: undefined }
+    // Q2（816 拍板）：风险等级统一「无风险」（原 '无' 与前端 colors.ts 键不一致）
+    return { affectedFacilities: [], totalLoss: 0, riskLevel: '无风险', waterLevel: undefined }
   }
 
   // 8-7 同源修复：设施评估基于淹没多边形空间筛选（与 online 模式连通演算同口径），

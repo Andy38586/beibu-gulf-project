@@ -6,7 +6,8 @@ import { useECharts } from '@/visualization/composables/useECharts'
 interface ChartBaseProps {
   title?: string
   xData?: string[]
-  series?: Array<{ name: string; data: number[] }>
+  // 816-专项1 发现18：data 允许 null（无数据空档，ECharts 原生支持）
+  series?: Array<{ name: string; data: Array<number | null> }>
   xMin?: string
   xMax?: string
   yUnit?: string
@@ -38,6 +39,9 @@ export function useChartBase(
     const dense = dataLen > 24 // 月粒度超过 24 个点自动间隔
     return {
       backgroundColor: 'transparent',
+      // 816-S7-34：多分类系列色板顶层注入（seriesPalette），替代 ECharts 默认 #5470c6 系列；
+      // 随主题重渲染（useECharts watchSources 含 isDark）
+      color: CHART_COLORS.seriesPalette[dark ? 'dark' : 'light'],
       grid: { ...CHART_GRID },
       title: {
         // 不显式设置 top：保持 ECharts 默认（tokens.size.m=15 + padding 5 → 文字顶边 12px），

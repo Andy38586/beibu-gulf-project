@@ -31,7 +31,8 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const emit = defineEmits<{
-  typeChange: [newType: '2d' | '3d']
+  // 816-专项3-0816-16：事件名改 kebab-case（03 1.2 命名约定；原 typeChange camelCase）
+  'type-change': [newType: '2d' | '3d']
   click: [payload: MapRendererEventMap['click']]
   error: [error: Error]
 }>()
@@ -64,14 +65,14 @@ let boundaryGeoJson: FeatureCollection | null = null
 
 const LOAD_TIMEOUT_MS = 10000
 
-/** 组件级 abort：卸载后阻止异步回调继续写 ref */
+/** 组件级 abort：卸载后阻止异步回调继续写 ref（仅卸载/切换时 abort，超时不得全局 abort——
+ *  曾因 withTimeout 超时误 abort 导致后续加载全部静默失效且错误提示被吞） */
 const loadAbort = new AbortController()
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, errorMessage: string): Promise<T> {
   let timeoutId: ReturnType<typeof setTimeout>
   const timeoutPromise = new Promise<never>((_, reject) => {
     timeoutId = setTimeout(() => {
-      loadAbort.abort()
       reject(new Error(errorMessage))
     }, timeoutMs)
   })
@@ -113,36 +114,55 @@ function waitForContainerVisible(container: HTMLElement | null): Promise<void> {
   })
 }
 
+/** 数据加载：ports（后端 API）与 boundary（静态文件）并行加载、独立失败——
+ *  曾串行 await 使 ports 失败阻断 boundary 加载（后端未起时行政区也出不来），
+ *  且双 /api 前缀导致 /api/ports 请求 404（useApiRequest 已修，见该文件注释）。
+ *  boundary 内部自带 3 次退避重试；ports 走 apiRequest（内部重试）——此处不再叠加外层重试 */
 async function loadData() {
-  try {
-    const ports = await withTimeout(loadPorts(), LOAD_TIMEOUT_MS, '港口数据加载超时')
-    if (loadAbort.signal.aborted) return
-    portGeoJson = buildPortGeoJson(ports) as FeatureCollection
-    boundaryGeoJson = await withTimeout(
+  const [portsResult, boundaryResult] = await Promise.allSettled([
+    withTimeout(loadPorts(), LOAD_TIMEOUT_MS, '港口数据加载超时'),
+    withTimeout(
       loadBoundaryGeoJson((msg: string) => {
         boundaryWarning.value = msg
       }),
       LOAD_TIMEOUT_MS,
       '边界数据加载超时'
-    )
+    ),
+  ])
+  if (loadAbort.signal.aborted) return
 
-    // 数据就绪后补一次 setupLayers：boundary/ports 注册依赖数据已加载，
-    // 若路由/引擎切换先于 loadData 执行会跳过注册导致图层缺失；补注册幂等
-    if (currentRenderer.value) {
-      void nextTick(() => setupLayers())
-    }
-  } catch (error) {
-    if (loadAbort.signal.aborted) return
-    const err = error instanceof Error ? error : new Error(String(error))
+  if (portsResult.status === 'fulfilled') {
+    portGeoJson = buildPortGeoJson(portsResult.value) as FeatureCollection
+  } else {
+    const err =
+      portsResult.reason instanceof Error
+        ? portsResult.reason
+        : new Error(String(portsResult.reason))
     if (import.meta.env.DEV) {
-      logger.error('地图数据加载失败:', err)
+      logger.error('港口数据加载失败:', err)
     }
-    // 所有加载失败都向用户展示错误信息，不仅限于超时
-    if (err.message.includes('超时')) {
-      loadError.value = err.message
-    } else {
-      loadError.value = '地图数据加载失败，请刷新重试'
+    loadError.value = err.message.includes('超时')
+      ? err.message
+      : '港口图层加载失败，请检查后端服务'
+  }
+
+  if (boundaryResult.status === 'fulfilled' && boundaryResult.value) {
+    boundaryGeoJson = boundaryResult.value
+  } else if (boundaryResult.status === 'rejected') {
+    const err =
+      boundaryResult.reason instanceof Error
+        ? boundaryResult.reason
+        : new Error(String(boundaryResult.reason))
+    if (import.meta.env.DEV) {
+      logger.error('边界数据加载失败:', err)
     }
+    loadError.value = err.message.includes('超时') ? err.message : '行政区划图层加载失败'
+  }
+
+  // 数据就绪后补一次 setupLayers：boundary/ports 注册依赖数据已加载，
+  // 若路由/引擎切换先于 loadData 执行会跳过注册导致图层缺失；补注册幂等
+  if (currentRenderer.value) {
+    void nextTick(() => setupLayers())
   }
 }
 
@@ -272,12 +292,24 @@ function setupLayers() {
   }
 }
 
+// 816-专项3-0816-09：类型谓词替代双重断言——featureType==='port' 时 data 应为港口属性，
+// 谓词做运行期最小形状校验（判别来源：usePortLayer properties = {...port, featureType}）
+function isPortEventData(data: unknown): data is Port {
+  if (!data || typeof data !== 'object') return false
+  const p = data as Record<string, unknown>
+  return (
+    typeof p.id === 'string' &&
+    typeof p.name === 'string' &&
+    typeof p.lng === 'number' &&
+    typeof p.lat === 'number'
+  )
+}
+
 // 具名回调，保存引用供 off 解绑（MapRenderer 事件注册/移除配对契约）
 function handleRendererClick(event: CustomEvent<MapRendererEventMap['click']>): void {
   const { featureType, data, coordinate } = event.detail
-  if (featureType === 'port' && data) {
-    // featureType === 'port' 时 data 为港口属性，类型系统无法通过判别收窄，需断言
-    mapStore.setSelectedPort(data as unknown as Port)
+  if (featureType === 'port' && data && isPortEventData(data)) {
+    mapStore.setSelectedPort(data)
   } else {
     mapStore.clearSelectedPort()
   }
@@ -358,7 +390,7 @@ async function switchMapType(newType: '2d' | '3d') {
       currentRenderer.value.importState(cameraState)
     }
 
-    emit('typeChange', newType)
+    emit('type-change', newType)
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error))
     if (import.meta.env.DEV) {
@@ -617,7 +649,7 @@ defineExpose({
 
   /* S7 P1-1：硬编码黄 → 语义警告色 token（暗色下柔和橙替代刺眼亮黄） */
   background: var(--GCS-color-warning);
-  padding: 6px 12px; /* 6px/12px 非8的整数倍，保留 */
+  padding: 6px 12px; /* 6px/12px 非8的整数倍，保留（816-S7-51 复核：已登记取舍项） */
   border-radius: 6px;
   font-size: 13px;
   z-index: var(--GCS-z-map-overlay);

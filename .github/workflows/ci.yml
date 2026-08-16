@@ -104,6 +104,23 @@ jobs:
       - name: Run frontend tests
         run: npm test -- --coverage
 
+      # 816-专项5并-4-4：fix:/refactor: 提交若改动 src 实现必须附测试（03 §1.6 提交约定）。
+      # 仅对 push 事件检查最近一次提交；PR 分支语义不适用（开发分支多为 squash）。
+      - name: fix/refactor must include tests
+        if: github.event_name == 'push'
+        run: |
+          last_msg="$(git log -1 --format=%s)"
+          if echo "$last_msg" | grep -qE '^(fix|refactor)(\(|:)'; then
+            changed="$(git diff --name-only HEAD~1 HEAD)"
+            src_changed="$(echo "$changed" | grep -E '^(frontend/src|backend)/.*\.(ts|vue|js|mjs|cjs)$' | grep -vE '\.(test|spec)\.' || true)"
+            test_changed="$(echo "$changed" | grep -E '\.(test|spec)\.(ts|js|vue)$' || true)"
+            if [ -n "$src_changed" ] && [ -z "$test_changed" ]; then
+              echo "::error::fix/refactor 提交改动 src 实现但未附测试（03 §1.6）："
+              echo "$src_changed"
+              exit 1
+            fi
+          fi
+
       - name: Build project
         # 天地图 key 由 GitHub Secrets 注入（构建期打包进前端产物）。
         # 缺失时 vite 用 .env 占位符构建 → 生产镜像底图 404（与本地 dev 行为不一致）。
@@ -135,9 +152,10 @@ jobs:
         run: npm ci
 
       - name: Run backend tests
-        # 2026-08-09：backend 未装 @vitest/coverage-v8，--coverage 秒败，仅跑纯测试
+        # 816-M9：backend 补装 @vitest/coverage-v8 后带覆盖率跑——thresholds（50/45/50/50）在 CI 生效，
+        # 原 2026-08-09 注释"未装 coverage-v8 秒败"已随依赖补齐失效
         working-directory: backend
-        run: npm test
+        run: npm test -- --coverage
 
   # 2026-08-09：部署改为 SSH 直部署（原 GHCR+webhook 方案废弃——服务器端无需额外
   # webhook 服务，Actions 用仓库 Secrets 里的服务器私钥直连）。

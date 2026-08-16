@@ -12,7 +12,22 @@ import type { SavedXiaoqu } from '@/types/xiaoqu'
 import { useApiRequest } from './useApiRequest'
 import { useLatestRequest } from './useLatestRequest'
 
-export function usePlans() {
+/** 返回契约（816-专项3-0816-13：显式化，防重构时签名静默漂移） */
+export interface UsePlansReturn {
+  getPlans: () => Promise<Plan[]>
+  createPlan: (name: string, typeSettings: Record<string, TypeSetting>) => Promise<Plan>
+  updatePlan: (id: string, name: string, typeSettings: Record<string, TypeSetting>) => Promise<Plan>
+  deletePlan: (id: string) => Promise<void>
+  saveXiaoqu: (planId: string, xiaoqu: SavedXiaoqu) => Promise<Plan>
+  removeXiaoqu: (planId: string, xiaoquId: string) => Promise<Plan>
+  cancel: () => void
+  saving: Ref<boolean>
+  updating: Ref<boolean>
+  loading: Ref<boolean>
+  deleting: Ref<boolean>
+}
+
+export function usePlans(): UsePlansReturn {
   const router = useRouter()
   const { apiRequest, isAuthenticated } = useApiRequest()
   const saving: Ref<boolean> = ref(false)

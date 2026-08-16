@@ -78,15 +78,18 @@ describe('useSiteAnalysisApi', () => {
   })
 
   describe('analyze 异常路径', () => {
-    it('401 时走 handleAuthError + showError', async () => {
+    it('401 时走 handleAuthError，错误写 calcError 不重复 showError（专项5并 1-4 单一错误路径）', async () => {
       mockFetch.mockRejectedValueOnce(new ApiError('请先登录', ErrorCode.UNAUTHORIZED))
-      const { analyze } = useSiteAnalysisApi()
+      const { analyze, calcError } = useSiteAnalysisApi()
 
       const result = await analyze(ANALYSIS_PARAMS)
 
       expect(isAuthError(new ApiError('请先登录', ErrorCode.UNAUTHORIZED))).toBe(true)
       expect(handleAuthError).toHaveBeenCalled()
-      expect(showError).toHaveBeenCalled()
+      // 816-专项5并 1-4：错误只写 calcError，弹窗由页面级 handleAnalysisError 统一触发——
+      // handleAuthError 内部已有软登录提示，此处重复 showError 会双弹窗
+      expect(showError).not.toHaveBeenCalled()
+      expect(calcError.value).toBe('请先登录')
       expect(result.error).toBeTruthy()
     })
 

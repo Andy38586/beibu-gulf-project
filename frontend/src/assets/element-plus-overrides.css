@@ -1,0 +1,47 @@
+/**
+ * Element Plus 变量 → GCS token 映射覆写（816-S7-38）
+ *
+ * 背景：main.ts 引入 EP dark css-vars 后，EP 组件主题与 GCS 语义 token 完全脱钩——
+ * 改 --GCS-color-primary 时 EP 组件不跟随，暗色下 EP 蓝与 GCS 橙主色并存。
+ *
+ * 机制：CSS 变量级联——`:root, html.dark` 双选择器保证亮/暗两态下本覆写
+ * 与 EP 内建 html.dark 同特异性且后加载（本文件在 EP dark css-vars 之后 import），
+ * 值一律 var(--GCS-*)，暗色下 GCS 变量自动切换，EP 组件随之跟随。
+ *
+ * 注意：EP 的 light-5/7/8/9 渐变色阶无 GCS 对应档，仅主色/语义色/底色/文字/边框
+ * 核心档映射；未映射的 EP 内部派生色保持 EP 默认（渐进收敛，不一次性全接管）。
+ */
+:root,
+html.dark {
+  /* 主色 + hover 档（primary-light-3 近似 hover 语义） */
+  --el-color-primary: var(--GCS-color-primary);
+  --el-color-primary-light-3: var(--GCS-color-primary-hover);
+
+  /* 语义色 */
+  --el-color-success: var(--GCS-color-success);
+  --el-color-warning: var(--GCS-color-warning);
+  --el-color-danger: var(--GCS-color-danger);
+  --el-color-error: var(--GCS-color-error);
+
+  /* 背景 */
+  --el-bg-color: var(--GCS-bg-panel);
+  --el-bg-color-overlay: var(--GCS-bg-elevated);
+  --el-fill-color-blank: var(--GCS-bg-panel);
+  --el-fill-color-light: var(--GCS-bg-container);
+
+  /* 文字 */
+  --el-text-color-primary: var(--GCS-text-primary);
+  --el-text-color-regular: var(--GCS-text-regular);
+  --el-text-color-secondary: var(--GCS-text-secondary);
+  --el-text-color-placeholder: var(--GCS-text-muted);
+  --el-text-color-disabled: var(--GCS-text-disabled);
+
+  /* 边框 */
+  --el-border-color: var(--GCS-border-default);
+  --el-border-color-light: var(--GCS-border-light);
+  --el-border-color-hover: var(--GCS-border-focus);
+
+  /* 圆角（EP 档位近似 GCS） */
+  --el-border-radius-base: var(--GCS-radius-md);
+  --el-border-radius-small: var(--GCS-radius-sm);
+}

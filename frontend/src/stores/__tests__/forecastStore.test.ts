@@ -13,6 +13,7 @@ import { useForecastStore } from '../forecastStore'
  * - reset 恢复默认
  * 2026-08-10（面试报告 P0-3）：cacheData 零调用已删，相关用例一并移除
  * 2026-08-14（F-7）：dataCache/currentData 死状态移除，断言同步删除
+ * 2026-08-16（816-专项2 4-4）：timeRange 死状态移除，断言同步删除
  */
 describe('useForecastStore', () => {
   beforeEach(() => {
@@ -23,8 +24,6 @@ describe('useForecastStore', () => {
     it('应有合理默认值', () => {
       const store = useForecastStore()
       expect(store.currentTime).toBe('2026-06')
-      expect(store.timeRange.start).toBe('2021-01')
-      expect(store.timeRange.end).toBe('2031-12')
       expect(store.activeIndicator).toBe('cargo')
       expect(store.isPlaying).toBe(false)
       expect(store.requestCache.size).toBe(0)
@@ -32,11 +31,10 @@ describe('useForecastStore', () => {
   })
 
   describe('setCurrentTime', () => {
-    it('应更新当前时间（不影响 timeRange.current）', () => {
+    it('应更新当前时间', () => {
       const store = useForecastStore()
       store.setCurrentTime('2030-06')
       expect(store.currentTime).toBe('2030-06')
-      expect(store.timeRange.current).toBe('2026-06')
     })
   })
 

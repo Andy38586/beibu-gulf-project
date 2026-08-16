@@ -1,4 +1,4 @@
-﻿# ============ Stage 1: Build Frontend ============
+# ============ Stage 1: Build Frontend ============
 # 注意：本仓库为 monorepo，依赖与 build 脚本在根 package.json（无 frontend/package.json）。
 # 前端构建由根脚本 `npm run build`（= cd frontend && vite build）触发，产物输出到 frontend/dist。
 # 2026-08-09：VITE_TIANDITU_KEY 作为构建参数传入（vite build 打包进产物）。
@@ -73,6 +73,14 @@ COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 
 # nginx 站点配置（alpine 默认 include /etc/nginx/http.d/*.conf）
 COPY nginx.conf /etc/nginx/http.d/default.conf
+
+# 816-专项5主 9：nginx worker 降权（master 保持 root 绑 80/443；worker 以 nodeapp 运行，
+# 缩小容器逃逸面）。alpine 主配置若已有 user 指令则替换，否则在 main context 顶部插入。
+RUN if grep -q '^user ' /etc/nginx/nginx.conf; then \
+      sed -i 's/^user .*/user nodeapp;/' /etc/nginx/nginx.conf; \
+    else \
+      sed -i '1i user nodeapp;' /etc/nginx/nginx.conf; \
+    fi
 
 # 启动脚本（同时拉起后端 + nginx）
 COPY docker-entrypoint.sh /app/

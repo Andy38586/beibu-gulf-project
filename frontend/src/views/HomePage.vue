@@ -5,17 +5,17 @@
  * 港口吞吐量图表下沉到本页（业务数据由业务页持有）。
  */
 
-import { computed, defineAsyncComponent, onMounted } from 'vue'
+import { defineAsyncComponent, onMounted } from 'vue'
 
-import AppLayout from '@/core/layout/AppLayout.vue'
-import GCSPanel from '@/core/layout/components/GCSPanel.vue'
+import { AppLayout, GCSPanel } from '@/core'
 // 6-01：经 business 桶入口取数（不再深路径穿透 composables）
 import { useOverviewCharts } from '@/business'
 import { useMapStore } from '@/stores'
-import ChartLoading from '@/visualization/charts/ChartLoading.vue'
-import PortInfoPanel from '@/visualization/panels/PortInfoPanel.vue'
+import { ChartLoading, PortInfoPanel } from '@/visualization'
 
-// 图表异步化：echarts 移出首屏关键路径，就绪后替换 loading 占位
+// 图表异步化：echarts 移出首屏关键路径，就绪后替换 loading 占位。
+// loader 保留深路径：懒加载走入口会把整个 visualization 桶打进主 chunk，
+// 破坏拆分语义（Q4 收口仅约束静态跨层 import；动态 import 属构建优化，见 core/README 入口约定）
 const LineChart = defineAsyncComponent({
   loader: () => import('@/visualization/charts/LineChart.vue'),
   loadingComponent: ChartLoading,
@@ -27,16 +27,6 @@ const BarChart = defineAsyncComponent({
 
 const mapStore = useMapStore()
 const { chartData, barData, loadOverviewCharts } = useOverviewCharts()
-
-/** 类型守卫：强类型 Port 安全转成子组件所需的 Record<string, unknown>，避免裸断言 */
-function isPortLike(data: unknown): data is Record<string, unknown> {
-  return typeof data === 'object' && data !== null && !Array.isArray(data)
-}
-
-const selectedPortRecord = computed<Record<string, unknown> | undefined>(() => {
-  const port = mapStore.selectedPort
-  return isPortLike(port) ? port : undefined
-})
 
 onMounted(loadOverviewCharts)
 </script>
@@ -55,7 +45,7 @@ onMounted(loadOverviewCharts)
         </GCSPanel>
       </template>
     </AppLayout>
-    <PortInfoPanel v-if="mapStore.selectedPort" :selected-port="selectedPortRecord" />
+    <PortInfoPanel v-if="mapStore.selectedPort" :selected-port="mapStore.selectedPort" />
   </div>
 </template>
 
@@ -66,7 +56,7 @@ onMounted(loadOverviewCharts)
   pointer-events: none;
 }
 
-.home-page :deep(.info-panel) {
+.home-page :deep(.port-info-panel) {
   pointer-events: auto;
 }
 </style>

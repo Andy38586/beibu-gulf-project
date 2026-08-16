@@ -112,7 +112,10 @@ function distanceScore(xq, facilityIndex, maxDistanceKm, decayFn) {
     maxY: xq.lat + latOffset,
   })
 
-  if (candidates.length === 0) return decayFn(maxDistanceKm, maxDistanceKm)
+  // 816-专项8 发现1：无候选 → 硬 0 分（02 §4.1「某类型无设施 → 该因子 0 分」语义）。
+  // 原 decayFn(max,max) 仅对 linearDecay 恒等 0，自定义衰减函数（如指数）会返回非零（历史实锤 ~36.8），
+  // 属防御语义隐含依赖；生产固定 linearDecay 不触发，此处显式分离「无设施/越界衰减」语义
+  if (candidates.length === 0) return 0
 
   // 精确距离计算（仅对候选点）
   const xqPoint = turf.point([xq.lng, xq.lat])

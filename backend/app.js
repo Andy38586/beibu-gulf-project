@@ -5,7 +5,8 @@ import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
 import rateLimit from 'express-rate-limit'
 import cookieParser from 'cookie-parser'
-import { readdir } from 'fs/promises'
+import { constants } from 'fs'
+import { access, readdir } from 'fs/promises'
 import siteAnalysisRouter from './routes/siteAnalysis.js'
 import authRouter from './routes/auth.js'
 import plansRouter from './routes/plans.js'
@@ -33,7 +34,8 @@ app.get('/api/health', (req, res) => {
   sendSuccess(res, { status: 'ok' })
 })
 
-// liveness 只探进程存活；readiness 查关键依赖（数据目录可读），供编排器/HEALTHCHECK 使用
+// liveness 只探进程存活；readiness 查关键依赖（数据目录可读/可写 + DEM/terrain 卷 + flood 连通性），
+// 供编排器/HEALTHCHECK 使用
 export async function checkDataDirReadable() {
   try {
     await readdir(join(__dirname, 'data'))
@@ -43,10 +45,59 @@ export async function checkDataDirReadable() {
   }
 }
 
+/** 目录可写检查（数据目录运行时写 plans/users） */
+async function checkDirWritable(dir) {
+  try {
+    await access(dir, constants.W_OK)
+    return true
+  } catch {
+    return false
+  }
+}
+
+/** 目录非空可读检查（DEM/terrain volume 挂载校验） */
+async function checkDirReadable(dir) {
+  try {
+    const entries = await readdir(dir)
+    return entries.length > 0
+  } catch {
+    return false
+  }
+}
+
+/** flood-service 连通性（仅编排/生产形态探测；本地无独立容器标记 null 跳过，不误判 503） */
+async function checkFloodReachable() {
+  const base = process.env.FLOOD_SERVICE_URL || 'http://flood-service:8000'
+  try {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 3000)
+    try {
+      const resp = await fetch(`${base}/health`, { signal: controller.signal })
+      return resp.ok
+    } finally {
+      clearTimeout(timer)
+    }
+  } catch {
+    return false
+  }
+}
+
 export async function readinessHandler(req, res, next) {
   try {
-    const checks = { dataDir: await checkDataDirReadable() }
-    const ready = Object.values(checks).every(Boolean)
+    // 816-专项5主 7：多维检查（原仅 dataDir 单维度——DEM volume 缺失/flood 服务 404 仍判 healthy）
+    const checks = {
+      dataDir: await checkDataDirReadable(),
+      dataWritable: await checkDirWritable(join(__dirname, 'data')),
+      demVolume:
+        (await checkDirReadable(join(__dirname, 'static', 'dem'))) &&
+        (await checkDirReadable(join(__dirname, 'static', 'terrain'))),
+    }
+    if (process.env.NODE_ENV === 'production' || process.env.FLOOD_SERVICE_URL) {
+      checks.floodReachable = await checkFloodReachable()
+    } else {
+      checks.floodReachable = null // 本地 dev：无独立 flood 容器，跳过
+    }
+    const ready = Object.values(checks).every((v) => v === true || v === null)
     res.status(ready ? 200 : 503).json({
       status: ready ? 'ready' : 'degraded',
       checks,

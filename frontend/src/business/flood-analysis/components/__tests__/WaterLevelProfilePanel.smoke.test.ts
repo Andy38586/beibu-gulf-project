@@ -27,7 +27,10 @@ vi.mock('echarts/core', async (importOriginal) => {
   return { ...mod, init: vi.fn(() => h.chart), use: vi.fn() }
 })
 
-vi.mock('echarts/charts', () => ({ LineChart: {} }))
+// echarts/charts 需含全链路引用的导出：组件经 @/core 入口导入 useSliderFocus 会连带加载
+// @/core 桶 → AppLayout → @/visualization → RadarChart.vue → useRadarChart（echarts/charts 的
+// LineChart/BarChart/RadarChart 三导出缺一即模块加载挂）
+vi.mock('echarts/charts', () => ({ LineChart: {}, BarChart: {}, RadarChart: {} }))
 vi.mock('echarts/components', () => ({
   GridComponent: {},
   LegendComponent: {},

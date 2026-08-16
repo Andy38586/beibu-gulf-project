@@ -2,7 +2,7 @@
 /** PanelTitle — 通用面板标题：字号随 cell 单位缩放（0.4 cell），全站面板统一使用，只传 title 即可 */
 import { computed } from 'vue'
 
-import { useGCS } from '@/shared/layout/useGCS.js'
+import { useGCS } from '@/shared/layout/useGCS'
 
 const { css, cellPixel } = useGCS()
 const { cell8px } = css

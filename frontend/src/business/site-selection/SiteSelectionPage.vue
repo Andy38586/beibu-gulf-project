@@ -7,22 +7,19 @@
 
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
+import { storeToRefs } from 'pinia'
 
-import { useBusinessLayers, useMapControls } from '@/core'
-import AppLayout from '@/core/layout/AppLayout.vue'
-import GCSPanel from '@/core/layout/components/GCSPanel.vue'
-import LayerControlPanel from '@/core/map/components/LayerControlPanel.vue'
+import { AppLayout, GCSPanel, LayerControlPanel, useBusinessLayers, useMapControls } from '@/core'
 import { showError, showWarning } from '@/shared'
 import { logger } from '@/shared'
-import PaginatedListPanel from '@/shared/components/PaginatedListPanel.vue'
+import { PaginatedListPanel } from '@/shared'
 import type { SiteSelectionState } from '@/stores'
 import { useSiteSelectionStore } from '@/stores'
 import type { AnalysisResult, FacilityPoint, ScoredXiaoqu } from '@/types/analysis'
-import RadarChart from '@/visualization/charts/RadarChart.vue'
+import { RadarChart, SNAPSHOT_SELECTED_TYPES, SNAPSHOT_XIAOQU } from '@/visualization'
 
 import SiteAnalysisControlPanel from './components/SiteAnalysisControlPanel.vue'
 import { useAnalysisLayer } from './composables/useAnalysisLayer'
-import { SNAPSHOT_SELECTED_TYPES, SNAPSHOT_XIAOQU } from '@/visualization/charts/radarSnapshot'
 
 const { flyTo, startBreathing, stopBreathing, zoomToCity, zoomToDistrict, mapInstance } =
   useMapControls()
@@ -37,13 +34,12 @@ const updateAnalysisHandler = createUpdateHandler(businessLayerManager)
 // 保存定时器 id，卸载时清理悬挂定时器
 let tryZoomTimer: ReturnType<typeof setTimeout> | null = null
 
-/** 分析结果 */
-const matchedXiaoqu = ref<ScoredXiaoqu[]>([])
-const selectedTypes = ref<string[]>([])
-const selectedXiaoqu = ref<ScoredXiaoqu | null>(null)
+/** 分析结果（816-专项2 4-3：store 唯一来源，storeToRefs 透传——页面与 AppLayout 全局雷达同源，
+ *  原本地 ref 双持 + handleResult/restoreState 双写维持一致的反模式已移除） */
+const { matchedXiaoqu, selectedTypes, facilityPoi, calculating } = storeToRefs(stateStore)
 
-/** 覆盖范围内的设施POI数据 { type: [{lng, lat, name}] } */
-const facilityPoi = ref<Record<string, FacilityPoint[]>>({})
+/** 雷达图当前选中小区（页内临时态，仅本地） */
+const selectedXiaoqu = ref<ScoredXiaoqu | null>(null)
 
 /** 当前方案ID（用于保存小区） */
 const currentPlanId = ref<string | null>(null)
@@ -89,14 +85,11 @@ function handleResult(result: Partial<AnalysisResult>): void {
 
   // 图层更新直调 updateAnalysisHandler；分析结果恢复走 useSiteSelectionStore 内存快照
   void updateAnalysisHandler(result)
-  matchedXiaoqu.value = result.matchedXiaoqu || []
-  selectedTypes.value = result.selectedTypes || []
-  facilityPoi.value = result.facilityPoi || {}
-  // 写入 store 供 AppLayout 全局雷达图同源消费（此前 store 结果字段为死状态）
+  // 816-专项2 4-3：store 单一来源——setResult 同时驱动页面与 AppLayout 全局雷达（删本地双写）
   stateStore.setResult({
-    matchedXiaoqu: matchedXiaoqu.value,
-    selectedTypes: selectedTypes.value,
-    facilityPoi: facilityPoi.value,
+    matchedXiaoqu: result.matchedXiaoqu || [],
+    selectedTypes: result.selectedTypes || [],
+    facilityPoi: result.facilityPoi || {},
   })
   selectedXiaoqu.value = null
   stopBreathing()
@@ -220,17 +213,14 @@ function restoreState(): boolean {
   const savedState = stateStore.consumeState()
   if (!savedState) return false
 
-  // 恢复分析结果
-  matchedXiaoqu.value = (savedState as SiteSelectionState).matchedXiaoqu || []
-  selectedTypes.value = (savedState as SiteSelectionState).selectedTypes || []
-  facilityPoi.value = (savedState as SiteSelectionState).facilityPoi || {}
-  // 快照恢复同样写入 store（AppLayout 全局雷达图同源）
+  // 恢复分析结果（816-专项2 4-3：store 单一来源，快照恢复只写 store）
+  const s = savedState as SiteSelectionState
   stateStore.setResult({
-    matchedXiaoqu: matchedXiaoqu.value,
-    selectedTypes: selectedTypes.value,
-    facilityPoi: facilityPoi.value,
+    matchedXiaoqu: s.matchedXiaoqu || [],
+    selectedTypes: s.selectedTypes || [],
+    facilityPoi: s.facilityPoi || {},
   })
-  currentPlanId.value = (savedState as SiteSelectionState).currentPlanId || null
+  currentPlanId.value = s.currentPlanId || null
 
   // 恢复因子面板状态
   const factorSettings = (savedState as SiteSelectionState).factorSettings
@@ -332,6 +322,7 @@ onUnmounted(() => {
             ref="favoriteListRef"
             :items="displayXiaoqu"
             :page-size="4"
+            :loading="calculating"
             title="小区名单"
             empty-text="暂无分析结果"
             plan-type="site-selection"

@@ -7,10 +7,7 @@
 import { nextTick, onMounted, onUnmounted, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute } from 'vue-router'
 
-import { useBusinessLayers } from '@/core'
-import AppLayout from '@/core/layout/AppLayout.vue'
-import GCSPanel from '@/core/layout/components/GCSPanel.vue'
-import LayerControlPanel from '@/core/map/components/LayerControlPanel.vue'
+import { AppLayout, GCSPanel, isWater3DCapable, LayerControlPanel, useBusinessLayers } from '@/core'
 import { floodAdapter } from '@/services'
 import { LAYER_FILL_WATER, showError, showWarning, useLatestRequest } from '@/shared'
 import { logger } from '@/shared'
@@ -152,7 +149,8 @@ watch(
   (renderer) => {
     if (renderer) {
       void nextTick(() => {
-        if (renderer.getType?.() === '3d') {
+        // 816-专项4 3.2：能力守卫驱动（isWater3DCapable），业务页不再 getType() 判断引擎（02 §5.3）
+        if (isWater3DCapable(renderer)) {
           void registerFloodLayers(getFloodSignal())
         } else {
           removeCesiumOnlyLayers()
@@ -184,41 +182,50 @@ function saveCurrentState() {
 
 /** 挂载时恢复保存的状态 */
 onMounted(async () => {
-  const savedState = floodStore.consumeState()
-  if (savedState) {
-    // 清除 {immediate: true} watch 已排入的防抖分析，避免恢复后覆盖
-    if (analysisTimer) {
-      clearTimeout(analysisTimer)
-      analysisTimer = null
+  // 816-专项2 7-1：恢复路径整体兜底——renderFloodAreas/renderAffectedFacilities 经 BLM updateData
+  // 对未注册图层 throw（layerAdapters 数据守卫），async 钩子无 catch 会成 unhandledrejection
+  try {
+    const savedState = floodStore.consumeState()
+    if (savedState) {
+      // 清除 {immediate: true} watch 已排入的防抖分析，避免恢复后覆盖
+      if (analysisTimer) {
+        clearTimeout(analysisTimer)
+        analysisTimer = null
+      }
+
+      stateRestored = true
+
+      floodStore.setWaterLevel(savedState.waterLevel)
+
+      if (savedState.floodStatistics) {
+        floodStore.startFloodAnalysis(
+          savedState.floodStatistics,
+          savedState.floodFeatures,
+          savedState.floodRiskLevel
+        )
+      }
+
+      if (savedState.affectedFacilities) {
+        floodStore.setPortImpactResult(savedState.affectedFacilities, savedState.totalLoss ?? 0)
+      }
+
+      // 等待图层注册完成
+      await nextTick()
+
+      // 主动渲染图层
+      if (savedState.floodFeatures && savedState.floodFeatures.length > 0) {
+        renderFloodAreas(savedState.floodFeatures)
+      }
+      if (savedState.affectedFacilities && savedState.affectedFacilities.length > 0) {
+        renderAffectedFacilities(savedState.affectedFacilities)
+      }
+
+      stateRestored = false
     }
-
-    stateRestored = true
-
-    floodStore.setWaterLevel(savedState.waterLevel)
-
-    if (savedState.floodStatistics) {
-      floodStore.startFloodAnalysis(
-        savedState.floodStatistics,
-        savedState.floodFeatures,
-        savedState.floodRiskLevel
-      )
+  } catch (e) {
+    if (import.meta.env.DEV) {
+      console.warn('[FloodAnalysisPage] 状态恢复失败（图层未就绪等），已跳过恢复:', e)
     }
-
-    if (savedState.affectedFacilities) {
-      floodStore.setPortImpactResult(savedState.affectedFacilities, savedState.totalLoss ?? 0)
-    }
-
-    // 等待图层注册完成
-    await nextTick()
-
-    // 主动渲染图层
-    if (savedState.floodFeatures && savedState.floodFeatures.length > 0) {
-      renderFloodAreas(savedState.floodFeatures)
-    }
-    if (savedState.affectedFacilities && savedState.affectedFacilities.length > 0) {
-      renderAffectedFacilities(savedState.affectedFacilities)
-    }
-
     stateRestored = false
   }
 })
@@ -399,7 +406,8 @@ function renderAffectedFacilities(facilities: AffectedFacility[]) {
   businessLayerManager.updateData(FACILITY_LAYER_ID, {
     data: points,
     options: {
-      markerColor: '#F56C6C',
+      // 816-S7-46：引用调色板常量（同值见 FLOOD_RISK_COLORS['高风险'].stroke），杜绝第二份字面量漂移
+      markerColor: FLOOD_RISK_COLORS['高风险'].stroke,
       markerSize: 10,
       featureType: 'facility-point',
     },
@@ -534,7 +542,7 @@ onUnmounted(() => {
 }
 
 .placeholder-title {
-  font-size: 16px;
+  font-size: var(--GCS-font-size-lg); /* 816-S7-57：面板标题字号归档 */
   font-weight: 500;
   margin-bottom: 8px;
 }

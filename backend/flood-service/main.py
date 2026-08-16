@@ -3,7 +3,7 @@ main.py — 北部湾洪涝在线演算服务（路线 B ④）
 
 FastAPI 微服务：任意水位 → 连通性淹没 GeoJSON（EPSG:4326）。
 滑块无极调节的后端：每次请求实时演算（降采样 4x，~1s），
-配合 level 档位缓存避免高频拖动打爆。
+配合 waterLevel 档位缓存避免高频拖动打爆。
 
 2026-08-06（用户拍板）：离线预计算档位表（backend/data/flood/flood_levels.json，
 0.1m 步长 251 档，precompute_levels.py 多进程生成）→ /api/flood/online 查表秒回
@@ -15,13 +15,16 @@ FastAPI 微服务：任意水位 → 连通性淹没 GeoJSON（EPSG:4326）。
   .venv/Scripts/python.exe -m uvicorn main:app --port 8000
 
 接口：
-  GET /api/flood/online?level=3.5   → {level, featureCount, floodedKm2, features}
+  GET /api/flood/online?waterLevel=3.5   → {level, featureCount, floodedKm2, features}
   GET /health
 """
 
 from __future__ import annotations
 
 import json
+import logging
+import logging.handlers
+import os
 import threading
 import time
 from collections import OrderedDict
@@ -33,6 +36,23 @@ from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 
 from flood_engine import compute_impact, run_online_flood
+
+# 816-专项5主 21（Q8 拍板）：flood-service 补日志分级 + 按天轮转——
+# 原仅 uvicorn stdout（docker 捕获，无轮转），长跑磁盘风险 + 无 error 级独立检索。
+# 容器 stdout 仍保留（logger 根 handler 同步输出），文件轮转兜底本地/挂载场景。
+_LOG_DIR = Path(os.environ.get("FLOOD_SERVICE_LOG_DIR", "")) or (Path(__file__).resolve().parent / "logs")
+_LOG_DIR.mkdir(parents=True, exist_ok=True)
+_logger = logging.getLogger("flood-service")
+_logger.setLevel(logging.INFO)
+_fmt = logging.Formatter("%(asctime)s %(levelname)s [%(name)s] %(message)s")
+_file_handler = logging.handlers.TimedRotatingFileHandler(
+    _LOG_DIR / "flood-service.log", when="midnight", backupCount=14, encoding="utf-8"
+)
+_file_handler.setFormatter(_fmt)
+_logger.addHandler(_file_handler)
+_stream_handler = logging.StreamHandler()
+_stream_handler.setFormatter(_fmt)
+_logger.addHandler(_stream_handler)
 
 
 @asynccontextmanager
@@ -129,12 +149,9 @@ def flood_online(
     pre = _load_levels().get(str(key))
     if pre is not None:
         resp = dict(pre)
-        # 水位 0 = 无淹没（02 §4.3 应然契约）；预计算 0 档存在海面种子误差
-        # （floodedKm2=6.87 但 features 空，历史缺陷 8-6）——统一修正为 0，
-        # 避免前端"淹没 6.87km²"数字与空地图矛盾（风险等级已有 level<=0 特判）
-        if key <= 0 and resp.get("floodedKm2", 0) > 0:
-            resp["floodedKm2"] = 0.0
         # 回显实际档位（滑块 step=0.1 → key == level，前端无"档位偏差"提示噪音）
+        # 816-专项8 发现4：0 档 floodedKm2 已由数据层修正（precompute_levels.py 源头 + 存量表修复），
+        # 原响应层特判（if key<=0 ... floodedKm2=0.0）已删除，防"补丁移除即复发"的掩盖式修复
         resp["level"] = key
         return resp
 

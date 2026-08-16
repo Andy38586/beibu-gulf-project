@@ -5,7 +5,7 @@
  *       （buildTypeCoverage union / intersect / 小区评分 / 设施筛选），
  *       复现第六部分基线里"选址核心 1.55s"的口径。
  *
- * 运行：(cd backend && node ../tools/perf-bench/site-analysis-bench.mjs)
+ * 运行：node tools/perf-bench/site-analysis-bench.mjs（816：自 backend/ 根迁移，相对导入已指向 ../backend）
  * 注意：依赖 backend 的 ESM 相对导入，须在 backend 目录下运行。
  */
 import { readFileSync } from 'node:fs'
@@ -13,10 +13,10 @@ import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { performance } from 'node:perf_hooks'
 
-import { runSiteAnalysis } from './services/siteAnalysisService.js'
+import { runSiteAnalysis } from '../backend/services/siteAnalysisService.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const DATA_DIR = join(__dirname, 'data')
+const DATA_DIR = join(__dirname, '../backend/data')
 
 function loadJson(rel) {
   return JSON.parse(readFileSync(join(DATA_DIR, rel), 'utf8'))

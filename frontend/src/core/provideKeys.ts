@@ -3,16 +3,14 @@
  * 用类型化 InjectionKey 替代字符串 key：
  * 1. key 拼写错误在编译期暴露，不再靠运行时 undefined 排查；
  * 2. 消费方不再需要手动类型断言（ref<T|null> 由 provider 端保证）；
- * 3. 与 App.vue 的 4 个 provide 一一对应。
+ * 3. 与 App.vue 的 provide 一一对应（BUSINESS_LAYER_MANAGER_KEY 定义于 map/composables/useBusinessLayers.ts）。
  * 对应消费方：
  * - RESTORE_PLAN_DATA_KEY / EDITING_PLAN_KEY → ProfilePage
  * - UNIFIED_MAP_KEY → useMapControls
- * - MAP_STORE_KEY → mapStore（P6：useLayerManager 已删）
  */
 import type { InjectionKey, Ref } from 'vue'
 
 import type { MapRenderer } from '@/core/map/renderers/MapRenderer'
-import type { useMapStore } from '@/stores'
 import type { FlyToOptions, FlyToTarget } from '@/types'
 import type { TypeSetting } from '@/types/facility'
 import type { Plan } from '@/types/plan'
@@ -34,6 +32,3 @@ export const EDITING_PLAN_KEY: InjectionKey<Ref<Plan | null>> = Symbol('editingP
 
 /** UnifiedMap 组件实例（defineExpose 暴露的地图控制接口） */
 export const UNIFIED_MAP_KEY: InjectionKey<Ref<UnifiedMapExposed | null>> = Symbol('unifiedMap')
-
-/** mapStore 实例（由 useMapStore 推断） */
-export const MAP_STORE_KEY: InjectionKey<ReturnType<typeof useMapStore>> = Symbol('mapStore')

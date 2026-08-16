@@ -33,7 +33,8 @@ const avatarText = computed(() => (user.value?.username || '?').charAt(0).toUppe
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  /* 816-S7-51：=GAP(10px) 字面量 → 网格表达式（0.125 × 80px cell） */
+  gap: calc(0.125 * var(--GCS-cell));
   border-bottom: 1px solid var(--GCS-border-light);
 }
 

@@ -1,5 +1,5 @@
-// shared 公开 API 入口
-// components/ 不 re-export（Vue 组件保持直接路径 import）
+// shared 公开 API 入口（Q4 816 拍板：全量收口，01 原则10 不豁免）
+// 组件经 index.ts 聚合导出，消费方一律走 @/shared，禁止深路径穿透。
 export * from './composables/useApiRequest'
 export * from './composables/useAuth'
 export * from './composables/useLatestRequest'
@@ -20,3 +20,11 @@ export * from './utils/logger'
 export * from './utils/perfReporter'
 export * from './utils/responseEnvelope'
 export * from './utils/spatialIndex'
+// Q4 收口：组件聚合导出
+export { default as EmptyState } from './components/EmptyState.vue'
+export { default as ErrorBoundary } from './components/ErrorBoundary.vue'
+export { default as GCSModal } from './components/GCSModal.vue'
+export { default as GCSToast } from './components/GCSToast.vue'
+export { default as PaginatedListPanel } from './components/PaginatedListPanel.vue'
+export { default as PanelTitle } from './components/PanelTitle.vue'
+export { default as PlanSaveModal } from './components/PlanSaveModal.vue'

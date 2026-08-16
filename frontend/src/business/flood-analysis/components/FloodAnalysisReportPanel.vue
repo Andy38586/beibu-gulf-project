@@ -69,7 +69,7 @@ const affectedPorts = computed<string[]>(() => {
         <span class="info-value"
           >{{
             floodStore.affectedFacilities.length ||
-            floodStore.floodStatistics?.affectedFacilities ||
+            floodStore.floodStatistics?.affectedFacilityCount ||
             0
           }}
           个</span
@@ -120,7 +120,7 @@ const affectedPorts = computed<string[]>(() => {
 }
 
 .header-title {
-  font-size: 16px;
+  font-size: var(--GCS-font-size-lg); /* 816-S7-57：面板标题字号归档 */
   font-weight: 600;
   color: var(--GCS-text-primary);
 }

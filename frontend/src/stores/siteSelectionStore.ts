@@ -70,6 +70,18 @@ export const useSiteSelectionStore = defineStore('site-selection', () => {
     savedXiaoquIds.value = []
     facilityPoi.value = {}
     calcError.value = ''
+    // 816-专项2 2-2：复位请求进行态（原遗漏致登出后下次进页「分析中」spinner 常驻）
+    calculating.value = false
+  }
+
+  /** 请求进行态 action（M11/Q3 816 拍板：composable 不再直改 state） */
+  function setCalculating(v: boolean): void {
+    calculating.value = v
+  }
+
+  /** 请求错误态 action（同上） */
+  function setCalcError(v: string): void {
+    calcError.value = v
   }
 
   return {
@@ -83,6 +95,8 @@ export const useSiteSelectionStore = defineStore('site-selection', () => {
     savedXiaoquIds,
     facilityPoi,
     setResult,
+    setCalculating,
+    setCalcError,
     // 跨页面持久化
     hasPersistedState: persisted.hasPersistedState,
     saveState,

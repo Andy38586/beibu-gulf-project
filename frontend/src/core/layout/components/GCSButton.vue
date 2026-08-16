@@ -76,10 +76,18 @@ function handleClick() {
   border: none;
   outline: none;
   cursor: pointer;
-  color: var(--GCS-bg-panel);
+  color: var(
+    --GCS-text-inverse
+  ); /* 816-S7-62：bg-panel 语义为背景，前景一律 text-inverse（原数值恰等，非功能性改动） */
   transition:
     background-color 0.2s ease,
     transform 0.1s ease;
+}
+
+/* 816-S7-43：outline:none 去掉默认环后用 :focus-visible 补可见焦点环（键盘可达性，WCAG 2.4.7） */
+.GCS-button:focus-visible {
+  outline: 2px solid var(--GCS-border-focus);
+  outline-offset: 2px;
 }
 
 .GCS-button:hover:not(:disabled) {

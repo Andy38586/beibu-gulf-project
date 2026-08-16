@@ -3,7 +3,7 @@
  * 请求收口 forecastAdapter（services 层），shared 不再硬编码业务 URL；
  * 统一从 /forecast/overview 静态快照读取，接口失败留空（图表空状态兜底），不回落假数据。
  */
-import { ref } from 'vue'
+import { ref, type Ref } from 'vue'
 
 import { logger } from '@/shared'
 import { showToast } from '@/shared'
@@ -14,7 +14,14 @@ export interface ChartDataset {
   series: Array<{ name: string; data: number[] }>
 }
 
-export function useOverviewCharts() {
+/** 返回契约（816-专项3-0816-13：显式化，防重构时签名静默漂移） */
+export interface UseOverviewChartsReturn {
+  chartData: Ref<ChartDataset>
+  barData: Ref<ChartDataset>
+  loadOverviewCharts: () => Promise<void>
+}
+
+export function useOverviewCharts(): UseOverviewChartsReturn {
   const chartData = ref<ChartDataset>({ labels: [], series: [] })
   const barData = ref<ChartDataset>({ labels: [], series: [] })
 

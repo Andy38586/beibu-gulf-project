@@ -71,6 +71,7 @@
 | 选址        | `POST /site-analysis`                                                                                           | ✅ 需登录     | 分析(参数 zod 校验)               |
 | 方案        | `GET/POST /plans`、`GET/PUT/DELETE /plans/:id`、`POST /plans/:id/xiaoqu`、`DELETE /plans/:id/xiaoqu/:xiaoquId`  | ✅ 全部需登录 | CRUD                              |
 | 预测        | `GET /forecast/timeseries`、`GET /forecast/indicator/:indicator`、`GET /forecast/map`、`GET /forecast/overview` | 公开          | —                                 |
+| 预测        | `GET /forecast/:portId`                                                                                           | 公开          | 孤儿路由（前端零消费，保留兼容端点，2026-08-16 816 补录） |
 | 洪涝        | `GET /flood/water-area`、`GET /flood/terrain-profiles`、`GET /flood/flood-areas`、`GET /flood/flood-statistics` | 公开          | api 模式                          |
 | 洪涝        | `POST /flood/analysis/disaster`                                                                                 | ✅ 需登录     | 灾害评估                          |
 | 洪涝 online | `GET /flood-online/api/flood/online?waterLevel=`                                                             | 公开          | FastAPI 裸 JSON,`envelope: false`（b027：参数名统一 waterLevel） |

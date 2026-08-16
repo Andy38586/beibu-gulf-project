@@ -10,11 +10,11 @@ import type { AffectedFacilityParsed, FloodFeatureParsed } from '../schemas'
 
 // ===== 通用 GIS 要素 =====
 
-/** 坐标点（业务层统一使用 lng/lat，WGS84 地理坐标系） */
-export interface GeoPoint {
-  lng: number
-  lat: number
-}
+// 816-专项3-0816-10：GeoPoint 收敛为单一权威（crs.ts 带 CRS 泛型版本）；
+// 原 base.ts 独立定义（无 crs 字段）与 crs.ts 同名不同义，已移除，此处仅 re-export 兼容既有引用。
+// 注意：re-export 不引入本地作用域，本文件内部使用需显式 import。
+import type { GeoPoint } from '../crs'
+export type { GeoPoint } from '../crs'
 
 /** 带属性标注的点 */
 export interface AnnotatedPoint extends GeoPoint {
@@ -52,13 +52,13 @@ export interface FloodStatistics {
   floodArea?: number // 淹没面积（km²）
   averageDepth?: number // 平均水深（m）
   maxDepth?: number // 最大水深（m）
-  // 语义注意：此处为「受影响设施数量（计数）」，与 FloodSavedState.affectedFacilities（数组）同名不同型
-  affectedFacilities?: number // 受影响设施数量（计数，非数组）
+  // 816-专项1 发现7（M5）：计数语义改名 affectedFacilityCount，消除与 FloodSavedState.affectedFacilities（数组）同名不同型
+  affectedFacilityCount?: number // 受影响设施数量（计数，非数组）
   affectedPorts?: string[] // 受影响港口列表
   estimatedLoss?: number // 预估损失（万元）
   description?: string // 情景描述
   // —— adapter 派生字段（online 模式有值，mock/api 模式可能缺失）——
-  affectedCount?: number // 受影响设施数量（与 affectedFacilities 同语义，online 模式占位）
+  affectedCount?: number // 受影响设施数量（与 affectedFacilityCount 同语义，online 模式占位）
 }
 
 /** 淹没区域要素（GeoJSON Feature）——从 floodFeatureSchema z.infer 派生（D1：schema 与业务类型编译期绑定） */

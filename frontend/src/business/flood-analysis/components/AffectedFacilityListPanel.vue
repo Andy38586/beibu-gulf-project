@@ -7,7 +7,7 @@
 import { computed } from 'vue'
 
 import { useMapControls } from '@/core'
-import PaginatedListPanel from '@/shared/components/PaginatedListPanel.vue'
+import { PaginatedListPanel } from '@/shared'
 import { formatLoss } from '@/shared'
 import { useFloodStore } from '@/stores'
 import type { ScoredXiaoqu } from '@/types/xiaoqu'

@@ -69,10 +69,10 @@ export default defineConfig(({ mode }) => ({
     target: 'es2020',
     // 输出目录
     outDir: 'dist',
-    // 构建前清空输出目录，避免历史 chunk 堆积。
-    // 注：本地 Windows 上 WorkBuddy safe-delete 会拦截批量 trash（>50 文件），
-    // 故本地不空目录；CI（Linux）环境仍由 CI 前序步骤清理，无残留问题。
-    emptyOutDir: false,
+    // 构建前清空输出目录，避免历史 chunk 堆积（816-M7：恢复 emptyOutDir:true，与 z021 决案一致）。
+    // 注：本地 Windows 上 WorkBuddy safe-delete 可能拦截批量 trash，属本地工具行为；
+    // 部署一律以 CI（Linux）fresh 构建产物为准，本地构建前可手动清理 dist。
+    emptyOutDir: true,
     // 启用源码映射（生产环境可关闭）
     sourcemap: false,
     // 压缩选项（Vite 8 默认使用 rolldown 内置压缩，无需单独指定 esbuild）

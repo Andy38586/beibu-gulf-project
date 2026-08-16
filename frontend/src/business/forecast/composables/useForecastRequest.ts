@@ -9,7 +9,16 @@ import { computed, type ComputedRef } from 'vue'
 import { ApiError, ErrorCode, useLatestRequest } from '@/shared'
 import { useForecastStore } from '@/stores'
 
-export function useForecastRequest() {
+/** 返回契约（816-专项3-0816-13：显式化，防重构时签名静默漂移） */
+export interface UseForecastRequestReturn {
+  isLoading: ComputedRef<boolean>
+  startTransaction: () => { transactionId: number; signal: AbortSignal }
+  isTransactionValid: (transactionId: number) => boolean
+  runInTransaction: <T>(adapterFn: () => Promise<T>, transactionId: number) => Promise<T | null>
+  cancelAll: () => void
+}
+
+export function useForecastRequest(): UseForecastRequestReturn {
   const forecastState = useForecastStore()
   // 竞态守卫统一走 useLatestRequest；AbortController 实例不进 store（不可序列化、不响应式）
   const { createSignal, cancel: cancelRequest } = useLatestRequest()
@@ -19,11 +28,12 @@ export function useForecastRequest() {
 
   /** 状态变化前调用：取消旧事务并生成新事务 ID */
   function startTransaction() {
-    forecastState.activeTransactionId += 1
+    // M11/Q3（816 拍板）：事务 ID 推进走 store action，不再直改 state
+    const transactionId = forecastState.bumpTransactionId()
     const signal = createSignal()
 
     return {
-      transactionId: forecastState.activeTransactionId,
+      transactionId,
       signal,
     }
   }
@@ -46,7 +56,7 @@ export function useForecastRequest() {
     }
 
     try {
-      forecastState.isRequesting = true
+      forecastState.setIsRequesting(true)
 
       const result = await adapterFn()
 
@@ -69,7 +79,7 @@ export function useForecastRequest() {
       throw error
     } finally {
       if (isTransactionValid(transactionId)) {
-        forecastState.isRequesting = false
+        forecastState.setIsRequesting(false)
       }
     }
   }

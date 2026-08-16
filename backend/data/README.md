@@ -90,7 +90,7 @@ data/
   - 降采样 4x（30m→120m，像元 ~6800万→~425万），单次演算秒级；模块级缓存 DEM（~17MB float32，只读一次）。
   - 输出：EPSG:4326 淹没多边形 GeoJSON FeatureCollection + 统计。
   - 依赖：numpy / scipy / rasterio（rasterio wheel 自带 GDAL）。
-- **`main.py`**：FastAPI 服务。`GET /api/flood/online?level=3.5` → `{level, featureCount, floodedKm2, features, elapsedMs}`；档位缓存（水位取整 0.1m，最近 64 档 LRU，滑块拖动重复档位秒回）；`@lru_cache` 首请求触发 DEM 加载。
+- **`main.py`**：FastAPI 服务。`GET /api/flood/online?waterLevel=3.5` → `{level, featureCount, floodedKm2, features, elapsedMs}`；档位缓存（水位取整 0.1m，最近 64 档 LRU，滑块拖动重复档位秒回）；`@lru_cache` 首请求触发 DEM 加载。
   - 启动：`cd backend/flood-service && .venv/Scripts/python.exe -m uvicorn main:app --port 8000`。
   - 开发期 CORS 允许 Vite dev（5173），生产由 nginx 同源反代。
 

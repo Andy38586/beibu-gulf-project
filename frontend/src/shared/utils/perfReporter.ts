@@ -145,8 +145,8 @@ export function perfRecordApi(path: string, durationMs: number): void {
   state.api.set(path, bucket)
 }
 
-/** 错误分类计数（main.ts 三个钩子接入：vue / script / promise） */
-export function perfReportError(type: 'vue' | 'script' | 'promise'): void {
+/** 错误分类计数（main.ts 钩子接入：vue / script / promise / resource——816-专项5主 16 资源错误监听） */
+export function perfReportError(type: 'vue' | 'script' | 'promise' | 'resource'): void {
   if (!PERF_ENABLED) return
   state.errors[type] = (state.errors[type] ?? 0) + 1
 }

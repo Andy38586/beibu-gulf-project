@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import { booleanPointInPolygon, point } from '@turf/turf'
 import { createSpatialIndex, queryByPolygon } from '../spatialIndex.js'
 
 describe('Spatial Index (R-tree)', () => {
@@ -223,6 +224,60 @@ describe('Spatial Index (R-tree)', () => {
       expect(resultIds).toContain(2)
       expect(resultIds).toContain(3)
       expect(resultIds).not.toContain(4)
+    })
+
+    // 816-专项8 发现13：随机化属性测试（02 §5.6 不变量 3「粗筛保守」——粗筛漏配 = 结果错误）。
+    // 原仅 4 个手工固定点，宽输入空间无证据；此处固定种子伪随机（确定性，防 flaky）
+    it('randomized: 索引结果 ⊇ 逐点精确结果（多组随机点集 × 多边形）', () => {
+      let seed = 42
+      const rand = () => {
+        seed = (seed * 1103515245 + 12345) % 2147483648
+        return seed / 2147483648
+      }
+
+      for (let trial = 0; trial < 10; trial++) {
+        const n = 50 + Math.floor(rand() * 150)
+        const xiaoquData = Array.from({ length: n }, (_, i) => ({
+          id: i + 1,
+          lng: 107.5 + rand() * 3,
+          lat: 21.0 + rand() * 3,
+        }))
+        const tree = createSpatialIndex(xiaoquData)
+
+        // 非退化多边形（六点凸包近似，含点在 bbox 内但多边形外的情况）
+        const cx = 108 + rand() * 1.5
+        const cy = 22 + rand() * 1
+        const w = 0.3 + rand() * 0.6
+        const h = 0.3 + rand() * 0.5
+        const polygon = {
+          geometry: {
+            type: 'Polygon',
+            coordinates: [
+              [
+                [cx - w, cy - h],
+                [cx + w * 0.6, cy - h * 1.1],
+                [cx + w, cy],
+                [cx + w * 0.4, cy + h],
+                [cx - w * 0.8, cy + h * 0.7],
+                [cx - w, cy - h],
+              ],
+            ],
+          },
+        }
+        const normalized = { type: 'Feature', geometry: polygon.geometry }
+        const exact = xiaoquData.filter((xq) =>
+          booleanPointInPolygon(point([xq.lng, xq.lat]), normalized)
+        )
+        const fromIndex = queryByPolygon(tree, polygon)
+        const indexIds = new Set(fromIndex.map((x) => x.id))
+
+        // ① 不漏配：每个精确命中必须出现在索引结果中（⊇）
+        for (const xq of exact) {
+          expect(indexIds.has(xq.id)).toBe(true)
+        }
+        // ② 无误配：queryByPolygon 已做精确过滤，结果应与逐点精确一致
+        expect(fromIndex.length).toBe(exact.length)
+      }
     })
   })
 })

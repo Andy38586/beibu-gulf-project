@@ -3,9 +3,11 @@
 import { computed } from 'vue'
 
 import { useGCS } from '@/shared'
+// 816-专项3-0816-15：窄接口替代 Record<string, unknown>（模板直访 .name/.address/.phone/.type/.lng/.lat 全部收窄）
+import type { Port } from '@/types'
 
 interface Props {
-  selectedPort?: Record<string, unknown>
+  selectedPort?: Port | null
 }
 
 defineProps<Props>()
@@ -42,9 +44,9 @@ const unitPx = computed(() => cellPixel.value * 0.1)
   top: calc(8.5 * v-bind(unitPx));
   right: calc(1.5 * v-bind(unitPx));
   width: calc(35 * v-bind(unitPx));
-  z-index: 55;
+  z-index: var(--GCS-z-panel-float); /* 816-S7-40：浮动面板档（原散落 55，被 nav 60 语义盖过） */
   background: var(--GCS-bg-panel-translucent);
-  border-radius: calc(1.25 * v-bind(unitPx));
+  border-radius: var(--GCS-radius-md); /* 816-S7-55：calc 非档位圆角归 md（面板默认档） */
 
   /* 面板阴影：随 unitPx 响应缩放（固定 px 的 --GCS-shadow-* 会破坏响应式尺寸），故保留原值 */
   box-shadow: 0 calc(0.5 * v-bind(unitPx)) calc(2.25 * v-bind(unitPx)) rgb(0 0 0 / 20%);

@@ -54,6 +54,21 @@ import { MapRenderer, type LayerState } from './MapRenderer'
 /** 相机默认俯仰角（度）：-90° 俯视（z076 提取；引擎切换刻意不传递倾斜状态——OL 无 pitch 概念） */
 const DEFAULT_CAMERA_PITCH_DEG = -90
 
+/** 3D 相机缩放限位（米；816-专项4 1.4 提常量，与 OL zoom 6-20 档位对应） */
+const CAMERA_MIN_ZOOM_DISTANCE = 100
+const CAMERA_MAX_ZOOM_DISTANCE = 500000
+
+/**
+ * hillshade 影像固有地理范围（EPSG:4326，[西,南,东,北]；816-专项4 1.4 提常量）。
+ * 注意：与 BEIBU_GULF_BBOX（业务过滤范围 105-115/18-25）不同源属有意——该 PNG 为固定像素影像，
+ * 强行拉伸到业务 bbox 会变形；影像范围由 tools/dem-pipeline 生成时决定，改范围须重出影像。
+ * 惰性求值：模块顶层调用 Cesium API 会使 jsdom 单测（mock cesium 无 fromDegrees）加载即挂，
+ * 仅在使用路径（3D hillshade 图层）触发。
+ */
+function getHillshadeImageBBox(): Rectangle {
+  return Rectangle.fromDegrees(106.9720001, 20.9379894, 110.0783727, 23.0760978)
+}
+
 // CesiumViewer单例：全局唯一Viewer，按需mount/unmount复用，30s空闲自动销毁
 class CesiumViewerManager {
   viewer: Viewer | null
@@ -215,6 +230,9 @@ class CesiumViewerManager {
 
   /** 真正销毁 Viewer（常规卸载不调用，保留复用语义） */
   destroy() {
+    // 816-专项2 3-1：销毁前取消 30s 空闲销毁定时器——unmount() 会重排该定时器，
+    // 不清理则 fire 时 viewer 已为 null 的 no-op 定时器残留
+    this._clearIdleDestroyTimer()
     if (this.viewer) {
       this.unmount()
       this.viewer.destroy()
@@ -332,8 +350,9 @@ export class CesiumRenderer extends MapRenderer {
     const viewer = this.viewer
     if (!viewer) return
     const controller = viewer.scene.screenSpaceCameraController
-    controller.minimumZoomDistance = 100
-    controller.maximumZoomDistance = 500000
+    // 816-专项4 1.4：缩放限位提常量（与 OL zoom 6-20 档位对应，见 CAMERA_*_ZOOM_DISTANCE）
+    controller.minimumZoomDistance = CAMERA_MIN_ZOOM_DISTANCE
+    controller.maximumZoomDistance = CAMERA_MAX_ZOOM_DISTANCE
     // 显式启用相机控制器全部交互（拖拽/旋转/缩放/倾斜）
     controller.enableRotate = true
     controller.enableTranslate = true
@@ -1023,9 +1042,10 @@ export function createCesiumPointEntity(
       ? {
           text: String(item[options.labelField as keyof PointFeature]),
           font: '12px sans-serif',
-          fillColor: Color.BLACK,
+          // 816-专项4 6.3：标注色收口 LAYER_DEFAULTS（原 BLACK/WHITE 硬编码；白底自包含，双主题可读）
+          fillColor: Color.fromCssColorString(LAYER_DEFAULTS.text),
           showBackground: true,
-          backgroundColor: Color.WHITE.withAlpha(0.8),
+          backgroundColor: Color.fromCssColorString(LAYER_DEFAULTS.labelBackground),
           verticalOrigin: 1,
           pixelOffset: new Cartesian2(0, 15),
         }
@@ -1100,29 +1120,47 @@ export function addPolygonLayer(
   renderer.viewer!.scene.requestRender()
 }
 
+/**
+ * Cesium Entity 运行期最小形态（816-专项3-0816-02：样式应用仅用这些成员，替代裸 any；
+ * Cesium 运行期对象 polygon/position 属性赋值类型过严（Property/PropertyBag），保持鸭子访问但收窄到最小面）
+ */
+interface CesiumEntityLike {
+  properties?: Record<string, unknown>
+  polygon?: {
+    heightReference?: unknown
+    classificationType?: unknown
+    material?: unknown
+    outline?: unknown
+    outlineColor?: unknown
+    outlineWidth?: unknown
+  }
+  position?: unknown
+  billboard?: unknown
+  point?: unknown
+}
+
 /** GeoJSON dataSource 样式应用（贴地形 polygon / point 样式），add/update 共用单一来源 */
 function applyGeoJsonDataSourceStyle(dataSource: GeoJsonDataSource, options: LayerOptions): void {
-  // entity 为 Cesium 运行期对象：polygon/position 属性赋值类型过严（Property/PropertyBag），
-  // 保持 any 鸭子访问（样式应用是 Cesium 特有的运行期形态）
-  dataSource.entities.values.forEach((entity: any) => {
+  dataSource.entities.values.forEach((entity) => {
+    const e = entity as unknown as CesiumEntityLike
     // properties 可能为 undefined（无属性的 GeoJSON 要素），判空避免崩溃
-    if (!entity.properties) entity.properties = {}
-    entity.properties.featureType = options.featureType || 'geojson'
-    if (entity.polygon) {
+    if (!e.properties) e.properties = {}
+    e.properties.featureType = options.featureType || 'geojson'
+    if (e.polygon) {
       // 贴地形渲染：替代固定椭球绝对高（真地形就绪后，北部湾 geoid 分离 -30~-70m 会造成垂直错位）
-      entity.polygon.heightReference = HeightReference.CLAMP_TO_GROUND
-      entity.polygon.classificationType = ClassificationType.TERRAIN
-      entity.polygon.material = Color.fromCssColorString(options.fillColor || LAYER_DEFAULTS.fill)
-      entity.polygon.outline = true
-      entity.polygon.outlineColor = Color.fromCssColorString(
+      e.polygon.heightReference = HeightReference.CLAMP_TO_GROUND
+      e.polygon.classificationType = ClassificationType.TERRAIN
+      e.polygon.material = Color.fromCssColorString(options.fillColor || LAYER_DEFAULTS.fill)
+      e.polygon.outline = true
+      e.polygon.outlineColor = Color.fromCssColorString(
         options.strokeColor || LAYER_DEFAULTS.stroke
       )
-      entity.polygon.outlineWidth = options.strokeWidth || 2
-    } else if (entity.position) {
+      e.polygon.outlineWidth = options.strokeWidth || 2
+    } else if (e.position) {
       // 点要素用 PointGraphics 替代默认图钉，支持 markerColor/markerSize
       const markerColor = Color.fromCssColorString(options.markerColor || LAYER_DEFAULTS.marker)
-      entity.billboard = undefined
-      entity.point = new PointGraphics({
+      e.billboard = undefined
+      e.point = new PointGraphics({
         pixelSize: options.markerSize || 10,
         color: markerColor,
         outlineColor: Color.WHITE,
@@ -1280,13 +1318,15 @@ export function addGeoTIFFLayer(
     // hillshade PNG 为 EPSG:4326 地理坐标，须显式 GeographicTilingScheme（默认 WebMercator 3857
     // 会把北部湾 21°N 的纬度投影到错误位置，3D 下贴图不可见）；新版还强制校验
     // tileWidth/tileHeight（缺省抛 DeveloperError），须传 PNG 实际像素 4096×2819
+    // 816-专项3-0816-01：结构化断言替代裸 as any（原整对象断言无注释、无退出计划）——
+    // 构造选项为 Cesium 运行期类型（WebMercatorTilingScheme 等联合），此处以构造参数类型为准
     const provider = new SingleTileImageryProvider({
       url: pngUrl,
-      rectangle: Rectangle.fromDegrees(106.9720001, 20.9379894, 110.0783727, 23.0760978),
+      rectangle: getHillshadeImageBBox(),
       tilingScheme: new GeographicTilingScheme(),
       tileWidth: 4096,
       tileHeight: 2819,
-    } as any)
+    } as unknown as ConstructorParameters<typeof SingleTileImageryProvider>[0])
     // 补 PNG 加载失败监听（OL 侧 addGeoTIFFLayer 已有等价监听）：把静默无图变成可见 warn
     // F-5：具名回调；provider 生命周期与图层绑定（hillshade 移除即销毁），无独立泄漏路径
     if (provider.errorEvent) {

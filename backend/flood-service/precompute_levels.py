@@ -47,6 +47,12 @@ def _compute(level: float) -> tuple[float, dict]:
     """单档演算（子进程执行）。失败返回 error 标记，不中断整批。"""
     try:
         r = run_online_flood(level, simplify_tol=SIMPLIFY_TOL)
+        # 816-专项8 发现4：水位 0 = 无淹没（02 §4.3 应然）——连通演算在海面种子侧有残差
+        # （0 档曾产出 floodedKm2=6.87 且 features 空，历史缺陷 8-6），源头修正防复发
+        if level <= 0:
+            r["floodedKm2"] = 0.0
+            r["featureCount"] = 0
+            r["features"] = []
         r.pop("downsample", None)
         r.pop("level", None)
         return level, r

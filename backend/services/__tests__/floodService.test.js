@@ -4,7 +4,7 @@
  * 正常行为（8-7 修复后，2026-08-14）：
  * - 受影响设施 = 与淹没多边形（floodZone.features）做点-多边形空间筛选（与 online 连通演算同口径）
  * - loss = value * damageRate；totalLoss 为各 loss 四舍五入求和
- * - floodZone 为 null / features 空 → 空结果、riskLevel '无'（02 §4.3：水位 0 = 无淹没）
+ * - floodZone 为 null / features 空 → 空结果、riskLevel '无风险'（02 §4.3：水位 0 = 无淹没）
  * 边界防御（B-9 保留）：
  * - 坐标缺失/非有限 → 排除（原 elevation 判空防御迁移为坐标判空）
  * - value/damageRate 缺失 → 按 0 计 loss，totalLoss 恒为有限数
@@ -60,11 +60,11 @@ describe('floodService.assessDisaster — 空间筛选语义（8-7 同源）', (
     expect(r.totalLoss).toBe(110)
   })
 
-  it('floodZone 为 null → 空结果、riskLevel 无、waterLevel undefined', () => {
+  it('floodZone 为 null → 空结果、riskLevel 无风险、waterLevel undefined', () => {
     const r = assessDisaster([{ id: 'f1', lng: 0.5, lat: 0.5, value: 100, damageRate: 0.5 }], 5, null)
     expect(r.affectedFacilities).toEqual([])
     expect(r.totalLoss).toBe(0)
-    expect(r.riskLevel).toBe('无')
+    expect(r.riskLevel).toBe('无风险')
     expect(r.waterLevel).toBeUndefined()
   })
 

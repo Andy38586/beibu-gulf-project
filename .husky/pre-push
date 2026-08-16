@@ -1,0 +1,7 @@
+#!/usr/bin/env sh
+# pre-push：全量 typecheck 门禁（T-1 批次5）
+# 背景：pre-commit 仅跑 lint（eslint/ban-ts-comment 拦 @ts-nocheck），
+# 但类型错误（如 store 属性不存在、签名不匹配）eslint 不报——
+# 必须在 push 前跑全量 vue-tsc，typecheck 不过拒绝推送。
+# 全量 typecheck 约 1-2 分钟，故放 push 而非 commit；本地可随时手动 npm run typecheck。
+npm run typecheck

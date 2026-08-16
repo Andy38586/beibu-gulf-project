@@ -20,7 +20,7 @@
       "floodArea": 0,
       "averageDepth": 0,
       "maxDepth": 0,
-      "affectedFacilities": 0,
+      "affectedFacilityCount": 0,
       "affectedPorts": [],
       "estimatedLoss": 0,
       "description": "正常潮位，无淹没风险"
@@ -32,7 +32,7 @@
       "floodArea": 3299.31,
       "averageDepth": 0.8,
       "maxDepth": 7,
-      "affectedFacilities": 0,
+      "affectedFacilityCount": 0,
       "affectedPorts": [],
       "estimatedLoss": 0,
       "description": "低潮位附近，部分低洼码头区域开始受影响，淹没面积约3299.3km²"
@@ -44,7 +44,7 @@
       "floodArea": 7445.79,
       "averageDepth": 2.23,
       "maxDepth": 10,
-      "affectedFacilities": 0,
+      "affectedFacilityCount": 0,
       "affectedPorts": [],
       "estimatedLoss": 0,
       "description": "接近设计高潮位，码头前沿作业区和部分仓储区受淹，淹没面积约7445.8km²"
@@ -56,7 +56,7 @@
       "floodArea": 11926.45,
       "averageDepth": 3.64,
       "maxDepth": 13,
-      "affectedFacilities": 0,
+      "affectedFacilityCount": 0,
       "affectedPorts": [],
       "estimatedLoss": 0,
       "description": "超过设计高潮位，港口作业区大面积受淹，油库区域面临威胁，淹没面积约11926.4km²"
@@ -68,7 +68,7 @@
       "floodArea": 14202.18,
       "averageDepth": 4.83,
       "maxDepth": 15,
-      "affectedFacilities": 1,
+      "affectedFacilityCount": 1,
       "affectedPorts": ["北海港"],
       "estimatedLoss": 1350,
       "description": "风暴潮叠加高潮位，港口设施严重受损，内陆区域开始受淹，淹没面积约14202.2km²"
@@ -80,7 +80,7 @@
       "floodArea": 18115.58,
       "averageDepth": 8.23,
       "maxDepth": 20,
-      "affectedFacilities": 10,
+      "affectedFacilityCount": 10,
       "affectedPorts": ["防城港", "北海港"],
       "estimatedLoss": 115850,
       "description": "极端洪水情景，三港全面受淹，周边城镇低洼区域严重内涝，淹没面积约18115.6km²，受影响设施9处"

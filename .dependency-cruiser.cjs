@@ -45,8 +45,7 @@ module.exports = {
       from: { path: 'frontend/src/core/map/renderers/', pathNot: 'index\\.(js|ts)' },
       to: {
         path: 'frontend/src/core/map/renderers/',
-        pathNot:
-          '(MapRenderer|index\\.(js|ts)|CesiumWaterSurface|CesiumViewportCulling|CesiumLayerRegistrar|CesiumEvents)',
+        pathNot: '(MapRenderer|index\\.(js|ts))',
       },
     },
     {

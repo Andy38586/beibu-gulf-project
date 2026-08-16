@@ -90,7 +90,7 @@ function go(item: NavItem): void {
 
 <style scoped>
 .bottom-nav-bar {
-  z-index: 60;
+  z-index: var(--GCS-z-nav); /* 816-S7-40：导航档（原散落 60） */
   pointer-events: auto;
 }
 

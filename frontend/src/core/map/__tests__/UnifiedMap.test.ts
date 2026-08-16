@@ -263,14 +263,14 @@ describe('UnifiedMap Click Interaction Tests', () => {
     clickHandler({
       detail: {
         featureType: 'port',
-        data: { id: 1, name: 'test-port', lng: 108.1, lat: 21.5 },
+        data: { id: '1', name: 'test-port', lng: 108.1, lat: 21.5 },
         coordinate: [108.1, 21.5],
       },
     })
 
     await wrapper.vm.$nextTick()
 
-    expect(mapStore.selectedPort).toEqual({ id: 1, name: 'test-port', lng: 108.1, lat: 21.5 })
+    expect(mapStore.selectedPort).toEqual({ id: '1', name: 'test-port', lng: 108.1, lat: 21.5 })
   })
 
   it('should clear selectedPort when clicking blank area', async () => {

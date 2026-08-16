@@ -1,4 +1,4 @@
-# =============================================================================
+﻿# =============================================================================
 # 02-fill-sinks.ps1
 # DEM 预处理流水线 - 步骤2：SAGA 填洼 (Wang & Liu) -> filled_utm48n.tif
 # =============================================================================
@@ -26,7 +26,7 @@ $qgisRoot  = 'C:\Program Files\QGIS 3.44.12'
 $saga      = Join-Path $qgisRoot 'apps\saga\saga_cmd.exe'
 $gdalBin   = Join-Path $qgisRoot 'bin'
 $gdalinfo  = Join-Path $gdalBin 'gdalinfo.exe'
-$outDir    = 'c:\mypython\beibu-gulf-project\backend\data\flood\dem'
+$outDir    = 'c:\workspace\beibu-gulf-project\backend\data\flood\dem'
 $srcTif    = Join-Path $outDir 'dem_mosaic_utm48n.tif'
 $tmpSgrd   = Join-Path $outDir 'dem_mosaic.sgrd'      # SAGA 中间 grid
 $filledSgrd = Join-Path $outDir 'filled_utm48n.sgrd'  # 填洼后 SAGA grid

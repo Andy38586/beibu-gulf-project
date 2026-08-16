@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 # =============================================================================
 # 04-generate-flood-data.py
 # DEM 洪涝派生数据生成 - 从 dem_4326.tif 生成真洪涝数据，替换 4 个 mock JSON
@@ -25,7 +25,7 @@ import numpy as np
 from osgeo import gdal, ogr, osr
 
 # --- 全局配置 ---
-BASE_DIR = r'c:\mypython\beibu-gulf-project\backend\data\flood'
+BASE_DIR = r'c:\workspace\beibu-gulf-project\backend\data\flood'
 DEM_PATH = os.path.join(BASE_DIR, 'dem', 'dem_4326.tif')
 TODAY = '2026-08-01'
 NODATA = 32767

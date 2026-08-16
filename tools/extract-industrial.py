@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """
 extract-industrial.py — 从 OSM PBF 提取北部湾 bbox 内的工业园区多边形(landuse=industrial)。
 用法: python extract-industrial.py   (输入用 ASCII 硬链接,输出到桌面数据目录)
@@ -29,10 +29,10 @@ class IndustrialHandler(osmium.SimpleHandler):
 
 
 def main():
-    pbf = r'C:\mypython\beibu-gulf-project\.tmp-pip\china.osm.pbf'
+    pbf = r'C:\workspace\beibu-gulf-project\.tmp-pip\china.osm.pbf'
     outdir = r'C:\Users\JionHappY\Desktop\项目数据\多边形\工业园区'
     os.makedirs(outdir, exist_ok=True)
-    idx_dir = r'C:\mypython\beibu-gulf-project\.tmp-pip'
+    idx_dir = r'C:\workspace\beibu-gulf-project\.tmp-pip'
     os.makedirs(idx_dir, exist_ok=True)
 
     handler = IndustrialHandler()

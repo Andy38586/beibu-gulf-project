@@ -1,4 +1,4 @@
-# =============================================================================
+﻿# =============================================================================
 # 03-reproject-4326.ps1
 # DEM 预处理流水线 - 步骤3：重投影到 EPSG:4326 -> dem_4326.tif (Web 母本)
 # =============================================================================
@@ -22,7 +22,7 @@ $ErrorActionPreference = 'Stop'
 $gdalBin  = 'C:\Program Files\QGIS 3.44.12\bin'
 $gdalwarp = Join-Path $gdalBin 'gdalwarp.exe'
 $gdalinfo = Join-Path $gdalBin 'gdalinfo.exe'
-$outDir   = 'c:\mypython\beibu-gulf-project\backend\data\flood\dem'
+$outDir   = 'c:\workspace\beibu-gulf-project\backend\data\flood\dem'
 $srcTif   = Join-Path $outDir 'filled_utm48n.tif'
 $dstTif   = Join-Path $outDir 'dem_4326.tif'
 

@@ -1,4 +1,4 @@
-// v3 数据入库脚本 —— 读现有 JSON(仓库 backend/data/) -> 生成 SQL(INSERT)，供 docker exec psql 执行
+﻿// v3 数据入库脚本 —— 读现有 JSON(仓库 backend/data/) -> 生成 SQL(INSERT)，供 docker exec psql 执行
 // 用法: node tools/db-import.mjs   (输出到 .tmp-pip/import.sql)
 // 然后: docker cp .tmp-pip/import.sql beibu-postgis:/tmp/ && docker exec beibu-postgis psql -U postgres -d v3_dev -f /tmp/import.sql
 import fs from 'node:fs'
@@ -67,5 +67,5 @@ for (const rel of archiveFiles) {
 }
 
 sql.push('COMMIT;')
-fs.writeFileSync('C:/mypython/beibu-gulf-project/.tmp-pip/import.sql', sql.join('\n'), 'utf8')
+fs.writeFileSync('C:/workspace/beibu-gulf-project/.tmp-pip/import.sql', sql.join('\n'), 'utf8')
 console.log(`generated import.sql: ${sql.length - 1} statements (archive ${archiveFiles.length} files)`)

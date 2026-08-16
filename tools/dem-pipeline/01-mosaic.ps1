@@ -1,4 +1,4 @@
-# =============================================================================
+﻿# =============================================================================
 # 01-mosaic.ps1
 # DEM 预处理流水线 - 步骤1：拼接 6 个 ASTER GDEM .img -> dem_mosaic_utm48n.tif
 # =============================================================================
@@ -20,7 +20,7 @@ $ErrorActionPreference = 'Stop'
 # --- 路径配置 ---
 $gdalBin    = 'C:\Program Files\QGIS 3.44.12\bin'
 $inpDir     = 'C:\Users\JionHappY\Desktop\项目数据\浸没分析\ASTER-GDEM-30m\解压后'
-$outDir     = 'c:\mypython\beibu-gulf-project\backend\data\flood\dem'
+$outDir     = 'c:\workspace\beibu-gulf-project\backend\data\flood\dem'
 $outTif     = Join-Path $outDir 'dem_mosaic_utm48n.tif'
 
 # --- 前置检查 ---

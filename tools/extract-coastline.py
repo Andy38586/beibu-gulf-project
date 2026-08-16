@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """
 extract-coastline.py — 从 OSM PBF 提取海岸线与水体多边形（pyosmium）。
 用法: python extract-coastline.py <china.pbf> <输出目录>
@@ -33,13 +33,13 @@ class WaterHandler(osmium.SimpleHandler):
 def main():
     # 中文路径不经 argv 传递（后台任务参数会被转码），且 pyosmium C++ 层无法打开中文路径：
     # 输入 PBF 先用硬链接挂到 ASCII 路径（tools 侧 .tmp-pip\china.osm.pbf）
-    pbf = sys.argv[1] if len(sys.argv) > 1 else r'C:\mypython\beibu-gulf-project\.tmp-pip\china.osm.pbf'
+    pbf = sys.argv[1] if len(sys.argv) > 1 else r'C:\workspace\beibu-gulf-project\.tmp-pip\china.osm.pbf'
     outdir = sys.argv[2] if len(sys.argv) > 2 else r'C:\Users\JionHappY\Desktop\项目数据\海岸线'
     os.makedirs(outdir, exist_ok=True)
 
     # 磁盘稀疏索引缓存节点坐标（中国 PBF 节点量大,内存索引会爆）。
     # 注意: pyosmium C++ 索引不支持中文路径(Windows ANSI 转换失败),必须用 ASCII 路径
-    idx_dir = r'C:\mypython\beibu-gulf-project\.tmp-pip'
+    idx_dir = r'C:\workspace\beibu-gulf-project\.tmp-pip'
     os.makedirs(idx_dir, exist_ok=True)
     idx_path = os.path.join(idx_dir, 'node-idx.cache')
 

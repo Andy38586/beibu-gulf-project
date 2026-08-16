@@ -117,3 +117,28 @@ docs/*
 .tmp-pip/
 
 # �ߵ� key(����ʵ��Կ,��ֹ���)
+
+# Agent 开发辅助脚本（本地留存，不入库；审计/修复/文档处理等一次性工具，
+# 保留项目工具：extract-*.py、dem-pipeline/、run-flood/throughput_model、db-import、download-v3-data、perf-bench/）
+tools/align-ledger.cjs
+tools/audit-*.mjs
+tools/check-endpoints.mjs
+tools/check-vue-cycle.cjs
+tools/close-*.mjs
+tools/code-size.mjs
+tools/dump-06-lines.mjs
+tools/fix-*.mjs
+tools/gen-verdict-table.mjs
+tools/git-clean-history.sh
+tools/git-health-check.sh
+tools/mark-aftermath.mjs
+tools/match-solved.mjs
+tools/md-to-handwrite-pdf.cjs
+tools/prep-ids.cjs
+tools/promote-solved.mjs
+tools/rebase-ids.cjs
+tools/rewrite-msg.mjs
+tools/sim-audit-p3.mjs
+tools/sync-refs.cjs
+tools/token-stats.mjs
+tools/verify-copy-stats.mjs

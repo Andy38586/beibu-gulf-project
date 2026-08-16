@@ -201,3 +201,31 @@ def test_lru_eviction_after_64_levels(client, monkeypatch):
     r_old = client.get("/api/flood/online?waterLevel=0.0")
     assert r_old.status_code == 200
     assert len(calls) == 66
+
+
+def test_lookup_miss_falls_back_to_lru_compute(client, monkeypatch):
+    """d103 查表 miss 回退：表缺档 → LRU 动态演算兜底并缓存，二次请求零演算（曾崩溃路径 d069/d072 回归）"""
+    fake_table = {"3.5": {"featureCount": 1, "floodedKm2": 4538.75, "features": []}}
+    monkeypatch.setattr(main_mod, "_load_levels", lambda: fake_table)
+    calls: list[float] = []
+    monkeypatch.setattr(
+        main_mod, "run_online_flood", lambda level: (calls.append(level), _fake_run(level))[1]
+    )
+
+    # 请求表外档 7.2 → 查表 miss → 回退 LRU 动态演算
+    r1 = client.get("/api/flood/online?waterLevel=7.2")
+    assert r1.status_code == 200
+    assert len(calls) == 1  # 触发一次演算
+    assert 7.2 in main_mod._cached_level  # miss 结果已入 LRU 缓存
+
+    # 二次请求同档 → LRU 命中，零演算（兜底路径稳定，不 500）
+    r2 = client.get("/api/flood/online?waterLevel=7.2")
+    assert r2.status_code == 200
+    assert r2.json() == r1.json()
+    assert len(calls) == 1
+
+    # 表内档仍走查表（两条路径互不干扰）
+    r3 = client.get("/api/flood/online?waterLevel=3.5")
+    assert r3.status_code == 200
+    assert r3.json()["floodedKm2"] == 4538.75
+    assert len(calls) == 1

@@ -12,6 +12,7 @@ import { EDITING_PLAN_KEY, RESTORE_PLAN_DATA_KEY } from '@/core'
 import { useAuth, usePlans } from '@/shared'
 import { showModal } from '@/shared'
 import { logger } from '@/shared'
+import EmptyState from '@/shared/components/EmptyState.vue'
 import PaginatedListPanel from '@/shared/components/PaginatedListPanel.vue'
 import PlanSaveModal from '@/shared/components/PlanSaveModal.vue'
 import { useFloodStore } from '@/stores'
@@ -297,12 +298,13 @@ watch(
       </div>
     </div>
 
-    <!-- 空状态：已登录但无收藏 -->
-    <div v-if="user && !plansLoading && plansList.length === 0" class="empty-favorites">
-      <div class="empty-icon">⭐</div>
-      <div class="empty-text">暂无收藏</div>
-      <div class="empty-hint">去选址分析或浸没分析收藏内容吧</div>
-    </div>
+    <!-- 空状态：已登录但无收藏（c057：统一 EmptyState，保留原 ⭐ 图标与引导文案） -->
+    <EmptyState
+      v-if="user && !plansLoading && plansList.length === 0"
+      icon="⭐"
+      message="暂无收藏"
+      hint="去选址分析或浸没分析收藏内容吧"
+    />
 
     <!-- 方案重命名弹窗（初始名取 editingNamePlan，error 时显示校验失败） -->
     <PlanSaveModal
@@ -355,7 +357,8 @@ watch(
 }
 
 .favorites-title {
-  font-size: 15px;
+  /* c054：收敛到正文基准档位（原 15px 非刻度） */
+  font-size: var(--GCS-font-size-body);
   font-weight: 600;
   color: var(--GCS-text-primary);
 }
@@ -527,31 +530,5 @@ watch(
   text-overflow: ellipsis;
   flex: 1;
   font-size: 12px;
-}
-
-/* 空收藏状态 */
-.empty-favorites {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 30px 20px;
-  gap: 6px;
-}
-
-.empty-icon {
-  font-size: 32px;
-  opacity: 0.5;
-}
-
-.empty-text {
-  font-size: 14px;
-  color: var(--GCS-text-secondary);
-  font-weight: 500;
-}
-
-.empty-hint {
-  font-size: 12px;
-  color: var(--GCS-text-muted);
 }
 </style>

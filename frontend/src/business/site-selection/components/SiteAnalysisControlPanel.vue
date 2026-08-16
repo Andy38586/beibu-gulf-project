@@ -393,6 +393,8 @@ defineExpose({
   width: 80%;
   height: 4px;
   appearance: none;
+
+  /* c052：轨道底色为 --GCS-overlay-tint 同语义变体（50% 略深，视觉与 conf-slider 区分） */
   background: rgb(255 255 255 / 50%);
   border-radius: 2px;
   outline: none;

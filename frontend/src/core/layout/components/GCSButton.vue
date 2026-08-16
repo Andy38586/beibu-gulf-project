@@ -83,6 +83,7 @@ function handleClick() {
 }
 
 .GCS-button:hover:not(:disabled) {
+  /* c052：hover 高光为 --GCS-overlay-tint 同语义变体（22% 更淡，仅高光用） */
   background-color: rgb(255 255 255 / 22%);
 }
 

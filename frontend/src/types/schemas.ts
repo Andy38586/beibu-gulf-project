@@ -31,6 +31,8 @@ export const floodGeometrySchema = z.discriminatedUnion('type', [
   }),
 ])
 
+export type FloodGeometryParsed = z.infer<typeof floodGeometrySchema>
+
 export const floodFeatureSchema = z.object({
   type: z.literal('Feature'),
   geometry: floodGeometrySchema,
@@ -92,6 +94,8 @@ export const forecastPointSchema = z.object({
   value: z.number(),
   type: z.enum(['historical', 'forecast']),
 })
+
+export type ForecastPointParsed = z.infer<typeof forecastPointSchema>
 
 export const timeSeriesResponseSchema = z.object({
   indicator: z.string(),
@@ -300,3 +304,5 @@ export const portSchema = z.object({
 export type PortParsed = z.infer<typeof portSchema>
 
 export const portsArraySchema = z.array(portSchema)
+
+export type PortsArrayParsed = z.infer<typeof portsArraySchema>

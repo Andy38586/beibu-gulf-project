@@ -7,6 +7,7 @@
 
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 
+import EmptyState from '@/shared/components/EmptyState.vue'
 import { useGCS } from '@/shared'
 import { logger } from '@/shared'
 import type { FacilityPoint } from '@/types/facility'
@@ -121,7 +122,9 @@ onBeforeUnmount(() => {
   <div class="radar-panel">
     <!-- 中部：雷达图容器（标题由 ECharts 绘制，与 LineChart/BarChart 一致） -->
     <div class="radar-container">
-      <div v-if="xiaoqu" ref="chartRef" class="radar-chart"></div>
+      <!-- c057：无数据时统一 EmptyState 占位（原为空白区域，无任何引导） -->
+      <EmptyState v-if="!xiaoqu" icon="📊" message="暂无评分数据" hint="请先完成选址分析" />
+      <div v-else ref="chartRef" class="radar-chart"></div>
     </div>
 
     <!-- 底部：综合评分（hover 出现提示框，点击查看详细得分） -->

@@ -52,6 +52,8 @@ const layerButtons = computed(() => {
   return [...ordered, ...extra].map((layer) => ({
     key: layer.key,
     label: layer.label,
+    // z118：透传 layerType 供图标数据驱动（core 不解析业务 label 语义）
+    layerType: layer.layerType,
     // 单变量原则：按钮状态即 registry.visible（BLM 唯一权威），蓝 = 图层在显示
     active: layer.layerType
       ? (businessLayerManager.getMeta(layer.key)?.visible ?? layer.visible)
@@ -59,8 +61,17 @@ const layerButtons = computed(() => {
   }))
 })
 
-/** 图层图标映射 */
-function getLayerIcon(label: string): string {
+/**
+ * 图层图标映射（z118：core 层不再"必须"理解业务 label 语义）。
+ * 优先按 layerType 数据驱动——新图层注册时给对 layerType 即自动有图标；
+ * label 业务关键词仅作历史兜底（存量图层），新增业务勿扩展此链。
+ */
+function getLayerIcon(label: string, layerType?: string): string {
+  if (layerType === 'waterSurface') return ''
+  if (layerType === 'geotiff') return '⛰'
+  if (layerType === 'heatmap') return '📈'
+  if (layerType === 'boundary') return ''
+  // 历史兜底：按 label 业务关键词（存量图层的业务语义在此收口，不扩散）
   if (label.includes('底图') || label.includes('影像') || label.includes('矢量')) return '🗺'
   if (label.includes('港口')) return ''
   if (label.includes('行政')) return ''
@@ -107,7 +118,7 @@ function handleToggle(key: string) {
         :class="{ active: item.active }"
         @click="handleToggle(item.key)"
       >
-        <span class="layer-icon">{{ getLayerIcon(item.label) }}</span>
+        <span class="layer-icon">{{ getLayerIcon(item.label, item.layerType) }}</span>
         <span class="layer-label">{{ item.label }}</span>
       </button>
     </div>

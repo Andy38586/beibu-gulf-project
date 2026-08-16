@@ -141,6 +141,8 @@ export class OLRenderer extends MapRenderer {
           url: buildTiandituUrl(code),
           crossOrigin: 'anonymous',
         }),
+        // c056：底图专用 className——暗色主题下经 CSS filter 压暗（见 style.css）
+        className: 'ol-base-layer',
       })
       layer.set('isBaseMap', true)
       layer.set('baseType', 'image')
@@ -152,6 +154,8 @@ export class OLRenderer extends MapRenderer {
           url: buildTiandituUrl(code),
           crossOrigin: 'anonymous',
         }),
+        // c056：同上（矢量底图暗色变体共用）
+        className: 'ol-base-layer',
       })
       layer.set('isBaseMap', true)
       layer.set('baseType', 'vector')

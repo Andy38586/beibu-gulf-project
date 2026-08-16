@@ -8,6 +8,7 @@
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
+import EmptyState from '@/shared/components/EmptyState.vue'
 import { useAuth } from '@/shared/composables/useAuth'
 import { usePlans } from '@/shared/composables/usePlans'
 import { useGCS } from '@/shared/layout/useGCS.js'
@@ -277,11 +278,10 @@ defineExpose({
         </div>
       </div>
 
-      <!-- 无数据提示 -->
+      <!-- 无数据提示（c057：统一走 EmptyState，含图标/引导文案） -->
       <div v-else class="no-data-section">
         <slot name="empty">
-          <div class="no-data-text">{{ emptyText }}</div>
-          <div v-if="emptyHint" class="no-data-hint">{{ emptyHint }}</div>
+          <EmptyState :message="emptyText" :hint="emptyHint" icon="📭" />
         </slot>
       </div>
 

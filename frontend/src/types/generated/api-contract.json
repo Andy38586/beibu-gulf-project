@@ -1,0 +1,405 @@
+{
+  "generatedAt": "2026-08-16",
+  "source": "frontend/src/types/schemas.ts（单一事实源，types:gen 自动生成勿手改）",
+  "schemas": {
+    "userSchema": {
+      "kind": "object",
+      "fields": {
+        "id": {
+          "type": "string",
+          "optional": false
+        },
+        "username": {
+          "type": "string",
+          "optional": false
+        },
+        "createdAt": {
+          "type": "string",
+          "optional": false
+        }
+      }
+    },
+    "analysisResultSchema": {
+      "kind": "record",
+      "fields": {}
+    },
+    "floodGeometrySchema": {
+      "kind": "union",
+      "fields": {
+        "type": {
+          "type": "literal",
+          "optional": false
+        },
+        "coordinates": {
+          "type": "array",
+          "optional": false
+        }
+      }
+    },
+    "floodFeatureSchema": {
+      "kind": "object",
+      "fields": {
+        "type": {
+          "type": "literal",
+          "optional": false
+        },
+        "geometry": {
+          "type": "floodGeometrySchema",
+          "optional": false
+        }
+      }
+    },
+    "floodOnlineResponseSchema": {
+      "kind": "object",
+      "fields": {
+        "level": {
+          "type": "number",
+          "optional": false
+        },
+        "featureCount": {
+          "type": "number",
+          "optional": false
+        },
+        "floodedKm2": {
+          "type": "number",
+          "optional": false
+        },
+        "features": {
+          "type": "array",
+          "optional": false
+        }
+      }
+    },
+    "boundaryCacheSchema": {
+      "kind": "object",
+      "fields": {
+        "data": {
+          "type": "object",
+          "optional": false
+        },
+        "timestamp": {
+          "type": "number",
+          "optional": false
+        }
+      }
+    },
+    "authResponseSchema": {
+      "kind": "object",
+      "fields": {
+        "user": {
+          "type": "userSchema",
+          "optional": false
+        }
+      }
+    },
+    "forecastPointSchema": {
+      "kind": "object",
+      "fields": {
+        "time": {
+          "type": "string",
+          "optional": false
+        },
+        "value": {
+          "type": "number",
+          "optional": false
+        },
+        "type": {
+          "type": "enum",
+          "optional": false
+        }
+      }
+    },
+    "timeSeriesResponseSchema": {
+      "kind": "object",
+      "fields": {
+        "indicator": {
+          "type": "string",
+          "optional": false
+        },
+        "unit": {
+          "type": "string",
+          "optional": false
+        },
+        "granularity": {
+          "type": "string",
+          "optional": false
+        },
+        "series": {
+          "type": "array",
+          "optional": false
+        }
+      }
+    },
+    "indicatorComparisonResponseSchema": {
+      "kind": "object",
+      "fields": {
+        "indicator": {
+          "type": "string",
+          "optional": false
+        },
+        "unit": {
+          "type": "string",
+          "optional": false
+        },
+        "ports": {
+          "type": "record",
+          "optional": false
+        }
+      }
+    },
+    "forecastMapDataSchema": {
+      "kind": "object",
+      "fields": {
+        "indicator": {
+          "type": "string",
+          "optional": false
+        },
+        "unit": {
+          "type": "string",
+          "optional": false
+        },
+        "time": {
+          "type": "string",
+          "optional": false
+        },
+        "type": {
+          "type": "literal",
+          "optional": false
+        },
+        "features": {
+          "type": "array",
+          "optional": false
+        }
+      }
+    },
+    "forecastIndicatorIndexSchema": {
+      "kind": "object",
+      "fields": {
+        "metadata": {
+          "type": "object",
+          "optional": false
+        },
+        "historical": {
+          "type": "object",
+          "optional": false
+        },
+        "forecast": {
+          "type": "object",
+          "optional": false
+        }
+      }
+    },
+    "planSchema": {
+      "kind": "object",
+      "fields": {
+        "id": {
+          "type": "string",
+          "optional": false
+        },
+        "userId": {
+          "type": "string",
+          "optional": false
+        },
+        "name": {
+          "type": "string",
+          "optional": false
+        },
+        "selectedKeys": {
+          "type": "array",
+          "optional": false
+        },
+        "typeSettings": {
+          "type": "record",
+          "optional": false
+        }
+      }
+    },
+    "waterAreaSchema": {
+      "kind": "array",
+      "fields": {}
+    },
+    "terrainProfileSchema": {
+      "kind": "array",
+      "fields": {
+        "id": {
+          "type": "string",
+          "optional": false
+        },
+        "name": {
+          "type": "string",
+          "optional": false
+        },
+        "port": {
+          "type": "string",
+          "optional": true
+        },
+        "description": {
+          "type": "string",
+          "optional": true
+        },
+        "points": {
+          "type": "array",
+          "optional": false
+        }
+      }
+    },
+    "siteAnalysisResponseSchema": {
+      "kind": "object",
+      "fields": {
+        "error": {
+          "type": "string",
+          "optional": false
+        }
+      }
+    },
+    "floodAreasResponseSchema": {
+      "kind": "object",
+      "fields": {
+        "waterLevel": {
+          "type": "number",
+          "optional": false
+        },
+        "requestedWaterLevel": {
+          "type": "number",
+          "optional": true
+        },
+        "actualWaterLevel": {
+          "type": "number",
+          "optional": true
+        },
+        "riskLevel": {
+          "type": "string",
+          "optional": false
+        },
+        "features": {
+          "type": "array",
+          "optional": false
+        }
+      }
+    },
+    "floodStatisticsResponseSchema": {
+      "kind": "object",
+      "fields": {
+        "waterLevel": {
+          "type": "number",
+          "optional": true
+        },
+        "riskLevel": {
+          "type": "string",
+          "optional": false
+        },
+        "riskLevelCode": {
+          "type": "number",
+          "optional": true
+        },
+        "floodArea": {
+          "type": "number",
+          "optional": true
+        },
+        "averageDepth": {
+          "type": "number",
+          "optional": true
+        },
+        "maxDepth": {
+          "type": "number",
+          "optional": true
+        },
+        "affectedFacilities": {
+          "type": "number",
+          "optional": true
+        },
+        "affectedPorts": {
+          "type": "array",
+          "optional": true
+        },
+        "estimatedLoss": {
+          "type": "number",
+          "optional": true
+        },
+        "description": {
+          "type": "string",
+          "optional": true
+        },
+        "affectedCount": {
+          "type": "number",
+          "optional": true
+        }
+      }
+    },
+    "floodDisasterResponseSchema": {
+      "kind": "object",
+      "fields": {
+        "waterLevel": {
+          "type": "number",
+          "optional": false
+        },
+        "requestedWaterLevel": {
+          "type": "number",
+          "optional": true
+        },
+        "riskLevel": {
+          "type": "string",
+          "optional": false
+        },
+        "affectedFacilities": {
+          "type": "array",
+          "optional": false
+        },
+        "totalLoss": {
+          "type": "number",
+          "optional": false
+        }
+      }
+    },
+    "floodImpactResponseSchema": {
+      "kind": "object",
+      "fields": {
+        "affectedFacilities": {
+          "type": "array",
+          "optional": true
+        },
+        "totalLoss": {
+          "type": "number",
+          "optional": true
+        }
+      }
+    },
+    "portSchema": {
+      "kind": "object",
+      "fields": {
+        "id": {
+          "type": "string",
+          "optional": false
+        },
+        "name": {
+          "type": "string",
+          "optional": false
+        },
+        "address": {
+          "type": "string",
+          "optional": false
+        },
+        "lng": {
+          "type": "number",
+          "optional": false
+        },
+        "lat": {
+          "type": "number",
+          "optional": false
+        },
+        "type": {
+          "type": "string",
+          "optional": true
+        },
+        "phone": {
+          "type": "string",
+          "optional": true
+        }
+      }
+    },
+    "portsArraySchema": {
+      "kind": "array",
+      "fields": {}
+    }
+  }
+}

@@ -390,7 +390,9 @@ onUnmounted(() => stopPlayback())
   width: 80%;
   height: 4px;
   appearance: none;
-  background: rgb(255 255 255 / 40%);
+
+  /* c052：轨道底色走 --GCS-overlay-tint（原 rgb(255 255 255 / 40%) 硬编码） */
+  background: var(--GCS-overlay-tint);
   border-radius: 2px;
   outline: none;
   cursor: pointer;

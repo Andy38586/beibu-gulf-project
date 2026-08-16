@@ -28,6 +28,8 @@
   --GCS-bg-panel-translucent: rgba(255, 255, 255, 0.92); /* 半透明面板（玻璃化） */
   --GCS-bg-elevated: #ffffff; /* 浮层/弹窗背景 */
   --GCS-bg-overlay: rgba(0, 0, 0, 0.3); /* 遮罩层 */
+  /* c052：浅色叠层基准（滑块轨道等玻璃化底色；暗色下调淡防刺眼） */
+  --GCS-overlay-tint: rgba(255, 255, 255, 0.4);
   --GCS-bg-container: #f5f7fa; /* 面板内部内容容器 */
   --GCS-bg-hover: #f0f7ff; /* 通用 hover 背景（浅蓝） */
   --GCS-bg-active: #e6f4ff; /* 选中/激活状态背景 */
@@ -76,6 +78,18 @@
   --GCS-font-size-body: 14px; /* 正文基准字号（组件 fallback 原 14px 语义化） */
 }
 
+/* c056：暗色主题下 OL 底图压暗（纯 CSS，零 JS）——天地图影像不再刺眼；
+   仅作用于 ol-base-layer（业务图层不受影响）；Cesium 3D 底图暗色变体待
+   主题联动接入（ImageryLayer.brightness），当前保持原样（2D/3D 差异可接受）。
+   平铺选择器（不嵌套进 dark 块），避免依赖 CSS 嵌套语法。 */
+:root[data-theme='dark'] .ol-base-layer {
+  filter: brightness(0.65) saturate(0.9);
+}
+
+/* c055：dark 块仅覆盖随主题变化的颜色类 token；
+   radius/z-index/cell/font-size 等跨主题同值 token 未在 dark 块重复定义——
+   由 CSS 变量继承自 :root（dark 块未覆盖即继承），不对称是刻意的，不复制。 */
+
 /* ===============================
  * 暗色主题（2026-08-10）——useTheme 切换 document.documentElement[data-theme]
  * 映射：白 → 深蓝系（#0d1b2a 底 + #e8edf4 文字）；蓝 → 高饱和橙（#ff7a1a）
@@ -100,6 +114,7 @@
   --GCS-bg-panel-translucent: rgba(13, 27, 42, 0.92);
   --GCS-bg-elevated: #13263a;
   --GCS-bg-overlay: rgba(0, 0, 0, 0.5);
+  --GCS-overlay-tint: rgba(255, 255, 255, 0.08); /* 暗色下白色叠层调淡（防刺眼） */
   --GCS-bg-container: #101f31;
   --GCS-bg-hover: #17314d;
   --GCS-bg-active: #1c3a5c;
@@ -224,6 +239,7 @@ body {
 .GCS-drawer__close {
   border: none;
   background: transparent;
+  /* c054：关闭按钮为图标字号（非排版档位，刻意 18px 不与正文档位混淆） */
   font-size: 18px;
   color: var(--GCS-text-secondary);
   cursor: pointer;

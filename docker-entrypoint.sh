@@ -35,6 +35,8 @@ server {
     }
     location /flood-online/ {
         rewrite ^/flood-online(/.*)$ $1 break;
+        # d102：限流（zone 定义在 default.conf 顶部，http 级共享）
+        limit_req zone=flood burst=20 nodelay;
         # 2026-08-10：独立容器（flood-service），同 docker network 服务名解析
         proxy_pass http://flood-service:8000;
         proxy_http_version 1.1;

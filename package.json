@@ -14,6 +14,8 @@
     "stylelint": "stylelint \"frontend/src/**/*.{css,vue}\"",
     "stylelint:fix": "stylelint \"frontend/src/**/*.{css,vue}\" --fix",
     "typecheck": "vue-tsc --noEmit -p frontend/tsconfig.app.json",
+    "types:gen": "node scripts/gen-api-contract.cjs",
+    "types:check": "node scripts/gen-api-contract.cjs --check",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "build:analyze": "cd frontend && vite build --mode analyze",

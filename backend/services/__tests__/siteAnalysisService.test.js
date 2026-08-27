@@ -96,7 +96,7 @@ describe('siteAnalysisService.resolveRadiusSettings — 半径校验（R-10 服�
   it('全部类型覆盖数据不可用 → emptyReason 不出现 null 字样（failKey=null 专属文案）', () => {
     const result = runSiteAnalysis({
       selectedKeys: ['hospital'],
-      typeSettings: { hospital: { selected: true, radius: 5 } },
+      typeSettings: { hospital: { selected: true, defaultRadius: 5, importance: 3 } },
       facilityData: { hospital: [] }, // 无设施 → buildTypeCoverage 返回 null → intersectCoverages 全空
       xiaoquData: [],
     })

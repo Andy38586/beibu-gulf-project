@@ -484,10 +484,10 @@ onUnmounted(() => stopPlayback())
 
 .t-slider {
   width: 100%;
-  height: 6px;
+  height: var(--GCS-slider-thumb-size); /* 14px 粗轨道：与浸没水位滑块对齐 */
   appearance: none;
   background: linear-gradient(to right, var(--GCS-border-default), var(--GCS-color-primary));
-  border-radius: 3px;
+  border-radius: calc(var(--GCS-slider-thumb-size) / 2);
   outline: none;
   cursor: pointer;
 }

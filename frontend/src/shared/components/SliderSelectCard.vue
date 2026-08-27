@@ -148,13 +148,12 @@ const onSliderInput = (e: Event) => {
   white-space: nowrap;
 }
 
-/* 滑块：半透明白轨道（蓝底上淡白条，参考预测时间滑块观感）+ 恒定白拇指 + primary 描边投影。
-   轨道/描边刻意不走主题 token——bg-panel 暗色为深色会失去对比（刻意硬编码） */
+/* 滑块：迁移预测时间滑块的渐变轨道（灰→品牌色）+ primary 实心拇指白圈描边（蓝底上可辨）+ 投影 */
 .ssc-slider {
   appearance: none;
   width: 80%;
   height: var(--GCS-slider-thumb-size);
-  background-color: rgb(255 255 255 / 45%);
+  background: linear-gradient(to right, var(--GCS-border-default), var(--GCS-color-primary));
   border-radius: calc(var(--GCS-slider-thumb-size) / 2);
   outline: none;
   cursor: pointer;
@@ -166,8 +165,8 @@ const onSliderInput = (e: Event) => {
   width: var(--GCS-slider-thumb-size);
   height: var(--GCS-slider-thumb-size);
   border-radius: 50%;
-  background: #ffffff;
-  border: 2px solid var(--GCS-color-primary);
+  background: var(--GCS-color-primary);
+  border: 2px solid #ffffff;
   box-shadow: 0 1px 3px rgb(0 0 0 / 35%); /* 投影让拇指从轨道上浮起，双主题可辨 */
   cursor: pointer;
 }
@@ -176,8 +175,8 @@ const onSliderInput = (e: Event) => {
   width: var(--GCS-slider-thumb-size);
   height: var(--GCS-slider-thumb-size);
   border-radius: 50%;
-  background: #ffffff;
-  border: 2px solid var(--GCS-color-primary);
+  background: var(--GCS-color-primary);
+  border: 2px solid #ffffff;
   box-shadow: 0 1px 3px rgb(0 0 0 / 35%);
   cursor: pointer;
 }

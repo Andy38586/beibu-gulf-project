@@ -604,11 +604,9 @@ onUnmounted(() => stopPlayback())
 .btn-cell.ing .conf-slider {
   appearance: none;
   width: 80%;
-  height: var(--GCS-slider-track-height);
-  padding: calc((var(--GCS-slider-thumb-size) - var(--GCS-slider-track-height)) / 2) 0;
+  height: var(--GCS-slider-thumb-size); /* 粗白轨道：全高与拇指同径，primary 底上最醒目 */
   background-color: #ffffff; /* 恒定白：primary 饱和底上亮暗两主题都明确区分 */
-  background-clip: content-box;
-  border-radius: calc(var(--GCS-slider-track-height) / 2);
+  border-radius: calc(var(--GCS-slider-thumb-size) / 2);
   outline: none;
   cursor: pointer;
   margin: 0;

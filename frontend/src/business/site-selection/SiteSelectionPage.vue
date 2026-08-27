@@ -15,7 +15,7 @@ import { logger } from '@/shared'
 import { PaginatedListPanel } from '@/shared'
 import { useSiteSelectionStore } from '@/stores'
 import type { AnalysisResult, FacilityPoint, ScoredXiaoqu } from '@/types/analysis'
-import { RadarChart } from '@/visualization'
+import { RadarChart, SNAPSHOT_SELECTED_TYPES, SNAPSHOT_XIAOQU } from '@/visualization'
 
 import SiteAnalysisControlPanel from './components/SiteAnalysisControlPanel.vue'
 import { useAnalysisLayer } from './composables/useAnalysisLayer'
@@ -68,13 +68,15 @@ const displayXiaoqu = computed<ScoredXiaoqu[]>(() => matchedXiaoqu.value.slice(0
 /** 第一名小区（雷达图默认显示） */
 const topXiaoqu = computed<ScoredXiaoqu | null>(() => matchedXiaoqu.value[0] || null)
 
-/** 当前显示的小区（选中优先，其次第一名；未分析时为 null → 雷达图显示空态） */
+/** 当前显示的小区（优先选中的，其次第一名；均无时回退默认快照，雷达图不空态） */
 const displayXiaoquForRadar = computed<ScoredXiaoqu | null>(
-  () => selectedXiaoqu.value || topXiaoqu.value
+  () => selectedXiaoqu.value || topXiaoqu.value || SNAPSHOT_XIAOQU
 )
 
-/** 雷达图指标：跟随已选设施类型 */
-const radarSelectedTypes = computed<string[]>(() => selectedTypes.value)
+/** 雷达图指标：未分析时用快照的 6 类设施 */
+const radarSelectedTypes = computed<string[]>(() =>
+  selectedTypes.value.length > 0 ? selectedTypes.value : SNAPSHOT_SELECTED_TYPES
+)
 
 /** 处理分析结果 */
 function handleResult(result: Partial<AnalysisResult>): void {

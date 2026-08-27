@@ -150,17 +150,14 @@ const onSliderInput = (e: Event) => {
   white-space: nowrap;
 }
 
-/* 滑块：白轨道（视觉恒定白）+ 透明 padding 撑出拇指空间。
-   底色恒为品牌 primary（饱和色），轨道/拇指固定用纯白才能在亮暗两主题都与底色明确区分，
-   故此处刻意不走主题 token（bg-panel 暗色为深色会失去对比） */
+/* 滑块：粗白轨道（全高 14px）+ 透明拇指空间，primary 饱和底上最醒目。
+   轨道/拇指固定纯白不走主题 token——bg-panel 暗色为深色会失去对比（刻意硬编码） */
 .ssc-slider {
   appearance: none;
   width: 80%;
-  height: var(--GCS-slider-track-height);
-  padding: calc((var(--GCS-slider-thumb-size) - var(--GCS-slider-track-height)) / 2) 0;
+  height: var(--GCS-slider-thumb-size);
   background-color: #ffffff;
-  background-clip: content-box;
-  border-radius: calc(var(--GCS-slider-track-height) / 2);
+  border-radius: calc(var(--GCS-slider-thumb-size) / 2);
   outline: none;
   cursor: pointer;
   margin: 0;

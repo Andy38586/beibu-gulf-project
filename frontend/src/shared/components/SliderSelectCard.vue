@@ -48,10 +48,8 @@ const onSliderInput = (e: Event) => {
 </script>
 
 <template>
-  <!-- 选择态：蓝底 + 滑块 -->
+  <!-- 选择态：蓝底 + 滑块（三行：文字/滑块/状态；图标隐藏不占位） -->
   <div v-if="selecting" class="ssc selecting" @mousedown.stop @click.stop>
-    <slot name="icon" />
-    <span v-if="!$slots.icon && dotColor" class="ssc-dot" :style="{ color: dotColor }">●</span>
     <span class="ssc-label">{{ label }}</span>
     <span v-if="badge" class="ssc-badge">{{ badge }}</span>
     <input
@@ -70,8 +68,8 @@ const onSliderInput = (e: Event) => {
 
   <!-- 已选态：白底 + 状态文案 -->
   <button v-else-if="selected" type="button" class="ssc confirmed" @click.stop="emit('toggle')">
-    <slot name="icon" />
     <span v-if="!$slots.icon && dotColor" class="ssc-dot" :style="{ color: dotColor }">●</span>
+    <slot name="icon" />
     <span class="ssc-label">{{ label }}</span>
     <span v-if="badge" class="ssc-badge">{{ badge }}</span>
     <span v-if="statusText" class="ssc-status">{{ statusText }}</span>
@@ -79,8 +77,8 @@ const onSliderInput = (e: Event) => {
 
   <!-- 默认态：白底 + 名称 -->
   <button v-else type="button" class="ssc" @click.stop="emit('toggle')">
-    <slot name="icon" />
     <span v-if="!$slots.icon && dotColor" class="ssc-dot" :style="{ color: dotColor }">●</span>
+    <slot name="icon" />
     <span class="ssc-label">{{ label }}</span>
     <span v-if="badge" class="ssc-badge">{{ badge }}</span>
   </button>
@@ -150,13 +148,13 @@ const onSliderInput = (e: Event) => {
   white-space: nowrap;
 }
 
-/* 滑块：粗白轨道（全高 14px）+ 透明拇指空间，primary 饱和底上最醒目。
-   轨道/拇指固定纯白不走主题 token——bg-panel 暗色为深色会失去对比（刻意硬编码） */
+/* 滑块：半透明白轨道（蓝底上淡白条，参考预测时间滑块观感）+ 恒定白拇指 + primary 描边投影。
+   轨道/描边刻意不走主题 token——bg-panel 暗色为深色会失去对比（刻意硬编码） */
 .ssc-slider {
   appearance: none;
   width: 80%;
   height: var(--GCS-slider-thumb-size);
-  background-color: #ffffff;
+  background-color: rgb(255 255 255 / 45%);
   border-radius: calc(var(--GCS-slider-thumb-size) / 2);
   outline: none;
   cursor: pointer;

@@ -380,6 +380,25 @@ onUnmounted(() => {
   box-sizing: border-box;
 }
 
+/* 滑块外观与预测/选址统一：浅灰半透明轨道（白底上保持可见）+ 白底品牌描边拇指 + 投影 */
+.water-slider-container :deep(.el-slider__runway) {
+  background-color: rgb(0 0 0 / 10%);
+  height: var(--GCS-slider-track-height);
+}
+
+.water-slider-container :deep(.el-slider__bar) {
+  height: var(--GCS-slider-track-height);
+  background-color: var(--GCS-color-primary);
+}
+
+.water-slider-container :deep(.el-slider__button) {
+  width: var(--GCS-slider-thumb-size);
+  height: var(--GCS-slider-thumb-size);
+  background: #ffffff;
+  border: 2px solid var(--GCS-color-primary);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 35%);
+}
+
 .scale-marks {
   display: flex;
   justify-content: space-between;

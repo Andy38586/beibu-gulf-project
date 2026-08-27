@@ -371,13 +371,13 @@ defineExpose({
   line-height: 1;
 }
 
-/* 选择态：蓝色背景 + 滑块 */
+/* 选择态：蓝色背景 + 滑块（保持原竖排，行距收紧防文字被裁） */
 .factor-item.selected.selecting {
   background: var(--GCS-color-primary);
   border-radius: var(--GCS-radius-lg);
 }
 
-/* 选中蓝底上重要度文字反白，不换行不裁切 */
+/* 选中蓝底上重要度文字反白 */
 .factor-item.selected.selecting .factor-importance {
   color: var(--GCS-text-inverse);
   font-size: 12px;
@@ -389,17 +389,25 @@ defineExpose({
   width: 100%;
   height: 100%;
   display: flex;
-  flex-direction: row; /* 横排：色点 | 滑块 | 重要度——原三层竖排超出固定行高致文字被裁 */
+  flex-direction: column;
   align-items: center;
-  gap: 6px;
-  padding: 0 8px;
+  justify-content: center;
+  gap: 3px; /* 行距收紧：三层内容（色点/滑块/重要度）压进固定行高 */
+  padding: 2px 8px; /* 上下收窄，给重要度文字留完整空间 */
   box-sizing: border-box;
   cursor: default;
+  position: relative;
+  z-index: 1;
+}
+
+/* 选中态色点缩小一档，参与行高预算 */
+.factor-slider-wrap .factor-dot {
+  font-size: 12px;
+  line-height: 1;
 }
 
 .factor-slider {
-  flex: 1 1 auto; /* 横排布局下撑满色点与重要度之间 */
-  min-width: 0;
+  width: 80%;
   height: var(--GCS-slider-track-height); /* 816-S7-44：轨道高统一 token（原 4px） */
   appearance: none;
 

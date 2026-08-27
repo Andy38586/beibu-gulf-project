@@ -20,33 +20,20 @@ const emit = defineEmits<Emits>()
 // GCS 尺寸变量：cell8px=0.1cell 面板内边距；cell16px=0.2cell 按钮间距
 const { cellPixel, css } = useGCS()
 const { cell8px, cell16px } = css
-/** 按钮高度 0.8 cell（网格行高） */
 const btnHeightCss = computed(() => `${cellPixel.value * 0.8}px`)
-/** 字体档位：0.175cell 标签、0.2cell 圆点、0.125cell 重要程度 */
 const labelFontSizeCss = computed(() => `${cellPixel.value * 0.175}px`)
 const iconFontSizeCss = computed(() => `${cellPixel.value * 0.2}px`)
-const levelFontSizeCss = computed(() => `${cellPixel.value * 0.125}px`)
-
-/** 面板元素引用（用于外部点击检测） */
 const panelRef = ref<HTMLElement | null>(null)
 
 // CONFIRM_DELAY 两面板共用，统一放 shared/constants/ui
-
-/** 扩展 TypeSetting，添加 selecting 状态 */
 interface LocalTypeSetting extends TypeSetting {
   selecting: boolean
 }
-
-/** 使用 reactive 确保所有属性响应式 */
 const typeSettings = reactive<Record<string, LocalTypeSetting>>({})
 Object.entries(FACILITY_CONFIG).forEach(([key]) => {
   typeSettings[key] = { selected: false, importance: 3, selecting: false, defaultRadius: 0 }
 })
-
-/** 计时器存储（不需要响应式） */
 const confirmTimers: Record<string, ReturnType<typeof setTimeout> | null> = {}
-
-/** 已选中的设施 key 列表 */
 const selectedKeys = computed<string[]>(() =>
   Object.entries(typeSettings)
     .filter(([, v]) => v.selected)
@@ -54,16 +41,12 @@ const selectedKeys = computed<string[]>(() =>
 )
 
 const { analyze, calculating, calcError, cancel } = useSiteAnalysisApi()
-
-/** 清除指定因子的计时器 */
 function clearTimer(key: string): void {
   if (confirmTimers[key]) {
     clearTimeout(confirmTimers[key]!)
     confirmTimers[key] = null
   }
 }
-
-/** 启动指定因子的自动确认计时器 */
 function startConfirmTimer(key: string): void {
   clearTimer(key)
   confirmTimers[key] = setTimeout(() => {
@@ -73,15 +56,11 @@ function startConfirmTimer(key: string): void {
     confirmTimers[key] = null
   }, CONFIRM_DELAY)
 }
-
-/** 重置指定因子的计时器（用户操作滑块时调用） */
 function resetConfirmTimer(key: string): void {
   if (typeSettings[key]?.selecting) {
     startConfirmTimer(key)
   }
 }
-
-/** 切换设施选择状态 */
 function toggleFactor(key: string): void {
   const setting = typeSettings[key]
   if (!setting) return
@@ -98,16 +77,12 @@ function toggleFactor(key: string): void {
   }
   // selecting 状态下点击不做处理，避免干扰滑块操作
 }
-
-/** 确认所有选择（点击外部区域时触发） */
 function confirmAll(): void {
   Object.entries(typeSettings).forEach(([key, v]) => {
     v.selecting = false
     clearTimer(key)
   })
 }
-
-/** 清空所有选择 */
 function clearAll(): void {
   Object.entries(typeSettings).forEach(([key, v]) => {
     v.selected = false
@@ -116,8 +91,6 @@ function clearAll(): void {
   })
   emit('result-update', { coverage: null, matchedXiaoqu: [], facilityPoi: {}, selectedTypes: [] })
 }
-
-/** 开始分析 */
 async function runAnalysis(): Promise<void> {
   // 防重复提交守卫
   if (calculating.value) {
@@ -164,8 +137,6 @@ async function runAnalysis(): Promise<void> {
     selectedTypes: selectedKeys.value,
   })
 }
-
-/** 重要性标签 */
 const IMPORTANCE_LABELS: Record<number, string> = {
   1: '不太在意',
   2: '稍微在意',
@@ -173,8 +144,6 @@ const IMPORTANCE_LABELS: Record<number, string> = {
   4: '比较重要',
   5: '非常重要',
 }
-
-/** 设施列表（转为数组供 v-for 使用） */
 const facilityList = computed(() =>
   Object.entries(FACILITY_CONFIG).map(([key, conf]) => ({
     key,
@@ -182,8 +151,6 @@ const facilityList = computed(() =>
     setting: typeSettings[key],
   }))
 )
-
-/** 点击外部区域立即结束所有选择态 */
 function handleGlobalClick(e: MouseEvent): void {
   if (panelRef.value && !panelRef.value.contains(e.target as Node)) {
     confirmAll()
@@ -283,15 +250,12 @@ defineExpose({
 </template>
 
 <style scoped>
-/* 面板内边距 0.1cell */
 .factor-panel {
   width: 100%;
   height: 100%;
   padding: v-bind(cell8px);
   box-sizing: border-box;
 }
-
-/* 按钮网格：2 列 × 4 行，列 1.8fr、行 0.8cell、间距 0.2cell */
 .factor-grid {
   display: grid;
   grid-template-columns: repeat(2, 1.8fr);
@@ -309,8 +273,6 @@ defineExpose({
   width: 100%;
   height: 100%;
 }
-
-/* 默认态 / 已选态：白色按钮（尺寸与 LayerControlPanel 一致） */
 .factor-btn {
   width: 100%;
   height: 100%;
@@ -348,119 +310,6 @@ defineExpose({
   letter-spacing: -0.5px; /* 字距收紧 */
 }
 
-/* 已选态：带重要程度标签（3 元素需紧凑间距） */
-.factor-btn.confirmed {
-  gap: 2px;
-}
-
-.factor-level {
-  font-size: v-bind(levelFontSizeCss);
-  color: var(--GCS-color-primary);
-  line-height: 1;
-}
-
-/* 选择态：蓝色背景 + 滑块（保持原竖排，行距收紧防文字被裁） */
-.factor-item.selected.selecting {
-  background: var(--GCS-color-primary);
-  border-radius: var(--GCS-radius-lg);
-}
-
-/* 选中蓝底上重要度文字反白 */
-.factor-item.selected.selecting .factor-importance {
-  color: var(--GCS-text-inverse);
-  font-size: 12px;
-  line-height: 1;
-  white-space: nowrap;
-}
-
-.factor-slider-wrap {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 3px; /* 行距收紧：三层内容（色点/滑块/重要度）压进固定行高 */
-  padding: 2px 8px; /* 上下收窄，给重要度文字留完整空间 */
-  box-sizing: border-box;
-  cursor: default;
-  position: relative;
-  z-index: 1;
-}
-
-/* 选中蓝底上的滑块对比强化：白实心轨道 + 品牌描边拇指，与蓝底明确区分 */
-.factor-item.selected.selecting .factor-slider {
-  background-color: var(--GCS-bg-panel);
-}
-
-.factor-item.selected.selecting .factor-slider::-webkit-slider-thumb {
-  border: 2px solid var(--GCS-color-primary);
-}
-
-.factor-item.selected.selecting .factor-slider::-moz-range-thumb {
-  border: 2px solid var(--GCS-color-primary);
-}
-
-/* 选中态色点缩小一档，参与行高预算 */
-.factor-slider-wrap .factor-dot {
-  font-size: 12px;
-  line-height: 1;
-}
-
-.factor-slider {
-  width: 80%;
-  height: var(--GCS-slider-track-height); /* 816-S7-44：轨道高统一 token（原 4px） */
-  appearance: none;
-
-  /* 拇指(14px)溢出轨道(6px)上下各 4px——透明 padding 撑出拇指空间 + 背景只画 content box，
-     防父级 overflow 裁掉拇指下半（"滑块底部显示不全"根因） */
-  padding: calc((var(--GCS-slider-thumb-size) - var(--GCS-slider-track-height)) / 2) 0;
-  background-clip: content-box;
-
-  /* 轨道底色为 overlay-tint 的同语义变体（略深一档，与 conf-slider 视觉区分）；
-     双主题 token 化后暗色侧同步降亮度 */
-  background-color: var(--GCS-slider-track-tint);
-  border-radius: calc(var(--GCS-slider-track-height) / 2);
-  outline: none;
-  cursor: pointer;
-  margin: 0;
-}
-
-.factor-slider::-webkit-slider-thumb {
-  appearance: none;
-
-  /* 816-S7-44：拇指统一 --GCS-slider-thumb-size（原 14px 同值，显式引用） */
-  width: var(--GCS-slider-thumb-size);
-  height: var(--GCS-slider-thumb-size);
-  border-radius: 50%;
-  background: var(--GCS-bg-panel);
-  cursor: pointer;
-  border: none;
-}
-
-.factor-slider::-moz-range-thumb {
-  width: var(--GCS-slider-thumb-size); /* 816-S7-44：统一 token */
-  height: var(--GCS-slider-thumb-size);
-  border-radius: 50%;
-  background: var(--GCS-bg-panel);
-  cursor: pointer;
-  border: none;
-}
-
-.factor-importance {
-  font-size: v-bind(levelFontSizeCss);
-  color: var(
-    --GCS-text-inverse
-  ); /* 816-S7-62：bg-panel 语义为背景，前景一律 text-inverse（原数值恰等，非功能性改动） */
-
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100%;
-  text-align: center;
-}
-
-/* 操作按钮样式 */
 .action-btn.clear-btn {
   color: var(--GCS-text-regular);
 }
@@ -485,7 +334,6 @@ defineExpose({
 }
 
 .action-btn.analyze-btn:disabled {
-  /* 816-S7-47：禁用态走 text-disabled token（原裸 opacity 0.6） */
   color: var(--GCS-text-disabled);
   cursor: not-allowed;
 }

@@ -15,7 +15,7 @@ import { logger } from '@/shared'
 import { PaginatedListPanel } from '@/shared'
 import { useSiteSelectionStore } from '@/stores'
 import type { AnalysisResult, FacilityPoint, ScoredXiaoqu } from '@/types/analysis'
-import { RadarChart, SNAPSHOT_SELECTED_TYPES, SNAPSHOT_XIAOQU } from '@/visualization'
+import { RadarChart } from '@/visualization'
 
 import SiteAnalysisControlPanel from './components/SiteAnalysisControlPanel.vue'
 import { useAnalysisLayer } from './composables/useAnalysisLayer'
@@ -68,19 +68,13 @@ const displayXiaoqu = computed<ScoredXiaoqu[]>(() => matchedXiaoqu.value.slice(0
 /** 第一名小区（雷达图默认显示） */
 const topXiaoqu = computed<ScoredXiaoqu | null>(() => matchedXiaoqu.value[0] || null)
 
-/** 当前显示的小区（优先选中的，其次第一名；均无时回退默认快照，雷达图不空态） */
+/** 当前显示的小区（选中优先，其次第一名；未分析时为 null → 雷达图显示空态） */
 const displayXiaoquForRadar = computed<ScoredXiaoqu | null>(
-  () => selectedXiaoqu.value || topXiaoqu.value || SNAPSHOT_XIAOQU
+  () => selectedXiaoqu.value || topXiaoqu.value
 )
 
-/** 示例快照态披露：雷达图落到 SNAPSHOT_XIAOQU 兜底时打标，
- * 区分「腾龙阁 85.2 分」是示例而非本次分析结果（README 诚实披露原则） */
-const isRadarSnapshot = computed<boolean>(() => !selectedXiaoqu.value && !topXiaoqu.value)
-
-/** 雷达图指标：未分析时用快照的 6 类设施 */
-const radarSelectedTypes = computed<string[]>(() =>
-  selectedTypes.value.length > 0 ? selectedTypes.value : SNAPSHOT_SELECTED_TYPES
-)
+/** 雷达图指标：跟随已选设施类型 */
+const radarSelectedTypes = computed<string[]>(() => selectedTypes.value)
 
 /** 处理分析结果 */
 function handleResult(result: Partial<AnalysisResult>): void {
@@ -312,8 +306,6 @@ onUnmounted(() => {
       <template #left>
         <!-- 左上：小区雷达图 4×4（显示选中小区或第一名） -->
         <GCSPanel :w="4" :h="4" anchor="top-left" :offset-x="0" :offset-y="1.25">
-          <!-- 示例快照披露角标：未分析时展示的是实测快照，非实时结果 -->
-          <div v-if="isRadarSnapshot" class="radar-snapshot-badge">示例数据</div>
           <RadarChart
             :visible="true"
             :embedded="true"
@@ -382,20 +374,6 @@ onUnmounted(() => {
   width: 100%;
   height: 100%;
   pointer-events: none;
-}
-
-/* 示例快照披露角标（面板右上角，随主题 token 取色） */
-.radar-snapshot-badge {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  z-index: var(--GCS-z-panel-float);
-  padding: 2px 8px;
-  border-radius: var(--GCS-radius-sm);
-  font-size: var(--GCS-font-size-xs);
-  color: var(--GCS-color-warning);
-  background: var(--GCS-bg-container);
-  border: 1px solid var(--GCS-border-default);
 }
 
 .xq-rank {

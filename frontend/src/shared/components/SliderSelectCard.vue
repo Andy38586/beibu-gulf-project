@@ -150,13 +150,15 @@ const onSliderInput = (e: Event) => {
   white-space: nowrap;
 }
 
-/* 滑块：白实心轨道（6px 视觉）+ 透明 padding 撑出拇指空间，防容器裁切 */
+/* 滑块：白轨道（视觉恒定白）+ 透明 padding 撑出拇指空间。
+   底色恒为品牌 primary（饱和色），轨道/拇指固定用纯白才能在亮暗两主题都与底色明确区分，
+   故此处刻意不走主题 token（bg-panel 暗色为深色会失去对比） */
 .ssc-slider {
   appearance: none;
   width: 80%;
   height: var(--GCS-slider-track-height);
   padding: calc((var(--GCS-slider-thumb-size) - var(--GCS-slider-track-height)) / 2) 0;
-  background-color: var(--GCS-bg-panel);
+  background-color: #ffffff;
   background-clip: content-box;
   border-radius: calc(var(--GCS-slider-track-height) / 2);
   outline: none;
@@ -169,8 +171,9 @@ const onSliderInput = (e: Event) => {
   width: var(--GCS-slider-thumb-size);
   height: var(--GCS-slider-thumb-size);
   border-radius: 50%;
-  background: var(--GCS-bg-panel);
+  background: #ffffff;
   border: 2px solid var(--GCS-color-primary);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 35%); /* 投影让拇指从轨道上浮起，双主题可辨 */
   cursor: pointer;
 }
 
@@ -178,22 +181,10 @@ const onSliderInput = (e: Event) => {
   width: var(--GCS-slider-thumb-size);
   height: var(--GCS-slider-thumb-size);
   border-radius: 50%;
-  background: var(--GCS-bg-panel);
+  background: #ffffff;
   border: 2px solid var(--GCS-color-primary);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 35%);
   cursor: pointer;
-}
-
-.ssc-selecting .ssc-slider {
-  background-color: var(--GCS-bg-panel);
-}
-
-.ssc.selecting .ssc-slider {
-  background-color: var(--GCS-bg-panel);
-  background-clip: content-box;
-}
-
-.ssc.selecting .ssc-slider::-webkit-slider-thumb {
-  border: 2px solid var(--GCS-color-primary);
 }
 
 .ssc-placeholder {

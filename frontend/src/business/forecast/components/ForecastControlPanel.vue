@@ -606,7 +606,7 @@ onUnmounted(() => stopPlayback())
   width: 80%;
   height: var(--GCS-slider-track-height);
   padding: calc((var(--GCS-slider-thumb-size) - var(--GCS-slider-track-height)) / 2) 0;
-  background-color: var(--GCS-bg-panel);
+  background-color: #ffffff; /* 恒定白：primary 饱和底上亮暗两主题都明确区分 */
   background-clip: content-box;
   border-radius: calc(var(--GCS-slider-track-height) / 2);
   outline: none;
@@ -619,8 +619,9 @@ onUnmounted(() => stopPlayback())
   width: var(--GCS-slider-thumb-size);
   height: var(--GCS-slider-thumb-size);
   border-radius: 50%;
-  background: var(--GCS-bg-panel);
+  background: #ffffff;
   border: 2px solid var(--GCS-color-primary);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 35%);
   cursor: pointer;
 }
 
@@ -628,8 +629,9 @@ onUnmounted(() => stopPlayback())
   width: var(--GCS-slider-thumb-size);
   height: var(--GCS-slider-thumb-size);
   border-radius: 50%;
-  background: var(--GCS-bg-panel);
+  background: #ffffff;
   border: 2px solid var(--GCS-color-primary);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 35%);
   cursor: pointer;
 }
 </style>

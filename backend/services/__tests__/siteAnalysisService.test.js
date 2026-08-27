@@ -5,11 +5,11 @@
  * { error, coverage, matchedXiaoqu[], facilityPoi{} }，覆盖选址核心链路。
  * R-10：resolveRadiusSettings 对非法半径（0 / 负）抛 INVALID_PARAMS（服务级兜底）。
  */
-import { describe, it, expect } from 'vitest'
+import { describe, expect,it } from 'vitest'
 
 import {
-  runSiteAnalysis,
   resolveRadiusSettings,
+  runSiteAnalysis,
   validateSelection,
 } from '../siteAnalysisService.js'
 

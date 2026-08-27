@@ -9,16 +9,15 @@ import {
   ClassificationType,
   Color,
   ColorGeometryInstanceAttribute,
+  DataSource,
   EllipsoidTerrainProvider,
   Entity,
   EntityCollection,
   GeographicTilingScheme,
   GeoJsonDataSource,
-  DataSource,
-  ImageryLayer,
-  ScreenSpaceEventHandler,
   GeometryInstance,
   HeightReference,
+  ImageryLayer,
   Math as CesiumMath,
   PerInstanceColorAppearance,
   PointGraphics,
@@ -27,6 +26,7 @@ import {
   Primitive,
   Rectangle,
   sampleTerrain,
+  ScreenSpaceEventHandler,
   ScreenSpaceEventType,
   SingleTileImageryProvider,
   UrlTemplateImageryProvider,
@@ -49,7 +49,7 @@ import type {
   WaterSurfaceOptions,
 } from '@/types'
 
-import { MapRenderer, type LayerState } from './MapRenderer'
+import { type LayerState, MapRenderer } from './MapRenderer'
 
 /** 相机默认俯仰角（度）：-90° 俯视（z076 提取；引擎切换刻意不传递倾斜状态——OL 无 pitch 概念） */
 const DEFAULT_CAMERA_PITCH_DEG = -90
@@ -1208,7 +1208,8 @@ export async function addGeoJsonLayer(
 
     logger.debug(`[CesiumRenderer] GeoJSON ${id} entities:`, dataSource.entities.values.length)
     applyGeoJsonDataSourceStyle(dataSource, options)
-    renderer.viewer!.dataSources.add(dataSource)
+    // 显式 void：add 返回 Promise 仅用于悬挂标记，此处生命周期由下方 token 复检兜底
+    void renderer.viewer!.dataSources.add(dataSource)
 
     // 再次检查 token，防止 await 期间被新请求覆盖
     if (renderer._geoJsonTokens.get(id) !== token) {

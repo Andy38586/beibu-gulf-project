@@ -4,8 +4,8 @@
  * 覆盖：空间索引版本（bbox 粗筛 + queryByPolygon）对原逐点 booleanPointInPolygon 的等价性。
  * 场景：覆盖范围内设施被保留、范围外被剔除、无效坐标被防御。
  */
-import { describe, it, expect } from 'vitest'
 import * as turf from '@turf/turf'
+import { describe, expect,it } from 'vitest'
 
 import { filterFacilitiesInCoverage } from '../siteAnalysisService.js'
 

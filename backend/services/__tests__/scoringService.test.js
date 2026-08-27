@@ -5,7 +5,7 @@
  * 8-2（RBush 无 isEmpty，旧判空防御为死代码——修复后 all() 判空行为等价、防御生效）。
  * 用例锁定分数"值"而非仅字段存在（siteAnalysisService.test.js 旧断言只查 toHaveProperty('score')）。
  */
-import { describe, it, expect } from 'vitest'
+import { describe, expect,it } from 'vitest'
 
 import {
   importanceToRadius,

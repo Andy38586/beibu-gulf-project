@@ -1,13 +1,13 @@
 // 实测 ECharts 标题渲染位置（与 useChartBase 相同配置）
 // 用法: node scripts/measure-title.mjs
-import * as echarts from 'echarts/core'
 import { LineChart } from 'echarts/charts'
 import {
   GridComponent,
+  LegendComponent,
   TitleComponent,
   TooltipComponent,
-  LegendComponent,
 } from 'echarts/components'
+import * as echarts from 'echarts/core'
 import { SVGRenderer } from 'echarts/renderers'
 
 echarts.use([

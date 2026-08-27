@@ -1,5 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest'
+
 import { sanitize } from '../logSanitizer.js'
 
 describe('sanitize (d065) 请求日志脱敏', () => {

@@ -3,11 +3,11 @@
  * 请求收口 forecastAdapter（services 层），shared 不再硬编码业务 URL；
  * 统一从 /forecast/overview 静态快照读取，接口失败留空（图表空状态兜底），不回落假数据。
  */
-import { ref, type Ref } from 'vue'
+import { type Ref, ref } from 'vue'
 
+import { forecastAdapter } from '@/services'
 import { logger } from '@/shared'
 import { showToast } from '@/shared'
-import { forecastAdapter } from '@/services'
 
 export interface ChartDataset {
   labels: string[]

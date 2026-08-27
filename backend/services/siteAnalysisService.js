@@ -1,8 +1,10 @@
 import * as turf from '@turf/turf'
-import { scoreXiaoqu, DEFAULT_WEIGHTS, linearDecay, importanceToRadius } from './scoringService.js'
-import { createSpatialIndex, queryByPolygon } from '../utils/spatialIndex.js'
+
 import { BusinessError, ErrorCode } from '../utils/BusinessError.js'
 import { logger } from '../utils/logger.js'
+import { createSpatialIndex, queryByPolygon } from '../utils/spatialIndex.js'
+
+import { DEFAULT_WEIGHTS, importanceToRadius,linearDecay, scoreXiaoqu } from './scoringService.js'
 
 // 评分排序取前 N 名（816-专项8 发现7：取值依据——557 小区规模下取前 10 覆盖可达性核心结论区间，
 // 前端 SiteSelectionPage 另行 slice(0,8) 展示截断，不硬依赖本值；如数据翻倍需重评估）

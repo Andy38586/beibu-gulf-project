@@ -18,12 +18,12 @@ export * from './provideKeys'
 // Q4 收口：渲染器工厂/预载经入口对外（App.vue 使用；OLRenderer/CesiumRenderer 实现类不对外）
 export { createRenderer, preloadCesium } from './map/renderers'
 // Q4 收口：组件聚合导出（816 复核：README 已述、index 未落地，本行补齐）
-export { default as UnifiedMap } from './map/UnifiedMap.vue'
 export { default as AppLayout } from './layout/AppLayout.vue'
-export { default as LayerControlPanel } from './map/components/LayerControlPanel.vue'
-export { default as GCSPanel } from './layout/components/GCSPanel.vue'
-export { default as GCSButton } from './layout/components/GCSButton.vue'
-export { default as NavButton } from './layout/components/NavButton.vue'
-export { default as MobileDrawer } from './layout/components/MobileDrawer.vue'
 export { default as BottomNavBar } from './layout/components/BottomNavBar.vue'
+export { default as GCSButton } from './layout/components/GCSButton.vue'
+export { default as GCSPanel } from './layout/components/GCSPanel.vue'
+export { default as MobileDrawer } from './layout/components/MobileDrawer.vue'
+export { default as NavButton } from './layout/components/NavButton.vue'
+export { default as LayerControlPanel } from './map/components/LayerControlPanel.vue'
+export { default as UnifiedMap } from './map/UnifiedMap.vue'
 // DebugToggle/GCSDebugOverlay 仅 DEV 构建加载（03 §三.3），不静态导出——保持 tree-shake 语义

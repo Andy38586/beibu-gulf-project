@@ -9,13 +9,12 @@ import { useRouter } from 'vue-router'
 import { type BusinessLayerManager, useBusinessLayers } from '@/core'
 import { ApiError, handleAuthError, isAuthError, showError, useApiRequest } from '@/shared'
 import { logger } from '@/shared'
+import { DEFAULT_CONFIDENCE } from '@/shared'
 import { useForecastStore } from '@/stores'
 import { useMapStore } from '@/stores'
-import type { ForecastMapData } from '@/types/api/forecast'
 import type { LayerOptions, LayerType, MapRenderer } from '@/types'
+import type { ForecastMapData } from '@/types/api/forecast'
 import { forecastMapDataSchema } from '@/types/schemas'
-
-import { DEFAULT_CONFIDENCE } from '@/shared'
 
 import { useForecastRequest } from './useForecastRequest'
 

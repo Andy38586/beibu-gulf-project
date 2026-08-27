@@ -1,3 +1,4 @@
+import { readForecastIndex } from '../repositories/forecastRepository.js'
 import {
   getIndicatorData as queryIndicator,
   getMapData,
@@ -5,7 +6,6 @@ import {
   getTimeSeriesData as queryTimeSeries,
 } from '../services/forecastService.js'
 import { BusinessError, ErrorCode } from '../utils/BusinessError.js'
-import { readForecastIndex } from '../repositories/forecastRepository.js'
 import { sendSuccess } from '../utils/response.js'
 
 /**

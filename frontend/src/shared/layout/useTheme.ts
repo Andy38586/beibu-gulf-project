@@ -5,7 +5,7 @@
  * 非 CSS 消费者（ECharts canvas 不支持 CSS 变量）经 onThemeChange 订阅重设；
  * 切换为单帧重绘、连点幂等，无需防抖。
  */
-import { computed, readonly, ref, type ComputedRef, type Ref } from 'vue'
+import { computed, type ComputedRef, readonly, type Ref, ref } from 'vue'
 
 export type ThemeMode = 'light' | 'dark'
 

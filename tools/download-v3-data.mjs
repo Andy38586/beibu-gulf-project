@@ -10,9 +10,9 @@
 // SRTM 30m is NOT included: the public skadi bucket no longer serves those keys (2026-08 verified);
 // Copernicus GLO-30 (better quality) covers the land-DEM requirement.
 
+import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
-import crypto from 'node:crypto'
 
 const target = process.argv[2] ?? 'C:\\Users\\JionHappY\\Desktop\\项目数据'
 const includeOsm = process.argv.includes('--osm')

@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
 import jwt from 'jsonwebtoken'
+import { beforeEach,describe, expect, it, vi } from 'vitest'
 
 // auth.js 在模块加载时读取 process.env.JWT_SECRET，缺失即抛错。
 // 必须在 import 之前置好（Vitest 不会自动加载项目 .env）。

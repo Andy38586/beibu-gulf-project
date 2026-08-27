@@ -1,4 +1,5 @@
 import jwt from 'jsonwebtoken'
+
 import * as userService from '../services/userService.js'
 import { logger } from '../utils/logger.js'
 

@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'vitest'
 import { booleanPointInPolygon, point } from '@turf/turf'
+import { describe, expect,it } from 'vitest'
+
 import { createSpatialIndex, queryByPolygon } from '../spatialIndex.js'
 
 describe('Spatial Index (R-tree)', () => {

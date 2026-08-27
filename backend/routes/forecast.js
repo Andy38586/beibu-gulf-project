@@ -1,10 +1,10 @@
 import express from 'express'
 const router = express.Router()
 import {
-  getForecastOverview,
   getForecastMapData,
-  getPortForecast,
+  getForecastOverview,
   getIndicatorData,
+  getPortForecast,
   getTimeSeriesData,
 } from '../controllers/forecastController.js'
 

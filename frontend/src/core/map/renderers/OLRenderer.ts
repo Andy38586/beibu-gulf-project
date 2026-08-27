@@ -1,5 +1,6 @@
 // OpenLayers 2D 渲染器：视图为 Web 墨卡托投影（EPSG:3857），业务坐标用 WGS84 经纬度（EPSG:4326）。
 import type { FeatureCollection } from 'geojson'
+import { Attribution, Zoom } from 'ol/control'
 import type { EventsKey } from 'ol/events'
 import type { FeatureLike } from 'ol/Feature'
 import Feature from 'ol/Feature'
@@ -13,7 +14,6 @@ import VectorLayer from 'ol/layer/Vector'
 // 不能 import { Map }：会遮蔽全局 ES Map，new Map()（如 _cullLayers 初始化）会误建 ol/Map 实例
 import OlMap from 'ol/Map'
 import type MapBrowserEvent from 'ol/MapBrowserEvent'
-import { Attribution, Zoom } from 'ol/control'
 import { fromLonLat, toLonLat } from 'ol/proj'
 import Cluster from 'ol/source/Cluster'
 import VectorSource from 'ol/source/Vector'

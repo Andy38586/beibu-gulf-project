@@ -1,7 +1,8 @@
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
-import * as userService from '../services/userService.js'
+
 import { generateToken } from '../middleware/auth.js'
+import * as userService from '../services/userService.js'
 import { BusinessError, ErrorCode } from '../utils/BusinessError.js'
 import { logger } from '../utils/logger.js'
 import { sendSuccess } from '../utils/response.js'

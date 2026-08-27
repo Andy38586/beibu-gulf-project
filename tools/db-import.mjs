@@ -1,8 +1,8 @@
 ﻿// v3 数据入库脚本 —— 读现有 JSON(仓库 backend/data/) -> 生成 SQL(INSERT)，供 docker exec psql 执行
 // 用法: node tools/db-import.mjs   (输出到 .tmp-pip/import.sql)
 // 然后: docker cp .tmp-pip/import.sql beibu-postgis:/tmp/ && docker exec beibu-postgis psql -U postgres -d v3_dev -f /tmp/import.sql
-import fs from 'node:fs'
 import crypto from 'node:crypto'
+import fs from 'node:fs'
 
 const B = (p) => JSON.parse(fs.readFileSync('backend/data/' + p, 'utf8'))
 const esc = (v) => (v == null ? 'NULL' : `'${String(v).replaceAll("'", "''")}'`)

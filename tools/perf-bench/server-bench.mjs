@@ -10,9 +10,9 @@
  * 注意：本脚本只读文件 + 调用纯函数，不启动 HTTP 服务，不写任何数据文件。
  */
 import { readFileSync, statSync } from 'node:fs'
-import { gzipSync } from 'node:zlib'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { gzipSync } from 'node:zlib'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const DATA_DIR = join(__dirname, '..', '..', 'backend', 'data')

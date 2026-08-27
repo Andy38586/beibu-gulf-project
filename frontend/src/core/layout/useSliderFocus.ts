@@ -4,7 +4,7 @@
  * 其余面板透明、只保留滑块所在面板，松手恢复（底部 nav 不受影响）。
  * 模块级单例：AppLayout 监听 active 切换 class，滑块组件调用 begin/end。
  */
-import { onScopeDispose, ref, type Ref } from 'vue'
+import { onScopeDispose, type Ref, ref } from 'vue'
 
 import { LAYOUT_DESKTOP_MIN } from '@/shared'
 

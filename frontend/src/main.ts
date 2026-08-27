@@ -7,10 +7,11 @@ import { createPinia } from 'pinia'
 import type { ComponentPublicInstance } from 'vue'
 import { createApp } from 'vue'
 
-import App from './App.vue'
-import router from './router'
 import { floodAdapter } from '@/services'
 import { initPerfReporter, logger, perfReportError, useTheme } from '@/shared'
+
+import App from './App.vue'
+import router from './router'
 
 /** 启动时校验关键环境变量：必需项缺失报错，非必需项缺失告警不阻断 */
 function validateEnv(): void {

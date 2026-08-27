@@ -1,4 +1,5 @@
 import { Router } from 'express'
+
 import * as authController from '../controllers/authController.js'
 import { authenticate } from '../middleware/auth.js'
 

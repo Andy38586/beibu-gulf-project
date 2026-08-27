@@ -1,5 +1,6 @@
 // forecastEngine 回归测试（R-13 确定性）
-import { describe, it, expect } from 'vitest'
+import { describe, expect,it } from 'vitest'
+
 import { computeForecast, generateSpatialValues } from '../forecastEngine.js'
 
 // 生成 n 个月线性递增的历史数据，从 startYear-startMonth 开始

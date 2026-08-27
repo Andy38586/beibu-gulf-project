@@ -6,14 +6,12 @@
 
 // D1：浸没要素/受影响设施与 zod schema 编译期绑定（z.infer 同源）——
 // 运行时形状由 schemas.ts 深校验把关，业务类型不再是独立漂移副本
-import type { AffectedFacilityParsed, FloodFeatureParsed } from '../schemas'
-
 // ===== 通用 GIS 要素 =====
-
 // 816-专项3-0816-10：GeoPoint 收敛为单一权威（crs.ts 带 CRS 泛型版本）；
 // 原 base.ts 独立定义（无 crs 字段）与 crs.ts 同名不同义，已移除，此处仅 re-export 兼容既有引用。
 // 注意：re-export 不引入本地作用域，本文件内部使用需显式 import。
 import type { GeoPoint } from '../crs'
+import type { AffectedFacilityParsed, FloodFeatureParsed } from '../schemas'
 export type { GeoPoint } from '../crs'
 
 /** 带属性标注的点 */

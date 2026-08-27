@@ -1,8 +1,8 @@
 // @vitest-environment node
-import { afterEach, beforeAll, describe, expect, it } from 'vitest'
-import { mkdtemp, readFile, readdir, rm } from 'fs/promises'
+import { mkdtemp, readdir, readFile, rm } from 'fs/promises'
 import { tmpdir } from 'os'
 import { join } from 'path'
+import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 
 let logger
 let appendLogLine

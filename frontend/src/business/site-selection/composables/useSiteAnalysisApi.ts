@@ -1,6 +1,6 @@
 import { storeToRefs } from 'pinia'
-import { useRouter } from 'vue-router'
 import type { Ref } from 'vue'
+import { useRouter } from 'vue-router'
 
 import { handleAuthError, isAuthError, useApiRequest, useLatestRequest } from '@/shared'
 import { useSiteSelectionStore } from '@/stores'

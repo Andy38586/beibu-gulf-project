@@ -3,7 +3,7 @@
  * AppLayout 与 MobileDrawer 共享同一布尔态，保证任意入口开关行为一致；
  * 面板内容由 AppLayout 经 slot（Vue 插槽）注入，不耦合业务数据。
  */
-import { ref, type Ref } from 'vue'
+import { type Ref, ref } from 'vue'
 
 const drawerOpen = ref(false)
 

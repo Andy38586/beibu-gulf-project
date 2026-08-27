@@ -12,7 +12,7 @@
  * 返回码：0 = 门禁通过；1 = 死 token 超阈或扫描异常。CI 可直接挂接。
  */
 
-import { readFileSync, readdirSync, statSync } from 'node:fs'
+import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import process from 'node:process'
 

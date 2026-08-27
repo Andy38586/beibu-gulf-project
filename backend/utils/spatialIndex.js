@@ -1,7 +1,7 @@
 // 与前端 frontend/src/shared/utils/spatialIndex.ts 同名但实现不同（勿混用）：
 // 后端 = 多边形覆盖查询（turf/queryByPolygon）；前端 = 视口裁剪（rbush 矩形查询）。
-import RBush from 'rbush'
 import { booleanPointInPolygon, point } from '@turf/turf'
+import RBush from 'rbush'
 
 export function createSpatialIndex(xiaoquData) {
   const tree = new RBush()

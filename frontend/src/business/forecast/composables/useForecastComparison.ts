@@ -3,9 +3,10 @@
  * 请求经 forecastAdapter（service 层隔离），组件零 HTTP/字段细节；缓存存 store；
  * 双真指标并行请求共享事务，任一过期整体跳过渲染。429 播放限流静默降级与页面原实现一致。
  */
-import { ref, type Ref } from 'vue'
+import { type Ref, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
+import { forecastAdapter } from '@/services'
 import {
   ApiError,
   DEFAULT_CONFIDENCE,
@@ -15,7 +16,6 @@ import {
   showError,
 } from '@/shared'
 import { PORT_NAMES } from '@/shared'
-import { forecastAdapter } from '@/services'
 import { useForecastStore } from '@/stores'
 
 /** 返回契约（816-专项3-0816-13：显式化，防重构时签名静默漂移） */

@@ -1,6 +1,7 @@
 // 依赖文件在 backend/data/ 中的相对位置，勿移动此文件
 import path from 'path'
 import { fileURLToPath } from 'url'
+
 import { createFileStore } from '../utils/fileStore.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))

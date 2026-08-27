@@ -1,13 +1,13 @@
 import { fileURLToPath, URL } from 'node:url'
 
-import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
-import vueDevTools from 'vite-plugin-vue-devtools'
-import cesium from 'vite-plugin-cesium'
 import { visualizer } from 'rollup-plugin-visualizer'
 import AutoImport from 'unplugin-auto-import/vite'
-import Components from 'unplugin-vue-components/vite'
 import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
+import Components from 'unplugin-vue-components/vite'
+import { defineConfig } from 'vite'
+import cesium from 'vite-plugin-cesium'
+import vueDevTools from 'vite-plugin-vue-devtools'
 
 /**
  * 移除 vite-plugin-cesium 自动注入的 Cesium script/css 标签

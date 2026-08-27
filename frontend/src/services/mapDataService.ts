@@ -2,9 +2,9 @@
 import { MAP_CONFIG } from '@/core/config/map'
 import { logger } from '@/shared'
 import { useApiRequest } from '@/shared'
-import { portsArraySchema } from '@/types/schemas'
-import type { Port } from '@/types'
 import { isInBeibuGulf } from '@/shared'
+import type { Port } from '@/types'
+import { portsArraySchema } from '@/types/schemas'
 
 // 816-专项1 发现3：/api/ports 是 API 端点，统一走 useApiRequest（02 R1 明文——
 // 原 loadStatic 缺重试/401 处理，报错口径与其它 API 不一致）。

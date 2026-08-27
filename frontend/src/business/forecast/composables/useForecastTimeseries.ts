@@ -4,12 +4,12 @@
  * （跨页面快照由 store 统一序列化），事务经 useForecastRequest 保证三路请求原子性。
  * 错误处理与页面原实现一致：401 软登录、其余 showError 统一出口。
  */
-import { ref, type Ref } from 'vue'
+import { type Ref, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
+import { forecastAdapter } from '@/services'
 import { handleAuthError, isAuthError, logger, showError } from '@/shared'
 import { DEFAULT_CONFIDENCE } from '@/shared'
-import { forecastAdapter } from '@/services'
 import { useForecastStore } from '@/stores'
 
 import { useForecastRequest } from './useForecastRequest'

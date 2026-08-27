@@ -5,7 +5,7 @@
  * 修复前后端无 /overview 路由，请求落入 /:portId → getPortForecast('overview') → 空数据。
  * 本测试锁定：/overview 必须分发到 getForecastOverview，而非被 /:portId 兜底。
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { beforeEach,describe, expect, it, vi } from 'vitest'
 
 // 隔离 controller 层，避免真实文件 IO
 vi.mock('../../controllers/forecastController.js', () => ({
@@ -18,8 +18,8 @@ vi.mock('../../controllers/forecastController.js', () => ({
   getTimeSeriesData: vi.fn((req, res) => res.json({ code: 200, data: { series: true } })),
 }))
 
-import forecastRouter from '../forecast.js'
 import * as forecastController from '../../controllers/forecastController.js'
+import forecastRouter from '../forecast.js'
 
 /** 简化请求对象（express router 测试所需的最小字段） */
 function mockReq(method, url) {

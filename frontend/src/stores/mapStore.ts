@@ -45,6 +45,12 @@ export const useMapStore = defineStore('map', () => {
   /** 当前渲染器引用（由UnifiedMap设置，供业务组件访问） */
   const currentRenderer: ShallowRef<MapRenderer | null> = shallowRef(null)
 
+  /** 调试模式（仅 DEV 构建消费：引擎徽标等后台标号的统一开关，AppLayout DebugToggle 切换） */
+  const debugMode = ref(false)
+  function setDebugMode(v: boolean): void {
+    debugMode.value = v
+  }
+
   // 由 UnifiedMap 在渲染器初始化/切换时调用
   function setCurrentRenderer(renderer: MapRenderer | null): void {
     currentRenderer.value = renderer

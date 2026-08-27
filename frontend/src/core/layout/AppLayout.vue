@@ -6,7 +6,7 @@
  * 抽屉模式（<960px）下抽屉同时承载业务面板（slot left/right）。
  */
 
-import { computed, defineAsyncComponent, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRoute, useRouter } from 'vue-router'
 
@@ -64,7 +64,6 @@ const radarSelectedTypes = computed(() =>
 const showDebug = import.meta.env.DEV
 const mapStore = useMapStore()
 const { debugMode } = storeToRefs(mapStore)
-const setDebugMode = (v: boolean) => mapStore.setDebugMode(v)
 
 // 专注模式 class 挂 body 而非根节点：抽屉 Teleport 到 body，根节点选择器匹配不到抽屉内面板。
 // body 加 slider-focus-mode（CSS 透明化其他面板），滑块所在面板标记 slider-focus-panel，底部 nav 排除。

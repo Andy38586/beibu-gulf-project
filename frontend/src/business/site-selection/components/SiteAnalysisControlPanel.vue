@@ -3,7 +3,7 @@
 // 按钮三态：默认（白）→ 选择（蓝 + 滑块，自动确认）→ 已选（白 + 重要程度标签）
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 
-import { CONFIRM_DELAY, showWarning, useGCS } from '@/shared'
+import { CONFIRM_DELAY, showWarning, SliderSelectCard, useGCS } from '@/shared'
 import type { AnalysisResult, FacilityType, TypeSetting } from '@/types/analysis'
 
 import { FACILITY_CONFIG } from '../composables/facilityConfig'
@@ -240,43 +240,31 @@ defineExpose({
         class="factor-item"
         :class="{ selected: item.setting.selected, selecting: item.setting.selecting }"
       >
-        <!-- 默认态：白色按钮，仅显示设施名称 -->
-        <button
-          v-if="!item.setting.selected"
-          class="factor-btn"
-          @click.stop="toggleFactor(item.key)"
-        >
-          <span class="factor-dot" :style="{ color: item.color }">●</span>
-          <span class="factor-label">{{ item.label }}</span>
-        </button>
-
-        <!-- 选择态：蓝色背景 + 滑块 -->
-        <div
-          v-else-if="item.setting.selecting"
-          class="factor-slider-wrap"
+        <!-- 三态选择卡片（公共组件 SliderSelectCard）：默认/选择中滑块/已选 -->
+        <SliderSelectCard
+          :selecting="item.setting.selecting"
+          :selected="item.setting.selected"
+          :label="item.label"
+          :dot-color="item.color"
+          :status-text="item.setting.selected ? IMPORTANCE_LABELS[item.setting.importance] : ''"
+          :slider-value="item.setting.selecting ? item.setting.importance : null"
+          :slider-min="1"
+          :slider-max="5"
+          :slider-step="1"
+          @toggle="toggleFactor(item.key)"
+          @update:slider-value="
+            (value) => {
+              item.setting.importance = value
+              resetConfirmTimer(item.key)
+            }
+          "
           @mousedown.stop
           @click.stop
         >
-          <span class="factor-dot" :style="{ color: item.color }">●</span>
-          <input
-            v-model.number="item.setting.importance"
-            type="range"
-            class="factor-slider"
-            min="1"
-            max="5"
-            @input="resetConfirmTimer(item.key)"
-            @mousedown.stop
-            @click.stop
-          />
-          <span class="factor-importance">{{ IMPORTANCE_LABELS[item.setting.importance] }}</span>
-        </div>
-
-        <!-- 已选态：白色按钮，显示名称 + 重要程度 -->
-        <button v-else class="factor-btn confirmed" @click.stop="toggleFactor(item.key)">
-          <span class="factor-dot" :style="{ color: item.color }">●</span>
-          <span class="factor-label">{{ item.label }}</span>
-          <span class="factor-level">{{ IMPORTANCE_LABELS[item.setting.importance] }}</span>
-        </button>
+          <template #icon>
+            <span class="factor-dot" :style="{ color: item.color }">●</span>
+          </template>
+        </SliderSelectCard>
       </div>
 
       <!-- 第 4 行：清空选择 + 开始分析 -->

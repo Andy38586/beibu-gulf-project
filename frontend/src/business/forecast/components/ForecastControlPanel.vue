@@ -4,7 +4,14 @@
 import { computed, onMounted, onUnmounted, reactive } from 'vue'
 
 import { useSliderFocus } from '@/core'
-import { BASE_YEAR, CONFIRM_DELAY, DEFAULT_CONFIDENCE, END_YEAR, useGCS } from '@/shared'
+import {
+  BASE_YEAR,
+  CONFIRM_DELAY,
+  DEFAULT_CONFIDENCE,
+  END_YEAR,
+  SliderSelectCard,
+  useGCS,
+} from '@/shared'
 import { useForecastStore } from '@/stores'
 
 const forecastState = useForecastStore()
@@ -26,9 +33,8 @@ const levelFontSizeCss = computed(() => `${cellPixel.value * 0.125}px`)
 
 // ===== 四个指标 =====
 // berth/traffic 为合成示意数据（后端数据文件标记 source: synthetic），UI 显示「（模拟）」角标；
-// cargo 走吞吐量模型固定基线（后端不支持情景），不提供置信度滑块（单一事实源在后端）
+// cargo 走吞吐量模型固定基线（后端不支持情景），滑块 UI 与其他指标统一，实际阈值以模型为准
 const SYNTHETIC_INDICATORS = new Set(['berth', 'traffic'])
-const MODEL_FIXED_INDICATORS = new Set(['cargo'])
 const INDICATORS = [
   { key: 'cargo', label: '货物', icon: '📦' },
   { key: 'container', label: '集装箱', icon: '📋' },
@@ -216,40 +222,24 @@ onUnmounted(() => stopPlayback())
         ]"
         @mousedown.stop
       >
-        <template v-if="!btnStates[ind.key].selecting">
-          <button
-            :class="['ind-btn', { ok: btnStates[ind.key].selected }]"
-            @click.stop="toggleBtn(ind.key)"
-          >
+        <!-- 三态选择卡片（公共组件 SliderSelectCard，与选址统一） -->
+        <SliderSelectCard
+          :selecting="btnStates[ind.key].selecting"
+          :selected="btnStates[ind.key].selected"
+          :label="ind.label"
+          :badge="btnStates[ind.key].selecting ? '' : ind.synthetic ? '（模拟）' : ''"
+          :status-text="`${(getConf(ind.key) * 100).toFixed(0)}%`"
+          :slider-value="btnStates[ind.key].selecting ? getConf(ind.key) : null"
+          :slider-min="0.8"
+          :slider-max="1.2"
+          :slider-step="0.05"
+          @toggle="toggleBtn(ind.key)"
+          @update:slider-value="(v) => onConfidenceSliderInput(ind.key, String(v))"
+        >
+          <template #icon>
             <span class="ind-icon">{{ ind.icon }}</span>
-            <span class="ind-label">{{ ind.label }}</span>
-            <span v-if="ind.synthetic" class="ind-synth">（模拟）</span>
-            <span v-if="btnStates[ind.key].selected" class="ind-conf"
-              >{{ (getConf(ind.key) * 100).toFixed(0) }}%</span
-            >
-          </button>
-        </template>
-        <div v-else class="slider-cell" @click.stop>
-          <span class="ind-icon">{{ ind.icon }}</span>
-          <span class="ind-label-s">{{ ind.label }}</span>
-          <span v-if="ind.synthetic" class="ind-synth">（模拟）</span>
-          <!-- cargo 走模型固定基线：不提供置信度滑块（可拖但无效果），显示基线标注 -->
-          <span v-if="MODEL_FIXED_INDICATORS.has(ind.key)" class="conf-fixed">模型基线</span>
-          <input
-            v-else
-            type="range"
-            min="0.8"
-            max="1.2"
-            step="0.05"
-            :value="getConf(ind.key)"
-            class="conf-slider"
-            @pointerdown="beginSliderFocus($event.currentTarget as HTMLInputElement)"
-            @pointerup="endSliderFocus"
-            @pointercancel="endSliderFocus"
-            @input="onConfidenceSliderInput(ind.key, ($event.target as HTMLInputElement).value)"
-          />
-          <span class="conf-pct">{{ (getConf(ind.key) * 100).toFixed(0) }}%</span>
-        </div>
+          </template>
+        </SliderSelectCard>
       </div>
     </div>
 
@@ -571,5 +561,75 @@ onUnmounted(() => stopPlayback())
   /* 816-S7-60：hover 底改通用 --GCS-bg-hover token（原用边框色充底）；
      面板内操作钮与地图悬浮 GCSButton 职责可区分，抽 FlatButton 留待按钮体系重构 */
   background: var(--GCS-bg-hover);
+}
+/* ===== 预测指标按钮统一外观（与选址 SliderSelectCard 同构） ===== */
+.btn-cell .ind-btn {
+  letter-spacing: -0.5px;
+  gap: 3px;
+  padding: 2px 8px;
+  background: var(--GCS-bg-panel);
+  border: 1px solid var(--GCS-border-default);
+  border-radius: var(--GCS-radius-lg);
+  color: var(--GCS-text-regular);
+  line-height: 1.2;
+}
+
+.btn-cell.ing {
+  background: var(--GCS-color-primary);
+  border-color: var(--GCS-color-primary);
+  border-radius: var(--GCS-radius-lg);
+}
+
+.btn-cell.ing .ind-icon,
+.btn-cell.ing .ind-label,
+.btn-cell.ing .ind-synth,
+.btn-cell.ing .conf-pct {
+  color: var(--GCS-text-inverse);
+}
+
+.btn-cell.ing .slider-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 2px 8px;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  position: relative;
+  z-index: 1;
+}
+
+.btn-cell.ing .conf-slider {
+  appearance: none;
+  width: 80%;
+  height: var(--GCS-slider-track-height);
+  padding: calc((var(--GCS-slider-thumb-size) - var(--GCS-slider-track-height)) / 2) 0;
+  background-color: var(--GCS-bg-panel);
+  background-clip: content-box;
+  border-radius: calc(var(--GCS-slider-track-height) / 2);
+  outline: none;
+  cursor: pointer;
+  margin: 0;
+}
+
+.btn-cell.ing .conf-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: var(--GCS-slider-thumb-size);
+  height: var(--GCS-slider-thumb-size);
+  border-radius: 50%;
+  background: var(--GCS-bg-panel);
+  border: 2px solid var(--GCS-color-primary);
+  cursor: pointer;
+}
+
+.btn-cell.ing .conf-slider::-moz-range-thumb {
+  width: var(--GCS-slider-thumb-size);
+  height: var(--GCS-slider-thumb-size);
+  border-radius: 50%;
+  background: var(--GCS-bg-panel);
+  border: 2px solid var(--GCS-color-primary);
+  cursor: pointer;
 }
 </style>

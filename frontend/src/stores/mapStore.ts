@@ -100,10 +100,19 @@ export const useMapStore = defineStore('map', () => {
   }
 
   /** 切换底图（互斥）：key 持久化到 localStorage，catalog base 条目 visible 同步镜像，供控制面板调用 */
+  let lastBaseRenderer: MapRenderer | null = null // 底图指令最近应用到的渲染器实例（引擎切换后需重放）
   function setBaseLayer(key: string): void {
     const entry = layerCatalog.value.find((e: LayerEntry) => e.key === key)
     if (!entry || entry.category !== 'base') return
-    if (baseLayerKey.value === key && entry.visible) return // 已是当前底图
+
+    // 通知当前渲染器切换底图引擎（OL/Cesium 渲染器均实现 setBaseLayer）
+    const renderer = currentRenderer.value as
+      | (MapRenderer & { setBaseLayer?: (type: string) => void })
+      | null
+
+    // no-op 仅限「同 key 且已应用到当前渲染器实例」——引擎切换后渲染器是新实例，
+    // 即使 key 未变也必须重放，否则新引擎保持默认底图而权威键不变（面板与屏幕脱节）
+    if (baseLayerKey.value === key && entry.visible && renderer === lastBaseRenderer) return
 
     // base 条目互斥可见（不可变更新，配合 shallowRef 浅响应式）
     layerCatalog.value = layerCatalog.value.map((e: LayerEntry) => {
@@ -113,11 +122,8 @@ export const useMapStore = defineStore('map', () => {
 
     baseLayerKey.value = key
     writeStoredBaseLayer(key)
+    lastBaseRenderer = renderer
 
-    // 通知当前渲染器切换底图引擎（OL/Cesium 渲染器均实现 setBaseLayer）
-    const renderer = currentRenderer.value as
-      | (MapRenderer & { setBaseLayer?: (type: string) => void })
-      | null
     renderer?.setBaseLayer?.(key === 'base-image' ? 'image' : 'vector')
   }
 

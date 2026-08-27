@@ -380,15 +380,16 @@ onUnmounted(() => {
   box-sizing: border-box;
 }
 
-/* 滑块外观与预测/选址统一：浅灰半透明轨道（白底上保持可见）+ 白底品牌描边拇指 + 投影 */
+/* 与选址/预测统一：整条渐变轨道（灰→品牌色）+ 白底描边拇指。
+   填充段 bar 隐藏——淹没进度语义由下方快捷刻度承载，视觉与自绘滑块完全一致 */
 .water-slider-container :deep(.el-slider__runway) {
-  background-color: rgb(0 0 0 / 10%);
-  height: var(--GCS-slider-track-height);
+  background: linear-gradient(to right, var(--GCS-border-default), var(--GCS-color-primary));
+  height: var(--GCS-slider-thumb-size);
+  border-radius: calc(var(--GCS-slider-thumb-size) / 2);
 }
 
 .water-slider-container :deep(.el-slider__bar) {
-  height: var(--GCS-slider-track-height);
-  background-color: var(--GCS-color-primary);
+  display: none;
 }
 
 .water-slider-container :deep(.el-slider__button) {

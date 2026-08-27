@@ -21,6 +21,7 @@ import {
   initAuthStorageListener,
   removeAuthStorageListener,
   showWarning,
+  useApiRequest,
   useAuth,
 } from '@/shared'
 import { logger } from '@/shared'
@@ -35,6 +36,7 @@ const route = useRoute()
 const router = useRouter()
 // authUser 供 watch 驱动登出/多标签页登出时的 store 重置
 const { restoreAuth, user: authUser } = useAuth()
+const { apiRequest } = useApiRequest()
 const { zoomToRegion, zoomToCity, stopBreathing } = useMapControls()
 const mapStore = useMapStore()
 
@@ -171,10 +173,23 @@ watch(
 onMounted(() => {
   void restoreAuth() // 启动时经 /api/auth/me 验证 Cookie Token
   initAuthStorageListener() // 多标签页登录态同步
-  // 预取 Cesium 脚本（5.8MB）延后到页面 load 且空闲 3s 后执行：
-  // mount 立即预热会与首屏瓦片/业务请求抢小水管带宽，冷访问首屏白屏显著拉长
-  window.addEventListener('load', () => {
-    setTimeout(preloadCesium, 3000)
+  // 预热队列（设计约定：首屏 load 完成后按次序错峰预热大资源，逐项让路不抢带宽）：
+  // ① +3s  Cesium 脚本（5.8MB）——切 3D 秒开；
+  // ② +6s  后端 DEM 引擎暖机——/flood/online 查 0 档触发 FastAPI load_dem 模块加载，首次真实演算免等。
+  // 任一项失败均静默——预热只是优化，正式路径自会按需加载。
+  const warmup = (delayMs: number, task: () => void) => {
+    window.addEventListener('load', () => {
+      setTimeout(task, delayMs)
+    })
+  }
+  warmup(3000, preloadCesium)
+  warmup(6000, () => {
+    void apiRequest('/flood-online/api/flood/online', {
+      params: { waterLevel: 0 },
+      envelope: false,
+    }).catch(() => {
+      // 暖机失败静默：后端冷启动由首次真实演算兜底
+    })
   })
 })
 

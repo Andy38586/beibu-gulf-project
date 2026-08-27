@@ -57,7 +57,7 @@ const layerButtons = computed(() => {
     label: layer.label,
     // z118：透传 layerType 供图标数据驱动（core 不解析业务 label 语义）
     layerType: layer.layerType,
-    // 引擎适用标记：registry meta 优先，目录镜像兜底（缺省视为双引擎通用）
+    // 引擎适用标记：registry meta 优先，目录镜像兜底；仅单引擎图层显示角标（双引擎保持干净）
     engines:
       layer.engines ??
       businessLayerManager.getMeta(layer.key)?.engines ??
@@ -128,13 +128,13 @@ function handleToggle(key: string) {
       >
         <span class="layer-icon">{{ getLayerIcon(item.label, item.layerType) }}</span>
         <span class="layer-label">{{ item.label }}</span>
-        <!-- 引擎适用徽标：仅 DEV 且调试模式开启时展示（后台能力标号，不进生产 UI） -->
+        <!-- 引擎角标：仅 DEV+调试模式、且为单引擎特化图层时显示（双引擎保持干净） -->
         <span
-          v-if="isDev && mapStore.debugMode"
-          class="layer-engines"
-          :title="item.engines?.join(' / ')"
+          v-if="isDev && mapStore.debugMode && item.engines && item.engines.length === 1"
+          class="engine-corner"
+          :title="item.engines.join(' / ')"
         >
-          {{ (item.engines ?? []).join('·') }}
+          {{ item.engines[0] === 'openlayers' ? 'OL' : 'CS' }}
         </span>
       </button>
     </div>
@@ -163,6 +163,7 @@ function handleToggle(key: string) {
 }
 
 .layer-btn {
+  position: relative; /* 引擎角标锚点 */
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -183,15 +184,17 @@ function handleToggle(key: string) {
   box-sizing: border-box;
 }
 
-/* 引擎适用徽标：8px 小字置于按钮底部（非默认引擎组合才具信息量） */
-.layer-engines {
+/* 引擎角标：单引擎特化图层的右上角标（DEV+调试模式可见） */
+.engine-corner {
+  position: absolute;
+  top: 2px;
+  right: 4px;
   font-size: 8px;
-  line-height: 1;
+  line-height: 1.1;
   color: var(--GCS-text-muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 90%;
+  background: var(--GCS-bg-container);
+  border-radius: var(--GCS-radius-sm);
+  padding: 0 3px;
 }
 
 .layer-btn:hover {

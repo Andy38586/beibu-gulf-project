@@ -394,9 +394,14 @@ defineExpose({
   height: var(--GCS-slider-track-height); /* 816-S7-44：轨道高统一 token（原 4px） */
   appearance: none;
 
+  /* 拇指(14px)溢出轨道(6px)上下各 4px——透明 padding 撑出拇指空间 + 背景只画 content box，
+     防父级 overflow 裁掉拇指下半（"滑块底部显示不全"根因） */
+  padding: calc((var(--GCS-slider-thumb-size) - var(--GCS-slider-track-height)) / 2) 0;
+  background-clip: content-box;
+
   /* 轨道底色为 overlay-tint 的同语义变体（略深一档，与 conf-slider 视觉区分）；
      双主题 token 化后暗色侧同步降亮度 */
-  background: var(--GCS-slider-track-tint);
+  background-color: var(--GCS-slider-track-tint);
   border-radius: calc(var(--GCS-slider-track-height) / 2);
   outline: none;
   cursor: pointer;

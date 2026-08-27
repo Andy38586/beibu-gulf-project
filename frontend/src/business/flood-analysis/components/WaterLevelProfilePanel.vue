@@ -397,8 +397,8 @@ onUnmounted(() => {
   height: var(--GCS-slider-thumb-size);
   /* 补偿 EP 按 20px 默认拇指计算的垂直定位：自定义 14px 尺寸后原生补偿过度（实测偏上，6px 精准回正） */
   margin-top: 6px;
-  background: #ffffff;
-  border: 2px solid var(--GCS-color-primary);
+  background: var(--GCS-color-primary);
+  border: 2px solid #ffffff;
   box-shadow: 0 1px 3px rgb(0 0 0 / 35%);
 }
 

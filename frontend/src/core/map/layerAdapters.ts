@@ -8,6 +8,7 @@ import type { FeatureCollection } from 'geojson'
 
 import { logger } from '@/shared'
 import type {
+  EngineName,
   GeoTIFFCapability,
   HeatmapCapability,
   LayerOptions,
@@ -90,10 +91,13 @@ interface LayerAdapter {
   remove: (renderer: MapRenderer, key: string) => void
   /** 可选显隐分派：特殊图层（如水面不存于普通图层表）在此直接委派，避免落入待定显隐队列 */
   setVisibility?: (renderer: MapRenderer, key: string, visible: boolean) => void
+  /** 该 layerType 的真实引擎支持面（registry engines 缺省值来源——按能力声明，不虚标） */
+  engines: EngineName[]
 }
 
 export const LAYER_ADAPTERS: Record<LayerType, LayerAdapter> = {
   heatmap: {
+    engines: ['openlayers'], // addHeatmapLayer 为 OL 独有能力
     // addHeatmapLayer 为可选能力（2D Only），经类型守卫后调用，替代 ! 断言
     create: (renderer, key, data, options) => {
       assertPointArray(data)
@@ -117,6 +121,7 @@ export const LAYER_ADAPTERS: Record<LayerType, LayerAdapter> = {
   },
 
   geojson: {
+    engines: ['openlayers', 'cesium'],
     create: (renderer, key, data, options) => {
       assertFeatureCollection(data)
       renderer.addGeoJsonLayer(key, data, options)
@@ -143,6 +148,7 @@ export const LAYER_ADAPTERS: Record<LayerType, LayerAdapter> = {
   },
 
   points: {
+    engines: ['openlayers', 'cesium'],
     create: (renderer, key, data, options) => {
       assertPointArray(data)
       renderer.addPointLayer(key, data, options)
@@ -158,6 +164,7 @@ export const LAYER_ADAPTERS: Record<LayerType, LayerAdapter> = {
   },
 
   polygon: {
+    engines: ['openlayers', 'cesium'],
     create: (renderer, key, data, options) => {
       assertPolygonArray(data)
       renderer.addPolygonLayer(key, data, options)
@@ -173,6 +180,7 @@ export const LAYER_ADAPTERS: Record<LayerType, LayerAdapter> = {
   },
 
   waterSurface: {
+    engines: ['cesium'], // 水面为 3D 专有能力（Water3DCapability），OLRenderer 无此方法
     // 水面为 3D 专有能力（Water3DCapability），OLRenderer 无此方法；
     // 能力检查替代基类 no-op stub：不支持的渲染器上跳过并 warn
     create: (renderer, key, data, options) => {
@@ -209,6 +217,7 @@ export const LAYER_ADAPTERS: Record<LayerType, LayerAdapter> = {
   },
 
   geotiff: {
+    engines: ['cesium'], // GeoTIFF 为 Cesium 独占能力（OL 2D COG 已按独占定义移除）
     // addGeoTIFFLayer 为 Cesium 独占能力（3D hillshade 贴图回退；OL 2D 已按独占定义移除），
     // 经类型守卫后调用；data 为 hillshade PNG 路径。3D 下 DEM（数字高程模型）也是独立影像图层，
     // 与普通图层走同一显隐语义，不做 terrainProvider 特殊处理

@@ -24,6 +24,9 @@ const props = withDefaults(defineProps<Props>(), {
 
 // layerCatalog 直连 mapStore，底图切换走 setBaseLayer
 const mapStore = useMapStore()
+
+/** 引擎徽标仅 DEV 构建/测试模式展示：后台能力标号不进生产 UI */
+const isDev = import.meta.env.DEV
 const layerCatalog = computed(() => mapStore.layerCatalog)
 const { manager: businessLayerManager } = useBusinessLayers()
 const { cellPixel, css } = useGCS()
@@ -125,8 +128,8 @@ function handleToggle(key: string) {
       >
         <span class="layer-icon">{{ getLayerIcon(item.label, item.layerType) }}</span>
         <span class="layer-label">{{ item.label }}</span>
-        <!-- 引擎适用徽标：多引擎扩展的显式契约展示 -->
-        <span class="layer-engines" :title="item.engines?.join(' / ')">
+        <!-- 引擎适用徽标：仅开发/测试模式展示（后台能力标号，不进生产 UI） -->
+        <span v-if="isDev" class="layer-engines" :title="item.engines?.join(' / ')">
           {{ (item.engines ?? []).join('·') }}
         </span>
       </button>

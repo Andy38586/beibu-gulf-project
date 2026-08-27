@@ -119,7 +119,7 @@ export class BusinessLayerManager {
       data,
       options = {},
       visible = true,
-      engines = ['openlayers', 'cesium'],
+      engines = LAYER_ADAPTERS[layerType]?.engines ?? [],
     }: LayerDescriptor
   ): void {
     if (this._registry.has(key)) {

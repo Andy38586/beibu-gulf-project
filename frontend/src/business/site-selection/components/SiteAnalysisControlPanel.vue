@@ -400,6 +400,19 @@ defineExpose({
   z-index: 1;
 }
 
+/* 选中蓝底上的滑块对比强化：白实心轨道 + 品牌描边拇指，与蓝底明确区分 */
+.factor-item.selected.selecting .factor-slider {
+  background-color: var(--GCS-bg-panel);
+}
+
+.factor-item.selected.selecting .factor-slider::-webkit-slider-thumb {
+  border: 2px solid var(--GCS-color-primary);
+}
+
+.factor-item.selected.selecting .factor-slider::-moz-range-thumb {
+  border: 2px solid var(--GCS-color-primary);
+}
+
 /* 选中态色点缩小一档，参与行高预算 */
 .factor-slider-wrap .factor-dot {
   font-size: 12px;

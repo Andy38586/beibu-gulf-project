@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- 北部湾平台 favicon：海面基线 + 灯塔光束 + 蓝色品牌主色 -->
+  <circle cx="16" cy="16" r="14" fill="#409eff"/>
+  <path d="M8 21.5h16M10 24.5h12" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>
+  <path d="M13.6 9h4.8l1.1 11h-7z" fill="#fff"/>
+  <rect x="13.6" y="6.2" width="4.8" height="1.6" rx="0.5" fill="#fff"/>
+  <path d="M12.2 7l-3.4-2v5.4zM19.8 7l3.4-2v5.4z" fill="#ffe58f"/>
+</svg>

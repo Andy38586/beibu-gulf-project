@@ -197,7 +197,9 @@ app.use('/api/ports', portsRouter)
 
 // 404错误处理中间件
 app.use((req, res) => {
-  res.status(404).json({ error: '接口不存在' })
+  // 对齐全局错误信封：code/data 恒存在，message 走 error 键——
+  // 前端 !ok 分支按 .error 提取的既有解析契约保持不变
+  res.status(404).json({ code: 404001, error: '接口不存在', data: null })
 })
 
 // 全局错误处理：未捕获异常不泄露堆栈信息
@@ -206,12 +208,14 @@ app.use((err, req, res, _next) => {
   // 预期错误落 warn 日志便于生产排查，不记堆栈避免噪音
   if (err instanceof BusinessError) {
     logger.warn(`[BusinessError] ${err.status} ${err.code}: ${err.message}`)
-    return res.status(err.status).json({ code: err.code, error: err.message })
+    return res.status(err.status).json({ code: err.code, error: err.message, data: null })
   }
   // 仅在开发环境输出详细错误
   logger.error('未捕获的服务器错误:', err.message)
   res.status(500).json({
+    code: 500001,
     error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message,
+    data: null,
   })
 })
 

@@ -129,7 +129,9 @@ export const floodAdapter = {
       logger.info(
         `[floodAdapter] online 演算完成: 请求=${waterLevel}m 实际档=${data.level}m 面积=${data.floodedKm2}km² 要素=${data.featureCount}`
       )
-      const riskLevel = _riskLevelFromFlood(data.floodedKm2 ?? 0, data.level ?? waterLevel)
+      // schema 已要求 floodedKm2/level 必为有限数字（z.number() 连 NaN 也拒绝），
+      // 缺失/坏值在 HTTP 边界即抛 REQUEST_FAILED，此处无需兜底
+      const riskLevel = _riskLevelFromFlood(data.floodedKm2, data.level)
       // D1：schema 已深校验；此处仅补 riskLevel 注入 properties（类型收窄，非穿透）
       const features = (data.features ?? []).map((f) => ({
         ...f,
@@ -138,8 +140,7 @@ export const floodAdapter = {
       const result: FloodAnalysisResult = {
         features,
         statistics: {
-          // floodArea(km²)：面板依赖此字段，缺失会静默显示 0 km²
-          floodArea: data.floodedKm2 ?? 0,
+          floodArea: data.floodedKm2,
           riskLevel,
           // affectedCount 占位死字段已移除（无业务消费，类型 optional）
         },

@@ -24,6 +24,7 @@ from __future__ import annotations
 import json
 import logging
 import logging.handlers
+import math
 import os
 import threading
 import time
@@ -138,12 +139,22 @@ def _engine_module():
     return flood_engine
 
 
+def _level_key(water_level: float) -> float:
+    """0.1m 档位键归一：向上取档。
+
+    对齐「宁可高估风险不可低估」安全语义——四舍五入会把 2.53 归到 2.5 低估档；
+    ceil 取更高一档，与 api 模式 find(档 >= level) 同向。
+    water_level*10 减 1e-9 抵消浮点噪声（2.5*10 == 25.000000000000004 不至跳档）。
+    """
+    return math.ceil(water_level * 10 - 1e-9) / 10
+
+
 @app.get("/api/flood/online")
 def flood_online(
     waterLevel: float = Query(..., ge=-1, le=25, description="水位（米，DEM 高程基准，滑块 0~20m；参数名统一 waterLevel，b027）"),
 ):
     level = waterLevel
-    key = round(level, 1)
+    key = _level_key(level)
 
     # ① 预计算档位表查表（0.1m 档，与滑块 step 对齐）——命中秒回，零演算
     pre = _load_levels().get(str(key))
@@ -186,7 +197,7 @@ def flood_impact(
     2026-08-06 新增（原 online 模式影响评估返回空，前端受影响设施/损失一直为空）。
     """
     level = waterLevel
-    key = round(level, 1)
+    key = _level_key(level)
     pre = _load_levels().get(str(key))
     features = pre.get("features", []) if pre else []
     if not features:

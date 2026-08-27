@@ -117,14 +117,16 @@ function waitForContainerVisible(container: HTMLElement | null): Promise<void> {
 /** 数据加载：ports（后端 API）与 boundary（静态文件）并行加载、独立失败——
  *  曾串行 await 使 ports 失败阻断 boundary 加载（后端未起时行政区也出不来），
  *  且双 /api 前缀导致 /api/ports 请求 404（useApiRequest 已修，见该文件注释）。
- *  boundary 内部自带 3 次退避重试；ports 走 apiRequest（内部重试）——此处不再叠加外层重试 */
+ *  boundary 内部自带 3 次退避重试；ports 走 apiRequest（内部重试）——此处不再叠加外层重试；
+ *  boundary 链路透传 loadAbort.signal——卸载即取消 fetch/跳过续试，
+ *  结果消费前仍由 aborted 守卫拦截 */
 async function loadData() {
   const [portsResult, boundaryResult] = await Promise.allSettled([
     withTimeout(loadPorts(), LOAD_TIMEOUT_MS, '港口数据加载超时'),
     withTimeout(
       loadBoundaryGeoJson((msg: string) => {
         boundaryWarning.value = msg
-      }),
+      }, loadAbort.signal),
       LOAD_TIMEOUT_MS,
       '边界数据加载超时'
     ),
@@ -249,9 +251,10 @@ function setupLayers() {
   mapStore.registerBaseLayer('base-image', '影像底图')
   mapStore.registerBaseLayer('base-vector', '矢量底图')
 
-  // 初始化/引擎切换后把当前底图同步到新渲染器（setBaseLayer 只处理切换；已入 MapRenderer 接口）
-  const activeBaseKey = mapStore.baseLayerKey ?? 'base-image'
-  renderer.setBaseLayer(activeBaseKey === 'base-image' ? 'image' : 'vector')
+  // 底图初始化：统一经 mapStore.setBaseLayer 写回权威键并驱动渲染器——
+  // 直接 setBaseLayer 给渲染器而不写回 store，会让图层控制面板的互斥判定
+  // 全部落空（baseLayerKey 为 null 时两个底图按钮都不亮）
+  mapStore.setBaseLayer(mapStore.baseLayerKey ?? 'base-image')
 
   // 核心常驻层（boundary/ports）走业务图层管理器统一注册；
   // 引擎切换时 registry 持久、此处注册幂等跳过，由 reapplyAll 重绘到新渲染器

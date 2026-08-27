@@ -35,6 +35,12 @@ if (process.env.NODE_ENV !== 'production' && process.env.NODE_ENV !== 'test') {
   }
 }
 
+/** 认证失败统一信封形状：code+data 恒存在，message 走 error 键——
+ * 与全局错误中间件及前端 .error 提取契约一致 */
+function sendAuthError(res, message) {
+  return res.status(401).json({ code: 401001, error: message, data: null })
+}
+
 export async function authenticate(req, res, next) {
   // 优先从 cookie 读取 token，兼容从 header 读取
   let token = req.cookies?.auth_token
@@ -46,7 +52,7 @@ export async function authenticate(req, res, next) {
   }
 
   if (!token) {
-    return res.status(401).json({ error: '未提供认证令牌' })
+    return sendAuthError(res, '未提供认证令牌')
   }
 
   try {
@@ -54,15 +60,15 @@ export async function authenticate(req, res, next) {
     // 校验 tokenVersion，令牌吊销后旧 token 失效
     const user = await userService.findById(decoded.id)
     if (!user) {
-      return res.status(401).json({ error: '认证令牌无效或已过期' })
+      return sendAuthError(res, '认证令牌无效或已过期')
     }
     if ((user.tokenVersion ?? 0) !== (decoded.tokenVersion ?? 0)) {
-      return res.status(401).json({ error: '令牌已失效，请重新登录' })
+      return sendAuthError(res, '令牌已失效，请重新登录')
     }
     req.user = { id: user.id, username: user.username }
     next()
   } catch {
-    return res.status(401).json({ error: '认证令牌无效或已过期' })
+    return sendAuthError(res, '认证令牌无效或已过期')
   }
 }
 

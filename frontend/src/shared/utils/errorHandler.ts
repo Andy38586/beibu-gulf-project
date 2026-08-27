@@ -65,7 +65,8 @@ export function sanitizeMessage(raw: string, fallback: string): string {
 
 /**
  * 统一 401 认证失效处理：请求层不主动 redirect，由调用方识别 401 后调用——
- * 清理认证状态 + 跳转首页 + 弹登录面板。
+ * 清理认证状态 + 落点个人中心未登录态（内嵌登录面板，ProfilePage 渲染），
+ * 原页面路径随 redirect 参数带回，登录成功后返回继续操作。
  * router 必选（调用方 useRouter 传入），移除动态 import 兜底避免
  * errorHandler→router→business→errorHandler 循环依赖；useAuth 侧保留动态 import 以打破静态循环。
  */
@@ -74,8 +75,12 @@ export async function handleAuthError(router: Router): Promise<void> {
   const auth = useAuth()
   await auth.logout()
 
-  if (router.currentRoute.value.path !== '/') {
-    void router.push({ path: '/', query: { showLogin: '1' } })
+  showWarning('该操作需要先登录')
+
+  const current = router.currentRoute.value
+  // 个人中心未登录态自带登录面板；已在个人中心时不重复跳转（面板就地可见）
+  if (current.path !== '/profile') {
+    void router.push({ path: '/profile', query: { redirect: current.fullPath } })
   }
 }
 

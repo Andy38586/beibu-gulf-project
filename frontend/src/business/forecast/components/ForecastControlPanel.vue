@@ -441,6 +441,7 @@ onUnmounted(() => stopPlayback())
   color: var(
     --GCS-text-inverse
   ); /* 816-S7-62：bg-panel 语义为背景，前景一律 text-inverse（原数值恰等，非功能性改动） */
+
   font-weight: 600;
 }
 
@@ -503,6 +504,7 @@ onUnmounted(() => stopPlayback())
 
 .t-slider::-webkit-slider-thumb {
   appearance: none;
+
   /* 816-S7-44：拇指统一 --GCS-slider-thumb-size（14px；原 18px 时间轴大抓取面收敛） */
   width: var(--GCS-slider-thumb-size);
   height: var(--GCS-slider-thumb-size);

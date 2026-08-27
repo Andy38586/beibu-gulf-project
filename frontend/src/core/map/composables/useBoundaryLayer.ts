@@ -12,7 +12,9 @@ import type { LayerOptions } from '@/types'
 import { boundaryCacheSchema } from '@/types/schemas'
 
 export async function loadBoundaryGeoJson(
-  onError?: (msg: string) => void
+  onError?: (msg: string) => void,
+  /** 外部取消信号：组件卸载即停止 fetch 并放弃续试 */
+  signal?: AbortSignal
 ): Promise<FeatureCollection | null> {
   const CACHE_KEY = 'beibu-gulf-boundary-cache'
   const CACHE_EXPIRY = 24 * 60 * 60 * 1000 // 24小时缓存有效期
@@ -38,10 +40,17 @@ export async function loadBoundaryGeoJson(
   }
 
   // 静态资源 fetch 收口 loadStatic（统一超时 + TTL 内存缓存），
-  // 外层保留 3 次重试 + 线性退避（loadStatic 自身不重试）
+  // 外层保留 3 次重试 + 线性退避（loadStatic 自身不重试）；
+  // 外部 signal：组件卸载（loadAbort.abort()）后立即静默退出，不再发起/续发请求
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    if (signal?.aborted) {
+      logger.debug('[useBoundaryLayer] 已取消，跳过边界数据加载')
+      return null
+    }
     try {
-      const geojson = await loadStatic<FeatureCollection>(MAP_CONFIG.DATA_PATHS.boundary)
+      const geojson = await loadStatic<FeatureCollection>(MAP_CONFIG.DATA_PATHS.boundary, {
+        signal,
+      })
 
       // 防御性检查：确保 features 数组存在
       if (!Array.isArray(geojson.features)) {
@@ -91,8 +100,9 @@ export async function loadBoundaryGeoJson(
         return null
       }
 
-      // 等待后重试（线性退避：1s, 2s, 3s）
+      // 等待后重试（线性退避：1s, 2s, 3s）；唤醒后先检查取消再进入下一轮
       await new Promise((resolve) => setTimeout(resolve, 1000 * attempt))
+      if (signal?.aborted) return null
     }
   }
 

@@ -261,6 +261,7 @@ function goBusiness(item: NavItem): void {
 .drawer-menu__row--sticky {
   position: sticky;
   top: 0;
+
   /* 816-S7-40：局部层叠上下文（抽屉 body 内），不参与全局 --GCS-z-* 刻度 */
   z-index: 5;
   background: var(--GCS-bg-panel);

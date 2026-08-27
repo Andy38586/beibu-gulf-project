@@ -4,7 +4,8 @@
  * 继承 AppLayout 布局基座：左侧吞吐量图表（自 AppLayout 下沉），
  * 右侧单个 4×8 Panel 放置登录/用户信息/收藏夹（UserInfoCard、PlansPanel 为独立子组件）。
  */
-import { defineAsyncComponent, onMounted } from 'vue'
+import { defineAsyncComponent, onMounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 
 import { AppLayout, GCSPanel } from '@/core'
 import { useAuth, useGCS } from '@/shared'
@@ -31,6 +32,17 @@ const { chartData, barData, loadOverviewCharts } = useOverviewCharts()
 
 // 与首页共用 useOverviewCharts（图表数据统一来源，无本页假数据）
 onMounted(loadOverviewCharts)
+
+// 登录成功后按 redirect 参数返回原页面——
+// handleAuthError 把被 401 打断的路径带回这里，登录后还原现场继续操作
+const route = useRoute()
+const router = useRouter()
+watch(user, (u) => {
+  if (!u) return
+  const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : ''
+  if (!redirect) return
+  void router.replace(redirect)
+})
 
 /** 退出登录：复用 useAuth.logout（清 HttpOnly Cookie + localStorage + 业务 store） */
 async function handleLogout() {

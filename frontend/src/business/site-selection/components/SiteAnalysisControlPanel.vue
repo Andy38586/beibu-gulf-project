@@ -394,8 +394,9 @@ defineExpose({
   height: var(--GCS-slider-track-height); /* 816-S7-44：轨道高统一 token（原 4px） */
   appearance: none;
 
-  /* c052：轨道底色为 --GCS-overlay-tint 同语义变体（50% 略深，视觉与 conf-slider 区分） */
-  background: rgb(255 255 255 / 50%);
+  /* 轨道底色为 overlay-tint 的同语义变体（略深一档，与 conf-slider 视觉区分）；
+     双主题 token 化后暗色侧同步降亮度 */
+  background: var(--GCS-slider-track-tint);
   border-radius: calc(var(--GCS-slider-track-height) / 2);
   outline: none;
   cursor: pointer;
@@ -404,6 +405,7 @@ defineExpose({
 
 .factor-slider::-webkit-slider-thumb {
   appearance: none;
+
   /* 816-S7-44：拇指统一 --GCS-slider-thumb-size（原 14px 同值，显式引用） */
   width: var(--GCS-slider-thumb-size);
   height: var(--GCS-slider-thumb-size);
@@ -427,6 +429,7 @@ defineExpose({
   color: var(
     --GCS-text-inverse
   ); /* 816-S7-62：bg-panel 语义为背景，前景一律 text-inverse（原数值恰等，非功能性改动） */
+
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -449,6 +452,7 @@ defineExpose({
   color: var(
     --GCS-text-inverse
   ); /* 816-S7-62：bg-panel 语义为背景，前景一律 text-inverse（原数值恰等，非功能性改动） */
+
   border-color: var(--GCS-color-primary);
 }
 

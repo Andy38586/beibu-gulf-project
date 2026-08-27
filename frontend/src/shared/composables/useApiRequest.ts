@@ -194,8 +194,14 @@ export function useApiRequest(): UseApiRequestReturn {
       }
 
       if (res.status === 401) {
+        // 认证失败透传服务端文案（后端对「账号不存在/密码错误」已做防枚举归一，
+        // 前端不再覆盖为笼统提示）；错误码保持 UNAUTHORIZED 供调用方识别
+        const authErrMsg =
+          typeof data === 'object' && data !== null && 'error' in data
+            ? String((data as Record<string, unknown>).error)
+            : ''
         // 401 只抛错不跳转：是否提示登录由调用方决定（选址分析不需要，收藏才需要）
-        throw new ApiError('请先登录', ErrorCode.UNAUTHORIZED)
+        throw new ApiError(authErrMsg || '请先登录', ErrorCode.UNAUTHORIZED)
       }
 
       if (!res.ok) {

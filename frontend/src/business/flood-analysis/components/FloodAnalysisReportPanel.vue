@@ -52,35 +52,30 @@ const affectedPorts = computed<string[]>(() => {
 
     <!-- 灰色内容区：3.8宽×2.8高，距标题下方0.6cell、左右各0.1cell -->
     <div class="report-content" :style="contentStyle">
+      <!-- 数值展示统一 ?? 语义：合法 0 不经 OR 链误判跳到下一兜底；
+           受影响设施以 store 计算列表为单一事实源 -->
       <div v-if="floodStore.floodStatistics" class="info-item">
         <span class="info-label">淹没面积</span>
-        <span class="info-value">{{ floodStore.floodStatistics.floodArea || 0 }} km²</span>
+        <span class="info-value">{{ floodStore.floodStatistics.floodArea ?? 0 }} km²</span>
       </div>
       <div v-if="floodStore.floodStatistics" class="info-item">
         <span class="info-label">平均水深</span>
-        <span class="info-value">{{ floodStore.floodStatistics.averageDepth || 0 }} m</span>
+        <span class="info-value">{{ floodStore.floodStatistics.averageDepth ?? 0 }} m</span>
       </div>
       <div v-if="floodStore.floodStatistics" class="info-item">
         <span class="info-label">最大水深</span>
-        <span class="info-value">{{ floodStore.floodStatistics.maxDepth || 0 }} m</span>
+        <span class="info-value">{{ floodStore.floodStatistics.maxDepth ?? 0 }} m</span>
       </div>
       <div class="info-item">
         <span class="info-label">受影响设施</span>
-        <span class="info-value"
-          >{{
-            floodStore.affectedFacilities.length ||
-            floodStore.floodStatistics?.affectedFacilityCount ||
-            0
-          }}
-          个</span
-        >
+        <span class="info-value">{{ floodStore.affectedFacilities.length }} 个</span>
       </div>
       <div class="info-item">
         <span class="info-label">预估损失</span>
         <span class="info-value highlight"
           >{{
             formatLoss(
-              Number(floodStore.totalLoss || floodStore.floodStatistics?.estimatedLoss || 0)
+              Number(floodStore.totalLoss ?? floodStore.floodStatistics?.estimatedLoss ?? 0)
             )
           }}元</span
         >

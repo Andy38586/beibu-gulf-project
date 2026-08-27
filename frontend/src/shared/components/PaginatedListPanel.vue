@@ -260,10 +260,11 @@ defineExpose({
     <!-- 灰色背景板（包裹列表和分页） -->
     <div class="gray-container">
       <!-- 列表内容区 -->
+      <!-- key 固定 item.id：回退 index 会致 Vue diff 复用错位，items 契约恒有 id -->
       <div v-if="hasData" class="list-content">
         <div
           v-for="(item, index) in currentPageItems"
-          :key="item.id || index"
+          :key="item.id"
           class="list-item"
           @click="handleItemClick(item)"
         >

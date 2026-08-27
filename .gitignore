@@ -119,7 +119,7 @@ docs/*
 # �ߵ� key(����ʵ��Կ,��ֹ���)
 
 # Agent 开发辅助脚本（本地留存，不入库；审计/修复/文档处理等一次性工具，
-# 保留项目工具：extract-*.py、dem-pipeline/、run-flood/throughput_model、db-import、download-v3-data、perf-bench/）
+# 保留项目工具：extract-*.py、dem-pipeline/、run-flood/throughput_model、db-import、download-v3-data、perf-bench/、token-stats.mjs——03 §三.5 SOP 正式门禁工具）
 tools/align-ledger.cjs
 tools/audit-*.mjs
 tools/check-endpoints.mjs
@@ -140,5 +140,4 @@ tools/rebase-ids.cjs
 tools/rewrite-msg.mjs
 tools/sim-audit-p3.mjs
 tools/sync-refs.cjs
-tools/token-stats.mjs
 tools/verify-copy-stats.mjs

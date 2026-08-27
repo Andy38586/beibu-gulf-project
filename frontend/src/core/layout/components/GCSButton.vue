@@ -79,6 +79,7 @@ function handleClick() {
   color: var(
     --GCS-text-inverse
   ); /* 816-S7-62：bg-panel 语义为背景，前景一律 text-inverse（原数值恰等，非功能性改动） */
+
   transition:
     background-color 0.2s ease,
     transform 0.1s ease;
@@ -91,8 +92,8 @@ function handleClick() {
 }
 
 .GCS-button:hover:not(:disabled) {
-  /* c052：hover 高光为 --GCS-overlay-tint 同语义变体（22% 更淡，仅高光用） */
-  background-color: rgb(255 255 255 / 22%);
+  /* hover 高光较 overlay-tint 更淡（仅高光用），双主题 token 化随暗色降亮度 */
+  background-color: var(--GCS-overlay-highlight);
 }
 
 .GCS-button:active:not(:disabled) {

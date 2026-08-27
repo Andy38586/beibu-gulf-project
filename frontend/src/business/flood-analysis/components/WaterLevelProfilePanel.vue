@@ -248,6 +248,10 @@ function handleResize() {
 
 /** 卸载时销毁图表并移除监听 */
 onUnmounted(() => {
+  // 卸载即取消在途剖面请求（signal 已透传 useTerrainProfiles），
+  // 迟到的响应不再写回已销毁组件
+  profileAbortController.abort()
+
   if (chartInstance) {
     chartInstance.dispose()
     chartInstance = null

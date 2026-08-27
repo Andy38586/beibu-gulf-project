@@ -27,7 +27,15 @@ export function createReadCache({ maxSize = 100, ttlMs = 5 * 60 * 1000 } = {}) {
   }
 
   function has(key) {
-    return cache.has(key)
+    // has 与 get 的 TTL 语义对齐：过期条目删除并返回 false，
+    // 避免 has() 为 true 而 get() 返回 undefined 的矛盾窗口
+    const entry = cache.get(key)
+    if (!entry) return false
+    if (Date.now() - entry.cachedAt > ttlMs) {
+      cache.delete(key)
+      return false
+    }
+    return true
   }
 
   function clear() {

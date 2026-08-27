@@ -154,7 +154,13 @@ export function scoreXiaoqu(
     // 无效小区按 0 分计并告警，不静默传播 NaN
     if (!Number.isFinite(xq?.lng) || !Number.isFinite(xq?.lat)) {
       logger.warn(`[scoringService] 小区坐标无效，按 0 分计: ${xq?.id ?? '(无标识)'}`)
-      return { ...xq, score: 0, breakdown: {} }
+      // breakdown 与正常路径同构：前端雷达图按类型键取值（breakdown?.[key] ?? 0），
+      // 空对象虽不崩但形状分裂；单测契约锁定各因子恒为有限值
+      const zeroBreakdown = {}
+      Object.entries(typeSettings).forEach(([key, setting]) => {
+        if (setting.selected) zeroBreakdown[key] = 0
+      })
+      return { ...xq, score: 0, breakdown: zeroBreakdown }
     }
 
     Object.entries(typeSettings).forEach(([key, setting]) => {

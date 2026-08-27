@@ -13,7 +13,6 @@ import { AppLayout, GCSPanel, LayerControlPanel, useBusinessLayers, useMapContro
 import { showError, showWarning } from '@/shared'
 import { logger } from '@/shared'
 import { PaginatedListPanel } from '@/shared'
-import type { SiteSelectionState } from '@/stores'
 import { useSiteSelectionStore } from '@/stores'
 import type { AnalysisResult, FacilityPoint, ScoredXiaoqu } from '@/types/analysis'
 import { RadarChart, SNAPSHOT_SELECTED_TYPES, SNAPSHOT_XIAOQU } from '@/visualization'
@@ -73,6 +72,10 @@ const topXiaoqu = computed<ScoredXiaoqu | null>(() => matchedXiaoqu.value[0] || 
 const displayXiaoquForRadar = computed<ScoredXiaoqu | null>(
   () => selectedXiaoqu.value || topXiaoqu.value || SNAPSHOT_XIAOQU
 )
+
+/** 示例快照态披露：雷达图落到 SNAPSHOT_XIAOQU 兜底时打标，
+ * 区分「腾龙阁 85.2 分」是示例而非本次分析结果（README 诚实披露原则） */
+const isRadarSnapshot = computed<boolean>(() => !selectedXiaoqu.value && !topXiaoqu.value)
 
 /** 雷达图指标：未分析时用快照的 6 类设施 */
 const radarSelectedTypes = computed<string[]>(() =>
@@ -148,26 +151,30 @@ function handleHideFacilityLayer(): void {
 
 /** 点击小区列表项（地图可视化已由列表面板内置处理） */
 function handleSelectXiaoqu(xq: ScoredXiaoqu): void {
-  // 更新本地状态，用于雷达图传参
+  // 更新本地状态，用于雷达图传参。
+  // 坐标不做 ?? 0 哨兵（crs.ts 禁令——哨兵点会渲染到几内亚湾）；
+  // 雷达图仅消费 breakdown/score/name，坐标原样透传
   logger.debug('[SiteSelection] 点击小区:', xq)
   logger.debug('[SiteSelection] breakdown:', xq.breakdown)
 
-  const normalizedXq: ScoredXiaoqu = {
-    id: xq.id,
-    name: xq.name,
-    lng: xq.lng ?? 0,
-    lat: xq.lat ?? 0,
+  selectedXiaoqu.value = {
+    ...xq,
     score: xq.score ?? 0,
     breakdown: xq.breakdown || {},
   }
-
-  selectedXiaoqu.value = normalizedXq
 }
 
-/** 跳转逻辑由 PaginatedListPanel 提供（flyTo 回调 prop），与浸没分析统一 */
+/**
+ * 跳转逻辑由 PaginatedListPanel 提供（flyTo 回调 prop），与浸没分析统一。
+ * 坐标非有限值（脏数据/旧快照）时跳过地图动作，不落 (0,0)
+ */
 function flyToXiaoqu(xq: ScoredXiaoqu): void {
-  startBreathing(xq.lng ?? 0, xq.lat ?? 0)
-  flyTo({ lng: xq.lng ?? 0, lat: xq.lat ?? 0 }, { height: 1000 })
+  if (!Number.isFinite(xq.lng) || !Number.isFinite(xq.lat)) {
+    logger.debug(`[SiteSelection] 小区 ${xq.id} 坐标无效，跳过地图定位`)
+    return
+  }
+  startBreathing(xq.lng, xq.lat)
+  flyTo({ lng: xq.lng, lat: xq.lat }, { height: 1000 })
 }
 
 /** 收藏状态变化时同步方案ID */
@@ -213,24 +220,23 @@ function restoreState(): boolean {
   const savedState = stateStore.consumeState()
   if (!savedState) return false
 
-  // 恢复分析结果（816-专项2 4-3：store 单一来源，快照恢复只写 store）
-  const s = savedState as SiteSelectionState
+  // 恢复分析结果（store 单一来源，快照恢复只写 store；consumeState 已强类型返回）
   stateStore.setResult({
-    matchedXiaoqu: s.matchedXiaoqu || [],
-    selectedTypes: s.selectedTypes || [],
-    facilityPoi: s.facilityPoi || {},
+    matchedXiaoqu: savedState.matchedXiaoqu || [],
+    selectedTypes: savedState.selectedTypes || [],
+    facilityPoi: savedState.facilityPoi || {},
   })
-  currentPlanId.value = s.currentPlanId || null
+  currentPlanId.value = savedState.currentPlanId || null
 
   // 恢复因子面板状态
-  const factorSettings = (savedState as SiteSelectionState).factorSettings
+  const factorSettings = savedState.factorSettings
   if (factorSettings && factorPanelRef.value?.restoreSettings) {
     factorPanelRef.value.restoreSettings(factorSettings)
   }
 
   // 恢复小区结果面板状态（方案ID从savedXiaoquIds推断，实际收藏由服务端管理）
-  if ((savedState as SiteSelectionState).currentPlanId) {
-    currentPlanId.value = (savedState as SiteSelectionState).currentPlanId
+  if (savedState.currentPlanId) {
+    currentPlanId.value = savedState.currentPlanId
   }
 
   // 如果有分析结果，触发结果更新
@@ -306,6 +312,8 @@ onUnmounted(() => {
       <template #left>
         <!-- 左上：小区雷达图 4×4（显示选中小区或第一名） -->
         <GCSPanel :w="4" :h="4" anchor="top-left" :offset-x="0" :offset-y="1.25">
+          <!-- 示例快照披露角标：未分析时展示的是实测快照，非实时结果 -->
+          <div v-if="isRadarSnapshot" class="radar-snapshot-badge">示例数据</div>
           <RadarChart
             :visible="true"
             :embedded="true"
@@ -374,6 +382,20 @@ onUnmounted(() => {
   width: 100%;
   height: 100%;
   pointer-events: none;
+}
+
+/* 示例快照披露角标（面板右上角，随主题 token 取色） */
+.radar-snapshot-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: var(--GCS-z-panel-float);
+  padding: 2px 8px;
+  border-radius: var(--GCS-radius-sm);
+  font-size: var(--GCS-font-size-xs);
+  color: var(--GCS-color-warning);
+  background: var(--GCS-bg-container);
+  border: 1px solid var(--GCS-border-default);
 }
 
 .xq-rank {

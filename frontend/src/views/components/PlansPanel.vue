@@ -430,6 +430,7 @@ watch(
 
 .plan-actions {
   display: flex;
+
   /* 816-S7-51：微间距归 8px 基准（原 6px 非刻度） */
   gap: 8px;
   margin-bottom: 10px;
@@ -437,6 +438,7 @@ watch(
 
 .action-btn {
   flex: 1;
+
   /* 816-S7-51：垂直 padding 归 8px 基准（原 5px 非刻度） */
   padding: 8px 0;
   border: 1px solid var(--GCS-border-default);

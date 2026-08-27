@@ -69,6 +69,10 @@ export default defineConfig([
         ...globals.node,
       },
     },
+    rules: {
+      // CLI/一次性工具脚本：console 即正常输出通道，不引入日志库
+      'no-console': 'off',
+    },
   },
 
   {
@@ -78,6 +82,17 @@ export default defineConfig([
       globals: {
         ...globals.node,
       },
+    },
+    rules: {
+      'no-console': 'off', // 同上：工具脚本以 console 为输出通道
+    },
+  },
+
+  {
+    // 服务启动守卫：校验失败即退出进程是部署脚本的正当语义
+    files: ['backend/index.js'],
+    rules: {
+      'no-process-exit': 'off',
     },
   },
 

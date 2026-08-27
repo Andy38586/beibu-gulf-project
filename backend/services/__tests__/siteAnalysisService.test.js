@@ -10,7 +10,6 @@ import { describe, expect, it } from 'vitest'
 import {
   resolveRadiusSettings,
   runSiteAnalysis,
-  validateSelection,
 } from '../siteAnalysisService.js'
 
 describe('siteAnalysisService.runSiteAnalysis — 选址流水线（R-14）', () => {

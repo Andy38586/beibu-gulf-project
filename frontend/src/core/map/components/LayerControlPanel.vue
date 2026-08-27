@@ -54,6 +54,11 @@ const layerButtons = computed(() => {
     label: layer.label,
     // z118：透传 layerType 供图标数据驱动（core 不解析业务 label 语义）
     layerType: layer.layerType,
+    // 引擎适用标记：registry meta 优先，目录镜像兜底（缺省视为双引擎通用）
+    engines:
+      layer.engines ??
+      businessLayerManager.getMeta(layer.key)?.engines ??
+      (['openlayers', 'cesium'] as const),
     // 单变量原则：按钮状态即 registry.visible（BLM 唯一权威），蓝 = 图层在显示
     active: layer.layerType
       ? (businessLayerManager.getMeta(layer.key)?.visible ?? layer.visible)
@@ -120,6 +125,10 @@ function handleToggle(key: string) {
       >
         <span class="layer-icon">{{ getLayerIcon(item.label, item.layerType) }}</span>
         <span class="layer-label">{{ item.label }}</span>
+        <!-- 引擎适用徽标：多引擎扩展的显式契约展示 -->
+        <span class="layer-engines" :title="item.engines?.join(' / ')">
+          {{ (item.engines ?? []).join('·') }}
+        </span>
       </button>
     </div>
   </div>
@@ -165,6 +174,17 @@ function handleToggle(key: string) {
     border-color 0.2s ease;
   padding: v-bind(cell8px) 4px;
   box-sizing: border-box;
+}
+
+/* 引擎适用徽标：8px 小字置于按钮底部（非默认引擎组合才具信息量） */
+.layer-engines {
+  font-size: 8px;
+  line-height: 1;
+  color: var(--GCS-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 90%;
 }
 
 .layer-btn:hover {

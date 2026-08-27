@@ -3,7 +3,7 @@ import type { Ref, ShallowRef } from 'vue'
 import { ref, shallowRef } from 'vue'
 
 import { logger } from '@/shared'
-import type { LayerEntry, LayerType, MapType, Port } from '@/types'
+import type { EngineName, LayerEntry, LayerType, MapType, Port } from '@/types'
 import type { MapRenderer } from '@/types'
 
 /** localStorage 键：底图 */
@@ -79,13 +79,14 @@ export const useMapStore = defineStore('map', () => {
     key: string,
     label: string,
     layerType: LayerType,
-    visible: boolean = true
+    visible: boolean = true,
+    engines: EngineName[] = ['openlayers', 'cesium']
   ): void {
     const existing = layerCatalog.value.find((e: LayerEntry) => e.key === key)
     if (existing) {
       // 已存在则更新可见性与类型（不可变更新，配合 shallowRef 浅响应式）
       layerCatalog.value = layerCatalog.value.map((e: LayerEntry) =>
-        e.key === key ? { ...e, visible, layerType } : e
+        e.key === key ? { ...e, visible, layerType, engines } : e
       )
       return
     }
@@ -94,6 +95,7 @@ export const useMapStore = defineStore('map', () => {
       label,
       layerType,
       visible,
+      engines,
       category: 'business',
     }
     layerCatalog.value = [...layerCatalog.value, newEntry]

@@ -7,7 +7,7 @@
 
 import { perfTimeFn } from '@/shared'
 import { logger } from '@/shared'
-import type { LayerEntry, LayerOptions, MapRenderer } from '@/types'
+import type { EngineName, LayerEntry, LayerOptions, MapRenderer } from '@/types'
 import type { LayerType } from '@/types/core/layerManager'
 
 import { LAYER_ADAPTERS } from './layerAdapters'
@@ -22,7 +22,13 @@ export interface LayerErrorPayload {
 interface MapStoreLike {
   currentRenderer: MapRenderer | null
   layerCatalog: LayerEntry[]
-  registerBusinessLayer(key: string, label: string, layerType: LayerType, visible: boolean): void
+  registerBusinessLayer(
+    key: string,
+    label: string,
+    layerType: LayerType,
+    visible: boolean,
+    engines?: EngineName[]
+  ): void
   setLayerVisible(key: string, visible: boolean): void
   removeLayer(key: string): void
 }
@@ -34,6 +40,8 @@ interface LayerDescriptor {
   data: unknown
   options?: LayerOptions
   visible?: boolean
+  /** 适用引擎（缺省双引擎通用；不适用引擎在 reapplyAll 跳过创建） */
+  engines?: EngineName[]
 }
 
 /** updateData 载荷 */
@@ -47,6 +55,8 @@ interface RegistryEntry {
   /** 图层面板显示名（catalog 被引擎切换清空后由 reapplyAll 重建条目时使用） */
   label: string
   layerType: LayerType
+  /** 适用引擎（缺省双引擎通用） */
+  engines?: EngineName[]
   options: LayerOptions
   data: unknown
   /** 图层可见性（以本 registry 为唯一权威源——引擎切换时图层目录会被清空，故不依赖它） */
@@ -103,7 +113,14 @@ export class BusinessLayerManager {
   /** 注册新业务图层 */
   register(
     key: string,
-    { label, layerType, data, options = {}, visible = true }: LayerDescriptor
+    {
+      label,
+      layerType,
+      data,
+      options = {},
+      visible = true,
+      engines = ['openlayers', 'cesium'],
+    }: LayerDescriptor
   ): void {
     if (this._registry.has(key)) {
       logger.debug(`[BusinessLayerManager] 图层 ${key} 已注册，请使用 updateData 更新数据`)
@@ -114,10 +131,10 @@ export class BusinessLayerManager {
     if (!adapter) return
 
     // 保存元数据（可见性存 registry，不依赖 catalog —— 引擎切换时 catalog 会被清空）
-    this._registry.set(key, { label, layerType, options, data, visible })
+    this._registry.set(key, { label, layerType, options, data, visible, engines })
 
     // 注册到 layerCatalog（只存元数据，不存 renderer 对象）
-    this._mapStore?.registerBusinessLayer(key, label, layerType, visible)
+    this._mapStore?.registerBusinessLayer(key, label, layerType, visible, engines)
 
     // 如果可见且有数据，立即渲染
     if (visible && data != null) {
@@ -208,6 +225,12 @@ export class BusinessLayerManager {
    * 依据：registry 是 App 级持久状态，引擎切换时图层目录会被清空，
    * 故重建视觉实例与目录条目都以 registry 为准（幂等）；单层失败只 warn 继续。
    */
+  /** 显式对账入口（语义化包装 reapplyAll）：引擎切换、路由恢复、面板批量操作前调用，
+   * 以 registry 为唯一权威把渲染器实际状态拉齐——图层状态统一收口于此 */
+  reconcileWithRenderer(renderer: MapRenderer | null = this._getRenderer()): void {
+    this.reapplyAll(renderer)
+  }
+
   reapplyAll(renderer: MapRenderer | null = this._getRenderer()): void {
     if (!renderer) return
     logger.debug(
@@ -227,6 +250,17 @@ export class BusinessLayerManager {
       if (!meta.visible) {
         logger.debug(`[BusinessLayerManager] reapplyAll ${key} 跳过（visible=false）`)
         continue
+      }
+      // 引擎适用性过滤（engines 缺省视为双引擎通用）：不适用当前引擎的图层不创建，
+      // 面板条目保留由上方重建；显隐恢复由适用引擎的 reapplyAll 接管
+      {
+        const rt = renderer.getType?.()
+        const engineName: EngineName | null =
+          rt === '2d' ? 'openlayers' : rt === '3d' ? 'cesium' : null
+        if (engineName && meta.engines && !meta.engines.includes(engineName)) {
+          logger.debug(`[BusinessLayerManager] reapplyAll ${key} 跳过（引擎 ${engineName} 不适用）`)
+          continue
+        }
       }
       const adapter = this._getAdapter(meta.layerType)
       if (!adapter)

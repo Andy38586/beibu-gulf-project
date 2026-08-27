@@ -14,12 +14,17 @@ export interface Port {
 import type { LayerType } from '@/types/core/layerManager'
 
 // 图层目录（layerCatalog）条目——仅存元数据，显隐由 BusinessLayerManager 驱动
+/** 渲染引擎标识（registry 标记图层适用引擎，面板徽标与 reapplyAll 过滤共用） */
+export type EngineName = 'openlayers' | 'cesium'
+
 export interface LayerEntry {
   key: string
   label: string
   visible: boolean
   category: 'base' | 'business'
   layerType?: LayerType
+  /** 适用引擎（缺省视为 openlayers+cesium 双引擎通用） */
+  engines?: EngineName[]
 }
 
 // 面板名称（(string & {}) 保留字面量收窄与 IDE 补全）

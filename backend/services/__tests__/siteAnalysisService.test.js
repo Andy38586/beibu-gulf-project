@@ -7,10 +7,7 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import {
-  resolveRadiusSettings,
-  runSiteAnalysis,
-} from '../siteAnalysisService.js'
+import { resolveRadiusSettings, runSiteAnalysis } from '../siteAnalysisService.js'
 
 describe('siteAnalysisService.runSiteAnalysis — 选址流水线（R-14）', () => {
   const selectedKeys = ['hospital', 'school']

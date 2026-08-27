@@ -64,7 +64,8 @@ describe('BusinessLayerManager', () => {
         'test-layer',
         '测试图层',
         'points',
-        true
+        true,
+        ['openlayers', 'cesium']
       )
       expect(manager.has('test-layer')).toBe(true)
     })

@@ -377,21 +377,29 @@ defineExpose({
   border-radius: var(--GCS-radius-lg);
 }
 
+/* 选中蓝底上重要度文字反白，不换行不裁切 */
+.factor-item.selected.selecting .factor-importance {
+  color: var(--GCS-text-inverse);
+  font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
 .factor-slider-wrap {
   width: 100%;
   height: 100%;
   display: flex;
-  flex-direction: column;
+  flex-direction: row; /* 横排：色点 | 滑块 | 重要度——原三层竖排超出固定行高致文字被裁 */
   align-items: center;
-  justify-content: center;
-  gap: v-bind(cell8px);
-  padding: v-bind(cell8px);
+  gap: 6px;
+  padding: 0 8px;
   box-sizing: border-box;
   cursor: default;
 }
 
 .factor-slider {
-  width: 80%;
+  flex: 1 1 auto; /* 横排布局下撑满色点与重要度之间 */
+  min-width: 0;
   height: var(--GCS-slider-track-height); /* 816-S7-44：轨道高统一 token（原 4px） */
   appearance: none;
 

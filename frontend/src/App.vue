@@ -171,7 +171,11 @@ watch(
 onMounted(() => {
   void restoreAuth() // 启动时经 /api/auth/me 验证 Cookie Token
   initAuthStorageListener() // 多标签页登录态同步
-  preloadCesium() // 空闲预取 Cesium 脚本（5.7MB），降低进 3D 切换卡顿
+  // 预取 Cesium 脚本（5.8MB）延后到页面 load 且空闲 3s 后执行：
+  // mount 立即预热会与首屏瓦片/业务请求抢小水管带宽，冷访问首屏白屏显著拉长
+  window.addEventListener('load', () => {
+    setTimeout(preloadCesium, 3000)
+  })
 })
 
 onUnmounted(() => {

@@ -100,15 +100,20 @@ function main() {
   const ratio = total === 0 ? 0 : dead.length / total
 
   console.log('=== GCS Design Token 统计 ===')
-  console.log(`定义总数: ${total}（亮/暗双块齐全 ${total - darkOnly.length - dead.length}，暗色单独定义 ${darkOnly.length}）`)
+  console.log(
+    `定义总数: ${total}（亮/暗双块齐全 ${total - darkOnly.length - dead.length}，暗色单独定义 ${darkOnly.length}）`
+  )
   console.log(`var() 真实引用: ${usedCount}`)
-  console.log(`死 token: ${dead.length}（占比 ${(ratio * 100).toFixed(2)}%，门禁 ≤${DEAD_RATIO_GATE * 100}%）`)
+  console.log(
+    `死 token: ${dead.length}（占比 ${(ratio * 100).toFixed(2)}%，门禁 ≤${DEAD_RATIO_GATE * 100}%）`
+  )
 
   if (dead.length > 0) {
     console.log('\n死 token 清单（零 var() 引用——删除前先跑 S7-45 式双确认）：')
     for (const name of dead) {
       const themes = defs.get(name)
-      const tag = themes.has('dark') && themes.has('root') ? '' : themes.has('dark') ? ' [仅暗色块]' : ''
+      const tag =
+        themes.has('dark') && themes.has('root') ? '' : themes.has('dark') ? ' [仅暗色块]' : ''
       console.log(`  ${name}${tag}`)
     }
   }
@@ -125,7 +130,9 @@ function main() {
   }
 
   if (ratio > DEAD_RATIO_GATE) {
-    console.error(`\n[token-stats] 门禁未通过：死 token 占比 ${(ratio * 100).toFixed(2)}% > 5%（03 §三.5 SOP⑤）`)
+    console.error(
+      `\n[token-stats] 门禁未通过：死 token 占比 ${(ratio * 100).toFixed(2)}% > 5%（03 §三.5 SOP⑤）`
+    )
     process.exit(1)
   }
   console.log('\n[token-stats] 门禁通过 ✓')

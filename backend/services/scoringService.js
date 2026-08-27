@@ -58,9 +58,7 @@ function buildFacilityIndex(points) {
   const items = []
   for (const p of points) {
     if (!Number.isFinite(p?.lng) || !Number.isFinite(p?.lat)) {
-      logger.warn(
-        `[scoringService] 设施点坐标无效已跳过: ${p?.id ?? p?.name ?? '(无标识)'}`
-      )
+      logger.warn(`[scoringService] 设施点坐标无效已跳过: ${p?.id ?? p?.name ?? '(无标识)'}`)
       continue
     }
     items.push({

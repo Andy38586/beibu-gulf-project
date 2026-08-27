@@ -4,7 +4,18 @@
  * 防止未来请求日志泄漏凭据。
  */
 
-const SENSITIVE_KEYS = ['password', 'token', 'secret', 'authorization', 'cookie', 'phone', 'email', 'idcard', 'id_card', 'mobile']
+const SENSITIVE_KEYS = [
+  'password',
+  'token',
+  'secret',
+  'authorization',
+  'cookie',
+  'phone',
+  'email',
+  'idcard',
+  'id_card',
+  'mobile',
+]
 
 /**
  * 递归打码敏感字段。

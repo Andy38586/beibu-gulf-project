@@ -23,39 +23,39 @@
 
 ### 核心功能
 
-| 业务 | 引擎 | 说明 |
-| ---- | ---- | ---- |
-| 选址分析 | 2D | 6 类设施多选 + 距离加权评分，后端 turf 缓冲区叠加 + RBush 面内点过滤，ECharts 雷达图 6 轴评分 + 方案收藏 |
-| 预测分析 | 2D | 4 指标趋势可视化（时间轴播放 + 地图热力），吞吐量模型产物（cargo/container 真数据，berth/traffic 诚实标注合成示意） |
-| 浸没分析 | 3D | 基于真 DEM 的连通性淹没演算（FastAPI scipy 8 连通 + 海面种子），251 档预计算表查表秒回，Cesium 3D 真地形渲染 |
+| 业务     | 引擎 | 说明                                                                                                                |
+| -------- | ---- | ------------------------------------------------------------------------------------------------------------------- |
+| 选址分析 | 2D   | 6 类设施多选 + 距离加权评分，后端 turf 缓冲区叠加 + RBush 面内点过滤，ECharts 雷达图 6 轴评分 + 方案收藏            |
+| 预测分析 | 2D   | 4 指标趋势可视化（时间轴播放 + 地图热力），吞吐量模型产物（cargo/container 真数据，berth/traffic 诚实标注合成示意） |
+| 浸没分析 | 3D   | 基于真 DEM 的连通性淹没演算（FastAPI scipy 8 连通 + 海面种子），251 档预计算表查表秒回，Cesium 3D 真地形渲染        |
 
 附加能力：HttpOnly Cookie 会话认证（tokenVersion 吊销）、暗色主题切换、响应式三档布局（桌面/抽屉/紧凑）。
 
 ## 2. 技术栈
 
-| 层 | 技术 |
-| --- | ---- |
-| 前端框架 | Vue 3（Composition API + `<script setup>`）、Vite（Rolldown）、Vue Router、Pinia |
-| 语言/类型 | TypeScript 严格模式、zod 运行时校验（HTTP 边界） |
-| GIS 引擎 | OpenLayers（2D）、Cesium（3D，懒加载 + 真地形瓦片） |
-| 空间分析 | Turf.js、rbush 空间索引、scipy 连通性演算（FastAPI） |
-| 可视化 | ECharts（异步化，不进首屏关键路径） |
-| UI | Element Plus（按需引入）+ 自研 GCS 网格布局体系（暗色主题 token） |
-| 后端 | Node.js、Express 5（ESM，三层架构）+ FastAPI（Python 洪涝演算，独立容器） |
-| 数据 | GeoJSON、JSON（createReadCache 缓存）、251 档预计算表（gzip）、DEM 流水线脚本 |
-| 工程化 | Vitest、ESLint、Prettier、Husky/commitlint、dependency-cruiser 架构守护、gitleaks 密钥扫描 |
-| 部署 | Docker Compose 双容器、GitHub Actions CI 自动部署、Let's Encrypt HTTPS 自动续期 |
+| 层        | 技术                                                                                       |
+| --------- | ------------------------------------------------------------------------------------------ |
+| 前端框架  | Vue 3（Composition API + `<script setup>`）、Vite（Rolldown）、Vue Router、Pinia           |
+| 语言/类型 | TypeScript 严格模式、zod 运行时校验（HTTP 边界）                                           |
+| GIS 引擎  | OpenLayers（2D）、Cesium（3D，懒加载 + 真地形瓦片）                                        |
+| 空间分析  | Turf.js、rbush 空间索引、scipy 连通性演算（FastAPI）                                       |
+| 可视化    | ECharts（异步化，不进首屏关键路径）                                                        |
+| UI        | Element Plus（按需引入）+ 自研 GCS 网格布局体系（暗色主题 token）                          |
+| 后端      | Node.js、Express 5（ESM，三层架构）+ FastAPI（Python 洪涝演算，独立容器）                  |
+| 数据      | GeoJSON、JSON（createReadCache 缓存）、251 档预计算表（gzip）、DEM 流水线脚本              |
+| 工程化    | Vitest、ESLint、Prettier、Husky/commitlint、dependency-cruiser 架构守护、gitleaks 密钥扫描 |
+| 部署      | Docker Compose 双容器、GitHub Actions CI 自动部署、Let's Encrypt HTTPS 自动续期            |
 
 ## 3. 分层架构
 
 项目经历一次架构重构后采用**四层单向依赖**架构：
 
-| 层级 | 职责 |
-| ---- | ---- |
-| Application Layer | 页面路由、视图装配（`views/`、`router/`、`main.ts`、`App.vue`） |
-| Business Layer | 业务模块（`business/site-selection`、`business/forecast`、`business/flood-analysis`） |
-| GIS Core Layer | 地图渲染抽象、图层管理（`core/map/`、`core/layout/`） |
-| Component System | 通用组件与布局体系（`shared/` GCS） |
+| 层级              | 职责                                                                                  |
+| ----------------- | ------------------------------------------------------------------------------------- |
+| Application Layer | 页面路由、视图装配（`views/`、`router/`、`main.ts`、`App.vue`）                       |
+| Business Layer    | 业务模块（`business/site-selection`、`business/forecast`、`business/flood-analysis`） |
+| GIS Core Layer    | 地图渲染抽象、图层管理（`core/map/`、`core/layout/`）                                 |
+| Component System  | 通用组件与布局体系（`shared/` GCS）                                                   |
 
 依赖方向单向自上而下：**业务层依赖 GIS 核心，核心层不反向依赖业务**。
 
@@ -167,6 +167,7 @@ src/
 ## 2. 入口层
 
 ### 2.1 main.ts
+
 - `validateEnv()`：校验 `VITE_TIANDITU_KEY`（必需）、`VITE_API_BASE`（非必需，默认 `/api`）。
 - `initPerfReporter()`：挂载性能观察者（dev-only）。
 - `floodAdapter.setDataSource(dataSource)`：数据源由 `VITE_DATA_SOURCE` 驱动，默认 `api`。
@@ -174,6 +175,7 @@ src/
 - 全局错误处理：`app.config.errorHandler` + `window.onerror` + `window.onunhandledrejection`，统一走 logger + perfReporter。
 
 ### 2.2 App.vue
+
 - provide 全局服务：`RESTORE_PLAN_DATA_KEY`、`EDITING_PLAN_KEY`、`UNIFIED_MAP_KEY`、`MAP_STORE_KEY`、`BUSINESS_LAYER_MANAGER_KEY`。
 - 创建 `BusinessLayerManager`（App 级持久，因为 RouterView 下的业务组件是 UnifiedMap 的兄弟节点）。
 - `registerNavItems()`：从 `business/manifest` 注入业务导航项（core 不引 business 的分层铁律）。
@@ -183,10 +185,12 @@ src/
 ## 3. 路由与业务注册（router/ + business/manifest.ts）
 
 ### 3.1 router/index.ts
+
 - 路由：`/`(Home)、业务路由（由 `buildBusinessRoutes()` 生成）、`/profile`(Profile)。
 - 每个路由带 `meta.engine`（'2d' | '3d'）驱动地图引擎切换。
 
 ### 3.2 business/manifest.ts（业务注册清单，新增业务核心入口）
+
 - `BusinessModule` 接口：`name` / `path` / `engine` / `title` / `navLabel` / `navIcon` / `navDisabled?` / `component`。
 - `businessModules`：已注册 SiteSelection（2d）、Forecast（2d）、FloodAnalysis（3d）、RouteAnalysis（占位未实现）。
 - `buildBusinessRoutes()`：由清单生成路由（component 为 null 的占位模块跳过）。
@@ -194,9 +198,11 @@ src/
 ## 4. 数据访问层（services/）
 
 ### 4.1 services/index.ts
+
 导出 `floodAdapter`、`forecastAdapter`、`mapDataService`。
 
 ### 4.2 services/adapters/floodAdapter.ts（浸没分析数据适配器，双数据源）
+
 - 模块级 `dataSource`（'api' | 'online'），`setDataSource()` 切换。
 - `api` 模式：走 Express `/flood/*`（`/flood/flood-areas`、`/flood/flood-statistics`、`/flood/analysis/disaster`、`/flood/water-area`）。
 - `online` 模式：走 FastAPI `/flood-online/api/flood/online`、`/flood-online/api/flood/impact`（envelope:false，裸 JSON）。
@@ -208,18 +214,21 @@ src/
 - `_riskLevelFromFlood()`：online 模式风险等级映射（与后端 `deriveRiskLevel` 同表）。
 
 ### 4.3 services/adapters/forecastAdapter.ts（预测数据适配器）
+
 - `getOverview(signal)`：`/forecast/overview` 指标索引。
 - `getTimeSeries(params, signal)`：`/forecast/timeseries` 趋势时序。
 - `getIndicatorComparison(indicator, params, signal)`：`/forecast/indicator/:indicator` 港口对比。
 - 全部经 `useApiRequest` + zod schema 校验。
 
 ### 4.4 services/mapDataService.ts
+
 - `getPorts()`：`MAP_CONFIG.DATA_PATHS.ports` 读港口数据，过滤北部湾边界外坐标。
 - `clearCache()`：委托 loadStatic 清统一缓存。
 
 ## 5. 共享层（shared/）
 
 ### 5.1 请求基础设施
+
 - **useApiRequest.ts**：API 统一入口。
   - `apiRequest(path, options)`：GET 幂等请求超时/网络错误线性退避重试（POST 不重试）；10s 超时；`credentials:'include'`（Cookie 认证）；`cache:'no-store'`（防 ETag 304 误判登出）；zod schema 校验；信封解包（`envelope:false` 跳过）。
   - `ErrorCode`：TIMEOUT / NETWORK_ERROR / UNAUTHORIZED / SERVER_ERROR / REQUEST_FAILED。
@@ -228,12 +237,14 @@ src/
 - **responseEnvelope.ts**：`unwrapEnvelope()` 纯函数，解 `{code,data}` → data。
 
 ### 5.2 认证（useAuth.ts）
+
 - 模块级 `user` ref（localStorage 持久化 + zod 校验）。
 - `restoreAuth()`：启动时以 Cookie 为权威调 `/auth/me` 校验。
 - `login/register/logout`：调后端接口，token 由 HttpOnly Cookie 携带，前端仅设占位符启用 `isAuthenticated`。
 - 多标签页同步：`initAuthStorageListener()` / `removeAuthStorageListener()`（storage 事件）。
 
 ### 5.3 其他关键 composable / utils
+
 - `useLatestRequest.ts`：竞态守卫（新请求 abort 旧请求 + 取消静默兜底）。
 - `usePlans.ts`：方案收藏管理。
 - `crs.ts`：`isInBeibuGulf()`（北部湾边界判定）、坐标工具。
@@ -245,27 +256,30 @@ src/
 - `layout/`：`useGCS`（网格坐标）、`useTheme`（暗色主题切换）、`config`（GCS 变量）。
 
 ### 5.4 shared/constants
+
 - `colors.ts`、`ui.ts`（CELL_PIXEL 等）、`chart.ts`、`forecast.ts`（指标定义）。
 
 ## 6. 状态管理（stores/）
 
 统一 Setup Store 语法（`useXxxStore`）。导出：`mapStore`、`floodStore`、`forecastStore`、`siteSelectionStore`、`createPersistedState`。
 
-| Store | 职责 |
-| ----- | ---- |
-| mapStore | 地图类型（2d/3d）、当前渲染器、图层目录（layerCatalog）、选中港口、业务图层注册/显隐 |
-| floodStore | 洪涝水位、淹没统计/特征、风险等级、受影响设施/损失、状态保存/恢复 |
-| forecastStore | 预测数据缓存、指标、时序 |
-| siteSelectionStore | 选址参数、方案、雷达图数据 |
+| Store              | 职责                                                                                 |
+| ------------------ | ------------------------------------------------------------------------------------ |
+| mapStore           | 地图类型（2d/3d）、当前渲染器、图层目录（layerCatalog）、选中港口、业务图层注册/显隐 |
+| floodStore         | 洪涝水位、淹没统计/特征、风险等级、受影响设施/损失、状态保存/恢复                    |
+| forecastStore      | 预测数据缓存、指标、时序                                                             |
+| siteSelectionStore | 选址参数、方案、雷达图数据                                                           |
 
 `createPersistedState.ts`：状态持久化工厂（sessionStorage/localStorage）。
 
 ## 7. GIS 核心层（core/）
 
 ### 7.1 core/index.ts（公开 API 入口）
+
 re-export：`config/map`、`layout/*`、`map/BusinessLayerManager`、`map/composables/*`、`map/layerAdapters`、`map/renderers/MapRenderer`、`provideKeys`。
 
 ### 7.2 渲染抽象
+
 - **renderers/MapRenderer.ts**：抽象基类（策略模式）。核心方法：
   - 图层：`addPointLayer` / `addPolygonLayer` / `addGeoJsonLayer` / `setVisibility` / `removeLayer` / `hasLayer` / `isLayerVisible` / `_doSetVisibility` / `_doRemoveLayer`。
   - 视图：`flyTo` / `updateSize` / `getMap`（2D）/ `getViewer`（3D）。
@@ -278,6 +292,7 @@ re-export：`config/map`、`layout/*`、`map/BusinessLayerManager`、`map/compos
 - **renderers/index.ts**：`createRenderer(type, container)` 工厂。
 
 ### 7.3 图层管理
+
 - **BusinessLayerManager.ts**：业务图层生命周期管理器（BLM）。
   - `register(key, {label, layerType, data, options, visible})`：注册即占位（数据未就绪也注册）。
   - `updateData(key, {data, options})`：不改变 visible，可见时重建图层。
@@ -292,11 +307,13 @@ re-export：`config/map`、`layout/*`、`map/BusinessLayerManager`、`map/compos
   - 能力检查：`isWater3DCapable` / `isGeoTIFFCapable` / `isHeatmapCapable`。
 
 ### 7.4 地图组件
+
 - **UnifiedMap.vue**：统一地图容器。双引擎 v-show 切换、渲染器实例复用不销毁；`switchMapType()` 带重入保护与失败回滚；加载港口/边界数据；`setupLayers()` 注册底图 + boundary/ports 常驻层；ResizeObserver 观察容器尺寸。
 - **components/LayerControlPanel.vue**：图层控制面板。
 - **composables/**：`useBoundaryLayer`、`usePortLayer`、`useBusinessLayers`、`useMapControls`。
 
 ### 7.5 布局（core/layout/）
+
 - **AppLayout.vue**：GCS V2 布局基座。PPS（面板定位系统）绝对定位 Panel；桌面（≥960px）显示 Panel，<960px 进入抽屉模式（MobileDrawer）；底部 nav 3 按钮。
 - **components/**：`BottomNavBar`、`GCSPanel`、`MobileDrawer`、`NavButton`、`DebugToggle`、`GCSDebugOverlay`。
 - **composables/**：`useScreenActions`（flyToCity）、`useMobileDrawer`、`useSliderFocus`。
@@ -306,9 +323,11 @@ re-export：`config/map`、`layout/*`、`map/BusinessLayerManager`、`map/compos
 ## 8. 业务模块（business/）
 
 ### 8.1 business/index.ts（公开 API 入口）
+
 re-export：`manifest`、`forecast/composables/*`、`site-selection/composables/*`。
 
 ### 8.2 选址分析（business/site-selection/）
+
 - **SiteSelectionPage.vue**：主页面。
 - **composables/**：
   - `useSiteAnalysisApi.ts`：调 `/api/site-analysis` 分析接口。
@@ -318,27 +337,32 @@ re-export：`manifest`、`forecast/composables/*`、`site-selection/composables/
 - **components/SiteAnalysisControlPanel.vue**：控制面板。
 
 ### 8.3 预测分析（business/forecast/）
+
 - **ForecastPage.vue**：主页面。
 - **composables/**：`useForecastRequest`、`useForecastLayer`、`useForecastComparison`、`useForecastTimeseries`、`useOverviewCharts`。
 - **components/ForecastControlPanel.vue**：控制面板。
 
 ### 8.4 浸没分析（business/flood-analysis/）——3D
+
 - **FloodAnalysisPage.vue**：主页面。数据源经 floodAdapter 隔离；业务图层经 BLM 注册/销毁；水位滑块防抖（100ms）触发淹没分析 + 影响评估；请求序号 + useLatestRequest 竞态守卫；路由离开 /profile 保存状态，其他路径清空。
 - **components/**：`FloodAnalysisReportPanel`、`AffectedFacilityListPanel`、`WaterLevelProfilePanel`。
 - **constants/colors.ts**：`FLOOD_RISK_COLORS` / `FLOOD_RISK_DEFAULT`（风险等级配色）。
 - 图层 ID：`flood-water-surface`、`flood-area`、`flood-facilities`、`dem-hillshade`（Cesium 独占，3D 注册 2D 移除）。
 
 ## 9. 可视化（visualization/）
+
 - **charts/**：`BarChart.vue`、`LineChart.vue`、`RadarChart.vue`（6 轴评分雷达图）、`ChartLoading.vue`、`RadarScoreTooltip.vue`。
 - **composables/**：`useECharts`、`useChartBase`、`useRadarChart`。
 - **panels/PortInfoPanel.vue**：港口信息面板。
 
 ## 10. 类型（types/）
+
 纯类型层，零运行时依赖。目录：`api/`、`business/`、`components/`、`core/`、`__tests__/` 及根文件（`api.ts`、`analysis.ts`、`crs.ts`、`facility.ts`、`map.ts`、`plan.ts`、`renderer.ts`、`schemas.ts`、`xiaoqu.ts`、`index.ts`）。
 
 `types/schemas.ts`：zod schema 定义（HTTP 边界运行时校验），由适配器引用。
 
 ## 11. 视图（views/）
+
 - `HomePage.vue`：首页。
 - `ProfilePage.vue`：个人中心（含 `components/UserInfoCard.vue`、`components/PlansPanel.vue`）。
 - `components/LoginPanel.vue`：登录面板。
@@ -389,6 +413,7 @@ Express 应用装配顺序（中间件顺序敏感）：
 导出 `app` 默认 + `checkDataDirReadable()` / `readinessHandler`（供测试）。
 
 ### index.js（入口）
+
 - `app.listen(PORT)`（默认 3000）。
 - `unhandledRejection` / `uncaughtException` 处理。
 - 优雅关停（SIGTERM/SIGINT）：排干请求后退出，10s 超时强退。
@@ -397,14 +422,14 @@ Express 应用装配顺序（中间件顺序敏感）：
 
 ### 3.1 路由挂载总览
 
-| 路由前缀 | 文件 | 认证 |
-| -------- | ---- | ---- |
-| `/api/site-analysis` | routes/siteAnalysis.js | 需登录（POST /） |
-| `/api/auth` | routes/auth.js | 混合（/me 需登录） |
-| `/api/plans` | routes/plans.js | 全部需登录 |
-| `/api/forecast` | routes/forecast.js | 免鉴权 |
-| `/api/flood` | routes/floodAnalysis.js | 数据免鉴权，分析需登录 |
-| `/api/ports` | routes/ports.js | 免鉴权 |
+| 路由前缀             | 文件                    | 认证                   |
+| -------------------- | ----------------------- | ---------------------- |
+| `/api/site-analysis` | routes/siteAnalysis.js  | 需登录（POST /）       |
+| `/api/auth`          | routes/auth.js          | 混合（/me 需登录）     |
+| `/api/plans`         | routes/plans.js         | 全部需登录             |
+| `/api/forecast`      | routes/forecast.js      | 免鉴权                 |
+| `/api/flood`         | routes/floodAnalysis.js | 数据免鉴权，分析需登录 |
+| `/api/ports`         | routes/ports.js         | 免鉴权                 |
 
 ### 3.2 API 路由清单
 
@@ -457,18 +482,19 @@ Express 应用装配顺序（中间件顺序敏感）：
 
 ## 4. 控制器（controllers/）
 
-| 文件 | 职责 |
-| ---- | ---- |
-| authController.js | 注册/登录/登出/当前用户；密码双通道比对 + 静默迁移；tokenVersion 吊销 |
-| siteAnalysisController.js | 选址分析参数校验（权重 1-5、半径正数、weights 0-10、设施类型白名单） |
-| forecastController.js | 预测各接口；`parseConfidence()` 情景系数收口（非有限/≤0 → 1.0，上限 2） |
+| 文件                       | 职责                                                                                   |
+| -------------------------- | -------------------------------------------------------------------------------------- |
+| authController.js          | 注册/登录/登出/当前用户；密码双通道比对 + 静默迁移；tokenVersion 吊销                  |
+| siteAnalysisController.js  | 选址分析参数校验（权重 1-5、半径正数、weights 0-10、设施类型白名单）                   |
+| forecastController.js      | 预测各接口；`parseConfidence()` 情景系数收口（非有限/≤0 → 1.0，上限 2）                |
 | floodAnalysisController.js | 洪涝数据/分析接口；`deriveRiskLevel()`（6 档语义）、`lookupFloodZone()`（查 251 档表） |
-| plansController.js | 方案 CRUD + 小区保存/移除；用户归属校验 + 名称唯一校验 |
-| portsController.js | 港口列表（静态 JSON 直读） |
+| plansController.js         | 方案 CRUD + 小区保存/移除；用户归属校验 + 名称唯一校验                                 |
+| portsController.js         | 港口列表（静态 JSON 直读）                                                             |
 
 ## 5. 服务层（services/）——业务计算
 
 ### 5.1 siteAnalysisService.js（选址分析）
+
 - `runSiteAnalysis({selectedKeys, typeSettings, facilityData, xiaoquData, weights})`：主流程。
   - `validateSelection()`：至少选一种设施类型。
   - `resolveRadiusSettings()`：按 importance 放大默认半径。
@@ -479,6 +505,7 @@ Express 应用装配顺序（中间件顺序敏感）：
   - `filterFacilitiesInCoverage()`：筛选覆盖范围内设施 POI。
 
 ### 5.2 scoringService.js（选址评分核心）
+
 - `linearDecay(distance, maxDistance)`：线性距离衰减（百分制）。
 - `importanceToRadius(defaultRadius, importance)`：重要程度 → 半径放大（1-5 档系数）。
 - `DEFAULT_WEIGHTS`：各设施类型默认权重。
@@ -486,6 +513,7 @@ Express 应用装配顺序（中间件顺序敏感）：
 - `kmToDegreeOffset(km, lat)`：经纬度偏移估算（粗筛 bbox 保守化）。
 
 ### 5.3 forecastService.js（预测）
+
 - 指标白名单：cargo / container / berth / traffic。
 - `getOrComputeForecast(indicator, scenarioLevel)`：读数据文件 → 计算预测（引擎缓存 LRU 100）。
 - `getMapData()`：地图热力 FeatureCollection。
@@ -493,52 +521,60 @@ Express 应用装配顺序（中间件顺序敏感）：
 - cargo 走模型产物（modelLoader），berth/traffic 透传合成数据，container 走趋势外推引擎。
 
 ### 5.4 forecastEngine.js（预测引擎）
+
 - `computeForecast(historicalData, scenarioLevel, forecastMonths=120)`：趋势外推 + 季节性调整 + 可信度衰减。
 - `generateSpatialValues()`：生成空间热力散射点（固定种子 LCG 确定性生成，可 HTTP 缓存）。
 
 ### 5.5 modelLoader.js（吞吐量模型）
+
 - `getModelForecast(portId, afterTime)`：读 `throughput_model.json` 产物，缺失返回 null（调用方降级 forecastEngine）。
 - `interpolateMonthly()`：模型半年点 → 月度序列线性插值，丢弃重叠月。
 
 ### 5.6 floodService.js（洪涝灾害评估）
+
 - `assessDisaster(facilities, level, floodZone)`：按水位筛选受影响设施（elevation ≤ level + 脏数据防御）→ 计算损失（value × damageRate）。
 
 ### 5.7 userService.js（用户）
+
 - `findByUsername` / `createUser` / `userExists` / `findById` / `updateTokenVersion` / `updatePassword`。
 - 基于 `createFileStore`（读缓存 + 写锁），UUID 用户 ID，锁内查重消除 TOCTOU 竞态。
 
 ## 6. 仓储层（repositories/）
 
 ### 6.1 plansRepository.js（方案）
+
 - `findAllByUserId` / `findById` / `create` / `update` / `remove` / `saveXiaoqu` / `removeXiaoqu`。
 - `PLAN_UPDATE_FIELDS` 白名单（防原型链污染）。
 - 所有写操作走 `sequential`（写锁）+ 不可变更新（构造新数组/对象，写盘失败缓存不脏）。
 
 ### 6.2 facilitiesRepository.js（设施）
+
 - `FILE_MAP`：设施类型 → data 路径映射。
 - `findByType(type)` / `findXiaoqu()` / `getAvailableTypes()`。
 
 ## 7. 中间件（middleware/）
 
 ### 7.1 auth.js（JWT 认证）
+
 - 启动强校验：`JWT_SECRET` 必须存在且 ≥32 字符，否则抛致命错误。
 - `authenticate(req, res, next)`：优先 Cookie `auth_token`，兼容 `Bearer` header；`jwt.verify` + `tokenVersion` 吊销校验。
 - `generateToken(user)`：签发 7 天 token（含 tokenVersion）。
 
 ### 7.2 logSanitizer.js
+
 - `sanitize()`：请求日志脱敏（敏感字段打码）。
 
 ## 8. 工具层（utils/）
 
-| 文件 | 职责 |
-| ---- | ---- |
-| BusinessError.js | 业务错误类 + `ErrorCode`（`<HTTP status><业务序号>`，如 400001=400） |
-| response.js | `sendSuccess(res, data, statusCode=200)`：统一信封 `{code, data}` |
-| createReadCache.js | 读文件缓存工厂（TTL 5min + LRU/FIFO 淘汰 + 容量上限） |
-| readStaticJson.js | 读 `backend/data/` JSON 统一入口（带缓存）；测试钩子 `_clearCacheForTest` |
-| fileStore.js | `createFileStore`：文件存储工厂（读缓存 + 写锁 + 原子写入 tmp+rename） |
-| logger.js | 分级日志 + audit |
-| spatialIndex.js | **后端版** RBush 多边形覆盖查询（`createSpatialIndex` + `queryByPolygon`，BBox 粗筛 + booleanPointInPolygon） |
+| 文件               | 职责                                                                                                          |
+| ------------------ | ------------------------------------------------------------------------------------------------------------- |
+| BusinessError.js   | 业务错误类 + `ErrorCode`（`<HTTP status><业务序号>`，如 400001=400）                                          |
+| response.js        | `sendSuccess(res, data, statusCode=200)`：统一信封 `{code, data}`                                             |
+| createReadCache.js | 读文件缓存工厂（TTL 5min + LRU/FIFO 淘汰 + 容量上限）                                                         |
+| readStaticJson.js  | 读 `backend/data/` JSON 统一入口（带缓存）；测试钩子 `_clearCacheForTest`                                     |
+| fileStore.js       | `createFileStore`：文件存储工厂（读缓存 + 写锁 + 原子写入 tmp+rename）                                        |
+| logger.js          | 分级日志 + audit                                                                                              |
+| spatialIndex.js    | **后端版** RBush 多边形覆盖查询（`createSpatialIndex` + `queryByPolygon`，BBox 粗筛 + booleanPointInPolygon） |
 
 > 816-专项6 12：`floodLevelsStore.js`（251 档 gz 加载器）已删除——Express 侧自 8-2/8-3 回退 6 档 floodArea.json 后无生产消费者（251 档表仅 FastAPI 消费）。
 
@@ -549,6 +585,7 @@ Express 应用装配顺序（中间件顺序敏感）：
 脚本：`dev`（node --watch）、`start`、`test`（vitest run）。
 
 ## 10. 测试
+
 - `backend/controllers/__tests__/`：`app.test.js`、`auth.test.js`。
 - `backend/services/` 与 `backend/utils/` 含 vitest 用例。
 - 测试钩子：`_cache` / `_clearCacheForTest`（readStaticJson）。
@@ -589,14 +626,14 @@ result = connected & flooded              # 真正的淹没区
 
 **关键函数**：
 
-| 函数 | 职责 |
-| ---- | ---- |
-| `load_dem(downsample=4)` | 读取裁切 DEM（UTM48N，填洼版），模块级缓存（30m → 120m，约 425 万像素） |
-| `compute_flood_mask(dem, nodata, level)` | 连通性淹没 mask（与海面 8 连通的低洼区） |
-| `mask_to_geojson(mask, transform, crs, simplify_tol=180)` | mask → EPSG:4326 多边形；先 UTM 简化再转 4326；过滤 <0.25km² 碎片与小内环 |
-| `compute_impact(level, features, facilities)` | 设施影响评估：淹没多边形 ∩ 设施点 → 受影响设施 + 总损失（loss = value × damageRate） |
-| `run_online_flood(level, downsample=4, simplify_tol=180)` | 在线演算入口：返回 `{level, featureCount, floodedKm2, features}` |
-| `_polygon_area_deg2(geom)` | 多边形面积近似（度²，鞋带公式） |
+| 函数                                                      | 职责                                                                                 |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `load_dem(downsample=4)`                                  | 读取裁切 DEM（UTM48N，填洼版），模块级缓存（30m → 120m，约 425 万像素）              |
+| `compute_flood_mask(dem, nodata, level)`                  | 连通性淹没 mask（与海面 8 连通的低洼区）                                             |
+| `mask_to_geojson(mask, transform, crs, simplify_tol=180)` | mask → EPSG:4326 多边形；先 UTM 简化再转 4326；过滤 <0.25km² 碎片与小内环            |
+| `compute_impact(level, features, facilities)`             | 设施影响评估：淹没多边形 ∩ 设施点 → 受影响设施 + 总损失（loss = value × damageRate） |
+| `run_online_flood(level, downsample=4, simplify_tol=180)` | 在线演算入口：返回 `{level, featureCount, floodedKm2, features}`                     |
+| `_polygon_area_deg2(geom)`                                | 多边形面积近似（度²，鞋带公式）                                                      |
 
 **常量**：`DEM_PATH`（`filled_utm48n_cut.tif`，gitignored 需本地生成）、`DOWNSAMPLE=4`、`STRUCT8`、`MIN_AREA_DEG2=0.0002`。
 
@@ -609,17 +646,18 @@ result = connected & flooded              # 真正的淹没区
 **CORS**：开发期允许 Vite dev（5173）；生产由 nginx 同源反代，无需 CORS。
 
 **缓存**：
+
 - `_levels_cache`：预计算档位表（进程内只读一次，`flood_levels.json.gz`）。
 - `_cached_level`：64 档 LRU 动态演算缓存（`OrderedDict`，查表 miss 时兜底）。
 - `_facilities_cache`：设施清单懒加载。
 
 **接口**：
 
-| 方法 | 路径 | 参数 | 说明 |
-| ---- | ---- | ---- | ---- |
-| GET | /api/flood/online | level（0-25m） | 淹没 GeoJSON。先查预计算表（秒回），miss 走 LRU 动态演算 |
-| GET | /api/flood/impact | level（0-25m） | 设施影响评估（共用档位表，空间筛选） |
-| GET | /health | - | 健康检查 |
+| 方法 | 路径              | 参数           | 说明                                                     |
+| ---- | ----------------- | -------------- | -------------------------------------------------------- |
+| GET  | /api/flood/online | level（0-25m） | 淹没 GeoJSON。先查预计算表（秒回），miss 走 LRU 动态演算 |
+| GET  | /api/flood/impact | level（0-25m） | 设施影响评估（共用档位表，空间筛选）                     |
+| GET  | /health           | -              | 健康检查                                                 |
 
 **前端调用**：经 Vite proxy `/flood-online` → 8000（rewrite 去掉前缀），`floodAdapter` 的 online 模式。
 
@@ -632,10 +670,10 @@ result = connected & flooded              # 真正的淹没区
 
 ## 5. 前端数据源双模式对照
 
-| 模式 | 淹没范围 | 影响评估 |
-| ---- | -------- | -------- |
-| api（Express） | `/api/flood/flood-areas`（251 档查表 + 6 档兜底） | `/api/flood/analysis/disaster` |
-| online（FastAPI） | `/flood-online/api/flood/online` | `/flood-online/api/flood/impact` |
+| 模式              | 淹没范围                                          | 影响评估                         |
+| ----------------- | ------------------------------------------------- | -------------------------------- |
+| api（Express）    | `/api/flood/flood-areas`（251 档查表 + 6 档兜底） | `/api/flood/analysis/disaster`   |
+| online（FastAPI） | `/flood-online/api/flood/online`                  | `/flood-online/api/flood/impact` |
 
 - 生产 `VITE_DATA_SOURCE=online` 走 FastAPI 真算法；缺省 `api` 走 Express 查表兜底。
 - 两端风险等级映射保持同表（`deriveRiskLevel`，6 档：0 无风险 / 2 低 / 5 中 / 8 高 / 10 极高 / 15 灾难级；Q2 816 拍板：0 档统一「无风险」）。
@@ -653,64 +691,69 @@ Dockerfile 构建 FastAPI 容器；docker-compose 中数据以 ro volume 共享 
 ## 1. 数据文件清单（backend/data/）
 
 ### 1.1 预测数据（backend/data/forecast/）
-| 文件 | 说明 |
-| ---- | ---- |
-| index.json | 指标索引（前端 /forecast/overview 读取） |
-| cargo.json | 吞吐量（真数据，走吞吐量模型产物） |
-| container.json | 集装箱（真数据，走趋势外推引擎） |
-| berth.json | 泊位（合成示意数据，文件自带 historical+forecast） |
-| traffic.json | 交通（合成示意数据，同上） |
+
+| 文件                  | 说明                                                                        |
+| --------------------- | --------------------------------------------------------------------------- |
+| index.json            | 指标索引（前端 /forecast/overview 读取）                                    |
+| cargo.json            | 吞吐量（真数据，走吞吐量模型产物）                                          |
+| container.json        | 集装箱（真数据，走趋势外推引擎）                                            |
+| berth.json            | 泊位（合成示意数据，文件自带 historical+forecast）                          |
+| traffic.json          | 交通（合成示意数据，同上）                                                  |
 | throughput_model.json | 吞吐量模型产物（tools/throughput_model.cjs 生成，`npm run forecast:model`） |
 
 ### 1.2 选址数据（backend/data/site-selection/）
-| 文件 | 说明 |
-| ---- | ---- |
-| qz_*.json | 钦州各类设施 POI（hospital/primary_school/middle_school/park/bus_station/mall） |
-| xiaoqu.json | 小区数据（评分候选） |
+
+| 文件        | 说明                                                                            |
+| ----------- | ------------------------------------------------------------------------------- |
+| qz\_\*.json | 钦州各类设施 POI（hospital/primary_school/middle_school/park/bus_station/mall） |
+| xiaoqu.json | 小区数据（评分候选）                                                            |
 
 ### 1.3 洪涝数据（backend/data/flood/）
-| 文件 | 说明 |
-| ---- | ---- |
-| facilityPoints.json | 设施点（83 设施，含 elevation/value/damageRate） |
-| floodArea.json | 淹没范围（6 档 floodZones） |
-| floodStatistics.json | 统计数据 |
-| flood_levels.json.gz | **251 档预计算表**（0~25m/0.1m 步长，Express 与 FastAPI 共用） |
-| terrainProfile.json | 地形剖面 |
-| water-area.json | 水域边界坐标 |
-| dem/filled_utm48n_cut.tif | **gitignored**，洪涝 online 演算输入（连通性演算） |
+
+| 文件                      | 说明                                                           |
+| ------------------------- | -------------------------------------------------------------- |
+| facilityPoints.json       | 设施点（83 设施，含 elevation/value/damageRate）               |
+| floodArea.json            | 淹没范围（6 档 floodZones）                                    |
+| floodStatistics.json      | 统计数据                                                       |
+| flood_levels.json.gz      | **251 档预计算表**（0~25m/0.1m 步长，Express 与 FastAPI 共用） |
+| terrainProfile.json       | 地形剖面                                                       |
+| water-area.json           | 水域边界坐标                                                   |
+| dem/filled_utm48n_cut.tif | **gitignored**，洪涝 online 演算输入（连通性演算）             |
 
 ### 1.4 其他
-| 文件 | 说明 |
-| ---- | ---- |
-| ports.json | 港口列表（公开） |
-| plans.json | 用户方案（运行时读写） |
+
+| 文件       | 说明                                |
+| ---------- | ----------------------------------- |
+| ports.json | 港口列表（公开）                    |
+| plans.json | 用户方案（运行时读写）              |
 | users.json | 用户（运行时读写，bcrypt 哈希密码） |
 
 ### 1.5 静态资源（backend/static/）
-| 文件 | 说明 |
-| ---- | ---- |
-| dem/dem_hillshade.tif | 2D 洪涝真实地形图层（COG） |
-| dem/dem_hillshade.png | 3D 山体阴影叠加层 |
-| dem/dem_elev.bin/.hdr | DEM 高程二进制 |
-| terrain/ | CTB 瓦片 z0-12（Cesium 真 3D 地形，3848 文件） |
+
+| 文件                  | 说明                                           |
+| --------------------- | ---------------------------------------------- |
+| dem/dem_hillshade.tif | 2D 洪涝真实地形图层（COG）                     |
+| dem/dem_hillshade.png | 3D 山体阴影叠加层                              |
+| dem/dem_elev.bin/.hdr | DEM 高程二进制                                 |
+| terrain/              | CTB 瓦片 z0-12（Cesium 真 3D 地形，3848 文件） |
 
 ## 2. 工具脚本（tools/ 与 scripts/）
 
-| 脚本 | 职责 |
-| ---- | ---- |
-| tools/dem-pipeline/01-mosaic.ps1 | DEM 拼接（QGIS GDAL） |
-| tools/dem-pipeline/02-fill-sinks.ps1 | 填洼 |
-| tools/dem-pipeline/03-reproject-4326.ps1 | 重投影 4326 |
-| tools/dem-pipeline/04-generate-flood-data.py | 生成洪涝数据 |
-| tools/dem-pipeline/05-fix-facility-elevation.py | 修正设施高程 |
-| tools/throughput_model.cjs | 生成吞吐量模型产物（`npm run forecast:model`） |
-| tools/run-flood.cjs | 跨平台启动 FastAPI（`npm run dev:flood`） |
-| tools/perf-bench/server-bench.mjs | 服务器性能基准 |
-| tools/git-clean-history.sh / git-health-check.sh | Git 清理/健康检查 |
-| tools/prep-ids.cjs / rebase-ids.cjs / sync-refs.cjs / check-issue-ids.cjs | 问题编号管理 |
-| scripts/rollback.sh | 部署回滚 |
-| scripts/server-setup.sh | 服务器初始化 |
-| scripts/measure-title.mjs | 标题测量 |
+| 脚本                                                                      | 职责                                           |
+| ------------------------------------------------------------------------- | ---------------------------------------------- |
+| tools/dem-pipeline/01-mosaic.ps1                                          | DEM 拼接（QGIS GDAL）                          |
+| tools/dem-pipeline/02-fill-sinks.ps1                                      | 填洼                                           |
+| tools/dem-pipeline/03-reproject-4326.ps1                                  | 重投影 4326                                    |
+| tools/dem-pipeline/04-generate-flood-data.py                              | 生成洪涝数据                                   |
+| tools/dem-pipeline/05-fix-facility-elevation.py                           | 修正设施高程                                   |
+| tools/throughput_model.cjs                                                | 生成吞吐量模型产物（`npm run forecast:model`） |
+| tools/run-flood.cjs                                                       | 跨平台启动 FastAPI（`npm run dev:flood`）      |
+| tools/perf-bench/server-bench.mjs                                         | 服务器性能基准                                 |
+| tools/git-clean-history.sh / git-health-check.sh                          | Git 清理/健康检查                              |
+| tools/prep-ids.cjs / rebase-ids.cjs / sync-refs.cjs / check-issue-ids.cjs | 问题编号管理                                   |
+| scripts/rollback.sh                                                       | 部署回滚                                       |
+| scripts/server-setup.sh                                                   | 服务器初始化                                   |
+| scripts/measure-title.mjs                                                 | 标题测量                                       |
 
 ## 3. 依赖关系图
 
@@ -770,19 +813,19 @@ Dockerfile 构建 FastAPI 容器；docker-compose 中数据以 ro volume 共享 
 
 前端依赖方向由 dependency-cruiser 强制（`npm run cruise`，CI -T err 强制拦截）：
 
-| 规则 | 内容 |
-| ---- | ---- |
-| core-imports-business | core 不得依赖 business/views |
-| services-imports-business | services 不得依赖 business/views |
-| business-cross-import-* | 业务模块之间禁止互引（双向） |
-| renderers-cross-reference | 渲染器之间禁止互相引用 |
-| stores-imports-business | store 不得导入业务模块 |
-| shared-imports-business | shared 不得反向依赖业务层 |
-| shared-not-import-core / -stores | shared 不得依赖 core/stores |
-| visualization-should-not-import-business | 可视化不得反向依赖业务 |
-| types-not-import-shared | types 为纯类型层，禁止 import shared 运行时工具 |
-| services-not-import-core | services 禁止 import core（唯一例外 `core/config/map`） |
-| no-circular | 禁止循环依赖 |
+| 规则                                     | 内容                                                    |
+| ---------------------------------------- | ------------------------------------------------------- |
+| core-imports-business                    | core 不得依赖 business/views                            |
+| services-imports-business                | services 不得依赖 business/views                        |
+| business-cross-import-\*                 | 业务模块之间禁止互引（双向）                            |
+| renderers-cross-reference                | 渲染器之间禁止互相引用                                  |
+| stores-imports-business                  | store 不得导入业务模块                                  |
+| shared-imports-business                  | shared 不得反向依赖业务层                               |
+| shared-not-import-core / -stores         | shared 不得依赖 core/stores                             |
+| visualization-should-not-import-business | 可视化不得反向依赖业务                                  |
+| types-not-import-shared                  | types 为纯类型层，禁止 import shared 运行时工具         |
+| services-not-import-core                 | services 禁止 import core（唯一例外 `core/config/map`） |
+| no-circular                              | 禁止循环依赖                                            |
 
 **后端注意**：前端 `services/` 与后端 `utils/` 各有一份 `spatialIndex`，实现不同（前端=视口 rbush 矩形裁剪；后端=turf 多边形覆盖查询），勿混用。
 
@@ -909,17 +952,17 @@ Let's Encrypt + duckdns DNS-01，自动续期（certbot.timer + deploy hook）�
 
 ## 8. 常用 npm 脚本速查
 
-| 脚本 | 作用 |
-| ---- | ---- |
-| `npm run dev` | 前端开发服务器 |
-| `npm run dev:server` | 后端 Express + FastAPI |
-| `npm run dev:all` | 全栈开发 |
-| `npm run dev:flood` | 洪涝 FastAPI |
-| `npm run build` | 生产构建 |
-| `npm run build:analyze` | 构建 + 体积分析 |
-| `npm test` | 前端测试 |
-| `npm run cruise` | 架构守护 |
-| `npm run forecast:model` | 重新生成吞吐量模型产物 |
+| 脚本                        | 作用                     |
+| --------------------------- | ------------------------ |
+| `npm run dev`               | 前端开发服务器           |
+| `npm run dev:server`        | 后端 Express + FastAPI   |
+| `npm run dev:all`           | 全栈开发                 |
+| `npm run dev:flood`         | 洪涝 FastAPI             |
+| `npm run build`             | 生产构建                 |
+| `npm run build:analyze`     | 构建 + 体积分析          |
+| `npm test`                  | 前端测试                 |
+| `npm run cruise`            | 架构守护                 |
+| `npm run forecast:model`    | 重新生成吞吐量模型产物   |
 | `cd backend && npm run dev` | 后端开发（node --watch） |
 
 ## 9. 已知注意点（来自项目记忆）

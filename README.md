@@ -85,18 +85,18 @@ GIS 应用中，地图工具栏、分析面板、图例、详情卡片等组件�
 
 ## 技术栈
 
-| 层级           | 技术                                                                                                          |
-| -------------- | ------------------------------------------------------------------------------------------------------------- |
-| **前端框架**   | Vue 3（Composition API + `<script setup>`）、Vite（Rolldown）、Vue Router、Pinia                              |
-| **语言与类型** | TypeScript 严格模式（@ts-nocheck 全量移除）、zod 运行时校验（HTTP 边界 100%）                                 |
-| **GIS 引擎**   | OpenLayers（2D）、Cesium（3D，懒加载 + 真地形瓦片）                                                           |
-| **空间分析**   | Turf.js（Express 后端服务）、rbush 空间索引、scipy 连通性演算（FastAPI）                                      |
-| **数据可视化** | ECharts（异步化，不进首屏关键路径）                                                                           |
-| **UI 组件**    | Element Plus（按需引入）+ 自研 GCS 网格布局体系（含暗色主题 token）                                           |
-| **后端**       | Node.js、Express 5（ESM，三层架构）+ FastAPI（Python 洪涝演算，独立容器）                                     |
-| **数据**       | GeoJSON、JSON（createReadCache 缓存）、251 档预计算表（gzip）、DEM 流水线脚本                                 |
+| 层级           | 技术                                                                                                                                               |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **前端框架**   | Vue 3（Composition API + `<script setup>`）、Vite（Rolldown）、Vue Router、Pinia                                                                   |
+| **语言与类型** | TypeScript 严格模式（@ts-nocheck 全量移除）、zod 运行时校验（HTTP 边界 100%）                                                                      |
+| **GIS 引擎**   | OpenLayers（2D）、Cesium（3D，懒加载 + 真地形瓦片）                                                                                                |
+| **空间分析**   | Turf.js（Express 后端服务）、rbush 空间索引、scipy 连通性演算（FastAPI）                                                                           |
+| **数据可视化** | ECharts（异步化，不进首屏关键路径）                                                                                                                |
+| **UI 组件**    | Element Plus（按需引入）+ 自研 GCS 网格布局体系（含暗色主题 token）                                                                                |
+| **后端**       | Node.js、Express 5（ESM，三层架构）+ FastAPI（Python 洪涝演算，独立容器）                                                                          |
+| **数据**       | GeoJSON、JSON（createReadCache 缓存）、251 档预计算表（gzip）、DEM 流水线脚本                                                                      |
 | **工程化**     | Vitest（前后端全量测试，用例数为动态状态，以 `npm test` 为准）、ESLint、Prettier、Husky/commitlint、dependency-cruiser 架构守护、gitleaks 密钥扫描 |
-| **部署**       | Docker Compose 双容器、GitHub Actions CI 自动部署、Let's Encrypt HTTPS 自动续期                               |
+| **部署**       | Docker Compose 双容器、GitHub Actions CI 自动部署、Let's Encrypt HTTPS 自动续期                                                                    |
 
 ---
 

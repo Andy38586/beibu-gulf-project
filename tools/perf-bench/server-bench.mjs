@@ -65,7 +65,8 @@ function measureParse(jsonStr) {
 function countFeatures(data) {
   if (Array.isArray(data)) return data.length
   if (data && typeof data === 'object') {
-    if (data.type === 'FeatureCollection' && Array.isArray(data.features)) return data.features.length
+    if (data.type === 'FeatureCollection' && Array.isArray(data.features))
+      return data.features.length
     if (Array.isArray(data.features)) return data.features.length
     // 统计各顶层 key 的元素数
     const counts = {}

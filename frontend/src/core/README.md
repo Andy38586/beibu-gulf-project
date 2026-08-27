@@ -91,15 +91,15 @@ core/
 
 ## 六、关键约束（@arch-note）
 
-| 标注            | 文件                 | 约束                                                                                                                                                       |
-| --------------- | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `a016-D06`      | BusinessLayerManager | 引擎切换时 `clearLayerCatalog()` 清空 catalog，可见性必须以 `_registry` 为准，reapplyAll/setVisible 不依赖 catalog，否则 2D↔3D 切换后业务图层丢失          |
-| `a018-D06`      | BusinessLayerManager | `clearLayerCatalog` 同样清掉业务图层 catalog 条目，reapplyAll 须按 registry 重建缺失条目（幂等，已存在则跳过）                                             |
-| `a020`          | BusinessLayerManager | `reapplyAll` 中 `adapter.create` 必须逐层容错，单层失败（如 Cesium DeveloperError）只 warn 不中断整批                                                      |
-| `a023`          | UnifiedMap           | 卸载时遍历销毁两个缓存渲染器（非仅当前），ref 显式置空，store 悬空引用清除，停止排队的引擎切换                                                             |
-| `a025`          | UnifiedMap           | click 监听具名回调 + off 解绑，注册/移除配对契约                                                                                                           |
-| `a033 (D-12=B)` | UnifiedMap           | 核心常驻层（boundary/ports）收口到 BLM，与业务图层统一走 registry                                                                                          |
-| `z024`          | UnifiedMap           | 组件级 abort（loadAbort），卸载后阻止异步回调继续写 ref                                                                                                    |
+| 标注            | 文件                 | 约束                                                                                                                                                                                                                                                           |
+| --------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `a016-D06`      | BusinessLayerManager | 引擎切换时 `clearLayerCatalog()` 清空 catalog，可见性必须以 `_registry` 为准，reapplyAll/setVisible 不依赖 catalog，否则 2D↔3D 切换后业务图层丢失                                                                                                              |
+| `a018-D06`      | BusinessLayerManager | `clearLayerCatalog` 同样清掉业务图层 catalog 条目，reapplyAll 须按 registry 重建缺失条目（幂等，已存在则跳过）                                                                                                                                                 |
+| `a020`          | BusinessLayerManager | `reapplyAll` 中 `adapter.create` 必须逐层容错，单层失败（如 Cesium DeveloperError）只 warn 不中断整批                                                                                                                                                          |
+| `a023`          | UnifiedMap           | 卸载时遍历销毁两个缓存渲染器（非仅当前），ref 显式置空，store 悬空引用清除，停止排队的引擎切换                                                                                                                                                                 |
+| `a025`          | UnifiedMap           | click 监听具名回调 + off 解绑，注册/移除配对契约                                                                                                                                                                                                               |
+| `a033 (D-12=B)` | UnifiedMap           | 核心常驻层（boundary/ports）收口到 BLM，与业务图层统一走 registry                                                                                                                                                                                              |
+| `z024`          | UnifiedMap           | 组件级 abort（loadAbort），卸载后阻止异步回调继续写 ref                                                                                                                                                                                                        |
 | `c023`          | 业务导航             | 2026-08-09 重构：底部 dock 固定 3 键（首页/个人中心/菜单），业务入口+城市切换统一收敛到 AppLayout 抽屉菜单（business/manifest 单一事实源）；navConfig.ts 仍存在并承载导航结构，由 App.vue `registerNavItems()` 注入业务项（816 复核：README 原"已删"表述过期） |
 
 ## 七、测试

@@ -29,9 +29,16 @@ async function fetchType(file, keyword) {
   const PAGE = 20
   for (;;) {
     const url =
-      'https://restapi.amap.com/v3/place/text?keywords=' + encodeURIComponent(keyword) +
-      '&city=' + encodeURIComponent(city) + '&key=' + key +
-      '&output=json&offset=' + PAGE + '&page=' + offset
+      'https://restapi.amap.com/v3/place/text?keywords=' +
+      encodeURIComponent(keyword) +
+      '&city=' +
+      encodeURIComponent(city) +
+      '&key=' +
+      key +
+      '&output=json&offset=' +
+      PAGE +
+      '&page=' +
+      offset
     const r = await fetch(url)
     const j = await r.json()
     if (j.status !== '1') {

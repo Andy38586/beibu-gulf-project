@@ -75,8 +75,12 @@ async function download(url, file) {
       return true
     } catch (e) {
       // keep partial for resume
-      try { existing = fs.existsSync(tmp) ? fs.statSync(tmp).size : 0 } catch {}
-      console.log(`[retry ${attempt}/${RETRIES}] ${path.basename(file)}: ${e.message} (resume @ ${existing})`)
+      try {
+        existing = fs.existsSync(tmp) ? fs.statSync(tmp).size : 0
+      } catch {}
+      console.log(
+        `[retry ${attempt}/${RETRIES}] ${path.basename(file)}: ${e.message} (resume @ ${existing})`
+      )
       await new Promise((r) => setTimeout(r, 2000 * attempt))
     }
   }
@@ -94,13 +98,12 @@ async function runBatch(urls) {
       if (done && item.md5url) {
         // verify checksum; on mismatch delete and report FAIL
         try {
-          const md5 = (await (await fetch(item.md5url, { signal: AbortSignal.timeout(30000) })).text())
+          const md5 = (
+            await (await fetch(item.md5url, { signal: AbortSignal.timeout(30000) })).text()
+          )
             .trim()
             .split(/\s+/)[0]
-          const local = crypto
-            .createHash('md5')
-            .update(fs.readFileSync(item.file))
-            .digest('hex')
+          const local = crypto.createHash('md5').update(fs.readFileSync(item.file)).digest('hex')
           if (md5 === local) {
             console.log(`[md5-ok] ${path.basename(item.file)}`)
             ok++
@@ -162,6 +165,6 @@ console.log(`[plan] target: ${base}`)
 
 const gl30Ok = await runBatch(gl30)
 console.log(`[summary] GLO-30: ${gl30Ok}/${gl30.length}`)
-if (osm.length) console.log(`[summary] OSM: ${(await runBatch(osm))}/${osm.length}`)
-if (bathy.length) console.log(`[summary] bathymetry: ${(await runBatch(bathy))}/${bathy.length}`)
+if (osm.length) console.log(`[summary] OSM: ${await runBatch(osm)}/${osm.length}`)
+if (bathy.length) console.log(`[summary] bathymetry: ${await runBatch(bathy)}/${bathy.length}`)
 console.log('[all done]')

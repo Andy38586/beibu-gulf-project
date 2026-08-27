@@ -61,7 +61,11 @@ describe('floodService.assessDisaster — 空间筛选语义（8-7 同源）', (
   })
 
   it('floodZone 为 null → 空结果、riskLevel 无风险、waterLevel undefined', () => {
-    const r = assessDisaster([{ id: 'f1', lng: 0.5, lat: 0.5, value: 100, damageRate: 0.5 }], 5, null)
+    const r = assessDisaster(
+      [{ id: 'f1', lng: 0.5, lat: 0.5, value: 100, damageRate: 0.5 }],
+      5,
+      null
+    )
     expect(r.affectedFacilities).toEqual([])
     expect(r.totalLoss).toBe(0)
     expect(r.riskLevel).toBe('无风险')
@@ -69,11 +73,11 @@ describe('floodService.assessDisaster — 空间筛选语义（8-7 同源）', (
   })
 
   it('floodZone.features 为空（0 档）→ 空结果（02 §4.3：水位 0 = 无淹没）', () => {
-    const r = assessDisaster(
-      [{ id: 'f1', lng: 0.5, lat: 0.5, value: 100, damageRate: 0.5 }],
-      0,
-      { waterLevel: 0, riskLevel: '无风险', features: [] }
-    )
+    const r = assessDisaster([{ id: 'f1', lng: 0.5, lat: 0.5, value: 100, damageRate: 0.5 }], 0, {
+      waterLevel: 0,
+      riskLevel: '无风险',
+      features: [],
+    })
     expect(r.affectedFacilities).toEqual([])
   })
 })
@@ -103,7 +107,11 @@ describe('floodService.assessDisaster — 脏数据防御（B-9/8-4 守护）', 
   })
 
   it('damageRate 缺失应计 loss=0（不产出 NaN）', () => {
-    const r = assessDisaster([{ id: 'f1', name: 'A', lng: 0.5, lat: 0.5, value: 100 }], 5, floodZone)
+    const r = assessDisaster(
+      [{ id: 'f1', name: 'A', lng: 0.5, lat: 0.5, value: 100 }],
+      5,
+      floodZone
+    )
     expect(Number.isFinite(r.totalLoss)).toBe(true)
     expect(r.totalLoss).toBe(0)
   })

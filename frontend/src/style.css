@@ -98,7 +98,9 @@
      暗色下与 overlay-tint 亮度分裂；「略深/更淡」为有意的视觉分级，
      故独立成 token 而非并入 overlay-tint，暗色档见 dark 块 */
   --GCS-slider-track-tint: rgb(255 255 255 / 50%); /* 因子滑块轨道底色（较 overlay-tint 略深） */
-  --GCS-overlay-highlight: rgb(255 255 255 / 22%); /* 按钮悬浮高光（较 overlay-tint 更淡，仅高光用） */
+  --GCS-overlay-highlight: rgb(
+    255 255 255 / 22%
+  ); /* 按钮悬浮高光（较 overlay-tint 更淡，仅高光用） */
 }
 
 /* c056：暗色主题下 OL 底图压暗（纯 CSS，零 JS）——天地图影像不再刺眼；

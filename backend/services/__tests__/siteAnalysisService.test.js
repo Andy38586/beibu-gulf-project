@@ -92,4 +92,16 @@ describe('siteAnalysisService.resolveRadiusSettings — 半径校验（R-10 服�
   it('typeSettings 缺键 → 抛 INVALID_PARAMS（防御 selectedKeys 与 typeSettings 键集不一致）', () => {
     expect(() => resolveRadiusSettings(['hospital'], {})).toThrow(/缺少 typeSettings/)
   })
+
+  it('全部类型覆盖数据不可用 → emptyReason 不出现 null 字样（failKey=null 专属文案）', () => {
+    const result = runSiteAnalysis({
+      selectedKeys: ['hospital'],
+      typeSettings: { hospital: { selected: true, radius: 5 } },
+      facilityData: { hospital: [] }, // 无设施 → buildTypeCoverage 返回 null → intersectCoverages 全空
+      xiaoquData: [],
+    })
+    expect(result.empty).toBe(true)
+    expect(result.emptyReason).not.toContain('null')
+    expect(result.emptyReason).toContain('覆盖数据均不可用')
+  })
 })

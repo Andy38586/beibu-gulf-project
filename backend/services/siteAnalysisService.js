@@ -247,11 +247,16 @@ export function runSiteAnalysis({ selectedKeys, typeSettings, facilityData, xiao
   const { area: finalArea, failKey } = intersectCoverages(coverages, selectedKeys)
   if (!finalArea) {
     // 8-1：无重叠是合法空结果（02 §4.1 应然），不是错误信封——用 empty 标记而非 error 字段，
-    // 避免 controller 将其转 422；前端按业务空结果展示"无重叠区域"提示
+    // 避免 controller 将其转 422；前端按业务空结果展示"无重叠区域"提示。
+    // 文案区分两种空：全部类型无覆盖（failKey=null）≠ 交集在某类型处断裂
+    const emptyReason =
+      failKey === null
+        ? '所选设施类型的覆盖数据均不可用，请检查数据或调整类型'
+        : `${failKey} 的覆盖范围与其他类型无重叠区域`
     return {
       error: null,
       empty: true,
-      emptyReason: `${failKey} 的覆盖范围与其他类型无重叠区域`,
+      emptyReason,
       coverage: null,
       matchedXiaoqu: [],
       facilityPoi: {},

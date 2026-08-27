@@ -7,12 +7,13 @@
  */
 
 import { computed, defineAsyncComponent, ref, watch } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useRoute, useRouter } from 'vue-router'
 
 import { useScreenActions } from '@/core/layout/composables/useScreenActions'
 import LayerControlPanel from '@/core/map/components/LayerControlPanel.vue'
 import { PanelTitle, useGCS, useTheme } from '@/shared'
-import { useSiteSelectionStore } from '@/stores'
+import { useSiteSelectionStore, useMapStore } from '@/stores'
 import { RadarChart, SNAPSHOT_SELECTED_TYPES, SNAPSHOT_XIAOQU } from '@/visualization'
 
 import BottomNavBar from './components/BottomNavBar.vue'
@@ -58,9 +59,12 @@ const radarSelectedTypes = computed(() =>
 )
 
 // 调试模式状态（网格 + 性能监控，类似 MC F3）
-// 仅本地开发渲染：import.meta.env.DEV 是编译期常量，生产构建后 v-if 恒 false
-const debugMode = ref(false)
+// 仅本地开发渲染：import.meta.env.DEV 是编译期常量，生产构建后 v-if 恒 false；
+// 状态住 mapStore（引擎徽标等 DEV 标号跨组件消费同一开关，Pinia 单一状态）
 const showDebug = import.meta.env.DEV
+const mapStore = useMapStore()
+const { debugMode } = storeToRefs(mapStore)
+const setDebugMode = (v: boolean) => mapStore.setDebugMode(v)
 
 // 专注模式 class 挂 body 而非根节点：抽屉 Teleport 到 body，根节点选择器匹配不到抽屉内面板。
 // body 加 slider-focus-mode（CSS 透明化其他面板），滑块所在面板标记 slider-focus-panel，底部 nav 排除。

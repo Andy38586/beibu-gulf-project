@@ -171,6 +171,9 @@ export const useMapStore = defineStore('map', () => {
     layerCatalog,
     baseLayerKey,
     currentRenderer,
+    // 调试模式（仅 DEV 构建消费：引擎徽标等后台标号的统一开关）
+    debugMode,
+    setDebugMode,
     setCurrentRenderer,
     setMapType,
     setSelectedPort,

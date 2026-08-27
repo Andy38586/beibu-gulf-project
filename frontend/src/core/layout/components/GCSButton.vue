@@ -108,6 +108,7 @@ function handleClick() {
 .button-label {
   font-weight: 500;
   line-height: 1.2;
+  letter-spacing: -0.5px; /* 字距收紧（全站通用按钮） */
 }
 
 .button-icon {

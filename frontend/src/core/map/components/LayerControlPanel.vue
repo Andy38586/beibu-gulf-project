@@ -216,6 +216,7 @@ function handleToggle(key: string) {
 .layer-label {
   font-weight: 500;
   line-height: 1.2;
+  letter-spacing: -0.5px; /* 字距收紧 */
   text-align: center;
   white-space: nowrap;
   overflow: hidden;

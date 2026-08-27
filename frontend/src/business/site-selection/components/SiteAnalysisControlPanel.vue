@@ -357,6 +357,7 @@ defineExpose({
 .factor-label {
   font-weight: 500;
   line-height: 1.2;
+  letter-spacing: -0.5px; /* 字距收紧 */
 }
 
 /* 已选态：带重要程度标签（3 元素需紧凑间距） */

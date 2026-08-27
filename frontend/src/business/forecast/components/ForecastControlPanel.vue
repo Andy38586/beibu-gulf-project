@@ -604,8 +604,8 @@ onUnmounted(() => stopPlayback())
 .btn-cell.ing .conf-slider {
   appearance: none;
   width: 80%;
-  height: var(--GCS-slider-thumb-size); /* 粗白轨道：全高与拇指同径，primary 底上最醒目 */
-  background-color: #ffffff; /* 恒定白：primary 饱和底上亮暗两主题都明确区分 */
+  height: var(--GCS-slider-thumb-size);
+  background: linear-gradient(to right, var(--GCS-border-default), var(--GCS-color-primary));
   border-radius: calc(var(--GCS-slider-thumb-size) / 2);
   outline: none;
   cursor: pointer;
@@ -617,8 +617,8 @@ onUnmounted(() => stopPlayback())
   width: var(--GCS-slider-thumb-size);
   height: var(--GCS-slider-thumb-size);
   border-radius: 50%;
-  background: #ffffff;
-  border: 2px solid var(--GCS-color-primary);
+  background: var(--GCS-color-primary);
+  border: 2px solid #ffffff;
   box-shadow: 0 1px 3px rgb(0 0 0 / 35%);
   cursor: pointer;
 }
@@ -627,8 +627,8 @@ onUnmounted(() => stopPlayback())
   width: var(--GCS-slider-thumb-size);
   height: var(--GCS-slider-thumb-size);
   border-radius: 50%;
-  background: #ffffff;
-  border: 2px solid var(--GCS-color-primary);
+  background: var(--GCS-color-primary);
+  border: 2px solid #ffffff;
   box-shadow: 0 1px 3px rgb(0 0 0 / 35%);
   cursor: pointer;
 }

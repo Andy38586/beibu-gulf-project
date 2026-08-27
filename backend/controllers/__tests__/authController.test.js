@@ -9,7 +9,7 @@
  * - 伪造签名 token → updateTokenVersion 不调用（不吊销合法用户，防 DoS）
  * - 无 token / 过期 token → 仅清 cookie，不吊销
  */
-import { beforeEach,describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('jsonwebtoken', () => ({
   default: { verify: vi.fn(), sign: vi.fn(), decode: vi.fn() },

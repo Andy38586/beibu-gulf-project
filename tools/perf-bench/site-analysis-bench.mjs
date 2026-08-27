@@ -9,7 +9,7 @@
  * 注意：依赖 backend 的 ESM 相对导入，须在 backend 目录下运行。
  */
 import { readFileSync } from 'node:fs'
-import { dirname,join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { performance } from 'node:perf_hooks'
 import { fileURLToPath } from 'node:url'
 

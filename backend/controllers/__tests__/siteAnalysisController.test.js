@@ -7,7 +7,7 @@
  * - radius 为负 / 非数字 → 400，且不调用 runSiteAnalysis
  * - radius 合法 → 进入 runSiteAnalysis 并正常返回
  */
-import { beforeEach,describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { BusinessError, ErrorCode } from '../../utils/BusinessError.js'
 

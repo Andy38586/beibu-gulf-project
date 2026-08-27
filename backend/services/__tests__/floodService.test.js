@@ -9,7 +9,7 @@
  * - 坐标缺失/非有限 → 排除（原 elevation 判空防御迁移为坐标判空）
  * - value/damageRate 缺失 → 按 0 计 loss，totalLoss 恒为有限数
  */
-import { describe, expect,it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
 import { assessDisaster } from '../floodService.js'
 

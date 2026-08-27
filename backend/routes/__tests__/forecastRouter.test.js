@@ -5,7 +5,7 @@
  * 修复前后端无 /overview 路由，请求落入 /:portId → getPortForecast('overview') → 空数据。
  * 本测试锁定：/overview 必须分发到 getForecastOverview，而非被 /:portId 兜底。
  */
-import { beforeEach,describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // 隔离 controller 层，避免真实文件 IO
 vi.mock('../../controllers/forecastController.js', () => ({

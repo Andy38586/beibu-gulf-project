@@ -5,7 +5,7 @@
  * 场景：覆盖范围内设施被保留、范围外被剔除、无效坐标被防御。
  */
 import * as turf from '@turf/turf'
-import { describe, expect,it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
 import { filterFacilitiesInCoverage } from '../siteAnalysisService.js'
 

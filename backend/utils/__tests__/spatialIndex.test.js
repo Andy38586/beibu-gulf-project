@@ -1,5 +1,5 @@
 import { booleanPointInPolygon, point } from '@turf/turf'
-import { describe, expect,it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
 import { createSpatialIndex, queryByPolygon } from '../spatialIndex.js'
 

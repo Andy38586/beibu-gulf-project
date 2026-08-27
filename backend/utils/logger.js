@@ -5,7 +5,7 @@
  */
 
 import { appendFile, mkdir, readdir, stat, unlink } from 'fs/promises'
-import { dirname,join } from 'path'
+import { dirname, join } from 'path'
 import { fileURLToPath } from 'url'
 
 const isDev = process.env.NODE_ENV === 'development'

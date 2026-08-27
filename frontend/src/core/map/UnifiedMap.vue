@@ -203,11 +203,10 @@ async function initRenderer(type: '2d' | '3d', container: HTMLElement | null) {
       }
 
       existingRenderer.updateSize()
-      // 图层目录绑定当前渲染器实例，切回时需重新注册
-      setupLayers()
-      // 顺序关键：先 setCurrentRenderer（触发孤儿图层清理），后 reapplyAll 重建，
-      // 顺序反了面板会先显示后撤掉
+      // 顺序关键：先 setCurrentRenderer（setupLayers 的底图重放依赖 mapStore.currentRenderer），
+      // 再 setupLayers（含底图重放），最后 reapplyAll 重建业务图层——顺序反了面板与屏幕脱节
       mapStore.setCurrentRenderer(existingRenderer)
+      setupLayers()
       businessLayerManager.reapplyAll(existingRenderer)
     } else {
       const renderer = (await createRenderer(type, container)) as unknown as MapRenderer
@@ -219,11 +218,12 @@ async function initRenderer(type: '2d' | '3d', container: HTMLElement | null) {
       }
 
       currentRenderer.value = renderer
+      // 顺序关键：setCurrentRenderer 必须先于 setupLayers（底图重放读 mapStore.currentRenderer），
+      // 否则首次进引擎时底图指令发射给 null/旧实例，屏幕保持默认底图而面板显示新选择
+      mapStore.setCurrentRenderer(renderer)
       renderer.updateSize()
       setupLayers()
       setupEvents()
-      mapStore.setCurrentRenderer(renderer)
-      // 业务图层重建统一作为最后一步（不依赖 App.vue watch，单测/独立使用场景同样成立）
       businessLayerManager.reapplyAll(renderer)
     }
   } catch (error) {

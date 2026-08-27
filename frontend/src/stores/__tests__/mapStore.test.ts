@@ -1,6 +1,7 @@
 // mapStore 状态回归测试（地图状态链路）
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { MapRenderer } from '@/types'
 
 // mock localStorage（baseLayerKey 持久化）
 const storage = new Map<string, string>()
@@ -76,6 +77,29 @@ describe('mapStore', () => {
       store.setBaseLayer('base-image')
       expect(store.baseLayerKey).toBe('base-image')
       expect(store.layerCatalog.find((e) => e.key === 'base-image')!.visible).toBe(true)
+    })
+
+    it('引擎切换（渲染器实例更换）后同 key 底图指令必须重放到新渲染器', () => {
+      // 回归：2D 切矢量 → 首次进 3D 时 no-op 误判吞掉指令，新渲染器保持默认影像底图
+      const store = useMapStore()
+      store.registerBaseLayer('base-image', '影像底图')
+      store.registerBaseLayer('base-vector', '矢量底图')
+      const olRenderer = { setBaseLayer: vi.fn() } as unknown as MapRenderer
+      const cesiumRenderer = { setBaseLayer: vi.fn() } as unknown as MapRenderer
+
+      store.setCurrentRenderer(olRenderer)
+      store.setBaseLayer('base-vector')
+      expect(olRenderer.setBaseLayer).toHaveBeenCalledWith('vector')
+
+      // 同实例同 key → no-op（不重复渲染）
+      store.setBaseLayer('base-vector')
+      expect(olRenderer.setBaseLayer).toHaveBeenCalledTimes(1)
+
+      // 切 3D：新渲染器实例 → 即使 key 未变也必须重放
+      store.setCurrentRenderer(cesiumRenderer)
+      store.setBaseLayer('base-vector')
+      expect(cesiumRenderer.setBaseLayer).toHaveBeenCalledWith('vector')
+      expect(olRenderer.setBaseLayer).toHaveBeenCalledTimes(1)
     })
 
     it('不存在的 key 不应报错', () => {

@@ -124,9 +124,12 @@ export const useMapStore = defineStore('map', () => {
 
     baseLayerKey.value = key
     writeStoredBaseLayer(key)
+
+    // 渲染器未就绪（null）：状态已更新、不记 lastBaseRenderer——渲染器就绪后 setupLayers 重放权威键
+    if (!renderer) return
     lastBaseRenderer = renderer
 
-    renderer?.setBaseLayer?.(key === 'base-image' ? 'image' : 'vector')
+    renderer.setBaseLayer?.(key === 'base-image' ? 'image' : 'vector')
   }
 
   function removeLayer(key: string): void {

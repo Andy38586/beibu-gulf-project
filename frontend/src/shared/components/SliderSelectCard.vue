@@ -166,7 +166,7 @@ const onSliderInput = (e: Event) => {
   height: var(--GCS-slider-thumb-size);
   border-radius: 50%;
   background: var(--GCS-color-primary);
-  border: 2px solid #ffffff;
+  border: 2px solid white;
   box-shadow: 0 1px 3px rgb(0 0 0 / 35%); /* 投影让拇指从轨道上浮起，双主题可辨 */
   cursor: pointer;
 }
@@ -176,7 +176,7 @@ const onSliderInput = (e: Event) => {
   height: var(--GCS-slider-thumb-size);
   border-radius: 50%;
   background: var(--GCS-color-primary);
-  border: 2px solid #ffffff;
+  border: 2px solid white;
   box-shadow: 0 1px 3px rgb(0 0 0 / 35%);
   cursor: pointer;
 }

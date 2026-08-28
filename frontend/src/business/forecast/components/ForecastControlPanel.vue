@@ -562,6 +562,7 @@ onUnmounted(() => stopPlayback())
      面板内操作钮与地图悬浮 GCSButton 职责可区分，抽 FlatButton 留待按钮体系重构 */
   background: var(--GCS-bg-hover);
 }
+
 /* ===== 预测指标按钮统一外观（与选址 SliderSelectCard 同构） ===== */
 .btn-cell .ind-btn {
   letter-spacing: -0.5px;
@@ -618,7 +619,7 @@ onUnmounted(() => stopPlayback())
   height: var(--GCS-slider-thumb-size);
   border-radius: 50%;
   background: var(--GCS-color-primary);
-  border: 2px solid #ffffff;
+  border: 2px solid white;
   box-shadow: 0 1px 3px rgb(0 0 0 / 35%);
   cursor: pointer;
 }
@@ -628,7 +629,7 @@ onUnmounted(() => stopPlayback())
   height: var(--GCS-slider-thumb-size);
   border-radius: 50%;
   background: var(--GCS-color-primary);
-  border: 2px solid #ffffff;
+  border: 2px solid white;
   box-shadow: 0 1px 3px rgb(0 0 0 / 35%);
   cursor: pointer;
 }

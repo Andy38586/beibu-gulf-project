@@ -256,6 +256,7 @@ defineExpose({
   padding: v-bind(cell8px);
   box-sizing: border-box;
 }
+
 .factor-grid {
   display: grid;
   grid-template-columns: repeat(2, 1.8fr);
@@ -273,6 +274,7 @@ defineExpose({
   width: 100%;
   height: 100%;
 }
+
 .factor-btn {
   width: 100%;
   height: 100%;

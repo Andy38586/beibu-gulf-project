@@ -1,5 +1,5 @@
 import { readPorts } from '../repositories/portsRepository.js'
-import { BusinessError, ErrorCode } from '../utils/BusinessError.js'
+import { BusinessError } from '../utils/BusinessError.js'
 import { logger } from '../utils/logger.js'
 import { sendSuccess } from '../utils/response.js'
 

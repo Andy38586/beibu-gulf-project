@@ -6,7 +6,7 @@
 
 import { computed } from 'vue'
 
-import { useGCS, formatLoss } from '@/shared'
+import { formatLoss, useGCS } from '@/shared'
 import { useFloodStore } from '@/stores'
 
 const floodStore = useFloodStore()

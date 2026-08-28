@@ -7,9 +7,9 @@
 import { defineAsyncComponent, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
+import { useOverviewCharts } from '@/business'
 import { AppLayout, GCSPanel } from '@/core'
 import { useAuth, useGCS } from '@/shared'
-import { useOverviewCharts } from '@/business'
 import { ChartLoading } from '@/visualization'
 
 import PlansPanel from './components/PlansPanel.vue'

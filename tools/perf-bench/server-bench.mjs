@@ -9,7 +9,7 @@
  *
  * 注意：本脚本只读文件 + 调用纯函数，不启动 HTTP 服务，不写任何数据文件。
  */
-import { readFileSync, statSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { gzipSync } from 'node:zlib'
@@ -85,9 +85,8 @@ function main() {
 
   for (const rel of TARGET_FILES) {
     const abs = join(DATA_DIR, rel)
-    let stat, buf
+    let buf
     try {
-      stat = statSync(abs)
       buf = readFileSync(abs)
     } catch (e) {
       rows.push({ file: rel, err: e.code })

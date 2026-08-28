@@ -6,14 +6,14 @@
  * 抽屉模式（<960px）下抽屉同时承载业务面板（slot left/right）。
  */
 
-import { computed, defineAsyncComponent, watch } from 'vue'
 import { storeToRefs } from 'pinia'
+import { computed, defineAsyncComponent, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { useScreenActions } from '@/core/layout/composables/useScreenActions'
 import LayerControlPanel from '@/core/map/components/LayerControlPanel.vue'
 import { PanelTitle, useGCS, useTheme } from '@/shared'
-import { useSiteSelectionStore, useMapStore } from '@/stores'
+import { useMapStore, useSiteSelectionStore } from '@/stores'
 import { RadarChart, SNAPSHOT_SELECTED_TYPES, SNAPSHOT_XIAOQU } from '@/visualization'
 
 import BottomNavBar from './components/BottomNavBar.vue'

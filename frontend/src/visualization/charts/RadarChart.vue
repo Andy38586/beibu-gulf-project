@@ -17,11 +17,11 @@ import RadarScoreTooltip from './components/RadarScoreTooltip.vue'
 import { useRadarChart } from './composables/useRadarChart'
 
 interface Props {
-  visible: boolean
-  xiaoqu: ScoredXiaoqu | null
-  selectedTypes: string[]
-  embedded: boolean
-  facilityPoi: Record<string, FacilityPoint[]>
+  visible?: boolean
+  xiaoqu?: ScoredXiaoqu | null
+  selectedTypes?: string[]
+  embedded?: boolean
+  facilityPoi?: Record<string, FacilityPoint[]>
   /** 雷达图标题，默认显示"xx小区评分详情图" */
   title?: string
 }

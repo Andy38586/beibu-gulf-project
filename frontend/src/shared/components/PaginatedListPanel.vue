@@ -19,7 +19,7 @@ import type { SavedXiaoqu } from '@/types/plan'
 import type { ScoredXiaoqu } from '@/types/xiaoqu'
 
 interface Props {
-  items: ScoredXiaoqu[]
+  items?: ScoredXiaoqu[]
   pageSize?: number
   title?: string
   emptyText?: string
@@ -51,6 +51,8 @@ const props = withDefaults(defineProps<Props>(), {
   loading: false,
   showFavorite: true,
   mapInteraction: true,
+  // 显式 undefined：flyTo 为可选能力（个人中心 PlansPanel 无地图上下文），非遗漏默认值
+  flyTo: undefined,
 })
 
 const emit = defineEmits<Emits>()

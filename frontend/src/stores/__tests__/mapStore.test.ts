@@ -1,6 +1,7 @@
 // mapStore 状态回归测试（地图状态链路）
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+
 import type { MapRenderer } from '@/types'
 
 // mock localStorage（baseLayerKey 持久化）

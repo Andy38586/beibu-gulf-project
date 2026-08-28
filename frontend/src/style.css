@@ -93,7 +93,7 @@
   /* 816-S7-44：滑块尺寸单一 token（Q5 拍板：自绘滑块全走 .gcs-slider 档） */
   --GCS-slider-thumb-size: 14px; /* 拇指直径（原 conf 16px / t-slider 18px / factor 14px 三套） */
   --GCS-slider-track-height: 6px; /* 轨道高（原 4px/6px 两套） */
-  
+
   /* 白叠层变体双主题化：组件硬编码 rgb(255 255 255 / x%) 只按亮色设计，
      暗色下与 overlay-tint 亮度分裂；「略深/更淡」为有意的视觉分级，
      故独立成 token 而非并入 overlay-tint，暗色档见 dark 块 */

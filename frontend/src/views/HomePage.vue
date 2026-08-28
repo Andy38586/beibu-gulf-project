@@ -7,9 +7,9 @@
 
 import { defineAsyncComponent, onMounted } from 'vue'
 
-import { AppLayout, GCSPanel } from '@/core'
 // 6-01：经 business 桶入口取数（不再深路径穿透 composables）
 import { useOverviewCharts } from '@/business'
+import { AppLayout, GCSPanel } from '@/core'
 import { useMapStore } from '@/stores'
 import { ChartLoading, PortInfoPanel } from '@/visualization'
 

@@ -10,6 +10,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   initialName: '',
+  errorMsg: '',
 })
 // 声明 error 事件，校验失败才能对外反馈
 const emit = defineEmits<{

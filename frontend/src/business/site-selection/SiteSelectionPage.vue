@@ -5,14 +5,12 @@
  * 跳转个人中心时保存状态、返回恢复，跳其他路由清除。
  */
 
+import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
-import { storeToRefs } from 'pinia'
 
 import { AppLayout, GCSPanel, LayerControlPanel, useBusinessLayers, useMapControls } from '@/core'
-import { showError, showWarning } from '@/shared'
-import { logger } from '@/shared'
-import { PaginatedListPanel } from '@/shared'
+import { logger, PaginatedListPanel, showError, showWarning } from '@/shared'
 import { useSiteSelectionStore } from '@/stores'
 import type { AnalysisResult, FacilityPoint, ScoredXiaoqu } from '@/types/analysis'
 import { RadarChart, SNAPSHOT_SELECTED_TYPES, SNAPSHOT_XIAOQU } from '@/visualization'

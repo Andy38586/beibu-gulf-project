@@ -26,7 +26,7 @@ interface Props {
   badge?: string
 }
 
-const props = withDefaults(defineProps<Props>(), {
+withDefaults(defineProps<Props>(), {
   dotColor: '',
   statusText: '',
   sliderValue: null,

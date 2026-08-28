@@ -37,6 +37,7 @@ export function preloadCesium(): void {
           // 预热失败静默——只是优化手段，不影响功能（进 3D 时走正式加载路径）
         })
       if (import.meta.env.DEV) {
+        // eslint-disable-next-line no-console -- DEV 门控诊断（logger.debug 级别语义不同）
         console.debug('[renderers] Cesium 空闲预热（执行加载）已启动')
       }
     }

@@ -86,7 +86,7 @@
     "undici": "^7.29.0"
   },
   "lint-staged": {
-    "frontend/src/**/*.{ts,vue,js}": [
+    "frontend/src/**/*.{ts,vue,js,css}": [
       "prettier --write"
     ]
   },

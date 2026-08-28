@@ -69,10 +69,6 @@ export default defineConfig([
         ...globals.node,
       },
     },
-    rules: {
-      // CLI/一次性工具脚本：console 即正常输出通道，不引入日志库
-      'no-console': 'off',
-    },
   },
 
   {
@@ -82,9 +78,6 @@ export default defineConfig([
       globals: {
         ...globals.node,
       },
-    },
-    rules: {
-      'no-console': 'off', // 同上：工具脚本以 console 为输出通道
     },
   },
 
@@ -200,6 +193,22 @@ export default defineConfig([
       // 存量为 0（2026-08-03 摸底无违规），直接 error 阻断新增。
       'vue/no-ref-as-operand': 'error',
       // z056: no-floating-promises 见下方 typed-linting 专属块（仅 .ts/.vue）
+    },
+  },
+
+  {
+    // console 豁免：flat config 中后配置覆盖前配置，本块必须置于主规则块（no-console: warn）
+    // 之后才生效。CLI/一次性工具脚本以 console 为正常输出通道，不引入日志库；
+    // 前后端 logger 实现文件的 console 即日志输出通道本身
+    files: [
+      '**/*.cjs',
+      'tools/**/*.mjs',
+      'scripts/**/*.mjs',
+      'backend/utils/logger.js',
+      'frontend/src/shared/utils/logger.ts',
+    ],
+    rules: {
+      'no-console': 'off',
     },
   },
 

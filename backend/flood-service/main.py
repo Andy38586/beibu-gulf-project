@@ -36,7 +36,7 @@ from pathlib import Path
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 
-from flood_engine import compute_impact, run_online_flood
+from flood_engine import compute_impact, datum_offset, run_online_flood
 
 # 816-专项5主 21（Q8 拍板）：flood-service 补日志分级 + 按天轮转——
 # 原仅 uvicorn stdout（docker 捕获，无轮转），长跑磁盘风险 + 无 error 级独立检索。
@@ -151,19 +151,30 @@ def _level_key(water_level: float) -> float:
 
 @app.get("/api/flood/online")
 def flood_online(
-    waterLevel: float = Query(..., ge=-1, le=25, description="水位（米，DEM 高程基准，滑块 0~20m；参数名统一 waterLevel，b027）"),
+    waterLevel: float = Query(..., ge=-1, le=25, description="水位（米，理论深度基准面，滑块 0~15m；内部换算 EGM96 后查表/演算；参数名统一 waterLevel，b027）"),
 ):
-    level = waterLevel
-    key = _level_key(level)
+    # 垂直基准统一（2026-08-29）：档位表键与 DEM 均为 EGM96 口径（产物按 dem<=level
+    # 演算生成，无需重生成），前端水位为理论深度基准面 → 查表/演算前先换算。
+    # 换算放在 online 入口而非 run_online_flood：precompute_levels.py 以 EGM96 水位
+    # 调引擎生成产物，引擎内部换算会双重扣减。
+    offset = datum_offset()
+    key = _level_key(waterLevel - offset)
+    # 回显理论基准档位：前端 _riskLevelFromFlood / actualWaterLevel 与 api 模式同口径
+    echo_level = round(key + offset, 1)
+
+    # EGM96 键 < 0（理论水位低于平均海平面）：档位表自 0 起、物理无淹没，直接回空，
+    # 不触发 DEM 加载（filled_utm48n_cut.tif 缺失时也不致 500）
+    if key < 0:
+        return {"level": echo_level, "featureCount": 0, "floodedKm2": 0.0, "features": []}
 
     # ① 预计算档位表查表（0.1m 档，与滑块 step 对齐）——命中秒回，零演算
     pre = _load_levels().get(str(key))
     if pre is not None:
         resp = dict(pre)
-        # 回显实际档位（滑块 step=0.1 → key == level，前端无"档位偏差"提示噪音）
+        # 回显理论基准档位（滑块 step=0.1 → 无"档位偏差"提示噪音）
         # 816-专项8 发现4：0 档 floodedKm2 已由数据层修正（precompute_levels.py 源头 + 存量表修复），
         # 原响应层特判（if key<=0 ... floodedKm2=0.0）已删除，防"补丁移除即复发"的掩盖式修复
-        resp["level"] = key
+        resp["level"] = echo_level
         return resp
 
     # ② LRU 动态演算缓存（查表 miss 的档位，如档位表缺失/越界）
@@ -176,6 +187,7 @@ def flood_online(
     engine = _engine_module()
     t0 = time.time()
     result = run_online_flood(key)
+    result["level"] = echo_level
     result["elapsedMs"] = round((time.time() - t0) * 1000)
     with _cache_lock:
         # 满 64 档时淘汰最久未访问的条目（popitem(last=False) 移除最旧），
@@ -188,7 +200,7 @@ def flood_online(
 
 @app.get("/api/flood/impact")
 def flood_impact(
-    waterLevel: float = Query(..., ge=-1, le=25, description="水位（米，DEM 高程基准；参数名统一 waterLevel，b027）"),
+    waterLevel: float = Query(..., ge=-1, le=25, description="水位（米，理论深度基准面；内部换算 EGM96 后查表；参数名统一 waterLevel，b027）"),
 ):
     """
     设施影响评估：预计算档位表的淹没多边形 ∩ 设施点（空间筛选）→ 受影响设施 + 总损失。
@@ -196,13 +208,15 @@ def flood_impact(
     与 /api/flood/online 共用档位表——滑块拖动时两个请求都查表秒回，零演算。
     2026-08-06 新增（原 online 模式影响评估返回空，前端受影响设施/损失一直为空）。
     """
-    level = waterLevel
-    key = _level_key(level)
+    # 垂直基准统一（2026-08-29，与 flood_online 同口径）：查表键换算 EGM96
+    offset = datum_offset()
+    key = _level_key(waterLevel - offset)
+    echo_level = round(key + offset, 1)
     pre = _load_levels().get(str(key))
     features = pre.get("features", []) if pre else []
     if not features:
-        return {"level": key, "affectedFacilities": [], "totalLoss": 0}
-    return compute_impact(key, features, _load_facilities())
+        return {"level": echo_level, "affectedFacilities": [], "totalLoss": 0}
+    return compute_impact(echo_level, features, _load_facilities())
 
 
 @app.get("/health")

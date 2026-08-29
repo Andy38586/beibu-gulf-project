@@ -15,7 +15,9 @@ const SYNTHETIC_INDICATORS = new Set(['berth', 'traffic'])
 
 // 走吞吐量模型产物的指标：模型为固定基线（scenarioLevel 恒 1.0）；
 // 产物缺失时降级 forecastEngine，接口不因模型文件问题中断
-const MODEL_INDICATORS = new Set(['cargo'])
+// 2026-08-29：container 接入（container_model.json，与 cargo 同方法同口径；
+// 原恒增长率复利外推对集装箱月波动拟合弱，换模型链路）
+const MODEL_INDICATORS = new Set(['cargo', 'container'])
 
 const MAX_CACHE_SIZE = 100
 
@@ -75,9 +77,9 @@ async function getOrComputeForecast(indicator, scenarioLevel) {
     let metadata = null
 
     if (MODEL_INDICATORS.has(indicator)) {
-      // cargo 走吞吐量模型产物（固定基线，与历史重叠月份丢弃、半年点插值补齐）
+      // cargo/container 走吞吐量模型产物（固定基线，与历史重叠月份丢弃、半年点插值补齐）
       const lastTime = historical?.[historical.length - 1]?.time
-      const modelResult = await getModelForecast(portId, lastTime)
+      const modelResult = await getModelForecast(portId, lastTime, indicator)
       if (modelResult) {
         forecast = modelResult.forecast
         metadata = { ...modelResult.metadata, scenarioLevel: 1.0 }
@@ -95,7 +97,7 @@ async function getOrComputeForecast(indicator, scenarioLevel) {
       // 合成指标：文件自带 forecast 直接透传
       forecast = portData.forecast || []
     } else {
-      // 真实指标（container 等）：趋势外推引擎演算
+      // 防御兜底（当前无真实指标走此路）：趋势外推引擎演算
       const engineResult = computeForecast(historical, scenarioLevel)
       // 8-12：同上，错误不塞成功信封
       if (engineResult.metadata?.error) {

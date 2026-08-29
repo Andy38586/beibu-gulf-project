@@ -371,6 +371,50 @@ describe('forecastService', () => {
       // 24 历史 + 120 外推预测 = 144（原 forecastEngine 行为）
       expect(series.data).toHaveLength(144)
     })
+
+    it('container 走模型产物（2026-08-29 接入，container_model.json）', async () => {
+      const containerData = {
+        indicator: 'container',
+        unit: 'TEU',
+        data: { p1: makePortData('p1', '港口A') },
+      }
+      const containerModelJson = {
+        ports: {
+          p1: {
+            name: '港口A',
+            backtest: { overall_mape: 12.26 },
+            predictions: [
+              { time: '2021-12', value: 100, lower: 90, upper: 110 },
+              { time: '2022-06', value: 200, lower: 180, upper: 220 },
+              { time: '2022-12', value: 300, lower: 270, upper: 330 },
+            ],
+          },
+        },
+        model_info: {
+          method: 'seasonal_decomposition_with_correction',
+          training_period: '2021-01 ~ 2024-12',
+          validation_period: '2025-01 ~ 2026-06',
+          forecast_period: '2026-07 ~ 2035-12',
+        },
+      }
+      mockReadFile.mockImplementation((path) => {
+        if (path.endsWith('container_model.json')) {
+          return Promise.resolve(JSON.stringify(containerModelJson))
+        }
+        if (path.endsWith('container.json')) {
+          return Promise.resolve(JSON.stringify(containerData))
+        }
+        return Promise.reject(makeEnoentError())
+      })
+      const result = await forecastService.getTimeSeriesData('container', 'p1')
+      expect(result.unit).toBe('TEU')
+      const series = result.series[0]
+      // 模型链路形状：24 历史 + 7 预测（2021-12 与历史重叠丢弃，2022-06/12 保留 + 插值）
+      expect(series.data).toHaveLength(24 + 7)
+      expect(series.data[24].time).toBe('2022-06')
+      expect(series.data[24].value).toBe(200)
+      expect(series.data.slice(24).every((d) => d.type === 'forecast')).toBe(true)
+    })
   })
 
   describe('getMapData - 缓存 TTL 失效 (REQ-2)', () => {

@@ -193,7 +193,9 @@ function updateChart() {
       {
         name: '水位线',
         type: 'line',
-        data: distances.map(() => waterLevel),
+        // 垂直基准换算：水位为理论深度基准面高程，剖面地形为 EGM96 正高，
+        // 需减去 datumOffset 后同基准绘制，否则水面线与地形高程不可比
+        data: distances.map(() => waterLevel - (profile.datumOffset ?? 0)),
         lineStyle: {
           color: PROFILE_COLORS.water,
           width: 2,

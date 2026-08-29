@@ -3,587 +3,561 @@
     "qinzhou": {
       "name": "钦州港",
       "backtest": {
-        "mape_2023": 2.37,
-        "mape_2024": 2.49,
-        "mape_2025": 2.05,
-        "overall_mape": 2.3,
+        "validation_overall_mape": 6.37,
+        "validation_months": 18,
+        "rolling_mape_by_step": {
+          "1": 5.43,
+          "2": 5.8,
+          "3": 5.72,
+          "4": 5.71,
+          "5": 5.88,
+          "6": 6.11,
+          "7": 6.8,
+          "8": 6.98,
+          "9": 6.55,
+          "10": 6.59,
+          "11": 6.66,
+          "12": 6.75
+        },
+        "rolling_samples_by_step": {
+          "1": 30,
+          "2": 29,
+          "3": 28,
+          "4": 27,
+          "5": 26,
+          "6": 25,
+          "7": 24,
+          "8": 23,
+          "9": 22,
+          "10": 21,
+          "11": 20,
+          "12": 19
+        },
         "bias": "balanced",
-        "correction_factor": 0.9839
+        "correction_factor": 1.0018
       },
       "predictions": [
         {
-          "time": "2026-01",
-          "value": 1516,
-          "lower": 1481,
-          "upper": 1551
-        },
-        {
-          "time": "2026-02",
-          "value": 1494,
-          "lower": 1460,
-          "upper": 1529
-        },
-        {
-          "time": "2026-03",
-          "value": 1508,
-          "lower": 1473,
-          "upper": 1543
-        },
-        {
-          "time": "2026-04",
-          "value": 1528,
-          "lower": 1493,
-          "upper": 1564
-        },
-        {
-          "time": "2026-05",
-          "value": 1512,
-          "lower": 1477,
-          "upper": 1547
-        },
-        {
-          "time": "2026-06",
-          "value": 1555,
-          "lower": 1519,
-          "upper": 1590
-        },
-        {
           "time": "2026-07",
-          "value": 1557,
-          "lower": 1521,
-          "upper": 1593
+          "value": 1849,
+          "lower": 1749,
+          "upper": 1950
         },
         {
           "time": "2026-08",
-          "value": 1542,
-          "lower": 1507,
-          "upper": 1578
+          "value": 1937,
+          "lower": 1824,
+          "upper": 2049
         },
         {
           "time": "2026-09",
-          "value": 1536,
-          "lower": 1500,
-          "upper": 1571
+          "value": 1938,
+          "lower": 1828,
+          "upper": 2049
         },
         {
           "time": "2026-10",
-          "value": 1552,
-          "lower": 1516,
-          "upper": 1588
+          "value": 1932,
+          "lower": 1822,
+          "upper": 2042
         },
         {
           "time": "2026-11",
-          "value": 1545,
-          "lower": 1509,
-          "upper": 1580
+          "value": 2096,
+          "lower": 1973,
+          "upper": 2220
         },
         {
           "time": "2026-12",
-          "value": 1561,
-          "lower": 1525,
-          "upper": 1597
+          "value": 2272,
+          "lower": 2133,
+          "upper": 2410
         },
         {
           "time": "2027-06",
-          "value": 1580,
-          "lower": 1528,
-          "upper": 1631
+          "value": 2087,
+          "lower": 1945,
+          "upper": 2229
         },
         {
           "time": "2027-12",
-          "value": 1585,
-          "lower": 1534,
-          "upper": 1637
+          "value": 2293,
+          "lower": 2133,
+          "upper": 2453
         },
         {
           "time": "2028-06",
-          "value": 1622,
-          "lower": 1558,
-          "upper": 1687
+          "value": 2106,
+          "lower": 1968,
+          "upper": 2244
         },
         {
           "time": "2028-12",
-          "value": 1628,
-          "lower": 1563,
-          "upper": 1693
+          "value": 2315,
+          "lower": 2162,
+          "upper": 2467
         },
         {
           "time": "2029-06",
-          "value": 1665,
-          "lower": 1588,
-          "upper": 1742
+          "value": 2126,
+          "lower": 1984,
+          "upper": 2268
         },
         {
           "time": "2029-12",
-          "value": 1670,
-          "lower": 1593,
-          "upper": 1747
+          "value": 2336,
+          "lower": 2178,
+          "upper": 2494
         },
         {
           "time": "2030-06",
-          "value": 1708,
-          "lower": 1620,
-          "upper": 1796
+          "value": 2146,
+          "lower": 1941,
+          "upper": 2350
         },
         {
           "time": "2030-12",
-          "value": 1713,
-          "lower": 1624,
-          "upper": 1801
+          "value": 2357,
+          "lower": 2132,
+          "upper": 2582
         },
         {
           "time": "2031-06",
-          "value": 1751,
-          "lower": 1652,
-          "upper": 1849
+          "value": 2165,
+          "lower": 1959,
+          "upper": 2372
         },
         {
           "time": "2031-12",
-          "value": 1755,
-          "lower": 1656,
-          "upper": 1854
+          "value": 2379,
+          "lower": 2152,
+          "upper": 2606
         },
         {
           "time": "2032-06",
-          "value": 1793,
-          "lower": 1684,
-          "upper": 1903
+          "value": 2185,
+          "lower": 1976,
+          "upper": 2393
         },
         {
           "time": "2032-12",
-          "value": 1797,
-          "lower": 1688,
-          "upper": 1907
+          "value": 2400,
+          "lower": 2171,
+          "upper": 2629
         },
         {
           "time": "2033-06",
-          "value": 1836,
-          "lower": 1717,
-          "upper": 1956
+          "value": 2204,
+          "lower": 1994,
+          "upper": 2415
         },
         {
           "time": "2033-12",
-          "value": 1840,
-          "lower": 1720,
-          "upper": 1959
+          "value": 2422,
+          "lower": 2190,
+          "upper": 2653
         },
         {
           "time": "2034-06",
-          "value": 1879,
-          "lower": 1749,
-          "upper": 2009
+          "value": 2224,
+          "lower": 2012,
+          "upper": 2436
         },
         {
           "time": "2034-12",
-          "value": 1882,
-          "lower": 1752,
-          "upper": 2012
+          "value": 2443,
+          "lower": 2210,
+          "upper": 2676
         },
         {
           "time": "2035-06",
-          "value": 1922,
-          "lower": 1782,
-          "upper": 2062
+          "value": 2244,
+          "lower": 2029,
+          "upper": 2458
         },
         {
           "time": "2035-12",
-          "value": 1924,
-          "lower": 1784,
-          "upper": 2065
+          "value": 2464,
+          "lower": 2176,
+          "upper": 2753
         }
       ]
     },
     "beihai": {
       "name": "北海港",
       "backtest": {
-        "mape_2023": 1.85,
-        "mape_2024": 1.88,
-        "mape_2025": 1.79,
-        "overall_mape": 1.84,
-        "bias": "balanced",
-        "correction_factor": 0.9971
+        "validation_overall_mape": 11.22,
+        "validation_months": 18,
+        "rolling_mape_by_step": {
+          "1": 8.19,
+          "2": 8.55,
+          "3": 8.87,
+          "4": 9.34,
+          "5": 10.03,
+          "6": 9.66,
+          "7": 10.94,
+          "8": 11.5,
+          "9": 11.81,
+          "10": 12.52,
+          "11": 11.79,
+          "12": 12.15
+        },
+        "rolling_samples_by_step": {
+          "1": 30,
+          "2": 29,
+          "3": 28,
+          "4": 27,
+          "5": 26,
+          "6": 25,
+          "7": 24,
+          "8": 23,
+          "9": 22,
+          "10": 21,
+          "11": 20,
+          "12": 19
+        },
+        "bias": "overpredict",
+        "correction_factor": 0.9032
       },
       "predictions": [
         {
-          "time": "2026-01",
-          "value": 900,
-          "lower": 883,
-          "upper": 916
-        },
-        {
-          "time": "2026-02",
-          "value": 904,
-          "lower": 888,
-          "upper": 921
-        },
-        {
-          "time": "2026-03",
-          "value": 902,
-          "lower": 885,
-          "upper": 918
-        },
-        {
-          "time": "2026-04",
-          "value": 921,
-          "lower": 904,
-          "upper": 938
-        },
-        {
-          "time": "2026-05",
-          "value": 936,
-          "lower": 919,
-          "upper": 953
-        },
-        {
-          "time": "2026-06",
-          "value": 919,
-          "lower": 902,
-          "upper": 936
-        },
-        {
           "time": "2026-07",
-          "value": 931,
-          "lower": 914,
-          "upper": 948
+          "value": 461,
+          "lower": 423,
+          "upper": 499
         },
         {
           "time": "2026-08",
-          "value": 935,
-          "lower": 918,
-          "upper": 952
+          "value": 483,
+          "lower": 442,
+          "upper": 525
         },
         {
           "time": "2026-09",
-          "value": 926,
-          "lower": 909,
-          "upper": 943
+          "value": 475,
+          "lower": 432,
+          "upper": 517
         },
         {
           "time": "2026-10",
-          "value": 923,
-          "lower": 906,
-          "upper": 940
+          "value": 481,
+          "lower": 436,
+          "upper": 526
         },
         {
           "time": "2026-11",
-          "value": 927,
-          "lower": 910,
-          "upper": 944
+          "value": 431,
+          "lower": 388,
+          "upper": 474
         },
         {
           "time": "2026-12",
-          "value": 925,
-          "lower": 908,
-          "upper": 942
+          "value": 462,
+          "lower": 418,
+          "upper": 507
         },
         {
           "time": "2027-06",
-          "value": 927,
-          "lower": 903,
-          "upper": 951
+          "value": 515,
+          "lower": 459,
+          "upper": 571
         },
         {
           "time": "2027-12",
-          "value": 933,
-          "lower": 909,
-          "upper": 958
+          "value": 466,
+          "lower": 413,
+          "upper": 520
         },
         {
           "time": "2028-06",
-          "value": 941,
-          "lower": 911,
-          "upper": 971
+          "value": 520,
+          "lower": 458,
+          "upper": 581
         },
         {
           "time": "2028-12",
-          "value": 948,
-          "lower": 918,
-          "upper": 978
+          "value": 470,
+          "lower": 412,
+          "upper": 529
         },
         {
           "time": "2029-06",
-          "value": 956,
-          "lower": 920,
-          "upper": 991
+          "value": 524,
+          "lower": 462,
+          "upper": 586
         },
         {
           "time": "2029-12",
-          "value": 962,
-          "lower": 927,
-          "upper": 997
+          "value": 475,
+          "lower": 417,
+          "upper": 532
         },
         {
           "time": "2030-06",
-          "value": 970,
-          "lower": 930,
-          "upper": 1010
+          "value": 529,
+          "lower": 438,
+          "upper": 619
         },
         {
           "time": "2030-12",
-          "value": 976,
-          "lower": 936,
-          "upper": 1017
+          "value": 479,
+          "lower": 396,
+          "upper": 561
         },
         {
           "time": "2031-06",
-          "value": 984,
-          "lower": 940,
-          "upper": 1029
+          "value": 533,
+          "lower": 442,
+          "upper": 625
         },
         {
           "time": "2031-12",
-          "value": 991,
-          "lower": 946,
-          "upper": 1035
+          "value": 483,
+          "lower": 400,
+          "upper": 566
         },
         {
           "time": "2032-06",
-          "value": 999,
-          "lower": 950,
-          "upper": 1047
+          "value": 538,
+          "lower": 445,
+          "upper": 630
         },
         {
           "time": "2032-12",
-          "value": 1005,
-          "lower": 956,
-          "upper": 1054
+          "value": 487,
+          "lower": 403,
+          "upper": 570
         },
         {
           "time": "2033-06",
-          "value": 1013,
-          "lower": 960,
-          "upper": 1066
+          "value": 542,
+          "lower": 449,
+          "upper": 635
         },
         {
           "time": "2033-12",
-          "value": 1019,
-          "lower": 966,
-          "upper": 1072
+          "value": 491,
+          "lower": 406,
+          "upper": 575
         },
         {
           "time": "2034-06",
-          "value": 1027,
-          "lower": 970,
-          "upper": 1084
+          "value": 547,
+          "lower": 453,
+          "upper": 641
         },
         {
           "time": "2034-12",
-          "value": 1033,
-          "lower": 976,
-          "upper": 1091
+          "value": 495,
+          "lower": 410,
+          "upper": 580
         },
         {
           "time": "2035-06",
-          "value": 1041,
-          "lower": 981,
-          "upper": 1102
+          "value": 551,
+          "lower": 456,
+          "upper": 646
         },
         {
           "time": "2035-12",
-          "value": 1048,
-          "lower": 987,
-          "upper": 1109
+          "value": 499,
+          "lower": 394,
+          "upper": 604
         }
       ]
     },
     "fangchenggang": {
       "name": "防城港",
       "backtest": {
-        "mape_2023": 1.37,
-        "mape_2024": 1.11,
-        "mape_2025": 1.81,
-        "overall_mape": 1.43,
-        "bias": "balanced",
-        "correction_factor": 1.0041
+        "validation_overall_mape": 7.22,
+        "validation_months": 18,
+        "rolling_mape_by_step": {
+          "1": 7.88,
+          "2": 8.09,
+          "3": 8.15,
+          "4": 7.53,
+          "5": 7.45,
+          "6": 7.28,
+          "7": 7.66,
+          "8": 7.53,
+          "9": 8.47,
+          "10": 7.94,
+          "11": 8.48,
+          "12": 8.92
+        },
+        "rolling_samples_by_step": {
+          "1": 30,
+          "2": 29,
+          "3": 28,
+          "4": 27,
+          "5": 26,
+          "6": 25,
+          "7": 24,
+          "8": 23,
+          "9": 22,
+          "10": 21,
+          "11": 20,
+          "12": 19
+        },
+        "bias": "overpredict",
+        "correction_factor": 0.9598
       },
       "predictions": [
         {
-          "time": "2026-01",
-          "value": 1694,
-          "lower": 1669,
-          "upper": 1718
-        },
-        {
-          "time": "2026-02",
-          "value": 1689,
-          "lower": 1665,
-          "upper": 1713
-        },
-        {
-          "time": "2026-03",
-          "value": 1707,
-          "lower": 1683,
-          "upper": 1732
-        },
-        {
-          "time": "2026-04",
-          "value": 1702,
-          "lower": 1677,
-          "upper": 1726
-        },
-        {
-          "time": "2026-05",
-          "value": 1714,
-          "lower": 1690,
-          "upper": 1739
-        },
-        {
-          "time": "2026-06",
-          "value": 1725,
-          "lower": 1700,
-          "upper": 1750
-        },
-        {
           "time": "2026-07",
-          "value": 1716,
-          "lower": 1692,
-          "upper": 1741
+          "value": 1767,
+          "lower": 1628,
+          "upper": 1906
         },
         {
           "time": "2026-08",
-          "value": 1725,
-          "lower": 1700,
-          "upper": 1749
+          "value": 1767,
+          "lower": 1624,
+          "upper": 1910
         },
         {
           "time": "2026-09",
-          "value": 1730,
-          "lower": 1706,
-          "upper": 1755
+          "value": 1686,
+          "lower": 1549,
+          "upper": 1823
         },
         {
           "time": "2026-10",
-          "value": 1749,
-          "lower": 1724,
-          "upper": 1774
+          "value": 1698,
+          "lower": 1570,
+          "upper": 1826
         },
         {
           "time": "2026-11",
-          "value": 1723,
-          "lower": 1698,
-          "upper": 1748
+          "value": 1783,
+          "lower": 1650,
+          "upper": 1916
         },
         {
           "time": "2026-12",
-          "value": 1720,
-          "lower": 1695,
-          "upper": 1744
+          "value": 1756,
+          "lower": 1628,
+          "upper": 1884
         },
         {
           "time": "2027-06",
-          "value": 1739,
-          "lower": 1704,
-          "upper": 1774
+          "value": 1788,
+          "lower": 1651,
+          "upper": 1925
         },
         {
           "time": "2027-12",
-          "value": 1734,
-          "lower": 1699,
-          "upper": 1769
+          "value": 1773,
+          "lower": 1639,
+          "upper": 1906
         },
         {
           "time": "2028-06",
-          "value": 1763,
-          "lower": 1720,
-          "upper": 1807
+          "value": 1805,
+          "lower": 1652,
+          "upper": 1958
         },
         {
           "time": "2028-12",
-          "value": 1758,
-          "lower": 1714,
-          "upper": 1801
+          "value": 1790,
+          "lower": 1648,
+          "upper": 1932
         },
         {
           "time": "2029-06",
-          "value": 1788,
-          "lower": 1737,
-          "upper": 1839
+          "value": 1822,
+          "lower": 1668,
+          "upper": 1977
         },
         {
           "time": "2029-12",
-          "value": 1782,
-          "lower": 1731,
-          "upper": 1833
+          "value": 1807,
+          "lower": 1646,
+          "upper": 1968
         },
         {
           "time": "2030-06",
-          "value": 1812,
-          "lower": 1754,
-          "upper": 1870
+          "value": 1839,
+          "lower": 1607,
+          "upper": 2072
         },
         {
           "time": "2030-12",
-          "value": 1806,
-          "lower": 1748,
-          "upper": 1863
+          "value": 1824,
+          "lower": 1594,
+          "upper": 2054
         },
         {
           "time": "2031-06",
-          "value": 1836,
-          "lower": 1772,
-          "upper": 1901
+          "value": 1857,
+          "lower": 1622,
+          "upper": 2091
         },
         {
           "time": "2031-12",
-          "value": 1830,
-          "lower": 1766,
-          "upper": 1894
+          "value": 1841,
+          "lower": 1608,
+          "upper": 2073
         },
         {
           "time": "2032-06",
-          "value": 1861,
-          "lower": 1790,
-          "upper": 1931
+          "value": 1874,
+          "lower": 1637,
+          "upper": 2110
         },
         {
           "time": "2032-12",
-          "value": 1854,
-          "lower": 1784,
-          "upper": 1924
+          "value": 1858,
+          "lower": 1623,
+          "upper": 2092
         },
         {
           "time": "2033-06",
-          "value": 1885,
-          "lower": 1809,
-          "upper": 1961
+          "value": 1891,
+          "lower": 1653,
+          "upper": 2130
         },
         {
           "time": "2033-12",
-          "value": 1878,
-          "lower": 1802,
-          "upper": 1954
+          "value": 1875,
+          "lower": 1638,
+          "upper": 2111
         },
         {
           "time": "2034-06",
-          "value": 1909,
-          "lower": 1827,
-          "upper": 1991
+          "value": 1908,
+          "lower": 1668,
+          "upper": 2149
         },
         {
           "time": "2034-12",
-          "value": 1902,
-          "lower": 1820,
-          "upper": 1983
+          "value": 1892,
+          "lower": 1653,
+          "upper": 2130
         },
         {
           "time": "2035-06",
-          "value": 1933,
-          "lower": 1846,
-          "upper": 2021
+          "value": 1925,
+          "lower": 1683,
+          "upper": 2168
         },
         {
           "time": "2035-12",
-          "value": 1926,
-          "lower": 1839,
-          "upper": 2013
+          "value": 1908,
+          "lower": 1614,
+          "upper": 2203
         }
       ]
     }
   },
   "model_info": {
     "method": "seasonal_decomposition_with_correction",
-    "training_period": "2018-2022",
-    "validation_period": "2023-2025",
-    "forecast_period": "2026-2035"
+    "indicator": "cargo",
+    "data_source": "cargo.json（官方真数据 2021-01~2026-06，yqb.gxzf.gov.cn）",
+    "training_period": "2021-01 ~ 2024-12",
+    "validation_period": "2025-01 ~ 2026-06",
+    "rolling_backtest": "origin 2024-01 ~ 2026-06，horizon 12 个月",
+    "forecast_period": "2026-07 ~ 2035-12",
+    "canal_assumption": "未建模平陆运河（2027 起隐含影响为零假设，情景区间待 intervention 层）"
   }
 }

@@ -25,6 +25,11 @@ export interface TerrainProfile {
   points: TerrainProfilePoint[]
   startPoint?: { lng: number; lat: number }
   endPoint?: { lng: number; lat: number }
+  /**
+   * 垂直基准偏移：水位(理论深度基准面) - datumOffset = 剖面高程基准(EGM96 正高)。
+   * 由后端从 waterLevel.json(baseLevels.msl) 透传，前端水面线须换算后与地形同基准绘制。
+   */
+  datumOffset?: number
 }
 
 /** 返回契约（816-专项3-0816-13：显式化） */

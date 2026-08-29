@@ -36,6 +36,35 @@ DEM_PATH = (
     / "filled_utm48n_cut.tif"
 )
 
+# 垂直基准偏移（理论深度基准面 − EGM96，米）：waterLevel.json 的 baseLevels.msl=2.5
+# 表示「理论深度基准面水位 H」对应 EGM96 正高 H−2.5。本引擎的 DEM 比较与 251 档
+# 产物均为 EGM96 口径（run_online_flood 契约即 EGM96 输入），online 入口须先把前端
+# 传来的理论水位换算后再查表/演算（见 main.py，2026-08-29 垂直基准统一）。
+# 单一数据源：从 waterLevel.json 读取，不硬编码（与 tools/flood_realify.py 同口径）。
+_WATER_LEVEL_JSON = (
+    Path(__file__).resolve().parents[1] / "data" / "flood" / "waterLevel.json"
+)
+_datum_offset_cache: float | None = None
+
+
+def datum_offset() -> float:
+    """垂直基准偏移（米）。msl 缺失时抛 RuntimeError——静默回 0 会复活基准错配 bug。"""
+    global _datum_offset_cache
+    if _datum_offset_cache is None:
+        import json
+
+        wl = json.loads(_WATER_LEVEL_JSON.read_text(encoding="utf-8"))
+        msl = next(
+            (b["height"] for b in wl.get("baseLevels", []) if b.get("id") == "msl"),
+            None,
+        )
+        if msl is None:
+            raise RuntimeError(
+                "waterLevel.json 缺少 baseLevels.msl，无法确定垂直基准偏移"
+            )
+        _datum_offset_cache = float(msl)
+    return _datum_offset_cache
+
 # 降采样因子：原 30m → 120m（4x），像元数 ~6800万 → ~425万，单次演算秒级
 DOWNSAMPLE = 4
 

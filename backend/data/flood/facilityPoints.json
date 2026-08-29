@@ -8,8 +8,9 @@
     "createdAt": "2026-08-06",
     "updatedAt": "2026-08-06",
     "amapSource": "高德 Web 服务 API v3/place/text（types=1503 港口码头 + keywords=堆场/保税）",
-    "dataNote": "位置/名字为高德真实 POI；elevation 为 DEM 采样；value/damageRate 为按类型的合理估算（假数据）",
-    "source": "real"
+    "dataNote": "混装数据（source=hybrid）：真=位置/名称（高德 POI 实抓）、elevation（DEM 采样）；假=value/damageRate（按类型的合理估算，非实测）。基于本文件的 estimatedLoss/totalLoss 均为假设系数口径，见 floodStatistics.json lossAssumption",
+    "source": "hybrid",
+    "updatedAt": "2026-08-29"
   },
   "facilities": [
     {

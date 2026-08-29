@@ -8,7 +8,8 @@
     "tidalType": "正规半日潮",
     "version": "1.0.0",
     "createdAt": "2026-07-19",
-    "source": "simulated"
+    "source": "reference_parameters",
+    "note": "水位基准（平均海平面/设计高潮位等）为工程参考假设参数，未接实测潮位站"
   },
   "baseLevels": [
     {

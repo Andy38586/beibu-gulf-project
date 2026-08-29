@@ -138,7 +138,13 @@ export async function getFloodStatistics(req, res, next) {
 export async function getTerrainProfiles(req, res, next) {
   try {
     const data = await readTerrainProfile()
-    sendSuccess(res, data.profiles)
+    // 垂直基准偏移：水位(理论深度基准面) - datumOffset = 剖面高程基准(EGM96 正高)。
+    // 逐条 profile 透传（前端 schema 为 looseObject，保留该字段），供水面线与地形同基准绘制。
+    const datumOffset = data.metadata?.datumOffset ?? 0
+    sendSuccess(
+      res,
+      data.profiles.map((p) => ({ ...p, datumOffset }))
+    )
   } catch (error) {
     if (!(error instanceof BusinessError)) {
       logger.error('获取剖面数据失败:', error)

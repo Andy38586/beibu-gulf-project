@@ -12,7 +12,6 @@ import authRouter from './routes/auth.js'
 import floodRouter from './routes/floodAnalysis.js'
 import forecastRouter from './routes/forecast.js'
 import plansRouter from './routes/plans.js'
-import portsRouter from './routes/ports.js'
 import siteAnalysisRouter from './routes/siteAnalysis.js'
 import { BusinessError } from './utils/BusinessError.js'
 import { logger } from './utils/logger.js'
@@ -198,7 +197,6 @@ app.use('/api/auth', authRouter)
 app.use('/api/plans', plansRouter)
 app.use('/api/forecast', forecastRouter)
 app.use('/api/flood', floodRouter)
-app.use('/api/ports', portsRouter)
 
 // 404错误处理中间件
 app.use((req, res) => {

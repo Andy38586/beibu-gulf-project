@@ -7,14 +7,13 @@
 
 data 目录承担两类数据：
 
-1. **只读静态数据**：forecast 指标、site-selection POI、flood 洪涝预计算结果、markers/ports 地理要素，由 services 读取后参与计算或直接返回前端。
+1. **只读静态数据**：forecast 指标、site-selection POI、flood 洪涝预计算结果、markers 地理要素，由 services 读取后参与计算或直接返回前端。
 2. **可写持久化数据**：users / markers / plans 等 JSON 文件，经 `createFileStore` 工厂统一管理（原子写入 + 缓存 + 写锁）。
 
 ## 二、目录结构
 
 ```
 data/
-├── ports.json                 # 港口数据（后端单源，经 /api/ports 公开接口返回）
 ├── markers.json               # 地图标记（可写，经 fileStore）
 ├── forecast/                  # 吞吐量预测数据（forecastService 读取）
 │   ├── index.json             #   指标索引/元信息
@@ -70,7 +69,7 @@ data/
 - `forecastService.js` → `data/forecast/{cargo,container}.json`：`getOrComputeForecast` 读取后调 `computeForecast` 演算，缓存 5min（`SEC-014`）；指标白名单（`SEC-013`）拒绝路径遍历。
 - `siteAnalysisService.js` → `data/site-selection/qz_*.json` + `xiaoqu.json`：经 repositories 加载后做覆盖/交集/评分。
 - `floodService.js` → `data/flood/facilityPoints.json` 等：洪涝损失评估输入。
-- `ports.json` → 后端单源，经 `/api/ports` 公开接口返回（前端 `loadPorts`）。
+- ~~`ports.json`~~ → 2026-08-29 回迁前端 `frontend/public/data/ports.json`（纯透传端点已删，港口与 boundary 同为前端静态参考数据）。
 
 ### 可写数据（经 fileStore）
 

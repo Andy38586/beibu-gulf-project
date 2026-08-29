@@ -165,7 +165,7 @@ export function useApiRequest(): UseApiRequestReturn {
 
     try {
       // 以 /flood-online 开头（vite proxy → FastAPI）的路径不加 /api 前缀：加了会命中 /api 规则转发到 Express，永远到不了 FastAPI
-      // 以 /api 开头（如 mapDataService 的 DATA_PATHS.ports='/api/ports'）视为已含前缀，不再叠加——
+      // 以 /api 开头（如 auth/plans 等 REST 路径）视为已含前缀，不再叠加——
       // 曾因双重拼接打成 /api/api/ports → 404 → 港口图层加载失败（816-专项1 发现3 回归，2026-08-17 修复）
       const url =
         path.startsWith('/flood-online') || path.startsWith('/api/')

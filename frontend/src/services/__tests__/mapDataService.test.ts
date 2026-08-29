@@ -1,43 +1,36 @@
 /**
- * mapDataService 信封解包测试（z033 根修回归防线）
- * 背景：mapDataService 用原生 fetch（保留 TTL 缓存/去重/超时），
- * 后端统一返回 { code, data } 信封。此前不解包 → getPorts 收到 object
- * → Array.isArray 失败 → 港口 + 行政区划（同 try 块连带）都不显示。
- * 本测试锁定：fetchData 对信封的解包行为 + getPorts 返回数组。
+ * mapDataService 港口静态数据加载回归防线（2026-08-29 ports 自后端回迁前端后重写）：
+ * 原 z033 信封解包测试随 /api/ports 透传端点删除而失效——loadStatic 直读静态 JSON 无信封。
+ * 本文件锁定：静态加载 + zod schema 边界 + 北部湾 CRS 守卫 + TTL 缓存清理。
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-// mock 全局 fetch，隔离网络；apiRequest 走 res.text() 解析（非 json()），mock 需配套
+// mock 全局 fetch，隔离网络；loadStatic 走 res.json()（非 text()），mock 需配套
 const fetchMock = vi.fn()
 vi.stubGlobal('fetch', fetchMock)
 
 import { mapDataService } from '../mapDataService'
 
-/** 构造与真实 fetch Response 同构的 mock（apiRequest 使用 res.text() 再 JSON.parse） */
-function mockResponse(body: unknown) {
+function mockJsonResponse(body: unknown) {
   fetchMock.mockResolvedValue({
     ok: true,
     status: 200,
-    text: () => Promise.resolve(JSON.stringify(body)),
     json: () => Promise.resolve(body),
   })
 }
 
 beforeEach(() => {
   fetchMock.mockReset()
-  // 模块级 TTL 缓存会跨测试污染（首测 ports 被缓存，后续测试拿到旧值）
+  // loadStatic 模块级 TTL 缓存会跨测试污染（首测 ports 被缓存，后续测试拿到旧值）
   mapDataService.clearCache()
 })
 
-describe('mapDataService 信封解包（z033）', () => {
-  it('getPorts: 后端 {code,data} 信封应解包为数组', async () => {
-    mockResponse({
-      code: 200,
-      data: [
-        { id: '000001', name: '北海港', address: '银滩旅游区18号', lng: 109.13, lat: 21.41 },
-        { id: '000002', name: '钦州港', address: '勒沟西大街', lng: 108.59, lat: 21.72 },
-      ],
-    })
+describe('mapDataService 港口静态数据加载', () => {
+  it('getPorts: 直读静态数组并返回', async () => {
+    mockJsonResponse([
+      { id: '000001', name: '北海港', address: '银滩旅游区18号', lng: 109.13, lat: 21.41 },
+      { id: '000002', name: '钦州港', address: '勒沟西大街', lng: 108.59, lat: 21.72 },
+    ])
 
     const ports = await mapDataService.getPorts()
     expect(Array.isArray(ports)).toBe(true)
@@ -45,47 +38,37 @@ describe('mapDataService 信封解包（z033）', () => {
     expect(ports[0].name).toBe('北海港')
   })
 
-  it('getPorts: 非信封（直接数组）也应兼容', async () => {
-    mockResponse([
-      { id: '000001', name: '北海港', address: '银滩旅游区18号', lng: 109.13, lat: 21.41 },
-    ])
-
-    const ports = await mapDataService.getPorts()
-    expect(Array.isArray(ports)).toBe(true)
-    expect(ports).toHaveLength(1)
-  })
-
   it('getPorts: 越界坐标被 CRS 守卫过滤', async () => {
-    mockResponse({
-      code: 200,
-      data: [
-        { id: 'ok', name: '钦州港', address: '勒沟西大街', lng: 108.59, lat: 21.72 },
-        { id: 'bad', name: '越界港', address: '境外', lng: 200, lat: 100 }, // 北部湾外
-      ],
-    })
+    mockJsonResponse([
+      { id: 'ok', name: '钦州港', address: '勒沟西大街', lng: 108.59, lat: 21.72 },
+      { id: 'bad', name: '越界港', address: '境外', lng: 200, lat: 100 }, // 北部湾外
+    ])
 
     const ports = await mapDataService.getPorts()
     expect(ports.map((p) => p.id)).toEqual(['ok'])
   })
 
   it('getPorts: 格式错误（非数组）应抛友好错误', async () => {
-    mockResponse({ code: 200, data: { not: 'array' } })
+    mockJsonResponse({ not: 'array' })
 
     await expect(mapDataService.getPorts()).rejects.toThrow('港口数据格式不正确')
   })
 
-  it('getPorts: 带扩展字段的 3 键信封 {code,data,message} 仍应解包为数组 (REQ-1)', async () => {
-    mockResponse({
-      code: 200,
-      data: [
-        { id: '000001', name: '北海港', address: '银滩旅游区18号', lng: 109.13, lat: 21.41 },
-        { id: '000002', name: '钦州港', address: '勒沟西大街', lng: 108.59, lat: 21.72 },
-      ],
-      message: 'ok',
-    })
+  it('getPorts: 缺必填字段（schema 校验失败）同样抛友好错误', async () => {
+    mockJsonResponse([{ id: 'x', name: '无坐标港' }])
 
-    const ports = await mapDataService.getPorts()
-    expect(Array.isArray(ports)).toBe(true)
-    expect(ports).toHaveLength(2)
+    await expect(mapDataService.getPorts()).rejects.toThrow('港口数据格式不正确')
+  })
+
+  it('clearCache 后重新发起请求（TTL 缓存已失效）', async () => {
+    mockJsonResponse([{ id: '1', name: '第一版港', address: 'a', lng: 108.5, lat: 21.5 }])
+    const first = await mapDataService.getPorts()
+    expect(first[0].name).toBe('第一版港')
+
+    mapDataService.clearCache()
+    mockJsonResponse([{ id: '1', name: '第二版港', address: 'a', lng: 108.5, lat: 21.5 }])
+    const second = await mapDataService.getPorts()
+    expect(second[0].name).toBe('第二版港')
+    expect(fetchMock).toHaveBeenCalledTimes(2)
   })
 })

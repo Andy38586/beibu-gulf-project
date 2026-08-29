@@ -76,7 +76,8 @@ describe('app - 限流分层（forecast 豁免全局）', () => {
     try {
       let lastStatus = 0
       for (let i = 0; i < 1001; i++) {
-        const res = await fetch(`${base}/api/ports`)
+        // /api/flood/water-area：公开只读 GET，无路由级限流（ports 静态化后改用此端点测全局限流）
+        const res = await fetch(`${base}/api/flood/water-area`)
         lastStatus = res.status
         if (lastStatus === 429) break
       }

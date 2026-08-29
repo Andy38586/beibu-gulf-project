@@ -133,10 +133,9 @@ function waitForContainerVisible(container: HTMLElement | null): Promise<void> {
   })
 }
 
-/** 数据加载：ports（后端 API）与 boundary（静态文件）并行加载、独立失败——
- *  曾串行 await 使 ports 失败阻断 boundary 加载（后端未起时行政区也出不来），
- *  且双 /api 前缀导致 /api/ports 请求 404（useApiRequest 已修，见该文件注释）。
- *  boundary 内部自带 3 次退避重试；ports 走 apiRequest（内部重试）——此处不再叠加外层重试；
+/** 数据加载：ports 与 boundary 均为前端静态文件（/data/*.json，后端无关），并行加载、独立失败——
+ *  曾串行 await 使一方失败阻断另一方加载。boundary 内部自带 3 次退避重试；
+ *  ports 走 loadStatic（TTL 缓存 + in-flight 去重，不重试）；
  *  boundary 链路透传 loadAbort.signal——卸载即取消 fetch/跳过续试，
  *  结果消费前仍由 aborted 守卫拦截 */
 async function loadData() {
@@ -162,9 +161,7 @@ async function loadData() {
     if (import.meta.env.DEV) {
       logger.error('港口数据加载失败:', err)
     }
-    loadError.value = err.message.includes('超时')
-      ? err.message
-      : '港口图层加载失败，请检查后端服务'
+    loadError.value = err.message.includes('超时') ? err.message : '港口图层加载失败，请刷新重试'
   }
 
   if (boundaryResult.status === 'fulfilled' && boundaryResult.value) {

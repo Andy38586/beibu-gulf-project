@@ -87,10 +87,10 @@ export const MAP_CONFIG: MapConfig = {
   },
   TIANDITU_URL: 'https://t0.tianditu.gov.cn/DataServer?T={layerCode}&x={x}&y={y}&l={z}&tk={key}',
   DATA_PATHS: {
-    // 港口数据已收归后端单源（backend/data/ports.json），经公开接口返回
-    // z118：业务数据路径统一收口于此叶子配置——services 深路径引用（mapDataService），
+    // 港口为静态参考数据（与 boundary 同类，2026-08-29 自后端回迁前端——纯透传端点无后端价值）
+    // z118：数据路径统一收口于此叶子配置——services 深路径引用（mapDataService），
     // 走 @/core 入口会形成 core↔services 循环依赖（no-circular），故保留在此并声明为唯一收口点
-    ports: '/api/ports',
+    ports: '/data/ports.json',
     boundary: '/data/site-selection/boundary.geojson',
   },
   CAMERA: {

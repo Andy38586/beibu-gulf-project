@@ -1,8 +1,7 @@
 import { storeToRefs } from 'pinia'
 import type { Ref } from 'vue'
-import { useRouter } from 'vue-router'
 
-import { handleAuthError, isAuthError, useApiRequest, useLatestRequest } from '@/shared'
+import { useApiRequest, useLatestRequest } from '@/shared'
 import { useSiteSelectionStore } from '@/stores'
 import type { AnalysisParams, AnalysisResult } from '@/types/analysis'
 import { siteAnalysisResponseSchema } from '@/types/schemas'
@@ -16,8 +15,7 @@ export interface UseSiteAnalysisApiReturn {
 }
 
 export function useSiteAnalysisApi(): UseSiteAnalysisApiReturn {
-  const router = useRouter()
-  // 选址分析仅 api 态（后端 POST /site-analysis），直连 useApiRequest（信封解包 + zod 校验）；
+  // 选址分析仅 api 态（后端 POST /site-analysis，免登录纯计算），直连 useApiRequest（信封解包 + zod 校验）；
   // 竞态守卫统一走 useLatestRequest
   const { apiRequest } = useApiRequest()
   const { createSignal, cancel: cancelRequest } = useLatestRequest()
@@ -70,11 +68,7 @@ export function useSiteAnalysisApi(): UseSiteAnalysisApiReturn {
       if (signal.aborted) {
         return { error: null, coverage: null, matchedXiaoqu: [], facilityPoi: {} }
       }
-      // 401：site-analysis 整路由需登录，走统一软登录（与 forecast 侧一致）
-      if (isAuthError(error)) {
-        await handleAuthError(router)
-      }
-      // 816-专项5并 1-4：错误只写 calcError 不在此 showError——提示统一由页面级
+      // 分析接口免登录（2026-08-29），失败只写 calcError 不引导登录——提示统一由页面级
       // handleAnalysisError（经面板 emit('analysis-error')）触发，避免同一失败 toast 两次
       const msg = error instanceof Error ? error.message : '选址分析失败，请稍后重试'
       siteStore.setCalcError(msg)

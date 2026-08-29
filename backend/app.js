@@ -184,6 +184,10 @@ app.use(
     setHeaders: (res, filePath) => {
       if (filePath.endsWith('.terrain')) {
         res.setHeader('Content-Encoding', 'gzip')
+        // dev 预热生效前提：地形产物进浏览器 HTTP 缓存（生产 nginx 已 expires 30d）
+        res.setHeader('Cache-Control', 'public, max-age=86400')
+      } else if (filePath.endsWith('layer.json')) {
+        res.setHeader('Cache-Control', 'public, max-age=86400')
       }
     },
   })

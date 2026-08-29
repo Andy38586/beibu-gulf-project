@@ -2,6 +2,7 @@ import { perfMark, perfMeasure, recordCesium } from '@/shared'
 
 import type { MapRenderer } from './MapRenderer'
 import { OLRenderer } from './OLRenderer'
+import { preloadTerrain } from './terrainPreload'
 
 export { MapRenderer, OLRenderer }
 
@@ -29,10 +30,12 @@ export function preloadCesium(): void {
         .then(() => {
           // 预热 CesiumRenderer 模块 chunk，进 3D 时不再现场拉取
           // 816-专项2 7-2：动态导入失败需自身兜底（外层 catch 只管 ensureCesiumLoaded）
-          void import('./CesiumRenderer').catch(() => {
+          return import('./CesiumRenderer').catch(() => {
             // 预热失败静默——进 3D 时走正式加载路径
           })
         })
+        // 地形预热串行在 Cesium（主库 + chunk）之后：先大后小，不抢带宽
+        .then(() => preloadTerrain())
         .catch(() => {
           // 预热失败静默——只是优化手段，不影响功能（进 3D 时走正式加载路径）
         })

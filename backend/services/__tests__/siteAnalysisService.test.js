@@ -29,11 +29,48 @@ describe('siteAnalysisService.runSiteAnalysis — 选址流水线（R-14）', ()
     expect(typeof result.facilityPoi).toBe('object')
   })
 
-  it('覆盖范围内设施 POI 被正确筛选（facilityPoi 含两类且各有 1 个）', () => {
+  it('facilityPoi 返回各选中类型参与评分的全部合法 POI（含覆盖区外的点）', () => {
     const result = runSiteAnalysis({ selectedKeys, typeSettings, facilityData, xiaoquData })
     expect(result.facilityPoi.hospital).toHaveLength(1)
     expect(result.facilityPoi.school).toHaveLength(1)
     expect(result.facilityPoi.hospital[0]).toMatchObject({ lng: 108.6, lat: 21.85 })
+
+    // 覆盖区外的合法 POI 同样参与评分（评分按最近设施距离衰减），必须随结果返回
+    const wideData = {
+      hospital: [
+        { lng: 108.6, lat: 21.85, name: '近点医院' },
+        { lng: 114.5, lat: 24.5, name: '远点医院' },
+      ],
+      school: [{ lng: 108.6, lat: 21.85, name: '港区学校' }],
+    }
+    const wide = runSiteAnalysis({
+      selectedKeys,
+      typeSettings,
+      facilityData: wideData,
+      xiaoquData,
+    })
+    expect(wide.facilityPoi.hospital).toHaveLength(2)
+  })
+
+  it('facilityPoi 过滤脏数据：越界/[0,0]/重复坐标不参与（与覆盖计算入参同源）', () => {
+    const dirtyData = {
+      hospital: [
+        { lng: 108.6, lat: 21.85, name: '合法点' },
+        { lng: 108.6, lat: 21.85, name: '重复坐标点' },
+        { lng: 0, lat: 0, name: '原点哨兵' },
+        { lng: 30, lat: 21.85, name: '越界点' },
+        { name: '缺坐标点' },
+      ],
+      school: [{ lng: 108.6, lat: 21.85, name: '港区学校' }],
+    }
+    const result = runSiteAnalysis({
+      selectedKeys,
+      typeSettings,
+      facilityData: dirtyData,
+      xiaoquData,
+    })
+    expect(result.facilityPoi.hospital).toHaveLength(1)
+    expect(result.facilityPoi.hospital[0].name).toBe('合法点')
   })
 
   it('匹配小区进入 matchedXiaoqu 排名结果', () => {

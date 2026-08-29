@@ -4,7 +4,7 @@ import { TooltipComponent } from 'echarts/components'
 import * as echarts from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
 import type { Ref } from 'vue'
-import { onBeforeUnmount, ref } from 'vue'
+import { onBeforeUnmount, ref, watch } from 'vue'
 
 import {
   CHART_COLORS,
@@ -233,6 +233,15 @@ export function useRadarChart({
       label: FACILITY_LABELS[key],
     })
   }
+
+  // 新分析结果到达即清空轴高亮：页面同时撤下了该类型的 POI 图层，
+  // 高亮若残留，用户首次点击会走"取消"分支空转（图层已不存在），需点两次才重新显示
+  watch(
+    () => getProps().facilityPoi,
+    () => {
+      activeFacilityType.value = null
+    }
+  )
 
   // 统一图表生命周期委托 useECharts：init/dispose/resize/theme/watch 由它管理
   const { updateChart, getInstance } = useECharts({

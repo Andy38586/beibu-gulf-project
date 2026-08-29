@@ -493,11 +493,12 @@ Express 应用装配顺序（中间件顺序敏感）：
 - `runSiteAnalysis({selectedKeys, typeSettings, facilityData, xiaoquData, weights})`：主流程。
   - `validateSelection()`：至少选一种设施类型。
   - `resolveRadiusSettings()`：按 importance 放大默认半径。
-  - `buildTypeCoverage()`：POI 去重 → 过滤异常/越界坐标 → turf.buffer 缓冲区 → turf.union 合并。
+  - `extractValidPoi()`：坐标去重 + 有效性/北部湾范围过滤，得到参与评分的合法 POI。
+  - `buildTypeCoverage()`：`extractValidPoi` 清洗 → turf.buffer 缓冲区 → turf.union 合并。
   - `intersectCoverages()`：多类型覆盖范围求交（无重叠返回 failKey）。
   - `filterMatchedXiaoqu()`：RBush BBox 粗筛 + `booleanPointInPolygon` 精确判定。
   - `rankXiaoqu()`：`scoreXiaoqu` 评分排序取 Top 10。
-  - `filterFacilitiesInCoverage()`：筛选覆盖范围内设施 POI。
+  - `facilityPoi`：各选中类型经 `extractValidPoi` 得到的**全量**合法 POI（与覆盖计算同源；评分按最近距离衰减，覆盖区外的点同样参与评分，故不做覆盖区筛选）。
 
 ### 5.2 scoringService.js（选址评分核心）
 

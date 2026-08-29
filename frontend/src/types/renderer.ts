@@ -197,8 +197,9 @@ export interface MapRenderer {
   /** 导入状态 */
   importState(_state: RendererState): void
 
-  /** 呼吸灯效果（双引擎公共能力：OL 矢量动画圈 / Cesium 实体动画） */
-  startBreathing?(_lng: number, _lat: number): void
+  /** 呼吸灯效果（双引擎公共能力：OL 矢量动画圈 / Cesium 实体动画）；
+   *  支持单点/多点（设施 POI 图层按类型唤醒）；颜色缺省为默认蓝（定位小区等单点场景） */
+  startBreathing?(_target: GeoPoint | GeoPoint[], _color?: string): void
   stopBreathing?(): void
 
   // ── 要素气泡（2D Overlay 能力，仅 OLRenderer 实现；调用方经可选链调用）──

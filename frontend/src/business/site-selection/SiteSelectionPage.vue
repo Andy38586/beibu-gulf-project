@@ -83,7 +83,9 @@ function handleResult(result: Partial<AnalysisResult>): void {
     facilityPoi: result.facilityPoi || {},
   })
   selectedXiaoqu.value = null
-  stopBreathing()
+  // 新结果到来即撤下上一次的设施 POI 图层与呼吸：否则旧 POI 残留在图上，
+  // 雷达轴仍高亮但已无呼吸，图层控制面板也多出一条过期条目
+  handleHideFacilityLayer()
   if (matchedXiaoqu.value.length > 0) {
     zoomToDistrict()
   }
@@ -126,12 +128,17 @@ function handleShowFacilityLayer(data: {
   })
 
   activeFacilityLayerKey.value = layerKey
+
+  // 唤醒该类型 POI 的呼吸效果（多点 + 设施色与图层同源）
+  startBreathing(points, color)
 }
 
 /**
  * 隐藏当前设施POI图层
  */
 function handleHideFacilityLayer(): void {
+  // 呼吸先停（幂等）：新结果到来时也可能只有单点呼吸（小区定位）而无设施图层
+  stopBreathing()
   if (!activeFacilityLayerKey.value) return
   businessLayerManager.remove(activeFacilityLayerKey.value)
   activeFacilityLayerKey.value = null
@@ -161,7 +168,7 @@ function flyToXiaoqu(xq: ScoredXiaoqu): void {
     logger.debug(`[SiteSelection] 小区 ${xq.id} 坐标无效，跳过地图定位`)
     return
   }
-  startBreathing(xq.lng, xq.lat)
+  startBreathing({ lng: xq.lng, lat: xq.lat })
   flyTo({ lng: xq.lng, lat: xq.lat }, { height: 1000 })
 }
 

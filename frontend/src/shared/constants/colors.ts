@@ -13,7 +13,8 @@ export const FACILITY_COLORS = ['#409eff', '#67C23A', '#e74c3c', '#4dabf7'] as c
  */
 export const FACILITY_COLORS_MAP: Record<string, string> = {
   hospital: '#e74c3c',
-  primary_school: '#3498db',
+  // 原 #3498db 蓝色与匹配小区/港口蓝无法区分——品红为现有色相环唯一大空档（320°）
+  primary_school: '#eb2f96',
   middle_school: '#9b59b6',
   park: '#2ecc71',
   bus_station: '#f39c12',

@@ -16,6 +16,7 @@ import { useMapStore } from '@/stores'
 import type {
   FlyToOptions,
   FlyToTarget,
+  GeoPoint,
   MapRendererEventMap,
   PointFeature,
   Port,
@@ -475,8 +476,8 @@ function getRenderer() {
   return currentRenderer.value
 }
 
-function startBreathing(lng: number, lat: number) {
-  currentRenderer.value?.startBreathing(lng, lat)
+function startBreathing(target: GeoPoint | GeoPoint[], color?: string) {
+  currentRenderer.value?.startBreathing(target, color)
 }
 
 function stopBreathing() {

@@ -11,14 +11,14 @@
 import type { InjectionKey, Ref } from 'vue'
 
 import type { MapRenderer } from '@/core/map/renderers/MapRenderer'
-import type { FlyToOptions, FlyToTarget } from '@/types'
+import type { FlyToOptions, FlyToTarget, GeoPoint } from '@/types'
 import type { TypeSetting } from '@/types/facility'
 import type { Plan } from '@/types/plan'
 
 /** UnifiedMap 组件通过 defineExpose 暴露的地图控制接口（与 UnifiedMap.vue 暴露成员一致） */
 export interface UnifiedMapExposed {
   flyTo: (target: FlyToTarget, options?: FlyToOptions) => void
-  startBreathing: (lng: number, lat: number) => void
+  startBreathing: (target: GeoPoint | GeoPoint[], color?: string) => void
   stopBreathing: () => void
   getRenderer: () => MapRenderer | null
 }

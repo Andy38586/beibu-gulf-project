@@ -43,6 +43,7 @@ import type {
   CameraState,
   FlyToOptions,
   FlyToTarget,
+  GeoPoint,
   LayerOptions,
   PointFeature,
   PolygonFeature,
@@ -286,7 +287,7 @@ export class CesiumRenderer extends MapRenderer {
   _screenSpaceEventHandler: ScreenSpaceEventHandler | null
   _cameraChangedHandler: (() => void) | null
   _waterSurfaces: Map<string, WaterSurfaceEntry> | null
-  _breathingEntity: unknown | null
+  _breathingEntities: unknown[]
   _breathingAnimId: number | null
   _breathingAnimation: unknown | null
   _geoJsonTokens: Map<string, symbol>
@@ -312,7 +313,7 @@ export class CesiumRenderer extends MapRenderer {
     this._screenSpaceEventHandler = null
     this._cameraChangedHandler = null
     this._waterSurfaces = null
-    this._breathingEntity = null
+    this._breathingEntities = []
     this._breathingAnimId = null
     this._breathingAnimation = null
     this._geoJsonTokens = new Map()
@@ -707,31 +708,42 @@ export class CesiumRenderer extends MapRenderer {
     this.viewer?.scene.requestRender()
   }
 
-  startBreathing(lng: number, lat: number): void {
+  startBreathing(target: GeoPoint | GeoPoint[], color?: string): void {
     this.stopBreathing()
-    if (!this.viewer) return
+    const viewer = this.viewer
+    if (!viewer) return
+    // 非有限坐标跳过（不落 (0,0) 哨兵——crs.ts 禁令）
+    const points = (Array.isArray(target) ? target : [target]).filter(
+      (p) => Number.isFinite(p.lng) && Number.isFinite(p.lat)
+    )
+    if (points.length === 0) return
     const startTime = Date.now()
-    const center = Cartesian3.fromDegrees(lng, lat)
-    // 预解析呼吸灯基准色（LAYER_DEFAULTS.color = '#409eff'，即 rgb(64,158,255)）
-    const baseColor = Color.fromCssColorString(LAYER_DEFAULTS.color)
-    this._breathingEntity = this.viewer.entities.add({
-      position: center,
-      point: {
-        pixelSize: new CallbackProperty(() => {
-          const elapsed = (Date.now() - startTime) / 1000
-          return 10 + Math.sin(elapsed * Math.PI * 2) * 5
-        }, false),
-        color: new CallbackProperty(() => {
-          const elapsed = (Date.now() - startTime) / 1000
-          const alpha = 0.5 + Math.sin(elapsed * Math.PI * 2) * 0.3
-          return baseColor.withAlpha(alpha)
-        }, false),
-        outlineColor: Color.WHITE,
-        outlineWidth: 2,
-      },
-    })
+    // 预解析呼吸灯基准色（缺省 LAYER_DEFAULTS.color = '#409eff'；设施 POI 呼吸传设施色）
+    const baseColor = Color.fromCssColorString(color || LAYER_DEFAULTS.color)
+    // 多点共用同一组 CallbackProperty：尺寸/透明度每帧只求一次，而非逐点各求一遍。
+    // 设施 POI 图层可达数百点（单一类型最高 ~370），逐点回调会放大成每帧上百次 Color 分配
+    const pixelSizeProperty = new CallbackProperty(() => {
+      const elapsed = (Date.now() - startTime) / 1000
+      return 10 + Math.sin(elapsed * Math.PI * 2) * 5
+    }, false)
+    const colorProperty = new CallbackProperty(() => {
+      const elapsed = (Date.now() - startTime) / 1000
+      const alpha = 0.5 + Math.sin(elapsed * Math.PI * 2) * 0.3
+      return baseColor.withAlpha(alpha)
+    }, false)
+    this._breathingEntities = points.map((p) =>
+      viewer.entities.add({
+        position: Cartesian3.fromDegrees(p.lng, p.lat),
+        point: {
+          pixelSize: pixelSizeProperty,
+          color: colorProperty,
+          outlineColor: Color.WHITE,
+          outlineWidth: 2,
+        },
+      })
+    )
     this._breathingAnimation = () => {
-      if (this._breathingEntity && this.viewer) {
+      if (this._breathingEntities.length > 0 && this.viewer) {
         this.viewer.scene.requestRender()
         this._breathingAnimId = requestAnimationFrame(
           this._breathingAnimation as FrameRequestCallback
@@ -746,10 +758,11 @@ export class CesiumRenderer extends MapRenderer {
       cancelAnimationFrame(this._breathingAnimId)
       this._breathingAnimId = null
     }
-    if (this._breathingEntity && this.viewer) {
-      this.viewer.entities.remove(this._breathingEntity as Entity)
-      this._breathingEntity = null
+    if (this.viewer && this._breathingEntities.length > 0) {
+      const viewer = this.viewer
+      this._breathingEntities.forEach((e) => viewer.entities.remove(e as Entity))
     }
+    this._breathingEntities = []
     this._breathingAnimation = null
   }
 

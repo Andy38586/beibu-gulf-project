@@ -29,12 +29,32 @@ import { logger } from '@/shared'
 import { createSpatialIndex, VIEWPORT_CULL_THRESHOLD } from '@/shared'
 import { normalizePoint } from '@/shared'
 import type { LayerOptions, MapRendererEventMap, PointFeature, PolygonFeature } from '@/types'
-import type { CameraState, FlyToOptions, FlyToTarget } from '@/types'
+import type { CameraState, FlyToOptions, FlyToTarget, GeoPoint } from '@/types'
 
 import { MapRenderer } from './MapRenderer'
 
 /** Web 墨卡托投影标识（View/GeoJSON 读取共用，避免字面量散落） */
 const WEB_MERCATOR = 'EPSG:3857'
+
+/**
+ * 解析 #rrggbb → rgb 三元组；非法入参返回 null（解析不内置缺省色，避免与缺省常量相互依赖）。
+ * OL 逐帧拼 rgba 字符串只能吃数值分量，故渲染层需把 hex 拆成三元组
+ */
+function parseBreathingColor(color?: string): [number, number, number] | null {
+  const m = color?.match(/^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i)
+  return m
+    ? [Number.parseInt(m[1], 16), Number.parseInt(m[2], 16), Number.parseInt(m[3], 16)]
+    : null
+}
+
+/**
+ * 呼吸灯缺省色：从 LAYER_DEFAULTS.color 派生（现 #409eff），色值仍以 colors.ts 为单一事实源——
+ * 改主色时呼吸动画随之变化（专项7 发现4：此处曾写死 rgb(64,158,255)，主色变更后呼吸不跟随）。
+ * ?? [0,0,0] 仅在 LAYER_DEFAULTS.color 不再是 hex 时兜底（契约破坏，黑点配白描边仍可见）
+ */
+const DEFAULT_BREATHING_RGB: [number, number, number] = parseBreathingColor(
+  LAYER_DEFAULTS.color
+) ?? [0, 0, 0]
 
 /** 2D 视图层级限位（816-专项4 1.4 提常量：与 3D CAMERA_*_ZOOM_DISTANCE 对应；原散落 9/6/20） */
 const OL_VIEW_ZOOM = 9
@@ -817,12 +837,22 @@ export class OLRenderer extends MapRenderer {
     this.baseLayers.image.forEach((l) => l.setVisible(type === 'image'))
     this.baseLayers.vector.forEach((l) => l.setVisible(type === 'vector'))
   }
-  startBreathing(lng: number, lat: number): void {
+  startBreathing(target: GeoPoint | GeoPoint[], color?: string): void {
     this.stopBreathing()
+    // 非有限坐标跳过（不落 (0,0) 哨兵——crs.ts 禁令）
+    const points = (Array.isArray(target) ? target : [target]).filter(
+      (p) => Number.isFinite(p.lng) && Number.isFinite(p.lat)
+    )
+    if (points.length === 0) return
     const startTime = Date.now()
-    const breathingFeature = new Feature({
-      geometry: new Point(fromLonLat([lng, lat])),
-    })
+    // 设施 POI 呼吸传 FACILITY_COLORS_MAP 的 hex；单点定位（小区/受影响设施）不传，取缺省主色
+    const [r, g, b] = parseBreathingColor(color) ?? DEFAULT_BREATHING_RGB
+    const breathingFeatures = points.map(
+      (p) =>
+        new Feature({
+          geometry: new Point(fromLonLat([p.lng, p.lat])),
+        })
+    )
     const breathingStyle = () => {
       const elapsed = (Date.now() - startTime) / 1000
       const radius = 10 + Math.sin(elapsed * Math.PI * 2) * 5
@@ -830,13 +860,13 @@ export class OLRenderer extends MapRenderer {
       return new Style({
         image: new Circle({
           radius,
-          fill: new Fill({ color: `rgba(64,158,255,${alpha})` }),
+          fill: new Fill({ color: `rgba(${r},${g},${b},${alpha})` }),
           stroke: new Stroke({ color: LAYER_DEFAULTS.outline, width: 2 }),
         }),
       })
     }
     this._breathingLayer = new VectorLayer({
-      source: new VectorSource({ features: [breathingFeature] }),
+      source: new VectorSource({ features: breathingFeatures }),
       style: breathingStyle,
     })
     // 呼吸动画层必须置顶（覆盖业务层），保持改动前"最后 add 即最上"的视觉语义

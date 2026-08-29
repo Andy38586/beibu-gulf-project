@@ -37,13 +37,12 @@ export function resolveRadiusSettings(selectedKeys, typeSettings) {
   })
   return resolved
 }
-export function buildTypeCoverage(points, radiusKm) {
-  if (!points || points.length === 0) return null
-
-  // 性能优化提示 - 大量POI数据建议实现聚类或空间索引
-  if (points.length > 1000) {
-    logger.debug(`[性能优化] POI数据量较大(${points.length}条)，建议实现聚类或空间索引优化`)
-  }
+/**
+ * 提取参与评分的合法 POI：坐标去重 + 有效性过滤 + 北部湾业务区域过滤。
+ * 与 buildTypeCoverage 的入参清洗同源——评分链路消费哪些点，facilityPoi 就返回哪些点
+ */
+export function extractValidPoi(points) {
+  if (!points || points.length === 0) return []
 
   // POI数据去重（基于坐标）
   const uniquePoints = []
@@ -58,7 +57,7 @@ export function buildTypeCoverage(points, radiusKm) {
 
   // 过滤异常坐标[0,0]和不在北部湾范围内的坐标
   // 北部湾范围：经度 105-115，纬度 18-25
-  const validPoints = uniquePoints.filter((p) => {
+  return uniquePoints.filter((p) => {
     const isValid =
       p &&
       typeof p.lng === 'number' &&
@@ -76,10 +75,18 @@ export function buildTypeCoverage(points, radiusKm) {
     }
     return isValid
   })
+}
 
+export function buildTypeCoverage(points, radiusKm) {
+  const validPoints = extractValidPoi(points)
   if (validPoints.length === 0) {
     logger.debug('没有有效的坐标点')
     return null
+  }
+
+  // 性能优化提示 - 大量POI数据建议实现聚类或空间索引
+  if (validPoints.length > 1000) {
+    logger.debug(`[性能优化] POI数据量较大(${validPoints.length}条)，建议实现聚类或空间索引优化`)
   }
 
   const buffers = validPoints.map((p) =>
@@ -204,32 +211,6 @@ export function rankXiaoqu(matched, facilityData, radiusSettings, weights) {
   const scored = scoreXiaoqu(matched, facilityData, radiusSettings, weights, linearDecay)
   return scored.sort((a, b) => b.score - a.score).slice(0, TOP_N)
 }
-/**
- * 筛选覆盖范围内的设施 POI：空间索引 BBox 粗筛 + 点面精确判定，
- * 避免逐点 booleanPointInPolygon 的全量遍历
- */
-export function filterFacilitiesInCoverage(facilityData, finalArea, selectedKeys) {
-  const result = {}
-  selectedKeys.forEach((key) => {
-    const points = facilityData[key]
-    if (!points || points.length === 0) {
-      result[key] = []
-      return
-    }
-    // 设施点可能缺 lng/lat 字段（脏数据防御，与 filterMatchedXiaoqu 一致）
-    const validPoints = points.filter(
-      (p) => p && typeof p.lng === 'number' && typeof p.lat === 'number'
-    )
-    if (validPoints.length === 0) {
-      result[key] = []
-      return
-    }
-    const index = createSpatialIndex(validPoints)
-    result[key] = queryByPolygon(index, finalArea)
-  })
-  return result
-}
-
 export function runSiteAnalysis({ selectedKeys, typeSettings, facilityData, xiaoquData, weights }) {
   // null 不会触发默认参数，需显式处理
   const finalWeights = weights || DEFAULT_WEIGHTS
@@ -266,8 +247,11 @@ export function runSiteAnalysis({ selectedKeys, typeSettings, facilityData, xiao
   const matched = filterMatchedXiaoqu(xiaoquData, finalArea, spatialIndex)
   const top = rankXiaoqu(matched, facilityData, radiusSettings, finalWeights)
 
-  // 筛选覆盖范围内的设施POI
-  const facilityPoi = filterFacilitiesInCoverage(facilityData, finalArea, selectedKeys)
+  // facilityPoi = 参与评分的合法 POI（与覆盖计算入参同源）：前端按设施类型渲染 POI 图层
+  const facilityPoi = {}
+  selectedKeys.forEach((key) => {
+    facilityPoi[key] = extractValidPoi(facilityData[key])
+  })
 
   return { error: null, coverage: finalArea, matchedXiaoqu: top, facilityPoi }
 }

@@ -81,6 +81,8 @@ vi.mock('@/core/map/renderers', () => {
     getMap: vi.fn().mockReturnValue({}),
     getViewer: vi.fn().mockReturnValue({}),
     getType: vi.fn().mockReturnValue(type === '2d' ? '2d' : '3d'),
+    startBreathing: vi.fn(),
+    stopBreathing: vi.fn(),
   })
 
   const createRenderer = vi.fn((type) => createMockRenderer(type))
@@ -480,7 +482,9 @@ describe('UnifiedMap Error Handling', () => {
   })
 
   it('should emit error when renderer initialization fails', async () => {
-    mockedCreateRenderer.mockImplementation(() => {
+    // 用 Once 而非 mockImplementation：后者会永久改写实现，污染本文件后续所有
+    // 用例的渲染器（测试间无恢复点时表现为 createRenderer 恒抛错、getRenderer() 恒 null）
+    mockedCreateRenderer.mockImplementationOnce(() => {
       throw new Error('Renderer init failed')
     })
 
@@ -495,6 +499,71 @@ describe('UnifiedMap Error Handling', () => {
 
     expect(wrapper.emitted('error')).toBeTruthy()
     expect((wrapper.emitted('error')![0][0] as Error).message).toBe('Renderer init failed')
+  })
+})
+
+describe('UnifiedMap 呼吸灯透传（设施 POI 多点 + 自定义色）', () => {
+  let wrapper: VueWrapper<InstanceType<typeof UnifiedMap>>
+  let mapStore: ReturnType<typeof useMapStore>
+  let pinia: ReturnType<typeof createPinia>
+
+  beforeEach(() => {
+    pinia = createPinia()
+    setActivePinia(pinia)
+    vi.clearAllMocks()
+    mapStore = useMapStore()
+  })
+
+  afterEach(() => {
+    wrapper?.unmount()
+  })
+
+  /** 挂载并等待渲染器就绪，返回 mock renderer */
+  async function mountAndGetRenderer() {
+    wrapper = mount(UnifiedMap, {
+      props: { mapType: '2d' },
+      ...makeMountOptions(mapStore),
+    })
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    await flushPromises()
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    // 取组件实际持有的渲染器（比 mock.results 更贴近真实调用路径）
+    const renderer = wrapper.vm.getRenderer() as unknown as Record<string, unknown>
+    return renderer as unknown as {
+      startBreathing: ReturnType<typeof vi.fn>
+      stopBreathing: ReturnType<typeof vi.fn>
+    }
+  }
+
+  it('多点 + 设施色应原样透传给渲染器（设施 POI 图层按类型唤醒）', async () => {
+    const renderer = await mountAndGetRenderer()
+    const points = [
+      { lng: 108.6, lat: 21.85 },
+      { lng: 108.7, lat: 21.9 },
+      { lng: 108.8, lat: 21.95 },
+    ]
+
+    wrapper.vm.startBreathing(points, '#eb2f96')
+
+    expect(renderer.startBreathing).toHaveBeenCalledWith(points, '#eb2f96')
+  })
+
+  it('单点且不传色应向后兼容（小区定位沿用渲染器默认色）', async () => {
+    const renderer = await mountAndGetRenderer()
+    const point = { lng: 108.6, lat: 21.85 }
+
+    wrapper.vm.startBreathing(point)
+
+    expect(renderer.startBreathing).toHaveBeenCalledWith(point, undefined)
+  })
+
+  it('stopBreathing 应到达渲染器（撤图层时停掉 rAF，防泄漏）', async () => {
+    const renderer = await mountAndGetRenderer()
+
+    wrapper.vm.startBreathing([{ lng: 108.6, lat: 21.85 }], '#e74c3c')
+    wrapper.vm.stopBreathing()
+
+    expect(renderer.stopBreathing).toHaveBeenCalled()
   })
 })
 

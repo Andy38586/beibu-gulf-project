@@ -3,12 +3,12 @@ import { computed, inject } from 'vue'
 
 import { MAP_CONFIG } from '@/core/config/map'
 import { UNIFIED_MAP_KEY, type UnifiedMapExposed } from '@/core/provideKeys'
-import type { FlyToOptions, FlyToTarget } from '@/types'
+import type { FlyToOptions, FlyToTarget, GeoPoint } from '@/types'
 
 /** useMapControls 返回值 */
 interface UseMapControlsReturn {
   flyTo: (target: FlyToTarget, options?: FlyToOptions) => void
-  startBreathing: (lng: number, lat: number) => void
+  startBreathing: (target: GeoPoint | GeoPoint[], color?: string) => void
   stopBreathing: () => void
   zoomToRegion: () => void
   zoomToCity: () => void
@@ -24,8 +24,8 @@ export function useMapControls(): UseMapControlsReturn {
     mapInstance.value?.flyTo(target, options)
   }
 
-  function startBreathing(lng: number, lat: number): void {
-    mapInstance.value?.startBreathing(lng, lat)
+  function startBreathing(target: GeoPoint | GeoPoint[], color?: string): void {
+    mapInstance.value?.startBreathing(target, color)
   }
 
   function stopBreathing(): void {

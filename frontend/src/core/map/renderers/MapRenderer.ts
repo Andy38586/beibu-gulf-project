@@ -5,6 +5,7 @@ import type {
   CameraState,
   FlyToOptions,
   FlyToTarget,
+  GeoPoint,
   LayerOptions,
   MapRendererEventMap,
   PointFeature,
@@ -232,7 +233,7 @@ export class MapRenderer {
   // 水面为 3D 专有能力（Water3DCapability）：基类不声明，避免为 2D 引擎背负 3D 契约（ISP 违反）；调用方做能力检查后调用
 
   // 呼吸动画：双引擎公共能力（OL 矢量圈 / Cesium 实体动画），子类各自实现，返回类型统一 void
-  startBreathing(_lng: number, _lat: number): void {
+  startBreathing(_target: GeoPoint | GeoPoint[], _color?: string): void {
     logger.debug(`${this.getType()} startBreathing 未实现`)
   }
 

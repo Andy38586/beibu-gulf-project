@@ -14,6 +14,7 @@ import VectorLayer from 'ol/layer/Vector'
 // 不能 import { Map }：会遮蔽全局 ES Map，new Map()（如 _cullLayers 初始化）会误建 ol/Map 实例
 import OlMap from 'ol/Map'
 import type MapBrowserEvent from 'ol/MapBrowserEvent'
+import Overlay from 'ol/Overlay'
 import { fromLonLat, toLonLat } from 'ol/proj'
 import Cluster from 'ol/source/Cluster'
 import VectorSource from 'ol/source/Vector'
@@ -27,7 +28,7 @@ import { LAYER_DEFAULTS } from '@/shared'
 import { logger } from '@/shared'
 import { createSpatialIndex, VIEWPORT_CULL_THRESHOLD } from '@/shared'
 import { normalizePoint } from '@/shared'
-import type { LayerOptions, PointFeature, PolygonFeature } from '@/types'
+import type { LayerOptions, MapRendererEventMap, PointFeature, PolygonFeature } from '@/types'
 import type { CameraState, FlyToOptions, FlyToTarget } from '@/types'
 
 import { MapRenderer } from './MapRenderer'
@@ -89,6 +90,9 @@ export class OLRenderer extends MapRenderer {
   _clickHandler: EventsKey['listener'] | null
   _breathingLayer: VectorLayer<VectorSource> | null
   _breathingAnimId: number | null
+  // 要素气泡（2D）：Overlay 归渲染器持有（随地图移动自动跟随），元素由 UnifiedMap 渲染树提供
+  _bubbleOverlay: Overlay | null
+  _bubbleElement: HTMLElement | null
 
   constructor(container: HTMLElement) {
     super(container)
@@ -105,6 +109,8 @@ export class OLRenderer extends MapRenderer {
     this._clickHandler = null
     this._breathingLayer = null
     this._breathingAnimId = null
+    this._bubbleOverlay = null
+    this._bubbleElement = null
     this._initMap()
   }
 
@@ -231,10 +237,12 @@ export class OLRenderer extends MapRenderer {
   _setupPointerHandlers(): void {
     const map = this.map
     if (!map) return
-    // pointer-move：实时回传鼠标经纬度（坐标从 EPSG:3857 反算到 WGS84）
+    // pointer-move：实时回传鼠标经纬度（坐标从 EPSG:3857 反算到 WGS84）+ POI 悬停命中（要素气泡驱动）
     this._pointerMoveHandler = (evt) => {
-      const coord = toLonLat((evt as MapBrowserEvent<PointerEvent>).coordinate)
+      const mapEvt = evt as MapBrowserEvent<PointerEvent>
+      const coord = toLonLat(mapEvt.coordinate)
       this.emit('pointer-move', { lng: coord[0], lat: coord[1] })
+      this.emit('hover', this._hitTestPort(mapEvt))
     }
     const handler = this._pointerMoveHandler
     if (handler) {
@@ -251,6 +259,52 @@ export class OLRenderer extends MapRenderer {
         this._cameraDebounceTimer = null
       }, 300)
     })
+  }
+
+  /** POI 悬停命中检测（要素气泡用）：命中港口点要素返回类型/属性/锚点坐标；拖拽中/未命中返回 null 态 */
+  private _hitTestPort(evt: MapBrowserEvent<PointerEvent>): MapRendererEventMap['hover'] {
+    const miss: MapRendererEventMap['hover'] = { featureType: null, data: null, coordinate: null }
+    if (evt.dragging) return miss
+    const hits: MapRendererEventMap['hover'][] = []
+    this.map?.forEachFeatureAtPixel(
+      evt.pixel,
+      (feature) => {
+        if (feature.get('featureType') !== 'port') return undefined
+        const geometry = feature.getGeometry()
+        if (geometry?.getType() !== 'Point') return undefined
+        hits.push({
+          featureType: 'port',
+          data: feature.getProperties(),
+          // 锚点取要素自身坐标（非光标处）：气泡精确钉在 POI 上
+          coordinate: toLonLat((geometry as Point).getCoordinates()) as [number, number],
+        })
+        return true
+      },
+      { layerFilter: (layer) => !layer.get('isBaseMap') }
+    )
+    return hits[0] ?? miss
+  }
+
+  /** 要素气泡宿主挂载（2D Overlay 能力）：元素由 UnifiedMap 的 Vue 渲染树提供，Overlay 懒创建 */
+  attachBubbleElement(element: HTMLElement): void {
+    this._bubbleElement = element
+  }
+
+  /** 设置气泡锚点（WGS84 经纬度）：Overlay 随地图平移缩放自动跟随；null 隐藏 */
+  setBubbleAnchor(coordinate: [number, number] | null): void {
+    if (!this.map || !this._bubbleElement) return
+    if (!this._bubbleOverlay) {
+      this._bubbleOverlay = new Overlay({
+        element: this._bubbleElement,
+        // bottom-center：气泡位于锚点正上方，底部尾针指向 POI；小幅上移留出间隙
+        positioning: 'bottom-center',
+        offset: [0, -10],
+        stopEvent: true,
+        autoPan: false,
+      })
+      this.map.addOverlay(this._bubbleOverlay)
+    }
+    this._bubbleOverlay.setPosition(coordinate ? fromLonLat(coordinate) : undefined)
   }
 
   addPointLayer(id: string, features: PointFeature[], options: LayerOptions = {}): void {
@@ -847,6 +901,9 @@ export class OLRenderer extends MapRenderer {
       clearTimeout(this._cameraDebounceTimer)
       this._cameraDebounceTimer = null
     }
+    // 气泡 Overlay 随 map.dispose 一并释放，这里清引用防悬空
+    this._bubbleOverlay = null
+    this._bubbleElement = null
     this.map?.dispose()
     this.map = null
     // 816-专项2 3-2：清空 baseLayers 引用——已 dispose 的 TileLayer 不留在数组中，

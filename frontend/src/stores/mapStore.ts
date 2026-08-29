@@ -3,7 +3,7 @@ import type { Ref, ShallowRef } from 'vue'
 import { ref, shallowRef } from 'vue'
 
 import { logger } from '@/shared'
-import type { EngineName, LayerEntry, LayerType, MapType, Port } from '@/types'
+import type { EngineName, LayerEntry, LayerType, MapType } from '@/types'
 import type { MapRenderer } from '@/types'
 
 /** localStorage 键：底图 */
@@ -36,7 +36,6 @@ function writeStoredBaseLayer(key: string | null): void {
 
 export const useMapStore = defineStore('map', () => {
   // 地图与分析结果不持久化（无读取方的死状态已删）；跨页恢复只走 useSiteSelectionStore 内存快照
-  const selectedPort: Ref<Port | null> = ref(null)
   const mapType: Ref<MapType> = ref('2d')
   // shallowRef（浅响应式）：条目变更由各 action 重建数组触发，避免深度代理 50 个图层对象
   const layerCatalog: ShallowRef<LayerEntry[]> = shallowRef([])
@@ -59,14 +58,6 @@ export const useMapStore = defineStore('map', () => {
   // 地图类型仅内存态（无读取方的持久化已移除），刷新回退默认 '2d'
   function setMapType(type: MapType): void {
     mapType.value = type
-  }
-
-  function setSelectedPort(port: Port | null): void {
-    selectedPort.value = port
-  }
-
-  function clearSelectedPort(): void {
-    selectedPort.value = null
   }
 
   /** 注册底图条目（幂等——UnifiedMap 每次引擎切换都会调用，已存在则跳过） */
@@ -163,17 +154,15 @@ export const useMapStore = defineStore('map', () => {
 
   /**
    * 统一重置地图业务交互状态（登出/业务切换时调用）：
-   * 清 selectedPort 与业务图层条目；保留底图条目（避免控制面板底图区空白）、
+   * 清业务图层条目；保留底图条目（避免控制面板底图区空白）、
    * mapType/baseLayerKey（用户偏好）与 currentRenderer（渲染器生命周期由 UnifiedMap 持有，登出时组件未卸载）
    */
   function resetMapState(): void {
-    selectedPort.value = null
     layerCatalog.value = layerCatalog.value.filter((e: LayerEntry) => e.category !== 'business')
   }
 
   return {
     mapType,
-    selectedPort,
     layerCatalog,
     baseLayerKey,
     currentRenderer,
@@ -182,8 +171,6 @@ export const useMapStore = defineStore('map', () => {
     setDebugMode,
     setCurrentRenderer,
     setMapType,
-    setSelectedPort,
-    clearSelectedPort,
     registerBaseLayer,
     registerBusinessLayer,
     setBaseLayer,

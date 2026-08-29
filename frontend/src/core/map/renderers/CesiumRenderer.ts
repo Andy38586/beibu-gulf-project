@@ -36,7 +36,7 @@ import type { FeatureCollection } from 'geojson'
 
 import { buildTiandituUrl, MAP_CONFIG, zoomToHeight } from '@/core/config/map'
 import type { IndexedItem } from '@/shared'
-import { createSpatialIndex, LAYER_DEFAULTS } from '@/shared'
+import { createSpatialIndex, LAYER_DEFAULTS, showError } from '@/shared'
 import { logger } from '@/shared'
 import { normalizePoint } from '@/shared'
 import type {
@@ -106,12 +106,26 @@ class CesiumViewerManager {
       navigationHelpButton: false,
       timeline: false,
       animation: false,
+      // Cesium 自带错误面板（渲染循环出错弹系统风格错误框）与实体 InfoBox 一并关闭：
+      // 错误走下方 renderError 监听进日志 + GCS toast，不再弹"原生弹窗"
+      showRenderLoopErrors: false,
+      infoBox: false,
       // requestRenderMode 按需渲染：静止零开销，图层/水面/相机防抖/动画等动态路径均已显式 requestRender
       // 关 HDR/FXAA/抗锯齿：240Hz 屏每帧预算约 6ms，后处理是拖拽掉帧的主要 GPU 开销
       requestRenderMode: true,
       maximumRenderTimeChange: Infinity,
       // cesium 类型未收录 highDynamicRange/fxaa（版本差异），结构化断言保留运行期行为
     } as unknown as ConstructorParameters<typeof Viewer>[1])
+
+    // 渲染循环错误进日志 + 全局 toast（一次性防刷屏，原始堆栈 DEV 可见）
+    let renderErrorToastShown = false
+    this.viewer.scene.renderError.addEventListener((_scene: unknown, error: unknown) => {
+      logger.error('[Cesium] 渲染循环错误（原生错误面板已禁用）:', error)
+      if (!renderErrorToastShown) {
+        renderErrorToastShown = true
+        showError('地图渲染异常，请刷新页面重试')
+      }
+    })
 
     // maximumScreenSpaceError 4（默认 2）：globe 网格减半，拖拽更流畅（远处地形略简，视觉可接受）
     ;(this.viewer.scene as unknown as { maximumScreenSpaceError: number }).maximumScreenSpaceError =

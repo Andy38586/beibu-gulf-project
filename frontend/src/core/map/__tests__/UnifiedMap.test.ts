@@ -247,7 +247,7 @@ describe('UnifiedMap Click Interaction Tests', () => {
     wrapper?.unmount()
   })
 
-  it('should set selectedPort when clicking a port feature', async () => {
+  it('should show pinned bubble with close button when clicking a port feature', async () => {
     wrapper = mount(UnifiedMap, {
       props: { mapType: '2d' },
       ...makeMountOptions(mapStore),
@@ -270,10 +270,13 @@ describe('UnifiedMap Click Interaction Tests', () => {
 
     await wrapper.vm.$nextTick()
 
-    expect(mapStore.selectedPort).toEqual({ id: '1', name: 'test-port', lng: 108.1, lat: 21.5 })
+    // 点击 → 钉住气泡：渲染港口信息 + 关闭按钮（随 POI 跟随由 OL Overlay 承担，此处验证状态）
+    expect(wrapper.find('.map-feature-bubble').exists()).toBe(true)
+    expect(wrapper.find('.map-feature-bubble').text()).toContain('test-port')
+    expect(wrapper.find('.bubble-close').exists()).toBe(true)
   })
 
-  it('should clear selectedPort when clicking blank area', async () => {
+  it('should close bubble when clicking the same port again or blank area', async () => {
     wrapper = mount(UnifiedMap, {
       props: { mapType: '2d' },
       ...makeMountOptions(mapStore),
@@ -283,26 +286,34 @@ describe('UnifiedMap Click Interaction Tests', () => {
     await flushPromises()
     await new Promise((resolve) => setTimeout(resolve, 50))
 
-    mapStore.setSelectedPort({ id: 1, name: 'test-port' } as unknown as Port)
-    expect(mapStore.selectedPort).not.toBeNull()
-
     const renderer = mockedCreateRenderer.mock.results[0].value
     const clickHandler = renderer.on.mock.calls.find((c: unknown[]) => c[0] === 'click')?.[1]
-
-    clickHandler({
+    const portEvent = {
       detail: {
-        featureType: null,
-        data: null,
+        featureType: 'port',
+        data: { id: '1', name: 'test-port', lng: 108.1, lat: 21.5 },
         coordinate: [108.1, 21.5],
       },
-    })
+    }
 
+    // 点击 → 钉住；同 POI 再点 → 撤销
+    clickHandler(portEvent)
     await wrapper.vm.$nextTick()
+    expect(wrapper.find('.map-feature-bubble').exists()).toBe(true)
 
-    expect(mapStore.selectedPort).toBeNull()
+    clickHandler(portEvent)
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.map-feature-bubble').exists()).toBe(false)
+
+    // 再次钉住后点击空白 → 关闭
+    clickHandler(portEvent)
+    await wrapper.vm.$nextTick()
+    clickHandler({ detail: { featureType: null, data: null, coordinate: [108.1, 21.5] } })
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.map-feature-bubble').exists()).toBe(false)
   })
 
-  it('should clear selectedPort when clicking non-port feature', async () => {
+  it('should switch bubble to another port on click and keep pinned bubble on hover', async () => {
     wrapper = mount(UnifiedMap, {
       props: { mapType: '2d' },
       ...makeMountOptions(mapStore),
@@ -312,22 +323,100 @@ describe('UnifiedMap Click Interaction Tests', () => {
     await flushPromises()
     await new Promise((resolve) => setTimeout(resolve, 50))
 
-    mapStore.setSelectedPort({ id: 1, name: 'test-port' } as unknown as Port)
+    const renderer = mockedCreateRenderer.mock.results[0].value
+    const clickHandler = renderer.on.mock.calls.find((c: unknown[]) => c[0] === 'click')?.[1]
+    const hoverHandler = renderer.on.mock.calls.find((c: unknown[]) => c[0] === 'hover')?.[1]
+
+    // 钉住港口 1
+    clickHandler({
+      detail: {
+        featureType: 'port',
+        data: { id: '1', name: 'test-port', lng: 108.1, lat: 21.5 },
+        coordinate: [108.1, 21.5],
+      },
+    })
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.map-feature-bubble').text()).toContain('test-port')
+
+    // 钉住时悬浮其他港口 → 不打扰当前气泡
+    hoverHandler({
+      detail: {
+        featureType: 'port',
+        data: { id: '2', name: 'hover-port', lng: 108.2, lat: 21.6 },
+        coordinate: [108.2, 21.6],
+      },
+    })
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.map-feature-bubble').text()).toContain('test-port')
+
+    // 点击另一港口 → 气泡切换（一次仅一个）
+    clickHandler({
+      detail: {
+        featureType: 'port',
+        data: { id: '3', name: 'other-port', lng: 108.3, lat: 21.7 },
+        coordinate: [108.3, 21.7],
+      },
+    })
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.map-feature-bubble').text()).toContain('other-port')
+  })
+
+  it('should show hover bubble without close button and hide on hover-out', async () => {
+    wrapper = mount(UnifiedMap, {
+      props: { mapType: '2d' },
+      ...makeMountOptions(mapStore),
+    })
+
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    await flushPromises()
+    await new Promise((resolve) => setTimeout(resolve, 50))
+
+    const renderer = mockedCreateRenderer.mock.results[0].value
+    const hoverHandler = renderer.on.mock.calls.find((c: unknown[]) => c[0] === 'hover')?.[1]
+
+    // 悬浮命中 → 气泡出现，无关闭按钮（悬浮态）
+    hoverHandler({
+      detail: {
+        featureType: 'port',
+        data: { id: '2', name: 'hover-port', lng: 108.2, lat: 21.6 },
+        coordinate: [108.2, 21.6],
+      },
+    })
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.map-feature-bubble').exists()).toBe(true)
+    expect(wrapper.find('.map-feature-bubble').text()).toContain('hover-port')
+    expect(wrapper.find('.bubble-close').exists()).toBe(false)
+
+    // 移开/未命中 → 消失
+    hoverHandler({ detail: { featureType: null, data: null, coordinate: null } })
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.map-feature-bubble').exists()).toBe(false)
+  })
+
+  it('should not show bubble on 3d clicks (bubble is 2d-only capability)', async () => {
+    wrapper = mount(UnifiedMap, {
+      props: { mapType: '3d' },
+      ...makeMountOptions(mapStore),
+    })
+
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    await flushPromises()
+    await new Promise((resolve) => setTimeout(resolve, 50))
 
     const renderer = mockedCreateRenderer.mock.results[0].value
     const clickHandler = renderer.on.mock.calls.find((c: unknown[]) => c[0] === 'click')?.[1]
 
     clickHandler({
       detail: {
-        featureType: 'boundary',
-        data: { name: 'region' },
+        featureType: 'port',
+        data: { id: '1', name: 'test-port', lng: 108.1, lat: 21.5 },
         coordinate: [108.1, 21.5],
       },
     })
 
     await wrapper.vm.$nextTick()
 
-    expect(mapStore.selectedPort).toBeNull()
+    expect(wrapper.find('.map-feature-bubble').exists()).toBe(false)
   })
 })
 

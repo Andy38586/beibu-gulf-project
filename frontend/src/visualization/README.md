@@ -15,8 +15,8 @@ visualization/
 │   └── composables/         # useChartBase / useRadarChart（ECharts 装配）
 ├── composables/
 │   └── useECharts.ts        # ECharts 底层封装（按需注册、主题、resize 闭环）
-└── panels/
-    └── PortInfoPanel.vue    # 港口信息浮层（首页）
+└── charts/ 图表层已收敛：面板类组件移除（港口信息改由 core/map 气泡 MapFeatureBubble 呈现）
+
 ```
 
 ## 依赖方向

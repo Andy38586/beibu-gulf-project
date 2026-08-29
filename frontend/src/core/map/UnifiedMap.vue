@@ -3,6 +3,7 @@
 import type { Feature, FeatureCollection, Point } from 'geojson'
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 
+import MapFeatureBubble from '@/core/map/components/MapFeatureBubble.vue'
 import { BOUNDARY_STYLE, loadBoundaryGeoJson } from '@/core/map/composables/useBoundaryLayer'
 import { useBusinessLayers } from '@/core/map/composables/useBusinessLayers'
 import { buildPortGeoJson, loadPorts, PORT_STYLE } from '@/core/map/composables/usePortLayer'
@@ -51,6 +52,24 @@ const mapStore = useMapStore()
 const olRenderer = ref<MapRenderer | null>(null)
 const cesiumRenderer = ref<MapRenderer | null>(null)
 const cesiumInitialized = ref(false)
+
+// ── 要素气泡（2D）：悬浮即显移开即隐，点击钉住并随 POI 跟随；同一时刻仅一个 ──
+const bubblePinned = ref<Port | null>(null)
+const bubbleHover = ref<Port | null>(null)
+const bubbleAnchor = ref<[number, number] | null>(null)
+const bubbleHostRef = ref<HTMLElement | null>(null)
+const bubblePort = computed<Port | null>(() => bubblePinned.value ?? bubbleHover.value)
+const bubbleVisible = computed(() => bubblePort.value !== null)
+
+// 显隐/锚点同步给渲染器 Overlay（OL 随地图移动自动跟随；3D 无此能力，可选链跳过）
+watch([bubbleVisible, bubbleAnchor], ([visible, anchor]) => {
+  currentRenderer.value?.setBubbleAnchor?.(visible ? anchor : null)
+})
+
+function closeBubble(): void {
+  bubblePinned.value = null
+  bubbleHover.value = null
+}
 
 // mapStore 已由 App.vue 统一 provide，此处不重复
 
@@ -224,6 +243,10 @@ async function initRenderer(type: '2d' | '3d', container: HTMLElement | null) {
       renderer.updateSize()
       setupLayers()
       setupEvents()
+      // 气泡宿主挂给 OL Overlay（元素由本组件模板提供；3D 渲染器无此能力跳过）
+      if (type === '2d' && bubbleHostRef.value) {
+        renderer.attachBubbleElement?.(bubbleHostRef.value)
+      }
       businessLayerManager.reapplyAll(renderer)
     }
   } catch (error) {
@@ -311,18 +334,38 @@ function isPortEventData(data: unknown): data is Port {
 // 具名回调，保存引用供 off 解绑（MapRenderer 事件注册/移除配对契约）
 function handleRendererClick(event: CustomEvent<MapRendererEventMap['click']>): void {
   const { featureType, data, coordinate } = event.detail
-  if (featureType === 'port' && data && isPortEventData(data)) {
-    mapStore.setSelectedPort(data)
+  if (featureType === 'port' && data && isPortEventData(data) && props.mapType === '2d') {
+    // 气泡钉住/撤销：同 POI 再点关闭，其他 POI 切换（锚点取 POI 自身经纬度，精确跟随）
+    if (bubblePinned.value && bubblePinned.value.id === data.id) {
+      closeBubble()
+    } else {
+      bubblePinned.value = data
+      bubbleAnchor.value = [data.lng, data.lat]
+    }
   } else {
-    mapStore.clearSelectedPort()
+    // 空白/非港口要素/3D（无气泡能力）：关闭气泡
+    closeBubble()
   }
   emit('click', { featureType, data, coordinate })
+}
+
+/** 悬停驱动气泡：命中港口即显、移开即隐；钉住时悬浮不打扰当前气泡 */
+function handleRendererHover(event: CustomEvent<MapRendererEventMap['hover']>): void {
+  if (bubblePinned.value) return
+  const { featureType, data } = event.detail
+  if (featureType === 'port' && data && isPortEventData(data)) {
+    bubbleHover.value = data
+    bubbleAnchor.value = [data.lng, data.lat]
+  } else {
+    bubbleHover.value = null
+  }
 }
 
 function setupEvents() {
   const renderer = currentRenderer.value
   if (!renderer) return
   renderer.on('click', handleRendererClick)
+  renderer.on('hover', handleRendererHover)
 }
 
 function getContainer(type: '2d' | '3d') {
@@ -341,6 +384,8 @@ async function switchMapType(newType: '2d' | '3d') {
   const oldType = (currentRenderer.value?.getType() || mapStore.mapType) as '2d' | '3d'
   switching.value = true
   loading.value = true
+  // 气泡是 2D Overlay 能力，引擎切换即收（3D 无跟随能力）
+  closeBubble()
 
   logger.debug(`[UnifiedMap] switchMapType: ${oldType} → ${newType}`)
   logger.debug(
@@ -570,6 +615,16 @@ defineExpose({
       class="map-container"
     ></div>
 
+    <!-- 要素气泡（2D）：宿主元素交给 OL Overlay 定位，悬浮/钉住共用，同一时刻仅一个 -->
+    <div v-show="bubbleVisible" ref="bubbleHostRef" class="map-bubble-host">
+      <MapFeatureBubble
+        v-if="bubblePort"
+        :port="bubblePort"
+        :pinned="bubblePinned !== null"
+        @close="closeBubble"
+      />
+    </div>
+
     <Transition name="fade">
       <div v-if="loading || switching" class="map-loading">
         <div class="loading-spinner"></div>
@@ -596,6 +651,11 @@ defineExpose({
   transition: opacity 0.3s ease;
 
   /* 确保地图容器可以接收鼠标事件，即使父元素设置了 pointer-events: none */
+  pointer-events: auto;
+}
+
+.map-bubble-host {
+  /* 定位由 OL Overlay 接管（绝对定位于地图容器内），此层只承载气泡内容与交互 */
   pointer-events: auto;
 }
 

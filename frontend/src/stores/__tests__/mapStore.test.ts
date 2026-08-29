@@ -122,16 +122,12 @@ describe('mapStore', () => {
   })
 
   describe('resetMapState (b037)', () => {
-    it('应清空 selectedPort，保留 mapType/baseLayerKey（2026-08-10：lastAnalysisResult 通道已删）', () => {
+    it('应清空业务交互状态，保留 mapType（selectedPort 已随地图气泡重构移除）', () => {
       const store = useMapStore()
-      // 准备：写入业务交互状态
-      store.setSelectedPort({ id: 'p1', name: '测试港口' } as never)
       store.setMapType('3d')
 
       store.resetMapState()
 
-      // 清空项
-      expect(store.selectedPort).toBeNull()
       // 保留项（用户偏好）
       expect(store.mapType).toBe('3d')
     })

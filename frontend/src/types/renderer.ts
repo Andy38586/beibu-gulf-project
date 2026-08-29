@@ -149,6 +149,12 @@ export interface MapRendererEventMap {
     data: Record<string, unknown> | null
     coordinate: [number, number] | null
   }
+  /** 悬停事件（要素气泡驱动，2D）：命中 POI 的类型/属性/锚点坐标，移出/未命中/拖拽中为 null */
+  hover: {
+    featureType: string | null
+    data: Record<string, unknown> | null
+    coordinate: [number, number] | null
+  }
   'pointer-move': { lng: number; lat: number }
   'camera-changed': CameraState
 }
@@ -194,6 +200,12 @@ export interface MapRenderer {
   /** 呼吸灯效果（双引擎公共能力：OL 矢量动画圈 / Cesium 实体动画） */
   startBreathing?(_lng: number, _lat: number): void
   stopBreathing?(): void
+
+  // ── 要素气泡（2D Overlay 能力，仅 OLRenderer 实现；调用方经可选链调用）──
+  /** 挂载气泡宿主元素（Vue 渲染树提供，Overlay 用它做锚点定位；幂等） */
+  attachBubbleElement?(_element: HTMLElement): void
+  /** 设置气泡锚点（WGS84 经纬度）：随地图移动自动跟随；null 隐藏 */
+  setBubbleAnchor?(_coordinate: [number, number] | null): void
 
   /** 事件监听 */
   on<K extends keyof MapRendererEventMap>(

@@ -10,8 +10,7 @@ import { defineAsyncComponent, onMounted } from 'vue'
 // 6-01：经 business 桶入口取数（不再深路径穿透 composables）
 import { useOverviewCharts } from '@/business'
 import { AppLayout, GCSPanel } from '@/core'
-import { useMapStore } from '@/stores'
-import { ChartLoading, PortInfoPanel } from '@/visualization'
+import { ChartLoading } from '@/visualization'
 
 // 图表异步化：echarts 移出首屏关键路径，就绪后替换 loading 占位。
 // loader 保留深路径：懒加载走入口会把整个 visualization 桶打进主 chunk，
@@ -25,7 +24,6 @@ const BarChart = defineAsyncComponent({
   loadingComponent: ChartLoading,
 })
 
-const mapStore = useMapStore()
 const { chartData, barData, loadOverviewCharts } = useOverviewCharts()
 
 onMounted(loadOverviewCharts)
@@ -45,7 +43,7 @@ onMounted(loadOverviewCharts)
         </GCSPanel>
       </template>
     </AppLayout>
-    <PortInfoPanel v-if="mapStore.selectedPort" :selected-port="mapStore.selectedPort" />
+    <!-- 港口信息浮层（PortInfoPanel）已移除：点击/悬浮港口改由地图内气泡（MapFeatureBubble）呈现 -->
   </div>
 </template>
 
@@ -54,9 +52,5 @@ onMounted(loadOverviewCharts)
   width: 100%;
   height: 100%;
   pointer-events: none;
-}
-
-.home-page :deep(.port-info-panel) {
-  pointer-events: auto;
 }
 </style>

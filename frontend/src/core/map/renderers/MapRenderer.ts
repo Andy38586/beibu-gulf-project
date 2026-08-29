@@ -244,4 +244,13 @@ export class MapRenderer {
   setBaseLayer(_type: 'image' | 'vector'): void {
     logger.debug(`${this.getType()} setBaseLayer 未实现`)
   }
+
+  // 要素气泡：2D 专有能力（OL Overlay 锚点跟随），基类空实现——3D 调用无效果，调用方无需能力检查
+  attachBubbleElement(_element: HTMLElement): void {
+    logger.debug(`${this.getType()} attachBubbleElement 未实现`)
+  }
+
+  setBubbleAnchor(_coordinate: [number, number] | null): void {
+    logger.debug(`${this.getType()} setBubbleAnchor 未实现`)
+  }
 }

@@ -10,12 +10,12 @@ import { useRouter } from 'vue-router'
 
 import EmptyState from '@/shared/components/EmptyState.vue'
 import { useAuth } from '@/shared/composables/useAuth'
-import { usePlans } from '@/shared/composables/usePlans'
+import { useFavorites } from '@/shared/composables/useFavorites'
 import { useGCS } from '@/shared/layout/useGCS'
 import { showError } from '@/shared/utils/errorHandler'
 import { showModal, showToast } from '@/shared/utils/gcsFeedback'
 import { logger } from '@/shared/utils/logger'
-import type { SavedXiaoqu } from '@/types/plan'
+import type { FavoriteAddInput, FavoriteItemType } from '@/types'
 import type { ScoredXiaoqu } from '@/types/xiaoqu'
 
 interface Props {
@@ -60,7 +60,13 @@ const emit = defineEmits<Emits>()
 // 从 useGCS 解构 CSS 变量供 v-bind() 使用
 const { css } = useGCS()
 const { cell8px, cell16px, cell40px, fontSizeTitle, fontSizeBody, fontSizeSmall } = css
-const { createPlan, saveXiaoqu, removeXiaoqu } = usePlans()
+// 收藏走全局 favorites 单例（2026-08-29 与方案解耦）：同用户 itemType+itemId 全局唯一
+const {
+  isFavorite: isFavoriteInStore,
+  addFavorite,
+  removeFavorite,
+  queuePendingFavorite,
+} = useFavorites()
 const { isAuthenticated } = useAuth()
 const router = useRouter()
 
@@ -70,10 +76,10 @@ const isLoggedIn = computed(() => isAuthenticated.value)
 /** 当前选中的项（用于地图可视化） */
 const selectedItem = ref<ScoredXiaoqu | null>(null)
 
-/** 当前方案ID（用于收藏功能） */
-const currentPlanId = ref<string | null>(null)
-/** 当前方案的已收藏列表（用于isFavorite判断） */
-const savedItems = ref<SavedXiaoqu[]>([])
+/** 收藏对象类型：随面板业务类型（site-selection → xiaoqu / flood → facility） */
+const favoriteItemType = computed<FavoriteItemType>(() =>
+  props.planType === 'flood' ? 'facility' : 'xiaoqu'
+)
 
 /** 当前页码（从1开始） */
 const currentPage = ref(1)
@@ -97,14 +103,32 @@ const hasData = computed(() => props.items.length > 0)
 /** 是否需要分页控件 */
 const needPagination = computed(() => props.pageSize > 0 && totalPages.value > 1)
 
-/** 判断项是否已收藏 */
-function isFavorite(itemId: string): boolean {
-  return savedItems.value.some((s) => s.id === itemId)
+/** 收藏判定（全局 favorites 单例，itemType 随面板业务类型） */
+function isFav(item: ScoredXiaoqu): boolean {
+  return isFavoriteInStore(favoriteItemType.value, item.id)
 }
 
-/** 切换收藏状态 */
+/** 列表项转收藏入参（快照带业务字段：选址 score/breakdown；浸没 type/loss） */
+function toFavoriteInput(item: ScoredXiaoqu): FavoriteAddInput {
+  return {
+    itemType: favoriteItemType.value,
+    itemId: item.id,
+    name: item.name,
+    lng: item.lng ?? 0,
+    lat: item.lat ?? 0,
+    snapshot: {
+      score: item.score ?? 0,
+      breakdown: item.breakdown ?? {},
+      type: item.type ?? null,
+      loss: item.loss ?? null,
+    },
+  }
+}
+
+/** 切换收藏状态：未登录 → 记录收藏意图并引导登录（登录成功后自动补完）；已登录 → 全局收藏增删 */
 async function toggleFavorite(item: ScoredXiaoqu) {
   if (!isLoggedIn.value) {
+    queuePendingFavorite(toFavoriteInput(item))
     // 未登录弹 GCSModal 登录引导
     showModal({
       message: '收藏功能需要登录，是否前往登录？',
@@ -114,79 +138,24 @@ async function toggleFavorite(item: ScoredXiaoqu) {
     return
   }
 
-  const itemId = item.id
-  if (isFavorite(itemId)) {
-    await doRemove(item)
-  } else {
-    await doSave(item)
-  }
-}
-
-/** 添加收藏：无方案时先自动创建（浸没/选址命名区分） */
-async function doSave(item: ScoredXiaoqu) {
-  if (!currentPlanId.value) {
-    try {
-      const ts = Date.now().toString().slice(-8)
-      const planName = `${props.planNamePrefix}${ts}`
-      const plan = await createPlan(planName, {})
-      currentPlanId.value = plan?.id || null
-      if (plan) {
-        savedItems.value = plan.savedXiaoqu || []
-      }
-    } catch (error) {
-      showError(error, { fallback: '创建收藏失败，请稍后重试' })
-      if (import.meta.env.DEV) {
-        logger.error('[PaginatedListPanel] 创建方案失败:', error)
-      }
-      return
-    }
-  }
-
-  if (!currentPlanId.value) return
-
+  const already = isFav(item)
   try {
-    const xiaoquData = toSavedXiaoqu(item)
-    const plan = await saveXiaoqu(currentPlanId.value, xiaoquData)
-    savedItems.value = plan?.savedXiaoqu || []
-    showToast(`已收藏：${item.name}`, 'success')
-    emit('favorite-change', { item, isFavorite: true })
+    if (already) {
+      await removeFavorite(favoriteItemType.value, item.id)
+      showToast(`已取消收藏：${item.name}`, 'success')
+    } else {
+      const { existed } = await addFavorite(toFavoriteInput(item))
+      showToast(existed ? '已在收藏中' : `已收藏：${item.name}`, 'success')
+    }
+    emit('favorite-change', { item, isFavorite: !already })
   } catch (error) {
-    showError(error, { fallback: '收藏失败，请稍后重试' })
+    showError(error, {
+      fallback: already ? '取消收藏失败，请稍后重试' : '收藏失败，请稍后重试',
+    })
     if (import.meta.env.DEV) {
-      logger.error('[PaginatedListPanel] 收藏失败:', error)
+      logger.error('[PaginatedListPanel] 收藏操作失败:', error)
     }
   }
-}
-
-/** 取消收藏 */
-async function doRemove(item: ScoredXiaoqu) {
-  if (!currentPlanId.value) {
-    showError('未找到收藏方案，请先收藏一个小区')
-    return
-  }
-  try {
-    const plan = await removeXiaoqu(currentPlanId.value, item.id)
-    savedItems.value = plan?.savedXiaoqu || []
-    showToast(`已取消收藏：${item.name}`, 'success')
-    emit('favorite-change', { item, isFavorite: false })
-  } catch (error) {
-    showError(error, { fallback: '取消收藏失败，请稍后重试' })
-    if (import.meta.env.DEV) {
-      logger.error('[PaginatedListPanel] 取消收藏失败:', error)
-    }
-  }
-}
-
-/** 列表项转 SavedXiaoqu 格式 */
-function toSavedXiaoqu(item: ScoredXiaoqu): SavedXiaoqu {
-  return {
-    id: item.id,
-    name: item.name,
-    score: item.score ?? 0,
-    lng: item.lng ?? 0,
-    lat: item.lat ?? 0,
-    breakdown: item.breakdown || {},
-  } as SavedXiaoqu
 }
 
 /** 跳转到指定页 */
@@ -227,29 +196,6 @@ watch(
     currentPage.value = 1
   }
 )
-
-/** 设置当前方案（外部初始化） */
-function setCurrentPlan(planId: string, saved: SavedXiaoqu[]) {
-  currentPlanId.value = planId
-  savedItems.value = saved || []
-}
-
-/** 获取当前方案 ID */
-function getCurrentPlanId(): string | null {
-  return currentPlanId.value
-}
-
-/** 获取已收藏 ID 列表 */
-function getSavedIds(): string[] {
-  return savedItems.value.map((s) => s.id)
-}
-
-defineExpose({
-  setCurrentPlan,
-  getCurrentPlanId,
-  getSavedIds,
-  isFavorite,
-})
 </script>
 
 <template>
@@ -274,12 +220,12 @@ defineExpose({
           <ElButton
             v-if="showFavorite"
             class="favorite-btn"
-            :type="isFavorite(item.id) ? 'warning' : 'default'"
+            :type="isFav(item) ? 'warning' : 'default'"
             size="small"
             text
             @click.stop="toggleFavorite(item)"
           >
-            {{ isFavorite(item.id) ? '★' : '☆' }}
+            {{ isFav(item) ? '★' : '☆' }}
           </ElButton>
         </div>
       </div>

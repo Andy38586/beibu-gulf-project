@@ -316,3 +316,29 @@ export type PortParsed = z.infer<typeof portSchema>
 export const portsArraySchema = z.array(portSchema)
 
 export type PortsArrayParsed = z.infer<typeof portsArraySchema>
+
+// ⑲ /api/favorites（全局收藏；同用户下 itemType + itemId 全局唯一，幂等添加）
+export const favoriteItemSchema = z.object({
+  id: z.string(),
+  userId: z.string(),
+  itemType: z.enum(['xiaoqu', 'facility']),
+  itemId: z.string(),
+  name: z.string(),
+  lng: z.number(),
+  lat: z.number(),
+  snapshot: z.record(z.string(), z.unknown()).nullable().optional(),
+  savedAt: z.string(),
+})
+
+export type FavoriteItemParsed = z.infer<typeof favoriteItemSchema>
+
+export const favoritesArraySchema = z.array(favoriteItemSchema)
+
+export const favoriteAddResponseSchema = z.object({
+  favorite: favoriteItemSchema,
+  existed: z.boolean(),
+})
+
+export const favoriteRemoveResponseSchema = z.object({
+  removed: z.boolean(),
+})

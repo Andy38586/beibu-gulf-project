@@ -10,8 +10,6 @@ export interface SiteSelectionState {
   factorSettings: Record<string, TypeSetting> | null
   matchedXiaoqu: ScoredXiaoqu[]
   selectedTypes: string[]
-  currentPlanId: string | null
-  savedXiaoquIds: string[]
   facilityPoi: Record<string, FacilityPoint[]>
 }
 
@@ -29,8 +27,6 @@ export const useSiteSelectionStore = defineStore('site-selection', () => {
   // ─── 分析结果（页面运行时状态） ──────────────────────────
   const matchedXiaoqu = ref<ScoredXiaoqu[]>([])
   const selectedTypes = ref<string[]>([])
-  const currentPlanId = ref<string | null>(null)
-  const savedXiaoquIds = ref<string[]>([])
   const facilityPoi = ref<Record<string, FacilityPoint[]>>({})
 
   // ─── 跨页面持久化（工厂） ────────────────────────────────
@@ -66,8 +62,6 @@ export const useSiteSelectionStore = defineStore('site-selection', () => {
     persisted.clearPersistedState()
     matchedXiaoqu.value = []
     selectedTypes.value = []
-    currentPlanId.value = null
-    savedXiaoquIds.value = []
     facilityPoi.value = {}
     calcError.value = ''
     // 816-专项2 2-2：复位请求进行态（原遗漏致登出后下次进页「分析中」spinner 常驻）
@@ -91,8 +85,6 @@ export const useSiteSelectionStore = defineStore('site-selection', () => {
     // 分析结果
     matchedXiaoqu,
     selectedTypes,
-    currentPlanId,
-    savedXiaoquIds,
     facilityPoi,
     setResult,
     setCalculating,

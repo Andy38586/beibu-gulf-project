@@ -72,7 +72,7 @@ describe('favoritesController.add', () => {
       snapshot: null,
     })
     expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ existed: false }) }),
+      expect.objectContaining({ data: expect.objectContaining({ existed: false }) })
     )
   })
 

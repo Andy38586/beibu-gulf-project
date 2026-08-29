@@ -68,14 +68,15 @@
 | ----------- | --------------------------------------------------------------------------------------------------------------- | ------------- | --------------------------------- |
 | 认证        | `POST /auth/register` / `POST /auth/login` / `POST /auth/logout`                                                | 公开          | Cookie 通道                       |
 | 认证        | `GET /auth/me`                                                                                                  | ✅ 需登录     | 当前用户信息                      |
-| 选址        | `POST /site-analysis`                                                                                           | ✅ 需登录     | 分析(参数 zod 校验)               |
+| 选址        | `POST /site-analysis`                                                                                           | 公开          | 分析(参数 zod 校验；纯计算免登录，2026-08-29 收口) |
 | 方案        | `GET/POST /plans`、`GET/PUT/DELETE /plans/:id`、`POST /plans/:id/xiaoqu`、`DELETE /plans/:id/xiaoqu/:xiaoquId`  | ✅ 全部需登录 | CRUD                              |
 | 预测        | `GET /forecast/timeseries`、`GET /forecast/indicator/:indicator`、`GET /forecast/map`、`GET /forecast/overview` | 公开          | —                                 |
 | 预测        | `GET /forecast/:portId`                                                                                           | 公开          | 孤儿路由（前端零消费，保留兼容端点，2026-08-16 816 补录） |
 | 洪涝        | `GET /flood/water-area`、`GET /flood/terrain-profiles`、`GET /flood/flood-areas`、`GET /flood/flood-statistics` | 公开          | api 模式                          |
-| 洪涝        | `POST /flood/analysis/disaster`                                                                                 | ✅ 需登录     | 灾害评估                          |
+| 洪涝        | `POST /flood/analysis/disaster`                                                                                 | 公开          | 灾害评估(纯计算免登录，2026-08-29 收口)            |
 | 洪涝 online | `GET /flood-online/api/flood/online?waterLevel=`                                                             | 公开          | FastAPI 裸 JSON,`envelope: false`（b027：参数名统一 waterLevel） |
 | 洪涝 online | `GET /flood-online/api/flood/impact?waterLevel=`                                                             | 公开          | 在线设施影响评估（P2-1 补录）      |
+| 收藏        | `GET /favorites`、`POST /favorites`、`DELETE /favorites/:itemType/:itemId`                                     | ✅ 全部需登录 | 全局收藏(幂等添加，itemType+itemId 唯一) |
 | 健康        | `GET /health`、`GET /health/ready`                                                                              | 公开          | 探针,置于限流前                   |
 
 **已删除接口**(勿重新添加):`/api/markers/*`(死代码)、`/api/facilities/*`、`/api/flood/water-levels`、`/api/flood/facilities`(前端零调用孤儿)、`GET /ports`(2026-08-29 港口数据回迁前端静态 `frontend/public/data/ports.json`,纯透传端点无后端价值)。

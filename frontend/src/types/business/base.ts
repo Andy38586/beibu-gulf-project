@@ -116,3 +116,38 @@ export interface ConfidenceThresholds {
 export interface ForecastData {
   [key: string]: unknown
 }
+
+// ===== 全局收藏（用户数据，后端 favorites.json 持久化） =====
+
+/** 收藏对象类型：选址小区 / 浸没设施 */
+export type FavoriteItemType = 'xiaoqu' | 'facility'
+
+/** 全局收藏项（itemType + itemId 全局唯一，收藏过一次即存在） */
+export interface FavoriteItem {
+  id: string
+  userId: string
+  itemType: FavoriteItemType
+  itemId: string
+  name: string
+  lng: number
+  lat: number
+  /** 业务快照（选址：score/breakdown；浸没：type/loss）——详情展示用，非唯一键 */
+  snapshot?: Record<string, unknown> | null
+  savedAt: string
+}
+
+/** 收藏添加入参（id/userId/savedAt 由后端生成） */
+export interface FavoriteAddInput {
+  itemType: FavoriteItemType
+  itemId: string
+  name: string
+  lng: number
+  lat: number
+  snapshot?: Record<string, unknown> | null
+}
+
+/** POST /favorites 响应（幂等：existed=true 表示收藏已存在，不重复写入） */
+export interface FavoriteAddResult {
+  favorite: FavoriteItem
+  existed: boolean
+}

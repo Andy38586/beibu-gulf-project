@@ -5,17 +5,20 @@
  * useAuth/usePlans/useFloodStore 为 Pinia 单例；RESTORE_PLAN_DATA_KEY/EDITING_PLAN_KEY
  * 由 App.vue provide，此处 inject 拿到同一 ref 引用，赋值对主页面/业务页可见。
  */
-import { inject, onUnmounted, ref, watch } from 'vue'
+import { computed, inject, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { EDITING_PLAN_KEY, RESTORE_PLAN_DATA_KEY } from '@/core'
 import { useAuth, usePlans } from '@/shared'
 import { showModal } from '@/shared'
 import { showError } from '@/shared'
+import { showToast } from '@/shared'
 import { logger } from '@/shared'
 import { EmptyState, PaginatedListPanel, PlanSaveModal, sanitizeMessage } from '@/shared'
+import { useFavorites } from '@/shared'
 import { useFloodStore } from '@/stores'
 import type { AffectedFacility, FloodFeature, FloodStatistics } from '@/types/business/base'
+import type { FavoriteItem } from '@/types/business/base'
 import type { TypeSetting } from '@/types/facility'
 import type { Plan } from '@/types/plan'
 import type { SavedXiaoqu } from '@/types/xiaoqu'
@@ -31,6 +34,8 @@ const {
 } = usePlans()
 const { user } = useAuth()
 const floodStore = useFloodStore()
+// 全局收藏单例（2026-08-29 收藏与方案解耦：收藏夹直接展示全局收藏平铺列表）
+const { favorites, removeFavorite } = useFavorites()
 
 // 卸载时取消在途 getPlans 请求，避免迟到响应写入已卸载组件
 onUnmounted(() => {
@@ -177,9 +182,31 @@ async function handleSaveName(name: string) {
   }
 }
 
-/** 收藏状态变化后重新加载（事件回调返回 Promise 无消费方，显式 void 防浮动） */
-function handleFavoriteChange(): void {
-  void loadPlans()
+/** 全局收藏分区（选址小区 / 浸没设施），收藏夹平铺展示 */
+const favoriteGroups = computed(() => {
+  const groups = [
+    {
+      type: 'xiaoqu' as const,
+      label: '选址小区',
+      items: favorites.value.filter((f) => f.itemType === 'xiaoqu'),
+    },
+    {
+      type: 'facility' as const,
+      label: '浸没设施',
+      items: favorites.value.filter((f) => f.itemType === 'facility'),
+    },
+  ]
+  return groups.filter((g) => g.items.length > 0)
+})
+
+/** 取消收藏（收藏夹内直接操作，全局状态单例同步） */
+async function handleRemoveFavorite(fav: FavoriteItem): Promise<void> {
+  try {
+    await removeFavorite(fav.itemType, fav.itemId)
+    showToast(`已取消收藏：${fav.name}`, 'success')
+  } catch (error) {
+    showError(error, { fallback: '取消收藏失败，请稍后重试' })
+  }
 }
 
 /** 选址分析类型的小区（score > 0） */
@@ -214,9 +241,30 @@ watch(
     <!-- 加载状态 -->
     <div v-if="plansLoading" class="plans-loading">加载中...</div>
 
-    <!-- 收藏夹标题 -->
+    <!-- ===== 我的收藏（全局收藏平铺，2026-08-29 与方案解耦） ===== -->
+    <template v-if="user">
+      <div v-if="favorites.length > 0" class="favorites-header">
+        <span class="favorites-title">我的收藏</span>
+        <span class="favorites-count">{{ favorites.length }}条</span>
+      </div>
+      <div v-for="group in favoriteGroups" :key="group.type" class="fav-group">
+        <div class="fav-group-title">{{ group.label }}</div>
+        <div v-for="fav in group.items" :key="fav.id" class="fav-item">
+          <span class="fav-name">{{ fav.name }}</span>
+          <button class="fav-remove" @click="handleRemoveFavorite(fav)">取消收藏</button>
+        </div>
+      </div>
+      <EmptyState
+        v-if="favorites.length === 0"
+        icon="⭐"
+        message="暂无收藏"
+        hint="去选址分析或浸没分析收藏内容吧"
+      />
+    </template>
+
+    <!-- ===== 我的方案（保存的方案快照，展开/加载/删除） ===== -->
     <div v-if="user && plansList.length > 0" class="favorites-header">
-      <span class="favorites-title">我的收藏</span>
+      <span class="favorites-title">我的方案</span>
       <span class="favorites-count">{{ plansList.length }}个方案</span>
     </div>
 
@@ -251,11 +299,9 @@ watch(
             <PaginatedListPanel
               :items="getSiteXiaoqu(plan)"
               :page-size="3"
-              :show-favorite="true"
+              :show-favorite="false"
               :map-interaction="false"
               plan-type="site-selection"
-              plan-name-prefix="选址分析收藏"
-              @favorite-change="handleFavoriteChange"
             >
               <template #item="{ item: xq, index }">
                 <span class="xq-rank">{{ index + 1 }}</span>
@@ -271,11 +317,9 @@ watch(
             <PaginatedListPanel
               :items="getFloodFacilities(plan)"
               :page-size="3"
-              :show-favorite="true"
+              :show-favorite="false"
               :map-interaction="false"
               plan-type="flood"
-              plan-name-prefix="浸没分析收藏"
-              @favorite-change="handleFavoriteChange"
             >
               <template #item="{ item: facility }">
                 <span class="facility-name">{{ facility.name }}</span>
@@ -286,14 +330,7 @@ watch(
       </div>
     </div>
 
-    <!-- 空状态：已登录但无收藏（c057：统一 EmptyState，保留原 ⭐ 图标与引导文案） -->
-    <EmptyState
-      v-if="user && !plansLoading && plansList.length === 0"
-      icon="⭐"
-      message="暂无收藏"
-      hint="去选址分析或浸没分析收藏内容吧"
-    />
-
+    <!-- 方案空态由收藏空态与「我的方案」标题共同表达：无方案时不重复渲染占位 -->
     <!-- 方案重命名弹窗（初始名取 editingNamePlan，error 时显示校验失败） -->
     <PlanSaveModal
       :visible="showSaveModal"
@@ -313,6 +350,54 @@ watch(
   flex: 1 1 0;
   min-height: 0;
   overflow-y: auto;
+}
+
+/* 我的收藏分组（全局收藏平铺，2026-08-29 与方案解耦） */
+.fav-group {
+  margin-bottom: 10px;
+}
+
+.fav-group-title {
+  font-size: 12px;
+  color: var(--GCS-text-muted);
+  margin-bottom: 6px;
+  padding-left: 4px;
+}
+
+.fav-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  background: var(--GCS-bg-container);
+  border-radius: 6px;
+}
+
+.fav-name {
+  flex: 1;
+  color: var(--GCS-text-primary);
+  font-weight: 500;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.fav-remove {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border: 1px solid var(--GCS-border-default);
+  border-radius: var(--GCS-radius-sm);
+  background: var(--GCS-bg-panel);
+  color: var(--GCS-color-error);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.fav-remove:hover {
+  border-color: var(--GCS-color-error);
 }
 
 /* 方案列表 Loading 状态 */

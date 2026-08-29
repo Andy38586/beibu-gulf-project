@@ -18,7 +18,7 @@ vi.mock('@/shared', async (importOriginal) => {
   }
 })
 
-import { handleAuthError, isAuthError, showError, useApiRequest } from '@/shared'
+import { handleAuthError, showError, useApiRequest } from '@/shared'
 
 import { useSiteAnalysisApi } from '../useSiteAnalysisApi'
 
@@ -78,16 +78,15 @@ describe('useSiteAnalysisApi', () => {
   })
 
   describe('analyze 异常路径', () => {
-    it('401 时走 handleAuthError，错误写 calcError 不重复 showError（专项5并 1-4 单一错误路径）', async () => {
+    it('401 时不再触发登录引导（2026-08-29 分析免登录收口），错误写 calcError', async () => {
       mockFetch.mockRejectedValueOnce(new ApiError('请先登录', ErrorCode.UNAUTHORIZED))
       const { analyze, calcError } = useSiteAnalysisApi()
 
       const result = await analyze(ANALYSIS_PARAMS)
 
-      expect(isAuthError(new ApiError('请先登录', ErrorCode.UNAUTHORIZED))).toBe(true)
-      expect(handleAuthError).toHaveBeenCalled()
-      // 816-专项5并 1-4：错误只写 calcError，弹窗由页面级 handleAnalysisError 统一触发——
-      // handleAuthError 内部已有软登录提示，此处重复 showError 会双弹窗
+      // 02 §4.5 收口：分析免登录，401 不再触发 handleAuthError 软登录引导
+      expect(handleAuthError).not.toHaveBeenCalled()
+      // 816-专项5并 1-4：错误只写 calcError，弹窗由页面级 handleAnalysisError 统一触发
       expect(showError).not.toHaveBeenCalled()
       expect(calcError.value).toBe('请先登录')
       expect(result.error).toBeTruthy()

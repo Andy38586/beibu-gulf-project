@@ -38,17 +38,11 @@ const { matchedXiaoqu, selectedTypes, facilityPoi, calculating } = storeToRefs(s
 /** 雷达图当前选中小区（页内临时态，仅本地） */
 const selectedXiaoqu = ref<ScoredXiaoqu | null>(null)
 
-/** 当前方案ID（用于保存小区） */
-const currentPlanId = ref<string | null>(null)
-
 /** 当前显示的设施POI图层key（互斥） */
 const activeFacilityLayerKey = ref<string | null>(null)
 
 /** 因子面板引用（用于获取/恢复状态） */
 const factorPanelRef = ref<InstanceType<typeof SiteAnalysisControlPanel> | null>(null)
-
-/** 小区列表面板引用（用于获取/恢复状态） */
-const favoriteListRef = ref<InstanceType<typeof PaginatedListPanel> | null>(null)
 
 /** 处理分析错误（来自因子面板的 calcError） */
 function handleAnalysisError(message: string): void {
@@ -171,14 +165,6 @@ function flyToXiaoqu(xq: ScoredXiaoqu): void {
   flyTo({ lng: xq.lng, lat: xq.lat }, { height: 1000 })
 }
 
-/** 收藏状态变化时同步方案ID */
-function handleFavoriteChange(_data: { item: ScoredXiaoqu; isFavorite: boolean }): void {
-  const planId = favoriteListRef.value?.getCurrentPlanId()
-  if (planId && !currentPlanId.value) {
-    currentPlanId.value = planId
-  }
-}
-
 /** 路由守卫：仅跳转个人中心时保存状态，其他路由清除 */
 onBeforeRouteLeave((to) => {
   if (to.path === '/profile') {
@@ -195,15 +181,12 @@ onBeforeRouteLeave((to) => {
  */
 function saveCurrentState(): void {
   const factorSettings = factorPanelRef.value?.getSettings?.() || null
-  const savedXiaoquIds = favoriteListRef.value?.getSavedIds?.() || []
 
   stateStore.saveState({
     factorSettings,
     matchedXiaoqu: matchedXiaoqu.value,
     selectedTypes: selectedTypes.value,
     facilityPoi: facilityPoi.value, // 补保存设施POI
-    currentPlanId: currentPlanId.value,
-    savedXiaoquIds,
   })
 }
 
@@ -220,17 +203,10 @@ function restoreState(): boolean {
     selectedTypes: savedState.selectedTypes || [],
     facilityPoi: savedState.facilityPoi || {},
   })
-  currentPlanId.value = savedState.currentPlanId || null
-
   // 恢复因子面板状态
   const factorSettings = savedState.factorSettings
   if (factorSettings && factorPanelRef.value?.restoreSettings) {
     factorPanelRef.value.restoreSettings(factorSettings)
-  }
-
-  // 恢复小区结果面板状态（方案ID从savedXiaoquIds推断，实际收藏由服务端管理）
-  if (savedState.currentPlanId) {
-    currentPlanId.value = savedState.currentPlanId
   }
 
   // 如果有分析结果，触发结果更新
@@ -319,17 +295,14 @@ onUnmounted(() => {
         <!-- 左下：小区名单列表 4×4 -->
         <GCSPanel :w="4" :h="4" anchor="top-left" :offset-x="0" :offset-y="5.5">
           <PaginatedListPanel
-            ref="favoriteListRef"
             :items="displayXiaoqu"
             :page-size="4"
             :loading="calculating"
             title="小区名单"
             empty-text="暂无分析结果"
             plan-type="site-selection"
-            plan-name-prefix="选址分析收藏"
             :fly-to="flyToXiaoqu"
             @click-item="handleSelectXiaoqu"
-            @favorite-change="handleFavoriteChange"
           >
             <template #item="{ item: xq, index }">
               <span class="xq-rank">{{ index + 1 }}</span>

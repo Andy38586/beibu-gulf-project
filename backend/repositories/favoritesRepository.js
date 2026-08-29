@@ -22,9 +22,8 @@ export async function findAllByUserId(userId) {
 export async function findByKey(userId, itemType, itemId) {
   const favorites = await readAll()
   return (
-    favorites.find(
-      (f) => f.userId === userId && f.itemType === itemType && f.itemId === itemId
-    ) || null
+    favorites.find((f) => f.userId === userId && f.itemType === itemType && f.itemId === itemId) ||
+    null
   )
 }
 

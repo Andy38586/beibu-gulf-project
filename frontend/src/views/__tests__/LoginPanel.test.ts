@@ -9,8 +9,8 @@
 import { mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const mockLogin = vi.fn()
-const mockRegister = vi.fn()
+const mockLogin = vi.hoisted(() => vi.fn())
+const mockRegister = vi.hoisted(() => vi.fn())
 vi.mock('@/shared/composables/useAuth', () => ({
   useAuth: () => ({ login: mockLogin, register: mockRegister }),
 }))

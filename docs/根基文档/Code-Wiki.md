@@ -408,7 +408,7 @@ Express 应用装配顺序（中间件顺序敏感）：
 6. `express.json({ limit: '1mb' })` + `cookieParser()`。
 7. 请求日志（仅 dev，经 `logSanitizer` 脱敏）。
 8. 静态托管 `/static`（`.terrain` 设置 `Content-Encoding: gzip`，否则 Cesium 解压失败）。
-9. 路由挂载：`/api/site-analysis`、`/api/auth`、`/api/plans`、`/api/forecast`、`/api/flood`（ports 已回迁前端静态，2026-08-29）。
+9. 路由挂载：`/api/site-analysis`、`/api/auth`、`/api/favorites`、`/api/plans`、`/api/forecast`、`/api/flood`（ports 已回迁前端静态，2026-08-29）。
 10. 404 处理 + 全局错误处理（BusinessError 按码返回，生产不泄露堆栈）。
 
 导出 `app` 默认 + `checkDataDirReadable()` / `readinessHandler`（供测试）。
@@ -427,6 +427,7 @@ Express 应用装配顺序（中间件顺序敏感）：
 | -------------------- | ----------------------- | ---------------------- |
 | `/api/site-analysis` | routes/siteAnalysis.js  | 需登录（POST /）       |
 | `/api/auth`          | routes/auth.js          | 混合（/me 需登录）     |
+| `/api/favorites`     | routes/favorites.js     | 全部需登录             |
 | `/api/plans`         | routes/plans.js         | 全部需登录             |
 | `/api/forecast`      | routes/forecast.js      | 免鉴权                 |
 | `/api/flood`         | routes/floodAnalysis.js | 数据免鉴权，分析需登录 |
@@ -716,10 +717,11 @@ Dockerfile 构建 FastAPI 容器；docker-compose 中数据以 ro volume 共享 
 
 ### 1.4 其他
 
-| 文件       | 说明                                |
-| ---------- | ----------------------------------- |
-| plans.json | 用户方案（运行时读写）              |
-| users.json | 用户（运行时读写，bcrypt 哈希密码） |
+| 文件           | 说明                                              |
+| -------------- | ------------------------------------------------- |
+| plans.json     | 用户方案（运行时读写）                            |
+| favorites.json | 全局收藏（2026-08-29 新增；itemType+itemId 唯一） |
+| users.json     | 用户（运行时读写，bcrypt 哈希密码）               |
 
 > ports.json 已于 2026-08-29 回迁前端（`frontend/public/data/ports.json`，经 loadStatic 加载）——纯透传端点 `/api/ports` 无后端价值，已删除。
 

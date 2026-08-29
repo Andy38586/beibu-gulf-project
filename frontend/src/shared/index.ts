@@ -2,6 +2,7 @@
 // 组件经 index.ts 聚合导出，消费方一律走 @/shared，禁止深路径穿透。
 export * from './composables/useApiRequest'
 export * from './composables/useAuth'
+export * from './composables/useFavorites'
 export * from './composables/useLatestRequest'
 export * from './composables/usePlans'
 export * from './constants/chart'

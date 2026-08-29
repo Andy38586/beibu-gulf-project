@@ -11,3 +11,5 @@ docs/待解决问题.md
 docs/已解决问题.md
 docs/问题副本-*.md
 docs/已解决后遗症-*.md
+# 服务回写的数据产物（forecast 模型重算等不保证行尾换行），不受人写格式门禁约束
+backend/data/

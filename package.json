@@ -18,6 +18,7 @@
     "types:check": "node scripts/gen-api-contract.cjs --check",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "ci:local": "npm run format:check && npm run lint && npm run stylelint && npm run cruise && npm run typecheck && npm test -- --coverage && npm test --prefix backend -- --coverage && npm run build",
     "build:analyze": "cd frontend && vite build --mode analyze",
     "cruise": "dependency-cruiser -c .dependency-cruiser.cjs -T err frontend/src backend",
     "dev:express": "npm --prefix backend run dev",

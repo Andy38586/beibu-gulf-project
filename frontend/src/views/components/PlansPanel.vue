@@ -11,6 +11,7 @@ import { useRouter } from 'vue-router'
 import { EDITING_PLAN_KEY, RESTORE_PLAN_DATA_KEY } from '@/core'
 import { useAuth, usePlans } from '@/shared'
 import { showModal } from '@/shared'
+import { showError } from '@/shared'
 import { logger } from '@/shared'
 import { EmptyState, PaginatedListPanel, PlanSaveModal, sanitizeMessage } from '@/shared'
 import { useFloodStore } from '@/stores'
@@ -45,7 +46,6 @@ const saveError = ref('')
 const savingName = ref(false)
 
 /** 方案列表（含收藏内容） */
-const plansError = ref('')
 const plansList = ref<Plan[]>([])
 
 /** 当前展开的方案ID */
@@ -55,18 +55,11 @@ const expandedPlanId = ref<string | null>(null)
 async function loadPlans() {
   if (!user.value) return
 
-  plansError.value = ''
   try {
     plansList.value = await getPlans()
   } catch (error) {
-    // 816-专项5并 1-2：内联错误条经 sanitizeMessage 无害化（技术串回退 fallback）
-    plansError.value = sanitizeMessage(
-      (error as Error).message || '',
-      '方案列表加载失败，请稍后重试'
-    )
-    if (import.meta.env.DEV) {
-      logger.error('[PlansPanel] 加载方案列表失败:', error)
-    }
+    // 错误反馈走全局 toast（成因区分在 showError/describeError），不在面板内联渲染
+    showError(error, { fallback: '方案列表加载失败，请稍后重试' })
   }
 }
 
@@ -80,7 +73,6 @@ function handleDeletePlan(plan: Plan) {
 }
 
 async function doDeletePlan(id: string): Promise<void> {
-  plansError.value = ''
   try {
     await deletePlan(id)
     if (expandedPlanId.value === id) {
@@ -88,11 +80,7 @@ async function doDeletePlan(id: string): Promise<void> {
     }
     await loadPlans()
   } catch (error) {
-    // 816-专项5并 1-2：同上无害化
-    plansError.value = sanitizeMessage((error as Error).message || '', '删除失败，请稍后重试')
-    if (import.meta.env.DEV) {
-      logger.error('[PlansPanel] 删除方案失败:', error)
-    }
+    showError(error, { fallback: '删除失败，请稍后重试' })
   }
 }
 
@@ -212,7 +200,6 @@ watch(
       void loadPlans()
     } else {
       plansList.value = []
-      plansError.value = ''
       expandedPlanId.value = null
     }
   },
@@ -222,10 +209,7 @@ watch(
 
 <template>
   <div class="favorites-container">
-    <!-- 错误提示 -->
-    <div v-if="plansError" class="plans-error">
-      {{ plansError }}
-    </div>
+    <!-- 错误反馈已收敛到全局 toast（GCS 反馈层），面板不再内联渲染错误条 -->
 
     <!-- 加载状态 -->
     <div v-if="plansLoading" class="plans-loading">加载中...</div>
@@ -329,17 +313,6 @@ watch(
   flex: 1 1 0;
   min-height: 0;
   overflow-y: auto;
-}
-
-/* 方案列表错误提示 */
-.plans-error {
-  margin-top: 12px;
-  padding: 8px 12px;
-  background: var(--GCS-color-error-bg);
-  border: 1px solid var(--GCS-color-error-border);
-  border-radius: 6px;
-  color: var(--GCS-color-error);
-  font-size: 13px;
 }
 
 /* 方案列表 Loading 状态 */

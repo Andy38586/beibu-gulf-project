@@ -196,4 +196,20 @@ describe('useApiRequest', () => {
       expect(calledUrl).toContain('level=5')
     })
   })
+
+  describe('网关 5xx 归「服务器无响应」', () => {
+    // nginx/vite proxy 对宕机后端返回 502/503/504：语义是后端不可达而非应用错误，
+    // 归 SERVER_ERROR 让 describeError 统一按「服务器无响应」提示（不误报成登录问题）
+    it.each([502, 503, 504])(
+      'HTTP %i → ApiError(SERVER_ERROR,「服务器无响应」)',
+      async (status) => {
+        mockFetch.mockResolvedValue(jsonResponse('Bad Gateway', status))
+        const { apiRequest } = useApiRequest()
+        await expect(apiRequest('/plans')).rejects.toMatchObject({
+          code: ErrorCode.SERVER_ERROR,
+          message: '服务器无响应，请检查网络后重试',
+        })
+      }
+    )
+  })
 })

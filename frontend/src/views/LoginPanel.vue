@@ -4,12 +4,12 @@
  * 顶部登录/注册切换按钮；登录态含用户名+密码，注册态追加确认密码。
  * 已登录态由父级（ProfilePage v-if="!user"）控制，本组件不处理。
  * 错误反馈一律走全局 toast（GCS 反馈层），不在组件内联渲染（不挤占表单布局）；
- * 文案按 ApiError 错误码区分真实成因：服务器无响应 ≠ 未登录，密码错误 ≠ 未登录。
+ * 文案经 describeError 按错误码区分真实成因：服务器无响应 ≠ 未登录，密码错误 ≠ 未登录。
  */
 
 import { computed, ref } from 'vue'
 
-import { ApiError, ErrorCode, showToast, useAuth, useGCS } from '@/shared'
+import { describeError, showToast, useAuth, useGCS } from '@/shared'
 
 const { login, register } = useAuth()
 const { cellPixel, css } = useGCS()
@@ -34,19 +34,6 @@ const formHeightCss = computed(() => `${cellPixel.value * 0.8}px`) // 64px
 function switchMode(m: string) {
   mode.value = m
   confirmPassword.value = ''
-}
-
-/** 按 ApiError 错误码区分真实成因：后端没请求到就如实说服务器无响应，密码不对就说是密码问题 */
-function resolveErrorMessage(err: unknown): string {
-  if (!(err instanceof ApiError)) return '操作失败，请稍后重试'
-  // 后端不可达/超时：如实告知服务器无响应，不往「登录」上引
-  if (err.code === ErrorCode.NETWORK_ERROR || err.code === ErrorCode.TIMEOUT) {
-    return '服务器无响应，请检查网络后重试'
-  }
-  // 后端防枚举归一文案（账号不存在与密码错误统一 401「用户名或密码错误」）直接透传
-  if (err.code === ErrorCode.UNAUTHORIZED) return err.message || '用户名或密码错误'
-  if (err.code === ErrorCode.SERVER_ERROR) return '服务器错误，请稍后重试'
-  return err.message || '操作失败，请稍后重试'
 }
 
 async function handleSubmit() {
@@ -100,8 +87,8 @@ async function handleSubmit() {
     password.value = ''
     confirmPassword.value = ''
   } catch (err) {
-    // 错误走全局 toast（{{ }} 插值自动转义，无需字符级过滤）；文案按错误码区分成因
-    showToast(resolveErrorMessage(err), 'error')
+    // 错误走全局 toast（{{ }} 插值自动转义）；文案经 describeError 按错误码区分真实成因
+    showToast(describeError(err, '用户名或密码错误'), 'error')
   } finally {
     loading.value = false
   }

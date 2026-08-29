@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ApiError, ErrorCode } from '../../composables/useApiRequest'
-import { showError } from '../errorHandler'
+import { describeError, showError } from '../errorHandler'
 
 // 2026-08-08 打磨：errorHandler 反馈层从 ElMessage/ElMessageBox 换成 GCS 单例
 // （showModal/showToast），测试 mock gcsFeedback 断言调用。
@@ -66,5 +66,48 @@ describe('showError (d073 取消静默 + toast/modal 分级)', () => {
     showError(new Error('静默错误'), { silent: true })
     expect(mockShowToast).not.toHaveBeenCalled()
     expect(mockShowModal).not.toHaveBeenCalled()
+  })
+})
+
+describe('describeError（错误码 → 成因文案，用户提示与日志分工）', () => {
+  it('NETWORK_ERROR/TIMEOUT →「服务器无响应」，不透传原始技术串', () => {
+    expect(describeError(new ApiError('网络异常，请检查网络连接', ErrorCode.NETWORK_ERROR))).toBe(
+      '服务器无响应，请检查网络后重试'
+    )
+    expect(describeError(new ApiError('请求超时，请检查网络后重试', ErrorCode.TIMEOUT))).toBe(
+      '服务器无响应，请检查网络后重试'
+    )
+  })
+
+  it('SERVER_ERROR：可读中文透传（描述具体情况），技术串/HTML 回退服务器无响应', () => {
+    expect(describeError(new ApiError('方案保存失败：名称重复', ErrorCode.SERVER_ERROR))).toBe(
+      '方案保存失败：名称重复'
+    )
+    expect(
+      describeError(
+        new ApiError('<html>Error occured while trying to proxy</html>', ErrorCode.SERVER_ERROR)
+      )
+    ).toBe('服务器无响应，请检查网络后重试')
+  })
+
+  it('UNAUTHORIZED/REQUEST_FAILED：透传可读消息，fallback 兜底', () => {
+    expect(
+      describeError(new ApiError('用户名或密码错误', ErrorCode.UNAUTHORIZED), '登录已失效')
+    ).toBe('用户名或密码错误')
+    expect(
+      describeError(new ApiError('请求失败 HTTP 404', ErrorCode.REQUEST_FAILED), '操作失败')
+    ).toBe('请求失败 HTTP 404')
+  })
+
+  it('非 ApiError 的 Error 经 sanitizeMessage 无害化', () => {
+    expect(describeError(new Error('方案列表加载失败'))).toBe('方案列表加载失败')
+    expect(describeError(new Error('fetch failed: ECONNREFUSED'))).toBe('操作失败，请稍后重试')
+  })
+
+  it('showError 对 ApiError 也走 describeError（服务器无响应不笼统化为 fallback）', () => {
+    showError(new ApiError('网络异常，请检查网络连接', ErrorCode.NETWORK_ERROR), {
+      fallback: '方案列表加载失败，请稍后重试',
+    })
+    expect(mockShowToast).toHaveBeenCalledWith('服务器无响应，请检查网络后重试', 'error')
   })
 })

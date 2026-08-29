@@ -5,7 +5,7 @@ import { logger } from '@/shared/utils/logger'
 import type { AuthResponse, User } from '@/types/api'
 import { authResponseSchema, userSchema } from '@/types/schemas'
 
-import { useApiRequest } from './useApiRequest'
+import { ApiError, ErrorCode, useApiRequest } from './useApiRequest'
 
 /** 返回契约（816-专项3-0816-13：显式化，防重构时签名静默漂移） */
 export interface UseAuthReturn {
@@ -79,8 +79,24 @@ async function restoreAuth(): Promise<User | null> {
       setToken('restored-from-cookie')
       return data.user
     }
-  } catch {
-    // Cookie 无效或过期，清除前端状态
+  } catch (error) {
+    // 后端不可达（网络/超时/网关 5xx）≠ 未登录：保留 localStorage 临时登录态，
+    // Cookie 的权威校验顺延到首个真实请求（401 仍会经 handleAuthError 踢回登录）——
+    // 避免后端宕机被误判为「未登录」进而弹「请先登录」类提示
+    if (
+      error instanceof ApiError &&
+      (error.code === ErrorCode.NETWORK_ERROR ||
+        error.code === ErrorCode.TIMEOUT ||
+        error.code === ErrorCode.SERVER_ERROR)
+    ) {
+      logger.warn('[useAuth] /auth/me 不可达，保留临时登录态待首个真实请求校验:', error)
+      if (user.value) {
+        setToken('restored-from-cache')
+        return user.value
+      }
+      return null
+    }
+    // Cookie 无效或过期（401 等），清除前端状态
     clearToken()
     user.value = null
     writeStoredUser(null)

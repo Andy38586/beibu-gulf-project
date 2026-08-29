@@ -210,6 +210,11 @@ export function useApiRequest(): UseApiRequestReturn {
           typeof data === 'object' && data !== null && 'error' in data
             ? String((data as Record<string, unknown>).error)
             : ''
+        // 网关级 5xx（nginx 502/503/504）：后端进程不可达而非应用自身错误——
+        // 归 SERVER_ERROR 语义，describeError 统一按「服务器无响应」口径提示
+        if (res.status === 502 || res.status === 503 || res.status === 504) {
+          throw new ApiError('服务器无响应，请检查网络后重试', ErrorCode.SERVER_ERROR)
+        }
         if (res.status === 500) {
           throw new ApiError(errMsg || '服务器错误，请稍后重试', ErrorCode.SERVER_ERROR)
         }

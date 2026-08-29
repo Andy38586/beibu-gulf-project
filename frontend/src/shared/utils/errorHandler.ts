@@ -28,7 +28,10 @@ export function showError(
   let message: string = fallback
 
   // 816-专项5并 1-2：消息无害化——堆栈/超长/纯英文技术串不回退直接上屏（原始串仅 DEV 日志可见）
-  if (typeof error === 'string') {
+  if (error instanceof ApiError) {
+    // 错误码 → 成因文案：服务器无响应 ≠ 服务器错误 ≠ 请求失败，用户提示不笼统化
+    message = describeError(error, fallback)
+  } else if (typeof error === 'string') {
     message = sanitizeMessage(error, fallback)
   } else if (error instanceof Error) {
     // 过滤 AbortError（用户主动取消，不需要提示）
@@ -104,6 +107,25 @@ export function isAuthError(error: unknown): boolean {
   return false
 }
 
+/**
+ * 按错误码区分真实成因的用户文案（分工：具体情形上屏，错误码/原始串进日志）：
+ * 后端没请求到（NETWORK_ERROR/TIMEOUT）→「服务器无响应」，不往「登录」上引；
+ * 服务器 5xx：有可读中文错误透传（描述具体情况），技术串/HTML 回退「服务器无响应」；
+ * 其余按调用方 fallback 无害化。非 ApiError 的 Error 同样经 sanitizeMessage。
+ */
+export function describeError(err: unknown, fallback = '操作失败，请稍后重试'): string {
+  if (!(err instanceof ApiError)) {
+    return err instanceof Error ? sanitizeMessage(err.message, fallback) : fallback
+  }
+  if (err.code === ErrorCode.NETWORK_ERROR || err.code === ErrorCode.TIMEOUT) {
+    return '服务器无响应，请检查网络后重试'
+  }
+  if (err.code === ErrorCode.SERVER_ERROR) {
+    return sanitizeMessage(err.message, '服务器无响应，请检查网络后重试')
+  }
+  return sanitizeMessage(err.message, fallback)
+}
+
 /** 统一警告提示（非阻塞） */
 export function showWarning(message: string): void {
   if (import.meta.env.DEV) {
@@ -112,4 +134,4 @@ export function showWarning(message: string): void {
   showToast(message, 'warning')
 }
 
-export default { showError, handleAuthError, isAuthError, showWarning }
+export default { showError, describeError, handleAuthError, isAuthError, showWarning }

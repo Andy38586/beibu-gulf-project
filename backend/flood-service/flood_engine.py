@@ -28,13 +28,33 @@ from scipy import ndimage
 
 # 输入：钦北防范围、填洼、UTM48N 裁切版（路线 B ① 的产物）
 # 本文件位于 backend/flood-service/ → parents[1] = backend/，拼 data/... 即 backend/data/
-DEM_PATH = (
-    Path(__file__).resolve().parents[1]
-    / "data"
-    / "flood"
-    / "dem"
-    / "filled_utm48n_cut.tif"
-)
+# DEM 路径多级回退（2026-08-30）：workspace dem/ 副本会被本机清理进程删除
+# （原 169MB 版 8-27 被清理，复原版实测写入后分钟级再被删），故回退到 Desktop
+# 处理成果复原版；部署/CI 用 FLOOD_DEM_PATH 显式覆盖。复原命令见
+# tools/dem-pipeline/06-restore-cut-dem.ps1。
+def _resolve_dem_path() -> Path:
+    import os
+
+    env = os.environ.get("FLOOD_DEM_PATH")
+    if env:
+        return Path(env)
+    repo = (
+        Path(__file__).resolve().parents[1]
+        / "data"
+        / "flood"
+        / "dem"
+        / "filled_utm48n_cut.tif"
+    )
+    if repo.exists():
+        return repo
+    desktop = Path(
+        r"C:/Users/JionHappY/Desktop/_北部湾项目/数据_/项目数据/浸没分析"
+        r"/处理成果/filled_utm48n_cut.tif"
+    )
+    return desktop if desktop.exists() else repo
+
+
+DEM_PATH = _resolve_dem_path()
 
 # 垂直基准偏移（理论深度基准面 − EGM96，米）：waterLevel.json 的 baseLevels.msl=2.5
 # 表示「理论深度基准面水位 H」对应 EGM96 正高 H−2.5。本引擎的 DEM 比较与 251 档

@@ -184,9 +184,23 @@ def flood_online(
             # 访问刷新顺序 → 真 LRU（Python 3.8+ dict 保插入序）
             _cached_level.move_to_end(key)
             return hit
-    engine = _engine_module()
     t0 = time.time()
-    result = run_online_flood(key)
+    try:
+        _engine_module()  # 预热 DEM 加载（缺失时此处抛异常，被守卫转 503）
+        result = run_online_flood(key)
+    except Exception as exc:  # noqa: BLE001 —— 兜底路径降级守卫，见下
+        # 2026-08-29：cut 版 DEM（filled_utm48n_cut.tif，gitignored）缺失时兜底演算
+        # 抛 FileNotFoundError 裸 500——改为 503 + 可操作信息（查表路径不受影响）。
+        _logger.error("online 兜底演算失败（DEM 缺失？复原见 tools/dem-pipeline/06）：%s", exc)
+        from fastapi.responses import JSONResponse
+
+        return JSONResponse(
+            status_code=503,
+            content={
+                "detail": "在线演算不可用：DEM 未就绪（backend/data/flood/dem/filled_utm48n_cut.tif 缺失），"
+                "复原脚本见 tools/dem-pipeline/06-restore-cut-dem.ps1；查表档位不受影响",
+            },
+        )
     result["level"] = echo_level
     result["elapsedMs"] = round((time.time() - t0) * 1000)
     with _cache_lock:

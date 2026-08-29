@@ -292,3 +292,15 @@ def test_below_msl_returns_empty_without_compute(client, monkeypatch):
     assert body["floodedKm2"] == 0.0
     assert body["features"] == []
     assert len(calls) == 0  # 负键直接回空，不触发演算/DEM 加载
+
+
+def test_dem_missing_fallback_returns_503_not_500(client, monkeypatch):
+    """垂直基准统一配套守卫（2026-08-29）：查表 miss 且 cut 版 DEM 缺失时，
+    兜底演算返回 503 + 可操作信息（复原脚本路径），不裸 500"""
+    def _boom():
+        raise FileNotFoundError("backend/data/flood/dem/filled_utm48n_cut.tif")
+
+    monkeypatch.setattr(main_mod, "_engine_module", _boom)
+    r = client.get("/api/flood/online?waterLevel=7.2")  # 默认空表 → 必 miss → 走兜底
+    assert r.status_code == 503
+    assert "filled_utm48n_cut.tif" in r.json()["detail"]

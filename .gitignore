@@ -10,6 +10,8 @@ lerna-debug.log*
 node_modules
 .DS_Store
 dist
+dist*/
+**/dist*/
 dist-baseline
 dist-baseline*
 dist-ssr
@@ -19,6 +21,12 @@ dist_tmp
 dist-tmp
 dist_verify_run1
 dist_verify
+# 通用构建产物变体（如 frontend/dist-audit-20260829）
+dist-*/
+dist_*/
+**/dist-*/
+**/dist_*/
+temp_cruise*.json
 coverage
 *.local
 

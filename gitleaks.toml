@@ -1,19 +1,27 @@
 # gitleaks 配置（2026-08-09 加入）
-# 背景：CI secret-scan 误报两类内容，用 allowlist 放行——
+# 背景：CI secret-scan 误报内容用 allowlist 放行——
 # 1. 测试 fixture 的假 token（logSanitizer 用例，generic-api-key 规则误报）
 # 2. 历史泄露 key 的文档记录（d056 条目，完整值已打码为 e4cef34…）
+# 3. README 中 gitleaks 官方示例输出（cafebabe:deadbeef 假凭据）
+# 4. 本地未跟踪产物（.venv / dist / .env，CI checkout 工作树中不存在，仅影响本地扫描）
 # 注意：历史 commit 中的旧 key（src/composables/useBaseLayers.js 等已删文件）不在此放行，
 # 由 tools/git-clean-history.sh 一次性处理（守 git 红线，不重写历史）。
+# 2026-08-29 实测（8.24.3）：单数 [allowlist] 与 [extend] 可靠共存；复数 [[allowlists]] 无论
+# 单独还是与 [extend] 共存均被忽略/丢弃——统一用单数节、纯 paths 正则（/ 分隔符已归一化）。
 title = "beibu-gulf gitleaks config"
 
 [extend]
 useDefault = true
 
 [allowlist]
-description = "测试假 token 与历史泄露 key 的文档记录（均已打码/非真实凭据）"
+description = "测试假 token / 打码文档记录 / README 官方示例 / 本地未跟踪产物（.env 禁止入库，dist 与 .venv 被 gitignore，CI checkout 不存在）"
 paths = [
-  "backend/middleware/__tests__/logSanitizer.test.js",
-  "docs/已解决问题.md",
-  "docs/待解决问题.md",
-  "docs/已解决问题-精选版.md",
+  'backend/middleware/__tests__/logSanitizer\.test\.js',
+  'docs/已解决问题\.md',
+  'docs/待解决问题\.md',
+  'docs/已解决问题-精选版\.md',
+  '^README\.md$',
+  '\.venv/',
+  '(^|/)dist(-[^/]*)?/',
+  '\.env',
 ]

@@ -85,6 +85,8 @@ jobs:
 
       # d053: secret-scan 入 CI —— gitleaks 扫当前工作树(非 git 历史,避免历史遗留 key 导致 CI 常红;
       # 历史清理走 tools/git-clean-history.sh,属一次性人工操作)。
+      # 2026-08-29：补 --no-git（此前命令缺它实际扫全量 git 历史——浅克隆下只扫到 HEAD 故未爆，
+      # fetch-depth:0 后 405 个提交里的 3 处历史 key 立刻命中，与注释设计意图一致化）。
       # 2026-08-09 修复：/releases/latest/download 资产名带版本号（gitleaks_8.24.3_linux_x64.tar.gz），
       # 原模板 gitleaks_${OS}_${ARCH}.tar.gz 无版本号 → 404。改固定版本下载。
       - name: Secret scan (gitleaks)
@@ -95,7 +97,7 @@ jobs:
           GITLEAKS_VERSION=8.24.3
           curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_${OS}_${ARCH}.tar.gz" -o gitleaks.tar.gz
           tar -xzf gitleaks.tar.gz
-          ./gitleaks detect --config gitleaks.toml --redact --source . --no-banner
+          ./gitleaks detect --config gitleaks.toml --redact --source . --no-banner --no-git
 
       # d053 补充: .env 类文件禁止入库(仅允许 .env.example)
       - name: Ensure .env files are not tracked

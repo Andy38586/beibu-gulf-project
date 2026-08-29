@@ -149,3 +149,6 @@ tools/rewrite-msg.mjs
 tools/sim-audit-p3.mjs
 tools/sync-refs.cjs
 tools/verify-copy-stats.mjs
+
+# POI 抓取缓存（fetch-amap-poi-city.py 的中间产物，可再生；抓取进行中会持续增长，勿误提交）
+tools/.poi_cache/

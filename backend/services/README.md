@@ -23,7 +23,7 @@ services/
 ├── importanceMapping.js     # importanceToRadius（重要性档位→半径系数）
 ├── floodService.js          # assessDisaster（洪涝损失评估）
 ├── userService.js           # 用户 CRUD + tokenVersion + 密码迁移
-└── __tests__/               # filterFacilitiesInCoverage / floodService / forecastEngine / forecastService / siteAnalysisService
+└── __tests__/               # floodService / forecastEngine / forecastService / siteAnalysisService
 ```
 
 ## 三、各服务职责与关键导出
@@ -52,8 +52,9 @@ services/
 1. `validateSelection` → `resolveRadiusSettings`（`@arch-note P1-21` 防御 selectedKeys 与 typeSettings 键集不一致；`106` 校验半径为正；`P1-08` 参数错误带码抛出）。
 2. `buildTypeCoverage`：POI 去重（`314-002`）+ 过滤异常坐标 `[0,0]` 及非北部湾范围（`314-003`，经度 105-115 / 纬度 18-25）+ turf.buffer 求并（`GIS-001/007` 处理 MultiPolygon）。
 3. `intersectCoverages`：多类型覆盖范围 turf.intersect 求交，失败返回 `failKey`。
-4. `filterMatchedXiaoqu` / `filterFacilitiesInCoverage`：复用空间索引（`@arch-note P1-perf`）做 BBox 粗筛，避免逐点 `booleanPointInPolygon` 退化 O(F)。
+4. `filterMatchedXiaoqu`：复用空间索引（`@arch-note P1-perf`）做 BBox 粗筛，避免逐点 `booleanPointInPolygon` 退化 O(F)。
 5. `rankXiaoqu`：调 `scoreXiaoqu` 评分后取 Top 10。
+6. `facilityPoi`：各选中类型经 `extractValidPoi`（去重 + 坐标有效 + 北部湾范围）返回全量合法 POI——评分按最近设施距离线性衰减，覆盖区外的设施同样贡献得分，全量返回保证地图所见与评分依据一致。
 
 ### `scoringService.js` — 距离评分
 
@@ -108,4 +109,4 @@ services/
 
 ## 六、测试
 
-`__tests__/`：`forecastEngine.test.js`、`forecastService.test.js`、`siteAnalysisService.test.js`、`filterFacilitiesInCoverage.test.js`、`floodService.test.js`（vitest）。
+`__tests__/`：`forecastEngine.test.js`、`forecastService.test.js`、`siteAnalysisService.test.js`、`floodService.test.js`（vitest）。

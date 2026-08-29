@@ -171,6 +171,9 @@ export function useRadarChart({
         indicator: indicators,
         radius: radarRadius,
         center: radarCenter,
+        // ECharts 的 radar 轴名点击必须在根级开启：RadarModel 从 radar 根读取 triggerEvent
+        // 下发到各指示器轴模型，axisName 节点只承载样式（写在 axisName 里不生效）
+        triggerEvent: true,
         axisName: {
           color: dark ? CHART_COLORS.accent.dark : CHART_COLORS.accent.light,
           fontSize: RADAR_AXIS_NAME_FONT_SIZE,

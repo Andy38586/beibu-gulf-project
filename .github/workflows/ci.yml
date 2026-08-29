@@ -51,7 +51,11 @@ jobs:
 
     steps:
       - name: Checkout code
+        # fix/refactor 测试门禁需比对 HEAD~1：checkout 默认浅克隆（depth=1）下 HEAD~1 不存在，
+        # git diff fatal + bash -e 会误杀本步骤（114 翻车根因），此处拉全量历史
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4

@@ -9,6 +9,7 @@ import { dirname, join } from 'path'
 import { fileURLToPath } from 'url'
 
 import authRouter from './routes/auth.js'
+import favoritesRouter from './routes/favorites.js'
 import floodRouter from './routes/floodAnalysis.js'
 import forecastRouter from './routes/forecast.js'
 import plansRouter from './routes/plans.js'
@@ -194,6 +195,7 @@ app.use(
 
 app.use('/api/site-analysis', siteAnalysisRouter)
 app.use('/api/auth', authRouter)
+app.use('/api/favorites', favoritesRouter)
 app.use('/api/plans', plansRouter)
 app.use('/api/forecast', forecastRouter)
 app.use('/api/flood', floodRouter)

@@ -222,7 +222,7 @@ src/
 
 ### 4.4 services/mapDataService.ts
 
-- `getPorts()`：`MAP_CONFIG.DATA_PATHS.ports` 读港口数据，过滤北部湾边界外坐标。
+- `getPorts()`：读前端静态 `/data/ports.json`（loadStatic，2026-08-29 自后端回迁），过滤北部湾边界外坐标。
 - `clearCache()`：委托 loadStatic 清统一缓存。
 
 ## 5. 共享层（shared/）
@@ -239,7 +239,7 @@ src/
 ### 5.2 认证（useAuth.ts）
 
 - 模块级 `user` ref（localStorage 持久化 + zod 校验）。
-- `restoreAuth()`：启动时以 Cookie 为权威调 `/auth/me` 校验。
+- `restoreAuth()`：启动时以 Cookie 为权威调 `/auth/me` 校验；网络失败（后端不可达）≠ 未登录——保留 localStorage 临时登录态，Cookie 权威校验顺延到首个真实请求（401 才清态）。
 - `login/register/logout`：调后端接口，token 由 HttpOnly Cookie 携带，前端仅设占位符启用 `isAuthenticated`。
 - 多标签页同步：`initAuthStorageListener()` / `removeAuthStorageListener()`（storage 事件）。
 
@@ -251,8 +251,9 @@ src/
 - `spatialIndex.ts`：**前端版** rbush 矩形视口裁剪（与后端 `utils/spatialIndex.js` 不同）。
 - `logger.ts`：分级日志 + `sampled` 采样 + 预留 `addLogTransport`。
 - `perfReporter.ts`：性能埋点（`perfTimeFn`、`perfRecordApi`、`perfReportError`）。
-- `gcsFeedback.ts`：`showWarning` / `showError`（toast）。
-- `loadStatic` / `errorHandler` / `facilityLabels` / `responseEnvelope`。
+- `gcsFeedback.ts`：GCS 反馈层单例——`showToast`（轻提示）/ `showModal`（error/login/confirm 三模式弹窗）。
+- `errorHandler.ts`：`showError`（toast/modal 分级 + 重试）、`describeError`（错误码 → 成因文案：服务器无响应 ≠ 服务器错误 ≠ 请求失败）、`handleAuthError`（401 → login modal 引导）、`sanitizeMessage`。
+- `loadStatic` / `facilityLabels` / `responseEnvelope`。
 - `layout/`：`useGCS`（网格坐标）、`useTheme`（暗色主题切换）、`config`（GCS 变量）。
 
 ### 5.4 shared/constants
@@ -263,12 +264,12 @@ src/
 
 统一 Setup Store 语法（`useXxxStore`）。导出：`mapStore`、`floodStore`、`forecastStore`、`siteSelectionStore`、`createPersistedState`。
 
-| Store              | 职责                                                                                 |
-| ------------------ | ------------------------------------------------------------------------------------ |
-| mapStore           | 地图类型（2d/3d）、当前渲染器、图层目录（layerCatalog）、选中港口、业务图层注册/显隐 |
-| floodStore         | 洪涝水位、淹没统计/特征、风险等级、受影响设施/损失、状态保存/恢复                    |
-| forecastStore      | 预测数据缓存、指标、时序                                                             |
-| siteSelectionStore | 选址参数、方案、雷达图数据                                                           |
+| Store              | 职责                                                                       |
+| ------------------ | -------------------------------------------------------------------------- |
+| mapStore           | 地图类型（2d/3d）、当前渲染器、图层目录（layerCatalog）、业务图层注册/显隐 |
+| floodStore         | 洪涝水位、淹没统计/特征、风险等级、受影响设施/损失、状态保存/恢复          |
+| forecastStore      | 预测数据缓存、指标、时序                                                   |
+| siteSelectionStore | 选址参数、方案、雷达图数据                                                 |
 
 `createPersistedState.ts`：状态持久化工厂（sessionStorage/localStorage）。
 
@@ -285,7 +286,7 @@ re-export：`config/map`、`layout/*`、`map/BusinessLayerManager`、`map/compos
   - 视图：`flyTo` / `updateSize` / `getMap`（2D）/ `getViewer`（3D）。
   - 事件：`on` / `off` / `emit`（EventTarget 封装）。
   - 状态：`exportState` / `importState`（引擎切换时相机 + 图层可见性恢复）。
-  - 能力：`startBreathing` / `stopBreathing` / `setBaseLayer`。
+  - 能力：`startBreathing` / `stopBreathing` / `setBaseLayer` / `attachBubbleElement` + `setBubbleAnchor`（要素气泡，2D Overlay 锚点跟随）。
   - 待定可见性：`_pendingVisibility` 队列 + `_applyPendingVisibility` / `clearPendingVisibility`。
 - **renderers/OLRenderer.ts**：OpenLayers 2D 实现。
 - **renderers/CesiumRenderer.ts**：Cesium 3D 实现（懒加载，`cesiumViewerManager` 管理 viewer 生命周期，含闲置销毁）。
@@ -308,7 +309,7 @@ re-export：`config/map`、`layout/*`、`map/BusinessLayerManager`、`map/compos
 
 ### 7.4 地图组件
 
-- **UnifiedMap.vue**：统一地图容器。双引擎 v-show 切换、渲染器实例复用不销毁；`switchMapType()` 带重入保护与失败回滚；加载港口/边界数据；`setupLayers()` 注册底图 + boundary/ports 常驻层；ResizeObserver 观察容器尺寸。
+- **UnifiedMap.vue**：统一地图容器。双引擎 v-show 切换、渲染器实例复用不销毁；`switchMapType()` 带重入保护与失败回滚；加载港口/边界数据；`setupLayers()` 注册底图 + boundary/ports 常驻层；要素气泡（悬浮预览 / 点击钉住随 POI 跟随，同一时刻仅一个）；ResizeObserver 观察容器尺寸。
 - **components/LayerControlPanel.vue**：图层控制面板。
 - **composables/**：`useBoundaryLayer`、`usePortLayer`、`useBusinessLayers`、`useMapControls`。
 
@@ -353,7 +354,7 @@ re-export：`manifest`、`forecast/composables/*`、`site-selection/composables/
 
 - **charts/**：`BarChart.vue`、`LineChart.vue`、`RadarChart.vue`（6 轴评分雷达图）、`ChartLoading.vue`、`RadarScoreTooltip.vue`。
 - **composables/**：`useECharts`、`useChartBase`、`useRadarChart`。
-- **panels/PortInfoPanel.vue**：港口信息面板。
+- 港口信息展示已迁至 core/map 的要素气泡 `MapFeatureBubble.vue`（2026-08-29，panels/ 目录随之移除）。
 
 ## 10. 类型（types/）
 
@@ -365,7 +366,7 @@ re-export：`manifest`、`forecast/composables/*`、`site-selection/composables/
 
 - `HomePage.vue`：首页。
 - `ProfilePage.vue`：个人中心（含 `components/UserInfoCard.vue`、`components/PlansPanel.vue`）。
-- `components/LoginPanel.vue`：登录面板。
+- `components/LoginPanel.vue`：登录面板（错误反馈走全局 toast，文案经 describeError 按错误码区分成因；注册态密码格式提示在 placeholder）。
 
 ---
 
@@ -407,7 +408,7 @@ Express 应用装配顺序（中间件顺序敏感）：
 6. `express.json({ limit: '1mb' })` + `cookieParser()`。
 7. 请求日志（仅 dev，经 `logSanitizer` 脱敏）。
 8. 静态托管 `/static`（`.terrain` 设置 `Content-Encoding: gzip`，否则 Cesium 解压失败）。
-9. 路由挂载：`/api/site-analysis`、`/api/auth`、`/api/plans`、`/api/forecast`、`/api/flood`、`/api/ports`。
+9. 路由挂载：`/api/site-analysis`、`/api/auth`、`/api/plans`、`/api/forecast`、`/api/flood`（ports 已回迁前端静态，2026-08-29）。
 10. 404 处理 + 全局错误处理（BusinessError 按码返回，生产不泄露堆栈）。
 
 导出 `app` 默认 + `checkDataDirReadable()` / `readinessHandler`（供测试）。
@@ -429,7 +430,6 @@ Express 应用装配顺序（中间件顺序敏感）：
 | `/api/plans`         | routes/plans.js         | 全部需登录             |
 | `/api/forecast`      | routes/forecast.js      | 免鉴权                 |
 | `/api/flood`         | routes/floodAnalysis.js | 数据免鉴权，分析需登录 |
-| `/api/ports`         | routes/ports.js         | 免鉴权                 |
 
 ### 3.2 API 路由清单
 
@@ -475,11 +475,6 @@ Express 应用装配顺序（中间件顺序敏感）：
 | GET | /water-area | 免 | 水域边界坐标 |
 | POST | /analysis/disaster | 需登录 | 灾害评估（body: waterLevel） |
 
-**港口（/api/ports）**
-| 方法 | 路径 | 说明 |
-| ---- | ---- | ---- |
-| GET | / | 港口列表（公开只读） |
-
 ## 4. 控制器（controllers/）
 
 | 文件                       | 职责                                                                                   |
@@ -489,7 +484,6 @@ Express 应用装配顺序（中间件顺序敏感）：
 | forecastController.js      | 预测各接口；`parseConfidence()` 情景系数收口（非有限/≤0 → 1.0，上限 2）                |
 | floodAnalysisController.js | 洪涝数据/分析接口；`deriveRiskLevel()`（6 档语义）、`lookupFloodZone()`（查 251 档表） |
 | plansController.js         | 方案 CRUD + 小区保存/移除；用户归属校验 + 名称唯一校验                                 |
-| portsController.js         | 港口列表（静态 JSON 直读）                                                             |
 
 ## 5. 服务层（services/）——业务计算
 
@@ -724,9 +718,10 @@ Dockerfile 构建 FastAPI 容器；docker-compose 中数据以 ro volume 共享 
 
 | 文件       | 说明                                |
 | ---------- | ----------------------------------- |
-| ports.json | 港口列表（公开）                    |
 | plans.json | 用户方案（运行时读写）              |
 | users.json | 用户（运行时读写，bcrypt 哈希密码） |
+
+> ports.json 已于 2026-08-29 回迁前端（`frontend/public/data/ports.json`，经 loadStatic 加载）——纯透传端点 `/api/ports` 无后端价值，已删除。
 
 ### 1.5 静态资源（backend/static/）
 

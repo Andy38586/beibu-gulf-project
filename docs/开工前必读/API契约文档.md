@@ -76,15 +76,14 @@
 | 洪涝        | `POST /flood/analysis/disaster`                                                                                 | ✅ 需登录     | 灾害评估                          |
 | 洪涝 online | `GET /flood-online/api/flood/online?waterLevel=`                                                             | 公开          | FastAPI 裸 JSON,`envelope: false`（b027：参数名统一 waterLevel） |
 | 洪涝 online | `GET /flood-online/api/flood/impact?waterLevel=`                                                             | 公开          | 在线设施影响评估（P2-1 补录）      |
-| 港口        | `GET /ports`                                                                                                    | 公开          | 只读                              |
 | 健康        | `GET /health`、`GET /health/ready`                                                                              | 公开          | 探针,置于限流前                   |
 
-**已删除接口**(勿重新添加):`/api/markers/*`(死代码)、`/api/facilities/*`、`/api/flood/water-levels`、`/api/flood/facilities`(前端零调用孤儿)。
+**已删除接口**(勿重新添加):`/api/markers/*`(死代码)、`/api/facilities/*`、`/api/flood/water-levels`、`/api/flood/facilities`(前端零调用孤儿)、`GET /ports`(2026-08-29 港口数据回迁前端静态 `frontend/public/data/ports.json`,纯透传端点无后端价值)。
 
 ## 6. 校验命令
 
 ```bash
 npm run cruise        # 架构契约(含 backend)
 npm test              # 前后端测试
-node scripts/check-mock-contract.cjs   # mock 数据契约版本校验
+npm run types:check   # API 契约漂移检查（gen-api-contract --check，前端 schema 与后端响应比对）
 ```

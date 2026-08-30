@@ -7,12 +7,21 @@ import { CONFIRM_DELAY, showWarning, SliderSelectCard, useGCS } from '@/shared'
 import type { AnalysisResult, FacilityType, TypeSetting } from '@/types/analysis'
 
 import { FACILITY_CONFIG } from '../composables/facilityConfig'
+import { type CityKey, cityLabel } from '../composables/useCityScope'
 import { useSiteAnalysisApi } from '../composables/useSiteAnalysisApi'
+
+interface Props {
+  /** 当前视图所在城市；null = 跨城或不在三城范围内，此时禁止分析 */
+  city: CityKey | null
+}
+
+const props = defineProps<Props>()
 
 interface Emits {
   (_e: 'result-update', _result: Partial<AnalysisResult>): void
   (_e: 'analysis-error', _message: string): void
   (_e: 'analysis-empty', _reason: string): void
+  (_e: 'cross-city'): void
 }
 
 const emit = defineEmits<Emits>()
@@ -41,6 +50,13 @@ const selectedKeys = computed<string[]>(() =>
 )
 
 const { analyze, calculating, calcError, cancel } = useSiteAnalysisApi()
+
+// 分析按钮随作用域常显当前对象：有城市 → 「分析{城市}」；跨城视野 → 「跨城视野」
+// （点击触发 cross-city 弹窗说明）。让用户不点也知道正在/能否分析哪个城
+const analyzeLabel = computed(() =>
+  calculating.value ? '分析中...' : props.city ? `分析${cityLabel(props.city)}` : '跨城视野'
+)
+
 function clearTimer(key: string): void {
   if (confirmTimers[key]) {
     clearTimeout(confirmTimers[key]!)
@@ -92,6 +108,12 @@ function clearAll(): void {
   emit('result-update', { coverage: null, matchedXiaoqu: [], facilityPoi: {}, selectedTypes: [] })
 }
 async function runAnalysis(): Promise<void> {
+  // 跨城守卫：视图跨城市或不在三城市区范围内，无单城 POI 可用，交页面弹提示
+  if (!props.city) {
+    emit('cross-city')
+    return
+  }
+
   // 防重复提交守卫
   if (calculating.value) {
     // 向用户展示可视化反馈
@@ -119,6 +141,7 @@ async function runAnalysis(): Promise<void> {
   const result = await analyze({
     selectedKeys: selectedKeys.value as FacilityType[],
     typeSettings: apiTypeSettings,
+    city: props.city,
   })
   if (calcError.value) {
     // 只通过 emit 传递，由页面级统一处理（避免重复弹窗）
@@ -234,7 +257,7 @@ defineExpose({
         </SliderSelectCard>
       </div>
 
-      <!-- 第 4 行：清空选择 + 开始分析 -->
+      <!-- 第 4 行：清空选择 + 分析（文案随城市作用域变化） -->
       <button class="factor-btn action-btn clear-btn" @click.stop="clearAll">
         <span class="factor-label">清空选择</span>
       </button>
@@ -243,7 +266,7 @@ defineExpose({
         :disabled="calculating"
         @click.stop="runAnalysis"
       >
-        <span class="factor-label">{{ calculating ? '分析中...' : '开始分析' }}</span>
+        <span class="factor-label">{{ analyzeLabel }}</span>
       </button>
     </div>
   </div>

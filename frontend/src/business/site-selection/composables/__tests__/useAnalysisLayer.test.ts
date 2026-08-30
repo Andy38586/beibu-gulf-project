@@ -4,7 +4,13 @@ import { describe, expect, it, vi } from 'vitest'
 import type { BusinessLayerManager } from '@/core'
 import type { AnalysisResult } from '@/types'
 
-import { buildCoverageGeoJson, buildMatchedGeoJson, useAnalysisLayer } from '../useAnalysisLayer'
+import {
+  buildCoverageGeoJson,
+  buildFacilityPoiLayer,
+  buildMatchedGeoJson,
+  computeParticipatingPoiIds,
+  useAnalysisLayer,
+} from '../useAnalysisLayer'
 
 /**
  * useAnalysisLayer 单测（覆盖率方案①：业务 composable 抽测）
@@ -82,6 +88,67 @@ describe('buildMatchedGeoJson', () => {
     ] as never)
     expect(result.features).toHaveLength(1)
     expect(result.features[0].properties?.id).toBe('ok')
+  })
+})
+
+describe('buildFacilityPoiLayer', () => {
+  const hospital = { id: 'h1', name: '市人民医院', lng: 108.6, lat: 21.9 }
+
+  it('合并多类型为单层「附近设施」：per-point 异色 + 基准低透明 + 不常显名称', () => {
+    const desc = buildFacilityPoiLayer(
+      {
+        hospital: [hospital],
+        primary_school: [{ id: 's1', name: '实验小学', lng: 108.61, lat: 21.91 }],
+      },
+      ['hospital', 'primary_school'],
+      null
+    )
+    expect(desc.id).toBe('nearby-facility')
+    expect(desc.label).toBe('附近设施')
+    expect(desc.data).toHaveLength(2)
+    expect(desc.data[0]).toMatchObject({ id: 'h1', poiType: 'hospital', opacity: 0.3 })
+    // 6 类同层异色（颜色来自 FACILITY_CONFIG 单一事实源）
+    expect(desc.data[0].color).not.toBe(desc.data[1].color)
+    // 名字不常显：无 labelField（改走要素气泡）
+    expect(desc.options.labelField).toBeUndefined()
+    expect(desc.options.featureType).toBe('nearby-facility')
+    // 不聚合：全量参与点常显（低透明+暗化）是层层筛选的视觉根基
+    expect(desc.options.cluster).toBeUndefined()
+  })
+
+  it('命中集合内的点激活（1 原色），未命中保持基准低透明', () => {
+    const desc = buildFacilityPoiLayer(
+      { hospital: [hospital, { ...hospital, id: 'h2' }] },
+      ['hospital'],
+      { hospital: new Set(['h2']) }
+    )
+    expect(desc.data.find((d) => d.id === 'h1')?.opacity).toBe(0.3)
+    expect(desc.data.find((d) => d.id === 'h2')?.opacity).toBe(1)
+  })
+
+  it('空类型跳过（data 为空数组），由调用方决定撤层', () => {
+    const desc = buildFacilityPoiLayer({ hospital: [] }, ['hospital'], null)
+    expect(desc.data).toEqual([])
+  })
+})
+
+describe('computeParticipatingPoiIds', () => {
+  const pois = [
+    { id: 'near', name: '近点', lng: 108.6, lat: 21.9 },
+    { id: 'far', name: '远点', lng: 109.0, lat: 22.1 },
+  ]
+  const xiaoqu = { lng: 108.6, lat: 21.9 }
+
+  it('任一匹配小区覆盖内的点才算参与，覆盖外的排除', () => {
+    const ids = computeParticipatingPoiIds([xiaoqu], pois, 5)
+    expect(ids.has('near')).toBe(true)
+    expect(ids.has('far')).toBe(false)
+  })
+
+  it('多小区取并集：各自覆盖的点都参与', () => {
+    const ids = computeParticipatingPoiIds([xiaoqu, { lng: 109.0, lat: 22.1 }], pois, 5)
+    expect(ids.has('near')).toBe(true)
+    expect(ids.has('far')).toBe(true)
   })
 })
 

@@ -12,6 +12,8 @@ export interface AnalysisParams {
   selectedKeys: FacilityType[]
   typeSettings: Record<string, TypeSetting>
   weights?: Record<string, number>
+  /** 城市作用域：由地图视图反推，后端据此读对应城市的 POI（缺省回落到 qz） */
+  city?: 'qz' | 'bh' | 'fcg'
 }
 
 // 分析结果（后端 → 前端）

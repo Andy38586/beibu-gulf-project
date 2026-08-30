@@ -5,7 +5,7 @@ import { sendSuccess } from '../utils/response.js'
 
 export async function analyze(req, res, next) {
   try {
-    const { selectedKeys, typeSettings, weights } = req.body
+    const { selectedKeys, typeSettings, weights, city } = req.body
 
     if (!selectedKeys || !typeSettings) {
       throw new BusinessError(ErrorCode.INVALID_PARAMS, '缺少必要参数: selectedKeys, typeSettings')
@@ -35,7 +35,7 @@ export async function analyze(req, res, next) {
           `未知设施类型: ${key}，可用类型: ${validTypes.join(', ')}`
         )
       }
-      facilityData[key] = await facilitiesRepo.findByType(key)
+      facilityData[key] = await facilitiesRepo.findByType(key, city)
     }
 
     // 半径校验（typeSettings 各项 radius 若提供必须为正数）
@@ -64,7 +64,7 @@ export async function analyze(req, res, next) {
       }
     }
 
-    const xiaoquData = await facilitiesRepo.findXiaoqu()
+    const xiaoquData = await facilitiesRepo.findXiaoqu(city)
 
     const result = runSiteAnalysis({
       selectedKeys,

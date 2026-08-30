@@ -6,21 +6,57 @@
  */
 
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 
-import { AppLayout, GCSPanel, LayerControlPanel, useBusinessLayers, useMapControls } from '@/core'
-import { logger, PaginatedListPanel, showError, showWarning } from '@/shared'
-import { useSiteSelectionStore } from '@/stores'
+import {
+  AppLayout,
+  GCSPanel,
+  LayerControlPanel,
+  MAP_CONFIG,
+  useBusinessLayers,
+  useMapControls,
+} from '@/core'
+import {
+  FACILITY_COLORS,
+  FACILITY_COLORS_MAP,
+  logger,
+  PaginatedListPanel,
+  showError,
+  showModal,
+  showWarning,
+} from '@/shared'
+import { useMapStore, useSiteSelectionStore } from '@/stores'
+import type { GeoPoint } from '@/types'
 import type { AnalysisResult, FacilityPoint, ScoredXiaoqu } from '@/types/analysis'
 import { RadarChart, SNAPSHOT_SELECTED_TYPES, SNAPSHOT_XIAOQU } from '@/visualization'
 
 import SiteAnalysisControlPanel from './components/SiteAnalysisControlPanel.vue'
-import { useAnalysisLayer } from './composables/useAnalysisLayer'
+import {
+  buildFacilityPoiLayer,
+  computeHitPoiIds,
+  computeParticipatingPoiIds,
+  effectiveRadiusKm,
+  NEARBY_FACILITY_LAYER_ID,
+  useAnalysisLayer,
+} from './composables/useAnalysisLayer'
+import { CITY_CENTER_NAMES, useCityScope } from './composables/useCityScope'
 
-const { flyTo, startBreathing, stopBreathing, zoomToCity, zoomToDistrict, mapInstance } =
-  useMapControls()
+const {
+  flyTo,
+  startBreathing,
+  stopBreathing,
+  startFacilityBreathing,
+  stopFacilityBreathing,
+  zoomToCity,
+  mapInstance,
+} = useMapControls()
+
+// 当前视图所在城市：由相机反推。城市按钮 flyTo 与手动拖动地图走同一条判定，
+// 不再另设"当前城市"全局状态（避免双写漂移）
+const { currentCity } = useCityScope(() => mapInstance.value?.getRenderer?.() ?? null)
 const stateStore = useSiteSelectionStore()
+const mapStore = useMapStore()
 const { manager: businessLayerManager } = useBusinessLayers()
 // useAnalysisLayer 的 createUpdateHandler 接受含 register/updateData/has 的 manager 窄接口，
 // 与页面注入的 BusinessLayerManagerLike 结构兼容，无需类型断言
@@ -38,8 +74,54 @@ const { matchedXiaoqu, selectedTypes, facilityPoi, calculating } = storeToRefs(s
 /** 雷达图当前选中小区（页内临时态，仅本地） */
 const selectedXiaoqu = ref<ScoredXiaoqu | null>(null)
 
-/** 当前显示的设施POI图层key（互斥） */
-const activeFacilityLayerKey = ref<string | null>(null)
+/** 雷达轴名点亮的类型集合（多类型叠加，一类一类开始呼吸；随显隐指标联动启停，见 syncFacilityBreathing） */
+const activeBreathTypes = ref<Set<string>>(new Set())
+
+/** 命中设施集合（按类型）：点小区候选后计算，驱动 per-point 透明度（激活 100% / 其余低暗） */
+const hitByType = ref<Record<string, Set<string>> | null>(null)
+
+/**
+ * 参与选址的设施点（按类型，渲染集合）：被「任一匹配小区」覆盖半径内的点才算参与——
+ * 没参与小区选址的点不上图（全量千级 → 参与数百级，视觉聚焦与性能双赢）。
+ * importance 取面板当前值，与后端 buffer 同口径
+ */
+const participatingPoi = ref<Record<string, FacilityPoint[]>>({})
+
+/** 面板 importance 快照（getSettings 深拷贝；无面板/无值时按默认档 3） */
+function currentImportance(): Record<string, number> {
+  const settings = (factorPanelRef.value?.getSettings?.() ?? {}) as Record<
+    string,
+    { importance?: number } | undefined
+  >
+  const out: Record<string, number> = {}
+  for (const t of selectedTypes.value) {
+    out[t] = settings[t]?.importance ?? 3
+  }
+  return out
+}
+
+/** 计算（重算）参与集合：新分析结果到达或恢复快照时调用 */
+function computeParticipating(): void {
+  const importanceByType = currentImportance()
+  const out: Record<string, FacilityPoint[]> = {}
+  for (const t of selectedTypes.value) {
+    const pois = facilityPoi.value[t]
+    if (!pois || pois.length === 0) continue
+    const ids = computeParticipatingPoiIds(
+      matchedXiaoqu.value,
+      pois,
+      effectiveRadiusKm(t, importanceByType[t])
+    )
+    out[t] = pois.filter((p) => p.id && ids.has(p.id))
+  }
+  participatingPoi.value = out
+}
+
+/** 附近设施图层显隐指标（图层控制面板 → BLM → mapStore.catalog 镜像，单一数据源）。
+ *  registry 是权威，引擎切换时 catalog 业务条目短暂清空——缺省按可见处理，避免误停呼吸 */
+const isFacilityLayerVisible = computed(
+  () => mapStore.layerCatalog.find((e) => e.key === NEARBY_FACILITY_LAYER_ID)?.visible ?? true
+)
 
 /** 因子面板引用（用于获取/恢复状态） */
 const factorPanelRef = ref<InstanceType<typeof SiteAnalysisControlPanel> | null>(null)
@@ -52,6 +134,15 @@ function handleAnalysisError(message: string): void {
 /** 8-1：无重叠区域 = 合法业务空结果（02 §4.1），提示用户调整条件而非报错 */
 function handleAnalysisEmpty(reason: string): void {
   showWarning(reason)
+}
+
+/** 跨城视野下点分析：三城 POI 各自独立，跨城无法给出有意义的单城选址结果 */
+function handleCrossCity(): void {
+  showModal({
+    message: '暂时只支持对一个城市进行选址分析。请将地图放大到钦州、北海或防城港的市区范围后重试。',
+    mode: 'confirm',
+    confirmText: '知道了',
+  })
 }
 
 /** 限制显示前8个小区 */
@@ -83,65 +174,100 @@ function handleResult(result: Partial<AnalysisResult>): void {
     facilityPoi: result.facilityPoi || {},
   })
   selectedXiaoqu.value = null
-  // 新结果到来即撤下上一次的设施 POI 图层与呼吸：否则旧 POI 残留在图上，
-  // 雷达轴仍高亮但已无呼吸，图层控制面板也多出一条过期条目
-  handleHideFacilityLayer()
+  // 新结果到来：命中集合与呼吸全部重置；参与集合按新匹配小区重算（渲染集合随之收缩）
+  hitByType.value = null
+  activeBreathTypes.value = new Set()
+  stopBreathing()
+  stopFacilityBreathing()
+  computeParticipating()
+  syncFacilityPoiLayer()
   if (matchedXiaoqu.value.length > 0) {
-    zoomToDistrict()
+    flyToAnalyzedCity()
   }
 }
 
-/** 显示指定设施的 POI 图层（互斥，经 BLM 注册） */
+/**
+ * 同步附近设施图层（只渲染参与选址的点）：
+ * 图层控制面板一个「附近设施」开关管总显隐（BLM 注册自动进 mapStore.layerCatalog），
+ * 命中高亮经 updateData 整体重建（per-point opacity），点色/透明度都走 per-point 字段
+ */
+function syncFacilityPoiLayer(): void {
+  const desc = buildFacilityPoiLayer(participatingPoi.value, selectedTypes.value, hitByType.value)
+  const exists = businessLayerManager.has(desc.id)
+  if (desc.data.length === 0) {
+    if (exists) businessLayerManager.remove(desc.id)
+    return
+  }
+  if (exists) {
+    businessLayerManager.updateData(desc.id, { data: desc.data, options: desc.options })
+  } else {
+    businessLayerManager.register(desc.id, {
+      label: desc.label,
+      layerType: desc.layerType,
+      data: desc.data,
+      options: desc.options,
+      visible: true,
+    })
+  }
+}
+
+/**
+ * 设施呼吸启停收口（缩放式动效，每点按类型色）：呼吸只由雷达驱动——
+ * 点亮集合里每个类型各自参战，点可携带 per-point color 混合呼吸；
+ * 选中小区时呼吸收窄到该小区命中的点（第二层筛选），未选则各类型全部参与点
+ */
+function syncFacilityBreathing(): void {
+  stopFacilityBreathing()
+  if (!isFacilityLayerVisible.value || activeBreathTypes.value.size === 0) return
+  const mixed: Array<GeoPoint & { color?: string }> = []
+  for (const type of activeBreathTypes.value) {
+    const pool = participatingPoi.value[type]
+    if (!pool || pool.length === 0) continue
+    // 选中小区 → 该小区命中的点（第二层）；未选 → 该类型全部参与点（第一层）
+    const hits = selectedXiaoqu.value ? hitByType.value?.[type] : null
+    const color = FACILITY_COLORS_MAP[type] || FACILITY_COLORS[0]
+    for (const p of pool) {
+      if (hits && (!p.id || !hits.has(p.id))) continue
+      mixed.push({ lng: p.lng, lat: p.lat, color })
+    }
+  }
+  if (mixed.length > 0) startFacilityBreathing(mixed)
+}
+
+// 显隐指标 → 呼吸绑定：图层控制面板开关「附近设施」即停/恢复设施呼吸
+watch(isFacilityLayerVisible, () => syncFacilityBreathing())
+
+/**
+ * 分析完成定位：飞到分析结果所属城市中心（CityKey → CITY_CENTERS 单一权威源）。
+ * 原实现调 zoomToDistrict()，其 VIEW_LEVELS.DISTRICT center 硬编码钦州 ——
+ * 无论分析哪座城市，地图永远跳回钦州市区（切城分析跳错城 bug）。
+ * currentCity 为 null 时（理论不可达：analyze 前已拦跨城）不动相机。
+ */
+function flyToAnalyzedCity(): void {
+  const name = currentCity.value ? CITY_CENTER_NAMES[currentCity.value] : null
+  const target = name ? MAP_CONFIG.CITY_CENTERS[name] : null
+  if (!target) return
+  flyTo({ lng: target.lng, lat: target.lat }, { height: target.height, zoom: target.zoom })
+}
+
+/** 雷达轴名点击：点亮该类型（6 类互斥——同时只允许一类呼吸，新类型点亮即熄灭旧类型） */
 function handleShowFacilityLayer(data: {
   type: string
   poiList: FacilityPoint[]
   color: string
   label: string
 }): void {
-  // 先移除旧的设施POI图层
-  if (activeFacilityLayerKey.value) {
-    businessLayerManager.remove(activeFacilityLayerKey.value)
-    activeFacilityLayerKey.value = null
-  }
-
-  const { type, poiList, color, label } = data
-  if (!poiList || poiList.length === 0) return
-
-  const layerKey = `facility-poi-${type}`
-  const points = poiList.map((p) => ({
-    lng: p.lng,
-    lat: p.lat,
-    name: p.name || label,
-  }))
-
-  businessLayerManager.register(layerKey, {
-    label: `${label} POI`,
-    layerType: 'points',
-    data: points,
-    options: {
-      size: 8,
-      color,
-      labelField: 'name',
-      featureType: layerKey,
-    },
-    visible: true,
-  })
-
-  activeFacilityLayerKey.value = layerKey
-
-  // 唤醒该类型 POI 的呼吸效果（多点 + 设施色与图层同源）
-  startBreathing(points, color)
+  activeBreathTypes.value = new Set([data.type])
+  syncFacilityBreathing()
 }
 
 /**
- * 隐藏当前设施POI图层
+ * 雷达轴名取消：熄灭该类型。点亮状态与图层显隐解耦——
+ * 面板隐藏图层时呼吸停（watch 联动），重新显示且仍有点亮类型则恢复
  */
-function handleHideFacilityLayer(): void {
-  // 呼吸先停（幂等）：新结果到来时也可能只有单点呼吸（小区定位）而无设施图层
-  stopBreathing()
-  if (!activeFacilityLayerKey.value) return
-  businessLayerManager.remove(activeFacilityLayerKey.value)
-  activeFacilityLayerKey.value = null
+function handleHideFacilityLayer(type: string): void {
+  activeBreathTypes.value = new Set([...activeBreathTypes.value].filter((t) => t !== type))
+  syncFacilityBreathing()
 }
 
 /** 点击小区列表项（地图可视化已由列表面板内置处理） */
@@ -157,6 +283,27 @@ function handleSelectXiaoqu(xq: ScoredXiaoqu): void {
     score: xq.score ?? 0,
     breakdown: xq.breakdown || {},
   }
+  // 层层筛选：结果列表管命中透明度与命中点呼吸，类型聚焦呼吸归雷达管
+  applyHitHighlight(xq)
+}
+
+/**
+ * 选中小区后计算命中设施集合并整体重建附近设施层：
+ * 该小区覆盖半径内的参与点激活（opacity 1 原色亮），其余参与点保持低暗。
+ * 半径走 effectiveRadiusKm（importance 档位换算）与后端 buffer 同口径
+ */
+function applyHitHighlight(xq: ScoredXiaoqu): void {
+  const importanceByType = currentImportance()
+  const next: Record<string, Set<string>> = {}
+  for (const t of selectedTypes.value) {
+    const pois = participatingPoi.value[t]
+    if (!pois || pois.length === 0) continue
+    next[t] = computeHitPoiIds(xq, pois, effectiveRadiusKm(t, importanceByType[t]))
+  }
+  hitByType.value = next
+  syncFacilityPoiLayer()
+  // 第二层筛选：选中小区 → 命中点收窄呼吸（雷达点亮类型时聚焦该类型单色）
+  syncFacilityBreathing()
 }
 
 /**
@@ -229,7 +376,7 @@ function restoreState(): boolean {
   return true
 }
 
-/** 清除旧分析图层（覆盖范围 + 匹配小区 + 设施 POI） */
+/** 清除旧分析图层（覆盖范围 + 匹配小区 + 附近设施） */
 function clearAnalysisLayers(): void {
   // 通过 Manager 统一管理生命周期，不直接操作 renderer 和 mapStore
   if (businessLayerManager.has('analysis-coverage')) {
@@ -239,11 +386,14 @@ function clearAnalysisLayers(): void {
     businessLayerManager.remove('analysis-matched')
   }
 
-  // 设施 POI 图层同样走 manager 生命周期，避免绕过管理残留在注册表导致引擎切换时孤儿复活
-  if (activeFacilityLayerKey.value) {
-    businessLayerManager.remove(activeFacilityLayerKey.value)
-    activeFacilityLayerKey.value = null
+  // 附近设施走 manager 生命周期，避免绕过管理残留在注册表导致引擎切换时孤儿复活
+  if (businessLayerManager.has(NEARBY_FACILITY_LAYER_ID)) {
+    businessLayerManager.remove(NEARBY_FACILITY_LAYER_ID)
   }
+  stopFacilityBreathing()
+  participatingPoi.value = {}
+  hitByType.value = null
+  activeBreathTypes.value = new Set()
 }
 
 onMounted(() => {
@@ -272,6 +422,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   stopBreathing()
+  stopFacilityBreathing()
   // 清理悬挂的 tryZoom 定时器
   if (tryZoomTimer) {
     clearTimeout(tryZoomTimer)
@@ -326,9 +477,11 @@ onUnmounted(() => {
         <GCSPanel :w="4" :h="4" anchor="top-right" :offset-x="0" :offset-y="1.25">
           <SiteAnalysisControlPanel
             ref="factorPanelRef"
+            :city="currentCity"
             @result-update="handleResult"
             @analysis-error="handleAnalysisError"
             @analysis-empty="handleAnalysisEmpty"
+            @cross-city="handleCrossCity"
           />
         </GCSPanel>
         <!-- 右下：图层控制面板 4×4 -->
@@ -341,6 +494,7 @@ onUnmounted(() => {
               'ports',
               'analysis-coverage',
               'analysis-matched',
+              'nearby-facility',
             ]"
           />
         </GCSPanel>

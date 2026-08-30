@@ -77,6 +77,30 @@ export function extractValidPoi(points) {
   })
 }
 
+/**
+ * 分治合并缓冲区。
+ * turf.union(featureCollection) 是"累积结果 vs 下一个缓冲区"逐个合并，代价随累积多边形
+ * 顶点数退化——设施密集、缓冲重叠多时中间结果会非常巨大。分治让每一步合并的规模都小。
+ * 实测 6 类合计（tools/perf-bench/coverage-opt-by-city.mjs）：
+ *   钦州 2320→1568ms(1.48x) / 北海 7793→1491ms(5.23x，mall 单项 6359→357ms) / 防城港 1714→705ms(2.43x)
+ * 且输出顶点更少（北海 mall 796→295），前端渲染同步受益。
+ */
+function unionDivide(features) {
+  if (features.length === 1) return features[0]
+  const mid = Math.floor(features.length / 2)
+  const left = unionDivide(features.slice(0, mid))
+  const right = unionDivide(features.slice(mid))
+  if (!left || !left.geometry) return right
+  if (!right || !right.geometry) return left
+  try {
+    return turf.union(turf.featureCollection([left, right]))
+  } catch (error) {
+    logger.error('分治 union 失败:', error.message, '缓冲区数量:', features.length)
+    // 降级：返回已合并的半边，宁可覆盖范围偏小也不中断整个选址流程
+    return left
+  }
+}
+
 export function buildTypeCoverage(points, radiusKm) {
   const validPoints = extractValidPoi(points)
   if (validPoints.length === 0) {
@@ -89,8 +113,10 @@ export function buildTypeCoverage(points, radiusKm) {
     logger.debug(`[性能优化] POI数据量较大(${validPoints.length}条)，建议实现聚类或空间索引优化`)
   }
 
+  // steps=2 降低缓冲区离散精度（每圆 8 顶点而非 ~33）。覆盖多边形用于可视化与点面判定，
+  // 八边形逼近在 0.5~3km 尺度上肉眼无差，但顶点数降至约 1/3，直接压低后续 union 成本。
   const buffers = validPoints.map((p) =>
-    turf.buffer(turf.point([p.lng, p.lat]), radiusKm, { units: 'kilometers' })
+    turf.buffer(turf.point([p.lng, p.lat]), radiusKm, { units: 'kilometers', steps: 2 })
   )
 
   // 过滤掉无效的缓冲区
@@ -106,7 +132,7 @@ export function buildTypeCoverage(points, radiusKm) {
   if (validBuffers.length === 1) return validBuffers[0]
 
   try {
-    const unionResult = turf.union(turf.featureCollection(validBuffers))
+    const unionResult = unionDivide(validBuffers)
     // 验证 union 结果，处理 MultiPolygon 情况
     if (!unionResult || !unionResult.geometry) {
       logger.debug('union 返回无效结果')

@@ -191,5 +191,26 @@ jobs:
           # F2：部署注入版本 tag（日期+run 号），镜像不再覆写 latest——
           # rollback.sh 可用历史 tag 回滚（docker images 列出后 ./scripts/rollback.sh <tag>）
           IMAGE_TAG="$(date +%Y%m%d)-${GITHUB_RUN_NUMBER}"
-          ssh -o StrictHostKeyChecking=no "$SERVER_USER@$SERVER_HOST" \
-            "cd /opt/beibu-gulf && git pull --ff-only && IMAGE_TAG='${IMAGE_TAG}' docker compose up --build -d && docker image prune -f"
+          # d115：跨境 SSH（GitHub runner 境外 → 阿里云）偶发连接超时（run#121 挂约 5 分钟
+          # 后 exit 255，重跑即成功）——ConnectTimeout 快速失败 + 连接层失败自动重试 3 次自愈，
+          # 不再让整条流水线因一次网络抖动变红；远端命令自身失败（非 255）重试无意义，直接抛出。
+          deploy_ok=false
+          for attempt in 1 2 3; do
+            attempt_exit=0
+            ssh -o StrictHostKeyChecking=no -o ConnectTimeout=15 \
+              "$SERVER_USER@$SERVER_HOST" \
+              "cd /opt/beibu-gulf && git pull --ff-only && IMAGE_TAG='${IMAGE_TAG}' docker compose up --build -d && docker image prune -f" || attempt_exit=$?
+            if [ "$attempt_exit" -eq 0 ]; then
+              deploy_ok=true
+              break
+            fi
+            if [ "$attempt_exit" -ne 255 ]; then
+              exit "$attempt_exit"
+            fi
+            echo "::warning::SSH 连接失败（exit 255，疑似跨境链路抖动），第 ${attempt}/3 次，10 秒后重试"
+            if [ "$attempt" -lt 3 ]; then sleep 10; fi
+          done
+          if [ "$deploy_ok" != true ]; then
+            echo "::error::SSH 连接连续 3 次失败：检查阿里云防火墙 22 端口来源限制 / fail2ban 封禁 / 跨境链路"
+            exit 1
+          fi

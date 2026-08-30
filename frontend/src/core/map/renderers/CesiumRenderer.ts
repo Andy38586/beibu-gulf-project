@@ -290,6 +290,10 @@ export class CesiumRenderer extends MapRenderer {
   _breathingEntities: unknown[]
   _breathingAnimId: number | null
   _breathingAnimation: unknown | null
+  // 设施 POI 专属呼吸（缩放式动效）：独立实例，与 startBreathing（呼吸灯式）同屏并存
+  _facilityBreathingEntities: unknown[]
+  _facilityBreathingAnimId: number | null
+  _facilityBreathingAnimation: unknown | null
   _geoJsonTokens: Map<string, symbol>
 
   constructor(container: HTMLElement) {
@@ -316,6 +320,9 @@ export class CesiumRenderer extends MapRenderer {
     this._breathingEntities = []
     this._breathingAnimId = null
     this._breathingAnimation = null
+    this._facilityBreathingEntities = []
+    this._facilityBreathingAnimId = null
+    this._facilityBreathingAnimation = null
     this._geoJsonTokens = new Map()
     this._initViewer()
   }
@@ -720,8 +727,7 @@ export class CesiumRenderer extends MapRenderer {
     const startTime = Date.now()
     // 预解析呼吸灯基准色（缺省 LAYER_DEFAULTS.color = '#409eff'；设施 POI 呼吸传设施色）
     const baseColor = Color.fromCssColorString(color || LAYER_DEFAULTS.color)
-    // 多点共用同一组 CallbackProperty：尺寸/透明度每帧只求一次，而非逐点各求一遍。
-    // 设施 POI 图层可达数百点（单一类型最高 ~370），逐点回调会放大成每帧上百次 Color 分配
+    // 原版大跳缩放式：pixelSize 10±5 大幅脉动 + 透明度随动——小区呼吸的显眼度基准
     const pixelSizeProperty = new CallbackProperty(() => {
       const elapsed = (Date.now() - startTime) / 1000
       return 10 + Math.sin(elapsed * Math.PI * 2) * 5
@@ -764,6 +770,68 @@ export class CesiumRenderer extends MapRenderer {
     }
     this._breathingEntities = []
     this._breathingAnimation = null
+  }
+
+  /**
+   * 设施 POI 专属呼吸（第二层筛选主角）：旧版缩放式动效——pixelSize 10±5 脉动 + 透明度随动，视觉显眼。
+   * 点可携带 per-point color（多类型混合呼吸各按类型色），缺省用统一 color 参数
+   */
+  startFacilityBreathing(target: Array<GeoPoint & { color?: string }>, color?: string): void {
+    this.stopFacilityBreathing()
+    const viewer = this.viewer
+    if (!viewer) return
+    const points = (Array.isArray(target) ? target : [target]).filter(
+      (p) => Number.isFinite(p.lng) && Number.isFinite(p.lat)
+    )
+    if (points.length === 0) return
+    const startTime = Date.now()
+    // 每点一个 color CallbackProperty（闭包各自基准色），共享 startTime 相位同步；
+    // pixelSize 全局共用一个（尺寸统一，无逐点差异）
+    const pixelSizeProperty = new CallbackProperty(() => {
+      const elapsed = (Date.now() - startTime) / 1000
+      return 10 + Math.sin(elapsed * Math.PI * 2) * 5
+    }, false)
+    this._facilityBreathingEntities = points.map((p) => {
+      const pointColor = Color.fromCssColorString(p.color || color || LAYER_DEFAULTS.color)
+      const colorProperty = new CallbackProperty(() => {
+        const elapsed = (Date.now() - startTime) / 1000
+        const alpha = 0.5 + Math.sin(elapsed * Math.PI * 2) * 0.3
+        return pointColor.withAlpha(alpha)
+      }, false)
+      return viewer.entities.add({
+        position: Cartesian3.fromDegrees(p.lng, p.lat),
+        point: {
+          pixelSize: pixelSizeProperty,
+          color: colorProperty,
+          outlineColor: Color.WHITE,
+          outlineWidth: 2,
+        },
+      })
+    })
+    this._facilityBreathingAnimation = () => {
+      if (this._facilityBreathingEntities.length > 0 && this.viewer) {
+        this.viewer.scene.requestRender()
+        this._facilityBreathingAnimId = requestAnimationFrame(
+          this._facilityBreathingAnimation as FrameRequestCallback
+        )
+      }
+    }
+    this._facilityBreathingAnimId = requestAnimationFrame(
+      this._facilityBreathingAnimation as FrameRequestCallback
+    )
+  }
+
+  stopFacilityBreathing(): void {
+    if (this._facilityBreathingAnimId) {
+      cancelAnimationFrame(this._facilityBreathingAnimId)
+      this._facilityBreathingAnimId = null
+    }
+    if (this.viewer && this._facilityBreathingEntities.length > 0) {
+      const viewer = this.viewer
+      this._facilityBreathingEntities.forEach((e) => viewer.entities.remove(e as Entity))
+    }
+    this._facilityBreathingEntities = []
+    this._facilityBreathingAnimation = null
   }
 
   // 水面方法委托至模块级函数（本文件下方）
@@ -834,6 +902,7 @@ export class CesiumRenderer extends MapRenderer {
 
     super.destroy()
     this.stopBreathing()
+    this.stopFacilityBreathing()
     // 清理相机防抖定时器，防止内存泄漏
     if (this._cameraDebounceTimer) {
       clearTimeout(this._cameraDebounceTimer)
@@ -1053,13 +1122,23 @@ export function createCesiumPointEntity(
   const point = normalizePoint(item)
   if (!point) return null
   const { lng, lat } = point
+  // per-point opacity（PointFeature.opacity，选址命中高亮/层层筛选）：缺省 1，夹取到 [0,1]
+  const alpha = typeof item.opacity === 'number' ? Math.min(Math.max(item.opacity, 0), 1) : 1
+  // per-point color（PointFeature.color，附近设施合并图层 6 色异色）：缺省用图层色
+  const baseColor = Color.fromCssColorString(item.color || options.color || LAYER_DEFAULTS.color)
+  // alpha<1 即「未激活」语义——低透明 + 亮度拉低（色相不变，与 OL dimHex 同口径 0.7）；
+  // alpha=1 激活原色实体
+  const dimmedColor =
+    alpha < 1
+      ? new Color(baseColor.red * 0.7, baseColor.green * 0.7, baseColor.blue * 0.7, alpha)
+      : baseColor
   return renderer.viewer!.entities.add({
     // id 追加 index：同名要素 id 会碰撞，重复 id 会覆盖旧实体 → 要素丢失 + 视口裁剪增删错乱
     id: `${id}-${item.id || item.name || 'p'}-${index}`,
     position: Cartesian3.fromDegrees(lng, lat),
     point: {
       pixelSize: options.size || 12,
-      color: Color.fromCssColorString(options.color || LAYER_DEFAULTS.color),
+      color: dimmedColor,
       outlineColor: Color.WHITE,
       outlineWidth: 2,
       // CLAMP_TO_GROUND 贴地形：真地形就绪后点应落实际地表（椭球绝对高在北部湾 geoid 分离 -30~-70m 处会错位）

@@ -10,6 +10,8 @@ interface UseMapControlsReturn {
   flyTo: (target: FlyToTarget, options?: FlyToOptions) => void
   startBreathing: (target: GeoPoint | GeoPoint[], color?: string) => void
   stopBreathing: () => void
+  startFacilityBreathing: (target: Array<GeoPoint & { color?: string }>, color?: string) => void
+  stopFacilityBreathing: () => void
   zoomToRegion: () => void
   zoomToCity: () => void
   zoomToDistrict: () => void
@@ -32,6 +34,17 @@ export function useMapControls(): UseMapControlsReturn {
     mapInstance.value?.stopBreathing()
   }
 
+  function startFacilityBreathing(
+    target: Array<GeoPoint & { color?: string }>,
+    color?: string
+  ): void {
+    mapInstance.value?.startFacilityBreathing(target, color)
+  }
+
+  function stopFacilityBreathing(): void {
+    mapInstance.value?.stopFacilityBreathing()
+  }
+
   function zoomToRegion(): void {
     const regionLevel = MAP_CONFIG.VIEW_LEVELS.REGION
     flyTo(regionLevel.center, { height: regionLevel.height })
@@ -51,6 +64,8 @@ export function useMapControls(): UseMapControlsReturn {
     flyTo,
     startBreathing,
     stopBreathing,
+    startFacilityBreathing,
+    stopFacilityBreathing,
     zoomToRegion,
     zoomToCity,
     zoomToDistrict,

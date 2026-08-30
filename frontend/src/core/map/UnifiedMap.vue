@@ -3,6 +3,7 @@
 import type { Feature, FeatureCollection, Point } from 'geojson'
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 
+import MapFacilityBubble from '@/core/map/components/MapFacilityBubble.vue'
 import MapFeatureBubble from '@/core/map/components/MapFeatureBubble.vue'
 import { BOUNDARY_STYLE, loadBoundaryGeoJson } from '@/core/map/composables/useBoundaryLayer'
 import { useBusinessLayers } from '@/core/map/composables/useBusinessLayers'
@@ -60,7 +61,20 @@ const bubbleHover = ref<Port | null>(null)
 const bubbleAnchor = ref<[number, number] | null>(null)
 const bubbleHostRef = ref<HTMLElement | null>(null)
 const bubblePort = computed<Port | null>(() => bubblePinned.value ?? bubbleHover.value)
-const bubbleVisible = computed(() => bubblePort.value !== null)
+
+// 附近设施气泡（2D）：只走点击通道（无 hover），与港口气泡共用同一宿主——
+// 全图永远最多一个气泡，点其他要素即切换、点空白即关闭
+interface FacilityBubbleData {
+  id?: string
+  name: string
+  poiType: string
+  lng: number
+  lat: number
+}
+const bubbleFacilityPinned = ref<FacilityBubbleData | null>(null)
+const bubbleVisible = computed(
+  () => bubblePort.value !== null || bubbleFacilityPinned.value !== null
+)
 
 // 显隐/锚点同步给渲染器 Overlay（OL 随地图移动自动跟随；3D 无此能力，可选链跳过）
 watch([bubbleVisible, bubbleAnchor], ([visible, anchor]) => {
@@ -70,6 +84,7 @@ watch([bubbleVisible, bubbleAnchor], ([visible, anchor]) => {
 function closeBubble(): void {
   bubblePinned.value = null
   bubbleHover.value = null
+  bubbleFacilityPinned.value = null
 }
 
 // mapStore 已由 App.vue 统一 provide，此处不重复
@@ -329,27 +344,62 @@ function isPortEventData(data: unknown): data is Port {
   )
 }
 
+// 附近设施要素校验（properties = PointFeature 数据 + featureType；id 可选——无 id 不出收藏钮）
+function isFacilityEventData(data: unknown): data is FacilityBubbleData {
+  if (!data || typeof data !== 'object') return false
+  const p = data as Record<string, unknown>
+  return (
+    typeof p.name === 'string' &&
+    typeof p.poiType === 'string' &&
+    typeof p.lng === 'number' &&
+    typeof p.lat === 'number'
+  )
+}
+
 // 具名回调，保存引用供 off 解绑（MapRenderer 事件注册/移除配对契约）
 function handleRendererClick(event: CustomEvent<MapRendererEventMap['click']>): void {
   const { featureType, data, coordinate } = event.detail
-  if (featureType === 'port' && data && isPortEventData(data) && props.mapType === '2d') {
+  // 气泡是 2D Overlay 能力，3D 点击一律只走关闭分支
+  const is2D = props.mapType === '2d'
+  if (is2D && featureType === 'port' && data && isPortEventData(data)) {
     // 气泡钉住/撤销：同 POI 再点关闭，其他 POI 切换（锚点取 POI 自身经纬度，精确跟随）
+    bubbleFacilityPinned.value = null
     if (bubblePinned.value && bubblePinned.value.id === data.id) {
       closeBubble()
     } else {
       bubblePinned.value = data
       bubbleAnchor.value = [data.lng, data.lat]
     }
+  } else if (is2D && featureType === 'nearby-facility' && data && isFacilityEventData(data)) {
+    // 设施气泡：仅点击驱动；同点再点关闭，异点切换（与港口气泡互斥——同一时刻仅一个）
+    bubblePinned.value = null
+    bubbleHover.value = null
+    if (
+      bubbleFacilityPinned.value &&
+      data.id !== undefined &&
+      bubbleFacilityPinned.value.id === data.id
+    ) {
+      closeBubble()
+    } else {
+      bubbleFacilityPinned.value = {
+        id: typeof data.id === 'string' ? data.id : undefined,
+        name: data.name,
+        poiType: data.poiType,
+        lng: data.lng,
+        lat: data.lat,
+      }
+      bubbleAnchor.value = [data.lng, data.lat]
+    }
   } else {
-    // 空白/非港口要素/3D（无气泡能力）：关闭气泡
+    // 空白/非气泡要素/3D（无气泡能力）：关闭气泡
     closeBubble()
   }
   emit('click', { featureType, data, coordinate })
 }
 
-/** 悬停驱动气泡：命中港口即显、移开即隐；钉住时悬浮不打扰当前气泡 */
+/** 悬停驱动气泡：命中港口即显、移开即隐；任一气泡钉住时悬浮不打扰（含设施气泡） */
 function handleRendererHover(event: CustomEvent<MapRendererEventMap['hover']>): void {
-  if (bubblePinned.value) return
+  if (bubblePinned.value || bubbleFacilityPinned.value) return
   const { featureType, data } = event.detail
   if (featureType === 'port' && data && isPortEventData(data)) {
     bubbleHover.value = data
@@ -484,6 +534,14 @@ function stopBreathing() {
   currentRenderer.value?.stopBreathing()
 }
 
+function startFacilityBreathing(target: Array<GeoPoint & { color?: string }>, color?: string) {
+  currentRenderer.value?.startFacilityBreathing(target, color)
+}
+
+function stopFacilityBreathing() {
+  currentRenderer.value?.stopFacilityBreathing()
+}
+
 // 监听 mapType 变化触发切换；两引擎容器常驻（v-show），渲染器实例保留复用
 watch(
   () => props.mapType,
@@ -599,6 +657,8 @@ defineExpose({
   getRenderer,
   startBreathing,
   stopBreathing,
+  startFacilityBreathing,
+  stopFacilityBreathing,
 })
 </script>
 
@@ -613,12 +673,17 @@ defineExpose({
       class="map-container"
     ></div>
 
-    <!-- 要素气泡（2D）：宿主元素交给 OL Overlay 定位，悬浮/钉住共用，同一时刻仅一个 -->
+    <!-- 要素气泡（2D）：宿主元素交给 OL Overlay 定位，港口悬浮/钉住 + 设施点击钉住共用，同一时刻仅一个 -->
     <div v-show="bubbleVisible" ref="bubbleHostRef" class="map-bubble-host">
       <MapFeatureBubble
         v-if="bubblePort"
         :port="bubblePort"
         :pinned="bubblePinned !== null"
+        @close="closeBubble"
+      />
+      <MapFacilityBubble
+        v-else-if="bubbleFacilityPinned"
+        :facility="bubbleFacilityPinned"
         @close="closeBubble"
       />
     </div>

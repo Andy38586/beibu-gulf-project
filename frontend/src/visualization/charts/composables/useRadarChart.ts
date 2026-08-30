@@ -52,7 +52,7 @@ interface FacilityLayerPayload {
 /** 雷达图事件发射器 */
 interface RadarChartEmit {
   (event: 'show-facility-layer', data: FacilityLayerPayload): void
-  (event: 'hide-facility-layer'): void
+  (event: 'hide-facility-layer', type: string): void
 }
 
 /** useRadarChart 配置选项 */
@@ -74,7 +74,8 @@ interface TooltipPosition {
 interface UseRadarChartReturn {
   tooltipVisible: Ref<boolean>
   tooltipPosition: Ref<TooltipPosition>
-  activeFacilityType: Ref<string | null>
+  /** 点亮的设施类型集合（多类型叠加：点轴名 toggle，一类一类开始呼吸） */
+  activeFacilityTypes: Ref<Set<string>>
   renderRadar: () => void
   handleScoreClick: () => void
   handleGlobalClick: (e: MouseEvent) => void
@@ -97,8 +98,8 @@ export function useRadarChart({
   /** 详情面板位置（打开时按雷达面板 rect 计算，与 RadarScoreTooltip 尺寸公式保持一致） */
   const tooltipPosition = ref<TooltipPosition>({ left: 0, top: 0 })
 
-  /** 当前选中的设施类型 */
-  const activeFacilityType = ref<string | null>(null)
+  /** 点亮的设施类型集合（多类型叠加：点轴名 toggle，一类一类开始呼吸） */
+  const activeFacilityTypes = ref<Set<string>>(new Set())
 
   /** 获取设施颜色（从 shared 色值映射取，不依赖 business 层） */
   function getFacilityColor(key: string): string {
@@ -218,31 +219,28 @@ export function useRadarChart({
     }
   }
 
-  /** 点击设施名称（显示 POI 图层） */
+  /** 点击设施名称（toggle 该类型点亮，多类型叠加；呼吸由页面按点亮集合驱动） */
   function handleFacilityClick(key: string): void {
-    const props = getProps()
-
-    if (activeFacilityType.value === key) {
-      activeFacilityType.value = null
-      emit('hide-facility-layer')
+    if (activeFacilityTypes.value.has(key)) {
+      activeFacilityTypes.value = new Set([...activeFacilityTypes.value].filter((k) => k !== key))
+      emit('hide-facility-layer', key)
       return
     }
-
-    activeFacilityType.value = key
+    activeFacilityTypes.value = new Set([...activeFacilityTypes.value, key])
     emit('show-facility-layer', {
       type: key,
-      poiList: props.facilityPoi[key] || [],
+      poiList: getProps().facilityPoi[key] || [],
       color: getFacilityColor(key),
       label: FACILITY_LABELS[key],
     })
   }
 
-  // 新分析结果到达即清空轴高亮：页面同时撤下了该类型的 POI 图层，
-  // 高亮若残留，用户首次点击会走"取消"分支空转（图层已不存在），需点两次才重新显示
+  // 新分析结果到达即清空点亮集合：页面同时撤下了该类型的 POI 图层与呼吸，
+  // 点亮若残留，用户首次点击会走"取消"分支空转（图层已不存在），需点两次才重新显示
   watch(
     () => getProps().facilityPoi,
     () => {
-      activeFacilityType.value = null
+      activeFacilityTypes.value = new Set()
     }
   )
 
@@ -329,7 +327,7 @@ export function useRadarChart({
   return {
     tooltipVisible,
     tooltipPosition,
-    activeFacilityType,
+    activeFacilityTypes,
     renderRadar,
     handleScoreClick,
     handleGlobalClick,

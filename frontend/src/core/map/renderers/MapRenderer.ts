@@ -241,6 +241,17 @@ export class MapRenderer {
     logger.debug(`${this.getType()} stopBreathing 未实现`)
   }
 
+  // 设施 POI 专属呼吸（第二层筛选主角动效）：旧版缩放式（半径脉动，视觉显眼），
+  // 与 startBreathing（小区/定位，呼吸灯式）各自独立实例运行——同屏双呼吸互不顶掉。
+  // 点可选携带 color（覆盖统一色）：选中小区的多类型命中点各按类型色呼吸
+  startFacilityBreathing(_target: Array<GeoPoint & { color?: string }>, _color?: string): void {
+    logger.debug(`${this.getType()} startFacilityBreathing 未实现`)
+  }
+
+  stopFacilityBreathing(): void {
+    logger.debug(`${this.getType()} stopFacilityBreathing 未实现`)
+  }
+
   // 底图切换：双引擎公共能力（OL 图层显隐 / Cesium imagery 显隐），子类各自实现（W4-10 入接口）
   setBaseLayer(_type: 'image' | 'vector'): void {
     logger.debug(`${this.getType()} setBaseLayer 未实现`)

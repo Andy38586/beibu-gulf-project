@@ -6,8 +6,7 @@
 import { type Ref, ref } from 'vue'
 
 import { forecastAdapter } from '@/services'
-import { logger } from '@/shared'
-import { showToast } from '@/shared'
+import { describeError, logger, showWarning } from '@/shared'
 
 export interface ChartDataset {
   labels: string[]
@@ -51,9 +50,10 @@ export function useOverviewCharts(): UseOverviewChartsReturn {
         ],
       }
     } catch (error) {
-      // 图表失败不再静默——友好提示一次，仍留空图（不回落假数据）
+      // 图表失败不再静默——友好提示一次，仍留空图（不回落假数据）；
+      // 文案经 describeError 区分成因：服务器无响应 ≠ 笼统「加载失败」
       logger.warn('[useOverviewCharts] 吞吐量图表数据加载失败:', error)
-      showToast('图表数据加载失败，请稍后刷新', 'warning')
+      showWarning(describeError(error, '图表数据加载失败，请稍后刷新'))
     }
   }
 

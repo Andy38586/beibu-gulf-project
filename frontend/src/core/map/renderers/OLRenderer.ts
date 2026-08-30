@@ -63,7 +63,9 @@ const OL_VIEW_MAX_ZOOM = 20
 
 /**
  * 聚合样式包装（W4-18）：Cluster 源下成员数 >1 的聚合点画大圆 + 数量标注，
- * 单体沿用原样式（Style 或 StyleFunction）
+ * 单体沿用原样式（Style 或 StyleFunction）。
+ * 单体必须解包成员 feature 再交给样式函数——cluster feature 只携带 features 数组，
+ * 不带业务属性（per-point color/opacity），直接传会让单体全部退化为图层默认色。
  */
 function withClusterStyle(base: Style | StyleFunction): StyleFunction {
   return (feature: FeatureLike, resolution: number) => {
@@ -84,9 +86,53 @@ function withClusterStyle(base: Style | StyleFunction): StyleFunction {
         }),
       })
     }
+    if (Array.isArray(members) && members.length === 1) {
+      return typeof base === 'function' ? base(members[0] as FeatureLike, resolution) : base
+    }
     return typeof base === 'function' ? base(feature, resolution) : base
   }
 }
+
+/**
+ * hex 颜色加 alpha（OL Fill 用）：'#rrggbb' → 'rgba(r,g,b,a)'。
+ * alpha >= 1 原样返回；非 hex 输入（rgba/命名色）保守降级原样返回——
+ * 选址 POI 色板（FACILITY_COLORS_MAP）均为 hex，此分支仅防御。
+ */
+function withAlpha(cssColor: string, alpha: number): string {
+  if (alpha >= 1) return cssColor
+  const m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(cssColor.trim())
+  if (!m) return cssColor
+  const hex6 =
+    m[1].length === 3
+      ? m[1]
+          .split('')
+          .map((c) => c + c)
+          .join('')
+      : m[1]
+  const r = parseInt(hex6.slice(0, 2), 16)
+  const g = parseInt(hex6.slice(2, 4), 16)
+  const b = parseInt(hex6.slice(4, 6), 16)
+  return `rgba(${r},${g},${b},${alpha})`
+}
+
+/**
+ * hex 颜色调暗（未激活点「拉低亮度」）：各通道乘 factor（0-1）后回 hex。
+ * 非 hex 输入保守降级原样返回（同 withAlpha 防御口径——色板均为 hex，此分支仅防御）。
+ */
+function dimHex(cssColor: string, factor: number): string {
+  const m = /^#([0-9a-f]{6})$/i.exec(cssColor.trim())
+  if (!m) return cssColor
+  const ch = m[1]
+  const dim = (i: number) =>
+    Math.round(parseInt(ch.slice(i, i + 2), 16) * factor)
+      .toString(16)
+      .padStart(2, '0')
+  return `#${dim(0)}${dim(2)}${dim(4)}`
+}
+
+/** 未激活点亮度系数：per-point alpha<1 即「未激活」语义——低透明 + 暗化（色相不变）。
+ *  0.7 = 向黑混 30%，卫星底图上暗而不隐身；与 POI_BASE_OPACITY 联动裁决 */
+const INACTIVE_DIM_FACTOR = 0.7
 
 /** 视口裁剪图层条目（_cullLayers 值类型） */
 interface CullLayerEntry {
@@ -110,6 +156,9 @@ export class OLRenderer extends MapRenderer {
   _clickHandler: EventsKey['listener'] | null
   _breathingLayer: VectorLayer<VectorSource> | null
   _breathingAnimId: number | null
+  // 设施 POI 专属呼吸（缩放式动效）：独立实例，与 startBreathing（呼吸灯式）同屏并存
+  _facilityBreathingLayer: VectorLayer<VectorSource> | null = null
+  _facilityBreathingAnimId: number | null = null
   // 要素气泡（2D）：Overlay 归渲染器持有（随地图移动自动跟随），元素由 UnifiedMap 渲染树提供
   _bubbleOverlay: Overlay | null
   _bubbleElement: HTMLElement | null
@@ -222,9 +271,18 @@ export class OLRenderer extends MapRenderer {
       map.forEachFeatureAtPixel(
         evt.pixel,
         (feature) => {
-          const featureType = feature.get('featureType')
+          // Cluster 源命中到的是聚合 feature（只带 features 数组，无业务属性）：
+          // 单体解包成员（携带 featureType/properties），聚合团（>1）跳过不派发——
+          // 点聚合不算点中要素（走空白分支关气泡），避免误开单体气泡
+          const members = feature.get('features') as unknown[] | undefined
+          let target = feature
+          if (Array.isArray(members)) {
+            if (members.length !== 1) return undefined
+            target = members[0] as typeof feature
+          }
+          const featureType = target.get('featureType')
           if (featureType) {
-            const properties = feature.getProperties()
+            const properties = target.getProperties()
             this.emit('click', {
               featureType,
               data: properties,
@@ -328,7 +386,12 @@ export class OLRenderer extends MapRenderer {
   }
 
   addPointLayer(id: string, features: PointFeature[], options: LayerOptions = {}): void {
-    const style = this._createPointStyle(options)
+    // 数据中存在 opacity<1 或 per-point color 的点 → 走 per-feature 样式分支
+    // （选址命中高亮 + 附近设施合并图层 6 色异色）；否则零开销静态样式
+    const hasPerPointStyle =
+      features.some((f) => typeof f.opacity === 'number' && f.opacity >= 0 && f.opacity < 1) ||
+      features.some((f) => typeof f.color === 'string')
+    const style = this._createPointStyle(options, hasPerPointStyle)
 
     // 大数量点图层启用视口裁剪：R-tree 索引 + moveend 增量更新
     if (features.length > VIEWPORT_CULL_THRESHOLD) {
@@ -463,23 +526,47 @@ export class OLRenderer extends MapRenderer {
     entry.source.clear()
     entry.source.addFeatures(olFeatures)
   }
-  _createPointStyle(options: LayerOptions): Style | StyleFunction {
-    if (!options.labelField) {
-      return new Style({
-        image: new Circle({
-          radius: options.size || 12,
-          fill: new Fill({ color: options.color || LAYER_DEFAULTS.color }),
-          stroke: new Stroke({ color: LAYER_DEFAULTS.outline, width: 2 }),
+  _createPointStyle(options: LayerOptions, hasPerPointStyle = false): Style | StyleFunction {
+    const baseColor = options.color || LAYER_DEFAULTS.color
+    const radius = options.size || 12
+    const makeImage = (color: string, alpha: number) =>
+      new Circle({
+        radius,
+        // alpha<1 即「未激活」：亮度拉低 + 低透明（色相不变）；alpha=1 激活原色实体
+        fill: new Fill({
+          color: alpha >= 1 ? color : withAlpha(dimHex(color, INACTIVE_DIM_FACTOR), alpha),
         }),
+        stroke: new Stroke({ color: LAYER_DEFAULTS.outline, width: 2 }),
       })
+    const baseStyle = new Style({ image: makeImage(baseColor, 1) })
+    // (color, alpha) 样式缓存：附近设施合并图层 6 色 × 2 档透明度，命中缓存则零分配
+    const styleCache = new Map<string, Style>()
+    const styleFor = (color: string, alpha: number): Style => {
+      if (color === baseColor && alpha >= 1) return baseStyle
+      const key = `${color}|${alpha}`
+      let cached = styleCache.get(key)
+      if (!cached) {
+        cached = new Style({ image: makeImage(color, alpha) })
+        styleCache.set(key, cached)
+      }
+      return cached
     }
-    return (feature: FeatureLike) =>
-      new Style({
-        image: new Circle({
-          radius: options.size || 12,
-          fill: new Fill({ color: options.color || LAYER_DEFAULTS.color }),
-          stroke: new Stroke({ color: LAYER_DEFAULTS.outline, width: 2 }),
-        }),
+
+    if (!options.labelField) {
+      if (!hasPerPointStyle) return baseStyle
+      return (feature: FeatureLike) => {
+        const color = (feature.get('color') as string | undefined) ?? baseColor
+        const alpha = feature.get('opacity') as number | undefined
+        return styleFor(color, alpha ?? 1)
+      }
+    }
+    return (feature: FeatureLike) => {
+      const color = (feature.get('color') as string | undefined) ?? baseColor
+      const alpha = feature.get('opacity') as number | undefined
+      // getImage() 类型为 ImageStyle | null，Style 构造器只收 undefined——null 视为未设置
+      const image = styleFor(color, alpha ?? 1).getImage() ?? undefined
+      return new Style({
+        image,
         text: new Text({
           text: feature.get(options.labelField as string),
           font: '12px sans-serif',
@@ -488,6 +575,7 @@ export class OLRenderer extends MapRenderer {
           offsetY: 15,
         }),
       })
+    }
   }
   addPolygonLayer(id: string, features: PolygonFeature[], options: LayerOptions = {}): void {
     // 辅助函数 - 确保坐标环闭合
@@ -853,6 +941,7 @@ export class OLRenderer extends MapRenderer {
           geometry: new Point(fromLonLat([p.lng, p.lat])),
         })
     )
+    // 原版大跳缩放式：半径 10±5 大幅脉动 + 透明度随动——小区呼吸的显眼度基准
     const breathingStyle = () => {
       const elapsed = (Date.now() - startTime) / 1000
       const radius = 10 + Math.sin(elapsed * Math.PI * 2) * 5
@@ -891,6 +980,64 @@ export class OLRenderer extends MapRenderer {
       this._breathingLayer = null
     }
   }
+  /**
+   * 设施 POI 专属呼吸（第二层筛选主角）：旧版缩放式动效——半径 10±5 脉动 + 透明度随动，视觉显眼。
+   * 点可携带 per-point color（多类型混合呼吸各按类型色），缺省用统一 color 参数
+   */
+  startFacilityBreathing(target: Array<GeoPoint & { color?: string }>, color?: string): void {
+    this.stopFacilityBreathing()
+    const points = (Array.isArray(target) ? target : [target]).filter(
+      (p) => Number.isFinite(p.lng) && Number.isFinite(p.lat)
+    )
+    if (points.length === 0) return
+    const startTime = Date.now()
+    const fallback = parseBreathingColor(color) ?? DEFAULT_BREATHING_RGB
+    const breathingFeatures = points.map((p) => {
+      const f = new Feature({
+        geometry: new Point(fromLonLat([p.lng, p.lat])),
+      })
+      // per-point color 挂到 feature 属性，样式函数按点取色（多类型混合呼吸）
+      if (p.color) f.set('color', p.color)
+      return f
+    })
+    const breathingStyle = (feature: FeatureLike) => {
+      const elapsed = (Date.now() - startTime) / 1000
+      const radius = 10 + Math.sin(elapsed * Math.PI * 2) * 5
+      const alpha = 0.5 + Math.sin(elapsed * Math.PI * 2) * 0.3
+      const rgb = parseBreathingColor((feature.get('color') as string) || color) ?? fallback
+      return new Style({
+        image: new Circle({
+          radius,
+          fill: new Fill({ color: `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${alpha})` }),
+          stroke: new Stroke({ color: LAYER_DEFAULTS.outline, width: 2 }),
+        }),
+      })
+    }
+    this._facilityBreathingLayer = new VectorLayer({
+      source: new VectorSource({ features: breathingFeatures }),
+      style: breathingStyle,
+    })
+    this._facilityBreathingLayer.setZIndex(LAYER_DEFAULTS.zIndexOverlay)
+    this.map?.addLayer(this._facilityBreathingLayer)
+    const animate = () => {
+      if (this._facilityBreathingLayer) {
+        this._facilityBreathingLayer.changed()
+        this._facilityBreathingAnimId = requestAnimationFrame(animate)
+      }
+    }
+    this._facilityBreathingAnimId = requestAnimationFrame(animate)
+  }
+  stopFacilityBreathing(): void {
+    if (this._facilityBreathingAnimId) {
+      cancelAnimationFrame(this._facilityBreathingAnimId)
+      this._facilityBreathingAnimId = null
+    }
+    if (this._facilityBreathingLayer) {
+      this.map?.removeLayer(this._facilityBreathingLayer)
+      this._facilityBreathingLayer.dispose()
+      this._facilityBreathingLayer = null
+    }
+  }
   getType() {
     // 返回 '2d' 与 MapType 一致：原 'ol' 与 mapType==='2d'/'3d' 比较错位（切换白屏、同类型短路）
     return '2d'
@@ -905,6 +1052,7 @@ export class OLRenderer extends MapRenderer {
   destroy() {
     super.destroy()
     this.stopBreathing()
+    this.stopFacilityBreathing()
     // 清理视口裁剪图层
     this._cullLayers.clear()
     if (this._moveendKey) {

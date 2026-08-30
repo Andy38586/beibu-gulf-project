@@ -45,13 +45,17 @@ function testConfirmModal(): void {
   })
 }
 function testSuccessToast(): void {
-  showToast('操作成功', 'success')
+  showToast('已收藏：调试示例设施', 'success')
 }
 function testWarningToast(): void {
-  showToast('警告：数据未保存', 'warning')
+  showToast('账号不存在，请先注册', 'warning')
 }
 function testErrorToast(): void {
-  showToast('操作失败，请重试', 'error')
+  showToast('服务器无响应，请检查网络后重试', 'error')
+}
+// 长文案验证：固定 3cell 胶囊单行容纳不下时尾部省略（不换行、不溢出）
+function testLongToast(): void {
+  showToast('长文案示例：固定胶囊单行展示，超出宽度部分尾部省略，不换行不溢出', 'warning')
 }
 
 // CSS v-bind：标签位置（CELL_PIXEL 比例）
@@ -570,6 +574,7 @@ onUnmounted(() => {
         <button class="feedback-btn" @click="testSuccessToast">Toast ✓</button>
         <button class="feedback-btn" @click="testWarningToast">Toast ⚠</button>
         <button class="feedback-btn" @click="testErrorToast">Toast ✗</button>
+        <button class="feedback-btn" @click="testLongToast">Toast 长文</button>
       </div>
     </div>
   </div>

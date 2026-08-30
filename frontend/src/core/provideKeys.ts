@@ -20,6 +20,9 @@ export interface UnifiedMapExposed {
   flyTo: (target: FlyToTarget, options?: FlyToOptions) => void
   startBreathing: (target: GeoPoint | GeoPoint[], color?: string) => void
   stopBreathing: () => void
+  /** 设施 POI 专属呼吸（缩放式动效）：与 startBreathing（呼吸灯式）独立实例同屏并存；点可带 per-point color */
+  startFacilityBreathing: (target: Array<GeoPoint & { color?: string }>, color?: string) => void
+  stopFacilityBreathing: () => void
   getRenderer: () => MapRenderer | null
 }
 

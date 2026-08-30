@@ -36,7 +36,7 @@ interface Emits {
       label: string
     }
   ): void
-  (_e: 'hide-facility-layer'): void
+  (_e: 'hide-facility-layer', type: string): void
 }
 
 const props = withDefaults(defineProps<Props>(), {

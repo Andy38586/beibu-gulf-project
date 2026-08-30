@@ -17,6 +17,10 @@ export interface PointFeature {
   lng?: number
   lat?: number
   name?: string
+  /** per-point 透明度 0-1（缺省 1）：选址「层层筛选」命中高亮——命中设施 1、未命中 0.5 */
+  opacity?: number
+  /** per-point 颜色（缺省用 options.color）：附近设施合并图层 6 类设施同层异色 */
+  color?: string
   /** 兼容 GeoJSON Feature 形状；可选——空 geometry 时渲染器跳过该要素（不落 (0,0) 哨兵，a059） */
   geometry?: { type?: string; coordinates?: [number, number] }
   properties?: Record<string, unknown>

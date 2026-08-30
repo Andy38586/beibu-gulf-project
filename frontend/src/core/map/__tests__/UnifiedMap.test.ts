@@ -363,6 +363,96 @@ describe('UnifiedMap Click Interaction Tests', () => {
     expect(wrapper.find('.map-feature-bubble').text()).toContain('other-port')
   })
 
+  it('should pin facility bubble on click, close on same-point click and on blank', async () => {
+    wrapper = mount(UnifiedMap, {
+      props: { mapType: '2d' },
+      ...makeMountOptions(mapStore),
+    })
+
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    await flushPromises()
+    await new Promise((resolve) => setTimeout(resolve, 50))
+
+    const renderer = mockedCreateRenderer.mock.results[0].value
+    const clickHandler = renderer.on.mock.calls.find((c: unknown[]) => c[0] === 'click')?.[1]
+    const facilityEvent = {
+      detail: {
+        featureType: 'nearby-facility',
+        data: { id: 'p1', name: '市人民医院', poiType: 'hospital', lng: 108.1, lat: 21.5 },
+        coordinate: [108.1, 21.5],
+      },
+    }
+
+    // 点击设施 → 设施气泡（名字只走气泡，不常显）
+    clickHandler(facilityEvent)
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.map-facility-bubble').exists()).toBe(true)
+    expect(wrapper.find('.map-facility-bubble').text()).toContain('市人民医院')
+    expect(wrapper.find('.map-facility-bubble').text()).toContain('医院')
+
+    // 同点再点 → 关闭
+    clickHandler(facilityEvent)
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.map-facility-bubble').exists()).toBe(false)
+
+    // 再次钉住后点空白 → 关闭
+    clickHandler(facilityEvent)
+    await wrapper.vm.$nextTick()
+    clickHandler({ detail: { featureType: null, data: null, coordinate: [108.1, 21.5] } })
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.map-facility-bubble').exists()).toBe(false)
+  })
+
+  it('should keep exactly one bubble when port and facility clicks interleave', async () => {
+    wrapper = mount(UnifiedMap, {
+      props: { mapType: '2d' },
+      ...makeMountOptions(mapStore),
+    })
+
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    await flushPromises()
+    await new Promise((resolve) => setTimeout(resolve, 50))
+
+    const renderer = mockedCreateRenderer.mock.results[0].value
+    const clickHandler = renderer.on.mock.calls.find((c: unknown[]) => c[0] === 'click')?.[1]
+    const hoverHandler = renderer.on.mock.calls.find((c: unknown[]) => c[0] === 'hover')?.[1]
+
+    // 钉住设施气泡
+    clickHandler({
+      detail: {
+        featureType: 'nearby-facility',
+        data: { id: 'p1', name: '市人民医院', poiType: 'hospital', lng: 108.1, lat: 21.5 },
+        coordinate: [108.1, 21.5],
+      },
+    })
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.map-facility-bubble').exists()).toBe(true)
+
+    // 设施气泡钉住时悬浮港口 → 不打扰（设施气泡无 hover 通道，也不被 hover 抢占）
+    hoverHandler({
+      detail: {
+        featureType: 'port',
+        data: { id: '9', name: 'hover-port', lng: 108.2, lat: 21.6 },
+        coordinate: [108.2, 21.6],
+      },
+    })
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.map-facility-bubble').exists()).toBe(true)
+    expect(wrapper.find('.map-feature-bubble').exists()).toBe(false)
+
+    // 点击港口 → 气泡切换为港口（全局唯一气泡）
+    clickHandler({
+      detail: {
+        featureType: 'port',
+        data: { id: '1', name: 'test-port', lng: 108.3, lat: 21.7 },
+        coordinate: [108.3, 21.7],
+      },
+    })
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.map-feature-bubble').exists()).toBe(true)
+    expect(wrapper.find('.map-facility-bubble').exists()).toBe(false)
+  })
+
   it('should show hover bubble without close button and hide on hover-out', async () => {
     wrapper = mount(UnifiedMap, {
       props: { mapType: '2d' },

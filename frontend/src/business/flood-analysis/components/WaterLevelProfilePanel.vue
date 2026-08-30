@@ -308,6 +308,8 @@ onUnmounted(() => {
           v-for="mark in scaleMarks"
           :key="mark.value"
           class="scale-mark clickable"
+          :class="{ 'scale-mark--start': mark.value === 0, 'scale-mark--end': mark.value === 15 }"
+          :style="{ left: (mark.value / 15) * 100 + '%' }"
           @click="setWaterLevelByMark(mark.value)"
         >
           {{ mark.label }}
@@ -405,18 +407,31 @@ onUnmounted(() => {
   box-shadow: 0 1px 3px rgb(0 0 0 / 35%);
 }
 
+/* 刻度按真实水位百分比绝对定位——原 space-between 视觉均分，2m 档被摆到 5m 视觉位置
+   （档位↔水位错位根因）；left = value/15，与滑块拇指位置一致 */
 .scale-marks {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  position: relative;
+  height: 20px;
   font-size: var(--GCS-font-size-xs); /* 816-S7-57：越档 11px 归 12px 档 */
   color: var(--GCS-text-muted);
   padding: 2px 0;
 }
 
 .scale-mark {
+  position: absolute;
+  top: 2px;
+  transform: translateX(-50%);
   cursor: pointer;
   transition: color 0.2s;
+}
+
+/* 首尾刻度收进面板：起点改左对齐、终点改右对齐（translateX(-50%) 会溢出面板被裁切） */
+.scale-mark--start {
+  transform: none;
+}
+
+.scale-mark--end {
+  transform: translateX(-100%);
 }
 
 .scale-mark.clickable {

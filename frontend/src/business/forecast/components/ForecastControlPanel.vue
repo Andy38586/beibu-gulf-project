@@ -263,9 +263,13 @@ onUnmounted(() => stopPlayback())
         />
         <div class="t-ticks">
           <span
-            v-for="m in YEAR_MARKS"
+            v-for="(m, i) in YEAR_MARKS"
             :key="m.year"
             class="t-tick clickable"
+            :class="{
+              't-tick--start': i === 0,
+              't-tick--end': i === YEAR_MARKS.length - 1 && yearMarkPosition(m.year) >= 100,
+            }"
             :style="{ left: yearMarkPosition(m.year) + '%' }"
             @click="jumpToYear(m.year)"
             >{{ m.label }}</span
@@ -540,6 +544,15 @@ onUnmounted(() => stopPlayback())
 .t-tick.clickable:hover {
   color: var(--GCS-color-primary-hover);
   text-decoration: underline;
+}
+
+/* 首尾刻度收进面板：起点改左对齐、终点改右对齐（translateX(-50%) 会溢出面板被裁切） */
+.t-tick--start {
+  transform: none;
+}
+
+.t-tick--end {
+  transform: translateX(-100%);
 }
 
 .time-acts {

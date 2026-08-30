@@ -20,12 +20,12 @@ npm run forecast:model
 
 ### 输入输出
 
-| 项   | 路径                                          | 说明                                                                                     |
-| ---- | --------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| 输入 | `backend/data/forecast/cargo.json`            | 三港货物月度真数据（2021-01~2026-06，官方 yqb.gxzf.gov.cn，经清洗管线灌入）               |
-| 输入 | `backend/data/forecast/container.json`        | 三港集装箱月度真数据（同期同来源，TEU）                                                   |
-| 输出 | `backend/data/forecast/throughput_model.json` | cargo 2026-07~2035-12 预测 + 置信区间 + 滚动回测分步长误差                                |
-| 输出 | `backend/data/forecast/container_model.json`  | container 同口径产物（2026-08-29 新增）                                                   |
+| 项   | 路径                                          | 说明                                                                        |
+| ---- | --------------------------------------------- | --------------------------------------------------------------------------- |
+| 输入 | `backend/data/forecast/cargo.json`            | 三港货物月度真数据（2021-01~2026-06，官方 yqb.gxzf.gov.cn，经清洗管线灌入） |
+| 输入 | `backend/data/forecast/container.json`        | 三港集装箱月度真数据（同期同来源，TEU）                                     |
+| 输出 | `backend/data/forecast/throughput_model.json` | cargo 2026-07~2035-12 预测 + 置信区间 + 滚动回测分步长误差                  |
+| 输出 | `backend/data/forecast/container_model.json`  | container 同口径产物（2026-08-29 新增）                                     |
 
 > ⚠️ 旧输入 `throughput.json`（96 个月造数据阶段产物，与官方真值 180 点中 177 点不符）
 > 已于 2026-08-29 **删除**（git 历史可恢复），零引用确认。严禁复活。

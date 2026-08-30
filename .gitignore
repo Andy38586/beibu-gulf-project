@@ -152,3 +152,6 @@ tools/verify-copy-stats.mjs
 
 # POI 抓取缓存（fetch-amap-poi-city.py 的中间产物，可再生；抓取进行中会持续增长，勿误提交）
 tools/.poi_cache/
+
+# 一次性删除暂存区（待删暂存目录，本机清理用，不入库）
+.trash/

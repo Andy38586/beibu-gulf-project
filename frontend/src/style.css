@@ -103,11 +103,12 @@
   ); /* 按钮悬浮高光（较 overlay-tint 更淡，仅高光用） */
 }
 
-/* c056：暗色主题下 OL 底图压暗（纯 CSS，零 JS）——天地图影像不再刺眼；
-   仅作用于 ol-base-layer（业务图层不受影响）；Cesium 3D 底图暗色变体待
-   主题联动接入（ImageryLayer.brightness），当前保持原样（2D/3D 差异可接受）。
-   平铺选择器（不嵌套进 dark 块），避免依赖 CSS 嵌套语法。 */
-:root[data-theme='dark'] .ol-base-layer {
+/* c056：暗色主题下底图压暗（纯 CSS，零 JS）——天地图影像不再刺眼；
+    仅作用于底图（ol-base-layer / cesium-widget），业务图层不受影响；
+    Cesium 原 ImageryLayer.brightness 方案需 JS 联动，纯 CSS 覆盖更轻。 */
+:root[data-theme='dark'] .ol-base-layer,
+:root[data-theme='dark'] .cesium-widget canvas,
+:root[data-theme='dark'] .cesium-viewer canvas {
   filter: brightness(0.65) saturate(0.9);
 }
 

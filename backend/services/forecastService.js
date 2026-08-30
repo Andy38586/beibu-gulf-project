@@ -238,6 +238,8 @@ export async function getTimeSeriesData(
         if (!yearly[y]) yearly[y] = { time: y, value: 0, count: 0, type: d.type }
         yearly[y].value += d.value
         yearly[y].count++
+        // 年内可能跨历史/预测（当前年），type 取最后一条为准，使含预测的年标记为 forecast；value 仍为年均值
+        yearly[y].type = d.type
       })
       allData = Object.values(yearly).map((d) => ({
         time: d.time,

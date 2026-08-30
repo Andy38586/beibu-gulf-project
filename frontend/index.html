@@ -9,6 +9,15 @@
     <link rel="preconnect" href="https://t1.tianditu.gov.cn" crossorigin />
     <link rel="preconnect" href="https://t2.tianditu.gov.cn" crossorigin />
     <title>北部湾城市群选址分析平台</title>
+    <!-- FOUC 防闪白：首帧即按本地主题渲染，避免暗色用户刷新时先白后暗；key 与 useTheme.ts:21 gcs-theme 同源 -->
+    <script>
+      try {
+        var t = localStorage.getItem('gcs-theme')
+        if (!t) t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+        document.documentElement.setAttribute('data-theme', t)
+        if (t === 'dark') document.documentElement.classList.add('dark')
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="app">

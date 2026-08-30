@@ -110,12 +110,16 @@ function isFav(item: ScoredXiaoqu): boolean {
 
 /** 列表项转收藏入参（快照带业务字段：选址 score/breakdown；浸没 type/loss） */
 function toFavoriteInput(item: ScoredXiaoqu): FavoriteAddInput {
+  // crs.ts 禁止 (0,0) 哨兵：坐标缺失不落哨兵，由调用方前置校验守卫（toggleFavorite 已校验 Number.isFinite）
+  if (!Number.isFinite(item.lng) || !Number.isFinite(item.lat)) {
+    throw new Error(`收藏失败：小区 ${item.name} 坐标无效`)
+  }
   return {
     itemType: favoriteItemType.value,
     itemId: item.id,
     name: item.name,
-    lng: item.lng ?? 0,
-    lat: item.lat ?? 0,
+    lng: item.lng,
+    lat: item.lat,
     snapshot: {
       score: item.score ?? 0,
       breakdown: item.breakdown ?? {},
@@ -127,6 +131,10 @@ function toFavoriteInput(item: ScoredXiaoqu): FavoriteAddInput {
 
 /** 切换收藏状态：未登录 → 记录收藏意图并引导登录（登录成功后自动补完）；已登录 → 全局收藏增删 */
 async function toggleFavorite(item: ScoredXiaoqu) {
+  if (!Number.isFinite(item.lng) || !Number.isFinite(item.lat)) {
+    showError(new Error('该小区坐标无效，无法收藏'), { fallback: '坐标无效，无法收藏' })
+    return
+  }
   if (!isLoggedIn.value) {
     queuePendingFavorite(toFavoriteInput(item))
     // 未登录弹 GCSModal 登录引导

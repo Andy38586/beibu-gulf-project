@@ -5,8 +5,8 @@ import { FACILITY_COLORS } from '@/shared'
 import { logger } from '@/shared'
 import type { LayerOptions, Port } from '@/types'
 
-export async function loadPorts(): Promise<Port[]> {
-  return await mapDataService.getPorts()
+export async function loadPorts(signal?: AbortSignal): Promise<Port[]> {
+  return await mapDataService.getPorts(signal)
 }
 
 export function buildPortGeoJson(portsData: Port[]): FeatureCollection {

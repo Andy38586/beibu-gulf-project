@@ -156,7 +156,7 @@ function waitForContainerVisible(container: HTMLElement | null): Promise<void> {
  *  结果消费前仍由 aborted 守卫拦截 */
 async function loadData() {
   const [portsResult, boundaryResult] = await Promise.allSettled([
-    withTimeout(loadPorts(), LOAD_TIMEOUT_MS, '港口数据加载超时'),
+    withTimeout(loadPorts(loadAbort.signal), LOAD_TIMEOUT_MS, '港口数据加载超时'),
     withTimeout(
       loadBoundaryGeoJson((msg: string) => {
         boundaryWarning.value = msg

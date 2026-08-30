@@ -35,7 +35,7 @@ export function usePlans(): UsePlansReturn {
   const loading: Ref<boolean> = ref(false)
   const deleting: Ref<boolean> = ref(false)
   // 读操作竞态守卫用 useLatestRequest；写操作不打断，避免误取消已提交的写请求
-  const { createSignal, cancel: cancelRequest } = useLatestRequest()
+  const { createSignal, isLatest, cancel: cancelRequest } = useLatestRequest()
 
   async function getPlans(): Promise<Plan[]> {
     const signal = createSignal()
@@ -60,7 +60,7 @@ export function usePlans(): UsePlansReturn {
       }
       throw error
     } finally {
-      loading.value = false
+      if (isLatest(signal)) loading.value = false
     }
   }
 

@@ -114,8 +114,21 @@ export function useApiRequest(): UseApiRequestReturn {
           throw error
         }
         lastError = error
-        // 线性退避：0.8s / 1.6s / 2.4s
-        await new Promise((r) => setTimeout(r, RETRY_DELAY_MS * attempt))
+        // 线性退避：0.8s / 1.6s（MAX_RETRIES=3，第三档 2.4s 因 attempt===MAX_RETRIES 已直接抛错而不可达；注释与实现已对齐）
+        // 退避期间检查外部取消，避免卸载后仍延迟后重试
+        if (options.signal?.aborted) throw error
+        await new Promise<void>((resolve) => {
+          const t = setTimeout(resolve, RETRY_DELAY_MS * attempt)
+          options.signal?.addEventListener(
+            'abort',
+            () => {
+              clearTimeout(t)
+              resolve()
+            },
+            { once: true }
+          )
+        })
+        if (options.signal?.aborted) throw error
       } finally {
         perfRecordApi(path, performance.now() - start)
       }

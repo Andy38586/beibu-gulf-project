@@ -8,10 +8,11 @@ import { portsArraySchema } from '@/types/schemas'
 // /data/ports.json 由前端托管（vite/nginx 直接服务），后端存活与否不影响港口图层与要素气泡。
 // loadStatic 统一超时 + TTL 内存缓存 + in-flight 去重；zod schema 仍在数据边界把关（形状把关与来源无关）。
 export const mapDataService = {
-  async getPorts(): Promise<Port[]> {
+  async getPorts(signal?: AbortSignal): Promise<Port[]> {
     try {
       const ports = await loadStatic<Port[]>(MAP_CONFIG.DATA_PATHS.ports, {
         schema: portsArraySchema,
+        signal,
       })
 
       // 边界守卫：过滤北部湾范围外的异常港口坐标，防止污染地图渲染

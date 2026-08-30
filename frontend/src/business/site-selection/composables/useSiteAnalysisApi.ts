@@ -18,7 +18,7 @@ export function useSiteAnalysisApi(): UseSiteAnalysisApiReturn {
   // 选址分析仅 api 态（后端 POST /site-analysis，免登录纯计算），直连 useApiRequest（信封解包 + zod 校验）；
   // 竞态守卫统一走 useLatestRequest
   const { apiRequest } = useApiRequest()
-  const { createSignal, cancel: cancelRequest } = useLatestRequest()
+  const { createSignal, isLatest, cancel: cancelRequest } = useLatestRequest()
   // 请求进行态迁入 store（对齐 forecast），供页面与请求 composable 共享
   const siteStore = useSiteSelectionStore()
   const { calculating, calcError } = storeToRefs(siteStore)
@@ -74,7 +74,7 @@ export function useSiteAnalysisApi(): UseSiteAnalysisApiReturn {
       siteStore.setCalcError(msg)
       return { error: msg, coverage: null, matchedXiaoqu: [], facilityPoi: {} }
     } finally {
-      siteStore.setCalculating(false)
+      if (isLatest(signal)) siteStore.setCalculating(false)
     }
   }
 

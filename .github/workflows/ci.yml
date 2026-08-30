@@ -187,6 +187,9 @@ jobs:
         env:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
           SERVER_USER: ${{ secrets.SERVER_USER }}
+          # d117：22 端口受跨境 SSH 干扰（TCP 通、banner 丢失，#121/#122 复现），
+          # 服务器 sshd 增听高位端口并经此 Secret 切换；未配置时回退 22 行为不变
+          SSH_PORT: ${{ secrets.SERVER_SSH_PORT || 22 }}
         run: |
           # F2：部署注入版本 tag（日期+run 号），镜像不再覆写 latest——
           # rollback.sh 可用历史 tag 回滚（docker images 列出后 ./scripts/rollback.sh <tag>）
@@ -197,7 +200,7 @@ jobs:
           deploy_ok=false
           for attempt in 1 2 3; do
             attempt_exit=0
-            ssh -o StrictHostKeyChecking=no -o ConnectTimeout=15 \
+            ssh -o StrictHostKeyChecking=no -o ConnectTimeout=15 -p "$SSH_PORT" \
               "$SERVER_USER@$SERVER_HOST" \
               "cd /opt/beibu-gulf && git pull --ff-only && IMAGE_TAG='${IMAGE_TAG}' docker compose up --build -d && docker image prune -f" || attempt_exit=$?
             if [ "$attempt_exit" -eq 0 ]; then

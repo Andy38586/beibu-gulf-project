@@ -28,17 +28,17 @@ from shapely.geometry import shape as shp_shape, Point  # noqa: E402
 from shapely.ops import unary_union  # noqa: E402
 
 from flood_engine import compute_flood_mask  # noqa: E402
+from flood_engine import DEM_PATH as ENGINE_DEM_PATH  # noqa: E402
 
-# flood_engine.DEM_PATH 指向的 169MB filled_utm48n_cut.tif 已被清理（gitignored 大文件）；
-# 本脚本改用 Desktop 处理成果中的同族填洼 DEM（ASTER GDEM 30m, Wang&Liu 填洼, CGCS2000 三度带 CM108，
-# 数学上与 UTM48N 等价；见 处理成果/处理报告.md）
-DEM_SOURCE = Path(
-    r"C:/Users/JionHappY/Desktop/_北部湾项目/数据_/项目数据/浸没分析/处理成果/filled_CGCS2000_int16.tif"
-)
-DOWNSAMPLE = 4  # 与 flood_engine 一致：30m → 120m，区域统计够用
+# 2026-08-30 全链路重算口径：DEM 源复用 flood_engine 的多级回退解析
+# （FLOOD_DEM_PATH > workspace dem/ > Desktop 处理成果），与 online 服务同链同口径。
+# 最终链 = ASTER 填洼版 + 海岸线矢量海掩膜（见 dem-pipeline/06-restore-cut-dem.ps1）：
+# ASTER 沿海低地真实但海面整 0 值，掩膜后海面干净；GLO-30 因沿海偏高 12~30m 弃用。
+DEM_SOURCE = ENGINE_DEM_PATH
+DOWNSAMPLE = 1  # 与 flood_engine 同步：30m 全分辨率（2026-08-30 起）
 
 FLOOD_DIR = ROOT / "backend" / "data" / "flood"
-GENERATED_AT = "2026-08-29"
+GENERATED_AT = "2026-08-30"
 LEVELS = [0, 2, 5, 8, 10, 15]
 RISK_BY_LEVEL = {}  # 从原 floodArea.json 读映射，保留衍生标签语义
 
@@ -74,6 +74,7 @@ def datum_offset():
 
 def sample_profile(dem_dataset, transformer, start, end):
     """沿 4326 剖面线按 DEM 分辨率步长采样真高程；海侧 NoData 点剔除，自首个有效点起。"""
+    nodata = dem_dataset.nodata
     xs, ys = transformer(start["lng"], start["lat"])
     xe, ye = transformer(end["lng"], end["lat"])
     dist_m = ((xe - xs) ** 2 + (ye - ys) ** 2) ** 0.5
@@ -86,13 +87,14 @@ def sample_profile(dem_dataset, transformer, start, end):
         y = ys + (ye - ys) * t
         for val in dem_dataset.sample([(x, y)]):
             v = val[0]
+            ok = v is not None and v == v and v > -1e9 and v != nodata
             lon, lat = transformer(x, y, inverse=True)
             pts.append(
                 {
                     "distance": round(dist_m * t),
                     "lng": round(lon, 6),
                     "lat": round(lat, 6),
-                    "elevation": (round(float(v), 2) if v is not None and v == v and v > -1e9 else None),
+                    "elevation": (round(float(v), 2) if ok else None),
                 }
             )
     # 剔除海侧 NoData 前缀（剖面起点可能在岸线海侧），保留首个有效点起；
@@ -107,16 +109,38 @@ def sample_profile(dem_dataset, transformer, start, end):
     return trimmed
 
 
-def facility_depths(dem_dataset, transformer, facilities, level):
-    """设施点处淹没深度：level - 真DEM高程；无高程/低于0 视为未淹。"""
-    out = {}
+def resample_facility_elevations(dem_dataset, transformer, facilities):
+    """设施高程重采样：5x5 像元窗口（±60m）最小有效高程。
+
+    承 dem-pipeline/05 口径：港口设施建在填海区低地，单像元采样含周围高地偏高，
+    局部最小值更接近设施实际高程。2026-08-30 换 GLO-30 复原版 DEM 全链路重算。
+    """
+    import rasterio.windows as riowin
+
+    t = dem_dataset.transform
+    nodata = dem_dataset.nodata
+    changed = 0
     for fac in facilities:
         x, y = transformer(fac["lng"], fac["lat"])
-        for val in dem_dataset.sample([(x, y)]):
-            v = val[0]
-            elev = float(v) if v is not None and v == v and v > -1e9 else None
-            break
-        d = None if elev is None else round(level - elev, 2)
+        col, row = (int(v) for v in (~t * (x, y)))
+        arr = dem_dataset.read(1, window=riowin.Window(col - 2, row - 2, 5, 5))
+        vals = [
+            float(v)
+            for v in arr.flatten()
+            if v is not None and float(v) != nodata and float(v) > -1e9
+        ]
+        if vals:
+            fac["elevation"] = round(min(vals), 1)
+            changed += 1
+    return changed
+
+
+def facility_depths(facilities, level):
+    """设施点处淹没深度：level(EGM96) - 重采样高程；无高程/低于0 视为未淹。"""
+    out = {}
+    for fac in facilities:
+        elev = fac.get("elevation")
+        d = None if elev is None else round(level - float(elev), 2)
         out[fac["id"]] = d if (d is not None and d > 0) else 0.0
     return out
 
@@ -156,10 +180,22 @@ def main():
             out = transform_geom("EPSG:4326", crs, gj) if not inverse else transform_geom(crs, "EPSG:4326", gj)
             return out["coordinates"]
 
+        # ---- 1a. 设施高程重采样（5x5 窗口最小值，先于统计，水深/损失同口径）----
+        fac_data = json.loads(FACILITY.read_text(encoding="utf-8"))
+        n_changed = resample_facility_elevations(dem, to_dem, fac_data["facilities"])
+        fac_data["metadata"]["updatedAt"] = GENERATED_AT
+        fac_data["metadata"]["elevationFrom"] = (
+            "filled_utm48n_cut.tif (GLO-30 复原版, 30m) 5x5 窗口最小值采样（承 05 脚本口径）"
+        )
+        FACILITY.write_text(json.dumps(fac_data, ensure_ascii=False, indent=2), encoding="utf-8")
+        facilities = fac_data["facilities"]
+        elevs_fac = [f["elevation"] for f in facilities if f.get("elevation") is not None]
+        print(f"1a. facilityPoints: {n_changed} 个设施高程重采样, 范围 {min(elevs_fac):.1f}~{max(elevs_fac):.1f}m")
+
         for prof in tp["profiles"]:
             pts = sample_profile(dem, to_dem, prof["startPoint"], prof["endPoint"])
             prof["points"] = pts if pts else prof["points"]  # 全NoData时保留原点集供人工核查
-            prof["dataSource"] = "DEM采样 filled_utm48n_cut.tif (30m)"
+            prof["dataSource"] = "DEM采样 filled_utm48n_cut.tif (GLO-30 复原版, 30m)"
         elevs = [p["elevation"] for prof in tp["profiles"] for p in prof["points"] if p["elevation"] is not None]
         print(
             f"1. terrainProfile: {len(tp['profiles'])} 条剖面重采样, "
@@ -256,9 +292,8 @@ def main():
                 pt = Point(fac["lng"], fac["lat"])
                 if polys.covers(pt):
                     affected.append(fac)
-        # 设施处水深：EGM96水位 - 真DEM采样高程（30m 原始分辨率）
-        with rasterio.open(DEM_SOURCE) as dem_full:
-            fdepth = facility_depths(dem_full, to_dem, affected, float(level_egm96))
+        # 设施处水深：EGM96水位 - 重采样高程（5x5 窗口最小值，与 facilityPoints 同口径）
+        fdepth = facility_depths(affected, float(level_egm96))
         loss = 0.0
         for fac in affected:
             d = fdepth.get(fac["id"], 0.0)

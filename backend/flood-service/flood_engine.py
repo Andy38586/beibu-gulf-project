@@ -85,8 +85,11 @@ def datum_offset() -> float:
         _datum_offset_cache = float(msl)
     return _datum_offset_cache
 
-# 降采样因子：原 30m → 120m（4x），像元数 ~6800万 → ~425万，单次演算秒级
-DOWNSAMPLE = 4
+# 分辨率：30m 全分辨率演算（2026-08-30 由 4x 降采样改回 1x）。
+# 原 4x（120m）在陡梯度海岸的最近邻混合使产物多边形含 ~18% 超水位高地
+# （diag_datum 实测）；全分辨率消除此伪影。裁切版 ~5900 万像元，
+# 内存 ~236MB float32、单档秒级，服务与预计算均可接受。
+DOWNSAMPLE = 1
 
 # 8 连通结构（含对角）
 STRUCT8 = np.ones((3, 3), dtype=bool)

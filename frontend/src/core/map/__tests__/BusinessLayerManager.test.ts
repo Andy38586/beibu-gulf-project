@@ -236,6 +236,49 @@ describe('BusinessLayerManager', () => {
       expect(newRenderer.addGeoTIFFLayer).toHaveBeenCalledTimes(1)
     })
 
+    it('登出清目录后 reconcileWithRenderer 应恢复常驻层面板条目（d116：登出后图层控制按钮缺失）', () => {
+      // core 常驻层（boundary/ports）经 UnifiedMap.setupLayers 注册：registry + catalog 均有
+      manager.register('boundary', {
+        label: '行政区划',
+        layerType: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+        visible: true,
+      })
+      manager.register('ports', {
+        label: '港口位置',
+        layerType: 'points',
+        data: [{ lng: 108, lat: 21 }],
+        visible: true,
+      })
+
+      // 模拟登出 resetStores → mapStore.resetMapState：目录 business 条目全删，
+      // 但 registry（App 级持久）与渲染器图层实例均保留（图层照常显示）
+      mapStore.layerCatalog.length = 0
+      mapStore.currentRenderer = {
+        hasLayer: () => true,
+        setVisibility: vi.fn(),
+      } as unknown as MapRenderer
+
+      // App.vue resetStores 尾部的对账调用（registry 为目录唯一权威源）
+      manager.reconcileWithRenderer()
+
+      // 常驻层目录条目按 registry 重建 → 面板按钮恢复
+      expect(mapStore.registerBusinessLayer).toHaveBeenCalledWith(
+        'boundary',
+        '行政区划',
+        'geojson',
+        true
+      )
+      expect(mapStore.registerBusinessLayer).toHaveBeenCalledWith(
+        'ports',
+        '港口位置',
+        'points',
+        true
+      )
+      expect(mapStore.layerCatalog.some((e: MockCatalogEntry) => e.key === 'boundary')).toBe(true)
+      expect(mapStore.layerCatalog.some((e: MockCatalogEntry) => e.key === 'ports')).toBe(true)
+    })
+
     it('catalog 已有条目时 reapplyAll 不应重复注册（幂等）', () => {
       manager.register('dup-panel-layer', {
         label: '已有条目',

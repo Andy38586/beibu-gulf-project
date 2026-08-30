@@ -166,7 +166,7 @@ function handleResult(result: Partial<AnalysisResult>): void {
   logger.debug('[SiteSelection] 收到分析结果:', result)
 
   // 图层更新直调 updateAnalysisHandler；分析结果恢复走 useSiteSelectionStore 内存快照
-  void updateAnalysisHandler(result)
+  updateAnalysisHandler(result).catch(() => {})
   // 816-专项2 4-3：store 单一来源——setResult 同时驱动页面与 AppLayout 全局雷达（删本地双写）
   stateStore.setResult({
     matchedXiaoqu: result.matchedXiaoqu || [],

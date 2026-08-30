@@ -21,7 +21,8 @@ watch(
   (open) => {
     if (open) document.addEventListener('keydown', onKeydown)
     else document.removeEventListener('keydown', onKeydown)
-  }
+  },
+  { immediate: true }
 )
 
 onUnmounted(() => document.removeEventListener('keydown', onKeydown))

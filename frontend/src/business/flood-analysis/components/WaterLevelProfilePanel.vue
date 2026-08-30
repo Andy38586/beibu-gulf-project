@@ -58,12 +58,12 @@ const localWaterLevel = computed<number>({
 })
 
 /**
- * 可点击刻度标记（洪水口径，基于 DEM 数字高程模型实测高程与连通性淹没实测）：
- * 15m 进全部港口、20m 进全部城市+港口；滑块 0-15m（后端数据档位 0/2/5/8/10/15），
- * 刻度取 2/10/15 落在真实数据档位（港口进水即滑块尽头）
+ * 可点击刻度标记（等距摆放）：滑块 0-15m 以理论深度基准面（海图基准）为 0，
+ * 平均海平面在 2.5m（waterLevel.json baseLevels.msl）。名称+数值两行展示，
+ * 消除「档位↔水位」对应歧义；0 刻度原误标「海平面」已正名「基准面」。
  */
 const scaleMarks = [
-  { label: '海平面', value: 0 },
+  { label: '基准面', value: 0 },
   { label: '滩涂淹没', value: 2 },
   { label: '港口进水', value: 10 },
   { label: '全面淹没', value: 15 },
@@ -121,9 +121,12 @@ function updateChart() {
     return
   }
 
-  // 提取距离和高程数据
+  // 提取距离和高程数据；垂直基准统一到「基准面起算」口径——
+  // 地形 EGM96 高程 + datumOffset(msl=2.5) 抬升，水位线直接用滑块值（0-15，无负值）：
+  // 水面线与地形的相对关系不变，y 轴不再出现负刻度（口径即滑块口径：基准面=0）
   const distances = profile.points.map((p) => p.distance)
-  const elevations = profile.points.map((p) => p.elevation)
+  const datumOffset = profile.datumOffset ?? 0
+  const elevations = profile.points.map((p) => p.elevation + datumOffset)
 
   const waterLevel = floodStore.waterLevel
 
@@ -165,6 +168,7 @@ function updateChart() {
     },
     yAxis: {
       type: 'value',
+      // 口径说明由刻度行「基准面 0m」承载；轴名过长会与顶部图例重叠
       name: '高程 (m)',
       nameTextStyle: {
         fontSize: 12,
@@ -193,9 +197,9 @@ function updateChart() {
       {
         name: '水位线',
         type: 'line',
-        // 垂直基准换算：水位为理论深度基准面高程，剖面地形为 EGM96 正高，
-        // 需减去 datumOffset 后同基准绘制，否则水面线与地形高程不可比
-        data: distances.map(() => waterLevel - (profile.datumOffset ?? 0)),
+        // 基准面起算口径：地形已 +datumOffset 抬升至同口径，水位线直接取滑块值，
+        // 0 = 理论深度基准面，全程非负
+        data: distances.map(() => waterLevel),
         lineStyle: {
           color: PROFILE_COLORS.water,
           width: 2,
@@ -308,11 +312,10 @@ onUnmounted(() => {
           v-for="mark in scaleMarks"
           :key="mark.value"
           class="scale-mark clickable"
-          :class="{ 'scale-mark--start': mark.value === 0, 'scale-mark--end': mark.value === 15 }"
-          :style="{ left: (mark.value / 15) * 100 + '%' }"
           @click="setWaterLevelByMark(mark.value)"
         >
-          {{ mark.label }}
+          <span class="mark-name">{{ mark.label }}</span>
+          <span class="mark-value">{{ mark.value }}m</span>
         </span>
       </div>
     </div>
@@ -407,31 +410,29 @@ onUnmounted(() => {
   box-shadow: 0 1px 3px rgb(0 0 0 / 35%);
 }
 
-/* 刻度按真实水位百分比绝对定位——原 space-between 视觉均分，2m 档被摆到 5m 视觉位置
-   （档位↔水位错位根因）；left = value/15，与滑块拇指位置一致 */
+/* 刻度等距摆放（flex 均分）：名称+数值两行，消除「档位↔水位」对应歧义；
+   nowrap 防右缘标签被挤成纵向折行 */
 .scale-marks {
-  position: relative;
-  height: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
   font-size: var(--GCS-font-size-xs); /* 816-S7-57：越档 11px 归 12px 档 */
   color: var(--GCS-text-muted);
   padding: 2px 0;
 }
 
 .scale-mark {
-  position: absolute;
-  top: 2px;
-  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  white-space: nowrap;
   cursor: pointer;
   transition: color 0.2s;
 }
 
-/* 首尾刻度收进面板：起点改左对齐、终点改右对齐（translateX(-50%) 会溢出面板被裁切） */
-.scale-mark--start {
-  transform: none;
-}
-
-.scale-mark--end {
-  transform: translateX(-100%);
+.mark-value {
+  color: var(--GCS-text-secondary);
 }
 
 .scale-mark.clickable {

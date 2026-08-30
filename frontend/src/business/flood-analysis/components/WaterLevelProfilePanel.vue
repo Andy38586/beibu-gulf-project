@@ -58,15 +58,19 @@ const localWaterLevel = computed<number>({
 })
 
 /**
- * 可点击刻度标记（等距摆放）：滑块 0-15m 以理论深度基准面（海图基准）为 0，
- * 平均海平面在 2.5m（waterLevel.json baseLevels.msl）。名称+数值两行展示，
- * 消除「档位↔水位」对应歧义；0 刻度原误标「海平面」已正名「基准面」。
+ * 可点击刻度标记（7 档等距 0-15m，下排 4 档 + 上排 3 档交错防拥挤）：
+ * 潮汐基准专业术语——平均海平面 2.5m 与 waterLevel.json baseLevels.msl 同源，
+ * 低水位区为潮汐基准面体系，高水位区为极值潮位体系（警戒/设计/历史极值）。
+ * row 控制交错排布；value 同时是点击跳转的水位与轨道百分比（value/15）。
  */
 const scaleMarks = [
-  { label: '基准面', value: 0 },
-  { label: '滩涂淹没', value: 2 },
-  { label: '港口进水', value: 10 },
-  { label: '全面淹没', value: 15 },
+  { label: '最低潮面', value: 0, row: 'bottom' },
+  { label: '平均海平面', value: 2.5, row: 'top' },
+  { label: '平均高潮面', value: 5, row: 'bottom' },
+  { label: '大潮高潮面', value: 7.5, row: 'top' },
+  { label: '警戒潮位', value: 10, row: 'bottom' },
+  { label: '设计高潮位', value: 12.5, row: 'top' },
+  { label: '最高潮位', value: 15, row: 'bottom' },
 ]
 
 /** 滑块变化直接写 store；防抖由父组件统一处理（可写 computed 的 set 即写 store） */
@@ -312,10 +316,14 @@ onUnmounted(() => {
           v-for="mark in scaleMarks"
           :key="mark.value"
           class="scale-mark clickable"
+          :class="[
+            mark.row === 'top' ? 'scale-mark--top' : 'scale-mark--bottom',
+            { 'scale-mark--first': mark.value === 0, 'scale-mark--last': mark.value === 15 },
+          ]"
+          :style="{ left: (mark.value / 15) * 100 + '%' }"
           @click="setWaterLevelByMark(mark.value)"
         >
-          <span class="mark-name">{{ mark.label }}</span>
-          <span class="mark-value">{{ mark.value }}m</span>
+          {{ mark.label }}
         </span>
       </div>
     </div>
@@ -379,12 +387,14 @@ onUnmounted(() => {
   width: 100%;
 }
 
-/* 水位滑块区域（紧凑布局） */
+/* 水位滑块区域：上下留出刻度行净空；position:relative 供 7 档刻度层绝对覆盖 */
 .water-slider-container {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 4px;
   box-sizing: border-box;
+  padding: 22px 0 20px;
 }
 
 /* 与选址/预测统一：整条渐变轨道（灰→品牌色）+ 白底描边拇指。
@@ -410,29 +420,42 @@ onUnmounted(() => {
   box-shadow: 0 1px 3px rgb(0 0 0 / 35%);
 }
 
-/* 刻度等距摆放（flex 均分）：名称+数值两行，消除「档位↔水位」对应歧义；
-   nowrap 防右缘标签被挤成纵向折行 */
+/* 刻度 7 档上下交错（上 3 下 4）：刻度层绝对覆盖滑块容器，top 行贴滑块上方、
+   bottom 行贴滑块下方；left=value/15 与轨道真实位置一致，nowrap 防折行，
+   首尾单侧对齐防溢出面板 */
 .scale-marks {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
   font-size: var(--GCS-font-size-xs); /* 816-S7-57：越档 11px 归 12px 档 */
   color: var(--GCS-text-muted);
-  padding: 2px 0;
 }
 
 .scale-mark {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1px;
+  position: absolute;
+  transform: translateX(-50%);
   white-space: nowrap;
   cursor: pointer;
   transition: color 0.2s;
+  pointer-events: auto;
 }
 
-.mark-value {
-  color: var(--GCS-text-secondary);
+/* 上排贴滑块上方、下排贴滑块下方 */
+.scale-mark--top {
+  top: 0;
+}
+
+.scale-mark--bottom {
+  bottom: 0;
+}
+
+/* 首尾单侧对齐：起点左贴、终点右贴（translateX(-50%) 会溢出面板被裁切） */
+.scale-mark--first {
+  transform: none;
+}
+
+.scale-mark--last {
+  transform: translateX(-100%);
 }
 
 .scale-mark.clickable {

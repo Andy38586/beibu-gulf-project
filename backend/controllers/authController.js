@@ -70,7 +70,8 @@ export async function login(req, res, next) {
     }
     const user = await userService.findByUsername(username)
     if (!user) {
-      throw new BusinessError(ErrorCode.UNAUTHORIZED, '用户名或密码错误')
+      // 账号不存在与密码错误细分返回（前端按 bizCode 分语义提示并引导注册）
+      throw new BusinessError(ErrorCode.USER_NOT_FOUND)
     }
     // 双通道比对 + 静默迁移
     let valid = await bcrypt.compare(password, user.password)
@@ -85,7 +86,7 @@ export async function login(req, res, next) {
       }
     }
     if (!valid) {
-      throw new BusinessError(ErrorCode.UNAUTHORIZED, '用户名或密码错误')
+      throw new BusinessError(ErrorCode.WRONG_PASSWORD)
     }
     const token = generateToken(user)
     setAuthCookie(res, token, req)

@@ -91,9 +91,10 @@ describe('describeError（错误码 → 成因文案，用户提示与日志分�
   })
 
   it('UNAUTHORIZED/REQUEST_FAILED：透传可读消息，fallback 兜底', () => {
-    expect(
-      describeError(new ApiError('用户名或密码错误', ErrorCode.UNAUTHORIZED), '登录已失效')
-    ).toBe('用户名或密码错误')
+    // 登录失败细分文案（后端 401003）按原样透传，不覆盖不笼统化
+    expect(describeError(new ApiError('密码错误', ErrorCode.UNAUTHORIZED), '登录已失效')).toBe(
+      '密码错误'
+    )
     expect(
       describeError(new ApiError('请求失败 HTTP 404', ErrorCode.REQUEST_FAILED), '操作失败')
     ).toBe('请求失败 HTTP 404')

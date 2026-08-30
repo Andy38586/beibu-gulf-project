@@ -1,14 +1,19 @@
 <script setup lang="ts">
 /**
- * GCSToast — 全局轻提示（GCS 标准，编程式）：2×0.5 cell 语义色提示，自动消失。
+ * GCSToast — 全局轻提示（GCS 标准，编程式）：固定胶囊语义色提示，自动消失。
  * App.vue 挂载一次，全局经 showToast() 触发（gcsFeedback 单例），替代 Element Plus ElMessage。
+ * 规格：固定 3×0.5 cell 胶囊（形状不随文案变化）——语义点与文案成组整体居中、
+ * 强制单行；超长动态文案（如「已收藏：<长名>」）尾部省略，不换行不溢出。
  */
-import { onBeforeUnmount, watch } from 'vue'
+import { computed, onBeforeUnmount, watch } from 'vue'
 
 import { useGCS } from '@/shared/layout/useGCS'
 import { gcsToastState } from '@/shared/utils/gcsFeedback'
 
 const { cell } = useGCS()
+
+// 胶囊高度（0.5 cell）；宽度固定 3 cell，由 CSS 控制
+const toastHeightCss = computed(() => cell(1, 0.5).height)
 
 const TOAST_DURATION_MS = 3000
 const timers = new Map<number, ReturnType<typeof setTimeout>>()
@@ -55,7 +60,7 @@ onBeforeUnmount(() => {
         :key="item.id"
         class="GCS-toast"
         :class="`GCS-toast--${item.type}`"
-        :style="cell(2, 0.5)"
+        :style="{ height: toastHeightCss }"
       >
         <span class="GCS-toast-dot" />
         <span class="GCS-toast-message">{{ item.message }}</span>
@@ -85,6 +90,9 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   gap: 8px;
+
+  /* 固定胶囊：恒 3×0.5 cell，形状不随文案长短变化（高度由内联 style 给） */
+  width: calc(var(--GCS-cell, 80px) * 3);
   background: var(--GCS-bg-panel-translucent);
   border-radius: calc(var(--GCS-cell, 80px) * 0.15);
   box-shadow: var(--GCS-shadow-md);
@@ -95,6 +103,7 @@ onBeforeUnmount(() => {
   pointer-events: auto;
 }
 
+/* 语义点与文案成组整体居中（点在流内，间隔由容器 gap 控制） */
 .GCS-toast-dot {
   width: 8px;
   height: 8px;
@@ -116,6 +125,12 @@ onBeforeUnmount(() => {
 
 .GCS-toast-message {
   line-height: 1.4;
+
+  /* 强制单行：触顶 max-width 时尾部省略，不换行、不撑破胶囊 */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 
 /* 进出场动画（新 toast 从顶部进入占一号位，老 toast 顺移下移用 move 过渡） */

@@ -76,12 +76,25 @@ describe('useApiRequest', () => {
   })
 
   describe('错误处理', () => {
-    it('401 抛 UNAUTHORIZED', async () => {
+    it('401 抛 UNAUTHORIZED（文案透传服务端）', async () => {
       mockFetch.mockResolvedValue(jsonResponse({ error: '未登录' }, 401))
       const { apiRequest } = useApiRequest()
       await expect(apiRequest('/protected')).rejects.toThrow(ApiError)
       await expect(apiRequest('/protected')).rejects.toMatchObject({
         code: ErrorCode.UNAUTHORIZED,
+        message: '未登录',
+      })
+    })
+
+    it('401 携带后端业务码（信封 code → ApiError.bizCode，供登录细分语义）', async () => {
+      mockFetch.mockResolvedValue(
+        jsonResponse({ code: 401002, error: '账号不存在，请先注册', data: null }, 401)
+      )
+      const { apiRequest } = useApiRequest()
+      await expect(apiRequest('/auth/login', { method: 'POST' })).rejects.toMatchObject({
+        code: ErrorCode.UNAUTHORIZED,
+        message: '账号不存在，请先注册',
+        bizCode: 401002,
       })
     })
 

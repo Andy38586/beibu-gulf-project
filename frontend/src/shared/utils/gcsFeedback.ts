@@ -2,7 +2,7 @@
  * GCS 反馈单例：GCSModal/GCSToast 组件订阅渲染，任意代码（组件/工具函数）经
  * showModal/showToast/closeModal 编程式触发，替代 Element Plus 的 ElMessageBox/ElMessage，
  * 视觉走 GCS 网格与 --GCS-* 变量。
- * 规格：Modal 4×3 cell；Toast 2×1 cell 自动消失。
+ * 规格：Modal 4×3 cell；Toast 固定 3×0.5 cell 胶囊（点与文案成组居中、单行）自动消失。
  */
 import { reactive } from 'vue'
 
@@ -76,7 +76,7 @@ export function confirmModal(): void {
 // toast 队列上限 4：一号位=最新（顶部），四号位=最老；第 5 条触发时最老淡出
 const MAX_TOAST_COUNT = 4
 
-/** 轻提示 toast（2×0.5 cell，GCSToast 组件订阅渲染并自动消失） */
+/** 轻提示 toast（固定胶囊 3×0.5 cell：点与文案成组居中、单行，GCSToast 组件订阅渲染并自动消失） */
 export function showToast(message: string, type: GCSToastType = 'success'): void {
   // 超出上限移除最老（数组尾部），TransitionGroup 自动播放 leave 淡出
   if (gcsToastState.items.length >= MAX_TOAST_COUNT) {

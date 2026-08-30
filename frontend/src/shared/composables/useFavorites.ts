@@ -4,8 +4,8 @@
  * 登录后自动拉取；登出清空；未登录期的收藏意图（pendingFavorite）在登录成功后自动补完——
  * 用户点收藏 → 登录 → 无需再点一次。
  */
-import { computed, ref, watch } from 'vue'
 import type { ComputedRef, Ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 import type { FavoriteAddInput, FavoriteItem, FavoriteItemType } from '@/types'
 import {
@@ -14,9 +14,11 @@ import {
   favoritesArraySchema,
 } from '@/types/schemas'
 
+import { showError } from '../utils/errorHandler'
+import { showToast } from '../utils/gcsFeedback'
+
 import { useApiRequest } from './useApiRequest'
 import { useAuth } from './useAuth'
-import { showToast } from '../utils/gcsFeedback'
 
 const favorites = ref<FavoriteItem[]>([])
 let fetchInFlight = false
@@ -67,9 +69,10 @@ watch(
       try {
         const { existed } = await commitFavorite(input)
         showToast(existed ? '已在收藏中' : `已收藏：${input.name}`, 'success')
-      } catch {
+      } catch (error) {
         pendingFavorite = input
-        showToast('收藏失败，请稍后重试', 'error')
+        // 走 showError 区分真实成因（服务器无响应 ≠ 笼统失败），与收藏面板同口径
+        showError(error, { fallback: '收藏失败，请稍后重试' })
       }
     }
   },

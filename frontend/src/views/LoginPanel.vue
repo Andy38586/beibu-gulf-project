@@ -4,12 +4,19 @@
  * 顶部登录/注册切换按钮；登录态含用户名+密码，注册态追加确认密码。
  * 已登录态由父级（ProfilePage v-if="!user"）控制，本组件不处理。
  * 错误反馈一律走全局 toast（GCS 反馈层），不在组件内联渲染（不挤占表单布局）；
- * 文案经 describeError 按错误码区分真实成因：服务器无响应 ≠ 未登录，密码错误 ≠ 未登录。
+ * 文案按成因逐条细分，不笼统化：
+ * - 账号空 →「请输入用户名」；密码空 →「请输入密码」（分开提示，不合并报）
+ * - 账号不存在（后端 bizCode 401002）→「账号不存在，请先注册」+ 就地切注册模式并保留已输账号
+ * - 密码错误（后端 bizCode 401003）→「密码错误」
+ * - 后端不可达（NETWORK_ERROR/TIMEOUT）→「服务器无响应」（经 describeError，不往「登录」上引）
  */
 
 import { computed, ref } from 'vue'
 
-import { describeError, showToast, useAuth, useGCS } from '@/shared'
+import { ApiError, describeError, showToast, useAuth, useGCS } from '@/shared'
+
+/** 后端登录业务码（对齐 backend BusinessError ErrorCode），按码分语义反馈 */
+const AUTH_BIZ_CODE = { USER_NOT_FOUND: 401002, WRONG_PASSWORD: 401003 } as const
 
 const { login, register } = useAuth()
 const { cellPixel, css } = useGCS()
@@ -39,22 +46,26 @@ function switchMode(m: string) {
 async function handleSubmit() {
   const trimmedUsername = username.value.trim()
 
-  // 使用显式布尔转换
-  if (username.value.trim() === '' || password.value === '') {
-    showToast('请填写用户名和密码', 'warning')
+  // 空值分校验分开报：缺哪个报哪个，不合并成一句
+  if (trimmedUsername === '') {
+    showToast('请输入用户名', 'warning')
+    return
+  }
+  if (password.value === '') {
+    showToast('请输入密码', 'warning')
     return
   }
 
-  // 用户名长度校验（2-20 字符）
+  // 用户名长度校验（2-20 字符）；文案精简适配 3cell 单行胶囊容量
   if (trimmedUsername.length < 2 || trimmedUsername.length > 20) {
-    showToast('用户名长度应在 2-20 个字符之间', 'warning')
+    showToast('用户名长度须为 2-20 个字符', 'warning')
     return
   }
 
-  // 用户名特殊字符校验（仅允许字母、数字、中文、下划线）
+  // 用户名特殊字符校验（仅允许字母、数字、中文、下划线）；文案精简适配 3cell 单行胶囊容量
   const usernameRegex = /^[\u4e00-\u9fa5a-zA-Z0-9_]+$/
   if (!usernameRegex.test(trimmedUsername)) {
-    showToast('用户名只能包含字母、数字、中文和下划线', 'warning')
+    showToast('用户名仅限中英文、数字和下划线', 'warning')
     return
   }
 
@@ -67,6 +78,10 @@ async function handleSubmit() {
     const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{6,}$/
     if (!passwordRegex.test(password.value)) {
       showToast('密码必须包含大小写字母和数字', 'warning')
+      return
+    }
+    if (confirmPassword.value === '') {
+      showToast('请输入确认密码', 'warning')
       return
     }
     if (password.value !== confirmPassword.value) {
@@ -87,8 +102,20 @@ async function handleSubmit() {
     password.value = ''
     confirmPassword.value = ''
   } catch (err) {
-    // 错误走全局 toast（{{ }} 插值自动转义）；文案经 describeError 按错误码区分真实成因
-    showToast(describeError(err, '用户名或密码错误'), 'error')
+    // 账号不存在（401002）：提示先注册，并就地切到注册模式、保留已输入的账号名
+    if (
+      mode.value === 'login' &&
+      err instanceof ApiError &&
+      err.bizCode === AUTH_BIZ_CODE.USER_NOT_FOUND
+    ) {
+      showToast('账号不存在，请先注册', 'warning')
+      password.value = ''
+      confirmPassword.value = ''
+      mode.value = 'register'
+      return
+    }
+    // 其余按成因透传：密码错误（后端文案）/服务器无响应（describeError）等，不笼统化
+    showToast(describeError(err, '操作失败，请稍后重试'), 'error')
   } finally {
     loading.value = false
   }

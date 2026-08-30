@@ -20,10 +20,13 @@ export type ErrorCodeValue = (typeof ErrorCode)[keyof typeof ErrorCode]
 
 export class ApiError extends Error {
   code: ErrorCodeValue
-  constructor(message: string, code: ErrorCodeValue) {
+  /** 后端业务码（响应信封 code 字段，如 401002=账号不存在 / 401003=密码错误），供调用方细粒度分支 */
+  bizCode?: number
+  constructor(message: string, code: ErrorCodeValue, bizCode?: number) {
     super(message)
     this.name = 'ApiError'
     this.code = code
+    this.bizCode = bizCode
   }
 }
 
@@ -194,14 +197,21 @@ export function useApiRequest(): UseApiRequestReturn {
       }
 
       if (res.status === 401) {
-        // 认证失败透传服务端文案（后端对「账号不存在/密码错误」已做防枚举归一，
-        // 前端不再覆盖为笼统提示）；错误码保持 UNAUTHORIZED 供调用方识别
+        // 认证失败透传服务端文案；后端已细分登录失败成因（401002 账号不存在 / 401003 密码错误），
+        // bizCode 随 ApiError 上抛供调用方细粒度分支（LoginPanel 据此引导注册/只报密码错误）
         const authErrMsg =
           typeof data === 'object' && data !== null && 'error' in data
             ? String((data as Record<string, unknown>).error)
             : ''
+        const bizCode =
+          typeof data === 'object' &&
+          data !== null &&
+          'code' in data &&
+          typeof (data as Record<string, unknown>).code === 'number'
+            ? ((data as Record<string, unknown>).code as number)
+            : undefined
         // 401 只抛错不跳转：是否提示登录由调用方决定（选址分析不需要，收藏才需要）
-        throw new ApiError(authErrMsg || '请先登录', ErrorCode.UNAUTHORIZED)
+        throw new ApiError(authErrMsg || '请先登录', ErrorCode.UNAUTHORIZED, bizCode)
       }
 
       if (!res.ok) {

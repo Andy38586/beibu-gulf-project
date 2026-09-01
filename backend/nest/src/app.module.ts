@@ -9,6 +9,7 @@ import { HealthModule } from './health/health.module'
 import { DbModule } from './infra/db/db.module'
 import { AuthModule } from './modules/auth/auth.module'
 import { FavoritesModule } from './modules/favorites/favorites.module'
+import { ForecastModule } from './modules/forecast/forecast.module'
 import { PlansModule } from './modules/plans/plans.module'
 
 // 限流对齐 Express：命名桶 global 1000/15min + login/register 各 50/15min（T3.1），
@@ -25,6 +26,7 @@ import { PlansModule } from './modules/plans/plans.module'
     AuthModule,
     FavoritesModule,
     PlansModule,
+    ForecastModule,
     HealthModule,
   ],
   providers: [

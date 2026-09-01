@@ -9,6 +9,7 @@ import { HealthModule } from './health/health.module'
 import { DbModule } from './infra/db/db.module'
 import { AuthModule } from './modules/auth/auth.module'
 import { FavoritesModule } from './modules/favorites/favorites.module'
+import { PlansModule } from './modules/plans/plans.module'
 
 // 限流对齐 Express：命名桶 global 1000/15min + login/register 各 50/15min（T3.1），
 // 路由经 @SkipThrottle 选择归属桶；forecast 豁免在 T3.4 加。
@@ -23,6 +24,7 @@ import { FavoritesModule } from './modules/favorites/favorites.module'
     DbModule,
     AuthModule,
     FavoritesModule,
+    PlansModule,
     HealthModule,
   ],
   providers: [

@@ -30,8 +30,8 @@ const route = useRoute()
 function shouldRenderForCurrentRoute() {
   const actual = mapStore.currentRenderer?.getType?.()
   if (!actual) return false
-  // online 实时演算结果 2D/3D 均可渲染；仅 api/mock 静态档位模式保持 3D-only（防 2D 引擎污染 3D 渲染器）
-  if (floodAdapter.dataSource === 'online') return true
+  // calculate（FastAPI 实时演算）结果 2D/3D 均可渲染；仅 fetch/mock 静态档位模式保持 3D-only（防 2D 引擎污染 3D 渲染器）
+  if (floodAdapter.dataSource === 'calculate') return true
   const expected = route.meta?.engine
   return expected === actual
 }
@@ -67,7 +67,7 @@ const FACILITY_LAYER_ID = 'flood-facilities'
 /** 真实地形（DEM 数字高程模型山体阴影）图层 ID——DEM 数据仅属洪涝分析，洪涝页独享此 key */
 const DEM_HILLSHADE_LAYER_ID = 'dem-hillshade'
 
-// 水域坐标经 floodAdapter 加载，按 dataSource（static/api）自动切换取数来源，业务代码零改动
+// 水域坐标经 floodAdapter 加载，按 dataSource（fetch/calculate）自动切换取数来源，业务代码零改动
 let cachedWaterAreaCoords: [number, number][] | null = null
 
 // 水域坐标加载失败时降级 null（仅水面图层跳过，其余图层照常）：原实现无 try/catch 会抛出未捕获

@@ -37,8 +37,9 @@ validateEnv()
 // 尽早挂载性能观察者，捕获 FCP/LCP/TTI/longtask（dev-only，不进生产包）
 initPerfReporter()
 
-// 数据源由环境变量驱动，默认 api（生产安全）；flood 保留双模式：api（Express 后端）/ online（FastAPI 实时演算）
-const dataSource = (import.meta.env.VITE_DATA_SOURCE as 'api' | 'online' | undefined) || 'api'
+// 数据源模式（T6.2 更名）：fetch=查表/静态数据（默认）/ calculate=FastAPI 实时演算
+const dataSource =
+  (import.meta.env.VITE_DATA_SOURCE as 'fetch' | 'calculate' | undefined) || 'fetch'
 floodAdapter.setDataSource(dataSource)
 
 // ResizeObserver polyfill for Safari < 13.1（按需动态导入）

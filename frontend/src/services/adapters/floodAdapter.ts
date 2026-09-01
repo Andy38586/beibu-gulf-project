@@ -22,15 +22,16 @@ import {
   waterAreaSchema,
 } from '@/types/schemas'
 
-// 数据源模式：api（Express 后端）/ online（FastAPI 实时演算）；原统一 dataSourceConfig 仅此一个使用方，简化为模块级变量
-type FloodDataSourceMode = 'api' | 'online'
-let dataSource: FloodDataSourceMode = 'api'
+// 数据源模式：fetch（业务后端查表/查静态数据）/ calculate（FastAPI 实时演算）；原统一 dataSourceConfig 仅此一个使用方，简化为模块级变量
+// 命名（T6.2 用户拍板）：旧「api」=查表，更名 fetch；旧「online」=实时演算，更名 calculate
+type FloodDataSourceMode = 'fetch' | 'calculate'
+let dataSource: FloodDataSourceMode = 'fetch'
 
 const { apiRequest } = useApiRequest()
 
-// online 档位缓存：round(level,1) 同档位秒回，消除重复档位的整条请求+重绘链路；规模与后端 LRU 一致（64 档），FIFO 淘汰
-const _onlineLevelCache = new Map<number, FloodAnalysisResult>()
-const MAX_ONLINE_LEVEL_CACHE = 64
+// calculate 档位缓存：round(level,1) 同档位秒回，消除重复档位的整条请求+重绘链路；规模与后端 LRU 一致（64 档），FIFO 淘汰
+const _calculateLevelCache = new Map<number, FloodAnalysisResult>()
+const MAX_CALCULATE_LEVEL_CACHE = 64
 
 interface FloodAnalysisResult {
   features: FloodFeature[]
@@ -49,9 +50,9 @@ interface RequestOptions {
 }
 
 /**
- * online 模式风险等级：与后端 floodAnalysisController.deriveRiskLevel 同表（后端为唯一权威，
+ * calculate 模式风险等级：与后端 floodAnalysisController.deriveRiskLevel 同表（后端为唯一权威，
  * 消除双实现阈值分歧；6 档：0 无 / 2 低 / 5 中 / 8 高 / 10 极高 / 15 灾难级）。
- * FastAPI 不返回 riskLevel，此映射仅为该字段补齐；api 模式 riskLevel 由后端注入直接透传。
+ * FastAPI 不返回 riskLevel，此映射仅为该字段补齐；fetch 模式 riskLevel 由后端注入直接透传。
  */
 function _riskLevelFromFlood(floodedKm2: number, level: number): string {
   if (level <= 0 || floodedKm2 <= 0) return '无风险'
@@ -96,8 +97,8 @@ export const floodAdapter = {
     return dataSource
   },
 
-  // api=Express 后端 / online=FastAPI 实时演算
-  setDataSource(mode: 'api' | 'online'): void {
+  // fetch=业务后端查表/查静态数据（Express/Nest）/ calculate=FastAPI 实时演算
+  setDataSource(mode: 'fetch' | 'calculate'): void {
     dataSource = mode
   },
 
@@ -115,19 +116,19 @@ export const floodAdapter = {
     waterLevel: number,
     { signal }: RequestOptions = {}
   ): Promise<FloodAnalysisResult> {
-    // online：FastAPI 连通性淹没实时演算，adapter 隔离保证业务层零改动
-    if (dataSource === 'online') {
+    // calculate：FastAPI 连通性淹没实时演算，adapter 隔离保证业务层零改动
+    if (dataSource === 'calculate') {
       // 档位缓存：同档位直接复用上次结果（滑块来回拖秒回，不重发请求不重绘）
       const levelKey = Math.round(waterLevel * 10) / 10
-      const hit = _onlineLevelCache.get(levelKey)
+      const hit = _calculateLevelCache.get(levelKey)
       if (hit) {
-        logger.debug(`[floodAdapter] online 缓存命中档位 ${levelKey}`)
+        logger.debug(`[floodAdapter] calculate 缓存命中档位 ${levelKey}`)
         return hit
       }
 
       const data = await _fetchOnlineFlood(waterLevel, signal)
       logger.info(
-        `[floodAdapter] online 演算完成: 请求=${waterLevel}m 实际档=${data.level}m 面积=${data.floodedKm2}km² 要素=${data.featureCount}`
+        `[floodAdapter] calculate 演算完成: 请求=${waterLevel}m 实际档=${data.level}m 面积=${data.floodedKm2}km² 要素=${data.featureCount}`
       )
       // schema 已要求 floodedKm2/level 必为有限数字（z.number() 连 NaN 也拒绝），
       // 缺失/坏值在 HTTP 边界即抛 REQUEST_FAILED，此处无需兜底
@@ -148,15 +149,15 @@ export const floodAdapter = {
         actualWaterLevel: data.level,
       }
       // FIFO 淘汰（与后端 64 档 LRU 同规模）；先淘汰最旧再插入
-      if (_onlineLevelCache.size >= MAX_ONLINE_LEVEL_CACHE) {
-        const oldestKey = _onlineLevelCache.keys().next().value
-        if (oldestKey !== undefined) _onlineLevelCache.delete(oldestKey)
+      if (_calculateLevelCache.size >= MAX_CALCULATE_LEVEL_CACHE) {
+        const oldestKey = _calculateLevelCache.keys().next().value
+        if (oldestKey !== undefined) _calculateLevelCache.delete(oldestKey)
       }
-      _onlineLevelCache.set(levelKey, result)
+      _calculateLevelCache.set(levelKey, result)
       return result
     }
-    // api：并行取淹没范围 + 统计；后端已按类型契约返回（riskLevel/字段名一致），直接透传
-    logger.debug(`[floodAdapter] api 数据源请求: 水位=${waterLevel}m`)
+    // fetch：并行取淹没范围 + 统计；后端已按类型契约返回（riskLevel/字段名一致），直接透传
+    logger.debug(`[floodAdapter] fetch 数据源请求: 水位=${waterLevel}m`)
     const [floodAreasRes, statisticsRes] = await Promise.all([
       apiRequest<FloodAreasResponseParsed>('/flood/flood-areas', {
         params: { waterLevel },
@@ -189,14 +190,14 @@ export const floodAdapter = {
     waterLevel: number,
     { signal }: RequestOptions = {}
   ): Promise<ImpactAssessmentResult> {
-    // online：FastAPI 预计算档位表 → 空间筛选设施影响
-    if (dataSource === 'online') {
-      logger.debug(`[floodAdapter] impact online: 水位=${waterLevel}m`)
+    // calculate：FastAPI 预计算档位表 → 空间筛选设施影响
+    if (dataSource === 'calculate') {
+      logger.debug(`[floodAdapter] impact calculate: 水位=${waterLevel}m`)
       const res = await apiRequest<FloodImpactResponseParsed>('/flood-online/api/flood/impact', {
         // b027：参数名统一 waterLevel
         params: { waterLevel },
         signal,
-        // FastAPI 返回裸 JSON（无 envelope），与 getFloodAnalysis online 分支一致
+        // FastAPI 返回裸 JSON（无 envelope），与 getFloodAnalysis calculate 分支一致
         envelope: false,
         schema: floodImpactResponseSchema,
       })
@@ -221,6 +222,6 @@ export const floodAdapter = {
   },
 
   clearCache(): void {
-    _onlineLevelCache.clear()
+    _calculateLevelCache.clear()
   },
 }

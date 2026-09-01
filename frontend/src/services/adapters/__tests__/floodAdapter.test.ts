@@ -4,14 +4,13 @@ import { floodAdapter } from '../floodAdapter'
 
 /**
  * floodAdapter 单测（2026-08-08 数据搬后端后重写）
- * static 模式与前端静态 JSON 已删除，仅测 api（Express）与 online（FastAPI）两模式。
+ * static 模式与前端静态 JSON 已删除，仅测 fetch（业务后端查表）与 calculate（FastAPI 实时演算）两模式。
  * vitest 无服务器，用 vi.stubGlobal 接管 global.fetch，按 URL 返回与后端响应同构的内联数据。
  */
 
 // 内联 fixture（结构与后端 sendSuccess 信封 / FastAPI 裸 JSON 同构）
 const fixtures: Record<string, unknown> = {
-  // online 模式：FastAPI /flood-online 返回裸 JSON（无信封），envelope:false 直传
-  // online 模式：FastAPI /flood-online 返回裸 JSON（无信封），envelope:false 直传
+  // calculate 模式：FastAPI /flood-online 返回裸 JSON（无信封），envelope:false 直传
   '/flood-online/api/flood/online': {
     level: 5,
     featureCount: 1,
@@ -53,9 +52,9 @@ const fixtures: Record<string, unknown> = {
   },
 }
 
-// api 模式：Express 后端端点（sendSuccess 信封 { code, data }）
-const API_BASE = (import.meta.env.VITE_API_BASE as string) || '/api'
-fixtures[`${API_BASE}/flood/water-area`] = {
+// fetch 模式：业务后端端点（sendSuccess 信封 { code, data }）；T6.2 起前缀由 per-module 路由
+// 决定（/api 或 /nest-api），fixture 一律用无前缀路径匹配，createFetchStatic 剥掉前缀再查
+fixtures['/flood/water-area'] = {
   code: 200,
   data: [
     [108.615, 21.855],
@@ -63,7 +62,7 @@ fixtures[`${API_BASE}/flood/water-area`] = {
     [108.622, 21.858],
   ],
 }
-fixtures[`${API_BASE}/flood/flood-areas`] = {
+fixtures['/flood/flood-areas'] = {
   code: 200,
   data: {
     waterLevel: 5,
@@ -94,7 +93,7 @@ fixtures[`${API_BASE}/flood/flood-areas`] = {
     ],
   },
 }
-fixtures[`${API_BASE}/flood/flood-statistics`] = {
+fixtures['/flood/flood-statistics'] = {
   code: 200,
   data: {
     waterLevel: 5,
@@ -105,7 +104,7 @@ fixtures[`${API_BASE}/flood/flood-statistics`] = {
     affectedFacilities: 3,
   },
 }
-fixtures[`${API_BASE}/flood/analysis/disaster`] = {
+fixtures['/flood/analysis/disaster'] = {
   code: 200,
   data: {
     waterLevel: 5,
@@ -127,10 +126,15 @@ fixtures[`${API_BASE}/flood/analysis/disaster`] = {
   },
 }
 
+/** 剥掉后端前缀（/api 或 /nest-api），按无前缀路径匹配 fixture */
+function stripBackendPrefix(url: string): string {
+  return url.split('?')[0].replace(/^\/(api|nest-api)(?=\/)/, '')
+}
+
 function createFetchStatic() {
   return vi.fn(async (url: string) => {
-    // apiRequest 会把 params 拼成 query string——按 ? 截断匹配 fixture key
-    const body = fixtures[url.split('?')[0]]
+    // apiRequest 会把 params 拼成 query string——按 ? 截断 + 剥前缀后匹配 fixture key
+    const body = fixtures[stripBackendPrefix(url)]
     if (body === undefined) {
       return { ok: false, status: 404, json: async () => ({}), text: async () => '' }
     }
@@ -145,12 +149,12 @@ function createFetchStatic() {
 
 describe('floodAdapter', () => {
   beforeEach(() => {
-    floodAdapter.setDataSource('api')
+    floodAdapter.setDataSource('fetch')
     floodAdapter.clearCache()
     vi.stubGlobal('fetch', createFetchStatic())
   })
 
-  describe('api 模式（Express 后端）', () => {
+  describe('fetch 模式（业务后端查表）', () => {
     it('getWaterArea 应走后端 /flood/water-area 端点返回坐标数组（D-4=A）', async () => {
       const coords = await floodAdapter.getWaterArea()
       expect(Array.isArray(coords)).toBe(true)
@@ -177,9 +181,9 @@ describe('floodAdapter', () => {
     })
   })
 
-  describe('online 模式（flood-service FastAPI）', () => {
+  describe('calculate 模式（flood-service FastAPI 实时演算）', () => {
     it('getFloodAnalysis 应调 /flood-online/api/flood/online 并注入 riskLevel（FastAPI 无该字段，回归 0816-06）', async () => {
-      floodAdapter.setDataSource('online')
+      floodAdapter.setDataSource('calculate')
       const result = await floodAdapter.getFloodAnalysis(5)
       expect(result.features).toHaveLength(1)
       // level 5 → 中风险（_riskLevelFromFlood 阈值表：≤5 中 / ≤8 高）
@@ -189,7 +193,7 @@ describe('floodAdapter', () => {
     })
 
     it('getImpactAssessment 应调 /flood-online/api/flood/impact 并透传裸 JSON（d073 补齐影响评估）', async () => {
-      floodAdapter.setDataSource('online')
+      floodAdapter.setDataSource('calculate')
       const result = await floodAdapter.getImpactAssessment(15)
       expect(result.affectedFacilities).toHaveLength(1)
       expect(result.affectedFacilities[0].id).toBe('FCG-M-001')

@@ -19,12 +19,14 @@ export default defineConfig([
   // 任何以 dist 开头的构建产物目录都跳过（dist / dist-ssr / dist-tmp / dist_verify_* 等），
   // 避免把打包后的第三方库（Cesium/echarts/openlayers）和 chunk 误当源码 lint。
   // .workbuddy 为浏览器自动化临时 profile（gitignore 已有），不参与 lint。
+  // .tmp-pip 为一次性对账/diff 脚本与报告目录（gitignore 已有），不参与 lint。
   globalIgnores([
     '**/dist*/**',
     '**/coverage/**',
     '**/node_modules/**',
     '**/.venv/**',
     '**/.workbuddy/**',
+    '.tmp-pip/**',
   ]),
 
   {

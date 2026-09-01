@@ -38,6 +38,7 @@
 | 文档 | 定位 |
 |---|---|
 | `v3-发展路径-2026-08-14.md` | **v3 唯一路径依据**：双后端（NestJS+FastAPI）+ PostGIS + 阶段划分 + 环境适配 |
+| `v3-施工手册.md` | **v3 施工状态唯一数据源**：多 agent 接力协议 + 任务卡（T0-T7）+ 数据映射 + 审查指标增补清单 + 测试约束 + 实施日志规范（日志落 `v3-施工日志/`） |
 | `性能实测-2026-08-13.md` | 性能实测记录（有可复现脚本，真实数据） |
 
 > 数据类文档（`data-inventory.md` 数据总清单、`data-sources.html` 数据来源清单）已于 2026-08-15 **移至桌面「数据_」目录**（`C:\Users\JionHappY\Desktop\_北部湾项目\数据_`），与原始数据文件同处。
@@ -64,11 +65,12 @@
 
 ---
 
-## 七、当前分支与数据状态（2026-08-15）
+## 七、当前分支与数据状态（2026-09-01 更新）
 
-- **当前分支**：`experiment/v3-backend-migration`（唯一 v3 分支，main 隔离不动；已推送远端备份）。
+- **当前分支**：`experiment/v3-backend-migration`（唯一 v3 分支，main 隔离不动）。旧 v3 分支及远端备份已不存在，现分支于 2026-09-01 基于 main `ed987398` 重建。
+- **施工状态唯一数据源**：`docs/v3-施工手册.md`（任务状态 / 实施日志 / 风险登记以该文档为准，本节不再重复维护细节）。
 - **PostGIS**：`docker compose -f docker-compose.v3.yml up -d` → `beibu-postgis`（5432，v3_dev 库，postgis 3.4.3）。
-  - 业务表：users 13 / plans 2 / ports 3 / poi_facilities 983 / xiaoqu 557 / flood_facilities 83。
-  - **data_archive 存档表（2026-08-14 建）**：backend/data 全部静态真数据 21 个 JSON 原样复制（sha256 校验），供 v3 Nest/FastAPI 建模；假数据（mock/合成）不入库，留在文件系统。
+  - 业务表：users / plans / ports / poi_facilities / xiaoqu / flood_facilities / data_archive（**缺 favorites 表，施工 T2.1 补**）。
+  - **库内行数已过期**（钦州 POI 重抓扩充后未重导）——以施工手册 T0.1 对账结果为准。
   - 工具：`tools/db-schema.sql`（建表）+ `tools/db-import.mjs`（生成 import.sql）+ 执行 `docker cp` + `psql -f`。
 - **v3 后端迁移流程**（用户 2026-08-14 确认）：冻结当前分支后端 → 先用 NestJS + FastAPI 写一套 → 逐步换接口 → 直到完美替代现有 Express。当前数据对现有项目够用；新数据/新后端接入后进入正式迭代阶段。

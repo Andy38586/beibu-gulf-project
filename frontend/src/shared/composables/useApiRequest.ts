@@ -32,7 +32,47 @@ export class ApiError extends Error {
 
 const token: Ref<string> = ref('')
 const API_BASE: string = import.meta.env.VITE_API_BASE || '/api'
+// v3 T6.2 逐模块切换：Nest 后端前缀与启用功能域清单（Express 恒为默认回退）
+// 回滚开关：清空 VITE_USE_NEST_MODULES（或删 VITE_NEST_API_BASE）即全部回退 Express，参照 VITE_DATA_SOURCE 先例
+const NEST_API_BASE: string = import.meta.env.VITE_NEST_API_BASE || '/nest-api'
+// import.meta.env.VITE_* 为 any 型，显式 String() 收窄，避免 map 回调参数隐式 any（TS7006）
+const NEST_ENABLED_MODULES: Set<string> = new Set(
+  String(import.meta.env.VITE_USE_NEST_MODULES || '')
+    .split(',')
+    .map((m) => m.trim())
+    .filter(Boolean)
+)
 const API_TIMEOUT_MS: number = 10000
+
+/** 请求 path 首段 → 功能域（v3 六模块，新增业务模块时此处同步） */
+const MODULE_BY_PATH_PREFIX: Record<string, string> = {
+  auth: 'auth',
+  plans: 'plans',
+  favorites: 'favorites',
+  forecast: 'forecast',
+  flood: 'flood',
+  'site-analysis': 'site-analysis',
+}
+
+/** 按功能域解析后端前缀：启用了 Nest 的模块走 /nest-api，其余回退 Express（/api） */
+function resolveBackendPrefix(path: string): string {
+  const firstSegment = path.split('/').filter(Boolean)[0] ?? ''
+  const module = MODULE_BY_PATH_PREFIX[firstSegment]
+  return module && NEST_ENABLED_MODULES.has(module) ? NEST_API_BASE : API_BASE
+}
+
+// 模块→后端映射只打一次（dev 观测口，避免每请求噪音）：bootstrap 后首个请求输出当前路由态
+let routingLogged = false
+function logRoutingOnce(): void {
+  if (routingLogged) return
+  routingLogged = true
+  logger.sampled(
+    'info',
+    `[per-module routing] nest-base=${NEST_API_BASE} enabled=[${
+      [...NEST_ENABLED_MODULES].join(',') || 'none'
+    }]（Express 为默认回退）`
+  )
+}
 
 // 请求关联 ID 序列：每次 apiRequest 自增生成，日志显式携带（并发安全，不做全局设置）
 let requestSeq = 0
@@ -181,12 +221,16 @@ export function useApiRequest(): UseApiRequestReturn {
 
     try {
       // 以 /flood-online 开头（vite proxy → FastAPI）的路径不加 /api 前缀：加了会命中 /api 规则转发到 Express，永远到不了 FastAPI
-      // 以 /api 开头（如 auth/plans 等 REST 路径）视为已含前缀，不再叠加——
+      // 以 /api、/nest-api 开头（如 auth/plans 等 REST 路径）视为已含前缀，不再叠加——
       // 曾因双重拼接打成 /api/api/ports → 404 → 港口图层加载失败（816-专项1 发现3 回归，2026-08-17 修复）
+      // v3 T6.2：其余路径按功能域解析前缀（启用了 Nest 的模块 → /nest-api，否则 Express /api 默认回退）
+      logRoutingOnce()
       const url =
-        path.startsWith('/flood-online') || path.startsWith('/api/')
+        path.startsWith('/flood-online') ||
+        path.startsWith('/api/') ||
+        path.startsWith('/nest-api/')
           ? fullPath
-          : `${API_BASE}${fullPath}`
+          : `${resolveBackendPrefix(path)}${fullPath}`
       const res = await fetch(url, {
         method: options.method,
         body: options.body,

@@ -225,4 +225,52 @@ describe('useApiRequest', () => {
       }
     )
   })
+
+  describe('per-module 前缀路由 (T6.2)', () => {
+    // v3 T6.2：VITE_USE_NEST_MODULES 按批填功能域即切 Nest，清空回退 Express。
+    // 前缀常量在模块求值时读取 import.meta.env，故用 vi.resetModules + 动态 import 隔离各用例
+    afterEach(() => {
+      delete import.meta.env.VITE_USE_NEST_MODULES
+      delete import.meta.env.VITE_NEST_API_BASE
+      vi.resetModules()
+    })
+
+    it('启用 auth/plans/favorites → 三域走 /nest-api，未启用域回退 Express', async () => {
+      import.meta.env.VITE_USE_NEST_MODULES = 'auth,plans,favorites'
+      mockFetch.mockResolvedValue(jsonResponse({ code: 200, data: null }))
+      const { useApiRequest } = await import('../useApiRequest')
+      const { apiRequest } = useApiRequest()
+      await apiRequest('/auth/login', { method: 'POST' })
+      await apiRequest('/plans', { method: 'POST' })
+      await apiRequest('/favorites', { method: 'POST' })
+      await apiRequest('/forecast/overview')
+      expect(mockFetch.mock.calls[0][0]).toBe('/nest-api/auth/login')
+      expect(mockFetch.mock.calls[1][0]).toBe('/nest-api/plans')
+      expect(mockFetch.mock.calls[2][0]).toBe('/nest-api/favorites')
+      expect(mockFetch.mock.calls[3][0]).toBe('/api/forecast/overview')
+    })
+
+    it('空白分隔容忍 + 显式 /nest-api/ 路径不叠加前缀', async () => {
+      import.meta.env.VITE_USE_NEST_MODULES = ' flood , site-analysis '
+      mockFetch.mockResolvedValue(jsonResponse({ code: 200, data: null }))
+      const { useApiRequest } = await import('../useApiRequest')
+      const { apiRequest } = useApiRequest()
+      await apiRequest('/flood/water-area')
+      await apiRequest('/site-analysis', { method: 'POST' })
+      await apiRequest('/nest-api/auth/me')
+      expect(mockFetch.mock.calls[0][0]).toBe('/nest-api/flood/water-area')
+      expect(mockFetch.mock.calls[1][0]).toBe('/nest-api/site-analysis')
+      expect(mockFetch.mock.calls[2][0]).toBe('/nest-api/auth/me')
+    })
+
+    it('自定义 VITE_NEST_API_BASE 生效', async () => {
+      import.meta.env.VITE_USE_NEST_MODULES = 'flood'
+      import.meta.env.VITE_NEST_API_BASE = '/v3-proxy'
+      mockFetch.mockResolvedValue(jsonResponse({ code: 200, data: null }))
+      const { useApiRequest } = await import('../useApiRequest')
+      const { apiRequest } = useApiRequest()
+      await apiRequest('/flood/flood-areas')
+      expect(mockFetch.mock.calls[0][0]).toBe('/v3-proxy/flood/flood-areas')
+    })
+  })
 })

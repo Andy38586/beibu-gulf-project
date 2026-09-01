@@ -9,13 +9,13 @@ import { forecastAdapter } from '../forecastAdapter'
  *  - 请求路径 / params 透传正确（querystring 由 apiRequest 拼装，按 ? 截断匹配）
  *  - 信封 { code, data } 解包（unwrapEnvelope 在 useApiRequest 内完成）
  *  - 返回业务形状（getTimeSeries 只透传 series、getIndicatorComparison 只透传 ports）
+ * T6.2：前缀（/api vs /nest-api）由 useApiRequest 的 per-module 路由决定并在其单测覆盖；
+ *       本测试聚焦路径/参数/解包，故 mock 先将 URL 剥掉后端前缀再按无前缀路径匹配 fixture。
  */
 
-const API_BASE = (import.meta.env.VITE_API_BASE as string) || '/api'
-
-// 与后端 sendSuccess 信封同构的 fixture
+// 与后端 sendSuccess 信封同构的 fixture（key 为无前缀路径）
 const fixtures: Record<string, unknown> = {
-  [`${API_BASE}/forecast/overview`]: {
+  '/forecast/overview': {
     code: 200,
     data: {
       metadata: {
@@ -35,7 +35,7 @@ const fixtures: Record<string, unknown> = {
       },
     },
   },
-  [`${API_BASE}/forecast/timeseries`]: {
+  '/forecast/timeseries': {
     code: 200,
     data: {
       indicator: 'cargo',
@@ -53,7 +53,7 @@ const fixtures: Record<string, unknown> = {
       ],
     },
   },
-  [`${API_BASE}/forecast/indicator/cargo`]: {
+  '/forecast/indicator/cargo': {
     code: 200,
     data: {
       indicator: 'cargo',
@@ -76,9 +76,14 @@ const fixtures: Record<string, unknown> = {
   },
 }
 
+/** 剥掉后端前缀（/api 或 /nest-api），按无前缀路径匹配 fixture */
+function stripBackendPrefix(url: string): string {
+  return url.split('?')[0].replace(/^\/(api|nest-api)(?=\/)/, '')
+}
+
 function createFetchStatic() {
   return vi.fn(async (url: string) => {
-    const body = fixtures[url.split('?')[0]]
+    const body = fixtures[stripBackendPrefix(url)]
     if (body === undefined) {
       return { ok: false, status: 404, json: async () => ({}), text: async () => '' }
     }

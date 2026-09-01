@@ -32,8 +32,14 @@ export class BusinessErrorFilter implements ExceptionFilter {
         return
       }
       if (status === 429) {
-        // 限流响应对齐 express-rate-limit 的 message 形状（裸 {error}，无 code/data）
-        res.status(429).json({ error: '请求过于频繁，请稍后再试' })
+        // 限流响应对齐 express-rate-limit 的 message 形状（裸 {error}，无 code/data）；
+        // 文案由 EnvelopeThrottlerGuard 按路由给出，缺省回落全局文案
+        const response = exception.getResponse()
+        const message =
+          typeof response === 'string'
+            ? response
+            : ((response as { error?: string }).error ?? '请求过于频繁，请稍后再试')
+        res.status(429).json({ error: message })
         return
       }
       res.status(status).json({ code: status * 1000 + 1, error: exception.message, data: null })

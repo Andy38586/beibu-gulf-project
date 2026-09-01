@@ -153,6 +153,22 @@ export default defineConfig([
   },
 
   {
+    // backend/nest 是独立 TS 工程（自带 strict tsconfig），parserOptions 必须指向它自身
+    // 的 tsconfig——沿用上面的 frontend 块会让 nest 文件报 "TSConfig does not include
+    // this file"（z127 同类机理）。本块须置于 frontend 解析块之后才能覆盖同键。
+    files: ['backend/nest/**/*.ts'],
+    languageOptions: {
+      parser: tsParser,
+      parserOptions: {
+        ecmaVersion: 2022,
+        sourceType: 'module',
+        tsconfigRootDir: fileURLToPath(new URL('./backend/nest', import.meta.url)),
+        project: './tsconfig.json',
+      },
+    },
+  },
+
+  {
     plugins: {
       'simple-import-sort': simpleImportSort,
     },

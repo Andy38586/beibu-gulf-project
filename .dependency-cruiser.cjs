@@ -140,6 +140,16 @@ module.exports = {
       from: { path: '^backend/controllers/' },
       to: { path: '^backend/data/' },
     },
+    // ===== v3 Nest 专属契约（专项6 8.3，2026-09-01 增补） =====
+    {
+      name: 'nest-db-access-only-in-repository',
+      comment:
+        'v3 DB 访问收口：pg 仅允许 repository 层与 infra/db（连接池 provider）import，' +
+        'service/controller 禁止裸 SQL（03 §七 ADR6"迁移时替换 repositories 层"的守护化）',
+      severity: 'error',
+      from: { path: '^backend/nest/src/', pathNot: '(repositories/|infra/db/)' },
+      to: { path: 'node_modules/pg' },
+    },
   ],
   options: {
     doNotFollow: 'node_modules',

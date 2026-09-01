@@ -12,6 +12,7 @@ import { FavoritesModule } from './modules/favorites/favorites.module'
 import { FloodModule } from './modules/flood/flood.module'
 import { ForecastModule } from './modules/forecast/forecast.module'
 import { PlansModule } from './modules/plans/plans.module'
+import { SiteAnalysisModule } from './modules/site-analysis/site-analysis.module'
 
 // 限流对齐 Express：命名桶 global 1000/15min + login/register 各 50/15min（T3.1），
 // 路由经 @SkipThrottle 选择归属桶；forecast 豁免在 T3.4 加。
@@ -29,6 +30,7 @@ import { PlansModule } from './modules/plans/plans.module'
     PlansModule,
     FloodModule,
     ForecastModule,
+    SiteAnalysisModule,
     HealthModule,
   ],
   providers: [

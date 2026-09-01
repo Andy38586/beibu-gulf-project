@@ -7,8 +7,12 @@ import type { AnalysisResult, FacilityPoint, LayerOptions, ScoredXiaoqu } from '
 
 import { FACILITY_CONFIG } from './facilityConfig'
 
-/** 附近设施合并图层 id（BLM registry / mapStore catalog / 渲染器 featureType 三处同源） */
-export const NEARBY_FACILITY_LAYER_ID = 'nearby-facility'
+/** 附近设施合并图层 id（BLM registry / mapStore catalog / 渲染器 featureType 三处同源；业务前缀防跨模块 key 冲突，a066） */
+export const NEARBY_FACILITY_LAYER_ID = 'site-nearby-facility'
+/** 分析覆盖范围图层 id（与 featureType 同值，三处同源） */
+export const ANALYSIS_COVERAGE_LAYER_ID = 'site-analysis-coverage'
+/** 匹配小区图层 id（与 featureType 同值，三处同源） */
+export const ANALYSIS_MATCHED_LAYER_ID = 'site-analysis-matched'
 
 /** createUpdateHandler 实际使用的 manager 方法子集（与 BLM 解耦，页面传入的 manager 无需完整 BLM 类型） */
 type AnalysisLayerManager = Pick<BusinessLayerManager, 'register' | 'updateData' | 'has'>
@@ -24,13 +28,16 @@ export function buildCoverageGeoJson(
     geojson = { ...coverage }
     geojson.features = coverage.features.map((f) => ({
       ...f,
-      properties: { ...f.properties, featureType: 'analysis-coverage' },
+      properties: { ...f.properties, featureType: ANALYSIS_COVERAGE_LAYER_ID },
     }))
   } else {
     geojson = {
       type: 'FeatureCollection',
       features: [
-        { ...coverage, properties: { ...coverage.properties, featureType: 'analysis-coverage' } },
+        {
+          ...coverage,
+          properties: { ...coverage.properties, featureType: ANALYSIS_COVERAGE_LAYER_ID },
+        },
       ],
     }
   }
@@ -67,7 +74,7 @@ export function buildMatchedGeoJson(matchedXiaoqu: ScoredXiaoqu[]): FeatureColle
         },
         properties: {
           ...xq,
-          featureType: 'analysis-matched',
+          featureType: ANALYSIS_MATCHED_LAYER_ID,
         },
       })),
   }
@@ -77,13 +84,13 @@ export const COVERAGE_STYLE: LayerOptions = {
   fillColor: LAYER_FILL_COVERAGE,
   strokeColor: FACILITY_COLORS[0],
   strokeWidth: 1,
-  featureType: 'analysis-coverage',
+  featureType: ANALYSIS_COVERAGE_LAYER_ID,
 }
 
 export const MATCHED_STYLE: LayerOptions = {
   size: 6,
   color: FACILITY_COLORS[2],
-  featureType: 'analysis-matched',
+  featureType: ANALYSIS_MATCHED_LAYER_ID,
 }
 
 /** 分析图层描述符（getAnalysisLayers 返回的条目形状） */
@@ -248,7 +255,7 @@ export function useAnalysisLayer(): UseAnalysisLayerReturn {
 
     if (result.coverage) {
       layers.push({
-        id: 'analysis-coverage',
+        id: ANALYSIS_COVERAGE_LAYER_ID,
         label: '分析覆盖范围',
         geojson: buildCoverageGeoJson(result.coverage),
         style: COVERAGE_STYLE,
@@ -257,7 +264,7 @@ export function useAnalysisLayer(): UseAnalysisLayerReturn {
 
     if (result.matchedXiaoqu?.length) {
       layers.push({
-        id: 'analysis-matched',
+        id: ANALYSIS_MATCHED_LAYER_ID,
         label: '匹配小区',
         geojson: buildMatchedGeoJson(result.matchedXiaoqu ?? []),
         style: MATCHED_STYLE,

@@ -64,8 +64,8 @@ const WATER_SURFACE_ID = 'flood-water-surface'
 
 const FLOOD_LAYER_ID = 'flood-area'
 const FACILITY_LAYER_ID = 'flood-facilities'
-/** 真实地形（DEM 数字高程模型山体阴影）图层 ID——DEM 数据仅属洪涝分析，洪涝页独享此 key */
-const DEM_HILLSHADE_LAYER_ID = 'dem-hillshade'
+/** 真实地形（DEM 数字高程模型山体阴影）图层 ID——洪涝页独享（业务前缀防跨模块 key 冲突，a066） */
+const DEM_HILLSHADE_LAYER_ID = 'flood-dem-hillshade'
 
 // 水域坐标经 floodAdapter 加载，按 dataSource（fetch/calculate）自动切换取数来源，业务代码零改动
 let cachedWaterAreaCoords: [number, number][] | null = null
@@ -503,9 +503,9 @@ onUnmounted(() => {
               'boundary',
               'ports',
               'flood-water-surface',
-              'flood-area',
-              'flood-facilities',
-              'dem-hillshade',
+              FLOOD_LAYER_ID,
+              FACILITY_LAYER_ID,
+              DEM_HILLSHADE_LAYER_ID,
             ]"
           />
         </GCSPanel>

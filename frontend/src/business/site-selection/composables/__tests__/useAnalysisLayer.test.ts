@@ -45,7 +45,7 @@ describe('buildCoverageGeoJson', () => {
       ],
     }
     const result = buildCoverageGeoJson(input)
-    expect(result.features[0].properties?.featureType).toBe('analysis-coverage')
+    expect(result.features[0].properties?.featureType).toBe('site-analysis-coverage')
   })
 
   it('单个 Feature 输入被包装为 FeatureCollection', () => {
@@ -57,7 +57,7 @@ describe('buildCoverageGeoJson', () => {
     const result = buildCoverageGeoJson(input)
     expect(result.type).toBe('FeatureCollection')
     expect(result.features).toHaveLength(1)
-    expect(result.features[0].properties?.featureType).toBe('analysis-coverage')
+    expect(result.features[0].properties?.featureType).toBe('site-analysis-coverage')
   })
 })
 
@@ -75,7 +75,7 @@ describe('buildMatchedGeoJson', () => {
     const f = result.features[0]
     expect(f.geometry.type).toBe('Point')
     expect((f.geometry as Geometry & { coordinates: number[] }).coordinates).toEqual([108.6, 21.8])
-    expect(f.properties?.featureType).toBe('analysis-matched')
+    expect(f.properties?.featureType).toBe('site-analysis-matched')
     expect(f.properties?.name).toBe('小区A')
   })
 
@@ -103,7 +103,7 @@ describe('buildFacilityPoiLayer', () => {
       ['hospital', 'primary_school'],
       null
     )
-    expect(desc.id).toBe('nearby-facility')
+    expect(desc.id).toBe('site-nearby-facility')
     expect(desc.label).toBe('附近设施')
     expect(desc.data).toHaveLength(2)
     expect(desc.data[0]).toMatchObject({ id: 'h1', poiType: 'hospital', opacity: 0.3 })
@@ -111,7 +111,7 @@ describe('buildFacilityPoiLayer', () => {
     expect(desc.data[0].color).not.toBe(desc.data[1].color)
     // 名字不常显：无 labelField（改走要素气泡）
     expect(desc.options.labelField).toBeUndefined()
-    expect(desc.options.featureType).toBe('nearby-facility')
+    expect(desc.options.featureType).toBe('site-nearby-facility')
     // 不聚合：全量参与点常显（低透明+暗化）是层层筛选的视觉根基
     expect(desc.options.cluster).toBeUndefined()
   })
@@ -162,7 +162,7 @@ describe('useAnalysisLayer', () => {
       facilityPoi: {},
     }
     const layers = getAnalysisLayers(result)
-    expect(layers.map((l) => l.id)).toEqual(['analysis-coverage', 'analysis-matched'])
+    expect(layers.map((l) => l.id)).toEqual(['site-analysis-coverage', 'site-analysis-matched'])
   })
 
   it('getAnalysisLayers: 无数据时返回空数组', () => {
@@ -193,7 +193,7 @@ describe('useAnalysisLayer', () => {
 
     expect(manager.register).toHaveBeenCalledTimes(1)
     expect(manager.register).toHaveBeenCalledWith(
-      'analysis-coverage',
+      'site-analysis-coverage',
       expect.objectContaining({ layerType: 'geojson' })
     )
   })

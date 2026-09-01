@@ -2,8 +2,11 @@
  * business/manifest.ts — 业务注册清单：路由 + 底部导航 + meta 一处声明。
  * 新增业务模块只需在清单追加一条并新建 `business/<name>/` 目录，无需再改 router/App.vue；
  * 静态路由（首页/个人中心）与模块自有资产（adapter/store/types/constants）不在此清单。
+ * 登出重置也在此声明（App.vue 批量调用，新增模块的 store 重置无需再改 App.vue）。
  */
 import type { RouteRecordRaw } from 'vue-router'
+
+import { useFloodStore, useForecastStore, useSiteSelectionStore } from '@/stores'
 
 export interface BusinessModule {
   /** 唯一标识（即路由 name） */
@@ -22,6 +25,8 @@ export interface BusinessModule {
   navDisabled?: boolean
   /** 路由懒加载组件；null = 模块未实现（仅占位导航，不注册路由） */
   component: (() => Promise<unknown>) | null
+  /** 登出时执行的业务状态重置（无状态模块可省略）；调用点在 App.vue 登出重置链 */
+  reset?: () => void
 }
 
 /** 业务模块清单 —— 新增业务只需在此追加一条 */
@@ -34,6 +39,7 @@ export const businessModules: BusinessModule[] = [
     navLabel: '选址分析',
     navIcon: '◈',
     component: () => import('@/business/site-selection/SiteSelectionPage.vue'),
+    reset: () => useSiteSelectionStore().clearState(),
   },
   {
     name: 'Forecast',
@@ -43,6 +49,11 @@ export const businessModules: BusinessModule[] = [
     navLabel: '预测分析',
     navIcon: '📊',
     component: () => import('@/business/forecast/ForecastPage.vue'),
+    // 登出须清快照：reset() 刻意不清快照（保卸载重置链路），clearState 兜底清登出前旧会话
+    reset: () => {
+      useForecastStore().reset()
+      useForecastStore().clearState()
+    },
   },
   {
     name: 'FloodAnalysis',
@@ -52,6 +63,7 @@ export const businessModules: BusinessModule[] = [
     navLabel: '浸没分析',
     navIcon: '🌊',
     component: () => import('@/business/flood-analysis/FloodAnalysisPage.vue'),
+    reset: () => useFloodStore().clearState(),
   },
   // 预留模块：航线分析（未实现,仅占位导航,不注册路由）
   {
@@ -81,4 +93,11 @@ export function buildBusinessRoutes(): RouteRecordRaw[] {
           meta: { engine: m.engine, title: m.title },
         }) as RouteRecordRaw
     )
+}
+
+/** 登出时批量执行各业务模块声明的登出重置（App.vue 登出重置链调用；新增模块只需在清单补 reset） */
+export function runBusinessLogoutReset(): void {
+  for (const m of businessModules) {
+    m.reset?.()
+  }
 }

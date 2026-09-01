@@ -377,7 +377,7 @@ describe('UnifiedMap Click Interaction Tests', () => {
     const clickHandler = renderer.on.mock.calls.find((c: unknown[]) => c[0] === 'click')?.[1]
     const facilityEvent = {
       detail: {
-        featureType: 'nearby-facility',
+        featureType: 'site-nearby-facility',
         data: { id: 'p1', name: '市人民医院', poiType: 'hospital', lng: 108.1, lat: 21.5 },
         coordinate: [108.1, 21.5],
       },
@@ -420,7 +420,7 @@ describe('UnifiedMap Click Interaction Tests', () => {
     // 钉住设施气泡
     clickHandler({
       detail: {
-        featureType: 'nearby-facility',
+        featureType: 'site-nearby-facility',
         data: { id: 'p1', name: '市人民医院', poiType: 'hospital', lng: 108.1, lat: 21.5 },
         coordinate: [108.1, 21.5],
       },

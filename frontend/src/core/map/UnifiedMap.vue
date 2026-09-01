@@ -370,7 +370,14 @@ function handleRendererClick(event: CustomEvent<MapRendererEventMap['click']>): 
       bubblePinned.value = data
       bubbleAnchor.value = [data.lng, data.lat]
     }
-  } else if (is2D && featureType === 'nearby-facility' && data && isFacilityEventData(data)) {
+  } else if (
+    is2D &&
+    // 业务前缀防跨模块 featureType 冲突（a066）；与 business/site-selection useAnalysisLayer 的
+    // NEARBY_FACILITY_LAYER_ID 同值，core 不引 business（分层铁律），此处字面同步
+    featureType === 'site-nearby-facility' &&
+    data &&
+    isFacilityEventData(data)
+  ) {
     // 设施气泡：仅点击驱动；同点再点关闭，异点切换（与港口气泡互斥——同一时刻仅一个）
     bubblePinned.value = null
     bubbleHover.value = null

@@ -33,6 +33,8 @@ import { RadarChart, SNAPSHOT_SELECTED_TYPES, SNAPSHOT_XIAOQU } from '@/visualiz
 
 import SiteAnalysisControlPanel from './components/SiteAnalysisControlPanel.vue'
 import {
+  ANALYSIS_COVERAGE_LAYER_ID,
+  ANALYSIS_MATCHED_LAYER_ID,
   buildFacilityPoiLayer,
   computeHitPoiIds,
   computeParticipatingPoiIds,
@@ -379,11 +381,11 @@ function restoreState(): boolean {
 /** 清除旧分析图层（覆盖范围 + 匹配小区 + 附近设施） */
 function clearAnalysisLayers(): void {
   // 通过 Manager 统一管理生命周期，不直接操作 renderer 和 mapStore
-  if (businessLayerManager.has('analysis-coverage')) {
-    businessLayerManager.remove('analysis-coverage')
+  if (businessLayerManager.has(ANALYSIS_COVERAGE_LAYER_ID)) {
+    businessLayerManager.remove(ANALYSIS_COVERAGE_LAYER_ID)
   }
-  if (businessLayerManager.has('analysis-matched')) {
-    businessLayerManager.remove('analysis-matched')
+  if (businessLayerManager.has(ANALYSIS_MATCHED_LAYER_ID)) {
+    businessLayerManager.remove(ANALYSIS_MATCHED_LAYER_ID)
   }
 
   // 附近设施走 manager 生命周期，避免绕过管理残留在注册表导致引擎切换时孤儿复活
@@ -492,9 +494,9 @@ onUnmounted(() => {
               'base-vector',
               'boundary',
               'ports',
-              'analysis-coverage',
-              'analysis-matched',
-              'nearby-facility',
+              ANALYSIS_COVERAGE_LAYER_ID,
+              ANALYSIS_MATCHED_LAYER_ID,
+              NEARBY_FACILITY_LAYER_ID,
             ]"
           />
         </GCSPanel>

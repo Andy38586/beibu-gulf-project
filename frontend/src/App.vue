@@ -2,7 +2,7 @@
 import { onMounted, onUnmounted, provide, ref, watch } from 'vue'
 import { RouterView, useRoute, useRouter } from 'vue-router'
 
-import { businessModules } from '@/business'
+import { businessModules, runBusinessLogoutReset } from '@/business'
 import { BusinessLayerManager } from '@/core'
 import { BUSINESS_LAYER_MANAGER_KEY } from '@/core'
 import { registerNavItems } from '@/core'
@@ -25,10 +25,7 @@ import {
   useAuth,
 } from '@/shared'
 import { logger } from '@/shared'
-import { useFloodStore } from '@/stores'
-import { useForecastStore } from '@/stores'
 import { useMapStore } from '@/stores'
-import { useSiteSelectionStore } from '@/stores'
 import type { TypeSetting } from '@/types/facility'
 import type { Plan } from '@/types/plan'
 
@@ -61,16 +58,11 @@ businessLayerManager.setErrorHandler(({ label }: { label: string }) => {
 // 登出/多标签页登出（authUser 变 null）时统一重置各业务 store
 function resetStores(): void {
   try {
-    useSiteSelectionStore().clearState()
-    // 各业务状态已并入 floodStore，clearState 全量清（含持久化快照）
-    useFloodStore().clearState()
-    // 重置地图业务交互状态，清 lastAnalysisResult 会话持久化与 sessionStorage
+    // 业务层（SiteSelection/Forecast/Flood）：重置声明在 business/manifest 各模块上，
+    // 新增业务模块的新状态重置只需在清单补 reset，无需改这里
+    runBusinessLogoutReset()
+    // 常驻层（App 级，不属于任何业务模块）：重置地图业务交互状态，清 lastAnalysisResult 会话持久化
     useMapStore().resetMapState()
-    // 预测页状态复位（含 dataCache 清空）
-    useForecastStore().reset()
-    // 预测快照残留修复（F-3）：reset() 刻意不清快照（保证卸载重置链路），
-    // 登出必须显式清，否则下次登录会恢复登出前的旧会话状态
-    useForecastStore().clearState()
     // 常驻层目录对账：resetMapState 会连 boundary/ports 这两个 App 级常驻层的目录条目
     // 一起删掉，但 BLM registry 与渲染器实例都还在（图层照常显示）——不同步重建的话，
     // 图层控制面板按钮会缺失直到下次引擎切换/刷新（registry 为目录唯一权威源，显式对账）

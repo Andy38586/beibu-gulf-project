@@ -52,7 +52,7 @@ const fixtures: Record<string, unknown> = {
   },
 }
 
-// fetch 模式：业务后端端点（sendSuccess 信封 { code, data }）；T6.2 起前缀由 per-module 路由
+// fetch 模式：业务后端端点（sendSuccess 信封 { code, data }）；前缀由 per-module 路由
 // 决定（/api 或 /nest-api），fixture 一律用无前缀路径匹配，createFetchStatic 剥掉前缀再查
 fixtures['/flood/water-area'] = {
   code: 200,

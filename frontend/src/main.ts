@@ -37,7 +37,7 @@ validateEnv()
 // 尽早挂载性能观察者，捕获 FCP/LCP/TTI/longtask（dev-only，不进生产包）
 initPerfReporter()
 
-// 数据源模式（T6.2 更名）：fetch=查表/静态数据（默认）/ calculate=FastAPI 实时演算
+// 数据源模式（命名收敛）：fetch=查表/静态数据（默认）/ calculate=FastAPI 实时演算
 const dataSource =
   (import.meta.env.VITE_DATA_SOURCE as 'fetch' | 'calculate' | undefined) || 'fetch'
 floodAdapter.setDataSource(dataSource)

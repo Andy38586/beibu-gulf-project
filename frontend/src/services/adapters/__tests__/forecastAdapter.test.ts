@@ -9,7 +9,7 @@ import { forecastAdapter } from '../forecastAdapter'
  *  - 请求路径 / params 透传正确（querystring 由 apiRequest 拼装，按 ? 截断匹配）
  *  - 信封 { code, data } 解包（unwrapEnvelope 在 useApiRequest 内完成）
  *  - 返回业务形状（getTimeSeries 只透传 series、getIndicatorComparison 只透传 ports）
- * T6.2：前缀（/api vs /nest-api）由 useApiRequest 的 per-module 路由决定并在其单测覆盖；
+ * 前缀（/api vs /nest-api）由 useApiRequest 的 per-module 路由决定并在其单测覆盖；
  *       本测试聚焦路径/参数/解包，故 mock 先将 URL 剥掉后端前缀再按无前缀路径匹配 fixture。
  */
 

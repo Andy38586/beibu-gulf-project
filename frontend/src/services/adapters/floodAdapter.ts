@@ -23,7 +23,7 @@ import {
 } from '@/types/schemas'
 
 // 数据源模式：fetch（业务后端查表/查静态数据）/ calculate（FastAPI 实时演算）；原统一 dataSourceConfig 仅此一个使用方，简化为模块级变量
-// 命名（T6.2 用户拍板）：旧「api」=查表，更名 fetch；旧「online」=实时演算，更名 calculate
+// 命名收敛：查表=fetch、实时演算=calculate（替代旧 api/online 语义不变）
 type FloodDataSourceMode = 'fetch' | 'calculate'
 let dataSource: FloodDataSourceMode = 'fetch'
 

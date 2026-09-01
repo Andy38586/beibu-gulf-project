@@ -193,7 +193,7 @@ describe('useApiRequest', () => {
     })
 
     it('非功能域普通路径加 /api 前缀', async () => {
-      // T6.2 起功能域路径（/forecast/* 等）前缀由 per-module 路由决定，此处用无功能域路径验证默认回退
+      // 功能域路径（/forecast/* 等）前缀由 per-module 路由决定，此处用无功能域路径验证默认回退
       mockFetch.mockResolvedValue(jsonResponse({ code: 200, data: null }))
       const { apiRequest } = useApiRequest()
       await apiRequest('/search')
@@ -227,8 +227,8 @@ describe('useApiRequest', () => {
     )
   })
 
-  describe('per-module 前缀路由 (T6.2)', () => {
-    // v3 T6.2：VITE_USE_NEST_MODULES 按批填功能域即切 Nest，清空回退 Express。
+  describe('per-module 前缀路由', () => {
+    // VITE_USE_NEST_MODULES 按批填功能域即切 Nest，清空回退 Express。
     // 前缀常量在模块求值时读取 import.meta.env，故每个用例先用 beforeEach 清模块缓存与 env，
     // 再经动态 import 重新求值（否则顶部静态 import 的旧模块实例会带着 .env.local 的开关值命中缓存）
     beforeEach(() => {

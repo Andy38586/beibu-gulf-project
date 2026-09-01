@@ -115,7 +115,7 @@ export default defineConfig(({ mode }) => ({
         changeOrigin: true,
         secure: false,
       },
-      // v3 T6.2：Nest 业务层（backend/nest，端口 3100）；全局前缀 nest-api 与 /api 平行，
+      // Nest 业务层（backend/nest，端口 3100）；全局前缀 nest-api 与 /api 平行，
       // 逐模块切换后前端请求经此转发到 Nest（无 rewrite，nest 自身路由就是 /nest-api/*）
       '/nest-api': {
         target: 'http://localhost:3100',

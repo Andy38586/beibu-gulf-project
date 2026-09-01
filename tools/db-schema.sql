@@ -82,6 +82,15 @@ CREATE TABLE IF NOT EXISTS favorites (
   PRIMARY KEY (user_id, item_type, item_id)
 );
 
+-- v2.1（T3.2）补齐收藏展示载荷列：前端 zod 契约要求返回项含 id/name/lng/lat/snapshot/savedAt
+--（favoriteItemSchema），Express favoritesRepository 存储的就是完整对象——只存键缺载荷会让
+-- GET /favorites 过不了前端 zod 校验。created_at 即 Express 的 savedAt（ISO 字符串口径不变）
+ALTER TABLE favorites ADD COLUMN IF NOT EXISTS id       TEXT;
+ALTER TABLE favorites ADD COLUMN IF NOT EXISTS name     TEXT;
+ALTER TABLE favorites ADD COLUMN IF NOT EXISTS lng      DOUBLE PRECISION;
+ALTER TABLE favorites ADD COLUMN IF NOT EXISTS lat      DOUBLE PRECISION;
+ALTER TABLE favorites ADD COLUMN IF NOT EXISTS snapshot JSONB;
+
 -- v2 追加 city 列（历史数据由重导填充）
 ALTER TABLE poi_facilities ADD COLUMN IF NOT EXISTS city TEXT;
 ALTER TABLE xiaoqu        ADD COLUMN IF NOT EXISTS city TEXT;

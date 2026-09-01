@@ -85,12 +85,15 @@ export function buildImport(dataDir, report = { warnings: [] }) {
   }
 
   // ===== favorites（运行时文件，2026-09-01 时点不存在，按空集处理）=====
+  // v2.1（T3.2）：表已补展示载荷列（id/name/lng/lat/snapshot），映射同步扩展；
+  // 运行时对象时间键是 savedAt（T2.2 映射曾写 f.createdAt，实为 undefined——修正并兼容旧键）
   const favorites = readOptional(dataDir, 'favorites.json', report) ?? []
   const favT = begin('favorites')
   favT.source = favorites.length
   for (const f of favorites) {
+    const snapshotSql = f.snapshot == null ? 'NULL' : `${esc(JSON.stringify(f.snapshot))}::jsonb`
     statements.push(
-      `INSERT INTO favorites (user_id, item_type, item_id, created_at) VALUES (${esc(f.userId)}, ${esc(f.itemType)}, ${esc(f.itemId)}, ${esc(f.createdAt)});`
+      `INSERT INTO favorites (id, user_id, item_type, item_id, name, lng, lat, snapshot, created_at) VALUES (${esc(f.id)}, ${esc(f.userId)}, ${esc(f.itemType)}, ${esc(f.itemId)}, ${esc(f.name)}, ${Number.isFinite(Number(f.lng)) ? Number(f.lng) : 'NULL'}, ${Number.isFinite(Number(f.lat)) ? Number(f.lat) : 'NULL'}, ${snapshotSql}, ${esc(f.savedAt ?? f.createdAt)});`
     )
     favT.written++
   }

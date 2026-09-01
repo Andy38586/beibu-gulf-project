@@ -110,6 +110,49 @@ describe('buildImport 对账恒等式', () => {
     expect(a.statements).toEqual(b.statements)
     expect(a.statements[1]).toContain('TRUNCATE')
   })
+
+  it('favorites 映射携带展示载荷（T3.2 schema v2.1）：savedAt 入 created_at，snapshot 转 jsonb', () => {
+    write(
+      'favorites.json',
+      JSON.stringify([
+        {
+          id: 'f1',
+          userId: 'u1',
+          itemType: 'xiaoqu',
+          itemId: 'B1',
+          name: '小区A',
+          lng: 108.5,
+          lat: 21.7,
+          snapshot: { memo: 'ok' },
+          savedAt: '2026-09-01T00:00:00.000Z',
+        },
+      ])
+    )
+    const { statements } = buildImport(dataDir)
+    const fav = statements.find((s) => s.includes('INSERT INTO favorites'))
+    expect(fav).toContain("'f1'")
+    expect(fav).toContain("'小区A'")
+    expect(fav).toContain('108.5')
+    expect(fav).toContain(`'{"memo":"ok"}'::jsonb`)
+    expect(fav).toContain("'2026-09-01T00:00:00.000Z'")
+    // 快照为 null → SQL NULL（zod 契约允许 null）
+    write(
+      'favorites.json',
+      JSON.stringify([
+        {
+          id: 'f2',
+          userId: 'u1',
+          itemType: 'facility',
+          itemId: 'P1',
+          name: 'p',
+          lng: 108,
+          lat: 21,
+        },
+      ])
+    )
+    const bare = buildImport(dataDir).statements.find((s) => s.includes('INSERT INTO favorites'))
+    expect(bare).toContain('NULL, NULL);')
+  })
 })
 
 describe('renderReport', () => {

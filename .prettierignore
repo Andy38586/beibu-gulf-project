@@ -13,3 +13,5 @@ docs/问题副本-*.md
 docs/已解决后遗症-*.md
 # 服务回写的数据产物（forecast 模型重算等不保证行尾换行），不受人写格式门禁约束
 backend/data/
+# React 原型暂存目录（非项目源码，用途待用户裁决；2026-09-01 出现导致 format:check 全仓红）
+.staging-react/

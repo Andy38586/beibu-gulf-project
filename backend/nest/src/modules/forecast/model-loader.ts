@@ -94,7 +94,8 @@ export interface ModelForecast {
     lower?: number
     upper?: number
   }>
-  metadata: Record<string, unknown> & { scenarioLevel: number }
+  // scenarioLevel 不在此声明：产物为固定基线，由调用方（forecast.service）注入 1.0
+  metadata: Record<string, unknown>
 }
 
 // 读取模型产物，返回指定港口的月度预测；产物不可用时返回 null（调用方降级）

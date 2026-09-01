@@ -9,6 +9,7 @@ import { HealthModule } from './health/health.module'
 import { DbModule } from './infra/db/db.module'
 import { AuthModule } from './modules/auth/auth.module'
 import { FavoritesModule } from './modules/favorites/favorites.module'
+import { FloodModule } from './modules/flood/flood.module'
 import { ForecastModule } from './modules/forecast/forecast.module'
 import { PlansModule } from './modules/plans/plans.module'
 
@@ -26,6 +27,7 @@ import { PlansModule } from './modules/plans/plans.module'
     AuthModule,
     FavoritesModule,
     PlansModule,
+    FloodModule,
     ForecastModule,
     HealthModule,
   ],

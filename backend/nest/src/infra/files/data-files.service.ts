@@ -38,8 +38,9 @@ export class DataFilesService {
   private readonly readFileFn: ReadFileFn
 
   // readFileFn 注入点：单测以 mock reader 换入（对齐 Express 测试 vi.mock fs/promises 模式）；
-  // @Optional 防 Nest DI 把默认参数当依赖解析（函数类型无注入 token）
-  constructor(@Optional() private readonly readFileFn: ReadFileFn = DEFAULT_READ_FILE) {
+  // @Optional 防 Nest DI 把默认参数当依赖解析（函数类型无注入 token）。
+  // 普通参数而非参数属性：类字段 readFileFn 已声明，参数属性会报 TS2300 重复标识符
+  constructor(@Optional() readFileFn: ReadFileFn = DEFAULT_READ_FILE) {
     this.readFileFn = readFileFn
     this.dataDir = resolveDataDir()
   }

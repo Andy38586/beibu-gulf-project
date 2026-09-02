@@ -241,7 +241,7 @@ async function initRenderer(type: '2d' | '3d', container: HTMLElement | null) {
       setupLayers()
       businessLayerManager.reapplyAll(existingRenderer)
     } else {
-      const renderer = (await createRenderer(type, container)) as unknown as MapRenderer
+      const renderer = await createRenderer(type, container)
 
       if (type === '2d') {
         olRenderer.value = renderer

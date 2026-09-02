@@ -7,6 +7,7 @@ import type {
   FlyToTarget,
   GeoPoint,
   LayerOptions,
+  MapRenderer as MapRendererContract,
   MapRendererEventMap,
   PointFeature,
   PolygonFeature,
@@ -31,8 +32,10 @@ type NormalizedFlyToTarget =
   | { lng: number; lat: number }
   | { layerId: string; [key: string]: unknown }
 
-/** MapRenderer 抽象基类：双引擎策略模式——OL（2D）与 Cesium（3D）子类实现抽象方法，业务层仅依赖本接口（@/types） */
-export class MapRenderer {
+/** MapRenderer 抽象基类：双引擎策略模式——OL（2D）与 Cesium（3D）子类实现抽象方法，业务层仅依赖本类（@/core）。
+ *  实现 @/types 的 MapRenderer 契约（历史双契约并存：interface 供中层类型标注，class 供运行时创建——
+ *  显式 implements 后二者收敛，业务侧由结构类型自动兼容，不再需要 `as unknown as` 桥接） */
+export class MapRenderer implements MapRendererContract {
   container: HTMLElement
   _layers: Map<string, LayerState>
   _eventBus: EventTarget

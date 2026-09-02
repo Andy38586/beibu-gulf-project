@@ -8,10 +8,7 @@ import { onBeforeRouteLeave } from 'vue-router'
  * 这个决策点；页面 onMounted 仍自行处理恢复分支。
  * 业务背景：登录/个人中心往返是唯一被允许保留页面状态的路径（跳转后返回要还原现场）。
  */
-export function useProfileSnapshot(handlers: {
-  save: () => void
-  clear?: () => void
-}): void {
+export function useProfileSnapshot(handlers: { save: () => void; clear?: () => void }): void {
   onBeforeRouteLeave((to) => {
     if (isProfilePath(to.path)) {
       handlers.save()

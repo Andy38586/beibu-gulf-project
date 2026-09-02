@@ -22,7 +22,9 @@ export interface LoginUserView {
   createdAt: string | null
 }
 
-// 历史转义密码兼容（与 Express escapeHtmlLegacy / 前端旧版 escapePassword 规则一致）
+// @arch-note 历史转义密码兼容（与 Express escapeHtmlLegacy / 前端旧版 escapePassword 规则一致）。
+// 双通道比对是迁移脚手架债：Nest 侧只服务存量旧密码登录。退役计划：后端整合上线后
+// 设截止水位（观察一段窗口无旧密码登录）→ 删双通道比对与静默重哈希，只留单通道。
 function escapeHtmlLegacy(str: string): string {
   const escapeMap: Record<string, string> = {
     '&': '&amp;',

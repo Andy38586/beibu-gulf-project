@@ -7,7 +7,14 @@ import { computed, nextTick, onScopeDispose, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { type BusinessLayerManager, useBusinessLayers } from '@/core'
-import { ApiError, ENDPOINTS, handleAuthError, isAuthError, showError, useApiRequest } from '@/shared'
+import {
+  ApiError,
+  ENDPOINTS,
+  handleAuthError,
+  isAuthError,
+  showError,
+  useApiRequest,
+} from '@/shared'
 import { logger } from '@/shared'
 import { DEFAULT_CONFIDENCE } from '@/shared'
 import { useForecastStore } from '@/stores'

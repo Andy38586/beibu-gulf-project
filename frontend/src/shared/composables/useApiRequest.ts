@@ -171,9 +171,7 @@ async function singleRequest<T = unknown>(
     // 其余路径按功能域解析前缀（启用了 Nest 的模块 → /nest-api，否则 Express /api 默认回退）
     logRoutingOnce()
     const url =
-      path.startsWith('/flood-online') ||
-      path.startsWith('/api/') ||
-      path.startsWith('/nest-api/')
+      path.startsWith('/flood-online') || path.startsWith('/api/') || path.startsWith('/nest-api/')
         ? fullPath
         : `${resolveBackendPrefix(path)}${fullPath}`
     const res = await fetch(url, {

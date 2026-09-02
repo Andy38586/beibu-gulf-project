@@ -3,6 +3,10 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { DbService } from '../src/infra/db/db.service'
 import { PlansRepository } from '../src/modules/plans/repositories/plans.repository'
 
+// 真库套件：需 v3_dev 库（docker-compose.v3.yml）。无库环境（CI/本机未起 PG）整体跳过，
+// 避免 ECONNREFUSED 噪音；联调时 export V3_INTEGRATION_DB=1 恢复全量
+const withDb = process.env.V3_INTEGRATION_DB !== undefined
+
 // plansRepository 真库单测：payload JSONB 整体存取 + 白名单更新 + 小区保存/移除语义
 const UID = '__t3_plans_uid_0'
 const CREATE_DATA = {
@@ -13,7 +17,7 @@ const CREATE_DATA = {
   weights: { hospital: 1.2 },
 }
 
-describe('plansRepository（真库）', () => {
+describe.skipIf(!withDb)('plansRepository（真库）', () => {
   let db: DbService
   let repo: PlansRepository
 

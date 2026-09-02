@@ -3,6 +3,10 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { DbService } from '../src/infra/db/db.service'
 import { FavoritesRepository } from '../src/modules/favorites/repositories/favorites.repository'
 
+// 真库套件：需 v3_dev 库（docker-compose.v3.yml）。无库环境（CI/本机未起 PG）整体跳过，
+// 避免 ECONNREFUSED 噪音；联调时 export V3_INTEGRATION_DB=1 恢复全量
+const withDb = process.env.V3_INTEGRATION_DB !== undefined
+
 // favoritesRepository 真库单测（手册 §五：真实库 + 测试前缀 + 清理钩子）。
 // 用例逐条移植 Express favoritesRepository.test.js 语义（fileStore 内存桩 → v3_dev 真库）
 const U1 = '__t3_fav_uid_0' // users.id（FK 指向 users.id，非 username）
@@ -17,7 +21,7 @@ const item = {
   snapshot: null,
 }
 
-describe('favoritesRepository（真库）', () => {
+describe.skipIf(!withDb)('favoritesRepository（真库）', () => {
   let db: DbService
   let repo: FavoritesRepository
 

@@ -7,6 +7,10 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { AppModule } from '../src/app.module'
 import { DbService } from '../src/infra/db/db.service'
 
+// 真库套件：需 v3_dev 库（docker-compose.v3.yml）。无库环境（CI/本机未起 PG）整体跳过，
+// 避免 ECONNREFUSED 噪音；联调时 export V3_INTEGRATION_DB=1 恢复全量
+const withDb = process.env.V3_INTEGRATION_DB !== undefined
+
 // favorites e2e：连真实开发库，用例移植 Express favoritesController.test.js 语义。
 // 测试用户 __t3_fav 前缀（auth 走真实注册拿 cookie），favorites 随用户级联清理
 const VALID_BODY = {
@@ -23,7 +27,7 @@ function authCookie(res: { headers: Record<string, unknown> }): string {
   return (raw as string).split(';')[0]
 }
 
-describe('favorites e2e（连真库）', () => {
+describe.skipIf(!withDb)('favorites e2e（连真库）', () => {
   let app: INestApplication
   let db: DbService
   let cookieU1: string

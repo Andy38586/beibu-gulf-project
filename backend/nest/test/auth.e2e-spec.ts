@@ -7,6 +7,10 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { AppModule } from '../src/app.module'
 import { DbService } from '../src/infra/db/db.service'
 
+// 真库套件：需 v3_dev 库（docker-compose.v3.yml）。无库环境（CI/本机未起 PG）整体跳过，
+// 避免 ECONNREFUSED 噪音；联调时 export V3_INTEGRATION_DB=1 恢复全量
+const withDb = process.env.V3_INTEGRATION_DB !== undefined
+
 // auth e2e：连真实开发库 v3_dev（docker-compose.v3.yml）。
 // 测试数据一律 __t3_ 前缀，beforeAll/afterAll 双清理（手册 §五 测试隔离约定）
 const PREFIX_LEN = 5 // '__t3_'
@@ -19,7 +23,7 @@ function authCookie(res: { headers: Record<string, unknown> }): string {
   return (raw as string).split(';')[0]
 }
 
-describe('auth e2e（连真库）', () => {
+describe.skipIf(!withDb)('auth e2e（连真库）', () => {
   let app: INestApplication
   let db: DbService
 

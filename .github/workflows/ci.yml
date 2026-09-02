@@ -66,6 +66,17 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # v3 迁移期：Nest 是独立 workspace（backend/nest），typecheck 与测试需独立依赖，
+      # 与根/backend 依赖分开安装，对齐 ci:local 的分段语义
+      - name: Install Nest dependencies
+        working-directory: backend/nest
+        run: npm ci
+
+      # v3 三道防线（no-ephemeral / structure / routes-audit）：纯静态分析不依赖安装，
+      # 放格式化之前让违规尽早红（对齐 ci:local 首段 guard:v3）
+      - name: Run v3 guard
+        run: npm run guard:v3
+
       - name: Check format
         # 2026-08-09：全仓 prettier 格式化完成，恢复硬性阻断
         run: npm run format:check
@@ -82,6 +93,11 @@ jobs:
 
       - name: Type check
         run: npm run typecheck
+
+      # v3 迁移期：Nest 类型门禁（tsc --noEmit）——nest build 对类型错误 exit 0，
+      # 只有 tsc --noEmit 是真门禁（pre-push 已同款，CI 兜底服务器防线）
+      - name: Type check (Nest)
+        run: npm run typecheck --prefix backend/nest
 
       # d053: secret-scan 入 CI —— gitleaks 扫当前工作树(非 git 历史,避免历史遗留 key 导致 CI 常红;
       # 历史清理走 tools/git-clean-history.sh,属一次性人工操作)。
@@ -161,6 +177,18 @@ jobs:
         # 816-M9：backend 补装 @vitest/coverage-v8 后带覆盖率跑——thresholds（50/45/50/50）在 CI 生效，
         # 原 2026-08-09 注释"未装 coverage-v8 秒败"已随依赖补齐失效
         working-directory: backend
+        run: npm test -- --coverage
+
+      # v3 迁移期：Nest 独立 workspace，依赖与测试随 backend job 一并落地
+      - name: Install Nest dependencies
+        working-directory: backend/nest
+        run: npm ci
+
+      - name: Run Nest tests
+        # 真库 e2e 套件在无 PG 的 CI 环境经 V3_INTEGRATION_DB 门控整体跳过
+        #（见 nest/test 下 5 个真库 spec 的 describe.skipIf）；需要库的联调/部署回归
+        # 在本地起 postgis 后 export V3_INTEGRATION_DB=1 全量跑
+        working-directory: backend/nest
         run: npm test -- --coverage
 
   # 2026-08-09：部署改为 SSH 直部署（原 GHCR+webhook 方案废弃——服务器端无需额外

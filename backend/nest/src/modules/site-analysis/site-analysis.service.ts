@@ -2,22 +2,13 @@ import { Injectable } from '@nestjs/common'
 import * as turf from '@turf/turf'
 import type { Feature, MultiPolygon, Polygon } from 'geojson'
 
+import { DEFAULT_WEIGHTS, TOP_N } from '../../common/constants/scoring.constants'
 import { BusinessError, ErrorCode } from '../../common/errors/business-error'
 
-import {
-  DEFAULT_WEIGHTS,
-  FacilityPoint,
-  importanceToRadius,
-  linearDecay,
-  scoreXiaoqu,
-  TypeSetting,
-} from './scoring'
+import { FacilityPoint, importanceToRadius, linearDecay, scoreXiaoqu, TypeSetting } from './scoring'
 import { createSpatialIndex, queryByPolygon } from './spatial-index'
 
-// 逐行等价移植 backend/services/siteAnalysisService.js（九步选址计算）。
-// 评分排序取前 N 名（557 小区规模下取前 10 覆盖可达性核心结论区间，
-// 前端 SiteSelectionPage 另行 slice(0,8) 展示截断，不硬依赖本值；如数据翻倍需重评估）
-const TOP_N = 10
+// 逐行等价移植 backend/services/siteAnalysisService.js（九步选址计算）
 
 export interface SiteAnalysisInput {
   selectedKeys: string[]

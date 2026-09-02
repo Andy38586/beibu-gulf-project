@@ -1,5 +1,7 @@
-import { Injectable, OnModuleDestroy } from '@nestjs/common'
+import { Injectable, OnModuleDestroy, Optional } from '@nestjs/common'
 import { Pool, QueryResult, QueryResultRow } from 'pg'
+
+import { ConfigService } from '../config/config.service'
 
 import { parseDbConfig } from './db.config'
 
@@ -10,8 +12,10 @@ import { parseDbConfig } from './db.config'
 export class DbService implements OnModuleDestroy {
   private readonly pool: Pool
 
-  constructor() {
-    this.pool = new Pool(parseDbConfig(process.env))
+  // 配置经 ConfigService 集中读取；直连构造（真库单测 new DbService()）无注入时
+  // 回落原 process.env 解析，行为不变
+  constructor(@Optional() private readonly config?: ConfigService) {
+    this.pool = new Pool(this.config ? this.config.dbConfig : parseDbConfig(process.env))
   }
 
   query<T extends QueryResultRow = QueryResultRow>(

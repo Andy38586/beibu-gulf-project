@@ -2,16 +2,15 @@ import { Controller, Get, Param, Query } from '@nestjs/common'
 import { ApiTags } from '@nestjs/swagger'
 import { SkipThrottle } from '@nestjs/throttler'
 
+import { DEFAULT_CONFIDENCE, MAX_CONFIDENCE } from '../../common/constants/forecast.constants'
 import { BusinessError, ErrorCode } from '../../common/errors/business-error'
 
 import { ForecastService } from './forecast.service'
 
-// 情景系数收口：非有限/≤0 回退 1.0，上限 2——避免异常值经 Math.pow 产出 Infinity/NaN。
-// 前端 UI 滑块限 0.8-1.2（设计语义），API 手工传 >1.2 属「有界放大」测试通道
 function parseConfidence(raw: unknown): number {
   const n = Number(raw)
-  if (!Number.isFinite(n) || n <= 0) return 1.0
-  return Math.min(n, 2)
+  if (!Number.isFinite(n) || n <= 0) return DEFAULT_CONFIDENCE
+  return Math.min(n, MAX_CONFIDENCE)
 }
 
 // 预测接口为合法高频交互（时间轴播放一轮 ~400+ 请求）：跳过全部限流桶，

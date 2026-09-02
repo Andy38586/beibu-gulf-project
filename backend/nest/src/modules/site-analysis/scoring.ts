@@ -1,6 +1,8 @@
 import * as turf from '@turf/turf'
 import RBush from 'rbush'
 
+import { DEFAULT_WEIGHTS, IMPORTANCE_FACTOR } from '../../common/constants/scoring.constants'
+
 // 逐行等价移植 backend/services/scoringService.js（选址评分核心）。
 // 原 decayFunctions / importanceMapping 与 site-analysis 仅一处消费，合并避免过细拆分。
 
@@ -10,15 +12,6 @@ export const linearDecay = (distance: number, maxDistance: number): number => {
   // 显式守卫，NaN 距离按 0 分处理（02 §5.6 不变量 5：NaN 不传播）
   if (!Number.isFinite(distance) || distance >= maxDistance) return 0
   return (1 - distance / maxDistance) * 100
-}
-
-/** 重要程度 → 半径放大系数（1~5 档） */
-const IMPORTANCE_FACTOR: Record<number, number> = {
-  1: 0.4,
-  2: 0.7,
-  3: 1.0,
-  4: 1.5,
-  5: 2.2,
 }
 
 // 非表项输入取整夹取并告警，拒绝静默兜底（Nest Logger 在纯函数层不可用，降为注释口径：
@@ -40,14 +33,7 @@ export function importanceToRadius(defaultRadius: number, importance: unknown): 
 
 // ==================== 选址评分核心 ====================
 
-export const DEFAULT_WEIGHTS: Record<string, number> = {
-  hospital: 1.2,
-  primary_school: 1.0,
-  middle_school: 1.0,
-  park: 0.8,
-  bus_station: 0.6,
-  mall: 0.7,
-}
+export { DEFAULT_WEIGHTS }
 
 export interface FacilityPoint {
   id?: string

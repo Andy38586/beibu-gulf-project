@@ -1,13 +1,11 @@
 import { Body, Controller, Get, HttpCode, Post, Query } from '@nestjs/common'
 import { ApiTags } from '@nestjs/swagger'
 
+import { MAX_WATER_LEVEL } from '../../common/constants/flood.constants'
 import { BusinessError, ErrorCode } from '../../common/errors/business-error'
 
 import { FloodRepository } from './flood.repository'
 import { FloodFacility, FloodService, FloodZone } from './flood.service'
-
-/** 水位上限（米）—— 与 FastAPI 参数约束（le=25）及 02 §4.3 滑块范围一致（8-11：原 100 放宽越界） */
-const MAX_WATER_LEVEL = 25
 
 // 数据形状（backend/data/flood/*.json；repository 返回 unknown，此处声明消费视图）
 interface FloodFeature {

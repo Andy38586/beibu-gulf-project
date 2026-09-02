@@ -2,10 +2,16 @@ import { Module } from '@nestjs/common'
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core'
 import { ThrottlerModule } from '@nestjs/throttler'
 
+import {
+  THROTTLER_AUTH_LIMIT,
+  THROTTLER_GLOBAL_LIMIT,
+  THROTTLER_TTL_MS,
+} from './common/constants/throttling.constants'
 import { BusinessErrorFilter } from './common/filters/business-error.filter'
 import { EnvelopeThrottlerGuard } from './common/guards/envelope-throttler.guard'
 import { EnvelopeInterceptor } from './common/interceptors/envelope.interceptor'
 import { HealthModule } from './health/health.module'
+import { ConfigModule } from './infra/config/config.module'
 import { DbModule } from './infra/db/db.module'
 import { AuthModule } from './modules/auth/auth.module'
 import { FavoritesModule } from './modules/favorites/favorites.module'
@@ -19,10 +25,11 @@ import { SiteAnalysisModule } from './modules/site-analysis/site-analysis.module
 // health 探针计入全局限流（部署整合时统一对齐；5s 间隔约 180 次/15min，远低于 1000 上限）
 @Module({
   imports: [
+    ConfigModule,
     ThrottlerModule.forRoot([
-      { name: 'global', ttl: 15 * 60 * 1000, limit: 1000 },
-      { name: 'login', ttl: 15 * 60 * 1000, limit: 50 },
-      { name: 'register', ttl: 15 * 60 * 1000, limit: 50 },
+      { name: 'global', ttl: THROTTLER_TTL_MS, limit: THROTTLER_GLOBAL_LIMIT },
+      { name: 'login', ttl: THROTTLER_TTL_MS, limit: THROTTLER_AUTH_LIMIT },
+      { name: 'register', ttl: THROTTLER_TTL_MS, limit: THROTTLER_AUTH_LIMIT },
     ]),
     DbModule,
     AuthModule,

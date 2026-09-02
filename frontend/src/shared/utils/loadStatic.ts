@@ -6,14 +6,15 @@
  */
 import type { ZodType } from 'zod'
 
+import { BoundedMap } from '@/shared/utils/boundedMap'
 import { logger } from '@/shared/utils/logger'
 
 const DEFAULT_TIMEOUT_MS = 10000
 const DEFAULT_CACHE_TTL = 5 * 60 * 1000
-// 缓存硬上限，防止长会话内存膨胀
+// 缓存硬上限，防止长会话内存膨胀（BoundedMap 按插入序自动淘汰最旧项）
 const MAX_CACHE_SIZE = 100
 
-const cache = new Map<string, { data: unknown; cachedAt: number }>()
+const cache = new BoundedMap<string, { data: unknown; cachedAt: number }>(MAX_CACHE_SIZE)
 const pending = new Map<string, Promise<unknown>>()
 
 export interface LoadStaticOptions<T = unknown> {
@@ -27,12 +28,8 @@ export interface LoadStaticOptions<T = unknown> {
   schema?: ZodType<T>
 }
 
-/** 写入缓存前检查上限，超限删最旧插入项（Map 迭代序即插入序，近似 LRU 淘汰） */
+/** 写入缓存（上限淘汰由 BoundedMap 内部按插入序处理） */
 function setCache(url: string, data: unknown): void {
-  if (cache.size >= MAX_CACHE_SIZE) {
-    const oldestKey = cache.keys().next().value
-    if (oldestKey !== undefined) cache.delete(oldestKey)
-  }
   cache.set(url, { data, cachedAt: Date.now() })
 }
 

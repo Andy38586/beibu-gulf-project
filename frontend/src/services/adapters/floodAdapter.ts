@@ -4,7 +4,7 @@
  * 静态数据已移交后端，字段由后端对齐类型契约，前端不再做字段映射。
  */
 
-import { logger, useApiRequest } from '@/shared'
+import { BoundedMap, logger, useApiRequest } from '@/shared'
 import type { AffectedFacility, FloodFeature, FloodStatistics } from '@/types/business/base'
 import type {
   FloodAreasResponseParsed,
@@ -29,9 +29,10 @@ let dataSource: FloodDataSourceMode = 'fetch'
 
 const { apiRequest } = useApiRequest()
 
-// calculate 档位缓存：round(level,1) 同档位秒回，消除重复档位的整条请求+重绘链路；规模与后端 LRU 一致（64 档），FIFO 淘汰
-const _calculateLevelCache = new Map<number, FloodAnalysisResult>()
+// calculate 档位缓存：round(level,1) 同档位秒回，消除重复档位的整条请求+重绘链路；
+// 规模与后端 LRU 一致（64 档），上限淘汰由 BoundedMap 按插入序处理（原手写 size 检查已收敛）
 const MAX_CALCULATE_LEVEL_CACHE = 64
+const _calculateLevelCache = new BoundedMap<number, FloodAnalysisResult>(MAX_CALCULATE_LEVEL_CACHE)
 
 interface FloodAnalysisResult {
   features: FloodFeature[]
@@ -148,11 +149,7 @@ export const floodAdapter = {
         riskLevel,
         actualWaterLevel: data.level,
       }
-      // FIFO 淘汰（与后端 64 档 LRU 同规模）；先淘汰最旧再插入
-      if (_calculateLevelCache.size >= MAX_CALCULATE_LEVEL_CACHE) {
-        const oldestKey = _calculateLevelCache.keys().next().value
-        if (oldestKey !== undefined) _calculateLevelCache.delete(oldestKey)
-      }
+      // 上限淘汰由 BoundedMap 内部按插入序处理（原手写 FIFO 检查已收敛）
       _calculateLevelCache.set(levelKey, result)
       return result
     }

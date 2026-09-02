@@ -3,7 +3,7 @@ import type { Ref, ShallowRef } from 'vue'
 import { ref, shallowRef } from 'vue'
 
 // 分层铁律：stores 不得引用 business——初始化所需共享常量一律从 shared 取
-import { DEFAULT_CONFIDENCE } from '@/shared'
+import { BoundedMap, DEFAULT_CONFIDENCE } from '@/shared'
 import type { ConfidenceThresholds } from '@/types/business/base'
 
 import { createPersistedState } from './factories/createPersistedState'
@@ -46,11 +46,15 @@ export const useForecastStore = defineStore('forecast', () => {
   // F-7：原 dataCache/currentData 无业务写路径（死状态，currentData 恒 null），已移除；
   // 数据缓存职责由 requestCache（LRU 上限 50）承担
 
-  // 页面请求缓存（跨页面快照序列化；Map 不可直接入快照，saveState 时转数组）。
-  // 原为 ForecastPage 页面级 Map，C4 收口后迁入 store 统一管理（含快照恢复）
-  const requestCache: ShallowRef<Map<string, unknown>> = shallowRef(new Map())
-  /** requestCache 大小上限，超限删除最早键（Map 迭代序即插入序，近似 LRU） */
+  /** requestCache 大小上限（BoundedMap 构造参数） */
   const MAX_REQUEST_CACHE_ENTRIES = 50
+
+  // 页面请求缓存（跨页面快照序列化；Map 不可直接入快照，saveState 时转数组）。
+  // 原为 ForecastPage 页面级 Map，C4 收口后迁入 store 统一管理（含快照恢复）；
+  // 上限淘汰由 BoundedMap 按插入序处理（原手写 size 检查已收敛）
+  const requestCache: ShallowRef<Map<string, unknown>> = shallowRef(
+    new BoundedMap<string, unknown>(MAX_REQUEST_CACHE_ENTRIES)
+  )
 
   /** 请求事务状态迁入 store（消除请求 composable 的模块级可变状态）；AbortController 不可序列化、不响应式，仍由请求实例持有并透传 signal */
   const activeTransactionId: Ref<number> = ref(0)
@@ -87,19 +91,14 @@ export const useForecastStore = defineStore('forecast', () => {
     isPlaying.value = playing
   }
 
-  /** 请求缓存写入（LRU 淘汰；页面/composable 统一入口，替代页面级 Map） */
+  /** 请求缓存写入（上限淘汰由 BoundedMap 处理；页面/composable 统一入口，替代页面级 Map） */
   function setRequestCache(key: string, value: unknown): void {
-    const map = requestCache.value
-    if (map.size >= MAX_REQUEST_CACHE_ENTRIES) {
-      const oldestKey = map.keys().next().value
-      if (oldestKey !== undefined) map.delete(oldestKey)
-    }
-    map.set(key, value)
+    requestCache.value.set(key, value)
   }
 
   /** 清空请求缓存（组件卸载时调用） */
   function clearRequestCache(): void {
-    requestCache.value = new Map()
+    requestCache.value = new BoundedMap<string, unknown>(MAX_REQUEST_CACHE_ENTRIES)
   }
 
   /** 快照恢复（跨页面登录返回）：一次性批量写回（禁止调用方逐字段直改 state） */
@@ -111,7 +110,11 @@ export const useForecastStore = defineStore('forecast', () => {
     confidenceThresholds.value = { ...saved.confidenceThresholds }
     activeForecastLayer.value = saved.activeForecastLayer
     // shallowRef 需重赋值引用才触发响应式
-    requestCache.value = new Map(saved.requestCache)
+    requestCache.value = new BoundedMap<string, unknown>(MAX_REQUEST_CACHE_ENTRIES)
+    // 快照条目不在上限之内（最多 50 条），按插入序批量写入
+    for (const [key, value] of saved.requestCache) {
+      requestCache.value.set(key, value)
+    }
   }
 
   /** 事务状态重置（配合请求取消与组件卸载使用；reset() 也调用） */
@@ -133,8 +136,7 @@ export const useForecastStore = defineStore('forecast', () => {
       traffic: DEFAULT_CONFIDENCE,
     }
     activeForecastLayer.value = null
-    requestCache.value = new Map()
-    // 一并复位事务状态（登出/路由切换重置全链路）
+    requestCache.value = new BoundedMap<string, unknown>(MAX_REQUEST_CACHE_ENTRIES)
     resetTransactionState()
   }
 

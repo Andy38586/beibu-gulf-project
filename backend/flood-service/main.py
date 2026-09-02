@@ -30,7 +30,6 @@ import threading
 import time
 from collections import OrderedDict
 from contextlib import asynccontextmanager
-from functools import lru_cache
 from pathlib import Path
 
 from fastapi import FastAPI, Query
@@ -130,9 +129,9 @@ def _load_facilities() -> list[dict]:
     return _facilities_cache
 
 
-@lru_cache(maxsize=1)
 def _engine_module():
-    # 首请求触发 DEM 模块级加载（一次 ~1s），后续演算只算 mask/label/shapes
+    # 首请求触发 DEM 模块级加载（一次 ~1s），后续演算只算 mask/label/shapes；
+    # load_dem 自身有模块级 _dem_cache 幂等（flood_engine.py），此处不再叠加 lru_cache
     import flood_engine
 
     flood_engine.load_dem()

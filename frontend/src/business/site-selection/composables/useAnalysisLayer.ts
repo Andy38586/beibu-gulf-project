@@ -1,7 +1,7 @@
 import type { Feature, FeatureCollection, Geometry } from 'geojson'
 
 import type { BusinessLayerManager } from '@/core'
-import { FACILITY_COLORS, LAYER_FILL_COVERAGE } from '@/shared'
+import { buildPointFeatureCollection, FACILITY_COLORS, LAYER_FILL_COVERAGE } from '@/shared'
 import { logger } from '@/shared'
 import type { AnalysisResult, FacilityPoint, LayerOptions, ScoredXiaoqu } from '@/types'
 
@@ -45,39 +45,27 @@ export function buildCoverageGeoJson(
 }
 
 export function buildMatchedGeoJson(matchedXiaoqu: ScoredXiaoqu[]): FeatureCollection<Geometry> {
-  return {
-    type: 'FeatureCollection',
-    features: matchedXiaoqu
-      .filter((xq: ScoredXiaoqu) => {
-        // 运行时防御：类型层 lng/lat 为 number，但后端数据可能缺失/非法，需逐条校验
-        const lng = xq.lng as number | undefined
-        const lat = xq.lat as number | undefined
-        if (lng === undefined || lat === undefined) {
-          logger.debug('小区数据缺少坐标字段:', xq)
-          return false
-        }
-        if (typeof lng !== 'number' || typeof lat !== 'number') {
-          logger.debug('小区坐标字段类型无效:', xq)
-          return false
-        }
-        if (lng < -180 || lng > 180 || lat < -90 || lat > 90) {
-          logger.debug('小区坐标值超出有效范围:', xq)
-          return false
-        }
-        return true
-      })
-      .map((xq: ScoredXiaoqu) => ({
-        type: 'Feature',
-        geometry: {
-          type: 'Point',
-          coordinates: [xq.lng, xq.lat],
-        },
-        properties: {
-          ...xq,
-          featureType: ANALYSIS_MATCHED_LAYER_ID,
-        },
-      })),
-  }
+  // 运行时防御：类型层 lng/lat 为 number，但后端数据可能缺失/非法，需逐条校验
+  return buildPointFeatureCollection(matchedXiaoqu, {
+    coordOf: (xq) => {
+      const lng = xq.lng as number | undefined
+      const lat = xq.lat as number | undefined
+      if (lng === undefined || lat === undefined) {
+        logger.debug('小区数据缺少坐标字段:', xq)
+        return null
+      }
+      if (typeof lng !== 'number' || typeof lat !== 'number') {
+        logger.debug('小区坐标字段类型无效:', xq)
+        return null
+      }
+      if (lng < -180 || lng > 180 || lat < -90 || lat > 90) {
+        logger.debug('小区坐标值超出有效范围:', xq)
+        return null
+      }
+      return { lng, lat }
+    },
+    propsOf: (xq) => ({ ...xq, featureType: ANALYSIS_MATCHED_LAYER_ID }),
+  })
 }
 
 export const COVERAGE_STYLE: LayerOptions = {

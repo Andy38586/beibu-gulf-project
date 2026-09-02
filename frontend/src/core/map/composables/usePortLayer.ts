@@ -1,7 +1,7 @@
 import type { FeatureCollection } from 'geojson'
 
 import { mapDataService } from '@/services'
-import { FACILITY_COLORS } from '@/shared'
+import { buildPointFeatureCollection, FACILITY_COLORS } from '@/shared'
 import { logger } from '@/shared'
 import type { LayerOptions, Port } from '@/types'
 
@@ -10,34 +10,20 @@ export async function loadPorts(signal?: AbortSignal): Promise<Port[]> {
 }
 
 export function buildPortGeoJson(portsData: Port[]): FeatureCollection {
-  return {
-    type: 'FeatureCollection',
-    features: portsData
-      .filter((port) => {
-        // 验证port.lng和port.lat字段存在性
-        if (port.lng === undefined || port.lat === undefined) {
-          logger.debug('港口数据缺少坐标字段:', port)
-          return false
-        }
-        // 验证坐标有效性
-        if (typeof port.lng !== 'number' || typeof port.lat !== 'number') {
-          logger.debug('港口坐标字段类型无效:', port)
-          return false
-        }
-        return true
-      })
-      .map((port) => ({
-        type: 'Feature',
-        geometry: {
-          type: 'Point',
-          coordinates: [port.lng, port.lat],
-        },
-        properties: {
-          ...port,
-          featureType: 'port',
-        },
-      })),
-  }
+  return buildPointFeatureCollection(portsData, {
+    coordOf: (port) => {
+      if (port.lng === undefined || port.lat === undefined) {
+        logger.debug('港口数据缺少坐标字段:', port)
+        return null
+      }
+      if (typeof port.lng !== 'number' || typeof port.lat !== 'number') {
+        logger.debug('港口坐标字段类型无效:', port)
+        return null
+      }
+      return { lng: port.lng, lat: port.lat }
+    },
+    propsOf: (port) => ({ ...port, featureType: 'port' }),
+  })
 }
 
 export const PORT_STYLE: LayerOptions = {

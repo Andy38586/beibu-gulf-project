@@ -13,6 +13,7 @@ import { EnvelopeInterceptor } from './common/interceptors/envelope.interceptor'
 import { HealthModule } from './health/health.module'
 import { ConfigModule } from './infra/config/config.module'
 import { DbModule } from './infra/db/db.module'
+import { DataFilesModule } from './infra/files/data-files.module'
 import { AuthModule } from './modules/auth/auth.module'
 import { FavoritesModule } from './modules/favorites/favorites.module'
 import { FloodModule } from './modules/flood/flood.module'
@@ -32,6 +33,7 @@ import { SiteAnalysisModule } from './modules/site-analysis/site-analysis.module
       { name: 'register', ttl: THROTTLER_TTL_MS, limit: THROTTLER_AUTH_LIMIT },
     ]),
     DbModule,
+    DataFilesModule,
     AuthModule,
     FavoritesModule,
     PlansModule,

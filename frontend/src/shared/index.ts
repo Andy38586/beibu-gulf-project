@@ -24,6 +24,7 @@ export * from './utils/loadStatic'
 export * from './utils/logger'
 export * from './utils/perfReporter'
 export * from './utils/responseEnvelope'
+export * from './utils/safeStorage'
 export * from './utils/spatialIndex'
 // 收口：组件聚合导出
 export { default as EmptyState } from './components/EmptyState.vue'

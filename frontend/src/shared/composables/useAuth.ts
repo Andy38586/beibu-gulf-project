@@ -3,6 +3,7 @@ import { ref } from 'vue'
 
 import { ENDPOINTS } from '@/shared/constants/api'
 import { logger } from '@/shared/utils/logger'
+import { readStoredJSON, writeStoredJSON } from '@/shared/utils/safeStorage'
 import type { AuthResponse, User } from '@/types/api'
 import { authResponseSchema, userSchema } from '@/types/schemas'
 
@@ -25,33 +26,21 @@ const USER_STORAGE_KEY = 'beibu-gulf-user'
 /** 读取 localStorage 用户信息：经 schema 运行时校验，失败即清缓存返回 null */
 function readStoredUser(): User | null {
   if (typeof window === 'undefined') return null
-  try {
-    const stored = window.localStorage.getItem(USER_STORAGE_KEY)
-    if (!stored) return null
-    const result = userSchema.safeParse(JSON.parse(stored))
-    if (!result.success) {
-      logger.warn('[useAuth] localStorage 用户数据校验失败，已清除:', result.error.issues)
-      window.localStorage.removeItem(USER_STORAGE_KEY)
-      return null
-    }
-    return result.data as User
-  } catch {
+  const stored = readStoredJSON<unknown>(USER_STORAGE_KEY)
+  if (stored === null) return null
+  const result = userSchema.safeParse(stored)
+  if (!result.success) {
+    logger.warn('[useAuth] localStorage 用户数据校验失败，已清除:', result.error.issues)
+    writeStoredJSON(USER_STORAGE_KEY, null)
     return null
   }
+  return result.data as User
 }
 
 /** 写入 localStorage（传 null 清除） */
 function writeStoredUser(user: User | null): void {
   if (typeof window === 'undefined') return
-  try {
-    if (user) {
-      window.localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user))
-    } else {
-      window.localStorage.removeItem(USER_STORAGE_KEY)
-    }
-  } catch {
-    // 忽略隐私模式等写入失败场景
-  }
+  writeStoredJSON(USER_STORAGE_KEY, user)
 }
 
 // 模块级单例状态：所有组件共享同一认证状态

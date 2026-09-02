@@ -7,6 +7,8 @@
  */
 import { computed, type ComputedRef, readonly, type Ref, ref } from 'vue'
 
+import { getSafeStorage } from '@/shared/utils/safeStorage'
+
 export type ThemeMode = 'light' | 'dark'
 
 /** 返回契约（816-专项3-0816-13：显式化，防重构时签名静默漂移） */
@@ -20,19 +22,9 @@ export interface UseThemeReturn {
 
 const THEME_STORAGE_KEY = 'gcs-theme'
 
-/** 安全访问 localStorage（jsdom 环境无 Storage 方法，降级为 null） */
-function safeStorage(): Storage | null {
-  try {
-    const ls = typeof window !== 'undefined' ? window.localStorage : null
-    return ls && typeof ls.getItem === 'function' ? ls : null
-  } catch {
-    return null
-  }
-}
-
 function getInitialTheme(): ThemeMode {
   if (typeof window === 'undefined') return 'light'
-  const saved = safeStorage()?.getItem(THEME_STORAGE_KEY)
+  const saved = getSafeStorage()?.getItem(THEME_STORAGE_KEY)
   if (saved === 'dark' || saved === 'light') return saved
   return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
 }
@@ -48,7 +40,7 @@ function applyTheme(mode: ThemeMode, persist = true): void {
     // Element Plus 暗色联动：EP 的暗色变量挂在 html.dark class（自定义 data-theme 只管业务 CSS）
     document.documentElement.classList.toggle('dark', mode === 'dark')
   }
-  if (persist) safeStorage()?.setItem(THEME_STORAGE_KEY, mode)
+  if (persist) getSafeStorage()?.setItem(THEME_STORAGE_KEY, mode)
   listeners.forEach((cb) => cb(mode))
 }
 
@@ -58,7 +50,7 @@ function watchSystemTheme(): void {
   if (typeof window === 'undefined' || !window.matchMedia) return
   const mq = window.matchMedia('(prefers-color-scheme: dark)')
   mq.addEventListener('change', (e) => {
-    if (!safeStorage()?.getItem(THEME_STORAGE_KEY)) {
+    if (!getSafeStorage()?.getItem(THEME_STORAGE_KEY)) {
       applyTheme(e.matches ? 'dark' : 'light', false)
     }
   })

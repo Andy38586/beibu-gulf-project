@@ -3,6 +3,7 @@ import type { Ref, ShallowRef } from 'vue'
 import { ref, shallowRef } from 'vue'
 
 import { logger } from '@/shared'
+import { readStoredJSON, writeStoredJSON } from '@/shared/utils/safeStorage'
 import type { EngineName, LayerEntry, LayerType, MapType } from '@/types'
 import type { MapRenderer } from '@/types'
 
@@ -13,25 +14,15 @@ const BASE_LAYER_KEYS = ['base-image', 'base-vector']
 
 function readStoredBaseLayer(): string | null {
   if (typeof window === 'undefined') return null
-  try {
-    const key = window.localStorage.getItem(BASE_LAYER_STORAGE_KEY)
-    // 白名单校验：底图 key 集合演进后，旧 localStorage 值可能指向已不存在的底图，
-    // 直接透传会导致初始底图静默降级且面板无高亮（P1-8）
-    return key && BASE_LAYER_KEYS.includes(key) ? key : null
-  } catch {
-    return null
-  }
+  const key = readStoredJSON<string>(BASE_LAYER_STORAGE_KEY)
+  // 白名单校验：底图 key 集合演进后，旧 localStorage 值可能指向已不存在的底图，
+  // 直接透传会导致初始底图静默降级且面板无高亮（P1-8）
+  return key && BASE_LAYER_KEYS.includes(key) ? key : null
 }
 
 function writeStoredBaseLayer(key: string | null): void {
   if (typeof window === 'undefined') return
-  try {
-    if (key) {
-      window.localStorage.setItem(BASE_LAYER_STORAGE_KEY, key)
-    }
-  } catch {
-    // 忽略隐私模式等写入失败场景
-  }
+  writeStoredJSON(BASE_LAYER_STORAGE_KEY, key)
 }
 
 export const useMapStore = defineStore('map', () => {

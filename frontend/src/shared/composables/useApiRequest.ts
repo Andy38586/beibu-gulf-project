@@ -55,7 +55,7 @@ const MODULE_BY_PATH_PREFIX: Record<string, string> = {
 }
 
 /** 按功能域解析后端前缀：启用了 Nest 的模块走 /nest-api，其余回退 Express（/api） */
-function resolveBackendPrefix(path: string): string {
+export function resolveBackendPrefix(path: string): string {
   const firstSegment = path.split('/').filter(Boolean)[0] ?? ''
   const module = MODULE_BY_PATH_PREFIX[firstSegment]
   return module && NEST_ENABLED_MODULES.has(module) ? NEST_API_BASE : API_BASE
@@ -93,7 +93,7 @@ function clearToken(): void {
 
 const isAuthenticated: ComputedRef<boolean> = computed(() => token.value !== '')
 
-interface RequestOptions {
+export interface RequestOptions {
   method?: string
   body?: string
   headers?: Record<string, string>
@@ -120,6 +120,185 @@ export interface UseApiRequestReturn {
   clearToken: () => void
 }
 
+/** 单次请求实现（不含重试）：每次调用新建 AbortController，超时计时天然重置。
+ *  模块级纯函数（只依赖参数与模块常量），可脱离工厂独立单测请求全链路 */
+async function singleRequest<T = unknown>(
+  path: string,
+  options: RequestOptions,
+  rid: string
+): Promise<T> {
+  // dev 请求日志：故障时定位数据在哪一跳丢失
+  if (import.meta.env.DEV) {
+    logger.debug(
+      `[apiRequest:${rid}] → ${options.method ?? 'GET'} ${path}`,
+      options.params ?? undefined
+    )
+  }
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...options.headers,
+  }
+
+  // 认证走 HttpOnly Cookie（credentials: 'include'），token 仅用于前端登录态判断，不参与传输
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS)
+
+  // 组合外部 signal 与内部超时 signal
+  const signal = options.signal
+    ? AbortSignal.any([controller.signal, options.signal])
+    : controller.signal
+
+  // 统一 query 参数构造，避免手写模板字符串
+  let fullPath = path
+  if (options.params) {
+    const searchParams = new URLSearchParams()
+    for (const [key, value] of Object.entries(options.params)) {
+      if (value !== undefined && value !== null) {
+        searchParams.set(key, String(value))
+      }
+    }
+    const qs = searchParams.toString()
+    if (qs) {
+      fullPath += `${path.includes('?') ? '&' : '?'}${qs}`
+    }
+  }
+
+  try {
+    // 以 /flood-online 开头（vite proxy → FastAPI）的路径不加 /api 前缀：加了会命中 /api 规则转发到 Express，永远到不了 FastAPI
+    // 以 /api、/nest-api 开头（如 auth/plans 等 REST 路径）视为已含前缀，不再叠加——
+    // 曾因双重拼接打成 /api/api/ports → 404 → 港口图层加载失败（816-专项1 发现3 回归，2026-08-17 修复）
+    // 其余路径按功能域解析前缀（启用了 Nest 的模块 → /nest-api，否则 Express /api 默认回退）
+    logRoutingOnce()
+    const url =
+      path.startsWith('/flood-online') ||
+      path.startsWith('/api/') ||
+      path.startsWith('/nest-api/')
+        ? fullPath
+        : `${resolveBackendPrefix(path)}${fullPath}`
+    const res = await fetch(url, {
+      method: options.method,
+      body: options.body,
+      headers,
+      credentials: 'include',
+      signal,
+      // 禁用浏览器缓存：Express 默认 ETag 返回 304，fetch 视其为错误（res.ok 只认 2xx）→ 误判登出/数据失败
+      cache: 'no-store',
+    })
+    clearTimeout(timeoutId)
+
+    // 响应体可能为空或非 JSON：用 unknown 承接任意 JSON 值，解析失败保留原始文本作错误信息
+    const text = await res.text()
+    let data: unknown = undefined
+    if (text) {
+      try {
+        data = JSON.parse(text)
+      } catch {
+        data = { error: text.slice(0, 200) }
+      }
+    }
+
+    if (res.status === 401) {
+      // 认证失败透传服务端文案；后端已细分登录失败成因（401002 账号不存在 / 401003 密码错误），
+      // bizCode 随 ApiError 上抛供调用方细粒度分支（LoginPanel 据此引导注册/只报密码错误）
+      const authErrMsg =
+        typeof data === 'object' && data !== null && 'error' in data
+          ? String((data as Record<string, unknown>).error)
+          : ''
+      const bizCode =
+        typeof data === 'object' &&
+        data !== null &&
+        'code' in data &&
+        typeof (data as Record<string, unknown>).code === 'number'
+          ? ((data as Record<string, unknown>).code as number)
+          : undefined
+      // 401 只抛错不跳转：是否提示登录由调用方决定（选址分析不需要，收藏才需要）
+      throw new ApiError(authErrMsg || '请先登录', ErrorCode.UNAUTHORIZED, bizCode)
+    }
+
+    if (!res.ok) {
+      // 安全窄化：data 可能为非对象（如纯字符串/数字），用 typeof + in 守卫
+      const errMsg =
+        typeof data === 'object' && data !== null && 'error' in data
+          ? String((data as Record<string, unknown>).error)
+          : ''
+      // 网关级 5xx（nginx 502/503/504）：后端进程不可达而非应用自身错误——
+      // 归 SERVER_ERROR 语义，describeError 统一按「服务器无响应」口径提示
+      if (res.status === 502 || res.status === 503 || res.status === 504) {
+        throw new ApiError('服务器无响应，请检查网络后重试', ErrorCode.SERVER_ERROR)
+      }
+      if (res.status === 500) {
+        throw new ApiError(errMsg || '服务器错误，请稍后重试', ErrorCode.SERVER_ERROR)
+      }
+      throw new ApiError(errMsg || `请求失败 HTTP ${res.status}`, ErrorCode.REQUEST_FAILED)
+    }
+
+    // 统一解包响应信封（{ code, data } → data）：调用方始终拿到业务数据 T，无需手动 .data；跨服务裸 JSON 传 envelope: false 跳过
+    let unwrapped: T
+    if (options.envelope === false) {
+      unwrapped = data as T
+    } else {
+      // D2：code 契约 = 同 HTTP 状态（后端 sendSuccess code=statusCode 恒 2xx）——
+      // HTTP 2xx 但 code≥400 的业务错误信封显式失败，杜绝「错误数据被当成功解包」静默放大
+      const code =
+        typeof data === 'object' && data !== null && 'code' in data
+          ? (data as Record<string, unknown>).code
+          : undefined
+      if (typeof code === 'number' && code >= 400) {
+        throw new ApiError(`响应业务错误（code=${code}）`, ErrorCode.REQUEST_FAILED)
+      }
+      unwrapped = unwrapEnvelope<T>(data)
+    }
+
+    // dev 响应日志
+    if (import.meta.env.DEV) {
+      logger.debug(`[apiRequest:${rid}] ← ${res.status} ${path}`, {
+        envelope: options.envelope === false ? 'raw' : 'envelope',
+        schema: options.schema ? 'zod' : 'none',
+      })
+    } else {
+      // 生产采样观测：dev 全量日志被门控剥离后，成功路径也需可观测入口
+      logger.sampled('info', `[apiRequest:${rid}] ← ${res.status} ${path}`)
+    }
+
+    // 有 schema 则运行时校验；校验失败不可重试（响应数据错误重试无意义）
+    if (options.schema) {
+      const result = options.schema.safeParse(unwrapped)
+      if (!result.success) {
+        // 映射/校验失败生产可观测：记录校验问题概览（不展开字段，防敏感/噪音）
+        logger.sampled(
+          'warn',
+          `[apiRequest:${rid}] schema 校验失败 ${path}:`,
+          result.error.issues.slice(0, 3).map((i) => i.path.join('.'))
+        )
+        throw new ApiError('响应数据格式校验失败', ErrorCode.REQUEST_FAILED)
+      }
+      return result.data as T
+    }
+
+    return unwrapped
+  } catch (error) {
+    clearTimeout(timeoutId)
+    if (error instanceof ApiError) {
+      throw error
+    }
+    if (error instanceof Error) {
+      if (error.name === 'AbortError') {
+        // 区分内部超时 abort 与外部 signal 主动取消：内部超时抛 TIMEOUT
+        if (controller.signal.aborted) {
+          throw new ApiError('请求超时，请检查网络后重试', ErrorCode.TIMEOUT)
+        }
+        // 外部主动取消：抛 REQUEST_FAILED（多数调用方已忽略此错误）
+        throw new ApiError('请求已取消', ErrorCode.REQUEST_FAILED)
+      }
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        throw new ApiError('网络异常，请检查网络连接', ErrorCode.NETWORK_ERROR)
+      }
+    }
+    throw error
+  }
+}
+
 export function useApiRequest(): UseApiRequestReturn {
   // token 为模块级单例，由 setToken/clearToken 维护
 
@@ -136,7 +315,7 @@ export function useApiRequest(): UseApiRequestReturn {
       // 接口耗时打点（按 path 分桶）
       const start = performance.now()
       try {
-        return await _singleRequest<T>(path, options, rid)
+        return await singleRequest<T>(path, options, rid)
       } catch (error) {
         const isGet = (options.method ?? 'GET').toUpperCase() === 'GET'
         const code = error instanceof ApiError ? error.code : null
@@ -174,184 +353,6 @@ export function useApiRequest(): UseApiRequestReturn {
       }
     }
     throw lastError
-  }
-
-  /** 单次请求实现（不含重试）：每次调用新建 AbortController，超时计时天然重置 */
-  async function _singleRequest<T = unknown>(
-    path: string,
-    options: RequestOptions,
-    rid: string
-  ): Promise<T> {
-    // dev 请求日志：故障时定位数据在哪一跳丢失
-    if (import.meta.env.DEV) {
-      logger.debug(
-        `[apiRequest:${rid}] → ${options.method ?? 'GET'} ${path}`,
-        options.params ?? undefined
-      )
-    }
-
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    }
-
-    // 认证走 HttpOnly Cookie（credentials: 'include'），token 仅用于前端登录态判断，不参与传输
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS)
-
-    // 组合外部 signal 与内部超时 signal
-    const signal = options.signal
-      ? AbortSignal.any([controller.signal, options.signal])
-      : controller.signal
-
-    // 统一 query 参数构造，避免手写模板字符串
-    let fullPath = path
-    if (options.params) {
-      const searchParams = new URLSearchParams()
-      for (const [key, value] of Object.entries(options.params)) {
-        if (value !== undefined && value !== null) {
-          searchParams.set(key, String(value))
-        }
-      }
-      const qs = searchParams.toString()
-      if (qs) {
-        fullPath += `${path.includes('?') ? '&' : '?'}${qs}`
-      }
-    }
-
-    try {
-      // 以 /flood-online 开头（vite proxy → FastAPI）的路径不加 /api 前缀：加了会命中 /api 规则转发到 Express，永远到不了 FastAPI
-      // 以 /api、/nest-api 开头（如 auth/plans 等 REST 路径）视为已含前缀，不再叠加——
-      // 曾因双重拼接打成 /api/api/ports → 404 → 港口图层加载失败（816-专项1 发现3 回归，2026-08-17 修复）
-      // 其余路径按功能域解析前缀（启用了 Nest 的模块 → /nest-api，否则 Express /api 默认回退）
-      logRoutingOnce()
-      const url =
-        path.startsWith('/flood-online') ||
-        path.startsWith('/api/') ||
-        path.startsWith('/nest-api/')
-          ? fullPath
-          : `${resolveBackendPrefix(path)}${fullPath}`
-      const res = await fetch(url, {
-        method: options.method,
-        body: options.body,
-        headers,
-        credentials: 'include',
-        signal,
-        // 禁用浏览器缓存：Express 默认 ETag 返回 304，fetch 视其为错误（res.ok 只认 2xx）→ 误判登出/数据失败
-        cache: 'no-store',
-      })
-      clearTimeout(timeoutId)
-
-      // 响应体可能为空或非 JSON：用 unknown 承接任意 JSON 值，解析失败保留原始文本作错误信息
-      const text = await res.text()
-      let data: unknown = undefined
-      if (text) {
-        try {
-          data = JSON.parse(text)
-        } catch {
-          data = { error: text.slice(0, 200) }
-        }
-      }
-
-      if (res.status === 401) {
-        // 认证失败透传服务端文案；后端已细分登录失败成因（401002 账号不存在 / 401003 密码错误），
-        // bizCode 随 ApiError 上抛供调用方细粒度分支（LoginPanel 据此引导注册/只报密码错误）
-        const authErrMsg =
-          typeof data === 'object' && data !== null && 'error' in data
-            ? String((data as Record<string, unknown>).error)
-            : ''
-        const bizCode =
-          typeof data === 'object' &&
-          data !== null &&
-          'code' in data &&
-          typeof (data as Record<string, unknown>).code === 'number'
-            ? ((data as Record<string, unknown>).code as number)
-            : undefined
-        // 401 只抛错不跳转：是否提示登录由调用方决定（选址分析不需要，收藏才需要）
-        throw new ApiError(authErrMsg || '请先登录', ErrorCode.UNAUTHORIZED, bizCode)
-      }
-
-      if (!res.ok) {
-        // 安全窄化：data 可能为非对象（如纯字符串/数字），用 typeof + in 守卫
-        const errMsg =
-          typeof data === 'object' && data !== null && 'error' in data
-            ? String((data as Record<string, unknown>).error)
-            : ''
-        // 网关级 5xx（nginx 502/503/504）：后端进程不可达而非应用自身错误——
-        // 归 SERVER_ERROR 语义，describeError 统一按「服务器无响应」口径提示
-        if (res.status === 502 || res.status === 503 || res.status === 504) {
-          throw new ApiError('服务器无响应，请检查网络后重试', ErrorCode.SERVER_ERROR)
-        }
-        if (res.status === 500) {
-          throw new ApiError(errMsg || '服务器错误，请稍后重试', ErrorCode.SERVER_ERROR)
-        }
-        throw new ApiError(errMsg || `请求失败 HTTP ${res.status}`, ErrorCode.REQUEST_FAILED)
-      }
-
-      // 统一解包响应信封（{ code, data } → data）：调用方始终拿到业务数据 T，无需手动 .data；跨服务裸 JSON 传 envelope: false 跳过
-      let unwrapped: T
-      if (options.envelope === false) {
-        unwrapped = data as T
-      } else {
-        // D2：code 契约 = 同 HTTP 状态（后端 sendSuccess code=statusCode 恒 2xx）——
-        // HTTP 2xx 但 code≥400 的业务错误信封显式失败，杜绝「错误数据被当成功解包」静默放大
-        const code =
-          typeof data === 'object' && data !== null && 'code' in data
-            ? (data as Record<string, unknown>).code
-            : undefined
-        if (typeof code === 'number' && code >= 400) {
-          throw new ApiError(`响应业务错误（code=${code}）`, ErrorCode.REQUEST_FAILED)
-        }
-        unwrapped = unwrapEnvelope<T>(data)
-      }
-
-      // dev 响应日志
-      if (import.meta.env.DEV) {
-        logger.debug(`[apiRequest:${rid}] ← ${res.status} ${path}`, {
-          envelope: options.envelope === false ? 'raw' : 'envelope',
-          schema: options.schema ? 'zod' : 'none',
-        })
-      } else {
-        // 生产采样观测：dev 全量日志被门控剥离后，成功路径也需可观测入口
-        logger.sampled('info', `[apiRequest:${rid}] ← ${res.status} ${path}`)
-      }
-
-      // 有 schema 则运行时校验；校验失败不可重试（响应数据错误重试无意义）
-      if (options.schema) {
-        const result = options.schema.safeParse(unwrapped)
-        if (!result.success) {
-          // 映射/校验失败生产可观测：记录校验问题概览（不展开字段，防敏感/噪音）
-          logger.sampled(
-            'warn',
-            `[apiRequest:${rid}] schema 校验失败 ${path}:`,
-            result.error.issues.slice(0, 3).map((i) => i.path.join('.'))
-          )
-          throw new ApiError('响应数据格式校验失败', ErrorCode.REQUEST_FAILED)
-        }
-        return result.data as T
-      }
-
-      return unwrapped
-    } catch (error) {
-      clearTimeout(timeoutId)
-      if (error instanceof ApiError) {
-        throw error
-      }
-      if (error instanceof Error) {
-        if (error.name === 'AbortError') {
-          // 区分内部超时 abort 与外部 signal 主动取消：内部超时抛 TIMEOUT
-          if (controller.signal.aborted) {
-            throw new ApiError('请求超时，请检查网络后重试', ErrorCode.TIMEOUT)
-          }
-          // 外部主动取消：抛 REQUEST_FAILED（多数调用方已忽略此错误）
-          throw new ApiError('请求已取消', ErrorCode.REQUEST_FAILED)
-        }
-        if (error instanceof TypeError && error.message.includes('fetch')) {
-          throw new ApiError('网络异常，请检查网络连接', ErrorCode.NETWORK_ERROR)
-        }
-      }
-      throw error
-    }
   }
 
   return {

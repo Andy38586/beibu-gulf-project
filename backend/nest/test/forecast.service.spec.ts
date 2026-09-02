@@ -209,7 +209,7 @@ describe('getIndicatorData', () => {
   it('不指定 portId 返回全部港口；指定则仅该港口', async () => {
     const mockReadFile = vi.fn().mockResolvedValue(JSON.stringify(cargoData))
     const service = makeService(mockReadFile)
-    const all = (await service.getIndicatorData('cargo', '2020-01')) as {
+    const all = (await service.getIndicatorData('cargo', '2020-01', undefined)) as {
       ports: Record<string, { portName: string }>
     }
     expect(Object.keys(all.ports).sort()).toEqual(['p1', 'p2'])
@@ -241,7 +241,13 @@ describe('getTimeSeriesData', () => {
   it('拼接历史与预测（24+120=144 点）', async () => {
     const mockReadFile = vi.fn().mockResolvedValue(JSON.stringify(cargoData))
     const service = makeService(mockReadFile)
-    const result = (await service.getTimeSeriesData('cargo', 'p1')) as Record<string, any>
+    const result = (await service.getTimeSeriesData(
+      'cargo',
+      'p1',
+      undefined,
+      undefined,
+      undefined
+    )) as Record<string, any>
     expect(result.series).toHaveLength(1)
     expect(result.series[0].data).toHaveLength(144)
     expect(result.series[0].data[0].time).toBe('2020-01')
@@ -271,7 +277,13 @@ describe('getTimeSeriesData', () => {
   it('不指定 portId 返回所有港口序列', async () => {
     const mockReadFile = vi.fn().mockResolvedValue(JSON.stringify(cargoData))
     const service = makeService(mockReadFile)
-    const result = (await service.getTimeSeriesData('cargo')) as {
+    const result = (await service.getTimeSeriesData(
+      'cargo',
+      undefined,
+      undefined,
+      undefined,
+      undefined
+    )) as {
       series: Array<{ portId: string }>
     }
     expect(result.series.map((s) => s.portId).sort()).toEqual(['p1', 'p2'])

@@ -1,3 +1,4 @@
+import type { ExecutionContext } from '@nestjs/common'
 import { describe, expect, it } from 'vitest'
 
 import { BusinessError } from '../src/common/errors/business-error'

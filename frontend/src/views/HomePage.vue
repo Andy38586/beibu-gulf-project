@@ -14,7 +14,7 @@ import { ChartLoading } from '@/visualization'
 
 // 图表异步化：echarts 移出首屏关键路径，就绪后替换 loading 占位。
 // loader 保留深路径：懒加载走入口会把整个 visualization 桶打进主 chunk，
-// 破坏拆分语义（Q4 收口仅约束静态跨层 import；动态 import 属构建优化，见 core/README 入口约定）
+// 破坏拆分语义（入口仅约束静态跨层 import；动态 import 属构建优化，见 core/README 入口约定）
 const LineChart = defineAsyncComponent({
   loader: () => import('@/visualization/charts/LineChart.vue'),
   loadingComponent: ChartLoading,

@@ -27,7 +27,7 @@ export function useSiteAnalysisApi(): UseSiteAnalysisApiReturn {
     // 新请求优先——取消上一个在途请求（快速连点用户期望看到最新结果）
     const signal = createSignal()
 
-    // M11/Q3（816 拍板）：状态写入口走 store action，禁止 storeToRefs 直改
+    // 状态写入口走 store action，禁止 storeToRefs 直改
     siteStore.setCalcError('')
     siteStore.setCalculating(true)
     try {

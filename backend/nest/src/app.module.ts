@@ -14,9 +14,9 @@ import { ForecastModule } from './modules/forecast/forecast.module'
 import { PlansModule } from './modules/plans/plans.module'
 import { SiteAnalysisModule } from './modules/site-analysis/site-analysis.module'
 
-// 限流对齐 Express：命名桶 global 1000/15min + login/register 各 50/15min（T3.1），
-// 路由经 @SkipThrottle 选择归属桶；forecast 豁免在 T3.4 加。
-// health 探针计入全局限流（T1.3 已记录口径，TODO(T6.3) 部署整合时统一对齐）
+// 限流对齐 Express：命名桶 global 1000/15min + login/register 各 50/15min；
+// 路由经 @SkipThrottle 选择归属桶；forecast 为合法高频交互（时间轴轮播）豁免。
+// health 探针计入全局限流（部署整合时统一对齐；5s 间隔约 180 次/15min，远低于 1000 上限）
 @Module({
   imports: [
     ThrottlerModule.forRoot([

@@ -1,0 +1,144 @@
+# 冻结的前端存量编号行（file::content）。重写清债后：更新源码 → 运行 --gen-baseline 覆盖。
+frontend/src/App.vue::z-index: var(--GCS-z-layout); /* 816-S7-40：壳层档（原散落 50） */
+frontend/src/assets/element-plus-overrides.css::* Element Plus 变量 → GCS token 映射覆写（816-S7-38）
+frontend/src/business/flood-analysis/FloodAnalysisPage.vue::// 816-S7-46：引用调色板常量（同值见 FLOOD_RISK_COLORS['高风险'].stroke），杜绝第二份字面量漂移
+frontend/src/business/flood-analysis/FloodAnalysisPage.vue::// 816-专项2 7-1：恢复路径整体兜底——renderFloodAreas/renderAffectedFacilities 经 BLM updateData
+frontend/src/business/flood-analysis/FloodAnalysisPage.vue::// 816-专项4 3.2：能力守卫驱动（isWater3DCapable），业务页不再 getType() 判断引擎（02 §5.3）
+frontend/src/business/flood-analysis/FloodAnalysisPage.vue::font-size: var(--GCS-font-size-lg); /* 816-S7-57：面板标题字号归档 */
+frontend/src/business/flood-analysis/components/FloodAnalysisReportPanel.vue::font-size: var(--GCS-font-size-lg); /* 816-S7-57：面板标题字号归档 */
+frontend/src/business/flood-analysis/components/WaterLevelProfilePanel.vue::* row 控制交错排布；value 同时是点击跳转的水位与轨道百分比（value/15）。
+frontend/src/business/flood-analysis/components/WaterLevelProfilePanel.vue::/* 816-S7-58：固定 px 宽改网格倍数（160px = 2 个 80px cell，随 cellPixel 档位缩放） */
+frontend/src/business/flood-analysis/components/WaterLevelProfilePanel.vue::/** 剖面线列表与选中态（816-专项1 发现16：R5 收口至 useTerrainProfiles，组件不再直调 apiRequest） */
+frontend/src/business/flood-analysis/components/WaterLevelProfilePanel.vue::/** 剖面线数据结构见 ../composables/useTerrainProfiles（816-专项1 发现16：本地重复接口已随 R5 收口移除） */
+frontend/src/business/flood-analysis/components/WaterLevelProfilePanel.vue::// 816-专项2 4-1：水位滑块改为「store 单一事实源」的可写 computed——
+frontend/src/business/flood-analysis/components/WaterLevelProfilePanel.vue::font-size: var(--GCS-font-size-lg); /* 816-S7-57：面板标题字号归档 */
+frontend/src/business/flood-analysis/components/WaterLevelProfilePanel.vue::font-size: var(--GCS-font-size-xs); /* 816-S7-57：越档 11px 归 12px 档 */
+frontend/src/business/flood-analysis/composables/useTerrainProfiles.ts::* useTerrainProfiles — 地形剖面线数据 composable（816-专项1 发现16：R5 收口，取数逻辑出组件）
+frontend/src/business/flood-analysis/composables/useTerrainProfiles.ts::/** 返回契约（816-专项3-0816-13：显式化） */
+frontend/src/business/flood-analysis/constants/colors.ts::* S7-01 绑定说明：本表与 shared/constants/colors.ts 的 FACILITY_COLORS 同值
+frontend/src/business/forecast/ForecastPage.vue::<!-- 816-专项5主 6：数据刷新期 loading 覆盖（isRequesting 由事务 composable 驱动），
+frontend/src/business/forecast/components/ForecastControlPanel.vue::); /* 816-S7-62：bg-panel 语义为背景，前景一律 text-inverse（原数值恰等，非功能性改动） */
+frontend/src/business/forecast/components/ForecastControlPanel.vue::/* 816-S7-44：拇指统一 --GCS-slider-thumb-size（14px；原 18px 时间轴大抓取面收敛） */
+frontend/src/business/forecast/components/ForecastControlPanel.vue::/* 816-S7-60：hover 底改通用 --GCS-bg-hover token（原用边框色充底）；
+frontend/src/business/forecast/components/ForecastControlPanel.vue::// 816-专项2 4-2：selected 由 store activeIndicator 派生（getter）——
+frontend/src/business/forecast/components/ForecastControlPanel.vue::// 816-专项8 发现2：月模式最大合法步 = (END_YEAR-BASE_YEAR)*12+11（=2031-12，stepToTime 闭合）；
+frontend/src/business/forecast/components/ForecastControlPanel.vue::height: var(--GCS-slider-track-height); /* 816-S7-44：轨道高统一 token（原 4px） */
+frontend/src/business/forecast/composables/useForecastComparison.ts::/** 返回契约（816-专项3-0816-13：显式化，防重构时签名静默漂移） */
+frontend/src/business/forecast/composables/useForecastComparison.ts::// 816-专项1 发现18：data 保留 null（图表空档）——BarChart series 类型须为 (number|null)[]
+frontend/src/business/forecast/composables/useForecastComparison.ts::// 816-专项1 发现18：无数据保留 null（图表空档），不再折叠为 0——
+frontend/src/business/forecast/composables/useForecastLayer.ts::// 816-专项8 发现3：缓存命中也校验事务有效性（对齐 useForecastTimeseries 8-12 模式）——
+frontend/src/business/forecast/composables/useForecastRequest.ts::/** 返回契约（816-专项3-0816-13：显式化，防重构时签名静默漂移） */
+frontend/src/business/forecast/composables/useForecastTimeseries.ts::/** 返回契约（816-专项3-0816-13：显式化，防重构时签名静默漂移） */
+frontend/src/business/forecast/composables/useOverviewCharts.ts::/** 返回契约（816-专项3-0816-13：显式化，防重构时签名静默漂移） */
+frontend/src/business/site-selection/SiteSelectionPage.vue::/** 分析结果（816-专项2 4-3：store 唯一来源，storeToRefs 透传——页面与 AppLayout 全局雷达同源，
+frontend/src/business/site-selection/SiteSelectionPage.vue::// 816-专项2 4-3：store 单一来源——setResult 同时驱动页面与 AppLayout 全局雷达（删本地双写）
+frontend/src/business/site-selection/components/SiteAnalysisControlPanel.vue::); /* 816-S7-62：bg-panel 语义为背景，前景一律 text-inverse（原数值恰等，非功能性改动） */
+frontend/src/business/site-selection/composables/__tests__/useSiteAnalysisApi.test.ts::// 816-专项5并 1-4：错误只写 calcError，弹窗由页面级 handleAnalysisError 统一触发
+frontend/src/business/site-selection/composables/useAnalysisLayer.ts::// 816-专项2 7-3：调用点为 `void updateAnalysisHandler(result)` 无 catch——
+frontend/src/business/site-selection/composables/useSiteAnalysisApi.ts::/** 返回契约（816-专项3-0816-13：显式化，防重构时签名静默漂移） */
+frontend/src/core/index.ts::// Q4 收口：渲染器工厂/预载经入口对外（App.vue 使用；OLRenderer/CesiumRenderer 实现类不对外）
+frontend/src/core/layout/AppLayout.vue::/* 816-S7-40：局部层叠上下文（抽屉 body 内），不参与全局 --GCS-z-* 刻度 */
+frontend/src/core/layout/AppLayout.vue::// 816-专项5并 3-2：Debug 组件动态导入且仅 DEV 引用——生产构建彻底 tree-shake
+frontend/src/core/layout/AppLayout.vue::z-index: var(--GCS-z-layout); /* 816-S7-40：壳层档（原散落 50） */
+frontend/src/core/layout/components/BottomNavBar.vue::z-index: var(--GCS-z-nav); /* 816-S7-40：导航档（原散落 60） */
+frontend/src/core/layout/components/GCSButton.vue::); /* 816-S7-62：bg-panel 语义为背景，前景一律 text-inverse（原数值恰等，非功能性改动） */
+frontend/src/core/layout/components/GCSButton.vue::/* 816-S7-43：outline:none 去掉默认环后用 :focus-visible 补可见焦点环（键盘可达性，WCAG 2.4.7） */
+frontend/src/core/layout/useMobileDrawer.ts::/** 返回契约（816-专项3-0816-13：显式化，防重构时签名静默漂移） */
+frontend/src/core/layout/useSliderFocus.ts::/** 返回契约（816-专项3-0816-13：显式化，防重构时签名静默漂移） */
+frontend/src/core/map/UnifiedMap.vue::// 816-专项3-0816-09：类型谓词替代双重断言——featureType==='port' 时 data 应为港口属性，
+frontend/src/core/map/UnifiedMap.vue::// 816-专项3-0816-16：事件名改 kebab-case（03 1.2 命名约定；原 typeChange camelCase）
+frontend/src/core/map/UnifiedMap.vue::padding: 6px 12px; /* 6px/12px 非8的整数倍，保留（816-S7-51 复核：已登记取舍项） */
+frontend/src/core/map/__tests__/BusinessLayerManager.test.ts::it('b058: visible:false 注册的图层打开时补建（setVisible(true) → adapter.create）', () => {
+frontend/src/core/map/layerAdapters.ts::*  816-专项4 3.2：对外导出——业务页注册水面/DEM 前用能力检查替代 getType() 引擎判断（02 §5.3 能力检查设计） */
+frontend/src/core/map/renderers/CesiumRenderer.ts::* Cesium Entity 运行期最小形态（816-专项3-0816-02：样式应用仅用这些成员，替代裸 any；
+frontend/src/core/map/renderers/CesiumRenderer.ts::* hillshade 影像固有地理范围（EPSG:4326，[西,南,东,北]；816-专项4 1.4 提常量）。
+frontend/src/core/map/renderers/CesiumRenderer.ts::/** 3D 相机缩放限位（米；816-专项4 1.4 提常量，与 OL zoom 6-20 档位对应） */
+frontend/src/core/map/renderers/CesiumRenderer.ts::// 816-专项2 3-1：销毁前取消 30s 空闲销毁定时器——unmount() 会重排该定时器，
+frontend/src/core/map/renderers/CesiumRenderer.ts::// 816-专项3-0816-01：结构化断言替代裸 as any（原整对象断言无注释、无退出计划）——
+frontend/src/core/map/renderers/CesiumRenderer.ts::// 816-专项4 1.4：缩放限位提常量（与 OL zoom 6-20 档位对应，见 CAMERA_*_ZOOM_DISTANCE）
+frontend/src/core/map/renderers/CesiumRenderer.ts::// 816-专项4 6.3：标注色收口 LAYER_DEFAULTS（原 BLACK/WHITE 硬编码；白底自包含，双主题可读）
+frontend/src/core/map/renderers/OLRenderer.ts::/** 2D 视图层级限位（816-专项4 1.4 提常量：与 3D CAMERA_*_ZOOM_DISTANCE 对应；原散落 9/6/20） */
+frontend/src/core/map/renderers/OLRenderer.ts::// 816-专项2 3-2：清空 baseLayers 引用——已 dispose 的 TileLayer 不留在数组中，
+frontend/src/core/map/renderers/__tests__/MapRenderer.interface.test.ts::// 816-专项4 3.1：契约测试覆盖真实实现——原仅 MockRenderer，OL/Cesium 偏离接口
+frontend/src/core/map/renderers/index.ts::// 816-专项2 3-4：失败路径移除残留 <script> 节点，避免重复注入堆积 DOM
+frontend/src/core/map/renderers/index.ts::// 816-专项2 7-2：动态导入失败需自身兜底（外层 catch 只管 ensureCesiumLoaded）
+frontend/src/main.ts::// 816-S7-38：EP 变量 → GCS token 映射（须在 EP dark css-vars 之后加载，见文件头注释）
+frontend/src/main.ts::// 816-专项5主 16：资源加载错误（script/link/img 不冒泡到 window.onerror）——
+frontend/src/services/adapters/__tests__/floodAdapter.test.ts::it('getFloodAnalysis 应调 /flood-online/api/flood/online 并注入 riskLevel（FastAPI 无该字段，回归 0816-06）', async () => {
+frontend/src/services/adapters/__tests__/forecastAdapter.test.ts::* forecastAdapter 单测（816-专项5并 4-5：原 0% 覆盖 → 三端点 + 参数透传 + 信封解包全锁定）。
+frontend/src/services/adapters/floodAdapter.ts::// b027：参数名统一 waterLevel
+frontend/src/services/adapters/floodAdapter.ts::// b027：参数名统一 waterLevel（原 level 与 api 模式分裂；FastAPI 端已同步改名）
+frontend/src/shared/components/GCSModal.vue::/* 816-S7-52：逐子 margin 表达式化（0.1 × 80px cell = 8px；容器 gap 化留待 GCSModal 重构） */
+frontend/src/shared/components/GCSModal.vue::/* 816-S7-52：逐子 margin 表达式化（0.2/0.25 × cell = 16/20px） */
+frontend/src/shared/components/GCSModal.vue::d="M12 8V13"
+frontend/src/shared/components/PaginatedListPanel.vue::/* 816-专项5并 1-3：计算中提示（空态与加载态分离） */
+frontend/src/shared/components/PaginatedListPanel.vue::<!-- 加载进行态（816-专项5并 1-3：loading 与空态分离，不变量8） -->
+frontend/src/shared/components/PaginatedListPanel.vue::border-radius: var(--GCS-radius-sm); /* 816-S7-54：非档位 4px 归 sm */
+frontend/src/shared/composables/useApiRequest.ts::/** 返回契约（816-专项3-0816-13：显式化，防重构时签名静默漂移） */
+frontend/src/shared/composables/useApiRequest.ts::// 曾因双重拼接打成 /api/api/ports → 404 → 港口图层加载失败（816-专项1 发现3 回归，2026-08-17 修复）
+frontend/src/shared/composables/useAuth.ts::/** 返回契约（816-专项3-0816-13：显式化，防重构时签名静默漂移） */
+frontend/src/shared/composables/useFavorites.ts::/** 返回契约（对齐 816-专项3-0816-13：显式化，防签名静默漂移） */
+frontend/src/shared/composables/useLatestRequest.ts::/** 返回契约（816-专项3-0816-13：显式化，防重构时签名静默漂移） */
+frontend/src/shared/composables/usePlans.ts::/** 返回契约（816-专项3-0816-13：显式化，防重构时签名静默漂移） */
+frontend/src/shared/constants/colors.ts::/** 设施未知 key 兜底色（S7-31：原两处散落 '#666' 收口；仅图表 fallback 用，未知设施类型按中性灰显示） */
+frontend/src/shared/constants/colors.ts::// 816-S7-34：多分类系列色板（03 §三.2「chart：c1-c6」规格落地；暗色提亮一档保对比度），
+frontend/src/shared/constants/colors.ts::// 816-S7-49：雷达图 splitArea 叠层（原 useRadarChart 内 rgba 硬编码收敛）
+frontend/src/shared/constants/colors.ts::// S7-12：剖面面积渐变 stops（success 绿 #67C23A 派生，WaterLevelProfilePanel 面积图）
+frontend/src/shared/constants/colors.ts::// 水面/覆盖层填充色（primary #409eff 的透明度派生，S7-03：收口两处散落 rgba 硬编码）
+frontend/src/shared/constants/colors.ts::labelBackground: 'rgba(255, 255, 255, 0.8)', // 点标注白底（816-专项4 6.3：Cesium label 收口）
+frontend/src/shared/layout/useTheme.ts::/** 返回契约（816-专项3-0816-13：显式化，防重构时签名静默漂移） */
+frontend/src/shared/layout/useTheme.ts::// 816-专项7 S7-36：系统主题变化实时跟随——仅当用户未手动选择（localStorage 无 gcs-theme）时生效；
+frontend/src/shared/utils/crs.ts::*  与后端 siteAnalysisService.js 同源（后端权威，8-8 统一：原 112/23.5 收紧于后端 115/25） */
+frontend/src/shared/utils/errorHandler.ts::/** 错误消息无害化（816-专项5并 1-2）：堆栈特征（换行）/超长（>120）/纯英文技术串 → 回退 fallback。
+frontend/src/shared/utils/errorHandler.ts::// 816-专项5并 1-2：消息无害化——堆栈/超长/纯英文技术串不回退直接上屏（原始串仅 DEV 日志可见）
+frontend/src/shared/utils/perfReporter.ts::/** 错误分类计数（main.ts 钩子接入：vue / script / promise / resource——816-专项5主 16 资源错误监听） */
+frontend/src/shared/utils/spatialIndex.ts::/** 返回契约（816-专项3-0816-13：显式化，防重构时签名静默漂移） */
+frontend/src/stores/__tests__/forecastStore.test.ts::* 2026-08-16（816-专项2 4-4）：timeRange 死状态移除，断言同步删除
+frontend/src/stores/__tests__/forecastStore.test.ts::describe('事务状态 (b039)', () => {
+frontend/src/stores/__tests__/mapStore.test.ts::describe('resetMapState (b037)', () => {
+frontend/src/stores/forecastStore.ts::// 816-专项2 4-4：timeRange 死状态已删除（currentTime 与 timeRange.current 双持「当前时间」，
+frontend/src/style.css::* 816-S7-66：token 改名映射（03 §三.5 SOP②「改名留映射至少一个版本」）
+frontend/src/style.css::* 尺寸基准见 --GCS-slider-thumb-size/--GCS-slider-track-height（816-S7-44 单一 token） */
+frontend/src/style.css::* 旧名 → 新名/去向（S7-45 删除的死 token 记录于此，供历史引用回溯）：
+frontend/src/style.css::--GCS-bg-panel: #ffffff; /* 面板默认背景（S7-48：与 bg-elevated/text-inverse 亮色同值属巧合，暗色各异，不做 var 引用收敛） */
+frontend/src/style.css::--GCS-color-primary: #409eff; /* S7-30 已知豁免：白字对比度 2.78:1（暗色侧 6.67:1 达标）；品牌蓝提亮改档影响全站组件，登记豁免，redesign 时统一处理 */
+frontend/src/style.css::--GCS-text-disabled: #55677e; /* 816-S7-47：暗色禁用态文字（较 muted 再暗一档） */
+frontend/src/style.css::--GCS-text-disabled: #c0c4cc; /* 禁用态文字（816-S7-47：03 §三.2「text：…disabled」规格落地；原组件裸 opacity 0.5/0.6 硬凑） */
+frontend/src/style.css::--GCS-text-muted: #7a8694; /* S7-48：占位符场景直接用 muted */
+frontend/src/style.css::--GCS-text-muted: #909399; /* 辅助文字、占位符（S7-48：原 placeholder 同值双定义已随 S7-45 删除，占位符场景直接用 muted） */
+frontend/src/style.css::--GCS-text-regular: #333333; /* 一般按钮文字（S7-48：与 primary #303133 近同值，保留为兼容别名，新代码统一用 primary） */
+frontend/src/style.css::--GCS-text-regular: #d0d7e0; /* S7-48：与 primary 近同值，兼容别名（见亮色块注释） */
+frontend/src/style.css::/* 816-S7-39：亮色语义色加深至 WCAG AA（白底文本 ≥4.5:1，node 实测原值 2.27/2.19/2.90 不达标）；
+frontend/src/style.css::/* 816-S7-40：壳层/导航档（原 App.vue/AppLayout 散落 50、BottomNavBar 散落 60） */
+frontend/src/style.css::/* 816-S7-43：滑块 thumb 的键盘焦点环——组件内 outline:none 已移除默认环，
+frontend/src/style.css::/* 816-S7-45：--GCS-bg-canvas 死 token 已删 */
+frontend/src/style.css::/* 816-S7-45：--GCS-bg-canvas 死 token 已删（零 var() 消费） */
+frontend/src/style.css::/* 816-S7-57：字号档位补齐（跨主题同值，dark 继承；03 §三.2 档位 12/13/14/16/20/24 的 12/16 档） */
+frontend/src/style.css::/* ===== 移动端业务面板抽屉（响应式：<960px 由 AppLayout 渲染，断点见 02 §5.4 档位 2/3） ===== */
+frontend/src/style.css::/* S7-06：键盘可访问性——自绘按钮/可交互元素统一 focus 环（原无 :focus-visible 样式） */
+frontend/src/style.css::/* S7-08/23：GCSModal/GCSToast 引用但未定义的 token 补正式定义（与 shared/layout/config.ts CELL_PIXEL 同源） */
+frontend/src/types/api/forecast.ts::/** 816-专项3-0816-05：置信度（数据文件自带；schema 已补可选字段防止剥除） */
+frontend/src/types/business/base.ts::// 816-专项1 发现7（M5）：计数语义改名 affectedFacilityCount，消除与 FloodSavedState.affectedFacilities（数组）同名不同型
+frontend/src/types/business/base.ts::// 816-专项3-0816-10：GeoPoint 收敛为单一权威（crs.ts 带 CRS 泛型版本）；
+frontend/src/types/plan.ts::/** 816-专项3-0816-04：选址权重（后端 plansController 持久化；旧数据 null，前端当前不消费） */
+frontend/src/types/plan.ts::// 816-专项3-0816-03：改可选对齐运行时（存量 plans.json 记录大多无此字段，消费方 `|| []` 兜底）
+frontend/src/types/schemas.ts::// 816-专项1 发现7（M5）：计数语义改名 affectedFacilityCount（原 affectedFacilities 与数组语义同名不同型）
+frontend/src/types/schemas.ts::// 816-专项3-0816-04：weights 由后端持久化（旧数据 null），前端声明但当前不消费
+frontend/src/types/schemas.ts::// 816-专项3-0816-05：数据文件自带 confidence（berth.json 等），补可选字段防 schema 静默剥除
+frontend/src/types/schemas.ts::// 816-专项3-0816-14：reliability 对齐 ForecastMapData 类型声明（原 schema 未枚举，looseObject 透传）
+frontend/src/types/schemas.ts::// 必填会把 online 模式全部判死（816-专项3-0816-06 回归，2026-08-17 修复），故 optional
+frontend/src/views/components/PlansPanel.vue::); /* 816-S7-62：bg-panel 语义为背景，前景一律 text-inverse（原数值恰等，非功能性改动） */
+frontend/src/views/components/PlansPanel.vue::/* 816-S7-47：禁用态走 text-disabled token（原裸 opacity 0.6） */
+frontend/src/views/components/PlansPanel.vue::/* 816-S7-51：垂直 padding 归 8px 基准（原 5px 非刻度） */
+frontend/src/views/components/PlansPanel.vue::/* 816-S7-51：微间距归 8px 基准（原 6px 非刻度） */
+frontend/src/views/components/PlansPanel.vue::// 816-专项5并 1-2：同上无害化
+frontend/src/views/components/PlansPanel.vue::border-radius: var(--GCS-radius-sm); /* 816-S7-54：非档位 4px 归 sm */
+frontend/src/views/components/PlansPanel.vue::font-size: var(--GCS-font-size-xs); /* 816-S7-57：越档 10px 归 12px 档 */
+frontend/src/views/components/UserInfoCard.vue::/* 816-S7-51：=GAP(10px) 字面量 → 网格表达式（0.125 × 80px cell） */
+frontend/src/visualization/charts/BarChart.vue::// 816-专项1 发现18：data 允许 null（无数据空档，ECharts 原生支持），禁止调用方折叠为 0
+frontend/src/visualization/charts/LineChart.vue::// 816-专项1 发现18：data 允许 null（无数据空档，ECharts 原生支持），禁止调用方折叠为 0
+frontend/src/visualization/charts/RadarChart.vue::/* 816-S7-53：负间距 hack 用途说明——score-hint 为绝对定位 tooltip，
+frontend/src/visualization/charts/RadarChart.vue::font-size: var(--GCS-font-size-xs); /* 816-S7-57：越档 11px 归 12px 档 */
+frontend/src/visualization/charts/composables/useChartBase.ts::// 816-S7-34：多分类系列色板顶层注入（seriesPalette），替代 ECharts 默认 #5470c6 系列；
+frontend/src/visualization/charts/composables/useChartBase.ts::// 816-专项1 发现18：data 允许 null（无数据空档，ECharts 原生支持）
+frontend/src/visualization/charts/composables/useRadarChart.ts::// 816-S7-49：叠层色收敛到 CHART_COLORS（原 isDark 分支 rgba 硬编码）

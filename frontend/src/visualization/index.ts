@@ -1,4 +1,4 @@
-// visualization 公开 API 入口（Q4 816 拍板：全量收口，01 原则10 不豁免）
+// visualization 公开 API 入口（全量收口，01 原则10 不豁免）
 // charts/panels 组件 + composables + 快照常量统一聚合，消费方一律走 @/visualization，禁止深路径穿透。
 export { default as BarChart } from './charts/BarChart.vue'
 export { default as ChartLoading } from './charts/ChartLoading.vue'

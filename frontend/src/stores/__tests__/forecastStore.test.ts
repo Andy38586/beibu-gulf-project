@@ -93,7 +93,7 @@ describe('useForecastStore', () => {
       expect(store.isRequesting).toBe(false)
     })
 
-    it('reset() 也复位事务状态（与批次1 Part 6 联动）', () => {
+    it('reset() 也复位事务状态（store action 全链路联动）', () => {
       const store = useForecastStore()
       store.activeTransactionId = 99
       store.isRequesting = true

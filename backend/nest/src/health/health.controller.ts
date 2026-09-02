@@ -3,7 +3,7 @@ import type { Response } from 'express'
 
 import { DbService } from '../infra/db/db.service'
 
-// TODO(T6.3): Express 把探针置于限流器之前；Nest 侧 @nestjs/throttler 的 SkipThrottle
+// Express 把探针置于限流器之前；Nest 侧 @nestjs/throttler 的 SkipThrottle
 // 装饰器在 vitest ESM interop 下 named export 丢失（fail fast 修复：暂由全局限流覆盖探针）。
 // 探针 5s 间隔约 180 次/15min，远低于 1000 上限，风险可控；部署整合时统一处理
 @Controller('health')

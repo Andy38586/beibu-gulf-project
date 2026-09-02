@@ -8,7 +8,7 @@ import { UsersRepository } from '../repositories/users.repository'
 const BCRYPT_ROUNDS = 10
 
 // 响应用户视图：键名 camelCase（createdAt/tokenVersion）对齐 Express 响应体，
-// 不外泄 password（专项1 数据链口径：敏感字段不出边界）
+// 不外泄 password（敏感字段不出边界）
 export interface RegisterUserView {
   id: string
   username: string

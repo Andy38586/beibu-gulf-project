@@ -3,7 +3,7 @@ import { Injectable } from '@nestjs/common'
 import { FavoritesRepository } from '../repositories/favorites.repository'
 
 // 收藏业务：无额外规则，校验在 DTO 层，幂等/隔离语义在仓储层——
-// service 保留一层以维持 repository→service→controller 分层约定（T3.1 同构）
+// service 保留一层以维持 repository→service→controller 分层约定（与 auth 模块同构）
 @Injectable()
 export class FavoritesService {
   constructor(private readonly favoritesRepository: FavoritesRepository) {}

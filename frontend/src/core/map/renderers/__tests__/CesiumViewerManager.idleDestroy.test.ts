@@ -2,9 +2,9 @@
  * CesiumViewerManager 30s 空闲销毁链路运行级验证
  *
  * 验证背景（用户报 bug：洪涝页 3D → 去 2D 路由 → 停留 >30s → 回洪涝页 → 地图白板）：
- * - 6a751c4（8/1）引入单例时注释声称"unmount 不销毁、再次 mount 复用"，
+ * - 引入单例时注释声称"unmount 不销毁、再次 mount 复用"，
  *   但 unmount() 实现同时启动 30s 空闲销毁计时器 → destroy() → viewer 置 null。
- * - 598d995（批次9，8/3）在 UnifiedMap.switchMapType 3D→2D 时主动调 unmount()，
+ * - UnifiedMap.switchMapType 3D→2D 时主动调 unmount()，
  *   使 30s 销毁路径在真实路由切换中可达。
  * - 回 3D 时 UnifiedMap.initRenderer 走复用分支，只调 cesiumViewerManager.mount()，
  *   而 mount() 在 viewer 为 null 时静默 return false —— 容器不恢复 → 白板。

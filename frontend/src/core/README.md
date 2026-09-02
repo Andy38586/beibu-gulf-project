@@ -42,7 +42,7 @@ core/
 
 ### `index.ts`
 
-公开 API 聚合点。约定（Q4 816 拍板：全量收口，01 原则10 不豁免）：
+公开 API 聚合点。约定（全量收口，01 原则10 不豁免）：
 
 - `components/` 与 `*.vue` 组件经 `index.ts` 聚合导出（`UnifiedMap` / `AppLayout` / `GCSPanel` / `LayerControlPanel` / `GCSButton` / `NavButton` / `MobileDrawer` / `BottomNavBar`），消费方一律走 `@/core`，**禁止深路径穿透**。
 - `DebugToggle` / `GCSDebugOverlay` 仅 DEV 构建加载（03 §三.3「仅 dev 构建加载」），不静态导出——AppLayout 以 `import.meta.env.DEV` 条件动态导入（tree-shake 语义）。

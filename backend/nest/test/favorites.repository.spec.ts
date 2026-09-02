@@ -49,7 +49,7 @@ describe('favoritesRepository（真库）', () => {
     expect(first.existed).toBe(false)
     const again = await repo.add(U1, item)
     expect(again.existed).toBe(true)
-    expect(again.favorite.id).toBe(first.favorite.id)
+    expect(again.favorite!.id).toBe(first.favorite!.id)
     const count = await db.query('SELECT count(*)::int AS n FROM favorites WHERE user_id = $1', [
       U1,
     ])

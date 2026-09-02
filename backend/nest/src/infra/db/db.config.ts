@@ -10,7 +10,7 @@ export interface DbConfig {
 }
 
 // 开发默认值对齐 docker-compose.v3.yml（postgres/postgres/v3_dev@5432）；
-// 生产凭据一律经环境注入，默认口令禁止外溢到生产配置（专项5 指标 8.3，P0）
+// 生产凭据一律经环境注入，默认口令禁止外溢到生产配置（安全指标 P0）
 export function parseDbConfig(env: NodeJS.ProcessEnv): DbConfig {
   const port = Number(env.PG_PORT ?? 5432)
   return {

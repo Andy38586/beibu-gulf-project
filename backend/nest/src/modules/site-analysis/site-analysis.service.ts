@@ -14,8 +14,8 @@ import {
 } from './scoring'
 import { createSpatialIndex, queryByPolygon } from './spatial-index'
 
-// 逐行等价移植 backend/services/siteAnalysisService.js（T3.6 九步选址计算）。
-// 评分排序取前 N 名（816-专项8 发现7：557 小区规模下取前 10 覆盖可达性核心结论区间，
+// 逐行等价移植 backend/services/siteAnalysisService.js（九步选址计算）。
+// 评分排序取前 N 名（557 小区规模下取前 10 覆盖可达性核心结论区间，
 // 前端 SiteSelectionPage 另行 slice(0,8) 展示截断，不硬依赖本值；如数据翻倍需重评估）
 const TOP_N = 10
 

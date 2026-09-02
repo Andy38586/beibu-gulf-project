@@ -176,7 +176,7 @@ describe('选址纯函数 — 清洗/覆盖/求交/筛选', () => {
       { lng: 108.6, lat: 25.1, name: 'north-out' },
       { name: 'no-coord' },
     ]
-    const valid = extractValidPoi(points)
+    const valid = extractValidPoi(points as unknown as FacilityPoint[])
     expect(valid).toHaveLength(1)
     expect(valid[0].name).toBe('a')
   })
@@ -190,7 +190,7 @@ describe('选址纯函数 — 清洗/覆盖/求交/筛选', () => {
   })
 
   it('intersectCoverages：无有效覆盖 → { area:null, failKey:null }', () => {
-    expect(intersectCoverages([null, undefined], ['hospital', 'school'])).toEqual({
+    expect(intersectCoverages([null, undefined] as never[], ['hospital', 'school'])).toEqual({
       area: null,
       failKey: null,
     })

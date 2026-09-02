@@ -74,7 +74,7 @@ export function deriveRiskLevel(level: number): string {
 
 /**
  * 6 档向上取档：返回 >= 请求水位的最低档位；超档（15 < 水位 ≤ 25）取最高档兜底
- *（02 §4.3 宁可高估风险不可低估，Q1 816 拍板；表空返回 undefined 由调用方防御）
+ *（02 §4.3 宁可高估风险不可低估；表空返回 undefined 由调用方防御）
  */
 function pickZone<T extends { waterLevel: number }>(zones: T[], level: number): T | undefined {
   return (
@@ -84,7 +84,7 @@ function pickZone<T extends { waterLevel: number }>(zones: T[], level: number): 
 }
 
 /**
- * 洪涝读 API（T3.5）。路径约定对齐 backend/routes/floodAnalysis.js：资源型端点 kebab-case
+ * 洪涝读 API。路径约定对齐 backend/routes/floodAnalysis.js：资源型端点 kebab-case
  * 复数，操作型端点 /analysis/<action>。全部免鉴权（2026-08-29 收口 02 §4.5：仅收藏需登录，
  * disaster 评估为纯计算不读用户数据）。限流沿用全局限流桶（Express 侧无 skip 口径）。
  */
@@ -196,7 +196,7 @@ export class FloodController {
     const facilityData = (await this.floodRepository.readFacilityPoints()) as FacilityData
     const floodData = (await this.floodRepository.readFloodArea()) as FloodAreaData
 
-    // 6 档向上取档（与 getFloodAreas 同口径；Q1：超档取最高档 15m，不静默空评估）
+    // 6 档向上取档（与 getFloodAreas 同口径；超档取最高档 15m，不静默空评估）
     const floodZone: FloodZone | null = pickZone(floodData.floodZones, level) ?? null
 
     // 业务计算委托给 floodService

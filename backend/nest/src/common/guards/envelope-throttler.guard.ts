@@ -3,9 +3,8 @@ import type { ThrottlerLimitDetail } from '@nestjs/throttler'
 import { ThrottlerGuard } from '@nestjs/throttler'
 import type { Request } from 'express'
 
-// 限流守卫挂载补齐：T1.3 只建了 ThrottlerModule 配置但未注册 APP_GUARD，
-// 限流实际空转；T3.1 起真实生效（探针计入全局限流，维持 T1.3 已记录口径）。
-// 429 文案按路由对齐老 Express express-rate-limit 的 message（裸 {error} 形状，
+// 限流守卫全局挂载（APP_GUARD）；若只注册 ThrottlerModule 配置而不挂守卫，限流会空转。
+// 429 文案按路由对齐 Express express-rate-limit 的 message（裸 {error} 形状，
 // 由 BusinessErrorFilter 透传）
 @Injectable()
 export class EnvelopeThrottlerGuard extends ThrottlerGuard {

@@ -28,7 +28,7 @@ export function useForecastRequest(): UseForecastRequestReturn {
 
   /** 状态变化前调用：取消旧事务并生成新事务 ID */
   function startTransaction() {
-    // M11/Q3（816 拍板）：事务 ID 推进走 store action，不再直改 state
+    // 事务 ID 推进走 store action，不再直改 state
     const transactionId = forecastState.bumpTransactionId()
     const signal = createSignal()
 

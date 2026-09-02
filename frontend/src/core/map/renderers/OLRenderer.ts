@@ -208,7 +208,7 @@ export class OLRenderer extends MapRenderer {
       target: this.container,
       view,
       layers: [],
-      // 816-专项4 8.3（Q6 拍板）：显式 controls 对齐 3D widget 策略——原默认全开
+      // 显式 controls 对齐 3D widget 策略——原默认全开会让街景控件与业务 UI 同屏打架
       // （zoom/rotate/attribution）不可配置；保留 Zoom/Attribution（基础导航 + 版权），
       // 弃用 Rotate 等噪音控件（北部湾单区域场景，2D/3D 控件行为对称）
       controls: [new Zoom(), new Attribution()],

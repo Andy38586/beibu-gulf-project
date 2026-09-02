@@ -90,7 +90,7 @@
   /* 816-S7-57：字号档位补齐（跨主题同值，dark 继承；03 §三.2 档位 12/13/14/16/20/24 的 12/16 档） */
   --GCS-font-size-xs: 12px; /* 小字（角标/辅助标注；原组件散落 10/11px 越档） */
   --GCS-font-size-lg: 16px; /* 面板标题（原三处 16px 字面量散落） */
-  /* 816-S7-44：滑块尺寸单一 token（Q5 拍板：自绘滑块全走 .gcs-slider 档） */
+  /* 滑块尺寸单一 token（自绘滑块全走 .gcs-slider 档） */
   --GCS-slider-thumb-size: 14px; /* 拇指直径（原 conf 16px / t-slider 18px / factor 14px 三套） */
   --GCS-slider-track-height: 6px; /* 轨道高（原 4px/6px 两套） */
 

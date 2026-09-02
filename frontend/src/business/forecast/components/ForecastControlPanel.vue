@@ -411,7 +411,7 @@ onUnmounted(() => stopPlayback())
 .conf-slider::-webkit-slider-thumb {
   appearance: none;
 
-  /* 816-S7-44：拇指统一 --GCS-slider-thumb-size（14px，Q5 拍板全走 .gcs-slider 档；原 S7-19 统一到 16px 被本批覆盖） */
+  /* 滑块拇指统一 --GCS-slider-thumb-size（14px，全走 .gcs-slider 档） */
   width: var(--GCS-slider-thumb-size);
   height: var(--GCS-slider-thumb-size);
   border-radius: 50%;

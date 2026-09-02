@@ -55,7 +55,10 @@ describe('auth e2e（连真库）', () => {
         },
       },
     })
-    const raw = (res.headers['set-cookie'] as string[]).find((c) => c.startsWith('auth_token='))
+    const setCookies = res.headers['set-cookie']
+    const raw = Array.isArray(setCookies)
+      ? setCookies.find((c) => c.startsWith('auth_token='))
+      : undefined
     expect(raw).toContain('HttpOnly')
     expect(raw).toContain('SameSite=Strict')
     expect(raw).toContain('Max-Age=604800')
@@ -161,7 +164,10 @@ describe('auth e2e（连真库）', () => {
       .set('Cookie', cookie)
       .expect(200)
     expect(res.body).toEqual({ code: 200, data: { message: '登出成功' } })
-    const cleared = (res.headers['set-cookie'] as string[]).find((c) => c.startsWith('auth_token='))
+    const setCookies = res.headers['set-cookie']
+    const cleared = Array.isArray(setCookies)
+      ? setCookies.find((c) => c.startsWith('auth_token='))
+      : undefined
     expect(cleared).toContain('Expires=Thu, 01 Jan 1970')
     // 旧 token 已被吊销（tokenVersion 自增）→ 401 专属文案
     const me = await request(app.getHttpServer())

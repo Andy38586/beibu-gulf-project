@@ -1,5 +1,5 @@
 // ForecastEngine 逐行等价移植（backend/services/forecastEngine.js，算法不改写——
-// 改写属专项8 审查域须另行立项）。确定性：固定种子 LCG（Park-Miller），
+// 改写属算法审查域须另行立项）。确定性：固定种子 LCG（Park-Miller），
 // 种子由 timePoint + 港口索引哈希得到，禁止 Math.random 参与业务数值（02 §5.6.1）
 
 export interface HistoricalPoint {

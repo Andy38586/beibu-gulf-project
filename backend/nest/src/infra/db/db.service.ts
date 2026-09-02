@@ -5,7 +5,7 @@ import { parseDbConfig } from './db.config'
 
 // 全应用唯一连接池（单例 provider）；SQL 只允许出现在 repository 层，
 // service/controller 经 DbService 之外的层访问 DB 会被 cruise 拦截
-//（nest-db-access-only-in-repository 规则 + 专项6 指标 8.3）
+//（依赖规则 nest-db-access-only-in-repository：DB 访问只允许出现在 repository 层）
 @Injectable()
 export class DbService implements OnModuleDestroy {
   private readonly pool: Pool

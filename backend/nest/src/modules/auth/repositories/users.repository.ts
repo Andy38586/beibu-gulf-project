@@ -7,7 +7,7 @@ import { DbService } from '../../../infra/db/db.service'
 
 // users 表数据访问（cruise 豁免层：DB 访问仅 repositories/ 与 infra/db/ 合法）。
 // 行为对齐老 Express userService.js（users.json 文件存储 → PG 单表），
-// 全部 SQL 参数化（专项1 指标 8.2 SQL 注入面 P0）
+// 全部 SQL 参数化（SQL 注入面防护）
 export interface StoredUser {
   id: string
   username: string

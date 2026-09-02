@@ -56,7 +56,7 @@ export const useForecastStore = defineStore('forecast', () => {
   const activeTransactionId: Ref<number> = ref(0)
   const isRequesting: Ref<boolean> = ref(false)
 
-  /** 事务推进（M11/Q3 816 拍板：composable 不再直改 state）——返回新事务 ID */
+  /** 事务推进（composable 不再直改 state）——返回新事务 ID */
   function bumpTransactionId(): number {
     activeTransactionId.value += 1
     return activeTransactionId.value

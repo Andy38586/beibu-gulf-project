@@ -15,7 +15,7 @@ interface SiteAnalysisBody {
 }
 
 /**
- * 选址分析（T3.6）。POST /nest-api/site-analysis，免鉴权纯计算
+ * 选址分析。POST /nest-api/site-analysis，免鉴权纯计算
  * （Express routes/siteAnalysis.js：router.post('/')，单路由）。
  * 九步计算逐行等价移植 backend/services/siteAnalysisService.js；POI/小区读
  * backend/data/site-selection/ 三城 JSON；空结果（无重叠区域）是合法 data 不是 422。
@@ -28,7 +28,7 @@ export class SiteAnalysisController {
     private readonly siteAnalysisService: SiteAnalysisService
   ) {}
 
-  // @HttpCode(200)：Express sendSuccess 默认 200（POST 201 默认值坑，T3.2/T3.5 实锤同款）
+  // @HttpCode(200)：Express sendSuccess 默认 200（POST 201 默认值坑，收藏/洪涝同款）
   @Post()
   @HttpCode(200)
   async analyze(@Body() body?: SiteAnalysisBody): Promise<unknown> {

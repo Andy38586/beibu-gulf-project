@@ -6,7 +6,7 @@ import { useForecastStore } from '@/stores'
 import { businessModules, runBusinessLogoutReset } from '../manifest'
 
 /**
- * T6.1：manifest → 登出重置注册映射单测。
+ * manifest → 登出重置注册映射单测。
  * 新增业务模块只需在清单补 reset，App.vue/登出链路零改动——此测试锁住"已实现模块必须声明 reset、
  * 占位模块可省略、批量执行真实复位"三条不变量。
  */

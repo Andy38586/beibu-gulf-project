@@ -1,7 +1,7 @@
 # visualization — 可视化层（L4 通用图表资产）
 
 > 通用图表资产：ECharts 封装（图表组件 / composables）与业务无关的展示组件。
-> 入口 `index.ts`（Q4 816 拍板：全量收口）。跨层消费方走 `@/visualization`，禁止深路径穿透；
+> 入口 `index.ts`（全量收口）。跨层消费方走 `@/visualization`，禁止深路径穿透；
 > 图表懒加载（echarts 移出首屏关键路径）保留深路径 `import()`（见 HomePage/ProfilePage loader 注释）。
 
 ## 目录结构

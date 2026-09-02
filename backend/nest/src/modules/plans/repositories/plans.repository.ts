@@ -5,7 +5,7 @@ import { Injectable } from '@nestjs/common'
 import { DbService } from '../../../infra/db/db.service'
 
 // plans 表数据访问（cruise 豁免层）。语义对齐老 Express plansRepository.js：
-// name 为列、其余业务字段整体存 payload JSONB（任务卡 T3.3：整体存取语义不变）；
+// name 为列、其余业务字段整体存 payload JSONB（整体存取语义不变）；
 // 视图合并顺序 {id, userId, name, ...payload, createdAt, updatedAt} 对齐 Express 平面对象
 export interface PlanRow {
   id: string

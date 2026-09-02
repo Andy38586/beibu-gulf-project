@@ -28,7 +28,6 @@ const btnHeightCss = computed(() => `${cellPixel.value * 0.8}px`)
 const labelFontSizeCss = computed(() => `${cellPixel.value * 0.175}px`)
 const iconFontSizeCss = computed(() => `${cellPixel.value * 0.2}px`)
 const smallFontSizeCss = computed(() => `${cellPixel.value * 0.15}px`)
-const levelFontSizeCss = computed(() => `${cellPixel.value * 0.125}px`)
 // CONFIRM_DELAY 两面板共用，统一放 shared/constants/ui
 
 // ===== 四个指标 =====
@@ -324,128 +323,9 @@ onUnmounted(() => stopPlayback())
   border: 1px solid var(--GCS-color-primary);
 }
 
-.ind-btn {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  border: 1px solid var(--GCS-border-default);
-  border-radius: var(--GCS-radius-lg);
-  background: var(--GCS-bg-panel);
-  cursor: pointer;
-  padding: v-bind(cell8px) 4px;
-  box-sizing: border-box;
-  color: var(--GCS-text-regular);
-}
-
-.ind-btn:hover {
-  border-color: var(--GCS-color-primary);
-  background: var(--GCS-bg-hover);
-}
-
-.ind-btn.ok {
-  border-color: var(--GCS-color-primary);
-}
-
 .ind-icon {
   font-size: v-bind(iconFontSizeCss);
   line-height: 1;
-}
-
-.ind-label {
-  font-size: v-bind(labelFontSizeCss);
-  font-weight: 500;
-}
-
-.ind-synth {
-  font-size: v-bind(levelFontSizeCss);
-  color: var(--GCS-color-warning);
-  margin-left: 2px;
-}
-
-.ind-conf {
-  font-size: v-bind(levelFontSizeCss);
-  color: var(--GCS-color-primary);
-}
-
-/* 置信度滑块（选择态：紧凑布局，4 元素需小间距） */
-.slider-cell {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  padding: v-bind(cell8px);
-  box-sizing: border-box;
-  cursor: default;
-}
-
-.slider-cell .ind-icon {
-  font-size: v-bind(iconFontSizeCss);
-}
-
-.slider-cell .ind-label-s {
-  font-size: v-bind(smallFontSizeCss);
-  color: var(
-    --GCS-text-inverse
-  ); /* 816-S7-62：bg-panel 语义为背景，前景一律 text-inverse（原数值恰等，非功能性改动） */
-}
-
-.conf-slider {
-  width: 80%;
-  height: var(--GCS-slider-track-height); /* 816-S7-44：轨道高统一 token（原 4px） */
-  appearance: none;
-
-  /* c052：轨道底色走 --GCS-overlay-tint（原 rgb(255 255 255 / 40%) 硬编码） */
-  background: var(--GCS-overlay-tint);
-  border-radius: calc(var(--GCS-slider-track-height) / 2);
-  outline: none;
-  cursor: pointer;
-}
-
-.conf-slider::-webkit-slider-thumb {
-  appearance: none;
-
-  /* 滑块拇指统一 --GCS-slider-thumb-size（14px，全走 .gcs-slider 档） */
-  width: var(--GCS-slider-thumb-size);
-  height: var(--GCS-slider-thumb-size);
-  border-radius: 50%;
-  background: var(--GCS-bg-panel);
-  cursor: pointer;
-  border: 2px solid var(--GCS-color-primary);
-  box-shadow: var(--GCS-shadow-sm);
-}
-
-.conf-slider::-moz-range-thumb {
-  width: var(--GCS-slider-thumb-size);
-  height: var(--GCS-slider-thumb-size);
-  border-radius: 50%;
-  background: var(--GCS-bg-panel);
-  cursor: pointer;
-  border: 2px solid var(--GCS-color-primary);
-}
-
-.conf-pct {
-  font-size: v-bind(levelFontSizeCss);
-  color: var(
-    --GCS-text-inverse
-  ); /* 816-S7-62：bg-panel 语义为背景，前景一律 text-inverse（原数值恰等，非功能性改动） */
-
-  font-weight: 600;
-}
-
-/* 模型固定基线标注（cargo 无置信度滑块） */
-.conf-fixed {
-  font-size: v-bind(levelFontSizeCss);
-  color: var(--GCS-text-muted);
-  font-weight: 500;
-  flex: 1;
-  text-align: center;
 }
 
 /* ===== 时间滑块 ===== */
@@ -576,74 +456,8 @@ onUnmounted(() => stopPlayback())
   background: var(--GCS-bg-hover);
 }
 
-/* ===== 预测指标按钮统一外观（与选址 SliderSelectCard 同构） ===== */
-.btn-cell .ind-btn {
-  letter-spacing: -0.5px;
-  gap: 3px;
-  padding: 2px 8px;
-  background: var(--GCS-bg-panel);
-  border: 1px solid var(--GCS-border-default);
-  border-radius: var(--GCS-radius-lg);
-  color: var(--GCS-text-regular);
-  line-height: 1.2;
-}
-
-.btn-cell.ing {
-  background: var(--GCS-color-primary);
-  border-color: var(--GCS-color-primary);
-  border-radius: var(--GCS-radius-lg);
-}
-
-.btn-cell.ing .ind-icon,
-.btn-cell.ing .ind-label,
-.btn-cell.ing .ind-synth,
-.btn-cell.ing .conf-pct {
+/* ing 态图标反色（其余视觉由 .btn-cell.ing 组合提供；选择卡片样式归 SliderSelectCard） */
+.btn-cell.ing .ind-icon {
   color: var(--GCS-text-inverse);
-}
-
-.btn-cell.ing .slider-cell {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 3px;
-  padding: 2px 8px;
-  width: 100%;
-  height: 100%;
-  box-sizing: border-box;
-  position: relative;
-  z-index: 1;
-}
-
-.btn-cell.ing .conf-slider {
-  appearance: none;
-  width: 80%;
-  height: var(--GCS-slider-thumb-size);
-  background: linear-gradient(to right, var(--GCS-border-default), var(--GCS-color-primary));
-  border-radius: calc(var(--GCS-slider-thumb-size) / 2);
-  outline: none;
-  cursor: pointer;
-  margin: 0;
-}
-
-.btn-cell.ing .conf-slider::-webkit-slider-thumb {
-  appearance: none;
-  width: var(--GCS-slider-thumb-size);
-  height: var(--GCS-slider-thumb-size);
-  border-radius: 50%;
-  background: var(--GCS-color-primary);
-  border: 2px solid white;
-  box-shadow: 0 1px 3px rgb(0 0 0 / 35%);
-  cursor: pointer;
-}
-
-.btn-cell.ing .conf-slider::-moz-range-thumb {
-  width: var(--GCS-slider-thumb-size);
-  height: var(--GCS-slider-thumb-size);
-  border-radius: 50%;
-  background: var(--GCS-color-primary);
-  border: 2px solid white;
-  box-shadow: 0 1px 3px rgb(0 0 0 / 35%);
-  cursor: pointer;
 }
 </style>

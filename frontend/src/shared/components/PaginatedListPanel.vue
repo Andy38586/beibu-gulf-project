@@ -362,17 +362,6 @@ watch(
   flex: 1;
 }
 
-.no-data-text {
-  font-size: v-bind(fontSizeBody);
-  color: var(--GCS-text-primary);
-  font-weight: 500;
-}
-
-.no-data-hint {
-  font-size: v-bind(fontSizeSmall);
-  color: var(--GCS-text-muted);
-}
-
 /* 816-专项5并 1-3：计算中提示（空态与加载态分离） */
 .loading-hint {
   display: flex;

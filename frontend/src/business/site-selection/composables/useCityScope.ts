@@ -13,6 +13,7 @@
  */
 import { onUnmounted, type Ref, ref } from 'vue'
 
+import { useWaitForRenderer } from '@/shared'
 import type { CameraState } from '@/types/renderer'
 
 export type CityKey = 'qz' | 'bh' | 'fcg'
@@ -110,31 +111,20 @@ export function useCityScope(
     currentCity.value = resolveCity(camera)
   }
 
-  const tryBind = () => {
-    const renderer = getRenderer()
-    if (!renderer?.on || bound) return false
-    renderer.on('camera-changed', handler)
-    bound = true
-    return true
-  }
-
-  // 渲染器可能晚于组件挂载就绪（引擎切换/异步初始化）。用有限次重试而非无限轮询——
-  // 长生命周期组件里无限 interval 会一直挂着，失败也无提示（次数对齐页面 tryZoom 的 10 次）
-  const MAX_BIND_RETRY = 10
-  let retries = 0
-  let timer: ReturnType<typeof setInterval> | null = null
-  if (!tryBind()) {
-    timer = setInterval(() => {
-      retries += 1
-      if (tryBind() || retries >= MAX_BIND_RETRY) {
-        if (timer) clearInterval(timer)
-        timer = null
-      }
-    }, 500)
-  }
+  // 渲染器可能晚于组件挂载就绪（引擎切换/异步初始化）。用公共 useWaitForRenderer
+  //（500ms×10 有限重试，组件卸载自动取消）替代手写 interval 轮询
+  useWaitForRenderer(
+    () => {
+      const renderer = getRenderer()
+      if (!renderer?.on || bound) return false
+      renderer.on('camera-changed', handler)
+      bound = true
+      return true
+    },
+    () => {}
+  )
 
   onUnmounted(() => {
-    if (timer) clearInterval(timer)
     const renderer = getRenderer()
     if (renderer?.off && bound) renderer.off('camera-changed', handler)
   })

@@ -24,6 +24,7 @@ import {
   showWarning,
   useApiRequest,
   useAuth,
+  useWaitForRenderer,
 } from '@/shared'
 import { logger } from '@/shared'
 import { useMapStore } from '@/stores'
@@ -96,15 +97,9 @@ registerNavItems([
   { type: 'profile', label: '个人中心', icon: '👤', path: '/profile', disabled: false },
 ])
 
-// 等待渲染器就绪后再执行缩放
-function waitForRenderer(callback: () => void, retries = 0) {
-  const renderer = unifiedMapRef.value?.getRenderer?.()
-  if (renderer) {
-    callback()
-  } else if (retries < 10) {
-    setTimeout(() => waitForRenderer(callback, retries + 1), 500)
-  }
-}
+// 等待渲染器就绪后再执行缩放（公共 composable：500ms×10 有限重试，卸载自动取消）
+const waitForRenderer = (callback: () => void) =>
+  useWaitForRenderer(() => unifiedMapRef.value?.getRenderer?.() ?? null, callback)
 
 /**
  * 统一处理路由变化与引擎切换：检测 meta.engine 变化区分二者，

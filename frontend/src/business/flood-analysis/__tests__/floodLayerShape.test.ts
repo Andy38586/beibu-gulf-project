@@ -33,7 +33,7 @@ describe('P0-2 洪涝受影响设施 — points adapter 契约（点数组）', 
       LAYER_ADAPTERS.points.update(renderer as unknown as MapRenderer, 'flood-facilities', points, {
         markerColor: '#F56C6C',
         markerSize: 10,
-        featureType: 'facility-point',
+        featureType: 'flood-facility-point',
       })
     ).not.toThrow()
 

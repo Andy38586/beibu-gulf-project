@@ -70,6 +70,8 @@ const WATER_SURFACE_ID = 'flood-water-surface'
 
 const FLOOD_LAYER_ID = 'flood-area'
 const FACILITY_LAYER_ID = 'flood-facilities'
+/** 洪涝设施点 featureType（与 FACILITY_LAYER_ID 前缀一致，防跨模块同名冲突，a066） */
+const FACILITY_FEATURE_TYPE = 'flood-facility-point'
 /** 真实地形（DEM 数字高程模型山体阴影）图层 ID——洪涝页独享（业务前缀防跨模块 key 冲突，a066） */
 const DEM_HILLSHADE_LAYER_ID = 'flood-dem-hillshade'
 
@@ -411,7 +413,7 @@ function renderAffectedFacilities(facilities: AffectedFacility[]) {
       // 816-S7-46：引用调色板常量（同值见 FLOOD_RISK_COLORS['高风险'].stroke），杜绝第二份字面量漂移
       markerColor: FLOOD_RISK_COLORS['高风险'].stroke,
       markerSize: 10,
-      featureType: 'facility-point',
+      featureType: FACILITY_FEATURE_TYPE,
     },
   })
 }

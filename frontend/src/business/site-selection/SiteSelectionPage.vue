@@ -25,6 +25,7 @@ import {
   showModal,
   showWarning,
   useProfileSnapshot,
+  useWaitForRenderer,
 } from '@/shared'
 import { useMapStore, useSiteSelectionStore } from '@/stores'
 import type { GeoPoint } from '@/types'
@@ -65,9 +66,6 @@ const { manager: businessLayerManager } = useBusinessLayers()
 const { createUpdateHandler } = useAnalysisLayer()
 // 图层更新回调由页面直连 businessLayerManager（store 已不含分析回调机制）
 const updateAnalysisHandler = createUpdateHandler(businessLayerManager)
-
-// 保存定时器 id，卸载时清理悬挂定时器
-let tryZoomTimer: ReturnType<typeof setTimeout> | null = null
 
 /** 分析结果（816-专项2 4-3：store 唯一来源，storeToRefs 透传——页面与 AppLayout 全局雷达同源，
  *  原本地 ref 双持 + handleResult/restoreState 双写维持一致的反模式已移除） */
@@ -405,29 +403,17 @@ onMounted(() => {
   } else {
     // 非个人中心返回，清除旧分析图层
     clearAnalysisLayers()
-    // 等待渲染器就绪后再缩放，最多重试10次
-    let retries = 0
-    const tryZoom = () => {
-      if (mapInstance.value?.getRenderer?.()) {
-        zoomToCity()
-      } else if (retries < 10) {
-        retries++
-        // 保存定时器 id，卸载时清理
-        tryZoomTimer = setTimeout(tryZoom, 500)
-      }
-    }
-    tryZoom()
+    // 等待渲染器就绪后再缩放（公共 composable：500ms×10 有限重试，卸载自动取消）
+    useWaitForRenderer(
+      () => mapInstance.value?.getRenderer?.() ?? null,
+      () => zoomToCity()
+    )
   }
 })
 
 onUnmounted(() => {
   stopBreathing()
   stopFacilityBreathing()
-  // 清理悬挂的 tryZoom 定时器
-  if (tryZoomTimer) {
-    clearTimeout(tryZoomTimer)
-    tryZoomTimer = null
-  }
   // 统一清理分析图层（clearAnalysisLayers 已含设施 POI，避免双清）；DEM 图层仅属洪涝分析，不在此清理
   clearAnalysisLayers()
 })

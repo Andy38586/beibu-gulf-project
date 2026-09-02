@@ -8,10 +8,9 @@
 -->
 <script setup lang="ts">
 import { onMounted, onUnmounted, watch } from 'vue'
-import { onBeforeRouteLeave } from 'vue-router'
 
 import { AppLayout, GCSPanel, LayerControlPanel } from '@/core'
-import { logger } from '@/shared'
+import { logger, useProfileSnapshot } from '@/shared'
 import { useForecastStore } from '@/stores'
 import { useMapStore } from '@/stores'
 import type { ForecastSavedState } from '@/stores/forecastStore'
@@ -39,12 +38,8 @@ const { barXData, barSeries, load: loadPortComparisonData } = useForecastCompari
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 const DEBOUNCE_DELAY = 300
 
-/** 跳转个人中心（登录）时保存状态，返回恢复；其它路由离开由 onUnmounted 清态 */
-onBeforeRouteLeave((to) => {
-  if (to.path === '/profile') {
-    saveForecastState()
-  }
-})
+/** 跳转个人中心（登录）时保存状态，返回恢复；其它路由离开时组件卸载清态 */
+useProfileSnapshot({ save: saveForecastState })
 
 /** 保存当前状态到 store 快照（requestCache 序列化为数组，避免引用连带清空） */
 function saveForecastState(): void {

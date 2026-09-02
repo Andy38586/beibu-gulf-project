@@ -7,7 +7,6 @@
 
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
-import { onBeforeRouteLeave } from 'vue-router'
 
 import {
   AppLayout,
@@ -25,6 +24,7 @@ import {
   showError,
   showModal,
   showWarning,
+  useProfileSnapshot,
 } from '@/shared'
 import { useMapStore, useSiteSelectionStore } from '@/stores'
 import type { GeoPoint } from '@/types'
@@ -321,15 +321,10 @@ function flyToXiaoqu(xq: ScoredXiaoqu): void {
   flyTo({ lng: xq.lng, lat: xq.lat }, { height: 1000 })
 }
 
-/** 路由守卫：仅跳转个人中心时保存状态，其他路由清除 */
-onBeforeRouteLeave((to) => {
-  if (to.path === '/profile') {
-    // 跳转到个人中心，保存当前状态
-    saveCurrentState()
-  } else {
-    // 跳转到其他路由，清除状态
-    stateStore.clearState()
-  }
+/** 快照守卫：仅跳转个人中心时保存状态，其他路由清除（三页已收敛到 useProfileSnapshot） */
+useProfileSnapshot({
+  save: saveCurrentState,
+  clear: () => stateStore.clearState(),
 })
 
 /**

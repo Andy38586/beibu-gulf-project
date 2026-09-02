@@ -5,12 +5,18 @@
  * 相机（height<->zoom）2D/3D 切换同步。切换数据源仅改 adapter，业务代码零改动。
  */
 import { nextTick, onMounted, onUnmounted, watch } from 'vue'
-import { onBeforeRouteLeave, useRoute } from 'vue-router'
+import { useRoute } from 'vue-router'
 
 import { AppLayout, GCSPanel, isWater3DCapable, LayerControlPanel, useBusinessLayers } from '@/core'
 import { floodAdapter } from '@/services'
-import { LAYER_FILL_WATER, showError, showWarning, useLatestRequest } from '@/shared'
-import { logger } from '@/shared'
+import {
+  LAYER_FILL_WATER,
+  logger,
+  showError,
+  showWarning,
+  useLatestRequest,
+  useProfileSnapshot,
+} from '@/shared'
 import { useFloodStore } from '@/stores'
 import { useMapStore } from '@/stores'
 import type { AffectedFacility, FloodFeature, FloodStatistics } from '@/types/business/base'
@@ -161,12 +167,10 @@ watch(
   { immediate: true }
 )
 
-onBeforeRouteLeave((to) => {
-  if (to.path === '/profile') {
-    saveCurrentState()
-  } else {
-    floodStore.clearState()
-  }
+/** 跳个人中心保存快照，离开其它路由清态（快照守卫公共化，语义与站点/预测页一致） */
+useProfileSnapshot({
+  save: saveCurrentState,
+  clear: () => floodStore.clearState(),
 })
 
 function saveCurrentState() {

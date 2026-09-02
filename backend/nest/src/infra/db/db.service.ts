@@ -1,5 +1,5 @@
 import { Injectable, OnModuleDestroy, Optional } from '@nestjs/common'
-import { Pool, QueryResult, QueryResultRow } from 'pg'
+import { Pool, PoolClient, QueryResult, QueryResultRow } from 'pg'
 
 import { ConfigService } from '../config/config.service'
 
@@ -23,6 +23,24 @@ export class DbService implements OnModuleDestroy {
     values?: unknown[]
   ): Promise<QueryResult<T>> {
     return this.pool.query<T>(text, values)
+  }
+
+  // 事务执行器：BEGIN → runner(client) → COMMIT，异常回滚后抛原错误。
+  // 供 repository 层"先读后写"语义（如 plans 的 payload 读改写）原子化，
+  // 配合 runner 内 SELECT ... FOR UPDATE 消除并发丢更新
+  async withTransaction<T>(runner: (client: PoolClient) => Promise<T>): Promise<T> {
+    const client = await this.pool.connect()
+    try {
+      await client.query('BEGIN')
+      const result = await runner(client)
+      await client.query('COMMIT')
+      return result
+    } catch (err) {
+      await client.query('ROLLBACK')
+      throw err
+    } finally {
+      client.release()
+    }
   }
 
   // 应用关闭时释放全部连接，避免 watch 热重载/测试退出后悬挂句柄

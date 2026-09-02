@@ -1,9 +1,9 @@
 // 覆盖多边形计算优化对照（北海数据 = 当前最坏情况）
 // 对照：现状 / 降精度 / 降精度+分治 / 栅格+行合并
 import { readFileSync } from 'node:fs'
-import { fileURLToPath } from 'node:url'
 import { createRequire } from 'node:module'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const require = createRequire(path.join(__dirname, '..', '..', 'backend', 'package.json'))

@@ -1,13 +1,13 @@
 // 选址分析性能剖析：定位 runSiteAnalysis 各阶段耗时。
 // 用法：node tools/bench-site-analysis.mjs [qz|bh|fcg]
 import { readFileSync } from 'node:fs'
-import { fileURLToPath } from 'node:url'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 import {
   buildTypeCoverage,
-  intersectCoverages,
   filterMatchedXiaoqu,
+  intersectCoverages,
   rankXiaoqu,
 } from '../../backend/services/siteAnalysisService.js'
 

@@ -5,8 +5,8 @@
  * 未登录收藏意图（pendingFavorite）在登录成功后自动补完。
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { nextTick } from 'vue'
 import type { Ref } from 'vue'
+import { nextTick } from 'vue'
 
 const mockApiRequest = vi.hoisted(() => vi.fn())
 // user ref 在 mock 工厂内创建（vue ref），经 state 容器暴露给测试驱动登录态

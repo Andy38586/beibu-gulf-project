@@ -1,7 +1,7 @@
 import { Body, Controller, Get, HttpCode, Post, Query } from '@nestjs/common'
 import { ApiTags } from '@nestjs/swagger'
 
-import { MAX_WATER_LEVEL } from '../../../common/constants/flood.constants'
+import { MAX_WATER_LEVEL, RISK_LEVEL_BANDS } from '../../../common/constants/flood.constants'
 import { BusinessError, ErrorCode } from '../../../common/errors/business-error'
 import { FloodRepository } from '../repositories/flood.repository'
 import { FloodFacility, FloodService, FloodZone } from '../services/flood.service'
@@ -57,16 +57,12 @@ function validateWaterLevel(raw: unknown): number {
 }
 
 /**
- * 按水位派生风险等级（6 档语义：0 无 / 2 低 / 5 中 / 8 高 / 10 极高 / 15 灾难级；
+ * 按水位派生风险等级（阈值与等级名称见 flood.constants.RISK_LEVEL_BANDS；
  * 预计算档位表无 riskLevel 字段，由水位分段派生）
  */
 export function deriveRiskLevel(level: number): string {
-  if (level <= 0) return '无风险'
-  if (level <= 2) return '低风险'
-  if (level <= 5) return '中风险'
-  if (level <= 8) return '高风险'
-  if (level <= 10) return '极高风险'
-  return '灾难级'
+  const band = RISK_LEVEL_BANDS.find((b) => level <= b.maxLevel)
+  return (band ?? RISK_LEVEL_BANDS[RISK_LEVEL_BANDS.length - 1]).label
 }
 
 /**

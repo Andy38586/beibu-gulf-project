@@ -39,3 +39,10 @@ export const FACILITY_CONFIG: FacilityConfigMap = {
     defaultRadius: 2,
   },
 }
+
+/**
+ * importance 档位半径系数（1:0.4/2:0.7/3:1.0/4:1.5/5:2.2）。
+ * 前端复刻 backend/services/scoringService.js:40 同口径——命中判断的有效半径 =
+ * defaultRadius × 此系数，与后端 buffer 保持一致（业务规则双端同源，改需双端同步）
+ */
+export const IMPORTANCE_FACTOR: Record<number, number> = { 1: 0.4, 2: 0.7, 3: 1.0, 4: 1.5, 5: 2.2 }

@@ -5,7 +5,7 @@ import { FACILITY_COLORS, LAYER_FILL_COVERAGE } from '@/shared'
 import { logger } from '@/shared'
 import type { AnalysisResult, FacilityPoint, LayerOptions, ScoredXiaoqu } from '@/types'
 
-import { FACILITY_CONFIG } from './facilityConfig'
+import { FACILITY_CONFIG, IMPORTANCE_FACTOR } from './facilityConfig'
 
 /** 附近设施合并图层 id（BLM registry / mapStore catalog / 渲染器 featureType 三处同源；业务前缀防跨模块 key 冲突，a066） */
 export const NEARBY_FACILITY_LAYER_ID = 'site-nearby-facility'
@@ -183,11 +183,10 @@ export function buildFacilityPoiLayer(
 }
 
 /**
- * importanceToRadius 前端复刻（backend/services/scoringService.js:40 同口径）：
- * 实际覆盖半径 = defaultRadius × importance 档位系数（1:0.4/2:0.7/3:1.0/4:1.5/5:2.2），
- * 四舍五入到 0.1km。命中判断必须走此函数，否则与后端 buffer 口径漂移。
+ * importanceToRadius：覆盖半径 = defaultRadius × importance 档位系数（系数见 facilityConfig.
+ * IMPORTANCE_FACTOR，与后端 scoringService.js:40 同口径），四舍五入到 0.1km。
+ * 命中判断必须走此函数，否则与后端 buffer 口径漂移。
  */
-const IMPORTANCE_FACTOR: Record<number, number> = { 1: 0.4, 2: 0.7, 3: 1.0, 4: 1.5, 5: 2.2 }
 export function effectiveRadiusKm(type: string, importance: number): number {
   const base = FACILITY_CONFIG[type as keyof typeof FACILITY_CONFIG]?.defaultRadius ?? 1
   const factor = IMPORTANCE_FACTOR[Math.round(importance)] ?? 1

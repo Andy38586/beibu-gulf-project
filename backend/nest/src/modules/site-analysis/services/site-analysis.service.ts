@@ -3,6 +3,7 @@ import * as turf from '@turf/turf'
 import type { Feature, MultiPolygon, Polygon } from 'geojson'
 
 import { DEFAULT_WEIGHTS, TOP_N } from '../../../common/constants/scoring.constants'
+import { isInGulfBounds } from '../../../common/constants/gis.constants'
 import { BusinessError, ErrorCode } from '../../../common/errors/business-error'
 
 import { FacilityPoint, importanceToRadius, linearDecay, scoreXiaoqu, TypeSetting } from './scoring'
@@ -80,8 +81,7 @@ export function extractValidPoi<T extends FacilityPoint>(points: T[] | null | un
     }
   }
 
-  // 过滤异常坐标[0,0]和不在北部湾范围内的坐标
-  // 北部湾范围：经度 105-115，纬度 18-25
+  // 过滤异常坐标（[0,0]）与不在北部湾范围内的坐标（范围边界见 gis.constants）
   return uniquePoints.filter((p) => {
     const isValid =
       !!p &&
@@ -90,10 +90,7 @@ export function extractValidPoi<T extends FacilityPoint>(points: T[] | null | un
       !Number.isNaN(p.lng) &&
       !Number.isNaN(p.lat) &&
       !(p.lng === 0 && p.lat === 0) && // 过滤[0,0]异常坐标
-      p.lng >= 105 &&
-      p.lng <= 115 && // 北部湾经度范围
-      p.lat >= 18 &&
-      p.lat <= 25 // 北部湾纬度范围
+      isInGulfBounds(p.lng, p.lat)
     return isValid
   })
 }
@@ -231,8 +228,8 @@ export function filterMatchedXiaoqu<T extends FacilityPoint>(
     ) {
       return false
     }
-    // 检查坐标是否在北部湾业务区域内（经度 105-115，纬度 18-25）
-    if (xq.lng < 105 || xq.lng > 115 || xq.lat < 18 || xq.lat > 25) {
+    // 检查坐标是否在北部湾业务区域内（边界见 gis.constants）
+    if (!isInGulfBounds(xq.lng, xq.lat)) {
       return false
     }
     try {

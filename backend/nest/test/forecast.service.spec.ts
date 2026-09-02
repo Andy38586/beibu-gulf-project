@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { BusinessError } from '../src/common/errors/business-error'
 import { DEFAULT_READ_FILE } from '../src/infra/files/data-files.service'
 import { DataFilesService } from '../src/infra/files/data-files.service'
-import { ForecastService } from '../src/modules/forecast/forecast.service'
+import { ForecastService } from '../src/modules/forecast/services/forecast.service'
 
 // forecastService 单测：mock reader（对齐 Express vi.mock fs/promises 模式），
 // 覆盖缓存复用（R-11）/ ENOENT→404（R-7）/ 年聚合（R-15）/ 缓存命中=重算不变量（02 §5.6.4）

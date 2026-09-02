@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { BusinessError } from '../src/common/errors/business-error'
-import { SiteAnalysisController } from '../src/modules/site-analysis/site-analysis.controller'
-import { SiteAnalysisRepository } from '../src/modules/site-analysis/site-analysis.repository'
-import { SiteAnalysisService } from '../src/modules/site-analysis/site-analysis.service'
+import { SiteAnalysisController } from '../src/modules/site-analysis/controllers/site-analysis.controller'
+import { SiteAnalysisRepository } from '../src/modules/site-analysis/repositories/site-analysis.repository'
+import { SiteAnalysisService } from '../src/modules/site-analysis/services/site-analysis.service'
 
 // 移植 Express controllers/__tests__/siteAnalysisController.test.js（B-4 / P0 半径校验）4 用例语义。
 // Express 版走 next(error)；Nest 版直接 throw BusinessError（由全局异常过滤器转 HTTP 状态），

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import type { FacilityPoint } from '../src/modules/site-analysis/scoring'
+import type { FacilityPoint } from '../src/modules/site-analysis/services/scoring'
 import {
   buildTypeCoverage,
   extractValidPoi,
@@ -9,8 +9,8 @@ import {
   rankXiaoqu,
   resolveRadiusSettings,
   validateSelection,
-} from '../src/modules/site-analysis/site-analysis.service'
-import { SiteAnalysisService } from '../src/modules/site-analysis/site-analysis.service'
+} from '../src/modules/site-analysis/services/site-analysis.service'
+import { SiteAnalysisService } from '../src/modules/site-analysis/services/site-analysis.service'
 
 // 移植 Express services/__tests__/siteAnalysisService.test.js（R-14 选址流水线 + R-10 半径校验）
 // 11 用例语义。Nest 侧 runSiteAnalysis 是 SiteAnalysisService 的方法（Express 为独立导出函数），

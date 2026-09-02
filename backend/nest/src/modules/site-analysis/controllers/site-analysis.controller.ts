@@ -1,11 +1,10 @@
 import { Body, Controller, HttpCode, Post } from '@nestjs/common'
 import { ApiTags } from '@nestjs/swagger'
 
-import { BusinessError, ErrorCode } from '../../common/errors/business-error'
-
-import { FacilityPoint, TypeSetting } from './scoring'
-import { SiteAnalysisRepository } from './site-analysis.repository'
-import { SiteAnalysisService } from './site-analysis.service'
+import { BusinessError, ErrorCode } from '../../../common/errors/business-error'
+import { SiteAnalysisRepository } from '../repositories/site-analysis.repository'
+import { FacilityPoint, TypeSetting } from '../services/scoring'
+import { SiteAnalysisService } from '../services/site-analysis.service'
 
 interface SiteAnalysisBody {
   selectedKeys?: string[]

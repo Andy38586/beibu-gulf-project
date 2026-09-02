@@ -1,8 +1,7 @@
 import { Injectable } from '@nestjs/common'
 
-import { DataFilesService } from '../../infra/files/data-files.service'
-
-import { FacilityPoint } from './scoring'
+import { DataFilesService } from '../../../infra/files/data-files.service'
+import { FacilityPoint } from '../services/scoring'
 
 // 逐行等价移植 backend/repositories/facilitiesRepository.js。
 // 设施类型 → backend/data/ 相对路径映射；读取统一走 DataFilesService（TTL + LRU 缓存）。

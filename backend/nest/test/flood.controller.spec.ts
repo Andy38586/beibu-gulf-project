@@ -2,9 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { BusinessError } from '../src/common/errors/business-error'
 import { DataFilesService, DEFAULT_READ_FILE } from '../src/infra/files/data-files.service'
-import { deriveRiskLevel, FloodController } from '../src/modules/flood/flood.controller'
-import { FloodRepository } from '../src/modules/flood/flood.repository'
-import { FloodService } from '../src/modules/flood/flood.service'
+import { deriveRiskLevel, FloodController } from '../src/modules/flood/controllers/flood.controller'
+import { FloodRepository } from '../src/modules/flood/repositories/flood.repository'
+import { FloodService } from '../src/modules/flood/services/flood.service'
 
 // floodController 单测：移植 Express controllers/__tests__/floodAnalysisController.test.js
 // 20 用例语义（mock reader 对齐 Express vi.mock fs/promises 模式），

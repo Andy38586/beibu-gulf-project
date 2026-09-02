@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common'
 
-import { DataFilesService } from '../../infra/files/data-files.service'
+import { DataFilesService } from '../../../infra/files/data-files.service'
 
 // 洪涝数据访问（对齐 Express floodRepository 六层收口：数据访问统一经 repository，
 // 读盘走 DataFilesService 统一只读缓存）。文件路径对齐 backend/data/flood/*

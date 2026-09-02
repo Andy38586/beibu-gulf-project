@@ -2,10 +2,9 @@ import { Controller, Get, Param, Query } from '@nestjs/common'
 import { ApiTags } from '@nestjs/swagger'
 import { SkipThrottle } from '@nestjs/throttler'
 
-import { DEFAULT_CONFIDENCE, MAX_CONFIDENCE } from '../../common/constants/forecast.constants'
-import { BusinessError, ErrorCode } from '../../common/errors/business-error'
-
-import { ForecastService } from './forecast.service'
+import { DEFAULT_CONFIDENCE, MAX_CONFIDENCE } from '../../../common/constants/forecast.constants'
+import { BusinessError, ErrorCode } from '../../../common/errors/business-error'
+import { ForecastService } from '../services/forecast.service'
 
 function parseConfidence(raw: unknown): number {
   const n = Number(raw)

@@ -1,0 +1,33 @@
+// 对外路由契约清单：Nest 全部业务路由（含 nest-api 全局前缀）的单一事实源。
+// 由 tools/v3-guard/routes-audit.mjs --gen 从 controller 装饰器提取生成，勿手改；
+// 路由增删必须重跑 --gen 并随本次改动一起提交，否则 guard:v3 红灯拦截（防契约漂移）。
+export const ROUTES_MANIFEST = [
+  { method: 'POST', path: 'nest-api/auth/login' },
+  { method: 'POST', path: 'nest-api/auth/logout' },
+  { method: 'GET', path: 'nest-api/auth/me' },
+  { method: 'POST', path: 'nest-api/auth/register' },
+  { method: 'GET', path: 'nest-api/favorites' },
+  { method: 'POST', path: 'nest-api/favorites' },
+  { method: 'DELETE', path: 'nest-api/favorites/:itemType/:itemId' },
+  { method: 'POST', path: 'nest-api/flood/analysis/disaster' },
+  { method: 'GET', path: 'nest-api/flood/flood-areas' },
+  { method: 'GET', path: 'nest-api/flood/flood-statistics' },
+  { method: 'GET', path: 'nest-api/flood/terrain-profiles' },
+  { method: 'GET', path: 'nest-api/flood/water-area' },
+  { method: 'GET', path: 'nest-api/forecast' },
+  { method: 'GET', path: 'nest-api/forecast/:portId' },
+  { method: 'GET', path: 'nest-api/forecast/indicator/:type' },
+  { method: 'GET', path: 'nest-api/forecast/map' },
+  { method: 'GET', path: 'nest-api/forecast/overview' },
+  { method: 'GET', path: 'nest-api/forecast/timeseries' },
+  { method: 'GET', path: 'nest-api/health' },
+  { method: 'GET', path: 'nest-api/health/ready' },
+  { method: 'GET', path: 'nest-api/plans' },
+  { method: 'POST', path: 'nest-api/plans' },
+  { method: 'DELETE', path: 'nest-api/plans/:id' },
+  { method: 'GET', path: 'nest-api/plans/:id' },
+  { method: 'PUT', path: 'nest-api/plans/:id' },
+  { method: 'POST', path: 'nest-api/plans/:id/xiaoqu' },
+  { method: 'DELETE', path: 'nest-api/plans/:id/xiaoqu/:xiaoquId' },
+  { method: 'POST', path: 'nest-api/site-analysis' },
+] as const

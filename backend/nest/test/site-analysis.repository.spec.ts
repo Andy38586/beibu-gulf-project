@@ -6,7 +6,7 @@ import {
   getAvailableCities,
   isSupportedCity,
   SiteAnalysisRepository,
-} from '../src/modules/site-analysis/site-analysis.repository'
+} from '../src/modules/site-analysis/repositories/site-analysis.repository'
 
 // 移植 Express facilitiesRepository 语义（无同名单测，按源码契约补）：
 // 城市白名单防路径穿越 / 非法 city 回落默认城市 / 文件映射 / 类型清单剔除 xiaoqu /

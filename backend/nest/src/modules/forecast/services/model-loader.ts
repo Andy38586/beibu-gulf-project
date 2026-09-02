@@ -1,6 +1,6 @@
 import { Logger } from '@nestjs/common'
 
-import type { DataFilesService } from '../../infra/files/data-files.service'
+import type { DataFilesService } from '../../../infra/files/data-files.service'
 
 // 吞吐量预测模型产物读取（逐行等价移植 backend/services/modelLoader.js）：
 // cargo→throughput_model.json / container→container_model.json；语义契约：固定基线

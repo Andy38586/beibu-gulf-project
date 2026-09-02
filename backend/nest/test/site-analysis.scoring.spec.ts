@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
-import type { FacilityPoint, TypeSetting } from '../src/modules/site-analysis/scoring'
+import type { FacilityPoint, TypeSetting } from '../src/modules/site-analysis/services/scoring'
 import {
   DEFAULT_WEIGHTS,
   importanceToRadius,
   kmToDegreeOffset,
   linearDecay,
   scoreXiaoqu,
-} from '../src/modules/site-analysis/scoring'
+} from '../src/modules/site-analysis/services/scoring'
 
 // 移植 Express services/__tests__/scoringService.test.js（专项8 副本 8-3），14 用例语义。
 // 触发测试：8-1（极点纬度 cos 分母守卫，旧 ||1 兜底被浮点 cos(90°)≈6.12e-17 绕过）、

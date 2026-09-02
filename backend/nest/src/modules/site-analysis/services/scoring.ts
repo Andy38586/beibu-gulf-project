@@ -1,7 +1,7 @@
 import * as turf from '@turf/turf'
 import RBush from 'rbush'
 
-import { DEFAULT_WEIGHTS, IMPORTANCE_FACTOR } from '../../common/constants/scoring.constants'
+import { DEFAULT_WEIGHTS, IMPORTANCE_FACTOR } from '../../../common/constants/scoring.constants'
 
 // 逐行等价移植 backend/services/scoringService.js（选址评分核心）。
 // 原 decayFunctions / importanceMapping 与 site-analysis 仅一处消费，合并避免过细拆分。

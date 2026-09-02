@@ -60,7 +60,10 @@ watch(
       await fetchFavorites()
     } catch (error) {
       // 拉取失败静默：收藏列表为空，后续 add/remove 仍可用（后端幂等兜底）
-      if (import.meta.env.DEV) console.debug('[useFavorites] 拉取收藏失败:', error)
+      if (import.meta.env.DEV) {
+        // eslint-disable-next-line no-console -- DEV 门控诊断（logger.debug 级别语义不同）
+        console.debug('[useFavorites] 拉取收藏失败:', error)
+      }
     } finally {
       fetchInFlight = false
     }

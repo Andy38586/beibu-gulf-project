@@ -49,9 +49,6 @@ const MOCK_FACILITY = {
   damageRate: 0.85,
 }
 
-// disaster 链路夹具：设施点（与下方 assessDisaster describe 的 FACILITIES[0] 同点位）
-const MOCK_FACILITIES = JSON.stringify({ facilities: [MOCK_FACILITY] })
-
 function makeController(mockReadFile: ReturnType<typeof vi.fn>): FloodController {
   const files = new DataFilesService(mockReadFile as unknown as typeof DEFAULT_READ_FILE)
   const repository = new FloodRepository(files)

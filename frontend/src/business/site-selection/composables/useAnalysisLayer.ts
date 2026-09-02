@@ -303,10 +303,7 @@ export function useAnalysisLayer(): UseAnalysisLayerReturn {
       } catch (e) {
         // 816-专项2 7-3：调用点为 `void updateAnalysisHandler(result)` 无 catch——
         // 同步 throw（BLM 数据守卫）在此消化，防浮动 rejection（异步 rejection 已被 BLM 内部消化）
-        if (import.meta.env.DEV) {
-          // eslint-disable-next-line no-console -- DEV 门控诊断（logger.warn 无 DEV 门控，语义不同）
-          console.warn('[useAnalysisLayer] 图层更新失败:', e)
-        }
+        logger.warn('[useAnalysisLayer] 图层更新失败:', e)
       } finally {
         isUpdating = false
         if (pendingResult) {

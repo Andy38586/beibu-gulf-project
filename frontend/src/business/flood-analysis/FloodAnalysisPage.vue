@@ -227,10 +227,7 @@ onMounted(async () => {
       stateRestored = false
     }
   } catch (e) {
-    if (import.meta.env.DEV) {
-      // eslint-disable-next-line no-console -- DEV 门控诊断（logger.warn 无 DEV 门控，语义不同）
-      console.warn('[FloodAnalysisPage] 状态恢复失败（图层未就绪等），已跳过恢复:', e)
-    }
+    logger.warn('[FloodAnalysisPage] 状态恢复失败（图层未就绪等），已跳过恢复:', e)
     stateRestored = false
   }
 })

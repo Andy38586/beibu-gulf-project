@@ -7,6 +7,7 @@
 import type { ComputedRef, Ref } from 'vue'
 import { computed, ref, watch } from 'vue'
 
+import { ENDPOINTS } from '@/shared/constants/api'
 import type { FavoriteAddInput, FavoriteItem, FavoriteItemType } from '@/types'
 import {
   favoriteAddResponseSchema,
@@ -39,7 +40,7 @@ export interface UseFavoritesReturn {
 }
 
 async function fetchFavorites(): Promise<void> {
-  const items = await apiRequest<FavoriteItem[]>('/favorites', {
+  const items = await apiRequest<FavoriteItem[]>(ENDPOINTS.favorites.root, {
     schema: favoritesArraySchema,
   })
   favorites.value = items
@@ -80,11 +81,14 @@ watch(
 )
 
 async function commitFavorite(input: FavoriteAddInput): Promise<{ existed: boolean }> {
-  const res = await apiRequest<{ favorite: FavoriteItem; existed: boolean }>('/favorites', {
-    method: 'POST',
-    body: JSON.stringify(input),
-    schema: favoriteAddResponseSchema,
-  })
+  const res = await apiRequest<{ favorite: FavoriteItem; existed: boolean }>(
+    ENDPOINTS.favorites.root,
+    {
+      method: 'POST',
+      body: JSON.stringify(input),
+      schema: favoriteAddResponseSchema,
+    }
+  )
   // 本地态同步：已存在不重复插入（幂等）
   if (!favorites.value.some((f) => f.itemType === input.itemType && f.itemId === input.itemId)) {
     favorites.value = [res.favorite, ...favorites.value]
@@ -110,7 +114,7 @@ export function useFavorites(): UseFavoritesReturn {
     if (!user.value) {
       throw new Error('请先登录')
     }
-    const res = await apiRequest<{ removed: boolean }>(`/favorites/${itemType}/${itemId}`, {
+    const res = await apiRequest<{ removed: boolean }>(ENDPOINTS.favorites.item(itemType, itemId), {
       method: 'DELETE',
       schema: favoriteRemoveResponseSchema,
     })

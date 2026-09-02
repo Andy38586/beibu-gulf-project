@@ -5,7 +5,7 @@
  */
 import { type Ref, ref } from 'vue'
 
-import { logger, showError, useApiRequest } from '@/shared'
+import { ENDPOINTS, logger, showError, useApiRequest } from '@/shared'
 import { terrainProfileSchema } from '@/types/schemas'
 
 /** 剖面线点（对应 terrainProfile.json points） */
@@ -49,7 +49,7 @@ export function useTerrainProfiles(): UseTerrainProfilesReturn {
   /** 从后端加载全部预设剖面线（signal 传组件级 AbortController，卸载取消） */
   async function loadProfiles(signal?: AbortSignal): Promise<void> {
     try {
-      const result = await apiRequest<TerrainProfile[]>('/flood/terrain-profiles', {
+      const result = await apiRequest<TerrainProfile[]>(ENDPOINTS.flood.terrainProfiles, {
         schema: terrainProfileSchema,
         signal,
       })

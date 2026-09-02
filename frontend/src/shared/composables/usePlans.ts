@@ -2,6 +2,7 @@ import type { Ref } from 'vue'
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 
+import { ENDPOINTS } from '@/shared/constants/api'
 import { handleAuthError, isAuthError } from '@/shared/utils/errorHandler'
 import { logger } from '@/shared/utils/logger'
 import type { TypeSetting } from '@/types/facility'
@@ -41,7 +42,7 @@ export function usePlans(): UsePlansReturn {
     const signal = createSignal()
     loading.value = true
     try {
-      const data = await apiRequest<Plan[]>('/plans', {
+      const data = await apiRequest<Plan[]>(ENDPOINTS.plans.root, {
         schema: planSchema.array(),
         signal,
       })
@@ -86,7 +87,7 @@ export function usePlans(): UsePlansReturn {
         .filter(([, v]) => v.selected)
         .map(([k]) => k)
       // await 使 finally 等待请求完成后再复位，防重复提交生效
-      return await apiRequest<Plan>('/plans', {
+      return await apiRequest<Plan>(ENDPOINTS.plans.root, {
         method: 'POST',
         body: JSON.stringify({ name, selectedKeys, typeSettings: settings }),
         schema: planSchema,
@@ -143,7 +144,7 @@ export function usePlans(): UsePlansReturn {
       const selectedKeys = Object.entries(settings)
         .filter(([, v]) => v.selected)
         .map(([k]) => k)
-      return await apiRequest<Plan>(`/plans/${id}`, {
+      return await apiRequest<Plan>(ENDPOINTS.plans.byId(id), {
         method: 'PUT',
         body: JSON.stringify({ name, selectedKeys, typeSettings: settings }),
         schema: planSchema,
@@ -168,7 +169,7 @@ export function usePlans(): UsePlansReturn {
       throw new Error('请先登录')
     }
     try {
-      return await apiRequest<Plan>(`/plans/${planId}/xiaoqu`, {
+      return await apiRequest<Plan>(ENDPOINTS.plans.xiaoqu(planId), {
         method: 'POST',
         body: JSON.stringify({ xiaoqu }),
         schema: planSchema,
@@ -187,7 +188,7 @@ export function usePlans(): UsePlansReturn {
 
   async function removeXiaoqu(planId: string, xiaoquId: string): Promise<Plan> {
     try {
-      return await apiRequest<Plan>(`/plans/${planId}/xiaoqu/${xiaoquId}`, {
+      return await apiRequest<Plan>(ENDPOINTS.plans.xiaoquFromOne(planId, xiaoquId), {
         method: 'DELETE',
         schema: planSchema,
       })

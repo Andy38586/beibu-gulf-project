@@ -1,7 +1,7 @@
 import { storeToRefs } from 'pinia'
 import type { Ref } from 'vue'
 
-import { useApiRequest, useLatestRequest } from '@/shared'
+import { ENDPOINTS, useApiRequest, useLatestRequest } from '@/shared'
 import { useSiteSelectionStore } from '@/stores'
 import type { AnalysisParams, AnalysisResult } from '@/types/analysis'
 import { siteAnalysisResponseSchema } from '@/types/schemas'
@@ -31,7 +31,7 @@ export function useSiteAnalysisApi(): UseSiteAnalysisApiReturn {
     siteStore.setCalcError('')
     siteStore.setCalculating(true)
     try {
-      const result = await apiRequest<AnalysisResult>('/site-analysis', {
+      const result = await apiRequest<AnalysisResult>(ENDPOINTS.siteAnalysis, {
         method: 'POST',
         body: JSON.stringify(params),
         signal,

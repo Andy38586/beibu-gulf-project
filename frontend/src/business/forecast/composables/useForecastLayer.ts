@@ -7,7 +7,7 @@ import { computed, nextTick, onScopeDispose, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { type BusinessLayerManager, useBusinessLayers } from '@/core'
-import { ApiError, handleAuthError, isAuthError, showError, useApiRequest } from '@/shared'
+import { ApiError, ENDPOINTS, handleAuthError, isAuthError, showError, useApiRequest } from '@/shared'
 import { logger } from '@/shared'
 import { DEFAULT_CONFIDENCE } from '@/shared'
 import { useForecastStore } from '@/stores'
@@ -173,7 +173,7 @@ export function useForecastLayer(): UseForecastLayerReturn {
       const geojson = await runInTransaction(
         // 预测纯 api，直连统一入口 useApiRequest
         () =>
-          apiRequest<ForecastMapData>('/forecast/map', {
+          apiRequest<ForecastMapData>(ENDPOINTS.forecast.map, {
             method: 'GET',
             params: { indicator, time, confidence },
             signal,

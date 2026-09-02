@@ -1,6 +1,7 @@
 import type { ComputedRef, Ref } from 'vue'
 import { ref } from 'vue'
 
+import { ENDPOINTS } from '@/shared/constants/api'
 import { logger } from '@/shared/utils/logger'
 import type { AuthResponse, User } from '@/types/api'
 import { authResponseSchema, userSchema } from '@/types/schemas'
@@ -71,7 +72,7 @@ async function restoreAuth(): Promise<User | null> {
   authRestored = true
 
   try {
-    const data = await apiRequest<{ user: User }>('/auth/me', { schema: authResponseSchema })
+    const data = await apiRequest<{ user: User }>(ENDPOINTS.auth.me, { schema: authResponseSchema })
     if (data && data.user) {
       user.value = data.user
       writeStoredUser(data.user)
@@ -146,7 +147,7 @@ export function removeAuthStorageListener(): void {
 
 export function useAuth(): UseAuthReturn {
   async function login(username: string, password: string): Promise<User> {
-    const data = await apiRequest<AuthResponse>('/auth/login', {
+    const data = await apiRequest<AuthResponse>(ENDPOINTS.auth.login, {
       method: 'POST',
       body: JSON.stringify({ username, password }),
       schema: authResponseSchema,
@@ -162,7 +163,7 @@ export function useAuth(): UseAuthReturn {
   }
 
   async function register(username: string, password: string): Promise<User> {
-    const data = await apiRequest<AuthResponse>('/auth/register', {
+    const data = await apiRequest<AuthResponse>(ENDPOINTS.auth.register, {
       method: 'POST',
       body: JSON.stringify({ username, password }),
       schema: authResponseSchema,
@@ -180,7 +181,7 @@ export function useAuth(): UseAuthReturn {
   /** 登出：调用后端接口清除 HttpOnly Cookie */
   async function logout(): Promise<void> {
     try {
-      await apiRequest('/auth/logout', { method: 'POST' })
+      await apiRequest(ENDPOINTS.auth.logout, { method: 'POST' })
     } catch (error) {
       // 即使后端调用失败，也清理前端状态
       logger.debug('登出接口调用失败，但仍清理前端状态:', error)

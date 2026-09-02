@@ -15,6 +15,7 @@ import {
 } from '@/core'
 import { preloadCesium, UnifiedMap } from '@/core'
 import {
+  ENDPOINTS,
   ErrorBoundary,
   GCSModal,
   GCSToast,
@@ -180,7 +181,7 @@ onMounted(() => {
   }
   warmup(3000, preloadCesium)
   warmup(6000, () => {
-    void apiRequest('/flood-online/api/flood/online', {
+    void apiRequest(ENDPOINTS.flood.online, {
       params: { waterLevel: 0 },
       envelope: false,
     }).catch(() => {

@@ -4,7 +4,7 @@
  * 静态数据已移交后端，字段由后端对齐类型契约，前端不再做字段映射。
  */
 
-import { BoundedMap, logger, useApiRequest } from '@/shared'
+import { BoundedMap, ENDPOINTS, logger, useApiRequest } from '@/shared'
 import type { AffectedFacility, FloodFeature, FloodStatistics } from '@/types/business/base'
 import type {
   FloodAreasResponseParsed,
@@ -74,7 +74,7 @@ async function _fetchOnlineFlood(
   floodedKm2: number
   features: FloodFeature[]
 }> {
-  const raw = await apiRequest<FloodOnlineResponseParsed>('/flood-online/api/flood/online', {
+  const raw = await apiRequest<FloodOnlineResponseParsed>(ENDPOINTS.flood.online, {
     method: 'GET',
     // b027：参数名统一 waterLevel（原 level 与 api 模式分裂；FastAPI 端已同步改名）
     params: { waterLevel },
@@ -106,7 +106,7 @@ export const floodAdapter = {
   // signal：请求可随组件卸载/新请求取消
   async getWaterArea(signal?: AbortSignal): Promise<[number, number][]> {
     // 水域坐标只读端点（数据已收归后端，前端 water-area.json 已删，仅此一条链路）
-    const coords = await apiRequest<[number, number][]>('/flood/water-area', {
+    const coords = await apiRequest<[number, number][]>(ENDPOINTS.flood.waterArea, {
       schema: waterAreaSchema,
       signal,
     })
@@ -156,12 +156,12 @@ export const floodAdapter = {
     // fetch：并行取淹没范围 + 统计；后端已按类型契约返回（riskLevel/字段名一致），直接透传
     logger.debug(`[floodAdapter] fetch 数据源请求: 水位=${waterLevel}m`)
     const [floodAreasRes, statisticsRes] = await Promise.all([
-      apiRequest<FloodAreasResponseParsed>('/flood/flood-areas', {
+      apiRequest<FloodAreasResponseParsed>(ENDPOINTS.flood.floodAreas, {
         params: { waterLevel },
         signal,
         schema: floodAreasResponseSchema,
       }),
-      apiRequest<FloodStatisticsResponseParsed>('/flood/flood-statistics', {
+      apiRequest<FloodStatisticsResponseParsed>(ENDPOINTS.flood.statistics, {
         params: { waterLevel },
         signal,
         schema: floodStatisticsResponseSchema,
@@ -190,7 +190,7 @@ export const floodAdapter = {
     // calculate：FastAPI 预计算档位表 → 空间筛选设施影响
     if (dataSource === 'calculate') {
       logger.debug(`[floodAdapter] impact calculate: 水位=${waterLevel}m`)
-      const res = await apiRequest<FloodImpactResponseParsed>('/flood-online/api/flood/impact', {
+      const res = await apiRequest<FloodImpactResponseParsed>(ENDPOINTS.flood.impact, {
         // b027：参数名统一 waterLevel
         params: { waterLevel },
         signal,
@@ -205,7 +205,7 @@ export const floodAdapter = {
       }
     }
     // api：调用后端 /flood/analysis/disaster；后端已返回全字段，schema 深校验后直接透传
-    const res = await apiRequest<FloodDisasterResponseParsed>('/flood/analysis/disaster', {
+    const res = await apiRequest<FloodDisasterResponseParsed>(ENDPOINTS.flood.disaster, {
       method: 'POST',
       body: JSON.stringify({ waterLevel }),
       signal,

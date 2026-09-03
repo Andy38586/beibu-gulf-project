@@ -1,5 +1,5 @@
 /**
- * 航线分析（RouteAnalysis）类型：T5.3 最短路径 API 响应契约。
+ * 航线分析（RouteAnalysis）类型：最短路径 API 响应契约。
  * 坐标命名 lng/lat（03 §1.2 词汇表）；路径折线 coordinates 为 [[lng,lat],...]。
  */
 
@@ -28,7 +28,7 @@ export interface RoutePathResult {
   coordinates: [number, number][]
 }
 
-/** 路径查询合法空结果（不可达 / 起终点未吸附，专项8 7.2 断链语义） */
+/** 路径查询合法空结果（不可达 / 起终点未吸附——断链语义，合法空非错误） */
 export interface RouteEmptyResult {
   found: false
   /** 空因：origin_not_snapped / destination_not_snapped / unreachable */

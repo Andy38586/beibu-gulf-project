@@ -1,9 +1,9 @@
 <script setup lang="ts">
 /**
- * 航线分析业务页（T5.3）：
+ * 航线分析业务页：
  * 地图点击拾取起终点 → 调 /route/path（FastAPI algorithm-service）→ 路径线图层 + 里程/时长面板。
  * 双引擎（2D/3D）均可用：图层走 BLM（注册即双引擎通用），点击经渲染器 click 事件回传坐标。
- * 断链语义（专项8 7.2）：不可达/未吸附为合法空结果（提示原因），错误态（网络/503）单独区分。
+ * 断链语义：不可达/未吸附为合法空结果（提示原因），错误态（网络/503）单独区分。
  */
 
 import { computed, onMounted, onUnmounted, ref } from 'vue'

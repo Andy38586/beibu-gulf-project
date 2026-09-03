@@ -12,7 +12,7 @@ export const ROUTE_ENDPOINT_LAYER_ID = 'route-endpoint'
 /** createUpdateHandler 实际使用的 manager 方法子集（与 BLM 解耦，页面传入的 manager 无需完整 BLM 类型） */
 type RouteLayerManager = Pick<BusinessLayerManager, 'register' | 'updateData' | 'has' | 'remove'>
 
-/** 路径线样式（双引擎通用；色值走 shared 常量，不硬编码，专项7 GCS 合规） */
+/** 路径线样式（双引擎通用；色值走 shared 常量，不硬编码） */
 export const ROUTE_PATH_STYLE: LayerOptions = {
   strokeColor: '#3b82f6',
   strokeWidth: 4,

@@ -25,8 +25,17 @@ server {
         root /app/frontend/dist;
         try_files $uri $uri/ /index.html;
     }
+    location /nest-api/ {
+        proxy_pass http://nest:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
     location /api/ {
-        proxy_pass http://127.0.0.1:3000;
+        rewrite ^/api(/.*)$ /nest-api$1 break;
+        proxy_pass http://nest:3000;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -37,8 +46,8 @@ server {
         rewrite ^/flood-online(/.*)$ $1 break;
         # d102：限流（zone 定义在 default.conf 顶部，http 级共享）
         limit_req zone=flood burst=20 nodelay;
-        # 2026-08-10：独立容器（flood-service），同 docker network 服务名解析
-        proxy_pass http://flood-service:8000;
+        # 独立容器（algorithm-service，flood-service 演进），同 docker network 服务名解析
+        proxy_pass http://algorithm-service:8000;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -105,32 +114,25 @@ else
   echo "[entrypoint] 未检测到 TLS 证书，仅 HTTP (80) 服务"
 fi
 
-# === 2. 启动后端（express，监听 3000，以非 root 用户 nodeapp 运行，d068） ===
-# 数据卷以 root 挂载，启动前降权给 nodeapp 以可写（注册/收藏/标记写盘）
-if [ -d /app/backend/data ]; then
-  chown -R nodeapp:nodeapp /app/backend/data
-fi
-cd /app/backend && su-exec nodeapp node index.js &
-BACKEND_PID=$!
-
-# === 3. 启动 nginx ===
+# === 2. 启动 nginx ===
+# v3 三服务分离后，本容器只承载前端 + nginx 反代；nest（3000）与 algorithm-service（8000）
+# 为 compose 独立容器，经服务名互连——此处不再启动内嵌 Express（已退役）
 nginx -g 'daemon off;' &
 NGINX_PID=$!
 
-# === 4. 优雅关停：转发 SIGTERM/SIGINT 给子进程 ===
+# === 3. 优雅关停：转发 SIGTERM/SIGINT 给子进程 ===
 shutdown() {
   echo "[entrypoint] 收到关停信号，正在优雅停止..."
-  kill -TERM $BACKEND_PID 2>/dev/null
   kill -QUIT $NGINX_PID 2>/dev/null
-  wait $BACKEND_PID $NGINX_PID 2>/dev/null
+  wait $NGINX_PID 2>/dev/null
   exit 0
 }
 trap shutdown TERM INT
 
 # 等待任一进程退出
-wait -n $BACKEND_PID $NGINX_PID
+wait -n $NGINX_PID
 EXIT_CODE=$?
 
 # 清理
-kill $BACKEND_PID $NGINX_PID 2>/dev/null
+kill $NGINX_PID 2>/dev/null
 exit $EXIT_CODE

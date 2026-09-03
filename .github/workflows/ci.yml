@@ -197,6 +197,32 @@ jobs:
         working-directory: backend/nest
         run: npm test -- --coverage
 
+  # T5.1 起：算法服务（FastAPI，flood 兼容区 + route 新区）纳入 CI——此前 pytest
+  # 只在本机 venv 跑，游离于门禁链路；HTTP/离线用例全量跑，真演算用例依赖 DEM 文件
+  #（gitignored，CI 无卷自动 skip；本地带 DEM 手动全量）
+  algorithm-service-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        working-directory: backend/algorithm-service
+        run: |
+          pip install --no-cache-dir -r requirements.txt pytest
+          python --version
+
+      - name: Run pytest (HTTP + 离线计算套件)
+        working-directory: backend/algorithm-service
+        # test_real_engine 的真演算用例在无 DEM 的 CI 自动 skip（conftest 检测卷缺失），
+        # 剩余 HTTP/route/topology/graph 全量离线可跑；失败必须红（不 continue-on-error）
+        run: python -m pytest tests/ -q
+
   # 2026-08-09：部署改为 SSH 直部署（原 GHCR+webhook 方案废弃——服务器端无需额外
   # webhook 服务，Actions 用仓库 Secrets 里的服务器私钥直连）。
   # 前置配置：
@@ -205,7 +231,7 @@ jobs:
   #   - 服务器：/opt/beibu-gulf 下 clone 仓库 + .env 配置 VITE_TIANDITU_KEY/JWT_SECRET
   #   - 服务器公钥已加入 GitHub 账户（git pull 免密）
   deploy:
-    needs: [lint-and-build, backend-tests, audit]
+    needs: [lint-and-build, backend-tests, algorithm-service-tests, audit]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     steps:

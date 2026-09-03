@@ -9,10 +9,15 @@ FROM node:22-alpine AS frontend-builder
 ARG VITE_TIANDITU_KEY=
 ENV VITE_TIANDITU_KEY=$VITE_TIANDITU_KEY
 
-# 2026-08-10：数据源为构建期变量（vite build 打包进产物）——生产设 online 走
-# FastAPI 连通性演算（预计算表查表秒回）；缺省 api（Express 251 档表兜底）
-ARG VITE_DATA_SOURCE=api
+# 2026-08-10：数据源为构建期变量（vite build 打包进产物）——生产设 fetch（查表）走
+# Nest 读文件链路；calculate（实时演算）走 FastAPI；缺省 fetch（Express 退役后语义）
+ARG VITE_DATA_SOURCE=fetch
 ENV VITE_DATA_SOURCE=$VITE_DATA_SOURCE
+
+# v3：业务后端模块切换开关（构建期变量）——生产默认全六域切 Nest（Express 已退役）；
+# 回滚旧版或临时走 Express 时清空此值（compose build.args 覆盖）
+ARG VITE_USE_NEST_MODULES=auth,plans,favorites,forecast,flood,site-analysis
+ENV VITE_USE_NEST_MODULES=$VITE_USE_NEST_MODULES
 
 WORKDIR /app
 
@@ -31,42 +36,24 @@ COPY frontend/ ./frontend/
 # 触发 vite build → frontend/dist
 RUN npm run build
 
-# ============ Stage 2: Build Backend ============
-FROM node:22-alpine AS backend-builder
-
-WORKDIR /app/backend
-COPY backend/package*.json ./
-RUN npm ci --production --no-audit --no-fund
-COPY backend/ ./
-
-# ============ Stage 3: Production ============
+# ============ Stage 2: Production ============
 FROM node:22-alpine AS production
 
 WORKDIR /app
 
-# 强制生产模式；JWT_SECRET/PORT 由 compose 在容器运行期注入，绝不烘焙进镜像
-ENV NODE_ENV=production
-
-# d068: 安装 nginx + su-exec。（原 8.2 d061，重编号消除与主清单 d061-trust proxy 冲突）
-# su-exec 让后端进程以非 root 用户运行（容器逃逸时无法以 root 获得宿主机权限）；
-# nginx 仍由 entrypoint 以 root 拉起（需绑定 80/443）。
+# d068: 安装 nginx（原 su-exec 服务于 Express 进程降权，v3 三服务分离后 app 容器
+# 只承载前端 + nginx，不再启动后端进程——nest/algorithm-service/postgis 为独立容器）
 # brotli 模块来自 alpine community 仓库（动态匹配基础镜像小版本），提供实时 brotli 压缩
 #（副-07；构建时验证：包缺失会 fail 构建，不会带病上线）
-RUN apk add --no-cache nginx su-exec \
+RUN apk add --no-cache nginx \
   && apk add --no-cache \
     --repository "https://dl-cdn.alpinelinux.org/alpine/v$(cut -d. -f1-2 /etc/alpine-release)/community" \
     nginx-mod-http-brotli
 
-# d068: 创建非 root 用户 nodeapp（uid 1000），并预备可写的数据/日志目录
-# 2026-08-09 修复：node:22-alpine 镜像自带 uid 1000 的 node 用户（adduser 冲突），
-# 先删除再创建；uid 1000 必须保留（与宿主机 volume 挂载的 admin(uid 1000) 权限匹配）。
-RUN deluser node \
-  && adduser -D -u 1000 nodeapp \
-  && mkdir -p /app/backend/data /app/backend/logs \
-  && chown -R nodeapp:nodeapp /app/backend/data /app/backend/logs
-
-# 后端运行时依赖与源码
-COPY --from=backend-builder /app/backend ./backend
+# 预备 nginx worker 降权用户（816-专项5主 9）与静态数据挂载点
+# （v3 起 static 数据由 compose ro volume 挂载，此处仅建立目录供 alias 存在）
+RUN adduser -D -H -s /sbin/nologin nodeapp -u 1000 \
+  && mkdir -p /app/backend/static/dem /app/backend/static/terrain
 
 # 前端构建产物
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
@@ -82,14 +69,14 @@ RUN if grep -q '^user ' /etc/nginx/nginx.conf; then \
       sed -i '1i user nodeapp;' /etc/nginx/nginx.conf; \
     fi
 
-# 启动脚本（同时拉起后端 + nginx）
+# 启动脚本（只拉起 nginx；nest / algorithm-service 为 compose 独立服务）
 COPY docker-entrypoint.sh /app/
 RUN chmod +x /app/docker-entrypoint.sh
 
-EXPOSE 80 443 3000
+EXPOSE 80 443
 
-# d063: 健康检查探就绪（readiness 查数据目录可读性），编排/负载均衡器据此判定容器可用
+# 健康检查探前端就绪（app 容器不再内嵌 API，编排层以 depends_on nest healthy 联动）
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD wget -qO- http://127.0.0.1:3000/api/health/ready || exit 1
+  CMD wget -qO- http://127.0.0.1:80/ || exit 1
 
 CMD ["/app/docker-entrypoint.sh"]

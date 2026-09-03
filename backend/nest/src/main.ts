@@ -11,8 +11,8 @@ async function bootstrap() {
   // 配置集中读取；listen 前必填校验（缺 JWT_SECRET 直接 fail fast，不带弱配置上线）
   const config = app.get(ConfigService)
   config.validateStartup()
-  // 迁移期 Nest 用 3100 避让老 Express(3000)；Express 退役后回切 3000。
-  // 前缀 nest-api 对齐未来 Vite proxy/nginx 的反代路径（与 Express 的 /api 平行语义）
+  // 全局前缀 nest-api：Nest 独立端口时代（3100）的反代路径惯用，
+  // Express 退役后端口回切 3000，nginx 反代目标不变（/api、/nest-api 均可代理到本服务）
   app.setGlobalPrefix('nest-api')
   // cookie 解析：认证守卫读 HttpOnly auth_token（对齐 Express cookieParser）
   app.use(cookieParser())

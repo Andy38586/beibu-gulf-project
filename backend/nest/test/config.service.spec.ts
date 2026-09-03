@@ -3,9 +3,9 @@ import { describe, expect, it } from 'vitest'
 import { ConfigService, resolveDataDir } from '../src/infra/config/config.service'
 
 describe('ConfigService', () => {
-  it('无环境变量时 port 回落 3100、nodeEnv 回落 development', () => {
+  it('无环境变量时 port 回落 3000、nodeEnv 回落 development', () => {
     const config = new ConfigService({})
-    expect(config.port).toBe(3100)
+    expect(config.port).toBe(3000)
     expect(config.nodeEnv).toBe('development')
     expect(config.isProduction).toBe(false)
   })
@@ -14,8 +14,8 @@ describe('ConfigService', () => {
     const prod = new ConfigService({ PORT: '3200', NODE_ENV: 'production' })
     expect(prod.port).toBe(3200)
     expect(prod.isProduction).toBe(true)
-    expect(new ConfigService({ PORT: 'abc' }).port).toBe(3100)
-    expect(new ConfigService({ PORT: '' }).port).toBe(3100)
+    expect(new ConfigService({ PORT: 'abc' }).port).toBe(3000)
+    expect(new ConfigService({ PORT: '' }).port).toBe(3000)
   })
 
   it('dbConfig 经 parseDbConfig 聚合（PG_* 覆盖生效）', () => {

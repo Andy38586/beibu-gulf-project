@@ -1,58 +1,117 @@
-# 北部湾港 WebGIS 智慧分析平台 —— 本地一键编排
+# 北部湾港 WebGIS 智慧分析平台 —— 本地/生产一键编排（v3 四服务合并版）
 # 用法：docker compose up --build
-#   前端：  http://localhost:8080
-#   后端 API：http://localhost:8080/api/...（经 nginx 反向代理）
-#   后端直连：http://localhost:3000
+#   前端：      http://localhost:80（nginx，同域反代）
+#   业务 API：  http://localhost:80/nest-api/...（经 nginx 反代 → nest:3000）
+#   演算服务：  http://localhost:8000（algorithm-service，容器内）
+#   PostGIS：   localhost:5432（v3_dev）
 services:
+  # 前端 + nginx（唯一对外暴露 80/443；API/DEM/瓦片均同域反代）
   app:
     build:
       context: .
       dockerfile: Dockerfile
       # 2026-08-09：前端构建需要天地图 key（vite build 打包进产物）。
       # 值读自 compose 同目录 .env（服务器部署时在项目目录配置 VITE_TIANDITU_KEY=新key）
-      # 2026-08-10：VITE_DATA_SOURCE 同样为构建期变量——生产设 online 让洪涝走
-      # FastAPI 连通性演算（预计算表查表秒回）；缺省 api（Express 查 251 档表兜底）
       args:
         VITE_TIANDITU_KEY: ${VITE_TIANDITU_KEY:-}
-        VITE_DATA_SOURCE: ${VITE_DATA_SOURCE:-api}
+        VITE_DATA_SOURCE: ${VITE_DATA_SOURCE:-fetch}
+        # v3 生产默认全量走 Nest：六功能域全部切 nest-api（Express 已退役）
+        VITE_USE_NEST_MODULES: ${VITE_USE_NEST_MODULES:-auth,plans,favorites,forecast,flood,site-analysis}
     # d064: 镜像版本 tag（回滚用）。部署时传 IMAGE_TAG=<上一版本tag> 即可切回旧版。
-    # 不传则默认 latest。配置 scripts/rollback.sh 使用。
     image: beibu-gulf-webgis:${IMAGE_TAG:-latest}
     container_name: beibu-gulf-webgis
-    # 运行时注入密钥与端口：env_file 在容器启动期读取本地 backend/.env，
-    # 不会烘焙进镜像；environment 的 NODE_ENV=production 优先级高于 env_file。
     env_file:
       - ./backend/.env
     environment:
       - NODE_ENV=production
-    # 运行时数据通过 volume 挂载，不烘焙进镜像（backend/data 已在 .dockerignore 排除）
     volumes:
+      # 静态真数据：nest 与 algorithm-service 经 ro volume 共享（数据资产不烘焙进镜像）
       - ./backend/data:/app/backend/data
       # DEM 静态产物（tif 67MB 被 gitignore、CI 镜像不含；本地含 → CI/本地镜像不一致）。
-      # 统一 volume 挂载，镜像瘦身且 CI/本地行为一致；接入数据库/对象存储后替换此方案。
       - ./backend/static/dem:/app/backend/static/dem
-      # 真 3D 地形瓦片（CTB 9.1MB，与 dem 同策略 volume 挂载——服务器此前缺失
-      # terrain/ 导致 CesiumTerrainProvider layer.json 404 → 静默降级为 hillshade 2D 贴图）
       - ./backend/static/terrain:/app/backend/static/terrain
       # TLS 证书（可选）：将 fullchain.pem + privkey.pem 放入 ./certs/ 即启用 HTTPS
       - ./certs:/etc/nginx/certs:ro
     ports:
-      - '80:80' # nginx（前端 + API 代理；2026-08-09 改为标准 80，需停用服务器系统 nginx）
-      - '443:443' # nginx HTTPS（需 ./certs/ 下有证书）——2026-08-10：标准 443 直通（原 8443 导致跳转断链）
-      - '8443:8443' # 备用 HTTPS（2026-08-10：duckdns.org SNI 在部分宽带被阻，8443 绕过检测）
-      # 2026-08-09：移除 3000:3000 直连映射——服务器 3000 端口常被其他服务占用
-      # （如 PM2），且后端经 nginx /api 代理已够用；需直连调试再放开。
+      - '80:80'
+      - '443:443'
+      - '8443:8443'
+    depends_on:
+      nest:
+        condition: service_healthy
     restart: unless-stopped
 
-  # 2026-08-10（面试报告 P0-1）：洪涝在线演算服务入容器编排——FastAPI + scipy
-  # 连通性淹没（8 连通 + 海面种子）。与主容器同 docker network：
-  # nginx /flood-online/ → flood-service:8000；数据以 ro volume 共享 backend/data
-  # （flood_levels.json.gz 251 档预计算表查表秒回，演算仅 miss 兜底）。
-  # 生产前端 VITE_DATA_SOURCE=online 后，洪涝演示走本服务（真算法 + 秒回）。
-  flood-service:
+  # v3 业务层（NestJS，Express 退役后主 API）——nginx 反代 /nest-api → nest:3000
+  nest:
     build:
-      context: ./backend/flood-service
-    container_name: beibu-flood-service
+      context: ./backend/nest
+    container_name: beibu-nest
+    environment:
+      NODE_ENV: production
+      # 端口统一 3000（nginx 反代目标不变）；PG 走 compose 服务名 postgis
+      PORT: '3000'
+      PG_HOST: postgis
+      PG_PORT: '5432'
+      PG_USER: postgres
+      PG_PASSWORD: postgres
+      PG_DB: v3_dev
+      DATA_DIR: /app/backend/data
+      # JWT_SECRET 由部署 .env 注入（backend/.env），不烘焙进镜像
     volumes:
       - ./backend/data:/app/backend/data:ro
+    depends_on:
+      postgis:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:3000/nest-api/health/ready || exit 1']
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 15s
     restart: unless-stopped
+
+  # PostGIS（空间数据，v3_dev）
+  postgis:
+    image: postgis/postgis:16-3.4
+    container_name: beibu-postgis
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: v3_dev
+    ports:
+      - '5432:5432'
+    volumes:
+      - beibu-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d v3_dev']
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    restart: unless-stopped
+
+  # 在线演算服务（FastAPI）：flood 兼容区 + route 新区；nginx /flood-online → algorithm-service:8000
+  algorithm-service:
+    build:
+      context: ./backend/algorithm-service
+    container_name: beibu-algorithm-service
+    environment:
+      ROUTE_PG_HOST: postgis
+    volumes:
+      - ./backend/data:/app/backend/data:ro
+    ports:
+      - '8000:8000'
+    depends_on:
+      postgis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)" || exit 1
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+    restart: unless-stopped
+
+volumes:
+  beibu-pgdata:

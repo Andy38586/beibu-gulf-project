@@ -42,8 +42,8 @@ export class ConfigService {
   // 单测直连构造传假环境
   constructor(@Optional() env: NodeJS.ProcessEnv = process.env) {
     this.env = env
-    // Number 语义与原 main.ts 完全一致：NaN/0/空串回落 3100（迁移期避让 Express 3000）
-    this.port = Number(env.PORT) || 3100
+    // Number 语义与原 main.ts 完全一致：NaN/0/空串回落 3000（Express 已退役，主端口）
+    this.port = Number(env.PORT) || 3000
     this.nodeEnv = env.NODE_ENV ?? 'development'
     this.dbConfig = parseDbConfig(env)
   }

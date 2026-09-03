@@ -41,7 +41,7 @@
 | 空间分析  | Turf.js、rbush 空间索引、scipy 连通性演算（FastAPI）                                       |
 | 可视化    | ECharts（异步化，不进首屏关键路径）                                                        |
 | UI        | Element Plus（按需引入）+ 自研 GCS 网格布局体系（暗色主题 token）                          |
-| 后端      | Node.js、Express 5（ESM，三层架构）+ FastAPI（Python 洪涝演算，独立容器）                  |
+| 后端      | NestJS（Express 已退役）+ FastAPI（Python 演算：洪涝/路径，独立容器）                      |
 | 数据      | GeoJSON、JSON（createReadCache 缓存）、251 档预计算表（gzip）、DEM 流水线脚本              |
 | 工程化    | Vitest、ESLint、Prettier、Husky/commitlint、dependency-cruiser 架构守护、gitleaks 密钥扫描 |
 | 部署      | Docker Compose 双容器、GitHub Actions CI 自动部署、Let's Encrypt HTTPS 自动续期            |
@@ -103,7 +103,7 @@ GIS 应用中浮动组件（工具栏、分析面板、图例、详情卡片）�
 ```
 业务组件 → 取数入口（useApiRequest / loadStatic）
   ├─ 数据源 mock   → loadStatic（前端契约桩，已基本收归后端）
-  ├─ 数据源 api    → fetch → Express /api/*
+  ├─ 数据源 api    → fetch → Nest /nest-api/*
   └─ 数据源 online → fetch → FastAPI /flood-online（仅洪涝）
 后端：routes → controllers（sendSuccess）→ services（createReadCache）→ data/*.json
 ```
@@ -119,16 +119,16 @@ GIS 应用中浮动组件（工具栏、分析面板、图例、详情卡片）�
                         ┌───────────────────────────────┐
   浏览器 ── HTTPS ──▶  nginx (80/443, 8443)
                         │   /            → 前端静态产物
-                        │   /api/        → Express :3000（主容器）
-                        │   /flood-online → flood-service :8000（FastAPI 内网，不暴露公网）
+                        │   /nest-api/   → nest :3000（NestJS + PostGIS；/api 兼容重写同向）
+                        │   /flood-online → algorithm-service :8000（FastAPI 内网，不暴露公网）
                         └───────────────────────────────┘
 ```
 
-- Docker Compose 双容器：`app`（nginx + 前端 + Express 后端）+ `flood-service`（FastAPI）。
+- Docker Compose 四服务：`app`（nginx + 前端）+ `nest`（NestJS + PostGIS）+ `algorithm-service`（FastAPI）+ `postgis`。
 - 数据经 volume 挂载（`backend/data`、`backend/static/dem`、`backend/static/terrain`），不烘焙进镜像。
-- CI 流水线 4 job：audit → lint-and-build → backend-tests → deploy（main 分支 SSH 自动部署）。
+- CI 流水线 5 job：audit → lint-and-build → nest-tests → algorithm-service-tests → deploy（main 分支 SSH 自动部署）。
 - HTTPS：Let's Encrypt + duckdns DNS-01，certbot.timer 自动续期。
-- 生产数据源由 `VITE_DATA_SOURCE` 构建期注入（`online` = 洪涝走 FastAPI；`api` = Express 查表兜底）。
+- 生产数据源由 `VITE_DATA_SOURCE` 构建期注入（`fetch` = Nest 查文件/查表；`calculate` = 洪涝走 FastAPI 实时演算）。
 
 ## 7. 工程红线（不变量）
 
@@ -204,7 +204,7 @@ src/
 ### 4.2 services/adapters/floodAdapter.ts（浸没分析数据适配器，双数据源）
 
 - 模块级 `dataSource`（'api' | 'online'），`setDataSource()` 切换。
-- `api` 模式：走 Express `/flood/*`（`/flood/flood-areas`、`/flood/flood-statistics`、`/flood/analysis/disaster`、`/flood/water-area`）。
+- `api` 模式：走 Nest `/flood/*`（`/flood/flood-areas`、`/flood/flood-statistics`、`/flood/analysis/disaster`、`/flood/water-area`）。
 - `online` 模式：走 FastAPI `/flood-online/api/flood/online`、`/flood-online/api/flood/impact`（envelope:false，裸 JSON）。
 - 方法：
   - `getWaterArea(signal)`：水域坐标。
@@ -372,7 +372,7 @@ re-export：`manifest`、`forecast/composables/*`、`site-selection/composables/
 
 # 03 · 后端代码库（backend/）
 
-> 后端为 Node.js + Express 5（ESM），目录 `backend/`。分层：routes / controllers / services / repositories / middleware / utils / data。另有 Python FastAPI 洪涝服务见 [04](#04-fastapi-洪涝在线演算服务backendflood-service)。
+> ⚠️ **Express 业务后端已退役**（v3 起 `backend/` 下的 app.js、routes/、controllers/、services/、repositories/、middleware/、utils/ 均已删除）。现业务 API 由 NestJS 提供（`backend/nest/`，全局前缀 `/nest-api/`，端口 3000），详见 `backend/nest/README`。本节以下内容为 **Express 历史存档，保留仅供参考**；另有 Python FastAPI 算法服务（洪涝/路径，`backend/algorithm-service/`）见 [04](#04-fastapi-洪涝在线演算服务backendflood-service)。
 
 ## 1. 目录结构
 
@@ -395,7 +395,7 @@ backend/
 
 ## 2. 应用装配（app.js）
 
-Express 应用装配顺序（中间件顺序敏感）：
+Express 应用装配顺序（中间件顺序敏感）——⚠️ **Express 已退役，此处保留历史存档供参考；现业务层见 `backend/nest/README`**：
 
 1. `helmet()`：HTTP 安全头。
 2. `GET /api/health`：健康检查（置于限流器前，避免探针触发限流）。
@@ -666,12 +666,12 @@ result = connected & flooded              # 真正的淹没区
 
 ## 5. 前端数据源双模式对照
 
-| 模式              | 淹没范围                                          | 影响评估                         |
-| ----------------- | ------------------------------------------------- | -------------------------------- |
-| api（Express）    | `/api/flood/flood-areas`（251 档查表 + 6 档兜底） | `/api/flood/analysis/disaster`   |
-| online（FastAPI） | `/flood-online/api/flood/online`                  | `/flood-online/api/flood/impact` |
+| 模式              | 淹没范围                                               | 影响评估                            |
+| ----------------- | ------------------------------------------------------ | ----------------------------------- |
+| api（Nest）       | `/nest-api/flood/flood-areas`（251 档查表 + 6 档兜底） | `/nest-api/flood/analysis/disaster` |
+| online（FastAPI） | `/flood-online/api/flood/online`                       | `/flood-online/api/flood/impact`    |
 
-- 生产 `VITE_DATA_SOURCE=online` 走 FastAPI 真算法；缺省 `api` 走 Express 查表兜底。
+- 生产 `VITE_DATA_SOURCE=online` 走 FastAPI 真算法；缺省 `api` 走 Nest 查表兜底。
 - 两端风险等级映射保持同表（`deriveRiskLevel`，6 档：0 无风险 / 2 低 / 5 中 / 8 高 / 10 极高 / 15 灾难级；Q2 816 拍板：0 档统一「无风险」）。
 
 ## 6. 依赖与 Docker
@@ -706,15 +706,15 @@ Dockerfile 构建 FastAPI 容器；docker-compose 中数据以 ro volume 共享 
 
 ### 1.3 洪涝数据（backend/data/flood/）
 
-| 文件                      | 说明                                                           |
-| ------------------------- | -------------------------------------------------------------- |
-| facilityPoints.json       | 设施点（83 设施，含 elevation/value/damageRate）               |
-| floodArea.json            | 淹没范围（6 档 floodZones）                                    |
-| floodStatistics.json      | 统计数据                                                       |
-| flood_levels.json.gz      | **251 档预计算表**（0~25m/0.1m 步长，Express 与 FastAPI 共用） |
-| terrainProfile.json       | 地形剖面                                                       |
-| water-area.json           | 水域边界坐标                                                   |
-| dem/filled_utm48n_cut.tif | **gitignored**，洪涝 online 演算输入（连通性演算）             |
+| 文件                      | 说明                                                        |
+| ------------------------- | ----------------------------------------------------------- |
+| facilityPoints.json       | 设施点（83 设施，含 elevation/value/damageRate）            |
+| floodArea.json            | 淹没范围（6 档 floodZones）                                 |
+| floodStatistics.json      | 统计数据                                                    |
+| flood_levels.json.gz      | **251 档预计算表**（0~25m/0.1m 步长，Nest 与 FastAPI 共用） |
+| terrainProfile.json       | 地形剖面                                                    |
+| water-area.json           | 水域边界坐标                                                |
+| dem/filled_utm48n_cut.tif | **gitignored**，洪涝 online 演算输入（连通性演算）          |
 
 ### 1.4 其他
 
@@ -831,12 +831,12 @@ Dockerfile 构建 FastAPI 容器；docker-compose 中数据以 ro volume 共享 
 
 ```
 mock（前端契约桩，已基本收归后端）
-  → api（Express 读 JSON/查 251 档表）
+  → api（Nest 读 JSON/查 251 档表）
   → online（FastAPI 真演算）
   → PostgreSQL + GeoServer（规划必上路线）
 ```
 
-生产由 `VITE_DATA_SOURCE` 构建期注入（`online` = 洪涝走 FastAPI；`api` = Express 兜底）。
+生产由 `VITE_DATA_SOURCE` 构建期注入（`online` = 洪涝走 FastAPI；`api` = Nest 兜底）。
 
 ---
 
@@ -878,8 +878,8 @@ JWT_SECRET=<32+ 字符随机串，否则后端启动即抛错>
 # 终端 1：前端
 npm run dev            # Vite :5173
 
-# 终端 2：后端（Express :3000）
-npm run dev:server     # 同时启动 Express + FastAPI(洪涝)
+# 终端 2：后端（NestJS :3000）
+npm run dev:server     # 同时启动 NestJS + algorithm-service(洪涝/路径)
 ```
 
 或一键启动：
@@ -931,14 +931,16 @@ cd backend && npm test  # 后端 Vitest
 docker compose up --build -d
 ```
 
-- `app` 容器：nginx + 前端静态产物 + Express 后端（:80/:443/:8443）。
-- `flood-service` 容器：FastAPI（内网 :8000，不暴露公网）。
+- `app` 容器：nginx + 前端静态产物（:80/:443/:8443，入口经 `/nest-api` → nest、`/flood-online` → algorithm-service 反代）。
+- `nest` 容器：NestJS 业务后端（内网 :3000，含 PostGIS）。
+- `algorithm-service` 容器：FastAPI（内网 :8000，不暴露公网）。
+- `postgis`：PostgreSQL GIS 库。
 - 数据 volume 挂载：`backend/data`、`backend/static/dem`、`backend/static/terrain`、`./certs`（TLS）。
 - 生产环境变量经 `backend/.env` 注入 + `VITE_TIANDITU_KEY` / `VITE_DATA_SOURCE` 构建期 arg。
 
 ### 7.2 CI 流水线（GitHub Actions，.github/workflows/ci.yml）
 
-4 job：`audit` → `lint-and-build`（format/lint/cruise/typecheck/gitleaks/测试/build）→ `backend-tests` → `deploy`（main 分支 SSH 自动部署）。
+5 job：`audit` → `lint-and-build`（format/lint/cruise/typecheck/gitleaks/测试/build）→ `nest-tests` → `algorithm-service-tests` → `deploy`（main 分支 SSH 自动部署）。
 
 ### 7.3 HTTPS
 
@@ -950,18 +952,18 @@ Let's Encrypt + duckdns DNS-01，自动续期（certbot.timer + deploy hook）�
 
 ## 8. 常用 npm 脚本速查
 
-| 脚本                        | 作用                     |
-| --------------------------- | ------------------------ |
-| `npm run dev`               | 前端开发服务器           |
-| `npm run dev:server`        | 后端 Express + FastAPI   |
-| `npm run dev:all`           | 全栈开发                 |
-| `npm run dev:flood`         | 洪涝 FastAPI             |
-| `npm run build`             | 生产构建                 |
-| `npm run build:analyze`     | 构建 + 体积分析          |
-| `npm test`                  | 前端测试                 |
-| `npm run cruise`            | 架构守护                 |
-| `npm run forecast:model`    | 重新生成吞吐量模型产物   |
-| `cd backend && npm run dev` | 后端开发（node --watch） |
+| 脚本                        | 作用                                       |
+| --------------------------- | ------------------------------------------ |
+| `npm run dev`               | 前端开发服务器                             |
+| `npm run dev:server`        | 后端 NestJS + FastAPI（algorithm-service） |
+| `npm run dev:all`           | 全栈开发                                   |
+| `npm run dev:flood`         | 洪涝/路径 FastAPI（algorithm-service）     |
+| `npm run build`             | 生产构建                                   |
+| `npm run build:analyze`     | 构建 + 体积分析                            |
+| `npm test`                  | 前端测试                                   |
+| `npm run cruise`            | 架构守护                                   |
+| `npm run forecast:model`    | 重新生成吞吐量模型产物                     |
+| `cd backend && npm run dev` | 后端开发（node --watch）                   |
 
 ## 9. 已知注意点（来自项目记忆）
 

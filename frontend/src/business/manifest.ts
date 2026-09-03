@@ -65,7 +65,6 @@ export const businessModules: BusinessModule[] = [
     component: () => import('@/business/flood-analysis/FloodAnalysisPage.vue'),
     reset: () => useFloodStore().clearState(),
   },
-  // 预留模块：航线分析（未实现,仅占位导航,不注册路由）
   {
     name: 'RouteAnalysis',
     path: '/route-analysis',
@@ -73,8 +72,10 @@ export const businessModules: BusinessModule[] = [
     title: '航线分析',
     navLabel: '航线分析',
     navIcon: '🚢',
-    navDisabled: true,
-    component: null,
+    component: () => import('@/business/route-analysis/RouteAnalysisPage.vue'),
+    // 页面状态为本地 ref（起终点/结果），无持久 store；登出时路由保留、图层由页面清理，
+    // reset 声明为 no-op 以维持"已实现模块必须声明 reset"的清单不变量（专项6 4.5 语义）
+    reset: () => {},
   },
 ]
 

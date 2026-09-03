@@ -37,4 +37,9 @@ export const ENDPOINTS = {
     disaster: '/flood/analysis/disaster',
   },
   siteAnalysis: '/site-analysis',
+  // FasterAPI 演算服务（algorithm-service，8000；复用 /flood-online 代理通道，
+  // vite rewrite 去前缀后落 /route/path）——裸 JSON，envelope:false
+  route: {
+    path: '/flood-online/route/path',
+  },
 } as const

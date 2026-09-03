@@ -342,3 +342,23 @@ export const favoriteAddResponseSchema = z.object({
 export const favoriteRemoveResponseSchema = z.object({
   removed: z.boolean(),
 })
+
+// ⑳ GET /route/path 响应（FastAPI 裸 JSON，envelope:false 直通）：判别 found 分成功/合法空两路。
+// 不可达/未吸附是合法空结果（专项8 7.2 断链语义），不是错误。
+export const routePathResponseSchema = z.discriminatedUnion('found', [
+  z.object({
+    found: z.literal(true),
+    mode: z.enum(['distance', 'time']),
+    distanceM: z.number(),
+    durationMin: z.number(),
+    snapDistanceM: z.object({ from: z.number(), to: z.number() }),
+    edgeCount: z.number(),
+    coordinates: z.array(z.tuple([z.number(), z.number()])),
+  }),
+  z.object({
+    found: z.literal(false),
+    reason: z.enum(['origin_not_snapped', 'destination_not_snapped', 'unreachable']),
+  }),
+])
+
+export type RoutePathResponseParsed = z.infer<typeof routePathResponseSchema>

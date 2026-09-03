@@ -20,6 +20,7 @@ describe('business/manifest 登出重置注册', () => {
     expect(implemented.map((m) => m.name).sort()).toEqual([
       'FloodAnalysis',
       'Forecast',
+      'RouteAnalysis',
       'SiteSelection',
     ])
     for (const m of implemented) {
@@ -27,10 +28,12 @@ describe('business/manifest 登出重置注册', () => {
     }
   })
 
-  it('占位模块（RouteAnalysis）不注册路由也不声明 reset', () => {
-    const placeholder = businessModules.find((m) => m.component === null)
-    expect(placeholder?.name).toBe('RouteAnalysis')
-    expect(placeholder?.reset).toBeUndefined()
+  it('RouteAnalysis 已实现（组件非 null、注册路由、声明 reset）', () => {
+    const route = businessModules.find((m) => m.name === 'RouteAnalysis')
+    expect(route).toBeDefined()
+    expect(route?.component).not.toBeNull()
+    expect(route?.navDisabled).toBeUndefined()
+    expect(route?.reset).toBeDefined()
   })
 
   it('runBusinessLogoutReset 批量执行不抛错，且 Forecast 运行时状态复位', () => {

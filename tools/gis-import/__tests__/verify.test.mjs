@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { evaluateChecks } from '../verify.mjs'
+import { evaluateChecks, parseGulfBounds } from '../verify.mjs'
 
 const ROAD_SPEC = { name: 'roads', geomType: 'LINESTRING', srid: 4490, checkBBox: true }
 const PROTECTED_SPEC = {
@@ -58,5 +58,32 @@ describe('evaluateChecks — 质检判定（T4.1 测试要求：坏几何 fixtur
   it('protected_areas 豁免 bbox（全国保护区跨省合法）', () => {
     const { entry } = evaluateChecks(PROTECTED_SPEC, row({ out_of_bounds: '31' }))
     expect(entry.fail).not.toContain('bbox_ok')
+  })
+})
+
+// 边界常量由 gis.constants.ts 单一事实源解析而来：解析必须 fail fast，
+// 静默回退到内联副本会让质检边界与业务边界分叉（比报错危险）。
+describe('parseGulfBounds — 业务边界单一事实源解析', () => {
+  const SRC = `export const GULF_BOUNDS = {
+  minLng: 105,
+  maxLng: 115,
+  minLat: 18,
+  maxLat: 25,
+} as const`
+
+  it('正常源码解析出四至边界', () => {
+    expect(parseGulfBounds(SRC)).toEqual({ minLng: 105, maxLng: 115, minLat: 18, maxLat: 25 })
+  })
+
+  it('缺 GULF_BOUNDS 定义 → 抛错（不静默用内置值）', () => {
+    expect(() => parseGulfBounds('export const OTHER = 1')).toThrow(/未找到 GULF_BOUNDS/)
+  })
+
+  it('缺字段 → 抛错', () => {
+    expect(() => parseGulfBounds(SRC.replace('maxLng: 115,', ''))).toThrow(/缺少 maxLng/)
+  })
+
+  it('数值不自洽（minLng >= maxLng）→ 抛错', () => {
+    expect(() => parseGulfBounds(SRC.replace('minLng: 105', 'minLng: 120'))).toThrow(/数值不自洽/)
   })
 })

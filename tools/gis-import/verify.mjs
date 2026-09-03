@@ -9,15 +9,48 @@
 //
 // 连接参数走环境变量（缺省本机 v3_dev，对齐 docker-compose.v3.yml）：
 //   GIS_DB_HOST / GIS_DB_PORT / GIS_DB_USER / GIS_DB_PASSWORD / GIS_DB_NAME
+import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { resolve } from 'node:path'
 
 const require = createRequire(resolve('backend/nest/package.json'))
 const { Pool } = require('pg')
 
-// 北部湾业务范围（EPSG:4326 经纬度）——单一事实源：backend/nest/src/common/constants/gis.constants.ts
-// （GULF_BOUNDS）。工具脚本不经 TS 编译，此处内联同一数值，改范围须双处同步。
-const GULF_BOUNDS = { minLng: 105, maxLng: 115, minLat: 18, maxLat: 25 }
+const GULF_BOUNDS_FILE = resolve('backend/nest/src/common/constants/gis.constants.ts')
+
+/**
+ * 从 gis.constants.ts 源码解析北部湾业务边界（EPSG:4326 经纬度）。
+ *
+ * 单一事实源在 Nest 侧的 GULF_BOUNDS：质检的「越界即 FAIL」与业务侧的「落点是否合法」
+ * 必须是同一个范围，两处各写一份必然漂移。工具脚本不经 TS 编译，只能解析源码文本——
+ * 故解析失败一律抛错（fail fast），绝不静默回退到内联副本：回退会让质检边界与业务
+ * 边界悄悄分叉，比当场报错危险得多。
+ */
+export function parseGulfBounds(source) {
+  const block = source.match(/GULF_BOUNDS\s*=\s*\{([\s\S]*?)\}\s*as\s+const/)
+  if (!block) {
+    throw new Error('gis.constants.ts 未找到 GULF_BOUNDS 定义，质检边界无法确定')
+  }
+  const read = (key) => {
+    const hit = block[1].match(new RegExp(`${key}\\s*:\\s*(-?\\d+(?:\\.\\d+)?)`))
+    if (!hit) throw new Error(`GULF_BOUNDS 缺少 ${key}`)
+    return Number(hit[1])
+  }
+  const bounds = {
+    minLng: read('minLng'),
+    maxLng: read('maxLng'),
+    minLat: read('minLat'),
+    maxLat: read('maxLat'),
+  }
+  const sane =
+    Object.values(bounds).every(Number.isFinite) &&
+    bounds.minLng < bounds.maxLng &&
+    bounds.minLat < bounds.maxLat
+  if (!sane) throw new Error(`GULF_BOUNDS 数值不自洽：${JSON.stringify(bounds)}`)
+  return bounds
+}
+
+const GULF_BOUNDS = parseGulfBounds(readFileSync(GULF_BOUNDS_FILE, 'utf8'))
 
 const db = {
   host: process.env.GIS_DB_HOST ?? 'localhost',

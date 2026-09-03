@@ -43,6 +43,9 @@ export function collectTerrainTileUrls(layer: TerrainLayerJson, maxZoom: number)
   return urls
 }
 
+// @arch-note 此处不走 loadStatic 统一入口：预取物是 heightmap-1.0 的二进制 .terrain
+// 瓦片（非 JSON），loadStatic 会强制 JSON.parse 而失败；且预热只需"让浏览器 HTTP 缓存
+// 命中"，丢弃响应体、无解析/校验/超时语义需求。故保留裸 fetch 并显式登记例外。
 /** 地形预热入口：layer.json + 低层瓦片并行预取；任何失败静默返回 */
 export async function preloadTerrain(maxZoom = 3): Promise<void> {
   try {

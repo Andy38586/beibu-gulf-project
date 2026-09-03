@@ -126,6 +126,12 @@ jobs:
       - name: Run frontend tests
         run: npm test -- --coverage
 
+      # tools/ 下的脚本单测（导入/质检/迁移）：此前游离于所有测试链路之外，
+      # `npm test` 只跑 frontend，写在这里的用例实际从未被执行（门禁清单存在 ≠ 被执行）。
+      # 覆盖率阈值不适用（工具脚本不入前端/后端阈值体系），故只跑断言。
+      - name: Run tools tests
+        run: npm run test:tools
+
       # 816-专项5并-4-4：fix:/refactor: 提交若改动 src 实现必须附测试（03 §1.6 提交约定）。
       # 仅对 push 事件检查最近一次提交；PR 分支语义不适用（开发分支多为 squash）。
       - name: fix/refactor must include tests

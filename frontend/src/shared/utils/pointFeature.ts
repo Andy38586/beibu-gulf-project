@@ -1,4 +1,4 @@
-import type { Feature, FeatureCollection, Geometry, Point } from 'geojson'
+import type { Feature, FeatureCollection, Point } from 'geojson'
 
 /**
  * 把"坐标点对象数组"构造成 Point FeatureCollection。
@@ -16,7 +16,7 @@ export function buildPointFeatureCollection<T>(
     /** 属性构造（含 featureType 注入与字段透传） */
     propsOf: (item: T) => Record<string, unknown>
   }
-): FeatureCollection<Geometry> {
+): FeatureCollection<Point> {
   const features: Feature<Point>[] = []
   for (const item of items) {
     if (options.validate && !options.validate(item)) continue

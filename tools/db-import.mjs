@@ -26,7 +26,13 @@ const POI_TYPES = [
   ['park', 'park'],
   ['bus_station', 'bus_station'],
   ['mall', 'mall'],
+  ['port_pier', 'port_pier'],
 ]
+
+// ===== 导入版本指纹（防止旧脚本时光倒流）=====
+// TRUNCATE 重灌 = 销毁重建：库内一旦被旧版脚本（v1 单城等）重灌，无人察觉。
+// 本版本号写入 import_meta 表；导入前检查既有版本戳，非本版本即拒绝（第一性原理：入口守卫而非事后留痕）。
+export const IMPORT_VERSION = 'v3-20260904'
 
 /** 读存在则返回解析结果，不存在返回 null（运行时文件容错，记入对账报告） */
 function readOptional(dataDir, p, report) {
@@ -51,6 +57,20 @@ export function buildImport(dataDir, report = { warnings: [] }) {
   const begin = (name) => (tables[name] ??= { source: 0, written: 0, filtered: 0 })
 
   statements.push('BEGIN;')
+  // 版本指纹前置校验（第一性原理审查 2 整改）：TRUNCATE 重灌是销毁重建，
+  // 若库内已有 import_meta 且版本 ≠ 本脚本版本，说明是旧脚本/旧数据——拒绝重灌，
+  // 防止"跑错脚本=无人知晓的时光倒流"。无 meta（首灌）或同版本（幂等重跑）放行。
+  statements.push(`
+-- 导入版本守卫：库内已有其他版本指纹 → 拒绝（防旧脚本时光倒流）
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'import_meta') THEN
+    IF EXISTS (SELECT 1 FROM import_meta WHERE version <> '${IMPORT_VERSION}') THEN
+      RAISE EXCEPTION '拒绝重灌：库内已有其他版本指纹（import_meta），请先人工确认数据归属';
+    END IF;
+  END IF;
+END $$;
+`)
   // 幂等语义：TRUNCATE 重灌——开发库全量重建，重跑结果一致（专项5 指标 8.2）
   statements.push(
     'TRUNCATE users, plans, favorites, ports, poi_facilities, xiaoqu, flood_facilities, data_archive RESTART IDENTITY CASCADE;'
@@ -115,8 +135,11 @@ export function buildImport(dataDir, report = { warnings: [] }) {
     portsT.written++
   }
 
-  // ===== poi_facilities（三城 × 6 类）=====
+  // ===== poi_facilities（三城 × 7 类）=====
   const poiT = begin('poi_facilities')
+  // 跨类目 id 重叠（同一高德 POI 被多类型目抓到，如"钦州港枢纽站"既是 bus_station 又是 port_pier）：
+  // 按全局唯一 id 先到先得，重复计入 filtered——written 与落库数严格一致（对账诚实）
+  const seenPoiIds = new Set()
   for (const [city] of CITIES) {
     for (const [fileKey, type] of POI_TYPES) {
       const items = readOptional(dataDir, `site-selection/${city}_${fileKey}.json`, report) ?? []
@@ -127,8 +150,14 @@ export function buildImport(dataDir, report = { warnings: [] }) {
           report.warnings.push(`跳过缺坐标 POI ${f.id}（${city}_${fileKey}）`)
           continue
         }
+        if (seenPoiIds.has(f.id)) {
+          poiT.filtered++
+          report.warnings.push(`跳过重复 POI id=${f.id}（${city}_${fileKey}，已被更早类型占有）`)
+          continue
+        }
+        seenPoiIds.add(f.id)
         statements.push(
-          `INSERT INTO poi_facilities (id, type, name, district, city, geom) VALUES (${esc(f.id)}, '${type}', ${esc(f.name)}, ${esc(f.district)}, '${city}', ${pt(f.lng, f.lat)});`
+          `INSERT INTO poi_facilities (id, type, name, district, city, geom) VALUES (${esc(f.id)}, '${type}', ${esc(f.name)}, ${esc(f.district)}, '${city}', ${pt(f.lng, f.lat)}) ON CONFLICT (id) DO NOTHING;`
         )
         poiT.written++
       }
@@ -170,7 +199,9 @@ export function buildImport(dataDir, report = { warnings: [] }) {
       .filter((n) => fs.existsSync(path.join(dataDir, `forecast/${n}.json`)))
       .map((n) => `forecast/${n}.json`),
     ...CITIES.flatMap(([city]) =>
-      [...POI_TYPES.map(([k]) => k), 'xiaoqu'].map((k) => `site-selection/${city}_${k}.json`)
+      [...POI_TYPES.map(([k]) => k), 'xiaoqu']
+        .map((k) => `site-selection/${city}_${k}.json`)
+        .filter((rel) => fs.existsSync(path.join(dataDir, rel)))
     ),
     ...[
       'facilityPoints',
@@ -194,6 +225,17 @@ export function buildImport(dataDir, report = { warnings: [] }) {
     )
     archiveT.written++
   }
+
+  // ===== import_meta（版本指纹落库：供下次重灌前校验 + 人工审计归属）=====
+  statements.push(`
+CREATE TABLE IF NOT EXISTS import_meta (
+  version  TEXT PRIMARY KEY,
+  imported_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  note     TEXT
+);
+INSERT INTO import_meta (version, note) VALUES ('${IMPORT_VERSION}', 'v3 三城全量重灌（09-04，含 port_pier 并入）')
+  ON CONFLICT (version) DO UPDATE SET imported_at = now(), note = EXCLUDED.note;
+`)
 
   statements.push('COMMIT;')
   return { statements, tables }

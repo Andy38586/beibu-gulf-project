@@ -101,14 +101,20 @@ describe('buildImport 对账恒等式', () => {
     const { tables } = buildImport(dataDir, report)
     expect(tables.plans).toEqual({ source: 0, written: 0, filtered: 0 })
     expect(tables.favorites).toEqual({ source: 0, written: 0, filtered: 0 })
-    expect(report.warnings.filter((w) => w.includes('按空集处理'))).toHaveLength(2)
+    // 3 城 × port_pier 缺失 + plans + favorites = 5 条"按空集处理"警告
+    const emptyWarnings = report.warnings.filter((w) => w.includes('按空集处理'))
+    expect(emptyWarnings).toHaveLength(5)
+    expect(emptyWarnings.filter((w) => w.includes('plans.json'))).toHaveLength(1)
+    expect(emptyWarnings.filter((w) => w.includes('favorites.json'))).toHaveLength(1)
   })
 
   it('幂等：同输入两次构建语句完全一致（TRUNCATE 重灌语义）', () => {
     const a = buildImport(dataDir)
     const b = buildImport(dataDir)
     expect(a.statements).toEqual(b.statements)
-    expect(a.statements[1]).toContain('TRUNCATE')
+    // statements[1] 为版本守卫 DO 块；TRUNCATE 重灌语句在 [2]
+    expect(a.statements[1]).toContain('导入版本守卫')
+    expect(a.statements[2]).toContain('TRUNCATE')
   })
 
   it('favorites 映射携带展示载荷（T3.2 schema v2.1）：savedAt 入 created_at，snapshot 转 jsonb', () => {

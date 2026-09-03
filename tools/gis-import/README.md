@@ -42,7 +42,11 @@ npm run verify-gis
 ## 设计备忘
 
 - **坐标系**：4490 存、4326 出（`-t_srs EPSG:4490` 统一转换）。
+
 - **roads 不上 pgRouting**：路径引擎 networkx 在应用侧构图（T5.2），PG 只做数据源；source/target/cost 等拓扑列无消费者，不建。
-- **红树林全时相**：11 时相每份 ~900MB 全球数据，`-spat` 广西 bbox 先裁剪再逐时相 `-append` 入库；`year` BTree + `geom` GiST 分开建（优化器 BitmapAnd 合并，比复合 GiST 灵活）。
+
+- **红树林全时相**：11 时相每份 \~900MB 全球数据，`-spat` 广西 bbox 先裁剪再逐时相 `-append` 入库；`year` BTree + `geom` GiST 分开建（优化器 BitmapAnd 合并，比复合 GiST 灵活）。
+
 - **length_m 预计算**：roads 的 length_m 入库后回填（UTM48N ST_Length），构图免重算——与 db-schema-gis.sql 内注释一致。
+
 - **数据源断言**：源 roads 仅含 osm_id/name/highway（无 maxspeed/oneway）——列建而以 NULL 留存，time 权重走 class 限速系数表（应用侧）。

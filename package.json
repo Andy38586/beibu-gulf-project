@@ -17,6 +17,7 @@
     "types:gen": "node scripts/gen-api-contract.cjs",
     "types:check": "node scripts/gen-api-contract.cjs --check",
     "changelog": "node tools/gen-changelog.cjs && prettier --write CHANGELOG.md",
+    "verify-gis": "node tools/gis-import/verify.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "guard:v3": "node tools/v3-guard/no-ephemeral.mjs && node tools/v3-guard/structure-check.mjs && node tools/v3-guard/routes-audit.mjs && node tools/v3-guard/metrics-tally.mjs",

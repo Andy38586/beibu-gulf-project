@@ -128,7 +128,7 @@ export default defineConfig(({ mode }) => ({
         changeOrigin: true,
         secure: false,
       },
-      // 洪涝在线演算微服务（FastAPI，backend/flood-service，端口 8000）
+      // 在线演算服务（FastAPI，algorithm-service，端口 8000）
       // 路由 B ④：滑块无极调节 → 实时连通性淹没；rewrite 去掉 /flood-online 前缀
       '/flood-online': {
         target: 'http://localhost:8000',

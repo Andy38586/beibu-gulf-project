@@ -1,11 +1,13 @@
 #!/usr/bin/env node
 /**
- * run-flood.cjs — 跨平台启动洪涝在线演算服务（FastAPI / uvicorn）
+ * run-flood.cjs — 跨平台启动在线演算服务（FastAPI / uvicorn，algorithm-service 承载 8000）
  *
  * 背景：旧脚本 `dev:flood` 硬编码 `.venv\Scripts\python.exe`（Windows-only），
  * macOS/Linux/CI 直接跑不起来（z074）。本启动器按平台解析 venv 解释器路径：
  *   - Windows: <venv>/Scripts/python.exe
  *   - macOS/Linux: <venv>/bin/python
+ *
+ * flood-service 已由 algorithm-service 平移替代，脚本指向 algorithm-service 目录。
  *
  * 用法（package.json）：
  *   "dev:flood": "node tools/run-flood.cjs"
@@ -17,7 +19,7 @@ const { spawn } = require('node:child_process')
 const { existsSync } = require('node:fs')
 const path = require('node:path')
 
-const FLOOD_DIR = path.join(__dirname, '..', 'backend', 'flood-service')
+const FLOOD_DIR = path.join(__dirname, '..', 'backend', 'algorithm-service')
 const isWin = process.platform === 'win32'
 const pythonInVenv = path.join(
   FLOOD_DIR,
@@ -28,8 +30,8 @@ const pythonInVenv = path.join(
 
 if (!existsSync(pythonInVenv)) {
   const createCmd = isWin
-    ? `cd backend\\flood-service && python -m venv .venv && .venv\\Scripts\\pip install -r requirements.txt`
-    : `cd backend/flood-service && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt`
+    ? `cd backend\\algorithm-service && python -m venv .venv && .venv\\Scripts\\pip install -r requirements.txt`
+    : `cd backend/algorithm-service && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt`
   console.error(`[run-flood] 未找到 venv 解释器: ${pythonInVenv}`)
   console.error(`[run-flood] 请先创建 venv 并安装依赖:`)
   console.error(`  ${createCmd}`)

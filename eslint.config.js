@@ -27,6 +27,7 @@ export default defineConfig([
     '**/.venv/**',
     '**/.workbuddy/**',
     '.tmp-pip/**',
+    'assets/**',
   ]),
 
   {
@@ -80,14 +81,6 @@ export default defineConfig([
       globals: {
         ...globals.node,
       },
-    },
-  },
-
-  {
-    // 服务启动守卫：校验失败即退出进程是部署脚本的正当语义
-    files: ['backend/index.js'],
-    rules: {
-      'no-process-exit': 'off',
     },
   },
 

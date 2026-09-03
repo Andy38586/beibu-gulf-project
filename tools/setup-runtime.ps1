@@ -21,9 +21,9 @@ if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
 # --- 2. uv 托管 Python 解释器 ---
 uv python install 3.12 3.13
 
-# --- 3. flood-service venv（venv 里烧死绝对路径，换机必须重建） ---
-Write-Host '--- 重建 backend/flood-service/.venv ---'
-Push-Location "$Repo\backend\flood-service"
+# --- 3. algorithm-service venv（venv 里烧死绝对路径，换机必须重建；flood-service 已并入） ---
+Write-Host '--- 重建 backend/algorithm-service/.venv ---'
+Push-Location "$Repo\backend\algorithm-service"
 uv venv .venv --python 3.12 --seed
 uv pip install -r requirements.lock.txt -p .venv\Scripts\python.exe
 Pop-Location

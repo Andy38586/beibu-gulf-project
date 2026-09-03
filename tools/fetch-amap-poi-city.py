@@ -121,7 +121,7 @@ BAD_WORDS = [
     "学生公寓", "公厕", "厕所", "警务室", "门卫", "保安室",
 ]
 
-# 北部湾业务区域（与 backend/services/siteAnalysisService.js 一致）
+# 北部湾业务区域（与 nest gis.constants GULF_BOUNDS 一致）
 BBOX = {"lng_min": 105, "lng_max": 115, "lat_min": 18, "lat_max": 25}
 
 POLY_PAGE_SIZE = 20     # place/polygon 单页上限 20

@@ -16,12 +16,12 @@ useDefault = true
 [allowlist]
 description = "测试假 token / 打码文档记录 / README 官方示例 / 本地未跟踪产物（.env 禁止入库，dist 与 .venv 被 gitignore，CI checkout 不存在）"
 paths = [
-  'backend/middleware/__tests__/logSanitizer\.test\.js',
   'docs/已解决问题\.md',
   'docs/待解决问题\.md',
   'docs/已解决问题-精选版\.md',
   '^README\.md$',
   '\.venv/',
+  'assets/',
   '(^|/)dist(-[^/]*)?/',
   '\.env',
 ]

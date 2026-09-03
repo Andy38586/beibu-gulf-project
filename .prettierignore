@@ -15,3 +15,5 @@ docs/已解决后遗症-*.md
 backend/data/
 # React 原型暂存目录（非项目源码，用途待用户裁决；2026-09-01 出现导致 format:check 全仓红）
 .staging-react/
+# 只读资产档案（老 Express / 历史文档快照）：格式保持原样，不随仓库 prettier 重排
+assets/

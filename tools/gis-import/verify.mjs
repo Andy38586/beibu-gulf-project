@@ -13,10 +13,10 @@ import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { resolve } from 'node:path'
 
-const require = createRequire(resolve('backend/nest/package.json'))
+const require = createRequire(resolve('backend/package.json'))
 const { Pool } = require('pg')
 
-const GULF_BOUNDS_FILE = resolve('backend/nest/src/common/constants/gis.constants.ts')
+const GULF_BOUNDS_FILE = resolve('backend/src/common/constants/gis.constants.ts')
 
 /**
  * 从 gis.constants.ts 源码解析北部湾业务边界（EPSG:4326 经纬度）。

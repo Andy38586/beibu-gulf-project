@@ -2,7 +2,7 @@
 /**
  * structure-check.mjs — 后端模块分层契约（防结构漂移/一次性平铺）。
  *
- * 每个 backend/nest/src/modules/<name> 必须满足：
+ * 每个 backend/src/modules/<name> 必须满足：
  *   1. 存在 <name>.module.ts（模块总装）；
  *   2. 存在控制器：controllers/ 子目录内，或平铺 <name>.controller.ts（两者取一，迁移会收敛到前者）；
  *   3. 模块目录内不容许散落的临时/一次性文件（.tmp / .bak / *.py 等）。
@@ -14,7 +14,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
-const MODULES = path.join(ROOT, 'backend/nest/src/modules')
+const MODULES = path.join(ROOT, 'backend/src/modules')
 
 const LAYER_DIRS = ['controllers', 'services', 'repositories', 'dto']
 const FORBIDDEN_FILENAMES = /\.(tmp|bak|orig|swp)(\.\w+)?$/i

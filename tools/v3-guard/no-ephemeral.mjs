@@ -6,7 +6,7 @@
  * 历史归台账/日志，新一代注释只写"为什么 + 背景"。
  *
  * 存量策略：
- *  - backend/nest/src：已清零，任何命中直接失败；
+ *  - backend/src：已清零，任何命中直接失败；
  *  - frontend/src：历史专项编号行冻结在 baseline（tools/v3-guard/ephemeral-baseline.txt），
  *    随代码重写逐步清理并从基线移除——只拦"不在基线的命中"（含全部新增）。
  *
@@ -19,7 +19,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
-const NEST_SRC = path.join(ROOT, 'backend/nest/src')
+const NEST_SRC = path.join(ROOT, 'backend/src')
 const FRONTEND_SRC = path.join(ROOT, 'frontend/src')
 const BASELINE = path.join(path.dirname(fileURLToPath(import.meta.url)), 'ephemeral-baseline.txt')
 

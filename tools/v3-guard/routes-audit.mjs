@@ -3,7 +3,7 @@
  * routes-audit.mjs — Nest 对外路由契约守卫。
  *
  * 从 controller 装饰器提取实际路由（含 nest-api 全局前缀），与
- * backend/nest/src/routes.manifest.ts 契约清单双向比对：路由增删未同步清单即失败。
+ * backend/src/routes.manifest.ts 契约清单双向比对：路由增删未同步清单即失败。
  * 目的：前端 adapter、Vite proxy/nginx 反代、契约比对脚本都依赖稳定的路由面，
  * 路由漂移必须在守卫层被拦下，而不是等联调才发现。
  *
@@ -16,7 +16,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
-const NEST_SRC = path.join(ROOT, 'backend/nest/src')
+const NEST_SRC = path.join(ROOT, 'backend/src')
 const MANIFEST = path.join(NEST_SRC, 'routes.manifest.ts')
 const GLOBAL_PREFIX = 'nest-api'
 

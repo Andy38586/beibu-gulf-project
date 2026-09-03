@@ -44,7 +44,8 @@ services:
   # v3 业务层（NestJS，Express 退役后主 API）——nginx 反代 /nest-api → nest:3000
   nest:
     build:
-      context: ./backend/nest
+      context: ./backend
+      dockerfile: Dockerfile.nest
     container_name: beibu-nest
     environment:
       NODE_ENV: production

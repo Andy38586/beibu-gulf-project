@@ -26,6 +26,9 @@ services:
     build:
       context: ./backend/algorithm-service
     container_name: beibu-algorithm-service
+    environment:
+      # 容器内经 compose 服务名互连；本地裸跑缺省 localhost（见 route/source.py）
+      ROUTE_PG_HOST: postgis
     volumes:
       - ./backend/data:/app/backend/data:ro
     ports:

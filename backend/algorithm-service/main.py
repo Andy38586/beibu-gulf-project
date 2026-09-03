@@ -23,6 +23,7 @@ from __future__ import annotations
 import logging
 import logging.handlers
 import os
+import threading
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -32,6 +33,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from flood import _load_levels
 from flood import router as flood_router
 from route import router as route_router
+from route.service import warmup as route_warmup
 
 # 日志分级 + 按天轮转——原仅 uvicorn stdout（docker 捕获，无轮转），长跑磁盘
 # 风险 + 无 error 级独立检索。容器 stdout 仍保留（logger 根 handler 同步输出），
@@ -57,6 +59,12 @@ _logger.addHandler(_stream_handler)
 async def lifespan(_: FastAPI):
     # 启动预热预计算档位表（gzip 解压 + JSON 解析 ~1.5s）——避免首次请求卡顿
     _load_levels()
+    # 路网图后台预热（构图 ~40s，daemon 线程不阻塞服务就绪——flood 域可用性优先）。
+    # 线程安全由 route.service 的锁保证；预热完成前路径查询走同一把锁惰性构建。
+    # 失败仅告警：PG 未就绪时路径查询返回 503，flood 域不受牵连。
+    # ROUTE_WARMUP=0 关闭（测试环境不测路径，见 tests/conftest.py）。
+    if os.environ.get("ROUTE_WARMUP", "1") != "0":
+        threading.Thread(target=route_warmup, name="route-warmup", daemon=True).start()
     yield
 
 

@@ -17,7 +17,9 @@ CREATE TABLE IF NOT EXISTS roads (
   osm_id   BIGINT,
   name     TEXT,
   class    TEXT,            -- 映射自源 highway（OSM 分类），路径权重分组依据
-  length_m DOUBLE PRECISION, -- 入库预计算（UTM48N 投影 ST_Length），构图免重算
+  length_m DOUBLE PRECISION, -- 入库预计算（大地线 ST_Length(geography)，构图免重算。
+                             -- 初版按 UTM48N 投影算，因路网跨 48N/49N 两带长度会随
+                             -- 分带选择漂移，已改大地线口径并重算存量）
   maxspeed INTEGER,          -- 源数据未带（默认 NULL）；time 权重走 class 限速系数表
   oneway   BOOLEAN,          -- 源数据未带（默认 NULL）；构图侧可额外交互
   geom     geometry(LineString, 4490)

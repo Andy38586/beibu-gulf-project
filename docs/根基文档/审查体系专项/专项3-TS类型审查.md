@@ -1415,6 +1415,39 @@
 **整改方向**：补全 `shims-vue.d.ts`；收敛全局声明；修复重复声明；为无类型库补声明
 **验收标准**：`.d.ts` 管理规范；无冲突；`.vue` 类型正确；全局声明最小化
 
+### 指标 7.5：Nest 侧类型严格度对齐与门禁生效
+**指标名称**：Nest tsconfig strict 对齐与类型门禁
+**检查目标**：确认 `backend/nest` 的 tsconfig 严格度不低于前端，且类型错误真的会阻断合入。
+**为什么需要检查**：Nest 的 `build` 对部分类型错误仍会产出（exit 0），只有 `tsc --noEmit` 是真门禁。双后端并存期若 Nest 侧宽松，前后端契约漂移会以运行时错误的形式暴露，而不是在提交前被拦住。
+**检查范围**：`backend/nest/tsconfig.json`、根与 nest 的 `package.json` 脚本、CI 与 pre-push 接线。
+**检查方法**：
+1. 逐项比对 `frontend/tsconfig.app.json` 与 nest tsconfig 的 strict 系列开关。
+2. 确认 nest 的 `typecheck` 脚本是 `tsc --noEmit`，且已接入 ci:local、CI、pre-push 三处。
+3. 确认 `ignoreDeprecations` 等临时开关有注释说明来源与去向，不是静默遗留。
+**需要查看**：两个 tsconfig、根与 nest 的 package.json、`.github/workflows/ci.yml`、husky pre-push。
+**正常标准**：strict 系列与前端一致或更严；`tsc --noEmit` 三处接线齐全；临时开关有注释与移除计划。
+**异常情况**：可 grep 的模式——nest tsconfig 缺 `strict` / `noUncheckedIndexedAccess` 而前端有；`typecheck` 脚本被 `|| true` 兜住或降级为 build；CI 只跑 build 不跑 typecheck；`ignoreDeprecations` 等开关无注释说明。
+**风险等级**：P1
+**整改方向**：对齐 strict 开关；typecheck 补齐三处接线；临时开关补注释与移除计划。
+**验收标准**：□ 两侧 strict 开关逐项比对有结论 □ typecheck 在 ci:local / CI / pre-push 三处生效 □ 临时开关有注释与去向
+
+### 指标 7.6：DTO 与前端 zod 契约双源漂移
+**指标名称**：DTO 与前端 zod 双源漂移检测
+**检查目标**：确认同一接口的后端 DTO 与前端 zod schema 有可机器比对的单一权威，漂移能被发现。
+**为什么需要检查**：Nest 用 DTO 白名单校验、前端用 zod 校验 HTTP 边界，两者独立书写同一契约——任一侧改字段而另一侧不动，漂移要到运行时才炸（或更糟：静默取 undefined）。契约治理的要义是"契约只有一处权威"，双源书写本身就是漂移源。
+**检查范围**：`backend/nest/src/modules/*/dto/`、前端 zod schema 目录、`scripts/gen-api-contract.cjs` 及其产物。
+**检查方法**：
+1. 确认存在可机器比对的契约产物（OpenAPI / 契约清单），而不是靠人工比对。
+2. `npm run types:check`——确认契约产物与代码一致。
+3. 抽查一个模块：DTO 字段集合与前端 zod 字段集合逐项对照（含可选性）。
+4. 确认改字段的固定流程（改 DTO → 重生成契约 → 前端重跑校验）已写入文档并被执行。
+**需要查看**：DTO 目录、前端 schemas、契约脚本与产物、CI 是否跑 types:check。
+**正常标准**：有机器可比的契约产物；脚本进 CI；抽查模块字段集合与可选性一致。
+**异常情况**：可 grep 的模式——DTO 有字段而前端 zod 无（或反之）；可选性不一致（DTO 可选 vs zod 必填校验）；契约脚本只在本地跑未进 CI；契约产物提交后长期未随代码更新。
+**风险等级**：P1
+**整改方向**：以 DTO / OpenAPI 为权威生成前端类型；`types:check` 进 CI；改字段流程固化进文档。
+**验收标准**：□ 契约产物可机器比对 □ types:check 进 CI □ 抽查模块字段与可选性一致
+
 ---
 
 ## 附录A：类型治理验收标准汇总

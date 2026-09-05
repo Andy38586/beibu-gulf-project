@@ -169,3 +169,6 @@ tools/.poi_cache/
 # 一次性删除暂存区（待删暂存目录，本机清理用，不入库）
 .trash/
 algorithm-service.log*
+
+# 地形瓦片：DEM 派生缓存（tools/dem-pipeline/07 一键重切），不入库（云端冷备=v3-migration@92aa9475）
+backend/static/terrain/

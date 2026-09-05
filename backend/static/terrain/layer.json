@@ -1,27 +1,10 @@
 {
   "tilejson": "2.1.0",
-  "name": "dem_int16",
-  "description": "",
-  "version": "1.1.0",
+  "name": "dem_heightmap",
   "format": "heightmap-1.0",
-  "attribution": "",
-  "schema": "tms",
-  "tiles": ["/static/terrain/{z}/{x}/{y}.terrain?v={version}"],
+  "version": "1.1.0",
   "projection": "EPSG:4326",
-  "bounds": [0.0, -90.0, 180.0, 90.0],
-  "available": [
-    [{ "startX": 1, "startY": 0, "endX": 1, "endY": 0 }],
-    [{ "startX": 3, "startY": 1, "endX": 3, "endY": 1 }],
-    [{ "startX": 6, "startY": 2, "endX": 6, "endY": 2 }],
-    [{ "startX": 12, "startY": 4, "endX": 12, "endY": 5 }],
-    [{ "startX": 25, "startY": 9, "endX": 25, "endY": 10 }],
-    [{ "startX": 51, "startY": 19, "endX": 51, "endY": 20 }],
-    [{ "startX": 102, "startY": 39, "endX": 103, "endY": 40 }],
-    [{ "startX": 204, "startY": 78, "endX": 206, "endY": 80 }],
-    [{ "startX": 408, "startY": 157, "endX": 412, "endY": 160 }],
-    [{ "startX": 817, "startY": 315, "endX": 824, "endY": 320 }],
-    [{ "startX": 1634, "startY": 630, "endX": 1649, "endY": 641 }],
-    [{ "startX": 3269, "startY": 1260, "endX": 3299, "endY": 1283 }],
-    [{ "startX": 6539, "startY": 2520, "endX": 6598, "endY": 2566 }]
+  "tiles": [
+    "/static/terrain/{z}/{x}/{y}.terrain?v={version}"
   ]
 }

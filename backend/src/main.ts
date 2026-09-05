@@ -21,11 +21,22 @@ async function bootstrap() {
 
   // 静态资源托管：backend/static（CTB 地形瓦片 /static/terrain、DEM hillshade /static/dem）。
   // Express 退役后该职责迁移至 Nest（vite proxy /static → 3000 与生产 nginx /static/ 同口径）；
-  // 目录从 dataDir 兄弟位解析（backend/data → backend/static），复用 DATA_DIR 解析链的 cwd 容错
+  // 目录从 dataDir 兄弟位解析（backend/data → backend/static），复用 DATA_DIR 解析链的 cwd 容错。
+  // .terrain 特判：瓦片本身是 gzip 压缩流（CTB 产出），须声明 Content-Encoding 否则 Cesium
+  // 不解压直接按原始格式解码 → RangeError（对齐老 Express 特判与生产 nginx location ~ \.terrain$）
   const staticRoot = path.resolve(path.dirname(config.dataDir), 'static')
   app.use(
     '/static',
-    express.static(staticRoot, { maxAge: '7d', immutable: true, fallthrough: false })
+    express.static(staticRoot, {
+      maxAge: '7d',
+      immutable: true,
+      fallthrough: false,
+      setHeaders(res, filePath) {
+        if (filePath.endsWith('.terrain')) {
+          res.setHeader('Content-Encoding', 'gzip')
+        }
+      },
+    })
   )
 
   // OpenAPI 契约底座：DTO 注解为单一事实源，/nest-api/docs-json 供契约对比

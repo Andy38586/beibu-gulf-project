@@ -37,13 +37,23 @@ function resolveCity(city: unknown): string {
   return isSupportedCity(city) ? (city as string) : DEFAULT_CITY
 }
 
-// 行形状：geom 拆 lng/lat（ST_X/ST_Y），district 附加透传（FacilityPoint 有索引签名）
+// 行形状：geom 拆 lng/lat（ST_X/ST_Y）；TEXT 列 NULL 归 undefined（FacilityPoint 可选字段
+// 语义是"未提供"而非 null——迁移时实锤：PG null 直传与索引签名类型不兼容，tsc watch 拦截）
 interface PoiRow {
   id: string | null
   name: string | null
   lng: number
   lat: number
   district: string | null
+}
+
+// null → undefined 归一：保持 FacilityPoint 契约（id/name 缺失由下游过滤逻辑处理）
+function toFacilityPoint(row: PoiRow): FacilityPoint {
+  const point: FacilityPoint = { lng: row.lng, lat: row.lat }
+  if (row.id != null) point.id = row.id
+  if (row.name != null) point.name = row.name
+  if (row.district != null) point.district = row.district
+  return point
 }
 
 @Injectable()
@@ -59,7 +69,7 @@ export class SiteAnalysisRepository {
        ORDER BY id`,
       [type, resolveCity(city)]
     )
-    return res.rows
+    return res.rows.map(toFacilityPoint)
   }
 
   async findXiaoqu(city: unknown): Promise<FacilityPoint[]> {
@@ -70,7 +80,7 @@ export class SiteAnalysisRepository {
        ORDER BY id`,
       [resolveCity(city)]
     )
-    return res.rows
+    return res.rows.map(toFacilityPoint)
   }
 
   getAvailableTypes(): string[] {

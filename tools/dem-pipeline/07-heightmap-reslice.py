@@ -60,7 +60,10 @@ def main() -> None:
         for x_dir in z_dir.iterdir():
             for y_file in x_dir.iterdir():
                 if y_file.suffix == ".terrain":
-                    existing.append((z, int(x_dir.name), int(y_file.stem)))
+                    # 原 CTB 树为 TMS（y=0 南）；Cesium GeographicTilingScheme 为 slippy（y=0 北）
+                    # 输出统一翻转：y_slip = 2^z - 1 - y_tms（瓦片内容按新位置的 bbox 采样）
+                    y_tms = int(y_file.stem)
+                    existing.append((z, int(x_dir.name), (1 << z) - 1 - y_tms))
     tile_set = set(existing)
     print(f"existing tiles: {len(existing)}")
 

@@ -52,20 +52,29 @@ def tile_bounds(z: int, x: int, y: int) -> tuple[float, float, float, float]:
 
 
 def main() -> None:
+    # 枚举源 = DEM bbox 推导（z0-12，geodetic 方案，凡与 DEM 相交的瓦片）——
+    # 不依赖旧目录树（CTB 树 TMS/slippy y 轴语义混杂曾致重切错位；旧树已物理删除重建）
+    DEM_MIN_LON, DEM_MAX_LON = 105.0, 115.0
+    DEM_MIN_LAT, DEM_MAX_LAT = 18.0, 25.0
     existing: list[tuple[int, int, int]] = []
-    for z_dir in sorted(TERRAIN_DIR.iterdir()):
-        if not z_dir.name.isdigit():
-            continue  # 跳过 layer.json
-        z = int(z_dir.name)
-        for x_dir in z_dir.iterdir():
-            for y_file in x_dir.iterdir():
-                if y_file.suffix == ".terrain":
-                    # 原 CTB 树为 TMS（y=0 南）；Cesium GeographicTilingScheme 为 slippy（y=0 北）
-                    # 输出统一翻转：y_slip = 2^z - 1 - y_tms（瓦片内容按新位置的 bbox 采样）
-                    y_tms = int(y_file.stem)
-                    existing.append((z, int(x_dir.name), (1 << z) - 1 - y_tms))
+    for z in range(0, 13):
+        cols = 2 ** (z + 1)
+        rows = 2**z
+        for x in range(cols):
+            for y in range(rows):
+                lon_w = -180.0 + x * 360.0 / cols
+                lon_e = lon_w + 360.0 / cols
+                lat_n = 90.0 - y * 180.0 / rows
+                lat_s = lat_n - 180.0 / rows
+                if (
+                    lon_e > DEM_MIN_LON
+                    and lon_w < DEM_MAX_LON
+                    and lat_n > DEM_MIN_LAT
+                    and lat_s < DEM_MAX_LAT
+                ):
+                    existing.append((z, x, y))
     tile_set = set(existing)
-    print(f"existing tiles: {len(existing)}")
+    print(f"derived tiles (z0-12, DEM bbox intersect): {len(existing)}")
 
     src_path = DEM_4326 if DEM_4326.exists() else DEM_UTM
     print(f"input DEM: {src_path.name}")
@@ -79,6 +88,7 @@ def main() -> None:
         dem_bounds = dem.bounds
         grid = np.zeros((SAMPLES, SAMPLES), dtype=np.float64)
         written = 0
+        written_paths: set[Path] = set()
         for z, x, y in existing:
             lon_w, lat_s, lon_e, lat_n = tile_bounds(z, x, y)
             heights = np.full((SAMPLES, SAMPLES), 0.0)
@@ -124,11 +134,19 @@ def main() -> None:
                 + bytes([0xFF if bool((heights == 0).all()) else 0x00])
             )
             out = TERRAIN_DIR / str(z) / str(x) / f"{y}.terrain"
+            out.parent.mkdir(parents=True, exist_ok=True)
             out.write_bytes(payload)
+            written_paths.add(out)
             written += 1
             if written % 500 == 0:
                 print(f"  {written} tiles...")
         print(f"written: {written} heightmap tiles")
+        stale = 0
+        for f in TERRAIN_DIR.rglob("*.terrain"):
+            if f not in written_paths:
+                f.unlink()
+                stale += 1
+        print(f"removed stale: {stale}")
 
     # layer.json：format 校正回 heightmap-1.0（与产出严格一致）
     layer_path = TERRAIN_DIR / "layer.json"

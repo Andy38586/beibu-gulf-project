@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { DataFilesService } from '../src/infra/files/data-files.service'
+import { DbService } from '../src/infra/db/db.service'
 import {
   DEFAULT_CITY,
   getAvailableCities,
@@ -8,18 +8,18 @@ import {
   SiteAnalysisRepository,
 } from '../src/modules/site-analysis/repositories/site-analysis.repository'
 
-// 移植 Express facilitiesRepository 语义（无同名单测，按源码契约补）：
-// 城市白名单防路径穿越 / 非法 city 回落默认城市 / 文件映射 / 类型清单剔除 xiaoqu /
-// 读缓存命中只读一次磁盘（TTL + LRU 由 DataFilesService 统一提供）
+// 数据源切 PostGIS 后的 repository 契约测试（取代原 DataFilesService 文件映射语义）：
+// 城市白名单 / 非法 city 回落默认城市 / 类型白名单 / SQL 参数化（type/city 入参不拼接）
+// / 未知类型不发 SQL。数据一致性由全量对账保证（六类逐类 count 相等，小区 2456 对 2456）。
 
-function makeRepo(mockReadFile: ReturnType<typeof vi.fn>): SiteAnalysisRepository {
-  return new SiteAnalysisRepository(
-    new DataFilesService(mockReadFile as unknown as (p: string) => Promise<string>)
-  )
+function makeRepo(mockQuery: ReturnType<typeof vi.fn>): SiteAnalysisRepository {
+  return new SiteAnalysisRepository({
+    query: mockQuery,
+  } as unknown as DbService)
 }
 
-describe('SiteAnalysisRepository — 城市白名单与文件映射', () => {
-  it('isSupportedCity：仅 qz/bh/fcg 为真（防路径穿越）', () => {
+describe('SiteAnalysisRepository — 城市白名单与 PostGIS 查询', () => {
+  it('isSupportedCity：仅 qz/bh/fcg 为真（防注入面收口在白名单）', () => {
     expect(isSupportedCity('qz')).toBe(true)
     expect(isSupportedCity('bh')).toBe(true)
     expect(isSupportedCity('fcg')).toBe(true)
@@ -35,7 +35,7 @@ describe('SiteAnalysisRepository — 城市白名单与文件映射', () => {
     expect(DEFAULT_CITY).toBe('qz')
   })
 
-  it('getAvailableTypes：6 类设施，剔除 xiaoqu（小区不参与设施选择）', () => {
+  it('getAvailableTypes：6 类设施（与 poi_facilities.type 值域子集一致，剔除 xiaoqu/port_pier）', () => {
     const repo = makeRepo(vi.fn())
     expect(repo.getAvailableTypes()).toEqual([
       'hospital',
@@ -47,38 +47,40 @@ describe('SiteAnalysisRepository — 城市白名单与文件映射', () => {
     ])
   })
 
-  it('findByType：非法 city 回落默认城市 qz（不抛错，选址是纯计算接口）', async () => {
-    const readFile = vi.fn().mockResolvedValue('[]')
-    const repo = makeRepo(readFile)
+  it('findByType：非法 city 回落默认城市 qz（参数化传参，不抛错）', async () => {
+    const query = vi.fn().mockResolvedValue({ rows: [] })
+    const repo = makeRepo(query)
     await repo.findByType('hospital', '../secrets')
-    expect(readFile).toHaveBeenCalledTimes(1)
-    expect(readFile.mock.calls[0][0]).toContain('site-selection')
-    expect(readFile.mock.calls[0][0]).toContain('qz_hospital.json')
+    expect(query).toHaveBeenCalledTimes(1)
+    expect(query.mock.calls[0][1]).toEqual(['hospital', 'qz'])
   })
 
-  it('findByType：合法 city 走对应文件；未知类型返回 null 且不读盘', async () => {
-    const readFile = vi.fn().mockResolvedValue('[]')
-    const repo = makeRepo(readFile)
+  it('findByType：合法 city 进查询参数；未知类型返回 null 且不发 SQL', async () => {
+    const query = vi.fn().mockResolvedValue({ rows: [] })
+    const repo = makeRepo(query)
     await repo.findByType('mall', 'bh')
-    expect(readFile.mock.calls[0][0]).toContain('bh_mall.json')
+    expect(query.mock.calls[0][1]).toEqual(['mall', 'bh'])
 
-    readFile.mockClear()
+    query.mockClear()
     expect(await repo.findByType('airport', 'qz')).toBeNull()
-    expect(readFile).not.toHaveBeenCalled()
+    expect(query).not.toHaveBeenCalled()
   })
 
-  it('findXiaoqu：三城各自文件名正确', async () => {
-    const readFile = vi.fn().mockResolvedValue('[]')
-    const repo = makeRepo(readFile)
+  it('findXiaoqu：按 city 参数查询 xiaoqu 表', async () => {
+    const query = vi.fn().mockResolvedValue({ rows: [] })
+    const repo = makeRepo(query)
     await repo.findXiaoqu('fcg')
-    expect(readFile.mock.calls[0][0]).toContain('fcg_xiaoqu.json')
+    expect(query.mock.calls[0][1]).toEqual(['fcg'])
+    expect(String(query.mock.calls[0][0])).toContain('FROM xiaoqu')
   })
 
-  it('读缓存：同一路径两次读取只读一次磁盘（TTL 内命中缓存）', async () => {
-    const readFile = vi.fn().mockResolvedValue('[{"lng":108.6,"lat":21.85}]')
-    const repo = makeRepo(readFile)
-    await repo.findByType('hospital', 'qz')
-    await repo.findByType('hospital', 'qz')
-    expect(readFile).toHaveBeenCalledTimes(1)
+  it('findByType：SQL 固定查 poi_facilities 并以 ST_X/ST_Y 拆经纬度', async () => {
+    const query = vi.fn().mockResolvedValue({ rows: [] })
+    const repo = makeRepo(query)
+    await repo.findByType('park', 'qz')
+    const sql = String(query.mock.calls[0][0])
+    expect(sql).toContain('FROM poi_facilities')
+    expect(sql).toContain('ST_X(geom)')
+    expect(sql).toContain('ST_Y(geom)')
   })
 })

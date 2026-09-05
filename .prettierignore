@@ -11,9 +11,9 @@ docs/待解决问题.md
 docs/已解决问题.md
 docs/问题副本-*.md
 docs/已解决后遗症-*.md
+# 施工手册（活文档/实施日志）：宽表格与紧排段落保持原样，不随 prettier 重排（2026-09-04 加入）
+docs/v3-施工手册.md
 # 服务回写的数据产物（forecast 模型重算等不保证行尾换行），不受人写格式门禁约束
 backend/data/
 # React 原型暂存目录（非项目源码，用途待用户裁决；2026-09-01 出现导致 format:check 全仓红）
 .staging-react/
-# 只读资产档案（老 Express / 历史文档快照）：格式保持原样，不随仓库 prettier 重排
-assets/

@@ -21,7 +21,6 @@ paths = [
   'docs/已解决问题-精选版\.md',
   '^README\.md$',
   '\.venv/',
-  'assets/',
   '(^|/)dist(-[^/]*)?/',
   '\.env',
 ]

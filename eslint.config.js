@@ -27,7 +27,6 @@ export default defineConfig([
     '**/.venv/**',
     '**/.workbuddy/**',
     '.tmp-pip/**',
-    'assets/**',
   ]),
 
   {

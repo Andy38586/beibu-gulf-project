@@ -167,3 +167,4 @@ tools/.poi_cache/
 
 # 一次性删除暂存区（待删暂存目录，本机清理用，不入库）
 .trash/
+algorithm-service.log*

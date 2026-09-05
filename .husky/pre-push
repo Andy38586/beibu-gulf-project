@@ -7,6 +7,6 @@
 # 无 PG 环境（本机/CI）真库 e2e 套件经 V3_INTEGRATION_DB 门控自动跳过，不阻塞推送。
 # 全量 typecheck 约 1-2 分钟，故放 push 而非 commit；本地可随时手动 npm run typecheck。
 npm run typecheck
-npm run typecheck --prefix backend/nest
+npm run typecheck --prefix backend
 npm run guard:v3
-npm test --prefix backend/nest
+npm test --prefix backend

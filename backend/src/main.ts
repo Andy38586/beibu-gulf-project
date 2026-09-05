@@ -1,10 +1,11 @@
+import fs from 'node:fs'
+import path from 'node:path'
+
 import { Logger } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
 import cookieParser from 'cookie-parser'
 import express from 'express'
-import fs from 'node:fs'
-import path from 'node:path'
 
 import { AppModule } from './app.module'
 import { ConfigService } from './infra/config/config.service'
@@ -28,24 +29,27 @@ async function bootstrap() {
   // 自管流式发送完全掌控响应头；layer.json 无扩展头正常 JSON
   const staticRoot = path.resolve(path.dirname(config.dataDir), 'static')
   const terrainRoot = path.join(staticRoot, 'terrain')
-  app.use('/static/terrain', (req, res, next) => {
-    const rel = decodeURIComponent(req.path).replace(/^\/+/, '')
-    const file = path.resolve(terrainRoot, rel)
-    if (!file.startsWith(terrainRoot + path.sep)) return next() // 防路径穿越
-    let stat: fs.Stats
-    try {
-      stat = fs.statSync(file)
-    } catch {
-      return next()
+  app.use(
+    '/static/terrain',
+    (req: express.Request, res: express.Response, next: express.NextFunction) => {
+      const rel = decodeURIComponent(req.path).replace(/^\/+/, '')
+      const file = path.resolve(terrainRoot, rel)
+      if (!file.startsWith(terrainRoot + path.sep)) return next() // 防路径穿越
+      let stat: fs.Stats
+      try {
+        stat = fs.statSync(file)
+      } catch {
+        return next()
+      }
+      if (!stat.isFile()) return next()
+      res.setHeader('Content-Type', 'application/octet-stream')
+      res.setHeader('Cache-Control', 'public, max-age=604800, immutable')
+      if (file.endsWith('.terrain')) res.setHeader('Content-Encoding', 'gzip')
+      fs.createReadStream(file)
+        .on('error', () => res.destroy())
+        .pipe(res)
     }
-    if (!stat.isFile()) return next()
-    res.setHeader('Content-Type', 'application/octet-stream')
-    res.setHeader('Cache-Control', 'public, max-age=604800, immutable')
-    if (file.endsWith('.terrain')) res.setHeader('Content-Encoding', 'gzip')
-    fs.createReadStream(file)
-      .on('error', () => res.destroy())
-      .pipe(res)
-  })
+  )
   app.use('/static', express.static(staticRoot, { maxAge: '7d', immutable: true }))
 
   // OpenAPI 契约底座：DTO 注解为单一事实源，/nest-api/docs-json 供契约对比

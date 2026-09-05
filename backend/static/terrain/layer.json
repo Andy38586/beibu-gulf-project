@@ -4,7 +4,5 @@
   "format": "heightmap-1.0",
   "version": "1.1.0",
   "projection": "EPSG:4326",
-  "tiles": [
-    "/static/terrain/{z}/{x}/{y}.terrain?v={version}"
-  ]
+  "tiles": ["/static/terrain/{z}/{x}/{y}.terrain?v={version}"]
 }

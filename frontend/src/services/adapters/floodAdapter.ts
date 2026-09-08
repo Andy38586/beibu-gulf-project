@@ -67,7 +67,7 @@ async function _fetchOnlineFlood(
 }> {
   const raw = await apiRequest<FloodOnlineResponseParsed>(ENDPOINTS.flood.online, {
     method: 'GET',
-    // b027：参数名统一 waterLevel（原 level 与 fetch 模式分裂；FastAPI 端已同步改名）
+    // 参数名统一 waterLevel（历史教训：曾与 fetch 模式分裂，FastAPI 端已同步改名）
     params: { waterLevel },
     signal,
     envelope: false,

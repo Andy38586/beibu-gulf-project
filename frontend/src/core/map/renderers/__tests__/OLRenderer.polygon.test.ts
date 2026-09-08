@@ -70,7 +70,7 @@ interface OlFeatureLike {
 }
 
 interface OlSourceLike {
-  getFeatures(): ArrayLike<OlFeatureLike>
+  getFeatures(): OlFeatureLike[]
 }
 
 interface LayerEntry {
@@ -79,7 +79,7 @@ interface LayerEntry {
 
 type OLRendererTestAccess = InstanceType<typeof OLRenderer> & {
   map: unknown
-  _layers: Map<string, LayerEntry>
+  _layers: Map<string, unknown>
 }
 
 const OUTER = [
@@ -102,14 +102,14 @@ const PART2 = [
 ]
 
 function firstGeom(renderer: OLRendererTestAccess, id: string) {
-  const entry = renderer._layers.get(id)!
-  const [feature] = entry.instance.getSource().getFeatures()
+  const entry = renderer._layers.get(id) as LayerEntry | undefined
+  const [feature] = entry!.instance.getSource().getFeatures()
   return feature?.getGeometry()
 }
 
 function featureCount(renderer: OLRendererTestAccess, id: string) {
-  const entry = renderer._layers.get(id)!
-  return entry.instance.getSource().getFeatures().length
+  const entry = renderer._layers.get(id) as LayerEntry | undefined
+  return entry!.instance.getSource().getFeatures().length
 }
 
 describe('OLRenderer 多边形契约（内环/部件/幂等）', () => {
@@ -198,7 +198,7 @@ describe('OLRenderer 多边形契约（内环/部件/幂等）', () => {
         properties: {},
       },
     ]
-    const map = renderer.map as FakeMap
+    const map = renderer.map as unknown as FakeMap
     const baseline = map.layers.length // 构造器已挂底图 TileLayer，以增量计
     renderer.addPolygonLayer('poly-idem', mk(), {})
     renderer.addPolygonLayer('poly-idem', mk(), {}) // 重复 add 同 id

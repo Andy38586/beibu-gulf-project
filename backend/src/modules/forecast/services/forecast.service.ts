@@ -14,14 +14,16 @@ import { computeForecast, generateSpatialValues } from './forecast-engine'
 import { getModelForecast } from './model-loader'
 
 // 预测服务（逐行等价移植 backend/services/forecastService.js）：
-// 指标白名单拒绝路径遍历；合成指标文件自带 forecast；cargo/container 走模型产物
+// 指标白名单拒绝路径遍历；activity 文件自带完整 forecast 直接透传；cargo/container 走模型产物
 //（固定基线 scenarioLevel 1.0，缺失降级引擎）；引擎结果缓存 TTL+LRU 上限防枚举放大
 
-// 指标白名单：拒绝路径遍历（..）与非法指标名——路由公开不代表接受任意输入
-const ALLOWED_INDICATORS = new Set(['cargo', 'container', 'berth', 'traffic'])
+// 指标白名单：拒绝路径遍历（..）与非法指标名——路由公开不代表接受任意输入。
+// berth/traffic 为纯合成指标，已下架消费（源文件保留标 _provenance，2026-09-08 数据平面大换代）
+const ALLOWED_INDICATORS = new Set(['cargo', 'container', 'activity'])
 
-// 合成指标（berth/traffic）：示意性合成数据，文件自带 historical+forecast，不走预测模型
-const SYNTHETIC_INDICATORS = new Set(['berth', 'traffic'])
+// 文件自带完整 forecast 直接透传的指标（实为真数据派生产物，非合成）：
+// activity=港口吞吐活跃度（cargo 官方真吞吐量基期归一指数，见 tools/derive-activity.mjs）
+const FILE_FORECAST_INDICATORS = new Set(['activity'])
 
 // 走吞吐量模型产物的指标：模型为固定基线（scenarioLevel 恒 1.0）；产物缺失时降级引擎
 const MODEL_INDICATORS = new Set(['cargo', 'container'])
@@ -139,8 +141,8 @@ export class ForecastService {
           forecast = engineResult.forecast
           metadata = engineResult.metadata as Record<string, unknown>
         }
-      } else if (SYNTHETIC_INDICATORS.has(indicator)) {
-        // 合成指标：文件自带 forecast 直接透传
+      } else if (FILE_FORECAST_INDICATORS.has(indicator)) {
+        // 文件自带完整 forecast（真数据派生产物，如 activity）直接透传
         forecast = portData.forecast || []
       } else {
         // 防御兜底（当前无真实指标走此路）：趋势外推引擎演算

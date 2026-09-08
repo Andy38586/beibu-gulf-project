@@ -12,6 +12,7 @@
 import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 const require = createRequire(resolve('backend/package.json'))
 const { Pool } = require('pg')
@@ -71,7 +72,15 @@ const TABLES = [
   { name: 'industrial_zones', geomType: 'MULTIPOLYGON', srid: 4490, checkBBox: true },
   { name: 'mangroves', geomType: 'MULTIPOLYGON', srid: 4490, checkBBox: true },
   { name: 'protected_areas', geomType: 'MULTIPOLYGON', srid: 4490, checkBBox: false },
+  // 业务空间表（spatial_meta 坐标系守卫覆盖）：POI/小区/港口/洪涝设施
+  { name: 'poi_facilities', geomType: 'POINT', srid: 4490, checkBBox: true },
+  { name: 'xiaoqu', geomType: 'POINT', srid: 4490, checkBBox: true },
+  { name: 'ports', geomType: 'POINT', srid: 4490, checkBBox: true },
+  { name: 'flood_facilities', geomType: 'POINT', srid: 4490, checkBBox: true },
 ]
+
+// 84 基准允许值：存储统一 4490（CGCS2000），源允许 4326/4490（中国区域与 WGS84 厘米级一致）
+const CRS84_ALLOWED = new Set(['EPSG:4326', 'EPSG:4490'])
 
 function runChecks(spec) {
   const { minLng, maxLng, minLat, maxLat } = GULF_BOUNDS
@@ -92,16 +101,29 @@ function runChecks(spec) {
       ${bboxCheck}
       (SELECT count(*) FROM ${spec.name}
         WHERE geom IS NOT NULL AND GeometryType(geom) = '${spec.geomType}') AS typed_geom,
-      (SELECT ST_SRID(geom) FROM ${spec.name} WHERE geom IS NOT NULL LIMIT 1) AS srid
+      (SELECT ST_SRID(geom) FROM ${spec.name} WHERE geom IS NOT NULL LIMIT 1) AS srid,
+      (SELECT storage_crs FROM spatial_meta WHERE table_name = '${spec.name}') AS meta_storage_crs,
+      (SELECT source_crs FROM spatial_meta WHERE table_name = '${spec.name}') AS meta_source_crs
   `
 }
 
 // 质检判定（纯函数，可单测）：由查询行构造 checks/entry。
-// rows sample: { count, invalid_geom, null_geom, out_of_bounds, typed_geom, srid }
+// rows sample: { count, invalid_geom, null_geom, out_of_bounds, typed_geom, srid, meta_storage_crs, meta_source_crs }
 export function evaluateChecks(spec, row) {
   const count = Number(row.count)
   const typed = Number(row.typed_geom)
   const bboxExempt = spec.checkBBox === false
+  // 坐标系守卫（2026-09-08）：spatial_meta 未登记 → FAIL（强制登记）；登记值非 84 基准 → FAIL
+  const metaMissing = !row.meta_storage_crs || !row.meta_source_crs
+  const storageOk = row.meta_storage_crs === `EPSG:${spec.srid}`
+  const sourceOk = CRS84_ALLOWED.has(row.meta_source_crs)
+  const crsFail = metaMissing
+    ? ['crs_meta_missing']
+    : !storageOk
+      ? ['crs_storage_mismatch']
+      : !sourceOk
+        ? ['crs_source_not_84']
+        : []
   const checks = {
     count: count > 0,
     srid: Number(row.srid) === spec.srid,
@@ -109,6 +131,7 @@ export function evaluateChecks(spec, row) {
     null_geom: count === 0 || Number(row.null_geom) === 0,
     bbox_ok: bboxExempt || count === 0 || Number(row.out_of_bounds) === 0,
     geom_type_ok: count === 0 || typed === count,
+    crs_registered: !metaMissing && storageOk && sourceOk,
   }
   const empty = count === 0
   return {
@@ -119,12 +142,16 @@ export function evaluateChecks(spec, row) {
       invalid_geom: Number(row.invalid_geom),
       bbox_ok: checks.bbox_ok,
       geom_type_ok: checks.geom_type_ok,
+      crs_ok: checks.crs_registered,
       // 空表 = 未导入，不算质检失败（全部导入完成后应全部非空）
       fail: empty
         ? ['not_imported']
-        : Object.entries(checks)
-            .filter(([, v]) => !v)
-            .map(([k]) => k),
+        : [
+            ...Object.entries(checks)
+              .filter(([, v]) => !v)
+              .map(([k]) => k),
+            ...crsFail,
+          ],
     },
     checks,
     empty,
@@ -134,7 +161,8 @@ export function evaluateChecks(spec, row) {
 function formatLine(spec, { entry, checks, empty }) {
   return (
     `${empty ? 'SKIP' : entry.fail.length === 0 ? 'PASS' : 'FAIL'} ${spec.name.padEnd(18)} ` +
-    `count=${String(entry.count).padStart(7)} srid=${entry.srid ?? '-'} invalid=${entry.invalid_geom} type=${checks.geom_type_ok ? 'ok' : 'BAD'}`
+    `count=${String(entry.count).padStart(7)} srid=${entry.srid ?? '-'} invalid=${entry.invalid_geom} type=${checks.geom_type_ok ? 'ok' : 'BAD'} ` +
+    `crs=${checks.crs_registered ? 'ok' : 'BAD'}`
   )
 }
 
@@ -176,15 +204,19 @@ async function main() {
   process.exit(pass ? 0 : 1)
 }
 
-main().catch((e) => {
-  const msg = e.message ?? String(e)
-  const code = e?.code ?? ''
-  if (code === 'ECONNREFUSED' || msg.includes('ECONNREFUSED') || msg.includes('connect')) {
-    console.error(
-      `无法连接 PostGIS（${db.host}:${db.port}/${db.database}）——容器是否启动？docker compose -f docker-compose.v3.yml up -d postgis`
-    )
-  } else {
-    console.error(msg)
-  }
-  process.exit(1)
-})
+// 顶层 main 仅在直接执行时运行（node tools/gis-import/verify.mjs）；
+// 被单测 import（verify.test.mjs）时静默——否则测试环境会连库失败并 process.exit 污染 vitest
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch((e) => {
+    const msg = e.message ?? String(e)
+    const code = e?.code ?? ''
+    if (code === 'ECONNREFUSED' || msg.includes('ECONNREFUSED') || msg.includes('connect')) {
+      console.error(
+        `无法连接 PostGIS（${db.host}:${db.port}/${db.database}）——容器是否启动？docker compose -f docker-compose.v3.yml up -d postgis`
+      )
+    } else {
+      console.error(msg)
+    }
+    process.exit(1)
+  })
+}

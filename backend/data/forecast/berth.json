@@ -2239,5 +2239,18 @@
     }
   },
   "_contractVersion": 1,
-  "source": "synthetic"
+  "source": "synthetic",
+  "_provenance": {
+    "source": "synthetic",
+    "realParts": [],
+    "syntheticParts": [
+      "泊位利用率 historical/forecast 数值序列（57%→95% 等合成百分比）",
+      "空间坐标锚点（mock 市区坐标，非真实港口位置，见 _coordinateProvenance）"
+    ],
+    "crs": "EPSG:4326",
+    "notes": "泊位利用率无公开统计口径，数值为示意性合成；前端带「（模拟）」角标",
+    "replacementPlan": "用港口集团公开泊位数+吞吐量反推利用率，或下线该指标",
+    "taggedAt": "2026-09-08"
+  },
+  "_coordinateProvenance": "坐标锚点版本溯源(2026-09-08)：本文件空间坐标源自早期 mock 港口元数据（index.json 手填市区坐标，钦州市区 21.95/北海市区 21.48/防城港市区 21.77），非真实港口位置。真港口坐标在库内 ports 表（WGS84/4490：钦州港 108.590,21.727；北海港 109.131,21.419；防城港 108.341,21.618）。数值为真数据不受影响；如需热力准确落港，坐标锚点须切换至 ports 表（单一事实源）。"
 }

@@ -103,3 +103,16 @@ CREATE TABLE IF NOT EXISTS data_archive (
   sha256      TEXT NOT NULL,             -- 内容校验（防漂移）
   imported_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- 坐标系元数据表（2026-09-08 加，坐标系统一守卫）：登记每张空间表的
+-- 存储坐标系 / 源数据原始坐标系 / 入库转换方式。项目流通坐标系统一 84 基准
+--（WGS84 4326 与 CGCS2000 4490 中国区域厘米级一致可等同），非 84 基准数据
+-- 必须在此登记转换路径，未登记的导入/读取应被拒绝（配合 verify.mjs 校验）。
+CREATE TABLE IF NOT EXISTS spatial_meta (
+  table_name  TEXT PRIMARY KEY,          -- 空间表名（public schema）
+  storage_crs TEXT NOT NULL,             -- 存储坐标系（统一 EPSG:4490）
+  source_crs  TEXT NOT NULL,             -- 源数据原始坐标系
+  transform   TEXT,                      -- 入库转换说明（直接赋值/投影转换/GCJ纠偏等）
+  notes       TEXT,                      -- 备注（数据源、更新协议）
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);

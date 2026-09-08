@@ -30,16 +30,15 @@ const iconFontSizeCss = computed(() => `${cellPixel.value * 0.2}px`)
 const smallFontSizeCss = computed(() => `${cellPixel.value * 0.15}px`)
 // CONFIRM_DELAY 两面板共用，统一放 shared/constants/ui
 
-// ===== 四个指标 =====
-// berth/traffic 为合成示意数据（后端数据文件标记 source: synthetic），UI 显示「（模拟）」角标；
-// cargo 走吞吐量模型固定基线（后端不支持情景），滑块 UI 与其他指标统一，实际阈值以模型为准
-const SYNTHETIC_INDICATORS = new Set(['berth', 'traffic'])
+// ===== 三个指标 =====
+// cargo/container 为官方真吞吐量热力；activity 为真数据派生「港口吞吐活跃度」指数
+//（cargo 基期归一指数，见 tools/derive-activity.mjs）。berth/traffic 纯合成指标已下架
+//（源文件保留标 _provenance），不再有「（模拟）」角标
 const INDICATORS = [
   { key: 'cargo', label: '货物', icon: '📦' },
   { key: 'container', label: '集装箱', icon: '📋' },
-  { key: 'berth', label: '泊位利用率', icon: '⚓' },
-  { key: 'traffic', label: '船舶流量', icon: '🚢' },
-].map((i) => ({ ...i, synthetic: SYNTHETIC_INDICATORS.has(i.key) }))
+  { key: 'activity', label: '港口吞吐活跃度', icon: '📈' },
+]
 
 // 816-专项2 4-2：selected 由 store activeIndicator 派生（getter）——
 // 快照恢复 restoreState 设置 activeIndicator 后按钮高亮自动一致（原本地双源：恢复非 cargo 时按钮仍亮 cargo）
@@ -226,7 +225,6 @@ onUnmounted(() => stopPlayback())
           :selecting="btnStates[ind.key].selecting"
           :selected="btnStates[ind.key].selected"
           :label="ind.label"
-          :badge="btnStates[ind.key].selecting ? '' : ind.synthetic ? '（模拟）' : ''"
           :status-text="`${(getConf(ind.key) * 100).toFixed(0)}%`"
           :slider-value="btnStates[ind.key].selecting ? getConf(ind.key) : null"
           :slider-min="0.8"

@@ -126,19 +126,14 @@ describe('useForecastLayer', () => {
     expect(showError).not.toHaveBeenCalled()
   })
 
-  it('removeForecastLayer 移除全部 4 个指标图层', () => {
+  it('removeForecastLayer 移除全部 3 个指标图层（berth/traffic 已下架）', () => {
     const { removeForecastLayer } = useForecastLayer()
     mockManager.has.mockImplementation(() => true)
     removeForecastLayer()
-    expect(mockManager.remove).toHaveBeenCalledTimes(4)
+    expect(mockManager.remove).toHaveBeenCalledTimes(3)
     const keys = (mockManager.remove as ReturnType<typeof vi.fn>).mock.calls.map(
       (c: unknown[]) => c[0]
     )
-    expect(keys).toEqual([
-      'forecast-cargo',
-      'forecast-container',
-      'forecast-berth',
-      'forecast-traffic',
-    ])
+    expect(keys).toEqual(['forecast-cargo', 'forecast-container', 'forecast-activity'])
   })
 })

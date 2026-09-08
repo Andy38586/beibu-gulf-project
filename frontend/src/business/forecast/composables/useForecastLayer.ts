@@ -25,22 +25,16 @@ import { forecastMapDataSchema } from '@/types/schemas'
 
 import { useForecastRequest } from './useForecastRequest'
 
-const INDICATORS = ['cargo', 'container', 'berth', 'traffic'] as const
+const INDICATORS = ['cargo', 'container', 'activity'] as const
 const INDICATOR_LABELS: Record<string, string> = {
   cargo: '货物吞吐量热力',
   container: '集装箱吞吐量热力',
-  berth: '泊位分布',
-  traffic: '船舶流量',
+  activity: '港口吞吐活跃度',
 }
 const LAYER_TYPES: Record<string, LayerType> = {
   cargo: 'heatmap',
   container: 'heatmap',
-  berth: 'geojson',
-  traffic: 'geojson',
-}
-const FEATURE_TYPES: Record<string, string> = {
-  berth: 'forecast-berth',
-  traffic: 'forecast-traffic',
+  activity: 'heatmap',
 }
 
 /** 热力图色带（显式常量，不散落魔法数组） */
@@ -89,7 +83,7 @@ export function useForecastLayer(): UseForecastLayerReturn {
           label: INDICATOR_LABELS[indicator],
           layerType: LAYER_TYPES[indicator],
           data: null,
-          options: getLayerOptions(indicator),
+          options: getLayerOptions(),
           visible: isActive,
         })
       }
@@ -109,24 +103,20 @@ export function useForecastLayer(): UseForecastLayerReturn {
     { immediate: true }
   )
 
-  function getLayerOptions(indicator: string): LayerOptions {
-    if (indicator === 'cargo' || indicator === 'container') {
-      // 显式传入 gradient，使热力图色带可配置（不再依赖 renderer 默认值）
-      return {
-        weightField: 'value',
-        radius: 20,
-        blur: 15,
-        gradient: FORECAST_HEATMAP_GRADIENT,
-      }
+  function getLayerOptions(): LayerOptions {
+    // 全部指标均走热力图：显式传入 gradient，使热力图色带可配置（不再依赖 renderer 默认值）
+    return {
+      weightField: 'value',
+      radius: 20,
+      blur: 15,
+      gradient: FORECAST_HEATMAP_GRADIENT,
     }
-    const ft = FEATURE_TYPES[indicator]
-    return ft ? { featureType: ft } : {}
   }
 
   function getRenderData(
     layerType: LayerType,
     geojson: ForecastMapData
-  ): ForecastMapData['features'] | ForecastMapData {
+  ): ForecastMapData | ForecastMapData['features'] {
     if (layerType === 'heatmap') return geojson.features || []
     return geojson
   }
@@ -155,7 +145,7 @@ export function useForecastLayer(): UseForecastLayerReturn {
           label: INDICATOR_LABELS[indicator],
           layerType: LAYER_TYPES[indicator],
           data: null,
-          options: getLayerOptions(indicator),
+          options: getLayerOptions(),
           visible: true,
         })
       }
@@ -165,7 +155,7 @@ export function useForecastLayer(): UseForecastLayerReturn {
       const confidence = forecastState.confidenceThresholds[indicator] || DEFAULT_CONFIDENCE
       const cacheKey = mapCacheKey(indicator, time, confidence)
       const layerType = LAYER_TYPES[indicator]
-      const options = getLayerOptions(indicator)
+      const options = getLayerOptions()
 
       // LRU 命中：播放/拖动重放同一时间点，直接渲染缓存，零请求
       const cached = mapRequestCache.get(cacheKey)

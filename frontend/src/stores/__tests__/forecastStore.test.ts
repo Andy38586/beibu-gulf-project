@@ -57,8 +57,8 @@ describe('useForecastStore', () => {
   describe('setConfidenceThreshold', () => {
     it('应更新对应指标的置信度阈值', () => {
       const store = useForecastStore()
-      store.setConfidenceThreshold('berth', 0.9)
-      expect(store.confidenceThresholds.berth).toBe(0.9)
+      store.setConfidenceThreshold('activity', 0.9)
+      expect(store.confidenceThresholds.activity).toBe(0.9)
     })
   })
 
@@ -66,7 +66,7 @@ describe('useForecastStore', () => {
     it('应恢复默认状态', () => {
       const store = useForecastStore()
       store.setCurrentTime('2030-01')
-      store.setActiveIndicator('traffic')
+      store.setActiveIndicator('activity')
 
       store.reset()
 

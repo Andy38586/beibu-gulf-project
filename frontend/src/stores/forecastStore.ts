@@ -38,8 +38,7 @@ export const useForecastStore = defineStore('forecast', () => {
   const confidenceThresholds: Ref<ConfidenceThresholds> = ref({
     cargo: DEFAULT_CONFIDENCE,
     container: DEFAULT_CONFIDENCE,
-    berth: DEFAULT_CONFIDENCE,
-    traffic: DEFAULT_CONFIDENCE,
+    activity: DEFAULT_CONFIDENCE,
   })
 
   const activeForecastLayer: Ref<string | null> = ref(null)
@@ -132,8 +131,7 @@ export const useForecastStore = defineStore('forecast', () => {
     confidenceThresholds.value = {
       cargo: DEFAULT_CONFIDENCE,
       container: DEFAULT_CONFIDENCE,
-      berth: DEFAULT_CONFIDENCE,
-      traffic: DEFAULT_CONFIDENCE,
+      activity: DEFAULT_CONFIDENCE,
     }
     activeForecastLayer.value = null
     requestCache.value = new BoundedMap<string, unknown>(MAX_REQUEST_CACHE_ENTRIES)

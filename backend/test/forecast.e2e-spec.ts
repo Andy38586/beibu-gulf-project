@@ -75,12 +75,31 @@ describe('forecast e2e（读真数据文件）', () => {
     expect(JSON.stringify(over.body)).toBe(JSON.stringify(fresh.body))
   })
 
-  it('合成指标 berth：文件自带 forecast 透传', async () => {
+  it('真派生指标 activity：文件自带 forecast 透传，锚点落真实港口（北部湾 bbox）', async () => {
     const res = await request(app.getHttpServer())
-      .get(`${base}/indicator/berth?time=2026-01`)
+      .get(`${base}/indicator/activity?time=2030-01`)
       .expect(200)
-    expect(res.body.data.indicator).toBe('berth')
+    expect(res.body.data.indicator).toBe('activity')
     expect(Object.keys(res.body.data.ports).length).toBeGreaterThan(0)
+    for (const port of Object.values(res.body.data.ports) as Array<{ forecast: unknown[] }>) {
+      // 预测段由真数据派生（模型预测 + 历史基期归一），非空
+      expect(Array.isArray(port.forecast)).toBe(true)
+    }
+  })
+
+  it('activity map：坐标锚点落在北部湾业务边界内（非 mock 市区越界点）', async () => {
+    const res = await request(app.getHttpServer())
+      .get(`${base}/map?indicator=activity&time=2030-01`)
+      .expect(200)
+    expect(res.body.data.unit).toBe('指数')
+    expect(res.body.data.features.length).toBeGreaterThan(0)
+    for (const f of res.body.data.features) {
+      const [lng, lat] = f.geometry.coordinates
+      expect(lng).toBeGreaterThan(105)
+      expect(lng).toBeLessThan(115)
+      expect(lat).toBeGreaterThan(18)
+      expect(lat).toBeLessThan(25)
+    }
   })
 
   it('timeseries year 粒度 → YYYY 聚合整数均值', async () => {
@@ -111,11 +130,22 @@ describe('forecast e2e（读真数据文件）', () => {
 
   it('缓存命中=重算一致性（REQ-3 连发两次同参数响应逐字节一致）', async () => {
     const a = await request(app.getHttpServer())
-      .get(`${base}/map?indicator=berth&time=2026-01`)
+      .get(`${base}/map?indicator=activity&time=2030-01`)
       .expect(200)
     const b = await request(app.getHttpServer())
-      .get(`${base}/map?indicator=berth&time=2026-01`)
+      .get(`${base}/map?indicator=activity&time=2030-01`)
       .expect(200)
     expect(JSON.stringify(b.body)).toBe(JSON.stringify(a.body))
+  })
+
+  it('berth/traffic 已下架：请求 → 404 未知指标（legacy 不再消费）', async () => {
+    const res = await request(app.getHttpServer())
+      .get(`${base}/map?indicator=berth&time=2026-01`)
+      .expect(404)
+    expect(res.body).toEqual({ code: 404001, error: '未知指标: berth', data: null })
+    const traffic = await request(app.getHttpServer())
+      .get(`${base}/indicator/traffic?time=2026-01`)
+      .expect(404)
+    expect(traffic.body).toEqual({ code: 404001, error: '未知指标: traffic', data: null })
   })
 })

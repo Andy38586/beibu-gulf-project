@@ -37,9 +37,9 @@ export const floodFeatureSchema = z.object({
   type: z.literal('Feature'),
   geometry: floodGeometrySchema,
   // properties：riskLevel 业务必填（FloodFeature 契约，两数据源均在边界后注入——
-  // api 模式由 controller 注入、online 模式由 floodAdapter 注入，见各自注释）；
+  // fetch 模式由 Nest controller 注入、calculate 模式由 FastAPI _risk_level 输出——两模式均后端权威）；
   // 但原始响应边界不能强制必填：FastAPI flood_engine 仅返回 {area}（无 riskLevel），
-  // 必填会把 online 模式全部判死（816-专项3-0816-06 回归，2026-08-17 修复），故 optional
+  // 必填会把 calculate 模式全部判死（历史回归，2026-08-17 修复），故 optional
   properties: z.looseObject({ riskLevel: z.string().optional() }),
 })
 
@@ -64,6 +64,8 @@ export type AffectedFacilityParsed = z.infer<typeof affectedFacilitySchema>
 // ③ /flood 在线演算响应（顶层字段严格校验，features 元素级深校验见 ⑭a）
 export const floodOnlineResponseSchema = z.object({
   level: z.number(),
+  // 后端权威输出（FastAPI _risk_level 与 Nest RISK_LEVEL_BANDS 同口径），前端不持阈值表
+  riskLevel: z.string(),
   featureCount: z.number(),
   floodedKm2: z.number(),
   features: z.array(floodFeatureSchema),
@@ -96,7 +98,7 @@ export const forecastPointSchema = z.object({
   time: z.string(),
   value: z.number(),
   type: z.enum(['historical', 'forecast']),
-  // 816-专项3-0816-05：数据文件自带 confidence（berth.json 等），补可选字段防 schema 静默剥除
+  // 数据文件自带 confidence（activity.json 等），补可选字段防 schema 静默剥除
   confidence: z.number().optional(),
 })
 
@@ -324,8 +326,9 @@ export const favoriteItemSchema = z.object({
   itemType: z.enum(['xiaoqu', 'facility']),
   itemId: z.string(),
   name: z.string(),
-  lng: z.number(),
-  lat: z.number(),
+  // 缺失坐标 null 透传（(0,0) 哨兵禁令——伪坐标会污染地图定位；消费方过滤非有限值）
+  lng: z.number().nullable(),
+  lat: z.number().nullable(),
   snapshot: z.record(z.string(), z.unknown()).nullable().optional(),
   savedAt: z.string(),
 })

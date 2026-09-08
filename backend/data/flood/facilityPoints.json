@@ -12,6 +12,15 @@
     "source": "hybrid",
     "elevationFrom": "filled_utm48n_cut.tif (GLO-30 复原版, 30m) 5x5 窗口最小值采样（承 05 脚本口径）"
   },
+  "_provenance": {
+    "source": "hybrid",
+    "realParts": ["设施位置/名称（高德 POI 实抓）", "高程 elevation（DEM 30m 采样）"],
+    "syntheticParts": ["value 资产值、damageRate 损毁率（按类型合理估算，非实测）"],
+    "crs": "EPSG:4326",
+    "notes": "估算字段影响 estimatedLoss/totalLoss 口径，见 floodStatistics.json lossAssumption",
+    "replacementPlan": "value/damageRate 接入资产评估或行业典型值复核；位置/高程保持真数据",
+    "taggedAt": "2026-09-08"
+  },
   "facilities": [
     {
       "id": "QZ-001",

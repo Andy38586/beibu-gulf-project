@@ -1,6 +1,11 @@
 /**
  * CRS 运行时常量与工具：从 types/crs 移入 shared，保持 types 为纯类型层
  * （原 types 混入运行时逻辑并反向依赖 shared，违反分层）。
+ *
+ * 坐标系纪律（2026-09-08 数据平面大换代固化）：
+ *   应用层流通坐标恒为 EPSG:4326（84）；渲染器（OL/Cesium）内部按 EPSG:3857 处理，
+ *   对外经 fromLonLat/toLonLat 转换；EPSG:4490/4547 仅用于数据库存储层与 SQL/导入工具，
+ *   一经出口必须转 4326（如 site-analysis repository 的 ST_Transform），禁止进入业务流通。
  */
 import type { CRS, GeoPoint, LaxPoint } from '@/types/crs'
 
@@ -23,11 +28,13 @@ export function normalizePoint(input: LaxPoint): GeoPoint<CRS> | null {
     return null
   }
 
-  // 运行时 CRS 校验：如果声明了非默认 CRS，dev 模式告警
-  if (input.crs && input.crs !== DEFAULT_CRS && input.crs !== 'EPSG:4490') {
-    logger.debug(
-      `[crs] 数据 CRS 为 ${input.crs}，渲染层按 ${DEFAULT_CRS} 处理。CGCS2000(4490) 与 WGS84(4326) 在 web 地图精度下可互换。`
+  // 运行时 CRS 硬守卫：声明的非 84 坐标系一律拒绝进入流通（含 4490/3857/4547）。
+  // 数据必须先在出口转成 4326 再来（渲染层 3857 是 OL/Cesium 内部处理，业务侧不感知）。
+  if (input.crs && input.crs !== DEFAULT_CRS) {
+    logger.warn(
+      `[crs] 拒绝非 84 坐标进入流通：疑似 crs=${input.crs}，坐标系纪律要求流通前先转 4326，已跳过该要素`
     )
+    return null
   }
 
   return {

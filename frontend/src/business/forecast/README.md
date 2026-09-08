@@ -1,6 +1,6 @@
 # business/forecast — 预测分析模块
 
-- **职责**：吞吐量趋势可视化（时间轴播放 + 地图热力 + 图表），支持 cargo/container（真实模型产物）/ berth/traffic（合成示意，诚实标注）。
+- **职责**：吞吐量趋势可视化（时间轴播放 + 地图热力 + 图表），支持 cargo/container（真实模型产物）/ activity（真数据派生「港口吞吐活跃度」指数，见 tools/derive-activity.mjs）。berth/traffic 纯合成指标已下架（2026-09-08）。
 - **入口**：`ForecastPage.vue` → `useForecastRequest`（事务/竞态管理，`useLatestRequest` 取消旧请求）→ `forecastAdapter`（/forecast/\* 三端点，schema 边界校验）。
 - **composables**：`useForecastLayer`（地图图层 BLM 更新）；`useOverviewCharts`（首页概览静态快照）。
 - **store**：`useForecastStore`（跨页快照 saveState/consumeState；登出 clearState；requestCache LRU 50）。

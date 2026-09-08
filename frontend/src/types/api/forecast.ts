@@ -27,7 +27,7 @@ export interface ForecastPortSeries {
 
 /** 预测指标完整响应（对应 public/data/forecast/*.json 顶层） */
 export interface ForecastSeries {
-  /** 指标标识，如 "cargo"（货物吞吐量）/ "container"（集装箱吞吐量）/ "berth"（泊位利用率） */
+  /** 指标标识，如 "cargo"（货物吞吐量）/ "activity"（港口吞吐活跃度指数） */
   indicator: string
   /** 单位，如 "万吨" / "%" */
   unit: string
@@ -35,8 +35,9 @@ export interface ForecastSeries {
   data: Record<PortId, ForecastPortSeries>
 }
 
-/** 已知指标名（宽松联合：已知值 + 兜底 string，提示不穷举） */
-export type ForecastIndicatorName = 'cargo' | 'container' | 'berth' | 'traffic' | (string & {})
+/** 已知指标名（宽松联合：已知值 + 兜底 string，提示不穷举；
+ *  berth/traffic 已于 2026-09-08 下架（纯合成指标），legacy 不再消费） */
+export type ForecastIndicatorName = 'cargo' | 'container' | 'activity' | (string & {})
 
 /** 地图热力图响应（对应后端 /forecast/map 的 data 字段） */
 export interface ForecastMapData {

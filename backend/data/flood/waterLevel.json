@@ -73,5 +73,14 @@
       "lat": 21.478,
       "port": "北海港"
     }
-  ]
+  ],
+  "_provenance": {
+    "source": "reference_parameters",
+    "realParts": ["潮型参数（正规半日潮）"],
+    "syntheticParts": ["平均海平面 2.5m、设计高潮位等基准值（工程参考假设，未接实测潮位站）"],
+    "crs": "EPSG:4326",
+    "notes": "水位基准为工程参考假设参数，非实测；影响洪涝水位计算基准",
+    "replacementPlan": "接入广西海事局/北海站实测潮位数据（公开），过渡期维持现状但保持标注",
+    "taggedAt": "2026-09-08"
+  }
 }

@@ -1,6 +1,8 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { BusinessError } from '../src/common/errors/business-error'
+import { DbService } from '../src/infra/db/db.service'
+import { SpatialRepository } from '../src/infra/db/spatial.repository'
 import { DataFilesService, DEFAULT_READ_FILE } from '../src/infra/files/data-files.service'
 import { deriveRiskLevel, FloodController } from '../src/modules/flood/controllers/flood.controller'
 import { FloodRepository } from '../src/modules/flood/repositories/flood.repository'
@@ -49,10 +51,19 @@ const MOCK_FACILITY = {
   damageRate: 0.85,
 }
 
+// 洪涝点面判定已下沉 PostGIS（ST_Covers），涉及 assessDisaster 的用例需真库，
+// 以 V3_INTEGRATION_DB 控制（与 favorites/plans/site-analysis 同口径）。
+// 其余用例（水位校验/取档/读盘/缓存）不碰空间算子，无库环境照常跑。
+const withDb = process.env.V3_INTEGRATION_DB !== undefined
+
+let db: DbService | undefined
+let spatial: SpatialRepository
+
 function makeController(mockReadFile: ReturnType<typeof vi.fn>): FloodController {
   const files = new DataFilesService(mockReadFile as unknown as typeof DEFAULT_READ_FILE)
   const repository = new FloodRepository(files)
-  return new FloodController(repository, new FloodService())
+  // 非空间用例不会走到 assessDisaster（水位校验先抛错即短路），故传空桩即可
+  return new FloodController(repository, new FloodService(spatial))
 }
 
 beforeEach(() => {
@@ -197,7 +208,16 @@ describe('analyzeDisaster - 水位校验', () => {
   })
 })
 
-describe('floodService.assessDisaster - 空间筛选与损失计算', () => {
+describe.skipIf(!withDb)('floodService.assessDisaster - 空间筛选与损失计算（真库 PostGIS）', () => {
+  beforeAll(() => {
+    db = new DbService()
+    spatial = new SpatialRepository(db)
+  })
+
+  afterAll(async () => {
+    await db?.onModuleDestroy()
+  })
+
   const FACILITIES = [
     MOCK_FACILITY,
     {
@@ -236,9 +256,9 @@ describe('floodService.assessDisaster - 空间筛选与损失计算', () => {
     ],
   }
 
-  it('点在淹没多边形内 → loss=value×damageRate，多边形外不计入', () => {
-    const service = new FloodService()
-    const result = service.assessDisaster(FACILITIES, 5, FLOOD_ZONE)
+  it('点在淹没多边形内 → loss=value×damageRate，多边形外不计入', async () => {
+    const service = new FloodService(spatial)
+    const result = await service.assessDisaster(FACILITIES, 5, FLOOD_ZONE)
     expect(result.affectedFacilities).toHaveLength(1)
     expect(result.affectedFacilities[0].loss).toBe(15000 * 0.85)
     expect(result.totalLoss).toBe(Math.round(15000 * 0.85))
@@ -246,10 +266,10 @@ describe('floodService.assessDisaster - 空间筛选与损失计算', () => {
     expect(result.waterLevel).toBe(5)
   })
 
-  it('无淹没档位（0 档/null）→ 无风险 + 零损失 + waterLevel undefined', () => {
-    const service = new FloodService()
+  it('无淹没档位（0 档/null）→ 无风险 + 零损失 + waterLevel undefined', async () => {
+    const service = new FloodService(spatial)
     for (const zone of [null, { waterLevel: 0, riskLevel: '无风险', features: [] }]) {
-      const result = service.assessDisaster(FACILITIES, 0, zone)
+      const result = await service.assessDisaster(FACILITIES, 0, zone)
       expect(result).toEqual({
         affectedFacilities: [],
         totalLoss: 0,
@@ -259,10 +279,10 @@ describe('floodService.assessDisaster - 空间筛选与损失计算', () => {
     }
   })
 
-  it('value/damageRate 非数值按 0 计（合法 0 保留）', () => {
-    const service = new FloodService()
+  it('value/damageRate 非数值按 0 计（合法 0 保留）', async () => {
+    const service = new FloodService(spatial)
     const dirty = [{ ...FACILITIES[0], value: NaN, damageRate: undefined as unknown as number }]
-    const result = service.assessDisaster(dirty, 5, FLOOD_ZONE)
+    const result = await service.assessDisaster(dirty, 5, FLOOD_ZONE)
     expect(result.affectedFacilities[0].loss).toBe(0)
     expect(result.totalLoss).toBe(0)
   })
@@ -299,7 +319,7 @@ describe('DataFilesService 统一入口 - 读盘缓存 (REQ-3 / z050-BE)', () =>
   it('getFloodAreas 连续两次调用只读盘一次', async () => {
     const mockReadFile = vi.fn().mockResolvedValue(MOCK_FLOOD_AREA)
     const files = new DataFilesService(mockReadFile as unknown as typeof DEFAULT_READ_FILE)
-    const controller = new FloodController(new FloodRepository(files), new FloodService())
+    const controller = new FloodController(new FloodRepository(files), new FloodService(spatial))
     await controller.getFloodAreas('2.5')
     await controller.getFloodAreas('2.5')
     expect(mockReadFile).toHaveBeenCalledTimes(1)
@@ -312,7 +332,7 @@ describe('DataFilesService 统一入口 - 读盘缓存 (REQ-3 / z050-BE)', () =>
     try {
       const mockReadFile = vi.fn().mockResolvedValue(MOCK_FLOOD_AREA)
       const files = new DataFilesService(mockReadFile as unknown as typeof DEFAULT_READ_FILE)
-      const controller = new FloodController(new FloodRepository(files), new FloodService())
+      const controller = new FloodController(new FloodRepository(files), new FloodService(spatial))
       await controller.getFloodAreas('2.5')
       expect(mockReadFile).toHaveBeenCalledTimes(1)
       t += 6 * 60 * 1000

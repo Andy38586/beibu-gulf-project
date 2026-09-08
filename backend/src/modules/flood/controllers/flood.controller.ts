@@ -4,19 +4,13 @@ import { ApiTags } from '@nestjs/swagger'
 import { MAX_WATER_LEVEL, RISK_LEVEL_BANDS } from '../../../common/constants/flood.constants'
 import { BusinessError, ErrorCode } from '../../../common/errors/business-error'
 import { FloodRepository } from '../repositories/flood.repository'
-import { FloodFacility, FloodService, FloodZone } from '../services/flood.service'
+import { FloodFacility, FloodService, FloodZone, FloodZoneFeature } from '../services/flood.service'
 
 // 数据形状（backend/data/flood/*.json；repository 返回 unknown，此处声明消费视图）
-interface FloodFeature {
-  type?: string
-  geometry?: { type?: string } | null
-  properties?: Record<string, unknown>
-}
-
 interface FloodZoneEntry {
   waterLevel: number
   riskLevel: string
-  features: FloodFeature[]
+  features: FloodZoneFeature[]
 }
 
 interface FloodAreaData {
@@ -192,8 +186,8 @@ export class FloodController {
     // 6 档向上取档（与 getFloodAreas 同口径；超档取最高档 15m，不静默空评估）
     const floodZone: FloodZone | null = pickZone(floodData.floodZones, level) ?? null
 
-    // 业务计算委托给 floodService
-    const result = this.floodService.assessDisaster(facilityData.facilities, level, floodZone)
+    // 业务计算委托给 floodService（点面判定在 PostGIS 内完成，故为异步）
+    const result = await this.floodService.assessDisaster(facilityData.facilities, level, floodZone)
 
     return {
       // 返回实际档位水位，消除请求值与实际档位的错配

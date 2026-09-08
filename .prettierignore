@@ -17,3 +17,5 @@ docs/v3-施工手册.md
 backend/data/
 # React 原型暂存目录（非项目源码，用途待用户裁决；2026-09-01 出现导致 format:check 全仓红）
 .staging-react/
+# pdf_build 教材/浏览器扩展产物（pdf_build/ep_guide 为扩展浏览器临时数据，非项目源码）
+pdf_build/

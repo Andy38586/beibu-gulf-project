@@ -90,7 +90,7 @@ export class SiteAnalysisController {
 
     const xiaoquData = await this.siteAnalysisRepository.findXiaoqu(city)
 
-    const result = this.siteAnalysisService.runSiteAnalysis({
+    const result = await this.siteAnalysisService.runSiteAnalysis({
       selectedKeys,
       typeSettings,
       facilityData,

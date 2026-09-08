@@ -106,8 +106,7 @@ export interface ForecastTimeRange {
 export interface ConfidenceThresholds {
   cargo: number
   container: number
-  berth: number
-  traffic: number
+  activity: number
   /** 开放扩展：未来新增指标（如 gdp、population）的置信度阈值 */
   [key: string]: number
 }
@@ -129,8 +128,9 @@ export interface FavoriteItem {
   itemType: FavoriteItemType
   itemId: string
   name: string
-  lng: number
-  lat: number
+  // 缺失坐标为 null（后端不再伪造 (0,0) 哨兵）；消费方经 Number.isFinite 过滤
+  lng: number | null
+  lat: number | null
   /** 业务快照（选址：score/breakdown；浸没：type/loss）——详情展示用，非唯一键 */
   snapshot?: Record<string, unknown> | null
   savedAt: string

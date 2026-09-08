@@ -37,7 +37,7 @@ function resolveCity(city: unknown): string {
   return isSupportedCity(city) ? (city as string) : DEFAULT_CITY
 }
 
-// 行形状：geom 拆 lng/lat（ST_X/ST_Y）；TEXT 列 NULL 归 undefined（FacilityPoint 可选字段
+// 行形状：geom 拆 lng/lat（ST_Transform(4326) 后再取 X/Y，4490 不对外）；TEXT 列 NULL 归 undefined（FacilityPoint 可选字段
 // 语义是"未提供"而非 null——迁移时实锤：PG null 直传与索引签名类型不兼容，tsc watch 拦截）
 interface PoiRow {
   id: string | null
@@ -63,7 +63,7 @@ export class SiteAnalysisRepository {
   async findByType(type: string, city: unknown): Promise<FacilityPoint[] | null> {
     if (!(ANALYSIS_TYPES as readonly string[]).includes(type)) return null
     const res = await this.db.query<PoiRow>(
-      `SELECT id, name, ST_X(geom) AS lng, ST_Y(geom) AS lat, district
+      `SELECT id, name, ST_X(ST_Transform(geom, 4326)) AS lng, ST_Y(ST_Transform(geom, 4326)) AS lat, district
        FROM poi_facilities
        WHERE type = $1 AND city = $2
        ORDER BY id`,
@@ -74,7 +74,7 @@ export class SiteAnalysisRepository {
 
   async findXiaoqu(city: unknown): Promise<FacilityPoint[]> {
     const res = await this.db.query<PoiRow>(
-      `SELECT id, name, ST_X(geom) AS lng, ST_Y(geom) AS lat, district
+      `SELECT id, name, ST_X(ST_Transform(geom, 4326)) AS lng, ST_Y(ST_Transform(geom, 4326)) AS lat, district
        FROM xiaoqu
        WHERE city = $1
        ORDER BY id`,

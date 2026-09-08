@@ -18,6 +18,8 @@ function row(overrides = {}) {
     out_of_bounds: '0',
     typed_geom: '100',
     srid: '4490',
+    meta_storage_crs: 'EPSG:4490',
+    meta_source_crs: 'EPSG:4326',
     ...overrides,
   }
 }
@@ -58,6 +60,30 @@ describe('evaluateChecks — 质检判定（T4.1 测试要求：坏几何 fixtur
   it('protected_areas 豁免 bbox（全国保护区跨省合法）', () => {
     const { entry } = evaluateChecks(PROTECTED_SPEC, row({ out_of_bounds: '31' }))
     expect(entry.fail).not.toContain('bbox_ok')
+  })
+
+  // 坐标系守卫（2026-09-08 加）：spatial_meta 是坐标系统一的关键——未登记或非 84 基准必须 FAIL
+  it('spatial_meta 未登记 → crs_meta_missing FAIL（强制登记才放行）', () => {
+    const { entry } = evaluateChecks(
+      ROAD_SPEC,
+      row({ meta_storage_crs: null, meta_source_crs: null })
+    )
+    expect(entry.fail).toContain('crs_meta_missing')
+  })
+
+  it('storage_crs 与表 SRID 不一致 → crs_storage_mismatch FAIL', () => {
+    const { entry } = evaluateChecks(ROAD_SPEC, row({ meta_storage_crs: 'EPSG:4326' }))
+    expect(entry.fail).toContain('crs_storage_mismatch')
+  })
+
+  it('source_crs 非 84 基准（GCJ-02/投影坐标）→ crs_source_not_84 FAIL', () => {
+    const { entry } = evaluateChecks(ROAD_SPEC, row({ meta_source_crs: 'GCJ-02' }))
+    expect(entry.fail).toContain('crs_source_not_84')
+  })
+
+  it('投影坐标源（UTM 32648）→ crs_source_not_84 FAIL（须先转 84 再入库）', () => {
+    const { entry } = evaluateChecks(ROAD_SPEC, row({ meta_source_crs: 'EPSG:32648' }))
+    expect(entry.fail).toContain('crs_source_not_84')
   })
 })
 

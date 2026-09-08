@@ -74,13 +74,14 @@ describe('SiteAnalysisRepository — 城市白名单与 PostGIS 查询', () => {
     expect(String(query.mock.calls[0][0])).toContain('FROM xiaoqu')
   })
 
-  it('findByType：SQL 固定查 poi_facilities 并以 ST_X/ST_Y 拆经纬度', async () => {
+  it('findByType：SQL 固定查 poi_facilities 并以 ST_Transform(4326) 后拆经纬度（4490 只存储不流通）', async () => {
     const query = vi.fn().mockResolvedValue({ rows: [] })
     const repo = makeRepo(query)
     await repo.findByType('park', 'qz')
     const sql = String(query.mock.calls[0][0])
     expect(sql).toContain('FROM poi_facilities')
-    expect(sql).toContain('ST_X(geom)')
-    expect(sql).toContain('ST_Y(geom)')
+    expect(sql).toContain('ST_X(ST_Transform(geom, 4326))')
+    expect(sql).toContain('ST_Y(ST_Transform(geom, 4326))')
+    expect(sql).not.toContain('ST_X(geom)')
   })
 })

@@ -1,8 +1,8 @@
 <!--
   /**
    * 预测分析模块：纯 API 链路（cargo/container 为后端模型预测的真实吞吐量，
-   * berth/traffic 为合成示意数据）。验证 heatmap 图层注册/销毁、
-   * 纯 2D 业务承载与时间轴驱动的图层增量更新性能。
+   * activity 为真数据派生「港口吞吐活跃度」指数——berth/traffic 纯合成指标已下架）。
+   * 验证 heatmap 图层注册/销毁、纯 2D 业务承载与时间轴驱动的图层增量更新性能。
    * 布局：左 LineChart + BarChart，右 ForecastControlPanel + LayerControlPanel（各 4×4）
    */
 -->
@@ -157,8 +157,7 @@ onUnmounted(() => {
               'boundary',
               'ports',
               'forecast-cargo',
-              'forecast-berth',
-              'forecast-traffic',
+              'forecast-activity',
               'forecast-container',
             ]"
           />

@@ -42,13 +42,23 @@ const cargoData = {
   },
 }
 
-const berthData = {
-  indicator: 'berth',
-  unit: '个',
+const activityData = {
+  indicator: 'activity',
+  unit: '指数',
   data: {
     p1: {
       historical: makePortData('p1', '港口A').historical,
-      forecast: [{ time: '2022-01', value: 42, type: 'forecast', reliability: 1 }],
+      forecast: [{ time: '2022-01', value: 120, type: 'forecast', reliability: 0.93 }],
+      spatial: {
+        type: 'FeatureCollection',
+        features: [
+          {
+            type: 'Feature',
+            geometry: { type: 'Point', coordinates: [108.590379, 21.726917] },
+            properties: { portId: 'p1', portName: '港口A' },
+          },
+        ],
+      },
     },
   },
 }
@@ -140,14 +150,38 @@ describe('getMapData', () => {
   })
 
   it('缓存命中=重算不变量（02 §5.6.4）：热缓存结果与冷实例结果深等', async () => {
-    const mockReadFile = vi.fn().mockResolvedValue(JSON.stringify(berthData))
+    const mockReadFile = vi.fn().mockResolvedValue(JSON.stringify(activityData))
     const warm = makeService(mockReadFile)
     const cold = makeService(mockReadFile)
-    const first = await warm.getMapData('berth', '2022-01')
-    const second = await warm.getMapData('berth', '2022-01') // 引擎缓存命中
-    const fresh = await cold.getMapData('berth', '2022-01') // 全新实例（无缓存）
+    const first = await warm.getMapData('activity', '2022-01')
+    const second = await warm.getMapData('activity', '2022-01') // 引擎缓存命中
+    const fresh = await cold.getMapData('activity', '2022-01') // 全新实例（无缓存）
     expect(JSON.stringify(second)).toBe(JSON.stringify(first))
     expect(JSON.stringify(fresh)).toBe(JSON.stringify(first))
+  })
+
+  it('activity 派生指标：文件自带 forecast 透传 + 单位指数 + 真坐标锚点（非 mock 市区点）', async () => {
+    const mockReadFile = vi.fn().mockResolvedValue(JSON.stringify(activityData))
+    const service = makeService(mockReadFile)
+    const result = (await service.getMapData('activity', '2022-01')) as any
+    expect(result.type).toBe('FeatureCollection')
+    expect(result.indicator).toBe('activity')
+    expect(result.unit).toBe('指数')
+    expect(result.features.length).toBeGreaterThan(0)
+    // 散射点围绕锚点（ports 表真坐标 108.590379,21.726917 半径 ≤0.06°）——非 mock 市区点（108.62,21.95）
+    const [lng, lat] = result.features[0].geometry.coordinates
+    expect(Math.abs(lng - 108.590379)).toBeLessThan(0.06)
+    expect(Math.abs(lat - 21.726917)).toBeLessThan(0.06)
+    // 距 mock 市区锚点（108.62,21.95）显著更远，证明非旧坐标
+    expect(
+      Math.abs(lng - 108.62) > Math.abs(lng - 108.590379) ||
+        Math.abs(lat - 21.95) > Math.abs(lat - 21.726917)
+    ).toBe(true)
+    expect(Object.keys(result.features[0].properties).sort()).toEqual(
+      ['portId', 'portName', 'reliability', 'value'].sort()
+    )
+    // activity 走文件自带 forecast 透传分支：不读模型产物，仅 1 次读盘
+    expect(mockReadFile).toHaveBeenCalledTimes(1)
   })
 })
 

@@ -232,6 +232,7 @@ describe('flood schemas（真实数据 + 构造样本）', () => {
   it('floodOnlineResponseSchema 通过/拒绝（统一入口后仍校验）', () => {
     const ok = floodOnlineResponseSchema.safeParse({
       level: 2.5,
+      riskLevel: '低风险',
       featureCount: 10,
       floodedKm2: 5.2,
       features: [],

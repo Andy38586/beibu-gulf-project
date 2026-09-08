@@ -31,6 +31,7 @@
     "dev:server": "run-p dev:nest dev:flood",
     "dev:all": "run-p dev dev:server",
     "forecast:model": "node tools/throughput_model.cjs",
+    "forecast:activity": "node tools/derive-activity.mjs",
     "prepare": "husky"
   },
   "dependencies": {

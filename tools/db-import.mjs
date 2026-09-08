@@ -12,6 +12,19 @@ const esc = (v) => (v == null ? 'NULL' : `'${String(v).replaceAll("'", "''")}'`)
 const pt = (lng, lat) =>
   lng == null || lat == null ? 'NULL' : `ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4490)`
 
+// 北部湾业务边界（与 backend/src/common/constants/gis.constants.ts GULF_BOUNDS 同值，
+// 单一事实源在 Nest；此处为导入期坐标守卫的等值副本——导入守卫用同一范围拒绝越界源数据）
+const GULF_BOUNDS = { minLng: 105, maxLng: 115, minLat: 18, maxLat: 25 }
+// 坐标合法性：非 84 坐标系/异常坐标（GCJ 偏移、投影坐标、[0,0]）通常越出业务边界
+// 或落在异常值——统一在此拒绝而非静默入库（坐标系守卫，2026-09-08）
+const isGulfCoord = (lng, lat) =>
+  Number.isFinite(Number(lng)) &&
+  Number.isFinite(Number(lat)) &&
+  lng >= GULF_BOUNDS.minLng &&
+  lng <= GULF_BOUNDS.maxLng &&
+  lat >= GULF_BOUNDS.minLat &&
+  lat <= GULF_BOUNDS.maxLat
+
 // ===== 显式映射常量（新增类型/城市只改这里）=====
 const CITIES = [
   ['qz', '钦州'],
@@ -129,6 +142,13 @@ END $$;
   const portsT = begin('ports')
   portsT.source = ports.length
   for (const p of ports) {
+    if (!isGulfCoord(p.lng, p.lat)) {
+      portsT.filtered++
+      report.warnings.push(
+        `跳过越界坐标港口 ${p.id}（lng=${p.lng} lat=${p.lat} 非84基准/出业务边界）`
+      )
+      continue
+    }
     statements.push(
       `INSERT INTO ports (id, name, address, type, phone, geom) VALUES (${esc(p.id)}, ${esc(p.name)}, ${esc(p.address)}, ${esc(p.type)}, ${esc(p.phone)}, ${pt(p.lng, p.lat)});`
     )
@@ -148,6 +168,13 @@ END $$;
         if (f.lng == null || f.lat == null) {
           poiT.filtered++
           report.warnings.push(`跳过缺坐标 POI ${f.id}（${city}_${fileKey}）`)
+          continue
+        }
+        if (!isGulfCoord(f.lng, f.lat)) {
+          poiT.filtered++
+          report.warnings.push(
+            `跳过越界坐标 POI ${f.id}（${city}_${fileKey}，lng=${f.lng} lat=${f.lat} 非84基准/出业务边界）`
+          )
           continue
         }
         if (seenPoiIds.has(f.id)) {
@@ -173,6 +200,13 @@ END $$;
       if (x.lng == null || x.lat == null) {
         xqT.filtered++
         report.warnings.push(`跳过缺坐标小区 ${x.id}（${city}_xiaoqu）`)
+        continue
+      }
+      if (!isGulfCoord(x.lng, x.lat)) {
+        xqT.filtered++
+        report.warnings.push(
+          `跳过越界坐标小区 ${x.id}（${city}_xiaoqu，lng=${x.lng} lat=${x.lat} 非84基准/出业务边界）`
+        )
         continue
       }
       statements.push(

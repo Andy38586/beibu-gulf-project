@@ -50,10 +50,11 @@ RUN apk add --no-cache nginx \
     --repository "https://dl-cdn.alpinelinux.org/alpine/v$(cut -d. -f1-2 /etc/alpine-release)/community" \
     nginx-mod-http-brotli
 
-# 预备 nginx worker 降权用户（816-专项5主 9）与静态数据挂载点
+# 预备 nginx worker 降权用户与静态数据挂载点
 # （v3 起 static 数据由 compose ro volume 挂载，此处仅建立目录供 alias 存在）
-RUN adduser -D -H -s /sbin/nologin nodeapp -u 1000 \
-  && mkdir -p /app/backend/static/dem /app/backend/static/terrain
+# node:22-alpine 自带 uid 1000 的 node 用户——直接复用为 nginx worker 账户；
+# 此前 adduser -u 1000 新建 nodeapp 与基础镜像 node 用户撞 uid，全新构建必失败
+RUN mkdir -p /app/backend/static/dem /app/backend/static/terrain
 
 # 前端构建产物
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
@@ -61,12 +62,12 @@ COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 # nginx 站点配置（alpine 默认 include /etc/nginx/http.d/*.conf）
 COPY nginx.conf /etc/nginx/http.d/default.conf
 
-# 816-专项5主 9：nginx worker 降权（master 保持 root 绑 80/443；worker 以 nodeapp 运行，
+# nginx worker 降权（master 保持 root 绑 80/443；worker 以内置 node 用户运行，
 # 缩小容器逃逸面）。alpine 主配置若已有 user 指令则替换，否则在 main context 顶部插入。
 RUN if grep -q '^user ' /etc/nginx/nginx.conf; then \
-      sed -i 's/^user .*/user nodeapp;/' /etc/nginx/nginx.conf; \
+      sed -i 's/^user .*/user node;/' /etc/nginx/nginx.conf; \
     else \
-      sed -i '1i user nodeapp;' /etc/nginx/nginx.conf; \
+      sed -i '1i user node;' /etc/nginx/nginx.conf; \
     fi
 
 # 启动脚本（只拉起 nginx；nest / algorithm-service 为 compose 独立服务）

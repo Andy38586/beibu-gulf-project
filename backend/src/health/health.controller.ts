@@ -1,11 +1,14 @@
 import { Controller, Get, Res } from '@nestjs/common'
+import { SkipThrottle } from '@nestjs/throttler'
 import type { Response } from 'express'
 
 import { DbService } from '../infra/db/db.service'
 
-// Express 把探针置于限流器之前；Nest 侧 @nestjs/throttler 的 SkipThrottle
-// 装饰器在 vitest ESM interop 下 named export 丢失（fail fast 修复：暂由全局限流覆盖探针）。
-// 探针 5s 间隔约 180 次/15min，远低于 1000 上限，风险可控；部署整合时统一处理
+// 探针全桶豁免（对齐老 Express「探针置于限流器之前」）：多命名桶限流器默认把
+// login/register 桶（50 次/15min）也套在全部路由上，编排层健康探针 10s 间隔
+// ≈90 次/15min 会耗尽认证桶 → 探针自 429 → 容器永久 unhealthy（v3 首次整栈
+// 实跑实证）。@SkipThrottle 的 ESM interop 顾虑已被 auth 模块同装饰器线上用法推翻。
+@SkipThrottle()
 @Controller('health')
 export class HealthController {
   constructor(private readonly db: DbService) {}

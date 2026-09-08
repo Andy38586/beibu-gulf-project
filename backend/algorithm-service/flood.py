@@ -87,10 +87,31 @@ def _level_key(water_level: float) -> float:
     """0.1m 档位键归一：向上取档。
 
     对齐「宁可高估风险不可低估」安全语义——四舍五入会把 2.53 归到 2.5 低估档；
-    ceil 取更高一档，与 api 模式 find(档 >= level) 同向。
+    ceil 取更高一档，与 fetch 模式 find(档 >= level) 同向。
     water_level*10 减 1e-9 抵消浮点噪声（2.5*10 == 25.000000000000004 不至跳档）。
     """
     return math.ceil(water_level * 10 - 1e-9) / 10
+
+
+# 风险等级六档分段（与 Nest flood.constants.ts RISK_LEVEL_BANDS 同口径互为镜像——
+# 跨语言无双源约束手段，阈值调整须两端同步）。后端权威输出 riskLevel，
+# 前端不再持有阈值表（原 floodAdapter._riskLevelFromFlood 已删）
+_RISK_BANDS: tuple[tuple[float, str], ...] = (
+    (0.0, "无风险"),
+    (2.0, "低风险"),
+    (5.0, "中风险"),
+    (8.0, "高风险"),
+    (10.0, "极高风险"),
+    (float("inf"), "灾难级"),
+)
+
+
+def _risk_level(level: float) -> str:
+    """按（向上取档后的）有效水位取风险档——与 Nest deriveRiskLevel 同向同档。"""
+    for max_level, label in _RISK_BANDS:
+        if level <= max_level:
+            return label
+    return _RISK_BANDS[-1][1]
 
 
 @router.get("/api/flood/online")
@@ -103,13 +124,19 @@ def flood_online(
     # 调引擎生成产物，引擎内部换算会双重扣减。
     offset = datum_offset()
     key = _level_key(waterLevel - offset)
-    # 回显理论基准档位：前端 _riskLevelFromFlood / actualWaterLevel 与 api 模式同口径
+    # 回显理论基准档位：前端 actualWaterLevel 与 fetch 模式同口径；riskLevel 后端权威输出
     echo_level = round(key + offset, 1)
 
     # EGM96 键 < 0（理论水位低于平均海平面）：档位表自 0 起、物理无淹没，直接回空，
     # 不触发 DEM 加载（filled_utm48n_cut.tif 缺失时也不致 500）
     if key < 0:
-        return {"level": echo_level, "featureCount": 0, "floodedKm2": 0.0, "features": []}
+        return {
+            "level": echo_level,
+            "riskLevel": _risk_level(echo_level),
+            "featureCount": 0,
+            "floodedKm2": 0.0,
+            "features": [],
+        }
 
     # ① 预计算档位表查表（0.1m 档，与滑块 step 对齐）——命中秒回，零演算
     pre = _load_levels().get(str(key))
@@ -117,6 +144,7 @@ def flood_online(
         resp = dict(pre)
         # 回显理论基准档位（滑块 step=0.1 → 无"档位偏差"提示噪音）
         resp["level"] = echo_level
+        resp["riskLevel"] = _risk_level(echo_level)
         return resp
 
     # ② LRU 动态演算缓存（查表 miss 的档位，如档位表缺失/越界）
@@ -144,6 +172,7 @@ def flood_online(
             },
         )
     result["level"] = echo_level
+    result["riskLevel"] = _risk_level(echo_level)
     result["elapsedMs"] = round((time.time() - t0) * 1000)
     with _cache_lock:
         # 满 64 档时淘汰最久未访问的条目（popitem(last=False) 移除最旧），

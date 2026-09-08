@@ -47,6 +47,10 @@ services:
       context: ./backend
       dockerfile: Dockerfile.nest
     container_name: beibu-nest
+    env_file:
+      # JWT_SECRET 等运行时密钥由部署侧 .env 注入，不烘焙进镜像
+      #（原仅 app 服务挂 env_file，nest 靠"注释约定"注入 → 容器实际拿不到，启动即 FATAL）
+      - ./backend/.env
     environment:
       NODE_ENV: production
       # 端口统一 3000（nginx 反代目标不变）；PG 走 compose 服务名 postgis

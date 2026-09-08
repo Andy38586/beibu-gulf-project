@@ -97,7 +97,19 @@ def split_at_endpoints(roads: list[RoadLine], tolerance_m: float = SNAP_CELL_M) 
         for piece in pieces:
             seg_m = road.length_m * piece.length / total_plane if total_plane else road.length_m
             c0, c1 = piece.coords[0], piece.coords[-1]
-            out.append(Edge(road.edge_id, road.road_class, seg_m, c0[0], c0[1], c1[0], c1[1]))
+            # 完整折线顶点随段透传：路径可视化须沿真实道路走向（只有端点会画成直线段链）
+            out.append(
+                Edge(
+                    road.edge_id,
+                    road.road_class,
+                    seg_m,
+                    c0[0],
+                    c0[1],
+                    c1[0],
+                    c1[1],
+                    tuple((x, y) for x, y in piece.coords),
+                )
+            )
 
     _logger.info(
         "路网拓扑切分：%d 条原始边 → %d 段（%d 条边被端点投影切分）",

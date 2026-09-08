@@ -7,6 +7,7 @@ import Feature from 'ol/Feature'
 import GeoJSON from 'ol/format/GeoJSON'
 import Point from 'ol/geom/Point'
 import Polygon from 'ol/geom/Polygon'
+import MultiPolygon from 'ol/geom/MultiPolygon'
 import type BaseLayer from 'ol/layer/Base'
 import Heatmap from 'ol/layer/Heatmap'
 import TileLayer from 'ol/layer/Tile'
@@ -386,6 +387,9 @@ export class OLRenderer extends MapRenderer {
   }
 
   addPointLayer(id: string, features: PointFeature[], options: LayerOptions = {}): void {
+    // 幂等防御（与 CesiumRenderer 对齐）：重复 add 同 id 先移除旧图层——
+    // 否则旧 VectorLayer 仍挂在 map 上而 _layers 引用已被覆盖，成为无法回收的孤儿
+    if (this._layers.has(id)) this.removeLayer(id)
     // 数据中存在 opacity<1 或 per-point color 的点 → 走 per-feature 样式分支
     // （选址命中高亮 + 附近设施合并图层 6 色异色）；否则零开销静态样式
     const hasPerPointStyle =
@@ -578,6 +582,8 @@ export class OLRenderer extends MapRenderer {
     }
   }
   addPolygonLayer(id: string, features: PolygonFeature[], options: LayerOptions = {}): void {
+    // 幂等防御（与 CesiumRenderer 对齐）：重复 add 同 id 先移除旧图层
+    if (this._layers.has(id)) this.removeLayer(id)
     // 辅助函数 - 确保坐标环闭合
     const ensureRingClosed = (ring: [number, number][]): [number, number][] | null => {
       if (!ring || ring.length < 3) return null
@@ -598,36 +604,51 @@ export class OLRenderer extends MapRenderer {
         // 验证坐标数组有效性
         if (!Array.isArray(coordinates) || coordinates.length === 0) return null
 
-        let polygonCoords: [number, number][][]
-        if (item.geometry?.type === 'MultiPolygon') {
-          // 验证MultiPolygon坐标结构
-          const multi = coordinates as unknown as [number, number][][][]
-          if (!Array.isArray(multi[0]) || !Array.isArray(multi[0][0])) return null
-          // 验证并闭合每个多边形的坐标环
-          polygonCoords = multi
-            .map((poly) => {
-              const closedRing = ensureRingClosed(poly[0])
-              return closedRing
-                ? closedRing.map(([lng, lat]) => fromLonLat([lng, lat]) as [number, number])
-                : null
-            })
-            .filter((coords) => coords !== null) as [number, number][][]
-          if (polygonCoords.length === 0) return null
-        } else {
-          // 验证Polygon坐标结构
-          const ring = coordinates as [number, number][]
-          if (!Array.isArray(ring[0]) || !Array.isArray(ring[0][0])) return null
-          // 验证并闭合坐标环
-          const closedRing = ensureRingClosed(ring)
-          if (!closedRing) return null
-          polygonCoords = [
-            closedRing.map(([lng, lat]) => fromLonLat([lng, lat]) as [number, number]),
-          ]
+        // 环判别：环 = 点数组（首元素是 [lng,lat]）。环组契约以 CesiumRenderer
+        // 权威实现为准——geometry.type='Polygon' 时 coordinates=[外环,...内环]，
+        // 内环挖洞；无类型元数据的裸 coordinates 取首环（与 Cesium 同口径，不猜孔洞）
+        const isRing = (r: unknown): r is [number, number][] =>
+          Array.isArray(r) && Array.isArray(r[0]) && typeof r[0][0] === 'number'
+
+        // 环组归一：[外环, ...内环] 全量保留（OL Polygon 坐标本就支持内环挖洞），
+        // 每环独立闭合——丢内环会让 2D 把孔洞填实，与 3D 视觉分裂
+        const toClosedRings = (rings: unknown[]): [number, number][][] | null => {
+          const closed = rings
+            .filter(isRing)
+            .map((ring) => ensureRingClosed(ring))
+            .filter((r): r is [number, number][] => r !== null)
+            .map((ring) => ring.map(([lng, lat]) => fromLonLat([lng, lat]) as [number, number]))
+          return closed.length > 0 ? closed : null
         }
-        const feature = new Feature({
-          geometry: new Polygon(polygonCoords),
-        })
-        feature.setProperties({ ...item, featureType: options.featureType || 'polygon' })
+
+        let geometry: Polygon | MultiPolygon
+        if (item.geometry?.type === 'MultiPolygon') {
+          // MultiPolygon：每部件 [外环, ...内环]，构造 ol MultiPolygon
+          //（旧实现把部件数组当单 Polygon 环组——部件 2..N 被当成第 1 部件的孔洞挖掉）
+          const multi = coordinates as unknown as unknown[][]
+          if (!Array.isArray(multi[0]) || !Array.isArray(multi[0][0])) return null
+          const polygons = multi
+            .map((poly) => toClosedRings(poly))
+            .filter((p): p is [number, number][][] => p !== null)
+          if (polygons.length === 0) return null
+          geometry = new MultiPolygon(polygons)
+        } else {
+          // Polygon（有类型）：coordinates 即环组，内环保留
+          // 无类型：裸 coordinates 取首环（Cesium 同口径）
+          const rawRings: unknown[] =
+            item.geometry?.type === 'Polygon'
+              ? (coordinates as unknown as unknown[])
+              : [coordinates[0]]
+          const closedRings = toClosedRings(rawRings)
+          if (!closedRings) return null
+          geometry = new Polygon(closedRings)
+        }
+        const feature = new Feature({ geometry })
+        // 剥离输入形状字段（geometry/coordinates 是渲染器入参结构，非业务展示属性）：
+        // 铺进 setProperties 会把普通对象写进 'geometry' 属性位，OL Feature 的
+        // propertychange 处理器会对它重绑 change 监听（addEventListener 崩溃）
+        const { geometry: _shapeGeom, coordinates: _shapeCoords, ...props } = item
+        feature.setProperties({ ...props, featureType: options.featureType || 'polygon' })
         return feature
       })
       .filter((f) => f !== null) as Feature[]
@@ -687,6 +708,8 @@ export class OLRenderer extends MapRenderer {
     })
   }
   addGeoJsonLayer(id: string, geojson: FeatureCollection, options: LayerOptions = {}): void {
+    // 幂等防御（与 CesiumRenderer 对齐）：重复 add 同 id 先移除旧图层
+    if (this._layers.has(id)) this.removeLayer(id)
     const features = new GeoJSON().readFeatures(geojson, {
       featureProjection: WEB_MERCATOR,
     })
@@ -724,6 +747,8 @@ export class OLRenderer extends MapRenderer {
   }
 
   addHeatmapLayer(id: string, features: PointFeature[], options: LayerOptions = {}): boolean {
+    // 幂等防御（与 CesiumRenderer 对齐）：重复 add 同 id 先移除旧图层
+    if (this._layers.has(id)) this.removeLayer(id)
     const {
       weightField = 'value',
       radius = 20,

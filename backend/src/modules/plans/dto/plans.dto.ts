@@ -44,13 +44,19 @@ export class PlanUpdateBody {
   weights?: unknown
 
   // 对齐 Express updateOne：部分更新，只挑四字段透传；
-  // 注意名称正则仅在 create 校验（Express 现行为如此），update 只做重名检查（controller 层）。
+  // name 正则与 create 同口径校验（update 放行会在改名时写入 create 阶段
+  // 拒绝的非法名称，形成校验绕口——Express 现行为为历史缺口，此处补齐）。
   // 返回普通对象而非类实例：ES2022 define-fields 下类声明字段会以 undefined 进入
   // 自有属性集，repo 的 `key in updates` 判定会把未传字段当"显式传 undefined"覆盖掉
   static parse(raw: unknown): Record<string, unknown> {
     const body = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>
     const updates: Record<string, unknown> = {}
-    if (body.name !== undefined) updates.name = body.name
+    if (body.name !== undefined) {
+      if (typeof body.name !== 'string' || !PLAN_NAME_REGEX.test(body.name)) {
+        throw new BusinessError(ErrorCode.INVALID_PARAMS, PLAN_NAME_MESSAGE)
+      }
+      updates.name = body.name
+    }
     if (body.selectedKeys !== undefined) updates.selectedKeys = body.selectedKeys
     if (body.typeSettings !== undefined) updates.typeSettings = body.typeSettings
     if (body.weights !== undefined) updates.weights = body.weights

@@ -6,20 +6,21 @@
  * 断链语义：不可达/未吸附为合法空结果（提示原因），错误态（网络/503）单独区分。
  */
 
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onUnmounted, ref, watch } from 'vue'
 
-import { AppLayout, GCSPanel, LayerControlPanel, useBusinessLayers, useMapControls } from '@/core'
+import { AppLayout, GCSPanel, LayerControlPanel, useBusinessLayers } from '@/core'
 import { logger, showError, showWarning } from '@/shared'
+import { useMapStore } from '@/stores'
 import type { RoutePathResponse } from '@/types'
 
-import { useRouteApi } from './composables/useRouteApi'
+import { useRouteApi, RouteQueryCancelledError } from './composables/useRouteApi'
 import {
   ROUTE_ENDPOINT_LAYER_ID,
   ROUTE_PATH_LAYER_ID,
   useRouteLayer,
 } from './composables/useRouteLayer'
 
-const { mapInstance } = useMapControls()
+const mapStore = useMapStore()
 const { manager: businessLayerManager } = useBusinessLayers()
 const { queryPath, calculating } = useRouteApi()
 const { updateRouteLayers, clearRouteLayers: clearLayers } = useRouteLayer()
@@ -33,9 +34,6 @@ const to = ref<{ lng: number; lat: number } | null>(null)
 const mode = ref<'distance' | 'time'>('distance')
 const result = ref<RoutePathResponse | null>(null)
 const resultError = ref('')
-const clickListenerRef = ref<
-  ((event: CustomEvent<{ coordinate: [number, number] | null }>) => void) | null
->(null)
 
 const canQuery = computed(() => from.value !== null && to.value !== null)
 
@@ -50,47 +48,55 @@ const summaryText = computed(() => {
     }
     return reasons[result.value.reason] ?? '未找到可达路径'
   }
-  return `里程 ${result.value.distanceM.toFixed(1)} km · 约 ${result.value.durationMin.toFixed(1)} 分`
+  // 后端 distanceM 单位为米，展示折算千米（toFixed(1) 保留百米精度）
+  return `里程 ${(result.value.distanceM / 1000).toFixed(1)} km · 约 ${result.value.durationMin.toFixed(1)} 分`
 })
 
 /** 累加接驳距离（后端只报路网边里程，起终点接入段单独透出） */
 const totalDistanceText = computed(() => {
   if (!result.value || !result.value.found) return ''
   const snap = result.value.snapDistanceM
-  const total = result.value.distanceM + snap.from + snap.to
+  const total = (result.value.distanceM + snap.from + snap.to) / 1000
   return `含接驳共 ${total.toFixed(1)} km（起点接 ${snap.from.toFixed(0)} m / 终点接 ${snap.to.toFixed(0)} m）`
 })
 
 /** 地图点击拾取：渲染器 click 事件（命中要素或空白区均回传坐标） */
-function handlePick(): void {
-  const renderer = mapInstance.value?.getRenderer?.()
-  if (!renderer) return
-  const listener = (event: CustomEvent<{ coordinate: [number, number] | null }>) => {
-    const coordinate = event.detail?.coordinate
-    if (!coordinate || !Array.isArray(coordinate) || coordinate.length < 2) return
-    const lng = Number(coordinate[0])
-    const lat = Number(coordinate[1])
-    if (!Number.isFinite(lng) || !Number.isFinite(lat)) return
-    if (pickStage.value === 'from') {
-      from.value = { lng, lat }
-      pickStage.value = 'none'
-      logger.debug('[RouteAnalysis] 起点已拾取:', from.value)
-    } else if (pickStage.value === 'to') {
-      to.value = { lng, lat }
-      pickStage.value = 'none'
-      logger.debug('[RouteAnalysis] 终点已拾取:', to.value)
-    }
-    // 每次拾取后重绘端点标记
-    updateRouteLayers(
-      businessLayerManager,
-      result.value?.found ? result.value : null,
-      from.value,
-      to.value
-    )
+function handlePick(event: CustomEvent<{ coordinate: [number, number] | null }>): void {
+  const coordinate = event.detail?.coordinate
+  if (!coordinate || !Array.isArray(coordinate) || coordinate.length < 2) return
+  const lng = Number(coordinate[0])
+  const lat = Number(coordinate[1])
+  if (!Number.isFinite(lng) || !Number.isFinite(lat)) return
+  if (pickStage.value === 'from') {
+    from.value = { lng, lat }
+    pickStage.value = 'none'
+    logger.debug('[RouteAnalysis] 起点已拾取:', from.value)
+  } else if (pickStage.value === 'to') {
+    to.value = { lng, lat }
+    pickStage.value = 'none'
+    logger.debug('[RouteAnalysis] 终点已拾取:', to.value)
   }
-  renderer.on('click', listener)
-  clickListenerRef.value = listener
+  // 每次拾取后重绘端点标记
+  updateRouteLayers(
+    businessLayerManager,
+    result.value?.found ? result.value : null,
+    from.value,
+    to.value
+  )
 }
+
+// 拾取监听跟随渲染器实例全生命周期（onMounted 一次性注册有两个丢失窗口：
+// ①渲染器异步初始化晚于挂载时 getRenderer() 为 null 静默 return；
+// ②引擎切换重建渲染器后旧监听随旧实例销毁、新实例无监听——拾取永久失效。
+// watch mapStore.currentRenderer 同时覆盖初次就绪与切换重建，immediate 兜挂载前就绪）
+watch(
+  () => mapStore.currentRenderer,
+  (renderer, old) => {
+    old?.off?.('click', handlePick)
+    renderer?.on?.('click', handlePick)
+  },
+  { immediate: true }
+)
 
 /** 发起查询 */
 async function handleQuery(): Promise<void> {
@@ -118,6 +124,8 @@ async function handleQuery(): Promise<void> {
     }
     updateRouteLayers(businessLayerManager, resp.found ? resp : null, from.value, to.value)
   } catch (error) {
+    // 被新请求抢占/组件卸载取消：静默返回（取消不是失败，最新请求负责更新 UI）
+    if (error instanceof RouteQueryCancelledError) return
     const msg = error instanceof Error ? error.message : '路径查询失败'
     resultError.value = msg
     showError(msg, { fallback: '路径查询失败，请稍后重试' })
@@ -144,16 +152,10 @@ function startPickTo(): void {
   pickStage.value = pickStage.value === 'to' ? 'none' : 'to'
 }
 
-// 地图点击监听只挂一次；renderer 在引擎切换后可能被重建，路由切换时由 App 解绑旧实例
-onMounted(handlePick)
-
 onUnmounted(() => {
-  // 解绑渲染器 click 监听（与 onMounted 配对；引擎切换/路由离开不留泄漏）
-  const renderer = mapInstance.value?.getRenderer?.()
-  if (renderer && clickListenerRef.value) {
-    renderer.off?.('click', clickListenerRef.value)
-    clickListenerRef.value = null
-  }
+  // 解绑当前渲染器 click 监听（与 watch 注册配对；UnifiedMap 卸载会置
+  // currentRenderer=null 触发 watch off，此处兜底页面先于地图卸载的时序）
+  mapStore.currentRenderer?.off?.('click', handlePick)
   clearLayers(businessLayerManager)
 })
 </script>

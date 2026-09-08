@@ -13,9 +13,11 @@ const fixtures: Record<string, unknown> = {
   // calculate 模式：FastAPI /flood-online 返回裸 JSON（无信封），envelope:false 直传
   '/flood-online/api/flood/online': {
     level: 5,
+    // riskLevel 后端权威输出（FastAPI _risk_level 与 Nest 同口径，前端阈值表已删）
+    riskLevel: '中风险',
     featureCount: 1,
     floodedKm2: 12.5,
-    // 与 flood_engine.py 同构：properties 仅 {area}，无 riskLevel（由 adapter 校验后注入）
+    // 与 flood_engine.py 同构：properties 仅 {area}，riskLevel 由 adapter 注入 properties
     features: [
       {
         type: 'Feature',
@@ -182,11 +184,11 @@ describe('floodAdapter', () => {
   })
 
   describe('calculate 模式（flood-service FastAPI 实时演算）', () => {
-    it('getFloodAnalysis 应调 /flood-online/api/flood/online 并注入 riskLevel（FastAPI 无该字段，回归 0816-06）', async () => {
+    it('getFloodAnalysis 应调 /flood-online/api/flood/online 并透传后端 riskLevel（后端权威回归）', async () => {
       floodAdapter.setDataSource('calculate')
       const result = await floodAdapter.getFloodAnalysis(5)
       expect(result.features).toHaveLength(1)
-      // level 5 → 中风险（_riskLevelFromFlood 阈值表：≤5 中 / ≤8 高）
+      // riskLevel 由 FastAPI _risk_level 权威输出（前端不再持阈值表）
       expect(result.features[0].properties.riskLevel).toBe('中风险')
       expect(result.statistics.floodArea).toBe(12.5)
       expect(result.actualWaterLevel).toBe(5)

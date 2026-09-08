@@ -1,6 +1,6 @@
 /**
  * floodAdapter — 浸没分析数据适配器，隔离业务层与数据源。
- * api 模式走 Express 后端 /flood/*；online 模式走 flood-service FastAPI 实时演算。
+ * fetch 模式走 Nest 后端 /flood/* 查表；calculate 模式走 algorithm-service FastAPI 实时演算。
  * 静态数据已移交后端，字段由后端对齐类型契约，前端不再做字段映射。
  */
 
@@ -50,19 +50,9 @@ interface RequestOptions {
   signal?: AbortSignal
 }
 
-/**
- * calculate 模式风险等级：与后端 floodAnalysisController.deriveRiskLevel 同表（后端为唯一权威，
- * 消除双实现阈值分歧；6 档：0 无 / 2 低 / 5 中 / 8 高 / 10 极高 / 15 灾难级）。
- * FastAPI 不返回 riskLevel，此映射仅为该字段补齐；fetch 模式 riskLevel 由后端注入直接透传。
- */
-function _riskLevelFromFlood(floodedKm2: number, level: number): string {
-  if (level <= 0 || floodedKm2 <= 0) return '无风险'
-  if (level <= 2) return '低风险'
-  if (level <= 5) return '中风险'
-  if (level <= 8) return '高风险'
-  if (level <= 10) return '极高风险'
-  return '灾难级'
-}
+// riskLevel 双模式均由后端权威输出（fetch 模式 Nest 注入、calculate 模式 FastAPI
+// _risk_level 输出，两端口径同表），前端不持有风险阈值表——原 _riskLevelFromFlood
+// 双实现是跨端漂移源，已删
 
 /** 调用 FastAPI 实时演算（vite proxy /flood-online → localhost:8000），统一入口 useApiRequest（envelope:false——FastAPI 返回裸 JSON 无信封） */
 async function _fetchOnlineFlood(
@@ -70,23 +60,25 @@ async function _fetchOnlineFlood(
   signal?: AbortSignal
 ): Promise<{
   level: number
+  riskLevel: string
   featureCount: number
   floodedKm2: number
   features: FloodFeature[]
 }> {
   const raw = await apiRequest<FloodOnlineResponseParsed>(ENDPOINTS.flood.online, {
     method: 'GET',
-    // b027：参数名统一 waterLevel（原 level 与 api 模式分裂；FastAPI 端已同步改名）
+    // b027：参数名统一 waterLevel（原 level 与 fetch 模式分裂；FastAPI 端已同步改名）
     params: { waterLevel },
     signal,
     envelope: false,
     // 校验交给 apiRequest 的 schema 选项（zod schema=运行时数据校验；envelope:false 时校验裸响应，无需手动 safeParse）
     schema: floodOnlineResponseSchema,
   })
-  // D1：schema 已对 features 元素深校验（geometry/coordinates 形状）；riskLevel 由调用方注入 properties，
-  // 此处断言仅为类型收窄（z.infer 派生类型与业务类型同源，见 types/business/base.ts）
+  // D1：schema 已对 features 元素深校验（geometry/coordinates 形状）；riskLevel 为
+  // 后端权威字段（schema 必校验）。此处断言仅为类型收窄（z.infer 派生类型与业务类型同源）
   return raw as {
     level: number
+    riskLevel: string
     featureCount: number
     floodedKm2: number
     features: FloodFeature[]
@@ -133,7 +125,8 @@ export const floodAdapter = {
       )
       // schema 已要求 floodedKm2/level 必为有限数字（z.number() 连 NaN 也拒绝），
       // 缺失/坏值在 HTTP 边界即抛 REQUEST_FAILED，此处无需兜底
-      const riskLevel = _riskLevelFromFlood(data.floodedKm2, data.level)
+      // riskLevel 后端权威输出（前端阈值表已删，两模式同源）
+      const riskLevel = data.riskLevel
       // D1：schema 已深校验；此处仅补 riskLevel 注入 properties（类型收窄，非穿透）
       const features = (data.features ?? []).map((f) => ({
         ...f,

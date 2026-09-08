@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // 统一地图容器：OL/Cesium双引擎，v-show切换，渲染器实例复用不销毁
 import type { Feature, FeatureCollection, Point } from 'geojson'
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 
 import MapFacilityBubble from '@/core/map/components/MapFacilityBubble.vue'
 import MapFeatureBubble from '@/core/map/components/MapFeatureBubble.vue'
@@ -49,10 +49,13 @@ const switching = ref(false)
 const pendingSwitchType = ref<'2d' | '3d' | null>(null)
 const loadError = ref('')
 const boundaryWarning = ref('')
-const currentRenderer = ref<MapRenderer | null>(null)
+// 渲染器实例必须 shallowRef：深度 ref 会把 OL Map/Cesium Viewer 包成 reactive Proxy，
+// 引擎内部身份比较（getSource()===、事件 target）与拖拽帧性能都被 proxy/raw 双身份破坏；
+// store 层（mapStore）同用 shallowRef，全系统渲染器保持 raw 单一身份
+const currentRenderer = shallowRef<MapRenderer | null>(null)
 const mapStore = useMapStore()
-const olRenderer = ref<MapRenderer | null>(null)
-const cesiumRenderer = ref<MapRenderer | null>(null)
+const olRenderer = shallowRef<MapRenderer | null>(null)
+const cesiumRenderer = shallowRef<MapRenderer | null>(null)
 const cesiumInitialized = ref(false)
 
 // ── 要素气泡（2D）：悬浮即显移开即隐，点击钉住并随 POI 跟随；同一时刻仅一个 ──
@@ -625,10 +628,11 @@ onUnmounted(() => {
   switching.value = false
   pendingSwitchType.value = null
 
-  // 引擎切换/卸载前解绑 click 监听（注册/移除配对契约；两个缓存渲染器都解绑，
-  // 仅解绑当前渲染器会在复用旧实例时残留监听）
+  // 引擎切换/卸载前解绑 click 与 hover 监听（注册/移除配对契约；两个缓存渲染器都解绑，
+  // 仅解绑当前渲染器会在复用旧实例时残留监听；hover 与 click 同源于 setupEvents 成对注册）
   ;[olRenderer.value, cesiumRenderer.value].forEach((r) => {
     r?.off?.('click', handleRendererClick)
+    r?.off?.('hover', handleRendererHover)
   })
 
   // 遍历销毁两个缓存渲染器（而非只销毁当前渲染器），销毁后 ref 显式置空

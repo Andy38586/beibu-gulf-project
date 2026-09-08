@@ -176,6 +176,13 @@ describe.skipIf(!withDb)('plans e2e（连真库）', () => {
       .send({ name: '重名参照方案' })
       .expect(409)
     expect(dup.body).toEqual({ code: 409002, error: '方案名称已存在', data: null })
+    // update 的 name 正则与 create 同口径（历史缺口：update 曾可写入 create 拒绝的非法名）
+    const badName = await request(app.getHttpServer())
+      .put(`/nest-api/plans/${a.body.data.id}`)
+      .set('Cookie', cookieU1)
+      .send({ name: '非法名称!<>' })
+      .expect(400)
+    expect(badName.body.code).toBe(400001)
   })
 
   it('delete 属主 → 204 无响应体；再删 → 404', async () => {

@@ -209,14 +209,20 @@ async function handleRemoveFavorite(fav: FavoriteItem): Promise<void> {
   }
 }
 
-/** 选址分析类型的小区（score > 0） */
-function getSiteXiaoqu(plan: Plan): SavedXiaoqu[] {
-  return plan.savedXiaoqu?.filter((xq) => xq.score > 0) || []
+/** 浸没扩展字段（type=设施类型 / loss=损失额）仅受影响设施携带，小区恒无——
+ * 以显式字段判别业务类型，score 数值巧合判型在 0 分小区/评分规则调整时会误分组 */
+function isFloodItem(xq: SavedXiaoqu): boolean {
+  return xq.type != null || xq.loss != null
 }
 
-/** 浸没分析类型的设施（score === 0） */
+/** 选址分析类型的小区（score 仅作排序展示，不参与类型判别） */
+function getSiteXiaoqu(plan: Plan): SavedXiaoqu[] {
+  return plan.savedXiaoqu?.filter((xq) => !isFloodItem(xq)) || []
+}
+
+/** 浸没分析类型的设施 */
 function getFloodFacilities(plan: Plan): SavedXiaoqu[] {
-  return plan.savedXiaoqu?.filter((xq) => !xq.score || xq.score === 0) || []
+  return plan.savedXiaoqu?.filter((xq) => isFloodItem(xq)) || []
 }
 
 // 监听登录状态：登录自动加载，登出清空

@@ -170,9 +170,13 @@ onMounted(() => {
   // ② +6s  后端 DEM 引擎暖机——/flood/online 查 0 档触发 FastAPI load_dem 模块加载，首次真实演算免等。
   // 任一项失败均静默——预热只是优化，正式路径自会按需加载。
   const warmup = (delayMs: number, task: () => void) => {
-    window.addEventListener('load', () => {
+    // SPA 挂载时 load 事件常已触发（readyState complete），再 addEventListener 永不回调，
+    // 预热队列会整体静默丢失——此时直接排定时任务；未触发才挂一次性监听
+    if (document.readyState === 'complete') {
       setTimeout(task, delayMs)
-    })
+      return
+    }
+    window.addEventListener('load', () => setTimeout(task, delayMs), { once: true })
   }
   warmup(3000, preloadCesium)
   warmup(6000, () => {

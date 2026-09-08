@@ -14,7 +14,7 @@ vi.mock('@/shared', async (importOriginal) => {
 
 import { useApiRequest } from '@/shared'
 
-import { useRouteApi } from '../useRouteApi'
+import { useRouteApi, RouteQueryCancelledError } from '../useRouteApi'
 
 // mock fetch（apiRequest 内部走 fetch；/flood-online 前缀跨服务直通，envelope:false 不解信封）
 const mockFetch = vi.fn()
@@ -99,7 +99,7 @@ describe('useRouteApi', () => {
     expect((err as ApiError).code).toBe(ErrorCode.REQUEST_FAILED)
   })
 
-  it('取消在途请求:计算中 abort 后返回合法空（静默不写错误）', async () => {
+  it('取消在途请求：抛 RouteQueryCancelledError（取消≠业务失败，不伪造 unreachable）', async () => {
     // 模拟真实 fetch 的 abort 行为：signal abort 时 reject AbortError（真实 fetch 如是）
     mockFetch.mockImplementationOnce(
       (_url: string, init?: { signal?: AbortSignal }) =>
@@ -116,8 +116,7 @@ describe('useRouteApi', () => {
     const { queryPath, cancel, calcError } = useRouteApi()
     const pending = queryPath({ fromLng: 1, fromLat: 2, toLng: 3, toLat: 4 })
     cancel() // 取消在途请求（AbortController.abort → fetch reject）
-    const result = await pending
-    expect(result.found).toBe(false)
-    expect(calcError.value).toBe('')
+    await expect(pending).rejects.toBeInstanceOf(RouteQueryCancelledError)
+    expect(calcError.value).toBe('') // 取消不写错误文案
   })
 })

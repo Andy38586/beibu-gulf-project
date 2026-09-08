@@ -40,7 +40,9 @@ const router = useRouter()
 watch(user, (u) => {
   if (!u) return
   const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : ''
-  if (!redirect) return
+  // 仅允许站内路径跳转（防 open redirect）：必须以 / 开头且非协议相对 //host，
+  // 完整 URL（http(s):/data: 等）与外部域名一律落回默认首页
+  if (!redirect || !redirect.startsWith('/') || redirect.startsWith('//')) return
   void router.replace(redirect)
 })
 

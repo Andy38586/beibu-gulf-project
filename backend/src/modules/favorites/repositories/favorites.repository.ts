@@ -33,8 +33,10 @@ export class FavoritesRepository {
       itemType: row.item_type,
       itemId: row.item_id,
       name: row.name ?? '',
-      lng: row.lng ?? 0,
-      lat: row.lat ?? 0,
+      // 缺失坐标保持 null 透传（crs.ts 全栈 (0,0) 哨兵禁令：伪造成 (0,0) 会把
+      // 几内亚湾点位混进收藏列表；前端 Number.isFinite 过滤已就位）
+      lng: row.lng,
+      lat: row.lat,
       snapshot: row.snapshot ?? null,
       savedAt: row.created_at,
     }

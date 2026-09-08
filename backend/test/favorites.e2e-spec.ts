@@ -178,4 +178,26 @@ describe.skipIf(!withDb)('favorites e2e（连真库）', () => {
       .expect(200)
     expect(u2List.body.data).toHaveLength(1)
   })
+
+  it('缺失坐标（DB NULL）→ null 透传，不伪造 (0,0) 哨兵', async () => {
+    // 直插 NULL 坐标行模拟存量脏数据：list 视图必须原样 null——伪造成 (0,0)
+    // 会把几内亚湾点位混进收藏列表/地图定位（crs 全栈哨兵禁令）
+    const userRow = await db.query<{ id: string }>(
+      "SELECT id FROM users WHERE username = '__t3_fav_e2e_u1'"
+    )
+    const userId = userRow.rows[0].id
+    await db.query(
+      `INSERT INTO favorites (id, user_id, item_type, item_id, name, lng, lat, snapshot, created_at)
+       VALUES ('__t3_fav_nullcoord', $1, 'xiaoqu', 'null-coord-xq', '无坐标小区', NULL, NULL, NULL, now())`,
+      [userId]
+    )
+    const res = await request(app.getHttpServer())
+      .get('/nest-api/favorites')
+      .set('Cookie', cookieU1)
+      .expect(200)
+    const item = res.body.data.find((f: { itemId: string }) => f.itemId === 'null-coord-xq')
+    expect(item).toBeDefined()
+    expect(item.lng).toBeNull()
+    expect(item.lat).toBeNull()
+  })
 })

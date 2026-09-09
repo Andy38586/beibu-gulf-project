@@ -112,7 +112,11 @@ export const floodAdapter = {
     // calculate：FastAPI 连通性淹没实时演算，adapter 隔离保证业务层零改动
     if (dataSource === 'calculate') {
       // 档位缓存：同档位直接复用上次结果（滑块来回拖秒回，不重发请求不重绘）
-      const levelKey = Math.round(waterLevel * 10) / 10
+      // 取档口径对齐后端 flood.py:_level_key（ceil + 1e-9，宁高估语义）：原 Math.round 在
+      // x.x5 浮点边界归低档且与后端 ceil 错位，两位小数水位（快照恢复）会同键串档
+      //（12.04/12.0 同键，后者命中前者结果）；datum_offset 是后端垂直基准换算，前端不复刻，
+      // 实际档位以响应 actualWaterLevel 为权威
+      const levelKey = Math.ceil(waterLevel * 10 - 1e-9) / 10
       const hit = _calculateLevelCache.get(levelKey)
       if (hit) {
         logger.debug(`[floodAdapter] calculate 缓存命中档位 ${levelKey}`)

@@ -11,13 +11,13 @@
 
 ### 1. 选址分析（2D 空间运算）
 
-- 基于 Turf.js 的多缓冲区叠加与点面判断，覆盖 6 类设施、**983 个 POI**，rbush 空间索引加速范围查询
-- 可达性衰减评分模型（线性 / 指数 / 阶梯三档，生产链路现采用线性衰减），对 **557 个小区**输出 TOP10 排序与雷达图可视化
+- 基于 Turf.js 的多缓冲区叠加与点面判断，覆盖 6 类设施、**2,846 个 POI**（三城库内口径，含 port_pier 196），rbush 空间索引加速范围查询
+- 可达性衰减评分模型（线性 / 指数 / 阶梯三档，生产链路现采用线性衰减），对 **2,456 个小区**输出 TOP10 排序与雷达图可视化
 
 ### 2. 预测分析（趋势可视化）
 
 - 2021–2031 月 / 年双粒度时间轴 + 播放动画；趋势折线 / 三港对比柱状 / 地图热力三视图联动
-- 预测模型：季节分解 + 线性回归，三港离线回测 **MAPE 1.4%–2.3%**（`tools/throughput_model.cjs`）
+- 预测模型：季节分解 + 线性回归，三港离线回测 **MAPE（滚动原点 s12）：cargo 6.75~12.15%、container 12.26~18.39%**（钦州/北海/防城港；训练 2021-01~2024-12，验证 2025-01~2026-06 不参与拟合；平陆运河未建模，完整口径见 `tools/README.md`）
 - ECharts 异步加载（537KB 移出首屏）+ 请求竞态守卫（AbortController）+ LRU 缓存
 
 ### 3. 洪涝三维模拟（3D 浸没演算）
@@ -28,16 +28,16 @@
 
 ## 技术栈
 
-| 层       | 选型                                    | 说明                                                                |
-| -------- | --------------------------------------- | ------------------------------------------------------------------- |
-| 前端     | Vue 3 + TypeScript + Vite + Pinia       | Composition API，分层架构（见下）                                   |
-| 地图 2D  | OpenLayers                              | 低功耗 / 低需求场景默认引擎                                         |
-| 地图 3D  | Cesium                                  | 按需懒加载，不常驻首屏                                              |
-| 图表     | ECharts                                 | 仅预测页异步加载                                                    |
-| 后端     | Node.js + Express 5                     | routes → controllers → services → repositories 分层                 |
-| 在线演算 | Python + FastAPI                        | 真 DEM 淹没演算，仅重计算场景                                       |
-| 数据     | JSON / GeoJSON                          | PostgreSQL + PostGIS v3 栈已就绪（`docker-compose.v3.yml`），演进中 |
-| 部署     | Docker Compose + Nginx + GitHub Actions | 双容器 + HTTPS 证书自动续期                                         |
+| 层       | 选型                                    | 说明                                                                            |
+| -------- | --------------------------------------- | ------------------------------------------------------------------------------- |
+| 前端     | Vue 3 + TypeScript + Vite + Pinia       | Composition API，分层架构（见下）                                               |
+| 地图 2D  | OpenLayers                              | 低功耗 / 低需求场景默认引擎                                                     |
+| 地图 3D  | Cesium                                  | 按需懒加载，不常驻首屏                                                          |
+| 图表     | ECharts                                 | 仅预测页异步加载                                                                |
+| 后端     | Node.js + NestJS（TypeScript）          | controller → service → repository 三层，pg 仅 repository 层                     |
+| 在线演算 | Python + FastAPI                        | 真 DEM 淹没演算，仅重计算场景                                                   |
+| 数据     | PostgreSQL + PostGIS + 静态 JSON        | 库已承载选址/方案/收藏/洪涝查询（空间算子下沉库内）；预测/地形/静态资源为文件源 |
+| 部署     | Docker Compose + Nginx + GitHub Actions | 支持挂载 TLS 证书启用 HTTPS（手动），已预留 ACME 挑战目录                       |
 
 ## 架构
 
@@ -70,11 +70,11 @@ npm install
 # 2. 洪涝演算服务依赖（可选，仅在线演算链路需要）
 pip install -r backend/flood-service/requirements.txt
 
-# 3. 一键启动：前端 Vite (5173) + Express (3000) + 洪涝服务 (8000)
+# 3. 一键启动：前端 Vite (5173) + NestJS (3000) + 洪涝服务 (8000)
 npm run dev:all
 ```
 
-访问 <http://localhost:5173>。Express 支持可选 `.env`（后端目录），无配置时以默认参数启动。
+访问 <http://localhost:5173>。NestJS 读可选 `backend/.env`；缺必填项（如 JWT_SECRET）启动时 fail fast，不带弱配置起服务。
 
 ## 测试与质量门禁
 
@@ -95,7 +95,7 @@ CI（GitHub Actions）：lint + 类型检查 + 双端测试 + API 契约校验 +
 docker compose up -d --build
 ```
 
-双容器架构：`app`（前端静态资源 + Node API，Nginx 80/443 反代）+ `flood-service`（FastAPI 在线演算）。生产环境由 CI 自动部署至云服务器，HTTPS 证书自动续期。
+双容器架构：`app`（前端静态资源 + Node API，Nginx 80 反代）+ `flood-service`（FastAPI 在线演算）。生产环境由 CI 自动部署至云服务器；HTTPS 需手动挂载 TLS 证书（`./certs/`），已预留 ACME 挑战目录。
 
 ## 文档
 

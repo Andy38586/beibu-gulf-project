@@ -34,7 +34,7 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const emit = defineEmits<{
-  // 816-专项3-0816-16：事件名改 kebab-case（03 1.2 命名约定；原 typeChange camelCase）
+  // 事件名改 kebab-case（03 1.2 命名约定；原 typeChange camelCase）
   'type-change': [newType: '2d' | '3d']
   click: [payload: MapRendererEventMap['click']]
   error: [error: Error]
@@ -334,7 +334,7 @@ function setupLayers() {
   }
 }
 
-// 816-专项3-0816-09：类型谓词替代双重断言——featureType==='port' 时 data 应为港口属性，
+// 类型谓词替代双重断言——featureType==='port' 时 data 应为港口属性，
 // 谓词做运行期最小形状校验（判别来源：usePortLayer properties = {...port, featureType}）
 function isPortEventData(data: unknown): data is Port {
   if (!data || typeof data !== 'object') return false
@@ -375,7 +375,7 @@ function handleRendererClick(event: CustomEvent<MapRendererEventMap['click']>): 
     }
   } else if (
     is2D &&
-    // 业务前缀防跨模块 featureType 冲突（a066）；与 business/site-selection useAnalysisLayer 的
+    // 业务前缀防跨模块 featureType 冲突；与 business/site-selection useAnalysisLayer 的
     // NEARBY_FACILITY_LAYER_ID 同值，core 不引 business（分层铁律），此处字面同步
     featureType === 'site-nearby-facility' &&
     data &&
@@ -466,10 +466,11 @@ async function switchMapType(newType: '2d' | '3d') {
       cameraState = currentRenderer.value.exportState()
     }
 
-    // 3D→2D 时先停呼吸灯 rAF（挂在 Cesium 渲染器上，不停止会泄漏动画循环），再 unmount Cesium
+    // 3D→2D 时先停两种呼吸灯 rAF（都挂在 Cesium 渲染器上，不停止会泄漏动画循环），再 unmount Cesium
     //（暂停渲染 + 启动闲置销毁；短时切回由 mount 取消销毁）
     if (oldType === '3d' && newType === '2d') {
       currentRenderer.value?.stopBreathing()
+      currentRenderer.value?.stopFacilityBreathing()
       const { cesiumViewerManager } = await import('@/core/map/renderers/CesiumRenderer')
       cesiumViewerManager.unmount()
     }
@@ -786,7 +787,7 @@ defineExpose({
 
   /* S7 P1-1：硬编码黄 → 语义警告色 token（暗色下柔和橙替代刺眼亮黄） */
   background: var(--GCS-color-warning);
-  padding: 6px 12px; /* 6px/12px 非8的整数倍，保留（816-S7-51 复核：已登记取舍项） */
+  padding: 6px 12px; /* 6px/12px 非8的整数倍，保留（ 复核：已登记取舍项） */
   border-radius: 6px;
   font-size: 13px;
   z-index: var(--GCS-z-map-overlay);

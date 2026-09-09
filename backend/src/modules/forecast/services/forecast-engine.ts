@@ -1,6 +1,6 @@
 // ForecastEngine 逐行等价移植（backend/services/forecastEngine.js，算法不改写——
 // 改写属算法审查域须另行立项）。确定性：固定种子 LCG（Park-Miller），
-// 种子由 timePoint + 港口索引哈希得到，禁止 Math.random 参与业务数值（02 §5.6.1）
+// 种子由 timePoint + 港口索引哈希得到，禁止 Math.random 参与业务数值
 
 export interface HistoricalPoint {
   time: string
@@ -68,8 +68,11 @@ export function computeForecast(
 
     const yearsFromBase = i / 12
     // 趋势外推: 基值 × (1 + 年增长率 × 情景系数)^年数
-    const trendValue =
-      lastHistorical.value * Math.pow(1 + avgAnnualGrowth * scenarioLevel, yearsFromBase)
+    // 底数守卫：负底数经 Math.pow 产出 NaN 静默散射（潜在缺陷——当前链路 growthRate>-1
+    // 且 scenarioLevel 恒 1.0 不可触发，防御未来放开 scenarioLevel 为负值/大幅值）；
+    // clamp 到 0 使预测值归零（宁保守）而非 NaN
+    const trendBase = Math.max(0, 1 + avgAnnualGrowth * scenarioLevel)
+    const trendValue = lastHistorical.value * Math.pow(trendBase, yearsFromBase)
 
     // 季节性调整（简单月均比例）
     const seasonalFactor = getSeasonalFactor(sorted, month)

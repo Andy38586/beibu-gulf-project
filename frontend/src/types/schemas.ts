@@ -153,7 +153,7 @@ export const forecastMapDataSchema = z.looseObject({
         portId: z.string(),
         portName: z.string(),
         value: z.number(),
-        // 816-专项3-0816-14：reliability 对齐 ForecastMapData 类型声明（原 schema 未枚举，looseObject 透传）
+        // reliability 对齐 ForecastMapData 类型声明（原 schema 未枚举，looseObject 透传）
         reliability: z.number().optional(),
       }),
     })
@@ -199,7 +199,7 @@ export const planSchema = z.looseObject({
   typeSettings: z.record(z.string(), z.unknown()),
   // savedXiaoqu 必须 optional：存量 plans.json 记录大多无此字段，必填会拒绝旧数据
   savedXiaoqu: z.array(z.unknown()).optional(),
-  // 816-专项3-0816-04：weights 由后端持久化（旧数据 null），前端声明但当前不消费
+  // weights 由后端持久化（旧数据 null），前端声明但当前不消费
   weights: z.record(z.string(), z.number()).nullable().optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
@@ -234,7 +234,7 @@ export type TerrainProfileParsed = z.infer<typeof terrainProfileSchema>
 // ⑬ /site-analysis 响应（GeoJSON 不深校验）
 export const siteAnalysisResponseSchema = z.looseObject({
   error: z.string().nullable(),
-  // 8-1：无重叠区域 = 合法空结果标记（02 §4.1），非错误信封
+  // 无重叠区域 = 合法空结果标记，非错误信封
   empty: z.boolean().optional(),
   emptyReason: z.string().optional(),
   coverage: z.unknown().nullable(),
@@ -273,7 +273,7 @@ export const floodStatisticsResponseSchema = z.looseObject({
   floodArea: z.number().optional(),
   averageDepth: z.number().optional(),
   maxDepth: z.number().optional(),
-  // 816-专项1 发现7（M5）：计数语义改名 affectedFacilityCount（原 affectedFacilities 与数组语义同名不同型）
+  // （M5）：计数语义改名 affectedFacilityCount（原 affectedFacilities 与数组语义同名不同型）
   affectedFacilityCount: z.number().optional(),
   affectedPorts: z.array(z.string()).optional(),
   estimatedLoss: z.number().optional(),
@@ -337,14 +337,20 @@ export type FavoriteItemParsed = z.infer<typeof favoriteItemSchema>
 
 export const favoritesArraySchema = z.array(favoriteItemSchema)
 
+export type FavoritesArrayParsed = z.infer<typeof favoritesArraySchema>
+
 export const favoriteAddResponseSchema = z.object({
   favorite: favoriteItemSchema,
   existed: z.boolean(),
 })
 
+export type FavoriteAddResponseParsed = z.infer<typeof favoriteAddResponseSchema>
+
 export const favoriteRemoveResponseSchema = z.object({
   removed: z.boolean(),
 })
+
+export type FavoriteRemoveResponseParsed = z.infer<typeof favoriteRemoveResponseSchema>
 
 // ⑳ GET /route/path 响应（FastAPI 裸 JSON，envelope:false 直通）：判别 found 分成功/合法空两路。
 // 不可达/未吸附是合法空结果（专项8 7.2 断链语义），不是错误。
@@ -365,3 +371,19 @@ export const routePathResponseSchema = z.discriminatedUnion('found', [
 ])
 
 export type RoutePathResponseParsed = z.infer<typeof routePathResponseSchema>
+
+// ㉑ GET /site-analysis/pois 响应（Nest 信封 data 段）：航线分析选点的 POI 关键词搜索。
+// name/type 服务端 NOT NULL；district 可空；坐标 4326（crs 禁令）
+export const poiSearchItemSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  type: z.string(),
+  city: z.string(),
+  district: z.string().nullable(),
+  lng: z.number(),
+  lat: z.number(),
+})
+
+export const poiSearchResponseSchema = z.array(poiSearchItemSchema)
+
+export type PoiSearchItemParsed = z.infer<typeof poiSearchItemSchema>

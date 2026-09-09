@@ -150,6 +150,9 @@ export const useMapStore = defineStore('map', () => {
    */
   function resetMapState(): void {
     layerCatalog.value = layerCatalog.value.filter((e: LayerEntry) => e.category !== 'business')
+    // lastBaseRenderer 一并失效：登出/业务切换后同 key 切底图不得被 no-op 短路，
+    // 须对当前渲染器重放（setBaseLayer 幂等），避免渲染器重建后底图静默不跟随
+    lastBaseRenderer = null
   }
 
   return {

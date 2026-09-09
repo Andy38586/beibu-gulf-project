@@ -13,6 +13,7 @@ import {
   forecastMapDataSchema,
   indicatorComparisonResponseSchema,
   planSchema,
+  poiSearchResponseSchema,
   terrainProfileSchema,
   timeSeriesResponseSchema,
   waterAreaSchema,
@@ -239,6 +240,35 @@ describe('flood schemas（真实数据 + 构造样本）', () => {
     })
     const bad = floodOnlineResponseSchema.safeParse({ level: 2.5 }) // 缺 floodedKm2
     expect(ok.success).toBe(true)
+    expect(bad.success).toBe(false)
+  })
+})
+
+describe('poiSearch schemas（构造样本双向验证）', () => {
+  it('poiSearchResponseSchema 合法 POI 数组通过', () => {
+    const ok = poiSearchResponseSchema.safeParse([
+      {
+        id: 'poi-1',
+        name: '北海港码头',
+        type: 'port',
+        city: '北海市',
+        district: '海城区',
+        lng: 109.1,
+        lat: 21.5,
+      },
+    ])
+    expect(ok.success, JSON.stringify(ok.error?.issues)).toBe(true)
+  })
+
+  it('poiSearchResponseSchema 缺字段的畸形元素被拒绝（元素级深校验）', () => {
+    const bad = poiSearchResponseSchema.safeParse([
+      { id: 'poi-1', name: '缺 city/lng/lat' }, // 其余必填字段缺失
+    ])
+    expect(bad.success).toBe(false)
+  })
+
+  it('poiSearchResponseSchema 非数组载体被拒绝', () => {
+    const bad = poiSearchResponseSchema.safeParse({ id: 'poi-1' })
     expect(bad.success).toBe(false)
   })
 })

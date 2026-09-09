@@ -123,8 +123,9 @@ vi.mock('@/core/map/renderers', () => {
     destroy: vi.fn(),
     // UnifiedMap onUnmounted 对 Cesium 渲染器走 unmount（保留 viewer 供复用）
     unmount: vi.fn(),
-    // W4-11：3D→2D 切换前组件调 stopBreathing（双引擎公共能力，mock 需补齐）
+    // W4-11：3D→2D 切换前组件调 stopBreathing/stopFacilityBreathing（双引擎公共能力，mock 需补齐）
     stopBreathing: vi.fn(),
+    stopFacilityBreathing: vi.fn(),
     updateSize: vi.fn(),
     getMap: vi.fn().mockReturnValue({}),
     getViewer: vi.fn().mockReturnValue({}),

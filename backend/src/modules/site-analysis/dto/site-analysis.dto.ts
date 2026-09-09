@@ -16,3 +16,14 @@ export interface TypeSetting {
   importance?: number
   [key: string]: unknown
 }
+
+// POI 关键词搜索结果项（航线分析选点用；坐标 4326 由 SQL ST_Transform 出）
+export interface PoiSearchItem {
+  id: string
+  name: string
+  type: string
+  city: string
+  district: string | null
+  lng: number
+  lat: number
+}

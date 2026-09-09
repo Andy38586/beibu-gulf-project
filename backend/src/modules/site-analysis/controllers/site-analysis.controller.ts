@@ -1,4 +1,4 @@
-import { Body, Controller, HttpCode, Post } from '@nestjs/common'
+import { Body, Controller, Get, HttpCode, Post, Query } from '@nestjs/common'
 import { ApiTags } from '@nestjs/swagger'
 
 import { BusinessError, ErrorCode } from '../../../common/errors/business-error'
@@ -82,5 +82,21 @@ export class SiteAnalysisController {
       throw new BusinessError(ErrorCode.ANALYSIS_FAILED, result.error)
     }
     return result
+  }
+
+  /**
+   * POI 名称关键词搜索（航线分析选点）。GET /nest-api/site-analysis/pois?keyword=&limit=
+   * keyword 为空返回兜底列表；limit 钳制在 repository（1..50）。
+   */
+  @Get('pois')
+  async searchPois(
+    @Query('keyword') keyword?: string,
+    @Query('limit') limit?: string
+  ): Promise<unknown> {
+    const parsedLimit = Number(limit)
+    return this.siteAnalysisService.searchPois(
+      keyword ?? '',
+      Number.isFinite(parsedLimit) ? parsedLimit : 20
+    )
   }
 }

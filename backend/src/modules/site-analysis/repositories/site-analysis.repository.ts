@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common'
 
 import { DbService } from '../../../infra/db/db.service'
-import type { FacilityPoint } from '../dto/site-analysis.dto'
+import type { FacilityPoint, PoiSearchItem } from '../dto/site-analysis.dto'
 
 // 选址分析数据访问：POI/小区自 PostGIS 读取（poi_facilities/xiaoqu 表，EPSG:4490），
 // 取代原 backend/data/site-selection/{city}_{type}.json 文件读取——消除 POI 双轨
@@ -56,6 +56,17 @@ function toFacilityPoint(row: PoiRow): FacilityPoint {
   return point
 }
 
+// 搜索结果行形状：name/type 为业务必需列（NOT NULL），district 可空
+interface PoiSearchRow {
+  id: string | null
+  name: string | null
+  type: string | null
+  city: string | null
+  district: string | null
+  lng: number
+  lat: number
+}
+
 @Injectable()
 export class SiteAnalysisRepository {
   constructor(private readonly db: DbService) {}
@@ -81,6 +92,39 @@ export class SiteAnalysisRepository {
       [resolveCity(city)]
     )
     return res.rows.map(toFacilityPoint)
+  }
+
+  // POI 名称关键词搜索（航线分析选点）：全类型可搜（不限选址白名单），
+  // ILIKE '%kw%' 参数化无拼接面；keyword 为空时不加名称条件（返回前 limit 条兜底列表）。
+  // 上限防御：limit 钳制 1..50，防一次拉全表
+  async searchPois(keyword: string, limit: number): Promise<PoiSearchItem[]> {
+    const safeLimit = Math.min(Math.max(Math.trunc(limit) || 20, 1), 50)
+    const kw = keyword.trim()
+    const params: unknown[] = []
+    let where = ''
+    if (kw) {
+      params.push(`%${kw}%`)
+      where = `WHERE name ILIKE $1`
+    }
+    params.push(safeLimit)
+    const res = await this.db.query<PoiSearchRow>(
+      `SELECT id, name, type, city, district,
+              ST_X(ST_Transform(geom, 4326)) AS lng, ST_Y(ST_Transform(geom, 4326)) AS lat
+       FROM poi_facilities
+       ${where}
+       ORDER BY city, type, id
+       LIMIT $${params.length}`,
+      params
+    )
+    return res.rows.map((row) => ({
+      id: row.id ?? '',
+      name: row.name ?? '',
+      type: row.type ?? '',
+      city: row.city ?? '',
+      district: row.district,
+      lng: row.lng,
+      lat: row.lat,
+    }))
   }
 
   getAvailableTypes(): string[] {

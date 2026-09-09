@@ -4,7 +4,7 @@ import { isInGulfBounds } from '../../../common/constants/gis.constants'
 import { DEFAULT_WEIGHTS, TOP_N } from '../../../common/constants/scoring.constants'
 import { BusinessError, ErrorCode } from '../../../common/errors/business-error'
 import { GeoJsonFeature, SpatialRepository } from '../../../infra/db/spatial.repository'
-import type { FacilityPoint, TypeSetting } from '../dto/site-analysis.dto'
+import type { FacilityPoint, PoiSearchItem, TypeSetting } from '../dto/site-analysis.dto'
 import { SiteAnalysisRepository } from '../repositories/site-analysis.repository'
 
 import { importanceToRadius, linearDecay, scoreXiaoqu } from './scoring'
@@ -236,6 +236,11 @@ export class SiteAnalysisService {
     const xiaoquData = await this.siteAnalysisRepository.findXiaoqu(city)
 
     return this.runSiteAnalysis({ selectedKeys, typeSettings, facilityData, xiaoquData, weights })
+  }
+
+  /** POI 名称关键词搜索（航线分析选点）：参数钳制后透传 repository */
+  async searchPois(keyword: string, limit: number): Promise<PoiSearchItem[]> {
+    return this.siteAnalysisRepository.searchPois(keyword, limit)
   }
 
   async runSiteAnalysis({

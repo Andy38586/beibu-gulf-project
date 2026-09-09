@@ -1,14 +1,16 @@
 <script setup lang="ts">
 /**
  * 航线分析控制面板（图层控制面板上方 4×4 槽位）：
- * 顶行「查询 POI」（3.8 宽通栏）→ 弹出 POI 列表，点选填入激活槽并飞行定位；
+ * 顶行「POI 搜索框」（3.8 宽通栏，常驻）——输入即搜，结果在搜索框下方下拉展开
+ *（不覆盖搜索框本身；初始即载入一批兜底 POI 填充列表），点选填入激活槽并飞行定位；
  * 中部四个 1.8 宽槽位按钮（起点/途径1/途径2/终点，途径可空）——
- *   按钮主体 = 打开 POI 选择；右侧定位图标 = 地图选点模式（悬浮提示），仅限钦北防三市；
+ *   按钮主体 = 聚焦 POI 搜索（激活该槽）；右侧定位图标 = 地图选点模式（悬浮提示），
+ *   仅限钦北防三市；
  * 底行「开始查询」（3.8 宽主按钮）→ 按起点→途径→终点链逐段查询（后端 /route/path 单段），
  *   段折线全部上图，总里程/时长 emit 给页面结果面板。
  * 按钮规格对齐 SiteAnalysisControlPanel：2×1.8fr grid、0.8cell 行高、token 全走 --GCS-*。
  */
-import { computed, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 
 import { GCSPanel } from '@/core'
 import { logger, showError, showWarning, useGCS } from '@/shared'
@@ -53,7 +55,7 @@ const slots = ref<Record<RouteSlotKey, RoutePoint | null>>({
   to: null,
 })
 
-/** 当前拾取槽（null = 不在选点模式）：POI 弹层与地图选点共用 */
+/** 当前拾取槽（null = 不在选点模式）：POI 下拉与地图选点共用 */
 const activeSlot = ref<RouteSlotKey | null>(null)
 
 const SLOT_LABELS: Record<RouteSlotKey, string> = {
@@ -65,7 +67,7 @@ const SLOT_LABELS: Record<RouteSlotKey, string> = {
 
 /** 槽按钮文案：拾取中 → 引导；已选 → POI 名优先、否则坐标；未选 → +标签 */
 function slotLabel(key: RouteSlotKey): string {
-  if (activeSlot.value === key) return `${SLOT_LABELS[key]}：点地图或选 POI…`
+  if (activeSlot.value === key) return `${SLOT_LABELS[key]}：选下方 POI 或点地图`
   const p = slots.value[key]
   if (!p) return `+ ${SLOT_LABELS[key]}`
   return p.name ?? `${p.lng.toFixed(4)}, ${p.lat.toFixed(4)}`
@@ -74,17 +76,12 @@ function slotLabel(key: RouteSlotKey): string {
 /** 已选槽位计数（查询按钮可用性：至少起终点齐） */
 const hasFromTo = computed(() => slots.value.from !== null && slots.value.to !== null)
 
-// ---- POI 弹层 ----
-const poiPanelOpen = ref(false)
+// ---- POI 搜索（下拉展开，不覆盖搜索框） ----
 const poiKeyword = ref('')
 const poiList = ref<PoiSearchItemParsed[]>([])
 const poiLoading = ref(false)
-
-async function openPoiPanel(key: RouteSlotKey): Promise<void> {
-  activeSlot.value = key
-  poiPanelOpen.value = true
-  await refreshPois()
-}
+const poiDropOpen = ref(false)
+let poiDebounceTimer: ReturnType<typeof setTimeout> | null = null
 
 async function refreshPois(): Promise<void> {
   poiLoading.value = true
@@ -99,12 +96,28 @@ async function refreshPois(): Promise<void> {
   }
 }
 
+/** 输入防抖 300ms；清空时回落兜底列表 */
+function onPoiInput(): void {
+  if (poiDebounceTimer) clearTimeout(poiDebounceTimer)
+  poiDebounceTimer = setTimeout(() => {
+    poiDebounceTimer = null
+    void refreshPois()
+  }, 300)
+}
+
+/** 激活某槽并展开 POI 下拉（槽按钮主体点击的统一入口） */
+function focusSlotWithPoi(key: RouteSlotKey): void {
+  activeSlot.value = key
+  poiDropOpen.value = true
+  if (poiList.value.length === 0) void refreshPois()
+}
+
 /** 点击 POI 项：填入激活槽 → 飞行定位 → 流转下一槽（起点选完即选终点，途径槽跳过） */
 function pickPoi(poi: PoiSearchItemParsed): void {
   const key = activeSlot.value
   if (!key) return
   slots.value[key] = { lng: poi.lng, lat: poi.lat, name: poi.name }
-  poiPanelOpen.value = false
+  poiDropOpen.value = false
   logger.debug('[RoutePanel] POI 选点:', key, poi.name, poi.lng, poi.lat)
   void mapStore.currentRenderer?.flyTo({ lng: poi.lng, lat: poi.lat })
   advanceSlot(key)
@@ -124,7 +137,7 @@ function advanceSlot(done: RouteSlotKey): void {
 /** 地图点击选点：无激活槽时忽略；范围外提示「暂无数据」 */
 async function handleMapPick(lng: number, lat: number): Promise<void> {
   const key = activeSlot.value
-  if (!key || poiPanelOpen.value) return
+  if (!key || poiDropOpen.value) return
   const ok = await isWithinThreeCities(lng, lat)
   if (!ok) {
     showWarning('该区域暂无数据，请选择钦州/北海/防城港市域内的位置')
@@ -135,10 +148,10 @@ async function handleMapPick(lng: number, lat: number): Promise<void> {
   advanceSlot(key)
 }
 
-/** 定位图标点击：进入该槽的地图选点模式（关掉 POI 弹层避免遮挡地图） */
+/** 定位图标点击：进入该槽的地图选点模式（收起下拉避免遮挡地图） */
 function startMapPick(key: RouteSlotKey): void {
   activeSlot.value = key
-  poiPanelOpen.value = false
+  poiDropOpen.value = false
   showWarning(`请在地图上点击选择${SLOT_LABELS[key]}（限钦北防三市范围）`)
 }
 
@@ -146,9 +159,10 @@ function startMapPick(key: RouteSlotKey): void {
 function activateSlot(key: RouteSlotKey): void {
   if (activeSlot.value === key) {
     activeSlot.value = null
+    poiDropOpen.value = false
     return
   }
-  activeSlot.value = key
+  focusSlotWithPoi(key)
 }
 
 // ---- 查询（逐段拼接） ----
@@ -215,13 +229,19 @@ function collectSlots(): RouteSlot[] {
 function handleClear(): void {
   slots.value = { from: null, 'waypoint-1': null, 'waypoint-2': null, to: null }
   activeSlot.value = null
-  poiPanelOpen.value = false
+  poiDropOpen.value = false
   clearRouteLayers(props.manager)
   emit('cleared')
 }
 
+// 初始载入兜底 POI（未输入关键词的默认列表，填充下拉空白区）
+onMounted(() => {
+  void refreshPois()
+})
+
 onUnmounted(() => {
-  // 查询在途取消（useRouteApi 内部信号复位）；图层随页面卸载统一清
+  if (poiDebounceTimer) clearTimeout(poiDebounceTimer)
+  // 查询在途取消（useRouteApi 内部信号复位）；图层清理由此兜底
   clearRouteLayers(props.manager)
 })
 
@@ -237,16 +257,18 @@ defineExpose({
   <GCSPanel :w="4" :h="4" anchor="top-right" :offset-x="0" :offset-y="1.25">
     <div class="route-panel">
       <div class="route-grid">
-        <!-- 顶行：查询 POI（3.8 通栏） -->
-        <button
-          class="route-btn span-2 poi-open"
-          :class="{ active: poiPanelOpen }"
-          @click="openPoiPanel(activeSlot ?? 'from')"
-        >
-          查询 POI 点
-        </button>
+        <!-- 顶行：POI 搜索框（3.8 通栏，常驻不覆盖） -->
+        <input
+          v-model="poiKeyword"
+          class="poi-search span-2"
+          :class="{ focused: poiDropOpen }"
+          type="text"
+          placeholder="搜索 POI 点（输入名称过滤）…"
+          @focus="poiDropOpen = true"
+          @input="onPoiInput"
+        />
 
-        <!-- 中部四槽：2×2（1.8 宽）；主体点击 = POI 选择，定位图标 = 地图选点 -->
+        <!-- 中部四槽：2×2（1.8 宽）；主体点击 = 聚焦 POI 搜索，定位图标 = 地图选点 -->
         <button
           v-for="key in (['from', 'waypoint-1', 'waypoint-2', 'to'] as const)"
           :key="key"
@@ -282,30 +304,19 @@ defineExpose({
         </button>
       </div>
 
-      <!-- POI 弹层（面板内覆盖） -->
-      <div v-if="poiPanelOpen" class="poi-pop">
-        <div class="poi-head">
-          <input
-            v-model="poiKeyword"
-            class="poi-input"
-            placeholder="搜索 POI 名称…"
-            @input="refreshPois"
-          />
-          <button class="poi-close" title="关闭" @click="poiPanelOpen = false">×</button>
-        </div>
-        <div class="poi-list">
-          <div v-if="poiLoading" class="poi-hint">查询中…</div>
-          <div v-else-if="poiList.length === 0" class="poi-hint">无匹配 POI</div>
-          <button
-            v-for="poi in poiList"
-            :key="poi.id"
-            class="poi-item"
-            @click="pickPoi(poi)"
-          >
-            <span class="poi-name">{{ poi.name }}</span>
-            <span class="poi-meta">{{ poi.district ?? poi.city }} · {{ poi.type }}</span>
-          </button>
-        </div>
+      <!-- POI 下拉：锚定搜索框正下方展开，不遮搜索框；默认兜底列表填充 -->
+      <div v-if="poiDropOpen" class="poi-drop">
+        <div v-if="poiLoading" class="poi-hint">查询中…</div>
+        <div v-else-if="poiList.length === 0" class="poi-hint">无匹配 POI</div>
+        <button
+          v-for="poi in poiList"
+          :key="poi.id"
+          class="poi-item"
+          @mousedown.prevent="pickPoi(poi)"
+        >
+          <span class="poi-name">{{ poi.name }}</span>
+          <span class="poi-meta">{{ poi.district ?? poi.city }} · {{ poi.type }}</span>
+        </button>
       </div>
     </div>
   </GCSPanel>
@@ -382,12 +393,17 @@ defineExpose({
   cursor: not-allowed;
 }
 
+/* 槽按钮：文字区限宽截断（overflow+min-width 缺失会让长 POI 名撑开按钮——点击切换
+   文案时按钮「变形」的根因），图标定宽不收缩，任何文案变化不改变按钮几何 */
 .slot-btn {
   justify-content: space-between;
   padding: 0 8px;
+  overflow: hidden;
 }
 
 .slot-text {
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -410,57 +426,46 @@ defineExpose({
   background: var(--GCS-bg-hover);
 }
 
-.poi-pop {
-  position: absolute;
-  inset: v-bind(cell8px);
-  z-index: 2;
-  display: flex;
-  flex-direction: column;
+/* POI 搜索框：与槽按钮同规格（3.8 通栏 0.8 高） */
+.poi-search {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 0 10px;
   background: var(--GCS-bg-panel);
   border: 1px solid var(--GCS-border-default);
   border-radius: var(--GCS-radius-lg);
-  overflow: hidden;
-}
-
-.poi-head {
-  display: flex;
-  gap: 4px;
-  padding: 6px;
-}
-
-.poi-input {
-  flex: 1;
-  min-width: 0;
-  padding: 4px 8px;
-  border: 1px solid var(--GCS-border-default);
-  border-radius: 4px;
-  background: var(--GCS-bg-elevated);
   color: var(--GCS-text-primary);
-  font-size: 12px;
+  font-size: v-bind(labelFontSizeCss);
   outline: none;
+  transition: border-color 0.2s ease;
 }
 
-.poi-input:focus {
+.poi-search::placeholder {
+  color: var(--GCS-text-muted);
+}
+
+.poi-search:focus,
+.poi-search.focused {
   border-color: var(--GCS-color-primary);
 }
 
-.poi-close {
-  width: 24px;
-  border: none;
-  background: transparent;
-  color: var(--GCS-text-muted);
-  font-size: 14px;
-  cursor: pointer;
-}
-
-.poi-close:hover {
-  color: var(--GCS-color-primary);
-}
-
-.poi-list {
-  flex: 1;
+/* POI 下拉：锚定搜索框正下方（top=输入框高+panel padding），宽同内容区，
+   不遮搜索框；覆盖中部槽区属预期（点选后收起露出） */
+.poi-drop {
+  position: absolute;
+  top: calc(v-bind(cell8px) + v-bind(btnHeightCss) + 6px);
+  left: v-bind(cell8px);
+  right: v-bind(cell8px);
+  max-height: 170px;
+  z-index: 2;
   overflow-y: auto;
-  padding: 0 6px 6px;
+  background: var(--GCS-bg-panel);
+  border: 1px solid var(--GCS-border-default);
+  border-radius: var(--GCS-radius-lg);
+  box-shadow: var(--GCS-shadow-float);
+  padding: 4px;
+  box-sizing: border-box;
 }
 
 .poi-item {

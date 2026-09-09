@@ -5,13 +5,17 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { AppModule } from '../src/app.module'
 
-// site-analysis e2e：连真实 backend/data/site-selection 三城 JSON（公开只读 + 纯计算，免登录）。
+// site-analysis e2e：POI/小区自 PostGIS 读取（poi_facilities/xiaoqu 表），
+// 全路由真库依赖——无库环境（CI/本机未起 PG）整体跳过（favorites e2e 同款门控），
+// 避免 500 噪音；联调时 export V3_INTEGRATION_DB=1 全量跑。
 // 真数据规模（2026-08-29 全量重抓，口径=市辖区）：
 //   qz  医院77/公园42/小区543 · bh 医院101/公园50/小区1247 · fcg 医院49/公园16/小区666
 // 基线数值由 .tmp-pip/probe-site-analysis.cjs 实跑取得（T3.6 验收），非拍脑袋。
 // 覆盖：三城正常选址 / TOP_N 截断 / facilityPoi 计数 / 单类型 / 真数据空结果 /
 // 参数校验四态 / 422 转译 / @HttpCode(200)。
-describe('site-analysis e2e（读真数据文件）', () => {
+const withDb = process.env.V3_INTEGRATION_DB !== undefined
+
+describe.skipIf(!withDb)('site-analysis e2e（连真库 PostGIS）', () => {
   let app: INestApplication
 
   beforeAll(async () => {

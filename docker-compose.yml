@@ -19,7 +19,7 @@ services:
         VITE_USE_NEST_MODULES: ${VITE_USE_NEST_MODULES:-auth,plans,favorites,forecast,flood,site-analysis}
     # 镜像由 CI 构建推送 GHCR（服务器 1.6G 内存扛不住 docker 内构建：vite/nest/pip
     # 峰值 3-5G 会 OOM 卡死系统——部署只 pull 不 build）；build 段保留供本地 dev 用。
-    image: ghcr.io/andy38586/beibu-gulf-project/app:${IMAGE_TAG:-latest}
+    image: ghcr.io/andy38586/beibu-gulf-project:app-${IMAGE_TAG:-app-latest}
     container_name: beibu-gulf-webgis
     env_file:
       - ./backend/.env
@@ -47,7 +47,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile.nest
-    image: ghcr.io/andy38586/beibu-gulf-project/nest:${IMAGE_TAG:-latest}
+    image: ghcr.io/andy38586/beibu-gulf-project:nest-${IMAGE_TAG:-nest-latest}
     container_name: beibu-nest
     env_file:
       # JWT_SECRET 等运行时密钥由部署侧 .env 注入，不烘焙进镜像
@@ -100,7 +100,7 @@ services:
   algorithm-service:
     build:
       context: ./backend/algorithm-service
-    image: ghcr.io/andy38586/beibu-gulf-project/algorithm-service:${IMAGE_TAG:-latest}
+    image: ghcr.io/andy38586/beibu-gulf-project:algorithm-service-${IMAGE_TAG:-algorithm-service-latest}
     container_name: beibu-algorithm-service
     environment:
       ROUTE_PG_HOST: postgis

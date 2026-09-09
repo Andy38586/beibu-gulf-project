@@ -254,8 +254,8 @@ jobs:
           file: ./Dockerfile
           push: true
           tags: |
-            ghcr.io/andy38586/beibu-gulf-project/app:${{ env.IMAGE_TAG }}
-            ghcr.io/andy38586/beibu-gulf-project/app:latest
+            ghcr.io/andy38586/beibu-gulf-project:app-${{ env.IMAGE_TAG }}
+            ghcr.io/andy38586/beibu-gulf-project:app-latest
           build-args: |
             VITE_TIANDITU_KEY=${{ secrets.TIANDITU_KEY }}
             VITE_DATA_SOURCE=fetch
@@ -268,8 +268,8 @@ jobs:
           file: ./backend/Dockerfile.nest
           push: true
           tags: |
-            ghcr.io/andy38586/beibu-gulf-project/nest:${{ env.IMAGE_TAG }}
-            ghcr.io/andy38586/beibu-gulf-project/nest:latest
+            ghcr.io/andy38586/beibu-gulf-project:nest-${{ env.IMAGE_TAG }}
+            ghcr.io/andy38586/beibu-gulf-project:nest-latest
 
       - name: Build and push algorithm-service
         uses: docker/build-push-action@v6
@@ -278,8 +278,8 @@ jobs:
           file: ./backend/algorithm-service/Dockerfile
           push: true
           tags: |
-            ghcr.io/andy38586/beibu-gulf-project/algorithm-service:${{ env.IMAGE_TAG }}
-            ghcr.io/andy38586/beibu-gulf-project/algorithm-service:latest
+            ghcr.io/andy38586/beibu-gulf-project:algorithm-service-${{ env.IMAGE_TAG }}
+            ghcr.io/andy38586/beibu-gulf-project:algorithm-service-latest
 
       # GHCR 仓库命名空间包默认 private，服务器 docker pull（匿名）拉不了——
       # 用带 GITHUB_TOKEN 的 API 把 beibu-gulf-project 包设为 public（三镜像同包）

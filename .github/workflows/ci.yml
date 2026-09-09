@@ -254,7 +254,7 @@ jobs:
           file: ./Dockerfile
           push: true
           tags: |
-            ghcr.io/andy38586/beibu-gulf-project-app:${IMAGE_TAG}
+            ghcr.io/andy38586/beibu-gulf-project-app:${{ env.IMAGE_TAG }}
             ghcr.io/andy38586/beibu-gulf-project-app:latest
           build-args: |
             VITE_TIANDITU_KEY=${{ secrets.TIANDITU_KEY }}
@@ -278,7 +278,7 @@ jobs:
           file: ./backend/algorithm-service/Dockerfile
           push: true
           tags: |
-            ghcr.io/andy38586/beibu-gulf-project-algorithm-service:${IMAGE_TAG}
+            ghcr.io/andy38586/beibu-gulf-project-algorithm-service:${{ env.IMAGE_TAG }}
             ghcr.io/andy38586/beibu-gulf-project-algorithm-service:latest
 
       # GHCR 新包默认 private，服务器 docker pull（匿名）拉不了——用带 GITHUB_TOKEN 的

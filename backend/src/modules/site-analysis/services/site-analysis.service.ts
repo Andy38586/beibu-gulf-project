@@ -4,8 +4,10 @@ import { isInGulfBounds } from '../../../common/constants/gis.constants'
 import { DEFAULT_WEIGHTS, TOP_N } from '../../../common/constants/scoring.constants'
 import { BusinessError, ErrorCode } from '../../../common/errors/business-error'
 import { GeoJsonFeature, SpatialRepository } from '../../../infra/db/spatial.repository'
+import type { FacilityPoint, TypeSetting } from '../dto/site-analysis.dto'
+import { SiteAnalysisRepository } from '../repositories/site-analysis.repository'
 
-import { FacilityPoint, importanceToRadius, linearDecay, scoreXiaoqu, TypeSetting } from './scoring'
+import { importanceToRadius, linearDecay, scoreXiaoqu } from './scoring'
 import { createSpatialIndex, queryByBBox } from './spatial-index'
 
 // 逐行等价移植 backend/services/siteAnalysisService.js（九步选址计算）。
@@ -198,7 +200,43 @@ export function rankXiaoqu(
 
 @Injectable()
 export class SiteAnalysisService {
-  constructor(private readonly spatial: SpatialRepository) {}
+  constructor(
+    private readonly spatial: SpatialRepository,
+    private readonly siteAnalysisRepository: SiteAnalysisRepository
+  ) {}
+
+  /**
+   * 选址分析完整编排：校验设施类型合法性 → 按 type 拉取 POI 与小区数据 →
+   * 委托 runSiteAnalysis 计算。HTTP 层（controller）只做请求形状校验，
+   * 数据获取与类型合法性在此层（数据访问经 repository）。
+   */
+  async analyze(input: {
+    selectedKeys: string[]
+    typeSettings: Record<string, TypeSetting>
+    weights?: Record<string, number> | null
+    city?: unknown
+  }): Promise<SiteAnalysisResult> {
+    const { selectedKeys, typeSettings, weights, city } = input
+
+    const validTypes = this.siteAnalysisRepository.getAvailableTypes()
+    for (const key of selectedKeys) {
+      if (!validTypes.includes(key)) {
+        throw new BusinessError(
+          ErrorCode.INVALID_PARAMS,
+          `未知设施类型: ${key}，可用类型: ${validTypes.join(', ')}`
+        )
+      }
+    }
+
+    // 按类型拉取 POI（顺序与原实现一致），小区数据一并读取
+    const facilityData: Record<string, FacilityPoint[] | null> = {}
+    for (const key of selectedKeys) {
+      facilityData[key] = await this.siteAnalysisRepository.findByType(key, city)
+    }
+    const xiaoquData = await this.siteAnalysisRepository.findXiaoqu(city)
+
+    return this.runSiteAnalysis({ selectedKeys, typeSettings, facilityData, xiaoquData, weights })
+  }
 
   async runSiteAnalysis({
     selectedKeys,

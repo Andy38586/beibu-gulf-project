@@ -13,3 +13,11 @@ export const RISK_LEVEL_BANDS = [
   { maxLevel: 10, label: '极高风险' },
   { maxLevel: Number.POSITIVE_INFINITY, label: '灾难级' },
 ] as const
+
+/**
+ * 按水位派生风险等级：预计算档位表无 riskLevel 字段，由水位分段向上命中首档。
+ */
+export function deriveRiskLevel(level: number): string {
+  const band = RISK_LEVEL_BANDS.find((b) => level <= b.maxLevel)
+  return (band ?? RISK_LEVEL_BANDS[RISK_LEVEL_BANDS.length - 1]).label
+}

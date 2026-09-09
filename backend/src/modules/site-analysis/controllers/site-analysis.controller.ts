@@ -2,8 +2,7 @@ import { Body, Controller, HttpCode, Post } from '@nestjs/common'
 import { ApiTags } from '@nestjs/swagger'
 
 import { BusinessError, ErrorCode } from '../../../common/errors/business-error'
-import { SiteAnalysisRepository } from '../repositories/site-analysis.repository'
-import { FacilityPoint, TypeSetting } from '../services/scoring'
+import type { TypeSetting } from '../dto/site-analysis.dto'
 import { SiteAnalysisService } from '../services/site-analysis.service'
 
 interface SiteAnalysisBody {
@@ -14,20 +13,16 @@ interface SiteAnalysisBody {
 }
 
 /**
- * 选址分析。POST /nest-api/site-analysis，免鉴权纯计算
- * （Express routes/siteAnalysis.js：router.post('/')，单路由）。
- * 九步计算逐行等价移植 backend/services/siteAnalysisService.js；POI/小区读
- * backend/data/site-selection/ 三城 JSON；空结果（无重叠区域）是合法 data 不是 422。
+ * 选址分析。POST /nest-api/site-analysis，免鉴权纯计算。
+ * 数据获取与计算编排都在 SiteAnalysisService（analyze）；
+ * 此处只做 HTTP 请求形状校验（必填/权重/半径/weights 范围）。
  */
 @Controller('site-analysis')
 @ApiTags('site-analysis')
 export class SiteAnalysisController {
-  constructor(
-    private readonly siteAnalysisRepository: SiteAnalysisRepository,
-    private readonly siteAnalysisService: SiteAnalysisService
-  ) {}
+  constructor(private readonly siteAnalysisService: SiteAnalysisService) {}
 
-  // @HttpCode(200)：Express sendSuccess 默认 200（POST 201 默认值坑，收藏/洪涝同款）
+  // @HttpCode(200)：非"资源创建"端点，显式对齐 Nest POST 默认 201 之外的语义
   @Post()
   @HttpCode(200)
   async analyze(@Body() body?: SiteAnalysisBody): Promise<unknown> {
@@ -48,18 +43,6 @@ export class SiteAnalysisController {
           )
         }
       }
-    }
-
-    const facilityData: Record<string, FacilityPoint[] | null> = {}
-    const validTypes = this.siteAnalysisRepository.getAvailableTypes()
-    for (const key of selectedKeys) {
-      if (!validTypes.includes(key)) {
-        throw new BusinessError(
-          ErrorCode.INVALID_PARAMS,
-          `未知设施类型: ${key}，可用类型: ${validTypes.join(', ')}`
-        )
-      }
-      facilityData[key] = await this.siteAnalysisRepository.findByType(key, city)
     }
 
     // 半径校验（typeSettings 各项 radius 若提供必须为正数）
@@ -88,14 +71,11 @@ export class SiteAnalysisController {
       }
     }
 
-    const xiaoquData = await this.siteAnalysisRepository.findXiaoqu(city)
-
-    const result = await this.siteAnalysisService.runSiteAnalysis({
+    const result = await this.siteAnalysisService.analyze({
       selectedKeys,
       typeSettings,
-      facilityData,
-      xiaoquData,
       weights: weights as Record<string, number> | undefined,
+      city,
     })
     // 业务失败以 422 返回，不再用 200 携带错误体
     if (result && result.error) {

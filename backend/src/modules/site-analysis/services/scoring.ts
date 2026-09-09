@@ -2,6 +2,7 @@ import * as turf from '@turf/turf'
 import RBush from 'rbush'
 
 import { DEFAULT_WEIGHTS, IMPORTANCE_FACTOR } from '../../../common/constants/scoring.constants'
+import type { FacilityPoint, TypeSetting } from '../dto/site-analysis.dto'
 
 // 逐行等价移植 backend/services/scoringService.js（选址评分核心）。
 // 原 decayFunctions / importanceMapping 与 site-analysis 仅一处消费，合并避免过细拆分。
@@ -34,22 +35,6 @@ export function importanceToRadius(defaultRadius: number, importance: unknown): 
 // ==================== 选址评分核心 ====================
 
 export { DEFAULT_WEIGHTS }
-
-export interface FacilityPoint {
-  id?: string
-  name?: string
-  lng: number
-  lat: number
-  [key: string]: unknown
-}
-
-export interface TypeSetting {
-  selected?: boolean
-  defaultRadius?: number
-  radius?: number
-  importance?: number
-  [key: string]: unknown
-}
 
 interface XqLike extends FacilityPoint {
   score?: number

@@ -5,7 +5,7 @@ import { GULF_BOUNDS } from '../src/common/constants/gis.constants'
 import { DbService } from '../src/infra/db/db.service'
 import { GeoJsonGeometry, SpatialRepository } from '../src/infra/db/spatial.repository'
 import { SiteAnalysisRepository } from '../src/modules/site-analysis/repositories/site-analysis.repository'
-import { FacilityPoint } from '../src/modules/site-analysis/services/scoring'
+import type { FacilityPoint } from '../src/modules/site-analysis/dto/site-analysis.dto'
 import {
   buildTypeCoverage,
   Coverage,

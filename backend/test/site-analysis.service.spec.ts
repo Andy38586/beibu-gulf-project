@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { DbService } from '../src/infra/db/db.service'
 import { SpatialRepository } from '../src/infra/db/spatial.repository'
-import type { FacilityPoint } from '../src/modules/site-analysis/services/scoring'
+import type { FacilityPoint } from '../src/modules/site-analysis/dto/site-analysis.dto'
 import {
   buildTypeCoverage,
   extractValidPoi,
@@ -38,7 +38,12 @@ const facilityData = {
 const xiaoquData: FacilityPoint[] = [{ lng: 108.6, lat: 21.85, name: '北部湾小区' }]
 
 function run(input: Record<string, unknown>) {
-  return new SiteAnalysisService(spatial).runSiteAnalysis(input as never)
+  const repoStub = {
+    getAvailableTypes: () => [],
+    findByType: async () => [],
+    findXiaoqu: async () => [],
+  }
+  return new SiteAnalysisService(spatial, repoStub as never).runSiteAnalysis(input as never)
 }
 
 describe('resolveRadiusSettings — 半径校验（R-10 服务级）', () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import type { FacilityPoint, TypeSetting } from '../src/modules/site-analysis/services/scoring'
+import type { FacilityPoint, TypeSetting } from '../src/modules/site-analysis/dto/site-analysis.dto'
 import {
   DEFAULT_WEIGHTS,
   importanceToRadius,

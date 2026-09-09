@@ -108,46 +108,43 @@ module.exports = {
       from: {},
       to: { circular: true },
     },
-    // ===== 后端六层契约（01 §四 L0-L8）：routes 仅注册 / controllers / services / repositories / utils =====
-    // 6-03：cruise 曾扫 backend 却零后端规则——补层间单向约束，防分层退化只靠人工
+    // ===== 后端模块分层契约（Nest 形态：modules/<域>/{controllers,services,repositories}）=====
+    // 层间单向约束：controller 只向下委托 service，service 不得反向依赖 controller，
+    // repositories 是数据访问叶子层。
     {
-      name: 'backend-routes-not-import-lower-layers',
-      comment:
-        'routes 仅注册 controller 与中间件，不得 import services/repositories/data（业务经 controller 委托）',
+      name: 'nest-controllers-not-import-repositories',
+      comment: 'controller 经 service 委托业务，不得越层直接 import repositories',
       severity: 'error',
-      from: { path: '^backend/routes/' },
-      to: { path: '^backend/(services|repositories|data)/' },
+      from: { path: '^backend/src/modules/[^/]+/controllers/' },
+      to: { path: '^backend/src/modules/[^/]+/repositories/' },
     },
     {
-      name: 'backend-services-not-import-controllers-routes',
-      comment: 'services 不得反向依赖 controllers/routes（上层只向下委托）',
+      name: 'nest-controllers-not-read-data-files',
+      comment: 'controller 不得直读 backend/data 数据文件（须经 repositories/services）',
       severity: 'error',
-      from: { path: '^backend/services/' },
-      to: { path: '^backend/(controllers|routes)/' },
-    },
-    {
-      name: 'backend-repositories-not-import-upper-layers',
-      comment: 'repositories 是数据访问叶子层，不得 import controllers/services/routes/data 文件',
-      severity: 'error',
-      from: { path: '^backend/repositories/' },
-      to: { path: '^backend/(controllers|services|routes|data)/' },
-    },
-    {
-      name: 'backend-controllers-not-read-data-files',
-      comment:
-        'controller 不得直读 data 数据文件（须经 repositories/services；6-05 收口后守护不回流）',
-      severity: 'error',
-      from: { path: '^backend/controllers/' },
+      from: { path: '^backend/src/modules/[^/]+/controllers/' },
       to: { path: '^backend/data/' },
     },
-    // ===== v3 Nest 专属契约（专项6 8.3，2026-09-01 增补） =====
+    {
+      name: 'nest-services-not-import-controllers',
+      comment: 'services 不得反向依赖 controllers（上层只向下委托）',
+      severity: 'error',
+      from: { path: '^backend/src/modules/[^/]+/services/' },
+      to: { path: '^backend/src/modules/[^/]+/controllers/' },
+    },
+    {
+      name: 'nest-repositories-not-import-upper-layers',
+      comment: 'repositories 是数据访问叶子层，不得 import controllers/services',
+      severity: 'error',
+      from: { path: '^backend/src/modules/[^/]+/repositories/' },
+      to: { path: '^backend/src/modules/[^/]+/(controllers|services)/' },
+    },
+    // DB 访问收口：pg 仅允许 repository 层与 infra/db（连接池 provider）import，
+    // 其余层禁止直接依赖 pg，防止裸 SQL 散落到 service/controller。
     {
       name: 'nest-db-access-only-in-repository',
-      comment:
-        'v3 DB 访问收口：pg 仅允许 repository 层与 infra/db（连接池 provider）import，' +
-        'service/controller 禁止裸 SQL（03 §七 ADR6"迁移时替换 repositories 层"的守护化）',
       severity: 'error',
-      from: { path: '^backend/nest/src/', pathNot: '(repositories/|infra/db/)' },
+      from: { path: '^backend/src/', pathNot: '(repositories/|infra/db/)' },
       to: { path: 'node_modules/pg' },
     },
   ],

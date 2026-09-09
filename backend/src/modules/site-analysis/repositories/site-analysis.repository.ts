@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common'
 
 import { DbService } from '../../../infra/db/db.service'
-import { FacilityPoint } from '../services/scoring'
+import type { FacilityPoint } from '../dto/site-analysis.dto'
 
 // 选址分析数据访问：POI/小区自 PostGIS 读取（poi_facilities/xiaoqu 表，EPSG:4490），
 // 取代原 backend/data/site-selection/{city}_{type}.json 文件读取——消除 POI 双轨

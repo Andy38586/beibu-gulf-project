@@ -475,9 +475,11 @@ async function switchMapType(newType: '2d' | '3d') {
       cesiumViewerManager.unmount()
     }
 
-    if (mapStore.mapType !== newType) {
-      mapStore.setMapType(newType)
-    }
+    // mapStore.mapType 是切换的「输入事实源」：本函数由 watch(props.mapType) 触发，
+    // 进入时 store 已等于 newType。这里【绝不能】再把 newType 写回 store——
+    // 异步切换跨多个 await，期间用户/路由可能已把 store 改成更新的引擎；
+    // 旧切换收尾时回写会用过期值覆盖新意图（浸没↔航线互切掉回 2D 的根因之一）。
+    // 失败回滚仍由 catch 分支显式 setMapType(oldType) 处理。
 
     if (newType === '3d' && !cesiumInitialized.value) {
       cesiumInitialized.value = true
@@ -524,7 +526,13 @@ async function switchMapType(newType: '2d' | '3d') {
     const pending = pendingSwitchType.value
     pendingSwitchType.value = null
     if (pending !== null) {
-      void nextTick(() => switchMapType(pending))
+      void nextTick(() => {
+        // 以 store 为权威：若排队期间 store 又被路由/用户更新，跟随最新值而非过期的 pending
+        const target = mapStore.mapType ?? pending
+        if (target !== currentRenderer.value?.getType()) {
+          void switchMapType(target)
+        }
+      })
     }
   }
 }
@@ -567,14 +575,18 @@ let resizeObserver: ResizeObserver | null = null
 
 function watchContainerSize(container: HTMLElement | null): void {
   // 防御：环境不支持 ResizeObserver（jsdom/老浏览器）时静默跳过，避免反复重试报错
-  if (!container || resizeObserver || typeof ResizeObserver === 'undefined') return
+  if (!container || typeof ResizeObserver === 'undefined') return
+  // 同一个 ResizeObserver 观察 OL + Cesium 两个常驻容器。
+  // 旧实现「resizeObserver 已存在就 return」只会观察到首个（OL）容器，
+  // Cesium 容器 v-show 由 none→block 的尺寸变化无人监听，Viewer 在 0×0 创建后
+  // 不会自动 resize，表现为黑屏/无底图直到手动交互——这里必须对每个容器都 observe。
   try {
-    resizeObserver = new ResizeObserver(() => {
-      // 容器尺寸变化 → 当前渲染器 updateSize（Cesium resize 有布局开销）
-      if (resizeObserver) {
+    if (!resizeObserver) {
+      resizeObserver = new ResizeObserver(() => {
+        // 容器尺寸变化 → 当前渲染器 updateSize（Cesium resize 有布局开销）
         currentRenderer.value?.updateSize()
-      }
-    })
+      })
+    }
     resizeObserver.observe(container)
   } catch {
     // 构造/观察失败（个别环境）→ 复位并退出，下次触发仍可重试，但不抛错

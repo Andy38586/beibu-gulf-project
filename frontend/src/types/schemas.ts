@@ -387,3 +387,5 @@ export const poiSearchItemSchema = z.object({
 export const poiSearchResponseSchema = z.array(poiSearchItemSchema)
 
 export type PoiSearchItemParsed = z.infer<typeof poiSearchItemSchema>
+
+export type PoiSearchResponseParsed = z.infer<typeof poiSearchResponseSchema>

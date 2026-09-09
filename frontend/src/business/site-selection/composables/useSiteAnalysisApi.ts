@@ -31,7 +31,7 @@ export function useSiteAnalysisApi(): UseSiteAnalysisApiReturn {
     siteStore.setCalcError('')
     siteStore.setCalculating(true)
     try {
-      const result = await apiRequest<AnalysisResult>(ENDPOINTS.siteAnalysis, {
+      const result = await apiRequest<AnalysisResult>(ENDPOINTS.siteAnalysis.root, {
         method: 'POST',
         body: JSON.stringify(params),
         signal,

@@ -36,7 +36,11 @@ export const ENDPOINTS = {
     terrainProfiles: '/flood/terrain-profiles',
     disaster: '/flood/analysis/disaster',
   },
-  siteAnalysis: '/site-analysis',
+  siteAnalysis: {
+    root: '/site-analysis',
+    // POI 名称关键词搜索（航线分析选点；Nest PG poi_facilities，limit 1..50）
+    pois: '/site-analysis/pois',
+  },
   // FasterAPI 演算服务（algorithm-service，8000；复用 /flood-online 代理通道，
   // vite rewrite 去前缀后落 /route/path）——裸 JSON，envelope:false
   route: {

@@ -3,7 +3,8 @@ import { ref } from 'vue'
 
 import { ENDPOINTS, useApiRequest, useLatestRequest } from '@/shared'
 import type { RoutePathParams, RoutePathResponse } from '@/types'
-import { routePathResponseSchema } from '@/types/schemas'
+import type { PoiSearchItemParsed } from '@/types/schemas'
+import { poiSearchResponseSchema, routePathResponseSchema } from '@/types/schemas'
 
 /** 请求被取消（新请求抢占/组件卸载）的显式标记——取消不是业务失败，
  * 必须与「不可达」真实空结果区分，调用方对它静默不更新 UI */
@@ -26,6 +27,8 @@ export interface UseRouteApiReturn {
   calcError: Ref<string>
   /** 取消在途请求并复位加载态（供调用方 onUnmounted 调用） */
   cancel: () => void
+  /** POI 名称关键词搜索（选点辅助，Nest PG poi_facilities 全类型） */
+  searchPois: (keyword: string, limit?: number) => Promise<PoiSearchItemParsed[]>
 }
 
 export function useRouteApi(): UseRouteApiReturn {
@@ -69,5 +72,13 @@ export function useRouteApi(): UseRouteApiReturn {
     calculating.value = false
   }
 
-  return { queryPath, calculating, calcError, cancel }
+  /** POI 名称关键词搜索（选点辅助）：keyword 空返回兜底列表；limit 服务端钳制 1..50 */
+  async function searchPois(keyword: string, limit = 30): Promise<PoiSearchItemParsed[]> {
+    return apiRequest<PoiSearchItemParsed[]>(ENDPOINTS.siteAnalysis.pois, {
+      params: { keyword: keyword || undefined, limit },
+      schema: poiSearchResponseSchema,
+    })
+  }
+
+  return { queryPath, calculating, calcError, cancel, searchPois }
 }

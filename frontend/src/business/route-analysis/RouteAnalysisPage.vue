@@ -1,88 +1,79 @@
 <script setup lang="ts">
 /**
- * 航线分析业务页：
- * 地图点击拾取起终点 → 调 /route/path（FastAPI algorithm-service）→ 路径线图层 + 里程/时长面板。
- * 双引擎（2D/3D）均可用：图层走 BLM（注册即双引擎通用），点击经渲染器 click 事件回传坐标。
- * 断链语义：不可达/未吸附为合法空结果（提示原因），错误态（网络/503）单独区分。
+ * 航线分析业务页（Cesium 引擎驱动）：
+ * 控制面板（右上图层控制上方 4×4）选点 → 逐段调 /route/path（FastAPI algorithm-service）→
+ * 多段路径线 + 端点标记图层；左栏为结果摘要面板。
+ * 选点双入口：POI 搜索（Nest /site-analysis/pois）或地图点击（限钦北防三市，见 RouteControlPanel）。
+ * 引擎锁定 3D：挂载时切 Cesium、卸载恢复原值——航线以三维地形/港口场景为主视图，
+ * 路径线/端点图层走 BLM 注册（双引擎通用，本页不再暴露 OL 链路）。
  */
-
-import { computed, onUnmounted, ref, watch } from 'vue'
+import { onMounted, onUnmounted, ref, watch } from 'vue'
 
 import { AppLayout, GCSPanel, LayerControlPanel, useBusinessLayers } from '@/core'
-import { logger, showError, showWarning } from '@/shared'
+import { logger } from '@/shared'
 import { useMapStore } from '@/stores'
-import type { RoutePathResponse } from '@/types'
+import type { RoutePathResult } from '@/types'
 
-import { useRouteApi, RouteQueryCancelledError } from './composables/useRouteApi'
-import {
-  ROUTE_ENDPOINT_LAYER_ID,
-  ROUTE_PATH_LAYER_ID,
-  useRouteLayer,
-} from './composables/useRouteLayer'
+import { ROUTE_ENDPOINT_LAYER_ID, ROUTE_PATH_LAYER_ID } from './composables/useRouteLayer'
+import RouteControlPanel from './components/RouteControlPanel.vue'
 
 const mapStore = useMapStore()
 const { manager: businessLayerManager } = useBusinessLayers()
-const { queryPath, calculating } = useRouteApi()
-const { updateRouteLayers, clearRouteLayers: clearLayers } = useRouteLayer()
 
-/** 拾取阶段：none=不拾取 / from=下一次点击设起点 / to=下一次点击设终点 */
-type PickStage = 'none' | 'from' | 'to'
+/** 查询摘要（panel emit 汇聚；null = 尚无结果） */
+const summary = ref<{
+  totalKm: number
+  totalMin: number
+  segCount: number
+  totalWithSnapKm: number
+} | null>(null)
 
-const pickStage = ref<PickStage>('none')
-const from = ref<{ lng: number; lat: number } | null>(null)
-const to = ref<{ lng: number; lat: number } | null>(null)
-const mode = ref<'distance' | 'time'>('distance')
-const result = ref<RoutePathResponse | null>(null)
-const resultError = ref('')
-
-const canQuery = computed(() => from.value !== null && to.value !== null)
-
-/** 面板展示行（成功结果 → 里程/时长；空结果 → 原因文案） */
-const summaryText = computed(() => {
-  if (!result.value) return ''
-  if (!result.value.found) {
-    const reasons: Record<string, string> = {
-      origin_not_snapped: '起点未吸附到路网（离道路过远）',
-      destination_not_snapped: '终点未吸附到路网（离道路过远）',
-      unreachable: '起终点间不可达（路网断链）',
-    }
-    return reasons[result.value.reason] ?? '未找到可达路径'
+function handleQueryResult(payload: { segments: RoutePathResult[]; pointCount: number }): void {
+  const { segments, pointCount } = payload
+  const netM = segments.reduce((s, seg) => s + seg.distanceM, 0)
+  const snapM = segments.reduce((s, seg) => s + seg.snapDistanceM.from + seg.snapDistanceM.to, 0)
+  summary.value = {
+    // 主行只合计路网里程；接驳单独透出（多段时接驳含段间吸附往返，不与路网里程混算）
+    totalKm: netM / 1000,
+    totalMin: segments.reduce((s, seg) => s + seg.durationMin, 0),
+    segCount: segments.length,
+    totalWithSnapKm: (netM + snapM) / 1000,
   }
-  // 后端 distanceM 单位为米，展示折算千米（toFixed(1) 保留百米精度）
-  return `里程 ${(result.value.distanceM / 1000).toFixed(1)} km · 约 ${result.value.durationMin.toFixed(1)} 分`
+  logger.debug(`[RouteAnalysis] 查询完成: ${segments.length} 段 / ${pointCount} 点`)
+}
+
+function handleCleared(): void {
+  summary.value = null
+}
+
+// ---- 引擎锁定 Cesium ----
+
+let restoredMapType: '2d' | '3d' | null = null
+onMounted(() => {
+  restoredMapType = mapStore.mapType
+  if (mapStore.mapType !== '3d') {
+    mapStore.setMapType('3d')
+  }
+})
+onUnmounted(() => {
+  // 恢复进入前引擎（其他页面默认 2D；若用户曾手动切 3D 则还原为同值，无副作用）
+  if (restoredMapType && mapStore.mapType !== restoredMapType) {
+    mapStore.setMapType(restoredMapType)
+  }
+  // 渲染器 click 监听由 watch(currentRenderer) 随卸载置空解绑；图层清理由 panel onUnmounted 兜底
 })
 
-/** 累加接驳距离（后端只报路网边里程，起终点接入段单独透出） */
-const totalDistanceText = computed(() => {
-  if (!result.value || !result.value.found) return ''
-  const snap = result.value.snapDistanceM
-  const total = (result.value.distanceM + snap.from + snap.to) / 1000
-  return `含接驳共 ${total.toFixed(1)} km（起点接 ${snap.from.toFixed(0)} m / 终点接 ${snap.to.toFixed(0)} m）`
-})
+// ---- 地图点击 → 面板选点（渲染器 click 事件；命中要素或空白区均回传坐标） ----
 
-/** 地图点击拾取：渲染器 click 事件（命中要素或空白区均回传坐标） */
-function handlePick(event: CustomEvent<{ coordinate: [number, number] | null }>): void {
+const panelRef = ref<InstanceType<typeof RouteControlPanel> | null>(null)
+
+function handleRendererClick(event: CustomEvent<{ coordinate: [number, number] | null }>): void {
   const coordinate = event.detail?.coordinate
   if (!coordinate || !Array.isArray(coordinate) || coordinate.length < 2) return
   const lng = Number(coordinate[0])
   const lat = Number(coordinate[1])
   if (!Number.isFinite(lng) || !Number.isFinite(lat)) return
-  if (pickStage.value === 'from') {
-    from.value = { lng, lat }
-    pickStage.value = 'none'
-    logger.debug('[RouteAnalysis] 起点已拾取:', from.value)
-  } else if (pickStage.value === 'to') {
-    to.value = { lng, lat }
-    pickStage.value = 'none'
-    logger.debug('[RouteAnalysis] 终点已拾取:', to.value)
-  }
-  // 每次拾取后重绘端点标记
-  updateRouteLayers(
-    businessLayerManager,
-    result.value?.found ? result.value : null,
-    from.value,
-    to.value
-  )
+  void panelRef?.value?.handleMapPick(lng, lat)
 }
 
 // 拾取监听跟随渲染器实例全生命周期（onMounted 一次性注册有两个丢失窗口：
@@ -92,138 +83,39 @@ function handlePick(event: CustomEvent<{ coordinate: [number, number] | null }>)
 watch(
   () => mapStore.currentRenderer,
   (renderer, old) => {
-    old?.off?.('click', handlePick)
-    renderer?.on?.('click', handlePick)
+    old?.off?.('click', handleRendererClick)
+    renderer?.on?.('click', handleRendererClick)
   },
   { immediate: true }
 )
-
-/** 发起查询 */
-async function handleQuery(): Promise<void> {
-  if (!from.value || !to.value) {
-    showWarning('请先在地图上拾取起点和终点')
-    return
-  }
-  resultError.value = ''
-  try {
-    const resp = await queryPath({
-      fromLng: from.value.lng,
-      fromLat: from.value.lat,
-      toLng: to.value.lng,
-      toLat: to.value.lat,
-      mode: mode.value,
-    })
-    result.value = resp
-    if (!resp.found) {
-      const reasons: Record<string, string> = {
-        origin_not_snapped: '起点未吸附到路网（离道路过远），请靠近道路拾取',
-        destination_not_snapped: '终点未吸附到路网（离道路过远），请靠近道路拾取',
-        unreachable: '起终点之间当前无法连通（路网断链）',
-      }
-      showWarning(reasons[resp.reason] ?? '未找到可达路径')
-    }
-    updateRouteLayers(businessLayerManager, resp.found ? resp : null, from.value, to.value)
-  } catch (error) {
-    // 被新请求抢占/组件卸载取消：静默返回（取消不是失败，最新请求负责更新 UI）
-    if (error instanceof RouteQueryCancelledError) return
-    const msg = error instanceof Error ? error.message : '路径查询失败'
-    resultError.value = msg
-    showError(msg, { fallback: '路径查询失败，请稍后重试' })
-    result.value = null
-    updateRouteLayers(businessLayerManager, null, from.value, to.value)
-  }
-}
-
-/** 清除起终点与路径 */
-function handleClear(): void {
-  from.value = null
-  to.value = null
-  result.value = null
-  resultError.value = ''
-  pickStage.value = 'none'
-  clearLayers(businessLayerManager)
-}
-
-/** 起点/终点拾取按钮点击（角色互斥：拾起点时终点的下一击无效） */
-function startPickFrom(): void {
-  pickStage.value = pickStage.value === 'from' ? 'none' : 'from'
-}
-function startPickTo(): void {
-  pickStage.value = pickStage.value === 'to' ? 'none' : 'to'
-}
-
-onUnmounted(() => {
-  // 解绑当前渲染器 click 监听（与 watch 注册配对；UnifiedMap 卸载会置
-  // currentRenderer=null 触发 watch off，此处兜底页面先于地图卸载的时序）
-  mapStore.currentRenderer?.off?.('click', handlePick)
-  clearLayers(businessLayerManager)
-})
 </script>
 
 <template>
   <div class="route-analysis-page">
     <AppLayout>
-      <!-- 左下：路径控制与结果面板 -->
+      <!-- 左下：路径结果摘要面板 -->
       <template #left>
-        <GCSPanel :w="4" :h="6" anchor="top-left" :offset-x="0" :offset-y="1.25">
-          <div class="route-panel">
-            <h3 class="route-title">航线路径</h3>
-
-            <button
-              class="pick-btn"
-              :class="{ active: pickStage === 'from' }"
-              @click="startPickFrom"
-            >
-              {{
-                pickStage === 'from'
-                  ? '点击地图设置起点…'
-                  : from
-                    ? `起点 ${from.lng.toFixed(4)}, ${from.lat.toFixed(4)}`
-                    : '拾取起点'
-              }}
-            </button>
-            <button class="pick-btn" :class="{ active: pickStage === 'to' }" @click="startPickTo">
-              {{
-                pickStage === 'to'
-                  ? '点击地图设置终点…'
-                  : to
-                    ? `终点 ${to.lng.toFixed(4)}, ${to.lat.toFixed(4)}`
-                    : '拾取终点'
-              }}
-            </button>
-
-            <div class="mode-row">
-              <button
-                class="mode-btn"
-                :class="{ active: mode === 'distance' }"
-                @click="mode = 'distance'"
-              >
-                最短距离
-              </button>
-              <button class="mode-btn" :class="{ active: mode === 'time' }" @click="mode = 'time'">
-                最快时间
-              </button>
+        <GCSPanel :w="4" :h="4" anchor="top-left" :offset-x="0" :offset-y="1.25">
+          <div class="result-panel">
+            <h3 class="panel-title">路径结果</h3>
+            <template v-if="summary">
+              <div class="summary-main">{{ summary.totalKm.toFixed(1) }} km</div>
+              <div class="summary-sub">
+                约 {{ summary.totalMin.toFixed(1)}} 分钟 · {{ summary.segCount }} 段
+              </div>
+              <div class="summary-sub">含接驳 {{ summary.totalWithSnapKm.toFixed(1) }} km</div>
+            </template>
+            <div v-else class="result-hint">
+              在右侧面板选择起点与终点后点击「开始查询」；途径点可选（最多 2 个）
             </div>
-
-            <div class="action-row">
-              <button class="query-btn" :disabled="!canQuery || calculating" @click="handleQuery">
-                {{ calculating ? '查询中…' : '查询路径' }}
-              </button>
-              <button class="clear-btn" @click="handleClear">清除</button>
-            </div>
-
-            <div v-if="resultError" class="result-error">{{ resultError }}</div>
-            <div v-else-if="result" class="result-summary">
-              <div class="summary-main">{{ summaryText }}</div>
-              <div v-if="result.found" class="summary-sub">{{ totalDistanceText }}</div>
-            </div>
-            <div v-else class="result-hint">按「拾取起点/终点」后点击地图选择位置</div>
+            <button class="clear-btn" @click="panelRef?.handleClear()">清除全部</button>
           </div>
         </GCSPanel>
       </template>
 
       <!-- 右下：图层控制 -->
       <template #right>
+        <RouteControlPanel ref="panelRef" :manager="businessLayerManager" @query-result="handleQueryResult" @cleared="handleCleared" />
         <GCSPanel :w="4" :h="4" anchor="top-right" :offset-x="0" :offset-y="5.5">
           <LayerControlPanel
             :layer-order="[
@@ -247,90 +139,56 @@ onUnmounted(() => {
   pointer-events: none;
 }
 
-.route-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+.result-panel {
   padding: 12px;
   color: var(--GCS-text-primary);
 }
 
-.route-title {
-  margin: 0 0 4px;
+.panel-title {
+  margin: 0 0 8px;
   font-size: 14px;
   font-weight: 600;
   color: var(--GCS-text-primary);
 }
 
-.pick-btn,
-.mode-btn,
-.query-btn,
-.clear-btn {
-  border: 1px solid var(--GCS-border-default);
-  background: var(--GCS-bg-elevated);
-  color: var(--GCS-text-primary);
-  border-radius: 4px;
-  padding: 6px 10px;
-  font-size: 12px;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.pick-btn:hover,
-.mode-btn:hover {
-  background: var(--GCS-bg-hover);
-}
-
-.pick-btn.active,
-.mode-btn.active {
-  border-color: var(--GCS-color-primary);
-  color: var(--GCS-color-primary);
-}
-
-.mode-row,
-.action-row {
-  display: flex;
-  gap: 8px;
-}
-
-.query-btn {
-  flex: 1;
-}
-
-.query-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.result-summary {
-  padding: 8px 10px;
-  background: var(--GCS-bg-elevated);
-  border-radius: 4px;
-}
-
 .summary-main {
-  font-size: 13px;
+  font-size: 20px;
   font-weight: 600;
   color: var(--GCS-color-primary);
 }
 
 .summary-sub {
   margin-top: 4px;
-  font-size: 11px;
-  color: var(--GCS-text-muted);
+  font-size: 12px;
+  color: var(--GCS-text-regular);
 }
 
-.result-error {
-  padding: 8px 10px;
-  color: var(--GCS-color-error);
-  font-size: 12px;
-  background: var(--GCS-bg-elevated);
-  border-radius: 4px;
+.summary-hint {
+  margin-top: 8px;
+  font-size: 10px;
+  color: var(--GCS-text-muted);
 }
 
 .result-hint {
   color: var(--GCS-text-muted);
   font-size: 12px;
-  padding: 4px 0;
+  line-height: 1.6;
+}
+
+.clear-btn {
+  margin-top: 12px;
+  padding: 4px 10px;
+  border: 1px solid var(--GCS-border-default);
+  border-radius: 4px;
+  background: var(--GCS-bg-elevated);
+  color: var(--GCS-text-regular);
+  font-size: 12px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.clear-btn:hover {
+  border-color: var(--GCS-color-primary);
+  color: var(--GCS-color-primary);
 }
 </style>

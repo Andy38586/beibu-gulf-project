@@ -74,6 +74,15 @@ def main() -> None:
                 ):
                     existing.append((z, x, y))
     tile_set = set(existing)
+    # 树完整性强制：GeographicTilingScheme root 为 z0 两张并列 + z1 四列两行——
+    # CesiumTerrainProvider 初始化即请求全部 root 与一层细化瓦片，与 DEM 不相交的
+    # （如 z0 x0 西半球）也必须存在（全海洋 0 高程），缺任一张即 TerrainProvider 404、
+    # 地形树建立失败（2026-09-09 实锤：0/0/0 缺失致 console 报 root 404、地形静默失效）
+    for z in (0, 1):
+        cols = 2 ** (z + 1)
+        for x in range(cols):
+            for y in range(2**z):
+                tile_set.add((z, x, y))
     print(f"derived tiles (z0-12, DEM bbox intersect): {len(existing)}")
 
     src_path = DEM_4326 if DEM_4326.exists() else DEM_UTM
@@ -89,7 +98,7 @@ def main() -> None:
         grid = np.zeros((SAMPLES, SAMPLES), dtype=np.float64)
         written = 0
         written_paths: set[Path] = set()
-        for z, x, y in existing:
+        for z, x, y in sorted(tile_set):
             lon_w, lat_s, lon_e, lat_n = tile_bounds(z, x, y)
             heights = np.full((SAMPLES, SAMPLES), 0.0)
             step_lat = (lat_n - lat_s) / (SAMPLES - 1)

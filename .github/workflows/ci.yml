@@ -222,6 +222,78 @@ jobs:
         # 剩余 HTTP/route/topology/graph 全量离线可跑；失败必须红（不 continue-on-error）
         run: python -m pytest tests/ -q
 
+  # 镜像构建推送（2026-09-10 起替代服务器端构建）：服务器 1.6G 内存扛不住 docker 内
+  # vite/nest/pip 构建（峰值 3-5G，OOM 卡死系统→SSH exit 255/Workbench 连接超时，
+  # run#134/135/136 实证）——镜像统一在 CI 构建推 GHCR，部署只 pull。
+  # IMAGE_TAG 与 deploy 同源：${{ github.run_number }}（正整数，易回滚）
+  build-push-images:
+    needs: [lint-and-build, algorithm-service-tests]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    env:
+      IMAGE_TAG: ${{ github.run_number }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # 三服务镜像：在一个 job 内逐次构建推送（共享 buildx 缓存，减少重复拉基础层）
+      - name: Build and push app (vite 前端 + nginx)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ghcr.io/andy38586/beibu-gulf-project-app:${IMAGE_TAG}
+            ghcr.io/andy38586/beibu-gulf-project-app:latest
+          build-args: |
+            VITE_TIANDITU_KEY=${{ secrets.TIANDITU_KEY }}
+            VITE_DATA_SOURCE=fetch
+            VITE_USE_NEST_MODULES=auth,plans,favorites,forecast,flood,site-analysis
+
+      - name: Build and push nest
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile.nest
+          push: true
+          tags: |
+            ghcr.io/andy38586/beibu-gulf-project-nest:${IMAGE_TAG}
+            ghcr.io/andy38586/beibu-gulf-project-nest:latest
+
+      - name: Build and push algorithm-service
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend/algorithm-service
+          file: ./backend/algorithm-service/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/andy38586/beibu-gulf-project-algorithm-service:${IMAGE_TAG}
+            ghcr.io/andy38586/beibu-gulf-project-algorithm-service:latest
+
+      # GHCR 新包默认 private，服务器 docker pull（匿名）拉不了——用带 GITHUB_TOKEN 的
+      # API 把三个包设为 public（部署服务器无 GHCR 凭证，公开只读拉取）
+      - name: Make packages public (服务器匿名 pull)
+        run: |
+          for pkg in app nest algorithm-service; do
+            curl -sS -X PUT \
+              -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+              -H "Accept: application/vnd.github+json" \
+              -d '{"visibility":"public"}' \
+              "https://api.github.com/user/packages/container/beibu-gulf-project-${pkg}/visibility" \
+              || echo "warn: 包 beibu-gulf-project-${pkg} public 化失败（若已 public 可忽略）"
+          done
+
   # 2026-08-09：部署改为 SSH 直部署（原 GHCR+webhook 方案废弃——服务器端无需额外
   # webhook 服务，Actions 用仓库 Secrets 里的服务器私钥直连）。
   # 前置配置：
@@ -230,7 +302,7 @@ jobs:
   #   - 服务器：/opt/beibu-gulf 下 clone 仓库 + .env 配置 VITE_TIANDITU_KEY/JWT_SECRET
   #   - 服务器公钥已加入 GitHub 账户（git pull 免密）
   deploy:
-    needs: [lint-and-build, nest-tests, algorithm-service-tests, audit]
+    needs: [lint-and-build, nest-tests, algorithm-service-tests, audit, build-push-images]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     steps:
@@ -249,12 +321,11 @@ jobs:
           # d117：22 端口受跨境 SSH 干扰（TCP 通、banner 丢失，#121/#122 复现），
           # 服务器 sshd 增听高位端口并经此 Secret 切换；未配置时回退 22 行为不变
           SSH_PORT: ${{ secrets.SERVER_SSH_PORT || 22 }}
+          # 与 build-push-images job 同源：run_number（正整数），服务器拉同 tag 镜像
+          IMAGE_TAG: ${{ github.run_number }}
         run: |
-          # F2：部署注入版本 tag（日期+run 号），镜像不再覆写 latest——
-          # rollback.sh 可用历史 tag 回滚（docker images 列出后 ./scripts/rollback.sh <tag>）
-          IMAGE_TAG="$(date +%Y%m%d)-${GITHUB_RUN_NUMBER}"
-          # 短命令快速通道：连接层失败（exit 255，跨境链路抖动）自动重试 3 次；
-          # 远端命令自身失败（非 255）直接透传退出码，重试无意义
+          # 短命令快速通道：连接层失败（exit 255）自动重试 3 次；远端命令自身失败
+          # （非 255）直接透传退出码，重试无意义
           ssh_quick() {
             local attempt_exit=0
             for attempt in 1 2 3; do
@@ -263,37 +334,42 @@ jobs:
                 "$SERVER_USER@$SERVER_HOST" "$1" || attempt_exit=$?
               [ "$attempt_exit" -eq 0 ] && return 0
               [ "$attempt_exit" -ne 255 ] && return "$attempt_exit"
-              echo "::warning::SSH 连接失败（exit 255，疑似跨境链路抖动），第 ${attempt}/3 次，10 秒后重试" >&2
+              echo "::warning::SSH 连接失败（exit 255，疑似链路/负载问题），第 ${attempt}/3 次，10 秒后重试" >&2
               [ "$attempt" -lt 3 ] && sleep 10
             done
             return 1
           }
           # 阶段一（短会话）：同步代码。users.json 由跟踪转为 gitignore 后与服务器运行时
           # 副本冲突，ff-only pull 拒绝删除被修改文件——先备份真实数据到仓库外、还原
-          # HEAD 版本让删除动作执行，pull 后放回（此后 untracked 受忽略保护，幂等）
+          # HEAD 版本让删除动作执行，pull 后放回（此后 untracked 受忽略保护，幂等）。
+          # 顺带清理此前失败轮次残留的本地构建进程（docker compose up --build 卡死
+          # 会持续占内存拖垮 sshd——run#135/136 卡死现场；容器由 containerd 托管，pkill 不误伤）
           if ! ssh_quick "cd /opt/beibu-gulf \
             && mkdir -p /opt/beibu-gulf-runtime-data \
             && cp -f backend/data/users.json /opt/beibu-gulf-runtime-data/ 2>/dev/null; \
             git checkout -- backend/data/users.json 2>/dev/null; \
             git pull --ff-only || exit 1; \
-            cp -f /opt/beibu-gulf-runtime-data/users.json backend/data/users.json 2>/dev/null; true"; then
+            cp -f /opt/beibu-gulf-runtime-data/users.json backend/data/users.json 2>/dev/null; \
+            pkill -9 -f 'docker compose' 2>/dev/null; pkill -9 -f 'docker build' 2>/dev/null; \
+            docker info >/dev/null 2>&1 || systemctl restart docker; true"; then
             echo "::error::git pull 阶段失败（服务器仓库状态或链路异常）"
             exit 1
           fi
-          # 阶段二（短会话）：触发后台构建即返回。同步长连接撑不过低配服务器 8 分钟级
-          # 构建（跨境 SSH 中途断开 exit 255，run#135 实锤）——构建改由 nohup 脱离会话
-          # 执行，结果写入状态文件；构建收尾顺带清 builder 缓存（磁盘仅 40G，缓存无界增长）
+          # 阶段二（短会话）：触发后台「拉镜像 + 启动」即返回。镜像由 CI 构建推送
+          # GHCR（build-push-images job），服务器只 pull 不 build——内存峰值从 3-5G
+          # 降到解包级（1G 内），OOM 卡死根除；pull/up 仍可能跨 G 分钟，故继续
+          # nohup 脱离会话 + 状态文件，避免长连接被强断。收尾清未用镜像（40G 磁盘）
           if ! ssh_quick "cd /opt/beibu-gulf; rm -f /tmp/beibu-deploy-status; \
-            nohup bash -c 'IMAGE_TAG=${IMAGE_TAG} docker compose up --build -d > /tmp/beibu-deploy.log 2>&1 \
+            nohup bash -c 'IMAGE_TAG=${IMAGE_TAG} docker compose pull > /tmp/beibu-deploy.log 2>&1 \
+              && IMAGE_TAG=${IMAGE_TAG} docker compose up -d >> /tmp/beibu-deploy.log 2>&1 \
               && echo OK > /tmp/beibu-deploy-status || echo FAIL > /tmp/beibu-deploy-status; \
-              docker builder prune -f >> /tmp/beibu-deploy.log 2>&1' >/dev/null 2>&1 & \
-            echo build-triggered"; then
-            echo "::error::触发构建失败"
+              docker image prune -f >> /tmp/beibu-deploy.log 2>&1' >/dev/null 2>&1 & \
+            echo pull-triggered"; then
+            echo "::error::触发部署失败"
             exit 1
           fi
-          # 阶段三（短会话轮询）：每 30s 查一次状态文件，单次连接都是秒级，不再依赖长连接；
-          # 轮询自身的 SSH 抖动只跳过本轮（continue），不判定部署失败
-          for i in $(seq 1 40); do
+          # 阶段三（短会话轮询）：每 30s 查一次状态文件；轮询自身的 SSH 抖动只跳过本轮
+          for i in $(seq 1 60); do
             sleep 30
             status="$(ssh_quick "cat /tmp/beibu-deploy-status 2>/dev/null || echo RUNNING" 2>/dev/null)" || continue
             case "$status" in
@@ -302,12 +378,12 @@ jobs:
                 exit 0
                 ;;
               FAIL)
-                echo "::error::服务器端构建失败，日志尾部："
+                echo "::error::服务器端 pull/启动失败，日志尾部："
                 ssh_quick "tail -n 60 /tmp/beibu-deploy.log" || true
                 exit 1
                 ;;
             esac
-            echo "构建进行中（${i}/40）..."
+            echo "拉取/启动进行中（${i}/60）..."
           done
-          echo "::error::部署 20 分钟未完成（构建挂起或服务器压力过大），登录服务器查 /tmp/beibu-deploy.log"
+          echo "::error::部署 30 分钟未完成（GHCR 跨境拉取慢或服务器异常），登录服务器查 /tmp/beibu-deploy.log"
           exit 1

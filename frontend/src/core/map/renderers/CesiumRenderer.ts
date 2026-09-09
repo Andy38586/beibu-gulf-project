@@ -128,6 +128,18 @@ class CesiumViewerManager {
       }
     })
 
+    // WebGL 上下文丢失检测：开发期频繁 HMR/整页 reload 会累积 WebGL 上下文（浏览器每 tab
+    // 上限约 16 个），超限后新建 canvas 全黑且**无任何报错**——「3D 一片黑/底图丢失」的
+    // 静默形态。此处把黑屏显性化：日志 + toast 明示刷新，不再让用户对着黑屏猜
+    this.viewer.scene.canvas.addEventListener(
+      'webglcontextlost',
+      ((e: Event) => {
+        e.preventDefault()
+        logger.error('[Cesium] WebGL 上下文丢失（多标签页/频繁刷新累积所致），需刷新页面恢复')
+        showError('3D 渲染上下文丢失，请关闭多余标签页并刷新页面')
+      }) as EventListener
+    )
+
     // maximumScreenSpaceError 4（默认 2）：globe 网格减半，拖拽更流畅（远处地形略简，视觉可接受）
     ;(this.viewer.scene as unknown as { maximumScreenSpaceError: number }).maximumScreenSpaceError =
       4

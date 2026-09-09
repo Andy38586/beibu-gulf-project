@@ -80,17 +80,20 @@ const hasFromTo = computed(() => slots.value.from !== null && slots.value.to !==
 const poiKeyword = ref('')
 const poiList = ref<PoiSearchItemParsed[]>([])
 const poiLoading = ref(false)
+/** 查询失败态（下拉内提示，不弹全局 toast——PG 未起等环境态不该每次进页弹 3 个错误） */
+const poiError = ref(false)
 const poiDropOpen = ref(false)
 let poiDebounceTimer: ReturnType<typeof setTimeout> | null = null
 
 async function refreshPois(): Promise<void> {
   poiLoading.value = true
+  poiError.value = false
   try {
     poiList.value = await searchPois(poiKeyword.value, 30)
   } catch (error) {
-    const msg = error instanceof Error ? error.message : 'POI 查询失败'
-    showError(msg, { fallback: 'POI 查询失败，请稍后重试' })
     poiList.value = []
+    poiError.value = true
+    logger.warn('[RoutePanel] POI 查询失败（下拉内提示）:', error instanceof Error ? error.message : error)
   } finally {
     poiLoading.value = false
   }
@@ -307,6 +310,7 @@ defineExpose({
       <!-- POI 下拉：锚定搜索框正下方展开，不遮搜索框；默认兜底列表填充 -->
       <div v-if="poiDropOpen" class="poi-drop">
         <div v-if="poiLoading" class="poi-hint">查询中…</div>
+        <div v-else-if="poiError" class="poi-hint">POI 服务暂不可用（数据服务未就绪）</div>
         <div v-else-if="poiList.length === 0" class="poi-hint">无匹配 POI</div>
         <button
           v-for="poi in poiList"

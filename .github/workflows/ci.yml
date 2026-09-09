@@ -349,13 +349,15 @@ jobs:
           # 副本冲突，ff-only pull 拒绝删除被修改文件——先备份真实数据到仓库外、还原
           # HEAD 版本让删除动作执行，pull 后放回（此后 untracked 受忽略保护，幂等）。
           # 顺带清理此前失败轮次残留的本地构建进程（docker compose up --build 卡死
-          # 会持续占内存拖垮 sshd——run#135/136 卡死现场；容器由 containerd 托管，pkill 不误伤）
+          # 会持续占内存拖垮 sshd——run#135/136 卡死现场；容器由 containerd 托管，pkill 不误伤）。
+          # 注意 pkill -f 模式用 [d]ocker 写法防自匹配（run#144：命令行含 'docker compose'
+          # 字面被自己 pkill 自杀 → SSH 会话被杀 → exit 255 空 stderr）
           if ! ssh_quick "cd /opt/beibu-gulf \
             && cp -f backend/data/users.json /tmp/beibu-users.bak 2>/dev/null; \
             git checkout -- backend/data/users.json 2>/dev/null; \
             git pull --ff-only || exit 1; \
             cp -f /tmp/beibu-users.bak backend/data/users.json 2>/dev/null; \
-            pkill -9 -f 'docker compose' 2>/dev/null; pkill -9 -f 'docker build' 2>/dev/null; \
+            pkill -9 -f '[d]ocker compose' 2>/dev/null; pkill -9 -f '[d]ocker build' 2>/dev/null; \
             docker info >/dev/null 2>&1 || sudo systemctl restart docker; true"; then
             echo "::error::git pull 阶段失败（SSH_PORT=${SSH_PORT}；见上方 ssh stderr 原文）"
             exit 1

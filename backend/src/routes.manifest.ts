@@ -30,4 +30,5 @@ export const ROUTES_MANIFEST = [
   { method: 'POST', path: 'nest-api/plans/:id/xiaoqu' },
   { method: 'DELETE', path: 'nest-api/plans/:id/xiaoqu/:xiaoquId' },
   { method: 'POST', path: 'nest-api/site-analysis' },
+  { method: 'GET', path: 'nest-api/site-analysis/pois' },
 ] as const

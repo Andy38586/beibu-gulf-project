@@ -20,7 +20,12 @@ import type { RoutePathResult } from '@/types'
 
 import { isWithinThreeCities } from '../composables/useCityBoundary'
 import { ROUTE_SLOT_KEYS, useRouteLayer } from '../composables/useRouteLayer'
-import type { RouteLayerManager, RoutePoint, RouteSlot, RouteSlotKey } from '../composables/useRouteLayer'
+import type {
+  RouteLayerManager,
+  RoutePoint,
+  RouteSlot,
+  RouteSlotKey,
+} from '../composables/useRouteLayer'
 import { RouteQueryCancelledError, useRouteApi } from '../composables/useRouteApi'
 
 interface Props {
@@ -93,7 +98,10 @@ async function refreshPois(): Promise<void> {
   } catch (error) {
     poiList.value = []
     poiError.value = true
-    logger.warn('[RoutePanel] POI 查询失败（下拉内提示）:', error instanceof Error ? error.message : error)
+    logger.warn(
+      '[RoutePanel] POI 查询失败（下拉内提示）:',
+      error instanceof Error ? error.message : error
+    )
   } finally {
     poiLoading.value = false
   }
@@ -203,7 +211,9 @@ async function handleQuery(): Promise<void> {
           destination_not_snapped: '未吸附到路网（离道路过远）',
           unreachable: '两点间路网不连通',
         }
-        showWarning(`第 ${i + 1} 段（${slotName(a)} → ${slotName(b)}）：${reasons[resp.reason] ?? '未找到可达路径'}`)
+        showWarning(
+          `第 ${i + 1} 段（${slotName(a)} → ${slotName(b)}）：${reasons[resp.reason] ?? '未找到可达路径'}`
+        )
         break
       }
       segments.push(resp)
@@ -273,27 +283,15 @@ defineExpose({
 
         <!-- 中部四槽：2×2（1.8 宽）；主体点击 = 聚焦 POI 搜索，定位图标 = 地图选点 -->
         <button
-          v-for="key in (['from', 'waypoint-1', 'waypoint-2', 'to'] as const)"
+          v-for="key in ['from', 'waypoint-1', 'waypoint-2', 'to'] as const"
           :key="key"
           class="route-btn slot-btn"
           :class="{ active: activeSlot === key, filled: slots[key] !== null }"
           @click="activateSlot(key)"
         >
           <span class="slot-text">{{ slotLabel(key) }}</span>
-          <span
-            class="locate-icon"
-            title="去地图上自己选点"
-            @click.stop="startMapPick(key)"
-          >
-            <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
-              <path
-                d="M8 1a5 5 0 0 1 5 5c0 3.4-5 9-5 9S3 9.4 3 6a5 5 0 0 1 5-5Z"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.4"
-              />
-              <circle cx="8" cy="6" r="1.8" fill="currentColor" />
-            </svg>
+          <span class="locate-icon" title="去地图上自己选点" @click.stop="startMapPick(key)">
+            <i class="locate-pin" aria-hidden="true"></i>
           </span>
         </button>
 
@@ -428,6 +426,27 @@ defineExpose({
 .locate-icon:hover {
   color: var(--GCS-color-primary);
   background: var(--GCS-bg-hover);
+}
+
+/* 定位针图标（纯 CSS 形状：菱形旋转 + 中心圆点）——
+   不用内联 SVG path：path 数据以 move-to 指令开头（字母 m 之后紧跟坐标数字），
+   会被 v3-guard no-ephemeral 的施工编号模式（字母 m 后接数字）误判而拦下 pre-push */
+.locate-pin {
+  position: relative;
+  display: block;
+  width: 9px;
+  height: 9px;
+  border: 1.4px solid currentColor;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+}
+
+.locate-pin::after {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  border-radius: 50%;
+  background: currentColor;
 }
 
 /* POI 搜索框：与槽按钮同规格（3.8 通栏 0.8 高） */

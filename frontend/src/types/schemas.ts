@@ -273,7 +273,7 @@ export const floodStatisticsResponseSchema = z.looseObject({
   floodArea: z.number().optional(),
   averageDepth: z.number().optional(),
   maxDepth: z.number().optional(),
-  // （M5）：计数语义改名 affectedFacilityCount（原 affectedFacilities 与数组语义同名不同型）
+  // 计数语义改名 affectedFacilityCount（原 affectedFacilities 与数组语义同名不同型）
   affectedFacilityCount: z.number().optional(),
   affectedPorts: z.array(z.string()).optional(),
   estimatedLoss: z.number().optional(),

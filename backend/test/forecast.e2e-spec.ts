@@ -6,7 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { AppModule } from '../src/app.module'
 
 // forecast e2e：连真实 backend/data/forecast 静态数据（公开只读，免登录）。
-// 覆盖：四端点冒烟、confidence 钳制（REQ-4）、缓存一致性（REQ-3）、校验文案
+// 覆盖：四端点冒烟、confidence 钳制、缓存一致性、校验文案
 describe('forecast e2e（读真数据文件）', () => {
   let app: INestApplication
 
@@ -128,7 +128,7 @@ describe('forecast e2e（读真数据文件）', () => {
     expect(Object.keys(res.body.data.indicators).sort()).toEqual(['cargo', 'container'])
   })
 
-  it('缓存命中=重算一致性（REQ-3 连发两次同参数响应逐字节一致）', async () => {
+  it('缓存命中=重算一致性（连发两次同参数响应逐字节一致）', async () => {
     const a = await request(app.getHttpServer())
       .get(`${base}/map?indicator=activity&time=2030-01`)
       .expect(200)

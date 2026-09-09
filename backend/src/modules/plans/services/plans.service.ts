@@ -3,7 +3,7 @@ import { Injectable } from '@nestjs/common'
 import { PlansRepository } from '../repositories/plans.repository'
 
 // 方案业务层：属主校验由 controller 层守卫（对齐 Express plansService 分工——
-// service 专注数据访问编排，d080 分层语义在 Nest 侧保持同构）
+// service 专注数据访问编排，分层语义在 Nest 侧保持同构）
 @Injectable()
 export class PlansService {
   constructor(private readonly plansRepository: PlansRepository) {}

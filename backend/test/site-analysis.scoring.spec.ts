@@ -9,17 +9,17 @@ import {
   scoreXiaoqu,
 } from '../src/modules/site-analysis/services/scoring'
 
-// 移植 Express services/__tests__/scoringService.test.js（专项8 副本 8-3），14 用例语义。
-// 触发测试：8-1（极点纬度 cos 分母守卫，旧 ||1 兜底被浮点 cos(90°)≈6.12e-17 绕过）、
-// 8-2（RBush 无 isEmpty，旧判空防御为死代码——修复后 all() 判空行为等价、防御生效）。
+// 移植 Express services/__tests__/scoringService.test.js14 用例语义。
+// 触发测试：极点纬度 cos 分母守卫，旧 ||1 兜底被浮点 cos(90°)≈6.12e-17 绕过）、
+// RBush 无 isEmpty，旧判空防御为死代码——修复后 all() 判空行为等价、防御生效）。
 // 用例锁定分数"值"而非仅字段存在（siteAnalysisService.test.js 旧断言只查 toHaveProperty('score')）。
 
 const hospitalAt = (lng: number, lat: number) => [{ lng, lat, name: '测试医院' }]
 
 const typeSettings: Record<string, TypeSetting> = { hospital: { selected: true, radius: 5 } }
 
-describe('scoreXiaoqu — 选址评分核心（8-3）', () => {
-  it('正常输入 → 得分 > 0（分数值断言：8-2 防御复活后行为不变，评分链路可用）', () => {
+describe('scoreXiaoqu — 选址评分核心', () => {
+  it('正常输入 → 得分 > 0（分数值断言：防御复活后行为不变，评分链路可用）', () => {
     const result = scoreXiaoqu(
       [{ id: 'xq1', name: '北部湾小区', lng: 108.6, lat: 21.85 }],
       { hospital: hospitalAt(108.6, 21.85) },
@@ -39,7 +39,7 @@ describe('scoreXiaoqu — 选址评分核心（8-3）', () => {
     expect(result[0].score).toBe(0)
   })
 
-  it('设施类型无数据 → 0 分不崩（8-2：!facilityIndex undefined 兜底分支）', () => {
+  it('设施类型无数据 → 0 分不崩（!facilityIndex undefined 兜底分支）', () => {
     const result = scoreXiaoqu(
       [{ id: 'xq1', lng: 108.6, lat: 21.85 }],
       { hospital: [] },
@@ -48,7 +48,7 @@ describe('scoreXiaoqu — 选址评分核心（8-3）', () => {
     expect(result[0].score).toBe(0)
   })
 
-  it('极点纬度 lat=90 → 打分正常且分数有限（8-1：cos 分母守卫）', () => {
+  it('极点纬度 lat=90 → 打分正常且分数有限（cos 分母守卫）', () => {
     // 修复前 lngOffset≈7.36e14 度，粗筛全量退化；守卫后 bbox 保守扩张，无 NaN/Infinity
     const result = scoreXiaoqu(
       [{ id: 'xq1', lng: 0, lat: 90 }],
@@ -58,7 +58,7 @@ describe('scoreXiaoqu — 选址评分核心（8-3）', () => {
     expect(Number.isFinite(result[0].score as number)).toBe(true)
   })
 
-  // 816-专项8 发现10：NaN/坏坐标防御分支的触发测试（02 §5.6 不变量 5「NaN 禁传播」无锁定，
+  // NaN/坏坐标防御分支的触发测试（不变量 5「NaN 禁传播」无锁定，
   // 防御分支回退无人察觉——历史实锤坏数据静默算进结果）
   it('linearDecay(NaN, 5) = 0（NaN 守卫可触发）', () => {
     expect(linearDecay(NaN, 5)).toBe(0)
@@ -89,7 +89,7 @@ describe('scoreXiaoqu — 选址评分核心（8-3）', () => {
     expect(Number.isFinite(result[0].breakdown?.hospital as number)).toBe(true)
   })
 
-  // 816-专项8 发现12：加权平均公式与「无设施拉低总分」语义锁定（02 §4.1 应然契约，
+  // 加权平均公式与「无设施拉低总分」语义锁定（应然契约，
   // 原 9 个用例从未断言多类型合并后的 score 数值）
   it('加权平均：无设施因子 0 分且权重计入分母（固定期望值）', () => {
     const xq = [{ id: 'xq1', lng: 108.6, lat: 21.85 }]
@@ -160,7 +160,7 @@ describe('kmToDegreeOffset — bbox 粗筛保守化（8-6）', () => {
     expect(kmToDegreeOffset(111, 21.85).latOffset).toBeCloseTo(1, 5)
   })
 
-  it('极点纬度仍有限且保守（8-1 守卫延续）', () => {
+  it('极点纬度仍有限且保守（守卫延续）', () => {
     const { lngOffset } = kmToDegreeOffset(5, 90)
     expect(Number.isFinite(lngOffset)).toBe(true)
     expect(lngOffset).toBeGreaterThan(0)

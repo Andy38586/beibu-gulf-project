@@ -11,7 +11,7 @@ import { getSafeStorage } from '@/shared/utils/safeStorage'
 
 export type ThemeMode = 'light' | 'dark'
 
-/** 返回契约（816-专项3-0816-13：显式化，防重构时签名静默漂移） */
+/** 返回契约（显式化，防重构时签名静默漂移） */
 export interface UseThemeReturn {
   theme: Readonly<Ref<ThemeMode>>
   isDark: ComputedRef<boolean>
@@ -44,7 +44,7 @@ function applyTheme(mode: ThemeMode, persist = true): void {
   listeners.forEach((cb) => cb(mode))
 }
 
-// 816-专项7 S7-36：系统主题变化实时跟随——仅当用户未手动选择（localStorage 无 gcs-theme）时生效；
+// 系统主题变化实时跟随——仅当用户未手动选择（localStorage 无 gcs-theme）时生效；
 // 跟随系统应用不落盘（persist=false），保证手动切换后置手动优先位
 function watchSystemTheme(): void {
   if (typeof window === 'undefined' || !window.matchMedia) return

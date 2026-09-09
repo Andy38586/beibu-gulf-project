@@ -67,7 +67,7 @@ const { createUpdateHandler } = useAnalysisLayer()
 // 图层更新回调由页面直连 businessLayerManager（store 已不含分析回调机制）
 const updateAnalysisHandler = createUpdateHandler(businessLayerManager)
 
-/** 分析结果（816-专项2 4-3：store 唯一来源，storeToRefs 透传——页面与 AppLayout 全局雷达同源，
+/** 分析结果（store 唯一来源，storeToRefs 透传——页面与 AppLayout 全局雷达同源，
  *  原本地 ref 双持 + handleResult/restoreState 双写维持一致的反模式已移除） */
 const { matchedXiaoqu, selectedTypes, facilityPoi, calculating } = storeToRefs(stateStore)
 
@@ -131,7 +131,7 @@ function handleAnalysisError(message: string): void {
   showError(message, { fallback: '选址分析失败，请调整筛选条件后重试' })
 }
 
-/** 8-1：无重叠区域 = 合法业务空结果（02 §4.1），提示用户调整条件而非报错 */
+/** 无重叠区域 = 合法业务空结果，提示用户调整条件而非报错 */
 function handleAnalysisEmpty(reason: string): void {
   showWarning(reason)
 }
@@ -170,7 +170,7 @@ function handleResult(result: Partial<AnalysisResult>): void {
   updateAnalysisHandler(result).catch((e: unknown) =>
     logger.debug('[SiteSelection] 结果渲染被取消或失败:', e)
   )
-  // 816-专项2 4-3：store 单一来源——setResult 同时驱动页面与 AppLayout 全局雷达（删本地双写）
+  // store 单一来源——setResult 同时驱动页面与 AppLayout 全局雷达（删本地双写）
   stateStore.setResult({
     matchedXiaoqu: result.matchedXiaoqu || [],
     selectedTypes: result.selectedTypes || [],

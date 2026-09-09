@@ -13,7 +13,7 @@ const active = ref(false)
 /** 当前滑块所在面板元素（closest('.GCS-panel')） */
 const activePanel = ref<HTMLElement | null>(null)
 
-/** 返回契约（816-专项3-0816-13：显式化，防重构时签名静默漂移） */
+/** 返回契约（显式化，防重构时签名静默漂移） */
 export interface UseSliderFocusReturn {
   active: Ref<boolean>
   activePanel: Ref<HTMLElement | null>

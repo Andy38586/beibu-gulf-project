@@ -208,7 +208,7 @@ describe('BusinessLayerManager', () => {
       )
     })
 
-    it('catalog 被清空后 reapplyAll 应重建面板条目（a018：切 3D 后图层控制面板丢勾选项）', () => {
+    it('catalog 被清空后 reapplyAll 应重建面板条目（切 3D 后图层控制面板丢勾选项）', () => {
       manager.register('panel-layer', {
         label: '真实地形',
         layerType: 'geotiff',
@@ -315,7 +315,7 @@ describe('BusinessLayerManager', () => {
       expect(newRenderer.addPointLayer).not.toHaveBeenCalled()
     })
 
-    it('data==null 的图层（如 flood-area 等 API 返回后渲染）也应重建面板条目（a046）', () => {
+    it('data==null 的图层（如 flood-area 等 API 返回后渲染）也应重建面板条目', () => {
       manager.register('flood-area', {
         label: '淹没范围',
         layerType: 'geojson',

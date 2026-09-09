@@ -27,7 +27,7 @@ export interface ForecastSavedState {
 export const useForecastStore = defineStore('forecast', () => {
   const currentTime: Ref<string> = ref('2026-06')
 
-  // 816-专项2 4-4：timeRange 死状态已删除（currentTime 与 timeRange.current 双持「当前时间」，
+  // timeRange 死状态已删除（currentTime 与 timeRange.current 双持「当前时间」，
   // 全仓业务 0 消费；start/end 由 BASE_YEAR/END_YEAR 派生）
 
   const timeGranularity: Ref<string> = ref('month')

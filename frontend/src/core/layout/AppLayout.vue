@@ -24,8 +24,8 @@ import { type NavItem, navItems } from './navConfig'
 import { useMobileDrawer } from './useMobileDrawer'
 import { useSliderFocus } from './useSliderFocus'
 
-// 816-专项5并 3-2：Debug 组件动态导入且仅 DEV 引用——生产构建彻底 tree-shake
-// （原静态 import 使 debug chunk 进生产包，违反 03 §三.3「仅 dev 构建加载」）
+// Debug 组件动态导入且仅 DEV 引用——生产构建彻底 tree-shake
+// （原静态 import 使 debug chunk 进生产包，违反 「仅 dev 构建加载」）
 const DebugToggle = import.meta.env.DEV
   ? defineAsyncComponent(() => import('./components/DebugToggle.vue'))
   : null
@@ -214,7 +214,7 @@ function goBusiness(item: NavItem): void {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  z-index: var(--GCS-z-layout); /* 816-S7-40：壳层档（原散落 50） */
+  z-index: var(--GCS-z-layout); /* 壳层档（原散落 50） */
 }
 
 /* 所有 Panel 子元素恢复 pointer-events */
@@ -265,7 +265,7 @@ function goBusiness(item: NavItem): void {
   position: sticky;
   top: 0;
 
-  /* 816-S7-40：局部层叠上下文（抽屉 body 内），不参与全局 --GCS-z-* 刻度 */
+  /* 局部层叠上下文（抽屉 body 内），不参与全局 --GCS-z-* 刻度 */
   z-index: 5;
   background: var(--GCS-bg-panel);
   border-bottom: 1px solid var(--GCS-border-light);

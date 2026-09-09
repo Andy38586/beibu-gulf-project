@@ -9,7 +9,7 @@ import { computed, type ComputedRef } from 'vue'
 import { ApiError, ErrorCode, useLatestRequest } from '@/shared'
 import { useForecastStore } from '@/stores'
 
-/** 返回契约（816-专项3-0816-13：显式化，防重构时签名静默漂移） */
+/** 返回契约（显式化，防重构时签名静默漂移） */
 export interface UseForecastRequestReturn {
   isLoading: ComputedRef<boolean>
   startTransaction: () => { transactionId: number; signal: AbortSignal }

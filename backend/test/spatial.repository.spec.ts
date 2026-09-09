@@ -9,7 +9,7 @@ import { GeoJsonGeometry, SpatialRepository } from '../src/infra/db/spatial.repo
 //
 // 定位：这是 turf→PostGIS 下沉后的**唯一空间正确性守门人**——
 //   ① 算子自身语义正确（面积/交集/点面）
-//   ② 与旧 turf 实现等价（面积差 <0.5% + 命中集合一致），即本批次的验收标准
+//   ② 与旧 turf 实现等价（面积差 <0.5% + 命中集合一致），即验收标准
 // 故 turf 在此作为"对照实现"保留：不是双实现并存，而是把验收标准写成断言。
 const withDb = process.env.V3_INTEGRATION_DB !== undefined
 

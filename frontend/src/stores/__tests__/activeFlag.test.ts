@@ -1,4 +1,4 @@
-// floodStore 激活标志回归测试（R-7 / LIF-3，P3：三 store 已并入）
+// floodStore 激活标志回归测试（三 store 已并入）
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it } from 'vitest'
 

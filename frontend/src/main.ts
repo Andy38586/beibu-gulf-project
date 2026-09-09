@@ -1,7 +1,7 @@
 import './style.css'
 // Element Plus 暗色主题变量（html.dark 钩子由 useTheme 同步切换；按需引入组件不含 dark 变量）
 import 'element-plus/theme-chalk/dark/css-vars.css'
-// 816-S7-38：EP 变量 → GCS token 映射（须在 EP dark css-vars 之后加载，见文件头注释）
+// EP 变量 → GCS token 映射（须在 EP dark css-vars 之后加载，见文件头注释）
 import './assets/element-plus-overrides.css'
 import { createPinia } from 'pinia'
 import type { ComponentPublicInstance } from 'vue'
@@ -74,8 +74,8 @@ app.config.errorHandler = (
   if (import.meta.env.DEV) {
     logger.error('错误详情:', { err, instance, info })
   } else {
-    // 错误上报暂缓接入（z072 在案）：当前仅 console 输出，logger 无 transport 钩子；
-    // Sentry 接入时按 z072 方案 A/B 落地（main.ts 直接 SDK 或 logger 重加 addLogTransport）
+    // 错误上报暂缓接入：当前仅 console 输出，logger 无 transport 钩子；
+    // Sentry 接入时按既定方案落地（main.ts 直接 SDK 或 logger 重加 addLogTransport）
   }
 }
 
@@ -88,8 +88,8 @@ window.onunhandledrejection = (event: PromiseRejectionEvent) => {
   logger.error('[unhandledrejection]', event.reason)
   perfReportError('promise')
 }
-// 816-专项5主 16：资源加载错误（script/link/img 不冒泡到 window.onerror）——
-// 捕获 Cesium.js / 天地图瓦片 / JS chunk 加载失败，统一 trace（配合 z072 上报方案一并落地）
+// 资源加载错误（script/link/img 不冒泡到 window.onerror）——
+// 捕获 Cesium.js / 天地图瓦片 / JS chunk 加载失败，统一 trace（与错误上报方案一并落地）
 window.addEventListener(
   'error',
   (event) => {

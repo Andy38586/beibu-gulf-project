@@ -11,9 +11,9 @@ export interface Plan {
   name: string
   selectedKeys: string[] // 不强约束 FacilityType[]，因为旧数据可能有不一致
   typeSettings: Record<string, TypeSetting>
-  // 816-专项3-0816-03：改可选对齐运行时（存量 plans.json 记录大多无此字段，消费方 `|| []` 兜底）
+  // 改可选对齐运行时（存量 plans.json 记录大多无此字段，消费方 `|| []` 兜底）
   savedXiaoqu?: SavedXiaoqu[]
-  /** 816-专项3-0816-04：选址权重（后端 plansController 持久化；旧数据 null，前端当前不消费） */
+  /** 选址权重（后端 plansController 持久化；旧数据 null，前端当前不消费） */
   weights?: Record<string, number> | null
   createdAt: string
   updatedAt: string

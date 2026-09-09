@@ -41,7 +41,7 @@ echarts.use([
   CanvasRenderer,
 ])
 
-/** 剖面线数据结构见 ../composables/useTerrainProfiles（816-专项1 发现16：本地重复接口已随 R5 收口移除） */
+/** 剖面线数据结构见 ../composables/useTerrainProfiles（本地重复接口已收口移除） */
 
 const floodStore = useFloodStore()
 // 滑块专注模式（安卓控制中心风格）：拖动水位滑块时隐藏其他面板，只留本面板
@@ -49,7 +49,7 @@ const { beginSliderFocus, endSliderFocus } = useSliderFocus()
 // 直接从 useGCS 解构 CSS 变量供 v-bind() 使用
 const { cell8px, cell16px } = useGCS()
 
-// 816-专项2 4-1：水位滑块改为「store 单一事实源」的可写 computed——
+// 水位滑块改为「store 单一事实源」的可写 computed——
 // 原 localWaterLevel ref + watch 反向同步属双源复制模式（指标 4.1 反模式），
 // 快照恢复/外部写入（setWaterLevelByMark）均自动一致
 const localWaterLevel = computed<number>({
@@ -83,7 +83,7 @@ function setWaterLevelByMark(value: number) {
   floodStore.setWaterLevel(value)
 }
 
-/** 剖面线列表与选中态（816-专项1 发现16：R5 收口至 useTerrainProfiles，组件不再直调 apiRequest） */
+/** 剖面线列表与选中态（收口至 useTerrainProfiles，组件不再直调 apiRequest） */
 const { profiles, selectedProfileId, loadProfiles, getCurrentProfile } = useTerrainProfiles()
 
 /** ECharts实例 */
@@ -350,13 +350,13 @@ onUnmounted(() => {
 }
 
 .header-title {
-  font-size: var(--GCS-font-size-lg); /* 816-S7-57：面板标题字号归档 */
+  font-size: var(--GCS-font-size-lg); /* 面板标题字号归档 */
   font-weight: 600;
   color: var(--GCS-text-primary);
 }
 
 .profile-select {
-  /* 816-S7-58：固定 px 宽改网格倍数（160px = 2 个 80px cell，随 cellPixel 档位缩放） */
+  /* 固定 px 宽改网格倍数（160px = 2 个 80px cell，随 cellPixel 档位缩放） */
   width: calc(2 * var(--GCS-cell));
 }
 
@@ -427,7 +427,7 @@ onUnmounted(() => {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  font-size: var(--GCS-font-size-xs); /* 816-S7-57：越档 11px 归 12px 档 */
+  font-size: var(--GCS-font-size-xs); /* 越档 11px 归 12px 档 */
   color: var(--GCS-text-muted);
 }
 

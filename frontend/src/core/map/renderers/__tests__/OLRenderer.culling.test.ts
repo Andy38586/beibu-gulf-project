@@ -1,5 +1,5 @@
 /**
- * OLRenderer 视口裁剪集成测试（a016）
+ * OLRenderer 视口裁剪集成测试
  * 覆盖链路：addPointLayer 阈值路由 → _addCulledPointLayer → _refreshCulledLayer → moveend 增量刷新
  * 策略：
  * - mock ol/Map 与 ol/View（渲染层需真实 DOM，裁剪逻辑与渲染无关）
@@ -171,7 +171,7 @@ interface OLCullMapLike {
 
 /**
  * 白盒测试访问类型：渲染器运行时成员 map/_cullLayers/_refreshCulledLayer
- * 未声明在类型中，需显式暴露供测试断言裁剪逻辑内部状态（渲染器本体无 @ts-nocheck，z065 已移除）。
+ * 未声明在类型中，需显式暴露供测试断言裁剪逻辑内部状态（渲染器本体无 @ts-nocheck后已移除）。
  */
 type OLRendererTestAccess = InstanceType<typeof OLRenderer> & {
   map: unknown
@@ -184,7 +184,7 @@ function sourceFeatureIds(source: OLCullSourceLike): Set<string> {
 }
 
 // ==================== 测试 ====================
-describe('OLRenderer 视口裁剪集成（a016）', () => {
+describe('OLRenderer 视口裁剪集成', () => {
   let renderer: OLRendererTestAccess | undefined
   let container: HTMLElement
   /** 超过阈值的点数，保证 addPointLayer 走裁剪路径 */

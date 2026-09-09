@@ -21,9 +21,9 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-describe('showError (d073 取消静默 + toast/modal 分级)', () => {
+describe('showError (取消静默 + toast/modal 分级)', () => {
   it('用户取消类 ApiError（REQUEST_FAILED + 请求已取消）→ 静默，不弹任何提示', () => {
-    // d073 根因场景：滑块拖动时新请求 abort 旧请求，useApiRequest 抛此错误
+    // 根因场景：滑块拖动时新请求 abort 旧请求，useApiRequest 抛此错误
     showError(new ApiError('请求已取消', ErrorCode.REQUEST_FAILED))
     expect(mockShowToast).not.toHaveBeenCalled()
     expect(mockShowModal).not.toHaveBeenCalled()

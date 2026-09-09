@@ -29,7 +29,7 @@ let pendingFavorite: FavoriteAddInput | null = null
 const { apiRequest } = useApiRequest()
 const { user } = useAuth()
 
-/** 返回契约（对齐 816-专项3-0816-13：显式化，防签名静默漂移） */
+/** 返回契约（对齐 显式化，防签名静默漂移） */
 export interface UseFavoritesReturn {
   favorites: Readonly<Ref<FavoriteItem[]>>
   isLoggedIn: ComputedRef<boolean>

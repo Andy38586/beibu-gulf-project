@@ -9,7 +9,7 @@ import { authResponseSchema, userSchema } from '@/types/schemas'
 
 import { ApiError, ErrorCode, useApiRequest } from './useApiRequest'
 
-/** 返回契约（816-专项3-0816-13：显式化，防重构时签名静默漂移） */
+/** 返回契约（显式化，防重构时签名静默漂移） */
 export interface UseAuthReturn {
   user: Ref<User | null>
   token: Ref<string>

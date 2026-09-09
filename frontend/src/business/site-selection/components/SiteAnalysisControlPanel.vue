@@ -148,7 +148,7 @@ async function runAnalysis(): Promise<void> {
     emit('analysis-error', calcError.value)
     return
   }
-  // 8-1：无重叠区域 = 合法空结果（02 §4.1），emit 提示而非错误
+  // 无重叠区域 = 合法空结果，emit 提示而非错误
   if (result.empty) {
     emit('analysis-empty', result.emptyReason || '所选设施类型覆盖范围无重叠区域')
     return
@@ -348,7 +348,7 @@ defineExpose({
   background: var(--GCS-color-primary);
   color: var(
     --GCS-text-inverse
-  ); /* 816-S7-62：bg-panel 语义为背景，前景一律 text-inverse（原数值恰等，非功能性改动） */
+  ); /* bg-panel 语义为背景，前景一律 text-inverse（原数值恰等，非功能性改动） */
 
   border-color: var(--GCS-color-primary);
 }

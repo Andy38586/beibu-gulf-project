@@ -18,7 +18,7 @@ import {
 import { PORT_NAMES } from '@/shared'
 import { useForecastStore } from '@/stores'
 
-/** 返回契约（816-专项3-0816-13：显式化，防重构时签名静默漂移） */
+/** 返回契约（显式化，防重构时签名静默漂移） */
 export interface UseForecastComparisonReturn {
   barXData: Ref<string[]>
   barSeries: Ref<Array<{ name: string; data: Array<number | null> }>>
@@ -40,7 +40,7 @@ export function useForecastComparison(): UseForecastComparisonReturn {
   const { runInTransaction, isTransactionValid } = useForecastRequest()
 
   const barXData = ref<string[]>([])
-  // 816-专项1 发现18：data 保留 null（图表空档）——BarChart series 类型须为 (number|null)[]
+  // data 保留 null（图表空档）——BarChart series 类型须为 (number|null)[]
   const barSeries = ref<Array<{ name: string; data: Array<number | null> }>>([])
 
   async function load(transactionId: number, signal: AbortSignal): Promise<void> {
@@ -87,7 +87,7 @@ export function useForecastComparison(): UseForecastComparisonReturn {
         const p = results[i]?.ports
         return {
           name: BAR_INDICATOR_LABELS[ind],
-          // 816-专项1 发现18：无数据保留 null（图表空档），不再折叠为 0——
+          // 无数据保留 null（图表空档），不再折叠为 0——
           // 后端 value 缺失时 `|| 0` 会把「无数据」伪装成「真实 0」
           data: [
             p?.qinzhou?.value ?? null,

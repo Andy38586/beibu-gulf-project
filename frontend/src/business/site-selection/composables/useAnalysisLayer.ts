@@ -7,7 +7,7 @@ import type { AnalysisResult, FacilityPoint, LayerOptions, ScoredXiaoqu } from '
 
 import { FACILITY_CONFIG, IMPORTANCE_FACTOR } from './facilityConfig'
 
-/** 附近设施合并图层 id（BLM registry / mapStore catalog / 渲染器 featureType 三处同源；业务前缀防跨模块 key 冲突，a066） */
+/** 附近设施合并图层 id（BLM registry / mapStore catalog / 渲染器 featureType 三处同源；业务前缀防跨模块 key 冲突） */
 export const NEARBY_FACILITY_LAYER_ID = 'site-nearby-facility'
 /** 分析覆盖范围图层 id（与 featureType 同值，三处同源） */
 export const ANALYSIS_COVERAGE_LAYER_ID = 'site-analysis-coverage'
@@ -289,7 +289,7 @@ export function useAnalysisLayer(): UseAnalysisLayerReturn {
           }
         }
       } catch (e) {
-        // 816-专项2 7-3：调用点为 `void updateAnalysisHandler(result)` 无 catch——
+        // 调用点为 `void updateAnalysisHandler(result)` 无 catch——
         // 同步 throw（BLM 数据守卫）在此消化，防浮动 rejection（异步 rejection 已被 BLM 内部消化）
         logger.warn('[useAnalysisLayer] 图层更新失败:', e)
       } finally {

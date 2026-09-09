@@ -1,5 +1,5 @@
 /**
- * useTerrainProfiles — 地形剖面线数据 composable（816-专项1 发现16：R5 收口，取数逻辑出组件）
+ * useTerrainProfiles — 地形剖面线数据 composable（收口，取数逻辑出组件）
  * 请求走统一入口 apiRequest + zod schema 校验；AbortSignal 由调用方传入（组件卸载时 abort，
  * 迟到响应不写回已卸载组件）。组件只消费 profiles/selectedProfileId 并触发加载。
  */
@@ -32,7 +32,7 @@ export interface TerrainProfile {
   datumOffset?: number
 }
 
-/** 返回契约（816-专项3-0816-13：显式化） */
+/** 返回契约（显式化） */
 export interface UseTerrainProfilesReturn {
   profiles: Ref<TerrainProfile[]>
   selectedProfileId: Ref<string | null>

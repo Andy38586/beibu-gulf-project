@@ -7,7 +7,7 @@
 // D1：浸没要素/受影响设施与 zod schema 编译期绑定（z.infer 同源）——
 // 运行时形状由 schemas.ts 深校验把关，业务类型不再是独立漂移副本
 // ===== 通用 GIS 要素 =====
-// 816-专项3-0816-10：GeoPoint 收敛为单一权威（crs.ts 带 CRS 泛型版本）；
+// GeoPoint 收敛为单一权威（crs.ts 带 CRS 泛型版本）；
 // 原 base.ts 独立定义（无 crs 字段）与 crs.ts 同名不同义，已移除，此处仅 re-export 兼容既有引用。
 // 注意：re-export 不引入本地作用域，本文件内部使用需显式 import。
 import type { GeoPoint } from '../crs'
@@ -50,7 +50,7 @@ export interface FloodStatistics {
   floodArea?: number // 淹没面积（km²）
   averageDepth?: number // 平均水深（m）
   maxDepth?: number // 最大水深（m）
-  // 816-专项1 发现7（M5）：计数语义改名 affectedFacilityCount，消除与 FloodSavedState.affectedFacilities（数组）同名不同型
+  // （M5）：计数语义改名 affectedFacilityCount，消除与 FloodSavedState.affectedFacilities（数组）同名不同型
   affectedFacilityCount?: number // 受影响设施数量（计数，非数组）
   affectedPorts?: string[] // 受影响港口列表
   estimatedLoss?: number // 预估损失（万元）

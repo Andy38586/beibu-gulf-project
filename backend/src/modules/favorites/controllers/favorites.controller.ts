@@ -16,7 +16,7 @@ import { AuthGuard } from '../../auth/guards/auth.guard'
 import { FavoriteAddBody, ItemTypeParam } from '../dto/favorites.dto'
 import { FavoritesService } from '../services/favorites.service'
 
-// 收藏属于用户数据，全部需登录（对齐 Express router.use(authenticate)；02 §4.5）
+// 收藏属于用户数据，全部需登录（对齐 Express router.use(authenticate)；）
 @Controller('favorites')
 @UseGuards(AuthGuard)
 export class FavoritesController {

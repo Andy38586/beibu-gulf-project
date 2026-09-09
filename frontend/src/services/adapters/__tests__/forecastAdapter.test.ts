@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { forecastAdapter } from '../forecastAdapter'
 
 /**
- * forecastAdapter 单测（816-专项5并 4-5：原 0% 覆盖 → 三端点 + 参数透传 + 信封解包全锁定）。
+ * forecastAdapter 单测（原 0% 覆盖 → 三端点 + 参数透传 + 信封解包全锁定）。
  * vitest 无服务器：stub global.fetch 按 URL 返回与后端 sendSuccess 信封同构的内联数据。
  * 断言重点：
  *  - 请求路径 / params 透传正确（querystring 由 apiRequest 拼装，按 ? 截断匹配）

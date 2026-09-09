@@ -214,7 +214,7 @@ describe('MapRenderer Interface', () => {
     })
   })
 
-  // 816-专项4 3.1：契约测试覆盖真实实现——原仅 MockRenderer，OL/Cesium 偏离接口
+  // 契约测试覆盖真实实现——原仅 MockRenderer，OL/Cesium 偏离接口
   // （方法缺失/签名变化）无测试红灯。此处对可静态导入的 OLRenderer 做方法集合断言；
   // CesiumRenderer 依赖浏览器 Cesium 运行时（动态加载），其接口一致性由 UnifiedMap
   // 运行时调用 + 浏览器端 E2E 覆盖（见实施日志"无法静态验证项"）。

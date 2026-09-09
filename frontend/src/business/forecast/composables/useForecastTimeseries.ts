@@ -19,7 +19,7 @@ interface SeriesItem {
   data: Array<{ time: string; value: number }>
 }
 
-/** 返回契约（816-专项3-0816-13：显式化，防重构时签名静默漂移） */
+/** 返回契约（显式化，防重构时签名静默漂移） */
 export interface UseForecastTimeseriesReturn {
   lineXData: Ref<string[]>
   lineSeries: Ref<Array<{ name: string; data: number[] }>>
@@ -58,7 +58,7 @@ export function useForecastTimeseries(): UseForecastTimeseriesReturn {
           forecastState.setRequestCache(cacheKey, { allSeries: data.series })
         }
       } else {
-        // 8-12：与 useForecastComparison 一致——缓存命中也校验事务有效性，
+        // 与 useForecastComparison 一致——缓存命中也校验事务有效性，
         // 过期则不渲染旧数据（避免旧状态缓存覆盖新状态窗口）
         if (!isTransactionValid(transactionId)) return
       }

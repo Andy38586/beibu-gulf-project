@@ -115,7 +115,7 @@ const affectedPorts = computed<string[]>(() => {
 }
 
 .header-title {
-  font-size: var(--GCS-font-size-lg); /* 816-S7-57：面板标题字号归档 */
+  font-size: var(--GCS-font-size-lg); /* 面板标题字号归档 */
   font-weight: 600;
   color: var(--GCS-text-primary);
 }

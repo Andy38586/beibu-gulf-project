@@ -14,7 +14,7 @@ import {
 } from '../src/modules/site-analysis/services/site-analysis.service'
 import { SiteAnalysisService } from '../src/modules/site-analysis/services/site-analysis.service'
 
-// 移植 Express services/__tests__/siteAnalysisService.test.js（R-14 选址流水线 + R-10 半径校验）
+// 移植 Express services/__tests__/siteAnalysisService.test.js（选址流水线 + 半径校验）
 // 11 用例语义。Nest 侧 runSiteAnalysis 是 SiteAnalysisService 的方法（Express 为独立导出函数），
 // 其余校验/清洗/覆盖/求交/筛选/排名函数仍为纯导出，可直接等价断言。
 //
@@ -46,7 +46,7 @@ function run(input: Record<string, unknown>) {
   return new SiteAnalysisService(spatial, repoStub as never).runSiteAnalysis(input as never)
 }
 
-describe('resolveRadiusSettings — 半径校验（R-10 服务级）', () => {
+describe('resolveRadiusSettings — 半径校验（服务级）', () => {
   it('合法 defaultRadius → 返回 resolved radius', () => {
     const resolved = resolveRadiusSettings(['hospital'], {
       hospital: { defaultRadius: 3, importance: 3 },
@@ -181,7 +181,7 @@ describe.skipIf(!withDb)('选址空间算子（真库 PostGIS）— 覆盖 / 求
   })
 })
 
-describe.skipIf(!withDb)('SiteAnalysisService.runSiteAnalysis — 选址流水线（R-14，真库）', () => {
+describe.skipIf(!withDb)('SiteAnalysisService.runSiteAnalysis — 选址流水线（真库）', () => {
   beforeAll(() => {
     db = new DbService()
     spatial = new SpatialRepository(db)
@@ -246,7 +246,7 @@ describe.skipIf(!withDb)('SiteAnalysisService.runSiteAnalysis — 选址流水�
     expect(result.facilityPoi).toEqual({})
   })
 
-  it('覆盖范围无重叠 → 返回 empty 合法空结果标记（8-1：非 error，02 §4.1）', async () => {
+  it('覆盖范围无重叠 → 返回 empty 合法空结果标记（非 error）', async () => {
     // 两类设施相距极远，缓冲区无交集。
     // 注意：坐标必须在北部湾范围内（经度105-115/纬度18-25，见 buildTypeCoverage 过滤），
     // 否则该类型 coverage 为 undefined 会被 intersectCoverages 静默剔除，测不到 failKey。

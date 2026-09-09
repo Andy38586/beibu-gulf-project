@@ -175,7 +175,7 @@ async function handleSaveName(name: string) {
     showSaveModal.value = false
     await loadPlans()
   } catch (e) {
-    // 816-专项5并 1-2：同上无害化
+    // 同上无害化
     saveError.value = sanitizeMessage((e as Error).message || '', '重命名失败')
   } finally {
     savingName.value = false
@@ -464,7 +464,7 @@ watch(
 }
 
 .plan-toggle {
-  font-size: var(--GCS-font-size-xs); /* 816-S7-57：越档 10px 归 12px 档 */
+  font-size: var(--GCS-font-size-xs); /* 越档 10px 归 12px 档 */
   color: var(--GCS-text-muted);
   width: 12px;
   flex-shrink: 0;
@@ -495,7 +495,7 @@ watch(
 .plan-actions {
   display: flex;
 
-  /* 816-S7-51：微间距归 8px 基准（原 6px 非刻度） */
+  /* 微间距归 8px 基准（原 6px 非刻度） */
   gap: 8px;
   margin-bottom: 10px;
 }
@@ -503,10 +503,10 @@ watch(
 .action-btn {
   flex: 1;
 
-  /* 816-S7-51：垂直 padding 归 8px 基准（原 5px 非刻度） */
+  /* 垂直 padding 归 8px 基准（原 5px 非刻度） */
   padding: 8px 0;
   border: 1px solid var(--GCS-border-default);
-  border-radius: var(--GCS-radius-sm); /* 816-S7-54：非档位 4px 归 sm */
+  border-radius: var(--GCS-radius-sm); /* 非档位 4px 归 sm */
   background: var(--GCS-bg-panel);
   font-size: 12px;
   cursor: pointer;
@@ -522,7 +522,7 @@ watch(
 }
 
 .action-btn:disabled {
-  /* 816-S7-47：禁用态走 text-disabled token（原裸 opacity 0.6） */
+  /* 禁用态走 text-disabled token（原裸 opacity 0.6） */
   color: var(--GCS-text-disabled);
   cursor: not-allowed;
 }
@@ -546,7 +546,7 @@ watch(
   background: var(--GCS-color-error);
   color: var(
     --GCS-text-inverse
-  ); /* 816-S7-62：bg-panel 语义为背景，前景一律 text-inverse（原数值恰等，非功能性改动） */
+  ); /* bg-panel 语义为背景，前景一律 text-inverse（原数值恰等，非功能性改动） */
 }
 
 /* 收藏分区 */

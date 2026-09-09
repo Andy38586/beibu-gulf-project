@@ -1,6 +1,6 @@
 /**
  * mapDataService 港口静态数据加载回归防线（2026-08-29 ports 自后端回迁前端后重写）：
- * 原 z033 信封解包测试随 /api/ports 透传端点删除而失效——loadStatic 直读静态 JSON 无信封。
+ * 原信封解包测试随 /api/ports 透传端点删除而失效——loadStatic 直读静态 JSON 无信封。
  * 本文件锁定：静态加载 + zod schema 边界 + 北部湾 CRS 守卫 + TTL 缓存清理。
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'

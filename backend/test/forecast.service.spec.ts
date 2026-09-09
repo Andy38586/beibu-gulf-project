@@ -6,7 +6,7 @@ import { DataFilesService } from '../src/infra/files/data-files.service'
 import { ForecastService } from '../src/modules/forecast/services/forecast.service'
 
 // forecastService 单测：mock reader（对齐 Express vi.mock fs/promises 模式），
-// 覆盖缓存复用（R-11）/ ENOENT→404（R-7）/ 年聚合（R-15）/ 缓存命中=重算不变量（02 §5.6.4）
+// 覆盖缓存复用/ ENOENT→404/ 年聚合/ 缓存命中=重算不变量
 function makePortData(portId: string, portName: string, months = 24, baseValue = 1000) {
   const historical = []
   for (let i = 0; i < months; i++) {
@@ -149,7 +149,7 @@ describe('getMapData', () => {
     expect(mockReadFile).toHaveBeenCalledTimes(2)
   })
 
-  it('缓存命中=重算不变量（02 §5.6.4）：热缓存结果与冷实例结果深等', async () => {
+  it('缓存命中=重算不变量：热缓存结果与冷实例结果深等', async () => {
     const mockReadFile = vi.fn().mockResolvedValue(JSON.stringify(activityData))
     const warm = makeService(mockReadFile)
     const cold = makeService(mockReadFile)

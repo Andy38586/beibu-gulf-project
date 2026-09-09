@@ -267,7 +267,7 @@ export class SiteAnalysisService {
       selectedKeys
     )
     if (!finalArea) {
-      // 8-1：无重叠是合法空结果（02 §4.1 应然），不是错误信封——用 empty 标记而非 error 字段，
+      // 无重叠是合法空结果，不是错误信封——用 empty 标记而非 error 字段，
       // 避免 controller 将其转 422；前端按业务空结果展示"无重叠区域"提示。
       // 文案区分两种空：全部类型无覆盖（failKey=null）≠ 交集在某类型处断裂
       const emptyReason =

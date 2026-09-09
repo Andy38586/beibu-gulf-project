@@ -27,7 +27,7 @@ export function showError(
 
   let message: string = fallback
 
-  // 816-专项5并 1-2：消息无害化——堆栈/超长/纯英文技术串不回退直接上屏（原始串仅 DEV 日志可见）
+  // 消息无害化——堆栈/超长/纯英文技术串不回退直接上屏（原始串仅 DEV 日志可见）
   if (error instanceof ApiError) {
     // 错误码 → 成因文案：服务器无响应 ≠ 服务器错误 ≠ 请求失败，用户提示不笼统化
     message = describeError(error, fallback)
@@ -55,7 +55,7 @@ export function showError(
   }
 }
 
-/** 错误消息无害化（816-专项5并 1-2）：堆栈特征（换行）/超长（>120）/纯英文技术串 → 回退 fallback。
+/** 错误消息无害化：堆栈特征（换行）/超长（>120）/纯英文技术串 → 回退 fallback。
  *  导出供内联错误条（如 PlansPanel .plans-error）复用同一口径 */
 export function sanitizeMessage(raw: string, fallback: string): string {
   if (!raw) return fallback

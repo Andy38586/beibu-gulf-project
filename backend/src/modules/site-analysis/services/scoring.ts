@@ -9,8 +9,8 @@ import type { FacilityPoint, TypeSetting } from '../dto/site-analysis.dto'
 
 /** 线性距离衰减：距离 >= maxDistance 得 0 分，否则按比例线性衰减（百分制） */
 export const linearDecay = (distance: number, maxDistance: number): number => {
-  // 8-9：无效坐标会使 turf.distance 返回 NaN（NaN >= 0 恒 false → 穿透到除法）；
-  // 显式守卫，NaN 距离按 0 分处理（02 §5.6 不变量 5：NaN 不传播）
+  // 无效坐标会使 turf.distance 返回 NaN（NaN >= 0 恒 false → 穿透到除法）；
+  // 显式守卫，NaN 距离按 0 分处理（NaN 不传播）
   if (!Number.isFinite(distance) || distance >= maxDistance) return 0
   return (1 - distance / maxDistance) * 100
 }
@@ -112,7 +112,7 @@ function distanceScore(
     maxY: xq.lat + latOffset,
   })
 
-  // 无候选 → 硬 0 分（02 §4.1「某类型无设施 → 该因子 0 分」语义）。
+  // 无候选 → 硬 0 分（「某类型无设施 → 该因子 0 分」）。
   // 原 decayFn(max,max) 仅对 linearDecay 恒等 0，自定义衰减函数（如指数）会返回非零（历史实锤 ~36.8），
   // 属防御语义隐含依赖；生产固定 linearDecay 不触发，此处显式分离「无设施/越界衰减」语义
   if (candidates.length === 0) return 0

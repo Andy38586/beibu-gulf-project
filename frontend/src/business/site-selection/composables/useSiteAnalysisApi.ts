@@ -6,7 +6,7 @@ import { useSiteSelectionStore } from '@/stores'
 import type { AnalysisParams, AnalysisResult } from '@/types/analysis'
 import { siteAnalysisResponseSchema } from '@/types/schemas'
 
-/** 返回契约（816-专项3-0816-13：显式化，防重构时签名静默漂移） */
+/** 返回契约（显式化，防重构时签名静默漂移） */
 export interface UseSiteAnalysisApiReturn {
   analyze: (params: AnalysisParams) => Promise<AnalysisResult>
   calculating: Ref<boolean>
@@ -46,7 +46,7 @@ export function useSiteAnalysisApi(): UseSiteAnalysisApiReturn {
           facilityPoi: {},
         }
       }
-      // 8-1：无重叠区域是合法空结果（02 §4.1），透传 empty 标记，页面展示业务空态而非错误
+      // 无重叠区域是合法空结果，透传 empty 标记，页面展示业务空态而非错误
       if (result.empty) {
         return {
           error: null,

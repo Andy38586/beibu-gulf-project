@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
 /**
- * FloodAnalysisPage 卸载守卫回归测试（H-4 / P0-5 / R-4）
- * 背景（P0-5 修复）：页面卸载（onUnmounted）时：
+ * FloodAnalysisPage 卸载守卫回归测试
+ * 背景：页面卸载（onUnmounted）时：
  * 1. 中止在途请求（floodAbortController.abort / impactAbortController.abort），
  * 使迟到的响应无法再触达渲染器；
  * 2. 置 unmounted=true，triggerFloodAnalysis/triggerImpactAssessment 在拿到响应后
  * 经 `if (unmounted) return` 直接返回，绝不调用 manager.register → 页面离开后图层不复活。
- * 本测试锁定（审计编号：H-4 / P0-5 / R-4）：
+ * 本测试锁定：
  * - wrapper.unmount() 后，在途分析的 AbortSignal.aborted === true（在途请求被 abort）；
  * - 卸载后解析迟到响应，manager.register('flood-area') 调用次数与挂载时一致（迟到响应未重新注册）。
  * 仅 mock 外部依赖（useBusinessLayers 的 manager、floodAdapter、vue-router），不 mock 被测组件内部。
@@ -27,7 +27,7 @@ const h = vi.hoisted(() => {
     reapplyAll: vi.fn(),
     removeAllFromRenderer: vi.fn(),
   }
-  // a048: 每次 getFloodAnalysis 调用独立记录 signal 与 resolve（多次分析场景）
+  // 每次 getFloodAnalysis 调用独立记录 signal 与 resolve（多次分析场景）
   const floodCalls: { signal: AbortSignal | null; resolve: (v: unknown) => void }[] = []
   const getWaterArea = vi.fn().mockResolvedValue([
     [108.5, 21.7],
@@ -75,7 +75,7 @@ vi.mock('vue-router', () => ({
 
 import FloodAnalysisPage from '../FloodAnalysisPage.vue'
 
-describe('FloodAnalysisPage 卸载守卫（H-4 / P0-5 / R-4）', () => {
+describe('FloodAnalysisPage 卸载守卫', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
@@ -95,7 +95,7 @@ describe('FloodAnalysisPage 卸载守卫（H-4 / P0-5 / R-4）', () => {
     mapStore.currentRenderer = { getType: () => 'ol' } as never
     await flushPromises()
 
-    // a048 滑块联动：首屏 immediate watch 跳过自动分析（等待用户操作）。
+    // 滑块联动：首屏 immediate watch 跳过自动分析（等待用户操作）。
     // 第一次操作滑块 → 分析①（正常在途）
     useFloodStore().setWaterLevel(8)
     await flushPromises()
@@ -103,7 +103,7 @@ describe('FloodAnalysisPage 卸载守卫（H-4 / P0-5 / R-4）', () => {
     await flushPromises()
     expect(h.getFloodCalls().length).toBe(1)
 
-    // 分析① 正常响应 → renderFloodAreas 经 has() 兜底注册 'flood-area'（a048 联动）
+    // 分析① 正常响应 → renderFloodAreas 经 has() 兜底注册 'flood-area'
     h.getFloodCalls()[0].resolve({
       features: [
         {

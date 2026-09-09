@@ -136,7 +136,7 @@ onUnmounted(() => {
             :x-min="lineViewportXMin"
             :x-max="lineViewportXMax"
           />
-          <!-- 816-专项5主 6：数据刷新期 loading 覆盖（isRequesting 由事务 composable 驱动），
+          <!-- 数据刷新期 loading 覆盖（isRequesting 由事务 composable 驱动），
                原注释"加载态不绑定 UI"已废止——弱网下用户可感知更新进行中 -->
           <ChartLoading v-if="forecastState.isRequesting" />
         </GCSPanel>

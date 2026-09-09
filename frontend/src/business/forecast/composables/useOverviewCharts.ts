@@ -13,7 +13,7 @@ export interface ChartDataset {
   series: Array<{ name: string; data: number[] }>
 }
 
-/** 返回契约（816-专项3-0816-13：显式化，防重构时签名静默漂移） */
+/** 返回契约（显式化，防重构时签名静默漂移） */
 export interface UseOverviewChartsReturn {
   chartData: Ref<ChartDataset>
   barData: Ref<ChartDataset>
@@ -40,7 +40,7 @@ export function useOverviewCharts(): UseOverviewChartsReturn {
         series: [
           {
             name: `${charts.labels[0]} ~ ${charts.labels[charts.labels.length - 1]} 月均（${charts.unit}）`,
-            // 分母守卫：空系列除零 → NaN 会静默污染图表（02 §5.6 不变量 5），空系列按 0 处理
+            // 分母守卫：空系列除零 → NaN 会静默污染图表，空系列按 0 处理
             data: charts.series.map((s) =>
               s.data.length === 0
                 ? 0

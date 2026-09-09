@@ -187,7 +187,7 @@ export function useRadarChart({
         },
         splitArea: {
           areaStyle: {
-            // 816-S7-49：叠层色收敛到 CHART_COLORS（原 isDark 分支 rgba 硬编码）
+            // 叠层色收敛到 CHART_COLORS（原 isDark 分支 rgba 硬编码）
             color: CHART_COLORS.radarSplitArea[dark ? 'dark' : 'light'],
           },
         },

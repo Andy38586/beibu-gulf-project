@@ -68,7 +68,7 @@ const mockGeoJson: FeatureCollection = {
 
 /**
  * 白盒测试访问类型：渲染器运行时成员 _geoJsonTokens
- * 未声明在类型中，需显式暴露供测试断言 token Map 状态（渲染器本体无 @ts-nocheck，z065 已移除）。
+ * 未声明在类型中，需显式暴露供测试断言 token Map 状态（渲染器本体无 @ts-nocheck后已移除）。
  */
 type CesiumRendererTestAccess = InstanceType<typeof CesiumRenderer> & {
   _geoJsonTokens: Map<string, unknown>

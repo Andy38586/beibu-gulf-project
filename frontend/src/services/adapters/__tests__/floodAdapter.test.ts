@@ -194,7 +194,7 @@ describe('floodAdapter', () => {
       expect(result.actualWaterLevel).toBe(5)
     })
 
-    it('getImpactAssessment 应调 /flood-online/api/flood/impact 并透传裸 JSON（d073 补齐影响评估）', async () => {
+    it('getImpactAssessment 应调 /flood-online/api/flood/impact 并透传裸 JSON（补齐影响评估）', async () => {
       floodAdapter.setDataSource('calculate')
       const result = await floodAdapter.getImpactAssessment(15)
       expect(result.affectedFacilities).toHaveLength(1)

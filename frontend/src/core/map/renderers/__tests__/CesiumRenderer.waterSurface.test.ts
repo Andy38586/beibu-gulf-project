@@ -1,4 +1,4 @@
-// CesiumRenderer 水面增量更新可达性测试（z082）
+// CesiumRenderer 水面增量更新可达性测试
 // 背景：06908b5 实现了 updateWaterLevel（复用 Primitive 仅替换 geometryInstances），
 // 但 MapRenderer.hasLayer 只查 _layers，水面存于 _waterSurfaces → BLM.updateData
 // 判据 !hasLayer(key) 恒真 → 每次水位变化都走 create（remove+add 全量重建），
@@ -56,7 +56,7 @@ vi.mock('cesium', () => {
 import { BusinessLayerManager } from '../../BusinessLayerManager'
 import { CesiumRenderer } from '../CesiumRenderer'
 
-/** 白盒访问：渲染器运行时成员（非公开类型）需显式暴露（渲染器本体无 @ts-nocheck，z065 已移除） */
+/** 白盒访问：渲染器运行时成员（非公开类型）需显式暴露（渲染器本体无 @ts-nocheck后已移除） */
 type CesiumRendererTestAccess = InstanceType<typeof CesiumRenderer> & {
   _waterSurfaces: Map<string, unknown>
   _layers: Map<string, unknown>
@@ -140,7 +140,7 @@ describe('BLM.updateData 对已创建 waterSurface 走增量 update（不重建�
     expect(renderer.addWaterSurface).toHaveBeenCalledTimes(1) // 仍是注册那一次
   })
 
-  it('hasLayer 未命中（引擎切换后未重建）→ 走 create 补建（a040 语义保留）', () => {
+  it('hasLayer 未命中（引擎切换后未重建）→ 走 create 补建（语义保留）', () => {
     const renderer = {
       hasLayer: vi.fn(() => false),
       addWaterSurface: vi.fn(),

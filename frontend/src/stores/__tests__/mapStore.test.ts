@@ -147,7 +147,7 @@ describe('mapStore', () => {
     })
   })
 
-  describe('setLayerVisible（z038 补覆盖）', () => {
+  describe('setLayerVisible', () => {
     it('应更新 catalog 条目的 visible（不可变更新）', () => {
       const store = useMapStore()
       store.registerBusinessLayer('biz-1', '业务图层', 'geojson', true)

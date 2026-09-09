@@ -70,9 +70,9 @@ const WATER_SURFACE_ID = 'flood-water-surface'
 
 const FLOOD_LAYER_ID = 'flood-area'
 const FACILITY_LAYER_ID = 'flood-facilities'
-/** 洪涝设施点 featureType（与 FACILITY_LAYER_ID 前缀一致，防跨模块同名冲突，a066） */
+/** 洪涝设施点 featureType（与 FACILITY_LAYER_ID 前缀一致，防跨模块同名冲突） */
 const FACILITY_FEATURE_TYPE = 'flood-facility-point'
-/** 真实地形（DEM 数字高程模型山体阴影）图层 ID——洪涝页独享（业务前缀防跨模块 key 冲突，a066） */
+/** 真实地形（DEM 数字高程模型山体阴影）图层 ID——洪涝页独享（业务前缀防跨模块 key 冲突） */
 const DEM_HILLSHADE_LAYER_ID = 'flood-dem-hillshade'
 
 // 水域坐标经 floodAdapter 加载，按 dataSource（fetch/calculate）自动切换取数来源，业务代码零改动
@@ -157,7 +157,7 @@ watch(
   (renderer) => {
     if (renderer) {
       void nextTick(() => {
-        // 816-专项4 3.2：能力守卫驱动（isWater3DCapable），业务页不再 getType() 判断引擎（02 §5.3）
+        // 能力守卫驱动（isWater3DCapable），业务页不再 getType() 判断引擎
         if (isWater3DCapable(renderer)) {
           void registerFloodLayers(getFloodSignal())
         } else {
@@ -188,7 +188,7 @@ function saveCurrentState() {
 
 /** 挂载时恢复保存的状态 */
 onMounted(async () => {
-  // 816-专项2 7-1：恢复路径整体兜底——renderFloodAreas/renderAffectedFacilities 经 BLM updateData
+  // 恢复路径整体兜底——renderFloodAreas/renderAffectedFacilities 经 BLM updateData
   // 对未注册图层 throw（layerAdapters 数据守卫），async 钩子无 catch 会成 unhandledrejection
   try {
     const savedState = floodStore.consumeState()
@@ -410,7 +410,7 @@ function renderAffectedFacilities(facilities: AffectedFacility[]) {
   businessLayerManager.updateData(FACILITY_LAYER_ID, {
     data: points,
     options: {
-      // 816-S7-46：引用调色板常量（同值见 FLOOD_RISK_COLORS['高风险'].stroke），杜绝第二份字面量漂移
+      // 引用调色板常量（同值见 FLOOD_RISK_COLORS['高风险'].stroke），杜绝第二份字面量漂移
       markerColor: FLOOD_RISK_COLORS['高风险'].stroke,
       markerSize: 10,
       featureType: FACILITY_FEATURE_TYPE,
@@ -546,7 +546,7 @@ onUnmounted(() => {
 }
 
 .placeholder-title {
-  font-size: var(--GCS-font-size-lg); /* 816-S7-57：面板标题字号归档 */
+  font-size: var(--GCS-font-size-lg); /* 面板标题字号归档 */
   font-weight: 500;
   margin-bottom: 8px;
 }

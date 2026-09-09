@@ -55,7 +55,7 @@ const layerButtons = computed(() => {
   return [...ordered, ...extra].map((layer) => ({
     key: layer.key,
     label: layer.label,
-    // z118：透传 layerType 供图标数据驱动（core 不解析业务 label 语义）
+    // 透传 layerType 供图标数据驱动（core 不解析业务 label 语义）
     layerType: layer.layerType,
     // 引擎适用标记：registry meta 优先，目录镜像兜底；仅单引擎图层显示角标（双引擎保持干净）
     engines:
@@ -70,7 +70,7 @@ const layerButtons = computed(() => {
 })
 
 /**
- * 图层图标映射（z118：core 层不再"必须"理解业务 label 语义）。
+ * 图层图标映射（core 层不再"必须"理解业务 label 语义）。
  * 优先按 layerType 数据驱动——新图层注册时给对 layerType 即自动有图标；
  * label 业务关键词仅作历史兜底（存量图层），新增业务勿扩展此链。
  */

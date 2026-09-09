@@ -13,7 +13,7 @@ import { useForecastStore } from '../forecastStore'
  * - reset 恢复默认
  * 2026-08-10（面试报告 P0-3）：cacheData 零调用已删，相关用例一并移除
  * 2026-08-14（F-7）：dataCache/currentData 死状态移除，断言同步删除
- * 2026-08-16（816-专项2 4-4）：timeRange 死状态移除，断言同步删除
+ * 2026-08-16：timeRange 死状态移除，断言同步删除
  */
 describe('useForecastStore', () => {
   beforeEach(() => {

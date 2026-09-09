@@ -7,7 +7,7 @@ import { type Ref, ref } from 'vue'
 
 const drawerOpen = ref(false)
 
-/** 返回契约（816-专项3-0816-13：显式化，防重构时签名静默漂移） */
+/** 返回契约（显式化，防重构时签名静默漂移） */
 export interface UseMobileDrawerReturn {
   drawerOpen: Ref<boolean>
   openDrawer: () => void

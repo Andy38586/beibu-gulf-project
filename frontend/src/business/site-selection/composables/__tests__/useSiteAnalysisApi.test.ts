@@ -84,9 +84,9 @@ describe('useSiteAnalysisApi', () => {
 
       const result = await analyze(ANALYSIS_PARAMS)
 
-      // 02 §4.5 收口：分析免登录，401 不再触发 handleAuthError 软登录引导
+      // 收口：分析免登录，401 不再触发 handleAuthError 软登录引导
       expect(handleAuthError).not.toHaveBeenCalled()
-      // 816-专项5并 1-4：错误只写 calcError，弹窗由页面级 handleAnalysisError 统一触发
+      // 错误只写 calcError，弹窗由页面级 handleAnalysisError 统一触发
       expect(showError).not.toHaveBeenCalled()
       expect(calcError.value).toBe('请先登录')
       expect(result.error).toBeTruthy()

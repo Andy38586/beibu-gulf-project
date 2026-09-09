@@ -182,7 +182,7 @@ describe('useApiRequest', () => {
   })
 
   describe('API_BASE 前缀判定 (d071)', () => {
-    // d071：/flood-online 开头（vite proxy → FastAPI 8000）不加 /api 前缀，
+    // /flood-online 开头（vite proxy → FastAPI 8000）不加 /api 前缀，
     // 否则变成 /api/flood-online/... 命中 /api 规则转发到 Express（无此路由）404
     it('/flood-online 路径不加 /api 前缀（跨服务直通）', async () => {
       mockFetch.mockResolvedValue(jsonResponse({ level: 3.5, features: [] }))

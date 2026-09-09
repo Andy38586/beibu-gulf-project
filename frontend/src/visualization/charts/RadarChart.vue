@@ -206,7 +206,7 @@ onBeforeUnmount(() => {
   z-index: 1;
   white-space: nowrap;
   padding: 2px 6px;
-  font-size: var(--GCS-font-size-xs); /* 816-S7-57：越档 11px 归 12px 档 */
+  font-size: var(--GCS-font-size-xs); /* 越档 11px 归 12px 档 */
   color: var(--GCS-text-secondary);
   background: var(--GCS-bg-elevated);
   border: 1px solid var(--GCS-border-default);
@@ -218,7 +218,7 @@ onBeforeUnmount(() => {
     opacity 0.15s ease,
     visibility 0.15s;
 
-  /* 816-S7-53：负间距 hack 用途说明——score-hint 为绝对定位 tooltip，
+  /* 负间距 hack 用途说明——score-hint 为绝对定位 tooltip，
      此处 margin-bottom:-20px 抵消 score-area 底部内边距，使悬浮提示与评分区域视觉对齐 */
   margin-bottom: -20px;
 }

@@ -40,7 +40,7 @@ const INDICATORS = [
   { key: 'activity', label: '港口吞吐活跃度', icon: '📈' },
 ]
 
-// 816-专项2 4-2：selected 由 store activeIndicator 派生（getter）——
+// selected 由 store activeIndicator 派生（getter）——
 // 快照恢复 restoreState 设置 activeIndicator 后按钮高亮自动一致（原本地双源：恢复非 cargo 时按钮仍亮 cargo）
 const btnStates = reactive(
   Object.fromEntries(
@@ -138,8 +138,8 @@ const isYearMode = computed({
 })
 
 const maxSteps = computed(() =>
-  // 816-专项8 发现2：月模式最大合法步 = (END_YEAR-BASE_YEAR)*12+11（=2031-12，stepToTime 闭合）；
-  // 原 (END_YEAR-BASE_YEAR+1)*12=132 会越界到 2032-01（02 §4.2「2031 边界闭合」）
+  // 月模式最大合法步 = (END_YEAR-BASE_YEAR)*12+11（=2031-12，stepToTime 闭合）；
+  // 原 (END_YEAR-BASE_YEAR+1)*12=132 会越界到 2032-01
   isYearMode.value ? END_YEAR - BASE_YEAR : (END_YEAR - BASE_YEAR) * 12 + 11
 )
 
@@ -377,7 +377,7 @@ onUnmounted(() => stopPlayback())
 .t-slider::-webkit-slider-thumb {
   appearance: none;
 
-  /* 816-S7-44：拇指统一 --GCS-slider-thumb-size（14px；原 18px 时间轴大抓取面收敛） */
+  /* 拇指统一 --GCS-slider-thumb-size（14px；原 18px 时间轴大抓取面收敛） */
   width: var(--GCS-slider-thumb-size);
   height: var(--GCS-slider-thumb-size);
   border-radius: 50%;
@@ -449,7 +449,7 @@ onUnmounted(() => stopPlayback())
 }
 
 .act-btn:hover {
-  /* 816-S7-60：hover 底改通用 --GCS-bg-hover token（原用边框色充底）；
+  /* hover 底改通用 --GCS-bg-hover token（原用边框色充底）；
      面板内操作钮与地图悬浮 GCSButton 职责可区分，抽 FlatButton 留待按钮体系重构 */
   background: var(--GCS-bg-hover);
 }

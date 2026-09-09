@@ -7,7 +7,7 @@ import type { FacilityPoint } from '../dto/site-analysis.dto'
 // 取代原 backend/data/site-selection/{city}_{type}.json 文件读取——消除 POI 双轨
 //（库中数据与 JSON 全量对账一致：六类逐类 count 相等，小区 2456=1247+666+543 相等；
 // port_pier 库版少 15 条系入库时跨类目去重，非选址评分类型，不影响本模块）。
-// 空间计算仍走 turf 内存运算（turf→PostGIS 下沉属独立批次，验收标准：面积差<0.5%）。
+// 空间计算仍走 turf 内存运算（turf→PostGIS 下沉属独立改动，验收标准：面积差<0.5%）。
 
 // 城市白名单：city 来自外部请求体，必须白名单校验后才能拼参（SQL 参数化，无路径拼接面）
 const CITIES = ['qz', 'bh', 'fcg'] as const

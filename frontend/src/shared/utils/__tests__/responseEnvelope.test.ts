@@ -25,7 +25,7 @@ describe('unwrapEnvelope (z063)', () => {
     expect(unwrapEnvelope({ code: 200, msg: 'x' })).toEqual({ code: 200, msg: 'x' })
   })
 
-  it('REQ-1: 带扩展字段（message/timestamp）的信封仍解包', () => {
+  it('带扩展字段（message/timestamp）的信封仍解包', () => {
     expect(unwrapEnvelope({ code: 200, data: [1, 2], message: 'ok', timestamp: 123 })).toEqual([
       1, 2,
     ])

@@ -50,14 +50,14 @@ function parseBreathingColor(color?: string): [number, number, number] | null {
 
 /**
  * 呼吸灯缺省色：从 LAYER_DEFAULTS.color 派生（现 #409eff），色值仍以 colors.ts 为单一事实源——
- * 改主色时呼吸动画随之变化（专项7 发现4：此处曾写死 rgb(64,158,255)，主色变更后呼吸不跟随）。
+ * 改主色时呼吸动画随之变化（此处曾写死 rgb(64,158,255)，主色变更后呼吸不跟随）。
  * ?? [0,0,0] 仅在 LAYER_DEFAULTS.color 不再是 hex 时兜底（契约破坏，黑点配白描边仍可见）
  */
 const DEFAULT_BREATHING_RGB: [number, number, number] = parseBreathingColor(
   LAYER_DEFAULTS.color
 ) ?? [0, 0, 0]
 
-/** 2D 视图层级限位（816-专项4 1.4 提常量：与 3D CAMERA_*_ZOOM_DISTANCE 对应；原散落 9/6/20） */
+/** 2D 视图层级限位（ 提常量：与 3D CAMERA_*_ZOOM_DISTANCE 对应；原散落 9/6/20） */
 const OL_VIEW_ZOOM = 9
 const OL_VIEW_MIN_ZOOM = 6
 const OL_VIEW_MAX_ZOOM = 20
@@ -1109,7 +1109,7 @@ export class OLRenderer extends MapRenderer {
     this._bubbleElement = null
     this.map?.dispose()
     this.map = null
-    // 816-专项2 3-2：清空 baseLayers 引用——已 dispose 的 TileLayer 不留在数组中，
+    // 清空 baseLayers 引用——已 dispose 的 TileLayer 不留在数组中，
     // 否则渲染器对象被多处持有时不可 GC
     this.baseLayers.image = []
     this.baseLayers.vector = []

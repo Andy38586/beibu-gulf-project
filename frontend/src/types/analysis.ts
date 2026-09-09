@@ -21,7 +21,7 @@ export interface AnalysisParams {
 // MultiPolygon 乃至 GeometryCollection，下游需做几何类型降级
 export interface AnalysisResult {
   error: string | null
-  // 8-1：无重叠区域 = 合法空结果标记（02 §4.1），非错误
+  // 无重叠区域 = 合法空结果标记非错误
   empty?: boolean
   emptyReason?: string
   coverage: Feature<Geometry> | null

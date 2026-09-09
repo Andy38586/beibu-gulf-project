@@ -225,7 +225,7 @@ onUnmounted(() => {
   position: relative;
   overflow: hidden;
   pointer-events: none;
-  z-index: var(--GCS-z-layout); /* 816-S7-40：壳层档（原散落 50） */
+  z-index: var(--GCS-z-layout); /* 壳层档（原散落 50） */
 }
 
 /* 不能设 .app-content > * { pointer-events: auto }：会让业务页面成为全屏事件拦截层，

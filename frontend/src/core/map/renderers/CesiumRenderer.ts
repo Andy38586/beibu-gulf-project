@@ -52,15 +52,15 @@ import type {
 
 import { type LayerState, MapRenderer } from './MapRenderer'
 
-/** 相机默认俯仰角（度）：-90° 俯视（z076 提取；引擎切换刻意不传递倾斜状态——OL 无 pitch 概念） */
+/** 相机默认俯仰角（度）：-90° 俯视（引擎切换刻意不传递倾斜状态——OL 无 pitch 概念） */
 const DEFAULT_CAMERA_PITCH_DEG = -90
 
-/** 3D 相机缩放限位（米；816-专项4 1.4 提常量，与 OL zoom 6-20 档位对应） */
+/** 3D 相机缩放限位（米； 提常量，与 OL zoom 6-20 档位对应） */
 const CAMERA_MIN_ZOOM_DISTANCE = 100
 const CAMERA_MAX_ZOOM_DISTANCE = 500000
 
 /**
- * hillshade 影像固有地理范围（EPSG:4326，[西,南,东,北]；816-专项4 1.4 提常量）。
+ * hillshade 影像固有地理范围（EPSG:4326，[西,南,东,北]； 提常量）。
  * 注意：与 BEIBU_GULF_BBOX（业务过滤范围 105-115/18-25）不同源属有意——该 PNG 为固定像素影像，
  * 强行拉伸到业务 bbox 会变形；影像范围由 tools/dem-pipeline 生成时决定，改范围须重出影像。
  * 惰性求值：模块顶层调用 Cesium API 会使 jsdom 单测（mock cesium 无 fromDegrees）加载即挂，
@@ -245,7 +245,7 @@ class CesiumViewerManager {
 
   /** 真正销毁 Viewer（常规卸载不调用，保留复用语义） */
   destroy() {
-    // 816-专项2 3-1：销毁前取消 30s 空闲销毁定时器——unmount() 会重排该定时器，
+    // 销毁前取消 30s 空闲销毁定时器——unmount() 会重排该定时器，
     // 不清理则 fire 时 viewer 已为 null 的 no-op 定时器残留
     this._clearIdleDestroyTimer()
     if (this.viewer) {
@@ -372,7 +372,7 @@ export class CesiumRenderer extends MapRenderer {
     const viewer = this.viewer
     if (!viewer) return
     const controller = viewer.scene.screenSpaceCameraController
-    // 816-专项4 1.4：缩放限位提常量（与 OL zoom 6-20 档位对应，见 CAMERA_*_ZOOM_DISTANCE）
+    // 缩放限位提常量（与 OL zoom 6-20 档位对应，见 CAMERA_*_ZOOM_DISTANCE）
     controller.minimumZoomDistance = CAMERA_MIN_ZOOM_DISTANCE
     controller.maximumZoomDistance = CAMERA_MAX_ZOOM_DISTANCE
     // 显式启用相机控制器全部交互（拖拽/旋转/缩放/倾斜）
@@ -414,7 +414,7 @@ export class CesiumRenderer extends MapRenderer {
    * "真实地形"开关的 3D 语义：切换 terrainProvider（开=CTB 真地形 z 起伏，关=平坦椭球面）。
    * 3D 下 geotiff 图层无独立实例（真地形已由 provider 呈现，addGeoTIFFLayer 在 _terrainReady
    * 时跳过），开关由 layerAdapters.geotiff.setVisibility 在 3D 下调用。
-   * z105：@arch-note 预留钩子——当前无调用方（layerAdapters geotiff 走普通图层显隐语义，
+   * 预留钩子——当前无调用方（layerAdapters geotiff 走普通图层显隐语义，
    * 不做 terrainProvider 特殊处理）；L350 状态延续逻辑依赖本方法，保留待"真实地形"UI 开关接线。
    */
   setTerrainEnabled(enabled: boolean): void {
@@ -609,7 +609,7 @@ export class CesiumRenderer extends MapRenderer {
       orientation: {
         heading: CesiumMath.toRadians(options.heading || 0),
         // 默认俯视 -90°（与 OL 2D 平坦视图一致），避免引擎切换时 pickEllipsoid 因倾斜产生偏移
-        // z076：提为常量（刻意设计：引擎切换不传递倾斜状态，见 doSetCameraState 注释）
+        // 提为常量（刻意设计：引擎切换不传递倾斜状态，见 doSetCameraState 注释）
         pitch: CesiumMath.toRadians(options.pitch ?? DEFAULT_CAMERA_PITCH_DEG),
         roll: 0,
       },
@@ -1148,7 +1148,7 @@ export function createCesiumPointEntity(
       ? {
           text: String(item[options.labelField as keyof PointFeature]),
           font: '12px sans-serif',
-          // 816-专项4 6.3：标注色收口 LAYER_DEFAULTS（原 BLACK/WHITE 硬编码；白底自包含，双主题可读）
+          // 标注色收口 LAYER_DEFAULTS（原 BLACK/WHITE 硬编码；白底自包含，双主题可读）
           fillColor: Color.fromCssColorString(LAYER_DEFAULTS.text),
           showBackground: true,
           backgroundColor: Color.fromCssColorString(LAYER_DEFAULTS.labelBackground),
@@ -1227,7 +1227,7 @@ export function addPolygonLayer(
 }
 
 /**
- * Cesium Entity 运行期最小形态（816-专项3-0816-02：样式应用仅用这些成员，替代裸 any；
+ * Cesium Entity 运行期最小形态（样式应用仅用这些成员，替代裸 any；
  * Cesium 运行期对象 polygon/position 属性赋值类型过严（Property/PropertyBag），保持鸭子访问但收窄到最小面）
  */
 interface CesiumEntityLike {
@@ -1425,7 +1425,7 @@ export function addGeoTIFFLayer(
     // hillshade PNG 为 EPSG:4326 地理坐标，须显式 GeographicTilingScheme（默认 WebMercator 3857
     // 会把北部湾 21°N 的纬度投影到错误位置，3D 下贴图不可见）；新版还强制校验
     // tileWidth/tileHeight（缺省抛 DeveloperError），须传 PNG 实际像素 4096×2819
-    // 816-专项3-0816-01：结构化断言替代裸 as any（原整对象断言无注释、无退出计划）——
+    // 结构化断言替代裸 as any（原整对象断言无注释、无退出计划）——
     // 构造选项为 Cesium 运行期类型（WebMercatorTilingScheme 等联合），此处以构造参数类型为准
     const provider = new SingleTileImageryProvider({
       url: pngUrl,

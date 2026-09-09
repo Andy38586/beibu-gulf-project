@@ -254,8 +254,8 @@ jobs:
           file: ./Dockerfile
           push: true
           tags: |
-            ghcr.io/andy38586/beibu-gulf-project-app:${{ env.IMAGE_TAG }}
-            ghcr.io/andy38586/beibu-gulf-project-app:latest
+            ghcr.io/andy38586/beibu-gulf-project/app:${{ env.IMAGE_TAG }}
+            ghcr.io/andy38586/beibu-gulf-project/app:latest
           build-args: |
             VITE_TIANDITU_KEY=${{ secrets.TIANDITU_KEY }}
             VITE_DATA_SOURCE=fetch
@@ -268,8 +268,8 @@ jobs:
           file: ./backend/Dockerfile.nest
           push: true
           tags: |
-            ghcr.io/andy38586/beibu-gulf-project-nest:${{ env.IMAGE_TAG }}
-            ghcr.io/andy38586/beibu-gulf-project-nest:latest
+            ghcr.io/andy38586/beibu-gulf-project/nest:${{ env.IMAGE_TAG }}
+            ghcr.io/andy38586/beibu-gulf-project/nest:latest
 
       - name: Build and push algorithm-service
         uses: docker/build-push-action@v6
@@ -278,21 +278,19 @@ jobs:
           file: ./backend/algorithm-service/Dockerfile
           push: true
           tags: |
-            ghcr.io/andy38586/beibu-gulf-project-algorithm-service:${{ env.IMAGE_TAG }}
-            ghcr.io/andy38586/beibu-gulf-project-algorithm-service:latest
+            ghcr.io/andy38586/beibu-gulf-project/algorithm-service:${{ env.IMAGE_TAG }}
+            ghcr.io/andy38586/beibu-gulf-project/algorithm-service:latest
 
-      # GHCR 新包默认 private，服务器 docker pull（匿名）拉不了——用带 GITHUB_TOKEN 的
-      # API 把三个包设为 public（部署服务器无 GHCR 凭证，公开只读拉取）
-      - name: Make packages public (服务器匿名 pull)
+      # GHCR 仓库命名空间包默认 private，服务器 docker pull（匿名）拉不了——
+      # 用带 GITHUB_TOKEN 的 API 把 beibu-gulf-project 包设为 public（三镜像同包）
+      - name: Make package public (服务器匿名 pull)
         run: |
-          for pkg in app nest algorithm-service; do
-            curl -sS -X PUT \
-              -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-              -H "Accept: application/vnd.github+json" \
-              -d '{"visibility":"public"}' \
-              "https://api.github.com/user/packages/container/beibu-gulf-project-${pkg}/visibility" \
-              || echo "warn: 包 beibu-gulf-project-${pkg} public 化失败（若已 public 可忽略）"
-          done
+          curl -sS -X PUT \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            -d '{"visibility":"public"}' \
+            "https://api.github.com/user/packages/container/beibu-gulf-project/visibility" \
+            || echo "warn: 包 public 化失败（若已 public 可忽略）"
 
   # 2026-08-09：部署改为 SSH 直部署（原 GHCR+webhook 方案废弃——服务器端无需额外
   # webhook 服务，Actions 用仓库 Secrets 里的服务器私钥直连）。

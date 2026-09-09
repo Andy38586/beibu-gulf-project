@@ -3,7 +3,9 @@ import type { Feature, FeatureCollection, LineString } from 'geojson'
 import type { BusinessLayerManager } from '@/core'
 import type { LayerOptions, RoutePathResult } from '@/types'
 
-/** 路径线图层 id（业务命名空间前缀 route-，关联 a066；BLM registry / catalog / 渲染器 featureType 三处同源） */
+import { ROUTE_COLOR } from '../constants/colors'
+
+/** 路径线图层 id（业务命名空间前缀 route-；BLM registry / catalog / 渲染器 featureType 三处同源） */
 export const ROUTE_PATH_LAYER_ID = 'route-path'
 
 /** 起点/终点标记图层 id */
@@ -12,9 +14,9 @@ export const ROUTE_ENDPOINT_LAYER_ID = 'route-endpoint'
 /** createUpdateHandler 实际使用的 manager 方法子集（与 BLM 解耦，页面传入的 manager 无需完整 BLM 类型） */
 type RouteLayerManager = Pick<BusinessLayerManager, 'register' | 'updateData' | 'has' | 'remove'>
 
-/** 路径线样式（双引擎通用；色值走 shared 常量，不硬编码） */
+/** 路径线样式（双引擎通用；色值走模块 constants，不硬编码） */
 export const ROUTE_PATH_STYLE: LayerOptions = {
-  strokeColor: '#3b82f6',
+  strokeColor: ROUTE_COLOR,
   strokeWidth: 4,
   featureType: ROUTE_PATH_LAYER_ID,
 }
@@ -22,7 +24,7 @@ export const ROUTE_PATH_STYLE: LayerOptions = {
 /** 端点标记样式 */
 export const ROUTE_ENDPOINT_STYLE: LayerOptions = {
   size: 9,
-  color: '#3b82f6',
+  color: ROUTE_COLOR,
   featureType: ROUTE_ENDPOINT_LAYER_ID,
 }
 

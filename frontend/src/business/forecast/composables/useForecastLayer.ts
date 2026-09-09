@@ -9,6 +9,7 @@ import { useRouter } from 'vue-router'
 import { type BusinessLayerManager, useBusinessLayers } from '@/core'
 import {
   ApiError,
+  BoundedMap,
   ENDPOINTS,
   handleAuthError,
   isAuthError,
@@ -121,9 +122,10 @@ export function useForecastLayer(): UseForecastLayerReturn {
     return geojson
   }
 
-  // 地图数据 LRU 缓存：同一 (indicator, time, confidence) 只请求一次，播放/拖动重放同时间点零请求
+  // 地图数据缓存：同一 (indicator, time, confidence) 只请求一次，播放/拖动重放同时间点零请求。
+  // 上限淘汰由 BoundedMap 按插入序处理（与 floodAdapter 档位缓存同一份实现）
   const MAX_MAP_CACHE = 100
-  const mapRequestCache = new Map<string, ForecastMapData>()
+  const mapRequestCache = new BoundedMap<string, ForecastMapData>(MAX_MAP_CACHE)
   function mapCacheKey(indicator: string, time: string, confidence: number): string {
     return `map:${indicator}:${time}:${confidence}`
   }
@@ -179,15 +181,10 @@ export function useForecastLayer(): UseForecastLayerReturn {
         transactionId
       )
 
-      // 事务过期或请求被取消
-      if (geojson === null) return
+      // 请求被取消或事务过期：不写缓存不上图
       if (!geojson) return
 
-      // 写缓存（LRU 上限，超限删最早键）
-      if (mapRequestCache.size >= MAX_MAP_CACHE) {
-        const oldestKey = mapRequestCache.keys().next().value
-        if (oldestKey !== undefined) mapRequestCache.delete(oldestKey)
-      }
+      // 写缓存（BoundedMap 上限自动淘汰最旧键）
       mapRequestCache.set(cacheKey, geojson)
 
       manager.updateData(key, { data: getRenderData(layerType, geojson), options })

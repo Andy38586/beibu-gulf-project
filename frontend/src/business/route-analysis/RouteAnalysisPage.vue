@@ -252,23 +252,23 @@ onUnmounted(() => {
   flex-direction: column;
   gap: 8px;
   padding: 12px;
-  color: var(--GCS-text-primary, #ddd);
+  color: var(--GCS-text-primary);
 }
 
 .route-title {
   margin: 0 0 4px;
   font-size: 14px;
   font-weight: 600;
-  color: var(--GCS-text-primary, #ddd);
+  color: var(--GCS-text-primary);
 }
 
 .pick-btn,
 .mode-btn,
 .query-btn,
 .clear-btn {
-  border: 1px solid var(--GCS-border, #3a4b5c);
-  background: var(--GCS-bg-elevated, #1e2a38);
-  color: var(--GCS-text-primary, #ddd);
+  border: 1px solid var(--GCS-border-default);
+  background: var(--GCS-bg-elevated);
+  color: var(--GCS-text-primary);
   border-radius: 4px;
   padding: 6px 10px;
   font-size: 12px;
@@ -278,13 +278,13 @@ onUnmounted(() => {
 
 .pick-btn:hover,
 .mode-btn:hover {
-  background: var(--GCS-bg-hover, #2a3a4a);
+  background: var(--GCS-bg-hover);
 }
 
 .pick-btn.active,
 .mode-btn.active {
-  border-color: var(--GCS-color-primary, #3b82f6);
-  color: var(--GCS-color-primary, #3b82f6);
+  border-color: var(--GCS-color-primary);
+  color: var(--GCS-color-primary);
 }
 
 .mode-row,
@@ -304,32 +304,32 @@ onUnmounted(() => {
 
 .result-summary {
   padding: 8px 10px;
-  background: var(--GCS-bg-elevated, #1e2a38);
+  background: var(--GCS-bg-elevated);
   border-radius: 4px;
 }
 
 .summary-main {
   font-size: 13px;
   font-weight: 600;
-  color: var(--GCS-color-primary, #3b82f6);
+  color: var(--GCS-color-primary);
 }
 
 .summary-sub {
   margin-top: 4px;
   font-size: 11px;
-  color: var(--GCS-text-muted, #8899aa);
+  color: var(--GCS-text-muted);
 }
 
 .result-error {
   padding: 8px 10px;
-  color: #f87171;
+  color: var(--GCS-color-error);
   font-size: 12px;
-  background: var(--GCS-bg-elevated, #1e2a38);
+  background: var(--GCS-bg-elevated);
   border-radius: 4px;
 }
 
 .result-hint {
-  color: var(--GCS-text-muted, #667788);
+  color: var(--GCS-text-muted);
   font-size: 12px;
   padding: 4px 0;
 }

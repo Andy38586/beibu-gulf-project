@@ -4,10 +4,11 @@
  * 控制面板（右上图层控制上方 4×4）选点 → 逐段调 /route/path（FastAPI algorithm-service）→
  * 多段路径线 + 端点标记图层；左栏为结果摘要面板。
  * 选点双入口：POI 搜索（Nest /site-analysis/pois）或地图点击（限钦北防三市，见 RouteControlPanel）。
- * 引擎锁定 3D：挂载时切 Cesium、卸载恢复原值——航线以三维地形/港口场景为主视图，
+ * 引擎固定 3D（Cesium）：由路由 meta.engine='3d' 经 App 路由守卫统一驱动，本页不再自行切换/还原，
+ * 与浸没分析一致——同为 3D 的路由互切时 UnifiedMap 直接复用同一 Viewer，不卸载、不重建上下文。
  * 路径线/端点图层走 BLM 注册（双引擎通用，本页不再暴露 OL 链路）。
  */
-import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { ref, watch } from 'vue'
 
 import { AppLayout, GCSPanel, LayerControlPanel, useBusinessLayers } from '@/core'
 import { logger } from '@/shared'
@@ -45,23 +46,6 @@ function handleQueryResult(payload: { segments: RoutePathResult[]; pointCount: n
 function handleCleared(): void {
   summary.value = null
 }
-
-// ---- 引擎锁定 Cesium ----
-
-let restoredMapType: '2d' | '3d' | null = null
-onMounted(() => {
-  restoredMapType = mapStore.mapType
-  if (mapStore.mapType !== '3d') {
-    mapStore.setMapType('3d')
-  }
-})
-onUnmounted(() => {
-  // 恢复进入前引擎（其他页面默认 2D；若用户曾手动切 3D 则还原为同值，无副作用）
-  if (restoredMapType && mapStore.mapType !== restoredMapType) {
-    mapStore.setMapType(restoredMapType)
-  }
-  // 渲染器 click 监听由 watch(currentRenderer) 随卸载置空解绑；图层清理由 panel onUnmounted 兜底
-})
 
 // ---- 地图点击 → 面板选点（渲染器 click 事件；命中要素或空白区均回传坐标） ----
 

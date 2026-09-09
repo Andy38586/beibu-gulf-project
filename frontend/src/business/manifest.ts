@@ -68,7 +68,7 @@ export const businessModules: BusinessModule[] = [
   {
     name: 'RouteAnalysis',
     path: '/route-analysis',
-    engine: '2d',
+    engine: '3d',
     title: '航线分析',
     navLabel: '航线分析',
     navIcon: '🚢',

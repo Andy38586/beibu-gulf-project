@@ -78,6 +78,8 @@ class CesiumViewerManager {
   _idleDestroyTimer: ReturnType<typeof setTimeout> | null
   IDLE_DESTROY_DELAY: number
   _baseLayers: { image: unknown[]; vector: unknown[] }
+  /** mount 后双 rAF 补 resize/补帧的句柄，destroy 时统一取消防卸载后回调 */
+  _deferredRafIds: Set<number>
 
   constructor() {
     this.viewer = null
@@ -86,6 +88,7 @@ class CesiumViewerManager {
     this._idleDestroyTimer = null
     this.IDLE_DESTROY_DELAY = 30000
     this._baseLayers = { image: [], vector: [] }
+    this._deferredRafIds = new Set<number>()
   }
 
   // 首次创建Viewer，后续调用返回已有实例
@@ -172,6 +175,7 @@ class CesiumViewerManager {
       // 保持按需渲染（曾无条件持续渲染致 240Hz 屏静止时 GPU 空转掉帧），仅刷新当前帧
       this.viewer.scene.requestRender()
       this._enableCameraControls()
+      this._scheduleDeferredResize()
       return true
     }
 
@@ -187,8 +191,31 @@ class CesiumViewerManager {
     this.viewer.scene.requestRender()
     // 确保相机控制器的交互能力正常（拖拽、旋转、缩放等）
     this._enableCameraControls()
+    // v-show 切换/appendChild 后浏览器布局可能滞后一两帧，此刻 resize 读到的可能仍是
+    // 0×0（黑屏/无底图的经典入口）。双 rAF 后再补一次 resize+渲染兜底，配合 ResizeObserver 自愈
+    this._scheduleDeferredResize()
 
     return true
+  }
+
+  /**
+   * 布局滞后兜底：挂载后用双 rAF 再做一次 resize + requestRender。
+   * 按需渲染（requestRenderMode）下只在挂载瞬间发一帧，若那一帧容器还没完成布局，
+   * 后续静止不再绘制就会停在黑帧；这里在布局落定后主动补帧。
+   */
+  _scheduleDeferredResize() {
+    if (typeof requestAnimationFrame !== 'function') return
+    const r1 = requestAnimationFrame(() => {
+      const r2 = requestAnimationFrame(() => {
+        this._deferredRafIds.delete(r1)
+        this._deferredRafIds.delete(r2)
+        if (!this.viewer) return
+        this.viewer.resize()
+        this.viewer.scene.requestRender()
+      })
+      this._deferredRafIds.add(r2)
+    })
+    this._deferredRafIds.add(r1)
   }
 
   /** 启用相机控制器全部交互（拖拽/旋转/缩放/倾斜），首次创建与每次挂载时调用防止状态被意外修改 */
@@ -260,6 +287,9 @@ class CesiumViewerManager {
     // 销毁前取消 30s 空闲销毁定时器——unmount() 会重排该定时器，
     // 不清理则 fire 时 viewer 已为 null 的 no-op 定时器残留
     this._clearIdleDestroyTimer()
+    // 取消挂载后的延迟补帧回调，防止 Viewer 销毁后仍操作已释放实例
+    this._deferredRafIds.forEach((id) => cancelAnimationFrame(id))
+    this._deferredRafIds.clear()
     if (this.viewer) {
       this.unmount()
       this.viewer.destroy()

@@ -3,6 +3,11 @@ uvicorn>=0.30
 numpy>=1.26
 scipy>=1.13
 rasterio>=1.3
+# flood_engine 直接 import Affine 做仿射变换（rasterio 的传递依赖，显式声明防漂移）
+affine>=2.4
 shapely>=2.0
 networkx>=3.3
 psycopg[binary]>=3.1
+# starlette TestClient 的 HTTP 层：tests/ 的 HTTP 用例经 fastapi.testclient 驱动，
+# 缺此包 pytest collection 即 ModuleNotFoundError（CI 最小安装集曾实锤）
+httpx>=0.27

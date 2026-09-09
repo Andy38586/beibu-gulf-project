@@ -268,7 +268,7 @@ jobs:
           file: ./backend/Dockerfile.nest
           push: true
           tags: |
-            ghcr.io/andy38586/beibu-gulf-project-nest:${IMAGE_TAG}
+            ghcr.io/andy38586/beibu-gulf-project-nest:${{ env.IMAGE_TAG }}
             ghcr.io/andy38586/beibu-gulf-project-nest:latest
 
       - name: Build and push algorithm-service

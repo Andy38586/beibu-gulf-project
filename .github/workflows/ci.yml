@@ -351,13 +351,12 @@ jobs:
           # 顺带清理此前失败轮次残留的本地构建进程（docker compose up --build 卡死
           # 会持续占内存拖垮 sshd——run#135/136 卡死现场；容器由 containerd 托管，pkill 不误伤）
           if ! ssh_quick "cd /opt/beibu-gulf \
-            && mkdir -p /opt/beibu-gulf-runtime-data \
-            && cp -f backend/data/users.json /opt/beibu-gulf-runtime-data/ 2>/dev/null; \
+            && cp -f backend/data/users.json /tmp/beibu-users.bak 2>/dev/null; \
             git checkout -- backend/data/users.json 2>/dev/null; \
             git pull --ff-only || exit 1; \
-            cp -f /opt/beibu-gulf-runtime-data/users.json backend/data/users.json 2>/dev/null; \
+            cp -f /tmp/beibu-users.bak backend/data/users.json 2>/dev/null; \
             pkill -9 -f 'docker compose' 2>/dev/null; pkill -9 -f 'docker build' 2>/dev/null; \
-            docker info >/dev/null 2>&1 || systemctl restart docker; true"; then
+            docker info >/dev/null 2>&1 || sudo systemctl restart docker; true"; then
             echo "::error::git pull 阶段失败（SSH_PORT=${SSH_PORT}；见上方 ssh stderr 原文）"
             exit 1
           fi

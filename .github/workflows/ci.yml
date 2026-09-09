@@ -328,14 +328,19 @@ jobs:
           # 短命令快速通道：连接层失败（exit 255）自动重试 3 次；远端命令自身失败
           # （非 255）直接透传退出码，重试无意义
           ssh_quick() {
-            local attempt_exit=0
+            local attempt_exit=0 err_txt=""
             for attempt in 1 2 3; do
               attempt_exit=0
-              ssh -o StrictHostKeyChecking=no -o ConnectTimeout=15 -p "$SSH_PORT" \
-                "$SERVER_USER@$SERVER_HOST" "$1" || attempt_exit=$?
+              # 捕获 stderr 到 err_txt（2>&1 先并流再丢弃 stdout，ssh 连接错误与远端 stderr 都会进来），
+              # 失败时透传原文到 annotations，不再只报「exit 255」泛化消息（跨境 22 端口 banner 丢失会 255）
+              err_txt="$(ssh -o StrictHostKeyChecking=no -o ConnectTimeout=15 -p "$SSH_PORT" \
+                "$SERVER_USER@$SERVER_HOST" "$1" 2>&1 >/dev/null)" || attempt_exit=$?
               [ "$attempt_exit" -eq 0 ] && return 0
-              [ "$attempt_exit" -ne 255 ] && return "$attempt_exit"
-              echo "::warning::SSH 连接失败（exit 255，疑似链路/负载问题），第 ${attempt}/3 次，10 秒后重试" >&2
+              if [ "$attempt_exit" -ne 255 ]; then
+                echo "::error::远端命令失败(exit ${attempt_exit}) stderr: ${err_txt}"
+                return "$attempt_exit"
+              fi
+              echo "::warning::SSH 连接失败(exit 255) stderr: ${err_txt}（第 ${attempt}/3 次，10 秒后重试）" >&2
               [ "$attempt" -lt 3 ] && sleep 10
             done
             return 1
@@ -353,7 +358,7 @@ jobs:
             cp -f /opt/beibu-gulf-runtime-data/users.json backend/data/users.json 2>/dev/null; \
             pkill -9 -f 'docker compose' 2>/dev/null; pkill -9 -f 'docker build' 2>/dev/null; \
             docker info >/dev/null 2>&1 || systemctl restart docker; true"; then
-            echo "::error::git pull 阶段失败（服务器仓库状态或链路异常）"
+            echo "::error::git pull 阶段失败（SSH_PORT=${SSH_PORT}；见上方 ssh stderr 原文）"
             exit 1
           fi
           # 阶段二（短会话）：触发后台「拉镜像 + 启动」即返回。镜像由 CI 构建推送

@@ -261,7 +261,16 @@ jobs:
             attempt_exit=0
             ssh -o StrictHostKeyChecking=no -o ConnectTimeout=15 -p "$SSH_PORT" \
               "$SERVER_USER@$SERVER_HOST" \
-              "cd /opt/beibu-gulf && git pull --ff-only && IMAGE_TAG='${IMAGE_TAG}' docker compose up --build -d && docker image prune -f" || attempt_exit=$?
+              "cd /opt/beibu-gulf \
+              && mkdir -p /opt/beibu-gulf-runtime-data \
+              && cp -f backend/data/users.json /opt/beibu-gulf-runtime-data/ 2>/dev/null || true \
+              && git checkout -- backend/data/users.json 2>/dev/null || true \
+              && git pull --ff-only \
+              && cp -f /opt/beibu-gulf-runtime-data/users.json backend/data/users.json 2>/dev/null || true \
+              && IMAGE_TAG='${IMAGE_TAG}' docker compose up --build -d && docker image prune -f" || attempt_exit=$?
+            # users.json 由跟踪转为 gitignore（停止跟踪敏感数据）后，与服务器运行时写入的
+            # 副本冲突，ff-only pull 拒绝删除被修改文件——先备份真实数据到仓库外、还原
+            # HEAD 版本让 pull 顺利执行删除，再放回（此后 untracked，不再冲突）
             if [ "$attempt_exit" -eq 0 ]; then
               deploy_ok=true
               break

@@ -14,7 +14,7 @@ vi.mock('@/shared', async (importOriginal) => {
 
 import { useApiRequest } from '@/shared'
 
-import { useRouteApi, RouteQueryCancelledError } from '../useRouteApi'
+import { RouteQueryCancelledError, useRouteApi } from '../useRouteApi'
 
 // mock fetch（apiRequest 内部走 fetch；/flood-online 前缀跨服务直通，envelope:false 不解信封）
 const mockFetch = vi.fn()

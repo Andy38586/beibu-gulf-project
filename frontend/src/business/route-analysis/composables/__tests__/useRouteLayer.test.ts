@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import type { BusinessLayerManager } from '@/core'
 import type { RoutePathResult } from '@/types'
 
+import type { RouteSlot } from '../useRouteLayer'
 import {
   buildEndpointGeoJson,
   buildRouteGeoJson,
@@ -10,7 +11,6 @@ import {
   ROUTE_PATH_LAYER_ID,
   useRouteLayer,
 } from '../useRouteLayer'
-import type { RouteSlot } from '../useRouteLayer'
 
 /** 最小 manager 假桩（记录调用，不触渲染器） */
 function createFakeManager() {

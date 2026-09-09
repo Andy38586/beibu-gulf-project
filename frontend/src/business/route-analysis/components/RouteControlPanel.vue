@@ -15,18 +15,18 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { GCSPanel } from '@/core'
 import { logger, showError, showWarning, useGCS } from '@/shared'
 import { useMapStore } from '@/stores'
-import type { PoiSearchItemParsed } from '@/types/schemas'
 import type { RoutePathResult } from '@/types'
+import type { PoiSearchItemParsed } from '@/types/schemas'
 
 import { isWithinThreeCities } from '../composables/useCityBoundary'
-import { ROUTE_SLOT_KEYS, useRouteLayer } from '../composables/useRouteLayer'
+import { RouteQueryCancelledError, useRouteApi } from '../composables/useRouteApi'
 import type {
   RouteLayerManager,
   RoutePoint,
   RouteSlot,
   RouteSlotKey,
 } from '../composables/useRouteLayer'
-import { RouteQueryCancelledError, useRouteApi } from '../composables/useRouteApi'
+import { ROUTE_SLOT_KEYS, useRouteLayer } from '../composables/useRouteLayer'
 
 interface Props {
   /** BLM 实例（图层注册/更新；页面 useBusinessLayers 提供，此处只消费四方法子集） */
@@ -436,7 +436,7 @@ defineExpose({
   display: block;
   width: 9px;
   height: 9px;
-  border: 1.4px solid currentColor;
+  border: 1.4px solid currentcolor;
   border-radius: 50% 50% 50% 0;
   transform: rotate(-45deg);
 }
@@ -446,7 +446,7 @@ defineExpose({
   position: absolute;
   inset: 2px;
   border-radius: 50%;
-  background: currentColor;
+  background: currentcolor;
 }
 
 /* POI 搜索框：与槽按钮同规格（3.8 通栏 0.8 高） */

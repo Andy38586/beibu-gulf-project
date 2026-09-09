@@ -15,8 +15,8 @@ import { logger } from '@/shared'
 import { useMapStore } from '@/stores'
 import type { RoutePathResult } from '@/types'
 
-import { ROUTE_ENDPOINT_LAYER_ID, ROUTE_PATH_LAYER_ID } from './composables/useRouteLayer'
 import RouteControlPanel from './components/RouteControlPanel.vue'
+import { ROUTE_ENDPOINT_LAYER_ID, ROUTE_PATH_LAYER_ID } from './composables/useRouteLayer'
 
 const mapStore = useMapStore()
 const { manager: businessLayerManager } = useBusinessLayers()

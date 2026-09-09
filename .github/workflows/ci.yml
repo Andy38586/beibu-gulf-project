@@ -253,35 +253,61 @@ jobs:
           # F2：部署注入版本 tag（日期+run 号），镜像不再覆写 latest——
           # rollback.sh 可用历史 tag 回滚（docker images 列出后 ./scripts/rollback.sh <tag>）
           IMAGE_TAG="$(date +%Y%m%d)-${GITHUB_RUN_NUMBER}"
-          # d115：跨境 SSH（GitHub runner 境外 → 阿里云）偶发连接超时（run#121 挂约 5 分钟
-          # 后 exit 255，重跑即成功）——ConnectTimeout 快速失败 + 连接层失败自动重试 3 次自愈，
-          # 不再让整条流水线因一次网络抖动变红；远端命令自身失败（非 255）重试无意义，直接抛出。
-          deploy_ok=false
-          for attempt in 1 2 3; do
-            attempt_exit=0
-            ssh -o StrictHostKeyChecking=no -o ConnectTimeout=15 -p "$SSH_PORT" \
-              "$SERVER_USER@$SERVER_HOST" \
-              "cd /opt/beibu-gulf \
-              && mkdir -p /opt/beibu-gulf-runtime-data \
-              && cp -f backend/data/users.json /opt/beibu-gulf-runtime-data/ 2>/dev/null || true \
-              && git checkout -- backend/data/users.json 2>/dev/null || true \
-              && git pull --ff-only \
-              && cp -f /opt/beibu-gulf-runtime-data/users.json backend/data/users.json 2>/dev/null || true \
-              && IMAGE_TAG='${IMAGE_TAG}' docker compose up --build -d && docker image prune -f" || attempt_exit=$?
-            # users.json 由跟踪转为 gitignore（停止跟踪敏感数据）后，与服务器运行时写入的
-            # 副本冲突，ff-only pull 拒绝删除被修改文件——先备份真实数据到仓库外、还原
-            # HEAD 版本让 pull 顺利执行删除，再放回（此后 untracked，不再冲突）
-            if [ "$attempt_exit" -eq 0 ]; then
-              deploy_ok=true
-              break
-            fi
-            if [ "$attempt_exit" -ne 255 ]; then
-              exit "$attempt_exit"
-            fi
-            echo "::warning::SSH 连接失败（exit 255，疑似跨境链路抖动），第 ${attempt}/3 次，10 秒后重试"
-            if [ "$attempt" -lt 3 ]; then sleep 10; fi
-          done
-          if [ "$deploy_ok" != true ]; then
-            echo "::error::SSH 连接连续 3 次失败：检查阿里云防火墙 22 端口来源限制 / fail2ban 封禁 / 跨境链路"
+          # 短命令快速通道：连接层失败（exit 255，跨境链路抖动）自动重试 3 次；
+          # 远端命令自身失败（非 255）直接透传退出码，重试无意义
+          ssh_quick() {
+            local attempt_exit=0
+            for attempt in 1 2 3; do
+              attempt_exit=0
+              ssh -o StrictHostKeyChecking=no -o ConnectTimeout=15 -p "$SSH_PORT" \
+                "$SERVER_USER@$SERVER_HOST" "$1" || attempt_exit=$?
+              [ "$attempt_exit" -eq 0 ] && return 0
+              [ "$attempt_exit" -ne 255 ] && return "$attempt_exit"
+              echo "::warning::SSH 连接失败（exit 255，疑似跨境链路抖动），第 ${attempt}/3 次，10 秒后重试" >&2
+              [ "$attempt" -lt 3 ] && sleep 10
+            done
+            return 1
+          }
+          # 阶段一（短会话）：同步代码。users.json 由跟踪转为 gitignore 后与服务器运行时
+          # 副本冲突，ff-only pull 拒绝删除被修改文件——先备份真实数据到仓库外、还原
+          # HEAD 版本让删除动作执行，pull 后放回（此后 untracked 受忽略保护，幂等）
+          if ! ssh_quick "cd /opt/beibu-gulf \
+            && mkdir -p /opt/beibu-gulf-runtime-data \
+            && cp -f backend/data/users.json /opt/beibu-gulf-runtime-data/ 2>/dev/null; \
+            git checkout -- backend/data/users.json 2>/dev/null; \
+            git pull --ff-only || exit 1; \
+            cp -f /opt/beibu-gulf-runtime-data/users.json backend/data/users.json 2>/dev/null; true"; then
+            echo "::error::git pull 阶段失败（服务器仓库状态或链路异常）"
             exit 1
           fi
+          # 阶段二（短会话）：触发后台构建即返回。同步长连接撑不过低配服务器 8 分钟级
+          # 构建（跨境 SSH 中途断开 exit 255，run#135 实锤）——构建改由 nohup 脱离会话
+          # 执行，结果写入状态文件；构建收尾顺带清 builder 缓存（磁盘仅 40G，缓存无界增长）
+          if ! ssh_quick "cd /opt/beibu-gulf; rm -f /tmp/beibu-deploy-status; \
+            nohup bash -c 'IMAGE_TAG=${IMAGE_TAG} docker compose up --build -d > /tmp/beibu-deploy.log 2>&1 \
+              && echo OK > /tmp/beibu-deploy-status || echo FAIL > /tmp/beibu-deploy-status; \
+              docker builder prune -f >> /tmp/beibu-deploy.log 2>&1' >/dev/null 2>&1 & \
+            echo build-triggered"; then
+            echo "::error::触发构建失败"
+            exit 1
+          fi
+          # 阶段三（短会话轮询）：每 30s 查一次状态文件，单次连接都是秒级，不再依赖长连接；
+          # 轮询自身的 SSH 抖动只跳过本轮（continue），不判定部署失败
+          for i in $(seq 1 40); do
+            sleep 30
+            status="$(ssh_quick "cat /tmp/beibu-deploy-status 2>/dev/null || echo RUNNING" 2>/dev/null)" || continue
+            case "$status" in
+              OK)
+                echo "部署完成（耗时约 $((i * 30))s，tag=${IMAGE_TAG}）"
+                exit 0
+                ;;
+              FAIL)
+                echo "::error::服务器端构建失败，日志尾部："
+                ssh_quick "tail -n 60 /tmp/beibu-deploy.log" || true
+                exit 1
+                ;;
+            esac
+            echo "构建进行中（${i}/40）..."
+          done
+          echo "::error::部署 20 分钟未完成（构建挂起或服务器压力过大），登录服务器查 /tmp/beibu-deploy.log"
+          exit 1

@@ -85,7 +85,7 @@ watch(
             <template v-if="summary">
               <div class="summary-main">{{ summary.totalKm.toFixed(1) }} km</div>
               <div class="summary-sub">
-                约 {{ summary.totalMin.toFixed(1)}} 分钟 · {{ summary.segCount }} 段
+                约 {{ summary.totalMin.toFixed(1) }} 分钟 · {{ summary.segCount }} 段
               </div>
               <div class="summary-sub">含接驳 {{ summary.totalWithSnapKm.toFixed(1) }} km</div>
             </template>
@@ -99,7 +99,12 @@ watch(
 
       <!-- 右下：图层控制 -->
       <template #right>
-        <RouteControlPanel ref="panelRef" :manager="businessLayerManager" @query-result="handleQueryResult" @cleared="handleCleared" />
+        <RouteControlPanel
+          ref="panelRef"
+          :manager="businessLayerManager"
+          @query-result="handleQueryResult"
+          @cleared="handleCleared"
+        />
         <GCSPanel :w="4" :h="4" anchor="top-right" :offset-x="0" :offset-y="5.5">
           <LayerControlPanel
             :layer-order="[

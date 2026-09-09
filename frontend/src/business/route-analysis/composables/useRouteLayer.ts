@@ -76,7 +76,11 @@ export function buildEndpointGeoJson(slots: RouteSlot[]): FeatureCollection {
     features.push({
       type: 'Feature',
       geometry: { type: 'Point', coordinates: [p.lng, p.lat] },
-      properties: { featureType: ROUTE_ENDPOINT_LAYER_ID, role: slot.key, ...(p.name ? { name: p.name } : {}) },
+      properties: {
+        featureType: ROUTE_ENDPOINT_LAYER_ID,
+        role: slot.key,
+        ...(p.name ? { name: p.name } : {}),
+      },
     })
   }
   return { type: 'FeatureCollection', features }

@@ -52,8 +52,7 @@ async function loadCityBoundary(): Promise<BoundaryPolygon[]> {
           .map((f) => f.geometry)
           .filter(
             (g): g is BoundaryPolygon =>
-              (g?.type === 'Polygon' || g?.type === 'MultiPolygon') &&
-              Array.isArray(g.coordinates)
+              (g?.type === 'Polygon' || g?.type === 'MultiPolygon') && Array.isArray(g.coordinates)
           )
         boundaryCache = features
         logger.debug(`[useCityBoundary] 三市区县边界加载完成: ${features.length} 个面`)
@@ -78,8 +77,6 @@ export async function isWithinThreeCities(lng: number, lat: number): Promise<boo
     if (f.type === 'Polygon') {
       return pointInPolygonRings(lng, lat, f.coordinates as number[][][])
     }
-    return (f.coordinates as number[][][][]).some((rings) =>
-      pointInPolygonRings(lng, lat, rings)
-    )
+    return (f.coordinates as number[][][][]).some((rings) => pointInPolygonRings(lng, lat, rings))
   })
 }

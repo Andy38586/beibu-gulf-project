@@ -66,12 +66,16 @@ describe('useRouteLayer', () => {
   })
 
   it('有结果且有起终点 → 注册两条图层（路径线 featureType 同层 id）', () => {
-    updateRouteLayers(fake.manager, [RESULT], [
-      SLOT('from', 108.6, 21.6),
-      { key: 'waypoint-1', point: null },
-      { key: 'waypoint-2', point: null },
-      SLOT('to', 108.8, 21.8),
-    ])
+    updateRouteLayers(
+      fake.manager,
+      [RESULT],
+      [
+        SLOT('from', 108.6, 21.6),
+        { key: 'waypoint-1', point: null },
+        { key: 'waypoint-2', point: null },
+        SLOT('to', 108.8, 21.8),
+      ]
+    )
     expect(fake.manager.has(ROUTE_PATH_LAYER_ID)).toBe(true)
     expect(fake.manager.has(ROUTE_ENDPOINT_LAYER_ID)).toBe(true)
     expect(fake.calls).toContain(`register:${ROUTE_PATH_LAYER_ID}`)
@@ -101,7 +105,13 @@ describe('useRouteLayer', () => {
   })
 
   it('buildRouteGeoJson：多段产出多个 LineString，单段 <2 点跳过，全无效空集', () => {
-    const seg2: RoutePathResult = { ...RESULT, coordinates: [[109, 22], [109.1, 22.1]] }
+    const seg2: RoutePathResult = {
+      ...RESULT,
+      coordinates: [
+        [109, 22],
+        [109.1, 22.1],
+      ],
+    }
     const multi = buildRouteGeoJson([RESULT, seg2])
     expect(multi.features.length).toBe(2)
     expect(multi.features.every((f) => f.geometry.type === 'LineString')).toBe(true)

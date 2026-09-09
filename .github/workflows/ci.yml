@@ -244,7 +244,10 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          # 用 PAT（write:packages）而非 GITHUB_TOKEN：installation token 无权
+          # 创建账户下的首个 GHCR 包（run#139/140/141 三连 "Create organization
+          # package" 拒绝），PAT 首次创建后 GITHUB_TOKEN 才可续写
+          password: ${{ secrets.GHCR_PAT }}
 
       # 三服务镜像：在一个 job 内逐次构建推送（共享 buildx 缓存，减少重复拉基础层）
       - name: Build and push app (vite 前端 + nginx)
@@ -281,12 +284,12 @@ jobs:
             ghcr.io/andy38586/beibu-gulf-project:algorithm-service-${{ env.IMAGE_TAG }}
             ghcr.io/andy38586/beibu-gulf-project:algorithm-service-latest
 
-      # GHCR 仓库命名空间包默认 private，服务器 docker pull（匿名）拉不了——
-      # 用带 GITHUB_TOKEN 的 API 把 beibu-gulf-project 包设为 public（三镜像同包）
+      # GHCR 包默认 private，服务器 docker pull（匿名）拉不了——
+      # 用带 GHCR_PAT 的 API 把 beibu-gulf-project 包设为 public（三镜像同包）
       - name: Make package public (服务器匿名 pull)
         run: |
           curl -sS -X PUT \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Authorization: Bearer ${{ secrets.GHCR_PAT }}" \
             -H "Accept: application/vnd.github+json" \
             -d '{"visibility":"public"}' \
             "https://api.github.com/user/packages/container/beibu-gulf-project/visibility" \

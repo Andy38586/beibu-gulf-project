@@ -31,7 +31,18 @@ function removeCesiumHtmlTags() {
   }
 }
 
-export default defineConfig(({ mode }) => ({
+export default defineConfig(({ mode, command }) => {
+  // 本地 dev 下，Vite 把 /api、/nest-api、/flood-online 转发到本机回环后端。
+  // 若系统开着 Clash/V2Ray 并设置了 HTTP(S)_PROXY/ALL_PROXY（且 NO_PROXY 未覆盖回环），
+  // http-proxy 会把「到 127.0.0.1 后端」的请求也发给代理，代理无法回源回环 → 固定 ~2s 后 502，
+  // 而直连后端正常，极易误判成「后端挂了/服务器无响应」。dev 的上游全是本机，直接移除上游
+  // 代理变量，与系统代理是否开启彻底解耦；仅 serve 生效，build（CI/打包）不受影响。
+  if (command === 'serve') {
+    for (const k of ['HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'http_proxy', 'https_proxy', 'all_proxy']) {
+      delete process.env[k]
+    }
+  }
+  return {
   plugins: [
     vue(),
     vueDevTools(),
@@ -111,31 +122,34 @@ export default defineConfig(({ mode }) => ({
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost:3000',
+        target: 'http://127.0.0.1:3000',
         changeOrigin: true,
         secure: false,
       },
       // Nest 业务层（后端本体，Express 退役后端口回切 3000，T6.3）；全局前缀 nest-api 与 /api 平行，
       // 逐模块切换后前端请求经此转发到 Nest（无 rewrite，nest 自身路由就是 /nest-api/*）
       '/nest-api': {
-        target: 'http://localhost:3000',
+        target: 'http://127.0.0.1:3000',
         changeOrigin: true,
         secure: false,
       },
       // DEM 派生产物（hillshade COG / terrain 瓦片）由后端 static 托管
       '/static': {
-        target: 'http://localhost:3000',
+        target: 'http://127.0.0.1:3000',
         changeOrigin: true,
         secure: false,
       },
+      // target 用 127.0.0.1 显式 IPv4 回环，避免 localhost 解析到 ::1 的歧义（3000 同理）。
+      // 502 主因（系统代理劫持回环转发）已在本文件顶部 command==='serve' 时移除 *_PROXY 解决。
       // 在线演算服务（FastAPI，algorithm-service，端口 8000）
       // 路由 B ④：滑块无极调节 → 实时连通性淹没；rewrite 去掉 /flood-online 前缀
       '/flood-online': {
-        target: 'http://localhost:8000',
+        target: 'http://127.0.0.1:8000',
         changeOrigin: true,
         secure: false,
         rewrite: (path) => path.replace(/^\/flood-online/, ''),
       },
     },
   },
-}))
+  }
+})

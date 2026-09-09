@@ -1,8 +1,11 @@
 name: CI
 
+# 特性分支 push 即跑全部校验门禁（audit / lint-and-build / nest-tests / algorithm-tests），
+# 让「能否合入 main」在分支阶段就可见，不再攒到合入主线才第一次跑 CI、连环报错。
+# deploy job 自带 if: github.ref == 'refs/heads/main'，非 main 分支只校验、绝不部署，安全。
 on:
   push:
-    branches: [main, master]
+    branches: ['**']
   pull_request:
     branches: [main, master]
 
@@ -91,6 +94,11 @@ jobs:
 
       - name: Architecture contract (dependency-cruiser)
         run: npm run cruise
+
+      # 0909-G02：API 契约校验入 CI —— gen-api-contract --check 校验 schemas 全量
+      # 类型导出与测试覆盖（README「契约在 CI 校验」承诺兑现）
+      - name: API contract check
+        run: npm run types:check
 
       - name: Type check
         run: npm run typecheck

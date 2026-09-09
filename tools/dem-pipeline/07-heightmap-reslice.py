@@ -157,18 +157,59 @@ def main() -> None:
                 stale += 1
         print(f"removed stale: {stale}")
 
-    # layer.json：format 校正回 heightmap-1.0（与产出严格一致）
+    # ---- layer.json ----
+    # 关键：CesiumTerrainProvider 在 layer.json 缺省 scheme 时默认按 "tms" 请求
+    # （源码：TileMapService counts from bottom left，URL y = yTiles - y - 1）。
+    # 本脚本瓦片文件名按朝北（slippy，y=0 最北，见 tile_bounds）生成，必须显式声明
+    # "slippyMap"，否则北方瓦片按翻转名 404、被父级上采样成平地（请求 z12 y=2550，
+    # 实际数据在 y=1545）。available 与 scheme 无关、恒按 TMS 朝向解析，需翻转 y。
+    max_zoom = 12
+    by_level: dict[int, dict[int, list[int]]] = {}
+    for tz, tx, ty_north in tile_set:
+        by_level.setdefault(tz, {}).setdefault(tx, []).append(ty_north)
+    available: list[list[dict]] = []
+    for tz in range(0, max_zoom + 1):
+        rows = 2 ** tz
+        tms_ranges: list[dict] = []
+        for tx in sorted(by_level.get(tz, {})):
+            ys = sorted(by_level[tz][tx])
+            run_start = ys[0]
+            prev = ys[0]
+            for yy in ys[1:] + [None]:
+                if yy is None or yy != prev + 1:
+                    tms_ranges.append({
+                        "startX": tx,
+                        "startY": rows - 1 - prev,
+                        "endX": tx,
+                        "endY": rows - 1 - run_start,
+                    })
+                    if yy is not None:
+                        run_start = yy
+                if yy is not None:
+                    prev = yy
+        available.append(tms_ranges)
+
     layer_path = TERRAIN_DIR / "layer.json"
     layer = {
         "tilejson": "2.1.0",
         "name": "dem_heightmap",
         "format": "heightmap-1.0",
         "version": "1.1.0",
+        # 瓦片文件名朝北（slippy）；缺省会被 Cesium 当 TMS 翻转 y
+        "scheme": "slippyMap",
         "projection": "EPSG:4326",
+        "bounds": [DEM_MIN_LON, DEM_MIN_LAT, DEM_MAX_LON, DEM_MAX_LAT],
+        "minzoom": 0,
+        "maxzoom": max_zoom,
+        # available 恒为 TMS 朝向区间，供 sampleTerrain / LOD 判定
+        "available": available,
         "tiles": ["/static/terrain/{z}/{x}/{y}.terrain?v={version}"],
     }
     layer_path.write_text(__import__("json").dumps(layer, indent=2), encoding="utf-8")
-    print("layer.json rewritten: format=heightmap-1.0")
+    print(
+        "layer.json rewritten: format=heightmap-1.0 scheme=slippyMap "
+        f"available levels={len(available)}"
+    )
 
 
 if __name__ == "__main__":

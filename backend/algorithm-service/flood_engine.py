@@ -321,6 +321,16 @@ def run_online_flood(level: float, downsample: int = DOWNSAMPLE, simplify_tol: f
     """
     dem, nodata, transform, crs = load_dem(downsample)
     mask = compute_flood_mask(dem, nodata, level)
+    # 只绘制"被淹没的陆地"（0 < 高程 <= 水位），剔除永久水面（dem<=0，即海洋）。
+    # 原因：本项目裁切 DEM 在北纬 21° 等处是一条笔直的数据边界，再往外是 NoData；
+    # 0~水位的浅海有效像元一直铺到这条直线，多边形化会沿它封出几十~上百公里的
+    # 笔直"缝合边"，把相距遥远的岸段在一个多边形里硬连，前端 earcut 三角剖分成
+    # 一束被拉升/挤压的"竖帘"。海洋本就是永久水体、不属于淹没范围，剔除后：
+    #   1) 缝合边消失（实测 level10 最大邻边 172km→6.7km）；
+    #   2) 淹没面积不再混入大片海面（17960km²→4278km² 的真实陆地淹没）。
+    # 连通性通水仍由 compute_flood_mask 借 NoData 海域做 8 连通种子，不受影响。
+    land = dem > 0.0
+    mask = mask & land
     flooded_px = int(mask.sum())
     # UTM48N 降采样后像元面积：120m × 120m（近似；沿纬度略有变化，可忽略）
     px_area_km2 = (30 * downsample / 1000.0) ** 2

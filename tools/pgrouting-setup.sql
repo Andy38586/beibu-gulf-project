@@ -109,14 +109,24 @@ UPDATE roads SET
 WHERE cost_m IS NULL;
 
 -- ============================================================================
--- ④ 建拓扑（165,111 行，耗时可能数分钟；tolerance 为**度**）
+-- ④ 建拓扑
 -- ============================================================================
--- tolerance 0.00001° ≈ 1.1m（纬度）。取值权衡：
---   过小 → 端点未对齐的断点不连通 → 路径绕行或找不到；
---   过大 → 相邻但不连通的路被错误焊接 → 路径穿墙。
--- 原 Python 实现用「端点投影切分」是精确解，pgr_createTopology 是容差近似 →
--- **本步是阶段 3 最大的偏差来源**，必须用 5 组样点实测校准（见验收清单）。
-SELECT pgr_createTopology('roads', 0.00001, 'geom', 'id');
+-- ⛔ **本节已被取代，不要照跑**（2026-09-10）
+--
+-- 原做法 `pgr_createTopology('roads', 0.00001, 'geom', 'id')` 的容差吸附**依赖边的
+-- 处理顺序**：同一份数据两次重建得到不同拓扑（实测 246,941 vs 193,135 顶点），
+-- 不可复现，且连通性明显更差（最大连通分量只盖住 ~30% 的可通行边，而 networkx
+-- 时代是 95%）。
+--
+-- 现行做法（仓库内已固化，见对应脚本）：
+--   · tools/roads-topology-build.sql  —— 网格法（端点量化到 60m 网格，确定性）
+--                                        重建 source / target
+--   · tools/roads-derive.sql          —— class/length_m/cost_m/cost_min 回填
+--                                        + main_comp = 全量可通行边的最大连通分量
+--
+-- 保留本节仅为留痕：说明「为什么不用容差吸附」这件事已经踩过、别再退回去。
+-- ============================================================================
+-- SELECT pgr_createTopology('roads', 0.00001, 'geom', 'id');
 
 CREATE INDEX IF NOT EXISTS idx_roads_source ON roads (source);
 CREATE INDEX IF NOT EXISTS idx_roads_target ON roads (target);

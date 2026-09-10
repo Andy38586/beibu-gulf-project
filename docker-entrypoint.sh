@@ -21,6 +21,11 @@ server {
     add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
     add_header X-Content-Type-Options "nosniff" always;
     add_header X-Frame-Options "SAMEORIGIN" always;
+    # CSP（2026-09-10 补）：此前只存在于 nginx.conf 的 :80 server 块，而真实流量走本
+    # 443/8443 server（由本 heredoc 生成），导致 CSP 对生产流量完全不生效。
+    # 沿用 :80 的 Report-Only 口径（Cesium/Turf 仍需 unsafe-eval，强制策略会打断 3D），
+    # 先收窄再收紧。⚠️ 与 nginx.conf:34 必须同步修改（两份配置手抄，是历史分叉点）。
+    add_header Content-Security-Policy-Report-Only "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; media-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'" always;
     location / {
         root /app/frontend/dist;
         try_files $uri $uri/ /index.html;

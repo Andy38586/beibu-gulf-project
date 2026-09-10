@@ -3,6 +3,7 @@ import path from 'node:path'
 
 import { Logger } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
+import type { NestExpressApplication } from '@nestjs/platform-express'
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
 import cookieParser from 'cookie-parser'
 import express from 'express'
@@ -11,7 +12,11 @@ import { AppModule } from './app.module'
 import { ConfigService } from './infra/config/config.service'
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule)
+  const app = await NestFactory.create<NestExpressApplication>(AppModule)
+  // 关闭框架指纹：Nest 默认 Express adapter 会给每个响应带 X-Powered-By: Express，
+  // 属低成本可消除的信息泄露（2026-09-10 实测线上 /nest-api/* 全部携带）。
+  // 必须在首个请求前设置（此处为 listen 前），否则已发出的响应已带该头。
+  ;(app.getHttpAdapter().getInstance() as express.Express).disable('x-powered-by')
   // 配置集中读取；listen 前必填校验（缺 JWT_SECRET 直接 fail fast，不带弱配置上线）
   const config = app.get(ConfigService)
   config.validateStartup()

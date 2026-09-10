@@ -21,6 +21,9 @@ services:
     # 峰值 3-5G 会 OOM 卡死系统——部署只 pull 不 build）；build 段保留供本地 dev 用。
     image: ghcr.io/andy38586/beibu-gulf-project:app-${IMAGE_TAG:-app-latest}
     container_name: beibu-gulf-webgis
+    # 削峰（2026-09-10）：1.6G 宿主机四容器共存，为每容器设内存上限互隔
+    # （nginx+静态驻留仅 ~50MB，128m 上限防 PageCache 挤占）；总上限 1472m < 物理 1613m
+    mem_limit: 128m
     env_file:
       - ./backend/.env
     environment:
@@ -49,6 +52,8 @@ services:
       dockerfile: Dockerfile.nest
     image: ghcr.io/andy38586/beibu-gulf-project:nest-${IMAGE_TAG:-nest-latest}
     container_name: beibu-nest
+    # 削峰：Nest 稳态 ~250MB，320m 上限给 FastAPI 冷启动留余量
+    mem_limit: 320m
     env_file:
       # JWT_SECRET 等运行时密钥由部署侧 .env 注入，不烘焙进镜像
       #（原仅 app 服务挂 env_file，nest 靠"注释约定"注入 → 容器实际拿不到，启动即 FATAL）
@@ -81,6 +86,17 @@ services:
   postgis:
     image: postgis/postgis:16-3.4
     container_name: beibu-postgis
+    # 削峰：PG 稳态 150-300MB；限参（shared_buffers/work_mem 小档）+ 384m 上限，
+    # 把内存让给 FastAPI 冷启动构图；max_connections=20 与 nest/算法池式连接匹配
+    mem_limit: 384m
+    command:
+      - postgres
+      - -c
+      - shared_buffers=64MB
+      - -c
+      - work_mem=4MB
+      - -c
+      - max_connections=20
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -102,6 +118,10 @@ services:
       context: ./backend/algorithm-service
     image: ghcr.io/andy38586/beibu-gulf-project:algorithm-service-${IMAGE_TAG:-algorithm-service-latest}
     container_name: beibu-algorithm-service
+    # 削峰：FastAPI 冷启动构图峰值 200-450MB，640m 上限兜住尖峰同时互隔雪崩；
+    # depends_on nest=healthy 是刻意错峰（非功能依赖）：等 nest 先吃完启动驻留，
+    # 避免 nest+构图两个峰值同时叠加（1.6G 宿主机放不下并行双高）
+    mem_limit: 640m
     environment:
       ROUTE_PG_HOST: postgis
     volumes:
@@ -110,6 +130,8 @@ services:
       - '8000:8000'
     depends_on:
       postgis:
+        condition: service_healthy
+      nest:
         condition: service_healthy
     healthcheck:
       test:

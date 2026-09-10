@@ -83,7 +83,7 @@ nearest AS (
   CROSS JOIN LATERAL (
     SELECT id, geom
     FROM roads
-    WHERE cost_m > 0 AND geom IS NOT NULL
+    WHERE cost_m > 0 AND main_comp IS TRUE AND geom IS NOT NULL
     ORDER BY geom <-> ST_SetSRID(ST_MakePoint(p.lng, p.lat), 4490)
     LIMIT 1
   ) r
@@ -124,7 +124,8 @@ SELECT seq, path_seq, node::text AS node, edge::text AS edge,
        cost::float8 AS cost, agg_cost::float8 AS agg_cost
 FROM pgr_withPoints(
   $$SELECT id, source, target, ${costCol} AS cost, ${costCol} AS reverse_cost
-      FROM roads WHERE ${costCol} > 0 AND source IS NOT NULL AND target IS NOT NULL$$,
+      FROM roads WHERE ${costCol} > 0 AND main_comp IS TRUE
+      AND source IS NOT NULL AND target IS NOT NULL$$,
   $$${pointsSql}$$,
   $1::bigint, $2::bigint,
   directed := false

@@ -90,7 +90,15 @@ services:
 
   # PostGIS（空间数据，v3_dev）
   postgis:
-    image: postgis/postgis:16-3.4
+    # 2026-09-10（阶段 3 前置）：切换为带 pgRouting 的自建镜像。
+    #   local/postgis-pgrouting:16-3.4 = postgis/postgis:16-3.4 + apt 装 postgresql-16-pgrouting
+    #   （实测 pgRouting 3.8.0）。构建步骤见 tools/postgis/Dockerfile.pgrouting。
+    # 为什么不用官方 pgrouting/pgrouting：其 PG16 tag 只提供 PostGIS 3.5，而本项目用 3.4，
+    #   换用会顺带升级生产空间库的 PostGIS 版本（多一个与本改造无关的风险面）。
+    # ⚠️ pull_policy: never 是必需的：该镜像是服务器本地构建的、不在任何 registry，
+    #   若让 compose 去拉会 404 失败，并中断整个 `pull && up` 链（表现为部署假成功/卡住）。
+    image: local/postgis-pgrouting:16-3.4
+    pull_policy: never
     container_name: beibu-postgis
     # 削峰（15:30 修订）：实测稳态仅 95MB（原注释「150-300MB」为估算）；384m → 320m。
     # 属防御性收紧防单容器失控，**不释放物理内存**（mem_limit 是上限非预留）。

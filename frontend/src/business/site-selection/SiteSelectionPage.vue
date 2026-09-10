@@ -134,6 +134,10 @@ function handleAnalysisError(message: string): void {
 /** 无重叠区域 = 合法业务空结果，提示用户调整条件而非报错 */
 function handleAnalysisEmpty(reason: string): void {
   showWarning(reason)
+  // 无重叠 = 合法空结果：此前只弹提示不清图层，导致「无重叠区域」的提示与上一次
+  // 分析残留的覆盖多边形/匹配小区同时在画面上（2026-09-10 修复），用户无法判断
+  // 当前到底有没有结果。与「清空选择」同一口径，走完整清理。
+  clearAnalysisLayers()
 }
 
 /** 跨城视野下点分析：三城 POI 各自独立，跨城无法给出有意义的单城选址结果 */

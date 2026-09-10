@@ -27,6 +27,7 @@ function createMockManager() {
     has: vi.fn(() => false),
     register: vi.fn(),
     updateData: vi.fn(),
+    remove: vi.fn(),
   } as unknown as BusinessLayerManager
 }
 
@@ -232,5 +233,37 @@ describe('useAnalysisLayer', () => {
 
     // register 被调用两次（第一次直接 + 第二次排队后重放）
     expect(manager.register).toHaveBeenCalledTimes(2)
+  })
+
+  // 回归守卫：「清空选择」emit 的是空载荷，此前 setAnalysisResult 只有 register/updateData，
+  // 导致左侧名单清空而地图上的覆盖多边形与匹配小区原样残留。
+  it('createUpdateHandler: 空结果时移除已注册的分析图层（清空选择不再残留图形）', async () => {
+    const { createUpdateHandler } = useAnalysisLayer()
+    const manager = createMockManager()
+    // 两个托管图层都处于已注册状态
+    ;(manager.has as ReturnType<typeof vi.fn>).mockReturnValue(true)
+
+    const handler = createUpdateHandler(manager)
+    await handler({ coverage: null, matchedXiaoqu: [], facilityPoi: {} })
+
+    expect(manager.register).not.toHaveBeenCalled()
+    expect(manager.remove).toHaveBeenCalledWith('site-analysis-coverage')
+    expect(manager.remove).toHaveBeenCalledWith('site-analysis-matched')
+  })
+
+  it('createUpdateHandler: 有结果时不移除任何图层', async () => {
+    const { createUpdateHandler } = useAnalysisLayer()
+    const manager = createMockManager()
+    ;(manager.has as ReturnType<typeof vi.fn>).mockReturnValue(true)
+
+    const handler = createUpdateHandler(manager)
+    await handler({
+      coverage: { type: 'FeatureCollection', features: [] } as never,
+      matchedXiaoqu: [{ id: 'a', name: 'a', lng: 1, lat: 1, score: 1 }] as never,
+      facilityPoi: {},
+    })
+
+    expect(manager.remove).not.toHaveBeenCalled()
+    expect(manager.updateData).toHaveBeenCalled()
   })
 })

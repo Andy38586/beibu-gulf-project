@@ -15,7 +15,13 @@ export const ANALYSIS_COVERAGE_LAYER_ID = 'site-analysis-coverage'
 export const ANALYSIS_MATCHED_LAYER_ID = 'site-analysis-matched'
 
 /** createUpdateHandler 实际使用的 manager 方法子集（与 BLM 解耦，页面传入的 manager 无需完整 BLM 类型） */
-type AnalysisLayerManager = Pick<BusinessLayerManager, 'register' | 'updateData' | 'has'>
+type AnalysisLayerManager = Pick<BusinessLayerManager, 'register' | 'updateData' | 'has' | 'remove'>
+
+/**
+ * 由 setAnalysisResult 托管的图层 id（覆盖 + 匹配小区；设施 POI 由页面单独管理）。
+ * 空结果（「清空选择」）时据此反查并移除，否则地图上会残留上一次的多边形。
+ */
+const MANAGED_LAYER_IDS = [ANALYSIS_COVERAGE_LAYER_ID, ANALYSIS_MATCHED_LAYER_ID] as const
 
 export function buildCoverageGeoJson(
   coverage: Feature<Geometry> | FeatureCollection<Geometry> | null
@@ -286,6 +292,16 @@ export function useAnalysisLayer(): UseAnalysisLayerReturn {
               data: layer.geojson,
               options: layer.style,
             })
+          }
+        }
+        // 回收「本次结果里不存在但仍注册着」的图层：「清空选择」与「覆盖为空」时
+        // getAnalysisLayers 返回空数组，若不同步移除，地图会保留上一次的覆盖多边形与
+        // 匹配小区 —— 左侧名单已空而画面仍有图形（2026-09-10 修复）。
+        // 放在 register/update 之后执行：与新增集合不相交，且不打乱 has 的调用序列。
+        const presentIds = new Set(layers.map((l) => l.id))
+        for (const id of MANAGED_LAYER_IDS) {
+          if (!presentIds.has(id) && businessLayerManager.has(id)) {
+            businessLayerManager.remove(id)
           }
         }
       } catch (e) {

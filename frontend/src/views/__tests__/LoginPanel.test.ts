@@ -137,3 +137,38 @@ describe('LoginPanel 错误反馈（全局 toast 化 + 分语义）', () => {
     expect(placeholder).toContain('6')
   })
 })
+
+describe('LoginPanel 用户名字符集校验归属（只约束注册）', () => {
+  beforeEach(() => {
+    mockLogin.mockReset()
+    mockRegister.mockReset()
+    gcsToastState.items.length = 0
+  })
+
+  afterEach(() => {
+    document.body.innerHTML = ''
+  })
+
+  // 回归守卫：字符集校验曾位于 register 判断之前，登录复用注册规则；而后端
+  // auth.dto 的 LoginBody 无字符集限制 ⇒ 含 `-`/`.` 的合法存量账号永远登不进。
+  it('登录模式：含连字符的用户名不被字符集拦下，正常发起登录', async () => {
+    const wrapper = mount(LoginPanel)
+    await wrapper.find('input[type="text"]').setValue('old-user')
+    await wrapper.find('input[type="password"]').setValue('AnyPass1')
+    await wrapper.find('button.submit-btn').trigger('click')
+    await vi.dynamicImportSettled()
+    expect(gcsToastState.items.some((t) => t.message.includes('仅限中英文'))).toBe(false)
+    expect(mockLogin).toHaveBeenCalledWith('old-user', 'AnyPass1')
+  })
+
+  it('注册模式：含连字符的用户名仍被拦下（字符集只约束新注册）', async () => {
+    const wrapper = mount(LoginPanel)
+    await wrapper.findAll('.mode-btn')[1].trigger('click')
+    await wrapper.find('input[type="text"]').setValue('new-user')
+    await wrapper.find('input[type="password"]').setValue('Abc12345')
+    await wrapper.find('button.submit-btn').trigger('click')
+    await vi.dynamicImportSettled()
+    expect(gcsToastState.items[0]?.message).toBe('用户名仅限中英文、数字和下划线')
+    expect(mockRegister).not.toHaveBeenCalled()
+  })
+})

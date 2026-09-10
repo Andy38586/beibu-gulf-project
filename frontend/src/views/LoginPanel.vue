@@ -62,14 +62,17 @@ async function handleSubmit() {
     return
   }
 
-  // 用户名特殊字符校验（仅允许字母、数字、中文、下划线）；文案精简适配 3cell 单行胶囊容量
-  const usernameRegex = /^[\u4e00-\u9fa5a-zA-Z0-9_]+$/
-  if (!usernameRegex.test(trimmedUsername)) {
-    showToast('用户名仅限中英文、数字和下划线', 'warning')
-    return
-  }
-
   if (mode.value === 'register') {
+    // 用户名特殊字符校验（仅允许字母、数字、中文、下划线）；文案精简适配 3cell 单行胶囊容量。
+    // 2026-09-10 修正：该校验原位于 register 判断**之前**，登录也一并执行；而后端
+    // auth.dto.ts 的 LoginBody 只校验非空与类型，RegisterBody 也**无字符集限制**——
+    // 前端比后端严格 ⇒ 后端可达的合法账号（含 `-`/`.` 等字符，如 API 直注或历史迁移
+    // 而来）在 UI 里会被注册规则拦下，永远登不进。故下沉到注册分支（只约束新注册）。
+    const usernameRegex = /^[\u4e00-\u9fa5a-zA-Z0-9_]+$/
+    if (!usernameRegex.test(trimmedUsername)) {
+      showToast('用户名仅限中英文、数字和下划线', 'warning')
+      return
+    }
     if (password.value.length < 6) {
       showToast('密码长度不能少于 6 位', 'warning')
       return

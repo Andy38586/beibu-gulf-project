@@ -1,7 +1,14 @@
 import { Injectable } from '@nestjs/common'
 
 import { BusinessError, ErrorCode } from '../../../common/errors/business-error'
-import { RouteMode, RouteRepository } from '../repositories/route.repository'
+import {
+  PID_FROM,
+  PID_TO,
+  RouteMode,
+  RouteRepository,
+  type RouteSegment,
+  type WithPointsRow,
+} from '../repositories/route.repository'
 
 // 路径规划业务层（route 域下沉，2026-09-10）
 //
@@ -16,7 +23,9 @@ import { RouteMode, RouteRepository } from '../repositories/route.repository'
 //   · 吸附半径 2000m（graph.py:67 QUERY_SNAP_RADIUS_M）：海面/无路荒区点击
 //     诚实返回 found=false，不硬吸远路。
 //   · 空结果必须带 reason，且**不得**夹带 mode/distanceM 等字段——前端
-//     schemas.ts:357-371 的 discriminatedUnion 只认 {found,reason}（2026-09-10 修正，详见下）
+//     schemas.ts:357-371 的 discriminatedUnion 只认 {found,reason}。
+//   · 里程与时长取**分段实际费用**（首尾部分边按 fraction 折算），不是整条边求和——
+//     见 RouteRepository.sumSegmentCosts 注释（旧口径高估约 10.6%）。
 
 /** 对齐 graph.py 的 QUERY_SNAP_RADIUS_M */
 const SNAP_RADIUS_M = 2000.0
@@ -50,6 +59,69 @@ export interface RoutePathEmpty {
 }
 
 export type RoutePathResult = RoutePathFound | RoutePathEmpty
+
+/**
+ * 把 `pgr_withPoints` 的返回行翻译成「路径分段」。
+ *
+ * 行语义（2026-09-10 实测）：`edge` = **从当前 node 出发所走的边**；末行是终点哨兵
+ * （`edge = -1`、`cost = 0`）。首段与末段是被吸附点切开的**部分边**，用 fraction 定
+ * 截取区间；中间段是整条边。
+ *
+ * `reverse`：行进方向与边的数字方向相反时需反转坐标，否则拼出来的折线会来回跳。
+ * 判定方式：出发顶点等于该边的 `source` 即为正向；首段没有出发顶点（它是吸附点），
+ * 改看落地顶点是否等于该边的 `target`；起终点落在同一条边上时（首段即末段），
+ * 方向由两个 fraction 的相对大小决定。
+ */
+export function buildSegments(
+  rows: WithPointsRow[],
+  fromFraction: number,
+  toFraction: number
+): RouteSegment[] {
+  const segments: RouteSegment[] = []
+  for (let i = 0; i < rows.length; i++) {
+    const cur = rows[i]
+    const edgeId = Number(cur.edge)
+    if (!Number.isFinite(edgeId) || edgeId <= 0) continue // 终点哨兵行
+
+    const next = rows[i + 1]
+    const departure = Number(cur.node)
+    const arrival = next ? Number(next.node) : null
+
+    const isFirst = segments.length === 0
+    const isLast = !next || !(Number(next.edge) > 0)
+
+    let forward: boolean
+    if (isFirst && isLast) {
+      forward = fromFraction <= toFraction
+    } else if (isFirst) {
+      forward = arrival !== null && arrival === cur.edge_target
+    } else {
+      forward = departure === cur.edge_source
+    }
+
+    let lo = 0
+    let hi = 1
+    if (isFirst && isLast) {
+      lo = Math.min(fromFraction, toFraction)
+      hi = Math.max(fromFraction, toFraction)
+    } else if (isFirst) {
+      if (forward) {
+        lo = fromFraction
+      } else {
+        hi = fromFraction
+      }
+    } else if (isLast) {
+      if (forward) {
+        hi = toFraction
+      } else {
+        lo = toFraction
+      }
+    }
+
+    segments.push({ edgeId, lo, hi, reverse: !forward, cost: Number(cur.cost) || 0 })
+  }
+  return segments
+}
 
 @Injectable()
 export class RouteService {
@@ -97,8 +169,8 @@ export class RouteService {
       toLat,
       SNAP_RADIUS_M
     )
-    const snapFrom = snaps.find((s) => s.pid === -1)
-    const snapTo = snaps.find((s) => s.pid === -2)
+    const snapFrom = snaps.find((s) => s.pid === PID_FROM)
+    const snapTo = snaps.find((s) => s.pid === PID_TO)
     // 判定顺序与 graph.py:404-409 同序：先起点后终点，保证同一输入给出同一 reason
     if (!snapFrom) {
       // 附近无可通行边 → 诚实 not_snapped（不硬吸远路，与原实现一致）
@@ -120,24 +192,24 @@ export class RouteService {
       return empty('unreachable')
     }
 
-    const edgeIds: number[] = []
-    for (const r of rows) {
-      const id = Number(r.edge)
-      if (Number.isFinite(id) && id > 0) edgeIds.push(id)
+    // ③ 行 → 分段（跳过终点哨兵；首尾部分边由 fraction 定区间）
+    const segments = buildSegments(rows, snapFrom.fraction, snapTo.fraction)
+    if (segments.length === 0) {
+      return empty('unreachable')
     }
 
-    // ③ 两口径同源：用同一组边分别汇总，绝不各自寻路
-    const sums = await this.routeRepository.sumEdgeCosts(edgeIds)
+    // ④ 两口径同源：同一组分段分别汇总（另一口径按比例折算，不二次寻路）
+    const sums = await this.routeRepository.sumSegmentCosts(segments, mode)
 
-    // ④ 几何拼接（首尾按吸附 fraction 截取，使端点落在真实吸附点而非边原生端点）
-    const segs = await this.routeRepository.pathGeometry(
-      edgeIds,
-      snapFrom.fraction,
-      snapTo.fraction
-    )
+    // ⑤ 几何拼接（按 lo~hi 截取；reverse 的分段把坐标倒过来，保证首尾相接）
+    const segCoords = await this.routeRepository.segmentGeometry(segments)
     const coordinates: Array<[number, number]> = []
-    for (const seg of segs) {
-      for (const pt of seg.coords ?? []) {
+    for (const item of segCoords) {
+      const seg = segments[item.seq - 1]
+      if (!seg) continue
+      const pts = item.coords ?? []
+      const ordered = seg.reverse ? [...pts].reverse() : pts
+      for (const pt of ordered) {
         const last = coordinates[coordinates.length - 1]
         if (!last || last[0] !== pt[0] || last[1] !== pt[1]) coordinates.push(pt)
       }
@@ -155,7 +227,7 @@ export class RouteService {
       distanceM: Math.round(sums.distanceM * 10) / 10,
       durationMin: Math.round(sums.durationMin * 10) / 10,
       snapDistanceM,
-      edgeCount: edgeIds.length,
+      edgeCount: segments.length,
       coordinates,
     }
   }

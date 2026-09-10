@@ -27,26 +27,63 @@ export function isRouteMode(m: unknown): m is RouteMode {
   return typeof m === 'string' && Object.prototype.hasOwnProperty.call(MODE_COST_COLUMN, m)
 }
 
-/** 吸附失败的哨兵：pgRouting 用负 pid 表示「虚拟点」（不在顶点表内的点） */
-const PID_FROM = -1
-const PID_TO = -2
+/**
+ * 虚拟点编号（Points SQL 用**正数**）。
+ *
+ * ⚠️ **符号约定是 pgRouting 的硬要求，两处相反，写错会静默返回 0 行**：
+ *   · Points SQL 的 `pid` 列 → 必须给**正数**。官方文档原文：
+ *     "Use with positive value, as internally will be converted to negative value."
+ *   · 函数入参 `start_pid` / `end_pid` → 必须给**负值**。文档原文：
+ *     "Negative value is for point's identifier."
+ *
+ * 实测教训（2026-09-10，写在这里防止再犯）：原实现**两者都传负数**，
+ * 于是起点标识与内部编号对不上，`pgr_withPoints` **不报错、直接返回 0 行**，
+ * 表现为"任何起终点组合都 unreachable"（含 0 米同点、同边、跨城 100km，以及
+ * 纯 VALUES 造的合成数据）——为此白排查了 4 轮服务器往返。
+ * 可复用的排查手法：单点自环 `pgr_withPoints(edges, points, pid, pid)` 返回 0 行，
+ * 即说明该点**没被注册**，这是最强的最小判据。
+ */
+export const PID_FROM = 1
+export const PID_TO = 2
 
-/** pgr_withPoints 返回行（cost 与 agg_cost 均取自所选口径） */
-interface WithPointsRow {
+/** 吸附结果行（pid 为上面的正数常量） */
+export interface SnapRow {
+  pid: number
+  edge_id: string
+  fraction: number
+  snap_m: number
+}
+
+/**
+ * `pgr_withPoints` 返回行。
+ *
+ * 语义（2026-09-10 实测确认）：`edge` 是**从当前 node 出发所走的那条边**，`cost` 是
+ * **该段实际费用**——首尾两条被吸附点切开的边，cost 已按 fraction 折算，不是整条边的
+ * 费用。最后一行是终点哨兵：`edge = -1`、`cost = 0`，其 `agg_cost` 即总费用。
+ */
+export interface WithPointsRow {
   seq: number
   path_seq: number
   node: string
   edge: string
   cost: number
   agg_cost: number
+  /** 该段所走边的拓扑起点顶点（用于判定行进方向） */
+  edge_source: number | null
+  /** 该段所走边的拓扑终点顶点 */
+  edge_target: number | null
 }
 
-/** 吸附结果行 */
-export interface SnapRow {
-  pid: number
-  edge_id: string
-  fraction: number
-  snap_m: number
+/** 路径分段：几何拼接与里程折算的最小单元 */
+export interface RouteSegment {
+  edgeId: number
+  /** 该段在边内的起止比例（几何顺序，0..1） */
+  lo: number
+  hi: number
+  /** 行进方向是否与边的数字方向相反（true → 拼接时坐标需反转） */
+  reverse: boolean
+  /** pgRouting 给出的该段实际费用（按所选口径） */
+  cost: number
 }
 
 @Injectable()
@@ -91,7 +128,7 @@ nearest AS (
 SELECT pid, edge_id, fraction::float8 AS fraction, snap_m::float8 AS snap_m
 FROM nearest
 WHERE snap_m <= $7::float8
-ORDER BY pid DESC
+ORDER BY pid
 `,
       [fromLng, fromLat, toLng, toLat, PID_FROM, PID_TO, maxSnapM]
     )
@@ -99,13 +136,15 @@ ORDER BY pid DESC
   }
 
   /**
-   * pgRouting 最短路（支持起终点在边内任意位置）。
-   * pgr_withPoints 的 points_sql 由吸附结果内联构造，pid 用负数（虚拟点约定）。
-   * directed := false —— 对齐原实现 nx.Graph()（无向图；oneway 列源数据全 NULL）。
+   * pgRouting 最短路（支持起终点落在边内任意位置）。
    *
-   * ⚠️ 内层 SQL 必须用 $$ 美元引用包裹：points_sql 含 'b'::char 这类单引号字面量，
-   * 若用 '...' 单引号包裹，内层引号会与外层冲突致字符串提前终止 → SQL 语法错误 → 500
-   *（实测：首次上线 5/5 请求全 500 即此因）。
+   * 三处易错点（都踩过）：
+   *   ① Points SQL 的 pid 用**正数**，函数入参 start/end 用**负数**（见 PID_FROM 注释）；
+   *   ② 内层 edges_sql 必须用 `$$` 美元引用包裹——它含 `'b'::char` 这类单引号字面量，
+   *      用 `'...'` 包裹会提前终止字符串（实测首次上线 5/5 全 500 即此因）；
+   *   ③ 外层 `edge > 0` 只滤掉终点哨兵行（实测部分边的 `edge` 仍为正数、`cost` 已按
+   *      fraction 折算），故**不能**靠它判断路径为空——真正的空结果是 0 行。
+   * directed := false —— 对齐原实现 nx.Graph()（无向图；oneway 列源数据全 NULL）。
    */
   async shortestPathByPoints(snaps: SnapRow[], mode: RouteMode): Promise<WithPointsRow[]> {
     const costCol = MODE_COST_COLUMN[mode]
@@ -120,8 +159,14 @@ ORDER BY pid DESC
 
     const res = await this.db.query<WithPointsRow>(
       `
-SELECT seq, path_seq, node::text AS node, edge::text AS edge,
-       cost::float8 AS cost, agg_cost::float8 AS agg_cost
+SELECT r.seq,
+       r.path_seq,
+       r.node::text AS node,
+       r.edge::text AS edge,
+       r.cost::float8 AS cost,
+       r.agg_cost::float8 AS agg_cost,
+       e.source AS edge_source,
+       e.target AS edge_target
 FROM pgr_withPoints(
   $$SELECT id, source, target, ${costCol} AS cost, ${costCol} AS reverse_cost
       FROM roads WHERE ${costCol} > 0 AND main_comp IS TRUE
@@ -129,70 +174,75 @@ FROM pgr_withPoints(
   $$${pointsSql}$$,
   $1::bigint, $2::bigint,
   directed := false
-)
-WHERE edge > 0
-ORDER BY path_seq
+) r
+LEFT JOIN roads e ON e.id = r.edge
+WHERE r.edge > 0
+ORDER BY r.path_seq
 `,
-      [PID_FROM, PID_TO]
+      [-PID_FROM, -PID_TO]
     )
     return res.rows
   }
 
   /**
-   * 取路径经过边的几何（按 pgr_withPoints 给出的 edge 顺序拼接）。
-   * 用 ST_LineSubstring 按起终点 fraction 截取，使路径端点落在真实吸附点而非边的原生端点；
-   * 首尾两段的 fraction 来自吸附结果（其余段取整条边）。
+   * 按**分段实际费用**汇总两口径。
+   *
+   * 为什么不能用「整条边求和」：`pgr_withPoints` 的首尾两条边是被吸附点切开的**部分边**，
+   * 其费用只算走过的一段。旧实现取整条边的 cost_m 相加，把没走的部分也算了进去——
+   * 2026-09-10 实测样本（钦州 ~5.8km 路径）高估约 10.6%，直接顶穿 B-5 的 <1% 判据。
+   *
+   * 另一口径用**比例折算**（该段费用 ÷ 该边在所选口径下的全长 × 该边在另一口径下的全长），
+   * 而非二次寻路——这样「两口径同源」才成立：同一条路径同时报距离与时长，不会出现
+   * "距离按 A 路径、时长按 B 路径"。整条边时比例为 1，公式自动退化为直接取值。
    */
-  async pathGeometry(
-    edgeIds: number[],
-    fromFraction: number,
-    toFraction: number
-  ): Promise<Array<{ seq: number; coords: Array<[number, number]> }>> {
-    if (edgeIds.length === 0) return []
-    const res = await this.db.query<{ seq: number; coords: Array<[number, number]> }>(
+  async sumSegmentCosts(
+    segments: RouteSegment[],
+    mode: RouteMode
+  ): Promise<{ distanceM: number; durationMin: number }> {
+    if (segments.length === 0) return { distanceM: 0, durationMin: 0 }
+    const modeCol = MODE_COST_COLUMN[mode]
+    const otherCol = mode === 'distance' ? 'cost_min' : 'cost_m'
+    const res = await this.db.query<{ mode_metric: number; other_metric: number }>(
       `
-WITH ordered AS (
-  SELECT edge_id, ord
-  FROM unnest($1::bigint[]) WITH ORDINALITY AS t(edge_id, ord)
-)
-SELECT o.ord::int AS seq,
-       (SELECT array_agg(ARRAY[ST_X(g), ST_Y(g)] ORDER BY g_ord)::float8[][]
-        FROM ST_DumpPoints(
-               CASE
-                 WHEN o.ord = 1 AND $3::float8 > 0
-                   THEN ST_LineSubstring(r.geom, $3::float8, 1.0)
-                 WHEN o.ord = $4::int AND $2::float8 < 1
-                   THEN ST_LineSubstring(r.geom, 0.0, $2::float8)
-                 ELSE r.geom
-               END
-             ) WITH ORDINALITY AS dp(g, g_ord)
-       ) AS coords
-FROM ordered o
-JOIN roads r ON r.id = o.edge_id
-ORDER BY o.ord
+SELECT COALESCE(sum(t.cost), 0)::float8                                          AS mode_metric,
+       COALESCE(sum(t.cost / NULLIF(r.${modeCol}, 0) * r.${otherCol}), 0)::float8 AS other_metric
+FROM unnest($1::bigint[], $2::float8[]) AS t(edge_id, cost)
+JOIN roads r ON r.id = t.edge_id
 `,
-      [edgeIds, toFraction, fromFraction, edgeIds.length]
-    )
-    return res.rows
-  }
-
-  /**
-   * 按边集汇总两口径（「两口径同源」的实现点）：同一组边分别求 distance 与 duration，
-   * 而非各按自己的权重分别寻路。对齐 graph.py 注释「两口径字段分离，互不派生」。
-   */
-  async sumEdgeCosts(edgeIds: number[]): Promise<{ distanceM: number; durationMin: number }> {
-    if (edgeIds.length === 0) return { distanceM: 0, durationMin: 0 }
-    const res = await this.db.query<{ distance_m: number; duration_min: number }>(
-      `
-SELECT COALESCE(sum(r.cost_m), 0)::float8   AS distance_m,
-       COALESCE(sum(r.cost_min), 0)::float8 AS duration_min
-FROM unnest($1::bigint[]) AS t(id)
-JOIN roads r ON r.id = t.id
-`,
-      [edgeIds]
+      [segments.map((s) => s.edgeId), segments.map((s) => s.cost)]
     )
     const row = res.rows[0]
-    return { distanceM: row?.distance_m ?? 0, durationMin: row?.duration_min ?? 0 }
+    const modeMetric = row?.mode_metric ?? 0
+    const otherMetric = row?.other_metric ?? 0
+    return mode === 'distance'
+      ? { distanceM: modeMetric, durationMin: otherMetric }
+      : { distanceM: otherMetric, durationMin: modeMetric }
+  }
+
+  /**
+   * 取分段几何（按 lo~hi 截取，**几何顺序**输出；行进方向的反转由 service 层处理）。
+   * 用 ST_LineSubstring 而非整条边：首尾两条只应画出真正走过的那一段，否则会"多画一截路"。
+   * lo=0 / hi=1 时 ST_LineSubstring 等价于整条边。
+   */
+  async segmentGeometry(
+    segments: RouteSegment[]
+  ): Promise<Array<{ seq: number; coords: Array<[number, number]> | null }>> {
+    if (segments.length === 0) return []
+    const res = await this.db.query<{ seq: number; coords: Array<[number, number]> | null }>(
+      `
+SELECT t.ord::int AS seq,
+       (SELECT array_agg(ARRAY[ST_X(g), ST_Y(g)] ORDER BY g_ord)::float8[][]
+        FROM ST_DumpPoints(ST_LineSubstring(r.geom, t.lo, t.hi))
+             WITH ORDINALITY AS dp(g, g_ord)
+       ) AS coords
+FROM unnest($1::bigint[], $2::float8[], $3::float8[])
+     WITH ORDINALITY AS t(edge_id, lo, hi, ord)
+JOIN roads r ON r.id = t.edge_id
+ORDER BY t.ord
+`,
+      [segments.map((s) => s.edgeId), segments.map((s) => s.lo), segments.map((s) => s.hi)]
+    )
+    return res.rows
   }
 
   /** 兜底：pgr_withPoints 无结果时的诊断——统计可通行边数（区分「拓扑未建」与「确实不连通」） */

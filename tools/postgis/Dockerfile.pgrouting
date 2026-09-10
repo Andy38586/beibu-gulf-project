@@ -26,10 +26,18 @@
 
 FROM postgis/postgis:16-3.4
 
-# postgresql-16-pgrouting 来自 PGDG 源（postgis 基础镜像已配置 apt.postgresql.org）。
-# 包体约数十 MB，属 apt 安装量级——**不涉及** vite/nest 那种 3-5G 峰值的构建。
-# ⚠️ 待服务器实测：若该包名在 bookworm 不可用，改用 `apt-cache search pgrouting` 确认实际包名。
-RUN apt-get update \
+# 基础镜像是 Debian **bullseye**（11），非 bookworm——实测确认（2026-09-10）。
+#
+# ⚠️ 必须带 `-o Acquire::Check-Valid-Until=false`：
+#   bullseye-security 仓库的 Release 文件已过 Valid-Until（实测 `expired (invalid since
+#   2d 11h 29min)`），apt 会因此**整条 update 失败（exit 100）**，连累 PGDG 源里的
+#   pgrouting 也装不上。而 pgrouting 实际来自 PGDG（apt.postgresql.org），该源本身正常
+#   （实测 Packages 拉取成功），故跳过过期校验即可——**这不是绕过校验，而是 Debian 源
+#   已停止维护、PGDG 源仍然有效**的取舍。
+#   备选做法：若担心安全性，可改为只禁用该 security 源（sed 注释掉 bullseye-security 行）。
+#
+# postgresql-16-pgrouting 来自 PGDG bullseye-pgdg/16（实测该源可达）。
+RUN apt-get -o Acquire::Check-Valid-Until=false update \
     && apt-get install -y --no-install-recommends postgresql-16-pgrouting \
     && rm -rf /var/lib/apt/lists/*
 

@@ -366,9 +366,14 @@ jobs:
           # GHCR（build-push-images job），服务器只 pull 不 build——内存峰值从 3-5G
           # 降到解包级（1G 内），OOM 卡死根除；pull/up 仍可能跨 G 分钟，故继续
           # nohup 脱离会话 + 状态文件，避免长连接被强断。收尾清未用镜像（40G 磁盘）
+          # run#151 实测坑：up 被中断会留下 `<hash>_beibu-postgis` 残壳，下次 up 报
+          # 「container name already in use」致整个 up 中止（其它容器也不更新）→
+          # 起手先清 created 状态残壳（该状态不运行任何进程，删除无副作用），
+          # 并给 up 加 --remove-orphans 处理孤立容器。
           if ! ssh_quick "cd /opt/beibu-gulf; rm -f /tmp/beibu-deploy-status; \
+            docker ps -aq --filter status=created | xargs -r docker rm -f >/dev/null 2>&1; \
             nohup bash -c 'IMAGE_TAG=${IMAGE_TAG} docker compose pull > /tmp/beibu-deploy.log 2>&1 \
-              && IMAGE_TAG=${IMAGE_TAG} docker compose up -d >> /tmp/beibu-deploy.log 2>&1 \
+              && IMAGE_TAG=${IMAGE_TAG} docker compose up -d --remove-orphans >> /tmp/beibu-deploy.log 2>&1 \
               && echo OK > /tmp/beibu-deploy-status || echo FAIL > /tmp/beibu-deploy-status; \
               docker image prune -f >> /tmp/beibu-deploy.log 2>&1' >/dev/null 2>&1 & \
             echo pull-triggered"; then
@@ -385,8 +390,24 @@ jobs:
             # 通道一：公网 HTTP 健康检查（nest ready 即全链健康：postgis→nest→nginx 依赖链）
             if code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "${HTTP_BASE}/nest-api/health/ready" 2>/dev/null)"; then
               if [ "$code" = "200" ]; then
-                echo "部署完成：${HTTP_BASE}/nest-api/health/ready 返回 200（耗时约 $((i * 20))s，tag=${IMAGE_TAG}）"
-                exit 0
+                # ⚠️ run#151 教训：健康检查 200 只证明「服务活着」，**旧容器同样满足**——
+                # 当时 deploy 仅 40s 即报 success，而容器仍是 -149（跨境 pull 未完成）。
+                # 故追加镜像 tag 校验：容器实际 image 必须已是本次 IMAGE_TAG。
+                actual_image="$(ssh_quick "docker inspect beibu-nest --format '{{.Config.Image}}'" 2>/dev/null)" || actual_image=""
+                case "$actual_image" in
+                  *":nest-${IMAGE_TAG}")
+                    echo "部署完成：健康检查 200 且容器镜像已是 nest-${IMAGE_TAG}（耗时约 $((i * 20))s）"
+                    exit 0
+                    ;;
+                  "")
+                    # SSH 校验不可用时降级（避免偶发 SSH 抖动导致永久红）：回到「HTTP 200 即成功」
+                    echo "部署完成：健康检查 200（镜像校验降级：SSH 未返回，tag=${IMAGE_TAG}，耗时约 $((i * 20))s）"
+                    exit 0
+                    ;;
+                  *)
+                    echo "健康检查已 200，但容器镜像仍是 '${actual_image}'（期望 nest-${IMAGE_TAG}）——pull/up 尚未完成，继续等待..."
+                    ;;
+                esac
               fi
             fi
             # 通道二：SSH 读服务器状态文件（HTTP 不可达时兜底；每次尝试单发，失败跳过本轮）

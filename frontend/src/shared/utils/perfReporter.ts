@@ -2,8 +2,11 @@
  * PerfReporter —— 性能埋点（生产可用版，2026-08-05 上线前重构）
  * 设计约束（沿用路线图红线 + 上线评审）：
  * - 零新增依赖（仅用浏览器原生 Performance API / PerformanceObserver / rAF）。
- * - 生产默认开启（VITE_PERF_ENABLED !== 'false'）：纯数字聚合，不存逐条明细，
- *   防内存增长；dev 额外保留 entries 明细供 window.__perf.print() 逐条查看。
+ * - 生产默认**关闭**（2026-09-10 修正）：开关为 `DEV || VITE_PERF_ENABLED === 'true'`。
+ *   原实现 `!== 'false'` 是默认开，生产会常挂 4 个 PerformanceObserver 并跑一个永续
+ *   rAF 采样循环（:334-336 无终止条件），阻止页面进入完全 idle；且与 main.ts:37
+ *   「dev-only，不进生产包」的注释自相矛盾。生产要采样须显式注入 VITE_PERF_ENABLED=true。
+ *   纯数字聚合，不存逐条明细，防内存增长；dev 额外保留 entries 明细供 print() 查看。
  * 采集指标（五层）：
  * A. 首屏：FCP / LCP / CLS / TTI（近似，loadEventEnd）
  * B. 帧率：rAF 采样平均 FPS / 最低 FPS / 长帧（>50ms，业界标准）计数
@@ -58,9 +61,19 @@ interface PerfState {
   cesium?: CesiumTimings
 }
 
-/** 生产开关：默认开（纯聚合开销 <0.1%），VITE_PERF_ENABLED=false 显式关闭 */
-const PERF_ENABLED = import.meta.env.VITE_PERF_ENABLED !== 'false'
 const IS_DEV = import.meta.env.DEV
+
+/**
+ * 埋点开关判定（抽成纯函数以便单测覆盖「生产默认关」这条口径）：
+ * dev 恒开；生产仅当显式 `VITE_PERF_ENABLED=true` 才开。
+ * 口径变更（2026-09-10）：原实现 `flag !== 'false'` 是**默认开**，使生产构建常挂
+ * 4 个 PerformanceObserver + 一个永续 rAF 采样循环，与「dev-only」注释矛盾。
+ */
+export function resolvePerfEnabled(dev: boolean, flag?: string): boolean {
+  return dev || flag === 'true'
+}
+
+const PERF_ENABLED = resolvePerfEnabled(IS_DEV, import.meta.env.VITE_PERF_ENABLED)
 /** dev 明细 entries 环形上限（F-6：长会话防内存增长） */
 const MAX_DEV_ENTRIES = 1000
 

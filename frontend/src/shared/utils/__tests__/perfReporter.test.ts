@@ -9,11 +9,13 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import {
   _resetPerfForTest,
   buildPerfReport,
+  isPerfEnabled,
   perfMark,
   perfMeasure,
   perfRecordApi,
   perfReportError,
   perfTimeFn,
+  resolvePerfEnabled,
 } from '../perfReporter'
 
 interface ApiBucket {
@@ -97,5 +99,27 @@ describe('PerfReporter 聚合（生产可用版）', () => {
     expect(() => JSON.stringify(report)).not.toThrow()
     expect(Array.isArray(report.timers)).toBe(false)
     expect(report.fps).toHaveProperty('longFrames')
+  })
+})
+
+describe('PerfReporter 开关口径（生产默认关）', () => {
+  // 回归守卫：2026-09-10 前口径是 `flag !== 'false'`（默认开），生产因此常挂
+  // 4 个 PerformanceObserver + 永续 rAF 采样循环。此处锁定「生产默认关」。
+  it('dev 恒开，与 flag 取值无关', () => {
+    expect(resolvePerfEnabled(true, undefined)).toBe(true)
+    expect(resolvePerfEnabled(true, 'false')).toBe(true)
+  })
+
+  it('生产（dev=false）默认关闭：未注入 flag 时不开', () => {
+    expect(resolvePerfEnabled(false, undefined)).toBe(false)
+  })
+
+  it('生产仅当显式 VITE_PERF_ENABLED=true 才开', () => {
+    expect(resolvePerfEnabled(false, 'true')).toBe(true)
+    expect(resolvePerfEnabled(false, 'false')).toBe(false)
+  })
+
+  it('测试环境走 dev 语义，isPerfEnabled 为 true（保证聚合用例有效）', () => {
+    expect(isPerfEnabled()).toBe(true)
   })
 })

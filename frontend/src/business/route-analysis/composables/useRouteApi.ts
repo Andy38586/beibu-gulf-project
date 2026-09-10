@@ -43,13 +43,13 @@ export function useRouteApi(): UseRouteApiReturn {
     calcError.value = ''
     calculating.value = true
     try {
-      // FastAPI 裸 JSON（envelope:false）+ zod 判别校验；/flood-online 前缀不叠加
+      // 2026-09-10：route 域已下沉 NestJS（pgRouting），改用 Nest 统一信封
+      // （原为 FastAPI 裸 JSON + envelope:false）。响应结构未变，zod schema 复用。
       return await apiRequest<RoutePathResponse>(ENDPOINTS.route.path, {
         method: 'GET',
         // params 需要索引签名，RoutePathParams 是具名接口——显式转 Record（对齐 useSiteAnalysisApi 传法）
         params: { ...params } as Record<string, string | number | boolean | undefined>,
         signal,
-        envelope: false,
         schema: routePathResponseSchema,
       })
     } catch (error) {

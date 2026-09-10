@@ -44,6 +44,9 @@ export const ENDPOINTS = {
   // FasterAPI 演算服务（algorithm-service，8000；复用 /flood-online 代理通道，
   // vite rewrite 去前缀后落 /route/path）——裸 JSON，envelope:false
   route: {
-    path: '/flood-online/route/path',
+    // 2026-09-10：route 域自 algorithm-service 下沉至 NestJS（pgRouting）。
+    // 由 FastAPI 全路径 '/flood-online/route/path' 改为 Nest 相对路径，
+    // 响应结构未变，仅外层信封从「裸 JSON」变为 Nest 统一信封。
+    path: '/route/path',
   },
 } as const

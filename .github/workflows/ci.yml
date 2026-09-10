@@ -250,6 +250,9 @@ jobs:
           password: ${{ secrets.GHCR_PAT }}
 
       # 三服务镜像：在一个 job 内逐次构建推送（共享 buildx 缓存，减少重复拉基础层）
+      # 2026-09-10：补 GHA 层缓存（cache-from/to: type=gha）。此前无缓存配置→每次
+      # 从头构建全部层；实测 build-push 步骤耗时 9 分钟（run#151 08:57:55→09:07:04）。
+      # mode=max 缓存全部中间层（对 app 的多阶段 vite 构建收益最大）。
       - name: Build and push app (vite 前端 + nginx)
         uses: docker/build-push-action@v6
         with:
@@ -263,6 +266,8 @@ jobs:
             VITE_TIANDITU_KEY=${{ secrets.TIANDITU_KEY }}
             VITE_DATA_SOURCE=fetch
             VITE_USE_NEST_MODULES=auth,plans,favorites,forecast,flood,site-analysis
+          cache-from: type=gha,scope=app
+          cache-to: type=gha,mode=max,scope=app
 
       - name: Build and push nest
         uses: docker/build-push-action@v6
@@ -273,6 +278,8 @@ jobs:
           tags: |
             ghcr.io/andy38586/beibu-gulf-project:nest-${{ env.IMAGE_TAG }}
             ghcr.io/andy38586/beibu-gulf-project:nest-latest
+          cache-from: type=gha,scope=nest
+          cache-to: type=gha,mode=max,scope=nest
 
       - name: Build and push algorithm-service
         uses: docker/build-push-action@v6
@@ -283,6 +290,8 @@ jobs:
           tags: |
             ghcr.io/andy38586/beibu-gulf-project:algorithm-service-${{ env.IMAGE_TAG }}
             ghcr.io/andy38586/beibu-gulf-project:algorithm-service-latest
+          cache-from: type=gha,scope=algorithm
+          cache-to: type=gha,mode=max,scope=algorithm
 
       # GHCR 包默认 private，服务器 docker pull（匿名）拉不了——
       # 用带 GHCR_PAT 的 API 把 beibu-gulf-project 包设为 public（三镜像同包）

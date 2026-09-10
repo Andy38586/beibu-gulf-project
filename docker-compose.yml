@@ -21,9 +21,14 @@ services:
     # 峰值 3-5G 会 OOM 卡死系统——部署只 pull 不 build）；build 段保留供本地 dev 用。
     image: ghcr.io/andy38586/beibu-gulf-project:app-${IMAGE_TAG:-app-latest}
     container_name: beibu-gulf-webgis
-    # 削峰（2026-09-10）：1.6G 宿主机四容器共存，为每容器设内存上限互隔
-    # （nginx+静态驻留仅 ~50MB，128m 上限防 PageCache 挤占）；总上限 1472m < 物理 1613m
-    mem_limit: 128m
+    # 削峰（2026-09-10，15:30 修订）：四容器共存，为每容器设上限以防单容器失控。
+    # 实测 nginx+静态驻留仅 8.4MB，128m → 64m（仍有 7 倍余量）。
+    # ⚠️ 关键澄清：mem_limit 是「上限」不是「预留」——调低它**不会**释放物理内存，
+    # 也不会「让给」其他容器（空闲配额本来就不占内存）。真正让演算服务可用的是
+    # 它自己的上限 640m → 1024m（见 algorithm-service 注释）。
+    # 该守的口径：**实际总占用** < 物理 1613m − 宿主机开销（daemon/sshd/系统 ~300m）
+    # ≈ 1300m。原注释按「上限之和 < 物理内存」配置，漏算宿主机开销，是 09-10 OOM 成因。
+    mem_limit: 64m
     env_file:
       - ./backend/.env
     environment:
@@ -52,8 +57,9 @@ services:
       dockerfile: Dockerfile.nest
     image: ghcr.io/andy38586/beibu-gulf-project:nest-${IMAGE_TAG:-nest-latest}
     container_name: beibu-nest
-    # 削峰：Nest 稳态 ~250MB，320m 上限给 FastAPI 冷启动留余量
-    mem_limit: 320m
+    # 削峰（15:30 修订）：实测稳态仅 43MB（原注释「~250MB」高估约 6 倍）；320m → 192m。
+    # 属防御性收紧防单容器失控，**不释放物理内存**（mem_limit 是上限非预留）。
+    mem_limit: 192m
     env_file:
       # JWT_SECRET 等运行时密钥由部署侧 .env 注入，不烘焙进镜像
       #（原仅 app 服务挂 env_file，nest 靠"注释约定"注入 → 容器实际拿不到，启动即 FATAL）
@@ -86,9 +92,10 @@ services:
   postgis:
     image: postgis/postgis:16-3.4
     container_name: beibu-postgis
-    # 削峰：PG 稳态 150-300MB；限参（shared_buffers/work_mem 小档）+ 384m 上限，
-    # 把内存让给 FastAPI 冷启动构图；max_connections=20 与 nest/算法池式连接匹配
-    mem_limit: 384m
+    # 削峰（15:30 修订）：实测稳态仅 95MB（原注释「150-300MB」为估算）；384m → 320m。
+    # 属防御性收紧防单容器失控，**不释放物理内存**（mem_limit 是上限非预留）。
+    # 限参（shared_buffers/work_mem 小档）保留；max_connections=20 与 nest/算法池式连接匹配
+    mem_limit: 320m
     command:
       - postgres
       - -c
@@ -118,10 +125,13 @@ services:
       context: ./backend/algorithm-service
     image: ghcr.io/andy38586/beibu-gulf-project:algorithm-service-${IMAGE_TAG:-algorithm-service-latest}
     container_name: beibu-algorithm-service
-    # 削峰：FastAPI 冷启动构图峰值 200-450MB，640m 上限兜住尖峰同时互隔雪崩；
-    # depends_on nest=healthy 是刻意错峰（非功能依赖）：等 nest 先吃完启动驻留，
-    # 避免 nest+构图两个峰值同时叠加（1.6G 宿主机放不下并行双高）
-    mem_limit: 640m
+    # 削峰（15:30 修订）：原注释「冷启动构图峰值 200-450MB」为估算且严重低估。
+    # 09-10 15:24 dmesg 铁证：`constraint=CONSTRAINT_MEMCG` + `Killed process (uvicorn)
+    # anon-rss:612396kB` —— 是 cgroup 上限（非整机耗尽）把构图自己掐死，612MB 时仍在上冲。
+    # 后果：任何真实演算请求必崩（容器被 restart 拉起，出网表现为 502）。
+    # 其他三容器实测占用仅 8.4/43/95MB，大量配额闲置，故重分配 640m → 1024m。
+    # depends_on nest=healthy 保留为刻意错峰（非功能依赖）：避免 nest+构图双峰叠加。
+    mem_limit: 1024m
     environment:
       ROUTE_PG_HOST: postgis
     volumes:

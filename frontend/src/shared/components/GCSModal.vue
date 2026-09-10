@@ -41,9 +41,16 @@ function handleClose(): void {
 
 function handleMainAction(): void {
   if (gcsModalState.mode === 'login') {
-    // 去登录：关弹窗 + 跳个人中心（登录页）
+    // 去登录：优先执行调用方注入的 onConfirm（携带 ?redirect= 原页面路径），
+    // 未注入时回退到默认跳转个人中心，保证「去登录」按钮永不失灵。
+    // 2026-09-10 修复：此前该分支自行 closeModal() + push('/profile')，把
+    // errorHandler.ts:92 传入的 onConfirm 整个丢弃 —— 被 401 打断的操作在登录后
+    // 永远回不到原页面，ProfilePage 的 redirect 消费逻辑（含防开放重定向守卫）
+    // 成为死代码。语义与 confirmModal() 一致：先关窗再执行回调。
+    const cb = gcsModalState.onConfirm
     closeModal()
-    void router.push('/profile')
+    if (cb) cb()
+    else void router.push('/profile')
     return
   }
   confirmModal()

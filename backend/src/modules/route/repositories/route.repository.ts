@@ -28,6 +28,22 @@ export function isRouteMode(m: unknown): m is RouteMode {
 }
 
 /**
+ * 路由实际使用的路网表。
+ *
+ * `roads` 是从原始 GeoJSON 直接导入的**未切分**边（165,111 条）。OSM 源数据里纵向道路
+ * 不在路口切断、横路端点悬在纵路中间，只合并"首末点精确重合"抓不到 T 型连接 —— 实测
+ * 它只形成 **56,418 个连通分量**，最大分量仅覆盖 **30.3%** 的可通行边（吸附面被砍到
+ * 三分之一）。
+ *
+ * `roads_noded` 是经 `tools/roads-noding.sql` 做「端点投影切分 + 60m 网格建拓扑」后的表
+ * （614,015 段）：连通分量降到 **799**、最大分量覆盖 **94.9%** —— 与 Python 时代 networkx
+ * 的 `largest_component_edge_ratio = 0.9501` 一致。**路由必须走它**，否则服务范围只有三分之一。
+ *
+ * 切换只改这一个常量；回退同样只改它（或 revert 对应 commit）。
+ */
+export const ROUTING_TABLE = 'roads_noded'
+
+/**
  * 虚拟点编号（Points SQL 用**正数**）。
  *
  * ⚠️ **符号约定是 pgRouting 的硬要求，两处相反，写错会静默返回 0 行**：
@@ -119,7 +135,7 @@ nearest AS (
   FROM pts p
   CROSS JOIN LATERAL (
     SELECT id, geom
-    FROM roads
+    FROM ${ROUTING_TABLE}
     WHERE cost_m > 0 AND main_comp IS TRUE AND geom IS NOT NULL
     ORDER BY geom <-> ST_SetSRID(ST_MakePoint(p.lng, p.lat), 4490)
     LIMIT 1
@@ -169,13 +185,13 @@ SELECT r.seq,
        e.target AS edge_target
 FROM pgr_withPoints(
   $$SELECT id, source, target, ${costCol} AS cost, ${costCol} AS reverse_cost
-      FROM roads WHERE ${costCol} > 0 AND main_comp IS TRUE
+      FROM ${ROUTING_TABLE} WHERE ${costCol} > 0 AND main_comp IS TRUE
       AND source IS NOT NULL AND target IS NOT NULL$$,
   $$${pointsSql}$$,
   $1::bigint, $2::bigint,
   directed := false
 ) r
-LEFT JOIN roads e ON e.id = r.edge
+LEFT JOIN ${ROUTING_TABLE} e ON e.id = r.edge
 WHERE r.edge > 0
 ORDER BY r.path_seq
 `,
@@ -207,7 +223,7 @@ ORDER BY r.path_seq
 SELECT COALESCE(sum(t.cost), 0)::float8                                          AS mode_metric,
        COALESCE(sum(t.cost / NULLIF(r.${modeCol}, 0) * r.${otherCol}), 0)::float8 AS other_metric
 FROM ROWS FROM (unnest($1::bigint[]), unnest($2::float8[])) AS t(edge_id, cost)
-JOIN roads r ON r.id = t.edge_id
+JOIN ${ROUTING_TABLE} r ON r.id = t.edge_id
 `,
       [segments.map((s) => s.edgeId), segments.map((s) => s.cost)]
     )
@@ -243,7 +259,7 @@ SELECT t.ord::int AS seq,
        ) AS coords
 FROM ROWS FROM (unnest($1::bigint[]), unnest($2::float8[]), unnest($3::float8[]))
      WITH ORDINALITY AS t(edge_id, lo, hi, ord)
-JOIN roads r ON r.id = t.edge_id
+JOIN ${ROUTING_TABLE} r ON r.id = t.edge_id
 ORDER BY t.ord
 `,
       [segments.map((s) => s.edgeId), segments.map((s) => s.lo), segments.map((s) => s.hi)]
@@ -254,7 +270,7 @@ ORDER BY t.ord
   /** 兜底：pgr_withPoints 无结果时的诊断——统计可通行边数（区分「拓扑未建」与「确实不连通」） */
   async countTraversableEdges(): Promise<number> {
     const res = await this.db.query<{ n: string }>(
-      'SELECT count(*)::text AS n FROM roads WHERE cost_m > 0'
+      'SELECT count(*)::text AS n FROM ' + ROUTING_TABLE + ' WHERE cost_m > 0'
     )
     return Number(res.rows[0]?.n ?? 0)
   }

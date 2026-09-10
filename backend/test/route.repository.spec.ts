@@ -7,6 +7,7 @@ import {
   PID_TO,
   RouteRepository,
   type RouteSegment,
+  ROUTING_TABLE,
   type SnapRow,
 } from '../src/modules/route/repositories/route.repository'
 
@@ -118,7 +119,7 @@ describe('RouteRepository.shortestPathByPoints - SQL 契约', () => {
     const sql = calls[0].sql
     expect(sql).toContain('edge_source')
     expect(sql).toContain('edge_target')
-    expect(sql).toContain('LEFT JOIN roads')
+    expect(sql).toContain(`LEFT JOIN ${ROUTING_TABLE}`)
   })
 
   it('无向图语义：directed := false（对齐 nx.Graph()，oneway 源数据全 NULL）', async () => {
@@ -136,6 +137,28 @@ describe('RouteRepository.shortestPathByPoints - SQL 契约', () => {
     const b = makeDbMock()
     await new RouteRepository(b.db).shortestPathByPoints(SNAPS, 'time')
     expect(b.calls[0].sql).toContain('cost_min AS cost')
+  })
+})
+
+describe('路由表选择（2026-09-10：必须走切分表）', () => {
+  it('所有查询都指向 ROUTING_TABLE，不得回落到未切分的原始 roads', async () => {
+    const { db, calls } = makeDbMock()
+    const repo = new RouteRepository(db)
+    await repo.snapPoints(108.6, 21.7, 108.7, 21.75, 2000)
+    await repo.shortestPathByPoints(SNAPS, 'distance')
+    await repo.sumSegmentCosts(SEGMENTS, 'distance')
+    await repo.segmentGeometry(SEGMENTS)
+
+    for (const { sql } of calls) {
+      // 原始 roads 只形成 56,418 个连通分量（最大覆盖 30.3%），回落即服务范围腰斩
+      expect(sql).not.toMatch(/\bFROM roads\b/)
+      expect(sql).not.toMatch(/\bJOIN roads\b/)
+    }
+    expect(calls[0].sql).toContain(`FROM ${ROUTING_TABLE}`)
+    expect(calls[1].sql).toContain(`FROM ${ROUTING_TABLE}`)
+    expect(calls[1].sql).toContain(`LEFT JOIN ${ROUTING_TABLE}`)
+    expect(calls[2].sql).toContain(`JOIN ${ROUTING_TABLE} r`)
+    expect(calls[3].sql).toContain(`JOIN ${ROUTING_TABLE} r`)
   })
 })
 

@@ -375,22 +375,30 @@ jobs:
             echo "::error::触发部署失败"
             exit 1
           fi
-          # 阶段三（短会话轮询）：每 30s 查一次状态文件；轮询自身的 SSH 抖动只跳过本轮
-          for i in $(seq 1 60); do
-            sleep 30
-            status="$(ssh_quick "cat /tmp/beibu-deploy-status 2>/dev/null || echo RUNNING" 2>/dev/null)" || continue
-            case "$status" in
-              OK)
-                echo "部署完成（耗时约 $((i * 30))s，tag=${IMAGE_TAG}）"
+          # 阶段三（成功判定，双通道）：①优先公网 HTTP 健康检查（走 80 端口 nginx 反代，
+          # 跨境 HTTP 比 SSH 稳定得多）②SSH 读状态文件兜底。run#146 实测服务器 8 分钟
+          # 全部启动、状态文件 OK，但 CI 侧跨境 SSH 轮询 25 分钟全部打不通被 continue
+          # 跳过 → 从未读到成功的「部署 30 分钟未完成」误红；改 HTTP 判定后此问题根除。
+          HTTP_BASE="http://${SERVER_HOST}"
+          for i in $(seq 1 90); do
+            sleep 20
+            # 通道一：公网 HTTP 健康检查（nest ready 即全链健康：postgis→nest→nginx 依赖链）
+            if code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "${HTTP_BASE}/nest-api/health/ready" 2>/dev/null)"; then
+              if [ "$code" = "200" ]; then
+                echo "部署完成：${HTTP_BASE}/nest-api/health/ready 返回 200（耗时约 $((i * 20))s，tag=${IMAGE_TAG}）"
                 exit 0
-                ;;
+              fi
+            fi
+            # 通道二：SSH 读服务器状态文件（HTTP 不可达时兜底；每次尝试单发，失败跳过本轮）
+            status="$(ssh_quick "cat /tmp/beibu-deploy-status 2>/dev/null || echo RUNNING" 2>/dev/null)" || status="RUNNING"
+            case "$status" in
               FAIL)
                 echo "::error::服务器端 pull/启动失败，日志尾部："
                 ssh_quick "tail -n 60 /tmp/beibu-deploy.log" || true
                 exit 1
                 ;;
             esac
-            echo "拉取/启动进行中（${i}/60）..."
+            echo "部署进行中（${i}/90，http=$code ssh=$status）..."
           done
-          echo "::error::部署 30 分钟未完成（GHCR 跨境拉取慢或服务器异常），登录服务器查 /tmp/beibu-deploy.log"
+          echo "::error::部署 30 分钟未就绪（HTTP 未 200 且 SSH 未 OK），登录服务器查 /tmp/beibu-deploy.log"
           exit 1

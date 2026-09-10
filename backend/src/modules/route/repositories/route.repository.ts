@@ -206,7 +206,7 @@ ORDER BY r.path_seq
       `
 SELECT COALESCE(sum(t.cost), 0)::float8                                          AS mode_metric,
        COALESCE(sum(t.cost / NULLIF(r.${modeCol}, 0) * r.${otherCol}), 0)::float8 AS other_metric
-FROM unnest($1::bigint[], $2::float8[]) AS t(edge_id, cost)
+FROM ROWS FROM (unnest($1::bigint[]), unnest($2::float8[])) AS t(edge_id, cost)
 JOIN roads r ON r.id = t.edge_id
 `,
       [segments.map((s) => s.edgeId), segments.map((s) => s.cost)]
@@ -223,6 +223,12 @@ JOIN roads r ON r.id = t.edge_id
    * 取分段几何（按 lo~hi 截取，**几何顺序**输出；行进方向的反转由 service 层处理）。
    * 用 ST_LineSubstring 而非整条边：首尾两条只应画出真正走过的那一段，否则会"多画一截路"。
    * lo=0 / hi=1 时 ST_LineSubstring 等价于整条边。
+   *
+   * ⚠️ **`ST_DumpPoints` 的列别名必须给全三个**：它返回 `geometry_dump(path, geom)`，
+   * 再叠加 `WITH ORDINALITY` 的序号列。写成 `AS dp(g, g_ord)` 会把 `g` 绑到 **`path`**
+   * （integer[]）而不是几何上，于是 `ST_X(g)` 变成 `ST_X(integer[])` → 类型错误 → 500。
+   * 该写法是迁移期留下的，因为当时 `pgr_withPoints` 恒返 0 行、几何拼接从未被执行而没暴露；
+   * 2026-09-10 寻路修好后第一次跑到即 500（实测）。
    */
   async segmentGeometry(
     segments: RouteSegment[]
@@ -231,11 +237,11 @@ JOIN roads r ON r.id = t.edge_id
     const res = await this.db.query<{ seq: number; coords: Array<[number, number]> | null }>(
       `
 SELECT t.ord::int AS seq,
-       (SELECT array_agg(ARRAY[ST_X(g), ST_Y(g)] ORDER BY g_ord)::float8[][]
+       (SELECT array_agg(ARRAY[ST_X(dp.geom), ST_Y(dp.geom)] ORDER BY dp.ord)::float8[][]
         FROM ST_DumpPoints(ST_LineSubstring(r.geom, t.lo, t.hi))
-             WITH ORDINALITY AS dp(g, g_ord)
+             WITH ORDINALITY AS dp(path, geom, ord)
        ) AS coords
-FROM unnest($1::bigint[], $2::float8[], $3::float8[])
+FROM ROWS FROM (unnest($1::bigint[]), unnest($2::float8[]), unnest($3::float8[]))
      WITH ORDINALITY AS t(edge_id, lo, hi, ord)
 JOIN roads r ON r.id = t.edge_id
 ORDER BY t.ord

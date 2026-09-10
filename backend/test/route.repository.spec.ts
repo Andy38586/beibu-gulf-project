@@ -145,7 +145,7 @@ describe('RouteRepository.sumSegmentCosts - 分段费用折算', () => {
     await new RouteRepository(db).sumSegmentCosts(SEGMENTS, 'distance')
 
     const sql = calls[0].sql
-    expect(sql).toContain('unnest($1::bigint[], $2::float8[])')
+    expect(sql).toContain('ROWS FROM (unnest($1::bigint[]), unnest($2::float8[]))')
     expect(sql).toContain('t.cost / NULLIF(r.cost_m, 0) * r.cost_min')
     // 分段费用以数组参数注入，而不是按边 id 去表里取整条边的费用
     expect(calls[0].params).toEqual([
@@ -183,6 +183,20 @@ describe('RouteRepository.segmentGeometry - 分段几何', () => {
       [0.25, 0],
       [1, 0.75],
     ])
+  })
+
+  it('ST_DumpPoints 的别名必须给全三个并把几何绑到 geom 上（2026-09-10 500 的回归护栏）', async () => {
+    const { db, calls } = makeDbMock()
+    await new RouteRepository(db).segmentGeometry(SEGMENTS)
+    const sql = calls[0].sql
+
+    // ST_DumpPoints 返回 geometry_dump(path, geom) + WITH ORDINALITY 的序号 = 3 列。
+    // 曾写成 `AS dp(g, g_ord)`：g 被绑到 path（integer[]）上 → ST_X(integer[]) → 类型错 → 线上 500。
+    expect(sql).toContain('AS dp(path, geom, ord)')
+    expect(sql).toContain('ST_X(dp.geom)')
+    expect(sql).toContain('ORDER BY dp.ord')
+    expect(sql).not.toContain('ST_X(g)')
+    expect(sql).not.toContain('AS dp(g, g_ord)')
   })
 
   it('空分段不应发起 SQL', async () => {

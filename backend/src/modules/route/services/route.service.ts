@@ -202,10 +202,13 @@ export class RouteService {
     const sums = await this.routeRepository.sumSegmentCosts(segments, mode)
 
     // ⑤ 几何拼接（按 lo~hi 截取；reverse 的分段把坐标倒过来，保证首尾相接）
-    const segCoords = await this.routeRepository.segmentGeometry(segments)
+    // 零长度分段（吸附点正好落在边的端点上，如 fraction=0）不产生几何，先剔除——
+    // ST_LineSubstring(geom, f, f) 是退化调用，没必要让 DB 去处理
+    const drawable = segments.filter((s) => s.hi - s.lo > 1e-9)
+    const segCoords = await this.routeRepository.segmentGeometry(drawable)
     const coordinates: Array<[number, number]> = []
     for (const item of segCoords) {
-      const seg = segments[item.seq - 1]
+      const seg = drawable[item.seq - 1]
       if (!seg) continue
       const pts = item.coords ?? []
       const ordered = seg.reverse ? [...pts].reverse() : pts

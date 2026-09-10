@@ -299,6 +299,31 @@ describe('RouteService.findPath - 成功路径', () => {
     expect(repo.shortestPathByPoints).toHaveBeenCalledWith([SNAP_FROM, SNAP_TO], 'time')
   })
 
+  it('零长度分段（吸附点恰在边的端点上、且朝该端点方向走）不进几何查询，但不影响 edgeCount', async () => {
+    // W4 实测的真实形态：起点投影在边 1001 的 source 上（fraction=0），且朝 source 走
+    // → 首段 lo=0/hi=0 是退化区间，ST_LineSubstring(geom, 0, 0) 没必要交给 DB
+    const back: WithPointsRow = { ...ROW_EDGE2, node: '1' } // 首段反向
+    repo.snapPoints.mockResolvedValue([{ ...SNAP_FROM, fraction: 0 }, SNAP_TO])
+    repo.shortestPathByPoints.mockResolvedValue([ROW_EDGE1, back, ROW_TERMINAL])
+    repo.sumSegmentCosts.mockResolvedValue({ distanceM: 100, durationMin: 1 })
+    repo.segmentGeometry.mockResolvedValue([
+      {
+        seq: 1,
+        coords: [
+          [108.6, 21.6],
+          [108.7, 21.7],
+        ],
+      },
+    ])
+
+    const r = await service.findPath({ fromLng: 108.6, fromLat: 21.7, toLng: 108.7, toLat: 21.75 })
+    expect(repo.segmentGeometry).toHaveBeenCalledWith([
+      { edgeId: 2002, lo: 0.75, hi: 1, reverse: true, cost: 50 },
+    ])
+    // edgeCount 仍按真实路径边数（退化段也是路径的一部分），不被几何裁剪影响
+    expect(r).toMatchObject({ found: true, edgeCount: 2 })
+  })
+
   it('反向分段应把坐标倒过来，使折线首尾相接（真实路网里两条边的数字方向可以不一致）', async () => {
     // 边 1001：source 1 / target 2；边 2002：source 3 / target 2 —— 两条边都接到顶点 2
     // → 第 1 段从吸附点走到 target(2)：正向；第 2 段从顶点 2 出发但 2 是它的 target：反向

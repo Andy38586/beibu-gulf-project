@@ -102,10 +102,15 @@ ORDER BY pid DESC
    * pgRouting 最短路（支持起终点在边内任意位置）。
    * pgr_withPoints 的 points_sql 由吸附结果内联构造，pid 用负数（虚拟点约定）。
    * directed := false —— 对齐原实现 nx.Graph()（无向图；oneway 列源数据全 NULL）。
+   *
+   * ⚠️ 内层 SQL 必须用 $$ 美元引用包裹：points_sql 含 'b'::char 这类单引号字面量，
+   * 若用 '...' 单引号包裹，内层引号会与外层冲突致字符串提前终止 → SQL 语法错误 → 500
+   *（实测：首次上线 5/5 请求全 500 即此因）。
    */
   async shortestPathByPoints(snaps: SnapRow[], mode: RouteMode): Promise<WithPointsRow[]> {
     const costCol = MODE_COST_COLUMN[mode]
-    // points_sql 内联：pid/edge_id/fraction 全部来自上一步的吸附查询（参数化传入，非拼接用户输入）
+    // points_sql 内联：pid/edge_id/fraction 全部来自上一步吸附查询的结果行，
+    // 经 Number() 归一后拼接（数值类型，不含用户原始输入，无注入面）
     const pointsSql = snaps
       .map(
         (s) =>
@@ -118,9 +123,9 @@ ORDER BY pid DESC
 SELECT seq, path_seq, node::text AS node, edge::text AS edge,
        cost::float8 AS cost, agg_cost::float8 AS agg_cost
 FROM pgr_withPoints(
-  'SELECT id, source, target, ${costCol} AS cost, ${costCol} AS reverse_cost
-     FROM roads WHERE ${costCol} > 0 AND source IS NOT NULL AND target IS NOT NULL',
-  '${pointsSql}',
+  $$SELECT id, source, target, ${costCol} AS cost, ${costCol} AS reverse_cost
+      FROM roads WHERE ${costCol} > 0 AND source IS NOT NULL AND target IS NOT NULL$$,
+  $$${pointsSql}$$,
   $1::bigint, $2::bigint,
   directed := false
 )

@@ -36,7 +36,7 @@ import type { FeatureCollection } from 'geojson'
 
 import { buildTiandituUrl, MAP_CONFIG, zoomToHeight } from '@/core/config/map'
 import type { IndexedItem } from '@/shared'
-import { createSpatialIndex, LAYER_DEFAULTS, showError } from '@/shared'
+import { createSpatialIndex, LAYER_DEFAULTS, showError, showWarning } from '@/shared'
 import { logger } from '@/shared'
 import { normalizePoint } from '@/shared'
 import type {
@@ -58,6 +58,14 @@ const DEFAULT_CAMERA_PITCH_DEG = -90
 /** 3D 相机缩放限位（米； 提常量，与 OL zoom 6-20 档位对应） */
 const CAMERA_MIN_ZOOM_DISTANCE = 100
 const CAMERA_MAX_ZOOM_DISTANCE = 500000
+
+/**
+ * 根地形瓦片（Level 0）累计失败达到该次数即判定地形不可用、自动降级为平坦椭球（重试兜底阈值）。
+ * 背景：3D 影像必须贴在地形四叉树网格上，根瓦片 404 会导致整张底图请求都不发出（纯黑）。
+ * GeographicTilingScheme 根层仅 2 张瓦片，主判据是"两张不同根瓦片都失败"（见 _setupTerrain），
+ * 本阈值处理同一瓦片重复报错、另一张迟迟不回的边缘情况，可容忍 1~2 次瞬时网络抖动。
+ */
+const TERRAIN_ROOT_ERROR_FALLBACK_THRESHOLD = 3
 
 /**
  * hillshade 影像固有地理范围（EPSG:4326，[西,南,东,北]； 提常量）。
@@ -317,6 +325,14 @@ export class CesiumRenderer extends MapRenderer {
   _terrainReady: boolean
   _terrainProvider: CesiumTerrainProvider | null
   _terrainEnabled: boolean
+  /** 地形已降级为平坦椭球（根瓦片失败兜底），避免重复降级；setTerrainEnabled(true) 时重置重试 */
+  _terrainDegraded: boolean
+  /** Level 0 根瓦片累计失败次数（仅根层计数，深层瓦片缺失只产生局部空洞、不降级） */
+  _rootTileErrorCount: number
+  /** 已失败的根瓦片坐标集合 "x/y"：两张根瓦片都失败即判定根层不可用（不依赖重试次数） */
+  _rootTileErrorKeys: Set<string>
+  /** 地形 provider.errorEvent 具名回调（destroyEvents 随实例注销，防止闭包持有已销毁 renderer） */
+  _terrainErrorHandler: ((err: unknown) => void) | null
   _hillshadeLayer: unknown
   _imageryErrorLogged: boolean
   /** 底图 errorEvent 具名回调（供 destroyEvents 注销；provider 常驻单例 Viewer，须随 renderer 销毁摘除，5.2-1） */
@@ -347,6 +363,10 @@ export class CesiumRenderer extends MapRenderer {
     this._terrainProvider = null
     /** "真实地形"开关状态（3D 语义）：默认开，_setupTerrain 自动加载即显示 */
     this._terrainEnabled = true
+    this._terrainDegraded = false
+    this._rootTileErrorCount = 0
+    this._rootTileErrorKeys = new Set<string>()
+    this._terrainErrorHandler = null
     /** hillshade 回退贴图引用（DEM 独立图层，显隐由图层面板开关控制） */
     this._hillshadeLayer = null
     /** 底图瓦片失败 warn 只打一次（防每个瓦片刷屏） */
@@ -436,6 +456,31 @@ export class CesiumRenderer extends MapRenderer {
       if (!viewer || !viewer.scene || viewer.isDestroyed()) return
       this._terrainProvider = provider
       this._terrainReady = true
+      // 根瓦片失败守卫：layer.json 200 只代表清单可读，单瓦片（尤其 Level 0 根瓦片）404
+      // 时地形四叉树建不起来，影像瓦片请求不会发出，整张底图被拖黑。监听 provider.errorEvent，
+      // 根瓦片连续失败即自动降级椭球，保证底图永远可见（代价仅是没有 z 起伏）。
+      this._rootTileErrorCount = 0
+      this._rootTileErrorKeys = new Set<string>()
+      this._terrainErrorHandler = (err: unknown): void => {
+        const msg = err instanceof Error ? err.message : String(err ?? '')
+        // 仅 Level 0 根瓦片失败会拖垮全球；深层瓦片缺失只产生局部空洞，不降级
+        const rootMatch = /X:\s*(\d+)\s+Y:\s*(\d+)\s+Level:\s*0\b/.exec(msg)
+        if (!rootMatch) return
+        this._rootTileErrorCount += 1
+        this._rootTileErrorKeys.add(`${rootMatch[1]}/${rootMatch[2]}`)
+        if (this._terrainDegraded) return
+        // 主判据：两张不同根瓦片均失败（Geographic 方案根层固定 2 张）；
+        // 兜底判据：同一瓦片累计失败达阈值（另一张迟迟不回的边缘情况）
+        const rootLayerBroken =
+          this._rootTileErrorKeys.size >= 2 ||
+          this._rootTileErrorCount >= TERRAIN_ROOT_ERROR_FALLBACK_THRESHOLD
+        if (rootLayerBroken) {
+          this._engageTerrainFallback(
+            `根地形瓦片失败（${this._rootTileErrorCount} 次，${this._rootTileErrorKeys.size} 张根瓦片）：${msg}`
+          )
+        }
+      }
+      provider.errorEvent.addEventListener(this._terrainErrorHandler)
       // 用户若关过"真实地形"开关则保持椭球面，等 setTerrainEnabled(true) 再启用（状态延续）
       if (this._terrainEnabled !== false) {
         viewer.terrainProvider = provider
@@ -450,18 +495,38 @@ export class CesiumRenderer extends MapRenderer {
   }
 
   /**
+   * 地形根瓦片不可用时的兜底：切回平坦椭球面，让天地图影像正常贴上，避免整屏纯黑。
+   * 保留 _terrainProvider 引用，用户经"真实地形"开关可重新尝试（setTerrainEnabled(true)）。
+   */
+  _engageTerrainFallback(reason: string): void {
+    const viewer = this.viewer
+    if (!viewer || !viewer.scene || viewer.isDestroyed() || this._terrainDegraded) return
+    this._terrainDegraded = true
+    viewer.terrainProvider = new EllipsoidTerrainProvider()
+    viewer.scene.requestRender()
+    logger.warn('[CesiumRenderer] 真地形降级为平坦椭球（底图不受影响）:', reason)
+    // 非阻断提示：用户仍可正常使用底图与业务图层，仅缺少地形起伏
+    showWarning('真实地形瓦片加载失败，已临时切换为平面地图（底图与业务功能不受影响）')
+  }
+
+  /**
    * "真实地形"开关的 3D 语义：切换 terrainProvider（开=CTB 真地形 z 起伏，关=平坦椭球面）。
-   * 3D 下 geotiff 图层无独立实例（真地形已由 provider 呈现，addGeoTIFFLayer 在 _terrainReady
-   * 时跳过），开关由 layerAdapters.geotiff.setVisibility 在 3D 下调用。
-   * 预留钩子——当前无调用方（layerAdapters geotiff 走普通图层显隐语义，
-   * 不做 terrainProvider 特殊处理）；L350 状态延续逻辑依赖本方法，保留待"真实地形"UI 开关接线。
+   * 由 layerAdapters.geotiff.setVisibility 在 3D 下随"真实地形"按钮调用（hillshade 显隐之外联动地形）。
+   * 降级后重新打开：重置失败计数再试一次；若根瓦片仍坏，errorEvent 守卫会再次自动降级。
    */
   setTerrainEnabled(enabled: boolean): void {
     this._terrainEnabled = enabled
     if (!this.viewer || !this.viewer.scene || this.viewer.isDestroyed()) return
     // provider 未就绪时无可切换，等 _setupTerrain 成功后再按开关生效
     if (!this._terrainProvider) return
-    this.viewer.terrainProvider = enabled ? this._terrainProvider : new EllipsoidTerrainProvider()
+    if (enabled) {
+      this._terrainDegraded = false
+      this._rootTileErrorCount = 0
+      this._rootTileErrorKeys = new Set<string>()
+      this.viewer.terrainProvider = this._terrainProvider
+    } else {
+      this.viewer.terrainProvider = new EllipsoidTerrainProvider()
+    }
     this.viewer.scene.requestRender()
   }
 
@@ -469,7 +534,18 @@ export class CesiumRenderer extends MapRenderer {
     const viewer = this.viewer
     if (!viewer) return
     viewer.scene.globe.enableLighting = true
-    // 保持默认远视角（不定位），后续 flyTo 飞向目标产生"地球飞转"加载动画，避免 OL→Cesium 切换闪屏
+    // 首屏必须落在地球上：直接进入 3D（无 2D→3D 状态迁移）时相机默认停在外太空，叠加按需渲染
+    // 会停在纯星空黑帧。这里瞬时 setView 到区域视角保证首帧可见地球；后续业务 flyTo 仍会从该
+    // 视角飞向城市（保留"地球飞转"动画，只是起点从外太空改为区域上空），importState 的相机迁移也会覆盖它。
+    const region = MAP_CONFIG.VIEW_LEVELS.REGION
+    viewer.camera.setView({
+      destination: Cartesian3.fromDegrees(region.center.lng, region.center.lat, region.height),
+      orientation: {
+        heading: 0,
+        pitch: CesiumMath.toRadians(DEFAULT_CAMERA_PITCH_DEG),
+        roll: 0,
+      },
+    })
   }
 
   _initBaseLayers(): void {
@@ -1069,6 +1145,13 @@ export function destroyEvents(renderer: CesiumRenderer): void {
     renderer._imageryErrorProviders = []
   }
   renderer._imageryErrorHandler = null
+
+  // 移除地形 provider.errorEvent 监听：同底图监听，handler 捕获 renderer 实例，不摘除则常驻
+  // 单例 Viewer 的 terrainProvider 会永久持有已销毁 renderer（5.2-1 同类泄漏）
+  if (renderer._terrainProvider && renderer._terrainErrorHandler) {
+    renderer._terrainProvider.errorEvent.removeEventListener(renderer._terrainErrorHandler)
+  }
+  renderer._terrainErrorHandler = null
 }
 
 // ===== 图层：点/多边形/GeoJSON/GeoTIFF 注册与移除 =====

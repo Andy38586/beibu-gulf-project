@@ -15,6 +15,7 @@ import type {
   MapRenderer,
   PointFeature,
   PolygonFeature,
+  TerrainToggleCapability,
   Water3DCapability,
 } from '@/types'
 import type { LayerType, WaterSurfaceData } from '@/types/core/layerManager'
@@ -77,6 +78,13 @@ export function isWater3DCapable(
 /** GeoTIFF 能力检查：Cesium 独占（3D hillshade 贴图回退；OL 2D COG 已按 Cesium 独占定义移除） */
 function isGeoTIFFCapable(renderer: MapRenderer): renderer is MapRenderer & GeoTIFFCapability {
   return typeof (renderer as Partial<GeoTIFFCapability>).addGeoTIFFLayer === 'function'
+}
+
+/** 真地形开关能力检查：仅 Cesium 实现（terrainProvider 在真地形/平坦椭球间切换） */
+function isTerrainToggleCapable(
+  renderer: MapRenderer
+): renderer is MapRenderer & TerrainToggleCapability {
+  return typeof (renderer as Partial<TerrainToggleCapability>).setTerrainEnabled === 'function'
 }
 
 /** 热力图能力检查：仅 OL 实现（2D Only） */
@@ -238,6 +246,15 @@ export const LAYER_ADAPTERS: Record<LayerType, LayerAdapter> = {
     },
     remove: (renderer, key) => {
       renderer.removeLayer(key)
+    },
+    // "真实地形"按钮在 3D 下有双重语义：①保留 hillshade 回退贴图的普通图层显隐委派
+    // （真地形就绪时 hillshade 不创建，落入待定显隐队列、removeLayer 时一并清除，无副作用）；
+    // ②联动 terrainProvider 的真 z 起伏开关（2D 无此能力，能力守卫跳过）。
+    setVisibility: (renderer, key, visible) => {
+      renderer.setVisibility(key, visible)
+      if (isTerrainToggleCapable(renderer)) {
+        renderer.setTerrainEnabled(visible)
+      }
     },
   },
 

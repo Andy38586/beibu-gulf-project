@@ -469,8 +469,10 @@ async function switchMapType(newType: '2d' | '3d') {
     // 3D→2D 时先停两种呼吸灯 rAF（都挂在 Cesium 渲染器上，不停止会泄漏动画循环），再 unmount Cesium
     //（暂停渲染 + 启动闲置销毁；短时切回由 mount 取消销毁）
     if (oldType === '3d' && newType === '2d') {
-      currentRenderer.value?.stopBreathing()
-      currentRenderer.value?.stopFacilityBreathing()
+      // 方法级可选调用：切换重入/渲染器实例瞬时未就绪时，缺方法不应抛错中断整个切换
+      // （曾在高负载并行单测下 currentRenderer 瞬时指向未就绪实例而级联回滚）
+      currentRenderer.value?.stopBreathing?.()
+      currentRenderer.value?.stopFacilityBreathing?.()
       const { cesiumViewerManager } = await import('@/core/map/renderers/CesiumRenderer')
       cesiumViewerManager.unmount()
     }

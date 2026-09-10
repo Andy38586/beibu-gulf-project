@@ -36,7 +36,8 @@ vi.mock('cesium', () => {
   return {
     CallbackProperty: MockCesiumClass,
     Cartesian2: MockCesiumClass,
-    Cartesian3: MockCesiumClass,
+    // _positionCamera 首屏定位用到 Cartesian3.fromDegrees（mock 不做真实坐标运算，返回空对象即可）
+    Cartesian3: Object.assign(MockCesiumClass, { fromDegrees: () => ({}) }),
     Cartographic: MockCesiumClass,
     Color: { fromCssColorString: () => ({}) },
     ColorGeometryInstanceAttribute: MockCesiumClass,

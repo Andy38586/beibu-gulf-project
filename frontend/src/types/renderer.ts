@@ -127,6 +127,11 @@ export interface HeatmapCapability {
   updateHeatmapLayer(id: string, features: PointFeature[], options?: LayerOptions): boolean
 }
 
+/** 真地形开关能力（3D Only——Cesium 在 CTB 真地形与平坦椭球面之间切换；OL 无地形概念） */
+export interface TerrainToggleCapability {
+  setTerrainEnabled(enabled: boolean): void
+}
+
 // ===== 状态持久化 =====
 
 /** Camera 状态（用于 2D/3D 切换） */

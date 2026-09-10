@@ -1,0 +1,354 @@
+<html style="margin: 0; padding: 0">
+  <div
+    style="
+      width: 100%;
+      box-sizing: border-box;
+      padding: 24px;
+      background: #f5f6f8;
+      font-family: 'Microsoft YaHei', 'Segoe UI', sans-serif;
+      color: #1f2933;
+      font-size: 14px;
+      line-height: 1.6;
+    "
+  >
+    <div style="max-width: 1080px; margin: 0 auto">
+      <div
+        style="
+          background: #fff;
+          border-radius: 12px;
+          padding: 20px 24px;
+          border-left: 6px solid #1769aa;
+          margin-bottom: 16px;
+        "
+      >
+        <div style="font-size: 19px; font-weight: 700; margin-bottom: 8px">
+          真 3D 现状 &amp; GeoServer / FastAPI 选型（2026-09-10）
+        </div>
+        <div>
+          <b>结论先行：</b>① "真 3D 消失"= 服务器地形根瓦片
+          404（功能没删，数据没铺好，刚才页面变平是我诊断时的临时实验，刷新即还原，但线上真地形本身仍未立起来）；②
+          <b>地形这类图层不适合上 GeoServer</b>，现有"离线切片 + nginx
+          静态托管"方向正确，坏在部署制品管理；③
+          <b>GeoServer 不能替换 FastAPI</b
+          >——一个是空间数据"发布/出图"，一个是洪涝/航线"数值演算"，职责正交，应并存而非二选一。
+        </div>
+      </div>
+
+      <!-- 问题1 -->
+      <div style="background: #fff; border-radius: 12px; padding: 18px 24px; margin-bottom: 16px">
+        <div style="font-size: 16px; font-weight: 700; margin-bottom: 10px">
+          ① "怎么没有真 3D 了"——时间线还原
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 8px">
+          <div style="border: 1px solid #d9dde3; border-radius: 8px; padding: 10px 14px">
+            诊断阶段：我在该标签页把
+            <code>terrainProvider</code> 临时换成平坦椭球（Ellipsoid）做反证 → 画面变平、无 z
+            起伏，这是<b>我的实验动作</b>，不是系统状态。
+          </div>
+          <div style="text-align: center; color: #8a94a6">↓ 刷新页面后还原</div>
+          <div
+            style="
+              border: 1px solid #d64545;
+              background: #fdf1f1;
+              border-radius: 8px;
+              padding: 10px 14px;
+            "
+          >
+            还原后实测：terrainProvider = CesiumTerrainProvider（真地形在尝试工作），但控制台持续报
+            <code>Failed to obtain terrain tile X:0/X:1 Level:0 → 404</code>。根瓦片缺失 → 地形 mesh
+            建不起来 → <b>线上"真 3D"本来就没真正生效</b>，同时拖黑影像底图。
+          </div>
+          <div style="text-align: center; color: #8a94a6">↓ 修复方式</div>
+          <div
+            style="
+              border: 1px solid #2e7d32;
+              background: #eef7f0;
+              border-radius: 8px;
+              padding: 10px 14px;
+            "
+          >
+            用 <code>07-heightmap-reslice.py</code> 重切并把
+            <b>layer.json + 全部瓦片整体</b>重新同步到服务器（补 0/0/0、0/1/0、1/3/1），根瓦片 200
+            后 z 起伏的真 3D 即恢复；无需改前端。
+          </div>
+        </div>
+      </div>
+
+      <!-- 问题2: 图层 vs 承载方式 -->
+      <div style="background: #fff; border-radius: 12px; padding: 18px 24px; margin-bottom: 16px">
+        <div style="font-size: 16px; font-weight: 700; margin-bottom: 10px">
+          ② 你们的各类图层，分别该谁承载
+        </div>
+        <div style="overflow-x: auto">
+          <table style="border-collapse: collapse; width: 100%; font-size: 13px">
+            <tr style="background: #eef1f5">
+              <td style="border: 1px solid #d9dde3; padding: 8px 10px; font-weight: 700">
+                图层 / 数据
+              </td>
+              <td style="border: 1px solid #d9dde3; padding: 8px 10px; font-weight: 700">现状</td>
+              <td style="border: 1px solid #d9dde3; padding: 8px 10px; font-weight: 700">
+                GeoServer 适配度
+              </td>
+              <td style="border: 1px solid #d9dde3; padding: 8px 10px; font-weight: 700">建议</td>
+            </tr>
+            <tr>
+              <td style="border: 1px solid #d9dde3; padding: 8px 10px">
+                <b>真地形</b>（.terrain，给 Cesium）
+              </td>
+              <td style="border: 1px solid #d9dde3; padding: 8px 10px">
+                GDAL 离线切 heightmap + nginx 静态
+              </td>
+              <td
+                style="
+                  border: 1px solid #d9dde3;
+                  padding: 8px 10px;
+                  color: #d64545;
+                  font-weight: 700;
+                "
+              >
+                不适配<br /><span style="font-weight: 400">GeoServer 不直接产 Cesium 地形流</span>
+              </td>
+              <td style="border: 1px solid #d9dde3; padding: 8px 10px">
+                保持静态切片（或专用 terrain server），把制品化/部署校验做好
+              </td>
+            </tr>
+            <tr>
+              <td style="border: 1px solid #d9dde3; padding: 8px 10px"><b>影像/矢量底图</b></td>
+              <td style="border: 1px solid #d9dde3; padding: 8px 10px">天地图 img_w/cia_w/vec_w</td>
+              <td
+                style="
+                  border: 1px solid #d9dde3;
+                  padding: 8px 10px;
+                  color: #b26a00;
+                  font-weight: 700;
+                "
+              >
+                没必要
+              </td>
+              <td style="border: 1px solid #d9dde3; padding: 8px 10px">
+                继续用天地图（key 实测有效），无需自建
+              </td>
+            </tr>
+            <tr>
+              <td style="border: 1px solid #d9dde3; padding: 8px 10px">
+                <b>业务矢量</b>（行政区划/港口/POI）
+              </td>
+              <td style="border: 1px solid #d9dde3; padding: 8px 10px">
+                静态 GeoJSON/JSON，前端渲染
+              </td>
+              <td
+                style="
+                  border: 1px solid #d9dde3;
+                  padding: 8px 10px;
+                  color: #2e7d32;
+                  font-weight: 700;
+                "
+              >
+                可适配<br /><span style="font-weight: 400">WFS/WMTS+GWC 缓存+SLD</span>
+              </td>
+              <td style="border: 1px solid #d9dde3; padding: 8px 10px">
+                当前规模（三港、少量固定图层）静态即可；图层多/更新频繁/多端复用时再上，轻量替代
+                Martin、pg_tileserv
+              </td>
+            </tr>
+            <tr>
+              <td style="border: 1px solid #d9dde3; padding: 8px 10px">
+                <b>淹没水面</b>（随水位变）
+              </td>
+              <td style="border: 1px solid #d9dde3; padding: 8px 10px">
+                FastAPI 实时演算 → GeoJSON
+              </td>
+              <td
+                style="
+                  border: 1px solid #d9dde3;
+                  padding: 8px 10px;
+                  color: #d64545;
+                  font-weight: 700;
+                "
+              >
+                不适配
+              </td>
+              <td style="border: 1px solid #d9dde3; padding: 8px 10px">
+                计算结果，留在 FastAPI；GeoServer 只负责把结果再发布时才有意义
+              </td>
+            </tr>
+            <tr>
+              <td style="border: 1px solid #d9dde3; padding: 8px 10px">
+                <b>DEM 晕渲</b>（hillshade）
+              </td>
+              <td style="border: 1px solid #d9dde3; padding: 8px 10px">预生成 PNG，单图贴球</td>
+              <td
+                style="
+                  border: 1px solid #d9dde3;
+                  padding: 8px 10px;
+                  color: #b26a00;
+                  font-weight: 700;
+                "
+              >
+                能做但非必需
+              </td>
+              <td style="border: 1px solid #d9dde3; padding: 8px 10px">
+                单张固定图够用；要多时相/动态拉伸再考虑 COG + WMS/rio-tiler
+              </td>
+            </tr>
+          </table>
+        </div>
+        <div style="margin-top: 8px; color: #5b6572; font-size: 13px">
+          关键判断：这次黑屏是<b>部署链路问题（制品散传、缺根瓦片、无校验）</b>，换成 GeoServer
+          同样要面对"数据怎么切、怎么传、传全没有"，并不会自动消失。
+        </div>
+      </div>
+
+      <!-- 问题3: GeoServer vs FastAPI -->
+      <div style="background: #fff; border-radius: 12px; padding: 18px 24px; margin-bottom: 16px">
+        <div style="font-size: 16px; font-weight: 700; margin-bottom: 10px">
+          ③ GeoServer 能不能换 FastAPI？——职责正交，不能互替
+        </div>
+        <div style="display: flex; flex-wrap: wrap; gap: 12px">
+          <div
+            style="
+              flex: 1 1 280px;
+              border: 1px solid #1769aa;
+              border-radius: 10px;
+              padding: 14px;
+              background: #f2f8fd;
+            "
+          >
+            <div style="font-weight: 700; color: #1769aa; font-size: 15px; margin-bottom: 6px">
+              GeoServer ＝ 空间数据"发布/出图"
+            </div>
+            <div>
+              把 PostGIS / 文件里的空间数据按标准接口发出去：WMS（图片）、WMTS/TMS（瓦片缓存，内置
+              GWC）、WFS（矢量）、WCS（栅格）；SLD 配图、按需重投影、多源融合。<br /><b>不擅长：</b
+              >跑自定义洪涝数值演算、最短路径算法、实时业务逻辑。
+            </div>
+          </div>
+          <div
+            style="
+              flex: 1 1 280px;
+              border: 1px solid #2e7d32;
+              border-radius: 10px;
+              padding: 14px;
+              background: #f2f9f4;
+            "
+          >
+            <div style="font-weight: 700; color: #2e7d32; font-size: 15px; margin-bottom: 6px">
+              你们的 FastAPI ＝ 算法"计算"
+            </div>
+            <div>
+              任意水位 → 连通性淹没多边形（251 档预计算 + LRU
+              动态演算，毫秒级）；航线最短路径（路网构图预热约 40s）。<br /><b>本质是计算服务</b
+              >：输入参数、输出结果 GeoJSON，不是把一份固定数据"发布"出去。
+            </div>
+          </div>
+        </div>
+        <div
+          style="
+            margin-top: 12px;
+            border: 1px dashed #b0b7c0;
+            border-radius: 8px;
+            padding: 10px 14px;
+            background: #fafafa;
+          "
+        >
+          <b>互相替代的代价：</b>用 GeoServer 替 FastAPI = 用 WPS 把 flood_engine /
+          路径算法重写一遍，性能与可控性更差；用 FastAPI 替 GeoServer = 自己造 WMTS 瓦片缓存、SLD
+          样式、OGC 标准接口的轮子。<b>两者并存才是常规架构。</b>
+        </div>
+      </div>
+
+      <!-- 推荐架构 -->
+      <div style="background: #fff; border-radius: 12px; padding: 18px 24px; margin-bottom: 16px">
+        <div style="font-size: 16px; font-weight: 700; margin-bottom: 12px">
+          ④ 推荐架构（按阶段）
+        </div>
+        <div style="display: flex; flex-wrap: wrap; align-items: stretch; gap: 8px">
+          <div
+            style="
+              flex: 1 1 150px;
+              min-width: 150px;
+              background: #eef1f5;
+              border-radius: 8px;
+              padding: 10px;
+              text-align: center;
+            "
+          >
+            <b>浏览器</b><br />OpenLayers 2D / Cesium 3D
+          </div>
+          <div style="align-self: center; font-size: 18px; color: #8a94a6">→</div>
+          <div
+            style="
+              flex: 1 1 150px;
+              min-width: 150px;
+              background: #eef1f5;
+              border-radius: 8px;
+              padding: 10px;
+              text-align: center;
+            "
+          >
+            <b>nginx 同源网关</b><br />页面/静态/反代
+          </div>
+        </div>
+        <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px">
+          <div
+            style="
+              flex: 1 1 200px;
+              border: 1px solid #1769aa;
+              border-radius: 8px;
+              padding: 10px;
+              background: #f2f8fd;
+            "
+          >
+            <b>Nest（业务，保留）</b><br />用户/方案/收藏/设施查询
+          </div>
+          <div
+            style="
+              flex: 1 1 200px;
+              border: 1px solid #2e7d32;
+              border-radius: 8px;
+              padding: 10px;
+              background: #f2f9f4;
+            "
+          >
+            <b>FastAPI（演算，保留）</b><br />淹没连通性 + 航线算法
+          </div>
+          <div
+            style="
+              flex: 1 1 200px;
+              border: 1px solid #d64545;
+              border-radius: 8px;
+              padding: 10px;
+              background: #fdf1f1;
+            "
+          >
+            <b>地形（先修好）</b><br />heightmap 静态切片制品化 + 部署校验；不进 GeoServer
+          </div>
+          <div
+            style="
+              flex: 1 1 200px;
+              border: 1px dashed #b26a00;
+              border-radius: 8px;
+              padding: 10px;
+              background: #fdfaf2;
+            "
+          >
+            <b>GeoServer（按需，后置）</b><br />仅当业务图层变多/常更新/要 OGC
+            标准与多端复用时再引入；更轻可先选 Martin
+          </div>
+        </div>
+        <div style="margin-top: 12px; background: #f3f6f9; border-radius: 8px; padding: 10px 14px">
+          <b>引入 GeoServer 的触发条件（满足 2 条再上）：</b>图层/数据源超过 20 个且持续增加 ·
+          数据每周都在变、不想每次重新打包 · 需要对外/多端提供标准 WMS/WFS ·
+          需要服务端按属性复杂配图与切片缓存。当前三港固定演示规模，<b
+            >优先级应低于"修地形 + 部署门禁"</b
+          >。
+        </div>
+      </div>
+
+      <div style="color: #8a94a6; font-size: 12px">
+        基于线上实测、frontend/src/core/map 与 backend/algorithm-service 源码、docker-compose/nginx
+        部署配置综合判断。
+      </div>
+    </div>
+  </div>
+</html>

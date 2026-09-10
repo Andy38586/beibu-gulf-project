@@ -1,0 +1,325 @@
+<html style="margin: 0; padding: 0">
+  <div
+    style="
+      width: 100%;
+      box-sizing: border-box;
+      padding: 24px;
+      background: #f5f6f8;
+      font-family: 'Microsoft YaHei', 'Segoe UI', sans-serif;
+      color: #1f2933;
+      font-size: 14px;
+      line-height: 1.6;
+    "
+  >
+    <div style="max-width: 1080px; margin: 0 auto">
+      <div
+        style="
+          background: #fff;
+          border-radius: 12px;
+          padding: 22px 24px;
+          border-left: 6px solid #d64545;
+          margin-bottom: 16px;
+        "
+      >
+        <div style="font-size: 20px; font-weight: 700; margin-bottom: 6px">
+          3D 底图加载不出来 / 真实地形异常 — 诊断结论（2026-09-10 线上实测）
+        </div>
+        <div style="font-size: 15px">
+          <b>一句话根因：</b>服务器上 <code>/static/terrain/layer.json</code>（新版，声明了 z0
+          根瓦片）与实际瓦片目录（旧版，缺 z0 根瓦片）版本错配。Cesium 地形四叉树的两个根瓦片 404 →
+          整个地球网格建不起来 → 影像底图没有可贴附的表面、根本不发请求 → 3D 只剩星空/深蓝球面。<b
+            >不是天地图 key、不是网络、不是证书问题。</b
+          >
+        </div>
+      </div>
+
+      <!-- 实测证据 -->
+      <div style="background: #fff; border-radius: 12px; padding: 18px 24px; margin-bottom: 16px">
+        <div style="font-size: 16px; font-weight: 700; margin-bottom: 10px">
+          ① 线上实测证据（https://112.74.32.206/flood-analysis）
+        </div>
+        <div style="display: flex; flex-wrap: wrap; gap: 10px">
+          <div
+            style="
+              flex: 1 1 300px;
+              border: 1px solid #e3e6ea;
+              border-radius: 8px;
+              padding: 10px 12px;
+            "
+          >
+            <div style="font-weight: 700; color: #d64545; margin-bottom: 6px">
+              ✗ 地形根瓦片缺失（致命）
+            </div>
+            <div>
+              layer.json → <b>200</b>（53.8KB，声明 0–12 层）<br />
+              <code>0/0/0.terrain</code> → <b style="color: #d64545">404</b><br />
+              <code>0/1/0.terrain</code> → <b style="color: #d64545">404</b><br />
+              <code>1/3/1.terrain</code> → <b style="color: #d64545">404</b>（layer.json 声明存在）
+            </div>
+          </div>
+          <div
+            style="
+              flex: 1 1 300px;
+              border: 1px solid #e3e6ea;
+              border-radius: 8px;
+              padding: 10px 12px;
+            "
+          >
+            <div style="font-weight: 700; color: #2e7d32; margin-bottom: 6px">
+              ✓ 其余链路全部正常
+            </div>
+            <div>
+              z1 其余 7 张、z2–z12 抽样 36 张 → 全 <b>200</b>，字节与本地一致<br />
+              天地图 img_w 测试瓦片 → <b>200 image/jpg</b>，key 有效<br />
+              Cesium 引擎/Worker/Assets → <b>200</b>，画布尺寸 1307×870 正常
+            </div>
+          </div>
+          <div
+            style="
+              flex: 1 1 300px;
+              border: 1px solid #e3e6ea;
+              border-radius: 8px;
+              padding: 10px 12px;
+            "
+          >
+            <div style="font-weight: 700; color: #1769aa; margin-bottom: 6px">
+              ▶ 现场反证实验（决定性）
+            </div>
+            <div>
+              故障时 Cesium <b>0 次</b>请求天地图；在页面内把 terrainProvider
+              换成平坦椭球后，瞬间触发 <b>248 次</b>影像请求、<b>136 张</b
+              >天地图瓦片，卫星影像立即完整渲染。
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 因果链 -->
+      <div style="background: #fff; border-radius: 12px; padding: 18px 24px; margin-bottom: 16px">
+        <div style="font-size: 16px; font-weight: 700; margin-bottom: 12px">
+          ② 故障传导链（为什么缺 2 个根瓦片 = 整个 3D 黑屏）
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 0">
+          <div
+            style="
+              border: 1px solid #d64545;
+              background: #fdf1f1;
+              border-radius: 8px;
+              padding: 10px 14px;
+            "
+          >
+            <b>部署版本错配：</b>服务器 layer.json 是 09-09 补过"树根完整性"的新版（available[0]
+            强制声明两张全球根瓦片），瓦片目录却是更早一版重切产物（z1–z12，没有补 z0
+            海洋根瓦片）。两者是分两次手工传上去的。
+          </div>
+          <div style="text-align: center; color: #8a94a6; font-size: 18px">↓</div>
+          <div
+            style="
+              border: 1px solid #e0a83d;
+              background: #fdf8ec;
+              border-radius: 8px;
+              padding: 10px 14px;
+            "
+          >
+            <b>CesiumTerrainProvider.fromUrl 成功</b>（layer.json 200，不进 catch
+            分支、不回退椭球），但渲染时按四叉树请求根瓦片 <code>0/0/0</code>、<code>0/1/0</code> →
+            双双 404，根四边形永久失败。
+          </div>
+          <div style="text-align: center; color: #8a94a6; font-size: 18px">↓</div>
+          <div
+            style="
+              border: 1px solid #e0a83d;
+              background: #fdf8ec;
+              border-radius: 8px;
+              padding: 10px 14px;
+            "
+          >
+            <b>地表网格一层都建不起来：</b>Cesium
+            的影像瓦片（img_w/cia_w）是"贴"在地形四边形上的，地形根失败 → 子节点无法细化 →
+            <code>requestImage</code> 永不触发（实测 0 次请求），<code>globe.tilesLoaded</code>
+            却显示 true。
+          </div>
+          <div style="text-align: center; color: #8a94a6; font-size: 18px">↓</div>
+          <div
+            style="
+              border: 1px solid #d64545;
+              background: #fdf1f1;
+              border-radius: 8px;
+              padding: 10px 14px;
+            "
+          >
+            <b>用户看到：</b>没有任何影像贴层，只剩 globe.baseColor（深蓝 0,0,0.5）；而进 3D
+            时相机又被代码"故意不定位"（CesiumRenderer._positionCamera
+            只开光照、不设视角，等城市按钮 flyTo），首屏直接是满天星空的纯黑画面 —— 即"3D
+            底图加载不出来"。点城市 flyTo 后能看到边界/标签，但地表依旧深蓝无图。
+          </div>
+        </div>
+        <div style="margin-top: 10px; color: #5b6572; font-size: 13px">
+          注：右侧"真实地形"按钮控制的是 hillshade 贴图（geotiff 图层显隐），<b>并不会</b>切换
+          terrainProvider ——
+          <code>setTerrainEnabled()</code>
+          在源码里是"预留钩子，当前无调用方"，所以用户点这个按钮无法自救。
+        </div>
+      </div>
+
+      <!-- 为什么反复 -->
+      <div style="background: #fff; border-radius: 12px; padding: 18px 24px; margin-bottom: 16px">
+        <div style="font-size: 16px; font-weight: 700; margin-bottom: 10px">
+          ③ 为什么这个 bug 频繁出现（同一症状已第 6 次复发）
+        </div>
+        <div style="overflow-x: auto">
+          <table
+            style="border-collapse: collapse; width: 100%; font-size: 13px; margin-bottom: 12px"
+          >
+            <tr style="background: #eef1f5">
+              <td style="border: 1px solid #d9dde3; padding: 6px 10px; font-weight: 700">时间</td>
+              <td style="border: 1px solid #d9dde3; padding: 6px 10px; font-weight: 700">
+                当时的"层"
+              </td>
+              <td style="border: 1px solid #d9dde3; padding: 6px 10px; font-weight: 700">表象</td>
+            </tr>
+            <tr>
+              <td style="border: 1px solid #d9dde3; padding: 6px 10px; white-space: nowrap">
+                08-05 a027
+              </td>
+              <td style="border: 1px solid #d9dde3; padding: 6px 10px">
+                前端根本没接 terrainProvider
+              </td>
+              <td style="border: 1px solid #d9dde3; padding: 6px 10px">无真地形</td>
+            </tr>
+            <tr>
+              <td style="border: 1px solid #d9dde3; padding: 6px 10px; white-space: nowrap">
+                08-10 z085
+              </td>
+              <td style="border: 1px solid #d9dde3; padding: 6px 10px">
+                镜像缓存旧 dist，源码更新没进镜像
+              </td>
+              <td style="border: 1px solid #d9dde3; padding: 6px 10px">生产仍是 2D 贴图</td>
+            </tr>
+            <tr>
+              <td style="border: 1px solid #d9dde3; padding: 6px 10px; white-space: nowrap">
+                08-10 z092
+              </td>
+              <td style="border: 1px solid #d9dde3; padding: 6px 10px">
+                nginx 给 layer.json 误标 gzip
+              </td>
+              <td style="border: 1px solid #d9dde3; padding: 6px 10px">地形静默失效</td>
+            </tr>
+            <tr>
+              <td style="border: 1px solid #d9dde3; padding: 6px 10px; white-space: nowrap">
+                09-05
+              </td>
+              <td style="border: 1px solid #d9dde3; padding: 6px 10px">
+                CTB quantized-mesh 格式本身是坏的，重切 heightmap
+              </td>
+              <td style="border: 1px solid #d9dde3; padding: 6px 10px">暗色球面/无起伏</td>
+            </tr>
+            <tr>
+              <td style="border: 1px solid #d9dde3; padding: 6px 10px; white-space: nowrap">
+                09-05 B11
+              </td>
+              <td style="border: 1px solid #d9dde3; padding: 6px 10px">
+                对抗报告已记录"根瓦片 404"，定级 P3 未修
+              </td>
+              <td style="border: 1px solid #d9dde3; padding: 6px 10px">刷 404</td>
+            </tr>
+            <tr style="background: #fdf1f1">
+              <td style="border: 1px solid #d9dde3; padding: 6px 10px; white-space: nowrap">
+                <b>09-10 本次</b>
+              </td>
+              <td style="border: 1px solid #d9dde3; padding: 6px 10px">
+                <b>layer.json 与瓦片目录版本错配，缺 z0 根瓦片</b>
+              </td>
+              <td style="border: 1px solid #d9dde3; padding: 6px 10px"><b>3D 全黑、底图不出</b></td>
+            </tr>
+          </table>
+        </div>
+        <div style="display: flex; flex-wrap: wrap; gap: 10px">
+          <div style="flex: 1 1 230px; background: #f3f6f9; border-radius: 8px; padding: 10px 12px">
+            <b>结构性原因 1｜资产不随代码走</b><br />4.9 万张瓦片被 .gitignore + .dockerignore
+            排除，靠 compose 挂载宿主机目录、再手工 scp/rsync 上传；git clone、--no-cache
+            重建、清理进程、漏传/中断都不会报错，且 layer.json 与瓦片可分别上传 → 版本错配无人拦截。
+          </div>
+          <div style="flex: 1 1 230px; background: #f3f6f9; border-radius: 8px; padding: 10px 12px">
+            <b>结构性原因 2｜失败是"静默"的</b><br />fromUrl 只校验 layer.json（200
+            即成功），后续单瓦片 404 不触发任何回退；缺一个根瓦片就拖垮全球面，UI 无提示、只在
+            console 留两行错，看起来就像"底图挂了"。
+          </div>
+          <div style="flex: 1 1 230px; background: #f3f6f9; border-radius: 8px; padding: 10px 12px">
+            <b>结构性原因 3｜本地永远复现不了</b><br />dev 走 vite/express
+            直读本地目录，本地有什么就读什么，与生产部署物天然不一致；历史上多次"本地全绿、上线全黑"。
+          </div>
+          <div style="flex: 1 1 230px; background: #f3f6f9; border-radius: 8px; padding: 10px 12px">
+            <b>结构性原因 4｜没有部署后校验</b><br />链路里没有任何一步核对"layer.json 的 available
+            声明 ↔ 磁盘瓦片文件"是否一一对应，09-05 B11
+            已发现根瓦片问题却挂账，于是同一类问题换个层反复出现。
+          </div>
+        </div>
+      </div>
+
+      <!-- 修复 -->
+      <div style="background: #fff; border-radius: 12px; padding: 18px 24px">
+        <div style="font-size: 16px; font-weight: 700; margin-bottom: 10px">
+          ④ 修复建议（按优先级）
+        </div>
+        <div style="display: flex; flex-wrap: wrap; gap: 10px">
+          <div
+            style="
+              flex: 1 1 300px;
+              border-top: 4px solid #d64545;
+              background: #fafafa;
+              border-radius: 8px;
+              padding: 12px 14px;
+            "
+          >
+            <b>立刻止血（服务器侧，10 分钟）</b><br />
+            用最终版 <code>tools/dem-pipeline/07-heightmap-reslice.py</code> 全量重切，把
+            <b>layer.json + 全部瓦片（含 0/、1/3/1）作为一个整体</b>重新同步到服务器
+            <code>./backend/static/terrain/</code
+            >，重启后校验：<code>0/0/0.terrain</code>、<code>0/1/0.terrain</code>、<code
+              >1/3/1.terrain</code
+            >
+            必须 200。缺 DEM 源文件时，这三张都是 0 高程海洋瓦片，可按 heightmap-1.0
+            编码（(0+1000)×5、gzip）直接补齐。
+          </div>
+          <div
+            style="
+              flex: 1 1 300px;
+              border-top: 4px solid #e0a83d;
+              background: #fafafa;
+              border-radius: 8px;
+              padding: 12px 14px;
+            "
+          >
+            <b>代码兜底（防止再全黑）</b><br />
+            1) 监听 terrainProvider.errorEvent / 根瓦片失败计数，连续失败自动降级
+            EllipsoidTerrainProvider，保证影像底图永远能出；<br />
+            2) 给"真实地形"按钮接上 setTerrainEnabled（目前是空钩子）；<br />
+            3) 进 3D 首屏给一个默认相机定位，别让首屏停在星空。
+          </div>
+          <div
+            style="
+              flex: 1 1 300px;
+              border-top: 4px solid #2e7d32;
+              background: #fafafa;
+              border-radius: 8px;
+              padding: 12px 14px;
+            "
+          >
+            <b>根治反复（流程）</b><br />
+            1) 地形产物制品化：要么随镜像打包，要么打成版本化 tar 包一次部署，禁止 layer.json
+            与瓦片分散上传；<br />
+            2) CI/部署脚本加门禁：遍历 layer.json.available 声明的瓦片逐一 HEAD
+            校验，缺一张即部署失败；<br />
+            3) 部署后用无头浏览器跑一次 3D 冒烟（断言 requestImage 被调用、首屏非黑）。
+          </div>
+        </div>
+      </div>
+
+      <div style="color: #8a94a6; font-size: 12px; margin-top: 12px">
+        诊断方式：线上页面 Console / Performance Resource Timing / 页面内 fetch 状态码 / Cesium
+        运行时 Scene 状态读取 / 本地仓库与部署配置比对。所有结论均可复现。
+      </div>
+    </div>
+  </div>
+</html>

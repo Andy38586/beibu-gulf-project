@@ -19,6 +19,7 @@ import { FavoritesModule } from './modules/favorites/favorites.module'
 import { FloodModule } from './modules/flood/flood.module'
 import { ForecastModule } from './modules/forecast/forecast.module'
 import { PlansModule } from './modules/plans/plans.module'
+import { RouteModule } from './modules/route/route.module'
 import { SiteAnalysisModule } from './modules/site-analysis/site-analysis.module'
 
 // 限流对齐 Express：命名桶 global 1000/15min + login/register 各 50/15min；
@@ -40,6 +41,7 @@ import { SiteAnalysisModule } from './modules/site-analysis/site-analysis.module
     FloodModule,
     ForecastModule,
     SiteAnalysisModule,
+    RouteModule,
     HealthModule,
   ],
   providers: [

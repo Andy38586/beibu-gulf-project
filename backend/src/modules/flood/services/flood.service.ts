@@ -43,15 +43,9 @@ export interface DisasterAssessment {
 }
 
 // 数据形状（backend/data/flood/*.json；repository 返回 unknown，此处声明消费视图）
-interface FloodZoneEntry {
-  waterLevel: number
-  riskLevel: string
-  features: FloodZoneFeature[]
-}
-
-interface FloodAreaData {
-  floodZones: FloodZoneEntry[]
-}
+// 注：原 FloodZoneEntry / FloodAreaData 已随 flood-areas 改接 PostGIS（251 档）而下线，
+// 档位数据现由 FloodLevelFeatureRow[].rowsToZones 组装——保留 readFloodArea 方法本身
+// 供回滚（切回 JSON 数据源只需改 getFloodAreas）。
 
 interface StatisticsEntry extends Record<string, unknown> {
   waterLevel: number

@@ -6,6 +6,7 @@
  */
 import type { ZodType } from 'zod'
 
+import { combineSignals } from '@/shared/utils/abortSignal'
 import { BoundedMap } from '@/shared/utils/boundedMap'
 import { logger } from '@/shared/utils/logger'
 
@@ -66,8 +67,9 @@ export async function loadStatic<T = unknown>(
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), timeout)
 
-  // 组合外部 signal
-  const combinedSignal = signal ? AbortSignal.any([controller.signal, signal]) : controller.signal
+  // 组合外部 signal（不用 AbortSignal.any：其下限 Safari 17.4 与 browserslist 的
+  // Safari>=14.1 冲突，vite 亦不 polyfill 运行时 API —— 见 shared/utils/abortSignal.ts）
+  const combinedSignal = combineSignals([controller.signal, signal])
 
   const p = (async () => {
     try {

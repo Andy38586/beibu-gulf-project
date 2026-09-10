@@ -2,6 +2,7 @@ import type { ComputedRef, Ref } from 'vue'
 import { computed, ref } from 'vue'
 import type { ZodType } from 'zod'
 
+import { combineSignals } from '@/shared/utils/abortSignal'
 import { perfRecordApi } from '@/shared/utils/perfReporter'
 import { unwrapEnvelope } from '@/shared/utils/responseEnvelope'
 
@@ -145,9 +146,9 @@ async function singleRequest<T = unknown>(
   const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS)
 
   // 组合外部 signal 与内部超时 signal
-  const signal = options.signal
-    ? AbortSignal.any([controller.signal, options.signal])
-    : controller.signal
+  // 2026-09-10：原用 AbortSignal.any（Chrome116/Safari17.4+），与 browserslist 声明的
+  // Safari>=14.1 冲突且 vite 不 polyfill 运行时 API → 低版本浏览器传 signal 即 TypeError。
+  const signal = combineSignals([controller.signal, options.signal])
 
   // 统一 query 参数构造，避免手写模板字符串
   let fullPath = path

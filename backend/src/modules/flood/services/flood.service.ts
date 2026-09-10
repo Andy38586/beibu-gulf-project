@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common'
 
-import { MAX_WATER_LEVEL } from '../../../common/constants/flood.constants'
+import { deriveRiskLevel, MAX_WATER_LEVEL } from '../../../common/constants/flood.constants'
 import { BusinessError, ErrorCode } from '../../../common/errors/business-error'
 import { GeoJsonGeometry, SpatialRepository } from '../../../infra/db/spatial.repository'
-import { FloodRepository } from '../repositories/flood.repository'
+import { FloodLevelFeatureRow, FloodRepository } from '../repositories/flood.repository'
 
 // 洪涝业务层（逐行等价移植 backend/services/floodService.js）：
 // 读编排（取档/风险注入/基准偏移）与设施评估都在此层，controller 只做路由委托。
@@ -23,6 +23,8 @@ export interface FloodFacility {
 }
 
 export interface FloodZoneFeature {
+  /** GeoJSON Feature 固有字段（PostGIS 路径由本层组装，JSON 路径原样透传） */
+  type?: string
   geometry?: GeoJsonGeometry | null
   properties?: Record<string, unknown>
 }
@@ -104,44 +106,77 @@ export class FloodService {
 
   /**
    * GET /flood-areas?waterLevel=2.5 — 淹没范围数据。
-   * 指定水位：6 档向上取档（精确档位查询曾致 flood-areas 与 flood-statistics
-   * 档位口径分裂，且违背"宁可高估"安全语义）；未指定：返回所有淹没范围。
+   * 指定水位：PostGIS `flood_levels`（251 档，0.1m 步长）向上取档。此前读 floodArea.json
+   * 仅 6 档（0/2/5/8/10/15），精度退化原因见 repository 注释。
+   * 未指定：返回全部档位（兼容保留，前端恒传 waterLevel）。
    */
   async getFloodAreas(waterLevel?: string): Promise<unknown> {
-    const data = (await this.floodRepository.readFloodArea()) as FloodAreaData
-
-    // 指定了水位：返回对应档位淹没范围
     if (waterLevel !== undefined) {
       const level = validateWaterLevel(waterLevel)
-      const effectiveZone = pickZone(data.floodZones, level)
+      const rows = await this.floodRepository.pickFloodLevel(level)
 
-      if (effectiveZone) {
+      // 表为空（未灌数）的防御兜底；正常路径不可达（请求 0-25 均有档位可取）
+      if (rows.length === 0) {
         return {
-          waterLevel: effectiveZone.waterLevel,
-          // 显式区分请求水位与实际数据档位（向上取档时 actual > requested，前端可感知）
+          waterLevel: level,
           requestedWaterLevel: level,
-          actualWaterLevel: effectiveZone.waterLevel,
-          riskLevel: effectiveZone.riskLevel,
-          // 后端权威注入 riskLevel，满足前端 FloodFeature 类型契约，前端无需再补映射层
-          features: effectiveZone.features.map((f) => ({
-            ...f,
-            properties: { ...f.properties, riskLevel: effectiveZone.riskLevel },
-          })),
+          actualWaterLevel: level,
+          riskLevel: '无风险',
+          features: [],
         }
       }
 
-      // 数据表为空的防御兜底（正常路径不可达：请求 0-25 均有档位可取）
-      return {
-        waterLevel: level,
-        requestedWaterLevel: level,
-        actualWaterLevel: level,
-        riskLevel: '无风险',
-        features: [],
-      }
+      return this.rowsToZoneResponse(rows, level)
     }
 
-    // 未指定水位，返回所有淹没范围
-    return data.floodZones
+    // 未指定水位，返回所有淹没范围（按档位分组，保持原 JSON 契约形状）
+    return this.rowsToZones(await this.floodRepository.listFloodLevels())
+  }
+
+  /**
+   * 单档响应组装（指定水位路径）。
+   * riskLevel 由 deriveRiskLevel 按实际档位派生——该函数自 flood.constants.ts 起即为
+   * 「预计算档位表无 riskLevel 字段，由水位分段派生」而写，此前因表在 Python 侧从未接通；
+   * 251 档下不可能每档存 riskLevel（仅 6 种取值），派生是唯一无冗余解。
+   */
+  private rowsToZoneResponse(rows: FloodLevelFeatureRow[], requestedLevel: number): unknown {
+    const actualLevel = Number(rows[0].level)
+    const riskLevel = deriveRiskLevel(actualLevel)
+    return {
+      waterLevel: actualLevel,
+      // 显式区分请求水位与实际数据档位（向上取档时 actual > requested，前端可感知）
+      requestedWaterLevel: requestedLevel,
+      actualWaterLevel: actualLevel,
+      riskLevel,
+      // 后端权威注入 riskLevel，满足前端 FloodFeature 类型契约，前端无需再补映射层
+      features: this.rowsToFeatures(rows, riskLevel),
+    }
+  }
+
+  /** 全档位响应组装（未指定水位路径） */
+  private rowsToZones(rows: FloodLevelFeatureRow[]): FloodZone[] {
+    const byLevel = new Map<number, FloodLevelFeatureRow[]>()
+    for (const row of rows) {
+      const lv = Number(row.level)
+      const list = byLevel.get(lv)
+      if (list) list.push(row)
+      else byLevel.set(lv, [row])
+    }
+    return [...byLevel.entries()].map(([lv, group]) => {
+      const riskLevel = deriveRiskLevel(lv)
+      return { waterLevel: lv, riskLevel, features: this.rowsToFeatures(group, riskLevel) }
+    })
+  }
+
+  /** 多边形行 → GeoJSON Feature 数组（geometry 为 NULL 的档位行被过滤，即"档位存在但无淹没"） */
+  private rowsToFeatures(rows: FloodLevelFeatureRow[], riskLevel: string): FloodZoneFeature[] {
+    return rows
+      .filter((row) => row.geometry !== null)
+      .map((row) => ({
+        type: 'Feature',
+        geometry: JSON.parse(row.geometry as string) as GeoJsonGeometry,
+        properties: { area: Number(row.area), riskLevel },
+      }))
   }
 
   /** GET /flood-statistics?waterLevel=2.5 — 统计数据（向上取档；超档取最高档，不静默返 null） */
@@ -187,12 +222,13 @@ export class FloodService {
 
     const level = validateWaterLevel(waterLevel)
 
-    // 读取设施数据和淹没范围
+    // 读取设施数据；档位淹没范围取自 PostGIS（与 getFloodAreas 同口径，向上取档；
+    // 超档回落到最高档，不静默空评估）
     const facilityData = (await this.floodRepository.readFacilityPoints()) as FacilityData
-    const floodData = (await this.floodRepository.readFloodArea()) as FloodAreaData
+    const zones = this.rowsToZones(await this.floodRepository.pickFloodLevel(level))
 
-    // 6 档向上取档（与 getFloodAreas 同口径；超档取最高档 15m，不静默空评估）
-    const floodZone: FloodZone | null = pickZone(floodData.floodZones, level) ?? null
+    // pickFloodLevel 只返回选中档的多边形，故分组后至多一项；表为空 → null 走"无受影响设施"分支
+    const floodZone: FloodZone | null = zones[0] ?? null
 
     // 点面判定在 PostGIS 内完成，故为异步
     const result = await this.assessDisaster(facilityData.facilities, level, floodZone)

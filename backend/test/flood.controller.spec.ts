@@ -5,13 +5,21 @@ import { BusinessError } from '../src/common/errors/business-error'
 import { DbService } from '../src/infra/db/db.service'
 import { SpatialRepository } from '../src/infra/db/spatial.repository'
 import { DataFilesService, DEFAULT_READ_FILE } from '../src/infra/files/data-files.service'
-import { FloodRepository } from '../src/modules/flood/repositories/flood.repository'
+import {
+  FloodLevelFeatureRow,
+  FloodRepository,
+} from '../src/modules/flood/repositories/flood.repository'
 import { FloodService } from '../src/modules/flood/services/flood.service'
 
 // flood 业务层单测：移植 Express controllers/__tests__/floodAnalysisController.test.js
 // 20 用例语义（mock reader 对齐 Express vi.mock fs/promises 模式），
-// 覆盖：水位校验四态 / 6 档向上取档 / 等值命中 / deriveRiskLevel 表 / water-area 三态 /
-// 缓存读一次 / TTL 过期（Date.now spy）/ LRU 淘汰
+// 覆盖：水位校验四态 / 档位组装 / deriveRiskLevel 表 / water-area 三态 / 缓存读一次 /
+// TTL 过期（Date.now spy）/ LRU 淘汰
+//
+// ⚠️ 2026-09-10 迁移影响：档位淹没范围的数据源由 floodArea.json（6 档）改为 PostGIS
+// `flood_levels`（251 档）。**向上取档逻辑已下沉到 SQL**（WHERE level >= $1 ORDER BY level
+// LIMIT 1），故此处 mock 的是「PG 已选好档位后的返回行」，单测覆盖组装与契约，
+// 取档语义本身属 SQL 行为（见 V3_INTEGRATION_DB 门控的真库用例）。
 const MOCK_FLOOD_AREA = JSON.stringify({
   floodZones: [
     { waterLevel: 1.0, riskLevel: '低风险', features: [{ type: 'Feature', properties: {} }] },
@@ -19,6 +27,28 @@ const MOCK_FLOOD_AREA = JSON.stringify({
     { waterLevel: 5.0, riskLevel: '高风险', features: [{ type: 'Feature', properties: {} }] },
   ],
 })
+
+// PG 返回行 fixture（NUMERIC 经 node-postgres 为 string；geometry 为 ST_AsGeoJSON 文本）
+function mockLevelRows(levels: Array<[number, number]>): FloodLevelFeatureRow[] {
+  return levels.map(([level, area]) => ({
+    level: String(level),
+    feature_count: 1,
+    flooded_km2: '2.0',
+    geometry: JSON.stringify({
+      type: 'Polygon',
+      coordinates: [
+        [
+          [108.6, 21.6],
+          [108.7, 21.6],
+          [108.7, 21.7],
+          [108.6, 21.7],
+          [108.6, 21.6],
+        ],
+      ],
+    }),
+    area: String(area),
+  }))
+}
 
 const MOCK_STATISTICS = JSON.stringify({
   statistics: [
@@ -59,9 +89,15 @@ const withDb = process.env.V3_INTEGRATION_DB !== undefined
 let db: DbService | undefined
 let spatial: SpatialRepository
 
-function makeService(mockReadFile: ReturnType<typeof vi.fn>): FloodService {
+function makeService(
+  mockReadFile: ReturnType<typeof vi.fn>,
+  // 默认：PG 已向上取档到 3.0（对应原 6 档 fixture 的 2.5 → 3.0 语义）
+  levelRows: FloodLevelFeatureRow[] = mockLevelRows([[3.0, 0.5]])
+): FloodService {
   const files = new DataFilesService(mockReadFile as unknown as typeof DEFAULT_READ_FILE)
-  const repository = new FloodRepository(files)
+  // db 桩：query 恒返回注入的档位行（模拟 PG 已选好档位；取档语义在 SQL 内，见文件头注释）
+  const db = { query: vi.fn().mockResolvedValue({ rows: levelRows }) } as unknown as DbService
+  const repository = new FloodRepository(files, db)
   // 非空间用例不会走到 assessDisaster（水位校验先抛错即短路），故 spatial 传空桩即可
   return new FloodService(repository, spatial)
 }
@@ -103,7 +139,7 @@ describe('getFloodAreas - 水位校验', () => {
     await expect(service.getFloodAreas('abc')).rejects.toBeInstanceOf(BusinessError)
   })
 
-  it('6 档向上取档：请求 2.5 → actual 3.0（宁可高估风险）', async () => {
+  it('取档：请求 2.5 → PG 已向上取到 3.0（宁可高估风险）', async () => {
     const service = makeService(vi.fn().mockResolvedValue(MOCK_FLOOD_AREA))
     const result = (await service.getFloodAreas('2.5')) as Record<string, unknown> & {
       actualWaterLevel: number
@@ -113,22 +149,24 @@ describe('getFloodAreas - 水位校验', () => {
     }
     expect(result.actualWaterLevel).toBe(3.0)
     expect(result.requestedWaterLevel).toBe(2.5)
-    // riskLevel 与 actual 档位一致（3.0 档中风险）
+    // riskLevel 由实际档位派生（3.0 档中风险）
     expect(result.riskLevel).toBe('中风险')
     expect(result.features[0].properties.riskLevel).toBe('中风险')
   })
 
   it('水位恰为档位值（5.0）→ 命中该档（向上取档含等值）', async () => {
-    const service = makeService(vi.fn().mockResolvedValue(MOCK_FLOOD_AREA))
+    const service = makeService(vi.fn(), mockLevelRows([[5.0, 0.5]]))
     const result = (await service.getFloodAreas('5')) as {
       actualWaterLevel: number
       riskLevel: string
     }
     expect(result.actualWaterLevel).toBe(5.0)
-    expect(result.riskLevel).toBe('高风险')
+    // 口径以 RISK_LEVEL_BANDS 为准：5 ≤ 5 → 中风险（原 fixture 把 5.0 标为"高风险"系
+    // 手写数据与阈值表不一致；改由 deriveRiskLevel 派发后该偏差自动消解）
+    expect(result.riskLevel).toBe('中风险')
   })
 
-  it('无 251 查表：2.5 直接 6 档向上取 3.0', async () => {
+  it('actual/requested 双报：向上取档时 actual > requested（前端可感知）', async () => {
     const service = makeService(vi.fn().mockResolvedValue(MOCK_FLOOD_AREA))
     const result = (await service.getFloodAreas('2.5')) as {
       actualWaterLevel: number
@@ -138,11 +176,28 @@ describe('getFloodAreas - 水位校验', () => {
     expect(result.requestedWaterLevel).toBe(2.5)
   })
 
-  it('未指定水位 → 返回全部淹没范围', async () => {
-    const service = makeService(vi.fn().mockResolvedValue(MOCK_FLOOD_AREA))
+  it('未指定水位 → 返回全部档位（按档分组）', async () => {
+    const service = makeService(
+      vi.fn(),
+      mockLevelRows([
+        [1.0, 0.3],
+        [3.0, 0.5],
+        [5.0, 0.9],
+      ])
+    )
     const result = (await service.getFloodAreas()) as Array<{ waterLevel: number }>
     expect(result).toHaveLength(3)
     expect(result.map((z) => z.waterLevel)).toEqual([1.0, 3.0, 5.0])
+  })
+
+  it('表未灌数（PG 返回空）→ 无风险空响应兜底', async () => {
+    const service = makeService(vi.fn(), [])
+    const result = (await service.getFloodAreas('2.5')) as {
+      riskLevel: string
+      features: unknown[]
+    }
+    expect(result.riskLevel).toBe('无风险')
+    expect(result.features).toEqual([])
   })
 })
 
@@ -257,9 +312,10 @@ describe.skipIf(!withDb)('floodService.assessDisaster - 空间筛选与损失计
   }
 
   function makeDbService(): FloodService {
-    // assessDisaster 不读数据文件，repository 用空桩构造
+    // assessDisaster 不读数据文件，repository 用空桩构造；db 取真库（beforeAll 内建，
+    // 本组用例直接调 assessDisaster 不触发 repository 查询，故仅需类型占位）
     const files = new DataFilesService(vi.fn() as unknown as typeof DEFAULT_READ_FILE)
-    return new FloodService(new FloodRepository(files), spatial)
+    return new FloodService(new FloodRepository(files, db as DbService), spatial)
   }
 
   it('点在淹没多边形内 → loss=value×damageRate，多边形外不计入', async () => {
@@ -320,12 +376,19 @@ describe('getWaterArea - 水域坐标端点', () => {
 })
 
 describe('DataFilesService 统一入口 - 读盘缓存', () => {
-  it('getFloodAreas 连续两次调用只读盘一次', async () => {
-    const mockReadFile = vi.fn().mockResolvedValue(MOCK_FLOOD_AREA)
+  // 以 getWaterArea 为触发器：getFloodAreas 已改走 PostGIS（不再读盘），而缓存行为属
+  // DataFilesService 自身，用任一仍读盘的端点即可验证。
+  function makeReadService(mockReadFile: ReturnType<typeof vi.fn>): FloodService {
     const files = new DataFilesService(mockReadFile as unknown as typeof DEFAULT_READ_FILE)
-    const service = new FloodService(new FloodRepository(files), spatial)
-    await service.getFloodAreas('2.5')
-    await service.getFloodAreas('2.5')
+    const db = { query: vi.fn() } as unknown as DbService
+    return new FloodService(new FloodRepository(files, db), spatial)
+  }
+
+  it('同端点连续两次调用只读盘一次', async () => {
+    const mockReadFile = vi.fn().mockResolvedValue(MOCK_WATER_AREA)
+    const service = makeReadService(mockReadFile)
+    await service.getWaterArea()
+    await service.getWaterArea()
     expect(mockReadFile).toHaveBeenCalledTimes(1)
   })
 
@@ -334,13 +397,12 @@ describe('DataFilesService 统一入口 - 读盘缓存', () => {
     let t = 1_700_000_000_000
     nowSpy.mockImplementation(() => t)
     try {
-      const mockReadFile = vi.fn().mockResolvedValue(MOCK_FLOOD_AREA)
-      const files = new DataFilesService(mockReadFile as unknown as typeof DEFAULT_READ_FILE)
-      const service = new FloodService(new FloodRepository(files), spatial)
-      await service.getFloodAreas('2.5')
+      const mockReadFile = vi.fn().mockResolvedValue(MOCK_WATER_AREA)
+      const service = makeReadService(mockReadFile)
+      await service.getWaterArea()
       expect(mockReadFile).toHaveBeenCalledTimes(1)
       t += 6 * 60 * 1000
-      await service.getFloodAreas('2.5')
+      await service.getWaterArea()
       expect(mockReadFile).toHaveBeenCalledTimes(2)
     } finally {
       nowSpy.mockRestore()

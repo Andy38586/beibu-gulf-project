@@ -5,10 +5,15 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { AppModule } from '../src/app.module'
 
-// flood e2e：连真实 backend/data/flood 静态数据（公开只读 + 纯计算，免登录）。
-// 真实档位表：0/2/5/8/10/15（五档有淹没多边形，0/2 档 features 为空）。
-// 覆盖：五路由冒烟、向上取档（2.5→5 / 15.1→15）、超界 400、disaster POST 200 信封
-describe('flood e2e（读真数据文件）', () => {
+// flood e2e：连真实 backend/data/flood 静态数据 + PostGIS `flood_levels` 档位表
+//（公开只读 + 纯计算，免登录）。
+//
+// ⚠️ 2026-09-10 迁移影响：档位淹没范围的数据源由 floodArea.json（**6 档**：0/2/5/8/10/15）
+// 改为 PostGIS `flood_levels`（**251 档**，0.1m 步长）。故 flood-areas 与 disaster 两类
+// 用例改由 V3_INTEGRATION_DB 门控（与 flood.controller.spec.ts 的 withDb 同口径）——
+// 无库环境（CI）跳过，避免表缺失导致 500 噪音；有库时验证 0.1 步长精度（非 6 档粗化）。
+// 其余端点（flood-statistics / terrain-profiles / water-area）仍读 JSON，无库照常跑。
+describe('flood e2e（真数据文件 + 真库档位表）', () => {
   let app: INestApplication
 
   beforeAll(async () => {
@@ -24,44 +29,7 @@ describe('flood e2e（读真数据文件）', () => {
 
   const base = '/nest-api/flood'
 
-  it('flood-areas 无水位 → 返回 6 档全表', async () => {
-    const res = await request(app.getHttpServer()).get(`${base}/flood-areas`).expect(200)
-    expect(res.body.code).toBe(200)
-    expect(res.body.data).toHaveLength(6)
-    expect(res.body.data.map((z: { waterLevel: number }) => z.waterLevel)).toEqual([
-      0, 2, 5, 8, 10, 15,
-    ])
-  })
-
-  it('flood-areas?waterLevel=2.5 → 向上取档 5（中风险），features 权威注入 riskLevel', async () => {
-    const res = await request(app.getHttpServer())
-      .get(`${base}/flood-areas?waterLevel=2.5`)
-      .expect(200)
-    expect(res.body.data.requestedWaterLevel).toBe(2.5)
-    expect(res.body.data.actualWaterLevel).toBe(5)
-    expect(res.body.data.riskLevel).toBe('中风险')
-    expect(res.body.data.features.length).toBeGreaterThan(0)
-    for (const f of res.body.data.features) {
-      expect(f.properties.riskLevel).toBe('中风险')
-    }
-  })
-
-  it('flood-areas?waterLevel=15.1 → 超档取最高档 15（灾难级，宁可高估）', async () => {
-    const res = await request(app.getHttpServer())
-      .get(`${base}/flood-areas?waterLevel=15.1`)
-      .expect(200)
-    expect(res.body.data.actualWaterLevel).toBe(15)
-    expect(res.body.data.riskLevel).toBe('灾难级')
-  })
-
-  it('flood-areas?waterLevel=0 → 命中 0 档（无风险，空淹没）', async () => {
-    const res = await request(app.getHttpServer())
-      .get(`${base}/flood-areas?waterLevel=0`)
-      .expect(200)
-    expect(res.body.data.actualWaterLevel).toBe(0)
-    expect(res.body.data.riskLevel).toBe('无风险')
-    expect(res.body.data.features).toEqual([])
-  })
+  // ───────────────────────── 静态文件端点（无库可跑） ─────────────────────────
 
   it('flood-statistics?waterLevel=5 → 命中 5 档统计', async () => {
     const res = await request(app.getHttpServer())
@@ -71,7 +39,7 @@ describe('flood e2e（读真数据文件）', () => {
     expect(res.body.data.floodArea).toBe(576.91)
   })
 
-  it('flood-statistics 无水位 → 全表 6 档', async () => {
+  it('flood-statistics 无水位 → 全表 6 档（该端点在本次改造中未迁移）', async () => {
     const res = await request(app.getHttpServer()).get(`${base}/flood-statistics`).expect(200)
     expect(res.body.data).toHaveLength(6)
   })
@@ -109,45 +77,6 @@ describe('flood e2e（读真数据文件）', () => {
     expect(res.body.code).toBe(400001)
   })
 
-  it('POST analysis/disaster waterLevel=8 → 200 信封 + 高风险档位（真数据 0 设施命中，合法空评估）', async () => {
-    const res = await request(app.getHttpServer())
-      .post(`${base}/analysis/disaster`)
-      .send({ waterLevel: 8 })
-      .expect(200) // Express sendSuccess 默认 200，非 201
-    expect(res.body.code).toBe(200)
-    expect(res.body.data.riskLevel).toBe('高风险')
-    expect(res.body.data.requestedWaterLevel).toBe(8)
-    expect(res.body.data.waterLevel).toBe(8)
-    // 实跑 turf 校验过：真数据 5/8/10 档设施命中均为 0（设施点不在淹没多边形内），空评估是合法 data
-    expect(res.body.data.affectedFacilities).toEqual([])
-    expect(res.body.data.totalLoss).toBe(0)
-  })
-
-  // 灾害评估的点面判定在 PostGIS 内完成（spatial.pointIndicesInAnyPolygon），
-  // 仅有多边形命中的档位才触达真库；无 PG 环境（CI）跳过，避免 500 噪音
-  it.skipIf(process.env.V3_INTEGRATION_DB === undefined)(
-    'POST analysis/disaster waterLevel=15 → 命中 1 设施（真数据实跑 loss=3600）',
-    async () => {
-      const res = await request(app.getHttpServer())
-        .post(`${base}/analysis/disaster`)
-        .send({ waterLevel: 15 })
-        .expect(200)
-      expect(res.body.data.riskLevel).toBe('灾难级')
-      expect(res.body.data.affectedFacilities).toHaveLength(1)
-      expect(res.body.data.totalLoss).toBe(3600)
-    }
-  )
-
-  it('POST analysis/disaster waterLevel=0 → 无风险零损失（waterLevel undefined 键被 JSON 丢弃）', async () => {
-    const res = await request(app.getHttpServer())
-      .post(`${base}/analysis/disaster`)
-      .send({ waterLevel: 0 })
-      .expect(200)
-    expect(res.body.data.riskLevel).toBe('无风险')
-    expect(res.body.data.totalLoss).toBe(0)
-    expect(res.body.data).not.toHaveProperty('waterLevel')
-  })
-
   it('POST analysis/disaster 缺水位 → 400 文案逐字节', async () => {
     const res = await request(app.getHttpServer())
       .post(`${base}/analysis/disaster`)
@@ -155,4 +84,90 @@ describe('flood e2e（读真数据文件）', () => {
       .expect(400)
     expect(res.body).toEqual({ code: 400001, error: '缺少水位参数', data: null })
   })
+
+  // ─────────────── PostGIS 档位表端点（需真库：V3_INTEGRATION_DB=1） ───────────────
+  // 前置：建表 tools/db-schema-flood.sql + 灌数 node tools/flood-levels-to-pg.mjs
+  describe.skipIf(process.env.V3_INTEGRATION_DB === undefined)(
+    'PostGIS 档位表（251 档，0.1m 步长）',
+    () => {
+      it('flood-areas 无水位 → 返回全部 251 档', async () => {
+        const res = await request(app.getHttpServer()).get(`${base}/flood-areas`).expect(200)
+        expect(res.body.code).toBe(200)
+        const levels = res.body.data.map((z: { waterLevel: number }) => z.waterLevel)
+        expect(levels).toHaveLength(251)
+        expect(levels[0]).toBe(0)
+        expect(levels[levels.length - 1]).toBe(25)
+      })
+
+      it('flood-areas?waterLevel=3.47 → 向上取档 3.5（0.1 步长精度，非 6 档粗化）', async () => {
+        const res = await request(app.getHttpServer())
+          .get(`${base}/flood-areas?waterLevel=3.47`)
+          .expect(200)
+        expect(res.body.data.requestedWaterLevel).toBe(3.47)
+        // 6 档时代这里会返回 5；251 档时代应精确到 3.5
+        expect(res.body.data.actualWaterLevel).toBe(3.5)
+        expect(res.body.data.riskLevel).toBe('中风险')
+      })
+
+      it('flood-areas?waterLevel=2.5 → 命中 2.5 档（等值命中），features 权威注入 riskLevel', async () => {
+        const res = await request(app.getHttpServer())
+          .get(`${base}/flood-areas?waterLevel=2.5`)
+          .expect(200)
+        expect(res.body.data.requestedWaterLevel).toBe(2.5)
+        expect(res.body.data.actualWaterLevel).toBe(2.5)
+        expect(res.body.data.riskLevel).toBe('中风险')
+        expect(res.body.data.features.length).toBeGreaterThan(0)
+        for (const f of res.body.data.features) {
+          expect(f.properties.riskLevel).toBe('中风险')
+          expect(typeof f.properties.area).toBe('number')
+        }
+      })
+
+      it('flood-areas?waterLevel=25.5 → 超界 400（上限 25，超档兜底由 SQL 覆盖 0-25 内）', async () => {
+        await request(app.getHttpServer()).get(`${base}/flood-areas?waterLevel=25.5`).expect(400)
+      })
+
+      it('flood-areas?waterLevel=0 → 命中 0 档（无风险，空淹没）', async () => {
+        const res = await request(app.getHttpServer())
+          .get(`${base}/flood-areas?waterLevel=0`)
+          .expect(200)
+        expect(res.body.data.actualWaterLevel).toBe(0)
+        expect(res.body.data.riskLevel).toBe('无风险')
+        expect(res.body.data.features).toEqual([])
+      })
+
+      it('POST analysis/disaster waterLevel=8 → 200 信封 + 高风险档位（合法空评估）', async () => {
+        const res = await request(app.getHttpServer())
+          .post(`${base}/analysis/disaster`)
+          .send({ waterLevel: 8 })
+          .expect(200)
+        expect(res.body.code).toBe(200)
+        expect(res.body.data.riskLevel).toBe('高风险')
+        expect(res.body.data.requestedWaterLevel).toBe(8)
+        expect(res.body.data.waterLevel).toBe(8)
+        expect(res.body.data.affectedFacilities).toEqual([])
+        expect(res.body.data.totalLoss).toBe(0)
+      })
+
+      it('POST analysis/disaster waterLevel=15 → 灾难级（设施命中数依真库数据而定）', async () => {
+        const res = await request(app.getHttpServer())
+          .post(`${base}/analysis/disaster`)
+          .send({ waterLevel: 15 })
+          .expect(200)
+        expect(res.body.data.riskLevel).toBe('灾难级')
+        expect(res.body.data.waterLevel).toBe(15)
+        expect(Array.isArray(res.body.data.affectedFacilities)).toBe(true)
+      })
+
+      it('POST analysis/disaster waterLevel=0 → 无风险零损失（waterLevel undefined 键被 JSON 丢弃）', async () => {
+        const res = await request(app.getHttpServer())
+          .post(`${base}/analysis/disaster`)
+          .send({ waterLevel: 0 })
+          .expect(200)
+        expect(res.body.data.riskLevel).toBe('无风险')
+        expect(res.body.data.totalLoss).toBe(0)
+        expect(res.body.data).not.toHaveProperty('waterLevel')
+      })
+    }
+  )
 })

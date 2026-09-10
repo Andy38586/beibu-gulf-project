@@ -1,0 +1,37 @@
+# PostGIS + pgRouting 自建镜像
+#
+# 依据：docs/算法服务下沉PostGIS-设计-2026-09-10.md §2.3.1（决策 D1）
+#
+# 为什么不直接用官方 pgrouting/pgrouting：
+#   官方镜像 PG16 的 tag（16-3.5-4.0 / 16-3.5-3.8 / 16-3.5-3.7）**只提供 PostGIS 3.5**，
+#   而本项目现用 PostGIS 3.4（postgis/postgis:16-3.4）。换官方镜像 = 顺带把生产空间库的
+#   PostGIS 从 3.4 升到 3.5（需 ALTER EXTENSION postgis UPDATE），多一个与本次目标无关的
+#   风险面。故自建：基础镜像不变，只追加 pgRouting 扩展。
+#
+# 构建（**推荐在服务器上构建**——基础镜像已存在于服务器本地，无需重新拉取）：
+#   mkdir -p /tmp/pgrbuild && cp tools/postgis/Dockerfile.pgrouting /tmp/pgrbuild/Dockerfile
+#   cd /tmp/pgrbuild && docker build -t local/postgis-pgrouting:16-3.4 .
+#   （用空目录做 context，避免把 node_modules 三万多个文件塞进 build context）
+#
+# 若服务器 apt 源不可达 → 回退 D2 路径（本地构建 + save + scp + load）：
+#   docker build -t local/postgis-pgrouting:16-3.4 -f tools/postgis/Dockerfile.pgrouting .docker-context
+#   docker save local/postgis-pgrouting:16-3.4 | gzip > pgr.tar.gz
+#   scp pgr.tar.gz admin@112.74.32.206:/tmp/
+#   ssh ... 'gunzip -c /tmp/pgr.tar.gz | docker load'
+#
+# 切换后需做（compose 里 image 改指 local/postgis-pgrouting:16-3.4）：
+#   1) 建扩展：psql -c 'CREATE EXTENSION IF NOT EXISTS pgrouting;'
+#   2) 验版本：psql -c 'SELECT pgr_version();'
+#   3) 再跑 tools/pgrouting-setup.sql（阶段 3 产出）建拓扑
+
+FROM postgis/postgis:16-3.4
+
+# postgresql-16-pgrouting 来自 PGDG 源（postgis 基础镜像已配置 apt.postgresql.org）。
+# 包体约数十 MB，属 apt 安装量级——**不涉及** vite/nest 那种 3-5G 峰值的构建。
+# ⚠️ 待服务器实测：若该包名在 bookworm 不可用，改用 `apt-cache search pgrouting` 确认实际包名。
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends postgresql-16-pgrouting \
+    && rm -rf /var/lib/apt/lists/*
+
+# 构建后自检（可选）：docker run --rm local/postgis-pgrouting:16-3.4 \
+#   bash -lc "ls /usr/share/postgresql/16/extension/ | grep -i pgrouting"

@@ -151,12 +151,10 @@ function createFetchStatic() {
 
 describe('floodAdapter', () => {
   beforeEach(() => {
-    floodAdapter.setDataSource('fetch')
-    floodAdapter.clearCache()
     vi.stubGlobal('fetch', createFetchStatic())
   })
 
-  describe('fetch 模式（业务后端查表）', () => {
+  describe('业务后端查表（PostGIS 251 档）', () => {
     it('getWaterArea 应走后端 /flood/water-area 端点返回坐标数组（D-4=A）', async () => {
       const coords = await floodAdapter.getWaterArea()
       expect(Array.isArray(coords)).toBe(true)
@@ -180,27 +178,6 @@ describe('floodAdapter', () => {
       expect(Array.isArray(result.affectedFacilities)).toBe(true)
       expect(result.affectedFacilities[0].lng).toBe(108.6)
       expect(result.affectedFacilities[0].loss).toBe(120.5)
-    })
-  })
-
-  describe('calculate 模式（flood-service FastAPI 实时演算）', () => {
-    it('getFloodAnalysis 应调 /flood-online/api/flood/online 并透传后端 riskLevel（后端权威回归）', async () => {
-      floodAdapter.setDataSource('calculate')
-      const result = await floodAdapter.getFloodAnalysis(5)
-      expect(result.features).toHaveLength(1)
-      // riskLevel 由 FastAPI _risk_level 权威输出（前端不再持阈值表）
-      expect(result.features[0].properties.riskLevel).toBe('中风险')
-      expect(result.statistics.floodArea).toBe(12.5)
-      expect(result.actualWaterLevel).toBe(5)
-    })
-
-    it('getImpactAssessment 应调 /flood-online/api/flood/impact 并透传裸 JSON（补齐影响评估）', async () => {
-      floodAdapter.setDataSource('calculate')
-      const result = await floodAdapter.getImpactAssessment(15)
-      expect(result.affectedFacilities).toHaveLength(1)
-      expect(result.affectedFacilities[0].id).toBe('FCG-M-001')
-      expect(result.affectedFacilities[0].loss).toBe(17000)
-      expect(result.totalLoss).toBe(17000)
     })
   })
 })

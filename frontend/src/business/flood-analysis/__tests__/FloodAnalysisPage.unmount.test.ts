@@ -40,15 +40,11 @@ const h = vi.hoisted(() => {
   })
   // 影响评估请求保持 pending，避免其分支调用 manager（聚焦洪涝分析 abort 路径）
   const getImpactAssessment = vi.fn(() => new Promise(() => {}))
-  const clearCache = vi.fn()
-  const setDataSource = vi.fn()
   return {
     mockManager,
     getWaterArea,
     getFloodAnalysis,
     getImpactAssessment,
-    clearCache,
-    setDataSource,
     getFloodCalls: () => floodCalls,
   }
 })
@@ -62,8 +58,6 @@ vi.mock('@/services/adapters/floodAdapter', () => ({
     getWaterArea: h.getWaterArea,
     getFloodAnalysis: h.getFloodAnalysis,
     getImpactAssessment: h.getImpactAssessment,
-    clearCache: h.clearCache,
-    setDataSource: h.setDataSource,
   },
 }))
 

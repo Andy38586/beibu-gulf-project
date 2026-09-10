@@ -165,13 +165,13 @@ async function singleRequest<T = unknown>(
   }
 
   try {
-    // 以 /flood-online 开头（vite proxy → FastAPI）的路径不加 /api 前缀：加了会命中 /api 规则转发到 Express，永远到不了 FastAPI
     // 以 /api、/nest-api 开头（如 auth/plans 等 REST 路径）视为已含前缀，不再叠加——
     // 曾因双重拼接打成 /api/api/ports → 404 → 港口图层加载失败（ 回归，2026-08-17 修复）
     // 其余路径按功能域解析前缀（启用了 Nest 的模块 → /nest-api，否则 Express /api 默认回退）
+    // 2026-09-10（阶段 4）：原 /flood-online 前缀分支已随 FastAPI 退役移除
     logRoutingOnce()
     const url =
-      path.startsWith('/flood-online') || path.startsWith('/api/') || path.startsWith('/nest-api/')
+      path.startsWith('/api/') || path.startsWith('/nest-api/')
         ? fullPath
         : `${resolveBackendPrefix(path)}${fullPath}`
     const res = await fetch(url, {

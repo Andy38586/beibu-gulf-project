@@ -196,38 +196,16 @@ jobs:
         working-directory: backend
         run: npm test -- --coverage
 
-  # T5.1 起：算法服务（FastAPI，flood 兼容区 + route 新区）纳入 CI——此前 pytest
-  # 只在本机 venv 跑，游离于门禁链路；HTTP/离线用例全量跑，真演算用例依赖 DEM 文件
-  #（gitignored，CI 无卷自动 skip；本地带 DEM 手动全量）
-  algorithm-service-tests:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Install dependencies
-        working-directory: backend/algorithm-service
-        run: |
-          pip install --no-cache-dir -r requirements.txt pytest
-          python --version
-
-      - name: Run pytest (HTTP + 离线计算套件)
-        working-directory: backend/algorithm-service
-        # test_real_engine 的真演算用例在无 DEM 的 CI 自动 skip（conftest 检测卷缺失），
-        # 剩余 HTTP/route/topology/graph 全量离线可跑；失败必须红（不 continue-on-error）
-        run: python -m pytest tests/ -q
+  # ⚠️ algorithm-service-tests job 已于 2026-09-10（阶段 4）随 FastAPI 退役移除：
+  #    服务下线（compose 不再部署），pytest 套件保留在 backend/algorithm-service/tests
+  #    供将来恢复时使用（本地 venv 手动跑）。
 
   # 镜像构建推送（2026-09-10 起替代服务器端构建）：服务器 1.6G 内存扛不住 docker 内
   # vite/nest/pip 构建（峰值 3-5G，OOM 卡死系统→SSH exit 255/Workbench 连接超时，
   # run#134/135/136 实证）——镜像统一在 CI 构建推 GHCR，部署只 pull。
   # IMAGE_TAG 与 deploy 同源：${{ github.run_number }}（正整数，易回滚）
   build-push-images:
-    needs: [lint-and-build, algorithm-service-tests]
+    needs: [lint-and-build]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     env:
@@ -281,17 +259,8 @@ jobs:
           cache-from: type=gha,scope=nest
           cache-to: type=gha,mode=max,scope=nest
 
-      - name: Build and push algorithm-service
-        uses: docker/build-push-action@v6
-        with:
-          context: ./backend/algorithm-service
-          file: ./backend/algorithm-service/Dockerfile
-          push: true
-          tags: |
-            ghcr.io/andy38586/beibu-gulf-project:algorithm-service-${{ env.IMAGE_TAG }}
-            ghcr.io/andy38586/beibu-gulf-project:algorithm-service-latest
-          cache-from: type=gha,scope=algorithm
-          cache-to: type=gha,mode=max,scope=algorithm
+      # 2026-09-10（阶段 4）：algorithm-service 镜像构建步骤已随 FastAPI 退役移除
+      # （GHCR 上的历史 tag algorithm-service-* 保留，供将来恢复）
 
       # GHCR 包默认 private，服务器 docker pull（匿名）拉不了——
       # 用带 GHCR_PAT 的 API 把 beibu-gulf-project 包设为 public（三镜像同包）
@@ -312,7 +281,7 @@ jobs:
   #   - 服务器：/opt/beibu-gulf 下 clone 仓库 + .env 配置 VITE_TIANDITU_KEY/JWT_SECRET
   #   - 服务器公钥已加入 GitHub 账户（git pull 免密）
   deploy:
-    needs: [lint-and-build, nest-tests, algorithm-service-tests, audit, build-push-images]
+    needs: [lint-and-build, nest-tests, audit, build-push-images]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     steps:

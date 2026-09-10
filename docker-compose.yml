@@ -127,39 +127,14 @@ services:
       retries: 12
     restart: unless-stopped
 
-  # 在线演算服务（FastAPI）：flood 兼容区 + route 新区；nginx /flood-online → algorithm-service:8000
-  algorithm-service:
-    build:
-      context: ./backend/algorithm-service
-    image: ghcr.io/andy38586/beibu-gulf-project:algorithm-service-${IMAGE_TAG:-algorithm-service-latest}
-    container_name: beibu-algorithm-service
-    # 削峰（15:30 修订）：原注释「冷启动构图峰值 200-450MB」为估算且严重低估。
-    # 09-10 15:24 dmesg 铁证：`constraint=CONSTRAINT_MEMCG` + `Killed process (uvicorn)
-    # anon-rss:612396kB` —— 是 cgroup 上限（非整机耗尽）把构图自己掐死，612MB 时仍在上冲。
-    # 后果：任何真实演算请求必崩（容器被 restart 拉起，出网表现为 502）。
-    # 其他三容器实测占用仅 8.4/43/95MB，大量配额闲置，故重分配 640m → 1024m。
-    # depends_on nest=healthy 保留为刻意错峰（非功能依赖）：避免 nest+构图双峰叠加。
-    mem_limit: 1024m
-    environment:
-      ROUTE_PG_HOST: postgis
-    volumes:
-      - ./backend/data:/app/backend/data:ro
-    ports:
-      - '8000:8000'
-    depends_on:
-      postgis:
-        condition: service_healthy
-      nest:
-        condition: service_healthy
-    healthcheck:
-      test:
-        - CMD-SHELL
-        - python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)" || exit 1
-      interval: 30s
-      timeout: 5s
-      start_period: 10s
-      retries: 3
-    restart: unless-stopped
+  # ⚠️ algorithm-service（FastAPI）已于 2026-09-10（阶段 4）退役下线：
+  #   · 淹没档位 → Nest /flood/flood-areas（PostGIS flood_levels 251 档）
+  #   · 设施影响 → Nest /flood/analysis/disaster（点面判定早已下沉 PostGIS）
+  #   · 路径规划 → Nest /route/path（pgRouting，pgr_createTopology 拓扑持久化）
+  #   能力已被 Nest+PostGIS **全覆盖**（FastAPI 未来可能因"用户上传数据实时渲染"回归，
+  #   故 backend/algorithm-service 源码**保留不删**，桌面另有归档副本）。
+  #   退役收益：容器 4→3，释放该容器实测 ~640MB 内存（曾三次 OOM 的元凶）。
+  #   恢复方法：git revert 本次 compose 变更 + 重新部署（镜像仍在 GHCR）。
 
 volumes:
   beibu-pgdata:

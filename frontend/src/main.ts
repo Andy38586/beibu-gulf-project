@@ -7,7 +7,6 @@ import { createPinia } from 'pinia'
 import type { ComponentPublicInstance } from 'vue'
 import { createApp } from 'vue'
 
-import { floodAdapter } from '@/services'
 import { initPerfReporter, logger, perfReportError, useTheme } from '@/shared'
 
 import App from './App.vue'
@@ -37,10 +36,9 @@ validateEnv()
 // 尽早挂载性能观察者，捕获 FCP/LCP/TTI/longtask（dev-only，不进生产包）
 initPerfReporter()
 
-// 数据源模式（命名收敛）：fetch=查表/静态数据（默认）/ calculate=FastAPI 实时演算
-const dataSource =
-  (import.meta.env.VITE_DATA_SOURCE as 'fetch' | 'calculate' | undefined) || 'fetch'
-floodAdapter.setDataSource(dataSource)
+// 2026-09-10（阶段 4）：floodAdapter 的 fetch/calculate 双模式已收敛为单模式
+//（algorithm-service 退役，能力由 Nest+PostGIS 覆盖），VITE_DATA_SOURCE 环境变量
+// 与 setDataSource 初始化一并移除。
 
 // ResizeObserver polyfill for Safari < 13.1（按需动态导入）
 if (typeof window !== 'undefined' && !('ResizeObserver' in window)) {

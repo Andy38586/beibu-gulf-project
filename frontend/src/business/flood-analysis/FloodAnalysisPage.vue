@@ -36,8 +36,8 @@ const route = useRoute()
 function shouldRenderForCurrentRoute() {
   const actual = mapStore.currentRenderer?.getType?.()
   if (!actual) return false
-  // calculate（FastAPI 实时演算）结果 2D/3D 均可渲染；仅 fetch/mock 静态档位模式保持 3D-only（防 2D 引擎污染 3D 渲染器）
-  if (floodAdapter.dataSource === 'calculate') return true
+  // 2026-09-10（阶段 4）：原「calculate 模式 2D/3D 均可渲染」分支已随双模式移除——
+  // 该分支在生产恒为 false（dataSource 硬编码 'fetch'），删除后行为与原生产一致（3D-only）
   const expected = route.meta?.engine
   return expected === actual
 }
@@ -468,8 +468,8 @@ onUnmounted(() => {
   // 重置注册标志
   floodLayersRegistered = false
 
-  // 清除 adapter 缓存
-  floodAdapter.clearCache()
+  // 2026-09-10（阶段 4）：原 floodAdapter.clearCache()（calculate 档位缓存）已随
+  // 双模式移除；水域坐标缓存仍在
   cachedWaterAreaCoords = null
 
   // 卸载时仅复位子状态（水位/影响评估）——分析数据保留在 store 活状态，

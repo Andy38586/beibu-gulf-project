@@ -42,17 +42,8 @@ server {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
     }
-    location /flood-online/ {
-        rewrite ^/flood-online(/.*)$ $1 break;
-        # d102：限流（zone 定义在 default.conf 顶部，http 级共享）
-        limit_req zone=flood burst=20 nodelay;
-        # 独立容器（algorithm-service，flood-service 演进），同 docker network 服务名解析
-        proxy_pass http://algorithm-service:8000;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    }
+    # 2026-09-10（阶段 4）：原 location /flood-online/（反代 algorithm-service:8000）
+    # 已随 FastAPI 退役删除
     location /assets/ {
         root /app/frontend/dist;
         expires 1y;

@@ -182,32 +182,13 @@ describe('useApiRequest', () => {
   })
 
   describe('API_BASE 前缀判定 (d071)', () => {
-    // /flood-online 开头（vite proxy → FastAPI 8000）不加 /api 前缀，
-    // 否则变成 /api/flood-online/... 命中 /api 规则转发到 Express（无此路由）404
-    it('/flood-online 路径不加 /api 前缀（跨服务直通）', async () => {
-      mockFetch.mockResolvedValue(jsonResponse({ level: 3.5, features: [] }))
-      const { apiRequest } = useApiRequest()
-      await apiRequest('/flood-online/online?level=3.5', { envelope: false })
-      expect(mockFetch.mock.calls[0][0]).toBe('/flood-online/online?level=3.5')
-      expect(mockFetch.mock.calls[0][0]).not.toContain('/api/')
-    })
-
+    // 2026-09-10（阶段 4）：原 /flood-online 前缀判定两用例已随 FastAPI 退役删除
     it('非功能域普通路径加 /api 前缀', async () => {
       // 功能域路径（/forecast/* 等）前缀由 per-module 路由决定，此处用无功能域路径验证默认回退
       mockFetch.mockResolvedValue(jsonResponse({ code: 200, data: null }))
       const { apiRequest } = useApiRequest()
       await apiRequest('/search')
       expect(mockFetch.mock.calls[0][0]).toBe('/api/search')
-    })
-
-    it('/flood-online 子路径（含 params 拼查询）同样不加前缀', async () => {
-      mockFetch.mockResolvedValue(jsonResponse({ level: 5.0, features: [] }))
-      const { apiRequest } = useApiRequest()
-      await apiRequest('/flood-online/online', { params: { level: 5.0 }, envelope: false })
-      const calledUrl = mockFetch.mock.calls[0][0]
-      expect(calledUrl.startsWith('/flood-online/online')).toBe(true)
-      expect(calledUrl).not.toContain('/api/')
-      expect(calledUrl).toContain('level=5')
     })
   })
 

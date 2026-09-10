@@ -15,14 +15,12 @@ import {
 } from '@/core'
 import { preloadCesium, UnifiedMap } from '@/core'
 import {
-  ENDPOINTS,
   ErrorBoundary,
   GCSModal,
   GCSToast,
   initAuthStorageListener,
   removeAuthStorageListener,
   showWarning,
-  useApiRequest,
   useAuth,
   useWaitForRenderer,
 } from '@/shared'
@@ -35,7 +33,6 @@ const route = useRoute()
 const router = useRouter()
 // authUser 供 watch 驱动登出/多标签页登出时的 store 重置
 const { restoreAuth, user: authUser } = useAuth()
-const { apiRequest } = useApiRequest()
 const { zoomToRegion, zoomToCity, stopBreathing } = useMapControls()
 const mapStore = useMapStore()
 
@@ -179,14 +176,8 @@ onMounted(() => {
     window.addEventListener('load', () => setTimeout(task, delayMs), { once: true })
   }
   warmup(3000, preloadCesium)
-  warmup(6000, () => {
-    void apiRequest(ENDPOINTS.flood.online, {
-      params: { waterLevel: 0 },
-      envelope: false,
-    }).catch(() => {
-      // 暖机失败静默：后端冷启动由首次真实演算兜底
-    })
-  })
+  // 2026-09-10（阶段 4）：原 +6s 的「/flood/online 查 0 档暖机」已删——它只为预热
+  // algorithm-service 的 FastAPI load_dem 模块，该服务退役后无对象可预热
 })
 
 onUnmounted(() => {

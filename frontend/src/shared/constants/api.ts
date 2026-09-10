@@ -28,8 +28,9 @@ export const ENDPOINTS = {
     indicator: (indicator: string) => `/forecast/indicator/${indicator}`,
   },
   flood: {
-    online: '/flood-online/api/flood/online',
-    impact: '/flood-online/api/flood/impact',
+    // 2026-09-10（阶段 4）：online/impact 两条 FastAPI 全路径已随 algorithm-service
+    // 退役删除——淹没档位走 /flood/flood-areas（PostGIS 251 档），影响评估走
+    // /flood/analysis/disaster（点面判定在 PostGIS）
     waterArea: '/flood/water-area',
     floodAreas: '/flood/flood-areas',
     statistics: '/flood/flood-statistics',

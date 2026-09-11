@@ -293,7 +293,11 @@ async function singleRequest<T = unknown>(
         // 外部主动取消：抛 REQUEST_FAILED（多数调用方已忽略此错误）
         throw new ApiError('请求已取消', ErrorCode.REQUEST_FAILED)
       }
-      if (error instanceof TypeError && error.message.includes('fetch')) {
+      // TypeError 一律归网络异常：JSON.parse 的解析错误已在上方内层 catch 吞掉、
+      // 信封/校验路径均有形状守卫，此处能到达的 TypeError 实际只来自 fetch 阶段。
+      // 不做错误文案匹配——各运行时文案不一致（"Failed to fetch"/"NetworkError" 等），
+      // 按 message.includes('fetch') 匹配会把网络错误漏成"未知错误"绕过 ApiError 体系（审查 M-8）
+      if (error instanceof TypeError) {
         throw new ApiError('网络异常，请检查网络连接', ErrorCode.NETWORK_ERROR)
       }
     }

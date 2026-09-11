@@ -155,6 +155,17 @@ describe('useApiRequest', () => {
       })
     })
 
+    it('非 fetch 文案的 TypeError（如 Safari "Load failed"）同样归 NETWORK_ERROR（审查 M-8 回归）', async () => {
+      // 各运行时 fetch 失败文案不一致，按 message.includes('fetch') 匹配会漏判
+      mockFetch.mockRejectedValue(new TypeError('Load failed'))
+      const { apiRequest } = useApiRequest()
+      // POST 免重试，单次收敛
+      await expect(apiRequest('/offline', { method: 'POST', body: '{}' })).rejects.toMatchObject({
+        code: ErrorCode.NETWORK_ERROR,
+      })
+      expect(mockFetch).toHaveBeenCalledTimes(1)
+    })
+
     it('网络异常抛 NETWORK_ERROR（含重试，最终仍抛出）', async () => {
       mockFetch.mockRejectedValue(new TypeError('fetch failed'))
       const { apiRequest } = useApiRequest()

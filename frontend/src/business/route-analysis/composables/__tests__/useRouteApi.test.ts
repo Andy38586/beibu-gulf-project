@@ -64,9 +64,9 @@ describe('useRouteApi', () => {
       mode: 'distance',
     })
     expect(result).toMatchObject({ found: true, distanceM: 8600 })
-    // 2026-09-10：route 域已下沉 NestJS（pgRouting）——请求由 /flood-online（FastAPI 直通）
-    // 改为 /api/route/path（apiRequest 统一加 /api 前缀，nginx 再 rewrite 到 /nest-api）
-    expect(mockFetch.mock.calls[0][0]).toContain('/api/route/path')
+    // 2026-09-10：route 域下沉 NestJS（pgRouting）；2026-09-11：功能域清单收录 route 后
+    // 直连 /nest-api 前缀（不再绕道 /api + nginx rewrite——dev 下 vite 无 rewrite 会 404）
+    expect(mockFetch.mock.calls[0][0]).toContain('/nest-api/route/path')
     expect(calculating.value).toBe(false)
   })
 

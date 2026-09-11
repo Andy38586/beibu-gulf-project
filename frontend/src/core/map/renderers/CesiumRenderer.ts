@@ -1915,6 +1915,18 @@ function buildWaterInstance(
   })
 }
 
+/** 构建水面 Primitive（create/update 共用；asynchronous=false 同步构建，免加载竞态） */
+function buildWaterPrimitive(instance: GeometryInstance): Primitive {
+  return new Primitive({
+    geometryInstances: instance,
+    appearance: new PerInstanceColorAppearance({
+      translucent: true,
+      closed: false,
+    }),
+    asynchronous: false,
+  })
+}
+
 /** 添加水面 Primitive（先移除同 id 旧水面，幂等；真地形下采样基准叠加水位） */
 export async function addWaterSurface(
   renderer: CesiumRenderer,
@@ -1928,16 +1940,7 @@ export async function addWaterSurface(
     const terrainBase = await sampleTerrainHeights(renderer, coordinates)
     const instance = buildWaterInstance(coordinates, height, options, terrainBase)
 
-    const appearance = new PerInstanceColorAppearance({
-      translucent: true,
-      closed: false,
-    })
-
-    const primitive = new Primitive({
-      geometryInstances: instance,
-      appearance: appearance,
-      asynchronous: false,
-    })
+    const primitive = buildWaterPrimitive(instance)
 
     renderer.viewer!.scene.primitives.add(primitive)
 
@@ -1964,8 +1967,13 @@ export async function addWaterSurface(
 }
 
 /**
- * 更新水位：复用同一 Primitive，仅同步替换 geometryInstances。
- * 不 remove+add → 无重建空窗（水位拖动不闪烁），并保留 GPU 缓冲复用路径。
+ * 更新水位：以新高度同步重建水面 Primitive（remove+add）。
+ * @arch-note 曾实现「复用同一 Primitive 仅替换 geometryInstances」，对 Cesium 状态机
+ * 不成立：geometryInstances 仅在构建期（_state=READY）被读取，构建完成置 COMPLETE
+ * 后 update() 不再进入加载路径，运行时替换属性是纯 no-op——水面纹丝不动。
+ * requestRenderMode 下同一 tick 内 remove+add 不产生中间帧，无重建空窗；
+ * terrainBase 不随水位变化，从 entry 复用免去重采样。先建后换：构建失败时
+ * 旧 Primitive 原地保留（不闪、不消失）。
  */
 export function updateWaterLevel(renderer: CesiumRenderer, id: string, newHeight: number): boolean {
   const waterSurface: WaterSurfaceEntry | undefined = renderer._waterSurfaces?.get(id)
@@ -1980,17 +1988,20 @@ export function updateWaterLevel(renderer: CesiumRenderer, id: string, newHeight
   if (waterSurface.height === newHeight) return true
 
   try {
-    // 同步构建新几何替换到同一 Primitive：Cesium 类型将 geometryInstances 标为只读，
-    // 但运行时支持替换（增量更新依赖此行为），用断言绕过类型只读标注
-    ;(waterSurface.primitive as { geometryInstances: unknown }).geometryInstances =
+    const newInstance = buildWaterPrimitive(
       buildWaterInstance(
         waterSurface.coordinates,
         newHeight,
         waterSurface.options,
         waterSurface.terrainBase
       )
+    )
+    const scene = renderer.viewer!.scene
+    scene.primitives.remove(waterSurface.primitive)
+    scene.primitives.add(newInstance)
+    waterSurface.primitive = newInstance
     waterSurface.height = newHeight
-    renderer.viewer!.scene.requestRender()
+    scene.requestRender()
     return true
   } catch (e) {
     // 构建失败保持旧水位（不闪、不崩），仅日志

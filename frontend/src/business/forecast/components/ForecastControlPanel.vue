@@ -14,6 +14,8 @@ import {
 } from '@/shared'
 import { useForecastStore } from '@/stores'
 
+import { currentTimeToStep, stepToTime as timelineStepToTime } from '../timeline'
+
 const forecastState = useForecastStore()
 
 // 滑块专注模式（安卓控制中心风格）：拖动滑块时隐藏其他面板，只留本面板
@@ -143,14 +145,11 @@ const maxSteps = computed(() =>
   isYearMode.value ? END_YEAR - BASE_YEAR : (END_YEAR - BASE_YEAR) * 12 + 11
 )
 
-const currentStep = computed(() => {
-  const [y, m] = forecastState.currentTime.split('-').map(Number)
-  return isYearMode.value ? y - BASE_YEAR : (y - BASE_YEAR) * 12 + (m - 1)
-})
+// 步数换算收口 ../timeline（年/月双基共用一索引；年串切月 m 缺省兜 1，防 NaN——审查 H-3）
+const currentStep = computed(() => currentTimeToStep(forecastState.currentTime, isYearMode.value))
 
 function stepToTime(step: number) {
-  if (isYearMode.value) return String(BASE_YEAR + step)
-  return `${BASE_YEAR + Math.floor(step / 12)}-${String((step % 12) + 1).padStart(2, '0')}`
+  return timelineStepToTime(step, isYearMode.value)
 }
 
 function onSlider(e: Event) {
@@ -190,7 +189,13 @@ function togglePlay() {
 }
 function startPlayback() {
   playbackTimer = setInterval(() => {
-    if (!forecastState.isPlaying || currentStep.value >= maxSteps.value) {
+    // !Number.isFinite 防御：currentTime 异常（坏快照/历史脏数据）时 currentStep 为 NaN，
+    // NaN >= N 恒 false 曾穿透守卫死循环（H-3）——异常值直接停播而非永续推进
+    if (
+      !forecastState.isPlaying ||
+      !Number.isFinite(currentStep.value) ||
+      currentStep.value >= maxSteps.value
+    ) {
       forecastState.setIsPlaying(false)
       stopPlayback()
       return

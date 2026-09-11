@@ -97,7 +97,7 @@ CI（GitHub Actions）：lint + 类型检查 + 双端测试 + API 契约校验 +
 docker compose up -d --build
 ```
 
-双容器架构：`app`（前端静态资源 + Node API，Nginx 80 反代）+ `flood-service`（FastAPI 在线演算）。生产环境由 CI 自动部署至云服务器；HTTPS 需手动挂载 TLS 证书（`./certs/`），已预留 ACME 挑战目录。
+容器架构：`app`（前端静态资源 + Nginx 80/443 反代）+ `nest`（NestJS API）+ `postgis`（PostgreSQL / PostGIS）。生产环境由 CI 自动部署至云服务器；HTTPS 需手动挂载 TLS 证书（`./certs/`），已预留 ACME 挑战目录。
 
 ## 文档
 
@@ -105,8 +105,8 @@ docker compose up -d --build
 
 1. [`docs/根基文档/项目全景.md`](docs/根基文档/项目全景.md) — 项目身份、技术选型、架构分层
 2. [`docs/根基文档/核心流程与数据流.md`](docs/根基文档/核心流程与数据流.md) — 从用户点击到结果显示的源码导读
-3. [`docs/根基文档/Code-Wiki.md`](docs/根基文档/Code-Wiki.md) — 文件清单
-4. [`docs/根基文档/开发指南与决策.md`](docs/根基文档/开发指南与决策.md) — 开发规范与决策记录
+3. [`docs/根基文档/开发指南与决策.md`](docs/根基文档/开发指南与决策.md) — 开发规范与决策记录
+4. [`docs/根基文档/代码知识库.md`](docs/根基文档/代码知识库.md) — 文件清单
 
 不入库的本机资料（agent 报告、临时文件、待删暂存）统一放在 `.local/`，仓库根目录禁止落临时文件——由 `guard:v3` 断言，详见 `.local/README.md`。
 

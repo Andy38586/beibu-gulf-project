@@ -127,6 +127,9 @@ docs/*
 # 桌面《_北部湾项目\文档\后端nest，pg，postGIS\》
 !docs/v3-施工手册.md
 docs/v3-施工日志/
+# 审查/修复报告（2026-09-12 裁决入库，已登记文档地图；docs/* 默认忽略，逐份放行）
+!docs/CI-CD与单测审查报告.md
+!docs/修复任务清单-下一轮.md
 # 开工前必读（复盘/体检/部署记录）：交接新人的一手材料，逐份放行（复盘类默认留库外）
 !docs/开工前必读/
 docs/开工前必读/*
@@ -149,3 +152,12 @@ algorithm-service.log*
 
 # 地形瓦片：DEM 派生缓存（tools/dem-pipeline/07 一键重切），不入库（云端冷备=v3-migration@92aa9475）
 backend/static/terrain/
+
+# 本机备份目录（整树备份产物，500M+，绝不入库）
+.backups/
+# ZCode 会话运行时产物（计划文件等，agent 生成非项目源码）
+.zcode/
+# 本地测评专用 vite 配置（文件头自述"非提交资产，测完可删"：本地前端 + 线上 API 复测用）
+frontend/vite.local-online.config.js
+# 性能测评报告产物（2026-09-10 会话生成、本地报告：保留生成时样式，不随库维护；2026-09-12 决策入库 gitignore）
+性能测评-20260910/

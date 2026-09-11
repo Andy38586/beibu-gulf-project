@@ -8,7 +8,7 @@
  * 与浸没分析一致——同为 3D 的路由互切时 UnifiedMap 直接复用同一 Viewer，不卸载、不重建上下文。
  * 路径线/端点图层走 BLM 注册（双引擎通用，本页不再暴露 OL 链路）。
  */
-import { ref, watch } from 'vue'
+import { onUnmounted, ref, watch } from 'vue'
 
 import { AppLayout, GCSPanel, LayerControlPanel, useBusinessLayers } from '@/core'
 import { logger } from '@/shared'
@@ -64,7 +64,12 @@ function handleRendererClick(event: CustomEvent<{ coordinate: [number, number] |
 // ①渲染器异步初始化晚于挂载时 getRenderer() 为 null 静默 return；
 // ②引擎切换重建渲染器后旧监听随旧实例销毁、新实例无监听——拾取永久失效。
 // watch mapStore.currentRenderer 同时覆盖初次就绪与切换重建，immediate 兜挂载前就绪）
-watch(
+//
+// ⚠️ 退出时必须解绑（2026-09-11 补）：渲染器是**单例复用**（mapStore.currentRenderer 跨页面
+// 存活），若不摘，离页后该 renderer 仍持有本组件的 handleRendererClick 闭包 ⇒
+// ①组件实例无法 GC（闭包捕获 panelRef 等）；②在别的业务页点地图会触发本页已卸载的回调。
+// 与 CesiumRenderer 的 webglcontextlost / camera.changed 同一类泄漏模式（add 无 remove）。
+const stopRendererWatch = watch(
   () => mapStore.currentRenderer,
   (renderer, old) => {
     old?.off?.('click', handleRendererClick)
@@ -72,6 +77,12 @@ watch(
   },
   { immediate: true }
 )
+
+onUnmounted(() => {
+  // 先停 watch（否则后续 renderer 变化仍会重新挂上），再摘当前实例上的监听
+  stopRendererWatch()
+  mapStore.currentRenderer?.off?.('click', handleRendererClick)
+})
 </script>
 
 <template>

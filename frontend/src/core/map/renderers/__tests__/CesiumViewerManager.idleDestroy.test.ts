@@ -182,3 +182,56 @@ describe('CesiumViewerManager 30s 空闲销毁链路', () => {
     expect((cesiumViewerManager as unknown as { viewer: unknown }).viewer).not.toBeNull()
   })
 })
+
+/**
+ * WebGL 上下文丢失监听的「挂/摘」配对（2026-09-11 修复回归锁定）。
+ *
+ * 病灶：监听原先以匿名箭头函数挂在 `viewer.scene.canvas` 上。Viewer 是**单例复用**
+ * （cesiumViewerManager），canvas 在单例生命周期内不变 ⇒ 每次 renderer destroy 后
+ * 重新 mount 都会再 addEventListener 到同一 canvas，而匿名函数没有引用可供 remove。
+ * 后果：一次上下文丢失弹 N 次 toast，且闭包永久持有已销毁的 renderer。
+ *
+ * 修复：回调具名化（_webglContextLostHandler）+ destroyEvents 成对摘除。
+ * 本用例断言「重复 mount → destroy 后，canvas 上注册的监听数不累加」。
+ */
+describe('WebGL 上下文丢失监听 add/remove 配对（重挂不累加）', () => {
+  it('多次挂载后 destroy，canvas 上该监听不会累积（匿名函数病灶回归锁定）', () => {
+    const canvas = document.createElement('canvas')
+    const added: EventListenerOrEventListenerObject[] = []
+    const removed: EventListenerOrEventListenerObject[] = []
+    // 用真实 DOM canvas 记录 add/remove 对，避免依赖 Cesium 内部实现
+    canvas.addEventListener = ((type: string, fn: EventListenerOrEventListenerObject) => {
+      if (type === 'webglcontextlost') added.push(fn)
+    }) as typeof canvas.addEventListener
+    canvas.removeEventListener = ((type: string, fn: EventListenerOrEventListenerObject) => {
+      if (type === 'webglcontextlost') {
+        const i = added.indexOf(fn)
+        if (i >= 0) added.splice(i, 1)
+        removed.push(fn)
+      }
+    }) as typeof canvas.removeEventListener
+
+    const viewer = {
+      container: document.createElement('div'),
+      scene: {
+        canvas,
+        requestRenderMode: false,
+        requestRender: vi.fn(),
+        screenSpaceCameraController: {},
+      },
+      resize: vi.fn(),
+      destroy: vi.fn(),
+    }
+    ;(cesiumViewerManager as unknown as { viewer: typeof viewer }).viewer = viewer
+    ;(cesiumViewerManager as unknown as { isMounted: boolean }).isMounted = true
+
+    // 模拟「挂载 → 销毁」三轮（单例复用下 canvas 始终是同一个）
+    for (let i = 0; i < 3; i++) {
+      cesiumViewerManager.registerWebglContextLostHandler()
+      expect(added.length).toBe(1) // 每轮都只剩 1 个（上一轮已摘）
+      cesiumViewerManager.unregisterWebglContextLostHandler()
+    }
+    expect(added.length).toBe(0)
+    expect(removed.length).toBe(3) // 三次注册三次摘除，一一对应
+  })
+})

@@ -88,6 +88,12 @@ class CesiumViewerManager {
   _baseLayers: { image: unknown[]; vector: unknown[] }
   /** mount 后双 rAF 补 resize/补帧的句柄，destroy 时统一取消防卸载后回调 */
   _deferredRafIds: Set<number>
+  /**
+   * WebGL 上下文丢失具名回调（CesiumRenderer.destroyEvents 注销用）。
+   * Viewer 单例复用 → scene.canvas 常驻不变，匿名函数无法摘除 ⇒ 重挂会累加
+   * （表现为上下文丢失弹 N 次 toast + 闭包持有已销毁 renderer）。2026-09-11 具名化。
+   */
+  _webglContextLostHandler: ((e: Event) => void) | null
 
   constructor() {
     this.viewer = null
@@ -97,6 +103,7 @@ class CesiumViewerManager {
     this.IDLE_DESTROY_DELAY = 30000
     this._baseLayers = { image: [], vector: [] }
     this._deferredRafIds = new Set<number>()
+    this._webglContextLostHandler = null
   }
 
   // 首次创建Viewer，后续调用返回已有实例
@@ -144,12 +151,8 @@ class CesiumViewerManager {
 
     // WebGL 上下文丢失检测：开发期频繁 HMR/整页 reload 会累积 WebGL 上下文（浏览器每 tab
     // 上限约 16 个），超限后新建 canvas 全黑且**无任何报错**——「3D 一片黑/底图丢失」的
-    // 静默形态。此处把黑屏显性化：日志 + toast 明示刷新，不再让用户对着黑屏猜
-    this.viewer.scene.canvas.addEventListener('webglcontextlost', ((e: Event) => {
-      e.preventDefault()
-      logger.error('[Cesium] WebGL 上下文丢失（多标签页/频繁刷新累积所致），需刷新页面恢复')
-      showError('3D 渲染上下文丢失，请关闭多余标签页并刷新页面')
-    }) as EventListener)
+    // 静默形态。此处把黑屏显性化：日志 + toast 明示刷新，不再让用户对着黑屏猜。
+    this.registerWebglContextLostHandler()
 
     // globe 级性能参数收口（见 _applyGlobePerfTuning：SSE 4 / tileCacheSize 200 / 关 MSAA）
     this._applyGlobePerfTuning(this.viewer.scene)
@@ -159,6 +162,35 @@ class CesiumViewerManager {
 
     this.isMounted = true
     return this.viewer
+  }
+
+  /**
+   * 注册 WebGL 上下文丢失监听（具名字段，可摘）。
+   * ⚠️ 不得改回内联匿名箭头函数：Viewer 单例复用 → `scene.canvas` 常驻不变，
+   * 匿名函数没有引用可供 removeEventListener，重挂会持续累加
+   * （表现为上下文丢失弹 N 次 toast + 闭包持有已销毁 renderer）。2026-09-11 修复。
+   * 幂等：已有注册则先摘再挂，防重复调用叠加。
+   */
+  registerWebglContextLostHandler(): void {
+    this.unregisterWebglContextLostHandler()
+    const canvas = this.viewer?.scene?.canvas
+    if (!canvas) return
+    this._webglContextLostHandler = (e: Event): void => {
+      e.preventDefault()
+      logger.error('[Cesium] WebGL 上下文丢失（多标签页/频繁刷新累积所致），需刷新页面恢复')
+      showError('3D 渲染上下文丢失，请关闭多余标签页并刷新页面')
+    }
+    canvas.addEventListener('webglcontextlost', this._webglContextLostHandler)
+  }
+
+  /** 摘除 WebGL 上下文丢失监听（destroy 路径调用；与 register 成对，保证 add/remove 一一对应） */
+  unregisterWebglContextLostHandler(): void {
+    if (!this._webglContextLostHandler) return
+    this.viewer?.scene?.canvas?.removeEventListener(
+      'webglcontextlost',
+      this._webglContextLostHandler
+    )
+    this._webglContextLostHandler = null
   }
 
   /**
@@ -360,6 +392,12 @@ export class CesiumRenderer extends MapRenderer {
   _imageryErrorHandler: ((err: unknown) => void) | null
   /** 挂载了 errorEvent 的底图 provider（destroyEvents 逐个 removeEventListener 用） */
   _imageryErrorProviders: UrlTemplateImageryProvider[]
+  /**
+   * WebGL 上下文丢失具名回调（destroyEvents 注销用）。
+   * Viewer 单例复用 → scene.canvas 常驻不变，匿名函数无法摘除 ⇒ 重挂会累加
+   * （表现为上下文丢失弹 N 次 toast + 闭包持有已销毁 renderer）。2026-09-11 具名化。
+   */
+  _webglContextLostHandler: ((e: Event) => void) | null
   _screenSpaceEventHandler: ScreenSpaceEventHandler | null
   _cameraChangedHandler: (() => void) | null
   _waterSurfaces: Map<string, WaterSurfaceEntry> | null
@@ -390,6 +428,7 @@ export class CesiumRenderer extends MapRenderer {
     this._imageryErrorLogged = false
     this._imageryErrorHandler = null
     this._imageryErrorProviders = []
+    this._webglContextLostHandler = null
     this._screenSpaceEventHandler = null
     this._cameraChangedHandler = null
     this._waterSurfaces = null
@@ -1170,6 +1209,13 @@ export function destroyEvents(renderer: CesiumRenderer): void {
     renderer._terrainProvider.errorEvent.removeEventListener(renderer._terrainErrorHandler)
   }
   renderer._terrainErrorHandler = null
+
+  // 移除 WebGL 上下文丢失监听（2026-09-11 补）：与 camera.changed 同一重灾区——
+  // Viewer 是**单例复用**（cesiumViewerManager），而 scene.canvas 在单例生命周期内不变，
+  // 因此每次 renderer destroy 后重新 mount 都会再次 addEventListener 到同一个 canvas 上。
+  // 此前该监听是匿名箭头函数、无引用可摘，累加后表现为「一次上下文丢失弹 N 次 toast」，
+  // 且闭包永久持有已销毁 renderer（正是本文件 5.2-1 反复强调的泄漏模式）。
+  cesiumViewerManager.unregisterWebglContextLostHandler()
 }
 
 // ===== 图层：点/多边形/GeoJSON/GeoTIFF 注册与移除 =====

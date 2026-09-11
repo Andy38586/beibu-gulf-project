@@ -185,10 +185,12 @@ async function singleRequest<T = unknown>(
       // 禁用浏览器缓存：Express 默认 ETag 返回 304，fetch 视其为错误（res.ok 只认 2xx）→ 误判登出/数据失败
       cache: 'no-store',
     })
-    clearTimeout(timeoutId)
 
     // 响应体可能为空或非 JSON：用 unknown 承接任意 JSON 值，解析失败保留原始文本作错误信息
     const text = await res.text()
+    // 超时定时器必须覆盖到 body 读取完成：fetch 已返回、body 传输卡住时（大 GeoJSON
+    // 数 MB 最高发），若此刻已清定时器则 abort 永不触发 → 请求永久挂起（审查 M-7）
+    clearTimeout(timeoutId)
     let data: unknown = undefined
     if (text) {
       try {

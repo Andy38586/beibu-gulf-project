@@ -2,6 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ApiError, ErrorCode, useApiRequest } from '../useApiRequest'
 
+// 与实现 API_TIMEOUT_MS 同值（实现侧为模块常量不导出；此处仅作测试推进量）
+const API_TIMEOUT_MS_FOR_TEST = 10_000
+
 // mock fetch
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
@@ -42,6 +45,43 @@ describe('useApiRequest', () => {
       setToken('test-token')
       clearToken()
       expect(isAuthenticated.value).toBe(false)
+    })
+  })
+
+  describe('超时保护', () => {
+    it('fetch 已返回但 body 传输卡住 → 10s 超时仍生效（审查 M-7 回归）', async () => {
+      // 真定时器兜底哨兵：预修复实现会把 clearTimeout 提前到 body 读取之前，
+      // abort 永不触发、断言悬挂 → 由真定时器以明确报错终止（防测试假死）
+      const realSetTimeout = globalThis.setTimeout.bind(globalThis)
+      vi.useFakeTimers()
+      try {
+        mockFetch.mockImplementationOnce((_url: string, init: RequestInit) =>
+          Promise.resolve({
+            ok: true,
+            status: 200,
+            text: () =>
+              new Promise((_res, rej) => {
+                init.signal?.addEventListener('abort', () =>
+                  rej(Object.assign(new Error('Aborted'), { name: 'AbortError' }))
+                )
+              }),
+          })
+        )
+        const { apiRequest } = useApiRequest()
+        // POST 不走 GET 的退避重试链：单次尝试使超时断言确定性收敛
+        const pending = apiRequest('/timeout/body-hang', { method: 'POST' })
+        const guarded = expect(pending).rejects.toMatchObject({ code: ErrorCode.TIMEOUT })
+        // 推进内部 10s 超时 → abort → body 读取以 AbortError 收场 → 归一 TIMEOUT
+        await vi.advanceTimersByTimeAsync(API_TIMEOUT_MS_FOR_TEST)
+        await Promise.race([
+          guarded,
+          new Promise((_r, rej) =>
+            realSetTimeout(() => rej(new Error('body 读取未受超时保护')), 2000)
+          ),
+        ])
+      } finally {
+        vi.useRealTimers()
+      }
     })
   })
 

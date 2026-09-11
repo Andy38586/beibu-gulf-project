@@ -26,6 +26,22 @@ server {
     # 沿用 :80 的 Report-Only 口径（Cesium/Turf 仍需 unsafe-eval，强制策略会打断 3D），
     # 先收窄再收紧。⚠️ 与 nginx.conf:34 必须同步修改（两份配置手抄，是历史分叉点）。
     add_header Content-Security-Policy-Report-Only "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; media-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'" always;
+
+    # ⚠️⚠️ 安全头继承陷阱（2026-09-11 实测修复）——本文件下方每个自带 add_header 的
+    # location 都必须把这 4 个头重复一遍，原因：
+    #   nginx 的 add_header 是**层级全量替换**语义——子级只要出现任意一条 add_header，
+    #   父级（server 块）的所有 add_header **全部不再继承**，不是合并。
+    # 后果（线上 112.74.32.206 实测证据）：
+    #   GET /                      → 200，4 个安全头齐全 ✅
+    #   GET /nest-api/             → 404，4 个安全头齐全 ✅（无自带 add_header）
+    #   GET /assets/js/index-*.js  → 200，**4 个全丢** ❌ ← 首屏必加载的 JS
+    #   GET /tianditu/             → 404，HSTS/CSP 丢失 ❌
+    # 即「我给 HTTPS 加了 CSP/HSTS」这句话，在 /assets/、/data/、/static/、/cesium/、
+    # /tianditu/ 这些**真实资源路径**上都不成立——注意这正是「做了但没生效」的又一变体，
+    # 与 Cesium SSE 挂错宿主同族：语法合法、配置看着合理、无任何报错，只有实测响应头才看得见。
+    # 修复方式：把 server 级 4 个头**逐字重复**到每个自带 add_header 的 location 中。
+    # ⚠️ 修改此处时，下面的 location 副本必须同步（否则新头又只在部分路径生效）。
+
     location / {
         root /app/frontend/dist;
         try_files $uri $uri/ /index.html;
@@ -53,32 +69,55 @@ server {
         root /app/frontend/dist;
         expires 1y;
         add_header Cache-Control "public, immutable";
+        # 安全头重复（add_header 层级替换语义，详见本 server 块顶部说明）
+        add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header X-Frame-Options "SAMEORIGIN" always;
+        add_header Content-Security-Policy-Report-Only "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; media-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'" always;
     }
     location /data/ {
         root /app/frontend/dist;
         expires 7d;
         add_header Cache-Control "public";
+        add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header X-Frame-Options "SAMEORIGIN" always;
+        add_header Content-Security-Policy-Report-Only "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; media-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'" always;
     }
     location /static/terrain/ {
         alias /app/backend/static/terrain/;
         expires 30d;
         add_header Cache-Control "public";
+        add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header X-Frame-Options "SAMEORIGIN" always;
+        add_header Content-Security-Policy-Report-Only "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; media-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'" always;
         # 2026-08-09：.terrain 瓦片本身是 gzip 压缩流（CTB 输出，后端 Express 也这样
         # Content-Encoding: gzip 响应，Cesium 才能解压 heightmap）；nginx 直发需补该头，
         # 否则 Cesium 按原始字节解析 → RangeError: Invalid typed array length。
         # 2026-08-10 修复：gzip 头只对 .terrain 生效（嵌套 location）——原无条件 add_header
         # 让 layer.json 被声明 gzip 但内容未压缩 → ERR_CONTENT_DECODING_FAILED → 真地形失效
+        # 2026-09-11 补：嵌套 location 同样有"层级替换"问题，故安全头也需再重复一层
         location ~ \.terrain$ {
             add_header Cache-Control "public";
             add_header Content-Encoding gzip;
+            add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+            add_header X-Content-Type-Options "nosniff" always;
+            add_header X-Frame-Options "SAMEORIGIN" always;
+            add_header Content-Security-Policy-Report-Only "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; media-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'" always;
         }
     }
     location /static/ {
         alias /app/backend/static/;
         expires 30d;
         add_header Cache-Control "public";
+        add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header X-Frame-Options "SAMEORIGIN" always;
+        add_header Content-Security-Policy-Report-Only "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; media-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'" always;
     }
-    # z022: 天地图瓦片同源代理（与 nginx.conf 一致，2026-08-09 双份配置对齐）
+    # z022: 天地图瓦片同源代理（与 nginx.conf 一致，2026-08-09 双份配置对齐；
+    # 2026-09-11 补安全头重复）
     location /tianditu/ {
         proxy_pass https://t0.tianditu.gov.cn/;
         proxy_http_version 1.1;
@@ -87,11 +126,19 @@ server {
         proxy_ssl_server_name on;
         expires 30d;
         add_header Cache-Control "public";
+        add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header X-Frame-Options "SAMEORIGIN" always;
+        add_header Content-Security-Policy-Report-Only "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; media-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'" always;
     }
     location /cesium/ {
         root /app/frontend/dist;
         expires 30d;
         add_header Cache-Control "public";
+        add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header X-Frame-Options "SAMEORIGIN" always;
+        add_header Content-Security-Policy-Report-Only "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; media-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'" always;
     }
     gzip on;
     gzip_types text/plain text/css application/json application/javascript text/xml application/xml;

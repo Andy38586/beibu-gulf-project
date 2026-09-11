@@ -1,5 +1,6 @@
 import { Body, Controller, Get, HttpCode, Post, Query } from '@nestjs/common'
 import { ApiTags } from '@nestjs/swagger'
+import { SkipThrottle } from '@nestjs/throttler'
 
 import { BusinessError, ErrorCode } from '../../../common/errors/business-error'
 import type { TypeSetting } from '../dto/site-analysis.dto'
@@ -16,7 +17,9 @@ interface SiteAnalysisBody {
  * 选址分析。POST /nest-api/site-analysis，免鉴权纯计算。
  * 数据获取与计算编排都在 SiteAnalysisService（analyze）；
  * 此处只做 HTTP 请求形状校验（必填/权重/半径/weights 范围）。
+ * @SkipThrottle 必需：免鉴权纯计算最易被脚本刷，更不能反被 login 桶（50/15min）误伤
  */
+@SkipThrottle({ login: true, register: true })
 @Controller('site-analysis')
 @ApiTags('site-analysis')
 export class SiteAnalysisController {

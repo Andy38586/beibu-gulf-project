@@ -273,7 +273,12 @@ async function singleRequest<T = unknown>(
           `[apiRequest:${rid}] schema 校验失败 ${path}:`,
           result.error.issues.slice(0, 3).map((i) => i.path.join('.'))
         )
-        throw new ApiError('响应数据格式校验失败', ErrorCode.REQUEST_FAILED)
+        // 字段路径随错误透出（前 3 条），调用方排障不再盲猜（审查 L-10）
+        const issuePaths = result.error.issues
+          .slice(0, 3)
+          .map((i) => i.path.join('.') || '(root)')
+          .join('、')
+        throw new ApiError(`响应数据格式校验失败：${issuePaths}`, ErrorCode.REQUEST_FAILED)
       }
       return result.data as T
     }

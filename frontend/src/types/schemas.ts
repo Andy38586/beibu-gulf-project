@@ -13,11 +13,6 @@ export const userSchema = z.object({
 
 export type UserParsed = z.infer<typeof userSchema>
 
-// ② mapStore 持久化的 AnalysisResult——仅校验为 plain object，字段由业务层自行收窄
-export const analysisResultSchema = z.record(z.string(), z.unknown())
-
-export type AnalysisResultParsed = z.infer<typeof analysisResultSchema>
-
 // ②a 淹没要素 / 受影响设施元素级 schema（D1：替代 z.array(z.unknown()) 浅校验 + as 硬转——
 // geometry/coordinates 深字段在 HTTP 边界即把关，畸形数据抛 ApiError(REQUEST_FAILED) 而非穿透渲染）
 export const floodGeometrySchema = z.discriminatedUnion('type', [
@@ -190,6 +185,30 @@ export const forecastIndicatorIndexSchema = z.object({
 
 export type ForecastIndicatorIndexParsed = z.infer<typeof forecastIndicatorIndexSchema>
 
+// ⑮ /flood/flood-statistics 响应（定义提前：⑩ planSchema 的浸没载荷字段复用本 schema，
+// 须先于其求值；编号保持文档序号不变）
+// 2026-09-11 起与 flood-areas/disaster 同源：waterLevel 为 251 档实际档位（不再是 6 档粗化值）；
+// averageDepth/maxDepth 仍来自 6 档 DEM 反演参考表，由 depthRefLevel 标注其所属档位
+export const floodStatisticsResponseSchema = z.looseObject({
+  waterLevel: z.number().optional(),
+  requestedWaterLevel: z.number().optional(),
+  actualWaterLevel: z.number().optional(),
+  riskLevel: z.string(),
+  riskLevelCode: z.number().optional(),
+  floodArea: z.number().optional(),
+  averageDepth: z.number().optional(),
+  maxDepth: z.number().optional(),
+  depthRefLevel: z.number().optional(),
+  // 计数语义改名 affectedFacilityCount（原 affectedFacilities 与数组语义同名不同型）
+  affectedFacilityCount: z.number().optional(),
+  affectedPorts: z.array(z.string()).optional(),
+  estimatedLoss: z.number().optional(),
+  description: z.string().optional(),
+  affectedCount: z.number().optional(),
+})
+
+export type FloodStatisticsResponseParsed = z.infer<typeof floodStatisticsResponseSchema>
+
 // ⑩ /plans CRUD 响应（嵌套复杂字段宽松化）
 export const planSchema = z.looseObject({
   id: z.string(),
@@ -207,6 +226,12 @@ export const planSchema = z.looseObject({
   waterLevel: z.number().optional(),
   totalLoss: z.number().optional(),
   floodRiskLevel: z.string().optional(),
+  // 浸没方案载荷（审查 M-1）：此前完全未声明 → PlansPanel 裸 as 硬转 + 畸形数据
+  // 静默降级 []。元素级复用既有 schema；畸形存量数据将显式抛 REQUEST_FAILED
+  //（空与错误分离），不再静默清空。写入侧为前端自有结构 + 后端 payload 白名单透传
+  floodFeatures: z.array(floodFeatureSchema).optional(),
+  affectedFacilities: z.array(affectedFacilitySchema).optional(),
+  floodStatistics: floodStatisticsResponseSchema.optional(),
 })
 
 export type PlanParsed = z.infer<typeof planSchema>
@@ -264,29 +289,6 @@ export const floodAreasResponseSchema = z.looseObject({
 })
 
 export type FloodAreasResponseParsed = z.infer<typeof floodAreasResponseSchema>
-
-// ⑮ /flood/flood-statistics 响应
-// 2026-09-11 起与 flood-areas/disaster 同源：waterLevel 为 251 档实际档位（不再是 6 档粗化值）；
-// averageDepth/maxDepth 仍来自 6 档 DEM 反演参考表，由 depthRefLevel 标注其所属档位
-export const floodStatisticsResponseSchema = z.looseObject({
-  waterLevel: z.number().optional(),
-  requestedWaterLevel: z.number().optional(),
-  actualWaterLevel: z.number().optional(),
-  riskLevel: z.string(),
-  riskLevelCode: z.number().optional(),
-  floodArea: z.number().optional(),
-  averageDepth: z.number().optional(),
-  maxDepth: z.number().optional(),
-  depthRefLevel: z.number().optional(),
-  // 计数语义改名 affectedFacilityCount（原 affectedFacilities 与数组语义同名不同型）
-  affectedFacilityCount: z.number().optional(),
-  affectedPorts: z.array(z.string()).optional(),
-  estimatedLoss: z.number().optional(),
-  description: z.string().optional(),
-  affectedCount: z.number().optional(),
-})
-
-export type FloodStatisticsResponseParsed = z.infer<typeof floodStatisticsResponseSchema>
 
 // ⑯ /flood/analysis/disaster 响应（affectedFacilities 元素级深校验：affectedFacilitySchema）
 export const floodDisasterResponseSchema = z.looseObject({

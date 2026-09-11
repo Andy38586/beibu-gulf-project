@@ -17,7 +17,7 @@ import { logger } from '@/shared'
 import { EmptyState, PaginatedListPanel, PlanSaveModal, sanitizeMessage } from '@/shared'
 import { useFavorites } from '@/shared'
 import { useFloodStore } from '@/stores'
-import type { AffectedFacility, FloodFeature, FloodStatistics } from '@/types/business/base'
+import type { AffectedFacility, FloodFeature } from '@/types/business/base'
 import type { FavoriteItem } from '@/types/business/base'
 import type { TypeSetting } from '@/types/facility'
 import type { Plan } from '@/types/plan'
@@ -149,11 +149,13 @@ function loadFloodPlan(plan: Plan) {
 
   floodStore.saveState({
     waterLevel: plan.waterLevel || 0,
-    floodStatistics: (plan.floodStatistics ?? null) as FloodStatistics | null,
+    // 浸没载荷已由 planSchema 元素级校验（审查 M-1）；FloodStatisticsResponseParsed 与
+    // FloodStatistics 的 riskLevel 必填口径一致，结构上可直接赋值，无需再断言
+    floodStatistics: plan.floodStatistics ?? null,
     floodFeatures,
-    floodRiskLevel: plan.floodRiskLevel as string, // 补传风险等级
+    floodRiskLevel: plan.floodRiskLevel ?? '', // 补传风险等级
     affectedFacilities,
-    totalLoss: plan.totalLoss as number,
+    totalLoss: plan.totalLoss ?? 0,
   })
   void router.push('/flood-analysis')
 }

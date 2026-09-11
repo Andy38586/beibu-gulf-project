@@ -7,7 +7,7 @@
  * 覆盖为 calculate 的旧路径已无后端可连。静态数据字段由后端对齐类型契约。
  */
 
-import { ENDPOINTS, logger, useApiRequest } from '@/shared'
+import { DEFAULT_RISK_LEVEL, ENDPOINTS, logger, useApiRequest } from '@/shared'
 import type { AffectedFacility, FloodFeature, FloodStatistics } from '@/types/business/base'
 import type {
   FloodAreasResponseParsed,
@@ -73,13 +73,16 @@ export const floodAdapter = {
     ])
 
     const floodData = floodAreasRes
-    const riskLevel = floodData?.riskLevel ?? '无风险'
+    const riskLevel = floodData?.riskLevel ?? DEFAULT_RISK_LEVEL
     const actualWaterLevel = floodData?.actualWaterLevel
 
     return {
-      // D1：schema 已深校验 features 元素；riskLevel 由后端注入（flood-areas 响应 properties 恒含），
-      // 单断言仅为类型收窄（z.infer 派生类型与业务类型同源）
-      features: (floodData?.features as FloodFeature[]) || [],
+      // schema 侧 properties.riskLevel optional（calculate 模式历史约束，见 floodFeatureSchema 注释），
+      // 业务类型必填——边界归一注入缺省值，消灭「optional 强转必填」的类型谎言（审查 L-2）
+      features: (floodData?.features ?? []).map((f) => ({
+        ...f,
+        properties: { ...f.properties, riskLevel: f.properties.riskLevel ?? DEFAULT_RISK_LEVEL },
+      })),
       // z.infer 同源：schema 解析类型与业务类型字段兼容，单断言透传（原 as unknown as 双断言消除）
       statistics: statisticsRes as FloodStatistics,
       riskLevel,

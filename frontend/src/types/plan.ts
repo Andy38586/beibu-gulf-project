@@ -1,10 +1,15 @@
 import type { TypeSetting } from './facility'
+import type {
+  AffectedFacilityParsed,
+  FloodFeatureParsed,
+  FloodStatisticsResponseParsed,
+} from './schemas'
 import type { SavedXiaoqu } from './xiaoqu'
 
 // 重新导出类型，方便其他模块引用
 export type { SavedXiaoqu } from './xiaoqu'
 
-// 方案（后端 plans.json 中的一条记录）
+// 方案（后端 plans 表 payload 的一条记录；浸没系字段经 planSchema 元素级校验，审查 M-1）
 export interface Plan {
   id: string
   userId: string
@@ -21,12 +26,12 @@ export interface Plan {
   businessType?: string
   /** 浸没方案水位（仅 flood 类型有值） */
   waterLevel?: number
-  /** 浸没方案统计数据（仅 flood 类型有值，格式待稳定） */
-  floodStatistics?: Record<string, unknown>
-  /** 浸没方案特征数据（仅 flood 类型有值，格式待稳定） */
-  floodFeatures?: Record<string, unknown>[]
-  /** 浸没方案受影响设施（仅 flood 类型有值，格式待稳定） */
-  affectedFacilities?: Record<string, unknown>[]
+  /** 浸没方案统计数据（planSchema 按 floodStatisticsResponseSchema 校验） */
+  floodStatistics?: FloodStatisticsResponseParsed
+  /** 浸没方案特征数据（planSchema 按 floodFeatureSchema 元素级校验） */
+  floodFeatures?: FloodFeatureParsed[]
+  /** 浸没方案受影响设施（planSchema 按 affectedFacilitySchema 元素级校验） */
+  affectedFacilities?: AffectedFacilityParsed[]
   /** 浸没方案总损失（仅 flood 类型有值） */
   totalLoss?: number
   /** 浸没方案风险等级（仅 flood 类型有值） */

@@ -46,6 +46,73 @@ describe('planSchema（真实 plans.json 全量校验）', () => {
     const result = planSchema.safeParse({ name: 'no-id' })
     expect(result.success).toBe(false)
   })
+
+  it('浸没方案载荷（审查 M-1 回归）：合法 floodFeatures/floodStatistics 通过', () => {
+    const plan = {
+      id: 'p1',
+      userId: 'u1',
+      name: '浸没方案',
+      selectedKeys: ['hospital'],
+      typeSettings: {},
+      createdAt: '2026-09-11T00:00:00.000Z',
+      updatedAt: '2026-09-11T00:00:00.000Z',
+      waterLevel: 5,
+      floodRiskLevel: '高风险',
+      totalLoss: 1200,
+      floodFeatures: [
+        {
+          type: 'Feature',
+          geometry: {
+            type: 'Polygon',
+            coordinates: [
+              [
+                [0, 0],
+                [1, 0],
+                [1, 1],
+                [0, 0],
+              ],
+            ],
+          },
+          properties: { riskLevel: '高风险' },
+        },
+      ],
+      floodStatistics: { riskLevel: '高风险', waterLevel: 5 },
+      affectedFacilities: [
+        { id: 'f1', name: '港', type: 'port', lng: 1, lat: 2, loss: 0, damageRate: 0 },
+      ],
+    }
+    const result = planSchema.safeParse(plan)
+    expect(result.success, JSON.stringify(result.error?.issues)).toBe(true)
+  })
+
+  it('浸没方案载荷：features 缺 geometry 被拒绝（不再静默透传/清空）', () => {
+    const plan = {
+      id: 'p2',
+      userId: 'u1',
+      name: '畸形方案',
+      selectedKeys: ['hospital'],
+      typeSettings: {},
+      createdAt: '2026-09-11T00:00:00.000Z',
+      updatedAt: '2026-09-11T00:00:00.000Z',
+      floodFeatures: [{ type: 'Feature', properties: {} }],
+    }
+    const result = planSchema.safeParse(plan)
+    expect(result.success).toBe(false)
+  })
+
+  it('浸没方案载荷：floodStatistics 缺 riskLevel 被拒绝', () => {
+    const plan = {
+      id: 'p3',
+      userId: 'u1',
+      name: '缺风险等级',
+      selectedKeys: [],
+      typeSettings: {},
+      createdAt: '2026-09-11T00:00:00.000Z',
+      updatedAt: '2026-09-11T00:00:00.000Z',
+      floodStatistics: { waterLevel: 5 },
+    }
+    expect(planSchema.safeParse(plan).success).toBe(false)
+  })
 })
 
 describe('terrainProfileSchema（真实 terrainProfile.json 校验）', () => {

@@ -165,12 +165,20 @@ ORDER BY pid
   async shortestPathByPoints(snaps: SnapRow[], mode: RouteMode): Promise<WithPointsRow[]> {
     const costCol = MODE_COST_COLUMN[mode]
     // points_sql 内联：pid/edge_id/fraction 全部来自上一步吸附查询的结果行，
-    // 经 Number() 归一后拼接（数值类型，不含用户原始输入，无注入面）
+    // 经 Number() 归一后拼接（数值类型，不含用户原始输入，无注入面）；
+    // 超 2^53 的标识经 Number 静默失真会指到错误边——fail-loud 优于静默错果（审查 L-5）
     const pointsSql = snaps
-      .map(
-        (s) =>
-          `SELECT ${Number(s.pid)}::int AS pid, ${Number(s.edge_id)}::bigint AS edge_id, ${Number(s.fraction)}::float8 AS fraction, 'b'::char AS side`
-      )
+      .map((s) => {
+        const pid = Number(s.pid)
+        const edgeId = Number(s.edge_id)
+        const fraction = Number(s.fraction)
+        if (!Number.isSafeInteger(pid) || !Number.isSafeInteger(edgeId)) {
+          throw new Error(
+            `shortestPathByPoints: 吸附结果整数标识超安全范围 pid=${s.pid} edge_id=${s.edge_id}`
+          )
+        }
+        return `SELECT ${pid}::int AS pid, ${edgeId}::bigint AS edge_id, ${fraction}::float8 AS fraction, 'b'::char AS side`
+      })
       .join(' UNION ALL ')
 
     const res = await this.db.query<WithPointsRow>(

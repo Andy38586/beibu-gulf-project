@@ -95,6 +95,17 @@ describe('RouteRepository.snapPoints - SQL 契约', () => {
 })
 
 describe('RouteRepository.shortestPathByPoints - SQL 契约', () => {
+  it('吸附标识超 2^53（Number 归一会静默失真）→ fail-loud 拒绝寻路（审查 L-5）', async () => {
+    const { db } = makeDbMock()
+    const unsafeSnaps: SnapRow[] = [
+      { pid: PID_FROM, edge_id: '9007199254740993', fraction: 0.25, snap_m: 1 }, // 2^53+1
+      { pid: PID_TO, edge_id: '2002', fraction: 0.75, snap_m: 1 },
+    ]
+    await expect(
+      new RouteRepository(db).shortestPathByPoints(unsafeSnaps, 'distance')
+    ).rejects.toThrow(/超安全范围/)
+  })
+
   it('points_sql 用 $$ 美元引用包裹，单引号字面量不再冲突（ccabbd09 回归护栏）', async () => {
     const { db, calls } = makeDbMock()
     await new RouteRepository(db).shortestPathByPoints(SNAPS, 'distance')

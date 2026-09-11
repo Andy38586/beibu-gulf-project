@@ -158,14 +158,8 @@ export default defineConfig(({ mode, command }) => {
         },
         // target 用 127.0.0.1 显式 IPv4 回环，避免 localhost 解析到 ::1 的歧义（3000 同理）。
         // 502 主因（系统代理劫持回环转发）已在本文件顶部 command==='serve' 时移除 *_PROXY 解决。
-        // 在线演算服务（FastAPI，algorithm-service，端口 8000）
-        // 路由 B ④：滑块无极调节 → 实时连通性淹没；rewrite 去掉 /flood-online 前缀
-        '/flood-online': {
-          target: 'http://127.0.0.1:8000',
-          changeOrigin: true,
-          secure: false,
-          rewrite: (path) => path.replace(/^\/flood-online/, ''),
-        },
+        // 2026-09-11：删除 /flood-online 代理——algorithm-service 已退役（2026-09-10 阶段 4），
+        // 前端 ENDPOINTS 零调用（flood/route 域均切 Nest），此前 nginx 两处已删、仅剩此处。
       },
     },
   }

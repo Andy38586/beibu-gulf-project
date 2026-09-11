@@ -1,6 +1,10 @@
-# v3 开发栈 —— PostGIS + algorithm-service（NestJS 服务随后加入）
+# v3 开发栈 —— PostGIS（本地开发库）
 # 用法: docker compose -f docker-compose.v3.yml up -d
 # 连接: host=localhost port=5432 user=postgres password=postgres dbname=v3_dev
+#
+# 2026-09-11：algorithm-service（FastAPI）服务定义删除——该服务已于 2026-09-10
+# （阶段 4）退役，生产/开发调用均已切 NestJS；源码按 docker-compose.yml 既定决策
+# 保留不删（回滚用），但本栈不再构建/启动它（原定义会让 `up -d` 白建一个退役服务）。
 services:
   postgis:
     image: postgis/postgis:16-3.4
@@ -18,22 +22,6 @@ services:
       interval: 5s
       timeout: 3s
       retries: 12
-
-  # 在线演算服务（T5.1 由 flood-service 平移演进）：flood 兼容区 + route 新区。
-  # 数据 ro 挂载 backend/data（flood_levels.json.gz 251 档预计算表 / facilityPoints.json /
-  # dem）；DEM 缺失时在线演算兜底 503，查表不受影响。生产同源经 nginx 反代。
-  algorithm-service:
-    build:
-      context: ./backend/algorithm-service
-    container_name: beibu-algorithm-service
-    environment:
-      # 容器内经 compose 服务名互连；本地裸跑缺省 localhost（见 route/source.py）
-      ROUTE_PG_HOST: postgis
-    volumes:
-      - ./backend/data:/app/backend/data:ro
-    ports:
-      - '8000:8000'
-    restart: unless-stopped
 
 volumes:
   beibu-pgdata:

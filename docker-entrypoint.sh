@@ -151,7 +151,8 @@ server {
         add_header Content-Security-Policy-Report-Only "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; media-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'" always;
     }
     gzip on;
-    gzip_types text/plain text/css application/json application/javascript text/xml application/xml;
+    # 2026-09-11：补 image/svg+xml（与 nginx.conf 的 :80 段及下方 brotli 同口径）
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml image/svg+xml;
     gzip_min_length 1000;
     # brotli 实时压缩（与 default.conf 同配，https 独立 server 块需重复声明）
     brotli on;

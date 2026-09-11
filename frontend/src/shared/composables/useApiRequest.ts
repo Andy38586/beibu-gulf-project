@@ -45,7 +45,7 @@ const NEST_ENABLED_MODULES: Set<string> = new Set(
 )
 const API_TIMEOUT_MS: number = 10000
 
-/** 请求 path 首段 → 功能域（v3 六模块，新增业务模块时此处同步） */
+/** 请求 path 首段 → 功能域（v3 七业务域；与 backend routes.manifest 由 routes-audit.mjs 双向断言，guard:v3 拦截漂移） */
 const MODULE_BY_PATH_PREFIX: Record<string, string> = {
   auth: 'auth',
   plans: 'plans',
@@ -53,6 +53,7 @@ const MODULE_BY_PATH_PREFIX: Record<string, string> = {
   forecast: 'forecast',
   flood: 'flood',
   'site-analysis': 'site-analysis',
+  route: 'route',
 }
 
 /** 按功能域解析后端前缀：启用了 Nest 的模块走 /nest-api，其余回退 Express（/api） */

@@ -379,6 +379,8 @@ export class CesiumRenderer extends MapRenderer {
   _cameraDebounceTimer: ReturnType<typeof setTimeout> | null
   _terrainProvider: CesiumTerrainProvider | null
   _terrainEnabled: boolean
+  /** 地形初始化在途守卫：挂载初始化与开关重试（setTerrainEnabled）并发时复用同一次建连 */
+  _terrainSetupInFlight: Promise<void> | null
   /** 地形已降级为平坦椭球（根瓦片失败兜底），避免重复降级；setTerrainEnabled(true) 时重置重试 */
   _terrainDegraded: boolean
   /** Level 0 根瓦片累计失败次数（仅根层计数，深层瓦片缺失只产生局部空洞、不降级） */
@@ -420,6 +422,7 @@ export class CesiumRenderer extends MapRenderer {
     this._terrainProvider = null
     /** "真实地形"开关状态（3D 语义）：默认开，_setupTerrain 自动加载即显示 */
     this._terrainEnabled = true
+    this._terrainSetupInFlight = null
     this._terrainDegraded = false
     this._rootTileErrorCount = 0
     this._rootTileErrorKeys = new Set<string>()
@@ -501,7 +504,16 @@ export class CesiumRenderer extends MapRenderer {
   }
 
   /** 真地形接入：/static/terrain/ 目录 → CesiumTerrainProvider。失败静默降级（不阻塞 Viewer）。 */
-  async _setupTerrain() {
+  async _setupTerrain(): Promise<void> {
+    // 在途守卫：首建失败后的开关重试（setTerrainEnabled）与挂载初始化并发时，不重复建连
+    if (this._terrainSetupInFlight) return this._terrainSetupInFlight
+    this._terrainSetupInFlight = this._doSetupTerrain().finally(() => {
+      this._terrainSetupInFlight = null
+    })
+    return this._terrainSetupInFlight
+  }
+
+  private async _doSetupTerrain(): Promise<void> {
     try {
       const viewer = this.viewer
       if (!viewer) return
@@ -574,8 +586,13 @@ export class CesiumRenderer extends MapRenderer {
   setTerrainEnabled(enabled: boolean): void {
     this._terrainEnabled = enabled
     if (!this.viewer || !this.viewer.scene || this.viewer.isDestroyed()) return
-    // provider 未就绪时无可切换，等 _setupTerrain 成功后再按开关生效
-    if (!this._terrainProvider) return
+    // provider 未就绪：若仍要求开启（含首建失败的永久 no-op 场景，审查 M-11），
+    // 触发一次重试而非直接返回——否则首会话地形加载失败 + 实例复用不重建，
+    // 本开关永远无效。在途守卫防连点重复建连；成功后 _setupTerrain 按 _terrainEnabled 落位
+    if (!this._terrainProvider) {
+      if (enabled) void this._setupTerrain()
+      return
+    }
     if (enabled) {
       this._terrainDegraded = false
       this._rootTileErrorCount = 0
@@ -794,6 +811,10 @@ export class CesiumRenderer extends MapRenderer {
       return { center: { lng: MAP_CONFIG.CAMERA.center.lng, lat: MAP_CONFIG.CAMERA.center.lat } }
     }
     const posCartographic = camera.positionCartographic
+    // 弧度坐标未就绪（极早期帧）防御：与 getViewportBBox 的判空口径一致（审查 L-6）
+    if (!posCartographic) {
+      return { center: { lng: MAP_CONFIG.CAMERA.center.lng, lat: MAP_CONFIG.CAMERA.center.lat } }
+    }
 
     // 导出 pitch（恢复时用）
     const pitchDeg = CesiumMath.toDegrees(camera.pitch)
@@ -1497,6 +1518,8 @@ export async function addGeoJsonLayer(
 
     // await 后检查：若有更新的同 id 请求，丢弃本次结果
     if (renderer._geoJsonTokens.get(id) !== token) return
+    // await 期间 viewer 可能已销毁，后续 viewer! 裸引用防御（审查 L-7）
+    if (!renderer.viewer) return
 
     logger.debug(`[CesiumRenderer] GeoJSON ${id} entities:`, dataSource.entities.values.length)
     applyGeoJsonDataSourceStyle(dataSource, options)
@@ -1561,9 +1584,11 @@ export async function updateGeoJsonLayer(
     await dataSource.load(geojson)
 
     if (renderer._geoJsonTokens.get(id) !== token) return
+    // await 后 viewer 可能已销毁，requestRender 的 viewer! 裸引用防御（审查 L-7）
+    if (!renderer.viewer) return
     applyGeoJsonDataSourceStyle(dataSource, entry.options)
     renderer._applyPendingVisibility(id)
-    renderer.viewer!.scene.requestRender()
+    renderer.viewer.scene.requestRender()
     renderer._geoJsonTokens.delete(id)
   } catch (error: unknown) {
     if (renderer._geoJsonTokens.get(id) !== token) return
@@ -1591,9 +1616,10 @@ export function addGeoTIFFLayer(
     `[CesiumRenderer] addGeoTIFFLayer 调用: id=${id} url=${url} terrainReady=${renderer._terrainProvider !== null}`
   )
 
-  // 回退方案仅支持预生成的 hillshade 影像；其它 GeoTIFF 在 3D 下暂不支持
+  // 回退方案仅支持预生成的 hillshade 影像；其它 GeoTIFF 在 3D 下暂不支持。
+  // 静默 return false 曾让图层面板/BLM 无从感知图层未挂上（审查 L-8）：warn 留痕
   if (!/hillshade/i.test(url)) {
-    logger.debug(`[CesiumRenderer] addGeoTIFFLayer 仅支持 hillshade 回退，跳过: ${url}`)
+    logger.warn(`[CesiumRenderer] addGeoTIFFLayer 仅支持 hillshade 回退，跳过: ${url}`)
     return false
   }
 

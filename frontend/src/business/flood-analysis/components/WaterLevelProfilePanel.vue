@@ -1,7 +1,9 @@
 <script setup lang="ts">
 /**
- * 水位滑块与剖面分析面板：滑块控制水位（0-15m）、点击刻度标记、下拉选择预设剖面线，
- * 自动显示高程剖面图并叠加当前水位线。布局 4×4，右上角。
+ * 水位滑块与剖面分析面板：滑块控制水位（0-25m，251 档 0.1m 步进）、点击刻度标记、
+ * 下拉选择预设剖面线，自动显示高程剖面图并叠加当前水位线。布局 4×4，右上角。
+ * 7 个刻度是潮汐基准面参照标记（0-15m，最低潮面→最高潮位），与数据档位上限
+ * MAX_WATER_LEVEL（后端权威，shared/constants/flood.ts 同源）是两个层的东西。
  */
 
 import { LineChart } from 'echarts/charts'
@@ -17,7 +19,12 @@ import { CanvasRenderer } from 'echarts/renderers'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 
 import { useSliderFocus } from '@/core'
-import { PROFILE_AREA_STOP_STRONG, PROFILE_AREA_STOP_WEAK, PROFILE_COLORS } from '@/shared'
+import {
+  MAX_WATER_LEVEL,
+  PROFILE_AREA_STOP_STRONG,
+  PROFILE_AREA_STOP_WEAK,
+  PROFILE_COLORS,
+} from '@/shared'
 import { useGCS } from '@/shared'
 import { perfTimeFn } from '@/shared'
 import { useFloodStore } from '@/stores'
@@ -58,10 +65,11 @@ const localWaterLevel = computed<number>({
 })
 
 /**
- * 可点击刻度标记（7 档等距 0-15m，下排 4 档 + 上排 3 档交错防拥挤）：
+ * 可点击刻度标记（潮汐基准面参照系，下排 4 档 + 上排 3 档交错防拥挤）：
  * 潮汐基准专业术语——平均海平面 2.5m 与 waterLevel.json baseLevels.msl 同源，
  * 低水位区为潮汐基准面体系，高水位区为极值潮位体系（警戒/设计/历史极值）。
- * row 控制交错排布；value 同时是点击跳转的水位与轨道百分比（value/15）。
+ * row 控制交错排布；value 同时是点击跳转的水位与轨道百分比（value/MAX_WATER_LEVEL）。
+ * 刻度是参照标记而非档位——滑块数据上限为 251 档的 0-25m（审查口径分裂修复）
  */
 const scaleMarks = [
   { label: '最低潮面', value: 0, row: 'bottom' },
@@ -71,7 +79,10 @@ const scaleMarks = [
   { label: '警戒潮位', value: 10, row: 'bottom' },
   { label: '设计高潮位', value: 12.5, row: 'top' },
   { label: '最高潮位', value: 15, row: 'bottom' },
-]
+] as const
+
+/** 末位标记（最高潮位）：--last 样式锚点随标记数组派生，不再硬编码 15 */
+const lastMark = scaleMarks[scaleMarks.length - 1]
 
 /** 滑块变化直接写 store；防抖由父组件统一处理（可写 computed 的 set 即写 store） */
 function onSliderChange(value: number | number[]) {
@@ -126,7 +137,7 @@ function updateChart() {
   }
 
   // 提取距离和高程数据；垂直基准统一到「基准面起算」口径——
-  // 地形 EGM96 高程 + datumOffset(msl=2.5) 抬升，水位线直接用滑块值（0-15，无负值）：
+  // 地形 EGM96 高程 + datumOffset(msl=2.5) 抬升，水位线直接用滑块值（0-25，无负值）：
   // 水面线与地形的相对关系不变，y 轴不再出现负刻度（口径即滑块口径：基准面=0）
   const distances = profile.points.map((p) => p.distance)
   const datumOffset = profile.datumOffset ?? 0
@@ -302,7 +313,7 @@ onUnmounted(() => {
       <ElSlider
         v-model="localWaterLevel"
         :min="0"
-        :max="15"
+        :max="MAX_WATER_LEVEL"
         :step="0.1"
         :show-tooltip="false"
         @pointerdown="beginSliderFocus($event.currentTarget as HTMLElement)"
@@ -318,9 +329,9 @@ onUnmounted(() => {
           class="scale-mark clickable"
           :class="[
             mark.row === 'top' ? 'scale-mark--top' : 'scale-mark--bottom',
-            { 'scale-mark--first': mark.value === 0, 'scale-mark--last': mark.value === 15 },
+            { 'scale-mark--first': mark.value === 0, 'scale-mark--last': mark === lastMark },
           ]"
-          :style="{ left: (mark.value / 15) * 100 + '%' }"
+          :style="{ left: (mark.value / MAX_WATER_LEVEL) * 100 + '%' }"
           @click="setWaterLevelByMark(mark.value)"
         >
           {{ mark.label }}
@@ -421,7 +432,7 @@ onUnmounted(() => {
 }
 
 /* 刻度 7 档上下交错（上 3 下 4）：刻度层绝对覆盖滑块容器，top 行贴滑块上方、
-   bottom 行贴滑块下方；left=value/15 与轨道真实位置一致，nowrap 防折行，
+   bottom 行贴滑块下方；left=value/MAX_WATER_LEVEL 与轨道真实位置一致，nowrap 防折行，
    首尾单侧对齐防溢出面板 */
 .scale-marks {
   position: absolute;

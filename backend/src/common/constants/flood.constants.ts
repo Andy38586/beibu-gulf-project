@@ -1,4 +1,6 @@
-// 水位上限（米）：与 FastAPI 参数约束（le=25）及滑块范围一致
+// 水位上限（米）：251 档（0.1m 步进 0-25m）的数据档位上限。
+// 前端同源值见 frontend/src/shared/constants/flood.ts（此前前端滑块写死 15，
+// 后端注释谎称"与滑块一致"——双侧一致性现由 tools/v3-guard/constants-audit.mjs 断言）
 // flood 模块入参与档位选取共用此界
 export const MAX_WATER_LEVEL = 25
 

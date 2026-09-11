@@ -908,7 +908,12 @@ export class OLRenderer extends MapRenderer {
     const view = this.map?.getView()
     const center = view?.getCenter()
     if (!view || !center) {
-      return { center: { lng: 0, lat: 0 }, zoom: 6 }
+      // 与 CesiumRenderer._getCameraState 同源兜底：视图未就绪时回退配置相机中心。
+      // 曾硬编码 (0,0)/zoom6，被跨引擎相机恢复当作真实目标 → 飞向几内亚湾（审查 M-13）
+      return {
+        center: { lng: MAP_CONFIG.CAMERA.center.lng, lat: MAP_CONFIG.CAMERA.center.lat },
+        zoom: heightToZoom(MAP_CONFIG.CAMERA.center.height),
+      }
     }
     const lonLat = toLonLat(center)
     const zoom = view.getZoom()

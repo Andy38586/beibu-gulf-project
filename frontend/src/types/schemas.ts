@@ -266,13 +266,18 @@ export const floodAreasResponseSchema = z.looseObject({
 export type FloodAreasResponseParsed = z.infer<typeof floodAreasResponseSchema>
 
 // ⑮ /flood/flood-statistics 响应
+// 2026-09-11 起与 flood-areas/disaster 同源：waterLevel 为 251 档实际档位（不再是 6 档粗化值）；
+// averageDepth/maxDepth 仍来自 6 档 DEM 反演参考表，由 depthRefLevel 标注其所属档位
 export const floodStatisticsResponseSchema = z.looseObject({
   waterLevel: z.number().optional(),
+  requestedWaterLevel: z.number().optional(),
+  actualWaterLevel: z.number().optional(),
   riskLevel: z.string(),
   riskLevelCode: z.number().optional(),
   floodArea: z.number().optional(),
   averageDepth: z.number().optional(),
   maxDepth: z.number().optional(),
+  depthRefLevel: z.number().optional(),
   // 计数语义改名 affectedFacilityCount（原 affectedFacilities 与数组语义同名不同型）
   affectedFacilityCount: z.number().optional(),
   affectedPorts: z.array(z.string()).optional(),

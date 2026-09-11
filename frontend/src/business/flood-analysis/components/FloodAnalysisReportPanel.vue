@@ -41,6 +41,20 @@ const affectedPorts = computed<string[]>(() => {
   const ports = floodStore.floodStatistics?.affectedPorts
   return Array.isArray(ports) ? (ports as string[]) : []
 })
+
+/**
+ * 水深参考档位标注：averageDepth/maxDepth 来自 6 档 DEM 反演参考表（源数据无 251 档水深），
+ * 与实际档位不一致时以 * 标注，避免被读成当前水位的精确值（2026-09-11）。
+ */
+const depthRefLevel = computed(() => floodStore.floodStatistics?.depthRefLevel)
+const depthIsReference = computed(
+  () =>
+    depthRefLevel.value !== undefined &&
+    depthRefLevel.value !== floodStore.floodStatistics?.waterLevel
+)
+const depthHint = computed(() =>
+  depthIsReference.value ? `参考 ${depthRefLevel.value}m 档 DEM 反演值` : ''
+)
 </script>
 
 <template>
@@ -60,11 +74,23 @@ const affectedPorts = computed<string[]>(() => {
       </div>
       <div v-if="floodStore.floodStatistics" class="info-item">
         <span class="info-label">平均水深</span>
-        <span class="info-value">{{ floodStore.floodStatistics.averageDepth ?? 0 }} m</span>
+        <span class="info-value" :title="depthHint"
+          >{{ floodStore.floodStatistics.averageDepth ?? 0 }} m<span
+            v-if="depthIsReference"
+            class="ref-mark"
+            >*</span
+          ></span
+        >
       </div>
       <div v-if="floodStore.floodStatistics" class="info-item">
         <span class="info-label">最大水深</span>
-        <span class="info-value">{{ floodStore.floodStatistics.maxDepth ?? 0 }} m</span>
+        <span class="info-value" :title="depthHint"
+          >{{ floodStore.floodStatistics.maxDepth ?? 0 }} m<span
+            v-if="depthIsReference"
+            class="ref-mark"
+            >*</span
+          ></span
+        >
       </div>
       <div class="info-item">
         <span class="info-label">受影响设施</span>
@@ -164,5 +190,12 @@ const affectedPorts = computed<string[]>(() => {
 .info-value.highlight {
   color: var(--GCS-color-danger);
   font-weight: 600;
+}
+
+/* 水深参考档位标注（*）：提示该值来自 6 档 DEM 反演参考表而非当前水位 */
+.ref-mark {
+  margin-left: 2px;
+  color: var(--GCS-text-secondary);
+  cursor: help;
 }
 </style>

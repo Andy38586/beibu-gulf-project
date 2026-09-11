@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { deriveRiskLevel } from '../src/common/constants/flood.constants'
+import { deriveRiskLevel, deriveRiskLevelCode } from '../src/common/constants/flood.constants'
 import { BusinessError } from '../src/common/errors/business-error'
 import { DbService } from '../src/infra/db/db.service'
 import { SpatialRepository } from '../src/infra/db/spatial.repository'
@@ -29,11 +29,14 @@ const MOCK_FLOOD_AREA = JSON.stringify({
 })
 
 // PG 返回行 fixture（NUMERIC 经 node-postgres 为 string；geometry 为 ST_AsGeoJSON 文本）
-function mockLevelRows(levels: Array<[number, number]>): FloodLevelFeatureRow[] {
+function mockLevelRows(
+  levels: Array<[number, number]>,
+  floodedKm2 = '2.0'
+): FloodLevelFeatureRow[] {
   return levels.map(([level, area]) => ({
     level: String(level),
     feature_count: 1,
-    flooded_km2: '2.0',
+    flooded_km2: floodedKm2,
     geometry: JSON.stringify({
       type: 'Polygon',
       coordinates: [
@@ -50,13 +53,51 @@ function mockLevelRows(levels: Array<[number, number]>): FloodLevelFeatureRow[] 
   }))
 }
 
+// 6 档 DEM 反演参考表 fixture（仅水深参考字段在本轮改造后仍被消费）
 const MOCK_STATISTICS = JSON.stringify({
   statistics: [
-    { waterLevel: 1.0, floodArea: 0.5 },
-    { waterLevel: 3.0, floodArea: 2.0 },
-    { waterLevel: 5.0, floodArea: 5.0 },
+    { waterLevel: 1.0, floodArea: 0.5, averageDepth: 0.1, maxDepth: 0.2 },
+    { waterLevel: 3.0, floodArea: 2.0, averageDepth: 0.8, maxDepth: 1.1 },
+    { waterLevel: 5.0, floodArea: 5.0, averageDepth: 2.04, maxDepth: 2.5 },
   ],
 })
+
+// 设施点 fixture（结构与 backend/data/flood/facilityPoints.json 同构）
+const MOCK_FACILITY_RAW = {
+  id: 'QZ-001',
+  name: '三墩港口',
+  type: '港口码头',
+  port: '钦州港',
+  lng: 108.697,
+  lat: 21.61,
+  elevation: 12.0,
+  value: 15000,
+  damageRate: 0.85,
+}
+
+const MOCK_FACILITY_POINTS = JSON.stringify({
+  facilities: [
+    MOCK_FACILITY_RAW,
+    {
+      id: 'FCG-001',
+      name: '防城港码头',
+      type: '港口码头',
+      port: '防城港',
+      lng: 108.35,
+      lat: 21.68,
+      elevation: 5.0,
+      value: 20000,
+      damageRate: 0.5,
+    },
+  ],
+})
+
+// 点面判定桩：统计/灾害评估命中索引由用例注入（真库行为见 V3_INTEGRATION_DB 门控用例）
+function stubSpatial(hitIndices: number[]): SpatialRepository {
+  return {
+    pointIndicesInAnyPolygon: vi.fn().mockResolvedValue(hitIndices),
+  } as unknown as SpatialRepository
+}
 
 // 水域坐标端点 fixture（结构与 backend/data/flood/water-area.json 同构）
 const MOCK_WATER_AREA = JSON.stringify({
@@ -69,17 +110,7 @@ const MOCK_WATER_AREA = JSON.stringify({
   ],
 })
 
-const MOCK_FACILITY = {
-  id: 'QZ-001',
-  name: '三墩港口',
-  type: '港口码头',
-  port: '钦州港',
-  lng: 108.697,
-  lat: 21.61,
-  elevation: 12.0,
-  value: 15000,
-  damageRate: 0.85,
-}
+const MOCK_FACILITY = MOCK_FACILITY_RAW
 
 // 洪涝点面判定已下沉 PostGIS（ST_Covers），涉及 assessDisaster 的用例需真库，
 // 以 V3_INTEGRATION_DB 控制（与 favorites/plans/site-analysis 同口径）。
@@ -212,30 +243,108 @@ describe('deriveRiskLevel - 连续档位风险派生', () => {
     expect(deriveRiskLevel(12.5)).toBe('灾难级')
     expect(deriveRiskLevel(3.5)).toBe('中风险')
   })
+
+  it('riskLevelCode 与 RISK_LEVEL_BANDS 下标同源（沿用 floodStatistics.json 编码口径）', () => {
+    expect(deriveRiskLevelCode(0)).toBe(0)
+    expect(deriveRiskLevelCode(2)).toBe(1)
+    expect(deriveRiskLevelCode(5)).toBe(2)
+    expect(deriveRiskLevelCode(8)).toBe(3)
+    expect(deriveRiskLevelCode(10)).toBe(4)
+    expect(deriveRiskLevelCode(12.5)).toBe(5)
+    expect(deriveRiskLevelCode(25)).toBe(5)
+  })
 })
 
-describe('getFloodStatistics - 水位校验', () => {
-  it('正常水位应返回统计数据（向上取档）', async () => {
-    const service = makeService(vi.fn().mockResolvedValue(MOCK_STATISTICS))
-    const result = (await service.getFloodStatistics('3.0')) as Record<string, unknown>
-    expect(result).toMatchObject({ waterLevel: 3.0, floodArea: 2.0 })
+describe('getFloodStatistics - 与 flood-areas/disaster 同源（251 档 + 空间判定）', () => {
+  /** mock reader：按路径分发参考表 / 设施点（DataFilesService 缓存按实例隔离） */
+  function makeStatisticsReadFile(): ReturnType<typeof vi.fn> {
+    return vi
+      .fn()
+      .mockImplementation((p: string) =>
+        Promise.resolve(p.includes('facilityPoints') ? MOCK_FACILITY_POINTS : MOCK_STATISTICS)
+      )
+  }
+
+  function makeStatisticsService(
+    levelRows: FloodLevelFeatureRow[],
+    hitIndices: number[]
+  ): FloodService {
+    const files = new DataFilesService(
+      makeStatisticsReadFile() as unknown as typeof DEFAULT_READ_FILE
+    )
+    const db = { query: vi.fn().mockResolvedValue({ rows: levelRows }) } as unknown as DbService
+    return new FloodService(new FloodRepository(files, db), stubSpatial(hitIndices))
+  }
+
+  it('档位与面积取 PG 实际档（4.5 → 4.5，不再粗化到 6 档参考表的 5）', async () => {
+    const service = makeStatisticsService(mockLevelRows([[4.5, 0.5]], '777.7'), [])
+    const result = (await service.getFloodStatistics('4.5')) as Record<string, unknown>
+    expect(result).toMatchObject({
+      waterLevel: 4.5,
+      requestedWaterLevel: 4.5,
+      actualWaterLevel: 4.5,
+      floodArea: 777.7,
+      riskLevel: '中风险',
+      riskLevelCode: 2,
+    })
+  })
+
+  it('水深为 6 档参考表值并由 depthRefLevel 标注所属档位（4.5 → 5 档）', async () => {
+    const service = makeStatisticsService(mockLevelRows([[4.5, 0.5]], '777.7'), [])
+    const result = (await service.getFloodStatistics('4.5')) as Record<string, unknown>
+    // 参考表 3.0/5.0 两档 → 向上命中 5.0；水深为 5 档 DEM 反演值，非当前水位精确值
+    expect(result).toMatchObject({ depthRefLevel: 5, averageDepth: 2.04, maxDepth: 2.5 })
+    expect(String(result.description)).toContain('5m 档 DEM 反演参考值')
+  })
+
+  it('水位恰为参考档位 → depthRefLevel 等于实际档位（无参考标注）', async () => {
+    const service = makeStatisticsService(mockLevelRows([[5.0, 0.9]], '576.91'), [])
+    const result = (await service.getFloodStatistics('5')) as Record<string, unknown>
+    expect(result).toMatchObject({ waterLevel: 5, depthRefLevel: 5, averageDepth: 2.04 })
+    expect(String(result.description)).not.toContain('DEM 反演参考值')
+  })
+
+  it('设施数/受影响港口/损失与 disaster 同一次点面判定（count/ports/totalLoss）', async () => {
+    const service = makeStatisticsService(mockLevelRows([[5.0, 0.9]], '576.91'), [0, 1])
+    const result = (await service.getFloodStatistics('5')) as Record<string, unknown>
+    expect(result.affectedFacilityCount).toBe(2)
+    expect(result.affectedPorts).toEqual(['钦州港', '防城港'])
+    // 15000×0.85 + 20000×0.5 = 22750（与 assessDisaster 同口径，单位：元）
+    expect(result.estimatedLoss).toBe(22750)
+  })
+
+  it('无命中设施 → 计数/港口/损失归零，档位信息仍返回', async () => {
+    const service = makeStatisticsService(mockLevelRows([[3.0, 0.5]], '100.0'), [])
+    const result = (await service.getFloodStatistics('3')) as Record<string, unknown>
+    expect(result).toMatchObject({
+      waterLevel: 3,
+      affectedFacilityCount: 0,
+      affectedPorts: [],
+      estimatedLoss: 0,
+    })
   })
 
   it('Infinity 应触发业务错误', async () => {
-    const service = makeService(vi.fn().mockResolvedValue(MOCK_STATISTICS))
+    const service = makeStatisticsService(mockLevelRows([[3.0, 0.5]]), [])
     await expect(service.getFloodStatistics('Infinity')).rejects.toBeInstanceOf(BusinessError)
   })
 
-  it('超档（>5）取最高档兜底，不静默返 null', async () => {
-    const service = makeService(vi.fn().mockResolvedValue(MOCK_STATISTICS))
-    const result = (await service.getFloodStatistics('4.9')) as { waterLevel: number }
-    expect(result.waterLevel).toBe(5.0)
-  })
-
-  it('未指定水位 → 返回全部统计', async () => {
-    const service = makeService(vi.fn().mockResolvedValue(MOCK_STATISTICS))
+  it('未指定水位 → 返回 6 档参考表原样（兼容契约，仅水深参考字段有效）', async () => {
+    const service = makeStatisticsService(mockLevelRows([[3.0, 0.5]]), [])
     const result = (await service.getFloodStatistics()) as unknown[]
     expect(result).toHaveLength(3)
+  })
+
+  it('PG 空表（未灌数防御）→ 零值响应，不静默返 null', async () => {
+    const service = makeStatisticsService([], [])
+    const result = (await service.getFloodStatistics('5')) as Record<string, unknown>
+    expect(result).toMatchObject({
+      waterLevel: 5,
+      riskLevel: '无风险',
+      floodArea: 0,
+      affectedFacilityCount: 0,
+      estimatedLoss: 0,
+    })
   })
 })
 

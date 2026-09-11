@@ -12,7 +12,9 @@ import { AppModule } from '../src/app.module'
 // 改为 PostGIS `flood_levels`（**251 档**，0.1m 步长）。故 flood-areas 与 disaster 两类
 // 用例改由 V3_INTEGRATION_DB 门控（与 flood.controller.spec.ts 的 withDb 同口径）——
 // 无库环境（CI）跳过，避免表缺失导致 500 噪音；有库时验证 0.1 步长精度（非 6 档粗化）。
-// 其余端点（flood-statistics / terrain-profiles / water-area）仍读 JSON，无库照常跑。
+// 2026-09-11 起 flood-statistics 指定水位路径同样改走 PostGIS（与 areas/disaster 同源，
+// 修复 6 档粗化 + 设施数/损失陈旧），故带水位的统计用例一并纳入门控；
+// 仅「无水位 → 6 档参考表」保持无库可跑。
 describe('flood e2e（真数据文件 + 真库档位表）', () => {
   let app: INestApplication
 
@@ -31,15 +33,7 @@ describe('flood e2e（真数据文件 + 真库档位表）', () => {
 
   // ───────────────────────── 静态文件端点（无库可跑） ─────────────────────────
 
-  it('flood-statistics?waterLevel=5 → 命中 5 档统计', async () => {
-    const res = await request(app.getHttpServer())
-      .get(`${base}/flood-statistics?waterLevel=5`)
-      .expect(200)
-    expect(res.body.data.waterLevel).toBe(5)
-    expect(res.body.data.floodArea).toBe(576.91)
-  })
-
-  it('flood-statistics 无水位 → 全表 6 档（该端点在本次改造中未迁移）', async () => {
+  it('flood-statistics 无水位 → 6 档参考表（兼容契约）', async () => {
     const res = await request(app.getHttpServer()).get(`${base}/flood-statistics`).expect(200)
     expect(res.body.data).toHaveLength(6)
   })
@@ -134,6 +128,36 @@ describe('flood e2e（真数据文件 + 真库档位表）', () => {
         expect(res.body.data.actualWaterLevel).toBe(0)
         expect(res.body.data.riskLevel).toBe('无风险')
         expect(res.body.data.features).toEqual([])
+      })
+
+      it('flood-statistics?waterLevel=2.5 → 档位与 flood-areas 同源（旧 6 档实现会粗化到 5）', async () => {
+        const [areasRes, statsRes] = await Promise.all([
+          request(app.getHttpServer()).get(`${base}/flood-areas?waterLevel=2.5`).expect(200),
+          request(app.getHttpServer()).get(`${base}/flood-statistics?waterLevel=2.5`).expect(200),
+        ])
+        expect(statsRes.body.data.waterLevel).toBe(areasRes.body.data.actualWaterLevel)
+        expect(statsRes.body.data.waterLevel).toBe(2.5)
+        expect(statsRes.body.data.riskLevel).toBe(areasRes.body.data.riskLevel)
+        // 面积来自档位表 flooded_km2（原值透传）；水深仍标参考档位 5（6 档反演表）
+        expect(typeof statsRes.body.data.floodArea).toBe('number')
+        expect(statsRes.body.data.depthRefLevel).toBe(5)
+      })
+
+      it('flood-statistics 与 analysis/disaster 同水位设施数/损失一致（同一次点面判定）', async () => {
+        const [statsRes, disasterRes] = await Promise.all([
+          request(app.getHttpServer()).get(`${base}/flood-statistics?waterLevel=8`).expect(200),
+          request(app.getHttpServer())
+            .post(`${base}/analysis/disaster`)
+            .send({ waterLevel: 8 })
+            .expect(200),
+        ])
+        expect(statsRes.body.data.waterLevel).toBe(8)
+        expect(statsRes.body.data.riskLevelCode).toBe(3)
+        expect(statsRes.body.data.affectedFacilityCount).toBe(
+          disasterRes.body.data.affectedFacilities.length
+        )
+        expect(statsRes.body.data.estimatedLoss).toBe(disasterRes.body.data.totalLoss)
+        expect(statsRes.body.data.affectedPorts.length).toBeGreaterThan(0)
       })
 
       it('POST analysis/disaster waterLevel=8 → 200 信封 + 高风险档位 + 设施真实命中', async () => {

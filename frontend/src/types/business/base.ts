@@ -44,16 +44,17 @@ export interface ScoredFeature<T extends Record<string, unknown> = Record<string
 /** 淹没统计数据（显式声明后端字段 + adapter 派生字段；riskLevel 必填，其余按数据源可选） */
 export interface FloodStatistics {
   riskLevel: string // 风险等级（所有数据源均提供）
-  // —— 后端 floodStatistics.json 原始字段（mock/api 模式有值，online 模式缺失）——
-  waterLevel?: number // 水位档位（m）
-  riskLevelCode?: number // 风险等级编码（floodStatistics.json 字段，P1-9 补类型）
+  // —— 后端 flood-statistics 字段（2026-09-11 起与 flood-areas/disaster 同源）——
+  waterLevel?: number // 水位档位（m，251 档实际档位）
+  riskLevelCode?: number // 风险等级编码（RISK_LEVEL_BANDS 下标，P1-9 补类型）
   floodArea?: number // 淹没面积（km²）
-  averageDepth?: number // 平均水深（m）
-  maxDepth?: number // 最大水深（m）
+  averageDepth?: number // 平均水深（m，6 档 DEM 反演参考值）
+  maxDepth?: number // 最大水深（m，6 档 DEM 反演参考值）
+  depthRefLevel?: number // 平均/最大水深所属的 DEM 反演参考档位（m）
   // 计数语义改名 affectedFacilityCount，消除与 FloodSavedState.affectedFacilities（数组）同名不同型
   affectedFacilityCount?: number // 受影响设施数量（计数，非数组）
   affectedPorts?: string[] // 受影响港口列表
-  estimatedLoss?: number // 预估损失（万元）
+  estimatedLoss?: number // 预估损失（元，value × damageRate，与 disaster.totalLoss 同口径）
   description?: string // 情景描述
   // —— adapter 派生字段（online 模式有值，mock/api 模式可能缺失）——
   affectedCount?: number // 受影响设施数量（与 affectedFacilityCount 同语义，online 模式占位）

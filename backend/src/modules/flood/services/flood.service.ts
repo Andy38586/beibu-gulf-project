@@ -1,6 +1,10 @@
 import { Injectable } from '@nestjs/common'
 
-import { deriveRiskLevel, MAX_WATER_LEVEL } from '../../../common/constants/flood.constants'
+import {
+  deriveRiskLevel,
+  deriveRiskLevelCode,
+  MAX_WATER_LEVEL,
+} from '../../../common/constants/flood.constants'
 import { BusinessError, ErrorCode } from '../../../common/errors/business-error'
 import { GeoJsonGeometry, SpatialRepository } from '../../../infra/db/spatial.repository'
 import { FloodLevelFeatureRow, FloodRepository } from '../repositories/flood.repository'
@@ -49,6 +53,9 @@ export interface DisasterAssessment {
 
 interface StatisticsEntry extends Record<string, unknown> {
   waterLevel: number
+  /** 平均/最大水深：源数据只有 6 档 DEM 反演值（无 251 档水深），仅作参考档位数据 */
+  averageDepth?: number
+  maxDepth?: number
 }
 
 interface FloodStatisticsData {
@@ -81,8 +88,9 @@ function validateWaterLevel(raw: unknown): number {
 }
 
 /**
- * 6 档向上取档：返回 >= 请求水位的最低档位；超档（15 < 水位 ≤ 25）取最高档兜底
- *（宁可高估风险不可低估；表空返回 undefined 由调用方防御）
+ * 6 档参考表向上取档：返回 >= 请求水位的最低档位；超档（15 < 水位 ≤ 25）取最高档兜底。
+ * 2026-09-11 后仅用于 floodStatistics.json 参考表（水深参考档位），档位/面积/设施判定
+ * 一律不再经此函数（见 getFloodStatistics 注释）。
  */
 function pickZone<T extends { waterLevel: number }>(zones: T[], level: number): T | undefined {
   return (
@@ -173,17 +181,81 @@ export class FloodService {
       }))
   }
 
-  /** GET /flood-statistics?waterLevel=2.5 — 统计数据（向上取档；超档取最高档，不静默返 null） */
+  /**
+   * GET /flood-statistics?waterLevel=2.5 — 统计数据。
+   *
+   * 2026-09-11 修复统计口径双轨：原实现读 floodStatistics.json（6 档参考表）并**向上取档**，
+   * 于是请求 4.5 返回 5 档、请求 5.1 返回 8 档——面板面积/水深来自与地图不同的水位，
+   * 且该文件生成于 SRID 修复之前（设施数恒 0、损失与 disaster 差两个数量级）。
+   * 现改为与 flood-areas / analysis/disaster 同源：
+   *   · 档位与淹没面积 → PostGIS flood_levels（251 档，flooded_km2 原值透传）
+   *   · 风险等级/编码   → RISK_LEVEL_BANDS 分段派生（与 areas/disaster 同一函数）
+   *   · 设施数/受影响港口/预估损失 → 与 disaster 同一次点面判定（ST_Covers）与同一损失口径
+   *   · 平均/最大水深 → 仍取 6 档 DEM 反演参考表（源数据无 251 档水深），
+   *     以 depthRefLevel 显式标注其所属档位，避免被读成当前水位的精确值
+   * 未指定水位：返回 6 档参考表（兼容原契约；前端 floodAdapter 恒传 waterLevel）。
+   */
   async getFloodStatistics(waterLevel?: string): Promise<unknown> {
-    const data = (await this.floodRepository.readFloodStatistics()) as FloodStatisticsData
+    const reference = (await this.floodRepository.readFloodStatistics()) as FloodStatisticsData
 
-    if (waterLevel !== undefined) {
-      const level = validateWaterLevel(waterLevel)
-      const stats = pickZone(data.statistics, level)
-      return stats ?? null
+    if (waterLevel === undefined) {
+      return reference.statistics
     }
 
-    return data.statistics
+    const level = validateWaterLevel(waterLevel)
+    const rows = await this.floodRepository.pickFloodLevel(level)
+
+    // 表未灌数（正常路径不可达）：与 getFloodAreas 同口径的零值响应，不静默返 null
+    if (rows.length === 0) {
+      return {
+        waterLevel: level,
+        requestedWaterLevel: level,
+        actualWaterLevel: level,
+        riskLevel: '无风险',
+        riskLevelCode: 0,
+        floodArea: 0,
+        averageDepth: 0,
+        maxDepth: 0,
+        depthRefLevel: level,
+        affectedFacilityCount: 0,
+        affectedPorts: [],
+        estimatedLoss: 0,
+      }
+    }
+
+    const zone = this.rowsToZones(rows)[0] ?? null
+    const facilityData = (await this.floodRepository.readFacilityPoints()) as FacilityData
+    const assessment = await this.assessDisaster(facilityData.facilities, level, zone)
+
+    const actualLevel = Number(rows[0].level)
+    const floodArea = Number(rows[0].flooded_km2)
+    const depthRef = pickZone(reference.statistics, level)
+    const affectedFacilityCount = assessment.affectedFacilities.length
+    const affectedPorts = [
+      ...new Set(assessment.affectedFacilities.map((f) => String(f.port ?? '')).filter(Boolean)),
+    ]
+    const depthNote =
+      depthRef && depthRef.waterLevel !== actualLevel
+        ? `；平均/最大水深为 ${depthRef.waterLevel}m 档 DEM 反演参考值`
+        : ''
+
+    return {
+      waterLevel: actualLevel,
+      requestedWaterLevel: level,
+      actualWaterLevel: actualLevel,
+      riskLevel: assessment.riskLevel,
+      riskLevelCode: deriveRiskLevelCode(actualLevel),
+      floodArea,
+      averageDepth: depthRef?.averageDepth ?? 0,
+      maxDepth: depthRef?.maxDepth ?? 0,
+      // 水深所属参考档位（= waterLevel 时表示该水位有 DEM 反演水深）
+      depthRefLevel: depthRef?.waterLevel ?? actualLevel,
+      affectedFacilityCount,
+      affectedPorts,
+      // 与 disaster 同口径（value × damageRate，单位：元）
+      estimatedLoss: assessment.totalLoss,
+      description: `水位 ${actualLevel}m 连通性演算：淹没 ${floodArea} km²，受影响设施 ${affectedFacilityCount} 处${depthNote}`,
+    }
   }
 
   /**

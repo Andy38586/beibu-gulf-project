@@ -21,3 +21,13 @@ export function deriveRiskLevel(level: number): string {
   const band = RISK_LEVEL_BANDS.find((b) => level <= b.maxLevel)
   return (band ?? RISK_LEVEL_BANDS[RISK_LEVEL_BANDS.length - 1]).label
 }
+
+/**
+ * 按水位派生风险等级编码（0 无 / 1 低 / 2 中 / 3 高 / 4 极高 / 5 灾难），与
+ * RISK_LEVEL_BANDS 下标同源（沿用原 floodStatistics.json 的 riskLevelCode 口径），
+ * 使统计接口与档位接口共用同一张分段表。
+ */
+export function deriveRiskLevelCode(level: number): number {
+  const index = RISK_LEVEL_BANDS.findIndex((b) => level <= b.maxLevel)
+  return index === -1 ? RISK_LEVEL_BANDS.length - 1 : index
+}

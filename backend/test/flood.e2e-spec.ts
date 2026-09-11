@@ -136,7 +136,7 @@ describe('flood e2e（真数据文件 + 真库档位表）', () => {
         expect(res.body.data.features).toEqual([])
       })
 
-      it('POST analysis/disaster waterLevel=8 → 200 信封 + 高风险档位（合法空评估）', async () => {
+      it('POST analysis/disaster waterLevel=8 → 200 信封 + 高风险档位 + 设施真实命中', async () => {
         const res = await request(app.getHttpServer())
           .post(`${base}/analysis/disaster`)
           .send({ waterLevel: 8 })
@@ -145,8 +145,17 @@ describe('flood e2e（真数据文件 + 真库档位表）', () => {
         expect(res.body.data.riskLevel).toBe('高风险')
         expect(res.body.data.requestedWaterLevel).toBe(8)
         expect(res.body.data.waterLevel).toBe(8)
-        expect(res.body.data.affectedFacilities).toEqual([])
-        expect(res.body.data.totalLoss).toBe(0)
+        // 2026-09-11 修复 SRID 混用前此处断言为 toEqual([])——那是把故障当规格：
+        // flood_levels.geom 为 4490，repository 漏 ST_Transform 取出后与 4326 探针点
+        // 做 ST_Covers 抛 mixed SRID，被 spatial.repository.ts 上空 catch 吞成 []。
+        // 修复后本档实测命中 42 个设施（与 psql 离线预测一致）。
+        expect(res.body.data.affectedFacilities.length).toBeGreaterThan(0)
+        expect(res.body.data.totalLoss).toBeGreaterThan(0)
+        for (const f of res.body.data.affectedFacilities) {
+          expect(typeof f.name).toBe('string')
+          expect(typeof f.lng).toBe('number')
+          expect(typeof f.lat).toBe('number')
+        }
       })
 
       it('POST analysis/disaster waterLevel=15 → 灾难级（设施命中数依真库数据而定）', async () => {

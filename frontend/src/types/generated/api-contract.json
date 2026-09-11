@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-16",
+  "generatedAt": "2026-09-11",
   "source": "frontend/src/types/schemas.ts（单一事实源，types:gen 自动生成勿手改）",
   "schemas": {
     "userSchema": {
@@ -54,18 +54,6 @@
       "fields": {
         "level": {
           "type": "number",
-          "optional": false
-        },
-        "featureCount": {
-          "type": "number",
-          "optional": false
-        },
-        "floodedKm2": {
-          "type": "number",
-          "optional": false
-        },
-        "features": {
-          "type": "array",
           "optional": false
         }
       }
@@ -284,6 +272,14 @@
           "type": "number",
           "optional": true
         },
+        "requestedWaterLevel": {
+          "type": "number",
+          "optional": true
+        },
+        "actualWaterLevel": {
+          "type": "number",
+          "optional": true
+        },
         "riskLevel": {
           "type": "string",
           "optional": false
@@ -304,23 +300,7 @@
           "type": "number",
           "optional": true
         },
-        "affectedFacilities": {
-          "type": "number",
-          "optional": true
-        },
-        "affectedPorts": {
-          "type": "array",
-          "optional": true
-        },
-        "estimatedLoss": {
-          "type": "number",
-          "optional": true
-        },
-        "description": {
-          "type": "string",
-          "optional": true
-        },
-        "affectedCount": {
+        "depthRefLevel": {
           "type": "number",
           "optional": true
         }
@@ -398,6 +378,127 @@
       }
     },
     "portsArraySchema": {
+      "kind": "array",
+      "fields": {}
+    },
+    "favoriteItemSchema": {
+      "kind": "object",
+      "fields": {
+        "id": {
+          "type": "string",
+          "optional": false
+        },
+        "userId": {
+          "type": "string",
+          "optional": false
+        },
+        "itemType": {
+          "type": "enum",
+          "optional": false
+        },
+        "itemId": {
+          "type": "string",
+          "optional": false
+        },
+        "name": {
+          "type": "string",
+          "optional": false
+        }
+      }
+    },
+    "favoritesArraySchema": {
+      "kind": "array",
+      "fields": {}
+    },
+    "favoriteAddResponseSchema": {
+      "kind": "object",
+      "fields": {
+        "favorite": {
+          "type": "favoriteItemSchema",
+          "optional": false
+        },
+        "existed": {
+          "type": "boolean",
+          "optional": false
+        }
+      }
+    },
+    "favoriteRemoveResponseSchema": {
+      "kind": "object",
+      "fields": {
+        "removed": {
+          "type": "boolean",
+          "optional": false
+        }
+      }
+    },
+    "routePathResponseSchema": {
+      "kind": "union",
+      "fields": {
+        "found": {
+          "type": "literal",
+          "optional": false
+        },
+        "mode": {
+          "type": "enum",
+          "optional": false
+        },
+        "distanceM": {
+          "type": "number",
+          "optional": false
+        },
+        "durationMin": {
+          "type": "number",
+          "optional": false
+        },
+        "snapDistanceM": {
+          "type": "object",
+          "optional": false
+        },
+        "edgeCount": {
+          "type": "number",
+          "optional": false
+        },
+        "coordinates": {
+          "type": "array",
+          "optional": false
+        }
+      }
+    },
+    "poiSearchItemSchema": {
+      "kind": "object",
+      "fields": {
+        "id": {
+          "type": "string",
+          "optional": false
+        },
+        "name": {
+          "type": "string",
+          "optional": false
+        },
+        "type": {
+          "type": "string",
+          "optional": false
+        },
+        "city": {
+          "type": "string",
+          "optional": false
+        },
+        "district": {
+          "type": "string",
+          "optional": false
+        },
+        "lng": {
+          "type": "number",
+          "optional": false
+        },
+        "lat": {
+          "type": "number",
+          "optional": false
+        }
+      }
+    },
+    "poiSearchResponseSchema": {
       "kind": "array",
       "fields": {}
     }

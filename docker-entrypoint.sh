@@ -90,6 +90,19 @@ server {
         add_header X-Content-Type-Options "nosniff" always;
         add_header X-Frame-Options "SAMEORIGIN" always;
         add_header Content-Security-Policy-Report-Only "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; media-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'" always;
+        # 2026-09-11：GeoJSON MIME 修正——nginx 自带 mime.types 无 .geojson 映射，
+        # /data/site-selection/boundary.geojson 此前以 application/octet-stream 下发。
+        # 嵌套 location 覆盖 types 表；⚠️ add_header 层级替换：须重复父级 4 个安全头
+        #（同 .terrain 嵌套层先例；nginx.conf 的 :80 段须同步修改）。
+        location ~ \.geojson$ {
+            types {
+                application/geo+json geojson;
+            }
+            add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+            add_header X-Content-Type-Options "nosniff" always;
+            add_header X-Frame-Options "SAMEORIGIN" always;
+            add_header Content-Security-Policy-Report-Only "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; media-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'" always;
+        }
     }
     location /static/terrain/ {
         alias /app/backend/static/terrain/;

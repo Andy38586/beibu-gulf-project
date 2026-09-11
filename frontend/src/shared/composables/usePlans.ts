@@ -10,6 +10,7 @@ import type { Plan } from '@/types/plan'
 import { planSchema } from '@/types/schemas'
 
 import { useApiRequest } from './useApiRequest'
+import { useAuth } from './useAuth'
 import { useLatestRequest } from './useLatestRequest'
 
 /** 返回契约显式化，防重构时签名静默漂移 */
@@ -25,7 +26,9 @@ export interface UsePlansReturn {
 
 export function usePlans(): UsePlansReturn {
   const router = useRouter()
-  const { apiRequest, isAuthenticated } = useApiRequest()
+  // isAuthenticated 取自 useAuth（token+user 双判据）——窗口期/他页登录不再误判未登录
+  const { apiRequest } = useApiRequest()
+  const { isAuthenticated } = useAuth()
   const updating: Ref<boolean> = ref(false)
   const loading: Ref<boolean> = ref(false)
   const deleting: Ref<boolean> = ref(false)

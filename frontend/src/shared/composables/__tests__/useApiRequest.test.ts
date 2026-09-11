@@ -27,24 +27,14 @@ describe('useApiRequest', () => {
   })
 
   describe('token 管理', () => {
-    it('初始状态未认证', () => {
-      const { isAuthenticated, clearToken } = useApiRequest()
+    it('setToken/clearToken 维护内存占位 token（登录态判据已上移 useAuth，审查 M-10/M-9）', () => {
+      const { token, setToken, clearToken } = useApiRequest()
       clearToken()
-      expect(isAuthenticated.value).toBe(false)
-    })
-
-    it('setToken 后 isAuthenticated 为 true', () => {
-      const { isAuthenticated, setToken, clearToken } = useApiRequest()
-      setToken('test-token')
-      expect(isAuthenticated.value).toBe(true)
+      expect(token.value).toBe('')
+      setToken('cookie-auth')
+      expect(token.value).toBe('cookie-auth')
       clearToken()
-    })
-
-    it('clearToken 后 isAuthenticated 为 false', () => {
-      const { isAuthenticated, setToken, clearToken } = useApiRequest()
-      setToken('test-token')
-      clearToken()
-      expect(isAuthenticated.value).toBe(false)
+      expect(token.value).toBe('')
     })
   })
 

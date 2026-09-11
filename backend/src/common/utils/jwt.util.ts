@@ -15,7 +15,8 @@ export function getJwtSecret(): string {
   if (!secret) {
     throw new Error(
       'FATAL: JWT_SECRET 环境变量未设置！\n' +
-        '请在 backend/nest/.env 文件中配置 JWT_SECRET（至少32位随机字符串）。\n' +
+        '请在 backend/.env 中配置 JWT_SECRET（至少32位随机字符串；生产经 compose\n' +
+        'env_file 注入，本地 dev 需自行注入环境）。\n' +
         "生成方式: node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\""
     )
   }
@@ -23,7 +24,7 @@ export function getJwtSecret(): string {
     throw new Error(
       'FATAL: JWT_SECRET 长度不足！\n' +
         `当前长度: ${secret.length}，要求至少 32 字符。\n` +
-        '请更新 backend/nest/.env 中的 JWT_SECRET。'
+        '请更新 backend/.env 中的 JWT_SECRET。'
     )
   }
   return secret

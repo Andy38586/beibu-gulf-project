@@ -1,5 +1,5 @@
-import type { ComputedRef, Ref } from 'vue'
-import { computed, ref } from 'vue'
+import type { Ref } from 'vue'
+import { ref } from 'vue'
 import type { ZodType } from 'zod'
 
 import { combineSignals } from '@/shared/utils/abortSignal'
@@ -93,7 +93,8 @@ function clearToken(): void {
   token.value = ''
 }
 
-const isAuthenticated: ComputedRef<boolean> = computed(() => token.value !== '')
+// 认证态判据 isAuthenticated 已上移 useAuth（token+user 双判据，审查 M-10/M-9）——
+// 此处仅 token 不够判定登录态，勿再在此重建第二份判据
 
 export interface RequestOptions {
   method?: string
@@ -117,7 +118,6 @@ export interface RequestOptions {
 export interface UseApiRequestReturn {
   apiRequest: <T = unknown>(path: string, options?: RequestOptions) => Promise<T>
   token: Ref<string>
-  isAuthenticated: ComputedRef<boolean>
   setToken: (t: string) => void
   clearToken: () => void
 }
@@ -364,7 +364,6 @@ export function useApiRequest(): UseApiRequestReturn {
   return {
     apiRequest,
     token,
-    isAuthenticated,
     setToken,
     clearToken,
   }

@@ -89,4 +89,24 @@ describe('restoreAuth（认证恢复的成因区分）', () => {
     expect(mockSetToken).not.toHaveBeenCalled()
     expect(auth.user.value).toBeNull()
   })
+
+  it('并发 restoreAuth 共享同一次 /auth/me（审查 L-11：不重复请求、并发者拿完成结果）', async () => {
+    mockApiRequest.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          setTimeout(() => resolve({ user: STORED_USER }), 20)
+        })
+    )
+    const { useAuth } = await importFreshAuth()
+    const auth = useAuth()
+    const [a, b, c] = await Promise.all([
+      auth.restoreAuth(),
+      auth.restoreAuth(),
+      auth.restoreAuth(),
+    ])
+    expect(mockApiRequest).toHaveBeenCalledTimes(1)
+    expect(a?.username).toBe('tester')
+    expect(b?.username).toBe('tester')
+    expect(c?.username).toBe('tester')
+  })
 })

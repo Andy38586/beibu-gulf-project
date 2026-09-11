@@ -1,5 +1,5 @@
 import type { ComputedRef, Ref } from 'vue'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 
 import { ENDPOINTS } from '@/shared/constants/api'
 import { logger } from '@/shared/utils/logger'
@@ -45,21 +45,37 @@ function writeStoredUser(user: User | null): void {
 
 // 模块级单例状态：所有组件共享同一认证状态
 const user: Ref<User | null> = ref(readStoredUser())
-const { apiRequest, token, isAuthenticated, setToken, clearToken } = useApiRequest()
+const { apiRequest, token, setToken, clearToken } = useApiRequest()
+
+// 认证态唯一判据：token 占位（本会话已登录/恢复）或 user 存在（localStorage 临时态）。
+// 只看 token 会把「已登录但 /auth/me 未返回」的启动窗口与「他页登录同步」误判为
+// 未登录（审查 M-10/M-9）——与 restoreAuth 的"后端不可达 ≠ 未登录"口径对齐。
+// 原 useApiRequest.isAuthenticated（仅 token）已随之移除，消灭双真相源。
+const isAuthenticated: ComputedRef<boolean> = computed(
+  () => token.value !== '' || user.value !== null
+)
 
 // 多标签页同步监听（App.vue 启动时一次性注册）
 let storageListenerRegistered = false
 
 // 认证恢复标志，防止重复调用
 let authRestored = false
+/** 在途恢复单例：并发调用共享同一次 /auth/me（审查 L-11——
+ *  原实现 authRestored 在 await 前置位，并发调用者拿到未完成结果） */
+let restorePromise: Promise<User | null> | null = null
 
 /** 启动时恢复认证：无论本地有无 user，均以 Cookie 为权威调 /auth/me 校验 */
 async function restoreAuth(): Promise<User | null> {
-  if (authRestored) {
-    return user.value
-  }
+  if (restorePromise) return restorePromise
+  if (authRestored) return user.value
   authRestored = true
+  restorePromise = doRestore().finally(() => {
+    restorePromise = null
+  })
+  return restorePromise
+}
 
+async function doRestore(): Promise<User | null> {
   try {
     const data = await apiRequest<{ user: User }>(ENDPOINTS.auth.me, { schema: authResponseSchema })
     if (data && data.user) {
@@ -142,7 +158,7 @@ export function useAuth(): UseAuthReturn {
       schema: authResponseSchema,
     })
     if (!data || !data.user) {
-      throw new Error('登录响应数据无效')
+      throw new ApiError('登录响应数据无效', ErrorCode.REQUEST_FAILED)
     }
     // token 由 HttpOnly Cookie 携带，前端仅设占位符启用 isAuthenticated
     setToken('cookie-auth')
@@ -158,7 +174,7 @@ export function useAuth(): UseAuthReturn {
       schema: authResponseSchema,
     })
     if (!data || !data.user) {
-      throw new Error('注册响应数据无效')
+      throw new ApiError('注册响应数据无效', ErrorCode.REQUEST_FAILED)
     }
     // token 走 Cookie，同 login
     setToken('cookie-auth')

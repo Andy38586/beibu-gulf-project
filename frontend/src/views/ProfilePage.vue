@@ -34,17 +34,23 @@ const { chartData, barData, loadOverviewCharts } = useOverviewCharts()
 onMounted(loadOverviewCharts)
 
 // 登录成功后按 redirect 参数返回原页面——
-// handleAuthError 把被 401 打断的路径带回这里，登录后还原现场继续操作
+// handleAuthError 把被 401 打断的路径带回这里，登录后还原现场继续操作。
+// immediate 必需：已登录用户（localStorage 临时态/后端不可达分支）挂载时 user 已非空，
+// 无 immediate 则 watch 永不触发、redirect 成死链（审查 M-2 残留）
 const route = useRoute()
 const router = useRouter()
-watch(user, (u) => {
-  if (!u) return
-  const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : ''
-  // 仅允许站内路径跳转（防 open redirect）：必须以 / 开头且非协议相对 //host，
-  // 完整 URL（http(s):/data: 等）与外部域名一律落回默认首页
-  if (!redirect || !redirect.startsWith('/') || redirect.startsWith('//')) return
-  void router.replace(redirect)
-})
+watch(
+  user,
+  (u) => {
+    if (!u) return
+    const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : ''
+    // 仅允许站内路径跳转（防 open redirect）：必须以 / 开头且非协议相对 //host，
+    // 完整 URL（http(s):/data: 等）与外部域名一律落回默认首页
+    if (!redirect || !redirect.startsWith('/') || redirect.startsWith('//')) return
+    void router.replace(redirect)
+  },
+  { immediate: true }
+)
 
 /** 退出登录：复用 useAuth.logout（清 HttpOnly Cookie + localStorage + 业务 store） */
 async function handleLogout() {

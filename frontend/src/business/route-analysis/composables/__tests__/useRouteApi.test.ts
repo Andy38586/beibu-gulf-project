@@ -121,3 +121,53 @@ describe('useRouteApi', () => {
     expect(calcError.value).toBe('') // 取消不写错误文案
   })
 })
+
+describe('useRouteApi — 取消语义（审查 M-5/M-6 回归）', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.stubGlobal('fetch', mockFetch)
+  })
+
+  it('cancel() 中止在途 queryPath 的 fetch signal（迟到响应不再写回全局图层）', async () => {
+    let capturedSignal: AbortSignal | null | undefined
+    mockFetch.mockImplementationOnce(
+      (_url: string, init: RequestInit) =>
+        new Promise((_resolve, reject) => {
+          capturedSignal = init.signal
+          init.signal?.addEventListener('abort', () =>
+            reject(Object.assign(new Error('Aborted'), { name: 'AbortError' }))
+          )
+        })
+    )
+    const { queryPath, cancel } = useRouteApi()
+    const pending = queryPath({ fromLng: 1, fromLat: 2, toLng: 3, toLat: 4 })
+
+    cancel()
+    await expect(pending).rejects.toBeInstanceOf(RouteQueryCancelledError)
+    expect(capturedSignal?.aborted).toBe(true)
+  })
+
+  it('searchPois 透传 signal：卸载/抢占可中止兜底 POI 请求', async () => {
+    let capturedSignal: AbortSignal | null | undefined
+    mockFetch.mockImplementationOnce(
+      (_url: string, init: RequestInit) =>
+        new Promise((_resolve, reject) => {
+          capturedSignal = init.signal
+          init.signal?.addEventListener('abort', () =>
+            reject(Object.assign(new Error('Aborted'), { name: 'AbortError' }))
+          )
+        })
+    )
+    const ac = new AbortController()
+    const { searchPois } = useRouteApi()
+    const pending = searchPois('', 30, ac.signal)
+
+    ac.abort()
+    await expect(pending).rejects.toMatchObject({ code: ErrorCode.REQUEST_FAILED })
+    expect(capturedSignal?.aborted).toBe(true)
+  })
+})

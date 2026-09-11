@@ -27,8 +27,13 @@ export interface UseRouteApiReturn {
   calcError: Ref<string>
   /** 取消在途请求并复位加载态（供调用方 onUnmounted 调用） */
   cancel: () => void
-  /** POI 名称关键词搜索（选点辅助，Nest PG poi_facilities 全类型） */
-  searchPois: (keyword: string, limit?: number) => Promise<PoiSearchItemParsed[]>
+  /** POI 名称关键词搜索（选点辅助，Nest PG poi_facilities 全类型）；
+   *  signal 供调用方卸载/抢占取消（审查 M-6：挂载兜底请求此前不可取消） */
+  searchPois: (
+    keyword: string,
+    limit?: number,
+    signal?: AbortSignal
+  ) => Promise<PoiSearchItemParsed[]>
 }
 
 export function useRouteApi(): UseRouteApiReturn {
@@ -73,10 +78,15 @@ export function useRouteApi(): UseRouteApiReturn {
   }
 
   /** POI 名称关键词搜索（选点辅助）：keyword 空返回兜底列表；limit 服务端钳制 1..50 */
-  async function searchPois(keyword: string, limit = 30): Promise<PoiSearchItemParsed[]> {
+  async function searchPois(
+    keyword: string,
+    limit = 30,
+    signal?: AbortSignal
+  ): Promise<PoiSearchItemParsed[]> {
     return apiRequest<PoiSearchItemParsed[]>(ENDPOINTS.siteAnalysis.pois, {
       params: { keyword: keyword || undefined, limit },
       schema: poiSearchResponseSchema,
+      signal,
     })
   }
 

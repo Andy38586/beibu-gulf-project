@@ -44,7 +44,7 @@ const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
 const mapStore = useMapStore()
-const { queryPath, searchPois, calculating } = useRouteApi()
+const { queryPath, searchPois, calculating, cancel } = useRouteApi()
 const { updateRouteLayers, clearRouteLayers } = useRouteLayer()
 
 const { cellPixel, css } = useGCS()
@@ -89,13 +89,20 @@ const poiLoading = ref(false)
 const poiError = ref(false)
 const poiDropOpen = ref(false)
 let poiDebounceTimer: ReturnType<typeof setTimeout> | null = null
+/** POI 请求取消源：新请求抢占旧请求、卸载时终止在途（审查 M-6） */
+let poiAbort: AbortController | null = null
 
 async function refreshPois(): Promise<void> {
+  poiAbort?.abort()
+  const ac = new AbortController()
+  poiAbort = ac
   poiLoading.value = true
   poiError.value = false
   try {
-    poiList.value = await searchPois(poiKeyword.value, 30)
+    poiList.value = await searchPois(poiKeyword.value, 30, ac.signal)
   } catch (error) {
+    // 被新请求抢占或卸载取消：非错误，不动 UI 态（避免下拉误显「查询失败」）
+    if (ac.signal.aborted) return
     poiList.value = []
     poiError.value = true
     logger.warn(
@@ -254,7 +261,10 @@ onMounted(() => {
 
 onUnmounted(() => {
   if (poiDebounceTimer) clearTimeout(poiDebounceTimer)
-  // 查询在途取消（useRouteApi 内部信号复位）；图层清理由此兜底
+  // 取消在途路径查询与 POI 请求：迟到响应会把路线图层写回全局共享 BLM、
+  // 泄漏到其它页面（审查 M-5/M-6；cancel 由 useLatestRequest abort 在途信号）
+  cancel()
+  poiAbort?.abort()
   clearRouteLayers(props.manager)
 })
 

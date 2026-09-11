@@ -347,16 +347,21 @@ export function useApiRequest(): UseApiRequestReturn {
         // 线性退避：0.8s / 1.6s（MAX_RETRIES=3，第三档 2.4s 因 attempt===MAX_RETRIES 已直接抛错而不可达；注释与实现已对齐）
         // 退避期间检查外部取消，避免卸载后仍延迟后重试
         if (options.signal?.aborted) throw error
+        // abort listener 必须在等待结束后摘除：once 只防重复触发，
+        // 未触发的残留会随每次重试在外部 signal 上累积（审查 L-9）
+        const signal = options.signal
+        let onAbort: (() => void) | null = null
         await new Promise<void>((resolve) => {
           const t = setTimeout(resolve, RETRY_DELAY_MS * attempt)
-          options.signal?.addEventListener(
-            'abort',
-            () => {
+          if (signal) {
+            onAbort = () => {
               clearTimeout(t)
               resolve()
-            },
-            { once: true }
-          )
+            }
+            signal.addEventListener('abort', onAbort, { once: true })
+          }
+        }).finally(() => {
+          if (signal && onAbort) signal.removeEventListener('abort', onAbort)
         })
         if (options.signal?.aborted) throw error
       } finally {

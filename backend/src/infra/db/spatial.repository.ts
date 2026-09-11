@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common'
 
 import { DbService } from './db.service'
+import { isFatalDbError } from './db-error'
 
 // 空间算子下沉：turf（Node 内存运算）→ PostGIS（库内运算）。
 // 数据经 SQL 参数传入，几何运算全在库内完成；仅评分（距离衰减/加权）留在 Node。
@@ -75,9 +76,10 @@ export class SpatialRepository {
         [lngs, lats, radiusKm * 1000, WORK_SRID]
       )
       return toFeature(res.rows[0]?.geom ?? null)
-    } catch {
-      // 降级契约：几何异常（半径溢出/投影失败）返回 null——宁可该类型覆盖缺失，
-      // 也不中断整个选址流程。连接级故障不在此吞（应显式暴露 5xx）
+    } catch (e) {
+      // 连接级故障显式上抛（→ 全局异常过滤 5xx），绝不吞成"该类型覆盖缺失"；
+      // 仅几何/参数类错误按降级契约返回 null——宁可该类型覆盖缺失，也不中断整个选址流程
+      if (isFatalDbError(e)) throw e
       return null
     }
   }
@@ -106,8 +108,10 @@ export class SpatialRepository {
         [JSON.stringify(a.geometry), JSON.stringify(b.geometry)]
       )
       return toFeature(res.rows[0]?.geom ?? null)
-    } catch {
-      // 与 turf.intersect 抛错同语义：交集断裂，交由调用方标注 failKey
+    } catch (e) {
+      // 与 turf.intersect 抛错同语义：几何异常按交集断裂降级，交由调用方标注 failKey；
+      // 连接级故障不在此列（同 unionBuffers，显式上抛）
+      if (isFatalDbError(e)) throw e
       return null
     }
   }
@@ -141,8 +145,10 @@ export class SpatialRepository {
         [toPairJson(points), JSON.stringify(geometry), WORK_SRID]
       )
       return res.rows.map((r) => Number(r.i))
-    } catch {
-      // 几何异常（自交/空环）按无命中处理，不中断整批评估（对齐原 per-polygon try/catch）
+    } catch (e) {
+      // 几何异常（自交/空环）按无命中处理，不中断整批评估（对齐原 per-polygon try/catch）；
+      // 连接级故障显式上抛，防"假无命中"
+      if (isFatalDbError(e)) throw e
       return []
     }
   }
@@ -176,7 +182,9 @@ export class SpatialRepository {
         [toPairJson(points), JSON.stringify(valid), WORK_SRID]
       )
       return res.rows.map((r) => Number(r.i))
-    } catch {
+    } catch (e) {
+      // 同上：几何异常降级为无命中，连接级故障显式上抛
+      if (isFatalDbError(e)) throw e
       return []
     }
   }

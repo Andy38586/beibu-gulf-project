@@ -19,3 +19,6 @@ backend/data/
 .staging-react/
 # pdf_build 教材/浏览器扩展产物（pdf_build/ep_guide 为扩展浏览器临时数据，非项目源码）
 pdf_build/
+# 性能测评报告产物（2026-09-10 会话生成、未跟踪的本地报告：单文件 HTML，
+# 需保留生成时样式，不随 prettier 重排；未忽略会导致本机 format:check 全仓红）
+性能测评-20260910/

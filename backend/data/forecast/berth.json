@@ -2252,5 +2252,5 @@
     "replacementPlan": "用港口集团公开泊位数+吞吐量反推利用率，或下线该指标",
     "taggedAt": "2026-09-08"
   },
-  "_coordinateProvenance": "坐标锚点版本溯源(2026-09-08)：本文件空间坐标源自早期 mock 港口元数据（index.json 手填市区坐标，钦州市区 21.95/北海市区 21.48/防城港市区 21.77），非真实港口位置。真港口坐标在库内 ports 表（WGS84/4490：钦州港 108.590,21.727；北海港 109.131,21.419；防城港 108.341,21.618）。数值为真数据不受影响；如需热力准确落港，坐标锚点须切换至 ports 表（单一事实源）。"
+  "_coordinateProvenance": "【已废弃指标，坐标未对齐】本文件（berth）自 2026-09-08 起已下架，前端无任何消费者（见 frontend/src/business/forecast/composables/useForecastLayer.ts INDICATORS）。其 spatial 仍保留早期 mock 市区坐标（钦州市区 21.95 等），**不代表真实港口位置**，仅为保留历史产物原貌。若将来重新启用，须先按 cargo.json 的方式把锚点对齐至 frontend/public/data/ports.json。"
 }

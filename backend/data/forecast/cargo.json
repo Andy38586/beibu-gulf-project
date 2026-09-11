@@ -342,7 +342,7 @@
             "type": "Feature",
             "geometry": {
               "type": "Point",
-              "coordinates": [108.62, 21.95]
+              "coordinates": [108.590379, 21.726917]
             },
             "properties": {
               "portId": "qinzhou",
@@ -760,7 +760,7 @@
             "type": "Feature",
             "geometry": {
               "type": "Point",
-              "coordinates": [109.12, 21.48]
+              "coordinates": [109.130658, 21.418792]
             },
             "properties": {
               "portId": "beihai",
@@ -1178,7 +1178,7 @@
             "type": "Feature",
             "geometry": {
               "type": "Point",
-              "coordinates": [108.35, 21.77]
+              "coordinates": [108.340973, 21.617689]
             },
             "properties": {
               "portId": "fangchenggang",
@@ -1258,5 +1258,5 @@
     }
   },
   "source": "real",
-  "_coordinateProvenance": "坐标锚点版本溯源(2026-09-08)：本文件空间坐标源自早期 mock 港口元数据（index.json 手填市区坐标，钦州市区 21.95/北海市区 21.48/防城港市区 21.77），非真实港口位置。真港口坐标在库内 ports 表（WGS84/4490：钦州港 108.590,21.727；北海港 109.131,21.419；防城港 108.341,21.618）。数值为真数据不受影响；如需热力准确落港，坐标锚点须切换至 ports 表（单一事实源）。"
+  "_coordinateProvenance": "坐标锚点版本溯源(2026-09-11 已对齐)：本文件空间锚点已从早期 mock 市区坐标（钦州市区 21.95 / 北海市区 21.48 / 防城港市区 21.77）切换为库内 ports 表真港口坐标（4490→4326，与 frontend/public/data/ports.json 同源）：钦州港 108.590379,21.726917；北海港 109.130658,21.418792；防城港 108.340973,21.617689。历史版本曾以市区坐标落点（热力北偏约 25km），2026-09-11 修复。"
 }

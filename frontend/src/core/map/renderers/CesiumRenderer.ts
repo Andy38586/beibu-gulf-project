@@ -123,7 +123,10 @@ class CesiumViewerManager {
       showRenderLoopErrors: false,
       infoBox: false,
       // requestRenderMode 按需渲染：静止零开销，图层/水面/相机防抖/动画等动态路径均已显式 requestRender
-      // 关 HDR/FXAA/抗锯齿：240Hz 屏每帧预算约 6ms，后处理是拖拽掉帧的主要 GPU 开销
+      // HDR/FXAA 不在此显式传入：Cesium 默认即关（scene.highDynamicRange=false、FXAA 后处理默认禁用），
+      // 与下方 msaaSamples=1 共同构成「关后处理」组合——原注释称"关 HDR/FXAA"但参数从未传过，
+      // 实为默认值兜底，注释已更正（09-11 审计）。cesium 类型未收录这些字段（版本差异），
+      // 如需显式控制须结构化断言后走 scene 属性
       requestRenderMode: true,
       maximumRenderTimeChange: Infinity,
       // cesium 类型未收录 highDynamicRange/fxaa（版本差异），结构化断言保留运行期行为
@@ -148,15 +151,35 @@ class CesiumViewerManager {
       showError('3D 渲染上下文丢失，请关闭多余标签页并刷新页面')
     }) as EventListener)
 
-    // maximumScreenSpaceError 4（默认 2）：globe 网格减半，拖拽更流畅（远处地形略简，视觉可接受）
-    ;(this.viewer.scene as unknown as { maximumScreenSpaceError: number }).maximumScreenSpaceError =
-      4
+    // globe 级性能参数收口（见 _applyGlobePerfTuning：SSE 4 / tileCacheSize 200 / 关 MSAA）
+    this._applyGlobePerfTuning(this.viewer.scene)
     // 关大气地面散射与雾（240Hz 下每帧计算的视觉开销，非业务必需）
     this.viewer.scene.globe.showGroundAtmosphere = false
     this.viewer.scene.fog.enabled = false
 
     this.isMounted = true
     return this.viewer
+  }
+
+  /**
+   * globe 级性能参数（交互帧率三件套，09-11 修复收口）。
+   * ⚠️ maximumScreenSpaceError 与 tileCacheSize 都是 **Globe** 的属性（Cesium d.ts Globe 类），
+   * Scene 上不存在——此前 `(scene as unknown as {...}).maximumScreenSpaceError = 4` 实为往
+   * scene 对象挂无用属性，08-11（441f6a0e）引入以来该优化从未生效（真值一直是默认 2，
+   * 09-10 性能测评实测线上 SSE=2 佐证）。本方法集中收口并附测试，防再次挂错对象。
+   */
+  _applyGlobePerfTuning(scene: {
+    globe: { maximumScreenSpaceError: number; tileCacheSize: number }
+    msaaSamples: number
+  }): void {
+    // SSE 4（默认 2）：globe/地形网格细化误差容忍翻倍，网格量约减半，拖拽显著更流畅
+    //（远处地形略简，视觉可接受）
+    scene.globe.maximumScreenSpaceError = 4
+    // 地形瓦片缓存翻倍（默认 100）：缩放/旋转回看时命中缓存，减少瓦片重建
+    scene.globe.tileCacheSize = 200
+    // 关 4xMSAA（Viewer 构造默认 4）：核显填充率开销大；240Hz 屏每帧预算约 6ms，
+    // 抗锯齿走默认关闭的 FXAA 链路（需要时 scene.postProcessStages.fxaa.enabled 按需开）
+    scene.msaaSamples = 1
   }
 
   mount(el: HTMLElement): boolean {

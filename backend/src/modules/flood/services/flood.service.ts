@@ -4,6 +4,7 @@ import {
   deriveRiskLevel,
   deriveRiskLevelCode,
   MAX_WATER_LEVEL,
+  RISK_LEVEL_BANDS,
 } from '../../../common/constants/flood.constants'
 import { BusinessError, ErrorCode } from '../../../common/errors/business-error'
 import { GeoJsonGeometry, SpatialRepository } from '../../../infra/db/spatial.repository'
@@ -123,7 +124,7 @@ export class FloodService {
           waterLevel: level,
           requestedWaterLevel: level,
           actualWaterLevel: level,
-          riskLevel: '无风险',
+          riskLevel: RISK_LEVEL_BANDS[0].label,
           features: [],
         }
       }
@@ -211,7 +212,7 @@ export class FloodService {
         waterLevel: level,
         requestedWaterLevel: level,
         actualWaterLevel: level,
-        riskLevel: '无风险',
+        riskLevel: RISK_LEVEL_BANDS[0].label,
         riskLevelCode: 0,
         floodArea: 0,
         averageDepth: 0,
@@ -317,7 +318,12 @@ export class FloodService {
     if (!floodZone || !Array.isArray(floodZone.features) || floodZone.features.length === 0) {
       // 无淹没多边形（0 档/无匹配档位）→ 无受影响设施（水位 0 = 无淹没）；
       // 风险等级统一「无风险」（与前端 colors.ts 键一致）
-      return { affectedFacilities: [], totalLoss: 0, riskLevel: '无风险', waterLevel: undefined }
+      return {
+        affectedFacilities: [],
+        totalLoss: 0,
+        riskLevel: RISK_LEVEL_BANDS[0].label,
+        waterLevel: undefined,
+      }
     }
 
     // 设施评估基于淹没多边形空间筛选（与 online 模式连通演算同口径），

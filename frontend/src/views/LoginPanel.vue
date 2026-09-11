@@ -13,10 +13,10 @@
 
 import { computed, ref } from 'vue'
 
-import { ApiError, describeError, showToast, useAuth, useGCS } from '@/shared'
+import { ApiError, AUTH_BIZ_CODE, describeError, showToast, useAuth, useGCS } from '@/shared'
 
-/** 后端登录业务码（对齐 backend BusinessError ErrorCode），按码分语义反馈 */
-const AUTH_BIZ_CODE = { USER_NOT_FOUND: 401002, WRONG_PASSWORD: 401003 } as const
+// AUTH_BIZ_CODE 收口 shared/constants/bizCodes.ts（与后端 ErrorCode 由 constants-audit 双侧断言，
+// 组件内手抄数字曾有的漂移风险消除）
 
 const { login, register } = useAuth()
 const { cellPixel, css } = useGCS()

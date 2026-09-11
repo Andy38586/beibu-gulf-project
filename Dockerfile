@@ -22,13 +22,15 @@ ENV VITE_USE_NEST_MODULES=$VITE_USE_NEST_MODULES
 WORKDIR /app
 
 # 根依赖锁文件（根 package-lock.json 存在）
-# 2026-08-09：改回 npm ci——此前失败是 npmmirror 生成的不完整 lock；
-# 官方源重建（f0cce63）后 CI 的 npm ci 稳定成功，lock 对 npm ci 完整。
-# 2026-08-10：回退 npm install——服务器构建实测 npm ci EUSAGE（lock 缺
-# rollup/fsevents 条目，npm 10.9.8 对 lockfileVersion 3 严格校验），
-# npm install 宽容模式（缺 optional/peer 条目自动补齐），部署历程记录方案。
+# 2026-08-09：npmmirror 生成的不完整 lock 使 npm ci 报 EUSAGE，曾改回 npm install；
+# 2026-08-10：服务器实测 npm ci EUSAGE（lock 缺 rollup/fsevents 条目）再次回退。
+# 2026-09-11：lock resolved 全量改指官方源（镜像 tarball 与官方逐条同 integrity），
+# 并逐条盘查平台受限可选包——rolldown/lightningcss/napi-rs 的 linux-x64-musl 等
+# 均在册（rollup/esbuild 已随 vite 8/rolldown 退出依赖树）。本机以强制平台解析复现
+# Alpine 场景：npm ci --dry-run（npm_config_os=linux/cpu=x64/libc=musl）通过、无 EUSAGE。
+# 故恢复 npm ci 取得可复现构建；若服务器再现 EUSAGE，回退 npm install（部署历程记录）。
 COPY package*.json ./
-RUN npm install --no-audit --no-fund
+RUN npm ci --no-audit --no-fund
 
 # 前端源码与 vite 配置
 COPY frontend/ ./frontend/

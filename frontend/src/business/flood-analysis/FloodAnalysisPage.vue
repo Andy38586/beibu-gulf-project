@@ -284,7 +284,9 @@ async function triggerFloodAnalysis(waterLevel: number, seq: number) {
     if (!shouldRenderForCurrentRoute()) return
     // 页面已卸载则丢弃响应，防止离开后图层复活
     if (unmounted) return
-    // 洪涝数据为档位制（6 档），档位回显由滑块/图表自然呈现，无需"无精确数据"提示
+    // 洪涝数据为 251 档（0.1m 步进，waterLevel 即实际档位；不再是 6 档粗化口径），
+    // 档位回显由滑块/图表自然呈现，无需"无精确数据"提示。actualWaterLevel 与
+    // statistics.actualWaterLevel 同源，此处仅日志留痕不另透传
     logger.debug('[Flood] 档位回显:', { waterLevel, actualWaterLevel })
 
     logger.debug('[Flood] 更新淹没分析数据:', { statistics, features: features.length, riskLevel })

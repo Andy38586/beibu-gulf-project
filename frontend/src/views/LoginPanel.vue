@@ -63,24 +63,17 @@ async function handleSubmit() {
   }
 
   if (mode.value === 'register') {
-    // 用户名特殊字符校验（仅允许字母、数字、中文、下划线）；文案精简适配 3cell 单行胶囊容量。
-    // 2026-09-10 修正：该校验原位于 register 判断**之前**，登录也一并执行；而后端
-    // auth.dto.ts 的 LoginBody 只校验非空与类型，RegisterBody 也**无字符集限制**——
-    // 前端比后端严格 ⇒ 后端可达的合法账号（含 `-`/`.` 等字符，如 API 直注或历史迁移
-    // 而来）在 UI 里会被注册规则拦下，永远登不进。故下沉到注册分支（只约束新注册）。
-    const usernameRegex = /^[\u4e00-\u9fa5a-zA-Z0-9_]+$/
-    if (!usernameRegex.test(trimmedUsername)) {
-      showToast('用户名仅限中英文、数字和下划线', 'warning')
-      return
-    }
+    // ⚠️ 09-11 双轨消除：用户名/密码的**字符集与强度**规则已从本文件删除，权威判据在
+    // backend auth.dto.ts（USERNAME_REGEX / PASSWORD_REGEX），由其 400001 文案回传展示。
+    //
+    // 为什么删：这两条正则此前在后端**已 export**（auth.dto.ts:12 / plans.dto.ts:6），
+    // 前端却各抄一份字面量，两副本独立演化、无类型系统约束——76a15b65 那个「合法账号
+    // 永远登不进」的 bug 正是同一病灶（当时只把前端校验下沉到 register 分支止血，未根除）。
+    // 跨进程副本无法靠 TS 兜底，唯一可靠解法是**不保留副本**。
+    //
+    // 保留的仅是本端可判且不需要服务端知识的两条：最小长度（即时反馈）与两次一致（纯前端）。
     if (password.value.length < 6) {
       showToast('密码长度不能少于 6 位', 'warning')
-      return
-    }
-    // 密码强度：至少包含大小写字母和数字
-    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{6,}$/
-    if (!passwordRegex.test(password.value)) {
-      showToast('密码必须包含大小写字母和数字', 'warning')
       return
     }
     if (confirmPassword.value === '') {

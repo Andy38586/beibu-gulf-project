@@ -63,7 +63,7 @@ chosen AS (
   LIMIT 1
 )
 SELECT c.level, c.feature_count, c.flooded_km2,
-       ST_AsGeoJSON(d.geom) AS geometry,
+       ST_AsGeoJSON(ST_Transform(d.geom, 4326)) AS geometry,
        ROUND(ST_Area(d.geom)::numeric, 6) AS area
 FROM chosen c
 LEFT JOIN LATERAL ST_Dump(c.geom) AS d ON TRUE
@@ -75,7 +75,7 @@ ORDER BY ST_Area(d.geom) DESC NULLS LAST
 // 该路径为兼容保留，不属正常调用路径。
 const LIST_LEVELS_SQL = `
 SELECT l.level, l.feature_count, l.flooded_km2,
-       ST_AsGeoJSON(d.geom) AS geometry,
+       ST_AsGeoJSON(ST_Transform(d.geom, 4326)) AS geometry,
        ROUND(ST_Area(d.geom)::numeric, 6) AS area
 FROM flood_levels l
 LEFT JOIN LATERAL ST_Dump(l.geom) AS d ON TRUE

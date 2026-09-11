@@ -345,7 +345,6 @@ export class CesiumRenderer extends MapRenderer {
   baseLayers: { image: unknown[]; vector: unknown[] }
   _isReusing: boolean
   _cameraDebounceTimer: ReturnType<typeof setTimeout> | null
-  _terrainReady: boolean
   _terrainProvider: CesiumTerrainProvider | null
   _terrainEnabled: boolean
   /** 地形已降级为平坦椭球（根瓦片失败兜底），避免重复降级；setTerrainEnabled(true) 时重置重试 */
@@ -356,7 +355,6 @@ export class CesiumRenderer extends MapRenderer {
   _rootTileErrorKeys: Set<string>
   /** 地形 provider.errorEvent 具名回调（destroyEvents 随实例注销，防止闭包持有已销毁 renderer） */
   _terrainErrorHandler: ((err: unknown) => void) | null
-  _hillshadeLayer: unknown
   _imageryErrorLogged: boolean
   /** 底图 errorEvent 具名回调（供 destroyEvents 注销；provider 常驻单例 Viewer，须随 renderer 销毁摘除，5.2-1） */
   _imageryErrorHandler: ((err: unknown) => void) | null
@@ -380,9 +378,7 @@ export class CesiumRenderer extends MapRenderer {
     this.baseLayers = { image: [], vector: [] }
     this._isReusing = false // 标记是否复用已有 Viewer
     this._cameraDebounceTimer = null // 相机变化防抖定时器
-    /** 真地形就绪标志：业务层据此跳过 hillshade 回退贴图（真地形 z 起伏 + Cesium 光照取代伪三维明暗图） */
-    this._terrainReady = false
-    /** 真地形 provider 引用（setTerrainEnabled 切换用）；未就绪为 null */
+    /** 真地形 provider 引用（setTerrainEnabled 切换用）；未就绪为 null —— 即「地形是否就绪」的唯一判据 */
     this._terrainProvider = null
     /** "真实地形"开关状态（3D 语义）：默认开，_setupTerrain 自动加载即显示 */
     this._terrainEnabled = true
@@ -390,8 +386,6 @@ export class CesiumRenderer extends MapRenderer {
     this._rootTileErrorCount = 0
     this._rootTileErrorKeys = new Set<string>()
     this._terrainErrorHandler = null
-    /** hillshade 回退贴图引用（DEM 独立图层，显隐由图层面板开关控制） */
-    this._hillshadeLayer = null
     /** 底图瓦片失败 warn 只打一次（防每个瓦片刷屏） */
     this._imageryErrorLogged = false
     this._imageryErrorHandler = null
@@ -426,8 +420,10 @@ export class CesiumRenderer extends MapRenderer {
     if (!this._isReusing) {
       this._positionCamera()
       this._initBaseLayers()
-      // 真 3D 地形：CesiumTerrainProvider 按需 LOD 加载 CTB（地形金字塔切片工具）预切瓦片，
-      // 成功置 _terrainReady → hillshade 回退退场；失败静默降级为全量贴图（不阻塞 Viewer）
+      // 真 3D 地形：CesiumTerrainProvider 按需 LOD 加载 CTB（地形金字塔切片工具）预切瓦片；
+      // 成功置 _terrainProvider（地形就绪的唯一判据），失败静默降级为全量贴图（不阻塞 Viewer）。
+      // 注意：DEM 图层（hillshade）与真地形**互不耦合**——DEM 是用户可独立开关的影像图层，
+      // 真地形是常驻基础能力，故此处不隐藏 hillshade（详见 addGeoTIFFLayer 注释）
       void this._setupTerrain()
     } else {
       // 复用实例从单例管理器取底图引用
@@ -478,7 +474,6 @@ export class CesiumRenderer extends MapRenderer {
       // viewer 可能已被 30s 闲置销毁，销毁后属性清空访问即崩
       if (!viewer || !viewer.scene || viewer.isDestroyed()) return
       this._terrainProvider = provider
-      this._terrainReady = true
       // 根瓦片失败守卫：layer.json 200 只代表清单可读，单瓦片（尤其 Level 0 根瓦片）404
       // 时地形四叉树建不起来，影像瓦片请求不会发出，整张底图被拖黑。监听 provider.errorEvent，
       // 根瓦片连续失败即自动降级椭球，保证底图永远可见（代价仅是没有 z 起伏）。
@@ -1547,7 +1542,7 @@ export function addGeoTIFFLayer(
 ): boolean {
   // 入口日志：无论走哪个分支都打印，便于排查"图层没挂载"（调用了/跳过了/URL 是什么）
   logger.debug(
-    `[CesiumRenderer] addGeoTIFFLayer 调用: id=${id} url=${url} terrainReady=${renderer._terrainReady}`
+    `[CesiumRenderer] addGeoTIFFLayer 调用: id=${id} url=${url} terrainReady=${renderer._terrainProvider !== null}`
   )
 
   // 回退方案仅支持预生成的 hillshade 影像；其它 GeoTIFF 在 3D 下暂不支持
@@ -1591,8 +1586,7 @@ export function addGeoTIFFLayer(
     // hillshade 顶层叠加 + 默认 alpha 0.85：明暗清晰可辨（曾 0.45 太淡，用户视觉上看不到 DEM 图层；
     // 天地图影像在下层透出轮廓，注记层最上显示地名）；真 3D 已由地形瓦片承接，此为降级兜底
     imageryLayer.alpha = options.opacity ?? 0.85
-    // 记录 hillshade 引用供移除/可见性操作
-    renderer._hillshadeLayer = imageryLayer
+    // 图层实例统一登记进 _layers 注册表（移除/显隐均走该表，无需额外实例字段）
     // 不得 lowerToBottom：hillshade 须在天地图之上（alpha 半透明叠加），沉底会被盖住致 DEM 图层不可见
 
     renderer._layers.set(id, {

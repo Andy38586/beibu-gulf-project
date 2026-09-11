@@ -11,6 +11,16 @@ const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{6,}$/
 // 密码强度：至少包含大小写字母和数字（对齐 Express register 同款正则）
 export { PASSWORD_REGEX }
 
+/**
+ * 用户名字符集（注册约束）：仅中英文、数字、下划线。
+ *
+ * 09-11 补齐：此前该规则**只存在于前端**（LoginPanel.vue 的 usernameRegex），后端
+ * RegisterBody 无字符集限制 —— 前端比后端严，正是 76a15b65 那个「合法账号永远登不进」
+ * bug 的同一病灶（那次只把前端校验下沉到 register 分支止血，未在后端补校验）。
+ * 现后端成为权威判据，前端副本删除（跨进程规则不保留副本）。
+ */
+export const USERNAME_REGEX = /^[\u4e00-\u9fa5a-zA-Z0-9_]+$/
+
 export class CredentialsBody {
   @ApiProperty({ description: '用户名（2-20 字符）', example: 'demo_user' })
   username!: string
@@ -48,9 +58,12 @@ export class RegisterBody extends CredentialsBody {
     const dto = new RegisterBody()
     dto.username = body.username as string
     dto.password = body.password as string
-    // 以下三道校验的顺序与文案逐字节对齐 Express register
+    // 以下四道校验的顺序与文案对齐 Express register（第四道为 09-11 补齐的用户名字符集）
     if (dto.username.length < 2 || dto.username.length > 20) {
       throw new BusinessError(ErrorCode.INVALID_PARAMS, '用户名长度应在 2-20 个字符之间')
+    }
+    if (!USERNAME_REGEX.test(dto.username)) {
+      throw new BusinessError(ErrorCode.INVALID_PARAMS, '用户名仅限中英文、数字和下划线')
     }
     if (dto.password.length < 6) {
       throw new BusinessError(ErrorCode.INVALID_PARAMS, '密码长度不能少于 6 位')

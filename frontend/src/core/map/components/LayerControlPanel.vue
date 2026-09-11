@@ -11,6 +11,7 @@ import { useBusinessLayers } from '@/core/map/composables/useBusinessLayers'
 import { useGCS } from '@/shared'
 import { useMapStore } from '@/stores'
 import type { LayerEntry } from '@/types'
+import { DEFAULT_ENGINES, ENGINE_LABELS } from '@/types'
 
 interface Props {
   /** 图层显示顺序（由业务页注入，core 不硬编码业务 key） */
@@ -58,10 +59,7 @@ const layerButtons = computed(() => {
     // 透传 layerType 供图标数据驱动（core 不解析业务 label 语义）
     layerType: layer.layerType,
     // 引擎适用标记：registry meta 优先，目录镜像兜底；仅单引擎图层显示角标（双引擎保持干净）
-    engines:
-      layer.engines ??
-      businessLayerManager.getMeta(layer.key)?.engines ??
-      (['openlayers', 'cesium'] as const),
+    engines: layer.engines ?? businessLayerManager.getMeta(layer.key)?.engines ?? DEFAULT_ENGINES,
     // 单变量原则：按钮状态即 registry.visible（BLM 唯一权威），蓝 = 图层在显示
     active: layer.layerType
       ? (businessLayerManager.getMeta(layer.key)?.visible ?? layer.visible)
@@ -134,7 +132,7 @@ function handleToggle(key: string) {
           class="engine-corner"
           :title="item.engines.join(' / ')"
         >
-          {{ item.engines[0] === 'openlayers' ? 'OL' : 'CS' }}
+          {{ ENGINE_LABELS[item.engines[0]] }}
         </span>
       </button>
     </div>

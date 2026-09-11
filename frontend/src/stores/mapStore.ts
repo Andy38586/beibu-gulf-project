@@ -5,6 +5,7 @@ import { ref, shallowRef } from 'vue'
 import { logger } from '@/shared'
 import { readStoredJSON, writeStoredJSON } from '@/shared/utils/safeStorage'
 import type { EngineName, LayerEntry, LayerType, MapType } from '@/types'
+import { DEFAULT_ENGINES } from '@/types'
 import type { MapRenderer } from '@/types'
 
 /** localStorage 键：底图 */
@@ -68,7 +69,7 @@ export const useMapStore = defineStore('map', () => {
     label: string,
     layerType: LayerType,
     visible: boolean = true,
-    engines: EngineName[] = ['openlayers', 'cesium']
+    engines: EngineName[] = DEFAULT_ENGINES
   ): void {
     const existing = layerCatalog.value.find((e: LayerEntry) => e.key === key)
     if (existing) {

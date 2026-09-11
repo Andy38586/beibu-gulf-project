@@ -18,6 +18,7 @@ import type {
   TerrainToggleCapability,
   Water3DCapability,
 } from '@/types'
+import { DEFAULT_ENGINES, ENGINE_NAMES } from '@/types'
 import type { LayerType, WaterSurfaceData } from '@/types/core/layerManager'
 
 // ===== 数据形状守卫 =====
@@ -105,7 +106,7 @@ interface LayerAdapter {
 
 export const LAYER_ADAPTERS: Record<LayerType, LayerAdapter> = {
   heatmap: {
-    engines: ['openlayers'], // addHeatmapLayer 为 OL 独有能力
+    engines: [ENGINE_NAMES.OPENLAYERS], // addHeatmapLayer 为 OL 独有能力
     // addHeatmapLayer 为可选能力（2D Only），经类型守卫后调用，替代 ! 断言
     create: (renderer, key, data, options) => {
       assertPointArray(data)
@@ -129,7 +130,7 @@ export const LAYER_ADAPTERS: Record<LayerType, LayerAdapter> = {
   },
 
   geojson: {
-    engines: ['openlayers', 'cesium'],
+    engines: DEFAULT_ENGINES,
     create: (renderer, key, data, options) => {
       assertFeatureCollection(data)
       renderer.addGeoJsonLayer(key, data, options)
@@ -156,7 +157,7 @@ export const LAYER_ADAPTERS: Record<LayerType, LayerAdapter> = {
   },
 
   points: {
-    engines: ['openlayers', 'cesium'],
+    engines: DEFAULT_ENGINES,
     create: (renderer, key, data, options) => {
       assertPointArray(data)
       renderer.addPointLayer(key, data, options)
@@ -172,7 +173,7 @@ export const LAYER_ADAPTERS: Record<LayerType, LayerAdapter> = {
   },
 
   polygon: {
-    engines: ['openlayers', 'cesium'],
+    engines: DEFAULT_ENGINES,
     create: (renderer, key, data, options) => {
       assertPolygonArray(data)
       renderer.addPolygonLayer(key, data, options)
@@ -188,7 +189,7 @@ export const LAYER_ADAPTERS: Record<LayerType, LayerAdapter> = {
   },
 
   waterSurface: {
-    engines: ['cesium'], // 水面为 3D 专有能力（Water3DCapability），OLRenderer 无此方法
+    engines: [ENGINE_NAMES.CESIUM], // 水面为 3D 专有能力（Water3DCapability），OLRenderer 无此方法
     // 水面为 3D 专有能力（Water3DCapability），OLRenderer 无此方法；
     // 能力检查替代基类 no-op stub：不支持的渲染器上跳过并 warn
     create: (renderer, key, data, options) => {
@@ -225,7 +226,7 @@ export const LAYER_ADAPTERS: Record<LayerType, LayerAdapter> = {
   },
 
   geotiff: {
-    engines: ['cesium'], // GeoTIFF 为 Cesium 独占能力（OL 2D COG 已按独占定义移除）
+    engines: [ENGINE_NAMES.CESIUM], // GeoTIFF 为 Cesium 独占能力（OL 2D COG 已按独占定义移除）
     // addGeoTIFFLayer 为 Cesium 独占能力（3D hillshade 贴图回退；OL 2D 已按独占定义移除），
     // 经类型守卫后调用；data 为 hillshade PNG 路径。3D 下 DEM（数字高程模型）也是独立影像图层，
     // 与普通图层走同一显隐语义，不做 terrainProvider 特殊处理
@@ -247,9 +248,10 @@ export const LAYER_ADAPTERS: Record<LayerType, LayerAdapter> = {
     remove: (renderer, key) => {
       renderer.removeLayer(key)
     },
-    // "真实地形"按钮在 3D 下有双重语义：①保留 hillshade 回退贴图的普通图层显隐委派
-    // （真地形就绪时 hillshade 不创建，落入待定显隐队列、removeLayer 时一并清除，无副作用）；
+    // "真实地形"按钮在 3D 下有双重语义：①保留 hillshade 回退贴图的普通图层显隐委派；
     // ②联动 terrainProvider 的真 z 起伏开关（2D 无此能力，能力守卫跳过）。
+    // ⚠️ DEM 图层与真地形**互不耦合**：真地形就绪**不会**隐藏/跳过 hillshade（曾有此设计，
+    // 现行为为「DEM 是用户可独立开关的影像图层」）。此处注释 09-11 与实现对齐。
     setVisibility: (renderer, key, visible) => {
       renderer.setVisibility(key, visible)
       if (isTerrainToggleCapable(renderer)) {

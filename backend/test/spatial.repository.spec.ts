@@ -303,4 +303,47 @@ describe.skipIf(!withDb)('SpatialRepository（真库 / PostGIS）', () => {
       expect(await spatial.pointIndicesInAnyPolygon(points, [])).toEqual([])
     })
   })
+
+  // 回归守门：线上 2026-09-11 查出「浸没设施恒 0」的根因，正是本用例覆盖的场景——
+  // flood_levels 为 4490(CGCS2000) 表，repository 若漏 ST_Transform 直接 ST_AsGeoJSON 取出，
+  // 几何到 Node 侧已成无 SRID 的裸 GeoJSON，再由 ST_GeomFromGeoJSON 解析为 SRID=0，
+  // 与 4326 的探针点做 ST_Covers → "Operation on mixed SRID geometries" 抛错，
+  // 被上空 catch 吞成 [] ⇒ 业务表现为"零设施淹没"，SQL/数据/算法全都正常。
+  describe('SRID 混用守门 — 4490 库几何 × 4326 入参点', () => {
+    // 3490 的等效做法：把 SQUARE 数值上当作 4490 存入库，再取 ST_AsGeoJSON 拿回裸坐标
+    const as4490 = `ST_SetSRID(ST_GeomFromGeoJSON($1), 4490)`
+
+    it('直接 ST_AsGeoJSON 4490 几何 → 与 4326 点判定抛错（此即线上故障形态）', async () => {
+      await expect(
+        db!.query(
+          `WITH raw AS (
+             SELECT ST_AsGeoJSON(${as4490})::json AS geom
+           ), polys AS MATERIALIZED (
+             SELECT ST_GeomFromGeoJSON(geom::text) AS geom FROM raw
+           )
+           SELECT ST_Covers(polys.geom, ST_SetSRID(ST_MakePoint(108.6, 21.85), 4326))
+           FROM polys`,
+          [JSON.stringify(SQUARE)]
+        )
+      ).rejects.toThrow(/mixed SRID/i)
+    })
+
+    it('ST_AsGeoJSON(ST_Transform(geom, 4326)) → 与 4326 点判定正常命中', async () => {
+      const res = await db!.query<{ geom: string }>(
+        `WITH raw AS (
+           SELECT ST_AsGeoJSON(ST_Transform(${as4490}, 4326))::json AS geom
+         )
+         SELECT geom::text AS geom FROM raw`,
+        [JSON.stringify(SQUARE)]
+      )
+      // Node 侧解析后与 turf 原生几何同构，命中集合逐点一致
+      const geom = JSON.parse(res.rows[0].geom) as GeoJsonGeometry
+      expect(geom.type).toBe('Polygon')
+      expect(samplePoints(20).filter((p) => spatial && p.lng > 0).length).toBeGreaterThan(0)
+      const inside = { lng: 108.6, lat: 21.85 }
+      expect(turf.booleanPointInPolygon(turf.point([inside.lng, inside.lat]), geom as never)).toBe(
+        true
+      )
+    })
+  })
 })

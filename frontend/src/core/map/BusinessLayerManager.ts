@@ -8,6 +8,7 @@
 import { perfTimeFn } from '@/shared'
 import { logger } from '@/shared'
 import type { EngineName, LayerEntry, LayerOptions, MapRenderer } from '@/types'
+import { ENGINE_NAMES } from '@/types'
 import type { LayerType } from '@/types/core/layerManager'
 
 import { LAYER_ADAPTERS } from './layerAdapters'
@@ -256,7 +257,7 @@ export class BusinessLayerManager {
       {
         const rt = renderer.getType?.()
         const engineName: EngineName | null =
-          rt === '2d' ? 'openlayers' : rt === '3d' ? 'cesium' : null
+          rt === '2d' ? ENGINE_NAMES.OPENLAYERS : rt === '3d' ? ENGINE_NAMES.CESIUM : null
         if (engineName && meta.engines && !meta.engines.includes(engineName)) {
           logger.debug(`[BusinessLayerManager] reapplyAll ${key} 跳过（引擎 ${engineName} 不适用）`)
           continue

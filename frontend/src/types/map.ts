@@ -17,6 +17,22 @@ import type { LayerType } from '@/types/core/layerManager'
 /** 渲染引擎标识（registry 标记图层适用引擎，面板徽标与 reapplyAll 过滤共用） */
 export type EngineName = 'openlayers' | 'cesium'
 
+/**
+ * 引擎标识常量（09-11 收口）：EngineName 的字面量此前散落在 mapStore / layerAdapters /
+ * BusinessLayerManager / LayerControlPanel 共 6 处裸写，其中 3 处无类型约束（拼错不报错）。
+ * 有类型标注处由 TS 兜底，无标注处统一从本常量取。
+ */
+export const ENGINE_NAMES = { OPENLAYERS: 'openlayers', CESIUM: 'cesium' } as const
+
+/** 缺省引擎集（registry meta 与目录镜像均无标记时视为双引擎通用，与 LayerEntry.engines 缺省语义一致） */
+export const DEFAULT_ENGINES: EngineName[] = [ENGINE_NAMES.OPENLAYERS, ENGINE_NAMES.CESIUM]
+
+/** 引擎徽标文案（图层控制面板 DEV 标号；与应用层 UI 文案解耦） */
+export const ENGINE_LABELS: Record<EngineName, string> = {
+  openlayers: 'OL',
+  cesium: 'CS',
+}
+
 export interface LayerEntry {
   key: string
   label: string

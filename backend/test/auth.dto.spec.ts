@@ -41,6 +41,40 @@ describe('RegisterBody.parse（对齐 Express register 校验）', () => {
     }
   })
 
+  it('用户名字符集非法 → 400001 用户名仅限中英文、数字和下划线', () => {
+    // 09-11 补齐：该规则此前只在前端（LoginPanel.usernameRegex），后端无字符集限制
+    // ⇒ 前后端双轨、且后端更宽。现后端为权威，含 `-`/`.`/空格/emoji 一律拒绝。
+    for (const name of ['a-b', 'a.b', 'a b', 'user@x', '用户!']) {
+      expectBiz(
+        () => RegisterBody.parse({ username: name, password: 'Abcdef1' }),
+        ErrorCode.INVALID_PARAMS.code,
+        '用户名仅限中英文、数字和下划线'
+      )
+    }
+  })
+
+  it('用户名字符集合法边界 → 中文/字母/数字/下划线均放行', () => {
+    for (const name of ['ab', 'demo_user', '用户甲', 'User_01', '张三abc_9']) {
+      const dto = RegisterBody.parse({ username: name, password: 'Abcdef1' })
+      expect(dto.username).toBe(name)
+    }
+  })
+
+  it('顺序守卫：长度先于字符集（3 字符合法集但超长先报长度）', () => {
+    // 'x'.repeat(21) 既是超长也满足字符集 → 必须命中长度文案（顺序即契约）
+    expectBiz(
+      () => RegisterBody.parse({ username: 'x'.repeat(21), password: 'Abcdef1' }),
+      ErrorCode.INVALID_PARAMS.code,
+      '用户名长度应在 2-20 个字符之间'
+    )
+    // 字符集非法且过短 → 长度先报（'a-' 长 2 合法，故此处用 1 字符非法集）
+    expectBiz(
+      () => RegisterBody.parse({ username: 'a', password: 'Abcdef1' }),
+      ErrorCode.INVALID_PARAMS.code,
+      '用户名长度应在 2-20 个字符之间'
+    )
+  })
+
   it('密码过短 → 400001 密码长度不能少于 6 位', () => {
     expectBiz(
       () => RegisterBody.parse({ username: 'ab', password: 'Ab1' }),

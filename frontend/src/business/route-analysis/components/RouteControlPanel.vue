@@ -283,7 +283,7 @@ defineExpose({
 
         <!-- 中部四槽：2×2（1.8 宽）；主体点击 = 聚焦 POI 搜索，定位图标 = 地图选点 -->
         <button
-          v-for="key in ['from', 'waypoint-1', 'waypoint-2', 'to'] as const"
+          v-for="key in ROUTE_SLOT_KEYS"
           :key="key"
           class="route-btn slot-btn"
           :class="{ active: activeSlot === key, filled: slots[key] !== null }"

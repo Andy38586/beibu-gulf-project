@@ -15,7 +15,7 @@ import {
   logger,
   showError,
 } from '@/shared'
-import { PORT_NAMES } from '@/shared'
+import { PORT_KEYS, PORT_NAMES } from '@/shared'
 import { useForecastStore } from '@/stores'
 
 /** 返回契约（显式化，防重构时签名静默漂移） */
@@ -88,12 +88,9 @@ export function useForecastComparison(): UseForecastComparisonReturn {
         return {
           name: BAR_INDICATOR_LABELS[ind],
           // 无数据保留 null（图表空档），不再折叠为 0——
-          // 后端 value 缺失时 `|| 0` 会把「无数据」伪装成「真实 0」
-          data: [
-            p?.qinzhou?.value ?? null,
-            p?.beihai?.value ?? null,
-            p?.fangchenggang?.value ?? null,
-          ],
+          // 后端 value 缺失时 `|| 0` 会把「无数据」伪装成「真实 0」。
+          // 按 PORT_KEYS 取数：顺序与 barXData（PORT_NAMES）由同一权威源派生，不再手写 key
+          data: PORT_KEYS.map((k) => p?.[k]?.value ?? null),
         }
       })
       forecastState.setRequestCache(cacheKey, { xData: barXData.value, series: barSeries.value })

@@ -32,14 +32,12 @@ watch(
 
 function handleConfirm() {
   const name = planName.value.trim()
+  // 只拦"空"这一类本地可判定的问题；命名字符集/长度的权威判据在后端
+  // `PLAN_NAME_REGEX`（backend/src/modules/plans/dto/plans.dto.ts:6），
+  // 非法名由后端 400001 + 文案回传，经 errorMsg 在此展示。
+  // 09-11 双轨消除：此处原有一份 `nameRegex` 副本（与后端逐字节相同），
+  // 双端并行维护同一规则 → 改一端不报错、另一端静默放行，故删除。
   if (!name) return
-
-  // 方案名称正则校验（仅允许中文、字母、数字、下划线、连字符、空格）
-  const nameRegex = /^[\u4e00-\u9fa5a-zA-Z0-9_\-\s]{1,50}$/
-  if (!nameRegex.test(name)) {
-    emit('error', '方案名称只能包含中文、字母、数字、下划线、连字符和空格，且长度不超过 50 字符')
-    return
-  }
 
   emit('save', name)
 }

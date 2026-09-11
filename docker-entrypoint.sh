@@ -67,8 +67,14 @@ server {
     # 已随 FastAPI 退役删除
     location /assets/ {
         root /app/frontend/dist;
-        expires 1y;
-        add_header Cache-Control "public, immutable";
+        # 2026-09-11 修复重复 Cache-Control：nginx `expires` 指令本身会生成
+        # `Cache-Control: max-age=<t>`（ngx_http_headers_module 文档原文：
+        # "time is positive or zero — Cache-Control: max-age=t"），
+        # 因此 `expires 1y` + `add_header Cache-Control` 会同时下发**两条** Cache-Control，
+        # 浏览器行为未定义（实测线上取第一条），手写那条等于无效——`immutable` 从未生效。
+        # 修法：二者只留其一。本 location 需要 `immutable`（带 hash 的产物），故删 expires、
+        # 改手写真值（max-age 31536000 = 1y），并带 always 保证 304/4xx 也下发。
+        add_header Cache-Control "public, max-age=31536000, immutable" always;
         # 安全头重复（add_header 层级替换语义，详见本 server 块顶部说明）
         add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
         add_header X-Content-Type-Options "nosniff" always;
@@ -77,8 +83,9 @@ server {
     }
     location /data/ {
         root /app/frontend/dist;
+        # 2026-09-11：删手写 add_header Cache-Control "public"——expires 已生成 max-age，
+        # 手写那条会造成重复头且被遮蔽（详见 /assets/ 处说明）。
         expires 7d;
-        add_header Cache-Control "public";
         add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
         add_header X-Content-Type-Options "nosniff" always;
         add_header X-Frame-Options "SAMEORIGIN" always;
@@ -86,8 +93,8 @@ server {
     }
     location /static/terrain/ {
         alias /app/backend/static/terrain/;
+        # 2026-09-11：删手写 Cache-Control（同 /data/，避免重复头）
         expires 30d;
-        add_header Cache-Control "public";
         add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
         add_header X-Content-Type-Options "nosniff" always;
         add_header X-Frame-Options "SAMEORIGIN" always;
@@ -99,7 +106,10 @@ server {
         # 让 layer.json 被声明 gzip 但内容未压缩 → ERR_CONTENT_DECODING_FAILED → 真地形失效
         # 2026-09-11 补：嵌套 location 同样有"层级替换"问题，故安全头也需再重复一层
         location ~ \.terrain$ {
-            add_header Cache-Control "public";
+            # 2026-09-11：本嵌套 location 无 expires，但父级 expires 30d **会正常继承**
+            # （expires 是独立指令，不受 add_header 层级替换影响）——实测确认父级
+            # `Cache-Control: max-age=2592000` 会与本处手写的 `public` 并存 → 又是重复头。
+            # 故此处删掉手写 Cache-Control，只保留必须的 Content-Encoding 与安全头。
             add_header Content-Encoding gzip;
             add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
             add_header X-Content-Type-Options "nosniff" always;
@@ -109,8 +119,8 @@ server {
     }
     location /static/ {
         alias /app/backend/static/;
+        # 2026-09-11：删手写 Cache-Control（同 /data/，避免重复头）
         expires 30d;
-        add_header Cache-Control "public";
         add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
         add_header X-Content-Type-Options "nosniff" always;
         add_header X-Frame-Options "SAMEORIGIN" always;
@@ -124,8 +134,8 @@ server {
         proxy_set_header Host t0.tianditu.gov.cn;
         proxy_set_header X-Real-IP "";
         proxy_ssl_server_name on;
+        # 2026-09-11：删手写 Cache-Control（expires 已生成 max-age，避免重复头）
         expires 30d;
-        add_header Cache-Control "public";
         add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
         add_header X-Content-Type-Options "nosniff" always;
         add_header X-Frame-Options "SAMEORIGIN" always;
@@ -133,8 +143,8 @@ server {
     }
     location /cesium/ {
         root /app/frontend/dist;
+        # 2026-09-11：删手写 Cache-Control（同 /data/，避免重复头）
         expires 30d;
-        add_header Cache-Control "public";
         add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
         add_header X-Content-Type-Options "nosniff" always;
         add_header X-Frame-Options "SAMEORIGIN" always;

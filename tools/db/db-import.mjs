@@ -1,9 +1,9 @@
 // v3 数据入库脚本 v2 —— 读现有 JSON(仓库 backend/data/) -> 生成 SQL(import.sql) + 对账报告(import-report.md)
-// 用法: node tools/db-import.mjs
-// 然后: docker cp .tmp-pip/import.sql beibu-postgis:/tmp/ && docker exec beibu-postgis psql -U postgres -d v3_dev -f /tmp/import.sql
+// 用法: node tools/db/db-import.mjs
+// 然后: docker cp .local/tmp/import.sql beibu-postgis:/tmp/ && docker exec beibu-postgis psql -U postgres -d v3_dev -f /tmp/import.sql
 //
 // v2 硬化（手册 T2.2）：三城化映射（qz/bh/fcg）｜运行时文件缺失容错｜逐表对账报告｜幂等（TRUNCATE 重灌语义）
-// 纯函数 buildImport 供单测注入 fixture（backend/__tests__/tools/db-import.test.js）
+// 纯函数 buildImport 供单测注入 fixture（tools/db/__tests__/db-import.test.js）
 import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -308,13 +308,13 @@ if (
   const report = { warnings: [] }
   const { statements, tables } = buildImport('backend/data', report)
 
-  fs.mkdirSync('.tmp-pip', { recursive: true })
-  fs.writeFileSync('.tmp-pip/import.sql', statements.join('\n'), 'utf8')
-  fs.writeFileSync('.tmp-pip/import-report.md', renderReport(tables, report.warnings), 'utf8')
+  fs.mkdirSync('.local/tmp', { recursive: true })
+  fs.writeFileSync('.local/tmp/import.sql', statements.join('\n'), 'utf8')
+  fs.writeFileSync('.local/tmp/import-report.md', renderReport(tables, report.warnings), 'utf8')
 
   const summary = Object.entries(tables)
     .map(([n, t]) => `${n} ${t.written}/${t.source}`)
     .join(', ')
   console.log(`generated import.sql: ${statements.length - 2} statements`)
-  console.log(`report: .tmp-pip/import-report.md (${summary})`)
+  console.log(`report: .local/tmp/import-report.md (${summary})`)
 }

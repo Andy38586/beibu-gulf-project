@@ -7,7 +7,7 @@
 --
 -- ⚠️ **不要在正在服务生产的路网上随手跑本脚本** —— 它会清空并重写 source/target。
 --    正确姿势：先在**副本库**（或先 pg_dump 一份）跑通、比对连通性，再考虑上生产。
---    生产上日常只需要跑 tools/roads-derive.sql（那个不动拓扑）。
+--    生产上日常只需要跑 tools/roads/roads-derive.sql（那个不动拓扑）。
 --
 -- 为什么不用 pgr_createTopology（对齐既有教训，勿退回）：
 --   它的容差吸附**依赖边的处理顺序** —— 同一份数据两次重建能得到不同拓扑
@@ -21,9 +21,9 @@
 --   60m 在纬度方向 ≈0.00054°、经度方向（21.5°N）≈0.00058°，度数网格是各向异性的；
 --   投影到米制再按 60 取整才是真正的等距网格。本项目港口/路网在 UTM 49 带内。
 --
--- 前置：roads 已导入且 geom 非空；建议先跑 tools/roads-derive.sql 的回填步骤。
+-- 前置：roads 已导入且 geom 非空；建议先跑 tools/roads/roads-derive.sql 的回填步骤。
 -- 用法（服务器，仓库目录下）：
---   docker exec -i beibu-postgis psql -U postgres -d v3_dev < tools/roads-topology-build.sql
+--   docker exec -i beibu-postgis psql -U postgres -d v3_dev < tools/roads/roads-topology-build.sql
 -- =============================================================================
 
 \set ON_ERROR_STOP on
@@ -110,4 +110,4 @@ CREATE INDEX IF NOT EXISTS idx_roads_source ON roads (source);
 CREATE INDEX IF NOT EXISTS idx_roads_target ON roads (target);
 
 COMMIT;
-\echo '===== 完成：接着跑 tools/roads-derive.sql 重算 main_comp 与权重 ====='
+\echo '===== 完成：接着跑 tools/roads/roads-derive.sql 重算 main_comp 与权重 ====='

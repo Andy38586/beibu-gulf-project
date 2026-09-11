@@ -1,73 +1,59 @@
-# tools/ — 预测与数据处理脚本
+# tools/ — 数据与工程脚本
 
-## throughput_model.cjs（吞吐量十年预测流水线，双指标）
+**分类规则**：一类数据、一个文件就能干完的活 → 留在 `tools/` 根目录；需要多个文件协作的 → 单独建目录，
+目录名即数据域。所有脚本一律从**仓库根目录**执行（脚本内部按自身位置定位仓库根，与 cwd 无关）。
 
-将三港**货物吞吐量（cargo，万吨）**与**集装箱吞吐量（container，TEU）**分别建模为
-带置信区间的十年预测，并做滚动原点回测产出分步长真实误差。
+## 目录速查（按数据域）
 
-> 覆盖范围说明（2026-08-29 更新）：产物覆盖 cargo 与 container 两个指标；
-> berth / traffic 为合成指标，不走该模型（数据文件自带 forecast 直接透传）。
-> 2026-08-29 起 container 由「恒增长率复利外推引擎」切换到本模型链路
-> （`forecastService.MODEL_INDICATORS = ['cargo', 'container']`）。
+| 目录             | 数据域      | 里面是什么                                                                                 |
+| ---------------- | ----------- | ------------------------------------------------------------------------------------------ |
+| `db/`            | v3 数据库   | 业务/空间/淹没三套 schema、`db-import.mjs`（JSON→SQL 入库）、坐标系登记、pgRouting 镜像    |
+| `roads/`         | 路网        | 端点切分 `roads-noding` → 拓扑重建 → 派生列与权重回填 → 连通性校验，一条链路按文件名顺序跑 |
+| `flood/`         | 洪涝        | 用真 DEM 重建假数据、251 档淹没数据灌库、FastAPI 启动器                                    |
+| `poi/`           | POI（高德） | 抓取（全量/按网格缓存）、市区口径清洗                                                      |
+| `osm/`           | OSM PBF     | 海岸线 / 耕地 / 工业用地 / 路网提取，配 `osmconf-v3.ini`（ogr2ogr）                        |
+| `dem-pipeline/`  | DEM 地形    | 拼接 → 填洼 → 重投影 → 重切片，`01`~`09` 按序号执行                                        |
+| `gis-import/`    | GIS 入库    | GeoJSON→PostGIS、港口 POI、入库后质检 `verify.mjs`                                         |
+| `forecast/`      | 吞吐量预测  | 模型产物生成 `throughput_model.cjs`、活跃度派生 `derive-activity.mjs`（详见该目录 README） |
+| `data-download/` | 原始数据    | 陆地 DEM / OSM / 海底地形下载（网络可用时跑）                                              |
+| `perf-bench/`    | 性能基准    | 选址覆盖分析、服务端压测                                                                   |
+| `diag/`          | 诊断        | 淹没多边形 vs DEM 高程基准、3D 页面实况抓取                                                |
+| `v3-guard/`      | 质量守卫    | 编号外泄 / 分层契约 / 路由契约 / 体系自洽 / 临时文件卫生，5 项 CI 断言                     |
 
-### 运行
+## 根目录单文件（工程与元工具）
 
-```bash
-npm run forecast:model
+| 文件                      | 用途                                                         |
+| ------------------------- | ------------------------------------------------------------ |
+| `gen-changelog.cjs`       | 从 git log 生成 CHANGELOG（`npm run changelog`）             |
+| `token-stats.mjs`         | 设计 token 治理：死 token 与硬编码色值扫描（改样式前跑）     |
+| `run-algorithm-tests.cjs` | 拉起 algorithm-service 的 pytest（`npm run test:algorithm`） |
+| `setup-runtime.ps1`       | 换机一键重建运行时（venv / node，与仓库分离）                |
+
+## 数据流水线（谁先谁后）
+
+```
+data-download/  →  osm/（提取）  ─┐
+                                  ├→  gis-import/  →  db/（入库）  →  roads/（路网拓扑）
+dem-pipeline/（DEM 处理）      ─┘                                  →  flood/（淹没档位）
+                                                                   →  forecast/（预测产物）
 ```
 
-> 等价于 `node tools/throughput_model.cjs`。脚本为 CommonJS（`.cjs`），路径基于 `__dirname` 解析，与执行时 cwd 无关。一次运行同时生成两份产物。
+每一步的产物是下一步的输入；`db/` 的 schema 是所有入库动作的前置。
 
-### 输入输出
+## 常用入口
 
-| 项   | 路径                                          | 说明                                                                        |
-| ---- | --------------------------------------------- | --------------------------------------------------------------------------- |
-| 输入 | `backend/data/forecast/cargo.json`            | 三港货物月度真数据（2021-01~2026-06，官方 yqb.gxzf.gov.cn，经清洗管线灌入） |
-| 输入 | `backend/data/forecast/container.json`        | 三港集装箱月度真数据（同期同来源，TEU）                                     |
-| 输出 | `backend/data/forecast/throughput_model.json` | cargo 2026-07~2035-12 预测 + 置信区间 + 滚动回测分步长误差                  |
-| 输出 | `backend/data/forecast/container_model.json`  | container 同口径产物（2026-08-29 新增）                                     |
+```bash
+npm run forecast:model       # tools/forecast/throughput_model.cjs
+npm run forecast:activity    # tools/forecast/derive-activity.mjs
+npm run verify-gis           # tools/gis-import/verify.mjs
+npm run dev:flood            # tools/flood/run-flood.cjs
+npm run test:algorithm       # tools/run-algorithm-tests.cjs
+npm run guard:v3             # tools/v3-guard/*.mjs（5 项守卫）
+```
 
-> ⚠️ 旧输入 `throughput.json`（96 个月造数据阶段产物，与官方真值 180 点中 177 点不符）
-> 已于 2026-08-29 **删除**（git 历史可恢复），零引用确认。严禁复活。
+## 约定
 
-### 服务链路接入
-
-- `backend/services/modelLoader.js` 按指标读产物（cargo→throughput_model.json、container→container_model.json），`forecastService` 对两指标的预测段全部取自产物（scenarioLevel 恒 1.0 固定基线，暂不支持情景参数）。
-- 产物预测粒度为 2026-07~12 逐月 + 2027~2035 每半年节点；与历史重叠月份丢弃，半年点由 `modelLoader` 做**月度线性插值**（纯可视化平滑，非模型新输出）。
-- 产物携带 `rolling_mape_by_step` 时，`reliability = 1 - 步长MAPE/100`、`lower/upper` 透传/插值（实测口径）；旧产物无该字段时保持 reliability=1 向后兼容。
-- 产物缺失/结构不符时降级到 `forecastEngine` 趋势外推，接口不中断。
-
-### 方法论
-
-1. **趋势提取**：12 个月中心移动平均，消除季节波动、露出长期趋势。
-2. **季节分解**：按月份计算季节指数，分离季节项与趋势项。
-3. **线性回归外推**：对去季节后的趋势做最小二乘回归，外推至 2035。
-4. **误差比率校正**：用验证期误差比率（bias）对预测做校正因子缩放。
-5. **滚动原点回测**：origin 2024-01~2026-06 逐月滚动，每个 origin 用其之前数据训练、预测未来 12 个月、与真数据重叠段计误差；**回测内不做误差比率校正**（防信息泄漏）。
-
-### 训练 / 验证 / 预测分段
-
-- 训练期：2021-01 ~ 2024-12（48 个月真数据）
-- 验证期：2025-01 ~ 2026-06（18 个月真数据，仅用于校正与对比，不参与拟合）
-- 预测期：2026-07 ~ 2035-12
-
-### 实测精度（2026-08-29 真数据复现）
-
-| 港口   | cargo 滚动回测 s12 | container 滚动回测 s12 |
-| ------ | ------------------ | ---------------------- |
-| 钦州港 | 6.75%              | 12.26%                 |
-| 北海港 | 12.15%             | 15.82%                 |
-| 防城港 | 8.92%              | 18.39%                 |
-
-> 旧的「MAPE 1.43%~2.3%」**作废**——那是假数据上拟合 + 同套假数据回测的产物，无意义。
-> 集装箱月波动大于货物（春节效应等），误差高于 cargo 属正常，均为真数据实测口径。
-> 当前为**功能版模型**：完成预测功能闭环与诚实误差披露，算法优化留待毕业论文阶段。
-
-### 口径声明（诚实标注，写进产物 model_info）
-
-- 平陆运河（计划 2026 底通航）**未建模**：2027 起的预测隐含「运河影响为零」假设，届时钦州港实际值大概率高于预测；情景区间待 intervention 层落地。
-
-### 何时重跑
-
-- 历史数据更新（`cargo.json` / `container.json` 追加新月份）后，应重跑以刷新预测与回测。
-- 两份产物为生成产物；当前随仓库提交（后端 `data/` 为已跟踪数据目录，保证首次克隆即可运行）。如需改为「生成不提交」，在 `.gitignore` 增加相应文件并在 CI / 部署前置步骤跑 `npm run forecast:model` 即可。
+- **输出物不进源码树**：脚本生成的 SQL / 报告 / 缓存一律写 `.local/tmp/`（`npm run tmp:clean` 清空），
+  根目录由 `v3-guard/tmp-hygiene.mjs` 断言无临时文件残留。
+- **密钥不外露**：需要 API Key 的脚本读 `tools/poi/.amap_key`（已 gitignore），禁止硬编码。
+- **测试就近放**：脚本的测试放在同域目录的 `__tests__/` 下，由 `npm run test:tools` 统一跑。

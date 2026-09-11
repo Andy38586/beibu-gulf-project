@@ -92,7 +92,7 @@ services:
   postgis:
     # 2026-09-10（阶段 3 前置）：切换为带 pgRouting 的自建镜像。
     #   local/postgis-pgrouting:16-3.4 = postgis/postgis:16-3.4 + apt 装 postgresql-16-pgrouting
-    #   （实测 pgRouting 3.8.0）。构建步骤见 tools/postgis/Dockerfile.pgrouting。
+    #   （实测 pgRouting 3.8.0）。构建步骤见 tools/db/Dockerfile.pgrouting。
     # 为什么不用官方 pgrouting/pgrouting：其 PG16 tag 只提供 PostGIS 3.5，而本项目用 3.4，
     #   换用会顺带升级生产空间库的 PostGIS 版本（多一个与本改造无关的风险面）。
     # ⚠️ pull_policy: never 是必需的：该镜像是服务器本地构建的、不在任何 registry，

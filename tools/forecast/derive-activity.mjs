@@ -4,14 +4,14 @@
 //   baseMean(port) = cargo 官方真吞吐量在基期 [2021-01, 2024-12] 的月均值（基期归一 100，无物理量纲）
 // 输入：cargo.json（官方真吞吐量 2021-01~2026-06）+ throughput_model.json（模型预测 2026-07~2035-12）
 // 输出：backend/data/forecast/activity.json（结构同 cargo.json，另含溯源元数据）
-// 用法：node tools/derive-activity.mjs
-// 测试：tools/__tests__/derive-activity.test.mjs（vitest，纯函数注入 fixture）
+// 用法：node tools/forecast/derive-activity.mjs
+// 测试：tools/forecast/__tests__/derive-activity.test.mjs（vitest，纯函数注入 fixture）
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const DATA_DIR = path.resolve(__dirname, '..', 'backend', 'data', 'forecast')
+const DATA_DIR = path.resolve(__dirname, '..', '..', 'backend', 'data', 'forecast')
 
 // ===== 派生口径常量 =====
 export const BASE_PERIOD = { start: '2021-01', end: '2024-12' }
@@ -214,7 +214,7 @@ async function main() {
   }
 }
 
-// 直接执行（node tools/derive-activity.mjs）时跑主流程；被测试 import 时跳过
+// 直接执行（node tools/forecast/derive-activity.mjs）时跑主流程；被测试 import 时跳过
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   main().catch((err) => {
     console.error('[derive-activity] 派生失败:', err)

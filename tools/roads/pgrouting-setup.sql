@@ -119,9 +119,9 @@ WHERE cost_m IS NULL;
 -- 时代是 95%）。
 --
 -- 现行做法（仓库内已固化，见对应脚本）：
---   · tools/roads-topology-build.sql  —— 网格法（端点量化到 60m 网格，确定性）
+--   · tools/roads/roads-topology-build.sql  —— 网格法（端点量化到 60m 网格，确定性）
 --                                        重建 source / target
---   · tools/roads-derive.sql          —— class/length_m/cost_m/cost_min 回填
+--   · tools/roads/roads-derive.sql          —— class/length_m/cost_m/cost_min 回填
 --                                        + main_comp = 全量可通行边的最大连通分量
 --
 -- 保留本节仅为留痕：说明「为什么不用容差吸附」这件事已经踩过、别再退回去。

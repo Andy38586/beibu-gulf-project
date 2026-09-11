@@ -7,8 +7,8 @@
 --   ② B-5 精度验收：与 FastAPI 基线对照。
 --
 -- 用法（psql 变量选表，默认 roads_noded）：
---   docker exec -i beibu-postgis psql -U postgres -d v3_dev -v tbl=roads        < tools/route-verify.sql
---   docker exec -i beibu-postgis psql -U postgres -d v3_dev -v tbl=roads_noded  < tools/route-verify.sql
+--   docker exec -i beibu-postgis psql -U postgres -d v3_dev -v tbl=roads        < tools/roads/route-verify.sql
+--   docker exec -i beibu-postgis psql -U postgres -d v3_dev -v tbl=roads_noded  < tools/roads/route-verify.sql
 --
 -- 为什么要有它：2026-09-10 的教训——「验收脚本在会话里」= 丢失。凡判据脚本一律入库。
 --

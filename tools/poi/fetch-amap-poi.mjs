@@ -1,5 +1,5 @@
 // 高德 POI 抓取脚本 —— 让选址 POI 数据"可二次获取"
-// 用法: node --use-env-proxy tools/fetch-amap-poi.mjs [city]
+// 用法: node --use-env-proxy tools/poi/fetch-amap-poi.mjs [city]
 // key: 读 tools/.amap_key(注意:该文件已从 git 跟踪移除,需自行保管/轮换)
 // 输出: 项目数据/POI-高德重抓/{type}.json —— 与现有 qz_*.json 格式兼容 {id,name,lng,lat,district}
 // 限速: 每请求 250ms(个人配额友好);分页 offset=20 直到取完

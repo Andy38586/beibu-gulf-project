@@ -22,7 +22,7 @@ import { getModelForecast } from './model-loader'
 const ALLOWED_INDICATORS = new Set(['cargo', 'container', 'activity'])
 
 // 文件自带完整 forecast 直接透传的指标（实为真数据派生产物，非合成）：
-// activity=港口吞吐活跃度（cargo 官方真吞吐量基期归一指数，见 tools/derive-activity.mjs）
+// activity=港口吞吐活跃度（cargo 官方真吞吐量基期归一指数，见 tools/forecast/derive-activity.mjs）
 const FILE_FORECAST_INDICATORS = new Set(['activity'])
 
 // 走吞吐量模型产物的指标：模型为固定基线（scenarioLevel 恒 1.0）；产物缺失时降级引擎

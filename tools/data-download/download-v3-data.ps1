@@ -45,7 +45,7 @@ foreach ($d in @($dirSrtm, $dirGl30, $dirBathy, $dirOsm, $dirPoly)) { Ensure-Dir
 
 # ---- 1. Copernicus GLO-30 (ESA/AWS public bucket, ~30-60MB/tile) ----
 # NOTE 2026-08-14: SRTM 30m skadi tiles removed from the public AWS bucket (NoSuchKey);
-# GLO-30 is the primary land DEM (better quality than SRTM/ASTER). Use tools/download-v3-data.mjs
+# GLO-30 is the primary land DEM (better quality than SRTM/ASTER). Use tools/data-download/download-v3-data.mjs
 # instead of this script inside sandboxed shells (schannel TLS blocked there).
 $gl30Base = "https://copernicus-dem-30m.s3.amazonaws.com"
 Write-Host "`n=== Copernicus GLO-30 tiles (lat 20-23, lon 106-110) ===" -ForegroundColor Yellow

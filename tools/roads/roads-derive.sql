@@ -16,11 +16,11 @@
 --
 -- 前置：roads 已由 tools/gis-import/import-gis.ps1 从**原始 GeoJSON**
 --       （桌面 `_北部湾项目\数据_\项目数据\路网\beibu-roads.geojson`，165,111 条）
---       导入；road_class_speed 已由 tools/pgrouting-setup.sql 建好。
+--       导入；road_class_speed 已由 tools/roads/pgrouting-setup.sql 建好。
 --
 -- 用法（服务器，仓库目录下；psql 变量选表，默认 roads_noded = 实际路由表）：
---   docker exec -i beibu-postgis psql -U postgres -d v3_dev                   < tools/roads-derive.sql
---   docker exec -i beibu-postgis psql -U postgres -d v3_dev -v tbl=roads      < tools/roads-derive.sql
+--   docker exec -i beibu-postgis psql -U postgres -d v3_dev                   < tools/roads/roads-derive.sql
+--   docker exec -i beibu-postgis psql -U postgres -d v3_dev -v tbl=roads      < tools/roads/roads-derive.sql
 --
 -- ⚠️ 2026-09-10 起**路由表是 roads_noded**（端点投影切分后的表），不是 roads。
 --    对 roads 跑本脚本只是白算（它已不参与路由）；要改路由行为必须指向 roads_noded。

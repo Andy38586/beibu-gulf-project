@@ -13,7 +13,7 @@ import { DbService } from '../../../infra/db/db.service'
 //   · time 口径     → cost_min （= round(length_m/1000/speed*60, 4)）
 //   · 吸附（起点/终点投影到最近边）→ ST_LineLocatePoint + KNN(<->)，对齐 _snap_query/_attach
 //   · 不可通行边 cost = -1，故 edges_sql 一律带 `cost > 0` 过滤
-// 权重列与限速表由 tools/pgrouting-setup.sql 建立（含 pgr_createTopology 拓扑）。
+// 权重列与限速表由 tools/roads/pgrouting-setup.sql 建立（含 pgr_createTopology 拓扑）。
 
 /** mode → 权重列名（对齐 graph.py 的 MODE_WEIGHT，白名单防注入） */
 const MODE_COST_COLUMN = {
@@ -35,7 +35,7 @@ export function isRouteMode(m: unknown): m is RouteMode {
  * 它只形成 **56,418 个连通分量**，最大分量仅覆盖 **30.3%** 的可通行边（吸附面被砍到
  * 三分之一）。
  *
- * `roads_noded` 是经 `tools/roads-noding.sql` 做「端点投影切分 + 60m 网格建拓扑」后的表
+ * `roads_noded` 是经 `tools/roads/roads-noding.sql` 做「端点投影切分 + 60m 网格建拓扑」后的表
  * （614,015 段）：连通分量降到 **799**、最大分量覆盖 **94.9%** —— 与 Python 时代 networkx
  * 的 `largest_component_edge_ratio = 0.9501` 一致。**路由必须走它**，否则服务范围只有三分之一。
  *

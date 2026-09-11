@@ -32,7 +32,7 @@ const smallFontSizeCss = computed(() => `${cellPixel.value * 0.15}px`)
 
 // ===== 三个指标 =====
 // cargo/container 为官方真吞吐量热力；activity 为真数据派生「港口吞吐活跃度」指数
-//（cargo 基期归一指数，见 tools/derive-activity.mjs）。berth/traffic 纯合成指标已下架
+//（cargo 基期归一指数，见 tools/forecast/derive-activity.mjs）。berth/traffic 纯合成指标已下架
 //（源文件保留标 _provenance），不再有「（模拟）」角标
 const INDICATORS = [
   { key: 'cargo', label: '货物', icon: '📦' },

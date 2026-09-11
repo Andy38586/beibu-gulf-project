@@ -1,7 +1,7 @@
 -- 淹没档位表 —— algorithm-service 能力下沉 PostGIS（2026-09-10）
 -- 设计依据：docs/算法服务下沉PostGIS-设计-2026-09-10.md（v3）
--- 灌数：node tools/flood-levels-to-pg.mjs  →  docker exec beibu-postgis psql -f
---       （复用 tools/db-import.mjs 的「生成 SQL + psql 执行」模式，不引入 pg 依赖）
+-- 灌数：node tools/flood/flood-levels-to-pg.mjs  →  docker exec beibu-postgis psql -f
+--       （复用 tools/db/db-import.mjs 的「生成 SQL + psql 执行」模式，不引入 pg 依赖）
 -- 幂等：脚本内 TRUNCATE 后重灌，与本文件 IF NOT EXISTS 配合可反复执行
 --
 -- 背景：生产淹没分析此前走 NestJS 读 floodArea.json（**仅 6 档**：0/2/5/8/10/15），
@@ -10,8 +10,8 @@
 -- 本表把 251 档落到 PostGIS，成为唯一数据源，消除精度退化。
 --
 -- ⚠️ 本文件**只建 flood_levels 一张表**。
---    flood_facilities（83 个设施）**早已存在**：tools/db-schema.sql:61 定义、
---    tools/db-import.mjs:219 灌数、tools/register-spatial-meta.sql:16 登记。
+--    flood_facilities（83 个设施）**早已存在**：tools/db/db-schema.sql:61 定义、
+--    tools/db/db-import.mjs:219 灌数、tools/db/register-spatial-meta.sql:16 登记。
 --    **不要在此重复定义，更不要在灌数脚本里 TRUNCATE 它**（会清掉现有 83 行）。
 
 -- ============================================================================
@@ -47,7 +47,7 @@ CREATE INDEX IF NOT EXISTS idx_flood_levels_geom ON flood_levels USING GIST (geo
 -- ============================================================================
 -- 后续待办（不阻塞本文件执行）
 -- ============================================================================
--- spatial_meta 登记：新表须在 tools/register-spatial-meta.sql 补一条，
+-- spatial_meta 登记：新表须在 tools/db/register-spatial-meta.sql 补一条，
 --   格式参照其中 flood_facilities 那一行（表名 / 存储 SRID / 输出 SRID / 坐标系来源 / 说明）。
 -- 灌数后自检（脚本末尾已含 DO $$ 断言，此处为手工复核用）：
 --   SELECT count(*), min(level), max(level) FROM flood_levels;               -- 期望 251, 0.0, 25.0

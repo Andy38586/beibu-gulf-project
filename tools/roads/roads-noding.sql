@@ -31,7 +31,7 @@
 --
 -- 安全：**只新建 roads_noded，不修改 roads**；全部包在单事务里。
 -- 用法（服务器，仓库目录下）：
---   docker exec -i beibu-postgis psql -U postgres -d v3_dev < tools/roads-noding.sql
+--   docker exec -i beibu-postgis psql -U postgres -d v3_dev < tools/roads/roads-noding.sql
 -- =============================================================================
 
 \set ON_ERROR_STOP on

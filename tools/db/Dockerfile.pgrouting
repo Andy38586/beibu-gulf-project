@@ -9,12 +9,12 @@
 #   风险面。故自建：基础镜像不变，只追加 pgRouting 扩展。
 #
 # 构建（**推荐在服务器上构建**——基础镜像已存在于服务器本地，无需重新拉取）：
-#   mkdir -p /tmp/pgrbuild && cp tools/postgis/Dockerfile.pgrouting /tmp/pgrbuild/Dockerfile
+#   mkdir -p /tmp/pgrbuild && cp tools/db/Dockerfile.pgrouting /tmp/pgrbuild/Dockerfile
 #   cd /tmp/pgrbuild && docker build -t local/postgis-pgrouting:16-3.4 .
 #   （用空目录做 context，避免把 node_modules 三万多个文件塞进 build context）
 #
 # 若服务器 apt 源不可达 → 回退 D2 路径（本地构建 + save + scp + load）：
-#   docker build -t local/postgis-pgrouting:16-3.4 -f tools/postgis/Dockerfile.pgrouting .docker-context
+#   docker build -t local/postgis-pgrouting:16-3.4 -f tools/db/Dockerfile.pgrouting .docker-context
 #   docker save local/postgis-pgrouting:16-3.4 | gzip > pgr.tar.gz
 #   scp pgr.tar.gz admin@112.74.32.206:/tmp/
 #   ssh ... 'gunzip -c /tmp/pgr.tar.gz | docker load'
@@ -22,7 +22,7 @@
 # 切换后需做（compose 里 image 改指 local/postgis-pgrouting:16-3.4）：
 #   1) 建扩展：psql -c 'CREATE EXTENSION IF NOT EXISTS pgrouting;'
 #   2) 验版本：psql -c 'SELECT pgr_version();'
-#   3) 再跑 tools/pgrouting-setup.sql（阶段 3 产出）建拓扑
+#   3) 再跑 tools/roads/pgrouting-setup.sql（阶段 3 产出）建拓扑
 
 FROM postgis/postgis:16-3.4
 

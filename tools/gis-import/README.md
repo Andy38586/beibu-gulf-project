@@ -17,7 +17,7 @@ P4 数据入库（T4.1/T4.2）的可复现工具集。原则：**先验证、后
 docker compose -f docker-compose.v3.yml up -d postgis
 
 # 2. 建表
-docker cp tools/db-schema-gis.sql beibu-postgis:/tmp/
+docker cp tools/db/db-schema-gis.sql beibu-postgis:/tmp/
 docker exec beibu-postgis psql -U postgres -d v3_dev -f /tmp/db-schema-gis.sql
 
 # 3. 导入（可按 Section 单跑）

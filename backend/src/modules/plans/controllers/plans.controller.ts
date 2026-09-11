@@ -12,6 +12,7 @@ import {
   UseGuards,
 } from '@nestjs/common'
 import type { Request, Response } from 'express'
+import { SkipThrottle } from '@nestjs/throttler'
 
 import { BusinessError, ErrorCode } from '../../../common/errors/business-error'
 import { DtoPipe } from '../../../common/pipes/dto.pipe'
@@ -20,7 +21,9 @@ import { PlanCreateBody, PlanUpdateBody, PlanXiaoquBody } from '../dto/plans.dto
 import { PlansService } from '../services/plans.service'
 
 // 方案属于用户数据，全路由需登录（对齐 Express router.use(authenticate)）；
-// 属主校验在 controller 层（对齐 Express plansController 分工），文案逐字节一致
+// 属主校验在 controller 层（对齐 Express plansController 分工），文案逐字节一致。
+// 限流：只计 global 桶（2026-09-10）——已登录用户的正常浏览/保存不应被 login 桶（50/15min）卡住
+@SkipThrottle({ login: true, register: true })
 @Controller('plans')
 @UseGuards(AuthGuard)
 export class PlansController {

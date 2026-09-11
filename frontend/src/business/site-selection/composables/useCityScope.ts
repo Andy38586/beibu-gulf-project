@@ -7,7 +7,7 @@
  *   因此这里不引入任何 store，只做纯函数判定 + 一个相机订阅。
  *
  * bbox 来源：backend/data/site-selection/{city}_*.json 三城 POI 实际分布外接矩形。
- * 2026-08-30 市区口径清洗（tools/clean-poi-scope.mjs）后重算：删离岛（涠洲岛 80 点）
+ * 2026-08-30 市区口径清洗（tools/poi/clean-poi-scope.mjs）后重算：删离岛（涠洲岛 80 点）
  * 与深山镇（fcg 峒中/那良 60 点、qz 那思/板城 131 点），否则 bbox 被撑大失真
  * （旧值 bh 南界 21.0133 / fcg 西界 107.5017 / qz 东界 109.05）。数据变了需同步重算。
  */

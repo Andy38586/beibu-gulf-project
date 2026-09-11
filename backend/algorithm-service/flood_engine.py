@@ -60,7 +60,7 @@ DEM_PATH = _resolve_dem_path()
 # 表示「理论深度基准面水位 H」对应 EGM96 正高 H−2.5。本引擎的 DEM 比较与 251 档
 # 产物均为 EGM96 口径（run_online_flood 契约即 EGM96 输入），online 入口须先把前端
 # 传来的理论水位换算后再查表/演算（见 main.py，2026-08-29 垂直基准统一）。
-# 单一数据源：从 waterLevel.json 读取，不硬编码（与 tools/flood_realify.py 同口径）。
+# 单一数据源：从 waterLevel.json 读取，不硬编码（与 tools/flood/flood_realify.py 同口径）。
 _WATER_LEVEL_JSON = (
     Path(__file__).resolve().parents[1] / "data" / "flood" / "waterLevel.json"
 )

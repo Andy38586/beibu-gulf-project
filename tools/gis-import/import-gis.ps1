@@ -1,4 +1,4 @@
-﻿# import-gis.ps1 — GIS 矢量入库流水线（T4.1/T4.2 产物）
+# import-gis.ps1 — GIS 矢量入库流水线（T4.1/T4.2 产物）
 # 统一 ogr2ogr → PG（EPSG:4490，GEOMETRY_NAME=geom），每类数据一条命令。
 # 质检由 verify.mjs 承担（本脚本导入后可跑 npm run verify-gis）。
 #
@@ -8,7 +8,7 @@
 #
 # 前置：
 #   1. Docker PostGIS 运行中：docker compose -f docker-compose.v3.yml up -d postgis
-#   2. 建表：docker cp tools/db-schema-gis.sql beibu-postgis:/tmp/ 后 exec psql 执行
+#   2. 建表：docker cp tools/db/db-schema-gis.sql beibu-postgis:/tmp/ 后 exec psql 执行
 #   3. 源数据位于桌面项目数据目录（缺省）
 param(
   [ValidateSet('all', 'roads', 'railways', 'canal', 'industrial', 'mangroves', 'protected')]

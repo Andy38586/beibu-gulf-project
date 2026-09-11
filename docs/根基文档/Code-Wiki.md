@@ -688,14 +688,14 @@ Dockerfile 构建 FastAPI 容器；docker-compose 中数据以 ro volume 共享 
 
 ### 1.1 预测数据（backend/data/forecast/）
 
-| 文件                  | 说明                                                                        |
-| --------------------- | --------------------------------------------------------------------------- |
-| index.json            | 指标索引（前端 /forecast/overview 读取）                                    |
-| cargo.json            | 吞吐量（真数据，走吞吐量模型产物）                                          |
-| container.json        | 集装箱（真数据，走趋势外推引擎）                                            |
-| berth.json            | 泊位（合成示意数据，文件自带 historical+forecast）                          |
-| traffic.json          | 交通（合成示意数据，同上）                                                  |
-| throughput_model.json | 吞吐量模型产物（tools/throughput_model.cjs 生成，`npm run forecast:model`） |
+| 文件                  | 说明                                                                                 |
+| --------------------- | ------------------------------------------------------------------------------------ |
+| index.json            | 指标索引（前端 /forecast/overview 读取）                                             |
+| cargo.json            | 吞吐量（真数据，走吞吐量模型产物）                                                   |
+| container.json        | 集装箱（真数据，走趋势外推引擎）                                                     |
+| berth.json            | 泊位（合成示意数据，文件自带 historical+forecast）                                   |
+| traffic.json          | 交通（合成示意数据，同上）                                                           |
+| throughput_model.json | 吞吐量模型产物（tools/forecast/throughput_model.cjs 生成，`npm run forecast:model`） |
 
 ### 1.2 选址数据（backend/data/site-selection/）
 
@@ -744,8 +744,8 @@ Dockerfile 构建 FastAPI 容器；docker-compose 中数据以 ro volume 共享 
 | tools/dem-pipeline/03-reproject-4326.ps1                                  | 重投影 4326                                    |
 | tools/dem-pipeline/04-generate-flood-data.py                              | 生成洪涝数据                                   |
 | tools/dem-pipeline/05-fix-facility-elevation.py                           | 修正设施高程                                   |
-| tools/throughput_model.cjs                                                | 生成吞吐量模型产物（`npm run forecast:model`） |
-| tools/run-flood.cjs                                                       | 跨平台启动 FastAPI（`npm run dev:flood`）      |
+| tools/forecast/throughput_model.cjs                                       | 生成吞吐量模型产物（`npm run forecast:model`） |
+| tools/flood/run-flood.cjs                                                 | 跨平台启动 FastAPI（`npm run dev:flood`）      |
 | tools/perf-bench/server-bench.mjs                                         | 服务器性能基准                                 |
 | tools/git-clean-history.sh / git-health-check.sh                          | Git 清理/健康检查                              |
 | tools/prep-ids.cjs / rebase-ids.cjs / sync-refs.cjs / check-issue-ids.cjs | 问题编号管理                                   |

@@ -86,7 +86,7 @@ describe('flood e2e（真数据文件 + 真库档位表）', () => {
   })
 
   // ─────────────── PostGIS 档位表端点（需真库：V3_INTEGRATION_DB=1） ───────────────
-  // 前置：建表 tools/db-schema-flood.sql + 灌数 node tools/flood-levels-to-pg.mjs
+  // 前置：建表 tools/db/db-schema-flood.sql + 灌数 node tools/flood/flood-levels-to-pg.mjs
   describe.skipIf(process.env.V3_INTEGRATION_DB === undefined)(
     'PostGIS 档位表（251 档，0.1m 步长）',
     () => {

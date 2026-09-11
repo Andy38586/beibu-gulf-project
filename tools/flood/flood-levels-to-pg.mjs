@@ -1,16 +1,16 @@
 // 淹没档位表灌入 PostGIS —— algorithm-service 下沉的配套灌数器（2026-09-10）
 //
 // 用法:
-//   node tools/flood-levels-to-pg.mjs
+//   node tools/flood/flood-levels-to-pg.mjs
 // 然后:
-//   docker cp .tmp-pip/flood-import.sql beibu-postgis:/tmp/ \
+//   docker cp .local/tmp/flood-import.sql beibu-postgis:/tmp/ \
 //     && docker exec beibu-postgis psql -U postgres -d v3_dev -f /tmp/flood-import.sql
 //
 // 设计依据: docs/算法服务下沉PostGIS-设计-2026-09-10.md（v3）
-// 复用 tools/db-import.mjs 的「生成 SQL + psql 执行」模式——纯 Node，不引入 pg 依赖。
+// 复用 tools/db/db-import.mjs 的「生成 SQL + psql 执行」模式——纯 Node，不引入 pg 依赖。
 //
 // ⚠️ 本脚本**只处理 flood_levels**。
-//    flood_facilities（83 个设施）早已由 tools/db-import.mjs:219 灌入，属既有资产，
+//    flood_facilities（83 个设施）早已由 tools/db/db-import.mjs:219 灌入，属既有资产，
 //    **本脚本既不重灌也不 TRUNCATE 它**（早期版本误写 TRUNCATE flood_levels, flood_facilities，
 //     会清掉现有 83 行——已修正）。
 //
@@ -26,9 +26,9 @@ import fs from 'node:fs'
 import path from 'node:path'
 import zlib from 'node:zlib'
 
-const ROOT = path.resolve(import.meta.dirname, '..')
+const ROOT = path.resolve(import.meta.dirname, '..', '..')
 const LEVELS_GZ = path.join(ROOT, 'backend', 'data', 'flood', 'flood_levels.json.gz')
-const OUT_DIR = path.join(ROOT, '.tmp-pip')
+const OUT_DIR = path.join(ROOT, '.local/tmp')
 const OUT_SQL = path.join(OUT_DIR, 'flood-import.sql')
 const OUT_REPORT = path.join(OUT_DIR, 'flood-import-report.md')
 
@@ -62,7 +62,7 @@ function readLevels() {
 
 function buildSql(levels) {
   const lines = []
-  lines.push('-- 由 tools/flood-levels-to-pg.mjs 生成，请勿手改')
+  lines.push('-- 由 tools/flood/flood-levels-to-pg.mjs 生成，请勿手改')
   lines.push('-- 幂等：只清空 flood_levels 后重灌（不动 flood_facilities —— 那是既有资产）')
   lines.push('TRUNCATE flood_levels;')
   lines.push('')
@@ -137,7 +137,7 @@ function main() {
   }
   console.log('')
   console.log('下一步:')
-  console.log('  docker cp .tmp-pip/flood-import.sql beibu-postgis:/tmp/')
+  console.log('  docker cp .local/tmp/flood-import.sql beibu-postgis:/tmp/')
   console.log('  docker exec beibu-postgis psql -U postgres -d v3_dev -f /tmp/flood-import.sql')
 }
 

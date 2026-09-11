@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // import-port-poi.mjs — 导入已抓取的高德港口码头泊位 POI 到 poi_facilities
-// 用法: node tools/gis-import/import-port-poi.mjs > .tmp-pip/import-port-poi.sql
-// 然后: docker exec -i beibu-postgis psql -U postgres -d v3_dev < .tmp-pip/import-port-poi.sql
+// 用法: node tools/gis-import/import-port-poi.mjs > .local/tmp/import-port-poi.sql
+// 然后: docker exec -i beibu-postgis psql -U postgres -d v3_dev < .local/tmp/import-port-poi.sql
 //
 // 输入（已由 fetch-port-poi.mjs 抓取到桌面）:
 //   C:/Users/JionHappY/Desktop/_北部湾项目/数据_/项目数据/POI-高德重抓/{城市}_{port/pier/berth}.json

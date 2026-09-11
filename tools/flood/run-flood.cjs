@@ -10,7 +10,7 @@
  * flood-service 已由 algorithm-service 平移替代，脚本指向 algorithm-service 目录。
  *
  * 用法（package.json）：
- *   "dev:flood": "node tools/run-flood.cjs"
+ *   "dev:flood": "node tools/flood/run-flood.cjs"
  *
  * 首次运行若 venv 不存在，会给出创建提示后以非零码退出（不自动创建，
  * 避免隐式下载依赖）。
@@ -19,7 +19,7 @@ const { spawn } = require('node:child_process')
 const { existsSync } = require('node:fs')
 const path = require('node:path')
 
-const FLOOD_DIR = path.join(__dirname, '..', 'backend', 'algorithm-service')
+const FLOOD_DIR = path.join(__dirname, '..', '..', 'backend', 'algorithm-service')
 const isWin = process.platform === 'win32'
 const pythonInVenv = path.join(
   FLOOD_DIR,

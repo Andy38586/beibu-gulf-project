@@ -11,13 +11,13 @@ waterLevel.json 曾为 simulated（拍脑袋）数据。本脚本用仓库内真
   4. waterLevel.json      ← 水位基准为工程假设参数，source 改标注为 reference_parameters
 
 运行（algorithm-service venv，需 rasterio/shapely/scipy）：
-  backend/algorithm-service/.venv/Scripts/python.exe tools/flood_realify.py
+  backend/algorithm-service/.venv/Scripts/python.exe tools/flood/flood_realify.py
 """
 import json
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "backend" / "algorithm-service"))
 
 import numpy as np  # noqa: E402

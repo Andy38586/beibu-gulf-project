@@ -1,13 +1,20 @@
 import { Body, Controller, Get, HttpCode, Post, Query } from '@nestjs/common'
 import { ApiTags } from '@nestjs/swagger'
+import { SkipThrottle } from '@nestjs/throttler'
 
 import { FloodService } from '../services/flood.service'
 
 /**
  * 洪涝读 API。资源型端点 kebab-case 复数，操作型端点 /analysis/<action>。
  * 全部免鉴权：仅收藏需登录，disaster 评估为纯计算不读用户数据。
- * 限流沿用全局限流桶。取档/风险注入/基准偏移等编排逻辑在 FloodService。
+ * 取档/风险注入/基准偏移等编排逻辑在 FloodService。
+ *
+ * 限流：只计 global 桶（1000/15min）。2026-09-10 修正——原注释称"沿用全局限流桶"，
+ * 但 @nestjs/throttler 的命名桶默认套用**所有**路由，仅 skip 的才豁免，于是本域
+ * 实际被 login/register 桶（50/15min）卡死：一次进入浸没分析页要打 water-area、
+ * flood-areas、flood-statistics、terrain-profiles 四次，15 分钟内进出约 12 次即全线 429。
  */
+@SkipThrottle({ login: true, register: true })
 @Controller('flood')
 @ApiTags('flood')
 export class FloodController {

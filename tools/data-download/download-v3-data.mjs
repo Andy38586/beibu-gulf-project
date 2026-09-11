@@ -4,7 +4,7 @@
 //
 // Usage:
 //   $env:HTTPS_PROXY = "http://127.0.0.1:7890"; $env:HTTP_PROXY = "http://127.0.0.1:7890"
-//   node --use-env-proxy tools/download-v3-data.mjs "C:\Users\JionHappY\Desktop\项目数据" [--osm] [--bathymetry]
+//   node --use-env-proxy tools/data-download/download-v3-data.mjs "C:\Users\JionHappY\Desktop\项目数据" [--osm] [--bathymetry]
 //
 // Features: Range-based resume, 5x retry, 4-way concurrency for tiles, progress log.
 // SRTM 30m is NOT included: the public skadi bucket no longer serves those keys (2026-08 verified);

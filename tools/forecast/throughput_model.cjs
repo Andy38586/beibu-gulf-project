@@ -45,7 +45,7 @@ const INDICATORS = [
 ]
 
 function forecastDir() {
-  return path.join(__dirname, '..', 'backend', 'data', 'forecast')
+  return path.join(__dirname, '..', '..', 'backend', 'data', 'forecast')
 }
 
 const PORT_NAMES = {

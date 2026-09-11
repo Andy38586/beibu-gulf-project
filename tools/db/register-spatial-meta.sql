@@ -1,5 +1,5 @@
 -- 坐标系元数据登记（2026-09-08）：8 张空间表的存储/源坐标系与转换路径
--- 与 tools/db-schema.sql 的 spatial_meta 表定义配套，重放幂等（ON CONFLICT DO UPDATE）
+-- 与 tools/db/db-schema.sql 的 spatial_meta 表定义配套，重放幂等（ON CONFLICT DO UPDATE）
 CREATE TABLE IF NOT EXISTS spatial_meta (
   table_name  TEXT PRIMARY KEY,
   storage_crs TEXT NOT NULL,

@@ -34,9 +34,9 @@ count=281，逐页翻到第 10 页即返回空，只拿到 225 条——静默�
 
 用法
 ----
-    python tools/fetch-amap-poi-city.py                  # 抓北海 + 防城港
-    python tools/fetch-amap-poi-city.py --cities bh fcg qz
-    python tools/fetch-amap-poi-city.py --force          # 清空网格缓存重抓
+    python tools/poi/fetch-amap-poi-city.py                  # 抓北海 + 防城港
+    python tools/poi/fetch-amap-poi-city.py --cities bh fcg qz
+    python tools/poi/fetch-amap-poi-city.py --force          # 清空网格缓存重抓
 """
 
 import argparse
@@ -130,7 +130,7 @@ MAX_DEPTH = 3           # 四分递归深度上限
 SLEEP = 0.35            # 限速：高德 key 约 3 QPS，0.35s 留余量
 RETRY = 4               # 失败重试次数（指数退避）
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 CACHE_DIR = os.path.join(ROOT, "tools", ".poi_cache")
 OUT_DIR = os.path.join(ROOT, "backend", "data", "site-selection")
 

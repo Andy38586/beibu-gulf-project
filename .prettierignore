@@ -1,6 +1,8 @@
 # 本机工具目录（不入 git），避免 prettier --check . 扫描第三方 bundle 噪音
 .workbuddy/
 .reasonix/
+# 本机专属区（agent 文档/临时文件，不入库），不做格式门禁
+.local/
 # 构建产物
 **/dist*/
 **/coverage/
@@ -9,8 +11,6 @@
 # 问题台账文档：表格采用紧凑列宽（无对齐填充），不随 prettier 宽列对齐
 docs/待解决问题.md
 docs/已解决问题.md
-docs/问题副本-*.md
-docs/已解决后遗症-*.md
 # 施工手册（活文档/实施日志）：宽表格与紧排段落保持原样，不随 prettier 重排（2026-09-04 加入）
 docs/v3-施工手册.md
 # 服务回写的数据产物（forecast 模型重算等不保证行尾换行），不受人写格式门禁约束

@@ -84,6 +84,8 @@ npm run test --prefix backend  # 后端 Vitest（20 文件 / 216 用例）
 npm run lint                   # ESLint（0 告警基线）
 npm run typecheck              # vue-tsc 全量类型检查
 npm run cruise                 # dependency-cruiser 分层依赖守护
+npm run guard:v3               # v3 守卫：编号外泄 / 分层契约 / 路由契约 / 体系自洽 / 临时文件卫生
+npm run tmp:clean              # 清空 .local/tmp（临时文件唯一落点）
 npm run build:analyze          # 构建体积分析（rollup-plugin-visualizer）
 ```
 
@@ -106,6 +108,8 @@ docker compose up -d --build
 3. [`docs/根基文档/Code-Wiki.md`](docs/根基文档/Code-Wiki.md) — 文件清单
 4. [`docs/根基文档/开发指南与决策.md`](docs/根基文档/开发指南与决策.md) — 开发规范与决策记录
 
+不入库的本机资料（agent 报告、临时文件、待删暂存）统一放在 `.local/`，仓库根目录禁止落临时文件——由 `guard:v3` 断言，详见 `.local/README.md`。
+
 ## 诚实性说明
 
-本项目遵循「凡合成 / 模拟 / 占位主动先说」原则：预测模块页面演示数据为确定性种子合成的示意数据（模型本身的离线回测指标真实可复现，见 `tools/throughput_model.cjs`）；洪涝在线演算使用真实 DEM。已知妥协与演进路线见项目文档。
+本项目遵循「凡合成 / 模拟 / 占位主动先说」原则：预测模块页面演示数据为确定性种子合成的示意数据（模型本身的离线回测指标真实可复现，见 `tools/forecast/throughput_model.cjs`）；洪涝在线演算使用真实 DEM。已知妥协与演进路线见项目文档。

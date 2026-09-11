@@ -70,12 +70,14 @@ backend/data/plans.json
 # 本地开发工具与残渣（不提交到远程）
 # 816-专项5主10：.husky/ 入版本库（官方推荐，fresh clone 保留本地门禁）；仅 .husky/_/husky.sh 由 prepare 重建
 .gdal_work/
-mac-framed-site-selection.png
-frontend/typecheck-errors.txt
-old_bundle_tmp.js
 
-# 816-专项5主12：审查/调试临时文件残渣（.tmp-p1.txt/.tmp-p2.txt 已删除，同类禁止入根）
+# 审查/调试临时文件残渣（.tmp-p1.txt/.tmp-p2.txt 已删除，同类禁止入根）
 .tmp-*
+
+# ── 本机专属区：不入库内容的唯一落点（详见 .local/README.md）──
+# agent 文档 → .local/agent-docs/；临时文件 → .local/tmp/；待删暂存 → .local/trash/
+# 根目录再出现临时文件由 tools/v3-guard/tmp-hygiene.mjs 断言失败
+.local/
 
 # Tokens and secrets
 *.token
@@ -116,7 +118,7 @@ frontend/src/types/generated/
 代码审计/
 项目代码深度审查指标体系.md
 
-tools/.amap_key
+tools/poi/.amap_key
 # 问题台账/审计/复盘文档（学习意义大于项目发展意义，不公开；根基文档除外）
 docs/*
 !docs/根基文档/
@@ -134,42 +136,15 @@ docs/开工前必读/*
 !docs/开工前必读/交接文档-2026-09-05.md
 
 # v3 ����������ʱĿ¼���� OSM Ӳ��������������棩
-.tmp-pip/
-
-# React 原型暂存目录（用途待用户裁决，不入库）
-.staging-react/
 
 # �ߵ� key(����ʵ��Կ,��ֹ���)
 
-# Agent 开发辅助脚本（本地留存，不入库；审计/修复/文档处理等一次性工具，
-# 保留项目工具：extract-*.py、dem-pipeline/、run-flood/throughput_model、db-import、download-v3-data、perf-bench/、token-stats.mjs——03 §三.5 SOP 正式门禁工具）
-tools/align-ledger.cjs
-tools/audit-*.mjs
-tools/check-endpoints.mjs
-tools/check-vue-cycle.cjs
-tools/close-*.mjs
-tools/code-size.mjs
-tools/dump-06-lines.mjs
-tools/fix-*.mjs
-tools/gen-verdict-table.mjs
-tools/git-clean-history.sh
-tools/git-health-check.sh
-tools/mark-aftermath.mjs
-tools/match-solved.mjs
-tools/md-to-handwrite-pdf.cjs
-tools/prep-ids.cjs
-tools/promote-solved.mjs
-tools/rebase-ids.cjs
-tools/rewrite-msg.mjs
-tools/sim-audit-p3.mjs
-tools/sync-refs.cjs
-tools/verify-copy-stats.mjs
+# Agent 开发辅助脚本：一次性工具不再散落 tools/，统一落 .local/tmp/（见 .local/README.md）
 
 # POI 抓取缓存（fetch-amap-poi-city.py 的中间产物，可再生；抓取进行中会持续增长，勿误提交）
 tools/.poi_cache/
 
-# 一次性删除暂存区（待删暂存目录，本机清理用，不入库）
-.trash/
+# 待删暂存区已迁入 .local/trash/（见 .local/README.md）
 algorithm-service.log*
 
 # 地形瓦片：DEM 派生缓存（tools/dem-pipeline/07 一键重切），不入库（云端冷备=v3-migration@92aa9475）

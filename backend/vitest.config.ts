@@ -7,6 +7,10 @@ import { defineConfig } from 'vitest/config'
 export default defineConfig({
   test: {
     include: ['test/**/*.e2e-spec.ts', 'test/**/*.spec.ts'],
+    // 多套真库 e2e（auth/plans/favorites/flood/route…）共享同一个 v3_dev：文件级并行
+    // 会产生跨套件的库状态竞态（run#177：auth.e2e 的用户清理落在 plans.e2e 执行期间
+    // → 认证守卫查库无此人 → 对方 9 用例全 401）。测试文件必须串行执行。
+    fileParallelism: false,
     // @nestjs/throttler 是 CJS 包，vite ESM interop 会丢 named export（SkipThrottle），
     // inline 强制走 Node 解析
     server: {

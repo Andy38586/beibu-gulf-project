@@ -13,7 +13,13 @@ const withDb = process.env.V3_INTEGRATION_DB !== undefined
 
 // auth e2e：连真实开发库 v3_dev（docker-compose.v3.yml）。
 // 测试数据一律 __t3_ 前缀，beforeAll/afterAll 双清理（手册 §五 测试隔离约定）
-const PREFIX_LEN = 5 // '__t3_'
+//
+// ⚠️ 清理必须按「本套件创建的用户名」精确匹配，**不能**按 '__t3_' 宽前缀删：
+// vitest 并行跑测试文件时，本套件的清理若落在 plans/favorites e2e 执行期间，
+// 会把它们的 __t3_plan_*/__t3_fav* 用户删掉 → 认证守卫（token+user 双源）查库
+// 无此人 → 对方套件全部 401（run#177 backend-tests 9 连红实证）。
+const CLEANUP_WHERE =
+  "username ~ '^__t3_(register|weak|ghost|placeholder|after_throttle)'"
 
 function authCookie(res: { headers: Record<string, unknown> }): string {
   const setCookie = res.headers['set-cookie'] as string[]
@@ -35,11 +41,11 @@ describe.skipIf(!withDb)('auth e2e（连真库）', () => {
     app.use(cookieParser())
     await app.init()
     db = moduleRef.get(DbService)
-    await db.query("DELETE FROM users WHERE substr(username, 1, $1) = '__t3_'", [PREFIX_LEN])
+    await db.query(`DELETE FROM users WHERE ${CLEANUP_WHERE}`)
   })
 
   afterAll(async () => {
-    await db.query("DELETE FROM users WHERE substr(username, 1, $1) = '__t3_'", [PREFIX_LEN])
+    await db.query(`DELETE FROM users WHERE ${CLEANUP_WHERE}`)
     await app.close()
   })
 

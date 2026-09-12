@@ -146,13 +146,17 @@ describe('RouteRepository.shortestPathByPoints - SQL 契约', () => {
     expect(sql).toContain(`LEFT JOIN ${ROUTING_TABLE}`)
   })
 
-  it('无向图语义：directed := false（对齐 nx.Graph()，oneway 源数据全 NULL）', async () => {
+  it('有向图语义：directed := true + cost/reverse_cost 分列（v2 路网，单向边 reverse=-1 表达不可行方向）', async () => {
     const { db, calls } = makeDbMock()
     await new RouteRepository(db).shortestPathByPoints(SNAPS, 'distance')
-    expect(calls[0].sql).toContain('directed := false')
+    // 旧网 oneway 全 NULL、pgr 以 directed := false 跑 → 单行道可逆行（高速逆行事故根源）。
+    // v2 顶点=OSM node id，oneway 真值 11 万条；directed 与反向列必须成对出现。
+    expect(calls[0].sql).toContain('directed := true')
+    expect(calls[0].sql).toContain('reverse_cost_m AS reverse_cost')
+    expect(calls[0].sql).not.toContain('directed := false')
   })
 
-  it('mode 决定权重列：distance→cost_m，time→cost_min', async () => {
+  it('mode 决定权重列：distance→cost_m，time→route_cost_min（等级偏好只影响选路）', async () => {
     const a = makeDbMock()
     await new RouteRepository(a.db).shortestPathByPoints(SNAPS, 'distance')
     expect(a.calls[0].sql).toContain('cost_m AS cost')
@@ -160,7 +164,10 @@ describe('RouteRepository.shortestPathByPoints - SQL 契约', () => {
 
     const b = makeDbMock()
     await new RouteRepository(b.db).shortestPathByPoints(SNAPS, 'time')
-    expect(b.calls[0].sql).toContain('cost_min AS cost')
+    // v2：time 口径给 pgr 的是加权代价 route_cost_min（物理时间 × 等级偏好），
+    // 对外报告的分钟数仍取物理 cost_min（见 sumSegmentCosts 契约）
+    expect(b.calls[0].sql).toContain('route_cost_min AS cost')
+    expect(b.calls[0].sql).toContain('route_reverse_cost_min AS reverse_cost')
   })
 })
 
@@ -187,24 +194,30 @@ describe('路由表选择（2026-09-10：必须走切分表）', () => {
 })
 
 describe('RouteRepository.sumSegmentCosts - 分段费用折算', () => {
-  it('distance 口径：主口径取分段 cost 之和，另一口径按比例折算（不是二次寻路）', async () => {
+  it('两口径均按分段几何区间 (hi-lo) × 边全长折算（与选路权重解耦，time 面板数字不被偏好放大）', async () => {
     const { db, calls } = makeDbMock()
     await new RouteRepository(db).sumSegmentCosts(SEGMENTS, 'distance')
 
     const sql = calls[0].sql
-    expect(sql).toContain('ROWS FROM (unnest($1::bigint[]), unnest($2::float8[]))')
-    expect(sql).toContain('t.cost / NULLIF(r.cost_m, 0) * r.cost_min')
-    // 分段费用以数组参数注入，而不是按边 id 去表里取整条边的费用
+    // v2：三个数组参数（edge_id/lo/hi）。旧形态 `t.cost ÷ 该边全长` 在 time 口径下
+    // 会被 pgr 返回的加权代价污染（偏好乘数混进里程/时长报告），已废
+    expect(sql).toContain(
+      'ROWS FROM (unnest($1::bigint[]), unnest($2::float8[]), unnest($3::float8[]))'
+    )
+    expect(sql).toContain('(t.hi - t.lo) * r.cost_m')
+    expect(sql).toContain('(t.hi - t.lo) * r.cost_min')
     expect(calls[0].params).toEqual([
       [1001, 2002],
-      [50, 50],
+      [0.25, 0],
+      [1, 0.75],
     ])
   })
 
-  it('time 口径：主口径换成 cost_min，折算项反过来', async () => {
+  it('time 口径：mode_metric 取物理 cost_min（选路用 route_cost_min，报告不放大）', async () => {
     const { db, calls } = makeDbMock()
     await new RouteRepository(db).sumSegmentCosts(SEGMENTS, 'time')
-    expect(calls[0].sql).toContain('t.cost / NULLIF(r.cost_min, 0) * r.cost_m')
+    expect(calls[0].sql).toContain('(t.hi - t.lo) * r.cost_min')
+    expect(calls[0].sql).not.toContain('route_cost_min')
   })
 
   it('空分段不应发起 SQL', async () => {

@@ -60,7 +60,8 @@ function resetStores(): void {
     // 业务层（SiteSelection/Forecast/Flood）：重置声明在 business/manifest 各模块上，
     // 新增业务模块的新状态重置只需在清单补 reset，无需改这里
     runBusinessLogoutReset()
-    // 常驻层（App 级，不属于任何业务模块）：重置地图业务交互状态，清 lastAnalysisResult 会话持久化
+    // 常驻层（App 级，不属于任何业务模块）：重置地图业务交互状态
+    //（z151：lastAnalysisResult 死状态已删，勿再引用会话持久化口径）
     useMapStore().resetMapState()
     // 常驻层目录对账：resetMapState 会连 boundary/ports 这两个 App 级常驻层的目录条目
     // 一起删掉，但 BLM registry 与渲染器实例都还在（图层照常显示）——不同步重建的话，

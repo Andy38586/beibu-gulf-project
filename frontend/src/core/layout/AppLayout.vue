@@ -10,6 +10,7 @@ import { storeToRefs } from 'pinia'
 import { computed, defineAsyncComponent, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
+import { MAP_CONFIG } from '@/core/config/map'
 import { useScreenActions } from '@/core/layout/composables/useScreenActions'
 import LayerControlPanel from '@/core/map/components/LayerControlPanel.vue'
 import { PanelTitle, useGCS, useTheme } from '@/shared'
@@ -116,9 +117,13 @@ function goBusiness(item: NavItem): void {
         class="top-button-panel"
       >
         <div class="top-button-inner">
-          <NavButton label="钦州" @click="flyToCity('钦州')" />
-          <NavButton label="北海" @click="flyToCity('北海')" />
-          <NavButton label="防城港" @click="flyToCity('防城港')" />
+          <!-- 城市列表由 MAP_CONFIG.CITY_CENTERS 驱动（审查 z154②：勿手写城市名双轨） -->
+          <NavButton
+            v-for="city in Object.keys(MAP_CONFIG.CITY_CENTERS)"
+            :key="city"
+            :label="city"
+            @click="flyToCity(city)"
+          />
           <!-- 主题切换（🌙/☀️） -->
           <NavButton
             :icon="isDark ? '☀️' : '🌙'"
@@ -171,9 +176,13 @@ function goBusiness(item: NavItem): void {
         </div>
         <!-- 城市切换 + 主题切换行 -->
         <div class="drawer-menu__row" aria-label="城市切换">
-          <NavButton label="钦州" @click="flyToCity('钦州')" />
-          <NavButton label="北海" @click="flyToCity('北海')" />
-          <NavButton label="防城港" @click="flyToCity('防城港')" />
+          <!-- 同上：CITY_CENTERS 驱动（z154②） -->
+          <NavButton
+            v-for="city in Object.keys(MAP_CONFIG.CITY_CENTERS)"
+            :key="city"
+            :label="city"
+            @click="flyToCity(city)"
+          />
           <NavButton
             :icon="isDark ? '☀️' : '🌙'"
             class="theme-toggle"

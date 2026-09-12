@@ -16,7 +16,6 @@ import { DataFilesService } from '../../../infra/files/data-files.service'
 // SQL 放本 repository 而非 SpatialRepository：后者收口"空间算子"
 //（unionBuffers/intersect/pointIndicesInAnyPolygon/areaKm2），本处是 flood 域专属取数。
 const FLOOD_FILES = {
-  floodArea: 'flood/floodArea.json',
   floodStatistics: 'flood/floodStatistics.json',
   facilityPoints: 'flood/facilityPoints.json',
   waterArea: 'flood/water-area.json',
@@ -122,10 +121,6 @@ export class FloodRepository {
   async listFloodLevels(): Promise<FloodLevelFeatureRow[]> {
     const res = await this.db.query<FloodLevelFeatureRow>(LIST_LEVELS_SQL)
     return res.rows
-  }
-
-  readFloodArea(): Promise<unknown> {
-    return this.dataFiles.read(FLOOD_FILES.floodArea)
   }
 
   readFloodStatistics(): Promise<unknown> {

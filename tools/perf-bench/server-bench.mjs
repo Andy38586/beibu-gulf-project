@@ -19,7 +19,6 @@ const DATA_DIR = join(__dirname, '..', '..', 'backend', 'data')
 
 // 需要统计的 JSON 文件（相对 backend/data）
 const TARGET_FILES = [
-  'flood/floodArea.json',
   'flood/facilityPoints.json',
   'flood/floodStatistics.json',
   'flood/terrainProfile.json',

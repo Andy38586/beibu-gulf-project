@@ -88,8 +88,8 @@ beforeEach(() => {
 })
 
 describe('useFavorites（全局收藏单例）', () => {
-  it('在途拉取期间的登录态变化不丢失：置脏补拉（审查 b102）', async () => {
-    // 放在 describe 首位以隔离旧模块实例噪声（b040：模块级 watch 无 stop，旧实例
+  it('在途拉取期间的登录态变化不丢失：置脏补拉（在途置脏重放）', async () => {
+    // 放在 describe 首位以隔离旧模块实例噪声（模块级 watch 无 stop，旧实例
     // 也监听共享 ref，精确计数不可靠）——本用例必须是首个触达 apiRequest 的用例。
     const { useFavorites } = await importFreshFavorites()
     const favorites = useFavorites()

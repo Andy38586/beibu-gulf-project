@@ -41,7 +41,7 @@ onUnmounted(() => {
   cancelPlansRequest()
 })
 
-// 审查 a093③：provider 由 App.vue 必然提供（provide/inject 四组已验证配对）——
+// 装配防御：provider 由 App.vue 必然提供（provide/inject 四组已验证配对）——
 // 默认值会掩盖「漏 provide」的装配错误，让恢复/编辑方案链路静默失效 → fail-loud
 const restorePlanDataInjected = inject(RESTORE_PLAN_DATA_KEY)
 const editingPlanInjected = inject(EDITING_PLAN_KEY)

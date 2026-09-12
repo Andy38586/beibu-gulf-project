@@ -11,7 +11,7 @@ afterAll(async () => {
   await service.onModuleDestroy()
 })
 
-describe('DbService 连接池 error 监听（审查 d140）', () => {
+describe('DbService 连接池 error 监听（断库进程存活回归）', () => {
   it('空闲连接错误被池级监听吸收：不再作为未处理 error 击穿进程', () => {
     const pool = (service as unknown as { pool: Pool }).pool
     const logger = (service as unknown as { logger: Logger }).logger
@@ -24,6 +24,8 @@ describe('DbService 连接池 error 监听（审查 d140）', () => {
     expect(() => pool.emit('error', fatal)).not.toThrow()
     expect(spy).toHaveBeenCalledTimes(1)
     expect(String(spy.mock.calls[0]?.[0])).toContain('连接池空闲连接错误')
-    expect(String(spy.mock.calls[0]?.[0])).toContain('terminating connection due to administrator command')
+    expect(String(spy.mock.calls[0]?.[0])).toContain(
+      'terminating connection due to administrator command'
+    )
   })
 })

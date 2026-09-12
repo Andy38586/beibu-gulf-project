@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS roads_noded (
   geom      geometry(LineString, 4490)
 );
 
--- 红线护栏（审查 z161）：本夹具仅限 CI / 专用测试库。若目标库 roads_noded 已有大量行
+-- 红线护栏：本夹具仅限 CI / 专用测试库。若目标库 roads_noded 已有大量行
 --（真实路网约 61 万段），说明跑错了库——拒绝清空，防止误灌开发/生产库把真路网洗掉。
 -- 空表或已有本夹具（≤100 行）正常放行。
 DO $$
@@ -37,7 +37,7 @@ DECLARE existing_rows bigint;
 BEGIN
   SELECT count(*) INTO existing_rows FROM roads_noded;
   IF existing_rows > 100 THEN
-    RAISE EXCEPTION 'roads_noded 已有 % 行，疑似真实路网——本夹具严禁灌入开发/生产库（z161），已中止', existing_rows;
+    RAISE EXCEPTION 'roads_noded 已有 % 行，疑似真实路网——本夹具严禁灌入开发/生产库，已中止', existing_rows;
   END IF;
 END $$;
 

@@ -1,5 +1,5 @@
 /**
- * 覆盖率棘轮脚本测试（审查 z160）：基线 schema 校验 + 检查/回退判定。
+ * 覆盖率棘轮脚本测试：基线 schema 校验 + 检查/回退判定。
  * 脚本顶层读 argv 且有退出副作用，故以子进程真实执行，断言退出码与输出。
  */
 import { execFileSync } from 'node:child_process'
@@ -12,17 +12,16 @@ import { describe, expect, it } from 'vitest'
 const SCRIPT = fileURLToPath(new URL('../scripts/coverage-ratchet.cjs', import.meta.url))
 
 /** 子进程执行棘轮脚本；非零退出时归并 stdout/stderr 供断言 */
-function run(args: string[]): { code: number; output: string } {
+function run(args) {
   try {
     const stdout = execFileSync('node', [SCRIPT, ...args], { encoding: 'utf8' })
     return { code: 0, output: stdout }
   } catch (err) {
-    const e = err as { status?: number; stdout?: string; stderr?: string }
-    return { code: e.status ?? -1, output: `${e.stdout ?? ''}${e.stderr ?? ''}` }
+    return { code: err.status ?? -1, output: `${err.stdout ?? ''}${err.stderr ?? ''}` }
   }
 }
 
-function writeFixture(dir: string, summary: unknown, baseline: unknown): string[] {
+function writeFixture(dir, summary, baseline) {
   const summaryPath = join(dir, 'coverage-summary.json')
   const baselinePath = join(dir, 'coverage-baseline.json')
   writeFileSync(summaryPath, JSON.stringify(summary))
@@ -39,7 +38,7 @@ const SUMMARY = {
   },
 }
 
-describe('coverage-ratchet（审查 z160：基线 schema 校验）', () => {
+describe('coverage-ratchet（基线 schema 校验）', () => {
   it('基线缺指标键 → 显式报错退出（旧实现 NaN 比较静默放行）', () => {
     const r = run(writeFixture(mkdtempSync(join(tmpdir(), 'ratchet-')), SUMMARY, { lines: 50 }))
     expect(r.code).toBe(1)

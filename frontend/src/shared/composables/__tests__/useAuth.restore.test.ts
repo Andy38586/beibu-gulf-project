@@ -110,7 +110,7 @@ describe('restoreAuth（认证恢复的成因区分）', () => {
     expect(c?.username).toBe('tester')
   })
 
-  it('logout 后恢复期视为已结束：isAuthRestoreDone 保持 true（审查 b101）', async () => {
+  it('logout 后恢复期视为已结束：isAuthRestoreDone 保持 true（登出恢复期语义回归）', async () => {
     const { useAuth, isAuthRestoreDone } = await importFreshAuth()
     const auth = useAuth()
     mockApiRequest.mockResolvedValue({ user: STORED_USER })

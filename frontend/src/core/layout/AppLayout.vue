@@ -117,7 +117,7 @@ function goBusiness(item: NavItem): void {
         class="top-button-panel"
       >
         <div class="top-button-inner">
-          <!-- 城市列表由 MAP_CONFIG.CITY_CENTERS 驱动（审查 z154②：勿手写城市名双轨） -->
+          <!-- 城市列表由 MAP_CONFIG.CITY_CENTERS 驱动（勿手写城市名双轨） -->
           <NavButton
             v-for="city in Object.keys(MAP_CONFIG.CITY_CENTERS)"
             :key="city"

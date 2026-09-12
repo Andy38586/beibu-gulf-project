@@ -237,10 +237,10 @@ describe('WebGL 上下文丢失监听 add/remove 配对（重挂不累加）', (
 })
 
 /**
- * 渲染循环错误监听的「挂/摘」配对（审查 a091）：与上方 webglcontextlost 同病根——
+ * 渲染循环错误监听的「挂/摘」配对：与上方 webglcontextlost 同病根——
  * scene.renderError 事件对象随单例 Viewer 常驻不变，匿名监听重挂即累加（a085 三连案的第三处）。
  */
-describe('渲染循环错误监听 add/remove 配对（重挂不累加，a091）', () => {
+describe('渲染循环错误监听 add/remove 配对（重挂不累加）', () => {
   it('多次注册后摘除，renderError 上该监听不会累积', () => {
     const added: unknown[] = []
     const removed: unknown[] = []
@@ -280,8 +280,8 @@ describe('渲染循环错误监听 add/remove 配对（重挂不累加，a091）
   })
 })
 
-/** 相机防抖取消（审查 a092）：3D→2D 切换路径不再让在途防抖空触发渲染 */
-describe('相机防抖取消（a092）', () => {
+/** 相机防抖取消：3D→2D 切换路径不再让在途防抖空触发渲染 */
+describe('相机防抖取消', () => {
   it('cancelPendingCameraDebounce 清掉在途定时器，且空定时器时调用安全', () => {
     // Object.create 绕过构造：new 会触发 _initViewer（需完整 Cesium 运行时），
     // 本用例只验证定时器语义，原型实例足够

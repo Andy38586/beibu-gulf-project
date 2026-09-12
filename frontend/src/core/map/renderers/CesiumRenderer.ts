@@ -96,7 +96,7 @@ class CesiumViewerManager {
   _webglContextLostHandler: ((e: Event) => void) | null
   /**
    * 渲染循环错误具名回调（destroyEvents 注销用）。Viewer 单例复用 → scene.renderError
-   * 事件对象常驻不变，匿名监听重挂即累加（同 webglcontextlost 病根，审查 a091）。
+   * 事件对象常驻不变，匿名监听重挂即累加（同 webglcontextlost 病根）。
    */
   _renderErrorHandler: ((_scene: unknown, error: unknown) => void) | null
   /** 渲染错误 toast 一次性标志（随 register 重置，对齐旧闭包按次挂载的语义） */
@@ -148,7 +148,7 @@ class CesiumViewerManager {
       // cesium 类型未收录 highDynamicRange/fxaa（版本差异），结构化断言保留运行期行为
     } as unknown as ConstructorParameters<typeof Viewer>[1])
 
-    // 渲染循环错误进日志 + 全局 toast（一次性防刷屏）——具名监听（审查 a091）：
+    // 渲染循环错误进日志 + 全局 toast（一次性防刷屏）——具名监听：
     // Viewer 单例复用下 scene.renderError 常驻不变，匿名监听重挂即累加（同 a085 病根）
     this.registerRenderErrorHandler()
 
@@ -199,7 +199,7 @@ class CesiumViewerManager {
   /**
    * 注册渲染循环错误监听（具名字段，可摘）。
    * ⚠️ 不得改回内联匿名箭头：Viewer 单例复用 → `scene.renderError` 事件对象常驻不变，
-   * 匿名函数无引用可摘，重挂持续累加（一次渲染错误弹 N 次 toast，审查 a091）。
+   * 匿名函数无引用可摘，重挂持续累加（一次渲染错误弹 N 次 toast）。
    * 幂等：已有注册则先摘再挂。toast 一次性标志随注册重置（对齐旧闭包语义）。
    */
   registerRenderErrorHandler(): void {
@@ -409,7 +409,7 @@ export class CesiumRenderer extends MapRenderer {
   _isReusing: boolean
   _cameraDebounceTimer: ReturnType<typeof setTimeout> | null
 
-  /** 取消在途相机防抖（审查 a092）：3D→2D 切换路径调用——防抖回调持有渲染器引用，
+  /** 取消在途相机防抖：3D→2D 切换路径调用——防抖回调持有渲染器引用，
    *  切走后到期只会对已 unmount 的实例空触发一次渲染，且可能顶撞复用窗口。 */
   cancelPendingCameraDebounce(): void {
     if (this._cameraDebounceTimer) {
@@ -1181,7 +1181,7 @@ export function setupCameraDebounce(renderer: CesiumRenderer): void {
       clearTimeout(renderer._cameraDebounceTimer)
     }
     renderer._cameraDebounceTimer = setTimeout(() => {
-      // viewer 可能已置空，防御（审查 z162：真值判断内写非空断言等于没写）
+      // viewer 可能已置空，防御（真值判断内写非空断言等于没写）
       if (renderer.viewer) {
         renderer.viewer.scene.requestRender()
         // 相机变化防抖后回传状态（复用 _cameraChangedHandler，勿新增监听）
@@ -1195,7 +1195,7 @@ export function setupCameraDebounce(renderer: CesiumRenderer): void {
 
 /** 点击/移动监听：LEFT_CLICK 拾取要素 properties 并 emit click；MOUSE_MOVE 回传鼠标经纬度 */
 export function setupClickHandler(renderer: CesiumRenderer): void {
-  // 闭包捕获局部引用（审查 z162）：事件回调晚于卸载窗口触发，经共享 renderer 解构
+  // 闭包捕获局部引用：事件回调晚于卸载窗口触发，经共享 renderer 解构
   // `viewer!` 依赖 destroyEvents 时序；setup 期一次判空 + 局部捕获更稳
   const clickViewer = renderer.viewer
   if (!clickViewer) return
@@ -1282,7 +1282,7 @@ export function destroyEvents(renderer: CesiumRenderer): void {
   // 且闭包永久持有已销毁 renderer（正是本文件 5.2-1 反复强调的泄漏模式）。
   cesiumViewerManager.unregisterWebglContextLostHandler()
 
-  // 移除渲染循环错误监听（审查 a091）：scene.renderError 事件对象同样随单例 Viewer
+  // 移除渲染循环错误监听：scene.renderError 事件对象同样随单例 Viewer
   // 常驻不变——匿名监听重挂即累加，具名成对摘除（与上方 webglcontextlost 同款修法）。
   cesiumViewerManager.unregisterRenderErrorHandler()
 }

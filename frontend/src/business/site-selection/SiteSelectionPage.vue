@@ -117,7 +117,7 @@ function computeParticipating(): void {
   participatingPoi.value = out
 }
 
-/** 附近设施图层显隐指标（审查 a093①）：BLM registry.visible 为唯一权威源，
+/** 附近设施图层显隐指标：BLM registry.visible 为唯一权威源，
  *  mapStore.catalog 仅作响应式触发器（引擎切换清空后由 reapplyAll 重建）——
  *  直读镜像会把「清空窗口」误判为不可见而误停呼吸；缺省仍按可见处理。 */
 const isFacilityLayerVisible = computed(() => {

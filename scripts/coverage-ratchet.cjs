@@ -60,7 +60,7 @@ if (!baseline) {
   process.exit(0)
 }
 
-// 基线 schema 校验（审查 z160）：丢键/非数值会让 `baseline[m] - TOLERANCE` 得 NaN、
+// 基线 schema 校验：丢键/非数值会让 `baseline[m] - TOLERANCE` 得 NaN、
 // 比较恒 false → 检查模式静默放行；--update 时 Math.max(undefined, x) 写出 null
 // 静默损坏基线。故读入后显式校验，坏基线必须报错而不是装作通过。
 const invalidMetrics = METRICS.filter(

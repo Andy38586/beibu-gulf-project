@@ -17,7 +17,7 @@ export class DbService implements OnModuleDestroy {
   // 回落原 process.env 解析，行为不变
   constructor(@Optional() private readonly config?: ConfigService) {
     this.pool = new Pool(this.config ? this.config.dbConfig : parseDbConfig(process.env))
-    // 池级 error 监听（审查 d140）：空闲连接被杀（DB 重启/闪断/故障转移）时 pg 会向
+    // 池级 error 监听：空闲连接被杀（DB 重启/闪断/故障转移）时 pg 会向
     // Pool 发 'error' 事件，无监听则 Node 按未处理 'error' 直接退出进程——全 API 瞬死
     // 且在途请求连 5xx 信封都发不出（2026-09-12 动态测试实锤：docker stop 即崩）。
     // 此处降级为日志；每请求级致命错误已由 isFatalDbError 上抛（d135），两层互不干扰。

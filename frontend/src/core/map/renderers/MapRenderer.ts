@@ -255,7 +255,7 @@ export class MapRenderer implements MapRendererContract {
     logger.debug(`${this.getType()} stopFacilityBreathing 未实现`)
   }
 
-  /** 取消在途相机防抖（审查 a092）：3D→2D 切换路径调用——防抖回调持有渲染器引用，
+  /** 取消在途相机防抖：3D→2D 切换路径调用——防抖回调持有渲染器引用，
    *  切走后到期只会对已 unmount 的实例空触发渲染；OL 无相机防抖，空实现。 */
   cancelPendingCameraDebounce(): void {
     logger.debug(`${this.getType()} cancelPendingCameraDebounce 未实现`)

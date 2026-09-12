@@ -23,7 +23,7 @@ import { isAuthRestoreDone, useAuth } from './useAuth'
 
 const favorites = ref<FavoriteItem[]>([])
 let fetchInFlight = false
-/** 在途期间又有登录态变化：置脏，本次结束后补拉一次（审查 b102：丢弃 → 单级重放） */
+/** 在途期间又有登录态变化：置脏，本次结束后补拉一次（在途置脏重放） */
 let fetchDirty = false
 /** 未登录时的收藏意图：登录成功后自动补完 */
 let pendingFavorite: FavoriteAddInput | null = null
@@ -48,7 +48,7 @@ async function fetchFavorites(): Promise<void> {
   favorites.value = items
 }
 
-/** 拉取收藏（含在途合并与错误分级）：在途时置脏不丢事件，结束后补拉一次（b102） */
+/** 拉取收藏（含在途合并与错误分级）：在途时置脏不丢事件，结束后补拉一次 */
 async function loadFavorites(): Promise<void> {
   if (fetchInFlight) {
     fetchDirty = true
@@ -80,7 +80,7 @@ async function loadFavorites(): Promise<void> {
 
 /** 登录态驱动：登录 → 拉取 + 补完未登录期的收藏意图；登出 → 清空。
  *  源含 token：restore 以「保留临时登录态」收场时（后端不可达 ≠ 未登录）user 不变，
- *  仅 token 置位 —— 监听 token 空→非空让该路径也能触发重拉（审查 L-3） */
+ *  仅 token 置位 —— 监听 token 空→非空让该路径也能触发重拉（恢复期分级） */
 watch(
   [user, token],
   async ([u]) => {

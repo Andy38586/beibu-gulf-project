@@ -94,6 +94,13 @@ class CesiumViewerManager {
    * （表现为上下文丢失弹 N 次 toast + 闭包持有已销毁 renderer）。2026-09-11 具名化。
    */
   _webglContextLostHandler: ((e: Event) => void) | null
+  /**
+   * 渲染循环错误具名回调（destroyEvents 注销用）。Viewer 单例复用 → scene.renderError
+   * 事件对象常驻不变，匿名监听重挂即累加（同 webglcontextlost 病根，审查 a091）。
+   */
+  _renderErrorHandler: ((_scene: unknown, error: unknown) => void) | null
+  /** 渲染错误 toast 一次性标志（随 register 重置，对齐旧闭包按次挂载的语义） */
+  _renderErrorToastShown: boolean
 
   constructor() {
     this.viewer = null
@@ -104,6 +111,8 @@ class CesiumViewerManager {
     this._baseLayers = { image: [], vector: [] }
     this._deferredRafIds = new Set<number>()
     this._webglContextLostHandler = null
+    this._renderErrorHandler = null
+    this._renderErrorToastShown = false
   }
 
   // 首次创建Viewer，后续调用返回已有实例
@@ -139,15 +148,9 @@ class CesiumViewerManager {
       // cesium 类型未收录 highDynamicRange/fxaa（版本差异），结构化断言保留运行期行为
     } as unknown as ConstructorParameters<typeof Viewer>[1])
 
-    // 渲染循环错误进日志 + 全局 toast（一次性防刷屏，原始堆栈 DEV 可见）
-    let renderErrorToastShown = false
-    this.viewer.scene.renderError.addEventListener((_scene: unknown, error: unknown) => {
-      logger.error('[Cesium] 渲染循环错误（原生错误面板已禁用）:', error)
-      if (!renderErrorToastShown) {
-        renderErrorToastShown = true
-        showError('地图渲染异常，请刷新页面重试')
-      }
-    })
+    // 渲染循环错误进日志 + 全局 toast（一次性防刷屏）——具名监听（审查 a091）：
+    // Viewer 单例复用下 scene.renderError 常驻不变，匿名监听重挂即累加（同 a085 病根）
+    this.registerRenderErrorHandler()
 
     // WebGL 上下文丢失检测：开发期频繁 HMR/整页 reload 会累积 WebGL 上下文（浏览器每 tab
     // 上限约 16 个），超限后新建 canvas 全黑且**无任何报错**——「3D 一片黑/底图丢失」的
@@ -191,6 +194,34 @@ class CesiumViewerManager {
       this._webglContextLostHandler
     )
     this._webglContextLostHandler = null
+  }
+
+  /**
+   * 注册渲染循环错误监听（具名字段，可摘）。
+   * ⚠️ 不得改回内联匿名箭头：Viewer 单例复用 → `scene.renderError` 事件对象常驻不变，
+   * 匿名函数无引用可摘，重挂持续累加（一次渲染错误弹 N 次 toast，审查 a091）。
+   * 幂等：已有注册则先摘再挂。toast 一次性标志随注册重置（对齐旧闭包语义）。
+   */
+  registerRenderErrorHandler(): void {
+    this.unregisterRenderErrorHandler()
+    const event = this.viewer?.scene?.renderError
+    if (!event) return
+    this._renderErrorToastShown = false
+    this._renderErrorHandler = (_scene: unknown, error: unknown): void => {
+      logger.error('[Cesium] 渲染循环错误（原生错误面板已禁用）:', error)
+      if (!this._renderErrorToastShown) {
+        this._renderErrorToastShown = true
+        showError('地图渲染异常，请刷新页面重试')
+      }
+    }
+    event.addEventListener(this._renderErrorHandler)
+  }
+
+  /** 摘除渲染循环错误监听（destroy 路径调用；与 register 成对，保证 add/remove 一一对应） */
+  unregisterRenderErrorHandler(): void {
+    if (!this._renderErrorHandler) return
+    this.viewer?.scene?.renderError?.removeEventListener(this._renderErrorHandler)
+    this._renderErrorHandler = null
   }
 
   /**
@@ -377,6 +408,15 @@ export class CesiumRenderer extends MapRenderer {
   baseLayers: { image: unknown[]; vector: unknown[] }
   _isReusing: boolean
   _cameraDebounceTimer: ReturnType<typeof setTimeout> | null
+
+  /** 取消在途相机防抖（审查 a092）：3D→2D 切换路径调用——防抖回调持有渲染器引用，
+   *  切走后到期只会对已 unmount 的实例空触发一次渲染，且可能顶撞复用窗口。 */
+  cancelPendingCameraDebounce(): void {
+    if (this._cameraDebounceTimer) {
+      clearTimeout(this._cameraDebounceTimer)
+      this._cameraDebounceTimer = null
+    }
+  }
   _terrainProvider: CesiumTerrainProvider | null
   _terrainEnabled: boolean
   /** 地形初始化在途守卫：挂载初始化与开关重试（setTerrainEnabled）并发时复用同一次建连 */
@@ -1141,9 +1181,9 @@ export function setupCameraDebounce(renderer: CesiumRenderer): void {
       clearTimeout(renderer._cameraDebounceTimer)
     }
     renderer._cameraDebounceTimer = setTimeout(() => {
-      // viewer 可能已置空，防御
-      if (renderer.viewer!) {
-        renderer.viewer!.scene.requestRender()
+      // viewer 可能已置空，防御（审查 z162：真值判断内写非空断言等于没写）
+      if (renderer.viewer) {
+        renderer.viewer.scene.requestRender()
         // 相机变化防抖后回传状态（复用 _cameraChangedHandler，勿新增监听）
         renderer.emit('camera-changed', renderer._getCameraState())
       }
@@ -1155,13 +1195,17 @@ export function setupCameraDebounce(renderer: CesiumRenderer): void {
 
 /** 点击/移动监听：LEFT_CLICK 拾取要素 properties 并 emit click；MOUSE_MOVE 回传鼠标经纬度 */
 export function setupClickHandler(renderer: CesiumRenderer): void {
-  renderer._screenSpaceEventHandler = renderer.viewer!.screenSpaceEventHandler
+  // 闭包捕获局部引用（审查 z162）：事件回调晚于卸载窗口触发，经共享 renderer 解构
+  // `viewer!` 依赖 destroyEvents 时序；setup 期一次判空 + 局部捕获更稳
+  const clickViewer = renderer.viewer
+  if (!clickViewer) return
+  renderer._screenSpaceEventHandler = clickViewer.screenSpaceEventHandler
   const handler = renderer._screenSpaceEventHandler
   if (!handler) return
   // Cesium 拾取事件载荷：{ position: Cartesian2 }（LEFT_CLICK）/ { endPosition }（MOUSE_MOVE）
   handler.setInputAction((click: { position: Cartesian2 }) => {
-    const pickedObject = renderer.viewer!.scene.pick(click.position)
-    const cartesian = renderer.viewer!.camera.pickEllipsoid(click.position)
+    const pickedObject = clickViewer.scene.pick(click.position)
+    const cartesian = clickViewer.camera.pickEllipsoid(click.position)
     const coordinate = cartesian ? cartesianToLonLatArray(cartesian) : null
 
     if (pickedObject && pickedObject.id && pickedObject.id.properties) {
@@ -1237,6 +1281,10 @@ export function destroyEvents(renderer: CesiumRenderer): void {
   // 此前该监听是匿名箭头函数、无引用可摘，累加后表现为「一次上下文丢失弹 N 次 toast」，
   // 且闭包永久持有已销毁 renderer（正是本文件 5.2-1 反复强调的泄漏模式）。
   cesiumViewerManager.unregisterWebglContextLostHandler()
+
+  // 移除渲染循环错误监听（审查 a091）：scene.renderError 事件对象同样随单例 Viewer
+  // 常驻不变——匿名监听重挂即累加，具名成对摘除（与上方 webglcontextlost 同款修法）。
+  cesiumViewerManager.unregisterRenderErrorHandler()
 }
 
 // ===== 图层：点/多边形/GeoJSON/GeoTIFF 注册与移除 =====

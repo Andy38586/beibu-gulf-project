@@ -473,6 +473,9 @@ async function switchMapType(newType: '2d' | '3d') {
       // （曾在高负载并行单测下 currentRenderer 瞬时指向未就绪实例而级联回滚）
       currentRenderer.value?.stopBreathing?.()
       currentRenderer.value?.stopFacilityBreathing?.()
+      // 取消在途相机防抖（审查 a092）：切走后到期只会在后台对已 unmount 的实例
+      // 空触发一次渲染，复用窗口内还可能顶撞下一次挂载的初始状态。
+      currentRenderer.value?.cancelPendingCameraDebounce?.()
       const { cesiumViewerManager } = await import('@/core/map/renderers/CesiumRenderer')
       cesiumViewerManager.unmount()
     }

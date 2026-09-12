@@ -66,7 +66,7 @@ vi.mock('cesium', () => {
   }
 })
 
-import { cesiumViewerManager } from '../CesiumRenderer'
+import { CesiumRenderer, cesiumViewerManager } from '../CesiumRenderer'
 
 /** 构造最小 fake viewer（不经过 create 的 new Viewer） */
 function makeFakeViewer(container?: HTMLElement) {
@@ -233,5 +233,66 @@ describe('WebGL 上下文丢失监听 add/remove 配对（重挂不累加）', (
     }
     expect(added.length).toBe(0)
     expect(removed.length).toBe(3) // 三次注册三次摘除，一一对应
+  })
+})
+
+/**
+ * 渲染循环错误监听的「挂/摘」配对（审查 a091）：与上方 webglcontextlost 同病根——
+ * scene.renderError 事件对象随单例 Viewer 常驻不变，匿名监听重挂即累加（a085 三连案的第三处）。
+ */
+describe('渲染循环错误监听 add/remove 配对（重挂不累加，a091）', () => {
+  it('多次注册后摘除，renderError 上该监听不会累积', () => {
+    const added: unknown[] = []
+    const removed: unknown[] = []
+    const renderErrorEvent = {
+      addEventListener: (fn: unknown) => {
+        added.push(fn)
+      },
+      removeEventListener: (fn: unknown) => {
+        const i = added.indexOf(fn)
+        if (i >= 0) added.splice(i, 1)
+        removed.push(fn)
+      },
+    }
+    const viewer = {
+      container: document.createElement('div'),
+      scene: {
+        canvas: document.createElement('canvas'),
+        renderError: renderErrorEvent,
+        requestRenderMode: false,
+        requestRender: vi.fn(),
+        screenSpaceCameraController: {},
+      },
+      resize: vi.fn(),
+      destroy: vi.fn(),
+    }
+    ;(cesiumViewerManager as unknown as { viewer: typeof viewer }).viewer = viewer
+    ;(cesiumViewerManager as unknown as { isMounted: boolean }).isMounted = true
+
+    // 模拟「挂载 → 销毁」三轮（单例复用下 scene.renderError 始终是同一个事件对象）
+    for (let i = 0; i < 3; i++) {
+      cesiumViewerManager.registerRenderErrorHandler()
+      expect(added.length).toBe(1) // 每轮都只剩 1 个（上一轮已摘）
+      cesiumViewerManager.unregisterRenderErrorHandler()
+    }
+    expect(added.length).toBe(0)
+    expect(removed.length).toBe(3)
+  })
+})
+
+/** 相机防抖取消（审查 a092）：3D→2D 切换路径不再让在途防抖空触发渲染 */
+describe('相机防抖取消（a092）', () => {
+  it('cancelPendingCameraDebounce 清掉在途定时器，且空定时器时调用安全', () => {
+    // Object.create 绕过构造：new 会触发 _initViewer（需完整 Cesium 运行时），
+    // 本用例只验证定时器语义，原型实例足够
+    const renderer = Object.create(CesiumRenderer.prototype) as CesiumRenderer
+    const store = renderer as unknown as {
+      _cameraDebounceTimer: ReturnType<typeof setTimeout> | null
+    }
+    store._cameraDebounceTimer = setTimeout(() => {}, 10_000)
+    renderer.cancelPendingCameraDebounce()
+    expect(store._cameraDebounceTimer).toBeNull()
+    // 幂等：无在途定时器时调用不抛
+    expect(() => renderer.cancelPendingCameraDebounce()).not.toThrow()
   })
 })

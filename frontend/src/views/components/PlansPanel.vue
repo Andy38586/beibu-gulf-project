@@ -19,7 +19,6 @@ import { useFavorites } from '@/shared'
 import { useFloodStore } from '@/stores'
 import type { AffectedFacility, FloodFeature } from '@/types/business/base'
 import type { FavoriteItem } from '@/types/business/base'
-import type { TypeSetting } from '@/types/facility'
 import type { Plan } from '@/types/plan'
 import type { SavedXiaoqu } from '@/types/xiaoqu'
 
@@ -42,8 +41,17 @@ onUnmounted(() => {
   cancelPlansRequest()
 })
 
-const restorePlanData = inject(RESTORE_PLAN_DATA_KEY, ref<Record<string, TypeSetting> | null>(null))
-const editingPlan = inject(EDITING_PLAN_KEY, ref<Plan | null>(null))
+// 审查 a093③：provider 由 App.vue 必然提供（provide/inject 四组已验证配对）——
+// 默认值会掩盖「漏 provide」的装配错误，让恢复/编辑方案链路静默失效 → fail-loud
+const restorePlanDataInjected = inject(RESTORE_PLAN_DATA_KEY)
+const editingPlanInjected = inject(EDITING_PLAN_KEY)
+if (!restorePlanDataInjected || !editingPlanInjected) {
+  throw new Error(
+    'PlansPanel 需要 App 级 provide（RESTORE_PLAN_DATA_KEY / EDITING_PLAN_KEY）——缺失属装配错误，不得用默认值静默掩盖'
+  )
+}
+const restorePlanData = restorePlanDataInjected
+const editingPlan = editingPlanInjected
 
 const showSaveModal = ref(false)
 const editingNamePlan = ref<Plan | null>(null)

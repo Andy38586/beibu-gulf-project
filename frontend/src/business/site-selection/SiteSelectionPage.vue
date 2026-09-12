@@ -117,11 +117,16 @@ function computeParticipating(): void {
   participatingPoi.value = out
 }
 
-/** 附近设施图层显隐指标（图层控制面板 → BLM → mapStore.catalog 镜像，单一数据源）。
- *  registry 是权威，引擎切换时 catalog 业务条目短暂清空——缺省按可见处理，避免误停呼吸 */
-const isFacilityLayerVisible = computed(
-  () => mapStore.layerCatalog.find((e) => e.key === NEARBY_FACILITY_LAYER_ID)?.visible ?? true
-)
+/** 附近设施图层显隐指标（审查 a093①）：BLM registry.visible 为唯一权威源，
+ *  mapStore.catalog 仅作响应式触发器（引擎切换清空后由 reapplyAll 重建）——
+ *  直读镜像会把「清空窗口」误判为不可见而误停呼吸；缺省仍按可见处理。 */
+const isFacilityLayerVisible = computed(() => {
+  // 引用 catalog 注册响应性：面板开关 → registry 更新 → catalog 镜像同步 → 本值重算
+  const catalogEntry = mapStore.layerCatalog.find((e) => e.key === NEARBY_FACILITY_LAYER_ID)
+  return (
+    businessLayerManager.getMeta(NEARBY_FACILITY_LAYER_ID)?.visible ?? catalogEntry?.visible ?? true
+  )
+})
 
 /** 因子面板引用（用于获取/恢复状态） */
 const factorPanelRef = ref<InstanceType<typeof SiteAnalysisControlPanel> | null>(null)

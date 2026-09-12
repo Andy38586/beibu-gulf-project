@@ -29,6 +29,18 @@ CREATE TABLE IF NOT EXISTS roads_noded (
   geom      geometry(LineString, 4490)
 );
 
+-- 红线护栏（审查 z161）：本夹具仅限 CI / 专用测试库。若目标库 roads_noded 已有大量行
+--（真实路网约 61 万段），说明跑错了库——拒绝清空，防止误灌开发/生产库把真路网洗掉。
+-- 空表或已有本夹具（≤100 行）正常放行。
+DO $$
+DECLARE existing_rows bigint;
+BEGIN
+  SELECT count(*) INTO existing_rows FROM roads_noded;
+  IF existing_rows > 100 THEN
+    RAISE EXCEPTION 'roads_noded 已有 % 行，疑似真实路网——本夹具严禁灌入开发/生产库（z161），已中止', existing_rows;
+  END IF;
+END $$;
+
 TRUNCATE roads_noded RESTART IDENTITY;
 
 -- 两条边首尾相接（节点 2 共享），合计约 15.6km，cost_min 按 30km/h 折算（对齐 noding 【5】口径）

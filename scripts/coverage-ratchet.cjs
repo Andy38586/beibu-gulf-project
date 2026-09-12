@@ -60,6 +60,20 @@ if (!baseline) {
   process.exit(0)
 }
 
+// 基线 schema 校验（审查 z160）：丢键/非数值会让 `baseline[m] - TOLERANCE` 得 NaN、
+// 比较恒 false → 检查模式静默放行；--update 时 Math.max(undefined, x) 写出 null
+// 静默损坏基线。故读入后显式校验，坏基线必须报错而不是装作通过。
+const invalidMetrics = METRICS.filter(
+  (m) => typeof baseline[m] !== 'number' || Number.isNaN(baseline[m])
+)
+if (invalidMetrics.length > 0) {
+  console.error(
+    `::error::基线文件损坏：指标 ${invalidMetrics.join('/')} 缺失或非数值（${baselinePath}）。` +
+      `请修复该文件，或删除后以本次实测重建基线。`
+  )
+  process.exit(1)
+}
+
 const regressions = []
 for (const m of METRICS) {
   const floor = baseline[m] - TOLERANCE

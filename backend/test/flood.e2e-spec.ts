@@ -4,6 +4,7 @@ import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { AppModule } from '../src/app.module'
+import { DbService } from '../src/infra/db/db.service'
 
 // flood e2e：连真实 backend/data/flood 静态数据 + PostGIS `flood_levels` 档位表
 //（公开只读 + 纯计算，免登录）。
@@ -135,6 +136,55 @@ describe('flood e2e（真数据文件 + 真库档位表）', () => {
         expect(res.body.data.actualWaterLevel).toBe(0)
         expect(res.body.data.riskLevel).toBe('无风险')
         expect(res.body.data.features).toEqual([])
+      })
+
+      it('flood-areas?waterLevel=3 → 陆域裁剪：几何非空且全部落在行政区划包络内（生产 500 事故回归）', async () => {
+        // 2026-09-12 生产事故形态：admin_boundary_union 缺失 → PICK_LEVEL_SQL 的
+        // ST_Intersection 直接 500；SRID 错配（4490 元数据）→ mixed SRID 也 500。
+        // 故本用例同时守住：① 端点不 500；② 裁剪真实生效（几何 ⊆ 行政区划包络）。
+        const res = await request(app.getHttpServer())
+          .get(`${base}/flood-areas?waterLevel=3`)
+          .expect(200)
+        const features = res.body.data.features as Array<{
+          geometry: { type: string; coordinates: unknown }
+          properties: { area: number }
+        }>
+        expect(features.length).toBeGreaterThan(0)
+
+        // 上界取自库内真值（不硬编码坐标窗）：行政区划换版时断言自动跟随，
+        // 只有「裁剪失效 → 越界几何（如海上原始档位面）」才会红
+        const db = app.get(DbService)
+        const env = await db.query<{ minx: number; miny: number; maxx: number; maxy: number }>(
+          `SELECT ST_XMin(e)::float8 AS minx, ST_YMin(e)::float8 AS miny,
+                  ST_XMax(e)::float8 AS maxx, ST_YMax(e)::float8 AS maxy
+             FROM (SELECT ST_Envelope(geom) AS e FROM admin_boundary_union) t`
+        )
+        const { minx, miny, maxx, maxy } = env.rows[0]
+        // 仅吸收 4490→4326 转换的浮点级误差
+        const EPS = 1e-6
+
+        const coords: Array<[number, number]> = []
+        const walk = (node: unknown): void => {
+          if (!Array.isArray(node)) return
+          if (typeof node[0] === 'number' && typeof node[1] === 'number') {
+            coords.push([node[0], node[1]])
+            return
+          }
+          for (const child of node) walk(child)
+        }
+        for (const f of features) {
+          // ST_Dump 逐部件下发 → 单部件为 Polygon，多部件为 MultiPolygon
+          expect(f.geometry.type).toMatch(/^(Multi)?Polygon$/)
+          expect(typeof f.properties.area).toBe('number')
+          walk(f.geometry.coordinates)
+        }
+        expect(coords.length).toBeGreaterThan(0)
+        for (const [lng, lat] of coords) {
+          expect(lng).toBeGreaterThanOrEqual(minx - EPS)
+          expect(lng).toBeLessThanOrEqual(maxx + EPS)
+          expect(lat).toBeGreaterThanOrEqual(miny - EPS)
+          expect(lat).toBeLessThanOrEqual(maxy + EPS)
+        }
       })
 
       it('flood-statistics?waterLevel=2.5 → 档位与 flood-areas 同源（旧 6 档实现会粗化到 5）', async () => {

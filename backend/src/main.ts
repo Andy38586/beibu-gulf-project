@@ -26,6 +26,27 @@ async function bootstrap() {
   // cookie 解析：认证守卫读 HttpOnly auth_token（对齐 Express cookieParser）
   app.use(cookieParser())
 
+  // CSP 违规上报体解析（审查 z153）：浏览器的 Content-Type 是 `application/csp-report`
+  // （report-uri）或 `application/reports+json`（report-to/Reporting API）——**都不是**
+  // `application/json`，Nest 默认 json 解析器不会碰它们，req.body 会恒为 {}（静默收不到报告）。
+  //
+  // ⚠️ 必须写成"按类型分流 + 其余纯透传"，**不能**直接 `app.use(express.json({ type: [...] }))`：
+  // 本项目 express 是 5.x（body-parser 2.x），其 json 中间件对**不匹配的类型也会打上
+  // `req._body = true`**；而 Nest 内置解析器（body-parser 1.x）见到 `_body` 即跳过 ⇒
+  // 全局 `application/json` 全部不再解析（实测：畸形 JSON 打到 /nest-api/auth/login 得到的是
+  // 业务"用户名和密码不能为空"而非解析报错 = 解析器根本没跑）。此处只在 Content-Type 命中
+  // CSP 两种类型时调用解析器，其余请求原样 next()，不触碰任何 request 状态。
+  const CSP_REPORT_TYPES = ['application/csp-report', 'application/reports+json']
+  // ⚠️ type 必须显式放开：`express.json()` 默认只认 `application/json`，若此处不给
+  // `type`，解析器会对本分支放进来的 CSP 请求再跳过一次（隔离复现：中间件命中，handler
+  // 里 req.body 仍是 undefined）。类型判定已由外层分支完成，这里 `() => true` 即"已放行"。
+  const parseCspReportBody = express.json({ limit: '16kb', type: () => true })
+  app.use((req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const contentType = (req.headers['content-type'] ?? '').split(';')[0]?.trim().toLowerCase()
+    if (!CSP_REPORT_TYPES.includes(contentType)) return next()
+    parseCspReportBody(req, res, next)
+  })
+
   // 静态资源托管：backend/static（CTB 地形瓦片 /static/terrain、DEM hillshade /static/dem）。
   // Express 退役后该职责迁移至 Nest（vite proxy /static → 3000 与生产 nginx /static/ 同口径）；
   // 目录从 dataDir 兄弟位解析（backend/data → backend/static），复用 DATA_DIR 解析链的 cwd 容错。

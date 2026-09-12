@@ -10,6 +10,7 @@ import {
 import { BusinessErrorFilter } from './common/filters/business-error.filter'
 import { EnvelopeThrottlerGuard } from './common/guards/envelope-throttler.guard'
 import { EnvelopeInterceptor } from './common/interceptors/envelope.interceptor'
+import { CspReportModule } from './csp-report/csp-report.module'
 import { HealthModule } from './health/health.module'
 import { ConfigModule } from './infra/config/config.module'
 import { DbModule } from './infra/db/db.module'
@@ -43,6 +44,9 @@ import { SiteAnalysisModule } from './modules/site-analysis/site-analysis.module
     SiteAnalysisModule,
     RouteModule,
     HealthModule,
+    // CSP 违规上报接收（z153）：已豁免限流（@SkipThrottle，见控制器注释），
+    // 不改命名桶配置——命名桶会作用于全部路由，新增即等于给全站多套一道闸
+    CspReportModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: EnvelopeThrottlerGuard },

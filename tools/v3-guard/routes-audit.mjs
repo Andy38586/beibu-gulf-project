@@ -27,7 +27,8 @@ const GLOBAL_PREFIX = 'nest-api'
 // 侥幸在役——路由漂移的下游副本必须纳入本守卫，不能靠联调发现。
 const FRONTEND_API_REQUEST = path.join(ROOT, 'frontend/src/shared/composables/useApiRequest.ts')
 // 基础设施探针域：前端无 apiRequest 调用，不要求出现在前端清单
-const NON_BIZ_DOMAINS = new Set(['health'])
+// csp-report = CSP 违规上报接收端点（z153），由浏览器直发、前端代码不调用
+const NON_BIZ_DOMAINS = new Set(['health', 'csp-report'])
 // env 注入副本（部分域回退 Express 是文档化的回滚开关，故只查未知/过期域名，不强制全覆盖）
 const ENV_COPIES = [
   path.join(ROOT, 'docker-compose.yml'),

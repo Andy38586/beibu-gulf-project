@@ -22,7 +22,7 @@
     "test:algorithm": "node tools/run-algorithm-tests.cjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "guard:v3": "node tools/v3-guard/no-ephemeral.mjs && node tools/v3-guard/structure-check.mjs && node tools/v3-guard/routes-audit.mjs && node tools/v3-guard/constants-audit.mjs && node tools/v3-guard/metrics-tally.mjs && node tools/v3-guard/anchor-check.mjs && node tools/v3-guard/tmp-hygiene.mjs",
+    "guard:v3": "node tools/v3-guard/run-all.mjs",
     "tmp:clean": "node scripts/clean-tmp.cjs",
     "ci:local": "npm run guard:v3 && npm run format:check && npm run lint && npm run stylelint && npm run cruise && npm run types:check && npm run typecheck && npm run typecheck --prefix backend && npm test -- --coverage && node scripts/coverage-ratchet.cjs frontend/coverage/coverage-summary.json frontend/coverage-baseline.json --update && npm run test:tools && npm test --prefix backend -- --coverage && node scripts/coverage-ratchet.cjs backend/coverage/coverage-summary.json backend/coverage-baseline.json --update && npm run test:algorithm && npm run build",
     "premerge": "node scripts/pre-merge-check.cjs",

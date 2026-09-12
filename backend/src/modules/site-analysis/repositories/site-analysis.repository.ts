@@ -56,16 +56,53 @@ function toFacilityPoint(row: PoiRow): FacilityPoint {
   return point
 }
 
-// 搜索结果行形状：name/type 为业务必需列（NOT NULL），district 可空
+// 搜索结果行形状：name/type 为业务必需列（NOT NULL），district 可空；source = 来源点集
 interface PoiSearchRow {
   id: string | null
   name: string | null
   type: string | null
+  source: string
   city: string | null
   district: string | null
   lng: number
   lat: number
 }
+
+/**
+ * 多源点集搜索：航线分析选点的候选点**不止 POI**——港口/淹没设施点/小区同样是合法路径端点。
+ *
+ * 背景（2026-09-12 用户反馈「引入的 POI 点太少、列表没用」）：原实现只查 poi_facilities 一张表，
+ * 且默认 `ORDER BY city, type, id` 把兜底列表压成"一堆同城公交站"。真因不是库里点少
+ *（实测任意关键词都命中上限），而是**源窄 + 上限小 + 排序无意义**。
+ *
+ * 现改为 UNION 四个真实点集，并按 source 优先级排序（航线天然端点在前）：
+ *   port（港口 3）→ facility（淹没设施点 83）→ xiaoqu（小区）→ poi（设施 POI）
+ * source 列随行下发，前端按来源显示标签；不再靠 type 猜来源。
+ *
+ * keyword 为空 → 无条件（返回优先级前 limit 条兜底列表）；有词 → `name ILIKE`（参数化无拼接面）。
+ */
+const MULTI_SOURCE_SEARCH_SQL = `
+SELECT source, id, name, type, city, district,
+       ST_X(ST_Transform(geom, 4326)) AS lng,
+       ST_Y(ST_Transform(geom, 4326)) AS lat
+FROM (
+  SELECT 'port'::text AS source, 0 AS prio, id, name, COALESCE(type, '') AS type,
+         NULL::text AS city, NULL::text AS district, geom
+    FROM ports
+  UNION ALL
+  SELECT 'facility', 1, id, name, COALESCE(type, ''), NULL::text, NULL::text, geom
+    FROM flood_facilities
+  UNION ALL
+  SELECT 'xiaoqu', 2, id, name, 'xiaoqu', city, district, geom
+    FROM xiaoqu
+  UNION ALL
+  SELECT 'poi', 3, id, name, COALESCE(type, ''), city, district, geom
+    FROM poi_facilities
+) s
+WHERE ($1::text IS NULL OR name ILIKE $1)
+ORDER BY prio, city NULLS FIRST, name
+LIMIT $2
+`
 
 @Injectable()
 export class SiteAnalysisRepository {
@@ -94,32 +131,21 @@ export class SiteAnalysisRepository {
     return res.rows.map(toFacilityPoint)
   }
 
-  // POI 名称关键词搜索（航线分析选点）：全类型可搜（不限选址白名单），
-  // ILIKE '%kw%' 参数化无拼接面；keyword 为空时不加名称条件（返回前 limit 条兜底列表）。
-  // 上限防御：limit 钳制 1..50，防一次拉全表
+  // 名称关键词搜索（航线分析选点）：多源点集（见 MULTI_SOURCE_SEARCH_SQL）。
+  // 上限防御：limit 钳制 1..200（0/NaN 视为未提供 → 缺省 50）——四类点集合并后 50 太小
+  //（用户会想"再多看几条"），200 行载荷仍属轻量；更大量级才需要分页，当前不做
   async searchPois(keyword: string, limit: number): Promise<PoiSearchItem[]> {
-    const safeLimit = Math.min(Math.max(Math.trunc(limit) || 20, 1), 50)
+    const safeLimit = Math.min(Math.max(Math.trunc(limit) || 50, 1), 200)
     const kw = keyword.trim()
-    const params: unknown[] = []
-    let where = ''
-    if (kw) {
-      params.push(`%${kw}%`)
-      where = `WHERE name ILIKE $1`
-    }
-    params.push(safeLimit)
-    const res = await this.db.query<PoiSearchRow>(
-      `SELECT id, name, type, city, district,
-              ST_X(ST_Transform(geom, 4326)) AS lng, ST_Y(ST_Transform(geom, 4326)) AS lat
-       FROM poi_facilities
-       ${where}
-       ORDER BY city, type, id
-       LIMIT $${params.length}`,
-      params
-    )
+    const res = await this.db.query<PoiSearchRow>(MULTI_SOURCE_SEARCH_SQL, [
+      kw ? `%${kw}%` : null,
+      safeLimit,
+    ])
     return res.rows.map((row) => ({
       id: row.id ?? '',
       name: row.name ?? '',
       type: row.type ?? '',
+      source: row.source,
       city: row.city ?? '',
       district: row.district,
       lng: row.lng,

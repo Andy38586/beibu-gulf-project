@@ -17,11 +17,13 @@ export interface TypeSetting {
   [key: string]: unknown
 }
 
-// POI 关键词搜索结果项（航线分析选点用；坐标 4326 由 SQL ST_Transform 出）
+// 关键词搜索结果项（航线分析选点用；坐标 4326 由 SQL ST_Transform 出）
+// source = 来源点集（port/facility/xiaoqu/poi）——多源合并后前端按来源显示标签
 export interface PoiSearchItem {
   id: string
   name: string
   type: string
+  source: string
   city: string
   district: string | null
   lng: number

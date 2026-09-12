@@ -6,6 +6,7 @@ export const ROUTES_MANIFEST = [
   { method: 'POST', path: 'nest-api/auth/logout' },
   { method: 'GET', path: 'nest-api/auth/me' },
   { method: 'POST', path: 'nest-api/auth/register' },
+  { method: 'POST', path: 'nest-api/csp-report' },
   { method: 'GET', path: 'nest-api/favorites' },
   { method: 'POST', path: 'nest-api/favorites' },
   { method: 'DELETE', path: 'nest-api/favorites/:itemType/:itemId' },

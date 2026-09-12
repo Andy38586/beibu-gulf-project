@@ -84,14 +84,21 @@ describe('flood e2e（真数据文件 + 真库档位表）', () => {
   describe.skipIf(process.env.V3_INTEGRATION_DB === undefined)(
     'PostGIS 档位表（251 档，0.1m 步长）',
     () => {
-      it('flood-areas 无水位 → 返回全部 251 档', async () => {
-        const res = await request(app.getHttpServer()).get(`${base}/flood-areas`).expect(200)
-        expect(res.body.code).toBe(200)
-        const levels = res.body.data.map((z: { waterLevel: number }) => z.waterLevel)
-        expect(levels).toHaveLength(251)
-        expect(levels[0]).toBe(0)
-        expect(levels[levels.length - 1]).toBe(25)
-      })
+      it(
+        'flood-areas 无水位 → 返回全部 251 档',
+        // 2026-09-12：取档几何加 ST_IsValid/ST_MakeValid 自愈门控后，全档兼容路径
+        //（4869 片 transform+校验）SQL 实测 ~4.4s，超 vitest 默认 5s —— 本路径为
+        // 兼容保留（前端恒传 waterLevel，真实 UI 走轻量取档路径），放宽本用例超时
+        { timeout: 15_000 },
+        async () => {
+          const res = await request(app.getHttpServer()).get(`${base}/flood-areas`).expect(200)
+          expect(res.body.code).toBe(200)
+          const levels = res.body.data.map((z: { waterLevel: number }) => z.waterLevel)
+          expect(levels).toHaveLength(251)
+          expect(levels[0]).toBe(0)
+          expect(levels[levels.length - 1]).toBe(25)
+        }
+      )
 
       it('flood-areas?waterLevel=3.47 → 向上取档 3.5（0.1 步长精度，非 6 档粗化）', async () => {
         const res = await request(app.getHttpServer())
@@ -152,7 +159,8 @@ describe('flood e2e（真数据文件 + 真库档位表）', () => {
             .expect(200),
         ])
         expect(statsRes.body.data.waterLevel).toBe(8)
-        expect(statsRes.body.data.riskLevelCode).toBe(3)
+        // 水文锚定重划：8 ≤ 8 → 极高风险带（code 4）
+        expect(statsRes.body.data.riskLevelCode).toBe(4)
         expect(statsRes.body.data.affectedFacilityCount).toBe(
           disasterRes.body.data.affectedFacilities.length
         )
@@ -160,13 +168,14 @@ describe('flood e2e（真数据文件 + 真库档位表）', () => {
         expect(statsRes.body.data.affectedPorts.length).toBeGreaterThan(0)
       })
 
-      it('POST analysis/disaster waterLevel=8 → 200 信封 + 高风险档位 + 设施真实命中', async () => {
+      it('POST analysis/disaster waterLevel=8 → 200 信封 + 极高风险档位 + 设施真实命中', async () => {
         const res = await request(app.getHttpServer())
           .post(`${base}/analysis/disaster`)
           .send({ waterLevel: 8 })
           .expect(200)
         expect(res.body.code).toBe(200)
-        expect(res.body.data.riskLevel).toBe('高风险')
+        // 水文锚定重划：8 ≤ 8 → 极高风险（原 0/2/5/8/10/15 口径下为 高风险）
+        expect(res.body.data.riskLevel).toBe('极高风险')
         expect(res.body.data.requestedWaterLevel).toBe(8)
         expect(res.body.data.waterLevel).toBe(8)
         // 2026-09-11 修复 SRID 混用前此处断言为 toEqual([])——那是把故障当规格：

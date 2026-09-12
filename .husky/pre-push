@@ -1,12 +1,20 @@
 #!/usr/bin/env sh
-# pre-push：门禁 = 全量 typecheck（前端 vue-tsc + 后端 nest tsc） + v3 三道防线 + nest 全量测试。
+# pre-push：本地门禁 = CI 检查清单的"秒级静态子集"（对齐 CI-CD 审查 P0-2 / C3）。
 # 背景：pre-commit 仅跑 lint（eslint/ban-ts-comment 拦 @ts-nocheck），
 # 但类型错误（如 store 属性不存在、签名不匹配）eslint 不报——
 # 必须在 push 前跑全量 vue-tsc，typecheck 不过拒绝推送。
-# 后端 nest：nest build 对类型错误 exit 0，tsc --noEmit 才是真实类型门禁；
-# 无 PG 环境（本机/CI）真库 e2e 套件经 V3_INTEGRATION_DB 门控自动跳过，不阻塞推送。
-# 全量 typecheck 约 1-2 分钟，故放 push 而非 commit；本地可随时手动 npm run typecheck。
+# 后端 nest：nest build 对类型错误 exit 0，tsc --noEmit 才是真实类型门禁。
+# 2026-09-12（C3）：补齐 format:check / lint / stylelint / cruise / types:check 五项——
+# 此前本地只拦 4 项、CI 查 13+ 项，低级违规首次暴露必在 CI（"大版本 CI 连败"根因①）。
+# 全部为秒级~1 分钟静态项；前端全量测试/覆盖率仍在 CI（本地跑 npm run ci:local）。
+# 逃生通道：git push --no-verify（首次暴露问题在 CI 属预期行为，勿常态化使用）。
+# 真库 e2e 套件经 V3_INTEGRATION_DB 门控自动跳过，不阻塞推送。
+npm run guard:v3
+npm run format:check
+npm run lint
+npm run stylelint
+npm run cruise
+npm run types:check
 npm run typecheck
 npm run typecheck --prefix backend
-npm run guard:v3
 npm test --prefix backend

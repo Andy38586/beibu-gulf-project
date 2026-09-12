@@ -4,15 +4,23 @@
 // flood 模块入参与档位选取共用此界
 export const MAX_WATER_LEVEL = 25
 
-// 风险等级分段（六档语义：0 无 / 2 低 / 5 中 / 8 高 / 10 极高 / 15+ 灾难级）。
-// 预计算档位表无 riskLevel 字段，由水位分段派生；阈值集中此处，
-// 与 Express floodAnalysisController.js 及前端风险色档位同口径
+// 风险等级分段（六档，海平面/EGM96 基准；浸没基准重派生 2026-09-12 重划）。
+// 阈值锚点（前四档水文硬锚点，后两档工程判断锚点——常量可调，调整须同步前端镜像
+// frontend/src/shared/constants/flood.ts 的 RISK_LEVEL_THRESHOLDS）：
+//   无风险 ≤0      平均海平面及以下（水位 ≤ MSL 时陆域无淹没——地形最低 0m）
+//   低风险 ≤+2.0   平均海平面 → 设计高潮位（waterLevel.json mhhw=4.5 深度基准 − msl 2.5，50 年一遇）
+//   中风险 ≤+4.3   设计高潮位 → 极端最高（extreme=6.8 深度基准 − 2.5，100 年一遇）
+//   高风险 ≤+6.0   超出百年一遇 ~1.4 倍（工程判断锚点）
+//   极高风险 ≤+8.0 主要港口设施高程下缘带（设施高程 0-27m，主体 5-12m；工程判断锚点）
+//   灾难级 >+8.0   多数码头设施淹没
+// 旧口径（0/2/5/8/10/15）为理论深度基准时代遗留，未随基准统一换算，已废弃；
+// 预计算档位表无 riskLevel 字段，由水位分段派生；阈值集中此处。
 export const RISK_LEVEL_BANDS = [
   { maxLevel: 0, label: '无风险' },
   { maxLevel: 2, label: '低风险' },
-  { maxLevel: 5, label: '中风险' },
-  { maxLevel: 8, label: '高风险' },
-  { maxLevel: 10, label: '极高风险' },
+  { maxLevel: 4.3, label: '中风险' },
+  { maxLevel: 6, label: '高风险' },
+  { maxLevel: 8, label: '极高风险' },
   { maxLevel: Number.POSITIVE_INFINITY, label: '灾难级' },
 ] as const
 

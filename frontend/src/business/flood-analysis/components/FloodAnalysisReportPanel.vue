@@ -26,15 +26,11 @@ const contentStyle = computed(() => {
   }
 })
 
-/** 影响等级（根据总损失计算） */
-const impactLevel = computed(() => {
-  const loss = floodStore.totalLoss
-  if (loss === 0) return '无'
-  if (loss < 10000) return '低'
-  if (loss < 50000) return '中'
-  if (loss < 100000) return '高'
-  return '极高'
-})
+/** 影响等级：直读评估返回的风险分级（floodStore.floodRiskLevel ← 后端
+ *  RISK_LEVEL_BANDS 派生，与滑块动态徽章同一张表）。2026-09-12 重划后统一：
+ *  原实现按总损失阈值（1万/5万/10万元）自算第三套分级，阈值停留在早期万元口径，
+ *  损失进入亿级后恒为"极高"，分级失效——三套分级并存至此收口为一张表 */
+const impactLevel = computed(() => floodStore.floodRiskLevel)
 
 /** 受影响港口列表（从 floodStatistics 提取并类型收窄） */
 const affectedPorts = computed<string[]>(() => {

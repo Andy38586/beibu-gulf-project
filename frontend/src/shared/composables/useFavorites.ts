@@ -19,7 +19,7 @@ import { showError } from '../utils/errorHandler'
 import { showToast } from '../utils/gcsFeedback'
 
 import { useApiRequest } from './useApiRequest'
-import { useAuth } from './useAuth'
+import { isAuthRestoreDone, useAuth } from './useAuth'
 
 const favorites = ref<FavoriteItem[]>([])
 let fetchInFlight = false
@@ -27,7 +27,7 @@ let fetchInFlight = false
 let pendingFavorite: FavoriteAddInput | null = null
 
 const { apiRequest } = useApiRequest()
-const { user } = useAuth()
+const { user, token } = useAuth()
 
 /** 返回契约（对齐 显式化，防签名静默漂移） */
 export interface UseFavoritesReturn {
@@ -46,10 +46,12 @@ async function fetchFavorites(): Promise<void> {
   favorites.value = items
 }
 
-/** 登录态驱动：登录 → 拉取 + 补完未登录期的收藏意图；登出 → 清空 */
+/** 登录态驱动：登录 → 拉取 + 补完未登录期的收藏意图；登出 → 清空。
+ *  源含 token：restore 以「保留临时登录态」收场时（后端不可达 ≠ 未登录）user 不变，
+ *  仅 token 置位 —— 监听 token 空→非空让该路径也能触发重拉（审查 L-3） */
 watch(
-  user,
-  async (u) => {
+  [user, token],
+  async ([u]) => {
     if (!u) {
       favorites.value = []
       return
@@ -59,10 +61,16 @@ watch(
     try {
       await fetchFavorites()
     } catch (error) {
-      // 拉取失败静默：收藏列表为空，后续 add/remove 仍可用（后端幂等兜底）
-      if (import.meta.env.DEV) {
-        // eslint-disable-next-line no-console -- DEV 门控诊断（logger.debug 级别语义不同）
-        console.debug('[useFavorites] 拉取收藏失败:', error)
+      if (!isAuthRestoreDone()) {
+        // 恢复期（/auth/me 未完成）：stale localStorage user 的 401 可能随后被 restore
+        // 清场，此刻提示多为误报 → 静默；恢复成功路径 user 会重新赋值，本 watch 自动重拉
+        if (import.meta.env.DEV) {
+          // eslint-disable-next-line no-console -- DEV 门控诊断（logger.debug 级别语义不同）
+          console.debug('[useFavorites] 恢复期拉取收藏失败（静默，待恢复后重判）:', error)
+        }
+      } else {
+        // 恢复完成后仍失败：显式可见（原实现一律静默 → 收藏面板空白且无解释，审查 L-3）
+        showError(error, { fallback: '收藏列表加载失败，请稍后重试' })
       }
     } finally {
       fetchInFlight = false

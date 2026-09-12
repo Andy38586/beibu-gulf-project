@@ -161,3 +161,6 @@ backend/static/terrain/
 frontend/vite.local-online.config.js
 # 性能测评报告产物（2026-09-10 会话生成、本地报告：保留生成时样式，不随库维护；2026-09-12 决策入库 gitignore）
 性能测评-20260910/
+
+# CodeBuddy 会话运行时产物(同 .zcode,agent 生成非项目源码)
+.codebuddy/

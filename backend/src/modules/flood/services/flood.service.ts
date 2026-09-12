@@ -344,7 +344,19 @@ export class FloodService {
     const hitIndices =
       polygons.length > 0 ? await this.spatial.pointIndicesInAnyPolygon(candidates, polygons) : []
 
-    const affectedFacilities = hitIndices.map((index) => {
+    // 高程门控（P1.5，2026-09-12）：淹没几何生成含 300m 简化容差 + 降采样，沿岸高地设施
+    // 会被外扩多边形吞进点面判定（实证：2m 档"淹"了 4 处 9-12m 码头，损失数字含假阳性）。
+    // mask 语义是 dem ≤ level（EGM96），设施判定对齐之：多边形命中 且 设施高程 ≤ 实际选中
+    // 档位值。高程缺失时退回纯点面判定（不因数据缺失漏报——宁可高估不可低估）。
+    const pickedLevel = Number(floodZone.waterLevel)
+    const gated = Number.isFinite(pickedLevel)
+      ? hitIndices.filter((index) => {
+          const elevation = Number(candidates[index].elevation)
+          return !Number.isFinite(elevation) || elevation <= pickedLevel
+        })
+      : hitIndices
+
+    const affectedFacilities = gated.map((index) => {
       const facility = candidates[index]
       return {
         id: facility.id,

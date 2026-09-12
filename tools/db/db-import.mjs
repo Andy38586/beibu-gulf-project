@@ -227,6 +227,47 @@ END $$;
     floodT.written++
   }
 
+  // ===== admin_boundary（行政区划 12 区县 + 预联合并集；淹没面陆域裁剪用，2026-09-12） =====
+  // 与 frontend/public/data/site-selection/boundary.geojson 同源（前端行政区划图层同款数据），
+  // 改任一侧必须同步。4326 直存（仅与 4326 淹没面做 ST_Intersection，无 4490 交互）
+  const boundaryPath = path.join(
+    dataDir,
+    '..',
+    '..',
+    'frontend',
+    'public',
+    'data',
+    'site-selection',
+    'boundary.geojson'
+  )
+  if (fs.existsSync(boundaryPath)) {
+    const bnd = JSON.parse(fs.readFileSync(boundaryPath, 'utf8'))
+    statements.push('TRUNCATE admin_boundary; TRUNCATE admin_boundary_union;')
+    const adminT = begin('admin_boundary')
+    adminT.source = bnd.features?.length ?? 0
+    for (const f of bnd.features ?? []) {
+      const geomJson = JSON.stringify(f.geometry)
+      statements.push(
+        `INSERT INTO admin_boundary (adcode, name, geom) VALUES (${Number(
+          f.properties?.adcode
+        )}, ${esc(f.properties?.name ?? null)}, ST_Multi(ST_SetSRID(ST_GeomFromGeoJSON('${geomJson.replaceAll(
+          "'",
+          "''"
+        )}'), 4326)));`
+      )
+      adminT.written++
+    }
+    // 预联合并集（单行）：PICK 取档查询按行 CROSS JOIN 此表求交，联合灌数时一次算好
+    statements.push(
+      'INSERT INTO admin_boundary_union (id, geom) SELECT 1, ST_Multi(ST_UnaryUnion(ST_Collect(geom))) FROM admin_boundary;'
+    )
+    const unionT = begin('admin_boundary_union')
+    unionT.source = 1
+    unionT.written = 1
+  } else {
+    report.warnings.push('boundary.geojson 不存在，admin_boundary/admin_boundary_union 未导入')
+  }
+
   // ===== data_archive（静态真数据原样存档；假数据/mock 不入库；ports 已有独立表且源在前端静态，不再存档）=====
   const archiveFiles = [
     ...['index', 'cargo', 'container', 'container_model', 'throughput_model', 'traffic', 'berth']

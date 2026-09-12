@@ -1,9 +1,11 @@
 <script setup lang="ts">
 /**
- * 水位滑块与剖面分析面板：滑块控制水位（0-25m，251 档 0.1m 步进）、点击刻度标记、
- * 下拉选择预设剖面线，自动显示高程剖面图并叠加当前水位线。布局 4×4，右上角。
- * 7 个刻度是潮汐基准面参照标记（0-15m，最低潮面→最高潮位），与数据档位上限
- * MAX_WATER_LEVEL（后端权威，shared/constants/flood.ts 同源）是两个层的东西。
+ * 水位滑块与剖面分析面板：滑块控制水位（0-10m，海平面/EGM96 基准，0.1m 步进；
+ * 0 = 平均海平面）、点击等距刻度标记、下拉选择预设剖面线，自动显示高程剖面图
+ * 并叠加当前水位线。布局 4×4，右上角。
+ * 刻度 5 档等距纯数值（0/2.5/5/7.5/10，下方三上方二）；风险语义由标题行动态徽章
+ * 实时承载（deriveRiskLevelDisplay，与后端 RISK_LEVEL_BANDS 同表）。后端数据全域
+ * 0-25 保留，展示域收口见 FLOOD_DISPLAY_MAX_WATER_LEVEL。
  */
 
 import { LineChart } from 'echarts/charts'
@@ -20,7 +22,8 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 
 import { useSliderFocus } from '@/core'
 import {
-  MAX_WATER_LEVEL,
+  deriveRiskLevelDisplay,
+  FLOOD_DISPLAY_MAX_WATER_LEVEL,
   PROFILE_AREA_STOP_STRONG,
   PROFILE_AREA_STOP_WEAK,
   PROFILE_COLORS,
@@ -65,24 +68,26 @@ const localWaterLevel = computed<number>({
 })
 
 /**
- * 可点击刻度标记（潮汐基准面参照系，下排 4 档 + 上排 3 档交错防拥挤）：
- * 潮汐基准专业术语——平均海平面 2.5m 与 waterLevel.json baseLevels.msl 同源，
- * 低水位区为潮汐基准面体系，高水位区为极值潮位体系（警戒/设计/历史极值）。
- * row 控制交错排布；value 同时是点击跳转的水位与轨道百分比（value/MAX_WATER_LEVEL）。
- * 刻度是参照标记而非档位——滑块数据上限为 251 档的 0-25m（审查口径分裂修复）
+ * 可点击刻度标记（5 档等距：0/2.5/5/7.5/10，25% 等距，纯数值标签；步进 0.1m 手感）。
+ * 风险语义不走静态刻度——阈值（0/2/5/8/10，backend RISK_LEVEL_BANDS 同源）与等距
+ * 位置对不齐，硬贴档名会错档；改为标题行"当前风险"动态徽章实时显示
+ *（deriveRiskLevelDisplay，同一张分级表），语义与美感兼得（2026-09-12 用户口径）。
+ * row 控制上下排布；value 同时是点击跳转的水位与轨道百分比
+ *（value/FLOOD_DISPLAY_MAX_WATER_LEVEL）
  */
 const scaleMarks = [
-  { label: '最低潮面', value: 0, row: 'bottom' },
-  { label: '平均海平面', value: 2.5, row: 'top' },
-  { label: '平均高潮面', value: 5, row: 'bottom' },
-  { label: '大潮高潮面', value: 7.5, row: 'top' },
-  { label: '警戒潮位', value: 10, row: 'bottom' },
-  { label: '设计高潮位', value: 12.5, row: 'top' },
-  { label: '最高潮位', value: 15, row: 'bottom' },
+  { label: '0m', value: 0, row: 'bottom' },
+  { label: '2.5m', value: 2.5, row: 'top' },
+  { label: '5m', value: 5, row: 'bottom' },
+  { label: '7.5m', value: 7.5, row: 'top' },
+  { label: '10m', value: 10, row: 'bottom' },
 ] as const
 
-/** 末位标记（最高潮位）：--last 样式锚点随标记数组派生，不再硬编码 15 */
+/** 末位标记（10m=展示域上限）：--last 样式锚点随标记数组派生 */
 const lastMark = scaleMarks[scaleMarks.length - 1]
+
+/** 当前水位对应的风险等级（动态徽章文案；分级阈值见 shared/constants/flood.ts） */
+const currentRiskLabel = computed(() => deriveRiskLevelDisplay(floodStore.waterLevel))
 
 /** 滑块变化直接写 store；防抖由父组件统一处理（可写 computed 的 set 即写 store） */
 function onSliderChange(value: number | number[]) {
@@ -136,12 +141,11 @@ function updateChart() {
     return
   }
 
-  // 提取距离和高程数据；垂直基准统一到「基准面起算」口径——
-  // 地形 EGM96 高程 + datumOffset(msl=2.5) 抬升，水位线直接用滑块值（0-25，无负值）：
-  // 水面线与地形的相对关系不变，y 轴不再出现负刻度（口径即滑块口径：基准面=0）
+  // 提取距离和高程数据；海平面基准统一口径（浸没基准重派生 P4）——
+  // 地形 EGM96 高程原值直绘，水位线 = 滑块值（0 = 平均海平面），不再 +datumOffset：
+  // datumOffset（深度基准 → EGM96 的 +2.5）随基准统一退役，metadata 字段仅过渡期保留
   const distances = profile.points.map((p) => p.distance)
-  const datumOffset = profile.datumOffset ?? 0
-  const elevations = profile.points.map((p) => p.elevation + datumOffset)
+  const elevations = profile.points.map((p) => p.elevation)
 
   const waterLevel = floodStore.waterLevel
 
@@ -212,8 +216,7 @@ function updateChart() {
       {
         name: '水位线',
         type: 'line',
-        // 基准面起算口径：地形已 +datumOffset 抬升至同口径，水位线直接取滑块值，
-        // 0 = 理论深度基准面，全程非负
+        // 海平面基准口径：地形为 EGM96 原值，水位线 = 滑块值（0 = 平均海平面）
         data: distances.map(() => waterLevel),
         lineStyle: {
           color: PROFILE_COLORS.water,
@@ -288,7 +291,10 @@ onUnmounted(() => {
   <div class="water-level-profile-panel">
     <!-- 标题区 -->
     <div class="panel-header">
-      <div class="header-title">剖面分析</div>
+      <div class="header-title">
+        剖面分析
+        <span class="risk-badge">{{ currentRiskLabel }}</span>
+      </div>
       <ElSelect
         v-model="selectedProfileId"
         placeholder="选择剖面线"
@@ -313,7 +319,7 @@ onUnmounted(() => {
       <ElSlider
         v-model="localWaterLevel"
         :min="0"
-        :max="MAX_WATER_LEVEL"
+        :max="FLOOD_DISPLAY_MAX_WATER_LEVEL"
         :step="0.1"
         :show-tooltip="false"
         @pointerdown="beginSliderFocus($event.currentTarget as HTMLElement)"
@@ -331,7 +337,7 @@ onUnmounted(() => {
             mark.row === 'top' ? 'scale-mark--top' : 'scale-mark--bottom',
             { 'scale-mark--first': mark.value === 0, 'scale-mark--last': mark === lastMark },
           ]"
-          :style="{ left: (mark.value / MAX_WATER_LEVEL) * 100 + '%' }"
+          :style="{ left: (mark.value / FLOOD_DISPLAY_MAX_WATER_LEVEL) * 100 + '%' }"
           @click="setWaterLevelByMark(mark.value)"
         >
           {{ mark.label }}
@@ -364,6 +370,19 @@ onUnmounted(() => {
   font-size: var(--GCS-font-size-lg); /* 面板标题字号归档 */
   font-weight: 600;
   color: var(--GCS-text-primary);
+}
+
+/* 当前风险动态徽章：滑块水位实时分级（RISK_LEVEL_THRESHOLDS 同一涨表），
+   语义由徽章承载、刻度保持等距数值（两者解耦——阈值与等距位置对不齐） */
+.risk-badge {
+  margin-left: v-bind(cell8px);
+  padding: 0 calc(v-bind(cell8px) / 2);
+  font-size: var(--GCS-font-size-xs);
+  font-weight: 500;
+  color: var(--GCS-color-warning);
+  border: 1px solid var(--GCS-color-warning);
+  border-radius: calc(var(--GCS-slider-thumb-size) / 2);
+  vertical-align: middle;
 }
 
 .profile-select {
@@ -432,7 +451,7 @@ onUnmounted(() => {
 }
 
 /* 刻度 7 档上下交错（上 3 下 4）：刻度层绝对覆盖滑块容器，top 行贴滑块上方、
-   bottom 行贴滑块下方；left=value/MAX_WATER_LEVEL 与轨道真实位置一致，nowrap 防折行，
+   bottom 行贴滑块下方；left=value/FLOOD_DISPLAY_MAX_WATER_LEVEL 与轨道真实位置一致，nowrap 防折行，
    首尾单侧对齐防溢出面板 */
 .scale-marks {
   position: absolute;

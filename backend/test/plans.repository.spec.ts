@@ -84,7 +84,9 @@ describe.skipIf(!withDb)('plansRepository（真库）', () => {
     const saved = (again as Record<string, unknown>).savedXiaoqu as Record<string, unknown>[]
     expect(saved).toHaveLength(1)
     expect(saved[0].name).toBe('小区A改')
-    expect(saved[0].savedAt).not.toBe((once as Record<string, unknown>).savedXiaoqu) // savedAt 已刷新
+    // 与第一次保存的同条目 savedAt 比较（毫秒精度时间戳，两次保存间隔 5ms 必不同）
+    const firstSaved = (once as Record<string, unknown>).savedXiaoqu as Record<string, unknown>[]
+    expect(saved[0].savedAt).not.toBe(firstSaved[0].savedAt) // savedAt 已刷新
   })
 
   it('removeXiaoqu 键不存在返回原方案；存在则过滤', async () => {

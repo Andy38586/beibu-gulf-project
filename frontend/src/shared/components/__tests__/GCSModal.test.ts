@@ -8,8 +8,8 @@
  * 原页面，ProfilePage 的 redirect 消费逻辑成为死代码。
  */
 import { mount } from '@vue/test-utils'
-import { nextTick } from 'vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { nextTick } from 'vue'
 
 const mockPush = vi.hoisted(() => vi.fn())
 vi.mock('vue-router', () => ({

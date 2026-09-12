@@ -19,10 +19,6 @@
         }
       }
     },
-    "analysisResultSchema": {
-      "kind": "record",
-      "fields": {}
-    },
     "floodGeometrySchema": {
       "kind": "union",
       "fields": {
@@ -177,6 +173,47 @@
         }
       }
     },
+    "floodStatisticsResponseSchema": {
+      "kind": "object",
+      "fields": {
+        "waterLevel": {
+          "type": "number",
+          "optional": true
+        },
+        "requestedWaterLevel": {
+          "type": "number",
+          "optional": true
+        },
+        "actualWaterLevel": {
+          "type": "number",
+          "optional": true
+        },
+        "riskLevel": {
+          "type": "string",
+          "optional": false
+        },
+        "riskLevelCode": {
+          "type": "number",
+          "optional": true
+        },
+        "floodArea": {
+          "type": "number",
+          "optional": true
+        },
+        "averageDepth": {
+          "type": "number",
+          "optional": true
+        },
+        "maxDepth": {
+          "type": "number",
+          "optional": true
+        },
+        "depthRefLevel": {
+          "type": "number",
+          "optional": true
+        }
+      }
+    },
     "planSchema": {
       "kind": "object",
       "fields": {
@@ -262,47 +299,6 @@
         "features": {
           "type": "array",
           "optional": false
-        }
-      }
-    },
-    "floodStatisticsResponseSchema": {
-      "kind": "object",
-      "fields": {
-        "waterLevel": {
-          "type": "number",
-          "optional": true
-        },
-        "requestedWaterLevel": {
-          "type": "number",
-          "optional": true
-        },
-        "actualWaterLevel": {
-          "type": "number",
-          "optional": true
-        },
-        "riskLevel": {
-          "type": "string",
-          "optional": false
-        },
-        "riskLevelCode": {
-          "type": "number",
-          "optional": true
-        },
-        "floodArea": {
-          "type": "number",
-          "optional": true
-        },
-        "averageDepth": {
-          "type": "number",
-          "optional": true
-        },
-        "maxDepth": {
-          "type": "number",
-          "optional": true
-        },
-        "depthRefLevel": {
-          "type": "number",
-          "optional": true
         }
       }
     },

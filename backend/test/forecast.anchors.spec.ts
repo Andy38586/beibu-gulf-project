@@ -18,8 +18,6 @@ import { describe, expect, it } from 'vitest'
  */
 
 const ROOT = path.resolve(__dirname, '../..')
-const FORECAST_DIR = path.join(ROOT, 'backend/data/forecast')
-const PORTS_JSON = path.join(ROOT, 'frontend/public/data/ports.json')
 
 /** 权威源：frontend/public/data/ports.json（端口 id 与 forecast 文件的 data key 对齐） */
 const PORT_ID_BY_NAME: Record<string, string> = {

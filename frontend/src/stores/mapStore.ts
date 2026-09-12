@@ -5,8 +5,8 @@ import { ref, shallowRef } from 'vue'
 import { logger } from '@/shared'
 import { readStoredJSON, writeStoredJSON } from '@/shared/utils/safeStorage'
 import type { EngineName, LayerEntry, LayerType, MapType } from '@/types'
-import { DEFAULT_ENGINES } from '@/types'
 import type { MapRenderer } from '@/types'
+import { DEFAULT_ENGINES } from '@/types'
 
 /** localStorage 键：底图 */
 const BASE_LAYER_STORAGE_KEY = 'beibu-gulf-base-layer'

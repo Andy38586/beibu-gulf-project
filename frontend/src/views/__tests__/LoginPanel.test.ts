@@ -11,14 +11,20 @@
  *    前端只留「本端可判」的长度与两次一致。
  */
 import { mount } from '@vue/test-utils'
-import { nextTick } from 'vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { nextTick } from 'vue'
 
 const mockLogin = vi.hoisted(() => vi.fn())
 const mockRegister = vi.hoisted(() => vi.fn())
-vi.mock('@/shared/composables/useAuth', () => ({
-  useAuth: () => ({ login: mockLogin, register: mockRegister }),
-}))
+// user/token 补齐 UseAuthReturn 契约：@/shared barrel 会 re-export useFavorites，
+// 其模块顶层 watch([user, token]) 在本文件加载期即执行——mock 缺任一字段
+// 都会触发「Invalid watch source: undefined」Vue warn
+vi.mock('@/shared/composables/useAuth', async () => {
+  const { ref } = await import('vue')
+  return {
+    useAuth: () => ({ user: ref(null), token: ref(''), login: mockLogin, register: mockRegister }),
+  }
+})
 
 import { ApiError, ErrorCode } from '@/shared/composables/useApiRequest'
 import { gcsToastState } from '@/shared/utils/gcsFeedback'

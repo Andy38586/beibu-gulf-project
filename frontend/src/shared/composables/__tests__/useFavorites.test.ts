@@ -30,7 +30,13 @@ vi.mock('@/shared/composables/useAuth', async () => {
   const { ref } = await import('vue')
   const user = ref(null)
   state.userRef = user
-  return { useAuth: () => ({ user }) }
+  // token 补齐 UseAuthReturn 契约：useFavorites 的 watch 源为 [user, token]（L-3），
+  // mock 缺 token 会触发「Invalid watch source: undefined」Vue warn
+  // isAuthRestoreDone 同理：useFavorites catch 分支调用，缺失即 TypeError 炸弹
+  return {
+    useAuth: () => ({ user, token: ref('') }),
+    isAuthRestoreDone: () => true,
+  }
 })
 
 async function importFreshFavorites() {

@@ -1,4 +1,3 @@
-import * as turf from '@turf/turf'
 import RBush from 'rbush'
 
 import { DEFAULT_WEIGHTS, IMPORTANCE_FACTOR } from '../../../common/constants/scoring.constants'
@@ -9,7 +8,7 @@ import type { FacilityPoint, TypeSetting } from '../dto/site-analysis.dto'
 
 /** 线性距离衰减：距离 >= maxDistance 得 0 分，否则按比例线性衰减（百分制） */
 export const linearDecay = (distance: number, maxDistance: number): number => {
-  // 无效坐标会使 turf.distance 返回 NaN（NaN >= 0 恒 false → 穿透到除法）；
+  // 无效坐标会使球面距离返回 NaN（NaN >= 0 恒 false → 穿透到除法）；
   // 显式守卫，NaN 距离按 0 分处理（NaN 不传播）
   if (!Number.isFinite(distance) || distance >= maxDistance) return 0
   return (1 - distance / maxDistance) * 100
@@ -117,11 +116,18 @@ function distanceScore(
   // 属防御语义隐含依赖；生产固定 linearDecay 不触发，此处显式分离「无设施/越界衰减」语义
   if (candidates.length === 0) return 0
 
-  // 精确距离计算（仅对候选点）
-  const xqPoint = turf.point([xq.lng, xq.lat])
+  // 精确距离计算（仅对候选点）。球面 haversine，地球半径 6371.0088km 与原 turf.distance
+  // 同公式同常数（逐位等价）；2026-09-12 起 @turf/turf 自后端全面退役（技术路线已由
+  // PostGIS 版选址分析承接），此处为最后一处生产引用的本地点收费口
+  const rad = Math.PI / 180
+  const cosLat0 = Math.cos(xq.lat * rad)
   let nearest = Infinity
   for (const c of candidates) {
-    const d = turf.distance(xqPoint, turf.point([c.data.lng, c.data.lat]), { units: 'kilometers' })
+    const dLat = (c.data.lat - xq.lat) * rad
+    const dLng = (c.data.lng - xq.lng) * rad
+    const h =
+      Math.sin(dLat / 2) ** 2 + cosLat0 * Math.cos(c.data.lat * rad) * Math.sin(dLng / 2) ** 2
+    const d = 2 * 6371.0088 * Math.asin(Math.sqrt(h))
     if (d < nearest) nearest = d
   }
   return decayFn(nearest, maxDistanceKm)

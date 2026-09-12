@@ -75,6 +75,13 @@ async function restoreAuth(): Promise<User | null> {
   return restorePromise
 }
 
+/** 认证恢复是否已完成（未开始/在途均视为恢复期）。
+ *  供登录态驱动的数据拉取（useFavorites 等）区分「恢复期会话失效」与「已判定登录态下的失败」：
+ *  恢复期 401 可能随后被 restore 清场（stale localStorage user），此刻提示多为误报（审查 L-3） */
+export function isAuthRestoreDone(): boolean {
+  return authRestored && restorePromise === null
+}
+
 async function doRestore(): Promise<User | null> {
   try {
     const data = await apiRequest<{ user: User }>(ENDPOINTS.auth.me, { schema: authResponseSchema })

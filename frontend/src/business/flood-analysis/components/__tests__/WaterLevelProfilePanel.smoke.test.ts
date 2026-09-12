@@ -43,10 +43,21 @@ vi.mock('@/core/layout/useSliderFocus', () => ({
   useSliderFocus: () => ({ beginSliderFocus: vi.fn(), endSliderFocus: vi.fn() }),
 }))
 
-// mock useApiRequest 子模块（入口 @/shared 的 re-export 会解析到 mock）
-vi.mock('@/shared/composables/useApiRequest', () => ({
-  useApiRequest: () => ({ apiRequest: h.apiRequest }),
-}))
+// mock useApiRequest 子模块（入口 @/shared 的 re-export 会解析到 mock）。
+// token/setToken/clearToken 必须补齐：真实 useAuth 顶层从此处解构 token，
+// 缺失会让 useFavorites 模块顶层 watch([user, token]) 拿到 undefined
+//（「Invalid watch source」Vue warn）
+vi.mock('@/shared/composables/useApiRequest', async () => {
+  const { ref } = await import('vue')
+  return {
+    useApiRequest: () => ({
+      apiRequest: h.apiRequest,
+      token: ref(''),
+      setToken: vi.fn(),
+      clearToken: vi.fn(),
+    }),
+  }
+})
 
 import WaterLevelProfilePanel from '../WaterLevelProfilePanel.vue'
 

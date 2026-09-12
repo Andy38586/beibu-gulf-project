@@ -1,19 +1,79 @@
 name: CI
 
-# 特性分支 push 即跑全部校验门禁（audit / lint-and-build / nest-tests / algorithm-tests），
+# 特性分支 push 即跑全部校验门禁（audit / static-checks / frontend-tests / backend-tests），
 # 让「能否合入 main」在分支阶段就可见，不再攒到合入主线才第一次跑 CI、连环报错。
 # deploy job 自带 if: github.ref == 'refs/heads/main'，非 main 分支只校验、绝不部署，安全。
+# 2026-09-12（CI 审查 C2）：移除 pull_request 触发 —— push 已覆盖全分支（branches: ['**']），
+# PR 事件会对同一 commit 以 refs/pull/N/merge 再跑一轮全量流水线，且两组 concurrency
+# group（refs/heads/x vs refs/pull/N/merge）互不取消 = 同提交双跑（省近一半 CI 时长）。
+# 副作用：fork 仓库的 PR 不再触发本流水线（单人项目、分支直推，可接受）。
 on:
   push:
     branches: ['**']
-  pull_request:
-    branches: [main, master]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  # ── C6（P1）路径过滤（保守默认）─────────────────────────────────────────────
+  # 以 push 前后提交的变更清单决定两个测试 job 去留：
+  #   仅 docs/**、*.md、性能测评-* 变更 → 只跑 static-checks（文档改动不需要测试兜底）；
+  #   仅 backend/** 变更 → 跳过 frontend-tests；
+  #   仅 frontend/** 变更 → 跳过 backend-tests；
+  #   混合变更 / 根配置、tools、scripts、.github 等未知路径 → 全量跑（宁慢勿漏）。
+  # ⚠️ main 分支部署链路不受过滤影响：build-push-images / deploy 照常执行
+  #   （漏测比慢更糟的边界在测试侧，不在部署侧——部署拉的是 run_number 新 tag）。
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      run-frontend: ${{ steps.filter.outputs.run-frontend }}
+      run-backend: ${{ steps.filter.outputs.run-backend }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed paths（对比 push 前一提交）
+        id: filter
+        run: |
+          BASE="${{ github.event.before }}"
+          # 新分支首推（before=0000...）或本地无该对象时回退 HEAD~1；仓库首提交则全量跑
+          if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "$BASE" 2>/dev/null; then
+            if git rev-parse -q --verify HEAD~1 >/dev/null 2>&1; then BASE=HEAD~1; else BASE=HEAD; fi
+          fi
+          changed="$(git diff --name-only "$BASE" "${GITHUB_SHA}" || true)"
+          echo "changed paths vs ${BASE}:"
+          echo "$changed" | head -50
+          has_backend=0
+          has_frontend=0
+          has_other=0
+          if [ -z "$changed" ]; then
+            echo "diff 为空（首提交/回退路径），保守全量跑"
+            has_other=1
+          else
+            while IFS= read -r p; do
+              [ -z "$p" ] && continue
+              case "$p" in
+                docs/*|*.md|性能测评-*) ;;                      # 文档类：不触发测试
+                backend/*) has_backend=1 ;;
+                frontend/*) has_frontend=1 ;;
+                *) has_other=1; break ;;                        # 未知路径：全量
+              esac
+            done <<< "$changed"
+          fi
+          if [ "$has_other" -eq 1 ]; then
+            run_frontend=true; run_backend=true
+          else
+            [ "$has_frontend" -eq 1 ] && run_frontend=true || run_frontend=false
+            [ "$has_backend" -eq 1 ] && run_backend=true || run_backend=false
+          fi
+          echo "run-frontend=$run_frontend"
+          echo "run-backend=$run_backend"
+          echo "run-frontend=$run_frontend" >> "$GITHUB_OUTPUT"
+          echo "run-backend=$run_backend" >> "$GITHUB_OUTPUT"
+
   # d067 (P1): 依赖安全扫描。独立 job，high+ 漏洞阻断构建。
   # 使用官方 npm registry（npmmirror 镜像无 audit 端点，d042 教训）。
   # 2026-08-09：通过 package.json overrides 修复全部 8 个漏洞
@@ -21,6 +81,9 @@ jobs:
   # 移除 continue-on-error，恢复为硬性阻断。
   audit:
     runs-on: ubuntu-latest
+    needs: [changes]
+    # C6：docs-only 变更连依赖清单都不可能改，audit 一并跳过（对齐"只跑 static-checks"口径）
+    if: needs.changes.outputs.run-frontend == 'true' || needs.changes.outputs.run-backend == 'true'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -30,6 +93,11 @@ jobs:
         with:
           node-version: 22.x
           registry-url: https://registry.npmjs.org
+          # 2026-09-12（CI 审查 C8）：audit 此前是唯一无 npm 缓存的 job，双份 npm ci 全价
+          cache: 'npm'
+          cache-dependency-path: |
+            package-lock.json
+            backend/package-lock.json
 
       - name: Install root dependencies
         run: npm ci
@@ -45,33 +113,28 @@ jobs:
         working-directory: backend
         run: npm audit --audit-level=high
 
-  lint-and-build:
+  # ── C1（P0）拆巨石 job 之一：静态检查 ──────────────────────────────────────
+  # 原 lint-and-build 12 步串行"全有全无"（format 3 秒与 vite build 8 分钟同 job），
+  # 任何一步失败都要等前面全部跑完。拆分后本 job 纯静态 3-5 分钟出全量快检结果，
+  # 与测试 job 并行，失败反馈回路缩短 4-5 倍。
+  static-checks:
     runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        # engines 要求 node >= 22.18.0，CI 版本必须与之对齐
-        node-version: [22.x]
-
     steps:
       - name: Checkout code
-        # fix/refactor 测试门禁需比对 HEAD~1：checkout 默认浅克隆（depth=1）下 HEAD~1 不存在，
-        # git diff fatal + bash -e 会误杀本步骤（114 翻车根因），此处拉全量历史
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      - name: Setup Node.js ${{ matrix.node-version }}
+      - name: Setup Node.js
+        # engines 要求 node >= 22.18.0，CI 版本必须与之对齐
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: 22.x
           cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
 
-      # v3 迁移期：Nest 是独立 workspace（backend），typecheck 与测试需独立依赖，
-      # 与根/backend 依赖分开安装，对齐 ci:local 的分段语义
+      # v3 迁移期：Nest 是独立 workspace（backend），typecheck 需独立依赖，
+      # 与根依赖分开安装，对齐 ci:local 的分段语义
       - name: Install Nest dependencies
         working-directory: backend
         run: npm ci
@@ -132,17 +195,44 @@ jobs:
             exit 1
           fi
 
-      - name: Run frontend tests
-        run: npm test -- --coverage
+  # ── C1（P0）拆巨石 job 之二：前端测试 ─────────────────────────────────────
+  frontend-tests:
+    runs-on: ubuntu-latest
+    needs: [changes]
+    if: needs.changes.outputs.run-frontend == 'true'
+    steps:
+      - name: Checkout code
+        # fix/refactor 测试门禁需比对 HEAD~1：checkout 默认浅克隆（depth=1）下 HEAD~1 不存在，
+        # git diff fatal + bash -e 会误杀本步骤（114 翻车根因），此处拉全量历史
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # 2026-09-12（C5）：覆盖率门禁由 vitest 固定阈值改为基线棘轮
+      #（scripts/coverage-ratchet.cjs + frontend/coverage-baseline.json，容差 0.5pt）——
+      # 根除"大版本分母暴涨 → 总体百分比下滑 → 第一次 CI 必红"的机制性追尾
+      - name: Run frontend tests (coverage + ratchet)
+        run: |
+          npm test -- --coverage
+          node scripts/coverage-ratchet.cjs frontend/coverage/coverage-summary.json frontend/coverage-baseline.json
 
       # tools/ 下的脚本单测（导入/质检/迁移）：此前游离于所有测试链路之外，
       # `npm test` 只跑 frontend，写在这里的用例实际从未被执行（门禁清单存在 ≠ 被执行）。
-      # 覆盖率阈值不适用（工具脚本不入前端/后端阈值体系），故只跑断言。
+      # 覆盖率棘轮不适用（工具脚本不入前端/后端基线体系），故只跑断言。
       - name: Run tools tests
         run: npm run test:tools
 
       # 816-专项5并-4-4：fix:/refactor: 提交若改动 src 实现必须附测试（03 §1.6 提交约定）。
-      # 仅对 push 事件检查最近一次提交；PR 分支语义不适用（开发分支多为 squash）。
+      # 仅对 push 事件检查最近一次提交（push 全分支触发后 PR squash 语义不再适用）。
       - name: fix/refactor must include tests
         if: github.event_name == 'push'
         run: |
@@ -158,30 +248,40 @@ jobs:
             fi
           fi
 
-      - name: Build project
-        # 天地图 key 由 GitHub Secrets 注入（构建期打包进前端产物）。
-        # 缺失时 vite 用 .env 占位符构建 → 生产镜像底图 404（与本地 dev 行为不一致）。
-        # 配置：Settings → Secrets and variables → Actions → New secret: TIANDITU_KEY
-        run: npm run build
-        env:
-          VITE_TIANDITU_KEY: ${{ secrets.TIANDITU_KEY }}
-
-  # v3 业务层（NestJS，Express 退役后主 API）；依赖独立 workspace，随 job 落地
-  nest-tests:
+  # ── C1（P0）拆巨石 job 之三：后端测试 ── C4（P0）：真库门控套件激活 ────────
+  # 2026-09-12（C4）：挂 PostGIS+pgRouting service container，export V3_INTEGRATION_DB=1，
+  # 12 个此前在 CI 恒跳过的真库套件（repository 层 + 6 个 e2e 全链路）从"沉睡"变"站岗"
+  #（2026-09-10 pid 符号 / 2026-09-11 SRID 两类事故正源于该盲区）。
+  # 镜像用 pgrouting/pgrouting：postgis/postgis:16-3.4 无 pgRouting 扩展，
+  # route 域 pgr_withPoints 无法执行（本地 probe 实证）。库口径对齐 docker-compose.v3.yml。
+  # seed（backend/test/seed/ci-seed.sh）幂等：schema + 仓库内真数据（flood_levels 251 档 /
+  # 设施 83 / 港口 3）+ roads_noded 最小夹具；POI/xiaoqu 源数据不在仓库 → 数据绑定 spec 自探测跳过。
+  backend-tests:
     runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        node-version: [22.x]
-
+    needs: [changes]
+    if: needs.changes.outputs.run-backend == 'true'
+    services:
+      postgis:
+        image: pgrouting/pgrouting:16-3.5-3.8
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: v3_dev
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d v3_dev"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js ${{ matrix.node-version }}
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: 22.x
           cache: 'npm'
           cache-dependency-path: backend/package.json
 
@@ -189,25 +289,45 @@ jobs:
         working-directory: backend
         run: npm ci
 
-      - name: Run Nest tests
-        # 真库 e2e 套件在无 PG 的 CI 环境经 V3_INTEGRATION_DB 门控整体跳过
-        #（见 nest/test 下真库 spec 的 describe.skipIf）；需要库的联调/部署回归
-        # 在本地起 postgis 后 export V3_INTEGRATION_DB=1 全量跑
+      - name: Ensure psql client
+        run: |
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq postgresql-client
+          fi
+
+      - name: Seed v3_dev（schema + 真数据 + roads_noded 夹具，幂等）
+        run: bash backend/test/seed/ci-seed.sh
+
+      - name: Run Nest tests（真库门控激活 + coverage）
         working-directory: backend
+        env:
+          V3_INTEGRATION_DB: '1'
         run: npm test -- --coverage
+
+      # C5：后端基线棘轮（backend/coverage-baseline.json），基线为真库激活后的实测水平
+      - name: Coverage ratchet (backend)
+        run: node scripts/coverage-ratchet.cjs backend/coverage/coverage-summary.json backend/coverage-baseline.json
 
   # ⚠️ algorithm-service-tests job 已于 2026-09-10（阶段 4）随 FastAPI 退役移除：
   #    服务下线（compose 不再部署），pytest 套件保留在 backend/algorithm-service/tests
   #    供将来恢复时使用（本地 venv 手动跑）。
+  # ⚠️ 独立 vite build 步骤已随巨石 job 拆分移除（C9）：feature 分支的"可构建性"由
+  #    typecheck 把类型关、由 main 的 build-push-images Docker 构建做整体验证，
+  #    feature 分支每次 push 省 ~8 分钟（vite build 无增量模式，纯重复成本）。
 
   # 镜像构建推送（2026-09-10 起替代服务器端构建）：服务器 1.6G 内存扛不住 docker 内
   # vite/nest/pip 构建（峰值 3-5G，OOM 卡死系统→SSH exit 255/Workbench 连接超时，
   # run#134/135/136 实证）——镜像统一在 CI 构建推 GHCR，部署只 pull。
   # IMAGE_TAG 与 deploy 同源：${{ github.run_number }}（正整数，易回滚）
+  # 2026-09-12：needs 由 [lint-and-build] 改为拆分后三 job——测试被 C6 过滤跳过时
+  #（docs-only 等）不阻塞构建部署；测试真红（failure）仍阻断。
   build-push-images:
-    needs: [lint-and-build]
+    needs: [static-checks, frontend-tests, backend-tests]
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: >-
+      always() && !failure() && !cancelled() &&
+      github.ref == 'refs/heads/main'
     env:
       IMAGE_TAG: ${{ github.run_number }}
     steps:
@@ -263,15 +383,38 @@ jobs:
       # （GHCR 上的历史 tag algorithm-service-* 保留，供将来恢复）
 
       # GHCR 包默认 private，服务器 docker pull（匿名）拉不了——
-      # 用带 GHCR_PAT 的 API 把 beibu-gulf-project 包设为 public（三镜像同包）
+      # 用带 GHCR_PAT 的 API 把 beibu-gulf-project 包设为 public（三镜像同包）。
+      # 2026-09-12（CI 审查 1.5-4 / C7）：原 `|| echo warn` 把失败吞成警告——首次建包时
+      # 若 PAT 权限不足，public 化失败 → 服务器匿名 pull nest 镜像必挂，而 CI 报错指向
+      # 部署健康检查阶段，绕远路。改为：先 GET 查可见性（已 public 幂等放行），
+      # PUT 失败显式 ::error:: 并中断本 job（deploy 因 needs 链不会执行）。
       - name: Make package public (服务器匿名 pull)
+        env:
+          GH_TOKEN: ${{ secrets.GHCR_PAT }}
         run: |
-          curl -sS -X PUT \
-            -H "Authorization: Bearer ${{ secrets.GHCR_PAT }}" \
+          code="$(curl -sS -o /tmp/pkg-vis.json -w '%{http_code}' \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/user/packages/container/beibu-gulf-project")" || {
+            echo "::error::查询 GHCR 包信息失败（HTTP $code）——PAT 需 read:packages 权限"
+            cat /tmp/pkg-vis.json 2>/dev/null || true
+            exit 1
+          }
+          if [ "$code" = "200" ] && grep -Eq '"visibility" *: *"public"' /tmp/pkg-vis.json; then
+            echo "包已 public，幂等放行"
+            exit 0
+          fi
+          put_code="$(curl -sS -o /tmp/pkg-put.json -w '%{http_code}' -X PUT \
+            -H "Authorization: Bearer $GH_TOKEN" \
             -H "Accept: application/vnd.github+json" \
             -d '{"visibility":"public"}' \
-            "https://api.github.com/user/packages/container/beibu-gulf-project/visibility" \
-            || echo "warn: 包 public 化失败（若已 public 可忽略）"
+            "https://api.github.com/user/packages/container/beibu-gulf-project/visibility")" || true
+          if [ "$put_code" != "204" ]; then
+            echo "::error::GHCR 包 public 化失败（HTTP ${put_code}）——服务器匿名 pull 依赖 public 可见性，不放行。首次建包需 PAT 含 write:packages。"
+            cat /tmp/pkg-put.json 2>/dev/null || true
+            exit 1
+          fi
+          echo "包已设为 public（HTTP 204）"
 
   # 2026-08-09：部署改为 SSH 直部署（原 GHCR+webhook 方案废弃——服务器端无需额外
   # webhook 服务，Actions 用仓库 Secrets 里的服务器私钥直连）。
@@ -280,10 +423,12 @@ jobs:
   #     SERVER_USER（root 或 ubuntu）、TIANDITU_KEY（天地图新 key，构建注入）
   #   - 服务器：/opt/beibu-gulf 下 clone 仓库 + .env 配置 VITE_TIANDITU_KEY/JWT_SECRET
   #   - 服务器公钥已加入 GitHub 账户（git pull 免密）
+  # 2026-09-12：needs 随巨石 job 拆分更新；C6 过滤把测试/audit 跳过（skipped ≠ failure）时
+  # 部署照常（"main 部署不受过滤影响"）；audit/测试真红（failure）仍经 !failure() 阻断。
   deploy:
-    needs: [lint-and-build, nest-tests, audit, build-push-images]
+    needs: [audit, build-push-images]
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: always() && !failure() && !cancelled() && github.ref == 'refs/heads/main'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

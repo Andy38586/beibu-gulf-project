@@ -79,3 +79,19 @@ CREATE TABLE IF NOT EXISTS protected_areas (
   geom      geometry(MultiPolygon, 4490)
 );
 CREATE INDEX IF NOT EXISTS idx_protected_geom ON protected_areas USING GIST (geom);
+-- ==================== 行政区划（淹没面陆域裁剪用，2026-09-12） ====================
+-- 钦北防三市 12 区县面，与 frontend/public/data/site-selection/boundary.geojson 同源
+--（前端行政区划图层同款数据），改任一侧必须同步。
+-- 4326 直存：来源即 4326，且本表只与 4326 淹没面做 ST_Intersection，无 4490 交互
+CREATE TABLE IF NOT EXISTS admin_boundary (
+  adcode BIGINT PRIMARY KEY,
+  name   TEXT,
+  geom   geometry(MultiPolygon, 4326)
+);
+
+-- 12 区县预联合并集（单行）：PICK 取档查询按行 CROSS JOIN 此表做 ST_Intersection，
+-- 联合在灌数时一次算好，查询零联合开销
+CREATE TABLE IF NOT EXISTS admin_boundary_union (
+  id   INT PRIMARY KEY,
+  geom geometry(MultiPolygon, 4326)
+);

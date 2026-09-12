@@ -62,7 +62,9 @@ const MOCK_STATISTICS = JSON.stringify({
   ],
 })
 
-// 设施点 fixture（结构与 backend/data/flood/facilityPoints.json 同构）
+// 设施点 fixture（结构与 backend/data/flood/facilityPoints.json 同构）。
+// elevation 语义（P1.5 高程门控，2026-09-12）：被淹设施高程须 ≤ 档位值（mask 的 dem ≤ level
+// 同口径）；原 12.0m 设施在 5m 档被计淹属假阳性语义，fixture 修正为低洼码头
 const MOCK_FACILITY_RAW = {
   id: 'QZ-001',
   name: '三墩港口',
@@ -70,7 +72,7 @@ const MOCK_FACILITY_RAW = {
   port: '钦州港',
   lng: 108.697,
   lat: 21.61,
-  elevation: 12.0,
+  elevation: 2.0,
   value: 15000,
   damageRate: 0.85,
 }
@@ -85,7 +87,7 @@ const MOCK_FACILITY_POINTS = JSON.stringify({
       port: '防城港',
       lng: 108.35,
       lat: 21.68,
-      elevation: 5.0,
+      elevation: 2.5,
       value: 20000,
       damageRate: 0.5,
     },
@@ -192,9 +194,9 @@ describe('getFloodAreas - 水位校验', () => {
       riskLevel: string
     }
     expect(result.actualWaterLevel).toBe(5.0)
-    // 口径以 RISK_LEVEL_BANDS 为准：5 ≤ 5 → 中风险（原 fixture 把 5.0 标为"高风险"系
-    // 手写数据与阈值表不一致；改由 deriveRiskLevel 派发后该偏差自动消解）
-    expect(result.riskLevel).toBe('中风险')
+    // 口径以 RISK_LEVEL_BANDS 为准：水文锚定重划（2026-09-12）后 5.0 落 高风险带
+    //（+4.3 极端最高 ~ +6.0）
+    expect(result.riskLevel).toBe('高风险')
   })
 
   it('actual/requested 双报：向上取档时 actual > requested（前端可感知）', async () => {
@@ -233,23 +235,25 @@ describe('getFloodAreas - 水位校验', () => {
 })
 
 describe('deriveRiskLevel - 连续档位风险派生', () => {
-  it('语义对齐 6 档基准（0/2/5/8/10/15）', () => {
+  it('语义对齐风险分级（0/2/4.3/6/8/∞，海平面基准水文锚定重划）', () => {
     expect(deriveRiskLevel(0)).toBe('无风险')
     expect(deriveRiskLevel(2)).toBe('低风险')
-    expect(deriveRiskLevel(5)).toBe('中风险')
-    expect(deriveRiskLevel(8)).toBe('高风险')
-    expect(deriveRiskLevel(10)).toBe('极高风险')
-    expect(deriveRiskLevel(15)).toBe('灾难级')
+    expect(deriveRiskLevel(4.3)).toBe('中风险')
+    expect(deriveRiskLevel(6)).toBe('高风险')
+    expect(deriveRiskLevel(8)).toBe('极高风险')
     expect(deriveRiskLevel(12.5)).toBe('灾难级')
+    // 边界抽检：3.5（设计高潮位与极端最高之间）→ 中风险；4.3 恰为档位值含等值
     expect(deriveRiskLevel(3.5)).toBe('中风险')
+    expect(deriveRiskLevel(2.1)).toBe('中风险')
+    expect(deriveRiskLevel(1.9)).toBe('低风险')
   })
 
   it('riskLevelCode 与 RISK_LEVEL_BANDS 下标同源（沿用 floodStatistics.json 编码口径）', () => {
     expect(deriveRiskLevelCode(0)).toBe(0)
     expect(deriveRiskLevelCode(2)).toBe(1)
-    expect(deriveRiskLevelCode(5)).toBe(2)
-    expect(deriveRiskLevelCode(8)).toBe(3)
-    expect(deriveRiskLevelCode(10)).toBe(4)
+    expect(deriveRiskLevelCode(4.3)).toBe(2)
+    expect(deriveRiskLevelCode(6)).toBe(3)
+    expect(deriveRiskLevelCode(8)).toBe(4)
     expect(deriveRiskLevelCode(12.5)).toBe(5)
     expect(deriveRiskLevelCode(25)).toBe(5)
   })
@@ -284,8 +288,9 @@ describe('getFloodStatistics - 与 flood-areas/disaster 同源（251 档 + 空�
       requestedWaterLevel: 4.5,
       actualWaterLevel: 4.5,
       floodArea: 777.7,
-      riskLevel: '中风险',
-      riskLevelCode: 2,
+      // 水文锚定重划：4.5 已超极端最高 +4.3 → 高风险带
+      riskLevel: '高风险',
+      riskLevelCode: 3,
     })
   })
 
@@ -435,6 +440,16 @@ describe.skipIf(!withDb)('floodService.assessDisaster - 空间筛选与损失计
     expect(result.totalLoss).toBe(Math.round(15000 * 0.85))
     expect(result.riskLevel).toBe('中风险')
     expect(result.waterLevel).toBe(5)
+  })
+
+  it('多边形内但设施高程高于水位 → 高程门控不计入（P1.5 假阳性防护）', async () => {
+    // 淹没几何含 300m 简化容差，沿岸高地会被外扩多边形吞进点面判定——
+    // 高程 12m 的设施在 5m 档不得计淹（与 mask 的 dem ≤ level 语义对齐）
+    const service = makeDbService()
+    const elevated = { ...MOCK_FACILITY, elevation: 12 }
+    const result = await service.assessDisaster([elevated], 5, FLOOD_ZONE)
+    expect(result.affectedFacilities).toHaveLength(0)
+    expect(result.totalLoss).toBe(0)
   })
 
   it('无淹没档位（0 档/null）→ 无风险 + 零损失 + waterLevel undefined', async () => {

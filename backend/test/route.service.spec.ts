@@ -271,10 +271,12 @@ describe('buildSegments - 行 → 分段（本次修复的核心逻辑）', () =
       edge_source: '2' as unknown as number,
       edge_target: '3' as unknown as number,
     }
-    const segs = buildSegments([pgStyleRow1, pgStyleRow2, ROW_TERMINAL], 0.5, 0.5)
+    // toFraction=1（终点吸附在边 2002 末端）：边 2002 是末段且出发顶点=source
+    // → 末段区间 [0, toFraction]，取全长 [0,1]
+    const segs = buildSegments([pgStyleRow1, pgStyleRow2, ROW_TERMINAL], 0.5, 1)
     // 首段：arrival(2) === Number(target)(2) → 正向
     expect(segs[0]).toEqual({ edgeId: 1001, lo: 0.5, hi: 1, reverse: false, cost: 50 })
-    // 中段：departure(2) === Number(source)(2) → 正向（修复前此处恒 reverse:true）
+    // 末段：departure(2) === Number(source)(2) → 正向全长（修复前此处恒 reverse:true）
     expect(segs[1]).toEqual({ edgeId: 2002, lo: 0, hi: 1, reverse: false, cost: 50 })
   })
 })

@@ -18,8 +18,7 @@ const withDb = process.env.V3_INTEGRATION_DB !== undefined
 // vitest 并行跑测试文件时，本套件的清理若落在 plans/favorites e2e 执行期间，
 // 会把它们的 __t3_plan_*/__t3_fav* 用户删掉 → 认证守卫（token+user 双源）查库
 // 无此人 → 对方套件全部 401（run#177 backend-tests 9 连红实证）。
-const CLEANUP_WHERE =
-  "username ~ '^__t3_(register|weak|ghost|placeholder|after_throttle)'"
+const CLEANUP_WHERE = "username ~ '^__t3_(register|weak|ghost|placeholder|after_throttle)'"
 
 function authCookie(res: { headers: Record<string, unknown> }): string {
   const setCookie = res.headers['set-cookie'] as string[]
@@ -74,8 +73,7 @@ describe.skipIf(!withDb)('auth e2e（连真库）', () => {
     expect(raw).toContain('Max-Age=604800')
     // 库内落库校验：密码为 bcrypt 哈希而非明文
     const row = await db.query<{ password: string }>(
-      "SELECT password FROM users WHERE substr(username, 1, $1) = '__t3_' AND username = '__t3_register'",
-      [PREFIX_LEN]
+      "SELECT password FROM users WHERE username = '__t3_register'"
     )
     expect(row.rows[0].password).toMatch(/^\$2[aby]\$/)
   })

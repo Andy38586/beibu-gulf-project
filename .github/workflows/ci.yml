@@ -372,7 +372,6 @@ jobs:
             ghcr.io/andy38586/beibu-gulf-project:app-latest
           build-args: |
             VITE_TIANDITU_KEY=${{ secrets.TIANDITU_KEY }}
-            VITE_DATA_SOURCE=fetch
             VITE_USE_NEST_MODULES=auth,plans,favorites,forecast,flood,site-analysis,route
           cache-from: type=gha,scope=app
           cache-to: type=gha,mode=max,scope=app

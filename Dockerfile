@@ -9,10 +9,8 @@ FROM node:22-alpine AS frontend-builder
 ARG VITE_TIANDITU_KEY=
 ENV VITE_TIANDITU_KEY=$VITE_TIANDITU_KEY
 
-# 2026-08-10：数据源为构建期变量（vite build 打包进产物）——生产设 fetch（查表）走
-# Nest 读文件链路；calculate（实时演算）走 FastAPI；缺省 fetch（Express 退役后语义）
-ARG VITE_DATA_SOURCE=fetch
-ENV VITE_DATA_SOURCE=$VITE_DATA_SOURCE
+# ⚠️ VITE_DATA_SOURCE 已废弃（z156，2026-09-12 清理）：数据源切换代码已随
+# algorithm-service 退役删除，不再作为构建期变量下发。
 
 # v3：业务后端模块切换开关（构建期变量）——生产默认全六域切 Nest（Express 已退役）；
 # 回滚旧版或临时走 Express 时清空此值（compose build.args 覆盖）

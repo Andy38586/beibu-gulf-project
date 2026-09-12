@@ -14,7 +14,6 @@ services:
       # 值读自 compose 同目录 .env（服务器部署时在项目目录配置 VITE_TIANDITU_KEY=新key）
       args:
         VITE_TIANDITU_KEY: ${VITE_TIANDITU_KEY:-}
-        VITE_DATA_SOURCE: ${VITE_DATA_SOURCE:-fetch}
         # v3 生产默认全量走 Nest：七功能域全部切 nest-api（Express 已退役）
         VITE_USE_NEST_MODULES: ${VITE_USE_NEST_MODULES:-auth,plans,favorites,forecast,flood,site-analysis,route}
     # 镜像由 CI 构建推送 GHCR（服务器 1.6G 内存扛不住 docker 内构建：vite/nest/pip

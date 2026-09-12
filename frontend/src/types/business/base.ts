@@ -54,7 +54,7 @@ export interface FloodStatistics {
   // 计数语义改名 affectedFacilityCount，消除与 FloodSavedState.affectedFacilities（数组）同名不同型
   affectedFacilityCount?: number // 受影响设施数量（计数，非数组）
   affectedPorts?: string[] // 受影响港口列表
-  estimatedLoss?: number // 预估损失（元，value × damageRate，与 disaster.totalLoss 同口径）
+  estimatedLoss?: number // 预估损失（万元，value × damageRate，与 disaster.totalLoss 同口径；facilityPoints metadata.valueUnit）
   description?: string // 情景描述
   // —— adapter 派生字段（online 模式有值，mock/api 模式可能缺失）——
   affectedCount?: number // 受影响设施数量（与 affectedFacilityCount 同语义，online 模式占位）

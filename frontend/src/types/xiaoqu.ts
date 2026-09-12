@@ -16,7 +16,7 @@ export interface ScoredXiaoqu extends Xiaoqu {
   breakdown: Record<string, number> // key 是 FacilityType，不强约束以避免后端 turf 计算报错（前端零 turf import）
   // 浸没分析扩展字段（受影响设施复用此类型，PaginatedListPanel 通用渲染）
   type?: string
-  loss?: number
+  loss?: number // 损失（万元，value × damageRate；facilityPoints metadata.valueUnit 口径）
 }
 
 // 已保存的小区（方案中，持久化到 plans.json）

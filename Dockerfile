@@ -29,7 +29,14 @@ WORKDIR /app
 # 均在册（rollup/esbuild 已随 vite 8/rolldown 退出依赖树）。本机以强制平台解析复现
 # Alpine 场景：npm ci --dry-run（npm_config_os=linux/cpu=x64/libc=musl）通过、无 EUSAGE。
 # 故恢复 npm ci 取得可复现构建；若服务器再现 EUSAGE，回退 npm install（部署历程记录）。
-COPY package*.json ./
+# 2026-09-12（CI build-push 首跑实锤，此前均被前端测试红挡在本步之前）两层补齐：
+# ① COPY .npmrc——仓库 .npmrc 含 legacy-peer-deps（rollup-plugin-visualizer 的
+#    rollup@2.80.0 peer 在 strict 校验下 EUSAGE）与官方 registry源，不进镜像则
+#    npm ci 以默认 strict 校验直接炸；
+# ② ENV HUSKY=0——镜像内无 .git（.dockerignore 排除），husky prepare 在无 .git
+#    环境非零退出。两者叠加即「本地 npm ci 全绿、docker npm ci exit 1」。
+COPY package*.json .npmrc ./
+ENV HUSKY=0
 RUN npm ci --no-audit --no-fund
 
 # 前端源码与 vite 配置

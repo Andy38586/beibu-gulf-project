@@ -1498,9 +1498,14 @@ interface CesiumEntityLike {
   position?: unknown
   billboard?: unknown
   point?: unknown
+  polyline?: {
+    material?: unknown
+    width?: unknown
+    clampToGround?: unknown
+  }
 }
 
-/** GeoJSON dataSource 样式应用（贴地形 polygon / point 样式），add/update 共用单一来源 */
+/** GeoJSON dataSource 样式应用（贴地形 polygon / point / polyline 样式），add/update 共用单一来源 */
 function applyGeoJsonDataSourceStyle(dataSource: GeoJsonDataSource, options: LayerOptions): void {
   dataSource.entities.values.forEach((entity) => {
     const e = entity as unknown as CesiumEntityLike
@@ -1529,6 +1534,14 @@ function applyGeoJsonDataSourceStyle(dataSource: GeoJsonDataSource, options: Lay
         // GeoJSON 点要素同样贴地形（同 createCesiumPointEntity）
         heightReference: HeightReference.CLAMP_TO_GROUND,
       })
+    } else if (e.polyline) {
+      // 线要素（路径线等 LineString）：此前无分支 → 保持 GeoJsonDataSource 的 Cesium 默认样式
+      // ——默认线色是**黄色**、且**不贴地形**。2026-09-13 航线分析实测（北海→钦州 111.5km）：
+      // 3D 真地形下画在椭球 0 高度的线被山体整段埋住，只剩海岸低处碎片露出，视觉呈锯齿断线。
+      // 与 polygon/point 的贴地形口径对齐：颜色走图层 strokeColor、宽度走 strokeWidth、贴地渲染。
+      e.polyline.material = Color.fromCssColorString(options.strokeColor || LAYER_DEFAULTS.stroke)
+      e.polyline.width = options.strokeWidth || 2
+      e.polyline.clampToGround = true
     }
   })
 }

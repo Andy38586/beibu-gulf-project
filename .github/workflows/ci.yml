@@ -217,6 +217,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # tools 测试（gis-import/db-import 等）经相对路径依赖 backend 的 node_modules
+      # （如 verify.mjs require('pg')）——C1 拆 job 后本 job 不再天然持有 backend 依赖，
+      # 不补装则 Run tools tests 报 MODULE_NOT_FOUND（run 34682249425 实锤）
+      - name: Install Nest dependencies
+        working-directory: backend
+        run: npm ci
+
       # 2026-09-12（C5）：覆盖率门禁由 vitest 固定阈值改为基线棘轮
       #（scripts/coverage-ratchet.cjs + frontend/coverage-baseline.json，容差 0.5pt）——
       # 根除"大版本分母暴涨 → 总体百分比下滑 → 第一次 CI 必红"的机制性追尾

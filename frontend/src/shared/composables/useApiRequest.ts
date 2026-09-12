@@ -112,6 +112,16 @@ export interface RequestOptions {
   schema?: ZodType<unknown>
   /** 是否解包响应信封（{ code, data } → data），默认 true；跨服务裸 JSON 调用传 false 跳过 */
   envelope?: boolean
+  /**
+   * 单次请求超时（ms），缺省 API_TIMEOUT_MS（10s）。慢查询端点（如 route 寻路，
+   * 生产实测单次可达 26s）显式放宽；每次重试的计时独立重置。
+   */
+  timeoutMs?: number
+  /**
+   * GET 遇超时/网络错误是否重试（默认 true）。慢查询端点传 false——超时后重试
+   * 等于把「单次超时 × 3」的等待与服务端负载再放大一遍（route 域曾因此雪上加霜）。
+   */
+  retry?: boolean
 }
 
 /** 返回契约（显式化，防重构时签名静默漂移） */
@@ -144,7 +154,7 @@ async function singleRequest<T = unknown>(
 
   // 认证走 HttpOnly Cookie（credentials: 'include'），token 仅用于前端登录态判断，不参与传输
   const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS)
+  const timeoutId = setTimeout(() => controller.abort(), options.timeoutMs ?? API_TIMEOUT_MS)
 
   // 组合外部 signal 与内部超时 signal
   // 2026-09-10：原用 AbortSignal.any（Chrome116/Safari17.4+），与 browserslist 声明的
@@ -330,7 +340,9 @@ export function useApiRequest(): UseApiRequestReturn {
       } catch (error) {
         const isGet = (options.method ?? 'GET').toUpperCase() === 'GET'
         const code = error instanceof ApiError ? error.code : null
-        const isRetryable = code !== null && RETRYABLE_CODES.includes(code)
+        // retry:false 的端点（慢查询）不重试：超时后再来一次等于双倍服务端负载与等待
+        const isRetryable =
+          code !== null && RETRYABLE_CODES.includes(code) && options.retry !== false
         // 外部主动取消（options.signal 已 abort）→ 不重试
         const isExternalCancel =
           error instanceof ApiError && code === ErrorCode.REQUEST_FAILED && options.signal?.aborted

@@ -332,6 +332,7 @@ describe('poiSearch schemas（构造样本双向验证）', () => {
         id: 'poi-1',
         name: '北海港码头',
         type: 'port',
+        source: 'port', // 多源点集来源标签（港口/设施点/小区/POI）
         city: '北海市',
         district: '海城区',
         lng: 109.1,

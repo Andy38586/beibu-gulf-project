@@ -222,6 +222,59 @@ describe('useApiRequest', () => {
     })
   })
 
+  // 2026-09-12 route 26s 事故加固：慢查询端点（route 寻路）需要按请求放宽超时 +
+  // 关闭超时重试（默认「10s × 3 次」= 40s+ 等待与三倍服务端负载）
+  describe('按请求超时/重试开关', () => {
+    it('timeoutMs 覆盖默认 10s：30s 才触发 TIMEOUT（10s 处不断）', async () => {
+      const realSetTimeout = globalThis.setTimeout.bind(globalThis)
+      vi.useFakeTimers()
+      try {
+        mockFetch.mockImplementationOnce((_url: string, init: RequestInit) =>
+          Promise.resolve({
+            ok: true,
+            status: 200,
+            text: () =>
+              new Promise((_res, rej) => {
+                init.signal?.addEventListener('abort', () =>
+                  rej(Object.assign(new Error('Aborted'), { name: 'AbortError' }))
+                )
+              }),
+          })
+        )
+        const { apiRequest } = useApiRequest()
+        // POST 免 GET 退避重试链，单次尝试使断言确定性收敛
+        const pending = apiRequest('/slow', { method: 'POST', timeoutMs: 30_000 })
+        const guarded = expect(pending).rejects.toMatchObject({ code: ErrorCode.TIMEOUT })
+        let settled = false
+        void pending.catch(() => {
+          settled = true
+        })
+        // 走到默认 10s 处：若 timeoutMs 未生效，这里早该断（本次不断 = 覆盖生效）
+        await vi.advanceTimersByTimeAsync(10_000)
+        expect(settled).toBe(false)
+        // 30s 到点 → abort → 归一 TIMEOUT
+        await vi.advanceTimersByTimeAsync(20_000)
+        await Promise.race([
+          guarded,
+          new Promise((_r, rej) =>
+            realSetTimeout(() => rej(new Error('timeoutMs 覆盖未生效，未在 30s 触发超时')), 2000)
+          ),
+        ])
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it('retry:false → GET 超时/网络错误仅 1 次调用（不再 3 次重试）', async () => {
+      mockFetch.mockRejectedValue(new TypeError('fetch failed'))
+      const { apiRequest } = useApiRequest()
+      await expect(apiRequest('/slow-query', { retry: false })).rejects.toMatchObject({
+        code: ErrorCode.NETWORK_ERROR,
+      })
+      expect(mockFetch).toHaveBeenCalledTimes(1)
+    })
+  })
+
   describe('params 拼接', () => {
     it('正确拼接 query 参数', async () => {
       mockFetch.mockResolvedValue(jsonResponse({ code: 200, data: null }))

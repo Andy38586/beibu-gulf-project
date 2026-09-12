@@ -87,6 +87,37 @@ describe('useRouteApi', () => {
     expect(calcError.value).not.toBe('')
   })
 
+  it('寻路超时放宽到 30s 且不重试：挂起 30s 抛 TIMEOUT，fetch 仅 1 次（route 26s 事故加固）', async () => {
+    vi.useFakeTimers()
+    try {
+      // 模拟真实 fetch 的 abort 行为：内部超时 abort → reject AbortError
+      mockFetch.mockImplementationOnce(
+        (_url: string, init?: { signal?: AbortSignal }) =>
+          new Promise((_resolve, reject) => {
+            const signal = init?.signal
+            if (signal?.aborted) {
+              reject(Object.assign(new Error('Aborted'), { name: 'AbortError' }))
+              return
+            }
+            signal?.addEventListener('abort', () =>
+              reject(Object.assign(new Error('Aborted'), { name: 'AbortError' }))
+            )
+          })
+      )
+      const { queryPath, calcError } = useRouteApi()
+      const pending = queryPath({ fromLng: 1, fromLat: 2, toLng: 3, toLat: 4 })
+      const guarded = expect(pending).rejects.toMatchObject({ code: ErrorCode.TIMEOUT })
+      // 29.9s 处仍未断（默认 10s 早该断 → timeoutMs 覆盖生效）
+      await vi.advanceTimersByTimeAsync(29_900)
+      await vi.advanceTimersByTimeAsync(100)
+      await guarded
+      expect(mockFetch).toHaveBeenCalledTimes(1) // retry:false：超时不再重试
+      expect(calcError.value).not.toBe('')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('响应形状不符 schema → 抛 ApiError(REQUEST_FAILED)，不穿透坏数据', async () => {
     // coordinates 是 [lng,lat] 二维数组，给错形状（缺层）应由 zod 拦截
     mockFetch.mockResolvedValueOnce(

@@ -39,7 +39,7 @@ export const ENDPOINTS = {
   },
   siteAnalysis: {
     root: '/site-analysis',
-    // POI 名称关键词搜索（航线分析选点；Nest PG poi_facilities，limit 1..50）
+    // 名称关键词搜索（航线分析选点）：多源点集合并（港口/淹没设施点/小区/POI），limit 1..200
     pois: '/site-analysis/pois',
   },
   // FasterAPI 演算服务（algorithm-service，8000；复用 /flood-online 代理通道，

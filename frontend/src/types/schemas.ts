@@ -385,12 +385,14 @@ export const routePathResponseSchema = z.discriminatedUnion('found', [
 
 export type RoutePathResponseParsed = z.infer<typeof routePathResponseSchema>
 
-// ㉑ GET /site-analysis/pois 响应（Nest 信封 data 段）：航线分析选点的 POI 关键词搜索。
-// name/type 服务端 NOT NULL；district 可空；坐标 4326（crs 禁令）
+// ㉑ GET /site-analysis/pois 响应（Nest 信封 data 段）：航线分析选点的名称关键词搜索。
+// name/type/source 服务端 NOT NULL；district/city 可空（港口/设施点无 city）；坐标 4326（crs 禁令）
+// source = 来源点集（port/facility/xiaoqu/poi）：多源合并后前端按来源显示标签
 export const poiSearchItemSchema = z.object({
   id: z.string(),
   name: z.string(),
   type: z.string(),
+  source: z.string(),
   city: z.string(),
   district: z.string().nullable(),
   lng: z.number(),

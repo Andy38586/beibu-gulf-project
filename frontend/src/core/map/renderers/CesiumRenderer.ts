@@ -1055,7 +1055,7 @@ export class CesiumRenderer extends MapRenderer {
 
   /**
    * 覆写基类 hasLayer：水面存于 _waterSurfaces 而非 _layers，基类查不到会令 BLM（业务图层管理器）
-   * 误判图层缺失而走 remove+add 全量重建，增量水位更新（替换 geometryInstances）永远走不到。
+   * 误判图层缺失而走 remove+add 全量重建，增量水位更新（updateWaterLevel 先建后换）永远走不到。
    */
   hasLayer(id: string): boolean {
     return super.hasLayer(id) || (this._waterSurfaces?.has(id) ?? false)
@@ -1869,11 +1869,12 @@ export function updateCulledLayer(renderer: CesiumRenderer, id: string): void {
   layer.instance = entities.filter((e) => renderer.viewer!.entities.contains(e))
 }
 
-// ===== 水面：Primitive 增量更新 =====
+// ===== 水面：Primitive 管理（水位更新=先建后换） =====
 /**
  * 水面：Primitive API 管理（适合大规模几何体），状态存于 renderer._waterSurfaces。
- * 水位更新复用同一 Primitive、仅替换 geometryInstances（重建会销毁旧几何并异步构建新几何，
- * 中间空窗致水位拖动"一闪一闪"）。
+ * 水位更新走「先建后换」（updateWaterLevel）：asynchronous=false 同步构建新 Primitive
+ * 成功后再 remove 旧 + add 新 —— requestRenderMode 下同一 tick 不产生中间帧，无重建空窗；
+ * 构建失败旧 Primitive 原地保留（不闪、不消失）。
  */
 
 /** 水面状态条目 */
@@ -1964,6 +1965,9 @@ export async function addWaterSurface(
   removeWaterSurface(renderer, id)
   try {
     const terrainBase = await sampleTerrainHeights(renderer, coordinates)
+    // await 期间 viewer 可能已销毁（审查 L-7 同模式）：裸 viewer! 会以 TypeError 进 catch，
+    // 显式判空让失败语义可读（入口已 removeWaterSurface，此处返回 false 即"未挂上"）
+    if (!renderer.viewer) return false
     const instance = buildWaterInstance(coordinates, height, options, terrainBase)
 
     const primitive = buildWaterPrimitive(instance)

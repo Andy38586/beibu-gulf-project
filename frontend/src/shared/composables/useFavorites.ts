@@ -23,6 +23,8 @@ import { isAuthRestoreDone, useAuth } from './useAuth'
 
 const favorites = ref<FavoriteItem[]>([])
 let fetchInFlight = false
+/** 在途期间又有登录态变化：置脏，本次结束后补拉一次（审查 b102：丢弃 → 单级重放） */
+let fetchDirty = false
 /** 未登录时的收藏意图：登录成功后自动补完 */
 let pendingFavorite: FavoriteAddInput | null = null
 
@@ -46,6 +48,36 @@ async function fetchFavorites(): Promise<void> {
   favorites.value = items
 }
 
+/** 拉取收藏（含在途合并与错误分级）：在途时置脏不丢事件，结束后补拉一次（b102） */
+async function loadFavorites(): Promise<void> {
+  if (fetchInFlight) {
+    fetchDirty = true
+    return
+  }
+  fetchInFlight = true
+  try {
+    await fetchFavorites()
+  } catch (error) {
+    if (!isAuthRestoreDone()) {
+      // 恢复期（/auth/me 未完成）：stale localStorage user 的 401 可能随后被 restore
+      // 清场，此刻提示多为误报 → 静默；恢复成功路径 user 会重新赋值，本 watch 自动重拉
+      if (import.meta.env.DEV) {
+        // eslint-disable-next-line no-console -- DEV 门控诊断（logger.debug 级别语义不同）
+        console.debug('[useFavorites] 恢复期拉取收藏失败（静默，待恢复后重判）:', error)
+      }
+    } else {
+      // 恢复完成后仍失败：显式可见（原实现一律静默 → 收藏面板空白且无解释，审查 L-3）
+      showError(error, { fallback: '收藏列表加载失败，请稍后重试' })
+    }
+  } finally {
+    fetchInFlight = false
+    if (fetchDirty) {
+      fetchDirty = false
+      void loadFavorites()
+    }
+  }
+}
+
 /** 登录态驱动：登录 → 拉取 + 补完未登录期的收藏意图；登出 → 清空。
  *  源含 token：restore 以「保留临时登录态」收场时（后端不可达 ≠ 未登录）user 不变，
  *  仅 token 置位 —— 监听 token 空→非空让该路径也能触发重拉（审查 L-3） */
@@ -56,25 +88,7 @@ watch(
       favorites.value = []
       return
     }
-    if (fetchInFlight) return
-    fetchInFlight = true
-    try {
-      await fetchFavorites()
-    } catch (error) {
-      if (!isAuthRestoreDone()) {
-        // 恢复期（/auth/me 未完成）：stale localStorage user 的 401 可能随后被 restore
-        // 清场，此刻提示多为误报 → 静默；恢复成功路径 user 会重新赋值，本 watch 自动重拉
-        if (import.meta.env.DEV) {
-          // eslint-disable-next-line no-console -- DEV 门控诊断（logger.debug 级别语义不同）
-          console.debug('[useFavorites] 恢复期拉取收藏失败（静默，待恢复后重判）:', error)
-        }
-      } else {
-        // 恢复完成后仍失败：显式可见（原实现一律静默 → 收藏面板空白且无解释，审查 L-3）
-        showError(error, { fallback: '收藏列表加载失败，请稍后重试' })
-      }
-    } finally {
-      fetchInFlight = false
-    }
+    await loadFavorites()
     if (pendingFavorite) {
       const input = pendingFavorite
       pendingFavorite = null

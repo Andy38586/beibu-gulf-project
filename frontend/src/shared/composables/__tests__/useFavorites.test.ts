@@ -9,8 +9,11 @@ import type { Ref } from 'vue'
 import { nextTick } from 'vue'
 
 const mockApiRequest = vi.hoisted(() => vi.fn())
-// user ref 在 mock 工厂内创建（vue ref），经 state 容器暴露给测试驱动登录态
-const state = vi.hoisted(() => ({ userRef: null as Ref<unknown> | null }))
+// user/token ref 在 mock 工厂内创建（vue ref），经 state 容器暴露给测试驱动登录态
+const state = vi.hoisted(() => ({
+  userRef: null as Ref<unknown> | null,
+  tokenRef: null as Ref<unknown> | null,
+}))
 
 vi.mock('@/shared/composables/useApiRequest', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/shared/composables/useApiRequest')>()
@@ -29,12 +32,14 @@ vi.mock('@/shared/composables/useApiRequest', async (importOriginal) => {
 vi.mock('@/shared/composables/useAuth', async () => {
   const { ref } = await import('vue')
   const user = ref(null)
+  const token = ref('')
   state.userRef = user
+  state.tokenRef = token
   // token 补齐 UseAuthReturn 契约：useFavorites 的 watch 源为 [user, token]（L-3），
   // mock 缺 token 会触发「Invalid watch source: undefined」Vue warn
   // isAuthRestoreDone 同理：useFavorites catch 分支调用，缺失即 TypeError 炸弹
   return {
-    useAuth: () => ({ user, token: ref('') }),
+    useAuth: () => ({ user, token }),
     isAuthRestoreDone: () => true,
   }
 })
@@ -77,11 +82,47 @@ const favoriteRecord = {
 
 beforeEach(() => {
   // 默认 GET 返回空收藏（未覆盖时 watch 拉取也不至于拿到 undefined）；各用例按需覆盖
+  mockApiRequest.mockClear()
   mockApiRequest.mockResolvedValue([])
   logout()
 })
 
 describe('useFavorites（全局收藏单例）', () => {
+  it('在途拉取期间的登录态变化不丢失：置脏补拉（审查 b102）', async () => {
+    // 放在 describe 首位以隔离旧模块实例噪声（b040：模块级 watch 无 stop，旧实例
+    // 也监听共享 ref，精确计数不可靠）——本用例必须是首个触达 apiRequest 的用例。
+    const { useFavorites } = await importFreshFavorites()
+    const favorites = useFavorites()
+    let heldUsed = false
+    let releaseHeld!: (v: unknown) => void
+    const held = new Promise((resolve) => {
+      releaseHeld = resolve
+    })
+    mockApiRequest.mockImplementation(() => {
+      if (!heldUsed) {
+        heldUsed = true
+        return held
+      }
+      return Promise.resolve([])
+    })
+    loginAs(TEST_USER)
+    // 登录触发首轮拉取 → 挂起在途
+    await vi.waitFor(() => expect(heldUsed).toBe(true))
+    const callsAtHeld = mockApiRequest.mock.calls.length
+    // 在途期间登录态变化（restore 以「保留临时登录态」收场置位 token）
+    // → 旧实现 fetchInFlight 直接 return，本次事件被丢弃
+    state.tokenRef!.value = 'restored-from-cache'
+    await nextTick()
+    // 放行在途 → finally 置脏重放：必须出现新的拉取调用（旧实现止步于首次）
+    releaseHeld([])
+    await vi.waitFor(() => expect(mockApiRequest.mock.calls.length).toBeGreaterThan(callsAtHeld))
+    expect(favorites.favorites.value).toEqual([])
+    // 复位登录态（模块级单例共享 ref，避免污染后续用例的「未登录」前提）
+    logout()
+    state.tokenRef!.value = ''
+    await nextTick()
+  })
+
   it('未登录 → add/remove 抛「请先登录」', async () => {
     const { useFavorites } = await importFreshFavorites()
     const favorites = useFavorites()

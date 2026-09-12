@@ -202,8 +202,10 @@ export function useAuth(): UseAuthReturn {
       clearToken()
       user.value = null
       writeStoredUser(null)
-      // 重置认证恢复标志，允许下次重新恢复
-      authRestored = false
+      // b101：此处【不得】重置 authRestored——「恢复期」只指首次 /auth/me 的窗口，
+      // 登出是主动状态切换而非恢复过程；重登走 login 直接赋值、无第二次 restore
+      // （restoreAuth 仅 App 挂载调用一次）。旧代码置 false 后永不回位 →
+      // isAuthRestoreDone 恒 false → 收藏等消费方的失败提示被永久静默（L-3 被架空）。
     }
   }
 

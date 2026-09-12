@@ -109,4 +109,15 @@ describe('restoreAuth（认证恢复的成因区分）', () => {
     expect(b?.username).toBe('tester')
     expect(c?.username).toBe('tester')
   })
+
+  it('logout 后恢复期视为已结束：isAuthRestoreDone 保持 true（审查 b101）', async () => {
+    const { useAuth, isAuthRestoreDone } = await importFreshAuth()
+    const auth = useAuth()
+    mockApiRequest.mockResolvedValue({ user: STORED_USER })
+    await auth.restoreAuth()
+    expect(isAuthRestoreDone()).toBe(true)
+    // 旧实现在 logout 置 authRestored=false 且永不回位 → 此断言为 false（修复前红）
+    await auth.logout()
+    expect(isAuthRestoreDone()).toBe(true)
+  })
 })

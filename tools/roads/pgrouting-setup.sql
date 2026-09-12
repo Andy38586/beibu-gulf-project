@@ -2,6 +2,10 @@
 -- 依据：docs/算法服务下沉PostGIS-设计-2026-09-10.md
 -- 前置：postgis 容器须使用带 pgrouting 的镜像（local/postgis-pgrouting:16-3.4，已构建）
 --
+-- ⚠️ **已退役（2026-09-13，路网 v2）**：本脚本建的 road_class_speed / 权重列属于旧管线
+--    （无向、无 oneway、顶点为代理点）。v2 自带等级参数表 route_class_profile 与有向权重列，
+--    见 tools/roads/roads-graph-build.sql。**pgrouting 扩展本身仍是必需**（这条不过时）。
+--
 -- 目的：把 route/path 的「构图 + 最短路」从 Python 侧（networkx，全量拉 165,111 条边进内存、
 -- 峰值 612MB、预热 179.5s）下沉为 pgRouting 的 SQL 查询。
 --

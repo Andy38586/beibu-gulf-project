@@ -2,6 +2,13 @@
 -- roads 端点投影切分（复刻 algorithm-service/route/topology.py:split_at_endpoints）
 -- + 网格法建拓扑 + 权重 + 主干分量 → 产出 **roads_noded**（新表，不动 roads）
 -- =============================================================================
+-- ⚠️ **已退役（2026-09-13，路网 v2）**
+--    本脚本的「端点投影切分 + 60m 网格并点」被 v2 取代：v2 按 **OSM node id** 建图，
+--    上跨/下穿天然不连通、单向边生效、等级限速可用 —— 见 tools/roads/roads-graph-build.sql。
+--    60m 并点的实测缺陷（2026-09-13 A/B）：抽样 200 处上跨/下穿，旧网在其中 67 处把桥上
+--    桥下并成同一顶点（凭空路口，即"下穿国道直接拐上高架"）。
+--    保留本文件仅为历史取证与旧表回滚参考。
+-- =============================================================================
 -- 为什么需要它（2026-09-10 实测）：
 --   OSM 源数据里纵向道路**不在路口切断**，横路的端点接在纵路的「中间顶点」上 ——
 --   只合并"首末点精确重合"的构图策略抓不到这类 **T 型连接**，于是 16.5 万条边被切成
@@ -216,8 +223,21 @@ CREATE INDEX IF NOT EXISTS idx_roads_noded_target ON roads_noded (target);
 CREATE INDEX IF NOT EXISTS idx_roads_noded_cost_m ON roads_noded (cost_m) WHERE cost_m > 0;
 CREATE INDEX IF NOT EXISTS idx_roads_noded_main   ON roads_noded (main_comp);
 CREATE INDEX IF NOT EXISTS idx_roads_noded_old    ON roads_noded (old_id);
+-- 2026-09-12 生产事故（route 26s）后补：本表是 CREATE TABLE AS 产物、无主键，
+-- 以下两索引是路由查询的性能前提，删掉即回到「每次查询全堆扫描 765MB」：
+--   · id       —— 三处 `JOIN roads_noded ON id = ...` 的点查路径
+--   · routing  —— 覆盖索引（谓词与 edges_sql 逐字一致），构图走 index-only
+CREATE INDEX IF NOT EXISTS idx_roads_noded_id ON roads_noded (id);
+CREATE INDEX IF NOT EXISTS idx_roads_noded_routing
+  ON roads_noded (id) INCLUDE (source, target, cost_m, cost_min)
+  WHERE cost_m > 0 AND main_comp IS TRUE AND source IS NOT NULL AND target IS NOT NULL;
 
 COMMIT;
+
+-- index-only scan 依赖 visibility map：VACUUM 不可省，且不能进事务块。
+-- 并行 VACUUM 会撞 docker 默认 64MB /dev/shm（shared memory segment 分配失败），先关并行。
+SET max_parallel_maintenance_workers = 0;
+VACUUM (ANALYZE) roads_noded;
 
 \echo '===== 完成 ====='
 \echo 'roads 未被改动；结果在 roads_noded。'

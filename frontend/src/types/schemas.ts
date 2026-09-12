@@ -291,8 +291,14 @@ export const floodAreasResponseSchema = z.looseObject({
 export type FloodAreasResponseParsed = z.infer<typeof floodAreasResponseSchema>
 
 // ⑯ /flood/analysis/disaster 响应（affectedFacilities 元素级深校验：affectedFacilitySchema）
+// waterLevel 必须 optional（2026-09-12 契约修复）：后端 assessDisaster 在「档位存在但无淹没」
+// （水位 0 等无多边形档）返回 waterLevel: undefined，JSON 序列化即丢弃该键
+//（backend/test/flood.e2e-spec.ts 显式断言此行为）。此前此处写必填 → zod 校验失败 →
+// 影响评估整段被丢弃、store 保留上一档设施/损失，面板出现「面积水深当前档 + 设施损失上一档」
+// 的自相矛盾残留。缺键语义 = 无风险零影响（affectedFacilities/totalLoss 均为空/0），
+// 消费方只读后两者（floodAdapter.getImpactAssessment），无需回填档位。
 export const floodDisasterResponseSchema = z.looseObject({
-  waterLevel: z.number(),
+  waterLevel: z.number().optional(),
   requestedWaterLevel: z.number().optional(),
   riskLevel: z.string(),
   affectedFacilities: z.array(affectedFacilitySchema),

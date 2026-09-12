@@ -297,6 +297,20 @@ describe('flood schemas（真实数据 + 构造样本）', () => {
     expect(badFac.success).toBe(false)
   })
 
+  it('floodDisasterResponseSchema 容忍无淹没档位缺 waterLevel（零影响契约）', () => {
+    // 后端 assessDisaster 在无多边形档返回 waterLevel: undefined → JSON 丢弃该键
+    //（flood.e2e-spec.ts 断言）。schema 若必填会导致校验失败、影响评估被丢弃，
+    // 面板残留上一档设施/损失（2026-09-12 实测缺陷的回归锁定）。
+    const zeroImpact = floodDisasterResponseSchema.safeParse({
+      requestedWaterLevel: 0,
+      riskLevel: '无风险',
+      affectedFacilities: [],
+      totalLoss: 0,
+    })
+    expect(zeroImpact.success).toBe(true)
+    expect(zeroImpact.success && zeroImpact.data.waterLevel).toBeUndefined()
+  })
+
   it('floodOnlineResponseSchema 通过/拒绝（统一入口后仍校验）', () => {
     const ok = floodOnlineResponseSchema.safeParse({
       level: 2.5,

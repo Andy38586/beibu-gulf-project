@@ -179,5 +179,32 @@ describe('floodAdapter', () => {
       expect(result.affectedFacilities[0].lng).toBe(108.6)
       expect(result.affectedFacilities[0].loss).toBe(120.5)
     })
+
+    it('无淹没档位（响应缺 waterLevel）应返回零影响，不再抛校验错', async () => {
+      // 后端 assessDisaster 无多边形档返回 waterLevel: undefined → JSON 丢弃该键
+      //（flood.e2e-spec.ts 断言）。schema 曾写必填 → 校验失败 → 影响评估被丢弃、
+      // store 保留上一档设施/损失（面板残留缺陷）。本用例锁定零影响契约。
+      const zeroImpact = {
+        code: 200,
+        data: {
+          requestedWaterLevel: 0,
+          riskLevel: '无风险',
+          affectedFacilities: [],
+          totalLoss: 0,
+        },
+      }
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async () => ({
+          ok: true,
+          status: 200,
+          json: async () => zeroImpact,
+          text: async () => JSON.stringify(zeroImpact),
+        }))
+      )
+      const result = await floodAdapter.getImpactAssessment(0)
+      expect(result.affectedFacilities).toEqual([])
+      expect(result.totalLoss).toBe(0)
+    })
   })
 })

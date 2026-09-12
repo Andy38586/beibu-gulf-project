@@ -253,7 +253,8 @@ export class FloodService {
       depthRefLevel: depthRef?.waterLevel ?? actualLevel,
       affectedFacilityCount,
       affectedPorts,
-      // 与 disaster 同口径（value × damageRate，单位：元）
+      // 与 disaster 同口径（value × damageRate）；单位万元——facilityPoints.json
+      // metadata.valueUnit=万元，前端 formatLoss 亦按万元换算（亿/万）
       estimatedLoss: assessment.totalLoss,
       description: `水位 ${actualLevel}m 连通性演算：淹没 ${floodArea} km²，受影响设施 ${affectedFacilityCount} 处${depthNote}`,
     }

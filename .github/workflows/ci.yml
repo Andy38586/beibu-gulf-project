@@ -330,7 +330,10 @@ jobs:
   # 2026-09-12：needs 由 [lint-and-build] 改为拆分后三 job——测试被 C6 过滤跳过时
   #（docs-only 等）不阻塞构建部署；测试真红（failure）仍阻断。
   build-push-images:
-    needs: [static-checks, frontend-tests, backend-tests]
+    # audit 入 needs（审查 d142）：main 上 npm audit 真红时不再构建/推送制品——
+    # 审计门禁此前只拦部署、不拦发布。docs-only 过滤跳过 audit（skipped）时由
+    # always() 顶掉默认 skip 传播，构建照常；audit 真红（failure）仍被 !failure() 阻断。
+    needs: [audit, static-checks, frontend-tests, backend-tests]
     runs-on: ubuntu-latest
     if: >-
       always() && !failure() && !cancelled() &&

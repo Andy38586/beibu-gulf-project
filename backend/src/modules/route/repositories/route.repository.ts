@@ -10,38 +10,59 @@ import { DbService } from '../../../infra/db/db.service'
 //
 // 口径对齐 route/graph.py（勿凭感觉改）：
 //   · distance 口径 → cost_m   （= round(length_m, 2)）
-//   · time 口径     → cost_min （= round(length_m/1000/speed*60, 4)）
+//   · time 口径     → cost_min （= 物理时间，分钟；选路另用 route_cost_min 加等级偏好）
 //   · 吸附（起点/终点投影到最近边）→ ST_LineLocatePoint + KNN(<->)，对齐 _snap_query/_attach
-//   · 不可通行边 cost = -1，故 edges_sql 一律带 `cost > 0` 过滤
-// 权重列与限速表由 tools/roads/pgrouting-setup.sql 建立（含 pgr_createTopology 拓扑）。
+//   · 不可通行边 cost = -1；v2 有单向边，故过滤谓词一律是 `cost > 0 OR reverse_cost > 0`
+// 表结构、权重列与等级参数表由 tools/roads/roads-graph-build.sql 建立
+//（v2：顶点 = OSM node id，有向图；旧 tools/roads/pgrouting-setup.sql 只服务已停用的旧管线）。
 
-/** mode → 权重列名（对齐 graph.py 的 MODE_WEIGHT，白名单防注入） */
-const MODE_COST_COLUMN = {
-  distance: 'cost_m',
-  time: 'cost_min',
+/**
+ * mode → **选路权重列**（白名单，防注入）。
+ *
+ * v2 路网（2026-09-13）起，「选路权重」与「对外报告口径」解耦：
+ *   · distance：纯距离（cost_m / reverse_cost_m）——"最短"就该是几何最短，不加偏好；
+ *   · time    ：物理时间 × 等级偏好 × 通行限制惩罚（route_cost_min / route_reverse_cost_min）
+ *               ——按纯物理时间选路会为省 200m 钻村道/穿小区，故给低等级道与受限通行道
+ *               温和加权（route_class_profile.pref_penalty）；**报告的分钟数仍取物理
+ *               cost_min**（见 MODE_METRIC），面板上的时长没有被放大。
+ */
+const MODE_WEIGHT = {
+  distance: { cost: 'cost_m', reverseCost: 'reverse_cost_m' },
+  time: { cost: 'route_cost_min', reverseCost: 'route_reverse_cost_min' },
 } as const
 
-export type RouteMode = keyof typeof MODE_COST_COLUMN
+export type RouteMode = keyof typeof MODE_WEIGHT
+
+/** mode → 对外报告的物理口径列：永远报物理量（米 / 分钟），与选路权重无关 */
+const MODE_METRIC = {
+  distance: { metric: 'cost_m', other: 'cost_min' },
+  time: { metric: 'cost_min', other: 'cost_m' },
+} as const
 
 export function isRouteMode(m: unknown): m is RouteMode {
-  return typeof m === 'string' && Object.prototype.hasOwnProperty.call(MODE_COST_COLUMN, m)
+  return typeof m === 'string' && Object.prototype.hasOwnProperty.call(MODE_WEIGHT, m)
 }
 
 /**
  * 路由实际使用的路网表。
  *
- * `roads` 是从原始 GeoJSON 直接导入的**未切分**边（165,111 条）。OSM 源数据里纵向道路
- * 不在路口切断、横路端点悬在纵路中间，只合并"首末点精确重合"抓不到 T 型连接 —— 实测
- * 它只形成 **56,418 个连通分量**，最大分量仅覆盖 **30.3%** 的可通行边（吸附面被砍到
- * 三分之一）。
+ * `roads_edges` 是 v2 路网（2026-09-13 质变上线）：顶点 = **OSM node id**，way 只在
+ * 「被其他 way 共享的 node」处切分。它同时修掉旧管线的三处结构性缺陷：
  *
- * `roads_noded` 是经 `tools/roads/roads-noding.sql` 做「端点投影切分 + 60m 网格建拓扑」后的表
- * （614,015 段）：连通分量降到 **799**、最大分量覆盖 **94.9%** —— 与 Python 时代 networkx
- * 的 `largest_component_edge_ratio = 0.9501` 一致。**路由必须走它**，否则服务范围只有三分之一。
+ *   ① **拓扑**：旧表 `roads_noded` 的顶点是「端点投影切分 + 60m 网格并点」造出的代理点——
+ *      上跨/下穿的两条路只要离得近就被并成同一个顶点，于是在立交处凭空生出路口
+ *      （桥上可以直接拐到桥下＝用户报的"下穿国道直接拐上高速"）。v2 里上跨/下穿不共享
+ *      OSM node → 天然不连通，必须走匝道/路口，和真实世界一致。
+ *   ② **单行**：旧表没有 reverse_cost 列，且源数据 oneway 全为 NULL（抽取阶段把属性丢了），
+ *      pgr 一直以 directed := false 跑 → 高速双向可逆行。v2 抽到了 11 万条单向边
+ *      （高速 99% 是单向），cost / reverse_cost 分开给，directed := true。
+ *   ③ **等级**：v2 带 maxspeed 真值与等级缺省限速，时间口径才有真实梯度
+ *      （motorway 110 / trunk 78 / primary 60 / residential 25 km/h）。
  *
- * 切换只改这一个常量；回退同样只改它（或 revert 对应 commit）。
+ * 旧表 `roads_noded`（614,015 段，主分量 94.9%）保留在库里仅作回滚与 A/B 对照，
+ * 不再被任何查询引用。回退只需把本常量改回 'roads_noded'（同时 directed 也要回退）。
  */
-export const ROUTING_TABLE = 'roads_noded'
+export const ROUTING_TABLE = 'roads_edges'
 
 /**
  * 虚拟点编号（Points SQL 用**正数**）。
@@ -127,7 +148,19 @@ WITH pts(pid, lng, lat) AS (
 ),
 nearest AS (
   SELECT p.pid, r.id AS edge_id,
-         ST_LineLocatePoint(r.geom, ST_SetSRID(ST_MakePoint(p.lng, p.lat), 4490)) AS fraction,
+         -- ⚠️ fraction 必须夹离 1：点正落在边的**终点顶点**上时 ST_LineLocatePoint 返回恰 1.0，
+         -- 而 pgr_withPoints 对 fraction=1 **不报错、静默返回 0 行** → 上层判成 unreachable
+         --（"任何路网都走不通"）。2026-09-12 生产实测（北海国际客运港：周边 3km 最近边 f 全为
+         -- 1.0，未夹 0 行；夹到 1-1e-6 后 248 行 / 114.8km）。港口/淹没设施点多贴着路段末端，
+         -- 故必须有此夹取。fraction=0 侧 pgRouting 实测可用，两端的夹取仅为对称防御。
+         -- 偏差 = 边长×1e-6（亚毫米级），不影响里程口径。
+         LEAST(
+           GREATEST(
+             ST_LineLocatePoint(r.geom, ST_SetSRID(ST_MakePoint(p.lng, p.lat), 4490)),
+             1e-6
+           ),
+           1 - 1e-6
+         ) AS fraction,
          ST_Distance(
            r.geom::geography,
            ST_SetSRID(ST_MakePoint(p.lng, p.lat), 4490)::geography
@@ -136,7 +169,13 @@ nearest AS (
   CROSS JOIN LATERAL (
     SELECT id, geom
     FROM ${ROUTING_TABLE}
-    WHERE cost_m > 0 AND main_comp IS TRUE AND geom IS NOT NULL
+    -- v2：单向边（oneway=-1）的 cost_m 是 -1，只按 cost_m > 0 过滤会把它们
+    -- 排除出吸附面（反向单行路段两侧都吸不上点）。谓词与偏索引 idx_roads_edges_geom_usable 一致。
+    WHERE cost_m > 0 OR reverse_cost_m > 0
+    -- 注：main_comp IS TRUE 与上面的 OR 谓词共同构成偏索引两侧条件，
+    --     这里保持书写与建图脚本【5】完全一致，便于 SQL 计划核对
+    AND main_comp IS TRUE
+    AND geom IS NOT NULL
     ORDER BY geom <-> ST_SetSRID(ST_MakePoint(p.lng, p.lat), 4490)
     LIMIT 1
   ) r
@@ -160,10 +199,14 @@ ORDER BY pid
    *      用 `'...'` 包裹会提前终止字符串（实测首次上线 5/5 全 500 即此因）；
    *   ③ 外层 `edge > 0` 只滤掉终点哨兵行（实测部分边的 `edge` 仍为正数、`cost` 已按
    *      fraction 折算），故**不能**靠它判断路径为空——真正的空结果是 0 行。
-   * directed := false —— 对齐原实现 nx.Graph()（无向图；oneway 列源数据全 NULL）。
+   *
+   * `directed := true`（v2 起）：单向边由 `reverse_cost = -1` 表达——pgRouting 的约定是
+   * 「该方向的代价为负 = 该方向不存在」。旧实现传 `directed := false` + 无反向代价列，
+   * 等价于把所有单行道当双向道（高速可逆行）。**这一处必须与 MODE_WEIGHT 的反向列成对修改**：
+   * 只改 directed 不给 reverse_cost，pgr 会把 -1 当成"负代价的合法边"，反而选出负权路径。
    */
   async shortestPathByPoints(snaps: SnapRow[], mode: RouteMode): Promise<WithPointsRow[]> {
-    const costCol = MODE_COST_COLUMN[mode]
+    const { cost: costCol, reverseCost: reverseCostCol } = MODE_WEIGHT[mode]
     // points_sql 内联：pid/edge_id/fraction 全部来自上一步吸附查询的结果行，
     // 经 Number() 归一后拼接（数值类型，不含用户原始输入，无注入面）；
     // 超 2^53 的标识经 Number 静默失真会指到错误边——fail-loud 优于静默错果（审查 L-5）
@@ -192,12 +235,13 @@ SELECT r.seq,
        e.source AS edge_source,
        e.target AS edge_target
 FROM pgr_withPoints(
-  $$SELECT id, source, target, ${costCol} AS cost, ${costCol} AS reverse_cost
-      FROM ${ROUTING_TABLE} WHERE ${costCol} > 0 AND main_comp IS TRUE
-      AND source IS NOT NULL AND target IS NOT NULL$$,
+  $$SELECT id, source, target, ${costCol} AS cost, ${reverseCostCol} AS reverse_cost
+      FROM ${ROUTING_TABLE}
+     WHERE main_comp IS TRUE AND (${costCol} > 0 OR ${reverseCostCol} > 0)
+       AND source IS NOT NULL AND target IS NOT NULL$$,
   $$${pointsSql}$$,
   $1::bigint, $2::bigint,
-  directed := false
+  directed := true
 ) r
 LEFT JOIN ${ROUTING_TABLE} e ON e.id = r.edge
 WHERE r.edge > 0
@@ -205,7 +249,13 @@ ORDER BY r.path_seq
 `,
       [-PID_FROM, -PID_TO]
     )
-    return res.rows
+    // bigint 列经 pg 返回的是字符串，与接口声明的 number 不符——在边界归一，
+    // 防止下游拿它做 `===` 数值比较时踩"number === string 恒 false"的坑（2026-09-13 实测事故）
+    return res.rows.map((r) => ({
+      ...r,
+      edge_source: r.edge_source === null ? null : Number(r.edge_source),
+      edge_target: r.edge_target === null ? null : Number(r.edge_target),
+    }))
   }
 
   /**
@@ -215,25 +265,30 @@ ORDER BY r.path_seq
    * 其费用只算走过的一段。旧实现取整条边的 cost_m 相加，把没走的部分也算了进去——
    * 2026-09-10 实测样本（钦州 ~5.8km 路径）高估约 10.6%，直接顶穿 B-5 的 <1% 判据。
    *
-   * 另一口径用**比例折算**（该段费用 ÷ 该边在所选口径下的全长 × 该边在另一口径下的全长），
-   * 而非二次寻路——这样「两口径同源」才成立：同一条路径同时报距离与时长，不会出现
-   * "距离按 A 路径、时长按 B 路径"。整条边时比例为 1，公式自动退化为直接取值。
+   * 另一口径用**几何比例折算**（该段走过的比例 × 该边在另一口径下的全长），不二次寻路——
+   * 这样「两口径同源」才成立：同一条路径同时报距离与时长，不会出现"距离按 A 路径、
+   * 时长按 B 路径"。整条边时比例为 1，公式自动退化为直接取值。
+   *
+   * v2 起比例取自**分段的几何区间** (hi - lo)，而不再用 `t.cost ÷ 该边全长`：后者要求
+   * pgr 返回的 cost 就是物理量，而 v2 的 time 口径给 pgr 的是**加权代价**
+   * （route_cost_min = 物理时间 × 等级偏好），比例会被偏好乘数污染、把时长报大。
+   * 几何比例与代价比例等价（同一段上 cost 与长度成正比），且与选路权重彻底解耦。
    */
   async sumSegmentCosts(
     segments: RouteSegment[],
     mode: RouteMode
   ): Promise<{ distanceM: number; durationMin: number }> {
     if (segments.length === 0) return { distanceM: 0, durationMin: 0 }
-    const modeCol = MODE_COST_COLUMN[mode]
-    const otherCol = mode === 'distance' ? 'cost_min' : 'cost_m'
+    const { metric, other } = MODE_METRIC[mode]
     const res = await this.db.query<{ mode_metric: number; other_metric: number }>(
       `
-SELECT COALESCE(sum(t.cost), 0)::float8                                          AS mode_metric,
-       COALESCE(sum(t.cost / NULLIF(r.${modeCol}, 0) * r.${otherCol}), 0)::float8 AS other_metric
-FROM ROWS FROM (unnest($1::bigint[]), unnest($2::float8[])) AS t(edge_id, cost)
+SELECT COALESCE(sum((t.hi - t.lo) * r.${metric}), 0)::float8 AS mode_metric,
+       COALESCE(sum((t.hi - t.lo) * r.${other}), 0)::float8  AS other_metric
+FROM ROWS FROM (unnest($1::bigint[]), unnest($2::float8[]), unnest($3::float8[]))
+     AS t(edge_id, lo, hi)
 JOIN ${ROUTING_TABLE} r ON r.id = t.edge_id
 `,
-      [segments.map((s) => s.edgeId), segments.map((s) => s.cost)]
+      [segments.map((s) => s.edgeId), segments.map((s) => s.lo), segments.map((s) => s.hi)]
     )
     const row = res.rows[0]
     const modeMetric = row?.mode_metric ?? 0
@@ -278,7 +333,8 @@ ORDER BY t.ord
   /** 兜底：pgr_withPoints 无结果时的诊断——统计可通行边数（区分「拓扑未建」与「确实不连通」） */
   async countTraversableEdges(): Promise<number> {
     const res = await this.db.query<{ n: string }>(
-      'SELECT count(*)::text AS n FROM ' + ROUTING_TABLE + ' WHERE cost_m > 0'
+      // 双向任一方向可通行即计入（v2 有单向边：只数 cost_m > 0 会漏掉反向单行段）
+      'SELECT count(*)::text AS n FROM ' + ROUTING_TABLE + ' WHERE cost_m > 0 OR reverse_cost_m > 0'
     )
     return Number(res.rows[0]?.n ?? 0)
   }

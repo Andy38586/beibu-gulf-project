@@ -92,6 +92,19 @@ describe('RouteRepository.snapPoints - SQL 契约', () => {
     // 吸附半径以参数注入（写死 2000 会让 SNAP_RADIUS_M 失效）
     expect(calls[0].params).toContain(2000)
   })
+
+  it('吸附 fraction 夹到 (0,1) 开区间（fraction=1 会让 pgr_withPoints 静默返回 0 行）', async () => {
+    const { db, calls } = makeDbMock()
+    await new RouteRepository(db).snapPoints(108.6, 21.7, 108.7, 21.75, 2000)
+
+    const sql = calls[0].sql
+    // 2026-09-12 事故：港口/设施点多贴着路段末端 → ST_LineLocatePoint 返回恰 1.0 →
+    // pgr_withPoints **不报错、返回 0 行** → 上游判成 unreachable（表现为"任何路都走不通"）
+    expect(sql).toContain('LEAST(')
+    expect(sql).toContain('GREATEST(')
+    expect(sql).toContain('1 - 1e-6')
+    expect(sql).toContain('1e-6')
+  })
 })
 
 describe('RouteRepository.shortestPathByPoints - SQL 契约', () => {

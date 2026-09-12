@@ -245,6 +245,38 @@ describe('buildSegments - 行 → 分段（本次修复的核心逻辑）', () =
     expect(segs).toHaveLength(2)
     expect(segs.every((s) => s.edgeId > 0)).toBe(true)
   })
+
+  it('pg 把 bigint 列按字符串返回：edge_source 为字符串时方向判定不得误判（2026-09-13 产线事故回归）', () => {
+    // 曾经 `departure === cur.edge_source` 用 number 与 string 严格比较 → 恒 false
+    // → 除首段外每段都被误判成逆向、整段坐标被反转，路径线画成"被打乱的线"。
+    // 上面既有用例的夹具把 edge_source 写成 number，恰好掩盖了该坑——本用例按 pg
+    // 真实返回形态（bigint → string）构造，锁死行为。
+    const pgStyleRow1: WithPointsRow = {
+      seq: 1,
+      path_seq: 1,
+      node: '-1',
+      edge: '1001',
+      cost: 50,
+      agg_cost: 0,
+      edge_source: '1' as unknown as number,
+      edge_target: '2' as unknown as number,
+    }
+    const pgStyleRow2: WithPointsRow = {
+      seq: 2,
+      path_seq: 2,
+      node: '2',
+      edge: '2002',
+      cost: 50,
+      agg_cost: 50,
+      edge_source: '2' as unknown as number,
+      edge_target: '3' as unknown as number,
+    }
+    const segs = buildSegments([pgStyleRow1, pgStyleRow2, ROW_TERMINAL], 0.5, 0.5)
+    // 首段：arrival(2) === Number(target)(2) → 正向
+    expect(segs[0]).toEqual({ edgeId: 1001, lo: 0.5, hi: 1, reverse: false, cost: 50 })
+    // 中段：departure(2) === Number(source)(2) → 正向（修复前此处恒 reverse:true）
+    expect(segs[1]).toEqual({ edgeId: 2002, lo: 0, hi: 1, reverse: false, cost: 50 })
+  })
 })
 
 describe('RouteService.findPath - 成功路径', () => {

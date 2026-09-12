@@ -94,9 +94,12 @@ export function buildSegments(
     if (isFirst && isLast) {
       forward = fromFraction <= toFraction
     } else if (isFirst) {
-      forward = arrival !== null && arrival === cur.edge_target
+      forward = arrival !== null && arrival === Number(cur.edge_target)
     } else {
-      forward = departure === cur.edge_source
+      // ⚠️ 必须 Number() 归一后再比：pg 把 bigint 以字符串返回，`3787682577 === "3787682577"`
+      // 恒为 false → 除首段外每段都被误判成逆向、整段坐标被反转，路径线画成"被打乱的线"
+      //（2026-09-13 航线分析实测定位；09-10 上线即存在，因 e2e 只断言 found/distanceM 未暴露）。
+      forward = departure === Number(cur.edge_source)
     }
 
     let lo = 0

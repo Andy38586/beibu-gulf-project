@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================================
-# C4 CI seed：v3_dev schema + 仓库内真数据 + roads_noded 最小夹具（幂等可重复执行）
+# C4 CI seed：v3_dev schema + 仓库内真数据 + roads_edges 最小夹具（幂等可重复执行）
 # ============================================================================
 # 由 ci.yml 的 backend-tests job 在 PostGIS+pgRouting service container 就绪后调用；
 # 连接参数经环境注入，默认对齐 docker-compose.v3.yml（postgres/postgres/v3_dev@localhost:5432）。
@@ -13,9 +13,9 @@
 #     （users/plans/favorites 为运行时数据不入仓库，测试自建自清）
 #   ③ tools/flood/flood-levels-to-pg.mjs：flood_levels 251 档
 #     （backend/data/flood/flood_levels.json.gz，0.1m 步长真数据）
-#   ④ backend/test/seed/roads-noded-fixture.sql：2 条合成测试边（⚠️ 仅测试库用，
-#     严禁灌 v3_dev/生产库），让 route 域 pgr_withPoints / 吸附 / 分段费用真链路可跑
-#     （真实路网 61 万段 + noding 流水线 CI 无法复现）
+#   ④ backend/test/seed/roads-graph-fixture.sql：3 条合成测试边（⚠️ 仅测试库用，
+#     严禁灌 v3_dev/生产库），含一条**单向边**，让 route 域有向 pgr_withPoints /
+#     吸附 / 分段费用真链路可跑（真实路网 40 万段 + 省级 PBF 抽取流水线 CI 无法复现）
 #
 # POI/xiaoqu 有意不灌：AMap 抓取源不入仓库（tools/.poi_cache gitignored，无快照）→
 # site-analysis.parity / site-analysis.e2e 两个数据绑定 spec 以库内 POI 计数自探测跳过
@@ -65,11 +65,11 @@ echo "[seed] flood_levels 251 档真数据（flood_levels.json.gz）..."
 (cd "$ROOT" && node tools/flood/flood-levels-to-pg.mjs >/dev/null)
 psql_run -q -f "$ROOT/.local/tmp/flood-import.sql"
 
-echo "[seed] roads_noded 最小夹具（仅测试库）..."
-psql_run -q -f "$ROOT/backend/test/seed/roads-noded-fixture.sql"
+echo "[seed] roads_edges 最小夹具（仅测试库）..."
+psql_run -q -f "$ROOT/backend/test/seed/roads-graph-fixture.sql"
 
 echo "[seed] 灌数对账自检..."
-counts="$(psql_run -t -A -c "SELECT (SELECT count(*) FROM flood_levels) || '/' || (SELECT count(*) FROM flood_facilities) || '/' || (SELECT count(*) FROM roads_noded WHERE cost_m > 0 AND main_comp IS TRUE)")"
-echo "[seed] flood_levels/flood_facilities/roads_noded(可通行) = $counts"
-[ "$counts" = "251/83/2" ] || { echo "::error::seed 对账不符（期望 251/83/2）"; exit 1; }
+counts="$(psql_run -t -A -c "SELECT (SELECT count(*) FROM flood_levels) || '/' || (SELECT count(*) FROM flood_facilities) || '/' || (SELECT count(*) FROM roads_edges WHERE main_comp IS TRUE)")"
+echo "[seed] flood_levels/flood_facilities/roads_edges(主分量) = $counts"
+[ "$counts" = "251/83/3" ] || { echo "::error::seed 对账不符（期望 251/83/3）"; exit 1; }
 echo "[seed] 完成"

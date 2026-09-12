@@ -9,6 +9,15 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./test/setup.ts'],
+    // 功能域清单固定为生产默认值（与 docker-compose.yml 的 VITE_USE_NEST_MODULES 同源）：
+    // 此前测试路由解析依赖本机 .env.local（不入库）→ CI 干净树上清单为空，
+    // route 域解析回退 /api 致 useRouteApi 前缀断言红（2026-09-12 两轮 CI 实锤）。
+    // 测试环境必须与部署默认对齐，禁止依赖本机未入库 env。
+    env: {
+      VITE_USE_NEST_MODULES: 'auth,plans,favorites,forecast,flood,site-analysis,route',
+      VITE_NEST_API_BASE: '/nest-api',
+      VITE_API_BASE: '/api',
+    },
     // 进程挂起根因：forks 池下 mount 组件的测试（UnifiedMap 等）测试完成后
     // worker 残留 open handle 不退出 → 套件"跑不完"（测试本身全绿）。
     // 方案：全局用 threads 池（实测正常退出）；OLRenderer 两个测试文件因
@@ -32,15 +41,13 @@ export default defineConfig({
       ],
       reporter: ['text-summary', 'html', 'lcov', 'json-summary'],
       reportOnFailure: true,
-      // 2026-08-11（审查副-35）：阈值低于 60% 目标——当前处于架构验证期，
-      // 覆盖率作为回归基线而非上线门禁；目标 60% 挂下一阶段（与 08-11 专项审计计划一致）。
-      // 2026-08-14（z103）：阈值自实测水平小幅提升（25/20/15/25 → 30/25/18/30），
-      // 仍留余量防 CI 假红；调高前先确认实际覆盖率（npm test -- --coverage）。
-      // 2026-08-16（816-M9）：门禁阶梯上调（30/25/18/30 → 45/35/28/45）——
-      // 实测 39.87/29.87/26.2（2026-08-12），45 档迫使核心模块补测；下一档 50/45/40/50，目标 60%。
-      // 2026-08-27：回归实测基线并留余量——45/35/28/45 超过实测导致 CI 全红；
-      // 当前实测 38.05/30.63/27.11/40.25，回调并预留 ~2pt 平台差异余量，补测后逐级上调
-      thresholds: { lines: 38, functions: 29, branches: 26, statements: 36 },
+      // 2026-08-11（审查副-35）：覆盖率作为回归基线而非上线门禁（阈值曾逐级上调又回调，
+      // 45/35/28/45 超实测导致 CI 全红——见 git 历史 38/29/26/36 一带注释）。
+      // 2026-09-12（CI 审查 C5）：固定百分比阈值整体退役，改 scripts/coverage-ratchet.cjs
+      // 基线棘轮（frontend/coverage-baseline.json，容差 0.5pt）——根除"大版本分母暴涨
+      // → 总体百分比必然下滑 → 第一次 CI 必红"的机制性追尾；增长由 ci:local 的
+      // --update 写回基线（只升不降）。
+      // thresholds: 已移除（历史口径 38/29/26/36）
     },
   },
   resolve: {

@@ -3,7 +3,7 @@
 #   前端：      http://localhost:80（nginx，同域反代）
 #   业务 API：  http://localhost:80/nest-api/...（经 nginx 反代 → nest:3000）
 #   演算服务：  http://localhost:8000（algorithm-service，容器内）
-#   PostGIS：   localhost:5432（v3_dev）
+#   PostGIS：   localhost:5432（beibu-gulf-data）
 services:
   # 前端 + nginx（唯一对外暴露 80/443；API/DEM/瓦片均同域反代）
   app:
@@ -70,8 +70,14 @@ services:
       PG_HOST: postgis
       PG_PORT: '5432'
       PG_USER: postgres
-      PG_PASSWORD: postgres
-      PG_DB: v3_dev
+      # P0（EP-09 / EH-07）：与 postgis 服务口令同源，强制注入——未注入时 compose 直接报错，
+      # 不再把开发默认口令 postgres 带上生产（environment 优先级高于 env_file，此处是唯一权威）
+      PG_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD 必须通过 .env 注入，禁止默认口令}
+      # ⚠️ 键名必须是 PG_DATABASE（2026-09-15 修复）：原写 PG_DB，而后端只读 PG_DATABASE
+      #（backend/src/infra/db/db.config.ts:31、config.service.ts:71），PG_DB 是**死键**——
+      # 线上一直靠"代码默认值恰好等于库名"在跑，配置从未生效。改名后必须显式注入。
+      # 注：environment 优先级高于 env_file，故此处是唯一权威，可覆盖部署侧 backend/.env 的旧值。
+      PG_DATABASE: beibu-gulf-data
       DATA_DIR: /app/backend/data
       # JWT_SECRET 由部署 .env 注入（backend/.env），不烘焙进镜像
     volumes:
@@ -87,7 +93,7 @@ services:
       start_period: 15s
     restart: unless-stopped
 
-  # PostGIS（空间数据，v3_dev）
+  # PostGIS（空间数据，beibu-gulf-data）
   postgis:
     # 2026-09-10（阶段 3 前置）：切换为带 pgRouting 的自建镜像。
     #   local/postgis-pgrouting:16-3.4 = postgis/postgis:16-3.4 + apt 装 postgresql-16-pgrouting
@@ -111,16 +117,51 @@ services:
       - work_mem=4MB
       - -c
       - max_connections=20
+      # ── 日志持久化（2026-09-15 新增，起因见下）──────────────────────────────
+      # 事故：09-15 一次 PG 后端以 `exit code 2` 异常退出、postmaster 崩溃恢复；要查它退出前
+      # 打了什么 FATAL，却**查不到**——因为日志只走容器 stdout，而 postgis 容器在 22:05 被
+      # compose 重建（`docker inspect` 实证 Created=2026-09-15T14:05:25Z），**容器一重建日志即丢**。
+      # ⇒ 现场永久丢失，只能凭 dmesg/cgroup 反证"非 OOM、非段错误、非磁盘"，成因不可考。
+      #
+      # 现在改为 logging_collector 落盘到 beibu-pglogs 卷 ⇒ 跨容器重建仍可查。
+      # ⚠️ 代价（务必知道）：开启后 stderr 被收集器接管，**`docker logs beibu-postgis` 会变得很安静**。
+      #    改用： docker exec beibu-postgis sh -c 'ls -lt /var/log/postgresql/ | head'
+      #           docker exec beibu-postgis sh -c 'tail -100 $(ls -t /var/log/postgresql/*.log | head -1)'
+      # ⚠️ 留存缺口：PG **不会自动删除**旧日志文件（只有轮转、没有保留策略）。当前配置
+      #    每 20MB 或每 1 天轮转一个文件，长期会缓慢累积。建议在宿主机加一条定时清理，如：
+      #      find /var/lib/docker/volumes/beibu-gulf-project_beibu-pglogs/_data -name '*.log' -mtime +30 -delete
+      - -c
+      - logging_collector=on
+      - -c
+      - log_directory=/var/log/postgresql
+      - -c
+      - log_filename=postgresql-%Y-%m-%d_%H%M%S.log
+      - -c
+      - log_rotation_age=1d
+      - -c
+      - log_rotation_size=20MB
+    # stdout 侧留存（只跨 restart 有效；跨 recreate 必须靠上面的 beibu-pglogs 卷）。
+    # 保留它是为了 `docker logs` 在容器重启后仍能翻到最近一段。
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '5'
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: v3_dev
-    ports:
-      - '5432:5432'
+      # P0（EP-09 / EH-07）：凭据必须注入，禁止默认口令（`:?` = 未设置即中断 compose）
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD 必须通过 .env 注入，禁止默认口令}
+      POSTGRES_DB: beibu-gulf-data
+    # P0（EP-09 / EH-07）：生产**不向宿主机发布**数据库端口——nest 经服务名 `postgis` 内网访问。
+    # 本地调试确需直连时，改用下面注释的 127.0.0.1 绑定（仅本机 + SSH 隧道），切勿暴露公网。
+    # ports:
+    #   - '127.0.0.1:5432:5432'
     volumes:
       - beibu-pgdata:/var/lib/postgresql/data
+      # 日志落盘卷：让 PG 日志跨容器重建存活（见上方 command 段的起因说明）
+      - beibu-pglogs:/var/log/postgresql
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U postgres -d v3_dev']
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d beibu-gulf-data']
       interval: 5s
       timeout: 3s
       retries: 12
@@ -137,3 +178,9 @@ services:
 
 volumes:
   beibu-pgdata:
+  # PG 日志卷（2026-09-15 新增）。为什么用**命名卷**而不是 bind mount 到宿主机目录：
+  # 命名卷首次使用时会继承镜像内目录的属主（postgres:postgres），PG 能直接写；
+  # 而 bind mount 到宿主目录默认 root 所有 ⇒ postgres 用户写不进去、日志收集器启动失败。
+  # （2026-09-15 本地实测：命名卷 `drwxrwxr-t root postgres` + 日志文件 `postgres:postgres` ✅，
+  #   删容器后用同卷重建，旧日志仍在且可读 ✅）
+  beibu-pglogs:

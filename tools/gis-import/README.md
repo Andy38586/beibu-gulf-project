@@ -18,7 +18,7 @@ docker compose -f docker-compose.v3.yml up -d postgis
 
 # 2. 建表
 docker cp tools/db/db-schema-gis.sql beibu-postgis:/tmp/
-docker exec beibu-postgis psql -U postgres -d v3_dev -f /tmp/db-schema-gis.sql
+docker exec beibu-postgis psql -U postgres -d beibu-gulf-data -f /tmp/db-schema-gis.sql
 
 # 3. 导入（可按 Section 单跑）
 powershell -File tools/gis-import/import-gis.ps1 -Section all

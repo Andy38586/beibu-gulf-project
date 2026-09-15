@@ -26,7 +26,7 @@ $DockerCli = 'C:\Program Files\Docker\Docker\resources\bin\docker.exe'
 if (-not (Test-Path $DockerCli)) { throw "docker CLI 未找到：$DockerCli（需 Docker Desktop）" }
 $DataRoot = 'C:\Users\JionHappY\Desktop\_北部湾项目\数据_\项目数据'
 # PG 连接（对齐 docker-compose.v3.yml 与 verify.mjs）
-$PG = 'PG:host=localhost port=5432 user=postgres password=postgres dbname=v3_dev active_schema=public'
+$PG = 'PG:host=localhost port=5432 user=postgres password=postgres dbname=beibu-gulf-data active_schema=public'
 
 # 红树林裁剪窗（EPSG:4326，minx miny maxx maxy）：覆盖广西全境并外扩，故必然含粤西与
 # 越北的同纬度片区——实测每时相 420~480km²，而广西红树林实际约 90km²，差值即境外片区。
@@ -44,7 +44,7 @@ function Invoke-Psql([string]$sql) {
   $prev = $ErrorActionPreference
   $ErrorActionPreference = 'Continue'
   try {
-    & $DockerCli exec beibu-postgis psql -U postgres -d v3_dev -c $sql 2>&1 | ForEach-Object { Write-Host $_ }
+    & $DockerCli exec beibu-postgis psql -U postgres -d beibu-gulf-data -c $sql 2>&1 | ForEach-Object { Write-Host $_ }
   } finally {
     $ErrorActionPreference = $prev
   }

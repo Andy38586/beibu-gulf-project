@@ -11,6 +11,16 @@ import { AppModule } from '../src/app.module'
 //（重演 flood 域事故，见 flood.controller 注释自证）。
 // 限流归属断言不依赖真库：无库时请求以 5xx 收场但计数照常，429 与否足以判定桶归属；
 // 寻路契约冒烟属真库范畴，V3_INTEGRATION_DB 门控（site-analysis e2e 同款）。
+//
+// ⚠️ 夹具依赖的用例不在此文件（2026-09-15 拆分原因）：
+// 原文件里有两条用例断言的是**合成夹具图**（backend/test/seed/roads-graph-fixture.sql：3 条合成边
+// A/B/C，坐标 108.6/21.6 等假点，其中 edge C 是 oneway=1 的单向边）。该夹具经 ci-seed.sh 第 ④ 步
+// 灌入 CI 临时库，而 seed 注释明令「**严禁灌 beibu-gulf-data/生产库**」——所以在任何"有真实路网"的机器上，
+// 这两条的期望拓扑根本不存在，必然失败（实测：本地真库 2 failed → watchdog RESULT_FAILED_TESTS → 退出 1，push 被拦）。
+//
+// 根因是**门控条件与实际依赖不匹配**：文件只按"有没有库"门控，却混了"库里是不是夹具图"的断言。
+// 修法＝按依赖拆文件：夹具用例移入 `route.fixture.e2e-spec.ts`（V3_ROADS_FIXTURE 门控），
+// 本文件只留"有真库即可"的契约冒烟。一个文件对应一个门控条件，watchdog 才能精确执法。
 const withDb = process.env.V3_INTEGRATION_DB !== undefined
 
 describe('route e2e — 限流桶归属（无库可跑）', () => {
@@ -80,33 +90,8 @@ describe.skipIf(!withDb)('route e2e（连真库 PostGIS）', () => {
     expect(res.body.data.edgeCount).toBeGreaterThan(0)
   })
 
-  it('单向边：正向可达；反向 unreachable（v2 有向图，旧网 directed:=false 会反向畅通）', async () => {
-    // 夹具 edge C（node3→node4，oneway=1，reverse_cost_m=-1）。
-    // 旧实现（无反向代价 + directed := false）下，node4→node3 会照常"畅通"——
-    // 这正是生产上"高速可逆行"的形态；本用例把它钉死。
-    const base = '/nest-api/route/path'
-    const fwd = await request(app.getHttpServer())
-      .get(`${base}?fromLng=108.81&fromLat=21.81&toLng=108.9&toLat=21.9&mode=distance`)
-      .expect(200)
-    expect(fwd.body.data).toMatchObject({ found: true })
-
-    const rev = await request(app.getHttpServer())
-      .get(`${base}?fromLng=108.9&fromLat=21.9&toLng=108.795&toLat=21.795&mode=distance`)
-      .expect(200)
-    // node4 只有这一条单向边，反向无路可走 → 合法空结果（不是 500、也不是 found:true）
-    expect(rev.body.data).toMatchObject({ found: false, reason: 'unreachable' })
-  })
-
-  it('time 口径：上报时长取自物理 cost_min（等级偏好只影响选路，不放大面板数字）', async () => {
-    // v2 的 time 口径给 pgr 的是加权代价 route_cost_min（含等级偏好），
-    // 若汇总时误用 pgr 的 cost，面板时长会被偏好乘数放大。夹具 secondary 偏好 1.02、
-    // 50km/h → A 段 7.826km ≈ 9.4 分钟。断言落在 [9.0, 10.5]，容忍吸附折算。
-    const res = await request(app.getHttpServer())
-      .get('/nest-api/route/path?fromLng=108.6&fromLat=21.6&toLng=108.7&toLat=21.7&mode=time')
-      .expect(200)
-    expect(res.body.data.found).toBe(true)
-    const duration = Number(res.body.data.durationMin)
-    expect(duration).toBeGreaterThan(9.0)
-    expect(duration).toBeLessThan(10.5)
-  })
+  // 注：本文件**只保留不依赖夹具图**的用例。
+  // 断言合成夹具图拓扑的两条（单向边反向 unreachable / time 口径 9.0~10.5 分钟）
+  // 已移入 `route.fixture.e2e-spec.ts`，由 V3_ROADS_FIXTURE 单独门控——
+  // 一个文件只对应一个门控条件，watchdog 的逐文件登记才能精确执法（2026-09-15）。
 })

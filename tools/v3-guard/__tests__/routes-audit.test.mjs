@@ -4,6 +4,7 @@ import {
   auditFrontendContract,
   extractEnvDomainLists,
   extractFrontendDomains,
+  parseRoutesFromLines,
 } from '../routes-audit.mjs'
 
 // 与 backend/src/routes.manifest.ts 现网域集同构的最小样例（含基础设施探针 health）
@@ -106,5 +107,46 @@ describe('auditFrontendContract — 前端契约联动审计', () => {
       MANIFEST_DOMAINS
     )
     expect(problems).toEqual([])
+  })
+})
+
+// 「注入即红」：装饰器路径解析不得因引号风格静默置空（P1-11）——置空会让「生成」与「检查」一致地错
+describe('parseRoutesFromLines — 装饰器路径解析', () => {
+  const lines = (s) => s.split('\n')
+
+  it("单引号 @Get('overview') → 保留子路径", () => {
+    expect(parseRoutesFromLines(lines("@Get('overview')"), 'forecast')).toEqual([
+      { method: 'GET', path: 'nest-api/forecast/overview' },
+    ])
+  })
+
+  it('双引号 @Get("overview") → 保留子路径（原实现静默置空 → 永久假绿）', () => {
+    expect(parseRoutesFromLines(lines('@Get("overview")'), 'forecast')).toEqual([
+      { method: 'GET', path: 'nest-api/forecast/overview' },
+    ])
+  })
+
+  it('反引号 @Get(`overview`) → 保留子路径', () => {
+    expect(parseRoutesFromLines(lines('@Get(`overview`)'), 'forecast')).toEqual([
+      { method: 'GET', path: 'nest-api/forecast/overview' },
+    ])
+  })
+
+  it('无参 @Post() → 仅控制器前缀（合法形态）', () => {
+    expect(parseRoutesFromLines(lines('@Post()'), 'plans')).toEqual([
+      { method: 'POST', path: 'nest-api/plans' },
+    ])
+  })
+
+  it("路径参数 @Delete(':id') → 原样保留", () => {
+    expect(parseRoutesFromLines(lines("@Delete(':id')"), 'plans')).toEqual([
+      { method: 'DELETE', path: 'nest-api/plans/:id' },
+    ])
+  })
+
+  it('括号内是非字面量表达式 → 抛错（禁止静默置空）', () => {
+    expect(() => parseRoutesFromLines(lines('@Get(prefix + "/x")'), 'forecast')).toThrow(
+      /无法解析为路径字面量/
+    )
   })
 })

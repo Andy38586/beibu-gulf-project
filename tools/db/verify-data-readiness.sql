@@ -10,7 +10,7 @@
 -- 可人工跑，也可后续接进部署后校验（对应台账 z167「部署无 DB 迁移步骤」）。
 --
 -- 用法（服务器，仓库目录下）：
---   docker exec -i beibu-postgis psql -U postgres -d v3_dev -v ON_ERROR_STOP=1 \
+--   docker exec -i beibu-postgis psql -U postgres -d beibu-gulf-data -v ON_ERROR_STOP=1 \
 --     < tools/db/verify-data-readiness.sql
 --   → 逐行 PASS/FAIL；有 FAIL 则退出码非零（本次检查全部通过时会打印"检查通过"）
 --

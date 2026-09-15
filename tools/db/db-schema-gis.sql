@@ -1,6 +1,6 @@
 -- v3 空间库 schema（P4 数据入库，T4.1/T4.2）
 -- 存储坐标系 EPSG:4490 (CGCS2000)；数据源为 WGS84(4326)，中国区域厘米级一致，直接赋值存储
--- 用法: docker exec -i beibu-postgis psql -U postgres -d v3_dev -f /tmp/db-schema-gis.sql
+-- 用法: docker exec -i beibu-postgis psql -U postgres -d beibu-gulf-data -f /tmp/db-schema-gis.sql
 --
 -- 与 db-schema.sql（业务表）分文件：两类表演进频率不同，防互相污染。
 -- 空间表可演进为独立分析库（route_cache / coverage_result 等）同属此域。

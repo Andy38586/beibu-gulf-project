@@ -1,6 +1,6 @@
 # v3 开发栈 —— PostGIS（本地开发库）
 # 用法: docker compose -f docker-compose.v3.yml up -d
-# 连接: host=localhost port=5432 user=postgres password=postgres dbname=v3_dev
+# 连接: host=localhost port=5432 user=postgres password=postgres dbname=beibu-gulf-data
 #
 # 2026-09-11：algorithm-service（FastAPI）服务定义删除——该服务已于 2026-09-10
 # （阶段 4）退役，生产/开发调用均已切 NestJS；源码按 docker-compose.yml 既定决策
@@ -12,13 +12,13 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: v3_dev
+      POSTGRES_DB: beibu-gulf-data
     ports:
       - '5432:5432'
     volumes:
       - beibu-pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U postgres -d v3_dev']
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d beibu-gulf-data']
       interval: 5s
       timeout: 3s
       retries: 12

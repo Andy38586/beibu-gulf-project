@@ -18,6 +18,8 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { crossCheckSummary } from './lib/summary-crosscheck.mjs'
+
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 // 附录文件 2026-09-12 起去除 00- 前缀（审查体系专项内文件统一不带序号前缀）
 const APPENDIX = path.join(ROOT, 'docs/根基文档/审查体系专项/附录-指标固化状态与迁移路线图.md')
@@ -93,19 +95,10 @@ const declaredTotal = Object.values(DECLARED).reduce((a, b) => a + b, 0)
 if (total.总数 !== declaredTotal) {
   problems.push(`指标总数漂移：期望 ${declaredTotal}，实际 ${total.总数}`)
 }
-for (const l of lines) {
-  const m = l.match(
-    /^\|\s*(专项\d)\s[^|]*\|\s*(\d+)\s*\|\s*(\d+)\s*\|\s*(\d+)\s*\|\s*(\d+)\s*\|\s*(\d+)\s*\|\s*(\d+)\s*\|\s*(\d+)\s*\|/
-  )
-  if (!m) continue
-  const s = summary.find((x) => x.专项 === m[1])
-  if (!s) continue
-  const got = ['总数', 'A', 'B', 'A-', 'C', 'D', '退役'].map((k, i) => Number(m[i + 2]))
-  const want = ['总数', 'A', 'B', 'A-', 'C', 'D', '退役'].map((k) => s[k])
-  if (got.join() !== want.join()) {
-    problems.push(`§4 汇总表与 §8 明细表不一致：${m[1]} 表内 [${got}] vs 实际 [${want}]`)
-  }
-}
+// 不变量 3 的判定抽到 lib/summary-crosscheck.mjs（纯函数，配注入测试）：
+// 命中数为 0 一律报错——禁止"解析不到 = 通过"（P1-08 修复）。
+const { problems: summaryProblems } = crossCheckSummary(lines, summary)
+problems.push(...summaryProblems)
 
 if (process.argv.includes('--json')) {
   console.log(JSON.stringify({ summary, total, problems }, null, 2))

@@ -23,7 +23,7 @@
 --
 -- 前置：roads 已导入且 geom 非空；建议先跑 tools/roads/roads-derive.sql 的回填步骤。
 -- 用法（服务器，仓库目录下）：
---   docker exec -i beibu-postgis psql -U postgres -d v3_dev < tools/roads/roads-topology-build.sql
+--   docker exec -i beibu-postgis psql -U postgres -d beibu-gulf-data < tools/roads/roads-topology-build.sql
 -- =============================================================================
 
 \set ON_ERROR_STOP on

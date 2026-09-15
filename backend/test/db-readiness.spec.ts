@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { DbService } from '../src/infra/db/db.service'
 
-// 数据就绪守卫（真库 / v3_dev）——把「代码上线、库没跟上」的事故断言化。
+// 数据就绪守卫（真库 / beibu-gulf-data）——把「代码上线、库没跟上」的事故断言化。
 //
 // 立此 spec 的两次事故（2026-09-12）：
 //   ① 浸没分析 500：生产缺 admin_boundary / admin_boundary_union（淹没面陆域裁剪依赖），
@@ -15,7 +15,7 @@ import { DbService } from '../src/infra/db/db.service'
 // tools/db/verify-data-readiness.sql（部署后可直接对线上库执行）。
 //
 // 无库环境（V3_INTEGRATION_DB 未设）整体跳过，与 spatial.repository.spec 同口径。
-// 注：本地 v3_dev 若未建 roads_noded（d138 记录的环境缺口），route 段会显式变红——
+// 注：本地 beibu-gulf-data 若未建 roads_noded（d138 记录的环境缺口），route 段会显式变红——
 // 这是「环境未就绪」的 loud failure，CI（pgrouting 镜像 + ci-seed.sh）为基准。
 const withDb = process.env.V3_INTEGRATION_DB !== undefined
 
@@ -23,7 +23,7 @@ const withDb = process.env.V3_INTEGRATION_DB !== undefined
 const EXPECTED_UNION_AREA_KM2 = 20982.7
 const AREA_TOLERANCE = 0.005
 
-describe.skipIf(!withDb)('数据就绪守卫（真库 / v3_dev）', () => {
+describe.skipIf(!withDb)('数据就绪守卫（真库 / beibu-gulf-data）', () => {
   let db: DbService
 
   beforeAll(() => {

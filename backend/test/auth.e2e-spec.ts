@@ -7,11 +7,11 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { AppModule } from '../src/app.module'
 import { DbService } from '../src/infra/db/db.service'
 
-// 真库套件：需 v3_dev 库（docker-compose.v3.yml）。无库环境（CI/本机未起 PG）整体跳过，
+// 真库套件：需 beibu-gulf-data 库（docker-compose.v3.yml）。无库环境（CI/本机未起 PG）整体跳过，
 // 避免 ECONNREFUSED 噪音；联调时 export V3_INTEGRATION_DB=1 恢复全量
 const withDb = process.env.V3_INTEGRATION_DB !== undefined
 
-// auth e2e：连真实开发库 v3_dev（docker-compose.v3.yml）。
+// auth e2e：连真实开发库 beibu-gulf-data（docker-compose.v3.yml）。
 // 测试数据一律 __t3_ 前缀，beforeAll/afterAll 双清理（手册 §五 测试隔离约定）
 //
 // ⚠️ 清理必须按「本套件创建的用户名」精确匹配，**不能**按 '__t3_' 宽前缀删：

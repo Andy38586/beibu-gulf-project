@@ -1,6 +1,12 @@
+import { execFileSync } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
+
 import { describe, expect, it } from 'vitest'
 
 import { evaluateChecks, parseGulfBounds } from '../verify.mjs'
+
+const SCRIPT = fileURLToPath(new URL('../verify.mjs', import.meta.url))
+const REPO_ROOT = fileURLToPath(new URL('../../..', import.meta.url))
 
 const ROAD_SPEC = { name: 'roads', geomType: 'LINESTRING', srid: 4490, checkBBox: true }
 const PROTECTED_SPEC = {
@@ -111,5 +117,25 @@ describe('parseGulfBounds — 业务边界单一事实源解析', () => {
 
   it('数值不自洽（minLng >= maxLng）→ 抛错', () => {
     expect(() => parseGulfBounds(SRC.replace('minLng: 105', 'minLng: 120'))).toThrow(/数值不自洽/)
+  })
+})
+
+// 「注入即红」：未知表名 → specList=[] → `[].every()` 恒真 → 曾返回「总体：PASS（0 表）」exit 0（P2-E7）
+describe('--table 未匹配时必须失败（不落库，仅校验入参守卫）', () => {
+  it('拼错表名（raods）→ exit 1，不得返回 PASS(0 表)', () => {
+    let code = 0
+    let output = ''
+    try {
+      execFileSync('node', [SCRIPT, '--table=raods'], {
+        cwd: REPO_ROOT,
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+      })
+    } catch (err) {
+      code = err.status ?? -1
+      output = `${err.stdout ?? ''}${err.stderr ?? ''}`
+    }
+    expect(code).toBe(1)
+    expect(output).toContain('未匹配任何已知表')
   })
 })

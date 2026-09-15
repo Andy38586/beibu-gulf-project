@@ -1,4 +1,4 @@
-import { onUnmounted } from 'vue'
+import { getCurrentInstance, onUnmounted } from 'vue'
 
 /**
  * 等待渲染器就绪后执行回调（有限次重试，不无限轮询）。
@@ -32,6 +32,12 @@ export function useWaitForRenderer(ready: () => unknown, callback: () => void): 
   }
 
   tryRun()
-  onUnmounted(cancel)
+  // 仅在组件 setup 同步执行期间能注册卸载钩子。App.vue 的路由 watcher（immediate）
+  // 在后续路由变化时于 setup 之外异步回调本 composable，此时无活跃实例，
+  // 强行 onUnmounted 会触发 Vue 警告且注册无效；这类调用退化为「MAX_RETRIES 次自停」，
+  // 定时器本就有界，不会泄漏。
+  if (getCurrentInstance()) {
+    onUnmounted(cancel)
+  }
   return cancel
 }

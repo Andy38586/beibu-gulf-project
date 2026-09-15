@@ -1,0 +1,69 @@
+{
+  "_comment": "测试动态门控策略（scripts/test-watchdog.cjs 消费）。allowSkipped 是『有界、带理由的容错白名单』：gated=仅当门控环境变量缺失（本地无库）时允许跳过，该变量一旦在 CI 设置就必须真跑；data=数据依赖型跳过，始终允许但不得超过 max。白名单之外出现任何跳过即判失败——新增 .skip 必须在此显式登记理由。",
+  "projects": {
+    "backend": {
+      "root": "backend",
+      "include": ["test/**/*.spec.ts", "test/**/*.e2e-spec.ts"],
+      "result": "backend/coverage/vitest-result.json",
+      "requireEnvToRunGated": "V3_INTEGRATION_DB",
+      "allowSkipped": {
+        "test/auth.e2e-spec.ts": {
+          "mode": "gated",
+          "reason": "真库鉴权全链路，本地无 PostGIS 跳过，CI 挂 V3_INTEGRATION_DB 真跑"
+        },
+        "test/db-readiness.spec.ts": {
+          "mode": "gated",
+          "reason": "数据就绪守卫需真库 beibu-gulf-data"
+        },
+        "test/favorites.e2e-spec.ts": { "mode": "gated", "reason": "收藏全链路 e2e 需真库" },
+        "test/favorites.repository.spec.ts": { "mode": "gated", "reason": "收藏仓储层 SQL 需真库" },
+        "test/flood.controller.spec.ts": {
+          "mode": "gated",
+          "reason": "其中空间筛选/损失评估 describe 需 PostGIS，其余用例本地照跑"
+        },
+        "test/flood.e2e-spec.ts": { "mode": "gated", "reason": "档位表端点需真库" },
+        "test/plans.e2e-spec.ts": { "mode": "gated", "reason": "方案全链路 e2e 需真库" },
+        "test/plans.repository.spec.ts": { "mode": "gated", "reason": "方案仓储层 SQL 需真库" },
+        "test/route.e2e-spec.ts": {
+          "mode": "gated",
+          "reason": "寻路契约冒烟需 pgRouting 真库（项目级 V3_INTEGRATION_DB）。断言合成夹具图的两条已于 2026-09-15 拆入 route.fixture.e2e-spec.ts——一个文件只对应一个门控条件"
+        },
+        "test/route.fixture.e2e-spec.ts": {
+          "mode": "gated",
+          "env": "V3_ROADS_FIXTURE",
+          "reason": "断言 backend/test/seed/roads-graph-fixture.sql 的合成夹具图拓扑（单向边反向 unreachable / time 口径 9.0~10.5 分钟），夹具严禁灌真库（ci-seed.sh 第 ④ 步）⇒ 门控独立为 V3_ROADS_FIXTURE：本地未设即整组跳过，CI 灌了夹具（设 =1）则必须真跑、一条不许跳"
+        },
+        "test/site-analysis.e2e-spec.ts": {
+          "mode": "gated",
+          "reason": "选址链路「不变量」组需 PostGIS + 库内有 POI/小区（CI 由 backend/test/seed/site-analysis-fixture.sql 合成夹具提供 poi 6 / xiaoqu 12）；另有「参数校验」组不门控、任何环境永远执行。⇒ 数据缺席即判红（CI 必须灌夹具），不得沉睡报绿。原绑定全量数据分布的快照断言已拆入 site-analysis.snapshot.spec.ts",
+          "note": "2026-09-15 之前本条 mode=gated 却靠 probePoiCount()===0 自跳过，而 CI 有意不灌 POI ⇒ 必判 GATED_SKIP_IN_REQUIRED_ENV（实测退出 1）。修法＝补合成夹具，而非放松登记"
+        },
+        "test/site-analysis.snapshot.spec.ts": {
+          "mode": "gated",
+          "env": "V3_FULL_DATASET",
+          "reason": "绑定**全量真实数据分布**的快照断言（bh hospital 101 / TOP1 滨海·江语湖 94.7 / coverage 必 MultiPolygon 等）。AMap 抓取源不入仓库 ⇒ CI 物理无法满足，故门控独立为 V3_FULL_DATASET：本地 `export V3_INTEGRATION_DB=1 V3_FULL_DATASET=1` 真跑；CI 不设 ⇒ 整组按本登记跳过（有界、带理由）"
+        },
+        "test/site-analysis.service.spec.ts": {
+          "mode": "gated",
+          "reason": "空间算子（覆盖/求交/筛选）与选址流水线需 PostGIS"
+        },
+        "test/spatial.repository.spec.ts": {
+          "mode": "gated",
+          "reason": "SpatialRepository PostGIS 行为需真库"
+        }
+      }
+    },
+    "frontend": {
+      "root": "frontend",
+      "include": ["src/**/*.test.ts", "src/**/*.spec.ts"],
+      "result": "frontend/coverage/vitest-result.json",
+      "allowSkipped": {
+        "src/types/__tests__/schemas.test.ts": {
+          "mode": "data",
+          "max": 1,
+          "reason": "plans.json 是运行时用户数据不入库，CI 干净树无此文件，单条『存量 plan 全量校验』跳过；构造样本的畸形/合法用例本地与 CI 都照跑"
+        }
+      }
+    }
+  }
+}

@@ -86,7 +86,12 @@ export function evaluateAnchors(ports, anchors, toleranceKm = ANCHOR_TOLERANCE_K
 export function readIndicators(sourceText) {
   const m = sourceText.match(/const INDICATORS\s*=\s*\[([^\]]*)\]/)
   if (!m) return null
-  return [...m[1].matchAll(/'([a-zA-Z0-9_-]+)'/g)].map((x) => x[1])
+  // 修复（P1-09，2026-09-15）：① 同时匹配单/双/反引号（原来只认单引号，改成双引号后抽值为空）；
+  // ② 解析到数组体却抽不出任何指标 = 结构变更 ⇒ 返回 null 让守卫报错，
+  //    否则 `for (const i of indicators ?? [])` 循环 0 次 → 全部锚点检查被静默跳过（守卫空转）。
+  const ids = [...m[1].matchAll(/['"`]([a-zA-Z0-9_-]+)['"`]/g)].map((x) => x[1])
+  if (ids.length === 0) return null
+  return [...new Set(ids)]
 }
 
 /** 从单个指标文件收集锚点（spatial.features[0].geometry.coordinates） */

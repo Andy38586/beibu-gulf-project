@@ -32,12 +32,35 @@ if (!summaryPath || !baselinePath) {
 
 const summary = JSON.parse(fs.readFileSync(summaryPath, 'utf8'))
 const baselineFile = path.resolve(baselinePath)
-let baseline
+
+// 读取基线：**只有 ENOENT（文件确实不存在）才算首跑**；不可读/JSON 语法错必须报错。
+// 修复（EP-09/P1-06，2026-09-15）：原实现把「文件不存在」与「JSON 解析失败」放进同一个 catch，
+// 二者都退化为 baseline=null → 重建并 exit 0 ⇒ 把基线改成坏 JSON 即可绕过覆盖率门禁。
+let baseline = null
+let baselineRaw = null
 try {
-  baseline = JSON.parse(fs.readFileSync(baselineFile, 'utf8'))
-} catch {
-  // 基线缺失（首跑）：以本次实测建档，不红（棘轮从当前水平起步）
-  baseline = null
+  baselineRaw = fs.readFileSync(baselineFile, 'utf8')
+} catch (e) {
+  if (e && e.code === 'ENOENT') {
+    baselineRaw = null // 真·首跑
+  } else {
+    console.error(
+      `::error::基线文件不可读（${e?.code ?? e}）：${baselineFile}\n` +
+        '  基线不可读必须报错，不得当作"首跑"重建（否则即可绕过覆盖率门禁）。'
+    )
+    process.exit(1)
+  }
+}
+if (baselineRaw !== null) {
+  try {
+    baseline = JSON.parse(baselineRaw)
+  } catch (e) {
+    console.error(
+      `::error::基线文件 JSON 解析失败（${baselinePath}）：${e.message}\n` +
+        '  基线损坏必须报错，不得当作"首跑"重建（否则删/坏基线即可绕过覆盖率门禁）。'
+    )
+    process.exit(1)
+  }
 }
 
 const current = {}
@@ -51,11 +74,21 @@ for (const m of METRICS) {
 }
 
 if (!baseline) {
+  // 修复（EP-09/P1-06）：**CI 检查模式（未带 --update）禁止写盘**——否则删除基线文件即可让
+  // 门禁静默重建并通过。首跑建档须由人显式 `--update` 执行并把基线文件提交入库。
+  if (flag !== '--update') {
+    console.error(
+      `::error::基线文件不存在（${baselinePath}）且未带 --update：\n` +
+        '  CI 检查模式禁止重建基线（否则删除基线即可绕过覆盖率门禁）。\n' +
+        '  首次建档请本地执行：node scripts/coverage-ratchet.cjs <summary> <baseline> --update'
+    )
+    process.exit(1)
+  }
   fs.writeFileSync(
     baselineFile,
     JSON.stringify({ ...current, updated: new Date().toISOString().slice(0, 10) }, null, 2) + '\n'
   )
-  console.log(`[ratchet] 基线不存在，已按本次实测建档: ${baselinePath}`)
+  console.log(`[ratchet] 基线不存在，已按本次实测建档（--update）: ${baselinePath}`)
   console.log(JSON.stringify(current))
   process.exit(0)
 }

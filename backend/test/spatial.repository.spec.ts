@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { DbService } from '../src/infra/db/db.service'
 import { GeoJsonGeometry, SpatialRepository } from '../src/infra/db/spatial.repository'
 
-// 空间算子真库套件：需 v3_dev + PostGIS（docker-compose.v3.yml）。无库环境整体跳过，
+// 空间算子真库套件：需 beibu-gulf-data + PostGIS（docker-compose.v3.yml）。无库环境整体跳过，
 // 避免 ECONNREFUSED 噪音；联调时 export V3_INTEGRATION_DB=1 恢复全量（与 favorites/plans 同口径）。
 //
 // 定位：turf→PostGIS 下沉后的**空间正确性守门人**（2026-09-12 起 turf 全面退场，

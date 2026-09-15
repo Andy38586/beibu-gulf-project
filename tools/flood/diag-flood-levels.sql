@@ -6,7 +6,7 @@
 --   而 PICK_LEVEL_SQL 恰恰直读表几何（ST_AsGeoJSON(d.geom)），疑似未转换。
 --
 -- 跑法（服务器上一条命令跑满）：
---   docker exec -i beibu-postgis psql -U postgres -d v3_dev -v ON_ERROR_STOP=1 < diag-flood-levels.sql
+--   docker exec -i beibu-postgis psql -U postgres -d beibu-gulf-data -v ON_ERROR_STOP=1 < diag-flood-levels.sql
 
 \echo '===== 【1】表规模：是否 251 档 ====='
 \echo '  期望 251；若为 0 或 6 → 没灌新数据（重灌即可）'

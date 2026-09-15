@@ -63,6 +63,31 @@ describe('readIndicators — 从前端源码解析消费清单', () => {
   })
 })
 
+// 「注入即红」：解析到数组体却抽不出指标时，必须返回 null（守卫报错），不得返回 [] 让循环 0 次空转
+describe('readIndicators — 结构漂移不得静默空转（P1-09 壳化修复）', () => {
+  it('空数组 → null（原实现返回 []，`for…of` 循环 0 次 → 守卫整体空转）', () => {
+    expect(readIndicators('const INDICATORS = [] as const')).toBeNull()
+  })
+
+  it('双引号写法 → 正常解析（原实现只认单引号，抽值为空）', () => {
+    expect(readIndicators('const INDICATORS = ["cargo", "container"] as const')).toEqual([
+      'cargo',
+      'container',
+    ])
+  })
+
+  it('反引号写法 → 正常解析', () => {
+    expect(readIndicators('const INDICATORS = [`cargo`, `activity`] as const')).toEqual([
+      'cargo',
+      'activity',
+    ])
+  })
+
+  it('重复项去重', () => {
+    expect(readIndicators("const INDICATORS = ['cargo', 'cargo'] as const")).toEqual(['cargo'])
+  })
+})
+
 describe('collectIndicatorAnchors — 指标文件锚点收集', () => {
   it('从 spatial.features[0].geometry.coordinates 收集并标注 indicator.port', () => {
     const data = {

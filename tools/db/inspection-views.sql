@@ -10,7 +10,7 @@
 -- 口径：**不改动任何业务表**；源表不存在则跳过该视图（环境无关，本地库缺 roads_noded 也能跑）；
 -- 幂等可重复执行（CREATE OR REPLACE）。
 -- 用法：
---   docker exec -i beibu-postgis psql -U postgres -d v3_dev -v ON_ERROR_STOP=1 \
+--   docker exec -i beibu-postgis psql -U postgres -d beibu-gulf-data -v ON_ERROR_STOP=1 \
 --     < tools/db/inspection-views.sql
 -- =============================================================================
 

@@ -3,10 +3,11 @@
  * 脚本顶层读 argv 且有退出副作用，故以子进程真实执行，断言退出码与输出。
  */
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+
 import { describe, expect, it } from 'vitest'
 
 const SCRIPT = fileURLToPath(new URL('../scripts/coverage-ratchet.cjs', import.meta.url))
@@ -83,5 +84,39 @@ describe('coverage-ratchet（基线 schema 校验）', () => {
     )
     expect(r.code).toBe(1)
     expect(r.output).toContain('覆盖率相对基线回退超容差')
+  })
+})
+
+// 「注入即红」：基线异常不得被当作「首跑」而放行（P1-06 / EP-09 壳化修复的可执行证据）
+describe('coverage-ratchet（注入：基线异常不得静默放行）', () => {
+  function summaryOnly(dir) {
+    const summaryPath = join(dir, 'coverage-summary.json')
+    writeFileSync(summaryPath, JSON.stringify(SUMMARY))
+    return summaryPath
+  }
+
+  it('基线文件不存在且未带 --update → exit 1（CI 检查模式禁止重建基线）', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'ratchet-'))
+    const r = run([summaryOnly(dir), join(dir, 'coverage-baseline.json')])
+    expect(r.code).toBe(1)
+    expect(r.output).toContain('CI 检查模式禁止重建基线')
+  })
+
+  it('基线 JSON 损坏（截断）→ exit 1，不得当作首跑重建', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'ratchet-'))
+    const baselinePath = join(dir, 'coverage-baseline.json')
+    writeFileSync(baselinePath, '{"lines": 50, ') // 非法 JSON
+    const r = run([summaryOnly(dir), baselinePath])
+    expect(r.code).toBe(1)
+    expect(r.output).toContain('JSON 解析失败')
+  })
+
+  it('基线不存在 + --update → exit 0 且建档（唯一被允许的建档路径）', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'ratchet-'))
+    const baselinePath = join(dir, 'coverage-baseline.json')
+    const r = run([summaryOnly(dir), baselinePath, '--update'])
+    expect(r.code).toBe(0)
+    expect(r.output).toContain('已按本次实测建档')
+    expect(JSON.parse(readFileSync(baselinePath, 'utf8')).lines).toBe(50)
   })
 })

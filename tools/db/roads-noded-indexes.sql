@@ -26,7 +26,7 @@
 --    docker 默认 64MB /dev/shm（"could not resize shared memory segment"），先关并行。
 --
 -- 用法（服务器，仓库目录下）：
---   docker exec -i beibu-postgis psql -U postgres -d v3_dev -v ON_ERROR_STOP=1 \
+--   docker exec -i beibu-postgis psql -U postgres -d beibu-gulf-data -v ON_ERROR_STOP=1 \
 --     < tools/db/roads-noded-indexes.sql
 --
 -- 本地实测（614,015 段真路网，钦州 17.6km 路径，见 route-verify.sql）：

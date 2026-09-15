@@ -3,11 +3,11 @@
 // 与 db-import.mjs 的 import-report 同一纪律：结构化输出、可断言、可进 CI（npm run verify-gis）。
 //
 // 用法:
-//   node tools/gis-import/verify.mjs                    # 默认连 v3_dev，质检全部 gis 表
+//   node tools/gis-import/verify.mjs                    # 默认连 beibu-gulf-data，质检全部 gis 表
 //   node tools/gis-import/verify.mjs --table=roads      # 单表质检
 //   node tools/gis-import/verify.mjs --json             # 机器可读 JSON（CI 用）
 //
-// 连接参数走环境变量（缺省本机 v3_dev，对齐 docker-compose.v3.yml）：
+// 连接参数走环境变量（缺省本机 beibu-gulf-data，对齐 docker-compose.v3.yml）：
 //   GIS_DB_HOST / GIS_DB_PORT / GIS_DB_USER / GIS_DB_PASSWORD / GIS_DB_NAME
 import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
@@ -58,7 +58,7 @@ const db = {
   port: Number(process.env.GIS_DB_PORT ?? 5432),
   user: process.env.GIS_DB_USER ?? 'postgres',
   password: process.env.GIS_DB_PASSWORD ?? 'postgres',
-  database: process.env.GIS_DB_NAME ?? 'v3_dev',
+  database: process.env.GIS_DB_NAME ?? 'beibu-gulf-data',
   connectionTimeoutMillis: 5000,
 }
 
@@ -177,7 +177,18 @@ async function verifyOne(pool, spec, json) {
 async function main() {
   const json = process.argv.includes('--json')
   const tableArg = process.argv.find((a) => a.startsWith('--table='))
-  const specList = tableArg ? TABLES.filter((t) => t.name === tableArg.split('=')[1]) : TABLES
+  const tableName = tableArg ? tableArg.split('=')[1] : null
+  const specList = tableArg ? TABLES.filter((t) => t.name === tableName) : TABLES
+
+  // 修复（P2-E7，2026-09-15）：未知表名 → specList=[] → `[].every()` 恒真 →「总体：PASS（0 表）」exit 0。
+  // 拼错表名必须失败（fail loud），不得静默通过。
+  if (specList.length === 0) {
+    console.error(
+      `::error::--table=${tableName} 未匹配任何已知表（拼写错误？）。\n` +
+        `  已知表：${TABLES.map((t) => t.name).join(' / ')}`
+    )
+    process.exit(1)
+  }
 
   const pool = new Pool(db)
   pool.on('error', (err) => {

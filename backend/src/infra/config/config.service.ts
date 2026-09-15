@@ -65,5 +65,18 @@ export class ConfigService {
   // 相比原先「auth 路由用时才抛错」，起服务即可感知配置缺失，避免带病上线
   validateStartup(): void {
     void this.jwtSecret
+    // P0（EP-09 / EH-07，2026-09-15）：生产环境 PG 凭据必填——db.config 已在构造期强校验
+    // PG_PASSWORD，此处对四项一起做显式断言，给出可读的缺失清单（fail fast，不静默带病启动）
+    if (this.isProduction) {
+      const missing = ['PG_HOST', 'PG_USER', 'PG_PASSWORD', 'PG_DATABASE'].filter(
+        (k) => !this.env[k]
+      )
+      if (missing.length > 0) {
+        throw new Error(
+          `启动失败：生产环境必须注入 ${missing.join('、')}（禁止依赖开发默认值上线）`
+        )
+      }
+    }
+    void this.dbConfig
   }
 }

@@ -1,6 +1,6 @@
 // v3 数据入库脚本 v2 —— 读现有 JSON(仓库 backend/data/) -> 生成 SQL(import.sql) + 对账报告(import-report.md)
 // 用法: node tools/db/db-import.mjs
-// 然后: docker cp .local/tmp/import.sql beibu-postgis:/tmp/ && docker exec beibu-postgis psql -U postgres -d v3_dev -f /tmp/import.sql
+// 然后: docker cp .local/tmp/import.sql beibu-postgis:/tmp/ && docker exec beibu-postgis psql -U postgres -d beibu-gulf-data -f /tmp/import.sql
 //
 // v2 硬化（手册 T2.2）：三城化映射（qz/bh/fcg）｜运行时文件缺失容错｜逐表对账报告｜幂等（TRUNCATE 重灌语义）
 // 纯函数 buildImport 供单测注入 fixture（tools/db/__tests__/db-import.test.js）

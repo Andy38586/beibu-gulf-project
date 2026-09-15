@@ -21,8 +21,10 @@
  *   node scripts/pre-merge-check.cjs --no-fetch      # 离线：不 git fetch
  *   node scripts/pre-merge-check.cjs --base origin/main
  *   可选开关：--skip-tests --skip-build --skip-audit --no-secret-scan --no-color
+ *   显式容错：--acknowledge-skip（跳了测试/构建/密钥扫描时仍 exit 0，但会高声列明跳过项；不加则降级 PARTIAL、exit 2）
  *
- * 退出码：0 = 可合入（无 FAIL）；1 = 存在阻断项（FAIL），报告末尾给出修复指引。
+ * 退出码：0 = 可合入（无 FAIL，且测试/构建等验证项没有被跳过，或已显式 --acknowledge-skip）；
+ *         1 = 存在阻断项（FAIL）；2 = 无 FAIL 但跳过了验证项（PARTIAL，不能保证 main CI 绿）。
  * WARN/SKIP 不阻断，但会显式列出（它们代表「以 CI 为准」或「需要你人工确认」的项）。
  */
 const { spawnSync } = require('node:child_process')
@@ -48,6 +50,9 @@ const FLAGS = {
   build: !has('--skip-build') && !has('--static'),
   audit: !has('--skip-audit'),
   secretScan: !has('--no-secret-scan'),
+  // EP-DYN：跳过测试/构建/密钥扫描时，结论默认降级为 PARTIAL 且 exit 2（不得再宣称「READY/CI 不会红」）；
+  // 只有显式 --acknowledge-skip 才以 exit 0 放行，并高声列明跳了什么——容错通道必须是「故意且留痕」，不能是默认。
+  ackSkip: has('--acknowledge-skip'),
   color: !has('--no-color') && process.stdout.isTTY,
   base: opt('--base', null),
 }
@@ -78,6 +83,11 @@ function section(title) {
 }
 
 // ---------- 子进程封装 ----------
+// 退出码映射抽到 lib/process-status.cjs（纯函数，配注入测试，修复 P1-07）
+const { toExitCode } = require('./lib/process-status.cjs')
+// 合入三态结论判定抽到 lib/merge-verdict.cjs（纯函数，配注入测试，EP-DYN）
+const { listVerificationSkipped, decideVerdict } = require('./lib/merge-verdict.cjs')
+
 function run(cmd, args, opts = {}) {
   const r = spawnSync(cmd, args, {
     cwd: opts.cwd || ROOT,
@@ -88,7 +98,10 @@ function run(cmd, args, opts = {}) {
     ...opts,
   })
   return {
-    status: r.status ?? (r.error ? 1 : 0),
+    // 修复（P1-07，2026-09-15）：被信号杀死（status=null / signal 非空 / error=undefined）时必须判失败，
+    // 原 `r.status ?? (r.error ? 1 : 0)` 会得 0（PASS）⇒ OOM 杀掉的预检被当成成功。映射见 lib。
+    status: toExitCode(r),
+    signal: r.signal ?? null,
     stdout: r.stdout || '',
     stderr: r.stderr || '',
     error: r.error,
@@ -397,21 +410,33 @@ record(
 // D. 测试与构建（--static 跳过）
 // ============================================================
 if (FLAGS.tests) {
-  section('D. 测试（前端 coverage / tools / 后端 coverage / algorithm pytest）')
-  const testSteps = [
-    ['test', ['test', '--', '--coverage'], null, '前端 vitest（含覆盖率阈值）'],
-    ['test:tools', ['run', 'test:tools'], null, 'tools 脚本单测'],
-    [
-      'backend-test',
-      ['run', 'test', '--', '--coverage'],
-      path.join(ROOT, 'backend'),
-      '后端 Nest vitest（无 PG 时 e2e 自动 skip）',
-    ],
-    ['test:algorithm', ['run', 'test:algorithm'], null, 'FastAPI pytest（离线套件）'],
+  section('D. 测试（前端 coverage / tools / 后端 coverage / algorithm pytest + 动态看门狗）')
+  // EP-DYN（2026-09-15）：前后端测试改 report 变体，额外落 vitest JSON；跑完由 test-watchdog
+  // 动态兜底——本地无库时门控套件允许跳过但必须在 test-gate.config.json 登记、每个测试文件都得
+  // 真执行、新增未登记 .skip 直接 fail（此前「整组 skip 仍 exit 0」的放行洞在此被堵）。
+  const dSteps = [
+    { args: ['run', 'test:report:fe'], cwd: null, desc: '前端 vitest（coverage + JSON 结果）' },
+    { args: ['run', 'test:tools'], cwd: null, desc: 'tools 脚本单测' },
+    {
+      args: ['run', 'test:report:be'],
+      cwd: null,
+      desc: '后端 Nest vitest（coverage + JSON；无 PG 时门控套件按登记跳过）',
+    },
+    { args: ['run', 'test:algorithm'], cwd: null, desc: 'FastAPI pytest（离线套件）' },
   ]
-  for (const [, args, cwd, desc] of testSteps) {
-    const r = run(NPM, args, { cwd, stdio: 'inherit' })
-    record('D', desc, r.status === 0 ? 'pass' : 'fail')
+  for (const s of dSteps) {
+    const r = run(NPM, s.args, { cwd: s.cwd ?? undefined, stdio: 'inherit' })
+    record('D', s.desc, r.status === 0 ? 'pass' : 'fail')
+  }
+  for (const proj of ['frontend', 'backend']) {
+    const w = run(NPM, ['run', 'test:watchdog', '--', '--project', proj])
+    process.stdout.write(w.stdout)
+    process.stderr.write(w.stderr)
+    record(
+      'D',
+      `测试动态看门狗 · ${proj}（跳过治理 + 测试文件执行清单核对）`,
+      w.status === 0 ? 'pass' : 'fail'
+    )
   }
 } else {
   section('D. 测试（已跳过：' + (FLAGS.static ? '--static 快速档' : '--skip-tests') + '）')
@@ -490,6 +515,43 @@ if (fails.length) {
     )
   )
   process.exit(1)
+}
+
+// EP-DYN：没有 FAIL，但「验证类关卡」被跳过（--static/--skip-tests/--skip-build/--no-secret-scan）
+// 时，不得再宣称 READY/「main CI 不会红」——没跑测试就不能保证合入必绿。默认降级 PARTIAL、exit 2；
+// 显式 --acknowledge-skip 才以 0 放行（容错通道，故意且留痕），并高声列明到底跳了什么。
+const verificationSkipped = listVerificationSkipped(FLAGS)
+const verdict = decideVerdict(fails.length, verificationSkipped, FLAGS.ackSkip)
+
+if (verdict.verdict === 'PARTIAL') {
+  console.log(
+    '\n' +
+      yellow(
+        bold(
+          '△ 结论：PARTIAL —— 已跑的关卡全过，但以下验证项被跳过，不能保证 main CI 绿（exit 2）：'
+        )
+      )
+  )
+  verificationSkipped.forEach((s) => console.log(yellow('   - ' + s)))
+  console.log(
+    gray(
+      '  · 要拿到「合入必绿」结论：去掉对应 --skip/--static 开关，完整重跑（推荐 npm run premerge）。\n' +
+        '  · 确属快速自检、有意跳过：加 --acknowledge-skip 显式确认（会以 exit 0 放行并在此留痕），\n' +
+        '    但合入前仍须让 main CI 真跑一遍——跳过不等于通过。'
+    )
+  )
+  if (warns.length) console.log(yellow(`  另有 ${warns.length} 条 WARN 建议过目（不阻断）。`))
+  process.exit(2)
+}
+if (verdict.verdict === 'READY_ACK') {
+  console.log(
+    '\n' +
+      yellow(
+        bold('⚠ 已按 --acknowledge-skip 显式放行：下列验证项本次【没有执行】，是你主动确认跳过的：')
+      )
+  )
+  verificationSkipped.forEach((s) => console.log(yellow('   - ' + s)))
+  console.log(yellow('  跳过 ≠ 通过；合入前以 main CI 实跑结果为最终准据。'))
 }
 
 console.log(

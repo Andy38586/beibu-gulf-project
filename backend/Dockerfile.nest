@@ -1,7 +1,7 @@
 # v3 业务层后端（NestJS）——Express 退役后的主 API 服务
 #
 # 与主容器同 docker network：nginx 经服务名 nest:3000 反代 /nest-api/
-# 依赖：postgis（v3_dev 库，ROUTE_PG_* / PG_* 注入）、backend/data（ro volume 挂载，
+# 依赖：postgis（beibu-gulf-data 库，ROUTE_PG_* / PG_* 注入）、backend/data（ro volume 挂载，
 # forecast/flood 静态读文件与 data_archive 语义不变）
 #
 # 多阶段：builder 编译 TypeScript（devDeps 含 tsc/nest cli）→ runtime 只留产物与 prod 依赖。

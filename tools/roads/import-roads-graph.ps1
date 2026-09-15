@@ -44,7 +44,7 @@
 #>
 param(
   [string]$Container = 'beibu-postgis',
-  [string]$Db = 'v3_dev',
+  [string]$Db = 'beibu-gulf-data',
   [string]$PgUser = 'postgres',
   [string]$Artifacts = 'C:\osm\out',
   [switch]$SkipBuild

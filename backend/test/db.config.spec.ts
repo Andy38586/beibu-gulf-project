@@ -10,7 +10,7 @@ describe('parseDbConfig', () => {
       port: 5432,
       user: 'postgres',
       password: 'postgres',
-      database: 'v3_dev',
+      database: 'beibu-gulf-data',
       max: 10,
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 5000,
@@ -43,5 +43,26 @@ describe('parseDbConfig', () => {
     expect(cfg.max).toBe(10)
     expect(cfg.idleTimeoutMillis).toBe(30000)
     expect(cfg.connectionTimeoutMillis).toBe(5000)
+  })
+
+  // P0（EP-09/EH-07）生产口令 fail-fast 的【最近层】直测：不允许只靠 ConfigService 间接兜底。
+  // 变异探针 M8 会拆掉这道闸，这些断言必须随之变红（约束成立的可执行证据）。
+  describe('生产环境（NODE_ENV=production）PG_PASSWORD 强校验', () => {
+    it('生产缺 PG_PASSWORD → 直接抛错，禁止静默回落默认口令 postgres', () => {
+      expect(() => parseDbConfig({ NODE_ENV: 'production' })).toThrow(/PG_PASSWORD/)
+    })
+    it('生产给空串 PG_PASSWORD → 同样抛错（空串等同未注入）', () => {
+      expect(() => parseDbConfig({ NODE_ENV: 'production', PG_PASSWORD: '' })).toThrow(
+        /PG_PASSWORD/
+      )
+    })
+    it('生产显式注入口令 → 正常采用、不抛错', () => {
+      const cfg = parseDbConfig({ NODE_ENV: 'production', PG_PASSWORD: 'a-strong-secret' })
+      expect(cfg.password).toBe('a-strong-secret')
+    })
+    it('非生产（development/缺省）保留开发默认口令 postgres，不受生产闸影响', () => {
+      expect(parseDbConfig({ NODE_ENV: 'development' }).password).toBe('postgres')
+      expect(parseDbConfig({}).password).toBe('postgres')
+    })
   })
 })

@@ -21,7 +21,7 @@ from .topology import RoadLine
 
 _logger = logging.getLogger("algorithm-service")
 
-# 连接参数：默认对齐 docker-compose.v3.yml 的 v3_dev；容器内经服务名互连
+# 连接参数：默认对齐 docker-compose.v3.yml 的 beibu-gulf-data；容器内经服务名互连
 #（compose 注入 ROUTE_PG_HOST=postgis），本地开发缺省 localhost。
 # connect_timeout 短超时：PG 未就绪时预热/惰性构建快速失败降级，不拖住 flood 域
 _PG = {
@@ -29,7 +29,7 @@ _PG = {
     "port": int(os.environ.get("ROUTE_PG_PORT", "5432")),
     "user": os.environ.get("ROUTE_PG_USER", "postgres"),
     "password": os.environ.get("ROUTE_PG_PASSWORD", "postgres"),
-    "dbname": os.environ.get("ROUTE_PG_DB", "v3_dev"),
+    "dbname": os.environ.get("ROUTE_PG_DB", "beibu-gulf-data"),
     "connect_timeout": int(os.environ.get("ROUTE_PG_CONNECT_TIMEOUT", "3")),
 }
 

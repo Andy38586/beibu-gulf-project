@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { auditCspSync, extractPolicies } from '../csp-sync.mjs'
+import { auditCspSync, extractPolicies, locationsMissingCsp } from '../csp-sync.mjs'
 
 const CSP = (extra = '') =>
   `add_header Content-Security-Policy-Report-Only "default-src 'self'; object-src 'none'${extra}" always;`
@@ -41,5 +41,35 @@ describe('CSP 双配置同步守卫（审查 z153）', () => {
   it('某文件完全没有 CSP 声明 → 报错（防止正则/结构漂移后守卫静默失效）', () => {
     const problems = auditCspSync(`${CSP(REPORT)}`, '空配置')
     expect(problems.some((p) => p.includes('nginx.conf 未找到 CSP 声明'))).toBe(true)
+  })
+})
+
+// 「注入即红」：nginx add_header 是层级全量替换——每个自带 add_header 的 location 都必须重复 CSP（P1-10）
+describe('locationsMissingCsp — 自带 add_header 的 location 必须重复 CSP', () => {
+  const server = (body) => `server {\n${CSP(REPORT)}\n${body}\n}`
+
+  it('location 自带 add_header 但未重复 CSP → 命中路径', () => {
+    const text = server(`  location /assets/ {\n    add_header Cache-Control "public";\n  }`)
+    expect(locationsMissingCsp(text)).toEqual(['/assets/'])
+  })
+
+  it('location 自带 add_header 且重复了 CSP → 不命中', () => {
+    const text = server(
+      `  location /assets/ {\n    add_header Cache-Control "public";\n    ${CSP(REPORT)}\n  }`
+    )
+    expect(locationsMissingCsp(text)).toEqual([])
+  })
+
+  it('location 无 add_header → 正常继承 server 级 CSP，不命中', () => {
+    const text = server(`  location /nest-api/ {\n    proxy_pass http://nest:3000;\n  }`)
+    expect(locationsMissingCsp(text)).toEqual([])
+  })
+
+  it('集成：两份配置"都漏写同一个 location"仍报错（旧实现条数相等 + 逐字一致 → 放行）', () => {
+    const text = server(
+      `  location /a/ {\n    ${CSP(REPORT)}\n  }\n  location /b/ {\n    add_header X-Foo 1;\n  }`
+    )
+    const problems = auditCspSync(text, text) // 两份完全相同 → 旧逻辑条数/内容全过
+    expect(problems.some((p) => p.includes('/b/'))).toBe(true)
   })
 })

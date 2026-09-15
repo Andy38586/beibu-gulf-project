@@ -31,6 +31,46 @@ export function extractPolicies(text) {
 }
 
 /**
+ * 抽出全部 `location <path> { ... }` 块（花括号配对扫描，可跨嵌套 if 等子块）。
+ * @returns {Array<{path: string, body: string}>}
+ */
+export function extractLocationBlocks(text) {
+  const out = []
+  const re = /location\s+([^\s{]+)\s*\{/g
+  let m
+  while ((m = re.exec(text))) {
+    const start = re.lastIndex
+    let depth = 1
+    let i = start
+    while (i < text.length && depth > 0) {
+      const ch = text[i]
+      if (ch === '{') depth++
+      else if (ch === '}') depth--
+      i++
+    }
+    out.push({ path: m[1], body: text.slice(start, i - 1) })
+  }
+  return out
+}
+
+/**
+ * 修复（P1-10，2026-09-15）：断言「每个自带 add_header 的 location 都必须重复一份 CSP」。
+ * 机理：nginx 的 add_header 是**层级全量替换**——子级只要出现任意一条 add_header，父级（server 块）
+ * 的所有 add_header 即不再继承。故只在 server 级放 CSP 是不够的，凡是自带 add_header 的 location
+ * 漏写 CSP，该路径的 CSP/HSTS 等安全头会全部丢失（线上实测踩过）。
+ * @returns {string[]} 违规的 location 路径
+ */
+export function locationsMissingCsp(text) {
+  const bad = []
+  for (const { path: p, body } of extractLocationBlocks(text)) {
+    const hasAddHeader = /^[^\S\n]*add_header\b/m.test(body)
+    if (!hasAddHeader) continue // 无 add_header → 正常继承 server 级 CSP
+    if (!/Content-Security-Policy/.test(body)) bad.push(p)
+  }
+  return bad
+}
+
+/**
  * 纯函数便于单测：两文件文本 → 问题列表（空数组 = 通过）
  * @returns {string[]}
  */
@@ -63,6 +103,19 @@ export function auditCspSync(entrypointText, nginxText) {
       )
       break
     }
+  }
+
+  // ④ 每个自带 add_header 的 location 都必须重复一份 CSP（见 locationsMissingCsp 注释）
+  for (const p of locationsMissingCsp(nginxText)) {
+    problems.push(
+      `nginx.conf location ${p}：声明了 add_header 但未重复 CSP——` +
+        'nginx add_header 层级全量替换会丢掉该路径的全部安全头'
+    )
+  }
+  for (const p of locationsMissingCsp(entrypointText)) {
+    problems.push(
+      `docker-entrypoint.sh（https.conf 段）location ${p}：声明了 add_header 但未重复 CSP（同上层级替换语义）`
+    )
   }
   return problems
 }

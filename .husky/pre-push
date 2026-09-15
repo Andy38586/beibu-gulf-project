@@ -8,7 +8,9 @@
 # 此前本地只拦 4 项、CI 查 13+ 项，低级违规首次暴露必在 CI（"大版本 CI 连败"根因①）。
 # 全部为秒级~1 分钟静态项；前端全量测试/覆盖率仍在 CI（本地跑 npm run ci:local）。
 # 逃生通道：git push --no-verify（首次暴露问题在 CI 属预期行为，勿常态化使用）。
-# 真库 e2e 套件经 V3_INTEGRATION_DB 门控自动跳过，不阻塞推送。
+# 真库 e2e 套件经 V3_INTEGRATION_DB 门控自动跳过，不阻塞推送——但「跳过」不能静默：
+# test:gate:be 落 vitest JSON，test:watchdog 核对①每个测试文件都真执行（清单存在≠被执行）
+# ②本地允许的门控跳过必须在 scripts/test-gate.config.json 登记、③新增未登记 .skip 直接红。
 npm run guard:v3
 npm run format:check
 npm run lint
@@ -17,4 +19,5 @@ npm run cruise
 npm run types:check
 npm run typecheck
 npm run typecheck --prefix backend
-npm test --prefix backend
+npm run test:gate:be
+npm run test:watchdog -- --project backend

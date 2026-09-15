@@ -35,9 +35,13 @@ const ENV_COPIES = [
   path.join(ROOT, '.github/workflows/ci.yml'),
 ]
 
-// 方法装饰器：@Get('sub') / @Post() / @Delete(':id')；路径参数 (:id 等) 原样保留
-const METHOD_DECORATOR_RE = /^\s*@(Get|Post|Put|Delete|Patch|All)(?:\(\s*(?:'([^']*)')?\s*\))?/
-const CONTROLLER_DECORATOR_RE = /@Controller(?:\(\s*(?:'([^']*)')?\s*\))?/
+// 方法装饰器：@Get('sub') / @Post() / @Delete(':id')；路径参数 (:id 等) 原样保留。
+// 捕获组 1 = 方法名，组 3 = 括号内原文（用于区分「无参」与「有参但无法解析」）。
+// 修复（P1-11，2026-09-15）：原正则只认单引号 → `@Get("x")` / `@Get(\`x\`)` 时整个可选括号组
+// 匹配失败但 `@Get` 仍命中，子路径被 `?? ''` 静默置空 ⇒ 生成清单与检查结果「一致地错」= 永久假绿。
+const METHOD_DECORATOR_RE = /^\s*@(Get|Post|Put|Delete|Patch|All)\b(\s*\(([\s\S]*?)\))?/
+// 控制器前缀同样放宽到三种引号
+const CONTROLLER_DECORATOR_RE = /@Controller\s*\(\s*['"`]([^'"`]*)['"`]\s*\)/
 const MANIFEST_ENTRY_RE = /\{\s*method:\s*'([A-Z]+)'\s*,\s*path:\s*'([^']+)'\s*,?\s*\}/g
 
 function walkControllers(dir) {
@@ -54,19 +58,43 @@ function walkControllers(dir) {
   return out
 }
 
+/**
+ * 纯函数：从控制器源码行解析路由清单（供守卫与单测共用，不碰文件系统）。
+ * 路径字面量支持 '..' / ".." / `..`；括号内出现非空参数却解析不出路径字面量时**抛错**，
+ * 不再静默置空（静默置空会让「--gen 生成」与「检查」一致地错 → 检查模式永久假绿）。
+ * @param {string[]} lines
+ * @param {string} prefix @Controller 前缀
+ * @param {string} rel 文件相对路径（仅用于报错定位）
+ */
+export function parseRoutesFromLines(lines, prefix = '', rel = '<source>') {
+  const routes = []
+  for (const line of lines) {
+    const m = line.match(METHOD_DECORATOR_RE)
+    if (!m) continue
+    const rawArg = (m[3] ?? '').trim()
+    let sub = ''
+    if (rawArg !== '') {
+      const q = rawArg.match(/^['"`]([^'"`]*)['"`]$/)
+      if (!q) {
+        throw new Error(
+          `${rel}: 「${line.trim()}」装饰器参数无法解析为路径字面量（支持 '..' / ".." / \`..\`）` +
+            '——禁止静默置空路径'
+        )
+      }
+      sub = q[1]
+    }
+    const segments = [GLOBAL_PREFIX, prefix, sub].filter((s) => s !== '')
+    routes.push({ method: m[1].toUpperCase(), path: segments.join('/') })
+  }
+  return routes
+}
+
 // 单文件提取：@Controller 前缀 × 方法装饰器 → [{ method, path }]
 function extractRoutes(file) {
   const rel = path.relative(NEST_SRC, file).replaceAll('\\', '/')
   const lines = readFileSync(file, 'utf8').split('\n')
   const prefix = lines.map((l) => l.match(CONTROLLER_DECORATOR_RE)).find(Boolean)?.[1] ?? ''
-  const routes = []
-  for (const line of lines) {
-    const m = line.match(METHOD_DECORATOR_RE)
-    if (!m) continue
-    const sub = m[2] ?? ''
-    const segments = [GLOBAL_PREFIX, prefix, sub].filter((s) => s !== '')
-    routes.push({ method: m[1].toUpperCase(), path: segments.join('/') })
-  }
+  const routes = parseRoutesFromLines(lines, prefix, rel)
   if (routes.length === 0) {
     throw new Error(`未从 ${rel} 提取到任何路由（装饰器解析失效？）`)
   }

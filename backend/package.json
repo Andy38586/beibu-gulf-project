@@ -8,6 +8,7 @@
     "build": "nest build",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:report": "vitest run --coverage --reporter=default --reporter=json --outputFile=coverage/vitest-result.json",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "lint": "eslint \"src/**/*.ts\" \"test/**/*.ts\""
   },

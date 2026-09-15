@@ -4,7 +4,7 @@
 //   node tools/flood/flood-levels-to-pg.mjs
 // 然后:
 //   docker cp .local/tmp/flood-import.sql beibu-postgis:/tmp/ \
-//     && docker exec beibu-postgis psql -U postgres -d v3_dev -f /tmp/flood-import.sql
+//     && docker exec beibu-postgis psql -U postgres -d beibu-gulf-data -f /tmp/flood-import.sql
 //
 // 设计依据: docs/算法服务下沉PostGIS-设计-2026-09-10.md（v3）
 // 复用 tools/db/db-import.mjs 的「生成 SQL + psql 执行」模式——纯 Node，不引入 pg 依赖。
@@ -138,7 +138,9 @@ function main() {
   console.log('')
   console.log('下一步:')
   console.log('  docker cp .local/tmp/flood-import.sql beibu-postgis:/tmp/')
-  console.log('  docker exec beibu-postgis psql -U postgres -d v3_dev -f /tmp/flood-import.sql')
+  console.log(
+    '  docker exec beibu-postgis psql -U postgres -d beibu-gulf-data -f /tmp/flood-import.sql'
+  )
 }
 
 main()

@@ -9,7 +9,7 @@ import path from 'node:path'
  *（tsc --noEmit 是真类型门禁，不能为测试开 esnext TLA）。故用子进程同步跑
  * 一次 pg 计数：pg 模块复用 backend/node_modules（cwd 指到 backend 根），无新依赖。
  *
- * 连接参数与 src/infra/db/db.config.ts 同口径（env 缺省 postgres/postgres/v3_dev）。
+ * 连接参数与 src/infra/db/db.config.ts 同口径（env 缺省 postgres/postgres/beibu-gulf-data）。
  * 任何失败（库不可达 / 表不存在）都按 0 处理——调用方据此跳过数据绑定套件。
  */
 export function probePoiCount(): number {
@@ -20,7 +20,7 @@ export function probePoiCount(): number {
       port: Number(process.env.PG_PORT ?? 5432),
       user: process.env.PG_USER || 'postgres',
       password: process.env.PG_PASSWORD || 'postgres',
-      database: process.env.PG_DATABASE || 'v3_dev',
+      database: process.env.PG_DATABASE || 'beibu-gulf-data',
     })
     c.connect()
       .then(() => c.query('SELECT count(*)::int AS n FROM poi_facilities'))

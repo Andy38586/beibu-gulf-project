@@ -69,6 +69,13 @@ jobs:
             [ "$has_frontend" -eq 1 ] && run_frontend=true || run_frontend=false
             [ "$has_backend" -eq 1 ] && run_backend=true || run_backend=false
           fi
+          # EP-DYN（2026-09-15）：main 是部署分支（测试真红要经 needs 链阻断 deploy），
+          # 不做路径跳过、宁慢勿漏——避免「过滤逻辑误判 → 测试没跑 → always() 放行到构建部署」。
+          # 路径跳过的提速容错只保留在特性分支（开发期容错，部署线强约束）。
+          if [ "${GITHUB_REF}" = "refs/heads/main" ]; then
+            echo "main 部署分支：强制全量 frontend/backend 测试，不做路径过滤"
+            run_frontend=true; run_backend=true
+          fi
           echo "run-frontend=$run_frontend"
           echo "run-backend=$run_backend"
           echo "run-frontend=$run_frontend" >> "$GITHUB_OUTPUT"
@@ -226,11 +233,14 @@ jobs:
 
       # 2026-09-12（C5）：覆盖率门禁由 vitest 固定阈值改为基线棘轮
       #（scripts/coverage-ratchet.cjs + frontend/coverage-baseline.json，容差 0.5pt）——
-      # 根除"大版本分母暴涨 → 总体百分比下滑 → 第一次 CI 必红"的机制性追尾
-      - name: Run frontend tests (coverage + ratchet)
+      # 根除"大版本分母暴涨 → 总体百分比下滑 → 第一次 CI 必红"的机制性追尾。
+      # 2026-09-15（EP-DYN）：test:report:fe 额外落 vitest JSON，test-watchdog 动态核对
+      # 「每个测试文件都真执行 + 跳过必须在 test-gate.config.json 登记」，消灭静默 skip=绿。
+      - name: Run frontend tests (coverage + ratchet + watchdog)
         run: |
-          npm test -- --coverage
+          npm run test:report:fe
           node scripts/coverage-ratchet.cjs frontend/coverage/coverage-summary.json frontend/coverage-baseline.json
+          node scripts/test-watchdog.cjs --project frontend
 
       # tools/ 下的脚本单测（导入/质检/迁移）：此前游离于所有测试链路之外，
       # `npm test` 只跑 frontend，写在这里的用例实际从未被执行（门禁清单存在 ≠ 被执行）。
@@ -262,22 +272,33 @@ jobs:
   # 镜像用 pgrouting/pgrouting：postgis/postgis:16-3.4 无 pgRouting 扩展，
   # route 域 pgr_withPoints 无法执行（本地 probe 实证）。库口径对齐 docker-compose.v3.yml。
   # seed（backend/test/seed/ci-seed.sh）幂等：schema + 仓库内真数据（flood_levels 251 档 /
-  # 设施 83 / 港口 3）+ roads_noded 最小夹具；POI/xiaoqu 源数据不在仓库 → 数据绑定 spec 自探测跳过。
+  # 设施 83 / 港口 3）+ 两份合成夹具（roads-graph-fixture.sql 有向路网含单向边；
+  # site-analysis-fixture.sql poi 6 / xiaoqu 12）——后者让选址全链路的契约与不变量
+  # 在 CI 跑真 SQL（此前无 POI 源可灌 ⇒ 整组静默跳过，现由夹具补齐）。
   backend-tests:
     runs-on: ubuntu-latest
     needs: [changes]
     if: needs.changes.outputs.run-backend == 'true'
+    # EP-DYN：门控变量提到 job 级，让「测试步骤」与「watchdog 步骤」同时看到——
+    # watchdog 据此要求 12 个真库套件必须 0 跳过；若真库没连上/门控写错导致套件沉睡，
+    # 这里会直接判红（承诺要跑的必须真跑，不允许沉睡报绿）。
+    env:
+      V3_INTEGRATION_DB: '1'
+      # ci-seed.sh 第 ④ 步会灌 backend/test/seed/roads-graph-fixture.sql（3 条合成边，
+      # 含一条单向边）⇒ route.fixture.e2e-spec.ts 的 V3_ROADS_FIXTURE 门控必须打开，
+      # 让这组"承诺要跑"的用例真跑。变量不设时该组按登记跳过（本地真库禁灌夹具，见 seed 注释）。
+      V3_ROADS_FIXTURE: '1'
     services:
       postgis:
         image: pgrouting/pgrouting:16-3.5-3.8
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: v3_dev
+          POSTGRES_DB: beibu-gulf-data
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U postgres -d v3_dev"
+          --health-cmd "pg_isready -U postgres -d beibu-gulf-data"
           --health-interval 5s
           --health-timeout 3s
           --health-retries 12
@@ -303,18 +324,21 @@ jobs:
             sudo apt-get install -y -qq postgresql-client
           fi
 
-      - name: Seed v3_dev（schema + 真数据 + roads_noded 夹具，幂等）
+      - name: Seed beibu-gulf-data（schema + 真数据 + 路网/选址两份合成夹具，幂等）
         run: bash backend/test/seed/ci-seed.sh
 
-      - name: Run Nest tests（真库门控激活 + coverage）
+      - name: Run Nest tests（真库门控激活 + coverage + JSON 结果）
         working-directory: backend
-        env:
-          V3_INTEGRATION_DB: '1'
-        run: npm test -- --coverage
+        run: npm run test:report
 
       # C5：后端基线棘轮（backend/coverage-baseline.json），基线为真库激活后的实测水平
       - name: Coverage ratchet (backend)
         run: node scripts/coverage-ratchet.cjs backend/coverage/coverage-summary.json backend/coverage-baseline.json
+
+      # EP-DYN 动态看门狗：job 级 V3_INTEGRATION_DB=1 已承诺真库，故此处要求 12 个门控套件
+      # 0 跳过、36 个测试文件全部真实执行；承诺真库却仍 skip（库没起/门控写错）直接红。
+      - name: Test watchdog (backend — 门控套件必须真跑)
+        run: node scripts/test-watchdog.cjs --project backend
 
   # ⚠️ algorithm-service-tests job 已于 2026-09-10（阶段 4）随 FastAPI 退役移除：
   #    服务下线（compose 不再部署），pytest 套件保留在 backend/algorithm-service/tests

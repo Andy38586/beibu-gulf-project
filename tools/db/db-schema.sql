@@ -1,6 +1,6 @@
 -- v3 最简版 schema —— 存储坐标系 EPSG:4490 (CGCS2000)
 -- 数据源为 WGS84(4326)；CGCS2000 与 WGS84 在中国区域厘米级一致，直接赋值存储，项目尺度可接受
--- 用法: docker exec -i beibu-postgis psql -U postgres -d v3_dev -f /tmp/db-schema.sql
+-- 用法: docker exec -i beibu-postgis psql -U postgres -d beibu-gulf-data -f /tmp/db-schema.sql
 
 CREATE EXTENSION IF NOT EXISTS postgis;
 

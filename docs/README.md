@@ -59,7 +59,7 @@
 
 | 文档 | 定位 |
 |---|---|
-| `问题副本-2026-09-12-审查波归档与覆盖对账.md` | **审查波唯一归档承载**（2026-09-12 收口）：09-11~12 全部审查/任务报告（代码审查 28 项、CI/CD 与单测报告、问题台账整合、浸没方案、坐标系/双轨/幽灵系列、桌面 4 份任务报告）已按覆盖对账矩阵收口——证伪豁免/判据沉淀/commit 锚点/尾巴与待决策全保留在该副本，open 项 11 项已转正入 `待解决问题.md`（d140~d142/b101~b102/z160~z165） |
+| `问题副本-2026-09-15-专项审查总问题.md` | **唯一审查问题总副本**（2026-09-15 整合）：此前 8 份分散副本（09-12 审查波归档/数据链、09-14 架构耦合/设计Token/算法/TS类型/WebGIS、09-15 工程化）已全部整合进本文件并删除原件（移入 `.local/trash/问题副本整合-20260915/`）。汇总 `docs/audits/` 全部 11 批次 37 份文档的 ≈390 条问题（专项1~8 + 全量第一性原理），保全各条 `discover` 原始时间戳；含同域合并建议/证伪豁免/已闭环 commit 锚点/判据沉淀/浸没终态口径/待决策清单 + 第一性原理二次复查 + 48 项代码取证核实。open 项 11 项已转正入 `待解决问题.md`（d140~d142/b101~b102/z160~z165） |
 | `图片/` | 截图与架构图（README 引用） |
 | （已收口删除） | 原 `代码审查-第一性原理-2026-09-11.md`、`CI-CD与单测审查报告.md`、`问题台账-整合-2026-09-12.md`、`浸没基准重派生方案/问题副本-浸没对账`、`诊断-浸没设施恒0`、`坐标系全项目审计`、`双轨规则排查`、`幽灵优化排查`、`三阶段闭环复查`、`新一轮第一部分`、`交接文档-性能测评整改`、根目录 `修复任务清单-下一轮.md` 及桌面「新建文件夹 (3)」4 份任务报告——内容已被两本台账 + 归档副本 + `开发指南与决策.md §十一` 完整覆盖，原件移入 `.local/trash/审查波收口-20260912/` |
 
@@ -69,7 +69,7 @@
 
 - **当前分支**：`main`（v3 迁移已合入主线的实际工作分支；历史分支 `experiment/v3-backend-migration` 已改名 `v3-migration` 并保留在远端，不再作为施工分支）。
 - **施工状态唯一数据源**：`docs/v3-施工手册.md`（任务状态 / 实施日志 / 风险登记以该文档为准；注意其末次更新 2026-09-04，09-05 以后的状态见各交接文档与台账补登批次）。
-- **PostGIS**：`docker compose -f docker-compose.v3.yml up -d` → `beibu-postgis`（5432，v3_dev 库，postgis 3.4.3）。2026-09-11 起该 compose 只保留 postgis（algorithm-service 服务定义随 FastAPI 退役删除）。
+- **PostGIS**：`docker compose -f docker-compose.v3.yml up -d` → `beibu-postgis`（5432，beibu-gulf-data 库，postgis 3.4.3）。2026-09-11 起该 compose 只保留 postgis（algorithm-service 服务定义随 FastAPI 退役删除）。
   - 业务表：users / plans / ports / poi_facilities / xiaoqu / flood_facilities / flood_levels / favorites / data_archive 等（favorites 表已于 v3 迁移期补建，`tools/db/db-schema.sql:77`）。
   - 库内行数以施工手册 T0.1 对账结果为准；本机开发库实测 flood_levels 251 档、flood_facilities 83 条（2026-09-11）。
   - 工具：`tools/db/db-schema.sql`（建表）+ `tools/db/db-import.mjs`（生成 import.sql）+ 执行 `docker cp` + `psql -f`；淹没档位另有 `tools/db/db-schema-flood.sql` + `tools/flood/flood-levels-to-pg.mjs`。

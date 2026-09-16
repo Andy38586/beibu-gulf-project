@@ -164,8 +164,7 @@ onMounted(() => {
   void restoreAuth() // 启动时经 /api/auth/me 验证 Cookie Token
   initAuthStorageListener() // 多标签页登录态同步
   // 预热队列（设计约定：首屏 load 完成后按次序错峰预热大资源，逐项让路不抢带宽）：
-  // ① +3s  Cesium 脚本（5.8MB）——切 3D 秒开；
-  // ② +6s  后端 DEM 引擎暖机——/flood/online 查 0 档触发 FastAPI load_dem 模块加载，首次真实演算免等。
+  // ① +3s  Cesium 脚本（5.8MB）——切 3D 秒开。
   // 任一项失败均静默——预热只是优化，正式路径自会按需加载。
   const warmup = (delayMs: number, task: () => void) => {
     // SPA 挂载时 load 事件常已触发（readyState complete），再 addEventListener 永不回调，

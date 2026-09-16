@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * 航线分析业务页（Cesium 引擎驱动）：
- * 控制面板（右上图层控制上方 4×4）选点 → 逐段调 /route/path（FastAPI algorithm-service）→
+ * 控制面板（右上图层控制上方 4×4）选点 → 逐段调 /route/path（Nest + pgRouting）→
  * 多段路径线 + 端点标记图层；左栏为结果摘要面板。
  * 选点双入口：POI 搜索（Nest /site-analysis/pois）或地图点击（限钦北防三市，见 RouteControlPanel）。
  * 引擎固定 3D（Cesium）：由路由 meta.engine='3d' 经 App 路由守卫统一驱动，本页不再自行切换/还原，

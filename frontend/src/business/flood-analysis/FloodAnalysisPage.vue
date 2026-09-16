@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * 浸没分析模块：数据源经 floodAdapter（数据源适配层）隔离（Express api + FastAPI online 演算），
+ * 浸没分析模块：数据源经 floodAdapter（数据源适配层）隔离（Nest /flood/* 单模式），
  * 业务图层经 BusinessLayerManager（BLM）独立注册/销毁；3D 渲染器不依赖 2D 引擎独立承载业务，
  * 相机（height<->zoom）2D/3D 切换同步。切换数据源仅改 adapter，业务代码零改动。
  */

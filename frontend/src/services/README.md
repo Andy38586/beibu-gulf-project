@@ -9,7 +9,7 @@ services/
 ├── index.ts              # 公开入口（export * 各 adapter）
 ├── mapDataService.ts     # 地图静态数据（港口/边界 GeoJSON，经 loadStatic）
 └── adapters/
-    ├── floodAdapter.ts   # 洪涝双模式（api=Express / online=FastAPI 演算）+ 档位缓存
+    ├── floodAdapter.ts   # 洪涝单模式（Nest 查表，251 档；原 FastAPI 演算分支已随退役删除）
     └── forecastAdapter.ts# 预测三端点（timeseries / indicator / overview，schema 边界校验）
 ```
 

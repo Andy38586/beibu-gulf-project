@@ -16,7 +16,7 @@ import { useApiRequest } from '@/shared'
 
 import { RouteQueryCancelledError, useRouteApi } from '../useRouteApi'
 
-// mock fetch（apiRequest 内部走 fetch；/flood-online 前缀跨服务直通，envelope:false 不解信封）
+// mock fetch（apiRequest 内部走 fetch；route 域已下沉 Nest，走统一信封解包）
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 

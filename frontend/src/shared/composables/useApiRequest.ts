@@ -33,8 +33,8 @@ export class ApiError extends Error {
 
 const token: Ref<string> = ref('')
 const API_BASE: string = import.meta.env.VITE_API_BASE || '/api'
-// 逐模块切换：Nest 后端前缀与启用功能域清单（Express 恒为默认回退）
-// 回滚开关：清空 VITE_USE_NEST_MODULES（或删 VITE_NEST_API_BASE）即全部回退 Express，参照 VITE_DATA_SOURCE 先例
+// 逐模块切换：Nest 后端前缀与启用功能域清单（未启用域落到 /api 旧前缀）
+// 回滚开关：清空 VITE_USE_NEST_MODULES 即全部走 /api 旧前缀（Express 已退役，dev 与 nginx 均兼容指向同一 Nest 服务）
 const NEST_API_BASE: string = import.meta.env.VITE_NEST_API_BASE || '/nest-api'
 // import.meta.env.VITE_* 为 any 型，显式 String() 收窄，避免 map 回调参数隐式 any（TS7006）
 const NEST_ENABLED_MODULES: Set<string> = new Set(
@@ -56,7 +56,7 @@ const MODULE_BY_PATH_PREFIX: Record<string, string> = {
   route: 'route',
 }
 
-/** 按功能域解析后端前缀：启用了 Nest 的模块走 /nest-api，其余回退 Express（/api） */
+/** 按功能域解析后端前缀：启用了 Nest 的模块走 /nest-api，其余走 /api 旧前缀（兼容） */
 export function resolveBackendPrefix(path: string): string {
   const firstSegment = path.split('/').filter(Boolean)[0] ?? ''
   const module = MODULE_BY_PATH_PREFIX[firstSegment]
@@ -72,7 +72,7 @@ function logRoutingOnce(): void {
     'info',
     `[per-module routing] nest-base=${NEST_API_BASE} enabled=[${
       [...NEST_ENABLED_MODULES].join(',') || 'none'
-    }]（Express 为默认回退）`
+    }]（未启用域走 /api 旧前缀）`
   )
 }
 
@@ -179,7 +179,7 @@ async function singleRequest<T = unknown>(
   try {
     // 以 /api、/nest-api 开头（如 auth/plans 等 REST 路径）视为已含前缀，不再叠加——
     // 曾因双重拼接打成 /api/api/ports → 404 → 港口图层加载失败（ 回归，2026-08-17 修复）
-    // 其余路径按功能域解析前缀（启用了 Nest 的模块 → /nest-api，否则 Express /api 默认回退）
+    // 其余路径按功能域解析前缀（启用了 Nest 的模块 → /nest-api，否则 /api 旧前缀）
     // 2026-09-10（阶段 4）：原 /flood-online 前缀分支已随 FastAPI 退役移除
     logRoutingOnce()
     const url =
@@ -192,7 +192,7 @@ async function singleRequest<T = unknown>(
       headers,
       credentials: 'include',
       signal,
-      // 禁用浏览器缓存：Express 默认 ETag 返回 304，fetch 视其为错误（res.ok 只认 2xx）→ 误判登出/数据失败
+      // 禁用浏览器缓存：后端默认 ETag 返回 304，fetch 视其为错误（res.ok 只认 2xx）→ 误判登出/数据失败
       cache: 'no-store',
     })
 

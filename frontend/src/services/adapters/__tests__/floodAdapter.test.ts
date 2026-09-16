@@ -3,56 +3,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { floodAdapter } from '../floodAdapter'
 
 /**
- * floodAdapter 单测（2026-08-08 数据搬后端后重写）
- * static 模式与前端静态 JSON 已删除，仅测 fetch（业务后端查表）与 calculate（FastAPI 实时演算）两模式。
+ * floodAdapter 单测（2026-08-08 数据搬后端后重写；2026-09-16 注释随 FastAPI 退役校正为单模式）
+ * static 模式与前端静态 JSON 已删除，仅测 fetch（业务后端 Nest 查表，251 档）单模式。
  * vitest 无服务器，用 vi.stubGlobal 接管 global.fetch，按 URL 返回与后端响应同构的内联数据。
  */
 
-// 内联 fixture（结构与后端 sendSuccess 信封 / FastAPI 裸 JSON 同构）
-const fixtures: Record<string, unknown> = {
-  // calculate 模式：FastAPI /flood-online 返回裸 JSON（无信封），envelope:false 直传
-  '/flood-online/api/flood/online': {
-    level: 5,
-    // riskLevel 后端权威输出（FastAPI _risk_level 与 Nest 同口径，前端阈值表已删）
-    riskLevel: '中风险',
-    featureCount: 1,
-    floodedKm2: 12.5,
-    // 与 flood_engine.py 同构：properties 仅 {area}，riskLevel 由 adapter 注入 properties
-    features: [
-      {
-        type: 'Feature',
-        geometry: {
-          type: 'Polygon',
-          coordinates: [
-            [
-              [108.6, 21.8],
-              [108.7, 21.8],
-              [108.7, 21.9],
-              [108.6, 21.8],
-            ],
-          ],
-        },
-        properties: { area: 12.5 },
-      },
-    ],
-  },
-  '/flood-online/api/flood/impact': {
-    level: 15,
-    affectedFacilities: [
-      {
-        id: 'FCG-M-001',
-        name: '防城港渔澫港区1号泊位',
-        type: '泊位',
-        lng: 108.345,
-        lat: 21.7,
-        port: '防城港',
-        loss: 17000,
-        damageRate: 0.85,
-      },
-    ],
-    totalLoss: 17000,
-  },
-}
+// 内联 fixture（结构为后端 sendSuccess 信封 { code, data }；原 FastAPI 裸 JSON 口径的
+// 两条 /flood-online fixture 已随 calculate 模式退役删除，2026-09-16）
+const fixtures: Record<string, unknown> = {}
 
 // fetch 模式：业务后端端点（sendSuccess 信封 { code, data }）；前缀由 per-module 路由
 // 决定（/api 或 /nest-api），fixture 一律用无前缀路径匹配，createFetchStatic 剥掉前缀再查

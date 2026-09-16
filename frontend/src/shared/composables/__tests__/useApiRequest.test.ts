@@ -315,7 +315,7 @@ describe('useApiRequest', () => {
   })
 
   describe('per-module 前缀路由', () => {
-    // VITE_USE_NEST_MODULES 按批填功能域即切 Nest，清空回退 Express。
+    // VITE_USE_NEST_MODULES 按批填功能域即切 Nest，清空走 /api 旧前缀。
     // 前缀常量在模块求值时读取 import.meta.env，故每个用例先用 beforeEach 清模块缓存与 env，
     // 再经动态 import 重新求值（否则顶部静态 import 的旧模块实例会带着 .env.local 的开关值命中缓存）
     beforeEach(() => {
@@ -328,7 +328,7 @@ describe('useApiRequest', () => {
       vi.resetModules()
     })
 
-    it('启用 auth/plans/favorites → 三域走 /nest-api，未启用域回退 Express', async () => {
+    it('启用 auth/plans/favorites → 三域走 /nest-api，未启用域走 /api 旧前缀', async () => {
       import.meta.env.VITE_USE_NEST_MODULES = 'auth,plans,favorites'
       mockFetch.mockResolvedValue(jsonResponse({ code: 200, data: null }))
       const { useApiRequest } = await import('../useApiRequest')

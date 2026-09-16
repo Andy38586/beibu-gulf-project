@@ -31,10 +31,10 @@ export type FloodGeometryParsed = z.infer<typeof floodGeometrySchema>
 export const floodFeatureSchema = z.object({
   type: z.literal('Feature'),
   geometry: floodGeometrySchema,
-  // properties：riskLevel 业务必填（FloodFeature 契约，两数据源均在边界后注入——
-  // fetch 模式由 Nest controller 注入、calculate 模式由 FastAPI _risk_level 输出——两模式均后端权威）；
-  // 但原始响应边界不能强制必填：FastAPI flood_engine 仅返回 {area}（无 riskLevel），
-  // 必填会把 calculate 模式全部判死（历史回归，2026-08-17 修复），故 optional
+  // properties：riskLevel 业务必填（FloodFeature 契约，Nest 边界后注入、后端权威）；
+  // 但原始响应边界不能强制必填：原 calculate 模式（FastAPI flood_engine 仅返回 {area}）曾因
+  // 必填被全部判死（历史回归，2026-08-17 修复）——该模式已随 algorithm-service 退役删除，
+  // optional 作为存量数据兼容保留，缺省由 floodAdapter 边界补 DEFAULT_RISK_LEVEL
   properties: z.looseObject({ riskLevel: z.string().optional() }),
 })
 
@@ -51,7 +51,7 @@ export const affectedFacilitySchema = z
     loss: z.number(),
     damageRate: z.number(),
   })
-  // passthrough：保留数据源附加字段（Express 侧 elevation/value），不剥除
+  // passthrough：保留后端附加字段（elevation/value 等），不剥除
   .passthrough()
 
 export type AffectedFacilityParsed = z.infer<typeof affectedFacilitySchema>
@@ -59,7 +59,7 @@ export type AffectedFacilityParsed = z.infer<typeof affectedFacilitySchema>
 // ③ /flood 在线演算响应（顶层字段严格校验，features 元素级深校验见 ⑭a）
 export const floodOnlineResponseSchema = z.object({
   level: z.number(),
-  // 后端权威输出（FastAPI _risk_level 与 Nest RISK_LEVEL_BANDS 同口径），前端不持阈值表
+  // 后端权威输出（Nest RISK_LEVEL_BANDS 单一事实源；原 FastAPI _risk_level 双实现已随退役删除）
   riskLevel: z.string(),
   featureCount: z.number(),
   floodedKm2: z.number(),
@@ -365,7 +365,7 @@ export const favoriteRemoveResponseSchema = z.object({
 
 export type FavoriteRemoveResponseParsed = z.infer<typeof favoriteRemoveResponseSchema>
 
-// ⑳ GET /route/path 响应（FastAPI 裸 JSON，envelope:false 直通）：判别 found 分成功/合法空两路。
+// ⑳ GET /route/path 响应（Nest 统一信封）：判别 found 分成功/合法空两路。
 // 不可达/未吸附是合法空结果（专项8 7.2 断链语义），不是错误。
 export const routePathResponseSchema = z.discriminatedUnion('found', [
   z.object({

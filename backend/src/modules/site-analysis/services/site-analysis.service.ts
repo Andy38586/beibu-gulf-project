@@ -228,6 +228,14 @@ export class SiteAnalysisService {
       }
     }
 
+    // 空选择校验先于任何 SQL（2026-09-16）：此前 findXiaoqu 执行在 validateSelection 之前，
+    // 「参数校验（无库可跑）」组在无库环境（本地未设 V3_INTEGRATION_DB）SQL 抛错成 500；
+    // 空数组本就无需查库，提前返回与 runSiteAnalysis 的校验出口一致（真库模式行为不变，仍 422）。
+    const selectionError = validateSelection(selectedKeys)
+    if (selectionError) {
+      return { error: selectionError, coverage: null, matchedXiaoqu: [], facilityPoi: {} }
+    }
+
     // 按类型拉取 POI（顺序与原实现一致），小区数据一并读取
     const facilityData: Record<string, FacilityPoint[] | null> = {}
     for (const key of selectedKeys) {

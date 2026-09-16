@@ -1,8 +1,7 @@
-# 北部湾港 WebGIS 智慧分析平台 —— 本地/生产一键编排（v3 四服务合并版）
+# 北部湾港 WebGIS 智慧分析平台 —— 本地/生产一键编排（v3 三服务版）
 # 用法：docker compose up --build
 #   前端：      http://localhost:80（nginx，同域反代）
 #   业务 API：  http://localhost:80/nest-api/...（经 nginx 反代 → nest:3000）
-#   演算服务：  http://localhost:8000（algorithm-service，容器内）
 #   PostGIS：   localhost:5432（beibu-gulf-data）
 services:
   # 前端 + nginx（唯一对外暴露 80/443；API/DEM/瓦片均同域反代）
@@ -20,11 +19,11 @@ services:
     # 峰值 3-5G 会 OOM 卡死系统——部署只 pull 不 build）；build 段保留供本地 dev 用。
     image: ghcr.io/andy38586/beibu-gulf-project:app-${IMAGE_TAG:-app-latest}
     container_name: beibu-gulf-webgis
-    # 削峰（2026-09-10，15:30 修订）：四容器共存，为每容器设上限以防单容器失控。
+    # 削峰（2026-09-10，15:30 修订；算法服务退役后为三容器）：为每容器设上限以防单容器失控。
     # 实测 nginx+静态驻留仅 8.4MB，128m → 64m（仍有 7 倍余量）。
     # ⚠️ 关键澄清：mem_limit 是「上限」不是「预留」——调低它**不会**释放物理内存，
-    # 也不会「让给」其他容器（空闲配额本来就不占内存）。真正让演算服务可用的是
-    # 它自己的上限 640m → 1024m（见 algorithm-service 注释）。
+    # 也不会「让给」其他容器（空闲配额本来就不占内存）。真正让某服务可用的是
+    # 把属于它的上限给足（nest/postgis 见各自注释）。
     # 该守的口径：**实际总占用** < 物理 1613m − 宿主机开销（daemon/sshd/系统 ~300m）
     # ≈ 1300m。原注释按「上限之和 < 物理内存」配置，漏算宿主机开销，是 09-10 OOM 成因。
     mem_limit: 64m
@@ -33,7 +32,7 @@ services:
     environment:
       - NODE_ENV=production
     volumes:
-      # 静态真数据：nest 与 algorithm-service 经 ro volume 共享（数据资产不烘焙进镜像）
+      # 静态真数据：app 与 nest 共享同一宿主目录（nest 侧 ro；数据资产不烘焙进镜像）
       - ./backend/data:/app/backend/data
       # DEM 静态产物（tif 67MB 被 gitignore、CI 镜像不含；本地含 → CI/本地镜像不一致）。
       - ./backend/static/dem:/app/backend/static/dem

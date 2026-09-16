@@ -12,9 +12,9 @@ ENV VITE_TIANDITU_KEY=$VITE_TIANDITU_KEY
 # ⚠️ VITE_DATA_SOURCE 已废弃（z156，2026-09-12 清理）：数据源切换代码已随
 # algorithm-service 退役删除，不再作为构建期变量下发。
 
-# v3：业务后端模块切换开关（构建期变量）——生产默认全六域切 Nest（Express 已退役）；
+# v3：业务后端模块切换开关（构建期变量）——生产默认全七域切 Nest（Express 已退役）；
 # 回滚旧版或临时走 Express 时清空此值（compose build.args 覆盖）
-ARG VITE_USE_NEST_MODULES=auth,plans,favorites,forecast,flood,site-analysis
+ARG VITE_USE_NEST_MODULES=auth,plans,favorites,forecast,flood,site-analysis,route
 ENV VITE_USE_NEST_MODULES=$VITE_USE_NEST_MODULES
 
 WORKDIR /app

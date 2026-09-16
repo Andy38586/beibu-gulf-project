@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
@@ -25,15 +25,54 @@ import {
  */
 const DATA_DIR = join(__dirname, '../../../../backend/data')
 
-// plans.json 是运行时用户数据（不入库），CI 环境不存在时跳过该用例
-const plansPath = join(DATA_DIR, 'plans.json')
-const plansExist = existsSync(plansPath)
+/**
+ * 存量 plan 记录形态回归（fixture 化）：
+ * 原用例读 backend/data/plans.json（运行时用户数据、不入库），该文件本地与 CI 均不存在
+ * → skipIf 恒跳过、从未真跑（z150-⑥ 实锤）。此处固化存量记录的三种关键形态，
+ * 恢复「旧记录不得被 schema 拒绝」的回归语义，且环境无关恒运行。
+ */
+const legacyPlanFixtures = [
+  // 旧形态 A：最早一批记录——无 savedXiaoqu、weights=null、无浸没字段
+  {
+    id: 'legacy-1',
+    userId: 'u1',
+    name: '旧方案A',
+    selectedKeys: ['hospital'],
+    typeSettings: {},
+    weights: null,
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+  },
+  // 旧形态 B：weights 键从未写入（undefined，而非 null）
+  {
+    id: 'legacy-2',
+    userId: 'u1',
+    name: '旧方案B',
+    selectedKeys: [],
+    typeSettings: { hospital: true },
+    createdAt: '2026-02-01T00:00:00.000Z',
+    updatedAt: '2026-02-01T00:00:00.000Z',
+  },
+  // 新形态 C：含 savedXiaoqu 与浸没载荷（M-1 回归字段）+ 可选业务字段
+  {
+    id: 'new-1',
+    userId: 'u2',
+    name: '新方案',
+    selectedKeys: ['port'],
+    typeSettings: {},
+    savedXiaoqu: [{ id: 'xq-1', name: '小区' }],
+    createdAt: '2026-09-01T00:00:00.000Z',
+    updatedAt: '2026-09-01T00:00:00.000Z',
+    businessType: 'flood',
+    waterLevel: 2.5,
+    totalLoss: 1200,
+    floodRiskLevel: '中风险',
+  },
+]
 
-describe('planSchema（真实 plans.json 全量校验）', () => {
-  it.skipIf(!plansExist)('存量 18 条 plan 记录全部通过（含无 savedXiaoqu 的旧记录）', () => {
-    const plans = JSON.parse(readFileSync(plansPath, 'utf8'))
-    expect(Array.isArray(plans)).toBe(true)
-    for (const plan of plans) {
+describe('planSchema（存量记录形态回归：fixture 固化，环境无关）', () => {
+  it('存量旧记录与新记录全部通过（含无 savedXiaoqu / weights=null 的旧记录）', () => {
+    for (const plan of legacyPlanFixtures) {
       const result = planSchema.safeParse(plan)
       expect(
         result.success,

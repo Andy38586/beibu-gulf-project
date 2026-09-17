@@ -164,3 +164,10 @@ frontend/vite.local-online.config.js
 
 # CodeBuddy 会话运行时产物(同 .zcode,agent 生成非项目源码)
 .codebuddy/
+
+# 本机临时工作目录（tmp-pinglu/ 平陆运河建模中间件、tmp-resume/ 简历产物等）：
+# 会话产物、可再生，不入库（同 .local/ 定位）
+# ⚠️ 2026-09-17：上方「v3 临时目录（含 OSM 硬编码 key）」注释存在**编码损坏且忽略规则缺失**，
+#    导致 tmp-pinglu/ 长期未被忽略——其内含 OSM 拉取失败的 406 错误页（伪装成 .json），
+#    既干扰 format:check，也带来「脚本内硬编码 key 被误提交」的风险。
+tmp-*/

@@ -29,6 +29,12 @@ export default defineConfig([
     '**/.venv/**',
     '**/.workbuddy/**',
     '.local/**',
+    // 本机临时工作目录与产生产物（2026-09-17 加入，与 .prettierignore/.gitignore 同口径）：
+    // tmp-pinglu/ 含 OSM 拉取失败残留（406 错误页伪装成 .json）；pinglu-canal-3dtiles/ 含
+    // Cesium 发行包 161 个已打包 js——被 eslint 当源码扫出 3.1 万个 error（prefer-const 等）。
+    // 二者均非本项目源码。
+    '**/tmp-*/**',
+    '**/pinglu-canal-3dtiles/**',
   ]),
 
   {

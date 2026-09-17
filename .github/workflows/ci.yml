@@ -515,7 +515,17 @@ jobs:
             cp -f /tmp/beibu-users.bak backend/data/users.json 2>/dev/null; \
             pkill -9 -f '[d]ocker compose' 2>/dev/null; pkill -9 -f '[d]ocker build' 2>/dev/null; \
             docker info >/dev/null 2>&1 || sudo systemctl restart docker; true"; then
-            echo "::error::git pull 阶段失败（SSH_PORT=${SSH_PORT}；见上方 ssh stderr 原文）"
+            echo "::error::阶段一（代码同步 git pull）失败（SSH_PORT=${SSH_PORT}；见上方 ssh stderr 原文）"
+            exit 1
+          fi
+          # 阶段 1.5（2026-09-17 新增）：部署前置校验（scripts/preflight-deploy.sh）。
+          # 起因：9-16 的部署 7 秒即红，而本 job 当时把该失败**统一报成「git pull 阶段失败」**，
+          # 把排查方向带偏到 git/SSH（实际 git pull 是成功的）——真因是 compose 自 09-15 起
+          # 对 POSTGRES_PASSWORD 用 ${VAR:?} 强制校验，而服务器 .env（server-setup.sh 模板
+          # 产物）从未生成该变量。脚本幂等补齐凭据 + 预解析 compose，让同类失败在部署前
+          # 以准确原因报出，而不是 30 分钟后以「健康检查超时」的形式暴露。
+          if ! ssh_quick "cd /opt/beibu-gulf && bash scripts/preflight-deploy.sh"; then
+            echo "::error::阶段 1.5（部署前置校验）失败：POSTGRES_PASSWORD 缺失或不可用，或 compose 解析失败（详见上方 ssh stderr）"
             exit 1
           fi
           # 阶段二（短会话）：触发后台「拉镜像 + 启动」即返回。镜像由 CI 构建推送

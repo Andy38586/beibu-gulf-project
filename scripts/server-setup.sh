@@ -46,8 +46,21 @@ if [ ! -f .env ]; then
   echo
   cat > .env <<EOF
 VITE_TIANDITU_KEY=$TK
+# P0（EP-09 / EH-07）：compose 对 POSTGRES_PASSWORD 用 \${POSTGRES_PASSWORD:?} 强制校验，
+# 未注入则 compose 直接中断（2026-09-16 部署失败的根因即此处缺变量）。
+# 首装场景卷尚未初始化，此处生成的值会同时用于 postgis 卷 initdb 与 nest 连接，随机即可。
+POSTGRES_PASSWORD=$(openssl rand -hex 32)
 EOF
-  echo "已写入 .env"
+  chmod 600 .env
+  echo "已写入 .env（含随机 POSTGRES_PASSWORD）"
+fi
+# 幂等补齐：.env 已存在但缺该变量（历史模板产物）
+# ⚠️ 这里**不能**随机生成——该变量只在 postgis 卷**首次初始化**时决定库内口令，
+#    卷已存在时改 .env 不会改库，随机值会让 nest「连不上库」。必须填**库内真实口令**。
+if ! grep -q '^POSTGRES_PASSWORD=' .env; then
+  echo "⚠️  .env 缺 POSTGRES_PASSWORD（历史模板产物，9-16 部署失败的原因）"
+  echo "    补注入：bash scripts/preflight-deploy.sh"
+  echo "    （该脚本从运行中的 beibu-postgis 容器读回现有口令并实测连通后才写入）"
 fi
 # 后端运行时密钥（compose env_file 消费，不烘焙进镜像）
 if [ ! -f backend/.env ]; then
@@ -64,9 +77,11 @@ echo "  1. 阿里云安全组放行 80（HTTP，无证书）"
 echo "  2. 国内服务器建议配置 Docker 镜像加速器（阿里云容器镜像服务→镜像加速器→专属地址，"
 echo "     写入 /etc/docker/daemon.json 的 registry-mirrors 并 restart docker，否则拉 node 镜像慢/超时）"
 echo "  3. GitHub 仓库 Secrets 新建："
-echo "     - SERVER_SSH_KEY = 服务器私钥全文（cat ~/.ssh/id_ed25519）"
-echo "     - SERVER_HOST   = 服务器公网 IP"
-echo "     - SERVER_USER   = root 或 ubuntu"
-echo "     - TIANDITU_KEY  = 天地图新 key（CI 构建用）"
-echo "  3. push main 即触发 CI 全绿后 SSH 自动部署"
-echo "  4. 验证：curl http://<服务器IP>/ 应返回前端页面"
+echo "     - SERVER_SSH_KEY  = 服务器私钥全文（cat ~/.ssh/id_ed25519）"
+echo "     - SERVER_HOST     = 服务器公网 IP"
+echo "     - SERVER_USER     = root 或 ubuntu"
+echo "     - TIANDITU_KEY    = 天地图新 key（CI 构建用）"
+echo "     - SERVER_SSH_PORT =（可选）sshd 增听高位端口时填，未配置回退 22"
+echo "  4. push main 即触发 CI 全绿后 SSH 自动部署"
+echo "     （部署前置校验会自动补齐 POSTGRES_PASSWORD；失败时按 ::error:: 提示处理）"
+echo "  5. 验证：curl http://<服务器IP>/ 应返回前端页面"

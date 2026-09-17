@@ -508,9 +508,24 @@ jobs:
           # 会持续占内存拖垮 sshd——run#135/136 卡死现场；容器由 containerd 托管，pkill 不误伤）。
           # 注意 pkill -f 模式用 [d]ocker 写法防自匹配（run#144：命令行含 'docker compose'
           # 字面被自己 pkill 自杀 → SSH 会话被杀 → exit 255 空 stderr）
+          # 2026-09-17：服务器本地未提交改动会阻塞 git pull --ff-only —— 这是 09-16/09-17
+          # 两次部署失败的**真因**（run#182 日志实证：`error: Your local changes to the
+          # following files would be overwritten by merge: docker-compose.yml`）。
+          # 注意：09-16 当时拉不到日志（403），据「step 只跑 7 秒」推理成 compose 校验失败，
+          # 结论有误；阶段 1.5 加的 preflight 因此一直没机会执行。
+          # 处理：先把改动备份成 patch 并把 diff 打进 CI 日志（判断是否需要回流仓库），
+          # 再 `git stash`（**可恢复**，服务器上 `git stash pop` 即可取回），随后照常 pull。
+          # 远端 git 是权威，服务器手改跟踪文件属配置漂移，须消除。
           if ! ssh_quick "cd /opt/beibu-gulf \
             && cp -f backend/data/users.json /tmp/beibu-users.bak 2>/dev/null; \
             git checkout -- backend/data/users.json 2>/dev/null; \
+            if ! git diff --quiet; then \
+              git diff > /tmp/beibu-local-changes.patch; \
+              echo '=== 服务器本地改动已备份至 /tmp/beibu-local-changes.patch ===' >&2; \
+              cat /tmp/beibu-local-changes.patch >&2; \
+              echo '=== 本地改动结束（已 stash，继续部署）===' >&2; \
+              git stash push -m 'ci-autostash' >&2; \
+            fi; \
             git pull --ff-only || exit 1; \
             cp -f /tmp/beibu-users.bak backend/data/users.json 2>/dev/null; \
             pkill -9 -f '[d]ocker compose' 2>/dev/null; pkill -9 -f '[d]ocker build' 2>/dev/null; \

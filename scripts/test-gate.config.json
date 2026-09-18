@@ -1,9 +1,11 @@
 {
-  "_comment": "测试动态门控策略（scripts/test-watchdog.cjs 消费）。allowSkipped 是『有界、带理由的容错白名单』：gated=仅当门控环境变量缺失（本地无库）时允许跳过，该变量一旦在 CI 设置就必须真跑；data=数据依赖型跳过，始终允许但不得超过 max。白名单之外出现任何跳过即判失败——新增 .skip 必须在此显式登记理由。",
+  "_comment": "测试动态门控策略（scripts/test-watchdog.cjs 消费）。allowSkipped 是『有界、带理由的容错白名单』：gated=仅当门控环境变量缺失（本地无库）时允许跳过，该变量一旦在 CI 设置就必须真跑；data=数据依赖型跳过，始终允许但不得超过 max。白名单之外出现任何跳过即判失败——新增 .skip 必须在此显式登记理由。include=本器的磁盘清单口径；vitestInclude=vitest 侧真实口径（漂移即报 INCLUDE_DRIFT，见审计 D-05）。",
   "projects": {
     "backend": {
       "root": "backend",
       "include": ["test/**/*.spec.ts", "test/**/*.e2e-spec.ts"],
+      "vitestInclude": ["test/**/*.spec.ts", "test/**/*.e2e-spec.ts"],
+      "_includeNote": "backend/vitest.config.ts:9 显式声明 include=['test/**/*.e2e-spec.ts','test/**/*.spec.ts']——两侧同源，无漂移。vitest 显式 include 会**取代**默认值，故 .test.js 之类不会被执行，口径成立。",
       "result": "backend/coverage/vitest-result.json",
       "requireEnvToRunGated": "V3_INTEGRATION_DB",
       "allowSkipped": {
@@ -56,6 +58,8 @@
     "frontend": {
       "root": "frontend",
       "include": ["src/**/*.test.ts", "src/**/*.spec.ts"],
+      "vitestInclude": ["src/**/*.{test,spec}.?(c|m)[jt]s?(x)"],
+      "_includeNote": "frontend/vitest.config.js **未声明 test.include** ⇒ vitest 用默认值 `**/*.{test,spec}.?(c|m)[jt]s?(x)`（限 src/ 下即此处写法）。默认值比本器 include 宽：允许 .js/.jsx/.mjs/.cts/.tsx 等变体。2026-09-18 审计 D-05 实测当前 58/58 全命中、零漂移，故本字段此刻不报红；作用是**锁住未来**——若有人新增 src/x.test.js，vitest 会跑而本器清单不含它，INCLUDE_DRIFT 立即报红，不再静默漏网。",
       "result": "frontend/coverage/vitest-result.json",
       "allowSkipped": {
         "src/types/__tests__/schemas.test.ts": {

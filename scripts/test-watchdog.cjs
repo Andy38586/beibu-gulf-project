@@ -50,12 +50,54 @@ function relTo(rootAbs, fileAbs) {
   return toPosix(path.relative(rootAbs, fileAbs))
 }
 
-// ---------- 极简 glob（仅支持 ** * 与字面量，满足 test/**/*.spec.ts 这类模式）----------
+// ---------- 极简 glob（支持 ** * ? 与 {a,b} 花括号，满足 vitest include 的表达需要）----------
+/**
+ * ⚠️ 花括号支持是 2026-09-18 补的（审计 D-05）：vitest 的 **默认 include** 是
+ * `**\/*.{test,spec}.?(c|m)[jt]s?(x)` 这种带 {a,b} 与 ?(x) 的写法，原引擎把 `{` `}`
+ * 当字面量 ⇒ 该模式匹配 0 个文件。后果比「漏报」更糟：用默认 include 当基准去比对时
+ * 会得「零漂移」的假结论（2026-09-18 实测踩中——探针 glob 返回 0 命中）。
+ *
+ * 这里实现常用的子集：
+ *   - `{a,b,c}` → `(?:a|b|c)`（不支持嵌套，够用）
+ *   - `?(x)`    → `(?:x)?`（可选段）
+ *   - `*` `**` `?` 语义同前
+ * 不追求完整 minimatch 兼容——**只保证「本项目用到的模式」判定正确**，
+ * 超出部分宁可当字面量也不要静默失配（静默失配正是要根除的失效模式）。
+ */
 function globToRegExp(glob) {
   let re = '^'
   for (let i = 0; i < glob.length; i++) {
     const c = glob[i]
-    if (c === '*') {
+    if (c === '{') {
+      const close = glob.indexOf('}', i)
+      if (close > i) {
+        const alts = glob
+          .slice(i + 1, close)
+          .split(',')
+          .map((a) => a.replace(/[.+^${}()|[\]\\]/g, '\\$&'))
+        re += '(?:' + alts.join('|') + ')'
+        i = close
+        continue
+      }
+      re += '\\{'
+    } else if (c === '?' && glob[i + 1] === '(') {
+      // ?(pattern) —— 可选分组
+      const close = glob.indexOf(')', i + 2)
+      if (close > i) {
+        const inner = glob.slice(i + 2, close)
+        // 内层仅支持字符类（如 c|m）与字面量，按需转义
+        const body = inner.includes('|')
+          ? inner
+              .split('|')
+              .map((a) => a.replace(/[.+^${}()|[\]\\]/g, '\\$&'))
+              .join('|')
+          : inner.replace(/[.+^${}()|[\]\\]/g, '\\$&')
+        re += '(?:' + body + ')?'
+        i = close
+        continue
+      }
+      re += '\\?'
+    } else if (c === '*') {
       if (glob[i + 1] === '*') {
         re += '.*'
         i++
@@ -63,6 +105,15 @@ function globToRegExp(glob) {
       } else {
         re += '[^/]*'
       }
+    } else if (c === '[') {
+      // 字符类 [jt]、[cm] 等：整段透传（内容本身是合法正则字符类）
+      const close = glob.indexOf(']', i)
+      if (close > i) {
+        re += glob.slice(i, close + 1)
+        i = close
+        continue
+      }
+      re += '\\['
     } else if ('.+^${}()|[]^\\'.includes(c)) {
       re += '\\' + c
     } else if (c === '?') {
@@ -149,19 +200,50 @@ function normalizeResult(result, rootAbs) {
  * @param {string} ctx.rootAbs 项目根绝对路径
  * @param {Record<string,string|undefined>} ctx.env 环境变量（默认 process.env）
  * @param {string[]} [ctx.filesOnDisk] 可注入：磁盘上的测试文件相对清单；不给则现场遍历
+ * @param {string[]} [ctx.vitestFilesOnDisk] 可注入：按 vitest 侧 include 枚举的文件清单；不给则现场遍历
  * @returns {{ violations: Array<{code:string,file?:string,detail:string}>, allowedSkips: Array<{file:string,count:number,mode:string}>, ranFiles:number, diskFiles:number }}
  */
 function evaluateProject(project, result, ctx) {
-  const { rootAbs, env = process.env, filesOnDisk } = ctx
+  const { rootAbs, env = process.env, filesOnDisk, vitestFilesOnDisk } = ctx
   const gatedEnv = project.requireEnvToRunGated
   const gatedEnvSet = gatedEnv ? env[gatedEnv] !== undefined : false
   const allow = project.allowSkipped || {}
 
   const disk =
-    filesOnDisk || listTestFilesOnDisk(rootAbs, project.include || [], project.ignoreDirs)
+    filesOnDisk ?? listTestFilesOnDisk(rootAbs, project.include || [], project.ignoreDirs)
   const norm = normalizeResult(result, rootAbs)
   const violations = []
   const allowedSkips = []
+
+  // (0) include 漂移断言（审计 D-05，2026-09-18）：
+  //     本器的「磁盘清单」来自 project.include，而 vitest 实际跑什么由它自己的 include/
+  //     默认值决定。两者一旦漂移，本器的兜底就出现**结构性盲区**：
+  //       - vitest 跑了但不在本器清单里的文件 ⇒ 它的跳过/空壳/失败全不被发现（漏网）
+  //       - 本器清单有但 vitest 不跑 ⇒ 误报 TEST_FILE_NOT_RUN（噪声，会诱人放宽登记）
+  //     漂移本身很难靠肉眼维持（vitest 默认 include 是 `**\/*.{test,spec}.?(c|m)[jt]s?(x)`，
+  //     允许 js/jsx/mjs/cts 等一堆变体，而本器配置写的是窄的 *.ts）——2026-09-18 实测：
+  //     当前恰好零漂移（58/58 命中），属**潜伏**风险：某人加一个 foo.test.js 即静默漏网。
+  //     故显式声明 `vitestInclude`（vitest 侧真值）并逐条断言包含关系，漂移即报红。
+  if (Array.isArray(project.vitestInclude) && project.vitestInclude.length > 0) {
+    const vitestFiles =
+      vitestFilesOnDisk ?? listTestFilesOnDisk(rootAbs, project.vitestInclude, project.ignoreDirs)
+    const declared = new Set(disk)
+    const uncovered = vitestFiles.filter((f) => !declared.has(f))
+    if (uncovered.length > 0) {
+      violations.push({
+        code: 'INCLUDE_DRIFT',
+        detail:
+          `vitest 的 include 模式会执行 ${vitestFiles.length} 个文件，但本器 include 只覆盖 ${declared.size} 个——` +
+          `差集 ${uncovered.length} 个文件处于**结构盲区**（其跳过/空壳/失败不会被本器发现）：\n` +
+          uncovered
+            .slice(0, 8)
+            .map((f) => `      · ${f}`)
+            .join('\n') +
+          (uncovered.length > 8 ? `\n      …… 另有 ${uncovered.length - 8} 个` : '') +
+          '\n    修法：把 test-gate.config.json 的 include 对齐 vitest 真实模式（勿只放宽本器清单）。',
+      })
+    }
+  }
 
   // (a) 磁盘有、结果无 = 没被执行；结果有但 0 用例 = 空套件
   for (const file of disk) {

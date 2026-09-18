@@ -164,6 +164,88 @@ describe('watchdog.findEmptyTestBlocks —— 空壳用例静态识别', () => {
   })
 })
 
+// ── glob 引擎（2026-09-18 审计 D-05）────────────────────────────────────────
+// 动机：原引擎不认识 {a,b} 与 ?(x)，而 vitest 的**默认 include** 正是
+// `**/*.{test,spec}.?(c|m)[jt]s?(x)`。后果不是「漏报」而是「探针得出零漂移的假结论」——
+// 用默认 include 做基准比对时它匹配 0 个文件，于是漂移检查恒真（等于没查）。
+describe('watchdog.globToRegExp —— 支持 vitest 默认 include 的语法子集', () => {
+  const re = wd.globToRegExp('**/*.{test,spec}.?(c|m)[jt]s?(x)')
+
+  it('匹配 vitest 默认 include 的全部常见变体', () => {
+    for (const f of [
+      'src/a.test.ts',
+      'src/a/b.spec.ts',
+      'src/x.test.tsx',
+      'src/x.spec.jsx',
+      'src/x.test.mjs',
+      'src/x.spec.cjs',
+      'src/x.test.mts',
+      'src/x.spec.cts',
+    ]) {
+      expect(re.test(f), f).toBe(true)
+    }
+  })
+
+  it('不匹配非测试文件（避免把源码算成测试清单）', () => {
+    for (const f of ['src/a.ts', 'src/atest.ts', 'src/a.specify.ts', 'src/a.test']) {
+      expect(re.test(f), f).toBe(false)
+    }
+  })
+
+  it('既有窄模式语义不回归（{a,b} 支持不得破坏字面量匹配）', () => {
+    const t = wd.globToRegExp('src/**/*.test.ts')
+    expect(t.test('src/a.test.ts')).toBe(true)
+    expect(t.test('src/a/b.test.ts')).toBe(true)
+    expect(t.test('src/a.spec.ts')).toBe(false)
+    expect(t.test('other/a.test.ts')).toBe(false)
+  })
+})
+
+// ── include 漂移断言（2026-09-18 审计 D-05）────────────────────────────────
+// 核心风险：本器的「磁盘清单」来自 project.include，vitest 跑什么由它自己的 include 决定。
+// 两者漂移 ⇒ vitest 跑了的文件不在本器清单里，其跳过/空壳/失败全部不被发现（结构盲区）。
+describe('watchdog.evaluateProject —— include 漂移（结构盲区）', () => {
+  const PROJ = {
+    root: '',
+    include: ['src/**/*.test.ts'],
+    vitestInclude: ['src/**/*.{test,spec}.?(c|m)[jt]s?(x)'],
+    result: 'coverage/vitest-result.json',
+  }
+
+  it('vitest 口径内的文件未被 include 覆盖 → INCLUDE_DRIFT 判红并列出差集', () => {
+    const r = wd.evaluateProject(PROJ, makeResult({}), {
+      rootAbs: '',
+      env: {},
+      // 模拟磁盘：一个被 include 覆盖、一个只在 vitest 口径内
+      filesOnDisk: ['src/covered.test.ts'],
+      vitestFilesOnDisk: ['src/covered.test.ts', 'src/blind-spot.test.js'],
+    })
+    const drift = r.violations.filter((v) => v.code === 'INCLUDE_DRIFT')
+    expect(drift).toHaveLength(1)
+    expect(drift[0].detail).toContain('blind-spot.test.js')
+    expect(drift[0].detail).toContain('结构盲区')
+  })
+
+  it('两侧口径一致 → 不报漂移（免误红）', () => {
+    const r = wd.evaluateProject(PROJ, makeResult({ 'src/a.test.ts': ['passed'] }), {
+      rootAbs: '',
+      env: {},
+      filesOnDisk: ['src/a.test.ts'],
+      vitestFilesOnDisk: ['src/a.test.ts'],
+    })
+    expect(r.violations.filter((v) => v.code === 'INCLUDE_DRIFT')).toEqual([])
+  })
+
+  it('未声明 vitestInclude → 跳过漂移检查（向后兼容既有配置）', () => {
+    const r = wd.evaluateProject(
+      { root: '', include: ['src/**/*.test.ts'], result: 'x' },
+      makeResult({ 'src/a.test.ts': ['passed'] }),
+      { rootAbs: '', env: {}, filesOnDisk: ['src/a.test.ts'] }
+    )
+    expect(r.violations.filter((v) => v.code === 'INCLUDE_DRIFT')).toEqual([])
+  })
+})
+
 describe('watchdog CLI —— 没有结果文件不得视为通过', () => {
   it('结果 JSON 缺失 → exit 1 且提示先跑测试（杜绝「没跑」被当成绿）', () => {
     const dir = mkdtempSync(join(tmpdir(), 'wd-'))

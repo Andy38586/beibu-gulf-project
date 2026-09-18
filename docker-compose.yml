@@ -78,6 +78,12 @@ services:
       # 注：environment 优先级高于 env_file，故此处是唯一权威，可覆盖部署侧 backend/.env 的旧值。
       PG_DATABASE: beibu-gulf-data
       DATA_DIR: /app/backend/data
+      # 镜像身份自证（2026-09-18 CI 审计 D-01）：把镜像 tag 注入容器环境，
+      # 经 /nest-api/health/version 回显——部署链据此判定「线上跑的是哪个 tag」。
+      # **不依赖 SSH**：跨境 SSH 抖动是常态（d117），原先仅靠 ssh docker inspect 校身份，
+      # SSH 一失败就降级成「HTTP 200 即成功」，而旧容器同样 200 ⇒ 部署假绿（run#183）。
+      # 与上方 image: 同一变量源，保证「容器跑的 tag」与「自报的 tag」必然一致。
+      APP_IMAGE_TAG: nest-${IMAGE_TAG:-nest-latest}
       # JWT_SECRET 由部署 .env 注入（backend/.env），不烘焙进镜像
     volumes:
       - ./backend/data:/app/backend/data:ro
@@ -99,8 +105,14 @@ services:
     #   （实测 pgRouting 3.8.0）。构建步骤见 tools/db/Dockerfile.pgrouting。
     # 为什么不用官方 pgrouting/pgrouting：其 PG16 tag 只提供 PostGIS 3.5，而本项目用 3.4，
     #   换用会顺带升级生产空间库的 PostGIS 版本（多一个与本改造无关的风险面）。
-    # ⚠️ pull_policy: never 是必需的：该镜像是服务器本地构建的、不在任何 registry，
-    #   若让 compose 去拉会 404 失败，并中断整个 `pull && up` 链（表现为部署假成功/卡住）。
+    # ⚠️ pull_policy: never 是必需的：该镜像是服务器本地构建的、不在任何 registry。
+    # 2026-09-18 源码级复核（docker/compose pkg/compose/pull.go: shouldPullImage）：
+    #   **旧注释「会 404 失败并中断整个 pull && up 链」是错的**。该函数对 never/build
+    #   走 `default: return false, "", nil` ⇒ 既不拉取也不产生 error，只打一条
+    #   `Skipped`（Details 为空）事件；`pullErrors` 不纳入该服务 ⇒ compose pull 返回 0。
+    #   ⇒ 阶段二 `docker compose pull`（**无服务名 = 全服务**）不会因 postgis 而失败。
+    #   保留 never 的真实价值：① 声明「不要试图去 registry 找它」的意图
+    #   ② 防止将来有人把 image 改成可拉取 tag 时静默改变行为。
     image: local/postgis-pgrouting:16-3.4
     pull_policy: never
     container_name: beibu-postgis

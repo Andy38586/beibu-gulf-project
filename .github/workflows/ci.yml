@@ -202,6 +202,18 @@ jobs:
             exit 1
           fi
 
+      # 2026-09-18（CI 审计 D-03）：覆盖率基线冻结校验。
+      # 背景：覆盖率棘轮「只升不降」⇒ 基线一旦被抬高，此后低覆盖率也能过。
+      # 原护栏只有「CI 不带 --update」，拦不住「本地 ci:local --update 抬高基线 → 连同提交」。
+      # 本步在 static-checks 里做（不依赖覆盖率产物，秒级），把「基线是否被本地改写」变成
+      # 显式可断言的事实；漂移时报出逐指标差异，便于判断是「真涨」还是「本地跑法差异」。
+      # 注意：**合法**的基线变更（新增测试带来的提升）只要随提交入库即通过——CI 比对的是
+      # 工作树与 HEAD，两者一致就放行；它拦的是「改了却没提交」这种自欺状态。
+      - name: Coverage baseline freeze check
+        run: |
+          node scripts/coverage-ratchet.cjs --freeze-check frontend/coverage-baseline.json
+          node scripts/coverage-ratchet.cjs --freeze-check backend/coverage-baseline.json
+
   # ── C1（P0）拆巨石 job 之二：前端测试 ─────────────────────────────────────
   frontend-tests:
     runs-on: ubuntu-latest
@@ -248,11 +260,36 @@ jobs:
       - name: Run tools tests
         run: npm run test:tools
 
-      # 816-专项5并-4-4：fix:/refactor: 提交若改动 src 实现必须附测试（03 §1.6 提交约定）。
-      # 仅对 push 事件检查最近一次提交（push 全分支触发后 PR squash 语义不再适用）。
+  # ── 提交规范门禁（2026-09-18 CI 审计 D-02）────────────────────────────────
+  # 「fix:/refactor: 改动实现必须附测试」（03 §1.6 提交约定）。
+  #
+  # 🔴 为何独立成 job：该检查原先放在 frontend-tests job 内（原 ci.yml:253-266），
+  #    而 frontend-tests 受 `needs.changes.outputs.run-frontend == 'true'` 门控
+  #    ⇒ **只改 backend/** 的提交会让整个 job 被 skip，这条门禁静默失效**——
+  #    而它按定义是跨前后端的规则（判据里同时匹配 frontend/src 与 backend）。
+  #    main 分支上 changes 会强制 run_frontend=true（见 changes job），所以该洞
+  #    只在特性分支暴露；但项目实际几乎直接在 main 开发，"特性分支"不是可靠前提。
+  #
+  # 独立 job 的代价：多一个 runner 启动（约 5-10s），收益是规则对**任意提交**都执行。
+  # 本 job 不受 changes 门控、不需要依赖安装，纯 git 操作。
+  commit-discipline:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          # 需要 HEAD~1 做 diff：默认浅克隆（depth=1）下 HEAD~1 不存在，
+          # `git diff HEAD~1 HEAD` 会 fatal + bash -e 误杀本步骤（同 frontend-tests 114 翻车模式）
+          fetch-depth: 2
+
       - name: fix/refactor must include tests
         if: github.event_name == 'push'
         run: |
+          # 仓库首提交无 HEAD~1：此时无「改动清单」可比，跳过（属合理豁免，非静默放行）
+          if ! git rev-parse -q --verify HEAD~1 >/dev/null 2>&1; then
+            echo "无 HEAD~1（首提交），跳过本检查"
+            exit 0
+          fi
           last_msg="$(git log -1 --format=%s)"
           if echo "$last_msg" | grep -qE '^(fix|refactor)(\(|:)'; then
             changed="$(git diff --name-only HEAD~1 HEAD)"
@@ -261,8 +298,12 @@ jobs:
             if [ -n "$src_changed" ] && [ -z "$test_changed" ]; then
               echo "::error::fix/refactor 提交改动 src 实现但未附测试（03 §1.6）："
               echo "$src_changed"
+              echo "::error::若本次改动确无测试必要（如纯配置/常量），请改用 chore:/docs: 前缀，或在提交信息中说明理由。"
               exit 1
             fi
+            echo "fix/refactor 检查通过：改动 $([ -n "$src_changed" ] && echo "含实现" || echo "不含实现")、$([ -n "$test_changed" ] && echo "含测试" || echo "无测试文件")"
+          else
+            echo "非 fix/refactor 提交（$last_msg），本检查不适用"
           fi
 
   # ── C1（P0）拆巨石 job 之三：后端测试 ── C4（P0）：真库门控套件激活 ────────
@@ -357,7 +398,9 @@ jobs:
     # audit 入 needs（审查 d142）：main 上 npm audit 真红时不再构建/推送制品——
     # 审计门禁此前只拦部署、不拦发布。docs-only 过滤跳过 audit（skipped）时由
     # always() 顶掉默认 skip 传播，构建照常；audit 真红（failure）仍被 !failure() 阻断。
-    needs: [audit, static-checks, frontend-tests, backend-tests]
+    # 2026-09-18（CI 审计 D-02）：commit-discipline 入 needs——它不受 changes 门控、
+    # 每次都跑，若不入 needs 则「fix/refactor 未附测试」红了也拦不住部署（同类洞已两见）。
+    needs: [audit, static-checks, frontend-tests, backend-tests, commit-discipline]
     runs-on: ubuntu-latest
     if: >-
       always() && !failure() && !cancelled() &&
@@ -565,30 +608,56 @@ jobs:
           # 跨境 HTTP 比 SSH 稳定得多）②SSH 读状态文件兜底。run#146 实测服务器 8 分钟
           # 全部启动、状态文件 OK，但 CI 侧跨境 SSH 轮询 25 分钟全部打不通被 continue
           # 跳过 → 从未读到成功的「部署 30 分钟未完成」误红；改 HTTP 判定后此问题根除。
+          #
+          # 🔴 2026-09-18（CI 审计 D-01）：「HTTP 200 即成功」的降级口径是**假绿通道**，
+          #    已被 run#183 实证为每天都会走到：
+          #      日志原文 → `部署完成：健康检查 200（镜像校验降级：SSH 未返回，tag=183，耗时约 20s）`
+          #    20 秒完成部署在物理上不可能（阶段一 git pull + 阶段二 nohup 拉取镜像都还在跑），
+          #    说明判定**没有验证任何镜像身份**就宣告成功——旧容器（-149/-182）同样返回 200。
+          #    原实现的问题在于：`actual_image=""`（SSH 抖动/跨境干扰导致 ssh_quick 失败）
+          #    被当成「成功」而不是「未知」。SSH 不可用是**观测失败**，不是**部署成功**。
+          #    修法：镜像身份未知时**不得宣告成功**，转而用一个不依赖 SSH 的证据源——
+          #    nest 容器启动时把镜像 tag 注入健康检查响应体（见 backend health 模块），
+          #    HTTP 通道即可自证身份；该证据缺失或与 IMAGE_TAG 不符则继续等待。
+          #    兜底：等待 90 轮（30 分钟，见下方 `for i in $(seq 1 90)` + `sleep 20`）
+          #    仍拿不到身份证据时判**失败**（不再是假成功），
+          #    因为「部署成功但无法证明部署了什么」在部署链上等价于未验证的变更。
           HTTP_BASE="http://${SERVER_HOST}"
+          IMAGE_PROOF_URL="${HTTP_BASE}/nest-api/health/version"
           for i in $(seq 1 90); do
             sleep 20
             # 通道一：公网 HTTP 健康检查（nest ready 即全链健康：postgis→nest→nginx 依赖链）
             if code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "${HTTP_BASE}/nest-api/health/ready" 2>/dev/null)"; then
               if [ "$code" = "200" ]; then
-                # ⚠️ run#151 教训：健康检查 200 只证明「服务活着」，**旧容器同样满足**——
-                # 当时 deploy 仅 40s 即报 success，而容器仍是 -149（跨境 pull 未完成）。
-                # 故追加镜像 tag 校验：容器实际 image 必须已是本次 IMAGE_TAG。
+                # 镜像身份证据源①：HTTP 自证端点（不依赖 SSH，跨境可用）
+                # 证据源②：SSH docker inspect（可靠时优先，双侧一致则强证据）
+                proof="$(curl -s --max-time 10 "${IMAGE_PROOF_URL}" 2>/dev/null || echo '')"
                 actual_image="$(ssh_quick "docker inspect beibu-nest --format '{{.Config.Image}}'" 2>/dev/null)" || actual_image=""
-                case "$actual_image" in
-                  *":nest-${IMAGE_TAG}")
-                    echo "部署完成：健康检查 200 且容器镜像已是 nest-${IMAGE_TAG}（耗时约 $((i * 20))s）"
-                    exit 0
-                    ;;
-                  "")
-                    # SSH 校验不可用时降级（避免偶发 SSH 抖动导致永久红）：回到「HTTP 200 即成功」
-                    echo "部署完成：健康检查 200（镜像校验降级：SSH 未返回，tag=${IMAGE_TAG}，耗时约 $((i * 20))s）"
-                    exit 0
-                    ;;
-                  *)
-                    echo "健康检查已 200，但容器镜像仍是 '${actual_image}'（期望 nest-${IMAGE_TAG}）——pull/up 尚未完成，继续等待..."
-                    ;;
+                matched=0
+                # ⚠️ 精确匹配 imageTag 字段值，**不能**在整段 JSON 里做前缀子串匹配。
+                # 2026-09-18 实测边界：IMAGE_TAG=18 时 `nest-18` 是 `nest-184` 的前缀，
+                # 子串匹配会把「线上跑 nest-184」误判为「已部署 nest-18」⇒ 又一条假绿路径。
+                # 端点响应形状固定为 {"status":"ok","imageTag":"nest-<N>"}，故用引号锚定:
+                #   *"\"imageTag\":\"nest-${IMAGE_TAG}\""*  ← 结束引号保证不是前缀
+                case "$proof" in
+                  *"\"imageTag\":\"nest-${IMAGE_TAG}\""*) matched=1; src="HTTP /health/version" ;;
                 esac
+                # ⚠️ SSH 路同样必须精确到「整段 tag 相等」，不能只做前缀匹配：
+                # `...:nest-184` 在期望 `nest-18` 时也满足子串 `*":nest-18"` ⇒ 假绿。
+                # inspect 输出是裸值（无引号可锚定），故先把 `repo:tag` 的 tag 段切出来再等值比较。
+                if [ -n "$actual_image" ]; then
+                  actual_tag="${actual_image##*:}"
+                  if [ "$actual_tag" = "nest-${IMAGE_TAG}" ]; then
+                    [ "$matched" = "1" ] && src="${src} + SSH inspect" || src="SSH inspect"
+                    matched=1
+                  fi
+                fi
+                if [ "$matched" = "1" ]; then
+                  echo "部署完成：健康检查 200 且镜像身份已证实为 nest-${IMAGE_TAG}（证据源：${src}，耗时约 $((i * 20))s）"
+                  exit 0
+                fi
+                # 身份未证实：明示当前观测到的值，继续等待（绝不在此宣告成功）
+                echo "健康检查已 200，但镜像身份未证实（期望 nest-${IMAGE_TAG}；HTTP proof='${proof}'；SSH inspect='${actual_image:-<SSH 不可用>}'）——pull/up 尚未完成，继续等待..."
               fi
             fi
             # 通道二：SSH 读服务器状态文件（HTTP 不可达时兜底；每次尝试单发，失败跳过本轮）
@@ -602,5 +671,7 @@ jobs:
             esac
             echo "部署进行中（${i}/90，http=$code ssh=$status）..."
           done
-          echo "::error::部署 30 分钟未就绪（HTTP 未 200 且 SSH 未 OK），登录服务器查 /tmp/beibu-deploy.log"
+          echo "::error::部署 30 分钟未就绪或镜像身份始终无法证实（HTTP 未 200 或身份证据与 nest-${IMAGE_TAG} 不符）。"
+          echo "::error::注意：健康检查 200 只证明「服务活着」，旧容器同样满足——身份未证实即视为部署未完成。"
+          echo "::error::排查：登录服务器查 /tmp/beibu-deploy.log，并核对 docker inspect beibu-nest 的镜像 tag。"
           exit 1

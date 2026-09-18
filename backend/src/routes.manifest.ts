@@ -23,6 +23,7 @@ export const ROUTES_MANIFEST = [
   { method: 'GET', path: 'nest-api/forecast/timeseries' },
   { method: 'GET', path: 'nest-api/health' },
   { method: 'GET', path: 'nest-api/health/ready' },
+  { method: 'GET', path: 'nest-api/health/version' },
   { method: 'GET', path: 'nest-api/plans' },
   { method: 'POST', path: 'nest-api/plans' },
   { method: 'DELETE', path: 'nest-api/plans/:id' },

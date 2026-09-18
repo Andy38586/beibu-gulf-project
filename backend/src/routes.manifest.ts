@@ -34,4 +34,7 @@ export const ROUTES_MANIFEST = [
   { method: 'GET', path: 'nest-api/route/path' },
   { method: 'POST', path: 'nest-api/site-analysis' },
   { method: 'GET', path: 'nest-api/site-analysis/pois' },
+  { method: 'POST', path: 'nest-api/task' },
+  { method: 'DELETE', path: 'nest-api/task/:id' },
+  { method: 'GET', path: 'nest-api/task/:id' },
 ] as const

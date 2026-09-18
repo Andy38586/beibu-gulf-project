@@ -45,7 +45,14 @@ const NEST_ENABLED_MODULES: Set<string> = new Set(
 )
 const API_TIMEOUT_MS: number = 10000
 
-/** 请求 path 首段 → 功能域（v3 七业务域；与 backend routes.manifest 由 routes-audit.mjs 双向断言，guard:v3 拦截漂移） */
+/**
+ * 请求 path 首段 → 功能域（v3 七业务域 + v4 的 task 域；与 backend routes.manifest
+ * 由 routes-audit.mjs 双向断言，guard:v3 拦截漂移）。
+ *
+ * 🔴 新增后端业务域时**必须**同步这里 + 部署侧 VITE_USE_NEST_MODULES，否则该域的请求
+ * 会回落到 API_BASE（/api 旧前缀）——Express 已退役，结果是一律 404。
+ * 这不是假设：v4 加 task 域时 routes-audit 立即报了出来。
+ */
 const MODULE_BY_PATH_PREFIX: Record<string, string> = {
   auth: 'auth',
   plans: 'plans',
@@ -54,6 +61,7 @@ const MODULE_BY_PATH_PREFIX: Record<string, string> = {
   flood: 'flood',
   'site-analysis': 'site-analysis',
   route: 'route',
+  task: 'task',
 }
 
 /** 按功能域解析后端前缀：启用了 Nest 的模块走 /nest-api，其余走 /api 旧前缀（兼容） */

@@ -22,6 +22,7 @@ import { ForecastModule } from './modules/forecast/forecast.module'
 import { PlansModule } from './modules/plans/plans.module'
 import { RouteModule } from './modules/route/route.module'
 import { SiteAnalysisModule } from './modules/site-analysis/site-analysis.module'
+import { TaskModule } from './modules/task/task.module'
 
 // 限流对齐 Express：命名桶 global 1000/15min + login/register 各 50/15min；
 // 路由经 @SkipThrottle 选择归属桶；forecast 为合法高频交互（时间轴轮播）豁免。
@@ -44,6 +45,10 @@ import { SiteAnalysisModule } from './modules/site-analysis/site-analysis.module
     SiteAnalysisModule,
     RouteModule,
     HealthModule,
+    // v4 异步任务域：把「提交 → 后台跑 → 回来取结果」的能力独立成域，
+    // 使任务生命周期长于 HTTP 请求（跨路由保活的实现基础）。
+    // 它 imports 四个业务模块取 exports，自身不含业务计算（见 TaskModule 注释）
+    TaskModule,
     // CSP 违规上报接收（z153）：已豁免限流（@SkipThrottle，见控制器注释），
     // 不改命名桶配置——命名桶会作用于全部路由，新增即等于给全站多套一道闸
     CspReportModule,

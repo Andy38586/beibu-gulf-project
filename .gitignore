@@ -171,3 +171,8 @@ frontend/vite.local-online.config.js
 #    导致 tmp-pinglu/ 长期未被忽略——其内含 OSM 拉取失败的 406 错误页（伪装成 .json），
 #    既干扰 format:check，也带来「脚本内硬编码 key 被误提交」的风险。
 tmp-*/
+
+# 平陆运河 3D Tiles 产物（2026-09-16 会话产出 141 MB / 465 文件）：
+# 已移出工作区 → 桌面/项目文档归档/07-平陆运河3DTiles/（含 viewer.html 与离线 Cesium）
+# 此处忽略：避免重新生成时再度污染 git status
+pinglu-canal-3dtiles/

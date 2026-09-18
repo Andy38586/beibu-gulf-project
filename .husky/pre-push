@@ -1,23 +1,104 @@
 #!/usr/bin/env sh
-# pre-push：本地门禁 = CI 检查清单的"秒级静态子集"（对齐 CI-CD 审查 P0-2 / C3）。
+# pre-push：本地门禁 = CI 检查清单的静态子集 + 后端真库门控测试（对齐 CI-CD 审查 P0-2 / C3）。
+#
 # 背景：pre-commit 仅跑 lint（eslint/ban-ts-comment 拦 @ts-nocheck），
 # 但类型错误（如 store 属性不存在、签名不匹配）eslint 不报——
 # 必须在 push 前跑全量 vue-tsc，typecheck 不过拒绝推送。
 # 后端 nest：nest build 对类型错误 exit 0，tsc --noEmit 才是真实类型门禁。
+#
 # 2026-09-12（C3）：补齐 format:check / lint / stylelint / cruise / types:check 五项——
 # 此前本地只拦 4 项、CI 查 13+ 项，低级违规首次暴露必在 CI（"大版本 CI 连败"根因①）。
-# 全部为秒级~1 分钟静态项；前端全量测试/覆盖率仍在 CI（本地跑 npm run ci:local）。
+#
+# 2026-09-18（CI 审计 D-06）：再补五项。原注释宣称"补齐"，但实际仍缺 6 项 CI 检查，
+# 其中三类是「本可在本地秒级拦住、却必然首次暴露在 CI」的：
+#   ① coverage freeze-check     —— 本地 ci:local --update 抬高基线后忘提交，CI 必红且难自查
+#   ② .env 入库检查             —— 提交敏感配置文件属安全事故，本地拦比 CI 事后报警及时
+#   ③ commit-discipline         —— fix:/refactor: 未附测试，本地拦免一轮 CI（纯 git 操作，0 成本）
+# 另两项（gitleaks 密钥扫描、npm audit）**有意不在本地跑**：前者需下载二进制（数秒~数十秒，
+# 且本机网络不稳），后者依赖网络与 registry 状态、会因外部不可用而假红——两者留给 CI。
+# 前端全量测试/覆盖率的**真跑**也仍在 CI（本地跑 npm run ci:local）；但前端**门控核对**
+# （watchdog，秒级、只读既有结果）在本地做，否则后端的跳过治理有、前端没有（不对称盲区）。
+#
 # 逃生通道：git push --no-verify（首次暴露问题在 CI 属预期行为，勿常态化使用）。
 # 真库 e2e 套件经 V3_INTEGRATION_DB 门控自动跳过，不阻塞推送——但「跳过」不能静默：
 # test:gate:be 落 vitest JSON，test:watchdog 核对①每个测试文件都真执行（清单存在≠被执行）
 # ②本地允许的门控跳过必须在 scripts/test-gate.config.json 登记、③新增未登记 .skip 直接红。
+
+set -e
+
+echo "[pre-push] 1/13 v3 守卫（八项）"
 npm run guard:v3
+
+echo "[pre-push] 2/13 代码格式"
 npm run format:check
+
+echo "[pre-push] 3/13 ESLint"
 npm run lint
+
+echo "[pre-push] 4/13 Stylelint"
 npm run stylelint
+
+echo "[pre-push] 5/13 架构契约（dependency-cruiser）"
 npm run cruise
+
+echo "[pre-push] 6/13 API 契约（后端类型 ↔ 前端）"
 npm run types:check
+
+echo "[pre-push] 7/13 前端类型（vue-tsc）"
 npm run typecheck
+
+echo "[pre-push] 8/13 后端类型（nest tsc --noEmit）"
 npm run typecheck --prefix backend
+
+# 覆盖率基线冻结：拦「本地把基线抬高却没提交」。CI 里同样跑（ci.yml static-checks）。
+# 在棘轮之前跑——基线若处于"改了未提交"状态，棘轮判定本身就不可信。
+echo "[pre-push] 9/13 覆盖率基线冻结校验"
+node scripts/coverage-ratchet.cjs --freeze-check frontend/coverage-baseline.json
+node scripts/coverage-ratchet.cjs --freeze-check backend/coverage-baseline.json
+
+# .env 入库检查（CI 有同名步骤）。本地拦更有价值：一旦推上去就是既成事实，
+# 而 CI 报警时密钥已在远端历史里，清理成本远高于拦截成本。
+echo "[pre-push] 10/13 .env 入库检查"
+if git ls-files | grep -E '(^|/)\.env(\.|$)' | grep -v '\.env\.example'; then
+  echo "::error::.env 文件被 git 跟踪，敏感配置禁止提交（只允许 .env.example）"
+  exit 1
+fi
+
+# 提交规范：fix:/refactor: 改动实现须附测试（03 §1.6）。本地拦免一轮 CI。
+# ⚠️ 本检查必须对**任意提交**生效，不得挂在任何 job 门控下（CI 侧为此已独立成
+#    commit-discipline job；本地无门控问题，但逻辑保持一致以便互证）。
+echo "[pre-push] 11/13 提交规范（fix/refactor 须附测试）"
+if git rev-parse -q --verify HEAD >/dev/null 2>&1 && git rev-parse -q --verify HEAD~1 >/dev/null 2>&1; then
+  last_msg="$(git log -1 --format=%s)"
+  case "$last_msg" in
+    fix:*|fix\(*|refactor:*|refactor\(*)
+      changed="$(git diff --name-only HEAD~1 HEAD)"
+      src_changed="$(echo "$changed" | grep -E '^(frontend/src|backend)/.*\.(ts|vue|js|mjs|cjs)$' | grep -vE '\.(test|spec)\.' || true)"
+      test_changed="$(echo "$changed" | grep -E '\.(test|spec)\.(ts|js|vue)$' || true)"
+      if [ -n "$src_changed" ] && [ -z "$test_changed" ]; then
+        echo "::error::fix/refactor 提交改动 src 实现但未附测试（03 §1.6）："
+        echo "$src_changed"
+        echo "::error::确无测试必要（如纯配置/常量）请改用 chore:/docs: 前缀，或在提交信息中说明理由。"
+        exit 1
+      fi
+      echo "  fix/refactor 检查通过"
+      ;;
+    *) echo "  非 fix/refactor 提交（$last_msg），本检查不适用" ;;
+  esac
+else
+  echo "  无 HEAD~1（首提交或浅克隆），跳过本检查"
+fi
+
+echo "[pre-push] 12/13 后端测试 + 门控核对（真库套件按 V3_INTEGRATION_DB 门控跳过）"
 npm run test:gate:be
 npm run test:watchdog -- --project backend
+
+# 前端门控核对：只读既有 vitest 结果（不重跑测试，秒级）。缺失结果文件时该步会报红——
+# 此时本地先跑 `npm run test:report:fe` 生成即可；CI 里该结果由 test:report:fe 产出。
+echo "[pre-push] 13/13 前端门控核对（需 frontend/coverage/vitest-result.json）"
+if [ -f frontend/coverage/vitest-result.json ]; then
+  npm run test:watchdog -- --project frontend
+else
+  echo "  ⚠️ 未找到 frontend/coverage/vitest-result.json，跳过前端门控核对（CI 会跑完整链路）。"
+  echo "     如需本地核对：npm run test:report:fe 后重试。"
+fi

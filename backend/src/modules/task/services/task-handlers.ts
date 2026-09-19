@@ -90,6 +90,25 @@ export class TaskHandlers {
         Number.isFinite(confidence) && confidence > 0 ? confidence : 1.0
       )
     },
+
+    // 预测热力图：GET /forecast/map 的异步化（v4-S3 补入）。
+    // 参数逐字对齐 forecast.controller:34-45（indicator/time 必填，confidence 可选）
+    'forecast-map': async (params) => {
+      const indicator = params.indicator
+      const time = params.time
+      if (typeof indicator !== 'string' || indicator === '') {
+        throw new BusinessError(ErrorCode.INVALID_PARAMS, '缺少或非法的参数：indicator')
+      }
+      if (typeof time !== 'string' || time === '') {
+        throw new BusinessError(ErrorCode.INVALID_PARAMS, '缺少或非法的参数：time')
+      }
+      const confidence = Number(params.confidence)
+      return this.forecastService.getMapData(
+        indicator,
+        time,
+        Number.isFinite(confidence) && confidence > 0 ? confidence : 1.0
+      )
+    },
   }
 
   /** 取执行器；未知域显式报错（而不是静默返回 undefined ⇒ 队列空转） */

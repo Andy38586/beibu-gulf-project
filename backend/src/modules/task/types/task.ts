@@ -17,8 +17,23 @@ export type TaskStatus = 'pending' | 'running' | 'retrying' | 'done' | 'failed' 
  */
 export type TaskPriority = 'high' | 'normal'
 
-/** 任务提交域：一个域对应一个可执行的业务能力（映射见 TASK_DOMAIN_HANDLERS） */
-export type TaskDomain = 'flood-areas' | 'route-path' | 'site-analysis' | 'forecast-timeseries'
+/**
+ * 任务提交域：一个域对应一个可执行的业务能力（映射见 TaskHandlers.table）。
+ *
+ * 🔴 单一事实源（2026-09-19 修复）：枚举由本数组派生 ⇒ 新增域只需改这一处；
+ * `TaskHandlers.table` 是 `Record<TaskDomain, TaskHandler>`，漏配 handler 会编译报错；
+ * `HTTP_TASK_DOMAINS` 亦由本数组派生。此前枚举与 DTO 白名单各写一份且不一致，
+ * 导致 forecast-map 任务恒 400（热力图永久无数据）。
+ */
+export const TASK_DOMAINS = [
+  'flood-areas',
+  'route-path',
+  'site-analysis',
+  'forecast-timeseries',
+  'forecast-map',
+] as const
+
+export type TaskDomain = (typeof TASK_DOMAINS)[number]
 
 export interface TaskError {
   message: string

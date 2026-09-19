@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { BusinessError } from '../src/common/errors/business-error'
 import { TaskHandlers } from '../src/modules/task/services/task-handlers'
+import { TASK_DOMAINS } from '../src/modules/task/types/task'
 
 // S1 的「委托接线」测试。
 //
@@ -29,14 +30,11 @@ function build() {
 }
 
 describe('TaskHandlers 委托接线', () => {
-  it('暴露四个受支持的域，且能取到执行器', () => {
+  it('支持域与 TASK_DOMAINS 单源一致，且每个域都能取到执行器', () => {
     const { handlers } = build()
-    expect(handlers.supportedDomains.sort()).toEqual([
-      'flood-areas',
-      'forecast-timeseries',
-      'route-path',
-      'site-analysis',
-    ])
+    // 🔴 不断言手写字面量：断言「handler 表 == TASK_DOMAINS」这一不变量，
+    // 新增域只需改 TASK_DOMAINS 一处，漏配 handler 或漏进白名单都会在此变红。
+    expect([...handlers.supportedDomains].sort()).toEqual([...TASK_DOMAINS].sort())
     for (const domain of handlers.supportedDomains) {
       expect(typeof handlers.get(domain)).toBe('function')
     }

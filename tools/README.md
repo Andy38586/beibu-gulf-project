@@ -5,20 +5,20 @@
 
 ## 目录速查（按数据域）
 
-| 目录             | 数据域      | 里面是什么                                                                                              |
-| ---------------- | ----------- | ------------------------------------------------------------------------------------------------------- |
-| `db/`            | v3 数据库   | 业务/空间/淹没三套 schema、`db-import.mjs`（JSON→SQL 入库）、坐标系登记、pgRouting 镜像                 |
-| `roads/`         | 路网        | 端点切分 `roads-noding` → 拓扑重建 → 派生列与权重回填 → 连通性校验，一条链路按文件名顺序跑              |
-| `flood/`         | 洪涝        | 用真 DEM 重建假数据、251 档淹没数据灌库、FastAPI 启动器（服务已退役，脚本保留供恢复）                   |
-| `poi/`           | POI（高德） | 抓取（全量/按网格缓存）、市区口径清洗                                                                   |
-| `osm/`           | OSM PBF     | 海岸线 / 耕地 / 工业用地 / 路网提取，配 `osmconf-v3.ini`（ogr2ogr）                                     |
-| `dem-pipeline/`  | DEM 地形    | 拼接 → 填洼 → 重投影 → 重切片，`01`~`09` 按序号执行                                                     |
-| `gis-import/`    | GIS 入库    | GeoJSON→PostGIS、港口 POI、入库后质检 `verify.mjs`                                                      |
-| `forecast/`      | 吞吐量预测  | 模型产物生成 `throughput_model.cjs`、活跃度派生 `derive-activity.mjs`（详见该目录 README）              |
-| `data-download/` | 原始数据    | 陆地 DEM / OSM / 海底地形下载（网络可用时跑）                                                           |
-| `perf-bench/`    | 性能基准    | 选址覆盖分析、服务端压测                                                                                |
-| `diag/`          | 诊断        | 淹没多边形 vs DEM 高程基准、3D 页面实况抓取                                                             |
-| `v3-guard/`      | 质量守卫    | 编号外泄 / 分层契约 / 路由契约 / 常量审计 / 体系自洽 / CSP 同步 / 锚点校验 / 临时文件卫生，8 项 CI 断言 |
+| 目录             | 数据域      | 里面是什么                                                                                                         |
+| ---------------- | ----------- | ------------------------------------------------------------------------------------------------------------------ |
+| `db/`            | v3 数据库   | 业务/空间/淹没三套 schema、`db-import.mjs`（JSON→SQL 入库）、坐标系登记、pgRouting 镜像                            |
+| `roads/`         | 路网        | 端点切分 `roads-noding` → 拓扑重建 → 派生列与权重回填 → 连通性校验，一条链路按文件名顺序跑                         |
+| `flood/`         | 洪涝        | 用真 DEM 重建假数据、251 档淹没数据灌库、FastAPI 启动器（服务已退役，脚本保留供恢复）                              |
+| `poi/`           | POI（高德） | 抓取（全量/按网格缓存）、市区口径清洗                                                                              |
+| `osm/`           | OSM PBF     | 海岸线 / 耕地 / 工业用地 / 路网提取，配 `osmconf-v3.ini`（ogr2ogr）                                                |
+| `dem-pipeline/`  | DEM 地形    | 拼接 → 填洼 → 重投影 → 重切片，`01`~`09` 按序号执行                                                                |
+| `gis-import/`    | GIS 入库    | GeoJSON→PostGIS、港口 POI、入库后质检 `verify.mjs`                                                                 |
+| `forecast/`      | 吞吐量预测  | 模型产物生成 `throughput_model.cjs`、活跃度派生 `derive-activity.mjs`（详见该目录 README）                         |
+| `data-download/` | 原始数据    | 陆地 DEM / OSM / 海底地形下载（网络可用时跑）                                                                      |
+| `perf-bench/`    | 性能基准    | 选址覆盖分析、服务端压测                                                                                           |
+| `diag/`          | 诊断        | 淹没多边形 vs DEM 高程基准、3D 页面实况抓取                                                                        |
+| `v3-guard/`      | 质量守卫    | 编号外泄 / 分层契约 / 路由契约 / 常量审计 / 体系自洽 / CSP 同步 / 锚点校验 / 临时文件卫生 / 协议自述，9 项 CI 断言 |
 
 ## 根目录单文件（工程与元工具）
 
@@ -48,7 +48,7 @@ npm run forecast:activity    # tools/forecast/derive-activity.mjs
 npm run verify-gis           # tools/gis-import/verify.mjs
 npm run dev:flood            # tools/flood/run-flood.cjs
 npm run test:algorithm       # tools/run-algorithm-tests.cjs
-npm run guard:v3             # tools/v3-guard/*.mjs（8 项守卫，run-all.mjs 串联不短路）
+npm run guard:v3             # tools/v3-guard/*.mjs（9 项守卫，run-all.mjs 串联不短路）
 ```
 
 ## 约定

@@ -84,7 +84,7 @@ npm run test --prefix backend  # 后端 Vitest（20 文件 / 216 用例）
 npm run lint                   # ESLint（0 告警基线）
 npm run typecheck              # vue-tsc 全量类型检查
 npm run cruise                 # dependency-cruiser 分层依赖守护
-npm run guard:v3               # v3 守卫：编号外泄 / 分层契约 / 路由契约 / 体系自洽 / 临时文件卫生
+npm run guard:v3               # v3 守卫：编号外泄 / 分层契约 / 路由契约 / 体系自洽 / 协议自述 / 临时文件卫生
 npm run tmp:clean              # 清空 .local/tmp（临时文件唯一落点）
 npm run build:analyze          # 构建体积分析（rollup-plugin-visualizer）
 ```

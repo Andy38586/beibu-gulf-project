@@ -32,7 +32,7 @@ npm run forecast:model
 
 ### 服务链路接入
 
-- `backend/services/modelLoader.js` 按指标读产物（cargo→throughput_model.json、container→container_model.json），`forecastService` 对两指标的预测段全部取自产物（scenarioLevel 恒 1.0 固定基线，暂不支持情景参数）。
+- `backend/src/modules/forecast/services/model-loader.ts` 按指标读产物（cargo→throughput_model.json、container→container_model.json），`forecastService` 对两指标的预测段全部取自产物（scenarioLevel 恒 1.0 固定基线，暂不支持情景参数）。
 - 产物预测粒度为 2026-07~12 逐月 + 2027~2035 每半年节点；与历史重叠月份丢弃，半年点由 `modelLoader` 做**月度线性插值**（纯可视化平滑，非模型新输出）。
 - 产物携带 `rolling_mape_by_step` 时，`reliability = 1 - 步长MAPE/100`、`lower/upper` 透传/插值（实测口径）；旧产物无该字段时保持 reliability=1 向后兼容。
 - 产物缺失/结构不符时降级到 `forecastEngine` 趋势外推，接口不中断。

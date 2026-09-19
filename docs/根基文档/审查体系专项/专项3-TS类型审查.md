@@ -1515,9 +1515,9 @@
 ### 指标 7.5：Nest 侧类型严格度对齐与门禁生效
 
 **指标名称**：Nest tsconfig strict 对齐与类型门禁
-**检查目标**：确认 `backend/nest` 的 tsconfig 严格度不低于前端，且类型错误真的会阻断合入。
+**检查目标**：确认 Nest 侧（`backend/`，旧稿作 `backend/nest`）的 tsconfig 严格度不低于前端，且类型错误真的会阻断合入。
 **为什么需要检查**：Nest 的 `build` 对部分类型错误仍会产出（exit 0），只有 `tsc --noEmit` 是真门禁。双后端并存期若 Nest 侧宽松，前后端契约漂移会以运行时错误的形式暴露，而不是在提交前被拦住。
-**检查范围**：`backend/nest/tsconfig.json`、根与 nest 的 `package.json` 脚本、CI 与 pre-push 接线。
+**检查范围**：`backend/tsconfig.json`（旧稿写 `backend/nest/tsconfig.json`，该路径不存在）、根与 nest 的 `package.json` 脚本、CI 与 pre-push 接线。
 **检查方法**：
 
 1. 逐项比对 `frontend/tsconfig.app.json` 与 nest tsconfig 的 strict 系列开关。

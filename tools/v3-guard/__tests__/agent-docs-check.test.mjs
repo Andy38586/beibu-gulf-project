@@ -6,10 +6,12 @@ import { describe, expect, it } from 'vitest'
 
 import {
   checkCommitForm,
+  checkLiveDocs,
   checkRefs,
   classify,
   extractCommitExamples,
   extractTokens,
+  prefixedRefs,
   stripCommitType,
 } from '../agent-docs-check.mjs'
 
@@ -74,5 +76,24 @@ describe('agent-docs-check（作业协议自述守卫）', () => {
       }))
       expect(checkRefs(entries), rel).toEqual([])
     }
+  })
+
+  it('阳性对照：只取仓库根锚定路径，目录名/分层名/分支名不算引用', () => {
+    const text = [
+      '死路径 `backend/src/nope.ts` 必须被抓',
+      '历史留痕 `backend/dead/legacy.js` 已退役，按行豁免',
+      '目录 `frontend/src/` 与分层名 `types/` 不算',
+      '分支名 `experiment/v3-backend-migration` 不算',
+      '相对索引 `根基文档/项目全景.md` 不算（它相对 docs/ 解析）',
+    ].join('\n')
+    expect(prefixedRefs(text).map((r) => r.token)).toEqual([
+      'backend/src/nope.ts',
+      'backend/dead/legacy.js',
+    ])
+    expect(prefixedRefs(text)[1].exempt).toBe(true)
+  })
+
+  it('回归锚：全部活文档当前无断链', () => {
+    expect(checkLiveDocs()).toEqual([])
   })
 })

@@ -14,6 +14,12 @@
  *   的 `type(scope):` 前缀剥掉得到的**反向样本必须被拒**。反向样本若也放行，说明
  *   commitlint 根本没生效、断言 3 成了恒真摆设——按 tmp-hygiene 2026-09-18 的教训，
  *   守卫自己失效必须当场报红，不许静默 OK。
+ * 断言 4（活文档引用）：协议之外的链路文档（索引、根基文档、契约文档、工具 README）里
+ *   带目录前缀的路径引用也必须存在。Express 与 FastAPI 退役后，文档里长期留着
+ *   `backend/utils/response.js`、`backend/nest/tsconfig.json` 这类已不存在的路径，
+ *   而没有任何断言会因此变红。行内含「历史快照 / 旧稿 / 已退役 / 不存在 / 已删除 / 作废」
+ *   之一的，视为**有意引用死路径**（取证或历史留痕），按行豁免——豁免标记必须与该引用
+ *   同一行，避免整份文档被开后门。
  *
  * 用法：
  *   node tools/v3-guard/agent-docs-check.mjs          # 校验（违规 exit 1）
@@ -33,6 +39,73 @@ const GENERIC_BARE = new Set(['README.md', 'AGENTS.md', 'CLAUDE.md', 'package.js
 /** 含这些字符的反引号串是命令/glob/占位符，不是路径 */
 const NOT_A_PATH = /[\s*<>{}$|｜()=]/
 const COMMIT_FORM = /^[a-z][a-z-]*(\([a-z0-9-]+\))?!?: \S/
+
+/** 断言 4 的覆盖范围：会被人当现状读的链路文档（不含 audits/台账等历史快照） */
+export const LIVE_DOCS = [
+  'README.md',
+  'docs/README.md',
+  'docs/根基文档/项目全景.md',
+  'docs/根基文档/核心流程与数据流.md',
+  'docs/根基文档/开发指南与决策.md',
+  'docs/根基文档/审查体系专项/审查体系约定.md',
+  'docs/开工前必读/API契约文档.md',
+  'tools/README.md',
+  'tools/forecast/README.md',
+  'backend/data/README.md',
+]
+
+/** 同写「此处有意引用一个已不存在的历史路径」，按行豁免 */
+const INTENT_MARKERS = /历史快照|旧稿|已退役|已删除|不存在|作废/
+
+/**
+ * 只校验**仓库根锚定**的路径（首段是已知顶层目录）。
+ * 收窄的理由：文档里还有大量 `根基文档/x.md`（相对 docs/ 索引）、`types/`（分层名）、
+ * `experiment/v3-backend-migration`（分支名）——它们不是文件路径引用，纳入会把守卫
+ * 淹成 88 条噪声，噪声守卫等于没有守卫。
+ */
+const ROOT_ANCHORS = ['backend/', 'frontend/', 'tools/', 'docs/', 'scripts/', '.github/', '.husky/']
+
+/**
+ * 抽出「仓库根锚定」的路径引用（目录/层级名带尾斜杠的不算）。
+ * @returns {Array<{token: string, line: number, exempt: boolean}>}
+ */
+export function prefixedRefs(text) {
+  const out = []
+  text.split('\n').forEach((line, i) => {
+    const exempt = INTENT_MARKERS.test(line)
+    for (const m of line.matchAll(/`([^`\n]+)`/g)) {
+      const c = classify(m[1])
+      if (!c || c.kind !== 'prefixed' || c.value.endsWith('/')) continue
+      if (!ROOT_ANCHORS.some((a) => c.value.startsWith(a))) continue
+      out.push({ token: c.value, line: i + 1, exempt })
+    }
+  })
+  return out
+}
+
+export function checkLiveDocs(
+  files = LIVE_DOCS,
+  exists = (rel) => fs.existsSync(path.join(ROOT, rel))
+) {
+  const bad = []
+  for (const rel of files) {
+    const abs = path.join(ROOT, rel)
+    if (!fs.existsSync(abs)) {
+      bad.push({ file: rel, line: 0, ref: rel, why: '索引声明的活文档本身不存在' })
+      continue
+    }
+    for (const r of prefixedRefs(fs.readFileSync(abs, 'utf8'))) {
+      if (r.exempt || exists(r.token)) continue
+      bad.push({
+        file: rel,
+        line: r.line,
+        ref: r.token,
+        why: '活文档引用的路径不存在（或补「历史快照」按行豁免）',
+      })
+    }
+  }
+  return bad
+}
 
 /** 抽出正文里所有反引号片段，带行号 */
 export function extractTokens(text) {
@@ -153,7 +226,7 @@ function run() {
     for (const b of checkCommitForm(text)) commitBad.push({ file: rel, ...b })
   }
 
-  const violations = [...refBad, ...commitBad]
+  const violations = [...refBad, ...checkLiveDocs(), ...commitBad]
   if (process.argv.includes('--json')) {
     console.log(JSON.stringify({ checked, violations }, null, 2))
     process.exit(violations.length ? 1 : 0)

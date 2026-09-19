@@ -43,10 +43,10 @@ data/
         └── *.sgrd / *.mgrd / *.sdat（SGRD 系列中间产物）
 ```
 
-## 三、存储基础设施：`utils/fileStore.js`
+## 三、存储基础设施：`utils/fileStore.js`（已退役）
 
-> 位于 `backend/utils/fileStore.js`（不在 data/ 内），是 data/ 可写文件的统一存储工厂。
-> `@arch-note R-01`：文件存储工厂，统一缓存/写锁基础设施（markers / plans / users 共用）。
+> ⚠️ **历史快照**：`backend/utils/fileStore.js` 随 Express 一起退役，**路径已不存在**。它曾是 data/ 可写文件的统一存储工厂（markers / plans / users 共用，含缓存与写锁）。
+> 现状：plans / favorites / users 三类可写数据已迁入 PostgreSQL，由 `backend/src/modules/{plans,favorites,auth}/repositories/*.repository.ts` 承担读写；`@arch-note R-01` 的分层约束现由 `tools/v3-guard/structure-check.mjs` 与 dependency-cruiser 规则强制。
 
 ### `createFileStore(filePath, { useCache = true })`
 

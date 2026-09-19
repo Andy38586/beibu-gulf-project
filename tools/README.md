@@ -55,5 +55,5 @@ npm run guard:v3             # tools/v3-guard/*.mjs（9 项守卫，run-all.mjs 
 
 - **输出物不进源码树**：脚本生成的 SQL / 报告 / 缓存一律写 `.local/tmp/`（`npm run tmp:clean` 清空），
   根目录由 `v3-guard/tmp-hygiene.mjs` 断言无临时文件残留。
-- **密钥不外露**：需要 API Key 的脚本读 `tools/poi/.amap_key`（已 gitignore），禁止硬编码。
+- **密钥不外露**：需要 API Key 的脚本读 `tools/poi/.amap_key`（**本地自建、不入库**，仓库内不存在此文件），禁止硬编码。
 - **测试就近放**：脚本的测试放在同域目录的 `__tests__/` 下，由 `npm run test:tools` 统一跑。

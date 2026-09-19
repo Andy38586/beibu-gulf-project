@@ -11,7 +11,7 @@
 
 ### 1.1 信封格式
 
-**所有接口统一 `{ code, data }` 信封**(`backend/utils/response.js` 的 `sendSuccess` 保证):
+**所有接口统一 `{ code, data }` 信封**(`backend/src/common/interceptors/envelope.interceptor.ts` 保证；Express 版的 `backend/utils/response.js`/`sendSuccess` 已退役，路径不存在):
 
 ```
 成功: HTTP 2xx + { code: <同 HTTP 状态>, data: <业务数据> }

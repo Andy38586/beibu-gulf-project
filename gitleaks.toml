@@ -4,8 +4,12 @@
 # 2. 历史泄露 key 的文档记录（d056 条目，完整值已打码为 e4cef34…）
 # 3. README 中 gitleaks 官方示例输出（cafebabe:deadbeef 假凭据）
 # 4. 本地未跟踪产物（.venv / dist / .env，CI checkout 工作树中不存在，仅影响本地扫描）
-# 注意：历史 commit 中的旧 key（src/composables/useBaseLayers.js 等已删文件）不在此放行，
-# 由 tools/git-clean-history.sh 一次性处理（守 git 红线，不重写历史）。
+#
+# 🔴 2026-09-19 修正：原文写「历史 commit 中的旧 key 由 tools/git-clean-history.sh 一次性处理」，
+# 但该脚本在库中不存在（tools/ 下无任何 .sh）——"已处置"只有这句注释在背书。
+# 现状如实记录：历史中的 key 仍在（CI 的 `--no-git` 按设计看不到），
+# 处置路径见台账「密钥与凭据治理」条：轮换 key + 绑域名白名单，历史不清则明确接受。
+#
 # 2026-08-29 实测（8.24.3）：单数 [allowlist] 与 [extend] 可靠共存；复数 [[allowlists]] 无论
 # 单独还是与 [extend] 共存均被忽略/丢弃——统一用单数节、纯 paths 正则（/ 分隔符已归一化）。
 title = "beibu-gulf gitleaks config"
@@ -22,5 +26,7 @@ paths = [
   '^README\.md$',
   '\.venv/',
   '(^|/)dist(-[^/]*)?/',
-  '\.env',
+  # 🔴 2026-09-19 修正：原为未锚定的 '\.env'，会连 `.env.example`（合法入库文件）一起放行，
+  # 使密钥门禁对这些文件静默失效。锚定为「恰好叫 .env 的文件」。
+  '(^|/)\.env$',
 ]

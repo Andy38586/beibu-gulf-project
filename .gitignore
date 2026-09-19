@@ -118,7 +118,10 @@ frontend/src/types/generated/
 代码审计/
 项目代码深度审查指标体系.md
 
-tools/poi/.amap_key
+# 🔴 2026-09-19 修正：原为 tools/poi/.amap_key（只覆盖一个目录），
+# 而实际读取点在 tools/gis-import/fetch-port-poi.mjs —— 忽略规则与真实落点不匹配。
+# 改为通配覆盖 tools 下任意层级。
+tools/**/.amap_key
 # 问题台账/审计/复盘文档（学习意义大于项目发展意义，不公开；根基文档除外）
 docs/*
 !docs/根基文档/
@@ -176,3 +179,8 @@ tmp-*/
 # 已移出工作区 → 桌面/项目文档归档/07-平陆运河3DTiles/（含 viewer.html 与离线 Cesium）
 # 此处忽略：避免重新生成时再度污染 git status
 pinglu-canal-3dtiles/
+
+# git 事故现场存档（2026-09-18 对象库被清空，原 .git 改名保留备查）：
+# 内含 index / packed-refs / .idx 等证据文件，不参与版本管理，
+# 否则会污染 git status 与 pre-push 的 format:check（扫未跟踪文件）
+.git-BROKEN-*/

@@ -5,6 +5,7 @@ import type { Request, Response } from 'express'
 import { DtoPipe } from '../../../common/pipes/dto.pipe'
 import { LoginBody, RegisterBody } from '../dto/auth.dto'
 import { AuthGuard } from '../guards/auth.guard'
+import type { AuthenticatedRequest, AuthUserView } from '../guards/auth.guard'
 import type { LoginUserView, RegisterUserView } from '../services/auth.service'
 import { AuthService } from '../services/auth.service'
 
@@ -73,9 +74,9 @@ export class AuthController {
   @SkipThrottle({ login: true, register: true })
   @UseGuards(AuthGuard)
   me(
-    @Req() req: Request & { user?: { id: string; username: string } },
+    @Req() req: AuthenticatedRequest,
     @Res({ passthrough: true }) res: Response
-  ): { user: unknown } {
+  ): { user: AuthUserView } {
     res.set('Cache-Control', 'no-store')
     return { user: req.user }
   }

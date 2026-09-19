@@ -4,11 +4,14 @@
  */
 import { z } from 'zod'
 
-// ① User（useAuth 的 localStorage 读取校验）
+// ① User（useAuth 的 localStorage 读取校验 + /auth/me 响应校验）
+// 🔴 2026-09-19 修复 P0：createdAt 由 `z.string()` 改为 `z.string().nullable()`——
+// 此前必填与后端 `AuthUserView`（created_at 列可空）不符，`/auth/me` 的 200 响应
+// 会被 zod 拒绝，走 useAuth 的登出分支 ⇒ 登录后刷新即掉线。放宽是**如实**而非降级。
 export const userSchema = z.object({
   id: z.string(),
   username: z.string(),
-  createdAt: z.string(),
+  createdAt: z.string().nullable(),
 })
 
 export type UserParsed = z.infer<typeof userSchema>

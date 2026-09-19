@@ -23,6 +23,7 @@ const ROOT = path.resolve(HERE, '../..')
 export const GUARDS = [
   'no-ephemeral',
   'structure-check',
+  'agent-docs-check',
   'routes-audit',
   'constants-audit',
   'metrics-tally',

@@ -45,6 +45,7 @@ import type {
   FlyToOptions,
   FlyToTarget,
   GeoPoint,
+  ImageOverlayData,
   LayerOptions,
   PointFeature,
   PolygonFeature,
@@ -812,6 +813,14 @@ export class CesiumRenderer extends MapRenderer {
    */
   async add3DTilesLayer(id: string, url: string, options: Tiles3DOptions = {}): Promise<boolean> {
     return add3DTilesLayer(this, id, url, options)
+  }
+
+  /**
+   * 添加单张影像覆盖图层（3D Only）：把离线提取的影像块按地理矩形铺到球面上。
+   * 与 addGeoTIFFLayer（hillshade 专用）的区别：矩形与图片都不做命名假设，参数全由调用方给。
+   */
+  addImageOverlayLayer(id: string, data: ImageOverlayData, options: LayerOptions = {}): boolean {
+    return addImageOverlayLayer(this, id, data, options)
   }
 
   _doSetVisibility(id: string, visible: boolean): void {
@@ -1804,6 +1813,57 @@ export async function add3DTilesLayer(
   } catch (error: unknown) {
     logger.error(
       `[CesiumRenderer] add3DTilesLayer 失败 ${id} → ${url}: ${(error as Error)?.name}: ${(error as Error)?.message}`,
+      error
+    )
+    return false
+  }
+}
+
+/**
+ * 添加单张影像覆盖图层（3D Only）：以 SingleTileImageryProvider 按地理矩形铺一张离线影像。
+ * 与 addGeoTIFFLayer 的差别：不做 hillshade 命名假设，矩形与像素尺寸全由调用方给。
+ * 登记进 _layers 后显隐/移除走通用路径（instance 是 ImageryLayer，doRemoveLayer 已支持）。
+ */
+export function addImageOverlayLayer(
+  renderer: CesiumRenderer,
+  id: string,
+  data: ImageOverlayData,
+  options: LayerOptions = {}
+): boolean {
+  logger.debug(
+    `[CesiumRenderer] addImageOverlayLayer 调用: id=${id} url=${data.url} bbox=${data.bbox?.join(',')}`
+  )
+  if (!renderer.viewer) {
+    logger.warn(`[CesiumRenderer] addImageOverlayLayer 跳过（viewer 未就绪）: ${id}`)
+    return false
+  }
+  try {
+    const existing = renderer._layers.get(id)
+    if (existing) renderer._doRemoveLayer(existing)
+
+    const [west, south, east, north] = data.bbox
+    // EPSG:4326 影像必须显式 GeographicTilingScheme（默认 WebMercator 会把中纬度矩形投歪）；
+    // tileWidth/tileHeight 为必填，缺省抛 DeveloperError —— 用图片真实像素尺寸
+    const provider = new SingleTileImageryProvider({
+      url: data.url,
+      rectangle: Rectangle.fromDegrees(west, south, east, north),
+      tilingScheme: new GeographicTilingScheme(),
+      tileWidth: data.size[0],
+      tileHeight: data.size[1],
+    } as unknown as ConstructorParameters<typeof SingleTileImageryProvider>[0])
+
+    const imageryLayer = renderer.viewer.imageryLayers.addImageryProvider(provider)
+    // 缺省不透明：该图层用于与 3D Tiles 模型对照核验，盖住在线底图才看得清
+    imageryLayer.alpha = options.opacity ?? 1
+
+    renderer._layers.set(id, { instance: imageryLayer, visible: true, options })
+    renderer._applyPendingVisibility(id)
+    renderer.viewer.scene.requestRender()
+    logger.debug(`[CesiumRenderer] addImageOverlayLayer 已添加影像块: ${id} → ${data.url}`)
+    return true
+  } catch (error: unknown) {
+    logger.error(
+      `[CesiumRenderer] addImageOverlayLayer 失败 ${id} → ${data.url}: ${(error as Error)?.name}: ${(error as Error)?.message}`,
       error
     )
     return false

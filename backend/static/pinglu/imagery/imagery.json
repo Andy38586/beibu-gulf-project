@@ -1,0 +1,50 @@
+{
+ "note": "天地图影像单块拼接（z=17，8×8 瓦片）；bbox = [west, south, east, north]，EPSG:4326/CGCS2000",
+ "tiles": [
+  {
+   "name": "madao",
+   "label": "马道枢纽",
+   "file": "madao.jpg",
+   "width": 2048,
+   "height": 2048,
+   "zoom": 17,
+   "bbox": [
+    108.92944336,
+    22.43895625,
+    108.95141602,
+    22.4592638
+   ],
+   "source": "天地图 img_w（CGCS2000），单张拼接影像"
+  },
+  {
+   "name": "qishi",
+   "label": "企石枢纽",
+   "file": "qishi.jpg",
+   "width": 2048,
+   "height": 2048,
+   "zoom": 17,
+   "bbox": [
+    108.93493652,
+    22.30942584,
+    108.95690918,
+    22.3297523
+   ],
+   "source": "天地图 img_w（CGCS2000），单张拼接影像"
+  },
+  {
+   "name": "qingnian",
+   "label": "青年枢纽",
+   "file": "qingnian.jpg",
+   "width": 2048,
+   "height": 2048,
+   "zoom": 17,
+   "bbox": [
+    108.64929199,
+    21.99398856,
+    108.67126465,
+    22.01436065
+   ],
+   "source": "天地图 img_w（CGCS2000），单张拼接影像"
+  }
+ ]
+}

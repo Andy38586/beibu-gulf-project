@@ -11,6 +11,7 @@ import type {
   EngineName,
   GeoTIFFCapability,
   HeatmapCapability,
+  ImageOverlayCapability,
   LayerOptions,
   MapRenderer,
   PointFeature,
@@ -21,7 +22,12 @@ import type {
   Water3DCapability,
 } from '@/types'
 import { DEFAULT_ENGINES, ENGINE_NAMES } from '@/types'
-import type { LayerType, Tiles3DData, WaterSurfaceData } from '@/types/core/layerManager'
+import type {
+  ImageOverlayData,
+  LayerType,
+  Tiles3DData,
+  WaterSurfaceData,
+} from '@/types/core/layerManager'
 
 // ===== 数据形状守卫 =====
 // 仅做最小形态校验（数组 / FeatureCollection），把"静默渲染失败"变成"明确抛错"，
@@ -101,6 +107,14 @@ export function isTiles3DCapable(
   renderer: MapRenderer
 ): renderer is MapRenderer & Tiles3DCapability {
   return typeof (renderer as Partial<Tiles3DCapability>).add3DTilesLayer === 'function'
+}
+
+/** 单张影像覆盖能力检查：仅 Cesium 实现（SingleTileImageryProvider 按矩形铺图）。
+ *  对外导出——业务页注册影像块前用能力检查替代 getType() 引擎判断 */
+export function isImageOverlayCapable(
+  renderer: MapRenderer
+): renderer is MapRenderer & ImageOverlayCapability {
+  return typeof (renderer as Partial<ImageOverlayCapability>).addImageOverlayLayer === 'function'
 }
 
 /** Adapter 函数签名 */
@@ -312,6 +326,41 @@ export const LAYER_ADAPTERS: Record<LayerType, LayerAdapter> = {
           logger.warn(`[layerAdapters] 3dtiles 图层 ${key} 重建失败（异步）:`, e)
         }
       })
+    },
+    remove: (renderer, key) => {
+      renderer.removeLayer(key)
+    },
+  },
+
+  // 离线提取的影像块：按地理矩形铺一张图（与 3D Tiles 模型同源同坐标系，便于对齐核验）
+  imageOverlay: {
+    engines: [ENGINE_NAMES.CESIUM],
+    create: (renderer, key, data, options) => {
+      if (!isImageOverlayCapable(renderer)) {
+        logger.warn(
+          `[layerAdapters] imageOverlay 图层仅 3D 渲染器支持，当前 ${renderer.getType()} 跳过: ${key}`
+        )
+        return
+      }
+      const payload = data as ImageOverlayData
+      if (
+        !payload ||
+        typeof payload.url !== 'string' ||
+        !Array.isArray(payload.bbox) ||
+        !Array.isArray(payload.size)
+      ) {
+        logger.warn(`[layerAdapters] imageOverlay 图层 ${key} 缺少 url/bbox/size，跳过`)
+        return
+      }
+      renderer.addImageOverlayLayer(key, payload, options)
+    },
+    // provider 与 URL 绑定，换图只能重建（沿用 geotiff 的移除后重建语义）
+    update: (renderer, key, data, options) => {
+      if (!isImageOverlayCapable(renderer)) return
+      const payload = data as ImageOverlayData
+      if (!payload || typeof payload.url !== 'string') return
+      renderer.removeLayer(key)
+      renderer.addImageOverlayLayer(key, payload, options)
     },
     remove: (renderer, key) => {
       renderer.removeLayer(key)

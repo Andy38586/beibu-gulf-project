@@ -8,6 +8,7 @@
 import type { FeatureCollection } from 'geojson'
 
 import type { GeoPoint } from '@/types/business/base'
+import type { ImageOverlayData } from '@/types/core/layerManager'
 
 // ===== 基础坐标类型 =====
 
@@ -134,6 +135,15 @@ export type Tiles3DOptions = LayerOptions & {
 
 export interface Tiles3DCapability {
   add3DTilesLayer(id: string, url: string, options?: Tiles3DOptions): Promise<boolean>
+}
+
+/**
+ * 单张影像覆盖能力（3D Only——Cesium 用 SingleTileImageryProvider 按地理矩形铺一张图）。
+ * 与 geotiff（hillshade 回退）的区别：本能力接受任意矩形 + 任意图，对文件名不做假设；
+ * 用于把离线提取的影像块（与 3D Tiles 同源同坐标系）按 bbox 铺回球面，便于对齐核验。
+ */
+export interface ImageOverlayCapability {
+  addImageOverlayLayer(id: string, data: ImageOverlayData, options?: LayerOptions): boolean
 }
 
 /** 热力图能力（2D Only——OL 专属，Cesium 无对应实现） */

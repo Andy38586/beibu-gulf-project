@@ -77,6 +77,7 @@ function getLayerIcon(label: string, layerType?: string): string {
   if (layerType === 'geotiff') return '⛰'
   if (layerType === 'heatmap') return '📈'
   if (layerType === '3dtiles') return '🏗'
+  if (layerType === 'imageOverlay') return '🛰'
   if (layerType === 'boundary') return ''
   // 历史兜底：按 label 业务关键词（存量图层的业务语义在此收口，不扩散）
   if (label.includes('底图') || label.includes('影像') || label.includes('矢量')) return '🗺'

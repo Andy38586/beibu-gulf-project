@@ -16,10 +16,12 @@ import type {
   PointFeature,
   PolygonFeature,
   TerrainToggleCapability,
+  Tiles3DCapability,
+  Tiles3DOptions,
   Water3DCapability,
 } from '@/types'
 import { DEFAULT_ENGINES, ENGINE_NAMES } from '@/types'
-import type { LayerType, WaterSurfaceData } from '@/types/core/layerManager'
+import type { LayerType, Tiles3DData, WaterSurfaceData } from '@/types/core/layerManager'
 
 // ===== 数据形状守卫 =====
 // 仅做最小形态校验（数组 / FeatureCollection），把"静默渲染失败"变成"明确抛错"，
@@ -91,6 +93,14 @@ function isTerrainToggleCapable(
 /** 热力图能力检查：仅 OL 实现（2D Only） */
 function isHeatmapCapable(renderer: MapRenderer): renderer is MapRenderer & HeatmapCapability {
   return typeof (renderer as Partial<HeatmapCapability>).addHeatmapLayer === 'function'
+}
+
+/** 3D Tiles 能力检查：仅 Cesium 实现（Cesium3DTileset 流式加载瓦片集）。
+ *  对外导出——业务页注册 3D Tiles 前用能力检查替代 getType() 引擎判断 */
+export function isTiles3DCapable(
+  renderer: MapRenderer
+): renderer is MapRenderer & Tiles3DCapability {
+  return typeof (renderer as Partial<Tiles3DCapability>).add3DTilesLayer === 'function'
 }
 
 /** Adapter 函数签名 */
@@ -260,5 +270,53 @@ export const LAYER_ADAPTERS: Record<LayerType, LayerAdapter> = {
     },
   },
 
-  // 预留: entity, primitive, 3dtiles, volume, terrain ...
+  // 3D Tiles（瓦片集）：Cesium 以 Cesium3DTileset 加载 glTF/b3dm 内容，OL 无对应概念
+  '3dtiles': {
+    engines: [ENGINE_NAMES.CESIUM],
+    // 数据载荷 Tiles3DData { url, maximumScreenSpaceError }；add3DTilesLayer 为 async
+    // （先取回 tileset.json 再建瓦片树），rejection 兜底防浮动 Promise（同 waterSurface 处理）
+    create: (renderer, key, data, options) => {
+      if (!isTiles3DCapable(renderer)) {
+        logger.warn(
+          `[layerAdapters] 3dtiles 图层仅 3D 渲染器支持，当前 ${renderer.getType()} 跳过: ${key}`
+        )
+        return
+      }
+      const payload = data as Tiles3DData
+      if (!payload || typeof payload.url !== 'string' || payload.url === '') {
+        logger.warn(`[layerAdapters] 3dtiles 图层 ${key} 缺少 tileset.json 地址，跳过`)
+        return
+      }
+      const tilesOptions: Tiles3DOptions = {
+        ...options,
+        maximumScreenSpaceError: payload.maximumScreenSpaceError,
+      }
+      void Promise.resolve(renderer.add3DTilesLayer(key, payload.url, tilesOptions)).catch((e) => {
+        if (import.meta.env.DEV) {
+          logger.warn(`[layerAdapters] 3dtiles 图层 ${key} 创建失败（异步）:`, e)
+        }
+      })
+    },
+    // 瓦片树与 URL 绑定，无法原地换内容 ⇒ 更新语义 = 移除后按新 URL 重建
+    update: (renderer, key, data, options) => {
+      if (!isTiles3DCapable(renderer)) return
+      const payload = data as Tiles3DData
+      if (!payload || typeof payload.url !== 'string' || payload.url === '') return
+      const tilesOptions: Tiles3DOptions = {
+        ...options,
+        maximumScreenSpaceError: payload.maximumScreenSpaceError,
+      }
+      renderer.removeLayer(key)
+      void Promise.resolve(renderer.add3DTilesLayer(key, payload.url, tilesOptions)).catch((e) => {
+        if (import.meta.env.DEV) {
+          logger.warn(`[layerAdapters] 3dtiles 图层 ${key} 重建失败（异步）:`, e)
+        }
+      })
+    },
+    remove: (renderer, key) => {
+      renderer.removeLayer(key)
+    },
+  },
+
+  // 预留: entity, primitive, volume, terrain ...
 }

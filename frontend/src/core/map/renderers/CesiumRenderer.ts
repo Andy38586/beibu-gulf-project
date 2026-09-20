@@ -5,6 +5,7 @@ import {
   Cartesian2,
   Cartesian3,
   Cartographic,
+  Cesium3DTileset,
   CesiumTerrainProvider,
   ClassificationType,
   Color,
@@ -47,6 +48,7 @@ import type {
   LayerOptions,
   PointFeature,
   PolygonFeature,
+  Tiles3DOptions,
   WaterSurfaceOptions,
 } from '@/types'
 
@@ -801,6 +803,15 @@ export class CesiumRenderer extends MapRenderer {
    */
   addGeoTIFFLayer(id: string, url: string, options: LayerOptions = {}): boolean {
     return addGeoTIFFLayer(this, id, url, options)
+  }
+
+  /**
+   * 添加 3D Tiles 瓦片集图层（3D Only）：Cesium3DTileset 流式加载 tileset.json（3D Tiles 1.1 glTF
+   * 内容或 1.0 b3dm 均可），瓦片定位由 tileset 自带 transform 决定，与此处只传 URL。
+   * 异步：失败返回 false（不抛），由 adapter 兜底日志，避免中断 reapplyAll 整批重绘。
+   */
+  async add3DTilesLayer(id: string, url: string, options: Tiles3DOptions = {}): Promise<boolean> {
+    return add3DTilesLayer(this, id, url, options)
   }
 
   _doSetVisibility(id: string, visible: boolean): void {
@@ -1741,6 +1752,64 @@ export function addGeoTIFFLayer(
   }
 }
 
+/**
+ * 添加 3D Tiles 瓦片集图层（3D Only）。
+ * 瓦片定位完全由 tileset.json 自带的 transform 决定（含 WGS84 锚定），此处只负责取回与挂载。
+ * 与其它图层一样登记进 renderer._layers，使显隐走通用 .show 路径；移除由 doRemoveLayer 的
+ * primitives 分支负责（Cesium3DTileset 存于 scene.primitives，不在 imageryLayers/dataSources）。
+ */
+export async function add3DTilesLayer(
+  renderer: CesiumRenderer,
+  id: string,
+  url: string,
+  options: Tiles3DOptions = {}
+): Promise<boolean> {
+  logger.debug(`[CesiumRenderer] add3DTilesLayer 调用: id=${id} url=${url}`)
+  if (!renderer.viewer) {
+    logger.warn(`[CesiumRenderer] add3DTilesLayer 跳过（viewer 未就绪）: ${id} → ${url}`)
+    return false
+  }
+  try {
+    // 幂等：先移除同 id 旧瓦片集
+    if (renderer.hasLayer(id)) renderer.removeLayer(id)
+
+    const tileset = await Cesium3DTileset.fromUrl(url, {
+      maximumScreenSpaceError: options.maximumScreenSpaceError ?? 16,
+    })
+    // 瓦片内容加载失败 Cesium 默认静默（只表现为画面缺块），补 warn 留痕——
+    // tileset 路径写错是既有事故类型（URL 前缀双重拼接曾致线上 404）
+    const tileFailedHandler = (err: unknown) => {
+      const msg = (err as { message?: string })?.message ?? String(err)
+      logger.warn(`[CesiumRenderer] 3D Tiles 瓦片加载失败 ${id}: ${msg}`)
+    }
+    tileset.tileFailed.addEventListener(tileFailedHandler)
+
+    renderer.viewer.scene.primitives.add(tileset)
+    // 图层实例统一登记进 _layers 注册表（显隐/移除均走该表，无需额外实例字段）
+    renderer._layers.set(id, {
+      instance: tileset,
+      visible: true,
+      options,
+    })
+    renderer._applyPendingVisibility(id)
+    renderer.viewer.scene.requestRender()
+    // statistics（瓦片就绪/加载计数）Cesium 1.142 的 Cesium.d.ts 未导出（仅运行时存在），
+    // 结构化断言读取，仅用于日志、不参与逻辑
+    const tilesetStats = (tileset as unknown as { statistics?: { numberOfTilesTotal?: number } })
+      .statistics
+    logger.debug(
+      `[CesiumRenderer] add3DTilesLayer 已添加瓦片集: ${id} → ${url}（瓦片总数 ${tilesetStats?.numberOfTilesTotal ?? '?'}）`
+    )
+    return true
+  } catch (error: unknown) {
+    logger.error(
+      `[CesiumRenderer] add3DTilesLayer 失败 ${id} → ${url}: ${(error as Error)?.name}: ${(error as Error)?.message}`,
+      error
+    )
+    return false
+  }
+}
+
 /** 设置图层可见性：Entity 数组逐个 show；dataSource / imageryLayer 直接设 show */
 export function doSetVisibility(renderer: CesiumRenderer, id: string, visible: boolean): void {
   const layer = renderer._layers.get(id)
@@ -1778,11 +1847,19 @@ export function doRemoveLayer(renderer: CesiumRenderer, layer: LayerState): void
         }
       })
     } else {
-      // instance 为 unknown：按 Cesium 容器逐一尝试（imageryLayers / dataSources）
-      const inst = layer.instance as unknown as ImageryLayer | DataSource | undefined
+      // instance 为 unknown：按 Cesium 容器逐一尝试（imageryLayers / primitives / dataSources）
+      const inst = layer.instance as unknown as
+        | ImageryLayer
+        | Cesium3DTileset
+        | DataSource
+        | undefined
       if (inst && renderer.viewer!.imageryLayers.contains(inst as ImageryLayer)) {
         // 影像图层（如 hillshade 回退贴图），destroy=true 释放 GPU 纹理
         renderer.viewer!.imageryLayers.remove(inst as ImageryLayer, true)
+      } else if (inst && renderer.viewer!.scene.primitives.contains(inst as Cesium3DTileset)) {
+        // 3D Tiles 瓦片集（Cesium3DTileset 存于 scene.primitives，不在上两个容器里）；
+        // PrimitiveCollection.remove 会调用其 destroy 释放几何缓冲与瓦片缓存
+        renderer.viewer!.scene.primitives.remove(inst as Cesium3DTileset)
       } else if (inst) {
         // 第二参数 destroy=true 让 Cesium 在移除时销毁 dataSource，防止内存泄漏
         renderer.viewer!.dataSources.remove(inst as DataSource, true)

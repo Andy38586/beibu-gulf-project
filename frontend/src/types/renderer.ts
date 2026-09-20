@@ -121,6 +121,21 @@ export interface GeoTIFFCapability {
   addGeoTIFFLayer(id: string, url: string, options?: LayerOptions): boolean
 }
 
+/**
+ * 3D Tiles 能力（3D Only——Cesium 以 Cesium3DTileset 流式加载 glTF/b3dm 瓦片集；OL 无 3D Tiles 概念）。
+ * 异步：fromUrl 需先取回 tileset.json 再建瓦片树；失败返回 false 而不抛出（与 addGeoTIFFLayer 一致，
+ * 避免单图层问题中断 App.vue reapplyAll 的整批引擎切换重绘）。
+ */
+/** 3D Tiles 图层选项：通用图层选项 + 瓦片集专属参数 */
+export type Tiles3DOptions = LayerOptions & {
+  /** 瓦片集最大屏误差（像素）：越小越清晰、加载越多；缺省交给 Cesium 默认 16 */
+  maximumScreenSpaceError?: number
+}
+
+export interface Tiles3DCapability {
+  add3DTilesLayer(id: string, url: string, options?: Tiles3DOptions): Promise<boolean>
+}
+
 /** 热力图能力（2D Only——OL 专属，Cesium 无对应实现） */
 export interface HeatmapCapability {
   addHeatmapLayer(id: string, features: PointFeature[], options?: LayerOptions): boolean

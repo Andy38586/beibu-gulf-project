@@ -6,7 +6,14 @@
 import type { LayerOptions } from '@/types/renderer'
 
 /** 业务图层类型，对应 LAYER_ADAPTERS 注册表 key（改这里 = 改图层能力清单） */
-export type LayerType = 'heatmap' | 'geojson' | 'points' | 'polygon' | 'waterSurface' | 'geotiff'
+export type LayerType =
+  | 'heatmap'
+  | 'geojson'
+  | 'points'
+  | 'polygon'
+  | 'waterSurface'
+  | 'geotiff'
+  | '3dtiles'
 
 /** 业务图层元数据（BusinessLayerManager._registry 条目形状，供 updateData/getMeta 复用） */
 export interface LayerMeta {
@@ -32,4 +39,15 @@ export interface WaterSurfaceData {
   coordinates: [number, number][]
   /** 水面高程（米） */
   height: number
+}
+
+/** 3D Tiles 图层数据载荷（3D Only，3dtiles adapter 入参） */
+export interface Tiles3DData {
+  /** tileset.json 地址（同源路径，如 /static/pinglu/tiles/tileset.json） */
+  url: string
+  /**
+   * 瓦片集最大屏误差（像素）：越小越清晰、加载越多。
+   * 缺省交给 Cesium 默认值 16；大场景可调到 32 换取更少瓦片。
+   */
+  maximumScreenSpaceError?: number
 }

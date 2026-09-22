@@ -6,7 +6,12 @@ import {
   type TaskQueueHooks,
 } from '../src/modules/task/services/task-queue'
 import { TaskRegistry } from '../src/modules/task/services/task-registry'
-import { TASK_RETRY_BACKOFF_MS, type TaskRecord } from '../src/modules/task/types/task'
+import {
+  TASK_RETRY_BACKOFF_MS,
+  TASK_SWEEP_INTERVAL_MS,
+  TASK_TTL_MS,
+  type TaskRecord,
+} from '../src/modules/task/types/task'
 
 // S1 队列与注册表的**纯单测**（不起 Nest、不联网）。
 // 覆盖 e2e 里构造困难的边界：位次计算、出队、TTL 清扫、重试次数上限、取消检查点。
@@ -128,6 +133,39 @@ describe('TaskRegistry', () => {
     expect(registry.size).toBe(0)
     // dispose 可重入（onModuleDestroy 可能被调多次）
     expect(() => registry.dispose()).not.toThrow()
+  })
+
+  it('🔴 节拍必须回调 onTick（排队超时判定唯一的触发路径）', () => {
+    // 阳性对照：把 task-registry.ts 里的 `onTick?.()` 删掉，本条即红。
+    // 这条不断言就等于没有——`expireStalePending` 曾经全仓零调用，
+    // 串行队列被非终态 pending 永久占位而无人判超时，正是这么漏掉的。
+    vi.useFakeTimers()
+    const registry = makeRegistry()
+    const onTick = vi.fn()
+    registry.startSweeper(onTick)
+    expect(onTick).not.toHaveBeenCalled()
+    vi.advanceTimersByTime(TASK_SWEEP_INTERVAL_MS)
+    expect(onTick).toHaveBeenCalledTimes(1)
+    vi.advanceTimersByTime(TASK_SWEEP_INTERVAL_MS * 2)
+    expect(onTick).toHaveBeenCalledTimes(3)
+    registry.dispose()
+    vi.advanceTimersByTime(TASK_SWEEP_INTERVAL_MS * 3)
+    expect(onTick).toHaveBeenCalledTimes(3) // 停机后不再有 tick
+    vi.useRealTimers()
+  })
+
+  it('同一节拍里 TTL 回收与 onTick 都要跑，且 startSweeper 幂等', () => {
+    vi.useFakeTimers()
+    const registry = makeRegistry()
+    registry.add(record('gone', { status: 'done', finishedAt: Date.now() - TASK_TTL_MS - 1_000 }))
+    const onTick = vi.fn()
+    registry.startSweeper(onTick)
+    registry.startSweeper(onTick) // 重复启动不得留下第二个 interval
+    vi.advanceTimersByTime(TASK_SWEEP_INTERVAL_MS)
+    expect(onTick).toHaveBeenCalledTimes(1)
+    expect(registry.get('gone')).toBeUndefined()
+    registry.dispose()
+    vi.useRealTimers()
   })
 })
 

@@ -112,8 +112,15 @@ export const TASK_RETRY_BACKOFF_MS = [300, 600, 1200] as const
  */
 export const TASK_TTL_MS = 30 * 60 * 1000
 
-/** 注册表清扫间隔（5 分钟）。取 TTL 的 1/6，保证回收延迟不超过 TTL 的 17%。 */
-export const TASK_SWEEP_INTERVAL_MS = 5 * 60 * 1000
+/**
+ * 注册表节拍（15 秒）。同一个 tick 承担两件事：回收超 TTL 的终态任务 + 排队超时判定。
+ *
+ * 🔴 间隔必须显著小于 `TASK_MAX_WAIT_MS`，否则"等待超 60s 即判失败"是句空话：
+ * 原判据只把 tick 对齐到 TTL（5min = 30min/6），而 TTL 回收晚几分钟无所谓，
+ * 排队判定晚 5 分钟却让前端整整转圈 5 分钟——串行队列并发上限 1，这期间全站任务都堵着。
+ * sweep 本身是 O(size)（size ≤ 队列上限 + TTL 窗口内的终态数），提频成本可忽略。
+ */
+export const TASK_SWEEP_INTERVAL_MS = 15 * 1000
 
 /** 排队等待上限：等待超过它即视为超时失败（防止队列被长任务堵死时前端永远转圈） */
 export const TASK_MAX_WAIT_MS = 60 * 1000

@@ -81,7 +81,10 @@ export class TaskService implements OnModuleInit, OnModuleDestroy {
   }
 
   onModuleInit(): void {
-    this.registry.startSweeper()
+    // 节拍做两件事：回收超 TTL 的终态记录 + 把等太久的 pending 判失败。
+    // 🔴 第二件必须在这里接线——`expireStalePending` 早已实现却无人调用，
+    // 结果是串行队列（并发上限 1、容量 8）会被非终态 pending 永久占位，只能重启解。
+    this.registry.startSweeper(() => this.expireStalePending())
   }
 
   onModuleDestroy(): void {

@@ -78,13 +78,19 @@ export class TaskRegistry {
   }
 
   /**
-   * 启动定时清扫。**由 TaskService 在模块初始化时调用**（而非构造函数），
+   * 启动定时节拍。**由 TaskService 在模块初始化时调用**（而非构造函数），
    * 否则单测里每次 new 出一个 registry 都会留下一个永不释放的 interval，
    * vitest 会以「进程不退出」的形式报出来。
+   *
+   * `onTick` 是给 TaskService 挂的额外周期职责（排队超时判定）——定时器生命周期
+   * 仍由本类持有，`dispose()` 一处停掉，不让调用方各自留 interval。
    */
-  startSweeper(): void {
+  startSweeper(onTick?: () => void): void {
     if (this.sweeper) return
-    this.sweeper = setInterval(() => this.sweep(), TASK_SWEEP_INTERVAL_MS)
+    this.sweeper = setInterval(() => {
+      this.sweep()
+      onTick?.()
+    }, TASK_SWEEP_INTERVAL_MS)
     // 定时器不该拖住进程退出（Node 容器收到 SIGTERM 时要能干净地走）
     this.sweeper.unref?.()
   }

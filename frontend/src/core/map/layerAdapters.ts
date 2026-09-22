@@ -12,6 +12,7 @@ import type {
   GeoTIFFCapability,
   HeatmapCapability,
   ImageOverlayCapability,
+  ImageOverlayData,
   LayerOptions,
   MapRenderer,
   PointFeature,
@@ -21,12 +22,7 @@ import type {
   Water3DCapability,
 } from '@/types'
 import { DEFAULT_ENGINES, ENGINE_NAMES } from '@/types'
-import type {
-  ImageOverlayData,
-  LayerType,
-  Tiles3DData,
-  WaterSurfaceData,
-} from '@/types/core/layerManager'
+import type { LayerType, Tiles3DData, WaterSurfaceData } from '@/types/core/layerManager'
 
 // ===== 数据形状守卫 =====
 // 仅做最小形态校验（数组 / FeatureCollection），把"静默渲染失败"变成"明确抛错"，

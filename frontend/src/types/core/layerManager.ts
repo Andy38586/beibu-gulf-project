@@ -53,17 +53,3 @@ export interface Tiles3DData {
    */
   maximumScreenSpaceError?: number
 }
-
-/**
- * 单张影像覆盖图层数据载荷（3D Only，imageOverlay adapter 入参）。
- * 用于把「离线提取的影像块」按地理矩形铺到球面上（区别于在线底图瓦片服务）——
- * 例如从天地图拼接出的枢纽施工影像，与 3D Tiles 模型同源同坐标系，便于对齐核验。
- */
-export interface ImageOverlayData {
-  /** 图片地址（同源路径，如 /static/pinglu/imagery/madao.jpg） */
-  url: string
-  /** 地理范围 [west, south, east, north]（度，EPSG:4326） */
-  bbox: [number, number, number, number]
-  /** 图片像素尺寸 [width, height]（SingleTileImageryProvider 构造必填，缺省会抛 DeveloperError） */
-  size: [number, number]
-}

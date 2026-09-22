@@ -8,7 +8,6 @@
 import type { FeatureCollection } from 'geojson'
 
 import type { GeoPoint } from '@/types/business/base'
-import type { ImageOverlayData } from '@/types/core/layerManager'
 
 // ===== 基础坐标类型 =====
 
@@ -135,6 +134,22 @@ export type Tiles3DOptions = LayerOptions & {
 
 export interface Tiles3DCapability {
   add3DTilesLayer(id: string, url: string, options?: Tiles3DOptions): Promise<boolean>
+}
+
+/**
+ * 单张影像覆盖图层数据载荷（3D Only，imageOverlay adapter 入参）。
+ * 用于把「离线提取的影像块」按地理矩形铺到球面上（区别于在线底图瓦片服务）——
+ * 例如从天地图拼接出的枢纽施工影像，与 3D Tiles 模型同源同坐标系，便于对齐核验。
+ * 放在本文件而非 `types/core/layerManager.ts`：它是 `ImageOverlayCapability` 的入参契约，
+ * 属渲染器契约面；BLM 元数据单向依赖渲染器类型，反向 import 会在 L0 成环。
+ */
+export interface ImageOverlayData {
+  /** 图片地址（同源路径，如 /static/pinglu/imagery/madao.jpg） */
+  url: string
+  /** 地理范围 [west, south, east, north]（度，EPSG:4326） */
+  bbox: [number, number, number, number]
+  /** 图片像素尺寸 [width, height]（SingleTileImageryProvider 构造必填，缺省会抛 DeveloperError） */
+  size: [number, number]
 }
 
 /**

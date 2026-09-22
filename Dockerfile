@@ -61,7 +61,7 @@ RUN apk add --no-cache nginx \
 # （v3 起 static 数据由 compose ro volume 挂载，此处仅建立目录供 alias 存在）
 # node:22-alpine 自带 uid 1000 的 node 用户——直接复用为 nginx worker 账户；
 # 此前 adduser -u 1000 新建 nodeapp 与基础镜像 node 用户撞 uid，全新构建必失败
-RUN mkdir -p /app/backend/static/dem /app/backend/static/terrain
+RUN mkdir -p /app/backend/static/dem /app/backend/static/terrain /app/backend/static/pinglu
 
 # 前端构建产物
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist

@@ -38,6 +38,10 @@ services:
       # DEM 静态产物（tif 67MB 被 gitignore、CI 镜像不含；本地含 → CI/本地镜像不一致）。
       - ./backend/static/dem:/app/backend/static/dem
       - ./backend/static/terrain:/app/backend/static/terrain
+      # 平陆运河 3D Tiles + 离线影像块（9.8MB 随仓库分发，与 dem/terrain 同走宿主挂载、不烘焙进镜像）。
+      # 缺这一行的后果是静默的：nginx 的 /static/ alias 指向空目录 → 前端 fetch 404 被 catch 成
+      # 一条 logger.warn，控制面板连按钮都不渲染，线上看不出"接了 3D Tiles"这件事失败过。
+      - ./backend/static/pinglu:/app/backend/static/pinglu
       # TLS 证书（可选）：将 fullchain.pem + privkey.pem 放入 ./certs/ 即启用 HTTPS
       - ./certs:/etc/nginx/certs:ro
     ports:

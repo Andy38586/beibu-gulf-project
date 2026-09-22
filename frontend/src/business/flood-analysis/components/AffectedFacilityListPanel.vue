@@ -12,22 +12,10 @@ import { formatLoss } from '@/shared'
 import { useFloodStore } from '@/stores'
 import type { ScoredXiaoqu } from '@/types/xiaoqu'
 
+import { getFacilityTypeLabel } from '../constants/facilityTypeLabels'
+
 const floodStore = useFloodStore()
 const { flyTo, startBreathing } = useMapControls()
-
-/**
- * 获取设施类型对应的中文标签
- */
-function getFacilityTypeLabel(type: string | undefined) {
-  if (!type) return ''
-  const typeMap: Record<string, string> = {
-    泊位: '泊位',
-    码头: '码头',
-    仓储区: '仓储',
-    油库: '油库',
-  }
-  return typeMap[type] || type
-}
 
 /**
  * 按损失金额排序的设施列表（降序）

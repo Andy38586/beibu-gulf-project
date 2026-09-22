@@ -87,24 +87,58 @@ describe('边界情况', () => {
   })
 })
 
-describe('性能测试', () => {
-  it('加载 10000 个随机点，查询视口内要素应在 50ms 内完成', () => {
-    const index = createSpatialIndex<{ id: number }>()
-    const items: IndexedItem<{ id: number }>[] = []
-    for (let i = 0; i < 10000; i++) {
-      const x = Math.random() * 1000
-      const y = Math.random() * 1000
-      items.push({ minX: x, minY: y, maxX: x, maxY: y, data: { id: i } })
+describe('万级要素的查询正确性（确定性数据集）', () => {
+  // 线性同态伪随机（种子固定）：Math.random 使数据集每次不同 ⇒ 断言只能写
+  // "结果大于 0"这类恒真式；墙钟 toBeLessThan(50) 则是随机器浮动的噪声
+  // （慢 CI 假红、快机器假绿）。改为对**结果集合**敏感：期望集由同一份
+  // 确定性数据线性过滤算出，索引用例与期望集逐项相等——索引建错即红。
+  function lcg(seed: number): () => number {
+    let s = seed
+    return () => {
+      s = (s * 1664525 + 1013904223) % 4294967296
+      return s / 4294967296
     }
+  }
+
+  const COUNT = 10_000
+  const rand = lcg(20260922)
+  const items: IndexedItem<POI>[] = []
+  for (let i = 0; i < COUNT; i++) {
+    const x = rand() * 1000
+    const y = rand() * 1000
+    items.push(makePointItem(x, y, { id: i }))
+  }
+
+  function expectedInBox(box: [number, number, number, number]): number[] {
+    return items
+      .filter(
+        (it) => it.minX >= box[0] && it.minY >= box[1] && it.maxX <= box[2] && it.maxY <= box[3]
+      )
+      .map((it) => (it.data as POI).id as number)
+      .sort((a, b) => a - b)
+  }
+
+  it('load 万级要素后 query 视口返回精确交集（不多不少）', () => {
+    const index = createSpatialIndex<POI>()
     index.load(items)
+    expect(index.size()).toBe(COUNT)
 
-    const start = performance.now()
-    const result = index.query([200, 200, 800, 800])
-    const elapsed = performance.now() - start
+    const box: [number, number, number, number] = [200, 200, 800, 800]
+    const result = index.query(box)
+    const got = result.map((r) => (r.data as POI).id as number).sort((a, b) => a - b)
+    expect(got).toEqual(expectedInBox(box))
+    // 视口只是全域的一部分（防"全量返回也相等"的退化通过）
+    expect(got.length).toBeGreaterThan(0)
+    expect(got.length).toBeLessThan(COUNT)
+  })
 
-    expect(elapsed).toBeLessThan(50)
-    expect(result.length).toBeGreaterThan(0)
-    expect(result.length).toBeLessThan(10000)
+  it('query 边带与空视口行为确定', () => {
+    const index = createSpatialIndex<POI>()
+    index.load(items)
+    // 空视口（全域外）
+    expect(index.query([2000, 2000, 3000, 3000])).toEqual([])
+    // 全域视口 = 全量
+    expect(index.query([-1, -1, 1001, 1001])).toHaveLength(COUNT)
   })
 })
 

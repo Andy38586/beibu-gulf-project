@@ -233,6 +233,14 @@ describe('useAnalysisLayer', () => {
 
     // register 被调用两次（第一次直接 + 第二次排队后重放）
     expect(manager.register).toHaveBeenCalledTimes(2)
+    // 语义断言（04-C5 抢占必补跑）：重放的是**最后一次**结果（b），
+    // 不是"调了两次但第二次仍是旧数据"——旧断言只数调用次数，数据被静默
+    // 丢弃时同样绿（假绿）；这里钉住重放载荷确实是 b
+    const calls = (manager.register as ReturnType<typeof vi.fn>).mock.calls as Array<
+      [string, { data: { features: Array<{ properties: { name: string } }> } }]
+    >
+    expect(calls[0][1].data.features[0].properties.name).toBe('a')
+    expect(calls[1][1].data.features[0].properties.name).toBe('b')
   })
 
   // 回归守卫：「清空选择」emit 的是空载荷，此前 setAnalysisResult 只有 register/updateData，

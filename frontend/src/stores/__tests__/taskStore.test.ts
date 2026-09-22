@@ -295,8 +295,18 @@ describe('useTaskStore', () => {
       mockFetch.mockResolvedValueOnce(
         envelope({ taskId: 't-1', status: 'pending', queuePosition: 1, createdAt: 1 })
       )
-      // 轮询请求返回 404 业务码
-      mockFetch.mockResolvedValue(envelope(null, 404))
+      // 轮询请求返回 404 业务码。
+      // 夹具必须与生产同形（business-error.filter.ts 的 404 分支）：HTTP 404 的信封
+      // code 是 404001，不是 404——useTaskApi 的「任务被回收」判定读 bizCode === 404001，
+      // 旧夹具 envelope(null, 404) 给的是 code:404 ⇒ 判据恒假、用例绿着但没测到生产路径。
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 404,
+        text: () =>
+          Promise.resolve(
+            JSON.stringify({ code: 404001, error: '任务不存在或已过期', data: null })
+          ),
+      })
 
       // store 由 beforeEach 提供
       await store.submit({ route: '/flood-analysis', domain: 'flood-areas', params: {} })
@@ -304,6 +314,12 @@ describe('useTaskStore', () => {
 
       // 不该因「任务没了」而弹错
       expect(showError).not.toHaveBeenCalled()
+
+      // 语义断言：静默停轮询——判定生效后不再打 GET /task/:id
+      //（旧夹具判据恒假时本条同样不过：根本走不到 taskGone 分支）
+      const callsAfterGone = mockFetch.mock.calls.length
+      await sleep(600)
+      expect(mockFetch.mock.calls.length).toBe(callsAfterGone)
 
       store.clearAll()
     })

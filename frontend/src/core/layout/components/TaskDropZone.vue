@@ -68,6 +68,7 @@ const highlighted = computed(() => props.dragActive || props.dropActive)
   bottom: calc(var(--GCS-cell, 80px) + 8px);
   left: 50%;
   transform: translateX(-50%);
+
   /*
    * 🔴 必须高于底部导航条（2026-09-19 实测修复）
    *
@@ -85,6 +86,7 @@ const highlighted = computed(() => props.dragActive || props.dropActive)
    * 保留尺寸是为了 elementFromPoint 有稳定的命中范围。
    */
   min-width: min(320px, calc(100vw - 32px));
+
   /*
    * 高度：单行提示文案的高度，靠 padding 撑到 ~29px。
    *

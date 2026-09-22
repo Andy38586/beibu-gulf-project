@@ -137,6 +137,7 @@ const buttonSize = computed(() => Math.round(cellPixel.value * 0.8))
   left: 50%;
   transform: translate(-50%, -50%);
   display: flex;
+
   /* 🔴 不拦截点击：环是纯视觉反馈层 */
   pointer-events: none;
 }

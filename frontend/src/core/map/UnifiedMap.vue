@@ -484,7 +484,7 @@ async function switchMapType(newType: '2d' | '3d') {
     // 进入时 store 已等于 newType。这里【绝不能】再把 newType 写回 store——
     // 异步切换跨多个 await，期间用户/路由可能已把 store 改成更新的引擎；
     // 旧切换收尾时回写会用过期值覆盖新意图（浸没↔航线互切掉回 2D 的根因之一）。
-    // 失败回滚仍由 catch 分支显式 setMapType(oldType) 处理。
+    // 失败回滚由 catch 分支显式 setMapType(oldType) 处理，带两个前置（见 catch）。
 
     if (newType === '3d' && !cesiumInitialized.value) {
       cesiumInitialized.value = true
@@ -512,14 +512,22 @@ async function switchMapType(newType: '2d' | '3d') {
     }
     loadError.value = err.message || '地图切换失败'
 
-    // 初始化失败时回滚 mapStore.mapType 与 currentRenderer（含 store 悬空引用），
-    // 避免 v-show 容器与渲染器实例类型撕裂
+    // 初始化失败时回滚 currentRenderer 与 mapStore.mapType（含 store 悬空引用），
+    // 避免 v-show 容器与渲染器实例类型撕裂。
+    // 回滚带两个前置——
+    // ① 仅当 store 仍等于 newType（切换在飞期间没人改过意图）才写回 oldType，
+    //    否则 store 里已是更新的意图，无条件回滚会用过期值覆盖它；
+    // ② 有排队意图（pendingSwitchType 非空）时不回滚 store：finally 的补跑会以
+    //    最新意图重试，它自己的 catch 才会回滚；此处回滚会把 store 写成 oldType，
+    //    与即将补跑的目标撕裂（补跑成功后 store 与渲染器类型不一致）。
     if (oldType !== newType) {
-      mapStore.setMapType(oldType)
       const fallback = oldType === '2d' ? olRenderer.value : cesiumRenderer.value
       if (fallback && currentRenderer.value !== fallback) {
         currentRenderer.value = fallback
         mapStore.setCurrentRenderer(fallback)
+      }
+      if (mapStore.mapType === newType && pendingSwitchType.value === null) {
+        mapStore.setMapType(oldType)
       }
     }
 
@@ -532,8 +540,11 @@ async function switchMapType(newType: '2d' | '3d') {
     pendingSwitchType.value = null
     if (pending !== null) {
       void nextTick(() => {
-        // 以 store 为权威：若排队期间 store 又被路由/用户更新，跟随最新值而非过期的 pending
-        const target = mapStore.mapType ?? pending
+        // 补跑以排队意图为准。store 只作参考——catch 的回滚可能已把 store
+        // 写成 oldType（过期值），而 pending 是切换窗口内最后一次意图；
+        // 旧判据 `mapStore.mapType ?? pending` 因 MapType 永不为空恒取 store，
+        // 失败路径上补跑判据恒假 ⇒ pendingSwitchType 队列是死代码（04-C5）。
+        const target = pending
         if (target !== currentRenderer.value?.getType()) {
           void switchMapType(target)
         }

@@ -68,7 +68,15 @@ async function bootstrap() {
   app.use(
     '/static/terrain',
     (req: express.Request, res: express.Response, next: express.NextFunction) => {
-      const rel = decodeURIComponent(req.path).replace(/^\/+/, '')
+      // decodeURIComponent 对残缺百分序列（裸 %）抛 URIError：该异常发生在 try 外，
+      // 会穿过 router 直达 finalhandler ⇒ HTML 500 绕过信封与全局过滤器，且服务端零日志。
+      // 畸形路径按「无此资源」走 next()，与下方 statSync 失败同口径。
+      let rel: string
+      try {
+        rel = decodeURIComponent(req.path).replace(/^\/+/, '')
+      } catch {
+        return next()
+      }
       const file = path.resolve(terrainRoot, rel)
       if (!file.startsWith(terrainRoot + path.sep)) return next() // 防路径穿越
       let stat: fs.Stats

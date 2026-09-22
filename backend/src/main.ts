@@ -10,13 +10,23 @@ import express from 'express'
 
 import { AppModule } from './app.module'
 import { ConfigService } from './infra/config/config.service'
+import { resolveTrustProxyHops } from './common/utils/trust-proxy'
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule)
+  const http = app.getHttpAdapter().getInstance() as express.Express
   // 关闭框架指纹：Nest 默认 Express adapter 会给每个响应带 X-Powered-By: Express，
   // 属低成本可消除的信息泄露（2026-09-10 实测线上 /nest-api/* 全部携带）。
   // 必须在首个请求前设置（此处为 listen 前），否则已发出的响应已带该头。
-  ;(app.getHttpAdapter().getInstance() as express.Express).disable('x-powered-by')
+  http.disable('x-powered-by')
+  // trust proxy（老 Express 迁移回归）：生产经 nginx 反代时不信任代理会让
+  // rateLimit 按 127.0.0.1 统一计数（限流失效）——三个 throttler 桶全站共享，
+  // 任一客户端即可把 route/plans/favorites 打成 429；auth.controller 的
+  // `x-forwarded-proto` 推定（secure cookie）同样依赖它。
+  // 跳数取部署拓扑（nginx→nest 一跳）而非 true：true 等于任何人都能伪造 XFF。
+  // 显式判断非负有限值原样生效、否则默认 1——不能用 `Number(...) || 1`，
+  // 它无法表达"不信任代理"（0 是 falsy）。解析逻辑与用例见 common/utils/trust-proxy.ts。
+  http.set('trust proxy', resolveTrustProxyHops(process.env.TRUST_PROXY_HOPS))
   // 配置集中读取；listen 前必填校验（缺 JWT_SECRET 直接 fail fast，不带弱配置上线）
   const config = app.get(ConfigService)
   config.validateStartup()

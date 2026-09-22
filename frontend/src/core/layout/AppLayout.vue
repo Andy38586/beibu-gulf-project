@@ -7,7 +7,7 @@
  */
 
 import { storeToRefs } from 'pinia'
-import { computed, defineAsyncComponent, watch } from 'vue'
+import { computed, defineAsyncComponent, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { MAP_CONFIG } from '@/core/config/map'
@@ -50,9 +50,12 @@ const businessNavItems = computed<NavItem[]>(() => [
   ...navItems.value.filter((i) => i.type === 'business'),
 ])
 
-// 全局雷达图数据（与选址分析页同源）：分析结果第一名，无结果用快照兜底（面板不空态）
+// 全局雷达图数据（与选址分析页同源）：分析结果第一名，无结果用快照兜底（面板不空态）。
+// snapshot 标记同步给出——快照是 2026-08 的实测硬编码，UI 必须明示"示例数据"，
+// 不能把看似真实的评分当分析结果呈现
 const siteSelectionStore = useSiteSelectionStore()
 const radarXiaoqu = computed(() => siteSelectionStore.matchedXiaoqu[0] ?? SNAPSHOT_XIAOQU)
+const radarIsSnapshot = computed(() => siteSelectionStore.matchedXiaoqu.length === 0)
 const radarSelectedTypes = computed(() =>
   siteSelectionStore.selectedTypes.length > 0
     ? siteSelectionStore.selectedTypes
@@ -70,11 +73,21 @@ const { debugMode } = storeToRefs(mapStore)
 // body 加 slider-focus-mode（CSS 透明化其他面板），滑块所在面板标记 slider-focus-panel，底部 nav 排除。
 watch(sliderFocusActive, (act) => {
   document.body.classList.toggle('slider-focus-mode', act)
-  if (act) {
-    document.querySelectorAll('.GCS-panel').forEach((p) => {
-      p.classList.toggle('slider-focus-panel', p === sliderActivePanel.value)
-    })
-  }
+  document.querySelectorAll('.GCS-panel').forEach((p) => {
+    p.classList.toggle('slider-focus-panel', act && p === sliderActivePanel.value)
+  })
+})
+
+// 专注态激活期间切路由 ⇒ 旧页 AppLayout 卸载，而 useSliderFocus 的
+// onScopeDispose(endSliderFocus) 与本 watch 的效果在同一批 scope.stop() 里停掉，
+// 排队的 pre-flush 回调被丢弃（真 vue 3.5.41 实测 after stop: class 仍在）⇒
+// body class 永久残留，style.css:350 令全站面板 opacity:0 但仍吃指针事件。
+// 本组件是 body class 的唯一写方，卸载时必须显式摘除（含面板标记）。
+onUnmounted(() => {
+  document.body.classList.remove('slider-focus-mode')
+  document.querySelectorAll('.GCS-panel.slider-focus-panel').forEach((p) => {
+    p.classList.remove('slider-focus-panel')
+  })
 })
 
 function isActive(path: string): boolean {
@@ -147,6 +160,7 @@ function goBusiness(item: NavItem): void {
               :xiaoqu="radarXiaoqu"
               :selected-types="radarSelectedTypes"
               :embedded="false"
+              :snapshot="radarIsSnapshot"
               :facility-poi="siteSelectionStore.facilityPoi"
             />
           </GCSPanel>

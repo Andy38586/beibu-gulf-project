@@ -14,12 +14,12 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 
 import { GCSPanel } from '@/core'
 import { logger, showError, showWarning, useGCS } from '@/shared'
-import { useMapStore } from '@/stores'
-import type { RoutePathParams, RoutePathResult } from '@/types'
+import { useMapStore, useTaskStore } from '@/stores'
+import type { RoutePathParams, RoutePathResponse, RoutePathResult } from '@/types'
 import type { PoiSearchItemParsed } from '@/types/schemas'
 
 import { isWithinThreeCities } from '../composables/useCityBoundary'
-import { RouteQueryCancelledError, useRouteApi } from '../composables/useRouteApi'
+import { useRouteApi } from '../composables/useRouteApi'
 import type {
   RouteLayerManager,
   RoutePoint,
@@ -28,9 +28,14 @@ import type {
 } from '../composables/useRouteLayer'
 import { ROUTE_SLOT_KEYS, useRouteLayer } from '../composables/useRouteLayer'
 
+/** v4：本面板所属路由（taskStore 按 route 分槽的 key；与 manifest.path 一致） */
+const ROUTE_PATH = '/route-analysis'
+
 interface Props {
   /** BLM 实例（图层注册/更新；页面 useBusinessLayers 提供，此处只消费四方法子集） */
   manager: RouteLayerManager
+  /** v4：是否允许拖拽（页面统一开关，便于后续响应式降级） */
+  draggable?: boolean
 }
 
 interface Emits {
@@ -38,14 +43,37 @@ interface Emits {
   (_e: 'query-result', _payload: { segments: RoutePathResult[]; pointCount: number }): void
   /** 清除全部选点与图层 */
   (_e: 'cleared'): void
+  /** v4：面板被拖到投递区（页面据此提交任务并置 docked=true 让位排队） */
+  (_e: 'dock'): void
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  draggable: false,
+})
 const emit = defineEmits<Emits>()
 
 const mapStore = useMapStore()
-const { queryPath, searchPois, calculating, cancel } = useRouteApi()
+const taskStore = useTaskStore()
+// 🔴 v4：queryPath 已不再由此面板直接调用（请求经 taskStore 转交后端异步任务域）；
+// 仅保留 searchPois（POI 搜索是轻量辅助交互，不需要后台任务语义，也不参与保活）
+const { searchPois } = useRouteApi()
 const { updateRouteLayers, clearRouteLayers } = useRouteLayer()
+
+/** 查询进行中（v4：由本面板自行维护，替代原 useRouteApi 的 calculating） */
+const calculating = ref(false)
+
+/**
+ * 卸载标志（2026-09-19 修复 · P0）。
+ *
+ * 为什么必须：`handleQuery` 的链末会写 **App 级单例** `props.manager`（注册图层）并 emit。
+ * 查询在飞时用户切走路由/拖面板，这条链仍会跑完 ⇒ 别的业务页上出现上一次航线查询的
+ * 幽灵图层，且 emit 写向已销毁实例。对照：`ForecastControlPanel` / `WaterLevelProfilePanel`
+ * / `FloodAnalysisPage` 均有同类标志，本面板此前缺。
+ *
+ * 边界：这里**只**拦截本组件的后续副作用，**不**取消后端任务——保活是 v4 既定语义
+ * （见 `onUnmounted` 的逐条判定注释）。
+ */
+let disposed = false
 
 /**
  * 寻路口径（2026-09-13 v2 路网上线时补的开关）。
@@ -312,6 +340,22 @@ function buildChain(): RoutePoint[] {
   return ROUTE_SLOT_KEYS.map((k) => slots.value[k]).filter((p): p is RoutePoint => p !== null)
 }
 
+/**
+ * 开始查询（v4-S3：请求归属收进面板）。
+ *
+ * ## 与 v3 的差别
+ *
+ * v3 直接 `await queryPath(...)`——请求归属在面板，但**状态住在页面生命周期里**，
+ * 面板一被拖走/页面一卸载，任务即断。
+ * v4 改为经 `taskStore.submitAndWait`：请求提交给后端异步任务域，
+ * 状态与保活由 store 托管，页面卸载不影响（这正是「丢到后台跑」的语义）。
+ *
+ * ## 为什么仍是逐段循环
+ *
+ * 后端 `route-path` 任务域只处理**单段**（from→to）。整链（最多 3 段）由本面板
+ * 逐段串行编排：等上一段落地再提下一段 —— 这样后端零改动，且每段都能独立重试。
+ * 段间不做并发：串行是既定口径（queue 并发上限 1），并发提交只会互相排队。
+ */
 async function handleQuery(): Promise<void> {
   if (!hasFromTo.value) {
     showWarning('请先选择起点与终点')
@@ -321,19 +365,47 @@ async function handleQuery(): Promise<void> {
     showWarning('查询正在进行中，请稍候')
     return
   }
+
   const chain = buildChain()
   const segments: RoutePathResult[] = []
-  for (let i = 0; i < chain.length - 1; i++) {
-    const a = chain[i]
-    const b = chain[i + 1]
-    try {
-      const resp = await queryPath({
-        fromLng: a.lng,
-        fromLat: a.lat,
-        toLng: b.lng,
-        toLat: b.lat,
-        mode: mode.value,
+  calculating.value = true
+
+  try {
+    for (let i = 0; i < chain.length - 1; i++) {
+      const a = chain[i] as RoutePoint
+      const b = chain[i + 1] as RoutePoint
+
+      // 逐段提交给后端异步任务域；store 负责轮询与保活（页面卸载不中断）
+      const { slot } = await taskStore.submitAndWait({
+        route: ROUTE_PATH,
+        domain: 'route-path',
+        params: {
+          fromLng: a.lng,
+          fromLat: a.lat,
+          toLng: b.lng,
+          toLat: b.lat,
+          mode: mode.value,
+        },
       })
+
+      // 任务被取消 / 从 dock 移除：中止整链（不静默继续下一段）
+      if (!slot || slot.status === 'cancelled') return
+
+      // 🔴 组件已卸载：本链的后续副作用无意义（且会污染 App 级图层管理器）。
+      // 后端任务仍由 taskStore 保活，不受此处影响。
+      if (disposed) return
+
+      if (slot.status === 'failed') {
+        showError(slot.error?.message ?? '路径查询失败', { fallback: '路径查询失败，请稍后重试' })
+        break
+      }
+
+      const resp = slot.result as RoutePathResponse | undefined
+      if (!resp) {
+        showError(null, { fallback: '路径查询返回为空' })
+        break
+      }
+
       if (!resp.found) {
         const reasons: Record<string, string> = {
           origin_not_snapped: '未吸附到路网（离道路过远）',
@@ -345,14 +417,23 @@ async function handleQuery(): Promise<void> {
         )
         break
       }
-      segments.push(resp)
-    } catch (error) {
-      if (error instanceof RouteQueryCancelledError) return
-      const msg = error instanceof Error ? error.message : '路径查询失败'
-      showError(msg, { fallback: '路径查询失败，请稍后重试' })
-      break
+      segments.push(resp as RoutePathResult)
     }
+  } catch (err) {
+    // 🔴 2026-09-19 修复（P0）：此前是 `try/finally` 无 catch。
+    // 队列满（`TASK_QUEUE_LIMIT = 8`，洪涝文档自述"一次拖动就打满"）或后端不可达时
+    // `submitAndWait` 必 reject ⇒ 此前表现为 unhandledrejection（main.ts 只计数、不提示），
+    // 且链末整段不执行 ⇒ 用户看到"点了没反应"，已成功的段也不上图。
+    if (!disposed) {
+      showError(err, { fallback: '路径查询失败，请稍后重试' })
+    }
+  } finally {
+    calculating.value = false
   }
+
+  // 组件已卸载：不再写 App 级图层管理器、不再 emit
+  if (disposed) return
+
   // 已成功段也上图（多段中断时保留可达部分），槽点始终刷新
   updateRouteLayers(props.manager, segments, collectSlots())
   hasResult.value = segments.length > 0
@@ -387,10 +468,24 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  // 🔴 最先置位：让在飞的查询链在下一个 await 处早退
+  //（不写 App 级图层管理器、不 emit；后端任务照旧由 taskStore 保活）
+  disposed = true
   if (poiDebounceTimer) clearTimeout(poiDebounceTimer)
-  // 取消在途路径查询与搜索请求：迟到响应会把路线图层写回全局共享 BLM、
-  // 泄漏到其它页面（审查 M-5/M-6；cancel 由 useLatestRequest abort 在途信号）
-  cancel()
+
+  // ═══ v4-S3 逐条判定：什么该清、什么绝不能清 ═══
+  //
+  // ✅ **可清（UI 状态，属于本组件）**：
+  //   · poiAbort —— POI 搜索是面板内的轻量交互，面板没了就没有消费者
+  //   · document 监听 —— 必须摘，否则离页后在别的页面点鼠标仍触发本闭包
+  //   · clearRouteLayers —— 图层是"当前引擎上的画"，渲染器单例复用，
+  //     不清会泄漏到别的业务页（审查 M-5）
+  //
+  // 🔴 **不可清（任务状态，属于 taskStore）**：
+  //   · 后端任务 —— 严禁在此调 taskStore.cancel()！用户把面板拖进 dock
+  //     正是为了"页面不管了它还得跑"；这里取消等于把保活功能当场废掉。
+  //     任务的终止只由三件事触发：用户点取消 / 被同路由新任务取代 / 登出清空。
+  //   · 在途 HTTP 轮询 —— 轮询句柄住在 store（pollTimers），不随组件销毁。
   poiAbort?.abort()
   document.removeEventListener('mousedown', onDocumentMouseDown, true)
   clearRouteLayers(props.manager)
@@ -405,7 +500,20 @@ defineExpose({
 </script>
 
 <template>
-  <GCSPanel :w="4" :h="4" anchor="top-right" :offset-x="0" :offset-y="1.25">
+  <!--
+    v4：draggable 与 L1 位置尺寸恒定。
+    🔴 2026-09-19 语义修正：面板**永远渲染**，不再有"docked 换占位条"分支——
+    `docked` 表达的是"任务让位排队"，不是面板消失。
+  -->
+  <GCSPanel
+    :w="4"
+    :h="4"
+    anchor="top-right"
+    :offset-x="0"
+    :offset-y="1.25"
+    :draggable="draggable"
+    @drop="emit('dock')"
+  >
     <div ref="panelRoot" class="route-panel">
       <div class="route-grid">
         <!-- 顶行（3.8 通栏）：抓取态显示暂存点，否则显示搜索框 -->

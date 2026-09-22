@@ -1,17 +1,19 @@
-import { mount, flushPromises } from '@vue/test-utils'
-import { ref } from 'vue'
+import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { ref } from 'vue'
 
 // 依赖 mock 提升：组件在 import 期即读取 '@/shared' 等模块，工厂必须在常量初始化前可运行
 const mocks = vi.hoisted(() => ({
   showWarning: vi.fn(),
   showError: vi.fn(),
   searchPois: vi.fn(),
-  queryPath: vi.fn(),
   cancel: vi.fn(),
   updateRouteLayers: vi.fn(),
   clearRouteLayers: vi.fn(),
   isWithinThreeCities: vi.fn(),
+  /** v4-S3：面板改为经 taskStore 提交，测试替身返回可控的终态槽位 */
+  submitAndWait: vi.fn(),
+  setDocked: vi.fn(),
 }))
 
 vi.mock('@/shared', async (importOriginal) => {
@@ -29,24 +31,30 @@ vi.mock('@/shared', async (importOriginal) => {
   }
 })
 
-// GCSPanel 只是布局壳（定位/尺寸由真实实现负责），用插槽透传壳替身
+// GCSPanel 只是布局壳（定位/尺寸由真实实现负责），用插槽透传壳替身。
+// 🔴 2026-09-19：TaskPlaceholder 替身已移除 —— 占位条组件随语义修正删除
+//（面板不再因 docked 而隐藏，见 TaskPanelSlot / RouteControlPanel 注释）。
 vi.mock('@/core', () => ({
   GCSPanel: { name: 'GCSPanel', template: '<div class="gcs-panel"><slot /></div>' },
 }))
 
 vi.mock('@/stores', () => ({
   useMapStore: () => ({ currentRenderer: null }),
+  // v4-S3：面板的请求归属统一走 taskStore（按 route 分槽 + 后台保活）
+  useTaskStore: () => ({
+    submitAndWait: mocks.submitAndWait,
+    setDocked: mocks.setDocked,
+    getSlot: () => null,
+  }),
 }))
 
 vi.mock('../../composables/useRouteApi', () => ({
   useRouteApi: () => ({
-    queryPath: mocks.queryPath,
+    // v4：queryPath 已不由面板调用（请求经 taskStore）；仅 searchPois 仍在使用
     searchPois: mocks.searchPois,
-    calculating: ref(false),
     calcError: ref(''),
     cancel: mocks.cancel,
   }),
-  RouteQueryCancelledError: class RouteQueryCancelledError extends Error {},
 }))
 
 vi.mock('../../composables/useRouteLayer', () => ({
@@ -196,18 +204,25 @@ describe('RouteControlPanel — 抓取/注入交互（2026-09-12 线上反馈回
     expect(wrapper.find('.poi-drop').exists()).toBe(false)
   })
 
-  it('起终点齐备前「开始查询」禁用；齐备后点击走 queryPath 并回传摘要', async () => {
-    mocks.queryPath.mockResolvedValue({
-      found: true,
-      mode: 'distance',
-      distanceM: 3100,
-      durationMin: 5.1,
-      snapDistanceM: { from: 3, to: 20 },
-      edgeCount: 4,
-      coordinates: [
-        [109.1, 21.5],
-        [109.12, 21.52],
-      ],
+  it('起终点齐备前「开始查询」禁用；齐备后点击经 taskStore.submitAndWait 提交并回传摘要', async () => {
+    // v4-S3：面板不再直接调 queryPath —— 请求交给后端异步任务域，返回终态槽位
+    mocks.submitAndWait.mockResolvedValue({
+      taskId: 't-1',
+      slot: {
+        status: 'done',
+        result: {
+          found: true,
+          mode: 'distance',
+          distanceM: 3100,
+          durationMin: 5.1,
+          snapDistanceM: { from: 3, to: 20 },
+          edgeCount: 4,
+          coordinates: [
+            [109.1, 21.5],
+            [109.12, 21.52],
+          ],
+        },
+      },
     })
     const wrapper = mountPanel()
     await flushPromises()
@@ -232,23 +247,34 @@ describe('RouteControlPanel — 抓取/注入交互（2026-09-12 线上反馈回
     await wrapper.find('.route-btn.primary').trigger('click')
     await flushPromises()
 
-    expect(mocks.queryPath).toHaveBeenCalledTimes(1)
+    expect(mocks.submitAndWait).toHaveBeenCalledTimes(1)
+    // 提交契约：域必须为 route-path，且带上该段起终点
+    expect(mocks.submitAndWait.mock.calls[0]?.[0]).toMatchObject({
+      domain: 'route-path',
+      route: '/route-analysis',
+    })
     expect(mocks.updateRouteLayers).toHaveBeenCalledTimes(1)
     expect(wrapper.emitted('query-result')?.[0]?.[0]).toMatchObject({ pointCount: 2 })
   })
 
   it('口径切换：默认最短；点「最快」后以 mode=time 立即重跑（v2 补的前端口径开关）', async () => {
-    mocks.queryPath.mockResolvedValue({
-      found: true,
-      mode: 'distance',
-      distanceM: 3100,
-      durationMin: 5.1,
-      snapDistanceM: { from: 3, to: 20 },
-      edgeCount: 4,
-      coordinates: [
-        [109.1, 21.5],
-        [109.12, 21.52],
-      ],
+    mocks.submitAndWait.mockResolvedValue({
+      taskId: 't-1',
+      slot: {
+        status: 'done',
+        result: {
+          found: true,
+          mode: 'distance',
+          distanceM: 3100,
+          durationMin: 5.1,
+          snapDistanceM: { from: 3, to: 20 },
+          edgeCount: 4,
+          coordinates: [
+            [109.1, 21.5],
+            [109.12, 21.52],
+          ],
+        },
+      },
     })
     const wrapper = mountPanel()
     await flushPromises()
@@ -263,14 +289,60 @@ describe('RouteControlPanel — 抓取/注入交互（2026-09-12 线上反馈回
 
     await wrapper.find('.route-btn.primary').trigger('click')
     await flushPromises()
-    expect(mocks.queryPath).toHaveBeenCalledTimes(1)
-    expect((mocks.queryPath.mock.calls[0]?.[0] as { mode?: string })?.mode).toBe('distance')
+    expect(mocks.submitAndWait).toHaveBeenCalledTimes(1)
+    expect(
+      (mocks.submitAndWait.mock.calls[0]?.[0] as { params: { mode?: string } })?.params.mode
+    ).toBe('distance')
 
     // 切「最快」→ 已有结果，必须立即重跑（否则用户以为开关是摆设）
     await wrapper.findAll('.mode-btn')[1].trigger('click')
     await flushPromises()
-    expect(mocks.queryPath).toHaveBeenCalledTimes(2)
-    expect((mocks.queryPath.mock.calls[1]?.[0] as { mode?: string })?.mode).toBe('time')
+    expect(mocks.submitAndWait).toHaveBeenCalledTimes(2)
+    expect(
+      (mocks.submitAndWait.mock.calls[1]?.[0] as { params: { mode?: string } })?.params.mode
+    ).toBe('time')
     expect(wrapper.find('.mode-btn.on').text()).toBe('最快')
+  })
+
+  it('🔴 v4：任务失败（slot.status=failed）⇒ 走 showError 且不上图', async () => {
+    mocks.submitAndWait.mockResolvedValue({
+      taskId: 't-1',
+      slot: { status: 'failed', error: { message: '路径查询超时' } },
+    })
+    const wrapper = mountPanel()
+    await flushPromises()
+
+    await mapPick(wrapper, 109.1, 21.5)
+    await wrapper.findAll('.slot-btn')[0].trigger('click')
+    await flushPromises()
+    await mapPick(wrapper, 109.2, 21.6)
+    await wrapper.findAll('.slot-btn')[3].trigger('click')
+    await flushPromises()
+
+    await wrapper.find('.route-btn.primary').trigger('click')
+    await flushPromises()
+
+    expect(mocks.showError).toHaveBeenCalled()
+    expect(mocks.updateRouteLayers).toHaveBeenCalledTimes(1) // 空段也刷新槽点
+    expect(wrapper.emitted('query-result')).toBeUndefined()
+  })
+
+  it('🔴 v4：任务被取消（slot.status=cancelled）⇒ 整链中止，不继续下一段', async () => {
+    mocks.submitAndWait.mockResolvedValue({ taskId: 't-1', slot: { status: 'cancelled' } })
+    const wrapper = mountPanel()
+    await flushPromises()
+
+    await mapPick(wrapper, 109.1, 21.5)
+    await wrapper.findAll('.slot-btn')[0].trigger('click')
+    await flushPromises()
+    await mapPick(wrapper, 109.2, 21.6)
+    await wrapper.findAll('.slot-btn')[3].trigger('click')
+    await flushPromises()
+
+    await wrapper.find('.route-btn.primary').trigger('click')
+    await flushPromises()
+
+    expect(mocks.submitAndWait).toHaveBeenCalledTimes(1)
+    expect(wrapper.emitted('query-result')).toBeUndefined()
   })
 })

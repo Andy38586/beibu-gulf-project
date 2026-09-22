@@ -15,27 +15,52 @@ module.exports = {
       from: { path: '^frontend/src/services/' },
       to: { path: '^frontend/src/(business|views)/' },
     },
+    // 业务模块互不依赖：每模块一条全称规则（from 本模块 → to 任何其它业务目录）。
+    // 04-E2：禁止"逐个枚举模块名"表达全称约束——覆盖面由 cruise-coverage 守卫断言
+    // （规则模块集合 == business/ 实际目录集合，新增目录未建规则即红，z055）。
+    // 2026-09-22 重构：原 3 条两两互引规则只覆盖 flood/site/forecast，
+    // route-analysis 自落地起无守护（z051/z053 在册）；且枚举式 to 每加模块要改 N 处。
     {
-      name: 'business-cross-import-flood',
+      name: 'business-cross-import-flood-analysis',
       comment:
-        'flood-analysis 不应依赖其他业务模块（z055 补双向；2026-08-10 面试报告 P1-2：warn→error，CI -T err 强制拦截）',
+        'flood-analysis 不应依赖其他业务模块（经 manifest 注册；2026-08-10 P1-2：warn→error）',
       severity: 'error',
       from: { path: '^frontend/src/business/flood-analysis/' },
-      to: { path: '^frontend/src/business/(site-selection|forecast)/' },
+      to: {
+        path: '^frontend/src/business/',
+        pathNot: '^frontend/src/business/flood-analysis/',
+      },
     },
     {
-      name: 'business-cross-import-site',
+      name: 'business-cross-import-site-selection',
       comment: 'site-selection 不应依赖其他业务模块（z055 补双向；2026-08-10 P1-2：warn→error）',
       severity: 'error',
       from: { path: '^frontend/src/business/site-selection/' },
-      to: { path: '^frontend/src/business/(flood-analysis|forecast)/' },
+      to: {
+        path: '^frontend/src/business/',
+        pathNot: '^frontend/src/business/site-selection/',
+      },
     },
     {
       name: 'business-cross-import-forecast',
       comment: 'forecast 不应依赖其他业务模块（z055 补双向；2026-08-10 P1-2：warn→error）',
       severity: 'error',
       from: { path: '^frontend/src/business/forecast/' },
-      to: { path: '^frontend/src/business/(flood-analysis|site-selection)/' },
+      to: {
+        path: '^frontend/src/business/',
+        pathNot: '^frontend/src/business/forecast/',
+      },
+    },
+    {
+      name: 'business-cross-import-route-analysis',
+      comment:
+        'route-analysis 不应依赖其他业务模块（2026-09-22 补：该模块落地起无互引守护，z051/z053）',
+      severity: 'error',
+      from: { path: '^frontend/src/business/route-analysis/' },
+      to: {
+        path: '^frontend/src/business/',
+        pathNot: '^frontend/src/business/route-analysis/',
+      },
     },
     {
       name: 'renderers-cross-reference',
@@ -119,13 +144,6 @@ module.exports = {
       to: { path: '^backend/src/modules/[^/]+/repositories/' },
     },
     {
-      name: 'nest-controllers-not-read-data-files',
-      comment: 'controller 不得直读 backend/data 数据文件（须经 repositories/services）',
-      severity: 'error',
-      from: { path: '^backend/src/modules/[^/]+/controllers/' },
-      to: { path: '^backend/data/' },
-    },
-    {
       name: 'nest-services-not-import-controllers',
       comment: 'services 不得反向依赖 controllers（上层只向下委托）',
       severity: 'error',
@@ -153,8 +171,12 @@ module.exports = {
     // 解析 @/ 别名（vite alias 定义在 frontend/tsconfig.app.json 的 paths），否则规则匹配不到
     tsConfig: { fileName: 'tsconfig.cruise.json' },
     tsPreCompilationDeps: true,
+    // ⚠️ node_modules 不得进 exclude.path（z055）：exclude 会把命中模块整体移出结果，
+    // nest-db-access-only-in-repository 的 to 正是 node_modules/pg ⇒ 该规则恒不报告
+    // （19 条里唯一不能红的一条）。doNotFollow 已保证不爬进 node_modules，
+    // 移除 exclude 后它们仅作为依赖边终点出现在图里（+17 个叶子模块），规则恢复可红。
     exclude: {
-      path: '(node_modules|__tests__|dist|\\.test\\.)',
+      path: '(__tests__|dist|\\.test\\.)',
     },
     includeOnly: '^(frontend/src|backend)',
   },

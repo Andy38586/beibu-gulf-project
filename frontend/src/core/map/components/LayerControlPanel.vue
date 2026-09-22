@@ -12,6 +12,7 @@ import { useGCS } from '@/shared'
 import { useMapStore } from '@/stores'
 import type { LayerEntry } from '@/types'
 import { DEFAULT_ENGINES, ENGINE_LABELS } from '@/types'
+import type { LayerType } from '@/types/core/layerManager'
 
 interface Props {
   /** 图层显示顺序（由业务页注入，core 不硬编码业务 key） */
@@ -79,14 +80,15 @@ const layerButtons = computed(() => {
  * 图层图标映射（core 层不再"必须"理解业务 label 语义）。
  * 优先按 layerType 数据驱动——新图层注册时给对 layerType 即自动有图标；
  * label 业务关键词仅作历史兜底（存量图层），新增业务勿扩展此链。
+ * 形参收窄为 LayerType（曾放宽成 string）：LayerType 没有 boundary 成员，
+ * 放宽后拼错的 layerType 编译通过、运行时静默无图标——收窄后 TS 对拼错即报错。
  */
-function getLayerIcon(label: string, layerType?: string): string {
+function getLayerIcon(label: string, layerType?: LayerType): string {
   if (layerType === 'waterSurface') return ''
   if (layerType === 'geotiff') return '⛰'
   if (layerType === 'heatmap') return '📈'
   if (layerType === '3dtiles') return '🏗'
   if (layerType === 'imageOverlay') return '🛰'
-  if (layerType === 'boundary') return ''
   // 历史兜底：按 label 业务关键词（存量图层的业务语义在此收口，不扩散）
   if (label.includes('底图') || label.includes('影像') || label.includes('矢量')) return '🗺'
   if (label.includes('港口')) return ''

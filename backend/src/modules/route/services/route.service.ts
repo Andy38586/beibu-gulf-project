@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common'
 
 import { BusinessError, ErrorCode } from '../../../common/errors/business-error'
 import {
+  isRouteMode,
   PID_FROM,
   PID_TO,
   RouteMode,
@@ -133,6 +134,9 @@ export class RouteService {
   /**
    * GET /route/path?fromLng=&fromLat=&toLng=&toLat=&mode=
    * mode：distance（默认）/ time。校验对齐 FastAPI 的参数语义（经纬度范围 + mode 白名单）。
+   * mode 白名单走 isRouteMode（从 MODE_WEIGHT 键派生）——曾手抄第二份
+   * `mode !== 'distance' && mode !== 'time'`，与派生源派生关系相反：新增口径时
+   * isRouteMode 放行而 service 静默 400，且测试全绿的恰是不被生产走的那条。
    */
   async findPath(params: {
     fromLng: number
@@ -145,7 +149,7 @@ export class RouteService {
     const mode: RouteMode =
       params.mode === undefined || params.mode === '' ? 'distance' : (params.mode as RouteMode)
 
-    if (mode !== 'distance' && mode !== 'time') {
+    if (!isRouteMode(mode)) {
       throw new BusinessError(
         ErrorCode.INVALID_PARAMS,
         `mode 必须为 distance / time，收到：${params.mode}`

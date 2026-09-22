@@ -96,8 +96,10 @@ export class BusinessLayerManager {
   }
 
   /** create 失败统一处理：回滚 registry/图层目录可见性、清待定显隐意图并上报错误回调。
-   * 不自动重试——visible 是唯一状态，失败回滚后按钮灰即真实未显示。 */
-  private _handleCreateFailure(key: string, label: string): void {
+   * 不自动重试——visible 是唯一状态，失败回滚后按钮灰即真实未显示。
+   * err 为底层失败原因（形状守卫 message / Cesium 加载失败），落 warn 留痕——
+   * 生产侧不能只有文案没有原因（04-D1/D2）。 */
+  private _handleCreateFailure(key: string, label: string, err?: unknown): void {
     const meta = this._registry.get(key)
     if (meta) {
       meta.visible = false
@@ -108,7 +110,49 @@ export class BusinessLayerManager {
       | (MapRenderer & { clearPendingVisibility?: (id: string) => void })
       | null
     renderer?.clearPendingVisibility?.(key)
+    if (err !== undefined) {
+      logger.warn(`[BusinessLayerManager] 图层 ${key}（${label}）创建失败:`, err)
+    }
     this._errorHandler?.({ key, label })
+  }
+
+  /**
+   * create 统一包装：同步抛错（layerAdapters 数据形状守卫）也必须走
+   * _handleCreateFailure 回滚+上报——旧实现 create 在 try 外，抛错后
+   * registry/catalog 停在 visible=true ⇒ 面板亮、屏幕上无、零提示，
+   * 且每次引擎切换 reapplyAll 重复抛一次（缺陷自我固化）。
+   * rethrow=false 用于 reapplyAll：单层失败不拖垮整批（引擎切换时其它图层仍应上屏）。
+   * 默认回滚后继续上抛，保留既有「形状错误抛给调用方」的契约。
+   */
+  private _runCreate(
+    renderer: MapRenderer,
+    key: string,
+    label: string,
+    layerType: LayerType,
+    data: unknown,
+    options: LayerOptions,
+    rethrow = true
+  ): void {
+    const adapter = this._getAdapter(layerType)
+    if (!adapter) return
+    const createOptions = {
+      ...options,
+      // 契约 onError?: (err: unknown) => void——实参必须透传，
+      // 旧实现 `onError: () =>` 零参丢弃 ⇒ 生产失败只有文案无原因
+      onError: (err: unknown) => this._handleCreateFailure(key, label, err),
+    }
+    let result: unknown
+    try {
+      result = perfTimeFn(`layer:create:${layerType}`, () =>
+        adapter.create(renderer, key, data, createOptions)
+      )
+    } catch (e) {
+      this._handleCreateFailure(key, label, e)
+      if (rethrow) throw e
+      return
+    }
+    // async create（Cesium geojson）rejection 兜底：同步 try/catch 抓不到
+    Promise.resolve(result).catch((e) => this._handleCreateFailure(key, label, e))
   }
 
   /** 获取 layerType 对应的 adapter */
@@ -157,15 +201,9 @@ export class BusinessLayerManager {
       )
       if (renderer) {
         // 数据形状守卫同步抛错（测试依赖）；Cesium geojson 的 create 为异步且失败不抛
-        // rejection，必须注入 onError 感知失败 → 回滚状态 + toast
-        const createOptions = {
-          ...options,
-          onError: () => this._handleCreateFailure(key, label),
-        }
-        const result = perfTimeFn(`layer:create:${layerType}`, () =>
-          adapter.create(renderer, key, data, createOptions)
-        )
-        Promise.resolve(result).catch(() => this._handleCreateFailure(key, label))
+        // rejection，必须注入 onError 感知失败 → 回滚状态 + toast。
+        // _runCreate 统一处理同步抛错与异步 rejection 两条失败通道
+        this._runCreate(renderer, key, label, layerType, data, options)
       }
     } else {
       logger.debug(
@@ -212,23 +250,20 @@ export class BusinessLayerManager {
       // 图层实例缺失时补建（注册时 data 为 null 跳过 create、数据后到的场景），
       // 否则 adapter.update 因无 entry 失败、图层永不上屏
       if (meta.data != null && !renderer.hasLayer(key)) {
-        const createOptions = {
-          ...meta.options,
-          // 失败 → 回滚状态 + toast（用户再按一次重试）
-          onError: () => this._handleCreateFailure(key, meta.label),
-        }
-        const r = perfTimeFn(`layer:create:${meta.layerType}`, () =>
-          adapter.create(renderer, key, meta.data, createOptions)
-        )
-        // async create（Cesium geojson）rejection 兜底，防 unhandled rejection 吞错
-        Promise.resolve(r).catch(() => this._handleCreateFailure(key, meta.label))
+        // _runCreate 统一同步抛错 + 异步 rejection 两条失败通道
+        this._runCreate(renderer, key, meta.label, meta.layerType, meta.data, meta.options)
       } else {
-        const r = perfTimeFn(`layer:update:${meta.layerType}`, () =>
-          adapter.update(renderer, key, meta.data, meta.options)
-        )
-        Promise.resolve(r).catch((e) => {
-          logger.warn(`[BusinessLayerManager] updateData update ${key} 失败（异步）:`, e)
-        })
+        // update 同步抛错同样回滚+上报后继续上抛（旧实现该调用不在 try 内）
+        let r: unknown
+        try {
+          r = perfTimeFn(`layer:update:${meta.layerType}`, () =>
+            adapter.update(renderer, key, meta.data, meta.options)
+          )
+        } catch (e) {
+          this._handleCreateFailure(key, meta.label, e)
+          throw e
+        }
+        Promise.resolve(r).catch((e) => this._handleCreateFailure(key, meta.label, e))
       }
     }
   }
@@ -305,19 +340,9 @@ export class BusinessLayerManager {
       logger.debug(
         `[BusinessLayerManager] reapplyAll ${key} → create（layerType=${meta.layerType}）`
       )
-      try {
-        const createOptions = {
-          ...meta.options,
-          // 失败 → 回滚状态 + toast（用户再按一次重试，不做自动重试）
-          onError: () => this._handleCreateFailure(key, meta.label),
-        }
-        const result = adapter.create(renderer, key, meta.data, createOptions)
-        // async create（Cesium geojson）rejection 兜底：同步 try/catch 抓不到
-        Promise.resolve(result).catch(() => this._handleCreateFailure(key, meta.label))
-      } catch (e) {
-        // 单层失败不拖垮整批（引擎切换时其它图层仍应上屏）
-        logger.warn(`[BusinessLayerManager] reapplyAll 重绘图层 ${key} 失败（已跳过该层）:`, e)
-      }
+      // rethrow=false：单层失败只回滚该层并继续批处理（引擎切换时其它图层仍应上屏）。
+      // 旧实现 catch 只 warn 不回滚 ⇒ 该层 registry/catalog 停在已开、屏幕永无
+      this._runCreate(renderer, key, meta.label, meta.layerType, meta.data, meta.options, false)
     }
   }
 
@@ -349,14 +374,8 @@ export class BusinessLayerManager {
     // 打开未创建的图层需先补建：register(visible:false) 时不渲染，若直接 setVisibility
     // 会落入待定显隐队列永不生效（无后续 create 触发应用），面板开关变"死按钮"
     if (visible && meta.data != null && !renderer.hasLayer(key)) {
-      const createOptions = {
-        ...meta.options,
-        // 失败 → 回滚状态 + toast（用户再按一次重试）
-        onError: () => this._handleCreateFailure(key, meta.label),
-      }
-      const result = adapter.create(renderer, key, meta.data, createOptions)
-      // async create（Cesium geojson）rejection 兜底
-      Promise.resolve(result).catch(() => this._handleCreateFailure(key, meta.label))
+      // _runCreate 统一同步抛错 + 异步 rejection 两条失败通道
+      this._runCreate(renderer, key, meta.label, meta.layerType, meta.data, meta.options)
     }
 
     // 特殊图层（waterSurface 不存于普通图层表）经 adapter 分派显隐；

@@ -406,9 +406,14 @@ describe('BusinessLayerManager', () => {
   })
 
   describe('adapter 数据形状守卫 (TS-2)', () => {
-    it('points 收到 FeatureCollection 对象应抛"必须是 PointFeature[]"', () => {
+    it('points 收到 FeatureCollection 对象应抛"必须是 PointFeature[]"，且回滚不留脏', () => {
+      // 同步抛错也必须走 _handleCreateFailure——断言「抛错后 registry/catalog
+      // 均为 false」，而不是只断言 toThrow（旧用例把"留脏"当通过：
+      // registry/catalog 停在 visible=true ⇒ 面板亮、屏幕上无、零提示）
       const renderer = { addPointLayer: vi.fn() }
       mapStore.currentRenderer = renderer as unknown as MapRenderer
+      const onError = vi.fn()
+      manager.setErrorHandler(onError)
       expect(() =>
         manager.register('bad-points', {
           label: '错误形状',
@@ -417,6 +422,10 @@ describe('BusinessLayerManager', () => {
           visible: true,
         })
       ).toThrow(/必须是 PointFeature\[\]/)
+      expect(manager.has('bad-points')).toBe(true) // registry 条目仍在（可重试）
+      expect(manager.getMeta('bad-points')?.visible).toBe(false) // 但可见性已回滚
+      expect(mapStore.layerCatalog.find((e) => e.key === 'bad-points')?.visible).toBe(false)
+      expect(onError).toHaveBeenCalledTimes(1) // 上报链路真的触发
     })
 
     it('points 收到 PointFeature[] 应正常注册且不抛错', () => {

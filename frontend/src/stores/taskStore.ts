@@ -431,8 +431,10 @@ export const useTaskStore = defineStore('task', () => {
   }
 
   /**
-   * 全清（登出链调用）。
-   * 🔴 由 `manifest.ts` 的 reset 声明驱动，与其它 store 一致。
+   * 全清（登出 / 多标签页登出链调用）。
+   * taskStore 属常驻层、不在 `manifest.ts` 的业务模块清单里，所以由
+   * `App.vue` 的 `resetStores()` 显式点名（与 `useMapStore().resetMapState()` 同列）
+   * —— 04-C2：登出清单必须枚举**全部**持久化状态，漏一项就是跨账号串数据。
    */
   function clearAll(): void {
     for (const route of Object.keys(slots.value)) {

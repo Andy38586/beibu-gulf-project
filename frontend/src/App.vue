@@ -66,6 +66,11 @@ function resetStores(): void {
     // 常驻层（App 级，不属于任何业务模块）：重置地图业务交互状态
     //（z151：lastAnalysisResult 死状态已删，勿再引用会话持久化口径）
     useMapStore().resetMapState()
+    // 🔴 taskStore 同为常驻层，必须在清单里：04-C2 的依据原文已点名过它一次
+    //（漏清 = 切账号后上一账号的任务槽与结果仍在前端）。
+    // clearAll 会停链式轮询定时器并释放 controller；在等的 waitForResult
+    // 因"槽位消失"自行 resolve(null)，不会留悬空 Promise。
+    taskStore.clearAll()
     // 常驻层目录对账：resetMapState 会连 boundary/ports 这两个 App 级常驻层的目录条目
     // 一起删掉，但 BLM registry 与渲染器实例都还在（图层照常显示）——不同步重建的话，
     // 图层控制面板按钮会缺失直到下次引擎切换/刷新（registry 为目录唯一权威源，显式对账）

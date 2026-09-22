@@ -23,4 +23,6 @@ globalThis.ResizeObserver = globalThis.ResizeObserver || MockResizeObserver
 // 此处 stub 生产同口径清单——生产镜像由 ci.yml build-args 注入同一串值（单一事实源），
 // setupFiles 先于测试模块加载执行，stub 对模块顶层求值的 Set 生效。
 // 回滚开关与 .env.local 同口径：清空字符串即恢复全回退 /api 语义。
-vi.stubEnv('VITE_USE_NEST_MODULES', 'auth,plans,favorites,forecast,flood,site-analysis,route')
+// ⚠️ 该清单共三副本（本文件 / vitest.config.js env / docker-compose.yml），
+// taskStore.test.ts:124 是「漏一即回落 /api」的探针——新增功能域必须三处同改。
+vi.stubEnv('VITE_USE_NEST_MODULES', 'auth,plans,favorites,forecast,flood,site-analysis,route,task')

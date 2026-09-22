@@ -14,7 +14,7 @@ export default defineConfig({
     // route 域解析回退 /api 致 useRouteApi 前缀断言红（2026-09-12 两轮 CI 实锤）。
     // 测试环境必须与部署默认对齐，禁止依赖本机未入库 env。
     env: {
-      VITE_USE_NEST_MODULES: 'auth,plans,favorites,forecast,flood,site-analysis,route',
+      VITE_USE_NEST_MODULES: 'auth,plans,favorites,forecast,flood,site-analysis,route,task',
       VITE_NEST_API_BASE: '/nest-api',
       VITE_API_BASE: '/api',
     },

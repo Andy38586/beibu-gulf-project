@@ -16,7 +16,6 @@ import type {
   MapRenderer,
   PointFeature,
   PolygonFeature,
-  TerrainToggleCapability,
   Tiles3DCapability,
   Tiles3DOptions,
   Water3DCapability,
@@ -87,13 +86,6 @@ export function isWater3DCapable(
 /** GeoTIFF 能力检查：Cesium 独占（3D hillshade 贴图回退；OL 2D COG 已按 Cesium 独占定义移除） */
 function isGeoTIFFCapable(renderer: MapRenderer): renderer is MapRenderer & GeoTIFFCapability {
   return typeof (renderer as Partial<GeoTIFFCapability>).addGeoTIFFLayer === 'function'
-}
-
-/** 真地形开关能力检查：仅 Cesium 实现（terrainProvider 在真地形/平坦椭球间切换） */
-function isTerrainToggleCapable(
-  renderer: MapRenderer
-): renderer is MapRenderer & TerrainToggleCapability {
-  return typeof (renderer as Partial<TerrainToggleCapability>).setTerrainEnabled === 'function'
 }
 
 /** 热力图能力检查：仅 OL 实现（2D Only） */
@@ -272,15 +264,18 @@ export const LAYER_ADAPTERS: Record<LayerType, LayerAdapter> = {
     remove: (renderer, key) => {
       renderer.removeLayer(key)
     },
-    // "真实地形"按钮在 3D 下有双重语义：①保留 hillshade 回退贴图的普通图层显隐委派；
-    // ②联动 terrainProvider 的真 z 起伏开关（2D 无此能力，能力守卫跳过）。
-    // ⚠️ DEM 图层与真地形**互不耦合**：真地形就绪**不会**隐藏/跳过 hillshade（曾有此设计，
-    // 现行为为「DEM 是用户可独立开关的影像图层」）。此处注释 09-11 与实现对齐。
+    /**
+     * geotiff 图层显隐委派（纯显隐，**不联动真地形**）。
+     *
+     * 修复（2026-09-21）：原实现额外调 `renderer.setTerrainEnabled(visible)`，使
+     * 「关掉山影贴图」连带把 z 起伏也关掉——与本文件上一版注释自述的「DEM 与真地形
+     * 互不耦合」直接矛盾（注释与实现打对台，属 AGENTS.md §四第 6 条要停下发问的情形）。
+     * 更根本的问题是：真地形 z 起伏是**随底图加载的基础能力**（CesiumRenderer 挂载时
+     * 自建，`_terrainEnabled` 默认 true），不应由某个业务图层的开关注释其生死。
+     * 现切断联动：地形由渲染器自行管理，业务图层只管自己的显隐。
+     */
     setVisibility: (renderer, key, visible) => {
       renderer.setVisibility(key, visible)
-      if (isTerrainToggleCapable(renderer)) {
-        renderer.setTerrainEnabled(visible)
-      }
     },
   },
 

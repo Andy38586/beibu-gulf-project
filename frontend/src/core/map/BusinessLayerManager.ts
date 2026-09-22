@@ -28,7 +28,9 @@ interface MapStoreLike {
     label: string,
     layerType: LayerType,
     visible: boolean,
-    engines?: EngineName[]
+    engines?: EngineName[],
+    listed?: boolean,
+    locked?: boolean
   ): void
   setLayerVisible(key: string, visible: boolean): void
   removeLayer(key: string): void
@@ -43,6 +45,10 @@ interface LayerDescriptor {
   visible?: boolean
   /** 适用引擎（缺省双引擎通用；不适用引擎在 reapplyAll 跳过创建） */
   engines?: EngineName[]
+  /** 是否在图层面板列出（缺省 true；false = 登记但不呈现，见 LayerEntry.listed） */
+  listed?: boolean
+  /** 可见性是否锁定（缺省 false；true = setVisible(false) 被拒，见 LayerEntry.locked） */
+  locked?: boolean
 }
 
 /** updateData 载荷 */
@@ -62,6 +68,10 @@ interface RegistryEntry {
   data: unknown
   /** 图层可见性（以本 registry 为唯一权威源——引擎切换时图层目录会被清空，故不依赖它） */
   visible: boolean
+  /** 是否在图层面板列出（缺省 true）——引擎切换后 reapplyAll 重建目录条目须原样带上 */
+  listed?: boolean
+  /** 可见性是否锁定（缺省 false）——引擎切换后重建同样须带上，否则锁在切换后失效 */
+  locked?: boolean
 }
 
 export class BusinessLayerManager {
@@ -121,6 +131,8 @@ export class BusinessLayerManager {
       options = {},
       visible = true,
       engines = LAYER_ADAPTERS[layerType]?.engines ?? [],
+      listed = true,
+      locked = false,
     }: LayerDescriptor
   ): void {
     if (this._registry.has(key)) {
@@ -132,10 +144,10 @@ export class BusinessLayerManager {
     if (!adapter) return
 
     // 保存元数据（可见性存 registry，不依赖 catalog —— 引擎切换时 catalog 会被清空）
-    this._registry.set(key, { label, layerType, options, data, visible, engines })
+    this._registry.set(key, { label, layerType, options, data, visible, engines, listed, locked })
 
     // 注册到 layerCatalog（只存元数据，不存 renderer 对象）
-    this._mapStore?.registerBusinessLayer(key, label, layerType, visible, engines)
+    this._mapStore?.registerBusinessLayer(key, label, layerType, visible, engines, listed, locked)
 
     // 如果可见且有数据，立即渲染
     if (visible && data != null) {
@@ -242,7 +254,15 @@ export class BusinessLayerManager {
       // 淹没范围）也必须保留面板开关；条目重建只依赖 registry 元数据
       const catalog = this._mapStore?.layerCatalog ?? []
       if (!catalog.some((e: LayerEntry) => e.key === key)) {
-        this._mapStore?.registerBusinessLayer(key, meta.label, meta.layerType, meta.visible)
+        this._mapStore?.registerBusinessLayer(
+          key,
+          meta.label,
+          meta.layerType,
+          meta.visible,
+          undefined,
+          meta.listed,
+          meta.locked
+        )
       }
       if (meta.data == null) {
         logger.debug(`[BusinessLayerManager] reapplyAll ${key} 跳过（data 未就绪）`)
@@ -306,6 +326,14 @@ export class BusinessLayerManager {
     const meta = this._registry.get(key)
     if (!meta) {
       logger.debug(`[BusinessLayerManager] 图层 ${key} 不在 registry 中`)
+      return
+    }
+
+    // 锁定层拒绝关闭：该层是底图固有部分（如地形山影），关掉只会让地图变半成品。
+    // 拒绝而非静默——调用方若因此走了"以为关掉了"的分支，这里留痕可查。
+    // ⚠ 只在「关」的方向拒绝：开是真值状态，允许（幂等，用于引擎切换后重新拉齐）。
+    if (meta.locked && !visible) {
+      logger.debug(`[BusinessLayerManager] 图层 ${key} 可见性已锁定，忽略关闭请求`)
       return
     }
 

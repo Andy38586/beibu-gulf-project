@@ -13,6 +13,8 @@ interface MockCatalogEntry {
   layerType: LayerType
   visible: boolean
   category: 'base' | 'business'
+  listed?: boolean
+  locked?: boolean
 }
 
 /** mock mapStore — 仅 BusinessLayerManager 使用的方法 */
@@ -22,8 +24,16 @@ function createMockMapStore() {
     layerCatalog: catalog,
     currentRenderer: null as MapRenderer | null,
     registerBusinessLayer: vi.fn(
-      (key: string, label: string, layerType: LayerType, visible: boolean) => {
-        catalog.push({ key, label, layerType, visible, category: 'business' })
+      (
+        key: string,
+        label: string,
+        layerType: LayerType,
+        visible: boolean,
+        _engines?: unknown,
+        listed?: boolean,
+        locked?: boolean
+      ) => {
+        catalog.push({ key, label, layerType, visible, category: 'business', listed, locked })
       }
     ),
     removeLayer: vi.fn((key: string) => {
@@ -65,7 +75,9 @@ describe('BusinessLayerManager', () => {
         '测试图层',
         'points',
         true,
-        ['openlayers', 'cesium']
+        ['openlayers', 'cesium'],
+        true,
+        false
       )
       expect(manager.has('test-layer')).toBe(true)
     })
@@ -227,7 +239,10 @@ describe('BusinessLayerManager', () => {
         'panel-layer',
         '真实地形',
         'geotiff',
-        true
+        true,
+        undefined,
+        true,
+        false
       )
       expect(mapStore.layerCatalog.some((e: MockCatalogEntry) => e.key === 'panel-layer')).toBe(
         true
@@ -267,13 +282,19 @@ describe('BusinessLayerManager', () => {
         'boundary',
         '行政区划',
         'geojson',
-        true
+        true,
+        undefined,
+        true,
+        false
       )
       expect(mapStore.registerBusinessLayer).toHaveBeenCalledWith(
         'ports',
         '港口位置',
         'points',
-        true
+        true,
+        undefined,
+        true,
+        false
       )
       expect(mapStore.layerCatalog.some((e: MockCatalogEntry) => e.key === 'boundary')).toBe(true)
       expect(mapStore.layerCatalog.some((e: MockCatalogEntry) => e.key === 'ports')).toBe(true)
@@ -333,7 +354,10 @@ describe('BusinessLayerManager', () => {
         'flood-area',
         '淹没范围',
         'geojson',
-        true
+        true,
+        undefined,
+        true,
+        false
       )
       expect(mapStore.layerCatalog.some((e: MockCatalogEntry) => e.key === 'flood-area')).toBe(true)
       // data==null → 不触发视觉创建
@@ -514,6 +538,116 @@ describe('BusinessLayerManager', () => {
       manager.setVisible('pts', false)
 
       expect(renderer.setVisibility).toHaveBeenCalledWith('pts', false)
+    })
+  })
+
+  // ── listed / locked 语义（04 清单 A4：图层状态只能有一个事实源） ──────────────
+  // 场景：地形山影按需求要「默认开、不进图层面板、关不掉」。若为此绕过 BLM 直接
+  // 挂渲染器，就出现了第二个事实源（BLM 不知道它存在），正是 A4 明令禁止的形态。
+  // 故改为「仍走 BLM 注册，但登记时声明 listed:false / locked:true」。
+  describe('listed / locked — 登记但不呈现、可见性锁定', () => {
+    it('listed:false 仍进 registry 与 catalog（事实源不变），只是标记了不列出', () => {
+      manager.register('dem', {
+        label: '地形山影',
+        layerType: 'geotiff',
+        data: '/static/dem/x.tif',
+        visible: true,
+        listed: false,
+        locked: true,
+      })
+
+      // 关键：仍在 BLM registry 里（has 为真）——若绕开 BLM 就没有这条
+      expect(manager.has('dem')).toBe(true)
+      const meta = manager.getMeta('dem')
+      expect(meta?.listed).toBe(false)
+      expect(meta?.locked).toBe(true)
+      // catalog 条目也带上了标记，供面板过滤
+      expect(mapStore.layerCatalog[0].listed).toBe(false)
+      expect(mapStore.layerCatalog[0].locked).toBe(true)
+    })
+
+    it('locked 层拒绝关闭：setVisible(false) 不生效，渲染器也不被调用', () => {
+      const renderer = { setVisibility: vi.fn(), addGeoTIFFLayer: vi.fn() }
+      mapStore.currentRenderer = renderer as unknown as MapRenderer
+      manager.register('dem', {
+        label: '地形山影',
+        layerType: 'geotiff',
+        data: '/static/dem/x.tif',
+        visible: true,
+        listed: false,
+        locked: true,
+      })
+
+      manager.setVisible('dem', false)
+
+      // registry 仍为可见
+      expect(manager.getMeta('dem')?.visible).toBe(true)
+      // 未下发任何显隐指令
+      expect(renderer.setVisibility).not.toHaveBeenCalled()
+      // 目录镜像也没被改
+      expect(mapStore.layerCatalog[0].visible).toBe(true)
+    })
+
+    it('locked 层允许「开」方向（幂等，用于引擎切换后重新拉齐）', () => {
+      const renderer = {
+        setVisibility: vi.fn(),
+        addGeoTIFFLayer: vi.fn(),
+        hasLayer: vi.fn(() => true),
+      }
+      mapStore.currentRenderer = renderer as unknown as MapRenderer
+      manager.register('dem', {
+        label: '地形山影',
+        layerType: 'geotiff',
+        data: '/static/dem/x.tif',
+        visible: true,
+        listed: false,
+        locked: true,
+      })
+
+      manager.setVisible('dem', true)
+
+      expect(manager.getMeta('dem')?.visible).toBe(true)
+      expect(renderer.setVisibility).toHaveBeenCalledWith('dem', true)
+    })
+
+    it('对照：未锁定的普通图层照常可关（证明锁是真的在起作用，不是全局禁关）', () => {
+      const renderer = { setVisibility: vi.fn(), addPointLayer: vi.fn() }
+      mapStore.currentRenderer = renderer as unknown as MapRenderer
+      manager.register('pts', {
+        label: '点',
+        layerType: 'points',
+        data: [{ lng: 108, lat: 21 }],
+        visible: true,
+      })
+
+      manager.setVisible('pts', false)
+
+      expect(manager.getMeta('pts')?.visible).toBe(false)
+      expect(renderer.setVisibility).toHaveBeenCalledWith('pts', false)
+    })
+
+    it('引擎切换后 reapplyAll 重建目录条目时 listed/locked 原样带上（否则锁会失效）', () => {
+      manager.register('dem', {
+        label: '地形山影',
+        layerType: 'geotiff',
+        data: '/static/dem/x.tif',
+        visible: true,
+        listed: false,
+        locked: true,
+      })
+      // 模拟引擎切换：目录被清空，registry 保留
+      mapStore.layerCatalog.length = 0
+
+      // 需要真实 renderer——reapplyAll(null) 直接 return，目录不会重建
+      const renderer = {
+        addGeoTIFFLayer: vi.fn(),
+        hasLayer: vi.fn(() => false),
+        getType: vi.fn(() => '3d'),
+      }
+      manager.reapplyAll(renderer as unknown as MapRenderer)
+
+      expect(mapStore.layerCatalog[0].listed).toBe(false)
+      expect(mapStore.layerCatalog[0].locked).toBe(true)
     })
   })
 })

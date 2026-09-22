@@ -69,13 +69,15 @@ export const useMapStore = defineStore('map', () => {
     label: string,
     layerType: LayerType,
     visible: boolean = true,
-    engines: EngineName[] = DEFAULT_ENGINES
+    engines: EngineName[] = DEFAULT_ENGINES,
+    listed: boolean = true,
+    locked: boolean = false
   ): void {
     const existing = layerCatalog.value.find((e: LayerEntry) => e.key === key)
     if (existing) {
       // 已存在则更新可见性与类型（不可变更新，配合 shallowRef 浅响应式）
       layerCatalog.value = layerCatalog.value.map((e: LayerEntry) =>
-        e.key === key ? { ...e, visible, layerType, engines } : e
+        e.key === key ? { ...e, visible, layerType, engines, listed, locked } : e
       )
       return
     }
@@ -86,6 +88,8 @@ export const useMapStore = defineStore('map', () => {
       visible,
       engines,
       category: 'business',
+      listed,
+      locked,
     }
     layerCatalog.value = [...layerCatalog.value, newEntry]
   }

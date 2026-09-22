@@ -48,11 +48,14 @@ const iconFontSizeCss = computed(() => `${cellPixel.value * 0.2}px`) // 16px
 const layerButtons = computed(() => {
   // 显示顺序由 props 注入
   const order = props.layerOrder
+  // listed=false 的条目（基础能力层，如地形山影）登记在目录里但不在面板呈现——
+  // 过滤放在排序之前，否则未列出的 key 会占掉 layerOrder 里的位置留下空洞
+  const presentable = layerCatalog.value.filter((l: LayerEntry) => l.listed !== false)
   const ordered = order
-    .map((key) => layerCatalog.value.find((l: LayerEntry) => l.key === key))
+    .map((key) => presentable.find((l: LayerEntry) => l.key === key))
     .filter((l): l is LayerEntry => l !== undefined)
   const orderedKeys = new Set(ordered.map((l: LayerEntry) => l.key))
-  const extra = layerCatalog.value.filter((l: LayerEntry) => !orderedKeys.has(l.key))
+  const extra = presentable.filter((l: LayerEntry) => !orderedKeys.has(l.key))
   return [...ordered, ...extra].map((layer) => ({
     key: layer.key,
     label: layer.label,
@@ -64,6 +67,11 @@ const layerButtons = computed(() => {
     active: layer.layerType
       ? (businessLayerManager.getMeta(layer.key)?.visible ?? layer.visible)
       : mapStore.baseLayerKey === layer.key,
+    // 锁定层不可关：按钮置灰禁用（当前恒为「开」态）。呈现层也判一次，
+    // 不依赖 BLM 的 setVisible 拒绝兜底——禁用态要提前告知用户，而非点了没反应
+    locked: layer.layerType
+      ? (businessLayerManager.getMeta(layer.key)?.locked ?? layer.locked)
+      : false,
   }))
 })
 
@@ -105,6 +113,8 @@ function handleToggle(key: string) {
   // 业务图层（有 layerType 字段）→ 走 Manager.setVisible
   const catalogEntry = layerCatalog.value.find((e: LayerEntry) => e.key === key)
   if (catalogEntry && catalogEntry.layerType) {
+    // 锁定层（基础能力，如地形山影）：按钮已禁用，此处再挡一道，防其它路径误调
+    if (businessLayerManager.getMeta(key)?.locked) return
     // 单变量原则：读 registry 状态再取反，一次生效（不读实例状态避免错位）
     const registryVisible = businessLayerManager.getMeta(key)?.visible
     const currentVisible = registryVisible ?? catalogEntry.visible
@@ -123,7 +133,9 @@ function handleToggle(key: string) {
         v-for="item in layerButtons"
         :key="item.key"
         class="layer-btn"
-        :class="{ active: item.active }"
+        :class="{ active: item.active, locked: item.locked }"
+        :disabled="item.locked"
+        :title="item.locked ? `${item.label}（随底图默认加载，不可关闭）` : undefined"
         @click="handleToggle(item.key)"
       >
         <span class="layer-icon">{{ getLayerIcon(item.label, item.layerType) }}</span>
@@ -206,6 +218,18 @@ function handleToggle(key: string) {
   background: var(--GCS-color-primary);
   color: var(--GCS-text-inverse);
   border-color: var(--GCS-color-primary);
+}
+
+/* 锁定层（随底图默认加载的基础能力）：保持 active 配色但不可交互，
+   用默认光标与降饱和告知"这不是可操作按钮"，避免用户反复点击 */
+.layer-btn.locked {
+  cursor: default;
+  opacity: 0.85;
+}
+
+.layer-btn.locked:hover {
+  border-color: var(--GCS-color-primary);
+  background: var(--GCS-color-primary);
 }
 
 .layer-icon {

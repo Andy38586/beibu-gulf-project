@@ -152,10 +152,11 @@ export interface HeatmapCapability {
   updateHeatmapLayer(id: string, features: PointFeature[], options?: LayerOptions): boolean
 }
 
-/** 真地形开关能力（3D Only——Cesium 在 CTB 真地形与平坦椭球面之间切换；OL 无地形概念） */
-export interface TerrainToggleCapability {
-  setTerrainEnabled(enabled: boolean): void
-}
+// 真地形不再作为「能力接口」对外暴露（2026-09-21 移除 TerrainToggleCapability）：
+// 地形 z 起伏已明确为**随底图默认加载的基础能力**——CesiumRenderer 挂载时自行建立
+// CesiumTerrainProvider（_setupTerrain），不可由业务图层开关控制。原先经 layerAdapters
+// 的 geotiff.setVisibility 联动开关，导致「关山影贴图」连带关掉起伏，已切断。
+// 渲染器仍保留内部方法 setTerrainEnabled 供根瓦片失败后的降级重试用（见 CesiumRenderer）。
 
 // ===== 状态持久化 =====
 

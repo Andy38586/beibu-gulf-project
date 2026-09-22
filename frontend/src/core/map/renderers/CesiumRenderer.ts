@@ -461,9 +461,16 @@ export class CesiumRenderer extends MapRenderer {
     this.baseLayers = { image: [], vector: [] }
     this._isReusing = false // 标记是否复用已有 Viewer
     this._cameraDebounceTimer = null // 相机变化防抖定时器
-    /** 真地形 provider 引用（setTerrainEnabled 切换用）；未就绪为 null —— 即「地形是否就绪」的唯一判据 */
+    /** 真地形 provider 引用（setTerrainEnabled 降级重试用）；未就绪为 null —— 即「地形是否就绪」的唯一判据 */
     this._terrainProvider = null
-    /** "真实地形"开关状态（3D 语义）：默认开，_setupTerrain 自动加载即显示 */
+    /**
+     * 真地形（z 起伏）期望状态。
+     *
+     * 恒为 true：地形是**随底图默认加载的基础能力**，没有用户可关的入口
+     * （2026-09-21 起不再由 layerAdapters 的 geotiff 图层联动，见 layerAdapters 注释）。
+     * 仅根瓦片连续失败时由 _engageTerrainFallback 走降级路径（切平坦椭球保底图可见），
+     * 与用户意图无关。保留该字段而非硬编码，是为降级后重试语义留下单一判据。
+     */
     this._terrainEnabled = true
     this._terrainSetupInFlight = null
     this._terrainDegraded = false
@@ -593,7 +600,7 @@ export class CesiumRenderer extends MapRenderer {
         }
       }
       provider.errorEvent.addEventListener(this._terrainErrorHandler)
-      // 用户若关过"真实地形"开关则保持椭球面，等 setTerrainEnabled(true) 再启用（状态延续）
+      // 降级态（根瓦片失败）下不覆盖椭球面，等重试成功再启用；正常态恒启用
       if (this._terrainEnabled !== false) {
         viewer.terrainProvider = provider
       }
@@ -608,7 +615,7 @@ export class CesiumRenderer extends MapRenderer {
 
   /**
    * 地形根瓦片不可用时的兜底：切回平坦椭球面，让天地图影像正常贴上，避免整屏纯黑。
-   * 保留 _terrainProvider 引用，用户经"真实地形"开关可重新尝试（setTerrainEnabled(true)）。
+   * 保留 _terrainProvider 引用，可经 setTerrainEnabled(true) 重新尝试。
    */
   _engageTerrainFallback(reason: string): void {
     const viewer = this.viewer
@@ -622,8 +629,11 @@ export class CesiumRenderer extends MapRenderer {
   }
 
   /**
-   * "真实地形"开关的 3D 语义：切换 terrainProvider（开=CTB 真地形 z 起伏，关=平坦椭球面）。
-   * 由 layerAdapters.geotiff.setVisibility 在 3D 下随"真实地形"按钮调用（hillshade 显隐之外联动地形）。
+   * 切换 terrainProvider（true = CTB 真地形 z 起伏，false = 平坦椭球面）。
+   *
+   * 调用面（2026-09-21 收敛）：**不再是用户开关**，只作降级后的重试入口——
+   * 地形已于挂载时自动加载（_setupTerrain），无面板开关；此前由
+   * layerAdapters 的 geotiff.setVisibility 联动调用，该联动已切断。
    * 降级后重新打开：重置失败计数再试一次；若根瓦片仍坏，errorEvent 守卫会再次自动降级。
    */
   setTerrainEnabled(enabled: boolean): void {

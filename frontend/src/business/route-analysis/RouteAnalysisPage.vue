@@ -61,14 +61,23 @@ function canOverlayImagery(): boolean {
  * 注册三个枢纽的离线影像块。索引拉取是异步的，且期间渲染器可能被切换，
  * 故注册前再验一次能力，避免把图层登记到已换成 2D 的渲染器上。
  */
+/**
+ * 🔴 页面是否已卸载。`BusinessLayerManager` 是 App 级 provider（见 `App.vue`），
+ * 业务页卸载不会连带清掉它登记的图层；而两处注册都是 `await fetch` 之后才
+ * `register`——若只靠 `onUnmounted` 里停 watch，卸载前已发出、卸载后才回来的
+ * 那一轮仍会把图层永久挂到别人页面上（3D→3D 互切不重建渲染器，watch 也不触发）。
+ */
+let disposed = false
+
 async function registerImageryLayers(): Promise<void> {
   if (imageryRegistered) return
+  if (disposed) return
   if (!canOverlayImagery()) return
   try {
     const res = await fetch(PINGLU_IMAGERY_INDEX_URL)
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
     const index = (await res.json()) as PingluImageryIndex
-    if (!canOverlayImagery()) return
+    if (disposed || !canOverlayImagery()) return
     for (const t of index.tiles) {
       const id = PINGLU_IMAGERY_LAYER_PREFIX + t.name
       businessLayerManager.register(id, {
@@ -196,6 +205,7 @@ const pingluLayerIds = ref<string[]>([])
 
 async function registerPingluGroups(): Promise<void> {
   if (pingluRegistered) return
+  if (disposed) return
   const renderer = mapStore.currentRenderer
   if (!renderer || !isTiles3DCapable(renderer)) return
   try {
@@ -204,8 +214,8 @@ async function registerPingluGroups(): Promise<void> {
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
     const template = (await res.json()) as TilesetJson
 
-    // 异步期间渲染器可能被切走（切 2D / 换实例）——注册前重验，避免登记到失效渲染器上
-    if (mapStore.currentRenderer !== renderer || !isTiles3DCapable(renderer)) return
+    // 异步期间渲染器可能被切走（切 2D / 换实例）或页面已卸载——注册前重验
+    if (disposed || mapStore.currentRenderer !== renderer || !isTiles3DCapable(renderer)) return
 
     const { counts, unassigned } = tallyGroups(template, PINGLU_GROUPS)
     if (unassigned.length) {
@@ -278,11 +288,24 @@ const stopImageryWatch = watch(
 )
 
 onUnmounted(() => {
-  // 先停 watch（否则后续 renderer 变化仍会重新挂上），再摘当前实例上的监听
+  // 先置标志：挡住"已发出、尚未 resolve"的那轮注册
+  disposed = true
+  // 停 watch（否则后续 renderer 变化仍会重新挂上），再摘当前实例上的监听
   stopRendererWatch()
   stopTilesLayerWatch()
   stopImageryWatch()
   mapStore.currentRenderer?.off?.('click', handleRendererClick)
+  // 🔴 停 watch 只挡"以后不再挂"，**已经挂上的仍留在 App 级 BLM 里**：
+  // 3D→3D 互切（航线→浸没）既不重建渲染器、也不触发 renderer watch，
+  // 于是这 5+3 个图层跨路由残留，并在每次引擎切换时被 reapplyAll 重建；
+  // 图层控制面板固定 2×4 格被 extra 追加到溢出，后面几个开关直接点不到。
+  // 同功能的 `RouteControlPanel` / `FloodAnalysisPage` 都写了这条清理，本页是漏的那个。
+  for (const id of pingluLayerIds.value) businessLayerManager.remove(id)
+  for (const id of imageryLayerIds.value) businessLayerManager.remove(id)
+  pingluLayerIds.value = []
+  imageryLayerIds.value = []
+  pingluRegistered = false
+  imageryRegistered = false
 })
 </script>
 

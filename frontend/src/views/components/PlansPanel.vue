@@ -61,6 +61,13 @@ const savingName = ref(false)
 /** 方案列表（含收藏内容） */
 const plansList = ref<Plan[]>([])
 
+/**
+ * 方案列表加载代次：迟到响应不得回填。
+ * 登出/切账号把代次作废并取消在途请求，旧账号的响应落地时判世代不符即丢弃——
+ * 否则 A 的方案清单会在 B 登录后、首个请求返回前渲染在 B 屏幕上（读侧串账号）。
+ */
+let plansLoadGeneration = 0
+
 /** 当前展开的方案ID */
 const expandedPlanId = ref<string | null>(null)
 
@@ -68,9 +75,13 @@ const expandedPlanId = ref<string | null>(null)
 async function loadPlans() {
   if (!user.value) return
 
+  const generation = ++plansLoadGeneration
   try {
-    plansList.value = await getPlans()
+    const data = await getPlans()
+    if (generation === plansLoadGeneration) plansList.value = data
   } catch (error) {
+    // 已被更新请求取代或登出作废：静默丢弃（登出时误弹「加载失败」是噪声）
+    if (generation !== plansLoadGeneration) return
     // 错误反馈走全局 toast（成因区分在 showError/describeError），不在面板内联渲染
     showError(error, { fallback: '方案列表加载失败，请稍后重试' })
   }
@@ -242,6 +253,10 @@ watch(
     if (newUser) {
       void loadPlans()
     } else {
+      // 登出先作废在途代次并取消请求，再清空——
+      // 迟到的上一账号响应判世代不符即丢弃，不会回填进已登出的面板
+      plansLoadGeneration++
+      cancelPlansRequest()
       plansList.value = []
       expandedPlanId.value = null
     }

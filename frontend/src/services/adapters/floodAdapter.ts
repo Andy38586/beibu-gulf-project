@@ -90,6 +90,24 @@ export const floodAdapter = {
     }
   },
 
+  /**
+   * 单取淹没统计（v4-S3 新增）。
+   *
+   * 为什么需要单独暴露：`getFloodAnalysis` 内部已并行取统计，但走后端异步任务域时
+   * 只拿得到淹没范围（`flood-areas` 域不含统计），需单独补取。
+   * v3 时它只是 `getFloodAnalysis` 的一个内部 Promise 分支，没有独立入口。
+   */
+  async getFloodStatistics(
+    waterLevel: number,
+    { signal }: RequestOptions = {}
+  ): Promise<FloodStatisticsResponseParsed> {
+    return apiRequest<FloodStatisticsResponseParsed>(ENDPOINTS.flood.statistics, {
+      params: { waterLevel },
+      signal,
+      schema: floodStatisticsResponseSchema,
+    })
+  },
+
   async getImpactAssessment(
     waterLevel: number,
     { signal }: RequestOptions = {}

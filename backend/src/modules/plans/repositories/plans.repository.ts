@@ -7,7 +7,8 @@ import { DbService } from '../../../infra/db/db.service'
 
 // plans 表数据访问（cruise 豁免层）。语义对齐老 Express plansRepository.js：
 // name 为列、其余业务字段整体存 payload JSONB（整体存取语义不变）；
-// 视图合并顺序 {id, userId, name, ...payload, createdAt, updatedAt} 对齐 Express 平面对象
+// 视图合并顺序 {…payload, id, userId, name, createdAt, updatedAt}——权威列必须后置胜出，
+// 否则导入行 payload 内的旧快照会覆盖列值（重命名后刷新即回滚旧名，d063）
 export interface PlanRow {
   id: string
   user_id: string
@@ -41,10 +42,10 @@ export class PlansRepository {
 
   private toView(row: PlanRow): Record<string, unknown> {
     return {
+      ...(row.payload ?? {}),
       id: row.id,
       userId: row.user_id,
       name: row.name ?? '',
-      ...(row.payload ?? {}),
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     }

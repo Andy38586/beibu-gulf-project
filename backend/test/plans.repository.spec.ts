@@ -7,6 +7,39 @@ import { PlansRepository } from '../src/modules/plans/repositories/plans.reposit
 // 避免 ECONNREFUSED 噪音；联调时 export V3_INTEGRATION_DB=1 恢复全量
 const withDb = process.env.V3_INTEGRATION_DB !== undefined
 
+// toView 键序单测（无需真库）：payload 不得覆盖权威列。
+// 导入行 payload 里带整条旧记录快照（db-import.mjs:115），列值必须后置胜出，
+// 否则用户重命名后刷新即回滚到 payload 里的旧名。
+describe('plansRepository.toView 键序（无库）', () => {
+  const fakeRow = {
+    id: 'p1',
+    user_id: 'user-a',
+    name: '新名字',
+    payload: {
+      id: 'p1',
+      userId: 'user-a',
+      name: '导入时旧名',
+      selectedKeys: ['hospital'],
+    },
+    created_at: '2026-09-01T00:00:00.000Z',
+    updated_at: '2026-09-02T00:00:00.000Z',
+  }
+  const repo = new PlansRepository({
+    query: async () => ({ rows: [fakeRow] }),
+  } as unknown as DbService)
+
+  it('权威列（id/userId/name/时间戳）后置胜出，payload 只补扩展字段', async () => {
+    const view = (await repo.findById('p1')) as Record<string, unknown>
+    expect(view.name).toBe('新名字')
+    expect(view.id).toBe('p1')
+    expect(view.userId).toBe('user-a')
+    expect(view.createdAt).toBe(fakeRow.created_at)
+    expect(view.updatedAt).toBe(fakeRow.updated_at)
+    // payload 里的扩展字段仍然下发
+    expect(view.selectedKeys).toEqual(['hospital'])
+  })
+})
+
 // plansRepository 真库单测：payload JSONB 整体存取 + 白名单更新 + 小区保存/移除语义
 const UID = '__t3_plans_uid_0'
 const CREATE_DATA = {

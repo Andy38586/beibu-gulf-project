@@ -213,5 +213,7 @@ if (isMain) {
     for (const p of problems) console.log('  - ' + p)
     process.exit(1)
   }
-  console.log(`[tiles3d-check] OK：${checked.join('｜')}，必需内容 ${REQUIRED_CONTENT.length} 项齐全`)
+  console.log(
+    `[tiles3d-check] OK：${checked.join('｜')}，必需内容 ${REQUIRED_CONTENT.length} 项齐全`
+  )
 }

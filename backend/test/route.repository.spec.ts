@@ -226,9 +226,7 @@ describe('RouteRepository.sumSegmentCosts - 分段费用折算', () => {
     await new RouteRepository(db).sumSegmentCosts(segs, 'distance')
     // 方向必须随分段下发到 SQL（否则 reverse 列取不到）
     expect(calls[0].params[3]).toEqual([true])
-    expect(calls[0].sql).toContain(
-      'CASE WHEN t.reverse THEN r.reverse_cost_m ELSE r.cost_m END'
-    )
+    expect(calls[0].sql).toContain('CASE WHEN t.reverse THEN r.reverse_cost_m ELSE r.cost_m END')
   })
 
   it('time 口径：mode_metric 取物理 cost_min（选路用 route_cost_min，报告不放大）', async () => {

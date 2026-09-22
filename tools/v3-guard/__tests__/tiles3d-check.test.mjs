@@ -10,7 +10,11 @@ import {
 } from '../tiles3d-check.mjs'
 
 /** 构造一个合法 tileset（可选覆盖 root / asset 字段） */
-function makeTileset({ uris = REQUIRED_CONTENT, generator = `X + ${GENERATOR_MARKER} + Y`, root } = {}) {
+function makeTileset({
+  uris = REQUIRED_CONTENT,
+  generator = `X + ${GENERATOR_MARKER} + Y`,
+  root,
+} = {}) {
   return {
     asset: { version: '1.1', generator },
     root: root ?? {

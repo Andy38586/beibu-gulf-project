@@ -3,13 +3,14 @@ name: CI
 # 特性分支 push 即跑全部校验门禁（audit / static-checks / frontend-tests / backend-tests），
 # 让「能否合入 main」在分支阶段就可见，不再攒到合入主线才第一次跑 CI、连环报错。
 # deploy job 自带 if: github.ref == 'refs/heads/main'，非 main 分支只校验、绝不部署，安全。
-# 2026-09-12（CI 审查 C2）：移除 pull_request 触发 —— push 已覆盖全分支（branches: ['**']），
-# PR 事件会对同一 commit 以 refs/pull/N/merge 再跑一轮全量流水线，且两组 concurrency
-# group（refs/heads/x vs refs/pull/N/merge）互不取消 = 同提交双跑（省近一半 CI 时长）。
-# 副作用：fork 仓库的 PR 不再触发本流水线（单人项目、分支直推，可接受）。
+# 2026-09-22（z055）：恢复 pull_request 触发——C2 曾以"同提交双跑"为由移除，但实测后果是
+# 门禁只在 push 时执行、本地 pre-push 因从不推送而从未运行 ⇒ 合入决策点没有机器判据。
+# PR 是合入质量的可见面（外部 fork/协作者也更依赖它），双跑的时间成本让位于正确性；
+# concurrency 仍按 ref 分组，两组互不取消（接受同提交至多两轮，宁慢勿漏）。
 on:
   push:
     branches: ['**']
+  pull_request:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

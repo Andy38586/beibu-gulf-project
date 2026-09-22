@@ -34,3 +34,19 @@ fi
 # ===== 守卫结束 =====
 
 npx lint-staged
+
+# ===== 快集门禁（z055 挂载点）=====
+# 背景：全量 13+ 项门禁原只挂 pre-push，而本批 38 个提交一次都没 push 过 ⇒ 一次都没跑；
+# CI 又只在 push 时触发 ⇒ 合入质量失去机器判据。且"每修一项即提交"与"push 才跑重门禁"
+# 天然抵触——谁都不想 commit 被全量门禁卡住，于是一条都不跑。
+# 解法：快集（秒级、只读既有产物/静态检查）前移到 commit 时；全量套件仍留 pre-push。
+# 快集清单：guard:v3（13 项静态守卫，含 ledger-dedupe/cruise-coverage/nest-controllers-data）
+#          + cruise（架构契约）+ types:check（契约快照新鲜度 + schema 覆盖）。
+# 改动这三个文件同宗的判据时，本 hook 当场红；跑全量请 push（pre-push 13 项）。
+echo "[pre-commit] 快集门禁 1/3 guard:v3"
+npm run guard:v3 || exit 1
+echo "[pre-commit] 快集门禁 2/3 架构契约（cruise）"
+npm run cruise || exit 1
+echo "[pre-commit] 快集门禁 3/3 API 契约（types:check）"
+npm run types:check || exit 1
+echo "[pre-commit] 快集门禁全部通过"

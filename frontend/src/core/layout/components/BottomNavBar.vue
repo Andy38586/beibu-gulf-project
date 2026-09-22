@@ -72,6 +72,7 @@ function go(item: NavItem): void {
         :icon="item.icon"
         :disabled="item.disabled"
         :active="isActive(item.path)"
+        :task-route="item.path"
         @click="go(item)"
       />
       <!-- 菜单键（抽屉模式 <960px） -->

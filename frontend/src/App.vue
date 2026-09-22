@@ -6,6 +6,7 @@ import { businessModules, runBusinessLogoutReset } from '@/business'
 import { BusinessLayerManager } from '@/core'
 import { BUSINESS_LAYER_MANAGER_KEY } from '@/core'
 import { registerNavItems } from '@/core'
+import { notifyTaskIndicator, registerTaskIndicator, TaskDropZone } from '@/core'
 import { useMapControls } from '@/core'
 import {
   EDITING_PLAN_KEY,
@@ -22,10 +23,11 @@ import {
   removeAuthStorageListener,
   showWarning,
   useAuth,
+  useGlobalPanelDragActive,
   useWaitForRenderer,
 } from '@/shared'
 import { logger } from '@/shared'
-import { useMapStore } from '@/stores'
+import { useMapStore, useTaskStore } from '@/stores'
 import type { TypeSetting } from '@/types/facility'
 import type { Plan } from '@/types/plan'
 
@@ -35,6 +37,7 @@ const router = useRouter()
 const { restoreAuth, user: authUser } = useAuth()
 const { zoomToRegion, zoomToCity, stopBreathing } = useMapControls()
 const mapStore = useMapStore()
+const taskStore = useTaskStore()
 
 const unifiedMapRef = ref<UnifiedMapExposed | null>(null)
 const restorePlanData = ref<Record<string, TypeSetting> | null>(null)
@@ -95,6 +98,37 @@ registerNavItems([
   { type: 'profile', label: '个人中心', icon: '👤', path: '/profile', disabled: false },
 ])
 
+// ===== v4 任务停靠体系（S5/S6）=====
+// core/layout 不引 stores（铁律 L3）：任务指示态由根入口注入取值函数，
+// core 侧（NavButton 进度环）只调用函数、不认数据来源 —— 与 navConfig 同款解法。
+registerTaskIndicator((routePath) => {
+  const slot = taskStore.getSlot(routePath)
+  if (!slot) {
+    return { active: false, occupied: false, status: null, progress: 0 }
+  }
+  return {
+    active: slot.status === 'pending' || slot.status === 'running' || slot.status === 'retrying',
+    occupied: true,
+    status: slot.status,
+    progress: slot.progress,
+  }
+})
+
+// 槽位变化 ⇒ 通知 core 重算进度环（core 不订阅 Pinia，靠计数驱动）
+watch(
+  () => taskStore.slots,
+  () => notifyTaskIndicator(),
+  { deep: true }
+)
+
+/**
+ * 投递区悬停高亮由面板侧判定（usePanelDrag.overZone 给面板自身加 is-over-zone），
+ * 投递区自身不做第二份拖拽状态 —— 双份状态会与面板判定竞态。
+ * 🔴 但「是否有人在拖」必须是全局态：投递区常态完全透明（不吃指针事件），
+ *    拖拽期需要显形提示，否则用户不知道能放哪里。由 shared 的模块级单例告知。
+ */
+const panelDragActive = useGlobalPanelDragActive()
+
 // 等待渲染器就绪后再执行缩放（公共 composable：500ms×10 有限重试，卸载自动取消）
 const waitForRenderer = (callback: () => void) =>
   useWaitForRenderer(() => unifiedMapRef.value?.getRenderer?.() ?? null, callback)
@@ -110,6 +144,9 @@ watch(
   }),
   (newRoute, oldRoute) => {
     stopBreathing()
+
+    // v4：同步当前路由到 taskStore —— 决定新任务的优先级（当前路由 = high 插队）
+    taskStore.setCurrentRoute(route.path)
 
     // 检测是否是引擎切换场景（engine 发生变化）
     const isEngineSwitch =
@@ -201,6 +238,10 @@ onUnmounted(() => {
     <!-- 全局 GCS 反馈层（统一提示组件，替换 ElMessageBox/ElMessage） -->
     <GCSModal />
     <GCSToast />
+    <!-- v4 任务投递区：导航条上方的透明命中区，拖到这里 = 任务转后台（不改 .app-layout 结构，L1）。
+         常态完全透明且不吃指针事件；拖拽期显形虚线提示。
+         🔴 必须常驻渲染（不做 v-if）：元素不在 DOM 则 elementFromPoint 落空、drop 永不触发 -->
+    <TaskDropZone :drag-active="panelDragActive" :drop-active="panelDragActive" />
   </div>
 </template>
 

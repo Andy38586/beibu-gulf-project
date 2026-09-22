@@ -29,6 +29,7 @@ export const GUARDS = [
   'metrics-tally',
   'csp-sync',
   'anchor-check',
+  'tiles3d-check',
   'tmp-hygiene',
 ]
 

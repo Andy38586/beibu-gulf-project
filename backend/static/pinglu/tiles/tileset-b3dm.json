@@ -1,6 +1,6 @@
 {
  "asset": {
-  "version": "1.1",
+  "version": "1.0",
   "generator": "PingluCanal Tiles Builder + WGS84 baked curvature (per-vertex ellipsoid drop, BV z-up, hub level, root BV)"
  },
  "geometricError": 4000.0,
@@ -44,7 +44,7 @@
     "geometricError": 30.0,
     "refine": "REPLACE",
     "content": {
-     "uri": "madao-low.glb"
+     "uri": "madao-low.b3dm"
     },
     "children": [
      {
@@ -67,7 +67,7 @@
       "geometricError": 0.0,
       "refine": "REPLACE",
       "content": {
-       "uri": "madao-z1-terrain.glb"
+       "uri": "madao-z1-terrain.b3dm"
       },
       "extras": {
        "name": "马道枢纽 · 地形与边坡",
@@ -97,7 +97,7 @@
       "geometricError": 0.0,
       "refine": "REPLACE",
       "content": {
-       "uri": "madao-z2-upstream.glb"
+       "uri": "madao-z2-upstream.b3dm"
       },
       "extras": {
        "name": "马道枢纽 · 上游引航道",
@@ -127,7 +127,7 @@
       "geometricError": 0.0,
       "refine": "REPLACE",
       "content": {
-       "uri": "madao-z3-lock.glb"
+       "uri": "madao-z3-lock.b3dm"
       },
       "extras": {
        "name": "马道枢纽 · 船闸主体",
@@ -157,7 +157,7 @@
       "geometricError": 0.0,
       "refine": "REPLACE",
       "content": {
-       "uri": "madao-z4-pool.glb"
+       "uri": "madao-z4-pool.b3dm"
       },
       "extras": {
        "name": "马道枢纽 · 省水池与泄水建筑物",
@@ -187,7 +187,7 @@
       "geometricError": 0.0,
       "refine": "REPLACE",
       "content": {
-       "uri": "madao-z6-downstream.glb"
+       "uri": "madao-z6-downstream.b3dm"
       },
       "extras": {
        "name": "马道枢纽 · 下游引航道",
@@ -244,7 +244,7 @@
     "geometricError": 30.0,
     "refine": "REPLACE",
     "content": {
-     "uri": "qishi-low.glb"
+     "uri": "qishi-low.b3dm"
     },
     "children": [
      {
@@ -267,7 +267,7 @@
       "geometricError": 0.0,
       "refine": "REPLACE",
       "content": {
-       "uri": "qishi-z1-terrain.glb"
+       "uri": "qishi-z1-terrain.b3dm"
       },
       "extras": {
        "name": "企石枢纽 · 地形与边坡",
@@ -297,7 +297,7 @@
       "geometricError": 0.0,
       "refine": "REPLACE",
       "content": {
-       "uri": "qishi-z2-upstream.glb"
+       "uri": "qishi-z2-upstream.b3dm"
       },
       "extras": {
        "name": "企石枢纽 · 上游引航道",
@@ -327,7 +327,7 @@
       "geometricError": 0.0,
       "refine": "REPLACE",
       "content": {
-       "uri": "qishi-z3-lock.glb"
+       "uri": "qishi-z3-lock.b3dm"
       },
       "extras": {
        "name": "企石枢纽 · 船闸主体",
@@ -357,7 +357,7 @@
       "geometricError": 0.0,
       "refine": "REPLACE",
       "content": {
-       "uri": "qishi-z4-pool.glb"
+       "uri": "qishi-z4-pool.b3dm"
       },
       "extras": {
        "name": "企石枢纽 · 省水池与泄水建筑物",
@@ -387,7 +387,7 @@
       "geometricError": 0.0,
       "refine": "REPLACE",
       "content": {
-       "uri": "qishi-z6-downstream.glb"
+       "uri": "qishi-z6-downstream.b3dm"
       },
       "extras": {
        "name": "企石枢纽 · 下游引航道",
@@ -444,7 +444,7 @@
     "geometricError": 30.0,
     "refine": "REPLACE",
     "content": {
-     "uri": "qingnian-low.glb"
+     "uri": "qingnian-low.b3dm"
     },
     "children": [
      {
@@ -467,7 +467,7 @@
       "geometricError": 0.0,
       "refine": "REPLACE",
       "content": {
-       "uri": "qingnian-z1-terrain.glb"
+       "uri": "qingnian-z1-terrain.b3dm"
       },
       "extras": {
        "name": "青年枢纽 · 地形与边坡",
@@ -497,7 +497,7 @@
       "geometricError": 0.0,
       "refine": "REPLACE",
       "content": {
-       "uri": "qingnian-z2-upstream.glb"
+       "uri": "qingnian-z2-upstream.b3dm"
       },
       "extras": {
        "name": "青年枢纽 · 上游引航道",
@@ -527,7 +527,7 @@
       "geometricError": 0.0,
       "refine": "REPLACE",
       "content": {
-       "uri": "qingnian-z3-lock.glb"
+       "uri": "qingnian-z3-lock.b3dm"
       },
       "extras": {
        "name": "青年枢纽 · 船闸主体",
@@ -557,7 +557,7 @@
       "geometricError": 0.0,
       "refine": "REPLACE",
       "content": {
-       "uri": "qingnian-z6-downstream.glb"
+       "uri": "qingnian-z6-downstream.b3dm"
       },
       "extras": {
        "name": "青年枢纽 · 下游引航道",
@@ -614,7 +614,7 @@
     "geometricError": 0.0,
     "refine": "REPLACE",
     "content": {
-     "uri": "bridges-mid.glb"
+     "uri": "bridges-mid.b3dm"
     },
     "extras": {
      "name": "全线走廊 · bridges-mid",
@@ -641,7 +641,7 @@
     "geometricError": 0.0,
     "refine": "REPLACE",
     "content": {
-     "uri": "bridges-up.glb"
+     "uri": "bridges-up.b3dm"
     },
     "extras": {
      "name": "全线走廊 · bridges-up",
@@ -668,7 +668,7 @@
     "geometricError": 0.0,
     "refine": "REPLACE",
     "content": {
-     "uri": "bridges-urban.glb"
+     "uri": "bridges-urban.b3dm"
     },
     "extras": {
      "name": "全线走廊 · bridges-urban",
@@ -695,7 +695,7 @@
     "geometricError": 0.0,
     "refine": "REPLACE",
     "content": {
-     "uri": "corridor-00.glb"
+     "uri": "corridor-00.b3dm"
     },
     "extras": {
      "name": "全线走廊 · corridor-00",
@@ -722,7 +722,7 @@
     "geometricError": 0.0,
     "refine": "REPLACE",
     "content": {
-     "uri": "corridor-01.glb"
+     "uri": "corridor-01.b3dm"
     },
     "extras": {
      "name": "全线走廊 · corridor-01",
@@ -749,7 +749,7 @@
     "geometricError": 0.0,
     "refine": "REPLACE",
     "content": {
-     "uri": "corridor-02.glb"
+     "uri": "corridor-02.b3dm"
     },
     "extras": {
      "name": "全线走廊 · corridor-02",
@@ -776,7 +776,7 @@
     "geometricError": 0.0,
     "refine": "REPLACE",
     "content": {
-     "uri": "corridor-03.glb"
+     "uri": "corridor-03.b3dm"
     },
     "extras": {
      "name": "全线走廊 · corridor-03",
@@ -803,7 +803,7 @@
     "geometricError": 0.0,
     "refine": "REPLACE",
     "content": {
-     "uri": "corridor-04.glb"
+     "uri": "corridor-04.b3dm"
     },
     "extras": {
      "name": "全线走廊 · corridor-04",
@@ -830,7 +830,7 @@
     "geometricError": 0.0,
     "refine": "REPLACE",
     "content": {
-     "uri": "corridor-05.glb"
+     "uri": "corridor-05.b3dm"
     },
     "extras": {
      "name": "全线走廊 · corridor-05",
@@ -857,7 +857,7 @@
     "geometricError": 0.0,
     "refine": "REPLACE",
     "content": {
-     "uri": "corridor-06.glb"
+     "uri": "corridor-06.b3dm"
     },
     "extras": {
      "name": "全线走廊 · corridor-06",
@@ -884,7 +884,7 @@
     "geometricError": 0.0,
     "refine": "REPLACE",
     "content": {
-     "uri": "corridor-07.glb"
+     "uri": "corridor-07.b3dm"
     },
     "extras": {
      "name": "全线走廊 · corridor-07",
@@ -911,7 +911,7 @@
     "geometricError": 0.0,
     "refine": "REPLACE",
     "content": {
-     "uri": "corridor-08.glb"
+     "uri": "corridor-08.b3dm"
     },
     "extras": {
      "name": "全线走廊 · corridor-08",
@@ -938,7 +938,7 @@
     "geometricError": 0.0,
     "refine": "REPLACE",
     "content": {
-     "uri": "corridor-09.glb"
+     "uri": "corridor-09.b3dm"
     },
     "extras": {
      "name": "全线走廊 · corridor-09",
@@ -965,7 +965,7 @@
     "geometricError": 0.0,
     "refine": "REPLACE",
     "content": {
-     "uri": "corridor-10.glb"
+     "uri": "corridor-10.b3dm"
     },
     "extras": {
      "name": "全线走廊 · corridor-10",

@@ -199,24 +199,44 @@ describe('RouteRepository.sumSegmentCosts - 分段费用折算', () => {
     await new RouteRepository(db).sumSegmentCosts(SEGMENTS, 'distance')
 
     const sql = calls[0].sql
-    // v2：三个数组参数（edge_id/lo/hi）。旧形态 `t.cost ÷ 该边全长` 在 time 口径下
+    // v2：四个数组参数（edge_id/lo/hi/reverse）。旧形态 `t.cost ÷ 该边全长` 在 time 口径下
     // 会被 pgr 返回的加权代价污染（偏好乘数混进里程/时长报告），已废
     expect(sql).toContain(
-      'ROWS FROM (unnest($1::bigint[]), unnest($2::float8[]), unnest($3::float8[]))'
+      'ROWS FROM (unnest($1::bigint[]), unnest($2::float8[]), unnest($3::float8[]), unnest($4::boolean[]))'
     )
-    expect(sql).toContain('(t.hi - t.lo) * r.cost_m')
-    expect(sql).toContain('(t.hi - t.lo) * r.cost_min')
+    // 🔴 2026-09-19 修复（P0）：v2 是有向图，单向边的正向列写 -1 哨兵、真值只在反向列。
+    // 必须按 t.reverse 分方向取列，否则 -1 被当物理量累加 ⇒ 里程/时长偏小甚至为负。
+    expect(sql).toContain(
+      '(t.hi - t.lo) * (CASE WHEN t.reverse THEN r.reverse_cost_m ELSE r.cost_m END)'
+    )
+    expect(sql).toContain(
+      '(t.hi - t.lo) * (CASE WHEN t.reverse THEN r.reverse_cost_min ELSE r.cost_min END)'
+    )
     expect(calls[0].params).toEqual([
       [1001, 2002],
       [0.25, 0],
       [1, 0.75],
+      [false, false],
     ])
+  })
+
+  it('🔴 反向单行边取反向列，而非把 -1 哨兵当物理量（2026-09-19 P0 回归护栏）', async () => {
+    const { db, calls } = makeDbMock()
+    const segs: RouteSegment[] = [{ edgeId: 3003, lo: 0, hi: 1, reverse: true, cost: 10 }]
+    await new RouteRepository(db).sumSegmentCosts(segs, 'distance')
+    // 方向必须随分段下发到 SQL（否则 reverse 列取不到）
+    expect(calls[0].params[3]).toEqual([true])
+    expect(calls[0].sql).toContain(
+      'CASE WHEN t.reverse THEN r.reverse_cost_m ELSE r.cost_m END'
+    )
   })
 
   it('time 口径：mode_metric 取物理 cost_min（选路用 route_cost_min，报告不放大）', async () => {
     const { db, calls } = makeDbMock()
     await new RouteRepository(db).sumSegmentCosts(SEGMENTS, 'time')
-    expect(calls[0].sql).toContain('(t.hi - t.lo) * r.cost_min')
+    expect(calls[0].sql).toContain(
+      '(t.hi - t.lo) * (CASE WHEN t.reverse THEN r.reverse_cost_min ELSE r.cost_min END)'
+    )
     expect(calls[0].sql).not.toContain('route_cost_min')
   })
 

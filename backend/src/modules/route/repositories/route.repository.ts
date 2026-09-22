@@ -33,10 +33,29 @@ const MODE_WEIGHT = {
 
 export type RouteMode = keyof typeof MODE_WEIGHT
 
-/** mode → 对外报告的物理口径列：永远报物理量（米 / 分钟），与选路权重无关 */
+/**
+ * mode → 对外报告的物理口径列：永远报物理量（米 / 分钟），与选路权重无关。
+ *
+ * 🔴 2026-09-19 修复（P0）：**必须带反向列**。v2 路网是**有向图**，单向边的正向列被写成
+ * `-1` 哨兵（`roads-graph-build.sql`：`oneway = -1 → cost_m = -1`，真值只在 `reverse_cost_m`），
+ * 而 `oneway = -1` 的**唯一合法通行方向就是反向** ⇒ 路径只要用到这类边，就一定走反向那条。
+ * 此前本表只有正向列、`sumSegmentCosts` 也不分方向 ⇒ `-1` 被当作物理量累加进和式，
+ * 里程/时长系统性偏小（误差 = `len_m + 1`），甚至为负。
+ * 反向列与正向列一一对应：`cost_m ↔ reverse_cost_m`、`cost_min ↔ reverse_cost_min`。
+ */
 const MODE_METRIC = {
-  distance: { metric: 'cost_m', other: 'cost_min' },
-  time: { metric: 'cost_min', other: 'cost_m' },
+  distance: {
+    metric: 'cost_m',
+    reverseMetric: 'reverse_cost_m',
+    other: 'cost_min',
+    reverseOther: 'reverse_cost_min',
+  },
+  time: {
+    metric: 'cost_min',
+    reverseMetric: 'reverse_cost_min',
+    other: 'cost_m',
+    reverseOther: 'reverse_cost_m',
+  },
 } as const
 
 export function isRouteMode(m: unknown): m is RouteMode {
@@ -279,16 +298,24 @@ ORDER BY r.path_seq
     mode: RouteMode
   ): Promise<{ distanceM: number; durationMin: number }> {
     if (segments.length === 0) return { distanceM: 0, durationMin: 0 }
-    const { metric, other } = MODE_METRIC[mode]
+    const { metric, reverseMetric, other, reverseOther } = MODE_METRIC[mode]
+    // 🔴 必须按 `t.reverse` 分方向取列（2026-09-19 修复）：
+    // 不分方向时，反向单行边的 `-1` 哨兵会被当物理量乘进和式（详见 MODE_METRIC 注释）。
+    // `reverse` 只影响"取哪一列"，`(hi - lo)` 仍是几何比例（恒非负），两者正交。
     const res = await this.db.query<{ mode_metric: number; other_metric: number }>(
       `
-SELECT COALESCE(sum((t.hi - t.lo) * r.${metric}), 0)::float8 AS mode_metric,
-       COALESCE(sum((t.hi - t.lo) * r.${other}), 0)::float8  AS other_metric
-FROM ROWS FROM (unnest($1::bigint[]), unnest($2::float8[]), unnest($3::float8[]))
-     AS t(edge_id, lo, hi)
+SELECT COALESCE(sum((t.hi - t.lo) * (CASE WHEN t.reverse THEN r.${reverseMetric} ELSE r.${metric} END)), 0)::float8 AS mode_metric,
+       COALESCE(sum((t.hi - t.lo) * (CASE WHEN t.reverse THEN r.${reverseOther} ELSE r.${other} END)), 0)::float8  AS other_metric
+FROM ROWS FROM (unnest($1::bigint[]), unnest($2::float8[]), unnest($3::float8[]), unnest($4::boolean[]))
+     AS t(edge_id, lo, hi, reverse)
 JOIN ${ROUTING_TABLE} r ON r.id = t.edge_id
 `,
-      [segments.map((s) => s.edgeId), segments.map((s) => s.lo), segments.map((s) => s.hi)]
+      [
+        segments.map((s) => s.edgeId),
+        segments.map((s) => s.lo),
+        segments.map((s) => s.hi),
+        segments.map((s) => s.reverse),
+      ]
     )
     const row = res.rows[0]
     const modeMetric = row?.mode_metric ?? 0

@@ -38,9 +38,6 @@ interface RadarChartProps {
   title?: string
 }
 
-/** 雷达图容器元素（带重试计数的自定义属性） */
-type RadarChartContainer = HTMLElement & { _radar_retryCount?: number }
-
 /** show-facility-layer 事件载荷 */
 interface FacilityLayerPayload {
   type: string
@@ -74,7 +71,7 @@ interface TooltipPosition {
 interface UseRadarChartReturn {
   tooltipVisible: Ref<boolean>
   tooltipPosition: Ref<TooltipPosition>
-  /** 点亮的设施类型集合（多类型叠加：点轴名 toggle，一类一类开始呼吸） */
+  /** 点亮的设施类型集合（互斥：同时只允许一类呼吸，新类型点亮即熄灭旧类型） */
   activeFacilityTypes: Ref<Set<string>>
   renderRadar: () => void
   handleScoreClick: () => void
@@ -92,13 +89,17 @@ export function useRadarChart({
   const { cellPixel } = useGCS()
   // 尺寸重试定时器：保存引用供 onBeforeUnmount 清理，卸载后不再重试渲染
   let retryTimer: ReturnType<typeof setTimeout> | null = null
+  // 尺寸重试计数：必须住 composable 作用域——曾写在 DOM 节点
+  // （chartRef.value._radar_retryCount）上，容器被 v-if 撤下后计数无处存放，
+  // 「最多 10 次」永不生效，每 100ms 无限自排
+  let radarRetryCount = 0
 
   /** 浮窗状态 */
   const tooltipVisible = ref<boolean>(false)
   /** 详情面板位置（打开时按雷达面板 rect 计算，与 RadarScoreTooltip 尺寸公式保持一致） */
   const tooltipPosition = ref<TooltipPosition>({ left: 0, top: 0 })
 
-  /** 点亮的设施类型集合（多类型叠加：点轴名 toggle，一类一类开始呼吸） */
+  /** 点亮的设施类型集合（互斥：同时只允许一类呼吸，新类型点亮即熄灭旧类型） */
   const activeFacilityTypes = ref<Set<string>>(new Set())
 
   /** 获取设施颜色（从 shared 色值映射取，不依赖 business 层） */
@@ -116,14 +117,10 @@ export function useRadarChart({
 
     // 容器尺寸不足时重试，最多重试10次（1秒）
     if (w < 10 || h < 10) {
-      const container = chartRef.value as RadarChartContainer | null
-      const retryCount = (container?._radar_retryCount || 0) + 1
-      if (container) {
-        if (retryCount > 10) {
-          logger.debug('雷达图容器尺寸持续不足，放弃渲染')
-          return { backgroundColor: 'transparent' }
-        }
-        container._radar_retryCount = retryCount
+      radarRetryCount++
+      if (radarRetryCount > 10) {
+        logger.debug('雷达图容器尺寸持续不足，放弃渲染')
+        return { backgroundColor: 'transparent' }
       }
       if (retryTimer) clearTimeout(retryTimer)
       retryTimer = setTimeout(() => {
@@ -132,11 +129,8 @@ export function useRadarChart({
       }, 100)
       return { backgroundColor: 'transparent' }
     }
-    // 重置重试计数
-    const container = chartRef.value as RadarChartContainer | null
-    if (container?._radar_retryCount) {
-      container._radar_retryCount = 0
-    }
+    // 尺寸恢复正常：重置重试计数
+    radarRetryCount = 0
 
     const indicators = props.selectedTypes.map((key) => ({
       name: FACILITY_LABELS[key] || key,
@@ -219,14 +213,21 @@ export function useRadarChart({
     }
   }
 
-  /** 点击设施名称（toggle 该类型点亮，多类型叠加；呼吸由页面按点亮集合驱动） */
+  /** 点击设施名称：互斥点亮（同时只允许一类呼吸，新类型点亮即熄灭旧类型）。
+   * 语义与页面 activeBreathTypes 的「6 类互斥」对齐——旧实现做并集，组合式集合与
+   * 页面集合自首次点击即分叉：再点旧类型时组合式走取消分支 emit hide，而页面集合里
+   * 没有它 ⇒ 一次点击零反馈，继续点则幻影集合逐轮收缩。 */
   function handleFacilityClick(key: string): void {
     if (activeFacilityTypes.value.has(key)) {
-      activeFacilityTypes.value = new Set([...activeFacilityTypes.value].filter((k) => k !== key))
+      activeFacilityTypes.value = new Set()
       emit('hide-facility-layer', key)
       return
     }
-    activeFacilityTypes.value = new Set([...activeFacilityTypes.value, key])
+    const previous = [...activeFacilityTypes.value]
+    activeFacilityTypes.value = new Set([key])
+    for (const old of previous) {
+      emit('hide-facility-layer', old)
+    }
     emit('show-facility-layer', {
       type: key,
       poiList: getProps().facilityPoi[key] || [],

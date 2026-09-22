@@ -296,11 +296,20 @@ export const LAYER_ADAPTERS: Record<LayerType, LayerAdapter> = {
         ...options,
         maximumScreenSpaceError: payload.maximumScreenSpaceError,
       }
-      void Promise.resolve(renderer.add3DTilesLayer(key, payload.url, tilesOptions)).catch((e) => {
-        if (import.meta.env.DEV) {
-          logger.warn(`[layerAdapters] 3dtiles 图层 ${key} 创建失败（异步）:`, e)
-        }
-      })
+      // add3DTilesLayer 是 async 且用 resolve(false) 表达失败（不抛）——只挂 .catch
+      // 等于失败永不触发。失败上行必须走 onError（BLM 据此回滚状态 + 提示重试）。
+      // 原 warn 被 import.meta.env.DEV 门控，生产环境连一条痕迹都没有（违 04-D2）。
+      void Promise.resolve(renderer.add3DTilesLayer(key, payload.url, tilesOptions))
+        .then((ok) => {
+          if (ok === false) {
+            logger.warn(`[layerAdapters] 3dtiles 图层 ${key} 创建失败（异步）`)
+            options.onError?.(new Error(`3dtiles 图层创建失败: ${key}`))
+          }
+        })
+        .catch((e) => {
+          logger.warn(`[layerAdapters] 3dtiles 图层 ${key} 创建异常（异步）:`, e)
+          options.onError?.(e)
+        })
     },
     // 瓦片树与 URL 绑定，无法原地换内容 ⇒ 更新语义 = 移除后按新 URL 重建
     update: (renderer, key, data, options) => {
@@ -312,11 +321,20 @@ export const LAYER_ADAPTERS: Record<LayerType, LayerAdapter> = {
         maximumScreenSpaceError: payload.maximumScreenSpaceError,
       }
       renderer.removeLayer(key)
-      void Promise.resolve(renderer.add3DTilesLayer(key, payload.url, tilesOptions)).catch((e) => {
-        if (import.meta.env.DEV) {
-          logger.warn(`[layerAdapters] 3dtiles 图层 ${key} 重建失败（异步）:`, e)
-        }
-      })
+      // ⚠️ 本路径拿不到 BLM 注入的 onError：`updateData` 的更新分支传的是
+      // `meta.options`（BLM 只在 create 分支注入 onError）。所以这里只能保证
+      // **留痕**（去掉 DEV 门控），失败上行要到 BLM 侧补注入才算通——已记入 922 副本。
+      void Promise.resolve(renderer.add3DTilesLayer(key, payload.url, tilesOptions))
+        .then((ok) => {
+          if (ok === false) {
+            logger.warn(`[layerAdapters] 3dtiles 图层 ${key} 重建失败（异步）`)
+            options.onError?.(new Error(`3dtiles 图层重建失败: ${key}`))
+          }
+        })
+        .catch((e) => {
+          logger.warn(`[layerAdapters] 3dtiles 图层 ${key} 重建异常（异步）:`, e)
+          options.onError?.(e)
+        })
     },
     remove: (renderer, key) => {
       renderer.removeLayer(key)
@@ -343,7 +361,13 @@ export const LAYER_ADAPTERS: Record<LayerType, LayerAdapter> = {
         logger.warn(`[layerAdapters] imageOverlay 图层 ${key} 缺少 url/bbox/size，跳过`)
         return
       }
-      renderer.addImageOverlayLayer(key, payload, options)
+      // addImageOverlayLayer 以**返回值**表达失败（不抛异常），返回值此前被整体丢弃 ⇒
+      // 图片 404 / SingleTileImageryProvider 构造抛错时，图层开关仍是"已开"、屏幕无物。
+      // 注意：2D 无能力那条分支是设计内跳过（02 §5.3 水面同款），**不**报失败不弹 toast。
+      if (!renderer.addImageOverlayLayer(key, payload, options)) {
+        logger.warn(`[layerAdapters] imageOverlay 图层 ${key} 创建失败`)
+        options.onError?.(new Error(`imageOverlay 图层创建失败: ${key}`))
+      }
     },
     // provider 与 URL 绑定，换图只能重建（沿用 geotiff 的移除后重建语义）
     update: (renderer, key, data, options) => {
@@ -351,7 +375,10 @@ export const LAYER_ADAPTERS: Record<LayerType, LayerAdapter> = {
       const payload = data as ImageOverlayData
       if (!payload || typeof payload.url !== 'string') return
       renderer.removeLayer(key)
-      renderer.addImageOverlayLayer(key, payload, options)
+      if (!renderer.addImageOverlayLayer(key, payload, options)) {
+        logger.warn(`[layerAdapters] imageOverlay 图层 ${key} 重建失败`)
+        options.onError?.(new Error(`imageOverlay 图层重建失败: ${key}`))
+      }
     },
     remove: (renderer, key) => {
       renderer.removeLayer(key)

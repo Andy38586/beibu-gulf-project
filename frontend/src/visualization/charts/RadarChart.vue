@@ -24,6 +24,9 @@ interface Props {
   facilityPoi?: Record<string, FacilityPoint[]>
   /** 雷达图标题，默认显示"xx小区评分详情图" */
   title?: string
+  /** 数据源为硬编码示例快照（未完成分析时的兜底）——为真时角标明示"示例数据"，
+   *  避免把看似真实的评分当分析结果读（快照来自 2026-08 一次实测） */
+  snapshot?: boolean
 }
 
 interface Emits {
@@ -46,6 +49,7 @@ const props = withDefaults(defineProps<Props>(), {
   embedded: false,
   facilityPoi: () => ({}),
   title: '',
+  snapshot: false,
 })
 
 const emit = defineEmits<Emits>()
@@ -125,6 +129,8 @@ onBeforeUnmount(() => {
       <!-- c057：无数据时统一 EmptyState 占位（原为空白区域，无任何引导） -->
       <EmptyState v-if="!xiaoqu" icon="📊" message="暂无评分数据" hint="请先完成选址分析" />
       <div v-else ref="chartRef" class="radar-chart"></div>
+      <!-- 示例数据角标：数据源是硬编码快照时明示，不让实测快照伪装成分析结果 -->
+      <div v-if="snapshot && xiaoqu" class="radar-snapshot-badge" role="note">示例数据</div>
     </div>
 
     <!-- 底部：综合评分（hover 出现提示框，点击查看详细得分） -->
@@ -162,6 +168,23 @@ onBeforeUnmount(() => {
   min-height: 0;
   position: relative;
   z-index: 2;
+}
+
+/* 示例数据角标：快照兜底数据源的明示（不用透明度伪装成真实结果）。
+ * 配色走主题 token（stylelint 禁 hex）：warning 底色 + text-inverse 文字，
+ * 亮/暗两侧对比度均达标（#a36300/#fff、#f0b35a/#0d1b2a）。 */
+.radar-snapshot-badge {
+  position: absolute;
+  top: calc(2 * v-bind(unitPx));
+  right: calc(2 * v-bind(unitPx));
+  z-index: 3;
+  padding: calc(1 * v-bind(unitPx)) calc(2 * v-bind(unitPx));
+  border-radius: calc(1 * v-bind(unitPx));
+  background: var(--GCS-color-warning);
+  color: var(--GCS-text-inverse);
+  font-size: 12px;
+  line-height: 1.2;
+  pointer-events: none;
 }
 
 .radar-chart {

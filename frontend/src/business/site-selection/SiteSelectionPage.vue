@@ -74,7 +74,8 @@ const { matchedXiaoqu, selectedTypes, facilityPoi, calculating } = storeToRefs(s
 /** 雷达图当前选中小区（页内临时态，仅本地） */
 const selectedXiaoqu = ref<ScoredXiaoqu | null>(null)
 
-/** 雷达轴名点亮的类型集合（多类型叠加，一类一类开始呼吸；随显隐指标联动启停，见 syncFacilityBreathing） */
+/** 雷达轴名点亮的类型集合（6 类互斥——同时只允许一类呼吸，新类型点亮即熄灭旧类型；
+ * 与 useRadarChart 的互斥 toggle 对齐，随显隐指标联动启停，见 syncFacilityBreathing） */
 const activeBreathTypes = ref<Set<string>>(new Set())
 
 /** 命中设施集合（按类型）：点小区候选后计算，驱动 per-point 透明度（激活 100% / 其余低暗） */
@@ -164,6 +165,9 @@ const topXiaoqu = computed<ScoredXiaoqu | null>(() => matchedXiaoqu.value[0] || 
 const displayXiaoquForRadar = computed<ScoredXiaoqu | null>(
   () => selectedXiaoqu.value || topXiaoqu.value || SNAPSHOT_XIAOQU
 )
+/** 快照兜底标记：为真时雷达图角标"示例数据"——快照是 2026-08 的实测硬编码，
+ *  不能把看似真实的评分当分析结果呈现 */
+const radarIsSnapshot = computed(() => !selectedXiaoqu.value && !topXiaoqu.value)
 
 /** 雷达图指标：未分析时用快照的 6 类设施 */
 const radarSelectedTypes = computed<string[]>(() =>
@@ -440,6 +444,7 @@ onUnmounted(() => {
             :embedded="true"
             :xiaoqu="displayXiaoquForRadar"
             :selected-types="radarSelectedTypes"
+            :snapshot="radarIsSnapshot"
             :facility-poi="facilityPoi"
             @show-facility-layer="handleShowFacilityLayer"
             @hide-facility-layer="handleHideFacilityLayer"

@@ -146,6 +146,19 @@ describe('useApiRequest', () => {
       })
     })
 
+    it('🔴 非 401 的错误也要带上业务码（否则下游 404001 判定永不成立）', async () => {
+      // 回归对象：`useTaskApi.get` 靠 bizCode===404001 把「任务已被 TTL 回收」转成
+      // taskGone、让 taskStore 静默停轮询。此前 `!res.ok` 分支三处 new ApiError 都不传
+      // 第三参 ⇒ 那条判定是死分支，回收任务被连计 5 次后弹「与服务器失去联系」。
+      mockFetch.mockResolvedValue(jsonResponse({ code: 404001, error: '任务不存在或已过期' }, 404))
+      const { apiRequest } = useApiRequest()
+      await expect(apiRequest('/task/t-gone')).rejects.toMatchObject({
+        code: ErrorCode.REQUEST_FAILED,
+        message: '任务不存在或已过期',
+        bizCode: 404001,
+      })
+    })
+
     it('非 fetch 文案的 TypeError（如 Safari "Load failed"）同样归 NETWORK_ERROR（审查 M-8 回归）', async () => {
       // 各运行时 fetch 失败文案不一致，按 message.includes('fetch') 匹配会漏判
       mockFetch.mockRejectedValue(new TypeError('Load failed'))

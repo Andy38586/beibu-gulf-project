@@ -242,15 +242,26 @@ async function singleRequest<T = unknown>(
         typeof data === 'object' && data !== null && 'error' in data
           ? String((data as Record<string, unknown>).error)
           : ''
+      // 🔴 业务码（响应信封 code）必须一并上抛。taskStore 靠 `bizCode === 404001`
+      // 区分「任务已被 TTL 回收 = 正常结束，停轮询不弹错」与「真的取不到」。
+      // 此前只有 401 分支传了第三参，下面三处恒抛 undefined ⇒ 那条判定永不成立，
+      // 回收任务被连计 5 次后误报「服务繁忙/任务超时」（04-D1 吞错误对象 + 04-B1）。
+      const bizCode =
+        typeof data === 'object' &&
+        data !== null &&
+        'code' in data &&
+        typeof (data as Record<string, unknown>).code === 'number'
+          ? ((data as Record<string, unknown>).code as number)
+          : undefined
       // 网关级 5xx（nginx 502/503/504）：后端进程不可达而非应用自身错误——
       // 归 SERVER_ERROR 语义，describeError 统一按「服务器无响应」口径提示
       if (res.status === 502 || res.status === 503 || res.status === 504) {
-        throw new ApiError('服务器无响应，请检查网络后重试', ErrorCode.SERVER_ERROR)
+        throw new ApiError('服务器无响应，请检查网络后重试', ErrorCode.SERVER_ERROR, bizCode)
       }
       if (res.status === 500) {
-        throw new ApiError(errMsg || '服务器错误，请稍后重试', ErrorCode.SERVER_ERROR)
+        throw new ApiError(errMsg || '服务器错误，请稍后重试', ErrorCode.SERVER_ERROR, bizCode)
       }
-      throw new ApiError(errMsg || `请求失败 HTTP ${res.status}`, ErrorCode.REQUEST_FAILED)
+      throw new ApiError(errMsg || `请求失败 HTTP ${res.status}`, ErrorCode.REQUEST_FAILED, bizCode)
     }
 
     // 统一解包响应信封（{ code, data } → data）：调用方始终拿到业务数据 T，无需手动 .data；跨服务裸 JSON 传 envelope: false 跳过

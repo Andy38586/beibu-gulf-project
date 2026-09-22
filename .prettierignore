@@ -34,6 +34,12 @@ pdf_build/
 # 未跟踪的会话产物；其中 tmp-pinglu/*.json 实为 OSM 拉取失败的 406 错误页伪装成 JSON，
 # prettier 解析即报错；未忽略会导致 pre-push format:check 全仓红——先例同上）
 tmp-*/
+# 平陆运河已入库的瓦片与影像产物（2026-09-22 加入：`backend/static/pinglu/` 由建模脚本
+# 生成、随仓库分发（cab20aad 31 glb + 31 b3dm + tileset 清单），非手写代码。
+# prettier 会重排 tileset.json 的键序与缩进（tileset.json diff 1594 行、b3dm 套 1620 行），
+# 而 tools/v3-guard/tiles3d-check.mjs 钉的正是这份产物的字节面 ⇒ 重排等于改资产。
+# 未忽略会导致 format:check 全仓红——先例同上）
+backend/static/pinglu/**
 # 平陆运河 3D Tiles 产出目录（2026-09-17 加入：本机会话产物、未跟踪；内含 Cesium 发行包
 # 161 个 js/html/json——第三方代码不随本项目格式门禁重排。未忽略则 163 文件全仓红——先例同上）
 pinglu-canal-3dtiles/

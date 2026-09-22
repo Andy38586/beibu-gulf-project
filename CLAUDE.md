@@ -46,7 +46,7 @@ npm run ci:local                     # 全量门禁（合并前）
 
 ## git
 
-commit 格式 **Conventional Commits**（`.husky/commit-msg` 的 commitlint 强制）：`type(scope): 中文说明`
-type ∈ `feat｜fix｜docs｜chore｜refactor｜perf｜test｜ci｜build｜style｜revert`，scope 小写可选。
-例：`fix(task): 穷尽派生 TASK_DOMAINS，修复 forecast-map 域恒 400`
+commit 格式 **Conventional Commits**（`.husky/commit-msg` 的 commitlint 强制）：`type: 中文说明`
+type ∈ `feat｜fix｜docs｜chore｜refactor｜perf｜test｜ci｜build｜style｜revert`；**禁 `type(scope):` 括号写法**（§1.6）。
+例：`fix: 穷尽派生 TASK_DOMAINS，修复 forecast-map 域恒 400`
 **每修一项即提交**；禁 squash；禁 `--no-verify`。

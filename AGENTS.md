@@ -68,9 +68,10 @@
 ## 六、记录义务
 
 - commit 格式 **Conventional Commits**（由 `.husky/commit-msg` 的 commitlint 强制，配置 `@commitlint/config-conventional`）
-  - 形式 `type(scope): 中文说明`；type 取 `feat｜fix｜docs｜chore｜refactor｜perf｜test｜ci｜build｜style｜revert`；scope 可选且小写（如 `task`/`auth`/`ci`）
-  - 例：`fix(task): 穷尽派生 TASK_DOMAINS，修复 forecast-map 域恒 400`
-  - 标题 ≤100 字符、不以句号结尾
+  - 形式 `type: 中文说明`；type 取 `feat｜fix｜docs｜chore｜refactor｜perf｜test｜ci｜build｜style｜revert`
+  - **禁 `type(scope):` 括号写法**——口径依据 `docs/根基文档/开发指南与决策.md` §1.6（scope 不值得单独突出时强制括号很难看）
+  - 正文写清「做了什么 + 为什么」；标题 ≤100 字符、不以句号结尾
+  - 例：`fix: 穷尽派生 TASK_DOMAINS，修复 forecast-map 域恒 400`
 - **每修一项即提交**；禁 squash；禁 `--no-verify` / `--no-gpg-sign`
 - 修复完：从 `待解决问题.md` 移入 `已解决问题.md`（按原编号）
 - 新发现：先归并筛选，再分配编号。禁止给症状级问题编号

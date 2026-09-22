@@ -1,6 +1,8 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import { Logger } from '@nestjs/common'
 
 import { BusinessError, ErrorCode } from '../src/common/errors/business-error'
+import { BusinessErrorFilter } from '../src/common/filters/business-error.filter'
 
 // 错误码表契约测试：与老 Express backend/utils/BusinessError.js 逐项一致（9 项）
 describe('ErrorCode 契约（对齐 Express）', () => {
@@ -34,5 +36,70 @@ describe('ErrorCode 契约（对齐 Express）', () => {
   it('BusinessError 无 detail 时用默认文案', () => {
     const err = new BusinessError(ErrorCode.WRONG_PASSWORD)
     expect(err.message).toBe('密码错误')
+  })
+})
+
+// BusinessError.message 可来自请求输入，必须净化后写日志并回显
+// （对齐 csp-report.controller 的 clip 口径：滤 CR/LF + 200 字截断）
+describe('BusinessErrorFilter 详情净化', () => {
+  function fakeHost() {
+    const res = {
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn().mockReturnThis(),
+    }
+    return {
+      host: { switchToHttp: () => ({ getResponse: () => res }) } as never,
+      res,
+    }
+  }
+
+  it('换行注入被滤平：日志单行、响应无 CR/LF（阳性对照：不过滤时 error 含 \n）', () => {
+    const warnSpy = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => {})
+    try {
+      const { host, res } = fakeHost()
+      new BusinessErrorFilter().catch(
+        new BusinessError(ErrorCode.INVALID_PARAMS, 'bad\n[FAKE] 2026-09-22 伪造日志行'),
+        host
+      )
+      const body = res.json.mock.calls[0][0] as { error: string }
+      expect(body.error).not.toMatch(/[\r\n]/)
+      expect(body.error).toContain('[FAKE]')
+      expect(warnSpy).toHaveBeenCalledTimes(1)
+      const logged = String(warnSpy.mock.calls[0][0])
+      expect(logged.split('\n')).toHaveLength(1)
+    } finally {
+      warnSpy.mockRestore()
+    }
+  })
+
+  it('超长 message 截断到 200 字并加省略号', () => {
+    const warnSpy = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => {})
+    try {
+      const { host, res } = fakeHost()
+      new BusinessErrorFilter().catch(
+        new BusinessError(ErrorCode.INVALID_PARAMS, 'x'.repeat(500)),
+        host
+      )
+      const body = res.json.mock.calls[0][0] as { error: string }
+      expect(body.error).toHaveLength(201) // 200 + '…'
+      expect(body.error.endsWith('…')).toBe(true)
+    } finally {
+      warnSpy.mockRestore()
+    }
+  })
+
+  it('正常业务文案原样下发（不误伤）', () => {
+    const warnSpy = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => {})
+    try {
+      const { host, res } = fakeHost()
+      new BusinessErrorFilter().catch(
+        new BusinessError(ErrorCode.INVALID_PARAMS, 'mode 必须为 distance / time，收到：fastest'),
+        host
+      )
+      const body = res.json.mock.calls[0][0] as { error: string }
+      expect(body.error).toBe('mode 必须为 distance / time，收到：fastest')
+    } finally {
+      warnSpy.mockRestore()
+    }
   })
 })

@@ -4,6 +4,17 @@ import type { Response } from 'express'
 
 import { BusinessError } from '../errors/business-error'
 
+// 错误详情净化（对齐 csp-report.controller 的 clip 口径）：
+// BusinessError.message 可来自请求输入（如 site-analysis 的 JSON 键名、forecast 的
+// query indicator），不净化即可匿名伪造服务端日志行（换行注入）或拉出无界长日志
+// （express body 上限 100kb ⇒ 单条日志可达数十 KB）。
+const MAX_DETAIL_LEN = 200
+const sanitizeDetail = (v: unknown): string => {
+  const s = typeof v === 'string' ? v : String(v)
+  const flat = s.replace(/[\r\n\t]+/g, ' ').trim()
+  return flat.length > MAX_DETAIL_LEN ? `${flat.slice(0, MAX_DETAIL_LEN)}…` : flat
+}
+
 // 全局错误过滤：信封形状 { code, error, data: null }，逐项对齐老 Express 全局错误中间件
 //（app.js）——BusinessError 按码返回；404 固定文案；429 限流裸 {error}；未知错误 500001
 @Catch()
@@ -15,12 +26,9 @@ export class BusinessErrorFilter implements ExceptionFilter {
 
     if (exception instanceof BusinessError) {
       // 预期业务错误落 warn（不记堆栈，防噪音），对齐 Express logger.warn 口径
-      this.logger.warn(
-        `[BusinessError] ${exception.status} ${exception.bizCode}: ${exception.message}`
-      )
-      res
-        .status(exception.status)
-        .json({ code: exception.bizCode, error: exception.message, data: null })
+      const detail = sanitizeDetail(exception.message)
+      this.logger.warn(`[BusinessError] ${exception.status} ${exception.bizCode}: ${detail}`)
+      res.status(exception.status).json({ code: exception.bizCode, error: detail, data: null })
       return
     }
 
@@ -48,7 +56,7 @@ export class BusinessErrorFilter implements ExceptionFilter {
 
     // 未捕获异常不泄露堆栈；生产隐藏 detail，仅 dev 显示——对齐 Express 口径
     const message = exception instanceof Error ? exception.message : String(exception)
-    this.logger.error(`未捕获的服务器错误: ${message}`)
+    this.logger.error(`未捕获的服务器错误: ${sanitizeDetail(message)}`)
     res.status(500).json({
       code: 500001,
       error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : message,

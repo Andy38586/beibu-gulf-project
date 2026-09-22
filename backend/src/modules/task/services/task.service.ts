@@ -67,12 +67,21 @@ export class TaskService implements OnModuleInit, OnModuleDestroy {
         })
       },
       onFailure: (taskId, error) => {
+        // 非 BusinessError 的底层 message 原样下发会绕过同步路径的生产隐藏策略
+        // （business-error.filter.ts 对同类异常只回「服务器内部错误」）：
+        // pg 连接级 message 惯含内网服务名/端口，SQL 级含表名/列名，
+        // 而 GET /task/:id 是公开端点 ⇒ 匿名轮询者即可读走。
+        // BusinessError 的 message 是给用户看的业务文案，按原样下发。
+        const isBusiness = error instanceof BusinessError
         this.registry.patch(taskId, {
           status: 'failed',
           queuePosition: undefined,
           error: {
-            message: error.message,
-            bizCode: error instanceof BusinessError ? error.bizCode : undefined,
+            message:
+              isBusiness || process.env.NODE_ENV !== 'production'
+                ? error.message
+                : '任务执行失败，请稍后重试',
+            bizCode: isBusiness ? error.bizCode : undefined,
           },
         })
       },

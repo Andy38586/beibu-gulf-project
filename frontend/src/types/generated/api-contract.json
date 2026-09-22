@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-11",
+  "generatedAt": "2026-09-22",
   "source": "frontend/src/types/schemas.ts（单一事实源，types:gen 自动生成勿手改）",
   "schemas": {
     "userSchema": {
@@ -42,6 +42,47 @@
         "geometry": {
           "type": "floodGeometrySchema",
           "optional": false
+        },
+        "properties": {
+          "type": "object",
+          "optional": false
+        }
+      }
+    },
+    "affectedFacilitySchema": {
+      "kind": "object",
+      "fields": {
+        "id": {
+          "type": "string",
+          "optional": false
+        },
+        "name": {
+          "type": "string",
+          "optional": false
+        },
+        "type": {
+          "type": "string",
+          "optional": false
+        },
+        "lng": {
+          "type": "number",
+          "optional": false
+        },
+        "lat": {
+          "type": "number",
+          "optional": false
+        },
+        "port": {
+          "type": "string",
+          "optional": true
+        },
+        "loss": {
+          "type": "number",
+          "optional": false
+        },
+        "damageRate": {
+          "type": "number",
+          "optional": false
         }
       }
     },
@@ -50,6 +91,22 @@
       "fields": {
         "level": {
           "type": "number",
+          "optional": false
+        },
+        "riskLevel": {
+          "type": "string",
+          "optional": false
+        },
+        "featureCount": {
+          "type": "number",
+          "optional": false
+        },
+        "floodedKm2": {
+          "type": "number",
+          "optional": false
+        },
+        "features": {
+          "type": "array",
           "optional": false
         }
       }
@@ -73,6 +130,10 @@
         "user": {
           "type": "userSchema",
           "optional": false
+        },
+        "token": {
+          "type": "string",
+          "optional": true
         }
       }
     },
@@ -90,6 +151,10 @@
         "type": {
           "type": "enum",
           "optional": false
+        },
+        "confidence": {
+          "type": "number",
+          "optional": true
         }
       }
     },
@@ -170,6 +235,10 @@
         "forecast": {
           "type": "object",
           "optional": false
+        },
+        "charts": {
+          "type": "object",
+          "optional": true
         }
       }
     },
@@ -211,6 +280,26 @@
         "depthRefLevel": {
           "type": "number",
           "optional": true
+        },
+        "affectedFacilityCount": {
+          "type": "number",
+          "optional": true
+        },
+        "affectedPorts": {
+          "type": "array",
+          "optional": true
+        },
+        "estimatedLoss": {
+          "type": "number",
+          "optional": true
+        },
+        "description": {
+          "type": "string",
+          "optional": true
+        },
+        "affectedCount": {
+          "type": "number",
+          "optional": true
         }
       }
     },
@@ -236,6 +325,50 @@
         "typeSettings": {
           "type": "record",
           "optional": false
+        },
+        "savedXiaoqu": {
+          "type": "array",
+          "optional": true
+        },
+        "weights": {
+          "type": "record",
+          "optional": true
+        },
+        "createdAt": {
+          "type": "string",
+          "optional": false
+        },
+        "updatedAt": {
+          "type": "string",
+          "optional": false
+        },
+        "businessType": {
+          "type": "string",
+          "optional": true
+        },
+        "waterLevel": {
+          "type": "number",
+          "optional": true
+        },
+        "totalLoss": {
+          "type": "number",
+          "optional": true
+        },
+        "floodRiskLevel": {
+          "type": "string",
+          "optional": true
+        },
+        "floodFeatures": {
+          "type": "array",
+          "optional": true
+        },
+        "affectedFacilities": {
+          "type": "array",
+          "optional": true
+        },
+        "floodStatistics": {
+          "type": "floodStatisticsResponseSchema",
+          "optional": true
         }
       }
     },
@@ -274,6 +407,26 @@
         "error": {
           "type": "string",
           "optional": false
+        },
+        "empty": {
+          "type": "boolean",
+          "optional": true
+        },
+        "emptyReason": {
+          "type": "string",
+          "optional": true
+        },
+        "coverage": {
+          "type": "unknown",
+          "optional": false
+        },
+        "matchedXiaoqu": {
+          "type": "array",
+          "optional": true
+        },
+        "facilityPoi": {
+          "type": "record",
+          "optional": true
         }
       }
     },
@@ -307,7 +460,7 @@
       "fields": {
         "waterLevel": {
           "type": "number",
-          "optional": false
+          "optional": true
         },
         "requestedWaterLevel": {
           "type": "number",
@@ -399,6 +552,22 @@
         "name": {
           "type": "string",
           "optional": false
+        },
+        "lng": {
+          "type": "number",
+          "optional": false
+        },
+        "lat": {
+          "type": "number",
+          "optional": false
+        },
+        "snapshot": {
+          "type": "record",
+          "optional": true
+        },
+        "savedAt": {
+          "type": "string",
+          "optional": false
         }
       }
     },
@@ -473,6 +642,10 @@
           "optional": false
         },
         "type": {
+          "type": "string",
+          "optional": false
+        },
+        "source": {
           "type": "string",
           "optional": false
         },

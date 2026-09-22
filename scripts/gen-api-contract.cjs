@@ -71,7 +71,9 @@ const TYPE_NAMES = [
 function zodTypeName(expr) {
   const e = expr.trim()
   for (const [token, name] of TYPE_NAMES) {
-    if (e.startsWith(token)) return name
+    // z 与 . 之间允许换行/空格（`= z\n.object(...)` 多行起链形态，b018）
+    const re = new RegExp('^' + token.replace(/\./g, '\\s*\\.\\s*'))
+    if (re.test(e)) return name
   }
   return e.split(/[<(]/)[0] || e || '?'
 }
@@ -83,8 +85,10 @@ function zodTypeName(expr) {
  */
 function parseSchemaDef(text, start) {
   const head = text.slice(start)
+  // `z\b` 而非 `z\.`：允许 `= z` 换行起链（affectedFacilitySchema 即此形态，
+  // 旧正则要求 z 后紧跟 . ⇒ 整条声明不进气场、快照整条缺失，b018）
   const m = head.match(
-    /^export const (\w+Schema)\s*=\s*(z\.[\s\S]*?)(?=\n\nexport type|\n\nexport const|\n\n\/\/|\n\s*$)/s
+    /^export const (\w+Schema)\s*=\s*(z\b[\s\S]*?)(?=\n\nexport type|\n\nexport const|\n\n\/\/|\n\s*$)/s
   )
   if (!m) return null
   const [, name, expr] = m
@@ -96,7 +100,19 @@ function parseSchemaDef(text, start) {
     let i = 0
     while (i < body.length) {
       const keyMatch = body.slice(i).match(/^\s*([A-Za-z_$][\w$]*)\s*:\s*/)
-      if (!keyMatch) break
+      if (!keyMatch) {
+        // 对象体内的注释/空行不再终止字段扫描（b018：旧实现遇首行非键即 break，
+        // 该 schema 之后的全部顶层字段被截断，快照系统性少记）
+        const commentMatch = body.slice(i).match(/^\s*(\/\/[^\n]*|\/\*[\s\S]*?\*\/)/)
+        if (commentMatch) {
+          i += commentMatch[0].length
+          continue
+        }
+        const nl = body.indexOf('\n', i)
+        if (nl < 0) break
+        i = nl + 1
+        continue
+      }
       const key = keyMatch[1]
       const valueStart = i + keyMatch[0].length
       let depth = 0
@@ -130,9 +146,17 @@ function parseSchemaDef(text, start) {
 
 const schemasText = fs.readFileSync(SCHEMAS, 'utf8')
 const defs = []
+// 解析失败显式报出（b018：旧实现 `if (def) defs.push(def)` 静默丢弃，
+// 头注释宣称的「不会静默漏掉」不成立——声明数与快照数对不上无人知）
+const parseFailures = []
+const declStarts = [...schemasText.matchAll(/^export const (\w+Schema)\s*=/gm)].map((m) => ({
+  name: m[1],
+  index: m.index,
+}))
 for (const m of schemasText.matchAll(/^export const (\w+Schema)\s*=/gm)) {
   const def = parseSchemaDef(schemasText, m.index)
   if (def) defs.push(def)
+  else parseFailures.push(m[1])
 }
 
 // ---------- 校验 ----------
@@ -140,10 +164,14 @@ for (const m of schemasText.matchAll(/^export const (\w+Schema)\s*=/gm)) {
 const testText = fs.readFileSync(TEST_FILE, 'utf8')
 
 // 嵌套引用：schemas.ts 内部被其他 schema 定义引用的（如 userSchema ⊂ authResponseSchema），
-// 随父 schema 一起被测试间接覆盖——不算缺口
+// 随父 schema 一起被测试间接覆盖——不算缺口。
+// ⚠️ 只在本 schema 自身声明体内找（截到下一个 export）——旧实现 slice 到 EOF，
+// 每个 schema 的文本都包含其后全部声明 ⇒ nestedRefs ≈ 全集 ⇒ 本检查恒不报告（b018）
 const nestedRefs = new Set()
 for (const def of defs) {
-  const defText = schemasText.slice(schemasText.indexOf(`export const ${def.name}`))
+  const own = declStarts.find((d) => d.name === def.name)
+  const nextExport = schemasText.indexOf('\nexport ', own.index + 10)
+  const defText = schemasText.slice(own.index, nextExport < 0 ? schemasText.length : nextExport)
   for (const other of defs) {
     if (other.name !== def.name && new RegExp(`\\b${other.name}\\b`).test(defText)) {
       nestedRefs.add(other.name)
@@ -151,7 +179,9 @@ for (const def of defs) {
   }
 }
 
-const problems = []
+const problems = [
+  ...parseFailures.map((n) => `✗ ${n}: 声明解析失败（生成器无法提取字段，请检查声明形态）`),
+]
 const indirect = []
 for (const def of defs) {
   const parsedExport = new RegExp(
@@ -183,6 +213,16 @@ if (!onlyCheck) {
   fs.mkdirSync(path.dirname(OUT), { recursive: true })
   fs.writeFileSync(OUT, JSON.stringify(snapshot, null, 2) + '\n')
   console.log(`已生成契约快照: ${path.relative(ROOT, OUT)}（${defs.length} 个 schema）`)
+} else if (fs.existsSync(OUT)) {
+  // 产物新鲜度断言（b018）：--check 只跑校验、不写文件，若不比对生成物与现算结果，
+  // 「快照过期」无人知（曾出现 schemas.ts 已改 7 天而快照 generatedAt 停在旧日期）。
+  // 比对排除 generatedAt（日期字段每天变化，不参与内容判据）。
+  const committed = JSON.parse(fs.readFileSync(OUT, 'utf8'))
+  const { generatedAt: _ignored, ...committedRest } = committed
+  const { generatedAt: _alsoIgnored, ...freshRest } = snapshot
+  if (JSON.stringify(committedRest) !== JSON.stringify(freshRest)) {
+    problems.push('✗ 契约快照与 schemas.ts 不同步：请跑 npm run types:gen 后提交生成物')
+  }
 }
 
 for (const def of defs) {

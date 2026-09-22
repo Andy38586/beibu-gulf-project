@@ -5,8 +5,14 @@ import { describe, expect, it } from 'vitest'
 
 import {
   authResponseSchema,
+  boundaryCacheSchema,
+  favoriteAddResponseSchema,
+  favoriteItemSchema,
+  favoriteRemoveResponseSchema,
+  favoritesArraySchema,
   floodAreasResponseSchema,
   floodDisasterResponseSchema,
+  floodImpactResponseSchema,
   floodOnlineResponseSchema,
   floodStatisticsResponseSchema,
   forecastIndicatorIndexSchema,
@@ -14,6 +20,10 @@ import {
   indicatorComparisonResponseSchema,
   planSchema,
   poiSearchResponseSchema,
+  portSchema,
+  portsArraySchema,
+  routePathResponseSchema,
+  siteAnalysisResponseSchema,
   terrainProfileSchema,
   timeSeriesResponseSchema,
   waterAreaSchema,
@@ -391,5 +401,139 @@ describe('poiSearch schemas（构造样本双向验证）', () => {
   it('poiSearchResponseSchema 非数组载体被拒绝', () => {
     const bad = poiSearchResponseSchema.safeParse({ id: 'poi-1' })
     expect(bad.success).toBe(false)
+  })
+})
+
+// 契约覆盖补齐：以下 8 个 schema 曾被生成器判「schemas.test.ts 未引用」——
+// 旧生成器 nestedRefs 用 slice-to-EOF 使该检查恒不报告（告警恒 0），修复后首次转红。
+// 这里补真实双向验证（合法样本通过 / 畸形样本被拒），把覆盖缺口真正闭合。
+describe('契约覆盖补齐的 schema（生成器门禁转红后补）', () => {
+  const portSample = {
+    id: 'port-1',
+    name: '钦州港',
+    address: '广西钦州',
+    lng: 108.6,
+    lat: 21.8,
+  }
+  const favoriteSample = {
+    id: 'fav-1',
+    userId: 'u-1',
+    itemType: 'xiaoqu' as const,
+    itemId: 'xq-1',
+    name: '腾龙阁小区',
+    lng: 108.61,
+    lat: 21.94,
+    snapshot: { score: 85.2 },
+    savedAt: '2026-09-22T00:00:00.000Z',
+  }
+
+  it('boundaryCacheSchema：合法缓存通过；type 非 FeatureCollection 拒绝', () => {
+    const ok = boundaryCacheSchema.safeParse({
+      data: { type: 'FeatureCollection', features: [] },
+      timestamp: 1757000000000,
+    })
+    const bad = boundaryCacheSchema.safeParse({
+      data: { type: 'Feature', features: [] },
+      timestamp: 1,
+    })
+    expect(ok.success).toBe(true)
+    expect(bad.success).toBe(false)
+  })
+
+  it('siteAnalysisResponseSchema：合法响应与业务失败形态都通过', () => {
+    const ok = siteAnalysisResponseSchema.safeParse({
+      error: null,
+      coverage: { type: 'Polygon', coordinates: [] },
+      matchedXiaoqu: [{ id: 'x1', name: '小区', score: 80, lng: 108.6, lat: 21.9 }],
+      facilityPoi: {},
+    })
+    // 业务失败形态（site-analysis.service.ts:236/265 的真实返回）：coverage 为必填
+    // （z.unknown().nullable()——键必须在、值可空），缺键即校验失败
+    const failed = siteAnalysisResponseSchema.safeParse({
+      error: '未选择设施类型',
+      coverage: null,
+      matchedXiaoqu: [],
+      facilityPoi: {},
+    })
+    expect(ok.success).toBe(true)
+    expect(failed.success).toBe(true)
+    // error 必须是 string|null——数字被拒
+    expect(siteAnalysisResponseSchema.safeParse({ error: 500, coverage: null }).success).toBe(false)
+  })
+
+  it('floodImpactResponseSchema：缺键合法（零影响）；totalLoss 非数字拒绝', () => {
+    expect(floodImpactResponseSchema.safeParse({}).success).toBe(true)
+    expect(
+      floodImpactResponseSchema.safeParse({ affectedFacilities: [], totalLoss: 0 }).success
+    ).toBe(true)
+    expect(floodImpactResponseSchema.safeParse({ totalLoss: '很多' }).success).toBe(false)
+  })
+
+  it('portsArraySchema：前端托管 ports.json 通过；元素缺字段拒绝', () => {
+    // ports.json 2026-08-29 自后端回迁为前端静态资产（public/data），不再走 backend/data
+    const data = JSON.parse(
+      readFileSync(join(__dirname, '../../../public/data/ports.json'), 'utf8')
+    )
+    expect(portsArraySchema.safeParse(data).success).toBe(true)
+    expect(portsArraySchema.safeParse([{ id: 'p1', name: '缺坐标' }]).success).toBe(false)
+    expect(portSchema.safeParse(portSample).success).toBe(true)
+  })
+
+  it('favoritesArraySchema：合法数组通过；itemType 越界元素拒绝', () => {
+    expect(favoritesArraySchema.safeParse([favoriteSample]).success).toBe(true)
+    expect(
+      favoritesArraySchema.safeParse([{ ...favoriteSample, itemType: 'planet' }]).success
+    ).toBe(false)
+    expect(favoriteItemSchema.safeParse(favoriteSample).success).toBe(true)
+  })
+
+  it('favoriteAddResponseSchema / favoriteRemoveResponseSchema 通过/拒绝', () => {
+    expect(
+      favoriteAddResponseSchema.safeParse({ favorite: favoriteSample, existed: false }).success
+    ).toBe(true)
+    expect(favoriteAddResponseSchema.safeParse({ favorite: {}, existed: false }).success).toBe(
+      false
+    )
+    expect(favoriteRemoveResponseSchema.safeParse({ removed: true }).success).toBe(true)
+    expect(favoriteRemoveResponseSchema.safeParse({}).success).toBe(false)
+  })
+
+  it('routePathResponseSchema：成功/合法空两形态通过；判别键分派', () => {
+    const found = routePathResponseSchema.safeParse({
+      found: true,
+      mode: 'distance',
+      distanceM: 1200,
+      durationMin: 3.5,
+      snapDistanceM: { from: 12, to: 8 },
+      edgeCount: 3,
+      coordinates: [
+        [108.6, 21.8],
+        [108.61, 21.81],
+      ],
+    })
+    const empty = routePathResponseSchema.safeParse({ found: false, reason: 'unreachable' })
+    expect(found.success).toBe(true)
+    expect(empty.success).toBe(true)
+    // 判别联合按 found 分派：成功形态缺 distanceM 被拒；reason 越界被拒
+    expect(
+      routePathResponseSchema.safeParse({
+        found: true,
+        mode: 'distance',
+        durationMin: 3.5,
+        snapDistanceM: { from: 12, to: 8 },
+        edgeCount: 3,
+        coordinates: [],
+      }).success
+    ).toBe(false)
+    expect(routePathResponseSchema.safeParse({ found: false, reason: 'lost' }).success).toBe(false)
+    // z.object 默认剥离去弃键：空结果上夹带的 distanceM 被剥掉（不进 data），
+    // 消费方拿到的仍是干净的 {found,reason}（schemas.ts:357-371 契约）
+    const stripped = routePathResponseSchema.safeParse({
+      found: false,
+      reason: 'unreachable',
+      distanceM: 1,
+    })
+    expect(stripped.success).toBe(true)
+    expect(stripped.success && 'distanceM' in stripped.data).toBe(false)
   })
 })

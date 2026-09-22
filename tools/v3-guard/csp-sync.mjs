@@ -22,7 +22,9 @@ import { fileURLToPath } from 'node:url'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 
-const CSP_RE = /Content-Security-Policy-Report-Only\s+"([^"]*)"/g
+// Report-Only 与强制头都要匹配：曾只匹配 Report-Only，生产切强制
+// Content-Security-Policy 后本守卫取不到值（静默失效，z054）
+const CSP_RE = /Content-Security-Policy(?:-Report-Only)?\s+"([^"]*)"/g
 const REPORT_DIRECTIVE_RE = /\breport-(?:uri|to)\b/
 
 /** 抽出某份配置里的全部 CSP 策略串 */

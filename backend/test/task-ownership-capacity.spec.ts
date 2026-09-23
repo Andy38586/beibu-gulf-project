@@ -12,7 +12,11 @@ import {
   TASK_TERMINAL_MIN_RETAIN_MS,
   type TaskRecord,
 } from '../src/modules/task/types/task'
-import { resolveRequestOwner } from '../src/modules/task/utils/request-owner'
+import {
+  ANONYMOUS_OWNER_PREFIX,
+  resolveRequestOwner,
+  TASK_CLIENT_HEADER,
+} from '../src/modules/task/utils/request-owner'
 
 // d059 / d060 / d061 的判据回归（922-R4 §1.3 三条最小判据，逐条对应）：
 //   d059 取代键与取消/查询都必须带属主——只按 route 判定时任何人提交同一 route
@@ -151,14 +155,65 @@ describe('resolveRequestOwner（请求 → 属主）', () => {
     else process.env.JWT_SECRET = savedSecret
   })
 
-  const req = (init: { cookie?: string; authorization?: string }) =>
+  const req = (init: { cookie?: string; authorization?: string; client?: string }) =>
     ({
       cookies: init.cookie ? { auth_token: init.cookie } : undefined,
-      headers: init.authorization ? { authorization: init.authorization } : {},
+      headers: {
+        ...(init.authorization ? { authorization: init.authorization } : {}),
+        ...(init.client ? { [TASK_CLIENT_HEADER]: init.client } : {}),
+      },
     }) as never
 
   it('无令牌 ⇒ 匿名属主（公开端点语义不变）', () => {
     expect(resolveRequestOwner(req({}))).toBe(ANONYMOUS_OWNER)
+  })
+
+  it('🔴 无令牌但带合法会话头 ⇒ 匿名按会话分槽（同一路由下匿名不再互相取代/取消）', () => {
+    const idA = 'a'.repeat(32)
+    const idB = 'b'.repeat(32)
+    expect(resolveRequestOwner(req({ client: idA }))).toBe(`${ANONYMOUS_OWNER_PREFIX}${idA}`)
+    expect(resolveRequestOwner(req({ client: idA }))).not.toBe(
+      resolveRequestOwner(req({ client: idB }))
+    )
+    // 同一会话头的两次请求必须同槽（提交后能取消/查询自己刚提交的任务）
+    expect(resolveRequestOwner(req({ client: idA }))).toBe(
+      resolveRequestOwner(req({ client: idA }))
+    )
+    // 登录用户仍按用户 id，不被会话头顶掉
+    const tokenA = generateToken({ id: 'u-a', username: 'A' })
+    expect(resolveRequestOwner(req({ authorization: `Bearer ${tokenA}`, client: idB }))).toBe('u-a')
+  })
+
+  it('🔴 畸形/过短会话 id 不采信，退回共享匿名槽（防穷举与畸形属主）', () => {
+    for (const bad of ['short', 'x'.repeat(65), 'has space and !', '中文会话']) {
+      expect(resolveRequestOwner(req({ client: bad }))).toBe(ANONYMOUS_OWNER)
+    }
+  })
+
+  it('🔴 两个匿名会话之间不可互相取代/取消（服务层同判据：属主不等即 404）', async () => {
+    const ownerA = `${ANONYMOUS_OWNER_PREFIX}${'a'.repeat(32)}`
+    const ownerB = `${ANONYMOUS_OWNER_PREFIX}${'b'.repeat(32)}`
+    const gate = makeGate()
+    const service = makeService(async () => {
+      await gate.promise
+      return { ok: true }
+    })
+    const taskA = submit(service, { route: '/flood-analysis', ownerId: ownerA })
+    await flushMicrotasks()
+    // 同路由、不同匿名会话：不得互相取代（原形态两人共用一个槽，后提交者把前者取消）
+    const taskB = submit(service, { route: '/flood-analysis', ownerId: ownerB })
+    await flushMicrotasks()
+    expect(taskB.taskId).not.toBe(taskA.taskId)
+    expect(service.get(taskA.taskId, ownerA).status).toBe('running')
+
+    const cancelErr = catchSync(() => service.cancel(taskA.taskId, ownerB)) as BusinessError
+    expect(cancelErr.bizCode).toBe(ErrorCode.NOT_FOUND.code)
+    const getErr = catchSync(() => service.get(taskA.taskId, ownerB)) as BusinessError
+    expect(getErr.bizCode).toBe(ErrorCode.NOT_FOUND.code)
+    // 会话本人两条都正常
+    expect(service.cancel(taskA.taskId, ownerA).status).toBe('cancelled')
+
+    gate.release()
   })
 
   it('Bearer 有效令牌 ⇒ JWT 里的用户 id；cookie 优先于 Bearer', () => {

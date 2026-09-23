@@ -268,9 +268,11 @@ describe('deriveRiskLevel - 连续档位风险派生', () => {
 
 describe('getFloodStatistics - 与 flood-areas/disaster 同源（251 档 + 空间判定）', () => {
   /** mock reader：按路径分发参考表 / 设施点 / 剖面（DataFilesService 缓存按实例隔离） */
-  function makeStatisticsReadFile(): ReturnType<typeof vi.fn> {
+  function makeStatisticsReadFile(
+    facilityPoints: string = MOCK_FACILITY_POINTS
+  ): ReturnType<typeof vi.fn> {
     return vi.fn().mockImplementation((p: string) => {
-      if (p.includes('facilityPoints')) return Promise.resolve(MOCK_FACILITY_POINTS)
+      if (p.includes('facilityPoints')) return Promise.resolve(facilityPoints)
       // 基准偏移来自地形剖面文件（单一来源）：披露判据靠它换算参考档的 EGM96 等值，
       // 缺了它会退化成"上下同基准"⇒ 披露消失（W19）
       if (p.includes('terrainProfile')) return Promise.resolve(MOCK_TERRAIN_PROFILE)
@@ -280,10 +282,11 @@ describe('getFloodStatistics - 与 flood-areas/disaster 同源（251 档 + 空�
 
   function makeStatisticsService(
     levelRows: FloodLevelFeatureRow[],
-    hitIndices: number[]
+    hitIndices: number[],
+    facilityPoints?: string
   ): FloodService {
     const files = new DataFilesService(
-      makeStatisticsReadFile() as unknown as typeof DEFAULT_READ_FILE
+      makeStatisticsReadFile(facilityPoints) as unknown as typeof DEFAULT_READ_FILE
     )
     const db = { query: vi.fn().mockResolvedValue({ rows: levelRows }) } as unknown as DbService
     return new FloodService(new FloodRepository(files, db), stubSpatial(hitIndices))
@@ -336,6 +339,29 @@ describe('getFloodStatistics - 与 flood-areas/disaster 同源（251 档 + 空�
     //   FCG-001 高程 2.5 ⇒ d=5−2.5=2.5 ⇒ 因子 2.5/3 ⇒ 20000×0.5×0.8333… = 8333.33
     // 合计 21083.33 → Math.round ⇒ 21083（旧形态无因子时为 22750）
     expect(result.estimatedLoss).toBe(21083)
+  })
+
+  it('🔴 高程为 null 的设施按未淹计（深度 0 ⇒ 损失 0），与生成侧 NoData 同口径', async () => {
+    // 生成侧对 DEM NoData 点写的是 null（flood_realify.py:152 `if ok else None`），
+    // facility_depths（:193-200）对无高程一律记 0.0 ⇒ 损失因子 0。
+    // 运行侧旧写法 `Number(facility.elevation)`：Number(null)=0 ⇒ 当成「海拔 0 米」
+    // ⇒ 深度满淹、因子 1 ⇒ 全额损失，与生成侧差一个满淹水位（本用例即钉住这个分歧）。
+    const facilities = JSON.parse(MOCK_FACILITY_POINTS) as {
+      facilities: Array<Record<string, unknown>>
+    }
+    facilities.facilities[1].elevation = null
+    const service = makeStatisticsService(
+      mockLevelRows([[5.0, 0.9]], '576.91'),
+      [0, 1],
+      JSON.stringify(facilities)
+    )
+    const result = (await service.getFloodStatistics('5')) as Record<string, unknown>
+
+    // QZ-001 高程 2.0 ⇒ d=3 ⇒ 因子 1 ⇒ 12750；FCG-001 无高程 ⇒ 0 ⇒ 合计 12750
+    expect(result.estimatedLoss).toBe(12750)
+    // 受影响数按点面判定（不依赖高程），两个设施都算
+    expect(result.affectedFacilityCount).toBe(2)
+    expect(result.affectedPorts).toEqual(['钦州港', '防城港'])
   })
 
   it('无命中设施 → 计数/港口/损失归零，档位信息仍返回', async () => {

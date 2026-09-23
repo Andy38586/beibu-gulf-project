@@ -405,8 +405,18 @@ export class FloodService {
       // 原注释引的 :295-301 是「level==0 空档」分支，与设施损失无关（复判 2026-09-23 抓到）。
       // 运行侧此前不折减 ⇒ 同一个 estimatedLoss 字段两轨口径：d < 3m 时运行侧最高达生成侧
       // 的 3 倍，而两端各自都自洽，diff 看不出来。
-      const elevation = Number(facility.elevation)
-      const depth = Number.isFinite(elevation) ? Math.max(0, depthLevel - elevation) : 0
+      //
+      // 🔴 null 必须与 undefined 同判「无高程」（复判 2026-09-23 第二轮）：生成侧对 DEM
+      // NoData 点写的是 `null`（flood_realify.py:152 `"elevation": (… if ok else None)`），
+      // 而 `Number(null)` 是 **0** —— 旧写法把它当成「海拔 0 米」⇒ depth = 满淹、
+      // 因子 1 ⇒ 损失全额；生成侧同一设施是 0。两端差一个满淹水位，且只在 null 形态下
+      // 出现（当前数据面暂无 null，属潜在分歧）。
+      const hasElevation =
+        facility.elevation !== null &&
+        facility.elevation !== undefined &&
+        Number.isFinite(Number(facility.elevation))
+      const elevation = hasElevation ? Number(facility.elevation) : Number.NaN
+      const depth = hasElevation ? Math.max(0, depthLevel - elevation) : 0
       const depthFactor = Math.min(1, depth / 3)
       return {
         id: facility.id,

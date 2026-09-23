@@ -335,7 +335,9 @@ export class BusinessLayerManager {
           meta.label,
           meta.layerType,
           meta.visible,
-          undefined,
+          // 必须透传 meta.engines：原为 undefined ⇒ mapStore 默认值兜成双引擎，
+          // 目录镜像对单引擎特化图层"谎报双引擎"，面板据此把不该亮的条目画成可点
+          meta.engines,
           meta.listed,
           meta.locked
         )

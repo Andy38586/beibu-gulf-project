@@ -244,7 +244,9 @@ describe('BusinessLayerManager', () => {
         '真实地形',
         'geotiff',
         true,
-        undefined,
+        // engines 透传（W6 第四半）：geotiff 是 Cesium 独占能力（adapter 声明 engines: ['cesium']）
+        // 旧形态此处传 undefined ⇒ mapStore 双引擎默认值，目录侧对单引擎图层"谎报双引擎"
+        ['cesium'],
         true,
         false
       )
@@ -287,7 +289,9 @@ describe('BusinessLayerManager', () => {
         '行政区划',
         'geojson',
         true,
-        undefined,
+        // engines 透传（W6 第四半）：这些图层注册时未指定 engines ⇒ 双引擎默认值
+        // （旧形态此处传 undefined 让 mapStore 兜默认值，等于让目录侧"谎报双引擎"）
+        ['openlayers', 'cesium'],
         true,
         false
       )
@@ -296,7 +300,9 @@ describe('BusinessLayerManager', () => {
         '港口位置',
         'points',
         true,
-        undefined,
+        // engines 透传（W6 第四半）：这些图层注册时未指定 engines ⇒ 双引擎默认值
+        // （旧形态此处传 undefined 让 mapStore 兜默认值，等于让目录侧"谎报双引擎"）
+        ['openlayers', 'cesium'],
         true,
         false
       )
@@ -359,13 +365,49 @@ describe('BusinessLayerManager', () => {
         '淹没范围',
         'geojson',
         true,
-        undefined,
+        // engines 透传（W6 第四半）：这些图层注册时未指定 engines ⇒ 双引擎默认值
+        // （旧形态此处传 undefined 让 mapStore 兜默认值，等于让目录侧"谎报双引擎"）
+        ['openlayers', 'cesium'],
         true,
         false
       )
       expect(mapStore.layerCatalog.some((e: MockCatalogEntry) => e.key === 'flood-area')).toBe(true)
       // data==null → 不触发视觉创建
       expect(newRenderer.addGeoJsonLayer).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('reapplyAll 目录条目重建透传 engines（W6 第四半）', () => {
+    it('🔴 重建条目按 registry.engines 登记，不谎报双引擎', () => {
+      const renderer = {
+        addPointLayer: vi.fn(),
+        hasLayer: vi.fn().mockReturnValue(false),
+        getType: () => '3d',
+      }
+      mapStore.currentRenderer = renderer as unknown as MapRenderer
+      manager.register('ol-only', {
+        label: '二维专用',
+        layerType: 'points',
+        data: [{ lng: 108, lat: 21 }],
+        visible: true,
+        engines: ['openlayers'],
+      })
+      // 引擎切换后目录被清空 → reapplyAll 按 registry 重建条目
+      mapStore.layerCatalog = []
+      mapStore.registerBusinessLayer.mockClear()
+
+      manager.reapplyAll(renderer as unknown as MapRenderer)
+
+      // 旧形态第 5 参传 undefined ⇒ mapStore 默认值兜成双引擎，面板据此把不该亮的条目画成可点
+      expect(mapStore.registerBusinessLayer).toHaveBeenCalledWith(
+        'ol-only',
+        '二维专用',
+        'points',
+        true,
+        ['openlayers'],
+        true,
+        false
+      )
     })
   })
 

@@ -1,12 +1,12 @@
 import { defineStore } from 'pinia'
 import type { Ref, ShallowRef } from 'vue'
-import { ref, shallowRef } from 'vue'
+import { ref, shallowRef, computed } from 'vue'
 
 import { logger } from '@/shared'
 import { readStoredJSON, writeStoredJSON } from '@/shared/utils/safeStorage'
 import type { EngineName, LayerEntry, LayerType, MapType } from '@/types'
 import type { MapRenderer } from '@/types'
-import { DEFAULT_ENGINES } from '@/types'
+import { DEFAULT_ENGINES, ENGINE_NAMES } from '@/types'
 
 /** localStorage 键：底图 */
 const BASE_LAYER_STORAGE_KEY = 'beibu-gulf-base-layer'
@@ -46,6 +46,16 @@ export const useMapStore = defineStore('map', () => {
   function setCurrentRenderer(renderer: MapRenderer | null): void {
     currentRenderer.value = renderer
   }
+
+  /**
+   * 当前渲染器对应的引擎名（未就绪为 null）。
+   * 单一来源：面板判断"图层是否适用当前引擎"、BLM.reapplyAll 的引擎过滤都读它——
+   * 原先 '2d'/'3d' → EngineName 的映射散在 reapplyAll 与各处判定里。
+   */
+  const currentEngineName = computed<EngineName | null>(() => {
+    const rt = currentRenderer.value?.getType?.()
+    return rt === '2d' ? ENGINE_NAMES.OPENLAYERS : rt === '3d' ? ENGINE_NAMES.CESIUM : null
+  })
 
   // 地图类型仅内存态（无读取方的持久化已移除），刷新回退默认 '2d'
   function setMapType(type: MapType): void {
@@ -165,6 +175,8 @@ export const useMapStore = defineStore('map', () => {
     layerCatalog,
     baseLayerKey,
     currentRenderer,
+    // 当前引擎名（面板三态判定与 BLM 引擎过滤共用）
+    currentEngineName,
     // 调试模式（仅 DEV 构建消费：引擎徽标等后台标号的统一开关）
     debugMode,
     setDebugMode,

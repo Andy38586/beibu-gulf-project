@@ -7,6 +7,7 @@
 
 import { computed } from 'vue'
 
+import { resolveLayerPanelState } from '@/core/map/layerAdapters'
 import { useBusinessLayers } from '@/core/map/composables/useBusinessLayers'
 import { useGCS } from '@/shared'
 import { useMapStore } from '@/stores'
@@ -57,23 +58,32 @@ const layerButtons = computed(() => {
     .filter((l): l is LayerEntry => l !== undefined)
   const orderedKeys = new Set(ordered.map((l: LayerEntry) => l.key))
   const extra = presentable.filter((l: LayerEntry) => !orderedKeys.has(l.key))
-  return [...ordered, ...extra].map((layer) => ({
-    key: layer.key,
-    label: layer.label,
-    // 透传 layerType 供图标数据驱动（core 不解析业务 label 语义）
-    layerType: layer.layerType,
-    // 引擎适用标记：registry meta 优先，目录镜像兜底；仅单引擎图层显示角标（双引擎保持干净）
-    engines: layer.engines ?? businessLayerManager.getMeta(layer.key)?.engines ?? DEFAULT_ENGINES,
+  return [...ordered, ...extra].map((layer) => {
+    const engines =
+      layer.engines ?? businessLayerManager.getMeta(layer.key)?.engines ?? DEFAULT_ENGINES
     // 单变量原则：按钮状态即 registry.visible（BLM 唯一权威），蓝 = 图层在显示
-    active: layer.layerType
+    const active = layer.layerType
       ? (businessLayerManager.getMeta(layer.key)?.visible ?? layer.visible)
-      : mapStore.baseLayerKey === layer.key,
+      : mapStore.baseLayerKey === layer.key
     // 锁定层不可关：按钮置灰禁用（当前恒为「开」态）。呈现层也判一次，
     // 不依赖 BLM 的 setVisible 拒绝兜底——禁用态要提前告知用户，而非点了没反应
-    locked: layer.layerType
+    const locked = layer.layerType
       ? (businessLayerManager.getMeta(layer.key)?.locked ?? layer.locked)
-      : false,
-  }))
+      : false
+    return {
+      key: layer.key,
+      label: layer.label,
+      // 透传 layerType 供图标数据驱动（core 不解析业务 label 语义）
+      layerType: layer.layerType,
+      // 引擎适用标记：registry meta 优先，目录镜像兜底；仅单引擎图层显示角标（双引擎保持干净）
+      engines,
+      active,
+      locked,
+      // 三态（a035）：单引擎特化图层遇另一引擎 ⇒ unsupported，按钮不可点亮
+      //（原先只看 on/off，这类条目在 3D 下照样可点，点了什么也不会发生）
+      state: resolveLayerPanelState(engines, active, mapStore.currentEngineName),
+    }
+  })
 })
 
 /**
@@ -117,6 +127,9 @@ function handleToggle(key: string) {
   if (catalogEntry && catalogEntry.layerType) {
     // 锁定层（基础能力，如地形山影）：按钮已禁用，此处再挡一道，防其它路径误调
     if (businessLayerManager.getMeta(key)?.locked) return
+    // 引擎不适用（单引擎特化层遇另一引擎）：按钮已禁用，此处再挡一道——
+    // BLM.setVisible 不做引擎判定，误调会让它在不适用的引擎上尝试创建
+    if (layerButtons.value.find((i) => i.key === key)?.state === 'unsupported') return
     // 单变量原则：读 registry 状态再取反，一次生效（不读实例状态避免错位）
     const registryVisible = businessLayerManager.getMeta(key)?.visible
     const currentVisible = registryVisible ?? catalogEntry.visible
@@ -135,9 +148,19 @@ function handleToggle(key: string) {
         v-for="item in layerButtons"
         :key="item.key"
         class="layer-btn"
-        :class="{ active: item.active, locked: item.locked }"
-        :disabled="item.locked"
-        :title="item.locked ? `${item.label}（随底图默认加载，不可关闭）` : undefined"
+        :class="{
+          active: item.active,
+          locked: item.locked,
+          unsupported: item.state === 'unsupported',
+        }"
+        :disabled="item.locked || item.state === 'unsupported'"
+        :title="
+          item.locked
+            ? `${item.label}（随底图默认加载，不可关闭）`
+            : item.state === 'unsupported'
+              ? `${item.label}（当前引擎不支持该图层）`
+              : undefined
+        "
         @click="handleToggle(item.key)"
       >
         <span class="layer-icon">{{ getLayerIcon(item.label, item.layerType) }}</span>
@@ -227,6 +250,18 @@ function handleToggle(key: string) {
 .layer-btn.locked {
   cursor: default;
   opacity: 0.85;
+}
+
+/* 当前引擎不支持的图层（单引擎特化层遇另一引擎）：比 locked 更弱，
+   明确"不可用"而非"不可关"（点了不做任何事，故不允许 hover 高亮） */
+.layer-btn.unsupported {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.layer-btn.unsupported:hover {
+  border-color: var(--GCS-border-default);
+  background: transparent;
 }
 
 .layer-btn.locked:hover {

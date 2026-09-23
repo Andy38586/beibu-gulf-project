@@ -14,7 +14,8 @@
  *
  * 用法：node tools/v3-guard/cruise-coverage.mjs   # 集合不一致 exit 1
  */
-import { readFileSync, readdirSync } from 'node:fs'
+import { readdirSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -33,20 +34,29 @@ export function listBusinessModules(root = ROOT) {
     .sort()
 }
 
-/** 从 cruise 配置提取 business-cross-import-* 规则覆盖的模块名（from 路径第二段） */
-export function parseRuleModules(cruiseText) {
+/**
+ * 从 cruise **配置对象**提取 business-cross-import-* 规则覆盖的模块名。
+ *
+ * 为什么收配置对象而不是配置文本（W11）：原实现对 `.dependency-cruiser.cjs` 的**文本**做正则，
+ * 于是「注释掉一条规则」照样命中（规则名仍在注释里）⇒ 规则真的被停用时守卫不红。
+ * 现在读 `require()` 出来的真实 `forbidden` 数组，注释/字符串里的同名文本不再算数。
+ */
+export function parseRuleModules(config) {
+  const forbidden = Array.isArray(config?.forbidden) ? config.forbidden : []
   const modules = []
-  const re = new RegExp(
-    `name: '${RULE_PREFIX}([^']+)'[\\s\\S]*?from: \\{ path: '\\^frontend/src/business/([^/]+)/'`,
-    'g'
-  )
-  for (const m of cruiseText.matchAll(re)) {
-    if (m[1] !== m[2]) {
+  for (const rule of forbidden) {
+    const name = typeof rule?.name === 'string' ? rule.name : ''
+    if (!name.startsWith(RULE_PREFIX)) continue
+    const moduleName = name.slice(RULE_PREFIX.length)
+    const fromPath = typeof rule?.from?.path === 'string' ? rule.from.path : ''
+    const m = /\^?frontend\/src\/business\/([^/]+)\//.exec(fromPath)
+    const fromModule = m ? m[1] : ''
+    if (moduleName !== fromModule) {
       throw new Error(
-        `规则名与 from 路径不一致：name=${m[1]} from=${m[2]}（命名约定 business-cross-import-<目录名>）`
+        `规则名与 from 路径不一致：name=${moduleName} from=${fromModule}（命名约定 business-cross-import-<目录名>）`
       )
     }
-    modules.push(m[2])
+    modules.push(moduleName)
   }
   return modules.sort()
 }
@@ -55,9 +65,9 @@ export function parseRuleModules(cruiseText) {
  * E2 对账。
  * @returns {{ problems: string[], rules: string[], dirs: string[] }}
  */
-export function auditCoverage(cruiseText, dirs) {
+export function auditCoverage(cruiseConfig, dirs) {
   const problems = []
-  const rules = parseRuleModules(cruiseText)
+  const rules = parseRuleModules(cruiseConfig)
 
   for (const dir of dirs) {
     if (!rules.includes(dir)) {
@@ -81,9 +91,17 @@ export function auditCoverage(cruiseText, dirs) {
 const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
 
 if (isMain) {
-  const cruiseText = readFileSync(path.join(ROOT, CRUISE_CONFIG), 'utf8')
+  const require = createRequire(import.meta.url)
+  let config
+  try {
+    // 读**真实配置**（require 后的对象），不读文本：文本里注释掉的规则同样会被正则命中
+    config = require(path.join(ROOT, CRUISE_CONFIG))
+  } catch (err) {
+    console.error(`[cruise-coverage] 无法加载 ${CRUISE_CONFIG}：${err?.message ?? err}`)
+    process.exit(1)
+  }
   const dirs = listBusinessModules()
-  const { problems, rules } = auditCoverage(cruiseText, dirs)
+  const { problems, rules } = auditCoverage(config, dirs)
 
   console.log(`[cruise-coverage] business 目录 ${dirs.length} 个：${dirs.join('、')}`)
   console.log(

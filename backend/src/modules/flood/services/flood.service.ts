@@ -238,7 +238,8 @@ export class FloodService {
     ]
 
     // 水深参考基准换算（W19 / d056 N-1）。参考表的 averageDepth/maxDepth 由生成脚本按
-    // 「EGM96 正高 = 档位水位 − datumOffset」反演（flood_realify.py:257-282），而本响应的
+    // 「EGM96 正高 = 档位水位 − datumOffset」反演（flood_realify.py:313-315 换算 + :340-343
+    // 由 DEM 逐像元反演 avg/max；实跑核过行号），而本响应的
     // actualLevel 是 PostGIS 档位值（同为 EGM96）⇒ **该行水深对应的 EGM96 水位**
     // = depthRef.waterLevel − datumOffset，它与实际档位之差才是真实低估量。
     // 旧实现拿档位标签（理论深度基准面）直接与 EGM96 值比，基准混用 ⇒ 披露反转：
@@ -292,7 +293,8 @@ export class FloodService {
    * 垂直基准偏移（水位=理论深度基准面 → EGM96 正高）。
    *
    * 单一来源 terrainProfile.json.metadata.datumOffset（生成脚本按 waterLevel.json 的
-   * baseLevels.msl 写入，见 flood_realify.py:208-211），不在此硬编码 2.5；
+   * baseLevels.msl 写入：flood_realify.py:115-126 读取 + :218 求值 + :266-268 写入
+   * terrainProfile.metadata.datumOffset），不在此硬编码 2.5；
    * 缺失时按 0 处理（等价于「上下同基准」，不因数据缺失伪造一个偏移量）。
    */
   private async readDatumOffset(): Promise<number> {
@@ -397,7 +399,10 @@ export class FloodService {
         ? Number(facility.damageRate)
         : 0
       // 水深因子 min(d/3, 1)（X4 / 专1 N-1）：**与生成侧同式**
-      //（flood_realify.py:295-301：d = 本档 EGM96 水位 − 设施高程，无高程/非正视为 0）。
+      //（flood_realify.py:193-200 facility_depths：d = 本档 EGM96 水位 − 设施高程，
+      //  **无高程或 d ≤ 0 一律记 0** —— 与下面 elevation 缺失即 depth=0 逐字一致；
+      //  折减式为 :354-359 `loss += value * damageRate * min(1, d/3)`）。
+      // 原注释引的 :295-301 是「level==0 空档」分支，与设施损失无关（复判 2026-09-23 抓到）。
       // 运行侧此前不折减 ⇒ 同一个 estimatedLoss 字段两轨口径：d < 3m 时运行侧最高达生成侧
       // 的 3 倍，而两端各自都自洽，diff 看不出来。
       const elevation = Number(facility.elevation)

@@ -1,6 +1,13 @@
 // 修复守卫：切换失败 + 在飞期间改意图 ⇒ 补跑必须发生（04-C5 抢占必补跑）。
-// 阳性对照：把 finally 的 `const target = pending` 改回 `mapStore.mapType ?? pending`，
-// 本用例必红（catch 回滚后 store=oldType ⇒ 判据恒假 ⇒ 排队意图被静默丢弃）。
+//
+// 阳性对照（2026-09-23 实跑订正）：原注释声称"把 finally 的 `const target = pending` 改回
+// `mapStore.mapType ?? pending`，本用例必红"——**实测为假**：该场景里 catch 的两个前置都命中，
+// store 停在 newType，与 pending 同值，两种判据等价 ⇒ 变异后仍全绿（宣称与实测不符）。
+// 订正后的两条可跑对照（均已实跑）：
+//   ① 把 finally 的 `const target = pending` 改回 `mapStore.mapType ?? pending`
+//      ⇒「补跑判据以 pending 为准」用例必红（该用例把 store 外部改写成 2d 而 pending=3d）；
+//   ② 删掉 catch 回滚里 `mapStore.mapType === newType` 这个前置
+//      ⇒「回滚前置①」用例必红（store 已是更晚意图时仍被写回过期 oldType）。
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -168,5 +175,125 @@ describe('UnifiedMap 切换失败后的补跑（a036）', () => {
     // 补跑必须真的发生：最终停在上一次意图 3d
     expect(mapStore.mapType).toBe('3d')
     expect((wrapper.vm.getRenderer() as { getType: () => string }).getType()).toBe('3d')
+  })
+
+  it('🔴 补跑判据以 pending 为准：store 被外部改写时不得丢排队意图', async () => {
+    // 与上一条的差别只在最后一步：排完队后**外部**（路由 watcher / 其它 store 写入，
+    // 不经 props）把 store 改成 2d ⇒ finally 时 store('2d') ≠ pending('3d')。
+    // 旧判据 `mapStore.mapType ?? pending` 恒取 store ⇒ 补跑判据落在"渲染器=2d"而判假，
+    // pending 的 3d 被静默丢弃（本用例必红）。
+    wrapper = mount(UnifiedMap, {
+      props: { mapType: '2d' },
+      ...makeMountOptions(mapStore),
+    })
+    await new Promise((r) => setTimeout(r, 50))
+    await flushPromises()
+
+    let reject3d: (e: Error) => void = () => {}
+    mockedCreateRenderer.mockImplementationOnce((type: string) =>
+      type === '3d'
+        ? new Promise((_resolve, reject) => {
+            reject3d = reject
+          })
+        : ({
+            _layers: new Map(),
+            on: vi.fn(),
+            off: vi.fn(),
+            emit: vi.fn(),
+            addPointLayer: vi.fn(),
+            addGeoJsonLayer: vi.fn(),
+            setVisibility: vi.fn(),
+            setBaseLayer: vi.fn(),
+            hasLayer: vi.fn().mockReturnValue(false),
+            clearPendingVisibility: vi.fn(),
+            exportState: vi.fn().mockReturnValue({}),
+            importState: vi.fn(),
+            destroy: vi.fn(),
+            updateSize: vi.fn(),
+            getMap: vi.fn().mockReturnValue({}),
+            getViewer: vi.fn().mockReturnValue({}),
+            getType: () => '2d',
+            startBreathing: vi.fn(),
+            stopBreathing: vi.fn(),
+          } as never)
+    )
+
+    await switchIntent(wrapper, mapStore, '3d')
+    await flushPromises()
+    await switchIntent(wrapper, mapStore, '2d')
+    await switchIntent(wrapper, mapStore, '3d') // 排队的最新意图 = 3d
+
+    // 外部改写 store（props 不动 ⇒ 不触发本组件 watch）
+    mapStore.setMapType('2d')
+
+    reject3d(new Error('注入的 3D 初始化失败'))
+    await new Promise((r) => setTimeout(r, 50))
+    await flushPromises()
+    await new Promise((r) => setTimeout(r, 50))
+    await flushPromises()
+
+    // 补跑必须以 pending 为准：渲染器最终为 3d（旧判据下停在 2d）
+    expect((wrapper.vm.getRenderer() as { getType: () => string }).getType()).toBe('3d')
+  })
+
+  it('🔴 回滚前置①：store 已不是 newType（更新的意图）时不写回过期 oldType', async () => {
+    // 场景必须同时满足两点才能**隔离出**前置①（缺一则被前置②挡住，断言就锁错了对象）：
+    //   · pendingSwitchType 为空（未排队）——否则前置② 先拦下，删不删前置①都一个样；
+    //   · 在飞期间 store 被外部改写成 oldType（路由/其它 store 写入，props 不动）——
+    //     于是 catch 时 store('2d') ≠ newType('3d')，只有前置① 能挡住这次回滚写。
+    // 判据取"store 未被再次写入"（值域只有 2d/3d，写回同值在值层面不可观测，
+    // 故断言落在调用层——前置① 的语义正是"不要发生这次写"）。
+    wrapper = mount(UnifiedMap, {
+      props: { mapType: '2d' },
+      ...makeMountOptions(mapStore),
+    })
+    await new Promise((r) => setTimeout(r, 50))
+    await flushPromises()
+
+    let reject3d: (e: Error) => void = () => {}
+    mockedCreateRenderer.mockImplementationOnce((type: string) =>
+      type === '3d'
+        ? new Promise((_resolve, reject) => {
+            reject3d = reject
+          })
+        : ({
+            _layers: new Map(),
+            on: vi.fn(),
+            off: vi.fn(),
+            emit: vi.fn(),
+            addPointLayer: vi.fn(),
+            addGeoJsonLayer: vi.fn(),
+            setVisibility: vi.fn(),
+            setBaseLayer: vi.fn(),
+            hasLayer: vi.fn().mockReturnValue(false),
+            clearPendingVisibility: vi.fn(),
+            exportState: vi.fn().mockReturnValue({}),
+            importState: vi.fn(),
+            destroy: vi.fn(),
+            updateSize: vi.fn(),
+            getMap: vi.fn().mockReturnValue({}),
+            getViewer: vi.fn().mockReturnValue({}),
+            getType: () => '2d',
+            startBreathing: vi.fn(),
+            stopBreathing: vi.fn(),
+          } as never)
+    )
+
+    await switchIntent(wrapper, mapStore, '3d')
+    await flushPromises()
+    // 外部写回（不经 props ⇒ 不触发 watch ⇒ pending 保持为 null）
+    mapStore.setMapType('2d')
+    expect(mapStore.mapType).toBe('2d')
+
+    const setMapTypeSpy = vi.spyOn(mapStore, 'setMapType')
+    reject3d(new Error('注入的 3D 初始化失败'))
+    await new Promise((r) => setTimeout(r, 50))
+    await flushPromises()
+    await new Promise((r) => setTimeout(r, 50))
+    await flushPromises()
+
+    // 前置① 拦住回滚写；store 保持更新的意图
+    expect(setMapTypeSpy).not.toHaveBeenCalled()
+    expect(mapStore.mapType).toBe('2d')
   })
 })

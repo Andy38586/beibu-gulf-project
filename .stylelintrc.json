@@ -1,6 +1,11 @@
 {
   "extends": ["stylelint-config-standard"],
-  "customSyntax": "postcss-html",
+  "overrides": [
+    {
+      "files": ["**/*.vue"],
+      "customSyntax": "postcss-html"
+    }
+  ],
   "rules": {
     "no-descending-specificity": null,
     "no-duplicate-selectors": null,

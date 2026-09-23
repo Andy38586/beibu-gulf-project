@@ -20,49 +20,62 @@
   /* ===== 系统主色 =====
    * 系统只有一个交互色：#409eff 蓝色。
    * 语义状态色（error/success）统一在此定义，业务模块引用 var(--GCS-color-xxx)。 */
-  --GCS-color-primary: #409eff; /* S7-30 已知豁免：白字对比度 2.78:1（暗色侧 6.67:1 达标）；品牌蓝提亮改档影响全站组件，登记豁免，redesign 时统一处理 */
-  --GCS-color-primary-hover: #66b1ff;
+  --GCS-color-primary: rgb(
+    64 158 255
+  ); /* S7-30 已知豁免：白字对比度 2.78:1（暗色侧 6.67:1 达标）；品牌蓝提亮改档影响全站组件，登记豁免，redesign 时统一处理 */
+  --GCS-color-primary-hover: rgb(102 177 255);
 
   /* ===== 语义状态色 ===== */
-  --GCS-color-error: #ff4d4f;
-  --GCS-color-error-bg: #fff2f0;
-  --GCS-color-error-border: #ffccc7;
+  --GCS-color-error: rgb(255 77 79);
+  --GCS-color-error-bg: rgb(255 242 240);
+  --GCS-color-error-border: rgb(255 204 199);
+
   /* 816-S7-39：亮色语义色加深至 WCAG AA（白底文本 ≥4.5:1，node 实测原值 2.27/2.19/2.90 不达标）；
-     success #52c41a→#187a30(5.43)、warning #e6a23c→#a36300(4.84)、danger #f56c6c→#cc3a4d(4.91)；
+     success rgb(82 196 26)→rgb(24 122 48)(5.43)、warning rgb(230 162 60)→rgb(163 99 0)(4.84)、danger rgb(245 108 108)→rgb(204 58 77)(4.91)；
      暗色主题不动（暗底浅色本就达标） */
-  --GCS-color-success: #187a30;
-  --GCS-color-warning: #a36300;
-  --GCS-color-danger: #cc3a4d;
+  --GCS-color-success: rgb(24 122 48);
+  --GCS-color-warning: rgb(163 99 0);
+  --GCS-color-danger: rgb(204 58 77);
 
   /* ===== 背景色系 ===== */
+
   /* 816-S7-45：--GCS-bg-canvas 死 token 已删（零 var() 消费） */
-  --GCS-bg-panel: #ffffff; /* 面板默认背景（S7-48：与 bg-elevated/text-inverse 亮色同值属巧合，暗色各异，不做 var 引用收敛） */
-  --GCS-bg-panel-translucent: rgba(255, 255, 255, 0.92); /* 半透明面板（玻璃化） */
-  --GCS-bg-elevated: #ffffff; /* 浮层/弹窗背景 */
-  --GCS-bg-overlay: rgba(0, 0, 0, 0.3); /* 遮罩层 */
+  --GCS-bg-panel: rgb(
+    255 255 255
+  ); /* 面板默认背景（S7-48：与 bg-elevated/text-inverse 亮色同值属巧合，暗色各异，不做 var 引用收敛） */
+  --GCS-bg-panel-translucent: rgb(255 255 255 / 92%); /* 半透明面板（玻璃化） */
+  --GCS-bg-elevated: rgb(255 255 255); /* 浮层/弹窗背景 */
+  --GCS-bg-overlay: rgb(0 0 0 / 30%); /* 遮罩层 */
+
   /* c052：浅色叠层基准（滑块轨道等玻璃化底色；暗色下调淡防刺眼） */
-  --GCS-overlay-tint: rgba(255, 255, 255, 0.4);
-  --GCS-bg-container: #f5f7fa; /* 面板内部内容容器 */
-  --GCS-bg-hover: #f0f7ff; /* 通用 hover 背景（浅蓝） */
-  --GCS-bg-active: #e6f4ff; /* 选中/激活状态背景 */
+  --GCS-overlay-tint: rgb(255 255 255 / 40%);
+  --GCS-bg-container: rgb(245 247 250); /* 面板内部内容容器 */
+  --GCS-bg-hover: rgb(240 247 255); /* 通用 hover 背景（浅蓝） */
+  --GCS-bg-active: rgb(230 244 255); /* 选中/激活状态背景 */
 
   /* ===== 文字色系 ===== */
-  --GCS-text-primary: #303133; /* 主标题、正文 */
-  --GCS-text-regular: #333333; /* 一般按钮文字（S7-48：与 primary #303133 近同值，保留为兼容别名，新代码统一用 primary） */
-  --GCS-text-secondary: #606266; /* 说明文字、info-label */
-  --GCS-text-muted: #909399; /* 辅助文字、占位符（S7-48：原 placeholder 同值双定义已随 S7-45 删除，占位符场景直接用 muted） */
-  --GCS-text-inverse: #ffffff; /* 反白（蓝色背景上的文字） */
-  --GCS-text-disabled: #c0c4cc; /* 禁用态文字（816-S7-47：03 §三.2「text：…disabled」规格落地；原组件裸 opacity 0.5/0.6 硬凑） */
+  --GCS-text-primary: rgb(48 49 51); /* 主标题、正文 */
+  --GCS-text-regular: rgb(
+    51 51 51
+  ); /* 一般按钮文字（S7-48：与 primary #303133 近同值，保留为兼容别名，新代码统一用 primary） */
+  --GCS-text-secondary: rgb(96 98 102); /* 说明文字、info-label */
+  --GCS-text-muted: rgb(
+    144 147 153
+  ); /* 辅助文字、占位符（S7-48：原 placeholder 同值双定义已随 S7-45 删除，占位符场景直接用 muted） */
+  --GCS-text-inverse: rgb(255 255 255); /* 反白（蓝色背景上的文字） */
+  --GCS-text-disabled: rgb(
+    192 196 204
+  ); /* 禁用态文字（816-S7-47：03 §三.2「text：…disabled」规格落地；原组件裸 opacity 0.5/0.6 硬凑） */
 
   /* ===== 边框色系 ===== */
-  --GCS-border-default: #e0e0e0; /* 默认边框（按钮、输入框、列表） */
-  --GCS-border-light: #ebeef5; /* 更淡的边框 */
-  --GCS-border-focus: #409eff; /* 聚焦/激活态边框 */
+  --GCS-border-default: rgb(224 224 224); /* 默认边框（按钮、输入框、列表） */
+  --GCS-border-light: rgb(235 238 245); /* 更淡的边框 */
+  --GCS-border-focus: rgb(64 158 255); /* 聚焦/激活态边框 */
 
   /* ===== 阴影系统 ===== */
-  --GCS-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08); /* 面板/按钮默认阴影 */
-  --GCS-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.12); /* 浮层阴影 */
-  --GCS-shadow-float: 0 12px 36px rgba(0, 0, 0, 0.18); /* 悬浮/拖拽态 */
+  --GCS-shadow-sm: 0 2px 8px rgb(0 0 0 / 8%); /* 面板/按钮默认阴影 */
+  --GCS-shadow-md: 0 4px 12px rgb(0 0 0 / 12%); /* 浮层阴影 */
+  --GCS-shadow-float: 0 12px 36px rgb(0 0 0 / 18%); /* 悬浮/拖拽态 */
 
   /* ===== 连续圆角系统（Apple-like 设计） ===== */
   --GCS-radius-sm: 6px; /* 内部容器、列表项 */
@@ -76,6 +89,7 @@
   --GCS-z-map: 1; /* 地图容器（最底层） */
   --GCS-z-map-overlay: 90; /* 地图内部覆盖物（boundary-warning 等） */
   --GCS-z-map-status: 100; /* 地图状态提示（loading/error） */
+
   /* 816-S7-40：壳层/导航档（原 App.vue/AppLayout 散落 50、BottomNavBar 散落 60） */
   --GCS-z-layout: 50; /* 应用壳层/布局基座 */
   --GCS-z-nav: 60; /* 底部导航 */
@@ -87,9 +101,11 @@
   /* S7 P1-4：曾被组件 var() 引用但亮色主题未定义的 token 补正式定义（与 dark 块同源，双主题一致） */
   --GCS-cell: 80px; /* 网格单元（≥1920→90 / ≥960→80 / <960→70，静态基准取 80） */
   --GCS-font-size-body: 14px; /* 正文基准字号（组件 fallback 原 14px 语义化） */
+
   /* 816-S7-57：字号档位补齐（跨主题同值，dark 继承；03 §三.2 档位 12/13/14/16/20/24 的 12/16 档） */
   --GCS-font-size-xs: 12px; /* 小字（角标/辅助标注；原组件散落 10/11px 越档） */
   --GCS-font-size-lg: 16px; /* 面板标题（原三处 16px 字面量散落） */
+
   /* 滑块尺寸单一 token（自绘滑块全走 .gcs-slider 档） */
   --GCS-slider-thumb-size: 14px; /* 拇指直径（原 conf 16px / t-slider 18px / factor 14px 三套） */
   --GCS-slider-track-height: 6px; /* 轨道高（原 4px/6px 两套） */
@@ -123,43 +139,40 @@
  * 只覆盖 token，组件零改动；ECharts canvas 配色见 useChartBase/useRadarChart。
  * =============================== */
 :root[data-theme='dark'] {
-  --GCS-color-primary: #ff7a1a;
-  --GCS-color-primary-hover: #ff9147;
-
-  --GCS-color-error: #ff6b6f;
-  --GCS-color-error-bg: #3a1d1f;
-  --GCS-color-error-border: #6b2a2d;
-  --GCS-color-success: #57d97c;
-  --GCS-color-warning: #f0b35a;
-  --GCS-color-danger: #ff7a7d;
+  --GCS-color-primary: rgb(255 122 26);
+  --GCS-color-primary-hover: rgb(255 145 71);
+  --GCS-color-error: rgb(255 107 111);
+  --GCS-color-error-bg: rgb(58 29 31);
+  --GCS-color-error-border: rgb(107 42 45);
+  --GCS-color-success: rgb(87 217 124);
+  --GCS-color-warning: rgb(240 179 90);
+  --GCS-color-danger: rgb(255 122 125);
 
   /* 816-S7-45：--GCS-bg-canvas 死 token 已删 */
-  --GCS-bg-panel: #0d1b2a;
-  --GCS-bg-panel-translucent: rgba(13, 27, 42, 0.92);
-  --GCS-bg-elevated: #13263a;
-  --GCS-bg-overlay: rgba(0, 0, 0, 0.5);
-  --GCS-overlay-tint: rgba(255, 255, 255, 0.08); /* 暗色下白色叠层调淡（防刺眼） */
+  --GCS-bg-panel: rgb(13 27 42);
+  --GCS-bg-panel-translucent: rgb(13 27 42 / 92%);
+  --GCS-bg-elevated: rgb(19 38 58);
+  --GCS-bg-overlay: rgb(0 0 0 / 50%);
+  --GCS-overlay-tint: rgb(255 255 255 / 8%); /* 暗色下白色叠层调淡（防刺眼） */
+
   /* 白叠层变体随暗色调淡，维持 track-tint > tint > highlight 的相对层级（对齐亮侧比例关系） */
   --GCS-slider-track-tint: rgb(255 255 255 / 16%);
   --GCS-overlay-highlight: rgb(255 255 255 / 10%);
-  --GCS-bg-container: #101f31;
-  --GCS-bg-hover: #17314d;
-  --GCS-bg-active: #1c3a5c;
-
-  --GCS-text-primary: #e8edf4;
-  --GCS-text-regular: #d0d7e0; /* S7-48：与 primary 近同值，兼容别名（见亮色块注释） */
-  --GCS-text-secondary: #a8b2bd;
-  --GCS-text-muted: #7a8694; /* S7-48：占位符场景直接用 muted */
-  --GCS-text-inverse: #0d1b2a;
-  --GCS-text-disabled: #55677e; /* 816-S7-47：暗色禁用态文字（较 muted 再暗一档） */
-
-  --GCS-border-default: #1f3450;
-  --GCS-border-light: #16283f;
-  --GCS-border-focus: #ff7a1a;
-
-  --GCS-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.45);
-  --GCS-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.55);
-  --GCS-shadow-float: 0 12px 36px rgba(0, 0, 0, 0.65);
+  --GCS-bg-container: rgb(16 31 49);
+  --GCS-bg-hover: rgb(23 49 77);
+  --GCS-bg-active: rgb(28 58 92);
+  --GCS-text-primary: rgb(232 237 244);
+  --GCS-text-regular: rgb(208 215 224); /* S7-48：与 primary 近同值，兼容别名（见亮色块注释） */
+  --GCS-text-secondary: rgb(168 178 189);
+  --GCS-text-muted: rgb(122 134 148); /* S7-48：占位符场景直接用 muted */
+  --GCS-text-inverse: rgb(13 27 42);
+  --GCS-text-disabled: rgb(85 103 126); /* 816-S7-47：暗色禁用态文字（较 muted 再暗一档） */
+  --GCS-border-default: rgb(31 52 80);
+  --GCS-border-light: rgb(22 40 63);
+  --GCS-border-focus: rgb(255 122 26);
+  --GCS-shadow-sm: 0 2px 8px rgb(0 0 0 / 45%);
+  --GCS-shadow-md: 0 4px 12px rgb(0 0 0 / 55%);
+  --GCS-shadow-float: 0 12px 36px rgb(0 0 0 / 65%);
 
   /* S7-08/23：GCSModal/GCSToast 引用但未定义的 token 补正式定义（与 shared/layout/config.ts CELL_PIXEL 同源） */
   --GCS-cell: 80px; /* 网格单元（≥1920→90 / ≥960→80 / <960→70，静态基准取 80） */
@@ -193,6 +206,7 @@ input[type='range']:focus-visible::-webkit-slider-thumb {
   outline: 2px solid var(--GCS-border-focus);
   outline-offset: 2px;
 }
+
 input[type='range']:focus-visible::-moz-range-thumb {
   outline: 2px solid var(--GCS-border-focus);
   outline-offset: 2px;
@@ -210,15 +224,17 @@ body {
   align-items: center;
   justify-content: center;
   height: 100vh;
+
   /* DAT-3: 加载页暗色底，全仓唯一使用，无对应 --GCS-* 语义变量（YAGNI 不新建），保留 */
-  background: #1a1a2e;
+  background: rgb(26 26 46);
 }
 
 .loading-spinner {
   width: 48px;
   height: 48px;
-  /* DAT-3: 加载圈边框 = 主色 primary(#409EFF) 30% 透明度；无对应 alpha 语义变量，保留 */
-  border: 4px solid rgba(64, 158, 255, 0.3);
+
+  /* DAT-3: 加载圈边框 = 主色 primary(rgb(64 158 255)) 30% 透明度；无对应 alpha 语义变量，保留 */
+  border: 4px solid rgb(64 158 255 / 30%);
   border-top-color: var(--GCS-color-primary);
   border-radius: var(--GCS-radius-round);
   animation: spin 1s linear infinite;
@@ -242,16 +258,19 @@ body {
   inset: 0;
   z-index: var(--GCS-z-drawer);
 }
+
 .GCS-drawer__backdrop {
   position: absolute;
   inset: 0;
   background: var(--GCS-bg-overlay);
 }
+
 .GCS-drawer__sheet {
   position: absolute;
   top: 0;
   right: 0;
   height: 100%;
+
   /* 2026-08-09 用户决策：固定 4.2 cell 宽（4.2×70px=294px，档位 2/3 cell 恒为 70），
    * 避免随视口伸缩造成留白；原 min(86vw,420px) 在宽视口下过大 */
   width: 294px;
@@ -261,6 +280,7 @@ body {
   box-shadow: var(--GCS-shadow-float);
   pointer-events: auto;
 }
+
 .GCS-drawer__header {
   flex: 0 0 auto;
   display: flex;
@@ -272,42 +292,52 @@ body {
   font-weight: 600;
   color: var(--GCS-text-primary);
 }
+
 .GCS-drawer__close {
   border: none;
   background: transparent;
+
   /* c054：关闭按钮为图标字号（非排版档位，刻意 18px 不与正文档位混淆） */
   font-size: 18px;
   color: var(--GCS-text-secondary);
   cursor: pointer;
   line-height: 1;
 }
+
 .GCS-drawer__body {
   flex: 1 1 auto;
   overflow-y: auto;
   padding: 12px;
+
   /* 2026-08-09：滚动条透明化（保留滚动能力）——抽屉视觉上不再有侧边滑动条 */
   scrollbar-width: none;
   -ms-overflow-style: none;
+
   /* 抽屉内复用 GCSPanel：用 !important 覆盖其内联绝对定位，改为正常流堆叠 */
 }
+
 .GCS-drawer__body::-webkit-scrollbar {
   display: none;
 }
+
 .GCS-drawer__body .GCS-panel {
   position: static !important;
   left: auto !important;
   top: auto !important;
   width: 100% !important;
   height: auto !important;
+
   /* 2026-08-10：释放内联 min-width（4 cell=280px > body 内容区 270px），
    * 否则面板横向溢出 → 抽屉底部出现横向滑动条 */
   min-width: 0 !important;
   min-height: 260px;
   margin-bottom: 12px;
+
   /* 2026-08-10：内容不被裁剪——登录表单等高内容面板（4×8=640px 内容远超
    * min-height 260px）原先被 overflow:hidden 裁掉大部分，只能看到顶部一截 */
   overflow: visible;
 }
+
 /* 2026-08-10：解除面板内 height:100% 高度链——GCSPanel 高度自适应内容后，
  * 子容器（.profile-content / .layer-panel 等）按自身内容撑开，
  * 避免 flex 塌缩把登录表单压缩进 min-height 内被裁剪 */
@@ -320,14 +350,17 @@ body {
 .drawer-leave-active {
   transition: opacity 0.25s ease;
 }
+
 .drawer-enter-active .GCS-drawer__sheet,
 .drawer-leave-active .GCS-drawer__sheet {
   transition: transform 0.25s ease;
 }
+
 .drawer-enter-from,
 .drawer-leave-to {
   opacity: 0;
 }
+
 .drawer-enter-from .GCS-drawer__sheet,
 .drawer-leave-to .GCS-drawer__sheet {
   transform: translateX(100%);
@@ -339,20 +372,25 @@ body {
 .slider-focus-mode .GCS-drawer__backdrop {
   opacity: 0;
 }
+
 .slider-focus-mode .GCS-drawer__sheet {
   background: transparent;
   box-shadow: none;
 }
+
 .slider-focus-mode .GCS-drawer__header {
   opacity: 0;
   pointer-events: none;
 }
-.slider-focus-mode .GCS-panel:not(.slider-focus-panel):not(.bottom-nav-bar) {
+
+.slider-focus-mode .GCS-panel:not(.slider-focus-panel, .bottom-nav-bar) {
   opacity: 0;
 }
+
 .slider-focus-mode .GCS-panel.slider-focus-panel {
   opacity: 1;
 }
+
 .slider-focus-mode .GCS-panel,
 .slider-focus-mode .GCS-drawer__backdrop,
 .slider-focus-mode .GCS-drawer__header {
@@ -363,7 +401,6 @@ body {
  * 使用方式：input[type=range] 加 class="gcs-slider"；
  * 尺寸基准见 --GCS-slider-thumb-size/--GCS-slider-track-height（816-S7-44 单一 token） */
 .gcs-slider {
-  -webkit-appearance: none;
   appearance: none;
   width: 100%;
   height: var(--GCS-slider-track-height);
@@ -372,8 +409,8 @@ body {
   outline: none;
   cursor: pointer;
 }
+
 .gcs-slider::-webkit-slider-thumb {
-  -webkit-appearance: none;
   appearance: none;
   width: var(--GCS-slider-thumb-size);
   height: var(--GCS-slider-thumb-size);
@@ -383,6 +420,7 @@ body {
   box-shadow: var(--GCS-shadow-sm);
   cursor: pointer;
 }
+
 .gcs-slider::-moz-range-thumb {
   width: var(--GCS-slider-thumb-size);
   height: var(--GCS-slider-thumb-size);

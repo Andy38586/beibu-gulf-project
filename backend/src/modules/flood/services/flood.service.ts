@@ -437,7 +437,11 @@ export class FloodService {
     return {
       affectedFacilities,
       totalLoss,
-      riskLevel: floodZone.riskLevel,
+      // 风险等级按档位派生，不取表中预置标签（表里的 riskLevel/riskLevelCode 是第三源：
+      // 它与权威分段表不同步——实测 5m 写"中风险/code 2"而 deriveRiskLevel(5) 是"高风险/code 3"，
+      // 8m/10m 各错一档、15m 标签对而码写成 2 ⇒ GET /flood-statistics 的 riskLevel 与
+      // riskLevelCode 会各自按不同口径出来。此处统一由水段派生，表里那两个字段随之下架。
+      riskLevel: deriveRiskLevel(Number(floodZone.waterLevel)),
       waterLevel: floodZone.waterLevel,
     }
   }

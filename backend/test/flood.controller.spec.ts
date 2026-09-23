@@ -485,7 +485,9 @@ describe.skipIf(!withDb)('floodService.assessDisaster - 空间筛选与损失计
     // 高程 2.0、档位 5.0 ⇒ d=3 ⇒ 因子 1（饱和，与旧形态同值）；折减见下一条
     expect(result.affectedFacilities[0].loss).toBe(15000 * 0.85)
     expect(result.totalLoss).toBe(Math.round(15000 * 0.85))
-    expect(result.riskLevel).toBe('中风险')
+    // 风险等级由档位派生（不再取 FLOOD_ZONE 传进来的预置标签）：
+    // deriveRiskLevel(5) = 高风险（水段 ≤6）。旧形态直接回显入参表的 '中风险'
+    expect(result.riskLevel).toBe(deriveRiskLevel(5))
     expect(result.waterLevel).toBe(5)
   })
 

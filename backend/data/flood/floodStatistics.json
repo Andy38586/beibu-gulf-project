@@ -41,8 +41,8 @@
     },
     {
       "waterLevel": 5,
-      "riskLevel": "中风险",
-      "riskLevelCode": 2,
+      "riskLevel": "高风险",
+      "riskLevelCode": 3,
       "floodArea": 576.91,
       "averageDepth": 2.04,
       "maxDepth": 2.5,
@@ -53,8 +53,8 @@
     },
     {
       "waterLevel": 8,
-      "riskLevel": "高风险",
-      "riskLevelCode": 3,
+      "riskLevel": "极高风险",
+      "riskLevelCode": 4,
       "floodArea": 1620.49,
       "averageDepth": 1.32,
       "maxDepth": 5.5,
@@ -65,8 +65,8 @@
     },
     {
       "waterLevel": 10,
-      "riskLevel": "极高风险",
-      "riskLevelCode": 4,
+      "riskLevel": "灾难级",
+      "riskLevelCode": 5,
       "floodArea": 2379.81,
       "averageDepth": 2.08,
       "maxDepth": 7.5,
@@ -78,7 +78,7 @@
     {
       "waterLevel": 15,
       "riskLevel": "灾难级",
-      "riskLevelCode": 2,
+      "riskLevelCode": 5,
       "floodArea": 3603.76,
       "averageDepth": 4.3,
       "maxDepth": 12.5,

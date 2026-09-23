@@ -224,6 +224,44 @@ describe('BusinessLayerManager', () => {
       )
     })
 
+    it('🔴 注入的 onError 被回调 ⇒ 回滚 + 上报（不是只注入一个函数样子）', () => {
+      // 形态断言（`onError: expect.any(Function)`）挡不住"注入了但函数体是空的"：
+      // 把 onError 换成 `() => undefined` 后形态断言仍绿、而生产失败零回滚零上报。
+      // 本用例按**行为**钉：真的调一次，断言回滚与上报都发生。
+      const captured: Array<(err: unknown) => void> = []
+      const renderer = {
+        addPointLayer: vi.fn(
+          (_key: string, _data: unknown, options?: { onError?: (e: unknown) => void }) => {
+            if (options?.onError) captured.push(options.onError)
+          }
+        ),
+        setVisibility: vi.fn(),
+        hasLayer: vi.fn().mockReturnValue(false),
+      }
+      mapStore.currentRenderer = renderer as unknown as MapRenderer
+      const payloads: LayerErrorPayload[] = []
+      manager.setErrorHandler((p) => payloads.push(p))
+
+      manager.register('async-fail', {
+        label: '异步失败层',
+        layerType: 'points',
+        data: [{ lng: 108, lat: 21 }],
+        visible: true,
+      })
+
+      // adapter 侧异步失败（不抛、只回调 onError）⇒ 必须回滚可见性并上报
+      expect(captured).toHaveLength(1)
+      captured[0](new Error('渲染器异步失败'))
+
+      expect(manager.getMeta('async-fail')?.visible).toBe(false)
+      expect(payloads).toHaveLength(1)
+      expect(payloads[0]).toMatchObject({
+        key: 'async-fail',
+        label: '异步失败层',
+        retryable: true,
+      })
+    })
+
     it('catalog 被清空后 reapplyAll 应重建面板条目（切 3D 后图层控制面板丢勾选项）', () => {
       manager.register('panel-layer', {
         label: '真实地形',

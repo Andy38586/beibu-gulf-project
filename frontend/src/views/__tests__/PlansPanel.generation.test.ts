@@ -85,6 +85,37 @@ describe('PlansPanel 方案列表代次守卫（c044）', () => {
     wrapper.unmount()
   })
 
+  it('当前代次请求失败 ⇒ 弹错（对照：证明下面的"不弹"不是因为没走到 catch）', async () => {
+    h.getPlans.mockRejectedValue(new Error('加载失败'))
+    const wrapper = mountPanel()
+    await new Promise((r) => setTimeout(r, 0))
+    expect(h.showError).toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('🔴 已被取代的请求即便失败也不弹错（catch 侧代次判定）', async () => {
+    // 只测了"成功响应不回填"，catch 侧那句 `if (generation !== plansLoadGeneration) return`
+    // 无人钉 ⇒ 把它换成 `if (false && …)` 后测试照样绿（登出时会误弹「加载失败」）。
+    let rejectFn: (e: unknown) => void = () => {}
+    h.getPlans.mockReturnValue(
+      new Promise((_resolve, reject) => {
+        rejectFn = reject
+      })
+    )
+    const wrapper = mountPanel()
+    await new Promise((r) => setTimeout(r, 0))
+
+    // 登出 ⇒ 代次作废（在途请求已取消，但迟到的 rejection 仍会进 catch）
+    h.userRef.value = null
+    await wrapper.vm.$nextTick()
+
+    rejectFn(new Error('旧账号请求失败'))
+    await new Promise((r) => setTimeout(r, 0))
+    // 旧请求的错误不属于当前用户 ⇒ 静默丢弃（登出误弹是噪声）
+    expect(h.showError).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
   it('登出后迟到的旧账号响应不得回填，且在途请求被取消', async () => {
     let resolveFn: (v: typeof PLAN_A) => void = () => {}
     h.getPlans.mockReturnValue(

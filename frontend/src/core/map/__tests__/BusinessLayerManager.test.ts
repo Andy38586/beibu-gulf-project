@@ -495,6 +495,36 @@ describe('BusinessLayerManager', () => {
       expect(renderer.addHeatmapLayer).not.toHaveBeenCalled()
     })
 
+    it('🔴 update 抛错同样走回滚+上报后上抛（删回滚即红）', () => {
+      // 旧形态：updateData 自建 try/catch，与 create 包装各一份 —— 删掉 update 那份回滚
+      // 全仓测试全绿（面板亮、屏幕上无、零提示）。并入 _runAdapter 后本断言承重。
+      const renderer = {
+        hasLayer: vi.fn().mockReturnValue(true),
+        addHeatmapLayer: vi.fn(),
+        updateHeatmapLayer: vi.fn(() => {
+          throw new Error('update 失败')
+        }),
+      }
+      mapStore.currentRenderer = renderer as unknown as MapRenderer
+      const onError = vi.fn()
+      manager.setErrorHandler(onError)
+      manager.register('forecast-cargo', {
+        label: '热力',
+        layerType: 'heatmap',
+        data: null,
+        visible: true,
+      })
+
+      expect(() =>
+        manager.updateData('forecast-cargo', { data: [{ lng: 108, lat: 21, value: 1 }] })
+      ).toThrow('update 失败')
+
+      // 回滚 + 上报（与 create 同一条通道）
+      expect(manager.getMeta('forecast-cargo')?.visible).toBe(false)
+      expect(mapStore.layerCatalog.find((e) => e.key === 'forecast-cargo')?.visible).toBe(false)
+      expect(onError).toHaveBeenCalledTimes(1)
+    })
+
     it('不可见图层 updateData 不建不更（保持现有语义）', () => {
       const renderer = {
         hasLayer: vi.fn(),

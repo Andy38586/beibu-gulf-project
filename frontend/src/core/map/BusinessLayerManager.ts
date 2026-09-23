@@ -117,14 +117,22 @@ export class BusinessLayerManager {
   }
 
   /**
-   * create 统一包装：同步抛错（layerAdapters 数据形状守卫）也必须走
-   * _handleCreateFailure 回滚+上报——旧实现 create 在 try 外，抛错后
-   * registry/catalog 停在 visible=true ⇒ 面板亮、屏幕上无、零提示，
-   * 且每次引擎切换 reapplyAll 重复抛一次（缺陷自我固化）。
-   * rethrow=false 用于 reapplyAll：单层失败不拖垮整批（引擎切换时其它图层仍应上屏）。
+   * adapter 变更调用的**唯一**失败包装（create / update 同一条通道）。
+   *
+   * 同步抛错（layerAdapters 数据形状守卫）必须走 _handleCreateFailure 回滚+上报——
+   * 旧实现 create 在 try 外，抛错后 registry/catalog 停在 visible=true ⇒ 面板亮、屏幕上无、
+   * 零提示，且每次引擎切换 reapplyAll 重复抛一次（缺陷自我固化）。
+   * async rejection 同路兜底（Cesium geojson 的 create 为异步且失败不抛 rejection）。
+   * rethrow=false 用于 reapplyAll：单层失败不拖垮整批（引擎切换时其它图层仍应上屏）；
    * 默认回滚后继续上抛，保留既有「形状错误抛给调用方」的契约。
+   *
+   * 为什么合并成一个 op 参数（2026-09-23）：update 通道原先是就地自建 try/catch
+   * （旧 updateData 内 `try { adapter.update(...) } catch { 回滚; throw }`），与 create 包装
+   * 各写一份——两处行为只能靠人肉保持一致，删掉 update 那份回滚后全仓测试仍全绿。
+   * 合并后 create/update 共用同一失败判定与回滚，任一处的回滚被删都会踩到同一批断言。
    */
-  private _runCreate(
+  private _runAdapter(
+    op: 'create' | 'update',
     renderer: MapRenderer,
     key: string,
     label: string,
@@ -143,15 +151,16 @@ export class BusinessLayerManager {
     }
     let result: unknown
     try {
-      result = perfTimeFn(`layer:create:${layerType}`, () =>
-        adapter.create(renderer, key, data, createOptions)
+      result = perfTimeFn(`layer:${op}:${layerType}`, () =>
+        op === 'create'
+          ? adapter.create(renderer, key, data, createOptions)
+          : adapter.update(renderer, key, data, options)
       )
     } catch (e) {
       this._handleCreateFailure(key, label, e)
       if (rethrow) throw e
       return
     }
-    // async create（Cesium geojson）rejection 兜底：同步 try/catch 抓不到
     Promise.resolve(result).catch((e) => this._handleCreateFailure(key, label, e))
   }
 
@@ -202,8 +211,8 @@ export class BusinessLayerManager {
       if (renderer) {
         // 数据形状守卫同步抛错（测试依赖）；Cesium geojson 的 create 为异步且失败不抛
         // rejection，必须注入 onError 感知失败 → 回滚状态 + toast。
-        // _runCreate 统一处理同步抛错与异步 rejection 两条失败通道
-        this._runCreate(renderer, key, label, layerType, data, options)
+        // _runAdapter 统一处理同步抛错与异步 rejection 两条失败通道
+        this._runAdapter('create', renderer, key, label, layerType, data, options)
       }
     } else {
       logger.debug(
@@ -250,20 +259,28 @@ export class BusinessLayerManager {
       // 图层实例缺失时补建（注册时 data 为 null 跳过 create、数据后到的场景），
       // 否则 adapter.update 因无 entry 失败、图层永不上屏
       if (meta.data != null && !renderer.hasLayer(key)) {
-        // _runCreate 统一同步抛错 + 异步 rejection 两条失败通道
-        this._runCreate(renderer, key, meta.label, meta.layerType, meta.data, meta.options)
+        // _runAdapter 统一同步抛错 + 异步 rejection 两条失败通道
+        this._runAdapter(
+          'create',
+          renderer,
+          key,
+          meta.label,
+          meta.layerType,
+          meta.data,
+          meta.options
+        )
       } else {
-        // update 同步抛错同样回滚+上报后继续上抛（旧实现该调用不在 try 内）
-        let r: unknown
-        try {
-          r = perfTimeFn(`layer:update:${meta.layerType}`, () =>
-            adapter.update(renderer, key, meta.data, meta.options)
-          )
-        } catch (e) {
-          this._handleCreateFailure(key, meta.label, e)
-          throw e
-        }
-        Promise.resolve(r).catch((e) => this._handleCreateFailure(key, meta.label, e))
+        // update 也走同一包装：同步抛错回滚+上报后继续上抛，异步 rejection 同路兜底
+        //（原先这里自建 try/catch，与 create 通道各一份，删其回滚无人察觉）
+        this._runAdapter(
+          'update',
+          renderer,
+          key,
+          meta.label,
+          meta.layerType,
+          meta.data,
+          meta.options
+        )
       }
     }
   }
@@ -342,7 +359,16 @@ export class BusinessLayerManager {
       )
       // rethrow=false：单层失败只回滚该层并继续批处理（引擎切换时其它图层仍应上屏）。
       // 旧实现 catch 只 warn 不回滚 ⇒ 该层 registry/catalog 停在已开、屏幕永无
-      this._runCreate(renderer, key, meta.label, meta.layerType, meta.data, meta.options, false)
+      this._runAdapter(
+        'create',
+        renderer,
+        key,
+        meta.label,
+        meta.layerType,
+        meta.data,
+        meta.options,
+        false
+      )
     }
   }
 
@@ -374,8 +400,8 @@ export class BusinessLayerManager {
     // 打开未创建的图层需先补建：register(visible:false) 时不渲染，若直接 setVisibility
     // 会落入待定显隐队列永不生效（无后续 create 触发应用），面板开关变"死按钮"
     if (visible && meta.data != null && !renderer.hasLayer(key)) {
-      // _runCreate 统一同步抛错 + 异步 rejection 两条失败通道
-      this._runCreate(renderer, key, meta.label, meta.layerType, meta.data, meta.options)
+      // _runAdapter 统一同步抛错 + 异步 rejection 两条失败通道
+      this._runAdapter('create', renderer, key, meta.label, meta.layerType, meta.data, meta.options)
     }
 
     // 特殊图层（waterSurface 不存于普通图层表）经 adapter 分派显隐；

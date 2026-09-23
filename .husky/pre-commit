@@ -1,6 +1,12 @@
 # 前端 lint + format（仅检查暂存文件）
 # husky v9：直接写命令，不需要 source _/husky.sh
 # 注意：git 执行 hook 时 cwd 默认即为仓库根，故此处不 `cd frontend`。
+
+# 🔴 任一步失败即终止（此前无此行）：实测把语法错文件暂存后，`npx lint-staged`
+# 打印 `prettier --write [FAILED]` 并退出 1，而脚本继续跑完三步快集门禁、最终 rc=0
+# ⇒ 提交照过，失败被吞。下面三步虽各自写了 `|| exit 1`，lint-staged 那条没有。
+# `if`/`$(...)` 内的非零返回不受 set -e 影响，受保护文档的判定逻辑不变。
+set -e
 # lint-staged 配置在根 package.json 的 "lint-staged" 字段（原 .lintstagedrc.json 已 2026-08-11 合并），
 # glob 为 `frontend/src/**/*.{ts,vue,js,css}`（git 根相对路径），
 # 从仓库根运行 lint-staged 才能正确匹配暂存的前端文件。

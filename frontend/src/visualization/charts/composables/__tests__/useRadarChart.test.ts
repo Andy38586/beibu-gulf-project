@@ -6,8 +6,9 @@
  * 多点呼吸」交互整体不可用（见 2026-08-29 交接文档 §3）。
  * 策略与 useChartBase.test.ts 一致：mock useECharts 捕获 getOption，不依赖真实渲染。
  */
+import { mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
-import { ref } from 'vue'
+import { defineComponent, h, ref } from 'vue'
 
 interface Captured {
   getOption: (() => Record<string, unknown>) | null
@@ -99,6 +100,109 @@ describe('useRadarChart 尺寸重试上限', () => {
       expect(setTimeoutSpy).toHaveBeenCalledTimes(10)
     } finally {
       setTimeoutSpy.mockRestore()
+      vi.useRealTimers()
+    }
+  })
+})
+
+describe('useRadarChart 清理侧（W8：三条变异各必红）', () => {
+  /** 可变尺寸容器：clientWidth/Height 走 getter，便于用例中途"变大/变小" */
+  function sizeableChartRef() {
+    const el = document.createElement('div')
+    let w = 0
+    let h = 0
+    Object.defineProperty(el, 'clientWidth', { get: () => w, configurable: true })
+    Object.defineProperty(el, 'clientHeight', { get: () => h, configurable: true })
+    return {
+      ref: ref<HTMLElement | null>(el),
+      setSize: (nextW: number, nextH: number) => {
+        w = nextW
+        h = nextH
+      },
+    }
+  }
+
+  function setupWithSize(sizeable: ReturnType<typeof sizeableChartRef>) {
+    useRadarChart({
+      chartRef: sizeable.ref,
+      getScoreAreaRef: () => null,
+      getProps: () => ({
+        xiaoqu: null,
+        selectedTypes: ['hospital'],
+        facilityPoi: {},
+      }),
+      emit: vi.fn(),
+    })
+    return captured.getOption!
+  }
+
+  it('🔴 尺寸重试不叠定时器：重复调用只留一个待触发定时器（删 clearTimeout 即红）', () => {
+    vi.useFakeTimers()
+    const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout')
+    try {
+      const sizeable = sizeableChartRef()
+      sizeable.setSize(0, 0) // 尺寸不足 → 走重试分支
+      const build = setupWithSize(sizeable)
+
+      build()
+      build()
+      // 删掉 `if (retryTimer) clearTimeout(retryTimer)` ⇒ 两个定时器同时挂起，此处会是 2
+      expect(vi.getTimerCount()).toBe(1)
+      expect(setTimeoutSpy).toHaveBeenCalledTimes(2) // 每次都重排（但只保留最后一个）
+    } finally {
+      setTimeoutSpy.mockRestore()
+      vi.useRealTimers()
+    }
+  })
+
+  it('🔴 尺寸恢复后重试计数归零：再次变小仍会重试（删归零即红）', () => {
+    vi.useFakeTimers()
+    const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout')
+    try {
+      const sizeable = sizeableChartRef()
+      sizeable.setSize(0, 0)
+      const build = setupWithSize(sizeable)
+
+      for (let i = 0; i < 10; i++) build() // 用满 10 次重试额度
+      sizeable.setSize(320, 320)
+      build() // 尺寸恢复 ⇒ 应当归零计数
+      sizeable.setSize(0, 0)
+
+      const before = setTimeoutSpy.mock.calls.length
+      build()
+      // 删掉 `radarRetryCount = 0` ⇒ 计数停在 10 ⇒ 这次直接放弃渲染，不再排定时器
+      expect(setTimeoutSpy.mock.calls.length).toBe(before + 1)
+    } finally {
+      setTimeoutSpy.mockRestore()
+      vi.useRealTimers()
+    }
+  })
+
+  it('🔴 卸载后不再重试：onBeforeUnmount 清掉待触发定时器（删即红）', () => {
+    vi.useFakeTimers()
+    try {
+      const sizeable = sizeableChartRef()
+      sizeable.setSize(0, 0)
+      // onBeforeUnmount 只在组件上下文有效 ⇒ 用真组件挂载（独立调用时该钩子被 Vue 丢弃）
+      const Harness = defineComponent({
+        setup() {
+          useRadarChart({
+            chartRef: sizeable.ref,
+            getScoreAreaRef: () => null,
+            getProps: () => ({ xiaoqu: null, selectedTypes: ['hospital'], facilityPoi: {} }),
+            emit: vi.fn(),
+          })
+          return () => h('div')
+        },
+      })
+      const wrapper = mount(Harness)
+      captured.getOption!() // 触发一次重试排期
+      expect(vi.getTimerCount()).toBeGreaterThan(0)
+
+      wrapper.unmount()
+      // 删掉 onBeforeUnmount 清理 ⇒ 定时器仍在，卸载后还会调 renderRadar
+      expect(vi.getTimerCount()).toBe(0)
+    } finally {
       vi.useRealTimers()
     }
   })

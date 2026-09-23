@@ -53,7 +53,9 @@ afterEach(() => {
 
 describe('AppLayout 滑块专注模式 body class 生命周期（c042）', () => {
   it('专注激活期间组件卸载：body class 必须被摘除（现状红 → 修复后绿）', async () => {
-    const wrapper = mount(AppLayout)
+    // 🔴 必须挂到 document.body：AppLayout 的面板标记走 document.querySelectorAll('.GCS-panel')，
+    // 脱离文档的挂载树里查不到任何面板 ⇒ 面板标记类断言一律假绿（本件新增的那条用例即受害形态）
+    const wrapper = mount(AppLayout, { attachTo: document.body })
     // 经 effectScope 拿模块单例（onScopeDispose 有处可挂，避免测试环境告警）
     const scope = effectScope()
     const sf = scope.run(() => useSliderFocus())!
@@ -68,8 +70,35 @@ describe('AppLayout 滑块专注模式 body class 生命周期（c042）', () =>
   })
 
   it('未激活时卸载不误摘（无 class 也不报错）', async () => {
-    const wrapper = mount(AppLayout)
+    const wrapper = mount(AppLayout, { attachTo: document.body })
     wrapper.unmount()
     expect(document.body.classList.contains(BODY_CLASS)).toBe(false)
+  })
+
+  it('🔴 专注激活时标记滑块所在面板，卸载时摘除该标记（删 watch/onUnmounted 的面板行即红）', async () => {
+    // 面板必须真实存在于 document 里：AppLayout 的 watch 用 document.querySelectorAll('.GCS-panel')
+    // 找面板，脱离文档的挂载树里它一个也找不到（这正是 c042 那条"补任何断言都假绿"的机理）。
+    // 本件把面板自己放进 document——这样断言对 attachTo 不敏感，直接钉住标记逻辑本身；
+    // 两处既有 mount 仍按工单加了 attachTo，供将来断言**组件树渲染出的**面板时不再假绿。
+    const panel = document.createElement('div')
+    panel.className = 'GCS-panel'
+    const slider = document.createElement('div')
+    panel.appendChild(slider)
+    document.body.appendChild(panel)
+
+    const wrapper = mount(AppLayout, { attachTo: document.body })
+    const scope = effectScope()
+    const sf = scope.run(() => useSliderFocus())!
+    sf.beginSliderFocus(slider)
+    await wrapper.vm.$nextTick()
+    await wrapper.vm.$nextTick()
+
+    expect(document.body.classList.contains(BODY_CLASS)).toBe(true)
+    expect(panel.classList.contains('slider-focus-panel')).toBe(true)
+
+    wrapper.unmount()
+    expect(panel.classList.contains('slider-focus-panel')).toBe(false)
+    document.body.removeChild(panel)
+    scope.stop()
   })
 })

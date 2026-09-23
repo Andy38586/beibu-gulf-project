@@ -17,6 +17,25 @@ import { LAYER_ADAPTERS } from './layerAdapters'
 export interface LayerErrorPayload {
   key: string
   label: string
+  /**
+   * 该失败能否由「图层面板开关」恢复——即 toast 里"再点一次"的承诺是否成立。
+   *
+   * 判据 = 面板有该条目（listed，否则用户找不到按钮）+ 数据在手（data != null，否则点了也
+   * 无从创建）+ 渲染器在位。三者缺一，"再点击一次重试"就是空承诺（未登记图层在面板上没有
+   * 按钮可点），此时文案必须给别的出路（刷新页面）。
+   */
+  retryable: boolean
+}
+
+/**
+ * 失败提示文案：与 `LayerErrorPayload` 字段一一对应——`retryable` 为真才承诺"点击开关重试"，
+ * 为假则只承诺刷新页面。放这里而不是写在 App.vue 里，是为了让"文案 ⇄ payload 能力"这对
+ * 关系可被单测直接钉住（原先 App.vue 只认 label，文案恒承诺一个并不存在的动作）。
+ */
+export function layerFailureMessage(payload: LayerErrorPayload): string {
+  return payload.retryable
+    ? `图层「${payload.label}」加载失败，请点击图层面板里的开关重试`
+    : `图层「${payload.label}」加载失败，请刷新页面后重试`
 }
 
 /** mapStore 最小接口（仅声明实际使用的方法） */
@@ -113,7 +132,12 @@ export class BusinessLayerManager {
     if (err !== undefined) {
       logger.warn(`[BusinessLayerManager] 图层 ${key}（${label}）创建失败:`, err)
     }
-    this._errorHandler?.({ key, label })
+    this._errorHandler?.({
+      key,
+      label,
+      // 与 _handleCreateFailure 的回滚一致：可见性已落回 false，面板开关处于"可点亮"态
+      retryable: Boolean(meta?.listed) && meta?.data != null && this._getRenderer() != null,
+    })
   }
 
   /**

@@ -4,7 +4,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { MapRenderer } from '@/types'
 import type { LayerType } from '@/types/core/layerManager'
 
-import { BusinessLayerManager } from '../BusinessLayerManager'
+import {
+  BusinessLayerManager,
+  layerFailureMessage,
+  type LayerErrorPayload,
+} from '../BusinessLayerManager'
 
 /** mock catalog 条目 */
 interface MockCatalogEntry {
@@ -542,6 +546,67 @@ describe('BusinessLayerManager', () => {
 
       expect(renderer.addHeatmapLayer).not.toHaveBeenCalled()
       expect(renderer.updateHeatmapLayer).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('失败回调的可重放判据（W5：文案承诺的动作必须真能由 payload 驱动）', () => {
+    it('🔴 已登记且有数据 ⇒ retryable=true，且提示承诺的动作（面板开关）真能重试成功', () => {
+      let attempt = 0
+      const renderer = {
+        addPointLayer: vi.fn(() => {
+          attempt++
+          if (attempt === 1) throw new Error('首次失败') // 首次失败、重试成功
+        }),
+        setVisibility: vi.fn(),
+        hasLayer: vi.fn().mockReturnValue(false),
+      }
+      mapStore.currentRenderer = renderer as unknown as MapRenderer
+      const payloads: LayerErrorPayload[] = []
+      manager.setErrorHandler((p) => payloads.push(p))
+
+      expect(() =>
+        manager.register('retry-points', {
+          label: '可重试',
+          layerType: 'points',
+          data: [{ lng: 108, lat: 21 }],
+          visible: true,
+        })
+      ).toThrow('首次失败')
+
+      expect(payloads).toHaveLength(1)
+      expect(payloads[0]).toMatchObject({ key: 'retry-points', label: '可重试', retryable: true })
+      expect(layerFailureMessage(payloads[0])).toContain('点击图层面板里的开关重试')
+
+      // 文案承诺的动作 = 面板开关（由 payload.key 驱动）→ 必须真能重试（第二次不再抛）
+      manager.setVisible('retry-points', true)
+      expect(renderer.addPointLayer).toHaveBeenCalledTimes(2)
+      expect(manager.getMeta('retry-points')?.visible).toBe(true)
+    })
+
+    it('🔴 未登记图层（listed:false）⇒ retryable=false，文案不承诺"再点一次"', () => {
+      const renderer = {
+        addPointLayer: vi.fn(() => {
+          throw new Error('失败')
+        }),
+      }
+      mapStore.currentRenderer = renderer as unknown as MapRenderer
+      const payloads: LayerErrorPayload[] = []
+      manager.setErrorHandler((p) => payloads.push(p))
+
+      expect(() =>
+        manager.register('silent-points', {
+          label: '静默层',
+          layerType: 'points',
+          data: [{ lng: 108, lat: 21 }],
+          visible: true,
+          listed: false,
+        })
+      ).toThrow()
+
+      // 面板没有该条目 ⇒ 没有按钮可点，"再点一次"是空承诺
+      expect(payloads[0].retryable).toBe(false)
+      expect(layerFailureMessage(payloads[0])).toContain('刷新页面')
+      expect(layerFailureMessage(payloads[0])).not.toContain('开关重试')
     })
   })
 

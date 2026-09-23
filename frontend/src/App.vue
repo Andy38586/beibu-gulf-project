@@ -3,7 +3,7 @@ import { onMounted, onUnmounted, provide, ref, watch } from 'vue'
 import { RouterView, useRoute, useRouter } from 'vue-router'
 
 import { businessModules, runBusinessLogoutReset } from '@/business'
-import { BusinessLayerManager } from '@/core'
+import { BusinessLayerManager, layerFailureMessage } from '@/core'
 import { BUSINESS_LAYER_MANAGER_KEY } from '@/core'
 import { registerNavItems } from '@/core'
 import { notifyTaskIndicator, registerTaskIndicator, TaskDropZone } from '@/core'
@@ -52,9 +52,12 @@ provide(UNIFIED_MAP_KEY, unifiedMapRef)
 const businessLayerManager = new BusinessLayerManager(mapStore)
 provide(BUSINESS_LAYER_MANAGER_KEY, businessLayerManager)
 
-// 图层渲染失败由 manager 回调上报，UI 展示方式由上层决定
-businessLayerManager.setErrorHandler(({ label }: { label: string }) => {
-  showWarning(`图层「${label}」加载失败，请再点击一次重试`)
+// 图层渲染失败由 manager 回调上报，UI 展示方式由上层决定。
+// 文案由 layerFailureMessage 按 payload.retryable 生成——只在"面板确有该条目且数据在手"
+// 时才承诺"点击面板开关重试"，否则给刷新页面的出路（旧文案恒承诺"再点击一次重试"，
+// 而对未登记图层（listed=false）根本没有可点的按钮）
+businessLayerManager.setErrorHandler((payload) => {
+  showWarning(layerFailureMessage(payload))
 })
 
 // 登出/多标签页登出（authUser 变 null）时统一重置各业务 store

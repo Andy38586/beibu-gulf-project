@@ -2,6 +2,8 @@ import { Controller, HttpCode, Logger, Post, Req } from '@nestjs/common'
 import { SkipThrottle } from '@nestjs/throttler'
 import type { Request } from 'express'
 
+import { sanitizeDetail } from '../common/utils/sanitize-detail'
+
 /**
  * CSP 违规上报接收端点（审查 z153）。
  *
@@ -22,6 +24,10 @@ const LOG_BUDGET_PER_WINDOW = 60
 const WINDOW_MS = 60_000
 const MAX_FIELD_LEN = 200
 
+// 字段裁剪统一走 common/utils 的净化（压平换行 + 截断）：原 clip 只截断不压平，
+// 上报字段里带 \r\n 即可在本控制器的日志里伪造新行（报告体完全由匿名请求控制）
+const sanitizeField = (v: unknown): string => sanitizeDetail(v, MAX_FIELD_LEN)
+
 /** 归一化后的报告（只保留排障必需的三项） */
 export interface NormalizedCspReport {
   documentUri: string
@@ -29,15 +35,10 @@ export interface NormalizedCspReport {
   blockedUri: string
 }
 
-const clip = (v: unknown): string => {
-  const s = typeof v === 'string' ? v : ''
-  return s.length > MAX_FIELD_LEN ? `${s.slice(0, MAX_FIELD_LEN)}…` : s
-}
-
 const pick = (o: Record<string, unknown>, keys: string[]): string => {
   for (const k of keys) {
     const v = o[k]
-    if (typeof v === 'string' && v !== '') return clip(v)
+    if (typeof v === 'string' && v !== '') return sanitizeField(v)
   }
   return ''
 }

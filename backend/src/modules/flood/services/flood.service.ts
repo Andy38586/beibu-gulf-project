@@ -218,6 +218,7 @@ export class FloodService {
         averageDepth: 0,
         maxDepth: 0,
         depthRefLevel: level,
+        depthUnderstatedBy: 0,
         affectedFacilityCount: 0,
         affectedPorts: [],
         estimatedLoss: 0,
@@ -235,9 +236,22 @@ export class FloodService {
     const affectedPorts = [
       ...new Set(assessment.affectedFacilities.map((f) => String(f.port ?? '')).filter(Boolean)),
     ]
+
+    // 水深参考基准换算（W19 / d056 N-1）。参考表的 averageDepth/maxDepth 由生成脚本按
+    // 「EGM96 正高 = 档位水位 − datumOffset」反演（flood_realify.py:257-282），而本响应的
+    // actualLevel 是 PostGIS 档位值（同为 EGM96）⇒ **该行水深对应的 EGM96 水位**
+    // = depthRef.waterLevel − datumOffset，它与实际档位之差才是真实低估量。
+    // 旧实现拿档位标签（理论深度基准面）直接与 EGM96 值比，基准混用 ⇒ 披露反转：
+    // 真低估 2.5m 的档全不披露（2/5/8/10/15m），唯一不低估的档（请求 2.5m）反而披露。
+    // 判据：披露当且仅当低估 > 0，且披露出量值（真值表见 flood-depth-disclosure.spec.ts）。
+    const datumOffset = await this.readDatumOffset()
+    const depthBasisEgm96 = depthRef
+      ? Number((depthRef.waterLevel - datumOffset).toFixed(1))
+      : actualLevel
+    const depthUnderstatedBy = Math.max(0, Number((actualLevel - depthBasisEgm96).toFixed(1)))
     const depthNote =
-      depthRef && depthRef.waterLevel !== actualLevel
-        ? `；平均/最大水深为 ${depthRef.waterLevel}m 档 DEM 反演参考值`
+      depthRef && depthUnderstatedBy > 0
+        ? `；平均/最大水深为 ${depthRef.waterLevel}m 档 DEM 反演参考值（对应 EGM96 ${depthBasisEgm96}m，比实际档位低 ${depthUnderstatedBy}m）`
         : ''
 
     return {
@@ -249,8 +263,11 @@ export class FloodService {
       floodArea,
       averageDepth: depthRef?.averageDepth ?? 0,
       maxDepth: depthRef?.maxDepth ?? 0,
-      // 水深所属参考档位（= waterLevel 时表示该水位有 DEM 反演水深）
+      // 水深所属参考档位（该档位水位的字面值，基准=理论深度基准面）
       depthRefLevel: depthRef?.waterLevel ?? actualLevel,
+      // 参考档水深相对实际档位的低估量（m）；> 0 即"该水深来自更低的基准"，
+      // 前端据它打 * 与提示（与 description 的 depthNote 同判据，见 W19）
+      depthUnderstatedBy,
       affectedFacilityCount,
       affectedPorts,
       // 与 disaster 同口径（value × damageRate）；单位万元——facilityPoints.json
@@ -269,6 +286,19 @@ export class FloodService {
     const data = (await this.floodRepository.readTerrainProfile()) as TerrainProfileData
     const datumOffset = data.metadata?.datumOffset ?? 0
     return data.profiles.map((p) => ({ ...p, datumOffset }))
+  }
+
+  /**
+   * 垂直基准偏移（水位=理论深度基准面 → EGM96 正高）。
+   *
+   * 单一来源 terrainProfile.json.metadata.datumOffset（生成脚本按 waterLevel.json 的
+   * baseLevels.msl 写入，见 flood_realify.py:208-211），不在此硬编码 2.5；
+   * 缺失时按 0 处理（等价于「上下同基准」，不因数据缺失伪造一个偏移量）。
+   */
+  private async readDatumOffset(): Promise<number> {
+    const data = (await this.floodRepository.readTerrainProfile()) as TerrainProfileData
+    const offset = Number(data?.metadata?.datumOffset)
+    return Number.isFinite(offset) ? offset : 0
   }
 
   /** GET /water-area — 水域边界坐标数组 [[lng, lat], ...]（与前端 floodAdapter.getWaterArea 消费形状一致） */
@@ -349,6 +379,9 @@ export class FloodService {
     // mask 语义是 dem ≤ level（EGM96），设施判定对齐之：多边形命中 且 设施高程 ≤ 实际选中
     // 档位值。高程缺失时退回纯点面判定（不因数据缺失漏报——宁可高估不可低估）。
     const pickedLevel = Number(floodZone.waterLevel)
+    // 水深因子所用的水位（X4）：本档实际水位（EGM96，与设施高程同基准）；
+    // 档位异常缺 waterLevel 时回落请求水位，不因数据缺失丢掉折减
+    const depthLevel = Number.isFinite(pickedLevel) ? pickedLevel : level
     const gated = Number.isFinite(pickedLevel)
       ? hitIndices.filter((index) => {
           const elevation = Number(candidates[index].elevation)
@@ -358,6 +391,18 @@ export class FloodService {
 
     const affectedFacilities = gated.map((index) => {
       const facility = candidates[index]
+      // value/damageRate 缺失/非数值时按 0 计（合法 0 保留，NaN/Infinity 归 0）
+      const value = Number.isFinite(Number(facility.value)) ? Number(facility.value) : 0
+      const damageRate = Number.isFinite(Number(facility.damageRate))
+        ? Number(facility.damageRate)
+        : 0
+      // 水深因子 min(d/3, 1)（X4 / 专1 N-1）：**与生成侧同式**
+      //（flood_realify.py:295-301：d = 本档 EGM96 水位 − 设施高程，无高程/非正视为 0）。
+      // 运行侧此前不折减 ⇒ 同一个 estimatedLoss 字段两轨口径：d < 3m 时运行侧最高达生成侧
+      // 的 3 倍，而两端各自都自洽，diff 看不出来。
+      const elevation = Number(facility.elevation)
+      const depth = Number.isFinite(elevation) ? Math.max(0, depthLevel - elevation) : 0
+      const depthFactor = Math.min(1, depth / 3)
       return {
         id: facility.id,
         name: facility.name,
@@ -368,10 +413,7 @@ export class FloodService {
         elevation: facility.elevation,
         value: facility.value,
         damageRate: facility.damageRate,
-        // value/damageRate 缺失/非数值时按 0 计（合法 0 保留，NaN/Infinity 归 0）
-        loss:
-          (Number.isFinite(Number(facility.value)) ? Number(facility.value) : 0) *
-          (Number.isFinite(Number(facility.damageRate)) ? Number(facility.damageRate) : 0),
+        loss: value * damageRate * depthFactor,
       }
     })
 

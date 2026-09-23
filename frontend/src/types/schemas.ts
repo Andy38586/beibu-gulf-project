@@ -4,6 +4,8 @@
  */
 import { z } from 'zod'
 
+import { TASK_DOMAINS, TASK_STATUSES } from './task'
+
 // ① User（useAuth 的 localStorage 读取校验 + /auth/me 响应校验）
 // 🔴 2026-09-19 修复 P0：createdAt 由 `z.string()` 改为 `z.string().nullable()`——
 // 此前必填与后端 `AuthUserView`（created_at 列可空）不符，`/auth/me` 的 200 响应
@@ -192,6 +194,7 @@ export type ForecastIndicatorIndexParsed = z.infer<typeof forecastIndicatorIndex
 // 须先于其求值；编号保持文档序号不变）
 // 2026-09-11 起与 flood-areas/disaster 同源：waterLevel 为 251 档实际档位（不再是 6 档粗化值）；
 // averageDepth/maxDepth 仍来自 6 档 DEM 反演参考表，由 depthRefLevel 标注其所属档位
+// @backend-contract backend/src/modules/flood/services/flood.service.ts
 export const floodStatisticsResponseSchema = z.looseObject({
   waterLevel: z.number().optional(),
   requestedWaterLevel: z.number().optional(),
@@ -202,12 +205,13 @@ export const floodStatisticsResponseSchema = z.looseObject({
   averageDepth: z.number().optional(),
   maxDepth: z.number().optional(),
   depthRefLevel: z.number().optional(),
+  // 参考档水深相对实际档位的低估量（m）；> 0 时面板打 * 并提示（与后端 depthNote 同判据，W19）
+  depthUnderstatedBy: z.number().optional(),
   // 计数语义改名 affectedFacilityCount（原 affectedFacilities 与数组语义同名不同型）
   affectedFacilityCount: z.number().optional(),
   affectedPorts: z.array(z.string()).optional(),
   estimatedLoss: z.number().optional(),
   description: z.string().optional(),
-  affectedCount: z.number().optional(),
 })
 
 export type FloodStatisticsResponseParsed = z.infer<typeof floodStatisticsResponseSchema>
@@ -407,3 +411,42 @@ export const poiSearchResponseSchema = z.array(poiSearchItemSchema)
 export type PoiSearchItemParsed = z.infer<typeof poiSearchItemSchema>
 
 export type PoiSearchResponseParsed = z.infer<typeof poiSearchResponseSchema>
+
+// ⑯ /task 三个端点（提交 / 查询 / 取消）的响应契约。
+//
+// 为什么补：useTaskApi 的三个请求点此前只有 TS 泛型（`apiRequest<TaskView>`），
+// 编译期形状对不上不会报错，运行期更不会——后端把字段改名/删掉时，前端表现为
+// 「任务成功但没结果」，比报错更难查（types/task.ts 头注释即为此写的维护约束）。
+// 必填字段按后端 TaskView / TaskSubmitResponse 原样声明（不 optional 化）：
+// 只有必填才能让"后端字段消失"在运行期直接抛错。
+// @backend-contract backend/src/modules/task/types/task.ts
+export const taskSubmitResponseSchema = z.looseObject({
+  taskId: z.string(),
+  status: z.enum(TASK_STATUSES),
+  queuePosition: z.number(),
+  createdAt: z.number(),
+})
+
+export type TaskSubmitResponseParsed = z.infer<typeof taskSubmitResponseSchema>
+
+export const taskViewResponseSchema = z.looseObject({
+  taskId: z.string(),
+  domain: z.enum(TASK_DOMAINS),
+  route: z.string(),
+  status: z.enum(TASK_STATUSES),
+  progress: z.number(),
+  queuePosition: z.number().optional(),
+  retryCount: z.number(),
+  result: z.unknown().optional(),
+  error: z
+    .looseObject({
+      message: z.string(),
+      bizCode: z.number().optional(),
+    })
+    .optional(),
+  createdAt: z.number(),
+  startedAt: z.number().optional(),
+  finishedAt: z.number().optional(),
+})
+
+export type TaskViewResponseParsed = z.infer<typeof taskViewResponseSchema>

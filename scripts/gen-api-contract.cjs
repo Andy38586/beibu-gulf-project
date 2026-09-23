@@ -12,7 +12,10 @@
  *      a. 每个 `*Schema` 都有对应的 `z.infer` 类型导出（*Parsed）——
  *         类型派生完整性，防止"只写 schema 忘导出类型"；
  *      b. 每个 `*Schema` 都被 schemas.test.ts 引用——运行时校验覆盖
- *         守护（z117 的"100% 覆盖率"从人工核对变为可重复检查）。
+ *         守护（z117 的"100% 覆盖率"从人工核对变为可重复检查）；
+ *      c. 反向核对（2026-09-23 补）：带 `@backend-contract <路径>` 注解的 schema，
+ *         其每个字段名必须仍以键位出现在注解指向的后端文件里——后端删/改名而契约
+ *         未同步时，a/b 两条都不会红（实测 exit=0），故补此条。
  *
  * 用法：
  *   node scripts/gen-api-contract.cjs          # 生成快照 + 校验
@@ -182,6 +185,52 @@ for (const def of defs) {
 const problems = [
   ...parseFailures.map((n) => `✗ ${n}: 声明解析失败（生成器无法提取字段，请检查声明形态）`),
 ]
+
+// ---------- 反向核对：后端字段消失必红 ----------
+//
+// 背景：本脚本的校验此前全是"正向"的（schema 有没有类型导出、有没有被测试引用）。
+// 后端把某字段删掉/改名时，schema 依旧自洽 ⇒ 快照与覆盖率都不红（实测 exit=0），
+// 契约里就留着一个没人产出的字段（affectedCount 即这类遗留）。
+//
+// 判据：带 `// @backend-contract <相对路径>` 注解的 schema，其每个字段名都必须在该后端
+// 文件里以**键位**出现（字段名后接 , : ) }）——只要求"名字还在"，不要求解析后端 AST；
+// 文本级判定，与本脚本其余部分同粒度。注解写在 schema 声明的上方注释里。
+function backendContractOf(declStart) {
+  const lines = schemasText.slice(0, declStart).split('\n')
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const line = lines[i].trim()
+    if (line === '') continue
+    const hit = line.match(/^\/\/\s*@backend-contract\s+(\S+)/)
+    if (hit) return hit[1]
+    // 只向上回溯连续注释；遇到代码即停（注解必须紧贴该 schema 的声明注释块）
+    if (!line.startsWith('//') && !line.startsWith('*') && !line.startsWith('/*')) return null
+  }
+  return null
+}
+
+const contractBackends = {}
+for (const def of defs) {
+  const own = declStarts.find((d) => d.name === def.name)
+  const rel = backendContractOf(own.index)
+  if (!rel) continue
+  const abs = path.join(ROOT, rel)
+  if (!fs.existsSync(abs)) {
+    problems.push(`✗ ${def.name}: @backend-contract 指向的文件不存在（${rel}）`)
+    continue
+  }
+  const src = fs.readFileSync(abs, 'utf8')
+  const occurrence = {}
+  for (const field of Object.keys(def.fields)) {
+    // 键位 = 字段名后接 , : ) }；`const affectedPorts = [...]` 这种引用不算
+    const hits = src.match(new RegExp(`\\b${field}\\s*(?:[,:]|\\)|\\})`, 'g'))
+    occurrence[field] = hits ? hits.length : 0
+    // 硬性判据：契约字段必须在后端真被产出（0 次 = 死字段，affectedCount 即此类）
+    if (occurrence[field] === 0) {
+      problems.push(`✗ ${def.name}.${field}: ${rel} 里已是 0 次键位出现（后端删/改名而未同步契约）`)
+    }
+  }
+  contractBackends[def.name] = { file: rel, occurrence }
+}
 const indirect = []
 for (const def of defs) {
   const parsedExport = new RegExp(
@@ -207,6 +256,10 @@ const snapshot = {
   generatedAt: new Date().toISOString().slice(0, 10),
   source: 'frontend/src/types/schemas.ts（单一事实源，types:gen 自动生成勿手改）',
   schemas: Object.fromEntries(defs.map((d) => [d.name, { kind: d.kind, fields: d.fields }])),
+  // 带 @backend-contract 注解的 schema：字段在后端文件里的键位出现次数。
+  // 计数入快照 ⇒ 后端删掉某一处产出即成「快照不同步」而必红（下面的新鲜度比对覆盖它）；
+  // 0 次则由上面的硬性判据直接报错（不允许靠重生成快照把消失的字段"洗白"）。
+  backendContracts: contractBackends,
 }
 
 if (!onlyCheck) {

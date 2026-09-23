@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-22",
+  "generatedAt": "2026-09-23",
   "source": "frontend/src/types/schemas.ts（单一事实源，types:gen 自动生成勿手改）",
   "schemas": {
     "userSchema": {
@@ -281,6 +281,10 @@
           "type": "number",
           "optional": true
         },
+        "depthUnderstatedBy": {
+          "type": "number",
+          "optional": true
+        },
         "affectedFacilityCount": {
           "type": "number",
           "optional": true
@@ -295,10 +299,6 @@
         },
         "description": {
           "type": "string",
-          "optional": true
-        },
-        "affectedCount": {
-          "type": "number",
           "optional": true
         }
       }
@@ -670,6 +670,110 @@
     "poiSearchResponseSchema": {
       "kind": "array",
       "fields": {}
+    },
+    "taskSubmitResponseSchema": {
+      "kind": "object",
+      "fields": {
+        "taskId": {
+          "type": "string",
+          "optional": false
+        },
+        "status": {
+          "type": "enum",
+          "optional": false
+        },
+        "queuePosition": {
+          "type": "number",
+          "optional": false
+        },
+        "createdAt": {
+          "type": "number",
+          "optional": false
+        }
+      }
+    },
+    "taskViewResponseSchema": {
+      "kind": "object",
+      "fields": {
+        "taskId": {
+          "type": "string",
+          "optional": false
+        },
+        "domain": {
+          "type": "enum",
+          "optional": false
+        },
+        "route": {
+          "type": "string",
+          "optional": false
+        },
+        "status": {
+          "type": "enum",
+          "optional": false
+        },
+        "progress": {
+          "type": "number",
+          "optional": false
+        },
+        "queuePosition": {
+          "type": "number",
+          "optional": true
+        },
+        "retryCount": {
+          "type": "number",
+          "optional": false
+        },
+        "result": {
+          "type": "unknown",
+          "optional": true
+        },
+        "error": {
+          "type": "object",
+          "optional": true
+        },
+        "createdAt": {
+          "type": "number",
+          "optional": false
+        },
+        "startedAt": {
+          "type": "number",
+          "optional": true
+        },
+        "finishedAt": {
+          "type": "number",
+          "optional": true
+        }
+      }
+    }
+  },
+  "backendContracts": {
+    "floodStatisticsResponseSchema": {
+      "file": "backend/src/modules/flood/services/flood.service.ts",
+      "occurrence": {
+        "waterLevel": 20,
+        "requestedWaterLevel": 5,
+        "actualWaterLevel": 4,
+        "riskLevel": 17,
+        "riskLevelCode": 2,
+        "floodArea": 3,
+        "averageDepth": 2,
+        "maxDepth": 2,
+        "depthRefLevel": 2,
+        "depthUnderstatedBy": 3,
+        "affectedFacilityCount": 3,
+        "affectedPorts": 2,
+        "estimatedLoss": 2,
+        "description": 1
+      }
+    },
+    "taskSubmitResponseSchema": {
+      "file": "backend/src/modules/task/types/task.ts",
+      "occurrence": {
+        "taskId": 3,
+        "status": 3,
+        "queuePosition": 1,
+        "createdAt": 3
+      }
     }
   }
 }

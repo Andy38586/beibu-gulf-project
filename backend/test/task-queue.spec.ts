@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common'
 import { describe, expect, it, vi } from 'vitest'
 
 import {
@@ -7,6 +8,7 @@ import {
 } from '../src/modules/task/services/task-queue'
 import { TaskRegistry } from '../src/modules/task/services/task-registry'
 import {
+  ANONYMOUS_OWNER,
   TASK_RETRY_BACKOFF_MS,
   TASK_SWEEP_INTERVAL_MS,
   TASK_TTL_MS,
@@ -27,6 +29,7 @@ function record(taskId: string, overrides: Partial<TaskRecord> = {}): TaskRecord
     taskId,
     domain: 'flood-areas',
     route: '/flood-analysis',
+    ownerId: ANONYMOUS_OWNER,
     priority: 'normal',
     params: {},
     status: 'pending',
@@ -317,6 +320,34 @@ describe('TaskQueue', () => {
     expect(calls.retry.map((c) => c[1])).toEqual([1, 2, 3])
     expect(calls.failure).toEqual([['t1', 'boom']])
     expect(calls.success).toEqual([])
+  })
+
+  it('🔴 消费侧日志经净化：换行被压平、超长被截断（日志 sink）', async () => {
+    const warn = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => {})
+    try {
+      // 异常 message 可由请求输入拼出 ⇒ 不净化即可匿名伪造日志行 / 灌满日志
+      const injected = `boom\n2026-09-23 WARN 伪造服务端日志行\r\n${'x'.repeat(3000)}`
+      const { hooks, calls } = makeHooks({
+        run: async () => {
+          throw new Error(injected)
+        },
+      })
+      const queue = new TaskQueue(hooks)
+      queue.enqueue(job('t1'))
+      await sleep(TASK_RETRY_BACKOFF_MS.reduce((a, b) => a + b, 0) + 200)
+
+      expect(calls.failure).toHaveLength(1)
+      const lines = warn.mock.calls.map((c) => String(c[0]))
+      expect(lines.length).toBeGreaterThan(0)
+      for (const line of lines) {
+        expect(line).not.toMatch(/[\r\n\t]/) // 逐行：注入的换行已被压平
+        expect(line.startsWith('任务 t1')).toBe(true)
+        expect(line.length).toBeLessThan(400) // 前缀 + 净化后 200 字上限 + 后缀
+      }
+      expect(lines.join(' ')).toContain('boom 2026-09-23 WARN 伪造服务端日志行')
+    } finally {
+      warn.mockRestore()
+    }
   })
 
   it('重试期间成功 ⇒ retryCount=1 且不再重试', async () => {

@@ -4,6 +4,7 @@ import request from 'supertest'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { AppModule } from '../src/app.module'
+import { generateToken } from '../src/common/utils/jwt.util'
 import { type TaskHandler, TaskHandlers } from '../src/modules/task/services/task-handlers'
 import { TASK_CONCURRENCY } from '../src/modules/task/types/task'
 
@@ -44,8 +45,14 @@ describe('v4 异步任务域（/nest-api/task）', () => {
   let maxInFlight = 0
   /** 记录每个域的调用次数（重试验证用） */
   const callCount = new Map<string, number>()
+  /** d059 用例临时设置 JWT_SECRET，afterAll 还原（不污染同进程的其它测试文件） */
+  let savedJwtSecret: string | undefined
 
   beforeAll(async () => {
+    // d059 属主用例要签真令牌：JWT_SECRET 与 auth.e2e-spec 同口径（本文件的 handler 全打桩，不连库）
+    savedJwtSecret = process.env.JWT_SECRET
+    process.env.JWT_SECRET = 'x'.repeat(64)
+
     // 🔴 必须在 compile 之前替换：Nest 用原型方法完成注入后的调用，替换原型即生效
     TaskHandlers.prototype.get = function (domain: string): TaskHandler {
       const stub = stubs.get(domain)
@@ -64,6 +71,8 @@ describe('v4 异步任务域（/nest-api/task）', () => {
   afterAll(async () => {
     await app?.close()
     TaskHandlers.prototype.get = realGet
+    if (savedJwtSecret === undefined) delete process.env.JWT_SECRET
+    else process.env.JWT_SECRET = savedJwtSecret
   })
 
   beforeEach(() => {
@@ -409,6 +418,65 @@ describe('v4 异步任务域（/nest-api/task）', () => {
     })
     expect(otherDone.result).toEqual({ other: true })
     expect(newTask.body.data.taskId).not.toBe(oldTask.body.data.taskId)
+  })
+
+  it('d059 属主：B 的令牌取消 A 的任务必失败（404），同路由提交不取代，匿名也读不到', async () => {
+    const tokenA = generateToken({ id: 'u-a', username: 'A' })
+    const tokenB = generateToken({ id: 'u-b', username: 'B' })
+    let releaseBlocker: () => void = () => {}
+    const blocker = new Promise<void>((resolve) => {
+      releaseBlocker = resolve
+    })
+    stub(
+      'route-path',
+      tracked('route-path', async () => {
+        await blocker
+        return { mine: true }
+      })
+    )
+
+    const asA = await request(app.getHttpServer())
+      .post('/nest-api/task')
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({ domain: 'route-path', route: '/route-analysis', params: {} })
+      .expect(200)
+    const taskA = asA.body.data.taskId
+
+    // B 提交同一路由：现形态（取代键只有 route）会把 A 的任务取消 ⇒ 红
+    const asB = await request(app.getHttpServer())
+      .post('/nest-api/task')
+      .set('Authorization', `Bearer ${tokenB}`)
+      .send({ domain: 'route-path', route: '/route-analysis', params: {} })
+      .expect(200)
+    expect(asB.body.data.taskId).not.toBe(taskA)
+
+    const aView = await request(app.getHttpServer())
+      .get(`/nest-api/task/${taskA}`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .expect(200)
+    expect(aView.body.data.status).not.toBe('cancelled')
+
+    // B 取消/查询 A 的任务：按 404 处理（与「不存在」同码，不暴露存在性）
+    await request(app.getHttpServer())
+      .delete(`/nest-api/task/${taskA}`)
+      .set('Authorization', `Bearer ${tokenB}`)
+      .expect(404)
+    await request(app.getHttpServer())
+      .get(`/nest-api/task/${taskA}`)
+      .set('Authorization', `Bearer ${tokenB}`)
+      .expect(404)
+    // 匿名（无令牌）同样拿不到别人属主的结果
+    await request(app.getHttpServer()).get(`/nest-api/task/${taskA}`).expect(404)
+
+    // 属主本人可取消（失败的是越权，不是功能）
+    const cancelled = await request(app.getHttpServer())
+      .delete(`/nest-api/task/${taskA}`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .expect(200)
+    expect(cancelled.body.data.status).toBe('cancelled')
+
+    releaseBlocker()
+    await settle(150)
   })
 
   it('参数校验：非法 domain / 缺 route / 非法 priority 均 400', async () => {

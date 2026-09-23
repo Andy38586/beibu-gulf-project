@@ -26,6 +26,7 @@ export const GUARDS = [
   'agent-docs-check',
   'routes-audit',
   'constants-audit',
+  'forecast-confidence',
   'metrics-tally',
   'ledger-dedupe',
   'cruise-coverage',

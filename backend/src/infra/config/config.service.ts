@@ -4,6 +4,7 @@ import path from 'node:path'
 import { Injectable, Optional } from '@nestjs/common'
 
 import { getJwtSecret } from '../../common/utils/jwt.util'
+import { resolveTrustProxyHops } from '../../common/utils/trust-proxy'
 import { DbConfig, parseDbConfig } from '../db/db.config'
 
 // 数据目录解析：优先 DATA_DIR env；否则从 cwd 向上找 backend/data（仓根或 backend/nest
@@ -25,7 +26,7 @@ export function resolveDataDir(
 }
 
 /**
- * 配置集中入口：PORT/NODE_ENV/JWT_SECRET/DATA_DIR/PG_* 全部经此类读取，
+ * 配置集中入口：PORT/NODE_ENV/JWT_SECRET/DATA_DIR、PG 凭据与 TRUST_PROXY_HOPS 全部经此类读取，
  * 业务代码不再散落 process.env。环境读取在构造时一次性定型，
  * 测试可直接 new ConfigService({...}) 注入假环境。
  * JWT 验签路径保持 jwt.util 的懒校验语义（auth 用时抛错），本类只做统一出口。
@@ -35,6 +36,9 @@ export class ConfigService {
   readonly port: number
   readonly nodeEnv: string
   readonly dbConfig: DbConfig
+  // 反代跳数（d058）：main.ts 起服务时 set 到 Express 实例上，故必须与 PORT 同口径走本类出口
+  // ——留在 main.ts 直读 process.env 就绕过了 validateStartup 的生产必填断言（原失效形态）
+  readonly trustProxyHops: number
 
   private readonly env: NodeJS.ProcessEnv
 
@@ -46,6 +50,7 @@ export class ConfigService {
     this.port = Number(env.PORT) || 3000
     this.nodeEnv = env.NODE_ENV ?? 'development'
     this.dbConfig = parseDbConfig(env)
+    this.trustProxyHops = resolveTrustProxyHops(env.TRUST_PROXY_HOPS)
   }
 
   get isProduction(): boolean {
@@ -74,6 +79,21 @@ export class ConfigService {
       if (missing.length > 0) {
         throw new Error(
           `启动失败：生产环境必须注入 ${missing.join('、')}（禁止依赖开发默认值上线）`
+        )
+      }
+      // P0（d058，2026-09-23）：反代跳数同样必填，且必须显式可解析为 ≥1 的整数。
+      // 为什么不像 PG_* 那样只判"缺不缺"：**0 就是失效形态本身**——它表示不信任任何代理，
+      // 生产限流键随即退化为 nginx 容器 IP（三个桶全站共享）且 auth 的 secure 推定失真；
+      // 非法值（abc / 1.5 / -1）则被解析层静默回落 1，等于"没配也照跑"，同属隐式默认。
+      // 取值按部署拓扑级数：nginx→nest 一跳填 1；前置 CDN 再 +1。本地开发无需注入。
+      const rawHops = (this.env.TRUST_PROXY_HOPS ?? '').trim()
+      const hops = Number(rawHops)
+      if (!Number.isInteger(hops) || hops < 1) {
+        throw new Error(
+          `启动失败：生产环境必须注入 TRUST_PROXY_HOPS 且为 ≥1 的整数（当前=${
+            rawHops === '' ? '未设置' : rawHops
+          }）。` +
+            'nginx→nest 一跳填 1，多级反代按级数递增；0/非法值会让限流键与 secure 推定退化（d058），生产禁用。'
         )
       }
     }

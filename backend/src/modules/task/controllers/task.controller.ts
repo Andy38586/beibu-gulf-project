@@ -1,11 +1,13 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Post } from '@nestjs/common'
+import { Body, Controller, Delete, Get, HttpCode, Param, Post, Req } from '@nestjs/common'
 import { ApiTags } from '@nestjs/swagger'
 import { SkipThrottle } from '@nestjs/throttler'
+import type { Request } from 'express'
 
 import { BusinessError, ErrorCode } from '../../../common/errors/business-error'
 import { HTTP_TASK_DOMAINS, TASK_PRIORITIES } from '../dto/task.dto'
 import { TaskService } from '../services/task.service'
 import type { TaskDomain, TaskPriority } from '../types/task'
+import { resolveRequestOwner } from '../utils/request-owner'
 
 /**
  * 异步任务 API（v4 系统 B）。
@@ -33,7 +35,8 @@ export class TaskController {
   @Post()
   @HttpCode(200)
   submit(
-    @Body() body?: { domain?: unknown; route?: unknown; priority?: unknown; params?: unknown }
+    @Body() body: { domain?: unknown; route?: unknown; priority?: unknown; params?: unknown },
+    @Req() req: Request
   ) {
     const { domain, route, priority, params } = body ?? {}
 
@@ -68,6 +71,7 @@ export class TaskController {
     return this.taskService.submit({
       domain: domain as TaskDomain,
       route,
+      ownerId: resolveRequestOwner(req),
       priority: priorityValue,
       params: (params as Record<string, unknown> | undefined) ?? {},
     })
@@ -75,13 +79,13 @@ export class TaskController {
 
   /** 查询任务（前端 500ms 轮询）。任务被回收后返回 404 业务码，前端据此停止轮询 */
   @Get(':id')
-  get(@Param('id') id: string) {
-    return this.taskService.get(id)
+  get(@Param('id') id: string, @Req() req: Request) {
+    return this.taskService.get(id, resolveRequestOwner(req))
   }
 
-  /** 取消任务。幂等：已终态返回当前状态而非报错 */
+  /** 取消任务。幂等：已终态返回当前状态而非报错；非属主按 404 处理（不暴露存在性） */
   @Delete(':id')
-  cancel(@Param('id') id: string) {
-    return this.taskService.cancel(id)
+  cancel(@Param('id') id: string, @Req() req: Request) {
+    return this.taskService.cancel(id, resolveRequestOwner(req))
   }
 }

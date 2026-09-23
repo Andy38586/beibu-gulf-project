@@ -10,11 +10,13 @@ import express from 'express'
 
 import { AppModule } from './app.module'
 import { ConfigService } from './infra/config/config.service'
-import { resolveTrustProxyHops } from './common/utils/trust-proxy'
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule)
   const http = app.getHttpAdapter().getInstance() as express.Express
+  // 配置集中读取（d058）：反代跳数也在 ConfigService 出口里，此处不再直读 process.env
+  // ——直读会绕过 validateStartup() 的生产必填断言（原失效形态：配 0 或漏配都静默起服务）
+  const config = app.get(ConfigService)
   // 关闭框架指纹：Nest 默认 Express adapter 会给每个响应带 X-Powered-By: Express，
   // 属低成本可消除的信息泄露（2026-09-10 实测线上 /nest-api/* 全部携带）。
   // 必须在首个请求前设置（此处为 listen 前），否则已发出的响应已带该头。
@@ -24,11 +26,9 @@ async function bootstrap() {
   // 任一客户端即可把 route/plans/favorites 打成 429；auth.controller 的
   // `x-forwarded-proto` 推定（secure cookie）同样依赖它。
   // 跳数取部署拓扑（nginx→nest 一跳）而非 true：true 等于任何人都能伪造 XFF。
-  // 显式判断非负有限值原样生效、否则默认 1——不能用 `Number(...) || 1`，
-  // 它无法表达"不信任代理"（0 是 falsy）。解析逻辑与用例见 common/utils/trust-proxy.ts。
-  http.set('trust proxy', resolveTrustProxyHops(process.env.TRUST_PROXY_HOPS))
-  // 配置集中读取；listen 前必填校验（缺 JWT_SECRET 直接 fail fast，不带弱配置上线）
-  const config = app.get(ConfigService)
+  // 解析与生产必填断言见 common/utils/trust-proxy.ts 与 ConfigService.validateStartup()。
+  http.set('trust proxy', config.trustProxyHops)
+  // listen 前必填校验（缺 JWT_SECRET / 生产缺 PG_* 或 TRUST_PROXY_HOPS 直接 fail fast，不带弱配置上线）
   config.validateStartup()
   // 全局前缀 nest-api：Nest 独立端口时代（3100）的反代路径惯用，
   // Express 退役后端口回切 3000，nginx 反代目标不变（/api、/nest-api 均可代理到本服务）
@@ -113,4 +113,10 @@ async function bootstrap() {
   Logger.log(`nest up on :${config.port}`, 'Bootstrap')
 }
 
-void bootstrap()
+// 接线回归闸（test/trust-proxy.spec.ts）需要真跑一遍 bootstrap 才能看见"调用行被注释掉"
+// 或"被包进 dev 门控"（R4-02 PC-A/PC-C：源码子串匹配两种都看不见，却对等价重构过敏）。
+// 故导出 bootstrap 供用例直接 await；测试环境（vitest 注入 VITEST）不自动执行，
+// 免得起真服务/连库。
+export { bootstrap }
+
+if (!process.env.VITEST) void bootstrap()

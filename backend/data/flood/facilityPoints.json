@@ -6,7 +6,7 @@
     "valueUnit": "万元",
     "version": "3.0.0",
     "createdAt": "2026-08-06",
-    "updatedAt": "2026-08-30",
+    "updatedAt": "2026-09-23",
     "amapSource": "高德 Web 服务 API v3/place/text（types=1503 港口码头 + keywords=堆场/保税）",
     "dataNote": "混装数据（source=hybrid）：真=位置/名称（高德 POI 实抓）、elevation（DEM 采样）；假=value/damageRate（按类型的合理估算，非实测）。基于本文件的 estimatedLoss/totalLoss 均为假设系数口径，见 floodStatistics.json lossAssumption",
     "source": "hybrid",

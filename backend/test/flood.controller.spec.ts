@@ -62,6 +62,13 @@ const MOCK_STATISTICS = JSON.stringify({
   ],
 })
 
+// 垂直基准偏移 fixture：与 backend/data/flood/terrainProfile.json 的 metadata.datumOffset 同值
+//（水位=理论深度基准面 → EGM96 正高，生成脚本按 waterLevel.json 的 baseLevels.msl 写入）
+const MOCK_TERRAIN_PROFILE = JSON.stringify({
+  metadata: { datumOffset: 2.5 },
+  profiles: [],
+})
+
 // 设施点 fixture（结构与 backend/data/flood/facilityPoints.json 同构）。
 // elevation 语义（P1.5 高程门控，2026-09-12）：被淹设施高程须 ≤ 档位值（mask 的 dem ≤ level
 // 同口径）；原 12.0m 设施在 5m 档被计淹属假阳性语义，fixture 修正为低洼码头
@@ -260,13 +267,15 @@ describe('deriveRiskLevel - 连续档位风险派生', () => {
 })
 
 describe('getFloodStatistics - 与 flood-areas/disaster 同源（251 档 + 空间判定）', () => {
-  /** mock reader：按路径分发参考表 / 设施点（DataFilesService 缓存按实例隔离） */
+  /** mock reader：按路径分发参考表 / 设施点 / 剖面（DataFilesService 缓存按实例隔离） */
   function makeStatisticsReadFile(): ReturnType<typeof vi.fn> {
-    return vi
-      .fn()
-      .mockImplementation((p: string) =>
-        Promise.resolve(p.includes('facilityPoints') ? MOCK_FACILITY_POINTS : MOCK_STATISTICS)
-      )
+    return vi.fn().mockImplementation((p: string) => {
+      if (p.includes('facilityPoints')) return Promise.resolve(MOCK_FACILITY_POINTS)
+      // 基准偏移来自地形剖面文件（单一来源）：披露判据靠它换算参考档的 EGM96 等值，
+      // 缺了它会退化成"上下同基准"⇒ 披露消失（W19）
+      if (p.includes('terrainProfile')) return Promise.resolve(MOCK_TERRAIN_PROFILE)
+      return Promise.resolve(MOCK_STATISTICS)
+    })
   }
 
   function makeStatisticsService(
@@ -299,14 +308,22 @@ describe('getFloodStatistics - 与 flood-areas/disaster 同源（251 档 + 空�
     const result = (await service.getFloodStatistics('4.5')) as Record<string, unknown>
     // 参考表 3.0/5.0 两档 → 向上命中 5.0；水深为 5 档 DEM 反演值，非当前水位精确值
     expect(result).toMatchObject({ depthRefLevel: 5, averageDepth: 2.04, maxDepth: 2.5 })
+    // 披露含基准与低估量（W19）：5 档反演基准 = EGM96 5 − 2.5 = 2.5，实际档位 4.5 ⇒ 低 2m
+    expect(result).toMatchObject({ depthUnderstatedBy: 2 })
     expect(String(result.description)).toContain('5m 档 DEM 反演参考值')
+    expect(String(result.description)).toContain('对应 EGM96 2.5m，比实际档位低 2m')
   })
 
-  it('水位恰为参考档位 → depthRefLevel 等于实际档位（无参考标注）', async () => {
+  it('水位恰为参考档位时仍按 EGM96 基准披露（W19：参考档基准比档位值低 2.5m）', async () => {
     const service = makeStatisticsService(mockLevelRows([[5.0, 0.9]], '576.91'), [])
     const result = (await service.getFloodStatistics('5')) as Record<string, unknown>
-    expect(result).toMatchObject({ waterLevel: 5, depthRefLevel: 5, averageDepth: 2.04 })
-    expect(String(result.description)).not.toContain('DEM 反演参考值')
+    expect(result).toMatchObject({
+      waterLevel: 5,
+      depthRefLevel: 5,
+      averageDepth: 2.04,
+      depthUnderstatedBy: 2.5,
+    })
+    expect(String(result.description)).toContain('对应 EGM96 2.5m，比实际档位低 2.5m')
   })
 
   it('设施数/受影响港口/损失与 disaster 同一次点面判定（count/ports/totalLoss）', async () => {
@@ -314,8 +331,11 @@ describe('getFloodStatistics - 与 flood-areas/disaster 同源（251 档 + 空�
     const result = (await service.getFloodStatistics('5')) as Record<string, unknown>
     expect(result.affectedFacilityCount).toBe(2)
     expect(result.affectedPorts).toEqual(['钦州港', '防城港'])
-    // 15000×0.85 + 20000×0.5 = 22750（与 assessDisaster 同口径，单位：元）
-    expect(result.estimatedLoss).toBe(22750)
+    // 损失含水深因子（X4，与生成侧 flood_realify.py 同式）：
+    //   QZ-001 高程 2.0 ⇒ d=5−2=3 ⇒ 因子 1.0  ⇒ 15000×0.85×1.0 = 12750
+    //   FCG-001 高程 2.5 ⇒ d=5−2.5=2.5 ⇒ 因子 2.5/3 ⇒ 20000×0.5×0.8333… = 8333.33
+    // 合计 21083.33 → Math.round ⇒ 21083（旧形态无因子时为 22750）
+    expect(result.estimatedLoss).toBe(21083)
   })
 
   it('无命中设施 → 计数/港口/损失归零，档位信息仍返回', async () => {
@@ -432,14 +452,28 @@ describe.skipIf(!withDb)('floodService.assessDisaster - 空间筛选与损失计
     return new FloodService(new FloodRepository(files, db as DbService), spatial)
   }
 
-  it('点在淹没多边形内 → loss=value×damageRate，多边形外不计入', async () => {
+  it('点在淹没多边形内 → loss=value×damageRate×min(d/3,1)，多边形外不计入', async () => {
     const service = makeDbService()
     const result = await service.assessDisaster(FACILITIES, 5, FLOOD_ZONE)
     expect(result.affectedFacilities).toHaveLength(1)
+    // 高程 2.0、档位 5.0 ⇒ d=3 ⇒ 因子 1（饱和，与旧形态同值）；折减见下一条
     expect(result.affectedFacilities[0].loss).toBe(15000 * 0.85)
     expect(result.totalLoss).toBe(Math.round(15000 * 0.85))
     expect(result.riskLevel).toBe('中风险')
     expect(result.waterLevel).toBe(5)
+  })
+
+  it('🔴 水深未饱和按 min(d/3,1) 折减（X4：与生成侧同式；关掉因子此值即变）', async () => {
+    const service = makeDbService()
+    // 高程 3.5、档位 5.0 ⇒ d=1.5 ⇒ 因子 0.5 ⇒ 损失减半（旧形态为全值 12750）
+    const shallow = { ...MOCK_FACILITY, elevation: 3.5 }
+    const result = await service.assessDisaster([shallow], 5, FLOOD_ZONE)
+    expect(result.affectedFacilities[0].loss).toBeCloseTo(15000 * 0.85 * 0.5, 6)
+    expect(result.totalLoss).toBe(Math.round(15000 * 0.85 * 0.5))
+    // 高程缺失 ⇒ d=0 ⇒ 因子 0（与生成侧 facility_depths 同口径：无高程视为未淹、不计损失）
+    const noElevation = { ...MOCK_FACILITY, elevation: undefined as unknown as number }
+    const result2 = await service.assessDisaster([noElevation], 5, FLOOD_ZONE)
+    expect(result2.totalLoss).toBe(0)
   })
 
   it('多边形内但设施高程高于水位 → 高程门控不计入（P1.5 假阳性防护）', async () => {

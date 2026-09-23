@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { TaskHandlers } from '../src/modules/task/services/task-handlers'
 import { TaskService } from '../src/modules/task/services/task.service'
-import { TASK_MAX_WAIT_MS } from '../src/modules/task/types/task'
+import { ANONYMOUS_OWNER, TASK_MAX_WAIT_MS } from '../src/modules/task/types/task'
 
 /**
  * 排队超时判定的**接线**回归测试（S1 交付时 `expireStalePending` 已实现但全仓零调用）。
@@ -27,6 +27,7 @@ function submitOn(service: TaskService, route: string): string {
   return service.submit({
     domain: 'flood-areas',
     route,
+    ownerId: ANONYMOUS_OWNER,
     priority: 'normal',
     params: {},
   }).taskId
@@ -45,7 +46,7 @@ describe('TaskService.expireStalePending（接线后的真实语义）', () => {
     const expired = service.expireStalePending(Date.now() + TASK_MAX_WAIT_MS + 1)
 
     expect(expired).toBe(1)
-    const view = service.get(queued)
+    const view = service.get(queued, ANONYMOUS_OWNER)
     expect(view.status).toBe('failed')
     expect(view.error?.message).toContain('排队超时')
     expect(view.queuePosition).toBeUndefined()
@@ -60,7 +61,7 @@ describe('TaskService.expireStalePending（接线后的真实语义）', () => {
     await Promise.resolve()
 
     expect(service.expireStalePending(Date.now() + 1_000)).toBe(0)
-    expect(service.get(queued).status).toBe('pending')
+    expect(service.get(queued, ANONYMOUS_OWNER).status).toBe('pending')
   })
 
   it('已终态的任务不受超时判定影响（幂等）', async () => {
@@ -69,12 +70,12 @@ describe('TaskService.expireStalePending（接线后的真实语义）', () => {
     const queued = submitOn(service, '/b-analysis')
     await Promise.resolve()
 
-    service.cancel(queued) // 用户主动取消 → 已是终态
+    service.cancel(queued, ANONYMOUS_OWNER) // 用户主动取消 → 已是终态
     const first = service.expireStalePending(Date.now() + TASK_MAX_WAIT_MS + 1)
     const second = service.expireStalePending(Date.now() + TASK_MAX_WAIT_MS + 1)
 
     expect(first).toBe(0)
     expect(second).toBe(0)
-    expect(service.get(queued).status).toBe('cancelled')
+    expect(service.get(queued, ANONYMOUS_OWNER).status).toBe('cancelled')
   })
 })

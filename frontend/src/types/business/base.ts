@@ -50,14 +50,13 @@ export interface FloodStatistics {
   floodArea?: number // 淹没面积（km²）
   averageDepth?: number // 平均水深（m，6 档 DEM 反演参考值）
   maxDepth?: number // 最大水深（m，6 档 DEM 反演参考值）
-  depthRefLevel?: number // 平均/最大水深所属的 DEM 反演参考档位（m）
+  depthRefLevel?: number // 平均/最大水深所属的 DEM 反演参考档位（m，基准=理论深度基准面）
+  depthUnderstatedBy?: number // 参考档水深相对实际档位的低估量（m）；> 0 即需打 * 披露（W19）
   // 计数语义改名 affectedFacilityCount，消除与 FloodSavedState.affectedFacilities（数组）同名不同型
   affectedFacilityCount?: number // 受影响设施数量（计数，非数组）
   affectedPorts?: string[] // 受影响港口列表
   estimatedLoss?: number // 预估损失（万元，value × damageRate，与 disaster.totalLoss 同口径；facilityPoints metadata.valueUnit）
   description?: string // 情景描述
-  // —— adapter 派生字段（online 模式有值，mock/api 模式可能缺失）——
-  affectedCount?: number // 受影响设施数量（与 affectedFacilityCount 同语义，online 模式占位）
 }
 
 /** 淹没区域要素（GeoJSON Feature）——从 floodFeatureSchema z.infer 派生（D1：schema 与业务类型编译期绑定） */

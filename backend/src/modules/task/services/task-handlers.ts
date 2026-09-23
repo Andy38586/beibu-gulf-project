@@ -4,6 +4,7 @@ import { BusinessError, ErrorCode } from '../../../common/errors/business-error'
 import { FloodService } from '../../flood/services/flood.service'
 import { ForecastService } from '../../forecast/services/forecast.service'
 import { RouteService } from '../../route/services/route.service'
+import { parseSiteAnalysisBody } from '../../site-analysis/dto/site-analysis-request'
 import { SiteAnalysisService } from '../../site-analysis/services/site-analysis.service'
 import type { TaskDomain } from '../types/task'
 
@@ -62,14 +63,18 @@ export class TaskHandlers {
       })
     },
 
-    // 选址分析：POST /site-analysis 的异步化（🔴 参数体原样透传，本域不改选址口径）
-    'site-analysis': async (params) =>
-      this.siteAnalysisService.analyze({
-        selectedKeys: params.selectedKeys as string[],
-        typeSettings: params.typeSettings as never,
-        weights: params.weights as Record<string, number> | undefined,
-        city: params.city,
-      }),
+    // 选址分析：POST /site-analysis 的异步化（🔴 口径与同步通道逐字一致，本域不改选址算法）
+    'site-analysis': async (params) => {
+      // 🔴 复用同步通道的请求校验（d061）：此前 `as string[]`/`as never` 直灌 analyze()，
+      // 同一非法入参在同步通道得 422/422001，在任务通道却走到 onSuccess 被记成 done。
+      const result = await this.siteAnalysisService.analyze(parseSiteAnalysisBody(params))
+      // service 的业务失败是 `return {error}`（resolve 而非 throw）⇒ 这里不转抛同样会被
+      // 队列当成功写 done；转成 BusinessError 才与同步通道同终态（failed + 422001）。
+      if (result?.error) {
+        throw new BusinessError(ErrorCode.ANALYSIS_FAILED, result.error)
+      }
+      return result
+    },
 
     // 预测时序：GET /forecast/timeseries 的异步化。
     // 参数顺序逐字对齐 forecast.controller:55-62（indicator 为必填，其余可选）

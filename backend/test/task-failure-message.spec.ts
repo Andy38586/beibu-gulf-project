@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import { BusinessError, ErrorCode } from '../src/common/errors/business-error'
+import { MAX_DETAIL_LEN } from '../src/common/utils/sanitize-detail'
+import { ANONYMOUS_OWNER } from '../src/modules/task/types/task'
 import { TaskHandlers } from '../src/modules/task/services/task-handlers'
 import { TaskService } from '../src/modules/task/services/task.service'
 
@@ -26,11 +28,12 @@ describe('TaskService 失败下发语义', () => {
       const { taskId } = service.submit({
         domain: 'flood-areas',
         route: '/flood-analysis',
+        ownerId: ANONYMOUS_OWNER,
         priority: 'normal',
         params: {},
       })
       await new Promise((r) => setTimeout(r, SETTLE_MS))
-      const view = service.get(taskId)
+      const view = service.get(taskId, ANONYMOUS_OWNER)
       expect(view.status).toBe('failed')
       expect(view.error?.message).toBe('任务执行失败，请稍后重试')
       expect(view.error?.message).not.toContain('ECONNREFUSED')
@@ -50,14 +53,43 @@ describe('TaskService 失败下发语义', () => {
       const { taskId } = service.submit({
         domain: 'forecast-timeseries',
         route: '/forecast',
+        ownerId: ANONYMOUS_OWNER,
         priority: 'normal',
         params: {},
       })
       await new Promise((r) => setTimeout(r, SETTLE_MS))
-      const view = service.get(taskId)
+      const view = service.get(taskId, ANONYMOUS_OWNER)
       expect(view.status).toBe('failed')
       expect(view.error?.message).toBe('缺少或非法的参数：indicator')
       expect(view.error?.bizCode).toBe(400001)
+    } finally {
+      process.env.NODE_ENV = prev
+    }
+  }, 10_000)
+
+  it('🔴 公开响应不回显请求原文：换行压平 + 超长截断（净化族，GET /task/:id 公开可读）', async () => {
+    const prev = process.env.NODE_ENV
+    process.env.NODE_ENV = 'production'
+    try {
+      // 业务文案可由请求输入拼出 ⇒ 匿名轮询者能借此注入换行/灌长文本
+      const injected = `缺少参数\n2026-09-23 WARN 伪造服务端日志行\r\n${'x'.repeat(5000)}`
+      const service = makeService(async () => {
+        throw new BusinessError(ErrorCode.INVALID_PARAMS, injected)
+      })
+      const { taskId } = service.submit({
+        domain: 'forecast-timeseries',
+        route: '/forecast',
+        ownerId: ANONYMOUS_OWNER,
+        priority: 'normal',
+        params: {},
+      })
+      await new Promise((r) => setTimeout(r, SETTLE_MS))
+      const message = service.get(taskId, ANONYMOUS_OWNER).error?.message ?? ''
+      expect(message).not.toMatch(/[\r\n]/)
+      expect(message.endsWith('…')).toBe(true)
+      expect(message.length).toBe(MAX_DETAIL_LEN + 1)
+      // 净化只作用于文案，业务码不变
+      expect(service.get(taskId, ANONYMOUS_OWNER).error?.bizCode).toBe(400001)
     } finally {
       process.env.NODE_ENV = prev
     }
@@ -73,11 +105,12 @@ describe('TaskService 失败下发语义', () => {
       const { taskId } = service.submit({
         domain: 'flood-areas',
         route: '/flood-analysis',
+        ownerId: ANONYMOUS_OWNER,
         priority: 'normal',
         params: {},
       })
       await new Promise((r) => setTimeout(r, SETTLE_MS))
-      const view = service.get(taskId)
+      const view = service.get(taskId, ANONYMOUS_OWNER)
       expect(view.error?.message).toContain('ECONNREFUSED')
     } finally {
       process.env.NODE_ENV = prev

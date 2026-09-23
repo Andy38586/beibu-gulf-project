@@ -6,19 +6,36 @@
  * 比报错更难查。改动后端 `TaskView` 时必须回到本文件同步。
  */
 
-/** 任务状态机（与后端一致）：pending → running → (retrying →) done | failed | cancelled */
-export type TaskStatus = 'pending' | 'running' | 'retrying' | 'done' | 'failed' | 'cancelled'
+/**
+ * 任务状态机（与后端一致）：pending → running → (retrying →) done | failed | cancelled
+ *
+ * 由运行期数组派生（与后端 TASK_DOMAINS 同一手法）：zod 契约校验需要运行期值，
+ * 枚举写字面量联合时校验只能退化成 z.string()、后端删字段抓不住。
+ */
+export const TASK_STATUSES = [
+  'pending',
+  'running',
+  'retrying',
+  'done',
+  'failed',
+  'cancelled',
+] as const
+
+export type TaskStatus = (typeof TASK_STATUSES)[number]
 
 /** 优先级：当前路由 = high（插队首），后台路由 = normal（队尾） */
 export type TaskPriority = 'high' | 'normal'
 
 /** 可提交的任务域（与后端 TaskHandlers 支持的四个域一致，多一个都会被 400 拒绝） */
-export type TaskDomain =
-  | 'flood-areas'
-  | 'route-path'
-  | 'site-analysis'
-  | 'forecast-timeseries'
-  | 'forecast-map'
+export const TASK_DOMAINS = [
+  'flood-areas',
+  'route-path',
+  'site-analysis',
+  'forecast-timeseries',
+  'forecast-map',
+] as const
+
+export type TaskDomain = (typeof TASK_DOMAINS)[number]
 
 export interface TaskError {
   message: string

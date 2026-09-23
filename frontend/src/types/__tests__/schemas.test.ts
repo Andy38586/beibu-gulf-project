@@ -15,6 +15,8 @@ import {
   floodImpactResponseSchema,
   floodOnlineResponseSchema,
   floodStatisticsResponseSchema,
+  taskSubmitResponseSchema,
+  taskViewResponseSchema,
   forecastIndicatorIndexSchema,
   forecastMapDataSchema,
   indicatorComparisonResponseSchema,
@@ -161,6 +163,71 @@ describe('planSchema（存量记录形态回归：fixture 固化，环境无关�
       floodStatistics: { waterLevel: 5 },
     }
     expect(planSchema.safeParse(plan).success).toBe(false)
+  })
+})
+
+describe('task 通道响应契约（useTaskApi 三点运行期校验共用同一份 schema）', () => {
+  const view = {
+    taskId: 't1',
+    domain: 'flood-areas',
+    route: '/flood-analysis',
+    status: 'running',
+    progress: 0.1,
+    retryCount: 0,
+    createdAt: 1,
+  }
+
+  it('合法 TaskView / 提交响应通过（可选字段可缺可多）', () => {
+    expect(taskViewResponseSchema.safeParse(view).success).toBe(true)
+    expect(
+      taskViewResponseSchema.safeParse({
+        ...view,
+        status: 'done',
+        result: { ok: 1 },
+        queuePosition: undefined,
+        finishedAt: 2,
+        // looseObject：后端加字段不算违约
+        extraFromBackend: 'x',
+      }).success
+    ).toBe(true)
+    expect(
+      taskSubmitResponseSchema.safeParse({
+        taskId: 't1',
+        status: 'pending',
+        queuePosition: 1,
+        createdAt: 1,
+      }).success
+    ).toBe(true)
+  })
+
+  it('🔴 后端删/改名必填字段 ⇒ 运行期校验失败（旧形态只有 TS 泛型，形状对不上无人知）', () => {
+    for (const key of ['status', 'progress', 'retryCount', 'createdAt'] as const) {
+      const broken: Record<string, unknown> = { ...view }
+      delete broken[key]
+      expect(taskViewResponseSchema.safeParse(broken).success, `缺 ${key} 应被拒`).toBe(false)
+    }
+    // 提交响应的 queuePosition 也是必填（提交当下就要告诉用户排第几位）
+    expect(
+      taskSubmitResponseSchema.safeParse({ taskId: 't1', status: 'pending', createdAt: 1 }).success
+    ).toBe(false)
+  })
+
+  it('域/状态枚举越界被拒（枚举由运行期数组派生，不是 z.string()）', () => {
+    expect(taskViewResponseSchema.safeParse({ ...view, domain: 'unknown-domain' }).success).toBe(
+      false
+    )
+    expect(taskViewResponseSchema.safeParse({ ...view, status: 'finished' }).success).toBe(false)
+    expect(taskViewResponseSchema.safeParse({ ...view, domain: 'forecast-map' }).success).toBe(true)
+  })
+})
+
+describe('floodStatisticsResponseSchema（契约字段集合与后端产出对齐）', () => {
+  it('🔴 不得声明后端不产出的字段：affectedCount 已删（它由 adapter 旧占位遗留，前后端均无人写读）', () => {
+    const shape = floodStatisticsResponseSchema.shape as Record<string, unknown>
+    // 后端 flood.service 产出的是 affectedFacilityCount（计数语义改名后的字段）
+    expect('affectedFacilityCount' in shape).toBe(true)
+    // 保留这个字段会让 types:check 以为存在一份并不存在的契约（正向字段集比对会漏）
+    expect('affectedCount' in shape).toBe(false)
   })
 })
 

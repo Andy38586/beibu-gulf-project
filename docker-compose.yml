@@ -71,6 +71,10 @@ services:
       NODE_ENV: production
       # 端口统一 3000（nginx 反代目标不变）；PG 走 compose 服务名 postgis
       PORT: '3000'
+      # 反代跳数（d058）：nginx→nest 一跳 = 1。生产环境后端**必填**此项，缺失/0/非法值
+      # 启动即失败（ConfigService.validateStartup）；前面再加 CDN 时按级数递增。
+      # environment 优先级高于 env_file ⇒ 此处是唯一权威（与 PG_* 同口径）。
+      TRUST_PROXY_HOPS: '1'
       PG_HOST: postgis
       PG_PORT: '5432'
       PG_USER: postgres

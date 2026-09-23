@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common'
 
 import { BusinessError, ErrorCode } from '../../../common/errors/business-error'
+import { sanitizeDetail } from '../../../common/utils/sanitize-detail'
 import {
   TASK_MAX_WAIT_MS,
   TASK_QUEUE_LIMIT,
@@ -19,6 +20,8 @@ import { TaskRegistry } from './task-registry'
 export interface SubmitTaskInput {
   domain: TaskJob['domain']
   route: string
+  /** 提交者属主（d059）：controller 从请求身份解析；匿名端点用 ANONYMOUS_OWNER */
+  ownerId: string
   priority: TaskPriority
   params: Record<string, unknown>
 }
@@ -73,16 +76,16 @@ export class TaskService implements OnModuleInit, OnModuleDestroy {
         // 而 GET /task/:id 是公开端点 ⇒ 匿名轮询者即可读走。
         // BusinessError 的 message 是给用户看的业务文案，按原样下发。
         const isBusiness = error instanceof BusinessError
+        // 即便是给用户看的业务文案也要净化：它可由请求输入拼出（键名/类型名），
+        // 未净化时匿名轮询者可用换行把响应体撑成多行、或用超长文本灌满前端存储
+        const detail =
+          isBusiness || process.env.NODE_ENV !== 'production'
+            ? sanitizeDetail(error.message)
+            : '任务执行失败，请稍后重试'
         this.registry.patch(taskId, {
           status: 'failed',
           queuePosition: undefined,
-          error: {
-            message:
-              isBusiness || process.env.NODE_ENV !== 'production'
-                ? error.message
-                : '任务执行失败，请稍后重试',
-            bizCode: isBusiness ? error.bizCode : undefined,
-          },
+          error: { message: detail, bizCode: isBusiness ? error.bizCode : undefined },
         })
       },
       isCancelled: (taskId) => this.registry.get(taskId)?.status === 'cancelled',
@@ -108,16 +111,26 @@ export class TaskService implements OnModuleInit, OnModuleDestroy {
    * 不用「拒绝新提交」是因为那会把判断权推给前端，用户得到的体验是「点了没反应」。
    */
   submit(input: SubmitTaskInput): TaskSubmitResponse {
+    // 容量先按三重维度收口（d060）：条数/字节超限时先淘汰最旧终态（丢缓存不丢计算），
+    // 仍超限才拒绝新提交；活跃维度沿用队列容量（TASK_QUEUE_LIMIT）。
+    this.registry.trimTerminal()
     if (this.registry.isQueueFull()) {
       throw new BusinessError(
         ErrorCode.ANALYSIS_FAILED,
         `任务队列已满（上限 ${TASK_QUEUE_LIMIT}），请等待现有任务完成`
       )
     }
+    const overCapacity = this.registry.capacityProblem()
+    if (overCapacity) {
+      throw new BusinessError(ErrorCode.ANALYSIS_FAILED, overCapacity)
+    }
 
-    // 同路由去重：旧任务让位（既不在队列的，直接标终态；在队列的，移出队列）
+    // 同路由去重：旧任务让位（既不在队列的，直接标终态；在队列的，移出队列）。
+    // 🔴 取代键必须含属主（d059）：route 是客户端任意字符串，只按 route 判定时
+    // 任何人提交同一 route 就能取消他人正在跑的任务（且不需知道对方 taskId）。
     for (const record of this.registry.list()) {
       if (record.route !== input.route) continue
+      if (record.ownerId !== input.ownerId) continue
       if (!isActive(record.status)) continue
       this.queue.remove(record.taskId)
       this.registry.patch(record.taskId, {
@@ -132,6 +145,7 @@ export class TaskService implements OnModuleInit, OnModuleDestroy {
       taskId,
       domain: input.domain,
       route: input.route,
+      ownerId: input.ownerId,
       priority: input.priority,
       params: input.params,
       status: 'pending',
@@ -158,10 +172,15 @@ export class TaskService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  /** 查询（前端轮询入口）。🔴 未找到 = 404 语义，而不是返回空对象（前端据此判定任务被回收） */
-  get(taskId: string): TaskView {
+  /**
+   * 查询（前端轮询入口）。🔴 未找到 = 404 语义，而不是返回空对象（前端据此判定任务被回收）
+   *
+   * `requesterId` 是调用者的属主标识（d059）：非属主一律按 404 处理，**与"不存在"同码同文案**
+   * ——否则 403 就变成了「这个 taskId 存在」的探测器（taskId 可猜）。
+   */
+  get(taskId: string, requesterId: string): TaskView {
     const record = this.registry.get(taskId)
-    if (!record) {
+    if (!record || record.ownerId !== requesterId) {
       throw new BusinessError(ErrorCode.NOT_FOUND, '任务不存在或已过期')
     }
     return this.toView(record)
@@ -176,10 +195,13 @@ export class TaskService implements OnModuleInit, OnModuleDestroy {
    *     队列在下一个检查点（重试前 / 结果返回前）放弃写结果。底层那次 DB 查询
    *     仍会跑完（PG 侧无法从 Node 侧中断），但**不会被重试**、结果也不会被采用。
    *   · 已是终态 → 幂等返回当前状态，不报错。
+   *
+   * `requesterId` 为调用者属主（d059）：**非属主取消必须失败**——否则任何人拿到
+   * （或猜到）taskId 即可掐掉他人任务；与查询同口径按 404 处理，不暴露存在性。
    */
-  cancel(taskId: string): TaskView {
+  cancel(taskId: string, requesterId: string): TaskView {
     const record = this.registry.get(taskId)
-    if (!record) {
+    if (!record || record.ownerId !== requesterId) {
       throw new BusinessError(ErrorCode.NOT_FOUND, '任务不存在或已过期')
     }
     if (isActive(record.status)) {
@@ -193,12 +215,13 @@ export class TaskService implements OnModuleInit, OnModuleDestroy {
     return this.toView(this.registry.get(taskId) as TaskRecord)
   }
 
-  /** 供单测/诊断：当前排队数与活跃数 */
-  stats(): { pending: number; active: number; total: number } {
+  /** 供单测/诊断：当前排队数、活跃数、记录总数与累计结果字节 */
+  stats(): { pending: number; active: number; total: number; bytes: number } {
     return {
       pending: this.queue.pendingCount,
       active: this.registry.activeCount(),
       total: this.registry.size,
+      bytes: this.registry.totalBytes,
     }
   }
 

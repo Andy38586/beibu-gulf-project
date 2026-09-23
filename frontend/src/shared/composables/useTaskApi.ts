@@ -1,3 +1,4 @@
+import { taskSubmitResponseSchema, taskViewResponseSchema } from '@/types/schemas'
 import type { TaskSubmitResponse, TaskView } from '@/types/task'
 
 import { useApiRequest } from './useApiRequest'
@@ -32,7 +33,7 @@ export function useTaskApi(): UseTaskApiReturn {
 
   return {
     async submit(payload) {
-      return apiRequest<TaskSubmitResponse>('/task', {
+      const res = await apiRequest<unknown>('/task', {
         method: 'POST',
         body: JSON.stringify(payload),
         // 提交应当很快（后端实测 < 100ms），超时给 8s 足够；
@@ -40,15 +41,19 @@ export function useTaskApi(): UseTaskApiReturn {
         timeoutMs: POLL_TIMEOUT_MS,
         retry: false,
       })
+      // 契约校验（三个请求点都必须过）：后端删/改名必填字段时当场抛错，
+      // 而不是让 queuePosition/status 静默变 undefined 一路漏到 UI
+      return taskSubmitResponseSchema.parse(res) satisfies TaskSubmitResponse
     },
 
     async get(taskId, signal) {
       try {
-        return await apiRequest<TaskView>(`/task/${encodeURIComponent(taskId)}`, {
+        const res = await apiRequest<unknown>(`/task/${encodeURIComponent(taskId)}`, {
           signal,
           timeoutMs: POLL_TIMEOUT_MS,
           retry: false,
         })
+        return taskViewResponseSchema.parse(res) satisfies TaskView
       } catch (error) {
         // 任务被 TTL 回收后后端返回 404 —— 这不是故障，是「任务已结束且结果过期」。
         // 轮询方需要能区分「网络抖动（继续轮询）」与「任务没了（停止轮询）」，
@@ -68,11 +73,12 @@ export function useTaskApi(): UseTaskApiReturn {
     },
 
     async cancel(taskId) {
-      return apiRequest<TaskView>(`/task/${encodeURIComponent(taskId)}`, {
+      const res = await apiRequest<unknown>(`/task/${encodeURIComponent(taskId)}`, {
         method: 'DELETE',
         timeoutMs: POLL_TIMEOUT_MS,
         retry: false,
       })
+      return taskViewResponseSchema.parse(res) satisfies TaskView
     },
   }
 }

@@ -1,5 +1,6 @@
 import { Logger } from '@nestjs/common'
 
+import { sanitizeDetail } from '../../../common/utils/sanitize-detail'
 import {
   TASK_CONCURRENCY,
   TASK_RETRY_BACKOFF_MS,
@@ -154,14 +155,18 @@ export class TaskQueue {
 
         if (delay === undefined) {
           // 重试机会耗尽 ⇒ 终态失败。日志留全栈，前端只拿到 message
-          this.logger.warn(`任务 ${job.taskId}（${job.domain}）重试耗尽：${err.message}`)
+          // err.message 可由请求输入拼出（site-analysis 键名、pg 连接串等）⇒ 经净化再落日志，
+          // 否则匿名请求可用换行伪造日志行、或用超长文本灌满日志
+          this.logger.warn(
+            `任务 ${job.taskId}（${job.domain}）重试耗尽：${sanitizeDetail(err.message)}`
+          )
           this.hooks.onFailure(job.taskId, err)
           return
         }
 
         this.hooks.onRetry(job.taskId, attempt + 1, delay)
         this.logger.warn(
-          `任务 ${job.taskId}（${job.domain}）第 ${attempt + 1} 次失败，${delay}ms 后重试：${err.message}`
+          `任务 ${job.taskId}（${job.domain}）第 ${attempt + 1} 次失败，${delay}ms 后重试：${sanitizeDetail(err.message)}`
         )
         await sleep(delay)
       }

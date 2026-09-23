@@ -13,6 +13,7 @@ waterLevel.json 曾为 simulated（拍脑袋）数据。本脚本用仓库内真
 运行（algorithm-service venv，需 rasterio/shapely/scipy）：
   backend/algorithm-service/.venv/Scripts/python.exe tools/flood/flood_realify.py
 """
+import datetime
 import json
 import sys
 from pathlib import Path
@@ -38,9 +39,17 @@ DEM_SOURCE = ENGINE_DEM_PATH
 DOWNSAMPLE = 1  # 与 flood_engine 同步：30m 全分辨率（2026-08-30 起）
 
 FLOOD_DIR = ROOT / "backend" / "data" / "flood"
-GENERATED_AT = "2026-08-30"
+# 生成时写入（原为硬编码 "2026-08-30"）：戳记必须是**本次生成日**——写死会让数据自述随时间
+# 失真（实测 facilityPoints.json 的 updatedAt 落后其内容改动 10 天），且与
+# backend/test/data-freshness.spec.ts 的「戳记 vs git 改动日」核对直接冲突
+GENERATED_AT = datetime.date.today().isoformat()
 LEVELS = [0, 2, 5, 8, 10, 15]
 RISK_BY_LEVEL = {}  # 从原 floodArea.json 读映射，保留衍生标签语义
+
+# 权威风险码表（与 backend/src/common/constants/flood.constants.ts 的 RISK_LEVEL_BANDS 同序）。
+# 原实现把「标签→码」写成带默认值的 dict.get(risk, 2)，即未知标签静默变 code 2（中风险）——
+# d057 记录的「15m 档标签=灾难级、码=2」正是它造成的第三源。
+RISK_CODE = {"无风险": 0, "低风险": 1, "中风险": 2, "高风险": 3, "极高风险": 4}
 
 TERRAIN = FLOOD_DIR / "terrainProfile.json"
 AREAPATH = FLOOD_DIR / "floodArea.json"
@@ -55,6 +64,52 @@ def load_levels_gz():
 
     with gzip.open(LEVELS_GZ, "rt", encoding="utf-8") as f:
         return json.load(f)
+
+
+def load_area_with_risk(area_path):
+    """
+    读 floodArea.json 作为 riskLevel 映射的唯一来源；**缺文件/缺档位/未知标签一律失败**。
+
+    W20（d057 N-2）：原实现只在 floodZones 上做 dict 取值，文件缺失时施工者常补一个占位
+    文件绕过读 ⇒ RISK_BY_LEVEL 为空 ⇒ 6 档全部回落「中风险」、码回落 2 ⇒ 把 d057 记录的
+    「单档 code 撞值」放大成整表同码，而 d057 的验收判据恰恰是「全档一致」——判据永远拿不到。
+    故本函数失败优先：要绕过必须显式提供替代映射，不得静默补空。
+    """
+    if not area_path.exists():
+        raise SystemExit(
+            f"启动失败：{area_path} 不存在 —— riskLevel 映射无从取值，拒绝静默补空。\n"
+            "  该文件是 RISK_BY_LEVEL 的唯一来源（z154 已把它移出仓库，切回 JSON 属回滚预案）。\n"
+            "  处理：从 git 历史恢复该文件，或显式提供替代映射并同步 d057 的标签/码源。"
+        )
+    try:
+        area = json.loads(area_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise SystemExit(f"启动失败：{area_path} 不是合法 JSON（{exc}）—— 拒绝按空映射继续。")
+
+    zones = area.get("floodZones") or []
+    mapping = {
+        z["waterLevel"]: z["riskLevel"]
+        for z in zones
+        if "waterLevel" in z and "riskLevel" in z
+    }
+    if not mapping:
+        raise SystemExit(
+            f"启动失败：{area_path} 的 floodZones 无可用 riskLevel 映射 —— "
+            "空映射会让 6 档全部写成「中风险/code 2」（d057 的判据即被此抹平）。"
+        )
+    missing = [lv for lv in LEVELS if lv not in mapping]
+    if missing:
+        raise SystemExit(
+            f"启动失败：{area_path} 未覆盖档位 {missing}（现覆盖 {sorted(mapping)}）—— "
+            "缺档会回落「中风险/code 2」，拒绝继续。"
+        )
+    unknown = sorted({r for r in mapping.values() if r not in RISK_CODE})
+    if unknown:
+        raise SystemExit(
+            f"启动失败：riskLevel 标签 {unknown} 不在权威码表 {sorted(RISK_CODE)} 内 —— "
+            "原实现回落 code 2（中风险），即 d057 的「第三源」；请先裁决标签归属再重跑。"
+        )
+    return area
 
 
 def datum_offset():
@@ -162,10 +217,13 @@ def main():
     print("=== flood 真数据重建 ===")
     OFFSET = datum_offset()
     print(f"垂直基准：水位(理论深度基准面) - {OFFSET}m = DEM 正高(EGM96/平均海平面)")
-    # 0 档 riskLevel 映射沿用原文件（衍生标签语义不变）
-    old_area = json.loads(AREAPATH.read_text(encoding="utf-8"))
+
+    # ---- 0. riskLevel 映射先取（W20）：本步骤之后的每一步都会写盘，
+    #      映射缺失必须在**任何写盘之前**拦下（原实现把它散在 stats 循环的 dict 默认值里）
+    old_area = load_area_with_risk(AREAPATH)
     for zone in old_area["floodZones"]:
         RISK_BY_LEVEL[zone["waterLevel"]] = zone["riskLevel"]
+    print(f"0. riskLevel 映射：{sorted(RISK_BY_LEVEL.items())}（源 {AREAPATH.name}）")
 
     levels_gz = load_levels_gz()
     facilities = json.loads(FACILITY.read_text(encoding="utf-8"))["facilities"]
@@ -300,8 +358,10 @@ def main():
             depth_factor = min(1.0, d / 3.0)  # 假设：淹没 3m 损失饱和
             loss += fac.get("value", 0) * fac.get("damageRate", 0.5) * depth_factor
         ports = sorted({f["port"] for f in affected})
-        risk = RISK_BY_LEVEL.get(level, "中风险")
-        code = {"无风险": 0, "低风险": 1, "中风险": 2, "高风险": 3, "极高风险": 4}.get(risk, 2)
+        # 映射与码表都由 load_area_with_risk 前置校验过（缺档/未知标签已在写盘前拦下），
+        # 此处直接取值；不再写 `.get(x, "中风险")` / `.get(risk, 2)` 这类静默兜底
+        risk = RISK_BY_LEVEL[level]
+        code = RISK_CODE[risk]
         stats_out.append(
             {
                 "waterLevel": level,

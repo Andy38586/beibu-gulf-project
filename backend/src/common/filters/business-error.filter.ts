@@ -3,17 +3,9 @@ import { Logger } from '@nestjs/common'
 import type { Response } from 'express'
 
 import { BusinessError } from '../errors/business-error'
-
-// 错误详情净化（对齐 csp-report.controller 的 clip 口径）：
-// BusinessError.message 可来自请求输入（如 site-analysis 的 JSON 键名、forecast 的
-// query indicator），不净化即可匿名伪造服务端日志行（换行注入）或拉出无界长日志
-// （express body 上限 100kb ⇒ 单条日志可达数十 KB）。
-const MAX_DETAIL_LEN = 200
-const sanitizeDetail = (v: unknown): string => {
-  const s = typeof v === 'string' ? v : String(v)
-  const flat = s.replace(/[\r\n\t]+/g, ' ').trim()
-  return flat.length > MAX_DETAIL_LEN ? `${flat.slice(0, MAX_DETAIL_LEN)}…` : flat
-}
+// 详情净化统一走 common/utils（本件原为唯一实现，2026-09-23 起 task-queue / csp-report /
+// task.service 三处同类 sink 一并复用，避免"哪一处漏了就等于那条通道没设防"）
+import { sanitizeDetail } from '../utils/sanitize-detail'
 
 // 全局错误过滤：信封形状 { code, error, data: null }，逐项对齐老 Express 全局错误中间件
 //（app.js）——BusinessError 按码返回；404 固定文案；429 限流裸 {error}；未知错误 500001

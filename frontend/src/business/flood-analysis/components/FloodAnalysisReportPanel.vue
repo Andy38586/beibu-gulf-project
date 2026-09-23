@@ -39,17 +39,21 @@ const affectedPorts = computed<string[]>(() => {
 })
 
 /**
- * 水深参考档位标注：averageDepth/maxDepth 来自 6 档 DEM 反演参考表（源数据无 251 档水深），
- * 与实际档位不一致时以 * 标注，避免被读成当前水位的精确值（2026-09-11）。
+ * 水深参考档披露（W19 / d056 N-1）：averageDepth/maxDepth 来自 6 档 DEM 反演参考表
+ *（源数据无 251 档水深），该表的反演基准比本响应的实际档位低 `depthUnderstatedBy` 米
+ * ——后端按 EGM96 等值算出，前端不重算偏移。
+ *
+ * 判据「有低估才标 *」：旧实现拿参考档标签（理论深度基准面）与实际水位（EGM96）直接比，
+ * 基准混用 ⇒ 披露反转：真低估 2.5m 的档（2/5/8/10/15m）不标，唯一不低估的档（请求 2.5m）
+ * 反而标。
  */
 const depthRefLevel = computed(() => floodStore.floodStatistics?.depthRefLevel)
-const depthIsReference = computed(
-  () =>
-    depthRefLevel.value !== undefined &&
-    depthRefLevel.value !== floodStore.floodStatistics?.waterLevel
-)
+const depthUnderstatedBy = computed(() => floodStore.floodStatistics?.depthUnderstatedBy ?? 0)
+const depthIsReference = computed(() => depthUnderstatedBy.value > 0)
 const depthHint = computed(() =>
-  depthIsReference.value ? `参考 ${depthRefLevel.value}m 档 DEM 反演值` : ''
+  depthIsReference.value
+    ? `参考 ${depthRefLevel.value}m 档 DEM 反演值（基准比实际档位低 ${depthUnderstatedBy.value}m）`
+    : ''
 )
 </script>
 
@@ -92,6 +96,8 @@ const depthHint = computed(() =>
         <span class="info-label">受影响设施</span>
         <span class="info-value">{{ floodStore.affectedFacilities.length }} 个</span>
       </div>
+      <!-- 预估损失（X4）：disaster 的 totalLoss 与 floodStatistics 的 estimatedLoss 现同式
+           （value × damageRate × min(d/3,1)），故 ?? 兜底链两侧口径一致、可互换 -->
       <div class="info-item">
         <span class="info-label">预估损失</span>
         <span class="info-value highlight"

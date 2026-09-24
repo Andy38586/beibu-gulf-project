@@ -79,7 +79,7 @@ npm --prefix backend run start:dev   # 后端 NestJS
 
 > ⚠️ 仓库里仍有 `npm run dev:all` / `dev:server` / `dev:flood`，它们会去拉**已退役的 FastAPI 洪涝服务**（`dev:server = run-p dev:nest dev:flood`）——本地开发请用上面两条命令，别用 `dev:all`。
 
-访问 <http://localhost:5173>。NestJS 读可选 `backend/.env`；缺必填项（如 JWT_SECRET）启动时 fail fast，不带弱配置起服务。
+访问 <http://localhost:5173>。NestJS 启动时读可选的本地 env 文件（模板 `backend/.env.example`，真实文件按设计不入库）；必填项缺失时当前行为是**打印错误后继续挂载**，不是 fail fast——这是在册缺口（`validateEnv` 名为校验实不阻断），修它之前请勿把它当作已存在的保护。
 
 ## 测试与质量门禁
 

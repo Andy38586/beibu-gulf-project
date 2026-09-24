@@ -49,7 +49,28 @@ RISK_BY_LEVEL = {}  # 从原 floodArea.json 读映射，保留衍生标签语义
 # 权威风险码表（与 backend/src/common/constants/flood.constants.ts 的 RISK_LEVEL_BANDS 同序）。
 # 原实现把「标签→码」写成带默认值的 dict.get(risk, 2)，即未知标签静默变 code 2（中风险）——
 # d057 记录的「15m 档标签=灾难级、码=2」正是它造成的第三源。
-RISK_CODE = {"无风险": 0, "低风险": 1, "中风险": 2, "高风险": 3, "极高风险": 4}
+RISK_CODE = {"无风险": 0, "低风险": 1, "中风险": 2, "高风险": 3, "极高风险": 4, "灾难级": 5}
+
+# 权威风险分段：与 backend/src/common/constants/flood.constants.ts 的 RISK_LEVEL_BANDS 同界同序
+#（上界 0 / 2 / 4.3 / 6 / 8 / ∞）。生成侧此前只沿用 floodArea.json 里的历史标签，那份标签与
+# 运行侧派生值不同步（5m 写中风险、8m/10m 各错一档）⇒ 同一份数据两套口径。现在生成前先对账：
+# floodArea.json 的标签只要有一档不等于本表，直接失败，绝不把第三源写进产物。
+RISK_BANDS = [
+    (0, "无风险"),
+    (2, "低风险"),
+    (4.3, "中风险"),
+    (6, "高风险"),
+    (8, "极高风险"),
+    (float("inf"), "灾难级"),
+]
+
+
+def authoritative_risk(level: float) -> str:
+    """按水位派生风险标签（与运行侧 deriveRiskLevel 同界）。"""
+    for max_level, label in RISK_BANDS:
+        if level <= max_level:
+            return label
+    return RISK_BANDS[-1][1]
 
 TERRAIN = FLOOD_DIR / "terrainProfile.json"
 AREAPATH = FLOOD_DIR / "floodArea.json"
@@ -108,6 +129,24 @@ def load_area_with_risk(area_path):
         raise SystemExit(
             f"启动失败：riskLevel 标签 {unknown} 不在权威码表 {sorted(RISK_CODE)} 内 —— "
             "原实现回落 code 2（中风险），即 d057 的「第三源」；请先裁决标签归属再重跑。"
+        )
+
+    # 标签必须等于权威分段派生值（d057 第二半）：否则重跑生成侧会把错档标签再写回去，
+    # 运行侧虽已改为派生（不消费该列），产物仍会自述成另一套口径——两套口径并存即复发。
+    mismatched = [
+        (lv, mapping[lv], authoritative_risk(lv))
+        for lv in sorted(mapping)
+        if mapping[lv] != authoritative_risk(lv)
+    ]
+    if mismatched:
+        detail = "；".join(
+            f"{lv}m 表内「{got}」≠ 权威「{want}」" for lv, got, want in mismatched
+        )
+        raise SystemExit(
+            f"启动失败：floodArea.json 的 riskLevel 与权威分段不同步——{detail}。\n"
+            "  该列已由运行侧改为派生（GET /flood-statistics 不再消费它），生成侧若继续写旧标签，"
+            "产物会重新变成第三源。\n"
+            "  处理：把该文件里相应档位的标签改成权威值，或确认优先级后显式改写本段 RISK_BANDS。"
         )
     return area
 

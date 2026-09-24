@@ -12,7 +12,7 @@
     "areaFrom": "flood_levels.json.gz / 现算 mask 像元统计",
     "facilityFrom": "facilityPoints.json (高德POI实抓) × 真淹没多边形点面判断",
     "lossAssumption": "estimatedLoss=Σ 设施价值×损伤率×水深因子(min(d/3,1))，系数为情景假设非实测",
-    "generatedAt": "2026-08-30"
+    "generatedAt": "2026-09-24"
   },
   "statistics": [
     {

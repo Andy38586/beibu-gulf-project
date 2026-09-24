@@ -6,7 +6,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { AppModule } from '../src/app.module'
 import { generateToken } from '../src/common/utils/jwt.util'
 import { type TaskHandler, TaskHandlers } from '../src/modules/task/services/task-handlers'
-import { TASK_CONCURRENCY } from '../src/modules/task/types/task'
+import { TaskService } from '../src/modules/task/services/task.service'
+import { TASK_CONCURRENCY, TASK_RETRY_BACKOFF_MS } from '../src/modules/task/types/task'
 import { TASK_CLIENT_HEADER } from '../src/modules/task/utils/request-owner'
 
 // v4 异步任务域 e2e（S1 验收：V1~V6）。
@@ -76,7 +77,31 @@ describe('v4 异步任务域（/nest-api/task）', () => {
     else process.env.JWT_SECRET = savedJwtSecret
   })
 
-  beforeEach(() => {
+  /**
+   * 等队列排空 —— 用例间隔离。
+   *
+   * 为什么必须有：`registry` / `queue` 是 `TaskService` 单例（Nest provider）里的**跨用例共享**
+   * 状态，而 `beforeEach` 原先只清 `callCount/inFlight/stubs`。V1/V4 的 handler 睡 1500ms
+   * （`89c0b4ab` 为治 V1 墙钟脆断从 300ms 抬上来的），用例收尾却只 `settle(150)` ⇒ 在飞任务
+   * 会拖进下一个用例的执行窗口。V6（自动重试：4 次调用 + 300/600/1200ms 退避）因此**整文件跑
+   * 稳定超时、单跑必绿** —— 这是用例间耦合，不是 flaky；靠"把等待调大"治只会掩盖它。
+   */
+  async function drainQueue(): Promise<void> {
+    const service = app.get(TaskService)
+    const deadline = Date.now() + 10_000
+    while (Date.now() < deadline) {
+      const s = service.stats()
+      if (s.active === 0 && s.pending === 0) return
+      await settle(20)
+    }
+    // fail-loud：排不空说明有用例留下了在飞任务（或忘了 release 闸门），必须当场暴露
+    throw new Error(`队列未在预算内排空：${JSON.stringify(app.get(TaskService).stats())}`)
+  }
+
+  beforeEach(async () => {
+    // 顺序要紧：**先排空再清状态**。反过来的话，在飞任务会落回真实 handler（stub 已清），
+    // 变得又慢又不可控——那正是"看起来像 flake"的来源。
+    await drainQueue()
     // 🔴 必须逐测试重置：这些是跨测试共享的模块级变量，不清会让「handler 被调了几次」
     // 这类断言把**上一个测试的调用**算进来（V3 首次跑就踩了这个，误判成「取消没生效」）。
     callCount.clear()
@@ -351,10 +376,13 @@ describe('v4 异步任务域（/nest-api/task）', () => {
       params: {},
     }).expect(200)
 
+    // 预算按退避真值推导（TASK_RETRY_BACKOFF_MS 合计 2100ms），不写死 8000——
+    // 写死的"够大就行"会掩盖用例间耦合（V6 曾因此在整文件跑时稳定超时）。
+    const retryBudgetMs = TASK_RETRY_BACKOFF_MS.reduce((sum, ms) => sum + ms, 0)
     const failed = await waitFor(async () => {
       const r = await poll(res.body.data.taskId)
       return r.body.data.status === 'failed' ? r.body.data : undefined
-    }, 8000)
+    }, retryBudgetMs + 4000)
 
     expect(failed.error.message).toContain('模拟下游故障')
     expect(failed.retryCount).toBe(3)

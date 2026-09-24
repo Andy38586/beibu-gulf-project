@@ -110,6 +110,7 @@
   - 形式 `type: 中文说明`；type 取 `feat｜fix｜docs｜chore｜refactor｜perf｜test｜ci｜build｜style｜revert`
   - **禁 `type(scope):` 括号写法**——口径依据 `docs/根基文档/开发指南与决策.md` §1.6（scope 不值得单独突出时强制括号很难看）
   - 正文写清「做了什么 + 为什么」；标题 ≤100 字符、不以句号结尾
+  - **正文每行 ≤100 字符**（commitlint `body-max-line-length` 实测会拦）。因此贴 stdout 必须**折行或截断**并注明"…（截断，全文见 <路径>）"；长证据落 `.local/` 并在正文指路，**不要为了提交而 `--no-verify`**
   - 例：`fix: 穷尽派生 TASK_DOMAINS，修复 forecast-map 域恒 400`
 - **每修一项即提交**；禁 squash；禁 `--no-verify` / `--no-gpg-sign`
   - **一单元一笔，一批 ≤5 个修复单元**。混合多单元的大提交按"未结算"处理——实测一批 17 个单元混提，最终整条可判闭的只有 2 个；一笔 8 单元/46 文件混提 ⇒ 要退只能整块退，退了同时丢掉另外三条。

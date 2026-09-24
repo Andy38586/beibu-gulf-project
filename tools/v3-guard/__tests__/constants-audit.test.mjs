@@ -71,7 +71,7 @@ describe('auditSharedConstants — 跨进程常量一致性', () => {
     expect(auditSharedConstants(base)).toEqual([])
   })
 
-  it('MAX_WATER_LEVEL 前端漂移（曾写死 15）→ 报问题', () => {
+  it('@guard-red-sample MAX_WATER_LEVEL 前端漂移（曾写死 15）→ 报问题', () => {
     const problems = auditSharedConstants({
       ...base,
       frontendFlood: 'export const MAX_WATER_LEVEL = 15',

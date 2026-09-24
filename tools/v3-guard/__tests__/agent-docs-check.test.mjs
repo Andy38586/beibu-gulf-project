@@ -20,7 +20,7 @@ const NONE = () => false
 const some = (set) => (p) => set.has(p)
 
 describe('agent-docs-check（作业协议自述守卫）', () => {
-  it('阳性对照：带目录前缀的断链必须判违规', () => {
+  it('@guard-red-sample 阳性对照：带目录前缀的断链必须判违规', () => {
     const bad = checkRefs([{ token: 'docs/根基文档/01-项目全景.md', line: 4 }], NONE)
     expect(bad).toHaveLength(1)
     expect(bad[0].why).toContain('不存在')

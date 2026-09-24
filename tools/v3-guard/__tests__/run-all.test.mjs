@@ -21,7 +21,7 @@ describe('guard:v3 串联执行器（审查 z163）', () => {
     expect(calls).toEqual(GUARDS)
   })
 
-  it('中间某项失败时不短路：其后的守卫仍然执行（这是替换 && 链的全部意义）', () => {
+  it('@guard-red-sample 中间某项失败时不短路：其后的守卫仍然执行（这是替换 && 链的全部意义）', () => {
     const calls = []
     const failAt = GUARDS[2]
     const { results, ok } = runAll((name) => {

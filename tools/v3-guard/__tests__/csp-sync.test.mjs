@@ -38,7 +38,7 @@ describe('CSP 双配置同步守卫（审查 z153）', () => {
     expect(problems.some((p) => p.includes('不同的 CSP 策略串'))).toBe(true)
   })
 
-  it('某文件完全没有 CSP 声明 → 报错（防止正则/结构漂移后守卫静默失效）', () => {
+  it('@guard-red-sample 某文件完全没有 CSP 声明 → 报错（防止正则/结构漂移后守卫静默失效）', () => {
     const problems = auditCspSync(`${CSP(REPORT)}`, '空配置')
     expect(problems.some((p) => p.includes('nginx.conf 未找到 CSP 声明'))).toBe(true)
   })

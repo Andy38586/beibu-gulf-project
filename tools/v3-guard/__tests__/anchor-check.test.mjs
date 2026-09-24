@@ -20,7 +20,7 @@ describe('evaluateAnchors — 锚点容差判定', () => {
     expect(evaluateAnchors(PORTS, anchors)).toEqual([])
   })
 
-  it('钦州市区 mock 坐标（北偏约 25km）→ 报告违规，且就近匹配到钦州港口岸', () => {
+  it('@guard-red-sample 钦州市区 mock 坐标（北偏约 25km）→ 报告违规，且就近匹配到钦州港口岸', () => {
     const problems = evaluateAnchors(PORTS, [{ label: 'cargo.qinzhou', lng: 108.62, lat: 21.95 }])
     expect(problems).toHaveLength(1)
     expect(problems[0]).toContain('cargo.qinzhou')

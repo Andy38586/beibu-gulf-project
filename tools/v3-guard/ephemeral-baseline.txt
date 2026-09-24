@@ -24,3 +24,4 @@ frontend/src/style.css::/* 816-S7-45：--GCS-bg-canvas 死 token 已删（零 va
 frontend/src/style.css::/* 816-S7-57：字号档位补齐（跨主题同值，dark 继承；03 §三.2 档位 12/13/14/16/20/24 的 12/16 档） */
 frontend/src/style.css::/* S7-06：键盘可访问性——自绘按钮/可交互元素统一 focus 环（原无 :focus-visible 样式） */
 frontend/src/style.css::/* S7-08/23：GCSModal/GCSToast 引用但未定义的 token 补正式定义（与 shared/layout/config.ts CELL_PIXEL 同源） */
+frontend/src/types/schemas.ts::// 不可达/未吸附是合法空结果（专项8 7.2 断链语义），不是错误。

@@ -18,7 +18,7 @@ describe('forecast-confidence 守卫', () => {
     expect(auditForecastConfidence(fe, be)).toEqual([])
   })
 
-  it('🔴 前端改值 ⇒ 报差异', () => {
+  it('@guard-red-sample 🔴 前端改值 ⇒ 报差异', () => {
     const problems = auditForecastConfidence(fe.replace('= 0.8', '= 0.9'), be)
     expect(problems.join()).toContain('DEFAULT_CONFIDENCE 不再是 0.8')
   })

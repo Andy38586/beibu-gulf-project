@@ -24,11 +24,11 @@ const FRONTEND_SRC = path.join(ROOT, 'frontend/src')
 const BASELINE = path.join(path.dirname(fileURLToPath(import.meta.url)), 'ephemeral-baseline.txt')
 
 // 命中模式：施工任务编号 / 审查专项 / 批次 / 拍板 / 专项指标引用 / 审查轮次
-const PATTERNS = [
+export const PATTERNS = [
   /\bT\d+\.\d+\b/, // T3.6 / T6.3
   /批次\s*[0-9一二三四五六七八九十]/, // 批次1 / 批次9
   /拍板/, // xxx 拍板
-  /\b专项\d+\b/, // 专项1 / 专项8
+  /专项\d+/, // 专项1 / 专项8 —— 不能写 \b：中文不是 \w，"中文前"永远没有词边界，那样这条形同虚设（2026-09-24 由红样测出并修正）
   /\bQ\d+\b/, // Q1 / Q4
   /\bM\d+\b/, // M5 / M11
   /816-\S*/, // 816-专项4 / 816-S7-44
@@ -53,7 +53,7 @@ function walk(dir) {
   return out
 }
 
-function scanFile(file, isFrontend, baseline) {
+export function scanFile(file, isFrontend, baseline) {
   const rel = path.relative(ROOT, file).replaceAll('\\', '/')
   const hits = []
   const lines = readFileSync(file, 'utf8').split('\n')

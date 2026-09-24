@@ -70,7 +70,7 @@ describe('auditFrontendContract — 前端契约联动审计', () => {
     expect(auditFrontendContract(FRONTEND_SAMPLE, NO_ENV, MANIFEST_DOMAINS)).toEqual([])
   })
 
-  it('route 域漏收录 → 报问题（历史事故回归样例：漏配导致 dev 航线查询 404）', () => {
+  it('@guard-red-sample route 域漏收录 → 报问题（历史事故回归样例：漏配导致 dev 航线查询 404）', () => {
     const missing = FRONTEND_SAMPLE.replace("  route: 'route',\n", '')
     const problems = auditFrontendContract(missing, NO_ENV, MANIFEST_DOMAINS)
     expect(problems).toHaveLength(1)

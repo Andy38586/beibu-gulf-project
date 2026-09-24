@@ -35,9 +35,9 @@ export const MARKER = '@guard-red-sample'
  * 每补一条红样就从这里删一项；新增守卫不得直接进本表。
  */
 export const BASELINE = [
-  // 无 test 文件（4）—— 缺口最硬的一批
+  // 无 test 文件（3）—— 这三个守卫至今没有任何导出，只能整体跑 CLI，
+  // 要有红样必须先重构出可测函数；「no-ephemeral」已按此路子补上并出基线。
   'metrics-tally',
-  'no-ephemeral',
   'structure-check',
   'tmp-hygiene',
   // 有 test 但缺结构化红样标记（8）

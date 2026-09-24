@@ -34,7 +34,7 @@ describe('tiles3d-check — 瓦片集完整性的红绿对照', () => {
     expect(collectContentUris(ts.root)).toHaveLength(MIN_CONTENT_NODES)
   })
 
-  it('【阳性对照·核心】被不含 corridor/bridges 的模板覆盖（复刻 2026-09-21 事故）→ 必须报红', () => {
+  it('@guard-red-sample 【阳性对照·核心】被不含 corridor/bridges 的模板覆盖（复刻 2026-09-21 事故）→ 必须报红', () => {
     // 还原事故：17 个枢纽内容，corridor-* 与 bridges-* 全部丢失，generator 退回 per-tile anchor fix
     const hubOnly = REQUIRED_CONTENT.filter(
       (u) => !u.startsWith('corridor-') && !u.startsWith('bridges-')

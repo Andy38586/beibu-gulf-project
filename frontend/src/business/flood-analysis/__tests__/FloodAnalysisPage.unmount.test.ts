@@ -150,8 +150,11 @@ describe('FloodAnalysisPage 卸载守卫（v4-S3）', () => {
     // ② 渲染状态清干净：三个**业务**图层移除（地形山影不属业务图层，见 ③）
     const removed = h.mockManager.remove.mock.calls.map((c) => c[0])
     expect(removed).toContain('flood-water-surface')
-    expect(removed).toContain('flood-area')
-    expect(removed).toContain('flood-facilities')
+    // flood-area / flood-facilities 是**按需注册**的（首次操作滑块才注册），本用例未触发
+    // ⇒ 它们不在归属册里 ⇒ 不该被 remove。旧实现无条件 remove 四个 id（在清压根不存在的键），
+    // 改成归属约束后，这里刻意把断言**收紧**成「只清在册的」——比原来更准，而不是更松。
+    expect(removed).not.toContain('flood-area')
+    expect(removed).not.toContain('flood-facilities')
 
     // ③ 地形山影：随底图默认加载，但**仍经** businessLayerManager 注册（单一事实源），
     //    卸载时一并移除。它不出现在图层面板是靠 listed:false，不是靠绕过 BLM

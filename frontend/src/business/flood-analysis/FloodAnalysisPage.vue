@@ -14,6 +14,7 @@ import {
   LayerControlPanel,
   TaskPanelSlot,
   useBusinessLayers,
+  useOwnedLayers,
 } from '@/core'
 import { floodAdapter } from '@/services'
 import {
@@ -133,6 +134,8 @@ async function loadWaterAreaCoordinates(signal: AbortSignal): Promise<[number, n
 
 /** 图层是否已注册（防止重复注册） */
 let floodLayersRegistered = false
+/** 图层归属登记：注册即登记，卸载由作用域销毁统一清（页面不再手写 remove） */
+const ownedLayers = useOwnedLayers('flood-analysis')
 
 /** 移除 Cesium 独占图层（水面/地形山影）入口：引擎切回 2D 时调用，复位注册标志 */
 function removeCesiumOnlyLayers() {
@@ -154,7 +157,7 @@ async function registerFloodLayers(signal: AbortSignal) {
   // 坐标加载失败时跳过水面图层注册，避免空坐标渲染
   if (waterCoords) {
     try {
-      businessLayerManager.register(WATER_SURFACE_ID, {
+      ownedLayers.register(WATER_SURFACE_ID, {
         label: '水面',
         layerType: 'waterSurface',
         data: { coordinates: waterCoords, height: floodStore.waterLevel },
@@ -176,7 +179,7 @@ async function registerFloodLayers(signal: AbortSignal) {
   // 引擎切换时的重绘、卸载时的清理也都由 BLM 统一收口，不另开旁路。
   // 引擎为 2D 时无此能力（Cesium 独占定义），注册会被 adapter 的能力守卫跳过。
   try {
-    businessLayerManager.register(DEM_HILLSHADE_LAYER_ID, {
+    ownedLayers.register(DEM_HILLSHADE_LAYER_ID, {
       label: '地形山影',
       layerType: 'geotiff',
       data: '/static/dem/dem_hillshade.tif',
@@ -401,7 +404,7 @@ function renderFloodAreas(features: FloodFeature[]) {
 
   // 检查图层是否已注册，若未注册则先注册
   if (!businessLayerManager.has(FLOOD_LAYER_ID)) {
-    businessLayerManager.register(FLOOD_LAYER_ID, {
+    ownedLayers.register(FLOOD_LAYER_ID, {
       label: '淹没范围',
       layerType: 'geojson',
       data: null,
@@ -436,7 +439,7 @@ function renderAffectedFacilities(facilities: AffectedFacility[]) {
 
   // 检查图层是否已注册，若未注册则先注册
   if (!businessLayerManager.has(FACILITY_LAYER_ID)) {
-    businessLayerManager.register(FACILITY_LAYER_ID, {
+    ownedLayers.register(FACILITY_LAYER_ID, {
       label: '受影响设施',
       layerType: 'points',
       data: null,
@@ -537,12 +540,10 @@ onUnmounted(() => {
     waterSurfaceTimer = null
   }
 
-  // Manager 统一清理业务图层
-  businessLayerManager.remove(WATER_SURFACE_ID)
-  businessLayerManager.remove(FLOOD_LAYER_ID)
-  businessLayerManager.remove(FACILITY_LAYER_ID)
-  // 地形山影虽不进面板，仍是本页注册的业务图层，一并移除（BLM 统一收口）
-  businessLayerManager.remove(DEM_HILLSHADE_LAYER_ID)
+  // 图层注销**不再由本页负责**：水面/淹没/设施/地形山影四处注册都经 useOwnedLayers
+  // 登记归属，卸载时由 onScopeDispose 统一清 —— 本页因此没有「忘记清某一层」这个
+  // 动作可漏，这正是结构约束要治的那类复发（「注册必注销」从"记得写"变成"没得漏"）。
+  // 另：removeCesiumOnlyLayers() 是**主动清**（引擎切回 2D 时调），按既有语义保留直接 remove。
 
   // 重置注册标志
   floodLayersRegistered = false

@@ -348,7 +348,9 @@ describe('d061 任务通道与同步通道同校验同终态', () => {
 
   it('🔴 业务失败（service resolve {error}）⇒ 抛 422001，不被队列记成 done', async () => {
     const { handlers, siteAnalysisService } = buildHandlers()
-    siteAnalysisService.analyze.mockResolvedValue({ error: '缺少必要参数: selectedKeys, typeSettings' })
+    siteAnalysisService.analyze.mockResolvedValue({
+      error: '缺少必要参数: selectedKeys, typeSettings',
+    })
 
     const err = (await handlers
       .get('site-analysis')({ selectedKeys: ['hospital'], typeSettings: {} })

@@ -3,10 +3,7 @@ import { ApiTags } from '@nestjs/swagger'
 import { SkipThrottle } from '@nestjs/throttler'
 
 import { BusinessError, ErrorCode } from '../../../common/errors/business-error'
-import {
-  parseSiteAnalysisBody,
-  type SiteAnalysisRequestBody,
-} from '../dto/site-analysis-request'
+import { parseSiteAnalysisBody, type SiteAnalysisRequestBody } from '../dto/site-analysis-request'
 import { SiteAnalysisService } from '../services/site-analysis.service'
 
 /**

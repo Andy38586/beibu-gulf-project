@@ -106,7 +106,15 @@ describe('运行侧不再消费表中的预置标签（d057 的治本侧）', ()
           properties: {},
           geometry: {
             type: 'Polygon' as const,
-            coordinates: [[[108, 21], [109, 21], [109, 22], [108, 22], [108, 21]]],
+            coordinates: [
+              [
+                [108, 21],
+                [109, 21],
+                [109, 22],
+                [108, 22],
+                [108, 21],
+              ],
+            ],
           },
         },
       ],
@@ -115,11 +123,7 @@ describe('运行侧不再消费表中的预置标签（d057 的治本侧）', ()
   it('🔴 传入带预置标签的档位对象时，riskLevel 仍按水段派生（入参标签不被回显）', async () => {
     const service = makeService()
     // 表的 5m 历史上写「中风险/code 2」——即便调用方照原样传进来也不得回显
-    const result = await service.assessDisaster(
-      [FACILITY],
-      5,
-      FLOOD_ZONE_WITH_FEATURE(5, '中风险')
-    )
+    const result = await service.assessDisaster([FACILITY], 5, FLOOD_ZONE_WITH_FEATURE(5, '中风险'))
     expect(result.riskLevel).toBe(deriveRiskLevel(5)) // 高风险
     expect(result.riskLevel).not.toBe('中风险')
   })

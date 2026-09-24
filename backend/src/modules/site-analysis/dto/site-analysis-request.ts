@@ -69,10 +69,7 @@ export function parseSiteAnalysisBody(
     for (const [key, w] of Object.entries(weights as Record<string, unknown>)) {
       const weight = Number(w)
       if (Number.isNaN(weight) || !Number.isFinite(weight) || weight < 0 || weight > 10) {
-        throw new BusinessError(
-          ErrorCode.INVALID_PARAMS,
-          `权重 ${key} 无效，应为 0-10 之间的数字`
-        )
+        throw new BusinessError(ErrorCode.INVALID_PARAMS, `权重 ${key} 无效，应为 0-10 之间的数字`)
       }
     }
   }

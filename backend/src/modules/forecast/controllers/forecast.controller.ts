@@ -2,10 +2,7 @@ import { Controller, Get, Param, Query } from '@nestjs/common'
 import { ApiTags } from '@nestjs/swagger'
 import { SkipThrottle } from '@nestjs/throttler'
 
-import {
-  FALLBACK_CONFIDENCE,
-  MAX_CONFIDENCE,
-} from '../../../common/constants/forecast.constants'
+import { FALLBACK_CONFIDENCE, MAX_CONFIDENCE } from '../../../common/constants/forecast.constants'
 import { BusinessError, ErrorCode } from '../../../common/errors/business-error'
 import { ForecastService } from '../services/forecast.service'
 

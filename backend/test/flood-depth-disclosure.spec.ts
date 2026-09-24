@@ -3,7 +3,10 @@ import path from 'node:path'
 
 import { describe, expect, it } from 'vitest'
 
-import { FloodLevelFeatureRow, FloodRepository } from '../src/modules/flood/repositories/flood.repository'
+import {
+  FloodLevelFeatureRow,
+  FloodRepository,
+} from '../src/modules/flood/repositories/flood.repository'
 import { FloodService } from '../src/modules/flood/services/flood.service'
 
 // W19（d056 N-1）判据回归：**六档真值表的「披露」列必须与实际低估量一致**。
@@ -20,7 +23,9 @@ const FLOOD_DIR = path.resolve(process.cwd(), 'data', 'flood')
 const statsFile = JSON.parse(
   readFileSync(path.join(FLOOD_DIR, 'floodStatistics.json'), 'utf8')
 ) as { statistics: Array<{ waterLevel: number; averageDepth?: number; maxDepth?: number }> }
-const terrainFile = JSON.parse(readFileSync(path.join(FLOOD_DIR, 'terrainProfile.json'), 'utf8')) as {
+const terrainFile = JSON.parse(
+  readFileSync(path.join(FLOOD_DIR, 'terrainProfile.json'), 'utf8')
+) as {
   metadata?: { datumOffset?: number }
 }
 
@@ -89,12 +94,15 @@ describe('W19 flood-statistics 水深参考档披露', () => {
     const rows = await truthTable()
     // 真值表落盘（提交体取证用；-v 时可见）
     console.log(
-      ['请求 | 实际档 | 参考档 | 低估 | 披露', ...rows.map(
-        (r) =>
-          `${String(r.level).padStart(4)} | ${String(r.actualLevel).padStart(6)} | ${String(
-            r.depthRefLevel
-          ).padStart(6)} | ${String(r.understatedBy).padStart(4)} | ${r.disclosed ? '有' : '无'}`
-      )].join('\n')
+      [
+        '请求 | 实际档 | 参考档 | 低估 | 披露',
+        ...rows.map(
+          (r) =>
+            `${String(r.level).padStart(4)} | ${String(r.actualLevel).padStart(6)} | ${String(
+              r.depthRefLevel
+            ).padStart(6)} | ${String(r.understatedBy).padStart(4)} | ${r.disclosed ? '有' : '无'}`
+        ),
+      ].join('\n')
     )
 
     for (const row of rows) {

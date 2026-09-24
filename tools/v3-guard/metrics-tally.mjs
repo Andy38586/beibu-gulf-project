@@ -37,23 +37,31 @@ const DECLARED = {
 }
 const STATES = ['A', 'B', 'A-', 'C', 'D', '退役']
 
-const lines = readFileSync(APPENDIX, 'utf8').split(/\r?\n/)
-
-// —— 解析 §8 明细表 ——
-const rows = new Map() // 专项 -> [{id, name, level, state}]
-let section = null
-for (const l of lines) {
-  const h = l.match(/^### 专项(\d)/)
-  if (h) {
-    section = '专项' + h[1]
-    if (!rows.has(section)) rows.set(section, [])
-    continue
+/**
+ * 解析附录 §8 明细表：专项 → [{id,name,level,state}]。
+ * 文本可注入 —— 否则只能整体读真实附录，红样无从写起。
+ */
+export function parseDetailRows(markdown = readFileSync(APPENDIX, 'utf8')) {
+  const rows = new Map() // 专项 -> [{id, name, level, state}]
+  let section = null
+  for (const l of markdown.split(/\r?\n/)) {
+    const h = l.match(/^### 专项(\d)/)
+    if (h) {
+      section = '专项' + h[1]
+      if (!rows.has(section)) rows.set(section, [])
+      continue
+    }
+    const m = l.match(/^\|\s*([\d.]+)(′?)\s*\|\s*(.+?)\s*\|\s*(P\d)\s*\|\s*(A-|A|B|C|D|退役)\s*\|/)
+    if (m && section) {
+      rows.get(section).push({ id: m[1] + m[2], name: m[3], level: m[4], state: m[5] })
+    }
   }
-  const m = l.match(/^\|\s*([\d.]+)(′?)\s*\|\s*(.+?)\s*\|\s*(P\d)\s*\|\s*(A-|A|B|C|D|退役)\s*\|/)
-  if (m && section) {
-    rows.get(section).push({ id: m[1] + m[2], name: m[3], level: m[4], state: m[5] })
-  }
+  return rows
 }
+
+const rows = parseDetailRows()
+// 汇总表交叉校验还要用逐行文本（crossCheckSummary），故这里保留一份
+const lines = readFileSync(APPENDIX, 'utf8').split(/\r?\n/)
 
 const problems = []
 const summary = []

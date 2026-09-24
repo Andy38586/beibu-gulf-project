@@ -35,11 +35,9 @@ export const MARKER = '@guard-red-sample'
  * 每补一条红样就从这里删一项；新增守卫不得直接进本表。
  */
 export const BASELINE = [
-  // 无 test 文件（2）—— 这两个守卫至今没有任何具名函数（逻辑全在顶层），
-  // 只能整体跑 CLI，要有红样必须先重构出可测函数；
-  // no-ephemeral 与 tmp-hygiene 已按「导出可测函数」这条路子补上并出基线。
-  'metrics-tally',
-  'structure-check',
+  // 已清空：18 个守卫全部交付红样。原无 test 的四个（no-ephemeral / tmp-hygiene /
+  // structure-check / metrics-tally）先后按「把核心判定导出成可测函数」的路子补上。
+  // 新增守卫一律不得直接进本表 —— 缺红样即红。
   // 有 test 但缺结构化红样标记（8）
   'agent-docs-check',
   'anchor-check',

@@ -176,11 +176,43 @@ export function stripCommitType(message) {
 function runCommitlint(message) {
   const cli = path.join(ROOT, 'node_modules', '@commitlint', 'cli', 'cli.js')
   if (!fs.existsSync(cli)) return { rc: null, why: 'commitlint CLI 缺失，无法校验断言 3' }
-  const r = spawnSync(process.execPath, [cli], {
-    cwd: ROOT,
-    input: `${message}\n`,
-    encoding: 'utf8',
-  })
+
+  // 输出捕获**不走** `encoding:'utf8'` 的匿名管道：受限执行环境（加固终端 / 本仓沙箱）会
+  // 拒绝创建管道子进程（实测 spawnSync 报 EBUSY），那会让断言 3 退化成"环境不可用"而红，
+  // 把真实的 commitlint 行为整个掩盖掉。改为：
+  //   ① 消息写临时文件、用 `--edit <file>` 传入 —— 与 `.husky/commit-msg` 的调用方式一致；
+  //   ② stdout/stderr 重定向到文件描述符，不建管道。
+  // 判据（正向示例必须过 / 剥 type 必须拒 / 带 scope 必须拒）逐字不变。
+  const tmpDir = path.join(ROOT, '.local', 'tmp')
+  fs.mkdirSync(tmpDir, { recursive: true })
+  const stamp = `${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+  const msgFile = path.join(tmpDir, `commitlint-msg-${stamp}.txt`)
+  const outFile = path.join(tmpDir, `commitlint-out-${stamp}.log`)
+  fs.writeFileSync(msgFile, `${message}\n`)
+
+  const fd = fs.openSync(outFile, 'w')
+  let r
+  try {
+    r = spawnSync(process.execPath, [cli, '--edit', msgFile], {
+      cwd: ROOT,
+      stdio: ['ignore', fd, fd],
+    })
+  } finally {
+    fs.closeSync(fd)
+  }
+  let out = ''
+  try {
+    out = fs.readFileSync(outFile, 'utf8')
+  } catch {
+    /* 读不到即空，不改变 rc 判定 */
+  }
+  for (const f of [msgFile, outFile]) {
+    try {
+      fs.unlinkSync(f)
+    } catch {
+      /* 清理失败不改变判据 */
+    }
+  }
   return {
     rc: r.status,
     // spawn 失败时 status=null 且无 error.message 以外的线索：给一句可诊断的话，
@@ -189,7 +221,7 @@ function runCommitlint(message) {
       r.status === null
         ? `commitlint 子进程未正常退出：${r.error?.message ?? '未知原因'}`
         : undefined,
-    out: `${r.stdout || ''}${r.stderr || ''}`,
+    out,
   }
 }
 

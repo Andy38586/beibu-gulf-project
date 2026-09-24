@@ -14,6 +14,9 @@
  *   的 `type(scope):` 前缀剥掉得到的**反向样本必须被拒**。反向样本若也放行，说明
  *   commitlint 根本没生效、断言 3 成了恒真摆设——按 tmp-hygiene 2026-09-18 的教训，
  *   守卫自己失效必须当场报红，不许静默 OK。
+ *   同一断言还钉**口径单源**：协议与决策文档都禁 `type(scope):`，故把示例改写成带 scope
+ *   的形态后必须被拒（对应 `package.json` → `commitlint.rules.scope-empty`）；文档写"禁"
+ *   而配置不拦，就是零机器判据的空宣称（W13）。
  * 断言 4（活文档引用）：协议之外的链路文档（索引、根基文档、契约文档、工具 README）里
  *   带目录前缀的路径引用也必须存在。Express 与 FastAPI 退役后，文档里长期留着
  *   `backend/utils/response.js`、`backend/nest/tsconfig.json` 这类已不存在的路径，
@@ -178,7 +181,16 @@ function runCommitlint(message) {
     input: `${message}\n`,
     encoding: 'utf8',
   })
-  return { rc: r.status, out: `${r.stdout || ''}${r.stderr || ''}` }
+  return {
+    rc: r.status,
+    // spawn 失败时 status=null 且无 error.message 以外的线索：给一句可诊断的话，
+    // 别再让上层打印 `undefined`（那会让守卫红得无法定位）
+    why:
+      r.status === null
+        ? `commitlint 子进程未正常退出：${r.error?.message ?? '未知原因'}`
+        : undefined,
+    out: `${r.stdout || ''}${r.stderr || ''}`,
+  }
 }
 
 export function checkCommitForm(text) {
@@ -204,6 +216,18 @@ export function checkCommitForm(text) {
     bad.push({
       ref: negative,
       why: '反向样本（剥掉 type 前缀）未被 commitlint 拒绝 ⇒ hook 侧规则没生效，本断言是恒真摆设',
+    })
+  }
+
+  // 口径（`AGENTS.md` §六 / `开发指南与决策.md` §1.6）：**禁 `type(scope):` 括号写法**。
+  // 文档这么说就必须有机器判据——把示例同义改写成带 scope 的形态，断言 commitlint 拒它；
+  // 若有人删掉 `package.json` 的 `commitlint.rules.scope-empty`，或把口径改回允许，这里立刻红。
+  const scoped = examples[0].message.replace(/^([a-z][a-z-]*)!?:/, '$1(scope):')
+  const scopedCheck = runCommitlint(scoped)
+  if (scopedCheck.rc === 0) {
+    bad.push({
+      ref: scoped,
+      why: '口径禁 `type(scope):`，但带 scope 的样本被 commitlint 放行 ⇒ 口径无机器判据（需 package.json 的 commitlint.rules.scope-empty）',
     })
   }
   return bad

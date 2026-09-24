@@ -96,4 +96,21 @@ describe('agent-docs-check（作业协议自述守卫）', () => {
   it('回归锚：全部活文档当前无断链', () => {
     expect(checkLiveDocs()).toEqual([])
   })
+
+  it('🔴 口径单源（W13）：三份文档都禁 `type(scope)`，且 commitlint 侧有对应机器判据', () => {
+    // ① 配置侧：口径写"禁"，就必须有能拦住的规则——删掉 scope-empty ⇒ 本用例红
+    const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'))
+    expect(
+      pkg.commitlint?.rules?.['scope-empty']?.[0],
+      'commitlint 缺少 scope-empty 规则：口径"禁 type(scope)"没有机器判据'
+    ).toBe(2)
+
+    // ② 文档侧：三处口径必须一致地写成"禁 <type>(<scope>)"，且没人把 `type(scope): 中文说明`
+    //    当推荐格式（2026-09-24 之前 `开发指南与决策.md` 红线 2 正是这么写的，与 §1.6 冲突）
+    for (const rel of ['AGENTS.md', 'CLAUDE.md', 'docs/根基文档/开发指南与决策.md']) {
+      const text = fs.readFileSync(path.join(ROOT, rel), 'utf8')
+      expect(/禁[^\n]{0,10}<?type>?\(<?scope/.test(text), `${rel} 未写明禁 type(scope)`).toBe(true)
+      expect(text, `${rel} 仍把 type(scope): 当推荐写法`).not.toMatch(/`type\(scope\): 中文说明`/)
+    }
+  })
 })

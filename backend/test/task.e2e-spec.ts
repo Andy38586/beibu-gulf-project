@@ -7,6 +7,7 @@ import { AppModule } from '../src/app.module'
 import { generateToken } from '../src/common/utils/jwt.util'
 import { type TaskHandler, TaskHandlers } from '../src/modules/task/services/task-handlers'
 import { TASK_CONCURRENCY } from '../src/modules/task/types/task'
+import { TASK_CLIENT_HEADER } from '../src/modules/task/utils/request-owner'
 
 // v4 异步任务域 e2e（S1 验收：V1~V6）。
 //
@@ -476,6 +477,76 @@ describe('v4 异步任务域（/nest-api/task）', () => {
     const cancelled = await request(app.getHttpServer())
       .delete(`/nest-api/task/${taskA}`)
       .set('Authorization', `Bearer ${tokenA}`)
+      .expect(200)
+    expect(cancelled.body.data.status).toBe('cancelled')
+
+    releaseBlocker()
+    await settle(150)
+  })
+
+  // R2（返工清单 §五-4）补的就是这一条：此前只有**服务层**用例（`task-ownership-capacity.spec.ts`
+  // 直调 `service.cancel(taskId, ownerB)`，owner 是手工拼的字符串）与**解析层**用例
+  // （`resolveRequestOwner`），两半各测一半——「请求带不同会话头 ⇒ 属主不同 ⇒ 取消 404」这条
+  // 整链没有任何承接体。本文件上面那条 A/B 用例走的是 Bearer 登录用户，匿名会话
+  // （`x-task-client`）这一路在 HTTP 层是空的。
+  it('d059/R2 匿名会话隔离：两个不同匿名会话互相取消/查询必 404（与「不存在」同码同文案）', async () => {
+    let releaseBlocker: () => void = () => {}
+    const blocker = new Promise<void>((resolve) => {
+      releaseBlocker = resolve
+    })
+    stub(
+      'route-path',
+      tracked('route-path', async () => {
+        await blocker
+        return { mine: true }
+      })
+    )
+    // 合法会话 id：16–64 位 URL 安全串（CLIENT_ID_RE），与前端每标签页生成的口径一致
+    const CLIENT_A = 'a'.repeat(32)
+    const CLIENT_B = 'b'.repeat(32)
+
+    // A 匿名提交（会话 A）
+    const asA = await request(app.getHttpServer())
+      .post('/nest-api/task')
+      .set(TASK_CLIENT_HEADER, CLIENT_A)
+      .send({ domain: 'route-path', route: '/route-analysis', params: {} })
+      .expect(ENVELOPE_OK)
+    const taskA = asA.body.data.taskId
+
+    // B 匿名提交同路由：不得取代 A 的任务（共用一个匿名槽时此处 A 已被 cancelled ⇒ 红）
+    const asB = await request(app.getHttpServer())
+      .post('/nest-api/task')
+      .set(TASK_CLIENT_HEADER, CLIENT_B)
+      .send({ domain: 'route-path', route: '/route-analysis', params: {} })
+      .expect(ENVELOPE_OK)
+    expect(asB.body.data.taskId).not.toBe(taskA)
+    const aView = await request(app.getHttpServer())
+      .get(`/nest-api/task/${taskA}`)
+      .set(TASK_CLIENT_HEADER, CLIENT_A)
+      .expect(200)
+    expect(aView.body.data.status).not.toBe('cancelled')
+
+    // B 取消 A 的任务 ⇒ 404，且与「取消不存在的任务」同码同文案（不暴露存在性）
+    const cancelByB = await request(app.getHttpServer())
+      .delete(`/nest-api/task/${taskA}`)
+      .set(TASK_CLIENT_HEADER, CLIENT_B)
+      .expect(404)
+    const missing = await request(app.getHttpServer())
+      .delete('/nest-api/task/t-not-exist')
+      .set(TASK_CLIENT_HEADER, CLIENT_B)
+      .expect(404)
+    expect(cancelByB.body.code).toBe(missing.body.code)
+    expect(cancelByB.body.message).toBe(missing.body.message)
+
+    await request(app.getHttpServer())
+      .get(`/nest-api/task/${taskA}`)
+      .set(TASK_CLIENT_HEADER, CLIENT_B)
+      .expect(404)
+
+    // 同会话 A 仍可取消（失败的是越权，不是功能本身——防"恒 404"也能过）
+    const cancelled = await request(app.getHttpServer())
+      .delete(`/nest-api/task/${taskA}`)
+      .set(TASK_CLIENT_HEADER, CLIENT_A)
       .expect(200)
     expect(cancelled.body.data.status).toBe('cancelled')
 

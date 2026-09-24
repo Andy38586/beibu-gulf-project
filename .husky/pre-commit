@@ -47,12 +47,17 @@ npx lint-staged
 # 天然抵触——谁都不想 commit 被全量门禁卡住，于是一条都不跑。
 # 解法：快集（秒级、只读既有产物/静态检查）前移到 commit 时；全量套件仍留 pre-push。
 # 快集清单：guard:v3（18 项静态守卫，含 ledger-dedupe/cruise-coverage/nest-controllers-data）
-#          + cruise（架构契约）+ types:check（契约快照新鲜度 + schema 覆盖）。
+#          + cruise（架构契约）+ types:check（契约快照新鲜度 + schema 覆盖）+ format:check（全仓格式）。
 # 改动这三个文件同宗的判据时，本 hook 当场红；跑全量请 push（pre-push 13 项）。
-echo "[pre-commit] 快集门禁 1/3 guard:v3"
+echo "[pre-commit] 快集门禁 1/4 guard:v3"
 npm run guard:v3 || exit 1
-echo "[pre-commit] 快集门禁 2/3 架构契约（cruise）"
+echo "[pre-commit] 快集门禁 2/4 架构契约（cruise）"
 npm run cruise || exit 1
-echo "[pre-commit] 快集门禁 3/3 API 契约（types:check）"
+echo "[pre-commit] 快集门禁 3/4 API 契约（types:check）"
 npm run types:check || exit 1
+# 全仓格式：上面的 lint-staged 只处理**本次暂存**的文件，生成物与未暂存改动会漏 ——
+# 实测「改完十几个文件却没跑 format:check」，红在 dead-code-baseline.json 上。
+# 这条兜底让「改完必验」有挂点，不依赖谁记得。
+echo "[pre-commit] 快集门禁 4/4 格式（format:check）"
+npm run format:check || exit 1
 echo "[pre-commit] 快集门禁全部通过"

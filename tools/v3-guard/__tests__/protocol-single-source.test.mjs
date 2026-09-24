@@ -14,6 +14,7 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
 import {
+  DOC_SIZE_CEILINGS,
   POINTER_FILES,
   PROTOCOL_SOURCE,
   auditProtocolSingleSource,
@@ -23,8 +24,13 @@ import { GUARDS } from '../run-all.mjs'
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..')
 
 function realTexts() {
-  const texts = { [PROTOCOL_SOURCE]: readFileSync(path.join(ROOT, PROTOCOL_SOURCE), 'utf8') }
-  for (const f of POINTER_FILES) texts[f] = readFileSync(path.join(ROOT, f), 'utf8')
+  const files = new Set([
+    PROTOCOL_SOURCE,
+    ...POINTER_FILES,
+    ...DOC_SIZE_CEILINGS.map((s) => s.file),
+  ])
+  const texts = {}
+  for (const f of files) texts[f] = readFileSync(path.join(ROOT, f), 'utf8')
   return texts
 }
 
@@ -104,5 +110,26 @@ describe('protocol-single-source 守卫', () => {
       .replace(/\*\*/g, '')
     texts = { ...texts, 'CLAUDE.md': refactored }
     expect(auditProtocolSingleSource(texts)).toEqual([])
+  })
+
+  it(`🔴 式 1 删字面：规范文件缺行数指针句 → 必须报`, () => {
+    const spec = DOC_SIZE_CEILINGS.find((s) => s.file !== PROTOCOL_SOURCE)
+    const texts = realTexts()
+    texts[spec.file] = texts[spec.file].replace(
+      /行数上限由 [`']tools\/v3-guard\/protocol-single-source\.mjs[`'] 的体量表校验[^。\n]*。?/,
+      ''
+    )
+    expect(auditProtocolSingleSource(texts).join(' ')).toContain('缺行数指针')
+  })
+
+  it('🔴 式 2 停用：文件超出体量上限 → 必须报超限（含指针句也拦不住）', () => {
+    const spec = DOC_SIZE_CEILINGS.find((s) => s.file !== PROTOCOL_SOURCE)
+    const padded = Array(spec.max + 5)
+      .fill('填充行内容保证超过上限阈值')
+      .join('\n')
+    const texts = { ...realTexts(), [spec.file]: padded }
+    const problems = auditProtocolSingleSource(texts).join(' ')
+    expect(problems).toContain('体量超限')
+    expect(problems).toContain(spec.file)
   })
 })

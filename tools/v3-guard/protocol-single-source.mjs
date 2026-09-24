@@ -56,6 +56,23 @@ const TABOO_HEADER = /^\|\s*#?\s*\|\s*禁忌\s*\|/m
 const GUARD_COUNT_LITERAL = /\d+\s*项(?:静态)?守卫|\(\s*\d+\s*项守卫/
 
 /**
+ * (④) 规范文件的体量上限：防止根节点/协议被逐轮追加撑成"第二个标准库"。
+ * **上限数字只在本表出现一次**，文档里不得再抄一份具体行数（那是又一处手抄副本）。
+ */
+export const DOC_SIZE_CEILINGS = [
+  {
+    file: 'docs/根基文档/审查体系专项/审查体系约定.md',
+    max: 140,
+    why: '审查体系根节点，超出须先删旧条款或把内容下沉到专项',
+  },
+  { file: 'AGENTS.md', max: 280, why: '作业协议正本，超出应把细则下沉到 04' },
+]
+/** (④) 文档侧的指针判据——含此三要素即认为它把行数交给守卫，不必逐字匹配（逐字匹配会逼文档抄一句固定话，又是一处脆耦合）。 */
+const SIZE_POINTER_TERMS = ['protocol-single-source.mjs', '体量', '校验']
+const hasSizePointer = (text) => SIZE_POINTER_TERMS.every((t) => text.includes(t))
+export const SIZE_POINTER = SIZE_POINTER_TERMS.join(' + ')
+
+/**
  * 纯函数便于单测：文件文本表 → 问题列表（空数组 = 通过）
  * @param {Record<string, string | undefined>} texts 相对路径 → 文本
  * @returns {string[]}
@@ -116,6 +133,24 @@ export function auditProtocolSingleSource(texts) {
     )
   }
 
+  // ④ 体量上限（数字只在本表里；文档侧必须写指针句，不得复述行数）
+  for (const spec of DOC_SIZE_CEILINGS) {
+    const text = texts[spec.file]
+    if (text === undefined) {
+      problems.push(`✗ ${spec.file} 读取失败：体量判据失去对象`)
+      continue
+    }
+    const lines = text.split(/\r?\n/).length
+    if (lines > spec.max) {
+      problems.push(`✗ ${spec.file} 体量超限：${lines} 行 > ${spec.max} 行（${spec.why}）`)
+    }
+    if (!hasSizePointer(text)) {
+      problems.push(
+        `✗ ${spec.file} 缺行数指针（须同时含 ${SIZE_POINTER} 三要素）：` +
+          `不得在正文另写一个行数数字，也不得只写"约束 ≤N 行"而不给执行体`
+      )
+    }
+  }
   for (const file of [PROTOCOL_SOURCE, ...POINTER_FILES]) {
     const text = texts[file]
     if (text === undefined) continue

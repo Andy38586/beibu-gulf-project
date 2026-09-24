@@ -1,52 +1,33 @@
-# CLAUDE.md
+# CLAUDE.md — 指针，不是副本
 
-> 完整协议在 [`AGENTS.md`](./AGENTS.md)：**开工前必读，交付前必查**。冲突时以 AGENTS.md 为准。
+> **本项目的作业协议只有一份：[`AGENTS.md`](./AGENTS.md)。** 开工前读它，交付前查它。
+>
+> 本文件**故意不复制任何规则条文**。原因：这里的旧版本抄写过"三条铁律/六类禁忌/八条必停"，协议一涨它就变成第二个口径，而"冲突时以 AGENTS.md 为准"这句话本身救不了不读它的人——这正是 `AGENTS.md` §七-7「无权威源的多份副本」在项目自己的协议文件上的实例。**在本文件里重新贴规则 = 违规。**
 
-## 三条铁律
+## 只给指路
 
-1. **证据先行** — 结论挂 `file:line` / 实测输出。无法确认就写「无法确认，需读 X」。
-2. **不猜、不补、不编** — 先 grep 确认机制**存在且被调用**。禁止把注释当实现。
-3. **改完必验证** — 不跑验证等于没完成。
+| 你要找的                                                                                                                   | 在 `AGENTS.md` 的哪一节 |
+| -------------------------------------------------------------------------------------------------------------------------- | ----------------------- |
+| 铁律 / 开工前必读 / 五类任务流程（含"复查修完了没"）                                                                       | §一 §二 §三             |
+| 必须停下来问用户的 10 种情形                                                                                               | §四                     |
+| **「完成」的定义 E1–E5**、改完必跑、**变异四式**、**「绿」的四条硬口径**、沙箱与 `--no-verify` 口径                        | §五（5.1–5.5）          |
+| 记录义务：一单元一笔、修+测+台账同笔、**commit 标题不得声明 diff 里没有的东西**、废弃要成文                                | §六                     |
+| **十类禁忌** + 7.1 修法形状要求                                                                                            | §七                     |
+| 交付前自查（**每格挂产物，打勾无效**）                                                                                     | §八                     |
+| 输出风格（作废条件、影响面与定级分开、沿用数字标出处）                                                                     | §九                     |
+| 维护规则与「两轮不降就改协议」                                                                                             | §十                     |
+| **审查窗六节交付标准**（§0 验证入口 / §1 覆盖率 / §1b 未证 / §2 问题册 / §3 钩子 / §4 上游复核 / §5 存量与待裁 / §6 卫生） | §十一                   |
+| 工单形状、归属标签四态、**膨胀率闸门**、关闭三态（✔闭／◐半修／✘未修）                                                      | §十二                   |
 
-## 开工前必读（不许跳）
+## 技术栈速览（这部分 AGENTS.md 不写，可在此处维护）
 
-1. `docs/根基文档/项目全景.md`（架构 + **工程红线**）
-2. `docs/根基文档/04-防复发清单.md` **对应节**（渲染 A｜数据 B｜状态 C｜错误 D｜架构 E｜门禁 F｜安全 G｜文档 H｜清理 I）
-3. `docs/待解决问题.md` — 已立案的按**原编号**接手，不新开号
+Vue 3 + Pinia + Element Plus + ECharts + Cesium/OL 双引擎前端；NestJS 后端；PostGIS。
+**前端没有独立 `package.json`，脚本全在仓库根**：`npm run typecheck`（前端）／`npm run typecheck --prefix backend`（后端）／`npm test`／`npm --prefix backend test`／`npm run cruise`／`npm run types:check`／`npm run stylelint`／`npm run guard:v3`／`npm run ci:local`（合并前）。
+commit 格式由 `.husky/commit-msg` 的 commitlint 强制（`@commitlint/config-conventional`）：形式 `type: 中文说明`，type 取值与「禁 `type(scope):` 括号写法」的口径以 `AGENTS.md` §六 为准。
+一个符合口径的示例（仅示意，规则本身不在此复制）：
+例：`docs: 把协议抄本改成指针，消灭第二个口径`
+已知 flake：`backend/test/task.e2e-spec.ts` 墙钟计时断言（归属与处置见 `AGENTS.md` §八"失败项归属"）。
 
-## 六类禁忌（违反 = 不合格）
+## 本文件的机器约束
 
-| #   | 禁忌       | 要求                                                       |
-| --- | ---------- | ---------------------------------------------------------- |
-| 1   | 契约单向   | 改跨端字段/枚举 → 两侧同改 + 补断言。禁止 `as` 缝合        |
-| 2   | 写了就不管 | 新增守卫/清理/schema → 同 commit 内给出**调用点或测试**    |
-| 3   | 无据的宣称 | 每个"已 X"都要有断言能验证；**引用的路径必须存在**         |
-| 4   | 错级释放   | 新增监听/定时器/请求 → 同 commit 内写注销，与注册同作用域  |
-| 5   | 无对照门禁 | 新增门禁 → 附一个能让它**变红**的样本                      |
-| 6   | 扩展不继承 | 新增模块/通道 → 同步扩张守护规则、契约校验、清理、文档清单 |
-
-## 必须停下来问用户
-
-新增依赖 ｜ 改 schema 或删数据 ｜ 重写 git 历史 ｜ 凭据密钥 ｜ 跨 3+ 模块 ｜ **文档与实现矛盾（不自行选边）** ｜ 顺手重构 ｜ 验证无法完成
-
-## 验证命令
-
-```bash
-npm run typecheck                    # 前端
-npm run typecheck --prefix backend   # 后端
-npm test                             # 前端测试
-npm --prefix backend test            # 后端测试
-npm run cruise                       # 架构契约
-npm run types:check                  # 契约门禁
-npm run guard:v3                     # v3 守卫
-npm run ci:local                     # 全量门禁（合并前）
-```
-
-**前端没有独立 package.json**，脚本全在仓库根。已知 flake：`backend/test/task.e2e-spec.ts` 墙钟计时断言。
-
-## git
-
-commit 格式 **Conventional Commits**（`.husky/commit-msg` 的 commitlint 强制）：`type: 中文说明`
-type ∈ `feat｜fix｜docs｜chore｜refactor｜perf｜test｜ci｜build｜style｜revert`；**禁 `type(scope):` 括号写法**（§1.6）。
-例：`fix: 穷尽派生 TASK_DOMAINS，修复 forecast-map 域恒 400`
-**每修一项即提交**；禁 squash；禁 `--no-verify`。
+`tools/v3-guard/protocol-single-source.mjs` 断言：本文件**不得出现**禁忌表／铁律条文／"六类禁忌"之类的复制内容（命中即红）。要改规则，改 `AGENTS.md`。

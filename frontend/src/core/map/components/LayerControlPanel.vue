@@ -9,7 +9,7 @@ import { computed } from 'vue'
 
 import { resolveLayerPanelState } from '@/core/map/layerAdapters'
 import { useBusinessLayers } from '@/core/map/composables/useBusinessLayers'
-import { useGCS } from '@/shared'
+import { ROW_HEIGHT_CELL, useGCS } from '@/shared'
 import { useMapStore } from '@/stores'
 import type { LayerEntry } from '@/types'
 import { DEFAULT_ENGINES, ENGINE_LABELS } from '@/types'
@@ -36,8 +36,9 @@ const { cellPixel, css } = useGCS()
 // 解构出 CSS 变量供 v-bind() 使用（cell8px=0.1cell 面板边缘；cell16px=0.2cell 按钮间间隙）
 const { cell8px, cell16px } = css
 
-/** 按钮高度：0.8 cell（网格行高，按钮 width 100% 填充列） */
-const btnHeightCss = computed(() => `${cellPixel.value * 0.8}px`) // 64px
+/** 按钮高度：网格行高，系数取自 panelGridCapacity 的 ROW_HEIGHT_CELL —— 容量公式与本网格
+ *  必须共用同一份比例，否则「按公式算出的容量」与实际能放的行数各说各话。 */
+const btnHeightCss = computed(() => `${cellPixel.value * ROW_HEIGHT_CELL}px`) // cell=80 时 64px
 /** 字体大小：0.175cell = 14px（基准），0.1cell = 8px（小字） */
 const labelFontSizeCss = computed(() => `${cellPixel.value * 0.175}px`) // 14px
 const iconFontSizeCss = computed(() => `${cellPixel.value * 0.2}px`) // 16px

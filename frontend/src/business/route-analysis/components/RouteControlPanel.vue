@@ -13,7 +13,7 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 
 import { GCSPanel } from '@/core'
-import { logger, showError, showWarning, useGCS } from '@/shared'
+import { logger, ROW_HEIGHT_CELL, showError, showWarning, useGCS } from '@/shared'
 import { useMapStore, useTaskStore } from '@/stores'
 import type { RoutePathParams, RoutePathResponse, RoutePathResult } from '@/types'
 import type { PoiSearchItemParsed } from '@/types/schemas'
@@ -99,7 +99,8 @@ const hasResult = ref(false)
 
 const { cellPixel, css } = useGCS()
 const { cell8px, cell16px } = css
-const btnHeightCss = computed(() => `${cellPixel.value * 0.8}px`)
+/** 网格行高，系数取自 panelGridCapacity 的 ROW_HEIGHT_CELL（与容量公式共用同一份比例） */
+const btnHeightCss = computed(() => `${cellPixel.value * ROW_HEIGHT_CELL}px`)
 const labelFontSizeCss = computed(() => `${cellPixel.value * 0.175}px`)
 
 /** 四槽状态：key 顺序即途径链顺序（from → waypoint-1 → waypoint-2 → to） */

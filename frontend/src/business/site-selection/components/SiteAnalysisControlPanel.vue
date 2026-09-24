@@ -3,7 +3,7 @@
 // 按钮三态：默认（白）→ 选择（蓝 + 滑块，自动确认）→ 已选（白 + 重要程度标签）
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 
-import { CONFIRM_DELAY, showWarning, SliderSelectCard, useGCS } from '@/shared'
+import { CONFIRM_DELAY, ROW_HEIGHT_CELL, showWarning, SliderSelectCard, useGCS } from '@/shared'
 import type { AnalysisResult, FacilityType, TypeSetting } from '@/types/analysis'
 
 import { FACILITY_CONFIG } from '../composables/facilityConfig'
@@ -29,7 +29,8 @@ const emit = defineEmits<Emits>()
 // GCS 尺寸变量：cell8px=0.1cell 面板内边距；cell16px=0.2cell 按钮间距
 const { cellPixel, css } = useGCS()
 const { cell8px, cell16px } = css
-const btnHeightCss = computed(() => `${cellPixel.value * 0.8}px`)
+/** 网格行高，系数取自 panelGridCapacity 的 ROW_HEIGHT_CELL（与容量公式共用同一份比例） */
+const btnHeightCss = computed(() => `${cellPixel.value * ROW_HEIGHT_CELL}px`)
 const labelFontSizeCss = computed(() => `${cellPixel.value * 0.175}px`)
 const iconFontSizeCss = computed(() => `${cellPixel.value * 0.2}px`)
 const panelRef = ref<HTMLElement | null>(null)

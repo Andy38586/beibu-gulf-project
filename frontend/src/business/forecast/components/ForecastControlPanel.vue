@@ -9,6 +9,7 @@ import {
   CONFIRM_DELAY,
   DEFAULT_CONFIDENCE,
   END_YEAR,
+  ROW_HEIGHT_CELL,
   SliderSelectCard,
   useGCS,
 } from '@/shared'
@@ -24,8 +25,8 @@ const { beginSliderFocus, endSliderFocus } = useSliderFocus()
 // GCS 尺寸变量：cell8px=0.1cell 面板内边距；cell16px=0.2cell 按钮间距
 const { cellPixel, css } = useGCS()
 const { cell8px, cell16px } = css
-/** 按钮高度 0.8 cell（固定行高，不自动拉伸） */
-const btnHeightCss = computed(() => `${cellPixel.value * 0.8}px`)
+/** 按钮高度：固定行高，系数取自 panelGridCapacity 的 ROW_HEIGHT_CELL（与容量公式共用同一份比例） */
+const btnHeightCss = computed(() => `${cellPixel.value * ROW_HEIGHT_CELL}px`)
 /** 字体档位：0.175cell 标签、0.2cell 图标、0.15cell 小字、0.125cell 角标 */
 const labelFontSizeCss = computed(() => `${cellPixel.value * 0.175}px`)
 const iconFontSizeCss = computed(() => `${cellPixel.value * 0.2}px`)

@@ -43,7 +43,10 @@ describe('doc-numbers 守卫', () => {
 
   it('🔴 红样本：锚点被删（文本改写导致检查失去对象）必报', () => {
     const texts = realTexts()
-    texts['tools/README.md'] = texts['tools/README.md'].replace(/（\d+ 项守卫，run-all\.mjs 串联不短路）/, '（守卫清单见 run-all.mjs）')
+    texts['tools/README.md'] = texts['tools/README.md'].replace(
+      /（\d+ 项守卫，run-all\.mjs 串联不短路）/,
+      '（守卫清单见 run-all.mjs）'
+    )
     const problems = auditDocNumbers(texts, GUARDS.length)
     expect(problems.join(' ')).toContain('锚点未命中')
     expect(problems.join(' ')).toContain('tools/README.md')

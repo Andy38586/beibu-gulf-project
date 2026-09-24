@@ -111,7 +111,9 @@ function main() {
   if (problems.length > 0) {
     console.error('[doc-numbers] 未通过：文档里的门禁条数与 run-all.mjs 不一致')
     for (const p of problems) console.error('  ' + p)
-    console.error(`处理：把这些位置的条数改成 ${GUARDS.length}（真值取自 tools/v3-guard/run-all.mjs 的 GUARDS）。`)
+    console.error(
+      `处理：把这些位置的条数改成 ${GUARDS.length}（真值取自 tools/v3-guard/run-all.mjs 的 GUARDS）。`
+    )
     process.exit(1)
   }
   console.log(

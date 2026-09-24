@@ -237,11 +237,20 @@ describe('coverage-ratchet --freeze-check（基线冻结校验）', () => {
     // 回归锁：先前一律以脚本所在 repoRoot 为基准解析相对路径，
     // 导致 `cd frontend && node ../scripts/coverage-ratchet.cjs --freeze-check
     // coverage-baseline.json` 解析到 <repo>/coverage-baseline.json（不存在）→ 假绿。
-    const r = spawnSync('node', [SCRIPT, '--freeze-check', 'coverage-baseline.json'], {
-      cwd: fileURLToPath(new URL('../frontend/', import.meta.url)),
-      encoding: 'utf8',
-    })
-    expect(r.status).toBe(0)
-    expect(`${r.stdout}${r.stderr}`).toContain('基线冻结校验通过')
+    // 这条不走上面的 run()（要指定 cwd），但同样必须避开管道：受限环境拒绝创建
+    // 管道式子进程（spawnSync 直接 EBUSY、status=null）。
+    const outFile = join(mkdtempSync(join(tmpdir(), 'ratchet-cwd-')), 'combined.log')
+    const fd = openSync(outFile, 'w')
+    let status = null
+    try {
+      status = spawnSync(process.execPath, [SCRIPT, '--freeze-check', 'coverage-baseline.json'], {
+        cwd: fileURLToPath(new URL('../frontend/', import.meta.url)),
+        stdio: ['ignore', fd, fd],
+      }).status
+    } finally {
+      closeSync(fd)
+    }
+    expect(status).toBe(0)
+    expect(readFileSync(outFile, 'utf8')).toContain('基线冻结校验通过')
   })
 })

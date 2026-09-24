@@ -36,13 +36,19 @@ const h = vi.hoisted(() => {
     reapplyAll: vi.fn(),
     removeAllFromRenderer: vi.fn(),
   }
-  const getWaterArea = vi.fn().mockResolvedValue([
-    [108.5, 21.7],
-    [108.6, 21.8],
-  ])
+  const getWaterArea = vi.fn(
+    // 带形参声明：本用例族要断言**传进来的到底是不是一个真 signal**，
+    // 无参 vi.fn() 会让 mock.calls 推成空元组，取 [0] 在 typecheck 阶段就写不出来
+    async (_signal?: AbortSignal): Promise<[number, number][]> => [
+      [108.5, 21.7],
+      [108.6, 21.8],
+    ]
+  )
   return {
     mockManager,
     getWaterArea,
+    /** showWarning 替身：水域失败的告警跨路由可见，必须能断言它弹 / 不弹 */
+    showWarning: vi.fn(),
     /** taskStore.cancel —— 卸载时绝不能碰（保活语义） */
     cancelSlot: vi.fn(),
     setDocked: vi.fn(),
@@ -69,6 +75,12 @@ vi.mock('vue-router', () => ({
   onBeforeRouteLeave: vi.fn(),
   useRouter: () => ({ push: vi.fn() }),
 }))
+
+// 只替身 showWarning（其余出口保持真实）：告警是唯一能观测到"卸载后还在报"的对外面
+vi.mock('@/shared/utils/errorHandler', async (importOriginal) => {
+  const mod = await importOriginal<typeof import('@/shared/utils/errorHandler')>()
+  return { ...mod, showWarning: h.showWarning }
+})
 
 // taskStore 打桩：页面只应读 getSlot / 写 setDocked，**绝不**调 cancel
 vi.mock('@/stores', async (importOriginal) => {
@@ -210,5 +222,71 @@ describe('FloodAnalysisPage 卸载守卫（v4-S3）', () => {
 
     expect(h.mockManager.updateData).not.toHaveBeenCalled()
     expect(h.mockManager.register).not.toHaveBeenCalled()
+  })
+
+  /**
+   * R2-06/03（2026-09-24 复查）· 取消链曾经**整体空转**：页面只 `getCurrentSignal()` 读，
+   * 而本页没有任何 `createSignal()` 写入点 ⇒ 恒返回 undefined。于是 onUnmounted 里
+   * "取消在途请求"这句注释所描述的机制根本不存在（04-D4 防御壳化），且失败告警会在
+   * 用户已经离开本页之后弹到别的路由上。下面三格分别钉：信号是真的 / 卸载会 abort /
+   * abort 后不弹（同一失败路径未 abort 时必须弹，作阳性对照）。
+   */
+  it('水域坐标请求收到真实 AbortSignal（曾恒为 undefined）', async () => {
+    const wrapper = shallowMount(FloodAnalysisPage)
+    useMapStore().currentRenderer = WATER_CAPABLE_RENDERER
+    await flushPromises()
+
+    const calls = h.getWaterArea.mock.calls
+    const call = calls[calls.length - 1]
+    expect(call).toBeDefined()
+    expect(call![0]).toBeInstanceOf(AbortSignal)
+    wrapper.unmount()
+  })
+
+  it('卸载 abort 在途的水域坐标请求', async () => {
+    let inflight: AbortSignal | undefined
+    h.getWaterArea.mockImplementationOnce(
+      (signal?: AbortSignal) =>
+        new Promise<[number, number][]>(() => {
+          inflight = signal // 永不落定：模拟卸载发生时请求仍在途
+        })
+    )
+
+    const wrapper = shallowMount(FloodAnalysisPage)
+    useMapStore().currentRenderer = WATER_CAPABLE_RENDERER
+    await flushPromises()
+
+    expect(inflight).toBeInstanceOf(AbortSignal)
+    expect(inflight!.aborted).toBe(false)
+
+    wrapper.unmount()
+    expect(inflight!.aborted).toBe(true)
+  })
+
+  it('未 abort 的失败必须弹告警（阳性对照）；abort 之后的同形态失败不得弹', async () => {
+    h.getWaterArea.mockRejectedValueOnce(new Error('水域坐标取数失败'))
+    const beforeUnmount = shallowMount(FloodAnalysisPage)
+    useMapStore().currentRenderer = WATER_CAPABLE_RENDERER
+    await flushPromises()
+    expect(h.showWarning).toHaveBeenCalledTimes(1)
+    beforeUnmount.unmount()
+
+    h.showWarning.mockClear()
+    let reject!: (e: Error) => void
+    h.getWaterArea.mockImplementationOnce(
+      () =>
+        new Promise<[number, number][]>((_resolve, rej) => {
+          reject = rej
+        })
+    )
+    const afterUnmount = shallowMount(FloodAnalysisPage)
+    useMapStore().currentRenderer = WATER_CAPABLE_RENDERER
+    await flushPromises()
+
+    afterUnmount.unmount() // ← 此处 abort 在途请求
+    reject(new Error('水域坐标取数失败'))
+    await flushPromises()
+
+    expect(h.showWarning).not.toHaveBeenCalled()
   })
 })

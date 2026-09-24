@@ -78,13 +78,17 @@ const stateRestored = ref(false)
 let waterSurfaceTimer: ReturnType<typeof setTimeout> | null = null
 
 /**
- * 水域坐标请求的 signal 供给。
+ * 水域坐标请求的取消链供给（页面侧）。
  *
  * 只服务于 `registerFloodLayers` 里的水面/DEM 加载（属**渲染**资源，不是分析请求），
  * 故留在页面。分析请求的竞态守卫已迁入 `useFloodRequest`——那边会自己建 signal，
  * 页面这条**不覆盖分析请求**（否则会误 abort 掉面板发出的直连取数）。
+ *
+ * 🔴 必须用 `createSignal()` **建**，不能只 `getCurrentSignal()` **读**：后者只读已有
+ * controller，而本页从无写入点 ⇒ 恒返回 undefined，取消链整体空转（2026-09-24 复查 R2-06/03）。
+ * 建在注册入口处顺带得到第二个性质：引擎反复 2D↔3D 时旧的水域坐标请求会被 abort，不再叠请求。
  */
-const { getCurrentSignal: getFloodSignal } = useLatestRequest()
+const { createSignal: createFloodSignal, cancel: cancelFloodSignal } = useLatestRequest()
 
 const WATER_SURFACE_ID = 'flood-water-surface'
 
@@ -111,14 +115,15 @@ const DEM_HILLSHADE_LAYER_ID = 'flood-dem-hillshade'
 let cachedWaterAreaCoords: [number, number][] | null = null
 
 // 水域坐标加载失败时降级 null（仅水面图层跳过，其余图层照常）：原实现无 try/catch 会抛出未捕获
-// rejection，现以 toast 告知且不阻塞其余图层；signal 支持卸载时取消在途请求
-async function loadWaterAreaCoordinates(signal?: AbortSignal): Promise<[number, number][] | null> {
+// rejection，现以 toast 告知且不阻塞其余图层。signal **必传**（可选参数曾让调用点静默传 undefined，
+// 于是卸载后的失败照样弹到别的路由上）：aborted 时不告警，卸载由 onUnmounted 的 cancelFloodSignal 触发
+async function loadWaterAreaCoordinates(signal: AbortSignal): Promise<[number, number][] | null> {
   if (cachedWaterAreaCoords) return cachedWaterAreaCoords
   try {
     cachedWaterAreaCoords = await floodAdapter.getWaterArea(signal)
     return cachedWaterAreaCoords
   } catch (error) {
-    if (!signal?.aborted) {
+    if (!signal.aborted) {
       logger.warn('[FloodAnalysisPage] 水域坐标加载失败，水面图层跳过:', error)
       showWarning('水域数据加载失败，水面图层暂不可用（其余图层正常）')
     }
@@ -138,7 +143,7 @@ function removeCesiumOnlyLayers() {
 }
 
 // 首次 register 仅建 catalog 条目（数据未就绪不渲染），API 返回数据后由 updateData 渲染
-async function registerFloodLayers(signal?: AbortSignal) {
+async function registerFloodLayers(signal: AbortSignal) {
   if (floodLayersRegistered) return
 
   const waterCoords = await loadWaterAreaCoordinates(signal)
@@ -198,7 +203,7 @@ watch(
       void nextTick(() => {
         // 能力守卫驱动（isWater3DCapable），业务页不再 getType() 判断引擎
         if (isWater3DCapable(renderer)) {
-          void registerFloodLayers(getFloodSignal())
+          void registerFloodLayers(createFloodSignal())
         } else {
           removeCesiumOnlyLayers()
         }
@@ -509,10 +514,14 @@ watch(
 
 onUnmounted(() => {
   unmounted = true
+  // 只 abort **页面自己**的在途渲染取数（水域坐标）；与 taskStore 无关——
+  // 拖进 dock 的后端任务必须继续跑（下方 🔴 条），二者不共用取消链。
+  cancelFloodSignal()
 
   // ═══ v4-S3 逐条判定：什么该清、什么绝不能清 ═══
   //
   // ✅ 可清（UI/渲染状态）：
+  //   · 在途水域坐标请求 —— cancelFloodSignal()，否则卸载后的失败会弹到别的路由上
   //   · waterSurfaceTimer —— 本页自己的几何防抖；卸载后写图层无意义
   //   · 四个业务图层 —— 图层是"当前引擎上的画"，引擎单例复用，不清会泄漏到别的页
   //   · floodLayersRegistered / cachedWaterAreaCoords —— 注册与缓存标志随组件复位

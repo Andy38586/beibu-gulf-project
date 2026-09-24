@@ -22,7 +22,7 @@ describe('ledger-dedupe：台账编号唯一性与统计行对账（z041）', ()
     expect(gaps).toEqual([])
   })
 
-  it('阳性对照①：台账内重号必红', () => {
+  it('@guard-red-sample 阳性对照①：台账内重号必红', () => {
     const openDup = OPEN_OK.replace('| p2 | a002-', '| p2 | a001-').replace(
       'p2 × 1：a002',
       'p2 × 1：a001'

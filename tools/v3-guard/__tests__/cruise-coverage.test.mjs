@@ -27,7 +27,7 @@ describe('cruise-coverage：04-E2 规则集合 == 目录集合（z055）', () =>
     expect(rules).toEqual(['flood-analysis', 'forecast'])
   })
 
-  it('阳性对照①：新增业务目录未建规则必红（route-analysis 落地即无守护的回归形态）', () => {
+  it('@guard-red-sample 阳性对照①：新增业务目录未建规则必红（route-analysis 落地即无守护的回归形态）', () => {
     const { problems } = auditCoverage(CRUISE_OK, ['flood-analysis', 'forecast', 'route-analysis'])
     expect(problems.some((p) => p.includes('business/route-analysis 无互引守护规则'))).toBe(true)
   })

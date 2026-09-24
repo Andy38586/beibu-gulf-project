@@ -27,7 +27,7 @@ describe('css-lint-visibility 守卫', () => {
     expect(auditCssLintVisibility(REAL_CONFIG, REAL_SCRIPT)).toEqual([])
   })
 
-  it('🔴 红样本：customSyntax 套在 **/*.css 上必报（违例不可见的成因）', () => {
+  it('@guard-red-sample 🔴 红样本：customSyntax 套在 **/*.css 上必报（违例不可见的成因）', () => {
     const problems = auditCssLintVisibility(REGRESSED_CONFIG, REAL_SCRIPT)
     expect(problems.length).toBeGreaterThan(0)
     expect(problems.join(' ')).toContain('customSyntax')

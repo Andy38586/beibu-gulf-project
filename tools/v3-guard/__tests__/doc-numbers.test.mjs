@@ -29,7 +29,7 @@ describe('doc-numbers 守卫', () => {
     expect(auditDocNumbers(realTexts(), GUARDS.length)).toEqual([])
   })
 
-  it('🔴 红样本：任一站点条数写错必报（漂移形态，如 README 把 16 写成 9）', () => {
+  it('@guard-red-sample 🔴 红样本：任一站点条数写错必报（漂移形态，如 README 把 16 写成 9）', () => {
     const texts = realTexts()
     texts['README.md'] = texts['README.md'].replace(
       /(npm run guard:v3\s+# )(\d+)( 项 v3 守卫)/,

@@ -41,7 +41,7 @@ describe('nest-controllers-data：controller 不直读数据文件（z055 承接
     expect(violations).toEqual([])
   })
 
-  it('阳性对照：controller 注入 DataFilesService / 引用 backend/data / readFileSync 必红', () => {
+  it('@guard-red-sample 阳性对照：controller 注入 DataFilesService / 引用 backend/data / readFileSync 必红', () => {
     const f = writeController(
       'backend/src/modules/flood/controllers/flood.controller.ts',
       [

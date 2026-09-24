@@ -38,6 +38,7 @@ export const GUARDS = [
   'anchor-check',
   'tiles3d-check',
   'tmp-hygiene',
+  'guard-red-sample',
 ]
 
 /**

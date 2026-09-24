@@ -54,7 +54,7 @@ describe('protocol-single-source 守卫', () => {
     expect(GUARDS).toContain('protocol-single-source')
   })
 
-  it('🔴 式 1 删字面：指针文件被删 → 必须报，不得静默通过', () => {
+  it('@guard-red-sample 🔴 式 1 删字面：指针文件被删 → 必须报，不得静默通过', () => {
     const texts = realTexts()
     delete texts['CLAUDE.md']
     expect(auditProtocolSingleSource(texts).join(' ')).toContain('协议指针丢失')

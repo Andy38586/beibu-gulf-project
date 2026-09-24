@@ -15,8 +15,12 @@ export const MAX_WATER_LEVEL = 25
 export const FLOOD_DISPLAY_MAX_WATER_LEVEL = 10
 
 // 展示域风险分级阈值（米，海平面基准）：与 backend/src/common/constants/flood.constants.ts
-// 的 RISK_LEVEL_BANDS 阈值同源（0 无 / 2 低 / 4.3 中 / 6 高 / 8 极高——水文锚定重划版
-// 详见后端注释），单侧改动必须同步。
+// 的 RISK_LEVEL_BANDS 同源（0 无 / 2 低 / 4.3 中 / 6 高 / 8 极高 / ∞ 灾难——水文锚定重划版
+// 详见后端注释）。逐档（阈值 + 标签 + 档位数）一致性由
+// tools/v3-guard/constants-audit.mjs 断言：任一侧改档即红。
+//
+// 末档必须是「到 ∞」的兜底档：展示域上限 10m 落在 (8, 10]，若缺这一档，
+// `find` 会一路 miss 到数组末尾而回落成上一档，把最高一档低报一级。
 // 用途：剖面面板"当前风险"动态徽章（滑块 0.1m 步进下的实时分级，勿用作静态刻度标签——
 // 刻度等距 0/2.5/5/7.5/10 与阈值不等距，硬贴档名会错档）
 export const RISK_LEVEL_THRESHOLDS = [
@@ -25,6 +29,7 @@ export const RISK_LEVEL_THRESHOLDS = [
   { maxLevel: 4.3, label: '中风险' },
   { maxLevel: 6, label: '高风险' },
   { maxLevel: 8, label: '极高风险' },
+  { maxLevel: Number.POSITIVE_INFINITY, label: '灾难级' },
 ] as const
 
 /** 按展示域水位派生风险等级文案（向上命中首档，口径与后端 deriveRiskLevel 一致） */

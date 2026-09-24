@@ -18,7 +18,7 @@
 | `data-download/` | 原始数据    | 陆地 DEM / OSM / 海底地形下载（网络可用时跑）                                                                      |
 | `perf-bench/`    | 性能基准    | 选址覆盖分析、服务端压测                                                                                           |
 | `diag/`          | 诊断        | 淹没多边形 vs DEM 高程基准、3D 页面实况抓取                                                                        |
-| `v3-guard/`      | 质量守卫    | 编号外泄 / 分层契约 / 路由契约 / 常量审计 / 体系自洽 / CSP 同步 / 锚点校验 / 临时文件卫生 / 协议自述，9 项 CI 断言 |
+| `v3-guard/`      | 质量守卫    | 编号外泄 / 分层结构 / 协议自述 / 路由契约 / 常量审计 / CSS 检查可见性 / 预测置信度 / 指标自洽 / 台账编号 / 分层互引覆盖 / 控制器数据面 / CSP 同步 / 锚点校验 / 3D Tiles / 临时文件卫生 / 文档条数对账，16 项 CI 断言 |
 
 ## 根目录单文件（工程与元工具）
 
@@ -48,7 +48,7 @@ npm run forecast:activity    # tools/forecast/derive-activity.mjs
 npm run verify-gis           # tools/gis-import/verify.mjs
 npm run dev:flood            # tools/flood/run-flood.cjs
 npm run test:algorithm       # tools/run-algorithm-tests.cjs
-npm run guard:v3             # tools/v3-guard/*.mjs（9 项守卫，run-all.mjs 串联不短路）
+npm run guard:v3             # tools/v3-guard/*.mjs（16 项守卫，run-all.mjs 串联不短路）
 ```
 
 ## 约定

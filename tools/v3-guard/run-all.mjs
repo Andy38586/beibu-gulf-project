@@ -30,6 +30,7 @@ export const GUARDS = [
   'forecast-confidence',
   'metrics-tally',
   'ledger-dedupe',
+  'doc-numbers',
   'cruise-coverage',
   'nest-controllers-data',
   'csp-sync',

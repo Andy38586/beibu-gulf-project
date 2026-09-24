@@ -26,7 +26,7 @@
 
 set -e
 
-echo "[pre-push] 1/13 v3 守卫（八项）"
+echo "[pre-push] 1/13 v3 守卫（16 项，条数由 doc-numbers 守卫对账）"
 npm run guard:v3
 
 echo "[pre-push] 2/13 代码格式"

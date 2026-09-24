@@ -45,4 +45,34 @@ describe('css-lint-visibility 守卫', () => {
     })
     expect(auditCssLintVisibility(ok, REAL_SCRIPT)).toEqual([])
   })
+
+  it('🔴 红样本：花括号展开 `**/*.{css,vue}` 也能吃到纯 CSS，必报（旧判据漏判）', () => {
+    const problems = auditCssLintVisibility(
+      JSON.stringify({
+        overrides: [{ files: ['**/*.{css,vue}'], customSyntax: 'postcss-html' }],
+      }),
+      REAL_SCRIPT
+    )
+    expect(problems.length).toBeGreaterThan(0)
+    expect(problems.join(' ')).toContain('customSyntax')
+  })
+
+  it('🔴 红样本：customSyntax 提到根级 ⇒ 整条判据空跑，必报（旧判据漏判）', () => {
+    const problems = auditCssLintVisibility(
+      JSON.stringify({
+        customSyntax: 'postcss-html',
+        overrides: [{ files: ['**/*.vue'], customSyntax: 'postcss-html' }],
+      }),
+      REAL_SCRIPT
+    )
+    expect(problems.length).toBeGreaterThan(0)
+    expect(problems.join(' ')).toContain('根级 customSyntax')
+  })
+
+  it('等价重构：files 写成字符串而非数组 → 不误报', () => {
+    const ok = JSON.stringify({
+      overrides: [{ files: '**/*.vue', customSyntax: 'postcss-html' }],
+    })
+    expect(auditCssLintVisibility(ok, REAL_SCRIPT)).toEqual([])
+  })
 })

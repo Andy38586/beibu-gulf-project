@@ -362,7 +362,8 @@ watch(
     </div>
 
     <!-- 方案空态由收藏空态与「我的方案」标题共同表达：无方案时不重复渲染占位 -->
-    <!-- 方案重命名弹窗（初始名取 editingNamePlan，error 时显示校验失败） -->
+    <!-- 方案重命名弹窗（初始名取 editingNamePlan；校验失败文案经 errorMsg 回显，
+         本地"空名"提示在弹窗内自行处理——弹窗不再对外发 error，那条通道从未触发过） -->
     <PlanSaveModal
       :visible="showSaveModal"
       :saving="savingName"
@@ -370,7 +371,6 @@ watch(
       :initial-name="editingNamePlan?.name || ''"
       @close="showSaveModal = false"
       @save="handleSaveName"
-      @error="(msg) => (saveError = msg)"
     />
   </div>
 </template>

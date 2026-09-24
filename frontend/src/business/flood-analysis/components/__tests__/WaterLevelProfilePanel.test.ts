@@ -230,4 +230,78 @@ describe('WaterLevelProfilePanel 请求归属（v4-S3）', () => {
 
     wrapper.unmount()
   })
+
+  /**
+   * R2-06/04（2026-09-24 复查）· `runAnalysis` 曾有 `try/finally` 而**没有 catch**：
+   * 渲染回调一抛错就一路冒到顶层 —— 于是本轮后面的段全部不执行（违背函数头注释自述的
+   * "淹没范围失败不该让影响评估不显示，反之亦然"），而三条调用路径都写成
+   * `void runAnalysis(...)`，外面没有 catch 的位置 ⇒ 顶层未处理 rejection。
+   * 04-D4 的教科书形态：不变量只活在注释里，执行体是空的。
+   */
+  describe('渲染回调抛错时的分段隔离（R2-06/04）', () => {
+    /** 注入渲染回调 → 等首屏那一轮跑完（含一个宏任务，让未处理 rejection 来得及浮出） */
+    async function roundWithRenderers(renderers: Record<string, unknown>) {
+      const unhandled: unknown[] = []
+      const onUnhandled = (reason: unknown) => unhandled.push(reason)
+      process.on('unhandledRejection', onUnhandled)
+
+      const wrapper = shallowMount(WaterLevelProfilePanel)
+      ;(wrapper.vm as unknown as { registerRenderers: (r: unknown) => void }).registerRenderers(
+        renderers
+      )
+      await flushPromises()
+      await new Promise((resolve) => setTimeout(resolve, 0))
+      await flushPromises()
+
+      process.off('unhandledRejection', onUnhandled)
+      return { wrapper, unhandled }
+    }
+
+    const thrower = (tag: string) => () => {
+      throw new Error(`${tag} 渲染回调抛错`)
+    }
+
+    it('第一段（淹没范围）抛错 ⇒ 影响评估照常渲染，且不外溢成未处理 rejection', async () => {
+      const impact = vi.fn()
+      const { wrapper, unhandled } = await roundWithRenderers({
+        analysis: thrower('淹没范围'),
+        waterSurface: vi.fn(),
+        impact,
+      })
+
+      // 修前两条都红：impact 收到 0 次调用（整轮被上一段带走）+ unhandled 拿到那个 Error
+      expect(impact).toHaveBeenCalledTimes(1)
+      expect(unhandled).toEqual([])
+      wrapper.unmount()
+    })
+
+    it('中间段（水面几何）抛错 ⇒ 后面的影响评估照常渲染', async () => {
+      const analysis = vi.fn()
+      const impact = vi.fn()
+      const { wrapper, unhandled } = await roundWithRenderers({
+        analysis,
+        waterSurface: thrower('水面几何'),
+        impact,
+      })
+
+      expect(analysis).toHaveBeenCalledTimes(1)
+      expect(impact).toHaveBeenCalledTimes(1)
+      expect(unhandled).toEqual([])
+      wrapper.unmount()
+    })
+
+    it('末段（影响评估）抛错 ⇒ 前面已落的渲染不回退，且不外溢成未处理 rejection', async () => {
+      const analysis = vi.fn()
+      const { wrapper, unhandled } = await roundWithRenderers({
+        analysis,
+        waterSurface: vi.fn(),
+        impact: thrower('影响评估'),
+      })
+
+      expect(analysis).toHaveBeenCalledTimes(1)
+      // 这一格的判别项只有 unhandled（finally 本来就会复位 requesting，拿它当判据是假绿）
+      expect(unhandled).toEqual([])
+      wrapper.unmount()
+    })
+  })
 })

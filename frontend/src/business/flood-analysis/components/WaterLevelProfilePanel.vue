@@ -37,6 +37,7 @@ import { useSliderFocus } from '@/core'
 import {
   deriveRiskLevelDisplay,
   FLOOD_DISPLAY_MAX_WATER_LEVEL,
+  logger,
   PROFILE_AREA_STOP_STRONG,
   PROFILE_AREA_STOP_WEAK,
   PROFILE_COLORS,
@@ -143,6 +144,25 @@ let analysisTimer: ReturnType<typeof setTimeout> | null = null
  * @param waterLevel 目标水位
  * @param viaTask true = 淹没范围走后端异步任务域（dock 续跑场景）
  */
+/**
+ * 渲染回调的隔离执行。
+ *
+ * 两件事必须同时成立，缺一不可：
+ *  1. **不外溢**：调用方是 `void runAnalysis(...)`（滑块/刻度/恢复三条路径都这么调），
+ *     外面没有任何 catch 的位置 ⇒ 渲染器抛错若一路冒到顶层，就是一个未处理 rejection。
+ *  2. **不静默**：错误对象必须进日志（04-D1）。只 catch 不记录 = 把"渲染没画出来"变成
+ *     用户看不出、开发者也查不到的第三种故障。
+ *
+ * 取数侧的失败已由 `useFloodRequest` 各自 toast + 返回 null 收口，本函数只兜渲染侧。
+ */
+function renderStage(stage: string, run: () => void): void {
+  try {
+    run()
+  } catch (error) {
+    logger.error(`[Flood] ${stage}渲染回调抛错——本路展示跳过，另一路照常:`, error)
+  }
+}
+
 async function runAnalysis(waterLevel: number, viaTask = false): Promise<void> {
   if (disposed) return
 
@@ -151,25 +171,30 @@ async function runAnalysis(waterLevel: number, viaTask = false): Promise<void> {
     const analysis = await fetchAnalysis(waterLevel, viaTask)
     if (disposed) return
     if (analysis) {
-      renderers.analysis?.({
-        features: analysis.features,
-        statistics: analysis.statistics,
-        riskLevel: analysis.riskLevel,
-        actualWaterLevel: analysis.actualWaterLevel,
-      })
+      renderStage('淹没范围', () =>
+        renderers.analysis?.({
+          features: analysis.features,
+          statistics: analysis.statistics,
+          riskLevel: analysis.riskLevel,
+          actualWaterLevel: analysis.actualWaterLevel,
+        })
+      )
       // 水面几何：以**后端实际命中档位**抬升（可能被向上取档，与请求水位不同）
-      if (typeof analysis.actualWaterLevel === 'number') {
-        renderers.waterSurface?.(analysis.actualWaterLevel)
+      const hitLevel = analysis.actualWaterLevel
+      if (typeof hitLevel === 'number') {
+        renderStage('水面几何', () => renderers.waterSurface?.(hitLevel))
       }
     }
 
     const impact = await fetchImpact(waterLevel)
     if (disposed) return
     if (impact) {
-      renderers.impact?.({
-        affectedFacilities: impact.affectedFacilities,
-        totalLoss: impact.totalLoss,
-      })
+      renderStage('影响评估', () =>
+        renderers.impact?.({
+          affectedFacilities: impact.affectedFacilities,
+          totalLoss: impact.totalLoss,
+        })
+      )
     }
   } finally {
     if (!disposed) requesting.value = false

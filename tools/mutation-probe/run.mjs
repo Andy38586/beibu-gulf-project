@@ -20,6 +20,7 @@
  */
 import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -79,15 +80,25 @@ function probeOne(c) {
     const cwd = c.test.cwd ? path.join(ROOT, c.test.cwd) : ROOT
     const [bin, ...args] =
       c.test.command[0] === 'npx' ? [NPX, ...c.test.command.slice(1)] : c.test.command
-    const r = spawnSync(bin, args, {
-      cwd,
-      encoding: 'utf8',
-      shell: IS_WIN,
-      env: { ...process.env, NODE_OPTIONS: '' },
-      maxBuffer: 64 * 1024 * 1024,
-    })
-    code = r.status
-    tail = `${r.stdout || ''}\n${r.stderr || ''}`.trim().split('\n').slice(-12).join('\n')
+    // 输出走文件描述符，不用管道：受限执行环境拒绝创建管道式子进程，spawnSync 会
+    // EBUSY、status=null。若把它当成「测试变红」，就会得到一整片假的 KILLED
+    // （实测 8/8 全是 `exit null`），变异测试整个失去意义 —— 用来量「测试严不严格」
+    // 的尺子，自己的判据先不承重。
+    const outFile = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'mut-')), 'out.log')
+    const fd = fs.openSync(outFile, 'w')
+    let status = null
+    try {
+      status = spawnSync(bin, args, {
+        cwd,
+        stdio: ['ignore', fd, fd],
+        shell: IS_WIN,
+        env: { ...process.env, NODE_OPTIONS: '' },
+      }).status
+    } finally {
+      fs.closeSync(fd)
+    }
+    code = status
+    tail = fs.readFileSync(outFile, 'utf8').trim().split('\n').slice(-12).join('\n')
   } catch (e) {
     runError = `执行测试异常: ${e.message}`
   } finally {
@@ -115,6 +126,20 @@ function probeOne(c) {
     }
   }
 
+  // 子进程没起来（status=null）既不是 killed 也不是 survived，判 error：
+  // 绝不许把「跑不起来」记成「测试抓住了变异」。
+  if (code === null) {
+    return {
+      id: c.id,
+      status: 'error',
+      code: null,
+      detail: '子进程未正常退出（环境限制？）——既不能判 killed 也不能判 survived',
+      durationMs: Date.now() - started,
+      tail,
+      desc: c.desc,
+      target: c.target,
+    }
+  }
   const killed = code !== 0
   return {
     id: c.id,

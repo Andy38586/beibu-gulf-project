@@ -142,8 +142,7 @@ describe('coverage-ratchet --freeze-check（基线冻结校验）', () => {
     const dir = mkdtempSync(join(tmpdir(), 'freeze-'))
     const rel = 'coverage-baseline.json'
     const abs = join(dir, rel)
-    const git = (args) =>
-      execFileSync('git', args, { cwd: dir, stdio: 'ignore' })
+    const git = (args) => execFileSync('git', args, { cwd: dir, stdio: 'ignore' })
     writeFileSync(abs, JSON.stringify({ lines: 50, functions: 50, branches: 50, statements: 50 }))
     git(['init', '-q'])
     git(['config', 'user.email', 't@t.t'])
@@ -205,8 +204,7 @@ describe('coverage-ratchet --freeze-check（基线冻结校验）', () => {
   // 与上一条区别在于 HEAD 可解析，走 ls-tree 判据而非 rev-parse。
   it('仓库有提交但基线未纳入（漏 git add）→ exit 1（DRIFT）', () => {
     const dir = mkdtempSync(join(tmpdir(), 'freeze-untracked-'))
-    const git = (args) =>
-      execFileSync('git', args, { cwd: dir, stdio: 'ignore' })
+    const git = (args) => execFileSync('git', args, { cwd: dir, stdio: 'ignore' })
     git(['init', '-q'])
     git(['config', 'user.email', 't@t.t'])
     git(['config', 'user.name', 't'])

@@ -11,12 +11,6 @@ import { defineConfig } from 'vitest/config'
 // frontend/backend 各有自己的 vitest 配置，不受本文件影响。
 export default defineConfig({
   test: {
-    exclude: [
-      '**/node_modules/**',
-      '**/dist/**',
-      '**/.local/**',
-      '.local/**',
-      '**/tmp-*/**',
-    ],
+    exclude: ['**/node_modules/**', '**/dist/**', '**/.local/**', '.local/**', '**/tmp-*/**'],
   },
 })

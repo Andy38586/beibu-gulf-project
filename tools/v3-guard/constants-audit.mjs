@@ -53,7 +53,9 @@ function normalizeMaxLevel(raw) {
  * 而档位数或阈值错一处就会让展示域整段低报/高报一级，故必须逐档对账。
  */
 export function parseRiskBands(content, name) {
-  const block = content.match(new RegExp(`export const ${name}\\s*=\\s*\\[([\\s\\S]*?)\\]\\s*as const`))
+  const block = content.match(
+    new RegExp(`export const ${name}\\s*=\\s*\\[([\\s\\S]*?)\\]\\s*as const`)
+  )
   if (!block) return null
   const items = [...block[1].matchAll(/\{\s*maxLevel:\s*([^,]+?)\s*,\s*label:\s*'([^']*)'\s*\}/g)]
   return items.map((m) => ({ maxLevel: normalizeMaxLevel(m[1]), label: m[2] }))

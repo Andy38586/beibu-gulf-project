@@ -95,10 +95,15 @@ function shallowCount(dir) {
   }
 }
 
-function scan() {
+/**
+ * 扫描受控目录里的临时条目。
+ * root/watched 可注入 —— 否则守卫只能整体跑真实仓库，红样无从写起
+ * （本仓 4 个守卫此前都因此没有 test，红样元守卫一直把它们记在棘轮基线上）。
+ */
+export function scan({ root = ROOT, watched = WATCHED } = {}) {
   const hits = []
-  for (const rel of WATCHED) {
-    const dir = path.join(ROOT, rel)
+  for (const rel of watched) {
+    const dir = path.join(root, rel)
     let entries
     try {
       entries = readdirSync(dir, { withFileTypes: true })

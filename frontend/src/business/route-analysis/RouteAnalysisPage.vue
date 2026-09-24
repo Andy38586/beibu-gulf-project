@@ -20,6 +20,7 @@ import {
   tallyGroups,
   toDataUri,
   useBusinessLayers,
+  useOwnedLayers,
   type TilesetJson,
 } from '@/core'
 import { logger, showToast } from '@/shared'
@@ -46,8 +47,14 @@ import {
  * ./constants/pingluTiles（业务语义收口于 business 层）。
  */
 
-/** 影像块图层 id（异步注册，供图层面板 layer-order 与引擎切换时清理） */
+/** 影像块图层 id（异步注册，供图层面板 layer-order 用） */
 const imageryLayerIds = ref<string[]>([])
+/**
+ * 本页图层的归属登记（结构约束）：注册即登记，注销由作用域销毁统一负责。
+ * 页面因此不需要、也不应该自己调 `manager.remove` —— 这是 921→924 四轮都在
+ * 同一个点（本页）复发的那类「注册了没人清」的根因收口。
+ */
+const ownedLayers = useOwnedLayers('route-analysis')
 /** 影像索引加载与注册均已完成（防重复注册） */
 let imageryRegistered = false
 
@@ -80,7 +87,7 @@ async function registerImageryLayers(): Promise<void> {
     if (disposed || !canOverlayImagery()) return
     for (const t of index.tiles) {
       const id = PINGLU_IMAGERY_LAYER_PREFIX + t.name
-      businessLayerManager.register(id, {
+      ownedLayers.register(id, {
         label: `${t.label}影像`,
         layerType: 'imageOverlay',
         data: {
@@ -232,7 +239,7 @@ async function registerPingluGroups(): Promise<void> {
       }
       const id = pingluLayerId(group.id)
       try {
-        businessLayerManager.register(id, {
+        ownedLayers.register(id, {
           label: `平陆运河 · ${group.label}`,
           layerType: '3dtiles',
           // Data URI：派生结果含绝对 uri，Cesium 的 isDataUri 分支 basePath 为空也不影响
@@ -263,7 +270,8 @@ const stopTilesLayerWatch = watch(
       void registerPingluGroups()
     } else if (pingluRegistered) {
       // 切到 2D 渲染器：3D Tiles 无对应能力，移除本页 3D 独占图层，避免面板留死开关
-      for (const id of pingluLayerIds.value) businessLayerManager.remove(id)
+      // 走 unregister 而非直接 remove：归属册要与实际一致，否则卸载时的统一清理会清到已摘的键
+      for (const id of pingluLayerIds.value) ownedLayers.unregister(id)
       pingluLayerIds.value = []
       pingluRegistered = false
     }
@@ -279,7 +287,7 @@ const stopImageryWatch = watch(
     if (isImageOverlayCapable(renderer)) {
       void registerImageryLayers()
     } else if (imageryRegistered) {
-      for (const id of imageryLayerIds.value) businessLayerManager.remove(id)
+      for (const id of imageryLayerIds.value) ownedLayers.unregister(id)
       imageryLayerIds.value = []
       imageryRegistered = false
     }
@@ -300,8 +308,9 @@ onUnmounted(() => {
   // 于是这 5+3 个图层跨路由残留，并在每次引擎切换时被 reapplyAll 重建；
   // 图层控制面板固定 2×4 格被 extra 追加到溢出，后面几个开关直接点不到。
   // 同功能的 `RouteControlPanel` / `FloodAnalysisPage` 都写了这条清理，本页是漏的那个。
-  for (const id of pingluLayerIds.value) businessLayerManager.remove(id)
-  for (const id of imageryLayerIds.value) businessLayerManager.remove(id)
+  // 图层注销**不再由本页负责**：注册时经 useOwnedLayers 登记归属，作用域销毁自动清。
+  // 这正是这条结构约束的用意 —— 页面「不需要、也无法」忘记清图层（这里已经没有那个动作）。
+  // 本段只复位本页自己的展示态。
   pingluLayerIds.value = []
   imageryLayerIds.value = []
   pingluRegistered = false

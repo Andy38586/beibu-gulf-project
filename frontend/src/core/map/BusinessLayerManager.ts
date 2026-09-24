@@ -56,7 +56,7 @@ interface MapStoreLike {
 }
 
 /** 图层注册描述符 */
-interface LayerDescriptor {
+export interface LayerDescriptor {
   label: string
   layerType: LayerType
   data: unknown

@@ -2,8 +2,8 @@
  * test-watchdog 自测：跳过治理 / 执行清单 / 空壳识别的纯判定 + CLI 缺结果文件。
  * 纯函数走合成 vitest 结果（快、确定）；CLI 缺结果这一副作用走子进程真实执行。
  */
-import { execFileSync } from 'node:child_process'
-import { mkdtempSync, writeFileSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
+import { closeSync, mkdtempSync, openSync, readFileSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -257,14 +257,20 @@ describe('watchdog CLI —— 没有结果文件不得视为通过', () => {
         projects: { x: { root: dir, include: [], result: join(dir, 'nope.json') } },
       })
     )
+    // 同 coverage-ratchet.test.mjs：不走管道（受限环境 spawnSync EBUSY），
+    // 改为把两条流重定向到文件描述符后读文件，判据语义不变。
+    const outFile = join(dir, 'cli.log')
+    const fd = openSync(outFile, 'w')
     let code = 0
-    let out = ''
     try {
-      out = execFileSync('node', [SCRIPT, '--config', cfg], { encoding: 'utf8' })
-    } catch (e) {
-      code = e.status ?? -1
-      out = `${e.stdout ?? ''}${e.stderr ?? ''}`
+      const r = spawnSync(process.execPath, [SCRIPT, '--config', cfg], {
+        stdio: ['ignore', fd, fd],
+      })
+      code = r.status ?? -1
+    } finally {
+      closeSync(fd)
     }
+    const out = readFileSync(outFile, 'utf8')
     expect(code).toBe(1)
     expect(out).toContain('读不到')
   })

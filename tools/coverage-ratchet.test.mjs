@@ -3,7 +3,7 @@
  * 脚本顶层读 argv 且有退出副作用，故以子进程真实执行，断言退出码与输出。
  */
 import { execFileSync, spawnSync } from 'node:child_process'
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { closeSync, mkdtempSync, openSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -18,8 +18,18 @@ const SCRIPT = fileURLToPath(new URL('../scripts/coverage-ratchet.cjs', import.m
  * exit 0 场景的断言（如「降级 WARN」）会拿到空串而误报失败（2026-09-18 实测踩过）。
  */
 function run(args) {
-  const r = spawnSync('node', [SCRIPT, ...args], { encoding: 'utf8' })
-  return { code: r.status ?? -1, output: `${r.stdout ?? ''}${r.stderr ?? ''}` }
+  // 不用 encoding / 管道：受限执行环境（加固终端、本仓沙箱）拒绝创建管道式子进程，
+  // spawnSync 会 EBUSY、status=null ⇒ 全部断言假红（code=-1），把真实行为整个盖住。
+  // 改为把 stdout/stderr 一起重定向到文件描述符，再读文件。
+  const outFile = join(mkdtempSync(join(tmpdir(), 'ratchet-out-')), 'combined.log')
+  const fd = openSync(outFile, 'w')
+  let status = null
+  try {
+    status = spawnSync(process.execPath, [SCRIPT, ...args], { stdio: ['ignore', fd, fd] }).status
+  } finally {
+    closeSync(fd)
+  }
+  return { code: status ?? -1, output: readFileSync(outFile, 'utf8') }
 }
 
 function writeFixture(dir, summary, baseline) {
@@ -133,7 +143,7 @@ describe('coverage-ratchet --freeze-check（基线冻结校验）', () => {
     const rel = 'coverage-baseline.json'
     const abs = join(dir, rel)
     const git = (args) =>
-      execFileSync('git', args, { cwd: dir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
+      execFileSync('git', args, { cwd: dir, stdio: 'ignore' })
     writeFileSync(abs, JSON.stringify({ lines: 50, functions: 50, branches: 50, statements: 50 }))
     git(['init', '-q'])
     git(['config', 'user.email', 't@t.t'])
@@ -196,7 +206,7 @@ describe('coverage-ratchet --freeze-check（基线冻结校验）', () => {
   it('仓库有提交但基线未纳入（漏 git add）→ exit 1（DRIFT）', () => {
     const dir = mkdtempSync(join(tmpdir(), 'freeze-untracked-'))
     const git = (args) =>
-      execFileSync('git', args, { cwd: dir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
+      execFileSync('git', args, { cwd: dir, stdio: 'ignore' })
     git(['init', '-q'])
     git(['config', 'user.email', 't@t.t'])
     git(['config', 'user.name', 't'])

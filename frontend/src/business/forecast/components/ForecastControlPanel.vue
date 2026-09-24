@@ -215,7 +215,7 @@ onUnmounted(() => stopPlayback())
 <template>
   <div class="forecast-ctrl">
     <!-- ===== 上半：4 个指标按钮（2×2）===== -->
-    <div class="btn-grid">
+    <div class="btn-grid" data-overflow-exit="scroll">
       <div
         v-for="ind in INDICATORS"
         :key="ind.key"
@@ -307,6 +307,10 @@ onUnmounted(() => stopPlayback())
   gap: v-bind(cell16px);
   flex: 1;
   min-height: 0;
+
+  /* 容量出口（c043）：容量按 panelGridCapacity 公式算，不钉常数；条目超出可见高时
+     不被 GCSPanel 的 overflow:hidden 裁掉，可滚可达 */
+  overflow-y: auto;
 }
 
 .btn-cell {

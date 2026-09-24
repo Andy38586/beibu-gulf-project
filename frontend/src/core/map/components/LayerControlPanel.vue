@@ -143,7 +143,7 @@ function handleToggle(key: string) {
 
 <template>
   <div class="layer-panel">
-    <div class="layer-grid">
+    <div class="layer-grid" data-overflow-exit="scroll">
       <button
         v-for="item in layerButtons"
         :key="item.key"
@@ -187,9 +187,13 @@ function handleToggle(key: string) {
 }
 
 /* 图层按钮网格：GCS（网格化布局系统）规格 —— 面板边缘 0.1cell(padding)，按钮间 0.2cell(gap)，
-   按钮 1.8×0.8cell 占满网格单元：4×4 面板内 2列×4行共 8 按钮正好填满。
+   按钮 1.8×0.8cell 占满网格单元：4×4 面板 2列×4行 = 8 条。容量不在组件里钉常数——
+   按 `panelGridCapacity` 公式算（见 shared/layout/panelCapacity.ts），因为目录条目是
+   **运行期派生**的（首屏 12 项、航线页 14 项），钉 8/13/14 都会随目录变化失效。
+   超出容量时条目不再被 GCSPanel 的 overflow:hidden 静默裁掉：本容器自带滚动出口
+   （`overflow-y:auto` + `data-overflow-exit="scroll"`），判据见 LayerControlPanel.capacity.test.ts。
    列用 1.8fr 均分（1.8fr×2 + gap 0.2cell = 内容宽 3.8cell，精确等于 1.8cell/按钮）；
-   行高固定 0.8cell，不足 8 个按钮时从顶部排、底部留白（边缘 0.1cell 仍保持）。 */
+   行高固定 0.8cell，不足容量时从顶部排、底部留白（边缘 0.1cell 仍保持）。 */
 .layer-grid {
   display: grid;
   grid-template-columns: repeat(2, 1.8fr);
@@ -197,6 +201,7 @@ function handleToggle(key: string) {
   gap: v-bind(cell16px);
   height: 100%;
   align-content: start;
+  overflow-y: auto;
 }
 
 .layer-btn {

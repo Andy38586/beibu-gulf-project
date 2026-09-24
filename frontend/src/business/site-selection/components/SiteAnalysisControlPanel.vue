@@ -222,7 +222,7 @@ defineExpose({
 <template>
   <div ref="panelRef" class="factor-panel">
     <!-- 8 个按钮，2 列 × 4 行 -->
-    <div class="factor-grid">
+    <div class="factor-grid" data-overflow-exit="scroll">
       <!-- 6 个设施因子按钮 -->
       <div
         v-for="item in facilityList"
@@ -287,6 +287,10 @@ defineExpose({
   gap: v-bind(cell16px);
   height: 100%;
   align-content: start;
+
+  /* 容量出口（c043）：容量按 panelGridCapacity 公式算，不钉常数；因子条目增多时
+     条目不被 GCSPanel 的 overflow:hidden 裁掉，可滚可达 */
+  overflow-y: auto;
 }
 
 .factor-item {

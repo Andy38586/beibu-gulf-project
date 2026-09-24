@@ -35,18 +35,10 @@ export const MARKER = '@guard-red-sample'
  * 每补一条红样就从这里删一项；新增守卫不得直接进本表。
  */
 export const BASELINE = [
-  // 已清空：18 个守卫全部交付红样。原无 test 的四个（no-ephemeral / tmp-hygiene /
-  // structure-check / metrics-tally）先后按「把核心判定导出成可测函数」的路子补上。
-  // 新增守卫一律不得直接进本表 —— 缺红样即红。
-  // 有 test 但缺结构化红样标记（8）
-  'agent-docs-check',
-  'anchor-check',
-  'constants-audit',
-  'csp-sync',
-  'forecast-confidence',
-  'routes-audit',
-  'run-all',
-  'tiles3d-check',
+  // 真·空。每一次往里加名字，都必须同时补一条红样——否则就是给「红样被摘掉」开后门：
+  // 本表里的守卫即使标记消失也只会被告警、不判红，于是它的红样可以静默消失。
+  // （2026-09-25 实测过这个洞：数组里残留 8 项时，摘掉其中任一项的标记，守卫仍然绿。）
+  // 新增守卫一律不得进本表 —— 缺红样即红。
 ]
 
 /** 枚举守卫名（排除测试目录、lib、本守卫自身） */

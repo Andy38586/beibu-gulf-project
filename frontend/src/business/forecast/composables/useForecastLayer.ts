@@ -6,7 +6,7 @@ import type { ComputedRef } from 'vue'
 import { computed, nextTick, onScopeDispose, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
-import { type BusinessLayerManager, useBusinessLayers } from '@/core'
+import { type BusinessLayerManager, useBusinessLayers, useOwnedLayers } from '@/core'
 import {
   ApiError,
   BoundedMap,
@@ -60,6 +60,7 @@ export function useForecastLayer(): UseForecastLayerReturn {
 
   // 卸载标志：watch 回调里 nextTick 后组件可能已卸载，
   // 拦截防止注册孤儿图层（图层无宿主，跨路由残留）
+  const owned = useOwnedLayers('forecast')
   let disposed = false
   onScopeDispose(() => {
     disposed = true
@@ -80,7 +81,7 @@ export function useForecastLayer(): UseForecastLayerReturn {
         const key = `forecast-${indicator}`
         if (manager.has(key)) continue
         const isActive = indicator === newInd
-        manager.register(key, {
+        owned.register(key, {
           label: INDICATOR_LABELS[indicator],
           layerType: LAYER_TYPES[indicator],
           data: null,
@@ -143,7 +144,7 @@ export function useForecastLayer(): UseForecastLayerReturn {
     if (!manager.has(key)) {
       await nextTick()
       if (!manager.has(key)) {
-        manager.register(key, {
+        owned.register(key, {
           label: INDICATOR_LABELS[indicator],
           layerType: LAYER_TYPES[indicator],
           data: null,
@@ -204,6 +205,10 @@ export function useForecastLayer(): UseForecastLayerReturn {
     }
   }
 
+  /**
+   * 主动清（供显式调用），**不走** owner 册：它是「现在就清」，不是「卸载时清」。
+   * 卸载清由 useOwnedLayers 负责；两边都清是幂等的，无害。
+   */
   function removeForecastLayer(): void {
     for (const indicator of INDICATORS) {
       const key = `forecast-${indicator}`

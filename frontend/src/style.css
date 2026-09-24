@@ -23,6 +23,7 @@
   --GCS-color-primary: rgb(
     64 158 255
   ); /* S7-30 已知豁免：白字对比度 2.78:1（暗色侧 6.67:1 达标）；品牌蓝提亮改档影响全站组件，登记豁免，redesign 时统一处理 */
+
   --GCS-color-primary-hover: rgb(102 177 255);
 
   /* ===== 语义状态色 ===== */
@@ -43,6 +44,7 @@
   --GCS-bg-panel: rgb(
     255 255 255
   ); /* 面板默认背景（S7-48：与 bg-elevated/text-inverse 亮色同值属巧合，暗色各异，不做 var 引用收敛） */
+
   --GCS-bg-panel-translucent: rgb(255 255 255 / 92%); /* 半透明面板（玻璃化） */
   --GCS-bg-elevated: rgb(255 255 255); /* 浮层/弹窗背景 */
   --GCS-bg-overlay: rgb(0 0 0 / 30%); /* 遮罩层 */
@@ -58,10 +60,12 @@
   --GCS-text-regular: rgb(
     51 51 51
   ); /* 一般按钮文字（S7-48：与 primary #303133 近同值，保留为兼容别名，新代码统一用 primary） */
+
   --GCS-text-secondary: rgb(96 98 102); /* 说明文字、info-label */
   --GCS-text-muted: rgb(
     144 147 153
   ); /* 辅助文字、占位符（S7-48：原 placeholder 同值双定义已随 S7-45 删除，占位符场景直接用 muted） */
+
   --GCS-text-inverse: rgb(255 255 255); /* 反白（蓝色背景上的文字） */
   --GCS-text-disabled: rgb(
     192 196 204

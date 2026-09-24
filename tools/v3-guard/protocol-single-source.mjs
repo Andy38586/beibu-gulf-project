@@ -39,16 +39,23 @@ const COPY_LINE_SKIP = /^(\||[-*>#`|\s-]+$|^\s*$)/
  * (①-b) 行归一化：剥掉列表符号、引用符号、行首序号与成对加粗标记。
  * 目的：**换一种排版复制同一条文（表格→编号列表、加粗→不加粗、加 `>` 引用）仍算复制**。
  * 若只比原文，改一下前缀就能绕过——那是 §5.3 式 4 要抓的形态。
+ *
+ * 前缀必须**循环剥到不动点**：`>` 与列表符号可叠加（`> - 条文`、`> > 条文`），
+ * 单趟"先剥序号再剥引用"会把 `> - x` 归一成 `- x`，与正本的 `x` 不相等 ⇒ 抄本换进引用块即漏检。
+ * 该漏口由 2026-09-24 一轮仓外变异复跑打出，现由同名测试文件里「式 4 前缀叠加」用例钉住。
  * @param {string} line
  */
 export function normLine(line) {
-  return line
-    .trim()
-    .replace(/^([-*+]|\d+[.)])\s+/, '')
-    .replace(/^>+\s*/, '')
-    .replace(/\*\*/g, '')
-    .replace(/`/g, '')
-    .trim()
+  let s = line.trim().replace(/\*\*/g, '').replace(/`/g, '').trim()
+  for (let i = 0; i < 6; i += 1) {
+    const next = s
+      .replace(/^([-*+]|\d+[.)])\s+/, '')
+      .replace(/^>+\s*/, '')
+      .trim()
+    if (next === s) break
+    s = next
+  }
+  return s
 }
 /** (②) 禁忌表头形态。 */
 const TABOO_HEADER = /^\|\s*#?\s*\|\s*禁忌\s*\|/m

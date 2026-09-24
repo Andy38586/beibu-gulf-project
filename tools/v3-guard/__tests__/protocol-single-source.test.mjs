@@ -5,7 +5,8 @@
  *   式 1 删字面   → 红样本：指针文件被删 / 指向正本的引用被删
  *   式 2 停用     → 红样本：表头唯一性判据的输入被清空（正本缺席）
  *   式 3 等价重构 → **不许红**：只改指针文件的措辞与结构，保持指针，必须仍绿
- *   式 4 同义改写违约 → 红样本：把条文换成编号列表复制（不是表格，测"结构识别"而非"格式识别"）
+ *   式 4 同义改写违约 → 红样本：换排版复制条文（编号列表 / 引用块 / 引用套列表 / 多层引用）——
+ *                后三种是仓外变异复跑打出来的真漏口，见下方「式 4 前缀叠加」用例
  */
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
@@ -18,6 +19,7 @@ import {
   POINTER_FILES,
   PROTOCOL_SOURCE,
   auditProtocolSingleSource,
+  normLine,
 } from '../protocol-single-source.mjs'
 import { GUARDS } from '../run-all.mjs'
 
@@ -78,6 +80,25 @@ describe('protocol-single-source 守卫', () => {
     texts['CLAUDE.md'] += `\n\n1. ${line}\n2. 另一条\n`
     const problems = auditProtocolSingleSource(texts)
     expect(problems.join(' ')).toContain('原文重合')
+  })
+
+  // 这一格是 2026-09-24 用仓外变异复跑打出来的真漏：normLine 单趟剥前缀时，
+  // `> - 条文` 归一后仍留 `- `，与正本的 `条文` 不相等 ⇒ 把条文整段塞进引用块就能绕过查重，
+  // 而这恰是本守卫注释承诺要抓的形态。修成定点循环后，以下三种叠加写法必须全部报红。
+  it('🔴 式 4 前缀叠加（引用块 / 引用套列表 / 多层引用）复制 → 三种都必须报"原文重合"', () => {
+    for (const wrap of [(l) => `> ${l}`, (l) => `> - ${l}`, (l) => `> > ${l}`]) {
+      const texts = realTexts()
+      const line = aSourceLine(texts)
+      texts['CLAUDE.md'] += `\n\n${wrap(line)}\n`
+      expect(auditProtocolSingleSource(texts).join(' ')).toContain('原文重合')
+    }
+  })
+
+  it('式 3 等价重构不许红：同一条文各自单独归一，结果必须相等（防归一化过度）', () => {
+    const line = aSourceLine(realTexts())
+    const bare = normLine(line.replace(/^([-*+]|\d+[.)])\s+/, ''))
+    expect(normLine(`> - ${bare}`)).toBe(bare)
+    expect(normLine(`> > **${bare.replace(/\*\*/g, '')}**`)).toBe(bare)
   })
 
   it('🔴 式 4 同义改写违约：照搬章节标题结构（改名不改结构也算）→ 必须报"章节结构"', () => {

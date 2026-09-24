@@ -93,12 +93,17 @@ echo "[pre-push] 12/13 后端测试 + 门控核对（真库套件按 V3_INTEGRAT
 npm run test:gate:be
 npm run test:watchdog -- --project backend
 
-# 前端门控核对：只读既有 vitest 结果（不重跑测试，秒级）。缺失结果文件时该步会报红——
-# 此时本地先跑 `npm run test:report:fe` 生成即可；CI 里该结果由 test:report:fe 产出。
-echo "[pre-push] 13/13 前端门控核对（需 frontend/coverage/vitest-result.json）"
-if [ -f frontend/coverage/vitest-result.json ]; then
-  npm run test:watchdog -- --project frontend
-else
-  echo "  ⚠️ 未找到 frontend/coverage/vitest-result.json，跳过前端门控核对（CI 会跑完整链路）。"
-  echo "     如需本地核对：npm run test:report:fe 后重试。"
+# 前端门控核对：**本步自己产出输入**（z056 / W10 修法 A）。原形态只读既有
+# `frontend/coverage/vitest-result.json` 且缺件走 `else` 只 echo ⇒ 两个方向同时失真：
+#   ① 假绿——该目录被 .gitignore 排除（`git ls-tree HEAD -- frontend/coverage` = 0 个文件），
+#      任何干净检出/新克隆第一次 push 必走 `else`，不跑测试也过；
+#   ② 假红/失真——文件在时核对的是与 HEAD 无关的一次历史运行（可能是别的分支或旧提交的）。
+# 修法 A：先真跑 `test:report:fe` 产出本轮结果再核对；产出失败或缺件一律红（`set -e` +
+# 显式 exit 1 双保险）。代价：本步从"秒级只读"变成一次前端全量真跑（R4-04 实测 +40s 量级）。
+echo "[pre-push] 13/13 前端门控核对（本步自产输入，不读历史快照）"
+npm run test:report:fe
+if [ ! -f frontend/coverage/vitest-result.json ]; then
+  echo "::error::test:report:fe 未产出 frontend/coverage/vitest-result.json，前端门控核对待核对对象缺失"
+  exit 1
 fi
+npm run test:watchdog -- --project frontend

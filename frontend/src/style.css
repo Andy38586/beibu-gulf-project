@@ -28,8 +28,6 @@
 
   /* ===== 语义状态色 ===== */
   --GCS-color-error: rgb(255 77 79);
-  --GCS-color-error-bg: rgb(255 242 240);
-  --GCS-color-error-border: rgb(255 204 199);
 
   /* 816-S7-39：亮色语义色加深至 WCAG AA（白底文本 ≥4.5:1，node 实测原值 2.27/2.19/2.90 不达标）；
      success rgb(82 196 26)→rgb(24 122 48)(5.43)、warning rgb(230 162 60)→rgb(163 99 0)(4.84)、danger rgb(245 108 108)→rgb(204 58 77)(4.91)；
@@ -48,9 +46,6 @@
   --GCS-bg-panel-translucent: rgb(255 255 255 / 92%); /* 半透明面板（玻璃化） */
   --GCS-bg-elevated: rgb(255 255 255); /* 浮层/弹窗背景 */
   --GCS-bg-overlay: rgb(0 0 0 / 30%); /* 遮罩层 */
-
-  /* c052：浅色叠层基准（滑块轨道等玻璃化底色；暗色下调淡防刺眼） */
-  --GCS-overlay-tint: rgb(255 255 255 / 40%);
   --GCS-bg-container: rgb(245 247 250); /* 面板内部内容容器 */
   --GCS-bg-hover: rgb(240 247 255); /* 通用 hover 背景（浅蓝） */
   --GCS-bg-active: rgb(230 244 255); /* 选中/激活状态背景 */
@@ -114,13 +109,9 @@
   --GCS-slider-thumb-size: 14px; /* 拇指直径（原 conf 16px / t-slider 18px / factor 14px 三套） */
   --GCS-slider-track-height: 6px; /* 轨道高（原 4px/6px 两套） */
 
-  /* 白叠层变体双主题化：组件硬编码 rgb(255 255 255 / x%) 只按亮色设计，
-     暗色下与 overlay-tint 亮度分裂；「略深/更淡」为有意的视觉分级，
-     故独立成 token 而非并入 overlay-tint，暗色档见 dark 块 */
-  --GCS-slider-track-tint: rgb(255 255 255 / 50%); /* 因子滑块轨道底色（较 overlay-tint 略深） */
-  --GCS-overlay-highlight: rgb(
-    255 255 255 / 22%
-  ); /* 按钮悬浮高光（较 overlay-tint 更淡，仅高光用） */
+  /* 白叠层高光双主题化：组件硬编码 rgb(255 255 255 / x%) 只按亮色设计，暗色下需调淡，
+     故独立成 token，暗色档见 dark 块 */
+  --GCS-overlay-highlight: rgb(255 255 255 / 22%); /* 按钮悬浮高光，仅高光用 */
 }
 
 /* c056：暗色主题下底图压暗（纯 CSS，零 JS）——天地图影像不再刺眼；
@@ -146,8 +137,6 @@
   --GCS-color-primary: rgb(255 122 26);
   --GCS-color-primary-hover: rgb(255 145 71);
   --GCS-color-error: rgb(255 107 111);
-  --GCS-color-error-bg: rgb(58 29 31);
-  --GCS-color-error-border: rgb(107 42 45);
   --GCS-color-success: rgb(87 217 124);
   --GCS-color-warning: rgb(240 179 90);
   --GCS-color-danger: rgb(255 122 125);
@@ -157,10 +146,8 @@
   --GCS-bg-panel-translucent: rgb(13 27 42 / 92%);
   --GCS-bg-elevated: rgb(19 38 58);
   --GCS-bg-overlay: rgb(0 0 0 / 50%);
-  --GCS-overlay-tint: rgb(255 255 255 / 8%); /* 暗色下白色叠层调淡（防刺眼） */
 
-  /* 白叠层变体随暗色调淡，维持 track-tint > tint > highlight 的相对层级（对齐亮侧比例关系） */
-  --GCS-slider-track-tint: rgb(255 255 255 / 16%);
+  /* 白叠层高光随暗色调淡（对齐亮侧比例关系） */
   --GCS-overlay-highlight: rgb(255 255 255 / 10%);
   --GCS-bg-container: rgb(16 31 49);
   --GCS-bg-hover: rgb(23 49 77);

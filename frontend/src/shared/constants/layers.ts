@@ -56,3 +56,19 @@ export const DEFAULT_LAYER_ORDER: readonly string[] = [
   LAYER_KEYS.boundary,
   LAYER_KEYS.ports,
 ]
+
+/** 预测域图层 key 前缀：每个指标一张图层。**不导出** —— 外部只该用下面那个构造器 */
+const FORECAST_LAYER_PREFIX = 'forecast-'
+
+/**
+ * 由指标得到预测图层 key。
+ *
+ * 为什么必须有这个构造器：注册侧（`useForecastLayer`）用的是模板串
+ * `forecast-${indicator}`，而面板 `layer-order` 此前**手抄成字面量**
+ * （`forecast-cargo` / `forecast-activity` / `forecast-container`）。
+ * 两边靠"看起来一样"维持 —— 指标一改名，面板按钮就对不上目录条目而静默消失。
+ * 收敛成同一个函数后，同源由调用保证。
+ */
+export function forecastLayerId(indicator: string): string {
+  return FORECAST_LAYER_PREFIX + indicator
+}

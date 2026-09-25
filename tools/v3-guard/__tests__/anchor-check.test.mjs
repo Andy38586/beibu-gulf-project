@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   ANCHOR_TOLERANCE_KM,
   collectIndicatorAnchors,
+  definesOwnIndicatorList,
   evaluateAnchors,
   readIndicators,
 } from '../anchor-check.mjs'
@@ -54,7 +55,7 @@ describe('evaluateAnchors — 锚点容差判定', () => {
 
 describe('readIndicators — 从前端源码解析消费清单', () => {
   it('标准写法解析为指标数组', () => {
-    const src = "const INDICATORS = ['cargo', 'container', 'activity'] as const"
+    const src = "export const FORECAST_INDICATORS = ['cargo', 'container', 'activity'] as const"
     expect(readIndicators(src)).toEqual(['cargo', 'container', 'activity'])
   })
 
@@ -66,25 +67,35 @@ describe('readIndicators — 从前端源码解析消费清单', () => {
 // 「注入即红」：解析到数组体却抽不出指标时，必须返回 null（守卫报错），不得返回 [] 让循环 0 次空转
 describe('readIndicators — 结构漂移不得静默空转（P1-09 壳化修复）', () => {
   it('空数组 → null（原实现返回 []，`for…of` 循环 0 次 → 守卫整体空转）', () => {
-    expect(readIndicators('const INDICATORS = [] as const')).toBeNull()
+    expect(readIndicators('export const FORECAST_INDICATORS = [] as const')).toBeNull()
   })
 
   it('双引号写法 → 正常解析（原实现只认单引号，抽值为空）', () => {
-    expect(readIndicators('const INDICATORS = ["cargo", "container"] as const')).toEqual([
-      'cargo',
-      'container',
-    ])
+    expect(
+      readIndicators('export const FORECAST_INDICATORS = ["cargo", "container"] as const')
+    ).toEqual(['cargo', 'container'])
   })
 
   it('反引号写法 → 正常解析', () => {
-    expect(readIndicators('const INDICATORS = [`cargo`, `activity`] as const')).toEqual([
-      'cargo',
-      'activity',
-    ])
+    expect(
+      readIndicators('export const FORECAST_INDICATORS = [`cargo`, `activity`] as const')
+    ).toEqual(['cargo', 'activity'])
   })
 
   it('重复项去重', () => {
-    expect(readIndicators("const INDICATORS = ['cargo', 'cargo'] as const")).toEqual(['cargo'])
+    expect(
+      readIndicators("export const FORECAST_INDICATORS = ['cargo', 'cargo'] as const")
+    ).toEqual(['cargo'])
+  })
+
+  it('@guard-red-sample 消费侧自建 INDICATORS 清单 ⇒ 必报（权威源被旁路）', () => {
+    expect(definesOwnIndicatorList("const INDICATORS = ['cargo'] as const")).toBe(true)
+  })
+
+  it('消费侧改用 import ⇒ 不报（阳性对照：判据不是恒真）', () => {
+    expect(definesOwnIndicatorList("import { FORECAST_INDICATORS } from '@/shared'")).toBe(false)
+    // 仅"出现 INDICATORS 字样"不算自建：注释里提到也不算
+    expect(definesOwnIndicatorList('// 原 INDICATORS 清单已上提到 shared')).toBe(false)
   })
 })
 

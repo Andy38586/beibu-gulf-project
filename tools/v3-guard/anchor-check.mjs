@@ -7,7 +7,8 @@
  * 没有任何门禁问过「它到底在不在港口上」——本守卫把该断言固化为 CI 不变量。
  *
  * 守卫的不变量：
- *   1. 前端实际消费的指标清单（useForecastLayer.ts 的 INDICATORS，权威源）中，
+ *   1. 前端实际消费的指标清单（`shared/constants/forecast.ts` 的 FORECAST_INDICATORS，
+ *      唯一权威源）中，
  *      每个指标文件、每个港口的 spatial 锚点，距最近权威港口 ≤ 2km；
  *   2. index.json 的 metadata.ports（锚点原始来源，曾被下游复制）同样在容差内；
  *   3. 已下架指标（berth/traffic）未被前端重新消费，且文件保留「未对齐/已废弃」
@@ -32,7 +33,17 @@ export const RETIRED_MARKERS = ['已废弃', '未对齐']
 
 const PORTS_FILE = 'frontend/public/data/ports.json'
 const FORECAST_DIR = 'backend/data/forecast'
-const INDICATOR_SOURCE = 'frontend/src/business/forecast/composables/useForecastLayer.ts'
+/**
+ * 指标清单的**唯一权威源**。
+ *
+ * 为什么从 `useForecastLayer.ts` 挪到这里（2026-09-25）：清单原先定义在消费侧
+ * （注册图层的那个文件），而面板 `layer-order` 另抄一份字面量 —— 两边靠"看起来
+ * 一样"维持。a028 把清单上提到 shared 后，本守卫的输入也随之改指权威源；
+ * 结构再变仍返回 null 报错（不静默放宽）。
+ */
+const INDICATOR_SOURCE = 'frontend/src/shared/constants/forecast.ts'
+/** 消费侧：不得再自建一份清单（否则权威源被旁路，本守卫要能拦） */
+const INDICATOR_CONSUMER = 'frontend/src/business/forecast/composables/useForecastLayer.ts'
 
 /** Haversine 距离（km）——与项目 turf/geography 口径同源（平均地球半径） */
 export function distanceKm(a, b) {
@@ -82,9 +93,12 @@ export function evaluateAnchors(ports, anchors, toleranceKm = ANCHOR_TOLERANCE_K
   return problems
 }
 
-/** 从 useForecastLayer.ts 源码解析前端消费的指标清单（源码结构变更时返回 null 让守卫报错） */
+/**
+ * 从权威源解析前端消费的指标清单（源码结构变更时返回 null 让守卫报错）。
+ * @param {string} sourceText `INDICATOR_SOURCE` 的正文
+ */
 export function readIndicators(sourceText) {
-  const m = sourceText.match(/const INDICATORS\s*=\s*\[([^\]]*)\]/)
+  const m = sourceText.match(/export const FORECAST_INDICATORS\s*=\s*\[([^\]]*)\]/)
   if (!m) return null
   // 修复（P1-09，2026-09-15）：① 同时匹配单/双/反引号（原来只认单引号，改成双引号后抽值为空）；
   // ② 解析到数组体却抽不出任何指标 = 结构变更 ⇒ 返回 null 让守卫报错，
@@ -112,6 +126,14 @@ export function collectIndicatorAnchors(indicator, data) {
   return { anchors, problems }
 }
 
+/**
+ * 消费侧是否自建了一份清单（绕过权威源）。抽出来是为了可测 —— 内联在
+ * runAnchorCheck 里就只能靠实跑整个守卫验证。
+ */
+export function definesOwnIndicatorList(sourceText) {
+  return /const\s+INDICATORS\s*=\s*\[/.test(sourceText)
+}
+
 /** 主检查：返回 { problems, checked }（problems 非空 = 守卫失败） */
 export function runAnchorCheck(root) {
   const problems = []
@@ -127,11 +149,19 @@ export function runAnchorCheck(root) {
     lat: Number(p.lat),
   }))
 
-  // 2) 前端消费清单（权威源）
+  // 2) 前端消费清单（唯一权威源）
   const indicators = readIndicators(readFileSync(path.join(root, INDICATOR_SOURCE), 'utf8'))
   if (indicators === null) {
     problems.push(
-      `${INDICATOR_SOURCE}：未解析到 INDICATORS 清单（源码结构变更，守卫须同步后再放行）`
+      `${INDICATOR_SOURCE}：未解析到 FORECAST_INDICATORS 清单（源码结构变更，守卫须同步后再放行）`
+    )
+  }
+  // 2b) 消费侧不得自建清单 —— 否则"权威源"只是摆设，两边还能各自漂
+  const consumerText = readFileSync(path.join(root, INDICATOR_CONSUMER), 'utf8')
+  if (definesOwnIndicatorList(consumerText)) {
+    problems.push(
+      `${INDICATOR_CONSUMER}：消费侧自建 INDICATORS 清单 ⇒ 绕过了权威源 ` +
+        '（应 import FORECAST_INDICATORS）'
     )
   }
 

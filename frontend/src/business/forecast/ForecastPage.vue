@@ -10,7 +10,7 @@
 import { onMounted, onUnmounted, watch } from 'vue'
 
 import { AppLayout, GCSPanel, LayerControlPanel } from '@/core'
-import { logger, useProfileSnapshot } from '@/shared'
+import { DEFAULT_LAYER_ORDER, forecastLayerId, logger, useProfileSnapshot } from '@/shared'
 import { useForecastStore } from '@/stores'
 import { useMapStore } from '@/stores'
 import type { ForecastSavedState } from '@/stores/forecastStore'
@@ -21,6 +21,16 @@ import { useForecastComparison } from './composables/useForecastComparison'
 import { useForecastLayer } from './composables/useForecastLayer'
 import { useForecastRequest } from './composables/useForecastRequest'
 import { useForecastTimeseries } from './composables/useForecastTimeseries'
+
+/**
+ * 图层面板里预测层的展示顺序（面板按「货 → 活 → 箱」排）。
+ *
+ * 注意：它与注册顺序 `FORECAST_INDICATORS`（货 → 箱 → 活）**不一致** —— 这是既存事实，
+ * 本笔只把 key 的来源收到 `forecastLayerId`（原先这里手抄 3 个图层 key 字面量，
+ * 指标一改名面板按钮就与目录条目对不上而静默消失），**不改可见顺序**：
+ * 面板顺序该不该与注册顺序统一属产品可见口径，须单独裁。
+ */
+const FORECAST_PANEL_ORDER: string[] = ['cargo', 'activity', 'container'].map(forecastLayerId)
 
 const forecastState = useForecastStore()
 const mapStore = useMapStore()
@@ -153,17 +163,7 @@ onUnmounted(() => {
           <ForecastControlPanel />
         </GCSPanel>
         <GCSPanel :w="4" :h="4" anchor="top-right" :offset-x="0" :offset-y="5.5">
-          <LayerControlPanel
-            :layer-order="[
-              'base-image',
-              'base-vector',
-              'boundary',
-              'ports',
-              'forecast-cargo',
-              'forecast-activity',
-              'forecast-container',
-            ]"
-          />
+          <LayerControlPanel :layer-order="[...DEFAULT_LAYER_ORDER, ...FORECAST_PANEL_ORDER]" />
         </GCSPanel>
       </template>
     </AppLayout>

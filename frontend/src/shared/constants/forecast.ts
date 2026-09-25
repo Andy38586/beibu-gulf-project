@@ -6,6 +6,16 @@
 /** 默认置信度阈值（各指标共用） */
 export const DEFAULT_CONFIDENCE = 0.8
 
+/**
+ * 预测指标清单（唯一权威源）。
+ *
+ * 每个指标对应一张地图图层，图层 key 一律由 `forecastLayerId(indicator)`
+ * （见 `constants/layers`）派生。此前注册侧用模板串、面板 `layer-order` 手抄字面量，
+ * 两边靠"看起来一样"维持 —— 与下面 PORT_KEYS「定义了却零引用」是同一类病：
+ * **定义与使用不成对**。
+ */
+export const FORECAST_INDICATORS = ['cargo', 'container', 'activity'] as const
+
 /** 预测时间轴起止年 */
 export const BASE_YEAR = 2021
 export const END_YEAR = 2031

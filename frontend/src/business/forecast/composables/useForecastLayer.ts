@@ -1,6 +1,10 @@
 /**
- * useForecastLayer — 预测分析图层管理：每个指标对应独立图层（key: forecast-{indicator}），
- * 切换指标时自动显隐，LayerControlPanel 列出全部 4 个条目
+ * useForecastLayer — 预测分析图层管理：每个指标对应独立图层
+ * （key 由 `forecastLayerId(indicator)` 派生，见 shared/constants/layers），
+ * 切换指标时自动显隐，LayerControlPanel 按指标清单列出。
+ *
+ * 注：此处刻意不复述图层条目**数量** —— 原文写"全部 4 个条目"而 INDICATORS 实为 3 个，
+ * 数量一变注释就成失实宣称（z040 那类漂移）。条目数一律由 INDICATORS 派生。
  */
 import type { ComputedRef } from 'vue'
 import { computed, nextTick, onScopeDispose, watch } from 'vue'
@@ -17,7 +21,7 @@ import {
   useApiRequest,
 } from '@/shared'
 import { logger } from '@/shared'
-import { DEFAULT_CONFIDENCE } from '@/shared'
+import { DEFAULT_CONFIDENCE, forecastLayerId, FORECAST_INDICATORS } from '@/shared'
 import { useForecastStore } from '@/stores'
 import { useMapStore } from '@/stores'
 import type { LayerOptions, LayerType, MapRenderer } from '@/types'
@@ -26,7 +30,6 @@ import { forecastMapDataSchema } from '@/types/schemas'
 
 import { useForecastRequest } from './useForecastRequest'
 
-const INDICATORS = ['cargo', 'container', 'activity'] as const
 const INDICATOR_LABELS: Record<string, string> = {
   cargo: '货物吞吐量热力',
   container: '集装箱吞吐量热力',
@@ -76,8 +79,8 @@ export function useForecastLayer(): UseForecastLayerReturn {
       if (disposed) return
 
       // 渲染器就绪时注册全部 4 个图层
-      for (const indicator of INDICATORS) {
-        const key = `forecast-${indicator}`
+      for (const indicator of FORECAST_INDICATORS) {
+        const key = forecastLayerId(indicator)
         if (manager.has(key)) continue
         const isActive = indicator === newInd
         owned.register(key, {
@@ -92,10 +95,10 @@ export function useForecastLayer(): UseForecastLayerReturn {
       // 指标切换时更新图层可见性：old 隐藏；new 尊重 registry——
       // 用户手动隐藏过的层（renderer 已有实例）不强制重开，仅首次激活（无实例）自动显示
       if (oldInd && oldInd !== newInd) {
-        const oldKey = `forecast-${oldInd}`
+        const oldKey = forecastLayerId(oldInd)
         if (manager.has(oldKey)) manager.setVisible(oldKey, false)
       }
-      const newKey = `forecast-${newInd}`
+      const newKey = forecastLayerId(newInd)
       if (manager.has(newKey)) {
         const renderedBefore = r.hasLayer?.(newKey) ?? false
         if (!renderedBefore) manager.setVisible(newKey, true)
@@ -137,7 +140,7 @@ export function useForecastLayer(): UseForecastLayerReturn {
     const indicator = forecastState.activeIndicator
     const rawTime = forecastState.currentTime
     const time = rawTime.includes('-') ? rawTime : `${rawTime}-12`
-    const key = `forecast-${indicator}`
+    const key = forecastLayerId(indicator)
 
     // 检查图层是否已注册，若未注册则先注册
     if (!manager.has(key)) {

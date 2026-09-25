@@ -11,6 +11,7 @@ import {
   classify,
   extractCommitExamples,
   extractTokens,
+  isGitIgnored,
   prefixedRefs,
   stripCommitType,
 } from '../agent-docs-check.mjs'
@@ -61,20 +62,48 @@ describe('agent-docs-check（作业协议自述守卫）', () => {
   })
 
   it('协议里没有「例：」示例时报红，而不是静默通过', () => {
-    expect(checkCommitForm('# 没有示例的协议\n')).toHaveLength(1)
+    expect(checkCommitForm('# 没有示例的协议\n').violations).toHaveLength(1)
+  })
+
+  it('@guard-red-sample commitlint 不可用 ⇒ 记 SKIPPED，不判红（§5.4 工具不可用不判红也不判绿）', () => {
+    const unavailable = () => ({ rc: null, why: 'commitlint CLI 缺失，无法校验断言 3' })
+    const r = checkCommitForm('例：`fix: 修 xxx`\n', unavailable)
+    expect(r.violations).toEqual([]) // 关键：环境问题不冒充协议失真
+    expect(r.skipped).toHaveLength(3) // 正向示例 + 反向样本 + 带 scope 三条
+    expect(r.skipped[0].why).toContain('commitlint')
+  })
+
+  it('@guard-red-sample 反向样本被放行 ⇒ 必报（hook 规则没生效 = 恒真摆设）', () => {
+    const alwaysPass = () => ({ rc: 0 })
+    const r = checkCommitForm('例：`fix: 修 xxx`\n', alwaysPass)
+    expect(r.violations.map((v) => v.why).join(' ')).toContain('恒真摆设')
+  })
+
+  it('@guard-red-sample 带 scope 样本被放行 ⇒ 必报（口径禁 type(scope) 却无机器判据）', () => {
+    // 模拟：正向过、剥 type 的反向被拒、唯独带 scope 的被放行
+    const lint = (msg) => ({ rc: msg.includes(': ') ? 0 : 1 })
+    const r = checkCommitForm('例：`fix: 修 forecast-map 域恒 400`\n', lint)
+    expect(r.violations.map((v) => v.why).join(' ')).toContain('无机器判据')
+  })
+
+  it('@guard-red-sample 版本控制之外的目标（gitignored）⇒ 不做存在性断言；默认仍从严', () => {
+    const ignored = (rel) => rel === '.local/'
+    expect(checkRefs([{ token: '.local/', line: 1 }], NONE, ignored)).toEqual([])
+    // 不传 isIgnored 时保持默认从严（纯函数不被环境牵着走）
+    expect(checkRefs([{ token: '.local/', line: 1 }], NONE)).toHaveLength(1)
   })
 
   it('反向样本剥出的就是裸主题（它必须被 commitlint 拒）', () => {
     expect(stripCommitType('fix(task): 穷尽派生 TASK_DOMAINS')).toBe('穷尽派生 TASK_DOMAINS')
   })
 
-  it('回归锚：现存两份协议文件必须自洽', () => {
+  it('回归锚：现存两份协议文件必须自洽（含「版本控制之外不判断链」口径）', () => {
     for (const rel of ['AGENTS.md', 'CLAUDE.md']) {
       const entries = extractTokens(fs.readFileSync(path.join(ROOT, rel), 'utf8')).map((e) => ({
         ...e,
         file: rel,
       }))
-      expect(checkRefs(entries), rel).toEqual([])
+      expect(checkRefs(entries, undefined, isGitIgnored), rel).toEqual([])
     }
   })
 

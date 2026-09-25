@@ -8,12 +8,18 @@
  *
  * 断言 1（带目录前缀的引用）：协议里 `docs/...`、`.husky/...`、`backend/...` 这类路径，
  *   必须能从仓库根精确解析。
+ *   **例外（2026-09-25 修）**：目标在**版本控制之外**（gitignored，如协议指引「长证据落
+ *   `.local/`」）时不做存在性断言。依据 AGENTS §5.4「判据的输入必须受版本控制，不得读
+ *   gitignored 路径」—— 这类路径本就不会出现在干净检出/CI 里，对它断言等于让门禁在 CI
+ *   上**恒红**且本地看不出来（本地有 `.local/`，CI 没有）。这是修正输入口径，不是放宽。
  * 断言 2（裸 .md 引用）：协议里 `01-项目全景.md` 这种不带目录的文件名，必须在
  *   {仓库根, docs/, docs/根基文档/} 里唯一命中——0 命中是断链，多命中是歧义。
  * 断言 3（commit 口径）：协议里 `例：` 给出的提交示例必须真能过 commitlint；同时把该示例
  *   的 `type(scope):` 前缀剥掉得到的**反向样本必须被拒**。反向样本若也放行，说明
  *   commitlint 根本没生效、断言 3 成了恒真摆设——按 tmp-hygiene 2026-09-18 的教训，
  *   守卫自己失效必须当场报红，不许静默 OK。
+ *   **工具不可用时记 SKIPPED 并计入报告，不判红也不判绿**（AGENTS §5.4）——CLI 缺失是
+ *   环境问题，不是协议失真；把它判红会让"没装依赖的干净检出"看起来像文档写错了。
  *   同一断言还钉**口径单源**：协议与决策文档都禁 `type(scope):`，故把示例改写成带 scope
  *   的形态后必须被拒（对应 `package.json` → `commitlint.rules.scope-empty`）；文档写"禁"
  *   而配置不拦，就是零机器判据的空宣称（W13）。
@@ -131,16 +137,36 @@ export function classify(token) {
 }
 
 /**
+ * 目标是否在**版本控制之外**（gitignored）。按 AGENTS §5.4，判据不得对这类目标做存在性
+ * 断言 —— 它本就不会出现在干净检出/CI 里。只在"看起来违规"时才 spawn git，正常路径零开销。
+ */
+export function isGitIgnored(rel) {
+  // `stdio: 'ignore'` 是必须的：受限执行环境拒绝**管道式**子进程，spawnSync 会返回
+  // status=null，于是本函数恒返回 false、豁免静默失效（本仓第三次踩同一个坑 ——
+  // 前两次见 mutation-probe 与 runCommitlint）。这里只要退出码，不需要任何输出。
+  const r = spawnSync('git', ['check-ignore', '-q', '--', rel], { cwd: ROOT, stdio: 'ignore' })
+  return r.status === 0
+}
+
+/**
  * @param {Array<{token: string, line: number}>} entries 已带来源文件标注的片段
  * @param {(rel: string) => boolean} exists
+ * @param {(rel: string) => boolean} isIgnored 版本控制之外 ⇒ 跳过存在性断言（默认不豁免，
+ *   保持纯函数的可测性与"默认从严"）
  */
-export function checkRefs(entries, exists = (rel) => fs.existsSync(path.join(ROOT, rel))) {
+export function checkRefs(
+  entries,
+  exists = (rel) => fs.existsSync(path.join(ROOT, rel)),
+  isIgnored = () => false
+) {
   const bad = []
   for (const e of entries) {
     const c = classify(e.token)
     if (!c) continue
     if (c.kind === 'prefixed') {
-      if (!exists(c.value)) bad.push({ ...e, ref: c.value, why: '带目录前缀的引用从仓库根不存在' })
+      if (exists(c.value)) continue
+      if (isIgnored(c.value)) continue
+      bad.push({ ...e, ref: c.value, why: '带目录前缀的引用从仓库根不存在' })
       continue
     }
     const hits = BARE_DIRS.map((d) => d + c.value).filter(exists)
@@ -225,27 +251,47 @@ function runCommitlint(message) {
   }
 }
 
-export function checkCommitForm(text) {
-  const bad = []
+/**
+ * @param {string} text 协议正文
+ * @param {(msg: string) => {rc: number|null, why?: string}} lint commitlint 调用（可注入，便于
+ *   测「工具不可用 ⇒ SKIPPED」这一格）
+ * @returns {{violations: Array, skipped: Array}} 工具不可用的样本进 `skipped` ——
+ *   §5.4：记 SKIPPED 并计入报告，**不判红也不判绿**
+ */
+export function checkCommitForm(text, lint = runCommitlint) {
+  const violations = []
+  const skipped = []
   const examples = extractCommitExamples(text)
   if (examples.length === 0) {
-    return [{ ref: '(无)', why: '协议里没有 `例：` 形式的可执行 commit 示例，口径无从校验' }]
+    return {
+      violations: [
+        { ref: '(无)', why: '协议里没有 `例：` 形式的可执行 commit 示例，口径无从校验' },
+      ],
+      skipped,
+    }
   }
   for (const ex of examples) {
-    const pass = runCommitlint(ex.message)
-    if (pass.rc === null) return [{ ref: 'commitlint', why: pass.why }]
+    const pass = lint(ex.message)
+    if (pass.rc === null) {
+      skipped.push({ ref: `commitlint(${ex.message})`, why: pass.why })
+      continue
+    }
     if (pass.rc !== 0) {
-      bad.push({
+      violations.push({
         ref: ex.message,
         line: ex.line,
         why: '协议自己的 commit 示例过不了 commitlint（口径与 hook 实装脱节）',
       })
     }
   }
+
+  // 反向样本必须被拒 —— 放行即「hook 规则没生效，本断言成了恒真摆设」
   const negative = stripCommitType(examples[0].message)
-  const reject = runCommitlint(negative)
-  if (reject.rc === 0) {
-    bad.push({
+  const reject = lint(negative)
+  if (reject.rc === null) {
+    skipped.push({ ref: `commitlint(反向样本 ${negative})`, why: reject.why })
+  } else if (reject.rc === 0) {
+    violations.push({
       ref: negative,
       why: '反向样本（剥掉 type 前缀）未被 commitlint 拒绝 ⇒ hook 侧规则没生效，本断言是恒真摆设',
     })
@@ -255,19 +301,22 @@ export function checkCommitForm(text) {
   // 文档这么说就必须有机器判据——把示例同义改写成带 scope 的形态，断言 commitlint 拒它；
   // 若有人删掉 `package.json` 的 `commitlint.rules.scope-empty`，或把口径改回允许，这里立刻红。
   const scoped = examples[0].message.replace(/^([a-z][a-z-]*)!?:/, '$1(scope):')
-  const scopedCheck = runCommitlint(scoped)
-  if (scopedCheck.rc === 0) {
-    bad.push({
+  const scopedCheck = lint(scoped)
+  if (scopedCheck.rc === null) {
+    skipped.push({ ref: `commitlint(${scoped})`, why: scopedCheck.why })
+  } else if (scopedCheck.rc === 0) {
+    violations.push({
       ref: scoped,
       why: '口径禁 `type(scope):`，但带 scope 的样本被 commitlint 放行 ⇒ 口径无机器判据（需 package.json 的 commitlint.rules.scope-empty）',
     })
   }
-  return bad
+  return { violations, skipped }
 }
 
 function run() {
   const refBad = []
   const commitBad = []
+  const skipped = []
   let checked = 0
   for (const rel of PROTOCOL_DOCS) {
     const abs = path.join(ROOT, rel)
@@ -278,14 +327,21 @@ function run() {
     const text = fs.readFileSync(abs, 'utf8')
     const entries = extractTokens(text).map((e) => ({ ...e, file: rel }))
     checked += entries.filter((e) => classify(e.token)).length
-    for (const b of checkRefs(entries)) refBad.push({ file: rel, ...b })
-    for (const b of checkCommitForm(text)) commitBad.push({ file: rel, ...b })
+    for (const b of checkRefs(entries, undefined, isGitIgnored)) refBad.push({ file: rel, ...b })
+    const cf = checkCommitForm(text)
+    for (const b of cf.violations) commitBad.push({ file: rel, ...b })
+    for (const s of cf.skipped) skipped.push({ file: rel, ...s })
   }
 
   const violations = [...refBad, ...checkLiveDocs(), ...commitBad]
   if (process.argv.includes('--json')) {
-    console.log(JSON.stringify({ checked, violations }, null, 2))
+    console.log(JSON.stringify({ checked, violations, skipped }, null, 2))
     process.exit(violations.length ? 1 : 0)
+  }
+  // §5.4：工具不可用的断言记 SKIPPED 并计入报告（既不判红也不判绿）。单独打一行，
+  // 免得「没装依赖的环境」看上去像「文档全部自洽」。
+  for (const s of skipped) {
+    console.log(`[agent-docs-check] SKIPPED ${s.file}  ${s.ref} —— ${s.why}`)
   }
   if (violations.length) {
     console.log(
@@ -301,7 +357,8 @@ function run() {
     process.exit(1)
   }
   console.log(
-    `[agent-docs-check] OK：${PROTOCOL_DOCS.join(' + ')} 的 ${checked} 条路径引用与 commit 示例全部自洽`
+    `[agent-docs-check] OK：${PROTOCOL_DOCS.join(' + ')} 的 ${checked} 条路径引用与 commit 示例全部自洽` +
+      (skipped.length ? `（另 ${skipped.length} 条断言因工具不可用记 SKIPPED）` : '')
   )
 }
 

@@ -204,6 +204,22 @@ async function loadData() {
   }
 }
 
+/**
+ * 重绘业务图层，并把"未上屏"清单汇总留痕（a029）。
+ * BLM 逐层跳过只写 logger.debug（dev-only），生产侧一条痕迹都没有——引擎切换后
+ * 到底哪些图层没挂上，必须留得下可聚合的 warn；面板另经 isNotMounted 标灰提示。
+ */
+function reapplyBusinessLayers(renderer: MapRenderer): void {
+  const notMounted = businessLayerManager.reapplyAll(renderer)
+  if (notMounted.length > 0) {
+    logger.warn(
+      `[UnifiedMap] 有 ${notMounted.length} 个图层未上屏（图层面板已标灰）: ${notMounted
+        .map((l) => l.key)
+        .join(', ')}`
+    )
+  }
+}
+
 /** 初始化指定类型的渲染器（首次创建或复用） */
 async function initRenderer(type: '2d' | '3d', container: HTMLElement | null) {
   if (!container) {
@@ -243,7 +259,7 @@ async function initRenderer(type: '2d' | '3d', container: HTMLElement | null) {
       // 再 setupLayers（含底图重放），最后 reapplyAll 重建业务图层——顺序反了面板与屏幕脱节
       mapStore.setCurrentRenderer(existingRenderer)
       setupLayers()
-      businessLayerManager.reapplyAll(existingRenderer)
+      reapplyBusinessLayers(existingRenderer)
     } else {
       const renderer = await createRenderer(type, container)
 
@@ -264,7 +280,7 @@ async function initRenderer(type: '2d' | '3d', container: HTMLElement | null) {
       if (type === '2d' && bubbleHostRef.value) {
         renderer.attachBubbleElement?.(bubbleHostRef.value)
       }
-      businessLayerManager.reapplyAll(renderer)
+      reapplyBusinessLayers(renderer)
     }
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error))

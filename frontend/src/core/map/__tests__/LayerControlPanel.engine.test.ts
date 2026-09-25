@@ -1,7 +1,9 @@
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { BusinessLayerManager } from '@/core/map/BusinessLayerManager'
+import { BUSINESS_LAYER_MANAGER_KEY } from '@/core/map/composables/useBusinessLayers'
 import { useMapStore } from '@/stores'
 import type { MapRenderer } from '@/types'
 
@@ -52,5 +54,50 @@ describe('LayerControlPanel 引擎三态', () => {
     const wrapper = mountPanel()
     const btn = wrapper.findAll('.layer-btn').find((b) => b.text().includes('二维专用'))
     expect(btn?.attributes('disabled')).toBeUndefined()
+  })
+})
+
+// a029 判据：面板四态里的 not-mounted —— 开关想显示但 BLM 重绘后没上屏（data 未就绪）。
+// 旧形态只有 on/off：按钮是蓝的，屏幕上没有，用户以为是自己看错。
+describe('LayerControlPanel 未上屏四态（a029）', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+  })
+
+  it('🔴 想显示却没上屏 ⇒ 标灰提示且保持可点；数据到位后恢复常规态', async () => {
+    const mapStore = useMapStore()
+    const renderer = {
+      getType: () => '2d',
+      addPointLayer: vi.fn(),
+      hasLayer: vi.fn().mockReturnValue(false),
+      setVisibility: vi.fn(),
+    }
+    mapStore.setCurrentRenderer(renderer as unknown as MapRenderer)
+    // 真实 BLM（非 no-op 桩）：标记由 register/reapplyAll 写入
+    const manager = new BusinessLayerManager(mapStore)
+    manager.register('lazy', {
+      label: '预测图层',
+      layerType: 'points',
+      data: null,
+      visible: true,
+    })
+
+    const wrapper = mount(LayerControlPanel, {
+      global: { provide: { [BUSINESS_LAYER_MANAGER_KEY]: manager } },
+    })
+    const findBtn = () => wrapper.findAll('.layer-btn').find((b) => b.text().includes('预测图层'))
+
+    expect(findBtn()?.classes()).toContain('not-mounted')
+    expect(findBtn()?.attributes('title')).toContain('数据未就绪')
+    // 不能 disabled：点一次是"关掉它"，把出路一并堵死等于换个地方坑用户
+    expect(findBtn()?.attributes('disabled')).toBeUndefined()
+
+    // 数据到位 → 补建成功 → 撤销标灰（避免"无条件标灰"也能过）
+    manager.updateData('lazy', { data: [{ lng: 108, lat: 21 }] })
+    await wrapper.vm.$nextTick()
+
+    expect(findBtn()?.classes()).not.toContain('not-mounted')
+    expect(findBtn()?.classes()).toContain('active')
+    expect(findBtn()?.attributes('title')).toBeUndefined()
   })
 })

@@ -415,6 +415,79 @@ describe('BusinessLayerManager', () => {
     })
   })
 
+  // a029：开关亮着、屏幕上没有——原先只在 debug 日志里逐层留痕，面板无从感知。
+  // 本组钉"汇总上抛 + 补建后摘除"两条：只判"会不会抛"，删掉摘除逻辑照样能过。
+  describe('未上屏图层汇总（a029）', () => {
+    it('🔴 visible=true 但 data 未就绪 ⇒ 汇总出该层；用户自己关掉的层不算缺失', () => {
+      manager.register('forecast-heat', {
+        label: '预测图层',
+        layerType: 'points',
+        data: null,
+        visible: true,
+      })
+      // 对照组：用户关掉的层（visible=false）不是"缺失"
+      manager.register('user-off', {
+        label: '用户关掉的层',
+        layerType: 'points',
+        data: [{ lng: 108, lat: 21 }],
+        visible: false,
+      })
+
+      const renderer = { addPointLayer: vi.fn(), hasLayer: vi.fn().mockReturnValue(false) }
+      const notMounted = manager.reapplyAll(renderer as unknown as MapRenderer)
+
+      expect(notMounted).toEqual([{ key: 'forecast-heat', label: '预测图层' }])
+      expect(manager.isNotMounted('forecast-heat')).toBe(true)
+      expect(manager.isNotMounted('user-off')).toBe(false)
+      expect(manager.notMountedLayers()).toEqual([{ key: 'forecast-heat', label: '预测图层' }])
+    })
+
+    it('🔴 数据到位补建成功 ⇒ 自动摘出清单（否则标灰会永远留在按钮上）', () => {
+      const renderer = {
+        addPointLayer: vi.fn(),
+        hasLayer: vi.fn().mockReturnValue(false),
+        setVisibility: vi.fn(),
+      }
+      mapStore.currentRenderer = renderer as unknown as MapRenderer
+      manager.register('lazy', {
+        label: '迟到图层',
+        layerType: 'points',
+        data: null,
+        visible: true,
+      })
+      expect(manager.isNotMounted('lazy')).toBe(true)
+
+      // 数据到达 → updateData 走 create 补建
+      manager.updateData('lazy', { data: [{ lng: 108, lat: 21 }] })
+
+      expect(renderer.addPointLayer).toHaveBeenCalled()
+      expect(manager.isNotMounted('lazy')).toBe(false)
+      expect(manager.notMountedLayers()).toEqual([])
+    })
+
+    it('关掉或移除图层后清单不留脏条目', () => {
+      const renderer = {
+        addPointLayer: vi.fn(),
+        hasLayer: vi.fn().mockReturnValue(false),
+        setVisibility: vi.fn(),
+        removeLayer: vi.fn(),
+      }
+      mapStore.currentRenderer = renderer as unknown as MapRenderer
+      manager.register('gone', { label: '要走', layerType: 'points', data: null, visible: true })
+      expect(manager.isNotMounted('gone')).toBe(true)
+
+      // 用户关掉它 → 不再是"想显示却没上屏"
+      manager.setVisible('gone', false)
+      expect(manager.isNotMounted('gone')).toBe(false)
+
+      // 再打开（仍无数据）→ 重新标记；注销则彻底摘除
+      manager.setVisible('gone', true)
+      expect(manager.isNotMounted('gone')).toBe(true)
+      manager.remove('gone')
+      expect(manager.isNotMounted('gone')).toBe(false)
+    })
+  })
+
   describe('reapplyAll 目录条目重建透传 engines（W6 第四半）', () => {
     it('🔴 重建条目按 registry.engines 登记，不谎报双引擎', () => {
       const renderer = {

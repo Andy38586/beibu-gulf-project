@@ -27,24 +27,29 @@ import type { LayerType, Tiles3DData, WaterSurfaceData } from '@/types/core/laye
 // ===== 引擎适用性（面板三态）=====
 
 /**
- * 图层在当前引擎下的呈现三态（a035）：
+ * 图层在当前引擎下的呈现四态：
  *   · on / off —— 适用当前引擎，按钮可点（蓝=在显示）
  *   · unsupported —— 单引擎特化图层遇到另一引擎：**不可点亮**（原先只有两态，这类条目
  *     照样可点亮，点了什么也不会发生——BLM.reapplyAll 会按引擎跳过创建）
+ *   · not-mounted —— 开关是"想显示"，但 BLM 重绘后该层没上屏（data 未就绪，a029）：
+ *     标灰但**仍可点**（点一次关掉它，或等数据到位后自动变蓝），不再让用户以为是自己看错
  */
-export type LayerPanelState = 'on' | 'off' | 'unsupported'
+export type LayerPanelState = 'on' | 'off' | 'unsupported' | 'not-mounted'
 
 /**
- * 三态判定（纯函数，供面板与单测共用）。
+ * 四态判定（纯函数，供面板与单测共用）。
  * engines 缺省视为双引擎通用；currentEngine 未就绪（null）时不下"不支持"结论——
  * 渲染器还没起来就标灰会误导（此时点了也只会等渲染器就绪）。
+ * notMounted 仅在"想显示"时才有意义：关着的图层谈不上"没上屏"。
  */
 export function resolveLayerPanelState(
   engines: EngineName[] | undefined,
   visible: boolean,
-  currentEngine: EngineName | null
+  currentEngine: EngineName | null,
+  notMounted = false
 ): LayerPanelState {
   if (engines && currentEngine && !engines.includes(currentEngine)) return 'unsupported'
+  if (notMounted && visible) return 'not-mounted'
   return visible ? 'on' : 'off'
 }
 

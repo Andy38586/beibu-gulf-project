@@ -21,6 +21,7 @@ type BusinessLayerManagerLike = Pick<
   | 'getMeta'
   | 'reapplyAll'
   | 'isLayerVisible'
+  | 'isNotMounted'
 >
 
 /** useBusinessLayers 返回值 */
@@ -45,8 +46,9 @@ export function useBusinessLayers(): UseBusinessLayersReturn {
         has: () => false,
         removeAll: () => {},
         getMeta: () => null,
-        reapplyAll: () => {},
+        reapplyAll: () => [],
         isLayerVisible: () => false,
+        isNotMounted: () => false,
       },
     }
   }

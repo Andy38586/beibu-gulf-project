@@ -83,7 +83,13 @@ const layerButtons = computed(() => {
       locked,
       // 三态（a035）：单引擎特化图层遇另一引擎 ⇒ unsupported，按钮不可点亮
       //（原先只看 on/off，这类条目在 3D 下照样可点，点了什么也不会发生）
-      state: resolveLayerPanelState(engines, active, mapStore.currentEngineName),
+      // 四态（a029）：+ not-mounted —— 开关想显示但 BLM 重绘后没上屏（data 未就绪），标灰提示
+      state: resolveLayerPanelState(
+        engines,
+        active,
+        mapStore.currentEngineName,
+        businessLayerManager.isNotMounted(layer.key)
+      ),
     }
   })
 })
@@ -154,6 +160,7 @@ function handleToggle(key: string) {
           active: item.active,
           locked: item.locked,
           unsupported: item.state === 'unsupported',
+          'not-mounted': item.state === 'not-mounted',
         }"
         :disabled="item.locked || item.state === 'unsupported'"
         :title="
@@ -161,7 +168,9 @@ function handleToggle(key: string) {
             ? `${item.label}（随底图默认加载，不可关闭）`
             : item.state === 'unsupported'
               ? `${item.label}（当前引擎不支持该图层）`
-              : undefined
+              : item.state === 'not-mounted'
+                ? `${item.label}（数据未就绪，图层暂未显示；数据到达后自动显示）`
+                : undefined
         "
         @click="handleToggle(item.key)"
       >
@@ -269,6 +278,20 @@ function handleToggle(key: string) {
 .layer-btn.unsupported:hover {
   border-color: var(--GCS-border-default);
   background: transparent;
+}
+
+/* 想显示但没上屏（a029：data 未就绪）：虚框 + 降饱和，与 locked/unsupported 区分开。
+   放在 .active 之后——它要盖掉"开关亮着"的蓝底，否则标灰等于没标；
+   仍保持可点（点一次是"关掉它"，数据到位后会自动变蓝），故不用 not-allowed。 */
+.layer-btn.not-mounted {
+  background: transparent;
+  color: var(--GCS-text-muted);
+  border-style: dashed;
+}
+
+.layer-btn.not-mounted:hover {
+  border-color: var(--GCS-color-primary);
+  background: var(--GCS-bg-hover);
 }
 
 .layer-btn.locked:hover {

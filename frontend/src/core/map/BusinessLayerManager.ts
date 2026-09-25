@@ -5,6 +5,8 @@
  * 关键约束：不持有 renderer 引用（动态取自 mapStore）、catalog 只存元数据、updateData 不覆盖 visible。
  */
 
+import { shallowRef } from 'vue'
+
 import { perfTimeFn } from '@/shared'
 import { logger } from '@/shared'
 import type { EngineName, LayerEntry, LayerOptions, MapRenderer } from '@/types'
@@ -36,6 +38,23 @@ export function layerFailureMessage(payload: LayerErrorPayload): string {
   return payload.retryable
     ? `图层「${payload.label}」加载失败，请点击图层面板里的开关重试`
     : `图层「${payload.label}」加载失败，请刷新页面后重试`
+}
+
+/**
+ * 本次重绘**没上屏**的图层（a029：图层未挂载的可观测性缺口）。
+ *
+ * 缺口形态：开关亮着、屏幕上没有，用户以为是自己看错了——而 BLM 只在 debug 日志里逐层
+ * 留痕，面板无从感知。本接口把这份清单从 BLM 上抛给面板，由面板标灰 + 提示。
+ *
+ * 口径只收 **visible=true 但 data 未就绪** 一种（用户意图是要看、实际没上屏）：
+ *  · `visible=false` —— 用户自己关的，不算缺失；
+ *  · 当前引擎不适用 —— 面板已有 `unsupported` 态（resolveLayerPanelState），再标一次只会两套口径打架；
+ *  · 创建失败 —— `_handleCreateFailure` 已把 `visible` 回滚为 false 并弹 toast，
+ *    面板不再谎报"在显示"，无需二次标注。
+ */
+export interface NotMountedLayer {
+  key: string
+  label: string
 }
 
 /** mapStore 最小接口（仅声明实际使用的方法） */
@@ -98,6 +117,12 @@ export class BusinessLayerManager {
   private _registry: Map<string, RegistryEntry>
   /** 图层错误回调（单监听方用回调注入即可，无需事件总线） */
   private _errorHandler: ((payload: LayerErrorPayload) => void) | null = null
+  /**
+   * 最近一次重绘未上屏的图层（见 NotMountedLayer）。
+   * shallowRef 而非裸数组：面板 computed 读它才会在"补建成功/新缺失"时重新渲染——
+   * 裸数组下 updateData 补建成功不改 store（无别处触发失效），标灰会一直留在按钮上。
+   */
+  private _notMounted = shallowRef<NotMountedLayer[]>([])
 
   constructor(mapStore: MapStoreLike) {
     this._mapStore = mapStore
@@ -107,6 +132,30 @@ export class BusinessLayerManager {
   /** 注册图层错误回调（UI 层注入 toast） */
   setErrorHandler(handler: (payload: LayerErrorPayload) => void): void {
     this._errorHandler = handler
+  }
+
+  /** 该图层是否"想要显示却没上屏"——面板标灰提示的判据（在 computed 内调用即可被追踪） */
+  isNotMounted(key: string): boolean {
+    return this._notMounted.value.some((l) => l.key === key)
+  }
+
+  /** 未上屏图层快照（只读；重绘/补建成功后自动更新） */
+  notMountedLayers(): readonly NotMountedLayer[] {
+    return this._notMounted.value
+  }
+
+  /** 图层已确定在渲染器上（或已被回滚/移除）→ 从"未上屏"清单摘除 */
+  private _clearNotMounted(key: string): void {
+    if (this._notMounted.value.some((l) => l.key === key)) {
+      this._notMounted.value = this._notMounted.value.filter((l) => l.key !== key)
+    }
+  }
+
+  /** 记入"想显示但没上屏"（幂等）；面板据 isNotMounted 标灰提示 */
+  private _markNotMounted(key: string, label: string): void {
+    if (!this._notMounted.value.some((l) => l.key === key)) {
+      this._notMounted.value = [...this._notMounted.value, { key, label }]
+    }
   }
 
   /** 获取当前活跃的 renderer（动态，不缓存） */
@@ -124,6 +173,8 @@ export class BusinessLayerManager {
       meta.visible = false
       this._mapStore?.setLayerVisible(key, false)
     }
+    // 已回滚为不可见：面板不再谎报"在显示"，未上屏清单里也不该再留着它
+    this._clearNotMounted(key)
     // 清待定可见性（防过期意图残留导致下次 create 时错误应用）
     const renderer = this._getRenderer() as
       | (MapRenderer & { clearPendingVisibility?: (id: string) => void })
@@ -185,6 +236,8 @@ export class BusinessLayerManager {
       if (rethrow) throw e
       return
     }
+    // 同步创建/更新未抛错 ⇒ 该层已在渲染器上（异步失败会回调 onError → _handleCreateFailure 再摘）
+    this._clearNotMounted(key)
     Promise.resolve(result).catch((e) => this._handleCreateFailure(key, label, e))
   }
 
@@ -242,6 +295,11 @@ export class BusinessLayerManager {
       logger.debug(
         `[BusinessLayerManager] register ${key} 暂不渲染: visible=${visible} data=${data != null}`
       )
+      // a029：登记时就"想显示"却没有数据 ⇒ 记入未上屏清单（面板标灰），数据到后补建摘除。
+      // 重绘（reapplyAll）不一定每次都跑（如预测图层在渲染器就绪后注册），故此处也要记
+      if (visible && data == null) {
+        this._markNotMounted(key, label)
+      }
     }
   }
 
@@ -310,18 +368,24 @@ export class BusinessLayerManager {
   }
 
   /**
-   * 将 registry 中已注册且可见的业务图层重绘到指定 renderer（2D↔3D 引擎切换后使用）。
-   * 依据：registry 是 App 级持久状态，引擎切换时图层目录会被清空，
-   * 故重建视觉实例与目录条目都以 registry 为准（幂等）；单层失败只 warn 继续。
+   * 显式对账入口（语义化包装 reapplyAll）：引擎切换、路由恢复、面板批量操作前调用，
+   * 以 registry 为唯一权威把渲染器实际状态拉齐——图层状态统一收口于此。
+   * @returns 本次未上屏的图层（透传 reapplyAll 的汇总，见 NotMountedLayer）
    */
-  /** 显式对账入口（语义化包装 reapplyAll）：引擎切换、路由恢复、面板批量操作前调用，
-   * 以 registry 为唯一权威把渲染器实际状态拉齐——图层状态统一收口于此 */
-  reconcileWithRenderer(renderer: MapRenderer | null = this._getRenderer()): void {
-    this.reapplyAll(renderer)
+  reconcileWithRenderer(renderer: MapRenderer | null = this._getRenderer()): NotMountedLayer[] {
+    return this.reapplyAll(renderer)
   }
 
-  reapplyAll(renderer: MapRenderer | null = this._getRenderer()): void {
-    if (!renderer) return
+  /**
+   * 把 registry 中已注册的业务图层重绘到指定 renderer（2D↔3D 引擎切换后使用）。
+   * 依据：registry 是 App 级持久状态，引擎切换时图层目录会被清空，
+   * 故重建视觉实例与目录条目都以 registry 为准（幂等）；单层失败只 warn 继续。
+   * @returns 本次未上屏的图层汇总（a029：上抛给面板标灰，不再让"开关亮着、屏幕没有"无名无姓）
+   */
+  reapplyAll(renderer: MapRenderer | null = this._getRenderer()): NotMountedLayer[] {
+    // 无渲染器无从判定，保持上次结论（不要把上一次的清单当成"这次也没有"）
+    if (!renderer) return this._notMounted.value
+    const notMounted: NotMountedLayer[] = []
     logger.debug(
       `[BusinessLayerManager] reapplyAll 开始: renderer=${renderer.getType?.() ?? 'unknown'} registry=${this._registry.size}个图层`
     )
@@ -344,6 +408,8 @@ export class BusinessLayerManager {
       }
       if (meta.data == null) {
         logger.debug(`[BusinessLayerManager] reapplyAll ${key} 跳过（data 未就绪）`)
+        // 汇总上抛（a029）：面板开关是"想显示"，但屏幕上没有——列入未上屏清单
+        notMounted.push({ key, label: meta.label })
         continue
       }
       if (!meta.visible) {
@@ -396,6 +462,9 @@ export class BusinessLayerManager {
         false
       )
     }
+    // 本次结论落库：面板读 isNotMounted 标灰（补建成功的那条已被 _runAdapter 摘掉）
+    this._notMounted.value = notMounted
+    return notMounted
   }
 
   /** 设置图层显隐（LayerControlPanel 入口，不直接操作 renderer） */
@@ -417,6 +486,15 @@ export class BusinessLayerManager {
     // 先更新 registry 可见性（reapplyAll 的数据源），再更新 catalog（UI 展示）
     meta.visible = visible
     this._mapStore?.setLayerVisible(key, visible)
+
+    // a029：打开却没有数据可渲染（如预测图层先开开关），或用户关掉它——
+    // 前者登记为"未上屏"（面板标灰），后者撤销标记（关掉的图层谈不上缺失）
+    if (visible && meta.data == null) {
+      this._markNotMounted(key, meta.label)
+    } else if (!visible) {
+      this._clearNotMounted(key)
+    }
+
     const renderer = this._getRenderer()
     if (!renderer) return
 
@@ -462,6 +540,8 @@ export class BusinessLayerManager {
       this._registry.delete(key)
     }
 
+    // 图层已注销：面板不再有这条，未上屏清单里也不该留着（否则脏条目会随 key 复用时误标灰）
+    this._clearNotMounted(key)
     this._mapStore?.removeLayer(key)
   }
 
@@ -520,6 +600,7 @@ export class BusinessLayerManager {
   destroy(): void {
     this.removeAll()
     this._registry.clear()
+    this._notMounted.value = []
     this._mapStore = null
   }
 }

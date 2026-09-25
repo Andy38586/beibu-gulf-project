@@ -1,5 +1,6 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { effectScope } from 'vue'
 
 import { ApiError, ErrorCode } from '@/shared'
 import { useForecastStore } from '@/stores/forecastStore'
@@ -126,14 +127,10 @@ describe('useForecastLayer', () => {
     expect(showError).not.toHaveBeenCalled()
   })
 
-  it('removeForecastLayer 移除全部 3 个指标图层（berth/traffic 已下架）', () => {
-    const { removeForecastLayer } = useForecastLayer()
-    mockManager.has.mockImplementation(() => true)
-    removeForecastLayer()
-    expect(mockManager.remove).toHaveBeenCalledTimes(3)
-    const keys = (mockManager.remove as ReturnType<typeof vi.fn>).mock.calls.map(
-      (c: unknown[]) => c[0]
-    )
-    expect(keys).toEqual(['forecast-cargo', 'forecast-container', 'forecast-activity'])
+  it('注销只有 owner 册一条路径：不返回「手动清」API', () => {
+    const scope = effectScope()
+    const api = scope.run(() => useForecastLayer())!
+    expect(Object.keys(api).sort()).toEqual(['renderer', 'updateForecastLayer'])
+    scope.stop()
   })
 })

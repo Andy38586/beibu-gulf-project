@@ -15,7 +15,6 @@ const h = vi.hoisted(() => ({
   isTransactionValid: vi.fn(() => true),
   cancelAll: vi.fn(),
   updateForecastLayer: vi.fn(),
-  removeForecastLayer: vi.fn(),
 }))
 
 vi.mock('vue-router', () => ({
@@ -35,7 +34,6 @@ vi.mock('@/business/forecast/composables/useForecastRequest', () => ({
 vi.mock('@/business/forecast/composables/useForecastLayer', () => ({
   useForecastLayer: () => ({
     updateForecastLayer: h.updateForecastLayer,
-    removeForecastLayer: h.removeForecastLayer,
     renderer: { value: null },
   }),
 }))

@@ -44,7 +44,6 @@ const FORECAST_HEATMAP_GRADIENT = ['#00f', '#0ff', '#0f0', '#ff0', '#f00']
 /** useForecastLayer 返回值 */
 interface UseForecastLayerReturn {
   updateForecastLayer: (transactionId: number, signal: AbortSignal) => Promise<void>
-  removeForecastLayer: () => void
   renderer: ComputedRef<MapRenderer | null>
 }
 
@@ -205,16 +204,7 @@ export function useForecastLayer(): UseForecastLayerReturn {
     }
   }
 
-  /**
-   * 主动清（供显式调用），**不走** owner 册：它是「现在就清」，不是「卸载时清」。
-   * 卸载清由 useOwnedLayers 负责；两边都清是幂等的，无害。
-   */
-  function removeForecastLayer(): void {
-    for (const indicator of INDICATORS) {
-      const key = `forecast-${indicator}`
-      if (manager.has(key)) manager.remove(key)
-    }
-  }
-
-  return { updateForecastLayer, removeForecastLayer, renderer }
+  // 注销只有一条路径：注册经 useOwnedLayers 登记归属，卸载由 onScopeDispose 统一清。
+  // 不提供「手动清」API —— 那会诱导调用方在 onUnmounted 里手写注销，正是本约束要治的动作。
+  return { updateForecastLayer, renderer }
 }

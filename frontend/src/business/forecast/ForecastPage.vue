@@ -24,7 +24,7 @@ import { useForecastTimeseries } from './composables/useForecastTimeseries'
 
 const forecastState = useForecastStore()
 const mapStore = useMapStore()
-const { updateForecastLayer, removeForecastLayer, renderer } = useForecastLayer()
+const { updateForecastLayer, renderer } = useForecastLayer()
 const { startTransaction, cancelAll } = useForecastRequest()
 const {
   lineXData,
@@ -122,7 +122,7 @@ onUnmounted(() => {
     debounceTimer = null
   }
   cancelAll()
-  removeForecastLayer()
+  // 图层注销不由本页负责：注册经 useOwnedLayers 登记归属，卸载由 onScopeDispose 统一清
   forecastState.reset()
 })
 </script>

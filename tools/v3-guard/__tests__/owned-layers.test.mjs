@@ -9,12 +9,16 @@
  *   3) business 下裸 `manager.register(` ⇒ 必报（判据 C，注册点分母）；
  *   4) 注册经 owned / ownedLayers ⇒ 不报（判据 C 的正向对照）；
  *   5) **主动清** + 注释提及 ⇒ 不报（口径收窄处）；
- *   6) clearTimeout / stopBreathing 这类非图层清理 ⇒ 不误伤。
+ *   6) clearTimeout / stopBreathing 这类非图层清理 ⇒ 不误伤；
+ *   7) 注册语义**从 useOwnedLayers 的实现派生**（含 applyOrUpdate，不含注销侧）——
+ *      分母口径跟着权威源走，不留在本守卫里手抄（旧版只认 `.register(`，漏掉一半注册动作）。
  */
 import { describe, expect, it } from 'vitest'
 
 import {
+  REGISTER_METHODS,
   auditSources,
+  deriveRegisterMethods,
   layerRegisterSites,
   looksLikeLayerTeardown,
   ownerScopeViolations,
@@ -165,7 +169,65 @@ describe('owned-layers — 图层归属结构约束', () => {
     expect(auditSources(src(t))).toEqual([])
   })
 
-  it('layerRegisterSites 分母：按 useOwnedLayers 派生判定「已接」', () => {
+  it('@guard-red-sample 裸 blm.applyOrUpdate ⇒ 必报（注册语义不止 register 一个）', () => {
+    const t = ['function f() {', "  blm.applyOrUpdate('k', {})", '}'].join('\n')
+    const problems = auditSources(src(t))
+    expect(problems).toHaveLength(1)
+    expect(problems[0]).toContain('bare-register')
+    expect(problems[0], '报错应点名实际方法，便于定位').toContain('applyOrUpdate')
+  })
+
+  it('@guard-red-sample owned.applyOrUpdate ⇒ 不报，且计入分母「已接」侧', () => {
+    const t = [
+      "const ownedLayers = useOwnedLayers('x')",
+      "ownedLayers.applyOrUpdate('k', {})",
+    ].join('\n')
+    expect(auditSources(src(t))).toEqual([])
+    const sites = layerRegisterSites(src(t))
+    expect(sites, '旧口径漏计 applyOrUpdate，此处会是 0').toHaveLength(1)
+    expect(sites[0].owned).toBe(true)
+  })
+
+  it('注册语义派生的方向不能吞错：unregister / releaseAll 不计入注册分母', () => {
+    const t = [
+      "const owned = useOwnedLayers('x')",
+      "owned.unregister('k')",
+      'owned.releaseAll()',
+    ].join('\n')
+    expect(layerRegisterSites(src(t))).toEqual([])
+  })
+
+  it('@guard-red-sample 注册语义从实现派生：含 register/applyOrUpdate，不含注销侧与值成员', () => {
+    // 直接对真实实现断言 —— 分母的口径必须跟着 useOwnedLayers 走，不能是本文件里的手抄名单
+    expect(REGISTER_METHODS).toContain('register')
+    expect(REGISTER_METHODS).toContain('applyOrUpdate')
+    for (const teardown of ['unregister', 'releaseAll', 'owned']) {
+      expect(REGISTER_METHODS, `${teardown} 不该被当成注册语义`).not.toContain(teardown)
+    }
+  })
+
+  it('@guard-red-sample deriveRegisterMethods 认得出「经中间函数转调 register」的实现', () => {
+    const stub = [
+      'export interface UseOwnedLayersReturn {',
+      '  register: (k: string) => boolean',
+      '  upsert: (k: string) => boolean',
+      '  drop: (k: string) => void',
+      '}',
+      'export function register(k: string): boolean {',
+      '  manager.register(k, {})',
+      '  return true',
+      '}',
+      'export function upsert(k: string): boolean {',
+      '  return register(k)',
+      '}',
+      'export function drop(k: string): void {',
+      '  manager.remove(k)',
+      '}',
+    ].join('\n')
+    expect(deriveRegisterMethods(stub)).toEqual(['register', 'upsert'])
+  })
+
+  it('@guard-red-sample layerRegisterSites 分母：按 useOwnedLayers 派生判定「已接」', () => {
     const t = [
       "const owned = useOwnedLayers('x')",
       "owned.register('a', {})",

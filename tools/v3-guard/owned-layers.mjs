@@ -16,6 +16,9 @@
  *   判据 C（bare-register）  `business/**` 下的图层注册必须经 useOwnedLayers ⇒ 裸
  *                             `manager.register(...)` 判红。这条把「注册点分母」变成
  *                             机器可算：分母 = 全部图层注册点，已接 = 经 owner 册的那些。
+ *                             **「注册语义」是派生出来的**（`REGISTER_METHODS`，含
+ *                             `register` 与 `applyOrUpdate`），不是手抄的单个方法名 ——
+ *                             手抄版本漏掉一半注册动作，而 S2 的「结构收敛」量的正是分母。
  *
  * 口径（刻意收窄，避免误伤）：
  *   · 只扫 `frontend/src/business/**`（`core/` 是约束的实现体，不在管辖内）；
@@ -52,10 +55,86 @@ const COMMENT = /^\s*(\/\/|\*|\/\*)/
 const UNMOUNT_HEAD = /onUnmounted\s*\(|onBeforeUnmount\s*\(/
 /** 任何函数调用：捕获被调名 */
 const CALL = /\b([A-Za-z_$][\w$]*)\s*\(/g
-/** 注册调用：捕获接收者名（第 2 组） */
-const REGISTER_CALL = /(^|[^.\w])([A-Za-z_$][\w$]*)\.register\s*\(/
 /** useOwnedLayers 的调用（用于派生 owner 变量名） */
 const OWNED_FACTORY = /(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*useOwnedLayers\s*\(/g
+
+/** owner 册实现源 —— 「注册语义」这份清单的**唯一权威源** */
+const OWNED_LAYERS_SRC = path.join(ROOT, 'frontend/src/core/map/composables/useOwnedLayers.ts')
+
+/**
+ * 注册语义方法集：**从实现派生，不手抄名单**。
+ *
+ * ## 为什么必须派生
+ *
+ * `register` 与 `applyOrUpdate` 都是「把图层注册上去」的动作，判据 C 的注册点分母
+ * 两个都得算。第一版把手抄正则写成 `\.register\(`，于是 `applyOrUpdate`（由
+ * `useOwnedLayers` 提供、实现体里就是 `return register(...)`）**整类不计入分母**。
+ *
+ * 代价不是少两行统计，而是 S2 转向后**「结构收敛」这条判据量的正是分母**：
+ * 漏计之后 `FloodAnalysisPage` / `useRouteLayer` 的 4 处注册动作凭空消失，分母
+ * 12 → 8 —— 于是「样板收口让分母下降」成了幻象（实测新口径下是 12 → 12，一处没减）。
+ * 一个漏计的分母会让后面每一轮的"下降"都不可信。
+ *
+ * ## 派生规则（两步，都不看方法名）
+ *
+ * ① 只取 `UseOwnedLayersReturn` 接口声明、且本文件有实现的那些方法（对外能力清单）；
+ * ② 实现体**直接触达 `manager.register(`** 的为种子；再传播 —— 体里调用了已判定为
+ *    注册侧方法的，同为注册侧（`applyOrUpdate` → `register` 这一跳由此覆盖）。
+ *
+ * ⇒ 新增一个 upsert 方法只要进接口，分母自动跟上，不必回来改本文件（手抄名单的老病）。
+ */
+export function deriveRegisterMethods(source) {
+  const iface = source.match(/export interface UseOwnedLayersReturn\s*\{([\s\S]*?)\n\}/)
+  if (!iface) {
+    throw new Error('[owned-layers] 找不到 UseOwnedLayersReturn 接口 —— 注册语义无处派生')
+  }
+  const declared = [...iface[1].matchAll(/^\s{2}([A-Za-z_$][\w$]*)\s*[:(]/gm)].map((m) => m[1])
+
+  // 每个 `function <name>(...) { ... }` 的实现体（大括号配平）
+  const bodies = new Map()
+  for (const m of source.matchAll(/function\s+([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*(?::[^{;]+)?\{/g)) {
+    const open = m.index + m[0].length - 1
+    let depth = 0
+    for (let i = open; i < source.length; i++) {
+      if (source[i] === '{') depth++
+      else if (source[i] === '}' && --depth === 0) {
+        if (!bodies.has(m[1])) bodies.set(m[1], source.slice(open + 1, i))
+        break
+      }
+    }
+  }
+
+  // 接口里有声明 + 本文件有实现 = 对外能力；`owned` 这类值成员因无实现被自然排除
+  const impl = declared.filter((n) => bodies.has(n))
+  const reg = new Set(impl.filter((n) => /\bmanager\.register\s*\(/.test(bodies.get(n))))
+  for (let changed = reg.size > 0; changed; ) {
+    changed = false
+    for (const n of impl) {
+      if (reg.has(n)) continue
+      if ([...reg].some((k) => new RegExp(`\\b${k}\\s*\\(`).test(bodies.get(n)))) {
+        reg.add(n)
+        changed = true
+      }
+    }
+  }
+  return impl.filter((n) => reg.has(n))
+}
+
+/** 运行时读一次。派生为空即抛 —— 分母静默归零比判红更危险 */
+export const REGISTER_METHODS = (() => {
+  const methods = deriveRegisterMethods(fs.readFileSync(OWNED_LAYERS_SRC, 'utf8'))
+  if (methods.length === 0) {
+    throw new Error(
+      '[owned-layers] 注册语义集合派生为空（实现里找不到 manager.register 调用）—— 拒绝继续'
+    )
+  }
+  return methods
+})()
+
+/** 注册调用：捕获接收者名（第 2 组）与被调方法名（第 3 组）。方法名来自派生集，不在这里手写 */
+export function registerCallRegex(methods = REGISTER_METHODS) {
+  return new RegExp(`(^|[^.\\w])([A-Za-z_$][\\w$]*)\\.(${methods.join('|')})\\s*\\(`)
+}
 
 /** 卸载块里**不是**图层注销的调用 —— 卸载时它们完全正常，不能误伤 */
 const NON_LAYER_CALLS = new Set([
@@ -231,17 +310,20 @@ export function unmountBlocks(text) {
 
 /**
  * 图层注册点清单（分母）。
- * 分母 = 所有 `.register(` 调用点（**含已接的**，否则算不出「已接/该接」）；
+ * 分母 = 所有**注册语义**调用点（`REGISTER_METHODS`，派生见 `deriveRegisterMethods`）；
  * `owned` 标记 = 接收者是 `useOwnedLayers(...)` **派生出来的变量**（按数据流，不按变量名）。
+ *
+ * 含已接的那些 —— 否则算不出「已接 / 该接」这个比值。
  */
-export function layerRegisterSites(sources) {
+export function layerRegisterSites(sources, { methods = REGISTER_METHODS } = {}) {
+  const re = registerCallRegex(methods)
   const sites = []
   for (const { relPath, text } of sources) {
     const owners = ownedReceivers(text)
     const lines = text.split(/\r?\n/)
     for (let i = 0; i < lines.length; i++) {
       if (COMMENT.test(lines[i])) continue
-      const m = REGISTER_CALL.exec(lines[i])
+      const m = re.exec(lines[i])
       if (!m) continue
       sites.push({ relPath, line: i + 1, receiver: m[2], owned: owners.has(m[2]) })
     }
@@ -250,7 +332,8 @@ export function layerRegisterSites(sources) {
 }
 
 /** 审计：返回问题列表（空 = 通过） */
-export function auditSources(sources, { baseline = BASELINE } = {}) {
+export function auditSources(sources, { baseline = BASELINE, methods = REGISTER_METHODS } = {}) {
+  const re = registerCallRegex(methods)
   const problems = []
   const mark = (kind, relPath, line, msg) => {
     if (baseline.includes(`${kind}@${relPath}`)) return
@@ -283,7 +366,7 @@ export function auditSources(sources, { baseline = BASELINE } = {}) {
     const lines = text.split(/\r?\n/)
     for (let i = 0; i < lines.length; i++) {
       if (COMMENT.test(lines[i])) continue
-      const m = REGISTER_CALL.exec(lines[i])
+      const m = re.exec(lines[i])
       if (!m) continue
       const receiver = m[2]
       if (owners.has(receiver)) continue
@@ -291,7 +374,7 @@ export function auditSources(sources, { baseline = BASELINE } = {}) {
         'bare-register',
         relPath,
         i + 1,
-        `图层注册未经 useOwnedLayers（${receiver}.register）—— 注册不登记归属，卸载时没人替它清`
+        `图层注册未经 useOwnedLayers（${receiver}.${m[3]}）—— 注册不登记归属，卸载时没人替它清`
       )
     }
   }

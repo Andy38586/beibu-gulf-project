@@ -6,9 +6,12 @@
  *
  * ## 为什么是圆角矩形而不是圆
  *
- * 它套在 dock 按钮上，形状要**贴合按钮的边缘**才不像贴了个外来件。圆角取 GCS 的按钮
- * 默认圆角 `--GCS-radius-md`（8px），与按钮同一套口径 —— 这是它"长在按钮上"而不是
- * "浮在按钮上"的关键。
+ * 它套在 dock 按钮上，而按钮自身就是一个**带小圆角的方形**（`GCSButton.vue` 的
+ * `buttonStyle`）—— 方形描出来才与它同形，画成正圆反而像个外来件。
+ *
+ * ⚠️ **环的圆角不取自按钮，也不取自任何 GCS 圆角 token** —— 按钮 rx 是 `cellPixel × 0.15`
+ * 的行内计算（不消费 `--GCS-radius-*`），环 rx 是刻意恒定的一个值。两者是**两套口径**，
+ * 不得互相引用为依据（04-H1）。详见下方 `RING_CORNER_PX`。
  *
  * ## 三个硬参数（口径 #4）
  *
@@ -17,7 +20,8 @@
  * - 周长经 `pathLength="100"` 归一化 ⇒ `stroke-dasharray = 100`、
  *   `stroke-dashoffset = 100 × (1 − p)`。归一化后**不必手算圆角矩形的周长公式**
  *   （换形状时也不会因为公式写错而静默画错）。
- * - 圆角 8 与控件几何同为 viewBox 坐标，随 `size` 等比缩放。
+ * - 圆角**渲染后恒为一个固定 px 值**，不随 `size` 也不随 `cellPixel` 变（靠 viewBox 反算得到，
+ *   见下方 `RING_CORNER_PX`）。
  *
  * ## 进度是阶段式的，不是真百分比
  *
@@ -46,23 +50,26 @@ const props = withDefaults(defineProps<Props>(), {
 
 /**
  * 几何：外接方 38×38（= 原半径 19 的外接正方形），居中于 44×44 viewBox。
- * stroke 宽 3 ⇒ 框的外缘恰好压在 viewBox 边界、内缘包住按钮边缘。
+ * stroke 宽 3 ⇒ 描边跨中心线 ±1.5：框的**外缘在 1.5、内缘在 4.5**（viewBox 单位），
+ * 四周各留 1.5 单位留白（外缘并不与 viewBox 边界重合）。
  */
 const RECT_SIZE = 38
 const RECT_ORIGIN = (44 - RECT_SIZE) / 2
 
 /**
- * 圆角：目标是**缩放后与按钮圆角一致**，故按 `12 × 44 / size` 反算回 viewBox 坐标。
+ * 环圆角：**刻意取恒定 12px**（经 viewBox 反算保证缩放到任意 `size` 后仍是 12px）。
  *
- * 12 是 dock 按钮的**实测圆角**（`--GCS-radius-lg`，浏览器 `getComputedStyle` 读得 12px；
- * 默认 44 尺寸时即为此值）。写死 viewBox 坐标会让圆角随 size 放大（size=72 时实际约 13px），
- * 看着就"不像长在按钮上"。
+ * 为什么不跟按钮共用一套口径（这是本文件此前写错的地方）：按钮 rx = `cellPixel × 0.15`
+ * （`GCSButton.vue` 的 `buttonStyle`，实测档位 70/80/90 ⇒ 10.5 / 12 / 13.5px），
+ * 而环不读 `useGCS` —— 让它跟住 cellPixel 要把响应式档位引进这个纯 SVG 件，换来的只是
+ * 三档里另外两档更贴合，默认档（cell 80）本来就重合 ⇒ 环取恒定值是刻意选定的口径。
+ * ⇒ **环 rx 与按钮 rx 是两套口径，不得互相引用为依据**（04-H1）。
  *
- * ⚠️ 若 GCS 的按钮圆角 token 变了，这里要同步 —— 单位测试锁不住这一点（它只知道本组件），
- * 只有把环和按钮放一起看才发现。
+ * 反算这一步必须保留：直接写 viewBox 坐标 `rx = 12` 会让渲染圆角随 size 等比放大
+ * （size 72 时约 19.6px），那才是真的"浮在按钮上"。
  */
-const BUTTON_CORNER_RADIUS = 12
-const CORNER_RADIUS = computed(() => (BUTTON_CORNER_RADIUS * 44) / props.size)
+const RING_CORNER_PX = 12
+const CORNER_RADIUS = computed(() => (RING_CORNER_PX * 44) / props.size)
 
 const viewBox = computed(() => {
   // 框 + stroke 需要的留白：半宽 19 + 线宽 3 → 44 见方

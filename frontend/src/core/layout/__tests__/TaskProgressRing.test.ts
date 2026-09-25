@@ -6,7 +6,8 @@ import TaskProgressRing from '../components/TaskProgressRing.vue'
 /**
  * TaskProgressRing 单测（v4-S6）
  *
- * 守住口径 #4 的硬参数：线宽恒为 3、周长经 `pathLength` 归一化、圆角缩放后贴合按钮。
+ * 守住口径 #4 的硬参数：线宽恒为 3、周长经 `pathLength` 归一化、圆角缩放后恒为 12px
+ * （环 rx 与按钮 rx 是两套口径，见下方该用例的注释）。
  */
 
 /** 周长经 `pathLength="100"` 归一化 —— 与组件内 dasharray 保持一致 */
@@ -65,15 +66,29 @@ describe('TaskProgressRing', () => {
     ).toBeCloseTo(NORMALIZED_LENGTH, 5)
   })
 
-  it('🔴 形状是圆角矩形（rect，不是 circle）—— dock 按钮是方角容器，圆框看着像外来件', () => {
+  it('🔴 形状是圆角矩形（rect，不是 circle）—— dock 按钮本身是带小圆角的方形，正圆环反而像外来件', () => {
     const wrapper = mount(TaskProgressRing, { props: { progress: 0.3 } })
     expect(wrapper.find('.task-progress-ring__bar').element.tagName.toLowerCase()).toBe('rect')
     expect(wrapper.find('.task-progress-ring__track').element.tagName.toLowerCase()).toBe('rect')
   })
 
-  it('🔴 圆角随 size 反算：缩放后恒等于按钮圆角 12px（这才是"贴合按钮边缘"）', () => {
-    // 12 是 dock 按钮的实测圆角（--GCS-radius-lg；浏览器 getComputedStyle 读得 12px）。
-    // 写死 viewBox 坐标会让圆角随 size 放大 —— size=72 时实际约 13px，比按钮圆角大一圈。
+  /**
+   * 环 rx 与按钮 rx 是**两套口径**（04-H1）：
+   *   · 按钮 rx = `cellPixel × 0.15`（`GCSButton.vue` 的 `buttonStyle`，随档位 70/80/90 变）；
+   *   · 环 rx  = 恒定 12px，不随 size、也不随 cellPixel 变（组件不读 `useGCS`）。
+   *
+   * 这组断言钉的是"恒定"那一侧：把反算摘掉（viewBox 写死 12 ⇒ 渲染随 size 放大）或改成
+   * 从 cellPixel 派生（jsdom 下 70 ⇒ 渲染 10.5px），三档里至少一档必红。
+   */
+  it('🔴 圆角反算后恒为 12px（刻意选定的常量，不是按钮 token）—— 与按钮 rx 两套口径', () => {
+    // dock 实际传入的三档：NavButton 的 ringSize = round(cellPixel × 0.8 + 8)，cell 70/80/90
+    for (const size of [64, 72, 80]) {
+      const wrapper = mount(TaskProgressRing, { props: { progress: 0.3, size } })
+      const rx = Number(wrapper.find('.task-progress-ring__bar').attributes('rx'))
+      expect(rx * (size / 44), `size=${size} 时渲染圆角应仍是 12px`).toBeCloseTo(12, 5)
+    }
+
+    // 反算本身：viewBox 坐标与 size 成反比（不反算就会随 size 放大）
     const at44 = mount(TaskProgressRing, { props: { progress: 0.3, size: 44 } })
     expect(Number(at44.find('.task-progress-ring__bar').attributes('rx'))).toBeCloseTo(12, 5)
 

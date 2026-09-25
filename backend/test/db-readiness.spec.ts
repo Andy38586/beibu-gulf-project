@@ -159,4 +159,16 @@ describe.skipIf(!withDb)('数据就绪守卫（真库 / beibu-gulf-data）', () 
       expect(Number(res.rows[0].n)).toBeGreaterThan(0)
     })
   })
+
+  // ─────────── 迁移登记（z050）：拦住「代码上线、库没跟上」 ───────────
+  //
+  // 只断言「表存在且非空」：不在此处手抄迁移清单（清单在 tools/db/schema-migrations.sql，
+  // 抄一份进来即是 RC1 的第二副本）。CI 由 ci-seed.sh 灌 schema-migrations.sql；
+  // 生产/本地库须先跑一次历史补录（步骤见该脚本头注释）。
+  describe('迁移登记：schema_migrations', () => {
+    it('schema_migrations 表存在且已补录（非空）', async () => {
+      const res = await db.query<{ n: string }>(`SELECT count(*)::text AS n FROM schema_migrations`)
+      expect(Number(res.rows[0].n)).toBeGreaterThan(0)
+    })
+  })
 })

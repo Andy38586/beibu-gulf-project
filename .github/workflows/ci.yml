@@ -662,6 +662,18 @@ jobs:
                 fi
                 if [ "$matched" = "1" ]; then
                   echo "部署完成：健康检查 200 且镜像身份已证实为 nest-${IMAGE_TAG}（证据源：${src}，耗时约 $((i * 20))s）"
+                  # 阶段四（z050，2026-09-26）：部署后数据就绪核对（只读，fail-loud）。
+                  # 「代码上线、库没跟上」在 2026-09-12 造成两起事故（浸没 500 / 航线 26s），
+                  # 根因是部署链无库侧核对。此处对线上库执行只读断言，任一 FAIL 即中断本 job
+                  # （镜像已换而库未就绪 = 线上带病，必须显式失败而非静默成功）。
+                  # 脚本用仓库 HEAD 版本（阶段一已 pull）；含 schema_migrations 登记表存在性
+                  # 断言（z050）——历史库须先一次性补录（见 tools/db/schema-migrations.sql 头注释）。
+                  if ! ssh_quick "cd /opt/beibu-gulf && docker exec -i beibu-postgis psql -U postgres -d beibu-gulf-data -v ON_ERROR_STOP=1 < tools/db/verify-data-readiness.sql"; then
+                    echo "::error::阶段四（部署后数据就绪核对）未通过：库对象/数据不变量缺失（见上方 FAIL 行）"
+                    echo "::error::迁移脚本见 tools/db/ 与 tools/roads/；登记表补录见 tools/db/schema-migrations.sql 头注释"
+                    exit 1
+                  fi
+                  echo "阶段四：数据就绪核对通过"
                   exit 0
                 fi
                 # 身份未证实：明示当前观测到的值，继续等待（绝不在此宣告成功）

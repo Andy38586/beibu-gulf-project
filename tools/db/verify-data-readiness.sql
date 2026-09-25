@@ -75,9 +75,14 @@ BEGIN
           JOIN pg_class t ON t.oid = i.indrelid
          WHERE t.relname = 'roads_noded'
            AND pg_get_indexdef(i.indexrelid) ILIKE '%INCLUDE (source, target, cost_m, cost_min)%'
-           AND pg_get_indexdef(i.indexrelid) ILIKE '%main_comp IS TRUE%'$q$)
+           AND pg_get_indexdef(i.indexrelid) ILIKE '%main_comp IS TRUE%'$q$),
       -- ⚠️ 勿加 `cost_m > 0` 字面断言：pg_get_indexdef 会规范化为 cost_m > (0)::double
       -- precision，字面匹配恒落空（2026-09-12 真库实测踩过，故只用 INCLUDE+main_comp 两段）
+
+      -- ③ 迁移登记（z050）：表存在且已补录（非空）——拦住「代码上线、库没跟上」。
+      -- 表缺失时本行经下方 EXCEPTION 落 FAIL（SQLERRM=relation does not exist）。
+      ('schema_migrations 迁移登记表存在且已补录',
+       $q$SELECT count(*) > 0, format('rows=%s', count(*)) FROM schema_migrations$q$)
     ) AS t(name, sql)
   LOOP
     BEGIN

@@ -8,7 +8,8 @@
 # route 域 pgr_withPoints 无法执行——2026-09-12 本地 probe 实证）。
 #
 # 灌数清单（① ② ③ 全部为随仓库分发的真数据，符合数据红线；④ 为唯一合成夹具）：
-#   ① schema：tools/db/db-schema.sql / db-schema-gis.sql / db-schema-flood.sql（IF NOT EXISTS 幂等）
+#   ① schema：tools/db/db-schema.sql / db-schema-gis.sql / db-schema-flood.sql /
+#      schema-migrations.sql（迁移登记表，z050）（IF NOT EXISTS 幂等）
 #   ② tools/db/db-import.mjs：ports 3 / flood_facilities 83 / data_archive 13
 #     （users/plans/favorites 为运行时数据不入仓库，测试自建自清）
 #   ③ tools/flood/flood-levels-to-pg.mjs：flood_levels 251 档
@@ -59,7 +60,7 @@ done
 
 echo "[seed] 扩展（postgis/pgrouting）+ schema（IF NOT EXISTS 幂等）..."
 psql_run -q -c "CREATE EXTENSION IF NOT EXISTS postgis; CREATE EXTENSION IF NOT EXISTS pgrouting;"
-for f in db-schema.sql db-schema-gis.sql db-schema-flood.sql; do
+for f in db-schema.sql db-schema-gis.sql db-schema-flood.sql schema-migrations.sql; do
   psql_run -q -f "$ROOT/tools/db/$f"
 done
 

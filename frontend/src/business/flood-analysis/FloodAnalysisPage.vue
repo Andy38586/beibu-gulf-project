@@ -402,31 +402,17 @@ function renderFloodAreas(features: FloodFeature[]) {
   // 空数组也继续更新（清空图层）：水位回落至无淹没档位时，残留旧多边形会与当前水位不符
   if (!features) return
 
-  // 检查图层是否已注册，若未注册则先注册
-  if (!businessLayerManager.has(FLOOD_LAYER_ID)) {
-    ownedLayers.register(FLOOD_LAYER_ID, {
-      label: '淹没范围',
-      layerType: 'geojson',
-      data: null,
-      options: {},
-      visible: true,
-    })
-  }
-
   const riskLevel = floodStore.floodRiskLevel
-  const fillColor = getRiskFillColor(riskLevel)
-  const strokeColor = getRiskColor(riskLevel)
 
-  const geojson = {
-    type: 'FeatureCollection',
-    features: features,
-  }
-
-  businessLayerManager.updateData(FLOOD_LAYER_ID, {
-    data: geojson,
+  // 幂等上图：首帧注册与后续更新走同一条调用，不再手写「has() ? register : updateData」
+  ownedLayers.applyOrUpdate(FLOOD_LAYER_ID, {
+    label: '淹没范围',
+    layerType: 'geojson',
+    visible: true,
+    data: { type: 'FeatureCollection', features },
     options: {
-      fillColor,
-      strokeColor,
+      fillColor: getRiskFillColor(riskLevel),
+      strokeColor: getRiskColor(riskLevel),
       strokeWidth: 2,
       featureType: 'flood-area',
     },
@@ -436,17 +422,6 @@ function renderFloodAreas(features: FloodFeature[]) {
 function renderAffectedFacilities(facilities: AffectedFacility[]) {
   // 空数组也继续更新（清空图层）：水位回落无设施被淹时，残留旧 POI 会误导（用户实测问题）
   if (!facilities) return
-
-  // 检查图层是否已注册，若未注册则先注册
-  if (!businessLayerManager.has(FACILITY_LAYER_ID)) {
-    ownedLayers.register(FACILITY_LAYER_ID, {
-      label: '受影响设施',
-      layerType: 'points',
-      data: null,
-      options: {},
-      visible: true,
-    })
-  }
 
   // points 图层契约要求 data 为点数组：传 FeatureCollection 会被透传为点数组而报错，故映射为点数组
   // P0-1：无效坐标过滤而非 `|| 0` 伪装 (0,0) 哨兵（crs.ts 自注"不再回退哨兵"）
@@ -463,7 +438,11 @@ function renderAffectedFacilities(facilities: AffectedFacility[]) {
       damageRate: f.damageRate,
     }))
 
-  businessLayerManager.updateData(FACILITY_LAYER_ID, {
+  // 幂等上图（同 renderFloodAreas）：注册与更新一条路径
+  ownedLayers.applyOrUpdate(FACILITY_LAYER_ID, {
+    label: '受影响设施',
+    layerType: 'points',
+    visible: true,
     data: points,
     options: {
       // 引用调色板常量（同值见 FLOOD_RISK_COLORS['高风险'].stroke），杜绝第二份字面量漂移

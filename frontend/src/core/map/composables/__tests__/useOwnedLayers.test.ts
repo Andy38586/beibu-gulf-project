@@ -38,6 +38,7 @@ function fakeManager() {
 }
 
 const DESC = { label: 'x', layerType: 'geojson', data: null } as never
+const DESC_WITH_DATA = { label: 'x', layerType: 'geojson', data: [1] } as never
 const MOUNT_OPTS = (manager: unknown) => ({
   global: { provide: { [BUSINESS_LAYER_MANAGER_KEY]: manager } },
 })
@@ -60,6 +61,46 @@ describe('useOwnedLayers — 图层归属结构约束', () => {
     expect(calls).toEqual(['register:a', 'register:b'])
     wrapper.unmount()
     expect(calls).toEqual(['register:a', 'register:b', 'remove:a', 'remove:b'])
+  })
+
+  it('@guard-red-sample applyOrUpdate：首次注册、再次只更新（不重复注册）', () => {
+    const { manager, calls } = fakeManager()
+    const wrapper = mount(
+      defineComponent({
+        setup() {
+          const owned = useOwnedLayers('t')
+          owned.applyOrUpdate('a', DESC)
+          owned.applyOrUpdate('a', DESC_WITH_DATA)
+          return () => h('div')
+        },
+      }),
+      MOUNT_OPTS(manager)
+    )
+    // 注册只发生一次，第二次走 updateData —— 这就是被收掉的那句「has() ? register : updateData」样板
+    expect(calls).toEqual(['register:a'])
+    expect(manager.register).toHaveBeenCalledTimes(1)
+    expect(manager.updateData).toHaveBeenCalledTimes(1)
+    expect(manager.updateData).toHaveBeenCalledWith('a', { data: [1], options: undefined })
+    wrapper.unmount()
+    expect(calls).toEqual(['register:a', 'remove:a'])
+  })
+
+  it('@guard-red-sample applyOrUpdate：卸载后到达 ⇒ 拒收，且不碰引擎', () => {
+    const { manager } = fakeManager()
+    let owned!: ReturnType<typeof useOwnedLayers>
+    const wrapper = mount(
+      defineComponent({
+        setup() {
+          owned = useOwnedLayers('t')
+          return () => h('div')
+        },
+      }),
+      MOUNT_OPTS(manager)
+    )
+    wrapper.unmount()
+    expect(owned.applyOrUpdate('late', DESC)).toBe(false)
+    expect(manager.register).not.toHaveBeenCalled()
+    expect(manager.updateData).not.toHaveBeenCalled()
   })
 
   it('卸载后到达的注册一律拒收（异步边：fetch 回包晚到）', () => {

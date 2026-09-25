@@ -1,6 +1,6 @@
 import type { Feature, FeatureCollection, LineString } from 'geojson'
 
-import { useBusinessLayers, useOwnedLayers } from '@/core'
+import { useOwnedLayers } from '@/core'
 import type { LayerOptions, RoutePathResult } from '@/types'
 
 import { ROUTE_COLOR } from '../constants/colors'
@@ -97,24 +97,20 @@ export interface UseRouteLayerReturn {
  * manager 从注入取（页面与面板同源，见 useBusinessLayers），不再由调用方透传。
  */
 export function useRouteLayer(): UseRouteLayerReturn {
-  const { manager } = useBusinessLayers()
   const owned = useOwnedLayers('route-analysis')
 
   function updateRouteLayers(segments: RoutePathResult[], slots: RouteSlot[]): void {
     // 端点标记层：始终按四槽刷新
     const endpointGeo = buildEndpointGeoJson(slots)
     if (endpointGeo.features.length > 0) {
-      if (!manager.has(ROUTE_ENDPOINT_LAYER_ID)) {
-        owned.register(ROUTE_ENDPOINT_LAYER_ID, {
-          label: '起终点',
-          layerType: 'geojson',
-          data: endpointGeo,
-          options: ROUTE_ENDPOINT_STYLE,
-          visible: true,
-        })
-      } else {
-        manager.updateData(ROUTE_ENDPOINT_LAYER_ID, { data: endpointGeo })
-      }
+      // 幂等上图：注册与更新走同一条调用；空集走下面的 unregister 清层
+      owned.applyOrUpdate(ROUTE_ENDPOINT_LAYER_ID, {
+        label: '起终点',
+        layerType: 'geojson',
+        data: endpointGeo,
+        options: ROUTE_ENDPOINT_STYLE,
+        visible: true,
+      })
     } else {
       owned.unregister(ROUTE_ENDPOINT_LAYER_ID)
     }
@@ -122,17 +118,13 @@ export function useRouteLayer(): UseRouteLayerReturn {
     // 路径线层：至少一段有折线才上图；全空清理旧线
     const routeGeo = buildRouteGeoJson(segments)
     if (routeGeo.features.length > 0) {
-      if (!manager.has(ROUTE_PATH_LAYER_ID)) {
-        owned.register(ROUTE_PATH_LAYER_ID, {
-          label: '路径线',
-          layerType: 'geojson',
-          data: routeGeo,
-          options: ROUTE_PATH_STYLE,
-          visible: true,
-        })
-      } else {
-        manager.updateData(ROUTE_PATH_LAYER_ID, { data: routeGeo })
-      }
+      owned.applyOrUpdate(ROUTE_PATH_LAYER_ID, {
+        label: '路径线',
+        layerType: 'geojson',
+        data: routeGeo,
+        options: ROUTE_PATH_STYLE,
+        visible: true,
+      })
     } else {
       owned.unregister(ROUTE_PATH_LAYER_ID)
     }

@@ -20,20 +20,13 @@ import type { PoiSearchItemParsed } from '@/types/schemas'
 
 import { isWithinThreeCities } from '../composables/useCityBoundary'
 import { useRouteApi } from '../composables/useRouteApi'
-import type {
-  RouteLayerManager,
-  RoutePoint,
-  RouteSlot,
-  RouteSlotKey,
-} from '../composables/useRouteLayer'
+import type { RoutePoint, RouteSlot, RouteSlotKey } from '../composables/useRouteLayer'
 import { ROUTE_SLOT_KEYS, useRouteLayer } from '../composables/useRouteLayer'
 
 /** v4：本面板所属路由（taskStore 按 route 分槽的 key；与 manifest.path 一致） */
 const ROUTE_PATH = '/route-analysis'
 
 interface Props {
-  /** BLM 实例（图层注册/更新；页面 useBusinessLayers 提供，此处只消费四方法子集） */
-  manager: RouteLayerManager
   /** v4：是否允许拖拽（页面统一开关，便于后续响应式降级） */
   draggable?: boolean
 }
@@ -65,7 +58,7 @@ const calculating = ref(false)
 /**
  * 卸载标志（2026-09-19 修复 · P0）。
  *
- * 为什么必须：`handleQuery` 的链末会写 **App 级单例** `props.manager`（注册图层）并 emit。
+ * 为什么必须：`handleQuery` 的链末会向 **App 级单例** BLM（`useBusinessLayers` 注入）注册图层并 emit。
  * 查询在飞时用户切走路由/拖面板，这条链仍会跑完 ⇒ 别的业务页上出现上一次航线查询的
  * 幽灵图层，且 emit 写向已销毁实例。对照：`ForecastControlPanel` / `WaterLevelProfilePanel`
  * / `FloodAnalysisPage` 均有同类标志，本面板此前缺。
@@ -436,7 +429,7 @@ async function handleQuery(): Promise<void> {
   if (disposed) return
 
   // 已成功段也上图（多段中断时保留可达部分），槽点始终刷新
-  updateRouteLayers(props.manager, segments, collectSlots())
+  updateRouteLayers(segments, collectSlots())
   hasResult.value = segments.length > 0
   if (segments.length > 0) {
     emit('query-result', { segments, pointCount: chain.length })
@@ -457,7 +450,7 @@ function handleClear(): void {
   poiDropOpen.value = false
   pendingPoint.value = null
   hasResult.value = false
-  clearRouteLayers(props.manager)
+  clearRouteLayers()
   emit('cleared')
 }
 
@@ -479,17 +472,18 @@ onUnmounted(() => {
   // ✅ **可清（UI 状态，属于本组件）**：
   //   · poiAbort —— POI 搜索是面板内的轻量交互，面板没了就没有消费者
   //   · document 监听 —— 必须摘，否则离页后在别的页面点鼠标仍触发本闭包
-  //   · clearRouteLayers —— 图层是"当前引擎上的画"，渲染器单例复用，
-  //     不清会泄漏到别的业务页（审查 M-5）
   //
   // 🔴 **不可清（任务状态，属于 taskStore）**：
   //   · 后端任务 —— 严禁在此调 taskStore.cancel()！用户把面板拖进 dock
   //     正是为了"页面不管了它还得跑"；这里取消等于把保活功能当场废掉。
   //     任务的终止只由三件事触发：用户点取消 / 被同路由新任务取代 / 登出清空。
   //   · 在途 HTTP 轮询 —— 轮询句柄住在 store（pollTimers），不随组件销毁。
+  //
+  // 图层注销**不再由本面板负责**：路径线/起终点两层注册经 useOwnedLayers 登记归属，
+  // 卸载由 onScopeDispose 统一清（原先是这里手写 clearRouteLayers —— 那正是
+  // 「注册必注销」要治的那类：靠人记得写，漏一次就跨路由残留）。
   poiAbort?.abort()
   document.removeEventListener('mousedown', onDocumentMouseDown, true)
-  clearRouteLayers(props.manager)
 })
 
 defineExpose({

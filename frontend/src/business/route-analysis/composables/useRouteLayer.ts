@@ -1,6 +1,6 @@
 import type { Feature, FeatureCollection, LineString } from 'geojson'
 
-import type { BusinessLayerManager } from '@/core'
+import { useBusinessLayers, useOwnedLayers } from '@/core'
 import type { LayerOptions, RoutePathResult } from '@/types'
 
 import { ROUTE_COLOR } from '../constants/colors'
@@ -10,12 +10,6 @@ export const ROUTE_PATH_LAYER_ID = 'route-path'
 
 /** 起点/途径点/终点标记图层 id */
 export const ROUTE_ENDPOINT_LAYER_ID = 'route-endpoint'
-
-/** createUpdateHandler 实际使用的 manager 方法子集（与 BLM 解耦，页面传入的 manager 无需完整 BLM 类型） */
-export type RouteLayerManager = Pick<
-  BusinessLayerManager,
-  'register' | 'updateData' | 'has' | 'remove'
->
 
 /** 选点槽位 key：起点 → 途径 1 → 途径 2 → 终点（途径可空） */
 export type RouteSlotKey = 'from' | 'waypoint-1' | 'waypoint-2' | 'to'
@@ -89,26 +83,30 @@ export function buildEndpointGeoJson(slots: RouteSlot[]): FeatureCollection {
 /** useRouteLayer 返回值 */
 export interface UseRouteLayerReturn {
   /** 更新路径线（多段）+ 端点标记图层（幂等：空集时清理对应图层；未注册先注册） */
-  updateRouteLayers: (
-    manager: RouteLayerManager,
-    segments: RoutePathResult[],
-    slots: RouteSlot[]
-  ) => void
-  /** 清理全部路径相关图层 */
-  clearRouteLayers: (manager: RouteLayerManager) => void
+  updateRouteLayers: (segments: RoutePathResult[], slots: RouteSlot[]) => void
+  /**
+   * 主动清（「清除全部」/ 重查前调用）。语义同 useForecastLayer.removeForecastLayer：
+   * 这是「现在就清」，不是「卸载时清」——卸载清由 useOwnedLayers 的 onScopeDispose 负责，
+   * 两边幂等，无害。
+   */
+  clearRouteLayers: () => void
 }
 
+/**
+ * 图层注册一律经 useOwnedLayers 登记归属（结构约束，同 useForecastLayer 先例）：
+ * 注册即入册、卸载由作用域销毁统一清 —— 调用方因此**没有**「忘记清某一层」这个动作可漏。
+ * manager 从注入取（页面与面板同源，见 useBusinessLayers），不再由调用方透传。
+ */
 export function useRouteLayer(): UseRouteLayerReturn {
-  function updateRouteLayers(
-    manager: RouteLayerManager,
-    segments: RoutePathResult[],
-    slots: RouteSlot[]
-  ): void {
+  const { manager } = useBusinessLayers()
+  const owned = useOwnedLayers('route-analysis')
+
+  function updateRouteLayers(segments: RoutePathResult[], slots: RouteSlot[]): void {
     // 端点标记层：始终按四槽刷新
     const endpointGeo = buildEndpointGeoJson(slots)
     if (endpointGeo.features.length > 0) {
       if (!manager.has(ROUTE_ENDPOINT_LAYER_ID)) {
-        manager.register(ROUTE_ENDPOINT_LAYER_ID, {
+        owned.register(ROUTE_ENDPOINT_LAYER_ID, {
           label: '起终点',
           layerType: 'geojson',
           data: endpointGeo,
@@ -118,15 +116,15 @@ export function useRouteLayer(): UseRouteLayerReturn {
       } else {
         manager.updateData(ROUTE_ENDPOINT_LAYER_ID, { data: endpointGeo })
       }
-    } else if (manager.has(ROUTE_ENDPOINT_LAYER_ID)) {
-      manager.remove(ROUTE_ENDPOINT_LAYER_ID)
+    } else {
+      owned.unregister(ROUTE_ENDPOINT_LAYER_ID)
     }
 
     // 路径线层：至少一段有折线才上图；全空清理旧线
     const routeGeo = buildRouteGeoJson(segments)
     if (routeGeo.features.length > 0) {
       if (!manager.has(ROUTE_PATH_LAYER_ID)) {
-        manager.register(ROUTE_PATH_LAYER_ID, {
+        owned.register(ROUTE_PATH_LAYER_ID, {
           label: '路径线',
           layerType: 'geojson',
           data: routeGeo,
@@ -136,14 +134,14 @@ export function useRouteLayer(): UseRouteLayerReturn {
       } else {
         manager.updateData(ROUTE_PATH_LAYER_ID, { data: routeGeo })
       }
-    } else if (manager.has(ROUTE_PATH_LAYER_ID)) {
-      manager.remove(ROUTE_PATH_LAYER_ID)
+    } else {
+      owned.unregister(ROUTE_PATH_LAYER_ID)
     }
   }
 
-  function clearRouteLayers(manager: RouteLayerManager): void {
-    if (manager.has(ROUTE_PATH_LAYER_ID)) manager.remove(ROUTE_PATH_LAYER_ID)
-    if (manager.has(ROUTE_ENDPOINT_LAYER_ID)) manager.remove(ROUTE_ENDPOINT_LAYER_ID)
+  function clearRouteLayers(): void {
+    owned.unregister(ROUTE_PATH_LAYER_ID)
+    owned.unregister(ROUTE_ENDPOINT_LAYER_ID)
   }
 
   return { updateRouteLayers, clearRouteLayers }

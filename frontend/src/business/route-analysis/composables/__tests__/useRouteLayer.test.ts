@@ -1,6 +1,7 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { mount } from '@vue/test-utils'
+import { describe, expect, it } from 'vitest'
 
-import type { BusinessLayerManager } from '@/core'
+import { BUSINESS_LAYER_MANAGER_KEY, type BusinessLayerManager } from '@/core'
 import type { RoutePathResult } from '@/types'
 
 import type { RouteSlot } from '../useRouteLayer'
@@ -57,17 +58,39 @@ const SLOT = (key: RouteSlot['key'], lng: number, lat: number): RouteSlot => ({
   point: { lng, lat },
 })
 
+/**
+ * 在真实组件作用域内取 useRouteLayer，并 provide 假 manager。
+ *
+ * 为什么必须是这个形态（不是直接 `useRouteLayer()`）：
+ *   注册经 `useOwnedLayers` 登记归属 ⇒ ① 需要活的作用域（它内部 `onScopeDispose` 挂卸载清），
+ *   ② 需要能 inject 到 manager（它从 `useBusinessLayers` 取，不再是入参透传）。
+ * 裸调两者都不成立，测出来的就不是生产形态。
+ */
+function mountLayerHook() {
+  const fake = createFakeManager()
+  let api!: ReturnType<typeof useRouteLayer>
+  const wrapper = mount(
+    {
+      setup() {
+        api = useRouteLayer()
+        return () => null
+      },
+    },
+    {
+      global: {
+        provide: {
+          [BUSINESS_LAYER_MANAGER_KEY]: fake.manager as unknown as BusinessLayerManager,
+        },
+      },
+    }
+  )
+  return { fake, api, wrapper }
+}
+
 describe('useRouteLayer', () => {
-  let fake: ReturnType<typeof createFakeManager>
-  const { updateRouteLayers, clearRouteLayers } = useRouteLayer()
-
-  beforeEach(() => {
-    fake = createFakeManager()
-  })
-
   it('有结果且有起终点 → 注册两条图层（路径线 featureType 同层 id）', () => {
-    updateRouteLayers(
-      fake.manager,
+    const { fake, api } = mountLayerHook()
+    api.updateRouteLayers(
       [RESULT],
       [
         SLOT('from', 108.6, 21.6),
@@ -83,23 +106,37 @@ describe('useRouteLayer', () => {
   })
 
   it('再次更新 → updateData（不重复注册）', () => {
+    const { fake, api } = mountLayerHook()
     const slots = [SLOT('from', 108.6, 21.6), SLOT('to', 108.8, 21.8)]
-    updateRouteLayers(fake.manager, [RESULT], slots)
-    updateRouteLayers(fake.manager, [RESULT], slots)
+    api.updateRouteLayers([RESULT], slots)
+    api.updateRouteLayers([RESULT], slots)
     expect(fake.calls.filter((c) => c === `register:${ROUTE_PATH_LAYER_ID}`)).toHaveLength(1)
     expect(fake.calls.filter((c) => c === `updateData:${ROUTE_PATH_LAYER_ID}`)).toHaveLength(1)
   })
 
   it('空结果（segments 空）→ 移除路径线但保留端点标记', () => {
-    updateRouteLayers(fake.manager, [RESULT], [SLOT('from', 1, 2), SLOT('to', 3, 4)])
-    updateRouteLayers(fake.manager, [], [SLOT('from', 1, 2), SLOT('to', 3, 4)])
+    const { fake, api } = mountLayerHook()
+    api.updateRouteLayers([RESULT], [SLOT('from', 1, 2), SLOT('to', 3, 4)])
+    api.updateRouteLayers([], [SLOT('from', 1, 2), SLOT('to', 3, 4)])
     expect(fake.manager.has(ROUTE_PATH_LAYER_ID)).toBe(false)
     expect(fake.manager.has(ROUTE_ENDPOINT_LAYER_ID)).toBe(true)
   })
 
-  it('clearRouteLayers → 两条图层全清', () => {
-    updateRouteLayers(fake.manager, [RESULT], [SLOT('from', 1, 2), SLOT('to', 3, 4)])
-    clearRouteLayers(fake.manager)
+  it('clearRouteLayers → 两条图层全清（主动清，供「清除全部」/重查前调用）', () => {
+    const { fake, api } = mountLayerHook()
+    api.updateRouteLayers([RESULT], [SLOT('from', 1, 2), SLOT('to', 3, 4)])
+    api.clearRouteLayers()
+    expect(fake.manager.has(ROUTE_PATH_LAYER_ID)).toBe(false)
+    expect(fake.manager.has(ROUTE_ENDPOINT_LAYER_ID)).toBe(false)
+  })
+
+  it('作用域销毁（组件卸载）⇒ 两层自动注销，调用方无需手写清理', () => {
+    const { fake, api, wrapper } = mountLayerHook()
+    api.updateRouteLayers([RESULT], [SLOT('from', 1, 2), SLOT('to', 3, 4)])
+    expect(fake.manager.has(ROUTE_PATH_LAYER_ID)).toBe(true)
+
+    wrapper.unmount()
+
     expect(fake.manager.has(ROUTE_PATH_LAYER_ID)).toBe(false)
     expect(fake.manager.has(ROUTE_ENDPOINT_LAYER_ID)).toBe(false)
   })

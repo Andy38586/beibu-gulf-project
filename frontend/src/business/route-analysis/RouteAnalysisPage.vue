@@ -19,7 +19,6 @@ import {
   LayerControlPanel,
   tallyGroups,
   toDataUri,
-  useBusinessLayers,
   useOwnedLayers,
   type TilesetJson,
 } from '@/core'
@@ -108,7 +107,6 @@ async function registerImageryLayers(): Promise<void> {
 
 const mapStore = useMapStore()
 const taskStore = useTaskStore()
-const { manager: businessLayerManager } = useBusinessLayers()
 
 /** v4：本页路由标识（taskStore 按 route 分槽的 key；与 manifest.path 一致） */
 const ROUTE_PATH = '/route-analysis'
@@ -345,7 +343,6 @@ onUnmounted(() => {
       <template #right>
         <RouteControlPanel
           ref="panelRef"
-          :manager="businessLayerManager"
           :task-slot="routeTaskSlot"
           :draggable="true"
           @query-result="handleQueryResult"

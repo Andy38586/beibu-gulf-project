@@ -13,7 +13,12 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { auditSources, layerRegisterSites, unmountBlocks } from '../owned-layers.mjs'
+import {
+  auditSources,
+  layerRegisterSites,
+  looksLikeLayerTeardown,
+  unmountBlocks,
+} from '../owned-layers.mjs'
 
 const src = (text, relPath = 'frontend/src/business/x/XPage.vue') => [{ relPath, text }]
 
@@ -44,6 +49,62 @@ describe('owned-layers — 图层归属结构约束', () => {
     expect(auditSources(src(b))[0]).toContain('unmount-indirect')
   })
 
+  it('@guard-red-sample 换成别的名字（cleanupLayers / detachLayers / purgeAllLayers）⇒ 仍必报', () => {
+    for (const call of ['cleanupLayers()', 'detachLayers()', 'purgeAllLayers()']) {
+      const t = ['onUnmounted(() => {', `  ${call}`, '})'].join('\n')
+      expect(auditSources(src(t))[0], call).toContain('unmount-indirect')
+    }
+  })
+
+  it('@guard-red-sample 用 BLM 自己的 removeAll（名字里没有 Layers）⇒ 仍必报', () => {
+    const t = ['onUnmounted(() => {', '  businessLayerManager.removeAll()', '})'].join('\n')
+    expect(auditSources(src(t))[0]).toContain('unmount-indirect')
+  })
+
+  it('looksLikeLayerTeardown：认形态而非认名字（复核实测的三条 evasion 都在这）', () => {
+    for (const n of [
+      'cleanupLayers',
+      'detachLayers',
+      'purgeAllLayers',
+      'removeAll',
+      'removeLayer',
+    ]) {
+      expect(looksLikeLayerTeardown(n), `${n} 应判为注销`).toBe(true)
+    }
+    for (const n of [
+      'clearTimeout',
+      'clearInterval',
+      'removeEventListener',
+      'stopTilesLayerWatch',
+      'cancelAll',
+      'stopBreathing',
+      'reset',
+      'abort',
+      // dispose / teardown 更常用于非图层资源（实测 ECharts 实例销毁被误伤）
+      'dispose',
+      'teardown',
+    ]) {
+      expect(looksLikeLayerTeardown(n), `${n} 不应判为注销`).toBe(false)
+    }
+  })
+
+  it('卸载块内的非图层调用（定时器/监听/停 watch/取消/重置/abort）⇒ 不误伤', () => {
+    const t = [
+      'onUnmounted(() => {',
+      '  clearTimeout(timer)',
+      '  clearInterval(iv)',
+      '  document.removeEventListener("click", h)',
+      '  stopBreathing()',
+      '  stopTilesLayerWatch()',
+      '  cancelAll()',
+      '  forecastState.reset()',
+      '  poiAbort?.abort()',
+      '  chartInstance.dispose()',
+      '})',
+    ].join('\n')
+    expect(auditSources(src(t))).toEqual([])
+  })
+
   it('@guard-red-sample business 下裸 manager.register ⇒ 必报（判据 C）', () => {
     const t = ['function f() {', "  manager.register('k', {})", '}'].join('\n')
     const problems = auditSources(src(t))
@@ -56,11 +117,28 @@ describe('owned-layers — 图层归属结构约束', () => {
     expect(auditSources(src(t))[0]).toContain('bare-register')
   })
 
-  it('注册经 owned / ownedLayers ⇒ 不报（判据 C 正向对照）', () => {
-    const a = ['function f() {', "  owned.register('k', {})", '}'].join('\n')
-    const b = ['function f() {', "  ownedLayers.register('k', {})", '}'].join('\n')
+  it('注册经 useOwnedLayers 派生的变量 ⇒ 不报（判据 C 正向对照）', () => {
+    const a = ["const owned = useOwnedLayers('x')", "owned.register('k', {})"].join('\n')
+    const b = ["const ownedLayers = useOwnedLayers('y')", "ownedLayers.register('k', {})"].join(
+      '\n'
+    )
     expect(auditSources(src(a))).toEqual([])
     expect(auditSources(src(b))).toEqual([])
+  })
+
+  it('@guard-red-sample owner 变量重命名 ⇒ 按数据流计入已接，不算裸注册', () => {
+    const t = ["const panelOwned = useOwnedLayers('p')", "panelOwned.register('k', {})"].join('\n')
+    expect(auditSources(src(t))).toEqual([])
+    const sites = layerRegisterSites(src(t))
+    expect(sites).toHaveLength(1)
+    expect(sites[0].owned, '按数据流应识别为已接（旧判据会报 owned:false 而分母静默失真）').toBe(
+      true
+    )
+  })
+
+  it('@guard-red-sample 非 owner 变量 register ⇒ 必报（不再靠"变量名含 manager"）', () => {
+    const t = ['function f() {', "  someThing.register('k', {})", '}'].join('\n')
+    expect(auditSources(src(t))[0]).toContain('bare-register')
   })
 
   it('主动清（写在自己函数里，不在卸载钩子）⇒ 不报', () => {
@@ -86,15 +164,15 @@ describe('owned-layers — 图层归属结构约束', () => {
     expect(auditSources(src(t))).toEqual([])
   })
 
-  it('layerRegisterSites 给出分母与已接数（含经 owner 册的那些）', () => {
+  it('layerRegisterSites 分母：按 useOwnedLayers 派生判定「已接」', () => {
     const t = [
+      "const owned = useOwnedLayers('x')",
       "owned.register('a', {})",
-      "ownedLayers.register('b', {})",
       "businessLayerManager.register('c', {})",
     ].join('\n')
     const sites = layerRegisterSites(src(t))
-    expect(sites).toHaveLength(3)
-    expect(sites.filter((s) => s.owned)).toHaveLength(2)
+    expect(sites).toHaveLength(2)
+    expect(sites.filter((s) => s.owned)).toHaveLength(1)
   })
 
   it('基线命中 ⇒ 该项不报（豁免口可对账）', () => {

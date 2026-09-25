@@ -51,19 +51,64 @@ export const BASELINE = [
 
 const COMMENT = /^\s*(\/\/|\*|\/\*)/
 const UNMOUNT_HEAD = /onUnmounted\s*\(|onBeforeUnmount\s*\(/
-/** 直接注销：`.remove(` */
-const DIRECT_REMOVE = /\.remove\s*\(/
-/**
- * 间接注销：清理图层的封装函数调用。
- * `clearTimeout` / `clearTimer` 这类**不含 Layers** 的不匹配 —— 它们不是图层操作。
- */
-const INDIRECT_REMOVE = /\b(?:clear|remove|release)\w*(?:Layers?|LayerIds?)\s*\(|\breleaseAll\s*\(/
+/** 任何函数调用：捕获被调名 */
+const CALL = /\b([A-Za-z_$][\w$]*)\s*\(/g
 /** 注册调用：捕获接收者名（第 2 组） */
 const REGISTER_CALL = /(^|[^.\w])([A-Za-z_$][\w$]*)\.register\s*\(/
-/** owner 册变量名（经 useOwnedLayers 得到的那些） */
-const OWNED_RECEIVER = /^(owned|ownedLayers)$/i
-/** 图层管理器接收者：名字含 manager */
-const MANAGER_RECEIVER = /manager/i
+/** useOwnedLayers 的调用（用于派生 owner 变量名） */
+const OWNED_FACTORY = /(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*useOwnedLayers\s*\(/g
+
+/** 卸载块里**不是**图层注销的调用 —— 卸载时它们完全正常，不能误伤 */
+const NON_LAYER_CALLS = new Set([
+  'clearTimeout',
+  'clearInterval',
+  'clearImmediate',
+  'removeEventListener',
+  'addEventListener',
+  'setTimeout',
+  'setInterval',
+])
+
+/**
+ * 注销动词前缀。**不含 `dispose` / `teardown`** —— 它们更常出现在非图层资源上
+ * （实测 `WaterLevelProfilePanel.vue:553` 的 `chartInstance.dispose()` 是 ECharts 实例销毁，
+ * 纳入会立刻误伤）。图层清理若用这两个词，通常带 `Layer(s)` 后缀，仍由上面的形态判据覆盖。
+ */
+const TEARDOWN_VERB = /^(remove|release|clear|detach|purge|unregister)/i
+
+/**
+ * 这个调用名算不算「注销图层」。
+ *
+ * **刻意不写死函数名** —— 写死就是「只认一种记法」：把 `clearRouteLayers()` 改名成
+ * `cleanupLayers()` / `detachLayers()`，或用 BLM 自己的 `removeAll()`，都能绕过一条
+ * 按固定前缀匹配的判据（AGENTS §5.3 变异四式第 4 格）。2026-09-25 复核实测：
+ * `cleanupLayers()` / `detachLayers()` / `businessLayerManager.removeAll()` 三者
+ * 在旧判据下**全部 0 命中**。
+ *
+ * 改按语义形态识别：
+ *   · 名字以 `layer` / `layers` 结尾（cleanupLayers / detachLayers / clearXxxLayers / removeLayer）
+ *   · 或名字以注销动词开头（remove / release / clear / detach / dispose / teardown / purge / unregister）
+ * `stopTilesLayerWatch`（以 Watch 结尾）、`cancelAll`、`stopBreathing`、`reset` 既不
+ * 以 layer(s) 结尾也不在动词表里，天然不匹配 —— 无需为它们开豁免口。
+ */
+export function looksLikeLayerTeardown(name) {
+  if (NON_LAYER_CALLS.has(name)) return false
+  if (/layers?$/i.test(name)) return true
+  return TEARDOWN_VERB.test(name)
+}
+
+/**
+ * 文件内由 `useOwnedLayers(...)` 派生的 owner 变量名。
+ *
+ * 用它判「注册是否经归属约束」，而不是靠变量叫不叫 `owned` ——
+ * `const panelOwned = useOwnedLayers('x')` 这种重命名在旧判据下**既不判违规、也不计入
+ * 已接**，让注册点分母静默失真（2026-09-25 复核实测）。
+ */
+export function ownedReceivers(source) {
+  const names = new Set()
+  for (const m of source.matchAll(OWNED_FACTORY)) names.add(m[1])
+  return names
+}
 
 /** 收集业务源文件（.vue + .ts，排除测试） */
 export function collectSources(dir = BUSINESS) {
@@ -118,17 +163,18 @@ export function unmountBlocks(text) {
 /**
  * 图层注册点清单（分母）。
  * 分母 = 所有 `.register(` 调用点（**含已接的**，否则算不出「已接/该接」）；
- * `owned` 标记 = 接收者经 owner 册。
+ * `owned` 标记 = 接收者是 `useOwnedLayers(...)` **派生出来的变量**（按数据流，不按变量名）。
  */
 export function layerRegisterSites(sources) {
   const sites = []
   for (const { relPath, text } of sources) {
+    const owners = ownedReceivers(text)
     const lines = text.split(/\r?\n/)
     for (let i = 0; i < lines.length; i++) {
       if (COMMENT.test(lines[i])) continue
       const m = REGISTER_CALL.exec(lines[i])
       if (!m) continue
-      sites.push({ relPath, line: i + 1, receiver: m[2], owned: OWNED_RECEIVER.test(m[2]) })
+      sites.push({ relPath, line: i + 1, receiver: m[2], owned: owners.has(m[2]) })
     }
   }
   return sites
@@ -143,36 +189,35 @@ export function auditSources(sources, { baseline = BASELINE } = {}) {
   }
 
   for (const { relPath, text } of sources) {
-    // 判据 A / B：卸载钩子块内不得注销（直接或间接）
+    // 判据 A / B：卸载钩子块内不得注销图层（直接 `.remove(` 或经封装函数）
     for (const block of unmountBlocks(text)) {
       for (const { line, text: t } of block) {
         if (COMMENT.test(t)) continue
-        if (DIRECT_REMOVE.test(t)) {
+        for (const m of t.matchAll(CALL)) {
+          const name = m[1]
+          if (!looksLikeLayerTeardown(name)) continue
+          const kind = name === 'remove' ? 'unmount-remove' : 'unmount-indirect'
           mark(
-            'unmount-remove',
+            kind,
             relPath,
             line,
-            '在卸载钩子里直接手写图层注销 —— 应经 useOwnedLayers，由作用域销毁统一清'
-          )
-        } else if (INDIRECT_REMOVE.test(t)) {
-          mark(
-            'unmount-indirect',
-            relPath,
-            line,
-            '在卸载钩子里间接注销图层（调用清理封装）—— 与手写注销等价，同样应交给作用域销毁'
+            kind === 'unmount-remove'
+              ? '在卸载钩子里直接手写图层注销 —— 应经 useOwnedLayers，由作用域销毁统一清'
+              : `在卸载钩子里调 ${name}() 注销图层 —— 与手写注销等价，同样应交给作用域销毁`
           )
         }
       }
     }
 
-    // 判据 C：图层注册必须经 owner 册
+    // 判据 C：图层注册必须经 owner 册（按 `useOwnedLayers` 派生的变量判定，不按变量名）
+    const owners = ownedReceivers(text)
     const lines = text.split(/\r?\n/)
     for (let i = 0; i < lines.length; i++) {
       if (COMMENT.test(lines[i])) continue
       const m = REGISTER_CALL.exec(lines[i])
       if (!m) continue
       const receiver = m[2]
-      if (!MANAGER_RECEIVER.test(receiver) || OWNED_RECEIVER.test(receiver)) continue
+      if (owners.has(receiver)) continue
       mark(
         'bare-register',
         relPath,

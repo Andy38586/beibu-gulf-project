@@ -1,35 +1,63 @@
 // @vitest-environment node
 /**
- * metrics-tally 的自测（含红样）。
+ * metrics-tally 的自测（**真红样**）。
  *
- * 该守卫此前逻辑全在顶层（读真实附录），喂不了违例输入。本笔把 §8 明细表的解析提成
- * `parseDetailRows(markdown)`（文本可注入），红样因此可写。
- *
- * 顺带钉住一处**隐藏行为**：状态列的正则已写成 `(A-|A|B|C|D|退役)`，所以
- * 「状态非法」那条 problems 分支**永不触发** —— 非法值在解析层就被丢弃，不会报错。
- * 下面第二条用例把这个事实固化下来：若将来放宽正则，它会失败，提醒补上真正的校验。
+ * 前一版红样只证了 `parseDetailRows`（解析器）的行为 —— 五处 `problems.push` 全在顶层，
+ * 喂不进违例输入，所以那不是「违例时守卫会红」。本笔把审计主体提成
+ * `auditAppendix(markdown, declared)`（两条输入都可注入），红样因此是真的：
+ * 喂一份**造假的附录**，断言它报出具体违规文案。
  */
 import { describe, expect, it } from 'vitest'
 
-import { parseDetailRows } from '../metrics-tally.mjs'
+import { auditAppendix, parseDetailRows } from '../metrics-tally.mjs'
 
-describe('metrics-tally — 附录 §8 明细表解析', () => {
-  it('正常行被解析', () => {
+/** 造一份 §8 明细段落 */
+function appendix(rows) {
+  return ['### 专项1', ...rows.map((r) => `| ${r.id} | ${r.name} | P1 | ${r.state} |`)].join('\n')
+}
+
+describe('metrics-tally — 附录审计（真红样：违例时守卫必须报）', () => {
+  it('专项数对齐时不含「指标数漂移」', () => {
+    const { problems } = auditAppendix(appendix([{ id: '1.1', name: 'x', state: 'C' }]), {
+      专项1: 1,
+    })
+    expect(problems.join(' ')).not.toContain('指标数漂移')
+  })
+
+  it('@guard-red-sample 指标数漂移（声明 57、实际 1）→ 必报', () => {
+    const { problems } = auditAppendix(appendix([{ id: '1.1', name: 'x', state: 'C' }]), {
+      专项1: 57,
+    })
+    expect(problems.join(' ')).toContain('指标数漂移')
+  })
+
+  it('@guard-red-sample 指标编号重复 → 必报', () => {
+    const { problems } = auditAppendix(
+      appendix([
+        { id: '1.1', name: 'x', state: 'C' },
+        { id: '1.1', name: 'y', state: 'C' },
+      ]),
+      { 专项1: 2 }
+    )
+    expect(problems.join(' ')).toContain('指标编号重复')
+  })
+
+  it('@guard-red-sample 总数漂移（两专项声明和 ≠ 实际）→ 必报', () => {
+    const { problems } = auditAppendix('### 专项1\n| 1.1 | x | P1 | C |\n', {
+      专项1: 1,
+      专项2: 5,
+    })
+    expect(problems.join(' ')).toContain('指标总数漂移')
+  })
+
+  it('解析器可单测（保留）', () => {
     const rows = parseDetailRows('### 专项1\n| 1.1 | 名称 | P1 | C |\n')
     expect(rows.get('专项1')).toEqual([{ id: '1.1', name: '名称', level: 'P1', state: 'C' }])
   })
 
-  it('@guard-red-sample 非法状态值在解析层被丢弃 ⇒ 「状态非法」分支是死代码（放宽正则会红）', () => {
-    const rows = parseDetailRows('### 专项1\n| 1.1 | 名称 | P1 | Z |\n')
-    expect(rows.get('专项1') ?? []).toHaveLength(0)
-  })
-
-  it('@guard-red-sample 带 ′ 后缀的追加编号也认（v3 尾部追加）', () => {
-    const rows = parseDetailRows('### 专项8\n| 8.1′ | 增补项 | P2 | A- |\n')
-    expect(rows.get('专项8')?.[0]?.id).toBe('8.1′')
-  })
-
-  it('无匹配行 → 空表（不静默造数据）', () => {
-    expect([...parseDetailRows('# 无关文档').keys()]).toEqual([])
+  it('带 ′ 后缀的追加编号也认（v3 尾部追加）', () => {
+    expect(parseDetailRows('### 专项8\n| 8.1′ | 增补 | P2 | A- |\n').get('专项8')?.[0]?.id).toBe(
+      '8.1′'
+    )
   })
 })

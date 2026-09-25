@@ -59,54 +59,63 @@ export function parseDetailRows(markdown = readFileSync(APPENDIX, 'utf8')) {
   return rows
 }
 
-const rows = parseDetailRows()
-// 汇总表交叉校验还要用逐行文本（crossCheckSummary），故这里保留一份
-const lines = readFileSync(APPENDIX, 'utf8').split(/\r?\n/)
+/**
+ * 审计附录：解析 §8 明细表 + 四条不变量（状态合法 / 指标数 / 编号唯一 / 总数）
+ * 与汇总表交叉校验。markdown 与 declared 都可注入 —— 否则只能整体读真实附录，
+ * 红样喂不进去。（此前本守卫只导出解析器，于是那两条「红样」证的是解析行为，
+ * 不是「违例时守卫会红」；用户复核时按假红样记。）
+ */
+export function auditAppendix(markdown = readFileSync(APPENDIX, 'utf8'), declared = DECLARED) {
+  const rows = parseDetailRows(markdown)
+  const problems = []
+  const summary = []
 
-const problems = []
-const summary = []
+  for (const name of Object.keys(declared)) {
+    const list = rows.get(name) || []
+    const want = declared[name]
+    const tally = { A: 0, B: 0, 'A-': 0, C: 0, D: 0, 退役: 0 }
 
-for (const name of Object.keys(DECLARED)) {
-  const list = rows.get(name) || []
-  const declared = DECLARED[name]
-  const tally = { A: 0, B: 0, 'A-': 0, C: 0, D: 0, 退役: 0 }
-
-  for (const r of list) {
-    if (!STATES.includes(r.state)) {
-      problems.push(`${name} ${r.id} 状态非法：'${r.state}'（合法值：${STATES.join(' / ')}）`)
-      continue
+    for (const r of list) {
+      if (!STATES.includes(r.state)) {
+        problems.push(`${name} ${r.id} 状态非法：'${r.state}'（合法值：${STATES.join(' / ')}）`)
+        continue
+      }
+      tally[r.state]++
     }
-    tally[r.state]++
+
+    // 不变量 1：指标数
+    if (list.length !== want) {
+      problems.push(`${name} 指标数漂移：约定 §3 声明 ${want}，附录 §8 实际 ${list.length}`)
+    }
+    // 不变量 4：同专项编号唯一
+    const seen = new Set()
+    for (const r of list) {
+      if (seen.has(r.id)) problems.push(`${name} 指标编号重复：${r.id}（v3 追加须带 ′ 后缀）`)
+      seen.add(r.id)
+    }
+
+    summary.push({ 专项: name, 总数: list.length, ...tally })
   }
 
-  // 不变量 1：指标数
-  if (list.length !== declared) {
-    problems.push(`${name} 指标数漂移：约定 §3 声明 ${declared}，附录 §8 实际 ${list.length}`)
-  }
-  // 不变量 4：同专项编号唯一
-  const seen = new Set()
-  for (const r of list) {
-    if (seen.has(r.id)) problems.push(`${name} 指标编号重复：${r.id}（v3 追加须带 ′ 后缀）`)
-    seen.add(r.id)
+  const total = { A: 0, B: 0, 'A-': 0, C: 0, D: 0, 退役: 0, 总数: 0 }
+  for (const s of summary) {
+    for (const k of Object.keys(total)) total[k] += s[k]
   }
 
-  summary.push({ 专项: name, 总数: list.length, ...tally })
+  // 不变量 3：§4 汇总表与 §8 明细表一致
+  const declaredTotal = Object.values(declared).reduce((a, b) => a + b, 0)
+  if (total.总数 !== declaredTotal) {
+    problems.push(`指标总数漂移：期望 ${declaredTotal}，实际 ${total.总数}`)
+  }
+  // 不变量 3 的判定抽到 lib/summary-crosscheck.mjs（纯函数，配注入测试）：
+  // 命中数为 0 一律报错——禁止"解析不到 = 通过"（P1-08 修复）。
+  const { problems: summaryProblems } = crossCheckSummary(markdown.split(/\r?\n/), summary)
+  problems.push(...summaryProblems)
+
+  return { problems, summary, total }
 }
 
-const total = { A: 0, B: 0, 'A-': 0, C: 0, D: 0, 退役: 0, 总数: 0 }
-for (const s of summary) {
-  for (const k of Object.keys(total)) total[k] += s[k]
-}
-
-// 不变量 3：§4 汇总表与 §8 明细表一致
-const declaredTotal = Object.values(DECLARED).reduce((a, b) => a + b, 0)
-if (total.总数 !== declaredTotal) {
-  problems.push(`指标总数漂移：期望 ${declaredTotal}，实际 ${total.总数}`)
-}
-// 不变量 3 的判定抽到 lib/summary-crosscheck.mjs（纯函数，配注入测试）：
-// 命中数为 0 一律报错——禁止"解析不到 = 通过"（P1-08 修复）。
-const { problems: summaryProblems } = crossCheckSummary(lines, summary)
-problems.push(...summaryProblems)
+const { problems, summary, total } = auditAppendix()
 
 if (process.argv.includes('--json')) {
   console.log(JSON.stringify({ summary, total, problems }, null, 2))

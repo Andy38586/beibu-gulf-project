@@ -10,8 +10,10 @@ waterLevel.json 曾为 simulated（拍脑袋）数据。本脚本用仓库内真
                             (real设施点×真多边形点面判断)/损失(设施价值×假设系数,标注)
   4. waterLevel.json      ← 水位基准为工程假设参数，source 改标注为 reference_parameters
 
-运行（algorithm-service venv，需 rasterio/shapely/scipy）：
+运行（生成侧 venv，需 rasterio/shapely/scipy）：
   backend/algorithm-service/.venv/Scripts/python.exe tools/flood/flood_realify.py
+  （venv 仍在原路径：`backend/algorithm-service/` 已随 FastAPI 移除、不再受版本控制，
+    但 venv 是未追踪目录且绝对路径烧死，故原地保留；重建见 tools/setup-runtime.ps1）
 """
 import datetime
 import json
@@ -19,7 +21,8 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / "backend" / "algorithm-service"))
+# 生成侧计算引擎（FastAPI 层已于 2026-09-26 移除，flood_engine 是离线复用模块）
+sys.path.insert(0, str(ROOT / "tools" / "flood" / "engine"))
 
 import numpy as np  # noqa: E402
 import rasterio  # noqa: E402

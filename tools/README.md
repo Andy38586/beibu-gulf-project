@@ -22,12 +22,11 @@
 
 ## 根目录单文件（工程与元工具）
 
-| 文件                      | 用途                                                                                                     |
-| ------------------------- | -------------------------------------------------------------------------------------------------------- |
-| `gen-changelog.cjs`       | 从 git log 生成 CHANGELOG（`npm run changelog`）                                                         |
-| `token-stats.mjs`         | 设计 token 治理：死 token 与硬编码色值扫描（改样式前跑）                                                 |
-| `run-algorithm-tests.cjs` | 拉起 algorithm-service 的 pytest（`npm run test:algorithm`；服务已退役，CI 不再跑，保留供本地/恢复验证） |
-| `setup-runtime.ps1`       | 换机一键重建运行时（venv / node，与仓库分离）                                                            |
+| 文件                | 用途                                                     |
+| ------------------- | -------------------------------------------------------- |
+| `gen-changelog.cjs` | 从 git log 生成 CHANGELOG（`npm run changelog`）         |
+| `token-stats.mjs`   | 设计 token 治理：死 token 与硬编码色值扫描（改样式前跑） |
+| `setup-runtime.ps1` | 换机一键重建运行时（venv / node，与仓库分离）            |
 
 ## 数据流水线（谁先谁后）
 
@@ -46,8 +45,6 @@ dem-pipeline/（DEM 处理）      ─┘                                  →  
 npm run forecast:model       # tools/forecast/throughput_model.cjs
 npm run forecast:activity    # tools/forecast/derive-activity.mjs
 npm run verify-gis           # tools/gis-import/verify.mjs
-npm run dev:flood            # tools/flood/run-flood.cjs
-npm run test:algorithm       # tools/run-algorithm-tests.cjs
 npm run guard:v3             # tools/v3-guard/*.mjs（19 项守卫，run-all.mjs 串联不短路）
 ```
 

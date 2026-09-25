@@ -295,7 +295,7 @@ function commitChanged(sha) {
     .stdout.split('\n')
     .filter(Boolean)
 }
-const SRC_RE = /^(frontend\/src|backend\/src|backend\/algorithm-service).*\.(ts|vue|js|mjs|cjs|py)$/
+const SRC_RE = /^(frontend\/src|backend\/src).*\.(ts|vue|js|mjs|cjs|py)$/
 const TEST_RE = /\.(test|spec)\.(ts|js|vue|py)$/
 let headStrictFail = false
 const historyMiss = []

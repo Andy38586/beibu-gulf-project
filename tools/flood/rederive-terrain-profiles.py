@@ -11,6 +11,7 @@
 #   基准：剖面高程 = EGM96 正高原值（海平面基准重派生后前端不再 +datumOffset）。
 # 输出：backend/data/flood/terrainProfile.json（schema 不变，前端契约零改动）
 # 运行：backend/algorithm-service/.venv/Scripts/python.exe tools/flood/rederive-terrain-profiles.py
+#       （venv 路径未变；该目录已随 FastAPI 移除、不再受版本控制）
 # =============================================================================
 import json
 import os

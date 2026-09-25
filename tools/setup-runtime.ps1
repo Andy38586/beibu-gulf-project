@@ -21,11 +21,17 @@ if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
 # --- 2. uv 托管 Python 解释器 ---
 uv python install 3.12 3.13
 
-# --- 3. algorithm-service venv（venv 里烧死绝对路径，换机必须重建；flood-service 已并入） ---
+# --- 3. 生成侧 venv（venv 里烧死绝对路径，换机必须重建） ---
+# 2026-09-26：FastAPI（algorithm-service）已从版本库移除，引擎层搬到 tools/flood/engine/。
+# 目录名沿用 backend/algorithm-service —— 只因 venv 的绝对路径与三个 py 工具的既有用法指向它，
+# 改名/搬家会让 venv 失效（烧死路径）。该目录从此**不在版本控制内**，新克隆时由下面这步建出来。
 Write-Host '--- 重建 backend/algorithm-service/.venv ---'
+if (-not (Test-Path "$Repo\backend\algorithm-service")) {
+  New-Item -ItemType Directory -Force -Path "$Repo\backend\algorithm-service" | Out-Null
+}
 Push-Location "$Repo\backend\algorithm-service"
 uv venv .venv --python 3.12 --seed
-uv pip install -r requirements.lock.txt -p .venv\Scripts\python.exe
+uv pip install -r "$Repo\tools\flood\engine\requirements.lock.txt" -p .venv\Scripts\python.exe
 Pop-Location
 
 # --- 4. node 便携版（npmmirror 镜像，解压到 .runtime\node\<ver>） ---

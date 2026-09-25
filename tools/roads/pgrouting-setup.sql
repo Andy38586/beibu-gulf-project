@@ -9,7 +9,7 @@
 -- 目的：把 route/path 的「构图 + 最短路」从 Python 侧（networkx，全量拉 165,111 条边进内存、
 -- 峰值 612MB、预热 179.5s）下沉为 pgRouting 的 SQL 查询。
 --
--- 口径对齐（复现 backend/algorithm-service/route/graph.py，勿凭感觉改）：
+-- 口径对齐（**本文件是限速/可通行口径的唯一载体**）：
 --   · 权重 distance → cost_m   = round(length_m, 2)                        （graph.py:224）
 --   · 权重 time     → cost_min = round(length_m/1000/speed*60, 4)          （graph.py:225）
 --     注意分子必须先除 1000 折算千米，否则把米当千米、时长放大 1000 倍（原实现单测已固化）
@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS road_class_speed (
 );
 
 COMMENT ON TABLE road_class_speed IS
-  'OSM highway class → 限速(km/h) 与可通行性；对齐 algorithm-service route/graph.py 的 CLASS_SPEED_KMH 与 EXCLUDED_CLASSES。**未列出的 class 走默认 30km/h 且可通行**';
+  'OSM highway class → 限速(km/h) 与可通行性；口径原先对齐 algorithm-service route/graph.py 的 CLASS_SPEED_KMH 与 EXCLUDED_CLASSES，**该文件已于 2026-09-26 移除 ⇒ 本文件为唯一载体**。**未列出的 class 走默认 30km/h 且可通行**';
 COMMENT ON COLUMN road_class_speed.traversable IS
   'FALSE 的 class 其边 cost 置 -1（不可通行）。依据：construction/proposed 属未建成（参与寻路会产生"穿越工地"假路径）；pedestrian/platform/corridor/elevator/escape/ladder 属步行设施；bus_stop/busway 社会车辆禁行；raceway/rest_area/services/disused/passing_place/no 无语义或废弃';
 

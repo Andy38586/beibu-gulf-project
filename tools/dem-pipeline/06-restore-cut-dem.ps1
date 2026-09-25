@@ -50,4 +50,4 @@ if ($LASTEXITCODE -ne 0) { throw "gdalwarp 失败，exit code: $LASTEXITCODE" }
 # --- 验证：重算后跑 diag_datum（判据 <5%）---
 Write-Host "`n--- 验证：diag_datum ---"
 & $venvPy c:\workspace\beibu-gulf-project\tools\diag_datum.py $dstTif
-Write-Host "完成：$dstTif（随后重跑 precompute_levels.py + flood_realify.py 刷新全部派生数据）"
+Write-Host "完成：$dstTif（随后重跑 tools/flood/engine/precompute_levels.py + tools/flood/flood_realify.py 刷新全部派生数据）"

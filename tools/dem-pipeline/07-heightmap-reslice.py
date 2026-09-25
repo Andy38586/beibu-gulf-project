@@ -10,8 +10,9 @@ RangeError（8-10 生产"无起伏"即本 bug 症状），瓦片从未渲染成�
   - gzip 压缩输出 .terrain；layer.json format 保持 heightmap-1.0
   - 层级枚举沿用现有瓦片目录树（z/x/y 集合不变，tiles 模板不变）
 
-用法（algorithm-service venv，rasterio 已装）：
-  ../algorithm-service 相对：backend/algorithm-service/.venv/Scripts/python.exe tools/dem-pipeline/07-heightmap-reslice.py
+用法（生成侧 venv，rasterio 已装）：
+  backend/algorithm-service/.venv/Scripts/python.exe tools/dem-pipeline/07-heightmap-reslice.py
+  （venv 路径未变；`backend/algorithm-service/` 已随 FastAPI 移除、不再受版本控制）
 """
 from __future__ import annotations
 

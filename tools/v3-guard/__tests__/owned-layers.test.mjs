@@ -17,6 +17,7 @@ import {
   auditSources,
   layerRegisterSites,
   looksLikeLayerTeardown,
+  ownerScopeViolations,
   unmountBlocks,
 } from '../owned-layers.mjs'
 
@@ -184,6 +185,46 @@ describe('owned-layers — 图层归属结构约束', () => {
         baseline: ['unmount-indirect@' + relPath],
       })
     ).toEqual([])
+  })
+
+  it('@guard-red-sample owner 建在子组件链路 ⇒ 必报（N-08 形态：归属短于业务寿命）', () => {
+    const sources = [
+      {
+        relPath: 'frontend/src/business/x/composables/useFoo.ts',
+        text: ['export function useFoo() {', '  return useOwnedLayers("foo")', '}'].join('\n'),
+      },
+      {
+        relPath: 'frontend/src/business/x/components/Bar.vue',
+        text: 'const { register } = useFoo()',
+      },
+    ]
+    const problems = ownerScopeViolations(sources)
+    expect(problems).toHaveLength(1)
+    expect(problems[0]).toContain('owner-scope')
+    expect(problems[0]).toContain('Bar.vue')
+  })
+
+  it('owner 被页面调用 / 页面自己建 owner ⇒ 不报（判据 D 正向对照）', () => {
+    const viaPage = [
+      {
+        relPath: 'frontend/src/business/x/composables/useFoo.ts',
+        text: ['export function useFoo() {', '  return useOwnedLayers("foo")', '}'].join('\n'),
+      },
+      { relPath: 'frontend/src/business/x/XPage.vue', text: 'const { register } = useFoo()' },
+    ]
+    expect(ownerScopeViolations(viaPage)).toEqual([])
+    // 页面文件自己建册（src() 的默认 relPath 就是 *Page.vue）
+    expect(ownerScopeViolations(src('const owned = useOwnedLayers("x")'))).toEqual([])
+  })
+
+  it('@guard-red-sample 非页面建 owner 且无可追踪 composable 导出 ⇒ 必报', () => {
+    const sources = [
+      {
+        relPath: 'frontend/src/business/x/components/Bar.vue',
+        text: 'const owned = useOwnedLayers("x")',
+      },
+    ]
+    expect(ownerScopeViolations(sources)[0]).toContain('owner-scope')
   })
 
   it('unmountBlocks 能配平取块（嵌套大括号不漏不溢）', () => {

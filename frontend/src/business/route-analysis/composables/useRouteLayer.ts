@@ -85,9 +85,8 @@ export interface UseRouteLayerReturn {
   /** 更新路径线（多段）+ 端点标记图层（幂等：空集时清理对应图层；未注册先注册） */
   updateRouteLayers: (segments: RoutePathResult[], slots: RouteSlot[]) => void
   /**
-   * 主动清（「清除全部」/ 重查前调用）。语义同 useForecastLayer.removeForecastLayer：
-   * 这是「现在就清」，不是「卸载时清」——卸载清由 useOwnedLayers 的 onScopeDispose 负责，
-   * 两边幂等，无害。
+   * 主动清（「清除全部」/ 重查前调用）。这是「现在就清」，不是「卸载时清」——
+   * 卸载清由 useOwnedLayers 的 onScopeDispose 负责，两边幂等，无害。
    */
   clearRouteLayers: () => void
 }

@@ -85,10 +85,15 @@ const PORT_POI = {
   lat: 21.5,
 }
 
-/** 挂载面板（图层操作经 useRouteLayer 内部注入，面板不再接收 manager prop）；
+/** 挂载面板（图层操作经 props 由**页面**注入 —— 面板不自建 owner 册，见 N-08）；
  *  登记实例供 afterEach 卸载——面板在 onMounted 注册了 document 级监听，不卸载会跨用例累积 */
 function mountPanel() {
-  lastWrapper = mount(RouteControlPanel)
+  lastWrapper = mount(RouteControlPanel, {
+    props: {
+      updateRouteLayers: mocks.updateRouteLayers,
+      clearRouteLayers: mocks.clearRouteLayers,
+    },
+  })
   return lastWrapper
 }
 

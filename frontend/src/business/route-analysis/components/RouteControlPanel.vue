@@ -21,12 +21,22 @@ import type { PoiSearchItemParsed } from '@/types/schemas'
 import { isWithinThreeCities } from '../composables/useCityBoundary'
 import { useRouteApi } from '../composables/useRouteApi'
 import type { RoutePoint, RouteSlot, RouteSlotKey } from '../composables/useRouteLayer'
-import { ROUTE_SLOT_KEYS, useRouteLayer } from '../composables/useRouteLayer'
+import { ROUTE_SLOT_KEYS } from '../composables/useRouteLayer'
 
 /** v4：本面板所属路由（taskStore 按 route 分槽的 key；与 manifest.path 一致） */
 const ROUTE_PATH = '/route-analysis'
 
 interface Props {
+  /**
+   * 图层操作由**页面**注入 —— 本面板不自己建 owner 册（N-08 / owned-layers 判据 D）。
+   *
+   * 为什么：owner 建在面板作用域时，移动端「关抽屉」会卸载面板（`AppLayout` 的
+   * `MobileDrawer` 用 `v-if="open"`），航线图层随之被 `onScopeDispose` 清掉，而
+   * **页面还在、后端任务照旧跑** —— 图层生命周期短于业务生命周期。归属必须与业务同寿。
+   */
+  updateRouteLayers: (segments: RoutePathResult[], slots: RouteSlot[]) => void
+  /** 主动清（「清除全部」/ 重查前调用）；卸载清由页面的 onScopeDispose 负责 */
+  clearRouteLayers: () => void
   /** v4：是否允许拖拽（页面统一开关，便于后续响应式降级） */
   draggable?: boolean
 }
@@ -50,7 +60,7 @@ const taskStore = useTaskStore()
 // 🔴 v4：queryPath 已不再由此面板直接调用（请求经 taskStore 转交后端异步任务域）；
 // 仅保留 searchPois（POI 搜索是轻量辅助交互，不需要后台任务语义，也不参与保活）
 const { searchPois } = useRouteApi()
-const { updateRouteLayers, clearRouteLayers } = useRouteLayer()
+// 图层操作走 props（页面注入）：本面板**不**自建 owner 册 —— 归属必须与业务同寿，见 Props 注释
 
 /** 查询进行中（v4：由本面板自行维护，替代原 useRouteApi 的 calculating） */
 const calculating = ref(false)
@@ -429,7 +439,7 @@ async function handleQuery(): Promise<void> {
   if (disposed) return
 
   // 已成功段也上图（多段中断时保留可达部分），槽点始终刷新
-  updateRouteLayers(segments, collectSlots())
+  props.updateRouteLayers(segments, collectSlots())
   hasResult.value = segments.length > 0
   if (segments.length > 0) {
     emit('query-result', { segments, pointCount: chain.length })
@@ -450,7 +460,7 @@ function handleClear(): void {
   poiDropOpen.value = false
   pendingPoint.value = null
   hasResult.value = false
-  clearRouteLayers()
+  props.clearRouteLayers()
   emit('cleared')
 }
 

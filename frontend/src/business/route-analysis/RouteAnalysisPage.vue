@@ -28,7 +28,11 @@ import type { RoutePathResult } from '@/types'
 import type { TaskSlot } from '@/types/task'
 
 import RouteControlPanel from './components/RouteControlPanel.vue'
-import { ROUTE_ENDPOINT_LAYER_ID, ROUTE_PATH_LAYER_ID } from './composables/useRouteLayer'
+import {
+  ROUTE_ENDPOINT_LAYER_ID,
+  ROUTE_PATH_LAYER_ID,
+  useRouteLayer,
+} from './composables/useRouteLayer'
 import {
   PINGLU_GROUPS,
   PINGLU_IMAGERY_INDEX_URL,
@@ -54,6 +58,16 @@ const imageryLayerIds = ref<string[]>([])
  * 同一个点（本页）复发的那类「注册了没人清」的根因收口。
  */
 const ownedLayers = useOwnedLayers('route-analysis')
+
+/**
+ * 航线图层的 owner 册在**页面作用域**创建（不是在面板里）——
+ *
+ * 移动端「关抽屉」会卸载面板（`AppLayout` 的 `MobileDrawer` 用 `v-if="open"`），
+ * 若归属建在面板上，航线图层会随面板一起被 `onScopeDispose` 清掉，而**页面还在、
+ * 后端任务照旧跑** ⇒ 用户看到「查询在跑、图上没有线」（N-08）。
+ * 图层归属必须与业务同寿，故由页面建册、面板只消费。
+ */
+const { updateRouteLayers, clearRouteLayers } = useRouteLayer()
 /** 影像索引加载与注册均已完成（防重复注册） */
 let imageryRegistered = false
 
@@ -343,6 +357,8 @@ onUnmounted(() => {
       <template #right>
         <RouteControlPanel
           ref="panelRef"
+          :update-route-layers="updateRouteLayers"
+          :clear-route-layers="clearRouteLayers"
           :task-slot="routeTaskSlot"
           :draggable="true"
           @query-result="handleQueryResult"

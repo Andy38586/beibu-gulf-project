@@ -229,11 +229,51 @@ export function auditSources(sources, { baseline = BASELINE } = {}) {
   return problems
 }
 
+/**
+ * 判据 D（owner-scope）—— `useOwnedLayers` 的作用域必须 ≥ 业务生命周期。
+ *
+ * 为什么单列一条：判据 A/B/C 量的都是「注册有没有过 owner 册」，**一点量不到注销挂在谁的
+ * 生命周期上**。owner 建在会被条件渲染卸载的子组件里时（典型：移动端抽屉
+ * `MobileDrawer` 的 `v-if="open"`），图层会在页面还活着时被摘掉 —— 登记在册、卸载块里
+ * 也没有字面注销，前三条判据全绿，用户却看到「查询在跑、图上没有线」（N-08，2026-09-25
+ * 由复核 agents 在现 HEAD 上核对链路后提出）。
+ *
+ * 查法（轻量调用图）：含 `useOwnedLayers(` 的文件必须是页面（`*Page.vue`），或是**被页面
+ * 直接调用**的 composable；只被 `components/` 下的子组件调用 ⇒ 违规。
+ * 已知盲区：页面→A→B 的间接调用链会误报（宁可误报，不放过）；跨文件传递 owner 也覆盖不到。
+ */
+export function ownerScopeViolations(sources) {
+  const isPage = (rel) => /\/[A-Za-z][\w]*Page\.vue$/.test(rel)
+  const problems = []
+  for (const { relPath, text } of sources) {
+    if (!/useOwnedLayers\s*\(/.test(text)) continue
+    if (isPage(relPath)) continue
+    const names = [...text.matchAll(/export function (use[A-Z]\w*)\s*\(/g)].map((m) => m[1])
+    if (names.length === 0) {
+      problems.push(
+        `${relPath} [owner-scope] 非页面文件里创建 owner 册，且没有可追踪的 \`export function useXxx\` —— 无法证明它活在页面作用域`
+      )
+      continue
+    }
+    for (const fn of names) {
+      const re = new RegExp(`\\b${fn}\\s*\\(`)
+      const callers = sources.filter((s) => s.relPath !== relPath && re.test(s.text))
+      if (callers.some((c) => isPage(c.relPath))) continue
+      problems.push(
+        `${relPath}:${fn} [owner-scope] 建 owner 册的 composable 未被**页面**调用` +
+          `（调用点：${callers.map((c) => c.relPath).join('、') || '无'}）—— ` +
+          '归属会随子组件（如移动端抽屉）卸载而消失，而页面还在'
+      )
+    }
+  }
+  return problems
+}
+
 function main() {
   const sources = collectSources()
   const sites = layerRegisterSites(sources)
   const ownedCount = sites.filter((s) => s.owned).length
-  const problems = auditSources(sources)
+  const problems = [...auditSources(sources), ...ownerScopeViolations(sources)]
 
   const files = new Set(sites.map((s) => s.relPath))
   const ownedFiles = new Set(sites.filter((s) => s.owned).map((s) => s.relPath))

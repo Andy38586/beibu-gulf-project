@@ -40,6 +40,11 @@ export class ConfigService {
   // ——留在 main.ts 直读 process.env 就绕过了 validateStartup 的生产必填断言（原失效形态）
   readonly trustProxyHops: number
 
+  // 逃生开关（z054，2026-09-26 用户裁定「fail + 本地逃生开关」）：置 1 表示**明知无 TLS
+  // 仍要跑**（仅限本地开发），生产置 1 会关闭 auth cookie 的 Secure、JWT 明文传输，
+  // 故 validateStartup() 会告警。默认关（未设或非 '1' 皆为 false）。
+  readonly allowInsecure: boolean
+
   private readonly env: NodeJS.ProcessEnv
 
   // @Optional：NodeJS.ProcessEnv 无 DI token，Nest 环境解析不到即用默认 process.env；
@@ -51,10 +56,24 @@ export class ConfigService {
     this.nodeEnv = env.NODE_ENV ?? 'development'
     this.dbConfig = parseDbConfig(env)
     this.trustProxyHops = resolveTrustProxyHops(env.TRUST_PROXY_HOPS)
+    this.allowInsecure = (env.ALLOW_INSECURE ?? '') === '1'
   }
 
   get isProduction(): boolean {
     return this.nodeEnv === 'production'
+  }
+
+  /**
+   * auth cookie 的 Secure 标志（z054）：**由显式配置决定，不再由请求头推定**。
+   *
+   * 原形态 `req.secure || x-forwarded-proto === 'https'`（auth.controller）在无证书部署下
+   * 恒为 false，却因整条链「健康」而无声——令牌明文传输、中间人即账号接管。
+   * 现形态：生产默认 true（部署前置 `scripts/preflight-deploy.sh` 已断言证书存在，
+   * 见该脚本第 3 步）；仅 ALLOW_INSECURE=1 才转 false。非生产（本地）默认 false，
+   * 便于 http://localhost 开发。
+   */
+  get cookieSecure(): boolean {
+    return this.isProduction && !this.allowInsecure
   }
 
   get dataDir(): string {
@@ -94,6 +113,14 @@ export class ConfigService {
             rawHops === '' ? '未设置' : rawHops
           }）。` +
             'nginx→nest 一跳填 1，多级反代按级数递增；0/非法值会让限流键与 secure 推定退化（d058），生产禁用。'
+        )
+      }
+      // z054：生产显式开启逃生开关（ALLOW_INSECURE=1）时告警——它关闭 cookie Secure，
+      // 使 JWT 走明文，仅限本地/演示；生产应配 TLS 证书而非此开关。
+      if (this.allowInsecure) {
+        console.warn(
+          '[ConfigService] ⚠️ ALLOW_INSECURE=1 已启用：auth cookie 的 Secure 关闭、JWT 明文传输。' +
+            '仅限本地开发；生产环境请改用 TLS 证书（./certs/），否则中间人可接管账号。'
         )
       }
     }

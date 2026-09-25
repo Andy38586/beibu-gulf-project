@@ -23,8 +23,9 @@ async function bootstrap() {
   http.disable('x-powered-by')
   // trust proxy（老 Express 迁移回归）：生产经 nginx 反代时不信任代理会让
   // rateLimit 按 127.0.0.1 统一计数（限流失效）——三个 throttler 桶全站共享，
-  // 任一客户端即可把 route/plans/favorites 打成 429；auth.controller 的
-  // `x-forwarded-proto` 推定（secure cookie）同样依赖它。
+  // 任一客户端即可把 route/plans/favorites 打成 429。
+  // （auth cookie 的 Secure 自 z054 起由 ConfigService.cookieSecure 显式决定，
+  //   不再经 x-forwarded-proto 推定，故与本处 trust proxy 无耦合。）
   // 跳数取部署拓扑（nginx→nest 一跳）而非 true：true 等于任何人都能伪造 XFF。
   // 解析与生产必填断言见 common/utils/trust-proxy.ts 与 ConfigService.validateStartup()。
   http.set('trust proxy', config.trustProxyHops)

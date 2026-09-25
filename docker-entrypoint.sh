@@ -179,6 +179,15 @@ else
   # 确保无残留配置（容器复用时）
   rm -f /etc/nginx/http.d/https.conf
   echo "[entrypoint] 未检测到 TLS 证书，仅 HTTP (80) 服务"
+  # z054：无证书 ⇒ 只跑明文 HTTP，而 auth cookie 的 Secure 由 ConfigService.cookieSecure
+  # 决定（生产默认 true，仅 ALLOW_INSECURE=1 转 false）。此处仅提示边界，不改控制流：
+  # 「无证书即拒绝部署」的强制点在 scripts/preflight-deploy.sh 第 3 步（绕过 preflight
+  # 直接 compose up 的路径由下面的告警暴露）。
+  if [ "${ALLOW_INSECURE:-0}" = "1" ]; then
+    echo "[entrypoint] ⚠️ ALLOW_INSECURE=1 —— 显式允许无 TLS 运行（仅限本地开发；JWT 明文）"
+  else
+    echo "[entrypoint] ⚠️ 生产环境需在 ./certs/ 放 fullchain.pem + privkey.pem；部署前置 preflight 会拒绝无证书部署"
+  fi
 fi
 
 # === 2. 启动 nginx ===

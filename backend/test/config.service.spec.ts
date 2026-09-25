@@ -1,6 +1,16 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { ConfigService, resolveDataDir } from '../src/infra/config/config.service'
+
+/** 生产环境最小可启动 env（PG 四项 + TRUST_PROXY_HOPS，见 validateStartup） */
+const PROD_ENV = {
+  NODE_ENV: 'production',
+  PG_HOST: 'postgis',
+  PG_USER: 'postgres',
+  PG_PASSWORD: 'secret',
+  PG_DATABASE: 'beibu-gulf-data',
+  TRUST_PROXY_HOPS: '1',
+}
 
 describe('ConfigService', () => {
   it('无环境变量时 port 回落 3000、nodeEnv 回落 development', () => {
@@ -59,5 +69,38 @@ describe('ConfigService', () => {
   it('jwtSecret 出口与 jwt.util 强校验同源：缺 JWT_SECRET 抛错', () => {
     expect(() => new ConfigService({}).jwtSecret).toThrow(/JWT_SECRET/)
     expect(() => new ConfigService({}).validateStartup()).toThrow(/JWT_SECRET/)
+  })
+
+  it('z054：cookieSecure 由显式配置决定（生产默认 true，ALLOW_INSECURE=1 转 false，开发默认 false）', () => {
+    // 开发：默认 false，便于 http://localhost 开发
+    expect(new ConfigService({}).cookieSecure).toBe(false)
+    expect(new ConfigService({}).allowInsecure).toBe(false)
+    // 生产：默认 true——部署前置 preflight 已断言证书存在，无需再按请求头猜协议
+    expect(new ConfigService(PROD_ENV).cookieSecure).toBe(true)
+    // 生产 + 逃生开关：转 false（本地/演示无证书）
+    expect(new ConfigService({ ...PROD_ENV, ALLOW_INSECURE: '1' }).cookieSecure).toBe(false)
+    expect(new ConfigService({ ...PROD_ENV, ALLOW_INSECURE: '1' }).allowInsecure).toBe(true)
+    // 只有 '1' 视为开（'true'/'yes' 等一律关，避免记法歧义）
+    expect(new ConfigService({ ...PROD_ENV, ALLOW_INSECURE: 'true' }).cookieSecure).toBe(true)
+  })
+
+  it('z054：生产开启 ALLOW_INSECURE=1 时 validateStartup 告警但不阻断（逃生开关是显式放行）', () => {
+    // getJwtSecret() 直读 process.env（不经注入环境），需临时设置才能通过
+    const prevSecret = process.env.JWT_SECRET
+    process.env.JWT_SECRET = 'x'.repeat(32)
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      const cfg = new ConfigService({ ...PROD_ENV, ALLOW_INSECURE: '1' })
+      expect(() => cfg.validateStartup()).not.toThrow()
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('ALLOW_INSECURE=1'))
+      // 未开开关时不告警
+      warn.mockClear()
+      new ConfigService(PROD_ENV).validateStartup()
+      expect(warn).not.toHaveBeenCalled()
+    } finally {
+      warn.mockRestore()
+      if (prevSecret === undefined) delete process.env.JWT_SECRET
+      else process.env.JWT_SECRET = prevSecret
+    }
   })
 })

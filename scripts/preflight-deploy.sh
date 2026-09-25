@@ -91,4 +91,22 @@ else
   exit 1
 fi
 
+# ── 3) TLS 证书断言（z054，2026-09-26 用户裁定「fail + 本地逃生开关」）──────────
+# 无证书 ⇒ nginx 只跑 :80（docker-entrypoint.sh:6 的 else 分支），auth cookie 的 Secure
+# 随之关闭、JWT 明文传输（plans/favorites 均按 user_id 归属 ⇒ 中间人即账号接管）。
+# 故部署前必须拒绝；仅显式 ALLOW_INSECURE=1（本地开发）放行。
+# 证书落点 = 宿主 ./certs/，经 docker-compose.yml `./certs:/etc/nginx/certs:ro` 挂进容器。
+ALLOW_INSECURE="${ALLOW_INSECURE:-$(grep -m1 '^ALLOW_INSECURE=' .env 2>/dev/null | cut -d= -f2- || true)}"
+if [ "$ALLOW_INSECURE" = "1" ]; then
+  echo "::warning::preflight: ALLOW_INSECURE=1 —— 跳过 TLS 证书断言（仅限本地开发；生产将明文传输 JWT）" >&2
+elif [ -f certs/fullchain.pem ] && [ -f certs/privkey.pem ]; then
+  echo "==> preflight: TLS 证书就位（certs/fullchain.pem + certs/privkey.pem）" >&2
+else
+  echo "::error::preflight: 未找到 TLS 证书 certs/fullchain.pem + certs/privkey.pem —— 拒绝部署。" >&2
+  echo "::error::preflight: 无证书时 nginx 只跑 :80，auth cookie 的 Secure 关闭、JWT 明文传输。" >&2
+  echo "::error::preflight: 请将 fullchain.pem/privkey.pem 放入 $APP_DIR/certs/（挂载 ./certs → /etc/nginx/certs）。" >&2
+  echo "::error::preflight: 仅本地开发可用 ALLOW_INSECURE=1 显式放行。" >&2
+  exit 1
+fi
+
 echo "==> preflight: OK，可以继续部署" >&2

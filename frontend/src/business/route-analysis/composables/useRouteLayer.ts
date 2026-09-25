@@ -1,15 +1,16 @@
 import type { Feature, FeatureCollection, LineString } from 'geojson'
 
 import { useOwnedLayers } from '@/core'
+import { LAYER_KEYS } from '@/shared'
 import type { LayerOptions, RoutePathResult } from '@/types'
 
 import { ROUTE_COLOR } from '../constants/colors'
 
 /** 路径线图层 id（业务命名空间前缀 route-；BLM registry / catalog / 渲染器 featureType 三处同源） */
-export const ROUTE_PATH_LAYER_ID = 'route-path'
+export const ROUTE_PATH_LAYER_ID = LAYER_KEYS.routePath
 
 /** 起点/途径点/终点标记图层 id */
-export const ROUTE_ENDPOINT_LAYER_ID = 'route-endpoint'
+export const ROUTE_ENDPOINT_LAYER_ID = LAYER_KEYS.routeEndpoint
 
 /** 选点槽位 key：起点 → 途径 1 → 途径 2 → 终点（途径可空） */
 export type RouteSlotKey = 'from' | 'waypoint-1' | 'waypoint-2' | 'to'

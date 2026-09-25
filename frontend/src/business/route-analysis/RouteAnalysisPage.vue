@@ -22,7 +22,7 @@ import {
   useOwnedLayers,
   type TilesetJson,
 } from '@/core'
-import { logger, showToast } from '@/shared'
+import { DEFAULT_LAYER_ORDER, logger, showToast } from '@/shared'
 import { useMapStore, useTaskStore } from '@/stores'
 import type { RoutePathResult } from '@/types'
 import type { TaskSlot } from '@/types/task'
@@ -368,9 +368,7 @@ onUnmounted(() => {
         <GCSPanel :w="4" :h="4" anchor="top-right" :offset-x="0" :offset-y="5.5">
           <LayerControlPanel
             :layer-order="[
-              'base-image',
-              'base-vector',
-              'boundary',
+              ...DEFAULT_LAYER_ORDER,
               ROUTE_PATH_LAYER_ID,
               ROUTE_ENDPOINT_LAYER_ID,
               ...PINGLU_GROUPS.map((g) => pingluLayerId(g.id)),

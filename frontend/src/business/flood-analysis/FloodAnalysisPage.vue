@@ -18,7 +18,9 @@ import {
 } from '@/core'
 import { floodAdapter } from '@/services'
 import {
+  DEFAULT_LAYER_ORDER,
   LAYER_FILL_WATER,
+  LAYER_KEYS,
   logger,
   showWarning,
   useLatestRequest,
@@ -91,10 +93,10 @@ let waterSurfaceTimer: ReturnType<typeof setTimeout> | null = null
  */
 const { createSignal: createFloodSignal, cancel: cancelFloodSignal } = useLatestRequest()
 
-const WATER_SURFACE_ID = 'flood-water-surface'
+const WATER_SURFACE_ID = LAYER_KEYS.floodWaterSurface
 
-const FLOOD_LAYER_ID = 'flood-area'
-const FACILITY_LAYER_ID = 'flood-facilities'
+const FLOOD_LAYER_ID = LAYER_KEYS.floodArea
+const FACILITY_LAYER_ID = LAYER_KEYS.floodFacilities
 /** 洪涝设施点 featureType（与 FACILITY_LAYER_ID 前缀一致，防跨模块同名冲突） */
 const FACILITY_FEATURE_TYPE = 'flood-facility-point'
 /**
@@ -110,7 +112,7 @@ const FACILITY_FEATURE_TYPE = 'flood-facility-point'
  * 山影贴图仍**经 businessLayerManager 注册**（图层状态只有一个事实源，符合 04 清单 A4），
  * 只是以 `listed: false` 不进面板、以 `locked: true` 拒绝被关。
  */
-const DEM_HILLSHADE_LAYER_ID = 'flood-dem-hillshade'
+const DEM_HILLSHADE_LAYER_ID = LAYER_KEYS.floodDemHillshade
 
 // 水域坐标经 floodAdapter 加载，按 dataSource（fetch/calculate）自动切换取数来源，业务代码零改动
 let cachedWaterAreaCoords: [number, number][] | null = null
@@ -570,11 +572,8 @@ onUnmounted(() => {
         <GCSPanel :w="4" :h="4" anchor="top-right" :offset-x="0" :offset-y="5.5">
           <LayerControlPanel
             :layer-order="[
-              'base-image',
-              'base-vector',
-              'boundary',
-              'ports',
-              'flood-water-surface',
+              ...DEFAULT_LAYER_ORDER,
+              WATER_SURFACE_ID,
               FLOOD_LAYER_ID,
               FACILITY_LAYER_ID,
               DEM_HILLSHADE_LAYER_ID,

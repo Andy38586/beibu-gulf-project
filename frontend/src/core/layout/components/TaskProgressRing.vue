@@ -52,11 +52,17 @@ const RECT_SIZE = 38
 const RECT_ORIGIN = (44 - RECT_SIZE) / 2
 
 /**
- * 圆角：目标是**缩放后与按钮圆角一致**（GCS 按钮默认 `--GCS-radius-md` = 8px）。
- * 写死 viewBox 坐标会让它随 size 放大（size=72 时实际 13px），看着就"不贴合按钮"——
- * 故按 `8 × 44 / size` 反算回 viewBox 坐标，使缩放后恒为 8px。
+ * 圆角：目标是**缩放后与按钮圆角一致**，故按 `12 × 44 / size` 反算回 viewBox 坐标。
+ *
+ * 12 是 dock 按钮的**实测圆角**（`--GCS-radius-lg`，浏览器 `getComputedStyle` 读得 12px；
+ * 默认 44 尺寸时即为此值）。写死 viewBox 坐标会让圆角随 size 放大（size=72 时实际约 13px），
+ * 看着就"不像长在按钮上"。
+ *
+ * ⚠️ 若 GCS 的按钮圆角 token 变了，这里要同步 —— 单位测试锁不住这一点（它只知道本组件），
+ * 只有把环和按钮放一起看才发现。
  */
-const CORNER_RADIUS = computed(() => (8 * 44) / props.size)
+const BUTTON_CORNER_RADIUS = 12
+const CORNER_RADIUS = computed(() => (BUTTON_CORNER_RADIUS * 44) / props.size)
 
 const viewBox = computed(() => {
   // 框 + stroke 需要的留白：半宽 19 + 线宽 3 → 44 见方

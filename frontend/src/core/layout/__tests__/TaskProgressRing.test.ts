@@ -71,16 +71,17 @@ describe('TaskProgressRing', () => {
     expect(wrapper.find('.task-progress-ring__track').element.tagName.toLowerCase()).toBe('rect')
   })
 
-  it('🔴 圆角随 size 反算：缩放后恒等于按钮圆角 8px（这才是"贴合按钮边缘"）', () => {
-    // 写死 viewBox 坐标会让圆角随 size 放大 —— size=72 时实际 13px，比按钮圆角大一圈
+  it('🔴 圆角随 size 反算：缩放后恒等于按钮圆角 12px（这才是"贴合按钮边缘"）', () => {
+    // 12 是 dock 按钮的实测圆角（--GCS-radius-lg；浏览器 getComputedStyle 读得 12px）。
+    // 写死 viewBox 坐标会让圆角随 size 放大 —— size=72 时实际约 13px，比按钮圆角大一圈。
     const at44 = mount(TaskProgressRing, { props: { progress: 0.3, size: 44 } })
-    expect(Number(at44.find('.task-progress-ring__bar').attributes('rx'))).toBeCloseTo(8, 5)
+    expect(Number(at44.find('.task-progress-ring__bar').attributes('rx'))).toBeCloseTo(12, 5)
 
     const at88 = mount(TaskProgressRing, { props: { progress: 0.3, size: 88 } })
-    // rx = 8 × 44 / 88 = 4（viewBox 坐标）⇒ 缩放因子 88/44 = 2 ⇒ 实际 8px
+    // rx = 12 × 44 / 88 = 6（viewBox 坐标）⇒ 缩放因子 88/44 = 2 ⇒ 实际 12px
     const rx = Number(at88.find('.task-progress-ring__bar').attributes('rx'))
-    expect(rx).toBeCloseTo(4, 5)
-    expect(rx * (88 / 44)).toBeCloseTo(8, 5)
+    expect(rx).toBeCloseTo(6, 5)
+    expect(rx * (88 / 44)).toBeCloseTo(12, 5)
   })
 
   it('五态颜色：活跃蓝 / 成功绿 / 失败红（消费既有 token）', () => {

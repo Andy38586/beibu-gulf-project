@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 
 import { describe, expect, it } from 'vitest'
 
-import { GUARDS, runAll } from '../run-all.mjs'
+import { GUARDS, SEPARATELY_RUN, runAll } from '../run-all.mjs'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const GUARD_DIR = path.resolve(HERE, '..')
@@ -46,7 +46,8 @@ describe('guard:v3 串联执行器（审查 z163）', () => {
 
   it('清单非空、脚本文件都存在、且目录下没有未登记的守卫（防新守卫被静默遗漏）', () => {
     expect(GUARDS.length).toBeGreaterThan(0)
-    for (const name of GUARDS) {
+    const registered = [...GUARDS, ...SEPARATELY_RUN.map((g) => g.name)]
+    for (const name of registered) {
       expect(fs.existsSync(path.join(GUARD_DIR, `${name}.mjs`)), `${name}.mjs 不存在`).toBe(true)
     }
     const onDisk = fs
@@ -54,8 +55,31 @@ describe('guard:v3 串联执行器（审查 z163）', () => {
       .filter((f) => f.endsWith('.mjs') && f !== 'run-all.mjs')
       .map((f) => f.replace(/\.mjs$/, ''))
     expect(
-      onDisk.filter((n) => !GUARDS.includes(n)),
-      '新守卫必须在 run-all.mjs 的 GUARDS 中登记，否则不会被执行'
+      onDisk.filter((n) => !registered.includes(n)),
+      '新守卫必须在 run-all.mjs 的 GUARDS（快集）或 SEPARATELY_RUN（另跑）中登记，否则不会被执行'
     ).toEqual([])
+  })
+
+  it('@guard-red-sample SEPARATELY_RUN 项必须真的有人跑：script 存在且已接进 ci:local', () => {
+    const pkg = JSON.parse(fs.readFileSync(path.join(GUARD_DIR, '../../package.json'), 'utf8'))
+    for (const g of SEPARATELY_RUN) {
+      const cmd = pkg.scripts?.[g.script]
+      expect(
+        cmd,
+        `SEPARATELY_RUN 登记的 script「${g.script}」在 package.json 中不存在`
+      ).toBeTruthy()
+      expect(cmd, `script「${g.script}」未指向 ${g.name}`).toContain(`${g.name}.mjs`)
+      expect(
+        pkg.scripts['ci:local'],
+        `script「${g.script}」没有接进 ci:local —— 登记了却没人跑`
+      ).toContain(`npm run ${g.script}`)
+    }
+  })
+
+  it('SEPARATELY_RUN 项必须写明不进快集的理由（防「顺手塞进来」）', () => {
+    for (const g of SEPARATELY_RUN) {
+      expect(g.why, `${g.name} 缺少 why`).toBeTruthy()
+      expect(g.why.length).toBeGreaterThan(8)
+    }
   })
 })

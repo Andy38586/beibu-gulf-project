@@ -43,6 +43,22 @@ export const GUARDS = [
 ]
 
 /**
+ * 不在快集内、由**另一个入口**跑的守卫（**显式登记，不是静默豁免**）。
+ *
+ * 为什么要有这张表：目录下新增守卫必须有人跑，但「跑在哪个入口」不总在快集。
+ * 只把这些守卫从清单里划掉，就等于让「新守卫被静默遗漏」这条判据失效；所以要求
+ * 逐项写明 ① 为何不进快集、② 它在哪个 script 里被跑 —— 后者由测试核对
+ * （防「登记了却没人跑」与「script 存在但没接进 ci」）。
+ */
+export const SEPARATELY_RUN = [
+  {
+    name: 'guard-red-mutation',
+    why: '单个约 3 分钟（逐个守卫注入「停用审计函数」并跑其测试），不适合 pre-commit 快集',
+    script: 'guard:mutation',
+  },
+]
+
+/**
  * 顺序执行全部守卫，**不短路**。
  * @param {(name: string) => { code: number|null, signal: string|null }} exec 执行注入点（测试用）
  * @returns {{ results: Array<{name: string, code: number|null, signal: string|null}>, ok: boolean }}

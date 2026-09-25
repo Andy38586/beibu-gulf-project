@@ -61,17 +61,8 @@ export const affectedFacilitySchema = z
 
 export type AffectedFacilityParsed = z.infer<typeof affectedFacilitySchema>
 
-// ③ /flood 在线演算响应（顶层字段严格校验，features 元素级深校验见 ⑭a）
-export const floodOnlineResponseSchema = z.object({
-  level: z.number(),
-  // 后端权威输出（Nest RISK_LEVEL_BANDS 单一事实源；原 FastAPI _risk_level 双实现已随退役删除）
-  riskLevel: z.string(),
-  featureCount: z.number(),
-  floodedKm2: z.number(),
-  features: z.array(floodFeatureSchema),
-})
-
-export type FloodOnlineResponseParsed = z.infer<typeof floodOnlineResponseSchema>
+// ③ /flood 在线演算响应 —— 已随 algorithm-service（FastAPI）移除（2026-09-26），编号 ③ 不复用
+//（原 schema 业务侧零引用，仅自测；端点为退役只读端点，见 docs/开工前必读/API契约文档.md §5）
 
 // ④ 边界 GeoJSON 的 sessionStorage 缓存结构（looseObject 保留额外键，features 元素首次加载时已校验）
 export const boundaryCacheSchema = z.looseObject({
@@ -314,13 +305,8 @@ export const floodDisasterResponseSchema = z.looseObject({
 
 export type FloodDisasterResponseParsed = z.infer<typeof floodDisasterResponseSchema>
 
-// ⑰ /flood-online/api/flood/impact 响应（FastAPI 裸 JSON；affectedFacilities 元素级深校验）
-export const floodImpactResponseSchema = z.looseObject({
-  affectedFacilities: z.array(affectedFacilitySchema).optional(),
-  totalLoss: z.number().optional(),
-})
-
-export type FloodImpactResponseParsed = z.infer<typeof floodImpactResponseSchema>
+// ⑰ /flood-online/api/flood/impact 响应 —— 已随 algorithm-service（FastAPI）移除（2026-09-26），编号 ⑰ 不复用
+//（原 schema 业务侧零引用，仅自测；端点为退役只读端点，见 docs/开工前必读/API契约文档.md §5）
 
 // ⑱ 港口数据（前端静态 /data/ports.json，2026-08-29 自后端回迁；mapDataService 消费，C-4/6 补 schema）
 export const portSchema = z.object({

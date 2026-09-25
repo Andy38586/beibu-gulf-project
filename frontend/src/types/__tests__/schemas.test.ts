@@ -12,8 +12,6 @@ import {
   favoritesArraySchema,
   floodAreasResponseSchema,
   floodDisasterResponseSchema,
-  floodImpactResponseSchema,
-  floodOnlineResponseSchema,
   floodStatisticsResponseSchema,
   taskSubmitResponseSchema,
   taskViewResponseSchema,
@@ -426,19 +424,6 @@ describe('flood schemas（真实数据 + 构造样本）', () => {
     expect(zeroImpact.success).toBe(true)
     expect(zeroImpact.success && zeroImpact.data.waterLevel).toBeUndefined()
   })
-
-  it('floodOnlineResponseSchema 通过/拒绝（统一入口后仍校验）', () => {
-    const ok = floodOnlineResponseSchema.safeParse({
-      level: 2.5,
-      riskLevel: '低风险',
-      featureCount: 10,
-      floodedKm2: 5.2,
-      features: [],
-    })
-    const bad = floodOnlineResponseSchema.safeParse({ level: 2.5 }) // 缺 floodedKm2
-    expect(ok.success).toBe(true)
-    expect(bad.success).toBe(false)
-  })
 })
 
 describe('poiSearch schemas（构造样本双向验证）', () => {
@@ -526,14 +511,6 @@ describe('契约覆盖补齐的 schema（生成器门禁转红后补）', () => 
     expect(failed.success).toBe(true)
     // error 必须是 string|null——数字被拒
     expect(siteAnalysisResponseSchema.safeParse({ error: 500, coverage: null }).success).toBe(false)
-  })
-
-  it('floodImpactResponseSchema：缺键合法（零影响）；totalLoss 非数字拒绝', () => {
-    expect(floodImpactResponseSchema.safeParse({}).success).toBe(true)
-    expect(
-      floodImpactResponseSchema.safeParse({ affectedFacilities: [], totalLoss: 0 }).success
-    ).toBe(true)
-    expect(floodImpactResponseSchema.safeParse({ totalLoss: '很多' }).success).toBe(false)
   })
 
   it('portsArraySchema：前端托管 ports.json 通过；元素缺字段拒绝', () => {

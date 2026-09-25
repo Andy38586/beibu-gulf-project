@@ -66,7 +66,7 @@
 
 > **前缀约定(2026-09-12 修正)**:业务 API 统一 Nest 全局前缀 `/nest-api`(Vite dev 直接代理 `/nest-api` → `localhost:3000`;
 > 生产 nginx 反代 `/nest-api/` → `nest:3000`,并保留 `/api/` → `/nest-api/` 兼容重写)。下表省略 `/nest-api` 前缀。
-> 原 FastAPI `/flood-online` 通道已随 algorithm-service 退役删除(2026-09-10)。
+> 原 FastAPI `/flood-online` 通道已随 algorithm-service 退役删除(2026-09-10)。其对应的前端 schema 编号 ③(`/flood` 在线演算响应)与 ⑰(`/flood-online/api/flood/impact` 响应)已于 2026-09-26 一并删除,**编号不复用**(`types/schemas.ts` 原处留一行注明)。
 > 本清单是**当前**接口快照,增删后更新此处。规则见 §1-§4,不随清单变化。
 
 | 模块        | 端点                                                                                                            | 登录          | 说明                              |

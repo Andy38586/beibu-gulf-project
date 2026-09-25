@@ -28,7 +28,7 @@ describe('owned-layers — 图层归属结构约束', () => {
     const t = ['onUnmounted(() => {', "  manager.remove('a')", '})'].join('\n')
     const problems = auditSources(src(t))
     expect(problems).toHaveLength(1)
-    expect(problems[0]).toContain('unmount-remove')
+    expect(problems[0]).toContain('unmount-call')
   })
 
   it('@guard-red-sample onBeforeUnmount 同样管；businessLayerManager 前缀也认', () => {
@@ -40,26 +40,26 @@ describe('owned-layers — 图层归属结构约束', () => {
     const t = ['onUnmounted(() => {', '  clearRouteLayers()', '})'].join('\n')
     const problems = auditSources(src(t))
     expect(problems).toHaveLength(1)
-    expect(problems[0]).toContain('unmount-indirect')
+    expect(problems[0]).toContain('unmount-call')
   })
 
   it('@guard-red-sample releaseAll / remove*Layers 形态也认（同义改写不能绕）', () => {
     const a = ['onUnmounted(() => {', '  ownedLayers.releaseAll()', '})'].join('\n')
     const b = ['onUnmounted(() => {', '  removeCesiumOnlyLayers()', '})'].join('\n')
-    expect(auditSources(src(a))[0]).toContain('unmount-indirect')
-    expect(auditSources(src(b))[0]).toContain('unmount-indirect')
+    expect(auditSources(src(a))[0]).toContain('unmount-call')
+    expect(auditSources(src(b))[0]).toContain('unmount-call')
   })
 
   it('@guard-red-sample 换成别的名字（cleanupLayers / detachLayers / purgeAllLayers）⇒ 仍必报', () => {
     for (const call of ['cleanupLayers()', 'detachLayers()', 'purgeAllLayers()']) {
       const t = ['onUnmounted(() => {', `  ${call}`, '})'].join('\n')
-      expect(auditSources(src(t))[0], call).toContain('unmount-indirect')
+      expect(auditSources(src(t))[0], call).toContain('unmount-call')
     }
   })
 
   it('@guard-red-sample 用 BLM 自己的 removeAll（名字里没有 Layers）⇒ 仍必报', () => {
     const t = ['onUnmounted(() => {', '  businessLayerManager.removeAll()', '})'].join('\n')
-    expect(auditSources(src(t))[0]).toContain('unmount-indirect')
+    expect(auditSources(src(t))[0]).toContain('unmount-call')
   })
 
   it('looksLikeLayerTeardown：认形态而非认名字（复核实测的三条 evasion 都在这）', () => {
@@ -182,7 +182,7 @@ describe('owned-layers — 图层归属结构约束', () => {
     expect(auditSources(src(t, relPath))).toEqual([])
     expect(
       auditSources([{ relPath, text: t }], {
-        baseline: ['unmount-indirect@' + relPath],
+        baseline: ['unmount-call@' + relPath],
       })
     ).toEqual([])
   })
@@ -225,6 +225,29 @@ describe('owned-layers — 图层归属结构约束', () => {
       },
     ]
     expect(ownerScopeViolations(sources)[0]).toContain('owner-scope')
+  })
+
+  it('@guard-red-sample 无词根的清理名（wipe / purgeEverything）⇒ 仍必报（白名单默认拒绝）', () => {
+    for (const call of ['wipe()', 'purgeEverything()', 'teardownEverything()']) {
+      const t = ['onUnmounted(() => {', `  ${call}`, '})'].join('\n')
+      expect(auditSources(src(t))[0], call).toContain('unmount-call')
+    }
+  })
+
+  it('白名单内的卸载收尾不报；容器方法不构成逃逸面（逐行扫描）', () => {
+    const ok = [
+      'onUnmounted(() => {',
+      '  clearTimeout(t)',
+      '  document.removeEventListener("click", h)',
+      '  ids.forEach((i) => i.off())',
+      '})',
+    ].join('\n')
+    expect(auditSources(src(ok))).toEqual([])
+    // 容器方法本身在白名单里，但它内部那条 manager.remove 会被逐行抓出来
+    const escape = ['onUnmounted(() => {', '  ids.forEach((i) => manager.remove(i))', '})'].join(
+      '\n'
+    )
+    expect(auditSources(src(escape))[0]).toContain('remove')
   })
 
   it('unmountBlocks 能配平取块（嵌套大括号不漏不溢）', () => {

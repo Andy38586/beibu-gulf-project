@@ -6,14 +6,13 @@
  * 921→924 四轮都在同一个点复发（漏一个就跨路由残留）。改用 useOwnedLayers 之后，
  * 注销由作用域销毁统一负责。本守卫钉三件事：
  *
- *   判据 A（unmount-remove）  卸载钩子块内**直接** `.remove(` ⇒ 红
- *   判据 B（unmount-indirect）卸载钩子块内**间接**注销 —— 调用 `clear*Layers` /
- *                             `remove*Layers` / `releaseAll` ⇒ 红。
- *                             为什么补这条：只认 `.remove(` 字面量时，把注销包进一个
- *                             封装函数、再在卸载时调它，是**等价违约**却能过。
- *                             2026-09-25 实测就有一处这么漏过去（面板 onUnmounted 里
- *                             调 clearRouteLayers，守卫报绿）—— 只认一种记法的判据，
- *                             等于在诱导用另一种记法满足它（AGENTS §5.3 变异四式第 4 格）。
+ *   判据 A/B（unmount-call） 卸载钩子块内**默认拒绝**任何未登记调用 ⇒ 红
+ *                             （白名单见 `UNMOUNT_ALLOWED`，表内每条须写明"为什么它不是图层操作"）。
+ *                             演进史：① 只认 `.remove(` 字面量 → 包进封装函数即可过；
+ *                             ② 改按命名形态（以 `layer(s)` 结尾 / 注销动词开头）→
+ *                             `wipe()` / `purgeEverything()` 仍过，且会误咬 `clearCache`；
+ *                             ③ 改成**白名单（默认拒绝）** —— 不问"叫什么"，只问"登记过吗"，
+ *                             换名字这一整类逃逸面一次性消掉。
  *   判据 C（bare-register）  `business/**` 下的图层注册必须经 useOwnedLayers ⇒ 裸
  *                             `manager.register(...)` 判红。这条把「注册点分母」变成
  *                             机器可算：分母 = 全部图层注册点，已接 = 经 owner 册的那些。
@@ -46,7 +45,7 @@ const BUSINESS = path.join(ROOT, 'frontend/src/business')
 export const BASELINE = [
   'bare-register@frontend/src/business/site-selection/composables/useAnalysisLayer.ts',
   'bare-register@frontend/src/business/site-selection/SiteSelectionPage.vue',
-  'unmount-indirect@frontend/src/business/site-selection/SiteSelectionPage.vue',
+  'unmount-call@frontend/src/business/site-selection/SiteSelectionPage.vue',
 ]
 
 const COMMENT = /^\s*(\/\/|\*|\/\*)/
@@ -75,6 +74,76 @@ const NON_LAYER_CALLS = new Set([
  * 纳入会立刻误伤）。图层清理若用这两个词，通常带 `Layer(s)` 后缀，仍由上面的形态判据覆盖。
  */
 const TEARDOWN_VERB = /^(remove|release|clear|detach|purge|unregister)/i
+
+/**
+ * 卸载钩子块内**允许**出现的调用（白名单）。
+ *
+ * ## 为什么反过来：白名单（默认拒绝）而不是识别注销（默认放行）
+ *
+ * 识别注销是黑名单 —— 必须**预知**"注销长什么样"。于是 `cleanupLayers()` / `detachLayers()` /
+ * `wipe()` / 任何没见过的写法都能逃逸（2026-09-25 复核 agent 实测三条 0 命中）。把判据从
+ * 「命名形态」再往「AST 语义」推一档，仍然是在跟**写法**赛跑，只是把赛跑线往后挪一格；
+ * 而 JS 是动态的（`manager` 来自 inject，`wipe()` 内部改了什么静态看不出来）。
+ *
+ * 白名单换个问法：**不看它叫什么，只看它登记过没有**。卸载块内除本表外一律判红 ——
+ * `wipe()` 明天出现也照样红，因为"没登记"这件事不需要预知名字。
+ *
+ * ## 登记纪律
+ *
+ * 新增条目必须写明**为什么它不是图层操作**（下面的分组注释就是凭据）。这是本判据唯一的
+ * 退化路径：**白名单膨胀成筛子** —— 想让红变绿，改这里比改代码容易，所以每条都要有理由。
+ *
+ * ## 为什么容器方法（`forEach` / `keys`）入表不构成逃逸面
+ *
+ * 扫描是**逐行**的：`Object.keys(x).forEach(v => manager.remove(v))` 里的 `manager.remove`
+ * 会被单独抓出来。入表的只是那个容器方法名本身。
+ */
+export const UNMOUNT_ALLOWED = new Set([
+  // 定时器
+  'clearTimeout',
+  'clearInterval',
+  'clearImmediate',
+  // 事件监听
+  'removeEventListener',
+  'addEventListener',
+  'off',
+  // 在途请求取消
+  'abort',
+  'abortInflight',
+  'cancel',
+  'cancelAll',
+  'cancelFloodSignal',
+  // watch / 动效 / 播放 停止
+  'stopImageryWatch',
+  'stopRendererWatch',
+  'stopTilesLayerWatch',
+  'stopPlayback',
+  'stopBreathing',
+  'stopFacilityBreathing',
+  // 非图层的实例销毁（ECharts 等，实测 WaterLevelProfilePanel 的 chartInstance.dispose）
+  'dispose',
+  // 非图层的状态复位（store / 业务态 / 缓存）
+  'reset',
+  'resetFloodAnalysis',
+  'resetSubStates',
+  'clearState',
+  'clearCache',
+  // UI 收尾
+  'endSliderFocus',
+  // 钩子自身与取值辅助（其内部语句仍被逐行扫描）
+  'onUnmounted',
+  'onBeforeUnmount',
+  'getRenderer',
+  'forEach',
+  'keys',
+  'values',
+  // 语言关键字（正则按"标识符+左括号"抓取，会把 if / for 也抓进来）
+  'if',
+  'for',
+  'while',
+  'switch',
+  'catch',
+])
 
 /**
  * 这个调用名算不算「注销图层」。
@@ -189,21 +258,21 @@ export function auditSources(sources, { baseline = BASELINE } = {}) {
   }
 
   for (const { relPath, text } of sources) {
-    // 判据 A / B：卸载钩子块内不得注销图层（直接 `.remove(` 或经封装函数）
+    // 判据 A/B：卸载钩子块内**默认拒绝**任何未登记调用（白名单见 UNMOUNT_ALLOWED）
     for (const block of unmountBlocks(text)) {
       for (const { line, text: t } of block) {
         if (COMMENT.test(t)) continue
         for (const m of t.matchAll(CALL)) {
           const name = m[1]
-          if (!looksLikeLayerTeardown(name)) continue
-          const kind = name === 'remove' ? 'unmount-remove' : 'unmount-indirect'
+          if (UNMOUNT_ALLOWED.has(name)) continue
           mark(
-            kind,
+            'unmount-call',
             relPath,
             line,
-            kind === 'unmount-remove'
-              ? '在卸载钩子里直接手写图层注销 —— 应经 useOwnedLayers，由作用域销毁统一清'
-              : `在卸载钩子里调 ${name}() 注销图层 —— 与手写注销等价，同样应交给作用域销毁`
+            `卸载钩子里调 ${name}()：` +
+              (looksLikeLayerTeardown(name)
+                ? '名字像图层注销 —— 应经 useOwnedLayers，由作用域销毁统一清'
+                : '不在卸载白名单内 —— 若确属非图层收尾，登记进 UNMOUNT_ALLOWED 并写明理由')
           )
         }
       }
@@ -286,7 +355,7 @@ function main() {
     const pages = sources.filter((s) => s.relPath.endsWith('.vue')).length
     console.log(
       `[owned-layers] OK：${pages} 个业务页面 + ${sources.length - pages} 个 .ts 源文件中，` +
-        `卸载钩子内 0 处注销（直接/间接）`
+        `卸载钩子内的调用全部在白名单（${UNMOUNT_ALLOWED.size} 项）`
     )
     const unowned = sites.filter((s) => !s.owned)
     const unownedFiles = [...new Set(unowned.map((s) => s.relPath))]

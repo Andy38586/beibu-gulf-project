@@ -22,6 +22,7 @@ import {
   layerRegisterSites,
   looksLikeLayerTeardown,
   ownerScopeViolations,
+  registerSiteTally,
   unmountBlocks,
 } from '../owned-layers.mjs'
 
@@ -310,6 +311,32 @@ describe('owned-layers — 图层归属结构约束', () => {
       '\n'
     )
     expect(auditSources(src(escape))[0]).toContain('remove')
+  })
+
+  it('registerSiteTally 三态并列：已接 + 裸 === 分母（按数据流，不按变量名）', () => {
+    const t = [
+      "const panelOwned = useOwnedLayers('p')",
+      "panelOwned.applyOrUpdate('a', {})",
+      "panelOwned.register('b', {})",
+      "const own2 = useOwnedLayers('q')",
+      "own2.register('c', {})",
+      "blm.register('d', {})",
+    ].join('\n')
+    const tally = registerSiteTally(layerRegisterSites(src(t)))
+    expect(tally.total).toBe(4)
+    expect(tally.owned + tally.bare, '三态必须闭合，否则又一处「分母漏计」').toBe(tally.total)
+    expect(tally.owned, '重命名的 owner 变量要按数据流算成已接').toBe(3)
+    expect(tally.bare).toBe(1)
+    expect(tally.bareFiles).toBe(1)
+  })
+
+  it('@guard-red-sample 裸 applyOrUpdate（接收者不是 owner 册）⇒ 计入分母且算裸', () => {
+    // 阳性对照：若分母仍只认 `.register(` 字面量，这里 total 会是 0 —— 命名依赖即漏计
+    const t = ['function f() {', "  blm.applyOrUpdate('k', {})", '}'].join('\n')
+    const tally = registerSiteTally(layerRegisterSites(src(t)))
+    expect(tally.total).toBe(1)
+    expect(tally.bare).toBe(1)
+    expect(auditSources(src(t))[0]).toContain('bare-register')
   })
 
   it('unmountBlocks 能配平取块（嵌套大括号不漏不溢）', () => {

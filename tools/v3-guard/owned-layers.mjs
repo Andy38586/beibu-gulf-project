@@ -331,6 +331,27 @@ export function layerRegisterSites(sources, { methods = REGISTER_METHODS } = {})
   return sites
 }
 
+/**
+ * 注册点分母的三态读数（单一出处，供首行输出与测试共同消费）。
+ *
+ * 为什么单独成函数：三态里「裸」此前只出现在第 3 行的豁免清单里，首行只有
+ * 「分母 / 已接」两个数 —— 于是"分母下降"到底是**真收敛**还是**改了记法不再被计数**
+ * （`applyOrUpdate` 那类漏计）看不出来。首行三个数并列之后，`已接 + 裸 == 分母`
+ * 这一眼就能对上，任何一侧漏计都会立刻显形。
+ */
+export function registerSiteTally(sites) {
+  const bare = sites.filter((s) => !s.owned)
+  const owned = sites.filter((s) => s.owned)
+  return {
+    files: new Set(sites.map((s) => s.relPath)).size,
+    total: sites.length,
+    ownedFiles: new Set(owned.map((s) => s.relPath)).size,
+    owned: owned.length,
+    bareFiles: new Set(bare.map((s) => s.relPath)).size,
+    bare: bare.length,
+  }
+}
+
 /** 审计：返回问题列表（空 = 通过） */
 export function auditSources(sources, { baseline = BASELINE, methods = REGISTER_METHODS } = {}) {
   const re = registerCallRegex(methods)
@@ -424,14 +445,12 @@ export function ownerScopeViolations(sources) {
 function main() {
   const sources = collectSources()
   const sites = layerRegisterSites(sources)
-  const ownedCount = sites.filter((s) => s.owned).length
   const problems = [...auditSources(sources), ...ownerScopeViolations(sources)]
 
-  const files = new Set(sites.map((s) => s.relPath))
-  const ownedFiles = new Set(sites.filter((s) => s.owned).map((s) => s.relPath))
+  const t = registerSiteTally(sites)
   console.log(
-    `[owned-layers] 注册点分母：${files.size} 个文件 / ${sites.length} 处调用；` +
-      `经 useOwnedLayers 已接 ${ownedFiles.size} 个文件 / ${ownedCount} 处`
+    `[owned-layers] 注册点分母：${t.files} 个文件 / ${t.total} 处调用；` +
+      `其中经 owner 册 ${t.ownedFiles} 个文件 / ${t.owned} 处；裸 ${t.bareFiles} 个文件 / ${t.bare} 处`
   )
 
   if (problems.length === 0) {

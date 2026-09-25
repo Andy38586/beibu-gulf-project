@@ -1,4 +1,8 @@
-/** 统一错误出口：集中管理错误提示，替换分散的 ElMessage.error / console.error，后续可接 Sentry 等上报服务 */
+/**
+ * 统一错误提示出口：集中管理错误提示，替换分散的 ElMessage.error / console.error。
+ * 上报是**另一条通道**，已落在 ./errorReporting.ts（由 main.ts 三个全局钩子接入，z021）——
+ * 本文件只负责"给用户看什么"，不负责"上报到哪"。
+ */
 
 import type { Router } from 'vue-router'
 

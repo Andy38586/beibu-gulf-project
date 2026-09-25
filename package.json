@@ -45,6 +45,7 @@
     "prepare": "husky"
   },
   "dependencies": {
+    "@sentry/vue": "^11.0.0",
     "cesium": "^1.142.0",
     "echarts": "^6.1.0",
     "element-plus": "^2.14.2",

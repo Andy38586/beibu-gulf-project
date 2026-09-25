@@ -7,7 +7,14 @@ import { createPinia } from 'pinia'
 import type { ComponentPublicInstance } from 'vue'
 import { createApp } from 'vue'
 
-import { initPerfReporter, logger, perfReportError, useTheme } from '@/shared'
+import {
+  captureError,
+  initErrorReporting,
+  initPerfReporter,
+  logger,
+  perfReportError,
+  useTheme,
+} from '@/shared'
 
 import App from './App.vue'
 import router from './router'
@@ -35,6 +42,9 @@ validateEnv()
 
 // 尽早挂载性能观察者，捕获 FCP/LCP/TTI/longtask（dev-only，不进生产包）
 initPerfReporter()
+
+// 错误上报（z021）：仅当 VITE_SENTRY_DSN 配置时初始化；未配置为 no-op，本地/CI 零影响
+void initErrorReporting()
 
 // 2026-09-10（阶段 4）：floodAdapter 的 fetch/calculate 双模式已收敛为单模式
 //（algorithm-service 退役，能力由 Nest+PostGIS 覆盖），VITE_DATA_SOURCE 环境变量
@@ -68,12 +78,11 @@ app.config.errorHandler = (
   logger.error('[Global Error]', err, info)
   // 性能埋点：Vue 渲染/生命周期错误计数（生产可见）
   perfReportError('vue')
+  // 上报（z021）：未配置 VITE_SENTRY_DSN 时是 no-op
+  captureError(err, { source: 'vue.errorHandler', info })
   // 开发环境显示详细错误，生产环境显示友好提示
   if (import.meta.env.DEV) {
     logger.error('错误详情:', { err, instance, info })
-  } else {
-    // 错误上报暂缓接入：当前仅 console 输出，logger 无 transport 钩子；
-    // Sentry 接入时按既定方案落地（main.ts 直接 SDK 或 logger 重加 addLogTransport）
   }
 }
 
@@ -81,13 +90,21 @@ app.config.errorHandler = (
 window.onerror = (message, source, lineno, colno, error) => {
   logger.error('[window.onerror]', { message, source, lineno, colno, error })
   perfReportError('script')
+  captureError(error ?? new Error(String(message)), {
+    source: 'window.onerror',
+    sourceUrl: source,
+    lineno,
+    colno,
+  })
 }
 window.onunhandledrejection = (event: PromiseRejectionEvent) => {
   logger.error('[unhandledrejection]', event.reason)
   perfReportError('promise')
+  captureError(event.reason, { source: 'window.onunhandledrejection' })
 }
 // 资源加载错误（script/link/img 不冒泡到 window.onerror）——
-// 捕获 Cesium.js / 天地图瓦片 / JS chunk 加载失败，统一 trace（与错误上报方案一并落地）
+// 捕获 Cesium.js / 天地图瓦片 / JS chunk 加载失败，统一 trace（本地日志 + perf 计数，
+// 不上报 Sentry：瓦片失败是高频事件，上报会淹没真错误；上报口径见 errorReporting.ts）
 window.addEventListener(
   'error',
   (event) => {

@@ -1,0 +1,1280 @@
+{
+  "generatedFrom": "tools/dup/scan.mjs",
+  "minTokens": 12,
+  "totalGroups": 212,
+  "totalRedundantTokens": 4803,
+  "updatedAt": "2026-09-25",
+  "note": "S2 转向后「重复消除」判据首落：MIN_TOKENS=12 由动机案例（呼吸公式 12 token）标定；.vue 只取 script 块，排除设计 token 噪声",
+  "groups": [
+    {
+      "text": "features . flatMap ( ( f ) => { const coords = f . geometry ?. coordinates const point = normalizePoint ( coords ? { lng : coords [ 0 ] , lat : coords [ 1 ] } : f ) if ( ! point ) return [ ] const feature = new Feature ( { geometry : new Point ( fromLonLat ( [ point . lng , point . lat ] ) ) , } ) Object . entries ( f . properties || { } ) . forEach ( ( [ key , value ] ) => { feature . set ( key , value ) } ) return [ feature ] } )",
+      "count": 2,
+      "files": ["frontend/src/core/map/renderers/OLRenderer.ts"]
+    },
+    {
+      "text": "{ const coords = f . geometry ?. coordinates const point = normalizePoint ( coords ? { lng : coords [ 0 ] , lat : coords [ 1 ] } : f ) if ( ! point ) return [ ] const feature = new Feature ( { geometry : new Point ( fromLonLat ( [ point . lng , point . lat ] ) ) , } ) Object . entries ( f . properties || { } ) . forEach ( ( [ key , value ] ) => { feature . set ( key , value ) } ) return [ feature ] }",
+      "count": 2,
+      "files": ["frontend/src/core/map/renderers/OLRenderer.ts"]
+    },
+    {
+      "text": "SkipThrottle ( { login : true , register : true } )",
+      "count": 8,
+      "files": [
+        "backend/src/modules/auth/controllers/auth.controller.ts",
+        "backend/src/modules/favorites/controllers/favorites.controller.ts",
+        "backend/src/modules/flood/controllers/flood.controller.ts",
+        "backend/src/modules/plans/controllers/plans.controller.ts",
+        "backend/src/modules/route/controllers/route.controller.ts",
+        "backend/src/modules/site-analysis/controllers/site-analysis.controller.ts",
+        "backend/src/modules/task/controllers/task.controller.ts"
+      ]
+    },
+    {
+      "text": "( typeof raw === 'object' && raw !== null ? raw : { } )",
+      "count": 6,
+      "files": [
+        "backend/src/modules/auth/dto/auth.dto.ts",
+        "backend/src/modules/favorites/dto/favorites.dto.ts",
+        "backend/src/modules/plans/dto/plans.dto.ts"
+      ]
+    },
+    {
+      "text": ". filter ( ( p ) => Number . isFinite ( p . lng ) && Number . isFinite ( p . lat ) )",
+      "count": 4,
+      "files": [
+        "frontend/src/core/map/renderers/CesiumRenderer.ts",
+        "frontend/src/core/map/renderers/OLRenderer.ts"
+      ]
+    },
+    {
+      "text": "new Stroke ( { color : LAYER_DEFAULTS . outline , width : 2 } )",
+      "count": 6,
+      "files": ["frontend/src/core/map/renderers/OLRenderer.ts"]
+    },
+    {
+      "text": "{ name : string ; data : Array < number | null > }",
+      "count": 6,
+      "files": [
+        "frontend/src/business/forecast/composables/useForecastComparison.ts",
+        "frontend/src/visualization/charts/BarChart.vue",
+        "frontend/src/visualization/charts/LineChart.vue",
+        "frontend/src/visualization/charts/composables/useChartBase.ts"
+      ]
+    },
+    {
+      "text": "[ { maxLevel : 0 , label : '无风险' } , { maxLevel : 2 , label : '低风险' } , { maxLevel : 4.3 , label : '中风险' } , { maxLevel : 6 , label : '高风险' } , { maxLevel : 8 , label : '极高风险' } , { maxLevel : Number . POSITIVE_INFINITY , label : '灾难级' } , ]",
+      "count": 2,
+      "files": [
+        "backend/src/common/constants/flood.constants.ts",
+        "frontend/src/shared/constants/flood.ts"
+      ]
+    },
+    {
+      "text": "{ throw new BusinessError ( ErrorCode . NOT_FOUND , '方案不存在' ) }",
+      "count": 6,
+      "files": ["backend/src/modules/plans/controllers/plans.controller.ts"]
+    },
+    {
+      "text": "fromLonLat ( [ point . lng , point . lat ] )",
+      "count": 6,
+      "files": ["frontend/src/core/map/renderers/OLRenderer.ts"]
+    },
+    {
+      "text": "layerCatalog . value . find ( ( e : LayerEntry ) => e . key === key )",
+      "count": 4,
+      "files": [
+        "frontend/src/core/map/components/LayerControlPanel.vue",
+        "frontend/src/stores/mapStore.ts"
+      ]
+    },
+    {
+      "text": "if ( plan . userId !== req . user ! . id )",
+      "count": 5,
+      "files": ["backend/src/modules/plans/controllers/plans.controller.ts"]
+    },
+    {
+      "text": "if ( renderer . _geoJsonTokens . get ( id ) !== token )",
+      "count": 5,
+      "files": ["frontend/src/core/map/renderers/CesiumRenderer.ts"]
+    },
+    {
+      "text": "new Point ( fromLonLat ( [ point . lng , point . lat ] ) )",
+      "count": 4,
+      "files": ["frontend/src/core/map/renderers/OLRenderer.ts"]
+    },
+    {
+      "text": "computed ( ( ) => { if ( ! props . series || props . series . length === 0 ) return false return props . series . some ( ( s ) => s . data && s . data . length > 0 ) } )",
+      "count": 2,
+      "files": [
+        "frontend/src/visualization/charts/BarChart.vue",
+        "frontend/src/visualization/charts/LineChart.vue"
+      ]
+    },
+    {
+      "text": "export interface TaskView { taskId : string domain : TaskDomain route : string status : TaskStatus progress : number queuePosition ? : number retryCount : number result ? : unknown error ? : TaskError createdAt : number startedAt ? : number finishedAt ? : number }",
+      "count": 2,
+      "files": ["backend/src/modules/task/types/task.ts", "frontend/src/types/task.ts"]
+    },
+    {
+      "text": "{ time : string value : number type : string reliability : number lower ? : number upper ? : number }",
+      "count": 3,
+      "files": ["backend/src/modules/forecast/services/model-loader.ts"]
+    },
+    {
+      "text": "{ lng : MAP_CONFIG . CAMERA . center . lng , lat : MAP_CONFIG . CAMERA . center . lat }",
+      "count": 3,
+      "files": [
+        "frontend/src/core/map/renderers/CesiumRenderer.ts",
+        "frontend/src/core/map/renderers/OLRenderer.ts"
+      ]
+    },
+    {
+      "text": "( Array . isArray ( target ) ? target : [ target ] )",
+      "count": 4,
+      "files": [
+        "frontend/src/core/map/renderers/CesiumRenderer.ts",
+        "frontend/src/core/map/renderers/OLRenderer.ts"
+      ]
+    },
+    {
+      "text": "new CallbackProperty ( ( ) => { const elapsed = ( Date . now ( ) - startTime ) / 1000 return 10 + Math . sin ( elapsed * Math . PI * 2 ) * 5 } , false )",
+      "count": 2,
+      "files": ["frontend/src/core/map/renderers/CesiumRenderer.ts"]
+    },
+    {
+      "text": "this . _layers . set ( id , { instance : vectorLayer , visible : true , options , } )",
+      "count": 3,
+      "files": ["frontend/src/core/map/renderers/OLRenderer.ts"]
+    },
+    {
+      "text": "{ if ( ! props . series || props . series . length === 0 ) return false return props . series . some ( ( s ) => s . data && s . data . length > 0 ) }",
+      "count": 2,
+      "files": [
+        "frontend/src/visualization/charts/BarChart.vue",
+        "frontend/src/visualization/charts/LineChart.vue"
+      ]
+    },
+    {
+      "text": "{ position : Cartesian3 . fromDegrees ( p . lng , p . lat ) , point : { pixelSize : pixelSizeProperty , color : colorProperty , outlineColor : Color . WHITE , outlineWidth : 2 , } , }",
+      "count": 2,
+      "files": ["frontend/src/core/map/renderers/CesiumRenderer.ts"]
+    },
+    {
+      "text": "{ state . entries . push ( { name , start : s , duration : d } ) if ( state . entries . length > MAX_DEV_ENTRIES ) state . entries . shift ( ) }",
+      "count": 2,
+      "files": ["frontend/src/shared/utils/perfReporter.ts"]
+    },
+    {
+      "text": "Math . sin ( elapsed * Math . PI * 2 )",
+      "count": 4,
+      "files": ["frontend/src/core/map/renderers/CesiumRenderer.ts"]
+    },
+    {
+      "text": "( options . onError as ( ( msg : string ) => void ) | undefined )",
+      "count": 3,
+      "files": ["frontend/src/core/map/renderers/CesiumRenderer.ts"]
+    },
+    {
+      "text": "{ const elapsed = ( Date . now ( ) - startTime ) / 1000 return 10 + Math . sin ( elapsed * Math . PI * 2 ) * 5 }",
+      "count": 2,
+      "files": ["frontend/src/core/map/renderers/CesiumRenderer.ts"]
+    },
+    {
+      "text": "{ const header = req . headers . authorization if ( header && header . startsWith ( 'Bearer ' ) ) { token = header . slice ( 7 ) } }",
+      "count": 2,
+      "files": [
+        "backend/src/modules/auth/guards/auth.guard.ts",
+        "backend/src/modules/task/utils/request-owner.ts"
+      ]
+    },
+    {
+      "text": "z . record ( z . string ( ) , z . unknown ( ) )",
+      "count": 3,
+      "files": ["frontend/src/types/schemas.ts"]
+    },
+    {
+      "text": "return flyTo ( { lng : target . lng , lat : target . lat } , { height : target . height , zoom : target . zoom } )",
+      "count": 2,
+      "files": [
+        "frontend/src/business/site-selection/SiteSelectionPage.vue",
+        "frontend/src/core/layout/composables/useScreenActions.ts"
+      ]
+    },
+    {
+      "text": "new TileLayer ( { source : new XYZ ( { url : buildTiandituUrl ( code ) , crossOrigin : 'anonymous' , } ) , className : 'ol-base-layer' , } )",
+      "count": 2,
+      "files": ["frontend/src/core/map/renderers/OLRenderer.ts"]
+    },
+    {
+      "text": "continue if ( p . id && haversineKm ( xq . lng , xq . lat , p . lng , p . lat ) <= radiusKm )",
+      "count": 2,
+      "files": ["frontend/src/business/site-selection/composables/useAnalysisLayer.ts"]
+    },
+    {
+      "text": "{ this . _runAdapter ( 'create' , renderer , key , meta . label , meta . layerType , meta . data , meta . options ) }",
+      "count": 2,
+      "files": ["frontend/src/core/map/BusinessLayerManager.ts"]
+    },
+    {
+      "text": "{ return { center : { lng : MAP_CONFIG . CAMERA . center . lng , lat : MAP_CONFIG . CAMERA . center . lat } } }",
+      "count": 2,
+      "files": ["frontend/src/core/map/renderers/CesiumRenderer.ts"]
+    },
+    {
+      "text": "if ( this . hooks . isCancelled ( job . taskId ) )",
+      "count": 3,
+      "files": ["backend/src/modules/task/services/task-queue.ts"]
+    },
+    {
+      "text": "this . _runAdapter ( 'create' , renderer , key , meta . label , meta . layerType , meta . data , meta . options )",
+      "count": 2,
+      "files": ["frontend/src/core/map/BusinessLayerManager.ts"]
+    },
+    {
+      "text": "showModal ( { message : '收藏功能需要登录，是否前往登录？' , mode : 'login' , onConfirm : ( ) => void router . push ( '/profile' ) , } )",
+      "count": 2,
+      "files": [
+        "frontend/src/core/map/components/MapFacilityBubble.vue",
+        "frontend/src/shared/components/PaginatedListPanel.vue"
+      ]
+    },
+    {
+      "text": "{ image : unknown [ ] ; vector : unknown [ ] }",
+      "count": 3,
+      "files": ["frontend/src/core/map/renderers/CesiumRenderer.ts"]
+    },
+    {
+      "text": "{ clearTimeout ( this . _cameraDebounceTimer ) this . _cameraDebounceTimer = null }",
+      "count": 3,
+      "files": [
+        "frontend/src/core/map/renderers/CesiumRenderer.ts",
+        "frontend/src/core/map/renderers/OLRenderer.ts"
+      ]
+    },
+    {
+      "text": "return { center : { lng : MAP_CONFIG . CAMERA . center . lng , lat : MAP_CONFIG . CAMERA . center . lat } }",
+      "count": 2,
+      "files": ["frontend/src/core/map/renderers/CesiumRenderer.ts"]
+    },
+    {
+      "text": "options . onError as ( ( msg : string ) => void )",
+      "count": 3,
+      "files": ["frontend/src/core/map/renderers/CesiumRenderer.ts"]
+    },
+    {
+      "text": "{ source : new XYZ ( { url : buildTiandituUrl ( code ) , crossOrigin : 'anonymous' , } ) , className : 'ol-base-layer' , }",
+      "count": 2,
+      "files": ["frontend/src/core/map/renderers/OLRenderer.ts"]
+    },
+    {
+      "text": "{ featureType : string | null data : Record < string , unknown > | null coordinate : [ number , number ] | null }",
+      "count": 2,
+      "files": ["frontend/src/types/renderer.ts"]
+    },
+    {
+      "text": "{ color : dark ? CHART_COLORS . textPrimary . dark : CHART_COLORS . textPrimary . light , fontSize : 16 , fontWeight : 600 , }",
+      "count": 2,
+      "files": [
+        "frontend/src/visualization/charts/composables/useChartBase.ts",
+        "frontend/src/visualization/charts/composables/useRadarChart.ts"
+      ]
+    },
+    {
+      "text": "new Feature ( { geometry : new Point ( fromLonLat ( [ point . lng , point . lat ] ) ) , } )",
+      "count": 2,
+      "files": ["frontend/src/core/map/renderers/OLRenderer.ts"]
+    },
+    {
+      "text": "new Feature ( { geometry : new Point ( fromLonLat ( [ p . lng , p . lat ] ) ) , } )",
+      "count": 2,
+      "files": ["frontend/src/core/map/renderers/OLRenderer.ts"]
+    },
+    {
+      "text": "return false return props . series . some ( ( s ) => s . data && s . data . length > 0 )",
+      "count": 2,
+      "files": [
+        "frontend/src/visualization/charts/BarChart.vue",
+        "frontend/src/visualization/charts/LineChart.vue"
+      ]
+    },
+    {
+      "text": "{ throw new BusinessError ( ErrorCode . FORBIDDEN , '无权修改该方案' ) }",
+      "count": 3,
+      "files": ["backend/src/modules/plans/controllers/plans.controller.ts"]
+    },
+    {
+      "text": "import { computed , onMounted , onUnmounted , ref , watch }",
+      "count": 3,
+      "files": [
+        "frontend/src/business/flood-analysis/components/WaterLevelProfilePanel.vue",
+        "frontend/src/business/site-selection/SiteSelectionPage.vue",
+        "frontend/src/core/layout/components/GCSDebugOverlay.vue"
+      ]
+    },
+    {
+      "text": "{ inst . setOption ( option , { notMerge : false , replaceMerge : [ 'series' ] , lazyUpdate : true } ) }",
+      "count": 2,
+      "files": [
+        "frontend/src/business/flood-analysis/components/WaterLevelProfilePanel.vue",
+        "frontend/src/visualization/composables/useECharts.ts"
+      ]
+    },
+    {
+      "text": "Color . fromCssColorString ( options . strokeColor || LAYER_DEFAULTS . stroke )",
+      "count": 3,
+      "files": ["frontend/src/core/map/renderers/CesiumRenderer.ts"]
+    },
+    {
+      "text": "( [ 0 - 9a - f ] { 2 } )",
+      "count": 3,
+      "files": ["frontend/src/core/map/renderers/OLRenderer.ts"]
+    },
+    {
+      "text": "{ instance : vectorLayer , visible : true , options , }",
+      "count": 3,
+      "files": ["frontend/src/core/map/renderers/OLRenderer.ts"]
+    },
+    {
+      "text": "new Feature ( { geometry : new Point ( fromLonLat ( [ point . lng , point . lat ] ) ) } )",
+      "count": 2,
+      "files": ["frontend/src/core/map/renderers/OLRenderer.ts"]
+    },
+    {
+      "text": "( window as unknown as Record < string , unknown > )",
+      "count": 3,
+      "files": [
+        "frontend/src/core/map/renderers/index.ts",
+        "frontend/src/shared/utils/perfReporter.ts"
+      ]
+    },
+    {
+      "text": "if ( pointerId === null || e . pointerId !== pointerId )",
+      "count": 3,
+      "files": ["frontend/src/shared/composables/usePanelDrag.ts"]
+    },
+    {
+      "text": "for ( const [ key , setting ] of Object . entries ( typeSettings as Record < string , TypeSetting > ) )",
+      "count": 2,
+      "files": ["backend/src/modules/site-analysis/dto/site-analysis-request.ts"]
+    },
+    {
+      "text": ". sort ( ( a , b ) => b [ 1 ] . max - a [ 1 ] . max )",
+      "count": 2,
+      "files": [
+        "frontend/src/core/layout/components/GCSDebugOverlay.vue",
+        "frontend/src/shared/utils/perfReporter.ts"
+      ]
+    },
+    {
+      "text": "{ message : '收藏功能需要登录，是否前往登录？' , mode : 'login' , onConfirm : ( ) => void router . push ( '/profile' ) , }",
+      "count": 2,
+      "files": [
+        "frontend/src/core/map/components/MapFacilityBubble.vue",
+        "frontend/src/shared/components/PaginatedListPanel.vue"
+      ]
+    },
+    {
+      "text": "features . forEach ( ( feature ) => { feature . set ( 'featureType' , options . featureType || 'geojson' ) } )",
+      "count": 2,
+      "files": ["frontend/src/core/map/renderers/OLRenderer.ts"]
+    },
+    {
+      "text": "{ method : 'POST' , body : JSON . stringify ( { username , password } ) , schema : authResponseSchema , }",
+      "count": 2,
+      "files": ["frontend/src/shared/composables/useAuth.ts"]
+    },
+    {
+      "text": "z . array ( z . tuple ( [ z . number ( ) , z . number ( ) ] ) )",
+      "count": 2,
+      "files": ["frontend/src/types/schemas.ts"]
+    },
+    {
+      "text": "return this . writePayload ( client , planId , row , { ... row . payload , savedXiaoqu : newSavedXiaoqu } )",
+      "count": 2,
+      "files": ["backend/src/modules/plans/repositories/plans.repository.ts"]
+    },
+    {
+      "text": "inst . setOption ( option , { notMerge : false , replaceMerge : [ 'series' ] , lazyUpdate : true } )",
+      "count": 2,
+      "files": [
+        "frontend/src/business/flood-analysis/components/WaterLevelProfilePanel.vue",
+        "frontend/src/visualization/composables/useECharts.ts"
+      ]
+    },
+    {
+      "text": "function startFacilityBreathing ( target : Array < GeoPoint & { color ? : string } > , color ? : string )",
+      "count": 2,
+      "files": [
+        "frontend/src/core/map/UnifiedMap.vue",
+        "frontend/src/core/map/composables/useMapControls.ts"
+      ]
+    },
+    {
+      "text": "normalizePoint ( coords ? { lng : coords [ 0 ] , lat : coords [ 1 ] } : f )",
+      "count": 2,
+      "files": ["frontend/src/core/map/renderers/OLRenderer.ts"]
+    },
+    {
+      "text": ". forEach ( ( [ key , value ] ) => { feature . set ( key , value ) } )",
+      "count": 2,
+      "files": ["frontend/src/core/map/renderers/OLRenderer.ts"]
+    },
+    {
+      "text": "new VectorLayer ( { source : new VectorSource ( { features : breathingFeatures } ) , style : breathingStyle , } )",
+      "count": 2,
+      "files": ["frontend/src/core/map/renderers/OLRenderer.ts"]
+    },
+    {
+      "text": "( ENDPOINTS . flood . statistics , { params : { waterLevel } , signal , schema : floodStatisticsResponseSchema , } )",
+      "count": 2,
+      "files": ["frontend/src/services/adapters/floodAdapter.ts"]
+    },
+    {
+      "text": "if ( ! Number . isFinite ( item . lng ) || ! Number . isFinite ( item . lat ) )",
+      "count": 2,
+      "files": ["frontend/src/shared/components/PaginatedListPanel.vue"]
+    },
+    {
+      "text": "z . object ( { start : z . string ( ) , end : z . string ( ) } )",
+      "count": 2,
+      "files": ["frontend/src/types/schemas.ts"]
+    },
+    {
+      "text": "{ color : dark ? CHART_COLORS . textSecondary . dark : CHART_COLORS . textSecondary . light , fontSize : 10 , }",
+      "count": 2,
+      "files": ["frontend/src/visualization/charts/composables/useChartBase.ts"]
+    },
+    {
+      "text": "{ lineStyle : { color : dark ? CHART_COLORS . axisLine . dark : CHART_COLORS . axisLine . light } , }",
+      "count": 2,
+      "files": [
+        "frontend/src/visualization/charts/composables/useChartBase.ts",
+        "frontend/src/visualization/charts/composables/useRadarChart.ts"
+      ]
+    },
+    {
+      "text": "{ lineStyle : { color : dark ? CHART_COLORS . splitLine . dark : CHART_COLORS . splitLine . light } , }",
+      "count": 2,
+      "files": [
+        "frontend/src/visualization/charts/composables/useChartBase.ts",
+        "frontend/src/visualization/charts/composables/useRadarChart.ts"
+      ]
+    },
+    {
+      "text": "list ( @ Req ( ) req : Request & { user ? : { id : string } } )",
+      "count": 2,
+      "files": [
+        "backend/src/modules/favorites/controllers/favorites.controller.ts",
+        "backend/src/modules/plans/controllers/plans.controller.ts"
+      ]
+    },
+    {
+      "text": "data as Tiles3DData if ( ! payload || typeof payload . url !== 'string' || payload . url === '' )",
+      "count": 2,
+      "files": ["frontend/src/core/map/layerAdapters.ts"]
+    },
+    {
+      "text": "startFacilityBreathing ( target : Array < GeoPoint & { color ? : string } > , color ? : string )",
+      "count": 2,
+      "files": [
+        "frontend/src/core/map/renderers/CesiumRenderer.ts",
+        "frontend/src/core/map/renderers/OLRenderer.ts"
+      ]
+    },
+    {
+      "text": "( event : K , handler : ( event : CustomEvent < MapRendererEventMap [ K ] > ) => void )",
+      "count": 2,
+      "files": ["frontend/src/core/map/renderers/MapRenderer.ts"]
+    },
+    {
+      "text": "{ geometry : new Point ( fromLonLat ( [ point . lng , point . lat ] ) ) , }",
+      "count": 2,
+      "files": ["frontend/src/core/map/renderers/OLRenderer.ts"]
+    },
+    {
+      "text": "{ geometry : new Point ( fromLonLat ( [ p . lng , p . lat ] ) ) , }",
+      "count": 2,
+      "files": ["frontend/src/core/map/renderers/OLRenderer.ts"]
+    },
+    {
+      "text": "( _event : K , _handler : ( event : CustomEvent < MapRendererEventMap [ K ] > ) => void )",
+      "count": 2,
+      "files": ["frontend/src/types/renderer.ts"]
+    },
+    {
+      "text": "{ itemType : string itemId : string name : string lng : number lat : number snapshot : unknown }",
+      "count": 2,
+      "files": [
+        "backend/src/modules/favorites/repositories/favorites.repository.ts",
+        "backend/src/modules/favorites/services/favorites.service.ts"
+      ]
+    },
+    {
+      "text": ". sort ( ( a , b ) => a . time . localeCompare ( b . time ) )",
+      "count": 2,
+      "files": [
+        "backend/src/modules/forecast/services/forecast-engine.ts",
+        "backend/src/modules/forecast/services/model-loader.ts"
+      ]
+    },
+    {
+      "text": "interface FacilityBubbleData { id ? : string name : string poiType : string lng : number lat : number }",
+      "count": 2,
+      "files": [
+        "frontend/src/core/map/UnifiedMap.vue",
+        "frontend/src/core/map/components/MapFacilityBubble.vue"
+      ]
+    },
+    {
+      "text": "( target : Array < GeoPoint & { color ? : string } > , color ? : string )",
+      "count": 2,
+      "files": [
+        "frontend/src/core/map/composables/useMapControls.ts",
+        "frontend/src/core/provideKeys.ts"
+      ]
+    },
+    {
+      "text": "{ pixelSize : pixelSizeProperty , color : colorProperty , outlineColor : Color . WHITE , outlineWidth : 2 , }",
+      "count": 2,
+      "files": ["frontend/src/core/map/renderers/CesiumRenderer.ts"]
+    },
+    {
+      "text": "new VectorLayer ( { source : new VectorSource ( { features : olFeatures } ) , style , } )",
+      "count": 2,
+      "files": ["frontend/src/core/map/renderers/OLRenderer.ts"]
+    },
+    {
+      "text": "{ geometry : new Point ( fromLonLat ( [ point . lng , point . lat ] ) ) }",
+      "count": 2,
+      "files": ["frontend/src/core/map/renderers/OLRenderer.ts"]
+    },
+    {
+      "text": "this . _layers . set ( id , { instance : vectorLayer , visible : true , options } )",
+      "count": 2,
+      "files": ["frontend/src/core/map/renderers/OLRenderer.ts"]
+    },
+    {
+      "text": "z . array ( z . array ( z . array ( z . number ( ) ) ) )",
+      "count": 2,
+      "files": ["frontend/src/types/schemas.ts"]
+    },
+    {
+      "text": "( req : express . Request , res : express . Response , next : express . NextFunction )",
+      "count": 2,
+      "files": ["backend/src/main.ts"]
+    },
+    {
+      "text": "if ( forecastState . isPlaying && e instanceof ApiError && e . message . includes ( '过于频繁' ) )",
+      "count": 2,
+      "files": [
+        "frontend/src/business/forecast/composables/useForecastComparison.ts",
+        "frontend/src/business/forecast/composables/useForecastLayer.ts"
+      ]
+    },
+    {
+      "text": "addPointLayer ( id : string , features : PointFeature [ ] , options : LayerOptions = { } )",
+      "count": 2,
+      "files": [
+        "frontend/src/core/map/renderers/CesiumRenderer.ts",
+        "frontend/src/core/map/renderers/OLRenderer.ts"
+      ]
+    },
+    {
+      "text": "addPolygonLayer ( id : string , features : PolygonFeature [ ] , options : LayerOptions = { } )",
+      "count": 2,
+      "files": [
+        "frontend/src/core/map/renderers/CesiumRenderer.ts",
+        "frontend/src/core/map/renderers/OLRenderer.ts"
+      ]
+    },
+    {
+      "text": "_doRemoveLayer ( layer : { instance : unknown ; visible : boolean ; options ? : LayerOptions } )",
+      "count": 2,
+      "files": [
+        "frontend/src/core/map/renderers/CesiumRenderer.ts",
+        "frontend/src/core/map/renderers/OLRenderer.ts"
+      ]
+    },
+    {
+      "text": "defineAsyncComponent ( { loader : ( ) => import ( '@/visualization/charts/LineChart.vue' ) , loadingComponent : ChartLoading , } )",
+      "count": 2,
+      "files": ["frontend/src/views/HomePage.vue", "frontend/src/views/ProfilePage.vue"]
+    },
+    {
+      "text": "defineAsyncComponent ( { loader : ( ) => import ( '@/visualization/charts/BarChart.vue' ) , loadingComponent : ChartLoading , } )",
+      "count": 2,
+      "files": ["frontend/src/views/HomePage.vue", "frontend/src/views/ProfilePage.vue"]
+    },
+    {
+      "text": "return res . rows . map ( ( r ) => Number ( r . i ) )",
+      "count": 2,
+      "files": ["backend/src/infra/db/spatial.repository.ts"]
+    },
+    {
+      "text": "return res . rows . map ( ( r ) => this . toView ( r ) )",
+      "count": 2,
+      "files": [
+        "backend/src/modules/favorites/repositories/favorites.repository.ts",
+        "backend/src/modules/plans/repositories/plans.repository.ts"
+      ]
+    },
+    {
+      "text": "{ indicator : string ; unit : string ; ports : Record < string , ComputedPort > }",
+      "count": 2,
+      "files": ["backend/src/modules/forecast/services/forecast.service.ts"]
+    },
+    {
+      "text": "{ seq : number ; coords : Array < [ number , number ] > | null }",
+      "count": 2,
+      "files": ["backend/src/modules/route/repositories/route.repository.ts"]
+    },
+    {
+      "text": "haversineKm ( xq . lng , xq . lat , p . lng , p . lat )",
+      "count": 2,
+      "files": ["frontend/src/business/site-selection/composables/useAnalysisLayer.ts"]
+    },
+    {
+      "text": "void Promise . resolve ( renderer . add3DTilesLayer ( key , payload . url , tilesOptions ) )",
+      "count": 2,
+      "files": ["frontend/src/core/map/layerAdapters.ts"]
+    },
+    {
+      "text": "{ source : new VectorSource ( { features : breathingFeatures } ) , style : breathingStyle , }",
+      "count": 2,
+      "files": ["frontend/src/core/map/renderers/OLRenderer.ts"]
+    },
+    {
+      "text": "{ samples : [ ] , sum : 0 , min : Infinity , longFrames : 0 }",
+      "count": 2,
+      "files": ["frontend/src/shared/utils/perfReporter.ts"]
+    },
+    {
+      "text": "state . entries . push ( { name , start : s , duration : d } )",
+      "count": 2,
+      "files": ["frontend/src/shared/utils/perfReporter.ts"]
+    },
+    {
+      "text": "layerCatalog . value . findIndex ( ( e : LayerEntry ) => e . key === key )",
+      "count": 2,
+      "files": ["frontend/src/stores/mapStore.ts"]
+    },
+    {
+      "text": "z . tuple ( [ z . number ( ) , z . number ( ) ] )",
+      "count": 2,
+      "files": ["frontend/src/types/schemas.ts"]
+    },
+    {
+      "text": "req . headers . authorization if ( header && header . startsWith ( 'Bearer ' ) )",
+      "count": 2,
+      "files": [
+        "backend/src/modules/auth/guards/auth.guard.ts",
+        "backend/src/modules/task/utils/request-owner.ts"
+      ]
+    },
+    {
+      "text": "{ userId : string name : string selectedKeys : unknown typeSettings : unknown weights : unknown }",
+      "count": 2,
+      "files": [
+        "backend/src/modules/plans/repositories/plans.repository.ts",
+        "backend/src/modules/plans/services/plans.service.ts"
+      ]
+    },
+    {
+      "text": "export interface TaskSubmitResponse { taskId : string status : TaskStatus queuePosition : number createdAt : number }",
+      "count": 2,
+      "files": ["backend/src/modules/task/types/task.ts", "frontend/src/types/task.ts"]
+    },
+    {
+      "text": "{ features : FloodFeature [ ] statistics : FloodStatistics riskLevel : string actualWaterLevel ? : number }",
+      "count": 2,
+      "files": ["frontend/src/business/flood-analysis/FloodAnalysisPage.vue"]
+    },
+    {
+      "text": "( renderer : MapRenderer , key : string , data : unknown , options : LayerOptions )",
+      "count": 2,
+      "files": ["frontend/src/core/map/layerAdapters.ts"]
+    },
+    {
+      "text": "( { item , index } : { item : PointFeature ; index : number } )",
+      "count": 2,
+      "files": ["frontend/src/core/map/renderers/CesiumRenderer.ts"]
+    },
+    {
+      "text": "new XYZ ( { url : buildTiandituUrl ( code ) , crossOrigin : 'anonymous' , } )",
+      "count": 2,
+      "files": ["frontend/src/core/map/renderers/OLRenderer.ts"]
+    },
+    {
+      "text": "if ( ( window as unknown as Record < string , unknown > ) . Cesium )",
+      "count": 2,
+      "files": ["frontend/src/core/map/renderers/index.ts"]
+    },
+    {
+      "text": "{ start : z . string ( ) , end : z . string ( ) }",
+      "count": 2,
+      "files": ["frontend/src/types/schemas.ts"]
+    },
+    {
+      "text": "{ color : dark ? CHART_COLORS . axisLine . dark : CHART_COLORS . axisLine . light }",
+      "count": 2,
+      "files": [
+        "frontend/src/visualization/charts/composables/useChartBase.ts",
+        "frontend/src/visualization/charts/composables/useRadarChart.ts"
+      ]
+    },
+    {
+      "text": "{ color : dark ? CHART_COLORS . splitLine . dark : CHART_COLORS . splitLine . light }",
+      "count": 2,
+      "files": [
+        "frontend/src/visualization/charts/composables/useChartBase.ts",
+        "frontend/src/visualization/charts/composables/useRadarChart.ts"
+      ]
+    },
+    {
+      "text": "{ throw new BusinessError ( ErrorCode . ANALYSIS_FAILED , engineResult . metadata . error ) }",
+      "count": 2,
+      "files": ["backend/src/modules/forecast/services/forecast.service.ts"]
+    },
+    {
+      "text": "( `SELECT ${PLAN_COLUMNS} FROM plans WHERE id = $1 FOR UPDATE` , [ planId ] )",
+      "count": 2,
+      "files": ["backend/src/modules/plans/repositories/plans.repository.ts"]
+    },
+    {
+      "text": "( row . payload ?. savedXiaoqu as Record < string , unknown > [ ] )",
+      "count": 2,
+      "files": ["backend/src/modules/plans/repositories/plans.repository.ts"]
+    },
+    {
+      "text": "this . queue . findIndex ( ( job ) => job . taskId === taskId )",
+      "count": 2,
+      "files": ["backend/src/modules/task/services/task-queue.ts"]
+    },
+    {
+      "text": "onMounted ( ( ) => { document . addEventListener ( 'click' , handleGlobalClick ) } )",
+      "count": 2,
+      "files": [
+        "frontend/src/business/forecast/components/ForecastControlPanel.vue",
+        "frontend/src/business/site-selection/components/SiteAnalysisControlPanel.vue"
+      ]
+    },
+    {
+      "text": "{ type : string poiList : FacilityPoint [ ] color : string label : string }",
+      "count": 2,
+      "files": [
+        "frontend/src/business/site-selection/SiteSelectionPage.vue",
+        "frontend/src/visualization/charts/RadarChart.vue"
+      ]
+    },
+    {
+      "text": "if ( typeof p . lng !== 'number' || typeof p . lat !== 'number' )",
+      "count": 2,
+      "files": ["frontend/src/business/site-selection/composables/useAnalysisLayer.ts"]
+    },
+    {
+      "text": "Math . sin ( ( elapsedSec / BREATHING_PERIOD_SEC ) * Math . PI * 2 )",
+      "count": 2,
+      "files": ["frontend/src/core/config/breathing.ts"]
+    },
+    {
+      "text": "if ( container && container . offsetWidth > 0 && container . offsetHeight > 0 )",
+      "count": 2,
+      "files": ["frontend/src/core/map/UnifiedMap.vue"]
+    },
+    {
+      "text": "function startBreathing ( target : GeoPoint | GeoPoint [ ] , color ? : string )",
+      "count": 2,
+      "files": [
+        "frontend/src/core/map/UnifiedMap.vue",
+        "frontend/src/core/map/composables/useMapControls.ts"
+      ]
+    },
+    {
+      "text": "{ l . setZIndex ( LAYER_DEFAULTS . zIndexBase ) map . addLayer ( l ) }",
+      "count": 2,
+      "files": ["frontend/src/core/map/renderers/OLRenderer.ts"]
+    },
+    {
+      "text": "{ source : new VectorSource ( { features : olFeatures } ) , style , }",
+      "count": 2,
+      "files": ["frontend/src/core/map/renderers/OLRenderer.ts"]
+    },
+    {
+      "text": "new Point ( fromLonLat ( [ p . lng , p . lat ] ) )",
+      "count": 2,
+      "files": ["frontend/src/core/map/renderers/OLRenderer.ts"]
+    },
+    {
+      "text": "( ( data as Record < string , unknown > ) . code as number )",
+      "count": 2,
+      "files": ["frontend/src/shared/composables/useApiRequest.ts"]
+    },
+    {
+      "text": "{ route : string domain : TaskDomain params : Record < string , unknown > }",
+      "count": 2,
+      "files": ["frontend/src/stores/taskStore.ts"]
+    },
+    {
+      "text": "{ loader : ( ) => import ( '@/visualization/charts/LineChart.vue' ) , loadingComponent : ChartLoading , }",
+      "count": 2,
+      "files": ["frontend/src/views/HomePage.vue", "frontend/src/views/ProfilePage.vue"]
+    },
+    {
+      "text": "{ loader : ( ) => import ( '@/visualization/charts/BarChart.vue' ) , loadingComponent : ChartLoading , }",
+      "count": 2,
+      "files": ["frontend/src/views/HomePage.vue", "frontend/src/views/ProfilePage.vue"]
+    },
+    {
+      "text": "{ throw new BusinessError ( ErrorCode . INVALID_PARAMS , 'itemType 无效（xiaoqu | facility）' ) }",
+      "count": 2,
+      "files": ["backend/src/modules/favorites/dto/favorites.dto.ts"]
+    },
+    {
+      "text": "boolean { return status === 'pending' || status === 'running' || status === 'retrying' }",
+      "count": 2,
+      "files": ["backend/src/modules/task/services/task.service.ts", "frontend/src/types/task.ts"]
+    },
+    {
+      "text": "{ notMerge : false , replaceMerge : [ 'series' ] , lazyUpdate : true }",
+      "count": 2,
+      "files": [
+        "frontend/src/business/flood-analysis/components/WaterLevelProfilePanel.vue",
+        "frontend/src/visualization/composables/useECharts.ts"
+      ]
+    },
+    {
+      "text": "( adapterFn : ( ) => Promise < T > , transactionId : number )",
+      "count": 2,
+      "files": ["frontend/src/business/forecast/composables/useForecastRequest.ts"]
+    },
+    {
+      "text": "( e : string , h : ( ev : CustomEvent ) => void )",
+      "count": 2,
+      "files": ["frontend/src/business/site-selection/composables/useCityScope.ts"]
+    },
+    {
+      "text": ". reduce ( ( s , n ) => s + n , 0 )",
+      "count": 2,
+      "files": [
+        "frontend/src/core/layout/components/GCSDebugOverlay.vue",
+        "frontend/src/shared/utils/perfReporter.ts"
+      ]
+    },
+    {
+      "text": "{ cesiumInitialized . value = true await nextTick ( ) await nextTick ( ) }",
+      "count": 2,
+      "files": ["frontend/src/core/map/UnifiedMap.vue"]
+    },
+    {
+      "text": "startBreathing ( target : GeoPoint | GeoPoint [ ] , color ? : string )",
+      "count": 2,
+      "files": [
+        "frontend/src/core/map/renderers/CesiumRenderer.ts",
+        "frontend/src/core/map/renderers/OLRenderer.ts"
+      ]
+    },
+    {
+      "text": "{ lng : coords [ 0 ] , lat : coords [ 1 ] }",
+      "count": 2,
+      "files": ["frontend/src/core/map/renderers/OLRenderer.ts"]
+    },
+    {
+      "text": "String ( ( data as Record < string , unknown > ) . error )",
+      "count": 2,
+      "files": ["frontend/src/shared/composables/useApiRequest.ts"]
+    },
+    {
+      "text": "{ clearInterval ( timer ) resolve ( { ... slot } ) return true }",
+      "count": 2,
+      "files": ["frontend/src/stores/taskStore.ts"]
+    },
+    {
+      "text": "z . array ( z . array ( z . number ( ) ) )",
+      "count": 2,
+      "files": ["frontend/src/types/schemas.ts"]
+    },
+    {
+      "text": "if ( ! props . series || props . series . length === 0 )",
+      "count": 2,
+      "files": [
+        "frontend/src/visualization/charts/BarChart.vue",
+        "frontend/src/visualization/charts/LineChart.vue"
+      ]
+    },
+    {
+      "text": "return toFeature ( res . rows [ 0 ] ?. geom ?? null )",
+      "count": 2,
+      "files": ["backend/src/infra/db/spatial.repository.ts"]
+    },
+    {
+      "text": "{ if ( isFatalDbError ( e ) ) throw e return [ ] }",
+      "count": 2,
+      "files": ["backend/src/infra/db/spatial.repository.ts"]
+    },
+    {
+      "text": "import { Body , Controller , Get , HttpCode , Post , Query }",
+      "count": 2,
+      "files": [
+        "backend/src/modules/flood/controllers/flood.controller.ts",
+        "backend/src/modules/site-analysis/controllers/site-analysis.controller.ts"
+      ]
+    },
+    {
+      "text": "throw new BusinessError ( ErrorCode . ANALYSIS_FAILED , engineResult . metadata . error )",
+      "count": 2,
+      "files": ["backend/src/modules/forecast/services/forecast.service.ts"]
+    },
+    {
+      "text": "await this . plansService . listByUser ( req . user ! . id )",
+      "count": 2,
+      "files": ["backend/src/modules/plans/controllers/plans.controller.ts"]
+    },
+    {
+      "text": "{ throw new BusinessError ( ErrorCode . ANALYSIS_FAILED , result . error ) }",
+      "count": 2,
+      "files": [
+        "backend/src/modules/site-analysis/controllers/site-analysis.controller.ts",
+        "backend/src/modules/task/services/task-handlers.ts"
+      ]
+    },
+    {
+      "text": "of Object . entries ( typeSettings as Record < string , TypeSetting > )",
+      "count": 2,
+      "files": ["backend/src/modules/site-analysis/dto/site-analysis-request.ts"]
+    },
+    {
+      "text": "[ 'hospital' , 'primary_school' , 'middle_school' , 'park' , 'bus_station' , 'mall' , ]",
+      "count": 2,
+      "files": [
+        "backend/src/modules/site-analysis/repositories/site-analysis.repository.ts",
+        "frontend/src/visualization/charts/radarSnapshot.ts"
+      ]
+    },
+    {
+      "text": ". filter ( ( [ , v ] ) => v . selected )",
+      "count": 2,
+      "files": [
+        "frontend/src/business/site-selection/components/SiteAnalysisControlPanel.vue",
+        "frontend/src/shared/composables/usePlans.ts"
+      ]
+    },
+    {
+      "text": "function flyTo ( target : FlyToTarget , options : FlyToOptions = { } )",
+      "count": 2,
+      "files": [
+        "frontend/src/core/map/UnifiedMap.vue",
+        "frontend/src/core/map/composables/useMapControls.ts"
+      ]
+    },
+    {
+      "text": "( target : GeoPoint | GeoPoint [ ] , color ? : string )",
+      "count": 2,
+      "files": [
+        "frontend/src/core/map/composables/useMapControls.ts",
+        "frontend/src/core/provideKeys.ts"
+      ]
+    },
+    {
+      "text": "if ( ! renderer . addImageOverlayLayer ( key , payload , options ) )",
+      "count": 2,
+      "files": ["frontend/src/core/map/layerAdapters.ts"]
+    },
+    {
+      "text": "{ instance : unknown ; visible : boolean ; options ? : LayerOptions }",
+      "count": 2,
+      "files": [
+        "frontend/src/core/map/renderers/CesiumRenderer.ts",
+        "frontend/src/core/map/renderers/OLRenderer.ts"
+      ]
+    },
+    {
+      "text": "{ feature . set ( 'featureType' , options . featureType || 'geojson' ) }",
+      "count": 2,
+      "files": ["frontend/src/core/map/renderers/OLRenderer.ts"]
+    },
+    {
+      "text": "{ params : { waterLevel } , signal , schema : floodStatisticsResponseSchema , }",
+      "count": 2,
+      "files": ["frontend/src/services/adapters/floodAdapter.ts"]
+    },
+    {
+      "text": "{ cargo : DEFAULT_CONFIDENCE , container : DEFAULT_CONFIDENCE , activity : DEFAULT_CONFIDENCE , }",
+      "count": 2,
+      "files": ["frontend/src/stores/forecastStore.ts"]
+    },
+    {
+      "text": "{ if ( isFatalDbError ( e ) ) throw e return null }",
+      "count": 2,
+      "files": ["backend/src/infra/db/spatial.repository.ts"]
+    },
+    {
+      "text": "throw new BusinessError ( ErrorCode . INVALID_PARAMS , 'itemType 无效（xiaoqu | facility）' )",
+      "count": 2,
+      "files": ["backend/src/modules/favorites/dto/favorites.dto.ts"]
+    },
+    {
+      "text": "for ( const record of this . registry . list ( ) )",
+      "count": 2,
+      "files": ["backend/src/modules/task/services/task.service.ts"]
+    },
+    {
+      "text": "{ lng : item . lng , lat : item . lat }",
+      "count": 2,
+      "files": ["frontend/src/business/flood-analysis/components/AffectedFacilityListPanel.vue"]
+    },
+    {
+      "text": "finally { if ( ! disposed ) requesting . value = false }",
+      "count": 2,
+      "files": ["frontend/src/business/flood-analysis/components/WaterLevelProfilePanel.vue"]
+    },
+    {
+      "text": "( { labels : [ ] , series : [ ] } )",
+      "count": 2,
+      "files": ["frontend/src/business/forecast/composables/useOverviewCharts.ts"]
+    },
+    {
+      "text": "( segments : RoutePathResult [ ] , slots : RouteSlot [ ] )",
+      "count": 2,
+      "files": [
+        "frontend/src/business/route-analysis/components/RouteControlPanel.vue",
+        "frontend/src/business/route-analysis/composables/useRouteLayer.ts"
+      ]
+    },
+    {
+      "text": "{ data : desc . data , options : desc . options }",
+      "count": 2,
+      "files": [
+        "frontend/src/business/site-selection/SiteSelectionPage.vue",
+        "frontend/src/core/map/composables/useOwnedLayers.ts"
+      ]
+    },
+    {
+      "text": "{ lng : target . lng , lat : target . lat }",
+      "count": 2,
+      "files": [
+        "frontend/src/business/site-selection/SiteSelectionPage.vue",
+        "frontend/src/core/layout/composables/useScreenActions.ts"
+      ]
+    },
+    {
+      "text": "{ height : target . height , zoom : target . zoom }",
+      "count": 2,
+      "files": [
+        "frontend/src/business/site-selection/SiteSelectionPage.vue",
+        "frontend/src/core/layout/composables/useScreenActions.ts"
+      ]
+    },
+    {
+      "text": "{ lng : xq . lng , lat : xq . lat }",
+      "count": 2,
+      "files": ["frontend/src/business/site-selection/SiteSelectionPage.vue"]
+    },
+    {
+      "text": "ref ( typeof window !== 'undefined' ? window . innerWidth : 1920 )",
+      "count": 2,
+      "files": [
+        "frontend/src/core/layout/components/GCSDebugOverlay.vue",
+        "frontend/src/shared/layout/useGCS.ts"
+      ]
+    },
+    {
+      "text": "ref ( typeof window !== 'undefined' ? window . innerHeight : 1080 )",
+      "count": 2,
+      "files": [
+        "frontend/src/core/layout/components/GCSDebugOverlay.vue",
+        "frontend/src/shared/layout/useGCS.ts"
+      ]
+    },
+    {
+      "text": "_doFlyTo ( target : FlyToTarget , options : FlyToOptions = { } )",
+      "count": 2,
+      "files": [
+        "frontend/src/core/map/renderers/CesiumRenderer.ts",
+        "frontend/src/core/map/renderers/OLRenderer.ts"
+      ]
+    },
+    {
+      "text": "{ cancelAnimationFrame ( this . _breathingAnimId ) this . _breathingAnimId = null }",
+      "count": 2,
+      "files": [
+        "frontend/src/core/map/renderers/CesiumRenderer.ts",
+        "frontend/src/core/map/renderers/OLRenderer.ts"
+      ]
+    },
+    {
+      "text": "{ cancelAnimationFrame ( this . _facilityBreathingAnimId ) this . _facilityBreathingAnimId = null }",
+      "count": 2,
+      "files": [
+        "frontend/src/core/map/renderers/CesiumRenderer.ts",
+        "frontend/src/core/map/renderers/OLRenderer.ts"
+      ]
+    },
+    {
+      "text": "{ url : buildTiandituUrl ( code ) , crossOrigin : 'anonymous' , }",
+      "count": 2,
+      "files": ["frontend/src/core/map/renderers/OLRenderer.ts"]
+    },
+    {
+      "text": "{ this . addGeoJsonLayer ( id , geojson , options ) return }",
+      "count": 2,
+      "files": ["frontend/src/core/map/renderers/OLRenderer.ts"]
+    },
+    {
+      "text": "[ z . number ( ) , z . number ( ) ]",
+      "count": 2,
+      "files": ["frontend/src/types/schemas.ts"]
+    },
+    {
+      "text": "{ throw new BusinessError ( ErrorCode . UNAUTHORIZED , '认证令牌无效或已过期' ) }",
+      "count": 2,
+      "files": ["backend/src/modules/auth/guards/auth.guard.ts"]
+    },
+    {
+      "text": "{ throw new BusinessError ( ErrorCode . DUPLICATE_RESOURCE , '方案名称已存在' ) }",
+      "count": 2,
+      "files": ["backend/src/modules/plans/controllers/plans.controller.ts"]
+    },
+    {
+      "text": "{ throw new BusinessError ( ErrorCode . INVALID_PARAMS , PLAN_NAME_MESSAGE ) }",
+      "count": 2,
+      "files": ["backend/src/modules/plans/dto/plans.dto.ts"]
+    },
+    {
+      "text": "return this . toView ( res . rows [ 0 ] )",
+      "count": 2,
+      "files": ["backend/src/modules/plans/repositories/plans.repository.ts"]
+    },
+    {
+      "text": "segments . map ( ( s ) => s . edgeId )",
+      "count": 2,
+      "files": ["backend/src/modules/route/repositories/route.repository.ts"]
+    },
+    {
+      "text": "segments . map ( ( s ) => s . lo )",
+      "count": 2,
+      "files": ["backend/src/modules/route/repositories/route.repository.ts"]
+    },
+    {
+      "text": "segments . map ( ( s ) => s . hi )",
+      "count": 2,
+      "files": ["backend/src/modules/route/repositories/route.repository.ts"]
+    },
+    {
+      "text": "throw new BusinessError ( ErrorCode . ANALYSIS_FAILED , result . error )",
+      "count": 2,
+      "files": [
+        "backend/src/modules/site-analysis/controllers/site-analysis.controller.ts",
+        "backend/src/modules/task/services/task-handlers.ts"
+      ]
+    },
+    {
+      "text": "{ throw new BusinessError ( ErrorCode . INVALID_PARAMS , '缺少或非法的参数：indicator' ) }",
+      "count": 2,
+      "files": ["backend/src/modules/task/services/task-handlers.ts"]
+    },
+    {
+      "text": "if ( ! TERMINAL_STATUSES . has ( record . status ) )",
+      "count": 2,
+      "files": ["backend/src/modules/task/services/task-registry.ts"]
+    },
+    {
+      "text": "{ throw new BusinessError ( ErrorCode . NOT_FOUND , '任务不存在或已过期' ) }",
+      "count": 2,
+      "files": ["backend/src/modules/task/services/task.service.ts"]
+    },
+    {
+      "text": "[ 'flood-areas' , 'route-path' , 'site-analysis' , 'forecast-timeseries' , 'forecast-map' , ]",
+      "count": 2,
+      "files": ["backend/src/modules/task/types/task.ts", "frontend/src/types/task.ts"]
+    },
+    {
+      "text": "export interface TaskError { message : string bizCode ? : number }",
+      "count": 2,
+      "files": ["backend/src/modules/task/types/task.ts", "frontend/src/types/task.ts"]
+    },
+    {
+      "text": "Number ( ( e . target as HTMLInputElement ) . value )",
+      "count": 2,
+      "files": [
+        "frontend/src/business/forecast/components/ForecastControlPanel.vue",
+        "frontend/src/shared/components/SliderSelectCard.vue"
+      ]
+    },
+    {
+      "text": "Math . round ( ( BASE_YEAR + END_YEAR ) / 2 )",
+      "count": 2,
+      "files": ["frontend/src/business/forecast/components/ForecastControlPanel.vue"]
+    },
+    {
+      "text": "async function load ( transactionId : number , signal : AbortSignal )",
+      "count": 2,
+      "files": [
+        "frontend/src/business/forecast/composables/useForecastComparison.ts",
+        "frontend/src/business/forecast/composables/useForecastTimeseries.ts"
+      ]
+    },
+    {
+      "text": "renderer . addGeoTIFFLayer ( key , data as string , options )",
+      "count": 2,
+      "files": ["frontend/src/core/map/layerAdapters.ts"]
+    },
+    {
+      "text": "renderer . add3DTilesLayer ( key , payload . url , tilesOptions )",
+      "count": 2,
+      "files": ["frontend/src/core/map/layerAdapters.ts"]
+    },
+    {
+      "text": "Cartesian3 . fromDegrees ( p . lng , p . lat )",
+      "count": 2,
+      "files": ["frontend/src/core/map/renderers/CesiumRenderer.ts"]
+    },
+    {
+      "text": "{ featureType : null , data : null , coordinate , }",
+      "count": 2,
+      "files": [
+        "frontend/src/core/map/renderers/CesiumRenderer.ts",
+        "frontend/src/core/map/renderers/OLRenderer.ts"
+      ]
+    },
+    {
+      "text": "Color . fromCssColorString ( options . fillColor || LAYER_DEFAULTS . fill )",
+      "count": 2,
+      "files": ["frontend/src/core/map/renderers/CesiumRenderer.ts"]
+    },
+    {
+      "text": "( feature . get ( 'color' ) as string | undefined )",
+      "count": 2,
+      "files": ["frontend/src/core/map/renderers/OLRenderer.ts"]
+    },
+    {
+      "text": ". readFeatures ( geojson , { featureProjection : WEB_MERCATOR , } )",
+      "count": 2,
+      "files": ["frontend/src/core/map/renderers/OLRenderer.ts"]
+    },
+    {
+      "text": "feature . set ( 'featureType' , options . featureType || 'geojson' )",
+      "count": 2,
+      "files": ["frontend/src/core/map/renderers/OLRenderer.ts"]
+    },
+    {
+      "text": "fromLonLat ( [ p . lng , p . lat ] )",
+      "count": 2,
+      "files": ["frontend/src/core/map/renderers/OLRenderer.ts"]
+    },
+    {
+      "text": "result . error . issues . slice ( 0 , 3 )",
+      "count": 2,
+      "files": ["frontend/src/shared/composables/useApiRequest.ts"]
+    },
+    {
+      "text": "list . find ( ( s ) => s . aborted )",
+      "count": 2,
+      "files": ["frontend/src/shared/utils/abortSignal.ts"]
+    },
+    {
+      "text": "if ( ! slot || isTerminalStatus ( slot . status ) )",
+      "count": 2,
+      "files": ["frontend/src/stores/taskStore.ts"]
+    }
+  ]
+}

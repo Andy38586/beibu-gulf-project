@@ -11,17 +11,22 @@
  *
  * 先例：`scripts/coverage-ratchet.cjs`（覆盖率棘轮，同一形态）。
  *
- * ## 口径（三条，都是防「账做平了但债没少」）
+ * ## 口径（四条，都是防「账做平了但债没少」）
  *
  *   · **总量**（`totalDead` / `totalRedundantExport`）上涨即红；
  *   · **按模块**（路径前三段）各自只许降 —— 防「A 模块清 5 个、B 模块长 5 个、总量持平」
  *     这种用总量掩盖的单点恶化；
  *   · `--update` **只许下调**，当前值高于基线时**拒绝执行**并说明原因 ——
- *     否则 `--update` 就成了把上涨合法化的后门，「上涨即红」形同虚设。
+ *     否则 `--update` 就成了把上涨合法化的后门，「上涨即红」形同虚设；
+ *   · `--update` **必须带 `--note`（并可带 `--kind`）**，且每次下调追加进 `history` ——
+ *     因为数字下降有两种来源：**真清理**（债少了）与**口径调整**（尺子变了，债没少）。
+ *     不区分的话「这个模块清了几个」会被口径变化混掉，历史对比失真
+ *     （2026-09-25 实测：一轮里 4 次下调，其中 2 次是口径调整）。
  *
  * 用法：
  *   node tools/dead-code/ratchet.mjs            # 校验（上涨 exit 1）
- *   node tools/dead-code/ratchet.mjs --update   # 按当前值下调基线（拒绝上调）
+ *   node tools/dead-code/ratchet.mjs --update --kind=真清理 --note="删 types 13 项零引用类型"
+ *   node tools/dead-code/ratchet.mjs --update --kind=口径调整 --note="扫描器把测试目录纳入引用侧"
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -66,8 +71,19 @@ export function compare(current, baseline) {
   return bad
 }
 
+function parseArgs(argv) {
+  const out = { update: false, note: null, kind: null }
+  for (let i = 0; i < argv.length; i++) {
+    if (argv[i] === '--update') out.update = true
+    else if (argv[i] === '--note') out.note = argv[++i]
+    else if (argv[i] === '--kind') out.kind = argv[++i]
+  }
+  return out
+}
+
 function main() {
-  const update = process.argv.includes('--update')
+  const args = parseArgs(process.argv.slice(2))
+  const update = args.update
   const baseline = JSON.parse(fs.readFileSync(BASELINE_PATH, 'utf8'))
   const current = currentCounts()
   const bad = compare(current, baseline)
@@ -80,6 +96,23 @@ function main() {
       bad.forEach((b) => console.error('  - ' + b))
       process.exit(1)
     }
+    // 强制留痕：数字下降有两种来源（真清理 / 口径调整），不区分就说不清「到底清了几个」
+    if (!args.note) {
+      console.error('[dead-code-ratchet] --update 必须带 --note="为什么下调"。')
+      console.error('  可另带 --kind=真清理|口径调整（默认「未标注」）。')
+      console.error('  没有 note 的下调无法与口径调整区分 —— 数字降了不代表债少了。')
+      process.exit(1)
+    }
+    const history = [
+      ...(baseline.history ?? []),
+      {
+        at: new Date().toISOString().slice(0, 10),
+        totalDead: current.totalDead,
+        totalRedundantExport: current.totalRedundantExport,
+        kind: args.kind ?? '未标注',
+        note: args.note,
+      },
+    ]
     const next = {
       generatedFrom: baseline.generatedFrom ?? 'tools/dead-code/scan.mjs',
       totalDead: current.totalDead,
@@ -87,6 +120,7 @@ function main() {
       byModule: current.byModule,
       dead: current.dead,
       updatedAt: new Date().toISOString().slice(0, 10),
+      history,
     }
     fs.writeFileSync(BASELINE_PATH, JSON.stringify(next, null, 2) + '\n')
     console.log(
@@ -94,6 +128,7 @@ function main() {
         `totalRedundantExport ${baseline.totalRedundantExport} → ${current.totalRedundantExport}` +
         `（模块 ${Object.keys(current.byModule).length} 个）`
     )
+    console.log(`  [${next.history.at(-1).kind}] ${args.note}`)
     return
   }
 

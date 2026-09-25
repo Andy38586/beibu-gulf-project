@@ -139,5 +139,42 @@
       "line": 451
     }
   ],
-  "updatedAt": "2026-09-25"
+  "updatedAt": "2026-09-25",
+  "history": [
+    {
+      "at": "2026-09-25",
+      "totalDead": 47,
+      "totalRedundantExport": 156,
+      "kind": "初值",
+      "note": "S0 量化（5f268b0d）"
+    },
+    {
+      "at": "2026-09-25",
+      "totalDead": 35,
+      "totalRedundantExport": 155,
+      "kind": "真清理",
+      "note": "S2 窗口 A 笔 2：删 types 13 项零引用类型（3664ccf5）"
+    },
+    {
+      "at": "2026-09-25",
+      "totalDead": 29,
+      "totalRedundantExport": 111,
+      "kind": "口径调整",
+      "note": "扫描器把测试目录纳入引用侧（72c73945）—— 6+44 项其实是「测试在用」，数字下降不代表清了债"
+    },
+    {
+      "at": "2026-09-25",
+      "totalDead": 28,
+      "totalRedundantExport": 110,
+      "kind": "口径调整",
+      "note": "引用侧扩到工具链 tools/scripts/.github —— ROUTES_MANIFEST 被 routes-audit.mjs 引用"
+    },
+    {
+      "at": "2026-09-25",
+      "totalDead": 22,
+      "totalRedundantExport": 110,
+      "kind": "真清理",
+      "note": "S2 窗口 A 笔 3：删 6 项零引用导出（4cfe58ce）"
+    }
+  ]
 }

@@ -1,9 +1,9 @@
 {
   "generatedFrom": "tools/dead-code/scan.mjs",
-  "totalDead": 47,
-  "totalRedundantExport": 156,
+  "totalDead": 35,
+  "totalRedundantExport": 155,
   "byModule": {
-    "frontend/src/types": 35,
+    "frontend/src/types": 23,
     "frontend/src/shared": 5,
     "backend/src/modules": 3,
     "frontend/src/business": 2,
@@ -84,82 +84,10 @@
       "line": 47
     },
     {
-      "name": "AnalysisState",
-      "kind": "interface",
-      "file": "frontend/src/types/analysis.ts",
-      "line": 34
-    },
-    {
-      "name": "PlansResponse",
-      "kind": "type",
-      "file": "frontend/src/types/api.ts",
-      "line": 28
-    },
-    {
-      "name": "AnalysisApiResponse",
-      "kind": "type",
-      "file": "frontend/src/types/api.ts",
-      "line": 31
-    },
-    {
-      "name": "ForecastIndicatorName",
-      "kind": "type",
-      "file": "frontend/src/types/api/forecast.ts",
-      "line": 40
-    },
-    {
-      "name": "AnnotatedPoint",
+      "name": "GeoFeature",
       "kind": "interface",
       "file": "frontend/src/types/business/base.ts",
-      "line": 18
-    },
-    {
-      "name": "ScoredFeature",
-      "kind": "interface",
-      "file": "frontend/src/types/business/base.ts",
-      "line": 36
-    },
-    {
-      "name": "ForecastTimeRange",
-      "kind": "interface",
-      "file": "frontend/src/types/business/base.ts",
-      "line": 99
-    },
-    {
-      "name": "ForecastData",
-      "kind": "interface",
-      "file": "frontend/src/types/business/base.ts",
-      "line": 115
-    },
-    {
-      "name": "FavoriteAddResult",
-      "kind": "interface",
-      "file": "frontend/src/types/business/base.ts",
-      "line": 150
-    },
-    {
-      "name": "BusinessCRS",
-      "kind": "type",
-      "file": "frontend/src/types/crs.ts",
-      "line": 14
-    },
-    {
-      "name": "PanelName",
-      "kind": "type",
-      "file": "frontend/src/types/map.ts",
-      "line": 66
-    },
-    {
-      "name": "CreatePlanParams",
-      "kind": "interface",
-      "file": "frontend/src/types/plan.ts",
-      "line": 40
-    },
-    {
-      "name": "UpdatePlanParams",
-      "kind": "interface",
-      "file": "frontend/src/types/plan.ts",
-      "line": 48
+      "line": 17
     },
     {
       "name": "UserParsed",

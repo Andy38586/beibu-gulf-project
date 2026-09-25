@@ -30,12 +30,5 @@ export interface AnalysisResult {
   selectedTypes?: string[]
 }
 
-// 分析状态（前端组件内部使用）
-export interface AnalysisState {
-  calculating: boolean
-  calcError: string
-  result: AnalysisResult | null
-}
-
 // 重导出 FacilityPoint 方便引用
 export type { FacilityPoint } from './facility'

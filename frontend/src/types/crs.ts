@@ -10,9 +10,6 @@
 /** 支持的坐标参考系统（业务流通仅 'EPSG:4326'；其余仅供渲染内部/存储/工具层声明） */
 export type CRS = 'EPSG:4326' | 'EPSG:4490' | 'EPSG:3857' | 'EPSG:4547'
 
-/** 业务流通唯一允许的 CRS（渲染器内部 3857 由渲染层 private 使用，业务侧不感知） */
-export type BusinessCRS = 'EPSG:4326'
-
 /** 带 CRS 泛型的地理坐标点（默认 EPSG:4326） */
 export interface GeoPoint<T extends CRS = 'EPSG:4326'> {
   lng: number

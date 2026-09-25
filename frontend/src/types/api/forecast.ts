@@ -35,10 +35,6 @@ export interface ForecastSeries {
   data: Record<PortId, ForecastPortSeries>
 }
 
-/** 已知指标名（宽松联合：已知值 + 兜底 string，提示不穷举；
- *  berth/traffic 已于 2026-09-08 下架（纯合成指标），legacy 不再消费） */
-export type ForecastIndicatorName = 'cargo' | 'container' | 'activity' | (string & {})
-
 /** 地图热力图响应（对应后端 /forecast/map 的 data 字段） */
 export interface ForecastMapData {
   indicator: string

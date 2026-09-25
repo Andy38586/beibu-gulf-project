@@ -10,17 +10,8 @@
 // GeoPoint 收敛为单一权威（crs.ts 带 CRS 泛型版本）；
 // 原 base.ts 独立定义（无 crs 字段）与 crs.ts 同名不同义，已移除，此处仅 re-export 兼容既有引用。
 // 注意：re-export 不引入本地作用域，本文件内部使用需显式 import。
-import type { GeoPoint } from '../crs'
 import type { AffectedFacilityParsed, FloodFeatureParsed } from '../schemas'
 export type { GeoPoint } from '../crs'
-
-/** 带属性标注的点 */
-export interface AnnotatedPoint extends GeoPoint {
-  id: string
-  name: string
-  /** 开放扩展：点要素可携带业务属性（如 port、type），供渲染器/弹窗按需读取 */
-  [key: string]: unknown
-}
 
 /** 通用 GIS 要素 */
 export interface GeoFeature<T extends Record<string, unknown> = Record<string, unknown>> {
@@ -30,13 +21,6 @@ export interface GeoFeature<T extends Record<string, unknown> = Record<string, u
   }
   /** 泛型属性，由具体业务类型参数化 */
   properties: T
-}
-
-/** 带计算得分的要素 */
-export interface ScoredFeature<T extends Record<string, unknown> = Record<string, unknown>> {
-  feature: GeoFeature<T>
-  score: number
-  breakdown: Record<string, number>
 }
 
 // ===== 浸没分析业务类型 =====
@@ -95,13 +79,6 @@ export interface FloodConsumedState {
 
 // ===== 预测分析业务类型 =====
 
-/** 预测时间范围 */
-export interface ForecastTimeRange {
-  start: string
-  end: string
-  current: string
-}
-
 /** 置信度阈值 */
 export interface ConfidenceThresholds {
   cargo: number
@@ -109,11 +86,6 @@ export interface ConfidenceThresholds {
   activity: number
   /** 开放扩展：未来新增指标（如 gdp、population）的置信度阈值 */
   [key: string]: number
-}
-
-/** 预测数据缓存 */
-export interface ForecastData {
-  [key: string]: unknown
 }
 
 // ===== 全局收藏（用户数据，后端 favorites.json 持久化） =====
@@ -144,10 +116,4 @@ export interface FavoriteAddInput {
   lng: number
   lat: number
   snapshot?: Record<string, unknown> | null
-}
-
-/** POST /favorites 响应（幂等：existed=true 表示收藏已存在，不重复写入） */
-export interface FavoriteAddResult {
-  favorite: FavoriteItem
-  existed: boolean
 }

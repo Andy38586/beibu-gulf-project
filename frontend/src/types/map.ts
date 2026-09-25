@@ -62,8 +62,5 @@ export interface LayerEntry {
   locked?: boolean
 }
 
-// 面板名称（(string & {}) 保留字面量收窄与 IDE 补全）
-export type PanelName = 'none' | 'port-info' | 'xiaoqu-detail' | (string & {})
-
 // 地图类型
 export type MapType = '2d' | '3d'

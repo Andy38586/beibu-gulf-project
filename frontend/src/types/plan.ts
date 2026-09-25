@@ -37,16 +37,3 @@ export interface Plan {
   /** 浸没方案风险等级（仅 flood 类型有值） */
   floodRiskLevel?: string
 }
-
-export interface CreatePlanParams {
-  name: string
-  selectedKeys: string[]
-  typeSettings: Record<string, TypeSetting>
-}
-
-// 更新方案参数
-export interface UpdatePlanParams {
-  name?: string
-  selectedKeys?: string[]
-  typeSettings?: Record<string, TypeSetting>
-}

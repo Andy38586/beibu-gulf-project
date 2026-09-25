@@ -18,7 +18,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-import { BASELINE, auditRedSamples, redSampleState } from '../guard-red-sample.mjs'
+import { BASELINE, auditRedSamples, listGuards, redSampleState } from '../guard-red-sample.mjs'
+import { GUARDS, SEPARATELY_RUN } from '../run-all.mjs'
 
 /** 造一对临时 guardDir/testDir；withMarker 控制测试文件里有没有红样标记 */
 function fixture(withMarker) {
@@ -55,5 +56,26 @@ describe('guard-red-sample — 缺红样即红', () => {
     writeFileSync(join(guardDir, 'g2.mjs'), '// guard stub\n')
     expect(redSampleState('g2', { guardDir, testDir })).toBe('no-test')
     expect(auditRedSamples(['g2'], { guardDir, testDir, baseline: [] })).toHaveLength(1)
+  })
+
+  it('分母从 run-all 的登记派生：总数 === 登记数，执行装置不在其中', () => {
+    const names = listGuards()
+    expect(names).toEqual([...new Set([...GUARDS, ...SEPARATELY_RUN.map((g) => g.name)])].sort())
+    // 「guard-red-sample 报的总数 == run-all 登记数」—— 这条自洽此前差 1（把 run-all 算了进来）
+    expect(names.length).toBe(GUARDS.length + SEPARATELY_RUN.length)
+    expect(names, '执行装置不是一条判据，不得进分母').not.toContain('run-all')
+    // 元守卫不再豁免自己：它同样得交红样
+    expect(names).toContain('guard-red-sample')
+    // 默认目录上必须自洽通过（否则上面那条派生关系就只是断言好看）
+    expect(auditRedSamples(names)).toEqual([])
+  })
+
+  it('@guard-red-sample 登记了名字但目录里没有本体（幽灵登记）⇒ 必报，且文案点名病因', () => {
+    const guardDir = mkdtempSync(join(tmpdir(), 'grs-g-'))
+    const testDir = mkdtempSync(join(tmpdir(), 'grs-t-'))
+    expect(redSampleState('ghost', { guardDir, testDir })).toBe('missing-guard')
+    const problems = auditRedSamples(['ghost'], { guardDir, testDir, baseline: [] })
+    expect(problems).toHaveLength(1)
+    expect(problems[0]).toContain('守卫本体不存在')
   })
 })

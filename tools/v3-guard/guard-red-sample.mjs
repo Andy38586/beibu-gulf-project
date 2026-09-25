@@ -25,6 +25,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { EXECUTOR_NAME, GUARDS, SEPARATELY_RUN } from './run-all.mjs'
+
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const GUARD_DIR = path.join(ROOT, 'tools/v3-guard')
 const TEST_DIR = path.join(GUARD_DIR, '__tests__')
@@ -41,15 +43,24 @@ export const BASELINE = [
   // 新增守卫一律不得进本表 —— 缺红样即红。
 ]
 
-/** 枚举守卫名（排除测试目录、lib、本守卫自身） */
-export function listGuards(dir = GUARD_DIR) {
-  if (!fs.existsSync(dir)) return []
-  return fs
-    .readdirSync(dir)
-    .filter((f) => f.endsWith('.mjs'))
-    .map((f) => path.basename(f, '.mjs'))
-    .filter((n) => n !== 'guard-red-sample')
-    .sort()
+/**
+ * 分母 = **run-all 的登记集**（快集 `GUARDS` + 另跑 `SEPARATELY_RUN`），从登记派生。
+ *
+ * 旧版是 `readdir(GUARD_DIR)` 后只排除自身 ⇒ 把执行装置 `run-all` 当成一条判据算了进来，
+ * 于是本守卫报「20 个守卫」而 run-all 实际登记 19 项 —— 两个数对不上，而"对不上"这件事
+ * 没有任何东西在看。改成同一个源之后「报的总数 == 登记数」是构造出来的恒等，不再需要人
+ * 去比对；执行装置另列（它的测试仍由 `guard-red-mutation` 复验，不是未覆盖）。
+ *
+ * 同时**取消本元守卫对自己的豁免**：它同样是一条判据，同样得交红样。
+ */
+export function listGuards() {
+  const plan = [...new Set([...GUARDS, ...SEPARATELY_RUN.map((g) => g.name)])]
+  return plan.filter((n) => n !== EXECUTOR_NAME).sort()
+}
+
+/** 对账用的「run-all 登记数」—— 同一份清单的另一种读法，必须等于 listGuards().length */
+export function registeredGuardCount() {
+  return GUARDS.length + SEPARATELY_RUN.length
 }
 
 /** 该守卫的红样状态：'ok' | 'no-test' | 'no-red-sample' */
@@ -70,7 +81,13 @@ export function auditRedSamples(names, opts = {}) {
   for (const n of names) {
     const st = redSampleState(n, opts)
     if (st === 'ok') continue
-    const why = st === 'no-test' ? '没有 test 文件' : 'test 里没有 @guard-red-sample 用例'
+    // 分母现在从登记派生 ⇒ 多了一种新失效：登记里有名字、目录里没有本体（幽灵登记）
+    const why =
+      st === 'missing-guard'
+        ? '登记在册但守卫本体不存在（run-all 清单与目录不符）'
+        : st === 'no-test'
+          ? '没有 test 文件'
+          : 'test 里没有 @guard-red-sample 用例'
     if (baseline.includes(n)) {
       // 棘轮存量：不判红，但每次都要被看见
       console.log(`  ⚠  [存量] ${n}：${why}`)
@@ -83,12 +100,24 @@ export function auditRedSamples(names, opts = {}) {
 
 function main() {
   const names = listGuards()
+  const registered = registeredGuardCount()
+  // 先对分母的账：不自洽时后面所有结论都建立在一份错的清单上，不许继续报「OK」
+  if (registered !== names.length) {
+    console.error(
+      `[guard-red-sample] FAIL：分母不自洽 —— 本次判据集 ${names.length} 项，` +
+        `run-all 登记 ${registered} 项（GUARDS ${GUARDS.length} + SEPARATELY_RUN ` +
+        `${SEPARATELY_RUN.length}）。分母必须从登记派生：对不上就是把执行装置算了进来，` +
+        '或登记集里有重名。'
+    )
+    process.exit(1)
+  }
   const problems = auditRedSamples(names)
   const total = names.length
   const missing = names.filter((n) => redSampleState(n) !== 'ok')
   if (problems.length === 0) {
     console.log(
-      `[guard-red-sample] OK：${total} 个守卫中 ${total - missing.length} 个已交付红样，` +
+      `[guard-red-sample] OK：${total} 个守卫（= run-all 登记数；执行装置 ${EXECUTOR_NAME} ` +
+        `另列，其测试由 guard-red-mutation 复验）中 ${total - missing.length} 个已交付红样，` +
         `${missing.length} 个在棘轮基线上（不得新增）`
     )
     return

@@ -1,10 +1,10 @@
 {
   "generatedFrom": "tools/dup/scan.mjs",
   "minTokens": 12,
-  "totalGroups": 212,
-  "totalRedundantTokens": 4803,
+  "totalGroups": 210,
+  "totalRedundantTokens": 4711,
   "updatedAt": "2026-09-25",
-  "note": "S2 转向后「重复消除」判据首落：MIN_TOKENS=12 由动机案例（呼吸公式 12 token）标定；.vue 只取 script 块，排除设计 token 噪声",
+  "note": "呼吸脉动公式收敛到 core/config/breathing，Cesium 侧补齐（消掉两渲染器逐行复制）",
   "groups": [
     {
       "text": "features . flatMap ( ( f ) => { const coords = f . geometry ?. coordinates const point = normalizePoint ( coords ? { lng : coords [ 0 ] , lat : coords [ 1 ] } : f ) if ( ! point ) return [ ] const feature = new Feature ( { geometry : new Point ( fromLonLat ( [ point . lng , point . lat ] ) ) , } ) Object . entries ( f . properties || { } ) . forEach ( ( [ key , value ] ) => { feature . set ( key , value ) } ) return [ feature ] } )",
@@ -137,11 +137,6 @@
       ]
     },
     {
-      "text": "new CallbackProperty ( ( ) => { const elapsed = ( Date . now ( ) - startTime ) / 1000 return 10 + Math . sin ( elapsed * Math . PI * 2 ) * 5 } , false )",
-      "count": 2,
-      "files": ["frontend/src/core/map/renderers/CesiumRenderer.ts"]
-    },
-    {
       "text": "this . _layers . set ( id , { instance : vectorLayer , visible : true , options , } )",
       "count": 3,
       "files": ["frontend/src/core/map/renderers/OLRenderer.ts"]
@@ -165,18 +160,8 @@
       "files": ["frontend/src/shared/utils/perfReporter.ts"]
     },
     {
-      "text": "Math . sin ( elapsed * Math . PI * 2 )",
-      "count": 4,
-      "files": ["frontend/src/core/map/renderers/CesiumRenderer.ts"]
-    },
-    {
       "text": "( options . onError as ( ( msg : string ) => void ) | undefined )",
       "count": 3,
-      "files": ["frontend/src/core/map/renderers/CesiumRenderer.ts"]
-    },
-    {
-      "text": "{ const elapsed = ( Date . now ( ) - startTime ) / 1000 return 10 + Math . sin ( elapsed * Math . PI * 2 ) * 5 }",
-      "count": 2,
       "files": ["frontend/src/core/map/renderers/CesiumRenderer.ts"]
     },
     {
@@ -594,6 +579,11 @@
         "frontend/src/core/map/renderers/CesiumRenderer.ts",
         "frontend/src/core/map/renderers/OLRenderer.ts"
       ]
+    },
+    {
+      "text": "new CallbackProperty ( ( ) => { return breathingSize ( elapsedSeconds ( startTime ) ) } , false )",
+      "count": 2,
+      "files": ["frontend/src/core/map/renderers/CesiumRenderer.ts"]
     },
     {
       "text": "defineAsyncComponent ( { loader : ( ) => import ( '@/visualization/charts/LineChart.vue' ) , loadingComponent : ChartLoading , } )",

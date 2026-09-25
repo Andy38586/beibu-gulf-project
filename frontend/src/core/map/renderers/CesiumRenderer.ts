@@ -35,6 +35,7 @@ import {
 } from 'cesium'
 import type { FeatureCollection } from 'geojson'
 
+import { breathingAlpha, breathingSize, elapsedSeconds } from '@/core/config/breathing'
 import { buildTiandituUrl, MAP_CONFIG, zoomToHeight } from '@/core/config/map'
 import type { IndexedItem } from '@/shared'
 import { createSpatialIndex, LAYER_DEFAULTS, showError, showWarning } from '@/shared'
@@ -990,15 +991,12 @@ export class CesiumRenderer extends MapRenderer {
     const startTime = Date.now()
     // 预解析呼吸灯基准色（缺省 LAYER_DEFAULTS.color = '#409eff'；设施 POI 呼吸传设施色）
     const baseColor = Color.fromCssColorString(color || LAYER_DEFAULTS.color)
-    // 原版大跳缩放式：pixelSize 10±5 大幅脉动 + 透明度随动——小区呼吸的显眼度基准
+    // 脉动参数取自 core/config/breathing（与 OL 侧同源；此前两个渲染器各逐行复制一份）
     const pixelSizeProperty = new CallbackProperty(() => {
-      const elapsed = (Date.now() - startTime) / 1000
-      return 10 + Math.sin(elapsed * Math.PI * 2) * 5
+      return breathingSize(elapsedSeconds(startTime))
     }, false)
     const colorProperty = new CallbackProperty(() => {
-      const elapsed = (Date.now() - startTime) / 1000
-      const alpha = 0.5 + Math.sin(elapsed * Math.PI * 2) * 0.3
-      return baseColor.withAlpha(alpha)
+      return baseColor.withAlpha(breathingAlpha(elapsedSeconds(startTime)))
     }, false)
     this._breathingEntities = points.map((p) =>
       viewer.entities.add({
@@ -1050,16 +1048,14 @@ export class CesiumRenderer extends MapRenderer {
     const startTime = Date.now()
     // 每点一个 color CallbackProperty（闭包各自基准色），共享 startTime 相位同步；
     // pixelSize 全局共用一个（尺寸统一，无逐点差异）
+    // 脉动参数同上，取自 core/config/breathing（同屏节奏与小区呼吸一致，不打架）
     const pixelSizeProperty = new CallbackProperty(() => {
-      const elapsed = (Date.now() - startTime) / 1000
-      return 10 + Math.sin(elapsed * Math.PI * 2) * 5
+      return breathingSize(elapsedSeconds(startTime))
     }, false)
     this._facilityBreathingEntities = points.map((p) => {
       const pointColor = Color.fromCssColorString(p.color || color || LAYER_DEFAULTS.color)
       const colorProperty = new CallbackProperty(() => {
-        const elapsed = (Date.now() - startTime) / 1000
-        const alpha = 0.5 + Math.sin(elapsed * Math.PI * 2) * 0.3
-        return pointColor.withAlpha(alpha)
+        return pointColor.withAlpha(breathingAlpha(elapsedSeconds(startTime)))
       }, false)
       return viewer.entities.add({
         position: Cartesian3.fromDegrees(p.lng, p.lat),

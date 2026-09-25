@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 
 import { describe, expect, it } from 'vitest'
 
-import { GUARDS, SEPARATELY_RUN, runAll } from '../run-all.mjs'
+import { EXECUTOR_NAME, GUARDS, SEPARATELY_RUN, executionPlan, runAll } from '../run-all.mjs'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const GUARD_DIR = path.resolve(HERE, '..')
@@ -60,7 +60,7 @@ describe('guard:v3 串联执行器（审查 z163）', () => {
     ).toEqual([])
   })
 
-  it('@guard-red-sample SEPARATELY_RUN 项必须真的有人跑：script 存在且已接进 ci:local', () => {
+  it('@guard-red-sample SEPARATELY_RUN 项必须挂在**自动强制点**上：enforcedBy 里要有真命令行', () => {
     const pkg = JSON.parse(fs.readFileSync(path.join(GUARD_DIR, '../../package.json'), 'utf8'))
     for (const g of SEPARATELY_RUN) {
       const cmd = pkg.scripts?.[g.script]
@@ -70,10 +70,37 @@ describe('guard:v3 串联执行器（审查 z163）', () => {
       ).toBeTruthy()
       expect(cmd, `script「${g.script}」未指向 ${g.name}`).toContain(`${g.name}.mjs`)
       expect(
-        pkg.scripts['ci:local'],
-        `script「${g.script}」没有接进 ci:local —— 登记了却没人跑`
-      ).toContain(`npm run ${g.script}`)
+        g.enforcedBy?.length,
+        `${g.name} 没登记 enforcedBy —— 强制点必须是具体文件`
+      ).toBeGreaterThan(0)
+      for (const rel of g.enforcedBy) {
+        const abs = path.join(GUARD_DIR, '../..', rel)
+        expect(fs.existsSync(abs), `登记的强制点文件不存在：${rel}`).toBe(true)
+        const lines = fs
+          .readFileSync(abs, 'utf8')
+          .split(/\r?\n/)
+          .map((l) => l.trim())
+        // 只认**命令行**：注释行与被注释掉的命令行都不算（把这两行 `#` 掉，本用例必须红）
+        const invoked = lines.filter(
+          (l) => !l.startsWith('#') && !/^echo\b/.test(l) && l.includes(`npm run ${g.script}`)
+        )
+        expect(
+          invoked.length,
+          `${rel} 里没有「npm run ${g.script}」的命令行 —— 登记了却没人跑，等于该守卫从未被自动复验`
+        ).toBeGreaterThan(0)
+      }
     }
+  })
+
+  it('执行计划覆盖登记的全部守卫（快集 + SEPARATELY_RUN），且无重名', () => {
+    const plan = executionPlan()
+    expect(new Set(plan).size, '执行计划里有重名守卫').toBe(plan.length)
+    expect(plan).toEqual([...GUARDS, ...SEPARATELY_RUN.map((g) => g.name)])
+    for (const g of SEPARATELY_RUN) {
+      expect(plan, `${g.name} 不在执行计划里 —— 只登记不计划 = 静默遗漏`).toContain(g.name)
+    }
+    // 执行装置不是一条判据，不进计划（它的测试由 guard-red-mutation 复验）
+    expect(plan).not.toContain(EXECUTOR_NAME)
   })
 
   it('SEPARATELY_RUN 项必须写明不进快集的理由（防「顺手塞进来」）', () => {

@@ -24,6 +24,7 @@ import { Circle, Fill, Stroke, Style, Text } from 'ol/style'
 import type { StyleFunction } from 'ol/style/Style'
 import View from 'ol/View'
 
+import { breathingAlpha, breathingSize, elapsedSeconds } from '@/core/config/breathing'
 import { buildTiandituUrl, heightToZoom, MAP_CONFIG } from '@/core/config/map'
 import { LAYER_DEFAULTS } from '@/shared'
 import { logger } from '@/shared'
@@ -971,15 +972,13 @@ export class OLRenderer extends MapRenderer {
           geometry: new Point(fromLonLat([p.lng, p.lat])),
         })
     )
-    // 原版大跳缩放式：半径 10±5 大幅脉动 + 透明度随动——小区呼吸的显眼度基准
+    // 脉动参数取自 core/config/breathing（与 Cesium 侧同源；此前两处逐行复制）
     const breathingStyle = () => {
-      const elapsed = (Date.now() - startTime) / 1000
-      const radius = 10 + Math.sin(elapsed * Math.PI * 2) * 5
-      const alpha = 0.5 + Math.sin(elapsed * Math.PI * 2) * 0.3
+      const t = elapsedSeconds(startTime)
       return new Style({
         image: new Circle({
-          radius,
-          fill: new Fill({ color: `rgba(${r},${g},${b},${alpha})` }),
+          radius: breathingSize(t),
+          fill: new Fill({ color: `rgba(${r},${g},${b},${breathingAlpha(t)})` }),
           stroke: new Stroke({ color: LAYER_DEFAULTS.outline, width: 2 }),
         }),
       })
@@ -1030,15 +1029,14 @@ export class OLRenderer extends MapRenderer {
       if (p.color) f.set('color', p.color)
       return f
     })
+    // 与 startBreathing 同源（core/config/breathing）：多处呼吸节奏一致，同屏不打架
     const breathingStyle = (feature: FeatureLike) => {
-      const elapsed = (Date.now() - startTime) / 1000
-      const radius = 10 + Math.sin(elapsed * Math.PI * 2) * 5
-      const alpha = 0.5 + Math.sin(elapsed * Math.PI * 2) * 0.3
+      const t = elapsedSeconds(startTime)
       const rgb = parseBreathingColor((feature.get('color') as string) || color) ?? fallback
       return new Style({
         image: new Circle({
-          radius,
-          fill: new Fill({ color: `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${alpha})` }),
+          radius: breathingSize(t),
+          fill: new Fill({ color: `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${breathingAlpha(t)})` }),
           stroke: new Stroke({ color: LAYER_DEFAULTS.outline, width: 2 }),
         }),
       })

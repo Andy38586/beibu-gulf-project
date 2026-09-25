@@ -26,8 +26,13 @@
 
 set -e
 
-echo "[pre-push] 1/13 v3 守卫（19 项，条数由 doc-numbers 守卫对账）"
+echo "[pre-push] 1/13 v3 守卫（19 项快集，条数由 doc-numbers 守卫对账）+ 慢守卫 guard:mutation"
 npm run guard:v3
+# 红样「能红性」的常设复验装置：单个约 3 分钟 ⇒ 不进 pre-commit 快集，但必须挂在自动
+# 强制点上。登记在 run-all.mjs 的 SEPARATELY_RUN.enforcedBy，由 run-all.test.mjs 核对
+# 本行真的存在（注释与 echo 不算执行点）—— 此前它只挂在人手敲的 ci:local 上，等于从未
+# 被自动跑过（AGENTS §七-5「无对照门禁」的另一面是「无挂点门禁」）。
+npm run guard:mutation
 
 echo "[pre-push] 2/13 代码格式"
 npm run format:check

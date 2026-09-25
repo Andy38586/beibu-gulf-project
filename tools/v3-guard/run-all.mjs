@@ -19,6 +19,9 @@ import { fileURLToPath } from 'node:url'
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const ROOT = path.resolve(HERE, '../..')
 
+/** 执行装置自身的名字：不是一条判据，但它的测试仍在红样/变异复验范围内 */
+export const EXECUTOR_NAME = 'run-all'
+
 /** 守卫执行顺序 = 失败反馈优先级（静态 → 契约 → 统计 → 守门） */
 export const GUARDS = [
   'no-ephemeral',
@@ -47,16 +50,33 @@ export const GUARDS = [
  *
  * 为什么要有这张表：目录下新增守卫必须有人跑，但「跑在哪个入口」不总在快集。
  * 只把这些守卫从清单里划掉，就等于让「新守卫被静默遗漏」这条判据失效；所以要求
- * 逐项写明 ① 为何不进快集、② 它在哪个 script 里被跑 —— 后者由测试核对
- * （防「登记了却没人跑」与「script 存在但没接进 ci」）。
+ * 逐项写明 ① 为何不进快集、② 它在哪个 script 里被跑、③ **哪个自动强制点真的执行它**
+ * （`enforcedBy`）。
+ *
+ * ③ 是 2026-09-25 补的一格：此前只核对「接进了 `ci:local`」，而 `ci:local` 是人手敲的
+ * 便利链 —— 结果是这条常设复验装置**在 pre-commit / pre-push / CI 三处都不执行**，
+ * 即「从未被自动跑过的门禁」。登记 ≠ 被执行，所以强制点由测试直接读钩子与 workflow 文件
+ * 核对（含 `npm run <script>` 的**命令行**，注释与 echo 不算）。
  */
 export const SEPARATELY_RUN = [
   {
     name: 'guard-red-mutation',
     why: '单个约 3 分钟（逐个守卫注入「停用审计函数」并跑其测试），不适合 pre-commit 快集',
     script: 'guard:mutation',
+    enforcedBy: ['.husky/pre-push', '.github/workflows/ci.yml'],
   },
 ]
+
+/**
+ * 执行计划 = run-all **应当负责跑完**的那些守卫（快集 + 另跑的）。
+ *
+ * 单独派生出来是为了让「登记了却不在任何计划里」可判：`runAll()` 跑 `GUARDS`，
+ * 其余项必须出现在 `SEPARATELY_RUN[].enforcedBy` 指到的强制点里 —— 两者由
+ * `run-all.test.mjs` 核对，不靠人记。
+ */
+export function executionPlan() {
+  return [...GUARDS, ...SEPARATELY_RUN.map((g) => g.name)]
+}
 
 /**
  * 顺序执行全部守卫，**不短路**。

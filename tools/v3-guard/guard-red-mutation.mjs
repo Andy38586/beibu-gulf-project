@@ -21,7 +21,7 @@
  *   · 仍绿 ⇒ `survived`（假绿样，必须补强断言）。
  * 每个注入点跑完**立即还原**原文件（try/finally 语义，异常也不留脏）。
  *
- * ## 三条防自欺的口径（都是踩过的坑换来的）
+ * ## 四条防自欺的口径（都是踩过的坑换来的）
  *
  * 1. **子进程输出走文件描述符，不用管道**。受限环境拒绝管道式子进程，spawnSync 返回
  *    `status=null`；把它当成「测试变红」会得到**一整片假的 KILLED** —— 本文件第一版实测
@@ -29,19 +29,26 @@
  * 2. **先跑未变异基线**。基线非绿 ⇒ 记 `error` 而不是「能红」—— 不许拿「测试本来就红」
  *    冒充「变异让它红」。
  * 3. **耗时随结果输出**。秒级完成 = 没跑，是自检信号，不是性能优化。
+ * 4. **`skip` 不是放行**（2026-09-25 补）。旧版把「该守卫没有 test 文件」记成 skip 并
+ *    直接 continue，而成功文案写的是全称判断 —— 于是**摘掉或改名某个守卫的 test 文件，
+ *    该守卫就整体退出复验且装置照报 OK**，本装置自己犯的正是它要治的病（04-F1）。
+ *    现在 skip 计入问题、且必须显式登记才豁免；成功文案改成带计数的非全称判断。
  *
  * ## 用法
  *
  *   node tools/v3-guard/guard-red-mutation.mjs            # 全部守卫（约 3 分钟）
  *   node tools/v3-guard/guard-red-mutation.mjs --only x   # 只跑某个守卫
  *
- * 退出码：0 = 全部 killed 或已登记豁免；1 = 存在未登记 survived/error。
+ * 清单来源 = `run-all.mjs` 的执行计划 + 执行装置（见 `guardsToProbe`），**不 readdir 目录**。
+ * 退出码：0 = 全部 killed（或已登记豁免）；1 = 存在未登记的 survived / error / skip。
  */
 import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+
+import { EXECUTOR_NAME, executionPlan } from './run-all.mjs'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const ROOT = path.resolve(HERE, '../..')
@@ -85,8 +92,17 @@ export function injectEarlyReturn(source, fnName) {
 export function auditResults(results, { baseline = BASELINE } = {}) {
   const problems = []
   for (const r of results) {
-    if (r.status === 'killed' || r.status === 'skip') continue
+    if (r.status === 'killed') continue
     if (baseline.includes(r.guard)) continue
+    if (r.status === 'skip') {
+      // skip 曾经是"合法放行"：摘掉或改名某个守卫的 test 文件，该守卫就整体退出复验且
+      // 装置仍报「每个守卫的红样都咬住了判据」—— 这正是本装置自己治的病（04-F1）。
+      problems.push(
+        `${r.guard}: skip（${r.detail ?? '无测试文件'}）—— 没有 test = 该守卫整体退出红样` +
+          '复验，不是放行理由；补 test 或按登记流程走豁免，别让它静默出局'
+      )
+      continue
+    }
     problems.push(`${r.guard}: ${r.status}${r.detail ? ' — ' + r.detail : ''}`)
   }
   return problems
@@ -119,7 +135,8 @@ export function probeGuard(guardName, { guardDir = HERE, root = ROOT } = {}) {
   const guardPath = path.join(guardDir, `${guardName}.mjs`)
   const testRel = path.join('tools/v3-guard/__tests__', `${guardName}.test.mjs`)
   const testAbs = path.join(root, testRel)
-  if (!fs.existsSync(testAbs)) return { guard: guardName, status: 'skip', detail: '无测试文件' }
+  if (!fs.existsSync(testAbs))
+    return { guard: guardName, status: 'skip', detail: `无测试文件（缺 ${testRel}）` }
 
   const orig = fs.readFileSync(guardPath, 'utf8')
   const injectables = pickInjectables(orig, importedNames(fs.readFileSync(testAbs, 'utf8')))
@@ -181,14 +198,21 @@ function parseArgs(argv) {
   return { only: i === -1 ? null : argv[i + 1] }
 }
 
+/**
+ * 要复验的守卫清单 —— **从 run-all 的登记派生**，不 readdir。
+ *
+ * readdir 版会把「目录里有但没人登记的 .mjs」也算成守卫（分母跟着文件数漂），
+ * 而登记集才是"谁该被跑"的权威源。执行装置 `run-all` 另算进来：它不是一条判据，
+ * 但它的测试必须一起被复验（否则"摘掉 run-all 的短路断言"没人发现）。自身除外 ——
+ * 本装置不能注入自己（会一边跑一边改自己）。
+ */
+export function guardsToProbe() {
+  return [...new Set([...executionPlan(), EXECUTOR_NAME])].filter((n) => n !== SELF).sort()
+}
+
 function main() {
   const { only } = parseArgs(process.argv.slice(2))
-  const guards = fs
-    .readdirSync(HERE)
-    .filter((f) => f.endsWith('.mjs') && path.basename(f, '.mjs') !== SELF)
-    .map((f) => path.basename(f, '.mjs'))
-    .filter((n) => !only || n === only)
-    .sort()
+  const guards = guardsToProbe().filter((n) => !only || n === only)
 
   if (guards.length === 0) {
     console.error(`[guard-red-mutation] 没有匹配的守卫：${only}`)
@@ -203,11 +227,7 @@ function main() {
     const r = probeGuard(g)
     results.push(r)
     const icon =
-      r.status === 'killed'
-        ? 'killed ✓'
-        : r.status === 'skip'
-          ? `skip（${r.detail}）`
-          : r.status.toUpperCase()
+      r.status === 'killed' ? 'killed ✓' : r.status === 'skip' ? 'skip ✗' : r.status.toUpperCase()
     console.log(`  · ${g.padEnd(23)} ${icon.padEnd(14)} ${r.detail ?? ''}`)
   }
 
@@ -219,7 +239,11 @@ function main() {
       `（豁免基线 ${BASELINE.length} 项）`
   )
   if (problems.length === 0) {
-    console.log('[guard-red-mutation] OK：每个守卫的红样都咬住承重判据（停用审计函数 ⇒ 测试必红）')
+    // 带计数的非全称判断：以前的「每个守卫的红样都咬住承重判据」在 skip>0 时也是假的
+    console.log(
+      `[guard-red-mutation] OK：${killed}/${guards.length} 项的红样咬住承重判据` +
+        `（skip ${skipped} · survived 0 · error 0；执行装置 ${EXECUTOR_NAME} 亦在复验之列）`
+    )
     return
   }
   console.error('[guard-red-mutation] FAIL：')

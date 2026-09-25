@@ -22,8 +22,6 @@ export const PORT_PORTS = [
   { key: 'fangchenggang', name: '防城港' },
 ] as const
 
-export type PortKey = (typeof PORT_PORTS)[number]['key']
-
 /** 港口 key 列表（顺序权威） */
 export const PORT_KEYS = PORT_PORTS.map((p) => p.key)
 /** 港口中文名列表（顺序与 PORT_KEYS 严格对齐） */

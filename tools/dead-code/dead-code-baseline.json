@@ -1,57 +1,11 @@
 {
   "generatedFrom": "tools/dead-code/scan.mjs",
-  "totalDead": 29,
-  "totalRedundantExport": 111,
+  "totalDead": 22,
+  "totalRedundantExport": 110,
   "byModule": {
-    "frontend/src/types": 23,
-    "backend/src/modules": 2,
-    "frontend/src/shared": 2,
-    "backend/src/common": 1,
-    "backend/src/routes.manifest.ts": 1
+    "frontend/src/types": 22
   },
   "dead": [
-    {
-      "name": "ErrorCodeKey",
-      "kind": "type",
-      "file": "backend/src/common/errors/business-error.ts",
-      "line": 24
-    },
-    {
-      "name": "SubmitTaskBody",
-      "kind": "interface",
-      "file": "backend/src/modules/task/dto/task.dto.ts",
-      "line": 12
-    },
-    {
-      "name": "TaskSubmitPayload",
-      "kind": "interface",
-      "file": "backend/src/modules/task/dto/task.dto.ts",
-      "line": 20
-    },
-    {
-      "name": "ROUTES_MANIFEST",
-      "kind": "const",
-      "file": "backend/src/routes.manifest.ts",
-      "line": 4
-    },
-    {
-      "name": "PortKey",
-      "kind": "type",
-      "file": "frontend/src/shared/constants/forecast.ts",
-      "line": 24
-    },
-    {
-      "name": "removeStoredKey",
-      "kind": "function",
-      "file": "frontend/src/shared/utils/safeStorage.ts",
-      "line": 47
-    },
-    {
-      "name": "GeoFeature",
-      "kind": "interface",
-      "file": "frontend/src/types/business/base.ts",
-      "line": 17
-    },
     {
       "name": "UserParsed",
       "kind": "type",

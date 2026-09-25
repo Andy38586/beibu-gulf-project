@@ -42,14 +42,3 @@ export function writeStoredJSON(key: string, value: unknown): void {
     // 忽略隐私模式等写入失败场景
   }
 }
-
-/** 删除键 */
-export function removeStoredKey(key: string): void {
-  const ls = getSafeStorage()
-  if (!ls) return
-  try {
-    ls.removeItem(key)
-  } catch {
-    // 忽略
-  }
-}

@@ -22,8 +22,6 @@ export const ErrorCode = {
   ANALYSIS_FAILED: { code: 422001, status: 422, message: '分析计算失败' },
 } satisfies Record<string, ErrorCodeEntry>
 
-export type ErrorCodeKey = keyof typeof ErrorCode
-
 export class BusinessError extends Error {
   readonly bizCode: number
   readonly status: number

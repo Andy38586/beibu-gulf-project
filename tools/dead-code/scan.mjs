@@ -35,10 +35,17 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
  * 测试文件不会贡献「待清理的导出」。
  */
 const SCAN_ROOTS = ['frontend/src', 'backend/src', 'frontend/test', 'backend/test']
+/**
+ * **只参与引用统计**的根：工具链（守卫、脚本）里 import / 读某个导出，同样是「有人在用」。
+ * 不列在这里时，`ROUTES_MANIFEST`（被 `tools/v3-guard/routes-audit.mjs` 引用）会被误判成死物。
+ * 这些目录**不贡献**「待清理的导出」—— 守卫自己的导出不归本器管辖。
+ * 另注意扩展名：工具链以 `.mjs/.cjs` 为主，只认 `.ts/.vue` 会整目录漏掉。
+ */
+const REF_ONLY = { roots: ['tools', 'scripts', '.github'], exts: /\.(ts|vue|mjs|cjs|js)$/ }
 const SKIP_DIRS = new Set(['node_modules', 'dist', '.venv'])
 
 /** 递归收集源文件；isDef 为 true 时排除测试文件（测试文件不贡献"待清理的导出"） */
-export function listSources(roots = SCAN_ROOTS, { isDef = true } = {}) {
+export function listSources(roots = SCAN_ROOTS, { isDef = true, exts = /\.(ts|vue)$/ } = {}) {
   const out = []
   const walk = (abs) => {
     let entries
@@ -51,7 +58,7 @@ export function listSources(roots = SCAN_ROOTS, { isDef = true } = {}) {
       if (SKIP_DIRS.has(e.name)) continue
       const p = path.join(abs, e.name)
       if (e.isDirectory()) walk(p)
-      else if (/\.(ts|vue)$/.test(e.name)) {
+      else if (exts.test(e.name)) {
         if (isDef && /\.(test|spec)\./.test(e.name)) continue
         out.push(path.relative(ROOT, p).replace(/\\/g, '/'))
       }
@@ -86,7 +93,11 @@ export function identifiersOf(text) {
 /** 主扫描：返回 { exports, dead, redundantExport } */
 export function scan({ roots = SCAN_ROOTS } = {}) {
   const defFiles = listSources(roots, { isDef: true })
-  const refFiles = listSources(roots, { isDef: false })
+  // 引用侧 = 源码树 + 测试目录 + **工具链**（守卫/脚本里 import 或读取同样是「有人在用」）
+  const refFiles = [
+    ...listSources(roots, { isDef: false }),
+    ...listSources(REF_ONLY.roots, { isDef: false, exts: REF_ONLY.exts }),
+  ]
 
   const texts = new Map()
   const readCache = (f) => {

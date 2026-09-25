@@ -13,16 +13,6 @@
 import type { AffectedFacilityParsed, FloodFeatureParsed } from '../schemas'
 export type { GeoPoint } from '../crs'
 
-/** 通用 GIS 要素 */
-export interface GeoFeature<T extends Record<string, unknown> = Record<string, unknown>> {
-  geometry: {
-    type: 'Point' | 'Polygon' | 'MultiPolygon'
-    coordinates: number[] | number[][] | number[][][]
-  }
-  /** 泛型属性，由具体业务类型参数化 */
-  properties: T
-}
-
 // ===== 浸没分析业务类型 =====
 
 /** 淹没统计数据（显式声明后端字段 + adapter 派生字段；riskLevel 必填，其余按数据源可选） */

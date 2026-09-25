@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import type { Ref, ShallowRef } from 'vue'
 import { ref, shallowRef, computed } from 'vue'
 
-import { logger } from '@/shared'
+import { BASE_LAYER_KEYS, LAYER_KEYS, logger } from '@/shared'
 import { readStoredJSON, writeStoredJSON } from '@/shared/utils/safeStorage'
 import type { EngineName, LayerEntry, LayerType, MapType } from '@/types'
 import type { MapRenderer } from '@/types'
@@ -10,8 +10,6 @@ import { DEFAULT_ENGINES, ENGINE_NAMES } from '@/types'
 
 /** localStorage 键：底图 */
 const BASE_LAYER_STORAGE_KEY = 'beibu-gulf-base-layer'
-/** 合法底图 key 白名单（与 UnifiedMap.vue registerBaseLayer 注册处同源；防旧版本残留值污染） */
-const BASE_LAYER_KEYS = ['base-image', 'base-vector']
 
 function readStoredBaseLayer(): string | null {
   if (typeof window === 'undefined') return null
@@ -132,7 +130,7 @@ export const useMapStore = defineStore('map', () => {
     if (!renderer) return
     lastBaseRenderer = renderer
 
-    renderer.setBaseLayer?.(key === 'base-image' ? 'image' : 'vector')
+    renderer.setBaseLayer?.(key === LAYER_KEYS.baseImage ? 'image' : 'vector')
   }
 
   function removeLayer(key: string): void {

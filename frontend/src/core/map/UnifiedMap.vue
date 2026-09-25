@@ -11,6 +11,7 @@ import { buildPortGeoJson, loadPorts, PORT_STYLE } from '@/core/map/composables/
 import { createRenderer } from '@/core/map/renderers'
 import type { MapRenderer } from '@/core/map/renderers/MapRenderer'
 import { CELL_PIXEL } from '@/shared'
+import { LAYER_KEYS } from '@/shared'
 import { useGCS } from '@/shared'
 import { logger } from '@/shared'
 import { useMapStore } from '@/stores'
@@ -287,21 +288,21 @@ function setupLayers() {
   mapStore.clearLayerCatalog()
 
   // 底图条目仅建目录（互斥切换由 setBaseLayer + baseLayerKey 管理）
-  mapStore.registerBaseLayer('base-image', '影像底图')
-  mapStore.registerBaseLayer('base-vector', '矢量底图')
+  mapStore.registerBaseLayer(LAYER_KEYS.baseImage, '影像底图')
+  mapStore.registerBaseLayer(LAYER_KEYS.baseVector, '矢量底图')
 
   // 底图初始化：统一经 mapStore.setBaseLayer 写回权威键并驱动渲染器——
   // 直接 setBaseLayer 给渲染器而不写回 store，会让图层控制面板的互斥判定
   // 全部落空（baseLayerKey 为 null 时两个底图按钮都不亮）
-  mapStore.setBaseLayer(mapStore.baseLayerKey ?? 'base-image')
+  mapStore.setBaseLayer(mapStore.baseLayerKey ?? LAYER_KEYS.baseImage)
 
   // 核心常驻层（boundary/ports）走业务图层管理器统一注册；
   // 引擎切换时 registry 持久、此处注册幂等跳过，由 reapplyAll 重绘到新渲染器
   logger.debug(
-    `[UnifiedMap] setupLayers: boundaryGeoJson=${!!boundaryGeoJson} hasBoundary=${businessLayerManager.has('boundary')} portGeoJson=${!!portGeoJson} hasPorts=${businessLayerManager.has('ports')}`
+    `[UnifiedMap] setupLayers: boundaryGeoJson=${!!boundaryGeoJson} hasBoundary=${businessLayerManager.has(LAYER_KEYS.boundary)} portGeoJson=${!!portGeoJson} hasPorts=${businessLayerManager.has(LAYER_KEYS.ports)}`
   )
-  if (boundaryGeoJson && !businessLayerManager.has('boundary')) {
-    businessLayerManager.register('boundary', {
+  if (boundaryGeoJson && !businessLayerManager.has(LAYER_KEYS.boundary)) {
+    businessLayerManager.register(LAYER_KEYS.boundary, {
       label: '行政区划',
       layerType: 'geojson',
       data: boundaryGeoJson,
@@ -309,7 +310,7 @@ function setupLayers() {
     })
   }
 
-  if (portGeoJson && !businessLayerManager.has('ports')) {
+  if (portGeoJson && !businessLayerManager.has(LAYER_KEYS.ports)) {
     const validFeatures = (portGeoJson.features as Feature<Point>[]).filter((f) => {
       if (!f?.geometry?.coordinates) return false
       if (!Array.isArray(f.geometry.coordinates) || f.geometry.coordinates.length < 2) return false
@@ -324,7 +325,7 @@ function setupLayers() {
           lat: f.geometry.coordinates[1],
         }))
         .filter(Boolean) as PointFeature[]
-      businessLayerManager.register('ports', {
+      businessLayerManager.register(LAYER_KEYS.ports, {
         label: '港口位置',
         layerType: 'points',
         data: portFeatures,

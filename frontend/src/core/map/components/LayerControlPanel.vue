@@ -9,7 +9,7 @@ import { computed } from 'vue'
 
 import { resolveLayerPanelState } from '@/core/map/layerAdapters'
 import { useBusinessLayers } from '@/core/map/composables/useBusinessLayers'
-import { ROW_HEIGHT_CELL, useGCS } from '@/shared'
+import { DEFAULT_LAYER_ORDER, ROW_HEIGHT_CELL, useGCS } from '@/shared'
 import { useMapStore } from '@/stores'
 import type { LayerEntry } from '@/types'
 import { DEFAULT_ENGINES, ENGINE_LABELS } from '@/types'
@@ -21,8 +21,9 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  // 默认仅核心常驻层顺序；业务图层未列出的追加到末尾（按 catalog 注册序）
-  layerOrder: () => ['base-image', 'base-vector', 'boundary', 'ports'],
+  // 默认仅核心常驻层顺序；业务图层未列出的追加到末尾（按 catalog 注册序）。
+  // 顺序表来自 shared/constants/layers（唯一权威表）——原先这里手抄了 4 个字面量。
+  layerOrder: () => [...DEFAULT_LAYER_ORDER],
 })
 
 // layerCatalog 直连 mapStore，底图切换走 setBaseLayer

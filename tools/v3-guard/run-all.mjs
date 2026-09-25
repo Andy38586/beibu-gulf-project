@@ -39,6 +39,7 @@ export const GUARDS = [
   'tiles3d-check',
   'tmp-hygiene',
   'guard-red-sample',
+  'owned-layers',
 ]
 
 /**

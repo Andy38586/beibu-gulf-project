@@ -90,12 +90,12 @@ npm run test:tools             # 守卫自身的测试（vitest，tools/ 下）
 npm run lint                   # ESLint（0 告警基线）
 npm run typecheck              # vue-tsc 全量类型检查
 npm run cruise                 # dependency-cruiser 分层依赖守护
-npm run guard:v3               # 18 项 v3 守卫（全名见 tools/README.md 的 v3-guard 行）
+npm run guard:v3               # 19 项 v3 守卫（全名见 tools/README.md 的 v3-guard 行）
 npm run tmp:clean              # 清空 .local/tmp（临时文件唯一落点）
 npm run build:analyze          # 构建体积分析（rollup-plugin-visualizer）
 ```
 
-CI（GitHub Actions）：8 个 job，各自实际内容如下（**以 `.github/workflows/ci.yml` 为准**）——`changes` 变更探测；`audit` 根与 Nest 两侧 `npm audit`（high+ 阻断）；`static-checks` 跑 18 项 v3 守卫、格式、lint、stylelint、cruise 分层契约、API 契约自检、双侧 typecheck、gitleaks 密钥扫描、`.env` 未被跟踪、覆盖率基线冻结；`frontend-tests` 前端测试（覆盖率 + 棘轮 + watchdog）与 `test:tools`；`commit-discipline` 校验 `fix:`/`refactor:` 提交必须含 test 文件；`backend-tests` 真库 seed + Nest 测试（门控套件必须真跑）+ 后端覆盖率棘轮；`build-push-images` 构建推镜像；`deploy` 服务器上只 `docker compose pull`，不在机上构建。
+CI（GitHub Actions）：8 个 job，各自实际内容如下（**以 `.github/workflows/ci.yml` 为准**）——`changes` 变更探测；`audit` 根与 Nest 两侧 `npm audit`（high+ 阻断）；`static-checks` 跑 19 项 v3 守卫、格式、lint、stylelint、cruise 分层契约、API 契约自检、双侧 typecheck、gitleaks 密钥扫描、`.env` 未被跟踪、覆盖率基线冻结；`frontend-tests` 前端测试（覆盖率 + 棘轮 + watchdog）与 `test:tools`；`commit-discipline` 校验 `fix:`/`refactor:` 提交必须含 test 文件；`backend-tests` 真库 seed + Nest 测试（门控套件必须真跑）+ 后端覆盖率棘轮；`build-push-images` 构建推镜像；`deploy` 服务器上只 `docker compose pull`，不在机上构建。
 
 ## 部署
 

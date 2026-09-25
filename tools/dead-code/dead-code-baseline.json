@@ -1,12 +1,11 @@
 {
   "generatedFrom": "tools/dead-code/scan.mjs",
-  "totalDead": 35,
-  "totalRedundantExport": 155,
+  "totalDead": 29,
+  "totalRedundantExport": 111,
   "byModule": {
     "frontend/src/types": 23,
-    "frontend/src/shared": 5,
-    "backend/src/modules": 3,
-    "frontend/src/business": 2,
+    "backend/src/modules": 2,
+    "frontend/src/shared": 2,
     "backend/src/common": 1,
     "backend/src/routes.manifest.ts": 1
   },
@@ -16,12 +15,6 @@
       "kind": "type",
       "file": "backend/src/common/errors/business-error.ts",
       "line": 24
-    },
-    {
-      "name": "getAvailableCities",
-      "kind": "function",
-      "file": "backend/src/modules/site-analysis/repositories/site-analysis.repository.ts",
-      "line": 30
     },
     {
       "name": "SubmitTaskBody",
@@ -42,40 +35,10 @@
       "line": 4
     },
     {
-      "name": "yearMaxSteps",
-      "kind": "function",
-      "file": "frontend/src/business/forecast/timeline.ts",
-      "line": 12
-    },
-    {
-      "name": "monthMaxSteps",
-      "kind": "function",
-      "file": "frontend/src/business/forecast/timeline.ts",
-      "line": 17
-    },
-    {
       "name": "PortKey",
       "kind": "type",
       "file": "frontend/src/shared/constants/forecast.ts",
       "line": 24
-    },
-    {
-      "name": "clearStaticCache",
-      "kind": "function",
-      "file": "frontend/src/shared/utils/loadStatic.ts",
-      "line": 107
-    },
-    {
-      "name": "isPerfEnabled",
-      "kind": "function",
-      "file": "frontend/src/shared/utils/perfReporter.ts",
-      "line": 81
-    },
-    {
-      "name": "_resetPerfForTest",
-      "kind": "function",
-      "file": "frontend/src/shared/utils/perfReporter.ts",
-      "line": 219
     },
     {
       "name": "removeStoredKey",

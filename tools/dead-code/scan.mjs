@@ -22,8 +22,20 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
-const SCAN_ROOTS = ['frontend/src', 'backend/src']
-const SKIP_DIRS = new Set(['node_modules', '__tests__', 'dist', '.venv'])
+/**
+ * 扫描范围。
+ *
+ * **测试目录必须在引用侧** —— `backend/test/` 与各处 `__tests__/` 里对导出的 import
+ * 同样是「有人在用」的证据。此前 `SCAN_ROOTS` 只列了两个 `src` 且 `SKIP_DIRS` 含
+ * `__tests__`，导致「只被测试使用」的导出被误判成死物（与本文档头顶「引用 = …含测试」
+ * 的自述**相反**）。2026-09-25 实测踩到：按那份错误清单删掉 `clearStaticCache` /
+ * `_resetPerfForTest` / `isPerfEnabled` / `getAvailableCities` 四项，`typecheck` 立刻红。
+ *
+ * 定义侧不受影响：`listSources(…, { isDef: true })` 仍会跳过 `.test.` / `.spec.`，
+ * 测试文件不会贡献「待清理的导出」。
+ */
+const SCAN_ROOTS = ['frontend/src', 'backend/src', 'frontend/test', 'backend/test']
+const SKIP_DIRS = new Set(['node_modules', 'dist', '.venv'])
 
 /** 递归收集源文件；isDef 为 true 时排除测试文件（测试文件不贡献"待清理的导出"） */
 export function listSources(roots = SCAN_ROOTS, { isDef = true } = {}) {

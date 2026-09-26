@@ -43,6 +43,7 @@ export const GUARDS = [
   'tmp-hygiene',
   'guard-red-sample',
   'owned-layers',
+  'layer-keys',
 ]
 
 /**

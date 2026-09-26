@@ -52,7 +52,7 @@ export function layerFailureMessage(payload: LayerErrorPayload): string {
  *  · 创建失败 —— `_handleCreateFailure` 已把 `visible` 回滚为 false 并弹 toast，
  *    面板不再谎报"在显示"，无需二次标注。
  */
-export interface NotMountedLayer {
+interface NotMountedLayer {
   key: string
   label: string
 }

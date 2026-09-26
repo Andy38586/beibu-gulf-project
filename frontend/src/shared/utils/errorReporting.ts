@@ -26,7 +26,7 @@ interface NamedIntegration {
 }
 
 /** 上报上下文（进 event.extra，不参与分组） */
-export type ErrorContext = Record<string, unknown>
+type ErrorContext = Record<string, unknown>
 
 type CaptureFn = (error: unknown, context?: ErrorContext) => void
 
@@ -37,7 +37,7 @@ let capture: CaptureFn | null = null
  * 从默认集成里摘掉 `GlobalHandlers`（避免与 main.ts 的 window 钩子互相覆盖/重复上报）。
  * 名字取自 `@sentry/browser` 的 `INTEGRATION_NAME = 'GlobalHandlers'`（v11.0.0 实测）。
  */
-export function withoutGlobalHandlers<T extends NamedIntegration>(integrations: T[]): T[] {
+function withoutGlobalHandlers<T extends NamedIntegration>(integrations: T[]): T[] {
   return integrations.filter((integration) => integration.name !== 'GlobalHandlers')
 }
 

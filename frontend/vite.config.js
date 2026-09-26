@@ -110,8 +110,11 @@ export default defineConfig(({ mode, command }) => {
           // 手动分包：将大型依赖单独打包（Vite 8/rolldown 要求函数形式）
           manualChunks(id) {
             if (id.includes('node_modules')) {
-              // Vue 核心库
-              if (id.includes('/vue/') || id.includes('/vue-router/') || id.includes('/pinia/')) {
+              // Vue 运行时生态（首屏必需）。**必须按包边界匹配**：裸 `id.includes('/vue/')`
+              // 会命中 `node_modules/@sentry/vue/`，把本可懒加载的 Sentry 误并进首屏
+              // vue-vendor chunk（z021）。`@vue` 只命中 @vue/* 运行时包，不含 @vueuse/core
+              // （其后接 `use`，无 `/`）。
+              if (/[\\/]node_modules[\\/](?:vue|@vue|vue-router|pinia)[\\/]/.test(id)) {
                 return 'vue-vendor'
               }
               // OpenLayers 地图库

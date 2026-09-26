@@ -8,11 +8,15 @@
  *   未配置 DSN 时产物里**完全没有 Sentry**（实测 grep `sentry`/`GlobalHandlers` 零命中）。
  * - DSN 由部署方经环境变量注入，不入库（`.env.example` 只留说明）。
  * - ⚠️ **必须用命名导入**。`const Sentry = await import('@sentry/vue')` 这种命名空间形态
- *   会让打包器保留 `@sentry/browser` 的**整个导出面**：实测首屏 chunk（vue-vendor）gzip
- *   由 11.6KB 涨到 152.6KB；改成下面这种解构命名导入后为 48.3KB（净增 ~36KB gzip）。
- *   命名空间写法只是"看起来等价"，代价是 4.6 倍体积——重构时别改回去。
- * - Sentry 落在首屏 `vue-vendor` chunk：`vite.config.js` 的 manualChunks 判据
- *   `id.includes('/vue/')` 会命中 `/node_modules/@sentry/vue/`。即配置 DSN 后它是 eager 加载的。
+ *   会让打包器保留 `@sentry/browser` 的**整个导出面**：旧判据下实测（Sentry 被并入首屏
+ *   vue-vendor）gzip 48.3KB → 152.6KB，4.6 倍；下面这种解构命名导入是唯一正确形态，
+ *   命名空间写法只是"看起来等价"——重构时别改回去。
+ * - Sentry 落在**独立异步 chunk**（z021，2026-09-26 收窄）：`vite.config.js` 的
+ *   manualChunks 判据已按**包边界**匹配（`/node_modules/(vue|@vue|vue-router|pinia)/`），
+ *   不再命中 `node_modules/@sentry/vue/`。本模块只经动态 `import()` 引用 SDK ⇒ 配置 DSN 后
+ *   Sentry 仍在**首次上报时机**才加载、不进首屏：实测新判据 vue-vendor gzip 11.72KB（0 处
+ *   Sentry 代码），Sentry 落在未预载的异步 chunk `esm-*.js`（gzip 37.5KB）；旧判据
+ *   vue-vendor gzip 48.87KB 且含 Sentry 代码。
  * - 摘掉 Sentry 默认的 `GlobalHandlers` 集成：`main.ts` 已自管 `window.onerror` /
  *   `window.onunhandledrejection`（还要做 perf 分类计数），两套全局钩子会互相覆盖并重复上报；
  *   故统一由本模块 `captureError` 显式上报，谁是唯一上报入口是确定的。

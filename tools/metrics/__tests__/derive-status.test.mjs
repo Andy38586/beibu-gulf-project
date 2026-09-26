@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 
 import { deriveStatus, loadEvidence, parseAppendix } from '../derive-status.mjs'
+import { countBySpec } from '../../audit-kit/metrics-index.mjs'
 
 describe('指标账派生器', () => {
   it('kind → 状态字母：guard=A / test=B / retired=退役 / 无映射或未知=C', () => {
@@ -13,7 +14,7 @@ describe('指标账派生器', () => {
     expect(deriveStatus({ kind: 'mystery' })).toBe('C')
   })
 
-  it('真实附录：解析 396 条、编号全限定不跨专项撞号', () => {
+  it('真实附录：条数与专项正文一致、编号全限定不跨专项撞号', () => {
     const text = readFileSync(
       new URL(
         '../../../docs/根基文档/审查体系专项/附录-指标固化状态与迁移路线图.md',
@@ -23,9 +24,10 @@ describe('指标账派生器', () => {
     )
     const { sections } = parseAppendix(text)
     const all = sections.flatMap((s) => s.rows)
-    expect(all.length).toBe(396)
+    const 正文 = Object.values(countBySpec()).reduce((a, b) => a + b, 0)
+    expect(all.length).toBe(正文)
     const ids = new Set(all.map((r) => r.id))
-    expect(ids.size).toBe(396) // 专项N:x.y 全限定 ⇒ 无撞号
+    expect(ids.size).toBe(正文) // 专项N:x.y 全限定 ⇒ 无撞号
     expect(all.every((r) => r.id.includes(':'))).toBe(true)
   })
 

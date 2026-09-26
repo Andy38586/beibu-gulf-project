@@ -14,6 +14,7 @@ import {
   reconcile,
   summarize,
 } from '../metrics-index.mjs'
+import { parseDetailRows } from '../../v3-guard/lib/appendix-rows.mjs'
 
 const OK = `## 第一部分：数据来源审查
 
@@ -161,8 +162,10 @@ describe('metrics-index — 与附录 §8 对账', () => {
 describe('metrics-index — 真实仓库回归（钉住 09-26 收口的三件事）', () => {
   const real = parseSpec()
 
-  it('8 份专项正文合计 396 条，与约定 §3 全等', () => {
-    expect(real).toHaveLength(396)
+  it('正文条数 = 附录 §8 条数（两处必须相等；加/删指标由这条关系兜住，不抄绝对数）', () => {
+    const 附录条数 = [...parseDetailRows().values()].reduce((n, l) => n + l.length, 0)
+    expect(real.length).toBe(附录条数)
+    expect(real.length).toBeGreaterThan(300) // 解析塌缩兜底
     expect(new Set(real.map((e) => e.专项)).size).toBe(8)
   })
 

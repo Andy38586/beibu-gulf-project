@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * metrics-index — 把 8 份专项标准库的 396 指标抽成机器可读索引。
+ * metrics-index — 把 8 份专项标准库（指标清单的唯一权威源）抽成机器可读索引。
  *
  * 权威源是专项 prose，本脚本的产物是**生成即焚**的中间物：落在 .local/metrics-index/<HEAD短sha>.json，
  * 不入库、随时可重算。入库会造出第二份指标副本（AGENTS §七-7），HEAD 入文件名则换 sha 即自动失效。
@@ -197,6 +197,17 @@ export function parseSpec(files = specFiles()) {
     entries.push(...parseSpecText(rel, 专项, readFileSync(file, 'utf8')))
   }
   return entries
+}
+
+/**
+ * 各专项指标数（专项 → 条数）。
+ * 这是「指标清单」的**权威源导出**：专项 prose 是唯一事实源，
+ * 约定 §3 / 附录 §8 / metrics-tally / metrics:derive 一律与此对账，不得各抄一份数。
+ */
+export function countBySpec(entries = parseSpec()) {
+  const out = {}
+  for (const e of entries) out[e.专项] = (out[e.专项] || 0) + 1
+  return out
 }
 
 /** 体系自检：撞号 / 缺字段 / 证据面断链 / 指标落在附录区 */

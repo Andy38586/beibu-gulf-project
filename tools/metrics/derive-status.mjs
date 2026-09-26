@@ -4,7 +4,7 @@
  *
  * ## 为什么必须有这条
  *
- * 附录 §8 的 396 条状态是 2026-09-09 重建时的占位值（全 C，原文声明「逐条复核前不得
+ * 附录 §8 的状态列在 2026-09-09 重建时是占位值（全 C，条数随正文派生，不在此写死）（全 C，原文声明「逐条复核前不得
  * 视为真实固化证据」）——手填 + 整列同值，正是路线图 S3 指标账出口要消灭的两个特征。
  *
  * ## 口径
@@ -31,6 +31,8 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+
+import { countBySpec } from '../audit-kit/metrics-index.mjs'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 export const APPENDIX = path.join(
@@ -98,9 +100,10 @@ function main() {
   const text = fs.readFileSync(APPENDIX, 'utf8')
   const { sections, lines } = parseAppendix(text)
   const total = sections.reduce((a, s) => a + s.rows.length, 0)
-  if (total !== 396) {
+  const expected = Object.values(countBySpec()).reduce((a, b) => a + b, 0)
+  if (total !== expected) {
     console.error(
-      `[metrics-derive] FAIL：§8 解析到 ${total} 条 ≠ 396（表格结构漂移，先修表再派生）`
+      `[metrics-derive] FAIL：§8 解析到 ${total} 条 ≠ 专项正文 ${expected} 条（表格结构漂移，先修表再派生）`
     )
     process.exit(1)
   }
@@ -126,7 +129,7 @@ function main() {
     const counts = {}
     for (const d of derived.values()) counts[d] = (counts[d] ?? 0) + 1
     console.log(
-      `[metrics-derive] OK：396 条状态与证据映射一致（` +
+      `[metrics-derive] OK：${total} 条状态与证据映射一致（` +
         Object.entries(counts)
           .map(([k, v]) => `${k}=${v}`)
           .join(' / ') +

@@ -171,14 +171,16 @@ describe('dispatch — brief 必须过 audit-kit 自己的复算契约', () => {
 describe('dispatch — 真实 396 指标回归', () => {
   const { slices } = buildSlices(parseSpec())
 
-  it('切片覆盖 396 条且两两不相交（切窗不重不漏）', () => {
+  it('切片覆盖正文全量且两两不相交（切窗不重不漏）', () => {
     const ids = slices.flatMap((s) => s.指标.map((e) => e.id))
-    expect(ids.length).toBe(396)
-    expect(new Set(ids).size).toBe(396)
+    const 全集 = parseSpec()
+    expect(ids.length).toBe(全集.length)
+    expect(new Set(ids).size).toBe(全集.length)
   })
 
-  it('切片数 = 专项×部分 的实际组合数 60（新增部分会改这个数，须同步 约定.md §4）', () => {
-    expect(slices.length).toBe(60)
+  it('切片数 = 专项×部分 的实际组合数（改层级须同步 约定.md §4）', () => {
+    const 组合 = new Set(parseSpec().map((e) => `${e.专项}-${e.部分}`)).size
+    expect(slices.length).toBe(组合)
     expect(slices.filter((s) => s.专项 === '专项1').length).toBe(9)
   })
 

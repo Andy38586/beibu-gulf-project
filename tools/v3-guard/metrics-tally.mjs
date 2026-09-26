@@ -5,10 +5,10 @@
  * 原则：审查体系自己是文档，文档会漂移。本脚本把「体系自描述」变成可断言的不变量，
  * 回答 约定 §4 无人回答的问题——**谁来审查审查体系**。
  *
- * 守卫的不变量（全部来自 审查体系约定.md §3 索引表，权威源）：
- *   1. 各专项指标数 == 约定 §3 声明数（57/51/44/45/56/49/45/49），合计 == 396；
+ * 守卫的不变量（权威源 = 8 份专项正文；附录是**对账对象**，不是第二份事实）：
+ *   1. 附录 §8 各专项条数 == 正文派生计数（正文加/删一条指标，本守卫即知晓）；
  *   2. 附录 §8 明细表的每条状态 ∈ {A, B, A-, C, D, 退役}；
- *   3. 附录 §4 汇总表的数字 == §8 明细表的实际计数（防两张表漂移）；
+ *   3. 附录 §4 汇总表的数字 == §8 明细表的实际计数（防同一文件两张表漂移）；
  *   4. 同专项内指标编号不重复（v3 追加须带 ′ 后缀，违反 约定 §4「尾部追加不重排」即报）。
  *
  * 用法：node tools/v3-guard/metrics-tally.mjs [--json]
@@ -16,20 +16,17 @@
  */
 import { readFileSync } from 'node:fs'
 
+import { countBySpec } from '../audit-kit/metrics-index.mjs'
 import { crossCheckSummary } from './lib/summary-crosscheck.mjs'
 import { APPENDIX, STATES, parseDetailRows } from './lib/appendix-rows.mjs'
 
-/** 约定 §3 索引表声明的指标数（改专项指标数时须先改 约定 §3，再改本表） */
-const DECLARED = {
-  专项1: 57,
-  专项2: 51,
-  专项3: 44,
-  专项4: 45,
-  专项5: 56,
-  专项6: 49,
-  专项7: 45,
-  专项8: 49,
-}
+/**
+ * 期望计数由**专项正文**派生（正文是指标清单的唯一权威源）。
+ * 旧版把 57/51/44/45/56/49/45/49 硬抄在这里，于是加一条指标要同时改
+ * 正文 / 约定 §3 / 附录 §8 / 附录 §4 / 本表 / metrics:derive —— 手抄必漂移，
+ * 且「为审查文档让步」的成本压在施修方身上（2026-09-26 用户裁决改派生）。
+ */
+const DECLARED = countBySpec()
 
 /**
  * 审计附录：解析 §8 明细表 + 四条不变量（状态合法 / 指标数 / 编号唯一 / 总数）
@@ -57,7 +54,7 @@ export function auditAppendix(markdown = readFileSync(APPENDIX, 'utf8'), declare
 
     // 不变量 1：指标数
     if (list.length !== want) {
-      problems.push(`${name} 指标数漂移：约定 §3 声明 ${want}，附录 §8 实际 ${list.length}`)
+      problems.push(`${name} 指标数漂移：专项正文 ${want} 条，附录 §8 明细 ${list.length} 条`)
     }
     // 不变量 4：同专项编号唯一
     const seen = new Set()
@@ -77,7 +74,7 @@ export function auditAppendix(markdown = readFileSync(APPENDIX, 'utf8'), declare
   // 不变量 3：§4 汇总表与 §8 明细表一致
   const declaredTotal = Object.values(declared).reduce((a, b) => a + b, 0)
   if (total.总数 !== declaredTotal) {
-    problems.push(`指标总数漂移：期望 ${declaredTotal}，实际 ${total.总数}`)
+    problems.push(`指标总数漂移：正文合计 ${declaredTotal}，附录 §8 ${total.总数}`)
   }
   // 不变量 3 的判定抽到 lib/summary-crosscheck.mjs（纯函数，配注入测试）：
   // 命中数为 0 一律报错——禁止"解析不到 = 通过"（P1-08 修复）。

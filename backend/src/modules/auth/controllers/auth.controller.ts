@@ -32,6 +32,11 @@ export class AuthController {
     private readonly config: ConfigService
   ) {}
 
+  /** register/login 共用的会话下发：cookieSecure 的消费点收口一处 */
+  private attachSession(res: Response, token: string): void {
+    setAuthCookie(res, token, this.config.cookieSecure)
+  }
+
   // POST 默认 201，对齐 Express sendSuccess(res, {user}, 201)；
   // 桶归属：register 路由只关 login 桶 → 全局 1000 + 注册 50 两桶独立计数（对齐 Express 双 limiter）
   @Post('register')
@@ -42,7 +47,7 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response
   ): Promise<{ user: RegisterUserView }> {
     const { user, token } = await this.authService.register(body)
-    setAuthCookie(res, token, this.config.cookieSecure)
+    this.attachSession(res, token)
     return { user }
   }
 
@@ -54,7 +59,7 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response
   ): Promise<{ user: LoginUserView }> {
     const { user, token } = await this.authService.login(body)
-    setAuthCookie(res, token, this.config.cookieSecure)
+    this.attachSession(res, token)
     return { user }
   }
 

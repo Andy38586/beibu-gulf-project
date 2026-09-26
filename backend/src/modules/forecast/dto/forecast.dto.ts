@@ -1,6 +1,6 @@
-import { ApiProperty } from '@nestjs/swagger'
+import { ApiProperty, ApiPropertyOptions } from '@nestjs/swagger'
 
-import { BusinessError, ErrorCode } from '../../../common/errors/business-error'
+import { missingParamError } from '../../../common/errors/business-error'
 
 /**
  * forecast 域的查询参数 DTO。
@@ -11,27 +11,41 @@ import { BusinessError, ErrorCode } from '../../../common/errors/business-error'
  * 只有一处定义，改口径不必进 controller 找。
  *
  * ⚠️ 错误文案**逐字保持**原值（`'缺少参数: indicator, time'` 是一条、不分拆）——
- * 对外错误串是契约，收口不得顺带改文案。
+ * 对外错误串是契约，统一经 `missingParamError` 生成（格式单源），收口不得顺带改文案。
  */
+
+/** 两个查询 DTO 共用的 Swagger 字段说明（指标名/置信度阈值的对外口径，单源） */
+const INDICATOR_PROP: ApiPropertyOptions = {
+  description: '指标名（cargo | container | activity）',
+}
+const OPTIONAL_CONFIDENCE_PROP: ApiPropertyOptions = {
+  required: false,
+  description: '置信度阈值（可选）',
+}
+
+/** 查询参数兜底形态：非对象（含 null）一律落空记录；两个 parse 共用 */
+function queryRecord(raw: unknown): Record<string, unknown> {
+  return (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>
+}
 
 /** GET /forecast/map 查询参数 */
 export class ForecastMapQuery {
-  @ApiProperty({ description: '指标名（cargo | container | activity）' })
+  @ApiProperty(INDICATOR_PROP)
   indicator!: string
 
   @ApiProperty({ description: '时间点（YYYY-MM 或 YYYY-MM-DD）' })
   time!: string
 
   /** 置信度阈值，可选；非法值由 service 侧 `parseConfidence` 回落默认 */
-  @ApiProperty({ required: false, description: '置信度阈值（可选）' })
+  @ApiProperty(OPTIONAL_CONFIDENCE_PROP)
   confidence?: string
 
   static parse(raw: unknown): ForecastMapQuery {
-    const q = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>
+    const q = queryRecord(raw)
     const { indicator, time, confidence } = q
 
     if (!indicator || !time) {
-      throw new BusinessError(ErrorCode.INVALID_PARAMS, '缺少参数: indicator, time')
+      throw missingParamError('indicator, time')
     }
 
     const dto = new ForecastMapQuery()
@@ -44,7 +58,7 @@ export class ForecastMapQuery {
 
 /** GET /forecast/timeseries 查询参数（仅 indicator 必填，其余可选） */
 export class ForecastTimeseriesQuery {
-  @ApiProperty({ description: '指标名（cargo | container | activity）' })
+  @ApiProperty(INDICATOR_PROP)
   indicator!: string
 
   @ApiProperty({ required: false, description: '港口 id（可选）' })
@@ -59,15 +73,15 @@ export class ForecastTimeseriesQuery {
   @ApiProperty({ required: false, description: '粒度（可选）' })
   granularity?: string
 
-  @ApiProperty({ required: false, description: '置信度阈值（可选）' })
+  @ApiProperty(OPTIONAL_CONFIDENCE_PROP)
   confidence?: string
 
   static parse(raw: unknown): ForecastTimeseriesQuery {
-    const q = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>
+    const q = queryRecord(raw)
     const { indicator, portId, start, end, granularity, confidence } = q
 
     if (!indicator) {
-      throw new BusinessError(ErrorCode.INVALID_PARAMS, '缺少参数: indicator')
+      throw missingParamError('indicator')
     }
 
     const opt = (v: unknown) => (typeof v === 'string' ? v : undefined)

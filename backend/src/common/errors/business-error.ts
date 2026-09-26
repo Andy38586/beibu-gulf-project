@@ -33,3 +33,9 @@ export class BusinessError extends Error {
     this.status = errorCode.status
   }
 }
+
+/** 「缺少参数」错误工厂：message 格式 `缺少参数: <fields>` 是对外契约——文案逐字保持、
+ *  不分拆（见 forecast.dto 头注），全仓由此单源生成，防各域手写漂移 */
+export function missingParamError(fields: string): BusinessError {
+  return new BusinessError(ErrorCode.INVALID_PARAMS, `缺少参数: ${fields}`)
+}

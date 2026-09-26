@@ -113,6 +113,24 @@ function isGeoTIFFCapable(renderer: MapRenderer): renderer is MapRenderer & GeoT
   return typeof (renderer as Partial<GeoTIFFCapability>).addGeoTIFFLayer === 'function'
 }
 
+/** geotiff 创建/重建共用的失败上行半边（a029）：addGeoTIFFLayer 以**返回值**表达失败（不抛
+ *  异常）——3D 非 hillshade 回退在 `CesiumRenderer.addGeoTIFFLayer` 里 `return false`，
+ *  投影/imageryLayers 构造或 PNG 加载失败同样 return false。返回值曾被整体丢弃 ⇒ 图层开关
+ *  仍是"已开"、屏幕无物、BLM 无从感知。false ⇒ warn + onError，BLM 据以回滚
+ *  registry/catalog 并弹 toast（与 imageOverlay 同款收口）。文案按动作词区分，逐字节不变。 */
+function applyGeoTIFFOrReport(
+  renderer: MapRenderer & GeoTIFFCapability,
+  key: string,
+  data: unknown,
+  options: LayerOptions,
+  action: '创建' | '重建'
+): void {
+  if (!renderer.addGeoTIFFLayer(key, data as string, options)) {
+    logger.warn(`[layerAdapters] geotiff 图层 ${key} ${action}失败`)
+    options.onError?.(new Error(`geotiff 图层${action}失败: ${key}`))
+  }
+}
+
 /** 热力图能力检查：仅 OL 实现（2D Only） */
 function isHeatmapCapable(renderer: MapRenderer): renderer is MapRenderer & HeatmapCapability {
   return typeof (renderer as Partial<HeatmapCapability>).addHeatmapLayer === 'function'
@@ -276,15 +294,7 @@ export const LAYER_ADAPTERS: Record<LayerType, LayerAdapter> = {
         logger.warn(`[layerAdapters] geotiff 图层 ${key} 当前渲染器不支持，跳过`)
         return
       }
-      // addGeoTIFFLayer 以**返回值**表达失败（不抛异常）：3D 非 hillshade 回退在
-      // `CesiumRenderer.addGeoTIFFLayer` 里 `return false`，投影/imageryLayers 构造或
-      // PNG 加载失败同样 return false。返回值此前被整体丢弃 ⇒ 图层开关仍是"已开"、
-      // 屏幕无物、BLM 无从感知（a029 的静默失败路径）。与 imageOverlay 同款收口：
-      // false ⇒ onError，BLM 据以回滚 registry/catalog 并弹 toast。
-      if (!renderer.addGeoTIFFLayer(key, data as string, options)) {
-        logger.warn(`[layerAdapters] geotiff 图层 ${key} 创建失败`)
-        options.onError?.(new Error(`geotiff 图层创建失败: ${key}`))
-      }
+      applyGeoTIFFOrReport(renderer, key, data, options, '创建')
     },
     update: (renderer, key, data, options) => {
       if (!isGeoTIFFCapable(renderer)) {
@@ -292,11 +302,8 @@ export const LAYER_ADAPTERS: Record<LayerType, LayerAdapter> = {
         return
       }
       renderer.removeLayer(key)
-      // create 的同族半边，一次收口（重建语义同 imageOverlay：移除后按新内容重加）
-      if (!renderer.addGeoTIFFLayer(key, data as string, options)) {
-        logger.warn(`[layerAdapters] geotiff 图层 ${key} 重建失败`)
-        options.onError?.(new Error(`geotiff 图层重建失败: ${key}`))
-      }
+      // create 的同族半边（重建语义同 imageOverlay：移除后按新内容重加）
+      applyGeoTIFFOrReport(renderer, key, data, options, '重建')
     },
     remove: (renderer, key) => {
       renderer.removeLayer(key)

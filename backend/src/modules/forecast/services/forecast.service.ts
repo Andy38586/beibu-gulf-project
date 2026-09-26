@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common'
 
 import { createReadCache } from '../../../common/cache/read-cache'
-import { BusinessError, ErrorCode } from '../../../common/errors/business-error'
+import { BusinessError, ErrorCode, missingParamError } from '../../../common/errors/business-error'
 import { DataFilesService } from '../../../infra/files/data-files.service'
 
 import type {
@@ -34,7 +34,7 @@ const logger = new Logger('ForecastService')
 
 function validateIndicator(indicator: unknown): asserts indicator is string {
   if (!indicator || typeof indicator !== 'string') {
-    throw new BusinessError(ErrorCode.INVALID_PARAMS, '缺少参数: indicator')
+    throw missingParamError('indicator')
   }
   if (indicator.includes('..')) {
     throw new BusinessError(ErrorCode.INVALID_PARAMS, '非法的指标参数')

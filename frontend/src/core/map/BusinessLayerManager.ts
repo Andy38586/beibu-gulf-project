@@ -146,7 +146,7 @@ export class BusinessLayerManager {
 
   /** 图层已确定在渲染器上（或已被回滚/移除）→ 从"未上屏"清单摘除 */
   private _clearNotMounted(key: string): void {
-    if (this._notMounted.value.some((l) => l.key === key)) {
+    if (this.isNotMounted(key)) {
       this._notMounted.value = this._notMounted.value.filter((l) => l.key !== key)
     }
   }

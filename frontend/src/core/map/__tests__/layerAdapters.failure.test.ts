@@ -12,7 +12,8 @@ import { LAYER_ADAPTERS } from '../layerAdapters'
  *
  * 🔴 阳性对照：把 layerAdapters.ts 里 `if (!renderer.addImageOverlayLayer(...))`
  * 改回裸调用，本文件第 1 条即红；把 3dtiles 的 `.then((ok) => ok === false)` 分支
- * 删掉，第 3 条即红。
+ * 删掉，第 3 条即红；把 geotiff 的 `if (!renderer.addGeoTIFFLayer(...))` 改回裸调用，
+ * geotiff 三条用例即红。
  */
 
 function cesiumLike(overrides: Record<string, unknown> = {}) {
@@ -21,12 +22,14 @@ function cesiumLike(overrides: Record<string, unknown> = {}) {
     removeLayer: vi.fn(),
     addImageOverlayLayer: vi.fn(() => true),
     add3DTilesLayer: vi.fn(() => Promise.resolve(true)),
+    addGeoTIFFLayer: vi.fn(() => true),
     ...overrides,
   }
 }
 
 const IMAGE_DATA = { url: '/static/pinglu/imagery/madao.jpg', bbox: [1, 2, 3, 4], size: [10, 10] }
 const TILES_DATA = { url: '/static/pinglu/tiles/tileset.json' }
+const GEOTIFF_DATA = '/static/flood/dem/dem_hillshade.png'
 
 describe('LAYER_ADAPTERS 的失败上行', () => {
   it('imageOverlay：渲染器返回 false 时调用 onError', () => {
@@ -63,14 +66,42 @@ describe('LAYER_ADAPTERS 的失败上行', () => {
 
   it('2D 渲染器无该能力 = 设计内跳过，**不得**报失败（02 §5.3 水面同款）', () => {
     const onError = vi.fn()
-    const olLike = { getType: () => 'ol', removeLayer: vi.fn() } // 无两个能力方法
+    const olLike = { getType: () => 'ol', removeLayer: vi.fn() } // 无三个能力方法
     LAYER_ADAPTERS.imageOverlay.create(olLike as never, 'img-3', IMAGE_DATA, {
       onError,
     } as never)
     LAYER_ADAPTERS['3dtiles'].create(olLike as never, 'tiles-3', TILES_DATA, {
       onError,
     } as never)
+    LAYER_ADAPTERS.geotiff.create(olLike as never, 'geo-3', GEOTIFF_DATA, {
+      onError,
+    } as never)
     expect(onError).not.toHaveBeenCalled()
+  })
+
+  it('geotiff：渲染器返回 false（非 hillshade 回退 / 构造失败）时调用 onError', () => {
+    const onError = vi.fn()
+    const renderer = cesiumLike({ addGeoTIFFLayer: vi.fn(() => false) })
+    LAYER_ADAPTERS.geotiff.create(renderer as never, 'geo-1', GEOTIFF_DATA, { onError } as never)
+    expect(renderer.addGeoTIFFLayer).toHaveBeenCalledTimes(1)
+    expect(onError).toHaveBeenCalledTimes(1)
+    expect(onError.mock.calls[0][0]).toBeInstanceOf(Error)
+  })
+
+  it('geotiff：成功时不得误报失败', () => {
+    const onError = vi.fn()
+    LAYER_ADAPTERS.geotiff.create(cesiumLike() as never, 'geo-2', GEOTIFF_DATA, {
+      onError,
+    } as never)
+    expect(onError).not.toHaveBeenCalled()
+  })
+
+  it('geotiff update：重建返回 false 同样上行（同 create 的同族半边）', () => {
+    const onError = vi.fn()
+    const renderer = cesiumLike({ addGeoTIFFLayer: vi.fn(() => false) })
+    LAYER_ADAPTERS.geotiff.update(renderer as never, 'geo-4', GEOTIFF_DATA, { onError } as never)
+    expect(renderer.removeLayer).toHaveBeenCalledWith('geo-4')
+    expect(onError).toHaveBeenCalledTimes(1)
   })
 
   it('数据形状不合格（缺 url）时静默跳过，不打扰用户', () => {

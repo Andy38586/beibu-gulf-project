@@ -276,7 +276,15 @@ export const LAYER_ADAPTERS: Record<LayerType, LayerAdapter> = {
         logger.warn(`[layerAdapters] geotiff 图层 ${key} 当前渲染器不支持，跳过`)
         return
       }
-      renderer.addGeoTIFFLayer(key, data as string, options)
+      // addGeoTIFFLayer 以**返回值**表达失败（不抛异常）：3D 非 hillshade 回退在
+      // `CesiumRenderer.addGeoTIFFLayer` 里 `return false`，投影/imageryLayers 构造或
+      // PNG 加载失败同样 return false。返回值此前被整体丢弃 ⇒ 图层开关仍是"已开"、
+      // 屏幕无物、BLM 无从感知（a029 的静默失败路径）。与 imageOverlay 同款收口：
+      // false ⇒ onError，BLM 据以回滚 registry/catalog 并弹 toast。
+      if (!renderer.addGeoTIFFLayer(key, data as string, options)) {
+        logger.warn(`[layerAdapters] geotiff 图层 ${key} 创建失败`)
+        options.onError?.(new Error(`geotiff 图层创建失败: ${key}`))
+      }
     },
     update: (renderer, key, data, options) => {
       if (!isGeoTIFFCapable(renderer)) {
@@ -284,7 +292,11 @@ export const LAYER_ADAPTERS: Record<LayerType, LayerAdapter> = {
         return
       }
       renderer.removeLayer(key)
-      renderer.addGeoTIFFLayer(key, data as string, options)
+      // create 的同族半边，一次收口（重建语义同 imageOverlay：移除后按新内容重加）
+      if (!renderer.addGeoTIFFLayer(key, data as string, options)) {
+        logger.warn(`[layerAdapters] geotiff 图层 ${key} 重建失败`)
+        options.onError?.(new Error(`geotiff 图层重建失败: ${key}`))
+      }
     },
     remove: (renderer, key) => {
       renderer.removeLayer(key)

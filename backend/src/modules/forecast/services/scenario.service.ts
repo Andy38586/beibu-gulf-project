@@ -54,7 +54,8 @@ function seaLegRatioAt(def: CanalScenarioDef, yearFloat: number): number {
   return Math.min(1, Math.max(0, (total - interval) / total))
 }
 
-export interface ScenarioUpliftPoint {
+/** 变换点形态约束（仅本模块泛形用，不外暴——冗余导出棘轮 110 上限） */
+interface ScenarioUpliftPoint {
   time: string
   value: number
   lower?: number

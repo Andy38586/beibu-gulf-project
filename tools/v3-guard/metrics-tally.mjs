@@ -16,6 +16,7 @@
  */
 import { readFileSync } from 'node:fs'
 
+import { CONVENTION } from '../audit-kit/paths.mjs'
 import { countBySpec } from '../audit-kit/metrics-index.mjs'
 import { crossCheckSummary } from './lib/summary-crosscheck.mjs'
 import { APPENDIX, STATES, parseDetailRows } from './lib/appendix-rows.mjs'
@@ -84,7 +85,37 @@ export function auditAppendix(markdown = readFileSync(APPENDIX, 'utf8'), declare
   return { problems, summary, total }
 }
 
+/**
+ * 约定.md §3 索引表的「指标数」列（对账用，非权威源）。
+ * 权威源永远是专项正文；本表若是手抄，就必须被断言——否则它下一轮一定漂。
+ * 只认 `| N xxx | 专项K … | 文件 | 数字 |` 形态的数据行。
+ */
+export function parseConventionCounts(markdown) {
+  const out = new Map()
+  for (const l of markdown.split(/\r?\n/)) {
+    const m = l.match(/^\|\s*\d+\s+[^|]*\|\s*\**\s*(专项\d)[^|]*\|[^|]*\|\s*(\d+)\s*\|\s*$/)
+    if (m) out.set(m[1], Number(m[2]))
+  }
+  return out
+}
+
+/** 约定 §3 计数 vs 正文派生计数（缺行/多行/数不同 都算漂移） */
+export function crossCheckConvention(conv, declared) {
+  const problems = []
+  for (const [name, want] of Object.entries(declared)) {
+    if (!conv.has(name)) problems.push(`约定 §3 缺 ${name} 行（正文 ${want} 条）`)
+    else if (conv.get(name) !== want)
+      problems.push(`约定 §3 ${name} 计数漂移：表内 ${conv.get(name)}，正文 ${want}`)
+  }
+  for (const name of conv.keys())
+    if (!(name in declared)) problems.push(`约定 §3 多出 ${name}（正文无此专项）`)
+  return problems
+}
+
 const { problems, summary, total } = auditAppendix()
+problems.push(
+  ...crossCheckConvention(parseConventionCounts(readFileSync(CONVENTION, 'utf8')), DECLARED)
+)
 
 if (process.argv.includes('--json')) {
   console.log(JSON.stringify({ summary, total, problems }, null, 2))

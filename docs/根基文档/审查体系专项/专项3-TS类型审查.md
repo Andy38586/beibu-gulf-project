@@ -1515,9 +1515,9 @@
 ### 指标 7.5：Nest 侧类型严格度对齐与门禁生效
 
 **指标名称**：Nest tsconfig strict 对齐与类型门禁
-**检查目标**：确认 Nest 侧（`backend/`，旧稿作 `backend/nest`）的 tsconfig 严格度不低于前端，且类型错误真的会阻断合入。
+**检查目标**：确认 Nest 侧（`backend/`）的 tsconfig 严格度不低于前端，且类型错误真的会阻断合入。
 **为什么需要检查**：Nest 的 `build` 对部分类型错误仍会产出（exit 0），只有 `tsc --noEmit` 是真门禁。双后端并存期若 Nest 侧宽松，前后端契约漂移会以运行时错误的形式暴露，而不是在提交前被拦住。
-**检查范围**：`backend/tsconfig.json`（旧稿写 `backend/nest/tsconfig.json`，该路径不存在）、根与 nest 的 `package.json` 脚本、CI 与 pre-push 接线。
+**检查范围**：`backend/tsconfig.json`、根与 backend 的 `package.json` 脚本、CI 与 pre-push 接线。
 **检查方法**：
 
 1. 逐项比对 `frontend/tsconfig.app.json` 与 nest tsconfig 的 strict 系列开关。
@@ -1535,7 +1535,7 @@
 **指标名称**：DTO 与前端 zod 双源漂移检测
 **检查目标**：确认同一接口的后端 DTO 与前端 zod schema 有可机器比对的单一权威，漂移能被发现。
 **为什么需要检查**：Nest 用 DTO 白名单校验、前端用 zod 校验 HTTP 边界，两者独立书写同一契约——任一侧改字段而另一侧不动，漂移要到运行时才炸（或更糟：静默取 undefined）。契约治理的要义是"契约只有一处权威"，双源书写本身就是漂移源。
-**检查范围**：`backend/nest/src/modules/*/dto/`、前端 zod schema 目录、`scripts/gen-api-contract.cjs` 及其产物。
+**检查范围**：`backend/src/modules/*/dto/`、前端 zod schema 目录、`scripts/gen-api-contract.cjs` 及其产物。
 **检查方法**：
 
 1. 确认存在可机器比对的契约产物（OpenAPI / 契约清单），而不是靠人工比对。

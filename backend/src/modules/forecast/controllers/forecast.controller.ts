@@ -3,7 +3,8 @@ import { ApiTags } from '@nestjs/swagger'
 import { SkipThrottle } from '@nestjs/throttler'
 
 import { FALLBACK_CONFIDENCE, MAX_CONFIDENCE } from '../../../common/constants/forecast.constants'
-import { BusinessError, ErrorCode } from '../../../common/errors/business-error'
+import { DtoPipe } from '../../../common/pipes/dto.pipe'
+import { ForecastMapQuery, ForecastTimeseriesQuery } from '../dto/forecast.dto'
 import { ForecastService } from '../services/forecast.service'
 
 function parseConfidence(raw: unknown): number {
@@ -12,8 +13,6 @@ function parseConfidence(raw: unknown): number {
   return Math.min(n, MAX_CONFIDENCE)
 }
 
-// 预测接口为合法高频交互（时间轴播放一轮 ~400+ 请求）：跳过全部限流桶，
-// 对齐 Express 全局限流 skip /api/forecast + 专属 forecastLimiter（同为 1000/15min）
 @Controller('forecast')
 /**
  * 限流：命名桶（login/register，各 50/15min）对本域是**误伤** —— 时间轴播放一轮约 400 请求，
@@ -43,33 +42,23 @@ export class ForecastController {
   }
 
   @Get('map')
-  getMap(
-    @Query('indicator') indicator: string,
-    @Query('time') time: string,
-    @Query('confidence') confidence?: string
-  ) {
-    if (!indicator || !time) {
-      throw new BusinessError(ErrorCode.INVALID_PARAMS, '缺少参数: indicator, time')
-    }
-    return this.forecastService.getMapData(indicator, time, parseConfidence(confidence))
+  getMap(@Query(new DtoPipe(ForecastMapQuery.parse)) query: ForecastMapQuery) {
+    return this.forecastService.getMapData(
+      query.indicator,
+      query.time,
+      parseConfidence(query.confidence)
+    )
   }
 
   @Get('timeseries')
-  getTimeseries(
-    @Query('indicator') indicator: string,
-    @Query('portId') portId?: string,
-    @Query('start') start?: string,
-    @Query('end') end?: string,
-    @Query('granularity') granularity?: string,
-    @Query('confidence') confidence?: string
-  ) {
+  getTimeseries(@Query(new DtoPipe(ForecastTimeseriesQuery.parse)) query: ForecastTimeseriesQuery) {
     return this.forecastService.getTimeSeriesData(
-      indicator,
-      portId,
-      start,
-      end,
-      granularity,
-      parseConfidence(confidence)
+      query.indicator,
+      query.portId,
+      query.start,
+      query.end,
+      query.granularity,
+      parseConfidence(query.confidence)
     )
   }
 

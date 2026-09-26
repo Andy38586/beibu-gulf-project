@@ -558,9 +558,10 @@ async function switchMapType(newType: '2d' | '3d') {
     if (pending !== null) {
       void nextTick(() => {
         // 补跑以排队意图为准。store 只作参考——catch 的回滚可能已把 store
-        // 写成 oldType（过期值），而 pending 是切换窗口内最后一次意图；
-        // 旧判据 `mapStore.mapType ?? pending` 因 MapType 永不为空恒取 store，
-        // 失败路径上补跑判据恒假 ⇒ pendingSwitchType 队列是死代码（04-C5）。
+        // 写成 oldType（过期值），而 pending 是切换窗口内最后一次意图。
+        // 判据必须比对**渲染器实际类型**而非 store：早先用 `mapStore.mapType ?? pending`
+        // 时，MapType 永不为空 ⇒ 恒取 store ⇒ 失败路径上判据恒假、补跑永不触发
+        // （当时那段队列因此形同死代码）。此处已改为按渲染器实况比对，判据有效。
         const target = pending
         if (target !== currentRenderer.value?.getType()) {
           void switchMapType(target)

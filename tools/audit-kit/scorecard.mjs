@@ -1,0 +1,352 @@
+#!/usr/bin/env node
+/**
+ * scorecard — 把审查体系的五个「质量数」从产物里算出来，不再由窗口手填。
+ *
+ * 为什么要有它：AGENTS.md §十一 定了绝对锚点 ≥60 / 锚点真实率 ≥93% / 可复跑判据 ≥20，
+ * §十二 定了膨胀率与归属四态，§十 定了 RC1–RC4 —— 这五个数此前**全仓没有一个计算体**，
+ * 数值靠各批监督日志手抄（922/925 均是）。手抄的数只能自证，不能证伪。
+ *
+ * 输入：一个批次目录（含各窗交付件；有 claims.json 时才算覆盖率）。
+ * 判红口径：任一门槛未达标 ⇒ exit 1（这是**人手动敲的工具**，不挂 hook、不进 CI）。
+ *
+ * 用法：node tools/audit-kit/scorecard.mjs <批次目录> [--out 00-记分卡.md] [--json]
+ */
+import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+import { extractBashBlocks } from './extract-window.mjs'
+import { ROOT } from './paths.mjs'
+
+/** 门槛唯一定义处；文档要引用就引这里，不得另抄一份数 */
+export const THRESHOLD = { 绝对锚点: 60, 锚点真实率: 0.93, 可复跑判据: 20 }
+
+/**
+ * 锚点 = 「路径:行号」。量尺两处坑必须避开：
+ *  - \w 不认中文，`专项1-数据链审查-执行记录.md:47` 会被截成 `.md:47` ⇒ 用 \p{L}；
+ *  - 光文件名不带 `/` 的（README.md:47）也要能解析 ⇒ 解析时按 ROOT/批次目录/件所在目录三试。
+ */
+const ANCHOR_RE =
+  /([\p{L}\p{N}][\p{L}\p{N}._/\-]*\.(?:ts|js|mjs|cjs|vue|css|scss|py|sql|json|md|yml|yaml|sh|html))[:：](\d+)/gu
+const VERDICT_RE = /(P[0-3]|属实|不属实|通过|证伪|豁免|未证|不适用|降级|已修|未修|半修)/
+const TAG_RE = /`(引入|收口不足|取证漏|流程)`/g
+const RC_RE = /\bRC([1-4])\b/g
+
+const lineCountOf = new Map()
+function fileLines(abs) {
+  if (!lineCountOf.has(abs)) lineCountOf.set(abs, readFileSync(abs, 'utf8').split(/\r?\n/).length)
+  return lineCountOf.get(abs)
+}
+
+/** tracked 文件索引：basename → [相对路径]。git 不可用 ⇒ null（相关判据记未取证，不判红不判绿） */
+let _index = null
+function baseIndex(root) {
+  if (_index) return _index
+  let listed = null
+  try {
+    listed = execFileSync('git', ['ls-files'], { cwd: root, encoding: 'utf8', maxBuffer: 64 << 20 })
+  } catch {
+    return null
+  }
+  const map = new Map()
+  for (const f of listed.split(/\r?\n/)) {
+    if (!f.trim()) continue
+    const b = path.basename(f)
+    if (!map.has(b)) map.set(b, [])
+    map.get(b).push(f)
+  }
+  _index = map
+  return map
+}
+
+/**
+ * 解析一个锚点。返回 {abs, 态}：
+ *  真 / 行越界 / 同名歧义（裸文件名且仓库里多于一份）/ 找不到。
+ * 裸文件名写法在旧审件里占多数 —— 它不可机械复核，这正是要单独量出来的东西。
+ */
+export function resolveAnchor(raw, bases, root = ROOT) {
+  const p = raw.replace(/\\/g, '/').replace(/^\.\//, '')
+  if (!p.includes('/')) {
+    const idx = baseIndex(root)
+    if (!idx) return { 态: '索引不可用' }
+    const cands = idx.get(path.basename(p)) || []
+    if (!cands.length) return { 态: '找不到' }
+    if (cands.length > 1) return { 态: '同名歧义', 候选: cands.length }
+    return { abs: path.join(root, cands[0]), 态: null }
+  }
+  for (const base of bases) {
+    const abs = path.join(base, p)
+    if (existsSync(abs) && statSync(abs).isFile()) return { abs, 态: null }
+  }
+  return { 态: '找不到' }
+}
+
+/** 抽锚点并分类：真实率只在「可机械定位」的子集上算，可复核率单列（裸文件名写法是新发现的靶子） */
+export function auditAnchors(md, batchDir) {
+  const bases = [ROOT, batchDir, path.dirname(batchDir)]
+  const hits = []
+  for (const m of md.matchAll(ANCHOR_RE)) {
+    const line = Number(m[2])
+    const r = resolveAnchor(m[1], bases)
+    let 状态 = r.态
+    if (!状态) {
+      状态 = line >= 1 && line <= fileLines(r.abs) ? '真' : '行越界'
+    }
+    hits.push({
+      锚点: `${m[1]}:${m[2]}`,
+      状态,
+      解析到: r.abs ? path.relative(ROOT, r.abs).replace(/\\/g, '/') : null,
+    })
+  }
+  const cnt = (t) => hits.filter((h) => h.状态 === t).length
+  const 可核 = cnt('真') + cnt('行越界')
+  const 真集 = new Set(hits.filter((h) => h.状态 === '真').map((h) => h.锚点))
+  return {
+    命中: hits,
+    总数: hits.length,
+    真: cnt('真'),
+    行越界: cnt('行越界'),
+    歧义: cnt('同名歧义'),
+    找不到: cnt('找不到'),
+    可核,
+    真实率: 可核 ? cnt('真') / 可核 : null,
+    可复核率: hits.length ? 可核 / hits.length : null,
+    去重数: new Set(hits.map((h) => h.锚点)).size,
+    去重真: 真集.size,
+    失效样本: hits.filter((h) => h.状态 !== '真').slice(0, 8),
+  }
+}
+
+/** §0 契约：抽得出块、且块内每条命令都紧跟一行 `# 期望:` */
+export function auditHooks(md) {
+  const blocks = extractBashBlocks(md)
+  let 命令 = 0
+  let 带期望 = 0
+  const 裸命令 = []
+  for (const b of blocks) {
+    const lines = b.split(/\r?\n/)
+    for (let i = 0; i < lines.length; i++) {
+      const l = lines[i]
+      if (!l.trim() || /^\s*#/.test(l) || /^\s*(cd|export|set|for|done|\})\b/.test(l)) continue
+      命令++
+      const next = lines.slice(i + 1, i + 3).find((x) => x && x.trim())
+      if (next && /^# 期望:/.test(next.trim())) 带期望++
+      else 裸命令.push(l.trim().slice(0, 60))
+    }
+  }
+  return { 块数: blocks.length, 命令, 带期望, 裸命令 }
+}
+
+/** 覆盖率：负责集里每条指标是否被点名并给出可判定的结论词 */
+export function auditCoverage(md, 负责) {
+  const judged = []
+  const 漏 = []
+  for (const id of 负责) {
+    const 文内 = id.replace(/^专\d+-/, '')
+    // 不用 \b：ID 以汉字「专」开头，JS 的 \b 按 ASCII \w 定义，边界判定会整体失配
+    const esc = id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const re = new RegExp(
+      `(?<![\\d.])${esc}(?![\\d.])|指标\\s*${文内.replace('.', '\\.')}(?![\\d])`
+    )
+    const hit = md.split(/\r?\n/).find((l) => re.test(l))
+    if (hit && VERDICT_RE.test(hit)) judged.push(id)
+    else 漏.push(id)
+  }
+  const 全部 = [...md.matchAll(/专[1-8]-\d+\.\d+′?/g)].map((m) => m[0])
+  const 越界 = [...new Set(全部.filter((x) => !负责.includes(x)))]
+  return {
+    判定点: judged,
+    未判: 漏,
+    越界,
+    覆盖率: 负责.length ? judged.length / 负责.length : null,
+  }
+}
+
+/** 归属四态 + RC 打标：只报产物里真有的标签，没打标就明说，不替窗口编数 */
+export function auditTags(md) {
+  const 标签 = { 引入: 0, 收口不足: 0, 取证漏: 0, 流程: 0 }
+  for (const m of md.matchAll(new RegExp(TAG_RE.source, 'gu'))) 标签[m[1]]++
+  const RC = { RC1: 0, RC2: 0, RC3: 0, RC4: 0 }
+  for (const m of md.matchAll(new RegExp(RC_RE.source, 'gu'))) RC[`RC${m[1]}`]++
+  const 行 = md.split(/\r?\n/)
+  const 条目 = 行.filter((l) => /^\s*[|>\-*]?\s*\**P[0-3]\b/.test(l)).length
+  const 带归属 = 行.filter(
+    (l) =>
+      new RegExp(TAG_RE.source, 'u').test(l) || /归属\s*[:：]\s*(引入|收口不足|取证漏|流程)/.test(l)
+  ).length
+  const 字面 = 标签.引入 + 标签.收口不足
+  return {
+    标签,
+    RC,
+    修复条目数: 条目,
+    带归属条目数: 带归属,
+    未打标: Math.max(0, 条目 - 带归属),
+    膨胀率分子: 字面,
+    膨胀率: 条目 ? +(字面 / 条目).toFixed(2) : null,
+  }
+}
+
+export function loadClaims(batchDir) {
+  const f = path.join(batchDir, 'claims.json')
+  if (!existsSync(f)) return null
+  const j = JSON.parse(readFileSync(f, 'utf8'))
+  return new Map(j.窗.map((w) => [w.id, w.指标]))
+}
+
+export function windowFiles(batchDir) {
+  const direct = readdirSync(batchDir)
+    .filter((f) => /^W\d+.*\.md$/.test(f))
+    .map((f) => ({ id: f.match(/^W\d+/)[0], file: path.join(batchDir, f) }))
+  if (direct.length) return direct
+  // 历史批次不是 W*.md 命名：递归收全部 .md，让记分卡也能回算旧件（回算才是复算，不是重述）
+  const out = []
+  const walk = (dir, depth) => {
+    if (depth > 3) return
+    for (const e of readdirSync(dir, { withFileTypes: true })) {
+      const abs = path.join(dir, e.name)
+      if (e.isDirectory()) walk(abs, depth + 1)
+      else if (/\.md$/.test(e.name) && !/^00-|^README/.test(e.name))
+        out.push({ id: path.relative(batchDir, abs).replace(/\\/g, '/'), file: abs })
+    }
+  }
+  walk(batchDir, 0)
+  return out.sort((a, b) => a.id.localeCompare(b.id))
+}
+
+export function scoreBatch(batchDir) {
+  const claims = loadClaims(batchDir)
+  const files = windowFiles(batchDir)
+  const 窗账 = []
+  for (const w of files) {
+    const md = readFileSync(w.file, 'utf8')
+    const 负责 = claims?.get(w.id) || []
+    窗账.push({
+      id: w.id,
+      件: path.relative(ROOT, w.file).replace(/\\/g, '/'),
+      覆盖: auditCoverage(md, 负责),
+      锚点: auditAnchors(md, batchDir),
+      判据: auditHooks(md),
+      标签: auditTags(md),
+      负责数: 负责.length,
+    })
+  }
+  const sum = (fn) => 窗账.reduce((n, w) => n + fn(w), 0)
+  const 锚总 = sum((w) => w.锚点.总数)
+  const 锚真 = sum((w) => w.锚点.真)
+  const 判据总 = sum((w) => w.判据.带期望)
+  const 条目总 = sum((w) => w.标签.修复条目数)
+  const 分子总 = sum((w) => w.标签.膨胀率分子)
+  const batch = {
+    目录: path.relative(ROOT, batchDir).replace(/\\/g, '/'),
+    窗数: 窗账.length,
+    有claims: !!claims,
+    总: {
+      覆盖: 窗账.length && claims ? sum((w) => w.覆盖.判定点.length) / sum((w) => w.负责数) : null,
+      锚点总数: 锚总,
+      锚点可核数: sum((w) => w.锚点.可核),
+      锚点歧义: sum((w) => w.锚点.歧义),
+      锚点找不到: sum((w) => w.锚点.找不到),
+      锚点真实率: sum((w) => w.锚点.可核) ? +(锚真 / sum((w) => w.锚点.可核)).toFixed(4) : null,
+      可复核率: 锚总 ? +(sum((w) => w.锚点.可核) / 锚总).toFixed(4) : null,
+      可复跑判据: 判据总,
+      膨胀率: 条目总 ? +(分子总 / 条目总).toFixed(2) : null,
+      修复条目数: 条目总,
+      未打标条目数: sum((w) => w.标签.未打标),
+      标签合计: 窗账.reduce(
+        (a, w) => {
+          for (const k of Object.keys(a)) a[k] += w.标签.标签[k]
+          return a
+        },
+        { 引入: 0, 收口不足: 0, 取证漏: 0, 流程: 0 }
+      ),
+      RC合计: 窗账.reduce(
+        (a, w) => {
+          for (const k of Object.keys(a)) a[k] += w.标签.RC[k]
+          return a
+        },
+        { RC1: 0, RC2: 0, RC3: 0, RC4: 0 }
+      ),
+      越界: [...new Set(窗账.flatMap((w) => w.覆盖.越界))],
+      未取证: 窗账.filter((w) => !w.负责数).map((w) => w.id),
+    },
+    门槛: {
+      绝对锚点: 锚总 >= THRESHOLD.绝对锚点 ? '达标' : '未达标',
+      锚点真实率: !sum((w) => w.锚点.可核)
+        ? '未取证（无可机械定位的锚点）'
+        : 锚真 / sum((w) => w.锚点.可核) >= THRESHOLD.锚点真实率
+          ? '达标'
+          : '未达标',
+      可复跑判据: 判据总 >= THRESHOLD.可复跑判据 ? '达标' : '未达标',
+      覆盖率: !claims ? '未取证（无 claims.json ⇒ 无负责集，覆盖率无从谈起）' : '已算',
+    },
+    窗账,
+  }
+  return batch
+}
+
+export function renderScore(b) {
+  const rows = b.窗账
+    .map(
+      (w) =>
+        `| ${w.id} | ${w.负责数} | ${w.负责数 ? `${(w.覆盖.覆盖率 * 100).toFixed(0)}%（未判 ${w.覆盖.未判.length}）` : '未取证'} | ${w.锚点.总数}/${w.锚点.可核} | ${w.锚点.可核 ? `${(w.锚点.真实率 * 100).toFixed(1)}%` : '未取证'} | ${w.判据.块数}/${w.判据.带期望} | ${w.标签.标签.引入}/${w.标签.标签.收口不足} |`
+    )
+    .join('\n')
+  const bad = Object.entries(b.门槛).filter(([, v]) => v === '未达标')
+  return `# ${path.basename(b.目录)} 记分卡（生成件，勿手改）
+
+> 生成：\`node tools/audit-kit/scorecard.mjs ${b.目录}\`
+> 五个数的口径都在这一个文件里；文档引用口径不得另抄数字（门槛唯一定义 \`tools/audit-kit/scorecard.mjs\` THRESHOLD）。
+
+| 窗 | 负责指标 | 覆盖率 | 锚点 引用/可核 | 可核子集真实率 | §0 块/带期望命令 | 引入/收口不足 |
+| --- | --- | --- | --- | --- | --- | --- |
+${rows}
+
+## 批次合计
+
+- 覆盖率：${b.总.覆盖 === null ? '未取证' : `${(b.总.覆盖 * 100).toFixed(1)}%`}（分母 = claims.json 的负责集，窗口无权改）
+- 锚点：${b.总.锚点总数} 处引用，其中可机械定位 ${b.总.锚点可核数}（**可复核率 ${b.总.可复核率 ?? '未取证'}**）；定位不了的构成：同名裸文件 ${b.总.锚点歧义} / 找不到 ${b.总.锚点找不到}
+- 锚点真实率（只在可核子集上算）：${b.总.锚点真实率 ?? '未取证'}；门槛 ≥${THRESHOLD.绝对锚点} 处引用 / ≥${THRESHOLD.锚点真实率 * 100}% ⇒ **${b.门槛.绝对锚点}／${b.门槛.锚点真实率}**
+- 可复跑判据（§0 内带 \`# 期望:\` 的命令数）：${b.总.可复跑判据}；门槛 ≥${THRESHOLD.可复跑判据} ⇒ **${b.门槛.可复跑判据}**
+- 膨胀率 =（引入 + 收口不足）÷ 修复条目 = ${b.总.标签合计.引入 + b.总.标签合计.收口不足} ÷ ${b.总.修复条目数} = **${b.总.膨胀率 ?? '未取证'}**；其中 ${b.总.未打标条目数} 条无归属标签 ⇒ 该数按「取证漏」计，不等于 0
+- RC 打标合计：${JSON.stringify(b.总.RC合计)}（未打标的条目按「取证漏」计，不替窗口编数）
+- 越界引用（写了不属于自己的指标）：${b.总.越界.length ? b.总.越界.join(' ') : '无'}
+- 无负责集的窗（未派单或未回填 claims）：${b.总.未取证.length ? b.总.未取证.join(' ') : '无'}
+
+## 失效锚点样本（每窗 ≤8 条，用于定根因：是代码改了、还是当初就没这行）
+
+${
+  b.窗账
+    .filter((w) => w.锚点.失效样本.length)
+    .map((w) => `- ${w.id}：${w.锚点.失效样本.map((h) => `${h.锚点}[${h.状态}]`).join(' ')}`)
+    .join('\n') || '- 无失效锚点'
+}
+
+## 判定
+
+${bad.length ? bad.map(([k, v]) => `- **${k} ${v}**`).join('\n') : '- 全部门槛达标（本行仅在无未达标项时出现）'}
+- 未取证 ≠ 通过（AGENTS §5.4）：凡标「未取证」的，缺的是输入产物，不是判据。
+`
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const argv = process.argv.slice(2)
+  const dir = argv.find((a) => !a.startsWith('--'))
+  if (!dir || !existsSync(dir)) {
+    console.error('用法: node tools/audit-kit/scorecard.mjs <批次目录> [--out <文件>] [--json]')
+    process.exit(2)
+  }
+  const b = scoreBatch(path.resolve(dir))
+  if (argv.includes('--json')) console.log(JSON.stringify(b, null, 1))
+  else {
+    const md = renderScore(b)
+    const out = argv.includes('--out')
+      ? argv[argv.indexOf('--out') + 1]
+      : path.join(path.resolve(dir), '00-记分卡.md')
+    writeFileSync(out, md)
+    console.log(md)
+    console.log(`已写 ${path.relative(ROOT, out)}`)
+  }
+  const bad = Object.values(b.门槛).filter((v) => v === '未达标')
+  process.exit(bad.length ? 1 : 0)
+}

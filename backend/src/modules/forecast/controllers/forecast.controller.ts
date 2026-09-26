@@ -15,7 +15,18 @@ function parseConfidence(raw: unknown): number {
 // 预测接口为合法高频交互（时间轴播放一轮 ~400+ 请求）：跳过全部限流桶，
 // 对齐 Express 全局限流 skip /api/forecast + 专属 forecastLimiter（同为 1000/15min）
 @Controller('forecast')
-@SkipThrottle()
+/**
+ * 限流：命名桶（login/register，各 50/15min）对本域是**误伤** —— 时间轴播放一轮约 400 请求，
+ * 50 的配额两下见底。故与本仓其它业务域同口径：**只豁免命名桶、保留 global 桶**。
+ *
+ * global 是 1000/15min ⇒ 约 **2.5 轮播放**触顶，届时前端按既有 429 静默降级处理
+ * （见 `useForecastLayer` 的播放分支注释）。这个边界是刻意留的：本域是**公开端点**，
+ * 全豁免等于零防护，而限额又必须容得下正常交互。
+ *
+ * 原为裸 `@SkipThrottle()`（= 三桶全豁免）——那与 csp-report/health 的"有意全豁免"不同：
+ * 那两个是被浏览器/探针高频调用的接收端，本域是用户可主动连点的计算端点。
+ */
+@SkipThrottle({ login: true, register: true })
 @ApiTags('forecast')
 export class ForecastController {
   constructor(private readonly forecastService: ForecastService) {}

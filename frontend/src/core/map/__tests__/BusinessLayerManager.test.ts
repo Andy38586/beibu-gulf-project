@@ -152,7 +152,7 @@ describe('BusinessLayerManager', () => {
       const renderer = {
         setVisibility: vi.fn(),
         hasLayer: vi.fn(() => false),
-        addGeoTIFFLayer: vi.fn(),
+        addGeoTIFFLayer: vi.fn(() => true),
       }
       mapStore.currentRenderer = renderer as unknown as MapRenderer
 
@@ -273,7 +273,7 @@ describe('BusinessLayerManager', () => {
       // 引擎切换：UnifiedMap.setupLayers → clearLayerCatalog 清空目录
       mapStore.layerCatalog.length = 0
 
-      const newRenderer = { addGeoTIFFLayer: vi.fn() }
+      const newRenderer = { addGeoTIFFLayer: vi.fn(() => true) }
       manager.reapplyAll(newRenderer as unknown as MapRenderer)
 
       // 面板条目必须重建（label 来自 registry，visible 以 registry 为准）
@@ -824,7 +824,9 @@ describe('BusinessLayerManager', () => {
     })
 
     it('locked 层拒绝关闭：setVisible(false) 不生效，渲染器也不被调用', () => {
-      const renderer = { setVisibility: vi.fn(), addGeoTIFFLayer: vi.fn() }
+      // addGeoTIFFLayer 契约返回 boolean（renderer.ts:121）：adapter 以 false 表达创建失败
+      // 并上行 onError，BLM 随即回滚。mock 必须回 true，否则等于模拟了一次创建失败
+      const renderer = { setVisibility: vi.fn(), addGeoTIFFLayer: vi.fn(() => true) }
       mapStore.currentRenderer = renderer as unknown as MapRenderer
       manager.register('dem', {
         label: '地形山影',
@@ -848,7 +850,7 @@ describe('BusinessLayerManager', () => {
     it('locked 层允许「开」方向（幂等，用于引擎切换后重新拉齐）', () => {
       const renderer = {
         setVisibility: vi.fn(),
-        addGeoTIFFLayer: vi.fn(),
+        addGeoTIFFLayer: vi.fn(() => true),
         hasLayer: vi.fn(() => true),
       }
       mapStore.currentRenderer = renderer as unknown as MapRenderer
@@ -897,7 +899,7 @@ describe('BusinessLayerManager', () => {
 
       // 需要真实 renderer——reapplyAll(null) 直接 return，目录不会重建
       const renderer = {
-        addGeoTIFFLayer: vi.fn(),
+        addGeoTIFFLayer: vi.fn(() => true),
         hasLayer: vi.fn(() => false),
         getType: vi.fn(() => '3d'),
       }

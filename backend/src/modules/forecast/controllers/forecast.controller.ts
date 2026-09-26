@@ -5,6 +5,7 @@ import { SkipThrottle } from '@nestjs/throttler'
 import { FALLBACK_CONFIDENCE, MAX_CONFIDENCE } from '../../../common/constants/forecast.constants'
 import { DtoPipe } from '../../../common/pipes/dto.pipe'
 import { ForecastMapQuery, ForecastTimeseriesQuery } from '../dto/forecast.dto'
+import { parseScenarioId } from '../services/scenario.service'
 import { ForecastService } from '../services/forecast.service'
 
 function parseConfidence(raw: unknown): number {
@@ -46,7 +47,8 @@ export class ForecastController {
     return this.forecastService.getMapData(
       query.indicator,
       query.time,
-      parseConfidence(query.confidence)
+      parseConfidence(query.confidence),
+      parseScenarioId(query.scenario)
     )
   }
 
@@ -58,7 +60,8 @@ export class ForecastController {
       query.start,
       query.end,
       query.granularity,
-      parseConfidence(query.confidence)
+      parseConfidence(query.confidence),
+      parseScenarioId(query.scenario)
     )
   }
 
@@ -67,9 +70,16 @@ export class ForecastController {
     @Param('type') type: string,
     @Query('time') time?: string,
     @Query('portId') portId?: string,
-    @Query('confidence') confidence?: string
+    @Query('confidence') confidence?: string,
+    @Query('scenario') scenario?: string
   ) {
-    return this.forecastService.getIndicatorData(type, time, portId, parseConfidence(confidence))
+    return this.forecastService.getIndicatorData(
+      type,
+      time,
+      portId,
+      parseConfidence(confidence),
+      parseScenarioId(scenario)
+    )
   }
 
   // 孤儿路由（前端零消费）保留作兼容端点；须置于显式路由之后，避免吞掉具体路径
@@ -78,8 +88,15 @@ export class ForecastController {
     @Param('portId') portId: string,
     @Query('indicator') indicator?: string,
     @Query('start') start?: string,
-    @Query('end') end?: string
+    @Query('end') end?: string,
+    @Query('scenario') scenario?: string
   ) {
-    return this.forecastService.getPortData(portId, indicator, start, end)
+    return this.forecastService.getPortData(
+      portId,
+      indicator,
+      start,
+      end,
+      parseScenarioId(scenario)
+    )
   }
 }

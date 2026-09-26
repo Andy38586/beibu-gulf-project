@@ -12,6 +12,12 @@ import type {
 } from './forecast-engine'
 import { computeForecast, generateSpatialValues } from './forecast-engine'
 import { getModelForecast } from './model-loader'
+import {
+  applyCanalScenario,
+  parseScenarioId,
+  scenarioLabel,
+  type ScenarioId,
+} from './scenario.service'
 
 // 预测服务（逐行等价移植 backend/services/forecastService.js）：
 // 指标白名单拒绝路径遍历；activity 文件自带完整 forecast 直接透传；cargo/container 走模型产物
@@ -93,17 +99,25 @@ export class ForecastService {
     }
   }
 
-  private getCacheKey(indicator: string, scenarioLevel: number): string {
-    // cargo 为模型固定基线（scenarioLevel 恒 1.0），键忽略 scenarioLevel（同结果多键=缓存冗余）
-    return MODEL_INDICATORS.has(indicator) ? indicator : `${indicator}:${scenarioLevel}`
+  private getCacheKey(indicator: string, scenarioLevel: number, canalScenario: ScenarioId): string {
+    // 模型指标基线随运河情景变化 ⇒ 键必须含 canalScenario（此前忽略它会导致情景串缓存，
+    // 是 F3 修复点）；非模型指标不支持运河情景（上游已拒绝），键保持原形
+    return MODEL_INDICATORS.has(indicator)
+      ? `${indicator}:${canalScenario}`
+      : `${indicator}:${scenarioLevel}`
   }
 
   private async getOrComputeForecast(
     indicator: string,
-    scenarioLevel: number
+    scenarioLevel: number,
+    canalScenario: ScenarioId = 'baseline'
   ): Promise<{ indicator: string; unit: string; ports: Record<string, ComputedPort> }> {
     validateIndicator(indicator)
-    const key = this.getCacheKey(indicator, scenarioLevel)
+    // 运河增量没有集装箱/活跃度口径的文献预测值（04-B10：不伪造参数）——非 cargo 组合显式拒绝
+    if (canalScenario !== 'baseline' && !MODEL_INDICATORS.has(indicator)) {
+      throw new BusinessError(ErrorCode.INVALID_PARAMS, '运河情景仅支持 cargo 指标')
+    }
+    const key = this.getCacheKey(indicator, scenarioLevel, canalScenario)
     const hit = this.engineCache.get(key)
     if (hit !== undefined)
       return hit as { indicator: string; unit: string; ports: Record<string, ComputedPort> }
@@ -141,6 +155,15 @@ export class ForecastService {
           forecast = engineResult.forecast
           metadata = engineResult.metadata as Record<string, unknown>
         }
+        // 运河情景叠加（只动预测段；历史段永不修改）——变换在缓存前执行，键已含情景
+        if (canalScenario !== 'baseline') {
+          forecast = applyCanalScenario(portId, forecast, canalScenario)
+          metadata = {
+            ...metadata,
+            canalScenario,
+            canalScenarioLabel: scenarioLabel(canalScenario),
+          }
+        }
       } else if (FILE_FORECAST_INDICATORS.has(indicator)) {
         // 文件自带完整 forecast（真数据派生产物，如 activity）直接透传
         forecast = portData.forecast || []
@@ -170,9 +193,10 @@ export class ForecastService {
   async getMapData(
     indicator: string,
     time: string,
-    scenarioLevel = 1.0
+    scenarioLevel = 1.0,
+    canalScenario: ScenarioId = 'baseline'
   ): Promise<Record<string, unknown>> {
-    const computed = await this.getOrComputeForecast(indicator, scenarioLevel)
+    const computed = await this.getOrComputeForecast(indicator, scenarioLevel, canalScenario)
     const features: unknown[] = []
 
     for (const portId in computed.ports) {
@@ -214,14 +238,15 @@ export class ForecastService {
     portId: string,
     indicator?: string,
     start?: string,
-    end?: string
+    end?: string,
+    canalScenario: ScenarioId = 'baseline'
   ): Promise<Record<string, unknown>> {
     const indicators = indicator ? [indicator] : ['cargo', 'container']
     const result: Record<string, unknown> = { portId, portName: '', indicators: {} }
     const indicatorsOut = result.indicators as Record<string, unknown>
 
     for (const ind of indicators) {
-      const computed = await this.getOrComputeForecast(ind, 1.0)
+      const computed = await this.getOrComputeForecast(ind, 1.0, canalScenario)
       const port = computed.ports[portId]
       if (!port) continue
 
@@ -248,9 +273,10 @@ export class ForecastService {
     type: string,
     time: string | undefined,
     portId: string | undefined,
-    scenarioLevel = 1.0
+    scenarioLevel = 1.0,
+    canalScenario: ScenarioId = 'baseline'
   ): Promise<Record<string, unknown>> {
-    const computed = await this.getOrComputeForecast(type, scenarioLevel)
+    const computed = await this.getOrComputeForecast(type, scenarioLevel, canalScenario)
     const result: Record<string, unknown> = {
       indicator: computed.indicator,
       unit: computed.unit,
@@ -285,9 +311,10 @@ export class ForecastService {
     start: string | undefined,
     end: string | undefined,
     granularity: string | undefined,
-    scenarioLevel = 1.0
+    scenarioLevel = 1.0,
+    canalScenario: ScenarioId = 'baseline'
   ): Promise<Record<string, unknown>> {
-    const computed = await this.getOrComputeForecast(indicator, scenarioLevel)
+    const computed = await this.getOrComputeForecast(indicator, scenarioLevel, canalScenario)
     const ports = portId ? [portId] : Object.keys(computed.ports)
     const series: unknown[] = []
 

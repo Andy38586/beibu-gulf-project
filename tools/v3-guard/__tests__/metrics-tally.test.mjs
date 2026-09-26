@@ -9,7 +9,8 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { auditAppendix, parseDetailRows } from '../metrics-tally.mjs'
+import { auditAppendix } from '../metrics-tally.mjs'
+import { parseDetailRows } from '../lib/appendix-rows.mjs'
 
 /** 造一份 §8 明细段落 */
 function appendix(rows) {

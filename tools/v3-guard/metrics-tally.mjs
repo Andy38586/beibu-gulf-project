@@ -15,14 +15,9 @@
  * 返回码：0 = 体系自描述自洽；1 = 存在漂移（CI 可直接挂接）。
  */
 import { readFileSync } from 'node:fs'
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
 
 import { crossCheckSummary } from './lib/summary-crosscheck.mjs'
-
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
-// 附录文件 2026-09-12 起去除 00- 前缀（审查体系专项内文件统一不带序号前缀）
-const APPENDIX = path.join(ROOT, 'docs/根基文档/审查体系专项/附录-指标固化状态与迁移路线图.md')
+import { APPENDIX, STATES, parseDetailRows } from './lib/appendix-rows.mjs'
 
 /** 约定 §3 索引表声明的指标数（改专项指标数时须先改 约定 §3，再改本表） */
 const DECLARED = {
@@ -34,29 +29,6 @@ const DECLARED = {
   专项6: 49,
   专项7: 45,
   专项8: 49,
-}
-const STATES = ['A', 'B', 'A-', 'C', 'D', '退役']
-
-/**
- * 解析附录 §8 明细表：专项 → [{id,name,level,state}]。
- * 文本可注入 —— 否则只能整体读真实附录，红样无从写起。
- */
-export function parseDetailRows(markdown = readFileSync(APPENDIX, 'utf8')) {
-  const rows = new Map() // 专项 -> [{id, name, level, state}]
-  let section = null
-  for (const l of markdown.split(/\r?\n/)) {
-    const h = l.match(/^### 专项(\d)/)
-    if (h) {
-      section = '专项' + h[1]
-      if (!rows.has(section)) rows.set(section, [])
-      continue
-    }
-    const m = l.match(/^\|\s*([\d.]+)(′?)\s*\|\s*(.+?)\s*\|\s*(P\d)\s*\|\s*(A-|A|B|C|D|退役)\s*\|/)
-    if (m && section) {
-      rows.get(section).push({ id: m[1] + m[2], name: m[3], level: m[4], state: m[5] })
-    }
-  }
-  return rows
 }
 
 /**

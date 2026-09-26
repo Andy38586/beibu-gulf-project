@@ -44,6 +44,36 @@ const SCAN_ROOTS = ['frontend/src', 'backend/src', 'frontend/test', 'backend/tes
 const REF_ONLY = { roots: ['tools', 'scripts', '.github'], exts: /\.(ts|vue|mjs|cjs|js)$/ }
 const SKIP_DIRS = new Set(['node_modules', 'dist', '.venv'])
 
+/**
+ * G 类（门禁载体）判别：`*Parsed` 契约配对类型。
+ *
+ * `scripts/gen-api-contract.cjs` 对 `schemas.ts` 里每个 `XSchema` 用**动态拼名**的
+ * 文本级 regex（`\w*<base>Parsed`，带 'i' 标志）要求同名 `z.infer` 类型导出 ——
+ * 这种消费是静态引用分析看不见的，于是配对类型被误判成 A 类死物
+ * （实测 2026-09-25：A 账 22 项全部此类，且**删不得**——types:check 会红）。
+ *
+ * 名单**从契约快照派生**（gen-api-contract 的产物、受版本控制、types:check 强制其
+ * 与 schemas.ts 同步），不手抄 —— S3 的「死物账=0」前置（门禁载体单列）由本分类闭合。
+ * 快照缺失/损坏时返回 null ⇒ 不分类（全部落回 A 类，宁可误报也不静默吞）。
+ */
+const CONTRACT_SNAPSHOT = 'frontend/src/types/generated/api-contract.json'
+
+export function gateCarrierPredicate(snapshot = null) {
+  if (!snapshot) return null
+  const bases = Object.keys(snapshot.schemas ?? {}).map((n) => n.replace(/Schema$/, ''))
+  return (name) => bases.some((b) => new RegExp(`^\\w*${b}Parsed$`, 'i').test(name))
+}
+
+export function gateCarrierPredicateFromRepo() {
+  try {
+    return gateCarrierPredicate(
+      JSON.parse(fs.readFileSync(path.join(ROOT, CONTRACT_SNAPSHOT), 'utf8'))
+    )
+  } catch {
+    return null
+  }
+}
+
 /** 递归收集源文件；isDef 为 true 时排除测试文件（测试文件不贡献"待清理的导出"） */
 export function listSources(roots = SCAN_ROOTS, { isDef = true, exts = /\.(ts|vue)$/ } = {}) {
   const out = []
@@ -118,18 +148,22 @@ export function scan({ roots = SCAN_ROOTS } = {}) {
   }
 
   const dead = []
+  const gateCarrier = []
   const redundantExport = []
+  const isGateCarrier = gateCarrierPredicateFromRepo()
   for (const e of exports) {
     const files = where.get(e.name) ?? new Set()
     const external = [...files].filter((f) => f !== e.file)
     if (external.length > 0) continue
     // 零外部引用还要再分两类，否则报告会误导清理：
     //   同文件内除定义行外还出现过 ⇒ 它在自己文件里用着，只是 export 多余 → 去掉 export 即可
-    //   同文件内也没再用           ⇒ 彻底没人用 → 可删
+    //   同文件内也没再用           ⇒ 彻底没人用（或 G 类门禁载体）→ 见下
     const hits = (readCache(e.file).match(new RegExp(`\\b${e.name}\\b`, 'g')) ?? []).length
-    ;(hits > 1 ? redundantExport : dead).push(e)
+    if (hits > 1) redundantExport.push(e)
+    else if (isGateCarrier && isGateCarrier(e.name)) gateCarrier.push(e)
+    else dead.push(e)
   }
-  return { exports, dead, redundantExport }
+  return { exports, dead, redundantExport, gateCarrier }
 }
 
 /** 按模块分组（模块 = 路径前两段） */
@@ -150,13 +184,18 @@ function main() {
   const topIdx = args.indexOf('--top')
   const top = topIdx >= 0 ? Number(args[topIdx + 1]) : 30
 
-  const { exports, dead, redundantExport } = scan()
+  const { exports, dead, redundantExport, gateCarrier } = scan()
   const groups = groupByModule(dead)
 
   console.log(`[dead-code] 扫描范围：${SCAN_ROOTS.join(' / ')}`)
   console.log(`[dead-code] 导出声明 ${exports.length} 个`)
   console.log(`[dead-code]   A 彻底没人用（可删）        ${dead.length}`)
-  console.log(`[dead-code]   B 只在本文件用（去掉 export）${redundantExport.length}\n`)
+  console.log(`[dead-code]   B 只在本文件用（去掉 export）${redundantExport.length}`)
+  console.log(
+    gateCarrier
+      ? `[dead-code]   G 门禁载体（契约配对 *Parsed，删不得）${gateCarrier.length}`
+      : `[dead-code]   G 门禁载体 —— 契约快照缺失，本轮不分类（全部计入 A）`
+  )
   console.log('按模块（前 3 段路径）分组：')
   for (const [mod, items] of groups.slice(0, top)) {
     console.log(`  ${String(items.length).padStart(4)}  ${mod}`)
@@ -183,6 +222,7 @@ function main() {
           totalRedundantExport: redundantExport.length,
           dead,
           redundantExport,
+          gateCarrier,
         },
         null,
         2

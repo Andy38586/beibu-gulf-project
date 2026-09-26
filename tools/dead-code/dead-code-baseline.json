@@ -1,145 +1,10 @@
 {
   "generatedFrom": "tools/dead-code/scan.mjs",
-  "totalDead": 22,
+  "totalDead": 0,
   "totalRedundantExport": 110,
-  "byModule": {
-    "frontend/src/types": 22
-  },
-  "dead": [
-    {
-      "name": "UserParsed",
-      "kind": "type",
-      "file": "frontend/src/types/schemas.ts",
-      "line": 18
-    },
-    {
-      "name": "FloodGeometryParsed",
-      "kind": "type",
-      "file": "frontend/src/types/schemas.ts",
-      "line": 33
-    },
-    {
-      "name": "FloodOnlineResponseParsed",
-      "kind": "type",
-      "file": "frontend/src/types/schemas.ts",
-      "line": 73
-    },
-    {
-      "name": "BoundaryCacheParsed",
-      "kind": "type",
-      "file": "frontend/src/types/schemas.ts",
-      "line": 84
-    },
-    {
-      "name": "AuthResponseParsed",
-      "kind": "type",
-      "file": "frontend/src/types/schemas.ts",
-      "line": 93
-    },
-    {
-      "name": "ForecastPointParsed",
-      "kind": "type",
-      "file": "frontend/src/types/schemas.ts",
-      "line": 104
-    },
-    {
-      "name": "ForecastMapDataParsed",
-      "kind": "type",
-      "file": "frontend/src/types/schemas.ts",
-      "line": 162
-    },
-    {
-      "name": "PlanParsed",
-      "kind": "type",
-      "file": "frontend/src/types/schemas.ts",
-      "line": 243
-    },
-    {
-      "name": "WaterAreaParsed",
-      "kind": "type",
-      "file": "frontend/src/types/schemas.ts",
-      "line": 248
-    },
-    {
-      "name": "TerrainProfileParsed",
-      "kind": "type",
-      "file": "frontend/src/types/schemas.ts",
-      "line": 263
-    },
-    {
-      "name": "SiteAnalysisResponseParsed",
-      "kind": "type",
-      "file": "frontend/src/types/schemas.ts",
-      "line": 286
-    },
-    {
-      "name": "FloodImpactResponseParsed",
-      "kind": "type",
-      "file": "frontend/src/types/schemas.ts",
-      "line": 322
-    },
-    {
-      "name": "PortParsed",
-      "kind": "type",
-      "file": "frontend/src/types/schemas.ts",
-      "line": 335
-    },
-    {
-      "name": "PortsArrayParsed",
-      "kind": "type",
-      "file": "frontend/src/types/schemas.ts",
-      "line": 339
-    },
-    {
-      "name": "FavoriteItemParsed",
-      "kind": "type",
-      "file": "frontend/src/types/schemas.ts",
-      "line": 355
-    },
-    {
-      "name": "FavoritesArrayParsed",
-      "kind": "type",
-      "file": "frontend/src/types/schemas.ts",
-      "line": 359
-    },
-    {
-      "name": "FavoriteAddResponseParsed",
-      "kind": "type",
-      "file": "frontend/src/types/schemas.ts",
-      "line": 366
-    },
-    {
-      "name": "FavoriteRemoveResponseParsed",
-      "kind": "type",
-      "file": "frontend/src/types/schemas.ts",
-      "line": 372
-    },
-    {
-      "name": "RoutePathResponseParsed",
-      "kind": "type",
-      "file": "frontend/src/types/schemas.ts",
-      "line": 392
-    },
-    {
-      "name": "PoiSearchResponseParsed",
-      "kind": "type",
-      "file": "frontend/src/types/schemas.ts",
-      "line": 412
-    },
-    {
-      "name": "TaskSubmitResponseParsed",
-      "kind": "type",
-      "file": "frontend/src/types/schemas.ts",
-      "line": 429
-    },
-    {
-      "name": "TaskViewResponseParsed",
-      "kind": "type",
-      "file": "frontend/src/types/schemas.ts",
-      "line": 451
-    }
-  ],
-  "updatedAt": "2026-09-25",
+  "byModule": {},
+  "dead": [],
+  "updatedAt": "2026-09-26",
   "history": [
     {
       "at": "2026-09-25",
@@ -175,6 +40,13 @@
       "totalRedundantExport": 110,
       "kind": "真清理",
       "note": "S2 窗口 A 笔 3：删 6 项零引用导出（4cfe58ce）"
+    },
+    {
+      "at": "2026-09-26",
+      "totalDead": 0,
+      "totalRedundantExport": 110,
+      "kind": "口径调整",
+      "note": "G 类（契约配对 Parsed 类型，gen-api-contract 动态拼名消费）单列——A 账 20→0 属尺子变准而非债减少，S3 前置闭合"
     }
   ]
 }

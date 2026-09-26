@@ -149,10 +149,12 @@ describe('deriveGroupTileset — 落位不变量（最重要）', () => {
 })
 
 describe('resolveUri — 相对路径绝对化', () => {
-  it('站点相对基准 → 拼出同源绝对路径', () => {
-    expect(resolveUri('/static/x/tiles/tileset.json', 'alpha.glb')).toBe(
-      '/static/x/tiles/alpha.glb'
-    )
+  // jsdom 环境有 location：站点根相对必须补全到 scheme 级绝对地址——
+  // data: 基准下 Cesium 把根相对 uri 拼成 data:///… 畸形地址（2026-09-26 实测零渲染缺陷）
+  it('站点相对基准 → 拼出 scheme 级绝对地址', () => {
+    const out = resolveUri('/static/x/tiles/tileset.json', 'alpha.glb')
+    expect(out.startsWith('http')).toBe(true)
+    expect(new URL(out).pathname).toBe('/static/x/tiles/alpha.glb')
   })
 
   it('带协议前缀的基准 → 保留协议与主机', () => {
@@ -169,8 +171,10 @@ describe('resolveUri — 相对路径绝对化', () => {
     }
   })
 
-  it('uri 以斜杠开头按站点根相对处理（不拼基准目录）', () => {
-    expect(resolveUri('/static/x/tiles/tileset.json', '/static/y.glb')).toBe('/static/y.glb')
+  it('uri 以斜杠开头按站点根处理（补 origin 成 scheme 级绝对，不拼基准目录）', () => {
+    const out = resolveUri('/static/x/tiles/tileset.json', '/static/y.glb')
+    expect(new URL(out).pathname).toBe('/static/y.glb')
+    expect(out.startsWith('http')).toBe(true)
   })
 })
 
@@ -186,7 +190,8 @@ describe('派生结果整体自洽', () => {
         ),
       ]
       for (const u of collect(d.root)) {
-        expect(u.startsWith('/static/x/tiles/')).toBe(true)
+        // scheme 级绝对地址（jsdom 下为 http://localhost/…）：路径段落在基准目录内
+        expect(new URL(u).pathname.startsWith('/static/x/tiles/')).toBe(true)
       }
     }
   })
@@ -208,7 +213,8 @@ describe('派生结果整体自洽', () => {
     }
     const d = deriveGroupTileset(src, GROUP_A, BASE)!
     const content = d.root.children![0].content as { uri?: string; url?: string }
-    expect(content.uri).toBe('/static/x/tiles/legacy.glb')
+    // scheme 级绝对地址（jsdom origin + 基准目录），旧 url 字段必须已被清掉
+    expect(new URL(content.uri!).pathname).toBe('/static/x/tiles/legacy.glb')
     expect(content.url).toBeUndefined()
   })
 

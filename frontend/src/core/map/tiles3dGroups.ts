@@ -84,26 +84,34 @@ export function nodeName(n: TilesetNode): string {
 }
 
 /**
- * 把相对 uri 解析为绝对 URL。
+ * 把相对 uri 解析为**scheme 级绝对 URL**。
  *
  * 三种输入，语义不同（RFC 3986）：
  * - `http://…` / `data:…` / `blob:…` 等带 scheme → 已是绝对地址，原样返回；
- * - `/static/x.glb` 以斜杠开头 → **站点根相对**，直接就是目标路径（不能再拼基准目录，
- *   否则会得到 `/static/pinglu/tiles/static/x.glb` 这种错地址）；
+ * - `/static/x.glb` 以斜杠开头 → **站点根相对**；
  * - `madao-low.glb` 普通相对路径 → 拼基准的目录部分。
  *
- * ⚠ 不能用 `new URL(uri, base)` 直接拼：base 是 "/static/.../tileset.json" 这类
- * **站点相对路径**时，`new URL` 需要绝对基准。此处用字符串处理，
- * 与 Cesium `Resource.getBaseUri(true)` 的语义一致，且不依赖 location。
+ * ⚠ 为什么站点根相对还不够（2026-09-26 实测缺陷，曾致运河 5 组瓦片静默零渲染）：
+ * 派生结果以 Data URI 交给 `Cesium3DTileset.fromUrl`，Cesium 在 `resource.isDataUri`
+ * 分支把 basePath 设为 `""`——站点根相对 uri 被拼成 `data:///static/…` 畸形地址，
+ * 内容 404、图层开着但什么都没有。故有浏览器环境（location 可用）时必须补全到
+ * `origin + path`；无 location（单测/node）退回站点根相对。
  */
 export function resolveUri(baseUrl: string, uri: string): string {
   // 已是绝对地址：原样返回
   if (/^[a-z][a-z0-9+.-]*:/i.test(uri)) return uri
-  // 站点根相对：以 / 开头，不拼基准目录
-  if (uri.startsWith('/')) return uri
   const idx = baseUrl.lastIndexOf('/')
   const dir = idx >= 0 ? baseUrl.slice(0, idx + 1) : ''
-  return dir + uri
+  const path = uri.startsWith('/') ? uri : dir + uri
+  const href = (globalThis as { location?: { href?: string } }).location?.href
+  if (href && path.startsWith('/')) {
+    try {
+      return new URL(path, href).toString()
+    } catch {
+      return path
+    }
+  }
+  return path
 }
 
 /** 递归把子树里的 content.uri 换成绝对 URL */

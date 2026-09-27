@@ -333,11 +333,12 @@ node cdp_multi.mjs "http://127.0.0.1:8899/viewer.html?v=1" p_steps.json .
 | --- | --- | --- | --- |
 | ~~1~~ | ✅ **枢纽被埋**（已修，D-H） | 新增 §4b 枢纽平台开挖：足迹切到闸顶高程 + 1:2.5 边坡。马道平台 73.50 m、足迹 1698×576 m、切口 5755 万 m³ | 马道 4494 个顶点落在 73.5 m 平台高程附近（`probe/plat_check.py`）；Blender 成品图可见平台盆地与闸室群 |
 | **1** | 🔴 **viewer 近景空洞**（D-I，未修） | 数据层已全排除，是 Cesium 遍历层面：63 块瓦片**平铺**挂在无内容的根下 + `refine:"ADD"`。改成**带层级的 tileset**（root → L0 → L1 → L2） | 12 km 机位下马道那片地形能画出来 |
-| **2** | **中隔墙/闸墙取真值** | 见 §一.4 末段：建议改 `hub_bim921.ASM.mid_w/side_w` 为**闸首中墩 40 m / 闸室段中墙 ≈32.6 m**（来源 S10/S13），并标注近似 | 模型宽度与来源一致 |
+| **2** | **中隔墙/闸墙取真值** | 见 §一.4 末段：建议改 `hub_bim921.ASM.mid_w/side_w` 为**闸首中墩 40 m / 闸室段中墙 ≈32.6 m**（来源 S10/S13），并标注近似。白模 v2 现用 `mid_dike=12 / wall_t=3.5`（仍是假设值） | 模型宽度与来源一致 |
 | **3** | **企石 / 青年换新几何** | `hub_bim921.build()` 只实现了 madao。**青年是分散式 + 互灌互泄（无三级省水池）**，泄水闸 7 孔净宽 13 m、上闸首 66.5 / 下闸首 67 / 闸室段 281 m；企石泄水闸 5 孔 8×9.5 m、上/下闸首 63/55 m | 管线日志三枢纽都显示 `hub_bim921(审定参数)` |
 | **4** | **DEM 换源后整链重跑** | 3D Tiles 的地形源是 `gl30_dem_4326.tif`，正是 `陆海DEM高程数据需求-2026-09-27.md` §三 判过「沿海 +12~30 m 偏高、海域 0~13 m 假值」的那份 GLO-30 | 需求书 §五 第 4 条 |
 | **5** | **`tiles-v2` 归宿** | 要么把管线产物合进 `tiles/`（替换 31 节点方案），要么两套并存并在前端加切换。**合回前先备份 `tiles/`** | `pingluTiles.ts` 不再需要"临时"注释 |
-| **6** | **提交** | `tmp-pinglu/`、`.local/`、`backend/static/pinglu/` 都被 ignore，能入库的只有 `frontend/.../pingluTiles.ts`（1 行）与本文。commit 用 Conventional Commits，**禁 squash** | git 干净 |
+| 6 | **提交** | `tmp-pinglu/`、`.local/`、`backend/static/pinglu/` 都被 ignore，能入库的只有 `frontend/.../pingluTiles.ts`（1 行）与本文。commit 用 Conventional Commits，**禁 squash** | git 干净 |
+| **7** | **白模残余瑕疵**（示意级，不影响尺度/落位判定） | ① 闸顶道路横穿省水池体块（路在 z=60、池在 43.5~83.5，两体块相交）；② `z1` 边坡是沿模型轴线的**直楔**，与弯曲航道不贴合（无人机位可见两条直带）；③ 省水池为实心体块，无水面/立柱（1302 根立柱仅体积示意） | 是否做到"视觉可接受"由你终审 |
 | ⏸ | 顶点 AO（C5） | 一直 ROI 判断跳过 | — |
 
 ---
@@ -378,4 +379,44 @@ node cdp_multi.mjs "http://127.0.0.1:8899/viewer.html?v=1" p_steps.json .
 **审计（回答「这种问题还存在多少」）**：全仓**只有 Cesium 一处**存在「运行时注入脚本 + ESM import 同一依赖」的双载结构（`grep` 全 `frontend/src` 只有 `renderers/index.ts:75` 一处 `createElement('script')`）；`index.html` 除内联主题脚本外无库标签；项目自身也没有别的 `external`/全局映射。但**「dev 与 build 行为不一致」这个类别**值得立一条门禁式自检。
 
 **仍未决**：app 本体的「平陆运河」图层当前注册 **0** 个瓦片集（`scene.primitives` 里没有 Cesium3DTileset），且 `console.warn/error` 全空 ⇒ `RouteAnalysisPage.vue:276` 的 `watch(..., { immediate: true })` 与 `registerPingluGroups()` 的静默早退/静默 catch 需要加日志才能定位。**与数据无关、与上面的 Cesium 修复无关**（Cesium 层已由探针页证明修好）。
+（2026-09-27 夜复核：`after-app-far.png` / `after-app-close.png` 显示模型**已在 app 里渲染**；
+`stats: []` 只是探针用 `constructor.name === 'Cesium3DTileset'` 判定，而 dev 已切 `devMinifyCesium` ⇒ 类名被打包器改写。判定应改看 `p.statistics`/`p.root` 而非类名。）
+
+### D-K 白模 v2 质检与修订（2026-09-27 夜）
+
+**对象**：`tiles/` 里 9/27 15:49 入库的三枢纽白模（commit `e73efbb7`）。
+产线 = Blender 参数化白模（`.local/926-rebake/blender/build_whitemodel_v2.py`）→
+`pack_whitemodel_tileset.py`（刚体 + 单标高：`tz = dn_wl − bulge(枢纽中心)`）。
+
+**方法**：解码瓦片真实顶点 + 反算绝对椭球高/经纬（`.local/926-rebake/probe/v2_quality.py`），
+逐构件对照 §一 公开参数表；共发现 7 处缺陷，其中 5 处直接违反公开值。修后重出 17 个分区瓦片。
+
+| # | 缺陷 | 修前实测 | 公开值/依据 | 修法 |
+| --- | --- | --- | --- | --- |
+| **W1** | 闸顶把门槛水深扣两次：`y_top = y_bot + (crest − dn_wl)`，而 y=0 已是下游水位 | 闸顶 65.5 m（中心）~66.4（远端） | 坝顶 **73.5 m**（S1/S3） | `y_top = crest − dn_wl` |
+| **W2** | 闸墙砌在 34 m 净宽**之内**（墙内缘在 36.5 m） | 双线净宽各 **30.5 m** | 有效宽 **34 m**（S1–S5） | 墙贴净宽之外；横断面总量仍守 452 m |
+| **W3** | 泄水闸只画 n 个墩等距 ⇒ 实际只剩 n−1 孔 | 3 墩 / 2 孔 9 m | **3 孔 ×8 m 胸墙式**（S3） | n+1 墩、孔径 8 m |
+| **W4** | 人字门高 = 闸顶−4（随 W1 一起矮） | 36.8 m | **39.08 m**（S8/S17） | 取公开门高 |
+| **W5** | `*-z4-pool.glb`（马道/企石）是 **11:24 的旧件**，轴向/标高双错位 | 省水池 **浮空 +33~+40 m** 且横移进闸室上方；枢纽包围盒被抬到 +71 m | — | 全量重建（17 分区同源） |
+| **W6** | 刚体 + 单标高：渲染高 = 设计水位 + Δbulge ⇒ 远端上浮（与走廊瓦片逐顶点降落不同口径） | 上游引航道远端水面 **68.3 m**（应 62.3） | 设计水位 62.30 | 新增 `bake_hub_drop.py` 逐顶点椭球降落；修后处处 62.30 |
+| **W7** | 门槽只画右墙一侧；闸室水面网格名 `%s_` 前缀未格式化 | — | — | 四门槽面（两墙内缘 + 中隔堤两缘）；名称改回枢纽代号 |
+
+**修后复算（产物级）**：闸顶 **73.50 = 公开**；净宽 **34.00/34.00**；泄水闸 **3 孔 ×8 m**；
+门高 **39.08 m**；上游水面 **62.30**、闸室/下游 **32.70**；`verify_delivery.py` **5/5 通过**
+（锚点 0.17/0.05/0.27 m、BVs 包住内容、corridor/bridges 逐字节不变）；`npm run guard:v3` **20/20**；
+项目 Cesium（5173）实拍 `.local/926-rebake/shots/after-app-far.png` / `after-app-close.png`。
+
+复跑钩子：
+
+```bash
+cd C:/workspace/beibu-gulf-project
+PY=backend/algorithm-service/.venv/Scripts/python.exe
+$PY .local/926-rebake/probe/v2_quality.py    # 期望：闸顶 73.50 / 净宽 34.00 / 3 孔 8 m / 门高 39.08
+$PY .local/926-rebake/verify_delivery.py     # 期望：结论「交付验收全部通过 ✓」（exit 0）
+npm run guard:v3                             # 期望：tiles3d-check 31 内容节点，20/20 通过
+```
+
+**作废条件**：若「坝轴线 452 m / 坝顶 73.5 m / 净宽 34 m / 门高 39.08 m」任一公开口径被新证据推翻，
+W1–W4 的对照关系作废、须重取口径重出；W5/W6 与口径无关，只看产物断言。
+**未修项**：中隔墙 12 m / 闸墙 3.5 m 仍为假设值（§六 待办 2）；直楔边坡、闸顶道路穿池、实心省水池为示意级（§六 待办 7）。
 

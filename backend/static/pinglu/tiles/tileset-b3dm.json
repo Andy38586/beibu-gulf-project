@@ -1,7 +1,7 @@
 {
  "asset": {
   "version": "1.0",
-  "generator": "PingluCanal Tiles Builder + WGS84 baked curvature (per-vertex ellipsoid drop, BV z-up, hub level, root BV) + whitemodel 2026-09-27 (Blender 参数化白模, 设计水位落位) (per-vertex ellipsoid drop, BV z-up, hub level, root BV) + whitemodel 2026-09-27 (Blender 参数化白模, 设计水位落位) (per-vertex ellipsoid drop, BV z-up, hub level, root BV) + whitemodel 2026-09-27 (Blender 参数化白模, 设计水位落位) (per-vertex ellipsoid drop, BV z-up, hub level, root BV) + whitemodel 2026-09-27 (Blender 参数化白模, 设计水位落位) (per-vertex ellipsoid drop, BV z-up, hub level, root BV) + whitemodel 2026-09-27 (Blender 参数化白模, 设计水位落位) (per-vertex ellipsoid drop, BV z-up, hub level, root BV) + whitemodel 2026-09-27 (Blender 参数化白模, 设计水位落位) (per-vertex ellipsoid drop, BV z-up, hub level, root BV) + whitemodel 2026-09-27 (Blender 参数化白模, 设计水位落位) (per-vertex ellipsoid drop, BV z-up, hub level, root BV) + whitemodel 2026-09-27 (Blender 参数化白模, 设计水位落位) (per-vertex ellipsoid drop, BV z-up, hub level, root BV) + whitemodel 2026-09-27 (Blender 参数化白模, 设计水位落位) (per-vertex ellipsoid drop, BV z-up, hub level, root BV) + whitemodel 2026-09-27 (Blender 参数化白模, 设计水位落位) (per-vertex ellipsoid drop, BV z-up, hub level, root BV) + whitemodel 2026-09-27 (Blender 参数化白模, 设计水位落位) (per-vertex ellipsoid drop, BV z-up, hub level, root BV) + whitemodel 2026-09-27 (Blender 参数化白模, 设计水位落位) (per-vertex ellipsoid drop, BV z-up, hub level, root BV) + whitemodel 2026-09-27 (Blender 参数化白模, 设计水位落位) (per-vertex ellipsoid drop, BV z-up, hub level, root BV) + whitemodel 2026-09-27 (Blender 参数化白模, 设计水位落位) (per-vertex ellipsoid drop, BV z-up, hub level, root BV) + whitemodel 2026-09-27 (Blender 参数化白模, 设计水位落位) (per-vertex ellipsoid drop, BV z-up, hub level, root BV) + whitemodel 2026-09-27 (Blender 参数化白模, 设计水位落位) (per-vertex ellipsoid drop, BV z-up, hub level, root BV) + whitemodel 2026-09-27 (Blender 参数化白模, 设计水位落位) (per-vertex ellipsoid drop, BV z-up, hub level, root BV) + whitemodel 2026-09-27 (Blender 参数化白模, 设计水位落位) (per-vertex ellipsoid drop, BV z-up, hub level, root BV) + whitemodel 2026-09-27 (Blender 参数化白模, 设计水位落位) (per-vertex ellipsoid drop, BV z-up, hub level, root BV) + whitemodel 2026-09-27 (Blender 参数化白模, 设计水位落位) (per-vertex ellipsoid drop, BV z-up, hub level, root BV) + whitemodel 2026-09-27 (Blender 参数化白模, 设计水位落位) (per-vertex ellipsoid drop, BV z-up, hub level, root BV) + whitemodel 2026-09-27 (Blender 参数化白模, 设计水位落位) (per-vertex ellipsoid drop, BV z-up, hub level, root BV) + whitemodel 2026-09-27 (Blender 参数化白模, 设计水位落位) (per-vertex ellipsoid drop, BV z-up, hub level, root BV) + whitemodel 2026-09-27 (Blender 参数化白模, 设计水位落位) (per-vertex ellipsoid drop, BV z-up, hub level, root BV) + whitemodel 2026-09-27 (Blender 参数化白模, 设计水位落位) (per-vertex ellipsoid drop, BV z-up, hub level, root BV) + whitemodel 2026-09-27 (Blender 参数化白模, 设计水位落位)"
+  "generator": "PingluCanal Tiles Builder + WGS84 baked curvature (per-vertex ellipsoid drop, BV z-up, hub level, root BV) (per-vertex ellipsoid drop, BV z-up, hub level, root BV) (per-vertex ellipsoid drop, BV z-up, hub level, root BV) + whitemodel 2026-09-27 (Blender 参数化白模, 设计水位落位) + per-vertex drop bake 2026-09-27 (bake_hub_drop.py, 刚体贴回椭球面)"
  },
  "geometricError": 4000.0,
  "root": {
@@ -9,7 +9,7 @@
    "box": [
     -1020.80078125,
     5448.865234375,
-    -41.03918519578874,
+    -53.789200990926474,
     24815.392578125,
     0,
     0,
@@ -18,7 +18,7 @@
     0,
     0,
     0,
-    131.8608929062262
+    119.11087711108848
    ]
   },
   "geometricError": 1200.0,
@@ -71,17 +71,17 @@
     "boundingVolume": {
      "box": [
       -248.60943603515625,
-      -254.85250854492188,
-      45.5,
+      -243.67750549316406,
+      24.142419670242816,
       1049.6094360351562,
       0,
       0,
       0,
-      357.8525085449219,
+      365.5275115966797,
       0,
       0,
       0,
-      61.5
+      41.087548145558685
      ]
     },
     "geometricError": 30.0,
@@ -94,17 +94,17 @@
       "boundingVolume": {
        "box": [
         -253.875,
-        -147.0,
-        12.399999618530273,
+        -143.5,
+        15.214262748602778,
         904.625,
         0,
         0,
         0,
-        249.35000610351562,
+        265.3500061035156,
         0,
         0,
         0,
-        20.399999618530273
+        28.696568958926946
        ]
       },
       "geometricError": 0.0,
@@ -124,8 +124,8 @@
       "boundingVolume": {
        "box": [
         -949.1356506347656,
-        -431.47900390625,
-        10.800000190734863,
+        -427.97900390625,
+        6.448424137663096,
         349.0832214355469,
         0,
         0,
@@ -134,7 +134,7 @@
         0,
         0,
         0,
-        18.800000190734863
+        20.43061691755429
        ]
       },
       "geometricError": 0.0,
@@ -153,18 +153,18 @@
      {
       "boundingVolume": {
        "box": [
-        -247.52545166015625,
-        -253.815673828125,
-        20.200000762939453,
-        1048.5254516601562,
+        259.68182373046875,
+        -103.25,
+        24.142419670242816,
+        489.68182373046875,
         0,
         0,
         0,
-        356.815673828125,
+        206.25,
         0,
         0,
         0,
-        36.20000076293945
+        41.087548145558685
        ]
       },
       "geometricError": 0.0,
@@ -184,17 +184,17 @@
       "boundingVolume": {
        "box": [
         0.0,
-        13.0,
-        87.0,
+        -63.5,
+        13.019782250281423,
         141.0,
         0,
         0,
         0,
-        21.0,
+        20.0,
         0,
         0,
         0,
-        20.0
+        21.659760169219226
        ]
       },
       "geometricError": 0.0,
@@ -214,8 +214,8 @@
       "boundingVolume": {
        "box": [
         500.5,
-        -147.0,
-        10.800000190734863,
+        -143.5,
+        13.140360473655164,
         300.5,
         0,
         0,
@@ -224,7 +224,7 @@
         0,
         0,
         0,
-        18.800000190734863
+        20.1833541309461
        ]
       },
       "geometricError": 0.0,
@@ -271,17 +271,17 @@
     "boundingVolume": {
      "box": [
       170.43511962890625,
-      -218.027587890625,
-      45.5,
+      -206.527587890625,
+      22.899273436050862,
       818.1778564453125,
       0,
       0,
       0,
-      339.57757568359375,
+      347.57757568359375,
       0,
       0,
       0,
-      61.5
+      39.41811701329425
      ]
     },
     "geometricError": 30.0,
@@ -294,17 +294,17 @@
       "boundingVolume": {
        "box": [
         118.5,
-        -147.0,
-        11.149999618530273,
+        -143.5,
+        15.692982659675181,
         683.75,
         0,
         0,
         0,
-        268.54998779296875,
+        284.54998779296875,
         0,
         0,
         0,
-        19.149999618530273
+        25.046995130367577
        ]
       },
       "geometricError": 0.0,
@@ -324,8 +324,8 @@
       "boundingVolume": {
        "box": [
         -504.79998779296875,
-        -0.3500022888183594,
-        9.149999618530273,
+        3.1499977111816406,
+        8.010901723988354,
         142.9427490234375,
         0,
         0,
@@ -334,7 +334,7 @@
         0,
         0,
         0,
-        17.149999618530273
+        17.558746584691107
        ]
       },
       "geometricError": 0.0,
@@ -353,18 +353,18 @@
      {
       "boundingVolume": {
        "box": [
-        170.23611450195312,
-        -238.78778076171875,
-        18.950000762939453,
-        817.1560363769531,
+        360.1329650878906,
+        -239.7589111328125,
+        22.899273436050862,
+        590.1329650878906,
         0,
         0,
         0,
-        316.0770263671875,
+        283.2589111328125,
         0,
         0,
         0,
-        34.95000076293945
+        39.41811701329425
        ]
       },
       "geometricError": 0.0,
@@ -384,17 +384,17 @@
       "boundingVolume": {
        "box": [
         0.0,
-        13.0,
-        87.0,
+        -63.5,
+        13.105832201894373,
         141.0,
         0,
         0,
         0,
-        21.0,
+        20.0,
         0,
         0,
         0,
-        20.0
+        21.343160638120025
        ]
       },
       "geometricError": 0.0,
@@ -414,8 +414,8 @@
       "boundingVolume": {
        "box": [
         719.4995422363281,
-        -401.33033752441406,
-        9.149999618530273,
+        -397.83033752441406,
+        11.363437747582793,
         269.1134338378906,
         0,
         0,
@@ -424,7 +424,7 @@
         0,
         0,
         0,
-        17.149999618530273
+        17.89327177591622
        ]
       },
       "geometricError": 0.0,
@@ -471,17 +471,17 @@
     "boundingVolume": {
      "box": [
       189.5,
-      -144.1199951171875,
-      10.959999084472656,
+      -150.3699951171875,
+      14.878305134363472,
       627.5,
       0,
       0,
       0,
-      247.1199951171875,
+      253.3699951171875,
       0,
       0,
       0,
-      26.959999084472656
+      31.72838485520333
      ]
     },
     "geometricError": 30.0,
@@ -494,17 +494,17 @@
       "boundingVolume": {
        "box": [
         142.125,
-        -185.99999237060547,
-        3.1599998474121094,
+        -182.49999237060547,
+        6.262198502663523,
         520.625,
         0,
         0,
         0,
-        205.23999786376953,
+        221.23999786376953,
         0,
         0,
         0,
-        11.15999984741211
+        17.552447317633778
        ]
       },
       "geometricError": 0.0,
@@ -524,17 +524,17 @@
       "boundingVolume": {
        "box": [
         -319.0,
-        -64.0,
-        1.1599998474121094,
+        -62.25,
+        1.941100719384849,
         119.0,
         0,
         0,
         0,
-        167.0,
+        165.25,
         0,
         0,
         0,
-        9.15999984741211
+        9.701459643431008
        ]
       },
       "geometricError": 0.0,
@@ -553,18 +553,18 @@
      {
       "boundingVolume": {
        "box": [
-        189.5,
-        -133.5,
-        10.959999084472656,
-        627.5,
+        266.9545593261719,
+        -135.25,
+        14.878305134363472,
+        496.9545593261719,
         0,
         0,
         0,
-        236.5,
+        238.25,
         0,
         0,
         0,
-        26.959999084472656
+        31.72838485520333
        ]
       },
       "geometricError": 0.0,
@@ -584,8 +584,8 @@
       "boundingVolume": {
        "box": [
         508.5,
-        -186.0,
-        1.1599998474121094,
+        -182.5,
+        -1.1827372778207064,
         308.5,
         0,
         0,
@@ -594,7 +594,7 @@
         0,
         0,
         0,
-        9.15999984741211
+        10.443234744481742
        ]
       },
       "geometricError": 0.0,

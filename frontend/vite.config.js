@@ -69,6 +69,14 @@ export default defineConfig(({ mode, command }) => {
         cesiumBuildPath: fileURLToPath(
           new URL('../node_modules/cesium/Build/Cesium/', import.meta.url)
         ),
+        // 🔴 必须为 true：插件默认 false，dev 会把 `/cesium/` 指向 **Build/CesiumUnminified/**
+        //   （实测 15,662,452 字节），而 build 拷贝/外链的是 **Build/Cesium/**
+        //   （5,974,765 字节）。两者不是同一份产物 ⇒ **dev 与线上跑的 Cesium 实现不一样**。
+        //   实测后果：dev 下 3D Tiles 瓦片**全部选不中**（_selectedTiles=0、
+        //   numberOfAttemptedRequests=0，零报错，画面里只剩影像）——同一个页面/同一份
+        //   tileset 放到纯静态服务（Build/Cesium/）下立刻正常（ready=25/sel=25）。
+        //   设为 true 后 dev 与 build 用同一份产物，与 alias 一起把 dev/prod 拉平。
+        devMinifyCesium: true,
       }),
       removeCesiumHtmlTags(),
       // 打包分析：仅在 --mode analyze 时生成 dist/stats.html 并自动打开浏览器
@@ -86,9 +94,25 @@ export default defineConfig(({ mode, command }) => {
         : []),
     ],
     resolve: {
-      alias: {
-        '@': fileURLToPath(new URL('./src', import.meta.url)),
-      },
+      // 🔴 dev 下必须把 `cesium` 指到运行时全局 shim，否则会出现**两个 Cesium 实例**：
+      //   vite-plugin-cesium 只在 build 时把 cesium 标 external + 映射到全局 Cesium，
+      //   dev 下什么都不做 ⇒ 源码 import 走 npm ESM 包，而 ensureCesiumLoaded() 注入的是 UMD 全局，
+      //   两个实例并存 → Cesium 内部 instanceof 判可见性失效 → 3D Tiles 图层静默不渲染
+      //   （2026-09-27 实测：window.Cesium.Cesium3DTileset !== renderer 用的那个，零报错）。
+      //   加了这个 alias 后 dev 与 build 走同一条路径（都指向 window.Cesium），只可能有一个实例。
+      //   mode==='test' 时跳过：vitest 直接跑源码、没有 window.Cesium，要让它走 npm 包。
+      alias: [
+        { find: '@', replacement: fileURLToPath(new URL('./src', import.meta.url)) },
+        ...(command === 'serve' && mode !== 'test'
+          ? [
+              {
+                // 只精确匹配裸 `cesium`，不能前缀匹配——否则会连带改写 `cesium/...` 深路径导入
+                find: /^cesium$/,
+                replacement: fileURLToPath(new URL('./src/core/map/cesium-global.ts', import.meta.url)),
+              },
+            ]
+          : []),
+      ],
     },
     build: {
       // 构建目标：现代浏览器，支持动态导入

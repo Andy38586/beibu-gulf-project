@@ -253,7 +253,7 @@ node cdp_multi.mjs "http://127.0.0.1:8899/viewer.html?v=1" p_steps.json .
 | **D-G** | `s3_build.py` 海域判定用**二值膨胀 flood 取最大连通域**，迭代次数≈连通域测地直径，每轮对整幅 4619×3198 做 4 次 `np.roll` | 地形修好（D-F）后连通域变狭长，实测**卡 13 分钟连第一行日志都出不来**（日志 0 字节、瓦片目录不动） | 换成与 `06-sea-mask.py` 同口径的逐列判定，去掉 `_morph` 与连通域循环 | `s3_build.py` §2 海陆掩膜 |
 | **D-H** | **枢纽被埋**：马道足迹内自然地形 min 65 / p10 71 / **中位 92** / p90 140 / max 237 m，而枢纽闸顶只有 **73.5 m** ⇒ 整个枢纽埋在 0~25 m 岩体里（实测 `hub_马道枢纽` 瓦片大地高 19.3~82.9，全在地形之下） | `.local/926-rebake/probe/hub_terrain.py` 三枢纽足迹统计；地块修好后 viewer 里枢纽完全看不见 | 新增 §4b **枢纽平台开挖**：足迹内切到**闸顶高程**（`hub_bim.LEVELS[key]["crest"]`，马道 73.50 = 官方坝顶高程），足迹外 1:2.5 边坡（审定坡比）接自然地形。切口方量 **马道 5755 / 企石 117 / 青年 704 万 m³**（真实工程马道土石方 3980 万 m³，同量级）。`PLAT_MODE` 一行可切 `crest`/`gate`/`off` | `s3_build.py` §4b（**必须在 §5 之前**：SHADE 与地形顶点色都派生自 `terrain_built`） |
 | **D-I** ⚠️**未修** | **viewer 近景空洞**：12 km 机位下马道那片地形不被绘制（洋红哨兵证实是背景透出）；`tileFailed` 为 0，25 s 内 Cesium **只请求 11 块瓦片** —— 即它认为那片"不可见" | 已排除数据层：`coverage.py` 网格无洞（唯一空洞是 DEM 北边界外）、`region_vs_geo.py` 63 块 region 全包住几何、`all_heights/scan_colors` 高度与顶点色正常、`pend=0` 加载已排空、`maximumScreenSpaceError` 拉到 0.5 无变化、`debugShowBoundingVolume` 显示空洞区上**没有任何包围盒** | **待办**：把平铺的 63 块瓦片改成**带层级的 tileset**（root → L0 → L1 → L2），而不是全部平挂在无内容的根下 + `refine:"ADD"`。本轮成品图改走 Blender 渲染绕过它（`render_madao.py`） | — |
-| **D-J** ⚠️**未修** | **app（GCS）里瓦片集不加载**：`/route-analysis` 页面 4 个「平陆运河」图层正常注册（派生瓦片集各自 root+1 child，`extras` 分组正常），但 `ready=0 / cmds=0 / geom=0 / pend=0` 一直不动；**我在页面里手动 `Cesium3DTileset.fromUrl('/static/pinglu/tiles-v2/tileset.json')` 直接加载原始 tileset，同样 0** ⇒ 与派生无关 | 已排除：URL 正常（5173 也代理 `/static`，curl 200；`c0uri` 拼成 `http://127.0.0.1:5173/static/...` 也是 200）；`scene.mode=3`（真 3D）；树解析正常（`numberOfTilesTotal=2`、root geometricError 5000、kids=1）；`tileFailed` 为空、`numberOfFailedRequests=0`；关掉 `requestRenderMode` 后连续出帧 **205 帧**仍为 0；把根 `refine` 由 `ADD` 改 `REPLACE` 无效。**同一份 tileset 在管线 viewer 里渲染正常** | 🔴 **根因已定位：页面里有两个 Cesium 实例**。`window.Cesium.Cesium3DTileset !== <app 实例>.Cesium3DTileset`、`window.Cesium.Viewer !== viewer.constructor`（两者都是 1.144.0；npm 装的也是 1.144.0，与管线 viewer 同版）。Cesium 内部大量用 `instanceof` 判可见性，**跨实例的对象会被静默判为不可见** ⇒ `_selectedTiles=0 / numberOfAttemptedRequests=0`（`tileset.update()` 每帧都调，实测 70/70 帧）。温床是 vite 侧的自写插件 `frontend/vite.config.js:24 remove-cesium-html-tags`——它**移除 vite-plugin-cesium 注入的 `<script src="/cesium/Cesium.js">`**，等于在跟插件的注入/改写行为搏斗（插件同时把 cesium ESM import 改写成 `window.Cesium` 引用）。**修法方向**：统一到单一实例（全 ESM 或全 UMD），别再半途改写。
+| **D-J** 🔧**Cesium 层已修/注册层未决** | **app（GCS）里瓦片集不加载**：`/route-analysis` 页面 4 个「平陆运河」图层正常注册（派生瓦片集各自 root+1 child，`extras` 分组正常），但 `ready=0 / cmds=0 / geom=0 / pend=0` 一直不动；**我在页面里手动 `Cesium3DTileset.fromUrl('/static/pinglu/tiles-v2/tileset.json')` 直接加载原始 tileset，同样 0** ⇒ 与派生无关 | 已排除：URL 正常（5173 也代理 `/static`，curl 200；`c0uri` 拼成 `http://127.0.0.1:5173/static/...` 也是 200）；`scene.mode=3`（真 3D）；树解析正常（`numberOfTilesTotal=2`、root geometricError 5000、kids=1）；`tileFailed` 为空、`numberOfFailedRequests=0`；关掉 `requestRenderMode` 后连续出帧 **205 帧**仍为 0；把根 `refine` 由 `ADD` 改 `REPLACE` 无效。**同一份 tileset 在管线 viewer 里渲染正常** | 🔴 **根因已定位：页面里有两个 Cesium 实例**。`window.Cesium.Cesium3DTileset !== <app 实例>.Cesium3DTileset`、`window.Cesium.Viewer !== viewer.constructor`（两者都是 1.144.0；npm 装的也是 1.144.0，与管线 viewer 同版）。Cesium 内部大量用 `instanceof` 判可见性，**跨实例的对象会被静默判为不可见** ⇒ `_selectedTiles=0 / numberOfAttemptedRequests=0`（`tileset.update()` 每帧都调，实测 70/70 帧）。温床是 vite 侧的自写插件 `frontend/vite.config.js:24 remove-cesium-html-tags`——它**移除 vite-plugin-cesium 注入的 `<script src="/cesium/Cesium.js">`**，等于在跟插件的注入/改写行为搏斗（插件同时把 cesium ESM import 改写成 `window.Cesium` 引用）。**修法方向**：统一到单一实例（全 ESM 或全 UMD），别再半途改写。
 
 **完整排除清单**（都是在 app 页面里实测的）：不是派生（直接 `fromUrl(原始 json)` 同样 0）；不是 URL（5173 也代理 `/static`，curl 200）；不是场景模式（`scene.mode=3`）；不是树解析（`numberOfTilesTotal=2`、root geometricError 5000、kids=1）；不是近裁剪面（`near=0.1 / far=1e10`）；不是 SSE（16 与 0.5 都试过）；不是 `refine`（ADD→REPLACE 无效）；不是加载失败（`tileFailed` 空、`numberOfFailedRequests=0`）；不是按需渲染（关掉后连续 205 帧仍为 0）；不是 app 场景配置（**用同一 Cesium 新建裸 Viewer，376 帧同样 `sel=0`**）；不是结构（**手工造「root 自带 content」的最简瓦片集，同样 0**）；不是异常（`window.onerror`／`unhandledrejection`／`scene.renderError` 全空）；不是版本（两边都是 1.144.0）。 | — |
 
@@ -330,3 +330,29 @@ node cdp_multi.mjs "http://127.0.0.1:8899/viewer.html?v=1" p_steps.json .
 | `.local/926-rebake/进度文档-2026-09-27.md` | 上一轮动作时间线 + 可复跑验证 |
 | `.local/926-rebake/replica/参数审定报告-马道枢纽.md` | 马道参数的逐条审定期与出处 |
 | `.workbuddy/memory/MEMORY.md`、`LEGACY-RULES.md` | 项目级铁律 |
+
+### D-J 根因与修复（2026-09-27 晚，已实测验证）
+
+**真因是「dev 与 build 在 Cesium 上两处行为不一致」**（`vite-plugin-cesium@1.2.23` 的 dev 分支与 build 分支做了不同的事，而项目注释把 build 的行为当成了通用行为）：
+
+| # | 分歧 | dev 实际 | build 实际 | 后果 |
+| --- | --- | --- | --- | --- |
+| ① | `cesium` 这个 import 归谁 | **没有** external/映射（插件的 `external` + `rollup-plugin-external-globals` **只在 build 生效**）⇒ 走 npm ESM 包 | 映射到全局 `Cesium` | dev 下「运行时注入的 UMD 全局」与「npm ESM 包」**两个实例并存** ⇒ Cesium 内部 `instanceof` 判可见性失效 ⇒ 静默不渲染 |
+| ② | `/cesium/` 服务哪份产物 | 插件 `dist/index.js:102`：`devMinifyCesium ? "Cesium" : "CesiumUnminified"`，**默认 false** ⇒ 服务 `Build/CesiumUnminified/Cesium.js`（实测 **15,662,452** 字节） | 拷贝/外链 `Build/Cesium/`（**5,974,765** 字节） | **dev 跑的 Cesium 实现与线上不是同一份** ⇒ 瓦片全部选不中 |
+
+**修复**（`frontend/vite.config.js` + 新增 `frontend/src/core/map/cesium-global.ts`）：
+1. dev 下把 `cesium` 别名到 `cesium-global.ts`（只读 `window.Cesium`）⇒ 与 build 同路径，只剩一个实例；
+2. `cesium({ devMinifyCesium: true })` ⇒ dev 与 build 用同一份 `Build/Cesium/` 产物。
+
+**验证**（`frontend/public/probe-3dtiles.html`，同源 5173、无 Vue、单一实例、单块瓦片）：
+
+| 场景 | ready / cmds / sel |
+| --- | --- |
+| 5173 · 修前（Unminified + 双实例） | 0 / 0 / 0 ❌ |
+| 8899 · 同一份探针（纯静态 + Build/Cesium/） | 25 / 25 / 25 ✅ |
+| 5173 · 修后 | 25 / 25 / 25 ✅ |
+
+**审计（回答「这种问题还存在多少」）**：全仓**只有 Cesium 一处**存在「运行时注入脚本 + ESM import 同一依赖」的双载结构（`grep` 全 `frontend/src` 只有 `renderers/index.ts:75` 一处 `createElement('script')`）；`index.html` 除内联主题脚本外无库标签；项目自身也没有别的 `external`/全局映射。但**「dev 与 build 行为不一致」这个类别**值得立一条门禁式自检。
+
+**仍未决**：app 本体的「平陆运河」图层当前注册 **0** 个瓦片集（`scene.primitives` 里没有 Cesium3DTileset），且 `console.warn/error` 全空 ⇒ `RouteAnalysisPage.vue:276` 的 `watch(..., { immediate: true })` 与 `registerPingluGroups()` 的静默早退/静默 catch 需要加日志才能定位。**与数据无关、与上面的 Cesium 修复无关**（Cesium 层已由探针页证明修好）。
+

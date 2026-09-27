@@ -52,9 +52,14 @@ export function preloadCesium(): void {
 }
 
 /**
- * 确保 window.Cesium 就绪（幂等）：vite-plugin-cesium 将 `import { Viewer }` 转为
- * window.Cesium.Viewer 引用，但 Cesium.js 不再随 HTML 同步加载，须在 CesiumRenderer
- * chunk 被求值前动态注入 <script>。
+ * 确保 window.Cesium 就绪（幂等）：**全站只允许存在这一个 Cesium 实例**。
+ *
+ * 两条路径都指向它（2026-09-27 修正，D-J）：
+ * - `vite build`：vite-plugin-cesium 把 `cesium` 标 `external` + 映射到全局 `Cesium`；
+ * - `vite dev`：`vite.config.js` 把 `cesium` 别名到 `core/map/cesium-global.ts`（同样读全局）。
+ *
+ * ⚠ 别再给 dev 单独留一条「走 npm ESM 包」的路：那样页面里会同时出现两个 Cesium，
+ * Cesium 内部 `instanceof` 判可见性失效 ⇒ 3D Tiles 图层全部零渲染且零报错。
  */
 function ensureCesiumLoaded(): Promise<void> {
   if ((window as unknown as Record<string, unknown>).Cesium) return Promise.resolve()
@@ -105,7 +110,9 @@ export async function createRenderer(
   perfMark('cesium:load-start') // 幂等：warm 切换时 ensureCesiumLoaded 早返回，保证标记存在
   await ensureCesiumLoaded()
 
-  // 2. 再动态导入 CesiumRenderer（其 import cesium 已在构建期转为 window.Cesium 引用）
+  // 2. 再动态导入 CesiumRenderer：其 `import … from 'cesium'` 在 dev 被别名到
+  //    core/map/cesium-global.ts、在 build 被 externalGlobals 映射到全局 Cesium，
+  //    两条路都指向上面注入的同一个实例
   const { CesiumRenderer } = await import('./CesiumRenderer')
 
   // CesiumRenderer extends MapRenderer：动态导入的类实例与 2D 分支同型，无需桥接断言

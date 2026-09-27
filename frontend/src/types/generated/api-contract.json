@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-25",
+  "generatedAt": "2026-09-27",
   "source": "frontend/src/types/schemas.ts（单一事实源，types:gen 自动生成勿手改）",
   "schemas": {
     "userSchema": {
@@ -148,6 +148,10 @@
           "type": "string",
           "optional": false
         },
+        "canalScenario": {
+          "type": "string",
+          "optional": false
+        },
         "series": {
           "type": "array",
           "optional": false
@@ -162,6 +166,10 @@
           "optional": false
         },
         "unit": {
+          "type": "string",
+          "optional": false
+        },
+        "canalScenario": {
           "type": "string",
           "optional": false
         },
@@ -183,6 +191,10 @@
           "optional": false
         },
         "time": {
+          "type": "string",
+          "optional": false
+        },
+        "canalScenario": {
           "type": "string",
           "optional": false
         },
@@ -709,6 +721,36 @@
     }
   },
   "backendContracts": {
+    "timeSeriesResponseSchema": {
+      "file": "backend/src/modules/forecast/services/forecast.service.ts",
+      "occurrence": {
+        "indicator": 29,
+        "unit": 14,
+        "granularity": 2,
+        "canalScenario": 26,
+        "series": 2
+      }
+    },
+    "indicatorComparisonResponseSchema": {
+      "file": "backend/src/modules/forecast/services/forecast.service.ts",
+      "occurrence": {
+        "indicator": 29,
+        "unit": 14,
+        "canalScenario": 26,
+        "ports": 10
+      }
+    },
+    "forecastMapDataSchema": {
+      "file": "backend/src/modules/forecast/services/forecast.service.ts",
+      "occurrence": {
+        "indicator": 29,
+        "unit": 14,
+        "time": 11,
+        "canalScenario": 26,
+        "type": 8,
+        "features": 4
+      }
+    },
     "floodStatisticsResponseSchema": {
       "file": "backend/src/modules/flood/services/flood.service.ts",
       "occurrence": {

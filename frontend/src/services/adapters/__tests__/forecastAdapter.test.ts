@@ -41,6 +41,7 @@ const fixtures: Record<string, unknown> = {
       indicator: 'cargo',
       unit: '万吨',
       granularity: 'year',
+      canalScenario: 'baseline',
       series: [
         {
           portId: 'QZ',
@@ -58,6 +59,7 @@ const fixtures: Record<string, unknown> = {
     data: {
       indicator: 'cargo',
       unit: '万吨',
+      canalScenario: 'baseline',
       ports: {
         QZ: {
           portName: '钦州港',
@@ -157,6 +159,33 @@ describe('forecastAdapter', () => {
         },
       },
     })
+  })
+
+  it('scenario 缺省不携带参数；提供时透传（运河情景 F4）', async () => {
+    const fetchMock = vi.mocked(fetch)
+    await forecastAdapter.getTimeSeries({
+      indicator: 'cargo',
+      granularity: 'year',
+      confidence: 0.9,
+    })
+    let calledUrl = fetchMock.mock.calls[0][0] as string
+    expect(calledUrl).not.toContain('scenario=')
+
+    await forecastAdapter.getTimeSeries({
+      indicator: 'cargo',
+      granularity: 'year',
+      confidence: 0.9,
+      scenario: 'design',
+    })
+    calledUrl = fetchMock.mock.calls[1][0] as string
+    expect(calledUrl).toContain('scenario=design')
+
+    await forecastAdapter.getIndicatorComparison('cargo', {
+      time: '2025-12',
+      confidence: 0.9,
+      scenario: 'median',
+    })
+    expect(String(fetchMock.mock.calls[2][0])).toContain('scenario=median')
   })
 
   it('未知端点应抛错（fetch 404 冒泡，不吞）', async () => {

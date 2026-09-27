@@ -18,6 +18,7 @@ export interface ForecastSavedState {
   timeGranularity: string
   playSpeed: number
   activeIndicator: string
+  canalScenario: string
   confidenceThresholds: ConfidenceThresholds
   activeForecastLayer: string | null
   /** 页面本地请求缓存（恢复后图表零请求重建） */
@@ -34,6 +35,8 @@ export const useForecastStore = defineStore('forecast', () => {
   const isPlaying: Ref<boolean> = ref(false)
   const playSpeed: Ref<number> = ref(500)
   const activeIndicator: Ref<string> = ref('cargo')
+  // 运河情景（F4）：默认基线；仅 cargo 指标消费（切走 cargo 时由页面 watch 复位基线）
+  const canalScenario: Ref<string> = ref('baseline')
 
   const confidenceThresholds: Ref<ConfidenceThresholds> = ref({
     cargo: DEFAULT_CONFIDENCE,
@@ -82,6 +85,10 @@ export const useForecastStore = defineStore('forecast', () => {
     activeIndicator.value = indicator
   }
 
+  function setCanalScenario(scenario: string): void {
+    canalScenario.value = scenario
+  }
+
   function setConfidenceThreshold(indicator: string, value: number): void {
     confidenceThresholds.value[indicator] = value
   }
@@ -106,6 +113,8 @@ export const useForecastStore = defineStore('forecast', () => {
     timeGranularity.value = saved.timeGranularity
     playSpeed.value = saved.playSpeed
     activeIndicator.value = saved.activeIndicator
+    // 旧快照无 canalScenario 字段，兜底基线
+    canalScenario.value = saved.canalScenario ?? 'baseline'
     confidenceThresholds.value = { ...saved.confidenceThresholds }
     activeForecastLayer.value = saved.activeForecastLayer
     // shallowRef 需重赋值引用才触发响应式
@@ -128,6 +137,7 @@ export const useForecastStore = defineStore('forecast', () => {
     isPlaying.value = false
     playSpeed.value = 500
     activeIndicator.value = 'cargo'
+    canalScenario.value = 'baseline'
     confidenceThresholds.value = {
       cargo: DEFAULT_CONFIDENCE,
       container: DEFAULT_CONFIDENCE,
@@ -163,6 +173,7 @@ export const useForecastStore = defineStore('forecast', () => {
     isPlaying,
     playSpeed,
     activeIndicator,
+    canalScenario,
     confidenceThresholds,
     activeForecastLayer,
     requestCache,
@@ -173,6 +184,7 @@ export const useForecastStore = defineStore('forecast', () => {
     setCurrentTime,
     setTimeGranularity,
     setActiveIndicator,
+    setCanalScenario,
     setConfidenceThreshold,
     setIsPlaying,
     setRequestCache,

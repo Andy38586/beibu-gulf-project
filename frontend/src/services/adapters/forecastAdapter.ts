@@ -20,6 +20,8 @@ export interface ForecastTimeSeriesParams {
   indicator: string
   granularity: string
   confidence: number
+  /** 运河情景（仅 cargo 有意义；缺省不传参，后端默认 baseline） */
+  scenario?: string
 }
 
 export type ForecastTimeSeriesResult = Pick<TimeSeriesResponseParsed, 'series'>
@@ -27,6 +29,8 @@ export type ForecastTimeSeriesResult = Pick<TimeSeriesResponseParsed, 'series'>
 export interface ForecastComparisonParams {
   time: string
   confidence: number
+  /** 运河情景（仅 cargo 有意义；缺省不传参，后端默认 baseline） */
+  scenario?: string
 }
 
 export type ForecastComparisonResult = Pick<IndicatorComparisonResponseParsed, 'ports'>
@@ -51,6 +55,8 @@ export const forecastAdapter = {
         indicator: params.indicator,
         granularity: params.granularity,
         confidence: params.confidence,
+        // 缺省不携带 scenario 参数：与「未选情景=后端默认基线」的请求语义一致
+        ...(params.scenario ? { scenario: params.scenario } : {}),
       },
       signal,
       schema: timeSeriesResponseSchema,
@@ -68,7 +74,11 @@ export const forecastAdapter = {
       ENDPOINTS.forecast.indicator(indicator),
       {
         method: 'GET',
-        params: { time: params.time, confidence: params.confidence },
+        params: {
+          time: params.time,
+          confidence: params.confidence,
+          ...(params.scenario ? { scenario: params.scenario } : {}),
+        },
         signal,
         schema: indicatorComparisonResponseSchema,
       }

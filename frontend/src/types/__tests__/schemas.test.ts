@@ -285,10 +285,20 @@ describe('forecast schemas（构造样本）', () => {
       indicator: 'cargo',
       unit: '万吨',
       granularity: 'monthly',
+      canalScenario: 'baseline',
       series: [{ portId: 'qinzhou', portName: '钦州', data: [point] }],
     })
-    const bad = timeSeriesResponseSchema.safeParse({ indicator: 'cargo' })
     expect(ok.success).toBe(true)
+    // canalScenario 缺失必须拒（F5 起后端恒产出；前端凭它核对回包情景）
+    expect(
+      timeSeriesResponseSchema.safeParse({
+        indicator: 'cargo',
+        unit: '万吨',
+        granularity: 'monthly',
+        series: [],
+      }).success
+    ).toBe(false)
+    const bad = timeSeriesResponseSchema.safeParse({ indicator: 'cargo' })
     expect(bad.success).toBe(false)
   })
 
@@ -296,6 +306,7 @@ describe('forecast schemas（构造样本）', () => {
     const ok = indicatorComparisonResponseSchema.safeParse({
       indicator: 'cargo',
       unit: '万吨',
+      canalScenario: 'design',
       ports: { qinzhou: { portName: '钦州', value: 100, historical: [point], forecast: [] } },
     })
     expect(ok.success).toBe(true)
@@ -309,6 +320,7 @@ describe('forecast schemas（构造样本）', () => {
       indicator: 'cargo',
       unit: '万吨',
       time: '2026-06',
+      canalScenario: 'baseline',
       type: 'FeatureCollection',
       features: [
         {

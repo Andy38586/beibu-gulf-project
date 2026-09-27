@@ -95,10 +95,13 @@ export const forecastPointSchema = z.object({
 
 export type ForecastPointParsed = z.infer<typeof forecastPointSchema>
 
+// @backend-contract backend/src/modules/forecast/services/forecast.service.ts
 export const timeSeriesResponseSchema = z.object({
   indicator: z.string(),
   unit: z.string(),
   granularity: z.string(),
+  // 运河情景标识（F5 起响应顶层携带；baseline=无运河增量），前端据此核对回包与请求一致
+  canalScenario: z.string(),
   series: z.array(
     z.object({
       portId: z.string(),
@@ -111,9 +114,11 @@ export const timeSeriesResponseSchema = z.object({
 export type TimeSeriesResponseParsed = z.infer<typeof timeSeriesResponseSchema>
 
 // ⑦ /forecast/indicator/:indicator 响应
+// @backend-contract backend/src/modules/forecast/services/forecast.service.ts
 export const indicatorComparisonResponseSchema = z.object({
   indicator: z.string(),
   unit: z.string(),
+  canalScenario: z.string(),
   ports: z.record(
     z.string(),
     z.object({
@@ -128,10 +133,12 @@ export const indicatorComparisonResponseSchema = z.object({
 export type IndicatorComparisonResponseParsed = z.infer<typeof indicatorComparisonResponseSchema>
 
 // ⑧ /forecast/map 响应（GeoJSON FeatureCollection）
+// @backend-contract backend/src/modules/forecast/services/forecast.service.ts
 export const forecastMapDataSchema = z.looseObject({
   indicator: z.string(),
   unit: z.string(),
   time: z.string(),
+  canalScenario: z.string(),
   type: z.literal('FeatureCollection'),
   features: z.array(
     z.looseObject({

@@ -61,6 +61,7 @@ function saveForecastState(): void {
     timeGranularity: forecastState.timeGranularity,
     playSpeed: forecastState.playSpeed,
     activeIndicator: forecastState.activeIndicator,
+    canalScenario: forecastState.canalScenario,
     confidenceThresholds: { ...forecastState.confidenceThresholds },
     activeForecastLayer: forecastState.activeForecastLayer,
     requestCache: Array.from(forecastState.requestCache.entries()),
@@ -111,12 +112,24 @@ async function doForecastUpdate() {
   ])
 }
 
-// 合并监听 indicator/time/confidence，纯防抖（debounce，300ms）停止操作后统一刷新，避免双触发
+// 切离 cargo 时立即复位运河情景（cargo 之外无文献参数口径，后端 400；
+// 不进防抖——复位是状态修正不是请求）
+watch(
+  () => forecastState.activeIndicator,
+  (ind) => {
+    if (ind !== 'cargo' && forecastState.canalScenario !== 'baseline') {
+      forecastState.setCanalScenario('baseline')
+    }
+  }
+)
+
+// 合并监听 indicator/time/confidence/运河情景，纯防抖（debounce，300ms）停止操作后统一刷新，避免双触发
 watch(
   () => [
     forecastState.activeIndicator,
     forecastState.currentTime,
     forecastState.confidenceThresholds[forecastState.activeIndicator],
+    forecastState.canalScenario,
   ],
   () => {
     // 每次状态变化都重置防抖定时器

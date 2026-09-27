@@ -129,8 +129,8 @@ export function useForecastLayer(): UseForecastLayerReturn {
   // 上限淘汰由 BoundedMap 按插入序处理（与 floodAdapter 档位缓存同一份实现）
   const MAX_MAP_CACHE = 100
   const mapRequestCache = new BoundedMap<string, ForecastMapData>(MAX_MAP_CACHE)
-  function mapCacheKey(indicator: string, time: string, confidence: number): string {
-    return `map:${indicator}:${time}:${confidence}`
+  function mapCacheKey(indicator: string, time: string, confidence: number, scenario: string) {
+    return `map:${indicator}:${time}:${confidence}:${scenario}`
   }
 
   async function updateForecastLayer(transactionId: number, signal: AbortSignal): Promise<void> {
@@ -158,7 +158,10 @@ export function useForecastLayer(): UseForecastLayerReturn {
 
     try {
       const confidence = forecastState.confidenceThresholds[indicator] || DEFAULT_CONFIDENCE
-      const cacheKey = mapCacheKey(indicator, time, confidence)
+      // 运河情景仅 cargo 有文献锚点（04-B10）；非 cargo 恒按基线请求与缓存
+      const scenario =
+        indicator === 'cargo' ? forecastState.canalScenario || 'baseline' : 'baseline'
+      const cacheKey = mapCacheKey(indicator, time, confidence, scenario)
       const layerType = LAYER_TYPES[indicator]
       const options = getLayerOptions()
 
@@ -177,7 +180,12 @@ export function useForecastLayer(): UseForecastLayerReturn {
         () =>
           apiRequest<ForecastMapData>(ENDPOINTS.forecast.map, {
             method: 'GET',
-            params: { indicator, time, confidence },
+            params: {
+              indicator,
+              time,
+              confidence,
+              ...(scenario !== 'baseline' ? { scenario } : {}),
+            },
             signal,
             schema: forecastMapDataSchema,
           }),

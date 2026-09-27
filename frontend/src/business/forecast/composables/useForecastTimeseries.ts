@@ -44,12 +44,24 @@ export function useForecastTimeseries(): UseForecastTimeseriesReturn {
       const indicator = forecastState.activeIndicator
       const granularity = forecastState.timeGranularity
       const confidence = forecastState.confidenceThresholds[indicator] || DEFAULT_CONFIDENCE
-      const cacheKey = `ts:${indicator}:${granularity}:${confidence}`
+      // 运河情景仅 cargo 有文献锚点（04-B10）：非 cargo 一律按基线请求与缓存
+      const scenario =
+        indicator === 'cargo' ? forecastState.canalScenario || 'baseline' : 'baseline'
+      const cacheKey = `ts:${indicator}:${granularity}:${confidence}:${scenario}`
 
       const cached = forecastState.requestCache.get(cacheKey)
       if (!cached) {
         const data = await runInTransaction(
-          () => forecastAdapter.getTimeSeries({ indicator, granularity, confidence }, signal),
+          () =>
+            forecastAdapter.getTimeSeries(
+              {
+                indicator,
+                granularity,
+                confidence,
+                ...(scenario !== 'baseline' ? { scenario } : {}),
+              },
+              signal
+            ),
           transactionId
         )
         // 事务过期或请求被取消

@@ -16,6 +16,21 @@ export const DEFAULT_CONFIDENCE = 0.8
  */
 export const FORECAST_INDICATORS = ['cargo', 'container', 'activity'] as const
 
+/**
+ * 运河情景选项（前端唯一清单）。id 权威源在 backend scenario.constants.ts 的
+ * CANAL_SCENARIOS——两侧靠契约维持：未知 id 会被后端 parseScenarioId 以 400 拒绝，
+ * 前端清单若与后端漂移，选非 baseline 档即触发（运行时红通道）。
+ * 仅 cargo 有运河文献锚点（04-B10），UI 对非 cargo 指标禁用非基线档。
+ */
+export const CANAL_SCENARIO_OPTIONS = [
+  { id: 'baseline', label: '基线' },
+  { id: 'design', label: '设计' },
+  { id: 'median', label: '中位' },
+  { id: 'induced', label: '诱导' },
+] as const
+
+export type CanalScenarioId = (typeof CANAL_SCENARIO_OPTIONS)[number]['id']
+
 /** 预测时间轴起止年 */
 export const BASE_YEAR = 2021
 export const END_YEAR = 2031

@@ -6,6 +6,7 @@ import { computed, onMounted, onUnmounted, reactive } from 'vue'
 import { useSliderFocus } from '@/core'
 import {
   BASE_YEAR,
+  CANAL_SCENARIO_OPTIONS,
   CONFIRM_DELAY,
   DEFAULT_CONFIDENCE,
   END_YEAR,
@@ -117,6 +118,13 @@ function handleGlobalClick(e: Event) {
 
 function getConf(key: string) {
   return forecastState.confidenceThresholds[key] ?? DEFAULT_CONFIDENCE
+}
+
+// ===== 运河情景（F4）：仅 cargo 有文献锚点，其余指标禁用非基线档 =====
+const scenarioDisabled = computed(() => forecastState.activeIndicator !== 'cargo')
+function pickScenario(id: string) {
+  if (scenarioDisabled.value) return
+  if (forecastState.canalScenario !== id) forecastState.setCanalScenario(id)
 }
 
 onMounted(() => {
@@ -246,6 +254,24 @@ onUnmounted(() => stopPlayback())
       </div>
     </div>
 
+    <!-- ===== 运河情景（仅 cargo 可选）===== -->
+    <div class="scenario-row" :class="{ off: scenarioDisabled }">
+      <span class="scenario-label">运河情景</span>
+      <div class="scenario-chips">
+        <button
+          v-for="opt in CANAL_SCENARIO_OPTIONS"
+          :key="opt.id"
+          type="button"
+          class="scenario-chip"
+          :class="{ sel: forecastState.canalScenario === opt.id }"
+          :disabled="scenarioDisabled && opt.id !== 'baseline'"
+          @click="pickScenario(opt.id)"
+        >
+          {{ opt.label }}
+        </button>
+      </div>
+    </div>
+
     <!-- ===== 下半：时间滑块 ===== -->
     <div class="time-section">
       <div class="time-header">
@@ -334,6 +360,55 @@ onUnmounted(() => stopPlayback())
 .ind-icon {
   font-size: v-bind(iconFontSizeCss);
   line-height: 1;
+}
+
+/* ===== 运河情景行 ===== */
+.scenario-row {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: v-bind(cell8px);
+}
+
+.scenario-row.off .scenario-label {
+  color: var(--GCS-text-muted);
+}
+
+.scenario-label {
+  font-size: v-bind(smallFontSizeCss);
+  color: var(--GCS-text-secondary);
+  white-space: nowrap;
+}
+
+.scenario-chips {
+  display: flex;
+  gap: v-bind(cell8px);
+  flex: 1;
+  min-width: 0;
+}
+
+.scenario-chip {
+  flex: 1;
+  min-width: 0;
+  padding: v-bind(cell8px) 0;
+  background: var(--GCS-bg-container);
+  border: 1px solid var(--GCS-border-default);
+  border-radius: var(--GCS-radius-lg);
+  font-size: v-bind(smallFontSizeCss);
+  color: var(--GCS-text-regular);
+  cursor: pointer;
+}
+
+.scenario-chip.sel {
+  background: var(--GCS-bg-active);
+  border-color: var(--GCS-color-primary);
+  color: var(--GCS-color-primary);
+  font-weight: 600;
+}
+
+.scenario-chip:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 /* ===== 时间滑块 ===== */

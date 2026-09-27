@@ -50,7 +50,9 @@ export function useForecastComparison(): UseForecastComparisonReturn {
       const confKey = BAR_INDICATORS.map(
         (i) => forecastState.confidenceThresholds[i] ?? DEFAULT_CONFIDENCE
       ).join(',')
-      const cacheKey = `cmp:${time}:${confKey}`
+      // 运河情景只影响 cargo 柱（container 无文献锚点，后端拒绝），缓存键须随情景区分
+      const scenario = forecastState.canalScenario || 'baseline'
+      const cacheKey = `cmp:${time}:${confKey}:${scenario}`
       const cached = forecastState.requestCache.get(cacheKey)
       if (cached) {
         // 事务检查：即使缓存命中也要验证事务有效性
@@ -73,6 +75,8 @@ export function useForecastComparison(): UseForecastComparisonReturn {
                 {
                   time,
                   confidence: forecastState.confidenceThresholds[ind] || DEFAULT_CONFIDENCE,
+                  // cargo 携带情景；container 无运河参数口径（04-B10），恒按基线请求
+                  ...(ind === 'cargo' && scenario !== 'baseline' ? { scenario } : {}),
                 },
                 signal
               ),

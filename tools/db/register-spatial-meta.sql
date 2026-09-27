@@ -27,7 +27,8 @@ INSERT INTO spatial_meta (table_name, storage_crs, source_crs, transform, notes)
   ('mangroves', 'EPSG:4490', 'EPSG:4326', 'ogr2ogr -spat 裁剪 + -t_srs EPSG:4490', 'GMW v3 全球 11 时相，广西 bbox 裁剪后入库'),
   ('industrial_zones', 'EPSG:4490', 'EPSG:4326', 'ogr2ogr -nlt PROMOTE_TO_MULTI + -t_srs EPSG:4490', 'OSM 派生 2687 个工业园区面'),
   ('canal', 'EPSG:4490', 'EPSG:4326', 'ogr2ogr -t_srs EPSG:4490', '平陆运河示意线（手工描绘，示意精度）'),
-  ('protected_areas', 'EPSG:4490', 'EPSG:4326', 'ogr2ogr -nlt PROMOTE_TO_MULTI + -t_srs EPSG:4490', 'WDPA 中国保护区 34 个面')
+  ('protected_areas', 'EPSG:4490', 'EPSG:4326', 'ogr2ogr -nlt PROMOTE_TO_MULTI + -t_srs EPSG:4490', 'WDPA 中国保护区 34 个面'),
+  ('land_cover', 'EPSG:4490', 'EPSG:4326', 'gdalwarp -r mode 30m 聚合（WorldCover 10m 源）+ polygonize 4 连通 → 4490（4 连通环天然单圈全有效；8 连通曾产 11.5 万 8 字环已弃）', 'ESA WorldCover 2021 v200 10m，4 瓦片裁 bbox，72 万面；class 代码见 db-schema-gis.sql；源在钦州湾外海有官方 nodata 空洞（开海域不产面）')
 ON CONFLICT (table_name) DO UPDATE SET
   storage_crs = EXCLUDED.storage_crs,
   source_crs  = EXCLUDED.source_crs,

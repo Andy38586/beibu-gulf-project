@@ -79,6 +79,18 @@ CREATE TABLE IF NOT EXISTS protected_areas (
   geom      geometry(MultiPolygon, 4490)
 );
 CREATE INDEX IF NOT EXISTS idx_protected_geom ON protected_areas USING GIST (geom);
+-- ==================== 土地覆盖（ESA WorldCover，新选址因子，2026-09-27） ====================
+-- class 代码权威源：ESA WorldCover PUM v2.0——10 乔木林/20 灌木/30 草地/40 耕地/50 人造地表/
+-- 60 裸地/70 冰雪/80 水体/90 湿地/95 红树林/100 苔藓。管线 tools/land-pipeline/
+-- 01-worldcover-polygons.py（4 瓦片 vsicurl → 4490 裁 bbox → 30m mode 聚合 → 4 连通矢量化）。
+-- 源 v200 在钦州湾外海 108.1-108.9E/21.0-21.3N 有官方 nodata=0 空洞（开海域，不产面不补值）
+CREATE TABLE IF NOT EXISTS land_cover (
+  id    BIGSERIAL PRIMARY KEY,
+  class INT NOT NULL,
+  geom  geometry(MultiPolygon, 4490)
+);
+CREATE INDEX IF NOT EXISTS idx_land_cover_geom ON land_cover USING GIST (geom);
+CREATE INDEX IF NOT EXISTS idx_land_cover_class ON land_cover (class);
 -- ==================== 行政区划（淹没面陆域裁剪用，2026-09-12） ====================
 -- 钦北防三市 12 区县面，与 frontend/public/data/site-selection/boundary.geojson 同源
 --（前端行政区划图层同款数据），改任一侧必须同步。

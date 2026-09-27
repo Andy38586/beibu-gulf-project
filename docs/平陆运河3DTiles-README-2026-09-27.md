@@ -224,6 +224,10 @@ cd pinglu-canal-3dtiles && ("$PY" -m http.server 8899 --bind 127.0.0.1 &) && cd 
 cd .local/926-rebake/shots && unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY
 node cdp_multi.mjs "http://127.0.0.1:8899/viewer.html?v=1" p_steps.json .
 #   app 侧：把 steps 换成 fly_madao3.js（走 Vue DevTools → pinia → map.currentRenderer.viewer）
+
+# 6. 成品图（枢纽 + 地形合并）—— 走 Blender，绕开 viewer 的近景空洞（D-I），4 机位 ~10 秒
+"$BL" -b --factory-startup -P .local/926-rebake/render_madao.py
+#   → .local/926-rebake/shots/blender-madao-{A,B,C,D}*.png
 ```
 
 ### 3.3 环境注意
@@ -247,6 +251,8 @@ node cdp_multi.mjs "http://127.0.0.1:8899/viewer.html?v=1" p_steps.json .
 | **D-E** | **`region` 大地高取了烘焙后的站心局部 Z**（= h − d²/2R），不是大地高 | 新 tileset 子节点 region h 写成 **−515 ~ −43 m**，而几何在 0~80 m；根节点 minHeight **−692 m**（旧值 −67 m）。最大偏差 **640 m**（`terrain_l0_4200_0`） | `vs`（顶点）改在 `bake_ellipsoid_drop` **之前**读，`hmin/hmax` 用烘焙前的大地高 | `s3_build.py` `export_obj()` 与枢纽/水体/桥梁分支 |
 | **D-F** | 🔴 **根因级：`terrain_final.npy` 99.8% 为 0** ⇒ 地形网格整块平在 **0 m** ⇒ 与 Cesium 地球椭球面**完全 z-fighting** ⇒ 开着地球时整片看不见（"白屏"的真凶其实是天空大气，见 §五 陷阱 3） | `terrain_final.npy` = `min 0 / max 26 / mean 0.027`，`\|h\|>0.5` 仅 **0.2%**；`sea_mask.npy` 判 **99.8% 全是海（14478 / 14507 km²）**。57 个地形瓦片真实大地高全在 **−3.9 ~ 15 m**，而同一处运河水面 65.9 m | `s2_route.py:66` 用「海岸线当墙 + 从南边界泛洪」判海，而 `beibu-coastline.geojson` 是**开放折线未闭合**，泛洪绕过去淹了全图。改用项目权威口径（`tools/dem-pipeline/06-sea-mask.py`：**逐栅格列取海岸线顶点最大纬度＝大陆岸线，像素中心纬度小于该值即海**）。修复后海域 10.78% ≈ 1562 km²，地形回到 **0~628 m** | `.local/926-rebake/probe/build_terrain_final.py` → 重写 `tmp-pinglu/data/terrain_final.npy`（坏件备份 `.bak-broken-sea`） |
 | **D-G** | `s3_build.py` 海域判定用**二值膨胀 flood 取最大连通域**，迭代次数≈连通域测地直径，每轮对整幅 4619×3198 做 4 次 `np.roll` | 地形修好（D-F）后连通域变狭长，实测**卡 13 分钟连第一行日志都出不来**（日志 0 字节、瓦片目录不动） | 换成与 `06-sea-mask.py` 同口径的逐列判定，去掉 `_morph` 与连通域循环 | `s3_build.py` §2 海陆掩膜 |
+| **D-H** | **枢纽被埋**：马道足迹内自然地形 min 65 / p10 71 / **中位 92** / p90 140 / max 237 m，而枢纽闸顶只有 **73.5 m** ⇒ 整个枢纽埋在 0~25 m 岩体里（实测 `hub_马道枢纽` 瓦片大地高 19.3~82.9，全在地形之下） | `.local/926-rebake/probe/hub_terrain.py` 三枢纽足迹统计；地块修好后 viewer 里枢纽完全看不见 | 新增 §4b **枢纽平台开挖**：足迹内切到**闸顶高程**（`hub_bim.LEVELS[key]["crest"]`，马道 73.50 = 官方坝顶高程），足迹外 1:2.5 边坡（审定坡比）接自然地形。切口方量 **马道 5755 / 企石 117 / 青年 704 万 m³**（真实工程马道土石方 3980 万 m³，同量级）。`PLAT_MODE` 一行可切 `crest`/`gate`/`off` | `s3_build.py` §4b（**必须在 §5 之前**：SHADE 与地形顶点色都派生自 `terrain_built`） |
+| **D-I** ⚠️**未修** | **viewer 近景空洞**：12 km 机位下马道那片地形不被绘制（洋红哨兵证实是背景透出）；`tileFailed` 为 0，25 s 内 Cesium **只请求 11 块瓦片** —— 即它认为那片"不可见" | 已排除数据层：`coverage.py` 网格无洞（唯一空洞是 DEM 北边界外）、`region_vs_geo.py` 63 块 region 全包住几何、`all_heights/scan_colors` 高度与顶点色正常、`pend=0` 加载已排空、`maximumScreenSpaceError` 拉到 0.5 无变化、`debugShowBoundingVolume` 显示空洞区上**没有任何包围盒** | **待办**：把平铺的 63 块瓦片改成**带层级的 tileset**（root → L0 → L1 → L2），而不是全部平挂在无内容的根下 + `refine:"ADD"`。本轮成品图改走 Blender 渲染绕过它（`render_madao.py`） | — |
 
 ### D-F 修复后的关键数（对照）
 
@@ -284,6 +290,14 @@ node cdp_multi.mjs "http://127.0.0.1:8899/viewer.html?v=1" p_steps.json .
     （CDP + Edge），先 `unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY`。
 12. **`/tmp` 不跨调用持久**；Bash 里 `node -e` 会炸正则 ⇒ 写脚本文件。
 13. **后台起静态服务要用常驻方式**：`(nohup ... &)` 在 Bash 调用返回后会被回收，页面变成"拒绝连接"。
+14. **`camera.lookAt` 在近垂直俯角（pitch ≤ −88°）会机位退化**：整屏纯黑或只剩 Cesium 加载转圈，
+    **不是数据/瓦片问题**。要俯视就用 `camera.flyTo` + 明确的 `destination`/`orientation`。
+15. **`publish_tiles.py` 原来 `rmtree` 目标瓦片目录会被安全护栏拦下**（仓库对 >50 个文件的批量删除要确认），
+    被拦后**静默跳过拷贝、留下旧瓦片**（本轮踩到：`tiles-v2` 停在 20:47 而那轮产物是 21:04）。
+    改成 `copytree(src, dst, dirs_exist_ok=True)` 直接覆盖。发布后**必须核验 mtime**。
+16. **看"枢纽 + 地形合并"的成品图走 Blender**（`.local/926-rebake/render_madao.py` 从
+    `pinglu-canal.blend` 渲染 WORKBENCH 顶点色），别只依赖 Cesium viewer —— 它有 D-I 的近景空洞。
+    Blender 渲染 4 个机位只要 ~10 秒。
 
 ---
 
@@ -291,12 +305,13 @@ node cdp_multi.mjs "http://127.0.0.1:8899/viewer.html?v=1" p_steps.json .
 
 | # | 事项 | 说明 | 判定 |
 | --- | --- | --- | --- |
-| **1** | 🔴 **枢纽被埋**（D-F 修复后暴露） | s3 的挖方只挖运河断面（`canal_mask`，水面宽 105–168 m），**没挖枢纽平台**。地形修好后枢纽（大地高 19~83 m）埋在新地形（同一处 60~440 m）里。真实工程的枢纽开挖是巨量的（马道土石方 3980 万 m³） | 在 `s3_build.py` 增加**枢纽平台开挖**（按 1.4 节的真实结构尺寸切台），viewer 里能看到灰色枢纽 |
+| ~~1~~ | ✅ **枢纽被埋**（已修，D-H） | 新增 §4b 枢纽平台开挖：足迹切到闸顶高程 + 1:2.5 边坡。马道平台 73.50 m、足迹 1698×576 m、切口 5755 万 m³ | 马道 4494 个顶点落在 73.5 m 平台高程附近（`probe/plat_check.py`）；Blender 成品图可见平台盆地与闸室群 |
+| **1** | 🔴 **viewer 近景空洞**（D-I，未修） | 数据层已全排除，是 Cesium 遍历层面：63 块瓦片**平铺**挂在无内容的根下 + `refine:"ADD"`。改成**带层级的 tileset**（root → L0 → L1 → L2） | 12 km 机位下马道那片地形能画出来 |
 | **2** | **中隔墙/闸墙取真值** | 见 §一.4 末段：建议改 `hub_bim921.ASM.mid_w/side_w` 为**闸首中墩 40 m / 闸室段中墙 ≈32.6 m**（来源 S10/S13），并标注近似 | 模型宽度与来源一致 |
-| **3** | **企石 / 青年换新几何** | `hub_bim921.build()` 只实现了 madao。**青年是分散式 + 互灌互泄（无三级省水池）**，泄水闸 7 孔净宽 13 m、上闸首 66.5 m / 下闸首 67 m / 闸室段 281 m；企石泄水闸 5 孔 8×9.5 m、上/下闸首 63/55 m | 管线日志三枢纽都显示 `hub_bim921(审定参数)` |
-| **4** | **DEM 换源后整链重跑** | 3D Tiles 的地形源是 `gl30_dem_4326.tif`，正是 `陆海DEM高程数据需求-2026-09-27.md` §三 判过「沿海 +12~30 m 偏高、海域 0~13 m 假值」的那份 GLO-30。换源交付后必须跟着换输入、重跑 s1→s2→s3，并同步高程基准说明 | 需求书 §五 第 4 条 |
+| **3** | **企石 / 青年换新几何** | `hub_bim921.build()` 只实现了 madao。**青年是分散式 + 互灌互泄（无三级省水池）**，泄水闸 7 孔净宽 13 m、上闸首 66.5 / 下闸首 67 / 闸室段 281 m；企石泄水闸 5 孔 8×9.5 m、上/下闸首 63/55 m | 管线日志三枢纽都显示 `hub_bim921(审定参数)` |
+| **4** | **DEM 换源后整链重跑** | 3D Tiles 的地形源是 `gl30_dem_4326.tif`，正是 `陆海DEM高程数据需求-2026-09-27.md` §三 判过「沿海 +12~30 m 偏高、海域 0~13 m 假值」的那份 GLO-30 | 需求书 §五 第 4 条 |
 | **5** | **`tiles-v2` 归宿** | 要么把管线产物合进 `tiles/`（替换 31 节点方案），要么两套并存并在前端加切换。**合回前先备份 `tiles/`** | `pingluTiles.ts` 不再需要"临时"注释 |
-| **6** | **提交** | `tmp-pinglu/`、`.local/`、`backend/static/pinglu/` 都被 ignore，能入库的只有 `frontend/.../pingluTiles.ts`（1 行）与本 README。commit 用 Conventional Commits，**禁 squash** | git 干净 |
+| **6** | **提交** | `tmp-pinglu/`、`.local/`、`backend/static/pinglu/` 都被 ignore，能入库的只有 `frontend/.../pingluTiles.ts`（1 行）与本文。commit 用 Conventional Commits，**禁 squash** | git 干净 |
 | ⏸ | 顶点 AO（C5） | 一直 ROI 判断跳过 | — |
 
 ---

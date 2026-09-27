@@ -100,32 +100,49 @@ export class ForecastService {
   }
 
   private getCacheKey(indicator: string, scenarioLevel: number, canalScenario: ScenarioId): string {
-    // 模型指标基线随运河情景变化 ⇒ 键必须含 canalScenario（此前忽略它会导致情景串缓存，
-    // 是 F3 修复点）；非模型指标不支持运河情景（上游已拒绝），键保持原形
-    return MODEL_INDICATORS.has(indicator)
-      ? `${indicator}:${canalScenario}`
-      : `${indicator}:${scenarioLevel}`
+    // 仅 cargo 有运河文献锚点（04-B10）⇒ 键随情景变化只需覆盖 cargo；其余指标情景恒
+    // baseline（上游守卫拒绝），键保持 scenarioLevel 原形
+    return indicator === 'cargo' ? `${indicator}:${canalScenario}` : `${indicator}:${scenarioLevel}`
   }
 
   private async getOrComputeForecast(
     indicator: string,
     scenarioLevel: number,
     canalScenario: ScenarioId = 'baseline'
-  ): Promise<{ indicator: string; unit: string; ports: Record<string, ComputedPort> }> {
+  ): Promise<{
+    indicator: string
+    unit: string
+    canalScenario: ScenarioId
+    ports: Record<string, ComputedPort>
+  }> {
     validateIndicator(indicator)
-    // 运河增量没有集装箱/活跃度口径的文献预测值（04-B10：不伪造参数）——非 cargo 组合显式拒绝
-    if (canalScenario !== 'baseline' && !MODEL_INDICATORS.has(indicator)) {
+    // 运河增量仅有货物吨口径的文献锚点（04-B10：不伪造参数）——非 cargo 组合显式拒绝。
+    // 此前查 MODEL_INDICATORS（含 container）放行了无参数依据的集装箱情景预测：
+    // 注释口径是 cargo-only 而实现放行两指标，且旧门控测试因 mock 缺 container.json
+    // 以错误原因变绿（守卫可删而测试仍绿 = 假绿壳，F5 修复 + 变异取证）
+    if (canalScenario !== 'baseline' && indicator !== 'cargo') {
       throw new BusinessError(ErrorCode.INVALID_PARAMS, '运河情景仅支持 cargo 指标')
     }
     const key = this.getCacheKey(indicator, scenarioLevel, canalScenario)
     const hit = this.engineCache.get(key)
     if (hit !== undefined)
-      return hit as { indicator: string; unit: string; ports: Record<string, ComputedPort> }
+      return hit as {
+        indicator: string
+        unit: string
+        canalScenario: ScenarioId
+        ports: Record<string, ComputedPort>
+      }
 
     const data = await this.readDataFile(indicator + '.json')
-    const result: { indicator: string; unit: string; ports: Record<string, ComputedPort> } = {
+    const result: {
+      indicator: string
+      unit: string
+      canalScenario: ScenarioId
+      ports: Record<string, ComputedPort>
+    } = {
       indicator: data.indicator,
       unit: data.unit,
+      canalScenario,
       ports: {},
     }
 
@@ -229,6 +246,7 @@ export class ForecastService {
       indicator: computed.indicator,
       unit: computed.unit,
       time,
+      canalScenario: computed.canalScenario,
       type: 'FeatureCollection',
       features,
     }
@@ -242,7 +260,7 @@ export class ForecastService {
     canalScenario: ScenarioId = 'baseline'
   ): Promise<Record<string, unknown>> {
     const indicators = indicator ? [indicator] : ['cargo', 'container']
-    const result: Record<string, unknown> = { portId, portName: '', indicators: {} }
+    const result: Record<string, unknown> = { portId, portName: '', canalScenario, indicators: {} }
     const indicatorsOut = result.indicators as Record<string, unknown>
 
     for (const ind of indicators) {
@@ -280,6 +298,7 @@ export class ForecastService {
     const result: Record<string, unknown> = {
       indicator: computed.indicator,
       unit: computed.unit,
+      canalScenario: computed.canalScenario,
       ports: {},
     }
     const portsOut = result.ports as Record<string, unknown>
@@ -350,6 +369,7 @@ export class ForecastService {
       indicator: computed.indicator,
       unit: computed.unit,
       granularity: granularity || 'month',
+      canalScenario: computed.canalScenario,
       series,
     }
   }

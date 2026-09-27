@@ -117,9 +117,16 @@ describe('服务级缓存键行为（F3 修复点：键此前忽略情景导致�
       },
     },
   }
+  // container 文件必须存在：此前 mock 缺它，container×design 的拒绝来自 ENOENT 而非守卫
+  //（守卫可删而测试仍绿 = 假绿壳）。补齐后拒绝只能由 cargo-only 守卫产生
+  const containerFile = {
+    ...cargoFile,
+    indicator: 'container',
+  }
   const dataFiles = {
     read: async (name: string) => {
       if (name === 'forecast/cargo.json') return cargoFile
+      if (name === 'forecast/container.json') return containerFile
       if (name === 'forecast/throughput_model.json') return artifact
       throw Object.assign(new Error('not found'), { code: 'ENOENT' })
     },
@@ -151,8 +158,17 @@ describe('服务级缓存键行为（F3 修复点：键此前忽略情景导致�
 
   it('非 cargo 指标配情景显式拒绝（04-B10：无文献参数不伪造）', async () => {
     const svc = new ForecastService(dataFiles)
+    // 断言守卫错误消息本身：若拒绝来自文件缺失/其他路径，此断言必红
     await expect(
       svc.getIndicatorData('container', undefined, 'qinzhou', 1.0, 'design')
-    ).rejects.toThrow(BusinessError)
+    ).rejects.toThrow('运河情景仅支持 cargo 指标')
+  })
+
+  it('container 基线不受守卫误伤（守卫非 cargo 路径的阳性对照）', async () => {
+    const svc = new ForecastService(dataFiles)
+    const r = (await svc.getIndicatorData('container', undefined, 'qinzhou', 1.0, 'baseline')) as {
+      ports: Record<string, { forecast: unknown[] }>
+    }
+    expect(r.ports.qinzhou).toBeDefined()
   })
 })

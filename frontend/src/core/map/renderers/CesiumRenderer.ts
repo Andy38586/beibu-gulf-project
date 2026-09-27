@@ -1134,6 +1134,42 @@ export class CesiumRenderer extends MapRenderer {
     return ws ? ws.visible : false
   }
 
+  /**
+   * 3D Tiles 接入（MapRenderer.add3DTiles 的 3D 实现）。
+   *
+   * **只走 Cesium 原生 API，不改动 viewer / scene 的任何既有配置**：
+   *   `Cesium3DTileset.fromUrl(url, { maximumScreenSpaceError })` → `scene.primitives.add(tileset)`
+   *
+   * options.nameFilter：只保留 `extras.name` 命中该子串的子树，其余节点用 Cesium 原生
+   * `tile.show = false` 隐藏（祖先只要有一个后代命中就保持可见）——用于「只看某一个枢纽」。
+   */
+  async add3DTiles(
+    id: string,
+    url: string,
+    options: { maximumScreenSpaceError?: number; nameFilter?: string } = {}
+  ): Promise<boolean> {
+    const ok = await add3DTilesLayer(this, id, url, {
+      maximumScreenSpaceError: options.maximumScreenSpaceError,
+    })
+    if (!ok) return false
+    if (options.nameFilter) {
+      const inst = this._layers.get(id)?.instance as Cesium3DTileset | undefined
+      type AnyTile = { extras?: { name?: string }; children?: AnyTile[]; show?: boolean }
+      const keep = options.nameFilter
+      const mark = (t: AnyTile): boolean => {
+        const self = String(t.extras?.name ?? '').includes(keep)
+        let child = false
+        for (const c of t.children ?? []) child = mark(c) || child
+        const hit = self || child
+        t.show = hit
+        return hit
+      }
+      if (inst?.root) mark(inst.root as unknown as AnyTile)
+      this.viewer?.scene.requestRender()
+    }
+    return true
+  }
+
   getType() {
     // 返回 '3d'（与 MapType 一致；原因同 OLRenderer.getType）
     return '3d'

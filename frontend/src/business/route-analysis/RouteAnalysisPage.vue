@@ -278,6 +278,12 @@ const stopTilesLayerWatch = watch(
   (renderer) => {
     if (!renderer) return
     if (isTiles3DCapable(renderer)) {
+      // 桌面交付包（9/21 · /static/pinglu/tiles/）里的**马道枢纽三维模型**：
+      // 走渲染器原生 3D Tiles 接口（Cesium3DTileset），只保留 extras.name 含「马道」的子树，
+      // 其余（企石/青年/全线走廊/桥）由 Cesium 原生 tile.show=false 隐藏。
+      void renderer.add3DTiles('pinglu-madao-model', '/static/pinglu/tiles/tileset.json', {
+        nameFilter: '马道',
+      })
       if (pingluRegistered) return
       void registerPingluGroups()
     } else if (pingluRegistered) {

@@ -26,6 +26,29 @@
 
 ---
 
+## 〇.5 验收规则（用户口径 2026-09-27 晚，**高于本文其他一切**）
+
+1. **唯一验收现场 = 项目自己的 Cesium**（本地 `/route-analysis`，前端 5173）。
+   除此以外的验证方式——探针 HTML、独立 viewer、Blender 渲染图、模型查看器、数值统计——
+   **用户一律不看**，只能作为过程证据，不能算通过。
+2. **不得改动项目 Cesium 的既有配置**（viewer / scene / terrainProvider / imagery 都不动）。
+   要接 3D Tiles，就用 Cesium 原生 API。
+3. **接入方式**：在渲染器抽象基类 `MapRenderer` 上**加一个方法**（基类给 no-op 默认实现，`OLRenderer` 直接继承），
+   由 `CesiumRenderer` 覆写；内部只用 `Cesium3DTileset.fromUrl(url)` + `scene.primitives.add(tileset)`。
+   「只看某一个枢纽」用 Cesium 原生 `tile.show`（`extras.name` 过滤），不派生、不改服务端文件。
+4. 🔴 **必须有三维模型**。只出现地形 / 只出现瓦片底色 **不算通过** —— 验收看的是
+   **枢纽的三维模型**真的在 Cesium 里显示出来。
+
+### 本轮按此口径的实现（2026-09-27 晚）
+
+| 位置 | 内容 |
+| --- | --- |
+| `frontend/src/core/map/renderers/MapRenderer.ts` | 新增 `add3DTiles(id, url, { maximumScreenSpaceError, nameFilter })`，基类返回 `false`（2D 无对应概念） |
+| `frontend/src/core/map/renderers/CesiumRenderer.ts` | 覆写：`Cesium3DTileset.fromUrl` → `scene.primitives.add`；`nameFilter` 命中的子树保留，其余 `tile.show=false` |
+| `frontend/src/business/route-analysis/RouteAnalysisPage.vue` | 进入 3D 时调用 `renderer.add3DTiles('pinglu-madao-model', '/static/pinglu/tiles/tileset.json', { nameFilter: '马道' })` —— **用桌面 9/21 交付包里的马道枢纽三维模型**，其余枢纽/走廊/桥隐藏 |
+
+---
+
 ## 一、权威参数总表
 
 > 每行都挂来源编号（见 §二）。**口径冲突的行单列 §一.6**，别只抄一个数。

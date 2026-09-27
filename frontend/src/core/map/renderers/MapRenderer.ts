@@ -77,6 +77,27 @@ export class MapRenderer implements MapRendererContract {
     throw new Error(`${this.getType()} addGeoJsonLayer 未实现`)
   }
 
+  /**
+   * 接入 3D Tiles 瓦片集（Cesium3DTileset）。
+   *
+   * 契约：**只走引擎原生 API，不改动 renderer 的既有配置**（Cesium 侧 =
+   * `Cesium3DTileset.fromUrl(url)` + `scene.primitives.add(tileset)`）。
+   * 2D 引擎无对应概念 ⇒ 基类静默 no-op 并返回 false（与 addPointLayer 同款默认实现）。
+   *
+   * @param id 图层 id（显隐/移除走既有 _layers 注册表）
+   * @param url tileset.json 地址
+   * @param options.nameFilter 只保留 `extras.name` 命中该子串的子树，其余节点按引擎原生方式隐藏
+   *        （Cesium: `tile.show = false`）——用于「只看某一个枢纽」
+   * @returns 是否真的接进场景
+   */
+  add3DTiles(
+    _id: string,
+    _url: string,
+    _options: { maximumScreenSpaceError?: number; nameFilter?: string } = {}
+  ): Promise<boolean> {
+    return Promise.resolve(false)
+  }
+
   // GeoTIFF/热力图等收敛为可选能力接口（GeoTIFFCapability/HeatmapCapability）：基类不再声明，
   // 调用方（layerAdapters）经类型守卫（typeof 检查）确认支持后调用，避免 2D/3D 互背契约（同水面 Water3DCapability 模式）
 

@@ -17,6 +17,7 @@ import type {
   MapRenderer,
   PointFeature,
   PolygonFeature,
+  TerrainToggleCapability,
   Tiles3DCapability,
   Tiles3DOptions,
   Water3DCapability,
@@ -150,6 +151,14 @@ export function isImageOverlayCapable(
   renderer: MapRenderer
 ): renderer is MapRenderer & ImageOverlayCapability {
   return typeof (renderer as Partial<ImageOverlayCapability>).addImageOverlayLayer === 'function'
+}
+
+/** 真地形开关能力检查：仅 Cesium 实现（setTerrainEnabled 切换 terrainProvider）。
+ *  对外导出——业务页注册真地形图层前用能力检查替代 getType() 引擎判断 */
+export function isTerrainCapable(
+  renderer: MapRenderer
+): renderer is MapRenderer & TerrainToggleCapability {
+  return typeof (renderer as Partial<TerrainToggleCapability>).setTerrainEnabled === 'function'
 }
 
 /** Adapter 函数签名 */
@@ -433,5 +442,34 @@ export const LAYER_ADAPTERS: Record<LayerType, LayerAdapter> = {
     },
   },
 
-  // 预留: entity, primitive, volume, terrain ...
+  // 真地形（3D Only）：Cesium 经 setTerrainEnabled 在 CTB 真地形（z 起伏）与
+  // 平坦椭球之间切换 scene.terrainProvider。默认关、进图层管理为可选图层，
+  // 与 3D Tiles 互斥（见 BusinessLayerManager 的互斥处理）。
+  terrain: {
+    engines: [ENGINE_NAMES.CESIUM],
+    create: (renderer, key) => {
+      if (!isTerrainCapable(renderer)) {
+        logger.warn(
+          `[layerAdapters] terrain 图层仅 3D 渲染器支持，当前 ${renderer.getType()} 跳过: ${key}`
+        )
+        return
+      }
+      renderer.setTerrainEnabled(true)
+    },
+    update: (renderer) => {
+      if (!isTerrainCapable(renderer)) return
+      renderer.setTerrainEnabled(true)
+    },
+    remove: (renderer) => {
+      if (!isTerrainCapable(renderer)) return
+      renderer.setTerrainEnabled(false)
+    },
+    // 真地形不存于普通图层表，显隐直接委派 setTerrainEnabled（同水面处理）
+    setVisibility: (renderer, _key, visible) => {
+      if (!isTerrainCapable(renderer)) return
+      renderer.setTerrainEnabled(visible)
+    },
+  },
+
+  // 预留: entity, primitive, volume ...（这三个尚未进入 LayerType，故不需要适配器）
 }

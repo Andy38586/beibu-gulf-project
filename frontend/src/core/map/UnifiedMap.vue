@@ -349,6 +349,18 @@ function setupLayers() {
       })
     }
   }
+
+  // 真地形（3D Only）：作为**可选图层**注册进图层面板，默认关。
+  // 用户实测真地形与 3D Tiles 同时开启时模型落位错乱，二者互斥（见 BLM 互斥处理）。
+  // registry 持久、此处幂等跳过；2D 引擎无该能力，adapter 的引擎面会跳过。
+  if (!businessLayerManager.has(LAYER_KEYS.terrain)) {
+    businessLayerManager.register(LAYER_KEYS.terrain, {
+      label: '3D 真地形',
+      layerType: 'terrain',
+      data: {},
+      visible: false,
+    })
+  }
 }
 
 // 类型谓词替代双重断言——featureType==='port' 时 data 应为港口属性，

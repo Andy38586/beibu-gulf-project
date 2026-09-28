@@ -15,6 +15,7 @@ export type LayerType =
   | 'geotiff'
   | '3dtiles'
   | 'imageOverlay'
+  | 'terrain'
 
 /** 业务图层元数据（BusinessLayerManager._registry 条目形状，供 updateData/getMeta 复用） */
 export interface LayerMeta {

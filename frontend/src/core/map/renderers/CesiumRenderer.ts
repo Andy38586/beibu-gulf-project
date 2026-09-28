@@ -467,12 +467,14 @@ export class CesiumRenderer extends MapRenderer {
     /**
      * 真地形（z 起伏）期望状态。
      *
-     * 恒为 true：地形是**随底图默认加载的基础能力**，没有用户可关的入口
-     * （2026-09-21 起不再由 layerAdapters 的 geotiff 图层联动，见 layerAdapters 注释）。
-     * 仅根瓦片连续失败时由 _engageTerrainFallback 走降级路径（切平坦椭球保底图可见），
-     * 与用户意图无关。保留该字段而非硬编码，是为降级后重试语义留下单一判据。
+     * 2026-09-28 起默认 false：真地形改为图层面板里的**可选图层**（layerType 'terrain'），
+     * 挂载时只预加载 CesiumTerrainProvider（_setupTerrain）但不应用，默认保持平坦椭球。
+     * 原因是用户实测真地形与 3D Tiles 同时开启时模型落位错乱，二者不能共存（见
+     * layerAdapters 的 terrain adapter 与 BusinessLayerManager 互斥处理）。
+     * 仅根瓦片连续失败时由 _engageTerrainFallback 走降级路径（切平坦椭球保底图可见）。
+     * 保留该字段而非硬编码，是为开关与降级后重试语义留下单一判据。
      */
-    this._terrainEnabled = true
+    this._terrainEnabled = false
     this._terrainSetupInFlight = null
     this._terrainDegraded = false
     this._rootTileErrorCount = 0

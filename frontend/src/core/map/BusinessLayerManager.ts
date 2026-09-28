@@ -15,6 +15,26 @@ import type { LayerType } from '@/types/core/layerManager'
 
 import { LAYER_ADAPTERS } from './layerAdapters'
 
+/**
+ * 互斥 layerType 组：同一时刻，组内**只允许一个 layerType 有可见实例**。
+ *
+ * 当前唯一一组：`terrain`（真地形 z 起伏）与 `3dtiles`（3D Tiles 模型）。
+ * 2026-09-28 用户实测：真地形与 3D Tiles 同时开启时，模型因锚点高程基准差
+ * （椭球高 vs 正高）落位错乱、埋地穿插，二者不能共存。打开任一方时，
+ * `setVisible` 自动关闭另一方的全部可见实例（用户无需手动先关）。
+ *
+ * 按 layerType 而非按具体 key 互斥：任意数量的 3dtiles 图层与地形都互斥，
+ * 新接入的 3dtiles 无需登记即自动受约束。
+ */
+const EXCLUSIVE_LAYER_TYPE_GROUPS: readonly ReadonlySet<LayerType>[] = [
+  new Set<LayerType>(['terrain', '3dtiles']),
+]
+
+/** 查找某 layerType 所属的互斥组（无则返回 undefined） */
+function findExclusiveGroup(layerType: LayerType): ReadonlySet<LayerType> | undefined {
+  return EXCLUSIVE_LAYER_TYPE_GROUPS.find((g) => g.has(layerType))
+}
+
 /** 图层渲染失败事件载荷（manager 只上报，UI 层决定如何展示） */
 export interface LayerErrorPayload {
   key: string
@@ -500,6 +520,23 @@ export class BusinessLayerManager {
 
     const adapter = this._getAdapter(meta.layerType)
     if (!adapter) return
+
+    // 互斥：打开本图层时，先关闭与其 layerType 互斥的其他 layerType 的可见实例
+    //（terrain 与 3dtiles 互斥，见 findExclusiveGroup）。先收集要关闭的 key
+    //（迭代 registry 时不能改动），再逐个 setVisible(false)——false 方向不触发
+    // 互斥，不会递归。
+    if (visible) {
+      const group = findExclusiveGroup(meta.layerType)
+      if (group) {
+        const keysToClose: string[] = []
+        for (const [otherKey, otherMeta] of this._registry.entries()) {
+          if (otherKey !== key && group.has(otherMeta.layerType) && otherMeta.visible) {
+            keysToClose.push(otherKey)
+          }
+        }
+        for (const otherKey of keysToClose) this.setVisible(otherKey, false)
+      }
+    }
 
     // 打开未创建的图层需先补建：register(visible:false) 时不渲染，若直接 setVisibility
     // 会落入待定显隐队列永不生效（无后续 create 触发应用），面板开关变"死按钮"

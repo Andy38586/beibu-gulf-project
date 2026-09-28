@@ -52,6 +52,30 @@ function createMockMapStore() {
 }
 
 /**
+ * mock 3D（Cesium）渲染器：覆盖互斥测试涉及的能力。
+ * 用 `layers` 集合模拟真实渲染器的图层台账（hasLayer / add3DTilesLayer / removeLayer）；
+ * terrain 不进普通图层台账（与 CesiumRenderer 一致），故 setTerrainEnabled 不改动 layers。
+ */
+function createMock3dRenderer() {
+  const layers = new Set<string>()
+  return {
+    getType: vi.fn(() => '3d'),
+    hasLayer: vi.fn((k: string) => layers.has(k)),
+    setVisibility: vi.fn((_k: string, _v: boolean) => {
+      /* 3dtiles 无 adapter.setVisibility，关闭走这里；不改动 layers（数据保留） */
+    }),
+    removeLayer: vi.fn((k: string) => {
+      layers.delete(k)
+    }),
+    add3DTilesLayer: vi.fn(async (k: string) => {
+      layers.add(k)
+      return true
+    }),
+    setTerrainEnabled: vi.fn(),
+  }
+}
+
+/**
  * setVisible 契约：经 mapStore.setLayerVisible（Pinia action，DevTools 可追踪）改目录条目，
  * 同时调 renderer.setVisibility 显隐（不销毁图层）——本用例断言两者均被调用。
  */
@@ -907,6 +931,124 @@ describe('BusinessLayerManager', () => {
 
       expect(mapStore.layerCatalog[0].listed).toBe(false)
       expect(mapStore.layerCatalog[0].locked).toBe(true)
+    })
+  })
+
+  // ── terrain ↔ 3dtiles 互斥（2026-09-28：真地形与 3D Tiles 不能共存）──────────
+  // 形态断言（"注册了 terrain 层"）挡不住"互斥逻辑没接上"：删掉 setVisible 里的互斥
+  // 扫描，面板开关照样在、terrain 照常能开，但二者会同时可见。本组按**行为**钉死。
+  describe('terrain ↔ 3dtiles 互斥', () => {
+    it('🔴 打开 terrain 时自动关闭所有可见的 3dtiles', () => {
+      manager.register('tiles-a', {
+        label: '3dtiles A',
+        layerType: '3dtiles',
+        data: { url: '/static/a/tileset.json' },
+        visible: true,
+      })
+      manager.register('tiles-b', {
+        label: '3dtiles B',
+        layerType: '3dtiles',
+        data: { url: '/static/b/tileset.json' },
+        visible: true,
+      })
+      manager.register('terrain', {
+        label: '3D 真地形',
+        layerType: 'terrain',
+        data: {},
+        visible: false,
+      })
+
+      const renderer = createMock3dRenderer()
+      mapStore.currentRenderer = renderer as unknown as MapRenderer
+
+      manager.setVisible('terrain', true)
+
+      // terrain 被打开
+      expect(renderer.setTerrainEnabled).toHaveBeenCalledWith(true)
+      // 两个 3dtiles 都被关闭（registry 权威状态）
+      expect(manager.getMeta('tiles-a')?.visible).toBe(false)
+      expect(manager.getMeta('tiles-b')?.visible).toBe(false)
+      // 关闭经 renderer.setVisibility（3dtiles 无 adapter.setVisibility）
+      expect(renderer.setVisibility).toHaveBeenCalledWith('tiles-a', false)
+      expect(renderer.setVisibility).toHaveBeenCalledWith('tiles-b', false)
+    })
+
+    it('🔴 打开任一 3dtiles 时自动关闭可见的 terrain', () => {
+      manager.register('terrain', {
+        label: '3D 真地形',
+        layerType: 'terrain',
+        data: {},
+        visible: true,
+      })
+      manager.register('tiles-a', {
+        label: '3dtiles A',
+        layerType: '3dtiles',
+        data: { url: '/static/a/tileset.json' },
+        visible: false,
+      })
+
+      const renderer = createMock3dRenderer()
+      mapStore.currentRenderer = renderer as unknown as MapRenderer
+
+      manager.setVisible('tiles-a', true)
+
+      // terrain 被关闭
+      expect(manager.getMeta('terrain')?.visible).toBe(false)
+      expect(renderer.setTerrainEnabled).toHaveBeenCalledWith(false)
+      // 3dtiles 被创建
+      expect(renderer.add3DTilesLayer).toHaveBeenCalledWith(
+        'tiles-a',
+        expect.any(String),
+        expect.anything()
+      )
+    })
+
+    it('🔴 互斥不波及非互斥 layerType（points 等照常显示）', () => {
+      manager.register('pts', {
+        label: '港口',
+        layerType: 'points',
+        data: [{ lng: 108, lat: 21 }],
+        visible: true,
+      })
+      manager.register('terrain', {
+        label: '3D 真地形',
+        layerType: 'terrain',
+        data: {},
+        visible: false,
+      })
+
+      const renderer = createMock3dRenderer()
+      ;(renderer as unknown as { addPointLayer: ReturnType<typeof vi.fn> }).addPointLayer = vi.fn()
+      mapStore.currentRenderer = renderer as unknown as MapRenderer
+
+      manager.setVisible('terrain', true)
+
+      // points 不受影响，仍可见
+      expect(manager.getMeta('pts')?.visible).toBe(true)
+    })
+
+    it('🔴 关闭方向不触发互斥：关掉 terrain 不会连带打开/关闭任何 3dtiles', () => {
+      manager.register('terrain', {
+        label: '3D 真地形',
+        layerType: 'terrain',
+        data: {},
+        visible: true,
+      })
+      manager.register('tiles-a', {
+        label: '3dtiles A',
+        layerType: '3dtiles',
+        data: { url: '/static/a/tileset.json' },
+        visible: false,
+      })
+
+      const renderer = createMock3dRenderer()
+      mapStore.currentRenderer = renderer as unknown as MapRenderer
+
+      manager.setVisible('terrain', false)
+
+      // 3dtiles 保持关闭、未被创建
+      expect(manager.getMeta('tiles-a')?.visible).toBe(false)
+      expect(renderer.add3DTilesLayer).not.toHaveBeenCalled()
     })
   })
 })

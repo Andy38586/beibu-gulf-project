@@ -167,11 +167,21 @@ export interface HeatmapCapability {
   updateHeatmapLayer(id: string, features: PointFeature[], options?: LayerOptions): boolean
 }
 
-// 真地形不再作为「能力接口」对外暴露（2026-09-21 移除 TerrainToggleCapability）：
-// 地形 z 起伏已明确为**随底图默认加载的基础能力**——CesiumRenderer 挂载时自行建立
-// CesiumTerrainProvider（_setupTerrain），不可由业务图层开关控制。原先经 layerAdapters
-// 的 geotiff.setVisibility 联动开关，导致「关山影贴图」连带关掉起伏，已切断。
-// 渲染器仍保留内部方法 setTerrainEnabled 供根瓦片失败后的降级重试用（见 CesiumRenderer）。
+/**
+ * 真地形开关能力（3D Only——Cesium 在 CesiumTerrainProvider（CTB z 起伏）与
+ * EllipsoidTerrainProvider（平坦椭球）之间切换 terrainProvider）。
+ *
+ * 2026-09-28 重新作为**能力接口**对外暴露：真地形由「挂载即开的基础能力」改为
+ * 图层面板里的可选图层（layerType 'terrain'，默认关）。原因是用户实测真地形与
+ * 3D Tiles 同时开启时模型落位错乱（锚点高程基准差），二者不能共存，故默认看模型
+ * 时保持平面，要看真地形再手动开关。
+ *
+ * 与 2026-09-21 移除时的区别：那时移除是为了切断 geotiff 显隐对真地形的误联动；
+ * 本次恢复是把它做成**独立的图层开关**，不再由任何贴图图层的显隐间接控制。
+ */
+export interface TerrainToggleCapability {
+  setTerrainEnabled(_enabled: boolean): void
+}
 
 // ===== 状态持久化 =====
 

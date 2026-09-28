@@ -30,6 +30,10 @@ export const LAYER_KEYS = {
   baseVector: 'base-vector',
   boundary: 'boundary',
   ports: 'ports',
+  // 真地形（3D Only，layerType 为 terrain，默认关；与 3D Tiles 互斥）
+  // key 用 real-terrain 而非 terrain：避免与 layerType 字面量同名，
+  // 否则 layer-keys 守卫会把 register 区域内的 layerType 字面量误判为裸写 key
+  terrain: 'real-terrain',
 
   // ── 洪涝域（FloodAnalysisPage 注册）──
   floodArea: 'flood-area',
@@ -55,6 +59,8 @@ export const DEFAULT_LAYER_ORDER: readonly string[] = [
   LAYER_KEYS.baseVector,
   LAYER_KEYS.boundary,
   LAYER_KEYS.ports,
+  // 真地形放基础层之后（3D Only，默认关）
+  LAYER_KEYS.terrain,
 ]
 
 /** 预测域图层 key 前缀：每个指标一张图层。**不导出** —— 外部只该用下面那个构造器 */

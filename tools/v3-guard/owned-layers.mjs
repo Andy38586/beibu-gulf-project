@@ -196,6 +196,7 @@ export const UNMOUNT_ALLOWED = new Set([
   'stopImageryWatch',
   'stopRendererWatch',
   'stopTilesLayerWatch',
+  'stopBeibuWatch',
   'stopPlayback',
   'stopBreathing',
   'stopFacilityBreathing',

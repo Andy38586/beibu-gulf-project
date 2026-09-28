@@ -114,8 +114,13 @@ export function resolveUri(baseUrl: string, uri: string): string {
   return path
 }
 
-/** 递归把子树里的 content.uri 换成绝对 URL */
-function absolutizeNode(node: TilesetNode, baseUrl: string): TilesetNode {
+/** 递归把子树里的 content.uri 换成绝对 URL；`drop` 命中的节点连同子树一并剔除（返回 null） */
+function absolutizeNode(
+  node: TilesetNode,
+  baseUrl: string,
+  drop?: (node: TilesetNode) => boolean
+): TilesetNode | null {
+  if (drop?.(node)) return null
   const out: TilesetNode = { ...node }
   const uri = nodeUri(node)
   if (uri && node.content) {
@@ -125,9 +130,29 @@ function absolutizeNode(node: TilesetNode, baseUrl: string): TilesetNode {
     delete (out.content as { url?: string }).url
   }
   if (Array.isArray(node.children)) {
-    out.children = node.children.map((c) => absolutizeNode(c, baseUrl))
+    out.children = node.children
+      .map((c) => absolutizeNode(c, baseUrl, drop))
+      .filter((c): c is TilesetNode => c !== null)
   }
   return out
+}
+
+/** 派生选项 */
+export interface DeriveOptions {
+  /**
+   * 剪枝谓词：返回 `true` 的节点**连同其子树**一并剔除。
+   *
+   * 与 `GroupSpec.match`（选层，只作用于 root 直属 child）的分工：`match` 决定
+   * 「要哪一棵子树」，`drop` 决定「这棵子树里哪些内容不要」，二者正交且可叠加。
+   *
+   * 为什么需要它（2026-09-28 项目内实测）：交付包的枢纽瓦片自带一层
+   * 「地形与边坡」（`*-z1-terrain.glb`，`extras.name` 含该子串），那是用
+   * Copernicus DEM 生成的**局部地表**。本项目的真地形来自 CTB（ASTER GDEM 派生 +
+   * 海陆掩膜），两者不同源、高程必然不一致——同时开启时表现为一块斜插进地形的平板
+   * （实测侧视可见硬直交界与互相穿插）。剔除它，闸室/闸门/引航道等**构筑物**便落回
+   * 项目地形上：**地形归地形，构筑物归构筑物**，不在渲染层叠两层地表。
+   */
+  drop?: (node: TilesetNode) => boolean
 }
 
 /**
@@ -143,20 +168,24 @@ function absolutizeNode(node: TilesetNode, baseUrl: string): TilesetNode {
 export function deriveGroupTileset<Id extends string>(
   tileset: TilesetJson,
   group: GroupSpec<Id>,
-  baseUrl: string
+  baseUrl: string,
+  options: DeriveOptions = {}
 ): TilesetJson | null {
   const root = tileset.root
   if (!root || !Array.isArray(root.children)) return null
+  if (options.drop?.(root)) return null
 
-  const picked = root.children.filter((c) => group.match(c))
+  const picked = root.children.filter((c) => group.match(c) && !options.drop?.(c))
   if (picked.length === 0) return null
 
   return {
     ...tileset,
     root: {
       ...root,
-      // 只保留命中子树；子树内部再走一遍 uri 绝对化
-      children: picked.map((c) => absolutizeNode(c, baseUrl)),
+      // 只保留命中子树；子树内部再走一遍 uri 绝对化（并按 drop 剪枝）
+      children: picked
+        .map((c) => absolutizeNode(c, baseUrl, options.drop))
+        .filter((c): c is TilesetNode => c !== null),
     },
   }
 }

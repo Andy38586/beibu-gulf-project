@@ -19,7 +19,7 @@
  * 无法用 kind 区分，故按 uri 前缀判定（见下方注释）。
  */
 
-import { nodeName, nodeUri, type GroupSpec, type TilesetJson } from '@/core'
+import { nodeName, nodeUri, type DeriveOptions, type GroupSpec, type TilesetJson } from '@/core'
 
 /**
  * 分组 id（图层 id 后缀，与注册时的 `pinglu-` + id 拼装一致）。
@@ -67,9 +67,29 @@ export const PINGLU_GROUPS: readonly GroupSpec<PingluGroupId>[] = [
   },
 ] as const
 
+/**
+ * 派生时剔除的瓦片：交付包给每个枢纽配的「地形与边坡」层
+ * （`extras.name` = 「马道枢纽 · 地形与边坡」等，文件 `*-z1-terrain.glb`）。
+ *
+ * 它是交付方用 **Copernicus DEM** 生成的**局部地表**；而本项目的真地形来自
+ * **CTB**（ASTER GDEM 派生 + 海陆掩膜）。两套 DEM 不同源，高程必然不一致——
+ * 2026-09-28 项目内实测：同时开启时表现为一块**斜插进地形的平板**，侧视能看到
+ * 硬直的交接线与互相穿插，三个枢纽全中。
+ *
+ * 剔除它，闸室 / 闸门 / 引航道等**构筑物**便落回项目地形：**地形归地形，
+ * 构筑物归构筑物**，渲染层不再叠两层地表。
+ *
+ * 判定用 `extras.name` 而非 uri 前缀——与分组配置同一口径，改文件名不会静默失效。
+ */
+const PINGLU_DROPPED_LABEL = '地形与边坡'
+
+/** 派生选项：剔除枢纽自带的「地形与边坡」层（理由见上） */
+export const PINGLU_DERIVE_OPTIONS: DeriveOptions = {
+  drop: (node) => (nodeName(node) ?? '').includes(PINGLU_DROPPED_LABEL),
+}
+
 /** 图层 id 前缀（图层面板 layer-order 与注册共用） */
 export const PINGLU_LAYER_PREFIX = 'pinglu-'
-
 /** 由分组 id 得到图层 id（如 'madao' → 'pinglu-madao'） */
 export function pingluLayerId(groupId: PingluGroupId): string {
   return PINGLU_LAYER_PREFIX + groupId
@@ -81,6 +101,12 @@ export function pingluLayerId(groupId: PingluGroupId): string {
  * 由后端 static 托管（dev 走 vite /static 代理、prod 走 nginx alias），与 dem/terrain
  * 同一通道；落位坐标由模型自带的逐顶点椭球曲率烘焙决定（tileset.root.transform），
  * 前端只负责挂载与显隐，**不做任何坐标纠偏**。
+ *
+ * 2026-09-28：`tiles/` 已换成交付包的**增强版瓦片**（带贴图/UV），旧版（9/27 白模落位版）
+ * 备份在 `.local/tmp/pinglu-tiles-backup-20260928/`。切换方式是把交付包的 30 个 GLB
+ * 覆盖进来 + 补回交付包漏掉的 `corridor-10`（其 README 自称已补回，实物没有）——
+ * 不补就会踩 `tiles3d-check` 的覆盖事故指纹（内容节点 30 < 下限 31）。
+ * `tiles-v2`（9/16 s3 管线的 63 瓦片版）仍在仓库，未被本处引用。
  */
 export const PINGLU_TILESET_URL = '/static/pinglu/tiles/tileset.json'
 

@@ -224,6 +224,23 @@ export interface MapRenderer {
   /** 添加 GeoJSON 图层 */
   addGeoJsonLayer(_id: string, _geojson: FeatureCollection, _options?: LayerOptions): void
 
+  /**
+   * 添加 3D Tiles 瓦片集（2D 引擎无对应概念 ⇒ 基类静默 no-op 并返回 false）。
+   *
+   * 定位完全由 tileset.json 自带的 `root.transform` 决定，调用方只传 URL；
+   * `nameFilter` 只保留 `extras.name` 命中该子串的子树（用于「只看某一个枢纽」）。
+   *
+   * 与 `MapRenderer` 类（renderers/MapRenderer.ts）的签名逐字对应：本接口是
+   * `mapStore.currentRenderer` 的静态类型，缺这一条会让业务页的
+   * `renderer.add3DTiles(...)` 在类型面不成立——**实现类有、契约接口没有**是契约单向，
+   * 修的是 09-27 加该方法时漏改的类型面。
+   */
+  add3DTiles(
+    _id: string,
+    _url: string,
+    _options?: { maximumScreenSpaceError?: number; nameFilter?: string }
+  ): Promise<boolean>
+
   // addGeoTIFFLayer/addHeatmapLayer 等单引擎专有方法已收敛为上方能力接口，经类型守卫后调用
 
   /** 设置图层显隐 */

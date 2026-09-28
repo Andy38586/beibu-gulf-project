@@ -148,6 +148,58 @@ describe('deriveGroupTileset — 落位不变量（最重要）', () => {
   })
 })
 
+describe('deriveGroupTileset — drop 剪枝（剔除选中分组内的指定内容）', () => {
+  it('命中深层子节点 → 只剪那一个（match 只看 root 层，drop 必须递归到底）', () => {
+    const d = deriveGroupTileset(makeTileset(), GROUP_A, BASE, {
+      drop: (n) => nodeName(n) === 'A-part',
+    })!
+    expect(d).not.toBeNull()
+    // 父节点 alpha 保留
+    expect(d.root.children).toHaveLength(1)
+    expect(d.root.children![0].content!.uri).toContain('alpha.glb')
+    // 子节点 A-part 被剪 ⇒ children 为空数组（不是残留 null）
+    expect(d.root.children![0].children).toEqual([])
+    expect(JSON.stringify(d)).not.toContain('alpha-part')
+  })
+
+  it('命中 root 直属 child → 该分组整体无内容 ⇒ 返回 null，而不是空壳瓦片集', () => {
+    expect(
+      deriveGroupTileset(makeTileset(), GROUP_A, BASE, { drop: (n) => nodeName(n) === 'A' })
+    ).toBeNull()
+  })
+
+  it('命中 root 自身 → 返回 null', () => {
+    expect(deriveGroupTileset(makeTileset(), GROUP_A, BASE, { drop: () => true })).toBeNull()
+  })
+
+  it('drop 不命中任何节点 ⇒ 与不传 drop 的结果逐位相同（等价重构不许红）', () => {
+    const withDrop = deriveGroupTileset(makeTileset(), GROUP_A, BASE, { drop: () => false })
+    const without = deriveGroupTileset(makeTileset(), GROUP_A, BASE)
+    expect(withDrop).toEqual(without)
+  })
+
+  it('drop 只在被选中的子树内求值：未选中的分组内容不会被连带处理', () => {
+    const seen: string[] = []
+    deriveGroupTileset(makeTileset(), GROUP_A, BASE, {
+      drop: (n) => {
+        seen.push(String(nodeName(n) ?? '(root)'))
+        return false
+      },
+    })
+    // A 组只含 alpha 子树 ⇒ drop 只该看到 root / A / A-part
+    expect(seen).toContain('A')
+    expect(seen).not.toContain('B')
+    expect(seen).not.toContain('C')
+  })
+
+  it('纯函数：drop 剪枝不改动原始 tileset', () => {
+    const src = makeTileset()
+    const before = JSON.stringify(src)
+    deriveGroupTileset(src, GROUP_A, BASE, { drop: (n) => nodeName(n) === 'A-part' })
+    expect(JSON.stringify(src)).toBe(before)
+  })
+})
+
 describe('resolveUri — 相对路径绝对化', () => {
   // jsdom 环境有 location：站点根相对必须补全到 scheme 级绝对地址——
   // data: 基准下 Cesium 把根相对 uri 拼成 data:///… 畸形地址（2026-09-26 实测零渲染缺陷）

@@ -18,9 +18,9 @@ import {
   isTiles3DCapable,
   LayerControlPanel,
   tallyGroups,
+  type TilesetJson,
   toDataUri,
   useOwnedLayers,
-  type TilesetJson,
 } from '@/core'
 import { DEFAULT_LAYER_ORDER, logger, showToast } from '@/shared'
 import { useMapStore, useTaskStore } from '@/stores'
@@ -33,13 +33,15 @@ import {
   ROUTE_PATH_LAYER_ID,
   useRouteLayer,
 } from './composables/useRouteLayer'
+import { BEIBU_TILES, beibuTilesLayerId } from './constants/beibu3dTiles'
 import {
+  PINGLU_DERIVE_OPTIONS,
   PINGLU_GROUPS,
   PINGLU_IMAGERY_INDEX_URL,
   PINGLU_IMAGERY_LAYER_PREFIX,
   PINGLU_TILESET_URL,
-  pingluLayerId,
   type PingluImageryIndex,
+  pingluLayerId,
 } from './constants/pingluTiles'
 
 /*
@@ -244,7 +246,10 @@ async function registerPingluGroups(): Promise<void> {
 
     const ids: string[] = []
     for (const group of PINGLU_GROUPS) {
-      const derived = deriveGroupTileset(template, group, PINGLU_TILESET_URL)
+      // 带剪枝派生：剔除各枢纽自带的「地形与边坡」层——那是交付方用另一套 DEM
+      // 生成的局部地表，与项目 CTB 地形不同源，同开会糊成一块斜插进地形的平板。
+      // 判据与理由见 constants/pingluTiles 的 PINGLU_DERIVE_OPTIONS。
+      const derived = deriveGroupTileset(template, group, PINGLU_TILESET_URL, PINGLU_DERIVE_OPTIONS)
       if (!derived) {
         logger.warn(`[RouteAnalysis] 3D Tiles 分组「${group.label}」无命中内容，已跳过`)
         continue
@@ -278,12 +283,14 @@ const stopTilesLayerWatch = watch(
   (renderer) => {
     if (!renderer) return
     if (isTiles3DCapable(renderer)) {
-      // 桌面交付包（9/21 · /static/pinglu/tiles/）里的**马道枢纽三维模型**：
-      // 走渲染器原生 3D Tiles 接口（Cesium3DTileset），只保留 extras.name 含「马道」的子树，
-      // 其余（企石/青年/全线走廊/桥）由 Cesium 原生 tile.show=false 隐藏。
-      void renderer.add3DTiles('pinglu-madao-model', '/static/pinglu/tiles/tileset.json', {
-        nameFilter: '马道',
-      })
+      // 2026-09-28 移除了曾经的兜底图层 `pinglu-madao-model`（整包 + nameFilter:'马道'），
+      // 三条理由，任一条都足够：
+      //   ① 它不在模板的 layer-order 里 ⇒ 图层面板没有对应开关，**常驻且用户关不掉**；
+      //   ② 与 PINGLU_GROUPS 的 `pinglu-madao` 分组内容重复，等于把马道渲染两份；
+      //   ③ 它走整包挂载，拿不到派生侧的剪枝 ⇒ 枢纽自带的「地形与边坡」层
+      //      （与项目 CTB 地形不同源，会糊成斜插进地形的平板）始终存在，
+      //      而面板上偏偏没有能关掉它的开关。
+      // 马道枢纽现由 `pinglu-madao` 分组承担：带剪枝、逐条可控、归 owner 册管理。
       if (pingluRegistered) return
       void registerPingluGroups()
     } else if (pingluRegistered) {
@@ -292,6 +299,55 @@ const stopTilesLayerWatch = watch(
       for (const id of pingluLayerIds.value) ownedLayers.unregister(id)
       pingluLayerIds.value = []
       pingluRegistered = false
+    }
+  },
+  { immediate: true }
+)
+
+// ---- 北部湾 3D Tiles 资产（2026-09-28 外部交付包） ----
+// 钦州港核心区（**自带地形层**）+ 马道枢纽 BIM（**纯构筑物**），清单在 ./constants/beibu3dTiles。
+// 与平陆运河那组同款：能力守卫驱动 + 归属登记，页面不自己调 remove。
+//
+// 这两条并排的意义不在"多两个图层"，而在共存判据：钦州港的 REPLACE 层本身就是地表，
+// 与项目 CTB 真地形同时开启会出现两层地面；BIM 只有构件、无地表，不会。详见清单文件头。
+const beibuLayerIds = ref<string[]>([])
+let beibuRegistered = false
+
+function registerBeibuTiles(): void {
+  if (beibuRegistered) return
+  if (disposed) return
+  const renderer = mapStore.currentRenderer
+  if (!renderer || !isTiles3DCapable(renderer)) return
+
+  const ids: string[] = []
+  for (const spec of BEIBU_TILES) {
+    const id = beibuTilesLayerId(spec.id)
+    const ok = ownedLayers.register(id, {
+      label: spec.label,
+      layerType: '3dtiles',
+      data: { url: spec.url, maximumScreenSpaceError: spec.maximumScreenSpaceError },
+      // 默认可见性由清单条目自己声明（见 beibu3dTiles 的 defaultVisible 注释）：
+      // 用户要"带回来的全部加载起来"，故全为 true；代价是首屏拉数百 MB，
+      // 面板条目按 layer-order 常驻，逐条关即可。
+      visible: spec.defaultVisible,
+    })
+    if (ok) ids.push(id)
+  }
+  beibuLayerIds.value = ids
+  beibuRegistered = ids.length > 0
+}
+
+const stopBeibuWatch = watch(
+  () => mapStore.currentRenderer,
+  (renderer) => {
+    if (!renderer) return
+    if (isTiles3DCapable(renderer)) {
+      registerBeibuTiles()
+    } else if (beibuRegistered) {
+      // 切 2D：本组同样无对应能力，走 unregister 保持归属册与实际一致
+      for (const id of beibuLayerIds.value) ownedLayers.unregister(id)
+      beibuLayerIds.value = []
+      beibuRegistered = false
     }
   },
   { immediate: true }
@@ -319,6 +375,7 @@ onUnmounted(() => {
   // 停 watch（否则后续 renderer 变化仍会重新挂上），再摘当前实例上的监听
   stopRendererWatch()
   stopTilesLayerWatch()
+  stopBeibuWatch()
   stopImageryWatch()
   mapStore.currentRenderer?.off?.('click', handleRendererClick)
   // 🔴 停 watch 只挡"以后不再挂"，**已经挂上的仍留在 App 级 BLM 里**：
@@ -331,8 +388,10 @@ onUnmounted(() => {
   // 本段只复位本页自己的展示态。
   pingluLayerIds.value = []
   imageryLayerIds.value = []
+  beibuLayerIds.value = []
   pingluRegistered = false
   imageryRegistered = false
+  beibuRegistered = false
 })
 </script>
 
@@ -378,6 +437,7 @@ onUnmounted(() => {
               ROUTE_PATH_LAYER_ID,
               ROUTE_ENDPOINT_LAYER_ID,
               ...PINGLU_GROUPS.map((g) => pingluLayerId(g.id)),
+              ...BEIBU_TILES.map((s) => beibuTilesLayerId(s.id)),
               ...imageryLayerIds,
             ]"
           />

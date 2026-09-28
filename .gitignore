@@ -164,6 +164,16 @@ algorithm-service.log*
 # 地形瓦片：DEM 派生缓存（tools/dem-pipeline/07 一键重切），不入库（云端冷备=v3-migration@92aa9475）
 backend/static/terrain/
 
+# 3D Tiles 运行时资产（外部交付「传输包-20260928」提取，2026-09-28）。
+# 不入库理由：qinzhou-port 单包 144 MB / 96 瓦片，且以 GLB 二进制为主，
+# Git 无法审阅其内容差异——入库后任何一次"替换瓦片"都无法判断是修复还是回归。
+# 与 backend/static/pinglu/tiles/（7.6 MB，可入库）的区别只在体积量级。
+# 复现与来源见 backend/static/qinzhou-port/README.md、backend/static/bim-hub/README.md。
+backend/static/qinzhou-port/
+backend/static/bim-hub/
+# tiles-v2 同量级（44 MB）且同性质，一并排除
+backend/static/pinglu/tiles-v2/
+
 # 本机备份目录（整树备份产物，500M+，绝不入库）
 .backups/
 # ZCode 会话运行时产物（计划文件等，agent 生成非项目源码）

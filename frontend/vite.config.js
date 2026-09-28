@@ -108,7 +108,9 @@ export default defineConfig(({ mode, command }) => {
               {
                 // 只精确匹配裸 `cesium`，不能前缀匹配——否则会连带改写 `cesium/...` 深路径导入
                 find: /^cesium$/,
-                replacement: fileURLToPath(new URL('./src/core/map/cesium-global.ts', import.meta.url)),
+                replacement: fileURLToPath(
+                  new URL('./src/core/map/cesium-global.ts', import.meta.url)
+                ),
               },
             ]
           : []),

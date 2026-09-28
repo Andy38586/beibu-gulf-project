@@ -72,6 +72,8 @@ export const Viewer = C.Viewer
 // 关键名字缺失时立刻炸，别让"图层开着什么都没有"再静默复现一次
 for (const k of ['Viewer', 'Cesium3DTileset', 'Cartesian3'] as const) {
   if (!(k in C)) {
-    throw new Error(`[cesium-global] window.Cesium 缺少 ${k} —— 检查 /cesium/Cesium.js 是否为完整构建`)
+    throw new Error(
+      `[cesium-global] window.Cesium 缺少 ${k} —— 检查 /cesium/Cesium.js 是否为完整构建`
+    )
   }
 }

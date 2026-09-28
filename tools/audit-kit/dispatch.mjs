@@ -279,7 +279,7 @@ ${附录}
 ${SIX.map((h) => `## ${h}\n\n（按 AGENTS.md §十一 的硬要求填；本节不得空交）\n`).join('\n')}
 ## 认领登记
 
-- 窗口：${win.id}　认领人：____　开工：____　交件：____
+- 窗口：${win.id} 认领人：____ 开工：____ 交件：____
 - 发现编号前缀固定 \`${win.id}-\`（跨窗命名空间不相交，合并时不撞号）
 `
 }
@@ -323,7 +323,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     .map((s) => s.replace(/^专/, '专项'))
 
   const entries = parseSpec()
-  let use = only.length ? entries.filter((e) => only.includes(e.专项)) : entries
+  const use = only.length ? entries.filter((e) => only.includes(e.专项)) : entries
   const { slices, unassigned } = buildSlices(use)
   if (!slices.length) {
     console.error('没有可切的切片（--only 写错？）')

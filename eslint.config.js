@@ -82,6 +82,37 @@ export default defineConfig([
   },
 
   {
+    // backend 的 TS 源码与用例：NestJS 服务与 vitest 用例都跑在 Node，
+    // 会直接使用 process / __dirname 等（如 config.service.ts 读 process.env）。
+    //
+    // 为什么单独补这一块：上方 `backend/**/*.js` 只覆盖了 .js，.ts 侧一直漏配，
+    // 于是 `process is not defined` 在 backend/src/** 与 backend/test/** 成批误报
+    // （pre-commit 的 eslint 带 --cache，部分文件被缓存跳过，所以只在 pre-push/CI
+    // 的全量口径暴露）。口径与 backend/**/*.js 一致，不是放宽判据。
+    //
+    // 注：eslint v10 已移除文件级 `/* eslint-env node */`，只能在此声明。
+    files: ['backend/**/*.ts'],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+      },
+    },
+  },
+
+  {
+    // docs/audits 下的一次性审查脚本（.mjs）：与 tools/**、scripts/** 同口径。
+    // 同类先例见上方 globalIgnores 的注释——那里记录过「一次性 .mjs 无 Node globals
+    // 配置，被扫到即误报 process/no-undef」；此处按同一口径补 globals，
+    // 而不是把 docs/ 整体 ignore 掉（那些脚本仍应受 lint 约束）。
+    files: ['docs/**/*.mjs'],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+      },
+    },
+  },
+
+  {
     // tools/、scripts/ 下的 .mjs Node 脚本（perf-bench 等基准/工具脚本）需要 node 全局
     files: ['tools/**/*.mjs', 'scripts/**/*.mjs'],
     languageOptions: {

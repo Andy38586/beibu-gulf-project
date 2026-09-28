@@ -28,7 +28,7 @@ export const THRESHOLD = { 绝对锚点: 60, 锚点真实率: 0.93, 可复跑判
  *  - 光文件名不带 `/` 的（README.md:47）也要能解析 ⇒ 解析时按 ROOT/批次目录/件所在目录三试。
  */
 const ANCHOR_RE =
-  /([\p{L}\p{N}][\p{L}\p{N}._/\-]*\.(?:ts|js|mjs|cjs|vue|css|scss|py|sql|json|md|yml|yaml|sh|html))[:：](\d+)/gu
+  /([\p{L}\p{N}][\p{L}\p{N}._/-]*\.(?:ts|js|mjs|cjs|vue|css|scss|py|sql|json|md|yml|yaml|sh|html))[:：](\d+)/gu
 const VERDICT_RE = /(P[0-3]|属实|不属实|通过|证伪|豁免|未证|不适用|降级|已修|未修|半修)/
 const TAG_RE = /`(引入|收口不足|取证漏|流程)`/g
 const RC_RE = /\bRC([1-4])\b/g

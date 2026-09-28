@@ -1,3 +1,19 @@
+// @vitest-environment node
+//
+// ⚠️ 环境声明是**语义前提**，不是便利开关。
+//
+// 本文件断言 `content.uri` 为**站点根相对**（`/static/pinglu/tiles/…`），而
+// `resolveUri` 对同一输入有两种合法输出（见 core/tiles3dGroups 的注释）：
+//   有 `location`（浏览器/jsdom）→ 补全成 scheme 级绝对地址；
+//   无 `location`（node）        → 保持站点根相对。
+// 断言写的是后者，故必须跑在 node 环境。
+//
+// 为什么不在断言里放宽：那样会同时接受两种形态，断言就不再咬住任何一侧 ——
+// 而 core 侧 tiles3dGroups.test.ts 恰好断言的是**前者**（跑 jsdom）。
+// 两边各钉一种语义，「谁把另一种写进代码」时都有一侧会红。
+// 缺此行时的实况：2026-09-26 `d2a86e2c` 引入 location 分支后本文件即转红，
+// 因为默认 jsdom 下 uri 被补成 `http://localhost:3000/static/...`。
+//
 // 平陆运河 3D Tiles 分组**业务配置**测试。
 //
 // 通用派生机制（裁子树 / uri 绝对化 / Data URI / 归属统计）在 core 侧已用中性用例钉死，

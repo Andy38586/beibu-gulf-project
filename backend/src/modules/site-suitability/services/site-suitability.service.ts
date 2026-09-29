@@ -20,7 +20,7 @@ export interface SuitabilityResult {
   metadata: {
     count: number
     weights: SuitabilityWeights
-    weightsSource: 'query' | 'ahp-draft'
+    weightsSource: 'query' | 'ahp-final'
     kdeP99: number
     minLandFrac: number
   }
@@ -62,7 +62,7 @@ export class SiteSuitabilityService {
       metadata: {
         count: features.length,
         weights,
-        weightsSource: 'ahp-draft',
+        weightsSource: 'ahp-final',
         kdeP99,
         minLandFrac: query.minLandFrac,
       },

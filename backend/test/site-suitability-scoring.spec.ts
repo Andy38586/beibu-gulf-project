@@ -54,12 +54,14 @@ describe('子分数单调性（手工复算 oracle）', () => {
     expect(inundationScore(3.5)).toBeCloseTo(0.05 + (2.5 / 5) * 0.95, 12)
     expect(inundationScore(5)).toBeGreaterThan(inundationScore(2))
   })
-  it('地形适宜度随坡度降：≤3°=1，≥15°=0.1，9°=0.55', () => {
+  it('地形适宜度随坡度降（刘文分级锚）：≤5°=1，≥20°=0.1，9°=0.76', () => {
     expect(terrainScore(1)).toBe(1)
-    expect(terrainScore(15)).toBe(0.1)
+    expect(terrainScore(5)).toBe(1)
+    expect(terrainScore(20)).toBe(0.1)
     expect(terrainScore(30)).toBe(0.1)
-    expect(terrainScore(9)).toBeCloseTo(1 - (6 / 12) * 0.9, 12)
-    expect(terrainScore(5)).toBeLessThan(terrainScore(2))
+    // 手工复算：1 − (9−5)/15 × 0.9 = 1 − 0.24 = 0.76
+    expect(terrainScore(9)).toBeCloseTo(0.76, 12)
+    expect(terrainScore(10)).toBeLessThan(terrainScore(6))
   })
   it('可达适宜度随距离降：0=1，远港远路→趋 0（指数衰减）', () => {
     expect(accessScore(0, 0)).toBeCloseTo(1, 12)

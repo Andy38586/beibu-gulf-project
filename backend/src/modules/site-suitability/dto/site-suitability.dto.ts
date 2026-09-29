@@ -1,17 +1,17 @@
 // 加权叠加端点入参解析（单元四）：五准则权重经 query 传入（GET 语义：可缓存可分享），
-// 缺省回落 AHP 草案矩阵的特征向量权重——**AHP 定稿前草案权重即默认值**（site-ahp
-// 头部警告闸仍生效：定稿后替换此处来源）。
+// 缺省回落 AHP 定稿矩阵的特征向量权重（SITE_AHP_MATRIX，2026-09-30 定稿，
+// 依据链见 site-ahp.constants.ts 文件头）。
 import { ahpWeights } from '../../../common/ahp'
-import { SITE_AHP_DRAFT_MATRIX, SITE_CRITERIA } from '../../../common/constants/site-ahp.constants'
+import { SITE_AHP_MATRIX, SITE_CRITERIA } from '../../../common/constants/site-ahp.constants'
 
 export interface SuitabilityQuery {
   weights: Record<string, number>
   minLandFrac: number
 }
 
-/** AHP 草案特征向量权重（顺序对应 SITE_CRITERIA：浸没/地形/土地/可达/需求） */
+/** AHP 定稿特征向量权重（顺序对应 SITE_CRITERIA：浸没/地形/土地/可达/需求） */
 export function defaultWeights(): Record<string, number> {
-  const { weights } = ahpWeights(SITE_AHP_DRAFT_MATRIX)
+  const { weights } = ahpWeights(SITE_AHP_MATRIX)
   return Object.fromEntries(SITE_CRITERIA.map((k, i) => [CRITERION_KEY[k] ?? k, weights[i]]))
 }
 

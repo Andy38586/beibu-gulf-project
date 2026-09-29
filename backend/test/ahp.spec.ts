@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { ahpWeights, CR_THRESHOLD, RI_TABLE } from '../src/common/ahp'
-import { SITE_AHP_DRAFT_MATRIX } from '../src/common/constants/site-ahp.constants'
+import { SITE_AHP_MATRIX } from '../src/common/constants/site-ahp.constants'
 
 // AHP 纯函数单测（工单 §四单元三）。oracle 用 Saaty 教科书已发表算例，
 // 不从实现反推期望值（对齐 scenario.service.spec 的手工复算纪律）。
@@ -85,9 +85,9 @@ describe('ahpWeights 拒收（阴性）', () => {
   })
 })
 
-describe('草案判断矩阵（constants/site-ahp）', () => {
-  it('SITE_AHP_DRAFT_MATRIX 通过一致性检验且和为 1（草案可用的门槛）', () => {
-    const r = ahpWeights(SITE_AHP_DRAFT_MATRIX)
+describe('定稿判断矩阵（constants/site-ahp）', () => {
+  it('SITE_AHP_MATRIX 通过一致性检验且和为 1（定稿有效性门槛）', () => {
+    const r = ahpWeights(SITE_AHP_MATRIX)
     expect(r.cr).toBeLessThan(CR_THRESHOLD)
     const sum = r.weights.reduce((a, b) => a + b, 0)
     expect(Math.abs(sum - 1)).toBeLessThan(1e-9)

@@ -30,6 +30,7 @@ INSERT INTO spatial_meta (table_name, storage_crs, source_crs, transform, notes)
   ('protected_areas', 'EPSG:4490', 'EPSG:4326', 'ogr2ogr -nlt PROMOTE_TO_MULTI + -t_srs EPSG:4490', 'WDPA 中国保护区 34 个面'),
   ('land_cover', 'EPSG:4490', 'EPSG:4326', 'gdalwarp -r mode 30m 聚合（WorldCover 10m 源）+ polygonize 4 连通 → 4490（4 连通环天然单圈全有效；8 连通曾产 11.5 万 8 字环已弃）', 'ESA WorldCover 2021 v200 10m，4 瓦片裁 bbox，72 万面；class 代码见 db-schema-gis.sql；源在钦州湾外海有官方 nodata 空洞（开海域不产面）')
   ('terrain_factors', 'EPSG:4490', 'custom TM CM108', 'gdal 块聚合 30m→480m + 块中心 osr 变换 → 4490', '海陆一体 DEM 陆像元统计 148423 块（高程/坡度/陆占比）；管线 12-terrain-factors.py；2026-09-29 最高块直读对照 1401.15 逐位一致'),
+  ('access_factors', 'EPSG:4490', 'EPSG:4490', 'KNN 球面距离物化自 terrain_factors（无坐标变换）', 'v1 直线距离代理：dist_port_m/dist_road_m；pgRouting 升级路径见 tools/site-suitability/access-factors.sql'),
 ON CONFLICT (table_name) DO UPDATE SET
   storage_crs = EXCLUDED.storage_crs,
   source_crs  = EXCLUDED.source_crs,

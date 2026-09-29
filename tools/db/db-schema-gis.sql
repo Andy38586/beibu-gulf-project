@@ -104,6 +104,16 @@ CREATE TABLE IF NOT EXISTS terrain_factors (
   geom           geometry(Point, 4490)
 );
 CREATE INDEX IF NOT EXISTS idx_terrain_factors_geom ON terrain_factors USING GIST (geom);
+-- ==================== 交通可达因子面（新选址准则「交通可达」，2026-09-29） ====================
+-- v1 直线距离代理：到最近港口/最近道路的球面距离（米），KNN 物化自 terrain_factors。
+-- 管线 tools/site-suitability/access-factors.sql；pgRouting 路径级可达性为后续升级。
+CREATE TABLE IF NOT EXISTS access_factors (
+  terrain_id   BIGINT PRIMARY KEY,
+  dist_port_m  DOUBLE PRECISION,
+  dist_road_m  DOUBLE PRECISION,
+  geom         geometry(Point, 4490)
+);
+CREATE INDEX IF NOT EXISTS idx_access_factors_geom ON access_factors USING GIST (geom);
 -- ==================== 行政区划（淹没面陆域裁剪用，2026-09-12） ====================
 -- 钦北防三市 12 区县面，与 frontend/public/data/site-selection/boundary.geojson 同源
 --（前端行政区划图层同款数据），改任一侧必须同步。

@@ -188,6 +188,40 @@ export const forecastIndicatorIndexSchema = z.object({
 
 export type ForecastIndicatorIndexParsed = z.infer<typeof forecastIndicatorIndexSchema>
 
+// ⑯ /site-suitability/map 响应（新选址单元四加权叠加；格网 GeoJSON）
+// @backend-contract backend/src/modules/site-suitability/services/site-suitability.service.ts
+export const siteSuitabilityResponseSchema = z.object({
+  type: z.literal('FeatureCollection'),
+  features: z.array(
+    z.looseObject({
+      type: z.literal('Feature'),
+      geometry: z.looseObject({
+        type: z.literal('Point'),
+        coordinates: z.array(z.number()),
+      }),
+      properties: z.looseObject({
+        id: z.number(),
+        score: z.number(),
+      }),
+    })
+  ),
+  metadata: z.looseObject({
+    count: z.number(),
+    weights: z.looseObject({
+      inundation: z.number(),
+      terrain: z.number(),
+      land: z.number(),
+      access: z.number(),
+      demand: z.number(),
+    }),
+    weightsSource: z.string(),
+    kdeP99: z.number(),
+    minLandFrac: z.number(),
+  }),
+})
+
+export type SiteSuitabilityResponseParsed = z.infer<typeof siteSuitabilityResponseSchema>
+
 // ⑮ /flood/flood-statistics 响应（定义提前：⑩ planSchema 的浸没载荷字段复用本 schema，
 // 须先于其求值；编号保持文档序号不变）
 // 2026-09-11 起与 flood-areas/disaster 同源：waterLevel 为 251 档实际档位（不再是 6 档粗化值）；

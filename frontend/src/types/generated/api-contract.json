@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-27",
+  "generatedAt": "2026-09-29",
   "source": "frontend/src/types/schemas.ts（单一事实源，types:gen 自动生成勿手改）",
   "schemas": {
     "userSchema": {
@@ -226,6 +226,23 @@
         "charts": {
           "type": "object",
           "optional": true
+        }
+      }
+    },
+    "siteSuitabilityResponseSchema": {
+      "kind": "object",
+      "fields": {
+        "type": {
+          "type": "literal",
+          "optional": false
+        },
+        "features": {
+          "type": "array",
+          "optional": false
+        },
+        "metadata": {
+          "type": "object",
+          "optional": false
         }
       }
     },
@@ -749,6 +766,14 @@
         "canalScenario": 26,
         "type": 8,
         "features": 4
+      }
+    },
+    "siteSuitabilityResponseSchema": {
+      "file": "backend/src/modules/site-suitability/services/site-suitability.service.ts",
+      "occurrence": {
+        "type": 6,
+        "features": 2,
+        "metadata": 2
       }
     },
     "floodStatisticsResponseSchema": {

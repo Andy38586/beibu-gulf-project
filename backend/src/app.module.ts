@@ -22,6 +22,7 @@ import { ForecastModule } from './modules/forecast/forecast.module'
 import { PlansModule } from './modules/plans/plans.module'
 import { RouteModule } from './modules/route/route.module'
 import { SiteAnalysisModule } from './modules/site-analysis/site-analysis.module'
+import { SiteSuitabilityModule } from './modules/site-suitability/site-suitability.module'
 import { TaskModule } from './modules/task/task.module'
 
 // 限流对齐 Express：命名桶 global 1000/15min + login/register 各 50/15min；
@@ -43,6 +44,7 @@ import { TaskModule } from './modules/task/task.module'
     FloodModule,
     ForecastModule,
     SiteAnalysisModule,
+    SiteSuitabilityModule,
     RouteModule,
     HealthModule,
     // v4 异步任务域：把「提交 → 后台跑 → 回来取结果」的能力独立成域，

@@ -24,6 +24,7 @@ import {
   portsArraySchema,
   routePathResponseSchema,
   siteAnalysisResponseSchema,
+  siteSuitabilityResponseSchema,
   terrainProfileSchema,
   timeSeriesResponseSchema,
   waterAreaSchema,
@@ -523,6 +524,44 @@ describe('契约覆盖补齐的 schema（生成器门禁转红后补）', () => 
     expect(failed.success).toBe(true)
     // error 必须是 string|null——数字被拒
     expect(siteAnalysisResponseSchema.safeParse({ error: 500, coverage: null }).success).toBe(false)
+  })
+
+  it('siteSuitabilityResponseSchema：格网 GeoJSON + metadata 权重口径', () => {
+    const ok = siteSuitabilityResponseSchema.safeParse({
+      type: 'FeatureCollection',
+      features: [
+        {
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: [108.6, 21.9] },
+          properties: { id: 1, score: 0.7234, land: 0.5 },
+        },
+      ],
+      metadata: {
+        count: 1,
+        weights: { inundation: 0.4, terrain: 0.1, land: 0.2, access: 0.2, demand: 0.1 },
+        weightsSource: 'ahp-draft',
+        kdeP99: 0.00004,
+        minLandFrac: 0.5,
+      },
+    })
+    expect(ok.success).toBe(true)
+    // score 缺失拒绝（端点恒产出）；metadata 缺失拒绝
+    expect(
+      siteSuitabilityResponseSchema.safeParse({
+        type: 'FeatureCollection',
+        features: [
+          {
+            type: 'Feature',
+            geometry: { type: 'Point', coordinates: [0, 0] },
+            properties: { id: 1 },
+          },
+        ],
+        metadata: { count: 0, weights: {}, weightsSource: 'query', kdeP99: 0, minLandFrac: 0.5 },
+      }).success
+    ).toBe(false)
+    expect(
+      siteSuitabilityResponseSchema.safeParse({ type: 'FeatureCollection', features: [] }).success
+    ).toBe(false)
   })
 
   it('portsArraySchema：前端托管 ports.json 通过；元素缺字段拒绝', () => {

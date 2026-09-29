@@ -114,6 +114,23 @@ CREATE TABLE IF NOT EXISTS access_factors (
   geom         geometry(Point, 4490)
 );
 CREATE INDEX IF NOT EXISTS idx_access_factors_geom ON access_factors USING GIST (geom);
+-- ==================== 选址统一因子格网（新选址单元二→四，2026-09-29） ====================
+-- 一行 = 一个 480m 地形块，五准则子因子拼行：地形三列 + land_frac、土地主类
+--（块中心点所在 land_cover 面）、可达两列、需求 KDE 质量（含块的 kde 格）。
+-- 物化 tools/site-suitability/materialize-cells.sql；端点只做归一化+加权和（勘误#5）。
+CREATE TABLE IF NOT EXISTS suitability_cells (
+  id             BIGINT PRIMARY KEY,
+  geom           geometry(Point, 4490),
+  mean_elev_m    DOUBLE PRECISION,
+  mean_slope_deg DOUBLE PRECISION,
+  max_slope_deg  DOUBLE PRECISION,
+  land_frac      DOUBLE PRECISION,
+  land_class     INT,
+  dist_port_m    DOUBLE PRECISION,
+  dist_road_m    DOUBLE PRECISION,
+  kde_mass       DOUBLE PRECISION
+);
+CREATE INDEX IF NOT EXISTS idx_suitability_cells_geom ON suitability_cells USING GIST (geom);
 -- ==================== 行政区划（淹没面陆域裁剪用，2026-09-12） ====================
 -- 钦北防三市 12 区县面，与 frontend/public/data/site-selection/boundary.geojson 同源
 --（前端行政区划图层同款数据），改任一侧必须同步。

@@ -91,6 +91,19 @@ CREATE TABLE IF NOT EXISTS land_cover (
 );
 CREATE INDEX IF NOT EXISTS idx_land_cover_geom ON land_cover USING GIST (geom);
 CREATE INDEX IF NOT EXISTS idx_land_cover_class ON land_cover (class);
+-- ==================== 地形因子面（新选址准则「高程地形」，2026-09-29） ====================
+-- 480m 格（30m DEM 16×16 块聚合），陆像元统计；管线 tools/dem-pipeline/12-terrain-factors.py。
+-- mean_elev/mean_slope 为块内陆像元均值，max_slope 块内最大，land_frac 陆像元占比
+--（全海/无值块不入库）；源 = 海陆一体 DEM（landsea_utm48n.tif，2026-09-27 拼接产物）
+CREATE TABLE IF NOT EXISTS terrain_factors (
+  id             BIGSERIAL PRIMARY KEY,
+  mean_elev_m    DOUBLE PRECISION,
+  mean_slope_deg DOUBLE PRECISION,
+  max_slope_deg  DOUBLE PRECISION,
+  land_frac      DOUBLE PRECISION,
+  geom           geometry(Point, 4490)
+);
+CREATE INDEX IF NOT EXISTS idx_terrain_factors_geom ON terrain_factors USING GIST (geom);
 -- ==================== 行政区划（淹没面陆域裁剪用，2026-09-12） ====================
 -- 钦北防三市 12 区县面，与 frontend/public/data/site-selection/boundary.geojson 同源
 --（前端行政区划图层同款数据），改任一侧必须同步。

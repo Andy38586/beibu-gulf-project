@@ -234,11 +234,19 @@ export function renderBrief(win, ctx) {
     )
     .join('\n')
 
-  const grepCmd = `grep -c '^### 指标 ' ${specFiles.join(' ')}`
+  // 期望值必须是**单行**：多文件 `grep -c` 会打印 `文件:计数` 多行，嵌进 `# 期望:` 后
+  // 第二行起会被 parseCases 当成无期望的裸命令 ⇒ 自己生成的 brief 过不了自己的复算器
+  // （926q 后实测到的自家坑）。用 `-h | wc -l` 收成一行总数。
+  const grepCmd = `grep -h '^### 指标 ' ${specFiles.join(' ')} | wc -l`
   const grepOut = capture(grepCmd)
   const checkOut = capture('node tools/audit-kit/metrics-index.mjs --check | tail -1')
+  // §0 不锚活 HEAD：多会话同树下 `git rev-parse HEAD` 的期望值必然被别人的提交推走（926q 批
+  // W3/W4 交件后数分钟内就这样假红）。改用祖先断言 —— 生成时点仍是 HEAD 祖先即通过。
   const 核对 = [
-    ['git rev-parse --short HEAD', ctx.head],
+    [
+      `git merge-base --is-ancestor ${ctx.head} HEAD && echo generated-sha-is-ancestor || echo drift`,
+      'generated-sha-is-ancestor',
+    ],
     ...(checkOut ? [['node tools/audit-kit/metrics-index.mjs --check | tail -1', checkOut]] : []),
     ...(grepOut ? [[grepCmd, grepOut]] : []),
   ]

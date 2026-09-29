@@ -8,6 +8,7 @@
  */
 import { describe, expect, it } from 'vitest'
 import { existsSync, readFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
 import path from 'node:path'
 
 import {
@@ -18,7 +19,8 @@ import {
   renderBrief,
 } from '../dispatch.mjs'
 import { extractBashBlocks } from '../extract-window.mjs'
-import { parseSpec } from '../metrics-index.mjs'
+import { summarize as summarizeIndex, parseSpec } from '../metrics-index.mjs'
+import { summarize as sumVrfy, verifyWindow } from '../verify-window.mjs'
 import { CONVENTION, ROOT } from '../paths.mjs'
 
 const m = (专项, 部分, id, 成本 = 10, paths = []) => ({
@@ -189,5 +191,27 @@ describe('dispatch — 真实 396 指标回归', () => {
       expect(s.专项文件).toMatch(/^docs\/根基文档\/审查体系专项\/专项[1-8]-.*\.md$/)
       expect(existsSync(path.join(ROOT, s.专项文件))).toBe(true)
     }
+  })
+
+  it('派单器生成的 §0 必须过它自己的复算器（多行期望/活 HEAD 两类坑的回归钉）', () => {
+    const real = parseSpec()
+    const bins = partition(buildSlices(real).slices, 2)
+    const ctx = {
+      batch: 'T9',
+      head: execFileSync('git', ['rev-parse', '--short', 'HEAD'], {
+        cwd: ROOT,
+        encoding: 'utf8',
+      }).trim(),
+      windows: 2,
+      必读: parseRequiredReading(),
+      统计: summarizeIndex(real),
+      未归部: 0,
+      重叠: [],
+    }
+    const md = renderBrief(bins[0], ctx)
+    const v = verifyWindow(md, { cwd: ROOT })
+    expect(v.delivered).toBe(true)
+    expect(sumVrfy(v.results).fail).toBe(0)
+    expect(sumVrfy(v.results).pass).toBeGreaterThanOrEqual(2)
   })
 })

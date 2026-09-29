@@ -95,3 +95,39 @@ describe('verifyWindow — 交付判定与整体口径', () => {
     expect(r.results[0].reason).toContain('期望未出现')
   })
 })
+
+describe('verify-window — 缺期望不得等于通过（926q W1-06 实测的洞）', () => {
+  const NOEXP = '## §0 核对\n\n```bash\nnode -e "console.log(1)"\necho ok\n```\n'
+
+  it('零条 `# 期望:` ⇒ 全部 FAIL、rc 口径为不通过（阳性对照前这里是 pass=2 fail=0）', () => {
+    const r = verifyWindow(NOEXP, { cwd: process.cwd() })
+    const s = summarize(r.results)
+    expect(s).toEqual({ total: 2, pass: 0, fail: 2, skip: 0 })
+    expect(r.results[0].reason).toContain('未带 `# 期望:`')
+  })
+
+  it('同形态补齐期望 ⇒ 不误红（等价改写那一格）', () => {
+    const md =
+      '## §0 核对\n\n```bash\nnode -e "console.log(1)"\n# 期望: 1\necho ok\n# 期望: ok\n```\n'
+    expect(summarize(verifyWindow(md, { cwd: process.cwd() }).results)).toEqual({
+      total: 2,
+      pass: 2,
+      fail: 0,
+      skip: 0,
+    })
+  })
+
+  it('命令自身 exit 1 但 stdout 对上期望 ⇒ 仍 PASS（口径是 stdout，不是退出码）', () => {
+    const md =
+      '## §0 核对\n\n```bash\nnode -e "console.log(boom);process.exit(1)"\n# 期望: boom\n```\n'
+    const r = verifyWindow(md, { cwd: process.cwd() })
+    expect(summarize(r.results).pass).toBe(1)
+    expect(r.results[0].reason).toContain('退出码 1')
+  })
+
+  it('--lenient ⇒ 缺期望记 SKIP 不判 FAIL，且报告里说清是豁免（不得当交件门槛）', () => {
+    const s = summarize(verifyWindow(NOEXP, { cwd: process.cwd(), lenient: true }).results)
+    expect(s.fail).toBe(0)
+    expect(s.skip).toBe(2)
+  })
+})

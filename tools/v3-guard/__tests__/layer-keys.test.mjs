@@ -12,15 +12,22 @@
  *   5) 词表**派生**自权威表（不手抄）：从 layers.ts 文本解析，空表返回 []；
  *   6) 豁免基线只对 site-selection 生效（problems 空、exempted 非空）。
  */
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
 import { describe, expect, it } from 'vitest'
 
 import {
-  BASELINE,
-  LAYER_KEYS,
   auditLayerKeys,
+  BASELINE,
   deriveLayerKeys,
   inDomainLines,
+  LAYER_KEYS,
+  LAYERS_TABLE_REL,
 } from '../layer-keys.mjs'
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..')
 
 const src = (text, relPath = 'frontend/src/business/x/XPage.vue') => [{ relPath, text }]
 const problemsOf = (text, relPath) => auditLayerKeys(src(text, relPath)).problems
@@ -108,10 +115,16 @@ describe('layer-keys — 图层 key 字面量守卫', () => {
 })
 
 describe('layer-keys — 词表派生与判据域', () => {
-  it('词表从权威表派生（不手抄），且非空', () => {
-    expect(LAYER_KEYS).toHaveLength(10)
-    expect(LAYER_KEYS).toContain('base-image')
-    expect(LAYER_KEYS).toContain('route-endpoint')
+  // 判据形状＝「哪些键必须在 + 解析到的值数与表内成员名数一致」，**不钉长度字面量**：
+  // 字面量既让每次加图层都红一次，又防不住成员被跳过而个数不变（如 `k: "v"` 换双引号，
+  // deriveLayerKeys 的 `:\s*'([^']+)'` 会静默漏掉它，判据域随之缩而不自知）。
+  it('词表从权威表派生（不手抄），承重键必在且与成员名数一致', () => {
+    for (const key of ['base-image', 'base-vector', 'boundary', 'ports', 'route-endpoint'])
+      expect(LAYER_KEYS).toContain(key)
+    const table = readFileSync(path.join(ROOT, LAYERS_TABLE_REL), 'utf8')
+    const 成员名 = [...table.matchAll(/^ {2}([A-Za-z_$][\w$]*):/gm)].map((m) => m[1])
+    expect(成员名.length).toBeGreaterThan(0)
+    expect(LAYER_KEYS).toHaveLength(成员名.length)
   })
 
   it('deriveLayerKeys：解析 LAYER_KEYS 对象值为数组；缺表返回 []', () => {

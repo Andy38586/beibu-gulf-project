@@ -62,7 +62,8 @@ import { fileURLToPath } from 'node:url'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const SRC_ROOT = path.join(ROOT, 'frontend/src')
-const LAYERS_TABLE_REL = 'frontend/src/shared/constants/layers.ts'
+// export：自测要按同一条路径读权威表做交叉核对，路径不得在测试里手抄第二份
+export const LAYERS_TABLE_REL = 'frontend/src/shared/constants/layers.ts'
 const LAYERS_TABLE = path.join(ROOT, LAYERS_TABLE_REL)
 
 /** 豁免基线：路径前缀（只放待移除的 site-selection；见文件头「豁免口」）。 */

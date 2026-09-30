@@ -33,10 +33,32 @@ export const LAND_CLASS_SCORE: Readonly<Record<number, number>> = {
  * 取档位体系内的工程判断：<1m 滩涂/高潮位即淹（0.05）；1~6m 线性升至 1.0；
  * >6m 远超历史增水量级（1.0）。论文附敏感性分析（1m/6m 各 ±50% 扰动）。
  */
-export function inundationScore(meanElevM: number): number {
-  if (meanElevM <= 1) return 0.05
-  if (meanElevM >= 6) return 1
-  return 0.05 + ((meanElevM - 1) / 5) * 0.95
+/** 阈值集（敏感性分析的可扰动参数；默认值=定稿值，见上方各级注释） */
+export interface ScoreThresholds {
+  inundLowM: number
+  inundHighM: number
+  slopeBestDeg: number
+  slopeWorstDeg: number
+  portScaleM: number
+  roadScaleM: number
+}
+
+export const DEFAULT_THRESHOLDS: ScoreThresholds = {
+  inundLowM: 1,
+  inundHighM: 6,
+  slopeBestDeg: 5,
+  slopeWorstDeg: 20,
+  portScaleM: 8000,
+  roadScaleM: 2000,
+}
+
+export function inundationScore(
+  meanElevM: number,
+  t: ScoreThresholds = DEFAULT_THRESHOLDS
+): number {
+  if (meanElevM <= t.inundLowM) return 0.05
+  if (meanElevM >= t.inundHighM) return 1
+  return 0.05 + ((meanElevM - t.inundLowM) / (t.inundHighM - t.inundLowM)) * 0.95
 }
 
 /**
@@ -46,10 +68,13 @@ export function inundationScore(meanElevM: number): number {
  * 中段线性过渡（原文为五级离散赋值，本系统取连续线性等价形式——等价重构
  * 不改变排序语义）。
  */
-export function terrainScore(meanSlopeDeg: number): number {
-  if (meanSlopeDeg <= 5) return 1
-  if (meanSlopeDeg >= 20) return 0.1
-  return 1 - ((meanSlopeDeg - 5) / 15) * 0.9
+export function terrainScore(
+  meanSlopeDeg: number,
+  t: ScoreThresholds = DEFAULT_THRESHOLDS
+): number {
+  if (meanSlopeDeg <= t.slopeBestDeg) return 1
+  if (meanSlopeDeg >= t.slopeWorstDeg) return 0.1
+  return 1 - ((meanSlopeDeg - t.slopeBestDeg) / (t.slopeWorstDeg - t.slopeBestDeg)) * 0.9
 }
 
 /**
@@ -59,6 +84,10 @@ export function terrainScore(meanSlopeDeg: number): number {
  * 近端分位），道路接入取 2km。权重 0.6/0.4 反映"到港是目的、到路是接入"的
  * 结构。论文附敏感性分析（尺度 ±50% 扰动）。
  */
-export function accessScore(distPortM: number, distRoadM: number): number {
-  return 0.6 * Math.exp(-distPortM / 8000) + 0.4 * Math.exp(-distRoadM / 2000)
+export function accessScore(
+  distPortM: number,
+  distRoadM: number,
+  t: ScoreThresholds = DEFAULT_THRESHOLDS
+): number {
+  return 0.6 * Math.exp(-distPortM / t.portScaleM) + 0.4 * Math.exp(-distRoadM / t.roadScaleM)
 }

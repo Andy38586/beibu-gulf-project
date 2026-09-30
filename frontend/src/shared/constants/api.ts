@@ -5,6 +5,9 @@
  * 端点演进（新增/改名）只改此处，避免散落调用点漏改。
  */
 export const ENDPOINTS = {
+  siteSuitability: {
+    map: '/site-suitability/map',
+  },
   auth: {
     me: '/auth/me',
     login: '/auth/login',

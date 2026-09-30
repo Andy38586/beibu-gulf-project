@@ -78,3 +78,6 @@ const FORECAST_LAYER_PREFIX = 'forecast-'
 export function forecastLayerId(indicator: string): string {
   return FORECAST_LAYER_PREFIX + indicator
 }
+
+/** 新选址适宜性主图层 key（唯一一张；权重变化只 updateData 不换 key） */
+export const SITE_SUITABILITY_LAYER_KEY = 'site-suitability-main'

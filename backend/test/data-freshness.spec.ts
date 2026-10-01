@@ -61,8 +61,29 @@ function stampedFiles(): StampedFile[] {
   return rows
 }
 
-/** 该文件最后一次 git 改动日；无 git（导出包）或未跟踪时返回 null ⇒ 跳过不误红 */
+/** 浅克隆（CI actions/checkout 默认 fetch-depth:1）判定。
+ *
+ * 为什么必须识别它：浅克隆里只存在 tip 提交，`git log -1 -- <path>` 对**任何**路径
+ * 都会退化成「根提交 = 全量新增」口径，把文件最后改动日一律报成 tip 日期
+ * （2026-10-01 实测：facilityPoints.json 真实改动日 09-23、戳记 09-23 本应绿，
+ * CI 却报 10-01 ⇒ 假红）。此时本守卫无法取证，按「无 git」同口径跳过；
+ * 真正的保护由 ci.yml backend-tests 的 fetch-depth: 0 提供全量历史。 */
+function isShallowRepo(): boolean {
+  try {
+    return (
+      execFileSync('git', ['rev-parse', '--is-shallow-repository'], {
+        cwd: REPO_ROOT,
+        encoding: 'utf8',
+      }).trim() === 'true'
+    )
+  } catch {
+    return false // 取不到就按非浅克隆走原逻辑，让真问题仍能红
+  }
+}
+
+/** 该文件最后一次 git 改动日；无 git（导出包）/浅克隆/未跟踪时返回 null ⇒ 跳过不误红 */
 function gitLastChange(rel: string): string | null {
+  if (isShallowRepo()) return null
   try {
     const out = execFileSync('git', ['log', '-1', '--format=%cs', '--', rel], {
       cwd: REPO_ROOT,

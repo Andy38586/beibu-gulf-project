@@ -354,6 +354,10 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          # data-freshness 守卫用 `git log -1 -- <path>` 判"文件最后改动日"；
+          # 默认 fetch-depth:1 的浅克隆会把所有文件误报成 tip 日期 ⇒ 本 job 必须全量历史
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4

@@ -1,0 +1,67 @@
+# =============================================================================
+# 一次性数据同步（workflow_dispatch，不参与 push 门禁）
+# =============================================================================
+# 为什么走 runner 中转：国内服务器直连 GitHub Release 资产（objects.githubusercontent.com）
+# 常见 reset（2026-10-01 实测 curl: (56) Failure when receiving data from the peer）；
+# 而 runner→GitHub（资产下载）与 runner→服务器（部署同款 SSH）、服务器←GHCR 三条通道
+# 都已在部署链上验证可用。
+#
+# 用法（GitHub UI 或 API workflow_dispatch）：
+#   asset_url  必填，例如
+#     https://github.com/Andy38586/beibu-gulf-project/releases/download/<tag>/<file>.dump
+#   table      必填，目标表名（用于灌后核对行数）
+#   file_name  可选，容器内临时文件名，默认 sync.dump
+#
+# 行为：下载资产 → scp 到服务器 /tmp → docker cp 进 beibu-postgis → pg_restore
+#       （--clean --if-exists 可重复执行）→ 打印行数。
+# 纪律：只做"数据搬运"，不建表结构、不改 schema；表结构须由仓库内迁移脚本负责。
+# =============================================================================
+name: Data Sync (one-off)
+
+on:
+  workflow_dispatch:
+    inputs:
+      asset_url:
+        description: 'GitHub Release 资产 URL（.dump）'
+        required: true
+        type: string
+      table:
+        description: '目标表名（灌后核对行数）'
+        required: true
+        type: string
+      file_name:
+        description: '容器内临时文件名'
+        required: false
+        default: 'sync.dump'
+        type: string
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download asset (runner 侧)
+        run: |
+          set -e
+          curl -fL --retry 5 --retry-all-errors --retry-delay 3 -o /tmp/sync.dump "${{ inputs.asset_url }}"
+          ls -lh /tmp/sync.dump
+
+      - name: Setup SSH agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SERVER_SSH_KEY }}
+
+      - name: Transfer + restore
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+          SSH_PORT: ${{ secrets.SERVER_SSH_PORT || 22 }}
+          TABLE: ${{ inputs.table }}
+          FILE_NAME: ${{ inputs.file_name }}
+        run: |
+          set -e
+          scp -o StrictHostKeyChecking=no -P "$SSH_PORT" /tmp/sync.dump "$SERVER_USER@$SERVER_HOST:/tmp/$FILE_NAME"
+          ssh -o StrictHostKeyChecking=no -p "$SSH_PORT" "$SERVER_USER@$SERVER_HOST" \
+            "docker cp /tmp/$FILE_NAME beibu-postgis:/tmp/ \
+             && docker exec -i beibu-postgis pg_restore -U postgres -d beibu-gulf-data --no-owner --no-privileges --clean --if-exists /tmp/$FILE_NAME \
+             && docker exec beibu-postgis psql -U postgres -d beibu-gulf-data -c 'select count(*) from $TABLE'"
+          echo "::notice::数据同步完成：表 $TABLE 已灌入并核对"

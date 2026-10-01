@@ -2,6 +2,8 @@ import { defineStore } from 'pinia'
 import type { Ref } from 'vue'
 import { ref } from 'vue'
 
+import type { SiteSuitabilityResponseParsed } from '@/types/schemas'
+
 // 新选址适宜性 store（单元五）：五准则权重 + 过滤阈值 + 请求事务态。
 // 复刻 forecastStore 的事务模式（bumpTransactionId/isRequesting 由请求 composable 消费）；
 // 无跨页面快照需求（v1 不持久化——权重是实验性交互态，登录返回重置为缺省可接受）。
@@ -28,6 +30,8 @@ export const useSiteSuitabilityStore = defineStore('siteSuitability', () => {
 
   const activeTransactionId: Ref<number> = ref(0)
   const isRequesting: Ref<boolean> = ref(false)
+  /** /site-suitability/map 解析响应：左上分布 + 左下 Top-N 面板的唯一数据源 */
+  const data: Ref<SiteSuitabilityResponseParsed | null> = ref(null)
 
   function bumpTransactionId(): number {
     activeTransactionId.value += 1
@@ -36,6 +40,11 @@ export const useSiteSuitabilityStore = defineStore('siteSuitability', () => {
 
   function setIsRequesting(v: boolean): void {
     isRequesting.value = v
+  }
+
+  /** 写入最近一次成功响应；失败/取消不覆盖旧数据（页面卸载由 reset 清空） */
+  function setData(v: SiteSuitabilityResponseParsed | null): void {
+    data.value = v
   }
 
   /** 单准则权重写入并整体归一化（和=1；滑块语义：拉高一个，其余等比压缩） */
@@ -79,6 +88,7 @@ export const useSiteSuitabilityStore = defineStore('siteSuitability', () => {
     minLandFrac.value = 0.5
     activeTransactionId.value = 0
     isRequesting.value = false
+    data.value = null
   }
 
   return {
@@ -86,8 +96,10 @@ export const useSiteSuitabilityStore = defineStore('siteSuitability', () => {
     minLandFrac,
     activeTransactionId,
     isRequesting,
+    data,
     bumpTransactionId,
     setIsRequesting,
+    setData,
     setWeight,
     setMinLandFrac,
     normalizedWeights,

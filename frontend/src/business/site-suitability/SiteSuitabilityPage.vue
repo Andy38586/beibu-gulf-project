@@ -1,5 +1,5 @@
 <!--
-  新选址适宜性页（单元五）：右控制面板（五准则权重滑块）+ 地图热力图层。
+  新选址适宜性页（单元五）：左得分分布/高分候选 + 右控制面板（五准则权重滑块）+ 地图热力图层。
   链路复刻预测页：状态变化 → 防抖 300ms → 启动事务（取消旧请求）→ 图层更新。
 -->
 <script setup lang="ts">
@@ -11,6 +11,8 @@ import { useMapStore } from '@/stores'
 import { useSiteSuitabilityStore } from '@/stores'
 
 import SiteSuitabilityControlPanel from './components/SiteSuitabilityControlPanel.vue'
+import SuitabilityDistributionPanel from './components/SuitabilityDistributionPanel.vue'
+import SuitabilityTopCellsPanel from './components/SuitabilityTopCellsPanel.vue'
 import { useSiteSuitabilityLayer } from './composables/useSiteSuitabilityLayer'
 import { useSiteSuitabilityRequest } from './composables/useSiteSuitabilityRequest'
 
@@ -67,6 +69,15 @@ onUnmounted(() => {
 <template>
   <div class="ss-page">
     <AppLayout>
+      <!-- 左侧：左上得分分布 + 左下高分候选 Top-N（4 面板标准） -->
+      <template #left>
+        <GCSPanel :w="4" :h="4" anchor="top-left" :offset-x="0" :offset-y="1.25">
+          <SuitabilityDistributionPanel :data="state.data" :loading="state.isRequesting" />
+        </GCSPanel>
+        <GCSPanel :w="4" :h="4" anchor="top-left" :offset-x="0" :offset-y="5.5">
+          <SuitabilityTopCellsPanel :data="state.data" :loading="state.isRequesting" />
+        </GCSPanel>
+      </template>
       <template #right>
         <GCSPanel :w="4" :h="4" anchor="top-right" :offset-x="0" :offset-y="1.25">
           <SiteSuitabilityControlPanel />

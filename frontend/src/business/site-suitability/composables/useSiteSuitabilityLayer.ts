@@ -3,6 +3,7 @@
  * 注册经 useOwnedLayers（归属册），更新走 BusinessLayerManager.updateData；
  * 渲染为热力图（weightField='score'），权重/过滤变化由页面防抖后调 update。
  * 请求直连统一入口 useApiRequest（契约 schema 校验在 HTTP 边界）。
+ * 成功响应发布到 store.data（左上得分分布 / 左下 Top-N 面板消费）。
  */
 import { computed, nextTick, onScopeDispose, watch, type ComputedRef } from 'vue'
 import { useRouter } from 'vue-router'
@@ -114,6 +115,10 @@ export function useSiteSuitabilityLayer(): UseSiteSuitabilityLayerReturn {
       const cached = requestCache.get(key)
       if (cached) {
         if (!isTransactionValid(transactionId)) return
+        state.setData(cached)
+        // 缓存命中不发请求：清掉上一条被本事务取代的在途请求留下的 loading
+        //（旧事务的 finally 见事务已失效不会回写，否则 loading 会永久悬停）
+        state.setIsRequesting(false)
         manager.updateData(SITE_SUITABILITY_LAYER_KEY, {
           data: cached.features,
           options: getLayerOptions(),
@@ -121,21 +126,32 @@ export function useSiteSuitabilityLayer(): UseSiteSuitabilityLayerReturn {
         return
       }
 
-      const geojson = await runInTransaction(
-        () =>
-          apiRequest<SiteSuitabilityResponseParsed>(ENDPOINTS.siteSuitability.map, {
-            method: 'GET',
-            params: {
-              ...Object.fromEntries(Object.entries(weights).map(([k, v]) => [`w_${k}`, v])),
-              min_land_frac: minLandFrac,
-            },
-            signal,
-            schema: siteSuitabilityResponseSchema,
-          }),
-        transactionId
-      )
+      if (!isTransactionValid(transactionId)) return
+
+      // 请求进行态的唯一写入口：useSiteSuitabilityRequest 只维护事务 ID，面板 loading
+      // 依赖 store.isRequesting；旧事务结束时不回写，避免清掉新事务的 loading。
+      state.setIsRequesting(true)
+      let geojson: SiteSuitabilityResponseParsed | null = null
+      try {
+        geojson = await runInTransaction(
+          () =>
+            apiRequest<SiteSuitabilityResponseParsed>(ENDPOINTS.siteSuitability.map, {
+              method: 'GET',
+              params: {
+                ...Object.fromEntries(Object.entries(weights).map(([k, v]) => [`w_${k}`, v])),
+                min_land_frac: minLandFrac,
+              },
+              signal,
+              schema: siteSuitabilityResponseSchema,
+            }),
+          transactionId
+        )
+      } finally {
+        if (isTransactionValid(transactionId)) state.setIsRequesting(false)
+      }
       if (!geojson) return
 
+      state.setData(geojson)
       requestCache.set(key, geojson)
       manager.updateData(SITE_SUITABILITY_LAYER_KEY, {
         data: geojson.features,

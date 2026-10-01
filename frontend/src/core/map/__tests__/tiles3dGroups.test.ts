@@ -15,8 +15,10 @@ import { describe, expect, it } from 'vitest'
 
 import {
   deriveGroupTileset,
+  normalizeTilesetGeometricError,
   nodeName,
   nodeUri,
+  prepareTilesetForDataUri,
   resolveUri,
   tallyGroups,
   toDataUri,
@@ -296,5 +298,127 @@ describe('派生结果整体自洽', () => {
     const text = new TextDecoder().decode(bytes)
     expect(text).toContain('中文名字')
     expect(JSON.parse(text).root.transform).toEqual(src.root.transform)
+  })
+})
+
+/** 构造一棵 GE 相对包围尺度偏小的瓦片集（root→inner→leaf，含一个直属 leaf） */
+function makeGeTileset(): TilesetJson {
+  return {
+    asset: { version: '1.1' },
+    geometricError: 300,
+    root: {
+      transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 2, 3, 1],
+      // 最大半轴 5000 ⇒ 世界尺度 10000
+      boundingVolume: { box: [0, 0, 0, 5000, 0, 0, 0, 3000, 0, 0, 0, 200] },
+      geometricError: 256,
+      refine: 'REPLACE',
+      children: [
+        {
+          // 最大半轴 1000 ⇒ 世界尺度 2000
+          boundingVolume: { box: [0, 0, 0, 1000, 0, 0, 0, 800, 0, 0, 0, 50] },
+          geometricError: 64,
+          refine: 'REPLACE',
+          content: { uri: 'inner.glb' },
+          children: [{ content: { uri: 'leaf.glb' }, geometricError: 0, refine: 'ADD' }],
+        },
+        // 直属叶子（无 children）
+        { content: { uri: 'leaf2.glb' }, geometricError: 0, refine: 'ADD' },
+      ],
+    },
+  }
+}
+
+describe('normalizeTilesetGeometricError — GE 锚定包围尺度', () => {
+  it('内部节点 GE 抬到包围体世界尺度，顶层 GE 同步', () => {
+    const out = normalizeTilesetGeometricError(makeGeTileset())
+    // root 尺度 10000 ⇒ GE 由 256 抬到 10000；顶层 300 也抬到 10000
+    expect(out.geometricError).toBe(10000)
+    expect(out.root.geometricError).toBe(10000)
+    // inner 尺度 2000 ⇒ GE 由 64 抬到 2000
+    expect(out.root.children![0].geometricError).toBe(2000)
+  })
+
+  it('叶子节点（无 children）GE 保持原值（最精细层不抬）', () => {
+    const out = normalizeTilesetGeometricError(makeGeTileset())
+    expect(out.root.children![0].children![0].geometricError).toBe(0)
+    expect(out.root.children![1].geometricError).toBe(0)
+  })
+
+  it('包围体用 sphere 记法同样校正（同义记法不允许漏检）', () => {
+    const src: TilesetJson = {
+      asset: { version: '1.1' },
+      geometricError: 1,
+      root: {
+        boundingVolume: { sphere: [0, 0, 0, 7000] }, // 直径 14000
+        geometricError: 256,
+        children: [{ content: { uri: 'a.glb' }, geometricError: 0 }],
+      },
+    }
+    const out = normalizeTilesetGeometricError(src)
+    expect(out.root.geometricError).toBe(14000)
+    expect(out.geometricError).toBe(14000)
+  })
+
+  it('GE 已不小于包围尺度时不被降低（max 语义，不破坏本就正确的瓦片）', () => {
+    const src = makeGeTileset()
+    src.root.geometricError = 99999
+    expect(normalizeTilesetGeometricError(src).root.geometricError).toBe(99999)
+  })
+
+  it('内部节点缺包围体 ⇒ 尺度算 0、GE 保持（不臆造尺度）', () => {
+    const src: TilesetJson = {
+      asset: { version: '1.1' },
+      geometricError: 1,
+      root: {
+        geometricError: 256,
+        children: [
+          {
+            geometricError: 64,
+            children: [{ content: { uri: 'a.glb' }, geometricError: 0 }],
+          },
+        ],
+      },
+    }
+    const out = normalizeTilesetGeometricError(src)
+    expect(out.root.geometricError).toBe(256)
+    expect(out.root.children![0].geometricError).toBe(64)
+  })
+
+  it('落位不变：transform / boundingVolume / content 不被改动', () => {
+    const src = makeGeTileset()
+    const out = normalizeTilesetGeometricError(src)
+    expect(out.root.transform).toEqual(src.root.transform)
+    expect(out.root.boundingVolume).toEqual(src.root.boundingVolume)
+    expect(out.root.children![0].content).toEqual({ uri: 'inner.glb' })
+  })
+
+  it('纯函数：不改入参', () => {
+    const src = makeGeTileset()
+    const before = JSON.stringify(src)
+    normalizeTilesetGeometricError(src)
+    expect(JSON.stringify(src)).toBe(before)
+  })
+})
+
+describe('prepareTilesetForDataUri — 整包 uri 绝对化 + GE 校正', () => {
+  it('保留整棵树（不裁剪），uri 全部绝对化且 GE 抬升', () => {
+    const src = makeGeTileset()
+    const out = prepareTilesetForDataUri(src, 'http://x.test/static/x/tileset.json')
+    // 两个 children 都在（不裁剪）
+    expect(out.root.children).toHaveLength(2)
+    const inner = out.root.children![0]
+    expect(inner.content!.uri).toBe('http://x.test/static/x/inner.glb')
+    expect(inner.children![0].content!.uri).toBe('http://x.test/static/x/leaf.glb')
+    expect(out.root.children![1].content!.uri).toBe('http://x.test/static/x/leaf2.glb')
+    // GE 同时被校正
+    expect(out.root.geometricError).toBe(10000)
+    expect(inner.geometricError).toBe(2000)
+  })
+
+  it('纯函数：不改入参', () => {
+    const src = makeGeTileset()
+    const before = JSON.stringify(src)
+    prepareTilesetForDataUri(src, 'http://x.test/static/x/tileset.json')
+    expect(JSON.stringify(src)).toBe(before)
   })
 })

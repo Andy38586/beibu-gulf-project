@@ -201,6 +201,76 @@ export function toDataUri(tileset: TilesetJson): string {
 }
 
 /**
+ * 取包围体的世界尺度（米，最大方向直径）。
+ *
+ * box：三个半轴向量长度取最大 ×2。tileset 的 transform 只做旋转+平移、不含缩放
+ * （tiles3d-check 守卫已钉死），故局部半轴长度即世界长度，无需叠加 transform。
+ * sphere：直径。无法识别时返回 0（调用方据此跳过，不臆造尺度）。
+ */
+function boundingWorldScale(bv: unknown): number {
+  const b = bv as { box?: number[]; sphere?: number[] } | undefined
+  if (b?.box && b.box.length >= 12) {
+    const x = b.box
+    const lx = Math.hypot(x[3], x[4], x[5])
+    const ly = Math.hypot(x[6], x[7], x[8])
+    const lz = Math.hypot(x[9], x[10], x[11])
+    return 2 * Math.max(lx, ly, lz)
+  }
+  if (b?.sphere && b.sphere.length >= 4) return 2 * b.sphere[3]
+  return 0
+}
+
+/** 递归校正节点 GE：内部节点（有非空 children）抬到 max(原值, 包围体世界尺度)；叶子保持原值 */
+function normalizeNode(node: TilesetNode): TilesetNode {
+  const out: TilesetNode = { ...node }
+  if (Array.isArray(node.children) && node.children.length > 0) {
+    out.children = node.children.map(normalizeNode)
+    const scale = boundingWorldScale(node.boundingVolume)
+    if (scale > 0) out.geometricError = Math.max(node.geometricError ?? 0, scale)
+  }
+  return out
+}
+
+/**
+ * 校正 tileset 各节点 geometricError（纯函数，不改入参）。
+ *
+ * ## 为什么需要
+ *
+ * 外部交付瓦片的 geometricError 普遍相对其包围体尺度偏小 1~2 个数量级（实测：
+ * root 包围 ~18km 而 GE 仅 256m；运河 root 包围 ~100km 而 GE 仅 1200m）。Cesium 以
+ * `SSE = GE·drawingBufferHeight / (distance·sseDenominator)` 判定是否下钻：
+ * SSE ≤ maximumScreenSpaceError 即在该节点终止遍历。GE 偏小 ⇒ 相机在中高空算出的 SSE
+ * 已低于阈值，Cesium 在 root 提前 return、不执行遍历，root 与子内容都不被选中
+ * （`statistics.visited = 0`），图层开着却整片空白。
+ *
+ * ## 规则（与 Cesium 标准 tileset「GE 与包围体同量级」一致）
+ *
+ * - 内部节点（有 children）：`GE = max(原值, 包围体世界尺度)`；
+ * - 叶子节点：保持原值（最精细层 GE 通常为 0；抬它反而要求继续细化）。
+ *
+ * transform / boundingVolume / content 一律不动 ⇒ 落位不变，仅改变 LOD 切换高度。
+ */
+export function normalizeTilesetGeometricError(tileset: TilesetJson): TilesetJson {
+  const root = normalizeNode(tileset.root)
+  const scale = boundingWorldScale(root.boundingVolume)
+  const geometricError = Math.max(tileset.geometricError ?? 0, scale)
+  return { ...tileset, root, geometricError }
+}
+
+/**
+ * 整包预处理：content.uri 全部绝对化并校正 geometricError——
+ * 供「外部 http tileset → Data URI 挂载」的场景（不裁剪子树）。
+ *
+ * 与 deriveGroupTileset 的分工：后者按分组裁剪 root.children；本函数保留整棵树，
+ * 只做 Data URI 挂载前必需的两件事（uri 绝对化，见模块头第 2 点；GE 校正，见上）。
+ */
+export function prepareTilesetForDataUri(tileset: TilesetJson, baseUrl: string): TilesetJson {
+  const root = absolutizeNode(tileset.root, baseUrl)
+  if (root === null) return tileset
+  return normalizeTilesetGeometricError({ ...tileset, root })
+}
+
+/**
  * 统计各分组命中的直属 child 数量（供调用方自检与测试断言完整性：
  * 所有分组命中数之和 + 未归属数 应等于 root.children.length，避免分漏）。
  *

@@ -25,6 +25,7 @@ import {
   routePathResponseSchema,
   siteAnalysisResponseSchema,
   siteSuitabilityResponseSchema,
+  diversionBreakdownResponseSchema,
   terrainProfileSchema,
   timeSeriesResponseSchema,
   waterAreaSchema,
@@ -524,6 +525,25 @@ describe('契约覆盖补齐的 schema（生成器门禁转红后补）', () => 
     expect(failed.success).toBe(true)
     // error 必须是 string|null——数字被拒
     expect(siteAnalysisResponseSchema.safeParse({ error: 500, coverage: null }).success).toBe(false)
+  })
+
+  it('diversionBreakdownResponseSchema：转移/分摊/桑基流三段齐全', () => {
+    const ok = diversionBreakdownResponseSchema.safeParse({
+      year: 2035,
+      transfer: { year: 2035, coal: 428.68, grain: 837.555, ironOre: 313.64, sandCement: 0 },
+      byPort: { qinzhou: { coal: 201.48, grain: 393.65, ironOre: 147.41, total: 742.54 } },
+      sankeyFlows: [{ from: '西江上行货', to: '平陆运河→qinzhou', value: 742.54 }],
+    })
+    expect(ok.success).toBe(true)
+    // sandCement 缺失拒绝（恒 0 负结果锚点必须显式在场）
+    expect(
+      diversionBreakdownResponseSchema.safeParse({
+        year: 2035,
+        transfer: { year: 2035, coal: 1, grain: 1, ironOre: 1 },
+        byPort: {},
+        sankeyFlows: [],
+      }).success
+    ).toBe(false)
   })
 
   it('siteSuitabilityResponseSchema：格网 GeoJSON + metadata 权重口径', () => {

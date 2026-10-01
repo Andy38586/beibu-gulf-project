@@ -75,6 +75,7 @@
 | 认证        | `GET /auth/me`                                                                                                  | ✅ 需登录     | 当前用户信息                      |
 | 选址        | `POST /site-analysis`                                                                                           | 公开          | 分析(参数 zod 校验；纯计算免登录，2026-08-29 收口) |
 | 新选址适宜性 | `GET /site-suitability/map`                                                                                      | 公开          | 加权叠加格网 GeoJSON（五准则权重缺省回落 AHP 草案；min_land_frac 过滤；2026-09-29 单元四） |
+| 分流分析     | `GET /diversion/breakdown`                                                                                       | 公开          | 西江转移+三港分摊+桑基流（year 2027~2050；2026-09-30 W10-11） |
 | 方案        | `GET/POST /plans`、`GET/PUT/DELETE /plans/:id`、`POST /plans/:id/xiaoqu`、`DELETE /plans/:id/xiaoqu/:xiaoquId`  | ✅ 全部需登录 | CRUD                              |
 | 预测        | `GET /forecast/timeseries`、`GET /forecast/indicator/:indicator`、`GET /forecast/map`、`GET /forecast/overview` | 公开          | —                                 |
 | 预测        | `GET /forecast/:portId`                                                                                           | 公开          | 孤儿路由（前端零消费，保留兼容端点，2026-08-16 816 补录） |

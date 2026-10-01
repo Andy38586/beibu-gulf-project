@@ -222,6 +222,26 @@ export const siteSuitabilityResponseSchema = z.object({
 
 export type SiteSuitabilityResponseParsed = z.infer<typeof siteSuitabilityResponseSchema>
 
+// ⑰ /diversion/breakdown 响应（分流分析 W10-11；西江转移+三港分摊+桑基流）
+// @backend-contract backend/src/common/diversion.ts
+export const diversionBreakdownResponseSchema = z.object({
+  year: z.number(),
+  transfer: z.looseObject({
+    year: z.number(),
+    coal: z.number(),
+    grain: z.number(),
+    ironOre: z.number(),
+    sandCement: z.number(),
+  }),
+  byPort: z.record(
+    z.string(),
+    z.looseObject({ coal: z.number(), grain: z.number(), ironOre: z.number(), total: z.number() })
+  ),
+  sankeyFlows: z.array(z.looseObject({ from: z.string(), to: z.string(), value: z.number() })),
+})
+
+export type DiversionBreakdownResponseParsed = z.infer<typeof diversionBreakdownResponseSchema>
+
 // ⑮ /flood/flood-statistics 响应（定义提前：⑩ planSchema 的浸没载荷字段复用本 schema，
 // 须先于其求值；编号保持文档序号不变）
 // 2026-09-11 起与 flood-areas/disaster 同源：waterLevel 为 251 档实际档位（不再是 6 档粗化值）；

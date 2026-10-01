@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-29",
+  "generatedAt": "2026-10-01",
   "source": "frontend/src/types/schemas.ts（单一事实源，types:gen 自动生成勿手改）",
   "schemas": {
     "userSchema": {
@@ -242,6 +242,27 @@
         },
         "metadata": {
           "type": "object",
+          "optional": false
+        }
+      }
+    },
+    "diversionBreakdownResponseSchema": {
+      "kind": "object",
+      "fields": {
+        "year": {
+          "type": "number",
+          "optional": false
+        },
+        "transfer": {
+          "type": "object",
+          "optional": false
+        },
+        "byPort": {
+          "type": "record",
+          "optional": false
+        },
+        "sankeyFlows": {
+          "type": "array",
           "optional": false
         }
       }
@@ -774,6 +795,15 @@
         "type": 6,
         "features": 2,
         "metadata": 2
+      }
+    },
+    "diversionBreakdownResponseSchema": {
+      "file": "backend/src/common/diversion.ts",
+      "occurrence": {
+        "year": 30,
+        "transfer": 2,
+        "byPort": 3,
+        "sankeyFlows": 3
       }
     },
     "floodStatisticsResponseSchema": {

@@ -22,6 +22,7 @@ import { ForecastModule } from './modules/forecast/forecast.module'
 import { PlansModule } from './modules/plans/plans.module'
 import { RouteModule } from './modules/route/route.module'
 import { SiteAnalysisModule } from './modules/site-analysis/site-analysis.module'
+import { DiversionModule } from './modules/diversion/diversion.module'
 import { SiteSuitabilityModule } from './modules/site-suitability/site-suitability.module'
 import { TaskModule } from './modules/task/task.module'
 
@@ -45,6 +46,7 @@ import { TaskModule } from './modules/task/task.module'
     ForecastModule,
     SiteAnalysisModule,
     SiteSuitabilityModule,
+    DiversionModule,
     RouteModule,
     HealthModule,
     // v4 异步任务域：把「提交 → 后台跑 → 回来取结果」的能力独立成域，

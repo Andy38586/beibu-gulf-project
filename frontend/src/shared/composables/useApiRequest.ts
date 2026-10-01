@@ -61,6 +61,7 @@ const MODULE_BY_PATH_PREFIX: Record<string, string> = {
   flood: 'flood',
   'site-analysis': 'site-analysis',
   'site-suitability': 'site-suitability',
+  diversion: 'diversion',
   route: 'route',
   task: 'task',
 }

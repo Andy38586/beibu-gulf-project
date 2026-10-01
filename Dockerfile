@@ -12,11 +12,15 @@ ENV VITE_TIANDITU_KEY=$VITE_TIANDITU_KEY
 # ⚠️ VITE_DATA_SOURCE 已废弃（z156，2026-09-12 清理）：数据源切换代码已随
 # algorithm-service 退役删除，不再作为构建期变量下发。
 
-# v3：业务后端模块切换开关（构建期变量）——生产默认全八域切 Nest（Express 已退役；
+# v3：业务后端模块切换开关（构建期变量）——生产默认全十域切 Nest（Express 已退役；
 # 清单须与 useApiRequest.ts 的 MODULE_BY_PATH_PREFIX、docker-compose.yml 的默认值同源，
-# v4 加 task 域时本行曾漏，导致镜像内 task 域回落 /api 前缀）；
+# v4 加 task 域时本行曾漏，导致镜像内 task 域回落 /api 前缀；
+# 2026-10-01 又漏 site-suitability/diversion：dev 经 vite 代理（无 /api rewrite）实测
+# /api/site-suitability/map 与 /api/diversion/breakdown 均 404「接口不存在」，
+# 生产仅靠 nginx 的 /api→/nest-api rewrite 侥幸兜住；
+# 本行自 2026-10-01 起纳入 routes-audit「生产默认域清单必须全覆盖」断言，防第三次复发）；
 # 回滚旧版或临时走 Express 时清空此值（compose build.args 覆盖）
-ARG VITE_USE_NEST_MODULES=auth,plans,favorites,forecast,flood,site-analysis,route,task
+ARG VITE_USE_NEST_MODULES=auth,plans,favorites,forecast,flood,site-analysis,site-suitability,diversion,route,task
 ENV VITE_USE_NEST_MODULES=$VITE_USE_NEST_MODULES
 
 WORKDIR /app

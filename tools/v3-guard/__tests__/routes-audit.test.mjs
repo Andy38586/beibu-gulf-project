@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 
 import {
   auditFrontendContract,
+  auditProductionDefault,
+  extractDockerfileDefaultModules,
   extractEnvDomainLists,
   extractFrontendDomains,
   parseRoutesFromLines,
@@ -107,6 +109,49 @@ describe('auditFrontendContract — 前端契约联动审计', () => {
       MANIFEST_DOMAINS
     )
     expect(problems).toEqual([])
+  })
+})
+
+describe('auditProductionDefault — 生产镜像域清单必须全覆盖', () => {
+  const dockerfileWith = (domains) =>
+    `RUN echo hi\nARG VITE_USE_NEST_MODULES=${domains}\nENV VITE_USE_NEST_MODULES=$VITE_USE_NEST_MODULES\n`
+  const ALL_BIZ = 'auth,plans,favorites,forecast,flood,site-analysis,route'
+
+  it('域清单全覆盖 → 无问题（health 属探针域，不要求出现）', () => {
+    expect(auditProductionDefault(dockerfileWith(ALL_BIZ), MANIFEST_DOMAINS)).toEqual([])
+  })
+
+  it('@guard-red-sample 生产默认漏 site-suitability/diversion → 报问题（2026-10-01 事故回归样例）', () => {
+    const problems = auditProductionDefault(dockerfileWith(ALL_BIZ), [
+      ...MANIFEST_DOMAINS,
+      'site-suitability',
+      'diversion',
+    ])
+    expect(problems).toHaveLength(2)
+    expect(problems.join(' ')).toContain('site-suitability')
+    expect(problems.join(' ')).toContain('diversion')
+  })
+
+  it('生产默认含未知/过期域 → 报问题', () => {
+    const problems = auditProductionDefault(dockerfileWith(ALL_BIZ + ',ghost'), MANIFEST_DOMAINS)
+    expect(problems).toHaveLength(1)
+    expect(problems[0]).toContain("'ghost'")
+  })
+
+  it('ARG 被改名/删除 → 抛错（守卫失效即红灯，不允许静默跳过）', () => {
+    expect(() => extractDockerfileDefaultModules('ENV FOO=bar')).toThrow(/VITE_USE_NEST_MODULES/)
+  })
+
+  it('数值形态正确解析（含连字符域、忽略 ENV 展开行）', () => {
+    expect(extractDockerfileDefaultModules(dockerfileWith(ALL_BIZ))).toEqual([
+      'auth',
+      'plans',
+      'favorites',
+      'forecast',
+      'flood',
+      'site-analysis',
+      'route',
+    ])
   })
 })
 

@@ -35,6 +35,15 @@ const ENV_COPIES = [
   path.join(ROOT, '.github/workflows/ci.yml'),
 ]
 
+// 生产镜像域清单副本：Dockerfile 的 ARG VITE_USE_NEST_MODULES 默认值。
+// 与上面的 env 副本口径不同——env 副本允许部分覆盖（文档化回滚开关），
+// 而构建期默认值必须**全覆盖**：它是生产镜像不经任何外部环境时的域清单。
+// 2026-10-01 事故：site-suitability/diversion 两域漏登 ⇒ dev 经 vite 代理（无 /api rewrite）
+// 实测 /api/site-suitability/map、/api/diversion/breakdown 双双 404「接口不存在」；
+// 生产仅靠 nginx 的 /api→/nest-api rewrite 侥幸兜住。故本副本纳入全覆盖断言。
+const DOCKERFILE = path.join(ROOT, 'Dockerfile')
+const DOCKERFILE_ARG_RE = /^\s*ARG\s+VITE_USE_NEST_MODULES\s*=\s*(\S*)\s*$/m
+
 // 方法装饰器：@Get('sub') / @Post() / @Delete(':id')；路径参数 (:id 等) 原样保留。
 // 捕获组 1 = 方法名，组 3 = 括号内原文（用于区分「无参」与「有参但无法解析」）。
 // 修复（P1-11，2026-09-15）：原正则只认单引号 → `@Get("x")` / `@Get(\`x\`)` 时整个可选括号组
@@ -141,6 +150,40 @@ export function extractEnvDomainLists(content) {
   )
 }
 
+/** 提取 Dockerfile ARG 默认值里的域清单（生产镜像的构建期域清单副本） */
+export function extractDockerfileDefaultModules(content) {
+  const m = content.match(DOCKERFILE_ARG_RE)
+  if (!m)
+    throw new Error(
+      'Dockerfile 未找到 ARG VITE_USE_NEST_MODULES=<默认值>（生产域清单副本被改名/删除？）'
+    )
+  return m[1]
+    .split(',')
+    .map((d) => d.trim())
+    .filter(Boolean)
+}
+
+/**
+ * 生产默认域清单审计：Dockerfile 的 ARG 默认值必须覆盖全部业务域（部分覆盖不是合法回滚态，
+ * 回滚 = 清空该变量）。历史事故见常量处注释（route 域、task 域、site-suitability/diversion）。
+ */
+export function auditProductionDefault(dockerfileContent, manifestDomains) {
+  const problems = []
+  const listed = extractDockerfileDefaultModules(dockerfileContent)
+  const bizDomains = manifestDomains.filter((d) => !NON_BIZ_DOMAINS.has(d))
+  for (const d of bizDomains) {
+    if (!listed.includes(d))
+      problems.push(
+        `生产镜像默认域清单缺 '${d}'（Dockerfile ARG VITE_USE_NEST_MODULES）——该域请求将回落 /api 前缀 ⇒ 404`
+      )
+  }
+  for (const d of listed) {
+    if (!manifestDomains.includes(d))
+      problems.push(`Dockerfile 的 VITE_USE_NEST_MODULES 含未知/过期域 '${d}'`)
+  }
+  return problems
+}
+
 /**
  * 前端契约联动审计：
  * ① 后端业务域（manifest 顶层段，剔除基础设施探针）必须收录进前端功能域清单；
@@ -222,8 +265,13 @@ function main() {
     envCopies,
     manifestDomains
   )
+  const productionProblems = auditProductionDefault(
+    readFileSync(DOCKERFILE, 'utf8'),
+    manifestDomains
+  )
+  const allProblems = [...contractProblems, ...productionProblems]
 
-  if (missing.length === 0 && extra.length === 0 && contractProblems.length === 0) {
+  if (missing.length === 0 && extra.length === 0 && allProblems.length === 0) {
     console.log(
       `[routes-audit] OK：${actual.length} 条实际路由与契约清单一致（${controllers.length} 个 controller），前端功能域清单同步（${manifestDomains.length} 域）`
     )
@@ -235,7 +283,7 @@ function main() {
   )
   for (const r of missing) console.error(`  清单有但代码无：${routeKey(r)}`)
   for (const r of extra) console.error(`  代码有但清单无：${routeKey(r)}`)
-  for (const p of contractProblems) console.error(`  ${p}`)
+  for (const p of allProblems) console.error(`  ${p}`)
   console.error(
     '  修复：路由增删后运行 node tools/v3-guard/routes-audit.mjs --gen 并提交新清单；前端功能域清单与 env 副本同步更新'
   )

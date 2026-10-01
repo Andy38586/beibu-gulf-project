@@ -3,7 +3,7 @@
   数据经 diversionAdapter（schema 校验在 HTTP 边界）；年份本地状态（无跨页需求）。
 -->
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 
 import { AppLayout, GCSPanel } from '@/core'
 import { logger, showError } from '@/shared'
@@ -55,9 +55,14 @@ async function load(): Promise<void> {
   }
 }
 
+/** 年份滑块防抖 300ms（复刻预测页模式）：拖动过程连续触发只发末次请求 */
+let debounceTimer: ReturnType<typeof setTimeout> | null = null
+const DEBOUNCE_DELAY = 300
+
 function onYearInput(e: Event): void {
   year.value = Number((e.target as HTMLInputElement).value)
-  void load()
+  if (debounceTimer) clearTimeout(debounceTimer)
+  debounceTimer = setTimeout(() => void load(), DEBOUNCE_DELAY)
 }
 
 const commodityRows = computed(() => {
@@ -73,6 +78,13 @@ const commodityRows = computed(() => {
 
 onMounted(() => {
   void load()
+})
+
+onUnmounted(() => {
+  if (debounceTimer) {
+    clearTimeout(debounceTimer)
+    debounceTimer = null
+  }
 })
 </script>
 

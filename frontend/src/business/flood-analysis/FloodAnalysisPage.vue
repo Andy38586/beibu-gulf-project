@@ -99,20 +99,6 @@ const FLOOD_LAYER_ID = LAYER_KEYS.floodArea
 const FACILITY_LAYER_ID = LAYER_KEYS.floodFacilities
 /** 洪涝设施点 featureType（与 FACILITY_LAYER_ID 前缀一致，防跨模块同名冲突） */
 const FACILITY_FEATURE_TYPE = 'flood-facility-point'
-/**
- * 地形山影（DEM 数字高程模型山体阴影）图层 ID。
- *
- * v5（2026-09-21）：由「用户可开关的业务图层」改为**随底图默认加载的基础能力**：
- * 默认可见、图层面板不列出、不可关闭。动因有两个：
- * ① 用户要求地形默认随底图加载、不进图层控制；
- * ② 它此前与真地形 z 起伏存在**非预期耦合**——geotiff 图层的 setVisibility 会连带
- *    调用 setTerrainEnabled，导致「关掉山影贴图」把立体起伏也一起关掉，与
- *    layerAdapters 自己注释的「DEM 与真地形互不耦合」相矛盾。
- * 现在两者彻底分开：z 起伏由 CesiumRenderer 挂载时自建（不可关），
- * 山影贴图仍**经 businessLayerManager 注册**（图层状态只有一个事实源，符合 04 清单 A4），
- * 只是以 `listed: false` 不进面板、以 `locked: true` 拒绝被关。
- */
-const DEM_HILLSHADE_LAYER_ID = LAYER_KEYS.floodDemHillshade
 
 // 水域坐标经 floodAdapter 加载，按 dataSource（fetch/calculate）自动切换取数来源，业务代码零改动
 let cachedWaterAreaCoords: [number, number][] | null = null
@@ -142,8 +128,6 @@ const ownedLayers = useOwnedLayers('flood-analysis')
 /** 移除 Cesium 独占图层（水面/地形山影）入口：引擎切回 2D 时调用，复位注册标志 */
 function removeCesiumOnlyLayers() {
   if (businessLayerManager.has(WATER_SURFACE_ID)) businessLayerManager.remove(WATER_SURFACE_ID)
-  if (businessLayerManager.has(DEM_HILLSHADE_LAYER_ID))
-    businessLayerManager.remove(DEM_HILLSHADE_LAYER_ID)
   floodLayersRegistered = false
 }
 
@@ -174,29 +158,6 @@ async function registerFloodLayers(signal: AbortSignal) {
 
   // 淹没范围/受影响设施图层默认不注册：滑块未操作时面板无开关、地图不渲染；
   // 首次操作滑块由 renderFloodAreas/renderAffectedFacilities 的 has() 兜底自动注册，之后固定显示
-
-  // 地形山影（DEM）：v5 起按需求改为**随底图默认加载的基础能力**——
-  // 默认可见、面板不列出（listed:false）、不可关闭（locked:true）。
-  // 但仍走 businessLayerManager 注册：图层状态只有一个事实源（04 清单 A4），
-  // 引擎切换时的重绘、卸载时的清理也都由 BLM 统一收口，不另开旁路。
-  // 引擎为 2D 时无此能力（Cesium 独占定义），注册会被 adapter 的能力守卫跳过。
-  try {
-    ownedLayers.register(DEM_HILLSHADE_LAYER_ID, {
-      label: '地形山影',
-      layerType: 'geotiff',
-      data: '/static/dem/dem_hillshade.tif',
-      options: { opacity: 0.7 },
-      // 默认开：与底图一同加载，不需要用户操作
-      visible: true,
-      // 不进图层面板：基础能力不该占面板格子，也不该给用户"能关"的错觉
-      listed: false,
-      // 不可关：它是底图固有部分，关掉只会让地图变半成品
-      locked: true,
-    })
-  } catch (e) {
-    // 单图层注册失败不中断（与水面同款容错）
-    logger.warn('[FloodAnalysisPage] 地形山影图层注册失败（已跳过该层）:', e)
-  }
 }
 
 // 渲染器就绪/引擎变化时维护业务图层：水面/DEM 为 Cesium 独占——3D 注册、2D 移除入口；
@@ -576,7 +537,6 @@ onUnmounted(() => {
               WATER_SURFACE_ID,
               FLOOD_LAYER_ID,
               FACILITY_LAYER_ID,
-              DEM_HILLSHADE_LAYER_ID,
             ]"
           />
         </GCSPanel>

@@ -101,7 +101,6 @@ import FloodAnalysisPage from '../FloodAnalysisPage.vue'
 /**
  * 能通过 `isWater3DCapable` 的假渲染器（需含 addWaterSurface —— 能力守卫按方法存在性判定）。
  *
- * v5（2026-09-21）追加 addGeoTIFFLayer/removeLayer：地形山影虽改为「随底图默认加载的
  * 基础能力」，但仍经 businessLayerManager 注册（单一事实源，04 清单 A4），
  * 实际渲染由 BLM 经 geotiff adapter 分派到渲染器，故渲染器替身需具备这两个方法。
  */
@@ -147,7 +146,7 @@ describe('FloodAnalysisPage 卸载守卫（v4-S3）', () => {
     // ① 🔴 保活：绝不取消后端任务
     expect(h.cancelSlot).not.toHaveBeenCalled()
 
-    // ② 渲染状态清干净：三个**业务**图层移除（地形山影不属业务图层，见 ③）
+    // ② 渲染状态清干净：**业务**图层移除
     const removed = h.mockManager.remove.mock.calls.map((c) => c[0])
     expect(removed).toContain('flood-water-surface')
     // flood-area / flood-facilities 是**按需注册**的（首次操作滑块才注册），本用例未触发
@@ -156,10 +155,6 @@ describe('FloodAnalysisPage 卸载守卫（v4-S3）', () => {
     expect(removed).not.toContain('flood-area')
     expect(removed).not.toContain('flood-facilities')
 
-    // ③ 地形山影：随底图默认加载，但**仍经** businessLayerManager 注册（单一事实源），
-    //    卸载时一并移除。它不出现在图层面板是靠 listed:false，不是靠绕过 BLM
-    expect(removed).toContain('flood-dem-hillshade')
-
     // ④ 定时器清干净：推进很久也不该再有图层写入（水面防抖已 clear）
     h.mockManager.updateData.mockClear()
     vi.advanceTimersByTime(5000)
@@ -167,43 +162,6 @@ describe('FloodAnalysisPage 卸载守卫（v4-S3）', () => {
     expect(h.mockManager.updateData).not.toHaveBeenCalled()
 
     vi.useRealTimers()
-  })
-
-  it('地形山影经 BLM 注册（单一事实源），以 listed:false + locked:true 表达「随底图默认加载、不列表、不可关」', async () => {
-    const wrapper = shallowMount(FloodAnalysisPage)
-
-    const mapStore = useMapStore()
-    mapStore.currentRenderer = WATER_CAPABLE_RENDERER
-    await flushPromises()
-
-    // 注册必须经 businessLayerManager —— 若绕过它直调渲染器，图层就出现了第二个
-    // 事实源（BLM 不知道它存在），引擎切换不会重绘、卸载也不会清理
-    const call = h.mockManager.register.mock.calls.find((c) => c[0] === 'flood-dem-hillshade')
-    expect(call).toBeDefined()
-
-    const descriptor = call![1] as {
-      visible?: boolean
-      listed?: boolean
-      locked?: boolean
-      layerType?: string
-    }
-    // 默认开：与底图一同加载
-    expect(descriptor.visible).toBe(true)
-    // 不列表：面板里没有这一格
-    expect(descriptor.listed).toBe(false)
-    // 不可关：它是底图固有部分
-    expect(descriptor.locked).toBe(true)
-    expect(descriptor.layerType).toBe('geotiff')
-
-    // ⚠ 此处不断言渲染器的 addGeoTIFFLayer：本用例把 BLM 整体替身了，
-    //   实际分派链路（BLM → geotiff adapter → renderer）不在本用例覆盖范围内。
-    //   「渲染确实发生」由 core/map/layerAdapters 与 BusinessLayerManager 的测试负责。
-
-    wrapper.unmount()
-    await flushPromises()
-
-    // 卸载：经 BLM 移除，不残留到别的路由
-    expect(h.mockManager.remove.mock.calls.map((c) => c[0])).toContain('flood-dem-hillshade')
   })
 
   it('卸载后水位变化不再产生任何图层写入（迟到响应不复活图层）', async () => {

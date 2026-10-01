@@ -39,7 +39,6 @@ export const LAYER_KEYS = {
   floodArea: 'flood-area',
   floodWaterSurface: 'flood-water-surface',
   floodFacilities: 'flood-facilities',
-  floodDemHillshade: 'flood-dem-hillshade',
 
   // ── 航线域（useRouteLayer 注册）──
   routePath: 'route-path',

@@ -1,16 +1,15 @@
 <!--
-  分流分析页（W10-11）：年份滑块 + 西江转移量分解卡 + 桑基图 + 三港分摊明细（左下 4×4）。
+  分流分析页（W10-11）：四面板全 4×4 —— 左上转移量 BarChart（图 + 一行口径脚注合并为一面板，
+  替代原文字清单）、左下桑基图（自右下迁入）、右上 年份滑块、右下 图层面板（LayerControlPanel）。
   数据经 diversionAdapter（schema 校验在 HTTP 边界）；年份本地状态（无跨页需求）。
 -->
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 
-import { AppLayout, GCSPanel } from '@/core'
-import { logger, showError } from '@/shared'
-import { SankeyChart } from '@/visualization'
+import { AppLayout, GCSPanel, LayerControlPanel } from '@/core'
 import { diversionAdapter, type DiversionResult } from '@/services'
-
-import PortSplitPanel from './components/PortSplitPanel.vue'
+import { logger, showError } from '@/shared'
+import { BarChart, ChartLoading, SankeyChart } from '@/visualization'
 
 /** 节点/连线形状（与 SankeyChart props 结构化兼容，本地声明免跨层类型导出） */
 interface SankeyNode {
@@ -28,6 +27,15 @@ const YEAR_MAX = 2050
 const year = ref(2035)
 const result = ref<DiversionResult | null>(null)
 const loading = ref(false)
+
+/** 转移量图 x 轴：四个货类（顺序与 result.transfer 字段一致） */
+const transferXData = ['煤炭', '粮食', '铁矿石', '砂石水泥']
+
+/** 转移量图 series：唯一数据源是本页已加载的 result.transfer（不新增接口调用） */
+const transferSeries = computed<Array<{ name: string; data: number[] }>>(() => {
+  const t = result.value?.transfer
+  return [{ name: '转移量（万吨/年）', data: t ? [t.coal, t.grain, t.ironOre, t.sandCement] : [] }]
+})
 
 const nodes = computed<SankeyNode[]>(() => {
   if (!result.value) return []
@@ -67,17 +75,6 @@ function onYearInput(e: Event): void {
   debounceTimer = setTimeout(() => void load(), DEBOUNCE_DELAY)
 }
 
-const commodityRows = computed(() => {
-  const t = result.value?.transfer
-  if (!t) return []
-  return [
-    { label: '煤炭', value: t.coal },
-    { label: '粮食', value: t.grain },
-    { label: '铁矿石', value: t.ironOre },
-    { label: '砂石水泥（不可转移）', value: t.sandCement },
-  ]
-})
-
 onMounted(() => {
   void load()
 })
@@ -94,25 +91,36 @@ onUnmounted(() => {
   <div class="div-page">
     <AppLayout>
       <template #left>
+        <!-- 左上 4×4：转移量可视化（BarChart）；原文字清单 + 数据口径说明合并为本面板图 + 一行脚注 -->
         <GCSPanel :w="4" :h="4" anchor="top-left" :offset-x="0" :offset-y="1.25">
-          <div class="info-panel">
-            <div class="info-title">西江→运河转移量（{{ year }} 年）</div>
-            <div v-for="row in commodityRows" :key="row.label" class="info-row">
-              <span>{{ row.label }}</span>
-              <span>{{ row.value.toFixed(2) }} 万吨/年</span>
+          <div class="transfer-panel">
+            <div class="transfer-chart">
+              <BarChart
+                :title="`西江→运河转移量（${year} 年）`"
+                :x-data="transferXData"
+                :series="transferSeries"
+              />
             </div>
-            <div v-if="result" class="info-note">
-              数据口径：罗淳（2024）分货类锚点线性插值；砂石水泥经西江-珠江运输直接且
-              效率高，不可转移（恒 0）。
+            <div class="transfer-note">
+              数据口径：罗淳（2024）分货类锚点线性插值；砂石水泥不可转移（恒 0）。
             </div>
+            <ChartLoading v-if="loading" />
           </div>
         </GCSPanel>
+        <!-- 左下 4×4：桑基图（自原右下迁入，props 与空态语义不变） -->
         <GCSPanel :w="4" :h="4" anchor="top-left" :offset-x="0" :offset-y="5.5">
-          <PortSplitPanel :by-port="result?.byPort ?? null" :loading="loading" />
+          <SankeyChart
+            v-if="nodes.length"
+            :nodes="nodes"
+            :links="links"
+            title="西江上行货 → 平陆运河 → 三港"
+          />
+          <div v-else-if="!loading" class="empty">暂无数据</div>
         </GCSPanel>
       </template>
       <template #right>
-        <GCSPanel :w="4" :h="3" anchor="top-right" :offset-x="0" :offset-y="1.25">
+        <!-- 右上 4×4：年份控制（滑块 + 标签；300ms 防抖逻辑不动） -->
+        <GCSPanel :w="4" :h="4" anchor="top-right" :offset-x="0" :offset-y="1.25">
           <div class="year-panel">
             <span class="year-label">年份 {{ year }}</span>
             <input
@@ -126,14 +134,9 @@ onUnmounted(() => {
             />
           </div>
         </GCSPanel>
-        <GCSPanel :w="4" :h="5" anchor="top-right" :offset-x="0" :offset-y="4.5">
-          <SankeyChart
-            v-if="nodes.length"
-            :nodes="nodes"
-            :links="links"
-            title="西江上行货 → 平陆运河 → 三港"
-          />
-          <div v-else-if="!loading" class="empty">暂无数据</div>
+        <!-- 右下 4×4：图层控制面板（本页无自有图层，按 LayerControlPanel 默认用法渲染） -->
+        <GCSPanel :w="4" :h="4" anchor="top-right" :offset-x="0" :offset-y="5.5">
+          <LayerControlPanel />
         </GCSPanel>
       </template>
     </AppLayout>
@@ -151,32 +154,26 @@ onUnmounted(() => {
   pointer-events: auto;
 }
 
-.info-panel {
+.transfer-panel {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 8px;
   height: 100%;
-  overflow-y: auto;
+  box-sizing: border-box;
 }
 
-.info-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--GCS-color-primary);
+/* 图表占满面板剩余高度；脚注固定底部一行 */
+.transfer-chart {
+  flex: 1;
+  min-height: 0;
 }
 
-.info-row {
-  display: flex;
-  justify-content: space-between;
-  font-size: 12px;
-  color: var(--GCS-text-regular);
-}
-
-.info-note {
+.transfer-note {
+  flex-shrink: 0;
+  padding: 4px 8px 6px;
   font-size: 11px;
+  line-height: 1.4;
   color: var(--GCS-text-muted);
-  line-height: 1.6;
 }
 
 .year-panel {

@@ -449,9 +449,12 @@ jobs:
           tags: |
             ghcr.io/andy38586/beibu-gulf-project:app-${{ env.IMAGE_TAG }}
             ghcr.io/andy38586/beibu-gulf-project:app-latest
+          # VITE_USE_NEST_MODULES 不在此重复声明：Dockerfile 的 ARG 默认值是生产域清单的
+          # 单一事实源（routes-audit 守卫断言「生产默认必须全覆盖」）。此处曾抄第二份，
+          # 2026-10-01 实测漏 site-suitability/diversion 两域 ⇒ 生产靠 nginx /api→/nest-api
+          # rewrite 侥幸兜住；删重复比加守卫更彻底（同一事实不留两种口径）。
           build-args: |
             VITE_TIANDITU_KEY=${{ secrets.TIANDITU_KEY }}
-            VITE_USE_NEST_MODULES=auth,plans,favorites,forecast,flood,site-analysis,route,task
           cache-from: type=gha,scope=app
           cache-to: type=gha,mode=max,scope=app
 

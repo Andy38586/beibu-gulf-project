@@ -16,6 +16,8 @@ import { useGCS } from '@/shared'
 import { type NavItem, navItems } from '../navConfig'
 import { useMobileDrawer } from '../useMobileDrawer'
 
+import { preloadCesium } from '../../map/renderers'
+
 import GCSButton from './GCSButton.vue'
 import GCSPanel from './GCSPanel.vue'
 import NavButton from './NavButton.vue'
@@ -50,6 +52,22 @@ function go(item: NavItem): void {
   if (item.disabled || !item.path) return
   void router.push(item.path)
 }
+
+/**
+ * 3D 意图预取（2026-10-01，治 z037「点不进 浸没分析」）
+ *
+ * 背景：3D 页首次进入需现场下载 Cesium.js（5.8MB）并建首帧；真机限速实测
+ * 进入耗时 10–16s，用户体感即"点了没反应/点不进去"（实测点击从未被吞：
+ * 全屏「地图加载中」遮罩在地图层 stacking context 内，导航 z 序在其上）。
+ *
+ * 不在启动时全量预载：App.vue 的预热队列刻意错峰到 load 后 +3s，避免抢首屏带宽。
+ * 这里只在**指针悬停/键盘聚焦 3D 导航项**时按需预取——意图明确、对首屏零成本；
+ * 且 preloadCesium 是模块级幂等 promise，重复触发不产生重复下载。
+ */
+function preloadIf3D(item: NavItem): void {
+  if (item.disabled || !item.path) return
+  if (router.resolve(item.path).meta?.engine === '3d') preloadCesium()
+}
 </script>
 
 <template>
@@ -74,6 +92,8 @@ function go(item: NavItem): void {
         :active="isActive(item.path)"
         :task-route="item.path"
         @click="go(item)"
+        @mouseenter="preloadIf3D(item)"
+        @focusin="preloadIf3D(item)"
       />
       <!-- 菜单键（抽屉模式 <960px） -->
       <GCSButton

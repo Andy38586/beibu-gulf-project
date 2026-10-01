@@ -3,9 +3,20 @@ import { mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mockPush = vi.fn()
+const { mockPreloadCesium } = vi.hoisted(() => ({ mockPreloadCesium: vi.fn() }))
+
+vi.mock('../../map/renderers', () => ({ preloadCesium: mockPreloadCesium }))
+
 vi.mock('vue-router', () => ({
   useRoute: () => ({ path: '/' }),
-  useRouter: () => ({ push: mockPush }),
+  useRouter: () => ({
+    push: mockPush,
+    // 供 BottomNavBar 的 3D 意图预取判定：只有 3D 路由（浸没/航线）才预取
+    resolve: (p: string) => ({
+      path: p,
+      meta: { engine: p === '/flood-analysis' || p === '/route-analysis' ? '3d' : '2d' },
+    }),
+  }),
 }))
 
 import BottomNavBar from '../components/BottomNavBar.vue'
@@ -36,6 +47,7 @@ function hasLabel(labels: string[], label: string): boolean {
 describe('BottomNavBar 三档位', () => {
   beforeEach(() => {
     mockPush.mockReset()
+    mockPreloadCesium.mockReset()
     registerNavItems([
       { type: 'home', label: '首页', icon: '⌂', path: '/', disabled: false },
       { type: 'business', label: '选址', icon: '◈', path: '/site-selection', disabled: false },
@@ -96,6 +108,34 @@ describe('BottomNavBar 三档位', () => {
     const routeBtn = wrapper.findAll('.GCS-button').find((b) => b.text().includes('航线'))!
     await routeBtn.trigger('click')
     expect(mockPush).not.toHaveBeenCalled()
+  })
+
+  it('悬停 3D 导航项触发 Cesium 意图预取（治 z037：点进去要等 10s+）', async () => {
+    await setViewport(1200)
+    const wrapper = mount(BottomNavBar)
+    // mouseenter 不冒泡：必须打在外层包裹元素（真实悬停的作用域），不能打内层按钮
+    const floodWrap = wrapper.findAll('.nav-button-wrap').find((w) => w.text().includes('浸没'))!
+    await floodWrap.trigger('mouseenter')
+    expect(mockPreloadCesium).toHaveBeenCalledTimes(1)
+    // 键盘可达性同等对待（focusin 会冒泡到包裹层）
+    await floodWrap.find('.GCS-button').trigger('focusin')
+    expect(mockPreloadCesium).toHaveBeenCalledTimes(2)
+  })
+
+  it('悬停 2D 导航项不预取（不抢首屏带宽）', async () => {
+    await setViewport(1200)
+    const wrapper = mount(BottomNavBar)
+    const siteWrap = wrapper.findAll('.nav-button-wrap').find((w) => w.text().includes('选址'))!
+    await siteWrap.trigger('mouseenter')
+    expect(mockPreloadCesium).not.toHaveBeenCalled()
+  })
+
+  it('禁用项悬停不预取', async () => {
+    await setViewport(1200)
+    const wrapper = mount(BottomNavBar)
+    const routeWrap = wrapper.findAll('.nav-button-wrap').find((w) => w.text().includes('航线'))!
+    await routeWrap.trigger('mouseenter')
+    expect(mockPreloadCesium).not.toHaveBeenCalled()
   })
 
   it('档位 2/3 菜单键点击切换抽屉状态', async () => {

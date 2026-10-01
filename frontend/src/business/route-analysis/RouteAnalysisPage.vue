@@ -3,7 +3,7 @@
  * 航线分析业务页（Cesium 引擎驱动）：
  * 控制面板（右上图层控制上方 4×4）选点 → 逐段调 /route/path（Nest + pgRouting）→
  * 多段路径线 + 端点标记图层；左栏为结果摘要面板。
- * 选点双入口：POI 搜索（Nest /site-analysis/pois）或地图点击（限钦北防三市，见 RouteControlPanel）。
+ * 选点双入口：POI 搜索（Nest /route/pois，2026-09-30 自老选址域迁入）或地图点击（限钦北防三市，见 RouteControlPanel）。
  * 引擎固定 3D（Cesium）：由路由 meta.engine='3d' 经 App 路由守卫统一驱动，本页不再自行切换/还原，
  * 与浸没分析一致——同为 3D 的路由互切时 UnifiedMap 直接复用同一 Viewer，不卸载、不重建上下文。
  * 路径线/端点图层走 BLM 注册（双引擎通用，本页不再暴露 OL 链路）。
@@ -17,6 +17,8 @@ import {
   isImageOverlayCapable,
   isTiles3DCapable,
   LayerControlPanel,
+  normalizeTilesetGeometricError,
+  prepareTilesetForDataUri,
   tallyGroups,
   type TilesetJson,
   toDataUri,
@@ -249,11 +251,19 @@ async function registerPingluGroups(): Promise<void> {
       // 带剪枝派生：剔除各枢纽自带的「地形与边坡」层——那是交付方用另一套 DEM
       // 生成的局部地表，与项目 CTB 地形不同源，同开会糊成一块斜插进地形的平板。
       // 判据与理由见 constants/pingluTiles 的 PINGLU_DERIVE_OPTIONS。
-      const derived = deriveGroupTileset(template, group, PINGLU_TILESET_URL, PINGLU_DERIVE_OPTIONS)
-      if (!derived) {
+      const rawDerived = deriveGroupTileset(
+        template,
+        group,
+        PINGLU_TILESET_URL,
+        PINGLU_DERIVE_OPTIONS
+      )
+      if (!rawDerived) {
         logger.warn(`[RouteAnalysis] 3D Tiles 分组「${group.label}」无命中内容，已跳过`)
         continue
       }
+      // 校正 GE：外部瓦片 GE 相对包围尺度偏小，中高空 SSE 低于阈值会在 root 终止遍历、
+      // 整片空白（机理见 normalizeTilesetGeometricError）。派生已绝对化 uri，此处只抬 GE。
+      const derived = normalizeTilesetGeometricError(rawDerived)
       const id = pingluLayerId(group.id)
       try {
         ownedLayers.register(id, {
@@ -313,7 +323,7 @@ const stopTilesLayerWatch = watch(
 const beibuLayerIds = ref<string[]>([])
 let beibuRegistered = false
 
-function registerBeibuTiles(): void {
+async function registerBeibuTiles(): Promise<void> {
   if (beibuRegistered) return
   if (disposed) return
   const renderer = mapStore.currentRenderer
@@ -322,16 +332,30 @@ function registerBeibuTiles(): void {
   const ids: string[] = []
   for (const spec of BEIBU_TILES) {
     const id = beibuTilesLayerId(spec.id)
-    const ok = ownedLayers.register(id, {
-      label: spec.label,
-      layerType: '3dtiles',
-      data: { url: spec.url, maximumScreenSpaceError: spec.maximumScreenSpaceError },
-      // 默认可见性由清单条目自己声明（见 beibu3dTiles 的 defaultVisible 注释）：
-      // 用户要"带回来的全部加载起来"，故全为 true；代价是首屏拉数百 MB，
-      // 面板条目按 layer-order 常驻，逐条关即可。
-      visible: spec.defaultVisible,
-    })
-    if (ok) ids.push(id)
+    try {
+      // 外部交付瓦片 GE 相对包围尺度偏小，中高空 SSE 低于阈值会在 root 终止遍历、整片
+      // 空白。前端取一次 tileset：绝对化 uri + 校正 GE 后以 Data URI 挂载（机制见
+      // prepareTilesetForDataUri），不再把 http url 直接交给 Cesium。
+      const res = await fetch(spec.url)
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const raw = (await res.json()) as TilesetJson
+      // 异步期间渲染器可能被切走或页面卸载——注册前重验
+      if (disposed || mapStore.currentRenderer !== renderer || !isTiles3DCapable(renderer)) return
+      const prepared = prepareTilesetForDataUri(raw, spec.url)
+      const ok = ownedLayers.register(id, {
+        label: spec.label,
+        layerType: '3dtiles',
+        data: { url: toDataUri(prepared), maximumScreenSpaceError: spec.maximumScreenSpaceError },
+        // 默认可见性由清单条目自己声明（见 beibu3dTiles 的 defaultVisible 注释）：
+        // 用户要"带回来的全部加载起来"，故全为 true；代价是首屏拉数百 MB，
+        // 面板条目按 layer-order 常驻，逐条关即可。
+        visible: spec.defaultVisible,
+      })
+      if (ok) ids.push(id)
+    } catch (e) {
+      // 单个资产失败不中断其余（与平陆分组同款容错）
+      logger.warn(`[RouteAnalysis] 北部湾 3D Tiles「${spec.label}」加载失败（已跳过）:`, e)
+    }
   }
   beibuLayerIds.value = ids
   beibuRegistered = ids.length > 0
@@ -342,7 +366,7 @@ const stopBeibuWatch = watch(
   (renderer) => {
     if (!renderer) return
     if (isTiles3DCapable(renderer)) {
-      registerBeibuTiles()
+      void registerBeibuTiles()
     } else if (beibuRegistered) {
       // 切 2D：本组同样无对应能力，走 unregister 保持归属册与实际一致
       for (const id of beibuLayerIds.value) ownedLayers.unregister(id)

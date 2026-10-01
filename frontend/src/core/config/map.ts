@@ -91,7 +91,7 @@ export const MAP_CONFIG: MapConfig = {
     // 数据路径统一收口于此叶子配置——services 深路径引用（mapDataService），
     // 走 @/core 入口会形成 core↔services 循环依赖（no-circular），故保留在此并声明为唯一收口点
     ports: '/data/ports.json',
-    boundary: '/data/site-selection/boundary.geojson',
+    boundary: '/data/route-analysis/boundary.geojson',
   },
   CAMERA: {
     center: { lng: 108.5752963, lat: 21.760409, height: 10000 },

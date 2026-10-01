@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common'
 
 import { RouteController } from './controllers/route.controller'
+import { PoiSearchRepository } from './repositories/pois-search.repository'
+import { PoiSearchService } from './services/pois-search.service'
 import { RouteRepository } from './repositories/route.repository'
 import { RouteService } from './services/route.service'
 
@@ -11,7 +13,7 @@ import { RouteService } from './services/route.service'
 // exports RouteService：v4 异步任务域（TaskHandlers）按域委托执行，需跨模块注入
 @Module({
   controllers: [RouteController],
-  providers: [RouteRepository, RouteService],
+  providers: [PoiSearchRepository, PoiSearchService, RouteRepository, RouteService],
   exports: [RouteService],
 })
 export class RouteModule {}

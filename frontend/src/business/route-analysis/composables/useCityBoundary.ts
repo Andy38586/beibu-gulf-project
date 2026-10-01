@@ -5,7 +5,7 @@ import { loadStatic, logger } from '@/shared'
 // 选点落任意区县面内即合法；面外提示「暂无数据」——路网/POI 均只覆盖三市。
 // 点面判断用射线法手写实现（12 面零开销；项目未引 turf，不为此单点新增依赖）。
 
-const BOUNDARY_URL = '/data/site-selection/boundary.geojson'
+const BOUNDARY_URL = '/data/route-analysis/boundary.geojson'
 
 interface BoundaryPolygon {
   type: 'Polygon' | 'MultiPolygon'

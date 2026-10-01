@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common'
 
 import { DbService } from '../../../infra/db/db.service'
-import type { FacilityPoint, PoiSearchItem } from '../dto/site-analysis.dto'
+import type { FacilityPoint } from '../dto/site-analysis.dto'
 
 // 选址分析数据访问：POI/小区自 PostGIS 读取（poi_facilities/xiaoqu 表，EPSG:4490），
 // 取代原 backend/data/site-selection/{city}_{type}.json 文件读取——消除 POI 双轨
@@ -81,29 +81,6 @@ interface PoiSearchRow {
  *
  * keyword 为空 → 无条件（返回优先级前 limit 条兜底列表）；有词 → `name ILIKE`（参数化无拼接面）。
  */
-const MULTI_SOURCE_SEARCH_SQL = `
-SELECT source, id, name, type, city, district,
-       ST_X(ST_Transform(geom, 4326)) AS lng,
-       ST_Y(ST_Transform(geom, 4326)) AS lat
-FROM (
-  SELECT 'port'::text AS source, 0 AS prio, id, name, COALESCE(type, '') AS type,
-         NULL::text AS city, NULL::text AS district, geom
-    FROM ports
-  UNION ALL
-  SELECT 'facility', 1, id, name, COALESCE(type, ''), NULL::text, NULL::text, geom
-    FROM flood_facilities
-  UNION ALL
-  SELECT 'xiaoqu', 2, id, name, 'xiaoqu', city, district, geom
-    FROM xiaoqu
-  UNION ALL
-  SELECT 'poi', 3, id, name, COALESCE(type, ''), city, district, geom
-    FROM poi_facilities
-) s
-WHERE ($1::text IS NULL OR name ILIKE $1)
-ORDER BY prio, city NULLS FIRST, name
-LIMIT $2
-`
-
 @Injectable()
 export class SiteAnalysisRepository {
   constructor(private readonly db: DbService) {}
@@ -129,28 +106,6 @@ export class SiteAnalysisRepository {
       [resolveCity(city)]
     )
     return res.rows.map(toFacilityPoint)
-  }
-
-  // 名称关键词搜索（航线分析选点）：多源点集（见 MULTI_SOURCE_SEARCH_SQL）。
-  // 上限防御：limit 钳制 1..200（0/NaN 视为未提供 → 缺省 50）——四类点集合并后 50 太小
-  //（用户会想"再多看几条"），200 行载荷仍属轻量；更大量级才需要分页，当前不做
-  async searchPois(keyword: string, limit: number): Promise<PoiSearchItem[]> {
-    const safeLimit = Math.min(Math.max(Math.trunc(limit) || 50, 1), 200)
-    const kw = keyword.trim()
-    const res = await this.db.query<PoiSearchRow>(MULTI_SOURCE_SEARCH_SQL, [
-      kw ? `%${kw}%` : null,
-      safeLimit,
-    ])
-    return res.rows.map((row) => ({
-      id: row.id ?? '',
-      name: row.name ?? '',
-      type: row.type ?? '',
-      source: row.source,
-      city: row.city ?? '',
-      district: row.district,
-      lng: row.lng,
-      lat: row.lat,
-    }))
   }
 
   getAvailableTypes(): string[] {

@@ -30,21 +30,4 @@ export class SiteAnalysisController {
     }
     return result
   }
-
-  /**
-   * 名称关键词搜索（航线分析选点）。GET /nest-api/site-analysis/pois?keyword=&limit=
-   * keyword 为空返回兜底列表；limit 钳制在 repository（1..200）。
-   * 数据源为**多源点集合并**（港口/淹没设施点/小区/设施 POI，见 repository MULTI_SOURCE_SEARCH_SQL）。
-   */
-  @Get('pois')
-  async searchPois(
-    @Query('keyword') keyword?: string,
-    @Query('limit') limit?: string
-  ): Promise<unknown> {
-    const parsedLimit = Number(limit)
-    return this.siteAnalysisService.searchPois(
-      keyword ?? '',
-      Number.isFinite(parsedLimit) ? parsedLimit : 50
-    )
-  }
 }

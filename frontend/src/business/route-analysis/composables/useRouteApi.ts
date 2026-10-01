@@ -98,7 +98,7 @@ export function useRouteApi(): UseRouteApiReturn {
     limit = 50,
     signal?: AbortSignal
   ): Promise<PoiSearchItemParsed[]> {
-    return apiRequest<PoiSearchItemParsed[]>(ENDPOINTS.siteAnalysis.pois, {
+    return apiRequest<PoiSearchItemParsed[]>(ENDPOINTS.route.pois, {
       params: { keyword: keyword || undefined, limit },
       schema: poiSearchResponseSchema,
       signal,

@@ -8,6 +8,9 @@ export const ENDPOINTS = {
   siteSuitability: {
     map: '/site-suitability/map',
   },
+  diversion: {
+    breakdown: '/diversion/breakdown',
+  },
   auth: {
     me: '/auth/me',
     login: '/auth/login',

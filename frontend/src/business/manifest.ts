@@ -57,6 +57,15 @@ export const businessModules: BusinessModule[] = [
     reset: () => useSiteSuitabilityStore().reset(),
   },
   {
+    name: 'DiversionAnalysis',
+    path: '/diversion-analysis',
+    engine: '2d',
+    title: '分流分析',
+    navLabel: '分流分析',
+    navIcon: '≋',
+    component: () => import('@/business/diversion/DiversionPage.vue'),
+  },
+  {
     name: 'Forecast',
     path: '/forecast',
     engine: '2d',

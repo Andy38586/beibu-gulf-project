@@ -42,6 +42,16 @@ module.exports = {
       },
     },
     {
+      name: 'business-cross-import-diversion',
+      comment: 'diversion 不应依赖其他业务模块（经 manifest 注册；04-E2 规则集合==目录集合）',
+      severity: 'error',
+      from: { path: '^frontend/src/business/diversion/' },
+      to: {
+        path: '^frontend/src/business/',
+        pathNot: '^frontend/src/business/diversion/',
+      },
+    },
+    {
       name: 'business-cross-import-site-suitability',
       comment:
         'site-suitability 不应依赖其他业务模块（经 manifest 注册；04-E2 规则集合==目录集合）',

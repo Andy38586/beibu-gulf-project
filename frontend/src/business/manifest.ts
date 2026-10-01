@@ -64,6 +64,9 @@ export const businessModules: BusinessModule[] = [
     navLabel: '分流分析',
     navIcon: '≋',
     component: () => import('@/business/diversion/DiversionPage.vue'),
+    // 页面状态为本地 ref（年份/结果），无持久 store；登出时路由保留，
+    // reset 声明为 no-op 以维持"已实现模块必须声明 reset"的清单不变量（同上一条）
+    reset: () => {},
   },
   {
     name: 'Forecast',

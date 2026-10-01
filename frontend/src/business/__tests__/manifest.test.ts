@@ -18,10 +18,12 @@ describe('business/manifest 登出重置注册', () => {
   it('已实现业务模块均声明 reset（登出重置）', () => {
     const implemented = businessModules.filter((m) => m.component !== null)
     expect(implemented.map((m) => m.name).sort()).toEqual([
+      'DiversionAnalysis',
       'FloodAnalysis',
       'Forecast',
       'RouteAnalysis',
       'SiteSelection',
+      'SiteSuitability',
     ])
     for (const m of implemented) {
       expect(m.reset, `${m.name} 缺少登出 reset`).toBeDefined()

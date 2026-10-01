@@ -144,7 +144,7 @@ describe.skipIf(!withDb)('auth e2e（连真库）', () => {
     expect(res.body).toEqual({ code: 401001, error: '未提供认证令牌', data: null })
   })
 
-  it('me 带 Cookie → 200 {user:{id,username}} + Cache-Control: no-store', async () => {
+  it('me 带 Cookie → 200 {user:{id,username,createdAt}} + Cache-Control: no-store', async () => {
     const login = await request(app.getHttpServer())
       .post('/nest-api/auth/login')
       .send({ username: '__t3_register', password: 'Abcdef1' })
@@ -156,7 +156,9 @@ describe.skipIf(!withDb)('auth e2e（连真库）', () => {
       .expect(200)
     expect(res.body).toEqual({
       code: 200,
-      data: { user: { id: expect.any(String), username: '__t3_register' } },
+      data: {
+        user: { id: expect.any(String), username: '__t3_register', createdAt: expect.any(String) },
+      },
     })
     expect(res.headers['cache-control']).toBe('no-store')
   })

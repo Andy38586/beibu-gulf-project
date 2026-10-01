@@ -1,6 +1,8 @@
 // @vitest-environment node
 // 敏感性分析实验（第 4 章素材 + 稳健性判据）：阈值/权重 ±50% 扰动下的排名稳定性。
-// 需真库（V3_INTEGRATION_DB=1）；产出报告落 .local/，断言钉稳健性门槛。
+// 需全量真库：V3_INTEGRATION_DB=1 + V3_FULL_DATASET=1（suitability_cells 为本地物化 14 万+ 格，
+// CI 不灌该表 ⇒ 按 test-gate.config.json 以 V3_FULL_DATASET 登记跳过）；
+// 产出报告落 .local/，断言钉稳健性门槛。
 //
 // 稳健性判据（门槛先定，阈值见下方 STABILITY 常量；论证见报告）：
 //   Spearman ρ ≥ 0.90 且 Top-500 Jaccard ≥ 0.70 —— 全部扰动维度须同时满足。
@@ -16,7 +18,7 @@ import {
 } from '../src/modules/site-suitability/constants/score.constants'
 import { LAND_CLASS_SCORE } from '../src/modules/site-suitability/constants/score.constants'
 
-const withDb = process.env.V3_INTEGRATION_DB !== undefined
+const withFullDataset = process.env.V3_FULL_DATASET !== undefined
 
 interface Cell {
   elev: number
@@ -90,7 +92,7 @@ function scoreAll(cells: Cell[], t: ScoreThresholds, weights: number[]): number[
   })
 }
 
-describe.skipIf(!withDb)('选址敏感性分析（真库）', () => {
+describe.skipIf(!withFullDataset)('选址敏感性分析（真库，需 V3_FULL_DATASET=1）', () => {
   it('阈值/权重 ±50% 扰动下排名稳健（ρ≥0.90 且 Top-500 Jaccard≥0.70）', async () => {
     const { Pool } = await import('pg')
     const pool = new Pool({

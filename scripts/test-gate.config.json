@@ -45,6 +45,11 @@
           "env": "V3_FULL_DATASET",
           "reason": "绑定**全量真实数据分布**的快照断言（bh hospital 101 / TOP1 滨海·江语湖 94.7 / coverage 必 MultiPolygon 等）。AMap 抓取源不入仓库 ⇒ CI 物理无法满足，故门控独立为 V3_FULL_DATASET：本地 `export V3_INTEGRATION_DB=1 V3_FULL_DATASET=1` 真跑；CI 不设 ⇒ 整组按本登记跳过（有界、带理由）"
         },
+        "test/site-suitability-sensitivity.spec.ts": {
+          "mode": "gated",
+          "env": "V3_FULL_DATASET",
+          "reason": "依赖本地物化全量 suitability_cells（142477 格，敏感性实验物化表）；CI seed 不灌该表 ⇒ 物理无法满足，故门控独立为 V3_FULL_DATASET：本地 `export V3_INTEGRATION_DB=1 V3_FULL_DATASET=1` 真跑；CI 不设 ⇒ 整组按本登记跳过（有界、带理由）"
+        },
         "test/site-analysis.service.spec.ts": {
           "mode": "gated",
           "reason": "空间算子（覆盖/求交/筛选）与选址流水线需 PostGIS"

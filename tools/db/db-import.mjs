@@ -228,7 +228,7 @@ END $$;
   }
 
   // ===== admin_boundary（行政区划 12 区县 + 预联合并集；淹没面陆域裁剪用，2026-09-12） =====
-  // 与 frontend/public/data/site-selection/boundary.geojson 同源（前端行政区划图层同款数据），
+  // 与 frontend/public/data/route-analysis/boundary.geojson 同源（前端行政区划图层同款数据），
   // 改任一侧必须同步。4326 直存（仅与 4326 淹没面做 ST_Intersection，无 4490 交互）
   const boundaryPath = path.join(
     dataDir,
@@ -237,7 +237,7 @@ END $$;
     'frontend',
     'public',
     'data',
-    'site-selection',
+    'route-analysis',
     'boundary.geojson'
   )
   if (fs.existsSync(boundaryPath)) {

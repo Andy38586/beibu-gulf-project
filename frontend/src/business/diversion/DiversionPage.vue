@@ -1,5 +1,5 @@
 <!--
-  分流分析页（W10-11）：年份滑块 + 西江转移量分解卡 + 桑基图。
+  分流分析页（W10-11）：年份滑块 + 西江转移量分解卡 + 桑基图 + 三港分摊明细（左下 4×4）。
   数据经 diversionAdapter（schema 校验在 HTTP 边界）；年份本地状态（无跨页需求）。
 -->
 <script setup lang="ts">
@@ -9,6 +9,8 @@ import { AppLayout, GCSPanel } from '@/core'
 import { logger, showError } from '@/shared'
 import { SankeyChart } from '@/visualization'
 import { diversionAdapter, type DiversionResult } from '@/services'
+
+import PortSplitPanel from './components/PortSplitPanel.vue'
 
 /** 节点/连线形状（与 SankeyChart props 结构化兼容，本地声明免跨层类型导出） */
 interface SankeyNode {
@@ -104,6 +106,9 @@ onUnmounted(() => {
               效率高，不可转移（恒 0）。
             </div>
           </div>
+        </GCSPanel>
+        <GCSPanel :w="4" :h="4" anchor="top-left" :offset-x="0" :offset-y="5.5">
+          <PortSplitPanel :by-port="result?.byPort ?? null" :loading="loading" />
         </GCSPanel>
       </template>
       <template #right>

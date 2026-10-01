@@ -669,6 +669,18 @@ jobs:
                 fi
                 if [ "$matched" = "1" ]; then
                   echo "部署完成：健康检查 200 且镜像身份已证实为 nest-${IMAGE_TAG}（证据源：${src}，耗时约 $((i * 20))s）"
+
+                  # 阶段 3.5（2026-10-01）：迁移登记表补录——把 z050 的「历史库一次性补录」
+                  # 从人工步骤升为流水线步骤。脚本幂等（CREATE TABLE IF NOT EXISTS +
+                  # ON CONFLICT DO NOTHING）：首次部署自动建表并补录，之后恒为 no-op。
+                  # ⚠️ 补录清单是「仓库脚本清单」而非服务器执行记录；若某条在服务器从未执行过，
+                  # 须按 tools/db/schema-migrations.sql 头注释第 4 步逐条核对后从清单删除。
+                  # 本条只保证「登记表存在且已跟上」，不替代数据迁移本身（缺表数据仍由阶段四拦截）。
+                  if ! ssh_quick "cd /opt/beibu-gulf && docker exec -i beibu-postgis psql -U postgres -d beibu-gulf-data -v ON_ERROR_STOP=1 < tools/db/schema-migrations.sql"; then
+                    echo "::error::阶段 3.5（schema_migrations 迁移登记补录）失败：见上方 ssh stderr"
+                    exit 1
+                  fi
+
                   # 阶段四（z050，2026-09-26）：部署后数据就绪核对（只读，fail-loud）。
                   # 「代码上线、库没跟上」在 2026-09-12 造成两起事故（浸没 500 / 航线 26s），
                   # 根因是部署链无库侧核对。此处对线上库执行只读断言，任一 FAIL 即中断本 job
@@ -676,6 +688,13 @@ jobs:
                   # 脚本用仓库 HEAD 版本（阶段一已 pull）；含 schema_migrations 登记表存在性
                   # 断言（z050）——历史库须先一次性补录（见 tools/db/schema-migrations.sql 头注释）。
                   if ! ssh_quick "cd /opt/beibu-gulf && docker exec -i beibu-postgis psql -U postgres -d beibu-gulf-data -v ON_ERROR_STOP=1 < tools/db/verify-data-readiness.sql"; then
+                    # 诊断增强（2026-10-01 首次部署实测）：ssh_quick 丢弃 stdout，失败时只剩
+                    # 一句汇总，无法知道 9 项里哪几项红（当时只能翻脚本反推）。此处补跑一次
+                    # 非 fail-fast 版本，把 FAIL 行逐条打成 annotation（annotations 每步有上限，
+                    # 取前 8 行；明细也在本步 stderr 里）。
+                    ssh -o StrictHostKeyChecking=no -o ConnectTimeout=15 -p "$SSH_PORT" \
+                      "$SERVER_USER@$SERVER_HOST" \
+                      "cd /opt/beibu-gulf && docker exec -i beibu-postgis psql -U postgres -d beibu-gulf-data -v ON_ERROR_STOP=0 < tools/db/verify-data-readiness.sql 2>&1 | grep -E 'FAIL|failed_checks' | head -8 | sed 's/^/::error::/'" || true
                     echo "::error::阶段四（部署后数据就绪核对）未通过：库对象/数据不变量缺失（见上方 FAIL 行）"
                     echo "::error::迁移脚本见 tools/db/ 与 tools/roads/；登记表补录见 tools/db/schema-migrations.sql 头注释"
                     exit 1

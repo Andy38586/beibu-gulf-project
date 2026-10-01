@@ -15,6 +15,9 @@
 --   → 逐行 PASS/FAIL；有 FAIL 则退出码非零（本次检查全部通过时会打印"检查通过"）
 --
 -- 与 backend/test/db-readiness.spec.ts 同源（CI 侧断言版）；两者改一处须同步另一处。
+-- 2026-10-01（部署 run#190 实测）：v2 路网 roads_edges 自 09-13 上线后，本脚本仍断言旧表
+--   roads_noded ⇒ 阶段四恒红（生产因此被拦在「镜像已换、核对未过」）。已按 spec 的现行判据
+--   改断言 roads_edges（可通行主分量 / 路由覆盖索引 / 吸附偏索引 / 探针 directed:=true）。
 -- =============================================================================
 
 \pset pager off
@@ -60,22 +63,31 @@ BEGIN
       ('pgrouting 扩展已安装',
        $q$SELECT count(*) = 1, format('rows=%s', count(*))
           FROM pg_extension WHERE extname = 'pgrouting'$q$),
-      ('roads_noded 可通行主分量边 > 0',
+      ('roads_edges 可通行主分量边 > 0（v2 有向图，v2 起 route 域唯一依赖）',
        $q$SELECT count(*) > 0, format('routable=%s', count(*))
-          FROM roads_noded WHERE cost_m > 0 AND main_comp IS TRUE$q$),
-      ('roads_noded id 点查索引存在（首键列 = id）',
+          FROM roads_edges
+         WHERE (cost_m > 0 OR reverse_cost_m > 0) AND main_comp IS TRUE$q$),
+      ('roads_edges id 点查索引存在（首键列 = id）',
        $q$SELECT count(*) > 0, format('indexes=%s', count(*))
           FROM pg_index i
           JOIN pg_class t ON t.oid = i.indrelid
           JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = i.indkey[0]
-         WHERE t.relname = 'roads_noded' AND a.attname = 'id'$q$),
-      ('roads_noded 路由覆盖索引存在（谓词与 edges_sql 一致）',
+         WHERE t.relname = 'roads_edges' AND a.attname = 'id'$q$),
+      ('roads_edges 路由覆盖索引存在（谓词与 edges_sql 一致）',
        $q$SELECT count(*) > 0, format('indexes=%s', count(*))
           FROM pg_index i
           JOIN pg_class t ON t.oid = i.indrelid
-         WHERE t.relname = 'roads_noded'
-           AND pg_get_indexdef(i.indexrelid) ILIKE '%INCLUDE (source, target, cost_m, cost_min)%'
+         WHERE t.relname = 'roads_edges'
+           AND pg_get_indexdef(i.indexrelid)
+               ILIKE '%INCLUDE (source, target, cost_m, reverse_cost_m, cost_min, reverse_cost_min)%'
            AND pg_get_indexdef(i.indexrelid) ILIKE '%main_comp IS TRUE%'$q$),
+      ('roads_edges 吸附偏索引存在（gist + reverse_cost_m，与 snapping 查询一致）',
+       $q$SELECT count(*) > 0, format('indexes=%s', count(*))
+          FROM pg_index i
+          JOIN pg_class t ON t.oid = i.indrelid
+         WHERE t.relname = 'roads_edges'
+           AND pg_get_indexdef(i.indexrelid) ILIKE '%USING gist%'
+           AND pg_get_indexdef(i.indexrelid) ILIKE '%reverse_cost_m%'$q$),
       -- ⚠️ 勿加 `cost_m > 0` 字面断言：pg_get_indexdef 会规范化为 cost_m > (0)::double
       -- precision，字面匹配恒落空（2026-09-12 真库实测踩过，故只用 INCLUDE+main_comp 两段）
 
@@ -104,8 +116,8 @@ DECLARE
 BEGIN
   SELECT count(*) INTO n
   FROM pgr_withPoints(
-    $q$SELECT id, source, target, cost_m AS cost, cost_m AS reverse_cost
-         FROM roads_noded WHERE cost_m > 0 AND main_comp IS TRUE
+    $q$SELECT id, source, target, cost_m AS cost, reverse_cost_m AS reverse_cost
+         FROM roads_edges WHERE (cost_m > 0 OR reverse_cost_m > 0) AND main_comp IS TRUE
          AND source IS NOT NULL AND target IS NOT NULL$q$,
     $q$WITH s(pid, lng, lat) AS (
          VALUES (1, 108.63::float8, 21.95::float8), (2, 108.65::float8, 21.93::float8)
@@ -114,11 +126,11 @@ BEGIN
               ST_LineLocatePoint(r.geom, ST_SetSRID(ST_MakePoint(p.lng, p.lat), 4490))::float8 AS fraction,
               'b'::char AS side
          FROM s p CROSS JOIN LATERAL (
-           SELECT id, geom FROM roads_noded
-            WHERE cost_m > 0 AND main_comp IS TRUE AND geom IS NOT NULL
+           SELECT id, geom FROM roads_edges
+            WHERE (cost_m > 0 OR reverse_cost_m > 0) AND main_comp IS TRUE AND geom IS NOT NULL
             ORDER BY geom <-> ST_SetSRID(ST_MakePoint(p.lng, p.lat), 4490) LIMIT 1
          ) r$q$,
-    1, 2, directed := false);
+    1, 2, directed := true);
   ms := round(EXTRACT(epoch FROM clock_timestamp() - t0) * 1000);
   INSERT INTO _readiness (name, ok, detail)
   VALUES ('性能探针：一次构图+寻路 < 10s（目标 < 5s）', ms < 10000,

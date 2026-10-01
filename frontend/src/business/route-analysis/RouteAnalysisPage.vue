@@ -456,13 +456,19 @@ onUnmounted(() => {
         />
         <GCSPanel :w="4" :h="4" anchor="top-right" :offset-x="0" :offset-y="5.5">
           <LayerControlPanel
-            :layer-order="[
-              ...DEFAULT_LAYER_ORDER,
-              ROUTE_PATH_LAYER_ID,
-              ROUTE_ENDPOINT_LAYER_ID,
-              ...PINGLU_GROUPS.map((g) => pingluLayerId(g.id)),
-              ...BEIBU_TILES.map((s) => beibuTilesLayerId(s.id)),
-              ...imageryLayerIds,
+            :layer-order="[...DEFAULT_LAYER_ORDER, ROUTE_PATH_LAYER_ID]"
+            :exclude-keys="[ROUTE_ENDPOINT_LAYER_ID]"
+            :layer-groups="[
+              {
+                key: 'pinglu-3d',
+                label: '平陆运河·三维',
+                memberKeys: [...PINGLU_GROUPS.map((g) => pingluLayerId(g.id)), ...imageryLayerIds],
+              },
+              {
+                key: 'beibu-3d',
+                label: '钦州港·三维',
+                memberKeys: BEIBU_TILES.map((s) => beibuTilesLayerId(s.id)),
+              },
             ]"
           />
         </GCSPanel>

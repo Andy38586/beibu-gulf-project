@@ -15,16 +15,38 @@ import type { LayerEntry } from '@/types'
 import { DEFAULT_ENGINES, ENGINE_LABELS } from '@/types'
 import type { LayerType } from '@/types/core/layerManager'
 
+/** 图层组规格：多个图层共用面板上的**一个**开关（层级可分、控制合一）。
+ * 成员必须是有 layerType 的业务图层（base 类互斥单选不可入组）。 */
+export interface LayerGroupSpec {
+  key: string
+  label: string
+  memberKeys: string[]
+}
+
 interface Props {
   /** 图层显示顺序（由业务页注入，core 不硬编码业务 key） */
   layerOrder?: string[]
+  /** 图层组（一钮控多层的合并行，渲染在单层行之后） */
+  layerGroups?: LayerGroupSpec[]
+  /** 从面板隐藏的 key（组内成员/自动管理层；隐藏≠删除，BLM 条目仍在） */
+  excludeKeys?: string[]
 }
 
 const props = withDefaults(defineProps<Props>(), {
   // 默认仅核心常驻层顺序；业务图层未列出的追加到末尾（按 catalog 注册序）。
   // 顺序表来自 shared/constants/layers（唯一权威表）——原先这里手抄了 4 个字面量。
   layerOrder: () => [...DEFAULT_LAYER_ORDER],
+  layerGroups: () => [],
+  excludeKeys: () => [],
 })
+
+/**
+ * 面板行数硬上限（用户 2026-09-30 规则：上限就是 8，不允许再多、不滚动）。
+ * ⚠ 决策反转留痕：c043 时代的口径是「容量公式+滚动出口」，已按新规则废止——
+ * 超限时本组件截断到 8 并在 DEV 下 console.error（红样见
+ * LayerControlPanel.capacity.test.ts 的 12 条注入用例）。
+ */
+const PANEL_MAX_ROWS = 8
 
 // layerCatalog 直连 mapStore，底图切换走 setBaseLayer
 const mapStore = useMapStore()
@@ -49,6 +71,9 @@ const iconFontSizeCss = computed(() => `${cellPixel.value * 0.2}px`) // 16px
  * visible 为唯一权威源，catalog 仅作响应式触发器（引擎切换清空后由 reapplyAll
  * 按 registry 重建，杜绝双副本失步）；底图条目以 baseLayerKey 为权威源。
  */
+const excluded = computed(() => new Set(props.excludeKeys))
+const groupMembers = computed(() => new Set(props.layerGroups.flatMap((g) => g.memberKeys)))
+
 const layerButtons = computed(() => {
   // 显示顺序由 props 注入
   const order = props.layerOrder
@@ -59,40 +84,111 @@ const layerButtons = computed(() => {
     .map((key) => presentable.find((l: LayerEntry) => l.key === key))
     .filter((l): l is LayerEntry => l !== undefined)
   const orderedKeys = new Set(ordered.map((l: LayerEntry) => l.key))
-  const extra = presentable.filter((l: LayerEntry) => !orderedKeys.has(l.key))
-  return [...ordered, ...extra].map((layer) => {
-    const engines =
-      layer.engines ?? businessLayerManager.getMeta(layer.key)?.engines ?? DEFAULT_ENGINES
-    // 单变量原则：按钮状态即 registry.visible（BLM 唯一权威），蓝 = 图层在显示
-    const active = layer.layerType
-      ? (businessLayerManager.getMeta(layer.key)?.visible ?? layer.visible)
-      : mapStore.baseLayerKey === layer.key
-    // 锁定层不可关：按钮置灰禁用（当前恒为「开」态）。呈现层也判一次，
-    // 不依赖 BLM 的 setVisible 拒绝兜底——禁用态要提前告知用户，而非点了没反应
-    const locked = layer.layerType
-      ? (businessLayerManager.getMeta(layer.key)?.locked ?? layer.locked)
-      : false
-    return {
-      key: layer.key,
-      label: layer.label,
-      // 透传 layerType 供图标数据驱动（core 不解析业务 label 语义）
-      layerType: layer.layerType,
-      // 引擎适用标记：registry meta 优先，目录镜像兜底；仅单引擎图层显示角标（双引擎保持干净）
-      engines,
-      active,
-      locked,
-      // 三态（a035）：单引擎特化图层遇另一引擎 ⇒ unsupported，按钮不可点亮
-      //（原先只看 on/off，这类条目在 3D 下照样可点，点了什么也不会发生）
-      // 四态（a029）：+ not-mounted —— 开关想显示但 BLM 重绘后没上屏（data 未就绪），标灰提示
-      state: resolveLayerPanelState(
+  const extra = presentable.filter(
+    (l: LayerEntry) =>
+      !orderedKeys.has(l.key) && !excluded.value.has(l.key) && !groupMembers.value.has(l.key)
+  )
+  return [...ordered, ...extra]
+    .filter((l: LayerEntry) => !excluded.value.has(l.key) && !groupMembers.value.has(l.key))
+    .map((layer) => {
+      const engines =
+        layer.engines ?? businessLayerManager.getMeta(layer.key)?.engines ?? DEFAULT_ENGINES
+      // 单变量原则：按钮状态即 registry.visible（BLM 唯一权威），蓝 = 图层在显示
+      const active = layer.layerType
+        ? (businessLayerManager.getMeta(layer.key)?.visible ?? layer.visible)
+        : mapStore.baseLayerKey === layer.key
+      // 锁定层不可关：按钮置灰禁用（当前恒为「开」态）。呈现层也判一次，
+      // 不依赖 BLM 的 setVisible 拒绝兜底——禁用态要提前告知用户，而非点了没反应
+      const locked = layer.layerType
+        ? (businessLayerManager.getMeta(layer.key)?.locked ?? layer.locked)
+        : false
+      return {
+        key: layer.key,
+        label: layer.label,
+        // 透传 layerType 供图标数据驱动（core 不解析业务 label 语义）
+        layerType: layer.layerType,
+        // 引擎适用标记：registry meta 优先，目录镜像兜底；仅单引擎图层显示角标（双引擎保持干净）
         engines,
         active,
-        mapStore.currentEngineName,
-        businessLayerManager.isNotMounted(layer.key)
-      ),
+        locked,
+        // 三态（a035）：单引擎特化图层遇另一引擎 ⇒ unsupported，按钮不可点亮
+        //（原先只看 on/off，这类条目在 3D 下照样可点，点了什么也不会发生）
+        // 四态（a029）：+ not-mounted —— 开关想显示但 BLM 重绘后没上屏（data 未就绪），标灰提示
+        state: resolveLayerPanelState(
+          engines,
+          active,
+          mapStore.currentEngineName,
+          businessLayerManager.isNotMounted(layer.key)
+        ),
+      }
+    })
+})
+
+/** 图层组行：任一成员可见即亮；点击对全部成员 setVisible(统一值)。
+ * 成员里不支持当前引擎的跳过（单成员层同行逻辑），锁定成员跳过。 */
+const groupButtons = computed(() => {
+  return props.layerGroups.map((g) => {
+    const members = g.memberKeys.map((k) => ({
+      key: k,
+      visible: businessLayerManager.getMeta(k)?.visible ?? false,
+      unsupported:
+        businessLayerManager.getMeta(k)?.engines?.includes(mapStore.currentEngineName as never) ===
+        false,
+      locked: businessLayerManager.getMeta(k)?.locked ?? false,
+    }))
+    const usable = members.filter((m) => !m.unsupported && !m.locked)
+    const active = usable.some((m) => m.visible)
+    return {
+      key: g.key,
+      label: g.label,
+      memberKeys: usable.map((m) => m.key),
+      active,
+      // 全部成员不可用 ⇒ 组不可点（罕见：整组单引擎层遇另一引擎）
+      disabled: usable.length === 0,
     }
   })
 })
+
+/** 面板最终行（单层行+组行），硬上限 8 截断 + DEV 报错（规则见 PANEL_MAX_ROWS 注） */
+const panelRows = computed(() => {
+  const singleRows = layerButtons.value.map((l) => ({
+    kind: 'layer' as const,
+    ...l,
+  }))
+  const groupRows = groupButtons.value.map((g) => ({
+    kind: 'group' as const,
+    key: g.key,
+    label: g.label,
+    active: g.active,
+    locked: false,
+    disabled: g.disabled,
+    state: 'ok' as const,
+    engines: [] as string[],
+    layerType: undefined,
+  }))
+  const rows = [...singleRows, ...groupRows]
+  if (rows.length > PANEL_MAX_ROWS && import.meta.env.DEV) {
+    console.error(
+      `[LayerControlPanel] 面板行数 ${rows.length} 超上限 ${PANEL_MAX_ROWS}——已截断。` +
+        `归并图层组或减少注册（用户规则 2026-09-30：上限 8、不滚动）。溢出项：` +
+        rows
+          .slice(PANEL_MAX_ROWS)
+          .map((r) => r.label)
+          .join('、')
+    )
+  }
+  return rows.slice(0, PANEL_MAX_ROWS)
+})
+
+function handleToggleGroup(key: string): void {
+  const g = groupButtons.value.find((x) => x.key === key)
+  if (!g || g.disabled) return
+  const next = !g.active
+  for (const mk of g.memberKeys) {
+    if (businessLayerManager.getMeta(mk)?.locked) continue
+    businessLayerManager.setVisible(mk, next)
+  }
+}
 
 /**
  * 图层图标映射（core 层不再"必须"理解业务 label 语义）。
@@ -152,39 +248,51 @@ function handleToggle(key: string) {
 <template>
   <div class="layer-panel">
     <div class="layer-grid" data-overflow-exit="scroll">
-      <button
-        v-for="item in layerButtons"
-        :key="item.key"
-        class="layer-btn"
-        :class="{
-          active: item.active,
-          locked: item.locked,
-          unsupported: item.state === 'unsupported',
-          'not-mounted': item.state === 'not-mounted',
-        }"
-        :disabled="item.locked || item.state === 'unsupported'"
-        :title="
-          item.locked
-            ? `${item.label}（随底图默认加载，不可关闭）`
-            : item.state === 'unsupported'
-              ? `${item.label}（当前引擎不支持该图层）`
-              : item.state === 'not-mounted'
-                ? `${item.label}（数据未就绪，图层暂未显示；数据到达后自动显示）`
-                : undefined
-        "
-        @click="handleToggle(item.key)"
-      >
-        <span class="layer-icon">{{ getLayerIcon(item.label, item.layerType) }}</span>
-        <span class="layer-label">{{ item.label }}</span>
-        <!-- 引擎角标：仅 DEV+调试模式、且为单引擎特化图层时显示（双引擎保持干净） -->
-        <span
-          v-if="isDev && mapStore.debugMode && item.engines && item.engines.length === 1"
-          class="engine-corner"
-          :title="item.engines.join(' / ')"
+      <template v-for="item in panelRows" :key="item.key">
+        <button
+          v-if="item.kind === 'layer'"
+          class="layer-btn"
+          :class="{
+            active: item.active,
+            locked: item.locked,
+            unsupported: item.state === 'unsupported',
+            'not-mounted': item.state === 'not-mounted',
+          }"
+          :disabled="item.locked || item.state === 'unsupported'"
+          :title="
+            item.locked
+              ? `${item.label}（随底图默认加载，不可关闭）`
+              : item.state === 'unsupported'
+                ? `${item.label}（当前引擎不支持该图层）`
+                : item.state === 'not-mounted'
+                  ? `${item.label}（数据未就绪，图层暂未显示；数据到达后自动显示）`
+                  : undefined
+          "
+          @click="handleToggle(item.key)"
         >
-          {{ ENGINE_LABELS[item.engines[0]] }}
-        </span>
-      </button>
+          <span class="layer-icon">{{ getLayerIcon(item.label, item.layerType) }}</span>
+          <span class="layer-label">{{ item.label }}</span>
+          <!-- 引擎角标：仅 DEV+调试模式、且为单引擎特化图层时显示（双引擎保持干净） -->
+          <span
+            v-if="isDev && mapStore.debugMode && item.engines && item.engines.length === 1"
+            class="engine-corner"
+            :title="item.engines.join(' / ')"
+          >
+            {{ ENGINE_LABELS[item.engines[0]] }}
+          </span>
+        </button>
+        <button
+          v-else
+          class="layer-btn"
+          :class="{ active: item.active }"
+          :disabled="item.disabled"
+          :title="`${item.label}（一钮控制组内全部图层）`"
+          @click="handleToggleGroup(item.key)"
+        >
+          <span class="layer-icon">🏗</span>
+          <span class="layer-label">{{ item.label }}</span>
+        </button>
+      </template>
     </div>
   </div>
 </template>

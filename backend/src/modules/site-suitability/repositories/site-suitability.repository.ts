@@ -6,7 +6,14 @@ import { DbService } from '../../../infra/db/db.service'
 // suitability_cells 段与 tools/site-suitability/materialize-cells.sql）。
 
 export interface SuitabilityCellRow {
-  id: number
+  /**
+   * ⚠️ 这里必须是 string：suitability_cells.id 是 bigint，node-postgres 为避免精度
+   * 丢失**按字符串返回** int8。对外契约（⑯ siteSuitabilityResponseSchema）声明
+   * properties.id 为 number ⇒ 由 service 在 API 边界做 Number() 归一
+   * （2026-10-01 生产事故：漏了这步 ⇒ zod 边界校验失败 ⇒ 面板永远"暂无数据"，
+   * 而 HTTP 200 把故障藏住了）。
+   */
+  id: string
   lon: number
   lat: number
   mean_elev_m: number

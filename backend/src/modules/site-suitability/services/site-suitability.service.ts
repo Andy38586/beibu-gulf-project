@@ -39,7 +39,9 @@ export class SiteSuitabilityService {
 
     const features = rows.map((row) => {
       const cell: FactorCell = {
-        id: row.id,
+        // 契约归一：库列 bigint（pg 驱动给字符串）→ 出参 schema 声明 number。
+        // id 现值量级 ≤ 1.5e5（远小于 2^53），Number() 无精度风险。
+        id: Number(row.id),
         meanElevM: row.mean_elev_m,
         meanSlopeDeg: row.mean_slope_deg,
         landFrac: row.land_frac,

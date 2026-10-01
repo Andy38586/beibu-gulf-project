@@ -76,7 +76,7 @@ describe('useSiteSuitabilityLayer（BLM 注册/更新 + 事务取消）', () => 
       const { updateLayer } = useSiteSuitabilityLayer()
       const { startTransaction } = useSiteSuitabilityRequest()
       const { transactionId, signal } = startTransaction()
-      return updateLayer(transactionId, signal)
+      void updateLayer(transactionId, signal)
     })
     await scope.run(async () => undefined)
     await vi.waitFor(() => expect(mockApiRequest).toHaveBeenCalled())
@@ -102,7 +102,7 @@ describe('useSiteSuitabilityLayer（BLM 注册/更新 + 事务取消）', () => 
       const { transactionId, signal } = startTransaction()
       // 事务 A 发出后，立刻推进事务 ID 模拟新事务（A 过期）
       state.bumpTransactionId()
-      return layer.updateLayer(transactionId, signal)
+      void layer.updateLayer(transactionId, signal)
     })
     resolveLater({
       type: 'FeatureCollection',

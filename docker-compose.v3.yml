@@ -7,7 +7,11 @@
 # 保留不删（回滚用），但本栈不再构建/启动它（原定义会让 `up -d` 白建一个退役服务）。
 services:
   postgis:
-    image: postgis/postgis:16-3.4
+    # 2026-10-01 治本（d054/d053）：route 域 pgr_withPoints 需要 pgRouting，而 postgis/postgis:16-3.4
+    # 不带该扩展 ⇒ /route/path 实测 500。改用仓库内自建镜像（= postgis 3.4 + postgresql-16-pgrouting，
+    # 构建配方见 tools/db/Dockerfile.pgrouting；刻意不用官方 pgrouting/pgrouting —— 那只带 PostGIS 3.5，
+    # 会顺带升级空间库版本）。数据卷不变，仅换镜像。
+    image: local/postgis-pgrouting:16-3.4
     container_name: beibu-postgis
     environment:
       POSTGRES_USER: postgres

@@ -1,7 +1,7 @@
 <!-- 预测分析控制面板（4×4）：上半为 4 个指标按钮（三态）+ 置信度滑块，
-     下半为时间轴滑块 + 3 个可点击刻度（2018/2025/2035）；滑块是唯一交互入口 -->
+     下半为时间轴卡片（点击才展开滑块）+ 3 个可点击刻度 -->
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, reactive } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 
 import { useSliderFocus } from '@/core'
 import {
@@ -113,7 +113,10 @@ function confirmAll() {
   })
 }
 function handleGlobalClick(e: Event) {
-  if (!(e.target as HTMLElement).closest('.forecast-ctrl')) confirmAll()
+  const target = e.target as HTMLElement
+  if (!target.closest('.forecast-ctrl')) confirmAll()
+  // 时间轴卡片展开态点外部收起（卡片自身 click.stop，点卡片不会走到这里）
+  if (!target.closest('.time-section')) timeCardOpen.value = false
 }
 
 function getConf(key: string) {
@@ -143,6 +146,9 @@ onUnmounted(() => {
 })
 
 // ===== 时间滑块 =====
+/** 时间轴卡片展开态：默认收起（无 range），点击卡片进入选择态才渲染滑块；点时间区外回到已选态 */
+const timeCardOpen = ref(false)
+
 const isYearMode = computed({
   get: () => forecastState.timeGranularity === 'year',
   set: (v) => forecastState.setTimeGranularity(v ? 'year' : 'month'),
@@ -161,8 +167,15 @@ function stepToTime(step: number) {
   return timelineStepToTime(step, isYearMode.value)
 }
 
-function onSlider(e: Event) {
-  forecastState.setCurrentTime(stepToTime(Number((e.target as HTMLInputElement).value)))
+/** 时间轴滑块输入（SliderSelectCard 已抽出 number，无需重复解析事件对象） */
+function onTimelineSliderInput(value: number) {
+  forecastState.setCurrentTime(stepToTime(value))
+}
+
+/** 仅滑块本体进入专注模式：pointerdown 从 range 经卡片冒泡到时间区，卡片按钮点击不触发 */
+function onTimePointerDown(e: PointerEvent) {
+  const target = e.target as HTMLElement | null
+  if (target?.matches?.('input[type="range"]')) beginSliderFocus(target)
 }
 
 const YEAR_MARKS = [
@@ -272,43 +285,51 @@ onUnmounted(() => stopPlayback())
       </div>
     </div>
 
-    <!-- ===== 下半：时间滑块 ===== -->
+    <!-- ===== 下半：时间轴（滑块收进统一卡片，点击才展开；专注模式与刻度跳年保留） ===== -->
     <div class="time-section">
-      <div class="time-header">
-        <span class="time-label">{{ displayTime }}</span>
-        <label class="gr-toggle"><input v-model="isYearMode" type="checkbox" />年</label>
-      </div>
-      <div class="time-slider-wrap">
-        <input
-          type="range"
-          :min="0"
-          :max="maxSteps"
-          :value="currentStep"
-          class="t-slider"
-          @pointerdown="beginSliderFocus($event.currentTarget as HTMLInputElement)"
-          @pointerup="endSliderFocus"
-          @pointercancel="endSliderFocus"
-          @input="onSlider"
-        />
-        <div class="t-ticks">
-          <span
-            v-for="(m, i) in YEAR_MARKS"
-            :key="m.year"
-            class="t-tick clickable"
-            :class="{
-              't-tick--start': i === 0,
-              't-tick--end': i === YEAR_MARKS.length - 1 && yearMarkPosition(m.year) >= 100,
-            }"
-            :style="{ left: yearMarkPosition(m.year) + '%' }"
-            @click="jumpToYear(m.year)"
-            >{{ m.label }}</span
-          >
+      <div class="time-grid">
+        <div class="time-card">
+          <!-- 三态选择卡片（公共组件 SliderSelectCard）：默认=按钮，点击进入选择态才渲染滑块 -->
+          <SliderSelectCard
+            :selecting="timeCardOpen"
+            :selected="true"
+            label="时间轴"
+            :status-text="displayTime"
+            :slider-value="timeCardOpen ? currentStep : null"
+            :slider-min="0"
+            :slider-max="maxSteps"
+            :slider-step="1"
+            @toggle="timeCardOpen = true"
+            @update:slider-value="onTimelineSliderInput"
+            @pointerdown="onTimePointerDown"
+            @pointerup="endSliderFocus"
+            @pointercancel="endSliderFocus"
+          />
         </div>
-      </div>
-      <div class="time-acts">
-        <button class="act-btn" @click="togglePlay">
-          {{ forecastState.isPlaying ? '⏸' : '▶' }}
-        </button>
+        <label class="gr-toggle time-granularity">
+          <input v-model="isYearMode" type="checkbox" />年
+        </label>
+        <div class="time-slider-wrap">
+          <div class="t-ticks">
+            <span
+              v-for="(m, i) in YEAR_MARKS"
+              :key="m.year"
+              class="t-tick clickable"
+              :class="{
+                't-tick--start': i === 0,
+                't-tick--end': i === YEAR_MARKS.length - 1 && yearMarkPosition(m.year) >= 100,
+              }"
+              :style="{ left: yearMarkPosition(m.year) + '%' }"
+              @click="jumpToYear(m.year)"
+              >{{ m.label }}</span
+            >
+          </div>
+        </div>
+        <div class="time-acts">
+          <button class="act-btn" @click="togglePlay">
+            {{ forecastState.isPlaying ? '⏸' : '▶' }}
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -411,24 +432,27 @@ onUnmounted(() => stopPlayback())
   cursor: not-allowed;
 }
 
-/* ===== 时间滑块 ===== */
+/* ===== 时间轴（滑块收进统一卡片；控件行高 0.8cell，与卡片行高同源） ===== */
 .time-section {
   flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  gap: v-bind(cell8px);
 }
 
-.time-header {
-  display: flex;
+.time-grid {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
   align-items: center;
-  justify-content: space-between;
+  column-gap: v-bind(cell8px);
 }
 
-.time-label {
-  font-size: v-bind(labelFontSizeCss);
-  font-weight: 600;
-  color: var(--GCS-color-primary);
+.time-card {
+  grid-column: 1;
+  grid-row: 1;
+  height: v-bind(btnHeightCss);
+}
+
+.time-granularity {
+  grid-column: 2;
+  grid-row: 1;
 }
 
 .gr-toggle {
@@ -446,47 +470,20 @@ onUnmounted(() => stopPlayback())
 
 .time-slider-wrap {
   position: relative;
-  padding-bottom: v-bind(cell16px);
-}
-
-.t-slider {
-  width: 100%;
-  height: var(--GCS-slider-thumb-size); /* 14px 粗轨道：与浸没水位滑块对齐 */
-  appearance: none;
-  background: linear-gradient(to right, var(--GCS-border-default), var(--GCS-color-primary));
-  border-radius: calc(var(--GCS-slider-thumb-size) / 2);
-  outline: none;
-  cursor: pointer;
-}
-
-.t-slider::-webkit-slider-thumb {
-  appearance: none;
-
-  /* 拇指统一 --GCS-slider-thumb-size（14px；原 18px 时间轴大抓取面收敛） */
-  width: var(--GCS-slider-thumb-size);
-  height: var(--GCS-slider-thumb-size);
-  border-radius: 50%;
-  background: var(--GCS-color-primary);
-  cursor: pointer;
-  border: 2px solid var(--GCS-bg-panel);
-  box-shadow: var(--GCS-shadow-sm);
-}
-
-.t-slider::-moz-range-thumb {
-  width: var(--GCS-slider-thumb-size);
-  height: var(--GCS-slider-thumb-size);
-  border-radius: 50%;
-  background: var(--GCS-color-primary);
-  cursor: pointer;
-  border: 2px solid var(--GCS-bg-panel);
-  box-shadow: var(--GCS-shadow-sm);
+  grid-column: 1;
+  grid-row: 2;
+  align-self: start;
+  height: 18px;
 }
 
 .t-ticks {
   position: absolute;
   bottom: 0;
-  left: 0;
-  right: 0;
+
+  /* 与卡片内滑块同宽：卡片 1px 边框 + 8px 内边距各占 9px，滑块 width:80% 的两侧留白用 margin 10% 复刻 */
+  left: 9px;
+  right: 9px;
+  margin: 0 10%;
   height: 18px;
 }
 
@@ -519,6 +516,8 @@ onUnmounted(() => stopPlayback())
 }
 
 .time-acts {
+  grid-column: 3;
+  grid-row: 1;
   display: flex;
   justify-content: center;
 }

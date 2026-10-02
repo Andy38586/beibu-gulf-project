@@ -1,6 +1,7 @@
 <!--
   分流分析页（W10-11）：四面板全 4×4 —— 左上转移量 BarChart（图 + 一行口径脚注合并为一面板，
-  替代原文字清单）、左下桑基图（自右下迁入）、右上 年份滑块、右下 图层面板（LayerControlPanel）。
+  替代原文字清单）、左下桑基图（自右下迁入）、右上 年份卡片（点击才展开滑块）、右下 图层面板
+  （LayerControlPanel）。
   数据经 diversionAdapter（schema 校验在 HTTP 边界）；年份本地状态（无跨页需求）。
 -->
 <script setup lang="ts">
@@ -8,7 +9,7 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 
 import { AppLayout, GCSPanel, LayerControlPanel } from '@/core'
 import { diversionAdapter, type DiversionResult } from '@/services'
-import { logger, showError } from '@/shared'
+import { logger, showError, SliderSelectCard } from '@/shared'
 import { BarChart, ChartLoading, SankeyChart } from '@/visualization'
 
 /** 节点/连线形状（与 SankeyChart props 结构化兼容，本地声明免跨层类型导出） */
@@ -25,6 +26,9 @@ interface SankeyLink {
 const YEAR_MIN = 2027
 const YEAR_MAX = 2050
 const year = ref(2035)
+/** 年份卡片展开态：默认收起（无 range），点击卡片进入选择态才渲染滑块；点面板外回到已选态 */
+const yearCardOpen = ref(false)
+const yearPanelRef = ref<HTMLElement | null>(null)
 const result = ref<DiversionResult | null>(null)
 const loading = ref(false)
 
@@ -69,17 +73,27 @@ async function load(): Promise<void> {
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 const DEBOUNCE_DELAY = 300
 
-function onYearInput(e: Event): void {
-  year.value = Number((e.target as HTMLInputElement).value)
+/** 年份写入 + 300ms 防抖（滑块收进 SliderSelectCard 后由组件抽出 number，防抖语义不变） */
+function onYearInput(value: number): void {
+  year.value = value
   if (debounceTimer) clearTimeout(debounceTimer)
   debounceTimer = setTimeout(() => void load(), DEBOUNCE_DELAY)
 }
 
+/** 点年份面板外部回到已选态（卡片自身 click.stop，点卡片不会走到这里） */
+function handleGlobalClick(e: MouseEvent): void {
+  if (yearPanelRef.value && !yearPanelRef.value.contains(e.target as Node)) {
+    yearCardOpen.value = false
+  }
+}
+
 onMounted(() => {
   void load()
+  document.addEventListener('click', handleGlobalClick)
 })
 
 onUnmounted(() => {
+  document.removeEventListener('click', handleGlobalClick)
   if (debounceTimer) {
     clearTimeout(debounceTimer)
     debounceTimer = null
@@ -119,18 +133,21 @@ onUnmounted(() => {
         </GCSPanel>
       </template>
       <template #right>
-        <!-- 右上 4×4：年份控制（滑块 + 标签；300ms 防抖逻辑不动） -->
+        <!-- 右上 4×4：年份控制（滑块收进统一卡片，点击才展开；300ms 防抖逻辑不动） -->
         <GCSPanel :w="4" :h="4" anchor="top-right" :offset-x="0" :offset-y="1.25">
-          <div class="year-panel">
-            <span class="year-label">年份 {{ year }}</span>
-            <input
-              type="range"
-              :min="YEAR_MIN"
-              :max="YEAR_MAX"
-              :value="year"
-              step="1"
-              class="year-slider"
-              @input="onYearInput"
+          <div ref="yearPanelRef" class="year-panel">
+            <!-- 三态选择卡片（公共组件 SliderSelectCard）：默认=按钮，点击进入选择态才渲染滑块 -->
+            <SliderSelectCard
+              :selecting="yearCardOpen"
+              :selected="true"
+              label="年份"
+              :status-text="String(year)"
+              :slider-value="yearCardOpen ? year : null"
+              :slider-min="YEAR_MIN"
+              :slider-max="YEAR_MAX"
+              :slider-step="1"
+              @toggle="yearCardOpen = true"
+              @update:slider-value="onYearInput"
             />
           </div>
         </GCSPanel>
@@ -176,40 +193,11 @@ onUnmounted(() => {
   color: var(--GCS-text-muted);
 }
 
+/* 年份卡片填满 4×4 面板：滑块默认收进卡片，点击才展开 */
 .year-panel {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px;
   height: 100%;
+  padding: 8px;
   box-sizing: border-box;
-}
-
-.year-label {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--GCS-color-primary);
-  white-space: nowrap;
-}
-
-.year-slider {
-  flex: 1;
-  height: var(--GCS-slider-thumb-size);
-  appearance: none;
-  background: linear-gradient(to right, var(--GCS-border-default), var(--GCS-color-primary));
-  border-radius: calc(var(--GCS-slider-thumb-size) / 2);
-  outline: none;
-  cursor: pointer;
-}
-
-.year-slider::-webkit-slider-thumb {
-  appearance: none;
-  width: var(--GCS-slider-thumb-size);
-  height: var(--GCS-slider-thumb-size);
-  border-radius: 50%;
-  background: var(--GCS-color-primary);
-  cursor: pointer;
-  border: 2px solid var(--GCS-bg-panel);
 }
 
 .empty {

@@ -71,7 +71,11 @@ const FIXTURE = {
   year: 2035,
   transfer: { year: 2035, coal: 428.68, grain: 837.555, ironOre: 313.64, sandCement: 0 },
   byPort: { qinzhou: { coal: 201.48, grain: 393.65, ironOre: 147.41, total: 742.54 } },
-  sankeyFlows: [{ from: '西江上行货', to: '平陆运河→qinzhou', value: 742.54 }],
+  // 三段口径（2026-10-02）：西江上行货 → 平陆运河 → 中文港名；拼音不得回流
+  sankeyFlows: [
+    { from: '西江上行货', to: '平陆运河', value: 742.54 },
+    { from: '平陆运河', to: '钦州港', value: 742.54 },
+  ],
 }
 
 function mountPage() {
@@ -122,7 +126,7 @@ describe('DiversionPage 4×4 布局', () => {
       offsetX: 0,
       offsetY: 5.5,
     })
-    expect(panelWithClass(wrapper, '.year-slider').props()).toMatchObject({
+    expect(panelWithClass(wrapper, '.year-panel').props()).toMatchObject({
       anchor: 'top-right',
       offsetX: 0,
       offsetY: 1.25,
@@ -189,6 +193,43 @@ describe('DiversionPage 4×4 布局', () => {
     const sankeyPanel = panelWithClass(wrapper, '.empty')
     expect(sankeyPanel.find('.empty').text()).toBe('暂无数据')
     expect(sankeyPanel.props()).toMatchObject({ anchor: 'top-left', offsetY: 5.5 })
+
+    wrapper.unmount()
+  })
+
+  it('年份滑块收进卡片：默认无 range，点击卡片才出现；输入经 300ms 防抖以新年份取数', async () => {
+    api.getBreakdown.mockResolvedValue(FIXTURE)
+    const wrapper = mountPage()
+    await flushPromises()
+    expect(api.getBreakdown).toHaveBeenCalledTimes(1)
+
+    // 默认：整页 0 个 range（年份滑块被收进卡片）；年份面板是按钮卡片（三态卡片已选态）
+    expect(wrapper.findAll('input[type="range"]')).toHaveLength(0)
+    const yearPanel = panelWithClass(wrapper, '.year-panel')
+    expect(yearPanel.findAll('input[type="range"]')).toHaveLength(0)
+    const card = yearPanel.find('button.ssc')
+    expect(card.exists()).toBe(true)
+    expect(card.find('.ssc-label').text()).toBe('年份')
+    expect(card.find('.ssc-status').text()).toBe('2035')
+
+    // 点击卡片 → 选择态才渲染滑块，值=当前年份，档位=2027..2050
+    await card.trigger('click')
+    const slider = yearPanel.find('input[type="range"]')
+    expect(slider.exists()).toBe(true)
+    expect((slider.element as HTMLInputElement).value).toBe('2035')
+    expect(slider.attributes('min')).toBe('2027')
+    expect(slider.attributes('max')).toBe('2050')
+    expect(slider.attributes('step')).toBe('1')
+
+    // 输入 2040：300ms 内不取数（防抖），300ms 后用新年份取一次；卡片状态文案同步
+    await slider.setValue('2040')
+    await new Promise((resolve) => setTimeout(resolve, 150))
+    expect(api.getBreakdown).toHaveBeenCalledTimes(1)
+    await new Promise((resolve) => setTimeout(resolve, 250))
+    await flushPromises()
+    expect(api.getBreakdown).toHaveBeenCalledTimes(2)
+    expect(api.getBreakdown).toHaveBeenLastCalledWith(2040)
+    expect(yearPanel.find('.ssc-status').text()).toBe('2040')
 
     wrapper.unmount()
   })

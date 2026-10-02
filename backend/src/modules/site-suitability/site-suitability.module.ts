@@ -11,5 +11,7 @@ import { SiteSuitabilityService } from './services/site-suitability.service'
 @Module({
   controllers: [SiteSuitabilityController],
   providers: [SiteSuitabilityRepository, SiteSuitabilityService],
+  // task 域经 TaskHandlers 复用 compute()（方案 A：慢请求转后台）⇒ 必须导出
+  exports: [SiteSuitabilityService],
 })
 export class SiteSuitabilityModule {}

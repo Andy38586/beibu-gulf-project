@@ -30,6 +30,7 @@ export const TASK_DOMAINS = [
   'route-path',
   'forecast-timeseries',
   'forecast-map',
+  'site-suitability-map',
 ] as const
 
 export type TaskDomain = (typeof TASK_DOMAINS)[number]

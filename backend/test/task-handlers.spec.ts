@@ -18,13 +18,15 @@ function build() {
   const floodService = { getFloodAreas: vi.fn().mockResolvedValue({ features: [] }) }
   const routeService = { findPath: vi.fn().mockResolvedValue({ found: true }) }
   const forecastService = { getTimeSeriesData: vi.fn().mockResolvedValue({ series: [] }) }
+  const siteSuitabilityService = { compute: vi.fn().mockResolvedValue({ features: [] }) }
 
   const handlers = new TaskHandlers(
     floodService as never,
     routeService as never,
-    forecastService as never
+    forecastService as never,
+    siteSuitabilityService as never
   )
-  return { handlers, floodService, routeService, forecastService }
+  return { handlers, floodService, routeService, forecastService, siteSuitabilityService }
 }
 
 describe('TaskHandlers 委托接线', () => {
@@ -184,6 +186,49 @@ describe('TaskHandlers 委托接线', () => {
         undefined,
         1.0
       )
+    })
+  })
+
+  describe('site-suitability-map', () => {
+    it('🔴 参数名必须是 w_*（对齐 site-suitability.controller），解析成 SuitabilityQuery 交给 compute', async () => {
+      const { handlers, siteSuitabilityService } = build()
+      await handlers.get('site-suitability-map')({
+        w_inundation: 0.43,
+        w_terrain: 0.09,
+        w_land: 0.21,
+        w_access: 0.11,
+        w_demand: 0.17,
+        min_land_frac: 0.5,
+        resolution: 0.02,
+      })
+      expect(siteSuitabilityService.compute).toHaveBeenCalledWith({
+        weights: { inundation: 0.43, terrain: 0.09, land: 0.21, access: 0.11, demand: 0.17 },
+        minLandFrac: 0.5,
+        resolution: 0.02,
+      })
+    })
+
+    it('无权重时回落 AHP 定稿权重（handler 不自带第二份默认值）', async () => {
+      const { handlers, siteSuitabilityService } = build()
+      await handlers.get('site-suitability-map')({ resolution: 0.02 })
+      const arg = siteSuitabilityService.compute.mock.calls[0][0] as {
+        weights: Record<string, number>
+        resolution: number
+      }
+      expect(Object.keys(arg.weights).sort()).toEqual([
+        'access',
+        'demand',
+        'inundation',
+        'land',
+        'terrain',
+      ])
+      expect(arg.resolution).toBe(0.02)
+    })
+
+    it('非法 resolution（>1）抛错 ⇒ 任务失败，而不是静默退回全分辨率', async () => {
+      const { handlers, siteSuitabilityService } = build()
+      await expect(handlers.get('site-suitability-map')({ resolution: 5 })).rejects.toThrow()
+      expect(siteSuitabilityService.compute).not.toHaveBeenCalled()
     })
   })
 })

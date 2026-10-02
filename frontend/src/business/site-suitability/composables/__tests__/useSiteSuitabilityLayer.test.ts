@@ -2,8 +2,11 @@ import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { effectScope } from 'vue'
 
-import { useSiteSuitabilityStore } from '@/stores/siteSuitabilityStore'
+import { SLOW_REQUEST_THRESHOLD_MS } from '@/shared/composables/useSlowRequestOffer'
+import { closeModal, confirmModal, gcsModalState } from '@/shared/utils/gcsFeedback'
 import { useMapStore } from '@/stores/mapStore'
+import { useSiteSuitabilityStore } from '@/stores/siteSuitabilityStore'
+import { useTaskStore } from '@/stores/taskStore'
 
 // vi.mock 工厂 hoist——mock 函数用 vi.hoisted（对齐 useForecastLayer.test.ts 体例）
 const { mockApiRequest } = vi.hoisted(() => ({ mockApiRequest: vi.fn() }))
@@ -112,5 +115,54 @@ describe('useSiteSuitabilityLayer（BLM 注册/更新 + 事务取消）', () => 
     await new Promise((r) => setTimeout(r, 20))
     expect(mockManager.updateData).not.toHaveBeenCalled()
     expect(captured).not.toBeNull()
+  })
+
+  // 方案 A 的**接线断言**：只有纯函数用例、没有接线断言 = 未完成（协议 7.1）。
+  // 这里证明「慢 → 提示 → 一键 → 真的用同一份参数提交了 task 域」这条链是通着的。
+  it('🔴 接线：慢请求超阈值 → 弹提示 → 一键转后台 = 同一份参数提交 site-suitability-map', async () => {
+    useMapStore().currentRenderer = fakeRenderer as never
+    vi.useFakeTimers()
+    try {
+      // 在途请求永不返回 ⇒ 计时器必然到期
+      mockApiRequest.mockImplementation(() => new Promise(() => undefined))
+      const taskStore = useTaskStore()
+      const submitSpy = vi.spyOn(taskStore, 'submit').mockResolvedValue('task-1')
+      vi.spyOn(taskStore, 'waitForResult').mockResolvedValue(null)
+      const setDockedSpy = vi.spyOn(taskStore, 'setDocked')
+
+      const scope = effectScope()
+      scope.run(() => {
+        const { updateLayer } = useSiteSuitabilityLayer()
+        const { startTransaction } = useSiteSuitabilityRequest()
+        const { transactionId, signal } = startTransaction()
+        void updateLayer(transactionId, signal)
+      })
+
+      await vi.advanceTimersByTimeAsync(SLOW_REQUEST_THRESHOLD_MS - 200)
+      expect(gcsModalState.visible).toBe(false) // 未到阈值不打扰
+
+      await vi.advanceTimersByTimeAsync(400)
+      expect(gcsModalState.visible).toBe(true)
+
+      confirmModal()
+      await vi.advanceTimersByTimeAsync(0)
+
+      expect(submitSpy).toHaveBeenCalledTimes(1)
+      const arg = submitSpy.mock.calls[0][0] as {
+        route: string
+        domain: string
+        params: Record<string, unknown>
+      }
+      expect(arg.route).toBe('/site-suitability')
+      expect(arg.domain).toBe('site-suitability-map')
+      // 与直连请求同一份参数（同一构造函数 ⇒ 不漂移）
+      expect(arg.params.resolution).toBe(0.02)
+      expect(arg.params.min_land_frac).toBe(0.5)
+      expect(arg.params.w_inundation).toBe(0.4)
+      expect(setDockedSpy).toHaveBeenCalledWith('/site-suitability', true)
+    } finally {
+      closeModal()
+      vi.useRealTimers()
+    }
   })
 })

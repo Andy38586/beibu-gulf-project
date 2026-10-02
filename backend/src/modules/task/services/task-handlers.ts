@@ -4,6 +4,8 @@ import { BusinessError, ErrorCode } from '../../../common/errors/business-error'
 import { FloodService } from '../../flood/services/flood.service'
 import { ForecastService } from '../../forecast/services/forecast.service'
 import { RouteService } from '../../route/services/route.service'
+import { parseSuitabilityQuery } from '../../site-suitability/dto/site-suitability.dto'
+import { SiteSuitabilityService } from '../../site-suitability/services/site-suitability.service'
 import type { TaskDomain } from '../types/task'
 
 /**
@@ -29,7 +31,8 @@ export class TaskHandlers {
   constructor(
     private readonly floodService: FloodService,
     private readonly routeService: RouteService,
-    private readonly forecastService: ForecastService
+    private readonly forecastService: ForecastService,
+    private readonly siteSuitabilityService: SiteSuitabilityService
   ) {}
 
   private readonly table: Record<TaskDomain, TaskHandler> = {
@@ -98,6 +101,12 @@ export class TaskHandlers {
         Number.isFinite(confidence) && confidence > 0 ? confidence : 1.0
       )
     },
+
+    // 选址热力图：GET /site-suitability/map 的异步化（方案 A「慢请求自动提议转后台」，2026-10-02）。
+    // 参数逐字对齐 site-suitability.controller（w_* / min_land_frac / resolution 同名透传）；
+    // 解析与校验复用 parseSuitabilityQuery —— 不在这里再抄一份权重白名单（禁忌 7）。
+    'site-suitability-map': async (params) =>
+      this.siteSuitabilityService.compute(parseSuitabilityQuery(params)),
   }
 
   /** 取执行器；未知域显式报错（而不是静默返回 undefined ⇒ 队列空转） */

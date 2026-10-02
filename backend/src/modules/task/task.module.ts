@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common'
 import { FloodModule } from '../flood/flood.module'
 import { ForecastModule } from '../forecast/forecast.module'
 import { RouteModule } from '../route/route.module'
+import { SiteSuitabilityModule } from '../site-suitability/site-suitability.module'
 
 import { TaskController } from './controllers/task.controller'
 import { TaskService } from './services/task.service'
@@ -17,7 +18,7 @@ import { TaskHandlers } from './services/task-handlers'
 // ⇒ 后台任务是被「跨路由保活」逼出来的，不是被「慢」逼出来的（总纲 §四）。
 // 代价（多实例不共享 / 重启即丢）已登记在 TaskRegistry 注释。
 @Module({
-  imports: [FloodModule, RouteModule, ForecastModule],
+  imports: [FloodModule, RouteModule, ForecastModule, SiteSuitabilityModule],
   controllers: [TaskController],
   providers: [TaskHandlers, TaskService],
   exports: [TaskService],

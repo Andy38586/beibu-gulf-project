@@ -5,7 +5,7 @@
  * 请求直连统一入口 useApiRequest（契约 schema 校验在 HTTP 边界）。
  * 成功响应发布到 store.data（左上得分分布 / 左下 Top-N 面板消费）。
  */
-import { computed, nextTick, onScopeDispose, watch, type ComputedRef } from 'vue'
+import { computed, type ComputedRef, nextTick, onScopeDispose, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { type BusinessLayerManager, useBusinessLayers, useOwnedLayers } from '@/core'
@@ -18,10 +18,11 @@ import {
   showError,
   SITE_SUITABILITY_LAYER_KEY,
   useApiRequest,
+  useSlowRequestOffer,
 } from '@/shared'
 import { logger } from '@/shared'
 import { useSiteSuitabilityStore } from '@/stores'
-import { useMapStore } from '@/stores'
+import { useMapStore, useTaskStore } from '@/stores'
 import type { LayerOptions, LayerType, MapRenderer } from '@/types'
 import type { SiteSuitabilityResponseParsed } from '@/types/schemas'
 import { siteSuitabilityResponseSchema } from '@/types/schemas'
@@ -29,6 +30,13 @@ import { siteSuitabilityResponseSchema } from '@/types/schemas'
 import { useSiteSuitabilityRequest } from './useSiteSuitabilityRequest'
 
 const LAYER_LABEL = '选址分析'
+
+/**
+ * 本页路由标识（taskStore 按 route 分槽的 key）。
+ * 与 business/manifest.ts 的 path 是同一个值；写法沿用浸没页的 FLOOD_ROUTE_PATH 先例
+ * （页面路由表是权威，这里是消费方持有的 key，不是第二份路由表）。
+ */
+export const SITE_SUITABILITY_ROUTE_PATH = '/site-suitability'
 
 /**
  * 展示用聚合分辨率（度）：0.02° ≈ 2.2km。设 0 可退回全分辨率（调试用）。
@@ -60,6 +68,7 @@ export function useSiteSuitabilityLayer(): UseSiteSuitabilityLayerReturn {
   const { manager } = useBusinessLayers() as { manager: BusinessLayerManager }
   const { runInTransaction, isTransactionValid } = useSiteSuitabilityRequest()
   const { apiRequest } = useApiRequest()
+  const taskStore = useTaskStore()
 
   const renderer = computed<MapRenderer | null>(() => mapStore.currentRenderer)
 
@@ -100,6 +109,58 @@ export function useSiteSuitabilityLayer(): UseSiteSuitabilityLayerReturn {
       .join(',')
     return `${w}|${minLandFrac}`
   }
+
+  /** 直连 apiRequest 的 params 值与 task 提交的 params 值共用同一形状（否则两侧各写一份类型） */
+  type RequestParams = Record<string, string | number | boolean | null | undefined>
+
+  /** 请求参数：直连与转后台**共用同一构造函数** ⇒ 不会长出第二份参数源（禁忌 7） */
+  function buildRequestParams(): RequestParams {
+    const weights = state.normalizedWeights()
+    return {
+      ...Object.fromEntries(Object.entries(weights).map(([k, v]) => [`w_${k}`, v])),
+      min_land_frac: state.minLandFrac,
+      // 性能治本（2026-10-02）：全量 14 万格 ≈ 28.8MB 响应 ⇒ 浏览器解析即卡。
+      // 热力图按 ~1km 粗格聚合（服务端 AVG + 众数）在视觉上等价，payload 降 30-50×。
+      resolution: DISPLAY_RESOLUTION_DEG,
+    }
+  }
+
+  /**
+   * 转后台（方案 A「慢请求自动提议转后台」，2026-10-02 用户批准）：
+   * 用**同一份参数**提交 task，用户即可离开本页；结果到了走与直连**完全相同**的写入口
+   * （setData + manager.updateData），不复制渲染逻辑。
+   */
+  async function transferToBackground(): Promise<void> {
+    try {
+      await taskStore.submit({
+        route: SITE_SUITABILITY_ROUTE_PATH,
+        domain: 'site-suitability-map',
+        params: buildRequestParams(),
+      })
+    } catch (e) {
+      // 队列满/限流等失败必须说出来：静默失败会让用户以为已经在后台跑了
+      showError(e, { fallback: '转到后台失败，请稍后重试' })
+      return
+    }
+    // docked = 用户主动让位（展示语义 + 导航进度环的保留判据）
+    taskStore.setDocked(SITE_SUITABILITY_ROUTE_PATH, true)
+
+    const slot = await taskStore.waitForResult(SITE_SUITABILITY_ROUTE_PATH)
+    if (disposed || !slot || slot.status !== 'done') return
+    const result = slot.result as SiteSuitabilityResponseParsed | undefined
+    if (!result || !Array.isArray(result.features)) return
+    state.setData(result)
+    manager.updateData(SITE_SUITABILITY_LAYER_KEY, {
+      data: result.features,
+      options: getLayerOptions(),
+    })
+  }
+
+  const offer = useSlowRequestOffer({
+    onAccept: () => {
+      void transferToBackground()
+    },
+  })
 
   async function updateLayer(transactionId: number, signal: AbortSignal): Promise<void> {
     const r = renderer.value
@@ -143,20 +204,18 @@ export function useSiteSuitabilityLayer(): UseSiteSuitabilityLayerReturn {
       state.setIsRequesting(true)
       let geojson: SiteSuitabilityResponseParsed | null = null
       try {
+        const params = buildRequestParams()
         geojson = await runInTransaction(
           () =>
-            apiRequest<SiteSuitabilityResponseParsed>(ENDPOINTS.siteSuitability.map, {
-              method: 'GET',
-              params: {
-                ...Object.fromEntries(Object.entries(weights).map(([k, v]) => [`w_${k}`, v])),
-                min_land_frac: minLandFrac,
-                // 性能治本（2026-10-02）：全量 14 万格 ≈ 28.8MB 响应 ⇒ 浏览器解析即卡。
-                // 热力图按 ~1km 粗格聚合（服务端 AVG + 众数）在视觉上等价，payload 降 30-50×。
-                resolution: DISPLAY_RESOLUTION_DEG,
-              },
-              signal,
-              schema: siteSuitabilityResponseSchema,
-            }),
+            // 方案 A：超阈值就提议转后台（阈值内返回 ⇒ 零打扰）
+            offer.track(() =>
+              apiRequest<SiteSuitabilityResponseParsed>(ENDPOINTS.siteSuitability.map, {
+                method: 'GET',
+                params,
+                signal,
+                schema: siteSuitabilityResponseSchema,
+              })
+            ),
           transactionId
         )
       } finally {

@@ -25,6 +25,7 @@ import {
   useAuth,
   useGlobalPanelDragActive,
   useWaitForRenderer,
+  warmupAfterFirstFrame,
 } from '@/shared'
 import { logger } from '@/shared'
 import { useMapStore, useTaskStore } from '@/stores'
@@ -205,19 +206,12 @@ watch(
 onMounted(() => {
   void restoreAuth() // 启动时经 /api/auth/me 验证 Cookie Token
   initAuthStorageListener() // 多标签页登录态同步
-  // 预热队列（设计约定：首屏 load 完成后按次序错峰预热大资源，逐项让路不抢带宽）：
-  // ① +3s  Cesium 脚本（5.8MB）——切 3D 秒开。
-  // 任一项失败均静默——预热只是优化，正式路径自会按需加载。
-  const warmup = (delayMs: number, task: () => void) => {
-    // SPA 挂载时 load 事件常已触发（readyState complete），再 addEventListener 永不回调，
-    // 预热队列会整体静默丢失——此时直接排定时任务；未触发才挂一次性监听
-    if (document.readyState === 'complete') {
-      setTimeout(task, delayMs)
-      return
-    }
-    window.addEventListener('load', () => setTimeout(task, delayMs), { once: true })
-  }
-  warmup(3000, preloadCesium)
+  // 预热队列（设计约定：首屏之后错峰预热大资源，逐项让路不抢带宽）：
+  // ① 首帧后第一个空闲 → Cesium 脚本（5.8MB）——切 3D 秒开。
+  //    2026-10-02 改口径：原为「load + 3s」固定延时——那 3s 是拍的，与首屏忙不忙无关，
+  //    而 3D 该等的字节一个没提前。现交由浏览器在首帧画完后自己决定何时空闲
+  //    （实现见 shared/utils/warmupAfterFirstFrame）。任一项失败静默。
+  warmupAfterFirstFrame(preloadCesium)
   // 2026-09-10（阶段 4）：原 +6s 的「/flood/online 查 0 档暖机」已删——它只为预热
   // algorithm-service 的 FastAPI load_dem 模块，该服务退役后无对象可预热
 })

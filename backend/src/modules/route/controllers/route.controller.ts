@@ -19,7 +19,7 @@ export class RouteController {
   /**
    * GET /route/pois?keyword=&limit= —— 航线分析选点的多源 POI 搜索。
    * 2026-09-30 自旧版选址域迁入（唯一消费者是本域前端；老选址已在本次移除，见
-   * docs/老选址隔离与移除工单-2026-09-30.md）。keyword 空返回兜底列表；
+   * docs/archive/老选址隔离与移除工单-2026-09-30.md）。keyword 空返回兜底列表；
    * limit 钳制 1..200（与原实现一致）。
    */
   @Get('pois')

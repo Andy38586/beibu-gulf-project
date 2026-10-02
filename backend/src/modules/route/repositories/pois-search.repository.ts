@@ -5,7 +5,7 @@ import { DbService } from '../../../infra/db/db.service'
 // POI 多源搜索（航线分析选点）。2026-09-30 自旧版选址域迁入本域——
 // 其唯一消费者是航线分析（useRouteApi.ts ENDPOINTS.siteAnalysis.pois → 迁后 /route-analysis/pois），
 // 迁移是「老选址隔离」的一部分，旧域已按工单整体删除（原隔离工单见
-// docs/老选址隔离与移除工单-2026-09-30.md）。SQL 原样搬迁（多源并集+优先级排序），
+// docs/archive/老选址隔离与移除工单-2026-09-30.md）。SQL 原样搬迁（多源并集+优先级排序），
 // 不改口径；xiaoqu/poi_facilities 表在老选址删除后仍由本查询消费（数据保留）。
 
 export interface PoiSearchRow {

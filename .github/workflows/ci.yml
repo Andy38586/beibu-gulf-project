@@ -384,6 +384,26 @@ jobs:
         working-directory: backend
         run: npm run test:report
 
+      # 失败可诊断（2026-10-02 加）：CI 日志要登录才能读（logs 端点 403、无 gh/token），
+      # 而 **check-run annotations 是公开可读的**（未登录 API 即可取到）。把失败用例名以
+      # ::error:: 注解发出 ⇒ 下次这类失败不必登录就能看到"哪个测试、哪条断言"。
+      # 只在失败时跑、且自身恒 exit 0：不改变本 job 的成败判据（红仍是红，只是变得可读）。
+      - name: 失败用例以注解上报（可公开读）
+        if: failure()
+        continue-on-error: true
+        working-directory: backend
+        run: |
+          node -e '
+            const fs = require("fs");
+            const f = "coverage/vitest-result.json";
+            if (!fs.existsSync(f)) { console.log("::warning::未产出 " + f + "（测试步骤可能未跑到产出结果）"); process.exit(0); }
+            let r; try { r = JSON.parse(fs.readFileSync(f, "utf8")); } catch (e) { console.log("::warning::结果文件解析失败: " + e.message); process.exit(0); }
+            const bad = [];
+            for (const t of r.testResults || []) for (const a of t.assertionResults || []) if (a.status === "failed") bad.push(t.name + " :: " + a.fullName);
+            if (!bad.length) { console.log("::warning::结果里 0 条 failed —— 失败可能不是断言（崩溃/超时/覆盖率棘轮）"); process.exit(0); }
+            for (const b of bad.slice(0, 20)) console.log("::error title=backend test failed::" + b);
+          '
+
       # C5：后端基线棘轮（backend/coverage-baseline.json），基线为真库激活后的实测水平
       - name: Coverage ratchet (backend)
         run: node scripts/coverage-ratchet.cjs backend/coverage/coverage-summary.json backend/coverage-baseline.json

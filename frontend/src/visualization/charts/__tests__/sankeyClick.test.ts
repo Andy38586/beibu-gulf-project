@@ -5,12 +5,16 @@ import { bindSankeyClick, type SankeyClickPayload } from '../sankeyClick'
 // bindSankeyClick 单测：echarts 点击形态 → 载荷的纯逻辑（真实例在 jsdom 无 canvas 不可挂）。
 
 function createFakeInstance() {
-  const handlers: Array<[string, (p: unknown) => void]> = []
-  const offs: Array<[string, (p: unknown) => void]> = []
+  const handlers: Array<[string, (...args: unknown[]) => void]> = []
+  const offs: Array<[string, (...args: unknown[]) => void]> = []
   return {
     instance: {
-      on: (type: string, handler: (p: unknown) => void) => handlers.push([type, handler]),
-      off: (type: string, handler: (p: unknown) => void) => offs.push([type, handler]),
+      on: (type: string, handler: (...args: unknown[]) => void): void => {
+        handlers.push([type, handler])
+      },
+      off: (type: string, handler: (...args: unknown[]) => void): void => {
+        offs.push([type, handler])
+      },
     },
     fire: (p: unknown) => handlers[0][1](p),
     handlers,

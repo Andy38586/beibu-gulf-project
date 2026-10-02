@@ -26,10 +26,10 @@ interface SankeyClickRaw {
   data?: { source?: string; target?: string }
 }
 
-/** 可绑定的最小实例形状（真 echarts 实例满足之；测试用假桩） */
+/** 可绑定的最小实例形状（真 echarts 实例满足之；rest 形态兼容其 on(type, ...args) 签名） */
 export interface SankeyClickTarget {
-  on: (type: string, handler: (params: SankeyClickRaw) => void) => void
-  off: (type: string, handler: (params: SankeyClickRaw) => void) => void
+  on: (type: string, handler: (...args: unknown[]) => void) => void
+  off: (type: string, handler: (...args: unknown[]) => void) => void
 }
 
 /**
@@ -40,7 +40,8 @@ export function bindSankeyClick(
   instance: SankeyClickTarget,
   emit: (payload: SankeyClickPayload) => void
 ): () => void {
-  const handler = (params: SankeyClickRaw): void => {
+  const handler = (...args: unknown[]): void => {
+    const params = (args[0] ?? {}) as SankeyClickRaw
     if (params.dataType !== 'node' && params.dataType !== 'edge') return
     if (params.dataType === 'edge') {
       emit({

@@ -32,16 +32,6 @@ module.exports = {
       },
     },
     {
-      name: 'business-cross-import-site-selection',
-      comment: 'site-selection 不应依赖其他业务模块（z055 补双向；2026-08-10 P1-2：warn→error）',
-      severity: 'error',
-      from: { path: '^frontend/src/business/site-selection/' },
-      to: {
-        path: '^frontend/src/business/',
-        pathNot: '^frontend/src/business/site-selection/',
-      },
-    },
-    {
       name: 'business-cross-import-diversion',
       comment: 'diversion 不应依赖其他业务模块（经 manifest 注册；04-E2 规则集合==目录集合）',
       severity: 'error',

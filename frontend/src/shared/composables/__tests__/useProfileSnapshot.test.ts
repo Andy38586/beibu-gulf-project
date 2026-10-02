@@ -9,12 +9,12 @@ describe('isProfilePath', () => {
 
   it('业务页与首页不是个人中心路径', () => {
     expect(isProfilePath('/')).toBe(false)
-    expect(isProfilePath('/site-selection')).toBe(false)
+    expect(isProfilePath('/forecast')).toBe(false)
     expect(isProfilePath('/forecast')).toBe(false)
   })
 
   it('按 path 比对（守卫消费的是 to.path，不含 query/hash）', () => {
-    expect(isProfilePath('/profile?redirect=/site-selection')).toBe(false)
+    expect(isProfilePath('/profile?redirect=/forecast')).toBe(false)
     expect(isProfilePath('/profile#section')).toBe(false)
   })
 })

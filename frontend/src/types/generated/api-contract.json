@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-01",
+  "generatedAt": "2026-10-02",
   "source": "frontend/src/types/schemas.ts（单一事实源，types:gen 自动生成勿手改）",
   "schemas": {
     "userSchema": {
@@ -423,35 +423,6 @@
         "points": {
           "type": "array",
           "optional": false
-        }
-      }
-    },
-    "siteAnalysisResponseSchema": {
-      "kind": "object",
-      "fields": {
-        "error": {
-          "type": "string",
-          "optional": false
-        },
-        "empty": {
-          "type": "boolean",
-          "optional": true
-        },
-        "emptyReason": {
-          "type": "string",
-          "optional": true
-        },
-        "coverage": {
-          "type": "unknown",
-          "optional": false
-        },
-        "matchedXiaoqu": {
-          "type": "array",
-          "optional": true
-        },
-        "facilityPoi": {
-          "type": "record",
-          "optional": true
         }
       }
     },

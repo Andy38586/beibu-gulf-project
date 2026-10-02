@@ -9,7 +9,7 @@ export const FACILITY_COLORS = ['#409eff', '#67C23A', '#e74c3c', '#4dabf7'] as c
 /**
  * 设施配色映射：visualization 与 business 两层都需要，集中 shared 避免跨层依赖
  * （dependency-cruiser 规则 visualization-should-not-import-business 为 warn 级）。
- * 业务逻辑（半径、权重等）仍在 business/site-selection/composables/facilityConfig.ts。
+ * 业务逻辑（半径、权重等）随旧版选址域一并移除（2026-10-02）。
  */
 export const FACILITY_COLORS_MAP: Record<string, string> = {
   hospital: '#e74c3c',

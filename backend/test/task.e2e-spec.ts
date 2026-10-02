@@ -365,14 +365,14 @@ describe('v4 异步任务域（/nest-api/task）', () => {
 
   it('V6 自动重试：连续失败 3 次后判 failed（handler 共被调用 4 次）', async () => {
     let calls = 0
-    stub('site-analysis', async () => {
+    stub('forecast-timeseries', async () => {
       calls++
       throw new Error('模拟下游故障')
     })
 
     const res = await submit({
-      domain: 'site-analysis',
-      route: '/site-selection',
+      domain: 'forecast-timeseries',
+      route: '/forecast',
       params: {},
     }).expect(200)
 

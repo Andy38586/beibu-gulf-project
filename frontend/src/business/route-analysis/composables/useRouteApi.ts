@@ -27,7 +27,7 @@ export class RouteQueryCancelledError extends Error {
   }
 }
 
-/** 返回契约（显式化，防重构时签名静默漂移，对齐 useSiteAnalysisApi 同款声明） */
+/** 返回契约（显式化，防重构时签名静默漂移） */
 export interface UseRouteApiReturn {
   /** 查询路径：返回 backend 结果（found true/false 均为合法响应）；
    *  网络/503/schema 校验失败时 throw；请求被取消 throw RouteQueryCancelledError
@@ -64,7 +64,7 @@ export function useRouteApi(): UseRouteApiReturn {
       // （原为 FastAPI 裸 JSON + envelope:false）。响应结构未变，zod schema 复用。
       return await apiRequest<RoutePathResponse>(ENDPOINTS.route.path, {
         method: 'GET',
-        // params 需要索引签名，RoutePathParams 是具名接口——显式转 Record（对齐 useSiteAnalysisApi 传法）
+        // params 需要索引签名，RoutePathParams 是具名接口——显式转 Record（与其它域同款传法）
         params: { ...params } as Record<string, string | number | boolean | undefined>,
         signal,
         schema: routePathResponseSchema,

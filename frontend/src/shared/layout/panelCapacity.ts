@@ -11,7 +11,7 @@ import { CELL_PIXEL } from './config'
 export const PANEL_PADDING_CELL = 0.1
 export const ROW_HEIGHT_CELL = 0.8
 export const ROW_GAP_CELL = 0.2
-/** 三处控制面板统一 2 列（LayerControlPanel / SiteAnalysisControlPanel / ForecastControlPanel） */
+/** 控制台类面板统一 2 列（LayerControlPanel / SiteSuitabilityControlPanel / ForecastControlPanel） */
 export const PANEL_COLUMNS = 2
 
 export interface PanelGridCapacityInput {

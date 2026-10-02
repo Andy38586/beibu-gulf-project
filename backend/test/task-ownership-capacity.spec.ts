@@ -2,10 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { BusinessError, ErrorCode } from '../src/common/errors/business-error'
 import { generateToken } from '../src/common/utils/jwt.util'
-import { parseSiteAnalysisBody } from '../src/modules/site-analysis/dto/site-analysis-request'
+import { TaskService } from '../src/modules/task/services/task.service'
 import { TaskHandlers } from '../src/modules/task/services/task-handlers'
 import { TaskRegistry } from '../src/modules/task/services/task-registry'
-import { TaskService } from '../src/modules/task/services/task.service'
 import {
   ANONYMOUS_OWNER,
   TASK_REGISTRY_MAX_RECORDS,
@@ -67,7 +66,7 @@ async function settleUntilDone(
 
 function submit(
   service: TaskService,
-  input: { route: string; ownerId?: string; domain?: 'flood-areas' | 'site-analysis' }
+  input: { route: string; ownerId?: string; domain?: 'flood-areas' }
 ) {
   return service.submit({
     domain: input.domain ?? 'flood-areas',
@@ -316,61 +315,5 @@ describe('d060 注册表容量三重维度', () => {
     } finally {
       vi.useRealTimers()
     }
-  })
-})
-
-describe('d061 任务通道与同步通道同校验同终态', () => {
-  function buildHandlers() {
-    const siteAnalysisService = { analyze: vi.fn().mockResolvedValue({ score: 1 }) }
-    const handlers = new TaskHandlers(
-      {} as never,
-      {} as never,
-      siteAnalysisService as never,
-      {} as never
-    )
-    return { handlers, siteAnalysisService }
-  }
-
-  it('🔴 非法入参：任务通道与同步通道同码（400001），且不进入业务 service', async () => {
-    const { handlers, siteAnalysisService } = buildHandlers()
-    const bad = { selectedKeys: ['hospital'], typeSettings: { hospital: { importance: 999 } } }
-
-    const httpCode = (catchSync(() => parseSiteAnalysisBody(bad)) as BusinessError).bizCode
-    const taskErr = (await handlers
-      .get('site-analysis')(bad)
-      .then(() => undefined)
-      .catch((e: unknown) => e)) as BusinessError
-
-    expect(taskErr).toBeInstanceOf(BusinessError)
-    expect(taskErr.bizCode).toBe(httpCode) // 现形态：as never 直灌 ⇒ 不抛错、直接调 service ⇒ 红
-    expect(siteAnalysisService.analyze).not.toHaveBeenCalled()
-  })
-
-  it('🔴 业务失败（service resolve {error}）⇒ 抛 422001，不被队列记成 done', async () => {
-    const { handlers, siteAnalysisService } = buildHandlers()
-    siteAnalysisService.analyze.mockResolvedValue({
-      error: '缺少必要参数: selectedKeys, typeSettings',
-    })
-
-    const err = (await handlers
-      .get('site-analysis')({ selectedKeys: ['hospital'], typeSettings: {} })
-      .then(() => undefined)
-      .catch((e: unknown) => e)) as BusinessError
-
-    expect(err).toBeInstanceOf(BusinessError)
-    expect(err.bizCode).toBe(ErrorCode.ANALYSIS_FAILED.code)
-    expect(err.message).toContain('缺少必要参数')
-  })
-
-  it('合法入参：仍原样委托 analyze（口径不变）', async () => {
-    const { handlers, siteAnalysisService } = buildHandlers()
-    const params = {
-      selectedKeys: ['port'],
-      typeSettings: { port: { importance: 5, radius: 2000 } },
-      weights: { distance: 3 },
-      city: 'beihai',
-    }
-    await handlers.get('site-analysis')(params)
-    expect(siteAnalysisService.analyze).toHaveBeenCalledWith(params)
   })
 })

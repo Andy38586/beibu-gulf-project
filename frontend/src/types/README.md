@@ -17,6 +17,6 @@ types/
 
 ## 约定
 
-- 无 I/T 前缀，业务语义优先（`MapRenderer`、`SiteSelectionParams`）
+- 无 I/T 前缀，业务语义优先（`MapRenderer`、`SuitabilityQuery`）
 - HTTP 响应类型从 schema `z.infer` 派生（与 `services/` 的边界校验同源，不手写第二份）
 - `types/` 不得出现 `import from '@/shared'` 等运行时依赖

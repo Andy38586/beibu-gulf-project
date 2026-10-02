@@ -315,29 +315,6 @@ export const terrainProfileSchema = z.array(
 
 export type TerrainProfileParsed = z.infer<typeof terrainProfileSchema>
 
-// ⑬ /site-analysis 响应（GeoJSON 不深校验）
-export const siteAnalysisResponseSchema = z.looseObject({
-  error: z.string().nullable(),
-  // 无重叠区域 = 合法空结果标记，非错误信封
-  empty: z.boolean().optional(),
-  emptyReason: z.string().optional(),
-  coverage: z.unknown().nullable(),
-  matchedXiaoqu: z
-    .array(
-      z.looseObject({
-        id: z.string().optional(),
-        name: z.string().optional(),
-        score: z.number().optional(),
-        lng: z.number().optional(),
-        lat: z.number().optional(),
-      })
-    )
-    .optional(),
-  facilityPoi: z.record(z.string(), z.unknown()).optional(),
-})
-
-export type SiteAnalysisResponseParsed = z.infer<typeof siteAnalysisResponseSchema>
-
 // ⑭ /flood/flood-areas 响应（features 元素级深校验：floodFeatureSchema）
 export const floodAreasResponseSchema = z.looseObject({
   waterLevel: z.number(),
@@ -439,7 +416,7 @@ export const routePathResponseSchema = z.discriminatedUnion('found', [
 
 export type RoutePathResponseParsed = z.infer<typeof routePathResponseSchema>
 
-// ㉑ GET /site-analysis/pois 响应（Nest 信封 data 段）：航线分析选点的名称关键词搜索。
+// ㉑ GET /route/pois 响应（Nest 信封 data 段）：航线分析选点的名称关键词搜索。
 // name/type/source 服务端 NOT NULL；district/city 可空（港口/设施点无 city）；坐标 4326（crs 禁令）
 // source = 来源点集（port/facility/xiaoqu/poi）：多源合并后前端按来源显示标签
 export const poiSearchItemSchema = z.object({

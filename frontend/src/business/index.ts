@@ -10,7 +10,3 @@ export * from './manifest'
 export * from './forecast/composables/useOverviewCharts'
 // 兼容层 constants 已删，常量统一从 @/shared 取
 export * from './flood-analysis/composables/useTerrainProfiles'
-export * from './site-selection/composables/facilityConfig'
-export * from './site-selection/composables/useAnalysisLayer'
-export * from './site-selection/composables/useCityScope'
-export * from './site-selection/composables/useSiteAnalysisApi'

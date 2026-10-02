@@ -2,13 +2,12 @@
 /**
  * PlansPanel - 个人中心收藏夹（方案抽屉）
  * 职责单一：方案列表加载/展开/加载到业务页/重命名/删除 + 收藏切换刷新。
- * useAuth/usePlans/useFloodStore 为 Pinia 单例；RESTORE_PLAN_DATA_KEY/EDITING_PLAN_KEY
- * 由 App.vue provide，此处 inject 拿到同一 ref 引用，赋值对主页面/业务页可见。
+ * useAuth/usePlans/useFloodStore 为 Pinia 单例；方案恢复所需的 provide/inject 链路
+ * （RESTORE_PLAN_DATA_KEY / EDITING_PLAN_KEY）由 ProfilePage 消费，本面板不再涉及。
  */
-import { computed, inject, onUnmounted, ref, watch } from 'vue'
+import { computed, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
-import { EDITING_PLAN_KEY, RESTORE_PLAN_DATA_KEY } from '@/core'
 import { useAuth, usePlans } from '@/shared'
 import { showModal } from '@/shared'
 import { showError } from '@/shared'
@@ -40,18 +39,6 @@ const { favorites, removeFavorite } = useFavorites()
 onUnmounted(() => {
   cancelPlansRequest()
 })
-
-// 装配防御：provider 由 App.vue 必然提供（provide/inject 四组已验证配对）——
-// 默认值会掩盖「漏 provide」的装配错误，让恢复/编辑方案链路静默失效 → fail-loud
-const restorePlanDataInjected = inject(RESTORE_PLAN_DATA_KEY)
-const editingPlanInjected = inject(EDITING_PLAN_KEY)
-if (!restorePlanDataInjected || !editingPlanInjected) {
-  throw new Error(
-    'PlansPanel 需要 App 级 provide（RESTORE_PLAN_DATA_KEY / EDITING_PLAN_KEY）——缺失属装配错误，不得用默认值静默掩盖'
-  )
-}
-const restorePlanData = restorePlanDataInjected
-const editingPlan = editingPlanInjected
 
 const showSaveModal = ref(false)
 const editingNamePlan = ref<Plan | null>(null)
@@ -119,9 +106,8 @@ function handleLoadPlan(plan: Plan) {
     loadFloodPlan(plan)
     return
   }
-  restorePlanData.value = plan.typeSettings || {}
-  editingPlan.value = plan
-  void router.push('/site-selection')
+  // 旧版选址域已移除（2026-10-02）：该类型的历史方案不再可恢复（plans 表实测为空）
+  logger.warn('[PlansPanel] 未知方案类型，忽略恢复: ' + plan.businessType)
 }
 
 /** 最小类型守卫：对象是否具备 FloodFeature 必需字段 */
@@ -236,11 +222,6 @@ function isFloodItem(xq: SavedXiaoqu): boolean {
   return xq.type != null || xq.loss != null
 }
 
-/** 选址分析类型的小区（score 仅作排序展示，不参与类型判别） */
-function getSiteXiaoqu(plan: Plan): SavedXiaoqu[] {
-  return plan.savedXiaoqu?.filter((xq) => !isFloodItem(xq)) || []
-}
-
 /** 浸没分析类型的设施 */
 function getFloodFacilities(plan: Plan): SavedXiaoqu[] {
   return plan.savedXiaoqu?.filter((xq) => isFloodItem(xq)) || []
@@ -322,24 +303,6 @@ watch(
             >
               {{ plansDeleting ? '删除中...' : '删除' }}
             </button>
-          </div>
-
-          <!-- 选址分析收藏（如果有） -->
-          <div v-if="getSiteXiaoqu(plan).length > 0" class="fav-section">
-            <div class="fav-section-title">选址分析</div>
-            <PaginatedListPanel
-              :items="getSiteXiaoqu(plan)"
-              :page-size="3"
-              :show-favorite="false"
-              :map-interaction="false"
-              plan-type="site-selection"
-            >
-              <template #item="{ item: xq, index }">
-                <span class="xq-rank">{{ index + 1 }}</span>
-                <span class="xq-name">{{ xq.name }}</span>
-                <span class="xq-score">{{ xq.score }}分</span>
-              </template>
-            </PaginatedListPanel>
           </div>
 
           <!-- 浸没分析收藏（如果有） -->

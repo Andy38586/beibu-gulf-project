@@ -2,7 +2,7 @@ import { getCurrentInstance, onUnmounted } from 'vue'
 
 /**
  * 等待渲染器就绪后执行回调（有限次重试，不无限轮询）。
- * 收敛原三处同构实现：App.vue waitForRenderer、SiteSelectionPage tryZoom、
+ * 收敛原多处同构实现：App.vue waitForRenderer、业务页 tryZoom、
  * useCityScope interval 绑定——均为"渲染器异步初始化晚于组件挂载"场景，
  * 统一 500ms 间隔、最多 10 次重试；组件卸载自动取消，不悬挂定时器。
  * 返回取消函数（onUnmounted 已自动调用；长生命周期组件也可手动提前取消）。

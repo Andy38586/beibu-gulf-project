@@ -12,44 +12,7 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { IMPORTANCE_FACTOR } from '../src/common/constants/scoring.constants'
 import { interpolateMonthly } from '../src/modules/forecast/services/model-loader'
-import { importanceToRadius, linearDecay } from '../src/modules/site-analysis/services/scoring'
-
-describe('§4.1 评分语义 · 距离衰减（契约原文：距离≥半径→0，否则 (1-距离/半径)×100）', () => {
-  it('距离 0 → 满分 100；距离 = 半径 → 0；半程 → 50', () => {
-    expect(linearDecay(0, 1000)).toBe(100)
-    expect(linearDecay(1000, 1000)).toBe(0)
-    expect(linearDecay(500, 1000)).toBe(50)
-  })
-
-  it('距离超出半径 → 0（不得出现负分）', () => {
-    expect(linearDecay(1500, 1000)).toBe(0)
-  })
-
-  it('无效坐标（NaN 距离）→ 0 分，且 NaN 不得传播', () => {
-    const got = linearDecay(Number.NaN, 1000)
-    expect(got).toBe(0)
-    expect(Number.isNaN(got)).toBe(false)
-  })
-})
-
-describe('§4.1 评分语义 · 半径放大系数（契约原文：1:0.4 / 2:0.7 / 3:1.0 / 4:1.5 / 5:2.2）', () => {
-  it('系数表与契约逐值一致', () => {
-    expect(IMPORTANCE_FACTOR).toEqual({ 1: 0.4, 2: 0.7, 3: 1.0, 4: 1.5, 5: 2.2 })
-  })
-
-  it('importanceToRadius = defaultRadius × 系数（保留 1 位小数）', () => {
-    expect(importanceToRadius(1000, 3)).toBe(1000)
-    expect(importanceToRadius(1000, 5)).toBe(2200)
-    expect(importanceToRadius(1000, 1)).toBe(400)
-  })
-
-  it('越界/非数值 importance 夹取到档位 3（不得静默返回 0 半径）', () => {
-    expect(importanceToRadius(1000, 9)).toBe(1000)
-    expect(importanceToRadius(1000, Number.NaN)).toBe(1000)
-  })
-})
 
 describe('§4.2 预测数值自洽 · 月度插值（契约原文：半年节点间线性插值，与历史重叠月份丢弃）', () => {
   const POINTS = [

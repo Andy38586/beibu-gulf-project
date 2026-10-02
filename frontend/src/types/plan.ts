@@ -22,7 +22,7 @@ export interface Plan {
   weights?: Record<string, number> | null
   createdAt: string
   updatedAt: string
-  /** 业务类型：'flood' | 'site-selection' | undefined（旧数据无此字段） */
+  /** 业务类型：'flood' | undefined（历史数据可能无此字段） */
   businessType?: string
   /** 浸没方案水位（仅 flood 类型有值） */
   waterLevel?: number

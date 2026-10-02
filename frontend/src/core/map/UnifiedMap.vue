@@ -404,7 +404,7 @@ function handleRendererClick(event: CustomEvent<MapRendererEventMap['click']>): 
     }
   } else if (
     is2D &&
-    // 业务前缀防跨模块 featureType 冲突；与 business/site-selection useAnalysisLayer 的
+    // 业务前缀防跨模块 featureType 冲突；与各业务域 layer composable 的
     // NEARBY_FACILITY_LAYER_ID 同值，core 不引 business（分层铁律），此处字面同步
     featureType === 'site-nearby-facility' &&
     data &&

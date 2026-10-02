@@ -23,7 +23,6 @@ import {
   portSchema,
   portsArraySchema,
   routePathResponseSchema,
-  siteAnalysisResponseSchema,
   siteSuitabilityResponseSchema,
   diversionBreakdownResponseSchema,
   terrainProfileSchema,
@@ -504,27 +503,6 @@ describe('契约覆盖补齐的 schema（生成器门禁转红后补）', () => 
     })
     expect(ok.success).toBe(true)
     expect(bad.success).toBe(false)
-  })
-
-  it('siteAnalysisResponseSchema：合法响应与业务失败形态都通过', () => {
-    const ok = siteAnalysisResponseSchema.safeParse({
-      error: null,
-      coverage: { type: 'Polygon', coordinates: [] },
-      matchedXiaoqu: [{ id: 'x1', name: '小区', score: 80, lng: 108.6, lat: 21.9 }],
-      facilityPoi: {},
-    })
-    // 业务失败形态（site-analysis.service.ts:236/265 的真实返回）：coverage 为必填
-    // （z.unknown().nullable()——键必须在、值可空），缺键即校验失败
-    const failed = siteAnalysisResponseSchema.safeParse({
-      error: '未选择设施类型',
-      coverage: null,
-      matchedXiaoqu: [],
-      facilityPoi: {},
-    })
-    expect(ok.success).toBe(true)
-    expect(failed.success).toBe(true)
-    // error 必须是 string|null——数字被拒
-    expect(siteAnalysisResponseSchema.safeParse({ error: 500, coverage: null }).success).toBe(false)
   })
 
   it('diversionBreakdownResponseSchema：转移/分摊/桑基流三段齐全', () => {

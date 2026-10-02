@@ -1,6 +1,6 @@
 import type { FacilityType, TypeSetting } from './facility'
 
-// 基础小区（来自 backend/data/site-selection/xiaoqu.json）
+// 基础小区（POI/小区数据源，随旧版选址域归档）
 // 坐标系统：WGS84(EPSG:4326)，lng/lat 为地理经纬度
 export interface Xiaoqu {
   id: string

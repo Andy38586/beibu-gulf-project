@@ -17,7 +17,7 @@ import { resolveRequestOwner } from '../utils/request-owner'
  *   GET    /nest-api/task/:id   → 查询（前端轮询入口）
  *   DELETE /nest-api/task/:id   → 取消
  *
- * 🔴 三个端点都**免鉴权**（与 flood/route/site-analysis 同口径：纯计算不读用户数据）。
+ * 🔴 三个端点都**免鉴权**（与 flood/route 同口径：纯计算不读用户数据）。
  * 如果将来任务要携带用户私有参数，必须先在 controller 上补 @UseGuards——
  * 现在没有，因为参数来自公开的地图交互（坐标/水位/筛选键）。
  *

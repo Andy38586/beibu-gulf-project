@@ -1,4 +1,4 @@
-// 设施类型枚举（6种，与后端 backend/data/site-selection/qz_*.json 文件一一对应）
+// 设施类型枚举（6 种，与后端后台数据 source 一一对应）
 // 选址分析因子体系：医疗、教育、交通、商业、休闲五类配套
 export type FacilityType =
   | 'hospital'
@@ -15,7 +15,7 @@ export interface FacilityConfig {
   defaultRadius: number // 缓冲半径（公里），后端 siteAnalysisService 用 turf.buffer units:'kilometers' 计算（2026-08-11 修正：原注释"米"与后端相差 1000 倍）
 }
 
-// 设施点（POI，来自 backend/data/site-selection/qz_*.json）
+// 设施点（POI，来自后端数据 source）
 // 坐标系统：WGS84(EPSG:4326)，lng/lat 为地理经纬度
 export interface FacilityPoint {
   id?: string

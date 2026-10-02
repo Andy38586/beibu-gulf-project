@@ -15,9 +15,9 @@ const SRC = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..
 const PANELS = [
   { file: 'core/map/components/LayerControlPanel.vue', grid: '.layer-grid', via: '目录派生' },
   {
-    file: 'business/site-selection/components/SiteAnalysisControlPanel.vue',
-    grid: '.factor-grid',
-    via: '设施因子',
+    file: 'business/site-suitability/components/SiteSuitabilityControlPanel.vue',
+    grid: '.criteria-grid',
+    via: '准则卡片',
   },
   {
     file: 'business/forecast/components/ForecastControlPanel.vue',

@@ -24,7 +24,8 @@ interface Props {
   title?: string
   emptyText?: string
   emptyHint?: string
-  planType?: 'site-selection' | 'flood'
+  /** 收藏方案的业务类型键（随面板业务类型：flood → facility）。留给调用方注入，故为 string */
+  planType?: string
   /** 收藏方案命名前缀（业务文案由调用方注入——shared 不硬编码业务类型名） */
   planNamePrefix?: string
   /** 加载进行态 */
@@ -46,7 +47,7 @@ const props = withDefaults(defineProps<Props>(), {
   title: '',
   emptyText: '暂无数据',
   emptyHint: '',
-  planType: 'site-selection',
+  planType: 'flood',
   planNamePrefix: '收藏',
   loading: false,
   showFavorite: true,
@@ -76,7 +77,7 @@ const isLoggedIn = computed(() => isAuthenticated.value)
 /** 当前选中的项（用于地图可视化） */
 const selectedItem = ref<ScoredXiaoqu | null>(null)
 
-/** 收藏对象类型：随面板业务类型（site-selection → xiaoqu / flood → facility） */
+/** 收藏对象类型：随面板业务类型（flood → facility） */
 const favoriteItemType = computed<FavoriteItemType>(() =>
   props.planType === 'flood' ? 'facility' : 'xiaoqu'
 )

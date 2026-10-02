@@ -50,8 +50,8 @@ describe('BottomNavBar 三档位', () => {
     mockPreloadCesium.mockReset()
     registerNavItems([
       { type: 'home', label: '首页', icon: '⌂', path: '/', disabled: false },
-      { type: 'business', label: '选址', icon: '◈', path: '/site-selection', disabled: false },
       { type: 'business', label: '预测', icon: '📊', path: '/forecast', disabled: false },
+      { type: 'business', label: '分流', icon: '≋', path: '/diversion-analysis', disabled: false },
       { type: 'business', label: '浸没', icon: '🌊', path: '/flood-analysis', disabled: false },
       { type: 'business', label: '航线', icon: '🚢', path: '/route-analysis', disabled: true },
       { type: 'profile', label: '个人中心', icon: '👤', path: '/profile', disabled: false },
@@ -68,7 +68,7 @@ describe('BottomNavBar 三档位', () => {
     const labels = buttonLabels(wrapper)
     expect(labels).toHaveLength(6)
     expect(hasLabel(labels, '首页')).toBe(true)
-    expect(hasLabel(labels, '选址')).toBe(true)
+    expect(hasLabel(labels, '分流')).toBe(true)
     expect(hasLabel(labels, '航线')).toBe(true)
     expect(hasLabel(labels, '个人中心')).toBe(true)
     expect(hasLabel(labels, '菜单')).toBe(false)
@@ -79,7 +79,7 @@ describe('BottomNavBar 三档位', () => {
     const wrapper = mount(BottomNavBar)
     const labels = buttonLabels(wrapper)
     expect(labels).toHaveLength(7)
-    expect(hasLabel(labels, '选址')).toBe(true)
+    expect(hasLabel(labels, '分流')).toBe(true)
     expect(hasLabel(labels, '菜单')).toBe(true)
   })
 
@@ -91,15 +91,15 @@ describe('BottomNavBar 三档位', () => {
     expect(hasLabel(labels, '首页')).toBe(true)
     expect(hasLabel(labels, '个人中心')).toBe(true)
     expect(hasLabel(labels, '菜单')).toBe(true)
-    expect(hasLabel(labels, '选址')).toBe(false)
+    expect(hasLabel(labels, '分流')).toBe(false)
   })
 
   it('点击导航项调用 router.push', async () => {
     await setViewport(1200)
     const wrapper = mount(BottomNavBar)
-    const siteBtn = wrapper.findAll('.GCS-button').find((b) => b.text().includes('选址'))!
+    const siteBtn = wrapper.findAll('.GCS-button').find((b) => b.text().includes('分流'))!
     await siteBtn.trigger('click')
-    expect(mockPush).toHaveBeenCalledWith('/site-selection')
+    expect(mockPush).toHaveBeenCalledWith('/diversion-analysis')
   })
 
   it('禁用项点击不跳转', async () => {
@@ -125,7 +125,7 @@ describe('BottomNavBar 三档位', () => {
   it('悬停 2D 导航项不预取（不抢首屏带宽）', async () => {
     await setViewport(1200)
     const wrapper = mount(BottomNavBar)
-    const siteWrap = wrapper.findAll('.nav-button-wrap').find((w) => w.text().includes('选址'))!
+    const siteWrap = wrapper.findAll('.nav-button-wrap').find((w) => w.text().includes('分流'))!
     await siteWrap.trigger('mouseenter')
     expect(mockPreloadCesium).not.toHaveBeenCalled()
   })

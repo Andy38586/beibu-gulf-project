@@ -5,7 +5,7 @@
  * 坐标系纪律（2026-09-08 数据平面大换代固化）：
  *   应用层流通坐标恒为 EPSG:4326（84）；渲染器（OL/Cesium）内部按 EPSG:3857 处理，
  *   对外经 fromLonLat/toLonLat 转换；EPSG:4490/4547 仅用于数据库存储层与 SQL/导入工具，
- *   一经出口必须转 4326（如 site-analysis repository 的 ST_Transform），禁止进入业务流通。
+ *   一经出口必须转 4326（如各域 repository 的 ST_Transform），禁止进入业务流通。
  */
 import type { CRS, GeoPoint, LaxPoint } from '@/types/crs'
 

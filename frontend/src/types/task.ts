@@ -30,7 +30,6 @@ export type TaskPriority = 'high' | 'normal'
 export const TASK_DOMAINS = [
   'flood-areas',
   'route-path',
-  'site-analysis',
   'forecast-timeseries',
   'forecast-map',
 ] as const

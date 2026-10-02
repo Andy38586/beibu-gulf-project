@@ -2,7 +2,7 @@
  * 出错详情净化（日志 sink 与客户端响应 sink 共用一份）。
  *
  * 为什么要有这个 util：BusinessError.message / 底层异常 message 常由**请求输入**拼出
- *（如 site-analysis 的 JSON 键名、forecast 的 query indicator、pg 的连接串），
+ *（如业务请求体的 JSON 键名、forecast 的 query indicator、pg 的连接串），
  * 直接写日志或回给客户端有两类后果：
  *   · 换行注入——匿名请求即可伪造服务端日志行；
  *   · 无界长文本——express body 上限 100kb，单条日志可达数十 KB。

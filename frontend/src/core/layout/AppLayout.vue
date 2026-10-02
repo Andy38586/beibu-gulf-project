@@ -14,7 +14,7 @@ import { MAP_CONFIG } from '@/core/config/map'
 import { useScreenActions } from '@/core/layout/composables/useScreenActions'
 import LayerControlPanel from '@/core/map/components/LayerControlPanel.vue'
 import { PanelTitle, useGCS, useTheme } from '@/shared'
-import { useMapStore, useSiteSelectionStore } from '@/stores'
+import { useMapStore } from '@/stores'
 import { RadarChart, SNAPSHOT_SELECTED_TYPES, SNAPSHOT_XIAOQU } from '@/visualization'
 
 import BottomNavBar from './components/BottomNavBar.vue'
@@ -50,17 +50,11 @@ const businessNavItems = computed<NavItem[]>(() => [
   ...navItems.value.filter((i) => i.type === 'business'),
 ])
 
-// 全局雷达图数据（与选址分析页同源）：分析结果第一名，无结果用快照兜底（面板不空态）。
-// snapshot 标记同步给出——快照是 2026-08 的实测硬编码，UI 必须明示"示例数据"，
-// 不能把看似真实的评分当分析结果呈现
-const siteSelectionStore = useSiteSelectionStore()
-const radarXiaoqu = computed(() => siteSelectionStore.matchedXiaoqu[0] ?? SNAPSHOT_XIAOQU)
-const radarIsSnapshot = computed(() => siteSelectionStore.matchedXiaoqu.length === 0)
-const radarSelectedTypes = computed(() =>
-  siteSelectionStore.selectedTypes.length > 0
-    ? siteSelectionStore.selectedTypes
-    : SNAPSHOT_SELECTED_TYPES
-)
+// 全局雷达图数据：旧版选址域已移除（2026-10-02），首页雷达不再有"分析结果"来源，
+// 恒用示例快照并置 snapshot=true —— UI 必须明示"示例数据"，不能把快照当分析结果呈现。
+const radarXiaoqu = computed(() => SNAPSHOT_XIAOQU)
+const radarIsSnapshot = computed(() => true)
+const radarSelectedTypes = computed(() => SNAPSHOT_SELECTED_TYPES)
 
 // 调试模式状态（网格 + 性能监控，类似 MC F3）
 // 仅本地开发渲染：import.meta.env.DEV 是编译期常量，生产构建后 v-if 恒 false；
@@ -161,7 +155,6 @@ function goBusiness(item: NavItem): void {
               :selected-types="radarSelectedTypes"
               :embedded="false"
               :snapshot="radarIsSnapshot"
-              :facility-poi="siteSelectionStore.facilityPoi"
             />
           </GCSPanel>
           <!-- 右下：图层控制 4×4 -->

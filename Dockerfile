@@ -20,7 +20,7 @@ ENV VITE_TIANDITU_KEY=$VITE_TIANDITU_KEY
 # 生产仅靠 nginx 的 /api→/nest-api rewrite 侥幸兜住；
 # 本行自 2026-10-01 起纳入 routes-audit「生产默认域清单必须全覆盖」断言，防第三次复发）；
 # 回滚旧版或临时走 Express 时清空此值（compose build.args 覆盖）
-ARG VITE_USE_NEST_MODULES=auth,plans,favorites,forecast,flood,site-analysis,site-suitability,diversion,route,task
+ARG VITE_USE_NEST_MODULES=auth,plans,favorites,forecast,flood,site-suitability,diversion,route,task
 ENV VITE_USE_NEST_MODULES=$VITE_USE_NEST_MODULES
 
 WORKDIR /app

@@ -11,22 +11,20 @@ import { TASK_DOMAINS } from '../src/modules/task/types/task'
 // 而这里恰恰是最容易写错的地方（参数顺序、参数名、必填校验），且错了会静默跑出错误结果
 //（如 route-path 参数名写成 startLng ⇒ business 层报 INVALID_PARAMS，用户只看到"任务失败"）。
 //
-// 做法：用 vi.fn() 造四个业务 service 的假实现，直接 new TaskHandlers，断言调用形状。
+// 做法：用 vi.fn() 造三个业务 service 的假实现，直接 new TaskHandlers，断言调用形状。
 // 不依赖 Nest DI、不依赖数据库 ⇒ 快且确定。
 
 function build() {
   const floodService = { getFloodAreas: vi.fn().mockResolvedValue({ features: [] }) }
   const routeService = { findPath: vi.fn().mockResolvedValue({ found: true }) }
-  const siteAnalysisService = { analyze: vi.fn().mockResolvedValue({ score: 1 }) }
   const forecastService = { getTimeSeriesData: vi.fn().mockResolvedValue({ series: [] }) }
 
   const handlers = new TaskHandlers(
     floodService as never,
     routeService as never,
-    siteAnalysisService as never,
     forecastService as never
   )
-  return { handlers, floodService, routeService, siteAnalysisService, forecastService }
+  return { handlers, floodService, routeService, forecastService }
 }
 
 describe('TaskHandlers 委托接线', () => {
@@ -132,20 +130,6 @@ describe('TaskHandlers 委托接线', () => {
       expect(routeService.findPath).toHaveBeenCalledWith(
         expect.objectContaining({ mode: undefined })
       )
-    })
-  })
-
-  describe('site-analysis', () => {
-    it('参数体原样透传给 SiteAnalysisService.analyze（🔴 不改选址口径）', async () => {
-      const { handlers, siteAnalysisService } = build()
-      const params = {
-        selectedKeys: ['port', 'road'],
-        typeSettings: { port: { importance: 5, radius: 2000 } },
-        weights: { distance: 3 },
-        city: 'beihai',
-      }
-      await handlers.get('site-analysis')(params)
-      expect(siteAnalysisService.analyze).toHaveBeenCalledWith(params)
     })
   })
 

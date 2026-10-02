@@ -21,7 +21,6 @@ import { FloodModule } from './modules/flood/flood.module'
 import { ForecastModule } from './modules/forecast/forecast.module'
 import { PlansModule } from './modules/plans/plans.module'
 import { RouteModule } from './modules/route/route.module'
-import { SiteAnalysisModule } from './modules/site-analysis/site-analysis.module'
 import { DiversionModule } from './modules/diversion/diversion.module'
 import { SiteSuitabilityModule } from './modules/site-suitability/site-suitability.module'
 import { TaskModule } from './modules/task/task.module'
@@ -44,7 +43,6 @@ import { TaskModule } from './modules/task/task.module'
     PlansModule,
     FloodModule,
     ForecastModule,
-    SiteAnalysisModule,
     SiteSuitabilityModule,
     DiversionModule,
     RouteModule,

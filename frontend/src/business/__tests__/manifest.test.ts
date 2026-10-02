@@ -22,7 +22,6 @@ describe('business/manifest 登出重置注册', () => {
       'FloodAnalysis',
       'Forecast',
       'RouteAnalysis',
-      'SiteSelection',
       'SiteSuitability',
     ])
     for (const m of implemented) {

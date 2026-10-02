@@ -6,12 +6,7 @@
  */
 import type { RouteRecordRaw } from 'vue-router'
 
-import {
-  useFloodStore,
-  useForecastStore,
-  useSiteSelectionStore,
-  useSiteSuitabilityStore,
-} from '@/stores'
+import { useFloodStore, useForecastStore, useSiteSuitabilityStore } from '@/stores'
 
 export interface BusinessModule {
   /** 唯一标识（即路由 name） */
@@ -36,16 +31,6 @@ export interface BusinessModule {
 
 /** 业务模块清单 —— 新增业务只需在此追加一条 */
 export const businessModules: BusinessModule[] = [
-  {
-    name: 'SiteSelection',
-    path: '/site-selection',
-    engine: '2d',
-    title: '选址分析',
-    navLabel: '选址分析',
-    navIcon: '◈',
-    component: () => import('@/business/site-selection/SiteSelectionPage.vue'),
-    reset: () => useSiteSelectionStore().clearState(),
-  },
   {
     name: 'SiteSuitability',
     path: '/site-suitability',

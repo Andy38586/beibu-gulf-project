@@ -2,7 +2,7 @@
 //
 // 设计依据：docs/v4-总纲设计-2026-09-18.md §四（系统 B）。
 // 定位：task 域是**编排层**，不承载任何业务计算——真实计算一律委托给各业务域的 service
-//（route/flood/forecast/site-analysis），本域只负责「排队 → 执行 → 重试 → 记录 → 回收」。
+//（route/flood/forecast），本域只负责「排队 → 执行 → 重试 → 记录 → 回收」。
 //
 // 🔴 为什么需要它（口径 #5/#10）：任务要能在用户切走路由后继续跑完 ⇒ 任务的生命周期
 // 必须长于 HTTP 请求。同步的 `await service.xxx()` 做不到这点（连接断了就没了），
@@ -28,7 +28,6 @@ export type TaskPriority = 'high' | 'normal'
 export const TASK_DOMAINS = [
   'flood-areas',
   'route-path',
-  'site-analysis',
   'forecast-timeseries',
   'forecast-map',
 ] as const

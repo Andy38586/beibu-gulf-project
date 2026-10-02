@@ -8,7 +8,7 @@
  *   仅限钦北防三市；
  * 底行「最短/最快」口径切换 + 「开始查询」主按钮 → 按起点→途径→终点链逐段查询（后端 /route/path 单段），
  *   段折线全部上图，总里程/时长 emit 给页面结果面板。
- * 按钮规格对齐 SiteAnalysisControlPanel：2×1.8fr grid、0.8cell 行高、token 全走 --GCS-*。
+ * 按钮规格对齐控制台类面板（2×1.8fr grid、0.8cell 行高、token 全走 --GCS-*）。
  */
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 

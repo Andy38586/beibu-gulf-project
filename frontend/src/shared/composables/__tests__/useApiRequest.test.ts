@@ -357,15 +357,15 @@ describe('useApiRequest', () => {
     })
 
     it('空白分隔容忍 + 显式 /nest-api/ 路径不叠加前缀', async () => {
-      import.meta.env.VITE_USE_NEST_MODULES = ' flood , site-analysis '
+      import.meta.env.VITE_USE_NEST_MODULES = ' flood , task '
       mockFetch.mockResolvedValue(jsonResponse({ code: 200, data: null }))
       const { useApiRequest } = await import('../useApiRequest')
       const { apiRequest } = useApiRequest()
       await apiRequest('/flood/water-area')
-      await apiRequest('/site-analysis', { method: 'POST' })
+      await apiRequest('/task', { method: 'POST' })
       await apiRequest('/nest-api/auth/me')
       expect(mockFetch.mock.calls[0][0]).toBe('/nest-api/flood/water-area')
-      expect(mockFetch.mock.calls[1][0]).toBe('/nest-api/site-analysis')
+      expect(mockFetch.mock.calls[1][0]).toBe('/nest-api/task')
       expect(mockFetch.mock.calls[2][0]).toBe('/nest-api/auth/me')
     })
 

@@ -1,7 +1,7 @@
 /**
  * 设施中文标签映射：visualization 与 business 两层都需要，集中 shared 避免跨层依赖
  * （dependency-cruiser 规则 visualization-should-not-import-business 为 error 级）。
- * 业务逻辑（半径、权重等）仍在 business/site-selection/composables/facilityConfig.ts。
+ * 业务逻辑（半径、权重等）随旧版选址域一并移除（2026-10-02）。
  */
 export const FACILITY_LABELS: Record<string, string> = {
   hospital: '医院',

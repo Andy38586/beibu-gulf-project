@@ -6,7 +6,7 @@ import { ANONYMOUS_OWNER } from '../types/task'
 /**
  * 从请求解析提交者属主（d059）。
  *
- * task 三个端点**免鉴权**（与 flood/route/site-analysis 同口径：纯计算不读用户数据），
+ * task 三个端点**免鉴权**（与 flood/route 同口径：纯计算不读用户数据），
  * 所以这里不能挂 AuthGuard（会把匿名用户全挡掉）。做法是「有令牌就认身份，没有就按匿名会话分槽」：
  *   · 令牌有效 → 属主 = JWT 里的用户 id（取代/取消/查询按它分槽与鉴权）；
  *   · 无令牌 / 令牌无效，但带合法 `x-task-client` → 属主 = `anon:<会话 id>`；

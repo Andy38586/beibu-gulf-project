@@ -35,7 +35,7 @@ const route = useRoute()
 const router = useRouter()
 // authUser 供 watch 驱动登出/多标签页登出时的 store 重置
 const { restoreAuth, user: authUser } = useAuth()
-const { zoomToRegion, zoomToCity, stopBreathing } = useMapControls()
+const { zoomToRegion, stopBreathing } = useMapControls()
 const mapStore = useMapStore()
 const taskStore = useTaskStore()
 
@@ -63,7 +63,7 @@ businessLayerManager.setErrorHandler((payload) => {
 // 登出/多标签页登出（authUser 变 null）时统一重置各业务 store
 function resetStores(): void {
   try {
-    // 业务层（SiteSelection/Forecast/Flood）：重置声明在 business/manifest 各模块上，
+    // 业务层（Forecast/Flood/Route 等）：重置声明在 business/manifest 各模块上，
     // 新增业务模块的新状态重置只需在清单补 reset，无需改这里
     runBusinessLogoutReset()
     // 常驻层（App 级，不属于任何业务模块）：重置地图业务交互状态
@@ -178,9 +178,6 @@ watch(
     if (!isEngineSwitch) {
       if (newRoute.name === 'Home') {
         waitForRenderer(zoomToRegion)
-      }
-      if (newRoute.name === 'SiteSelection') {
-        waitForRenderer(zoomToCity)
       }
     } else {
       logger.debug('[App.vue] 引擎切换场景，跳过相机重置（由 importState 管理）')

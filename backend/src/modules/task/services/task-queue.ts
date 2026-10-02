@@ -155,7 +155,7 @@ export class TaskQueue {
 
         if (delay === undefined) {
           // 重试机会耗尽 ⇒ 终态失败。日志留全栈，前端只拿到 message
-          // err.message 可由请求输入拼出（site-analysis 键名、pg 连接串等）⇒ 经净化再落日志，
+          // err.message 可由请求输入拼出（业务键名、pg 连接串等）⇒ 经净化再落日志，
           // 否则匿名请求可用换行伪造日志行、或用超长文本灌满日志
           this.logger.warn(
             `任务 ${job.taskId}（${job.domain}）重试耗尽：${sanitizeDetail(err.message)}`

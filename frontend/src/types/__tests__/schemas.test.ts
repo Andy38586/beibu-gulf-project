@@ -532,7 +532,10 @@ describe('契约覆盖补齐的 schema（生成器门禁转红后补）', () => 
       year: 2035,
       transfer: { year: 2035, coal: 428.68, grain: 837.555, ironOre: 313.64, sandCement: 0 },
       byPort: { qinzhou: { coal: 201.48, grain: 393.65, ironOre: 147.41, total: 742.54 } },
-      sankeyFlows: [{ from: '西江上行货', to: '平陆运河→qinzhou', value: 742.54 }],
+      sankeyFlows: [
+        { from: '西江上行货', to: '平陆运河', value: 742.54 },
+        { from: '平陆运河', to: '钦州港', value: 742.54 },
+      ],
     })
     expect(ok.success).toBe(true)
     // sandCement 缺失拒绝（恒 0 负结果锚点必须显式在场）

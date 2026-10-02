@@ -22,13 +22,22 @@ describe('DiversionController.breakdown', () => {
     const r = controller.breakdown('2035') as { transfer: { sandCement: number } }
     expect(r.transfer.sandCement).toBe(0)
   })
-  it('三港 sankey 流与 byPort total 一致（分摊守恒）', () => {
+  it('三港 sankey 三段守恒：1 入边 + 3 出边，且与 byPort total 同和', () => {
     const r = controller.breakdown('2040') as {
       byPort: Record<string, { total: number }>
-      sankeyFlows: Array<{ value: number }>
+      sankeyFlows: Array<{ from: string; to: string; value: number }>
     }
-    const sumFlows = r.sankeyFlows.reduce((a, b) => a + b.value, 0)
+    const trunk = r.sankeyFlows.filter((f) => f.from === '西江上行货' && f.to === '平陆运河')
+    const legs = r.sankeyFlows.filter((f) => f.from === '平陆运河')
+    expect(trunk).toHaveLength(1)
+    expect(legs).toHaveLength(3)
     const sumPorts = Object.values(r.byPort).reduce((a, b) => a + b.total, 0)
-    expect(sumFlows).toBeCloseTo(sumPorts, 9)
+    expect(trunk[0].value).toBeCloseTo(sumPorts, 9)
+    expect(legs.reduce((a, b) => a + b.value, 0)).toBeCloseTo(sumPorts, 9)
+    // 端点输出同样不得含 id/拼音节点（与单测同判据）
+    for (const flow of r.sankeyFlows) {
+      expect(flow.from).not.toMatch(/[a-z]{3,}/)
+      expect(flow.to).not.toMatch(/[a-z]{3,}/)
+    }
   })
 })

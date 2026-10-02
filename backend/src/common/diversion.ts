@@ -71,13 +71,33 @@ export interface DiversionBreakdown {
   transfer: WestRiverTransfer
   /** 转移量按港口分摊（吨→吨/年；份额与 F3 情景层同源） */
   byPort: Record<string, { coal: number; grain: number; ironOre: number; total: number }>
-  /** 桑基图节点流（来源→通道→港口），v1 只含西江转移一支 */
+  /** 桑基图边：1 条「西江上行货→平陆运河」+ 3 条「平陆运河→各港中文名」 */
   sankeyFlows: Array<{ from: string; to: string; value: number }>
 }
 
 /**
+ * 港口 id → 中文显示名（只用于桑基节点文本；byPort 的键仍是数据 id，契约不动）。
+ *
+ * 权威源：frontend/src/shared/constants/forecast.ts 的 PORT_PORTS（北部湾三港唯一权威
+ * 映射：qinzhou→钦州港 / beihai→北海港 / fangchenggang→防城港）；键集与
+ * CANAL_PORT_SHARES 一致，tools/forecast/throughput_model.cjs 的 PORT_NAMES 同值互证。
+ * 后端不反向 import 前端层（backend/tsconfig.build.json rootDir=./，跨层引用编译即红），
+ * 故本表是契约镜像而非第二权威源：diversion.spec 用跨边界断言逐键比对 PORT_PORTS，
+ * 前端改名或本表漂移都会红。
+ *
+ * 失效条件：CANAL_PORT_SHARES 新增港口键而本表未同步时，diversionBreakdown 对未知 id
+ * 显式抛错——不允许 id/拼音冒充节点文本回流到桑基图。
+ */
+export const PORT_DISPLAY_NAMES: Record<string, string> = {
+  qinzhou: '钦州港',
+  beihai: '北海港',
+  fangchenggang: '防城港',
+}
+
+/**
  * 分流分解：西江转移量 × 港口分摊（份额须与 CANAL_PORT_SHARES 同源同和）。
- * 桑基图 v1 口径：来源=西江上行货类，通道=平陆运河，目的地=三港；砂石支路恒 0 不出边。
+ * 桑基图三段口径：来源=西江上行货类，通道=平陆运河，目的地=三港（中文显示名）；
+ * 砂石支路恒 0 不出边。byPort 的键保持数据 id。
  */
 export function diversionBreakdown(
   year: number,
@@ -89,13 +109,26 @@ export function diversionBreakdown(
   }
   const transfer = westRiverTransferAt(year)
   const byPort: DiversionBreakdown['byPort'] = {}
-  const sankeyFlows: DiversionBreakdown['sankeyFlows'] = []
+  const portLegs: Array<{ name: string; total: number }> = []
   for (const [port, share] of Object.entries(portShares)) {
+    const name = PORT_DISPLAY_NAMES[port]
+    if (name === undefined) {
+      throw new Error(`未知港口 id（缺中文显示名）: ${port}`)
+    }
     const coal = transfer.coal * share
     const grain = transfer.grain * share
     const ironOre = transfer.ironOre * share
-    byPort[port] = { coal, grain, ironOre, total: coal + grain + ironOre }
-    sankeyFlows.push({ from: '西江上行货', to: `平陆运河→${port}`, value: coal + grain + ironOre })
+    const total = coal + grain + ironOre
+    byPort[port] = { coal, grain, ironOre, total }
+    portLegs.push({ name, total })
   }
+  const sankeyFlows: DiversionBreakdown['sankeyFlows'] = [
+    {
+      from: '西江上行货',
+      to: '平陆运河',
+      value: transfer.coal + transfer.grain + transfer.ironOre,
+    },
+    ...portLegs.map((leg) => ({ from: '平陆运河', to: leg.name, value: leg.total })),
+  ]
   return { transfer, byPort, sankeyFlows }
 }

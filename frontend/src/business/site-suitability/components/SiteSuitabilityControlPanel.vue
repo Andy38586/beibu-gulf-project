@@ -11,6 +11,8 @@ import { useSliderFocus } from '@/core'
 import { ROW_HEIGHT_CELL, SliderSelectCard, useGCS } from '@/shared'
 import { useSiteSuitabilityStore } from '@/stores'
 
+import { CRITERIA } from '../constants/criteria'
+
 const state = useSiteSuitabilityStore()
 const { beginSliderFocus, endSliderFocus } = useSliderFocus()
 const { cellPixel, css } = useGCS()
@@ -24,16 +26,7 @@ const panelRef = ref<HTMLElement | null>(null)
 /** 展开中的准则卡片（单手风琴：同时最多一张卡片处于选择态） */
 const selectingKey = ref<string | null>(null)
 
-const CRITERIA: Array<{
-  key: 'inundation' | 'terrain' | 'land' | 'access' | 'demand'
-  label: string
-}> = [
-  { key: 'inundation', label: '浸没安全' },
-  { key: 'terrain', label: '地形施工' },
-  { key: 'land', label: '土地适宜' },
-  { key: 'access', label: '交通可达' },
-  { key: 'demand', label: '产业需求' },
-]
+// 准则清单已提到 ../constants/criteria.ts（雷达图面板共用同一份轴序与文案）
 
 const LAND_FRAC_STEPS = [0.3, 0.5, 0.7]
 
@@ -72,6 +65,7 @@ onUnmounted(() => {
     <!-- 2 列 × 3 行：5 张准则卡片 + 陆地占比（末格）；行高与老选址控制面板同为 0.8cell -->
     <div
       class="criteria-grid"
+      data-overflow-exit="scroll"
       @pointerdown="onSliderPointerDown"
       @pointerup="endSliderFocus"
       @pointercancel="endSliderFocus"
@@ -135,6 +129,7 @@ onUnmounted(() => {
   grid-template-columns: repeat(2, 1fr);
   grid-auto-rows: v-bind(cardHeightCss);
   gap: v-bind(cell8px);
+  overflow-y: auto;
 }
 
 .criteria-cell {

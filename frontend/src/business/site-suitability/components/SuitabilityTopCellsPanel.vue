@@ -4,7 +4,7 @@
  * 每行 = 排名 / 经纬度（4 位小数）/ score（3 位）/ 横向得分条。
  *
  * 点击行复用既有地图通道 useMapControls.flyTo（同 AffectedFacilityListPanel /
- * SiteSelectionPage），不新造地图 API；面板只读、不自行发请求（数据由页面从 store 透传）。
+ * 既有地图通道），不新造地图 API；面板只读、不自行发请求（数据由页面从 store 透传）。
  * 行数上限 8 与用户 2026-09-30「面板裸行数上限」规则同口径（LayerControlPanel.PANEL_MAX_ROWS）。
  */
 import { computed } from 'vue'

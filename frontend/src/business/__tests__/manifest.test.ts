@@ -29,6 +29,11 @@ describe('business/manifest 登出重置注册', () => {
     }
   })
 
+  it('分流分析已切 3D 引擎（Cesium ③：弧线可视化前提；翻回 2d 即红）', () => {
+    const diversion = businessModules.find((m) => m.name === 'DiversionAnalysis')
+    expect(diversion?.engine).toBe('3d')
+  })
+
   it('RouteAnalysis 已实现（组件非 null、注册路由、声明 reset）', () => {
     const route = businessModules.find((m) => m.name === 'RouteAnalysis')
     expect(route).toBeDefined()

@@ -44,7 +44,8 @@ export const businessModules: BusinessModule[] = [
   {
     name: 'DiversionAnalysis',
     path: '/diversion-analysis',
-    engine: '2d',
+    // Cesium ③：3D 弧线可视化前提。引擎切换/导航进度环判据均由 meta.engine 派生（App.vue）
+    engine: '3d',
     title: '分流分析',
     navLabel: '分流分析',
     navIcon: '≋',

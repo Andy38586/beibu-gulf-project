@@ -54,7 +54,23 @@ export function useChartBase(
           fontWeight: 600,
         },
       },
-      tooltip: { trigger: 'axis' },
+      // confine: true —— 把 tooltip 约束在图表 DOM 内。
+      // 4×4 面板（GCSPanel）是 overflow:hidden，而 ECharts 的 html tooltip 默认会"躲视口边缘"
+      // 逃出容器 ⇒ 被面板裁掉。2026-10-02 实测（320×320 面板悬停铁矿石柱）：tooltip x=-25、
+      // 面板 x=20 ⇒ 左侧 45px 被裁，只剩「吨/年）+ 数值」。confine 后 tooltip 恒在 canvas 内。
+      tooltip: {
+        trigger: 'axis',
+        confine: true,
+        // 只改显示不改数据（用户 2026-10-02）：浮点原始值会渲染成 837.5550000000001，
+        // 四舍五入到 2 位并去掉多余的 .00（整数仍显整数）。极小量（|v|<0.01）保留原值，
+        // 否则会被抹成 0（KDE 这类量级若将来进本图）——是防误伤，不是当前需要。
+        valueFormatter: (value: number): string => {
+          if (!Number.isFinite(value)) return String(value)
+          const abs = Math.abs(value)
+          if (abs !== 0 && abs < 0.01) return String(value)
+          return String(Number(value.toFixed(2)))
+        },
+      },
       legend: {
         bottom: 0,
         textStyle: {

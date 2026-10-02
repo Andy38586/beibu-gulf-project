@@ -412,6 +412,9 @@ function updateChart() {
   const option = {
     tooltip: {
       trigger: 'axis',
+      // confine: true —— 与图表基座同款修复（2026-10-02）：html tooltip 默认会"躲视口边缘"
+      // 逃出容器，被面板 overflow:hidden 裁掉；本面板同样只有 4×4。
+      confine: true,
       formatter: (params: TooltipFormatterParam[]) => {
         const distance = params[0]?.axisValue
         let content = `距离: ${distance}m<br/>`

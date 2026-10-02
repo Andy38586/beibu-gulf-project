@@ -20,7 +20,11 @@ interface ChartOptionLike {
     left: string
     textStyle: { color: string; fontSize: number; fontWeight: number }
   }
-  tooltip: { trigger: string }
+  tooltip: {
+    trigger: string
+    confine?: boolean
+    valueFormatter?: (v: number) => string
+  }
   legend: { bottom: number }
   xAxis: { data: unknown[]; type: string }
   yAxis: { type: string }
@@ -104,7 +108,16 @@ describe('P0-01 回归：useChartBase 不得返回过期快照', () => {
     expect(option.grid).toEqual({ top: 40, right: 16, bottom: 40, left: 40 })
     expect(option.title.left).toBe('center')
     expect(option.title.textStyle).toEqual({ color: '#303133', fontSize: 16, fontWeight: 600 })
-    expect(option.tooltip).toEqual({ trigger: 'axis' })
+    // confine 是 2026-10-02 的修复（4×4 面板内 tooltip 被 overflow:hidden 裁掉）：
+    // 该断言同时钉住"不得退回未约束形态"
+    expect(option.tooltip.trigger).toBe('axis')
+    expect(option.tooltip.confine).toBe(true)
+    // 数值显示收敛（用户 2026-10-02）：2 位小数 + 去尾零；极小量不抹零
+    const fmt = option.tooltip.valueFormatter!
+    expect(fmt(837.5550000000001)).toBe('837.56')
+    expect(fmt(514)).toBe('514')
+    expect(fmt(0)).toBe('0')
+    expect(fmt(5.872405896832376e-7)).toBe('5.872405896832376e-7')
     expect(option.legend.bottom).toBe(0)
     expect(option.xAxis.type).toBe('category')
     expect(option.yAxis.type).toBe('value')

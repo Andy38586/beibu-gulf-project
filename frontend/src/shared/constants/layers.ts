@@ -43,6 +43,9 @@ export const LAYER_KEYS = {
   // ── 航线域（useRouteLayer 注册）──
   routePath: 'route-path',
   routeEndpoint: 'route-endpoint',
+
+  // ── 分流域（useDiversionLayer 注册；Cesium ③ 弧线可视化）──
+  diversionCanal: 'diversion-canal',
 } as const
 
 /** 公共底图 key（互斥单选的那一对：影像 / 矢量），供 store 白名单与面板使用 */
@@ -80,3 +83,15 @@ export function forecastLayerId(indicator: string): string {
 
 /** 新选址分析主图层 key（唯一一张；权重变化只 updateData 不换 key） */
 export const SITE_SUITABILITY_LAYER_KEY = 'site-suitability-main'
+
+/** 分流域弧线图层 key 前缀：每港一条弧（三港三键）。**不导出** —— 外部只该用构造器 */
+const DIVERSION_ARC_PREFIX = 'diversion-arc-'
+
+/**
+ * 由港口数据 id 得分流弧线图层 key（forecastLayerId 同款先例）：注册侧
+ * （useDiversionLayer）与面板 layer-order/layer-groups 共用同一构造器，同源由调用保证。
+ * portId ∈ PORT_PORTS 键集（qinzhou/beihai/fangchenggang，shared/constants/forecast）。
+ */
+export function diversionArcLayerId(portId: string): string {
+  return DIVERSION_ARC_PREFIX + portId
+}

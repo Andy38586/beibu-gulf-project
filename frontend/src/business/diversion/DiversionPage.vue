@@ -8,9 +8,17 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 
 import { AppLayout, GCSPanel, LayerControlPanel } from '@/core'
-import { diversionAdapter, type DiversionResult } from '@/services'
-import { logger, showError, SliderSelectCard } from '@/shared'
+import { diversionAdapter, mapDataService, type DiversionResult } from '@/services'
+import { DEFAULT_LAYER_ORDER, PORT_PORTS, logger, showError, SliderSelectCard } from '@/shared'
+import { diversionArcLayerId } from '@/shared'
 import { BarChart, ChartLoading, SankeyChart } from '@/visualization'
+
+import { PORT_JSON_NAMES, resolvePortEndpoints, type LngLat } from './constants/diversionMap'
+import {
+  DIVERSION_CANAL_LAYER_ID,
+  useDiversionLayer,
+  type DiversionArcSpec,
+} from './composables/useDiversionLayer'
 
 /** 节点/连线形状（与 SankeyChart props 结构化兼容，本地声明免跨层类型导出） */
 interface SankeyNode {
@@ -31,6 +39,17 @@ const yearCardOpen = ref(false)
 const yearPanelRef = ref<HTMLElement | null>(null)
 const result = ref<DiversionResult | null>(null)
 const loading = ref(false)
+
+// ── 3D 弧线可视化（Cesium ③）──
+const { updateCanalLayer, updateArcLayers } = useDiversionLayer()
+/** 弧线起点 = 运河线位末点（示意线止于茅尾海）；几何一次加载，年份数据变化只重算弧值 */
+let canalEnd: [number, number] | null = null
+let portEndpoints: Record<string, LngLat> = {}
+/** 面板 layer-order/组开关：运河线单行，三弧收进「分流弧线」组行（一钮控多层） */
+const ARC_LAYER_IDS = PORT_PORTS.map((p) => diversionArcLayerId(p.key))
+const diversionLayerGroups = [
+  { key: 'diversion-arcs', label: '分流弧线', memberKeys: ARC_LAYER_IDS },
+]
 
 /** 转移量图 x 轴：四个货类（顺序与 result.transfer 字段一致） */
 const transferXData = ['煤炭', '粮食', '铁矿石', '砂石水泥']
@@ -61,11 +80,56 @@ async function load(): Promise<void> {
   loading.value = true
   try {
     result.value = await diversionAdapter.getBreakdown(year.value)
+    refreshArcs()
   } catch (e) {
     logger.error('[DiversionPage] load error:', e)
     showError(e, { fallback: '加载分流数据失败' })
   } finally {
     loading.value = false
+  }
+}
+
+/** 由当前 result 的桑基出边重建三弧（宽度=相对编码；端点/运河线为静态几何） */
+function refreshArcs(): void {
+  if (!canalEnd || !result.value) return
+  const specs: DiversionArcSpec[] = []
+  for (const flow of result.value.sankeyFlows) {
+    if (flow.from !== '平陆运河') continue
+    const entry = PORT_PORTS.find((p) => p.name === flow.to)
+    const end = entry ? portEndpoints[entry.key] : undefined
+    if (!entry || !end) continue
+    specs.push({
+      portId: entry.key,
+      portName: flow.to,
+      start: canalEnd,
+      end: [end.lng, end.lat],
+      value: flow.value,
+    })
+  }
+  updateArcLayers(specs)
+}
+
+/** 几何底座一次加载：运河线位（canal 表）+ 港口端点（ports.json）；失败只降弧线不拦面板 */
+async function loadGeometry(): Promise<void> {
+  try {
+    const [canal, ports] = await Promise.all([
+      diversionAdapter.getCanalLine(),
+      mapDataService.getPorts(),
+    ])
+    portEndpoints = resolvePortEndpoints(ports)
+    const missing = PORT_PORTS.filter((p) => !(p.key in portEndpoints)).map(
+      (p) => PORT_JSON_NAMES[p.key]
+    )
+    if (missing.length)
+      logger.warn(`[DiversionPage] ports.json 缺条目，弧线跳过: ${missing.join('、')}`)
+    const lines = canal.lines.map((l) => l.coordinates)
+    updateCanalLayer(lines)
+    const last = lines.length ? lines[lines.length - 1] : undefined
+    canalEnd = last && last.length ? last[last.length - 1] : null
+    if (!canalEnd) logger.warn('[DiversionPage] 运河线位为空，弧线跳过')
+    refreshArcs()
+  } catch (e) {
+    logger.error('[DiversionPage] 运河几何加载失败（弧线层缺席，面板功能不受影响）:', e)
   }
 }
 
@@ -89,6 +153,7 @@ function handleGlobalClick(e: MouseEvent): void {
 
 onMounted(() => {
   void load()
+  void loadGeometry()
   document.addEventListener('click', handleGlobalClick)
 })
 
@@ -151,9 +216,12 @@ onUnmounted(() => {
             />
           </div>
         </GCSPanel>
-        <!-- 右下 4×4：图层控制面板（本页无自有图层，按 LayerControlPanel 默认用法渲染） -->
+        <!-- 右下 4×4：图层控制面板（本页域图层 = 运河线位 + 三弧；三弧收进「分流弧线」组行） -->
         <GCSPanel :w="4" :h="4" anchor="top-right" :offset-x="0" :offset-y="5.5">
-          <LayerControlPanel />
+          <LayerControlPanel
+            :layer-order="[...DEFAULT_LAYER_ORDER, DIVERSION_CANAL_LAYER_ID, ...ARC_LAYER_IDS]"
+            :layer-groups="diversionLayerGroups"
+          />
         </GCSPanel>
       </template>
     </AppLayout>

@@ -113,7 +113,7 @@ git ls-files docs | wc -l                       # 实测: 39（入库的 docs �
 git check-ignore -v docs/已解决问题-归并明细.md  # 实测: .gitignore:126:docs/*  ⇒ 未入库
 ```
 
-**本次列出的 22 份 docs 中，未入库的 10 份**（其余 12 份入库）：
+**用户本轮列出的 21 份 docs 文件（另含 3 个目录：`图片/`、`根基文档/`、`开工前必读/`）中，未入库的 10 份**（其余 11 份入库；复算：对 21 份逐个 `git ls-files --error-unmatch`，实测 `tracked=11 untracked=10`）：
 
 | 未入库文档 | 与 HEAD 的冲突（2026-10-02 实测，逐条可复算） |
 | --- | --- |

@@ -31,14 +31,45 @@ export class SiteSuitabilityRepository {
 
   /** 全量格网行（land_frac 下限过滤由 SQL 做，降低传输量）；KDE 99 分位同程取回 */
   async fetchCells(minLandFrac: number): Promise<SuitabilityCellRow[]> {
+    return this.fetchCellsAt(minLandFrac, 0)
+  }
+
+  /**
+   * 取格网行；resolution > 0 时按粗格聚合（性能治本，2026-10-02）。
+   *
+   * 为什么要聚合：全量 14 万格 GeoJSON ≈ 28.8MB（实测 content-length），浏览器 JSON.parse
+   * + 建对象 + 热力图渲染直接卡死。热力图看的是密度/分值分布，粗格均值与其视觉等价。
+   * 聚合口径（不臆造）：坐标取格内质心；连续量（高程/坡度/陆地占比/距离/KDE）取 AVG；
+   * **类目量 land_class 取众数**（AVG 会把类别号平均成无意义的数）。
+   */
+  async fetchCellsAt(minLandFrac: number, resolution: number): Promise<SuitabilityCellRow[]> {
+    if (!(resolution > 0)) {
+      const r = await this.db.query<SuitabilityCellRow>(
+        `SELECT id,
+                ST_X(geom) AS lon, ST_Y(geom) AS lat,
+                mean_elev_m, mean_slope_deg, land_frac,
+                land_class, dist_port_m, dist_road_m, kde_mass
+           FROM suitability_cells
+          WHERE land_frac >= $1`,
+        [minLandFrac]
+      )
+      return r.rows
+    }
     const r = await this.db.query<SuitabilityCellRow>(
-      `SELECT id,
-              ST_X(geom) AS lon, ST_Y(geom) AS lat,
-              mean_elev_m, mean_slope_deg, land_frac,
-              land_class, dist_port_m, dist_road_m, kde_mass
+      `SELECT min(id) AS id,
+              ST_X(ST_Centroid(ST_Collect(geom))) AS lon,
+              ST_Y(ST_Centroid(ST_Collect(geom))) AS lat,
+              avg(mean_elev_m) AS mean_elev_m,
+              avg(mean_slope_deg) AS mean_slope_deg,
+              avg(land_frac) AS land_frac,
+              mode() WITHIN GROUP (ORDER BY land_class) AS land_class,
+              avg(dist_port_m) AS dist_port_m,
+              avg(dist_road_m) AS dist_road_m,
+              avg(kde_mass) AS kde_mass
          FROM suitability_cells
-        WHERE land_frac >= $1`,
-      [minLandFrac]
+        WHERE land_frac >= $1
+        GROUP BY floor(ST_X(geom) / $2), floor(ST_Y(geom) / $2)`,
+      [minLandFrac, resolution]
     )
     return r.rows
   }

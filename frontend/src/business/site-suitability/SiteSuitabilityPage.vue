@@ -1,5 +1,5 @@
 <!--
-  新选址适宜性页（单元五）：**左侧雷达图 + 候选格名单（样式对齐旧版选址页）** + 右控制面板
+  新选址分析页（单元五）：**左侧雷达图 + 候选格名单（样式对齐旧版选址页）** + 右控制面板
   （五准则权重卡片）+ 地图热力图层。
   链路复刻预测页：状态变化 → 防抖 300ms → 启动事务（取消旧请求）→ 图层更新。
 -->
@@ -41,28 +41,41 @@ const CANDIDATE_LIMIT = 60
  */
 const candidates = computed<ScoredXiaoqu[]>(() => {
   const features = state.data?.features ?? []
-  return features
-    .filter((f) => Number.isFinite(f.properties?.score))
-    .slice()
-    .sort((a, b) => b.properties.score - a.properties.score)
-    .slice(0, CANDIDATE_LIMIT)
-    .map((f) => {
-      const p = f.properties as CellProperties
-      return {
-        id: String(p.id),
-        name: `格 #${p.id}`,
-        lng: f.geometry.coordinates[0],
-        lat: f.geometry.coordinates[1],
-        score: p.score,
-        breakdown: {
-          inundation: p.inundation ?? 0,
-          terrain: p.terrain ?? 0,
-          land: p.land ?? 0,
-          access: p.access ?? 0,
-          demand: p.demand ?? 0,
-        },
-      }
-    })
+  // 单趟 top-K（K=60）取代「全量 sort」：格网可达 14 万+，对全量做 O(n log n) 排序会在
+  // 每次数据落地时白烧几十毫秒（性能取证 2026-10-02）。此处只保留前 K 个并沿途剔除。
+  const top: Array<(typeof features)[number]> = []
+  for (const f of features) {
+    const s = f.properties?.score
+    if (!Number.isFinite(s)) continue
+    if (top.length < CANDIDATE_LIMIT) {
+      top.push(f)
+      if (top.length === CANDIDATE_LIMIT)
+        top.sort((a, b) => b.properties.score - a.properties.score)
+      continue
+    }
+    if (s > top[top.length - 1].properties.score) {
+      top[top.length - 1] = f
+      top.sort((a, b) => b.properties.score - a.properties.score)
+    }
+  }
+  if (top.length < CANDIDATE_LIMIT) top.sort((a, b) => b.properties.score - a.properties.score)
+  return top.map((f) => {
+    const p = f.properties as CellProperties
+    return {
+      id: String(p.id),
+      name: `格 #${p.id}`,
+      lng: f.geometry.coordinates[0],
+      lat: f.geometry.coordinates[1],
+      score: p.score,
+      breakdown: {
+        inundation: p.inundation ?? 0,
+        terrain: p.terrain ?? 0,
+        land: p.land ?? 0,
+        access: p.access ?? 0,
+        demand: p.demand ?? 0,
+      },
+    }
+  })
 })
 
 /** 点击候选格 → 地图定位（复用既有 useMapControls 通道，与浸没页/旧版选址同款） */

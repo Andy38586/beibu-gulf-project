@@ -7,6 +7,8 @@ import { SITE_AHP_MATRIX, SITE_CRITERIA } from '../../../common/constants/site-a
 export interface SuitabilityQuery {
   weights: Record<string, number>
   minLandFrac: number
+  /** 聚合分辨率（度）。0 = 全分辨率（默认，保持既有消费方行为）；>0 = 按该边长的粗格聚合 */
+  resolution: number
 }
 
 /** AHP 定稿特征向量权重（顺序对应 SITE_CRITERIA：浸没/地形/土地/可达/需求） */
@@ -39,12 +41,32 @@ export function parseSuitabilityQuery(query: Record<string, unknown>): Suitabili
     }
   }
   if (!anyGiven) {
-    return { weights: defaultWeights(), minLandFrac: parseMinLandFrac(query.min_land_frac) }
+    return {
+      weights: defaultWeights(),
+      minLandFrac: parseMinLandFrac(query.min_land_frac),
+      resolution: parseResolution(query.resolution),
+    }
   }
   for (const k of WEIGHT_KEYS) {
     if (weights[k] === undefined) weights[k] = 0
   }
-  return { weights, minLandFrac: parseMinLandFrac(query.min_land_frac) }
+  return {
+    weights,
+    minLandFrac: parseMinLandFrac(query.min_land_frac),
+    resolution: parseResolution(query.resolution),
+  }
+}
+
+/**
+ * 聚合分辨率解析（性能治本，2026-10-02）：全量 14 万格 ≈ 28.8MB 响应，浏览器解析即卡。
+ * 渲染热力图不需要原始格 ⇒ 允许按要求聚合。0（缺省）= 全分辨率；上限 1°（再粗无意义）。
+ */
+function parseResolution(raw: unknown): number {
+  if (raw === undefined || raw === '') return 0
+  const v = Number(raw)
+  if (!Number.isFinite(v) || v < 0 || v > 1)
+    throw new Error('resolution 须 ∈ (0,1]，或 0 表示全分辨率')
+  return v
 }
 
 function parseMinLandFrac(raw: unknown): number {

@@ -23,6 +23,8 @@ export interface SuitabilityResult {
     weightsSource: 'query' | 'ahp-final'
     kdeP99: number
     minLandFrac: number
+    /** 实际使用的聚合分辨率（度）；0 = 全分辨率 */
+    resolution: number
   }
 }
 
@@ -33,7 +35,7 @@ export class SiteSuitabilityService {
   async compute(query: SuitabilityQuery): Promise<SuitabilityResult> {
     const weights: SuitabilityWeights = parseWeights(query.weights)
     const [rows, kdeP99] = await Promise.all([
-      this.repository.fetchCells(query.minLandFrac),
+      this.repository.fetchCellsAt(query.minLandFrac, query.resolution),
       this.repository.fetchKdeP99(),
     ])
 
@@ -67,6 +69,8 @@ export class SiteSuitabilityService {
         weightsSource: 'ahp-final',
         kdeP99,
         minLandFrac: query.minLandFrac,
+        // 回显实际聚合口径：0 = 全分辨率；前端可据此提示"当前为聚合视图"
+        resolution: query.resolution,
       },
     }
   }

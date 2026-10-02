@@ -1,5 +1,5 @@
 /**
- * siteSuitabilityAdapter — 新选址适宜性数据适配器（单元五）：
+ * siteSuitabilityAdapter — 新选址分析数据适配器（单元五）：
  * GET /site-suitability/map，权重与过滤参数透传，HTTP 边界 zod 校验
  * （siteSuitabilityResponseSchema，@backend-contract 反向核对已挂）。
  */

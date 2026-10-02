@@ -4,7 +4,7 @@ import { ref } from 'vue'
 
 import type { SiteSuitabilityResponseParsed } from '@/types/schemas'
 
-// 新选址适宜性 store（单元五）：五准则权重 + 过滤阈值 + 请求事务态。
+// 新选址分析 store（单元五）：五准则权重 + 过滤阈值 + 请求事务态。
 // 复刻 forecastStore 的事务模式（bumpTransactionId/isRequesting 由请求 composable 消费）；
 // 无跨页面快照需求（v1 不持久化——权重是实验性交互态，登录返回重置为缺省可接受）。
 

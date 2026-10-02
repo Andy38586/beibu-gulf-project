@@ -1,5 +1,5 @@
 /**
- * useSiteSuitabilityLayer — 新选址适宜性热力图层（单元五）：
+ * useSiteSuitabilityLayer — 新选址分析热力图层（单元五）：
  * 注册经 useOwnedLayers（归属册），更新走 BusinessLayerManager.updateData；
  * 渲染为热力图（weightField='score'），权重/过滤变化由页面防抖后调 update。
  * 请求直连统一入口 useApiRequest（契约 schema 校验在 HTTP 边界）。
@@ -28,7 +28,17 @@ import { siteSuitabilityResponseSchema } from '@/types/schemas'
 
 import { useSiteSuitabilityRequest } from './useSiteSuitabilityRequest'
 
-const LAYER_LABEL = '选址适宜性'
+const LAYER_LABEL = '选址分析'
+
+/**
+ * 展示用聚合分辨率（度）：0.02° ≈ 2.2km。设 0 可退回全分辨率（调试用）。
+ *
+ * 实测（2026-10-02，全量 142,477 格 / 本机直连 3000 端口）：
+ *   0（全量）28.8MB · 0.01° 5.8MB/29,116 格 · **0.02° 1.5MB/7,490 格（19×）**
+ *   · 0.03° 0.68MB/3,371 格 · 0.05° 0.26MB/1,280 格
+ * 取 0.02°：对区域级热力图视觉无损，payload 已回到"秒开"量级；需要更细时调小该值即可。
+ */
+const DISPLAY_RESOLUTION_DEG = 0.02
 const LAYER_TYPE: LayerType = 'heatmap'
 
 /** 热力图色带与渲染参数（与预测图层同款形式，weightField 改 score） */
@@ -140,6 +150,9 @@ export function useSiteSuitabilityLayer(): UseSiteSuitabilityLayerReturn {
               params: {
                 ...Object.fromEntries(Object.entries(weights).map(([k, v]) => [`w_${k}`, v])),
                 min_land_frac: minLandFrac,
+                // 性能治本（2026-10-02）：全量 14 万格 ≈ 28.8MB 响应 ⇒ 浏览器解析即卡。
+                // 热力图按 ~1km 粗格聚合（服务端 AVG + 众数）在视觉上等价，payload 降 30-50×。
+                resolution: DISPLAY_RESOLUTION_DEG,
               },
               signal,
               schema: siteSuitabilityResponseSchema,
@@ -167,7 +180,7 @@ export function useSiteSuitabilityLayer(): UseSiteSuitabilityLayerReturn {
         return
       }
       if (import.meta.env.DEV) logger.debug('[site-suitability] 更新失败:', e)
-      showError(e, { fallback: '更新选址适宜性图层失败' })
+      showError(e, { fallback: '更新选址分析图层失败' })
     }
   }
 

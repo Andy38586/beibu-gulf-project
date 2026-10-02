@@ -13,9 +13,20 @@ import { describe, expect, it } from 'vitest'
 import type { SiteSuitabilityRepository } from '../src/modules/site-suitability/repositories/site-suitability.repository'
 import { SiteSuitabilityService } from '../src/modules/site-suitability/services/site-suitability.service'
 
-/** 假仓储：只实现本用例用到的两个方法；行形状照抄 pg 的真实返回（id 为字符串） */
-function repoWith(row: Record<string, unknown>): SiteSuitabilityRepository {
+/** 假仓储：只实现本用例用到的两个方法；行形状照抄 pg 的真实返回（id 为字符串）。
+ *  ⚠️ 方法名 fetchCellsAt(minLandFrac, resolution)：service 走它透传聚合参数（性能治本 2026-10-02） */
+function repoWith(
+  row: Record<string, unknown>,
+  spy?: { minLandFrac?: number; resolution?: number }
+): SiteSuitabilityRepository {
   return {
+    fetchCellsAt: async (minLandFrac: number, resolution: number) => {
+      if (spy) {
+        spy.minLandFrac = minLandFrac
+        spy.resolution = resolution
+      }
+      return [row]
+    },
     fetchCells: async () => [row],
     fetchKdeP99: async () => 1,
   } as unknown as SiteSuitabilityRepository
@@ -40,6 +51,7 @@ describe('site-suitability 对外契约：id 类型归一', () => {
     const res = await svc.compute({
       weights: { inundation: 0.4, terrain: 0.1, land: 0.2, access: 0.2, demand: 0.1 },
       minLandFrac: 0.5,
+      resolution: 0,
     })
 
     expect(res.features).toHaveLength(1)
@@ -57,8 +69,22 @@ describe('site-suitability 对外契约：id 类型归一', () => {
     const res = await svc.compute({
       weights: { inundation: 0.4, terrain: 0.1, land: 0.2, access: 0.2, demand: 0.1 },
       minLandFrac: 0.5,
+      resolution: 0,
     })
     const roundTrip = JSON.parse(JSON.stringify(res))
     expect(typeof roundTrip.features[0].properties.id).toBe('number')
+  })
+
+  it('聚合参数透传：resolution 进仓储、并回显在 metadata（性能治本 2026-10-02）', async () => {
+    const spy: { minLandFrac?: number; resolution?: number } = {}
+    const svc = new SiteSuitabilityService(repoWith(PG_ROW, spy))
+    const res = await svc.compute({
+      weights: { inundation: 0.4, terrain: 0.1, land: 0.2, access: 0.2, demand: 0.1 },
+      minLandFrac: 0.5,
+      resolution: 0.02,
+    })
+    expect(spy.minLandFrac).toBe(0.5)
+    expect(spy.resolution).toBe(0.02)
+    expect(res.metadata.resolution).toBe(0.02)
   })
 })

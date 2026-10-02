@@ -38,4 +38,35 @@ describe('diversionAdapter', () => {
     expect(r.transfer.sandCement).toBe(0)
     expect(r.sankeyFlows).toHaveLength(2)
   })
+
+  it('getCanalLine 请求 /diversion/canal-line 并经 schema 解包（退化几何拒绝即抛）', async () => {
+    const envelope = {
+      code: 200,
+      data: {
+        lines: [
+          {
+            name: '平陆运河（示意线）',
+            section: '起点-平塘江口',
+            coordinates: [
+              [109.29, 22.7],
+              [108.62, 21.87],
+            ],
+          },
+        ],
+      },
+    }
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: true,
+        status: 200,
+        json: async () => envelope,
+        text: async () => JSON.stringify(envelope),
+      }))
+    )
+    const fetchMock = vi.mocked(fetch)
+    const r = await diversionAdapter.getCanalLine()
+    expect(String(fetchMock.mock.calls[0][0])).toContain('/diversion/canal-line')
+    expect(r.lines[0].coordinates[0]).toEqual([109.29, 22.7])
+  })
 })

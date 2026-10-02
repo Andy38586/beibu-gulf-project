@@ -3,6 +3,7 @@ import { ApiTags } from '@nestjs/swagger'
 import { SkipThrottle } from '@nestjs/throttler'
 
 import { BusinessError, ErrorCode } from '../../../common/errors/business-error'
+import type { CanalLineResponse } from '../../../common/diversion'
 import {
   DIVERSION_YEAR_DEFAULT,
   DIVERSION_YEAR_MAX,
@@ -34,5 +35,11 @@ export class DiversionController {
       )
     }
     return this.service.breakdown(raw)
+  }
+
+  /** 运河线位（Cesium ③ 弧线几何底座）：84-only 裸坐标，权威源 = canal 表 */
+  @Get('canal-line')
+  canalLine(): Promise<CanalLineResponse> {
+    return this.service.canalLine()
   }
 }

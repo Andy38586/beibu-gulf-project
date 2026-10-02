@@ -242,6 +242,21 @@ export const diversionBreakdownResponseSchema = z.object({
 
 export type DiversionBreakdownResponseParsed = z.infer<typeof diversionBreakdownResponseSchema>
 
+// ⑱ /diversion/canal-line 响应（Cesium ③ 弧线几何底座；权威源 = 权威库 canal 表）
+// @backend-contract backend/src/common/diversion.ts CanalLineResponse
+// 84-only 流通：后端 SQL 已把 4490 存储几何转 4326，此处只收裸 [lng,lat] 对、无 crs 声明
+export const canalLineResponseSchema = z.object({
+  lines: z.array(
+    z.looseObject({
+      name: z.string().nullable(),
+      section: z.string().nullable(),
+      coordinates: z.array(z.tuple([z.number(), z.number()])).min(2),
+    })
+  ),
+})
+
+export type CanalLineResponseParsed = z.infer<typeof canalLineResponseSchema>
+
 // ⑮ /flood/flood-statistics 响应（定义提前：⑩ planSchema 的浸没载荷字段复用本 schema，
 // 须先于其求值；编号保持文档序号不变）
 // 2026-09-11 起与 flood-areas/disaster 同源：waterLevel 为 251 档实际档位（不再是 6 档粗化值）；

@@ -24,6 +24,7 @@ import {
   portsArraySchema,
   routePathResponseSchema,
   siteSuitabilityResponseSchema,
+  canalLineResponseSchema,
   diversionBreakdownResponseSchema,
   terrainProfileSchema,
   timeSeriesResponseSchema,
@@ -523,6 +524,44 @@ describe('契约覆盖补齐的 schema（生成器门禁转红后补）', () => 
         transfer: { year: 2035, coal: 1, grain: 1, ironOre: 1 },
         byPort: {},
         sankeyFlows: [],
+      }).success
+    ).toBe(false)
+  })
+
+  it('canalLineResponseSchema：裸经纬度对线位（示意线真实形状）通过；单点线/非数对拒绝', () => {
+    const ok = canalLineResponseSchema.safeParse({
+      lines: [
+        {
+          name: '平陆运河（示意线）',
+          section: '起点-平塘江口',
+          coordinates: [
+            [109.29, 22.7],
+            [108.95, 22.05],
+            [108.62, 21.87],
+          ],
+        },
+      ],
+    })
+    expect(ok.success).toBe(true)
+    // 单点线拒绝（线至少 2 点——防后端几何退化静默放行）
+    expect(
+      canalLineResponseSchema.safeParse({
+        lines: [{ name: null, section: null, coordinates: [[108.62, 21.87]] }],
+      }).success
+    ).toBe(false)
+    // 三元组（混入高程）拒绝——契约钉死 [lng,lat] 二元对
+    expect(
+      canalLineResponseSchema.safeParse({
+        lines: [
+          {
+            name: null,
+            section: null,
+            coordinates: [
+              [1, 2, 3],
+              [4, 5, 6],
+            ],
+          },
+        ],
       }).success
     ).toBe(false)
   })

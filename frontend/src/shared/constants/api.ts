@@ -10,6 +10,7 @@ export const ENDPOINTS = {
   },
   diversion: {
     breakdown: '/diversion/breakdown',
+    canalLine: '/diversion/canal-line',
   },
   auth: {
     me: '/auth/me',

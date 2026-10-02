@@ -1,11 +1,19 @@
 import { describe, expect, it } from 'vitest'
 
 import { DiversionController } from '../src/modules/diversion/controllers/diversion.controller'
+import { DiversionRepository } from '../src/modules/diversion/repositories/diversion.repository'
 import { DiversionService } from '../src/modules/diversion/services/diversion.service'
 
-// 分流端点解析单测（无 DB 纯函数编排）：年份解析/clamp/桑基流结构与 F3 份额同源。
+// 分流端点解析单测（无 DB 纯函数编排）：年份解析/clamp/桑基流结构与 F3 份额同源；
+// canal-line 用假 repository 钉编排契约（SQL 正确性由 5432 实库 curl 取证 + 04-B 转换纪律钉在 SQL 文本）。
 
-const controller = new DiversionController(new DiversionService())
+const noDbRepo = {
+  listCanalLines: async () => {
+    throw new Error('e2e 编排测试不应触达 repository')
+  },
+} as unknown as DiversionRepository
+
+const controller = new DiversionController(new DiversionService(noDbRepo))
 
 describe('DiversionController.breakdown', () => {
   it('缺省 2035；锚点年原值；域外 clamp 至 2027/2050', () => {
@@ -39,5 +47,33 @@ describe('DiversionController.breakdown', () => {
       expect(flow.from).not.toMatch(/[a-z]{3,}/)
       expect(flow.to).not.toMatch(/[a-z]{3,}/)
     }
+  })
+})
+
+describe('DiversionController.canal-line（编排契约，repository 假件）', () => {
+  const rows = [
+    {
+      name: '平陆运河（示意线）',
+      section: '起点-平塘江口',
+      coordinates: [
+        [109.29, 22.7],
+        [108.62, 21.87],
+      ] as Array<[number, number]>,
+    },
+  ]
+  const repo = { listCanalLines: async () => rows } as unknown as DiversionRepository
+  const withDb = new DiversionController(new DiversionService(repo))
+
+  it('repository 行透传为 { lines }（不加工不重排）', async () => {
+    const r = await withDb.canalLine()
+    expect(r.lines).toEqual(rows)
+  })
+
+  it('表空（线位未入库）返回空数组而非抛错；repository 抛错向上传播（线位缺失要响）', async () => {
+    const emptyRepo = { listCanalLines: async () => [] } as unknown as DiversionRepository
+    expect(await new DiversionController(new DiversionService(emptyRepo)).canalLine()).toEqual({
+      lines: [],
+    })
+    await expect(controller.canalLine()).rejects.toThrow(/不应触达/)
   })
 })

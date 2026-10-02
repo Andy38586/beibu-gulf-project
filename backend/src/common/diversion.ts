@@ -132,3 +132,19 @@ export function diversionBreakdown(
   ]
   return { transfer, byPort, sankeyFlows }
 }
+
+/**
+ * 运河线位响应（GET /diversion/canal-line，Cesium ③ 弧线图层几何底座）。
+ *
+ * 84-only 流通：库内 4490（CGCS2000）存储已在 SQL 侧 ST_Transform 到 4326，
+ * 本接口只出裸经纬度对、不带 crs 声明（04-B 坐标系纪律：4490 只许存储不许流通）。
+ * 权威源 = 权威库 canal 表；真线位（PBF 校验五条通过后）替换表内容即全链生效，
+ * 前端与契约零改动。
+ */
+export interface CanalLineResponse {
+  lines: Array<{
+    name: string | null
+    section: string | null
+    coordinates: Array<[number, number]>
+  }>
+}

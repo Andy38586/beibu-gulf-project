@@ -56,7 +56,7 @@
 
 ## 4. 限流与安全
 
-- 全局:`/nest-api/` **1000 次/15 分钟**;登录/注册:**50 次/15 分钟**(2026-08-09 部署演示放宽,原 100/5 太严导致演示 429 连锁;真实上线再收紧)。公开高频控制器(flood/plans/route/favorites/site-analysis)显式 `@SkipThrottle({login,register})` 只计全局桶——命名桶默认套用所有路由,漏 skip 即被 login 50/15min 误伤(2026-09-10 flood、09-12 三域两次踩坑)
+- 全局:`/nest-api/` **1000 次/15 分钟**;登录/注册:**50 次/15 分钟**(2026-08-09 部署演示放宽,原 100/5 太严导致演示 429 连锁;真实上线再收紧)。公开高频控制器(flood/plans/route/favorites)显式 `@SkipThrottle({login,register})` 只计全局桶——命名桶默认套用所有路由,漏 skip 即被 login 50/15min 误伤(2026-09-10 flood、09-12 三域两次踩坑)
 - 框架指纹已关(`app.disable('x-powered-by')`);响应加固头(HSTS/XCTO/XFO/CSP-Report-Only)由 nginx 统一下发,443/8443 与 :80 双份配置同步
 - `trust proxy` **当前未配置**:限流按直连 IP 计;若需按真实客户端 IP 限流须先配跳数。`helmet` 未引入(不新增依赖红线),等价加固以上述响应头实现
 - 敏感配置只进 `.env`,禁止入 git;CI 有 gitleaks secret-scan 门禁
@@ -68,14 +68,15 @@
 > 生产 nginx 反代 `/nest-api/` → `nest:3000`,并保留 `/api/` → `/nest-api/` 兼容重写)。下表省略 `/nest-api` 前缀。
 > 原 FastAPI `/flood-online` 通道已随 algorithm-service 退役删除(2026-09-10)。其对应的前端 schema 编号 ③(`/flood` 在线演算响应)与 ⑰(`/flood-online/api/flood/impact` 响应)已于 2026-09-26 一并删除,**编号不复用**(`types/schemas.ts` 原处留一行注明)。
 > 本清单是**当前**接口快照,增删后更新此处。规则见 §1-§4,不随清单变化。
+> **单一事实源是 `backend/src/routes.manifest.ts`**(由 `tools/v3-guard/routes-audit.mjs --gen` 从 controller 装饰器派生,`guard:v3` 双向比对):本表是人工摘要,两者不一致时**以 manifest 为准**。复算:`git grep -c "path: 'nest-api" backend/src/routes.manifest.ts`(2026-10-02 实测 37 条)。
 
 | 模块        | 端点                                                                                                            | 登录          | 说明                              |
 | ----------- | --------------------------------------------------------------------------------------------------------------- | ------------- | --------------------------------- |
 | 认证        | `POST /auth/register` / `POST /auth/login` / `POST /auth/logout`                                                | 公开          | Cookie 通道                       |
 | 认证        | `GET /auth/me`                                                                                                  | ✅ 需登录     | 当前用户信息                      |
-| 选址        | `POST /site-analysis`                                                                                           | 公开          | 分析(参数 zod 校验；纯计算免登录，2026-08-29 收口) |
 | 新选址适宜性 | `GET /site-suitability/map`                                                                                      | 公开          | 加权叠加格网 GeoJSON（五准则权重缺省回落 AHP 草案；min_land_frac 过滤；2026-09-29 单元四） |
 | 分流分析     | `GET /diversion/breakdown`                                                                                       | 公开          | 西江转移+三港分摊+桑基流（year 2027~2050；2026-09-30 W10-11） |
+| 分流分析     | `GET /diversion/canal-line`                                                                                      | 公开          | 运河线位 GeoJSON（15 段 LineString；DB `canal` 表 `status='osm-2026-10-01'`，2026-10-02 上线） |
 | 方案        | `GET/POST /plans`、`GET/PUT/DELETE /plans/:id`、`POST /plans/:id/xiaoqu`、`DELETE /plans/:id/xiaoqu/:xiaoquId`  | ✅ 全部需登录 | CRUD                              |
 | 预测        | `GET /forecast/timeseries`、`GET /forecast/indicator/:indicator`、`GET /forecast/map`、`GET /forecast/overview` | 公开          | —                                 |
 | 预测        | `GET /forecast/:portId`                                                                                           | 公开          | 孤儿路由（前端零消费，保留兼容端点，2026-08-16 816 补录） |
@@ -85,6 +86,8 @@
 | 健康        | `GET /health`、`GET /health/ready`                                                                              | 公开          | 探针,置于限流前                   |
 
 **已删除接口**(勿重新添加):`/api/markers/*`(死代码)、`/api/facilities/*`、`/api/flood/water-levels`、`/api/flood/facilities`(前端零调用孤儿)、`GET /ports`(2026-08-29 港口数据回迁前端静态 `frontend/public/data/ports.json`,纯透传端点无后端价值)、`GET /flood-online/api/flood/online|impact`(2026-09-10 随 algorithm-service 退役,前端零调用)。
+
+**已移除域**(2026-10-02,`db25009a`):`POST /site-analysis` —— 老选址域(前端页面/后端模块/契约/守卫)整体删除,`git grep` 0 命中;替代者是 `GET /site-suitability/map`。域移除口径见 `docs/老选址隔离与移除工单-2026-09-30.md`。
 
 ## 6. 校验命令
 

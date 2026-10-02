@@ -105,13 +105,13 @@ describe('LayerControlPanel 组开关（一钮控多层）', () => {
     // 组开关行为断言（钉死一钮控多层）：handleToggleGroup → BLM.setVisible
     // 对全部未锁定成员以同一值调用。mockManager.getMeta 对 hub* 返回 visible:false
     // ⇒ 组行初始灭态，点击后三成员各收到 setVisible(true)。
-    const { useBusinessLayers } = await import('@/core')
-    const mgr = useBusinessLayers().manager as unknown as typeof mockManager
+    // 不在测试体内动态 import('@/core')：面板走子路径直引（本文件顶部已同 mock 子路径），
+    // 全桶求值在该用例里白付约 1.1s 且断言对象恒为 mock 自身（恒真，零判据价值）——
+    // 2026-10-02 它在 pre-push 全量并行负载下被拉到 11s 撞 5s 默认超时，连拦两次 push。
     mockManager.setVisible.mockClear()
     await rows[0].trigger('click')
     expect(mockManager.setVisible).toHaveBeenCalledTimes(3)
     for (const k of ['hub-a', 'hub-b', 'hub-c']) {
-      expect(mgr).toBeTruthy()
       expect(mockManager.setVisible).toHaveBeenCalledWith(k, true)
     }
   })

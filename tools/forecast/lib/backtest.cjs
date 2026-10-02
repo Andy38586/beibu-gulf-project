@@ -8,9 +8,14 @@
  *
  * 指标：
  *   - mapeByStep：与线性版同口径（分步长平均绝对百分比误差，%）
+ *   - smapeByStep：分步长 sMAPE（Hyndman & Koehler 2006）= mean(2|e|/(|y|+|ŷ|))×100，
+ *     补 MAPE 对低基数/单侧偏离的系统性偏倚（L5）；|y|+|ŷ|=0 的点不计
  *   - maseByStep：分步长 MASE（Hyndman & Koehler 2006），尺度 Q = 训练段季节朴素法的
  *     平均绝对一阶季节差 mean|y_t − y_{t−12}|；MASE_s = (Σ|e_s|/N_s) / (ΣQ/origin 数)。
  *     MASE < 1 = 优于一步朴素法，跨序列可比，补 MAPE 对近零值不稳的缺陷
+ *   - picpByStep：预测区间覆盖率（L5）——仅当传入 intervalFn(model, time) => {lo,hi}|null
+ *     时累计；区间缺失(null/非有限)的点不计入分母。PICP ≈ 名义置信水平为合格
+ *   - series：逐点 {time, step, actual, predicted}（供 DM 检验对齐损失差，lib/evaluate.cjs）
  */
 'use strict'
 
@@ -46,6 +51,7 @@ function seasonalNaiveScale(sortedValues, m) {
  * @param {Array<{time,value}>} p.historical 全量真数据
  * @param {Function} p.fitFn (train: [{time,value}]) => model | null（数据不足返回 null 则跳过该 origin）
  * @param {Function} p.forecastFn (model, timeStr) => number | null
+ * @param {Function} [p.intervalFn] (model, timeStr) => {lo,hi} | null（PICP 用；缺省不计区间覆盖率）
  * @param {string} [p.originStart] 默认与线性版一致（'2024-01'）
  * @param {string} [p.originEnd]   默认与线性版一致（'2026-06'）
  * @param {number} [p.horizon]     默认 12
@@ -55,6 +61,7 @@ function runRollingBacktest({
   historical,
   fitFn,
   forecastFn,
+  intervalFn = null,
   originStart = '2024-01',
   originEnd = '2026-06',
   horizon = 12,
@@ -68,12 +75,21 @@ function runRollingBacktest({
   const cntByStep = {}
   const qSumByStep = {}
   const qCntByStep = {}
+  const smapeSumByStep = {}
+  const smapeCntByStep = {}
+  const picpHitByStep = {}
+  const picpCntByStep = {}
+  const series = []
   for (let s = 1; s <= horizon; s++) {
     errByStep[s] = 0
     absErrByStep[s] = 0
     cntByStep[s] = 0
     qSumByStep[s] = 0
     qCntByStep[s] = 0
+    smapeSumByStep[s] = 0
+    smapeCntByStep[s] = 0
+    picpHitByStep[s] = 0
+    picpCntByStep[s] = 0
   }
 
   let origin = originStart
@@ -97,6 +113,19 @@ function runRollingBacktest({
         errByStep[step] += absErr / actual // 相对误差 → MAPE
         absErrByStep[step] += absErr // 原单位绝对误差 → MASE（与 Q 同量纲，04-B4）
         cntByStep[step]++
+        const denom = Math.abs(actual) + Math.abs(predicted)
+        if (denom > 0) {
+          smapeSumByStep[step] += (2 * absErr) / denom // → sMAPE（H&K 2006）
+          smapeCntByStep[step]++
+        }
+        series.push({ time: t, step, actual, predicted })
+        if (intervalFn) {
+          const itv = intervalFn(model, t)
+          if (itv && Number.isFinite(itv.lo) && Number.isFinite(itv.hi)) {
+            picpCntByStep[step]++
+            if (actual >= itv.lo && actual <= itv.hi) picpHitByStep[step]++
+          }
+        }
         if (q !== null) {
           qSumByStep[step] += q
           qCntByStep[step]++
@@ -107,9 +136,15 @@ function runRollingBacktest({
   }
 
   const mapeByStep = {}
+  const smapeByStep = {}
+  const picpByStep = {}
   const maseByStep = {}
   let mapeSum = 0
   let mapeCnt = 0
+  let smapeSum = 0
+  let smapeCnt = 0
+  let picpHitTotal = 0
+  let picpCntTotal = 0
   let maseSum = 0
   let maseCnt = 0
   for (let s = 1; s <= horizon; s++) {
@@ -119,6 +154,20 @@ function runRollingBacktest({
       mapeSum += mapeByStep[s]
       mapeCnt++
     }
+    smapeByStep[s] =
+      smapeCntByStep[s] > 0
+        ? Math.round((smapeSumByStep[s] / smapeCntByStep[s]) * 10000) / 100
+        : null
+    if (smapeByStep[s] !== null) {
+      smapeSum += smapeByStep[s]
+      smapeCnt++
+    }
+    picpByStep[s] =
+      picpCntByStep[s] > 0
+        ? Math.round((picpHitByStep[s] / picpCntByStep[s]) * 10000) / 10000
+        : null
+    picpHitTotal += picpHitByStep[s]
+    picpCntTotal += picpCntByStep[s]
     const meanAbsErr = cntByStep[s] > 0 ? absErrByStep[s] / cntByStep[s] : null
     const meanQ = qCntByStep[s] > 0 ? qSumByStep[s] / qCntByStep[s] : 0
     maseByStep[s] =
@@ -131,11 +180,17 @@ function runRollingBacktest({
 
   return {
     mapeByStep,
+    smapeByStep,
+    picpByStep,
     maseByStep,
     samplesByStep: cntByStep,
     origins: originCount,
     overallMape: mapeCnt > 0 ? Math.round((mapeSum / mapeCnt) * 100) / 100 : null,
+    overallSmape: smapeCnt > 0 ? Math.round((smapeSum / smapeCnt) * 100) / 100 : null,
+    overallPicp:
+      picpCntTotal > 0 ? Math.round((picpHitTotal / picpCntTotal) * 10000) / 10000 : null,
     overallMase: maseCnt > 0 ? Math.round((maseSum / maseCnt) * 100) / 100 : null,
+    series,
   }
 }
 

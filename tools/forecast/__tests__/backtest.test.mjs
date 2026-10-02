@@ -140,3 +140,94 @@ describe('selectModel 闸门（胜者必须双胜，含换记法不变性）', (
     expect(selectModel({ linear: 0.1, ets: 0.13, seasonal_naive: 0.12 })).toBe('linear')
   })
 })
+
+// ── L5（2026-10-02）：sMAPE / PICP / 逐点 series ──
+
+/** 恒值 100 序列（sMAPE 已知值夹具） */
+function constantFixture(months = 48) {
+  return Array.from({ length: months }, (_, i) => ({
+    time: `${2021 + Math.floor(i / 12)}-${String((i % 12) + 1).padStart(2, '0')}`,
+    value: 100,
+  }))
+}
+
+const alwaysModel = () => ({})
+
+describe('L5: sMAPE（H&K 2006，2|e|/(|y|+|ŷ|)×100）', () => {
+  it('恒定 150% 超预测 → sMAPE=40（同夹具 MAPE=50：单侧偏离偏倚的对照判据）', () => {
+    const r = runRollingBacktest({
+      historical: constantFixture(),
+      fitFn: alwaysModel,
+      forecastFn: () => 150,
+    })
+    expect(r.overallSmape).toBe(40)
+    expect(r.overallMape).toBe(50)
+  })
+
+  it('预测全对 → overallSmape=0；|y|+|ŷ|=0 的点不计（不产生 NaN）', () => {
+    const r = runRollingBacktest({
+      historical: constantFixture(),
+      fitFn: alwaysModel,
+      forecastFn: () => 100,
+    })
+    expect(r.overallSmape).toBe(0)
+    for (const v of Object.values(r.smapeByStep)) {
+      expect(v).not.toBeNull()
+      expect(Number.isFinite(v)).toBe(true)
+    }
+  })
+})
+
+describe('L5: PICP（intervalFn 钩子）', () => {
+  it('宽区间（预测±80）→ 覆盖率 1；贴预测窄区间（±1）→ 0（actual=100 vs pred=150）', () => {
+    const base = { historical: constantFixture(), fitFn: alwaysModel, forecastFn: () => 150 }
+    const wide = runRollingBacktest({
+      ...base,
+      intervalFn: (model, t) => ({ lo: 70, hi: 230 }),
+    })
+    expect(wide.overallPicp).toBe(1)
+    const tight = runRollingBacktest({
+      ...base,
+      intervalFn: (model, t) => ({ lo: 149, hi: 151 }),
+    })
+    expect(tight.overallPicp).toBe(0)
+  })
+
+  it('不传 intervalFn → picpByStep 全 null、overallPicp null（缺省不计）', () => {
+    const r = runRollingBacktest({
+      historical: constantFixture(),
+      fitFn: alwaysModel,
+      forecastFn: () => 150,
+    })
+    expect(r.overallPicp).toBeNull()
+    for (const v of Object.values(r.picpByStep)) expect(v).toBeNull()
+  })
+
+  it('区间含非有限值（null/NaN）→ 该点不计入分母（缺失区间不虚增覆盖）', () => {
+    const r = runRollingBacktest({
+      historical: constantFixture(),
+      fitFn: alwaysModel,
+      forecastFn: () => 150,
+      intervalFn: (model, t) => null,
+    })
+    expect(r.overallPicp).toBeNull()
+  })
+})
+
+describe('L5: 逐点 series（供 DM 检验对齐）', () => {
+  it('条目数 = 各步长样本数之和；字段齐备且有限', () => {
+    const r = runRollingBacktest({
+      historical: pureSeasonalFixture(),
+      fitFn: seasonalNaiveModel,
+      forecastFn: seasonalNaiveForecast,
+    })
+    const total = Object.values(r.samplesByStep).reduce((a, b) => a + b, 0)
+    expect(r.series.length).toBe(total)
+    for (const e of r.series) {
+      expect(Number.isFinite(e.actual)).toBe(true)
+      expect(Number.isFinite(e.predicted)).toBe(true)
+      expect(e.step).toBeGreaterThanOrEqual(1)
+      expect(/^\d{4}-\d{2}$/.test(e.time)).toBe(true)
+    }
+  })
+})

@@ -5,6 +5,7 @@
 export * from './config/map'
 export * from './layout/composables/useScreenActions'
 export * from './layout/navConfig'
+export * from './layout/routeReadiness'
 export * from './layout/taskIndicator'
 export * from './layout/useMobileDrawer'
 export * from './layout/useSliderFocus'

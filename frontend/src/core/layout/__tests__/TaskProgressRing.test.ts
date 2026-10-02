@@ -72,6 +72,17 @@ describe('TaskProgressRing', () => {
     expect(wrapper.find('.task-progress-ring__track').element.tagName.toLowerCase()).toBe('rect')
   })
 
+  // 不定进度（2026-10-02，Cesium ②）：形态零变化，只是"这一圈在动"而不是"走了百分之几"。
+  it('🔴 indeterminate：不画进度弧（不伪造百分比）、轨道着主色、aria 说"页面准备中"、恒呼吸', () => {
+    const wrapper = mount(TaskProgressRing, { props: { indeterminate: true } })
+    expect(wrapper.find('.task-progress-ring__bar').exists()).toBe(false)
+    expect(wrapper.find('.task-progress-ring__track').classes()).toContain(
+      'task-progress-ring__track--active'
+    )
+    expect(wrapper.attributes('aria-label')).toBe('页面准备中')
+    expect(wrapper.classes()).toContain('is-breathing')
+  })
+
   /**
    * 环 rx 与按钮 rx 是**两套口径**（04-H1）：
    *   · 按钮 rx = `cellPixel × 0.15`（`GCSButton.vue` 的 `buttonStyle`，随档位 70/80/90 变）；

@@ -40,12 +40,21 @@ interface Props {
   /** 进度 0~1 */
   progress?: number
   status?: TaskStatus
+  /**
+   * 不定进度（2026-10-02，Cesium ②）：用于「页面还在准备」这类**系统并不知道百分比**的场景。
+   *
+   * 形态零变化（同一 SVG、同一线宽、同一圆角），只是把**轨道**着上主色、不画进度弧——
+   * 因为按本文件的口径「不要为了好看去插值伪造中间值」：准备中若画一段弧，
+   * 无论是 10% 还是满圈，都是在编造一个后端/系统并没有给出的百分比。
+   */
+  indeterminate?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   size: 44,
   progress: 0,
   status: 'pending',
+  indeterminate: false,
 })
 
 /**
@@ -100,9 +109,13 @@ const ringColor = computed(() => {
   }
 })
 
-/** 呼吸动画只在活跃态启用（完成后静止，失败后静止——静止本身是信息） */
+/** 呼吸动画只在活跃态启用（完成后静止，失败后静止——静止本身是信息；不定进度恒呼吸） */
 const isBreathing = computed(
-  () => props.status === 'pending' || props.status === 'running' || props.status === 'retrying'
+  () =>
+    props.indeterminate ||
+    props.status === 'pending' ||
+    props.status === 'running' ||
+    props.status === 'retrying'
 )
 
 const sizeStyle = computed(() => ({
@@ -118,11 +131,12 @@ const sizeStyle = computed(() => ({
     :style="sizeStyle"
     :viewBox="viewBox"
     role="img"
-    :aria-label="`任务进行中，进度 ${Math.round(progress * 100)}%`"
+    :aria-label="indeterminate ? '页面准备中' : `任务进行中，进度 ${Math.round(progress * 100)}%`"
   >
     <!-- 轨道：常驻底框，保证低进度时也看得出"这是个框" -->
     <rect
       class="task-progress-ring__track"
+      :class="{ 'task-progress-ring__track--active': indeterminate }"
       :x="RECT_ORIGIN"
       :y="RECT_ORIGIN"
       :width="RECT_SIZE"
@@ -132,8 +146,10 @@ const sizeStyle = computed(() => ({
       fill="none"
       :stroke-width="STROKE_WIDTH"
     />
-    <!-- 进度弧：自左上角圆角起点顺时针（SVG rect 路径的原生起笔处） -->
+    <!-- 进度弧：自左上角圆角起点顺时针（SVG rect 路径的原生起笔处）。
+         不定进度不画弧——见 indeterminate prop 注释（不伪造百分比） -->
     <rect
+      v-if="!indeterminate"
       class="task-progress-ring__bar"
       :x="RECT_ORIGIN"
       :y="RECT_ORIGIN"
@@ -160,6 +176,11 @@ const sizeStyle = computed(() => ({
 
 .task-progress-ring__track {
   stroke: var(--GCS-border-light);
+}
+
+/* 不定进度：轨道着主色（形态不变，只是"这一圈在动"而不是"走了百分之几"） */
+.task-progress-ring__track--active {
+  stroke: var(--GCS-color-primary);
 }
 
 /* 呼吸：透明度渐变（口径 #4：不做线宽动画，线宽恒定） */

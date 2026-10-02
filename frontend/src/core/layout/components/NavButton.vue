@@ -32,6 +32,12 @@ import { computed } from 'vue'
 import { useGCS } from '@/shared'
 
 import {
+  EMPTY_ROUTE_READINESS,
+  getRouteReadiness,
+  type RouteReadinessState,
+  routeReadinessVersion,
+} from '../routeReadiness'
+import {
   EMPTY_TASK_INDICATOR,
   getTaskIndicator,
   type TaskIndicatorState,
@@ -77,15 +83,36 @@ const indicator = computed<TaskIndicatorState>(() => {
 })
 
 /**
- * 环显隐口径（用户 2026-09-19 定稿）：
+ * 页面准备态（2026-10-02，Cesium ②）：同一套注入机制、同一个环——用户定「不新增 UI 形态」。
+ * 来源与任务无关（3D 路由首进要下载 Cesium.js 并建首帧，真机限速实测 10–16s），
+ * 但消费点完全相同：都表达「这个路由上有事在进行」。
+ */
+const readiness = computed<RouteReadinessState>(() => {
+  void routeReadinessVersion.value
+  if (!props.taskRoute) return EMPTY_ROUTE_READINESS
+  return getRouteReadiness(props.taskRoute)
+})
+
+/**
+ * 环显隐口径（用户 2026-09-19 定稿 + 2026-10-02 增补）：
  *
  * 「停靠中就保留」—— 只要有任务（含终态）就显示环，**不因用户人在该页而隐藏**。
  *
  * 为什么不做「人在该页就隐藏」：`docked` 表达的是任务让位排队，用户可能
  * 回到该路由但还没让任务跑完；环是唯一的跨页状态指示，隐藏会造成状态黑洞。
  * 任务跑完变绿/红后一直保留，直到下次提交覆盖。
+ *
+ * 2026-10-02 增补：**页面准备中**（3D 路由切引擎）也点亮同一个环，就绪即熄灭。
  */
-const showRing = computed(() => !!props.taskRoute && indicator.value.occupied)
+const showRing = computed(
+  () => !!props.taskRoute && (indicator.value.occupied || readiness.value.preparing)
+)
+
+/**
+ * 只有「准备中、且该路由没有任务」时才走不定进度环（不画百分比弧）；
+ * 有任务时任务语义优先——环仍按任务状态与进度画。
+ */
+const preparingOnly = computed(() => !indicator.value.occupied && readiness.value.preparing)
 
 /** 环直径（px）：按钮边长(0.8 cell) + 两侧各留 4px 呼吸间隙 */
 const ringSize = computed(() => Math.round(cellPixel.value * 0.8 + 8))
@@ -116,6 +143,7 @@ const buttonSize = computed(() => Math.round(cellPixel.value * 0.8))
         :size="ringSize"
         :progress="indicator.progress"
         :status="indicator.status ?? 'pending'"
+        :indeterminate="preparingOnly"
       />
     </span>
   </div>

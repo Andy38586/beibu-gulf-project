@@ -1,12 +1,19 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, provide, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, provide, ref, watch } from 'vue'
 import { RouterView, useRoute, useRouter } from 'vue-router'
 
 import { businessModules, runBusinessLogoutReset } from '@/business'
 import { BusinessLayerManager, layerFailureMessage } from '@/core'
 import { BUSINESS_LAYER_MANAGER_KEY } from '@/core'
 import { registerNavItems } from '@/core'
-import { notifyTaskIndicator, registerTaskIndicator, TaskDropZone } from '@/core'
+import {
+  isRoutePreparing,
+  notifyRouteReadiness,
+  notifyTaskIndicator,
+  registerRouteReadiness,
+  registerTaskIndicator,
+  TaskDropZone,
+} from '@/core'
 import { useMapControls } from '@/core'
 import {
   EDITING_PLAN_KEY,
@@ -129,6 +136,17 @@ watch(
   () => notifyTaskIndicator(),
   { deep: true }
 )
+
+// ===== 3D 路由「准备中」→ 同一个导航进度环（Cesium ②，2026-10-02 用户定）=====
+// 不新增 UI 形态；判据由 meta.engine 派生 ⇒ **所有 3D 路由都适用**（新增 3D 模块自动纳入，
+// 不写死路由清单）。就绪即熄灭；切换失败时 mapStore.mapType 被回滚 ⇒ 判据立刻 false，
+// 环不会永远呼吸（详见 core/layout/routeReadiness.ts 的 isRoutePreparing 注释）。
+const preparingRoutePath = computed<string | null>(() => {
+  const rendererType = mapStore.currentRenderer?.getType?.() ?? null
+  return isRoutePreparing(route.meta?.engine, rendererType, mapStore.mapType) ? route.path : null
+})
+registerRouteReadiness((routePath) => ({ preparing: routePath === preparingRoutePath.value }))
+watch(preparingRoutePath, () => notifyRouteReadiness())
 
 /**
  * 投递区悬停高亮由面板侧判定（usePanelDrag.overZone 给面板自身加 is-over-zone），

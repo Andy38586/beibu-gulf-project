@@ -180,7 +180,9 @@ async function crawlReportUrls() {
       html = await decodeBuffer(await fetchBuf(listUrl))
     } catch (err) {
       if (page === 0)
-        throw new Error(`栏目首页不可达：${err.message}（境外 IP 会被拒，需本机运行）`)
+        throw new Error(`栏目首页不可达：${err.message}（境外 IP 会被拒，需本机运行）`, {
+          cause: err,
+        })
       break // 翻页到底
     }
     const found = [

@@ -40,6 +40,7 @@ export const ARC_WIDTH_MAX = 14
 export const ARC_COLOR = '#2f7bff'
 export const ARC_COLOR_HIGHLIGHT = '#ffb020'
 export const CANAL_LINE_COLOR = '#12b886'
+export const CANAL_LINE_HIGHLIGHT = '#ffd43b'
 export const CANAL_LINE_WIDTH = 3
 
 export interface LngLat {

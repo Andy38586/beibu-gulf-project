@@ -148,4 +148,12 @@ describe('useDiversionLayer', () => {
     api.updateCanalLayer([])
     expect(fake.manager.has(DIVERSION_CANAL_LAYER_ID)).toBe(false)
   })
+
+  it('运河线高亮换色：highlighted=true 用高亮色，缺省常规色（A3 平陆运河节点联动）', () => {
+    const { fake, api } = mountLayerHook()
+    api.updateCanalLayer([CANAL_LINE])
+    const normal = fake.registry.get(DIVERSION_CANAL_LAYER_ID)?.options.strokeColor
+    api.updateCanalLayer([CANAL_LINE], true)
+    expect(fake.registry.get(DIVERSION_CANAL_LAYER_ID)?.options.strokeColor).not.toBe(normal)
+  })
 })

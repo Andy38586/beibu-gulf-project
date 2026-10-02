@@ -14,15 +14,23 @@
  */
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { defineComponent, h } from 'vue'
+import { defineComponent, h, nextTick } from 'vue'
 
-import { GCSPanel } from '@/core'
+import { BUSINESS_LAYER_MANAGER_KEY, type BusinessLayerManager, GCSPanel } from '@/core'
+import { diversionArcLayerId } from '@/shared'
 
-const api = vi.hoisted(() => ({ getBreakdown: vi.fn() }))
+const api = vi.hoisted(() => ({
+  getBreakdown: vi.fn(),
+  getCanalLine: vi.fn(),
+  getPorts: vi.fn(),
+}))
 
-// 只替身数据适配器：页面的取数链路（diversionAdapter.getBreakdown）不动，断言其调用次数/参数
+// 只替身数据适配器与静态港口取数：页面取数链路不动，断言其调用次数/参数
 vi.mock('@/services/adapters/diversionAdapter', () => ({
-  diversionAdapter: { getBreakdown: api.getBreakdown },
+  diversionAdapter: { getBreakdown: api.getBreakdown, getCanalLine: api.getCanalLine },
+}))
+vi.mock('@/services/mapDataService', () => ({
+  mapDataService: { getPorts: api.getPorts },
 }))
 
 import DiversionPage from '../../DiversionPage.vue'
@@ -71,16 +79,63 @@ const FIXTURE = {
   year: 2035,
   transfer: { year: 2035, coal: 428.68, grain: 837.555, ironOre: 313.64, sandCement: 0 },
   byPort: { qinzhou: { coal: 201.48, grain: 393.65, ironOre: 147.41, total: 742.54 } },
-  // 三段口径（2026-10-02）：西江上行货 → 平陆运河 → 中文港名；拼音不得回流
+  // 三段口径（2026-10-02）：西江上行货 → 平陆运河 → 中文港名；拼音不得回流。
+  // 三条出边补全（A3 联动测试需要三弧都在场）；byPort 夹具仍取最小形状（弧线不消费它）
   sankeyFlows: [
     { from: '西江上行货', to: '平陆运河', value: 742.54 },
     { from: '平陆运河', to: '钦州港', value: 742.54 },
+    { from: '平陆运河', to: '北海港', value: 170 },
+    { from: '平陆运河', to: '防城港', value: 300 },
   ],
 }
 
+const CANAL_FIXTURE = {
+  lines: [
+    {
+      name: '平陆运河（示意线）',
+      section: '起点-平塘江口',
+      coordinates: [
+        [109.29, 22.7],
+        [108.62, 21.87],
+      ],
+    },
+  ],
+}
+
+const PORTS_FIXTURE = [
+  {
+    id: '1',
+    name: '钦州港口岸',
+    address: '',
+    lng: 108.590379,
+    lat: 21.726917,
+    type: '货运港口码头',
+  },
+  { id: '2', name: '防城港', address: '', lng: 108.340973, lat: 21.617689, type: '货运港口码头' },
+  { id: '3', name: '北海国际客运港', address: '', lng: 109.130658, lat: 21.418792, type: '客运港' },
+]
+
+/** 分流页会经 useDiversionLayer 注册图层：provide 假 manager 接住注册并暴露注册表供断言 */
 function mountPage() {
-  return mount(DiversionPage, {
+  const registry = new Map<string, { options: Record<string, unknown> }>()
+  const fakeManager = {
+    has: (key: string) => registry.has(key),
+    register: (key: string, desc: { options: Record<string, unknown> }) => {
+      registry.set(key, desc)
+    },
+    updateData: (key: string, payload: { options?: Record<string, unknown> }) => {
+      const prev = registry.get(key)
+      if (prev) registry.set(key, { options: payload.options ?? prev.options })
+    },
+    remove: (key: string) => {
+      registry.delete(key)
+    },
+  } as unknown as Pick<BusinessLayerManager, 'has' | 'register' | 'updateData' | 'remove'>
+  const wrapper = mount(DiversionPage, {
     global: {
+      provide: {
+        [BUSINESS_LAYER_MANAGER_KEY]: fakeManager as unknown as BusinessLayerManager,
+      },
       stubs: {
         AppLayout: AppLayoutStub,
         BarChart: BarChartStub,
@@ -89,10 +144,11 @@ function mountPage() {
       },
     },
   })
+  return { wrapper, registry }
 }
 
 /** 定位包含指定子元素的 GCSPanel（四面板各含唯一识别物，不会歧义） */
-function panelWithClass(wrapper: ReturnType<typeof mountPage>, selector: string) {
+function panelWithClass(wrapper: ReturnType<typeof mountPage>['wrapper'], selector: string) {
   const panel = wrapper.findAllComponents(GCSPanel).find((p) => p.find(selector).exists())
   if (!panel) throw new Error(`未找到包含 ${selector} 的 GCSPanel`)
   return panel
@@ -105,7 +161,7 @@ describe('DiversionPage 4×4 布局', () => {
 
   it('四个 GCSPanel 全部 4×4，槽位与目标布局一致', async () => {
     api.getBreakdown.mockResolvedValue(FIXTURE)
-    const wrapper = mountPage()
+    const { wrapper } = mountPage()
     await flushPromises()
 
     const panels = wrapper.findAllComponents(GCSPanel)
@@ -142,7 +198,7 @@ describe('DiversionPage 4×4 布局', () => {
 
   it('左上为 BarChart（原文字清单已删除），四货类与数值取自 result.transfer', async () => {
     api.getBreakdown.mockResolvedValue(FIXTURE)
-    const wrapper = mountPage()
+    const { wrapper } = mountPage()
     await flushPromises()
 
     const barPanel = panelWithClass(wrapper, '.stub-bar-chart')
@@ -172,7 +228,7 @@ describe('DiversionPage 4×4 布局', () => {
         resolveLoad = resolve
       })
     )
-    const wrapper = mountPage()
+    const { wrapper } = mountPage()
     await wrapper.vm.$nextTick()
 
     expect(wrapper.find('[role="status"]').exists()).toBe(true)
@@ -186,7 +242,7 @@ describe('DiversionPage 4×4 布局', () => {
 
   it('桑基图空态语义保持：无 sankeyFlows 时左下显示「暂无数据」', async () => {
     api.getBreakdown.mockResolvedValue({ ...FIXTURE, sankeyFlows: [] })
-    const wrapper = mountPage()
+    const { wrapper } = mountPage()
     await flushPromises()
 
     expect(wrapper.find('.stub-sankey-chart').exists()).toBe(false)
@@ -199,7 +255,7 @@ describe('DiversionPage 4×4 布局', () => {
 
   it('年份滑块收进卡片：默认无 range，点击卡片才出现；输入经 300ms 防抖以新年份取数', async () => {
     api.getBreakdown.mockResolvedValue(FIXTURE)
-    const wrapper = mountPage()
+    const { wrapper } = mountPage()
     await flushPromises()
     expect(api.getBreakdown).toHaveBeenCalledTimes(1)
 
@@ -230,6 +286,57 @@ describe('DiversionPage 4×4 布局', () => {
     expect(api.getBreakdown).toHaveBeenCalledTimes(2)
     expect(api.getBreakdown).toHaveBeenLastCalledWith(2040)
     expect(yearPanel.find('.ssc-status').text()).toBe('2040')
+
+    wrapper.unmount()
+  })
+
+  it('桑基点击联动（A3）：点港节点→对应弧高亮、再点取消、点「平陆运河」→运河线高亮', async () => {
+    api.getBreakdown.mockResolvedValue(FIXTURE)
+    api.getCanalLine.mockResolvedValue(CANAL_FIXTURE)
+    api.getPorts.mockResolvedValue(PORTS_FIXTURE)
+    const { wrapper, registry } = mountPage()
+    await flushPromises()
+
+    const arcColor = (portId: string): unknown =>
+      registry.get(diversionArcLayerId(portId))?.options.strokeColor
+    const canalColor = (): unknown => registry.get('diversion-canal')?.options.strokeColor
+
+    // 几何底座到位：运河线 + 三弧全部注册
+    expect(registry.has('diversion-canal')).toBe(true)
+    expect(arcColor('qinzhou')).toBeDefined()
+    expect(arcColor('beihai')).toBeDefined()
+
+    const sankey = wrapper.findComponent({ name: 'SankeyChart' })
+    const normal = arcColor('beihai')
+
+    // 点「北海港」节点 → 北海弧高亮，其余保持常规色
+    sankey.vm.$emit('sankey-click', { kind: 'node', name: '北海港' })
+    await nextTick()
+    expect(arcColor('beihai')).not.toBe(normal)
+    expect(arcColor('qinzhou')).toBe(normal)
+
+    // 再点同港 → 取消高亮
+    sankey.vm.$emit('sankey-click', { kind: 'node', name: '北海港' })
+    await nextTick()
+    expect(arcColor('beihai')).toBe(normal)
+
+    // 点「平陆运河」节点 → 运河线高亮（弧线全回常规色）
+    const canalNormal = canalColor()
+    sankey.vm.$emit('sankey-click', { kind: 'node', name: '平陆运河' })
+    await nextTick()
+    expect(canalColor()).not.toBe(canalNormal)
+    expect(arcColor('beihai')).toBe(normal)
+
+    // 点边（平陆运河→钦州港）→ 钦州弧高亮（边按目标港定位）
+    sankey.vm.$emit('sankey-click', {
+      kind: 'edge',
+      name: '',
+      source: '平陆运河',
+      target: '钦州港',
+    })
+    await nextTick()
+    expect(arcColor('qinzhou')).not.toBe(normal)
+    expect(canalColor()).toBe(canalNormal)
 
     wrapper.unmount()
   })

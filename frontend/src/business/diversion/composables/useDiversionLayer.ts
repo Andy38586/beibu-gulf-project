@@ -8,6 +8,7 @@ import {
   ARC_COLOR,
   ARC_COLOR_HIGHLIGHT,
   CANAL_LINE_COLOR,
+  CANAL_LINE_HIGHLIGHT,
   CANAL_LINE_WIDTH,
   arcWidthFor,
   buildPortArc,
@@ -64,8 +65,8 @@ export function buildArcGeoJson(spec: DiversionArcSpec): FeatureCollection<LineS
 }
 
 export interface UseDiversionLayerReturn {
-  /** 运河线位上图（幂等；空段集清理图层） */
-  updateCanalLayer: (lines: Array<Array<[number, number]>>) => void
+  /** 运河线位上图（幂等；空段集清理图层；highlighted=桑基「平陆运河」节点联动高亮色） */
+  updateCanalLayer: (lines: Array<Array<[number, number]>>, highlighted?: boolean) => void
   /**
    * 三港弧线上图（幂等）：宽度按三弧最大值相对编码（arcWidthFor）；
    * highlightPortId 高亮单弧（桑基联动 A3），缺省无高亮全常规色。
@@ -83,14 +84,14 @@ export interface UseDiversionLayerReturn {
 export function useDiversionLayer(): UseDiversionLayerReturn {
   const owned = useOwnedLayers('diversion')
 
-  function updateCanalLayer(lines: Array<Array<[number, number]>>): void {
+  function updateCanalLayer(lines: Array<Array<[number, number]>>, highlighted = false): void {
     if (lines.length > 0) {
       owned.applyOrUpdate(DIVERSION_CANAL_LAYER_ID, {
         label: '运河线位',
         layerType: 'geojson',
         data: buildCanalGeoJson(lines),
         options: {
-          strokeColor: CANAL_LINE_COLOR,
+          strokeColor: highlighted ? CANAL_LINE_HIGHLIGHT : CANAL_LINE_COLOR,
           strokeWidth: CANAL_LINE_WIDTH,
           featureType: DIVERSION_CANAL_LAYER_ID,
         } as LayerOptions,

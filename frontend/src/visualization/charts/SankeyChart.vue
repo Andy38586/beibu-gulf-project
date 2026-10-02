@@ -1,6 +1,8 @@
 <script setup lang="ts">
 // 桑基图（分流分析 W10-11）：ECharts Sankey 需单独注册（useECharts 只注册了
 // Line/Bar）——本组件内 echarts.use 一次性注册，全局幂等。
+// Cesium ③ A3：节点/边点击经 bindSankeyClick 转发 sankey-click（载荷形态见 sankeyClick.ts），
+// 供分流页做 3D 弧线高亮联动；注销与注册同作用域（onUnmounted 调解绑器）。
 import type { ECharts } from 'echarts'
 import { SankeyChart } from 'echarts/charts'
 import { LegendComponent, TitleComponent, TooltipComponent } from 'echarts/components'
@@ -10,6 +12,8 @@ import type { Ref, WatchSource } from 'vue'
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 
 import { useTheme } from '@/shared'
+
+import { bindSankeyClick, type SankeyClickPayload } from './sankeyClick'
 
 echarts.use([SankeyChart, TitleComponent, TooltipComponent, LegendComponent, CanvasRenderer])
 
@@ -29,11 +33,14 @@ interface Props {
   links: SankeyLink[]
 }
 
+const emit = defineEmits<{ (e: 'sankey-click', payload: SankeyClickPayload): void }>()
+
 const props = withDefaults(defineProps<Props>(), { title: '西江货类转移流向' })
 
 const { isDark } = useTheme()
 const chartRef = ref<HTMLElement | null>(null)
 let instance: ECharts | null = null
+let disposeClick: (() => void) | null = null
 
 /**
  * 最深一列（绘制在画布右边界）的节点名集合。
@@ -106,12 +113,16 @@ onMounted(() => {
   if (!chartRef.value) return
   instance = echarts.init(chartRef.value)
   updateChart()
+  // 点击→emit（A3 桑基联动）；解绑器与注册同作用域，unmount 时注销（禁忌 4）
+  disposeClick = bindSankeyClick(instance, (payload) => emit('sankey-click', payload))
   // 主题/数据变化重渲染；容器尺寸变化由 echarts 内置 resize 监听
   watch([() => props.nodes, () => props.links, isDark] as WatchSource<unknown>[], updateChart)
   window.addEventListener('resize', updateChart)
 })
 
 onUnmounted(() => {
+  disposeClick?.()
+  disposeClick = null
   window.removeEventListener('resize', updateChart)
   instance?.dispose()
   instance = null

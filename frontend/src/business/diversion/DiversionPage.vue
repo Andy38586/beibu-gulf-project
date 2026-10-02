@@ -11,7 +11,7 @@ import { AppLayout, GCSPanel, LayerControlPanel } from '@/core'
 import { diversionAdapter, mapDataService, type DiversionResult } from '@/services'
 import { DEFAULT_LAYER_ORDER, PORT_PORTS, logger, showError, SliderSelectCard } from '@/shared'
 import { diversionArcLayerId } from '@/shared'
-import { BarChart, ChartLoading, SankeyChart } from '@/visualization'
+import { BarChart, ChartLoading, SankeyChart, type SankeyClickPayload } from '@/visualization'
 
 import { PORT_JSON_NAMES, resolvePortEndpoints, type LngLat } from './constants/diversionMap'
 import {
@@ -44,7 +44,11 @@ const loading = ref(false)
 const { updateCanalLayer, updateArcLayers } = useDiversionLayer()
 /** 弧线起点 = 运河线位末点（示意线止于茅尾海）；几何一次加载，年份数据变化只重算弧值 */
 let canalEnd: [number, number] | null = null
+let canalLines: Array<Array<[number, number]>> = []
 let portEndpoints: Record<string, LngLat> = {}
+/** 桑基联动高亮（A3）：点三港节点/「平陆运河→某港」边 → 高亮对应弧；点「平陆运河」→ 高亮运河线 */
+const highlightPortId = ref<string | null>(null)
+const highlightCanal = ref(false)
 /** 面板 layer-order/组开关：运河线单行，三弧收进「分流弧线」组行（一钮控多层） */
 const ARC_LAYER_IDS = PORT_PORTS.map((p) => diversionArcLayerId(p.key))
 const diversionLayerGroups = [
@@ -106,7 +110,30 @@ function refreshArcs(): void {
       value: flow.value,
     })
   }
-  updateArcLayers(specs)
+  updateArcLayers(specs, highlightPortId.value)
+}
+
+/**
+ * 桑基点击 → 3D 高亮（A3）：三港节点/「平陆运河→某港」边 = 高亮对应弧；
+ * 「平陆运河」节点 = 高亮运河线；其余（西江上行货等）= 全灭。同者再点 = 取消。
+ */
+function handleSankeyClick(payload: SankeyClickPayload): void {
+  const portKeyOf = (name: string): string | null =>
+    PORT_PORTS.find((p) => p.name === name)?.key ?? null
+  if (payload.kind === 'edge') {
+    const key = payload.target ? portKeyOf(payload.target) : null
+    highlightCanal.value = false
+    highlightPortId.value = key && key !== highlightPortId.value ? key : null
+  } else if (payload.name === '平陆运河') {
+    highlightPortId.value = null
+    highlightCanal.value = !highlightCanal.value
+  } else {
+    const key = portKeyOf(payload.name)
+    highlightCanal.value = false
+    highlightPortId.value = key && key !== highlightPortId.value ? key : null
+  }
+  updateCanalLayer(canalLines, highlightCanal.value)
+  refreshArcs()
 }
 
 /** 几何底座一次加载：运河线位（canal 表）+ 港口端点（ports.json）；失败只降弧线不拦面板 */
@@ -123,7 +150,8 @@ async function loadGeometry(): Promise<void> {
     if (missing.length)
       logger.warn(`[DiversionPage] ports.json 缺条目，弧线跳过: ${missing.join('、')}`)
     const lines = canal.lines.map((l) => l.coordinates)
-    updateCanalLayer(lines)
+    canalLines = lines
+    updateCanalLayer(lines, highlightCanal.value)
     const last = lines.length ? lines[lines.length - 1] : undefined
     canalEnd = last && last.length ? last[last.length - 1] : null
     if (!canalEnd) logger.warn('[DiversionPage] 运河线位为空，弧线跳过')
@@ -193,6 +221,7 @@ onUnmounted(() => {
             :nodes="nodes"
             :links="links"
             title="西江上行货 → 平陆运河 → 三港"
+            @sankey-click="handleSankeyClick"
           />
           <div v-else-if="!loading" class="empty">暂无数据</div>
         </GCSPanel>

@@ -92,3 +92,33 @@ npm run forecast:model
 
 - 历史数据更新（`cargo.json` / `container.json` 追加新月份）后，应重跑以刷新预测与回测。
 - 两份产物为生成产物；当前随仓库提交（后端 `data/` 为已跟踪数据目录，保证首次克隆即可运行）。如需改为「生成不提交」，在 `.gitignore` 增加相应文件并在 CI / 部署前置步骤跑 `npm run forecast:model` 即可。
+
+---
+
+## 复算（L6 一键入口，2026-10-03）
+
+```bash
+npm run forecast:recompute          # = node tools/forecast/run-all.mjs
+```
+
+一条命令走完：**输入指纹 → 模型（cargo + container）→ 活跃度派生 → 产物指纹 → 报告**。
+产物落 `tools/forecast/out/`（**不入库**，见 .gitignore）：
+
+| 文件               | 内容                                                                                    |
+| ------------------ | --------------------------------------------------------------------------------------- |
+| `fingerprint.json` | 输入/产物的 md5、字节数 + 生成时间戳（时间戳**只进指纹与报告，不进产物**）              |
+| `report.md`        | 输入指纹表 + 产物指纹表 + 「论文数字 → 产物字段」映射（**由产物结构派生**，不手写清单） |
+
+**确定性验证（L6 DoD 第 4 条）**：
+
+```bash
+npm run forecast:recompute && md5sum backend/data/forecast/throughput_model.json backend/data/forecast/container_model.json
+npm run forecast:recompute && md5sum backend/data/forecast/throughput_model.json backend/data/forecast/container_model.json
+# 两行 md5 必须相同；跑完 `git status -- backend/data` 应为空（产物逐字节不变）
+```
+
+另两个模式：`--check` 只比指纹、不改产物（对不上即 exit 1）；`--skip-model` 只重算指纹与报告。
+
+**已知（2026-10-03 实测，别当 bug 修）**：模型两份产物复算**逐字节一致**；`activity.json` 的
+入库版本与本链复算结果**不同**（入库件停在 2026-09-11，晚于 cargo 的 09-26 更新）——该差异
+**待用户裁决**，链会把实情写进 `report.md` 的「确定性校验」段，**不静默吞**。

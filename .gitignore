@@ -215,3 +215,7 @@ pinglu-canal-3dtiles/
 # 内含 index / packed-refs / .idx 等证据文件，不参与版本管理，
 # 否则会污染 git status 与 pre-push 的 format:check（扫未跟踪文件）
 .git-BROKEN-*/
+
+# 预测域复算产物（L6）：报告与指纹由 `node tools/forecast/run-all.mjs` 生成，逐次可再生
+# （报告含生成时间戳 ⇒ 入库只会带来噪音），故不入库
+tools/forecast/out/

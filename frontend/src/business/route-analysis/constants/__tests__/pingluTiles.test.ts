@@ -28,7 +28,7 @@ import { describe, expect, it } from 'vitest'
 
 import { deriveGroupTileset, tallyGroups, type TilesetJson } from '@/core'
 
-import { PINGLU_GROUPS, pingluLayerId } from '../pingluTiles'
+import { PINGLU_GROUPS, PINGLU_TILESET_URL, pingluLayerId } from '../pingluTiles'
 
 /**
  * 还原交付版 tileset.json 的 root 直属结构（数值取自真实文件，非估计）。
@@ -90,6 +90,14 @@ function makeDeliveryTileset(): TilesetJson {
 const BASE = '/static/pinglu/tiles/tileset.json'
 
 describe('PINGLU_GROUPS — 分组表自身的完整性', () => {
+  it('权威源必须是 tiles/ 而不是 tiles-v2（用户裁定「以最后那一套为准」）', () => {
+    // 两套的判据与失效条件见 pingluTiles 里 tiles-v2 的废弃成文段。
+    // 判据写「不得含 tiles-v2」而不是「必须等于某串」：后者会在换交付包时误红，
+    // 而本条要钉的是「别读回旧套」这一件事。
+    expect(PINGLU_TILESET_URL).not.toContain('tiles-v2')
+    expect(PINGLU_TILESET_URL).toBe('/static/pinglu/tiles/tileset.json')
+  })
+
   it('4 个分组，id 唯一', () => {
     expect(PINGLU_GROUPS).toHaveLength(4)
     expect(new Set(PINGLU_GROUPS.map((g) => g.id)).size).toBe(4)

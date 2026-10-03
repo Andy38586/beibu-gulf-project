@@ -120,6 +120,35 @@ export function pingluLayerId(groupId: PingluGroupId): string {
  */
 export const PINGLU_TILESET_URL = '/static/pinglu/tiles/tileset.json'
 
+/**
+ * ## 2026-10-03 废弃成文：`pinglu/tiles-v2`（**读侧不消费，但仍在盘上**）
+ *
+ * 用户裁定原文：「我好像带回来两套，以最后那一套为准」。实测两套是：
+ *
+ * | 目录 | 体积 | 内容 | 状态 |
+ * | --- | --- | --- | --- |
+ * | `pinglu/tiles` | 12.1 MB | 3 枢纽 + 3 桥梁 + 11 走廊，17 个 root child | **权威源**（本常量指向它） |
+ * | `pinglu/tiles-v2` | 43.5 MB | 57 条「全线地形」+ 3 枢纽 + 桥梁 + 运河水面 + 钦州湾海面，63 个 child | **废弃** |
+ *
+ * 判定「最后那套」的两条依据：① `tiles` 改于 2026-09-28 20:08，`tiles-v2` 改于
+ * 2026-09-27 21:29；② 最后那套**一并带来了钦州港瓦片**（`backend/static/qinzhou-port/`），
+ * 与用户描述吻合。
+ *
+ * 另：`tiles-v2` 里**没有钦州港内容**（关键词 qinzhou/port/terminal/cargo/container
+ * 命中均为 0），只有「钦州湾海面」一块 2.23 MB 的 b3dm。
+ *
+ * **读侧仍有 2 处指向它，都是遗留物**（不是活消费）：
+ * - `frontend/public/probe-3dtiles.html:88,153,182` —— 调试页，硬编码 tiles-v2 路径
+ * - `frontend/public/madao-hub.json:29` —— 从 tiles-v2 派生的单枢纽预览件
+ *
+ * **失效条件**：若日后有人把 `tiles-v2` 当权威源读回去（最可能通过那个调试页），
+ * 本条作废的前提不成立，须先删掉那两处指向再谈。
+ *
+ * 盘上 43.5 MB 是否删除由用户定（删资产属破坏性操作，不自行决定）；本条只声明
+ * **读侧不消费**，并留一条能红的判据：下面的断言钉死 `PINGLU_TILESET_URL` 不得
+ * 指向 tiles-v2。
+ */
+
 /** 离线影像索引地址（z=17 拼接图 + bbox，每块一个可开关图层） */
 export const PINGLU_IMAGERY_INDEX_URL = '/static/pinglu/imagery/imagery.json'
 

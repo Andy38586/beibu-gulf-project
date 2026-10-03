@@ -315,11 +315,15 @@ const stopTilesLayerWatch = watch(
 )
 
 // ---- 北部湾 3D Tiles 资产（2026-09-28 外部交付包） ----
-// 钦州港核心区（**自带地形层**）+ 马道枢纽 BIM（**纯构筑物**），清单在 ./constants/beibu3dTiles。
+// 钦州港核心区（**自带地形层**）+ 码头 BIM（**纯构筑物**），清单在 ./constants/beibu3dTiles。
 // 与平陆运河那组同款：能力守卫驱动 + 归属登记，页面不自己调 remove。
 //
 // 这两条并排的意义不在"多两个图层"，而在共存判据：钦州港的 REPLACE 层本身就是地表，
-// 与项目 CTB 真地形同时开启会出现两层地面；BIM 只有构件、无地表，不会。详见清单文件头。
+// 与项目 CTB 真地形同时开启会出现两层地面；码头 BIM 只有构件、无地表，不会。详见清单文件头。
+//
+// 2026-10-03：原三条平陆运河 BIM 枢纽（bim-madao/qishi/qingnian）已从清单移除——它们与
+// pinglu-madao/qishi/qingnian 是同一枢纽的两套模型（包围盒逐位相同、锚点差 ~200 m），
+// 默认全开即在同一位置渲染两套互相穿插的模型。废弃判据与失效条件见清单文件头。
 const beibuLayerIds = ref<string[]>([])
 let beibuRegistered = false
 

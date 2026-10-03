@@ -10,7 +10,7 @@
  * | id | 来源 | 内容 |
  * | --- | --- | --- |
  * | `qinzhou-port` | `01_钦州港3DTiles/tiles/` | 96 瓦片 / 381 万三角面 / **自带地形层** |
- * | `bim-madao` | `04_BIM转3DTiles/pinglu-madao-hub/` | 9 构件组 / **纯构筑物，无地表** |
+ * | `qz-terminal-bim` | `04_BIM转3DTiles/qinzhou-port-terminal/` | 5 构件组 / **纯构筑物，无地表** |
  *
  * ## 为什么这两条要并排放
  *
@@ -19,20 +19,26 @@
  *
  * - `qinzhou-port` 的 t0~t3 层是 REPLACE 地形网格（面/顶点比 ≈ 1.95 的规则格网，
  *   实测 Z 跨度 7.17 m / XY 跨度 1617×1855 m）⇒ 与 CTB 地形叠加即**两层地表**；
- * - `bim-madao` 只有 IFC 构件，无地表 ⇒ 与地形叠加不产生「双层地形」，
+ * - `qz-terminal-bim` 只有 IFC 构件，无地表 ⇒ 与地形叠加不产生「双层地形」，
  *   剩下的只是锚点高程基准差（椭球高 vs 正高）。
  *
- * 两者放在同一份清单里，是为了让「自带地形的 tileset 与纯构筑物 tileset 表现不同」
- * 这件事在代码层面上就可见，而不是只活在某次实测结论里。
+ * ## 2026-10-03 废弃：三条平陆运河 BIM 枢纽（**读侧不再消费**）
+ *
+ * 原 `bim-madao` / `bim-qishi` / `bim-qingnian` 三条**已从本清单移除**。判据：
+ *
+ * - 它们与 `pinglu-madao` / `pinglu-qishi` / `pinglu-qingnian`（07 交付版）
+ *   **是同一枢纽的两套模型**：局部包围盒中心与半轴逐位相同（马道 中心(180,162.5)
+ *   半轴(1000,472.5)；企石 (180,96)/(1000,386)；青年 (180,84.5)/(1020,498.5)），
+ *   世界锚点仅差 ~200 m ⇒ 默认全开时同一位置渲染两套互相穿插的模型。
+ * - 留 07 交付版的三条硬理由：①已入库且受 `tiles3d-check` 守护；②有分区 LOD
+ *   （低模 → 5 分区，<1.5 km 替换），BIM 版是 9 个叶子 `GE=0` 一次全下；
+ *   ③与走廊同一交付包、同一根变换（接缝 0.00 m），BIM 版是另一个交付包。
+ * - **失效条件**：若日后重新引入 `backend/static/bim-hub/pinglu-*-hub/`，
+ *   必须同时移除对应的 `pinglu-*` 分组，否则「两套同开」立即复现。
  */
 
 /** 资产 id（图层 id 后缀，与注册时的 `beibu-` + id 拼装一致） */
-export type BeibuTilesId =
-  | 'qinzhou-port'
-  | 'qz-terminal-bim'
-  | 'bim-madao'
-  | 'bim-qishi'
-  | 'bim-qingnian'
+export type BeibuTilesId = 'qinzhou-port' | 'qz-terminal-bim'
 
 export interface BeibuTilesSpec {
   id: BeibuTilesId
@@ -78,13 +84,14 @@ export function beibuTilesLayerId(id: BeibuTilesId): string {
 }
 
 /**
- * 资产表。**交付包里的全部三维瓦片都在这**（2026-09-28 传输包 01 + 04 两个目录）。
+ * 资产表。**钦州港两套瓦片都在这**（2026-09-28 传输包 01 + 04 两个目录）。
  *
  * `maximumScreenSpaceError` 刻意区分：钦州港单块细瓦片可达 13 MB、整包 144 MB，
- * 取 32（放宽屏幕误差）压首屏请求量；BIM 构件总量小，取 16 保住构件细节。
+ * 取 32（放宽屏幕误差）压请求量；码头 BIM 构件总量小，取 16 保住构件细节。
  *
  * `defaultVisible` 全为 `true`：用户要"带回来的全部加载起来"，第一眼就要看到。
- * 代价是首屏会拉数百 MB，面板里逐条关掉即可（图层控制面板按 layer-order 常驻条目）。
+ * 体积代价不再由首屏承担——3D Tiles 挂在**懒加载路由**（RouteAnalysisPage）上，
+ * 且预取进 `warmupAfterFirstFrame` 预热队列，面板里可逐条关掉。
  */
 export const BEIBU_TILES: readonly BeibuTilesSpec[] = [
   {
@@ -103,30 +110,6 @@ export const BEIBU_TILES: readonly BeibuTilesSpec[] = [
     maximumScreenSpaceError: 16,
     defaultVisible: true,
   },
-  {
-    id: 'bim-madao',
-    label: '平陆运河 · 马道枢纽 BIM',
-    url: '/static/bim-hub/pinglu-madao-hub/tileset.json',
-    carriesTerrain: false,
-    maximumScreenSpaceError: 16,
-    defaultVisible: true,
-  },
-  {
-    id: 'bim-qishi',
-    label: '平陆运河 · 企石枢纽 BIM',
-    url: '/static/bim-hub/pinglu-qishi-hub/tileset.json',
-    carriesTerrain: false,
-    maximumScreenSpaceError: 16,
-    defaultVisible: true,
-  },
-  {
-    id: 'bim-qingnian',
-    label: '平陆运河 · 青年枢纽 BIM',
-    url: '/static/bim-hub/pinglu-qingnian-hub/tileset.json',
-    carriesTerrain: false,
-    maximumScreenSpaceError: 16,
-    defaultVisible: true,
-  },
 ] as const
 
 /**
@@ -136,15 +119,10 @@ export const BEIBU_TILES: readonly BeibuTilesSpec[] = [
  * 与资产自身的地面高程无关，不做大地水准面改正。
  *
  * 经纬取各资产的实际上线位置：钦州港取自交付包 `catalog.json` 的 `harbour` 条目
- * （钦州保税港区 108.647304 / 21.674497）；平陆三枢纽取自项目 Cesium 反算的
- * tile 包围球中心（马道 108.92854/22.42986、企石 108.94559/22.33099、
- * 青年 108.66890/22.03019）。
+ * （钦州保税港区 108.647304 / 21.674497）。
  */
 export const BEIBU_TILES_VIEWS: Record<BeibuTilesId, { lng: number; lat: number; height: number }> =
   {
     'qinzhou-port': { lng: 108.6473, lat: 21.6745, height: 6000 },
     'qz-terminal-bim': { lng: 108.6473, lat: 21.6745, height: 1800 },
-    'bim-madao': { lng: 108.92854, lat: 22.42986, height: 1600 },
-    'bim-qishi': { lng: 108.94559, lat: 22.33099, height: 1600 },
-    'bim-qingnian': { lng: 108.6689, lat: 22.03019, height: 1600 },
   }

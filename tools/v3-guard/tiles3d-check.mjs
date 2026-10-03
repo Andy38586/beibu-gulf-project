@@ -160,6 +160,94 @@ export function evaluateTilesetPair(glbTs, b3dmTs) {
   return problems
 }
 
+/**
+ * 对**任意** tileset.json 做通用结构判据（判据域扩展的落地形态）。
+ *
+ * ## 为什么不是一个覆盖 5 个 tileset 的门禁
+ *
+ * 用户裁定「判据域从 1 个扩到 5 个」。实施时撞上一条硬约束：AGENTS §5.4 规定
+ * **判据的输入必须受版本控制**，而本项目 4/5 的瓦片集都在 .gitignore 里
+ * （`backend/static/qinzhou-port/`、`backend/static/bim-hub/`、
+ * `backend/static/bridges-city/` —— 理由见 .gitignore:184-191 的体积说明）。
+ * 把它们写进门禁 = 让门禁依赖 gitignored 路径，浅克隆下会整批跳过——
+ * 那正是 §5.4 要治的失效。
+ *
+ * 所以本函数做**通用结构判据**，由**产出方**（tools/3dtiles-build 的构建脚本）
+ * 在生成后立即调用；git 时的门禁仍只覆盖受版本控制的那一份（pinglu/tiles）。
+ *
+ * ## 判据
+ *
+ * 1. 可解析，且有 root；
+ * 2. root.transform 存在、3×3 部分正交（列向量单位长、两两正交）；
+ * 3. root.boundingVolume 存在；
+ * 4. 每个 content.uri 指向的文件**存在且非空**（0 字节是截断写入的典型残留）；
+ * 5. 内部节点 geometricError **严格大于**其任一子节点（Cesium 靠它决定下钻）。
+ *
+ * @returns { problems: string[], checked: string[] }
+ */
+export function checkTilesetFile(file, baseDir) {
+  const problems = []
+  const checked = []
+  let ts
+  try {
+    ts = JSON.parse(readFileSync(file, 'utf8'))
+  } catch (e) {
+    return { problems: [`${file}：缺失或不可解析（${e.message}）`], checked }
+  }
+  const rel = baseDir ? path.relative(baseDir, file) : file
+  if (!ts.root) return { problems: [`${rel}：无 root`], checked }
+
+  const T = ts.root.transform
+  if (!Array.isArray(T) || T.length !== 16) {
+    problems.push(`${rel}：root.transform 缺失或不是 16 元（ENU→ECEF 必须显式给出）`)
+  } else {
+    const col = (i) => [T[i * 4], T[i * 4 + 1], T[i * 4 + 2]]
+    const len = (v) => Math.hypot(v[0], v[1], v[2])
+    const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+    const c0 = col(0),
+      c1 = col(1),
+      c2 = col(2)
+    const err = Math.max(
+      Math.abs(len(c0) - 1),
+      Math.abs(len(c1) - 1),
+      Math.abs(len(c2) - 1),
+      Math.abs(dot(c0, c1)),
+      Math.abs(dot(c1, c2)),
+      Math.abs(dot(c0, c2))
+    )
+    if (err > 1e-6)
+      problems.push(`${rel}：root.transform 非正交（最大偏差 ${err.toExponential(2)}）`)
+    else checked.push('transform 正交')
+  }
+  if (!ts.root.boundingVolume) problems.push(`${rel}：root.boundingVolume 缺失`)
+
+  const dir = path.dirname(file)
+  let nodes = 0,
+    leaves = 0,
+    geViolations = 0
+  const walk = (n, parentGe) => {
+    nodes++
+    const kids = n.children ?? []
+    if (kids.length === 0) leaves++
+    const ge = n.geometricError
+    if (parentGe !== null && typeof ge === 'number' && ge >= parentGe) geViolations++
+    const uri = n.content?.uri
+    if (typeof uri === 'string') {
+      const p = uri.startsWith('/') ? path.join(baseDir ?? dir, uri) : path.join(dir, uri)
+      if (!existsSync(p) || statSync(p).size === 0)
+        problems.push(`${rel}：content.uri 悬空或空文件 → ${uri}`)
+    }
+    for (const k of kids) walk(k, typeof ge === 'number' ? ge : parentGe)
+  }
+  walk(ts.root, null)
+  if (geViolations)
+    problems.push(
+      `${rel}：${geViolations} 处 geometricError 未严格递减（Cesium 会在父节点提前终止遍历）`
+    )
+  checked.push(`${nodes} 节点 / ${leaves} 叶`)
+  return { problems, checked }
+}
+
 /** 主检查：返回 { problems, checked }（problems 非空 = 守卫失败） */
 export function runTiles3DCheck(root) {
   const problems = []
@@ -203,6 +291,21 @@ export function runTiles3DCheck(root) {
 const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
 if (isMain) {
   const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
+  // --file <路径>：对任意 tileset.json 跑通用结构判据（构建脚本生成后自检用）
+  const fi = process.argv.indexOf('--file')
+  if (fi > 0) {
+    const target = path.resolve(ROOT, process.argv[fi + 1])
+    const { problems, checked } = checkTilesetFile(target, ROOT)
+    if (problems.length) {
+      console.log(`[tiles3d-check --file] ${problems.length} 处违规：`)
+      for (const p of problems) console.log('  - ' + p)
+      process.exit(1)
+    }
+    console.log(
+      `[tiles3d-check --file] OK：${path.relative(ROOT, target)}（${checked.join('｜')}）`
+    )
+    process.exit(0)
+  }
   const { problems, checked } = runTiles3DCheck(ROOT)
   if (process.argv.includes('--json')) {
     console.log(JSON.stringify({ checked, problems }, null, 2))

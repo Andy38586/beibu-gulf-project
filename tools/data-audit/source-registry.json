@@ -1,0 +1,119 @@
+{
+  "_comment": "数据来源与许可登记（W9 权威源，机器读）。tools/data-audit/source-registry.mjs 用它核对backend/data/** 与 backend/static/** 下**每一个 tracked 文件**是否被某组覆盖：缺登记即非零退出。字段口径：source=来源（可引证到具体机构/脚本；引不到就写「未确认」并把 provenanceStatus 置 pending）；license=许可或使用约束；fetchedAt=取数时间（YYYY-MM-DD 或 脚本+提交）；coverage=覆盖范围；quality=可复跑的判据命令。⚠️ 本表是**唯一权威源**：新增数据资产必须在此登记，否则守卫会红。",
+  "groups": [
+    {
+      "id": "forecast-official-monthly",
+      "title": "预测域·官方月度真数据",
+      "paths": ["backend/data/forecast/cargo.json", "backend/data/forecast/container.json"],
+      "source": "广西交通运输厅公开月度公报（yqb.gxzf.gov.cn），经清洗管线灌入",
+      "license": "政府公开信息；转载/发表须标注来源",
+      "fetchedAt": "2026-09-11",
+      "coverage": "三港（钦州/北海/防城港）月度 2021-01 ~ 2026-06；cargo=万吨、container=TEU",
+      "quality": "node tools/forecast/run-all.mjs --check（输入指纹对不上即 exit 1）",
+      "provenanceStatus": "confirmed"
+    },
+    {
+      "id": "forecast-model-artifacts",
+      "title": "预测域·模型产物（派生）",
+      "paths": [
+        "backend/data/forecast/throughput_model.json",
+        "backend/data/forecast/container_model.json"
+      ],
+      "source": "派生自 forecast-official-monthly：tools/forecast/throughput_model.cjs（线性基线 + 春节修正阻尼 HW 竞选门控）",
+      "license": "同上游数据；代码 MIT",
+      "fetchedAt": "由 npm run forecast:recompute 生成（2026-10-03 实测逐字节可复现）",
+      "coverage": "cargo/container 两指标：预测 2026-07 ~ 2035-12 + 滚动回测分步长误差",
+      "quality": "node tools/forecast/run-all.mjs（复算后 git status -- backend/data 应为空）",
+      "provenanceStatus": "confirmed"
+    },
+    {
+      "id": "forecast-activity-derived",
+      "title": "预测域·活跃度指数（派生）",
+      "paths": ["backend/data/forecast/activity.json"],
+      "source": "派生自 forecast-official-monthly + forecast-model-artifacts：tools/forecast/derive-activity.mjs",
+      "license": "同上游数据；代码 MIT",
+      "fetchedAt": "由 npm run forecast:recompute 生成",
+      "coverage": "港口吞吐活跃度指数（cargo 基期归一）+ 历史/预测点",
+      "quality": "node tools/forecast/run-all.mjs --check",
+      "provenanceStatus": "confirmed",
+      "note": "⚠️ 入库件停在 2026-09-11，其内嵌 model_info 副本早于 09-26 的模型升级（L6 复算发现，待用户裁决是否刷新）"
+    },
+    {
+      "id": "forecast-synthetic-and-index",
+      "title": "预测域·合成指标与索引",
+      "paths": [
+        "backend/data/forecast/berth.json",
+        "backend/data/forecast/traffic.json",
+        "backend/data/forecast/index.json"
+      ],
+      "source": "本项目合成/索引（tools/forecast/README.md 明示 berth/traffic 为合成指标，不走模型）",
+      "license": "MIT（随仓库）",
+      "fetchedAt": "随仓库提交（合成件，非抓取）",
+      "coverage": "泊位/交通合成指标 + 指标索引元信息",
+      "quality": "git grep -n \"berth|traffic\" -- tools/forecast/README.md（合成口径有明文）",
+      "provenanceStatus": "confirmed"
+    },
+    {
+      "id": "flood-precomputed",
+      "title": "洪涝域·预计算数据",
+      "paths": [
+        "backend/data/flood/facilityPoints.json",
+        "backend/data/flood/floodStatistics.json",
+        "backend/data/flood/flood_levels.json.gz",
+        "backend/data/flood/terrainProfile.json",
+        "backend/data/flood/water-area.json",
+        "backend/data/flood/waterLevel.json"
+      ],
+      "source": "未确认（需逐件核：水位档位疑为公开水文资料清洗；设施点为 POI 抽取）",
+      "license": "未确认",
+      "fetchedAt": "未确认",
+      "coverage": "洪涝演算的预计算输入（水位档位/地形剖面/设施点/统计）",
+      "quality": "node tools/flood/flood-levels-to-pg.mjs（水位档位链可复跑）",
+      "provenanceStatus": "pending"
+    },
+    {
+      "id": "flood-dem-placeholder",
+      "title": "洪涝域·DEM 目录占位",
+      "paths": ["backend/data/flood/dem/.gitkeep"],
+      "source": "占位件（DEM 栅格不入库，随镜像/数据卷分发）",
+      "license": "不适用（无内容）",
+      "fetchedAt": "不适用",
+      "coverage": "仅占位，无数据",
+      "quality": "git ls-files backend/data/flood/dem（应只有 .gitkeep）",
+      "provenanceStatus": "confirmed"
+    },
+    {
+      "id": "terrain-tiles",
+      "title": "地形瓦片（heightmap-1.0）",
+      "globs": ["backend/static/dem/**"],
+      "source": "未确认（需核：疑为 ASTER GDEM 经 tools/dem-pipeline 拼接/填洼/切片）",
+      "license": "未确认（ASTER GDEM 有使用条款，须逐条核）",
+      "fetchedAt": "未确认（与切片脚本提交时间对齐）",
+      "coverage": "Cesium 真地形瓦片 z0–z14",
+      "quality": "git ls-files backend/static/dem | wc -l（数量口径）",
+      "provenanceStatus": "pending"
+    },
+    {
+      "id": "pinglu-3dtiles",
+      "title": "平陆运河 3DTiles（自建模型重烘）",
+      "globs": ["backend/static/pinglu/**"],
+      "source": "本项目自建（Blender 白模重烘 → 3DTiles；工具在 tools/ 下，另有一条线在推进）",
+      "license": "MIT（自建资产）；模型依文献参数，发表引用须标文献",
+      "fetchedAt": "随仓库提交（重烘产物）",
+      "coverage": "运河枢纽白模 + 地形补丁瓦片",
+      "quality": "node tools/v3-guard/tiles3d-check.mjs（瓦片结构守卫，guard:v3 项之一）",
+      "provenanceStatus": "confirmed"
+    },
+    {
+      "id": "data-readme",
+      "title": "data 目录说明件",
+      "paths": ["backend/data/README.md"],
+      "source": "本项目文档",
+      "license": "MIT",
+      "fetchedAt": "不适用",
+      "coverage": "说明件（⚠️ 已腐烂：仍写 site-selection/、throughput.json 与已退役 Express 服务）",
+      "quality": "git grep -n \"site-selection\" -- backend/data/README.md（命中即证明未更新）",
+      "provenanceStatus": "confirmed"
+    }
+  ]
+}

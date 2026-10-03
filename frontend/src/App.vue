@@ -35,6 +35,7 @@ import {
   warmupAfterFirstFrame,
 } from '@/shared'
 import { logger } from '@/shared'
+import { preloadBusinessAssets } from '@/business/preload'
 import { useMapStore, useTaskStore } from '@/stores'
 import type { TypeSetting } from '@/types/facility'
 import type { Plan } from '@/types/plan'
@@ -230,6 +231,12 @@ onMounted(() => {
   //    而 3D 该等的字节一个没提前。现交由浏览器在首帧画完后自己决定何时空闲
   //    （实现见 shared/utils/warmupAfterFirstFrame）。任一项失败静默。
   warmupAfterFirstFrame(preloadCesium)
+  // ② 排在 Cesium 之后 → 3D Tiles 瓦片集与内容 GLB。
+  //    为什么放队列里而不是首屏拉：3D 挂在懒加载路由（RouteAnalysisPage）上，
+  //    不在首屏路径；用户裁定原文「3d又不在首屏加载？这个进预热队列吧」。
+  //    实现是**串行**的（不与 Cesium 的 5.8 MB 抢带宽，z130 的教训），
+  //    且失败静默——预热只是优化，正式路径自会按需加载。
+  warmupAfterFirstFrame(() => void preloadBusinessAssets())
   // 2026-09-10（阶段 4）：原 +6s 的「/flood/online 查 0 档暖机」已删——它只为预热
   // algorithm-service 的 FastAPI load_dem 模块，该服务退役后无对象可预热
 })

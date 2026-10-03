@@ -21,7 +21,8 @@ import {
 } from '../beibu3dTiles'
 
 const QINZHOU = BEIBU_TILES.find((s) => s.id === 'qinzhou-port') as BeibuTilesSpec
-const TERMINAL = BEIBU_TILES.find((s) => s.id === 'qz-terminal-bim') as BeibuTilesSpec
+/** 未声明 derive 的条目（走整包路径）——取城区五桥，它确实是整包挂载 */
+const WHOLE = BEIBU_TILES.find((s) => s.id === 'qz-city-bridges') as BeibuTilesSpec
 
 /** 造一棵「作业区内 d4 精细瓦片 + 球外 5km 的 d4 瓦片 + 覆盖全场的 d0 粗层」的树 */
 function makeTileset(): TilesetJson {
@@ -48,8 +49,8 @@ function makeTileset(): TilesetJson {
 }
 
 describe('BEIBU_TILES 清单', () => {
-  it('六条资产，id 唯一且与类型联合一致', () => {
-    expect(BEIBU_TILES).toHaveLength(6)
+  it('五条资产，id 唯一且与类型联合一致', () => {
+    expect(BEIBU_TILES).toHaveLength(5)
     const ids = BEIBU_TILES.map((s) => s.id)
     expect(new Set(ids).size).toBe(ids.length)
     expect(ids).toEqual([
@@ -58,7 +59,6 @@ describe('BEIBU_TILES 清单', () => {
       'qz-containers',
       'qz-roads',
       'qz-city-bridges',
-      'qz-terminal-bim',
     ])
   })
 
@@ -80,9 +80,11 @@ describe('BEIBU_TILES 清单', () => {
     for (const s of BEIBU_TILES) expect(s.url.startsWith('/static/')).toBe(true)
   })
 
-  it('只有钦州港核心区声明裁剪；码头 BIM 走整包', () => {
+  it('只有钦州港核心区声明裁剪；其余四条走整包', () => {
     expect(QINZHOU.derive).toBeDefined()
-    expect(TERMINAL.derive).toBeUndefined()
+    const others = BEIBU_TILES.filter((s) => s.id !== 'qinzhou-port')
+    expect(others).toHaveLength(4)
+    for (const s of others) expect(s.derive).toBeUndefined()
   })
 })
 
@@ -131,7 +133,7 @@ describe('prepareBeibuTileset — 清单驱动的分支（行为判据）', () =
   })
 
   it('未声明 derive 的条目：整棵树原样保留（含球外瓦片与 root 内容）', () => {
-    const out = prepareBeibuTileset(makeTileset(), TERMINAL)
+    const out = prepareBeibuTileset(makeTileset(), WHOLE)
     expect(out).not.toBeNull()
     const tiles = (out!.root.children ?? []).map((c) => String(c.extras?.tile))
     expect(tiles).toContain('t4_far')

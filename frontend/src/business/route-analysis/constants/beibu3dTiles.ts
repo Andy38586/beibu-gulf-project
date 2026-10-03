@@ -35,6 +35,30 @@
  *   ③与走廊同一交付包、同一根变换（接缝 0.00 m），BIM 版是另一个交付包。
  * - **失效条件**：若日后重新引入 `backend/static/bim-hub/pinglu-*-hub/`，
  *   必须同时移除对应的 `pinglu-*` 分组，否则「两套同开」立即复现。
+ *
+ * ## 2026-10-03 废弃：`qz-terminal-bim`（码头 BIM 构件，**读侧不再消费**）
+ *
+ * 用户在页面上指出「港口的也没对上」。实测根因不是"没对上"，是**这套构件本身坏了**：
+ *
+ * | 构件 | 体积 | 局部包围盒半轴 | 到作业区中心 |
+ * | --- | --- | --- | --- |
+ * | `ifcbuildingelementproxy` | **167.4 MB** | **4868 m** | 864 m |
+ * | `ifcslab` | 15.8 MB | 4795 m | 892 m |
+ * | `ifctransportelement` | 14.8 MB | 4819 m | 970 m |
+ * | `ifcwall` | 1.9 MB | 4668 m | 1005 m |
+ * | `ifclightfixture` | 0.7 MB | 4667 m | 837 m |
+ *
+ * 半轴 4.8 km ⇒ 每个构件都是 **~10 km 见方的巨板**（IFC→3D Tiles 转换把场地级
+ * 图元当成了建筑构件），渲染出来就是覆盖整个港区的一块深色板，上面带着圆孔
+ * （桩基/罐体的俯视投影）。这不是"位置没对齐"，是资产不可用。
+ *
+ * 三条独立的废弃理由，任一条都足够：
+ * ① 几何不可用（10 km 板 vs 实际建筑构件）；
+ * ② 体积超标——单图层 200.7 MB，远超「单图层 ≤ 30 MB」；
+ * ③ 无 LOD——5 个叶子全 `GE=0`，一次全下。
+ *
+ * **失效条件**：若 `backend/static/bim-hub/qinzhou-port-terminal/` 重新导出为
+ * 真实构件尺度（半轴 ≤ 100 m）且总体积 ≤ 30 MB，本条作废，可重新评估引入。
  */
 
 import {
@@ -53,7 +77,6 @@ export type BeibuTilesId =
   | 'qz-containers'
   | 'qz-roads'
   | 'qz-city-bridges'
-  | 'qz-terminal-bim'
 
 export interface BeibuTilesSpec {
   id: BeibuTilesId
@@ -246,14 +269,6 @@ export const BEIBU_TILES: readonly BeibuTilesSpec[] = [
     maximumScreenSpaceError: 16,
     defaultVisible: true,
   },
-  {
-    id: 'qz-terminal-bim',
-    label: '钦州港 · 码头 BIM 构件',
-    url: '/static/bim-hub/qinzhou-port-terminal/tileset.json',
-    carriesTerrain: false,
-    maximumScreenSpaceError: 16,
-    defaultVisible: true,
-  },
 ] as const
 
 /**
@@ -272,5 +287,4 @@ export const BEIBU_TILES_VIEWS: Record<BeibuTilesId, { lng: number; lat: number;
     'qz-containers': { lng: 108.6473, lat: 21.6745, height: 1800 },
     'qz-roads': { lng: 108.6473, lat: 21.6745, height: 3000 },
     'qz-city-bridges': { lng: 108.63504, lat: 21.9689, height: 2500 },
-    'qz-terminal-bim': { lng: 108.6473, lat: 21.6745, height: 1800 },
   }

@@ -13,6 +13,7 @@ import {
   registerRouteReadiness,
   registerTaskIndicator,
   TaskDropZone,
+  TaskResultChip,
 } from '@/core'
 import { useMapControls } from '@/core'
 import {
@@ -22,6 +23,7 @@ import {
   type UnifiedMapExposed,
 } from '@/core'
 import { preloadCesium, UnifiedMap } from '@/core'
+import { taskResultToIR, useLayerIRLayer, type LayerIR } from '@/core/map/ir/LayerIR'
 import {
   ErrorBoundary,
   GCSModal,
@@ -157,6 +159,36 @@ watch(preparingRoutePath, () => notifyRouteReadiness())
  */
 const panelDragActive = useGlobalPanelDragActive()
 
+// ===== v4-S8 系统 C：已完成任务结果「拖出上图」（数据跨路由，纯渲染不重算）=====
+// chip 列表来自 taskStore 终态槽位中「可渲染域」的结果（core/map/ir 做结构判定）；
+// toggle 走 useLayerIRLayer（useOwnedLayers→BLM 通道）：引擎切换后由 reapplyAll 自动重现。
+// 🔴 单实例：has（owner 册判重）与 toggle 必须同册，两份实例会互相看不见。
+const layerIR = useLayerIRLayer()
+
+/** 终态且可渲染的任务结果 → chip 视图模型（domain 不支持/结果畸形的不出手柄） */
+const resultChips = computed(() => {
+  const chips: Array<{ key: string; label: string; color: string; active: boolean; ir: LayerIR }> =
+    []
+  for (const slot of Object.values(taskStore.slots)) {
+    if (!slot || slot.status !== 'done' || !slot.result) continue
+    const ir = taskResultToIR(slot)
+    if (!ir) continue
+    chips.push({
+      key: ir.id,
+      label: ir.meta.label,
+      color: ir.style.strokeColor ?? '#8a93a6',
+      active: layerIR.owned.has(ir.id),
+      ir,
+    })
+  }
+  return chips
+})
+
+function onResultChipToggle(ir: LayerIR): void {
+  const action = layerIR.toggleIR(ir)
+  logger.debug('[App] 任务结果拖出上图 toggle:', ir.meta.label, action)
+}
+
 // 等待渲染器就绪后再执行缩放（公共 composable：500ms×10 有限重试，卸载自动取消）
 const waitForRenderer = (callback: () => void) =>
   useWaitForRenderer(() => unifiedMapRef.value?.getRenderer?.() ?? null, callback)
@@ -266,6 +298,19 @@ onUnmounted(() => {
          常态完全透明且不吃指针事件；拖拽期显形虚线提示。
          🔴 必须常驻渲染（不做 v-if）：元素不在 DOM 则 elementFromPoint 落空、drop 永不触发 -->
     <TaskDropZone :drag-active="panelDragActive" :drop-active="panelDragActive" />
+    <!-- v4-S8 系统 C：已完成任务结果「拖出上图」芯片条（数据跨路由，纯渲染不重算）。
+         空态整体不渲染（同 dock 空态口径）；常驻不随路由卸载——跨路由上图是它的存在意义。
+         点击/拖拽松开同义：上图⇄撤下 toggle（去重键 = taskId+kind，永不重复） -->
+    <div v-if="resultChips.length" class="task-result-strip">
+      <TaskResultChip
+        v-for="chip in resultChips"
+        :key="chip.key"
+        :label="chip.label"
+        :color="chip.color"
+        :active="chip.active"
+        @toggle="onResultChipToggle(chip.ir)"
+      />
+    </div>
   </div>
 </template>
 
@@ -286,4 +331,17 @@ onUnmounted(() => {
 
 /* 不能设 .app-content > * { pointer-events: auto }：会让业务页面成为全屏事件拦截层，
    阻挡地图容器鼠标事件（拖拽/缩放/旋转失效）；由各业务页面自行控制，AppLayout 再恢复 */
+
+/* v4-S8 结果芯片条：导航+投递区上方的左下角浮层（新增层，不改既有布局，L1） */
+.task-result-strip {
+  position: absolute;
+  left: 12px;
+  bottom: 96px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  z-index: var(--GCS-z-nav);
+  pointer-events: auto;
+}
 </style>

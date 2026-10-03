@@ -1,20 +1,21 @@
 import { describe, expect, it } from 'vitest'
 
+import { BusinessError } from '../src/common/errors/business-error'
 import {
-  LAND_CLASS_SCORE,
   accessScore,
   inundationScore,
+  LAND_CLASS_SCORE,
   terrainScore,
 } from '../src/modules/site-suitability/constants/score.constants'
+import {
+  defaultWeights,
+  parseSuitabilityQuery,
+} from '../src/modules/site-suitability/dto/site-suitability.dto'
 import {
   cellScore,
   demandScore,
   parseWeights,
 } from '../src/modules/site-suitability/services/scoring'
-import {
-  defaultWeights,
-  parseSuitabilityQuery,
-} from '../src/modules/site-suitability/dto/site-suitability.dto'
 
 // 适宜性评分单测（单元四）。oracle 全部按 constants 分段定义手工复算。
 
@@ -126,6 +127,48 @@ describe('DTO 缺省与解析', () => {
     )
   })
   it('defaultWeights 与 parseWeights 联动：AHP 特征向量通过权重校验', () => {
+    expect(() => parseWeights(defaultWeights())).not.toThrow()
+  })
+})
+
+// ── 错误分级（专项3 TS-1002-01 与专项8 W6-01 同解，2026-10-03）───────────────
+// 修前：五处裸 `throw new Error` ⇒ 全局过滤器落到"未捕获异常"分支 ⇒ HTTP 500
+// （用户拖滑块即 500）。修后：统一 BusinessError(ErrorCode.INVALID_PARAMS=400001, status 400)。
+// 本块钉"抛出的类与码"；HTTP 层那一格由 site-suitability-input.e2e-spec.ts 实跑。
+function caughtError(fn: () => unknown): unknown {
+  try {
+    fn()
+  } catch (e) {
+    return e
+  }
+  return null
+}
+
+describe('site-suitability 入参非法 ⇒ BusinessError(400001)', () => {
+  it('DTO：非数值权重 / resolution 越界 / min_land_frac 越界', () => {
+    for (const q of [{ w_inundation: 'abc' }, { resolution: '2' }, { min_land_frac: '-1' }]) {
+      const e = caughtError(() => parseSuitabilityQuery(q)) as BusinessError
+      expect(e).toBeInstanceOf(BusinessError)
+      expect(e.status).toBe(400)
+      expect(e.bizCode).toBe(400001)
+    }
+  })
+
+  it('scoring：权重越界 / 权重和≠1', () => {
+    const eq = { inundation: 0.2, terrain: 0.2, land: 0.2, access: 0.2, demand: 0.2 }
+    for (const w of [
+      { ...eq, inundation: 1.2 },
+      { ...eq, inundation: 0.6 },
+    ]) {
+      const e = caughtError(() => parseWeights(w)) as BusinessError
+      expect(e).toBeInstanceOf(BusinessError)
+      expect(e.status).toBe(400)
+      expect(e.bizCode).toBe(400001)
+    }
+  })
+
+  it('阳性对照：合法入参不抛（缺省权重 / AHP 特征向量）', () => {
+    expect(() => parseSuitabilityQuery({})).not.toThrow()
     expect(() => parseWeights(defaultWeights())).not.toThrow()
   })
 })

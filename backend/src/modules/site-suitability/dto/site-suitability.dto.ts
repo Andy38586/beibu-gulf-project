@@ -3,6 +3,7 @@
 // 依据链见 site-ahp.constants.ts 文件头）。
 import { ahpWeights } from '../../../common/ahp'
 import { SITE_AHP_MATRIX, SITE_CRITERIA } from '../../../common/constants/site-ahp.constants'
+import { BusinessError, ErrorCode } from '../../../common/errors/business-error'
 
 export interface SuitabilityQuery {
   weights: Record<string, number>
@@ -36,7 +37,7 @@ export function parseSuitabilityQuery(query: Record<string, unknown>): Suitabili
     if (raw !== undefined && raw !== '') {
       anyGiven = true
       const v = Number(raw)
-      if (!Number.isFinite(v)) throw new Error(`w_${k} 非数值`)
+      if (!Number.isFinite(v)) throw new BusinessError(ErrorCode.INVALID_PARAMS, `w_${k} 非数值`)
       weights[k] = v
     }
   }
@@ -65,13 +66,15 @@ function parseResolution(raw: unknown): number {
   if (raw === undefined || raw === '') return 0
   const v = Number(raw)
   if (!Number.isFinite(v) || v < 0 || v > 1)
-    throw new Error('resolution 须 ∈ (0,1]，或 0 表示全分辨率')
+    throw new BusinessError(ErrorCode.INVALID_PARAMS, 'resolution 须 ∈ (0,1]，或 0 表示全分辨率')
   return v
 }
 
 function parseMinLandFrac(raw: unknown): number {
   if (raw === undefined || raw === '') return 0.5
   const v = Number(raw)
-  if (!Number.isFinite(v) || v < 0 || v > 1) throw new Error('min_land_frac 须 ∈ [0,1]')
+  if (!Number.isFinite(v) || v < 0 || v > 1) {
+    throw new BusinessError(ErrorCode.INVALID_PARAMS, 'min_land_frac 须 ∈ [0,1]')
+  }
   return v
 }

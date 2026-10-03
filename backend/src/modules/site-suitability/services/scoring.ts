@@ -1,7 +1,8 @@
+import { BusinessError, ErrorCode } from '../../../common/errors/business-error'
 import {
-  LAND_CLASS_SCORE,
   accessScore,
   inundationScore,
+  LAND_CLASS_SCORE,
   terrainScore,
 } from '../constants/score.constants'
 // 适宜性评分纯函数（单元四）：子因子归一化（score.constants）→ 加权和。
@@ -25,13 +26,16 @@ export function parseWeights(raw: Record<string, unknown>): SuitabilityWeights {
   for (const k of WEIGHT_KEYS) {
     const v = Number(raw[k])
     if (!Number.isFinite(v) || v < 0 || v > 1) {
-      throw new Error(`权重 ${k}=${String(raw[k])} 非法（须 ∈ [0,1] 且有限）`)
+      throw new BusinessError(
+        ErrorCode.INVALID_PARAMS,
+        `权重 ${k}=${String(raw[k])} 非法（须 ∈ [0,1] 且有限）`
+      )
     }
     out[k] = v
     sum += v
   }
   if (Math.abs(sum - 1) > 1e-6) {
-    throw new Error(`权重和 = ${sum} ≠ 1，拒收`)
+    throw new BusinessError(ErrorCode.INVALID_PARAMS, `权重和 = ${sum} ≠ 1，拒收`)
   }
   return out
 }

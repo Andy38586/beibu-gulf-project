@@ -47,7 +47,7 @@ import {
 } from '@/core/map/tiles3dGroups'
 
 /** 资产 id（图层 id 后缀，与注册时的 `beibu-` + id 拼装一致） */
-export type BeibuTilesId = 'qinzhou-port' | 'qz-containers' | 'qz-terminal-bim'
+export type BeibuTilesId = 'qinzhou-port' | 'qz-containers' | 'qz-roads' | 'qz-terminal-bim'
 
 export interface BeibuTilesSpec {
   id: BeibuTilesId
@@ -205,6 +205,17 @@ export const BEIBU_TILES: readonly BeibuTilesSpec[] = [
     defaultVisible: true,
   },
   {
+    id: 'qz-roads',
+    // 由 tools/3dtiles-build/build-roads.mjs 生成：OSM 92 条 highway 中心线 → 挤出路面，
+    // 按等级取宽（secondary 12 / tertiary 9 / unclassified 7 / service 5 m）。
+    // 高程取交付包箱区底面（局部 u=-20.35 m），不是 0——u=0 是 root 原点高度不是地面。
+    label: '钦州港 · 作业区道路',
+    url: '/static/qinzhou-port/rebuilt/roads/tileset.json',
+    carriesTerrain: false,
+    maximumScreenSpaceError: 16,
+    defaultVisible: true,
+  },
+  {
     id: 'qz-terminal-bim',
     label: '钦州港 · 码头 BIM 构件',
     url: '/static/bim-hub/qinzhou-port-terminal/tileset.json',
@@ -227,5 +238,6 @@ export const BEIBU_TILES_VIEWS: Record<BeibuTilesId, { lng: number; lat: number;
   {
     'qinzhou-port': { lng: 108.6473, lat: 21.6745, height: 6000 },
     'qz-containers': { lng: 108.6473, lat: 21.6745, height: 1800 },
+    'qz-roads': { lng: 108.6473, lat: 21.6745, height: 3000 },
     'qz-terminal-bim': { lng: 108.6473, lat: 21.6745, height: 1800 },
   }

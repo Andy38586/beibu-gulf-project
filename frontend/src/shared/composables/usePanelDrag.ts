@@ -25,6 +25,18 @@ export type PanelDragPhase = 'idle' | 'pending' | 'dragging'
 /** 落点判定：命中该属性的元素即视为投递区 */
 export const TASK_DOCK_ZONE_ATTR = 'data-task-dock-zone'
 
+/**
+ * 堆叠槽位落点（v4-S9 系统 D）：可视化面板拖入固定槽位的命中属性。
+ * 与 dock 投递区共用同一套几何判定，onDrop 回调收到 zone 后由调用方按属性分流
+ * （面板管"去哪"，落点语义归页面）——不为堆叠单开一条拖拽状态机。
+ */
+export const STACK_SLOT_ZONE_ATTR = 'data-stack-slot-zone'
+
+/** 落点分流谓词：拖出的 zone 是堆叠槽位（可视化面板叠入）还是任务投递区（主面板转后台） */
+export function isStackSlotZone(zone: HTMLElement): boolean {
+  return zone.hasAttribute(STACK_SLOT_ZONE_ATTR)
+}
+
 /** 触发拖拽的最小位移（px）。低于此值视为点击，防误触 */
 export const DRAG_THRESHOLD_PX = 4
 
@@ -115,7 +127,9 @@ export interface UsePanelDragReturn {
 function findDropZone(x: number, y: number): HTMLElement | null {
   if (typeof document === 'undefined') return null
 
-  const zones = Array.from(document.querySelectorAll<HTMLElement>(`[${TASK_DOCK_ZONE_ATTR}]`))
+  const zones = Array.from(
+    document.querySelectorAll<HTMLElement>(`[${TASK_DOCK_ZONE_ATTR}],[${STACK_SLOT_ZONE_ATTR}]`)
+  )
   if (zones.length === 0) return null
 
   // 点包含测试：矩形内即命中（含边界，避免 1px 抖动丢命中）
@@ -131,7 +145,9 @@ function findDropZone(x: number, y: number): HTMLElement | null {
 
   // 多投递区：用命中测试选最上层那个（此时投递区自身通常是 auto，能参与命中）
   const hit = document.elementFromPoint(x, y) as HTMLElement | null
-  const topmost = hit?.closest(`[${TASK_DOCK_ZONE_ATTR}]`) as HTMLElement | null
+  const topmost = hit?.closest(
+    `[${TASK_DOCK_ZONE_ATTR}],[${STACK_SLOT_ZONE_ATTR}]`
+  ) as HTMLElement | null
   return topmost ?? contained[contained.length - 1]
 }
 

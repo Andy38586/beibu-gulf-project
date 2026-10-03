@@ -7,10 +7,16 @@
    */
 -->
 <script setup lang="ts">
-import { onMounted, onUnmounted, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 
-import { AppLayout, GCSPanel, LayerControlPanel } from '@/core'
-import { DEFAULT_LAYER_ORDER, forecastLayerId, logger, useProfileSnapshot } from '@/shared'
+import { AppLayout, GCSPanel, LayerControlPanel, StackSlot } from '@/core'
+import {
+  DEFAULT_LAYER_ORDER,
+  forecastLayerId,
+  isStackSlotZone,
+  logger,
+  useProfileSnapshot,
+} from '@/shared'
 import { useForecastStore } from '@/stores'
 import { useMapStore } from '@/stores'
 import type { ForecastSavedState } from '@/stores/forecastStore'
@@ -39,6 +45,27 @@ const mapStore = useMapStore()
 // 再注入编排器复用——归属随页面作用域，不会因子组件卸载而丢。
 const { updateForecastLayer } = useForecastLayer()
 const { doForecastUpdate, cancelAll } = provideForecastOrchestrator({ updateForecastLayer })
+
+// ── v4-S9 系统 D：可视化面板堆叠（固定槽位，iOS Stack）──
+// 图表面板拖入右侧堆叠槽（只露卡头，点击展开，可还原）；dock 投递区对图表面板无意义
+//（图表面板不是任务）⇒ 落 dock 忽略（usePanelDrag 自动回滚原位）。
+const stackedPanels = ref<string[]>([])
+const STACKABLE_PANELS = [
+  { id: 'line', label: '预测趋势' },
+  { id: 'bar', label: '港口对比' },
+] as const
+const stackItems = computed(() =>
+  STACKABLE_PANELS.filter((p) => stackedPanels.value.includes(p.id)).map((p) => ({
+    id: p.id,
+    label: p.label,
+  }))
+)
+function onPanelDrop(panelId: string, zone: HTMLElement): void {
+  if (isStackSlotZone(zone)) stackedPanels.value.push(panelId)
+}
+function restorePanel(id: string): void {
+  stackedPanels.value = stackedPanels.value.filter((p) => p !== id)
+}
 
 /** 跳转个人中心（登录）时保存状态，返回恢复；其它路由离开清除快照（对齐浸没/选址页先例） */
 useProfileSnapshot({
@@ -114,7 +141,16 @@ onUnmounted(() => {
   <div class="forecast-page">
     <AppLayout>
       <template #left>
-        <GCSPanel :w="4" :h="4" anchor="top-left" :offset-x="0" :offset-y="1.25">
+        <GCSPanel
+          v-if="!stackedPanels.includes('line')"
+          :w="4"
+          :h="4"
+          anchor="top-left"
+          :offset-x="0"
+          :offset-y="1.25"
+          draggable
+          @drop="(z: HTMLElement) => onPanelDrop('line', z)"
+        >
           <LineChart
             title="预测趋势"
             :x-data="forecastState.chart.lineXData"
@@ -126,7 +162,16 @@ onUnmounted(() => {
                原注释"加载态不绑定 UI"已废止——弱网下用户可感知更新进行中 -->
           <ChartLoading v-if="forecastState.isRequesting" />
         </GCSPanel>
-        <GCSPanel :w="4" :h="4" anchor="top-left" :offset-x="0" :offset-y="5.5">
+        <GCSPanel
+          v-if="!stackedPanels.includes('bar')"
+          :w="4"
+          :h="4"
+          anchor="top-left"
+          :offset-x="0"
+          :offset-y="5.5"
+          draggable
+          @drop="(z: HTMLElement) => onPanelDrop('bar', z)"
+        >
           <BarChart
             title="港口对比"
             :x-data="forecastState.chart.barXData"
@@ -144,6 +189,8 @@ onUnmounted(() => {
         </GCSPanel>
       </template>
     </AppLayout>
+    <!-- v4-S9 系统 D：可视化面板堆叠槽（空态零占位；拖拽期显形命中框） -->
+    <StackSlot :items="stackItems" @restore="restorePanel" />
   </div>
 </template>
 

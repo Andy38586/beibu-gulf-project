@@ -212,7 +212,6 @@ export function buildAll({ osmFile, outDir }) {
     materials = [],
     nodes = [],
     children = []
-  let mi = 0
   const built = []
   for (const spec of CITY_BRIDGES) {
     const ways = byName.get(spec.name) ?? []
@@ -245,7 +244,7 @@ export function buildAll({ osmFile, outDir }) {
                 normals: g.normals,
                 colors: g.colors,
                 indices: g.indices,
-                material: mi,
+                material: 0,
               },
             ],
           },
@@ -283,7 +282,6 @@ export function buildAll({ osmFile, outDir }) {
         reconstruction: '参数化还原（OSM 桥位 + 公开资料桥型），非实测几何',
       },
     })
-    mi++
     built.push({ ...spec, spans: g.spans, tris: g.indices.length / 3 })
   }
   let mn = [Infinity, Infinity, Infinity],

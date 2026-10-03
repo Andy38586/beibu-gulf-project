@@ -16,7 +16,7 @@ import { CONTAINER_TYPES, generateAll } from '../container-models.mjs'
 import { box, buildGLB, enuToGltf } from '../glb.mjs'
 import { buildRoads, extrudeWay } from '../build-roads.mjs'
 import { ribbon } from '../build-canal.mjs'
-import { buildBridge } from '../build-bridges.mjs'
+import { buildAll, buildBridge } from '../build-bridges.mjs'
 import { buildGround } from '../build-ground.mjs'
 
 describe('enuToGltf — tile ENU → glTF Y-up', () => {
@@ -137,7 +137,48 @@ describe('buildRoads — root.boundingVolume 必须是 ENU(Z-up)', () => {
   })
 })
 
-describe('buildGround — 作业区地面面片', () => {
+describe('buildAll — 产出的 GLB 必须自洽（Cesium 对无效 material / 越界 index 是静默丢弃）', () => {
+  // 2026-10-03 实测的真缺陷：每座桥写自己的 GLB（内含 1 个 material），但 primitive 的
+  // material 用了随桥递增的计数器 ⇒ 第 2 座起引用不存在的 material 1/2/3…，
+  // Cesium 静默丢弃该 primitive ⇒ 瓦片内容永不 ready ⇒ 四座桥在页面上**零报错地不显示**。
+  it('每个 primitive 的 material 索引存在、NORMAL/COLOR_0 与 POSITION 顶点数一致', () => {
+    const dir = 'node_modules/.cache/beibu-bridges-test'
+    fs.mkdirSync(dir, { recursive: true })
+    const mk = (name, lon) => ({
+      type: 'way',
+      id: Math.round(lon * 1000),
+      tags: { name, bridge: 'yes', highway: 'primary' },
+      geometry: [
+        { lon, lat: 21.94 },
+        { lon: lon + 0.01, lat: 21.95 },
+      ],
+    })
+    const osm = {
+      elements: [mk('金海湾大桥', 108.6), mk('子材大桥', 108.63), mk('钦江大桥', 108.62)],
+    }
+    fs.writeFileSync(path.join(dir, 'osm.json'), JSON.stringify(osm))
+    buildAll({ osmFile: path.join(dir, 'osm.json'), outDir: path.join(dir, 'out') })
+    const files = fs.readdirSync(path.join(dir, 'out')).filter((f) => f.endsWith('.glb'))
+    expect(files.length).toBeGreaterThanOrEqual(2)
+    for (const f of files) {
+      const buf = fs.readFileSync(path.join(dir, 'out', f))
+      const jlen = buf.readUInt32LE(12)
+      const j = JSON.parse(buf.subarray(20, 20 + jlen).toString('utf8'))
+      for (const m of j.meshes || []) {
+        for (const pr of m.primitives || []) {
+          if (pr.material !== undefined) expect((j.materials || [])[pr.material]).toBeDefined()
+          const pos = j.accessors[pr.attributes.POSITION]
+          if (pr.attributes.NORMAL !== undefined)
+            expect(j.accessors[pr.attributes.NORMAL].count).toBe(pos.count)
+          if (pr.attributes.COLOR_0 !== undefined)
+            expect(j.accessors[pr.attributes.COLOR_0].count).toBe(pos.count)
+        }
+      }
+    }
+  })
+})
+
+describe('buildGround — 作业区地面片', () => {
   // 三件事一起钉：① 水面格不铺（用户要连续，但不能连到海里去）；
   // ② 顶点是 glTF Y-up（平铺：y 恒定，轴序错时 y 会跨 N 的量级）；
   // ③ root.boundingVolume.box 是 ENU（Z-up）——第 3 分量是地面高程、竖半轴很小。

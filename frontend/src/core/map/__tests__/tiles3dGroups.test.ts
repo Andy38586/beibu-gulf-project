@@ -14,7 +14,11 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  boundingIntersectsSphere,
+  cropTileset,
+  cropTilesetForDataUri,
   deriveGroupTileset,
+  hasAnyContent,
   normalizeTilesetGeometricError,
   nodeName,
   nodeUri,
@@ -420,5 +424,176 @@ describe('prepareTilesetForDataUri — 整包 uri 绝对化 + GE 校正', () => 
     const before = JSON.stringify(src)
     prepareTilesetForDataUri(src, 'http://x.test/static/x/tileset.json')
     expect(JSON.stringify(src)).toBe(before)
+  })
+})
+
+// ---- 空间裁剪（cropTileset / boundingIntersectsSphere / dropContent） ----
+//
+// 语义中性的四层树：root（含 content）→ a（含 content）→ b（含 content）→ c（叶子）。
+// 每层包围盒逐级内缩且同心，这样「保留/剔除」只由球决定，与盒形状无关。
+function makeDeepTileset(): TilesetJson {
+  const node = (uri: string, half: number, children: TilesetNode[] = []): TilesetNode => ({
+    content: { uri },
+    extras: { name: uri.replace('.glb', '') },
+    geometricError: 0,
+    boundingVolume: { box: [0, 0, 0, half, 0, 0, 0, half, 0, 0, 0, 10] },
+    children,
+  })
+  return {
+    asset: { version: '1.1', generator: 'test' },
+    geometricError: 4000,
+    root: {
+      transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
+      boundingVolume: { box: [0, 0, 0, 4000, 0, 0, 0, 4000, 0, 0, 0, 10] },
+      geometricError: 1200,
+      refine: 'REPLACE',
+      content: { uri: 'root.glb' },
+      extras: { name: 'root' },
+      children: [node('a.glb', 2000, [node('b.glb', 1000, [node('c.glb', 200)])])],
+    },
+  }
+}
+
+describe('boundingIntersectsSphere — OBB vs 球', () => {
+  const box = [0, 0, 0, 10, 0, 0, 0, 10, 0, 0, 0, 10]
+
+  it('球心在盒内 ⇒ 相交', () => {
+    expect(boundingIntersectsSphere({ box }, { center: [0, 0, 0], radius: 1 })).toBe(true)
+  })
+
+  it('球擦到盒角 ⇒ 相交（边界包含）', () => {
+    // 角点 (10,10,10) 距原点 √300；球心在角外 1m 处、半径 √300 ⇒ 恰好相交
+    const r = Math.sqrt(300)
+    expect(boundingIntersectsSphere({ box }, { center: [10 + r, 10, 10], radius: r })).toBe(true)
+  })
+
+  it('球在盒外且不接触 ⇒ 不相交', () => {
+    expect(boundingIntersectsSphere({ box }, { center: [100, 0, 0], radius: 1 })).toBe(false)
+  })
+
+  it('斜对角方向按最近点判，不用「球心距 ≤ 半径+最长半轴」的保守近似', () => {
+    // 球心 (30,30,0)：到盒最近点 (10,10,0)，距离 √800 ≈ 28.284
+    // 保守近似会算 |center| - 10 ≈ 42.43-10 = 32.43，半径 28 会被误判为相交
+    expect(boundingIntersectsSphere({ box }, { center: [30, 30, 0], radius: 28 })).toBe(false)
+    expect(boundingIntersectsSphere({ box }, { center: [30, 30, 0], radius: 28.3 })).toBe(true)
+  })
+
+  it('sphere 包围体按球心距 + 半径判', () => {
+    expect(
+      boundingIntersectsSphere({ sphere: [0, 0, 0, 5] }, { center: [6, 0, 0], radius: 1 })
+    ).toBe(true)
+    expect(
+      boundingIntersectsSphere({ sphere: [0, 0, 0, 5] }, { center: [7, 0, 0], radius: 1 })
+    ).toBe(false)
+  })
+
+  it('无法识别的包围体一律保留（宁多留不误删）', () => {
+    expect(boundingIntersectsSphere(undefined, { center: [1e6, 0, 0], radius: 1 })).toBe(true)
+    expect(boundingIntersectsSphere({ box: [0, 0, 0] }, { center: [1e6, 0, 0], radius: 1 })).toBe(
+      true
+    )
+  })
+})
+
+describe('cropTileset — 整包空间裁剪', () => {
+  it('球外子树整棵剔除，球内保留且 uri 绝对化', () => {
+    const src = makeDeepTileset()
+    const out = cropTileset(src, 'http://x.test/static/x/tileset.json', {
+      keepSphere: { center: [0, 0, 0], radius: 500 },
+    })
+    expect(out).not.toBeNull()
+    // a（半轴 2000）与球相交 ⇒ 保留；b（1000）相交 ⇒ 保留；c（200）在内 ⇒ 保留
+    expect(out!.root.children).toHaveLength(1)
+    const a = out!.root.children![0]
+    expect(a.content!.uri).toBe('http://x.test/static/x/a.glb')
+    expect(a.children![0].children![0].content!.uri).toBe('http://x.test/static/x/c.glb')
+  })
+
+  it('落位不变量：root 的 transform / boundingVolume / geometricError 与整包逐位相同', () => {
+    const src = makeDeepTileset()
+    const out = cropTileset(src, 'http://x.test/x/tileset.json', {
+      keepSphere: { center: [0, 0, 0], radius: 500 },
+    })
+    expect(out!.root.transform).toEqual(src.root.transform)
+    expect(out!.root.boundingVolume).toEqual(src.root.boundingVolume)
+    expect(out!.root.geometricError).toBe(src.root.geometricError)
+  })
+
+  it('球远离全部内容 ⇒ 返回 null（不返回空树）', () => {
+    const src = makeDeepTileset()
+    const out = cropTileset(src, 'http://x.test/x/tileset.json', {
+      keepSphere: { center: [100000, 0, 0], radius: 10 },
+    })
+    expect(out).toBeNull()
+  })
+
+  it('dropContent 只摘内容、保留子树（与 drop 的连子树删相反）', () => {
+    const src = makeDeepTileset()
+    const out = cropTileset(src, 'http://x.test/x/tileset.json', {
+      dropContent: (n) => nodeName(n) === 'root' || nodeName(n) === 'a',
+    })
+    expect(out).not.toBeNull()
+    // root 与 a 的内容被摘掉
+    expect(out!.root.content).toBeUndefined()
+    const a = out!.root.children![0]
+    expect(a.content).toBeUndefined()
+    // 但子树照常在，b / c 的内容仍在
+    expect(a.children![0].content!.uri).toBe('http://x.test/x/b.glb')
+    expect(a.children![0].children![0].content!.uri).toBe('http://x.test/x/c.glb')
+  })
+
+  it('dropContent 摘掉全部内容 ⇒ 返回 null', () => {
+    const src = makeDeepTileset()
+    const out = cropTileset(src, 'http://x.test/x/tileset.json', { dropContent: () => true })
+    expect(out).toBeNull()
+  })
+
+  it('drop 与 keepSphere 可叠加：drop 优先整棵删', () => {
+    const src = makeDeepTileset()
+    const out = cropTileset(src, 'http://x.test/x/tileset.json', {
+      keepSphere: { center: [0, 0, 0], radius: 5000 },
+      drop: (n) => nodeName(n) === 'a',
+    })
+    // a 整棵被删；root 自身仍有内容 ⇒ 结果非 null，但 children 空
+    expect(out).not.toBeNull()
+    expect(out!.root.children).toHaveLength(0)
+    expect(out!.root.content!.uri).toBe('http://x.test/x/root.glb')
+  })
+
+  it('纯函数：不改入参', () => {
+    const src = makeDeepTileset()
+    const before = JSON.stringify(src)
+    cropTileset(src, 'http://x.test/x/tileset.json', {
+      keepSphere: { center: [0, 0, 0], radius: 500 },
+    })
+    expect(JSON.stringify(src)).toBe(before)
+  })
+})
+
+describe('hasAnyContent / cropTilesetForDataUri', () => {
+  it('hasAnyContent 认自身与任意后代', () => {
+    expect(hasAnyContent({ content: { uri: 'x.glb' } })).toBe(true)
+    expect(hasAnyContent({ children: [{ content: { uri: 'x.glb' } }] })).toBe(true)
+    expect(hasAnyContent({ children: [{ children: [] }] })).toBe(false)
+    expect(hasAnyContent({ content: {} })).toBe(false)
+  })
+
+  it('cropTilesetForDataUri = 裁剪 + GE 校正', () => {
+    const src = makeDeepTileset()
+    const out = cropTilesetForDataUri(src, 'http://x.test/x/tileset.json', {
+      keepSphere: { center: [0, 0, 0], radius: 500 },
+    })
+    expect(out).not.toBeNull()
+    // GE 被抬到包围体尺度（root 半轴 4000 ⇒ 8000）
+    expect(out!.root.geometricError).toBe(8000)
+  })
+
+  it('cropTilesetForDataUri 剪空时返回 null', () => {
+    const src = makeDeepTileset()
+    expect(
+      cropTilesetForDataUri(src, 'http://x.test/x/tileset.json', {
+        keepSphere: { center: [1e6, 0, 0], radius: 1 },
+      })
+    ).toBeNull()
   })
 })

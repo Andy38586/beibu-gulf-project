@@ -114,24 +114,95 @@ export function resolveUri(baseUrl: string, uri: string): string {
   return path
 }
 
+/**
+ * 空间裁剪球（**tileset 局部坐标系**，与 `boundingVolume` 同系）。
+ *
+ * 用局部系而不是经纬度的理由：瓦片集只有 root 带 `transform`（实测钦州港 96 个
+ * 节点里仅 root 有），子节点包围盒一律是局部系的轴对齐盒；局部系即「以 root 原点
+ * 为原点的 ENU」。这样裁剪判据是纯算术，不引入投影/椭球依赖。
+ */
+export interface CropSphere {
+  center: [number, number, number]
+  radius: number
+}
+
+/** 取盒的三条半轴向量（列优先 12 元组：中心 3 + 三个半轴各 3） */
+function boxAxes(box: number[]): {
+  c: [number, number, number]
+  axes: [number[], number[], number[]]
+} {
+  return {
+    c: [box[0], box[1], box[2]],
+    axes: [
+      [box[3], box[4], box[5]],
+      [box[6], box[7], box[8]],
+      [box[9], box[10], box[11]],
+    ],
+  }
+}
+
+/**
+ * 盒与球是否相交（OBB vs 球，精确判据：球心到盒的最近点距离 ≤ 半径）。
+ *
+ * 为什么不用「球心到盒心距离 ≤ 半径 + 最长半轴」：那是保守近似，会把一整圈
+ * 斜对角上明显在球外的盒也留下——裁剪后体积降不下来。此处按半轴投影取最近点，
+ * 判据与盒的朝向无关，对轴对齐与非轴对齐盒同样成立。
+ *
+ * 无法识别包围体（既非 12 元盒也非 4 元球）时返回 `true`（**保留**）：
+ * 宁可多留也不误删——误删的后果是「图层开着但内容缺一块」，比多留难发现得多。
+ */
+export function boundingIntersectsSphere(bv: unknown, sphere: CropSphere): boolean {
+  const b = bv as { box?: number[]; sphere?: number[] } | undefined
+  if (b?.sphere && b.sphere.length >= 4) {
+    const d = Math.hypot(
+      b.sphere[0] - sphere.center[0],
+      b.sphere[1] - sphere.center[1],
+      b.sphere[2] - sphere.center[2]
+    )
+    return d <= sphere.radius + b.sphere[3]
+  }
+  if (!b?.box || b.box.length < 12) return true
+  const { c, axes } = boxAxes(b.box)
+  const d = [sphere.center[0] - c[0], sphere.center[1] - c[1], sphere.center[2] - c[2]]
+  let best = 0
+  for (const ax of axes) {
+    const len = Math.hypot(ax[0], ax[1], ax[2])
+    if (len === 0) continue
+    const u = [ax[0] / len, ax[1] / len, ax[2] / len]
+    const proj = d[0] * u[0] + d[1] * u[1] + d[2] * u[2]
+    const t = Math.max(-len, Math.min(len, proj))
+    best += (proj - t) ** 2
+  }
+  return Math.sqrt(best) <= sphere.radius
+}
+
 /** 递归把子树里的 content.uri 换成绝对 URL；`drop` 命中的节点连同子树一并剔除（返回 null） */
 function absolutizeNode(
   node: TilesetNode,
   baseUrl: string,
-  drop?: (node: TilesetNode) => boolean
+  drop?: (node: TilesetNode) => boolean,
+  keepSphere?: CropSphere,
+  dropContent?: (node: TilesetNode) => boolean
 ): TilesetNode | null {
   if (drop?.(node)) return null
+  if (keepSphere && !boundingIntersectsSphere(node.boundingVolume, keepSphere)) return null
   const out: TilesetNode = { ...node }
-  const uri = nodeUri(node)
-  if (uri && node.content) {
-    const resolved = resolveUri(baseUrl, uri)
-    out.content = { ...node.content, uri: resolved }
-    // 兼容字段一并清掉，避免 Cesium 读到旧相对路径
-    delete (out.content as { url?: string }).url
+  if (dropContent?.(node)) {
+    // 只摘内容、保留子树：粗层（如钦州港 d0~d3 的 water/opaque）盖住整片区域，
+    // 删内容即可，不能删节点——节点一删，其下 d4/d5 的精细瓦片会跟着整棵消失。
+    delete out.content
+  } else {
+    const uri = nodeUri(node)
+    if (uri && node.content) {
+      const resolved = resolveUri(baseUrl, uri)
+      out.content = { ...node.content, uri: resolved }
+      // 兼容字段一并清掉，避免 Cesium 读到旧相对路径
+      delete (out.content as { url?: string }).url
+    }
   }
   if (Array.isArray(node.children)) {
     out.children = node.children
-      .map((c) => absolutizeNode(c, baseUrl, drop))
+      .map((c) => absolutizeNode(c, baseUrl, drop, keepSphere, dropContent))
       .filter((c): c is TilesetNode => c !== null)
   }
   return out
@@ -153,6 +224,26 @@ export interface DeriveOptions {
    * 项目地形上：**地形归地形，构筑物归构筑物**，不在渲染层叠两层地表。
    */
   drop?: (node: TilesetNode) => boolean
+  /**
+   * 空间裁剪：只保留与给定球相交的子树，完全在球外的节点**连同子树**剔除。
+   *
+   * 为什么需要它（2026-10-03 实测）：钦州港交付包覆盖 16×18 km，d0~d3 共 85 块
+   * 全是 `water/opaque` 的粗层地表（含 30.3 M m² 水面与地形），真正的地物
+   * （`cargo` 集装箱 / `metal` 龙门架）只出现在作业区的 d4/d5 共 6 块里。
+   * 不做空间裁剪时整包 143.5 MB 全下，界面上就是"一整块瓦片"。
+   *
+   * 与 `drop` 的分工：`drop` 按**语义**剪枝（如剔自带地表层），
+   * `keepSphere` 按**位置**剪枝，二者正交可叠加。
+   */
+  keepSphere?: CropSphere
+  /**
+   * 只剔除**内容**、保留子树（与 `drop` 的"连子树一起删"相反）。
+   *
+   * 为什么需要它：粗层节点盖住整片区域，但它是精细子瓦片的**唯一通路**——
+   * 节点一删，其下 d4/d5 跟着整棵消失。要"不要粗层、只要精细层"，只能删内容
+   * 不能删节点。命中者去掉 `content`，`children` 照常保留。
+   */
+  dropContent?: (node: TilesetNode) => boolean
 }
 
 /**
@@ -175,16 +266,23 @@ export function deriveGroupTileset<Id extends string>(
   if (!root || !Array.isArray(root.children)) return null
   if (options.drop?.(root)) return null
 
-  const picked = root.children.filter((c) => group.match(c) && !options.drop?.(c))
+  const picked = root.children.filter(
+    (c) =>
+      group.match(c) &&
+      !options.drop?.(c) &&
+      (!options.keepSphere || boundingIntersectsSphere(c.boundingVolume, options.keepSphere))
+  )
   if (picked.length === 0) return null
 
   return {
     ...tileset,
     root: {
       ...root,
-      // 只保留命中子树；子树内部再走一遍 uri 绝对化（并按 drop 剪枝）
+      // 只保留命中子树；子树内部再走一遍 uri 绝对化（并按 drop / keepSphere 剪枝）
       children: picked
-        .map((c) => absolutizeNode(c, baseUrl, options.drop))
+        .map((c) =>
+          absolutizeNode(c, baseUrl, options.drop, options.keepSphere, options.dropContent)
+        )
         .filter((c): c is TilesetNode => c !== null),
     },
   }
@@ -257,6 +355,42 @@ export function normalizeTilesetGeometricError(tileset: TilesetJson): TilesetJso
   return { ...tileset, root, geometricError }
 }
 
+/** 子树里是否还剩至少一个带 content 的节点（含 root 自身） */
+export function hasAnyContent(node: TilesetNode): boolean {
+  if (node.content && nodeUri(node)) return true
+  return (node.children ?? []).some(hasAnyContent)
+}
+
+/**
+ * 整包裁剪：对**整棵树**（含 root）施加 `keepSphere` / `dropContent` / `drop`，
+ * 并把保留下来的 content.uri 绝对化。
+ *
+ * 与 `deriveGroupTileset` 的分工：后者先按分组挑 root.children 再剪枝，用于
+ * 「一包多组、按组开关」；本函数**不分组**，用于「只要某一区域」的整包裁剪。
+ *
+ * root 的 transform / boundingVolume / geometricError 原样继承 ⇒ 裁剪结果与整包
+ * **绝对落位逐位相同**（本模块最重要的不变量，与 deriveGroupTileset 同款）。
+ *
+ * @returns 裁剪后的 tileset；**内容被剪空时返回 null**（不返回空树——那会让 Cesium
+ *          建出一个永远无内容的瓦片集，表现为「图层开着但什么都没有」）
+ */
+export function cropTileset(
+  tileset: TilesetJson,
+  baseUrl: string,
+  options: DeriveOptions = {}
+): TilesetJson | null {
+  if (!tileset.root) return null
+  const root = absolutizeNode(
+    tileset.root,
+    baseUrl,
+    options.drop,
+    options.keepSphere,
+    options.dropContent
+  )
+  if (root === null || !hasAnyContent(root)) return null
+  return { ...tileset, root }
+}
+
 /**
  * 整包预处理：content.uri 全部绝对化并校正 geometricError——
  * 供「外部 http tileset → Data URI 挂载」的场景（不裁剪子树）。
@@ -268,6 +402,21 @@ export function prepareTilesetForDataUri(tileset: TilesetJson, baseUrl: string):
   const root = absolutizeNode(tileset.root, baseUrl)
   if (root === null) return tileset
   return normalizeTilesetGeometricError({ ...tileset, root })
+}
+
+/**
+ * 裁剪 + GE 校正一步到位（Data URI 挂载前的完整预处理）。
+ *
+ * @returns 裁剪结果；剪空返回 null（调用方据此跳过注册并留痕，不要挂空瓦片集）
+ */
+export function cropTilesetForDataUri(
+  tileset: TilesetJson,
+  baseUrl: string,
+  options: DeriveOptions = {}
+): TilesetJson | null {
+  const cropped = cropTileset(tileset, baseUrl, options)
+  if (cropped === null) return null
+  return normalizeTilesetGeometricError(cropped)
 }
 
 /**

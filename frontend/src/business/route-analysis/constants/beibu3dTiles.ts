@@ -37,6 +37,15 @@
  *   必须同时移除对应的 `pinglu-*` 分组，否则「两套同开」立即复现。
  */
 
+import {
+  cropTilesetForDataUri,
+  prepareTilesetForDataUri,
+  type CropSphere,
+  type DeriveOptions,
+  type TilesetJson,
+  type TilesetNode,
+} from '@/core/map/tiles3dGroups'
+
 /** 资产 id（图层 id 后缀，与注册时的 `beibu-` + id 拼装一致） */
 export type BeibuTilesId = 'qinzhou-port' | 'qz-terminal-bim'
 
@@ -46,6 +55,14 @@ export interface BeibuTilesSpec {
   label: string
   /** tileset.json 地址（后端 static 托管） */
   url: string
+  /**
+   * 派生选项（可选）。**给了就走 `cropTilesetForDataUri`，不给走 `prepareTilesetForDataUri`**。
+   *
+   * 为什么放在清单里而不是注册点：与 `defaultVisible` / `maximumScreenSpaceError` 同款
+   * 取舍——"这个资产要不要裁、裁到哪"是数据，不是流程；写在条目自己身上，下一个人
+   * 一眼能看出哪几条被裁过、判据是什么。
+   */
+  derive?: DeriveOptions
   /**
    * **该资产是否自带地表网格**。
    *
@@ -75,6 +92,22 @@ export interface BeibuTilesSpec {
   defaultVisible: boolean
 }
 
+/**
+ * 按清单条目预处理原始 tileset，产出可直接编 Data URI 的结果。
+ *
+ * **注册点必须直调本函数，不要在两处各写一遍分支**——「哪条走裁剪、哪条走整包」
+ * 是清单的数据（`spec.derive`），把它实现成函数是为了让这条分支有**行为判据**：
+ * 单测拿真实条目直调本函数，删掉裁剪分支即红（源码子串断言被 04-F 禁止，
+ * 判据必须落在行为上）。
+ *
+ * @returns 预处理结果；裁剪后无内容时返回 null（调用方据此跳过注册，不挂空瓦片集）
+ */
+export function prepareBeibuTileset(raw: TilesetJson, spec: BeibuTilesSpec): TilesetJson | null {
+  return spec.derive
+    ? cropTilesetForDataUri(raw, spec.url, spec.derive)
+    : prepareTilesetForDataUri(raw, spec.url)
+}
+
 /** 图层 id 前缀（图层面板 layer-order 与注册共用） */
 export const BEIBU_TILES_LAYER_PREFIX = 'beibu-'
 
@@ -93,14 +126,69 @@ export function beibuTilesLayerId(id: BeibuTilesId): string {
  * 体积代价不再由首屏承担——3D Tiles 挂在**懒加载路由**（RouteAnalysisPage）上，
  * 且预取进 `warmupAfterFirstFrame` 预热队列，面板里可逐条关掉。
  */
+/**
+ * 钦州港**作业区**裁剪球（tileset 局部 ENU 系，单位米）。
+ *
+ * ## 怎么来的
+ *
+ * 交付包覆盖 16×18 km，root 是唯一带 `transform` 的节点（96 个节点里仅 1 个），
+ * 子节点包围盒一律是**局部系轴对齐盒**，故局部系即「以 root 原点为原点的 ENU」。
+ * 中心取交付包 `catalog.json` 的 `harbour` 条目（钦州保税港区 108.6473/21.6745），
+ * 经 root.transform 的旋转逆变换得局部 (1014.26, 2159.18, −0.45)。
+ *
+ * ## 半径 1500 m 的依据（2026-10-03 逐瓦片实测）
+ *
+ * | 层 | 块数 | 材质 | 处置 |
+ * | --- | --- | --- | --- |
+ * | d0~d3 | 85 | 全部 `water/opaque`（30.3 M m² 水面与地形） | 球外剔除 / 球内摘内容 |
+ * | d4~d5 | 7 | `cargo` 集装箱 / `metal` 龙门架 / `concrete` / `rail` / `roof` | 保留 |
+ *
+ * 球内 7 块的最近 6 块距中心 286~1063 m，合计 23.2 MB（整包 143.5 MB）——
+ * 这就是用户要的「作业区」。半径放大到 2500 m 会把球外 5 块无关地物拉进来。
+ *
+ * **失效条件**：交付包更换或 root.transform 变化时中心须按同一算法重算；
+ * 判据是「裁剪后保留的瓦片里必须出现 cargo 或 metal 材质」。
+ */
+export const QINZHOU_OPERATION_AREA: CropSphere = {
+  center: [1014.26, 2159.18, -0.45],
+  radius: 1500,
+}
+
+/** 钦州港交付包里「自带粗层地表」的最大深度（含） */
+export const QINZHOU_COARSE_MAX_DEPTH = 3
+
+/**
+ * 是否为交付包自带的**粗层地表**节点（钦州港 d0~d3）。
+ *
+ * 判据用 `extras.depth` 而不是材质名：材质要解 GLB 才能读到，而 depth 是建模器
+ * 直接写在 extras 里的结构化字段（`tiles3dGroups` 的 `nodeName` 同款思路）。
+ *
+ * 为什么必须**只摘内容、不删节点**：这些粗层节点是精细子瓦片的唯一通路，
+ * 节点一删，其下 d4/d5 的集装箱/龙门架跟着整棵消失（`dropContent` 的语义，
+ * 与 `drop` 的连子树删相反）。理由与平陆运河剔 `*-z1-terrain` 一致：
+ * 自带地表与项目 CTB 地形不同源，同开即两层地面；地形归地形、地物归地物。
+ *
+ * **失效条件**：交付包若把地物下沉到 d3 或把地表上抬到 d4，本判据立即失效——
+ * 判据是「裁剪后保留的瓦片里必须出现 cargo 或 metal 材质」。
+ */
+export function isCoarseTerrainLayer(node: TilesetNode): boolean {
+  const d = node.extras?.depth
+  return typeof d === 'number' && d <= QINZHOU_COARSE_MAX_DEPTH
+}
+
 export const BEIBU_TILES: readonly BeibuTilesSpec[] = [
   {
     id: 'qinzhou-port',
-    label: '钦州港 · 核心区三维',
+    label: '钦州港 · 作业区三维',
     url: '/static/qinzhou-port/tiles/tileset.json',
     carriesTerrain: true,
     maximumScreenSpaceError: 32,
     defaultVisible: true,
+    // 裁到作业区：球外整棵剔除，球内粗层摘内容（见 QINZHOU_OPERATION_AREA 的实测表）
+    derive: {
+      keepSphere: QINZHOU_OPERATION_AREA,
+      dropContent: isCoarseTerrainLayer,
+    },
   },
   {
     id: 'qz-terminal-bim',

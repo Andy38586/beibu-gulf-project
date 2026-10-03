@@ -18,7 +18,6 @@ import {
   isTiles3DCapable,
   LayerControlPanel,
   normalizeTilesetGeometricError,
-  prepareTilesetForDataUri,
   tallyGroups,
   type TilesetJson,
   toDataUri,
@@ -35,7 +34,7 @@ import {
   ROUTE_PATH_LAYER_ID,
   useRouteLayer,
 } from './composables/useRouteLayer'
-import { BEIBU_TILES, beibuTilesLayerId } from './constants/beibu3dTiles'
+import { BEIBU_TILES, beibuTilesLayerId, prepareBeibuTileset } from './constants/beibu3dTiles'
 import {
   PINGLU_DERIVE_OPTIONS,
   PINGLU_GROUPS,
@@ -345,7 +344,15 @@ async function registerBeibuTiles(): Promise<void> {
       const raw = (await res.json()) as TilesetJson
       // 异步期间渲染器可能被切走或页面卸载——注册前重验
       if (disposed || mapStore.currentRenderer !== renderer || !isTiles3DCapable(renderer)) return
-      const prepared = prepareTilesetForDataUri(raw, spec.url)
+      // 「哪条走裁剪、哪条走整包」由清单条目自己声明（spec.derive），
+      // 分支实现与判据在 prepareBeibuTileset（单测直调它，删掉裁剪分支即红）。
+      const prepared = prepareBeibuTileset(raw, spec)
+      if (!prepared) {
+        // 裁空 ⇒ 不挂空瓦片集：Cesium 会建出一个永远无内容的瓦片集，
+        // 表现为「图层开着但什么都没有」，比不注册难发现得多
+        logger.warn(`[RouteAnalysis] 北部湾 3D Tiles「${spec.label}」裁剪后无内容，已跳过`)
+        continue
+      }
       const ok = ownedLayers.register(id, {
         label: spec.label,
         layerType: '3dtiles',

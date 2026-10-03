@@ -281,6 +281,53 @@ export function enuToGltf(e, n, u) {
   return [e, u, -n]
 }
 
+/**
+ * 水面掩膜（由施工影像生成，见 tools/3dtiles-build/make-water-mask.py）。
+ *
+ * **为什么需要**：交付包的 cargo 棱柱有几个跨在码头岸线上，按它们排箱会把整排
+ * 集装箱排进海里——实测 8.3% 的模型像素压在海面上（.local/3d-diag/water-check2.png）。
+ * 用户裁定「以施工影像为准」，故用影像判水面并在放置时剔除。
+ */
+export function loadWaterMask(file) {
+  const m = JSON.parse(fs.readFileSync(file, 'utf8'))
+  const bits = Buffer.from(m.bits, 'base64')
+  const size = m.size
+  const [w, s, e, n] = m.bbox
+  return {
+    size,
+    /** 经纬度是否落在水面格上；越界按「非水面」处理（不误删） */
+    isWater(lng, lat) {
+      const x = Math.floor(((lng - w) / (e - w)) * size)
+      const y = Math.floor(((n - lat) / (n - s)) * size)
+      if (x < 0 || y < 0 || x >= size || y >= size) return false
+      const i = y * size + x
+      return (bits[i >> 3] & (0x80 >> (i & 7))) !== 0
+    },
+  }
+}
+
+/** WGS84 椭球参数（ENU ↔ 经纬换算用） */
+const A = 6378137.0
+const E2 = (1 / 298.257223563) * (2 - 1 / 298.257223563)
+
+/** ENU(e,n,u) → 经纬度：局部 → ECEF（用 tileset 的 root.transform）→ 经纬 */
+function makeEnuToLngLat(T) {
+  return (e, n, u) => {
+    const x = T[0] * e + T[4] * n + T[8] * u + T[12]
+    const y = T[1] * e + T[5] * n + T[9] * u + T[13]
+    const z = T[2] * e + T[6] * n + T[10] * u + T[14]
+    const lng = (Math.atan2(y, x) * 180) / Math.PI
+    const p = Math.hypot(x, y)
+    let lat = Math.atan2(z, p * (1 - E2))
+    for (let i = 0; i < 6; i++) {
+      const N = A / Math.sqrt(1 - E2 * Math.sin(lat) ** 2)
+      const h = p / Math.cos(lat) - N
+      lat = Math.atan2(z, p * (1 - (E2 * N) / (N + h)))
+    }
+    return [lng, (lat * 180) / Math.PI]
+  }
+}
+
 export function rebuild({ outDir, cellSize = 400, modelsDir }) {
   const { blocks, transform } = extractBlocks(TILE_DIR)
   const models = {}
@@ -298,10 +345,23 @@ export function rebuild({ outDir, cellSize = 400, modelsDir }) {
     }
   }
 
+  // 水面裁剪：实例中心落在影像判定为水面的格上就丢弃
+  const maskFile = path.join(modelsDir, '..', '..', 'imagery', 'water-mask.json')
+  const mask = fs.existsSync(maskFile) ? loadWaterMask(maskFile) : null
+  const toLngLat = makeEnuToLngLat(transform)
+  let droppedWater = 0
+
   const cells = new Map()
   let placed = 0
   blocks.forEach((b, bi) => {
     for (const inst of layoutBlock(b, bi)) {
+      if (mask) {
+        const [lng, lat] = toLngLat(inst.e, inst.n, inst.u)
+        if (mask.isWater(lng, lat)) {
+          droppedWater++
+          continue
+        }
+      }
       const gx = Math.floor(inst.e / cellSize),
         gy = Math.floor(inst.n / cellSize)
       const key = gx + '_' + gy
@@ -408,6 +468,7 @@ export function rebuild({ outDir, cellSize = 400, modelsDir }) {
   return {
     blocks: blocks.length,
     placed,
+    droppedWater,
     cells: children.length,
     tris: children.reduce((s, c) => s + c.extras.triangles, 0),
   }

@@ -90,14 +90,17 @@ function makeDeliveryTileset(): TilesetJson {
 const BASE = '/static/pinglu/tiles/tileset.json'
 
 describe('PINGLU_GROUPS — 分组表自身的完整性', () => {
-  it('5 个分组，id 唯一', () => {
-    expect(PINGLU_GROUPS).toHaveLength(5)
-    expect(new Set(PINGLU_GROUPS.map((g) => g.id)).size).toBe(5)
+  it('4 个分组，id 唯一', () => {
+    expect(PINGLU_GROUPS).toHaveLength(4)
+    expect(new Set(PINGLU_GROUPS.map((g) => g.id)).size).toBe(4)
+    expect(PINGLU_GROUPS.map((g) => g.id)).toEqual(['madao', 'qishi', 'qingnian', 'corridor'])
   })
 
-  it('bridges 必须排在 corridor 之前（顺序即优先级，否则桥会被走廊抢先命中而漏掉桥梁组）', () => {
-    const ids = PINGLU_GROUPS.map((g) => g.id)
-    expect(ids.indexOf('bridges')).toBeLessThan(ids.indexOf('corridor'))
+  it('bridges 分组已作废：不得出现在表里（否则与城区五桥层双重渲染）', () => {
+    // 判据是「表里没有」而不是「顺序对」——废弃的是分组本身，不是它的优先级。
+    // 作废判据与失效条件见 pingluTiles 里 bridges 分组下方的成文段。
+    // 强转 string 比较：'bridges' 已不在 PingluGroupId 联合里，直接比会报"无重叠"
+    expect(PINGLU_GROUPS.some((g) => (g.id as string) === 'bridges')).toBe(false)
   })
 
   it('图层 id 由前缀 + 分组 id 拼成', () => {
@@ -107,24 +110,28 @@ describe('PINGLU_GROUPS — 分组表自身的完整性', () => {
 })
 
 describe('tallyGroups — 真实交付版不漏不重', () => {
-  it('17 个直属 child 全部归属，无遗漏', () => {
+  it('17 个直属 child：14 个归属，3 个 bridges-* 按废弃判定进未归属', () => {
     const { counts, unassigned } = tallyGroups(makeDeliveryTileset(), PINGLU_GROUPS)
-    expect(unassigned).toEqual([])
     expect(counts.madao).toBe(1)
     expect(counts.qishi).toBe(1)
     expect(counts.qingnian).toBe(1)
-    expect(counts.bridges).toBe(3)
     expect(counts.corridor).toBe(11)
-    // 合计必须等于 root.children 长度——漏一个就会出现"开关开了没东西"
+    // bridges 分组已作废（判据见 pingluTiles 的成文段）：三块必须落在未归属里，
+    // 这是**预期行为**不是漏块——未归属 = 派生时丢弃 = 不与城区五桥层重叠
+    expect(unassigned.sort()).toEqual(['bridges-mid.glb', 'bridges-up.glb', 'bridges-urban.glb'])
+    // 归属合计必须等于 17 − 未归属数——漏一个就会出现"开关开了没东西"
     const total = Object.values(counts).reduce((a, b) => a + b, 0)
-    expect(total).toBe(17)
+    expect(total).toBe(17 - unassigned.length)
+    expect(total).toBe(14)
   })
 
   it('新增瓦片若不属于任何分组 → 进未归属清单（防止重烘后静默漏块）', () => {
     const ts = makeDeliveryTileset()
     ts.root.children!.push({ content: { uri: 'brand-new-thing.glb' }, extras: { name: '新东西' } })
     const { unassigned } = tallyGroups(ts, PINGLU_GROUPS)
-    expect(unassigned).toEqual(['brand-new-thing.glb'])
+    // 3 个已作废的 bridges-* + 1 个新增
+    expect(unassigned).toContain('brand-new-thing.glb')
+    expect(unassigned).toHaveLength(4)
   })
 })
 
@@ -138,30 +145,21 @@ describe('判定语义 — 为什么按 extras 而非文件名', () => {
     expect(counts.corridor).toBe(11)
   })
 
-  it('bridges 与 corridor 同为 kind:corridor，靠 uri 前缀区分且互斥', () => {
-    const bridges = deriveGroupTileset(
-      makeDeliveryTileset(),
-      PINGLU_GROUPS.find((g) => g.id === 'bridges')!,
-      BASE
-    )!
+  it('corridor 组显式排除 bridges-*（三块已作废，不得被走廊组捎带渲染）', () => {
     const corridor = deriveGroupTileset(
       makeDeliveryTileset(),
       PINGLU_GROUPS.find((g) => g.id === 'corridor')!,
       BASE
     )!
-    expect(bridges.root.children).toHaveLength(3)
     expect(corridor.root.children).toHaveLength(11)
-    const bUris = bridges.root.children!.map((c) => c.content!.uri as string)
     const cUris = corridor.root.children!.map((c) => c.content!.uri as string)
-    expect(bUris.every((u) => u.includes('bridges-'))).toBe(true)
+    // 三块 bridges-* 不得被走廊组捎带（它们已作废，由城区五桥层承担）
     expect(cUris.some((u) => u.includes('bridges-'))).toBe(false)
-    // 两组交集为空 —— 桥不会被渲染两遍
-    expect(bUris.filter((u) => cUris.includes(u))).toEqual([])
   })
 })
 
 describe('派生结果落位一致', () => {
-  it('5 个分组派生后 transform 全部与整包逐位相同', () => {
+  it('4 个分组派生后 transform 全部与整包逐位相同', () => {
     const src = makeDeliveryTileset()
     for (const g of PINGLU_GROUPS) {
       const d = deriveGroupTileset(src, g, BASE)

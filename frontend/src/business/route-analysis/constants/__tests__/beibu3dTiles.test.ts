@@ -48,11 +48,17 @@ function makeTileset(): TilesetJson {
 }
 
 describe('BEIBU_TILES 清单', () => {
-  it('四条资产，id 唯一且与类型联合一致', () => {
-    expect(BEIBU_TILES).toHaveLength(4)
+  it('五条资产，id 唯一且与类型联合一致', () => {
+    expect(BEIBU_TILES).toHaveLength(5)
     const ids = BEIBU_TILES.map((s) => s.id)
     expect(new Set(ids).size).toBe(ids.length)
-    expect(ids).toEqual(['qinzhou-port', 'qz-containers', 'qz-roads', 'qz-terminal-bim'])
+    expect(ids).toEqual([
+      'qinzhou-port',
+      'qz-containers',
+      'qz-roads',
+      'qz-city-bridges',
+      'qz-terminal-bim',
+    ])
   })
 
   it('四条资产的 url 两两不同（指同一个 tileset 就是同一位置渲染两套）', () => {

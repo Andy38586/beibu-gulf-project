@@ -26,7 +26,7 @@ import { nodeName, nodeUri, type DeriveOptions, type GroupSpec, type TilesetJson
  *
  * 定义在此而非 core：这是本业务的图层命名约定。
  */
-export type PingluGroupId = 'madao' | 'qishi' | 'qingnian' | 'bridges' | 'corridor'
+export type PingluGroupId = 'madao' | 'qishi' | 'qingnian' | 'corridor'
 
 /**
  * 平陆运河 3D Tiles 分组表。
@@ -53,19 +53,29 @@ export const PINGLU_GROUPS: readonly GroupSpec<PingluGroupId>[] = [
     match: (c) => nodeName(c) === '青年枢纽',
   },
   {
-    id: 'bridges',
-    label: '跨运河桥梁',
-    // bridges-* 的 name 形如「全线走廊 · bridges-mid」——它们的 extras.kind 与
-    // 普通走廊块相同，无法用 kind 区分，只能按 uri 前缀判定
-    match: (c) => (nodeUri(c) ?? '').startsWith('bridges-'),
-  },
-  {
     id: 'corridor',
     label: '全线走廊',
-    // 走廊 = kind 为 corridor 且**不属于** bridges 分组（否则桥梁会被双重渲染）
+    // 仍显式排除 bridges-*：那三块**已作废**（见下），若日后有人把 bridges 分组加回来，
+    // 这条排除会让它们继续不渲染，不会与城区五桥层重叠。
     match: (c) => c.extras?.kind === 'corridor' && !(nodeUri(c) ?? '').startsWith('bridges-'),
   },
 ] as const
+
+/**
+ * ## 2026-10-03 废弃：`bridges` 分组（跨运河桥梁）
+ *
+ * 原 `bridges` 分组把交付包里的 `bridges-up` / `bridges-mid` / `bridges-urban`
+ * 三块当成桥显示。**实测它们不是桥**——是半轴 12×13 km / 6×13 km / 1.5×4.9 km 的
+ * **走廊条**（见 .local/3d-diag/bridges.cjs）。用户原话：「钦州新建的几座桥，位置没
+ * 对齐，而且桥也不行，桥也得单独建模」。
+ *
+ * 现由 `tools/3dtiles-build/build-bridges.mjs` 生成的城区五桥层承担
+ * （`beibu3dTiles` 的 `qz-city-bridges`）。三块 corridor 条**不再归属任何分组**，
+ * 派生时自然被丢弃——保留它们就是同一位置两套互相穿插的模型。
+ *
+ * **失效条件**：若 `backend/static/pinglu/tiles/tileset.json` 重新交付并把这
+ * 三块换成真桥几何，本条作废，须重新评估是留交付版还是留自建版。
+ */
 
 /**
  * 派生时剔除的瓦片：交付包给每个枢纽配的「地形与边坡」层

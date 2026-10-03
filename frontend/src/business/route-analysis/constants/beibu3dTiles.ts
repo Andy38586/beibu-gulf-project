@@ -47,7 +47,12 @@ import {
 } from '@/core/map/tiles3dGroups'
 
 /** 资产 id（图层 id 后缀，与注册时的 `beibu-` + id 拼装一致） */
-export type BeibuTilesId = 'qinzhou-port' | 'qz-containers' | 'qz-roads' | 'qz-terminal-bim'
+export type BeibuTilesId =
+  | 'qinzhou-port'
+  | 'qz-containers'
+  | 'qz-roads'
+  | 'qz-city-bridges'
+  | 'qz-terminal-bim'
 
 export interface BeibuTilesSpec {
   id: BeibuTilesId
@@ -216,6 +221,18 @@ export const BEIBU_TILES: readonly BeibuTilesSpec[] = [
     defaultVisible: true,
   },
   {
+    id: 'qz-city-bridges',
+    // 由 tools/3dtiles-build/build-bridges.mjs 生成：城区 5 座跨江桥（金海湾/钦江/
+    // 子材/永福/敏昌），桥位与长度取自 OSM，桥型与跨径来自公开资料。
+    // 替代交付包里那三块「走廊条」——实测它们半轴 12×13 km，根本不是桥。
+    // ⚠ 属**参数化还原**，非实测几何（见 tileset 各节点 extras.reconstruction）。
+    label: '钦州城区 · 跨江桥（重建）',
+    url: '/static/bridges-city/tileset.json',
+    carriesTerrain: false,
+    maximumScreenSpaceError: 16,
+    defaultVisible: true,
+  },
+  {
     id: 'qz-terminal-bim',
     label: '钦州港 · 码头 BIM 构件',
     url: '/static/bim-hub/qinzhou-port-terminal/tileset.json',
@@ -239,5 +256,6 @@ export const BEIBU_TILES_VIEWS: Record<BeibuTilesId, { lng: number; lat: number;
     'qinzhou-port': { lng: 108.6473, lat: 21.6745, height: 6000 },
     'qz-containers': { lng: 108.6473, lat: 21.6745, height: 1800 },
     'qz-roads': { lng: 108.6473, lat: 21.6745, height: 3000 },
+    'qz-city-bridges': { lng: 108.63504, lat: 21.9689, height: 2500 },
     'qz-terminal-bim': { lng: 108.6473, lat: 21.6745, height: 1800 },
   }

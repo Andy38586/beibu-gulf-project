@@ -222,3 +222,6 @@ pinglu-canal-3dtiles/
 # 预测域复算产物（L6）：报告与指纹由 `node tools/forecast/run-all.mjs` 生成，逐次可再生
 # （报告含生成时间戳 ⇒ 入库只会带来噪音），故不入库
 tools/forecast/out/
+
+# 城区五桥（tools/3dtiles-build/build-bridges.mjs 生成，本机可复现）
+backend/static/bridges-city/

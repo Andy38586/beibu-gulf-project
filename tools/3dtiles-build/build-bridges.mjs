@@ -22,7 +22,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { buildGLB, box } from './glb.mjs'
+import { buildGLB, box, enuNormalToGltf, enuToGltf } from './glb.mjs'
 
 /** 城区桥清单：名称 → OSM way id 列表（多段同名 way 取并集，用其几何端点定轴向） */
 export const CITY_BRIDGES = [
@@ -113,11 +113,15 @@ export function buildBridge(wayGeoms, spec, toLocal) {
       const x = g.positions[i],
         y = g.positions[i + 1],
         z = g.positions[i + 2]
-      positions.push(cx + x * ca - z * sa, cy + x * sa + z * ca, cz + y)
+      // box() 出来的是 glTF Y-up（Y=高）；这里 x/z 是水平轴、y 是高度 ⇒ 先还原 ENU 再过 enuToGltf。
+      // 直通 ENU 会让桥按 N（城区 N≈-2.7 km）整个挪走/下沉。
+      positions.push(...enuToGltf(cx + x * ca - z * sa, cy + x * sa + z * ca, cz + y))
       normals.push(
-        g.normals[i] * ca - g.normals[i + 2] * sa,
-        g.normals[i] * sa + g.normals[i + 2] * ca,
-        g.normals[i + 1]
+        ...enuNormalToGltf(
+          g.normals[i] * ca - g.normals[i + 2] * sa,
+          g.normals[i] * sa + g.normals[i + 2] * ca,
+          g.normals[i + 1]
+        )
       )
       colors.push(color[0], color[1], color[2])
     }

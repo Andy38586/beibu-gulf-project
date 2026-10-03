@@ -10,6 +10,31 @@
  *
  * 坐标系：glTF 为 Y-up，节点矩阵由调用方负责。
  */
+/**
+ * tile 局部 ENU(E,N,U) → glTF Y-up (x,y,z)。**全仓库唯一一处**。
+ *
+ * 为什么必须集中：3D Tiles 的 glTF 内容按 Y-up 解释，Cesium 施加 Y_UP_TO_Z_UP
+ * 即 (x,y,z)→(x,−z,y)；于是反推 x=E、y=U、z=−N。把 ENU 直通写进 POSITION 的
+ * 后果不是"偏一点"，是**整层按 N 值抬高**（作业区 N≈1~11 km ⇒ 路网悬在 1~11 km
+ * 高空），在渲染图里表现为"天上挂着一张路网格子"。
+ *
+ * 2026-10-03 实测：build-roads / build-canal / build-bridges 三个写出器曾各自直通
+ * ENU（只有 rebuild-containers 做对了），于是钦州港路网、运河、城区五桥全部浮空；
+ * 而上一窗口的软件光栅器不施加 Y_UP_TO_Z_UP，它自己的渲染图里这些层是"落地"的
+ * ——工具与运行时不同口径，才让这个错活到了用户截图上。
+ */
+export function enuToGltf(e, n, u) {
+  return [e, u, -n]
+}
+
+/** ENU 法线 → glTF Y-up（与 enuToGltf 同一映射，法线只转方向） */
+export function enuNormalToGltf(e, n, u) {
+  return [e, u, -n]
+}
+
+/** glTF Y-up 竖直方向（ENU 的 +U）——平铺面片（路面/运河带）的法线 */
+export const GLTF_UP = enuNormalToGltf(0, 0, 1)
+
 const CS = { 5121: 1, 5123: 2, 5125: 4, 5126: 4 }
 const NC = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4 }
 

@@ -24,7 +24,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { buildGLB } from './glb.mjs'
+import { buildGLB, enuToGltf, GLTF_UP } from './glb.mjs'
 
 const TILE_DIR = 'backend/static/qinzhou-port/tiles'
 /** 与 qinzhou-port 交付包同一 root.transform（落位逐位对齐的前提） */
@@ -93,21 +93,16 @@ export function extrudeWay(pts, width, groundU, lift) {
       ny = (dx / len) * hw
     const u = groundU + lift
     const base = positions.length / 3
-    positions.push(
-      x0 + nx,
-      y0 + ny,
-      u,
-      x1 + nx,
-      y1 + ny,
-      u,
-      x1 - nx,
-      y1 - ny,
-      u,
-      x0 - nx,
-      y0 - ny,
-      u
-    )
-    for (let k = 0; k < 4; k++) normals.push(0, 0, 1)
+    // 四个角先算 ENU，再统一过 enuToGltf——直通 ENU 会让整层按 N 抬高（见 glb.mjs 注释）
+    for (const [ee, nn] of [
+      [x0 + nx, y0 + ny],
+      [x1 + nx, y1 + ny],
+      [x1 - nx, y1 - ny],
+      [x0 - nx, y0 - ny],
+    ]) {
+      positions.push(...enuToGltf(ee, nn, u))
+    }
+    for (let k = 0; k < 4; k++) normals.push(...GLTF_UP)
     indices.push(base, base + 1, base + 2, base, base + 2, base + 3)
   }
   return { positions, normals, indices }

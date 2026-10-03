@@ -24,7 +24,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { buildGLB } from './glb.mjs'
+import { buildGLB, enuToGltf, GLTF_UP } from './glb.mjs'
 
 /** 与 pinglu 交付包同一 root.transform（落位逐位对齐的前提） */
 const TILE_DIR = 'backend/static/pinglu/tiles'
@@ -102,22 +102,17 @@ export function ribbon(pts, halfW, lift, color, groundU = 0, offset = 0) {
       ny = uy * halfW
     const u = groundU + lift
     const base = positions.length / 3
-    positions.push(
-      x0 + ox + nx,
-      y0 + oy + ny,
-      u,
-      x1 + ox + nx,
-      y1 + oy + ny,
-      u,
-      x1 + ox - nx,
-      y1 + oy - ny,
-      u,
-      x0 + ox - nx,
-      y0 + oy - ny,
-      u
-    )
+    // 同 build-roads：ENU 必须过 enuToGltf，直通会把整条运河抬到 N（实测最高 49 km）
+    for (const [ee, nn] of [
+      [x0 + ox + nx, y0 + oy + ny],
+      [x1 + ox + nx, y1 + oy + ny],
+      [x1 + ox - nx, y1 + oy - ny],
+      [x0 + ox - nx, y0 + oy - ny],
+    ]) {
+      positions.push(...enuToGltf(ee, nn, u))
+    }
     for (let k = 0; k < 4; k++) {
-      normals.push(0, 0, 1)
+      normals.push(...GLTF_UP)
       colors.push(color[0], color[1], color[2])
     }
     indices.push(base, base + 1, base + 2, base, base + 2, base + 3)

@@ -10,8 +10,10 @@
 import { describe, expect, it } from 'vitest'
 
 import { CONTAINER_TYPES, generateAll } from '../container-models.mjs'
-import { enuToGltf } from '../rebuild-containers.mjs'
-import { box, buildGLB } from '../glb.mjs'
+import { box, buildGLB, enuToGltf } from '../glb.mjs'
+import { extrudeWay } from '../build-roads.mjs'
+import { ribbon } from '../build-canal.mjs'
+import { buildBridge } from '../build-bridges.mjs'
 
 describe('enuToGltf — tile ENU → glTF Y-up', () => {
   it('(E,N,U) → (E, U, −N)', () => {
@@ -28,6 +30,70 @@ describe('enuToGltf — tile ENU → glTF Y-up', () => {
     expect(norm(enuToGltf(0, 5, 0))).toEqual([0, 0, -5])
     // 只动 U 时只有 glTF y 变
     expect(norm(enuToGltf(0, 0, 7))).toEqual([0, 7, 0])
+  })
+})
+
+// 接线判据（不是纯函数判据）：三个挤出器**必须真的调用** enuToGltf。
+// 样本刻意取 N=5000 / 高程 −20：直通 ENU 时 y≈N（几千），过 enuToGltf 后 y 恒等于高程。
+// 2026-10-03 实测这三个写出器就是直通的 ⇒ 钦州港路网浮在 1~11 km、运河浮到 49 km、
+// 城区五桥整体挪位；而上一窗口自建的光栅器不施加 Y_UP_TO_Z_UP，自己看是"落地"的。
+describe('挤出器 — ENU 必须换成 glTF Y-up（删掉这条断言，浮空即复现）', () => {
+  const G = -20.35
+  const LIFT = 0.15
+
+  it('extrudeWay：y 恒等于地面高程，z = −N', () => {
+    const g = extrudeWay(
+      [
+        [0, 5000],
+        [200, 5000],
+      ],
+      10,
+      G,
+      LIFT
+    )
+    for (let i = 0; i < g.positions.length; i += 3) {
+      expect(g.positions[i + 1]).toBeCloseTo(G + LIFT, 6) // 直通 ENU 时这里会是 5000
+      // 路面有半宽 5 m 的横向偏移，故 z 落在 −N±半宽内（直通 ENU 时 z 会是 −20.2）
+      expect(Math.abs(g.positions[i + 2] + 5000)).toBeLessThanOrEqual(5.001)
+    }
+    for (let i = 0; i < g.normals.length; i += 3) {
+      // 归一 −0（GLTF_UP 的 z 是 −N=−0；Object.is(−0,+0)=false，见文件头说明）
+      expect([g.normals[i] + 0, g.normals[i + 1] + 0, g.normals[i + 2] + 0]).toEqual([0, 1, 0])
+    }
+    expect(g.indices.length).toBe(6)
+  })
+
+  it('ribbon（运河带）：同判据', () => {
+    const r = ribbon(
+      [
+        [0, 5000],
+        [200, 5000],
+      ],
+      60,
+      1,
+      [0.2, 0.4, 0.8],
+      G
+    )
+    for (let i = 0; i < r.positions.length; i += 3) {
+      expect(r.positions[i + 1]).toBeCloseTo(G + 1, 6)
+      expect(Math.abs(r.positions[i + 2] + 5000)).toBeLessThanOrEqual(60.001)
+    }
+  })
+
+  it('buildBridge：整桥竖直范围只有几十米（直通 ENU 时会变成 N≈2220）', () => {
+    const toLocal = (lon, lat) => [(lon - 108.6) * 104000, (lat - 21.95) * 111000]
+    const way = {
+      geometry: [
+        { lon: 108.61, lat: 21.97 },
+        { lon: 108.62, lat: 21.97 },
+      ],
+    }
+    const b = buildBridge([way], { deckW: 20, towers: false }, toLocal)
+    expect(b.spans).toBeGreaterThan(0)
+    const ys = []
+    for (let i = 1; i < b.positions.length; i += 3) ys.push(b.positions[i])
+    expect(Math.max(...ys)).toBeLessThan(24) // 桥面顶 22 m + 栏杆 1.2 m
+    expect(Math.min(...ys)).toBeGreaterThan(-4) // 桥墩底
   })
 })
 

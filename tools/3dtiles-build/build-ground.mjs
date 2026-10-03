@@ -30,8 +30,11 @@ const TILE_DIR = 'backend/static/qinzhou-port/tiles'
 const GROUND_CELL = 15
 /** 比道路层（groundU+0.15）低 10 cm：避免与路面抢深度，路仍然看得见 */
 const GROUND_LIFT = 0.05
-/** 混凝土色 */
-const TONE = [0.58, 0.57, 0.54]
+/**
+ * 混凝土色。取偏亮暖灰：实测 [0.58,0.57,0.54] 经 Cesium 光照衰减后渲染成**暗蓝灰**，
+ * 与影像里浅灰的堆场不是同色系（2026-10-03 改前/改后对照见 .local/3d-review/sheet-tone.png）。
+ */
+const TONE = [0.86, 0.85, 0.82]
 
 function rootTransform() {
   const ts = JSON.parse(fs.readFileSync(path.join(TILE_DIR, 'tileset.json'), 'utf8'))

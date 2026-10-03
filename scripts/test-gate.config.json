@@ -45,6 +45,10 @@
           "env": "V3_FULL_DATASET",
           "reason": "绑定**全量真实数据分布**的快照断言（bh hospital 101 / TOP1 滨海·江语湖 94.7 / coverage 必 MultiPolygon 等）。AMap 抓取源不入仓库 ⇒ CI 物理无法满足，故门控独立为 V3_FULL_DATASET：本地 `export V3_INTEGRATION_DB=1 V3_FULL_DATASET=1` 真跑；CI 不设 ⇒ 整组按本登记跳过（有界、带理由）"
         },
+        "test/site-suitability-input.e2e-spec.ts": {
+          "mode": "gated",
+          "reason": "入参非法两条 + 阳性对照不门控、任何环境都跑；「出参契约」一条（200 + FeatureCollection 非空 + properties.id 是 number）需真库数据（CI 由 backend/test/seed/suitability-cells-fixture.sql 提供 7 格合成因子面，本地为全量面）⇒ 按项目级 V3_INTEGRATION_DB 门控：CI 设了该变量就必须真跑，不得沉睡报绿"
+        },
         "test/site-suitability-sensitivity.spec.ts": {
           "mode": "gated",
           "env": "V3_FULL_DATASET",

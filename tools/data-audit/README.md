@@ -34,3 +34,23 @@ node tools/data-audit/source-registry.mjs --json   # 机器可读
 | `coverage`         | 覆盖范围（时间/空间/粒度）                                            |
 | `quality`          | 可复跑的判据命令（不是形容词）                                        |
 | `provenanceStatus` | `confirmed` / `pending`（pending = 债）                               |
+
+## 质量检查（`quality-check.mjs`）
+
+```bash
+node tools/data-audit/quality-check.mjs          # 人读表格；有 FAIL 即 exit 1
+node tools/data-audit/quality-check.mjs --json   # 机器可读
+```
+
+判据由登记表驱动（资产集由 `git ls-files` 派生），覆盖**文件型资产**：
+
+| 族     | 判据                                                                                  |
+| ------ | ------------------------------------------------------------------------------------- |
+| 序列   | `data.<港>.historical/forecast`：月份严格递增不重复、值有限、各港点数一致             |
+| 空间   | `spatial` 锚点、设施点 `lng/lat`、水域面顶点必须落在项目域（lon 107–111 / lat 20–23） |
+| 结构   | 设施点 id 唯一且含高程；洪涝统计非负；水位模拟区间含默认值                            |
+| 元数据 | 文件自带 `updatedAt/createdAt` 只**报告**不判红（那是给人看的债）                     |
+
+**诚实边界（别当已覆盖）**：**库内表**的质量判据——3 张承重表的空值率 / 范围越界 / 几何有效性——
+**尚未做**。它需要 DB 客户端路径与 CI 门控口径（不做门控就会在 CI 里必红或悄悄跳过），属下一笔。
+本件**不假装覆盖了库**。

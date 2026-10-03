@@ -19,6 +19,9 @@
 #     吸附 / 分段费用真链路可跑（真实路网 40 万段 + 省级 PBF 抽取流水线 CI 无法复现）
 #   ⑤ backend/test/seed/site-analysis-fixture.sql：合成 poi 6 / xiaoqu 12（⚠️ 仅测试库用），
 #     让选址域（buffer → 求交 → 评分 → TOP_N）的**契约与不变量**在 CI 跑真 SQL。
+#   ⑥ backend/test/seed/suitability-cells-fixture.sql：合成 7 格因子面（⚠️ 仅测试库用），
+#     让选址端点的**出参契约**（FeatureCollection 形状 / properties.id 类型 / 聚合回显）
+#     与 2026-10-01 bigint id 事故的 HTTP 回归在 CI 跑真 SQL（用户 2026-10-03 裁定「只加种子」）。
 #
 # 为什么原「POI/xiaoqu 有意不灌」被推翻（2026-09-15）：当时理由是 AMap 抓取源不入仓库
 # （tools/.poi_cache gitignored，无快照），故 site-analysis 两个数据绑定 spec 自探测跳过。
@@ -82,8 +85,14 @@ psql_run -q -f "$ROOT/backend/test/seed/roads-graph-fixture.sql"
 echo "[seed] poi_facilities/xiaoqu 合成夹具（选址域契约测试用，仅测试库）..."
 psql_run -q -f "$ROOT/backend/test/seed/site-analysis-fixture.sql"
 
+# 2026-10-03（用户裁定 4a）：选址端点此前在 CI 里只能以 5xx 收场（表不灌）⇒ 出参契约与
+# bigint id 事故的 HTTP 回归零覆盖。补一份 7 格合成因子面夹具；安全阀同 ⑤（库内有夹具带
+# 之外的行即整体拒绝），全量分布类断言仍由 sensitivity spec 的 V3_FULL_DATASET 门控承担。
+echo "[seed] suitability_cells 合成夹具（选址端点契约测试用，仅测试库）..."
+psql_run -q -f "$ROOT/backend/test/seed/suitability-cells-fixture.sql"
+
 echo "[seed] 灌数对账自检..."
-counts="$(psql_run -t -A -c "SELECT (SELECT count(*) FROM flood_levels) || '/' || (SELECT count(*) FROM flood_facilities) || '/' || (SELECT count(*) FROM roads_edges WHERE main_comp IS TRUE) || '/' || (SELECT count(*) FROM poi_facilities WHERE id LIKE 'TF-%') || '/' || (SELECT count(*) FROM xiaoqu WHERE id LIKE 'TF-%')")"
-echo "[seed] flood_levels/flood_facilities/roads_edges(主分量)/poi夹具/xiaoqu夹具 = $counts"
-[ "$counts" = "251/83/3/6/12" ] || { echo "::error::seed 对账不符（期望 251/83/3/6/12）"; exit 1; }
+counts="$(psql_run -t -A -c "SELECT (SELECT count(*) FROM flood_levels) || '/' || (SELECT count(*) FROM flood_facilities) || '/' || (SELECT count(*) FROM roads_edges WHERE main_comp IS TRUE) || '/' || (SELECT count(*) FROM poi_facilities WHERE id LIKE 'TF-%') || '/' || (SELECT count(*) FROM xiaoqu WHERE id LIKE 'TF-%') || '/' || (SELECT count(*) FROM suitability_cells WHERE id BETWEEN 900001 AND 900007)")"
+echo "[seed] flood_levels/flood_facilities/roads_edges(主分量)/poi夹具/xiaoqu夹具/选址格夹具 = $counts"
+[ "$counts" = "251/83/3/6/12/7" ] || { echo "::error::seed 对账不符（期望 251/83/3/6/12/7）"; exit 1; }
 echo "[seed] 完成"

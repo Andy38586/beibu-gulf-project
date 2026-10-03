@@ -7,11 +7,14 @@
 //      必须对得上；Cesium 对越界 indices 是静默丢弃，不报错。
 //   ③ **实例化确实被用上**：节点必须带 EXT_mesh_gpu_instancing 且 extensionsUsed 声明它。
 //      少了这条声明 Cesium 会忽略扩展 ⇒ 箱子全堆在原点。
+import fs from 'node:fs'
+import path from 'node:path'
+
 import { describe, expect, it } from 'vitest'
 
 import { CONTAINER_TYPES, generateAll } from '../container-models.mjs'
 import { box, buildGLB, enuToGltf } from '../glb.mjs'
-import { extrudeWay } from '../build-roads.mjs'
+import { buildRoads, extrudeWay } from '../build-roads.mjs'
 import { ribbon } from '../build-canal.mjs'
 import { buildBridge } from '../build-bridges.mjs'
 
@@ -94,6 +97,42 @@ describe('挤出器 — ENU 必须换成 glTF Y-up（删掉这条断言，浮空
     for (let i = 1; i < b.positions.length; i += 3) ys.push(b.positions[i])
     expect(Math.max(...ys)).toBeLessThan(24) // 桥面顶 22 m + 栏杆 1.2 m
     expect(Math.min(...ys)).toBeGreaterThan(-4) // 桥墩底
+  })
+})
+
+describe('buildRoads — root.boundingVolume 必须是 ENU(Z-up)', () => {
+  // 为什么单独钉这一条：positions 是 glTF Y-up、boundingVolume 是 ENU，两者轴序不同。
+  // 2026-10-03 实测：把 glTF 的 min/max 直接当 box 用 ⇒ 包围盒中心落到椭球下 5351 m，
+  // Cesium 在近机位把整层剔除（visited=0），路网在港区根本不显示且**零报错**。
+  it('盒中心第 2 分量是北向（上千），第 3 分量是地面高程（−20 上下），竖半轴很小', () => {
+    const dir = 'node_modules/.cache/beibu-roads-box-test'
+    fs.mkdirSync(dir, { recursive: true })
+    const osm = {
+      elements: [
+        {
+          type: 'way',
+          id: 1,
+          tags: { highway: 'service' },
+          // 南北走向：这样"北向"在盒里是一个大数，轴序写错时 b[1] 会变成高程（−20 量级）⇒ 必红
+          geometry: [
+            { lon: 108.64, lat: 21.67 },
+            { lon: 108.64, lat: 21.69 },
+          ],
+        },
+      ],
+    }
+    fs.writeFileSync(path.join(dir, 'osm.json'), JSON.stringify(osm))
+    buildRoads({
+      osmFile: path.join(dir, 'osm.json'),
+      outDir: path.join(dir, 'out'),
+      rebuiltDir: 'backend/static/qinzhou-port/rebuilt',
+    })
+    const ts = JSON.parse(fs.readFileSync(path.join(dir, 'out', 'tileset.json'), 'utf8'))
+    const b = ts.root.boundingVolume.box
+    expect(Math.abs(b[1])).toBeGreaterThan(500) // 北向
+    expect(Math.abs(b[2])).toBeLessThan(100) // 地面高程（ENU 的 up）
+    expect(b[11]).toBeLessThan(50) // 竖半轴：薄板，绝不能是 N 的量级
+    expect(b[7]).toBeGreaterThan(500) // 北向半轴
   })
 })
 

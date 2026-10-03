@@ -24,7 +24,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { buildGLB, enuToGltf, GLTF_UP } from './glb.mjs'
+import { buildGLB, enuToGltf, GLTF_UP, gltfToEnu } from './glb.mjs'
 
 const TILE_DIR = 'backend/static/qinzhou-port/tiles'
 /** 与 qinzhou-port 交付包同一 root.transform（落位逐位对齐的前提） */
@@ -183,8 +183,14 @@ export function buildRoads({ osmFile, outDir, rebuiltDir }) {
       }
     }
   }
-  const c0 = [(mn[0] + mx[0]) / 2, (mn[1] + mx[1]) / 2, (mn[2] + mx[2]) / 2]
-  const h0 = [(mx[0] - mn[0]) / 2 + 5, (mx[1] - mn[1]) / 2 + 5, (mx[2] - mn[2]) / 2 + 5]
+  // positions 是 glTF Y-up，但 boundingVolume 必须是 tile 局部 **ENU(Z-up)**。
+  // 直接把 glTF 的 min/max 填进 box ⇒ 北向被当竖轴，包围盒落到椭球下 5.3 km，
+  // Cesium 近机位整层剔除（visited=0，路网不显示）。故过 gltfToEnu 并把半轴按同一次
+  // 轴置换重排：glTF(x,y,z)→ENU(x,−z,y) ⇒ 半轴 (hx,hy,hz)→(hx,hz,hy)。
+  const gCenter = [(mn[0] + mx[0]) / 2, (mn[1] + mx[1]) / 2, (mn[2] + mx[2]) / 2]
+  const gHalf = [(mx[0] - mn[0]) / 2 + 5, (mx[1] - mn[1]) / 2 + 5, (mx[2] - mn[2]) / 2 + 5]
+  const c0 = gltfToEnu(gCenter[0], gCenter[1], gCenter[2])
+  const h0 = [gHalf[0], gHalf[2], gHalf[1]]
   const tileset = {
     asset: { version: '1.1', generator: 'beibu-3dtiles-build/build-roads' },
     geometricError: 512,

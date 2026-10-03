@@ -27,6 +27,18 @@ export function enuToGltf(e, n, u) {
   return [e, u, -n]
 }
 
+/**
+ * glTF Y-up (x,y,z) → tile 局部 ENU(E,N,U)。**enuToGltf 的逆，同一权威源**。
+ *
+ * 为什么需要逆映射：**boundingVolume 是 tile 局部 ENU(Z-up)，content 是 glTF Y-up**，
+ * 两者轴序不同。若拿 positions（glTF）的 min/max 直接填 box，整层的"北向"会被塞进竖轴
+ * ——实测 roads 的盒中心落到椭球下 5351 m，Cesium 在近机位把整层剔除
+ * （tileset.statistics.visited=0），路网在港区**根本不显示**，且零报错。
+ */
+export function gltfToEnu(x, y, z) {
+  return [x, -z, y]
+}
+
 /** ENU 法线 → glTF Y-up（与 enuToGltf 同一映射，法线只转方向） */
 export function enuNormalToGltf(e, n, u) {
   return [e, u, -n]

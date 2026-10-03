@@ -222,11 +222,14 @@ export const BEIBU_TILES: readonly BeibuTilesSpec[] = [
   },
   {
     id: 'qinzhou-port',
-    // 指向**清空版**：原包的 cargo 集装箱棱柱已被 tools/3dtiles-build/clean-cargo.mjs
-    // 摘掉，集装箱改由 qz-containers 层供应。不摘就是同一位置两套互相穿插的模型
-    // —— 本项目已踩过一次（三条 BIM 枢纽，见文件头）。
-    label: '钦州港 · 作业区三维',
-    url: '/static/qinzhou-port/rebuilt/tileset.cleaned.json',
+    // 2026-10-03 晚改回**交付包原版**（用户指出「传输包-20260928 里有完整的 3DTiles」）。
+    // 实测同机位对照（.local/3d-review/sheet-delivered-cmp.png）：交付包的 cargo 是**有颜色、
+    // 有体积的集装箱堆场**；我们参数化重建的那层在同机位下是**一层扁平米色片**。
+    // 故原版为准，参数化重建降级为可手动打开的备选（defaultVisible:false）。
+    // 仍走 derive：球外剔除 + 粗层（depth≤3）摘内容——那层是交付包自带的 REPLACE 地表，
+    // 与 CTB 地形不同源，同开即两层地面（见 QINZHOU_OPERATION_AREA 的实测表）。
+    label: '钦州港 · 作业区三维（交付包）',
+    url: '/static/qinzhou-port/tiles/tileset.json',
     carriesTerrain: true,
     maximumScreenSpaceError: 32,
     defaultVisible: true,
@@ -241,11 +244,13 @@ export const BEIBU_TILES: readonly BeibuTilesSpec[] = [
     // 由 tools/3dtiles-build/rebuild-containers.mjs 生成：8180 个箱区 → 79622 个
     // 集装箱实例，5 款箱型（ISO 668），按 EXT_mesh_gpu_instancing 实例化。
     // 整层 0.8 MB（逐实例展开顶点则是 178.3 MB）。
-    label: '钦州港 · 集装箱（重建）',
+    // 2026-10-03：默认关闭。交付包原版已带 cargo（见上条），两层同开会互相穿插；
+    // 留着重在"万一原版又出问题时有备选"，打开需手动勾选。
+    label: '钦州港 · 集装箱（重建，备选）',
     url: '/static/qinzhou-port/rebuilt/tileset.json',
     carriesTerrain: false,
     maximumScreenSpaceError: 16,
-    defaultVisible: true,
+    defaultVisible: false,
   },
   {
     id: 'qz-roads',

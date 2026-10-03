@@ -68,13 +68,14 @@ describe('BEIBU_TILES 清单', () => {
     expect(new Set(urls).size).toBe(urls.length)
   })
 
-  it('作业区层指向清空版、集装箱层指向重建版（两者不得指同一个 tileset）', () => {
-    expect(QINZHOU.url).toBe('/static/qinzhou-port/rebuilt/tileset.cleaned.json')
+  it('作业区层指向交付包原版、集装箱重建层默认关闭（两者不得指同一个 tileset）', () => {
+    expect(QINZHOU.url).toBe('/static/qinzhou-port/tiles/tileset.json')
     const containers = BEIBU_TILES.find((s) => s.id === 'qz-containers')!
     expect(containers.url).toBe('/static/qinzhou-port/rebuilt/tileset.json')
     expect(containers.url).not.toBe(QINZHOU.url)
-    // 集装箱层不需要再裁：生成时已按作业区半径筛过箱区
+    // 集装箱重建层不需要再裁：生成时已按作业区半径筛过箱区；且默认关闭（原版已带 cargo）
     expect(containers.derive).toBeUndefined()
+    expect(containers.defaultVisible).toBe(false)
   })
 
   it('url 均为站点根绝对路径（Data URI 挂载前由派生补 origin）', () => {

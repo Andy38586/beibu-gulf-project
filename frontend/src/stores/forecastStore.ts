@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import type { Ref, ShallowRef } from 'vue'
-import { ref, shallowRef } from 'vue'
+import { reactive, ref, shallowRef } from 'vue'
 
 // 分层铁律：stores 不得引用 business——初始化所需共享常量一律从 shared 取
 import { BoundedMap, DEFAULT_CONFIDENCE } from '@/shared'
@@ -61,6 +61,27 @@ export const useForecastStore = defineStore('forecast', () => {
   /** 请求事务状态迁入 store（消除请求 composable 的模块级可变状态）；AbortController 不可序列化、不响应式，仍由请求实例持有并透传 signal */
   const activeTransactionId: Ref<number> = ref(0)
   const isRequesting: Ref<boolean> = ref(false)
+
+  // ── v4-S3 图表数据槽：请求归属上移面板后，请求 composable 的结果写这里，
+  // 页面模板只绑定 store（页面管"画出来"）。不入快照——恢复链路由 renderer watch
+  // 重新加载（requestCache 命中即零请求重建），快照只存源数据不存派生视图。
+  const chart = reactive({
+    lineXData: [] as string[],
+    lineSeries: [] as Array<{ name: string; data: number[] }>,
+    lineViewportXMin: '2023-01',
+    lineViewportXMax: '2029-12',
+    barXData: [] as string[],
+    barSeries: [] as Array<{ name: string; data: Array<number | null> }>,
+  })
+
+  function clearChart(): void {
+    chart.lineXData = []
+    chart.lineSeries = []
+    chart.lineViewportXMin = '2023-01'
+    chart.lineViewportXMax = '2029-12'
+    chart.barXData = []
+    chart.barSeries = []
+  }
 
   /** 事务推进（composable 不再直改 state）——返回新事务 ID */
   function bumpTransactionId(): number {
@@ -145,6 +166,7 @@ export const useForecastStore = defineStore('forecast', () => {
     }
     activeForecastLayer.value = null
     requestCache.value = new BoundedMap<string, unknown>(MAX_REQUEST_CACHE_ENTRIES)
+    clearChart()
     resetTransactionState()
   }
 
@@ -177,6 +199,8 @@ export const useForecastStore = defineStore('forecast', () => {
     confidenceThresholds,
     activeForecastLayer,
     requestCache,
+    chart,
+    clearChart,
     activeTransactionId,
     isRequesting,
     bumpTransactionId,

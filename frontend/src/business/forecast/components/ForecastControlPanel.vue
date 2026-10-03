@@ -1,7 +1,7 @@
 <!-- 预测分析控制面板（4×4）：上半为 4 个指标按钮（三态）+ 置信度滑块，
      下半为时间轴卡片（点击才展开滑块）+ 3 个可点击刻度 -->
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 
 import { useSliderFocus } from '@/core'
 import {
@@ -16,6 +16,7 @@ import {
 } from '@/shared'
 import { useForecastStore } from '@/stores'
 
+import { useForecastOrchestrator } from '../composables/useForecastOrchestrator'
 import { currentTimeToStep, stepToTime as timelineStepToTime } from '../timeline'
 
 const forecastState = useForecastStore()
@@ -130,6 +131,27 @@ function pickScenario(id: string) {
   if (forecastState.canalScenario !== id) forecastState.setCanalScenario(id)
 }
 
+// ===== v4-S3：请求归属上移——"用户改了什么"由本面板发起 =====
+// 三路共享事务的编排器由页面 provide（AbortController 单实例），本面板 inject 后调用；
+// 页面只保留"渲染器就绪"这一次渲染侧初始化触发（见 ForecastPage.vue）。
+const { doForecastUpdate } = useForecastOrchestrator()
+
+/** 距最后一次操作 300ms 统一刷新：合并 indicator/time/confidence/运河情景 的连续变化，避免双触发 */
+const REFRESH_DEBOUNCE_MS = 300
+let refreshTimer: ReturnType<typeof setTimeout> | null = null
+watch(
+  () => [
+    forecastState.activeIndicator,
+    forecastState.currentTime,
+    forecastState.confidenceThresholds[forecastState.activeIndicator],
+    forecastState.canalScenario,
+  ],
+  () => {
+    if (refreshTimer) clearTimeout(refreshTimer)
+    refreshTimer = setTimeout(() => void doForecastUpdate(), REFRESH_DEBOUNCE_MS)
+  }
+)
+
 onMounted(() => {
   document.addEventListener('click', handleGlobalClick)
 })
@@ -143,6 +165,11 @@ onUnmounted(() => {
   }
   // 卸载时若滑块专注模式仍激活立即退出，避免残留下页面板全透明
   endSliderFocus()
+  // v4-S3：卸载后不再发起请求（与页面的 cancelAll 互补：这边防的是"还没发出去"的那一次）
+  if (refreshTimer) {
+    clearTimeout(refreshTimer)
+    refreshTimer = null
+  }
 })
 
 // ===== 时间滑块 =====

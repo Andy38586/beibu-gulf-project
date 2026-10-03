@@ -73,4 +73,13 @@ describe('ForecastPage 冒烟', () => {
     expect(wrapper.find('.forecast-page').exists()).toBe(true)
     wrapper.unmount()
   })
+
+  // v4-S3：页面侧只剩"渲染器就绪"这一次初始化触发；卸载必须取消在飞请求
+  it('渲染器未就绪不发起；卸载调用 cancelAll', async () => {
+    const wrapper = shallowMount(ForecastPage)
+
+    expect(h.startTransaction).not.toHaveBeenCalled() // currentRenderer 为 null ⇒ 编排器空转
+    wrapper.unmount()
+    expect(h.cancelAll).toHaveBeenCalled()
+  })
 })

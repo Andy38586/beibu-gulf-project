@@ -3,7 +3,6 @@
  * 请求经 forecastAdapter（service 层隔离），组件零 HTTP/字段细节；缓存存 store；
  * 双真指标并行请求共享事务，任一过期整体跳过渲染。429 播放限流静默降级与页面原实现一致。
  */
-import { type Ref, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { forecastAdapter } from '@/services'
@@ -18,10 +17,8 @@ import {
 import { PORT_KEYS, PORT_NAMES } from '@/shared'
 import { useForecastStore } from '@/stores'
 
-/** 返回契约（显式化，防重构时签名静默漂移） */
+/** 返回契约（显式化，防重构时签名静默漂移）。v4-S3：结果写 store.chart，不再持本地 ref */
 export interface UseForecastComparisonReturn {
-  barXData: Ref<string[]>
-  barSeries: Ref<Array<{ name: string; data: Array<number | null> }>>
   load: (transactionId: number, signal: AbortSignal) => Promise<void>
 }
 
@@ -38,10 +35,6 @@ export function useForecastComparison(): UseForecastComparisonReturn {
   const router = useRouter()
   const forecastState = useForecastStore()
   const { runInTransaction, isTransactionValid } = useForecastRequest()
-
-  const barXData = ref<string[]>([])
-  // data 保留 null（图表空档）——BarChart series 类型须为 (number|null)[]
-  const barSeries = ref<Array<{ name: string; data: Array<number | null> }>>([])
 
   async function load(transactionId: number, signal: AbortSignal): Promise<void> {
     try {
@@ -61,8 +54,8 @@ export function useForecastComparison(): UseForecastComparisonReturn {
           xData: string[]
           series: Array<{ name: string; data: Array<number | null> }>
         }
-        barXData.value = c.xData
-        barSeries.value = c.series
+        forecastState.chart.barXData = c.xData
+        forecastState.chart.barSeries = c.series
         return
       }
       // 双真指标并行请求（3 港 × 2 指标 = 6 柱）
@@ -86,8 +79,8 @@ export function useForecastComparison(): UseForecastComparisonReturn {
       )
       // 任一请求事务过期 → 整体跳过本次渲染（等下一次状态变化）
       if (results.some((r) => r === null)) return
-      barXData.value = [...PORT_NAMES]
-      barSeries.value = BAR_INDICATORS.map((ind, i) => {
+      forecastState.chart.barXData = [...PORT_NAMES]
+      forecastState.chart.barSeries = BAR_INDICATORS.map((ind, i) => {
         const p = results[i]?.ports
         return {
           name: BAR_INDICATOR_LABELS[ind],
@@ -97,7 +90,10 @@ export function useForecastComparison(): UseForecastComparisonReturn {
           data: PORT_KEYS.map((k) => p?.[k]?.value ?? null),
         }
       })
-      forecastState.setRequestCache(cacheKey, { xData: barXData.value, series: barSeries.value })
+      forecastState.setRequestCache(cacheKey, {
+        xData: forecastState.chart.barXData,
+        series: forecastState.chart.barSeries,
+      })
     } catch (e) {
       logger.error('[ForecastComparison] load error:', e)
       if (isAuthError(e)) {
@@ -113,5 +109,5 @@ export function useForecastComparison(): UseForecastComparisonReturn {
     }
   }
 
-  return { barXData, barSeries, load }
+  return { load }
 }

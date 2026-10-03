@@ -4,7 +4,6 @@
  * （跨页面快照由 store 统一序列化），事务经 useForecastRequest 保证三路请求原子性。
  * 错误处理与页面原实现一致：401 软登录、其余 showError 统一出口。
  */
-import { type Ref, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { forecastAdapter } from '@/services'
@@ -19,12 +18,9 @@ interface SeriesItem {
   data: Array<{ time: string; value: number }>
 }
 
-/** 返回契约（显式化，防重构时签名静默漂移） */
+/** 返回契约（显式化，防重构时签名静默漂移）。v4-S3：结果写 store.chart，不再持本地 ref——
+ * 请求归属上移面板后，页面模板绑定 store，本 composable 只剩"取数+窗口切片"职责 */
 export interface UseForecastTimeseriesReturn {
-  lineXData: Ref<string[]>
-  lineSeries: Ref<Array<{ name: string; data: number[] }>>
-  lineViewportXMin: Ref<string>
-  lineViewportXMax: Ref<string>
   load: (transactionId: number, signal: AbortSignal) => Promise<void>
 }
 
@@ -32,11 +28,6 @@ export function useForecastTimeseries(): UseForecastTimeseriesReturn {
   const router = useRouter()
   const forecastState = useForecastStore()
   const { runInTransaction, isTransactionValid } = useForecastRequest()
-
-  const lineXData = ref<string[]>([])
-  const lineSeries = ref<Array<{ name: string; data: number[] }>>([])
-  const lineViewportXMin = ref('2023-01')
-  const lineViewportXMax = ref('2029-12')
 
   /** 全量数据: 首次 API 获取后缓存，后续只做窗口截取（缓存存 store，快照可恢复） */
   async function load(transactionId: number, signal: AbortSignal): Promise<void> {
@@ -99,13 +90,13 @@ export function useForecastTimeseries(): UseForecastTimeseriesReturn {
       const windowStart = rawStart >= dataMin ? rawStart : dataMin
       const windowEnd = rawEnd <= dataMax ? rawEnd : dataMax
 
-      lineViewportXMin.value = windowStart
-      lineViewportXMax.value = windowEnd
+      forecastState.chart.lineViewportXMin = windowStart
+      forecastState.chart.lineViewportXMax = windowEnd
 
       const inWindow = (d: { time: string }) => d.time >= windowStart && d.time <= windowEnd
 
-      lineXData.value = allData.filter(inWindow).map((d) => d.time)
-      lineSeries.value = (entry?.allSeries ?? []).map((s) => ({
+      forecastState.chart.lineXData = allData.filter(inWindow).map((d) => d.time)
+      forecastState.chart.lineSeries = (entry?.allSeries ?? []).map((s) => ({
         name: s.portName,
         data: (s.data || []).filter(inWindow).map((d) => d.value),
       }))
@@ -120,5 +111,5 @@ export function useForecastTimeseries(): UseForecastTimeseriesReturn {
     }
   }
 
-  return { lineXData, lineSeries, lineViewportXMin, lineViewportXMax, load }
+  return { load }
 }

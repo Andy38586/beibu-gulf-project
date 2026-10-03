@@ -17,10 +17,8 @@ import type { ForecastSavedState } from '@/stores/forecastStore'
 import { BarChart, ChartLoading, LineChart } from '@/visualization'
 
 import ForecastControlPanel from './components/ForecastControlPanel.vue'
-import { useForecastComparison } from './composables/useForecastComparison'
 import { useForecastLayer } from './composables/useForecastLayer'
-import { useForecastRequest } from './composables/useForecastRequest'
-import { useForecastTimeseries } from './composables/useForecastTimeseries'
+import { provideForecastOrchestrator } from './composables/useForecastOrchestrator'
 
 /**
  * 图层面板里预测层的展示顺序（面板按「货 → 活 → 箱」排）。
@@ -34,19 +32,13 @@ const FORECAST_PANEL_ORDER: string[] = ['cargo', 'activity', 'container'].map(fo
 
 const forecastState = useForecastStore()
 const mapStore = useMapStore()
-const { updateForecastLayer, renderer } = useForecastLayer()
-const { startTransaction, cancelAll } = useForecastRequest()
-const {
-  lineXData,
-  lineSeries,
-  lineViewportXMin,
-  lineViewportXMax,
-  load: loadTimeSeriesData,
-} = useForecastTimeseries()
-const { barXData, barSeries, load: loadPortComparisonData } = useForecastComparison()
 
-let debounceTimer: ReturnType<typeof setTimeout> | null = null
-const DEBOUNCE_DELAY = 300
+// v4-S3：三路事务编排器单实例（页面创建并 provide，面板 inject 后发起用户请求——
+// AbortController 是实例级持有，两份实例会裂开竞态守卫）。
+// ⚠️ 图层能力仍由**页面**自己取（owned-layers 守卫口径：建 owner 册的 composable 必须页面直调），
+// 再注入编排器复用——归属随页面作用域，不会因子组件卸载而丢。
+const { updateForecastLayer } = useForecastLayer()
+const { doForecastUpdate, cancelAll } = provideForecastOrchestrator({ updateForecastLayer })
 
 /** 跳转个人中心（登录）时保存状态，返回恢复；其它路由离开清除快照（对齐浸没/选址页先例） */
 useProfileSnapshot({
@@ -97,21 +89,6 @@ watch(
   { immediate: true }
 )
 
-// 统一预测更新：启动新事务保证三路请求原子性（loading 状态不绑定 UI）
-async function doForecastUpdate() {
-  if (!renderer.value) return
-
-  // 启动新事务，取消旧请求
-  const { transactionId, signal } = startTransaction()
-
-  // 三个请求共享同一事务，保证数据一致性
-  await Promise.all([
-    loadTimeSeriesData(transactionId, signal),
-    loadPortComparisonData(transactionId, signal),
-    updateForecastLayer(transactionId, signal),
-  ])
-}
-
 // 切离 cargo 时立即复位运河情景（cargo 之外无文献参数口径，后端 400；
 // 不进防抖——复位是状态修正不是请求）
 watch(
@@ -123,27 +100,10 @@ watch(
   }
 )
 
-// 合并监听 indicator/time/confidence/运河情景，纯防抖（debounce，300ms）停止操作后统一刷新，避免双触发
-watch(
-  () => [
-    forecastState.activeIndicator,
-    forecastState.currentTime,
-    forecastState.confidenceThresholds[forecastState.activeIndicator],
-    forecastState.canalScenario,
-  ],
-  () => {
-    // 每次状态变化都重置防抖定时器
-    clearTimeout(debounceTimer ?? undefined)
-    debounceTimer = setTimeout(() => doForecastUpdate(), DEBOUNCE_DELAY)
-  }
-)
+// v4-S3：参数变化的三路刷新已上移 ForecastControlPanel（防抖 + 发起都在面板——
+// 请求归属口径"面板管要什么"）；本页只保留渲染器就绪这一次渲染侧初始化触发。
 
 onUnmounted(() => {
-  // 清理防抖定时器，避免卸载后触发 doForecastUpdate
-  if (debounceTimer) {
-    clearTimeout(debounceTimer)
-    debounceTimer = null
-  }
   cancelAll()
   // 图层注销不由本页负责：注册经 useOwnedLayers 登记归属，卸载由 onScopeDispose 统一清
   forecastState.reset()
@@ -157,17 +117,21 @@ onUnmounted(() => {
         <GCSPanel :w="4" :h="4" anchor="top-left" :offset-x="0" :offset-y="1.25">
           <LineChart
             title="预测趋势"
-            :x-data="lineXData"
-            :series="lineSeries"
-            :x-min="lineViewportXMin"
-            :x-max="lineViewportXMax"
+            :x-data="forecastState.chart.lineXData"
+            :series="forecastState.chart.lineSeries"
+            :x-min="forecastState.chart.lineViewportXMin"
+            :x-max="forecastState.chart.lineViewportXMax"
           />
           <!-- 数据刷新期 loading 覆盖（isRequesting 由事务 composable 驱动），
                原注释"加载态不绑定 UI"已废止——弱网下用户可感知更新进行中 -->
           <ChartLoading v-if="forecastState.isRequesting" />
         </GCSPanel>
         <GCSPanel :w="4" :h="4" anchor="top-left" :offset-x="0" :offset-y="5.5">
-          <BarChart title="港口对比" :x-data="barXData" :series="barSeries" />
+          <BarChart
+            title="港口对比"
+            :x-data="forecastState.chart.barXData"
+            :series="forecastState.chart.barSeries"
+          />
           <ChartLoading v-if="forecastState.isRequesting" />
         </GCSPanel>
       </template>

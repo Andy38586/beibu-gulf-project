@@ -22,7 +22,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { buildGLB, box, enuNormalToGltf, enuToGltf } from './glb.mjs'
+import { buildGLB, box, enuNormalToGltf, enuToGltf, gltfToEnu } from './glb.mjs'
 
 /** 城区桥清单：名称 → OSM way id 列表（多段同名 way 取并集，用其几何端点定轴向） */
 export const CITY_BRIDGES = [
@@ -263,8 +263,13 @@ export function buildAll({ osmFile, outDir }) {
         nodes: [{ mesh: 0 }],
       })
     )
-    const c0 = [(mn[0] + mx[0]) / 2, (mn[1] + mx[1]) / 2, (mn[2] + mx[2]) / 2]
-    const h0 = [(mx[0] - mn[0]) / 2 + 5, (mx[1] - mn[1]) / 2 + 5, (mx[2] - mn[2]) / 2 + 5]
+    // positions 是 glTF Y-up，boundingVolume 必须是 tile 局部 **ENU(Z-up)**：轴序混用会把
+    // 整桥挪到别处（实测桥位包围盒中心比真实低 ~150 m、北向塌到 35 m）⇒ 近机位整层被剔除
+    // （statistics.visited=0，桥在自己的位置上看不见），远机位视锥大才偶尔选中。
+    const gCenter = [(mn[0] + mx[0]) / 2, (mn[1] + mx[1]) / 2, (mn[2] + mx[2]) / 2]
+    const gHalf = [(mx[0] - mn[0]) / 2 + 5, (mx[1] - mn[1]) / 2 + 5, (mx[2] - mn[2]) / 2 + 5]
+    const c0 = gltfToEnu(gCenter[0], gCenter[1], gCenter[2])
+    const h0 = [gHalf[0], gHalf[2], gHalf[1]]
     children.push({
       boundingVolume: { box: [c0[0], c0[1], c0[2], h0[0], 0, 0, 0, h0[1], 0, 0, 0, h0[2]] },
       geometricError: 0,

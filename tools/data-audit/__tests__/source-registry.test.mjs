@@ -6,13 +6,14 @@ import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+
 import { describe, expect, it } from 'vitest'
 
 import {
-  SCAN_ROOTS,
   computeCoverage,
   groupCovers,
   matchesGlob,
+  SCAN_ROOTS,
   validateRegistry,
 } from '../source-registry.mjs'
 
@@ -33,6 +34,26 @@ describe('matchesGlob：极简 glob（** 与 *）', () => {
   it('* 不跨目录', () => {
     expect(matchesGlob('a/b.json', 'a/*.json')).toBe(true)
     expect(matchesGlob('a/b/c.json', 'a/*.json')).toBe(false)
+  })
+})
+
+describe('groupCovers：paths 精确 vs globs 前缀', () => {
+  const g = {
+    id: 'g',
+    paths: ['exact.json'],
+    globs: ['sub/**'],
+    source: 's',
+    license: 'l',
+    fetchedAt: 'f',
+    coverage: 'c',
+    quality: 'q',
+  }
+
+  it('精确路径与 glob 各认各的，互不越界', () => {
+    expect(groupCovers(g, 'exact.json')).toBe(true)
+    expect(groupCovers(g, 'exact.json.bak')).toBe(false)
+    expect(groupCovers(g, 'sub/deep/x.json')).toBe(true)
+    expect(groupCovers(g, 'subx/x.json')).toBe(false)
   })
 })
 

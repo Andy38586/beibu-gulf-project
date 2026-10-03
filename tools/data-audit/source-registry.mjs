@@ -33,11 +33,11 @@ export const SCAN_ROOTS = ['backend/data', 'backend/static']
 export function matchesGlob(file, pattern) {
   const norm = file.replace(/\\/g, '/')
   if (!pattern.includes('*')) return norm === pattern
+  // 先按 ** 切段（段内 * 不跨目录），再各段转义——避免用控制字符占位（no-control-regex）
   const rx = pattern
-    .replace(/[.+^$\{\}()|[\]\\]/g, '\\$&')
-    .replace(/\*\*/g, '\u0000')
-    .replace(/\*/g, '[^/]*')
-    .replace(/\u0000/g, '.*')
+    .split('**')
+    .map((seg) => seg.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '[^/]*'))
+    .join('.*')
   return new RegExp('^' + rx + '$').test(norm)
 }
 

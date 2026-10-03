@@ -48,11 +48,20 @@ function makeTileset(): TilesetJson {
 }
 
 describe('BEIBU_TILES 清单', () => {
-  it('两条资产，id 唯一且与类型联合一致', () => {
-    expect(BEIBU_TILES).toHaveLength(2)
+  it('三条资产，id 唯一且与类型联合一致', () => {
+    expect(BEIBU_TILES).toHaveLength(3)
     const ids = BEIBU_TILES.map((s) => s.id)
     expect(new Set(ids).size).toBe(ids.length)
-    expect(ids).toEqual(['qinzhou-port', 'qz-terminal-bim'])
+    expect(ids).toEqual(['qinzhou-port', 'qz-containers', 'qz-terminal-bim'])
+  })
+
+  it('作业区层指向清空版、集装箱层指向重建版（两者不得指同一个 tileset）', () => {
+    expect(QINZHOU.url).toBe('/static/qinzhou-port/rebuilt/tileset.cleaned.json')
+    const containers = BEIBU_TILES.find((s) => s.id === 'qz-containers')!
+    expect(containers.url).toBe('/static/qinzhou-port/rebuilt/tileset.json')
+    expect(containers.url).not.toBe(QINZHOU.url)
+    // 集装箱层不需要再裁：生成时已按作业区半径筛过箱区
+    expect(containers.derive).toBeUndefined()
   })
 
   it('url 均为站点根绝对路径（Data URI 挂载前由派生补 origin）', () => {

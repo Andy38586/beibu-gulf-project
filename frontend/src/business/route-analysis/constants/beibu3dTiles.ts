@@ -47,7 +47,7 @@ import {
 } from '@/core/map/tiles3dGroups'
 
 /** 资产 id（图层 id 后缀，与注册时的 `beibu-` + id 拼装一致） */
-export type BeibuTilesId = 'qinzhou-port' | 'qz-terminal-bim'
+export type BeibuTilesId = 'qinzhou-port' | 'qz-containers' | 'qz-terminal-bim'
 
 export interface BeibuTilesSpec {
   id: BeibuTilesId
@@ -179,8 +179,11 @@ export function isCoarseTerrainLayer(node: TilesetNode): boolean {
 export const BEIBU_TILES: readonly BeibuTilesSpec[] = [
   {
     id: 'qinzhou-port',
+    // 指向**清空版**：原包的 cargo 集装箱棱柱已被 tools/3dtiles-build/clean-cargo.mjs
+    // 摘掉，集装箱改由 qz-containers 层供应。不摘就是同一位置两套互相穿插的模型
+    // —— 本项目已踩过一次（三条 BIM 枢纽，见文件头）。
     label: '钦州港 · 作业区三维',
-    url: '/static/qinzhou-port/tiles/tileset.json',
+    url: '/static/qinzhou-port/rebuilt/tileset.cleaned.json',
     carriesTerrain: true,
     maximumScreenSpaceError: 32,
     defaultVisible: true,
@@ -189,6 +192,17 @@ export const BEIBU_TILES: readonly BeibuTilesSpec[] = [
       keepSphere: QINZHOU_OPERATION_AREA,
       dropContent: isCoarseTerrainLayer,
     },
+  },
+  {
+    id: 'qz-containers',
+    // 由 tools/3dtiles-build/rebuild-containers.mjs 生成：8180 个箱区 → 79622 个
+    // 集装箱实例，5 款箱型（ISO 668），按 EXT_mesh_gpu_instancing 实例化。
+    // 整层 0.8 MB（逐实例展开顶点则是 178.3 MB）。
+    label: '钦州港 · 集装箱（重建）',
+    url: '/static/qinzhou-port/rebuilt/tileset.json',
+    carriesTerrain: false,
+    maximumScreenSpaceError: 16,
+    defaultVisible: true,
   },
   {
     id: 'qz-terminal-bim',
@@ -212,5 +226,6 @@ export const BEIBU_TILES: readonly BeibuTilesSpec[] = [
 export const BEIBU_TILES_VIEWS: Record<BeibuTilesId, { lng: number; lat: number; height: number }> =
   {
     'qinzhou-port': { lng: 108.6473, lat: 21.6745, height: 6000 },
+    'qz-containers': { lng: 108.6473, lat: 21.6745, height: 1800 },
     'qz-terminal-bim': { lng: 108.6473, lat: 21.6745, height: 1800 },
   }

@@ -98,10 +98,16 @@ describe('PINGLU_GROUPS — 分组表自身的完整性', () => {
     expect(PINGLU_TILESET_URL).toBe('/static/pinglu/tiles/tileset.json')
   })
 
-  it('4 个分组，id 唯一', () => {
-    expect(PINGLU_GROUPS).toHaveLength(4)
-    expect(new Set(PINGLU_GROUPS.map((g) => g.id)).size).toBe(4)
-    expect(PINGLU_GROUPS.map((g) => g.id)).toEqual(['madao', 'qishi', 'qingnian', 'corridor'])
+  it('3 个分组（只剩三枢纽），id 唯一', () => {
+    expect(PINGLU_GROUPS).toHaveLength(3)
+    expect(new Set(PINGLU_GROUPS.map((g) => g.id)).size).toBe(3)
+    expect(PINGLU_GROUPS.map((g) => g.id)).toEqual(['madao', 'qishi', 'qingnian'])
+  })
+
+  it('bridges 与 corridor 分组均已作废：不得出现在表里（否则与新层双重渲染）', () => {
+    const ids = PINGLU_GROUPS.map((g) => g.id as string)
+    expect(ids).not.toContain('bridges')
+    expect(ids).not.toContain('corridor')
   })
 
   it('bridges 分组已作废：不得出现在表里（否则与城区五桥层双重渲染）', () => {
@@ -113,33 +119,35 @@ describe('PINGLU_GROUPS — 分组表自身的完整性', () => {
 
   it('图层 id 由前缀 + 分组 id 拼成', () => {
     expect(pingluLayerId('madao')).toBe('pinglu-madao')
-    expect(pingluLayerId('corridor')).toBe('pinglu-corridor')
+    expect(pingluLayerId('qingnian')).toBe('pinglu-qingnian')
   })
 })
 
 describe('tallyGroups — 真实交付版不漏不重', () => {
-  it('17 个直属 child：14 个归属，3 个 bridges-* 按废弃判定进未归属', () => {
+  it('17 个直属 child：3 个枢纽归属，14 个（11 走廊 + 3 桥梁）按废弃判定进未归属', () => {
     const { counts, unassigned } = tallyGroups(makeDeliveryTileset(), PINGLU_GROUPS)
     expect(counts.madao).toBe(1)
     expect(counts.qishi).toBe(1)
     expect(counts.qingnian).toBe(1)
-    expect(counts.corridor).toBe(11)
-    // bridges 分组已作废（判据见 pingluTiles 的成文段）：三块必须落在未归属里，
-    // 这是**预期行为**不是漏块——未归属 = 派生时丢弃 = 不与城区五桥层重叠
-    expect(unassigned.sort()).toEqual(['bridges-mid.glb', 'bridges-up.glb', 'bridges-urban.glb'])
+    // corridor 与 bridges 分组均已作废（判据见 pingluTiles 的成文段）：14 块必须
+    // 落在未归属里，这是**预期行为**不是漏块——未归属 = 派生时丢弃 =
+    // 不与自建运河层 / 城区五桥层双重渲染
+    expect(unassigned).toHaveLength(14)
+    expect(unassigned.filter((u) => u.startsWith('corridor-'))).toHaveLength(11)
+    expect(unassigned.filter((u) => u.startsWith('bridges-'))).toHaveLength(3)
     // 归属合计必须等于 17 − 未归属数——漏一个就会出现"开关开了没东西"
     const total = Object.values(counts).reduce((a, b) => a + b, 0)
     expect(total).toBe(17 - unassigned.length)
-    expect(total).toBe(14)
+    expect(total).toBe(3)
   })
 
   it('新增瓦片若不属于任何分组 → 进未归属清单（防止重烘后静默漏块）', () => {
     const ts = makeDeliveryTileset()
     ts.root.children!.push({ content: { uri: 'brand-new-thing.glb' }, extras: { name: '新东西' } })
     const { unassigned } = tallyGroups(ts, PINGLU_GROUPS)
-    // 3 个已作废的 bridges-* + 1 个新增
+    // 14 个已作废的（11 走廊 + 3 桥梁）+ 1 个新增
     expect(unassigned).toContain('brand-new-thing.glb')
-    expect(unassigned).toHaveLength(4)
+    expect(unassigned).toHaveLength(15)
   })
 })
 
@@ -148,21 +156,17 @@ describe('判定语义 — 为什么按 extras 而非文件名', () => {
     const ts = makeDeliveryTileset()
     // 把文件名换掉，extras 不动 —— 仍应被马道组命中
     ts.root.children![0].content = { uri: 'renamed-hub.glb' }
-    const { counts } = tallyGroups(ts, PINGLU_GROUPS)
+    const { counts, unassigned } = tallyGroups(ts, PINGLU_GROUPS)
     expect(counts.madao).toBe(1)
-    expect(counts.corridor).toBe(11)
+    // 走廊块已全部作废 ⇒ 一律进未归属，不再有任何分组认领它们
+    expect(unassigned.filter((u) => u.startsWith('corridor-'))).toHaveLength(11)
   })
 
-  it('corridor 组显式排除 bridges-*（三块已作废，不得被走廊组捎带渲染）', () => {
-    const corridor = deriveGroupTileset(
-      makeDeliveryTileset(),
-      PINGLU_GROUPS.find((g) => g.id === 'corridor')!,
-      BASE
-    )!
-    expect(corridor.root.children).toHaveLength(11)
-    const cUris = corridor.root.children!.map((c) => c.content!.uri as string)
-    // 三块 bridges-* 不得被走廊组捎带（它们已作废，由城区五桥层承担）
-    expect(cUris.some((u) => u.includes('bridges-'))).toBe(false)
+  it('已作废的 corridor-* / bridges-* 不被任何分组认领（不得被捎带渲染）', () => {
+    const { unassigned } = tallyGroups(makeDeliveryTileset(), PINGLU_GROUPS)
+    const cUris = unassigned
+    expect(cUris.some((u) => u.includes('bridges-'))).toBe(true)
+    expect(cUris.some((u) => u.includes('corridor-'))).toBe(true)
   })
 })
 

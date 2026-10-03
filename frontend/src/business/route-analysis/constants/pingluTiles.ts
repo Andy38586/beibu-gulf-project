@@ -15,18 +15,18 @@
  *
  * `extras.name` / `extras.kind` 是建模器写入的语义标注（build_tiles.py 产出），
  * 比文件名约定稳定——重命名即失效的判定会在下次重烘时静默漏块。
- * 唯一的例外是 bridges：它们与 corridor 块同为 `kind: 'corridor'`，
- * 无法用 kind 区分，故按 uri 前缀判定（见下方注释）。
+ * 2026-10-03：corridor 与 bridges 两个分组**均已作废**（判据见文件末成文段），
+ * 表里只剩三枢纽。运河与桥梁改由 tools/3dtiles-build 重烘后单独成层。
  */
 
-import { nodeName, nodeUri, type DeriveOptions, type GroupSpec, type TilesetJson } from '@/core'
+import { nodeName, type DeriveOptions, type GroupSpec, type TilesetJson } from '@/core'
 
 /**
  * 分组 id（图层 id 后缀，与注册时的 `pinglu-` + id 拼装一致）。
  *
  * 定义在此而非 core：这是本业务的图层命名约定。
  */
-export type PingluGroupId = 'madao' | 'qishi' | 'qingnian' | 'corridor'
+export type PingluGroupId = 'madao' | 'qishi' | 'qingnian'
 
 /**
  * 平陆运河 3D Tiles 分组表。
@@ -52,14 +52,28 @@ export const PINGLU_GROUPS: readonly GroupSpec<PingluGroupId>[] = [
     label: '青年枢纽',
     match: (c) => nodeName(c) === '青年枢纽',
   },
-  {
-    id: 'corridor',
-    label: '全线走廊',
-    // 仍显式排除 bridges-*：那三块**已作废**（见下），若日后有人把 bridges 分组加回来，
-    // 这条排除会让它们继续不渲染，不会与城区五桥层重叠。
-    match: (c) => c.extras?.kind === 'corridor' && !(nodeUri(c) ?? '').startsWith('bridges-'),
-  },
 ] as const
+
+/**
+ * ## 2026-10-03 废弃：`corridor` 分组（全线走廊 11 块）
+ *
+ * 原 `corridor` 分组承担 11 个 `corridor-*` 块。**实测它们本来就是断的**：
+ * 块间接缝最大 6245 m（最近顶点距离，本机实测）。而三枢纽按施工影像重锚后，
+ * 马道枢纽偏离运河中线 248 m——**走廊到枢纽角就断了**，渲染图上肉眼可见
+ * （.local/3d-diag/out-madao-diag.png）。
+ *
+ * 逐块平移解决不了：交付包把运河切成 11 段，各段位移不同，平移只是把断点挪位置。
+ *
+ * 现由 `tools/3dtiles-build/build-canal.mjs` 从 OSM 中线**重烘成一条连续带**
+ * （水面 120 m + 两岸各 60 m），并按三个枢纽做局部扭曲使其穿过枢纽。
+ * 层见 `beibu3dTiles` 的 `pinglu-canal`。
+ *
+ * 11 块 corridor 与 3 块 bridges **不再归属任何分组**，派生时自然丢弃——
+ * 保留它们就是同一位置两套互相穿插的模型。
+ *
+ * **失效条件**：若交付包重新交付并给出**连续**的运河几何（块间接缝 ≤ 20 m），
+ * 本条作废，须重新评估留交付版还是留自建版。
+ */
 
 /**
  * ## 2026-10-03 废弃：`bridges` 分组（跨运河桥梁）

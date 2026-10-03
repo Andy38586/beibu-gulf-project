@@ -48,6 +48,7 @@ import {
 
 /** 资产 id（图层 id 后缀，与注册时的 `beibu-` + id 拼装一致） */
 export type BeibuTilesId =
+  | 'pinglu-canal'
   | 'qinzhou-port'
   | 'qz-containers'
   | 'qz-roads'
@@ -183,6 +184,19 @@ export function isCoarseTerrainLayer(node: TilesetNode): boolean {
 
 export const BEIBU_TILES: readonly BeibuTilesSpec[] = [
   {
+    id: 'pinglu-canal',
+    // 由 tools/3dtiles-build/build-canal.mjs 从 OSM 中线**重烘成一条连续带**：
+    // 水面 120 m + 两岸各 60 m，并按三个枢纽做局部扭曲使其穿过枢纽。
+    // 替代交付包那 11 块 corridor-*——实测它们块间接缝最大 6245 m，本来就是断的，
+    // 而枢纽按施工影像重锚后马道偏离中线 248 m，走廊到枢纽角就断了。
+    // ⚠ 断面为参数化取值（底宽 80 m + 边坡估算），非量测。
+    label: '平陆运河 · 全线运河（重建）',
+    url: '/static/pinglu/canal/tileset.json',
+    carriesTerrain: false,
+    maximumScreenSpaceError: 32,
+    defaultVisible: true,
+  },
+  {
     id: 'qinzhou-port',
     // 指向**清空版**：原包的 cargo 集装箱棱柱已被 tools/3dtiles-build/clean-cargo.mjs
     // 摘掉，集装箱改由 qz-containers 层供应。不摘就是同一位置两套互相穿插的模型
@@ -253,6 +267,7 @@ export const BEIBU_TILES: readonly BeibuTilesSpec[] = [
  */
 export const BEIBU_TILES_VIEWS: Record<BeibuTilesId, { lng: number; lat: number; height: number }> =
   {
+    'pinglu-canal': { lng: 108.93696, lat: 22.44918, height: 20000 },
     'qinzhou-port': { lng: 108.6473, lat: 21.6745, height: 6000 },
     'qz-containers': { lng: 108.6473, lat: 21.6745, height: 1800 },
     'qz-roads': { lng: 108.6473, lat: 21.6745, height: 3000 },

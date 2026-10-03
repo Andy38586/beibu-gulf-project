@@ -23,7 +23,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { buildGLB } from './glb.mjs'
+import { buildGLB, enuToGltf } from './glb.mjs'
 import { CONTAINER_TYPES } from './container-models.mjs'
 
 const TILE_DIR = 'backend/static/qinzhou-port/tiles'
@@ -271,17 +271,6 @@ function layoutBlock(b, seed) {
 }
 
 /**
- * 实例化平移量：tile ENU(E,N,U) → glTF(x,y,z)。
- *
- * 3D Tiles 内容的 glTF 是 Y-up，Cesium 施加 Y_UP_TO_Z_UP 后 (x,y,z)→(x,−z,y)，
- * 故反推：glTF x = E，glTF y = U，glTF z = −N。写错这一条的表现是整层箱子
- * 平躺或镜像，不是"少几个箱子"，所以单独提成函数并配断言。
- */
-export function enuToGltf(e, n, u) {
-  return [e, u, -n]
-}
-
-/**
  * 水面掩膜（由施工影像生成，见 tools/3dtiles-build/make-water-mask.py）。
  *
  * **为什么需要**：交付包的 cargo 棱柱有几个跨在码头岸线上，按它们排箱会把整排
@@ -309,6 +298,41 @@ export function loadWaterMask(file) {
 /** WGS84 椭球参数（ENU ↔ 经纬换算用） */
 const A = 6378137.0
 const E2 = (1 / 298.257223563) * (2 - 1 / 298.257223563)
+
+/**
+ * 实例是否压在水面上——按**外廓**采样，不只看中心。
+ *
+ * 为什么：第一版只判中心，剔掉 758 个（2.7%）但模型压水像素几乎没降（8.3%→8.4%）。
+ * 原因是那条入海的箱子**中心还在岸上**，只有外廓伸进水里——中心判据看不见它。
+ *
+ * 判据：中心 + 四角共 5 点，**≥1 点在水面**即剔除。
+ *
+ * 为什么取 1 而不是 2：实测取 2 时仍剩 8.3% 的模型像素压在水上——那些箱子是
+ * **骑在岸线上**（左半在水、右半在陆），5 点里只有 1~2 点落水，2 的门槛拦不住。
+ * 集装箱堆场里没有"合法踩水"的箱子，故取 1。
+ */
+function onWater(mask, toLngLat, inst) {
+  const t = inst.type
+  const hl = t.len / 2
+  const hw = t.wid / 2
+  const ca = Math.cos(inst.rotY)
+  const sa = Math.sin(inst.rotY)
+  const pts = [
+    [0, 0],
+    [hl, hw],
+    [hl, -hw],
+    [-hl, hw],
+    [-hl, -hw],
+  ]
+  let wet = 0
+  for (const [du, dv] of pts) {
+    const de = du * ca - dv * sa
+    const dn = du * sa + dv * ca
+    const [lng, lat] = toLngLat(inst.e + de, inst.n + dn, inst.u)
+    if (mask.isWater(lng, lat)) wet++
+  }
+  return wet >= 1
+}
 
 /** ENU(e,n,u) → 经纬度：局部 → ECEF（用 tileset 的 root.transform）→ 经纬 */
 function makeEnuToLngLat(T) {
@@ -355,12 +379,9 @@ export function rebuild({ outDir, cellSize = 400, modelsDir }) {
   let placed = 0
   blocks.forEach((b, bi) => {
     for (const inst of layoutBlock(b, bi)) {
-      if (mask) {
-        const [lng, lat] = toLngLat(inst.e, inst.n, inst.u)
-        if (mask.isWater(lng, lat)) {
-          droppedWater++
-          continue
-        }
+      if (mask && onWater(mask, toLngLat, inst)) {
+        droppedWater++
+        continue
       }
       const gx = Math.floor(inst.e / cellSize),
         gy = Math.floor(inst.n / cellSize)
@@ -371,12 +392,22 @@ export function rebuild({ outDir, cellSize = 400, modelsDir }) {
       if (!cell.byStyle.has(inst.type.key)) cell.byStyle.set(inst.type.key, [])
       cell.byStyle.get(inst.type.key).push(inst)
       const t = inst.type
+      // 包络要按 rotY 真旋转取四角极值。`rotY ? 交换轴 : 不交换` 只对 ±90° 成立，
+      // 而 rotY 是箱区 PCA 角（连续值，实测多为 10°~30°）：交换轴会把长 200 m 的
+      // 箱区包络转成 90°（E 向只剩箱宽 2.4 m），实例整排戳出包围盒，
+      // Cesium 按小盒子剔除 ⇒ 旋转相机时整格集装箱闪进闪出。
+      const ca = Math.cos(inst.rotY)
+      const sa = Math.sin(inst.rotY)
+      const hl = t.len / 2
+      const hw = t.wid / 2
       for (const [de, dn] of [
-        [-t.len / 2, -t.wid / 2],
-        [t.len / 2, t.wid / 2],
+        [-hl, -hw],
+        [hl, -hw],
+        [hl, hw],
+        [-hl, hw],
       ]) {
-        const ee = inst.e + (inst.rotY ? dn : de),
-          nn = inst.n + (inst.rotY ? de : dn)
+        const ee = inst.e + de * ca - dn * sa
+        const nn = inst.n + de * sa + dn * ca
         if (ee < cell.min[0]) cell.min[0] = ee
         if (ee > cell.max[0]) cell.max[0] = ee
         if (nn < cell.min[1]) cell.min[1] = nn
@@ -482,6 +513,14 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const outDir = arg('--out', 'backend/static/qinzhou-port/rebuilt')
   const cellSize = Number(arg('--cell', 400))
   const r = rebuild({ outDir, cellSize, modelsDir: path.join(outDir, 'models') })
-  console.log('箱区 ' + r.blocks + ' 个 → 放置集装箱 ' + r.placed + ' 个')
+  console.log(
+    '箱区 ' +
+      r.blocks +
+      ' 个 → 放置集装箱 ' +
+      r.placed +
+      ' 个（水面剔除 ' +
+      r.droppedWater +
+      ' 个）'
+  )
   console.log('切块 ' + r.cells + ' 个，合计 ' + r.tris + ' 三角面 → ' + outDir)
 }

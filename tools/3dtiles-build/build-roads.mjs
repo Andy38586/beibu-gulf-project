@@ -49,7 +49,7 @@ function ecef(lng, lat, h) {
     (N * (1 - E2) + h) * Math.sin(B),
   ]
 }
-function makeToLocal(T) {
+export function makeToLocal(T) {
   const R = [T[0], T[1], T[2], T[4], T[5], T[6], T[8], T[9], T[10]]
   const O = [T[12], T[13], T[14]]
   return (lng, lat, h = 0) => {
@@ -64,7 +64,7 @@ function makeToLocal(T) {
 }
 
 /** 从容器层 cell 包围盒反算地面高程（箱区底面） */
-function groundLevel(rebuiltDir) {
+export function groundLevel(rebuiltDir) {
   const f = path.join(rebuiltDir, 'tileset.json')
   if (!fs.existsSync(f)) return 0
   const ts = JSON.parse(fs.readFileSync(f, 'utf8'))

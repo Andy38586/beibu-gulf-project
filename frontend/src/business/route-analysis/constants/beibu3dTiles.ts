@@ -76,6 +76,7 @@ export type BeibuTilesId =
   | 'qinzhou-port'
   | 'qz-containers'
   | 'qz-roads'
+  | 'qz-ground'
   | 'qz-city-bridges'
 
 export interface BeibuTilesSpec {
@@ -258,6 +259,18 @@ export const BEIBU_TILES: readonly BeibuTilesSpec[] = [
     defaultVisible: true,
   },
   {
+    id: 'qz-ground',
+    // 由 tools/3dtiles-build/build-ground.mjs 生成：按施工影像的**陆域掩膜**把路与路之间
+    // 的空地铺满（逐格判四角 + 中心，任一点落水即不铺），高程 = 箱区底面 + 0.05 m，
+    // 比路面低 10 cm。为什么需要：道路层只画路面（5~12 m 宽的带），路网之间的空地露的是
+    // 底图影像 ⇒ 用户看到的「港区根本不连续、路之间的缝隙太大」。
+    label: '钦州港 · 作业区地面',
+    url: '/static/qinzhou-port/rebuilt/ground/tileset.json',
+    carriesTerrain: false,
+    maximumScreenSpaceError: 16,
+    defaultVisible: true,
+  },
+  {
     id: 'qz-city-bridges',
     // 由 tools/3dtiles-build/build-bridges.mjs 生成：城区 5 座跨江桥（金海湾/钦江/
     // 子材/永福/敏昌），桥位与长度取自 OSM，桥型与跨径来自公开资料。
@@ -286,5 +299,6 @@ export const BEIBU_TILES_VIEWS: Record<BeibuTilesId, { lng: number; lat: number;
     'qinzhou-port': { lng: 108.6473, lat: 21.6745, height: 6000 },
     'qz-containers': { lng: 108.6473, lat: 21.6745, height: 1800 },
     'qz-roads': { lng: 108.6473, lat: 21.6745, height: 3000 },
+    'qz-ground': { lng: 108.6473, lat: 21.6745, height: 2000 },
     'qz-city-bridges': { lng: 108.63504, lat: 21.9689, height: 2500 },
   }

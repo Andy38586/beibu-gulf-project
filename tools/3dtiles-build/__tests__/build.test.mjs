@@ -17,6 +17,7 @@ import { box, buildGLB, enuToGltf } from '../glb.mjs'
 import { buildRoads, extrudeWay } from '../build-roads.mjs'
 import { ribbon } from '../build-canal.mjs'
 import { buildBridge } from '../build-bridges.mjs'
+import { buildGround } from '../build-ground.mjs'
 
 describe('enuToGltf — tile ENU → glTF Y-up', () => {
   it('(E,N,U) → (E, U, −N)', () => {
@@ -133,6 +134,55 @@ describe('buildRoads — root.boundingVolume 必须是 ENU(Z-up)', () => {
     expect(Math.abs(b[2])).toBeLessThan(100) // 地面高程（ENU 的 up）
     expect(b[11]).toBeLessThan(50) // 竖半轴：薄板，绝不能是 N 的量级
     expect(b[7]).toBeGreaterThan(500) // 北向半轴
+  })
+})
+
+describe('buildGround — 作业区地面面片', () => {
+  // 三件事一起钉：① 水面格不铺（用户要连续，但不能连到海里去）；
+  // ② 顶点是 glTF Y-up（平铺：y 恒定，轴序错时 y 会跨 N 的量级）；
+  // ③ root.boundingVolume.box 是 ENU（Z-up）——第 3 分量是地面高程、竖半轴很小。
+  it('水面格跳过；顶点平铺在 glTF y；盒是 ENU', () => {
+    const dir = 'node_modules/.cache/beibu-ground-test'
+    fs.mkdirSync(dir, { recursive: true })
+    const size = 64
+    const bbox = [108.64, 21.66, 108.66, 21.68]
+    const bits = Buffer.alloc((size * size) / 8)
+    // 东半为水面；位序与 loadWaterMask 一致（MSB first、行优先、行 0 在北）
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        if (x >= size / 2) {
+          const i = y * size + x
+          bits[i >> 3] |= 0x80 >> (i & 7)
+        }
+      }
+    }
+    fs.writeFileSync(
+      path.join(dir, 'water-mask.json'),
+      JSON.stringify({ note: 'test', bbox, size, bits: bits.toString('base64') })
+    )
+    fs.writeFileSync(path.join(dir, 'imagery.json'), JSON.stringify({ tiles: [{ bbox }] }))
+    const r = buildGround({
+      outDir: path.join(dir, 'out'),
+      rebuiltDir: 'backend/static/qinzhou-port/rebuilt',
+      maskFile: path.join(dir, 'water-mask.json'),
+      imageryFile: path.join(dir, 'imagery.json'),
+      cell: 20,
+    })
+    expect(r.triangles).toBeGreaterThan(0)
+    // 只铺了西半 ⇒ 铺格占比应落在 0.3~0.7（全铺=1.0、或一格不铺=0 都会红）
+    expect(r.land / r.cells).toBeGreaterThan(0.3)
+    expect(r.land / r.cells).toBeLessThan(0.7)
+
+    const ts = JSON.parse(fs.readFileSync(path.join(dir, 'out', 'tileset.json'), 'utf8'))
+    const b = ts.root.boundingVolume.box
+    expect(Math.abs(b[2])).toBeLessThan(200) // ENU 的 up 是第 3 分量
+    expect(b[11]).toBeLessThan(50) // 竖半轴：薄板
+
+    const glb = fs.readFileSync(path.join(dir, 'out', 'ground.glb'))
+    const jlen = glb.readUInt32LE(12)
+    const j = JSON.parse(glb.subarray(20, 20 + jlen).toString('utf8'))
+    const acc = j.accessors[j.meshes[0].primitives[0].attributes.POSITION]
+    expect(acc.min[1]).toBeCloseTo(acc.max[1], 6)
   })
 })
 

@@ -49,8 +49,8 @@ function makeTileset(): TilesetJson {
 }
 
 describe('BEIBU_TILES 清单', () => {
-  it('五条资产，id 唯一且与类型联合一致', () => {
-    expect(BEIBU_TILES).toHaveLength(5)
+  it('六条资产，id 唯一且与类型联合一致', () => {
+    expect(BEIBU_TILES).toHaveLength(6)
     const ids = BEIBU_TILES.map((s) => s.id)
     expect(new Set(ids).size).toBe(ids.length)
     expect(ids).toEqual([
@@ -58,6 +58,7 @@ describe('BEIBU_TILES 清单', () => {
       'qinzhou-port',
       'qz-containers',
       'qz-roads',
+      'qz-ground',
       'qz-city-bridges',
     ])
   })
@@ -80,10 +81,10 @@ describe('BEIBU_TILES 清单', () => {
     for (const s of BEIBU_TILES) expect(s.url.startsWith('/static/')).toBe(true)
   })
 
-  it('只有钦州港核心区声明裁剪；其余四条走整包', () => {
+  it('只有钦州港核心区声明裁剪；其余五条走整包', () => {
     expect(QINZHOU.derive).toBeDefined()
     const others = BEIBU_TILES.filter((s) => s.id !== 'qinzhou-port')
-    expect(others).toHaveLength(4)
+    expect(others).toHaveLength(5)
     for (const s of others) expect(s.derive).toBeUndefined()
   })
 })

@@ -225,3 +225,6 @@ tools/forecast/out/
 
 # 城区五桥（tools/3dtiles-build/build-bridges.mjs 生成，本机可复现）
 backend/static/bridges-city/
+
+# 3D Tiles 资产改造任务表（2026-10-03 批，可勾选执行记录 + Web 端实测）
+!docs/3dtiles-改造任务表.md

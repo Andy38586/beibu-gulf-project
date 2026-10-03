@@ -7,14 +7,18 @@
 # 都已在部署链上验证可用。
 #
 # 用法（GitHub UI 或 API workflow_dispatch）：
-#   asset_url  必填，例如
-#     https://github.com/Andy38586/beibu-gulf-project/releases/download/<tag>/<file>.dump
-#   table      必填，目标表名（用于灌后核对行数）
+#   asset_url  必填，只接受本项目 release 资产 URL
+#   table      必填，目标表名（灌后核对行数）
 #   file_name  可选，容器内临时文件名，默认 sync.dump
 #
-# 行为：下载资产 → scp 到服务器 /tmp → docker cp 进 beibu-postgis → pg_restore
-#       （--clean --if-exists 可重复执行）→ 打印行数。
-# 纪律：只做"数据搬运"，不建表结构、不改 schema；表结构须由仓库内迁移脚本负责。
+# 安全（2026-10-03 修 专项5 N-1a）：三个输入一律经 env: 传入，run: 里不再出现
+#   ${{ inputs.* }} 直插；合法性由 scripts/check-data-sync-inputs.cjs 裁决（白名单 + 形状），
+#   非法输入在下载之前就 fail。回归闸：tools/data-sync-inputs.test.mjs（npm run test:tools）。
+#
+# 行为：校验输入 → 下载资产 → scp 到服务器 /tmp → 灌前备份目标表 → docker cp 进
+#       beibu-postgis → pg_restore → 打印行数。
+# 纪律：表结构须由仓库内迁移脚本负责。⚠️ 现用的 pg_restore --clean --if-exists 会 DROP 后重建
+#       对象，与本条「不改 schema」的口径冲突（专项5 N-1b）——**待用户裁决**，裁决前不改语义。
 # =============================================================================
 name: Data Sync (one-off)
 
@@ -39,10 +43,24 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
-      - name: Download asset (runner 侧)
+      - name: Checkout（校验器随仓库走）
+        uses: actions/checkout@v4
+
+      - name: Validate inputs
+        env:
+          ASSET_URL: ${{ inputs.asset_url }}
+          TABLE: ${{ inputs.table }}
+          FILE_NAME: ${{ inputs.file_name }}
         run: |
-          set -e
-          curl -fL --retry 5 --retry-all-errors --retry-delay 3 -o /tmp/sync.dump "${{ inputs.asset_url }}"
+          set -euo pipefail
+          node scripts/check-data-sync-inputs.cjs --asset-url "$ASSET_URL" --table "$TABLE" --file-name "$FILE_NAME"
+
+      - name: Download asset (runner 侧)
+        env:
+          ASSET_URL: ${{ inputs.asset_url }}
+        run: |
+          set -euo pipefail
+          curl -fL --retry 5 --retry-all-errors --retry-delay 3 -o /tmp/sync.dump "$ASSET_URL"
           ls -lh /tmp/sync.dump
 
       - name: Setup SSH agent
@@ -50,7 +68,7 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.SERVER_SSH_KEY }}
 
-      - name: Transfer + restore
+      - name: Transfer + backup + restore
         env:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
           SERVER_USER: ${{ secrets.SERVER_USER }}
@@ -58,10 +76,22 @@ jobs:
           TABLE: ${{ inputs.table }}
           FILE_NAME: ${{ inputs.file_name }}
         run: |
-          set -e
+          set -euo pipefail
           scp -o StrictHostKeyChecking=no -P "$SSH_PORT" /tmp/sync.dump "$SERVER_USER@$SERVER_HOST:/tmp/$FILE_NAME"
-          ssh -o StrictHostKeyChecking=no -p "$SSH_PORT" "$SERVER_USER@$SERVER_HOST" \
-            "docker cp /tmp/$FILE_NAME beibu-postgis:/tmp/ \
-             && docker exec -i beibu-postgis pg_restore -U postgres -d beibu-gulf-data --no-owner --no-privileges --clean --if-exists /tmp/$FILE_NAME \
-             && docker exec beibu-postgis psql -U postgres -d beibu-gulf-data -c 'select count(*) from $TABLE'"
+          ssh -o StrictHostKeyChecking=no -p "$SSH_PORT" "$SERVER_USER@$SERVER_HOST" sh -s -- "$FILE_NAME" "$TABLE" <<'REMOTE'
+          set -eu
+          FILE_NAME="$1"
+          TABLE="$2"
+          TS="$(date -u +%Y%m%dT%H%M%SZ)"
+          BACKUP="/tmp/sync-backup-${TABLE}-${TS}.dump.gz"
+          if [ -n "$(docker exec beibu-postgis psql -U postgres -d beibu-gulf-data -tAc "select to_regclass('public.${TABLE}')")" ]; then
+            docker exec beibu-postgis pg_dump -U postgres -d beibu-gulf-data -Fc -t "${TABLE}" | gzip > "$BACKUP"
+            echo "::notice::灌前备份：$BACKUP ($(du -h "$BACKUP" | cut -f1))"
+          else
+            echo "::notice::表 ${TABLE} 尚不存在，跳过备份（首次同步）"
+          fi
+          docker cp "/tmp/${FILE_NAME}" beibu-postgis:/tmp/
+          docker exec -i beibu-postgis pg_restore -U postgres -d beibu-gulf-data --no-owner --no-privileges --clean --if-exists "/tmp/${FILE_NAME}"
+          docker exec beibu-postgis psql -U postgres -d beibu-gulf-data -c "select count(*) from \"${TABLE}\""
+          REMOTE
           echo "::notice::数据同步完成：表 $TABLE 已灌入并核对"

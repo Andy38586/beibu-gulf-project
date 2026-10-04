@@ -744,6 +744,53 @@ node tools/diag/probe-3dtiles-runtime.cjs --url http://127.0.0.1:5174/route-anal
 # 期望: sel=6 / 6 块 modelReady；diff none↔on ≈ 5.46%（30466 px）、on↔off ≈ 0.07%（400 px）
 ````
 
+### 8.21 【发布通道】港区/城区桥两组 3D Tiles 线上无到达路径（待裁）· 2026-10-04 19:3x
+
+**结论**：前端读的 5 条 URL（`beibu3dTiles.ts:259/282/296/311/323`）在生产编排里没有任何到达路径——
+`qinzhou-port/`（作业区交付包 + 自建道路/地面）与 `bridges-city/` 既被 `.gitignore:192/231` 整树排除
+（`git ls-files` = 0），又不在 `docker-compose.yml:35-46` 的挂载表里，镜像也不含它们
+（`Dockerfile:70` 只 `mkdir` dem/terrain/pinglu；`COPY` 列表 :42/:47/:73/:76/:87 无 `backend/`）。
+CI 从干净 checkout 构建（`ci.yml:443-467`）⇒ 按当前编排部署后，这两组图层必然 404。
+三枢纽不受影响：`pinglu/` 71 个 tracked 文件 + 已挂载（`docker-compose.yml:44`）。
+
+**线上实测（2026-10-04 19:3x，`curl.exe -sk -o NUL -w '%{http_code}'`，取数对象 112.74.32.206）**：
+
+| URL                                               | 实测                                                 |
+| ------------------------------------------------- | ---------------------------------------------------- |
+| `/static/terrain/layer.json`                      | 200                                                  |
+| `/static/terrain/0/0/0.terrain`                   | 200                                                  |
+| `/static/pinglu/README.md`                        | 200                                                  |
+| `/static/pinglu/imagery/imagery.json`             | 200                                                  |
+| `/static/pinglu/tiles/tileset.json`               | 200                                                  |
+| `/static/pinglu/canal/tileset.json`               | 404（线上版本落后本地 73 提交，canal 为 10-03 新增） |
+| `/static/qinzhou-port/tiles/tileset.json`         | **404**                                              |
+| `/static/qinzhou-port/rebuilt/roads/tileset.json` | **404**                                              |
+| `/static/bridges-city/tileset.json`               | **404**                                              |
+
+**连带**：`static/terrain` 是"构建不覆盖"的卷（`docker-compose.yml:40`）⇒ 地形产物更新
+（含 07c 幽灵声明修复 `be335c7e`）也要手动同步到服务器卷，`git pull` 不会覆盖卷内容。
+
+**待裁（三选一，不自行选边——属部署面变更）**：
+
+| 选项         | 动作                                                                                                                | 代价                                             |
+| ------------ | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| ① 补挂载     | compose 增 `./backend/static/qinzhou-port`、`./backend/static/bridges-city` 两条 ro 挂载 + 发布侧把两目录放上服务器 | 服务器 +≈155 MB；发布流程须含拷贝步骤            |
+| ② 入库       | 解除 `.gitignore:192/231`，随仓库分发                                                                               | 仓库 +≈155 MB，与"大资产不入库"现行做法冲突      |
+| ③ 明示仅本地 | 页面缺件给降级文案 + 文档写死"港区/城区桥仅本地演示"                                                                | 线上缺两块；用户的"钦州港片区"诉求无法在线上验收 |
+
+**顺带（注释腐烂）**：`nginx.conf:101-103` 注释称静态内容由"Dockerfile COPY backend/ 带入"，
+与 `Dockerfile:70` 实测不符，随选定方案一并改。
+
+**复算钩子**：```bash
+git ls-files backend/static/qinzhou-port backend/static/bridges-city | wc -l # 期望: 0（现状=无入库通道）
+grep -n "backend/static" docker-compose.yml # 期望: 只有 dem/terrain/pinglu 三行
+grep -n "mkdir -p /app/backend/static" Dockerfile # 期望: 只有 dem/terrain/pinglu
+curl.exe -sk -o NUL -w '%{http_code}\n' https://112.74.32.206/static/qinzhou-port/rebuilt/roads/tileset.json
+
+# 期望: 404（部署后仍 404 ⇒ 本条继续成立；返 200 ⇒ 本条作废）
+
 ```
 
+**作废条件**：选定 ①/② 并部署后对应 URL 返 200；或服务器另有本机不可见的分发通道
+（以部署机实测为准）——任一成立则本条作废。
 ```

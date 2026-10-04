@@ -912,6 +912,40 @@ curl.exe -sk -o NUL -w '%{http_code}\n' https://112.74.32.206/static/qinzhou-por
 **作废条件**：选定 ①/② 并部署后对应 URL 返 200；或服务器另有本机不可见的分发通道
 （以部署机实测为准）——任一成立则本条作废。
 
+**落地链复核（2026-10-05，选型后可一步执行）**：
+
+- **① 补挂载**：改动点唯一 = `docker-compose.yml:44` 后插两行（模式照抄 pinglu 行）：
+  `- ./backend/static/qinzhou-port:/app/backend/static/qinzhou-port`、
+  `- ./backend/static/bridges-city:/app/backend/static/bridges-city`。**服务器侧必须先把两个目录
+  放到 `/opt/beibu-gulf/backend/static/`**——部署链只有 `git pull` + `compose pull`（`ci.yml:601/636`），
+  无静态资产同步步骤；现有 scp 通道 `data-sync.yml:80` 只传 DB dump，不可复用。体积实测：
+  qinzhou-port **156.8 MB**、bridges-city 0.1 MB（§8.21 原记"≈155 MB"须按此更新）。**顺序**：
+  先拷目录 → 再改 compose → `docker compose up -d`；若先改 compose，Docker 会把缺失的宿主路径
+  建成空目录，得到"挂载成功但 404"的假象。**回滚**：删两行 + `up -d`。**耦合**：qinzhou-port 是
+  B1/B2/B3/B4/B10 任一落地后都要重建的 gitignored 产物 ⇒ 每次重建都须重传（无增量通道）；
+  建议同笔在 `scripts/preflight-deploy.sh` 加"两目录存在且非空"校验，把静默 404 提前为部署前
+  报错（该脚本属部署门禁，动它需用户点头）。
+- **② 入库**：解除 `.gitignore:219/258`（§8.21 原引 192/231 已腐烂）+ `git add` 156.9 MB。
+  **单独入库仍会 404**——app 镜像不 COPY `backend/`（`Dockerfile:70` 只 mkdir dem/terrain/pinglu；
+  `COPY` 列表 :42/:47/:73/:76/:87 无 backend/），容器仍须①的两条挂载（`nginx.conf:126-127`
+  alias `/app/backend/static/`）。②的真收益 = 服务器 `git pull` 自带资产、省掉手工拷贝；代价 =
+  每个新 clone/CI checkout 多 157 MB，且每次重烘产生新大对象（B 系列重建频繁）⇒ 仓库只增不减。
+- **③ 明示降级**：失败当前是**静默**的——`RouteAnalysisPage.vue:359-362` 逐 spec `try/catch` →
+  `logger.warn` + 跳过；失败条目不进 `beibuLayerIds`（:364），分组声明（:471-475）里只剩空位，
+  面板不渲染该条目；预热侧 `preload.ts:123-125` 亦为单项静默。落地 = catch 内收集失败 label
+  （如 `beibuLoadFailures`），用现成 `showToast`（:154 已在用）或面板提示渲染"港区/城区桥 3D
+  仅本地演示"；同笔修 `nginx.conf:101-103` 的腐烂注释（称"Dockerfile COPY backend/ 带入"，
+  与 `Dockerfile:70` 实测不符）。改动最小，但线上仍无这两块——用户"钦州港片区"诉求无法在
+  线上验收。
+- **本机 curl 复测（2026-10-05）**：`qinzhou-port/tiles`、`qinzhou-port/rebuilt/roads`、
+  `bridges-city` 均 404，对照 `pinglu/tiles`、`terrain/layer.json` 200。第 4 条 `pinglu/canal`
+  404 属"服务器落后本机 66 提交"（`git rev-list --count origin/main..HEAD`），随下次
+  push+deploy 自动消失，不在本三选一范围内。
+- **选型后验收判据**：①/② 部署后三条 URL 返 200（`curl.exe -sk -o NUL -w '%{http_code}'`）；
+  ③ 三条仍 404 但页面出现降级提示（截图/探针），且 `nginx.conf` 注释与 Dockerfile 一致。
+  **复算**：`git ls-files backend/static/qinzhou-port backend/static/bridges-city | wc -l`（现 0）、
+  `docker compose config | grep -c "static/qinzhou-port"`（选①/②后 ≥2）。
+
 ### 8.22 【实测+已修】首屏预热：按原始清单 150.18 MB → 派生感知 31.98 MB · 2026-10-04 20:4x / 23:5x
 
 **怎么量的**：`tools/diag/probe-3dtiles-runtime.cjs` 新增 `--netlog`（记录 `/static` 响应，

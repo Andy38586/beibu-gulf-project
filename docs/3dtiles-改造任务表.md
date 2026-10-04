@@ -1191,6 +1191,9 @@ node .local/tmp-app-inject/interrogate-terrain-provider.mjs --real
 # 控制台整链复跑（586 km 单档）：
 node tools/diag/lod-ladder.cjs http://127.0.0.1:5174/route-analysis 586000
 # 期望: 控制台 136 条 ｜ terrain 相关 0 ｜ 404 0 ｜ pageerror 0 ｜ 四资产形态=粗一致、EXIT=0
+# 地形 ON 整链（真 Cesium globe + 预热，马道 3 km 机位）：
+node .local/tmp-app-inject/capture-terrain-requests.mjs http://127.0.0.1:5174/route-analysis
+# 期望: terrain 请求总数 49 {"200":49} ｜ 非200 0 ｜ 最深 z13（globe 请求盘上实物，无镜像 404）
 ```
 
 **变异四式（实跑；逐条还原后 md5 双向一致 `51DAFC15E3B42B9F9D3B689144E6D67B`）**：

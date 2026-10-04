@@ -1318,6 +1318,16 @@ node tools/diag/probe-app-selfprovide.cjs
 **观察入池（不当场改）**：`zoomToCity` / `zoomToDistrict` 仍只传 `height`——2D 落点为
 `heightToZoom` 反推（160 km ⇒ z10.87、16 km ⇒ z14.19），与清单声明的 `zoom` 12/14 不一致；
 是否同 `zoomToRegion` 一样两字段都传，待裁（改它就是改既有 2D 导航落点）。
+**2026-10-05 落地链复核（前提收窄）**：`zoomToCity`/`zoomToDistrict` 在**产品里零消费**——
+`rg -n "zoomToCity|zoomToDistrict" frontend/src` 只命中 `useMapControls.ts:68/73` 两处定义；
+`useMapControls` 的 5 个消费点（`App.vue:57`、`useScreenActions.ts:16`、`SiteSuitabilityPage.vue:24`、
+`AffectedFacilityListPanel.vue:18`、`SuitabilityTopCellsPanel.vue:42`）都只取
+`flyTo`/`startBreathing`/`stopBreathing`（App 另取 `zoomToRegion`）。⇒ 2D 落点不一致是**潜伏
+缺陷**，「改它就是改既有 2D 导航落点」今日**不成立**（作废条件：出现消费点即重评）。B9 选项：
+① 对称补齐两字段（`useMapControls.ts:70/75` 各加 `zoom`；2 行 + 测试，今日无用户可见变化，
+防未来接线踩坑）；② 按死代码处置删两函数与类型；③ 留注释不动。**不自行选边**。
+若选①：扩 `useMapControls.test.ts` 断言两字段各达（删 `zoom` 即红），现有
+`probe-app-selfprovide.cjs` 只覆盖 REGION 复位，city/district 无 UI 通道可探。
 
 **失效条件**：① Vue 改 provide/inject 语义（自 provide 可见）⇒ 显式实参不再是必需，但保留无害；
 ② BLM/UnifiedMap 的 provide 位置再迁移 ⇒ 本探针需同步（它按 App 的实参路径判）；③ 探针依赖

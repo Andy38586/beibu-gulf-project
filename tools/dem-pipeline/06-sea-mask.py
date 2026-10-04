@@ -40,7 +40,7 @@ import rasterio
 from rasterio.warp import transform
 
 DEFAULT_COAST = Path(
-    r"C:/Users/JionHappY/Desktop/_北部湾项目/数据_/项目数据/海岸线/beibu-coastline.geojson"
+    r"C:/Users/JionHappY/Desktop/_北部湾项目/06-数据备份/数据_/项目数据/海岸线/beibu-coastline.geojson"
 )
 # 海岸线顶点收集框（略大于裁切框，保证逐列插补有界外余量）
 BOX = (106.9, 110.1, 20.9, 23.1)

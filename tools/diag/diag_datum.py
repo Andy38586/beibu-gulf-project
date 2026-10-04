@@ -7,7 +7,6 @@ import json
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "backend" / "flood-service"))
 import numpy as np
 import rasterio
 from rasterio.warp import transform_geom
@@ -16,9 +15,10 @@ from shapely.ops import unary_union
 from shapely.prepared import prep
 
 ROOT = Path(__file__).resolve().parents[2]
-# 默认 Desktop 填洼版；可传参换 DEM（如复原的 cut 版）：python diag_datum.py <tif路径>
+# 默认 06-数据备份 里的 ASTER 填洼版；可传参换 DEM（如复原的 cut 版）：
+# python -X utf8 diag_datum.py <tif路径>
 DEM = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(
-    r"C:/Users/JionHappY/Desktop/_北部湾项目/数据_/项目数据/浸没分析/处理成果/filled_CGCS2000_int16.tif"
+    r"C:/Users/JionHappY/Desktop/_北部湾项目/06-数据备份/数据_/项目数据/浸没分析/处理成果/filled_CGCS2000_int16.tif"
 )
 GZ = ROOT / "backend/data/flood/flood_levels.json.gz"
 LEVELS = [2, 5, 10, 15]

@@ -74,8 +74,10 @@ def _resolve_dem_path() -> Path:
     )
     if repo.exists():
         return repo
+    # 2026-10-04 路径修订：原件随数据整理进了 06-数据备份 树（原"数据_\项目数据\..."已不存在），
+    # 复算钩子 = Test-Path 该路径（tools/dem-pipeline/README.md §三 有同一张表）。
     desktop = Path(
-        r"C:/Users/JionHappY/Desktop/_北部湾项目/数据_/项目数据/浸没分析"
+        r"C:/Users/JionHappY/Desktop/_北部湾项目/06-数据备份/数据_/项目数据/浸没分析"
         r"/处理成果/filled_utm48n_cut.tif"
     )
     return desktop if desktop.exists() else repo

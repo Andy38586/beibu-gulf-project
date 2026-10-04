@@ -70,7 +70,7 @@ describe('SiteSuitabilityPage 防抖', () => {
     expect(h.updateLayer).not.toHaveBeenCalled() // 防抖窗口内零触发
     vi.advanceTimersByTime(299)
     expect(h.updateLayer).not.toHaveBeenCalled()
-    vi.advanceTimersByTime(1)
+    await vi.advanceTimersByTimeAsync(1)
     expect(h.updateLayer).toHaveBeenCalledTimes(1) // 300ms 整恰一次
     wrapper.unmount()
   })
@@ -88,7 +88,7 @@ describe('SiteSuitabilityPage 防抖', () => {
     vi.advanceTimersByTime(200)
     state.setWeight('inundation', 0.9)
     await wrapper.vm.$nextTick()
-    vi.advanceTimersByTime(300)
+    await vi.advanceTimersByTimeAsync(300)
     expect(h.updateLayer).toHaveBeenCalledTimes(1)
     wrapper.unmount()
   })

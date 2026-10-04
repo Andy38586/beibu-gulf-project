@@ -26,7 +26,7 @@ export class SiteSuitabilityController {
   }
 
   /**
-   * 默认值单源（前端 store 以此为准，快照兜底见 defaults.snapshot.ts）。
+   * 默认值单源（前端 store 以此为准，快照兜底见 stores/siteSuitabilityDefaults.snapshot.ts）。
    * 本 controller 无参数路由，静态路径无冲突。
    */
   @Get('defaults')

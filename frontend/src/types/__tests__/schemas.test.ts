@@ -23,6 +23,7 @@ import {
   portSchema,
   portsArraySchema,
   routePathResponseSchema,
+  siteSuitabilityDefaultsSchema,
   siteSuitabilityResponseSchema,
   canalLineResponseSchema,
   diversionBreakdownResponseSchema,
@@ -579,7 +580,7 @@ describe('契约覆盖补齐的 schema（生成器门禁转红后补）', () => 
       metadata: {
         count: 1,
         weights: { inundation: 0.4, terrain: 0.1, land: 0.2, access: 0.2, demand: 0.1 },
-        weightsSource: 'ahp-draft',
+        weightsSource: 'ahp-default',
         kdeP99: 0.00004,
         minLandFrac: 0.5,
       },
@@ -601,6 +602,38 @@ describe('契约覆盖补齐的 schema（生成器门禁转红后补）', () => 
     ).toBe(false)
     expect(
       siteSuitabilityResponseSchema.safeParse({ type: 'FeatureCollection', features: [] }).success
+    ).toBe(false)
+  })
+
+  it('siteSuitabilityDefaultsSchema:后端 getDefaults 形状直收;缺字段拒绝', () => {
+    const ok = siteSuitabilityDefaultsSchema.safeParse({
+      weights: {
+        inundation: 0.4299,
+        terrain: 0.0845,
+        land: 0.2059,
+        access: 0.1097,
+        demand: 0.1699,
+      },
+      thresholds: {
+        inundLowM: 1,
+        inundHighM: 6,
+        slopeBestDeg: 5,
+        slopeWorstDeg: 20,
+        portScaleM: 8000,
+        roadScaleM: 2000,
+      },
+      minLandFrac: 0.5,
+      resolution: 0,
+      source: 'SITE_AHP_MATRIX@2026-09-30',
+    })
+    expect(ok.success).toBe(true)
+    expect(
+      siteSuitabilityDefaultsSchema.safeParse({
+        weights: { inundation: 0.4 },
+        minLandFrac: 0.5,
+        resolution: 0,
+        source: 'x',
+      }).success
     ).toBe(false)
   })
 

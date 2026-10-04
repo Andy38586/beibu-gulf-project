@@ -7,6 +7,8 @@
 export const ENDPOINTS = {
   siteSuitability: {
     map: '/site-suitability/map',
+    // 默认值单源（权重定稿+阈值+缺省；store.loadDefaults 唯一消费方）
+    defaults: '/site-suitability/defaults',
   },
   diversion: {
     breakdown: '/diversion/breakdown',

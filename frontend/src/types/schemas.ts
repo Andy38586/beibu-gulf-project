@@ -222,6 +222,31 @@ export const siteSuitabilityResponseSchema = z.object({
 
 export type SiteSuitabilityResponseParsed = z.infer<typeof siteSuitabilityResponseSchema>
 
+// ㉒ /site-suitability/defaults 默认值单源（权重定稿向量 + 阈值表 + 过滤/分辨率缺省）
+// @backend-contract backend/src/modules/site-suitability/services/site-suitability.service.ts
+export const siteSuitabilityDefaultsSchema = z.object({
+  weights: z.looseObject({
+    inundation: z.number(),
+    terrain: z.number(),
+    land: z.number(),
+    access: z.number(),
+    demand: z.number(),
+  }),
+  thresholds: z.looseObject({
+    inundLowM: z.number(),
+    inundHighM: z.number(),
+    slopeBestDeg: z.number(),
+    slopeWorstDeg: z.number(),
+    portScaleM: z.number(),
+    roadScaleM: z.number(),
+  }),
+  minLandFrac: z.number(),
+  resolution: z.number(),
+  source: z.string(),
+})
+
+export type SiteSuitabilityDefaultsParsed = z.infer<typeof siteSuitabilityDefaultsSchema>
+
 // ⑰ /diversion/breakdown 响应（分流分析 W10-11；西江转移+三港分摊+桑基流）
 // @backend-contract backend/src/common/diversion.ts
 export const diversionBreakdownResponseSchema = z.object({

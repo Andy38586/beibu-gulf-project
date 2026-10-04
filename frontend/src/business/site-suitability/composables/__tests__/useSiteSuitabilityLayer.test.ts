@@ -68,8 +68,14 @@ describe('useSiteSuitabilityLayer（BLM 注册/更新 + 事务取消）', () => 
       ],
       metadata: {
         count: 1,
-        weights: { inundation: 0.4, terrain: 0.1, land: 0.2, access: 0.2, demand: 0.1 },
-        weightsSource: 'ahp-final',
+        weights: {
+          inundation: 0.42993537381873326,
+          terrain: 0.08451837333607896,
+          land: 0.20591100060530831,
+          access: 0.10971791699328601,
+          demand: 0.1699173352465935,
+        },
+        weightsSource: 'ahp-default',
         kdeP99: 0,
         minLandFrac: 0.5,
       },
@@ -85,7 +91,7 @@ describe('useSiteSuitabilityLayer（BLM 注册/更新 + 事务取消）', () => 
     await vi.waitFor(() => expect(mockApiRequest).toHaveBeenCalled())
     const call = mockApiRequest.mock.calls[0]
     expect(call[0]).toBe('/site-suitability/map')
-    expect(call[1].params.w_inundation).toBe(0.4)
+    expect(call[1].params.w_inundation).toBe(0.4299)
     expect(call[1].params.min_land_frac).toBe(0.5)
     await vi.waitFor(() => expect(mockManager.updateData).toHaveBeenCalled())
     expect(mockManager.updateData.mock.calls[0][0]).toBe('site-suitability-main')
@@ -110,7 +116,13 @@ describe('useSiteSuitabilityLayer（BLM 注册/更新 + 事务取消）', () => 
     resolveLater({
       type: 'FeatureCollection',
       features: [],
-      metadata: { count: 0, weights: {}, weightsSource: 'ahp-final', kdeP99: 0, minLandFrac: 0.5 },
+      metadata: {
+        count: 0,
+        weights: {},
+        weightsSource: 'ahp-default',
+        kdeP99: 0,
+        minLandFrac: 0.5,
+      },
     })
     await new Promise((r) => setTimeout(r, 20))
     expect(mockManager.updateData).not.toHaveBeenCalled()
@@ -158,7 +170,7 @@ describe('useSiteSuitabilityLayer（BLM 注册/更新 + 事务取消）', () => 
       // 与直连请求同一份参数（同一构造函数 ⇒ 不漂移）
       expect(arg.params.resolution).toBe(0.02)
       expect(arg.params.min_land_frac).toBe(0.5)
-      expect(arg.params.w_inundation).toBe(0.4)
+      expect(arg.params.w_inundation).toBe(0.4299)
       expect(setDockedSpy).toHaveBeenCalledWith('/site-suitability', true)
     } finally {
       closeModal()

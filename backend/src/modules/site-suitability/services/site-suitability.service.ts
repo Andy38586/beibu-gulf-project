@@ -93,7 +93,7 @@ export class SiteSuitabilityService {
   /**
    * 默认值单源（GET /site-suitability/defaults）：权重定稿向量 + 阈值表 +
    * 过滤/分辨率缺省。前端 store 以此为准；拉不到时用同值快照兜底（快照见
-   * frontend/src/business/site-suitability/constants/defaults.snapshot.ts，
+   * frontend/src/stores/siteSuitabilityDefaults.snapshot.ts，
    * 成功/兜底在日志可区分，UI 无区别）。
    */
   getDefaults(): SuitabilityDefaults {

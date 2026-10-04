@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-02",
+  "generatedAt": "2026-10-04",
   "source": "frontend/src/types/schemas.ts（单一事实源，types:gen 自动生成勿手改）",
   "schemas": {
     "userSchema": {
@@ -242,6 +242,31 @@
         },
         "metadata": {
           "type": "object",
+          "optional": false
+        }
+      }
+    },
+    "siteSuitabilityDefaultsSchema": {
+      "kind": "object",
+      "fields": {
+        "weights": {
+          "type": "object",
+          "optional": false
+        },
+        "thresholds": {
+          "type": "object",
+          "optional": false
+        },
+        "minLandFrac": {
+          "type": "number",
+          "optional": false
+        },
+        "resolution": {
+          "type": "number",
+          "optional": false
+        },
+        "source": {
+          "type": "string",
           "optional": false
         }
       }
@@ -775,6 +800,16 @@
         "type": 6,
         "features": 2,
         "metadata": 2
+      }
+    },
+    "siteSuitabilityDefaultsSchema": {
+      "file": "backend/src/modules/site-suitability/services/site-suitability.service.ts",
+      "occurrence": {
+        "weights": 7,
+        "thresholds": 2,
+        "minLandFrac": 6,
+        "resolution": 6,
+        "source": 2
       }
     },
     "diversionBreakdownResponseSchema": {

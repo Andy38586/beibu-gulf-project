@@ -96,6 +96,9 @@ useProfileSnapshot({
 
 async function doUpdate() {
   if (!renderer.value) return
+  // 权重权威源在后端：首刷前拉一次 defaults（幂等 once；失败走快照兜底，
+  // 写回 weights 会触发下方 weights watch，但二次 doUpdate 命中 LRU 缓存零请求）
+  await state.loadDefaults()
   const { transactionId, signal } = startTransaction()
   await updateLayer(transactionId, signal)
 }

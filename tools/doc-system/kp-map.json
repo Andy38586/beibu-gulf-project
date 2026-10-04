@@ -2743,7 +2743,7 @@
       "excerpt": "- 完成：基础地图（2D/3D 双引擎）、选址分析、预测框架（合成示意数据）、浸没分析（真 DEM ",
       "layer": "日志",
       "target": "S3",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2755,7 +2755,7 @@
       "excerpt": " 格式：背景（为什么有这个问题）→ 决策（选了哪个）→ 代价（放弃了什么）。",
       "layer": "日志",
       "target": "LOG-DECISIONS",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3715,7 +3715,7 @@
       "excerpt": "1. [项目架构概览](01-项目架构概览)",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3727,7 +3727,7 @@
       "excerpt": "面向广西北部湾港（钦州）的 WebGIS 智慧空间分析平台。核心目标不是\"地图 Demo\"，而是验证",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3739,7 +3739,7 @@
       "excerpt": "| 业务 | 引擎 | 说明 |",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3751,7 +3751,7 @@
       "excerpt": "| 层 | 技术 |",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3763,7 +3763,7 @@
       "excerpt": "项目经历一次架构重构后采用四层单向依赖架构：",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3775,7 +3775,7 @@
       "excerpt": "L0 types 纯类型声明（零运行时依赖）",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3787,7 +3787,7 @@
       "excerpt": "routes → controllers（sendSuccess 信封）→ services（cre",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3799,7 +3799,7 @@
       "excerpt": "",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3811,7 +3811,7 @@
       "excerpt": "地图能力抽象为一层渲染接口 MapRenderer（抽象基类），业务模块通过统一约定与地图交互，而非",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3823,7 +3823,7 @@
       "excerpt": "业务功能按模块组织，每个模块自带状态（store）、视图（page + 面板）与服务调用（adapt",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3835,7 +3835,7 @@
       "excerpt": "GIS 应用中浮动组件（工具栏、分析面板、图例、详情卡片）数量多，页面布局容易失控。GCS（Glob",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3847,7 +3847,7 @@
       "excerpt": "业务组件 → 取数入口（useApiRequest / loadStatic）",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3859,7 +3859,7 @@
       "excerpt": "┌───────────────────────────────┐",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3871,7 +3871,7 @@
       "excerpt": "- 架构契约 npm run cruise 0 violation（含 backend）。",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3883,7 +3883,7 @@
       "excerpt": "src/",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3895,7 +3895,7 @@
       "excerpt": "",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3907,7 +3907,7 @@
       "excerpt": "- validateEnv()：校验 VITETIANDITUKEY（必需）、VITEAPIBASE",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3919,7 +3919,7 @@
       "excerpt": "- provide 全局服务：RESTOREPLANDATAKEY、EDITINGPLANKEY、U",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3931,7 +3931,7 @@
       "excerpt": "",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3943,7 +3943,7 @@
       "excerpt": "- 路由：/(Home)、业务路由（由 buildBusinessRoutes() 生成）、/pro",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3955,7 +3955,7 @@
       "excerpt": "- BusinessModule 接口：name / path / engine / title /",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3967,7 +3967,7 @@
       "excerpt": "",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3979,7 +3979,7 @@
       "excerpt": "导出 floodAdapter、forecastAdapter、mapDataService。",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3991,7 +3991,7 @@
       "excerpt": "- 模块级 dataSource（'api' | 'online'），setDataSource()",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4003,7 +4003,7 @@
       "excerpt": "- getOverview(signal)：/forecast/overview 指标索引。",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4015,7 +4015,7 @@
       "excerpt": "- getPorts()：读前端静态 /data/ports.json（loadStatic，202",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4027,7 +4027,7 @@
       "excerpt": "",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4039,7 +4039,7 @@
       "excerpt": "- useApiRequest.ts：API 统一入口。",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4051,7 +4051,7 @@
       "excerpt": "- 模块级 user ref（localStorage 持久化 + zod 校验）。",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4063,7 +4063,7 @@
       "excerpt": "- useLatestRequest.ts：竞态守卫（新请求 abort 旧请求 + 取消静默兜底）",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4075,7 +4075,7 @@
       "excerpt": "- colors.ts、ui.ts（CELLPIXEL 等）、chart.ts、forecast.t",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4087,7 +4087,7 @@
       "excerpt": "统一 Setup Store 语法（useXxxStore）。导出：mapStore、floodSt",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4099,7 +4099,7 @@
       "excerpt": "",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4111,7 +4111,7 @@
       "excerpt": "re-export：config/map、layout/、map/BusinessLayerMana",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4123,7 +4123,7 @@
       "excerpt": "- renderers/MapRenderer.ts：抽象基类（策略模式）。核心方法：",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4135,7 +4135,7 @@
       "excerpt": "- BusinessLayerManager.ts：业务图层生命周期管理器（BLM）。",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4147,7 +4147,7 @@
       "excerpt": "- UnifiedMap.vue：统一地图容器。双引擎 v-show 切换、渲染器实例复用不销毁；s",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4159,7 +4159,7 @@
       "excerpt": "- AppLayout.vue：GCS V2 布局基座。PPS（面板定位系统）绝对定位 Panel；",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4171,7 +4171,7 @@
       "excerpt": "",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4183,7 +4183,7 @@
       "excerpt": "re-export：manifest、forecast/composables/、site-sele",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4195,7 +4195,7 @@
       "excerpt": "- SiteSelectionPage.vue：主页面。",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4207,7 +4207,7 @@
       "excerpt": "- ForecastPage.vue：主页面。",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4219,7 +4219,7 @@
       "excerpt": "- FloodAnalysisPage.vue：主页面。数据源经 floodAdapter 隔离；业",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4231,7 +4231,7 @@
       "excerpt": "- charts/：BarChart.vue、LineChart.vue、RadarChart.vu",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4243,7 +4243,7 @@
       "excerpt": "纯类型层，零运行时依赖。目录：api/、business/、components/、core/、te",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4255,7 +4255,7 @@
       "excerpt": "- HomePage.vue：首页。",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4267,7 +4267,7 @@
       "excerpt": "backend/",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4279,7 +4279,7 @@
       "excerpt": "Express 应用装配顺序（中间件顺序敏感）——⚠️ Express 已退役，此处保留历史存档供参",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4291,7 +4291,7 @@
       "excerpt": "- app.listen(PORT)（默认 3000）。",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4303,7 +4303,7 @@
       "excerpt": "",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4315,7 +4315,7 @@
       "excerpt": "| 路由前缀 | 文件 | 认证 |",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4327,7 +4327,7 @@
       "excerpt": "认证（/api/auth）",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4339,7 +4339,7 @@
       "excerpt": "| 文件 | 职责 |",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4351,7 +4351,7 @@
       "excerpt": "",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4363,7 +4363,7 @@
       "excerpt": "- runSiteAnalysis({selectedKeys, typeSettings, fac",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4375,7 +4375,7 @@
       "excerpt": "- linearDecay(distance, maxDistance)：线性距离衰减（百分制）。",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4387,7 +4387,7 @@
       "excerpt": "- 指标白名单：cargo / container / berth / traffic。",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4399,7 +4399,7 @@
       "excerpt": "- computeForecast(historicalData, scenarioLevel, f",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4411,7 +4411,7 @@
       "excerpt": "- getModelForecast(portId, afterTime)：读 throughput",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4423,7 +4423,7 @@
       "excerpt": "- assessDisaster(facilities, level, floodZone)：按水位",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4435,7 +4435,7 @@
       "excerpt": "- findByUsername / createUser / userExists / findB",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4447,7 +4447,7 @@
       "excerpt": "",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4459,7 +4459,7 @@
       "excerpt": "- findAllByUserId / findById / create / update / r",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4471,7 +4471,7 @@
       "excerpt": "- FILEMAP：设施类型 → data 路径映射。",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4483,7 +4483,7 @@
       "excerpt": "",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4495,7 +4495,7 @@
       "excerpt": "- 启动强校验：JWTSECRET 必须存在且 ≥32 字符，否则抛致命错误。",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4507,7 +4507,7 @@
       "excerpt": "- sanitize()：请求日志脱敏（敏感字段打码）。",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4519,7 +4519,7 @@
       "excerpt": "| 文件 | 职责 |",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4531,7 +4531,7 @@
       "excerpt": "运行时：@turf/turf（空间分析）、bcryptjs（密码哈希）、cookie-parser、",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4543,7 +4543,7 @@
       "excerpt": "- backend/controllers/tests/：app.test.js、auth.test",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4555,7 +4555,7 @@
       "excerpt": "backend/flood-service/",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4567,7 +4567,7 @@
       "excerpt": "海平面抬升淹没模型：水从海面（DEM NoData 区域）进入，只淹没与海面 8 连通的高程低于水位",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4579,7 +4579,7 @@
       "excerpt": "启动：uvicorn main:app --port 8000。",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4591,7 +4591,7 @@
       "excerpt": "- 文件：backend/data/flood/floodlevels.json.gz（2.9MB，",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4603,7 +4603,7 @@
       "excerpt": "| 模式 | 淹没范围 | 影响评估 |",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4615,7 +4615,7 @@
       "excerpt": "requirements.txt：numpy、scipy（连通域标注）、rasterio（自带 GD",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4627,7 +4627,7 @@
       "excerpt": "",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4639,7 +4639,7 @@
       "excerpt": "| 文件 | 说明 |",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4651,7 +4651,7 @@
       "excerpt": "| 文件 | 说明 |",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4663,7 +4663,7 @@
       "excerpt": "| 文件 | 说明 |",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4675,7 +4675,7 @@
       "excerpt": "| 文件 | 说明 |",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4687,7 +4687,7 @@
       "excerpt": "| 文件 | 说明 |",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4699,7 +4699,7 @@
       "excerpt": "| 脚本 | 职责 |",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4711,7 +4711,7 @@
       "excerpt": "┌─────────────────────────────────────────────────",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4723,7 +4723,7 @@
       "excerpt": "前端依赖方向由 dependency-cruiser 强制（npm run cruise，CI -T",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4735,7 +4735,7 @@
       "excerpt": "mock（前端契约桩，已基本收归后端）",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4747,7 +4747,7 @@
       "excerpt": "- Node.js ≥ 22.18（见根 package.json engines：^22.18.0",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4759,7 +4759,7 @@
       "excerpt": "git clone <repo-url",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4771,7 +4771,7 @@
       "excerpt": "",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4783,7 +4783,7 @@
       "excerpt": "",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4795,7 +4795,7 @@
       "excerpt": "",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4807,7 +4807,7 @@
       "excerpt": "npm run build typecheck + 前端生产构建（dist/）",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4819,7 +4819,7 @@
       "excerpt": "npm test 前端 Vitest（frontend/）",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4831,7 +4831,7 @@
       "excerpt": "",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4843,7 +4843,7 @@
       "excerpt": "docker compose up --build -d",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4855,7 +4855,7 @@
       "excerpt": "5 job：audit → lint-and-build（format/lint/cruise/ty",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4867,7 +4867,7 @@
       "excerpt": "Let's Encrypt + duckdns DNS-01，自动续期（certbot.timer ",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4879,7 +4879,7 @@
       "excerpt": "scripts/rollback.sh 配合镜像 tag（docker-compose IMAGET",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4891,7 +4891,7 @@
       "excerpt": "| 脚本 | 作用 |",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4903,7 +4903,7 @@
       "excerpt": "- 后端服务必须 node server/index.js（实际是 backend/index.js",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4915,7 +4915,7 @@
       "excerpt": "- 认证态：isAuthenticated 已上移 frontend/src/shared/comp",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4927,7 +4927,7 @@
       "excerpt": "| | 正文原述（作废物） | 现状 | 现证据 |",
       "layer": "日志",
       "target": "SNAP-KB",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4939,7 +4939,7 @@
       "excerpt": " 本表不写「现状」。第一版有这一列，写的是「❌ 待做（S0）」，而同一份文件的 §五",
       "layer": "日志",
       "target": "SNAP-ROADMAP",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4951,7 +4951,7 @@
       "excerpt": "1. 出口条件是命令，不是描述。 每步的\"完成\"必须是一条能跑的命令 + 预期输出；跑不出来就是没完",
       "layer": "日志",
       "target": "SNAP-ROADMAP",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4963,7 +4963,7 @@
       "excerpt": "",
       "layer": "日志",
       "target": "SNAP-ROADMAP",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4975,7 +4975,7 @@
       "excerpt": "| 子步 | 动作 | 出口条件 |",
       "layer": "日志",
       "target": "SNAP-ROADMAP",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4987,7 +4987,7 @@
       "excerpt": "| 子步 | 动作 | 出口条件 |",
       "layer": "日志",
       "target": "SNAP-ROADMAP",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -4999,7 +4999,7 @@
       "excerpt": "每模块一轮，一轮一笔或几笔提交，固定动作序列：",
       "layer": "日志",
       "target": "SNAP-ROADMAP",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -5011,7 +5011,7 @@
       "excerpt": "| 出口条件 | 判据 |",
       "layer": "日志",
       "target": "SNAP-ROADMAP",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -5023,7 +5023,7 @@
       "excerpt": " 时点裁定（2026-09-26 用户批准）：S4 改到论文 MVP（单元二→四→五）落地之后执行，",
       "layer": "日志",
       "target": "SNAP-ROADMAP",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -5035,7 +5035,7 @@
       "excerpt": "| 出口条件 | 判据 |",
       "layer": "日志",
       "target": "SNAP-ROADMAP",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -5047,7 +5047,7 @@
       "excerpt": "不能，也不应该。",
       "layer": "日志",
       "target": "SNAP-ROADMAP",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -5059,7 +5059,7 @@
       "excerpt": " 为什么不再写状态符号：本表第一版写「S1 立规矩 ❌」，而实际 S1.2 早已完成",
       "layer": "日志",
       "target": "SNAP-ROADMAP",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -5179,7 +5179,7 @@
       "excerpt": "cd <工作区 本机 = C:\\workspace\\beibu-gulf-project",
       "layer": "日志",
       "target": "S3",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -5191,7 +5191,7 @@
       "excerpt": "| 项 | 值 | 怎么复算 |",
       "layer": "日志",
       "target": "S3",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -5203,7 +5203,7 @@
       "excerpt": "76c50a8a（Cesium ②）+ 本文曾被 .husky/pre-push 拦下两次（上一棒 ",
       "layer": "日志",
       "target": "S3",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -5215,7 +5215,7 @@
       "excerpt": "| SHA | 标题 | 推送/部署 | 备注 |",
       "layer": "日志",
       "target": "S3",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -5227,7 +5227,7 @@
       "excerpt": "1. ~~推 Cesium ②~~ ✅ 已推已部署；~~Cesium ③~~ ✅ 全链已上线（探针 ",
       "layer": "日志",
       "target": "S3",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -5239,7 +5239,7 @@
       "excerpt": "事实：2026-10-02 同一仓库上有多个会话/agent 并行，撞了两次 ——",
       "layer": "日志",
       "target": "S3",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -5251,7 +5251,7 @@
       "excerpt": "1. ~~76c50a8a 的 push 阻塞步未取证~~ 已闭：失败步 = 13/13 前端全量（",
       "layer": "日志",
       "target": "S3",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -5263,7 +5263,7 @@
       "excerpt": "| 事 | 命令/事实 |",
       "layer": "日志",
       "target": "S3",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -5275,7 +5275,7 @@
       "excerpt": "- commitlint：subject 不得以大写字母开头（今天 perf: Cesium 预取…",
       "layer": "日志",
       "target": "S3",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -5287,7 +5287,7 @@
       "excerpt": "| 要什么 | 在哪 |",
       "layer": "日志",
       "target": "S3",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -5299,7 +5299,7 @@
       "excerpt": "- §1 的 SHA/refs 是 19:1x 快照：任何一次 push / 新提交 / 分支操作后",
       "layer": "日志",
       "target": "S3",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -5311,7 +5311,7 @@
       "excerpt": "改了什么（同笔 docs: 提交；只动 tracked 文件，未碰两本台账、未碰 docs/audi",
       "layer": "日志",
       "target": "S3",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -5323,7 +5323,7 @@
       "excerpt": " 来源：docs/archive/交接文档-2026-10-01.md（原 §四 待办）+ docs",
       "layer": "日志",
       "target": "S3",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -5335,7 +5335,7 @@
       "excerpt": "| | 项 | 状态 | 依据 / 下一步 |",
       "layer": "日志",
       "target": "S3",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -5347,7 +5347,7 @@
       "excerpt": "| | 项 | 状态 | 依据 / 下一步 |",
       "layer": "日志",
       "target": "S3",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -5359,7 +5359,7 @@
       "excerpt": "| | 项 | 状态 |",
       "layer": "日志",
       "target": "S3",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -5371,7 +5371,7 @@
       "excerpt": " 范围口径：C 状态面 / G 归档 / A 协议面三类。E 不动（平陆运河3DTiles-READ",
       "layer": "日志",
       "target": "S3",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -5383,7 +5383,7 @@
       "excerpt": "F 类（指标账死数）——已收口",
       "layer": "日志",
       "target": "S3",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -5395,7 +5395,7 @@
       "excerpt": "04-防复发清单 瘦身（A 类遗留项，已收口）",
       "layer": "日志",
       "target": "S3",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -5407,7 +5407,7 @@
       "excerpt": " 记录人：session-c897664f。来源=用户 2026-10-03 对话原话，非转述。",
       "layer": "日志",
       "target": "S3",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -5419,7 +5419,7 @@
       "excerpt": "- S3 已收口（forecast 请求归属上移；两条 owned-layers 守卫口径记在 do",
       "layer": "日志",
       "target": "S3",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -5431,7 +5431,7 @@
       "excerpt": "- 文档默认不入库：docs/ 的忽略是既定政策（执行点 .gitignore:126 docs/ ",
       "layer": "日志",
       "target": "S3",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     }

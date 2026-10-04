@@ -197,7 +197,8 @@ export function auditDocMap(input) {
         push('KP-TARGET', `${k.id} 目标未登记：${k.target}`)
       } else {
         const t = byId.get(k.target)
-        if (k.authority === 'new' && t.status !== 'active') {
+        // frozen（冻结记录件）同样承接 KP：内容已落盘且只读 ⇒ new 合法
+        if (k.authority === 'new' && !['active', 'frozen'].includes(t.status)) {
           push('KP-AUTH', `${k.id} 标 new 但目标 ${k.target} 状态为 ${t.status}`)
         }
       }

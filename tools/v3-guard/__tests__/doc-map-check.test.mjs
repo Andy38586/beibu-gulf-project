@@ -169,4 +169,20 @@ describe('doc-map-check', () => {
     input.meta.migrationOpen = false
     expect(codes(auditDocMap(input))).toContain('MIG-OPEN')
   })
+
+  it('KP 指向 frozen 记录件 ⇒ new 合法（冻结承接不是失配）', () => {
+    const input = baseInput()
+    input.docs.push({
+      id: 'SNAP',
+      path: 'docs/日志/快照/代码知识库.md',
+      layer: '日志',
+      status: 'frozen',
+      role: '快照',
+      guard: null,
+      ts: '2026-10-05',
+    })
+    input.exists = (p) => FILES.has(p) || p === 'docs/日志/快照/代码知识库.md'
+    input.kp.kps[0].target = 'SNAP'
+    expect(codes(auditDocMap(input))).not.toContain('KP-AUTH')
+  })
 })

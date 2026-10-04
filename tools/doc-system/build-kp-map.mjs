@@ -13,7 +13,8 @@
  *   docs/日志/迁移/KP清单-<date>.md        人读视图（日志层，默认不入库）
  *
  * 用法：node tools/doc-system/build-kp-map.mjs
- * 权威规则：目标登记项 status=active ⇒ authority=new；其余（stub/planned/parallel/frozen）⇒ old。
+ * 权威规则：目标登记项 status ∈ {active, frozen} ⇒ authority=new（frozen = 记录件已承接该 KP）；
+ *   其余（stub/planned/parallel/external）⇒ old。
  * 迁移推进时先改 doc-map.json 的 status，再重跑本脚本。
  */
 import fs from 'node:fs'
@@ -29,6 +30,8 @@ const DATE = process.env.KP_DATE || '2026-10-05'
 
 const docMap = JSON.parse(fs.readFileSync(DOC_MAP, 'utf8'))
 const statusById = new Map(docMap.docs.map((d) => [d.id, d.status]))
+/** 承接 KP 的状态：active（现行契约/宪法）与 frozen（冻结记录件，内容已落盘且只读） */
+const KP_NEW_STATUSES = new Set(['active', 'frozen'])
 const manifest = JSON.parse(fs.readFileSync(MANIFEST, 'utf8'))
 
 /**
@@ -169,7 +172,7 @@ for (const entry of manifest.files) {
       excerpt: excerptAfter(lines, lineNo - 1),
       layer: docMap.docs.find((d) => d.id === target)?.layer ?? '待迁移',
       target,
-      authority: statusById.get(target) === 'active' ? 'new' : 'old',
+      authority: KP_NEW_STATUSES.has(statusById.get(target)) ? 'new' : 'old',
       status: 'mapped',
       verifiedBy: 'heading',
     })

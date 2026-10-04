@@ -135,7 +135,8 @@ export function auditDocMap(input) {
       push('CONTRACT-TEXT', `${d.id} 契约不可读：${d.path}`)
       continue
     }
-    const revisit = text.match(/最近复核[：:]\s*(\d{4}-\d{2}-\d{2})/)
+    // 「最近复核」允许加粗写法（**最近复核**：）；冒号中英皆可——判的是字段与日期，不是排版记法
+    const revisit = text.match(/最近复核\*{0,2}\s*[：:]\s*(\d{4}-\d{2}-\d{2})/)
     if (!revisit) push('CONTRACT-DATE', `${d.id} 缺「最近复核：YYYY-MM-DD」`)
     const logIdx = text.indexOf('## 变更记录')
     if (logIdx < 0) {

@@ -1699,7 +1699,7 @@
       "excerpt": "A 修 bug",
       "layer": "契约",
       "target": "K4",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -1795,7 +1795,7 @@
       "excerpt": "- commit 格式 Conventional Commits（由 .husky/commit-m",
       "layer": "契约",
       "target": "K4",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -1831,7 +1831,7 @@
       "excerpt": " 旧版这里是 10 个复选框。实测结论：复选框被逐条打勾的那一批（09-22，61 笔提交）交工时整",
       "layer": "契约",
       "target": "K4",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -1879,7 +1879,7 @@
       "excerpt": "- 工单不是报告：每条必须给「修前钩子（期望＝问题仍在）→ 修后判据（具体输出）→ 必须附的阳性对照",
       "layer": "契约",
       "target": "K4",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2239,7 +2239,7 @@
       "excerpt": "业务组件 → 取数入口（useApiRequest / loadStatic）",
       "layer": "契约",
       "target": "K2",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2251,7 +2251,7 @@
       "excerpt": "| 规则 | 内容 | 违反后果 |",
       "layer": "契约",
       "target": "K2",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2263,7 +2263,7 @@
       "excerpt": "| 规则 | 内容 | 违反后果 |",
       "layer": "契约",
       "target": "K2",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2275,7 +2275,7 @@
       "excerpt": "",
       "layer": "契约",
       "target": "K2",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2287,7 +2287,7 @@
       "excerpt": "用户点击「开始分析」",
       "layer": "契约",
       "target": "K2",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2299,7 +2299,7 @@
       "excerpt": "控件变化（指标 / 置信度 / 时间 / 播放）",
       "layer": "契约",
       "target": "K2",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2311,7 +2311,7 @@
       "excerpt": "水位滑块（展示域 0-10m，step 0.1；刻度 0/2.5/5/7.5/10 可点击；后端档位",
       "layer": "契约",
       "target": "K2",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2323,7 +2323,7 @@
       "excerpt": "业务页（选址/预测/浸没）→ 跳 /profile 前 saveState（内存快照）",
       "layer": "契约",
       "target": "K2",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2335,7 +2335,7 @@
       "excerpt": "- 设计期望（已拍板，2026-08-29 收口实现）：仅「收藏」功能要求登录（收藏数据存在服务端 ",
       "layer": "契约",
       "target": "K2",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2347,7 +2347,7 @@
       "excerpt": "",
       "layer": "契约",
       "target": "K2",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2359,7 +2359,7 @@
       "excerpt": "- 渲染器实例复用不销毁；3D→2D 切换必须 unmount()（暂停渲染 + 空闲销毁）；30s",
       "layer": "契约",
       "target": "K2",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2371,7 +2371,7 @@
       "excerpt": "| 语义 | 行为 |",
       "layer": "契约",
       "target": "K2",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2383,7 +2383,7 @@
       "excerpt": "| | 水面（flood-water-surface） | 淹没多边形（flood-area） |",
       "layer": "契约",
       "target": "K2",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2395,7 +2395,7 @@
       "excerpt": "- 档位 1（≥960px）：桌面等比例布局，面板原位显示",
       "layer": "契约",
       "target": "K2",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2407,7 +2407,7 @@
       "excerpt": "- 登出（user → null）→ resetStores：清业务快照 + 地图状态 + 业务 s",
       "layer": "契约",
       "target": "K2",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2419,7 +2419,7 @@
       "excerpt": " 审查/开发时以上述各流程语义 + 以下不变量为\"应然\"，比对代码\"实然\"。历史教训：防御分支静默失",
       "layer": "契约",
       "target": "K2",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2431,7 +2431,7 @@
       "excerpt": "前端侧（五步，纯前端模块到此为止）：",
       "layer": "契约",
       "target": "K2",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2443,7 +2443,7 @@
       "excerpt": "npm run cruise 架构契约（分层 + 入口收口，0 violation 门禁）",
       "layer": "契约",
       "target": "K4",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2455,7 +2455,7 @@
       "excerpt": "",
       "layer": "契约",
       "target": "K2",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2467,7 +2467,7 @@
       "excerpt": "1. 地理术语优先于通用术语",
       "layer": "契约",
       "target": "K2",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2479,7 +2479,7 @@
       "excerpt": "地理术语词汇表（节选，全表见各业务 types 定义）：",
       "layer": "契约",
       "target": "K2",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2491,7 +2491,7 @@
       "excerpt": "- 不写\"做什么\"（代码自解释）。",
       "layer": "契约",
       "target": "K2",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2503,7 +2503,7 @@
       "excerpt": "- <script setup lang=\"ts\"，顺序：类型导入 → 组件导入 → composa",
       "layer": "契约",
       "target": "K2",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2515,7 +2515,7 @@
       "excerpt": "- 模块化分层：modules/<域/{controllers,services,repositor",
       "layer": "契约",
       "target": "K2",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2527,7 +2527,7 @@
       "excerpt": "格式：<type: <正文",
       "layer": "契约",
       "target": "K2",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2539,7 +2539,7 @@
       "excerpt": "| | 检查项 | 标准 |",
       "layer": "契约",
       "target": "K2",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2551,7 +2551,7 @@
       "excerpt": "",
       "layer": "契约",
       "target": "K4",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2563,7 +2563,7 @@
       "excerpt": "- manualChunks 按依赖来源分组：vue-vendor / openlayers / c",
       "layer": "契约",
       "target": "K4",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2575,7 +2575,7 @@
       "excerpt": "| 模块 | 策略 | 意图 |",
       "layer": "契约",
       "target": "K4",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2587,7 +2587,7 @@
       "excerpt": " 纪律：改性能代码的人必须同步更新本表（新数字 + 新采集日）。浏览器三项由人工验收时记录。",
       "layer": "契约",
       "target": "K4",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2599,7 +2599,7 @@
       "excerpt": " GCS（Global Component Style）设计系统是本项目视觉层的单一事实源：规则（§",
       "layer": "契约",
       "target": "K2",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2611,7 +2611,7 @@
       "excerpt": "- 网格单元：CELLPIXEL 按视口分级（≥1920 → 90 / ≥960 → 80 / <9",
       "layer": "契约",
       "target": "K2",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2623,7 +2623,7 @@
       "excerpt": "布局常量（shared/layout/config.ts）：",
       "layer": "契约",
       "target": "K2",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2635,7 +2635,7 @@
       "excerpt": " 每个标准组件的职责、样式契约、常见误用。审查时以本表为基准判断\"复用 vs 伪实现\"（专项7 指标",
       "layer": "契约",
       "target": "K2",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2647,7 +2647,7 @@
       "excerpt": "发现疑似伪实现（手写面板/按钮/导航）",
       "layer": "契约",
       "target": "K2",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2659,7 +2659,7 @@
       "excerpt": "1. 改前先查：新增/改色前 grep -rn -- '--GCS-' frontend/src 确",
       "layer": "契约",
       "target": "K2",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2671,7 +2671,7 @@
       "excerpt": " 完整契约：docs/开工前必读/API契约文档.md 是本契约的活文档（与本文档并存，非历史档案）",
       "layer": "契约",
       "target": "K3",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2683,7 +2683,7 @@
       "excerpt": "",
       "layer": "契约",
       "target": "K4",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2695,7 +2695,7 @@
       "excerpt": "- 阿里云轻量应用服务器（1.6Gi 内存 / 40G 磁盘 / Ubuntu 24.04），Doc",
       "layer": "契约",
       "target": "K4",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2707,7 +2707,7 @@
       "excerpt": "- CI（GitHub Actions）：audit（npm audit 高危阻断）→ lint-a",
       "layer": "契约",
       "target": "K4",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2719,7 +2719,7 @@
       "excerpt": "- Let's Encrypt + duckdns DNS-01，自动续期两条链路已验证：certb",
       "layer": "契约",
       "target": "K4",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2731,7 +2731,7 @@
       "excerpt": "- 小内存机器：CI 增量构建没问题，全量 --no-cache 构建注意内存。",
       "layer": "契约",
       "target": "K4",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2767,7 +2767,7 @@
       "excerpt": " ⏳ 占位符：本规则 2026-08 起草中，未定稿。定稿方向为行为约束而非禁止（不做\"禁止改 co",
       "layer": "契约",
       "target": "K4",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2779,7 +2779,7 @@
       "excerpt": "- 脚本：dev / build / test / lint / typecheck / forma",
       "layer": "契约",
       "target": "K4",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2803,7 +2803,7 @@
       "excerpt": "1. git：禁 squash / 重写历史；禁 git rm；写前 git bundle crea",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2815,7 +2815,7 @@
       "excerpt": "",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2827,7 +2827,7 @@
       "excerpt": "规则：任何 addEventListener / .on( / setInterval / requ",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2839,7 +2839,7 @@
       "excerpt": "规则：Cesium/OL 的 viewer / map / 子对象可能被空闲销毁或引擎切换置空。任何",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2851,7 +2851,7 @@
       "excerpt": "规则：switching 期间禁止并发初始化；任何\"类型相同 → 提前返回\"的分支，必须把目标类型记",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2863,7 +2863,7 @@
       "excerpt": "规则：图层的注册 / 更新 / 显隐 / 移除只能经 BusinessLayerManager。禁止",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2875,7 +2875,7 @@
       "excerpt": "规则：坐标系纪律的两道防线——① 类型守卫（判定 input.crs）必须真的有人写这个字段，否则守",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2887,7 +2887,7 @@
       "excerpt": "规则：缺失值必须显式为空档（null / undefined / 显式错误态），不得回退成看起来合法",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2899,7 +2899,7 @@
       "excerpt": "规则：rbush 空间索引是既定设施——新增空间筛选（视口裁剪 / POI 粗筛 / 碰撞检测）必须",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2911,7 +2911,7 @@
       "excerpt": "规则：DEM / hillshade / 瓦片 / 模型文件等大资产，必须 ① 标注来源与用途；② ",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2923,7 +2923,7 @@
       "excerpt": "规则：同一角色的契约只能有一处定义（interface 或 class，不能双源）。基类禁止用 no",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2935,7 +2935,7 @@
       "excerpt": "规则：核心数据缝上禁止出现 [key: string]: unknown / Record<stri",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2947,7 +2947,7 @@
       "excerpt": "规则：destroy() / removeLayer() 这类遍历释放的循环，每一项都要独立容错——",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2959,7 +2959,7 @@
       "excerpt": "规则：能力守卫不得 warn + return——那让\"不支持\"和\"加载失败\"在数据与界面上同形，图",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2971,7 +2971,7 @@
       "excerpt": "",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2983,7 +2983,7 @@
       "excerpt": "规则：每一个 HTTP 响应消费点都必须传 schema。apiRequest<T 的泛型不得成为\"",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2995,7 +2995,7 @@
       "excerpt": "规则：响应类型从 schema z.infer 派生，禁止手写平行 interface。Parsed",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3007,7 +3007,7 @@
       "excerpt": "规则：凡\"必须同步\"的常量（阈值表 / 上限 / 权重 / 错误码 / 枚举），① 副本数 ≤1，或",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3019,7 +3019,7 @@
       "excerpt": "规则：跨层传递的数值量，单位不能只写在注释里。STArea(geometry) 是平方度不是平方公里",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3031,7 +3031,7 @@
       "excerpt": "规则：同一语义的时间串（\"当前时间点\"）只能有一个归一函数，且必须按粒度决定键格式。禁止各消费方自行",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3043,7 +3043,7 @@
       "excerpt": "规则：任何模块级缓存（Map / sessionStorage / localStorage）必须有",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3055,7 +3055,7 @@
       "excerpt": "规则：为满足类型而填 score: 0 / breakdown: {} / statistics: ",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3067,7 +3067,7 @@
       "excerpt": "规则：空结果（合法的零）与错误（取数失败）必须在类型与 UI 上都可区分。禁止把\"未取到\"渲染成\"零",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3079,7 +3079,7 @@
       "excerpt": "规则：任何对外展示的分辨率（滑块步长、档位表间隔、\"每升 1 单位变化 X\"这类导数表述）必须 ≤ ",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3091,7 +3091,7 @@
       "excerpt": "规则：数据产物 metadata、README、注释里写出的模型设定（含哪个因子、哪个基准、什么口径",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3103,7 +3103,7 @@
       "excerpt": "",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3115,7 +3115,7 @@
       "excerpt": "规则：store state 只能经 action 修改。禁止 storeToRefs 解构后 v-",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3127,7 +3127,7 @@
       "excerpt": "规则：登出（含切账号、切路由重置）的清理清单必须枚举全部持久化状态并逐项有对应清理动作，且必须有断言",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3139,7 +3139,7 @@
       "excerpt": "规则：① 每个在途请求必须能取消（signal 真接线，不是形参空转）；② 取消不得被当作失败弹 t",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3151,7 +3151,7 @@
       "excerpt": "规则：任何\"可连续触发\"的操作（滑块 / 切路由 / 切引擎 / 连点）必须有 ① 代次比对 或 ②",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3163,7 +3163,7 @@
       "excerpt": "规则：在途期间的新状态不得被 if (requesting) return 静默丢弃——必须置 pe",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3175,7 +3175,7 @@
       "excerpt": "规则：两种具体形态：① 供 await 使用的轮询/定时器，其生命周期属于等待方——要么接 Abor",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3187,7 +3187,7 @@
       "excerpt": "",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3199,7 +3199,7 @@
       "excerpt": "规则：catch (e) { return null } 这种丢弃 e 的写法禁止。至少记一条 wa",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3211,7 +3211,7 @@
       "excerpt": "规则：错误上报 / 关键链路日志 / 契约违例告警不得被 import.meta.env.DEV 门",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3223,7 +3223,7 @@
       "excerpt": "规则：请求 ID 必须上送后端并在两侧日志中输出，否则用户报障无法与某次后端执行配对。",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3235,7 +3235,7 @@
       "excerpt": "规则：防御分支失效（守卫不可触发 / 清理函数零调用 / 守卫判据无人写入 / 采样吃掉告警）比根本",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3247,7 +3247,7 @@
       "excerpt": "规则：toast / 按钮 / 空态文案里出现的每个动作承诺（\"再点一次重试\"、\"稍后自动恢复\"、\"",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3259,7 +3259,7 @@
       "excerpt": "规则：任何\"拉不到就用本地值\"的兜底，必须同时满足：①成功走 info（或采样），兜底走 warn/",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3271,7 +3271,7 @@
       "excerpt": "",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3283,7 +3283,7 @@
       "excerpt": "规则：L0-L8 单向依赖。services 不依赖 business；shared 不依赖 cor",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3295,7 +3295,7 @@
       "excerpt": "规则：规则禁止用\"逐个枚举模块名\"表达全称约束（每加一个模块就静默少一格保护）。必须有断言：规则里的",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3307,7 +3307,7 @@
       "excerpt": "规则：文档/注释/指标里写\"有 X 门禁\"时，配置里必须有对应规则。不允许文档挂着门禁而配置没有——",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3319,7 +3319,7 @@
       "excerpt": "规则：\"加一个业务模块要改 N 处\"这件事必须有成文清单，且清单本身要有守卫（清单项 == 实际需要",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3331,7 +3331,7 @@
       "excerpt": "规则：core/shared 层不得出现业务名的联合类型、按业务字符串分支、按中文标签子串选图标、指",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3343,7 +3343,7 @@
       "excerpt": "规则：三类结构约束不能只写在文档里：① 目录级 / 层聚合级的循环依赖（a→b→a 按目录聚合）必须",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3355,7 +3355,7 @@
       "excerpt": "",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3367,7 +3367,7 @@
       "excerpt": "规则：任何门禁（lint / 守卫 / 契约检查）必须自带一个已知会让它变红的样本，且该样本在 CI",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3379,7 +3379,7 @@
       "excerpt": "规则：注释写\"已脱敏\"、\"已收敛\"、\"已校验\"时，必须有一个测试或守卫能验证该能力。禁止把注释当作已",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3391,7 +3391,7 @@
       "excerpt": "规则：数值断言不得只用\"常数相消\"的端点值（如 d=0 与 d≫radius）——那样改坏地球半径也",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3403,7 +3403,7 @@
       "excerpt": "规则：mock 掉的必须是非生产分支。若 mock 数据形状使生产分支恒不执行（如模型返回 carg",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3415,7 +3415,7 @@
       "excerpt": "规则：覆盖率基线不得被自动 --update 放宽；须有\"核心层 per-dir floor + 基",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3427,7 +3427,7 @@
       "excerpt": "规则：一条门禁能读的东西只有三类——入库文件、本次运行自己产出的结果、明确声明过的运行态。禁止读：工",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3439,7 +3439,7 @@
       "excerpt": "规则：加一条新门禁前的固定三步：① 扫既有挂载点（run-all.mjs 的清单、.husky/、c",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3451,7 +3451,7 @@
       "excerpt": "规则：新门禁易误报、或存量未清零时，允许登记为 experimental（只报不阻断），但必须同时具",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3463,7 +3463,7 @@
       "excerpt": "",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3475,7 +3475,7 @@
       "excerpt": "规则：密钥 / 口令 / 用户数据文件（含哈希）不得进版本库。历史中的泄漏必须被当作\"当前风险\"处理",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3487,7 +3487,7 @@
       "excerpt": "规则：.gitignore 的忽略路径必须与代码里实际读取的路径一致（不能只忽略 tools/poi",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3499,7 +3499,7 @@
       "excerpt": "规则：密钥扫描的 allowlist 正则必须锚定（(^|/)\\.env$ 而非 \\.env），否则",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3511,7 +3511,7 @@
       "excerpt": "规则：每个资源端点做属主校验；ID 用 UUID 而非时间戳（时间戳可枚举 ⇒ 可越权读取/取消他人",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3523,7 +3523,7 @@
       "excerpt": "规则：反代后必须开 trust proxy，否则全站共享一个桶，登录可被匿名打满。限流桶的分桶语义必",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3535,7 +3535,7 @@
       "excerpt": "规则：给匿名请求分配\"属主\"时，若该属主来自客户端自带随机串（明文头上送），它只是能力令牌不是认证—",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3547,7 +3547,7 @@
       "excerpt": "规则：容器化 Node 服务必须有：① init: true 或能收 SIGTERM 的 PID 1",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3559,7 +3559,7 @@
       "excerpt": "",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3571,7 +3571,7 @@
       "excerpt": "规则：注释描述的机制必须在代码里存在且被调用。禁止写\"由 X 处理\"而 X 不存在、\"已收敛\"而仍有",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3583,7 +3583,7 @@
       "excerpt": "规则：.gitignore / lint 配置 / 规范文档 / 注释中的仓库路径字面量必须指向存在",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3595,7 +3595,7 @@
       "excerpt": "规则：规范/设计文档里禁止出现 file:line（会腐烂）；只写符号名与模块名。反例一律放附录并标",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3607,7 +3607,7 @@
       "excerpt": "规则：指标库、附录对照表、命名标准里的路径、目录名、token 名、模块枚举必须真实存在。标准库失效",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3619,7 +3619,7 @@
       "excerpt": "规则：条款的「依据」列一律用稳定符号（函数名、配置项、文件+规则名、审件里的语义名），不得只写台账编",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3631,7 +3631,7 @@
       "excerpt": "",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3643,7 +3643,7 @@
       "excerpt": "规则：仓库里不允许存在既未跟踪、也未被忽略的文件（一次性脚本 / 探针 / 临时产物）。要么入库，要",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3655,7 +3655,7 @@
       "excerpt": "规则：① 组件退役 → 同步从门禁、dev 脚本、env 模板、TODO 中摘除，一次做全；② 事故",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3667,7 +3667,7 @@
       "excerpt": "规则：零消费者导出 / 死 schema / 死 action / 空入口文件 / 死配置路径都是负",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3679,7 +3679,7 @@
       "excerpt": "规则：一次性产物统一落 .local/；.gitignore 需覆盖该目录；守卫的断言范围要包含 s",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3691,7 +3691,7 @@
       "excerpt": "规则：--fix / 自动重排 / 挪目录这类不触碰语义却改变行号与记法的提交，必须在同笔里检查\"仓",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -3703,7 +3703,7 @@
       "excerpt": "| 场景 | 用法 |",
       "layer": "契约",
       "target": "K1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -5071,7 +5071,7 @@
       "excerpt": "",
       "layer": "契约",
       "target": "K3",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -5083,7 +5083,7 @@
       "excerpt": "所有接口统一 { code, data } 信封(backend/src/common/interc",
       "layer": "契约",
       "target": "K3",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -5095,7 +5095,7 @@
       "excerpt": "- 请求唯一走 useApiRequest();静态资源走 loadStatic()。禁止裸 fet",
       "layer": "契约",
       "target": "K3",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -5107,7 +5107,7 @@
       "excerpt": " 两套错误码,维度不同,不互通:",
       "layer": "契约",
       "target": "K3",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -5119,7 +5119,7 @@
       "excerpt": "- HttpOnly Cookie 单通道(防 XSS):登录后 authtoken Cookie(",
       "layer": "契约",
       "target": "K3",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -5131,7 +5131,7 @@
       "excerpt": "- 路径:kebab-case 复数名词(资源型:/plans、/flood/water-area)",
       "layer": "契约",
       "target": "K3",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -5143,7 +5143,7 @@
       "excerpt": "- 全局:/nest-api/ 1000 次/15 分钟;登录/注册:50 次/15 分钟(2026",
       "layer": "契约",
       "target": "K3",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -5155,7 +5155,7 @@
       "excerpt": " 前缀约定(2026-09-12 修正):业务 API 统一 Nest 全局前缀 /nest-api",
       "layer": "契约",
       "target": "K3",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -5167,7 +5167,7 @@
       "excerpt": "npm run cruise 架构契约(含 backend)",
       "layer": "契约",
       "target": "K3",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },

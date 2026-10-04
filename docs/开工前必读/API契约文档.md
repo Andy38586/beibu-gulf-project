@@ -7,6 +7,10 @@
 > `frontend/src/shared/composables/useApiRequest.ts`(前端统一入口)是本契约的实现方,
 > 改实现必须同步改本文档。
 
+> **⚠️ 并行期（2026-10-05 起，只读）**：本文全文（§1–§6）已迁入
+> `docs/契约/K3-接口与数据契约.md`（含执行体指针 `frontend/src/types/` 与 `backend/src/routes.manifest.ts`）。
+> 已切换的 KP 以 K3 为准；本文只读、不再新增内容，退役需用户批准（规则见 `docs/宪法/C3-信息源宪法.md`）。
+
 ## 1. 响应契约(铁律)
 
 ### 1.1 信封格式

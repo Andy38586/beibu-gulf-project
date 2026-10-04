@@ -116,17 +116,33 @@ describe('runRollingBacktest 协议', () => {
   })
 })
 
-describe('selectModel 闸门（胜者必须双胜，含换记法不变性）', () => {
-  it('ETS 同时优于两者才胜出', () => {
+describe('selectModel 闸门（P0-2：季节朴素可胜 + 0.5pp 防抖，含换记法不变性）', () => {
+  it('达门槛的最低 MAPE 候选胜出（ETS 8 vs SN 12 ⇒ ets）', () => {
     expect(selectModel({ linear: 10, ets: 8, seasonal_naive: 12 })).toBe('ets')
   })
 
-  it('ETS 输给任一对手即保留线性（严格小于，平局不留情）', () => {
-    expect(selectModel({ linear: 10, ets: 13, seasonal_naive: 12 })).toBe('linear')
-    expect(selectModel({ linear: 10, ets: 10, seasonal_naive: 12 })).toBe('linear')
-    // ETS 赢线性但输给朴素基准——闸门必须仍保留线性（变异①回归用例：
-    // 摘掉 naive 约束后本用例必红，2026-09-26 实测曾因缺此格而假绿）
-    expect(selectModel({ linear: 10, ets: 9, seasonal_naive: 8 })).toBe('linear')
+  it('季节朴素可当胜者：钦州 container 形态（10.22 / 13.27 / 7.81 ⇒ seasonal_naive）', () => {
+    expect(selectModel({ linear: 10.22, ets: 13.27, seasonal_naive: 7.81 })).toBe('seasonal_naive')
+  })
+
+  it('改善不足 0.5pp 不换（防抖）：0.4pp 保留线性、0.5pp 恰好达标', () => {
+    expect(selectModel({ linear: 10, ets: 9.6, seasonal_naive: 12 })).toBe('linear')
+    expect(selectModel({ linear: 10, ets: 9.5, seasonal_naive: 12 })).toBe('ets')
+  })
+
+  it('达标者里取最小；平局按参数少者优先（SN 12 < ETS 18）', () => {
+    expect(selectModel({ linear: 10, ets: 9, seasonal_naive: 8 })).toBe('seasonal_naive')
+    expect(selectModel({ linear: 10, ets: 9, seasonal_naive: 9 })).toBe('seasonal_naive')
+  })
+
+  it('组合须严格优于当轮最好单模型且达门槛才参与（平局/落后不参与）', () => {
+    expect(selectModel({ linear: 10, ets: 8, seasonal_naive: 12, combination: 7.9 })).toBe(
+      'combination'
+    )
+    expect(selectModel({ linear: 10, ets: 8, seasonal_naive: 12, combination: 8 })).toBe('ets')
+    expect(selectModel({ linear: 10, ets: 9.6, seasonal_naive: 12, combination: 9.55 })).toBe(
+      'linear'
+    )
   })
 
   it('分数缺失/非有限一律保留线性（不猜）', () => {

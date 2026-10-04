@@ -214,17 +214,45 @@ function seasonalNaiveForecast(model, timeStr) {
   return v === undefined ? null : v
 }
 
+/** 换模型的防抖门槛：MAPE 改善须 ≥0.5pp（提准方案 §P0-2），否则维持线性。 */
+const SWITCH_MARGIN_PP = 0.5
+
+/** 平局时的复杂度序（参数少者优先；组合无参数先验，排最后）。 */
+const MODEL_PARAMS = {
+  seasonal_naive: 12,
+  linear: 15,
+  ets: 18,
+  combination: Number.POSITIVE_INFINITY,
+}
+
 /**
- * 闸门选优（导出供单测）：ETS 必须在全步长平均 MAPE 上**同时严格优于**
- * 线性基线与季节朴素基准才可替换，否则保留线性（诚实降级——判据写死在实现里）。
- * 任何分数非有限（回测无样本）时一律保留线性。
+ * 闸门选优（导出供单测）。2026-10-04 P0-2 修正：季节朴素从"只当基准"升为候选胜者
+ * （修前 10.22% 的线性模型压着一个已实现的 7.81% 朴素基准不换）。
+ *
+ * 规则：
+ *  1. 线性是现任；候选须在滚动回测全步长平均 MAPE 上比线性好 ≥ SWITCH_MARGIN_PP
+ *     （0.5pp）才可挑战；不达门槛一律保留线性（防抖）；
+ *  2. 达标者取 MAPE 最小；平局按参数少者优先（季节朴素 12 < 线性 15 < ETS 18），
+ *     保证同一输入下判据确定；
+ *  3. 组合模型额外要求**严格优于当轮所有单模型**（Bates & Granger：组合须胜过最好成员，
+ *     否则不参与竞争）；其分数由 lib/combination.cjs 的因果权重回测给出；
+ *  4. 任何分数非有限（回测无样本）→ 该候选不参与；线性分数无效时一律保留线性。
  */
-function selectModel(scores) {
-  const ok = (x) => x !== null && Number.isFinite(x)
-  const { linear, ets, seasonal_naive: sn } = scores
-  if (!ok(linear) || !ok(ets) || !ok(sn)) return 'linear'
-  if (ets < linear && ets < sn) return 'ets'
-  return 'linear'
+function selectModel(scores = {}) {
+  const ok = (x) => x !== null && x !== undefined && Number.isFinite(x)
+  const { linear, ets, seasonal_naive: sn, combination } = scores
+  if (!ok(linear)) return 'linear'
+  const singles = [linear, ets, sn].filter(ok)
+  const bestSingle = singles.length ? Math.min(...singles) : Number.POSITIVE_INFINITY
+  const eligible = []
+  if (ok(ets) && linear - ets >= SWITCH_MARGIN_PP) eligible.push('ets')
+  if (ok(sn) && linear - sn >= SWITCH_MARGIN_PP) eligible.push('seasonal_naive')
+  if (ok(combination) && linear - combination >= SWITCH_MARGIN_PP && combination < bestSingle) {
+    eligible.push('combination')
+  }
+  if (eligible.length === 0) return 'linear'
+  eligible.sort((a, b) => scores[a] - scores[b] || MODEL_PARAMS[a] - MODEL_PARAMS[b])
+  return eligible[0]
 }
 
 module.exports = {
@@ -233,6 +261,7 @@ module.exports = {
   seasonalNaiveForecast,
   seasonalNaiveScale,
   selectModel,
+  SWITCH_MARGIN_PP,
   addMonths,
   monthIndex,
   indexToTime,

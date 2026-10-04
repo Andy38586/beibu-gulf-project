@@ -143,7 +143,7 @@
           }
         },
         "selected": "linear",
-        "gate": "ETS 须同时严格优于线性基线与季节朴素基准（全步长平均 MAPE），否则保留线性"
+        "gate": "候选须比线性好 ≥0.5pp 才可替换；达标者取 MAPE 最小（平局取参数少者）；组合须严格优于当轮最好单模型"
       },
       "predictions": [
         {
@@ -435,7 +435,7 @@
           }
         },
         "selected": "linear",
-        "gate": "ETS 须同时严格优于线性基线与季节朴素基准（全步长平均 MAPE），否则保留线性"
+        "gate": "候选须比线性好 ≥0.5pp 才可替换；达标者取 MAPE 最小（平局取参数少者）；组合须严格优于当轮最好单模型"
       },
       "predictions": [
         {
@@ -727,7 +727,7 @@
           }
         },
         "selected": "linear",
-        "gate": "ETS 须同时严格优于线性基线与季节朴素基准（全步长平均 MAPE），否则保留线性"
+        "gate": "候选须比线性好 ≥0.5pp 才可替换；达标者取 MAPE 最小（平局取参数少者）；组合须严格优于当轮最好单模型"
       },
       "predictions": [
         {
@@ -887,7 +887,7 @@
     "forecast_period": "2026-07 ~ 2035-12",
     "model_selection": {
       "judge_metric": "滚动回测全步长（h1-12）平均 MAPE",
-      "rule": "ETS 须同时严格优于线性基线与季节朴素基准，否则保留线性（诚实降级）",
+      "rule": "候选（ETS / 季节朴素 / 组合）须比线性好 ≥0.5pp 才可替换；达标者取 MAPE 最小（平局取参数少者）；组合须严格优于当轮最好单模型",
       "per_port_winner": "见 ports.*.backtest.selected_model 与 ports.*.model_comparison"
     },
     "canal_assumption": "未建模平陆运河（2026-09-16 已通航，预测=无运河反事实基线；情景层待工单 F3 落地）"

@@ -10,9 +10,10 @@
  *           验证期误差比率校正，滚动原点回测产出分步长误差曲线
  *   - 候选方法：春节移动假期修正（节前日数法简化，k=0）→ 阻尼 Holt-Winters
  *           （加性/乘性季节 AICc 自动选择，lib/hw.cjs）
- *   - 闸门：三模型（线性 / ETS / 季节朴素基准）同协议滚动回测（同 origin 同 horizon），
- *           ETS 须在全步长平均 MAPE 上同时严格优于线性与朴素基准才替换，否则保留线性
- *           （lib/backtest.cjs selectModel——诚实降级写死在实现里）
+ *   - 闸门（2026-10-04 提准方案 §P0-2 修正）：线性 / ETS / 季节朴素 / 组合同协议滚动
+ *           回测（同 origin 同 horizon），候选须比线性好 ≥0.5pp 才可替换；达标者取
+ *           MAPE 最小（平局取参数少者）；组合须严格优于当轮最好单模型才参与
+ *           （lib/backtest.cjs selectModel）
  *   - 单位：模型只做数值运算，产物值与各自输入文件同单位（万吨 / TEU），
  *           服务层 unit 取自指标数据文件，不在产物内混装
  *
@@ -90,6 +91,37 @@ function extractMonth(timeStr) {
 function nextMonth(timeStr) {
   const [y, m] = timeStr.split('-').map(Number)
   return m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`
+}
+
+/** 预测目标时点：2026 余月逐月 + 2027~2035 半年点（06/12）。 */
+function futureTargets(lastTime) {
+  const targets = []
+  let cursor = nextMonth(lastTime)
+  while (cursor <= '2026-12') {
+    targets.push(cursor)
+    cursor = nextMonth(cursor)
+  }
+  for (let year = 2027; year <= 2035; year++) {
+    targets.push(`${year}-06`)
+    targets.push(`${year}-12`)
+  }
+  return targets
+}
+
+/**
+ * 单点预测 + 区间：「步长 MAPE + h12 之后 sqrt(年) 外推」构造，各胜者用自己的分步长误差。
+ * relIdx = 该时点相对训练末月的月差（1 起）。
+ */
+function forecastPoint(time, value, mapeByStep, overallMape, relIdx) {
+  const stepMape = mapeByStep[Math.min(relIdx, ROLLING_HORIZON)] ?? overallMape
+  const yearsOut = 1 + Math.floor(relIdx / 12)
+  const width = (stepMape / 100) * (relIdx <= ROLLING_HORIZON ? 1 : Math.sqrt(yearsOut))
+  return {
+    time,
+    value: Math.round(value),
+    lower: Math.round(value * (1 - width)),
+    upper: Math.round(value * (1 + width)),
+  }
 }
 
 function centeredMovingAverage(values, window) {
@@ -334,34 +366,44 @@ function processPort(portId, historical) {
   if (selected === 'ets' && fullEts) {
     // 胜者 ETS：修正空间全量拟合 → 预测 → 春节逆变换；区间宽度沿用线性版的
     // 「步长 MAPE + sqrt 年外推」构造（步长误差换 winner 自己的，口径同源）
-    const targets = []
-    let cursor = nextMonth(lastTime)
-    while (cursor <= '2026-12') {
-      targets.push(cursor)
-      cursor = nextMonth(cursor)
-    }
-    for (let year = 2027; year <= 2035; year++) {
-      targets.push(`${year}-06`)
-      targets.push(`${year}-12`)
-    }
-    predictions = targets.map((t) => {
-      const value = forecastEtsCandidate(fullEts, t)
-      const relIdx = monthIndex(t) - monthIndex(lastTime)
-      const stepMape = etsH.mapeByStep[Math.min(relIdx, ROLLING_HORIZON)] ?? etsH.overallMape
-      const yearsOut = 1 + Math.floor(relIdx / 12)
-      const width = (stepMape / 100) * (relIdx <= ROLLING_HORIZON ? 1 : Math.sqrt(yearsOut))
-      return {
-        time: t,
-        value: Math.round(value),
-        lower: Math.round(value * (1 - width)),
-        upper: Math.round(value * (1 + width)),
-      }
-    })
+    predictions = futureTargets(lastTime).map((t) =>
+      forecastPoint(
+        t,
+        forecastEtsCandidate(fullEts, t),
+        etsH.mapeByStep,
+        etsH.overallMape,
+        monthIndex(t) - monthIndex(lastTime)
+      )
+    )
     backtest = {
       selected_model: 'ets',
       rolling_mape_by_step: etsH.mapeByStep,
       rolling_samples_by_step: etsH.samplesByStep,
       // 线性专有口径（一次切分验证 / 偏差校正）不适用于 ETS 路径——置 null 不伪造（04-B7）
+      validation_overall_mape: null,
+      bias: null,
+      correction_factor: null,
+    }
+  } else if (selected === 'seasonal_naive') {
+    // 胜者季节朴素（P0-2）：全量训练取最近一年的同月值；不做趋势/校正（朴素法定义），
+    // 区间宽度用朴素法自己的分步长 MAPE，构造与其余胜者同源。
+    const fullSn = seasonalNaiveModel(historical)
+    if (!fullSn) return null
+    predictions = futureTargets(lastTime).map((t) => {
+      const relIdx = monthIndex(t) - monthIndex(lastTime)
+      return forecastPoint(
+        t,
+        seasonalNaiveForecast(fullSn, t),
+        snH.mapeByStep,
+        snH.overallMape,
+        relIdx
+      )
+    })
+    backtest = {
+      selected_model: 'seasonal_naive',
+      rolling_mape_by_step: snH.mapeByStep,
+      rolling_samples_by_step: snH.samplesByStep,
+      // 线性专有口径（一次切分验证 / 偏差校正）不适用于朴素路径——置 null 不伪造（04-B7）
       validation_overall_mape: null,
       bias: null,
       correction_factor: null,
@@ -384,16 +426,7 @@ function processPort(portId, historical) {
 
       // 区间宽度：来自滚动回测的分步长真实误差；超出回测步长后按 sqrt 外推放大
       const relIdx = timeIndex - forecastStartIdx + 1
-      const stepMape = rolling.mapeByStep[Math.min(relIdx, ROLLING_HORIZON)] ?? overallMAPE
-      const yearsOut = 1 + Math.floor(relIdx / 12)
-      const width = (stepMape / 100) * (relIdx <= ROLLING_HORIZON ? 1 : Math.sqrt(yearsOut))
-
-      predictions.push({
-        time: timeStr,
-        value: Math.round(value),
-        lower: Math.round(value * (1 - width)),
-        upper: Math.round(value * (1 + width)),
-      })
+      predictions.push(forecastPoint(timeStr, value, rolling.mapeByStep, overallMAPE, relIdx))
     }
 
     // 2026-07 ~ 2026-12 逐月
@@ -441,7 +474,7 @@ function processPort(portId, historical) {
       mase_by_step: snH.maseByStep,
     },
     selected,
-    gate: 'ETS 须同时严格优于线性基线与季节朴素基准（全步长平均 MAPE），否则保留线性',
+    gate: '候选须比线性好 ≥0.5pp 才可替换；达标者取 MAPE 最小（平局取参数少者）；组合须严格优于当轮最好单模型',
   }
 
   return {
@@ -467,7 +500,7 @@ function main() {
         forecast_period: '2026-07 ~ 2035-12',
         model_selection: {
           judge_metric: '滚动回测全步长（h1-12）平均 MAPE',
-          rule: 'ETS 须同时严格优于线性基线与季节朴素基准，否则保留线性（诚实降级）',
+          rule: '候选（ETS / 季节朴素 / 组合）须比线性好 ≥0.5pp 才可替换；达标者取 MAPE 最小（平局取参数少者）；组合须严格优于当轮最好单模型',
           per_port_winner: '见 ports.*.backtest.selected_model 与 ports.*.model_comparison',
         },
         canal_assumption:

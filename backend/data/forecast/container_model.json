@@ -3,22 +3,20 @@
     "qinzhou": {
       "name": "钦州港",
       "backtest": {
-        "selected_model": "linear",
-        "validation_overall_mape": 9.92,
-        "validation_months": 18,
+        "selected_model": "seasonal_naive",
         "rolling_mape_by_step": {
-          "1": 8.39,
-          "2": 8.95,
-          "3": 9.23,
-          "4": 9.25,
-          "5": 9.44,
-          "6": 9.95,
-          "7": 10.31,
-          "8": 10.61,
-          "9": 11.09,
-          "10": 11.37,
-          "11": 11.84,
-          "12": 12.26
+          "1": 8.97,
+          "2": 8.86,
+          "3": 8.88,
+          "4": 8.11,
+          "5": 7.67,
+          "6": 7.66,
+          "7": 7.13,
+          "8": 7.14,
+          "9": 7.24,
+          "10": 7.4,
+          "11": 7.39,
+          "12": 7.24
         },
         "rolling_samples_by_step": {
           "1": 30,
@@ -34,8 +32,9 @@
           "11": 20,
           "12": 19
         },
-        "bias": "overpredict",
-        "correction_factor": 0.9384
+        "validation_overall_mape": null,
+        "bias": null,
+        "correction_factor": null
       },
       "model_comparison": {
         "protocol": "滚动原点 origin 2024-01~2026-06，horizon 12，训练<origin，无校正防泄漏",
@@ -142,153 +141,153 @@
             "12": 0.63
           }
         },
-        "selected": "linear",
-        "gate": "ETS 须同时严格优于线性基线与季节朴素基准（全步长平均 MAPE），否则保留线性"
+        "selected": "seasonal_naive",
+        "gate": "候选须比线性好 ≥0.5pp 才可替换；达标者取 MAPE 最小（平局取参数少者）；组合须严格优于当轮最好单模型"
       },
       "predictions": [
         {
           "time": "2026-07",
-          "value": 623204,
-          "lower": 570918,
-          "upper": 675491
+          "value": 608747,
+          "lower": 554142,
+          "upper": 663351
         },
         {
           "time": "2026-08",
-          "value": 634508,
-          "lower": 577720,
-          "upper": 691297
+          "value": 633714,
+          "lower": 577567,
+          "upper": 689861
         },
         {
           "time": "2026-09",
-          "value": 646084,
-          "lower": 586451,
-          "upper": 705718
+          "value": 597117,
+          "lower": 544093,
+          "upper": 650140
         },
         {
           "time": "2026-10",
-          "value": 673151,
-          "lower": 610885,
-          "upper": 735418
+          "value": 664750,
+          "lower": 610839,
+          "upper": 718661
         },
         {
           "time": "2026-11",
-          "value": 672460,
-          "lower": 608979,
-          "upper": 735940
+          "value": 646560,
+          "lower": 596969,
+          "upper": 696151
         },
         {
           "time": "2026-12",
-          "value": 747476,
-          "lower": 673102,
-          "upper": 821850
+          "value": 683476,
+          "lower": 631121,
+          "upper": 735830
         },
         {
           "time": "2027-06",
-          "value": 671544,
-          "lower": 602308,
-          "upper": 740781
+          "value": 517165,
+          "lower": 479722,
+          "upper": 554607
         },
         {
           "time": "2027-12",
-          "value": 756999,
-          "lower": 676681,
-          "upper": 837316
+          "value": 683476,
+          "lower": 613495,
+          "upper": 753456
         },
         {
           "time": "2028-06",
-          "value": 680045,
-          "lower": 604628,
-          "upper": 755462
+          "value": 517165,
+          "lower": 452312,
+          "upper": 582017
         },
         {
           "time": "2028-12",
-          "value": 766521,
-          "lower": 679368,
-          "upper": 853675
+          "value": 683476,
+          "lower": 597767,
+          "upper": 769184
         },
         {
           "time": "2029-06",
-          "value": 688547,
-          "lower": 607023,
-          "upper": 770071
+          "value": 517165,
+          "lower": 442279,
+          "upper": 592050
         },
         {
           "time": "2029-12",
-          "value": 776044,
-          "lower": 680901,
-          "upper": 871187
+          "value": 683476,
+          "lower": 584508,
+          "upper": 782443
         },
         {
           "time": "2030-06",
-          "value": 697048,
-          "lower": 576192,
-          "upper": 817904
+          "value": 517165,
+          "lower": 433440,
+          "upper": 600889
         },
         {
           "time": "2030-12",
-          "value": 785567,
-          "lower": 649363,
-          "upper": 921770
+          "value": 683476,
+          "lower": 572827,
+          "upper": 794124
         },
         {
           "time": "2031-06",
-          "value": 705549,
-          "lower": 583219,
-          "upper": 827879
+          "value": 517165,
+          "lower": 425449,
+          "upper": 608880
         },
         {
           "time": "2031-12",
-          "value": 795089,
-          "lower": 657235,
-          "upper": 932944
+          "value": 683476,
+          "lower": 562266,
+          "upper": 804685
         },
         {
           "time": "2032-06",
-          "value": 714050,
-          "lower": 590246,
-          "upper": 837854
+          "value": 517165,
+          "lower": 418100,
+          "upper": 616229
         },
         {
           "time": "2032-12",
-          "value": 804612,
-          "lower": 665106,
-          "upper": 944118
+          "value": 683476,
+          "lower": 552554,
+          "upper": 814397
         },
         {
           "time": "2033-06",
-          "value": 722551,
-          "lower": 597273,
-          "upper": 847829
+          "value": 517165,
+          "lower": 411261,
+          "upper": 623068
         },
         {
           "time": "2033-12",
-          "value": 814134,
-          "lower": 672978,
-          "upper": 955291
+          "value": 683476,
+          "lower": 543515,
+          "upper": 823436
         },
         {
           "time": "2034-06",
-          "value": 731052,
-          "lower": 604301,
-          "upper": 857804
+          "value": 517165,
+          "lower": 404836,
+          "upper": 629493
         },
         {
           "time": "2034-12",
-          "value": 823657,
-          "lower": 680849,
-          "upper": 966465
+          "value": 683476,
+          "lower": 535025,
+          "upper": 831926
         },
         {
           "time": "2035-06",
-          "value": 739553,
-          "lower": 611328,
-          "upper": 867779
+          "value": 517165,
+          "lower": 398760,
+          "upper": 635569
         },
         {
           "time": "2035-12",
-          "value": 833180,
-          "lower": 656255,
-          "upper": 1010105
+          "value": 683476,
+          "lower": 526995,
+          "upper": 839956
         }
       ]
     },
@@ -434,7 +433,7 @@
           }
         },
         "selected": "ets",
-        "gate": "ETS 须同时严格优于线性基线与季节朴素基准（全步长平均 MAPE），否则保留线性"
+        "gate": "候选须比线性好 ≥0.5pp 才可替换；达标者取 MAPE 最小（平局取参数少者）；组合须严格优于当轮最好单模型"
       },
       "predictions": [
         {
@@ -726,7 +725,7 @@
           }
         },
         "selected": "linear",
-        "gate": "ETS 须同时严格优于线性基线与季节朴素基准（全步长平均 MAPE），否则保留线性"
+        "gate": "候选须比线性好 ≥0.5pp 才可替换；达标者取 MAPE 最小（平局取参数少者）；组合须严格优于当轮最好单模型"
       },
       "predictions": [
         {
@@ -886,7 +885,7 @@
     "forecast_period": "2026-07 ~ 2035-12",
     "model_selection": {
       "judge_metric": "滚动回测全步长（h1-12）平均 MAPE",
-      "rule": "ETS 须同时严格优于线性基线与季节朴素基准，否则保留线性（诚实降级）",
+      "rule": "候选（ETS / 季节朴素 / 组合）须比线性好 ≥0.5pp 才可替换；达标者取 MAPE 最小（平局取参数少者）；组合须严格优于当轮最好单模型",
       "per_port_winner": "见 ports.*.backtest.selected_model 与 ports.*.model_comparison"
     },
     "canal_assumption": "未建模平陆运河（2026-09-16 已通航，预测=无运河反事实基线；情景层待工单 F3 落地）"

@@ -87,7 +87,7 @@ function hubCameras() {
   })(ts.root, ID)
   const out = {}
   for (const [k, list] of Object.entries(groups)) {
-    let mn = [Infinity, Infinity, Infinity],
+    const mn = [Infinity, Infinity, Infinity],
       mx = [-Infinity, -Infinity, -Infinity]
     for (const { n, W } of list) {
       const b = n.boundingVolume && n.boundingVolume.box

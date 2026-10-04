@@ -95,7 +95,7 @@ export function buildGround({
     for (let i = 0; i < nx; i++) {
       cells++
       // 四角 + 中心：任一点落水即不铺（与集装箱 onWater 同判据）
-      let wet =
+      const wet =
         mask.isWater(lngAt(i), latAt(j)) ||
         mask.isWater(lngAt(i + 1), latAt(j)) ||
         mask.isWater(lngAt(i), latAt(j + 1)) ||

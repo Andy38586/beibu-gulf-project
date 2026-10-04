@@ -232,7 +232,7 @@ export function buildAll({ osmFile, outDir }) {
       built.push({ ...spec, spans: 0, note: '几何为空' })
       continue
     }
-    let mn = [Infinity, Infinity, Infinity],
+    const mn = [Infinity, Infinity, Infinity],
       mx = [-Infinity, -Infinity, -Infinity]
     for (let i = 0; i < g.positions.length; i += 3)
       for (let c = 0; c < 3; c++) {
@@ -292,7 +292,7 @@ export function buildAll({ osmFile, outDir }) {
     })
     built.push({ ...spec, spans: g.spans, tris: g.indices.length / 3 })
   }
-  let mn = [Infinity, Infinity, Infinity],
+  const mn = [Infinity, Infinity, Infinity],
     mx = [-Infinity, -Infinity, -Infinity]
   for (const c of children) {
     const b = c.boundingVolume.box

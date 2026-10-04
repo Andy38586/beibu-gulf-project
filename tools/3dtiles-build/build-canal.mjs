@@ -301,7 +301,7 @@ export function buildCanal({ osmFile, outDir, groundU = 0 }) {
   fs.mkdirSync(outDir, { recursive: true })
   fs.writeFileSync(path.join(outDir, 'canal.glb'), buildGLB({ meshes, materials, nodes }))
 
-  let mn = [Infinity, Infinity, Infinity],
+  const mn = [Infinity, Infinity, Infinity],
     mx = [-Infinity, -Infinity, -Infinity]
   for (const p of centerline) {
     for (const [k, v] of [

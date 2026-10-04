@@ -205,7 +205,7 @@ export function buildRoads({ osmFile, outDir, rebuiltDir }) {
   fs.mkdirSync(outDir, { recursive: true })
   fs.writeFileSync(path.join(outDir, 'roads.glb'), buildGLB({ meshes, materials, nodes }))
 
-  let mn = [Infinity, Infinity, Infinity],
+  const mn = [Infinity, Infinity, Infinity],
     mx = [-Infinity, -Infinity, -Infinity]
   for (const b of buckets.values()) {
     for (let k = 0; k < b.positions.length; k += 3) {

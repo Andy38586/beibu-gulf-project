@@ -133,7 +133,7 @@ const DUMPFN = (n) => {
   for (const [id, rec] of r._layers) {
     const inst = rec && rec.instance
     if (!inst || !inst.root) continue
-    let cnt = 0
+    const cnt = 0
     const walk = (tile, depth) => {
       if (out.length >= n) return
       const c = tile.content

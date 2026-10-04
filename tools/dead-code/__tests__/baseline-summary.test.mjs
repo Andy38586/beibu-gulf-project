@@ -14,9 +14,10 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+
 import { describe, expect, it } from 'vitest'
 
-import { CLOSING_KINDS, auditHistory, summarize } from '../baseline-summary.mjs'
+import { auditHistory, CLOSING_KINDS, summarize } from '../baseline-summary.mjs'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const baselineFile = path.join(HERE, '../dead-code-baseline.json')

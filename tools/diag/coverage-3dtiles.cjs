@@ -1,7 +1,11 @@
-/* coverage.cjs — 覆盖判据：每个图层到**它自己内容所在的位置**上看，能不能真被渲染出来。
+/* coverage-3dtiles.cjs — 覆盖判据：每个图层到**它自己内容所在的位置**上看，能不能真被渲染出来。
  *
- * 判据（每层都要满足，否则 exit 1）：轮询期间出现过 selected>0 且 numberOfTrianglesSelected>0。
- * 轮询 4 次、每次重设机位——应用侧会重放相机状态，单次采样可能是"还没到位"。
+ * 判据（每层都要满足，否则 exit 1）：
+ *   ① 轮询期间出现过 selected>0 且 numberOfTrianglesSelected>0（4 次轮询、每次重设机位——
+ *      应用侧会重放相机状态，单次采样可能是"还没到位"）；
+ *   ② **像素级**：全部图层隐藏拍基线、只开本层再拍，两张图逐像素差 > 0
+ *      ——绕序反了/材质剔除这类"选中了但没画出来"的缺陷，判据 ① 永远看不见（2026-10-04 实测）。
+ * 用法：node tools/diag/coverage-3dtiles.cjs [--url http://localhost:5174/route-analysis] [--only 层名子串]
  *
  * 机位怎么来（两轮踩坑后的口径）：
  *   · 北部湾那 5 层：root 包围球就是内容外包络 ⇒ 用运行时 boundingSphere（h = 2.5r 保证整球进画面）。
@@ -11,6 +15,7 @@
  *
  * 诚实边界：三枢纽机位读的是 backend/static/pinglu/tiles/tileset.json（**.gitignore 排除**的交付包）。
  * 交付包不在盘上时脚本降级为运行时 root 球并打印 WARN——那时对枢纽的结论不成立，不得当通过。
+ * 像素判据同样依赖内容能在窗口内加载完成：内容缺失 ⇒ px=0、判 GAP（不得当"渲染缺陷"，也不算通过）。
  */
 'use strict'
 const fs = require('fs'),
@@ -22,6 +27,10 @@ const OUT = path.join(ROOT, '.local', 'coverage')
 fs.mkdirSync(OUT, { recursive: true })
 const ONLY =
   process.argv.indexOf('--only') > -1 ? process.argv[process.argv.indexOf('--only') + 1] : null
+const URL_ =
+  process.argv.indexOf('--url') > -1
+    ? process.argv[process.argv.indexOf('--url') + 1]
+    : 'http://localhost:5174/route-analysis'
 
 /* ---------- 离线：三枢纽的真实位置（child 盒 × child transform） ---------- */
 const A = 6378137.0,
@@ -129,11 +138,90 @@ function hubCameras() {
   const page = await (
     await browser.newContext({ viewport: { width: 900, height: 620 }, deviceScaleFactor: 1 })
   ).newPage()
-  await page.goto('http://localhost:5173/route-analysis', {
+  await page.goto(URL_, {
     waitUntil: 'domcontentloaded',
     timeout: 60000,
   })
   await page.waitForTimeout(24000)
+
+  /* ---------- 像素级 A/B：把全部图层关掉当基线，再只开一层 ---------- */
+  const onlyLayer = (layerId) =>
+    page.evaluate((id) => {
+      const r = document
+        .querySelector('#app')
+        .__vue_app__.config.globalProperties.$pinia._s.get('map').currentRenderer
+      for (const [lid, rec] of r._layers) {
+        const inst = rec && rec.instance
+        if (!inst) continue
+        const on = id != null && lid === id
+        inst.show = on
+        // 默认关闭的图层：应用侧会把 show 再压回 false，故同时把 rec.visible 置位
+        if (on && rec) rec.visible = true
+      }
+      r.viewer.scene.requestRender()
+    }, layerId)
+  const shotUrl = async () =>
+    'data:image/png;base64,' + (await page.screenshot()).toString('base64')
+  /* A/B 相位只改可见性 ⇒ 测完必须还原，否则会污染下一个目标的遍历状态（实测：不还原则全跑 5/7 假 GAP） */
+  const snapVis = () =>
+    page.evaluate(() => {
+      const r = document
+        .querySelector('#app')
+        .__vue_app__.config.globalProperties.$pinia._s.get('map').currentRenderer
+      const out = []
+      for (const [lid, rec] of r._layers) {
+        const inst = rec && rec.instance
+        if (!inst) continue
+        out.push([lid, !!inst.show, rec ? !!rec.visible : null])
+      }
+      return out
+    })
+  const restoreVis = (snap) =>
+    page.evaluate((rows) => {
+      const r = document
+        .querySelector('#app')
+        .__vue_app__.config.globalProperties.$pinia._s.get('map').currentRenderer
+      for (const [lid, show, visible] of rows) {
+        const rec = r._layers.get(lid)
+        const inst = rec && rec.instance
+        if (!inst) continue
+        inst.show = show
+        if (rec && visible != null) rec.visible = visible
+      }
+      r.viewer.scene.requestRender()
+    }, snap)
+  const PXDIFF = ([a, b]) =>
+    new Promise((res) => {
+      const A = new Image()
+      const B = new Image()
+      let got = 0
+      const go = () => {
+        if (++got < 2) return
+        const c = document.createElement('canvas')
+        c.width = A.width
+        c.height = A.height
+        const g = c.getContext('2d', { willReadFrequently: true })
+        g.drawImage(A, 0, 0)
+        const da = g.getImageData(0, 0, c.width, c.height).data
+        g.clearRect(0, 0, c.width, c.height)
+        g.drawImage(B, 0, 0)
+        const db = g.getImageData(0, 0, c.width, c.height).data
+        let n = 0
+        for (let i = 0; i < da.length; i += 4) {
+          if (
+            Math.abs(da[i] - db[i]) > 12 ||
+            Math.abs(da[i + 1] - db[i + 1]) > 12 ||
+            Math.abs(da[i + 2] - db[i + 2]) > 12
+          )
+            n++
+        }
+        res({ n, w: c.width, h: c.height })
+      }
+      A.onload = go
+      B.onload = go
+      A.src = a
+      B.src = b
+    })
 
   const targets = await page.evaluate(() => {
     const C = window.Cesium
@@ -197,6 +285,20 @@ function hubCameras() {
       if (best.sel > 0 && best.tri > 0) break
     }
     const ok = best.sel > 0 && best.tri > 0
+    let px = 0
+    if (ok) {
+      const snap = await snapVis()
+      await onlyLayer(null)
+      await page.waitForTimeout(2500)
+      const base = await shotUrl()
+      await onlyLayer(t.id)
+      await page.waitForTimeout(3200)
+      const on = await shotUrl()
+      px = (await page.evaluate(PXDIFF, [base, on])).n
+      await restoreVis(snap)
+      await page.waitForTimeout(1200)
+    }
+    const pass = ok && px > 0
     rows.push({
       id: t.id,
       camLng: +lng.toFixed(5),
@@ -207,10 +309,12 @@ function hubCameras() {
       sel: best.sel,
       tri: best.tri,
       visited: best.visited,
+      px,
       ok,
+      pass,
     })
     console.log(
-      (ok ? 'OK   ' : 'GAP  ') +
+      (pass ? 'OK   ' : 'GAP  ') +
         t.id.padEnd(24) +
         ' cam=' +
         lng.toFixed(4) +
@@ -223,14 +327,16 @@ function hubCameras() {
         ' selected=' +
         best.sel +
         ' tris=' +
-        best.tri
+        best.tri +
+        ' px=' +
+        px
     )
   }
-  const gaps = rows.filter((x) => !x.ok)
+  const gaps = rows.filter((x) => !x.pass)
   fs.writeFileSync(path.join(OUT, 'coverage.json'), JSON.stringify(rows, null, 2))
   console.log('---')
   console.log(
-    '覆盖 ' +
+    '覆盖（选中>0 且 像素>0 双判据）' +
       (rows.length - gaps.length) +
       '/' +
       rows.length +

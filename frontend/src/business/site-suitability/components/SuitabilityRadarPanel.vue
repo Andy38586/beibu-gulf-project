@@ -17,19 +17,14 @@ import { computed } from 'vue'
 
 import { CHART_COLORS, EmptyState, useTheme } from '@/shared'
 import { useECharts } from '@/visualization'
-import type { SiteSuitabilityResponseParsed } from '@/types/schemas'
 
 import { CRITERIA } from '../constants/criteria'
+import type { SiteSuitabilityPanelProps } from '../panelProps'
 
 // 雷达图组件不在 useECharts 的注册表里（那里只注册折线/柱状），此处一次性补注册（全局幂等）。
 echarts.use([RadarChart, TitleComponent, TooltipComponent, CanvasRenderer])
 
-interface Props {
-  data?: SiteSuitabilityResponseParsed | null
-  loading?: boolean
-}
-
-const props = withDefaults(defineProps<Props>(), { data: null, loading: false })
+const props = withDefaults(defineProps<SiteSuitabilityPanelProps>(), { data: null, loading: false })
 
 const { isDark } = useTheme()
 
@@ -58,6 +53,7 @@ const scoreText = computed(() => (peak.value ? peak.value.properties.score.toFix
 function getOption(): Record<string, unknown> {
   const dark = isDark.value
   const text = dark ? CHART_COLORS.textPrimary.dark : CHART_COLORS.textPrimary.light
+  const gridColor = dark ? 'rgba(255,255,255,.18)' : 'rgba(0,0,0,.12)'
   const muted = dark ? CHART_COLORS.textSecondary.dark : CHART_COLORS.textSecondary.light
   return {
     backgroundColor: 'transparent',
@@ -77,9 +73,9 @@ function getOption(): Record<string, unknown> {
       radius: '62%',
       indicator: CRITERIA.map((c) => ({ name: c.label, max: 1 })),
       axisName: { color: muted, fontSize: 10 },
-      splitLine: { lineStyle: { color: dark ? 'rgba(255,255,255,.18)' : 'rgba(0,0,0,.12)' } },
+      splitLine: { lineStyle: { color: gridColor } },
       splitArea: { show: false },
-      axisLine: { lineStyle: { color: dark ? 'rgba(255,255,255,.18)' : 'rgba(0,0,0,.12)' } },
+      axisLine: { lineStyle: { color: gridColor } },
     },
     series: [
       {

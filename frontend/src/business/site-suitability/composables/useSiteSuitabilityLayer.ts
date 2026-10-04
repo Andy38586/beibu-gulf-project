@@ -78,6 +78,17 @@ export function useSiteSuitabilityLayer(): UseSiteSuitabilityLayerReturn {
     disposed = true
   })
 
+  /** 图层注册（渲染器就绪 watch 与 updateLayer 两处共用同一注册体） */
+  function registerLayer(): void {
+    owned.register(SITE_SUITABILITY_LAYER_KEY, {
+      label: LAYER_LABEL,
+      layerType: LAYER_TYPE,
+      data: null,
+      options: getLayerOptions(),
+      visible: true,
+    })
+  }
+
   // 渲染器就绪即注册（visible 跟随页面激活）
   watch(
     () => renderer.value,
@@ -86,13 +97,7 @@ export function useSiteSuitabilityLayer(): UseSiteSuitabilityLayerReturn {
       await nextTick()
       if (disposed) return
       if (!manager.has(SITE_SUITABILITY_LAYER_KEY)) {
-        owned.register(SITE_SUITABILITY_LAYER_KEY, {
-          label: LAYER_LABEL,
-          layerType: LAYER_TYPE,
-          data: null,
-          options: getLayerOptions(),
-          visible: true,
-        })
+        registerLayer()
       }
     },
     { immediate: true }
@@ -168,13 +173,7 @@ export function useSiteSuitabilityLayer(): UseSiteSuitabilityLayerReturn {
     if (!manager.has(SITE_SUITABILITY_LAYER_KEY)) {
       await nextTick()
       if (!manager.has(SITE_SUITABILITY_LAYER_KEY)) {
-        owned.register(SITE_SUITABILITY_LAYER_KEY, {
-          label: LAYER_LABEL,
-          layerType: LAYER_TYPE,
-          data: null,
-          options: getLayerOptions(),
-          visible: true,
-        })
+        registerLayer()
       }
     }
 

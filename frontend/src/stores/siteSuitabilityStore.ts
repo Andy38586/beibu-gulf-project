@@ -11,6 +11,7 @@ import {
   SNAPSHOT_PROVENANCE,
   SNAPSHOT_WEIGHTS,
 } from './siteSuitabilityDefaults.snapshot'
+import { createTransactionId } from './factories/createTransactionId'
 import type { SuitabilityWeightsState } from './siteSuitabilityDefaults.snapshot'
 export type { SuitabilityWeightsState }
 
@@ -30,7 +31,7 @@ export const useSiteSuitabilityStore = defineStore('siteSuitability', () => {
   /** 最小陆像元占比过滤（0..1） */
   const minLandFrac: Ref<number> = ref(SNAPSHOT_MIN_LAND_FRAC)
 
-  const activeTransactionId: Ref<number> = ref(0)
+  const { activeTransactionId, bumpTransactionId } = createTransactionId()
   const isRequesting: Ref<boolean> = ref(false)
   /** /site-suitability/map 解析响应：左上分布 + 左下 Top-N 面板的唯一数据源 */
   const data: Ref<SiteSuitabilityResponseParsed | null> = ref(null)
@@ -41,11 +42,6 @@ export const useSiteSuitabilityStore = defineStore('siteSuitability', () => {
   const defaultsSource: Ref<'pending' | 'remote' | 'snapshot'> = ref('pending')
   /** once 守卫：权重 watch 回写会重入 doUpdate，同页多次调用只发一次请求 */
   let defaultsPromise: Promise<void> | null = null
-
-  function bumpTransactionId(): number {
-    activeTransactionId.value += 1
-    return activeTransactionId.value
-  }
 
   function setIsRequesting(v: boolean): void {
     isRequesting.value = v

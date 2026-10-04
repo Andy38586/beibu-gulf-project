@@ -29,12 +29,11 @@ export function validateJudgmentMatrix(matrix: JudgmentMatrix): void {
   if (n < 1 || n > 15) {
     throw new Error(`判断矩阵阶数须在 1..15（当前 ${n}）`)
   }
-  for (let i = 0; i < n; i++) {
-    if (matrix[i].length !== n) {
-      throw new Error(`判断矩阵第 ${i} 行长度 ${matrix[i].length} ≠ ${n}（非方阵）`)
+  matrix.forEach((row, i) => {
+    if (row.length !== n) {
+      throw new Error(`判断矩阵第 ${i} 行长度 ${row.length} ≠ ${n}（非方阵）`)
     }
-    for (let j = 0; j < n; j++) {
-      const a = matrix[i][j]
+    row.forEach((a, j) => {
       if (!Number.isFinite(a) || a <= 0) {
         throw new Error(`判断矩阵[${i}][${j}] = ${a} 非正数`)
       }
@@ -45,8 +44,13 @@ export function validateJudgmentMatrix(matrix: JudgmentMatrix): void {
           `判断矩阵互反性破坏：[${i}][${j}]=${a} 与 [${j}][${i}]=${matrix[j][i]} 之积 ≠ 1`
         )
       }
-    }
-  }
+    })
+  })
+}
+
+/** 行主序方阵 × 向量（A·w）；幂迭代与 λmax 复算共用同一实现 */
+function matVec(matrix: JudgmentMatrix, w: readonly number[]): number[] {
+  return matrix.map((row) => row.reduce((s, a, j) => s + a * w[j], 0))
 }
 
 /** 幂迭代求主特征向量（正互反阵由 Perron-Frobenius 定理保证主特征值唯一且权重非负） */
@@ -59,26 +63,17 @@ function principalEigenvector(
   let w = new Array<number>(n).fill(1 / n)
   let lambdaMax = 1
   for (let k = 0; k < iterations; k++) {
-    const next = new Array<number>(n).fill(0)
-    for (let i = 0; i < n; i++) {
-      let s = 0
-      for (let j = 0; j < n; j++) s += matrix[i][j] * w[j]
-      next[i] = s
-    }
-    const sum = next.reduce((a, b) => a + b, 0)
+    const raw = matVec(matrix, w)
+    const sum = raw.reduce((a, b) => a + b, 0)
     if (sum <= 0) throw new Error('幂迭代出现非正列和（矩阵非法）')
-    for (let i = 0; i < n; i++) next[i] /= sum
+    const next = raw.map((v) => v / sum)
     const diff = next.reduce((acc, v, i) => acc + Math.abs(v - w[i]), 0)
     w = next
     if (diff < tolerance) break
   }
   // λmax = (Aw)_i / w_i 的均值（幂迭代收敛处 w≈Aw/λmax）
-  let lambdaSum = 0
-  for (let i = 0; i < n; i++) {
-    let aw = 0
-    for (let j = 0; j < n; j++) aw += matrix[i][j] * w[j]
-    lambdaSum += w[i] > 0 ? aw / w[i] : lambdaMax
-  }
+  const aw = matVec(matrix, w)
+  const lambdaSum = aw.reduce((acc, v, i) => acc + (w[i] > 0 ? v / w[i] : lambdaMax), 0)
   lambdaMax = lambdaSum / n
   return { weights: w, lambdaMax }
 }

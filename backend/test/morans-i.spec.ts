@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { moransI, seededRandom } from '../src/common/morans-i'
+import { moransI } from '../src/common/morans-i'
+import { seededRandom } from '../src/common/seeded-random'
 
 // Moran's I 单测（W6-8 产业拟合）。oracle 全部手算独立复算（4 节点环图，
 // 行标准化 w=0.5），不从实现反推。

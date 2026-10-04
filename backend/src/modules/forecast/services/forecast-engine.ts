@@ -2,6 +2,8 @@
 // 改写属算法审查域须另行立项）。确定性：固定种子 LCG（Park-Miller），
 // 种子由 timePoint + 港口索引哈希得到，禁止 Math.random 参与业务数值
 
+import { seededRandom } from '../../../common/seeded-random'
+
 export interface HistoricalPoint {
   time: string
   value: number
@@ -114,13 +116,6 @@ function getSeasonalFactor(historical: HistoricalPoint[], targetMonth: number): 
   if (!monthlyData[targetMonth] || allAvg === 0) return 1
   const monthAvg = monthlyData[targetMonth].sum / monthlyData[targetMonth].count
   return monthAvg / allAvg
-}
-
-// 固定种子 LCG（Park-Miller）
-function seededRandom(seed: number): () => number {
-  let s = seed % 2147483647
-  if (s <= 0) s += 2147483646
-  return () => (s = (s * 16807) % 2147483647) / 2147483647
 }
 
 function hashSeed(str: string): number {

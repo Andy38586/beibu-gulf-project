@@ -49,16 +49,18 @@ const PRELOAD_ITEM_LIMIT_BYTES = 40 * 1024 * 1024
 
 let done = false
 
+/** tileset JSON 节点（只取预热用到的子集形状） */
+type ContentNode = { content?: { uri?: string }; children?: unknown[] }
+
 /** 从 tileset JSON 里抽出所有 content.uri（只取一层 children，够覆盖本项目的三层结构） */
 function collectContentUris(json: unknown): string[] {
   const out: string[] = []
-  const walk = (n: { content?: { uri?: string }; children?: unknown[] }): void => {
+  const walk = (n: ContentNode): void => {
     const uri = n?.content?.uri
     if (typeof uri === 'string') out.push(uri)
-    for (const c of (n?.children ?? []) as { content?: { uri?: string }; children?: unknown[] }[])
-      walk(c)
+    for (const c of (n?.children ?? []) as ContentNode[]) walk(c)
   }
-  const root = (json as { root?: { content?: { uri?: string }; children?: unknown[] } })?.root
+  const root = (json as { root?: ContentNode })?.root
   if (root) walk(root)
   return out
 }

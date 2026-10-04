@@ -43,6 +43,9 @@ const CANDIDATE_LIMIT = 60
  */
 const candidates = computed<ScoredXiaoqu[]>(() => {
   const features = state.data?.features ?? []
+  /** score 降序（同分保持原序，稳定排序不把同分格随机洗牌） */
+  const byScoreDesc = (a: (typeof features)[number], b: (typeof features)[number]): number =>
+    b.properties.score - a.properties.score
   // 单趟 top-K（K=60）取代「全量 sort」：格网可达 14 万+，对全量做 O(n log n) 排序会在
   // 每次数据落地时白烧几十毫秒（性能取证 2026-10-02）。此处只保留前 K 个并沿途剔除。
   const top: Array<(typeof features)[number]> = []
@@ -51,16 +54,15 @@ const candidates = computed<ScoredXiaoqu[]>(() => {
     if (!Number.isFinite(s)) continue
     if (top.length < CANDIDATE_LIMIT) {
       top.push(f)
-      if (top.length === CANDIDATE_LIMIT)
-        top.sort((a, b) => b.properties.score - a.properties.score)
+      if (top.length === CANDIDATE_LIMIT) top.sort(byScoreDesc)
       continue
     }
     if (s > top[top.length - 1].properties.score) {
       top[top.length - 1] = f
-      top.sort((a, b) => b.properties.score - a.properties.score)
+      top.sort(byScoreDesc)
     }
   }
-  if (top.length < CANDIDATE_LIMIT) top.sort((a, b) => b.properties.score - a.properties.score)
+  if (top.length < CANDIDATE_LIMIT) top.sort(byScoreDesc)
   return top.map((f) => {
     const p = f.properties as CellProperties
     return {
@@ -82,7 +84,8 @@ const candidates = computed<ScoredXiaoqu[]>(() => {
 
 /** 点击候选格 → 地图定位（复用既有 useMapControls 通道，与浸没页/旧版选址同款） */
 function flyToCandidate(item: ScoredXiaoqu): void {
-  flyTo({ lng: item.lng, lat: item.lat }, { height: 1000 })
+  const { lng, lat } = item
+  flyTo({ lng, lat }, { height: 1000 })
 }
 const { updateLayer, renderer } = useSiteSuitabilityLayer()
 const { startTransaction, cancelAll } = useSiteSuitabilityRequest()

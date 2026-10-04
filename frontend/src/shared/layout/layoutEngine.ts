@@ -68,6 +68,11 @@ export function layoutModeFor(width: number): LayoutMode {
   return 'compact'
 }
 
+/** 同 zone 面板按 order 升序（桌面堆叠与 placementsFor 同口径；稳定排序） */
+export function orderedZonePanels(panels: PanelSpec[], zone: PanelZone): PanelSpec[] {
+  return panels.filter((p) => p.zone === zone).sort((a, b) => a.order - b.order)
+}
+
 export function computeLayout(
   panels: PanelSpec[],
   viewport: Viewport,
@@ -87,7 +92,7 @@ export function computeLayout(
     // 标题行之下起排：S + 1×cell + S（cell=80 时=120，与现模板 offset-y=1.25 一致）
     const topOffset = SAFE_MARGIN + TITLE_H_CELLS * cell + PANEL_SPACING
     for (const zone of ['left', 'right'] as PanelZone[]) {
-      const zonePanels = panels.filter((p) => p.zone === zone).sort((a, b) => a.order - b.order)
+      const zonePanels = orderedZonePanels(panels, zone)
       let cursor = topOffset
       for (const p of zonePanels) {
         const w = p.w * cell

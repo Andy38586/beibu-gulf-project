@@ -1,7 +1,9 @@
 // Moran's I 空间自相关纯函数（论文 W6-8 产业拟合指数；工单 §四 W6-8 行）。
 // I = (n/S0)·(ΣΣ w_ij·z_i·z_j)/(Σ z_i²)，z = x − x̄；置换检验 p 值用固定种子 LCG
-//（Park-Miller，与 forecast-engine 同款约定：业务数值禁 Math.random）。
+//（common/seeded-random 单一实现：业务数值禁 Math.random）。
 // 只做数学不含业务语义；空间权重矩阵由调用方构造（knn/距离带皆可）。
+
+import { seededRandom } from './seeded-random'
 
 export type SpatialWeights = readonly (readonly { j: number; w: number }[])[]
 
@@ -16,13 +18,6 @@ export interface MoransIResult {
   expectedI: number
   /** 观测样本数 */
   n: number
-}
-
-/** 固定种子 LCG（Park-Miller，同 forecast-engine 约定） */
-export function seededRandom(seed: number): () => number {
-  let s = seed % 2147483647
-  if (s <= 0) s += 2147483646
-  return () => (s = (s * 16807) % 2147483647) / 2147483647
 }
 
 function moransIUncentered(

@@ -141,6 +141,14 @@ function boxAxes(box: number[]): {
   }
 }
 
+/** 包围体字段（12 元盒 / 4 元球；无法识别时由调用方各自兜底） */
+type BoundingVolume = { box?: number[]; sphere?: number[] }
+
+/** 非空节点谓词（absolutizeNode 递归结果过滤用） */
+function isTilesetNode(c: TilesetNode | null): c is TilesetNode {
+  return c !== null
+}
+
 /**
  * 盒与球是否相交（OBB vs 球，精确判据：球心到盒的最近点距离 ≤ 半径）。
  *
@@ -152,7 +160,7 @@ function boxAxes(box: number[]): {
  * 宁可多留也不误删——误删的后果是「图层开着但内容缺一块」，比多留难发现得多。
  */
 export function boundingIntersectsSphere(bv: unknown, sphere: CropSphere): boolean {
-  const b = bv as { box?: number[]; sphere?: number[] } | undefined
+  const b = bv as BoundingVolume | undefined
   if (b?.sphere && b.sphere.length >= 4) {
     const d = Math.hypot(
       b.sphere[0] - sphere.center[0],
@@ -203,7 +211,7 @@ function absolutizeNode(
   if (Array.isArray(node.children)) {
     out.children = node.children
       .map((c) => absolutizeNode(c, baseUrl, drop, keepSphere, dropContent))
-      .filter((c): c is TilesetNode => c !== null)
+      .filter(isTilesetNode)
   }
   return out
 }
@@ -355,7 +363,7 @@ export function deriveGroupTileset<Id extends string>(
         .map((c) =>
           absolutizeNode(c, baseUrl, options.drop, options.keepSphere, options.dropContent)
         )
-        .filter((c): c is TilesetNode => c !== null),
+        .filter(isTilesetNode),
     },
   }
 }
@@ -378,7 +386,7 @@ export function toDataUri(tileset: TilesetJson): string {
  * sphere：直径。无法识别时返回 0（调用方据此跳过，不臆造尺度）。
  */
 function boundingWorldScale(bv: unknown): number {
-  const b = bv as { box?: number[]; sphere?: number[] } | undefined
+  const b = bv as BoundingVolume | undefined
   if (b?.box && b.box.length >= 12) {
     const x = b.box
     const lx = Math.hypot(x[3], x[4], x[5])

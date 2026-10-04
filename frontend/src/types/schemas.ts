@@ -6,6 +6,18 @@ import { z } from 'zod'
 
 import { TASK_DOMAINS, TASK_STATUSES } from './task'
 
+/** [lng, lat] 坐标对（route path / water area / route 响应共用的单一形状） */
+const lngLatSchema = z.tuple([z.number(), z.number()])
+
+/** 五准则权重形状（defaults 单源与 map 响应 metadata 共用；后端 scoring 同键） */
+const suitabilityWeightsShape = {
+  inundation: z.number(),
+  terrain: z.number(),
+  land: z.number(),
+  access: z.number(),
+  demand: z.number(),
+}
+
 // ① User（useAuth 的 localStorage 读取校验 + /auth/me 响应校验）
 // 🔴 2026-09-19 修复 P0：createdAt 由 `z.string()` 改为 `z.string().nullable()`——
 // 此前必填与后端 `AuthUserView`（created_at 列可空）不符，`/auth/me` 的 200 响应
@@ -207,13 +219,7 @@ export const siteSuitabilityResponseSchema = z.object({
   ),
   metadata: z.looseObject({
     count: z.number(),
-    weights: z.looseObject({
-      inundation: z.number(),
-      terrain: z.number(),
-      land: z.number(),
-      access: z.number(),
-      demand: z.number(),
-    }),
+    weights: z.looseObject(suitabilityWeightsShape),
     weightsSource: z.string(),
     kdeP99: z.number(),
     minLandFrac: z.number(),
@@ -225,13 +231,7 @@ export type SiteSuitabilityResponseParsed = z.infer<typeof siteSuitabilityRespon
 // ㉒ /site-suitability/defaults 默认值单源（权重定稿向量 + 阈值表 + 过滤/分辨率缺省）
 // @backend-contract backend/src/modules/site-suitability/services/site-suitability.service.ts
 export const siteSuitabilityDefaultsSchema = z.object({
-  weights: z.looseObject({
-    inundation: z.number(),
-    terrain: z.number(),
-    land: z.number(),
-    access: z.number(),
-    demand: z.number(),
-  }),
+  weights: z.looseObject(suitabilityWeightsShape),
   thresholds: z.looseObject({
     inundLowM: z.number(),
     inundHighM: z.number(),
@@ -275,7 +275,7 @@ export const canalLineResponseSchema = z.object({
     z.looseObject({
       name: z.string().nullable(),
       section: z.string().nullable(),
-      coordinates: z.array(z.tuple([z.number(), z.number()])).min(2),
+      coordinates: z.array(lngLatSchema).min(2),
     })
   ),
 })
@@ -336,7 +336,7 @@ export const planSchema = z.looseObject({
 export type PlanParsed = z.infer<typeof planSchema>
 
 // ⑪ /flood/water-area 响应（[[lng,lat],...] 坐标数组）
-export const waterAreaSchema = z.array(z.tuple([z.number(), z.number()]))
+export const waterAreaSchema = z.array(lngLatSchema)
 
 export type WaterAreaParsed = z.infer<typeof waterAreaSchema>
 
@@ -446,7 +446,7 @@ export const routePathResponseSchema = z.discriminatedUnion('found', [
     durationMin: z.number(),
     snapDistanceM: z.object({ from: z.number(), to: z.number() }),
     edgeCount: z.number(),
-    coordinates: z.array(z.tuple([z.number(), z.number()])),
+    coordinates: z.array(lngLatSchema),
   }),
   z.object({
     found: z.literal(false),

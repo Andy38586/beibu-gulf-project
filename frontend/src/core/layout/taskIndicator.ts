@@ -17,9 +17,9 @@
  * 消费方 `watch(version)` 即可重算 —— 依赖方向仍然是 core←App，不倒置。
  */
 
-import { readonly, ref } from 'vue'
-
 import type { TaskStatus } from '@/types/task'
+
+import { createInjectedRouteState } from './injectedRouteState'
 
 /** 导航指示状态：某路由当前是否有任务、什么状态、进度多少 */
 export interface TaskIndicatorState {
@@ -40,35 +40,19 @@ export const EMPTY_TASK_INDICATOR: TaskIndicatorState = Object.freeze({
   progress: 0,
 })
 
-/** 取值函数签名：给定路由路径 → 该路由的任务指示态 */
-export type TaskIndicatorGetter = (route: string) => TaskIndicatorState
-
-const getter = ref<TaskIndicatorGetter>(() => EMPTY_TASK_INDICATOR)
-
-/**
- * 版本号：注入方每次数据变化后 `notify()` 递增。
- * core 侧 `watch(version)` 即可在**不引用 Pinia 类型**的前提下响应变化。
- */
-const version = ref(0)
+const source = createInjectedRouteState<TaskIndicatorState>(EMPTY_TASK_INDICATOR)
 
 /** core 侧消费：读取版本号（watch 它触发重算） */
-export const taskIndicatorVersion = readonly(version)
+export const taskIndicatorVersion = source.version
 
 /** core 侧消费：按路由取指示态 */
-export function getTaskIndicator(route: string): TaskIndicatorState {
-  return getter.value(route)
-}
+export const getTaskIndicator = source.get
 
 /**
  * 根入口注入（App.vue setup 内一次性调用）。
  * `notify` 需在任务状态变化时调用——App.vue 侧 watch taskStore 驱动。
  */
-export function registerTaskIndicator(fn: TaskIndicatorGetter): void {
-  getter.value = fn
-  version.value += 1
-}
+export const registerTaskIndicator = source.register
 
 /** 注入方通知数据已变（触发 core 侧重算） */
-export function notifyTaskIndicator(): void {
-  version.value += 1
-}
+export const notifyTaskIndicator = source.notify

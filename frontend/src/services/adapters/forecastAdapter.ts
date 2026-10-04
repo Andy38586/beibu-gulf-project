@@ -16,6 +16,11 @@ import {
 
 const { apiRequest } = useApiRequest()
 
+/** 缺省不携带 scenario 参数：与「未选情景=后端默认基线」的请求语义一致 */
+function scenarioParam(scenario?: string): Record<string, string> {
+  return scenario ? { scenario } : {}
+}
+
 export interface ForecastTimeSeriesParams {
   indicator: string
   granularity: string
@@ -55,8 +60,7 @@ export const forecastAdapter = {
         indicator: params.indicator,
         granularity: params.granularity,
         confidence: params.confidence,
-        // 缺省不携带 scenario 参数：与「未选情景=后端默认基线」的请求语义一致
-        ...(params.scenario ? { scenario: params.scenario } : {}),
+        ...scenarioParam(params.scenario),
       },
       signal,
       schema: timeSeriesResponseSchema,
@@ -77,7 +81,7 @@ export const forecastAdapter = {
         params: {
           time: params.time,
           confidence: params.confidence,
-          ...(params.scenario ? { scenario: params.scenario } : {}),
+          ...scenarioParam(params.scenario),
         },
         signal,
         schema: indicatorComparisonResponseSchema,

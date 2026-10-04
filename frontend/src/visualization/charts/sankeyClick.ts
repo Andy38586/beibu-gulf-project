@@ -26,10 +26,13 @@ interface SankeyClickRaw {
   data?: { source?: string; target?: string }
 }
 
-/** 可绑定的最小实例形状（真 echarts 实例满足之；rest 形态兼容其 on(type, ...args) 签名） */
+/** 事件回调形态：on/off 共用同一签名（rest 参数兼容 echarts 的 on(type, ...args)） */
+type ClickHandler = (...args: unknown[]) => void
+
+/** 可绑定的最小实例形状（真 echarts 实例满足之） */
 interface SankeyClickTarget {
-  on: (type: string, handler: (...args: unknown[]) => void) => void
-  off: (type: string, handler: (...args: unknown[]) => void) => void
+  on: (type: string, handler: ClickHandler) => void
+  off: (type: string, handler: ClickHandler) => void
 }
 
 /**

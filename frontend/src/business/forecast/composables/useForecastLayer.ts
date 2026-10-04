@@ -28,6 +28,8 @@ import type { LayerOptions, LayerType, MapRenderer } from '@/types'
 import type { ForecastMapData } from '@/types/api/forecast'
 import { forecastMapDataSchema } from '@/types/schemas'
 
+import { scenarioParam } from '../queryParams'
+
 import { useForecastRequest } from './useForecastRequest'
 
 const INDICATOR_LABELS: Record<string, string> = {
@@ -184,7 +186,7 @@ export function useForecastLayer(): UseForecastLayerReturn {
               indicator,
               time,
               confidence,
-              ...(scenario !== 'baseline' ? { scenario } : {}),
+              ...scenarioParam(scenario),
             },
             signal,
             schema: forecastMapDataSchema,

@@ -5,7 +5,7 @@
 import { computed, type ComputedRef } from 'vue'
 
 import { PANEL_SPACING } from './config'
-import { TITLE_H_CELLS } from './layoutEngine'
+import { TITLE_H_CELLS, orderedZonePanels } from './layoutEngine'
 import type { PanelSpec, PanelZone } from './panelRegistry'
 import { useGCS } from './useGCS'
 
@@ -24,7 +24,7 @@ export function placementsFor(panels: PanelSpec[], cellPx: number): Record<strin
   const gapCells = PANEL_SPACING / c
   const out: Record<string, PanelPlacement> = {}
   for (const zone of ['left', 'right'] as PanelZone[]) {
-    const ordered = panels.filter((p) => p.zone === zone).sort((a, b) => a.order - b.order)
+    const ordered = orderedZonePanels(panels, zone)
     let cursor = TITLE_H_CELLS + gapCells
     for (const p of ordered) {
       out[p.id] = {

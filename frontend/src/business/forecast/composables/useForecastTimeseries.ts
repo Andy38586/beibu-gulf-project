@@ -11,6 +11,7 @@ import { handleAuthError, isAuthError, logger, showError } from '@/shared'
 import { DEFAULT_CONFIDENCE } from '@/shared'
 import { useForecastStore } from '@/stores'
 
+import { scenarioParam } from '../queryParams'
 import { useForecastRequest } from './useForecastRequest'
 
 interface SeriesItem {
@@ -49,7 +50,7 @@ export function useForecastTimeseries(): UseForecastTimeseriesReturn {
                 indicator,
                 granularity,
                 confidence,
-                ...(scenario !== 'baseline' ? { scenario } : {}),
+                ...scenarioParam(scenario),
               },
               signal
             ),

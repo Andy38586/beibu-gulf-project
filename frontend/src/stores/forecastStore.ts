@@ -7,6 +7,7 @@ import { BoundedMap, DEFAULT_CONFIDENCE } from '@/shared'
 import type { ConfidenceThresholds } from '@/types/business/base'
 
 import { createPersistedState } from './factories/createPersistedState'
+import { createTransactionId } from './factories/createTransactionId'
 
 /**
  * 预测分析跨页面状态快照（「跳转个人中心登录 → 返回原路由」链路：saveState → consumeState）。
@@ -59,7 +60,7 @@ export const useForecastStore = defineStore('forecast', () => {
   )
 
   /** 请求事务状态迁入 store（消除请求 composable 的模块级可变状态）；AbortController 不可序列化、不响应式，仍由请求实例持有并透传 signal */
-  const activeTransactionId: Ref<number> = ref(0)
+  const { activeTransactionId, bumpTransactionId } = createTransactionId()
   const isRequesting: Ref<boolean> = ref(false)
 
   // ── v4-S3 图表数据槽：请求归属上移面板后，请求 composable 的结果写这里，
@@ -81,12 +82,6 @@ export const useForecastStore = defineStore('forecast', () => {
     chart.lineViewportXMax = '2029-12'
     chart.barXData = []
     chart.barSeries = []
-  }
-
-  /** 事务推进（composable 不再直改 state）——返回新事务 ID */
-  function bumpTransactionId(): number {
-    activeTransactionId.value += 1
-    return activeTransactionId.value
   }
 
   /** 请求进行态写入口（isRequesting 不再被 composable 直改） */

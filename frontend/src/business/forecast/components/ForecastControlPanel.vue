@@ -205,12 +205,15 @@ function onTimePointerDown(e: PointerEvent) {
   if (target?.matches?.('input[type="range"]')) beginSliderFocus(target)
 }
 
+/** 中位年份（起止年中点；刻度与步长共用同一取值） */
+const MID_YEAR = Math.round((BASE_YEAR + END_YEAR) / 2)
+
 const YEAR_MARKS = [
   { year: BASE_YEAR, step: 0, label: `${BASE_YEAR}.1` },
   {
-    year: Math.round((BASE_YEAR + END_YEAR) / 2),
-    step: (Math.round((BASE_YEAR + END_YEAR) / 2) - BASE_YEAR) * 12,
-    label: `${Math.round((BASE_YEAR + END_YEAR) / 2)}.1`,
+    year: MID_YEAR,
+    step: (MID_YEAR - BASE_YEAR) * 12,
+    label: `${MID_YEAR}.1`,
   },
   { year: END_YEAR, step: (END_YEAR - BASE_YEAR) * 12, label: `${END_YEAR}.1` },
 ]

@@ -12,7 +12,7 @@
  *
  * 判据由路由 meta.engine 派生（不写死路由清单）⇒ 新增 3D 模块自动纳入。
  */
-import { readonly, ref } from 'vue'
+import { createInjectedRouteState } from './injectedRouteState'
 
 /** 页面准备态：某路由当前是否仍在准备（渲染器尚未切到该路由要求的引擎） */
 export interface RouteReadinessState {
@@ -22,32 +22,19 @@ export interface RouteReadinessState {
 /** 默认空态（未注入 / 该路由不在准备时的唯一真相） */
 export const EMPTY_ROUTE_READINESS: RouteReadinessState = Object.freeze({ preparing: false })
 
-/** 取值函数签名：给定路由路径 → 该路由的准备态 */
-type RouteReadinessGetter = (route: string) => RouteReadinessState
-
-const getter = ref<RouteReadinessGetter>(() => EMPTY_ROUTE_READINESS)
-
-/** 版本号：注入方每次数据变化后 notify() 递增；core 侧 watch 它重算 */
-const version = ref(0)
+const source = createInjectedRouteState<RouteReadinessState>(EMPTY_ROUTE_READINESS)
 
 /** core 侧消费：读取版本号（watch 它触发重算） */
-export const routeReadinessVersion = readonly(version)
+export const routeReadinessVersion = source.version
 
 /** core 侧消费：按路由取准备态 */
-export function getRouteReadiness(route: string): RouteReadinessState {
-  return getter.value(route)
-}
+export const getRouteReadiness = source.get
 
 /** 根入口注入（App.vue setup 内一次性调用） */
-export function registerRouteReadiness(fn: RouteReadinessGetter): void {
-  getter.value = fn
-  version.value += 1
-}
+export const registerRouteReadiness = source.register
 
 /** 注入方通知数据已变（触发 core 侧重算） */
-export function notifyRouteReadiness(): void {
-  version.value += 1
-}
+export const notifyRouteReadiness = source.notify
 
 /**
  * 「准备中」判据（纯函数：App.vue 与测试共用同一份口径，不各写一份）。

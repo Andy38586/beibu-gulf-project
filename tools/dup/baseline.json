@@ -1,16 +1,16 @@
 {
   "generatedFrom": "tools/dup/scan.mjs",
   "minTokens": 12,
-  "totalGroups": 209,
-  "totalRedundantTokens": 4711,
+  "totalGroups": 192,
+  "totalRedundantTokens": 4478,
   "byModule": {
     "frontend/src/core": 2011,
-    "backend/src/modules": 910,
-    "跨模块": 638,
+    "backend/src/modules": 882,
+    "跨模块": 524,
     "frontend/src/visualization": 256,
+    "frontend/src/business": 212,
     "frontend/src/shared": 197,
-    "frontend/src/types": 207,
-    "frontend/src/business": 233,
+    "frontend/src/types": 137,
     "frontend/src/services": 36,
     "backend/src/main.ts": 19,
     "frontend/src/views": 70,
@@ -26,27 +26,28 @@
       "redundantTokens": 117
     },
     {
-      "text": "{ const coords = f . geometry ?. coordinates const point = normalizePoint ( coords ? { lng : coords [ 0 ] , lat : coords [ 1 ] } : f ) if ( ! point ) return [ ] const feature = new Feature ( { geometry : new Point ( fromLonLat ( [ point . lng , point . lat ] ) ) , } ) Object . entries ( f . properties || { } ) . forEach ( ( [ key , value ] ) => { feature . set ( key , value ) } ) return [ feature ] }",
-      "tokenCount": 108,
-      "count": 2,
-      "files": ["frontend/src/core/map/renderers/OLRenderer.ts"],
-      "redundantTokens": 108
-    },
-    {
       "text": "SkipThrottle ( { login : true , register : true } )",
       "tokenCount": 12,
-      "count": 9,
+      "count": 10,
       "files": [
         "backend/src/modules/auth/controllers/auth.controller.ts",
+        "backend/src/modules/diversion/controllers/diversion.controller.ts",
         "backend/src/modules/favorites/controllers/favorites.controller.ts",
         "backend/src/modules/flood/controllers/flood.controller.ts",
         "backend/src/modules/forecast/controllers/forecast.controller.ts",
         "backend/src/modules/plans/controllers/plans.controller.ts",
         "backend/src/modules/route/controllers/route.controller.ts",
-        "backend/src/modules/site-analysis/controllers/site-analysis.controller.ts",
+        "backend/src/modules/site-suitability/controllers/site-suitability.controller.ts",
         "backend/src/modules/task/controllers/task.controller.ts"
       ],
-      "redundantTokens": 96
+      "redundantTokens": 108
+    },
+    {
+      "text": "{ const coords = f . geometry ?. coordinates const point = normalizePoint ( coords ? { lng : coords [ 0 ] , lat : coords [ 1 ] } : f ) if ( ! point ) return [ ] const feature = new Feature ( { geometry : new Point ( fromLonLat ( [ point . lng , point . lat ] ) ) , } ) Object . entries ( f . properties || { } ) . forEach ( ( [ key , value ] ) => { feature . set ( key , value ) } ) return [ feature ] }",
+      "tokenCount": 108,
+      "count": 2,
+      "files": ["frontend/src/core/map/renderers/OLRenderer.ts"],
+      "redundantTokens": 108
     },
     {
       "text": "( typeof raw === 'object' && raw !== null ? raw : { } )",
@@ -77,18 +78,6 @@
       "redundantTokens": 75
     },
     {
-      "text": "{ name : string ; data : Array < number | null > }",
-      "tokenCount": 14,
-      "count": 6,
-      "files": [
-        "frontend/src/business/forecast/composables/useForecastComparison.ts",
-        "frontend/src/visualization/charts/BarChart.vue",
-        "frontend/src/visualization/charts/LineChart.vue",
-        "frontend/src/visualization/charts/composables/useChartBase.ts"
-      ],
-      "redundantTokens": 70
-    },
-    {
       "text": "[ { maxLevel : 0 , label : '无风险' } , { maxLevel : 2 , label : '低风险' } , { maxLevel : 4.3 , label : '中风险' } , { maxLevel : 6 , label : '高风险' } , { maxLevel : 8 , label : '极高风险' } , { maxLevel : Number . POSITIVE_INFINITY , label : '灾难级' } , ]",
       "tokenCount": 64,
       "count": 2,
@@ -111,6 +100,19 @@
       "count": 6,
       "files": ["frontend/src/core/map/renderers/OLRenderer.ts"],
       "redundantTokens": 60
+    },
+    {
+      "text": "{ name : string ; data : Array < number | null > }",
+      "tokenCount": 14,
+      "count": 5,
+      "files": [
+        "frontend/src/business/forecast/composables/useForecastComparison.ts",
+        "frontend/src/stores/forecastStore.ts",
+        "frontend/src/visualization/charts/BarChart.vue",
+        "frontend/src/visualization/charts/LineChart.vue",
+        "frontend/src/visualization/charts/composables/useChartBase.ts"
+      ],
+      "redundantTokens": 56
     },
     {
       "text": "layerCatalog . value . find ( ( e : LayerEntry ) => e . key === key )",
@@ -159,6 +161,16 @@
       "count": 2,
       "files": ["backend/src/modules/task/types/task.ts", "frontend/src/types/task.ts"],
       "redundantTokens": 46
+    },
+    {
+      "text": "( adapterFn : ( ) => Promise < T > , transactionId : number )",
+      "tokenCount": 15,
+      "count": 4,
+      "files": [
+        "frontend/src/business/forecast/composables/useForecastRequest.ts",
+        "frontend/src/business/site-suitability/composables/useSiteSuitabilityRequest.ts"
+      ],
+      "redundantTokens": 45
     },
     {
       "text": "{ time : string value : number type : string reliability : number lower ? : number upper ? : number }",
@@ -219,6 +231,16 @@
       "redundantTokens": 37
     },
     {
+      "text": "if ( ! Number . isFinite ( v ) || v < 0 || v > 1 )",
+      "tokenCount": 18,
+      "count": 3,
+      "files": [
+        "backend/src/modules/site-suitability/dto/site-suitability.dto.ts",
+        "backend/src/modules/site-suitability/services/scoring.ts"
+      ],
+      "redundantTokens": 36
+    },
+    {
       "text": "( options . onError as ( ( msg : string ) => void ) | undefined )",
       "tokenCount": 17,
       "count": 3,
@@ -236,35 +258,11 @@
       "redundantTokens": 32
     },
     {
-      "text": "z . record ( z . string ( ) , z . unknown ( ) )",
-      "tokenCount": 16,
-      "count": 3,
-      "files": ["frontend/src/types/schemas.ts"],
-      "redundantTokens": 32
-    },
-    {
-      "text": "return flyTo ( { lng : target . lng , lat : target . lat } , { height : target . height , zoom : target . zoom } )",
-      "tokenCount": 31,
-      "count": 2,
-      "files": [
-        "frontend/src/business/site-selection/SiteSelectionPage.vue",
-        "frontend/src/core/layout/composables/useScreenActions.ts"
-      ],
-      "redundantTokens": 31
-    },
-    {
       "text": "new TileLayer ( { source : new XYZ ( { url : buildTiandituUrl ( code ) , crossOrigin : 'anonymous' , } ) , className : 'ol-base-layer' , } )",
       "tokenCount": 30,
       "count": 2,
       "files": ["frontend/src/core/map/renderers/OLRenderer.ts"],
       "redundantTokens": 30
-    },
-    {
-      "text": "continue if ( p . id && haversineKm ( xq . lng , xq . lat , p . lng , p . lat ) <= radiusKm )",
-      "tokenCount": 28,
-      "count": 2,
-      "files": ["frontend/src/business/site-selection/composables/useAnalysisLayer.ts"],
-      "redundantTokens": 28
     },
     {
       "text": "{ this . _runAdapter ( 'create' , renderer , key , meta . label , meta . layerType , meta . data , meta . options ) }",
@@ -279,6 +277,16 @@
       "count": 2,
       "files": ["frontend/src/core/map/renderers/CesiumRenderer.ts"],
       "redundantTokens": 28
+    },
+    {
+      "text": "{ inundLowM : 1 , inundHighM : 6 , slopeBestDeg : 5 , slopeWorstDeg : 20 , portScaleM : 8000 , roadScaleM : 2000 , }",
+      "tokenCount": 26,
+      "count": 2,
+      "files": [
+        "backend/src/modules/site-suitability/constants/score.constants.ts",
+        "frontend/src/stores/siteSuitabilityDefaults.snapshot.ts"
+      ],
+      "redundantTokens": 26
     },
     {
       "text": "if ( this . hooks . isCancelled ( job . taskId ) )",
@@ -396,7 +404,7 @@
       "count": 3,
       "files": [
         "frontend/src/business/flood-analysis/components/WaterLevelProfilePanel.vue",
-        "frontend/src/business/site-selection/SiteSelectionPage.vue",
+        "frontend/src/business/forecast/ForecastPage.vue",
         "frontend/src/core/layout/components/GCSDebugOverlay.vue"
       ],
       "redundantTokens": 24
@@ -457,13 +465,6 @@
       "redundantTokens": 24
     },
     {
-      "text": "for ( const [ key , setting ] of Object . entries ( typeSettings as Record < string , TypeSetting > ) )",
-      "tokenCount": 23,
-      "count": 2,
-      "files": ["backend/src/modules/site-analysis/dto/site-analysis-request.ts"],
-      "redundantTokens": 23
-    },
-    {
       "text": ". sort ( ( a , b ) => b [ 1 ] . max - a [ 1 ] . max )",
       "tokenCount": 23,
       "count": 2,
@@ -495,13 +496,6 @@
       "tokenCount": 23,
       "count": 2,
       "files": ["frontend/src/shared/composables/useAuth.ts"],
-      "redundantTokens": 23
-    },
-    {
-      "text": "z . array ( z . tuple ( [ z . number ( ) , z . number ( ) ] ) )",
-      "tokenCount": 23,
-      "count": 2,
-      "files": ["frontend/src/types/schemas.ts"],
       "redundantTokens": 23
     },
     {
@@ -676,6 +670,16 @@
       "redundantTokens": 20
     },
     {
+      "text": "withDefaults ( defineProps < SiteSuitabilityPanelProps > ( ) , { data : null , loading : false , } )",
+      "tokenCount": 20,
+      "count": 2,
+      "files": [
+        "frontend/src/business/site-suitability/components/SuitabilityDistributionPanel.vue",
+        "frontend/src/business/site-suitability/components/SuitabilityTopCellsPanel.vue"
+      ],
+      "redundantTokens": 20
+    },
+    {
       "text": "interface FacilityBubbleData { id ? : string name : string poiType : string lng : number lat : number }",
       "tokenCount": 20,
       "count": 2,
@@ -735,6 +739,13 @@
       "tokenCount": 19,
       "count": 2,
       "files": ["backend/src/main.ts"],
+      "redundantTokens": 19
+    },
+    {
+      "text": "{ indicator : string unit : string canalScenario : ScenarioId ports : Record < string , ComputedPort > }",
+      "tokenCount": 19,
+      "count": 2,
+      "files": ["backend/src/modules/forecast/services/forecast.service.ts"],
       "redundantTokens": 19
     },
     {
@@ -816,13 +827,6 @@
       "redundantTokens": 18
     },
     {
-      "text": "{ indicator : string ; unit : string ; ports : Record < string , ComputedPort > }",
-      "tokenCount": 18,
-      "count": 2,
-      "files": ["backend/src/modules/forecast/services/forecast.service.ts"],
-      "redundantTokens": 18
-    },
-    {
       "text": "{ seq : number ; coords : Array < [ number , number ] > | null }",
       "tokenCount": 18,
       "count": 2,
@@ -830,10 +834,10 @@
       "redundantTokens": 18
     },
     {
-      "text": "haversineKm ( xq . lng , xq . lat , p . lng , p . lat )",
+      "text": "as TilesetJson if ( disposed || mapStore . currentRenderer !== renderer || ! isTiles3DCapable ( renderer ) )",
       "tokenCount": 18,
       "count": 2,
-      "files": ["frontend/src/business/site-selection/composables/useAnalysisLayer.ts"],
+      "files": ["frontend/src/business/route-analysis/RouteAnalysisPage.vue"],
       "redundantTokens": 18
     },
     {
@@ -869,13 +873,6 @@
       "tokenCount": 18,
       "count": 2,
       "files": ["frontend/src/stores/mapStore.ts"],
-      "redundantTokens": 18
-    },
-    {
-      "text": "z . tuple ( [ z . number ( ) , z . number ( ) ] )",
-      "tokenCount": 18,
-      "count": 2,
-      "files": ["frontend/src/types/schemas.ts"],
       "redundantTokens": 18
     },
     {
@@ -1001,25 +998,8 @@
       "count": 2,
       "files": [
         "frontend/src/business/forecast/components/ForecastControlPanel.vue",
-        "frontend/src/business/site-selection/components/SiteAnalysisControlPanel.vue"
+        "frontend/src/business/site-suitability/components/SiteSuitabilityControlPanel.vue"
       ],
-      "redundantTokens": 16
-    },
-    {
-      "text": "{ type : string poiList : FacilityPoint [ ] color : string label : string }",
-      "tokenCount": 16,
-      "count": 2,
-      "files": [
-        "frontend/src/business/site-selection/SiteSelectionPage.vue",
-        "frontend/src/visualization/charts/RadarChart.vue"
-      ],
-      "redundantTokens": 16
-    },
-    {
-      "text": "if ( typeof p . lng !== 'number' || typeof p . lat !== 'number' )",
-      "tokenCount": 16,
-      "count": 2,
-      "files": ["frontend/src/business/site-selection/composables/useAnalysisLayer.ts"],
       "redundantTokens": 16
     },
     {
@@ -1082,6 +1062,13 @@
       "redundantTokens": 16
     },
     {
+      "text": "z . record ( z . string ( ) , z . unknown ( ) )",
+      "tokenCount": 16,
+      "count": 2,
+      "files": ["frontend/src/types/schemas.ts"],
+      "redundantTokens": 16
+    },
+    {
       "text": "{ loader : ( ) => import ( '@/visualization/charts/LineChart.vue' ) , loadingComponent : ChartLoading , }",
       "tokenCount": 16,
       "count": 2,
@@ -1117,20 +1104,6 @@
         "frontend/src/business/flood-analysis/components/WaterLevelProfilePanel.vue",
         "frontend/src/visualization/composables/useECharts.ts"
       ],
-      "redundantTokens": 15
-    },
-    {
-      "text": "( adapterFn : ( ) => Promise < T > , transactionId : number )",
-      "tokenCount": 15,
-      "count": 2,
-      "files": ["frontend/src/business/forecast/composables/useForecastRequest.ts"],
-      "redundantTokens": 15
-    },
-    {
-      "text": "( e : string , h : ( ev : CustomEvent ) => void )",
-      "tokenCount": 15,
-      "count": 2,
-      "files": ["frontend/src/business/site-selection/composables/useCityScope.ts"],
       "redundantTokens": 15
     },
     {
@@ -1213,16 +1186,6 @@
       "redundantTokens": 14
     },
     {
-      "text": "import { Body , Controller , Get , HttpCode , Post , Query }",
-      "tokenCount": 14,
-      "count": 2,
-      "files": [
-        "backend/src/modules/flood/controllers/flood.controller.ts",
-        "backend/src/modules/site-analysis/controllers/site-analysis.controller.ts"
-      ],
-      "redundantTokens": 14
-    },
-    {
       "text": "throw new BusinessError ( ErrorCode . ANALYSIS_FAILED , engineResult . metadata . error )",
       "tokenCount": 14,
       "count": 2,
@@ -1237,40 +1200,10 @@
       "redundantTokens": 14
     },
     {
-      "text": "{ throw new BusinessError ( ErrorCode . ANALYSIS_FAILED , result . error ) }",
+      "text": "mapStore . currentRenderer if ( ! renderer || ! isTiles3DCapable ( renderer ) )",
       "tokenCount": 14,
       "count": 2,
-      "files": [
-        "backend/src/modules/site-analysis/controllers/site-analysis.controller.ts",
-        "backend/src/modules/task/services/task-handlers.ts"
-      ],
-      "redundantTokens": 14
-    },
-    {
-      "text": "of Object . entries ( typeSettings as Record < string , TypeSetting > )",
-      "tokenCount": 14,
-      "count": 2,
-      "files": ["backend/src/modules/site-analysis/dto/site-analysis-request.ts"],
-      "redundantTokens": 14
-    },
-    {
-      "text": "[ 'hospital' , 'primary_school' , 'middle_school' , 'park' , 'bus_station' , 'mall' , ]",
-      "tokenCount": 14,
-      "count": 2,
-      "files": [
-        "backend/src/modules/site-analysis/repositories/site-analysis.repository.ts",
-        "frontend/src/visualization/charts/radarSnapshot.ts"
-      ],
-      "redundantTokens": 14
-    },
-    {
-      "text": ". filter ( ( [ , v ] ) => v . selected )",
-      "tokenCount": 14,
-      "count": 2,
-      "files": [
-        "frontend/src/business/site-selection/components/SiteAnalysisControlPanel.vue",
-        "frontend/src/shared/composables/usePlans.ts"
-      ],
+      "files": ["frontend/src/business/route-analysis/RouteAnalysisPage.vue"],
       "redundantTokens": 14
     },
     {
@@ -1353,13 +1286,6 @@
       "redundantTokens": 13
     },
     {
-      "text": "{ lng : item . lng , lat : item . lat }",
-      "tokenCount": 13,
-      "count": 2,
-      "files": ["frontend/src/business/flood-analysis/components/AffectedFacilityListPanel.vue"],
-      "redundantTokens": 13
-    },
-    {
       "text": "finally { if ( ! disposed ) requesting . value = false }",
       "tokenCount": 13,
       "count": 2,
@@ -1381,43 +1307,6 @@
         "frontend/src/business/route-analysis/components/RouteControlPanel.vue",
         "frontend/src/business/route-analysis/composables/useRouteLayer.ts"
       ],
-      "redundantTokens": 13
-    },
-    {
-      "text": "{ data : desc . data , options : desc . options }",
-      "tokenCount": 13,
-      "count": 2,
-      "files": [
-        "frontend/src/business/site-selection/SiteSelectionPage.vue",
-        "frontend/src/core/map/composables/useOwnedLayers.ts"
-      ],
-      "redundantTokens": 13
-    },
-    {
-      "text": "{ lng : target . lng , lat : target . lat }",
-      "tokenCount": 13,
-      "count": 2,
-      "files": [
-        "frontend/src/business/site-selection/SiteSelectionPage.vue",
-        "frontend/src/core/layout/composables/useScreenActions.ts"
-      ],
-      "redundantTokens": 13
-    },
-    {
-      "text": "{ height : target . height , zoom : target . zoom }",
-      "tokenCount": 13,
-      "count": 2,
-      "files": [
-        "frontend/src/business/site-selection/SiteSelectionPage.vue",
-        "frontend/src/core/layout/composables/useScreenActions.ts"
-      ],
-      "redundantTokens": 13
-    },
-    {
-      "text": "{ lng : xq . lng , lat : xq . lat }",
-      "tokenCount": 13,
-      "count": 2,
-      "files": ["frontend/src/business/site-selection/SiteSelectionPage.vue"],
       "redundantTokens": 13
     },
     {
@@ -1485,13 +1374,6 @@
       "redundantTokens": 13
     },
     {
-      "text": "[ z . number ( ) , z . number ( ) ]",
-      "tokenCount": 13,
-      "count": 2,
-      "files": ["frontend/src/types/schemas.ts"],
-      "redundantTokens": 13
-    },
-    {
       "text": "{ throw new BusinessError ( ErrorCode . UNAUTHORIZED , '认证令牌无效或已过期' ) }",
       "tokenCount": 12,
       "count": 2,
@@ -1541,16 +1423,6 @@
       "redundantTokens": 12
     },
     {
-      "text": "throw new BusinessError ( ErrorCode . ANALYSIS_FAILED , result . error )",
-      "tokenCount": 12,
-      "count": 2,
-      "files": [
-        "backend/src/modules/site-analysis/controllers/site-analysis.controller.ts",
-        "backend/src/modules/task/services/task-handlers.ts"
-      ],
-      "redundantTokens": 12
-    },
-    {
       "text": "{ throw new BusinessError ( ErrorCode . INVALID_PARAMS , '缺少或非法的参数：indicator' ) }",
       "tokenCount": 12,
       "count": 2,
@@ -1572,7 +1444,7 @@
       "redundantTokens": 12
     },
     {
-      "text": "[ 'flood-areas' , 'route-path' , 'site-analysis' , 'forecast-timeseries' , 'forecast-map' , ]",
+      "text": "[ 'flood-areas' , 'route-path' , 'forecast-timeseries' , 'forecast-map' , 'site-suitability-map' , ]",
       "tokenCount": 12,
       "count": 2,
       "files": ["backend/src/modules/task/types/task.ts", "frontend/src/types/task.ts"],
@@ -1586,29 +1458,22 @@
       "redundantTokens": 12
     },
     {
-      "text": "Number ( ( e . target as HTMLInputElement ) . value )",
-      "tokenCount": 12,
-      "count": 2,
-      "files": [
-        "frontend/src/business/forecast/components/ForecastControlPanel.vue",
-        "frontend/src/shared/components/SliderSelectCard.vue"
-      ],
-      "redundantTokens": 12
-    },
-    {
-      "text": "Math . round ( ( BASE_YEAR + END_YEAR ) / 2 )",
-      "tokenCount": 12,
-      "count": 2,
-      "files": ["frontend/src/business/forecast/components/ForecastControlPanel.vue"],
-      "redundantTokens": 12
-    },
-    {
       "text": "async function load ( transactionId : number , signal : AbortSignal )",
       "tokenCount": 12,
       "count": 2,
       "files": [
         "frontend/src/business/forecast/composables/useForecastComparison.ts",
         "frontend/src/business/forecast/composables/useForecastTimeseries.ts"
+      ],
+      "redundantTokens": 12
+    },
+    {
+      "text": "false onScopeDispose ( ( ) => { disposed = true } )",
+      "tokenCount": 12,
+      "count": 2,
+      "files": [
+        "frontend/src/business/forecast/composables/useForecastLayer.ts",
+        "frontend/src/business/site-suitability/composables/useSiteSuitabilityLayer.ts"
       ],
       "redundantTokens": 12
     },
@@ -1693,7 +1558,7 @@
       "redundantTokens": 12
     }
   ],
-  "updatedAt": "2026-09-26",
+  "updatedAt": "2026-10-04",
   "history": [
     {
       "at": "2026-09-26",
@@ -1701,6 +1566,13 @@
       "totalRedundantTokens": 4711,
       "kind": "真清理",
       "note": "S2 收口窗口：收敛 09-26 回涨 6 组与 addGeoTIFFLayer 组（17e6cb3c），SkipThrottle 惯用新增 1 处由组与 token 双降抵平"
+    },
+    {
+      "at": "2026-10-04",
+      "totalGroups": 192,
+      "totalRedundantTokens": 4478,
+      "kind": "真清理",
+      "note": "1005 批 dup 收口：backend 种子随机/矩阵助手、frontend core 注入态与 types 形状、business 面板 props/查询参数、shared 布局排序、services scenario、stores 事务计数器逐模块收敛；全 12 模块 ≤ 旧基线后锁定"
     }
   ]
 }

@@ -9,17 +9,11 @@
 import { computed } from 'vue'
 
 import { EmptyState } from '@/shared'
-import type { SiteSuitabilityResponseParsed } from '@/types/schemas'
 import { BarChart, ChartLoading } from '@/visualization'
 
-interface Props {
-  /** /site-suitability/map 解析响应；null = 尚未取到数据 */
-  data?: SiteSuitabilityResponseParsed | null
-  /** 请求进行态：true 时只显示 ChartLoading，不显示「暂无数据」 */
-  loading?: boolean
-}
+import type { SiteSuitabilityPanelProps } from '../panelProps'
 
-const props = withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<SiteSuitabilityPanelProps>(), {
   data: null,
   loading: false,
 })

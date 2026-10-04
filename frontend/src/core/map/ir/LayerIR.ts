@@ -87,6 +87,8 @@ export function taskResultToIR(
   const presentation = DOMAIN_IR_PRESENTATION[slot.domain]
   if (!presentation) return null
   const createdAt = Date.now()
+  const origin = { taskId: slot.taskId, route: slot.route }
+  const meta = { domain: slot.domain, label: presentation.label, createdAt }
 
   if (slot.domain === 'flood-areas') {
     // 浸没载荷结构（business/flood-analysis useFloodRequest FloodAnalysisPayload 的几何面）：
@@ -96,12 +98,12 @@ export function taskResultToIR(
     if (Array.isArray(features) && isFeatureArray(features)) {
       const data: FeatureCollection = { type: 'FeatureCollection', features }
       return {
-        id: layerIRKey({ origin: { taskId: slot.taskId, route: slot.route }, kind: 'polygon' }),
-        origin: { taskId: slot.taskId, route: slot.route },
+        id: layerIRKey({ origin, kind: 'polygon' }),
+        origin,
         kind: 'polygon',
         data,
         style: { strokeColor: presentation.color, strokeWidth: 2 },
-        meta: { domain: slot.domain, label: presentation.label, createdAt },
+        meta,
       }
     }
     return null
@@ -123,12 +125,12 @@ export function taskResultToIR(
       ],
     }
     return {
-      id: layerIRKey({ origin: { taskId: slot.taskId, route: slot.route }, kind: 'polyline' }),
-      origin: { taskId: slot.taskId, route: slot.route },
+      id: layerIRKey({ origin, kind: 'polyline' }),
+      origin,
       kind: 'polyline',
       data,
       style: { strokeColor: presentation.color, strokeWidth: 4 },
-      meta: { domain: slot.domain, label: presentation.label, createdAt },
+      meta,
     }
   }
 

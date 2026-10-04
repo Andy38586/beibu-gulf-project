@@ -41,8 +41,9 @@ const sortedFacilities = computed<ScoredXiaoqu[]>(() => {
 
 /** 跳转逻辑由 PaginatedListPanel 提供（flyTo 回调 prop），此处注入实现 */
 function flyToFacility(item: ScoredXiaoqu): void {
-  startBreathing({ lng: item.lng, lat: item.lat })
-  flyTo({ lng: item.lng, lat: item.lat }, { height: 1000 })
+  const point = { lng: item.lng, lat: item.lat }
+  startBreathing(point)
+  flyTo(point, { height: 1000 })
 }
 </script>
 

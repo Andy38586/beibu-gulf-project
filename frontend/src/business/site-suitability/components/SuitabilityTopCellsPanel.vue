@@ -11,14 +11,8 @@ import { computed } from 'vue'
 
 import { useMapControls } from '@/core'
 import { EmptyState } from '@/shared'
-import type { SiteSuitabilityResponseParsed } from '@/types/schemas'
 
-interface Props {
-  /** /site-suitability/map 解析响应；null = 尚未取到数据 */
-  data?: SiteSuitabilityResponseParsed | null
-  /** 请求进行态：无数据时显示「计算中…」而非空态 */
-  loading?: boolean
-}
+import type { SiteSuitabilityPanelProps } from '../panelProps'
 
 interface CellRow {
   key: string
@@ -37,7 +31,7 @@ interface ScoredCell {
   score: number
 }
 
-const props = withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<SiteSuitabilityPanelProps>(), {
   data: null,
   loading: false,
 })

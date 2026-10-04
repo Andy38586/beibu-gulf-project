@@ -43,9 +43,11 @@ data/
         └── *.sgrd / *.mgrd / *.sdat（SGRD 系列中间产物）
 ```
 
-> `dem/` 下的 `.tif` 均 **gitignored**（体积 + 唯一原件在外部树）。重建调用链见
-> `tools/dem-pipeline/06-sea-mask.py`（海掩膜三条判据）→ `10-landsea-merge.py`（拼接）→
-> `11-seam-audit.py`（接缝审计）；载入顺序与基准换算见 `tools/flood/engine/README.md`。
+> `dem/` 下的 `.tif` 均 **gitignored**（体积 + 唯一原件在外部数据树；源路径、环境与复跑命令
+> 见 `tools/dem-pipeline/README.md`）。重建调用链：`09b-srtm15-sea-grid.ps1`（海侧格网）→
+> `06-sea-mask.py`（海掩膜三条判据）+ `06-restore-cut-dem.ps1`（陆地裁切）→
+> `10-landsea-merge.py`（拼接）→ `11-seam-audit.py`（接缝审计）；载入顺序与基准换算见
+> `tools/flood/engine/README.md`。
 > 产物（`flood_levels.json.gz` / `floodStatistics.json` / `facilityPoints.json` /
 > `terrainProfile.json`）的 metadata 里都写 `demSource` + `demMd5`，用于回指本次输入。
 

@@ -70,6 +70,8 @@ import {
   type TilesetNode,
 } from '@/core/map/tiles3dGroups'
 
+import { LOD_REFINE_GE_PER_SSE } from './lodRefinePolicy'
+
 /** 资产 id（图层 id 后缀，与注册时的 `beibu-` + id 拼装一致） */
 export type BeibuTilesId =
   | 'pinglu-canal'
@@ -319,9 +321,10 @@ export const BEIBU_TILES: readonly BeibuTilesSpec[] = [
       keepSphere: QINZHOU_OPERATION_AREA,
       dropContent: shouldDropPortContent,
       // 光摘内容不够：遍历会在"空层"上停下来 ⇒ 远景（80 km / 586 km 默认视角）整层空白。
-      // 折叠空层 + 压 root 的 GE 后：远距离的终点落在**有内容的 root**（远景壳）上，
-      // 近距离才细化到 d4/d5（与改前同量级，不额外增加下载）。
-      capRootGeometricError: true,
+      // 折叠空层后：远距离的终点落在**有内容的 root**（远景壳）上，近距离才细化到 d4/d5。
+      // 细化距离不按数据自派生（capRootGeometricError 会给出 8558 ⇒ 比三枢纽远 2.14×），
+      // 而是用统一口径 K × maxSSE —— 与三枢纽同一相机距离切换粗精（见 LOD_REFINE_GE_PER_SSE）。
+      refineGeometricError: LOD_REFINE_GE_PER_SSE * QINZHOU_MAX_SSE,
       collapseEmptyLevels: true,
       // 压 root GE 后还有第二道闸门：Cesium 访问 root **之前**按顶层 geometricError
       // 判「整层太小就先 return」（见 QINZHOU_TOP_GE_FLOOR 的机制注释与实测）。

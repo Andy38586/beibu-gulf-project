@@ -28,7 +28,14 @@ import { describe, expect, it } from 'vitest'
 
 import { deriveGroupTileset, tallyGroups, type TilesetJson } from '@/core'
 
-import { PINGLU_GROUPS, PINGLU_TILESET_URL, pingluLayerId } from '../pingluTiles'
+import { LOD_REFINE_GE_PER_SSE } from '../lodRefinePolicy'
+import {
+  PINGLU_GROUPS,
+  PINGLU_HUB_MAX_SSE,
+  PINGLU_TILESET_URL,
+  pingluLayerId,
+  preparePingluHubTileset,
+} from '../pingluTiles'
 
 /**
  * 还原交付版 tileset.json 的 root 直属结构（数值取自真实文件，非估计）。
@@ -187,5 +194,31 @@ describe('派生结果落位一致', () => {
     const parts = madao.root.children![0].children!.map((c) => c.content!.uri as string)
     expect(parts.every((u) => u.startsWith('/static/pinglu/tiles/'))).toBe(true)
     expect(parts.some((u) => u.includes('-z3-lock.glb'))).toBe(true)
+  })
+})
+
+// 注册点直调的派生函数：派生 + GE 校正 + 统一 LOD 切换口径。
+// 判据落在行为上（04-F）：链里删掉"统一口径"这一步，下面的断言必红。
+describe('preparePingluHubTileset — 统一 LOD 切换口径在链内', () => {
+  it('细化开关（低模枢纽节点）GE = K × PINGLU_HUB_MAX_SSE；分区叶子不动', () => {
+    const prepared = preparePingluHubTileset(makeDeliveryTileset(), PINGLU_GROUPS[0], BASE)!
+    expect(prepared).not.toBeNull()
+    const hubNode = prepared.root.children![0]
+    expect(hubNode.geometricError).toBe(LOD_REFINE_GE_PER_SSE * PINGLU_HUB_MAX_SSE)
+    // 分区子瓦片是叶子（最精细层）：改了只会要求"继续细化"，必须保持原值
+    for (const part of hubNode.children!) expect(part.geometricError).toBe(20)
+    // 阴性对照：不带统一口径的裸派生仍是交付包原值 40——两值不同才说明这一步真的落地了
+    const bare = deriveGroupTileset(makeDeliveryTileset(), PINGLU_GROUPS[0], BASE)!
+    expect(bare.root.children![0].geometricError).toBe(40)
+  })
+
+  it('三个枢纽都过同一口径（改单侧 K/maxSSE 必红）', () => {
+    const src = makeDeliveryTileset()
+    for (const g of PINGLU_GROUPS) {
+      const prepared = preparePingluHubTileset(src, g, BASE)!
+      expect(prepared.root.children![0].geometricError).toBe(
+        LOD_REFINE_GE_PER_SSE * PINGLU_HUB_MAX_SSE
+      )
+    }
   })
 })

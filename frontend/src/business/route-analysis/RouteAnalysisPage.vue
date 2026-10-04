@@ -12,12 +12,10 @@ import { computed, onUnmounted, ref, watch } from 'vue'
 
 import {
   AppLayout,
-  deriveGroupTileset,
   GCSPanel,
   isImageOverlayCapable,
   isTiles3DCapable,
   LayerControlPanel,
-  normalizeTilesetGeometricError,
   tallyGroups,
   type TilesetJson,
   toDataUri,
@@ -36,13 +34,14 @@ import {
 } from './composables/useRouteLayer'
 import { BEIBU_TILES, beibuTilesLayerId, prepareBeibuTileset } from './constants/beibu3dTiles'
 import {
-  PINGLU_DERIVE_OPTIONS,
   PINGLU_GROUPS,
+  PINGLU_HUB_MAX_SSE,
   PINGLU_IMAGERY_INDEX_URL,
   PINGLU_IMAGERY_LAYER_PREFIX,
   PINGLU_TILESET_URL,
   type PingluImageryIndex,
   pingluLayerId,
+  preparePingluHubTileset,
 } from './constants/pingluTiles'
 
 /*
@@ -250,26 +249,20 @@ async function registerPingluGroups(): Promise<void> {
       // 带剪枝派生：剔除各枢纽自带的「地形与边坡」层——那是交付方用另一套 DEM
       // 生成的局部地表，与项目 CTB 地形不同源，同开会糊成一块斜插进地形的平板。
       // 判据与理由见 constants/pingluTiles 的 PINGLU_DERIVE_OPTIONS。
-      const rawDerived = deriveGroupTileset(
-        template,
-        group,
-        PINGLU_TILESET_URL,
-        PINGLU_DERIVE_OPTIONS
-      )
-      if (!rawDerived) {
+      // 派生 + GE 校正 + 统一 LOD 切换口径都在本函数里（判据见 constants/pingluTiles
+      // 的 preparePingluHubTileset）——页面不再手拼链，链里漏一步单测会红。
+      const derived = preparePingluHubTileset(template, group)
+      if (!derived) {
         logger.warn(`[RouteAnalysis] 3D Tiles 分组「${group.label}」无命中内容，已跳过`)
         continue
       }
-      // 校正 GE：外部瓦片 GE 相对包围尺度偏小，中高空 SSE 低于阈值会在 root 终止遍历、
-      // 整片空白（机理见 normalizeTilesetGeometricError）。派生已绝对化 uri，此处只抬 GE。
-      const derived = normalizeTilesetGeometricError(rawDerived)
       const id = pingluLayerId(group.id)
       try {
         ownedLayers.register(id, {
           label: `平陆运河 · ${group.label}`,
           layerType: '3dtiles',
           // Data URI：派生结果含绝对 uri，Cesium 的 isDataUri 分支 basePath 为空也不影响
-          data: { url: toDataUri(derived), maximumScreenSpaceError: 16 },
+          data: { url: toDataUri(derived), maximumScreenSpaceError: PINGLU_HUB_MAX_SSE },
           // 默认开：与改造前「一个总开关全开」的行为一致，避免用户以为模型消失了
           visible: true,
         })

@@ -19,7 +19,16 @@
  * 表里只剩三枢纽。运河与桥梁改由 tools/3dtiles-build 重烘后单独成层。
  */
 
-import { nodeName, type DeriveOptions, type GroupSpec, type TilesetJson } from '@/core'
+import {
+  deriveGroupTileset,
+  nodeName,
+  normalizeTilesetGeometricError,
+  type DeriveOptions,
+  type GroupSpec,
+  type TilesetJson,
+} from '@/core'
+
+import { LOD_REFINE_GE_PER_SSE } from './lodRefinePolicy'
 
 /**
  * 分组 id（图层 id 后缀，与注册时的 `pinglu-` + id 拼装一致）。
@@ -110,6 +119,42 @@ const PINGLU_DROPPED_LABEL = '地形与边坡'
 /** 派生选项：剔除枢纽自带的「地形与边坡」层（理由见上） */
 export const PINGLU_DERIVE_OPTIONS: DeriveOptions = {
   drop: (node) => (nodeName(node) ?? '').includes(PINGLU_DROPPED_LABEL),
+}
+
+/**
+ * 三枢纽分组注册用的屏误差（像素）。
+ *
+ * 单一真相源：此前硬编码在 `RouteAnalysisPage` 的注册调用里，而 LOD 统一口径
+ * （`LOD_REFINE_GE_PER_SSE × 本值`）要从它推导枢纽的细化 GE——两处各写一个 16
+ * 就会在改单侧时把切换距离改回去，故收进配置文件，注册点与推导点都引用它。
+ *
+ * 取值理由：枢纽单构件（闸室/闸门）体量小，取 16 保住构件细节（与港区的 32 不同）；
+ * LOD 统一切换口径不受该差异影响——K = GE/maxSSE 对所有资产相同即可。
+ */
+export const PINGLU_HUB_MAX_SSE = 16
+
+/**
+ * 从整包模板派生一个枢纽分组，并完成挂载前的两步处理：
+ * ① GE 校正（外部瓦片 GE 相对包围尺度偏小 1~2 个数量级，不抬会在中高空整片空白，
+ *    机理见 core 的 `normalizeTilesetGeometricError`）；
+ * ② 统一 LOD 切换口径：细化开关 GE = `LOD_REFINE_GE_PER_SSE × PINGLU_HUB_MAX_SSE`，
+ *    使三枢纽与港区在同一相机距离切换粗精（见 lodRefinePolicy 的实测）。
+ *
+ * **注册点必须直调本函数**：链里漏掉 ② 时单测必红（`pingluTiles.test.ts` 直调它），
+ * 而页面里手写两步则测不到接线（04-F：判据要落在行为上，不许用源码子串）。
+ *
+ * @returns 派生结果；该分组无命中内容时返回 null（调用方跳过注册，不挂空瓦片集）
+ */
+export function preparePingluHubTileset(
+  template: TilesetJson,
+  group: GroupSpec<PingluGroupId>,
+  baseUrl: string = PINGLU_TILESET_URL
+): TilesetJson | null {
+  const derived = deriveGroupTileset(template, group, baseUrl, PINGLU_DERIVE_OPTIONS)
+  if (derived === null) return null
+  return normalizeTilesetGeometricError(derived, {
+    refineGeometricError: LOD_REFINE_GE_PER_SSE * PINGLU_HUB_MAX_SSE,
+  })
 }
 
 /** 图层 id 前缀（图层面板 layer-order 与注册共用） */

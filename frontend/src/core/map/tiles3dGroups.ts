@@ -271,6 +271,27 @@ export interface DeriveOptions {
    */
   collapseEmptyLevels?: boolean
   /**
+   * **统一 LOD 切换口径**：把每个「带内容 + 有子节点」的节点（= 细化开关，选中它的
+   * 内容是粗壳、继续下钻是精细层）的 `geometricError` 一律**设为该值**。
+   *
+   * 与 `capRootGeometricError` 的分工：cap 是**按数据自派生**的上限（被摘空层 GE 的
+   * 上确界），只保证"远方终点必有内容"；本项是**按口径统一**的设定值，保证"四资产在
+   * 同一相机距离切换粗精"。两者都传时本项后应用（策略值覆盖数据值）。
+   *
+   * 为什么需要（2026-10-04 运行时实测）：三枢纽细化开关 GE=2000、maxSSE=16 ⇒
+   * GE/maxSSE=125；港区 root 被 cap 到 8558、maxSSE=32 ⇒ 267，切换距离差 2.14×
+   * （~138 km vs ~297 km，同视口）。六个采样档恰好跨过该区间，一直没暴露。
+   * 取值由调用方按「统一 K × 该资产 maxSSE」推导（见 `beibu3dTiles` 的
+   * `LOD_REFINE_GE_PER_SSE`），不在此处手抄常数。
+   *
+   * Cesium 口径：`SSE = GE · drawingBufferHeight / (distance · sseDenominator)`，
+   * 切换发生在 `SSE > maximumScreenSpaceError`；四资产 K 相同 ⇒ 同一视口下切换距离相同。
+   *
+   * **失效条件**：① 某资产的精细层不再由「单一细化开关」决定（多层细化/ADD 混用）时，
+   * 只设一个值不再表达"统一距离"，须按实测重定；② Cesium 改掉 SSE 公式或 traversal 语义。
+   */
+  refineGeometricError?: number
+  /**
    * **顶层 `geometricError` 下限（米）**——Cesium「整层早退」闸门的输入。
    *
    * 为什么（2026-10-04 实测 + Cesium 源码）：`Cesium3DTilesetBaseTraversal.selectTiles`
@@ -381,6 +402,29 @@ function normalizeNode(node: TilesetNode): TilesetNode {
 }
 
 /**
+ * 统一 LOD 切换口径：把「带内容 + 有子节点」的节点 GE 设为给定值（见
+ * `DeriveOptions.refineGeometricError` 的机制与实测）。
+ *
+ * 只动**细化开关**节点：
+ * - 纯容器（无内容）不动——它们不是渲染终点，压小反而会把遍历提前终止在"没内容"的层；
+ * - 叶子（无子节点）不动——它们是最精细层，改 GE 只会要求"继续细化"而永远画不出。
+ *
+ * 纯函数：返回新对象，不改入参。
+ */
+export function setRefineSwitchGeometricError(tileset: TilesetJson, value: number): TilesetJson {
+  if (!(value > 0)) return tileset
+  const walk = (node: TilesetNode): TilesetNode => {
+    const children = (node.children ?? []).map(walk)
+    const isSwitch = !!(node.content && nodeUri(node)) && children.length > 0
+    const out: TilesetNode = { ...node }
+    if (children.length > 0) out.children = children
+    if (isSwitch) out.geometricError = value
+    return out
+  }
+  return { ...tileset, root: walk(tileset.root) }
+}
+
+/**
  * 校正 tileset 各节点 geometricError（纯函数，不改入参）。
  *
  * ## 为什么需要
@@ -399,11 +443,17 @@ function normalizeNode(node: TilesetNode): TilesetNode {
  *
  * transform / boundingVolume / content 一律不动 ⇒ 落位不变，仅改变 LOD 切换高度。
  */
-export function normalizeTilesetGeometricError(tileset: TilesetJson): TilesetJson {
+export function normalizeTilesetGeometricError(
+  tileset: TilesetJson,
+  options: { refineGeometricError?: number } = {}
+): TilesetJson {
   const root = normalizeNode(tileset.root)
   const scale = boundingWorldScale(root.boundingVolume)
   const geometricError = Math.max(tileset.geometricError ?? 0, scale)
-  return { ...tileset, root, geometricError }
+  const out = { ...tileset, root, geometricError }
+  return options.refineGeometricError !== undefined
+    ? setRefineSwitchGeometricError(out, options.refineGeometricError)
+    : out
 }
 
 /** 子树里是否还剩至少一个带 content 的节点（含 root 自身） */
@@ -522,6 +572,11 @@ export function cropTilesetForDataUri(
   }
   if (cap !== null && cap > 0) {
     out.root.geometricError = Math.min(out.root.geometricError ?? Number.POSITIVE_INFINITY, cap)
+  }
+  // 统一 LOD 切换口径：后于 cap 应用（策略值覆盖数据值，见 refineGeometricError 注释）
+  const refine = options.refineGeometricError
+  if (refine !== undefined && refine > 0) {
+    out = setRefineSwitchGeometricError(out, refine)
   }
   // 顶层 GE 下限：抬的是**整层早退闸门**的输入（见 topGeometricErrorFloor 注释），
   // 与上面压的 root 自身 GE（决定何时细化到精细层）是两个量，互不影响。

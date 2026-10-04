@@ -24,6 +24,7 @@ import {
   nodeUri,
   prepareTilesetForDataUri,
   resolveUri,
+  setRefineSwitchGeometricError,
   tallyGroups,
   toDataUri,
   type GroupSpec,
@@ -669,5 +670,75 @@ describe('cropTilesetForDataUri — 摘空层折叠与 root GE 上压', () => {
     const plain = cropTilesetForDataUri(src, 'http://x.test/x/tileset.json', {})
     expect(capped!.root.geometricError).toBe(8000)
     expect(JSON.stringify(capped!.root)).toBe(JSON.stringify(plain!.root))
+  })
+})
+
+// 统一 LOD 切换口径（refineGeometricError / setRefineSwitchGeometricError）：
+// 把「带内容 + 有子节点」的节点（细化开关）GE 设为统一值 ⇒ 多资产在同一相机距离切换粗精。
+// 机制、实测与失效条件见 beibu3dTiles 的 LOD_REFINE_GE_PER_SSE；这里钉机制本身。
+describe('setRefineSwitchGeometricError / refineGeometricError — 统一 LOD 切换口径', () => {
+  it('只设「带内容 + 有子节点」的节点；叶子/纯容器/顶层字段一律不动', () => {
+    const src: TilesetJson = {
+      asset: { version: '1.1', generator: 'test' },
+      geometricError: 5000,
+      root: {
+        geometricError: 3000,
+        content: { uri: 'shell.glb' },
+        children: [
+          {
+            geometricError: 900,
+            content: { uri: 'mid.glb' },
+            children: [{ geometricError: 0, content: { uri: 'leaf.glb' } }],
+          },
+          // 纯容器：没内容、有子节点——它不是渲染终点，压小它会把遍历停在"没内容"的层
+          {
+            geometricError: 800,
+            children: [{ geometricError: 0, content: { uri: 'leaf2.glb' } }],
+          },
+        ],
+      },
+    }
+    const before = JSON.stringify(src)
+    const out = setRefineSwitchGeometricError(src, 777)
+    const root = out.root
+    const [mid, container] = root.children!
+    expect(root.geometricError).toBe(777) // 开关①（远景壳）
+    expect(mid.geometricError).toBe(777) // 开关②
+    expect(mid.children![0].geometricError).toBe(0) // 叶子不动
+    expect(container.geometricError).toBe(800) // 纯容器不动
+    expect(container.children![0].geometricError).toBe(0)
+    expect(out.geometricError).toBe(5000) // 顶层（整层早退闸门输入）不归本项管
+    expect(JSON.stringify(src)).toBe(before) // 纯函数：不改入参
+  })
+
+  it('值 ≤ 0 ⇒ 原样返回（不误设；调用方据此不传也不生效）', () => {
+    const src = makeDeepTileset()
+    expect(setRefineSwitchGeometricError(src, 0)).toBe(src)
+    expect(setRefineSwitchGeometricError(src, -1)).toBe(src)
+  })
+
+  it('normalize 带选项：尺度抬升后统一细化开关；不带选项保持旧行为', () => {
+    const src = makeDeepTileset()
+    const plain = normalizeTilesetGeometricError(src)
+    expect(plain.root.geometricError).toBe(8000) // 半轴 4000 ⇒ 内部节点抬到尺度 8000
+    const unified = normalizeTilesetGeometricError(src, { refineGeometricError: 1000 })
+    expect(unified.root.geometricError).toBe(1000)
+    expect(unified.root.children![0].geometricError).toBe(1000) // a 也是开关
+    expect(unified.root.children![0].children![0].children![0].geometricError).toBe(0) // c 是叶子
+  })
+
+  it('cropTilesetForDataUri：refine 覆盖 cap（策略值优先于数据自派生值）', () => {
+    const src = makeDeepTileset()
+    const capped = cropTilesetForDataUri(src, 'http://x.test/x/tileset.json', {
+      dropContent: () => false,
+      capRootGeometricError: true,
+      collapseEmptyLevels: true,
+    })
+    expect(capped!.root.geometricError).toBe(8000) // 没摘空 ⇒ cap 不生效，仍是尺度值
+    const unified = cropTilesetForDataUri(src, 'http://x.test/x/tileset.json', {
+      refineGeometricError: 500,
+    })
+    expect(unified!.root.geometricError).toBe(500)
+    expect(unified!.root.children![0].geometricError).toBe(500)
   })
 })

@@ -11,7 +11,16 @@
  *      `node tools/diag/lod-ladder.cjs <url> 586000`（配合临时变异 shouldDropPortContent
  *      连 depth 0 一起摘，跑完按 md5 还原）。
  *
- * 退出码：**任一格 `在场=否` 或 `主体px<=0` ⇒ exit 1**（红样即"哪几个资产 × 哪几个高度"，
+ * **2026-10-04 23:5x 补「同粗同细」判据**：§8.14 判据③要的是"同一相机距离下四资产的
+ * 粗精程度一致"。此前六档（…80 km / 586 km）恰好**跨过**了不一致区间：三枢纽在
+ * ~138 km 就退到粗壳，港区到 ~297 km 才退——六档全绿却漏判。本探针现在每格额外判
+ * 「形态」：粗 = 只选中 1 块带内容瓦片（各资产的远景壳），细 = 选中 ≥2 块；
+ * 同一高度下四资产形态必须一致，否则 exit 1 并在「形态表」里点名。
+ * 形态判据的失效条件：某资产精细层在某机位合法地只选中 1 块（或远景壳合法拆成 ≥2 块）时
+ * 本判据会误报——届时按实测改判据并写明理由，禁止直接删。
+ *
+ * 退出码：**任一格 `在场=否`、`主体px<=0`，或同一高度形态不一致 ⇒ exit 1**（红样即
+ * "哪几个资产 × 哪几个高度"，
  * 阳性对照 = 把 `collapseEmptyLevels` / `capRootGeometricError` / `shouldDropPortContent`
  * 任一条停用，见 §8.15 实测表——停用后 80 km 或 586 km 必红）。
  *
@@ -476,18 +485,22 @@ async function measureBody(page, id, clip, h) {
       const body = await measureBody(page, id, clip, h)
       const isBlank = !present(l)
       const noBody = !isBlank && body.px <= 0
+      // 形态：远景粗壳 = 单块带内容瓦片；精细 = ≥2 块（判据与失效条件见文件头）
+      const coarse = !isBlank && l.selected === 1 && l.withContent === 1
       rows.push({
         asset: id,
         height: h,
         ok: !isBlank && !noBody,
         blank: isBlank,
         noBody,
+        coarse,
         body,
         layer: l,
       })
       console.log(
         `${id.padEnd(24)} h=${String(h).padStart(7)} 在场=${present(l) ? '是' : '否'} ` +
           `sel=${l ? l.selected : '-'} 有内容=${l ? l.withContent : '-'} tri=${l ? l.tri : '-'} ` +
+          `形态=${isBlank ? '·' : coarse ? '粗' : '细'} ` +
           `主体px=${body.px}${body.err ? ' (diff 失败:' + body.err + ')' : ''}`
       )
     }
@@ -500,6 +513,18 @@ async function measureBody(page, id, clip, h) {
     const cells = HEIGHTS.map((h) => {
       const row = rows.find((r) => r.asset === id && r.height === h)
       const mark = !row || row.blank ? '·' : row.noBody ? '!' : 'Y'
+      return mark.padStart(8)
+    })
+    console.log(id.padEnd(26) + cells.join(''))
+  }
+
+  // 形态表：同一高度下四资产必须同为「细」或同为「粗」（判据③；失效条件见文件头）
+  console.log('\n形态表（细=选中≥2 块 / 粗=只选中 1 块远景壳 / ·=整层空白；列=相机高度 m）')
+  console.log('asset'.padEnd(26) + HEIGHTS.map((h) => String(h).padStart(8)).join(''))
+  for (const id of ASSETS) {
+    const cells = HEIGHTS.map((h) => {
+      const row = rows.find((r) => r.asset === id && r.height === h)
+      const mark = !row || row.blank ? '·' : row.noBody ? '!' : row.coarse ? '粗' : '细'
       return mark.padStart(8)
     })
     console.log(id.padEnd(26) + cells.join(''))
@@ -534,6 +559,24 @@ async function measureBody(page, id, clip, h) {
       `LOD 阶梯红：${noBody.length} 格「在场但中心窗口零像素贡献」（选到不等于画得出）—— ` +
         noBody.join(', ')
     )
+    process.exitCode = 1
+  }
+  // 判据③：同一高度下形态（粗/细）必须一致——"各资产分叉"就是用户说的 LOD 距离不统一
+  const mixed = []
+  for (const h of HEIGHTS) {
+    const cells = ASSETS.map((id) => ({
+      id,
+      row: rows.find((r) => r.asset === id && r.height === h),
+    }))
+      .filter((c) => c.row && !c.row.blank)
+      .map((c) => ({ id: c.id, kind: c.row.coarse ? '粗' : '细' }))
+    const kinds = new Set(cells.map((c) => c.kind))
+    if (cells.length > 1 && kinds.size > 1) {
+      mixed.push(`h=${h}: ` + cells.map((c) => `${c.id}=${c.kind}`).join(', '))
+    }
+  }
+  if (mixed.length > 0) {
+    console.error(`LOD 阶梯红：${mixed.length} 个高度「四资产粗精形态不一致」——` + mixed.join('；'))
     process.exitCode = 1
   }
   await browser.close()

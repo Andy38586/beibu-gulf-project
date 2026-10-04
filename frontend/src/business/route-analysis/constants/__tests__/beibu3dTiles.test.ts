@@ -7,10 +7,19 @@
 //   ② **粗层只摘内容不删节点**：钦州港 d0~d3 是 d4/d5 的唯一通路，
 //      误用 drop（连子树删）会让集装箱/龙门架整棵消失。
 //   ③ **裁剪球参数是有据的**：中心/半径来自交付包实测，不是拍的。
+//   ④ **LOD 统一切换口径**：四资产（三枢纽 + 港区）的"细化开关 GE ÷ maxSSE"必须同为一个
+//      K，否则同一相机距离下有的资产已退粗壳、有的还在拉精细层（2026-10-04 实测 160 km：
+//      枢纽粗壳 vs 港区 458283 tri）。三枢纽侧从**受版本控制的真实交付 tileset** 现场派生，
+//      港区侧从清单条目 + 夹具派生——改任一侧的 K 而不同步，本组用例必红。
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+
 import { describe, expect, it } from 'vitest'
 
 import type { TilesetJson, TilesetNode } from '@/core/map/tiles3dGroups'
 
+import { LOD_REFINE_GE_PER_SSE } from '../lodRefinePolicy'
+import { PINGLU_GROUPS, PINGLU_HUB_MAX_SSE, preparePingluHubTileset } from '../pingluTiles'
 import {
   BEIBU_TILES,
   QINZHOU_COARSE_MAX_DEPTH,
@@ -114,8 +123,15 @@ describe('BEIBU_TILES 清单', () => {
     const droppers = BEIBU_TILES.filter((s) => s.derive?.dropContent)
     // 阳性对照：若将来没人再摘内容，本用例会因下面这行失败而不是静默恒真
     expect(droppers.length).toBeGreaterThan(0)
+    // 「压 root GE」有两种可执行形态：capRootGeometricError（按数据上确界）与
+    // refineGeometricError（按统一口径 K）。港区改用后者（LOD 距离统一）后本不变量必须
+    // 同时接受两种，否则会因"换了机制"误红；只要任一条都没开才判 offender。
     const offenders = droppers
-      .filter((s) => !s.derive?.collapseEmptyLevels || !s.derive?.capRootGeometricError)
+      .filter(
+        (s) =>
+          !s.derive?.collapseEmptyLevels ||
+          (!s.derive?.capRootGeometricError && s.derive?.refineGeometricError === undefined)
+      )
       .map((s) => s.id)
     expect(offenders).toEqual([])
   })
@@ -168,10 +184,13 @@ describe('QINZHOU_TOP_GE_FLOOR — 港区整层早退闸门的下限', () => {
     expect(QINZHOU.maximumScreenSpaceError).toBe(32)
   })
 
-  it('端到端派生：顶层值被抬到下限（现值 18000 < 下限），root GE 仍是被摘空层上确界', () => {
+  it('端到端派生：顶层值被抬到下限；root（细化开关）GE 被设为统一口径 K × maxSSE', () => {
     const out = prepareBeibuTileset(makeTileset(), QINZHOU)
     expect(out!.geometricError).toBe(QINZHOU_TOP_GE_FLOOR)
-    expect(out!.root.geometricError).toBe(400) // makeTileset 空层 d2 半轴 200 ⇒ 尺度 400
+    // root 带内容 + 折叠后仍有子节点 ⇒ 是"细化开关"，GE 由 refineGeometricError 设定。
+    // 旧值（capRootGeometricError 的数据上确界，夹具里是 400）已不再是权威——它会让
+    // 港区的切换距离比三枢纽远 2.14×（见 LOD_REFINE_GE_PER_SSE 的实测注）。
+    expect(out!.root.geometricError).toBe(LOD_REFINE_GE_PER_SSE * QINZHOU.maximumScreenSpaceError)
   })
 })
 
@@ -223,11 +242,10 @@ describe('prepareBeibuTileset — 清单驱动的分支（行为判据）', () =
     // 把 root 的内容也摘掉、或反过来让 d1~d3 保留内容，本用例都必红。
     expect(out!.root.content).toBeDefined()
     expect((out!.root.children ?? []).some((c) => c.extras?.tile === 't4_near')).toBe(true)
-    // 且 root 的 GE 必须被压到"被摘空的最深一级"（此处 d2 的 GE=64）以下——
-    // 否则遍历会在空层上停下（或反过来在 root 停住、精细层永不加载）⇒ 远景整层空白。
-    // 删掉 cap 或 collapse 任一条，本用例必红。
-    // 此处空层 d2 的盒半轴 200 ⇒ 归一化尺度 400；不压的话 root 是 18000（整包尺度）
-    expect(out!.root.geometricError).toBe(400)
+    // 且 root 的 GE 必须是统一口径值（K × maxSSE）——它决定"远距离停在 root 出壳、
+    // 近距离细化到精细层"。删掉 collapse 或 refine 任一条，本用例必红（旧 cap 值 400
+    // 会让切换距离与三枢纽不一致，见 LOD_REFINE_GE_PER_SSE）。
+    expect(out!.root.geometricError).toBe(LOD_REFINE_GE_PER_SSE * QINZHOU.maximumScreenSpaceError)
     // uri 绝对化（Data URI 挂载前必需）——挂在保留下来的根壳上看
     expect(out!.root.content!.uri).toContain('/static/')
   })
@@ -246,5 +264,61 @@ describe('prepareBeibuTileset — 清单驱动的分支（行为判据）', () =
       derive: { keepSphere: { center: [1e7, 0, 0], radius: 1 } },
     }
     expect(prepareBeibuTileset(makeTileset(), spec)).toBeNull()
+  })
+})
+
+// LOD 统一切换口径：四资产的「细化开关 GE ÷ maxSSE」必须同为一个 K。
+//
+// 为什么这样钉：切换距离 = GE·H / (maxSSE·sseDenominator·d) 的阈值反解 ⇒ 同视口下
+// 只要各资产 K 相同，粗/细切换就发生在同一相机距离——这是用户要的"统一性"的可执行形态。
+// 判据的输入：三枢纽侧现场读受版本控制的真实交付 tileset（`backend/static/pinglu/tiles/`）
+// 并按 RouteAnalysisPage 的同一条派生链计算；港区侧交付包被 .gitignore 排除（进不了 CI），
+// 故用清单条目 + 夹具派生。两侧都从同一个导出常数取 K，任一侧漏接即红。
+describe('LOD 统一切换口径 — 四资产同一相机距离切换粗精', () => {
+  const K = LOD_REFINE_GE_PER_SSE
+
+  /** 找全部「带内容 + 有子节点」的细化开关节点（与 setRefineSwitchGeometricError 同判据） */
+  function refineSwitches(node: TilesetNode, out: TilesetNode[] = []): TilesetNode[] {
+    const kids = node.children ?? []
+    if (node.content && kids.length > 0) out.push(node)
+    for (const k of kids) refineSwitches(k, out)
+    return out
+  }
+
+  it('清单接线：港区细化 GE = K × 港区 maxSSE（改任一侧必红）', () => {
+    expect(K).toBeGreaterThan(0)
+    expect(QINZHOU.derive?.refineGeometricError).toBe(K * QINZHOU.maximumScreenSpaceError)
+  })
+
+  it('三枢纽（真实交付 tileset 现场派生）：三个细化开关 GE ÷ maxSSE 都等于 K', () => {
+    const raw = JSON.parse(
+      readFileSync(
+        join(__dirname, '../../../../../../backend/static/pinglu/tiles/tileset.json'),
+        'utf8'
+      )
+    ) as TilesetJson
+    const ratios: Record<string, number> = {}
+    for (const group of PINGLU_GROUPS) {
+      // 直调注册点用的同一个函数（派生 + GE 校正 + 统一口径）——函数里漏一步本用例必红
+      const prepared = preparePingluHubTileset(raw, group)
+      expect(prepared).not.toBeNull()
+      const switches = refineSwitches(prepared!.root)
+      // 阳性对照：本形态必须恰好有一个细化开关（低模节点）——没有说明派生链变了
+      expect(switches).toHaveLength(1)
+      expect(switches[0].geometricError).toBe(K * PINGLU_HUB_MAX_SSE)
+      ratios[group.id] = switches[0].geometricError! / PINGLU_HUB_MAX_SSE
+    }
+    // 三个枢纽彼此相同（这一条就是"枢纽之间也不能分叉"）
+    expect(Object.values(ratios)).toEqual([K, K, K])
+  })
+
+  it('港区（清单条目 + 夹具派生）与三枢纽同 K ⇒ 四资产切换距离相同', () => {
+    const port = prepareBeibuTileset(makeTileset(), QINZHOU)
+    const switches = refineSwitches(port!.root)
+    expect(switches).toHaveLength(1) // 折叠空层后 root 是港区唯一细化开关
+    const portRatio = switches[0].geometricError! / QINZHOU.maximumScreenSpaceError
+    expect(portRatio).toBe(K)
+    // 与枢纽侧同式：K 相同 ⇒ d_switch = K·H / sseDenominator 与资产无关
+    expect(portRatio).toBe((K * PINGLU_HUB_MAX_SSE) / PINGLU_HUB_MAX_SSE)
   })
 })

@@ -350,6 +350,12 @@ if (!fs.existsSync(osmFile)) {
   console.log('--- 道路网络 vs 地面盒 --- SKIP：缺 ' + osmFile)
 } else {
   const osm = JSON.parse(fs.readFileSync(osmFile, 'utf8'))
+  const enuWays = []
+  for (const el of osm.elements ?? []) {
+    const geom = el.geometry ?? []
+    if (geom.length < 2) continue
+    enuWays.push(geom.map((g) => toENU(g.lon, g.lat)))
+  }
   let pts = 0
   let segAll = 0
   let segIn = 0
@@ -359,11 +365,9 @@ if (!fs.existsSync(osmFile)) {
   let maxE = -Infinity
   let minN = Infinity
   let maxN = -Infinity
-  const inside = (E, N) =>
-    E >= groundBox.minE && E <= groundBox.maxE && N >= groundBox.minN && N <= groundBox.maxN
-  for (const el of osm.elements ?? []) {
-    const geom = el.geometry ?? []
-    const enu = geom.map((g) => toENU(g.lon, g.lat))
+  const insideOf = (b) => (E, N) => E >= b.minE && E <= b.maxE && N >= b.minN && N <= b.maxN
+  const inside = insideOf(groundBox)
+  for (const enu of enuWays) {
     for (const q of enu) {
       pts++
       minE = Math.min(minE, q[0])
@@ -408,6 +412,98 @@ if (!fs.existsSync(osmFile)) {
       fmt(maxN - groundBox.maxN) +
       ' m'
   )
+
+  console.log('')
+  console.log('--- 候选域：道路保留率（逐段端点判定；跨边界按半段计）---')
+  const mkBox = (minE, maxE, minN, maxN) => ({ minE, maxE, minN, maxN })
+  const padBox = (b, m) => mkBox(b.minE - m, b.maxE + m, b.minN - m, b.maxN + m)
+  const t45Box = mkBox(delv.st45.minE, delv.st45.maxE, delv.st45.minN, delv.st45.maxN)
+  const osmBox = mkBox(minE, maxE, minN, maxN)
+  const candidates = [
+    ['地面片(现状)', groundBox],
+    ['地面片+1km环', padBox(groundBox, 1000)],
+    ['地面片+2km环', padBox(groundBox, 2000)],
+    ['交付包t4/t5', t45Box],
+    ['全OSM AABB', osmBox],
+  ]
+  for (const [name, b] of candidates) {
+    const inBox = insideOf(b)
+    let all = 0
+    let inL = 0
+    let crossL = 0
+    let outL = 0
+    let waysHit = 0
+    let waysIn = 0
+    for (const enu of enuWays) {
+      let touched = false
+      let allIn = true
+      for (let i = 1; i < enu.length; i++) {
+        const L = Math.hypot(enu[i][0] - enu[i - 1][0], enu[i][1] - enu[i - 1][1])
+        all += L
+        const a = inBox(enu[i - 1][0], enu[i - 1][1])
+        const c = inBox(enu[i][0], enu[i][1])
+        if (a && c) inL += L
+        else if (!a && !c) {
+          outL += L
+          allIn = false
+        } else {
+          crossL += L
+          allIn = false
+        }
+        if (a || c) touched = true
+      }
+      if (touched) waysHit++
+      if (allIn) waysIn++
+    }
+    console.log(
+      name.padEnd(14) +
+        ' 保留 ' +
+        ((100 * (inL + crossL / 2)) / all).toFixed(1) +
+        '% | 盒内 ' +
+        (inL / 1000).toFixed(2) +
+        ' km | 跨边界 ' +
+        (crossL / 1000).toFixed(2) +
+        ' km | 盒外 ' +
+        (outL / 1000).toFixed(1) +
+        ' km | 触及 way ' +
+        waysHit +
+        '/' +
+        enuWays.length +
+        ' | 全在 ' +
+        waysIn
+    )
+  }
+
+  console.log('')
+  console.log('--- 扩域代价（选项①，按候选域 bbox 上界估算；含 256px 取整余量）---')
+  const midLat = ((s + n) / 2) * (Math.PI / 180)
+  const mpp = (z) => (156543.03392 * Math.cos(midLat)) / 2 ** z
+  for (const [name, b] of candidates) {
+    const wM = b.maxE - b.minE
+    const hM = b.maxN - b.minN
+    const parts = []
+    for (const z of [17, 16]) {
+      const tx = Math.ceil(wM / mpp(z) / 256)
+      const ty = Math.ceil(hM / mpp(z) / 256)
+      parts.push('z' + z + ' ' + tx + '×' + ty + '=' + tx * ty + ' 瓦片')
+    }
+    console.log(
+      name.padEnd(14) +
+        ' ' +
+        parts.join(' | ') +
+        ' | 掩膜1024 ' +
+        (wM / 1024).toFixed(1) +
+        '×' +
+        (hM / 1024).toFixed(1) +
+        ' m/px | 掩膜2048 ' +
+        (wM / 2048).toFixed(1) +
+        '×' +
+        (hM / 2048).toFixed(1) +
+        ' m/px | 地面cell15 ' +
+        Math.round(wM / 15) * Math.round(hM / 15) +
+        ' 格'
+    )
+  }
 }
 
 console.log('')

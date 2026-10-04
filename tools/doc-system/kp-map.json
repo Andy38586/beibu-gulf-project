@@ -2802,7 +2802,7 @@
       "heading": "## 十一、工作红线（违反即返工）",
       "excerpt": "1. git：禁 squash / 重写历史；禁 git rm；写前 git bundle crea",
       "layer": "契约",
-      "target": "K1",
+      "target": "K4",
       "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"

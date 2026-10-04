@@ -1157,6 +1157,15 @@ node tools/diag/lod-ladder.cjs http://127.0.0.1:5174/route-analysis 586000 --hid
 1. 港区**静态"飞到"落点（`BEIBU_TILES_VIEWS['qinzhou-port']` = 108.6473/21.6745）与保留内容
    包围球合心（108.6435/21.6785）相距约 590 m**。6 km 及以上仍框得住全部内容，但 ≤1.5 km 落到
    该点看不到作业区（本轮 300 m 档假红的根因）。**是否改这条落点待裁**（改它就是改前端"飞到"行为）。
+   **2026-10-05 落地链复核（前提证伪）**：`BEIBU_TILES_VIEWS` 在**产品代码里零消费**——
+   `rg -n "BEIBU_TILES_VIEWS" frontend/src` 只命中定义（`beibu3dTiles.ts:401`），唯一读取方是
+   诊断探针 `tools/diag/lod-ladder.cjs:118-126`（正则取数）；产品侧"飞到图层"走
+   `CesiumRenderer._doFlyTo`（`:847-859`）的 `viewer.flyTo(layer.instance)`，按内容包围体定位，
+   不读这条常量；`.local/1003-专项6/dead-code.json:25` 早把它列为死导出。同一锚点还手抄在
+   `probe-port-close-ab.cjs:36-37`、`probe-3dtiles-runtime.cjs:24` 等 ≥8 个探针里。
+   ⇒「改它就是改前端飞到行为」**不成立**（作废条件：若存在本仓之外的消费点则重评）；590 m 差是
+   **探针瞄准点**与内容合心之差，不是用户可见缺陷。B7 选项随之变为：① 删死导出 + 探针改读真实
+   fly-to/内容合心；② 保留并注明"仅探针消费"；③ 若产品确需静态飞到按钮，先接线再用。**不自行选边**。
 2. "摘掉 root 粗层占位 ⇒ 远景必空"**不成立**：`capRootGeometricError` 会把 root 自己算进"被摘空
    节点"⇒ cap 抬高到 root 自身尺度、远距离反而细化到 7 块细瓦片（实测 586 km 档 1 px 仍在）。
    故 §8.14 判据④的红样定为 `--hide` 自测，而不是"摘 root 内容"。

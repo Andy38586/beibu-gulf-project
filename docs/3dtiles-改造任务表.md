@@ -371,7 +371,7 @@ tools/diag/probe-port-roads-vs-ground.py`（输出新增段" C 回退半径评�
 - **待裁**：四口径属改 §8.12 权威源（`groundLevel()` 的池定义），等用户一行裁定；裁定前不动
   `groundLevel()` 与道路层。发现经过见 §8.20"仍未闭（竖直，待裁）"。
 - **C 实施预案（裁定后开工单，2026-10-05）**：改动点两处、共用**一套**参考查询（禁两份实现，
-  半径口径取本节曲线：r=24 m、无参考保原常数）：
+  半径口径取本节曲线：全材质池 r=24 m / 陆域池 r=48 m、无参考保原常数）：
   ① 新增 `tools/3dtiles-build/ground-ref.mjs`——从**全交付包瓦片（tileset 全树、去重 96 块）**、
   材质取 `rail/concrete/opaque`、按 4 m 格建中位（每格 ≥3 点），暴露 `nearestU(E, N, r=48)`
   （超半径返回 null）；roads/ground 共用；

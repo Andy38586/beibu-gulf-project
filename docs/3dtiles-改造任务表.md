@@ -555,8 +555,9 @@ node tools/diag/lod-ladder.cjs http://127.0.0.1:5174/route-analysis
 蓝=交付包海面，白线=模型东侧水缘，青线/青点=影像分类掩膜的东侧水缘/边界）。
 **待裁**：港区对位"对得上 / 差多少（东/西 + 南/北米）"。
 
-**复算钩子**：`backend/algorithm-service/.venv/Scripts/python.exe .local/3d-review/port-align.py`
-⇒ 自检行 `峰回收 dx=+23 dy=+17`、水缘差行；同目录 `port-overlay.py` ⇒ `WROTE …port-overlay.png`。
+**复算钩子**：`backend/algorithm-service/.venv/Scripts/python.exe -X utf8 tools/diag/port-align.py`
+⇒ 自检行 `峰回收 dx=+23 dy=+17`、水缘差行；`tools/diag/port-overlay.py` ⇒ `WROTE …port-overlay.png`
+（20:5x 入库复跑：自检逐位一致、PNG 与 17:1x 版 MD5 相同 `CEA58A1E…`）。
 **失效条件**：换影像源 / 重做 water-mask / 交付包换版 ⇒ 本节结论作废重测。
 
 ### 8.19 绝对高程实测：三枢纽 / 运河带 / 港区（地形关模式的竖直位置）· 2026-10-04 17:5x
@@ -617,7 +618,7 @@ qishi +25.8 / qingnian +45.2（其 DEM 差 −34.3 / +11.4 / +38.5）。已废�
 ⇒ `root 原点：108.830000, 22.200000 椭球高 0.0 m`、`madao … 地面组 …+28.6`、
 `带水 +69.0 ｜ 枢纽水 +10.4 ｜ 带水−枢纽水 +58.6`（20:4x 入库复跑；与 17:5x 的 +59.2 差 0.6 m =
 311bdbca 重建带后 800 m 取样点水平重分布，高度未变）、`canal（我方重建带 …）`。运行时对照：
-`node .local/3d-review/vert-check.cjs --url http://127.0.0.1:5174/route-analysis --fly
+`node tools/diag/probe-3dtiles-vert.cjs --url http://127.0.0.1:5174/route-analysis --fly
 108.93696,22.44918,1500,0,-45 --wait 22000 --chain "180,83.5,-162.5" --sel "pinglu-madao|madao-low.glb"`
 ⇒ `worldPtHeight: 97.3`。
 
@@ -633,7 +634,7 @@ qishi +25.8 / qingnian +45.2（其 DEM 差 −34.3 / +11.4 / +38.5）。已废�
 机位后发现更硬的事实——**这两层根本没画出来**（之前的证据全是"选了多少瓦片 / 多少三角面"，看不见
 剔除类缺陷）。
 
-**证据（真 Edge + 真 Cesium，`.local/3d-review/` 探针）**：
+**证据（真 Edge + 真 Cesium，`tools/diag/probe-3dtiles-runtime.cjs` + `diff-images.py` 逐层画面贡献）**：
 
 | 层                    | 运行时状态                                                | 默认（`backFaceCulling=true`） | 人为关掉剔除      |
 | --------------------- | --------------------------------------------------------- | ------------------------------ | ----------------- |

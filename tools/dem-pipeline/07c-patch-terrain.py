@@ -104,7 +104,8 @@ def main():
                               (2, (2 * x, 2 * y)), (3, (2 * x + 1, 2 * y))):
             if (z + 1, cx, cy) in have:
                 mask |= 1 << bit
-        payload = gzip.compress(enc.tobytes() + bytes([mask]) + bytes([0]))
+        # mtime=0：gzip 头不带当前时间 ⇒ 同内容同字节（与 08 同款确定性约定）
+        payload = gzip.compress(enc.tobytes() + bytes([mask]) + bytes([0]), mtime=0)
         out = TERRAIN / str(z) / str(x) / ("%d.terrain" % y)
         old = out.read_bytes() if out.exists() else b""
         if old != payload:

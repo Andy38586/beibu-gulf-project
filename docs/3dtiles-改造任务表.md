@@ -564,7 +564,7 @@ node tools/diag/lod-ladder.cjs http://127.0.0.1:5174/route-analysis
 **为什么测**：§8.14 已裁定「地形 ↔ 3D Tiles 互斥保留」，并写死「模型自身的高程基准是地形关模式下的
 唯一落位依据」。而 §8.8–§8.18 的全部"没正位"取证都是**平面（E/N）**的——**竖直位置从未测过**。
 
-**方法**（`.local/3d-review/hub-heights.py`，只读）：tileset.json 变换按 3D Tiles 列主序逐级相乘 →
+**方法**（`tools/diag/probe-hub-heights.py`，只读）：tileset.json 变换按 3D Tiles 列主序逐级相乘 →
 GLB 顶点 Y-up→Z-up（与 `tools/3dtiles-build/glb.mjs:26` 同一映射）→ ECEF → WGS84 **椭球高**，
 按材质分桶取 P5/中位/P95；EGM96 正高换算用 PROJ 官方网格 `us_nga_egm96_15.tif`（NGA，实测
 N = −20.5…−21.7 m）；DEM 取 `backend/data/flood/dem/landsea_utm48n.tif` 的逐顶点 5×5 中位。
@@ -613,9 +613,10 @@ qishi +25.8 / qingnian +45.2（其 DEM 差 −34.3 / +11.4 / +38.5）。已废�
 水位一致）；② ①+把三枢纽构件按「地面 = 椭球 0」重摆（治视差；代价：不再表达真实高程）；
 ③ ①+按真实正高摆三枢纽（须开真地形，与互斥裁定冲突）。港区是否抬 15~18 m 与 ①②③ 同批定。
 
-**复算钩子**：`backend/algorithm-service/.venv/Scripts/python.exe -X utf8 .local/3d-review/hub-heights.py`
+**复算钩子**：`backend/algorithm-service/.venv/Scripts/python.exe -X utf8 tools/diag/probe-hub-heights.py`
 ⇒ `root 原点：108.830000, 22.200000 椭球高 0.0 m`、`madao … 地面组 …+28.6`、
-`带水 +69.7 ｜ 枢纽水 +10.4 ｜ 带水−枢纽水 +59.2`、`canal（我方重建带 …）`。运行时对照：
+`带水 +69.0 ｜ 枢纽水 +10.4 ｜ 带水−枢纽水 +58.6`（20:4x 入库复跑；与 17:5x 的 +59.2 差 0.6 m =
+311bdbca 重建带后 800 m 取样点水平重分布，高度未变）、`canal（我方重建带 …）`。运行时对照：
 `node .local/3d-review/vert-check.cjs --url http://127.0.0.1:5174/route-analysis --fly
 108.93696,22.44918,1500,0,-45 --wait 22000 --chain "180,83.5,-162.5" --sel "pinglu-madao|madao-low.glb"`
 ⇒ `worldPtHeight: 97.3`。
@@ -672,10 +673,20 @@ glTF 材质也没写 `doubleSided` ⇒ 整层被剔除。**不报错、不缺瓦
 node tools/3dtiles-build/build-roads.mjs # 期望: 道路 92 条 / 754 段，地面 u=-17.55 m
 node tools/3dtiles-build/build-canal.mjs # 期望: 中线 2 链 → 稠密 3213 点；挤出 19218 三角面
 npx vitest run --root . tools/3dtiles-build/**tests**/build.test.mjs # 期望: 20 passed
-node .local/3d-review/roads-probe.cjs --url http://127.0.0.1:5174/route-analysis \
+node tools/diag/probe-3dtiles-runtime.cjs --url http://127.0.0.1:5174/route-analysis \
  --fly 108.6473,21.6745,1200,0,-35 --wait 22000 --re "qz-roads" --backface
 
-# 期望: WROTE roads-bf-on.png / roads-bf-off.png；随后与 roads-bf-none.png 比 → 2.71%
+# 期望: beibu-qz-roads sel=1 / modelReady=true；WROTE .local/3d-review/roads-bf-{none,on,off}.png
+
+backend/algorithm-service/.venv/Scripts/python.exe -X utf8 tools/diag/diff-images.py \
+ .local/3d-review/roads-bf-none.png .local/3d-review/roads-bf-on.png
+
+# 期望: DIFF 15144 / 558000 px = 2.71%（该层可见贡献）
+
+backend/algorithm-service/.venv/Scripts/python.exe -X utf8 tools/diag/diff-images.py \
+ .local/3d-review/roads-bf-on.png .local/3d-review/roads-bf-off.png
+
+# 期望: DIFF 0 / 558000 px = 0.00%（绕序修复后，关剔除不再多出任何像素；修前这 2.71% 只在关剔除后出现）
 
 ````
 

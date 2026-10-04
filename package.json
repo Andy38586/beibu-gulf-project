@@ -16,6 +16,7 @@
     "dev:server": "npm run dev:nest",
     "docs:check": "node tools/v3-guard/doc-map-check.mjs",
     "docs:map": "node tools/doc-system/render-doc-map.mjs && npx prettier --write docs/文档地图.md",
+    "docs:review-age": "node tools/doc-system/review-age.mjs",
     "dup:scan": "node tools/dup/scan.mjs",
     "forecast:activity": "node tools/forecast/derive-activity.mjs",
     "forecast:model": "node tools/forecast/throughput_model.cjs",

@@ -2,7 +2,7 @@
   "meta": {
     "version": 1,
     "date": "2026-10-05",
-    "migrationOpen": true,
+    "migrationOpen": false,
     "layers": ["宪法", "契约", "日志", "标准库", "待迁移"],
     "statuses": ["active", "stub", "planned", "parallel", "frozen", "external", "retired"],
     "note": "信息源三层登记表：docs[] 文档、facts[] 单一事实源、tasks[] 读写矩阵；守卫 tools/v3-guard/doc-map-check.mjs。"

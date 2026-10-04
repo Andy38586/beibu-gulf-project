@@ -39,8 +39,11 @@ LEVEL_STEP = 0.1
 # 多边形简化容差（米，UTM 系）：300m ≈ 1.25 个 240m 降采样像元——视觉差异可忽略，
 # 但顶点数显著下降（95MB → 更小）。与在线动态演算兜底（180m）不冲突。
 SIMPLIFY_TOL = 300.0
-# 输出：backend/data/flood/flood_levels.json.gz（gzip 压缩，数字字符串压缩率高）
-OUT_PATH = Path(__file__).resolve().parents[1] / "data" / "flood" / "flood_levels.json.gz"
+# 输出：backend/data/flood/flood_levels.json.gz（gzip 压缩，数字字符串压缩率高）。
+# 仓库根锚点与 flood_engine 同口径（parents[3]）——2026-09-26 目录搬迁后 parents[1]
+# 会指到 tools/flood，产物曾会写到不存在的 tools/flood/data/...；2026-10-04 随引擎一并修正。
+REPO_ROOT = Path(__file__).resolve().parents[3]
+OUT_PATH = REPO_ROOT / "backend" / "data" / "flood" / "flood_levels.json.gz"
 
 
 def _compute(level: float) -> tuple[float, dict]:

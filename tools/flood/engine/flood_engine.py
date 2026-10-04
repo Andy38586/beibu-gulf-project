@@ -2,9 +2,16 @@
 flood_engine.py — 连通性淹没演算引擎（路线 B ④）
 
 海面淹没模型（风暴潮/海平面抬升）：
-  水从海面（DEM NoData 区域）进入，只淹没与海面 8 连通的高程低于水位的区域。
-  算法：mask = (DEM <= level) → 与 NoData(海域) 合并做连通域标注 →
-        保留"海域分量"中的淹没区。
+  水从**永久水体**进入，只淹没与永久水体 8 连通的高程低于水位的区域。
+  永久水体 = 无测深 DEM 的 NoData（海掩膜）∪ 含测深 DEM 的 dem<=0 像元。
+  算法：mask = (DEM <= level) → 与永久水体合并做连通域标注 →
+        保留"永久水体分量"中的淹没区。
+
+  为什么必须有 dem<=0 这一支（2026-10-04）：海陆一体 DEM 把海侧从 NoData 换成了
+  真实水深（负值），若仍只拿 NoData 当种子，深水区（dem<0 但 > level 的像元）
+  既不"被淹"也不在种子里 ⇒ 近岸淹没区与残存 NoData 之间连通断开，低档结果失真。
+  对无负值像元的陆地-only DEM，本支自动退回 NoData 种子，逐像素保持旧行为
+  （已由 tools/flood/engine/test_flood_engine.py 钉住）。
 
 与 Priority Flood（richdem）的区别（面试可讲）：
   Priority Flood 是"上游来水"模型（水沿高程路径从源点蔓延，需先填满低处）。
@@ -12,7 +19,9 @@ flood_engine.py — 连通性淹没演算引擎（路线 B ④）
   连通域过滤（mask + 种子连通）就是标准解，无需 richdem（其 Windows 编译也是坑）。
 
 依赖：numpy / scipy / rasterio（rasterio wheel 自带 GDAL，无需 osgeo）。
-输入：backend/data/flood/dem/filled_utm48n_cut.tif（UTM48N，30m，填洼版）
+输入：backend/data/flood/dem/ 下优先 landsea（海陆一体，含测深），
+      回退 filled_utm48n_cut.tif（陆地填洼版，海=NoData）；
+      两者同为 UTM48N/30m、EGM96 口径。
 输出：EPSG:4326 的淹没多边形 GeoJSON FeatureCollection + 统计。
 """
 
@@ -26,8 +35,12 @@ from rasterio.features import shapes as rio_shapes
 from rasterio.warp import transform_geom
 from scipy import ndimage
 
+# 仓库根锚点：本文件在 tools/flood/engine/ 下（2026-09-26 从 backend/algorithm-service/
+# 拆出时曾用 parents[1]，搬迁后指向 tools/flood ⇒ DEM/waterLevel 全部解析到不存在的
+# tools/flood/data/...，生成链自 9-26 起不可跑；2026-10-04 修正为显式 parents[3]）。
+REPO_ROOT = Path(__file__).resolve().parents[3]
+
 # 输入：钦北防范围、填洼、UTM48N 裁切版（路线 B ① 的产物）
-# 本文件位于 backend/flood-service/ → parents[1] = backend/，拼 data/... 即 backend/data/
 # DEM 路径多级回退（2026-08-30）：workspace dem/ 副本会被本机清理进程删除
 # （原 169MB 版 8-27 被清理，复原版实测写入后分钟级再被删），故回退到 Desktop
 # 处理成果复原版；部署/CI 用 FLOOD_DEM_PATH 显式覆盖。复原命令见
@@ -38,8 +51,22 @@ def _resolve_dem_path() -> Path:
     env = os.environ.get("FLOOD_DEM_PATH")
     if env:
         return Path(env)
+    # 海陆一体 DEM 优先（2026-10-04 统一海陆基准的落地口径）：同名目录下若存在
+    # landsea_utm48n.tif，则淹没演算与地形重切共用这一份海陆一体地表；缺失时
+    # 回退陆地填洼版（旧行为），保证部署环境未同步资产时不炸。
+    merged = (
+        REPO_ROOT
+        / "backend"
+        / "data"
+        / "flood"
+        / "dem"
+        / "landsea_utm48n.tif"
+    )
+    if merged.exists():
+        return merged
     repo = (
-        Path(__file__).resolve().parents[1]
+        REPO_ROOT
+        / "backend"
         / "data"
         / "flood"
         / "dem"
@@ -62,7 +89,7 @@ DEM_PATH = _resolve_dem_path()
 # 传来的理论水位换算后再查表/演算（见 main.py，2026-08-29 垂直基准统一）。
 # 单一数据源：从 waterLevel.json 读取，不硬编码（与 tools/flood/flood_realify.py 同口径）。
 _WATER_LEVEL_JSON = (
-    Path(__file__).resolve().parents[1] / "data" / "flood" / "waterLevel.json"
+    REPO_ROOT / "backend" / "data" / "flood" / "waterLevel.json"
 )
 _datum_offset_cache: float | None = None
 
@@ -129,29 +156,65 @@ def compute_flood_mask(
     dem: np.ndarray, nodata: float, level: float
 ) -> np.ndarray:
     """
-    连通性淹没 mask（与海面 8 连通的低洼区）。
+    连通性淹没 mask（与永久水体 8 连通的低洼区）。
 
     返回与输入同形的 bool 数组：True = 被淹没。
     """
-    if nodata is None:
-        nodata_mask = np.isnan(dem)
-    else:
-        nodata_mask = dem == nodata
-    nodata_mask |= np.isnan(dem)
+    nodata_mask = _nodata_mask(dem, nodata)
+    source = water_source_mask(dem, nodata)
 
     flooded = (dem <= level) & ~nodata_mask
     if not flooded.any():
         return np.zeros_like(dem, dtype=bool)
 
-    # 淹没区 + 海域合并标注连通域，保留与海域同一分量的淹没区
-    combined = flooded | nodata_mask
+    # 淹没区 + 永久水体合并标注连通域，保留与永久水体同一分量的淹没区。
+    # 深水区（dem<0 且 >level）不参与输出，但必须在 combined 里保持连通，
+    # 否则海面被"未淹没的深水"切断，近岸淹没区会与种子分量失联。
+    combined = flooded | source
     labels, _n = ndimage.label(combined, structure=STRUCT8)
-    sea_labels = np.unique(labels[nodata_mask])
+    sea_labels = np.unique(labels[source])
     sea_labels = sea_labels[sea_labels > 0]
     if sea_labels.size == 0:
         return np.zeros_like(dem, dtype=bool)
     connected = np.isin(labels, sea_labels)
     return connected & flooded
+
+
+def _nodata_mask(dem: np.ndarray, nodata: float) -> np.ndarray:
+    """无数据掩膜（nodata 哨兵 ∪ NaN）。"""
+    if nodata is None:
+        return np.isnan(dem)
+    return (dem == nodata) | np.isnan(dem)
+
+
+def water_source_mask(dem: np.ndarray, nodata: float) -> np.ndarray:
+    """
+    永久水体（淹没种子）掩膜。
+
+    - 无测深 DEM（无有效负值像元）：种子 = NoData（= 海掩膜），与旧实现逐像素一致；
+    - 含测深 DEM（存在有效 dem<0）且有 NoData 锚点：种子 = 与 NoData **连通**的
+      dem<=0 分量 ∪ NoData——被堤坝围住的负高程养殖塘/坑塘不得当成海源
+      （否则海平面抬升会先淹穿堤后土地，属高估）；
+    - 含测深 DEM 但全图无 NoData（未来换源可能）：没有开海锚点，退化为
+      "所有 dem<=0 像元即水体"，并在此声明该假设。
+
+    本项目工作区（广西沿海）NoData 即 SRTM15+ 覆盖外的开海西/东缘，锚点成立。
+    若未来换入"内陆空洞 + 全填充海"的 DEM，需把锚点从 NoData 改为开海边界矢量。
+    """
+    nodata_mask = _nodata_mask(dem, nodata)
+    valid = ~nodata_mask
+    has_bathymetry = bool(np.any(valid & (dem < 0)))
+    if not has_bathymetry:
+        return nodata_mask
+    candidate = nodata_mask | (valid & (dem <= 0))
+    if not nodata_mask.any():
+        return candidate
+    labels, _n = ndimage.label(candidate, structure=STRUCT8)
+    open_labels = np.unique(labels[nodata_mask])
+    open_labels = open_labels[open_labels > 0]
+    if open_labels.size == 0:
+        return candidate
+    return candidate & np.isin(labels, open_labels)
 
 
 def mask_to_geojson(

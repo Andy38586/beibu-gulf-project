@@ -556,7 +556,9 @@ async function measureBody(page, id, clip, h) {
         heights: HEIGHTS,
         anchors,
         rows,
-        consoleMsgs: consoleMsgs.slice(0, 120),
+        // 不按 120 条截断：实测 141+ 条时 404 类证据恰好落在截断线外（整类归因会消失）。
+        // 上限 500 仅防失控增长；触顶时下面会打印"截断"标注。
+        consoleMsgs: consoleMsgs.slice(0, 500),
         pageErrors,
       },
       null,
@@ -565,6 +567,7 @@ async function measureBody(page, id, clip, h) {
   )
   console.log(
     `\n控制台：error/warning ${consoleMsgs.length} 条 ｜ 未捕获异常(pageerror) ${pageErrors.length} 条` +
+      (consoleMsgs.length > 500 ? '（JSON 只存前 500 条，已截断）' : '') +
       (pageErrors.length > 0 ? ' ← 非零须逐条归因（可能为渲染链缺陷）' : '')
   )
   console.log('written', path.join(OUT, 'lod-ladder.json'))

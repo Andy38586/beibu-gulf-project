@@ -300,6 +300,51 @@ def main():
     else:
         print('\nC 回退半径评估：缺 scipy ⇒ SKIPPED（不判红也不判绿）')
 
+    # —— C 参考池成分：最近格的主材质（水 vs 地）——决定 C 的方向是否可用。
+    cells_lab = {}
+    for uri, per in ground.items():
+        for m, a in per.items():
+            kk = np.floor(a[:, :2] / CELL).astype(np.int64)
+            for i in range(len(a)):
+                cells_lab.setdefault((int(kk[i, 0]), int(kk[i, 1])), []).append((m, float(a[i, 2])))
+    lab, uu = {}, {}
+    for k, items in cells_lab.items():
+        if len(items) < 3:
+            continue
+        cnt = {}
+        for m, _x in items:
+            cnt[m] = cnt.get(m, 0) + 1
+        lab[k] = max(cnt, key=cnt.get)
+        uu[k] = float(np.median([x[1] for x in items]))
+    print('\nC 参考池成分（最近格主材质，R=48 m）：')
+    for poolname in ('全材质', '陆域(去水)'):
+        grid = grids[poolname]
+        ks = np.array(sorted(grid.keys()), dtype=np.float64)
+        if not len(ks):
+            continue
+        tree3 = cKDTree((ks + 0.5) * CELL)
+        d3, i3 = tree3.query(S[:, :2], k=1)
+        ok = d3 <= 48
+        for wname, mask in (('全网', ok), ('窗口内', ok & inside)):
+            idx = np.where(mask)[0]
+            if not len(idx):
+                continue
+            cnt = {}
+            for i in idx:
+                k3 = tuple(ks[int(i3[i])].astype(int))
+                cnt[lab.get(k3, '?')] = cnt.get(lab.get(k3, '?'), 0) + 1
+            tot = sum(cnt.values())
+            ref_u = float(np.median([grid[tuple(ks[int(i3[i])].astype(int))] for i in idx]))
+            print('  %-9s %s n=%d：%s ｜ 参考u中位 %+.2f'
+                  % (poolname, wname, tot,
+                     ' / '.join('%s %.0f%%' % (m, 100 * c / tot)
+                                for m, c in sorted(cnt.items(), key=lambda x: -x[1])),
+                     ref_u))
+    print('  口径：两池最近格参考 u 在作业区基本一致（全材质/陆域差 <0.1 m）；water 主导格的格内 u'
+          '与陆域同为 −15.9 级，不构成"拖向海面"风险。参考池须取**全交付包瓦片（去重 96 块）**——'
+          't4/t5 单池覆盖率仅 0.1%，不可用于 C。语义稳健口径 = 陆域池(rail/concrete/opaque) + R=48 m；'
+          '全材质池 R=24 m 亦可。')
+
     # —— C 的连带影响面：ground 层（build-ground 常数面 u=groundU+0.05）是否需同笔跟随。
     #    语义：C 让道路逐顶点抬到"真实地面 +0.15"；若 ground 层仍是常数平面，两者会拉开。
     ground_glb = PORT / 'rebuilt/ground/ground.glb'
@@ -322,24 +367,27 @@ def main():
         print('  ground bbox 内道路采样 %d/%d（%.0f%%）'
               % (int(gin.sum()), len(S), gin.mean() * 100))
         if gin.any():
-            grid = grids['全材质']
-            keys = np.array(sorted(grid.keys()), dtype=np.float64)
-            tree2 = cKDTree((keys + 0.5) * CELL)
-            d2, i2 = tree2.query(S[gin][:, :2], k=1)
-            nn2 = np.array([grid[(int(k[0]), int(k[1]))] for k in keys])[i2]
-            print('    道路侧 R≤24 m 有参考 %d/%d（%.0f%%）；无参考回退现状 %d 点'
-                  % (int((d2 <= 24.0).sum()), int(gin.sum()), float((d2 <= 24.0).mean()) * 100,
-                     int((d2 > 24.0).sum())))
-            dg, _ig = tree2.query(Gg[:, :2], k=1)
-            print('    ground 顶点自身最近格距离 P50/P90/P99 = %.1f/%.1f/%.1f m；R≤24 m 覆盖 %.0f%%'
-                  % (float(np.percentile(dg, 50)), float(np.percentile(dg, 90)),
-                     float(np.percentile(dg, 99)), float((dg <= 24.0).mean()) * 100))
-            u_c = np.where(d2 <= 24.0, nn2 + 0.15, u_roads)
-            dist_line('C 前：路(常数) − ground 层', np.full(int(gin.sum()), u_roads - ug))
-            dist_line('C 后：路(逐顶点) − ground 层', u_c - ug)
-            print('    C 后高出 ground 层 >0.5 m 的点占 %.0f%%（C 前 %.0f%%）⇒ 若 ground 层不同步'
-                  '逐顶点，路面会浮在它上方'
-                  % (float(np.mean((u_c - ug) > 0.5)) * 100, float(np.mean((u_roads - ug) > 0.5)) * 100))
+            for poolname, RR in (('全材质', 24.0), ('陆域(去水)', 48.0)):
+                grid = grids[poolname]
+                keys = np.array(sorted(grid.keys()), dtype=np.float64)
+                if not len(keys):
+                    continue
+                tree2 = cKDTree((keys + 0.5) * CELL)
+                d2, i2 = tree2.query(S[gin][:, :2], k=1)
+                nn2 = np.array([grid[(int(k[0]), int(k[1]))] for k in keys])[i2]
+                print('    【%s 池，R=%g m】道路侧有参考 %d/%d（%.0f%%）；无参考回退现状 %d 点'
+                      % (poolname, RR, int((d2 <= RR).sum()), int(gin.sum()),
+                         float((d2 <= RR).mean()) * 100, int((d2 > RR).sum())))
+                dg, _ig = tree2.query(Gg[:, :2], k=1)
+                print('      ground 顶点自身最近格距离 P50/P90/P99 = %.1f/%.1f/%.1f m；R≤%g m 覆盖 %.0f%%'
+                      % (float(np.percentile(dg, 50)), float(np.percentile(dg, 90)),
+                         float(np.percentile(dg, 99)), RR, float((dg <= RR).mean()) * 100))
+                u_c = np.where(d2 <= RR, nn2 + 0.15, u_roads)
+                dist_line('C 前：路(常数) − ground 层', np.full(int(gin.sum()), u_roads - ug))
+                dist_line('C 后：路(逐顶点) − ground 层', u_c - ug)
+                print('      C 后高出 ground 层 >0.5 m 的点占 %.0f%%（C 前 %.0f%%）⇒ 若 ground 层不同步'
+                      '逐顶点，路面会浮在它上方'
+                      % (float(np.mean((u_c - ug) > 0.5)) * 100, float(np.mean((u_roads - ug) > 0.5)) * 100))
 
     # —— 每块细瓦片：地面材质中位（判断 u₀ 口径分歧来源）
     print('\nt4/t5 逐块（rail/concrete 中位 u；是否与道路 bbox 相交）：')

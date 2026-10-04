@@ -73,11 +73,11 @@ ${MAP.facts
 
 - 登记文档 ${MAP.docs.length} 件：active ${MAP.docs.filter((d) => d.status === 'active').length}｜stub ${MAP.docs.filter((d) => d.status === 'stub').length}｜planned ${MAP.docs.filter((d) => d.status === 'planned').length}｜parallel ${MAP.docs.filter((d) => d.status === 'parallel').length}。
 - KP 表：源 ${KP.sources.length} 件 / 知识点 ${KP.kps.length} 条；权威 new ${KP.kps.filter((k) => k.authority === 'new').length}｜old ${KP.kps.filter((k) => k.authority === 'old').length}。
-- 迁移完成前 \`meta.migrationOpen=true\`；结束时须把全部 stub/planned 清零并翻 false。
+- 迁移闸门 \`meta.migrationOpen\` = ${MAP.meta.migrationOpen}（${MAP.meta.migrationOpen ? '进行中：仍有待填充/stub 文档' : '已收口：stub/planned 清零；退役与待裁项见日志层迁移报告'}）。
 
 ## 变更记录
 
-- ${DATE} 生成（信息源三层体系 Batch A；源：\`tools/v3-guard/lib/doc-map.json\`）。
+- ${DATE} 生成/更新（信息源三层体系；源：\`tools/v3-guard/lib/doc-map.json\`；重跑 \`npm run docs:map\`）。
 `
 
 fs.writeFileSync(path.join(ROOT, 'docs/文档地图.md'), md, 'utf8')

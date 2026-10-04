@@ -704,9 +704,14 @@ dot(几何法线, 声明法线)，含交付包作对照）扫**全部自建产�
 
 判据已进 `build.test.mjs`：`buildBridge` 逐面同向（红样 = 不翻索引 ⇒ `expected 0 to be greater than 0.99`）、
 `buildContainer` 逐面同向（红样 = 翻错一个四边形 ⇒ `expected 0.9642857… to be greater than 0.99`）。
-集装箱层的**运行时**对照未取证：该层默认关闭，且 10 块 cell（733,712 三角面 / 26204 实例）在本机
-9 s 窗口内没载入完成（`--re qz-containers` 两次都为 0 像素）⇒ 只凭静态体检 + 单测判修；
-复跑命令见下。`bridge-city` 与 `qinzhou-port/rebuilt` 两个目录都在 `.gitignore`（:231 / :192），
+集装箱层的**运行时**对照已补取证（21:2x，单文件就地变异 `defaultVisible→true` 后跑、跑完还原）：
+`sel=6 / 6 块 modelReady`；层本体贡献 **30466 px = 5.46%**（none→on）；**关剔除只多 400 px = 0.07%**
+（on↔off）——与"整层缺面"的修前形态（静态 57%）不同；静态 100% + 逐面单测仍是硬判据，
+400 px 未逐一取征（候选：共面/门带 z-fighting），不据此宣称有残留翻面。
+**机位教训**（修正"9 s 没载完"的旧归因）：−35° 俯角机位该瓦片集 `sel=0`（未被选中），
+−90° 垂直向下才 `sel=6` ⇒ 当时 0 像素的主因是机位；且 `defaultVisible:false` 的层注册时
+**不入渲染器**（`BusinessLayerManager.ts:303`），`_layers` 里没有它，探针 `--backface` 也改不动它。
+`bridge-city` 与 `qinzhou-port/rebuilt` 两个目录都在 `.gitignore`（:231 / :192），
 **发布侧须各重跑一次** `node tools/3dtiles-build/build-bridges.mjs` 与
 `node tools/3dtiles-build/container-models.mjs && node tools/3dtiles-build/rebuild-containers.mjs`。
 
@@ -714,6 +719,12 @@ dot(几何法线, 声明法线)，含交付包作对照）扫**全部自建产�
 backend/algorithm-service/.venv/Scripts/python.exe -X utf8 tools/diag/probe-3dtiles-facing.py
 # 期望: 体检 17 个产物 —— 交付包对照 ✅100%、运河带 ✅100%、港区道路 ✅100%、港区地面 ✅100%、城区五桥 ✅100%
 # 阳性对照: python -X utf8 tools/diag/probe-3dtiles-facing.py --glb <整层翻绕序的样本> ⇒ ❌ 0% 正向、EXIT=1
+
+# 集装箱备选层运行时对照（须先把 beibu3dTiles.ts 的该条 defaultVisible 临时改 true、跑完还原；
+# 机位必须垂直向下：−35° 俯角 sel=0 会被误判成"没渲染"）
+node tools/diag/probe-3dtiles-runtime.cjs --url http://127.0.0.1:5174/route-analysis \
+ --fly 108.6473,21.6745,1200,0,-90 --wait 75000 --re "qz-containers" --backface
+# 期望: sel=6 / 6 块 modelReady；diff none↔on ≈ 5.46%（30466 px）、on↔off ≈ 0.07%（400 px）
 ````
 
 ```

@@ -1855,7 +1855,7 @@
       "excerpt": "本文件管流程，04-防复发清单.md 管规则，docs/根基文档/审查体系专项/审查体系约定.md ",
       "layer": "宪法",
       "target": "C2",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -1903,7 +1903,7 @@
       "excerpt": "Vue 3 + Pinia + Element Plus + ECharts + Cesium/OL",
       "layer": "宪法",
       "target": "C1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2083,7 +2083,7 @@
       "excerpt": "北部湾港智慧选址分析平台 —— 面向智慧港口场景的 WebGIS 业务应用，验证\"可扩展的 GIS ",
       "layer": "宪法",
       "target": "C1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2095,7 +2095,7 @@
       "excerpt": "| 层 | 选型 | 说明 |",
       "layer": "宪法",
       "target": "C1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2107,7 +2107,7 @@
       "excerpt": "",
       "layer": "宪法",
       "target": "C1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2119,7 +2119,7 @@
       "excerpt": "L0 types 纯类型声明（零运行时依赖）",
       "layer": "宪法",
       "target": "C1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2131,7 +2131,7 @@
       "excerpt": "- 问题：2D/3D 引擎 API 完全不同，业务不能绑死某引擎。",
       "layer": "宪法",
       "target": "C1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2143,7 +2143,7 @@
       "excerpt": "业务组件 → 取数入口（useApiRequest / loadStatic）",
       "layer": "宪法",
       "target": "C1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2155,7 +2155,7 @@
       "excerpt": " 新代码去哪、哪儿不许放，以本表为准。三条禁则是全项目最重要的约定。",
       "layer": "宪法",
       "target": "C1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2167,7 +2167,7 @@
       "excerpt": "1. 地理术语优先：lng/lat（非 lon）、elevation、feature、feature",
       "layer": "宪法",
       "target": "C2",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2179,7 +2179,7 @@
       "excerpt": "- 架构契约 npm run cruise 0 violation（含 backend）。",
       "layer": "宪法",
       "target": "C1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },
@@ -2791,7 +2791,7 @@
       "excerpt": " ⏳ 占位符：待重写（原 performance.md §五 面试话术已过时，项目已变化——真 DE",
       "layer": "宪法",
       "target": "C1",
-      "authority": "old",
+      "authority": "new",
       "status": "mapped",
       "verifiedBy": "heading"
     },

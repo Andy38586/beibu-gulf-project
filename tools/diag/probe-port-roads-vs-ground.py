@@ -300,6 +300,47 @@ def main():
     else:
         print('\nC 回退半径评估：缺 scipy ⇒ SKIPPED（不判红也不判绿）')
 
+    # —— C 的连带影响面：ground 层（build-ground 常数面 u=groundU+0.05）是否需同笔跟随。
+    #    语义：C 让道路逐顶点抬到"真实地面 +0.15"；若 ground 层仍是常数平面，两者会拉开。
+    ground_glb = PORT / 'rebuilt/ground/ground.glb'
+    if ground_glb.exists() and have_kd:
+        jg, bg = read_glb(ground_glb)
+        parts = []
+        for mesh in jg['meshes']:
+            for pr in mesh['primitives']:
+                pos = acc(jg, bg, pr['attributes']['POSITION'])
+                E, N, U = enu_from_gltf(pos)
+                parts.append(np.stack([E, N, U], 1))
+        Gg = np.concatenate(parts)
+        ug = float(np.median(Gg[:, 2]))
+        print('\nC 连带影响面：ground 层 %d 顶点｜u 中位 %+.2f（P5/P95 %+.2f/%+.2f）｜'
+              'bbox E %.0f..%.0f / N %.0f..%.0f'
+              % (len(Gg), ug, pct(Gg[:, 2], 5), pct(Gg[:, 2], 95),
+                 Gg[:, 0].min(), Gg[:, 0].max(), Gg[:, 1].min(), Gg[:, 1].max()))
+        gin = ((S[:, 0] >= Gg[:, 0].min()) & (S[:, 0] <= Gg[:, 0].max())
+               & (S[:, 1] >= Gg[:, 1].min()) & (S[:, 1] <= Gg[:, 1].max()))
+        print('  ground bbox 内道路采样 %d/%d（%.0f%%）'
+              % (int(gin.sum()), len(S), gin.mean() * 100))
+        if gin.any():
+            grid = grids['全材质']
+            keys = np.array(sorted(grid.keys()), dtype=np.float64)
+            tree2 = cKDTree((keys + 0.5) * CELL)
+            d2, i2 = tree2.query(S[gin][:, :2], k=1)
+            nn2 = np.array([grid[(int(k[0]), int(k[1]))] for k in keys])[i2]
+            print('    道路侧 R≤24 m 有参考 %d/%d（%.0f%%）；无参考回退现状 %d 点'
+                  % (int((d2 <= 24.0).sum()), int(gin.sum()), float((d2 <= 24.0).mean()) * 100,
+                     int((d2 > 24.0).sum())))
+            dg, _ig = tree2.query(Gg[:, :2], k=1)
+            print('    ground 顶点自身最近格距离 P50/P90/P99 = %.1f/%.1f/%.1f m；R≤24 m 覆盖 %.0f%%'
+                  % (float(np.percentile(dg, 50)), float(np.percentile(dg, 90)),
+                     float(np.percentile(dg, 99)), float((dg <= 24.0).mean()) * 100))
+            u_c = np.where(d2 <= 24.0, nn2 + 0.15, u_roads)
+            dist_line('C 前：路(常数) − ground 层', np.full(int(gin.sum()), u_roads - ug))
+            dist_line('C 后：路(逐顶点) − ground 层', u_c - ug)
+            print('    C 后高出 ground 层 >0.5 m 的点占 %.0f%%（C 前 %.0f%%）⇒ 若 ground 层不同步'
+                  '逐顶点，路面会浮在它上方'
+                  % (float(np.mean((u_c - ug) > 0.5)) * 100, float(np.mean((u_roads - ug) > 0.5)) * 100))
+
     # —— 每块细瓦片：地面材质中位（判断 u₀ 口径分歧来源）
     print('\nt4/t5 逐块（rail/concrete 中位 u；是否与道路 bbox 相交）：')
     for f in files:

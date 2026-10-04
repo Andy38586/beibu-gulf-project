@@ -257,11 +257,14 @@ export const BEIBU_TILES: readonly BeibuTilesSpec[] = [
     // 由 tools/3dtiles-build/build-roads.mjs 生成：OSM 92 条 highway 中心线 → 挤出路面，
     // 按等级取宽（secondary 12 / tertiary 9 / unclassified 7 / service 5 m）。
     // 高程取交付包箱区底面（局部 u=-20.35 m），不是 0——u=0 是 root 原点高度不是地面。
-    label: '钦州港 · 作业区道路',
+    // 2026-10-04：**默认关闭**。交付包原版（qinzhou-port 那条）自带完整码头面与带标线的道路，
+    // 本层那 1508 面的 OSM 细带叠上去，只在"均匀平板 vs 精细面"之间留缝——用户原话
+    // 「道路也还是有缝隙」。留着供对照（.local/3d-review/sheet-roads-ab.png）。
+    label: '钦州港 · 作业区道路（OSM 挤出，备选）',
     url: '/static/qinzhou-port/rebuilt/roads/tileset.json',
     carriesTerrain: false,
     maximumScreenSpaceError: 16,
-    defaultVisible: true,
+    defaultVisible: false,
   },
   {
     id: 'qz-ground',
@@ -269,11 +272,14 @@ export const BEIBU_TILES: readonly BeibuTilesSpec[] = [
     // 的空地铺满（逐格判四角 + 中心，任一点落水即不铺），高程 = 箱区底面 + 0.05 m，
     // 比路面低 10 cm。为什么需要：道路层只画路面（5~12 m 宽的带），路网之间的空地露的是
     // 底图影像 ⇒ 用户看到的「港区根本不连续、路之间的缝隙太大」。
-    label: '钦州港 · 作业区地面',
+    // 2026-10-04：**默认关闭**。它是"没有交付包时"的补丁；交付包原版已自带码头面，
+    // 这块 35240 面的均匀平板反而把交付包的精细面盖住（同机位 A/B：
+    // .local/3d-review/sheet-roads-ab.png 左=开/右=关，右边才是完整港口）。
+    label: '钦州港 · 作业区地面（补丁，备选）',
     url: '/static/qinzhou-port/rebuilt/ground/tileset.json',
     carriesTerrain: false,
     maximumScreenSpaceError: 16,
-    defaultVisible: true,
+    defaultVisible: false,
   },
   {
     id: 'qz-city-bridges',

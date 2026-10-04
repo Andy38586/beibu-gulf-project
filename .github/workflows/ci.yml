@@ -110,8 +110,12 @@ jobs:
       - name: Install root dependencies
         run: npm ci
 
-      - name: npm audit (root, high+ 阻断)
-        run: npm audit --audit-level=high
+      # 2026-10-04 用户裁定 A：braces <=3.0.3（GHSA-vfj7-8cjw-p6xm，2026-09-18 发布）官方
+      # 无补丁版本，链路 stylelint/lint-staged → micromatch → braces 全为 dev 依赖
+      # （npm ls braces --omit=dev 为空、npm audit --omit=dev --audit-level=high = 0 high）。
+      # 故本步只阻断生产依赖；dev 工具链该条等上游补丁后恢复全量。audit 报告/例外文件不入库。
+      - name: npm audit (root, 生产依赖 high+ 阻断)
+        run: npm audit --omit=dev --audit-level=high
 
       - name: Install Nest dependencies (audit)
         working-directory: backend

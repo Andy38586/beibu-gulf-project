@@ -60,8 +60,16 @@ for m in cj['meshes']:
             band.append((lng, lat))
 band = np.array(band)
 
+def arg_of(name, default=None):
+    for i, v in enumerate(sys.argv):
+        if v == name and i + 1 < len(sys.argv):
+            return sys.argv[i + 1]
+    return default
+
+ONLY = arg_of('--hub')
+BEARING_OVERRIDE = arg_of('--bearing')
 changed = []
-for hub in ('madao', 'qishi', 'qingnian'):
+for hub in (ONLY,) if ONLY else ('madao', 'qishi', 'qingnian'):
     child = next(c for c in ts['root']['children'] if ((c.get('content') or {}).get('uri') or '').startswith(hub + '-'))
     cT = child['transform']
     b = child['boundingVolume']['box']
@@ -79,6 +87,10 @@ for hub in ('madao', 'qishi', 'qingnian'):
     s1 = near[order[-q:]].mean(axis=0)  # 北端（上游）
     dE = (s0[0]-s1[0])*111320*math.cos(math.radians(hl[1])); dN = (s0[1]-s1[1])*110574
     bearing = (math.degrees(math.atan2(dE, dN)) + 360) % 360
+    # --bearing 覆盖：影像本身能给出更可信的走向时以影像为准（用户裁定「以施工影像为准」）。
+    # 实测马道：运河带 187.1° vs 影像水道 193.3°（.local/3d-review/align-fresh.py 的斜率拟合）。
+    if BEARING_OVERRIDE:
+        bearing = float(BEARING_OVERRIDE) % 360
     old = (math.degrees(math.atan2(cT[0], cT[1])) + 360) % 360
     r = math.radians(bearing)
     col1 = (math.sin(r), math.cos(r), 0.0)

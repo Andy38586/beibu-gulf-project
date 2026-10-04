@@ -270,6 +270,31 @@ export interface DeriveOptions {
    * （直接压 root 而不折叠会破坏它，实测遍历会停在 root、精细层永不加载）。
    */
   collapseEmptyLevels?: boolean
+  /**
+   * **顶层 `geometricError` 下限（米）**——Cesium「整层早退」闸门的输入。
+   *
+   * 为什么（2026-10-04 实测 + Cesium 源码）：`Cesium3DTilesetBaseTraversal.selectTiles`
+   * 在访问 root 之前先算 `root.getScreenSpaceError(frameState, true)`，一旦
+   * `<= memoryAdjustedScreenSpaceError` 就**直接 return**——不访问任何瓦片、也不选
+   * root 自己的内容（`statistics.visited = 0`，整层空白）。root 没有 parent 时，
+   * `getScreenSpaceError(…, true)` 取的是**本字段**（`Cesium3DTile` 里
+   * `tileset._scaledGeometricError` 分支），与 root 瓦片自身的 GE 是两个量：
+   * 前者决定「整层被剔除的距离」`d_cull = GE_top · H / (maxSSE · sseDenominator)`，
+   * 后者（`capRootGeometricError` 压的那个）决定「何时细化到精细层」。
+   *
+   * 实测症状：港区压 root GE + 折叠空层后，586 km 默认机位下 1440/1280 px 窗出壳、
+   * ≤1180 px 整层空白——同一机位随画布高翻转，翻转点正是本闸门
+   * （顶层值 18045.7、maxSSE 32、画布高 793→860 px 时闸门 SSE 31.5→34.1 跨过 32）。
+   *
+   * 取值由调用方按「守卫距离 + 最小画布高」推导（见 `beibu3dTiles` 港区条目），
+   * 本函数只抬到不低于它：`tileset.geometricError = max(现值, 下限)`，不碰任何瓦片自身 GE。
+   * 与 `capRootGeometricError` / `collapseEmptyLevels` 同款：只有
+   * `cropTilesetForDataUri` 应用本项。
+   *
+   * **失效条件**：① Cesium 改掉这条早退（或改成按 root 自身 GE 判定）后本项失去意义；
+   * ② maxSSE／默认机位／最小画布高变更后，调用方的推导值须同步重算（探针先红）。
+   */
+  topGeometricErrorFloor?: number
 }
 
 /**
@@ -497,6 +522,12 @@ export function cropTilesetForDataUri(
   }
   if (cap !== null && cap > 0) {
     out.root.geometricError = Math.min(out.root.geometricError ?? Number.POSITIVE_INFINITY, cap)
+  }
+  // 顶层 GE 下限：抬的是**整层早退闸门**的输入（见 topGeometricErrorFloor 注释），
+  // 与上面压的 root 自身 GE（决定何时细化到精细层）是两个量，互不影响。
+  const floor = options.topGeometricErrorFloor
+  if (floor !== undefined && floor > 0) {
+    out = { ...out, geometricError: Math.max(out.geometricError ?? 0, floor) }
   }
   return out
 }

@@ -233,6 +233,60 @@ export function shouldDropPortContent(node: TilesetNode): boolean {
   return typeof d === 'number' && d > 0 && d <= QINZHOU_COARSE_MAX_DEPTH
 }
 
+/** 港区图层配置的屏误差（像素）——清单条目与下方下限推导共用同一来源 */
+const QINZHOU_MAX_SSE = 32
+
+/**
+ * 港区远景壳守卫距离（米）：默认机位的 **2 倍**——拉远一倍仍不得整层空白。
+ *
+ * 默认机位 585,937 m 为页面首屏实测（`zoom 9 → 300e6/2^9`，2026-10-04 探针），取整 586 km。
+ */
+export const QINZHOU_SHELL_GUARD_DISTANCE = 2 * 586_000
+
+/** 推导用最小画布高（px）：探针最窄档 900 px 宽实测 605 px 高，取整留余 */
+const QINZHOU_MIN_CANVAS_HEIGHT_PX = 600
+
+/** 闸门判据是 `<=`（等号即整层消失），推导留 25% 余量 */
+const QINZHOU_GATE_MARGIN = 1.25
+
+/** Cesium 60° FOV 在纵横比 ≤1 时按竖直解析 ⇒ sseDenominator 上界 2·tan30°（最坏情形） */
+const SSE_DENOMINATOR_MAX_60DEG = 2 * Math.tan(Math.PI / 6)
+
+/**
+ * 港区图层**顶层 `geometricError` 下限（米）**——让远景壳跨视口宽高统一在场。
+ *
+ * ## 机制（2026-10-04 运行时实测 + Cesium 源码）
+ *
+ * `Cesium3DTilesetBaseTraversal.selectTiles` 访问 root 前有一条早退：
+ * `root.getScreenSpaceError(frameState, true) <= memoryAdjustedScreenSpaceError` 即 `return`
+ * （`visited = 0`，root 自己的内容也不选）。root 无 parent ⇒ 该 SSE 的 GE 取的是
+ * **顶层 `geometricError`**（`Cesium3DTile` 的 `tileset._scaledGeometricError` 分支），
+ * 而不是被 `capRootGeometricError` 压过的 root 瓦片 GE。故整层被剔除的距离
+ * `d_cull = GE_top · H / (maxSSE · sseDenominator)`（H = 画布高）。
+ *
+ * 实测（586 km 默认机位、交付包现顶层值 18045.7、maxSSE 32）：1440/1280 px 出壳
+ * （H=968/860 ⇒ 闸门 SSE 38.4/34.1 > 32），1180 px 及以下整层空白（H=793 ⇒ 31.5 ≤ 32）。
+ * 即「同一机位，视口高的差别把闸门推过阈值」——用户看到的「LOD 不统一」。
+ * 本项只抬整层早退的距离，不动 root GE ⇒ 精细层出现距离（LOD 切换）不变：
+ * 900 px 档闸门 SSE 从 24.0 抬到 120.0，而 60 km 仍是 7 块 / 458283 tri（运行时对照实测）。
+ *
+ * ## 取值（不手抄常数，按守卫推导）
+ *
+ * 要求：画布高 ≥ 600 px、相机距锚点 ≤ {@link QINZHOU_SHELL_GUARD_DISTANCE} 时闸门不得触发。
+ * sseDenominator 取上界（纵横比 ≤1 时 60° FOV 按竖直 ⇒ 2·tan30°；纵横比越大分母越小）。
+ *
+ * **失效条件**：① 清单的 maxSSE / 默认机位 / 最小画布高任一变更 ⇒ 本值须按同式重算
+ * （`tools/diag/probe-port-far-view-vs-viewport.cjs` 会先红）；② 相机拉远超过
+ * ~1.5 Mm（最坏纵横比）~2.2 Mm（常用 1.49 纵横比）后整层仍会被 Cesium 剔除——
+ * 这是「整层太小不值得画」的固有行为，要到那个量级须再抬下限。
+ */
+export const QINZHOU_TOP_GE_FLOOR =
+  (QINZHOU_MAX_SSE *
+    QINZHOU_GATE_MARGIN *
+    QINZHOU_SHELL_GUARD_DISTANCE *
+    SSE_DENOMINATOR_MAX_60DEG) /
+  QINZHOU_MIN_CANVAS_HEIGHT_PX
+
 export const BEIBU_TILES: readonly BeibuTilesSpec[] = [
   {
     id: 'pinglu-canal',
@@ -258,7 +312,7 @@ export const BEIBU_TILES: readonly BeibuTilesSpec[] = [
     label: '钦州港 · 作业区三维（交付包）',
     url: '/static/qinzhou-port/tiles/tileset.json',
     carriesTerrain: true,
-    maximumScreenSpaceError: 32,
+    maximumScreenSpaceError: QINZHOU_MAX_SSE,
     defaultVisible: true,
     // 裁到作业区：球外整棵剔除，球内粗层摘内容（见 QINZHOU_OPERATION_AREA 的实测表）
     derive: {
@@ -269,6 +323,11 @@ export const BEIBU_TILES: readonly BeibuTilesSpec[] = [
       // 近距离才细化到 d4/d5（与改前同量级，不额外增加下载）。
       capRootGeometricError: true,
       collapseEmptyLevels: true,
+      // 压 root GE 后还有第二道闸门：Cesium 访问 root **之前**按顶层 geometricError
+      // 判「整层太小就先 return」（见 QINZHOU_TOP_GE_FLOOR 的机制注释与实测）。
+      // 现状 18045.7 在 586 km 默认机位下 1180 px 及以下窗口整层空白——远景壳
+      // 随视口高翻转；抬到守卫下限后 6 档视口宽度统一在场（探针 6/6 绿）。
+      topGeometricErrorFloor: QINZHOU_TOP_GE_FLOOR,
     },
   },
   {

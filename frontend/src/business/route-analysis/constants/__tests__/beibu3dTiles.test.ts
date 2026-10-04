@@ -15,6 +15,8 @@ import {
   BEIBU_TILES,
   QINZHOU_COARSE_MAX_DEPTH,
   QINZHOU_OPERATION_AREA,
+  QINZHOU_SHELL_GUARD_DISTANCE,
+  QINZHOU_TOP_GE_FLOOR,
   isCoarseTerrainLayer,
   prepareBeibuTileset,
   shouldDropPortContent,
@@ -107,6 +109,8 @@ describe('BEIBU_TILES 清单', () => {
     // 作用域由清单派生（属性=数组长度），不是手抄名单：新加一条摘内容的资产、漏了这两个开关，此处必红。
     // 这是「LOD 一致性要保证统一性」的可执行形态——运行时阶梯探针（tools/diag/lod-ladder.cjs）
     // 需要 dev server 与 gitignored 交付包，进不了 CI，所以 CI 侧钉这条配置级不变量。
+    // 注：本不变量只保「遍历终点必有内容」；保留 root 内容做远景壳的条目还要过**整层早退
+    // 闸门**（顶层 geometricError），那条由 QINZHOU_TOP_GE_FLOOR 与其 describe 单独钉。
     const droppers = BEIBU_TILES.filter((s) => s.derive?.dropContent)
     // 阳性对照：若将来没人再摘内容，本用例会因下面这行失败而不是静默恒真
     expect(droppers.length).toBeGreaterThan(0)
@@ -128,6 +132,46 @@ describe('QINZHOU_OPERATION_AREA — 裁剪球', () => {
     const [e, n] = QINZHOU_OPERATION_AREA.center
     expect(Math.abs(e)).toBeLessThan(8078)
     expect(Math.abs(n)).toBeLessThan(9022)
+  })
+})
+
+// 顶层 GE 下限（整层早退闸门）：Cesium 在**访问 root 之前**按顶层 geometricError 判
+// 「整层在屏幕上太小」，SSE ≤ maxSSE 即直接 return（visited=0，root 内容也不选）。
+// 586 km 默认机位实测：旧顶层值 18045.7 在 900 px 窗（H=605）闸门 SSE 24.0 ≤ 32 ⇒ 整层空白；
+// 下限把同一机位抬到 >32，且只动闸门距离、不动 root GE（LOD 切换距离不变）。
+describe('QINZHOU_TOP_GE_FLOOR — 港区整层早退闸门的下限', () => {
+  // Cesium 口径：gateSSE = geTop·H/(d·sseDenominator)（root 无 parent ⇒ geTop = 顶层值）
+  const gateSse = (geTop: number, hPx: number, d: number, denom: number) =>
+    (geTop * hPx) / (d * denom)
+  // 实测参数（2026-10-04）：默认机位 585,937 m（首屏相机实测）；900 px 探针窗画布 H=605
+  // （宽×0.672）；页面 fov 60° / 纵横比 1.488 ⇒ sseDenominator 0.7762（页面实测）
+  const D_DEFAULT = 585_937
+  const H_900 = 605
+  const DENOM_DEFAULT = 0.7762
+  // 阳性对照：修复前的顶层值（交付包 root 包围盒世界尺度，页面实测）——必须红
+  const GE_TOP_LEGACY = 18_045.70703125
+
+  it('旧值在 900 px 默认机位必触发早退（重现 4/6 红），下限值不触发', () => {
+    expect(gateSse(GE_TOP_LEGACY, H_900, D_DEFAULT, DENOM_DEFAULT)).toBeLessThanOrEqual(32)
+    expect(gateSse(QINZHOU_TOP_GE_FLOOR, H_900, D_DEFAULT, DENOM_DEFAULT)).toBeGreaterThan(32)
+  })
+
+  it('守卫：2× 默认机位、H=600、最坏纵横比（≤1，60° 当竖直）仍不触发早退', () => {
+    const denomWorst = 2 * Math.tan(Math.PI / 6)
+    expect(
+      gateSse(QINZHOU_TOP_GE_FLOOR, 600, QINZHOU_SHELL_GUARD_DISTANCE, denomWorst)
+    ).toBeGreaterThan(32)
+  })
+
+  it('清单接线：港区条目声明了下限，maxSSE 仍是推导里的那个 32', () => {
+    expect(QINZHOU.derive?.topGeometricErrorFloor).toBe(QINZHOU_TOP_GE_FLOOR)
+    expect(QINZHOU.maximumScreenSpaceError).toBe(32)
+  })
+
+  it('端到端派生：顶层值被抬到下限（现值 18000 < 下限），root GE 仍是被摘空层上确界', () => {
+    const out = prepareBeibuTileset(makeTileset(), QINZHOU)
+    expect(out!.geometricError).toBe(QINZHOU_TOP_GE_FLOOR)
+    expect(out!.root.geometricError).toBe(400) // makeTileset 空层 d2 半轴 200 ⇒ 尺度 400
   })
 })
 

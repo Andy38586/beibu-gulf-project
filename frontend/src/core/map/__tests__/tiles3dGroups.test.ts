@@ -629,13 +629,35 @@ describe('cropTilesetForDataUri — 摘空层折叠与 root GE 上压', () => {
     const out = cropTilesetForDataUri(makeDeepTileset(), 'http://x.test/x/tileset.json', OPTS)
     // 空层 a ⇒ 4000、b ⇒ 2000，上确界 4000；不压的话 root 是整包尺度 8000
     expect(out!.root.geometricError).toBe(4000)
-    // 顶层 geometricError 字段不动：Cesium 遍历读的是 root 瓦片自身的 GE（§8.15 实测）
+    // 不传 topGeometricErrorFloor 时顶层字段保持归一化值 8000。注意顶层字段不是装饰：
+    // Cesium 访问 root 前的整层早退读的正是它（root 无 parent ⇒ tileset._scaledGeometricError），
+    // 与 root 自身 GE（决定何时细化）是两个量——港区因此必须同时设下限（见下一条用例）。
     expect(out!.geometricError).toBe(8000)
     const noCap = cropTilesetForDataUri(makeDeepTileset(), 'http://x.test/x/tileset.json', {
       dropContent: DROP_A_B,
       collapseEmptyLevels: true,
     })
     expect(noCap!.root.geometricError).toBe(8000)
+  })
+
+  it('topGeometricErrorFloor：只抬顶层 geometricError（整层早退闸门输入），不动 root GE', () => {
+    const src = makeDeepTileset()
+    const out = cropTilesetForDataUri(src, 'http://x.test/x/tileset.json', {
+      ...OPTS,
+      topGeometricErrorFloor: 30000,
+    })
+    // 顶层被抬到下限；root 仍是被摘空层上确界 4000（LOD 切换距离不受影响）
+    expect(out!.geometricError).toBe(30000)
+    expect(out!.root.geometricError).toBe(4000)
+    // 下限低于现值时不动作（不许把已更大的顶层值压回去）
+    const low = cropTilesetForDataUri(src, 'http://x.test/x/tileset.json', {
+      ...OPTS,
+      topGeometricErrorFloor: 100,
+    })
+    expect(low!.geometricError).toBe(8000)
+    // 不传该项 ⇒ 顶层保持归一化值（老行为不变）
+    const none = cropTilesetForDataUri(src, 'http://x.test/x/tileset.json', OPTS)
+    expect(none!.geometricError).toBe(8000)
   })
 
   it('没摘空任何层 ⇒ cap 不生效（不臆造上限），结果与不传两项时逐位相同', () => {

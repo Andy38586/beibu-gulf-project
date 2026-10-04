@@ -472,6 +472,9 @@ EXIT=0（近/中景：马道/企石/青年 4/4/3 块、tri 10916/10436/13804，�
 **2026-10-04 21:0x 复测修正（见 §8.23）**：本行「586 km 港区有壳」只在画布宽 ≥1280 px 成立；
 1180 px 及以下整层空白（同机位、rootSSE ≤14.92）。判据探针
 `tools/diag/probe-port-far-view-vs-viewport.cjs`（任一宽度 `tri=0` 即 EXIT=1）。
+**2026-10-04 22:0x 已修**：机制 = Cesium 整层早退闸门读顶层 `geometricError`（非 root GE），
+derive 新增 `topGeometricErrorFloor` 把港区顶层值抬到 90220.6 m ⇒ 探针 **6/6 全绿、EXIT=0**；
+细节见 §8.23（含机制取证与"只影响早退距离、不影响 LOD 切换"的运行时对照）。
 
 ### 8.16 三枢纽「未正位」参照系复核 + 马道决定图（2026-10-04 16:2x）
 
@@ -869,20 +872,56 @@ resize 到 1024×700 ⇒ **sel=0/tri=0** ⇒ resize 回 1440×968 ⇒ sel=1/tri=
 **与 §8.15 的关系**：§8.15 的「586 km 有壳（42547 tri）」在 1280×860 上成立，但不是全宽度结论；
 本节把"远景主体没有"重新变回在册项（用户小窗口/分屏时可见）。
 
-**仍未闭（机制未定，不自行选法；未动 `beibu3dTiles.ts` 与 derive）**：为什么 maxSSE≥32 时连
-有内容的 root 都不选、而 16 选根、8 细化到全量，未定位。候选解释（待证伪）：derive 后 7 个子节点
-`geometricError=0` 且内容未请求，与 Cesium 遍历/`capRootGeometricError` 压到 8557.5 的组合。
-修法（改 cap 目标／改 maxSSE／去掉 GE=0 空叶）须机制定位后再选，**属改渲染口径，待用户裁**。
+**机制已定（2026-10-04 22:0x，Cesium 源码 + 运行时 dump 两头夹）**：翻转不在"遍历终点"上，
+而在 `Cesium3DTilesetBaseTraversal.selectTiles` 的**整层早退闸门**——访问 root 之前先算
+`root.getScreenSpaceError(frameState, true)`，一旦 `<= memoryAdjustedScreenSpaceError` 就
+`return`：**不访问任何瓦片、也不选 root 自己的内容**。root 无 parent ⇒ `getScreenSpaceError(…, true)`
+取的是 `tileset._scaledGeometricError`（= 顶层 `geometricError`，本包归一化后 **18045.7**），
+而不是被 `capRootGeometricError` 压过的 root GE（8557.5）——两者比值恒定 ⇒ 把「闸门 SSE 跨过
+maxSSE」变成「画布高跨过阈值」，这就是"随视口翻转"。
 
-**复算钩子**：```bash
+**运行时 dump（`.local/3d-review/probe-port-tree-dump.cjs`，同机位 586 km）**：
+
+| 视口宽（H） | `statistics.visited` | root `_refines` | sel | 闸门 SSE（18045.7·H/(586km·0.7762)） |
+| ----------- | -------------------- | --------------- | --- | ------------------------------------ |
+| 1440（968） | 1                    | false           | 1   | 38.4 > 32 ⇒ 过闸                     |
+| 1024（688） | **0**                | 未访问          | 0   | 25.9 ≤ 32 ⇒ 早退                     |
+
+⇒ 与 6 档探针表一致：过闸 + root 停 ⇒ 出壳（42547 tri）；早退 ⇒ `visited=0` 整层空白。
+**运行时对照（`.local/3d-review/probe-ge-top-poke.cjs`，900 px 档）**：顶层值 18045.7 ⇒
+`visited=0/sel=0`；把 `_scaledGeometricError` 改 50000 ⇒ `visited=1/sel=1/tri 42547`（出壳）；
+同 session 飞 60 km ⇒ `sel=7/tri 458283` 不变 ⇒ **只影响早退距离，不影响 LOD 切换**。
+
+**修法（本笔，已落地）**：derive 新增 `topGeometricErrorFloor`（`frontend/src/core/map/tiles3dGroups.ts`），
+只抬顶层 `geometricError`、不碰 root GE；港区清单按守卫推导取值
+`(32·1.25·2·586000·2·tan30°)/600 = 90220.6 m`（`frontend/src/business/route-analysis/constants/beibu3dTiles.ts`
+的 `QINZHOU_TOP_GE_FLOOR`：maxSSE 32 × 25% 闸门余量 × 2×默认机位 1,172,000 m × 最坏纵横比分母
+2·tan30° ÷ 最小画布高 600 px）。
+
+**修复后实测（同一探针 6 档独立进程）**：1440/1280/1180/1100/1024/900 px **6/6 在场**
+（sel=1 / tri=42547 / rootSSE 18.21→11.38 不变），末行 `⇒ 6/6 个宽度远景都有内容（EXIT=0）`。
+单测侧另钉两条：旧值 18,045.7 在 900 px 档闸门 SSE 24.0 ≤ 32（阳性对照必红）、下限值同档 > 32；
+以及「2× 默认机位、H=600、最坏纵横比」仍不触发早退（`beibu3dTiles.test.ts` 的
+`QINZHOU_TOP_GE_FLOOR` describe）。
+
+**残余（明记，不藏）**：闸门是「整层太小就不画」的固有行为，抬下限只把剔除距离推到
+最坏纵横比 ~1.46 Mm / 常用 1.49 纵横比 ~2.2 Mm；相机拉远超过该距离整层仍会消失。
+要到那个量级须再抬下限（改 `QINZHOU_TOP_GE_FLOOR` 的守卫距离常数并重跑探针）。
+
+**复算钩子**：
+
+```bash
 node tools/diag/probe-port-far-view-vs-viewport.cjs
 
 # 期望（修复前）: 1440/1280 在场，1180 及以下 4 档"在场=否 sel=0 tri=0"，末行 EXIT=1
 
-# 期望（修复后）: 6/6 在场，末行 "⇒ 6/6 个宽度远景都有内容（EXIT=0）"
+# 期望（HEAD）: 6 档全部"在场=是 sel=1 tri=42547"，末行 "⇒ 6/6 个宽度远景都有内容（EXIT=0）"
+
+cd frontend && npx vitest run src/business/route-analysis/constants/__tests__/beibu3dTiles.test.ts
+
+# 期望: Test Files 1 passed；含 QINZHOU_TOP_GE_FLOOR 的 4 个用例
 
 ```
 
 **作废条件**：交付包换版、`beibu3dTiles.ts` 的 `maximumScreenSpaceError`/derive 改动、
 或 Cesium 版本变更 ⇒ 重测；若探针在某档因图层未注册而红，按"缺件"归因，不得当渲染回归。
-```

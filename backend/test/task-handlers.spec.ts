@@ -205,6 +205,7 @@ describe('TaskHandlers 委托接线', () => {
         weights: { inundation: 0.43, terrain: 0.09, land: 0.21, access: 0.11, demand: 0.17 },
         minLandFrac: 0.5,
         resolution: 0.02,
+        weightsSource: 'query',
       })
     })
 

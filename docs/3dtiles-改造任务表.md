@@ -384,6 +384,14 @@ tools/diag/probe-port-roads-vs-ground.py`（输出新增段" C 回退半径评�
   +0.10、两层 R≤48 m 覆盖 100%。**红样（实施笔必附）**：①停用逐顶点查询（回落常数）⇒ 窗口内
   埋没率必须回到 100%；②查询参考整体 +1 m ⇒ 路−参考差必须偏离 +0.15；两者不红即假绿；
   等价重构（+0.15 提为常量引用）不红。回退 = revert 本笔 + 重建（产物可复现，无外部依赖）。
+- **运行时预览（2026-10-05，工具已入库）**：`tools/diag/preview-roads-vertfollow.py` 生成试验
+  GLB（口径=开工单：全瓦片去重、rail/concrete/opaque、4 m 格、r=48、roads +0.15 / ground +0.05；
+  几何自检 max 误差 7.6e-07 m），`tools/diag/preview-roads-vertfollow.cjs` 用 route 拦截在
+  dev server 上做 now/C 同机位 A/B（只写 `.local/c-preview/`，生产零改动）。实测（三次连跑一致）：
+  900 m 斜视道路层像素 **4295 → 11939（2.8×）**、1500 m 高位 **6241 → 11749（1.9×）**；
+  420 m 俯视该机位路网少（93↔73）无信号。对比/差异图 `compare-*.png`、`diff-now-vs-c-*.png`
+  同落盘。ground 层 defaultVisible=false 未实例化，本轮未含 ground 场景（数值见上条"连带影响面"）。
+  复算：`... preview-roads-vertfollow.py` → `node tools/diag/preview-roads-vertfollow.cjs`。
 
 ### 8.13 运行时复查：「LOD 主体没有 / 道路缝隙 / 底图没正位」归因 · 2026-10-04 13:xx
 

@@ -11,6 +11,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { SiteSuitabilityRepository } from '../src/modules/site-suitability/repositories/site-suitability.repository'
+import { parseSuitabilityQuery } from '../src/modules/site-suitability/dto/site-suitability.dto'
 import { SiteSuitabilityService } from '../src/modules/site-suitability/services/site-suitability.service'
 
 /** 假仓储：只实现本用例用到的两个方法；行形状照抄 pg 的真实返回（id 为字符串）。
@@ -52,6 +53,7 @@ describe('site-suitability 对外契约：id 类型归一', () => {
       weights: { inundation: 0.4, terrain: 0.1, land: 0.2, access: 0.2, demand: 0.1 },
       minLandFrac: 0.5,
       resolution: 0,
+      weightsSource: 'query',
     })
 
     expect(res.features).toHaveLength(1)
@@ -70,6 +72,7 @@ describe('site-suitability 对外契约：id 类型归一', () => {
       weights: { inundation: 0.4, terrain: 0.1, land: 0.2, access: 0.2, demand: 0.1 },
       minLandFrac: 0.5,
       resolution: 0,
+      weightsSource: 'query',
     })
     const roundTrip = JSON.parse(JSON.stringify(res))
     expect(typeof roundTrip.features[0].properties.id).toBe('number')
@@ -82,9 +85,20 @@ describe('site-suitability 对外契约：id 类型归一', () => {
       weights: { inundation: 0.4, terrain: 0.1, land: 0.2, access: 0.2, demand: 0.1 },
       minLandFrac: 0.5,
       resolution: 0.02,
+      weightsSource: 'query',
     })
     expect(spy.minLandFrac).toBe(0.5)
     expect(spy.resolution).toBe(0.02)
     expect(res.metadata.resolution).toBe(0.02)
+  })
+
+  // 幽灵标签回归：metadata.weightsSource 必须回显真实来源。
+  // 以前 service 恒写 'ahp-final'，query 权重也被标成定稿（零消费方，无人发现）。
+  it("缺省解析 → 'ahp-default'；w_* 查询 → 'query'", async () => {
+    const svc = new SiteSuitabilityService(repoWith(PG_ROW))
+    const fromDefault = await svc.compute(parseSuitabilityQuery({}))
+    expect(fromDefault.metadata.weightsSource).toBe('ahp-default')
+    const fromQuery = await svc.compute(parseSuitabilityQuery({ w_inundation: '1' }))
+    expect(fromQuery.metadata.weightsSource).toBe('query')
   })
 })

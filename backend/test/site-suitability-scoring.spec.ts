@@ -110,17 +110,19 @@ describe('cellScore 加权和', () => {
 })
 
 describe('DTO 缺省与解析', () => {
-  it('无 w_* 参数 → 回落 AHP 草案特征向量（和=1）', () => {
+  it('无 w_* 参数 → 回落 AHP 定稿特征向量（和=1，来源标 ahp-default）', () => {
     const q = parseSuitabilityQuery({})
     const sum = Object.values(q.weights).reduce((a, b) => a + b, 0)
     expect(Math.abs(sum - 1)).toBeLessThan(1e-6)
-    // 草案定性序：浸没权重最大（安全门槛型）
+    // 定稿定性序：浸没权重最大（安全门槛型）
     expect(q.weights.inundation).toBe(Math.max(...Object.values(q.weights)))
     expect(q.minLandFrac).toBe(0.5)
+    expect(q.weightsSource).toBe('ahp-default')
   })
   it('部分给定补 0：w_inundation=1 → 其余 0；min_land_frac 越界拒收', () => {
     const q = parseSuitabilityQuery({ w_inundation: '1' })
     expect(q.weights.inundation).toBe(1)
+    expect(q.weightsSource).toBe('query')
     expect(q.weights.terrain).toBe(0)
     expect(() => parseSuitabilityQuery({ w_inundation: '1', min_land_frac: '2' })).toThrow(
       /min_land_frac/

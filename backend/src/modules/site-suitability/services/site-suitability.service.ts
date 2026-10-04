@@ -2,7 +2,13 @@ import { Injectable } from '@nestjs/common'
 
 import { SiteSuitabilityRepository } from '../repositories/site-suitability.repository'
 import { parseWeights, type CellScore, type FactorCell, type SuitabilityWeights } from './scoring'
-import type { SuitabilityQuery } from '../dto/site-suitability.dto'
+import {
+  DEFAULT_MIN_LAND_FRAC,
+  DEFAULT_RESOLUTION,
+  defaultWeights,
+  type SuitabilityQuery,
+} from '../dto/site-suitability.dto'
+import { DEFAULT_THRESHOLDS, type ScoreThresholds } from '../constants/score.constants'
 
 import { cellScore } from './scoring'
 
@@ -20,12 +26,21 @@ export interface SuitabilityResult {
   metadata: {
     count: number
     weights: SuitabilityWeights
-    weightsSource: 'query' | 'ahp-final'
+    weightsSource: 'query' | 'ahp-default'
     kdeP99: number
     minLandFrac: number
     /** 实际使用的聚合分辨率（度）；0 = 全分辨率 */
     resolution: number
   }
+}
+
+/** GET /defaults 出参（前端 siteSuitabilityDefaultsSchema 逐字段反向核对） */
+export interface SuitabilityDefaults {
+  weights: Record<string, number>
+  thresholds: ScoreThresholds
+  minLandFrac: number
+  resolution: number
+  source: string
 }
 
 @Injectable()
@@ -66,12 +81,28 @@ export class SiteSuitabilityService {
       metadata: {
         count: features.length,
         weights,
-        weightsSource: 'ahp-final',
+        weightsSource: query.weightsSource,
         kdeP99,
         minLandFrac: query.minLandFrac,
         // 回显实际聚合口径：0 = 全分辨率；前端可据此提示"当前为聚合视图"
         resolution: query.resolution,
       },
+    }
+  }
+
+  /**
+   * 默认值单源（GET /site-suitability/defaults）：权重定稿向量 + 阈值表 +
+   * 过滤/分辨率缺省。前端 store 以此为准；拉不到时用同值快照兜底（快照见
+   * frontend/src/business/site-suitability/constants/defaults.snapshot.ts，
+   * 成功/兜底在日志可区分，UI 无区别）。
+   */
+  getDefaults(): SuitabilityDefaults {
+    return {
+      weights: defaultWeights(),
+      thresholds: DEFAULT_THRESHOLDS,
+      minLandFrac: DEFAULT_MIN_LAND_FRAC,
+      resolution: DEFAULT_RESOLUTION,
+      source: 'SITE_AHP_MATRIX@2026-09-30',
     }
   }
 }

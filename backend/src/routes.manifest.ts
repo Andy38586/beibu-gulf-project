@@ -35,6 +35,7 @@ export const ROUTES_MANIFEST = [
   { method: 'DELETE', path: 'nest-api/plans/:id/xiaoqu/:xiaoquId' },
   { method: 'GET', path: 'nest-api/route/path' },
   { method: 'GET', path: 'nest-api/route/pois' },
+  { method: 'GET', path: 'nest-api/site-suitability/defaults' },
   { method: 'GET', path: 'nest-api/site-suitability/map' },
   { method: 'POST', path: 'nest-api/task' },
   { method: 'DELETE', path: 'nest-api/task/:id' },

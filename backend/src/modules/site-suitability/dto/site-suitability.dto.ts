@@ -5,11 +5,20 @@ import { ahpWeights } from '../../../common/ahp'
 import { SITE_AHP_MATRIX, SITE_CRITERIA } from '../../../common/constants/site-ahp.constants'
 import { BusinessError, ErrorCode } from '../../../common/errors/business-error'
 
+/**
+ * 解析缺省值单源（04-B3）：parse 与 GET /defaults 共用，禁止在别处再手抄 0.5/0。
+ * 前端快照（defaults.snapshot.ts）是此间定稿值的发布副本，对齐守卫见后端 defaults 单测。
+ */
+export const DEFAULT_MIN_LAND_FRAC = 0.5
+export const DEFAULT_RESOLUTION = 0
+
 export interface SuitabilityQuery {
   weights: Record<string, number>
   minLandFrac: number
   /** 聚合分辨率（度）。0 = 全分辨率（默认，保持既有消费方行为）；>0 = 按该边长的粗格聚合 */
   resolution: number
+  /** 权重来源（metadata.weightsSource 同值域；幽灵标签修复前 service 恒写 ahp-final） */
+  weightsSource: 'query' | 'ahp-default'
 }
 
 /** AHP 定稿特征向量权重（顺序对应 SITE_CRITERIA：浸没/地形/土地/可达/需求） */
@@ -46,6 +55,7 @@ export function parseSuitabilityQuery(query: Record<string, unknown>): Suitabili
       weights: defaultWeights(),
       minLandFrac: parseMinLandFrac(query.min_land_frac),
       resolution: parseResolution(query.resolution),
+      weightsSource: 'ahp-default',
     }
   }
   for (const k of WEIGHT_KEYS) {
@@ -55,6 +65,7 @@ export function parseSuitabilityQuery(query: Record<string, unknown>): Suitabili
     weights,
     minLandFrac: parseMinLandFrac(query.min_land_frac),
     resolution: parseResolution(query.resolution),
+    weightsSource: 'query',
   }
 }
 
@@ -63,7 +74,7 @@ export function parseSuitabilityQuery(query: Record<string, unknown>): Suitabili
  * 渲染热力图不需要原始格 ⇒ 允许按要求聚合。0（缺省）= 全分辨率；上限 1°（再粗无意义）。
  */
 function parseResolution(raw: unknown): number {
-  if (raw === undefined || raw === '') return 0
+  if (raw === undefined || raw === '') return DEFAULT_RESOLUTION
   const v = Number(raw)
   if (!Number.isFinite(v) || v < 0 || v > 1)
     throw new BusinessError(ErrorCode.INVALID_PARAMS, 'resolution 须 ∈ (0,1]，或 0 表示全分辨率')
@@ -71,7 +82,7 @@ function parseResolution(raw: unknown): number {
 }
 
 function parseMinLandFrac(raw: unknown): number {
-  if (raw === undefined || raw === '') return 0.5
+  if (raw === undefined || raw === '') return DEFAULT_MIN_LAND_FRAC
   const v = Number(raw)
   if (!Number.isFinite(v) || v < 0 || v > 1) {
     throw new BusinessError(ErrorCode.INVALID_PARAMS, 'min_land_frac 须 ∈ [0,1]')

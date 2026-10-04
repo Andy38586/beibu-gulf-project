@@ -455,16 +455,24 @@ if (FLAGS.build) {
 // E2. npm audit（CI 用官方源；本地镜像无 audit 端点，网络不可达降级为 WARN，以 CI 为准）
 section('E2. 依赖安全审计（对齐 CI audit job）')
 if (FLAGS.audit) {
-  for (const [label, cwd] of [
-    ['根', ROOT],
-    ['Nest(backend)', path.join(ROOT, 'backend')],
+  // 根条目与 ci.yml audit job 同口径（--omit=dev）：dev 工具链的 braces/GHSA 无补丁，
+  // 用户裁定 A = 只阻断生产依赖、例外条目不入库，等上游补丁后恢复全量。backend 无此例外。
+  for (const [label, cwd, extraArgs] of [
+    ['根', ROOT, ['--omit=dev']],
+    ['Nest(backend)', path.join(ROOT, 'backend'), []],
   ]) {
-    const r = run(NPM, ['audit', '--audit-level=high', '--registry=https://registry.npmjs.org'], {
-      cwd,
-    })
+    const r = run(
+      NPM,
+      ['audit', '--audit-level=high', ...extraArgs, '--registry=https://registry.npmjs.org'],
+      { cwd }
+    )
     const out = r.stdout + r.stderr
     if (r.status === 0) {
-      record('E2', `${label} npm audit 无 high+ 漏洞`, 'pass')
+      record(
+        'E2',
+        `${label} npm audit${extraArgs.length ? '（生产依赖）' : ''} 无 high+ 漏洞`,
+        'pass'
+      )
     } else if (/vulnerabilit/i.test(out)) {
       record(
         'E2',

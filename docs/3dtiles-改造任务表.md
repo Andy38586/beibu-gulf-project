@@ -1093,19 +1093,20 @@ node tools/diag/lod-ladder.cjs http://127.0.0.1:5174/route-analysis
 **通道（§四 #15-10 的代跑形态）**：`tools/diag/lod-ladder.cjs` 升级为**全量收集**
 error/warning 型 console 消息（带出错资源 URL）与 `pageerror`（未捕获异常），运行末打印汇总
 并落 `.local/3d-review/lod-ladder/lod-ladder.json`。口径与其余探针一致：环境性错误
-（后端 DB 未起 ⇒ `/auth/me` 401、`/route/pois` 500；天地图 key 配额 ⇒ 429；地形幽灵声明
-⇒ `.terrain` 404）**不判红**，只要求逐条可归因；`pageerror` 非零须查清是否渲染链缺陷。
+（后端 DB 未起 ⇒ `/auth/me` 401、`/route/pois` 500；天地图 key 配额 ⇒ 429；地形预热漏翻 y
+（z2/z3）与深层幽灵声明 ⇒ `.terrain` 404）**不判红**，只要求逐条可归因；`pageerror` 非零须
+查清是否渲染链缺陷。
 
 **实测归因（真 Edge，586 km 单档）**：error/warning 143 条、pageerror **0**：
 
-| 计数 | 类别                                                                          | 归因                                                |
-| ---- | ----------------------------------------------------------------------------- | --------------------------------------------------- |
-| 103  | 天地图 `img_w`/`cia_w` 429                                                    | key 配额（外部，已知）                              |
-| 5    | `/static/terrain/*.terrain` 404                                               | layer.json 幽灵声明 76 张（= 07c 待裁项，同一根因） |
-| 2    | `injection "Symbol(businessLayerManager)" not found` + useBusinessLayers warn | **本次修复**（见下）                                |
-| 3    | `/auth/me` 401、`/route/pois` 500、DB 拒连 warn                               | 本机 dev DB 未起（环境）                            |
-| 1    | 底图瓦片加载失败 U5                                                           | 天地图 key（同上）                                  |
-| 其余 | 「未归属分组」警告、分组注册 log                                              | 预期（corridor/bridges 已废弃成文）                 |
+| 计数 | 类别                                                                          | 归因                                                                               |
+| ---- | ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| 103  | 天地图 `img_w`/`cia_w` 429                                                    | key 配额（外部，已知）                                                             |
+| 5    | `/static/terrain/*.terrain` 404                                               | **预热通道漏翻 y**请求镜像位置（§8.27，本批修复）；与 z13/z14 幽灵 76 张不是同一批 |
+| 2    | `injection "Symbol(businessLayerManager)" not found` + useBusinessLayers warn | **本次修复**（见下）                                                               |
+| 3    | `/auth/me` 401、`/route/pois` 500、DB 拒连 warn                               | 本机 dev DB 未起（环境）                                                           |
+| 1    | 底图瓦片加载失败 U5                                                           | 天地图 key（同上）                                                                 |
+| 其余 | 「未归属分组」警告、分组注册 log                                              | 预期（corridor/bridges 已废弃成文）                                                |
 
 **根因（两条都要运行时才现形）**：Vue 的 provide **只对后代生效**，`App.vue` 给自己 provide
 的键自己 inject 不到：
@@ -1144,8 +1145,9 @@ node tools/diag/probe-app-selfprovide.cjs
 ③ 新增 1 个导出面（`BusinessLayerManagerLike` 类型导出）与 1 个探针，均有消费/调用点；
 未新增 env、依赖、门禁。④ 后代组件的 inject 路径未变（`useMapControls` provide 用例在测）。
 
-**残余与环境性（不判红但明记）**：dev DB 未起时的 401/500、天地图 key 配额、07c 幽灵 404；
-换到 DB + 有效 key 的环境复跑，控制台应只剩「未归属分组」预期告警。
+**残余与环境性（不判红但明记）**：dev DB 未起时的 401/500、天地图 key 配额、07c 深层幽灵 404
+（z13/z14）；预热通道 z2/z3 的 5×404 已由 §8.27 修复（复跑应消失）；换到 DB + 有效 key 的
+环境复跑，控制台应只剩「未归属分组」预期告警。
 
 **观察入池（不当场改）**：`zoomToCity` / `zoomToDistrict` 仍只传 `height`——2D 落点为
 `heightToZoom` 反推（160 km ⇒ z10.87、16 km ⇒ z14.19），与清单声明的 `zoom` 12/14 不一致；
@@ -1155,58 +1157,63 @@ node tools/diag/probe-app-selfprovide.cjs
 ② BLM/UnifiedMap 的 provide 位置再迁移 ⇒ 本探针需同步（它按 App 的实参路径判）；③ 探针依赖
 dev server 与 OL 渲染器形态（`r.map.getView()`），换渲染器须改读取通道。
 
-### 8.27 【根因】CTB 地形 `available` 与盘上镜像：z≥2 全 404，地形实际只剩 z0/z1 精度 · 2026-10-04
+### 8.27 【根因·已修】地形预热通道漏翻 y：z2/z3 五张 404 · 2026-10-04
 
 **触发**：§8.26 控制台通道在 586 km 档抓到 5×`.terrain` 404（z2/z3）——与在册的
-「76 张幽灵声明（z13/z14）」**不是同一批**，沿这条线查出更大的缺陷。
+「76 张幽灵声明（z13/z14）」**不是同一批**。
 
-**机制（三方证据，全部可复跑）**：
+**机制（运行时实测）**：
 
-1. **盘上文件名 = slippy/北向**：`07-heightmap-reslice.py` 的 `tile_bounds` 以
-   `lat_n = 90 - y*180/rows` 生成、`07c` 的 `tb()` 同款；马道枢纽在 z13 的正确瓦片
-   `13/13149/3074.terrain` 在盘上存在（坐标按 GeographicTilingScheme 现算）。
-2. **`layer.json.available` 按 `rows-1-y`（TMS/南向）翻转写**：z2 声明 `(6,2)`、z3 声明
-   `12/13 × 4..5`、z13 声明 `13135..13138 × 5096..5099`——全部是盘上实物的镜像位置。
-3. **Cesium 1.142 按声明原样请求**（`scheme: slippyMap`，不做翻 y）：
+1. **globe 地形通道正常**：`layer.json.available` 按 TMS 朝向写是 Cesium 的口径——
+   `CesiumTerrainProvider` 内部翻 y 后请求盘上 slippy 实物。真 Edge + Cesium 1.142 实测
+   `isTileAvailable`：`z3_12_3=true`、`z3_12_4=false`；`z13_13149_3074=true`、
+   `z13_13149_5096=false`；`z2_6_1=true`、`z2_6_2=false` ⇒ **不存在「z≥2 全 404、地形
+   实际只剩 z0/z1」**（该说法是本条第一版的误判，已撤回，见下）。
+2. **坏的是首屏预热通道**：`frontend/src/core/map/renderers/terrainPreload.ts` 的
+   `collectTerrainTileUrls` 把 available 的 y 原样拼进 URL（TMS 值当 slippy 用）⇒ 请求镜像
+   位置 `2/6/2`、`3/12/4`、`3/12/5` 等 5 张，全部 404（盘上实物是 `2/6/1`、`3/12/3` 等）——
+   预热对 z2/z3 完全空转、还白打 5 个 404。
+3. **修法**：`collectTerrainTileUrls` 加 `const ySlippy = rows - 1 - y`。它是"按 available
+   拼 URL"的消费者里唯一需要自己翻 y 的一处（Cesium 自己会翻）。
 
-```bash
-# PowerShell 直连 dev server（实际跑法）：
-foreach ($u in @(
-  'http://127.0.0.1:5174/static/terrain/3/12/4.terrain?v=1.1.0',   # 声明位置
-  'http://127.0.0.1:5174/static/terrain/3/12/3.terrain?v=1.1.0'))  # 盘上实物
-  { try { $r = Invoke-WebRequest -Uri $u -UseBasicParsing -TimeoutSec 10
-          "200 $($r.RawContentLength) B $u" }
-    catch { "ERR $($_.Exception.Response.StatusCode.value__) $u" } }
-# 期望: ERR 404 .../3/12/4.terrain ｜ 200 8452 B .../3/12/3.terrain
-# 真 Edge + 真 Cesium（3 km 机位，.local 抓响应）：z0/z1 请求全 200、z2/z3 请求全 404
-```
-
-⇒ z≥2 的**每一张**声明瓦片都被请求到镜像位置、全部 404，Cesium 回退父层 ⇒ **运行时地形
-实际只剩 z0/z1 精度**（GeographicTilingScheme 的 z1 瓦片覆盖 90°×90°，等于没有地形细节）。
-这也解释了为什么此前"根链缺 0、EXIT=0"的探针结论看着全绿：**旧探针把 available 也翻了 y
-再比**（两边同错 ⇒ 抵消），运行时却不翻。
-
-**量化（直接口径，2026-10-04）**：
+**证据（2026-10-04 实跑）**：
 
 ```bash
-backend/algorithm-service/.venv/Scripts/python.exe -X utf8 tools/diag/probe-terrain-tree-vs-layerjson.py
-# 期望（现役资产）：声明∩盘上 10/49157 ｜ 镜像∩盘上 49081 ⇒ ❌ 镜像声明，EXIT=1
-backend/algorithm-service/.venv/Scripts/python.exe -X utf8 tools/dem-pipeline/09-audit-terrain.py
-# 期望（现役资产）：直接命中 10/49157 ｜ 镜像命中 49081 ⇒ [镜像] … FAIL，exit 1
+# 单测（cwd=frontend）：
+npx vitest run src/core/map/renderers/__tests__/terrainPreload.test.ts
+# 期望: Test Files 1 passed ｜ Tests 6 passed (6)
+# 真 Edge 预热抓包（地形关=默认态，只看预热通道）：
+node .local/tmp-app-inject/capture-terrain-requests.mjs http://127.0.0.1:5174/route-analysis --no-terrain
+# 期望: terrain 请求总数 15 {"200":15} ｜ z2: 200=1 非200=0 ｜ z3: 200=4 非200=0
+# Cesium 内部可用性对账（真相裁决）：
+node .local/tmp-app-inject/interrogate-terrain-provider.mjs --real
+# 期望: z3_12_3=true ｜ z3_12_4=false ｜ z13_13149_3074=true ｜ z2_6_1=true
 ```
 
-**修法（脚本已改；资产未写，待用户点头 + 先备份）**：
+**变异四式（实跑；逐条还原后 md5 双向一致 `51DAFC15E3B42B9F9D3B689144E6D67B`）**：
 
-| 文件                                            | 改动                                                                               | dry-run 实测                                                                                                               |
-| ----------------------------------------------- | ---------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `tools/dem-pipeline/07c-patch-terrain.py`       | `available` 用盘上实清单、**不翻 y**；新增「朝向自检」，声明≠实写集即 exit 1       | 声明∩盘上 **49081/49081** ｜ 镜像∩盘上 10；z13 12 张 / z14 16 张（幽灵 76 消除）；实写后 49,081（重写 51 张 + layer.json） |
-| `tools/dem-pipeline/07-heightmap-reslice.py`    | 删 TMS 翻转；注释更正（旧注"available 与 scheme 无关、恒按 TMS 解析"被运行时证伪） | —（整树重跑用）                                                                                                            |
-| `tools/dem-pipeline/09-audit-terrain.py`        | 直接口径 + 镜像自检（镜像 ⇒ FAIL）                                                 | 现役资产 FAIL（见上）                                                                                                      |
-| `tools/diag/probe-terrain-tree-vs-layerjson.py` | 直接口径 + 镜像判定（镜像 ⇒ 红）；文档记实测                                       | 现役资产 EXIT=1                                                                                                            |
+| 变异                                     | 应判   | 实跑（摘）                       |
+| ---------------------------------------- | ------ | -------------------------------- |
+| M1 删翻转（`ySlippy = y`）               | 红     | `Tests 2 failed ｜ 4 passed (6)` |
+| M2 包进恒假分支（`z >= 0 && false ? …`） | 红     | `Tests 2 failed ｜ 4 passed (6)` |
+| M3 等价重构（`2 ** z - y - 1`）          | 不许红 | `Tests 6 passed (6)`             |
+| M4 同义改写违约（`rows - y`，差一位）    | 红     | `Tests 3 failed ｜ 3 passed (6)` |
 
-**待办（需用户点头，属在册 07c 项的范围扩张）**：执行 `07c-patch-terrain.py`（先备份
-`layer.json`）⇒ 重写 51 张瓦片 + layer.json，之后探针应转 EXIT=0（声明与盘上逐张一致）。
-注意 `backend/static/terrain` 是 gitignored 运行时资产、且是"构建不覆盖"卷 ⇒ 上线要手动同步。
+**撤回（本批第一版 `4b157477` 的结论作废）**：其「`available` 与盘上互为镜像 ⇒ z≥2 全 404、
+Cesium 按声明原样请求 ⇒ 运行时地形只剩 z0/z1 精度」被上面的 `isTileAvailable` 运行时实测
+推翻——Cesium 自己会翻 y，探针把 available 翻 y 再比是**正确**口径。该版对
+`07-heightmap-reslice.py` / `07c-patch-terrain.py` / `09-audit-terrain.py` / 探针的改动与
+「声明∩盘上 10/49157」等量化数字一并撤回；本笔已把上述工具还原到 `4b157477` 之前（`5b0569ba`，
+07c 即 `be335c7e` 口径），`git diff 5b0569ba -- <五个文件>` 为空。
 
-**失效条件**：① Cesium 改 `available` 解析口径或 scheme 语义 ⇒ 本判据需按新版本重定；
-② 盘上瓦片按新口径重切/重建后，本条目作废（判据=probe EXIT=0 且"声明∩盘上=声明总数"）。
+**仍在册（本笔不触碰资产）**：76 张幽灵声明（z13 36 + z14 40，探针翻 y 口径下"声明多、实物少"）
+仍待 07c 全量重切（先备份 `layer.json`）——属 1004 批「07c 幽灵声明」条目，等用户点头。
+
+**影响面自陈（E3）**：① 预热通道由空转变实——z2/z3 的 5 张改请求盘上实物（实测全 200），
+预热队列 15 张全 200；② §8.26 控制台通道的 404 计数预期 -5（环境性 404 只剩 z13/z14 幽灵，
+需复跑确认）；③ 未新增 env / 依赖 / 守卫，未改 `MAX_PREHEAT_TILES` 与失败静默语义；
+④ 工具脚本还原后 `07c --dry-run` 回到 `be335c7e` 口径（第一版的「朝向自检」已随误判一起删）。
+
+**失效条件**：① `layer.json` 改非 TMS 口径（Cesium 改语义或资产重切为"available=slippy"）⇒
+翻 y 需同步取消并重定判据；② 盘上瓦片重切 ⇒ 预热请求集与 15 张期望数重测；③ 预热 maxZoom
+或 `MAX_PREHEAT_TILES` 改动 ⇒ 请求数变化，需按新期望复跑抓包。

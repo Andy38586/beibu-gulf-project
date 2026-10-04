@@ -2,11 +2,9 @@
 """
 09-audit-terrain.py
 校验 heightmap 地形目录与 layer.json 的一致性（部署前/排障用）：
-  - layer.json.available 与 scheme **同向解析**：本层 scheme=slippyMap（y=0 在北），
-    Cesium 1.142 按声明原样请求（2026-10-04 运行时实测：声明位置 404、盘上实物 200），
-    故声明必须与磁盘文件名同口径，**不翻 y**；
+  - layer.json.available 恒为 TMS 朝向（y=0 在南），磁盘文件按 slippyMap（y=0 在北），
+    GeographicTilingScheme 下 rows=2^z，换算 y_slippy = rows-1-y_tms；
   - 检查"声明了但磁盘缺失"（线上 404 黑屏的直接原因）与"磁盘有但未声明"两类问题；
-  - 另做**镜像自检**：若「翻 y 后的声明」命中磁盘远多于直接命中，即判 FAIL（旧 TMS 写法形态）；
   - 每张瓦片回读校验字节长度 = 65*65*2+2。
 用法：python 09-audit-terrain.py [terrain_dir]
 退出码：0 全部一致；1 存在不一致。
@@ -29,10 +27,12 @@ def main() -> int:
 
     declared: set[tuple[int, int, int]] = set()
     for z, ranges in enumerate(available):
+        rows = 2**z
         for rng in ranges:
             for x in range(rng["startX"], rng["endX"] + 1):
-                for y in range(rng["startY"], rng["endY"] + 1):
-                    declared.add((z, x, y))
+                for y_tms in range(rng["startY"], rng["endY"] + 1):
+                    y_slippy = rows - 1 - y_tms
+                    declared.add((z, x, y_slippy))
 
     on_disk: set[tuple[int, int, int]] = set()
     bad_bytes: list[str] = []
@@ -49,16 +49,8 @@ def main() -> int:
 
     missing = sorted(declared - on_disk)
     extra = sorted(on_disk - declared)
-    mirrored = {(z, x, 2**z - 1 - y) for (z, x, y) in declared}
-    direct_hits = len(declared & on_disk)
-    mirror_hits = len(mirrored & on_disk)
 
     print(f"layer.json 声明瓦片 {len(declared)} 张；磁盘实际 {len(on_disk)} 张")
-    print(f"  直接命中 {direct_hits}/{len(declared)} ｜ 镜像(翻 y)命中 {mirror_hits}")
-    mirrored_like = len(declared) > 0 and mirror_hits > direct_hits and direct_hits < len(declared)
-    if mirrored_like:
-        print("\n[镜像] available 与磁盘互为镜像（旧 TMS 翻 y 写法）——Cesium 按声明原样请求，"
-              "声明位置全部 404、回退父层；修法=用磁盘实清单重建 available（不翻 y）")
     if missing:
         print(f"\n[缺失] 声明存在但磁盘没有（{len(missing)}）——这些 URL 线上会 404：")
         for t in missing[:50]:
@@ -74,7 +66,7 @@ def main() -> int:
         for b in bad_bytes[:50]:
             print("  ", b)
 
-    ok = not missing and not extra and not bad_bytes and not mirrored_like
+    ok = not missing and not extra and not bad_bytes
     print("\n结果：", "PASS ✅ 声明与磁盘完全一致" if ok else "FAIL ❌ 见上")
     return 0 if ok else 1
 

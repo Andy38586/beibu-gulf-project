@@ -162,35 +162,36 @@ def main() -> None:
         print(f"removed stale: {stale}")
 
     # ---- layer.json ----
-    # 关键（2026-10-04 运行时实测更正）：available 与 scheme **同向解析**——本脚本显式声明
-    # "slippyMap"（y=0 最北，与瓦片文件名同向，见 tile_bounds），Cesium 1.142 就按声明原样
-    # 请求/判可用（实测：声明位置的镜像 URL 404、盘上实物 URL 200）。故 available 必须写
-    # **不翻 y** 的区间；旧实现按 TMS 翻 y 写，等效于把整棵可用树镜像，z≥2 全部 404、
-    # 回退父层（地形实际只剩 z0/z1）。
+    # 关键：CesiumTerrainProvider 在 layer.json 缺省 scheme 时默认按 "tms" 请求
+    # （源码：TileMapService counts from bottom left，URL y = yTiles - y - 1）。
+    # 本脚本瓦片文件名按朝北（slippy，y=0 最北，见 tile_bounds）生成，必须显式声明
+    # "slippyMap"，否则北方瓦片按翻转名 404、被父级上采样成平地（请求 z12 y=2550，
+    # 实际数据在 y=1545）。available 与 scheme 无关、恒按 TMS 朝向解析，需翻转 y。
     max_zoom = 12
     by_level: dict[int, dict[int, list[int]]] = {}
     for tz, tx, ty_north in tile_set:
         by_level.setdefault(tz, {}).setdefault(tx, []).append(ty_north)
     available: list[list[dict]] = []
     for tz in range(0, max_zoom + 1):
-        ranges_out: list[dict] = []
+        rows = 2 ** tz
+        tms_ranges: list[dict] = []
         for tx in sorted(by_level.get(tz, {})):
             ys = sorted(by_level[tz][tx])
             run_start = ys[0]
             prev = ys[0]
             for yy in ys[1:] + [None]:
                 if yy is None or yy != prev + 1:
-                    ranges_out.append({
+                    tms_ranges.append({
                         "startX": tx,
-                        "startY": run_start,
+                        "startY": rows - 1 - prev,
                         "endX": tx,
-                        "endY": prev,
+                        "endY": rows - 1 - run_start,
                     })
                     if yy is not None:
                         run_start = yy
                 if yy is not None:
                     prev = yy
-        available.append(ranges_out)
+        available.append(tms_ranges)
 
     layer_path = TERRAIN_DIR / "layer.json"
     layer = {
@@ -204,7 +205,7 @@ def main() -> None:
         "bounds": [DEM_MIN_LON, DEM_MIN_LAT, DEM_MAX_LON, DEM_MAX_LAT],
         "minzoom": 0,
         "maxzoom": max_zoom,
-        # available 与 scheme 同向（slippyMap ⇒ y 从北，不翻 y）——运行时实测口径见上
+        # available 恒为 TMS 朝向区间，供 sampleTerrain / LOD 判定
         "available": available,
         "tiles": ["/static/terrain/{z}/{x}/{y}.terrain?v={version}"],
     }

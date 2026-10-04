@@ -17,7 +17,15 @@ interface TerrainLayerJson {
 /** 低层瓦片预取上限：0~3 层全量仅几十个文件，上限兜底防御异常 layer.json（如范围写爆） */
 const MAX_PREHEAT_TILES = 64
 
-/** 由 layer.json 收集 0~maxZoom 层瓦片 URL（可导出单测：URL 拼装与上限逻辑零副作用） */
+/**
+ * 由 layer.json 收集 0~maxZoom 层瓦片 URL（可导出单测：URL 拼装与上限逻辑零副作用）。
+ *
+ * ⚠ **available 的 y 是 TMS（从南数），URL/文件名是 slippy（从北数）——必须翻 y**。
+ * 2026-10-04 运行时实测：漏翻时预热请求的是镜像位置（z2 求 `2/6/2`、z3 求 `3/12/4..5`），
+ * 全部 404（真值在 `2/6/1`、`3/12/3/2`），预热对 z2/z3 完全空转、还白打 5 个 404。
+ * CesiumTerrainProvider 自己会翻（实测 isTileAvailable 对盘上位置返回 true），
+ * 故本函数是"按 available 拼 URL"的消费者里唯一需要自己翻的一处。
+ */
 export function collectTerrainTileUrls(layer: TerrainLayerJson, maxZoom: number): string[] {
   const template = layer.tiles?.[0] ?? '/static/terrain/{z}/{x}/{y}.terrain'
   const version = layer.version ?? ''
@@ -25,15 +33,17 @@ export function collectTerrainTileUrls(layer: TerrainLayerJson, maxZoom: number)
   const urls: string[] = []
   for (let z = 0; z <= maxZoom && z < available.length; z++) {
     const ranges = Array.isArray(available[z]) ? available[z] : []
+    const rows = 2 ** z
     for (const range of ranges) {
       for (let x = range.startX; x <= range.endX; x++) {
         for (let y = range.startY; y <= range.endY; y++) {
           if (urls.length >= MAX_PREHEAT_TILES) return urls
+          const ySlippy = rows - 1 - y
           urls.push(
             template
               .replace('{z}', String(z))
               .replace('{x}', String(x))
-              .replace('{y}', String(y))
+              .replace('{y}', String(ySlippy))
               .replace('{version}', version)
           )
         }

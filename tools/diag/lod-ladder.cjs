@@ -3,8 +3,15 @@
  * 用户 2026-10-04 要求「LOD 距离要保证统一性」；判据形态见
  * docs/3dtiles-改造任务表.md §8.14 / §8.15：
  * 同一高度档下，四个资产的「在场 / 粗精程度」必须同构，且任何一档都不许整层空白。
+ * **2026-10-04 22:5x 落地 §8.14 判据形态 ②④（像素维）**：
+ *   ② 每格除 selected/tri 外，还测**中心窗口像素贡献**——该资产层 ON/OFF 两张截图，
+ *      窗口 = 选中瓦片包围球的投影中心/半径（下限 120 px、上限半屏），用 diff-images.py
+ *      数差分像素；「选到」不等于「画得出」（绕序反了照样 sel>0 零像素）；
+ *   ④ 阳性对照（红样）= 把任一资产的远景粗层占位摘掉 ⇒ 对应档必须红：
+ *      `node tools/diag/lod-ladder.cjs <url> 586000`（配合临时变异 shouldDropPortContent
+ *      连 depth 0 一起摘，跑完按 md5 还原）。
  *
- * 退出码：**任一格 `在场=否` ⇒ exit 1**（红样即"哪几个资产 × 哪几个高度"，
+ * 退出码：**任一格 `在场=否` 或 `主体px<=0` ⇒ exit 1**（红样即"哪几个资产 × 哪几个高度"，
  * 阳性对照 = 把 `collapseEmptyLevels` / `capRootGeometricError` / `shouldDropPortContent`
  * 任一条停用，见 §8.15 实测表——停用后 80 km 或 586 km 必红）。
  *
@@ -16,17 +23,29 @@
 'use strict'
 const fs = require('fs')
 const path = require('path')
+const { execFileSync } = require('child_process')
 const GROOT = require('child_process').execSync('npm root -g').toString().trim()
 const { chromium } = require(path.join(GROOT, 'playwright-core'))
 
 const ROOT = path.resolve(__dirname, '..', '..')
 const OUT = path.join(ROOT, '.local', '3d-review', 'lod-ladder')
 fs.mkdirSync(OUT, { recursive: true })
+/** 像素判据的取数依赖：自建 diff 工具 + 带 Pillow 的 venv（与 §8.20 的截图 A/B 同一通道） */
+const PY = path.join(ROOT, 'backend', 'algorithm-service', '.venv', 'Scripts', 'python.exe')
+const DIFF = path.join(ROOT, 'tools', 'diag', 'diff-images.py')
+const HALF = 120 // 中心窗口半宽（px）
 
 const URL_ = process.argv[2] || 'http://localhost:5174/route-analysis'
 const HEIGHTS = (process.argv[3] || '300,1500,6000,20000,80000,586000').split(',').map(Number)
 // 瓦片就绪等待上限（ms）：细瓦片单块可达 13 MB，默认 14s 对近景偏短，可用 LADDER_WAIT_MS 加长
 const WAIT_MS = Number(process.env.LADDER_WAIT_MS || 14000)
+// --hide <layerId>：自测/阳性对照——临时把某资产隐藏，对应格必须红（主体px=0）。
+// 为什么不用"摘 root 内容"当红样：derive 的 capRootGeometricError 会把 root 自身算进被摘空
+// 节点 ⇒ root GE 抬高、远距离反而细化到 7 块细瓦片（实测 1 px，仍 >0，判据不红）。
+const HIDE = (() => {
+  const i = process.argv.indexOf('--hide')
+  return i > -1 ? process.argv[i + 1] : null
+})()
 
 // 被测资产：三枢纽（07 交付版，同属一个 tileset 的三个分组）+ 钦州港作业区（交付包）。
 // 锚点**全部从 tileset 自身几何推导**（不手抄坐标）：
@@ -187,6 +206,120 @@ function snapshot(arg) {
 
 const present = (l) => !!(l && l.withContent > 0 && l.tri > 0)
 
+/**
+ * 取"资产中心 ± 小窗口"的截图窗口（§8.14 判据②）：
+ *   中心 = 该层**当前选中瓦片**包围球的合心投影（失败退回画布中心）；
+ *   半径 = 裁剪到 [HALF, 半屏] 的**包围球投影像素半径**（Cesium 自己的像素尺度公式）。
+ *
+ * 两处都是实测踩出来的：① 画布中心不等于资产中心——港区"飞到"落点在港池水面上，
+ * 低机位（300/1500 m）中心窗口只有水 ⇒ 差分恒 0（ON/OFF 截图逐字节相同、705 B 纯色图）；
+ * ② 固定 ±120 px 在低空只覆盖几十米地面 ⇒ 会再把"画得好好的"误判成零贡献
+ * （港区 300 m 档），故半径随包围球投影像素尺度走、下限 120 px、上限半屏。
+ */
+async function bodyClip(page, id) {
+  return page.evaluate(
+    (v) => {
+      const R = document
+        .querySelector('#app')
+        .__vue_app__.config.globalProperties.$pinia._s.get('map').currentRenderer
+      const viewer = R.viewer
+      const r = viewer.scene.canvas.getBoundingClientRect()
+      let cx = r.left + r.width / 2
+      let cy = r.top + r.height / 2
+      let radiusPx = v.half
+      try {
+        const C = window.Cesium
+        const inst = R._layers.get(v.id).instance
+        const spheres = []
+        const pushTile = (t) => {
+          const bv = t && (t._boundingVolume || t.boundingVolume)
+          const s = (t && t.boundingSphere) || (bv && bv.boundingSphere)
+          if (s && s.center) spheres.push({ c: s.center, r: s.radius || 0 })
+        }
+        for (const t of inst._selectedTiles || []) pushTile(t)
+        if (!spheres.length && inst.root) pushTile(inst.root)
+        if (spheres.length) {
+          let sx = 0,
+            sy = 0,
+            sz = 0
+          for (const s of spheres) {
+            sx += s.c.x
+            sy += s.c.y
+            sz += s.c.z
+          }
+          const center = new C.Cartesian3(
+            sx / spheres.length,
+            sy / spheres.length,
+            sz / spheres.length
+          )
+          const win = C.SceneTransforms.worldToWindowCoordinates(viewer.scene, center)
+          if (win && isFinite(win.x) && isFinite(win.y)) {
+            cx = win.x
+            cy = win.y
+            // 窗口半径 = 选中瓦片包围球的投影像素半径（Cesium 自己的像素尺度公式）
+            const dist = Math.max(C.Cartesian3.distance(viewer.scene.camera.positionWC, center), 1)
+            const pxPerM =
+              viewer.scene.drawingBufferHeight / (dist * viewer.scene.camera.frustum.sseDenominator)
+            let rUnion = 0
+            for (const s of spheres) {
+              rUnion = Math.max(rUnion, C.Cartesian3.distance(s.c, center) + s.r)
+            }
+            radiusPx = Math.min(
+              Math.max(rUnion * pxPerM, v.half),
+              Math.floor(Math.min(r.width, r.height) / 2) - 2
+            )
+          }
+        }
+      } catch (e) {
+        /* 退回画布中心 */
+      }
+      const half = Math.round(radiusPx)
+      cx = Math.min(
+        Math.max(Math.round(cx), Math.round(r.left + half)),
+        Math.round(r.left + r.width - half)
+      )
+      cy = Math.min(
+        Math.max(Math.round(cy), Math.round(r.top + half)),
+        Math.round(r.top + r.height - half)
+      )
+      return { x: cx - half, y: cy - half, width: half * 2, height: half * 2, half }
+    },
+    { id, half: HALF }
+  )
+}
+
+/** 该层 ON/OFF 两张中心窗口截图 → diff-images.py 的像素贡献（px）；失败按 -1 记（红） */
+async function measureBody(page, id, clip, h) {
+  const on = path.join(OUT, `${id}-h${h}-body-on.png`)
+  const off = path.join(OUT, `${id}-h${h}-body-off.png`)
+  const toggle = (show) =>
+    page.evaluate(
+      (v) => {
+        const r = document
+          .querySelector('#app')
+          .__vue_app__.config.globalProperties.$pinia._s.get('map').currentRenderer
+        r._layers.get(v.id).instance.show = v.show
+        r.viewer.scene.requestRender()
+      },
+      { id, show }
+    )
+  await page.screenshot({ path: on, clip })
+  await toggle(false)
+  await page.waitForTimeout(900)
+  await page.screenshot({ path: off, clip })
+  if (id !== HIDE) await toggle(true) // 自测模式：隐藏的层不恢复，保证每格都测"零贡献"
+  await page.waitForTimeout(600)
+  let raw = ''
+  let err = null
+  try {
+    raw = execFileSync(PY, [DIFF, on, off], { encoding: 'utf8' })
+  } catch (e) {
+    err = String((e && e.message) || e).slice(0, 200)
+  }
+  const m = /DIFF (\d+) \/ (\d+) px = ([\d.]+)%/.exec(raw)
+  return { px: m ? Number(m[1]) : -1, pct: m ? Number(m[3]) : null, err }
+}
+
 ;(async () => {
   const browser = await chromium.launch({
     channel: 'msedge',
@@ -227,9 +360,67 @@ const present = (l) => !!(l && l.withContent > 0 && l.tri > 0)
   }
   console.log('layers ready:', ready)
 
+  // 内容锚点：该层保留内容（root.children）包围球的合心 —— 机位阶梯对着它取景。
+  // 为什么不用"飞到落点"：港区的落点在港池水面上，低机位（300 m）视窗只 ±116 m，
+  // 作业区内容全在视窗外 ⇒ 会把"机位没框住"误判成"画不出"（2026-10-04 实测）。
+  const contentAnchors = await page.evaluate((ids) => {
+    const R = document
+      .querySelector('#app')
+      .__vue_app__.config.globalProperties.$pinia._s.get('map').currentRenderer
+    const C = window.Cesium
+    const out = {}
+    for (const id of ids) {
+      try {
+        const inst = R._layers.get(id).instance
+        const spheres = []
+        const push = (t) => {
+          const bv = t && (t._boundingVolume || t.boundingVolume)
+          const s = (t && t.boundingSphere) || (bv && bv.boundingSphere)
+          if (s && s.center) spheres.push(s)
+        }
+        for (const c of inst.root.children || []) push(c)
+        if (!spheres.length) push(inst.root)
+        let sx = 0,
+          sy = 0,
+          sz = 0
+        for (const s of spheres) {
+          sx += s.center.x
+          sy += s.center.y
+          sz += s.center.z
+        }
+        const g = C.Ellipsoid.WGS84.cartesianToCartographic(
+          new C.Cartesian3(sx / spheres.length, sy / spheres.length, sz / spheres.length)
+        )
+        out[id] = {
+          lng: (g.longitude * 180) / Math.PI,
+          lat: (g.latitude * 180) / Math.PI,
+          n: spheres.length,
+        }
+      } catch (e) {
+        out[id] = null
+      }
+    }
+    return out
+  }, ASSETS)
+
   const anchors = {}
-  for (const id of ASSETS) anchors[id] = ANCHORS[id]
-  console.log('anchors:', JSON.stringify(anchors))
+  for (const id of ASSETS) {
+    const c = contentAnchors[id]
+    anchors[id] = c ? { lng: c.lng, lat: c.lat } : ANCHORS[id]
+  }
+  console.log('anchors(内容中心):', JSON.stringify(anchors))
+  console.log('anchors(静态落点):', JSON.stringify(ANCHORS))
+  if (HIDE) {
+    await page.evaluate((id) => {
+      const r = document
+        .querySelector('#app')
+        .__vue_app__.config.globalProperties.$pinia._s.get('map').currentRenderer
+      const rec = r._layers.get(id)
+      if (rec && rec.instance) rec.instance.show = false
+      r.viewer.scene.requestRender()
+    }, HIDE)
+    console.log(`（自测模式）已隐藏图层 ${HIDE} —— 对应格应报"在场但中心窗口零贡献"`)
+  }
 
   const rows = []
   for (const id of ASSETS) {
@@ -281,21 +472,35 @@ const present = (l) => !!(l && l.withContent > 0 && l.tri > 0)
         treeLayer: process.env.PORT_TREE ? 'beibu-qinzhou-port' : null,
       })
       const l = snap.layers[id]
-      rows.push({ asset: id, height: h, ok: present(l), layer: l })
+      const clip = await bodyClip(page, id)
+      const body = await measureBody(page, id, clip, h)
+      const isBlank = !present(l)
+      const noBody = !isBlank && body.px <= 0
+      rows.push({
+        asset: id,
+        height: h,
+        ok: !isBlank && !noBody,
+        blank: isBlank,
+        noBody,
+        body,
+        layer: l,
+      })
       console.log(
         `${id.padEnd(24)} h=${String(h).padStart(7)} 在场=${present(l) ? '是' : '否'} ` +
-          `sel=${l ? l.selected : '-'} 有内容=${l ? l.withContent : '-'} tri=${l ? l.tri : '-'}`
+          `sel=${l ? l.selected : '-'} 有内容=${l ? l.withContent : '-'} tri=${l ? l.tri : '-'} ` +
+          `主体px=${body.px}${body.err ? ' (diff 失败:' + body.err + ')' : ''}`
       )
     }
   }
 
   // 一致性表：行=资产，列=高度
-  console.log('\n一致性表（Y=有主体 / ·=整层空白；列=相机高度 m）')
+  console.log('\n一致性表（Y=有主体像素 / !=在场但中心窗口零贡献 / ·=整层空白；列=相机高度 m）')
   console.log('asset'.padEnd(26) + HEIGHTS.map((h) => String(h).padStart(8)).join(''))
   for (const id of ASSETS) {
     const cells = HEIGHTS.map((h) => {
       const row = rows.find((r) => r.asset === id && r.height === h)
-      return (row && row.ok ? 'Y' : '·').padStart(8)
+      const mark = !row || row.blank ? '·' : row.noBody ? '!' : 'Y'
+      return mark.padStart(8)
     })
     console.log(id.padEnd(26) + cells.join(''))
   }
@@ -309,16 +514,26 @@ const present = (l) => !!(l && l.withContent > 0 && l.tri > 0)
     )
   )
   console.log('written', path.join(OUT, 'lod-ladder.json'))
-  // 判据：任一格整层空白 ⇒ 红（含"交付包不在盘、图层没注册"这种行缺失）
+  // 判据：任一格整层空白 或 "在场但中心窗口零像素贡献" ⇒ 红
+  // （含"交付包不在盘、图层没注册"这种行缺失）
   const blank = []
+  const noBody = []
   for (const id of ASSETS) {
     for (const h of HEIGHTS) {
       const row = rows.find((r) => r.asset === id && r.height === h)
-      if (!row || !row.ok) blank.push(`${id}@${h}m`)
+      if (!row || row.blank) blank.push(`${id}@${h}m`)
+      else if (row.noBody) noBody.push(`${id}@${h}m`)
     }
   }
   if (blank.length > 0) {
     console.error(`LOD 阶梯红：${blank.length} 格整层空白 —— ${blank.join(', ')}`)
+    process.exitCode = 1
+  }
+  if (noBody.length > 0) {
+    console.error(
+      `LOD 阶梯红：${noBody.length} 格「在场但中心窗口零像素贡献」（选到不等于画得出）—— ` +
+        noBody.join(', ')
+    )
     process.exitCode = 1
   }
   await browser.close()

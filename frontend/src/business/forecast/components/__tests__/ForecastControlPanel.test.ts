@@ -12,7 +12,7 @@
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { effectScope } from 'vue'
+import { effectScope, nextTick } from 'vue'
 
 import { useSliderFocus } from '@/core'
 import { useForecastStore } from '@/stores'
@@ -207,5 +207,49 @@ describe('ForecastControlPanel 时间轴卡片', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+})
+
+// ── F4：运河情景芯片——仅 cargo 有文献锚点，非 cargo 指标禁用非基线档 ──
+describe('ForecastControlPanel 运河情景芯片（F4）', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+  })
+
+  it('cargo 下四档可选：点「中位」写 store.canalScenario（阳性对照）', async () => {
+    const wrapper = mountPanel()
+    const store = useForecastStore()
+
+    const chips = wrapper.findAll('button.scenario-chip')
+    expect(chips.map((c) => c.text())).toEqual(['基线', '设计', '中位', '诱导'])
+    expect(store.canalScenario).toBe('baseline')
+    expect(wrapper.find('.scenario-row').classes()).not.toContain('off')
+
+    await chips[2].trigger('click')
+    expect(store.canalScenario).toBe('median')
+
+    wrapper.unmount()
+  })
+
+  it('非 cargo 指标：非基线三档 disabled 且点击不改 store', async () => {
+    const wrapper = mountPanel()
+    const store = useForecastStore()
+    store.setActiveIndicator('container')
+    await nextTick()
+
+    const chips = wrapper.findAll('button.scenario-chip')
+    expect(chips.map((c) => (c.element as HTMLButtonElement).disabled)).toEqual([
+      false,
+      true,
+      true,
+      true,
+    ])
+    expect(wrapper.find('.scenario-row').classes()).toContain('off')
+
+    await chips[1].trigger('click')
+    await chips[2].trigger('click')
+    expect(store.canalScenario).toBe('baseline')
+
+    wrapper.unmount()
   })
 })

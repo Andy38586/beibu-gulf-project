@@ -29,8 +29,9 @@
  *           每个 origin 用其之前数据训练、预测未来 12 个月、与真数据重叠段计误差；
  *           回测内不做误差比率校正（correction=1，避免信息泄漏）；
  *           春节修正的 h̄ 基准同样只用训练段重建（同协议防泄漏）。
- *   - ⚠️ 平陆运河（2026-09-16 已通航）未建模：预测=无运河反事实基线；
- *     情景层（可分流基数 × 分流率 10/20/30%）待 intervention 层落地（工单 F3）。
+ *   - ⚠️ 平陆运河（2026-09-16 已通航）增量不在本基线内：输出=无运河反事实；
+ *     三档情景（design/median/induced）由后端 scenario.service 叠加、前端可切换，
+ *     锚点与港口分摊出处见 constants/scenario.constants.ts 头注。
  */
 const fs = require('fs')
 const path = require('path')
@@ -659,7 +660,9 @@ function main() {
           '候选 vs 线性 Diebold-Mariano 检验（平方损失差，HAC q=h−1=11，对齐键 time#step）；' +
           'p<0.1 与 ≥0.5pp 同真才允许换模（P2-1）',
         canal_assumption:
-          '未建模平陆运河（2026-09-16 已通航，预测=无运河反事实基线；情景层待工单 F3 落地）',
+          '平陆运河（2026-09-16 已通航）增量不在本基线内（本产物=无运河反事实）；' +
+          '运河增量以三档情景（design/median/induced）由后端叠加、前端可切换，' +
+          '锚点与港口分摊出处见 scenario.constants.ts；占比/分摊敏感性呈现待用户授权',
       },
     }
 

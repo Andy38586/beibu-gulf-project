@@ -32,6 +32,83 @@
           "11": 20,
           "12": 19
         },
+        "rolling_picp_by_step": {
+          "1": 0.55,
+          "2": 0.5556,
+          "3": 0.375,
+          "4": 0.4286,
+          "5": 0.4167,
+          "6": 0.5,
+          "7": 0.5,
+          "8": 0.5,
+          "9": 0.25,
+          "10": 0,
+          "11": null,
+          "12": null
+        },
+        "overall_picp": 0.4636,
+        "interval_offsets": {
+          "1": {
+            "lo": -0.0541,
+            "hi": 0.1151,
+            "n": 30
+          },
+          "2": {
+            "lo": -0.0297,
+            "hi": 0.1182,
+            "n": 29
+          },
+          "3": {
+            "lo": -0.0706,
+            "hi": 0.0818,
+            "n": 28
+          },
+          "4": {
+            "lo": -0.081,
+            "hi": 0.0725,
+            "n": 27
+          },
+          "5": {
+            "lo": -0.0836,
+            "hi": 0.075,
+            "n": 26
+          },
+          "6": {
+            "lo": -0.0763,
+            "hi": 0.0795,
+            "n": 25
+          },
+          "7": {
+            "lo": -0.0695,
+            "hi": 0.1154,
+            "n": 24
+          },
+          "8": {
+            "lo": -0.088,
+            "hi": 0.0772,
+            "n": 23
+          },
+          "9": {
+            "lo": -0.0853,
+            "hi": 0.0434,
+            "n": 22
+          },
+          "10": {
+            "lo": -0.0918,
+            "hi": 0.0454,
+            "n": 21
+          },
+          "11": {
+            "lo": -0.1142,
+            "hi": 0.0265,
+            "n": 20
+          },
+          "12": {
+            "lo": -0.1135,
+            "hi": 0.021,
+            "n": 19
+          }
+        },
         "validation_overall_mape": null,
         "bias": null,
         "correction_factor": null
@@ -41,6 +118,7 @@
         "linear": {
           "overall_mape": 6.25,
           "overall_mase": 0.88,
+          "overall_picp": 0.4727,
           "mape_by_step": {
             "1": 5.43,
             "2": 5.8,
@@ -73,6 +151,7 @@
         "ets_damped": {
           "overall_mape": 9.14,
           "overall_mase": 1.25,
+          "overall_picp": 0.5455,
           "mape_by_step": {
             "1": 7.11,
             "2": 12.19,
@@ -112,6 +191,7 @@
         "seasonal_naive": {
           "overall_mape": 7.41,
           "overall_mase": 1.04,
+          "overall_picp": 0.3909,
           "mape_by_step": {
             "1": 7.71,
             "2": 7.68,
@@ -144,6 +224,7 @@
         "combination": {
           "overall_mape": 5.36,
           "overall_mase": 0.75,
+          "overall_picp": 0.4636,
           "mape_by_step": {
             "1": 5.05,
             "2": 5.85,
@@ -190,146 +271,146 @@
         {
           "time": "2026-07",
           "value": 1842,
-          "lower": 1749,
-          "upper": 1935
+          "lower": 1742,
+          "upper": 2054
         },
         {
           "time": "2026-08",
           "value": 1842,
-          "lower": 1734,
-          "upper": 1950
+          "lower": 1787,
+          "upper": 2060
         },
         {
           "time": "2026-09",
           "value": 1878,
-          "lower": 1780,
-          "upper": 1977
+          "lower": 1746,
+          "upper": 2032
         },
         {
           "time": "2026-10",
           "value": 1952,
-          "lower": 1846,
-          "upper": 2058
+          "lower": 1794,
+          "upper": 2094
         },
         {
           "time": "2026-11",
           "value": 1964,
-          "lower": 1853,
-          "upper": 2074
+          "lower": 1800,
+          "upper": 2111
         },
         {
           "time": "2026-12",
           "value": 2089,
-          "lower": 1972,
-          "upper": 2207
+          "lower": 1930,
+          "upper": 2256
         },
         {
           "time": "2027-06",
           "value": 2024,
-          "lower": 1903,
-          "upper": 2146
+          "lower": 1794,
+          "upper": 2067
         },
         {
           "time": "2027-12",
           "value": 2129,
-          "lower": 1949,
-          "upper": 2310
+          "lower": 1787,
+          "upper": 2192
         },
         {
           "time": "2028-06",
           "value": 2061,
-          "lower": 1847,
-          "upper": 2275
+          "lower": 1656,
+          "upper": 2136
         },
         {
           "time": "2028-12",
           "value": 2171,
-          "lower": 1946,
-          "upper": 2397
+          "lower": 1744,
+          "upper": 2250
         },
         {
           "time": "2029-06",
           "value": 2099,
-          "lower": 1848,
-          "upper": 2351
+          "lower": 1623,
+          "upper": 2188
         },
         {
           "time": "2029-12",
           "value": 2215,
-          "lower": 1949,
-          "upper": 2481
+          "lower": 1712,
+          "upper": 2308
         },
         {
           "time": "2030-06",
           "value": 2140,
-          "lower": 1853,
-          "upper": 2427
+          "lower": 1597,
+          "upper": 2240
         },
         {
           "time": "2030-12",
           "value": 2261,
-          "lower": 1957,
-          "upper": 2564
+          "lower": 1687,
+          "upper": 2367
         },
         {
           "time": "2031-06",
           "value": 2182,
-          "lower": 1861,
-          "upper": 2502
+          "lower": 1575,
+          "upper": 2294
         },
         {
           "time": "2031-12",
           "value": 2307,
-          "lower": 1968,
-          "upper": 2646
+          "lower": 1666,
+          "upper": 2426
         },
         {
           "time": "2032-06",
           "value": 2224,
-          "lower": 1871,
-          "upper": 2577
+          "lower": 1556,
+          "upper": 2348
         },
         {
           "time": "2032-12",
           "value": 2355,
-          "lower": 1981,
-          "upper": 2729
+          "lower": 1648,
+          "upper": 2486
         },
         {
           "time": "2033-06",
           "value": 2268,
-          "lower": 1883,
-          "upper": 2653
+          "lower": 1540,
+          "upper": 2402
         },
         {
           "time": "2033-12",
           "value": 2403,
-          "lower": 1995,
-          "upper": 2811
+          "lower": 1632,
+          "upper": 2546
         },
         {
           "time": "2034-06",
           "value": 2312,
-          "lower": 1896,
-          "upper": 2728
+          "lower": 1525,
+          "upper": 2458
         },
         {
           "time": "2034-12",
           "value": 2452,
-          "lower": 2010,
-          "upper": 2893
+          "lower": 1617,
+          "upper": 2606
         },
         {
           "time": "2035-06",
           "value": 2357,
-          "lower": 1909,
-          "upper": 2804
+          "lower": 1511,
+          "upper": 2513
         },
         {
           "time": "2035-12",
           "value": 2501,
-          "lower": 2026,
-          "upper": 2975
+          "lower": 1603,
+          "upper": 2667
         }
       ]
     },
@@ -367,6 +448,83 @@
           "11": 20,
           "12": 19
         },
+        "rolling_picp_by_step": {
+          "1": 0.75,
+          "2": 0.7222,
+          "3": 0.6875,
+          "4": 0.7143,
+          "5": 0.6667,
+          "6": 0.7,
+          "7": 0.875,
+          "8": 0.3333,
+          "9": 0,
+          "10": 0,
+          "11": null,
+          "12": null
+        },
+        "overall_picp": 0.6636,
+        "interval_offsets": {
+          "1": {
+            "lo": -0.1221,
+            "hi": 0.069,
+            "n": 30
+          },
+          "2": {
+            "lo": -0.1304,
+            "hi": 0.0549,
+            "n": 29
+          },
+          "3": {
+            "lo": -0.1424,
+            "hi": 0.0491,
+            "n": 28
+          },
+          "4": {
+            "lo": -0.1605,
+            "hi": 0.0338,
+            "n": 27
+          },
+          "5": {
+            "lo": -0.1672,
+            "hi": 0.0342,
+            "n": 26
+          },
+          "6": {
+            "lo": -0.1755,
+            "hi": 0.0218,
+            "n": 25
+          },
+          "7": {
+            "lo": -0.2074,
+            "hi": 0.0225,
+            "n": 24
+          },
+          "8": {
+            "lo": -0.2062,
+            "hi": 0.0137,
+            "n": 23
+          },
+          "9": {
+            "lo": -0.2113,
+            "hi": -0.0076,
+            "n": 22
+          },
+          "10": {
+            "lo": -0.216,
+            "hi": -0.0188,
+            "n": 21
+          },
+          "11": {
+            "lo": -0.2042,
+            "hi": -0.0186,
+            "n": 20
+          },
+          "12": {
+            "lo": -0.1873,
+            "hi": -0.0243,
+            "n": 19
+          }
+        },
         "bias": "overpredict",
         "correction_factor": 0.9032
       },
@@ -375,6 +533,7 @@
         "linear": {
           "overall_mape": 10.45,
           "overall_mase": 0.73,
+          "overall_picp": 0.6636,
           "mape_by_step": {
             "1": 8.19,
             "2": 8.55,
@@ -407,6 +566,7 @@
         "ets_damped": {
           "overall_mape": 15.31,
           "overall_mase": 1.06,
+          "overall_picp": 0.7091,
           "mape_by_step": {
             "1": 10.29,
             "2": 17.89,
@@ -446,6 +606,7 @@
         "seasonal_naive": {
           "overall_mape": 12.87,
           "overall_mase": 0.92,
+          "overall_picp": 0.7818,
           "mape_by_step": {
             "1": 12.46,
             "2": 12.24,
@@ -478,6 +639,7 @@
         "combination": {
           "overall_mape": 10.16,
           "overall_mase": 0.71,
+          "overall_picp": 0.6545,
           "mape_by_step": {
             "1": 8.28,
             "2": 9.84,
@@ -524,146 +686,146 @@
         {
           "time": "2026-07",
           "value": 461,
-          "lower": 423,
-          "upper": 499
+          "lower": 405,
+          "upper": 493
         },
         {
           "time": "2026-08",
           "value": 483,
-          "lower": 442,
-          "upper": 525
+          "lower": 420,
+          "upper": 510
         },
         {
           "time": "2026-09",
           "value": 475,
-          "lower": 432,
-          "upper": 517
+          "lower": 407,
+          "upper": 498
         },
         {
           "time": "2026-10",
           "value": 481,
-          "lower": 436,
-          "upper": 526
+          "lower": 404,
+          "upper": 497
         },
         {
           "time": "2026-11",
           "value": 431,
-          "lower": 388,
-          "upper": 474
+          "lower": 359,
+          "upper": 446
         },
         {
           "time": "2026-12",
           "value": 462,
-          "lower": 418,
-          "upper": 507
+          "lower": 381,
+          "upper": 472
         },
         {
           "time": "2027-06",
           "value": 515,
-          "lower": 459,
-          "upper": 571
+          "lower": 419,
+          "upper": 503
         },
         {
           "time": "2027-12",
           "value": 466,
-          "lower": 413,
-          "upper": 520
+          "lower": 343,
+          "upper": 450
         },
         {
           "time": "2028-06",
           "value": 520,
-          "lower": 458,
-          "upper": 581
+          "lower": 351,
+          "upper": 498
         },
         {
           "time": "2028-12",
           "value": 470,
-          "lower": 412,
-          "upper": 529
+          "lower": 318,
+          "upper": 451
         },
         {
           "time": "2029-06",
           "value": 524,
-          "lower": 462,
-          "upper": 586
+          "lower": 328,
+          "upper": 499
         },
         {
           "time": "2029-12",
           "value": 475,
-          "lower": 417,
-          "upper": 532
+          "lower": 297,
+          "upper": 451
         },
         {
           "time": "2030-06",
           "value": 529,
-          "lower": 438,
-          "upper": 619
+          "lower": 307,
+          "upper": 500
         },
         {
           "time": "2030-12",
           "value": 479,
-          "lower": 396,
-          "upper": 561
+          "lower": 278,
+          "upper": 453
         },
         {
           "time": "2031-06",
           "value": 533,
-          "lower": 442,
-          "upper": 625
+          "lower": 289,
+          "upper": 501
         },
         {
           "time": "2031-12",
           "value": 483,
-          "lower": 400,
-          "upper": 566
+          "lower": 261,
+          "upper": 454
         },
         {
           "time": "2032-06",
           "value": 538,
-          "lower": 445,
-          "upper": 630
+          "lower": 271,
+          "upper": 503
         },
         {
           "time": "2032-12",
           "value": 487,
-          "lower": 403,
-          "upper": 570
+          "lower": 246,
+          "upper": 455
         },
         {
           "time": "2033-06",
           "value": 542,
-          "lower": 449,
-          "upper": 635
+          "lower": 255,
+          "upper": 505
         },
         {
           "time": "2033-12",
           "value": 491,
-          "lower": 406,
-          "upper": 575
+          "lower": 231,
+          "upper": 457
         },
         {
           "time": "2034-06",
           "value": 547,
-          "lower": 453,
-          "upper": 641
+          "lower": 239,
+          "upper": 507
         },
         {
           "time": "2034-12",
           "value": 495,
-          "lower": 410,
-          "upper": 580
+          "lower": 217,
+          "upper": 459
         },
         {
           "time": "2035-06",
           "value": 551,
-          "lower": 456,
-          "upper": 646
+          "lower": 225,
+          "upper": 509
         },
         {
           "time": "2035-12",
           "value": 499,
-          "lower": 394,
-          "upper": 604
+          "lower": 203,
+          "upper": 461
         }
       ]
     },
@@ -701,6 +863,83 @@
           "11": 20,
           "12": 19
         },
+        "rolling_picp_by_step": {
+          "1": 0.8,
+          "2": 0.7778,
+          "3": 0.8125,
+          "4": 0.7143,
+          "5": 0.5833,
+          "6": 0.4,
+          "7": 0.5,
+          "8": 0.5,
+          "9": 0.25,
+          "10": 0,
+          "11": null,
+          "12": null
+        },
+        "overall_picp": 0.6545,
+        "interval_offsets": {
+          "1": {
+            "lo": -0.1552,
+            "hi": 0.0433,
+            "n": 30
+          },
+          "2": {
+            "lo": -0.1652,
+            "hi": 0.0438,
+            "n": 29
+          },
+          "3": {
+            "lo": -0.1575,
+            "hi": 0.0454,
+            "n": 28
+          },
+          "4": {
+            "lo": -0.1497,
+            "hi": 0.0447,
+            "n": 27
+          },
+          "5": {
+            "lo": -0.1422,
+            "hi": 0.0447,
+            "n": 26
+          },
+          "6": {
+            "lo": -0.1409,
+            "hi": 0.0337,
+            "n": 25
+          },
+          "7": {
+            "lo": -0.1509,
+            "hi": 0.019,
+            "n": 24
+          },
+          "8": {
+            "lo": -0.1525,
+            "hi": 0.0047,
+            "n": 23
+          },
+          "9": {
+            "lo": -0.1516,
+            "hi": 0.015,
+            "n": 22
+          },
+          "10": {
+            "lo": -0.1409,
+            "hi": 0.0159,
+            "n": 21
+          },
+          "11": {
+            "lo": -0.1422,
+            "hi": 0.0117,
+            "n": 20
+          },
+          "12": {
+            "lo": -0.1521,
+            "hi": 0.0113,
+            "n": 19
+          }
+        },
         "bias": "overpredict",
         "correction_factor": 0.9598
       },
@@ -709,6 +948,7 @@
         "linear": {
           "overall_mape": 7.95,
           "overall_mase": 0.61,
+          "overall_picp": 0.6545,
           "mape_by_step": {
             "1": 7.88,
             "2": 8.09,
@@ -741,6 +981,7 @@
         "ets_damped": {
           "overall_mape": 9.67,
           "overall_mase": 0.76,
+          "overall_picp": 0.8364,
           "mape_by_step": {
             "1": 8.34,
             "2": 12.93,
@@ -780,6 +1021,7 @@
         "seasonal_naive": {
           "overall_mape": 9.17,
           "overall_mase": 0.73,
+          "overall_picp": 0.7818,
           "mape_by_step": {
             "1": 8.85,
             "2": 8.89,
@@ -812,6 +1054,7 @@
         "combination": {
           "overall_mape": 7.79,
           "overall_mase": 0.61,
+          "overall_picp": 0.6273,
           "mape_by_step": {
             "1": 6.63,
             "2": 7.49,
@@ -858,146 +1101,146 @@
         {
           "time": "2026-07",
           "value": 1767,
-          "lower": 1628,
-          "upper": 1906
+          "lower": 1493,
+          "upper": 1844
         },
         {
           "time": "2026-08",
           "value": 1767,
-          "lower": 1624,
-          "upper": 1910
+          "lower": 1475,
+          "upper": 1844
         },
         {
           "time": "2026-09",
           "value": 1686,
-          "lower": 1549,
-          "upper": 1823
+          "lower": 1420,
+          "upper": 1763
         },
         {
           "time": "2026-10",
           "value": 1698,
-          "lower": 1570,
-          "upper": 1826
+          "lower": 1444,
+          "upper": 1774
         },
         {
           "time": "2026-11",
           "value": 1783,
-          "lower": 1650,
-          "upper": 1916
+          "lower": 1529,
+          "upper": 1862
         },
         {
           "time": "2026-12",
           "value": 1756,
-          "lower": 1628,
-          "upper": 1884
+          "lower": 1508,
+          "upper": 1815
         },
         {
           "time": "2027-06",
           "value": 1788,
-          "lower": 1651,
-          "upper": 1925
+          "lower": 1516,
+          "upper": 1808
         },
         {
           "time": "2027-12",
           "value": 1773,
-          "lower": 1639,
-          "upper": 1906
+          "lower": 1391,
+          "upper": 1801
         },
         {
           "time": "2028-06",
           "value": 1805,
-          "lower": 1652,
-          "upper": 1958
+          "lower": 1330,
+          "upper": 1840
         },
         {
           "time": "2028-12",
           "value": 1790,
-          "lower": 1648,
-          "upper": 1932
+          "lower": 1318,
+          "upper": 1825
         },
         {
           "time": "2029-06",
           "value": 1822,
-          "lower": 1668,
-          "upper": 1977
+          "lower": 1268,
+          "upper": 1863
         },
         {
           "time": "2029-12",
           "value": 1807,
-          "lower": 1646,
-          "upper": 1968
+          "lower": 1257,
+          "upper": 1848
         },
         {
           "time": "2030-06",
           "value": 1839,
-          "lower": 1607,
-          "upper": 2072
+          "lower": 1214,
+          "upper": 1886
         },
         {
           "time": "2030-12",
           "value": 1824,
-          "lower": 1594,
-          "upper": 2054
+          "lower": 1203,
+          "upper": 1870
         },
         {
           "time": "2031-06",
           "value": 1857,
-          "lower": 1622,
-          "upper": 2091
+          "lower": 1165,
+          "upper": 1908
         },
         {
           "time": "2031-12",
           "value": 1841,
-          "lower": 1608,
-          "upper": 2073
+          "lower": 1155,
+          "upper": 1892
         },
         {
           "time": "2032-06",
           "value": 1874,
-          "lower": 1637,
-          "upper": 2110
+          "lower": 1120,
+          "upper": 1930
         },
         {
           "time": "2032-12",
           "value": 1858,
-          "lower": 1623,
-          "upper": 2092
+          "lower": 1110,
+          "upper": 1913
         },
         {
           "time": "2033-06",
           "value": 1891,
-          "lower": 1653,
-          "upper": 2130
+          "lower": 1078,
+          "upper": 1951
         },
         {
           "time": "2033-12",
           "value": 1875,
-          "lower": 1638,
-          "upper": 2111
+          "lower": 1068,
+          "upper": 1934
         },
         {
           "time": "2034-06",
           "value": 1908,
-          "lower": 1668,
-          "upper": 2149
+          "lower": 1038,
+          "upper": 1973
         },
         {
           "time": "2034-12",
           "value": 1892,
-          "lower": 1653,
-          "upper": 2130
+          "lower": 1028,
+          "upper": 1956
         },
         {
           "time": "2035-06",
           "value": 1925,
-          "lower": 1683,
-          "upper": 2168
+          "lower": 999,
+          "upper": 1994
         },
         {
           "time": "2035-12",
           "value": 1908,
-          "lower": 1614,
-          "upper": 2203
+          "lower": 991,
+          "upper": 1977
         }
       ]
     }
@@ -1015,6 +1258,7 @@
       "rule": "候选（ETS / 季节朴素 / 组合）须比线性好 ≥0.5pp 才可替换；达标者取 MAPE 最小（平局取参数少者）；组合须严格优于当轮最好单模型",
       "per_port_winner": "见 ports.*.backtest.selected_model 与 ports.*.model_comparison"
     },
+    "interval_calibration": "lower/upper = 胜者回测的逐 origin 已实现相对误差 10%/90% 分位数（名义 80%，P0-3）；h12 之后按 sqrt(年) 外推；reliability 仍为 1-步长MAPE/100（语义未变），覆盖率见 backtest.overall_picp",
     "canal_assumption": "未建模平陆运河（2026-09-16 已通航，预测=无运河反事实基线；情景层待工单 F3 落地）"
   }
 }

@@ -56,3 +56,43 @@ describe('产物组合条目（P0-1 接线）', () => {
     }
   }
 })
+
+// P0-3 接线断言：产物 lower/upper 必须来自校准偏移（interval_offsets），步长表与覆盖率自洽。
+describe('产物区间校准（P0-3 接线）', () => {
+  for (const name of PRODUCTS) {
+    const product = loadProduct(name)
+    for (const [port, p] of Object.entries(product.ports)) {
+      it(`${name}/${port}：interval_offsets 全步长、PICP ∈ [0,1]、h12 边界 = 校准偏移`, () => {
+        const backtest = p.backtest
+        for (let s = 1; s <= 12; s++) {
+          const off = backtest.interval_offsets[s]
+          expect(off, `step ${s} offset`).not.toBeNull()
+          expect(off.n).toBeGreaterThanOrEqual(10)
+          expect(off.lo).toBeLessThanOrEqual(off.hi)
+        }
+        expect(backtest.overall_picp).toBeGreaterThanOrEqual(0)
+        expect(backtest.overall_picp).toBeLessThanOrEqual(1)
+        for (const v of Object.values(backtest.rolling_picp_by_step)) {
+          if (v === null) continue
+          expect(v).toBeGreaterThanOrEqual(0)
+          expect(v).toBeLessThanOrEqual(1)
+        }
+        for (const pt of p.predictions) {
+          // 校准区间允许不含点预测（系统性偏置时区间整体低于/高于点），但必须有 lower ≤ upper
+          expect(pt.lower).toBeLessThanOrEqual(pt.upper)
+        }
+        // h12（2027-06，relIdx=12，scale=1）：边界必须与校准偏移一致（而非回退 MAPE 折算）
+        const h12 = p.predictions.find((x) => x.time === '2027-06')
+        expect(h12).toBeTruthy()
+        const { lo, hi } = backtest.interval_offsets[12]
+        // value 为整数舍入，容差按 0.5·(1+|offset|)+1 计
+        expect(Math.abs(h12.lower - h12.value * (1 + lo))).toBeLessThanOrEqual(
+          0.5 * (1 + Math.abs(lo)) + 1
+        )
+        expect(Math.abs(h12.upper - h12.value * (1 + hi))).toBeLessThanOrEqual(
+          0.5 * (1 + Math.abs(hi)) + 1
+        )
+      })
+    }
+  }
+})

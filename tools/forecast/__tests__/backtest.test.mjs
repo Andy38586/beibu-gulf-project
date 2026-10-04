@@ -7,6 +7,8 @@ const {
   runRollingBacktest,
   seasonalNaiveModel,
   seasonalNaiveForecast,
+  quantileSorted,
+  intervalBounds,
   selectModel,
   addMonths,
   monthIndex,
@@ -348,5 +350,84 @@ describe('P0-1: 组合模式（members/weightTracker）', () => {
       horizon: 1,
     })
     expect(r.overallMape).toBeLessThan(equal.overallMape)
+  })
+})
+
+// ── P0-3（2026-10-04）：因果区间校准（逐 origin 已实现相对误差分位数）──
+
+describe('P0-3: quantileSorted / intervalBounds / calibration 模式', () => {
+  it('quantileSorted：type-7 线性插值（手算 [0..40] q10=4 / q50=20 / q90=36）', () => {
+    expect(quantileSorted([0, 10, 20, 30, 40], 0.1)).toBeCloseTo(4, 12)
+    expect(quantileSorted([0, 10, 20, 30, 40], 0.5)).toBeCloseTo(20, 12)
+    expect(quantileSorted([0, 10, 20, 30, 40], 0.9)).toBeCloseTo(36, 12)
+    expect(quantileSorted([7], 0.3)).toBe(7)
+    expect(quantileSorted([], 0.5)).toBeNull()
+  })
+
+  it('intervalBounds：校准偏移优先；缺失回退 MAPE 折算；>h12 按 sqrt(年) 放大', () => {
+    const off = { 3: { lo: -0.1, hi: 0.2, n: 12 } }
+    const calibrated = intervalBounds(3, 12, off, { 3: 8 }, 5)
+    expect(calibrated.lo).toBeCloseTo(-0.1, 12)
+    expect(calibrated.hi).toBeCloseTo(0.2, 12)
+    expect(calibrated.source).toBe('calibrated')
+    const scaled = intervalBounds(24, 12, { 12: { lo: -0.1, hi: 0.2, n: 12 } }, { 12: 6 }, 5)
+    expect(scaled.lo).toBeCloseTo(-0.1 * Math.sqrt(3), 12)
+    expect(scaled.hi).toBeCloseTo(0.2 * Math.sqrt(3), 12)
+    const fallback = intervalBounds(3, 12, { 3: null }, { 3: 8 }, 5)
+    expect(fallback.lo).toBeCloseTo(-0.08, 12)
+    expect(fallback.hi).toBeCloseTo(0.08, 12)
+    expect(fallback.source).toBe('mape')
+    const overall = intervalBounds(1, 12, null, {}, 7)
+    expect(overall.hi).toBeCloseTo(0.07, 12)
+    expect(overall.source).toBe('mape')
+  })
+
+  it('calibration 模式：区间只用"目标时点 < 当前 origin"的已实现误差（future 步长不入分位）', () => {
+    // 夹具：12 个月真值 100·(1+a_i)，a_i=(i−5)/10；forecastFn 恒 100 ⇒ r_i = a_i（单调漂移）。
+    // horizon=2：每个 origin 同时记录 step1（当月）与 step2（下月）误差——step2 的"下月误差"
+    // 对下一 origin 而言尚未实现，必须被 filter 排除（本测试即钉住该过滤器）。
+    const fixture = Array.from({ length: 12 }, (_, i) => ({
+      time: `2023-${String(i + 1).padStart(2, '0')}`,
+      value: 100 * (1 + (i - 5) / 10),
+    }))
+    const r = runRollingBacktest({
+      historical: fixture,
+      fitFn: () => ({}),
+      forecastFn: () => 100,
+      calibration: { level: 0.8, minSamples: 3 },
+      originStart: '2023-06',
+      originEnd: '2023-10',
+      horizon: 2,
+    })
+    // 因果性：step2 的首个区间只能出现在 2023-10（此前可见样本 <3）；无过滤器时 09 月就会
+    // 拿"未来（09 月）的 step2 误差"建区间 ⇒ 本条必红。n 表示"t < origin 的样本数"。
+    expect(r.calibrationLog.filter((l) => l.step === 2).map((l) => [l.origin, l.n])).toEqual([
+      ['2023-10', 3],
+    ])
+    // 全期偏移 = 全部已记录误差的分位（记录集与 filter 无关）：step2 r=[0.1..0.5] n=5
+    expect(r.intervalOffsets[2]).toMatchObject({ n: 5 })
+    expect(r.intervalOffsets[2].lo).toBeCloseTo(0.14, 12)
+    expect(r.intervalOffsets[2].hi).toBeCloseTo(0.46, 12)
+    // 单调漂移夹具：测量点 r 高于过去样本上分位 ⇒ PICP=0（诚实负结果，不是虚高）
+    expect(r.overallPicp).toBe(0)
+  })
+
+  it('calibration minSamples 门槛：样本不足 ⇒ 偏移 null、PICP 全 null（不计分母）', () => {
+    const fixture = Array.from({ length: 12 }, (_, i) => ({
+      time: `2023-${String(i + 1).padStart(2, '0')}`,
+      value: 100 * (1 + (i - 5) / 10),
+    }))
+    const r = runRollingBacktest({
+      historical: fixture,
+      fitFn: () => ({}),
+      forecastFn: () => 100,
+      calibration: { level: 0.8, minSamples: 7 },
+      originStart: '2023-06',
+      originEnd: '2023-11',
+      horizon: 1,
+    })
+    expect(r.intervalOffsets[1]).toBeNull()
+    expect(r.overallPicp).toBeNull()
+    expect(r.calibrationLog).toEqual([])
   })
 })

@@ -16,6 +16,11 @@
 因果权重（`lib/combination.cjs`，逐 origin 只用已实现误差）跑同协议回测；六席组合 MAPE
 全 ≤ 原胜者，4 席换到组合（钦州货 / 钦州箱 / 北海箱 / 防城箱）。产物新增
 `model_comparison.combination`（`overall_mape/mase`、分步长、`final_weights`、`member_mape`）。
+**2026-10-04 P0-3 区间校准（验收未达，待裁）**：lower/upper 改用胜者回测"逐 origin 已实现
+相对误差"的分步长分位数（名义 80%，`interval_offsets` 可复算）；产物增
+`rolling_picp_by_step`/`overall_picp`。实测因果 PICP 0.46~0.66（6/6 低于目标带 0.70~0.90，
+根因=2026 增速换挡的分布漂移）；h12 宽度 4/6 席 ≤1.2×。级别扫描证明"覆盖入带"与
+"宽度 ≤1.2×"两条判据在当前数据上互斥，待用户裁（方案 §八 P0-3）。
 
 > 覆盖范围说明（2026-08-29 更新）：产物覆盖 cargo 与 container 两个指标；
 > berth / traffic 为合成指标，不走该模型（数据文件自带 forecast 直接透传）。

@@ -42,6 +42,7 @@ const {
   runRollingBacktest,
   seasonalNaiveModel,
   seasonalNaiveForecast,
+  intervalBounds,
   selectModel,
   monthIndex,
 } = require('./lib/backtest.cjs')
@@ -81,6 +82,8 @@ const VALID_START = '2025-01'
 const ROLLING_START = '2024-01'
 const ROLLING_END = '2026-06' // 真数据终点
 const ROLLING_HORIZON = 12
+// P0-3 区间校准：80% 区间 = 胜者回测的逐 origin 已实现相对误差分位数（月步长 1-12）
+const INTERVAL_CALIBRATION = { level: 0.8, minSamples: 10 }
 
 function loadData(file) {
   const raw = fs.readFileSync(path.join(forecastDir(), file), 'utf-8')
@@ -112,18 +115,17 @@ function futureTargets(lastTime) {
 }
 
 /**
- * 单点预测 + 区间：「步长 MAPE + h12 之后 sqrt(年) 外推」构造，各胜者用自己的分步长误差。
- * relIdx = 该时点相对训练末月的月差（1 起）。
+ * 单点预测 + 区间（P0-3）：区间 = 胜者回测的逐 origin 已实现相对误差分位数偏移
+ * （stepOffsets，step 1-12 直接用；>12 按 sqrt(年) 外推放大）。stepOffsets 缺该步长
+ * （样本不足）时回退旧"步长 MAPE 折算"（诚实降级，不伪造）。relIdx = 月差（1 起）。
  */
-function forecastPoint(time, value, mapeByStep, overallMape, relIdx) {
-  const stepMape = mapeByStep[Math.min(relIdx, ROLLING_HORIZON)] ?? overallMape
-  const yearsOut = 1 + Math.floor(relIdx / 12)
-  const width = (stepMape / 100) * (relIdx <= ROLLING_HORIZON ? 1 : Math.sqrt(yearsOut))
+function forecastPoint(time, value, stepOffsets, mapeByStep, overallMape, relIdx) {
+  const { lo, hi } = intervalBounds(relIdx, ROLLING_HORIZON, stepOffsets, mapeByStep, overallMape)
   return {
     time,
     value: Math.round(value),
-    lower: Math.round(value * (1 - width)),
-    upper: Math.round(value * (1 + width)),
+    lower: Math.round(value * (1 + lo)),
+    upper: Math.round(value * (1 + hi)),
   }
 }
 
@@ -323,16 +325,19 @@ function processPort(portId, historical) {
     historical,
     fitFn: fitLinearCandidate,
     forecastFn: forecastLinearCandidate,
+    calibration: INTERVAL_CALIBRATION,
   })
   const etsH = runRollingBacktest({
     historical,
     fitFn: fitEtsCandidate,
     forecastFn: forecastEtsCandidate,
+    calibration: INTERVAL_CALIBRATION,
   })
   const snH = runRollingBacktest({
     historical,
     fitFn: seasonalNaiveModel,
     forecastFn: seasonalNaiveForecast,
+    calibration: INTERVAL_CALIBRATION,
   })
   // P0-1 组合候选：{线性, ETS, 季节朴素} 同协议回测，inverse-MAPE 权重逐 origin 用
   // 已实现误差更新（createWeightTracker 内部保证快照语义；过滤条件见 lib/backtest.cjs）
@@ -344,6 +349,7 @@ function processPort(portId, historical) {
       { key: 'seasonal_naive', fitFn: seasonalNaiveModel, forecastFn: seasonalNaiveForecast },
     ],
     weightTracker: createWeightTracker('inverse'),
+    calibration: INTERVAL_CALIBRATION,
   })
 
   // 同协议自检：harness 跑出的线性 MAPE 必须与原实现一致（防两套回测实现漂移）
@@ -397,8 +403,18 @@ function processPort(portId, historical) {
       const value = correctedTrend * allModel.seasonalIndices[month]
 
       // 区间宽度：来自滚动回测的分步长真实误差；超出回测步长后按 sqrt 外推放大
-      const relIdx = timeIndex - forecastStartIdx + 1
-      preds.push(forecastPoint(timeStr, value, rolling.mapeByStep, overallMAPE, relIdx))
+      // relIdx 用月差（与 ETS/朴素/组合同口径）；顺序序号在半年点错位（2027-06 会误取 step7）
+      const relIdx = monthIndex(timeStr) - monthIndex(lastTime)
+      preds.push(
+        forecastPoint(
+          timeStr,
+          value,
+          linH.intervalOffsets,
+          linH.mapeByStep,
+          linH.overallMape,
+          relIdx
+        )
+      )
     }
 
     // 2026-07 ~ 2026-12 逐月
@@ -420,6 +436,9 @@ function processPort(portId, historical) {
         validation_months: testPreds.length,
         rolling_mape_by_step: rolling.mapeByStep,
         rolling_samples_by_step: rolling.cntByStep,
+        rolling_picp_by_step: linH.picpByStep,
+        overall_picp: linH.overallPicp,
+        interval_offsets: linH.intervalOffsets,
         bias,
         correction_factor: Math.round(correctionFactor * 10000) / 10000,
       },
@@ -433,6 +452,7 @@ function processPort(portId, historical) {
       forecastPoint(
         t,
         forecastEtsCandidate(fullEts, t),
+        etsH.intervalOffsets,
         etsH.mapeByStep,
         etsH.overallMape,
         monthIndex(t) - monthIndex(lastTime)
@@ -442,6 +462,9 @@ function processPort(portId, historical) {
       selected_model: 'ets',
       rolling_mape_by_step: etsH.mapeByStep,
       rolling_samples_by_step: etsH.samplesByStep,
+      rolling_picp_by_step: etsH.picpByStep,
+      overall_picp: etsH.overallPicp,
+      interval_offsets: etsH.intervalOffsets,
       // 线性专有口径（一次切分验证 / 偏差校正）不适用于 ETS 路径——置 null 不伪造（04-B7）
       validation_overall_mape: null,
       bias: null,
@@ -457,6 +480,7 @@ function processPort(portId, historical) {
       return forecastPoint(
         t,
         seasonalNaiveForecast(fullSn, t),
+        snH.intervalOffsets,
         snH.mapeByStep,
         snH.overallMape,
         relIdx
@@ -466,6 +490,9 @@ function processPort(portId, historical) {
       selected_model: 'seasonal_naive',
       rolling_mape_by_step: snH.mapeByStep,
       rolling_samples_by_step: snH.samplesByStep,
+      rolling_picp_by_step: snH.picpByStep,
+      overall_picp: snH.overallPicp,
+      interval_offsets: snH.intervalOffsets,
       // 线性专有口径（一次切分验证 / 偏差校正）不适用于朴素路径——置 null 不伪造（04-B7）
       validation_overall_mape: null,
       bias: null,
@@ -507,6 +534,7 @@ function processPort(portId, historical) {
         forecastPoint(
           time,
           value,
+          comH.intervalOffsets,
           comH.mapeByStep,
           comH.overallMape,
           monthIndex(time) - monthIndex(lastTime)
@@ -516,6 +544,9 @@ function processPort(portId, historical) {
         selected_model: 'combination',
         rolling_mape_by_step: comH.mapeByStep,
         rolling_samples_by_step: comH.samplesByStep,
+        rolling_picp_by_step: comH.picpByStep,
+        overall_picp: comH.overallPicp,
+        interval_offsets: comH.intervalOffsets,
         // 线性专有口径（一次切分验证 / 偏差校正）不适用于组合路径——置 null 不伪造（04-B7）
         validation_overall_mape: null,
         bias: null,
@@ -534,12 +565,14 @@ function processPort(portId, historical) {
     linear: {
       overall_mape: linH.overallMape,
       overall_mase: linH.overallMase,
+      overall_picp: linH.overallPicp,
       mape_by_step: linH.mapeByStep,
       mase_by_step: linH.maseByStep,
     },
     ets_damped: {
       overall_mape: etsH.overallMape,
       overall_mase: etsH.overallMase,
+      overall_picp: etsH.overallPicp,
       mape_by_step: etsH.mapeByStep,
       mase_by_step: etsH.maseByStep,
       params: etsFitInfo ? etsFitInfo.params : null,
@@ -548,12 +581,14 @@ function processPort(portId, historical) {
     seasonal_naive: {
       overall_mape: snH.overallMape,
       overall_mase: snH.overallMase,
+      overall_picp: snH.overallPicp,
       mape_by_step: snH.mapeByStep,
       mase_by_step: snH.maseByStep,
     },
     combination: {
       overall_mape: comH.overallMape,
       overall_mase: comH.overallMase,
+      overall_picp: comH.overallPicp,
       mape_by_step: comH.mapeByStep,
       mase_by_step: comH.maseByStep,
       // P0-1 可复核面：final_weights 由各成员平均已实现误差（member_mape，%）反比归一
@@ -590,6 +625,9 @@ function main() {
           rule: '候选（ETS / 季节朴素 / 组合）须比线性好 ≥0.5pp 才可替换；达标者取 MAPE 最小（平局取参数少者）；组合须严格优于当轮最好单模型',
           per_port_winner: '见 ports.*.backtest.selected_model 与 ports.*.model_comparison',
         },
+        interval_calibration:
+          'lower/upper = 胜者回测的逐 origin 已实现相对误差 10%/90% 分位数（名义 80%，P0-3）；' +
+          'h12 之后按 sqrt(年) 外推；reliability 仍为 1-步长MAPE/100（语义未变），覆盖率见 backtest.overall_picp',
         canal_assumption:
           '未建模平陆运河（2026-09-16 已通航，预测=无运河反事实基线；情景层待工单 F3 落地）',
       },
@@ -634,6 +672,7 @@ function main() {
                 .join('  ')
           )
         }
+        console.log(`  区间覆盖率（PICP，名义 80%）: ${bt.overall_picp}`)
         console.log(
           `  所选模型分步长 MAPE: ` +
             Object.entries(bt.rolling_mape_by_step)

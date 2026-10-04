@@ -658,6 +658,16 @@ HTTP 200（sha256 前 8 位 `0a2d2a70`，三份 env 同值；旧 key `FBF2A309` 
 **复算钩子**：`backend/algorithm-service/.venv/Scripts/python.exe -X utf8 tools/diag/port-align.py`
 ⇒ 自检行 `峰回收 dx=+23 dy=+17`、水缘差行；`tools/diag/port-overlay.py` ⇒ `WROTE …port-overlay.png`
 （20:5x 入库复跑：自检逐位一致、PNG 与 17:1x 版 MD5 相同 `CEA58A1E…`）。
+
+**落地链复核（2026-10-05）**：B2 若裁"差 X 米"，落地前有两道前置——① 实测水缘差（中位 +53 m /
+MAD 101 m）**不是刚性偏移**（块状海面 + 掩膜漏水）⇒ 须先分解刚性/局部分量，再决定"平移
+root.transform"还是"局部修"；② **港区没有现成 applier**（`reanchor-hubs.mjs` 只覆盖 pinglu
+三枢纽 child；`port-align.py` 只测不应用）。若确为刚性平移，换算 = ΔECEF `= col0·dE + col1·dN`
+（col0 实测 [−0.9476,−0.3196,0] = 东向，与 λ=108.65° 的 (−sinλ,cosλ,0) 吻合；**不能直加
+transform[12..14]**）。③ **回滚**：`backend/static/qinzhou-port/tiles/tileset.json` **gitignored
+（非 tracked）**——与 pinglu（tracked ⇒ `git restore`）不同，改前须备份该文件。裁"对得上"⇒
+直接结案。
+
 **失效条件**：换影像源 / 重做 water-mask / 交付包换版 ⇒ 本节结论作废重测。
 
 ### 8.19 绝对高程实测：三枢纽 / 运河带 / 港区（地形关模式的竖直位置）· 2026-10-04 17:5x

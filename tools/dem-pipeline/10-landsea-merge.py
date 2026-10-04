@@ -2,24 +2,30 @@
 10-landsea-merge.py v3 — 海陆一体 DEM 合成（全向量化分块，2026-09-27）
 
 输入（同 CRS = custom TM CM108/FE500000）：
-  .local/dem-work/filled_utm48n_cut.tif   陆地权威版（海=nodata 32767，Int16）
-  .local/dem-sea-work/sea_custom.tif      海域源（SRTM15+ 重采样 30m，nodata=NaN）
+  <cut>  陆地权威版（海=nodata 32767，Int16）     默认 .local/dem-work/filled_utm48n_cut.tif
+  <sea>  海域源（SRTM15+ 重采样 30m，nodata=NaN） 默认 .local/dem-sea-work/sea_custom.tif
 输出：
-  landsea_utm48n.tif  海陆一体（Int16）+ 控制台接缝审计
+  <out>  海陆一体（Int16）+ 控制台接缝审计        默认 .local/dem-sea-work/landsea_utm48n.tif
+
+用法：python 10-landsea-merge.py [cut.tif] [sea.tif] [out.tif]
+（需 osgeo/GDAL；本机用 QGIS 自带 python，见 tools/dem-pipeline/README 的运行环境说明）
 
 坑（留痕）：①nc nodata=NaN，warp -dstnodata 与之冲突全图空；②本 GDAL 构建 -te 被静默
 忽略（-te/-te_srs 实测）→ 海域源按自身范围重采样后以仿射坐标采样对齐；③gdal.Open
 结果必须存变量（GC 悬空 band）；④osr 变换默认 lat/lon 轴序（OAMS_TRADITIONAL_GIS_ORDER
 修正）。
 """
+import sys
+
 import numpy as np
 from osgeo import gdal, gdalconst
 
 gdal.UseExceptions()
 
-CUT = r"C:/workspace/beibu-gulf-project/.local/dem-work/filled_utm48n_cut.tif"
-SEA = r"C:/workspace/beibu-gulf-project/.local/dem-sea-work/sea_custom.tif"
-OUT = r"C:/workspace/beibu-gulf-project/.local/dem-sea-work/landsea_utm48n.tif"
+REPO = r"C:/workspace/beibu-gulf-project"
+CUT = sys.argv[1] if len(sys.argv) > 1 else rf"{REPO}/.local/dem-work/filled_utm48n_cut.tif"
+SEA = sys.argv[2] if len(sys.argv) > 2 else rf"{REPO}/.local/dem-sea-work/sea_custom.tif"
+OUT = sys.argv[3] if len(sys.argv) > 3 else rf"{REPO}/.local/dem-sea-work/landsea_utm48n.tif"
 NODATA = 32767
 CHUNK = 800
 

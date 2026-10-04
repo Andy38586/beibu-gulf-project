@@ -20,7 +20,7 @@ interface SeriesItem {
 
 /** 返回契约（显式化，防重构时签名静默漂移）。v4-S3：结果写 store.chart，不再持本地 ref——
  * 请求归属上移面板后，页面模板绑定 store，本 composable 只剩"取数+窗口切片"职责 */
-export interface UseForecastTimeseriesReturn {
+interface UseForecastTimeseriesReturn {
   load: (transactionId: number, signal: AbortSignal) => Promise<void>
 }
 

@@ -27,7 +27,7 @@ export const PORT_JSON_NAMES: Record<string, string> = {
 }
 
 /** 弧线控制点向南偏移量 = 弦长 × 本比例（作者设定：三弧均离岸鼓出） */
-export const ARC_BULGE_RATIO = 0.18
+const ARC_BULGE_RATIO = 0.18
 
 /** 弧线离散段数（贝塞尔采样点数 - 1；64 段在 3D 缩放下平滑且顶点量级可忽略） */
 export const ARC_SEGMENTS = 64

@@ -31,7 +31,7 @@ export const SLOW_REQUEST_THRESHOLD_MS = 3000
 const DEFAULT_MESSAGE = '这次分析较慢，转到后台继续？'
 const DEFAULT_CONFIRM_TEXT = '转到后台'
 
-export interface SlowRequestOfferOptions {
+interface SlowRequestOfferOptions {
   /** 用户点主按钮时执行（通常是「用同一份参数提交 task」）。抛错由调用方自己兜，本层不吞 */
   onAccept: () => void
   /** 阈值（毫秒），缺省 SLOW_REQUEST_THRESHOLD_MS */

@@ -29,8 +29,6 @@ export const CANAL_SCENARIO_OPTIONS = [
   { id: 'induced', label: '诱导' },
 ] as const
 
-export type CanalScenarioId = (typeof CANAL_SCENARIO_OPTIONS)[number]['id']
-
 /** 预测时间轴起止年 */
 export const BASE_YEAR = 2021
 export const END_YEAR = 2031

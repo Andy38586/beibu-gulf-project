@@ -16,7 +16,7 @@ import { cellScore } from './scoring'
 // 计算全在内存（148k 行算术），出参形状为契约 siteSuitabilityResponseSchema（前端
 // types/schemas.ts，@backend-contract 反向核对指向本文件）。
 
-export interface SuitabilityResult {
+interface SuitabilityResult {
   type: 'FeatureCollection'
   features: Array<{
     type: 'Feature'

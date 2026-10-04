@@ -20,7 +20,7 @@ export interface PanelSpec {
 }
 
 /** 偏移允许刻度：整数 × SUBCELL（旧模板 1.25 之类非倍数字面量在此非法） */
-export const SUBCELL = 0.5
+const SUBCELL = 0.5
 
 /** 尺寸非法即抛（注册期拒绝，不靠注释提醒） */
 export function assertCellMultiple(value: number, what: string): void {

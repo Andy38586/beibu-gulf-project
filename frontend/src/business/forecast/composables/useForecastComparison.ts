@@ -18,7 +18,7 @@ import { PORT_KEYS, PORT_NAMES } from '@/shared'
 import { useForecastStore } from '@/stores'
 
 /** 返回契约（显式化，防重构时签名静默漂移）。v4-S3：结果写 store.chart，不再持本地 ref */
-export interface UseForecastComparisonReturn {
+interface UseForecastComparisonReturn {
   load: (transactionId: number, signal: AbortSignal) => Promise<void>
 }
 

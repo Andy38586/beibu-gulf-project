@@ -5,7 +5,7 @@ import { DbService } from '../../../infra/db/db.service'
 // 选址统一因子格网取数（SQL 收口本层；表与列见 tools/db/db-schema-gis.sql
 // suitability_cells 段与 tools/site-suitability/materialize-cells.sql）。
 
-export interface SuitabilityCellRow {
+interface SuitabilityCellRow {
   /**
    * ⚠️ 这里必须是 string：suitability_cells.id 是 bigint，node-postgres 为避免精度
    * 丢失**按字符串返回** int8。对外契约（⑯ siteSuitabilityResponseSchema）声明

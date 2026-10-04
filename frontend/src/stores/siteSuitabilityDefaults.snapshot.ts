@@ -31,8 +31,6 @@ export const SNAPSHOT_WEIGHTS: SuitabilityWeightsState = {
 
 export const SNAPSHOT_MIN_LAND_FRAC = 0.5
 
-export const SNAPSHOT_RESOLUTION = 0
-
 /** 阈值表定稿值镜像（前端暂无消费方，随 defaults schema 做形状守卫，不手抄第二份） */
 export const SNAPSHOT_THRESHOLDS = {
   inundLowM: 1,

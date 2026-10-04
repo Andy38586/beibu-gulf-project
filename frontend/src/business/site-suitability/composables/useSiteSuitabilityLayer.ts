@@ -36,7 +36,7 @@ const LAYER_LABEL = '选址分析'
  * 与 business/manifest.ts 的 path 是同一个值；写法沿用浸没页的 FLOOD_ROUTE_PATH 先例
  * （页面路由表是权威，这里是消费方持有的 key，不是第二份路由表）。
  */
-export const SITE_SUITABILITY_ROUTE_PATH = '/site-suitability'
+const SITE_SUITABILITY_ROUTE_PATH = '/site-suitability'
 
 /**
  * 展示用聚合分辨率（度）：0.02° ≈ 2.2km。设 0 可退回全分辨率（调试用）。

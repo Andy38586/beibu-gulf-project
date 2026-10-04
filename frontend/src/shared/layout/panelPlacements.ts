@@ -10,7 +10,7 @@ import type { PanelSpec, PanelZone } from './panelRegistry'
 import { useGCS } from './useGCS'
 
 /** GCSPanel 定位 props 子集（w/h 必填，锚点只收上下两角） */
-export interface PanelPlacement {
+interface PanelPlacement {
   w: number
   h: number
   anchor: 'top-left' | 'top-right'

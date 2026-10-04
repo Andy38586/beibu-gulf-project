@@ -5,7 +5,7 @@
 // 石灰石9%），目的地为广东本地建设，"经西江-珠江内河运输直接且效率高……不可能转移至
 // 平陆运河"——可分流基数只看上行调入货（煤/粮/矿），这是本模块的负结果锚点。
 
-export interface WestRiverTransfer {
+interface WestRiverTransfer {
   /** 年份 */
   year: number
   /** 煤炭（万吨/年） */

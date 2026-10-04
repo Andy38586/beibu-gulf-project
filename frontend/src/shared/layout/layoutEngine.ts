@@ -13,14 +13,14 @@ import {
 } from './config'
 import type { PanelSpec, PanelZone } from './panelRegistry'
 
-export interface Viewport {
+interface Viewport {
   width: number
   height: number
 }
 
-export type LayoutMode = 'desktop' | 'drawer' | 'compact'
+type LayoutMode = 'desktop' | 'drawer' | 'compact'
 
-export interface PanelRect {
+interface PanelRect {
   id: string
   x: number
   y: number
@@ -30,7 +30,7 @@ export interface PanelRect {
   collapsed: boolean
 }
 
-export interface LayoutResult {
+interface LayoutResult {
   mode: LayoutMode
   cell: number
   rects: PanelRect[]
@@ -50,7 +50,7 @@ export class LayoutOverflowError extends Error {
   }
 }
 
-export interface LayoutOptions {
+interface LayoutOptions {
   strict?: boolean
   collapsed?: Record<string, boolean>
 }
@@ -58,9 +58,9 @@ export interface LayoutOptions {
 /** 标题行占 1 格（AppLayout title 4×1，offset-y=0） */
 export const TITLE_H_CELLS = 1
 /** 底部导航占 1 格（BottomNavBar h=1，bottom-center，offset-y=0） */
-export const DOCK_H_CELLS = 1
+const DOCK_H_CELLS = 1
 /** 折叠态面板按 1 格计高 */
-export const COLLAPSED_H_CELLS = 1
+const COLLAPSED_H_CELLS = 1
 
 export function layoutModeFor(width: number): LayoutMode {
   if (width >= LAYOUT_DESKTOP_MIN) return 'desktop'

@@ -7,13 +7,3 @@ export const GULF_BOUNDS = {
   minLat: 18,
   maxLat: 25,
 } as const
-
-/** 坐标是否落在北部湾业务区内（范围判定独立成函数，避免调用点重复书写四个比较） */
-export function isInGulfBounds(lng: number, lat: number): boolean {
-  return (
-    lng >= GULF_BOUNDS.minLng &&
-    lng <= GULF_BOUNDS.maxLng &&
-    lat >= GULF_BOUNDS.minLat &&
-    lat <= GULF_BOUNDS.maxLat
-  )
-}

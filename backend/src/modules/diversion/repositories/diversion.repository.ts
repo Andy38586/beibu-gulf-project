@@ -12,7 +12,7 @@ import { DbService } from '../../../infra/db/db.service'
 /** 库查询行（type 而非 interface：pg QueryResultRow 泛型约束需要隐式索引签名） */
 type CanalRowDb = { name: string | null; section: string | null; geojson: string | null }
 
-export interface CanalLineRow {
+interface CanalLineRow {
   name: string | null
   section: string | null
   /** [lng, lat] 对序列（4326） */

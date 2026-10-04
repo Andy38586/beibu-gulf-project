@@ -16,7 +16,7 @@ export const DIVERSION_YEAR_MIN = 2027
 export const DIVERSION_YEAR_MAX = 2050
 export const DIVERSION_YEAR_DEFAULT = 2035
 
-export interface DiversionYearResult extends DiversionBreakdown {
+interface DiversionYearResult extends DiversionBreakdown {
   year: number
 }
 

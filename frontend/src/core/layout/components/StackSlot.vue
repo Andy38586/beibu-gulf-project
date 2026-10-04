@@ -18,7 +18,7 @@ import { computed, ref } from 'vue'
 
 import { STACK_SLOT_ZONE_ATTR, useGlobalPanelDragActive } from '@/shared'
 
-export interface StackSlotItem {
+interface StackSlotItem {
   id: string
   label: string
   color?: string

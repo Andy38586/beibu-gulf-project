@@ -8,13 +8,6 @@ export type FacilityType =
   | 'bus_station'
   | 'mall'
 
-// 设施配置（来自 useFacilities.js 的 FACILITY_CONFIG）
-export interface FacilityConfig {
-  label: string
-  color: string
-  defaultRadius: number // 缓冲半径（公里），后端 siteAnalysisService 用 turf.buffer units:'kilometers' 计算（2026-08-11 修正：原注释"米"与后端相差 1000 倍）
-}
-
 // 设施点（POI，来自后端数据 source）
 // 坐标系统：WGS84(EPSG:4326)，lng/lat 为地理经纬度
 export interface FacilityPoint {
@@ -32,6 +25,3 @@ export interface TypeSetting {
   defaultRadius: number
   radius?: number
 }
-
-// 设施配置映射
-export type FacilityConfigMap = Record<FacilityType, FacilityConfig>

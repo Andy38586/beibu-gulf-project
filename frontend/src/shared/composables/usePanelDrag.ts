@@ -20,7 +20,7 @@
 import { onUnmounted, readonly, ref } from 'vue'
 
 /** 拖拽状态机 */
-export type PanelDragPhase = 'idle' | 'pending' | 'dragging'
+type PanelDragPhase = 'idle' | 'pending' | 'dragging'
 
 /** 落点判定：命中该属性的元素即视为投递区 */
 export const TASK_DOCK_ZONE_ATTR = 'data-task-dock-zone'
@@ -69,7 +69,7 @@ export function useGlobalPanelDragActive() {
   return readonly(globalDragActive)
 }
 
-export interface UsePanelDragOptions {
+interface UsePanelDragOptions {
   /** 拖拽开始时回调（用于挂 dragging class / 暂停内部动画等） */
   onDragStart?: () => void
   /** 拖拽结束（无论投递成功与否）回调 */
@@ -84,7 +84,7 @@ export interface UsePanelDragOptions {
   enabled?: () => boolean
 }
 
-export interface UsePanelDragReturn {
+interface UsePanelDragReturn {
   /** 当前拖拽阶段（只读） */
   phase: Readonly<ReturnType<typeof ref<PanelDragPhase>>>
   /** 拖拽位移（px），供宿主绑定 transform */

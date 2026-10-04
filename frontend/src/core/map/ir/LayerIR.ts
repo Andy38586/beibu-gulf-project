@@ -26,9 +26,9 @@ import type { TaskDomain, TaskSlot } from '@/types/task'
 import type { BusinessLayerManagerLike } from '../composables/useBusinessLayers'
 import { useOwnedLayers } from '../composables/useOwnedLayers'
 
-export type LayerIRKind = 'polygon' | 'polyline' | 'point' | 'raster'
+type LayerIRKind = 'polygon' | 'polyline' | 'point' | 'raster'
 
-export interface LayerIROrigin {
+interface LayerIROrigin {
   taskId: string
   route: string
 }

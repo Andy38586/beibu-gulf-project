@@ -2,7 +2,7 @@ import type { FacilityType, TypeSetting } from './facility'
 
 // 基础小区（POI/小区数据源，随旧版选址域归档）
 // 坐标系统：WGS84(EPSG:4326)，lng/lat 为地理经纬度
-export interface Xiaoqu {
+interface Xiaoqu {
   id: string
   name: string
   lng: number

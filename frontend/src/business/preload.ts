@@ -39,13 +39,13 @@ import { BEIBU_TILES, prepareBeibuTileset } from '@/business/route-analysis/cons
 import type { TilesetJson } from '@/core/map/tiles3dGroups'
 
 /** 预热目标：URL + 可选派生（与注册点同一函数；返回 null ⇒ 该资产裁空、无内容可预热） */
-export interface PreloadTarget {
+interface PreloadTarget {
   url: string
   prepare?: (raw: TilesetJson) => TilesetJson | null
 }
 
 /** 预热一项的字节上限：超过就跳过（C5「单项 ≤ 40 MB」的落地） */
-export const PRELOAD_ITEM_LIMIT_BYTES = 40 * 1024 * 1024
+const PRELOAD_ITEM_LIMIT_BYTES = 40 * 1024 * 1024
 
 let done = false
 

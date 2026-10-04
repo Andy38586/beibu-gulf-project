@@ -158,7 +158,7 @@ export function preparePingluHubTileset(
 }
 
 /** 图层 id 前缀（图层面板 layer-order 与注册共用） */
-export const PINGLU_LAYER_PREFIX = 'pinglu-'
+const PINGLU_LAYER_PREFIX = 'pinglu-'
 /** 由分组 id 得到图层 id（如 'madao' → 'pinglu-madao'） */
 export function pingluLayerId(groupId: PingluGroupId): string {
   return PINGLU_LAYER_PREFIX + groupId
@@ -215,7 +215,7 @@ export const PINGLU_IMAGERY_INDEX_URL = '/static/pinglu/imagery/imagery.json'
 export const PINGLU_IMAGERY_LAYER_PREFIX = 'pinglu-imagery-'
 
 /** 影像索引条目（imagery.json 的元素结构） */
-export interface PingluImageryEntry {
+interface PingluImageryEntry {
   name: string
   label: string
   file: string

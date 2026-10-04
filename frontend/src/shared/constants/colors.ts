@@ -27,8 +27,6 @@ export const FACILITY_FALLBACK_COLOR = '#666666'
 // 水面/覆盖层填充色（primary #409eff 的透明度派生，收口两处散落 rgba 硬编码）
 /** 水面填充（FloodAnalysisPage 水面图层） */
 export const LAYER_FILL_WATER = 'rgba(64, 158, 255, 0.5)'
-/** 覆盖层填充（useAnalysisLayer COVERAGE_STYLE） */
-export const LAYER_FILL_COVERAGE = 'rgba(64, 158, 255, 0.15)'
 
 // 剖面面积渐变 stops（success 绿 #67C23A 派生，WaterLevelProfilePanel 面积图）
 /** 剖面面积渐变-强端（近水面） */

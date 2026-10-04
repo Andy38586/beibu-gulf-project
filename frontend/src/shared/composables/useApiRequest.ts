@@ -17,7 +17,7 @@ export const ErrorCode = {
   REQUEST_FAILED: 'REQUEST_FAILED',
 } as const
 
-export type ErrorCodeValue = (typeof ErrorCode)[keyof typeof ErrorCode]
+type ErrorCodeValue = (typeof ErrorCode)[keyof typeof ErrorCode]
 
 export class ApiError extends Error {
   code: ErrorCodeValue
@@ -134,7 +134,7 @@ export interface RequestOptions {
 }
 
 /** 返回契约（显式化，防重构时签名静默漂移） */
-export interface UseApiRequestReturn {
+interface UseApiRequestReturn {
   apiRequest: <T = unknown>(path: string, options?: RequestOptions) => Promise<T>
   token: Ref<string>
   setToken: (t: string) => void

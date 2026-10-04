@@ -27,7 +27,7 @@ interface SankeyClickRaw {
 }
 
 /** 可绑定的最小实例形状（真 echarts 实例满足之；rest 形态兼容其 on(type, ...args) 签名） */
-export interface SankeyClickTarget {
+interface SankeyClickTarget {
   on: (type: string, handler: (...args: unknown[]) => void) => void
   off: (type: string, handler: (...args: unknown[]) => void) => void
 }

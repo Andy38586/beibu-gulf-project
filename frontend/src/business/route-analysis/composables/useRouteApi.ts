@@ -28,7 +28,7 @@ export class RouteQueryCancelledError extends Error {
 }
 
 /** 返回契约（显式化，防重构时签名静默漂移） */
-export interface UseRouteApiReturn {
+interface UseRouteApiReturn {
   /** 查询路径：返回 backend 结果（found true/false 均为合法响应）；
    *  网络/503/schema 校验失败时 throw；请求被取消 throw RouteQueryCancelledError
    *  （调用方区分错误态、业务空态与取消态） */

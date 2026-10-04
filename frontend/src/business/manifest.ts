@@ -8,7 +8,7 @@ import type { RouteRecordRaw } from 'vue-router'
 
 import { useFloodStore, useForecastStore, useSiteSuitabilityStore } from '@/stores'
 
-export interface BusinessModule {
+interface BusinessModule {
   /** 唯一标识（即路由 name） */
   name: string
   /** 路由路径 */

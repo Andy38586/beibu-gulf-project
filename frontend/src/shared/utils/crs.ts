@@ -12,7 +12,7 @@ import type { CRS, GeoPoint, LaxPoint } from '@/types/crs'
 import { logger } from './logger'
 
 /** 默认 CRS：业务数据统一使用 WGS84 */
-export const DEFAULT_CRS: CRS = 'EPSG:4326'
+const DEFAULT_CRS: CRS = 'EPSG:4326'
 
 /**
  * 归一化宽松坐标点为标准 GeoPoint（优先级 lng > lon > longitude）。

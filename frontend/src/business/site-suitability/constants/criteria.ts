@@ -4,7 +4,7 @@
  */
 export type SuitabilityCriterionKey = 'inundation' | 'terrain' | 'land' | 'access' | 'demand'
 
-export interface SuitabilityCriterion {
+interface SuitabilityCriterion {
   key: SuitabilityCriterionKey
   label: string
 }

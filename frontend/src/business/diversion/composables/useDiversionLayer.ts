@@ -29,9 +29,7 @@ export interface DiversionArcSpec {
 }
 
 /** 运河线位 GeoJSON（canal-line 响应每行一条 LineString，一一对应） */
-export function buildCanalGeoJson(
-  lines: Array<Array<[number, number]>>
-): FeatureCollection<LineString> {
+function buildCanalGeoJson(lines: Array<Array<[number, number]>>): FeatureCollection<LineString> {
   return {
     type: 'FeatureCollection',
     features: lines.map((coordinates) => ({
@@ -43,7 +41,7 @@ export function buildCanalGeoJson(
 }
 
 /** 单条分流弧 GeoJSON（几何见 diversionMap 头注释；样式经 options，值随 properties 供调试/气泡） */
-export function buildArcGeoJson(spec: DiversionArcSpec): FeatureCollection<LineString> {
+function buildArcGeoJson(spec: DiversionArcSpec): FeatureCollection<LineString> {
   const coordinates = buildPortArc(
     { lng: spec.start[0], lat: spec.start[1] },
     { lng: spec.end[0], lat: spec.end[1] }
@@ -64,7 +62,7 @@ export function buildArcGeoJson(spec: DiversionArcSpec): FeatureCollection<LineS
   }
 }
 
-export interface UseDiversionLayerReturn {
+interface UseDiversionLayerReturn {
   /** 运河线位上图（幂等；空段集清理图层；highlighted=桑基「平陆运河」节点联动高亮色） */
   updateCanalLayer: (lines: Array<Array<[number, number]>>, highlighted?: boolean) => void
   /**

@@ -23,7 +23,7 @@ export interface RouteReadinessState {
 export const EMPTY_ROUTE_READINESS: RouteReadinessState = Object.freeze({ preparing: false })
 
 /** 取值函数签名：给定路由路径 → 该路由的准备态 */
-export type RouteReadinessGetter = (route: string) => RouteReadinessState
+type RouteReadinessGetter = (route: string) => RouteReadinessState
 
 const getter = ref<RouteReadinessGetter>(() => EMPTY_ROUTE_READINESS)
 

@@ -12,7 +12,7 @@ import { computed, type ComputedRef, onUnmounted, ref } from 'vue'
 
 import { LAYOUT_DESKTOP_MIN, LAYOUT_DRAWER_MIN } from '@/shared'
 
-export type ViewportTier = 'desktop' | 'drawer' | 'compact'
+type ViewportTier = 'desktop' | 'drawer' | 'compact'
 
 const width = ref(typeof window !== 'undefined' ? window.innerWidth : 1280)
 let listenerCount = 0

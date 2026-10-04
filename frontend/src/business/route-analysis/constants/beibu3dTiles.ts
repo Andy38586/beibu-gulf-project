@@ -73,7 +73,7 @@ import {
 import { LOD_REFINE_GE_PER_SSE } from './lodRefinePolicy'
 
 /** 资产 id（图层 id 后缀，与注册时的 `beibu-` + id 拼装一致） */
-export type BeibuTilesId =
+type BeibuTilesId =
   | 'pinglu-canal'
   | 'qinzhou-port'
   | 'qz-containers'
@@ -141,7 +141,7 @@ export function prepareBeibuTileset(raw: TilesetJson, spec: BeibuTilesSpec): Til
 }
 
 /** 图层 id 前缀（图层面板 layer-order 与注册共用） */
-export const BEIBU_TILES_LAYER_PREFIX = 'beibu-'
+const BEIBU_TILES_LAYER_PREFIX = 'beibu-'
 
 /** 由资产 id 得到图层 id（如 'qinzhou-port' → 'beibu-qinzhou-port'） */
 export function beibuTilesLayerId(id: BeibuTilesId): string {

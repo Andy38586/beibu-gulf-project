@@ -8,13 +8,13 @@
 import { CELL_PIXEL } from './config'
 
 /** 盒子模型比例（相对 1 cell）：面板内边距 0.1cell、按钮行高 0.8cell、行间距 0.2cell */
-export const PANEL_PADDING_CELL = 0.1
+const PANEL_PADDING_CELL = 0.1
 export const ROW_HEIGHT_CELL = 0.8
-export const ROW_GAP_CELL = 0.2
+const ROW_GAP_CELL = 0.2
 /** 控制台类面板统一 2 列（LayerControlPanel / SiteSuitabilityControlPanel / ForecastControlPanel） */
-export const PANEL_COLUMNS = 2
+const PANEL_COLUMNS = 2
 
-export interface PanelGridCapacityInput {
+interface PanelGridCapacityInput {
   /** 面板高度，单位 cell（GCSPanel 的 `h` 属性值） */
   heightCells: number
   /** 1 cell 的像素现值（`useGCS().cellPixel`；窄屏会缩小）；缺省取桌面基准 */

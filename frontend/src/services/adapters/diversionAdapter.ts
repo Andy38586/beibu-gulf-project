@@ -10,7 +10,7 @@ import { canalLineResponseSchema, diversionBreakdownResponseSchema } from '@/typ
 const { apiRequest } = useApiRequest()
 
 export type DiversionResult = DiversionBreakdownResponseParsed
-export type CanalLineResult = CanalLineResponseParsed
+type CanalLineResult = CanalLineResponseParsed
 
 export const diversionAdapter = {
   /** 分流分解（桑基流 + 分货类转移 + 三港分摊） */

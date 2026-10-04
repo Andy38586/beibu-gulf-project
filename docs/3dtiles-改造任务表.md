@@ -805,6 +805,10 @@ CI 从干净 checkout 构建（`ci.yml:443-467`）⇒ 按当前编排部署后�
 | `/static/qinzhou-port/rebuilt/roads/tileset.json` | **404**                                              |
 | `/static/bridges-city/tileset.json`               | **404**                                              |
 
+**2026-10-05 复测（只读）**：4 条 404 仍现（`qinzhou-port/tiles`、`qinzhou-port/rebuilt/roads`、
+`bridges-city`、`pinglu/canal`），对照 200 = `pinglu/tiles` 与 `terrain/layer.json`
+⇒ 上表口径与三条待裁选项的前提不变（复测命令同下「复算钩子」）。
+
 **连带**：`static/terrain` 是"构建不覆盖"的卷（`docker-compose.yml:40`）⇒ 地形产物更新
 （含 07c 幽灵声明修复 `be335c7e`）也要手动同步到服务器卷，`git pull` 不会覆盖卷内容。
 

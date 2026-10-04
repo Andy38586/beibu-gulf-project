@@ -22,15 +22,21 @@ PowerShell 下调 python 一律加 `-X utf8`：脚本 stdout 含 "km²" 等字�
 
 ## 二、链路与复算状态
 
-| 步            | 脚本                                                            | 输入 → 输出                                                     | 2026-10-04 复算                       |
-| ------------- | --------------------------------------------------------------- | --------------------------------------------------------------- | ------------------------------------- | --- | ------------------ |
-| 01–03         | `01-mosaic.ps1` / `02-fill-sinks.ps1` / `03-reproject-4326.ps1` | ASTER 6 幅 `.img`（外置）→ `filled_utm48n.tif` → `dem_4326.tif` | ⚪ 脚本在位，本轮未复算（SAGA 段）    |
-| 06            | `06-sea-mask.py` + `06-restore-cut-dem.ps1`                     | ASTER 填洼版 + 海岸线 + 测深 → `filled_utm48n_cut.tif`          | ✅ 逐位一致（md5 `ed15d45e…`）        |
-| 07/07b/07c/08 | 地形 heightmap 重切 / 工程后地表 / 补丁 / 根瓦片回填            | `filled_utm48n_cut.tif` → `backend/static/terrain`              | ⚪ 脚本在位，与本轮改动无交集         |
-| **09b**       | **`09b-srtm15-sea-grid.ps1`（本轮新增）**                       | SRTM15+V2.6.nc → `srtm_4326_full.tif` → `sea_custom.tif`        | ✅ 逐位一致（`max                     | Δ   | =0`，含 NaN 掩膜） |
-| 10            | `10-landsea-merge.py`                                           | cut + sea → `landsea_utm48n.tif`                                | ✅ 逐位一致（数组 md5 `77f83a25…`）   |
-| 11            | `11-seam-audit.py`                                              | 三件 → 接缝/分带/未填聚类审计                                   | ✅ 两侧中位差 −3.00 m（岸坡，非台阶） |
-| 12/13         | `12-terrain-factors.py` / `13-suitability-cells.py`             | DEM → 地形因子/适宜性格网（入 PostGIS）                         | ⚪ 需 Postgres，本机 DB 未起          |
+| 步            | 脚本                                                            | 输入 → 输出                                                     | 2026-10-04 复算                                                      |
+| ------------- | --------------------------------------------------------------- | --------------------------------------------------------------- | -------------------------------------------------------------------- | --- | ------------------ |
+| 01–03         | `01-mosaic.ps1` / `02-fill-sinks.ps1` / `03-reproject-4326.ps1` | ASTER 6 幅 `.img`（外置）→ `filled_utm48n.tif` → `dem_4326.tif` | ⚪ 脚本在位，本轮未复算（SAGA 段）                                   |
+| 06            | `06-sea-mask.py` + `06-restore-cut-dem.ps1`                     | ASTER 填洼版 + 海岸线 + 测深 → `filled_utm48n_cut.tif`          | ✅ 逐位一致（md5 `ed15d45e…`）                                       |
+| 07/07b/07c/08 | 地形 heightmap 重切 / 工程后地表 / 补丁 / 根瓦片回填            | `filled_utm48n_cut.tif` → `backend/static/terrain`              | ✅ 07 死输入路径本轮修正并核对存在；单瓦片一致性见下行，全量重切未跑 |
+| **09b**       | **`09b-srtm15-sea-grid.ps1`（本轮新增）**                       | SRTM15+V2.6.nc → `srtm_4326_full.tif` → `sea_custom.tif`        | ✅ 逐位一致（`max                                                    | Δ   | =0`，含 NaN 掩膜） |
+| 10            | `10-landsea-merge.py`                                           | cut + sea → `landsea_utm48n.tif`                                | ✅ 逐位一致（数组 md5 `77f83a25…`）                                  |
+| 11            | `11-seam-audit.py`                                              | 三件 → 接缝/分带/未填聚类审计                                   | ✅ 两侧中位差 −3.00 m（岸坡，非台阶）                                |
+| 12/13         | `12-terrain-factors.py` / `13-suitability-cells.py`             | DEM → 地形因子/适宜性格网（入 PostGIS）                         | ⚪ 需 Postgres，本机 DB 未起                                         |
+
+> **地形重切（07）未全量重跑**：它会把 `backend/static/terrain`（49,082 张、gitignored 的运行时资产）
+> 整树重写。本轮只做单瓦片比对：`python -X utf8 tools/diag/probe-terrain-vs-dem.py 12 6565 1549`
+> ⇒ 盘上瓦片对当前 DEM 均 |Δ| 0.34 m / P95 2.00 m（按当前 DEM 重切为 0.31 m / 2.00 m），其中
+> 583 个「10-04 掩膜归还陆地」节点上 0.84 m vs 0.77 m ⇒ 现有地形**不是旧掩膜时代的产物**，
+> 不因正确性必须重切。真要重切：先备份（`07c` 头注给的先例），再整树重跑。
 
 ## 三、外置源与工作区产物（资产落地现状）
 

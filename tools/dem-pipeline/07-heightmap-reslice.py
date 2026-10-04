@@ -29,10 +29,13 @@ from rasterio.vrt import WarpedVRT
 from rasterio.windows import from_bounds
 
 REPO = Path(__file__).resolve().parents[2]
-# 输入优先 4326 版（dem_4326_cut.tif，本机已被清理进程删除过）；缺失回落 UTM 填洼版
-# （filled_utm48n_cut.tif，8-30 复原在位）——WarpedVRT 现场重投影到 EPSG:4326，无需预处理
-DEM_4326 = REPO / "backend/data/flood/dem/dem_4326_cut.tif"
-DEM_UTM = REPO / "backend/data/flood/dem/filled_utm48n_cut.tif"
+# 2026-10-04 路径修订：原两个默认路径（dem/ 下的 dem_4326_cut.tif 与 filled_utm48n_cut.tif）
+# 都已被清理进程删除，脚本此前**跑不起来**。现指向 06 脚本的实际落点，WarpedVRT 现场重投影。
+# 为什么等价：陆地像元与该工作版同源（与 ASTER 原件逐像元差 0，见提交 a8a3560a）；海侧
+# 两边都是"nodata→编码 0m"。单瓦片实测见 tools/diag/probe-terrain-vs-dem.py（served 对
+# 当前 DEM 均 |Δ|0.34m / 重切 0.31m，P95 同为 2.00m ⇒ 不是系统性陈旧）。
+DEM_4326 = REPO / ".local/dem-work/dem_4326_cut.tif"  # 可选加速件（本机已无）；缺失即回落
+DEM_UTM = REPO / ".local/dem-work/filled_utm48n_cut.tif"  # 06 脚本产出的工作版（实际走这条）
 TERRAIN_DIR = REPO / "backend/static/terrain"
 SAMPLES = 65  # heightmap-1.0 默认网格（CesiumTerrainProvider heightmapWidth）
 

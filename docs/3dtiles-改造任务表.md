@@ -810,7 +810,7 @@ curl.exe -sk -o NUL -w '%{http_code}\n' https://112.74.32.206/static/qinzhou-por
 **作废条件**：选定 ①/② 并部署后对应 URL 返 200；或服务器另有本机不可见的分发通道
 （以部署机实测为准）——任一成立则本条作废。
 
-### 8.22 【实测】首屏后台预热 150.18 MB（预热队列无总量上限）· 2026-10-04 20:4x
+### 8.22 【实测+已修】首屏预热：按原始清单 150.18 MB → 派生感知 31.98 MB · 2026-10-04 20:4x / 23:5x
 
 **怎么量的**：`tools/diag/probe-3dtiles-runtime.cjs` 新增 `--netlog`（记录 `/static` 响应，
 fly 前结算一次）⇒ `goto` 后 12 s、**相机仍在默认全域视角**（另测 `positionCartographic.height
@@ -834,19 +834,33 @@ dev server 原样分发；生产 nginx `gzip_types` 不含 .glb（`nginx.conf:15
 **已修**：C5 的 `PRELOAD_ITEM_LIMIT_BYTES` 此前只有定义、无引用（死代码）⇒ `f059f330` 落地
 执行体（HEAD 查 content-length，超限跳过；当前最大单项 12.45 MB，故现网行为不变，但判据从此可红）。
 
-**待裁（不自行选边：总量预算是取舍题）**：① 维持现状（预热全部 = 切到 3D 即时，代价冷启动 150 MB）；
-② 只预热"实际会渲染的子集"（对齐各层 derive 的保留集/粗层，实现要重构 preload，收益待量化）；
-③ 给预热设总量预算（超出部分跳过，切到 3D 时按需加载）；④ 取消预热清单，回纯按需。
+**已修（2026-10-04 23:5x，本笔）：预热改为派生感知——143.39 MB 里 118 MB 是"永远不渲染"的**。
+上表口径是**按原始 tileset 清单**预热：港区 97 个 GLB 里，球外子树被 `keepSphere` 整棵剔除、
+粗层（depth≤3）内容被 `dropContent` 摘掉 ⇒ 派生后仍在树上的只有 **8 个 / 25.16 MB**
+（`t0_0_0.glb` + 7 块 d4/d5），另外 ≈118 MB **永远不会出现在画面里**，预热它们纯属浪费（不是取舍）。
+修法：`preload.ts` 的 `PreloadTarget` 带一个与注册点**同一函数**的派生
+（`prepareBeibuTileset`，RouteAnalysisPage 也调它），预热只取派生后仍存在的内容；裁空（null）跳过。
+**修复后同一探针复测**：`/static` **150.18 MB / 144 个 → 31.98 MB / 56 个**（−118.20 MB），
+港区剩余请求为 `t5_544_672` 8.92 / `t4_512_704` 7.39 / `t5_512_672` 4.59 / `t5_544_640` 1.79 /
+`t0_0_0.glb` 1.79 MB 等，全部在派生树上。
+
+**待裁（收窄后：只剩"可渲染内容"的取舍）**：① 维持派生感知后的现状（港区 25 MB、全量 ≈32 MB）；
+② 只预热默认视角实际要用的一档（港区壳 1.9 MB）；③ 给预热设总量预算；④ 取消预热回按需。
+（原①②里的"原始清单 vs 派生集"那半已不是取舍——永不渲染的内容不该预热，已按此落地。）
 
 **复算钩子**：
 
 ```bash
 node tools/diag/probe-3dtiles-runtime.cjs --url http://127.0.0.1:5174/route-analysis \
   --fly 108.6473,21.6745,1200,0,-35 --wait 20000 --re "qinzhou-port" --netlog | grep NETLOG -A 3
-# 期望: NETLOG 行含"相机高 585937 m"、/static 请求 ≈144 个、合计 ≈150 MB；目录分布与上表一致
+# 期望: NETLOG 行含"相机高 585937 m"、/static 请求 ≈56 个、合计 ≈32 MB；
+#       港区前缀请求只应出现派生树上的 8 个文件（含 t0_0_0.glb，不含 t2_*/t3_* 等被摘内容）
+
+cd frontend && npx vitest run src/business/__tests__/preload.test.ts
+# 期望: 10 passed；其中"派生感知"红样 = 去掉 prepare 应用 ⇒ 2 failed（实跑，见提交正文）
 ```
 
-**作废条件**：交付包换版、`BEIBU_TILES`/preload 清单或 derive 改动 ⇒ 上表重测；
+**作废条件**：交付包换版、`BEIBU_TILES`/preload 清单或 derive 改动 ⇒ 上表与 31.98 MB 重测；
 若线上改 `gzip/brotli` 覆盖 .glb，字节数口径需按传输后体积重取。
 
 ### 8.23 【复测反例】港区"远景壳"随视口宽度翻转（≤1180 px 整层空白）· 2026-10-04 21:0x

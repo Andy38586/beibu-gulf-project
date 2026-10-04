@@ -23,8 +23,26 @@
  *
  * 清单的权威源是 `business/route-analysis/constants/beibu3dTiles`（图层面板也从它读）。
  * 本模块只接受 URL 列表，由调用方传入——避免「同一份名单两处手抄」（04-F）。
+ *
+ * ## 为什么预热要**先派生再取内容**（2026-10-04 23:4x）
+ *
+ * 注册路径的 tileset 是 `prepareBeibuTileset(raw, spec)` 的**派生结果**：球外子树整棵剔除、
+ * 粗层（depth≤3）只摘内容。按**原始** tileset 清单预热等于把永远不会渲染的内容也拖下来——
+ * 港区实测 97 个 GLB / 143.39 MB，其中派生后仍在树上的只有 8 个 / 25.16 MB（t0_0_0.glb +
+ * 7 块 d4/d5），**≈118 MB 纯浪费**（§8.22）。故 `PreloadTarget` 带一个与注册点同源的
+ * `prepare`（`prepareBeibuTileset`），派生为 null（裁空）时直接跳过该资产。
+ *
+ * 注意口径：本项只砍"永远不渲染"的内容；"可渲染内容要不要全预热/设预算/取消"是另一档
+ * 取舍（§8.22 待裁），不在本项内自行决定。
  */
-import { BEIBU_TILES } from '@/business/route-analysis/constants/beibu3dTiles'
+import { BEIBU_TILES, prepareBeibuTileset } from '@/business/route-analysis/constants/beibu3dTiles'
+import type { TilesetJson } from '@/core/map/tiles3dGroups'
+
+/** 预热目标：URL + 可选派生（与注册点同一函数；返回 null ⇒ 该资产裁空、无内容可预热） */
+export interface PreloadTarget {
+  url: string
+  prepare?: (raw: TilesetJson) => TilesetJson | null
+}
 
 /** 预热一项的字节上限：超过就跳过（C5「单项 ≤ 40 MB」的落地） */
 export const PRELOAD_ITEM_LIMIT_BYTES = 40 * 1024 * 1024
@@ -70,19 +88,22 @@ async function headBytes(
 }
 
 export async function preloadTilesets(
-  urls: readonly string[],
+  targets: readonly PreloadTarget[],
   signal?: AbortSignal,
   fetchImpl: typeof fetch = fetch
 ): Promise<number> {
   let ok = 0
-  for (const url of urls) {
+  for (const target of targets) {
     if (signal?.aborted) break
     try {
-      const res = await fetchImpl(url, { signal })
+      const res = await fetchImpl(target.url, { signal })
       if (!res.ok) continue
-      const json = await res.json()
+      const raw = (await res.json()) as TilesetJson
+      // 与注册同源的派生：摘掉/裁掉的内容不预热——它们永远不会渲染（见文件头）。
+      const json = target.prepare ? target.prepare(raw) : raw
+      if (!json) continue
       ok++
-      const base = url.slice(0, url.lastIndexOf('/') + 1)
+      const base = target.url.slice(0, target.url.lastIndexOf('/') + 1)
       for (const uri of collectContentUris(json)) {
         if (signal?.aborted) break
         // 已是绝对地址的原样用；站点根相对补 origin；其余拼基准目录
@@ -109,7 +130,11 @@ export async function preloadBusinessAssets(signal?: AbortSignal): Promise<numbe
   if (done) return 0
   done = true
   return preloadTilesets(
-    BEIBU_TILES.map((s) => s.url),
+    BEIBU_TILES.map((s) => ({
+      url: s.url,
+      // 与注册点同一函数（RouteAnalysisPage 也调它）——预热与渲染的清单永远一致
+      prepare: (raw: TilesetJson) => prepareBeibuTileset(raw, s),
+    })),
     signal
   )
 }

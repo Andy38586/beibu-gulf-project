@@ -24,9 +24,12 @@
 用法（venv，需 rasterio/shapely；QGIS python 无这两个包）：
   backend/algorithm-service/.venv/Scripts/python.exe -X utf8 \
       tools/diag/probe-flood-polygon-variants.py [level...]     # 默认 2 5 10
+  # 另：导出 earcut 化验输入（配合 tools/diag/probe-flood-earcut.cjs）：
+  ... tools/diag/probe-flood-polygon-variants.py --dump-earcut .local/flood-recompute/earcut-input.json
 """
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 
@@ -40,7 +43,14 @@ from flood_engine import compute_flood_mask, load_dem  # noqa: E402
 
 MIN_UTM_M2 = 250_000  # 第一道过滤（part.area）与"小洞"阈值
 MIN_DEG2 = 0.0002  # MIN_AREA_DEG2：注释写≈0.25km²，按本纬度实际≈2.3km²（另一处待裁）
-LEVELS = [float(a) for a in sys.argv[1:]] or [2.0, 5.0, 10.0]
+MIN_DEG2_BY_COMMENT = 0.00002  # 注释口径 ≈0.23km²
+ARGV = sys.argv[1:]
+DUMP = None
+if "--dump-earcut" in ARGV:
+    i = ARGV.index("--dump-earcut")
+    DUMP = Path(ARGV[i + 1])
+    ARGV = ARGV[:i] + ARGV[i + 2 :]
+LEVELS = [float(a) for a in ARGV] or [2.0, 5.0, 10.0]
 
 
 def npts(rings) -> int:
@@ -59,14 +69,19 @@ def main() -> None:
             geom = shape(g)
             parts.extend(geom.geoms if geom.geom_type == "MultiPolygon" else [geom])
 
-        drop_utm = drop_deg2 = 0.0
+        drop_utm = drop_deg2 = band_deg2 = 0.0
+        band_n = 0
         kept = []
         for p in parts:
             if p.geom_type != "Polygon" or p.area < MIN_UTM_M2:
                 drop_utm += p.area
                 continue
             g4 = transform_geom(crs, "EPSG:4326", p.__geo_interface__, precision=6)
-            if shape(g4).area < MIN_DEG2:
+            a_deg2 = shape(g4).area
+            if MIN_DEG2_BY_COMMENT <= a_deg2 < MIN_DEG2:
+                band_deg2 += p.area
+                band_n += 1
+            if a_deg2 < MIN_DEG2:
                 drop_deg2 += p.area
                 continue
             kept.append(p)
@@ -94,6 +109,36 @@ def main() -> None:
         print(
             f"  C 一个都不填          : 画出 {exts/1e6:8.2f} km²（{pct(exts):5.1f}% of mask）｜ 洞 {len(holes)} ｜ 顶点 {v_all:>7d}"
         )
+        print(
+            f"  D2 面：落在 [0.00002,0.0002) deg² 的块 {band_n} 个 = {band_deg2/1e6:.2f} km²"
+            f"（把 MIN_AREA_DEG2 对齐注释即可找回）"
+        )
+        if DUMP and level == LEVELS[0]:
+            def rl(rs):
+                return [list(r.coords) for r in rs]
+
+            b = [
+                {
+                    "outer": list(p.exterior.coords),
+                    "holes": rl([r for r in p.interiors if Polygon(r).area >= MIN_UTM_M2]),
+                }
+                for p in kept
+            ]
+            b300 = []
+            for p in kept:
+                sp = p.simplify(300.0, preserve_topology=True)
+                for q in sp.geoms if sp.geom_type == "MultiPolygon" else [sp]:
+                    if q.geom_type != "Polygon" or q.area < MIN_UTM_M2:
+                        continue
+                    b300.append(
+                        {
+                            "outer": list(q.exterior.coords),
+                            "holes": rl([r for r in q.interiors if Polygon(r).area >= MIN_UTM_M2]),
+                        }
+                    )
+            c = [{"outer": list(p.exterior.coords), "holes": rl(p.interiors)} for p in kept]
+            DUMP.write_text(json.dumps({"B": b, "B300": b300, "C": c}), encoding="utf-8")
+            print(f"  earcut 输入已写 {DUMP}（level {level}；B/B300=留大洞，C=全留）")
 
 
 if __name__ == "__main__":

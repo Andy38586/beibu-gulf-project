@@ -119,44 +119,62 @@ describe('runRollingBacktest 协议', () => {
   })
 })
 
-describe('selectModel 闸门（P0-2：季节朴素可胜 + 0.5pp 防抖，含换记法不变性）', () => {
+describe('selectModel 闸门（P0-2 0.5pp 防抖 + P2-1 DM p<0.1 双判据，含换记法不变性）', () => {
+  const P = { ets: 0.01, seasonal_naive: 0.01, combination: 0.01 }
+
   it('达门槛的最低 MAPE 候选胜出（ETS 8 vs SN 12 ⇒ ets）', () => {
-    expect(selectModel({ linear: 10, ets: 8, seasonal_naive: 12 })).toBe('ets')
+    expect(selectModel({ linear: 10, ets: 8, seasonal_naive: 12 }, P)).toBe('ets')
   })
 
   it('季节朴素可当胜者：钦州 container 形态（10.22 / 13.27 / 7.81 ⇒ seasonal_naive）', () => {
-    expect(selectModel({ linear: 10.22, ets: 13.27, seasonal_naive: 7.81 })).toBe('seasonal_naive')
+    expect(selectModel({ linear: 10.22, ets: 13.27, seasonal_naive: 7.81 }, P)).toBe(
+      'seasonal_naive'
+    )
   })
 
   it('改善不足 0.5pp 不换（防抖）：0.4pp 保留线性、0.5pp 恰好达标', () => {
-    expect(selectModel({ linear: 10, ets: 9.6, seasonal_naive: 12 })).toBe('linear')
-    expect(selectModel({ linear: 10, ets: 9.5, seasonal_naive: 12 })).toBe('ets')
+    expect(selectModel({ linear: 10, ets: 9.6, seasonal_naive: 12 }, P)).toBe('linear')
+    expect(selectModel({ linear: 10, ets: 9.5, seasonal_naive: 12 }, P)).toBe('ets')
   })
 
-  it('达标者里取最小；平局按参数少者优先（SN 12 < ETS 18）', () => {
-    expect(selectModel({ linear: 10, ets: 9, seasonal_naive: 8 })).toBe('seasonal_naive')
-    expect(selectModel({ linear: 10, ets: 9, seasonal_naive: 9 })).toBe('seasonal_naive')
-  })
-
-  it('组合须严格优于当轮最好单模型且达门槛才参与（平局/落后不参与）', () => {
-    expect(selectModel({ linear: 10, ets: 8, seasonal_naive: 12, combination: 7.9 })).toBe(
-      'combination'
-    )
-    expect(selectModel({ linear: 10, ets: 8, seasonal_naive: 12, combination: 8 })).toBe('ets')
-    expect(selectModel({ linear: 10, ets: 9.6, seasonal_naive: 12, combination: 9.55 })).toBe(
+  it('P2-1 显著性：MAPE 达标但 p≥0.1 不换；p 缺失/非有限 fail-closed', () => {
+    expect(selectModel({ linear: 10, ets: 8, seasonal_naive: 12 }, { ets: 0.1 })).toBe('linear')
+    expect(selectModel({ linear: 10, ets: 8, seasonal_naive: 12 }, { ets: 0.099 })).toBe('ets')
+    expect(selectModel({ linear: 10, ets: 8, seasonal_naive: 12 })).toBe('linear')
+    expect(selectModel({ linear: 10, ets: 8, seasonal_naive: 12 }, { ets: null })).toBe('linear')
+    expect(selectModel({ linear: 10, ets: 8, seasonal_naive: 12 }, { ets: Number.NaN })).toBe(
       'linear'
     )
   })
 
+  it('达标者里取最小；平局按参数少者优先（SN 12 < ETS 18）', () => {
+    expect(selectModel({ linear: 10, ets: 9, seasonal_naive: 8 }, P)).toBe('seasonal_naive')
+    expect(selectModel({ linear: 10, ets: 9, seasonal_naive: 9 }, P)).toBe('seasonal_naive')
+  })
+
+  it('组合须严格优于当轮最好单模型且达门槛才参与（平局/落后不参与）', () => {
+    expect(selectModel({ linear: 10, ets: 8, seasonal_naive: 12, combination: 7.9 }, P)).toBe(
+      'combination'
+    )
+    expect(selectModel({ linear: 10, ets: 8, seasonal_naive: 12, combination: 8 }, P)).toBe('ets')
+    expect(selectModel({ linear: 10, ets: 9.6, seasonal_naive: 12, combination: 9.55 }, P)).toBe(
+      'linear'
+    )
+    // 组合 MAPE 达标但 p 不显著 ⇒ 组合不参与，ETS 仍可胜（P2-1 单点变异）
+    expect(
+      selectModel({ linear: 10, ets: 8, seasonal_naive: 12, combination: 7.9 }, { ets: 0.01 })
+    ).toBe('ets')
+  })
+
   it('分数缺失/非有限一律保留线性（不猜）', () => {
-    expect(selectModel({ linear: 10, ets: null, seasonal_naive: 12 })).toBe('linear')
-    expect(selectModel({ linear: 10, ets: Number.NaN, seasonal_naive: 12 })).toBe('linear')
-    expect(selectModel({ linear: null, ets: 8, seasonal_naive: 12 })).toBe('linear')
+    expect(selectModel({ linear: 10, ets: null, seasonal_naive: 12 }, P)).toBe('linear')
+    expect(selectModel({ linear: 10, ets: Number.NaN, seasonal_naive: 12 }, P)).toBe('linear')
+    expect(selectModel({ linear: null, ets: 8, seasonal_naive: 12 }, P)).toBe('linear')
   })
 
   it('换记法不变（同一违约换比例尺度表达仍红）：放大缩小 100 倍判据不变', () => {
-    expect(selectModel({ linear: 1000, ets: 800, seasonal_naive: 1200 })).toBe('ets')
-    expect(selectModel({ linear: 0.1, ets: 0.13, seasonal_naive: 0.12 })).toBe('linear')
+    expect(selectModel({ linear: 1000, ets: 800, seasonal_naive: 1200 }, P)).toBe('ets')
+    expect(selectModel({ linear: 0.1, ets: 0.13, seasonal_naive: 0.12 }, P)).toBe('linear')
   })
 })
 

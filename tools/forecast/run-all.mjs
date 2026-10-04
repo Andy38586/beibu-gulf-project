@@ -108,6 +108,22 @@ export function buildFieldMap(artifact, sourceName) {
           value: m.overall_mase,
         })
       }
+      if (typeof m?.overall_smape === 'number') {
+        rows.push({
+          label: port + ' 全步长 sMAPE（' + model + '）',
+          field: sourceName + ' → ports.' + port + '.model_comparison.' + model + '.overall_smape',
+          value: m.overall_smape,
+        })
+      }
+    }
+    for (const [model, d] of Object.entries(cmp.dm_vs_linear ?? {})) {
+      if (d && (typeof d.p === 'number' || d.p === null)) {
+        rows.push({
+          label: port + ' DM p（' + model + ' vs 线性）',
+          field: sourceName + ' → ports.' + port + '.model_comparison.dm_vs_linear.' + model + '.p',
+          value: d.p,
+        })
+      }
     }
     if (bt.selected_model !== undefined) {
       rows.push({

@@ -118,6 +118,7 @@
         "linear": {
           "overall_mape": 10.22,
           "overall_mase": 0.92,
+          "overall_smape": 9.52,
           "overall_picp": 0.5727,
           "mape_by_step": {
             "1": 8.39,
@@ -151,6 +152,7 @@
         "ets_damped": {
           "overall_mape": 13.27,
           "overall_mase": 1.15,
+          "overall_smape": 12.24,
           "overall_picp": 0.6364,
           "mape_by_step": {
             "1": 9.17,
@@ -191,6 +193,7 @@
         "seasonal_naive": {
           "overall_mape": 7.81,
           "overall_mase": 0.7,
+          "overall_smape": 7.89,
           "overall_picp": 0.4182,
           "mape_by_step": {
             "1": 8.97,
@@ -224,6 +227,7 @@
         "combination": {
           "overall_mape": 7.7,
           "overall_mase": 0.67,
+          "overall_smape": 7.31,
           "overall_picp": 0.6182,
           "mape_by_step": {
             "1": 5.9,
@@ -264,8 +268,25 @@
             "seasonal_naive": 7.89
           }
         },
+        "dm_vs_linear": {
+          "ets_damped": {
+            "dm": 3.2216,
+            "p": 0.0013,
+            "n": 294
+          },
+          "seasonal_naive": {
+            "dm": -4.1672,
+            "p": 0,
+            "n": 294
+          },
+          "combination": {
+            "dm": -7.5774,
+            "p": 0,
+            "n": 294
+          }
+        },
         "selected": "combination",
-        "gate": "候选须比线性好 ≥0.5pp 才可替换；达标者取 MAPE 最小（平局取参数少者）；组合须严格优于当轮最好单模型"
+        "gate": "候选须比线性好 ≥0.5pp 且 DM(vs 线性) p<0.1 才可替换；达标者取 MAPE 最小（平局取参数少者）；组合须严格优于当轮最好单模型"
       },
       "predictions": [
         {
@@ -532,6 +553,7 @@
         "linear": {
           "overall_mape": 13.93,
           "overall_mase": 0.94,
+          "overall_smape": 13.95,
           "overall_picp": 0.5909,
           "mape_by_step": {
             "1": 13.51,
@@ -565,6 +587,7 @@
         "ets_damped": {
           "overall_mape": 13.13,
           "overall_mase": 0.86,
+          "overall_smape": 12.66,
           "overall_picp": 0.6091,
           "mape_by_step": {
             "1": 11.63,
@@ -605,6 +628,7 @@
         "seasonal_naive": {
           "overall_mape": 13.85,
           "overall_mase": 0.99,
+          "overall_smape": 15.38,
           "overall_picp": 0.6545,
           "mape_by_step": {
             "1": 14.08,
@@ -638,6 +662,7 @@
         "combination": {
           "overall_mape": 11.34,
           "overall_mase": 0.78,
+          "overall_smape": 11.62,
           "overall_picp": 0.6091,
           "mape_by_step": {
             "1": 11.02,
@@ -678,8 +703,25 @@
             "seasonal_naive": 13.87
           }
         },
+        "dm_vs_linear": {
+          "ets_damped": {
+            "dm": -1.5619,
+            "p": 0.1183,
+            "n": 294
+          },
+          "seasonal_naive": {
+            "dm": 1.4982,
+            "p": 0.1341,
+            "n": 294
+          },
+          "combination": {
+            "dm": -9.3084,
+            "p": 0,
+            "n": 294
+          }
+        },
         "selected": "combination",
-        "gate": "候选须比线性好 ≥0.5pp 才可替换；达标者取 MAPE 最小（平局取参数少者）；组合须严格优于当轮最好单模型"
+        "gate": "候选须比线性好 ≥0.5pp 且 DM(vs 线性) p<0.1 才可替换；达标者取 MAPE 最小（平局取参数少者）；组合须严格优于当轮最好单模型"
       },
       "predictions": [
         {
@@ -946,6 +988,7 @@
         "linear": {
           "overall_mape": 16.53,
           "overall_mase": 1.54,
+          "overall_smape": 17.11,
           "overall_picp": 0.7,
           "mape_by_step": {
             "1": 14.18,
@@ -979,6 +1022,7 @@
         "ets_damped": {
           "overall_mape": 16.91,
           "overall_mase": 1.64,
+          "overall_smape": 17.92,
           "overall_picp": 0.5636,
           "mape_by_step": {
             "1": 13.75,
@@ -1019,6 +1063,7 @@
         "seasonal_naive": {
           "overall_mape": 20.04,
           "overall_mase": 1.96,
+          "overall_smape": 22.61,
           "overall_picp": 0.6636,
           "mape_by_step": {
             "1": 19.21,
@@ -1052,6 +1097,7 @@
         "combination": {
           "overall_mape": 15.86,
           "overall_mase": 1.55,
+          "overall_smape": 17.01,
           "overall_picp": 0.6455,
           "mape_by_step": {
             "1": 14.26,
@@ -1092,8 +1138,25 @@
             "seasonal_naive": 20.02
           }
         },
+        "dm_vs_linear": {
+          "ets_damped": {
+            "dm": 3.8813,
+            "p": 0.0001,
+            "n": 294
+          },
+          "seasonal_naive": {
+            "dm": 5.4501,
+            "p": 0,
+            "n": 294
+          },
+          "combination": {
+            "dm": 2.5924,
+            "p": 0.0095,
+            "n": 294
+          }
+        },
         "selected": "combination",
-        "gate": "候选须比线性好 ≥0.5pp 才可替换；达标者取 MAPE 最小（平局取参数少者）；组合须严格优于当轮最好单模型"
+        "gate": "候选须比线性好 ≥0.5pp 且 DM(vs 线性) p<0.1 才可替换；达标者取 MAPE 最小（平局取参数少者）；组合须严格优于当轮最好单模型"
       },
       "predictions": [
         {
@@ -1253,10 +1316,11 @@
     "forecast_period": "2026-07 ~ 2035-12",
     "model_selection": {
       "judge_metric": "滚动回测全步长（h1-12）平均 MAPE",
-      "rule": "候选（ETS / 季节朴素 / 组合）须比线性好 ≥0.5pp 才可替换；达标者取 MAPE 最小（平局取参数少者）；组合须严格优于当轮最好单模型",
+      "rule": "候选（ETS / 季节朴素 / 组合）须比线性好 ≥0.5pp 且 DM(vs 线性) p<0.1 才可替换；达标者取 MAPE 最小（平局取参数少者）；组合须严格优于当轮最好单模型",
       "per_port_winner": "见 ports.*.backtest.selected_model 与 ports.*.model_comparison"
     },
     "interval_calibration": "lower/upper = 胜者回测的逐 origin 已实现相对误差 10%/90% 分位数（名义 80%，P0-3）；h12 之后按 sqrt(年) 外推；reliability 仍为 1-步长MAPE/100（语义未变），覆盖率见 backtest.overall_picp",
+    "dm_test": "候选 vs 线性 Diebold-Mariano 检验（平方损失差，HAC q=h−1=11，对齐键 time#step）；p<0.1 与 ≥0.5pp 同真才允许换模（P2-1）",
     "canal_assumption": "未建模平陆运河（2026-09-16 已通航，预测=无运河反事实基线；情景层待工单 F3 落地）"
   }
 }

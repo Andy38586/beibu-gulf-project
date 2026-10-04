@@ -22,8 +22,9 @@ const FIXTURE = {
         correction_factor: 1.02,
       },
       model_comparison: {
-        linear: { overall_mape: 6.2, overall_mase: 0.8 },
+        linear: { overall_mape: 6.2, overall_mase: 0.8, overall_smape: 5.5 },
         ets_damped: { overall_mape: 9.1, overall_mase: 1.2 },
+        dm_vs_linear: { seasonal_naive: { dm: -2.5, p: 0.04, n: 100 } },
       },
     },
   },
@@ -54,7 +55,11 @@ describe('buildFieldMap：映射行由产物结构派生', () => {
   it('覆盖模型对比 / 选中模型 / 验证期 / 逐步长 / 校正系数', () => {
     const fields = buildFieldMap(FIXTURE, 'x.json').map((r) => r.field)
     expect(fields).toContain('x.json → ports.testport.model_comparison.linear.overall_mape')
+    expect(fields).toContain('x.json → ports.testport.model_comparison.linear.overall_smape')
     expect(fields).toContain('x.json → ports.testport.model_comparison.ets_damped.overall_mase')
+    expect(fields).toContain(
+      'x.json → ports.testport.model_comparison.dm_vs_linear.seasonal_naive.p'
+    )
     expect(fields).toContain('x.json → ports.testport.backtest.selected_model')
     expect(fields).toContain('x.json → ports.testport.backtest.validation_overall_mape')
     expect(fields).toContain('x.json → ports.testport.backtest.rolling_mape_by_step.2')

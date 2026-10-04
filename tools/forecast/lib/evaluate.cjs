@@ -65,10 +65,12 @@ function dieboldMariano(lossA, lossB, horizon) {
 
 /**
  * 由两模型回测 series 对齐算 DM（lib/backtest.cjs 的 series 逐点输出）。
- * 按 time 键取交集（两模型跳过的点不同——null 预测/真值缺失），损失 = 平方误差。
+ * 对齐键 = time#step：回测 series 同一 time 会以不同 step 重复出现（每个 origin 一条），
+ * 只按 time 取键会把 A 的 (t,s1) 错配到 B 的 (t,s2)，n 与损失差同时失真；
+ * 两模型跳过的点不同（null 预测/真值缺失），取交集。损失 = 平方误差。
  */
 function dmFromSeries(seriesA, seriesB, horizon) {
-  const key = (s) => String(s.time)
+  const key = (s) => `${s.time}#${s.step}`
   const bByKey = new Map(seriesB.map((s) => [key(s), s]))
   const lossA = []
   const lossB = []

@@ -378,6 +378,8 @@ function seasonalNaiveForecast(model, timeStr) {
 
 /** 换模型的防抖门槛：MAPE 改善须 ≥0.5pp（提准方案 §P0-2），否则维持线性。 */
 const SWITCH_MARGIN_PP = 0.5
+/** P2-1 显著性门槛：候选 vs 线性的 DM 双侧 p 须 <0.1；缺 p 判不显著（fail-closed）。 */
+const DM_ALPHA = 0.1
 
 /** 平局时的复杂度序（参数少者优先；组合无参数先验，排最后）。 */
 const MODEL_PARAMS = {
@@ -390,26 +392,39 @@ const MODEL_PARAMS = {
 /**
  * 闸门选优（导出供单测）。2026-10-04 P0-2 修正：季节朴素从"只当基准"升为候选胜者
  * （修前 10.22% 的线性模型压着一个已实现的 7.81% 朴素基准不换）。
+ * 2026-10-05 P2-1 补全双判据：候选除 MAPE 门槛外，还须 DM(vs 线性) 双侧 p<DM_ALPHA
+ * （由 dmP 传入；缺失/非有限一律判不显著 ⇒ 保留线性，fail-closed）。
  *
  * 规则：
  *  1. 线性是现任；候选须在滚动回测全步长平均 MAPE 上比线性好 ≥ SWITCH_MARGIN_PP
- *     （0.5pp）才可挑战；不达门槛一律保留线性（防抖）；
+ *     （0.5pp）且 DM p<DM_ALPHA 才可挑战；不达门槛一律保留线性（防抖/防噪声）；
  *  2. 达标者取 MAPE 最小；平局按参数少者优先（季节朴素 12 < 线性 15 < ETS 18），
  *     保证同一输入下判据确定；
  *  3. 组合模型额外要求**严格优于当轮所有单模型**（Bates & Granger：组合须胜过最好成员，
  *     否则不参与竞争）；其分数由 lib/combination.cjs 的因果权重回测给出；
  *  4. 任何分数非有限（回测无样本）→ 该候选不参与；线性分数无效时一律保留线性。
  */
-function selectModel(scores = {}) {
+function selectModel(scores = {}, dmP = {}) {
   const ok = (x) => x !== null && x !== undefined && Number.isFinite(x)
+  const significant = (name) => {
+    const p = dmP[name]
+    return typeof p === 'number' && Number.isFinite(p) && p < DM_ALPHA
+  }
   const { linear, ets, seasonal_naive: sn, combination } = scores
   if (!ok(linear)) return 'linear'
   const singles = [linear, ets, sn].filter(ok)
   const bestSingle = singles.length ? Math.min(...singles) : Number.POSITIVE_INFINITY
   const eligible = []
-  if (ok(ets) && linear - ets >= SWITCH_MARGIN_PP) eligible.push('ets')
-  if (ok(sn) && linear - sn >= SWITCH_MARGIN_PP) eligible.push('seasonal_naive')
-  if (ok(combination) && linear - combination >= SWITCH_MARGIN_PP && combination < bestSingle) {
+  if (ok(ets) && linear - ets >= SWITCH_MARGIN_PP && significant('ets')) eligible.push('ets')
+  if (ok(sn) && linear - sn >= SWITCH_MARGIN_PP && significant('seasonal_naive')) {
+    eligible.push('seasonal_naive')
+  }
+  if (
+    ok(combination) &&
+    linear - combination >= SWITCH_MARGIN_PP &&
+    combination < bestSingle &&
+    significant('combination')
+  ) {
     eligible.push('combination')
   }
   if (eligible.length === 0) return 'linear'
@@ -426,6 +441,7 @@ module.exports = {
   intervalBounds,
   selectModel,
   SWITCH_MARGIN_PP,
+  DM_ALPHA,
   addMonths,
   monthIndex,
   indexToTime,

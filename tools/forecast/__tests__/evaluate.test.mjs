@@ -66,4 +66,24 @@ describe('dmFromSeries（series 按 time 对齐取交集）', () => {
     // 交集：lossA = [100,400,900]，lossB = [0,4,16] → A 显著更差
     expect(Math.abs(r.dm)).toBeGreaterThan(1.96)
   })
+
+  it('同 time 多 step：按 time#step 对齐（只按 time 会错配）；配对损失全同 ⇒ DM=0、p=1', () => {
+    const mk = (time, step, actual, predicted) => ({ time, step, actual, predicted })
+    const a = [
+      mk('2025-01', 1, 100, 110),
+      mk('2025-02', 1, 100, 110),
+      mk('2025-01', 2, 100, 200),
+      mk('2025-02', 2, 100, 200),
+    ]
+    // b 与 a 逐 (time,step) 键相同：正确对齐下 d_t 全 0；按 time 单键则 s1 的 a 会配到
+    // 同 time 后出现的 s2 b（损失 100 vs 10000），DM 必不为 0 —— 该断言即错配回归钉。
+    const r = dmFromSeries(
+      a,
+      a.map((e) => ({ ...e })),
+      12
+    )
+    expect(r.n).toBe(4)
+    expect(r.dm).toBe(0)
+    expect(r.p).toBe(1)
+  })
 })

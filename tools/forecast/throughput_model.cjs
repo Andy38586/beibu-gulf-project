@@ -11,11 +11,11 @@
  *           验证期误差比率校正，滚动原点回测产出分步长误差曲线
  *   - 候选方法：春节移动假期修正（节前日数法简化，k=0）→ 阻尼 Holt-Winters
  *           （加性/乘性季节 AICc 自动选择，lib/hw.cjs）
- *   - 闸门（2026-10-04 提准方案 §P0-1/§P0-2）：线性 / ETS / 季节朴素 / 组合同协议滚动
- *           回测（同 origin 同 horizon），候选须比线性好 ≥0.5pp 才可替换；达标者取
- *           MAPE 最小（平局取参数少者）；组合（{线性, ETS, 季节朴素} + inverse-MAPE
- *           因果权重，lib/combination.cjs）须严格优于当轮最好单模型才参与
- *           （lib/backtest.cjs selectModel）
+ *   - 闸门（§P0-1/§P0-2；2026-10-05 §P2-1 补 DM 判据）：线性 / ETS / 季节朴素 / 组合
+ *           同协议滚动回测（同 origin 同 horizon），候选须比线性好 ≥0.5pp 且 DM(vs 线性)
+ *           p<0.1 才可替换；达标者取 MAPE 最小（平局取参数少者）；组合（{线性, ETS,
+ *           季节朴素} + inverse-MAPE 因果权重，lib/combination.cjs）须严格优于当轮最好
+ *           单模型才参与（lib/backtest.cjs selectModel）
  *   - 单位：模型只做数值运算，产物值与各自输入文件同单位（万吨 / TEU），
  *           服务层 unit 取自指标数据文件，不在产物内混装
  *
@@ -46,6 +46,7 @@ const {
   selectModel,
   monthIndex,
 } = require('./lib/backtest.cjs')
+const { dmFromSeries } = require('./lib/evaluate.cjs')
 
 // 双指标配置（2026-08-29：container 接入模型链路，与 cargo 同方法同口径）
 const INDICATORS = [
@@ -375,12 +376,33 @@ function processPort(portId, historical) {
       }
     : null
 
-  const selected = selectModel({
-    linear: linH.overallMape,
-    ets: etsH.overallMape,
-    seasonal_naive: snH.overallMape,
-    combination: comH.overallMape,
-  })
+  // P2-1（2026-10-05 接线+上闸）：候选 vs 现任线性的 DM 检验，p 值入产物并参与选模闸
+  // （与 ≥0.5pp 门槛同真才可替换；缺 p 判不显著，fail-closed）。
+  // 对齐键 = time#step（回测 series 每 origin 一条、同 time 多 step）；HAC q = h−1 = 11。
+  const dmVsLinear = Object.fromEntries(
+    [
+      ['ets_damped', etsH.series],
+      ['seasonal_naive', snH.series],
+      ['combination', comH.series],
+    ].map(([name, series]) => {
+      const { dm, p, n } = dmFromSeries(series, linH.series, ROLLING_HORIZON)
+      return [name, { dm, p, n }]
+    })
+  )
+
+  const selected = selectModel(
+    {
+      linear: linH.overallMape,
+      ets: etsH.overallMape,
+      seasonal_naive: snH.overallMape,
+      combination: comH.overallMape,
+    },
+    {
+      ets: dmVsLinear.ets_damped.p,
+      seasonal_naive: dmVsLinear.seasonal_naive.p,
+      combination: dmVsLinear.combination.p,
+    }
+  )
 
   const lastTime = historical[historical.length - 1].time
   let predictions
@@ -565,6 +587,7 @@ function processPort(portId, historical) {
     linear: {
       overall_mape: linH.overallMape,
       overall_mase: linH.overallMase,
+      overall_smape: linH.overallSmape,
       overall_picp: linH.overallPicp,
       mape_by_step: linH.mapeByStep,
       mase_by_step: linH.maseByStep,
@@ -572,6 +595,7 @@ function processPort(portId, historical) {
     ets_damped: {
       overall_mape: etsH.overallMape,
       overall_mase: etsH.overallMase,
+      overall_smape: etsH.overallSmape,
       overall_picp: etsH.overallPicp,
       mape_by_step: etsH.mapeByStep,
       mase_by_step: etsH.maseByStep,
@@ -581,6 +605,7 @@ function processPort(portId, historical) {
     seasonal_naive: {
       overall_mape: snH.overallMape,
       overall_mase: snH.overallMase,
+      overall_smape: snH.overallSmape,
       overall_picp: snH.overallPicp,
       mape_by_step: snH.mapeByStep,
       mase_by_step: snH.maseByStep,
@@ -588,6 +613,7 @@ function processPort(portId, historical) {
     combination: {
       overall_mape: comH.overallMape,
       overall_mase: comH.overallMase,
+      overall_smape: comH.overallSmape,
       overall_picp: comH.overallPicp,
       mape_by_step: comH.mapeByStep,
       mase_by_step: comH.maseByStep,
@@ -595,8 +621,9 @@ function processPort(portId, historical) {
       final_weights: comH.finalWeights,
       member_mape: comH.memberScores,
     },
+    dm_vs_linear: dmVsLinear,
     selected,
-    gate: '候选须比线性好 ≥0.5pp 才可替换；达标者取 MAPE 最小（平局取参数少者）；组合须严格优于当轮最好单模型',
+    gate: '候选须比线性好 ≥0.5pp 且 DM(vs 线性) p<0.1 才可替换；达标者取 MAPE 最小（平局取参数少者）；组合须严格优于当轮最好单模型',
   }
 
   return {
@@ -622,12 +649,15 @@ function main() {
         forecast_period: '2026-07 ~ 2035-12',
         model_selection: {
           judge_metric: '滚动回测全步长（h1-12）平均 MAPE',
-          rule: '候选（ETS / 季节朴素 / 组合）须比线性好 ≥0.5pp 才可替换；达标者取 MAPE 最小（平局取参数少者）；组合须严格优于当轮最好单模型',
+          rule: '候选（ETS / 季节朴素 / 组合）须比线性好 ≥0.5pp 且 DM(vs 线性) p<0.1 才可替换；达标者取 MAPE 最小（平局取参数少者）；组合须严格优于当轮最好单模型',
           per_port_winner: '见 ports.*.backtest.selected_model 与 ports.*.model_comparison',
         },
         interval_calibration:
           'lower/upper = 胜者回测的逐 origin 已实现相对误差 10%/90% 分位数（名义 80%，P0-3）；' +
           'h12 之后按 sqrt(年) 外推；reliability 仍为 1-步长MAPE/100（语义未变），覆盖率见 backtest.overall_picp',
+        dm_test:
+          '候选 vs 线性 Diebold-Mariano 检验（平方损失差，HAC q=h−1=11，对齐键 time#step）；' +
+          'p<0.1 与 ≥0.5pp 同真才允许换模（P2-1）',
         canal_assumption:
           '未建模平陆运河（2026-09-16 已通航，预测=无运河反事实基线；情景层待工单 F3 落地）',
       },
@@ -662,6 +692,17 @@ function main() {
             `ets=${mc.ets_damped.overall_mape}%/${mc.ets_damped.overall_mase}  ` +
             `seasonal_naive=${mc.seasonal_naive.overall_mape}%/${mc.seasonal_naive.overall_mase}  ` +
             `combination=${mc.combination.overall_mape}%/${mc.combination.overall_mase}`
+        )
+        console.log(
+          `  同协议对比 sMAPE（%）：` +
+            `linear=${mc.linear.overall_smape}  ets=${mc.ets_damped.overall_smape}  ` +
+            `seasonal_naive=${mc.seasonal_naive.overall_smape}  combination=${mc.combination.overall_smape}`
+        )
+        console.log(
+          `  候选 vs 线性 DM p（平方损失，HAC q=11）: ` +
+            Object.entries(mc.dm_vs_linear ?? {})
+              .map(([k, v]) => `${k}=${v.p === null ? 'n/a' : v.p}（n=${v.n}）`)
+              .join('  ')
         )
         if (bt.selected_model === 'combination') {
           const w = mc.combination.final_weights ?? {}

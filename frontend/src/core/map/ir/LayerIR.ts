@@ -20,9 +20,11 @@
  */
 import type { Feature, FeatureCollection } from 'geojson'
 
-import { useOwnedLayers } from '../composables/useOwnedLayers'
 import type { LayerOptions, RoutePathResult } from '@/types'
 import type { TaskDomain, TaskSlot } from '@/types/task'
+
+import type { BusinessLayerManagerLike } from '../composables/useBusinessLayers'
+import { useOwnedLayers } from '../composables/useOwnedLayers'
 
 export type LayerIRKind = 'polygon' | 'polyline' | 'point' | 'raster'
 
@@ -137,8 +139,12 @@ export function taskResultToIR(
  * 拖出图层的渲染/撤下（BLM 通道）：注册进 useOwnedLayers（结构约束，图层注册无豁免），
  * 双引擎缺省 → 引擎切换由 BLM reapplyAll 自动重现（跨路由纯渲染的实现载体）。
  */
-export function useLayerIRLayer() {
-  const irOwned = useOwnedLayers('task-ir')
+/**
+ * @param manager 显式传入的 BLM——`App.vue`（BLM 的 provide 者）必须用它：
+ *                自 provide 对自身不可注入，不传会静默退化为 no-op 桩（见 useBusinessLayers 实测注）。
+ */
+export function useLayerIRLayer(manager?: BusinessLayerManagerLike) {
+  const irOwned = useOwnedLayers('task-ir', manager)
 
   function hasIR(ir: Pick<LayerIR, 'origin' | 'kind'>): boolean {
     // 判重走 owner 册（useOwnedLayers 的设计口径：回答「我登记过没有」），

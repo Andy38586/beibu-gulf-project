@@ -25,6 +25,10 @@
  * 任一条停用，见 §8.15 实测表——停用后 80 km 或 586 km 必红）。
  *
  * 只读：不改源码、不改 tileset，走真 Edge + 真 Cesium。
+ * **2026-10-04 起兼作 §四 #15-10「页面控制台无报错」的代跑通道**：除按关键词收集外，
+ * 全量收集 error/warning 型 console 消息与 `pageerror`（未捕获异常），运行结束打印汇总并
+ * 落 JSON。环境性错误（后端 DB 未起 ⇒ API 500、天地图 key 配额 ⇒ 底图瓦片失败）**不判红**，
+ * 只要求"逐条可归因"；pageerror 非零时须查清是否渲染链缺陷。
  * 前置：① 前端 dev server 起着（默认 http://localhost:5174）；② 交付包在盘（.gitignore 排除，
  * 缺失时三枢纽/港区图层压根不注册 ⇒ 同样按 exit 1 记，不得当通过）。
  * 用法：node tools/diag/lod-ladder.cjs [url] [heights]   # heights 逗号分隔，默认 6 档
@@ -344,10 +348,24 @@ async function measureBody(page, id, clip, h) {
     await browser.newContext({ viewport: { width: 1280, height: 860 } })
   ).newPage()
   const consoleMsgs = []
+  const pageErrors = []
   page.on('console', (m) => {
     const t = m.text()
-    if (/error|失败|3D Tiles|lod/i.test(t)) consoleMsgs.push(m.type() + ': ' + t.slice(0, 200))
+    const type = m.type()
+    // 全量 error/warning + 3D Tiles/LOD 相关日志（不判红，供逐条归因）
+    if (type === 'error' || type === 'warning' || /失败|3D Tiles|lod/i.test(t)) {
+      // 带出错资源 URL（error 型消息只给 "Failed to load resource"，不带 URL 无法归因）
+      let url = ''
+      try {
+        const loc = typeof m.location === 'function' ? m.location() : null
+        if (loc && loc.url) url = ' @' + loc.url
+      } catch {
+        /* 无 location 时省略 */
+      }
+      consoleMsgs.push(type + ': ' + t.slice(0, 180) + url)
+    }
   })
+  page.on('pageerror', (e) => pageErrors.push(String((e && e.message) || e).slice(0, 300)))
   await page.goto(URL_, { waitUntil: 'domcontentloaded', timeout: 60000 })
 
   const deadline = Date.now() + 90000
@@ -533,10 +551,21 @@ async function measureBody(page, id, clip, h) {
   fs.writeFileSync(
     path.join(OUT, 'lod-ladder.json'),
     JSON.stringify(
-      { url: URL_, heights: HEIGHTS, anchors, rows, consoleMsgs: consoleMsgs.slice(0, 60) },
+      {
+        url: URL_,
+        heights: HEIGHTS,
+        anchors,
+        rows,
+        consoleMsgs: consoleMsgs.slice(0, 120),
+        pageErrors,
+      },
       null,
       2
     )
+  )
+  console.log(
+    `\n控制台：error/warning ${consoleMsgs.length} 条 ｜ 未捕获异常(pageerror) ${pageErrors.length} 条` +
+      (pageErrors.length > 0 ? ' ← 非零须逐条归因（可能为渲染链缺陷）' : '')
   )
   console.log('written', path.join(OUT, 'lod-ladder.json'))
   // 判据：任一格整层空白 或 "在场但中心窗口零像素贡献" ⇒ 红

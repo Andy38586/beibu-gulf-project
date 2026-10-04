@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 
 import { BUSINESS_LAYER_MANAGER_KEY, type BusinessLayerManager } from '@/core'
 
-import { layerIRKey, taskResultToIR, useLayerIRLayer, type LayerIR } from '../LayerIR'
+import { type LayerIR, layerIRKey, taskResultToIR, useLayerIRLayer } from '../LayerIR'
 
 // LayerIR 单测（v4-S8）：任务结果 → IR 判定、去重键含 kind、toggle 拖出语义。
 // 变异四式取证见提交正文（去重键漏 kind 红 / toggle 反转红 / 结构判定放宽红）。
@@ -174,5 +174,48 @@ describe('useLayerIRLayer（BLM 通道：渲染/撤下/toggle）', () => {
     api.renderIR(route)
     expect(fake.manager.has('task-ir-t-flood-1-polygon')).toBe(true)
     expect(fake.manager.has('task-ir-t-route-1-polyline')).toBe(true)
+  })
+})
+
+// App.vue 是 BLM 的 provide 者，也是"任务结果拖出上图"的消费方；Vue 的 provide 对自身
+// 不可注入 ⇒ 必须显式传 manager。2026-10-04 运行时实测：不传时控制台报
+// "injection Symbol(businessLayerManager) not found"，且 chip 显示已上图、BLM 里没有图层。
+describe('useLayerIRLayer — 显式传 manager（provide 者自己的通道）', () => {
+  function mountExplicit() {
+    const fake = createFakeManager()
+    let api!: ReturnType<typeof useLayerIRLayer>
+    mount({
+      setup() {
+        api = useLayerIRLayer(fake.manager as unknown as BusinessLayerManager)
+        return () => null
+      },
+    })
+    return { fake, api }
+  }
+
+  it('不 provide、显式传 manager：toggle 真落到 manager（注册/撤下都有调用）', () => {
+    const { fake, api } = mountExplicit()
+    const ir = taskResultToIR(FLOOD_SLOT) as LayerIR
+    expect(api.toggleIR(ir)).toBe('added')
+    expect(fake.calls).toContain('register:task-ir-t-flood-1-polygon')
+    expect(fake.manager.has('task-ir-t-flood-1-polygon')).toBe(true)
+    expect(api.toggleIR(ir)).toBe('removed')
+    expect(fake.calls).toContain('remove:task-ir-t-flood-1-polygon')
+  })
+
+  it('阳性对照：既无 provide 也无实参时退化为 no-op 桩——不触达任何真 manager', () => {
+    // 这条钉的是"静默空转"的失效形态本身：owner 册会记成已上图，但外部 manager 一无所知。
+    // 修复前的 App.vue 就落在这一格（所以必须显式传参，而不是只靠 provide）。
+    const fake = createFakeManager()
+    let api!: ReturnType<typeof useLayerIRLayer>
+    mount({
+      setup() {
+        api = useLayerIRLayer()
+        return () => null
+      },
+    })
+    const ir = taskResultToIR(FLOOD_SLOT) as LayerIR
+    api.toggleIR(ir)
+    expect(fake.calls).toEqual([])
   })
 })

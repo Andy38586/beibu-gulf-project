@@ -18,7 +18,8 @@ import { onScopeDispose } from 'vue'
 import { logger } from '@/shared'
 
 import type { LayerDescriptor } from '../BusinessLayerManager'
-import { useBusinessLayers } from './useBusinessLayers'
+
+import { type BusinessLayerManagerLike, useBusinessLayers } from './useBusinessLayers'
 
 export interface UseOwnedLayersReturn {
   /** 注册并登记归属；返回 false 表示本次注册被拒（组件已卸载） */
@@ -42,8 +43,17 @@ export interface UseOwnedLayersReturn {
   owned: ReadonlySet<string>
 }
 
-export function useOwnedLayers(owner: string): UseOwnedLayersReturn {
-  const { manager } = useBusinessLayers()
+/**
+ * @param explicitManager 显式传入的 manager（透传给 useBusinessLayers）——供"provide 者自己"用，
+ *                        见 useBusinessLayers 的实测注。不传时仍走 inject（后代组件既有路径）。
+ *                        注：本地接收者仍叫 `manager`——不放宽 owned-layers 守卫对
+ *                        `manager.register(` 的派生（守卫靠它数注册语义，改名会让分母归零）。
+ */
+export function useOwnedLayers(
+  owner: string,
+  explicitManager?: BusinessLayerManagerLike
+): UseOwnedLayersReturn {
+  const { manager } = useBusinessLayers(explicitManager)
   const owned = new Set<string>()
   let disposed = false
 

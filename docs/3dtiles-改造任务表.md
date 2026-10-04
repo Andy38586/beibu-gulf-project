@@ -77,18 +77,18 @@
 
 dev server 实测在 **5173（vite）+ 3000（backend）** 上跑，结果：
 
-| #   | 检查项                           | 方法                                           | 结果                                                                |
-| --- | -------------------------------- | ---------------------------------------------- | ------------------------------------------------------------------- |
-| 1   | 6 个 tileset URL 可 GET          | dev server 上逐条 HEAD                         | ✅ 全部 **200**                                                     |
-| 2   | 被引用的 GLB 可 GET              | 抽查 5 个（含 175 MB 的 BIM 构件）             | ✅ 全部 **200**                                                     |
-| 3   | **端到端**：页面真实裁剪逻辑跑通 | `npx vite-node .local/3d-diag/verify-web2.ts`  | ✅ GET 清空版 200 → 裁剪出 **7 个 GLB** → **7/7 HTTP 200，4.00 MB** |
-| 4   | 容器层 10 个切块                 | 同上                                           | ✅ **10/10 可 GET，0.81 MB**                                        |
-| 5   | 作业区两层合计                   | 同上                                           | ✅ **4.81 MB**（原整包 143.5 MB）                                   |
-| 6   | 清空版裁剪后 cargo 计数为 0      | `npx vite-node .local/3d-diag/verify-clean.ts` | ✅ 0（不与新容器层重叠）                                            |
-| 7   | 容器层实例数                     | 同上                                           | ✅ 27853                                                            |
-| 8   | 三枢纽在影像上的位置             | 渲染图 + 影像像素                              | ✅ 701,1017 / 464,866 / 494,571                                     |
-| 9   | 作业区整体观感                   | `.local/3d-diag/out-qz-roads.png`              | ✅ 已出图                                                           |
-| 10  | 页面控制台无报错                 | **需人工在浏览器确认**                         | ⬜ 无法代跑                                                         |
+| #   | 检查项                           | 方法                                           | 结果                                                                                      |
+| --- | -------------------------------- | ---------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| 1   | 6 个 tileset URL 可 GET          | dev server 上逐条 HEAD                         | ✅ 全部 **200**                                                                           |
+| 2   | 被引用的 GLB 可 GET              | 抽查 5 个（含 175 MB 的 BIM 构件）             | ✅ 全部 **200**                                                                           |
+| 3   | **端到端**：页面真实裁剪逻辑跑通 | `npx vite-node .local/3d-diag/verify-web2.ts`  | ✅ GET 清空版 200 → 裁剪出 **7 个 GLB** → **7/7 HTTP 200，4.00 MB**                       |
+| 4   | 容器层 10 个切块                 | 同上                                           | ✅ **10/10 可 GET，0.81 MB**                                                              |
+| 5   | 作业区两层合计                   | 同上                                           | ✅ **4.81 MB**（原整包 143.5 MB）                                                         |
+| 6   | 清空版裁剪后 cargo 计数为 0      | `npx vite-node .local/3d-diag/verify-clean.ts` | ✅ 0（不与新容器层重叠）                                                                  |
+| 7   | 容器层实例数                     | 同上                                           | ✅ 27853                                                                                  |
+| 8   | 三枢纽在影像上的位置             | 渲染图 + 影像像素                              | ✅ 701,1017 / 464,866 / 494,571                                                           |
+| 9   | 作业区整体观感                   | `.local/3d-diag/out-qz-roads.png`              | ✅ 已出图                                                                                 |
+| 10  | 页面控制台无报错                 | headless Edge 代跑（lod-ladder 控制台通道）    | ◐ 已代跑：pageerror=0、非环境告警已清零；剩余为环境性（DB/天地图 key/幽灵 404），见 §8.26 |
 
 **未能代跑的一项**：第 10 条要真实浏览器（Cesium 渲染 + WebGL）。我能验到"所有 URL 可
 GET 且页面真实裁剪逻辑产出的请求全部 200"，但**渲染结果是否正常、有无运行时异常，
@@ -1087,3 +1087,70 @@ node tools/diag/lod-ladder.cjs http://127.0.0.1:5174/route-analysis
 ⇒ 只改 `LOD_REFINE_GE_PER_SSE` 一处（两侧都从它派生）并重跑形态表；④ 某资产精细层在某机位
 合法地只选中 1 块（或远景壳合法拆成 ≥2 块）⇒ 形态判据误报，届时按实测改判据并写明理由，
 禁止直接删。
+
+### 8.26 Web 端实测：控制台代跑通道 + 两个「自 provide 不可自注入」缺陷修复 · 2026-10-04
+
+**通道（§四 #15-10 的代跑形态）**：`tools/diag/lod-ladder.cjs` 升级为**全量收集**
+error/warning 型 console 消息（带出错资源 URL）与 `pageerror`（未捕获异常），运行末打印汇总
+并落 `.local/3d-review/lod-ladder/lod-ladder.json`。口径与其余探针一致：环境性错误
+（后端 DB 未起 ⇒ `/auth/me` 401、`/route/pois` 500；天地图 key 配额 ⇒ 429；地形幽灵声明
+⇒ `.terrain` 404）**不判红**，只要求逐条可归因；`pageerror` 非零须查清是否渲染链缺陷。
+
+**实测归因（真 Edge，586 km 单档）**：error/warning 143 条、pageerror **0**：
+
+| 计数 | 类别                                                                          | 归因                                                |
+| ---- | ----------------------------------------------------------------------------- | --------------------------------------------------- |
+| 103  | 天地图 `img_w`/`cia_w` 429                                                    | key 配额（外部，已知）                              |
+| 5    | `/static/terrain/*.terrain` 404                                               | layer.json 幽灵声明 76 张（= 07c 待裁项，同一根因） |
+| 2    | `injection "Symbol(businessLayerManager)" not found` + useBusinessLayers warn | **本次修复**（见下）                                |
+| 3    | `/auth/me` 401、`/route/pois` 500、DB 拒连 warn                               | 本机 dev DB 未起（环境）                            |
+| 1    | 底图瓦片加载失败 U5                                                           | 天地图 key（同上）                                  |
+| 其余 | 「未归属分组」警告、分组注册 log                                              | 预期（corridor/bridges 已废弃成文）                 |
+
+**根因（两条都要运行时才现形）**：Vue 的 provide **只对后代生效**，`App.vue` 给自己 provide
+的键自己 inject 不到：
+
+1. `useLayerIRLayer()`（任务结果「拖出上图」）拿到 no-op 桩 ⇒ chip 显示已上图、BLM 里却没有
+   该图层（静默空转，控制台两条告警就是它）；
+2. `useMapControls()` 拿到 `null` ⇒ Home 区域复位空转：实测 Profile(z9) 手动置 z6 后
+   `push('/')`，视图停在 **z6**，不复位到 REGION z9。
+
+**修法**：四处 composable 增加**显式实参**（不传时仍走 inject，后代组件路径不变）——
+`useBusinessLayers(manager?)` / `useOwnedLayers(owner, manager?)` / `useLayerIRLayer(manager?)` /
+`useMapControls(mapRef?)`；App.vue 传 `businessLayerManager` / `unifiedMapRef`。
+`zoomToRegion` 同时传 `height` 与 `zoom`（两字段各管一个引擎：3D 用 height、2D 用 zoom）——
+只传 height 时 OL 按 `heightToZoom` 反推 1600 km ⇒ **z7.55**，与 2D 区域默认（OL 初始
+`OL_VIEW_ZOOM=9` = 本档 `zoom`）不一致（实测踩到）。
+
+**证据**：
+
+```bash
+# 前置：前端 dev server 在 :5174。红样=把 App.vue 的实参删掉（M1/M4，见下表）
+node tools/diag/probe-app-selfprovide.cjs
+# 期望: "zoom: 初始=9 → 手动置 6 → push('/') 后=9（期望=9）"、"BLM 注入告警=0、pageerror=0"、EXIT=0
+```
+
+**变异四式（实跑；逐条还原后 md5 双向一致）**：
+
+| 变异                                          | 应判   | 实跑（摘）                                                  |
+| --------------------------------------------- | ------ | ----------------------------------------------------------- |
+| M1 App 侧删 `useLayerIRLayer` 实参（删字面）  | 红     | 探针 `BLM 注入告警=2`（injection not found + warn），EXIT=1 |
+| M2 core 侧忽略显式 manager（停用）            | 红     | `LayerIR.test.ts 1 failed`（toggle 未触达真 manager）       |
+| M3 `??` → `!= null ? :`（等价重构）           | 不许红 | `Tests 13 passed`                                           |
+| M4 App 侧删 `useMapControls` 实参（同义违约） | 红     | 探针 `push('/') 后=6（期望=9）`，EXIT=1                     |
+
+**影响面自陈（E3）**：① 新面=Home 进入时的区域复位**由死变活**（2D 落点 z9，与首屏默认一致；
+修复前该路径从未执行过）；② 「任务结果拖出上图」由静默空转变为真注册（BLM owner 册语义恢复）；
+③ 新增 1 个导出面（`BusinessLayerManagerLike` 类型导出）与 1 个探针，均有消费/调用点；
+未新增 env、依赖、门禁。④ 后代组件的 inject 路径未变（`useMapControls` provide 用例在测）。
+
+**残余与环境性（不判红但明记）**：dev DB 未起时的 401/500、天地图 key 配额、07c 幽灵 404；
+换到 DB + 有效 key 的环境复跑，控制台应只剩「未归属分组」预期告警。
+
+**观察入池（不当场改）**：`zoomToCity` / `zoomToDistrict` 仍只传 `height`——2D 落点为
+`heightToZoom` 反推（160 km ⇒ z10.87、16 km ⇒ z14.19），与清单声明的 `zoom` 12/14 不一致；
+是否同 `zoomToRegion` 一样两字段都传，待裁（改它就是改既有 2D 导航落点）。
+
+**失效条件**：① Vue 改 provide/inject 语义（自 provide 可见）⇒ 显式实参不再是必需，但保留无害；
+② BLM/UnifiedMap 的 provide 位置再迁移 ⇒ 本探针需同步（它按 App 的实参路径判）；③ 探针依赖
+dev server 与 OL 渲染器形态（`r.map.getView()`），换渲染器须改读取通道。

@@ -3,6 +3,7 @@ import { computed, onMounted, onUnmounted, provide, ref, watch } from 'vue'
 import { RouterView, useRoute, useRouter } from 'vue-router'
 
 import { businessModules, runBusinessLogoutReset } from '@/business'
+import { preloadBusinessAssets } from '@/business/preload'
 import { BusinessLayerManager, layerFailureMessage } from '@/core'
 import { BUSINESS_LAYER_MANAGER_KEY } from '@/core'
 import { registerNavItems } from '@/core'
@@ -23,7 +24,7 @@ import {
   type UnifiedMapExposed,
 } from '@/core'
 import { preloadCesium, UnifiedMap } from '@/core'
-import { taskResultToIR, useLayerIRLayer, type LayerIR } from '@/core/map/ir/LayerIR'
+import { type LayerIR, taskResultToIR, useLayerIRLayer } from '@/core/map/ir/LayerIR'
 import {
   ErrorBoundary,
   GCSModal,
@@ -37,7 +38,6 @@ import {
   warmupAfterFirstFrame,
 } from '@/shared'
 import { logger } from '@/shared'
-import { preloadBusinessAssets } from '@/business/preload'
 import { useMapStore, useTaskStore } from '@/stores'
 import type { TypeSetting } from '@/types/facility'
 import type { Plan } from '@/types/plan'
@@ -46,13 +46,15 @@ const route = useRoute()
 const router = useRouter()
 // authUser 供 watch 驱动登出/多标签页登出时的 store 重置
 const { restoreAuth, user: authUser } = useAuth()
-const { zoomToRegion, stopBreathing } = useMapControls()
 const mapStore = useMapStore()
 const taskStore = useTaskStore()
 
 const unifiedMapRef = ref<UnifiedMapExposed | null>(null)
 const restorePlanData = ref<Record<string, TypeSetting> | null>(null)
 const editingPlan = ref<Plan | null>(null)
+// App 自己 provide 的键对自己不可注入 ⇒ 必须显式传入 unifiedMapRef；
+// 不传时 zoomToRegion 恒空转（2026-10-04 实测：z6 push('/') 后不复位到 REGION z9）。
+const { zoomToRegion, stopBreathing } = useMapControls(unifiedMapRef)
 
 provide(RESTORE_PLAN_DATA_KEY, restorePlanData)
 provide(EDITING_PLAN_KEY, editingPlan)
@@ -163,7 +165,9 @@ const panelDragActive = useGlobalPanelDragActive()
 // chip 列表来自 taskStore 终态槽位中「可渲染域」的结果（core/map/ir 做结构判定）；
 // toggle 走 useLayerIRLayer（useOwnedLayers→BLM 通道）：引擎切换后由 reapplyAll 自动重现。
 // 🔴 单实例：has（owner 册判重）与 toggle 必须同册，两份实例会互相看不见。
-const layerIR = useLayerIRLayer()
+// 同理必须显式传入：App 的 provide 对 App 自身不可注入，不传会退化成 no-op 桩
+// （chip 显示已上图、BLM 里却没有该图层）。
+const layerIR = useLayerIRLayer(businessLayerManager)
 
 /** 终态且可渲染的任务结果 → chip 视图模型（domain 不支持/结果畸形的不出手柄） */
 const resultChips = computed(() => {

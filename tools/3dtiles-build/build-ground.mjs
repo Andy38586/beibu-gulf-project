@@ -53,7 +53,8 @@ export function buildGround({
   const mask = loadWaterMask(maskFile)
   const T = rootTransform()
   const toLocal = makeToLocal(T)
-  const groundU = groundLevel(rebuiltDir)
+  // 地面基准从**交付包几何**派生（见 build-roads.groundLevel 注释；旧实现读分桶盒底，低了 4.7 m）
+  const groundU = groundLevel()
   const u = groundU + GROUND_LIFT
 
   // 网格建在经纬度上（每格等经纬），逐顶点转 ENU——2 km 尺度上等经纬 ≈ 等米

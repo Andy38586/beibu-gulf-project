@@ -256,15 +256,15 @@ export const BEIBU_TILES: readonly BeibuTilesSpec[] = [
     id: 'qz-roads',
     // 由 tools/3dtiles-build/build-roads.mjs 生成：OSM 92 条 highway 中心线 → 挤出路面，
     // 按等级取宽（secondary 12 / tertiary 9 / unclassified 7 / service 5 m）。
-    // 高程取交付包箱区底面（局部 u=-20.35 m），不是 0——u=0 是 root 原点高度不是地面。
-    // 2026-10-04：**默认关闭**。交付包原版（qinzhou-port 那条）自带完整码头面与带标线的道路，
-    // 本层那 1508 面的 OSM 细带叠上去，只在"均匀平板 vs 精细面"之间留缝——用户原话
-    // 「道路也还是有缝隙」。留着供对照（.local/3d-review/sheet-roads-ab.png）。
-    label: '钦州港 · 作业区道路（OSM 挤出，备选）',
+    // 高程由 build-roads.groundLevel() 从**交付包几何**派生（rail/concrete 中位 ≈ −15.5 m），
+    // 不再取"箱区盒底"——那个值来自空间分桶的包围盒，实测比真实场地低 4.7 m，
+    // 导致路网整层埋在交付包表面之下（用户：「路不平，有缝隙」）。2026-10-04 已修。
+    // 交付包里**没有 road 材质**，作业区路网靠本层补，故保持默认打开。
+    label: '钦州港 · 作业区道路（OSM 挤出）',
     url: '/static/qinzhou-port/rebuilt/roads/tileset.json',
     carriesTerrain: false,
     maximumScreenSpaceError: 16,
-    defaultVisible: false,
+    defaultVisible: true,
   },
   {
     id: 'qz-ground',

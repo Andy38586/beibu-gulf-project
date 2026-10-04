@@ -25,6 +25,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { buildGLB, enuToGltf, GLTF_UP, gltfToEnu } from './glb.mjs'
+import { heightsOfMaterial, median, readGLB } from './glb-read.mjs'
 
 const TILE_DIR = 'backend/static/qinzhou-port/tiles'
 /** 与 qinzhou-port 交付包同一 root.transform（落位逐位对齐的前提） */
@@ -63,17 +64,43 @@ export function makeToLocal(T) {
   }
 }
 
-/** 从容器层 cell 包围盒反算地面高程（箱区底面） */
-export function groundLevel(rebuiltDir) {
-  const f = path.join(rebuiltDir, 'tileset.json')
-  if (!fs.existsSync(f)) return 0
-  const ts = JSON.parse(fs.readFileSync(f, 'utf8'))
-  let mn = Infinity
-  for (const c of ts.root.children ?? []) {
-    const b = c.boundingVolume?.box
-    if (b) mn = Math.min(mn, b[2] - b[11])
+/**
+ * 作业区**地面高程基准** u₀（米，交付包 ENU 的 u）——全项目唯一一处定义。
+ *
+ * ## 为什么改（2026-10-04）
+ * 旧实现读 rebuilt/tileset.json 里**切块包围盒的底**（−20.35）。切块是**空间分桶**，
+ * 盒底由分桶网格决定、与地面无关：实测它比真实场地低 **4.7 m**，于是路网整层埋在
+ * 交付包表面之下、只在没有几何的地方露头——用户原话「路不平，有缝隙」。
+ *
+ * ## 新口径：从**交付包自己的几何**派生
+ * 轨道（rail，铺在场面上）与混凝土（concrete）是两个独立材质，实测中位 −15.52 / −15.54，
+ * 一致到 0.02 m ⇒ 取二者中位的中位数作基准。**交付包换版必须重算**（本函数每次现算，不缓存）。
+ *
+ * 缺交付包时**报错**而不是静默返回 0：返回 0 会让整层挪到天空里且不报错。
+ */
+export function groundLevel(tileDir = 'backend/static/qinzhou-port/tiles') {
+  const rail = [],
+    concrete = []
+  const files = fs.readdirSync(tileDir).filter((f) => /^t[45]_.*\.glb$/.test(f))
+  if (!files.length) throw new Error('地面基准：' + tileDir + ' 里没有 t4/t5 细瓦片，无法派生 u₀')
+  for (const f of files) {
+    const { json, bin } = readGLB(path.join(tileDir, f))
+    rail.push(...heightsOfMaterial(json, bin, 'rail'))
+    concrete.push(...heightsOfMaterial(json, bin, 'concrete'))
   }
-  return Number.isFinite(mn) ? mn : 0
+  const u = (median(rail) + median(concrete)) / 2
+  if (!Number.isFinite(u) || u < -40 || u > 0) {
+    throw new Error(
+      '地面基准越界: ' +
+        u +
+        '（rail 中位 ' +
+        median(rail) +
+        ' / concrete 中位 ' +
+        median(concrete) +
+        '）'
+    )
+  }
+  return u
 }
 
 /** 把一条 way 挤出成路面（三角面 + 法线） */
@@ -112,7 +139,8 @@ export function buildRoads({ osmFile, outDir, rebuiltDir }) {
   const osm = JSON.parse(fs.readFileSync(osmFile, 'utf8'))
   const T = rootTransform()
   const toLocal = makeToLocal(T)
-  const groundU = groundLevel(rebuiltDir)
+  // 地面基准从**交付包几何**派生（见 groundLevel 注释）；rebuiltDir 不再参与高程决策
+  const groundU = groundLevel()
   const buckets = new Map()
   let ways = 0,
     segs = 0

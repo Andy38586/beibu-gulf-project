@@ -17,6 +17,7 @@ import {
   QINZHOU_OPERATION_AREA,
   isCoarseTerrainLayer,
   prepareBeibuTileset,
+  shouldDropPortContent,
   type BeibuTilesSpec,
 } from '../beibu3dTiles'
 
@@ -43,7 +44,15 @@ function makeTileset(): TilesetJson {
       refine: 'REPLACE',
       content: { uri: 't0_0_0.glb' },
       extras: { tile: 't0_0_0', depth: 0 },
-      children: [leaf('t4_near', 4, 300), leaf('t4_far', 4, 5000)],
+      children: [
+        // 中粗层（depth 2）带内容：用来证明"摘内容"确实作用在 d1~d3 上，而不只是没节点
+        {
+          ...leaf('t2_near', 2, 250),
+          geometricError: 64, // 被摘空的层要带真实 GE，否则 cap 无可压之值（见下条断言）
+          children: [leaf('t4_near', 4, 300)],
+        },
+        leaf('t4_far', 4, 5000),
+      ],
     },
   }
 }
@@ -120,18 +129,45 @@ describe('isCoarseTerrainLayer — 粗层判据', () => {
   })
 })
 
+describe('shouldDropPortContent — 远景壳例外（root 不摘）', () => {
+  it('depth 0 保留内容（远景壳）；depth 1~3 摘；d4/d5 保留', () => {
+    expect(shouldDropPortContent({ extras: { depth: 0 } })).toBe(false)
+    for (let d = 1; d <= QINZHOU_COARSE_MAX_DEPTH; d++) {
+      expect(shouldDropPortContent({ extras: { depth: d } })).toBe(true)
+    }
+    expect(shouldDropPortContent({ extras: { depth: 4 } })).toBe(false)
+    expect(shouldDropPortContent({ extras: { depth: 5 } })).toBe(false)
+  })
+
+  it('无 depth 字段按 0 处理 ⇒ 保留（宁多留不误删）', () => {
+    expect(shouldDropPortContent({})).toBe(false)
+  })
+})
+
 describe('prepareBeibuTileset — 清单驱动的分支（行为判据）', () => {
-  it('声明 derive 的条目：球外子树消失、球内保留、粗层被摘内容', () => {
+  it('声明 derive 的条目：球外子树消失、球内保留、粗层被摘内容但根壳留住', () => {
     const out = prepareBeibuTileset(makeTileset(), QINZHOU)
     expect(out).not.toBeNull()
-    const tiles = (out!.root.children ?? []).map((c) => String(c.extras?.tile))
+    const tiles: string[] = []
+    const walk = (n: { extras?: Record<string, unknown>; children?: unknown[] }) => {
+      if (n.extras?.tile) tiles.push(String(n.extras.tile))
+      for (const c of (n.children ?? []) as (typeof n)[]) walk(c)
+    }
+    walk(out!.root)
     expect(tiles).toContain('t4_near')
     // 球外 5 km 的瓦片被整棵剔除——删掉裁剪分支这条必红
     expect(tiles).not.toContain('t4_far')
-    // 粗层节点还在（是精细瓦片的通路），但内容已摘
-    expect(out!.root.content).toBeUndefined()
-    // uri 绝对化（Data URI 挂载前必需）
-    expect(out!.root.children![0].content!.uri).toContain('/static/')
+    // root（远景壳）内容保留；空层被折叠后 root 下只剩有内容的精细瓦片。
+    // 把 root 的内容也摘掉、或反过来让 d1~d3 保留内容，本用例都必红。
+    expect(out!.root.content).toBeDefined()
+    expect((out!.root.children ?? []).some((c) => c.extras?.tile === 't4_near')).toBe(true)
+    // 且 root 的 GE 必须被压到"被摘空的最深一级"（此处 d2 的 GE=64）以下——
+    // 否则遍历会在空层上停下（或反过来在 root 停住、精细层永不加载）⇒ 远景整层空白。
+    // 删掉 cap 或 collapse 任一条，本用例必红。
+    // 此处空层 d2 的盒半轴 200 ⇒ 归一化尺度 400；不压的话 root 是 18000（整包尺度）
+    expect(out!.root.geometricError).toBe(400)
+    // uri 绝对化（Data URI 挂载前必需）——挂在保留下来的根壳上看
+    expect(out!.root.content!.uri).toContain('/static/')
   })
 
   it('未声明 derive 的条目：整棵树原样保留（含球外瓦片与 root 内容）', () => {

@@ -206,6 +206,33 @@ export function isCoarseTerrainLayer(node: TilesetNode): boolean {
   return typeof d === 'number' && d <= QINZHOU_COARSE_MAX_DEPTH
 }
 
+/**
+ * 交付包**根节点**（depth 0）的粗层**保留内容**——它是远景唯一可见的"主体壳"。
+ *
+ * ## 为什么不能连 root 一起摘（2026-10-04 运行时阶梯实测）
+ *
+ * `.local/3d-review/lod-ladder.cjs` 在 300 m / 1.5 km / 6 / 20 / 30 / 40 / 60 / 80 / 586 km
+ * 九个高度、四个资产上逐档读 `_selectedTiles`：三枢纽 6/6 档全在场，而**钦州港作业区
+ * 只在 300 m~60 km 在场，80 km 与 586 km（= 打开页面时的默认全域视角）整层空白**——
+ * 因为粗层内容被摘掉，远景只剩"选了但没内容"的节点，用户的"LOD 不统一"就是这个。
+ *
+ * 保留 root 的代价是 `t0_0_0.glb` **1.9 MB**（实测材质：water 26456 / opaque 9493 /
+ * **metal 6440** / concrete 158 面 ⇒ 是带龙门架的水陆主体，不只是地形片）。
+ * 近景不受影响：REPLACE 语义下精细子瓦片被选中即**替换**父内容，不会出现两层地面
+ * （实测 300 m~60 km 仍由 d4/d5 承担，`sel=7 tri=458283` 不变）。
+ *
+ * **失效条件**：① 交付包换版若把 depth 0 的内容换成纯地形片（无 metal），则本条作废，
+ * 需改为自建远景壳；② 若 60~80 km 之间出现"壳与精细层同时可见"的重叠，说明 REPLACE
+ * 语义在该树未生效，须重新裁决保留层级。
+ */
+export function shouldDropPortContent(node: TilesetNode): boolean {
+  // root（depth 0）**不摘**：它是远景唯一带结构的主体粗模（t0_0_0.glb，1.9 MB，
+  // 实测材质 water 26456 / opaque 9493 / metal 6440 / concrete 158 面）。d1~d3 摘内容，
+  // 由 capRootGeometricError 保证这些空层永远不会成为遍历终点（见 core 的同名注释）。
+  const d = node.extras?.depth
+  return typeof d === 'number' && d > 0 && d <= QINZHOU_COARSE_MAX_DEPTH
+}
+
 export const BEIBU_TILES: readonly BeibuTilesSpec[] = [
   {
     id: 'pinglu-canal',
@@ -236,7 +263,12 @@ export const BEIBU_TILES: readonly BeibuTilesSpec[] = [
     // 裁到作业区：球外整棵剔除，球内粗层摘内容（见 QINZHOU_OPERATION_AREA 的实测表）
     derive: {
       keepSphere: QINZHOU_OPERATION_AREA,
-      dropContent: isCoarseTerrainLayer,
+      dropContent: shouldDropPortContent,
+      // 光摘内容不够：遍历会在"空层"上停下来 ⇒ 远景（80 km / 586 km 默认视角）整层空白。
+      // 折叠空层 + 压 root 的 GE 后：远距离的终点落在**有内容的 root**（远景壳）上，
+      // 近距离才细化到 d4/d5（与改前同量级，不额外增加下载）。
+      capRootGeometricError: true,
+      collapseEmptyLevels: true,
     },
   },
   {

@@ -597,3 +597,55 @@ describe('hasAnyContent / cropTilesetForDataUri', () => {
     ).toBeNull()
   })
 })
+
+// 摘空层折叠（collapseEmptyLevels）+ root GE 上压（capRootGeometricError）：
+// 「粗层摘内容后，空层仍被选为遍历终点 ⇒ 远景整层空白」的机制修复。
+// 运行时阶梯实测与变异红样见 docs/3dtiles-改造任务表.md §8.15；这里钉的是机制本身。
+describe('cropTilesetForDataUri — 摘空层折叠与 root GE 上压', () => {
+  const DROP_A_B = (n: TilesetNode) => nodeName(n) === 'a' || nodeName(n) === 'b'
+  const OPTS = { dropContent: DROP_A_B, collapseEmptyLevels: true, capRootGeometricError: true }
+
+  it('collapseEmptyLevels：被摘空的中间层折叠掉，子节点上提（终点必有内容）', () => {
+    const out = cropTilesetForDataUri(makeDeepTileset(), 'http://x.test/x/tileset.json', {
+      dropContent: DROP_A_B,
+      collapseEmptyLevels: true,
+    })
+    expect(out).not.toBeNull()
+    // a、b 两层被摘空 ⇒ 折叠后 root 直属只剩带内容的叶子 c
+    expect((out!.root.children ?? []).map((n) => nodeName(n))).toEqual(['c'])
+    // 全树不再有「既没内容、又有子节点」的节点——那正是会被选成空终点的形态
+    const noEmptyEndpoint = (n: TilesetNode): boolean =>
+      (!!n.content || (n.children?.length ?? 0) === 0) && (n.children ?? []).every(noEmptyEndpoint)
+    expect(noEmptyEndpoint(out!.root)).toBe(true)
+    // 阳性对照：不折叠时 a 仍在树上且没内容（旧形态）
+    const legacy = cropTilesetForDataUri(makeDeepTileset(), 'http://x.test/x/tileset.json', {
+      dropContent: DROP_A_B,
+    })
+    expect(nodeName(legacy!.root.children![0])).toBe('a')
+    expect(legacy!.root.children![0].content).toBeUndefined()
+  })
+
+  it('capRootGeometricError：root GE 压到被摘空层的上确界（a 半轴 2000 ⇒ 4000）', () => {
+    const out = cropTilesetForDataUri(makeDeepTileset(), 'http://x.test/x/tileset.json', OPTS)
+    // 空层 a ⇒ 4000、b ⇒ 2000，上确界 4000；不压的话 root 是整包尺度 8000
+    expect(out!.root.geometricError).toBe(4000)
+    // 顶层 geometricError 字段不动：Cesium 遍历读的是 root 瓦片自身的 GE（§8.15 实测）
+    expect(out!.geometricError).toBe(8000)
+    const noCap = cropTilesetForDataUri(makeDeepTileset(), 'http://x.test/x/tileset.json', {
+      dropContent: DROP_A_B,
+      collapseEmptyLevels: true,
+    })
+    expect(noCap!.root.geometricError).toBe(8000)
+  })
+
+  it('没摘空任何层 ⇒ cap 不生效（不臆造上限），结果与不传两项时逐位相同', () => {
+    const src = makeDeepTileset()
+    const capped = cropTilesetForDataUri(src, 'http://x.test/x/tileset.json', {
+      ...OPTS,
+      dropContent: () => false,
+    })
+    const plain = cropTilesetForDataUri(src, 'http://x.test/x/tileset.json', {})
+    expect(capped!.root.geometricError).toBe(8000)
+    expect(JSON.stringify(capped!.root)).toBe(JSON.stringify(plain!.root))
+  })
+})

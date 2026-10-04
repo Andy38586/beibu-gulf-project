@@ -244,6 +244,32 @@ export interface DeriveOptions {
    * 不能删节点。命中者去掉 `content`，`children` 照常保留。
    */
   dropContent?: (node: TilesetNode) => boolean
+  /**
+   * **把 root 的 geometricError 压到「被 dropContent 摘空各层 GE 的上确界」**（= 其中
+   * 最浅、数值最大的一级；deepest 一级数值最小，不是这个值）。
+   *
+   * 为什么（2026-10-04 运行时阶梯实测）：`dropContent` 摘空的层级**仍然会被选为终点**——
+   * 相机越远、屏幕误差越小，遍历就越浅，最后停在空层上 ⇒ 整层空白。
+   * 钦州港实测：80 km 与 586 km（= 页面默认全域视角）整层空白，而同场景三枢纽 6/6 档全在场，
+   * 用户说的"LOD 不一致"就是这个。压在空层 GE 之下后，root（有内容）在所有"空层本会成为
+   * 终点"的距离上就是终点，于是远景有主体、中近景照旧细化到精细层，且不会出现多层同时渲染。
+   *
+   * 数值取自**被摘空节点的 GE 上确界**（不手抄常数）；无节点被摘空时本项不生效。
+   * 取上确界而不是下确界，是为了在"远景有壳"的前提下**尽早**恢复精细层——取下确界会把
+   * 精细层的出现距离推得更近，近/中景形态会比改前更粗（与 §8.15 实测阶梯不符）。
+   */
+  capRootGeometricError?: boolean
+  /**
+   * **折叠掉没有内容的中间层**：把"内容被摘空、但有子节点"的节点的子节点提升到其父节点。
+   *
+   * 为什么（2026-10-04）：`dropContent` 摘空的层仍留在树上，且**会被选为遍历终点** ⇒
+   * 那些距离上整层空白（钦州港实测 56 km 以外全空，含页面默认全域视角）。
+   * 折叠后树变成「有内容的 root → 有内容的叶子」，终点必有内容；配合
+   * `capRootGeometricError` 把 root 的 GE 压到被摘空层的水平，远距离就落在 root 上、
+   * 近距离才细化到叶子 —— 且不会破坏 geometricError 沿树单调递减的不变量
+   * （直接压 root 而不折叠会破坏它，实测遍历会停在 root、精细层永不加载）。
+   */
+  collapseEmptyLevels?: boolean
 }
 
 /**
@@ -391,6 +417,44 @@ export function cropTileset(
   return { ...tileset, root }
 }
 
+/** 被 `dropContent` 摘空的节点中，最大的 geometricError（无则为 null） */
+function maxDroppedGeometricError(
+  node: TilesetNode,
+  dropContent?: (node: TilesetNode) => boolean
+): number | null {
+  if (!dropContent) return null
+  let best: number | null = null
+  const walk = (n: TilesetNode) => {
+    // 只看"被摘空且确实没有内容"的节点：这条判据在折叠前后都成立
+    if (dropContent(n) && !n.content && typeof n.geometricError === 'number') {
+      best = best === null ? n.geometricError : Math.max(best, n.geometricError)
+    }
+    for (const c of n.children ?? []) walk(c)
+  }
+  walk(node)
+  return best
+}
+
+/** 折叠没有内容的中间层（子节点上提）；没有内容的叶子（画不出任何东西）直接丢弃 */
+function collapseEmptyLevels(root: TilesetNode): TilesetNode {
+  const fold = (node: TilesetNode): TilesetNode => {
+    const kids = (node.children ?? []).map(fold)
+    if (kids.length === 0) return { ...node }
+    const flat: TilesetNode[] = []
+    for (const k of kids) {
+      if (k.content) {
+        flat.push(k)
+        continue
+      }
+      // 没内容：有子节点就把子节点提上来，没子节点就丢掉（它只会被选为空层）
+      const grand = k.children ?? []
+      if (grand.length > 0) flat.push(...grand)
+    }
+    return { ...node, children: flat }
+  }
+  return fold(root)
+}
+
 /**
  * 整包预处理：content.uri 全部绝对化并校正 geometricError——
  * 供「外部 http tileset → Data URI 挂载」的场景（不裁剪子树）。
@@ -416,7 +480,25 @@ export function cropTilesetForDataUri(
 ): TilesetJson | null {
   const cropped = cropTileset(tileset, baseUrl, options)
   if (cropped === null) return null
-  return normalizeTilesetGeometricError(cropped)
+  // ① 先按裁剪后的**完整树**校正 GE——空层的 GE 靠这一步才反映成品尺度
+  //    （交付包原值 256/128/64/0 偏小 1~2 个数量级，直接拿来当上限会压过头）
+  const normalized = normalizeTilesetGeometricError(cropped)
+  const cap = options.capRootGeometricError
+    ? maxDroppedGeometricError(normalized.root, options.dropContent)
+    : null
+  // ② 再折叠空层（子节点上提），最后压 root 的 GE——两步顺序不能反：
+  //    先折叠就拿不到空层的 GE 了；先压后折叠则破坏 GE 单调性，实测遍历会停在 root。
+  let out = normalized
+  if (options.collapseEmptyLevels) {
+    out = normalizeTilesetGeometricError({
+      ...normalized,
+      root: collapseEmptyLevels(normalized.root),
+    })
+  }
+  if (cap !== null && cap > 0) {
+    out.root.geometricError = Math.min(out.root.geometricError ?? Number.POSITIVE_INFINITY, cap)
+  }
+  return out
 }
 
 /**

@@ -26,7 +26,7 @@
 
 set -e
 
-echo "[pre-push] 1/13 v3 守卫（20 项快集，条数由 doc-numbers 守卫对账）+ 慢守卫 guard:mutation"
+echo "[pre-push] 1/13 v3 守卫（21 项快集，条数由 doc-numbers 守卫对账）+ 慢守卫 guard:mutation"
 npm run guard:v3
 # 红样「能红性」的常设复验装置：单个约 3 分钟 ⇒ 不进 pre-commit 快集，但必须挂在自动
 # 强制点上。登记在 run-all.mjs 的 SEPARATELY_RUN.enforcedBy，由 run-all.test.mjs 核对

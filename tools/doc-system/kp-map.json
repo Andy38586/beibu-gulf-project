@@ -1,0 +1,5439 @@
+{
+  "version": 1,
+  "date": "2026-10-05",
+  "baseline": {
+    "dir": "tools/doc-system/baseline",
+    "manifest": "tools/doc-system/baseline/manifest.json",
+    "commit": "ab72a58128266677c3d654730aa4966cf270b3ed"
+  },
+  "sources": [
+    {
+      "id": "AGENTS.md",
+      "doc": "AGENTS.md",
+      "file": "tools/doc-system/baseline/AGENTS.md.frozen",
+      "sha256": "7637d58e1ebc2a89ffbe3323d8603e7f5612140042d61e5e7871960046528d7d",
+      "sections": [
+        {
+          "heading": "## 一、四条铁律",
+          "anchor": "AGENTS.md:8",
+          "level": 2
+        },
+        {
+          "heading": "## 二、开工前必读（顺序固定，不许跳）",
+          "anchor": "AGENTS.md:17",
+          "level": 2
+        },
+        {
+          "heading": "## 三、流程（按任务选一条，照做）",
+          "anchor": "AGENTS.md:26",
+          "level": 2
+        },
+        {
+          "heading": "## 四、必须停下来问用户（10 条，禁止自行决定）",
+          "anchor": "AGENTS.md:49",
+          "level": 2
+        },
+        {
+          "heading": "## 五、验证协议",
+          "anchor": "AGENTS.md:57",
+          "level": 2
+        },
+        {
+          "heading": "### 5.1 「完成」的定义（五件证据，缺一即未修；自报不算）",
+          "anchor": "AGENTS.md:59",
+          "level": 3
+        },
+        {
+          "heading": "### 5.2 改完必跑",
+          "anchor": "AGENTS.md:69",
+          "level": 3
+        },
+        {
+          "heading": "### 5.3 变异四式（判据的能红性，不是\"有没有测试\"）",
+          "anchor": "AGENTS.md:83",
+          "level": 3
+        },
+        {
+          "heading": "### 5.4 「绿」的四条硬口径",
+          "anchor": "AGENTS.md:92",
+          "level": 3
+        },
+        {
+          "heading": "### 5.5 环境与沙箱口径（不许再拿 `--no-verify` 当出口）",
+          "anchor": "AGENTS.md:99",
+          "level": 3
+        },
+        {
+          "heading": "## 六、记录义务",
+          "anchor": "AGENTS.md:108",
+          "level": 2
+        },
+        {
+          "heading": "## 七、十类禁忌（违反 = 不合格）",
+          "anchor": "AGENTS.md:128",
+          "level": 2
+        },
+        {
+          "heading": "### 7.1 修法形状要求（不满足即按未完成计）",
+          "anchor": "AGENTS.md:143",
+          "level": 3
+        },
+        {
+          "heading": "## 八、交付前自查（**打勾无效，必须挂产物**）",
+          "anchor": "AGENTS.md:154",
+          "level": 2
+        },
+        {
+          "heading": "## 九、输出风格",
+          "anchor": "AGENTS.md:177",
+          "level": 2
+        },
+        {
+          "heading": "## 十、维护",
+          "anchor": "AGENTS.md:189",
+          "level": 2
+        },
+        {
+          "heading": "## 十一、审查窗作业标准（六节交付，缺一不可）",
+          "anchor": "AGENTS.md:202",
+          "level": 2
+        },
+        {
+          "heading": "## 十二、工单与膨胀率（防\"修一个冒出无数个\"）",
+          "anchor": "AGENTS.md:228",
+          "level": 2
+        }
+      ]
+    },
+    {
+      "id": "CLAUDE.md",
+      "doc": "CLAUDE.md",
+      "file": "tools/doc-system/baseline/CLAUDE.md.frozen",
+      "sha256": "29c3060428213a40cdf811e0b3e699979b49fdcd855f0f7a4efeb492f50e7653",
+      "sections": [
+        {
+          "heading": "## 只给指路",
+          "anchor": "CLAUDE.md:7",
+          "level": 2
+        },
+        {
+          "heading": "## 技术栈速览（这部分 AGENTS.md 不写，可在此处维护）",
+          "anchor": "CLAUDE.md:22",
+          "level": 2
+        },
+        {
+          "heading": "## 本文件的机器约束",
+          "anchor": "CLAUDE.md:31",
+          "level": 2
+        }
+      ]
+    },
+    {
+      "id": "docs/README.md",
+      "doc": "docs/README.md",
+      "file": "tools/doc-system/baseline/docs/README.md.frozen",
+      "sha256": "7f5ee4a162b7008ebca360d828dd809a18e1f7e56abcb253264c238d8cae88bf",
+      "sections": [
+        {
+          "heading": "## 一、问题台账（活文档，最高优先级）",
+          "anchor": "docs/README.md:9",
+          "level": 2
+        },
+        {
+          "heading": "## 二、根基文档（设计/规范，改代码前必读）",
+          "anchor": "docs/README.md:25",
+          "level": 2
+        },
+        {
+          "heading": "## 三、专题档与工程记录",
+          "anchor": "docs/README.md:43",
+          "level": 2
+        },
+        {
+          "heading": "## 四、审查与修复记录（已移交桌面）",
+          "anchor": "docs/README.md:64",
+          "level": 2
+        },
+        {
+          "heading": "## 五、面试材料",
+          "anchor": "docs/README.md:69",
+          "level": 2
+        },
+        {
+          "heading": "## 六、其他",
+          "anchor": "docs/README.md:73",
+          "level": 2
+        },
+        {
+          "heading": "## 七、当前分支与数据状态（2026-09-11 更新）",
+          "anchor": "docs/README.md:87",
+          "level": 2
+        },
+        {
+          "heading": "## 八、不在版本控制内的 docs（2026-10-02 实测）",
+          "anchor": "docs/README.md:98",
+          "level": 2
+        },
+        {
+          "heading": "## 九、归档映射表（2026-10-02 文档整合 · 旧路径 → 新路径）",
+          "anchor": "docs/README.md:134",
+          "level": 2
+        },
+        {
+          "heading": "### 9.1 移入 `docs/archive/`（19 件）",
+          "anchor": "docs/README.md:140",
+          "level": 3
+        },
+        {
+          "heading": "### 9.2 移出仓库",
+          "anchor": "docs/README.md:164",
+          "level": 3
+        },
+        {
+          "heading": "### 9.3 明确**不归档**（用户 2026-10-02 口径）",
+          "anchor": "docs/README.md:170",
+          "level": 3
+        },
+        {
+          "heading": "### 9.4 整合后形态",
+          "anchor": "docs/README.md:176",
+          "level": 3
+        }
+      ]
+    },
+    {
+      "id": "docs/根基文档/项目全景.md",
+      "doc": "docs/根基文档/项目全景.md",
+      "file": "tools/doc-system/baseline/docs/根基文档/项目全景.md.frozen",
+      "sha256": "d9cc54543b19c127d77d5b425e67282205fd26800ae228eb9959c6f0b6ecb380",
+      "sections": [
+        {
+          "heading": "## 一、项目身份",
+          "anchor": "docs/根基文档/项目全景.md:10",
+          "level": 2
+        },
+        {
+          "heading": "## 二、技术栈",
+          "anchor": "docs/根基文档/项目全景.md:22",
+          "level": 2
+        },
+        {
+          "heading": "## 三、系统架构",
+          "anchor": "docs/根基文档/项目全景.md:34",
+          "level": 2
+        },
+        {
+          "heading": "### 3.1 分层（L0-L8，单向依赖）",
+          "anchor": "docs/根基文档/项目全景.md:36",
+          "level": 3
+        },
+        {
+          "heading": "### 3.2 双引擎（Renderer 抽象）",
+          "anchor": "docs/根基文档/项目全景.md:52",
+          "level": 3
+        },
+        {
+          "heading": "### 3.3 请求路径（总览）",
+          "anchor": "docs/根基文档/项目全景.md:59",
+          "level": 3
+        },
+        {
+          "heading": "## 四、目录职责地图",
+          "anchor": "docs/根基文档/项目全景.md:73",
+          "level": 2
+        },
+        {
+          "heading": "## 五、核心设计原则",
+          "anchor": "docs/根基文档/项目全景.md:97",
+          "level": 2
+        },
+        {
+          "heading": "## 六、工程红线（不变量）",
+          "anchor": "docs/根基文档/项目全景.md:110",
+          "level": 2
+        },
+        {
+          "heading": "## 七、文档地图与编号规则",
+          "anchor": "docs/根基文档/项目全景.md:119",
+          "level": 2
+        },
+        {
+          "heading": "### 7.1 三文档 + 台账体系",
+          "anchor": "docs/根基文档/项目全景.md:121",
+          "level": 3
+        },
+        {
+          "heading": "### 7.2 编号规则（铁律）",
+          "anchor": "docs/根基文档/项目全景.md:136",
+          "level": 3
+        },
+        {
+          "heading": "### 7.3 读序建议",
+          "anchor": "docs/根基文档/项目全景.md:142",
+          "level": 3
+        }
+      ]
+    },
+    {
+      "id": "docs/根基文档/核心流程与数据流.md",
+      "doc": "docs/根基文档/核心流程与数据流.md",
+      "file": "tools/doc-system/baseline/docs/根基文档/核心流程与数据流.md.frozen",
+      "sha256": "0762f08d473253759bead27134fbfe3bf2669180e1cbc3e2f4bdef9b8e0bcdc1",
+      "sections": [
+        {
+          "heading": "## 一、数据流总览",
+          "anchor": "docs/根基文档/核心流程与数据流.md:12",
+          "level": 2
+        },
+        {
+          "heading": "## 二、前端取数规则（R1-R5）",
+          "anchor": "docs/根基文档/核心流程与数据流.md:27",
+          "level": 2
+        },
+        {
+          "heading": "## 三、后端响应规则（R6-R8）",
+          "anchor": "docs/根基文档/核心流程与数据流.md:38",
+          "level": 2
+        },
+        {
+          "heading": "## 四、业务主流程",
+          "anchor": "docs/根基文档/核心流程与数据流.md:46",
+          "level": 2
+        },
+        {
+          "heading": "### 4.1 选址分析（Site Selection）",
+          "anchor": "docs/根基文档/核心流程与数据流.md:48",
+          "level": 3
+        },
+        {
+          "heading": "### 4.2 预测分析（Forecast）",
+          "anchor": "docs/根基文档/核心流程与数据流.md:96",
+          "level": 3
+        },
+        {
+          "heading": "### 4.3 浸没分析（Flood Analysis）",
+          "anchor": "docs/根基文档/核心流程与数据流.md:123",
+          "level": 3
+        },
+        {
+          "heading": "### 4.4 快照恢复（保留态）",
+          "anchor": "docs/根基文档/核心流程与数据流.md:147",
+          "level": 3
+        },
+        {
+          "heading": "### 4.5 登录态期望",
+          "anchor": "docs/根基文档/核心流程与数据流.md:159",
+          "level": 3
+        },
+        {
+          "heading": "## 五、关键机制",
+          "anchor": "docs/根基文档/核心流程与数据流.md:163",
+          "level": 2
+        },
+        {
+          "heading": "### 5.1 Renderer 生命周期",
+          "anchor": "docs/根基文档/核心流程与数据流.md:165",
+          "level": 3
+        },
+        {
+          "heading": "### 5.2 图层管理（BLM）",
+          "anchor": "docs/根基文档/核心流程与数据流.md:171",
+          "level": 3
+        },
+        {
+          "heading": "### 5.3 水面 vs 淹没多边形（容易混淆，明确区分）",
+          "anchor": "docs/根基文档/核心流程与数据流.md:181",
+          "level": 3
+        },
+        {
+          "heading": "### 5.4 GCS 布局三档",
+          "anchor": "docs/根基文档/核心流程与数据流.md:192",
+          "level": 3
+        },
+        {
+          "heading": "### 5.5 store 重置链",
+          "anchor": "docs/根基文档/核心流程与数据流.md:199",
+          "level": 3
+        },
+        {
+          "heading": "### 5.6 数值与防御不变量（全局应然，专项8 的比对标尺）",
+          "anchor": "docs/根基文档/核心流程与数据流.md:205",
+          "level": 3
+        },
+        {
+          "heading": "## 六、新增业务模块",
+          "anchor": "docs/根基文档/核心流程与数据流.md:221",
+          "level": 2
+        },
+        {
+          "heading": "## 七、校验命令",
+          "anchor": "docs/根基文档/核心流程与数据流.md:243",
+          "level": 2
+        }
+      ]
+    },
+    {
+      "id": "docs/根基文档/开发指南与决策.md",
+      "doc": "docs/根基文档/开发指南与决策.md",
+      "file": "tools/doc-system/baseline/docs/根基文档/开发指南与决策.md.frozen",
+      "sha256": "02e98c55c70745ba482f55567c0cb23e26bd02801f3e4ff4b280a58818d91d15",
+      "sections": [
+        {
+          "heading": "## 一、编码规范",
+          "anchor": "docs/根基文档/开发指南与决策.md:8",
+          "level": 2
+        },
+        {
+          "heading": "### 1.1 核心原则",
+          "anchor": "docs/根基文档/开发指南与决策.md:10",
+          "level": 3
+        },
+        {
+          "heading": "### 1.2 命名规范",
+          "anchor": "docs/根基文档/开发指南与决策.md:24",
+          "level": 3
+        },
+        {
+          "heading": "### 1.3 注释规范",
+          "anchor": "docs/根基文档/开发指南与决策.md:47",
+          "level": 3
+        },
+        {
+          "heading": "### 1.4 Vue 组件规范",
+          "anchor": "docs/根基文档/开发指南与决策.md:54",
+          "level": 3
+        },
+        {
+          "heading": "### 1.5 后端规范",
+          "anchor": "docs/根基文档/开发指南与决策.md:74",
+          "level": 3
+        },
+        {
+          "heading": "### 1.6 Git 提交规范",
+          "anchor": "docs/根基文档/开发指南与决策.md:80",
+          "level": 3
+        },
+        {
+          "heading": "### 1.7 提交前自检表（五问）",
+          "anchor": "docs/根基文档/开发指南与决策.md:123",
+          "level": 3
+        },
+        {
+          "heading": "## 二、构建与性能",
+          "anchor": "docs/根基文档/开发指南与决策.md:133",
+          "level": 2
+        },
+        {
+          "heading": "### 2.1 分包策略（设计意图）",
+          "anchor": "docs/根基文档/开发指南与决策.md:135",
+          "level": 3
+        },
+        {
+          "heading": "### 2.2 懒加载架构（原则）",
+          "anchor": "docs/根基文档/开发指南与决策.md:141",
+          "level": 3
+        },
+        {
+          "heading": "### 2.3 性能基线（实测 · 数据采集日 2026-08-29 · Windows 本机 Node v25，数据已入 OS 页缓存；2026-08-16 816 复核第 1 项体积；2026-08-29 按**前端默认参数**复测第 2/3/4 项，08-09 数字经复核仍然有效）",
+          "anchor": "docs/根基文档/开发指南与决策.md:152",
+          "level": 3
+        },
+        {
+          "heading": "## 三、GCS 布局规范",
+          "anchor": "docs/根基文档/开发指南与决策.md:167",
+          "level": 2
+        },
+        {
+          "heading": "### 三.1 布局规则",
+          "anchor": "docs/根基文档/开发指南与决策.md:171",
+          "level": 3
+        },
+        {
+          "heading": "### 三.2 GCS 资产清单（审查定位用）",
+          "anchor": "docs/根基文档/开发指南与决策.md:180",
+          "level": 3
+        },
+        {
+          "heading": "### 三.3 GCS 标准组件规格书（审查对照基准）",
+          "anchor": "docs/根基文档/开发指南与决策.md:217",
+          "level": 3
+        },
+        {
+          "heading": "### 三.4 组件复用判定流程（对应专项7 指标 3.2）",
+          "anchor": "docs/根基文档/开发指南与决策.md:264",
+          "level": 3
+        },
+        {
+          "heading": "### 三.5 Token 变更 SOP（S7-10 定）",
+          "anchor": "docs/根基文档/开发指南与决策.md:275",
+          "level": 3
+        },
+        {
+          "heading": "## 四、API 契约",
+          "anchor": "docs/根基文档/开发指南与决策.md:283",
+          "level": 2
+        },
+        {
+          "heading": "## 五、部署与运维",
+          "anchor": "docs/根基文档/开发指南与决策.md:294",
+          "level": 2
+        },
+        {
+          "heading": "### 5.1 当前部署形态",
+          "anchor": "docs/根基文档/开发指南与决策.md:296",
+          "level": 3
+        },
+        {
+          "heading": "### 5.2 自动化链路",
+          "anchor": "docs/根基文档/开发指南与决策.md:303",
+          "level": 3
+        },
+        {
+          "heading": "### 5.3 HTTPS 与证书",
+          "anchor": "docs/根基文档/开发指南与决策.md:308",
+          "level": 3
+        },
+        {
+          "heading": "### 5.4 排雷要点",
+          "anchor": "docs/根基文档/开发指南与决策.md:313",
+          "level": 3
+        },
+        {
+          "heading": "## 六、当前项目状态（指针）",
+          "anchor": "docs/根基文档/开发指南与决策.md:319",
+          "level": 2
+        },
+        {
+          "heading": "## 七、决策记录（ADR）",
+          "anchor": "docs/根基文档/开发指南与决策.md:326",
+          "level": 2
+        },
+        {
+          "heading": "## 八、AI 开发规则",
+          "anchor": "docs/根基文档/开发指南与决策.md:345",
+          "level": 2
+        },
+        {
+          "heading": "## 九、工具与 CI（指针）",
+          "anchor": "docs/根基文档/开发指南与决策.md:357",
+          "level": 2
+        },
+        {
+          "heading": "## 十、面试口径",
+          "anchor": "docs/根基文档/开发指南与决策.md:364",
+          "level": 2
+        },
+        {
+          "heading": "## 十一、工作红线（违反即返工）",
+          "anchor": "docs/根基文档/开发指南与决策.md:369",
+          "level": 2
+        }
+      ]
+    },
+    {
+      "id": "docs/根基文档/04-防复发清单.md",
+      "doc": "docs/根基文档/04-防复发清单.md",
+      "file": "tools/doc-system/baseline/docs/根基文档/04-防复发清单.md.frozen",
+      "sha256": "6a200f7201aa5c4e0bce6ac69e986c1e2901e334d7d4645c072a5c6f98151a20",
+      "sections": [
+        {
+          "heading": "## A. 渲染与地图",
+          "anchor": "docs/根基文档/04-防复发清单.md:12",
+          "level": 2
+        },
+        {
+          "heading": "### A1 有注册必有注销，且必须在同一作用域",
+          "anchor": "docs/根基文档/04-防复发清单.md:14",
+          "level": 3
+        },
+        {
+          "heading": "### A2 访问可能已销毁的对象前必须判 `isDestroyed()`",
+          "anchor": "docs/根基文档/04-防复发清单.md:19",
+          "level": 3
+        },
+        {
+          "heading": "### A3 引擎切换必须走互斥序列，early-return 要保留并重放",
+          "anchor": "docs/根基文档/04-防复发清单.md:24",
+          "level": 3
+        },
+        {
+          "heading": "### A4 图层状态只能有一个事实源",
+          "anchor": "docs/根基文档/04-防复发清单.md:29",
+          "level": 3
+        },
+        {
+          "heading": "### A5 CRS 守卫必须有生产者；坐标出口必须显式转换",
+          "anchor": "docs/根基文档/04-防复发清单.md:34",
+          "level": 3
+        },
+        {
+          "heading": "### A6 禁止用 `(0,0)` / `0` / `''` 作缺失哨兵",
+          "anchor": "docs/根基文档/04-防复发清单.md:39",
+          "level": 3
+        },
+        {
+          "heading": "### A7 空间查询必须走索引；图层更新必须增量",
+          "anchor": "docs/根基文档/04-防复发清单.md:44",
+          "level": 3
+        },
+        {
+          "heading": "### A8 大资产与外部依赖必须标注来源、可复现",
+          "anchor": "docs/根基文档/04-防复发清单.md:49",
+          "level": 3
+        },
+        {
+          "heading": "### A9 渲染器契约单一权威；能力守卫必须判全部成员",
+          "anchor": "docs/根基文档/04-防复发清单.md:54",
+          "level": 3
+        },
+        {
+          "heading": "### A10 未知字段/未知组件的类型必须收窄，禁止开放索引",
+          "anchor": "docs/根基文档/04-防复发清单.md:59",
+          "level": 3
+        },
+        {
+          "heading": "### A11 销毁与移除链必须逐项容错，且\"摘账\"与\"释放\"的顺序不能反",
+          "anchor": "docs/根基文档/04-防复发清单.md:64",
+          "level": 3
+        },
+        {
+          "heading": "### A12 能力守卫的\"设计内跳过\"必须与\"失败\"可区分，且面板按能力呈现",
+          "anchor": "docs/根基文档/04-防复发清单.md:69",
+          "level": 3
+        },
+        {
+          "heading": "## B. 数据与契约",
+          "anchor": "docs/根基文档/04-防复发清单.md:76",
+          "level": 2
+        },
+        {
+          "heading": "### B1 HTTP 边界 100% zod 校验；无 schema 不得当业务类型用",
+          "anchor": "docs/根基文档/04-防复发清单.md:78",
+          "level": 3
+        },
+        {
+          "heading": "### B2 同一实体只能有一处类型定义",
+          "anchor": "docs/根基文档/04-防复发清单.md:83",
+          "level": 3
+        },
+        {
+          "heading": "### B3 跨端/跨层常量必须单源 + 断言覆盖全部副本",
+          "anchor": "docs/根基文档/04-防复发清单.md:88",
+          "level": 3
+        },
+        {
+          "heading": "### B4 单位必须在产生处与消费处都声明",
+          "anchor": "docs/根基文档/04-防复发清单.md:93",
+          "level": 3
+        },
+        {
+          "heading": "### B5 时间格式必须单一解析函数，按粒度收口",
+          "anchor": "docs/根基文档/04-防复发清单.md:98",
+          "level": 3
+        },
+        {
+          "heading": "### B6 缓存必须带上限、失效、身份、版本键",
+          "anchor": "docs/根基文档/04-防复发清单.md:103",
+          "level": 3
+        },
+        {
+          "heading": "### B7 禁止伪造字段填孔",
+          "anchor": "docs/根基文档/04-防复发清单.md:108",
+          "level": 3
+        },
+        {
+          "heading": "### B8 缺失即缺失，空与错必须分离",
+          "anchor": "docs/根基文档/04-防复发清单.md:113",
+          "level": 3
+        },
+        {
+          "heading": "### B9 报告分辨率不得高于数据有效分辨率；阶梯量不得给逐档导数",
+          "anchor": "docs/根基文档/04-防复发清单.md:118",
+          "level": 3
+        },
+        {
+          "heading": "### B10 对外自述的模型设定与口径，必须在实现里存在且可复核",
+          "anchor": "docs/根基文档/04-防复发清单.md:123",
+          "level": 3
+        },
+        {
+          "heading": "## C. 状态与生命周期",
+          "anchor": "docs/根基文档/04-防复发清单.md:130",
+          "level": 2
+        },
+        {
+          "heading": "### C1 状态只能有一个写入口",
+          "anchor": "docs/根基文档/04-防复发清单.md:132",
+          "level": 3
+        },
+        {
+          "heading": "### C2 登出/切换必须覆盖全部 store 与模块级缓存",
+          "anchor": "docs/根基文档/04-防复发清单.md:137",
+          "level": 3
+        },
+        {
+          "heading": "### C3 请求必须可取消，取消与失败必须可区分",
+          "anchor": "docs/根基文档/04-防复发清单.md:142",
+          "level": 3
+        },
+        {
+          "heading": "### C4 竞态必须有代次/序号守卫",
+          "anchor": "docs/根基文档/04-防复发清单.md:147",
+          "level": 3
+        },
+        {
+          "heading": "### C5 抢占必须补跑，不得静默丢弃",
+          "anchor": "docs/根基文档/04-防复发清单.md:152",
+          "level": 3
+        },
+        {
+          "heading": "### C6 跨路由存活的等待器必须绑定等待方；清理动作不得被读它的判据误解释",
+          "anchor": "docs/根基文档/04-防复发清单.md:157",
+          "level": 3
+        },
+        {
+          "heading": "## D. 错误与可观测",
+          "anchor": "docs/根基文档/04-防复发清单.md:164",
+          "level": 2
+        },
+        {
+          "heading": "### D1 `catch` 不得吞掉错误对象",
+          "anchor": "docs/根基文档/04-防复发清单.md:166",
+          "level": 3
+        },
+        {
+          "heading": "### D2 生产必须可观测",
+          "anchor": "docs/根基文档/04-防复发清单.md:171",
+          "level": 3
+        },
+        {
+          "heading": "### D3 前后端日志必须能用同一 ID 关联",
+          "anchor": "docs/根基文档/04-防复发清单.md:176",
+          "level": 3
+        },
+        {
+          "heading": "### D4 \"看起来有防护、实际没有\"按 P1 起评",
+          "anchor": "docs/根基文档/04-防复发清单.md:181",
+          "level": 3
+        },
+        {
+          "heading": "### D5 提示文案不得承诺它驱动不了的恢复路径",
+          "anchor": "docs/根基文档/04-防复发清单.md:186",
+          "level": 3
+        },
+        {
+          "heading": "### D6 兜底必须留痕且与成功可区分",
+          "anchor": "docs/根基文档/04-防复发清单.md:191",
+          "level": 3
+        },
+        {
+          "heading": "## E. 架构与分层",
+          "anchor": "docs/根基文档/04-防复发清单.md:198",
+          "level": 2
+        },
+        {
+          "heading": "### E1 依赖方向单向；反向依赖必须有规则拦",
+          "anchor": "docs/根基文档/04-防复发清单.md:200",
+          "level": 3
+        },
+        {
+          "heading": "### E2 守护规则的覆盖面必须等于实际目录集合",
+          "anchor": "docs/根基文档/04-防复发清单.md:205",
+          "level": 3
+        },
+        {
+          "heading": "### E3 文档承诺的守护必须在配置里存在",
+          "anchor": "docs/根基文档/04-防复发清单.md:210",
+          "level": 3
+        },
+        {
+          "heading": "### E4 新增模块必须同步更新全部散点（清单化）",
+          "anchor": "docs/根基文档/04-防复发清单.md:215",
+          "level": 3
+        },
+        {
+          "heading": "### E5 core/shared 禁止业务语义",
+          "anchor": "docs/根基文档/04-防复发清单.md:220",
+          "level": 3
+        },
+        {
+          "heading": "### E6 环与越权面必须有执行体；层聚合入口不得成为免检枢纽",
+          "anchor": "docs/根基文档/04-防复发清单.md:225",
+          "level": 3
+        },
+        {
+          "heading": "## F. 门禁与验证",
+          "anchor": "docs/根基文档/04-防复发清单.md:232",
+          "level": 2
+        },
+        {
+          "heading": "### F1 每条门禁必须有阳性对照",
+          "anchor": "docs/根基文档/04-防复发清单.md:234",
+          "level": 3
+        },
+        {
+          "heading": "### F2 注释/文档宣称的能力必须有断言指向",
+          "anchor": "docs/根基文档/04-防复发清单.md:239",
+          "level": 3
+        },
+        {
+          "heading": "### F3 测试必须对常数敏感",
+          "anchor": "docs/根基文档/04-防复发清单.md:244",
+          "level": 3
+        },
+        {
+          "heading": "### F4 测试必须覆盖生产分支",
+          "anchor": "docs/根基文档/04-防复发清单.md:249",
+          "level": 3
+        },
+        {
+          "heading": "### F5 覆盖率棘轮必须单调不降",
+          "anchor": "docs/根基文档/04-防复发清单.md:254",
+          "level": 3
+        },
+        {
+          "heading": "### F6 门禁的判据输入必须受版本控制，且不得依赖运行期才存在的东西",
+          "anchor": "docs/根基文档/04-防复发清单.md:259",
+          "level": 3
+        },
+        {
+          "heading": "### F7 新增强制检查之前，必须先扫\"存在但从不触发\"的检查",
+          "anchor": "docs/根基文档/04-防复发清单.md:264",
+          "level": 3
+        },
+        {
+          "heading": "### F8 门禁降级为 experimental 必须是显式三件套",
+          "anchor": "docs/根基文档/04-防复发清单.md:268",
+          "level": 3
+        },
+        {
+          "heading": "## G. 安全与凭据",
+          "anchor": "docs/根基文档/04-防复发清单.md:275",
+          "level": 2
+        },
+        {
+          "heading": "### G1 凭据不得入库——包括历史",
+          "anchor": "docs/根基文档/04-防复发清单.md:277",
+          "level": 3
+        },
+        {
+          "heading": "### G2 忽略规则必须精确覆盖真实落点",
+          "anchor": "docs/根基文档/04-防复发清单.md:282",
+          "level": 3
+        },
+        {
+          "heading": "### G3 allowlist 必须锚定",
+          "anchor": "docs/根基文档/04-防复发清单.md:287",
+          "level": 3
+        },
+        {
+          "heading": "### G4 认证必须有 owner 校验；资源 ID 必须不可枚举",
+          "anchor": "docs/根基文档/04-防复发清单.md:292",
+          "level": 3
+        },
+        {
+          "heading": "### G5 限流键必须是真实客户端 IP",
+          "anchor": "docs/根基文档/04-防复发清单.md:297",
+          "level": 3
+        },
+        {
+          "heading": "### G6 匿名资源槽不得靠客户端自报的标识来认属主",
+          "anchor": "docs/根基文档/04-防复发清单.md:302",
+          "level": 3
+        },
+        {
+          "heading": "### G7 部署必须覆盖进程生命周期：PID 1、优雅关闭、宽限期、内存上限自洽",
+          "anchor": "docs/根基文档/04-防复发清单.md:307",
+          "level": 3
+        },
+        {
+          "heading": "## H. 文档与注释",
+          "anchor": "docs/根基文档/04-防复发清单.md:314",
+          "level": 2
+        },
+        {
+          "heading": "### H1 注释不得宣称不存在的机制",
+          "anchor": "docs/根基文档/04-防复发清单.md:316",
+          "level": 3
+        },
+        {
+          "heading": "### H2 路径引用必须有效",
+          "anchor": "docs/根基文档/04-防复发清单.md:322",
+          "level": 3
+        },
+        {
+          "heading": "### H3 行号不得进规范文档",
+          "anchor": "docs/根基文档/04-防复发清单.md:327",
+          "level": 3
+        },
+        {
+          "heading": "### H4 审查与规范用的标准库本身，也是必须被校验的产物",
+          "anchor": "docs/根基文档/04-防复发清单.md:332",
+          "level": 3
+        },
+        {
+          "heading": "### H5 规则的依据不得指向会重排的数字编号",
+          "anchor": "docs/根基文档/04-防复发清单.md:337",
+          "level": 3
+        },
+        {
+          "heading": "## I. 工程卫生",
+          "anchor": "docs/根基文档/04-防复发清单.md:344",
+          "level": 2
+        },
+        {
+          "heading": "### I1 禁止\"未跟踪但未忽略\"的第三态",
+          "anchor": "docs/根基文档/04-防复发清单.md:346",
+          "level": 3
+        },
+        {
+          "heading": "### I2 退役 / 事故 / 探针三类必须有收尾断言",
+          "anchor": "docs/根基文档/04-防复发清单.md:351",
+          "level": 3
+        },
+        {
+          "heading": "### I3 死代码必须清理",
+          "anchor": "docs/根基文档/04-防复发清单.md:356",
+          "level": 3
+        },
+        {
+          "heading": "### I4 临时物不得进源码目录",
+          "anchor": "docs/根基文档/04-防复发清单.md:361",
+          "level": 3
+        },
+        {
+          "heading": "### I5 格式类提交是行号锚点的批量破坏者，必须单独过一遍引用",
+          "anchor": "docs/根基文档/04-防复发清单.md:366",
+          "level": 3
+        },
+        {
+          "heading": "## 附：使用方式",
+          "anchor": "docs/根基文档/04-防复发清单.md:373",
+          "level": 2
+        }
+      ]
+    },
+    {
+      "id": "docs/根基文档/代码知识库.md",
+      "doc": "docs/根基文档/代码知识库.md",
+      "file": "tools/doc-system/baseline/docs/根基文档/代码知识库.md.frozen",
+      "sha256": "945f9bfb2503e17976aeddcd4d43108f5120316fb622fd80c12e918aafcfca52",
+      "sections": [
+        {
+          "heading": "## 目录",
+          "anchor": "docs/根基文档/代码知识库.md:9",
+          "level": 2
+        },
+        {
+          "heading": "## 1. 项目定位",
+          "anchor": "docs/根基文档/代码知识库.md:22",
+          "level": 2
+        },
+        {
+          "heading": "### 核心功能",
+          "anchor": "docs/根基文档/代码知识库.md:26",
+          "level": 3
+        },
+        {
+          "heading": "## 2. 技术栈",
+          "anchor": "docs/根基文档/代码知识库.md:36",
+          "level": 2
+        },
+        {
+          "heading": "## 3. 分层架构",
+          "anchor": "docs/根基文档/代码知识库.md:51",
+          "level": 2
+        },
+        {
+          "heading": "### 前端完整分层（L0-L8）",
+          "anchor": "docs/根基文档/代码知识库.md:64",
+          "level": 3
+        },
+        {
+          "heading": "### 后端分层",
+          "anchor": "docs/根基文档/代码知识库.md:80",
+          "level": 3
+        },
+        {
+          "heading": "## 4. 核心设计理念",
+          "anchor": "docs/根基文档/代码知识库.md:87",
+          "level": 2
+        },
+        {
+          "heading": "### 4.1 GIS 渲染抽象（MapRenderer 策略模式）",
+          "anchor": "docs/根基文档/代码知识库.md:89",
+          "level": 3
+        },
+        {
+          "heading": "### 4.2 业务模块化",
+          "anchor": "docs/根基文档/代码知识库.md:95",
+          "level": 3
+        },
+        {
+          "heading": "### 4.3 GCS 组件布局体系",
+          "anchor": "docs/根基文档/代码知识库.md:99",
+          "level": 3
+        },
+        {
+          "heading": "## 5. 请求路径（数据流总览）",
+          "anchor": "docs/根基文档/代码知识库.md:103",
+          "level": 2
+        },
+        {
+          "heading": "## 6. 部署拓扑",
+          "anchor": "docs/根基文档/代码知识库.md:118",
+          "level": 2
+        },
+        {
+          "heading": "## 7. 工程红线（不变量）",
+          "anchor": "docs/根基文档/代码知识库.md:135",
+          "level": 2
+        },
+        {
+          "heading": "## 1. 目录结构（src/）",
+          "anchor": "docs/根基文档/代码知识库.md:151",
+          "level": 2
+        },
+        {
+          "heading": "## 2. 入口层",
+          "anchor": "docs/根基文档/代码知识库.md:169",
+          "level": 2
+        },
+        {
+          "heading": "### 2.1 main.ts",
+          "anchor": "docs/根基文档/代码知识库.md:171",
+          "level": 3
+        },
+        {
+          "heading": "### 2.2 App.vue",
+          "anchor": "docs/根基文档/代码知识库.md:179",
+          "level": 3
+        },
+        {
+          "heading": "## 3. 路由与业务注册（router/ + business/manifest.ts）",
+          "anchor": "docs/根基文档/代码知识库.md:187",
+          "level": 2
+        },
+        {
+          "heading": "### 3.1 router/index.ts",
+          "anchor": "docs/根基文档/代码知识库.md:189",
+          "level": 3
+        },
+        {
+          "heading": "### 3.2 business/manifest.ts（业务注册清单，新增业务核心入口）",
+          "anchor": "docs/根基文档/代码知识库.md:194",
+          "level": 3
+        },
+        {
+          "heading": "## 4. 数据访问层（services/）",
+          "anchor": "docs/根基文档/代码知识库.md:200",
+          "level": 2
+        },
+        {
+          "heading": "### 4.1 services/index.ts",
+          "anchor": "docs/根基文档/代码知识库.md:202",
+          "level": 3
+        },
+        {
+          "heading": "### 4.2 services/adapters/floodAdapter.ts（浸没分析数据适配器，双数据源）",
+          "anchor": "docs/根基文档/代码知识库.md:206",
+          "level": 3
+        },
+        {
+          "heading": "### 4.3 services/adapters/forecastAdapter.ts（预测数据适配器）",
+          "anchor": "docs/根基文档/代码知识库.md:218",
+          "level": 3
+        },
+        {
+          "heading": "### 4.4 services/mapDataService.ts",
+          "anchor": "docs/根基文档/代码知识库.md:225",
+          "level": 3
+        },
+        {
+          "heading": "## 5. 共享层（shared/）",
+          "anchor": "docs/根基文档/代码知识库.md:230",
+          "level": 2
+        },
+        {
+          "heading": "### 5.1 请求基础设施",
+          "anchor": "docs/根基文档/代码知识库.md:232",
+          "level": 3
+        },
+        {
+          "heading": "### 5.2 认证（useAuth.ts）",
+          "anchor": "docs/根基文档/代码知识库.md:241",
+          "level": 3
+        },
+        {
+          "heading": "### 5.3 其他关键 composable / utils",
+          "anchor": "docs/根基文档/代码知识库.md:248",
+          "level": 3
+        },
+        {
+          "heading": "### 5.4 shared/constants",
+          "anchor": "docs/根基文档/代码知识库.md:261",
+          "level": 3
+        },
+        {
+          "heading": "## 6. 状态管理（stores/）",
+          "anchor": "docs/根基文档/代码知识库.md:265",
+          "level": 2
+        },
+        {
+          "heading": "## 7. GIS 核心层（core/）",
+          "anchor": "docs/根基文档/代码知识库.md:278",
+          "level": 2
+        },
+        {
+          "heading": "### 7.1 core/index.ts（公开 API 入口）",
+          "anchor": "docs/根基文档/代码知识库.md:280",
+          "level": 3
+        },
+        {
+          "heading": "### 7.2 渲染抽象",
+          "anchor": "docs/根基文档/代码知识库.md:284",
+          "level": 3
+        },
+        {
+          "heading": "### 7.3 图层管理",
+          "anchor": "docs/根基文档/代码知识库.md:297",
+          "level": 3
+        },
+        {
+          "heading": "### 7.4 地图组件",
+          "anchor": "docs/根基文档/代码知识库.md:312",
+          "level": 3
+        },
+        {
+          "heading": "### 7.5 布局（core/layout/）",
+          "anchor": "docs/根基文档/代码知识库.md:318",
+          "level": 3
+        },
+        {
+          "heading": "## 8. 业务模块（business/）",
+          "anchor": "docs/根基文档/代码知识库.md:326",
+          "level": 2
+        },
+        {
+          "heading": "### 8.1 business/index.ts（公开 API 入口）",
+          "anchor": "docs/根基文档/代码知识库.md:328",
+          "level": 3
+        },
+        {
+          "heading": "### 8.2 选址分析（business/site-selection/）",
+          "anchor": "docs/根基文档/代码知识库.md:332",
+          "level": 3
+        },
+        {
+          "heading": "### 8.3 预测分析（business/forecast/）",
+          "anchor": "docs/根基文档/代码知识库.md:342",
+          "level": 3
+        },
+        {
+          "heading": "### 8.4 浸没分析（business/flood-analysis/）——3D",
+          "anchor": "docs/根基文档/代码知识库.md:348",
+          "level": 3
+        },
+        {
+          "heading": "## 9. 可视化（visualization/）",
+          "anchor": "docs/根基文档/代码知识库.md:355",
+          "level": 2
+        },
+        {
+          "heading": "## 10. 类型（types/）",
+          "anchor": "docs/根基文档/代码知识库.md:361",
+          "level": 2
+        },
+        {
+          "heading": "## 11. 视图（views/）",
+          "anchor": "docs/根基文档/代码知识库.md:367",
+          "level": 2
+        },
+        {
+          "heading": "## 1. 目录结构",
+          "anchor": "docs/根基文档/代码知识库.md:379",
+          "level": 2
+        },
+        {
+          "heading": "## 2. 应用装配（app.js）",
+          "anchor": "docs/根基文档/代码知识库.md:398",
+          "level": 2
+        },
+        {
+          "heading": "### index.js（入口）",
+          "anchor": "docs/根基文档/代码知识库.md:418",
+          "level": 3
+        },
+        {
+          "heading": "## 3. 路由与控制器",
+          "anchor": "docs/根基文档/代码知识库.md:424",
+          "level": 2
+        },
+        {
+          "heading": "### 3.1 路由挂载总览",
+          "anchor": "docs/根基文档/代码知识库.md:426",
+          "level": 3
+        },
+        {
+          "heading": "### 3.2 API 路由清单",
+          "anchor": "docs/根基文档/代码知识库.md:437",
+          "level": 3
+        },
+        {
+          "heading": "## 4. 控制器（controllers/）",
+          "anchor": "docs/根基文档/代码知识库.md:481",
+          "level": 2
+        },
+        {
+          "heading": "## 5. 服务层（services/）——业务计算",
+          "anchor": "docs/根基文档/代码知识库.md:491",
+          "level": 2
+        },
+        {
+          "heading": "### 5.1 modules/site-analysis/services/site-analysis.service.ts（选址分析）",
+          "anchor": "docs/根基文档/代码知识库.md:493",
+          "level": 3
+        },
+        {
+          "heading": "### 5.2 modules/site-analysis/services/scoring.ts（选址评分核心）",
+          "anchor": "docs/根基文档/代码知识库.md:505",
+          "level": 3
+        },
+        {
+          "heading": "### 5.3 modules/forecast/services/forecast.service.ts（预测）",
+          "anchor": "docs/根基文档/代码知识库.md:513",
+          "level": 3
+        },
+        {
+          "heading": "### 5.4 modules/forecast/services/forecast-engine.ts（预测引擎）",
+          "anchor": "docs/根基文档/代码知识库.md:521",
+          "level": 3
+        },
+        {
+          "heading": "### 5.5 modelLoader.js（吞吐量模型）",
+          "anchor": "docs/根基文档/代码知识库.md:526",
+          "level": 3
+        },
+        {
+          "heading": "### 5.6 floodService.js（洪涝灾害评估）",
+          "anchor": "docs/根基文档/代码知识库.md:531",
+          "level": 3
+        },
+        {
+          "heading": "### 5.7 userService.js（用户）",
+          "anchor": "docs/根基文档/代码知识库.md:535",
+          "level": 3
+        },
+        {
+          "heading": "## 6. 仓储层（repositories/）",
+          "anchor": "docs/根基文档/代码知识库.md:540",
+          "level": 2
+        },
+        {
+          "heading": "### 6.1 plansRepository.js（方案）",
+          "anchor": "docs/根基文档/代码知识库.md:542",
+          "level": 3
+        },
+        {
+          "heading": "### 6.2 facilitiesRepository.js（设施）",
+          "anchor": "docs/根基文档/代码知识库.md:548",
+          "level": 3
+        },
+        {
+          "heading": "## 7. 中间件（middleware/）",
+          "anchor": "docs/根基文档/代码知识库.md:553",
+          "level": 2
+        },
+        {
+          "heading": "### 7.1 auth.js（JWT 认证）",
+          "anchor": "docs/根基文档/代码知识库.md:555",
+          "level": 3
+        },
+        {
+          "heading": "### 7.2 logSanitizer.js",
+          "anchor": "docs/根基文档/代码知识库.md:561",
+          "level": 3
+        },
+        {
+          "heading": "## 8. 工具层（utils/）",
+          "anchor": "docs/根基文档/代码知识库.md:565",
+          "level": 2
+        },
+        {
+          "heading": "## 9. 依赖",
+          "anchor": "docs/根基文档/代码知识库.md:579",
+          "level": 2
+        },
+        {
+          "heading": "## 10. 测试",
+          "anchor": "docs/根基文档/代码知识库.md:585",
+          "level": 2
+        },
+        {
+          "heading": "## 1. 目录结构",
+          "anchor": "docs/根基文档/代码知识库.md:598",
+          "level": 2
+        },
+        {
+          "heading": "## 2. 核心算法（flood_engine.py）",
+          "anchor": "docs/根基文档/代码知识库.md:611",
+          "level": 2
+        },
+        {
+          "heading": "## 3. FastAPI 应用（main.py）",
+          "anchor": "docs/根基文档/代码知识库.md:638",
+          "level": 2
+        },
+        {
+          "heading": "## 4. 预计算档位表",
+          "anchor": "docs/根基文档/代码知识库.md:662",
+          "level": 2
+        },
+        {
+          "heading": "## 5. 前端数据源双模式对照",
+          "anchor": "docs/根基文档/代码知识库.md:669",
+          "level": 2
+        },
+        {
+          "heading": "## 6. 依赖与 Docker",
+          "anchor": "docs/根基文档/代码知识库.md:679",
+          "level": 2
+        },
+        {
+          "heading": "## 1. 数据文件清单（backend/data/）",
+          "anchor": "docs/根基文档/代码知识库.md:689",
+          "level": 2
+        },
+        {
+          "heading": "### 1.1 预测数据（backend/data/forecast/）",
+          "anchor": "docs/根基文档/代码知识库.md:691",
+          "level": 3
+        },
+        {
+          "heading": "### 1.2 选址数据（backend/data/site-selection/）",
+          "anchor": "docs/根基文档/代码知识库.md:702",
+          "level": 3
+        },
+        {
+          "heading": "### 1.3 洪涝数据（backend/data/flood/）",
+          "anchor": "docs/根基文档/代码知识库.md:709",
+          "level": 3
+        },
+        {
+          "heading": "### 1.4 其他",
+          "anchor": "docs/根基文档/代码知识库.md:721",
+          "level": 3
+        },
+        {
+          "heading": "### 1.5 静态资源（backend/static/）",
+          "anchor": "docs/根基文档/代码知识库.md:731",
+          "level": 3
+        },
+        {
+          "heading": "## 2. 工具脚本（tools/ 与 scripts/）",
+          "anchor": "docs/根基文档/代码知识库.md:740",
+          "level": 2
+        },
+        {
+          "heading": "## 3. 依赖关系图",
+          "anchor": "docs/根基文档/代码知识库.md:758",
+          "level": 2
+        },
+        {
+          "heading": "## 4. 架构守护规则（.dependency-cruiser.cjs）",
+          "anchor": "docs/根基文档/代码知识库.md:812",
+          "level": 2
+        },
+        {
+          "heading": "## 5. 请求数据源三态演进",
+          "anchor": "docs/根基文档/代码知识库.md:832",
+          "level": 2
+        },
+        {
+          "heading": "## 1. 环境要求",
+          "anchor": "docs/根基文档/代码知识库.md:847",
+          "level": 2
+        },
+        {
+          "heading": "## 2. 安装",
+          "anchor": "docs/根基文档/代码知识库.md:854",
+          "level": 2
+        },
+        {
+          "heading": "## 3. 必需环境变量（两份 .env，均不入 git）",
+          "anchor": "docs/根基文档/代码知识库.md:865",
+          "level": 2
+        },
+        {
+          "heading": "## 4. 本地启动",
+          "anchor": "docs/根基文档/代码知识库.md:877",
+          "level": 2
+        },
+        {
+          "heading": "### 洪涝 online 模式（连通性演算，可选）",
+          "anchor": "docs/根基文档/代码知识库.md:896",
+          "level": 3
+        },
+        {
+          "heading": "## 5. 构建与分析",
+          "anchor": "docs/根基文档/代码知识库.md:910",
+          "level": 2
+        },
+        {
+          "heading": "## 6. 测试",
+          "anchor": "docs/根基文档/代码知识库.md:917",
+          "level": 2
+        },
+        {
+          "heading": "## 7. 部署",
+          "anchor": "docs/根基文档/代码知识库.md:928",
+          "level": 2
+        },
+        {
+          "heading": "### 7.1 Docker Compose 双容器",
+          "anchor": "docs/根基文档/代码知识库.md:930",
+          "level": 3
+        },
+        {
+          "heading": "### 7.2 CI 流水线（GitHub Actions，.github/workflows/ci.yml）",
+          "anchor": "docs/根基文档/代码知识库.md:943",
+          "level": 3
+        },
+        {
+          "heading": "### 7.3 HTTPS",
+          "anchor": "docs/根基文档/代码知识库.md:947",
+          "level": 3
+        },
+        {
+          "heading": "### 7.4 回滚",
+          "anchor": "docs/根基文档/代码知识库.md:951",
+          "level": 3
+        },
+        {
+          "heading": "## 8. 常用 npm 脚本速查",
+          "anchor": "docs/根基文档/代码知识库.md:955",
+          "level": 2
+        },
+        {
+          "heading": "## 9. 已知注意点（来自项目记忆）",
+          "anchor": "docs/根基文档/代码知识库.md:970",
+          "level": 2
+        },
+        {
+          "heading": "## 10. 2026-09-12 收口回写（审查波欠账补登）",
+          "anchor": "docs/根基文档/代码知识库.md:976",
+          "level": 2
+        },
+        {
+          "heading": "## 现状勘误（2026-09-20）｜以下条目已按现码逐条核实，**正文原述一律作废**",
+          "anchor": "docs/根基文档/代码知识库.md:993",
+          "level": 2
+        }
+      ]
+    },
+    {
+      "id": "docs/根基文档/项目收敛路线图.md",
+      "doc": "docs/根基文档/项目收敛路线图.md",
+      "file": "tools/doc-system/baseline/docs/根基文档/项目收敛路线图.md.frozen",
+      "sha256": "82cc793cb445805ce71067a54724ea4ff38bc48731ba621e6cd035d846532b7f",
+      "sections": [
+        {
+          "heading": "## 一、四条线（各自一个机器动作）",
+          "anchor": "docs/根基文档/项目收敛路线图.md:9",
+          "level": 2
+        },
+        {
+          "heading": "## 二、防偏移机制（六条，不可省）",
+          "anchor": "docs/根基文档/项目收敛路线图.md:25",
+          "level": 2
+        },
+        {
+          "heading": "## 三、步骤与出口条件",
+          "anchor": "docs/根基文档/项目收敛路线图.md:36",
+          "level": 2
+        },
+        {
+          "heading": "### S0 · 量化（本窗口目标）",
+          "anchor": "docs/根基文档/项目收敛路线图.md:38",
+          "level": 3
+        },
+        {
+          "heading": "### S1 · 立规矩（2–3 窗口）",
+          "anchor": "docs/根基文档/项目收敛路线图.md:50",
+          "level": 3
+        },
+        {
+          "heading": "### S2 · 清老债（按模块，N 窗口；**风格统一并入本步**）",
+          "anchor": "docs/根基文档/项目收敛路线图.md:90",
+          "level": 3
+        },
+        {
+          "heading": "### S3 · 验证老债真的闭了",
+          "anchor": "docs/根基文档/项目收敛路线图.md:174",
+          "level": 3
+        },
+        {
+          "heading": "### S4 · 再放审查（找新问题）",
+          "anchor": "docs/根基文档/项目收敛路线图.md:186",
+          "level": 3
+        },
+        {
+          "heading": "### S5 · 恢复业务开发",
+          "anchor": "docs/根基文档/项目收敛路线图.md:210",
+          "level": 3
+        },
+        {
+          "heading": "## 四、窗口边界（关于\"能不能一个窗口全做完\"）",
+          "anchor": "docs/根基文档/项目收敛路线图.md:219",
+          "level": 2
+        },
+        {
+          "heading": "## 五、当前进度（不填状态，只给判据）",
+          "anchor": "docs/根基文档/项目收敛路线图.md:229",
+          "level": 2
+        }
+      ]
+    },
+    {
+      "id": "docs/开工前必读/API契约文档.md",
+      "doc": "docs/开工前必读/API契约文档.md",
+      "file": "tools/doc-system/baseline/docs/开工前必读/API契约文档.md.frozen",
+      "sha256": "0103311683ba9018a6af08abb140a8a84a600476244276fddbbfc254fb6fb231",
+      "sections": [
+        {
+          "heading": "## 1. 响应契约(铁律)",
+          "anchor": "docs/开工前必读/API契约文档.md:10",
+          "level": 2
+        },
+        {
+          "heading": "### 1.1 信封格式",
+          "anchor": "docs/开工前必读/API契约文档.md:12",
+          "level": 3
+        },
+        {
+          "heading": "### 1.2 前端调用规则",
+          "anchor": "docs/开工前必读/API契约文档.md:26",
+          "level": 3
+        },
+        {
+          "heading": "### 1.3 错误码(双轨制,注意维度)",
+          "anchor": "docs/开工前必读/API契约文档.md:33",
+          "level": 3
+        },
+        {
+          "heading": "## 2. 认证契约",
+          "anchor": "docs/开工前必读/API契约文档.md:42",
+          "level": 2
+        },
+        {
+          "heading": "## 3. 接口命名规约",
+          "anchor": "docs/开工前必读/API契约文档.md:50",
+          "level": 2
+        },
+        {
+          "heading": "## 4. 限流与安全",
+          "anchor": "docs/开工前必读/API契约文档.md:57",
+          "level": 2
+        },
+        {
+          "heading": "## 5. 接口索引(会演进,以代码为准)",
+          "anchor": "docs/开工前必读/API契约文档.md:65",
+          "level": 2
+        },
+        {
+          "heading": "## 6. 校验命令",
+          "anchor": "docs/开工前必读/API契约文档.md:92",
+          "level": 2
+        }
+      ]
+    },
+    {
+      "id": "docs/开工前必读/接力文档.md",
+      "doc": "docs/开工前必读/接力文档.md",
+      "file": "tools/doc-system/baseline/docs/开工前必读/接力文档.md.frozen",
+      "sha256": "afc76633a81908d0ef6d3d59ab7699b5940a3a9a78bf13851439da68a26ff037",
+      "sections": [
+        {
+          "heading": "## 0. 五分钟上手",
+          "anchor": "docs/开工前必读/接力文档.md:15",
+          "level": 2
+        },
+        {
+          "heading": "## 1. 现在在哪（2026-10-02 19:1x 实测；本节随提交推进，以 `git log` 为准）",
+          "anchor": "docs/开工前必读/接力文档.md:30",
+          "level": 2
+        },
+        {
+          "heading": "## 2. ✅ 已解决（2026-10-02 接任窗）：失败步 = 13/13 前端全量，根因已修",
+          "anchor": "docs/开工前必读/接力文档.md:44",
+          "level": 2
+        },
+        {
+          "heading": "## 3. 本窗口（2026-10-02）落了什么",
+          "anchor": "docs/开工前必读/接力文档.md:71",
+          "level": 2
+        },
+        {
+          "heading": "## 4. 队列（2026-10-02 19:0x 重排；★ = 独立验收新开的收口项）",
+          "anchor": "docs/开工前必读/接力文档.md:97",
+          "level": 2
+        },
+        {
+          "heading": "## 5. 🔴 多 agent 同仓库：今天撞过两次，协议已落地（**接任者必须先做**）",
+          "anchor": "docs/开工前必读/接力文档.md:130",
+          "level": 2
+        },
+        {
+          "heading": "## 6. 未证清单（**不许当\"通过\"用**）",
+          "anchor": "docs/开工前必读/接力文档.md:156",
+          "level": 2
+        },
+        {
+          "heading": "## 7. 环境与常用命令（本机实测）",
+          "anchor": "docs/开工前必读/接力文档.md:180",
+          "level": 2
+        },
+        {
+          "heading": "## 8. 坑与纪律（今天真踩过的）",
+          "anchor": "docs/开工前必读/接力文档.md:199",
+          "level": 2
+        },
+        {
+          "heading": "## 9. 证据索引（`.local/` 下，可复跑）",
+          "anchor": "docs/开工前必读/接力文档.md:213",
+          "level": 2
+        },
+        {
+          "heading": "## 10. 作废条件（本文哪些结论会被推翻）",
+          "anchor": "docs/开工前必读/接力文档.md:240",
+          "level": 2
+        },
+        {
+          "heading": "## 11. 文档现状复核（2026-10-02 19:1x，L-DOC 窗口；用户指令「读完这批 docs 并更新需要的」）",
+          "anchor": "docs/开工前必读/接力文档.md:252",
+          "level": 2
+        },
+        {
+          "heading": "## 12. 历史未落地项（2026-10-02 整合时并入；**禁止随归档删除**）",
+          "anchor": "docs/开工前必读/接力文档.md:277",
+          "level": 2
+        },
+        {
+          "heading": "### 12.1 来自「交接文档-2026-10-01」§四",
+          "anchor": "docs/开工前必读/接力文档.md:284",
+          "level": 3
+        },
+        {
+          "heading": "### 12.2 来自「接力文档-2026-10-02」§4 / §6",
+          "anchor": "docs/开工前必读/接力文档.md:298",
+          "level": 3
+        },
+        {
+          "heading": "### 12.3 未证清单（原 §6，**不许当\"通过\"用**）",
+          "anchor": "docs/开工前必读/接力文档.md:317",
+          "level": 3
+        },
+        {
+          "heading": "## 13. 2026-10-02 21:0x 文档整合（C + G + A；用户批准）",
+          "anchor": "docs/开工前必读/接力文档.md:337",
+          "level": 2
+        },
+        {
+          "heading": "## 14. 2026-10-02 21:4x B + F 收口（用户批准「继续」）",
+          "anchor": "docs/开工前必读/接力文档.md:362",
+          "level": 2
+        },
+        {
+          "heading": "## 15. 2026-10-02 23:5x 04 瘦身 + 窗口留言回执",
+          "anchor": "docs/开工前必读/接力文档.md:395",
+          "level": 2
+        },
+        {
+          "heading": "## 16. 用户决策记录（2026-10-03 00:0x；**用户拍板，执行方不得自行选边**）",
+          "anchor": "docs/开工前必读/接力文档.md:423",
+          "level": 2
+        },
+        {
+          "heading": "## 17. v4 进度（2026-10-03）",
+          "anchor": "docs/开工前必读/接力文档.md:464",
+          "level": 2
+        },
+        {
+          "heading": "## 18. 文档入库口径（用户 2026-10-03 明确，**不要再问**）",
+          "anchor": "docs/开工前必读/接力文档.md:472",
+          "level": 2
+        }
+      ]
+    }
+  ],
+  "kps": [
+    {
+      "id": "KP-001",
+      "source": "AGENTS.md",
+      "anchor": "AGENTS.md:8",
+      "heading": "## 一、四条铁律",
+      "excerpt": "1. 证据先行 — 结论挂 file:line 或实测输出。无法确认就写「无法确认，需读 X」。",
+      "layer": "宪法",
+      "target": "AGENTS",
+      "authority": "new",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-002",
+      "source": "AGENTS.md",
+      "anchor": "AGENTS.md:17",
+      "heading": "## 二、开工前必读（顺序固定，不许跳）",
+      "excerpt": "1. docs/根基文档/项目全景.md §三–§六（分层/职责/原则/红线）",
+      "layer": "宪法",
+      "target": "AGENTS",
+      "authority": "new",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-003",
+      "source": "AGENTS.md",
+      "anchor": "AGENTS.md:26",
+      "heading": "## 三、流程（按任务选一条，照做）",
+      "excerpt": "A 修 bug",
+      "layer": "契约",
+      "target": "K4",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-004",
+      "source": "AGENTS.md",
+      "anchor": "AGENTS.md:49",
+      "heading": "## 四、必须停下来问用户（10 条，禁止自行决定）",
+      "excerpt": "新增依赖 ｜ 改 DB schema 或删数据 ｜ 重写 git 历史 ｜ 涉及凭据密钥 ｜ 跨 3",
+      "layer": "宪法",
+      "target": "AGENTS",
+      "authority": "new",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-005",
+      "source": "AGENTS.md",
+      "anchor": "AGENTS.md:57",
+      "heading": "## 五、验证协议",
+      "excerpt": "",
+      "layer": "宪法",
+      "target": "AGENTS",
+      "authority": "new",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-006",
+      "source": "AGENTS.md",
+      "anchor": "AGENTS.md:59",
+      "heading": "### 5.1 「完成」的定义（五件证据，缺一即未修；自报不算）",
+      "excerpt": "| | 必须交出的东西 | 它治的是哪一类失效 |",
+      "layer": "宪法",
+      "target": "AGENTS",
+      "authority": "new",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-007",
+      "source": "AGENTS.md",
+      "anchor": "AGENTS.md:69",
+      "heading": "### 5.2 改完必跑",
+      "excerpt": "| 改动类型 | 必跑 |",
+      "layer": "宪法",
+      "target": "AGENTS",
+      "authority": "new",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-008",
+      "source": "AGENTS.md",
+      "anchor": "AGENTS.md:83",
+      "heading": "### 5.3 变异四式（判据的能红性，不是\"有没有测试\"）",
+      "excerpt": "一条断言只有同时满足这四格才算真钉住，任何一格缺失都要写明\"缺哪格\"：",
+      "layer": "宪法",
+      "target": "AGENTS",
+      "authority": "new",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-009",
+      "source": "AGENTS.md",
+      "anchor": "AGENTS.md:92",
+      "heading": "### 5.4 「绿」的四条硬口径",
+      "excerpt": "- 绿 = 产物级。必须是命令的实际 stdout 或入库的红样，不接受 exit code + 注",
+      "layer": "宪法",
+      "target": "AGENTS",
+      "authority": "new",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-010",
+      "source": "AGENTS.md",
+      "anchor": "AGENTS.md:99",
+      "heading": "### 5.5 环境与沙箱口径（不许再拿 `--no-verify` 当出口）",
+      "excerpt": "- 跑不动子进程型判据时，如实标〔命令降级〕并给静态替代取证（约定 §4），禁止以\"跑过\"名义虚报。",
+      "layer": "宪法",
+      "target": "AGENTS",
+      "authority": "new",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-011",
+      "source": "AGENTS.md",
+      "anchor": "AGENTS.md:108",
+      "heading": "## 六、记录义务",
+      "excerpt": "- commit 格式 Conventional Commits（由 .husky/commit-m",
+      "layer": "契约",
+      "target": "K4",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-012",
+      "source": "AGENTS.md",
+      "anchor": "AGENTS.md:128",
+      "heading": "## 七、十类禁忌（违反 = 不合格）",
+      "excerpt": "| | 禁忌 | 要求 |",
+      "layer": "宪法",
+      "target": "AGENTS",
+      "authority": "new",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-013",
+      "source": "AGENTS.md",
+      "anchor": "AGENTS.md:143",
+      "heading": "### 7.1 修法形状要求（不满足即按未完成计）",
+      "excerpt": "- 判据 + 回归闸同体：新增守卫/env/接线/净化，必须附一条\"删掉它就红\"的断言。只有纯函数用",
+      "layer": "宪法",
+      "target": "AGENTS",
+      "authority": "new",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-014",
+      "source": "AGENTS.md",
+      "anchor": "AGENTS.md:154",
+      "heading": "## 八、交付前自查（**打勾无效，必须挂产物**）",
+      "excerpt": " 旧版这里是 10 个复选框。实测结论：复选框被逐条打勾的那一批（09-22，61 笔提交）交工时整",
+      "layer": "契约",
+      "target": "K4",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-015",
+      "source": "AGENTS.md",
+      "anchor": "AGENTS.md:177",
+      "heading": "## 九、输出风格",
+      "excerpt": "直接给结论，不寒暄不铺垫｜表格 + file:line + 定量数据优先｜按 ROI 排序｜无法确认",
+      "layer": "宪法",
+      "target": "AGENTS",
+      "authority": "new",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-016",
+      "source": "AGENTS.md",
+      "anchor": "AGENTS.md:189",
+      "heading": "## 十、维护",
+      "excerpt": "本文件管流程，04-防复发清单.md 管规则，docs/根基文档/审查体系专项/审查体系约定.md ",
+      "layer": "宪法",
+      "target": "C2",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-017",
+      "source": "AGENTS.md",
+      "anchor": "AGENTS.md:202",
+      "heading": "## 十一、审查窗作业标准（六节交付，缺一不可）",
+      "excerpt": " 这一节是从 2026-09 的 28 个审查窗 + 约 40 个并行会话的成品格式里挑出来的最稳的",
+      "layer": "标准库",
+      "target": "STD",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-018",
+      "source": "AGENTS.md",
+      "anchor": "AGENTS.md:228",
+      "heading": "## 十二、工单与膨胀率（防\"修一个冒出无数个\"）",
+      "excerpt": "- 工单不是报告：每条必须给「修前钩子（期望＝问题仍在）→ 修后判据（具体输出）→ 必须附的阳性对照",
+      "layer": "契约",
+      "target": "K4",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-019",
+      "source": "CLAUDE.md",
+      "anchor": "CLAUDE.md:7",
+      "heading": "## 只给指路",
+      "excerpt": "| 你要找的 | 在 AGENTS.md 的哪一节 |",
+      "layer": "宪法",
+      "target": "AGENTS",
+      "authority": "new",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-020",
+      "source": "CLAUDE.md",
+      "anchor": "CLAUDE.md:22",
+      "heading": "## 技术栈速览（这部分 AGENTS.md 不写，可在此处维护）",
+      "excerpt": "Vue 3 + Pinia + Element Plus + ECharts + Cesium/OL",
+      "layer": "宪法",
+      "target": "C1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-021",
+      "source": "CLAUDE.md",
+      "anchor": "CLAUDE.md:31",
+      "heading": "## 本文件的机器约束",
+      "excerpt": "tools/v3-guard/protocol-single-source.mjs 断言：本文件不得",
+      "layer": "宪法",
+      "target": "AGENTS",
+      "authority": "new",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-022",
+      "source": "docs/README.md",
+      "anchor": "docs/README.md:9",
+      "heading": "## 一、问题台账（活文档，最高优先级）",
+      "excerpt": "| 文档 | 定位 |",
+      "layer": "契约",
+      "target": "MAP",
+      "authority": "new",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-023",
+      "source": "docs/README.md",
+      "anchor": "docs/README.md:25",
+      "heading": "## 二、根基文档（设计/规范，改代码前必读）",
+      "excerpt": "| 文档 | 定位 |",
+      "layer": "契约",
+      "target": "MAP",
+      "authority": "new",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-024",
+      "source": "docs/README.md",
+      "anchor": "docs/README.md:43",
+      "heading": "## 三、专题档与工程记录",
+      "excerpt": "| 文档 | 定位 |",
+      "layer": "契约",
+      "target": "MAP",
+      "authority": "new",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-025",
+      "source": "docs/README.md",
+      "anchor": "docs/README.md:64",
+      "heading": "## 四、审查与修复记录（已移交桌面）",
+      "excerpt": " 审查批次归档（audits/：08-12 八专项首轮、08-13 复验、08-14 全量/模拟并行",
+      "layer": "契约",
+      "target": "MAP",
+      "authority": "new",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-026",
+      "source": "docs/README.md",
+      "anchor": "docs/README.md:69",
+      "heading": "## 五、面试材料",
+      "excerpt": " 面试材料不随仓库维护（已移出 docs/）：完整覆盖在桌面《源码级教材》；仓库内保留 开工前必读/",
+      "layer": "契约",
+      "target": "MAP",
+      "authority": "new",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-027",
+      "source": "docs/README.md",
+      "anchor": "docs/README.md:73",
+      "heading": "## 六、其他",
+      "excerpt": "| 文档 | 定位 |",
+      "layer": "契约",
+      "target": "MAP",
+      "authority": "new",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-028",
+      "source": "docs/README.md",
+      "anchor": "docs/README.md:87",
+      "heading": "## 七、当前分支与数据状态（2026-09-11 更新）",
+      "excerpt": "- 当前分支：main（v3 迁移已合入主线的实际工作分支；历史分支 experiment/v3-b",
+      "layer": "契约",
+      "target": "MAP",
+      "authority": "new",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-029",
+      "source": "docs/README.md",
+      "anchor": "docs/README.md:98",
+      "heading": "## 八、不在版本控制内的 docs（2026-10-02 实测）",
+      "excerpt": " 为什么单列：docs/ 默认被 .gitignore:126 排除，逐份放行。不入库的文档对新克隆",
+      "layer": "契约",
+      "target": "MAP",
+      "authority": "new",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-030",
+      "source": "docs/README.md",
+      "anchor": "docs/README.md:134",
+      "heading": "## 九、归档映射表（2026-10-02 文档整合 · 旧路径 → 新路径）",
+      "excerpt": " 依 AGENTS.md §六「废弃要成文」：归档不是删除，逐条给旧→新，供反查与回滚。",
+      "layer": "契约",
+      "target": "MAP",
+      "authority": "new",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-031",
+      "source": "docs/README.md",
+      "anchor": "docs/README.md:140",
+      "heading": "### 9.1 移入 `docs/archive/`（19 件）",
+      "excerpt": "| 旧路径（历史快照，已不存在） | 新路径 | 为什么归档 |",
+      "layer": "契约",
+      "target": "MAP",
+      "authority": "new",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-032",
+      "source": "docs/README.md",
+      "anchor": "docs/README.md:164",
+      "heading": "### 9.2 移出仓库",
+      "excerpt": "| 旧路径（已不存在） | 新位置 | 核对 |",
+      "layer": "契约",
+      "target": "MAP",
+      "authority": "new",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-033",
+      "source": "docs/README.md",
+      "anchor": "docs/README.md:170",
+      "heading": "### 9.3 明确**不归档**（用户 2026-10-02 口径）",
+      "excerpt": "- 两本台账（待解决问题.md / 已解决问题.md）与 已解决问题-归并明细.md：台账体系留工作",
+      "layer": "契约",
+      "target": "MAP",
+      "authority": "new",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-034",
+      "source": "docs/README.md",
+      "anchor": "docs/README.md:176",
+      "heading": "### 9.4 整合后形态",
+      "excerpt": "docs/ README.md · 待解决问题.md · 已解决问题.md · 已解决问题-归并明细",
+      "layer": "契约",
+      "target": "MAP",
+      "authority": "new",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-035",
+      "source": "docs/根基文档/项目全景.md",
+      "anchor": "docs/根基文档/项目全景.md:10",
+      "heading": "## 一、项目身份",
+      "excerpt": "北部湾港智慧选址分析平台 —— 面向智慧港口场景的 WebGIS 业务应用，验证\"可扩展的 GIS ",
+      "layer": "宪法",
+      "target": "C1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-036",
+      "source": "docs/根基文档/项目全景.md",
+      "anchor": "docs/根基文档/项目全景.md:22",
+      "heading": "## 二、技术栈",
+      "excerpt": "| 层 | 选型 | 说明 |",
+      "layer": "宪法",
+      "target": "C1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-037",
+      "source": "docs/根基文档/项目全景.md",
+      "anchor": "docs/根基文档/项目全景.md:34",
+      "heading": "## 三、系统架构",
+      "excerpt": "",
+      "layer": "宪法",
+      "target": "C1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-038",
+      "source": "docs/根基文档/项目全景.md",
+      "anchor": "docs/根基文档/项目全景.md:36",
+      "heading": "### 3.1 分层（L0-L8，单向依赖）",
+      "excerpt": "L0 types 纯类型声明（零运行时依赖）",
+      "layer": "宪法",
+      "target": "C1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-039",
+      "source": "docs/根基文档/项目全景.md",
+      "anchor": "docs/根基文档/项目全景.md:52",
+      "heading": "### 3.2 双引擎（Renderer 抽象）",
+      "excerpt": "- 问题：2D/3D 引擎 API 完全不同，业务不能绑死某引擎。",
+      "layer": "宪法",
+      "target": "C1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-040",
+      "source": "docs/根基文档/项目全景.md",
+      "anchor": "docs/根基文档/项目全景.md:59",
+      "heading": "### 3.3 请求路径（总览）",
+      "excerpt": "业务组件 → 取数入口（useApiRequest / loadStatic）",
+      "layer": "宪法",
+      "target": "C1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-041",
+      "source": "docs/根基文档/项目全景.md",
+      "anchor": "docs/根基文档/项目全景.md:73",
+      "heading": "## 四、目录职责地图",
+      "excerpt": " 新代码去哪、哪儿不许放，以本表为准。三条禁则是全项目最重要的约定。",
+      "layer": "宪法",
+      "target": "C1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-042",
+      "source": "docs/根基文档/项目全景.md",
+      "anchor": "docs/根基文档/项目全景.md:97",
+      "heading": "## 五、核心设计原则",
+      "excerpt": "1. 地理术语优先：lng/lat（非 lon）、elevation、feature、feature",
+      "layer": "宪法",
+      "target": "C2",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-043",
+      "source": "docs/根基文档/项目全景.md",
+      "anchor": "docs/根基文档/项目全景.md:110",
+      "heading": "## 六、工程红线（不变量）",
+      "excerpt": "- 架构契约 npm run cruise 0 violation（含 backend）。",
+      "layer": "宪法",
+      "target": "C1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-044",
+      "source": "docs/根基文档/项目全景.md",
+      "anchor": "docs/根基文档/项目全景.md:119",
+      "heading": "## 七、文档地图与编号规则",
+      "excerpt": "",
+      "layer": "宪法",
+      "target": "C3",
+      "authority": "new",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-045",
+      "source": "docs/根基文档/项目全景.md",
+      "anchor": "docs/根基文档/项目全景.md:121",
+      "heading": "### 7.1 三文档 + 台账体系",
+      "excerpt": "README（项目介绍 / clone 后跑起来）",
+      "layer": "宪法",
+      "target": "C3",
+      "authority": "new",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-046",
+      "source": "docs/根基文档/项目全景.md",
+      "anchor": "docs/根基文档/项目全景.md:136",
+      "heading": "### 7.2 编号规则（铁律）",
+      "excerpt": "- 全项目唯一合法编号 = 问题台账体系编号（a 地图层 / b 业务层 / c 组件层 / d 后",
+      "layer": "宪法",
+      "target": "C3",
+      "authority": "new",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-047",
+      "source": "docs/根基文档/项目全景.md",
+      "anchor": "docs/根基文档/项目全景.md:142",
+      "heading": "### 7.3 读序建议",
+      "excerpt": "1. README（2 分钟）：项目是什么、怎么跑起来",
+      "layer": "宪法",
+      "target": "C3",
+      "authority": "new",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-048",
+      "source": "docs/根基文档/核心流程与数据流.md",
+      "anchor": "docs/根基文档/核心流程与数据流.md:12",
+      "heading": "## 一、数据流总览",
+      "excerpt": "业务组件 → 取数入口（useApiRequest / loadStatic）",
+      "layer": "契约",
+      "target": "K2",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-049",
+      "source": "docs/根基文档/核心流程与数据流.md",
+      "anchor": "docs/根基文档/核心流程与数据流.md:27",
+      "heading": "## 二、前端取数规则（R1-R5）",
+      "excerpt": "| 规则 | 内容 | 违反后果 |",
+      "layer": "契约",
+      "target": "K2",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-050",
+      "source": "docs/根基文档/核心流程与数据流.md",
+      "anchor": "docs/根基文档/核心流程与数据流.md:38",
+      "heading": "## 三、后端响应规则（R6-R8）",
+      "excerpt": "| 规则 | 内容 | 违反后果 |",
+      "layer": "契约",
+      "target": "K2",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-051",
+      "source": "docs/根基文档/核心流程与数据流.md",
+      "anchor": "docs/根基文档/核心流程与数据流.md:46",
+      "heading": "## 四、业务主流程",
+      "excerpt": "",
+      "layer": "契约",
+      "target": "K2",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-052",
+      "source": "docs/根基文档/核心流程与数据流.md",
+      "anchor": "docs/根基文档/核心流程与数据流.md:48",
+      "heading": "### 4.1 选址分析（Site Selection）",
+      "excerpt": "用户点击「开始分析」",
+      "layer": "契约",
+      "target": "K2",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-053",
+      "source": "docs/根基文档/核心流程与数据流.md",
+      "anchor": "docs/根基文档/核心流程与数据流.md:96",
+      "heading": "### 4.2 预测分析（Forecast）",
+      "excerpt": "控件变化（指标 / 置信度 / 时间 / 播放）",
+      "layer": "契约",
+      "target": "K2",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-054",
+      "source": "docs/根基文档/核心流程与数据流.md",
+      "anchor": "docs/根基文档/核心流程与数据流.md:123",
+      "heading": "### 4.3 浸没分析（Flood Analysis）",
+      "excerpt": "水位滑块（展示域 0-10m，step 0.1；刻度 0/2.5/5/7.5/10 可点击；后端档位",
+      "layer": "契约",
+      "target": "K2",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-055",
+      "source": "docs/根基文档/核心流程与数据流.md",
+      "anchor": "docs/根基文档/核心流程与数据流.md:147",
+      "heading": "### 4.4 快照恢复（保留态）",
+      "excerpt": "业务页（选址/预测/浸没）→ 跳 /profile 前 saveState（内存快照）",
+      "layer": "契约",
+      "target": "K2",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-056",
+      "source": "docs/根基文档/核心流程与数据流.md",
+      "anchor": "docs/根基文档/核心流程与数据流.md:159",
+      "heading": "### 4.5 登录态期望",
+      "excerpt": "- 设计期望（已拍板，2026-08-29 收口实现）：仅「收藏」功能要求登录（收藏数据存在服务端 ",
+      "layer": "契约",
+      "target": "K2",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-057",
+      "source": "docs/根基文档/核心流程与数据流.md",
+      "anchor": "docs/根基文档/核心流程与数据流.md:163",
+      "heading": "## 五、关键机制",
+      "excerpt": "",
+      "layer": "契约",
+      "target": "K2",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-058",
+      "source": "docs/根基文档/核心流程与数据流.md",
+      "anchor": "docs/根基文档/核心流程与数据流.md:165",
+      "heading": "### 5.1 Renderer 生命周期",
+      "excerpt": "- 渲染器实例复用不销毁；3D→2D 切换必须 unmount()（暂停渲染 + 空闲销毁）；30s",
+      "layer": "契约",
+      "target": "K2",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-059",
+      "source": "docs/根基文档/核心流程与数据流.md",
+      "anchor": "docs/根基文档/核心流程与数据流.md:171",
+      "heading": "### 5.2 图层管理（BLM）",
+      "excerpt": "| 语义 | 行为 |",
+      "layer": "契约",
+      "target": "K2",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-060",
+      "source": "docs/根基文档/核心流程与数据流.md",
+      "anchor": "docs/根基文档/核心流程与数据流.md:181",
+      "heading": "### 5.3 水面 vs 淹没多边形（容易混淆，明确区分）",
+      "excerpt": "| | 水面（flood-water-surface） | 淹没多边形（flood-area） |",
+      "layer": "契约",
+      "target": "K2",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-061",
+      "source": "docs/根基文档/核心流程与数据流.md",
+      "anchor": "docs/根基文档/核心流程与数据流.md:192",
+      "heading": "### 5.4 GCS 布局三档",
+      "excerpt": "- 档位 1（≥960px）：桌面等比例布局，面板原位显示",
+      "layer": "契约",
+      "target": "K2",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-062",
+      "source": "docs/根基文档/核心流程与数据流.md",
+      "anchor": "docs/根基文档/核心流程与数据流.md:199",
+      "heading": "### 5.5 store 重置链",
+      "excerpt": "- 登出（user → null）→ resetStores：清业务快照 + 地图状态 + 业务 s",
+      "layer": "契约",
+      "target": "K2",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-063",
+      "source": "docs/根基文档/核心流程与数据流.md",
+      "anchor": "docs/根基文档/核心流程与数据流.md:205",
+      "heading": "### 5.6 数值与防御不变量（全局应然，专项8 的比对标尺）",
+      "excerpt": " 审查/开发时以上述各流程语义 + 以下不变量为\"应然\"，比对代码\"实然\"。历史教训：防御分支静默失",
+      "layer": "契约",
+      "target": "K2",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-064",
+      "source": "docs/根基文档/核心流程与数据流.md",
+      "anchor": "docs/根基文档/核心流程与数据流.md:221",
+      "heading": "## 六、新增业务模块",
+      "excerpt": "前端侧（五步，纯前端模块到此为止）：",
+      "layer": "契约",
+      "target": "K2",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-065",
+      "source": "docs/根基文档/核心流程与数据流.md",
+      "anchor": "docs/根基文档/核心流程与数据流.md:243",
+      "heading": "## 七、校验命令",
+      "excerpt": "npm run cruise 架构契约（分层 + 入口收口，0 violation 门禁）",
+      "layer": "契约",
+      "target": "K4",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-066",
+      "source": "docs/根基文档/开发指南与决策.md",
+      "anchor": "docs/根基文档/开发指南与决策.md:8",
+      "heading": "## 一、编码规范",
+      "excerpt": "",
+      "layer": "契约",
+      "target": "K2",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-067",
+      "source": "docs/根基文档/开发指南与决策.md",
+      "anchor": "docs/根基文档/开发指南与决策.md:10",
+      "heading": "### 1.1 核心原则",
+      "excerpt": "1. 地理术语优先于通用术语",
+      "layer": "契约",
+      "target": "K2",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-068",
+      "source": "docs/根基文档/开发指南与决策.md",
+      "anchor": "docs/根基文档/开发指南与决策.md:24",
+      "heading": "### 1.2 命名规范",
+      "excerpt": "地理术语词汇表（节选，全表见各业务 types 定义）：",
+      "layer": "契约",
+      "target": "K2",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-069",
+      "source": "docs/根基文档/开发指南与决策.md",
+      "anchor": "docs/根基文档/开发指南与决策.md:47",
+      "heading": "### 1.3 注释规范",
+      "excerpt": "- 不写\"做什么\"（代码自解释）。",
+      "layer": "契约",
+      "target": "K2",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-070",
+      "source": "docs/根基文档/开发指南与决策.md",
+      "anchor": "docs/根基文档/开发指南与决策.md:54",
+      "heading": "### 1.4 Vue 组件规范",
+      "excerpt": "- <script setup lang=\"ts\"，顺序：类型导入 → 组件导入 → composa",
+      "layer": "契约",
+      "target": "K2",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-071",
+      "source": "docs/根基文档/开发指南与决策.md",
+      "anchor": "docs/根基文档/开发指南与决策.md:74",
+      "heading": "### 1.5 后端规范",
+      "excerpt": "- 模块化分层：modules/<域/{controllers,services,repositor",
+      "layer": "契约",
+      "target": "K2",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-072",
+      "source": "docs/根基文档/开发指南与决策.md",
+      "anchor": "docs/根基文档/开发指南与决策.md:80",
+      "heading": "### 1.6 Git 提交规范",
+      "excerpt": "格式：<type: <正文",
+      "layer": "契约",
+      "target": "K2",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-073",
+      "source": "docs/根基文档/开发指南与决策.md",
+      "anchor": "docs/根基文档/开发指南与决策.md:123",
+      "heading": "### 1.7 提交前自检表（五问）",
+      "excerpt": "| | 检查项 | 标准 |",
+      "layer": "契约",
+      "target": "K2",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-074",
+      "source": "docs/根基文档/开发指南与决策.md",
+      "anchor": "docs/根基文档/开发指南与决策.md:133",
+      "heading": "## 二、构建与性能",
+      "excerpt": "",
+      "layer": "契约",
+      "target": "K4",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-075",
+      "source": "docs/根基文档/开发指南与决策.md",
+      "anchor": "docs/根基文档/开发指南与决策.md:135",
+      "heading": "### 2.1 分包策略（设计意图）",
+      "excerpt": "- manualChunks 按依赖来源分组：vue-vendor / openlayers / c",
+      "layer": "契约",
+      "target": "K4",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-076",
+      "source": "docs/根基文档/开发指南与决策.md",
+      "anchor": "docs/根基文档/开发指南与决策.md:141",
+      "heading": "### 2.2 懒加载架构（原则）",
+      "excerpt": "| 模块 | 策略 | 意图 |",
+      "layer": "契约",
+      "target": "K4",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-077",
+      "source": "docs/根基文档/开发指南与决策.md",
+      "anchor": "docs/根基文档/开发指南与决策.md:152",
+      "heading": "### 2.3 性能基线（实测 · 数据采集日 2026-08-29 · Windows 本机 Node v25，数据已入 OS 页缓存；2026-08-16 816 复核第 1 项体积；2026-08-29 按**前端默认参数**复测第 2/3/4 项，08-09 数字经复核仍然有效）",
+      "excerpt": " 纪律：改性能代码的人必须同步更新本表（新数字 + 新采集日）。浏览器三项由人工验收时记录。",
+      "layer": "契约",
+      "target": "K4",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-078",
+      "source": "docs/根基文档/开发指南与决策.md",
+      "anchor": "docs/根基文档/开发指南与决策.md:167",
+      "heading": "## 三、GCS 布局规范",
+      "excerpt": " GCS（Global Component Style）设计系统是本项目视觉层的单一事实源：规则（§",
+      "layer": "契约",
+      "target": "K2",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-079",
+      "source": "docs/根基文档/开发指南与决策.md",
+      "anchor": "docs/根基文档/开发指南与决策.md:171",
+      "heading": "### 三.1 布局规则",
+      "excerpt": "- 网格单元：CELLPIXEL 按视口分级（≥1920 → 90 / ≥960 → 80 / <9",
+      "layer": "契约",
+      "target": "K2",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-080",
+      "source": "docs/根基文档/开发指南与决策.md",
+      "anchor": "docs/根基文档/开发指南与决策.md:180",
+      "heading": "### 三.2 GCS 资产清单（审查定位用）",
+      "excerpt": "布局常量（shared/layout/config.ts）：",
+      "layer": "契约",
+      "target": "K2",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-081",
+      "source": "docs/根基文档/开发指南与决策.md",
+      "anchor": "docs/根基文档/开发指南与决策.md:217",
+      "heading": "### 三.3 GCS 标准组件规格书（审查对照基准）",
+      "excerpt": " 每个标准组件的职责、样式契约、常见误用。审查时以本表为基准判断\"复用 vs 伪实现\"（专项7 指标",
+      "layer": "契约",
+      "target": "K2",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-082",
+      "source": "docs/根基文档/开发指南与决策.md",
+      "anchor": "docs/根基文档/开发指南与决策.md:264",
+      "heading": "### 三.4 组件复用判定流程（对应专项7 指标 3.2）",
+      "excerpt": "发现疑似伪实现（手写面板/按钮/导航）",
+      "layer": "契约",
+      "target": "K2",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-083",
+      "source": "docs/根基文档/开发指南与决策.md",
+      "anchor": "docs/根基文档/开发指南与决策.md:275",
+      "heading": "### 三.5 Token 变更 SOP（S7-10 定）",
+      "excerpt": "1. 改前先查：新增/改色前 grep -rn -- '--GCS-' frontend/src 确",
+      "layer": "契约",
+      "target": "K2",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-084",
+      "source": "docs/根基文档/开发指南与决策.md",
+      "anchor": "docs/根基文档/开发指南与决策.md:283",
+      "heading": "## 四、API 契约",
+      "excerpt": " 完整契约：docs/开工前必读/API契约文档.md 是本契约的活文档（与本文档并存，非历史档案）",
+      "layer": "契约",
+      "target": "K3",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-085",
+      "source": "docs/根基文档/开发指南与决策.md",
+      "anchor": "docs/根基文档/开发指南与决策.md:294",
+      "heading": "## 五、部署与运维",
+      "excerpt": "",
+      "layer": "契约",
+      "target": "K4",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-086",
+      "source": "docs/根基文档/开发指南与决策.md",
+      "anchor": "docs/根基文档/开发指南与决策.md:296",
+      "heading": "### 5.1 当前部署形态",
+      "excerpt": "- 阿里云轻量应用服务器（1.6Gi 内存 / 40G 磁盘 / Ubuntu 24.04），Doc",
+      "layer": "契约",
+      "target": "K4",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-087",
+      "source": "docs/根基文档/开发指南与决策.md",
+      "anchor": "docs/根基文档/开发指南与决策.md:303",
+      "heading": "### 5.2 自动化链路",
+      "excerpt": "- CI（GitHub Actions）：audit（npm audit 高危阻断）→ lint-a",
+      "layer": "契约",
+      "target": "K4",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-088",
+      "source": "docs/根基文档/开发指南与决策.md",
+      "anchor": "docs/根基文档/开发指南与决策.md:308",
+      "heading": "### 5.3 HTTPS 与证书",
+      "excerpt": "- Let's Encrypt + duckdns DNS-01，自动续期两条链路已验证：certb",
+      "layer": "契约",
+      "target": "K4",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-089",
+      "source": "docs/根基文档/开发指南与决策.md",
+      "anchor": "docs/根基文档/开发指南与决策.md:313",
+      "heading": "### 5.4 排雷要点",
+      "excerpt": "- 小内存机器：CI 增量构建没问题，全量 --no-cache 构建注意内存。",
+      "layer": "契约",
+      "target": "K4",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-090",
+      "source": "docs/根基文档/开发指南与决策.md",
+      "anchor": "docs/根基文档/开发指南与决策.md:319",
+      "heading": "## 六、当前项目状态（指针）",
+      "excerpt": "- 完成：基础地图（2D/3D 双引擎）、选址分析、预测框架（合成示意数据）、浸没分析（真 DEM ",
+      "layer": "日志",
+      "target": "S3",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-091",
+      "source": "docs/根基文档/开发指南与决策.md",
+      "anchor": "docs/根基文档/开发指南与决策.md:326",
+      "heading": "## 七、决策记录（ADR）",
+      "excerpt": " 格式：背景（为什么有这个问题）→ 决策（选了哪个）→ 代价（放弃了什么）。",
+      "layer": "日志",
+      "target": "LOG-DECISIONS",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-092",
+      "source": "docs/根基文档/开发指南与决策.md",
+      "anchor": "docs/根基文档/开发指南与决策.md:345",
+      "heading": "## 八、AI 开发规则",
+      "excerpt": " ⏳ 占位符：本规则 2026-08 起草中，未定稿。定稿方向为行为约束而非禁止（不做\"禁止改 co",
+      "layer": "契约",
+      "target": "K4",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-093",
+      "source": "docs/根基文档/开发指南与决策.md",
+      "anchor": "docs/根基文档/开发指南与决策.md:357",
+      "heading": "## 九、工具与 CI（指针）",
+      "excerpt": "- 脚本：dev / build / test / lint / typecheck / forma",
+      "layer": "契约",
+      "target": "K4",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-094",
+      "source": "docs/根基文档/开发指南与决策.md",
+      "anchor": "docs/根基文档/开发指南与决策.md:364",
+      "heading": "## 十、面试口径",
+      "excerpt": " ⏳ 占位符：待重写（原 performance.md §五 面试话术已过时，项目已变化——真 DE",
+      "layer": "宪法",
+      "target": "C1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-095",
+      "source": "docs/根基文档/开发指南与决策.md",
+      "anchor": "docs/根基文档/开发指南与决策.md:369",
+      "heading": "## 十一、工作红线（违反即返工）",
+      "excerpt": "1. git：禁 squash / 重写历史；禁 git rm；写前 git bundle crea",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-096",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:12",
+      "heading": "## A. 渲染与地图",
+      "excerpt": "",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-097",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:14",
+      "heading": "### A1 有注册必有注销，且必须在同一作用域",
+      "excerpt": "规则：任何 addEventListener / .on( / setInterval / requ",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-098",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:19",
+      "heading": "### A2 访问可能已销毁的对象前必须判 `isDestroyed()`",
+      "excerpt": "规则：Cesium/OL 的 viewer / map / 子对象可能被空闲销毁或引擎切换置空。任何",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-099",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:24",
+      "heading": "### A3 引擎切换必须走互斥序列，early-return 要保留并重放",
+      "excerpt": "规则：switching 期间禁止并发初始化；任何\"类型相同 → 提前返回\"的分支，必须把目标类型记",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-100",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:29",
+      "heading": "### A4 图层状态只能有一个事实源",
+      "excerpt": "规则：图层的注册 / 更新 / 显隐 / 移除只能经 BusinessLayerManager。禁止",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-101",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:34",
+      "heading": "### A5 CRS 守卫必须有生产者；坐标出口必须显式转换",
+      "excerpt": "规则：坐标系纪律的两道防线——① 类型守卫（判定 input.crs）必须真的有人写这个字段，否则守",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-102",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:39",
+      "heading": "### A6 禁止用 `(0,0)` / `0` / `''` 作缺失哨兵",
+      "excerpt": "规则：缺失值必须显式为空档（null / undefined / 显式错误态），不得回退成看起来合法",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-103",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:44",
+      "heading": "### A7 空间查询必须走索引；图层更新必须增量",
+      "excerpt": "规则：rbush 空间索引是既定设施——新增空间筛选（视口裁剪 / POI 粗筛 / 碰撞检测）必须",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-104",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:49",
+      "heading": "### A8 大资产与外部依赖必须标注来源、可复现",
+      "excerpt": "规则：DEM / hillshade / 瓦片 / 模型文件等大资产，必须 ① 标注来源与用途；② ",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-105",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:54",
+      "heading": "### A9 渲染器契约单一权威；能力守卫必须判全部成员",
+      "excerpt": "规则：同一角色的契约只能有一处定义（interface 或 class，不能双源）。基类禁止用 no",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-106",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:59",
+      "heading": "### A10 未知字段/未知组件的类型必须收窄，禁止开放索引",
+      "excerpt": "规则：核心数据缝上禁止出现 [key: string]: unknown / Record<stri",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-107",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:64",
+      "heading": "### A11 销毁与移除链必须逐项容错，且\"摘账\"与\"释放\"的顺序不能反",
+      "excerpt": "规则：destroy() / removeLayer() 这类遍历释放的循环，每一项都要独立容错——",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-108",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:69",
+      "heading": "### A12 能力守卫的\"设计内跳过\"必须与\"失败\"可区分，且面板按能力呈现",
+      "excerpt": "规则：能力守卫不得 warn + return——那让\"不支持\"和\"加载失败\"在数据与界面上同形，图",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-109",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:76",
+      "heading": "## B. 数据与契约",
+      "excerpt": "",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-110",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:78",
+      "heading": "### B1 HTTP 边界 100% zod 校验；无 schema 不得当业务类型用",
+      "excerpt": "规则：每一个 HTTP 响应消费点都必须传 schema。apiRequest<T 的泛型不得成为\"",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-111",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:83",
+      "heading": "### B2 同一实体只能有一处类型定义",
+      "excerpt": "规则：响应类型从 schema z.infer 派生，禁止手写平行 interface。Parsed",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-112",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:88",
+      "heading": "### B3 跨端/跨层常量必须单源 + 断言覆盖全部副本",
+      "excerpt": "规则：凡\"必须同步\"的常量（阈值表 / 上限 / 权重 / 错误码 / 枚举），① 副本数 ≤1，或",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-113",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:93",
+      "heading": "### B4 单位必须在产生处与消费处都声明",
+      "excerpt": "规则：跨层传递的数值量，单位不能只写在注释里。STArea(geometry) 是平方度不是平方公里",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-114",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:98",
+      "heading": "### B5 时间格式必须单一解析函数，按粒度收口",
+      "excerpt": "规则：同一语义的时间串（\"当前时间点\"）只能有一个归一函数，且必须按粒度决定键格式。禁止各消费方自行",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-115",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:103",
+      "heading": "### B6 缓存必须带上限、失效、身份、版本键",
+      "excerpt": "规则：任何模块级缓存（Map / sessionStorage / localStorage）必须有",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-116",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:108",
+      "heading": "### B7 禁止伪造字段填孔",
+      "excerpt": "规则：为满足类型而填 score: 0 / breakdown: {} / statistics: ",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-117",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:113",
+      "heading": "### B8 缺失即缺失，空与错必须分离",
+      "excerpt": "规则：空结果（合法的零）与错误（取数失败）必须在类型与 UI 上都可区分。禁止把\"未取到\"渲染成\"零",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-118",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:118",
+      "heading": "### B9 报告分辨率不得高于数据有效分辨率；阶梯量不得给逐档导数",
+      "excerpt": "规则：任何对外展示的分辨率（滑块步长、档位表间隔、\"每升 1 单位变化 X\"这类导数表述）必须 ≤ ",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-119",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:123",
+      "heading": "### B10 对外自述的模型设定与口径，必须在实现里存在且可复核",
+      "excerpt": "规则：数据产物 metadata、README、注释里写出的模型设定（含哪个因子、哪个基准、什么口径",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-120",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:130",
+      "heading": "## C. 状态与生命周期",
+      "excerpt": "",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-121",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:132",
+      "heading": "### C1 状态只能有一个写入口",
+      "excerpt": "规则：store state 只能经 action 修改。禁止 storeToRefs 解构后 v-",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-122",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:137",
+      "heading": "### C2 登出/切换必须覆盖全部 store 与模块级缓存",
+      "excerpt": "规则：登出（含切账号、切路由重置）的清理清单必须枚举全部持久化状态并逐项有对应清理动作，且必须有断言",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-123",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:142",
+      "heading": "### C3 请求必须可取消，取消与失败必须可区分",
+      "excerpt": "规则：① 每个在途请求必须能取消（signal 真接线，不是形参空转）；② 取消不得被当作失败弹 t",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-124",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:147",
+      "heading": "### C4 竞态必须有代次/序号守卫",
+      "excerpt": "规则：任何\"可连续触发\"的操作（滑块 / 切路由 / 切引擎 / 连点）必须有 ① 代次比对 或 ②",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-125",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:152",
+      "heading": "### C5 抢占必须补跑，不得静默丢弃",
+      "excerpt": "规则：在途期间的新状态不得被 if (requesting) return 静默丢弃——必须置 pe",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-126",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:157",
+      "heading": "### C6 跨路由存活的等待器必须绑定等待方；清理动作不得被读它的判据误解释",
+      "excerpt": "规则：两种具体形态：① 供 await 使用的轮询/定时器，其生命周期属于等待方——要么接 Abor",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-127",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:164",
+      "heading": "## D. 错误与可观测",
+      "excerpt": "",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-128",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:166",
+      "heading": "### D1 `catch` 不得吞掉错误对象",
+      "excerpt": "规则：catch (e) { return null } 这种丢弃 e 的写法禁止。至少记一条 wa",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-129",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:171",
+      "heading": "### D2 生产必须可观测",
+      "excerpt": "规则：错误上报 / 关键链路日志 / 契约违例告警不得被 import.meta.env.DEV 门",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-130",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:176",
+      "heading": "### D3 前后端日志必须能用同一 ID 关联",
+      "excerpt": "规则：请求 ID 必须上送后端并在两侧日志中输出，否则用户报障无法与某次后端执行配对。",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-131",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:181",
+      "heading": "### D4 \"看起来有防护、实际没有\"按 P1 起评",
+      "excerpt": "规则：防御分支失效（守卫不可触发 / 清理函数零调用 / 守卫判据无人写入 / 采样吃掉告警）比根本",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-132",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:186",
+      "heading": "### D5 提示文案不得承诺它驱动不了的恢复路径",
+      "excerpt": "规则：toast / 按钮 / 空态文案里出现的每个动作承诺（\"再点一次重试\"、\"稍后自动恢复\"、\"",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-133",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:191",
+      "heading": "### D6 兜底必须留痕且与成功可区分",
+      "excerpt": "规则：任何\"拉不到就用本地值\"的兜底，必须同时满足：①成功走 info（或采样），兜底走 warn/",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-134",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:198",
+      "heading": "## E. 架构与分层",
+      "excerpt": "",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-135",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:200",
+      "heading": "### E1 依赖方向单向；反向依赖必须有规则拦",
+      "excerpt": "规则：L0-L8 单向依赖。services 不依赖 business；shared 不依赖 cor",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-136",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:205",
+      "heading": "### E2 守护规则的覆盖面必须等于实际目录集合",
+      "excerpt": "规则：规则禁止用\"逐个枚举模块名\"表达全称约束（每加一个模块就静默少一格保护）。必须有断言：规则里的",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-137",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:210",
+      "heading": "### E3 文档承诺的守护必须在配置里存在",
+      "excerpt": "规则：文档/注释/指标里写\"有 X 门禁\"时，配置里必须有对应规则。不允许文档挂着门禁而配置没有——",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-138",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:215",
+      "heading": "### E4 新增模块必须同步更新全部散点（清单化）",
+      "excerpt": "规则：\"加一个业务模块要改 N 处\"这件事必须有成文清单，且清单本身要有守卫（清单项 == 实际需要",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-139",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:220",
+      "heading": "### E5 core/shared 禁止业务语义",
+      "excerpt": "规则：core/shared 层不得出现业务名的联合类型、按业务字符串分支、按中文标签子串选图标、指",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-140",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:225",
+      "heading": "### E6 环与越权面必须有执行体；层聚合入口不得成为免检枢纽",
+      "excerpt": "规则：三类结构约束不能只写在文档里：① 目录级 / 层聚合级的循环依赖（a→b→a 按目录聚合）必须",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-141",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:232",
+      "heading": "## F. 门禁与验证",
+      "excerpt": "",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-142",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:234",
+      "heading": "### F1 每条门禁必须有阳性对照",
+      "excerpt": "规则：任何门禁（lint / 守卫 / 契约检查）必须自带一个已知会让它变红的样本，且该样本在 CI",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-143",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:239",
+      "heading": "### F2 注释/文档宣称的能力必须有断言指向",
+      "excerpt": "规则：注释写\"已脱敏\"、\"已收敛\"、\"已校验\"时，必须有一个测试或守卫能验证该能力。禁止把注释当作已",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-144",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:244",
+      "heading": "### F3 测试必须对常数敏感",
+      "excerpt": "规则：数值断言不得只用\"常数相消\"的端点值（如 d=0 与 d≫radius）——那样改坏地球半径也",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-145",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:249",
+      "heading": "### F4 测试必须覆盖生产分支",
+      "excerpt": "规则：mock 掉的必须是非生产分支。若 mock 数据形状使生产分支恒不执行（如模型返回 carg",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-146",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:254",
+      "heading": "### F5 覆盖率棘轮必须单调不降",
+      "excerpt": "规则：覆盖率基线不得被自动 --update 放宽；须有\"核心层 per-dir floor + 基",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-147",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:259",
+      "heading": "### F6 门禁的判据输入必须受版本控制，且不得依赖运行期才存在的东西",
+      "excerpt": "规则：一条门禁能读的东西只有三类——入库文件、本次运行自己产出的结果、明确声明过的运行态。禁止读：工",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-148",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:264",
+      "heading": "### F7 新增强制检查之前，必须先扫\"存在但从不触发\"的检查",
+      "excerpt": "规则：加一条新门禁前的固定三步：① 扫既有挂载点（run-all.mjs 的清单、.husky/、c",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-149",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:268",
+      "heading": "### F8 门禁降级为 experimental 必须是显式三件套",
+      "excerpt": "规则：新门禁易误报、或存量未清零时，允许登记为 experimental（只报不阻断），但必须同时具",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-150",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:275",
+      "heading": "## G. 安全与凭据",
+      "excerpt": "",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-151",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:277",
+      "heading": "### G1 凭据不得入库——包括历史",
+      "excerpt": "规则：密钥 / 口令 / 用户数据文件（含哈希）不得进版本库。历史中的泄漏必须被当作\"当前风险\"处理",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-152",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:282",
+      "heading": "### G2 忽略规则必须精确覆盖真实落点",
+      "excerpt": "规则：.gitignore 的忽略路径必须与代码里实际读取的路径一致（不能只忽略 tools/poi",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-153",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:287",
+      "heading": "### G3 allowlist 必须锚定",
+      "excerpt": "规则：密钥扫描的 allowlist 正则必须锚定（(^|/)\\.env$ 而非 \\.env），否则",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-154",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:292",
+      "heading": "### G4 认证必须有 owner 校验；资源 ID 必须不可枚举",
+      "excerpt": "规则：每个资源端点做属主校验；ID 用 UUID 而非时间戳（时间戳可枚举 ⇒ 可越权读取/取消他人",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-155",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:297",
+      "heading": "### G5 限流键必须是真实客户端 IP",
+      "excerpt": "规则：反代后必须开 trust proxy，否则全站共享一个桶，登录可被匿名打满。限流桶的分桶语义必",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-156",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:302",
+      "heading": "### G6 匿名资源槽不得靠客户端自报的标识来认属主",
+      "excerpt": "规则：给匿名请求分配\"属主\"时，若该属主来自客户端自带随机串（明文头上送），它只是能力令牌不是认证—",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-157",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:307",
+      "heading": "### G7 部署必须覆盖进程生命周期：PID 1、优雅关闭、宽限期、内存上限自洽",
+      "excerpt": "规则：容器化 Node 服务必须有：① init: true 或能收 SIGTERM 的 PID 1",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-158",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:314",
+      "heading": "## H. 文档与注释",
+      "excerpt": "",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-159",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:316",
+      "heading": "### H1 注释不得宣称不存在的机制",
+      "excerpt": "规则：注释描述的机制必须在代码里存在且被调用。禁止写\"由 X 处理\"而 X 不存在、\"已收敛\"而仍有",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-160",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:322",
+      "heading": "### H2 路径引用必须有效",
+      "excerpt": "规则：.gitignore / lint 配置 / 规范文档 / 注释中的仓库路径字面量必须指向存在",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-161",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:327",
+      "heading": "### H3 行号不得进规范文档",
+      "excerpt": "规则：规范/设计文档里禁止出现 file:line（会腐烂）；只写符号名与模块名。反例一律放附录并标",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-162",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:332",
+      "heading": "### H4 审查与规范用的标准库本身，也是必须被校验的产物",
+      "excerpt": "规则：指标库、附录对照表、命名标准里的路径、目录名、token 名、模块枚举必须真实存在。标准库失效",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-163",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:337",
+      "heading": "### H5 规则的依据不得指向会重排的数字编号",
+      "excerpt": "规则：条款的「依据」列一律用稳定符号（函数名、配置项、文件+规则名、审件里的语义名），不得只写台账编",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-164",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:344",
+      "heading": "## I. 工程卫生",
+      "excerpt": "",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-165",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:346",
+      "heading": "### I1 禁止\"未跟踪但未忽略\"的第三态",
+      "excerpt": "规则：仓库里不允许存在既未跟踪、也未被忽略的文件（一次性脚本 / 探针 / 临时产物）。要么入库，要",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-166",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:351",
+      "heading": "### I2 退役 / 事故 / 探针三类必须有收尾断言",
+      "excerpt": "规则：① 组件退役 → 同步从门禁、dev 脚本、env 模板、TODO 中摘除，一次做全；② 事故",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-167",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:356",
+      "heading": "### I3 死代码必须清理",
+      "excerpt": "规则：零消费者导出 / 死 schema / 死 action / 空入口文件 / 死配置路径都是负",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-168",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:361",
+      "heading": "### I4 临时物不得进源码目录",
+      "excerpt": "规则：一次性产物统一落 .local/；.gitignore 需覆盖该目录；守卫的断言范围要包含 s",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-169",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:366",
+      "heading": "### I5 格式类提交是行号锚点的批量破坏者，必须单独过一遍引用",
+      "excerpt": "规则：--fix / 自动重排 / 挪目录这类不触碰语义却改变行号与记法的提交，必须在同笔里检查\"仓",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-170",
+      "source": "docs/根基文档/04-防复发清单.md",
+      "anchor": "docs/根基文档/04-防复发清单.md:373",
+      "heading": "## 附：使用方式",
+      "excerpt": "| 场景 | 用法 |",
+      "layer": "契约",
+      "target": "K1",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-171",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:9",
+      "heading": "## 目录",
+      "excerpt": "1. [项目架构概览](01-项目架构概览)",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-172",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:22",
+      "heading": "## 1. 项目定位",
+      "excerpt": "面向广西北部湾港（钦州）的 WebGIS 智慧空间分析平台。核心目标不是\"地图 Demo\"，而是验证",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-173",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:26",
+      "heading": "### 核心功能",
+      "excerpt": "| 业务 | 引擎 | 说明 |",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-174",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:36",
+      "heading": "## 2. 技术栈",
+      "excerpt": "| 层 | 技术 |",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-175",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:51",
+      "heading": "## 3. 分层架构",
+      "excerpt": "项目经历一次架构重构后采用四层单向依赖架构：",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-176",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:64",
+      "heading": "### 前端完整分层（L0-L8）",
+      "excerpt": "L0 types 纯类型声明（零运行时依赖）",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-177",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:80",
+      "heading": "### 后端分层",
+      "excerpt": "routes → controllers（sendSuccess 信封）→ services（cre",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-178",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:87",
+      "heading": "## 4. 核心设计理念",
+      "excerpt": "",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-179",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:89",
+      "heading": "### 4.1 GIS 渲染抽象（MapRenderer 策略模式）",
+      "excerpt": "地图能力抽象为一层渲染接口 MapRenderer（抽象基类），业务模块通过统一约定与地图交互，而非",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-180",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:95",
+      "heading": "### 4.2 业务模块化",
+      "excerpt": "业务功能按模块组织，每个模块自带状态（store）、视图（page + 面板）与服务调用（adapt",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-181",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:99",
+      "heading": "### 4.3 GCS 组件布局体系",
+      "excerpt": "GIS 应用中浮动组件（工具栏、分析面板、图例、详情卡片）数量多，页面布局容易失控。GCS（Glob",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-182",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:103",
+      "heading": "## 5. 请求路径（数据流总览）",
+      "excerpt": "业务组件 → 取数入口（useApiRequest / loadStatic）",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-183",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:118",
+      "heading": "## 6. 部署拓扑",
+      "excerpt": "┌───────────────────────────────┐",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-184",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:135",
+      "heading": "## 7. 工程红线（不变量）",
+      "excerpt": "- 架构契约 npm run cruise 0 violation（含 backend）。",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-185",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:151",
+      "heading": "## 1. 目录结构（src/）",
+      "excerpt": "src/",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-186",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:169",
+      "heading": "## 2. 入口层",
+      "excerpt": "",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-187",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:171",
+      "heading": "### 2.1 main.ts",
+      "excerpt": "- validateEnv()：校验 VITETIANDITUKEY（必需）、VITEAPIBASE",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-188",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:179",
+      "heading": "### 2.2 App.vue",
+      "excerpt": "- provide 全局服务：RESTOREPLANDATAKEY、EDITINGPLANKEY、U",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-189",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:187",
+      "heading": "## 3. 路由与业务注册（router/ + business/manifest.ts）",
+      "excerpt": "",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-190",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:189",
+      "heading": "### 3.1 router/index.ts",
+      "excerpt": "- 路由：/(Home)、业务路由（由 buildBusinessRoutes() 生成）、/pro",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-191",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:194",
+      "heading": "### 3.2 business/manifest.ts（业务注册清单，新增业务核心入口）",
+      "excerpt": "- BusinessModule 接口：name / path / engine / title /",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-192",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:200",
+      "heading": "## 4. 数据访问层（services/）",
+      "excerpt": "",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-193",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:202",
+      "heading": "### 4.1 services/index.ts",
+      "excerpt": "导出 floodAdapter、forecastAdapter、mapDataService。",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-194",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:206",
+      "heading": "### 4.2 services/adapters/floodAdapter.ts（浸没分析数据适配器，双数据源）",
+      "excerpt": "- 模块级 dataSource（'api' | 'online'），setDataSource()",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-195",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:218",
+      "heading": "### 4.3 services/adapters/forecastAdapter.ts（预测数据适配器）",
+      "excerpt": "- getOverview(signal)：/forecast/overview 指标索引。",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-196",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:225",
+      "heading": "### 4.4 services/mapDataService.ts",
+      "excerpt": "- getPorts()：读前端静态 /data/ports.json（loadStatic，202",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-197",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:230",
+      "heading": "## 5. 共享层（shared/）",
+      "excerpt": "",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-198",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:232",
+      "heading": "### 5.1 请求基础设施",
+      "excerpt": "- useApiRequest.ts：API 统一入口。",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-199",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:241",
+      "heading": "### 5.2 认证（useAuth.ts）",
+      "excerpt": "- 模块级 user ref（localStorage 持久化 + zod 校验）。",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-200",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:248",
+      "heading": "### 5.3 其他关键 composable / utils",
+      "excerpt": "- useLatestRequest.ts：竞态守卫（新请求 abort 旧请求 + 取消静默兜底）",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-201",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:261",
+      "heading": "### 5.4 shared/constants",
+      "excerpt": "- colors.ts、ui.ts（CELLPIXEL 等）、chart.ts、forecast.t",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-202",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:265",
+      "heading": "## 6. 状态管理（stores/）",
+      "excerpt": "统一 Setup Store 语法（useXxxStore）。导出：mapStore、floodSt",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-203",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:278",
+      "heading": "## 7. GIS 核心层（core/）",
+      "excerpt": "",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-204",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:280",
+      "heading": "### 7.1 core/index.ts（公开 API 入口）",
+      "excerpt": "re-export：config/map、layout/、map/BusinessLayerMana",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-205",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:284",
+      "heading": "### 7.2 渲染抽象",
+      "excerpt": "- renderers/MapRenderer.ts：抽象基类（策略模式）。核心方法：",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-206",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:297",
+      "heading": "### 7.3 图层管理",
+      "excerpt": "- BusinessLayerManager.ts：业务图层生命周期管理器（BLM）。",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-207",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:312",
+      "heading": "### 7.4 地图组件",
+      "excerpt": "- UnifiedMap.vue：统一地图容器。双引擎 v-show 切换、渲染器实例复用不销毁；s",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-208",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:318",
+      "heading": "### 7.5 布局（core/layout/）",
+      "excerpt": "- AppLayout.vue：GCS V2 布局基座。PPS（面板定位系统）绝对定位 Panel；",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-209",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:326",
+      "heading": "## 8. 业务模块（business/）",
+      "excerpt": "",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-210",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:328",
+      "heading": "### 8.1 business/index.ts（公开 API 入口）",
+      "excerpt": "re-export：manifest、forecast/composables/、site-sele",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-211",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:332",
+      "heading": "### 8.2 选址分析（business/site-selection/）",
+      "excerpt": "- SiteSelectionPage.vue：主页面。",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-212",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:342",
+      "heading": "### 8.3 预测分析（business/forecast/）",
+      "excerpt": "- ForecastPage.vue：主页面。",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-213",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:348",
+      "heading": "### 8.4 浸没分析（business/flood-analysis/）——3D",
+      "excerpt": "- FloodAnalysisPage.vue：主页面。数据源经 floodAdapter 隔离；业",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-214",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:355",
+      "heading": "## 9. 可视化（visualization/）",
+      "excerpt": "- charts/：BarChart.vue、LineChart.vue、RadarChart.vu",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-215",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:361",
+      "heading": "## 10. 类型（types/）",
+      "excerpt": "纯类型层，零运行时依赖。目录：api/、business/、components/、core/、te",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-216",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:367",
+      "heading": "## 11. 视图（views/）",
+      "excerpt": "- HomePage.vue：首页。",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-217",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:379",
+      "heading": "## 1. 目录结构",
+      "excerpt": "backend/",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-218",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:398",
+      "heading": "## 2. 应用装配（app.js）",
+      "excerpt": "Express 应用装配顺序（中间件顺序敏感）——⚠️ Express 已退役，此处保留历史存档供参",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-219",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:418",
+      "heading": "### index.js（入口）",
+      "excerpt": "- app.listen(PORT)（默认 3000）。",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-220",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:424",
+      "heading": "## 3. 路由与控制器",
+      "excerpt": "",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-221",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:426",
+      "heading": "### 3.1 路由挂载总览",
+      "excerpt": "| 路由前缀 | 文件 | 认证 |",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-222",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:437",
+      "heading": "### 3.2 API 路由清单",
+      "excerpt": "认证（/api/auth）",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-223",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:481",
+      "heading": "## 4. 控制器（controllers/）",
+      "excerpt": "| 文件 | 职责 |",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-224",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:491",
+      "heading": "## 5. 服务层（services/）——业务计算",
+      "excerpt": "",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-225",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:493",
+      "heading": "### 5.1 modules/site-analysis/services/site-analysis.service.ts（选址分析）",
+      "excerpt": "- runSiteAnalysis({selectedKeys, typeSettings, fac",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-226",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:505",
+      "heading": "### 5.2 modules/site-analysis/services/scoring.ts（选址评分核心）",
+      "excerpt": "- linearDecay(distance, maxDistance)：线性距离衰减（百分制）。",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-227",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:513",
+      "heading": "### 5.3 modules/forecast/services/forecast.service.ts（预测）",
+      "excerpt": "- 指标白名单：cargo / container / berth / traffic。",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-228",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:521",
+      "heading": "### 5.4 modules/forecast/services/forecast-engine.ts（预测引擎）",
+      "excerpt": "- computeForecast(historicalData, scenarioLevel, f",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-229",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:526",
+      "heading": "### 5.5 modelLoader.js（吞吐量模型）",
+      "excerpt": "- getModelForecast(portId, afterTime)：读 throughput",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-230",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:531",
+      "heading": "### 5.6 floodService.js（洪涝灾害评估）",
+      "excerpt": "- assessDisaster(facilities, level, floodZone)：按水位",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-231",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:535",
+      "heading": "### 5.7 userService.js（用户）",
+      "excerpt": "- findByUsername / createUser / userExists / findB",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-232",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:540",
+      "heading": "## 6. 仓储层（repositories/）",
+      "excerpt": "",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-233",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:542",
+      "heading": "### 6.1 plansRepository.js（方案）",
+      "excerpt": "- findAllByUserId / findById / create / update / r",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-234",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:548",
+      "heading": "### 6.2 facilitiesRepository.js（设施）",
+      "excerpt": "- FILEMAP：设施类型 → data 路径映射。",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-235",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:553",
+      "heading": "## 7. 中间件（middleware/）",
+      "excerpt": "",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-236",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:555",
+      "heading": "### 7.1 auth.js（JWT 认证）",
+      "excerpt": "- 启动强校验：JWTSECRET 必须存在且 ≥32 字符，否则抛致命错误。",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-237",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:561",
+      "heading": "### 7.2 logSanitizer.js",
+      "excerpt": "- sanitize()：请求日志脱敏（敏感字段打码）。",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-238",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:565",
+      "heading": "## 8. 工具层（utils/）",
+      "excerpt": "| 文件 | 职责 |",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-239",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:579",
+      "heading": "## 9. 依赖",
+      "excerpt": "运行时：@turf/turf（空间分析）、bcryptjs（密码哈希）、cookie-parser、",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-240",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:585",
+      "heading": "## 10. 测试",
+      "excerpt": "- backend/controllers/tests/：app.test.js、auth.test",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-241",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:598",
+      "heading": "## 1. 目录结构",
+      "excerpt": "backend/flood-service/",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-242",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:611",
+      "heading": "## 2. 核心算法（flood_engine.py）",
+      "excerpt": "海平面抬升淹没模型：水从海面（DEM NoData 区域）进入，只淹没与海面 8 连通的高程低于水位",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-243",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:638",
+      "heading": "## 3. FastAPI 应用（main.py）",
+      "excerpt": "启动：uvicorn main:app --port 8000。",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-244",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:662",
+      "heading": "## 4. 预计算档位表",
+      "excerpt": "- 文件：backend/data/flood/floodlevels.json.gz（2.9MB，",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-245",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:669",
+      "heading": "## 5. 前端数据源双模式对照",
+      "excerpt": "| 模式 | 淹没范围 | 影响评估 |",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-246",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:679",
+      "heading": "## 6. 依赖与 Docker",
+      "excerpt": "requirements.txt：numpy、scipy（连通域标注）、rasterio（自带 GD",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-247",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:689",
+      "heading": "## 1. 数据文件清单（backend/data/）",
+      "excerpt": "",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-248",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:691",
+      "heading": "### 1.1 预测数据（backend/data/forecast/）",
+      "excerpt": "| 文件 | 说明 |",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-249",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:702",
+      "heading": "### 1.2 选址数据（backend/data/site-selection/）",
+      "excerpt": "| 文件 | 说明 |",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-250",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:709",
+      "heading": "### 1.3 洪涝数据（backend/data/flood/）",
+      "excerpt": "| 文件 | 说明 |",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-251",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:721",
+      "heading": "### 1.4 其他",
+      "excerpt": "| 文件 | 说明 |",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-252",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:731",
+      "heading": "### 1.5 静态资源（backend/static/）",
+      "excerpt": "| 文件 | 说明 |",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-253",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:740",
+      "heading": "## 2. 工具脚本（tools/ 与 scripts/）",
+      "excerpt": "| 脚本 | 职责 |",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-254",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:758",
+      "heading": "## 3. 依赖关系图",
+      "excerpt": "┌─────────────────────────────────────────────────",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-255",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:812",
+      "heading": "## 4. 架构守护规则（.dependency-cruiser.cjs）",
+      "excerpt": "前端依赖方向由 dependency-cruiser 强制（npm run cruise，CI -T",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-256",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:832",
+      "heading": "## 5. 请求数据源三态演进",
+      "excerpt": "mock（前端契约桩，已基本收归后端）",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-257",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:847",
+      "heading": "## 1. 环境要求",
+      "excerpt": "- Node.js ≥ 22.18（见根 package.json engines：^22.18.0",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-258",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:854",
+      "heading": "## 2. 安装",
+      "excerpt": "git clone <repo-url",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-259",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:865",
+      "heading": "## 3. 必需环境变量（两份 .env，均不入 git）",
+      "excerpt": "",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-260",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:877",
+      "heading": "## 4. 本地启动",
+      "excerpt": "",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-261",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:896",
+      "heading": "### 洪涝 online 模式（连通性演算，可选）",
+      "excerpt": "",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-262",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:910",
+      "heading": "## 5. 构建与分析",
+      "excerpt": "npm run build typecheck + 前端生产构建（dist/）",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-263",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:917",
+      "heading": "## 6. 测试",
+      "excerpt": "npm test 前端 Vitest（frontend/）",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-264",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:928",
+      "heading": "## 7. 部署",
+      "excerpt": "",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-265",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:930",
+      "heading": "### 7.1 Docker Compose 双容器",
+      "excerpt": "docker compose up --build -d",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-266",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:943",
+      "heading": "### 7.2 CI 流水线（GitHub Actions，.github/workflows/ci.yml）",
+      "excerpt": "5 job：audit → lint-and-build（format/lint/cruise/ty",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-267",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:947",
+      "heading": "### 7.3 HTTPS",
+      "excerpt": "Let's Encrypt + duckdns DNS-01，自动续期（certbot.timer ",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-268",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:951",
+      "heading": "### 7.4 回滚",
+      "excerpt": "scripts/rollback.sh 配合镜像 tag（docker-compose IMAGET",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-269",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:955",
+      "heading": "## 8. 常用 npm 脚本速查",
+      "excerpt": "| 脚本 | 作用 |",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-270",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:970",
+      "heading": "## 9. 已知注意点（来自项目记忆）",
+      "excerpt": "- 后端服务必须 node server/index.js（实际是 backend/index.js",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-271",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:976",
+      "heading": "## 10. 2026-09-12 收口回写（审查波欠账补登）",
+      "excerpt": "- 认证态：isAuthenticated 已上移 frontend/src/shared/comp",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-272",
+      "source": "docs/根基文档/代码知识库.md",
+      "anchor": "docs/根基文档/代码知识库.md:993",
+      "heading": "## 现状勘误（2026-09-20）｜以下条目已按现码逐条核实，**正文原述一律作废**",
+      "excerpt": "| | 正文原述（作废物） | 现状 | 现证据 |",
+      "layer": "日志",
+      "target": "SNAP-KB",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-273",
+      "source": "docs/根基文档/项目收敛路线图.md",
+      "anchor": "docs/根基文档/项目收敛路线图.md:9",
+      "heading": "## 一、四条线（各自一个机器动作）",
+      "excerpt": " 本表不写「现状」。第一版有这一列，写的是「❌ 待做（S0）」，而同一份文件的 §五",
+      "layer": "日志",
+      "target": "SNAP-ROADMAP",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-274",
+      "source": "docs/根基文档/项目收敛路线图.md",
+      "anchor": "docs/根基文档/项目收敛路线图.md:25",
+      "heading": "## 二、防偏移机制（六条，不可省）",
+      "excerpt": "1. 出口条件是命令，不是描述。 每步的\"完成\"必须是一条能跑的命令 + 预期输出；跑不出来就是没完",
+      "layer": "日志",
+      "target": "SNAP-ROADMAP",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-275",
+      "source": "docs/根基文档/项目收敛路线图.md",
+      "anchor": "docs/根基文档/项目收敛路线图.md:36",
+      "heading": "## 三、步骤与出口条件",
+      "excerpt": "",
+      "layer": "日志",
+      "target": "SNAP-ROADMAP",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-276",
+      "source": "docs/根基文档/项目收敛路线图.md",
+      "anchor": "docs/根基文档/项目收敛路线图.md:38",
+      "heading": "### S0 · 量化（本窗口目标）",
+      "excerpt": "| 子步 | 动作 | 出口条件 |",
+      "layer": "日志",
+      "target": "SNAP-ROADMAP",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-277",
+      "source": "docs/根基文档/项目收敛路线图.md",
+      "anchor": "docs/根基文档/项目收敛路线图.md:50",
+      "heading": "### S1 · 立规矩（2–3 窗口）",
+      "excerpt": "| 子步 | 动作 | 出口条件 |",
+      "layer": "日志",
+      "target": "SNAP-ROADMAP",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-278",
+      "source": "docs/根基文档/项目收敛路线图.md",
+      "anchor": "docs/根基文档/项目收敛路线图.md:90",
+      "heading": "### S2 · 清老债（按模块，N 窗口；**风格统一并入本步**）",
+      "excerpt": "每模块一轮，一轮一笔或几笔提交，固定动作序列：",
+      "layer": "日志",
+      "target": "SNAP-ROADMAP",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-279",
+      "source": "docs/根基文档/项目收敛路线图.md",
+      "anchor": "docs/根基文档/项目收敛路线图.md:174",
+      "heading": "### S3 · 验证老债真的闭了",
+      "excerpt": "| 出口条件 | 判据 |",
+      "layer": "日志",
+      "target": "SNAP-ROADMAP",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-280",
+      "source": "docs/根基文档/项目收敛路线图.md",
+      "anchor": "docs/根基文档/项目收敛路线图.md:186",
+      "heading": "### S4 · 再放审查（找新问题）",
+      "excerpt": " 时点裁定（2026-09-26 用户批准）：S4 改到论文 MVP（单元二→四→五）落地之后执行，",
+      "layer": "日志",
+      "target": "SNAP-ROADMAP",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-281",
+      "source": "docs/根基文档/项目收敛路线图.md",
+      "anchor": "docs/根基文档/项目收敛路线图.md:210",
+      "heading": "### S5 · 恢复业务开发",
+      "excerpt": "| 出口条件 | 判据 |",
+      "layer": "日志",
+      "target": "SNAP-ROADMAP",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-282",
+      "source": "docs/根基文档/项目收敛路线图.md",
+      "anchor": "docs/根基文档/项目收敛路线图.md:219",
+      "heading": "## 四、窗口边界（关于\"能不能一个窗口全做完\"）",
+      "excerpt": "不能，也不应该。",
+      "layer": "日志",
+      "target": "SNAP-ROADMAP",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-283",
+      "source": "docs/根基文档/项目收敛路线图.md",
+      "anchor": "docs/根基文档/项目收敛路线图.md:229",
+      "heading": "## 五、当前进度（不填状态，只给判据）",
+      "excerpt": " 为什么不再写状态符号：本表第一版写「S1 立规矩 ❌」，而实际 S1.2 早已完成",
+      "layer": "日志",
+      "target": "SNAP-ROADMAP",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-284",
+      "source": "docs/开工前必读/API契约文档.md",
+      "anchor": "docs/开工前必读/API契约文档.md:10",
+      "heading": "## 1. 响应契约(铁律)",
+      "excerpt": "",
+      "layer": "契约",
+      "target": "K3",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-285",
+      "source": "docs/开工前必读/API契约文档.md",
+      "anchor": "docs/开工前必读/API契约文档.md:12",
+      "heading": "### 1.1 信封格式",
+      "excerpt": "所有接口统一 { code, data } 信封(backend/src/common/interc",
+      "layer": "契约",
+      "target": "K3",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-286",
+      "source": "docs/开工前必读/API契约文档.md",
+      "anchor": "docs/开工前必读/API契约文档.md:26",
+      "heading": "### 1.2 前端调用规则",
+      "excerpt": "- 请求唯一走 useApiRequest();静态资源走 loadStatic()。禁止裸 fet",
+      "layer": "契约",
+      "target": "K3",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-287",
+      "source": "docs/开工前必读/API契约文档.md",
+      "anchor": "docs/开工前必读/API契约文档.md:33",
+      "heading": "### 1.3 错误码(双轨制,注意维度)",
+      "excerpt": " 两套错误码,维度不同,不互通:",
+      "layer": "契约",
+      "target": "K3",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-288",
+      "source": "docs/开工前必读/API契约文档.md",
+      "anchor": "docs/开工前必读/API契约文档.md:42",
+      "heading": "## 2. 认证契约",
+      "excerpt": "- HttpOnly Cookie 单通道(防 XSS):登录后 authtoken Cookie(",
+      "layer": "契约",
+      "target": "K3",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-289",
+      "source": "docs/开工前必读/API契约文档.md",
+      "anchor": "docs/开工前必读/API契约文档.md:50",
+      "heading": "## 3. 接口命名规约",
+      "excerpt": "- 路径:kebab-case 复数名词(资源型:/plans、/flood/water-area)",
+      "layer": "契约",
+      "target": "K3",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-290",
+      "source": "docs/开工前必读/API契约文档.md",
+      "anchor": "docs/开工前必读/API契约文档.md:57",
+      "heading": "## 4. 限流与安全",
+      "excerpt": "- 全局:/nest-api/ 1000 次/15 分钟;登录/注册:50 次/15 分钟(2026",
+      "layer": "契约",
+      "target": "K3",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-291",
+      "source": "docs/开工前必读/API契约文档.md",
+      "anchor": "docs/开工前必读/API契约文档.md:65",
+      "heading": "## 5. 接口索引(会演进,以代码为准)",
+      "excerpt": " 前缀约定(2026-09-12 修正):业务 API 统一 Nest 全局前缀 /nest-api",
+      "layer": "契约",
+      "target": "K3",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-292",
+      "source": "docs/开工前必读/API契约文档.md",
+      "anchor": "docs/开工前必读/API契约文档.md:92",
+      "heading": "## 6. 校验命令",
+      "excerpt": "npm run cruise 架构契约(含 backend)",
+      "layer": "契约",
+      "target": "K3",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-293",
+      "source": "docs/开工前必读/接力文档.md",
+      "anchor": "docs/开工前必读/接力文档.md:15",
+      "heading": "## 0. 五分钟上手",
+      "excerpt": "cd <工作区 本机 = C:\\workspace\\beibu-gulf-project",
+      "layer": "日志",
+      "target": "S3",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-294",
+      "source": "docs/开工前必读/接力文档.md",
+      "anchor": "docs/开工前必读/接力文档.md:30",
+      "heading": "## 1. 现在在哪（2026-10-02 19:1x 实测；本节随提交推进，以 `git log` 为准）",
+      "excerpt": "| 项 | 值 | 怎么复算 |",
+      "layer": "日志",
+      "target": "S3",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-295",
+      "source": "docs/开工前必读/接力文档.md",
+      "anchor": "docs/开工前必读/接力文档.md:44",
+      "heading": "## 2. ✅ 已解决（2026-10-02 接任窗）：失败步 = 13/13 前端全量，根因已修",
+      "excerpt": "76c50a8a（Cesium ②）+ 本文曾被 .husky/pre-push 拦下两次（上一棒 ",
+      "layer": "日志",
+      "target": "S3",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-296",
+      "source": "docs/开工前必读/接力文档.md",
+      "anchor": "docs/开工前必读/接力文档.md:71",
+      "heading": "## 3. 本窗口（2026-10-02）落了什么",
+      "excerpt": "| SHA | 标题 | 推送/部署 | 备注 |",
+      "layer": "日志",
+      "target": "S3",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-297",
+      "source": "docs/开工前必读/接力文档.md",
+      "anchor": "docs/开工前必读/接力文档.md:97",
+      "heading": "## 4. 队列（2026-10-02 19:0x 重排；★ = 独立验收新开的收口项）",
+      "excerpt": "1. ~~推 Cesium ②~~ ✅ 已推已部署；~~Cesium ③~~ ✅ 全链已上线（探针 ",
+      "layer": "日志",
+      "target": "S3",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-298",
+      "source": "docs/开工前必读/接力文档.md",
+      "anchor": "docs/开工前必读/接力文档.md:130",
+      "heading": "## 5. 🔴 多 agent 同仓库：今天撞过两次，协议已落地（**接任者必须先做**）",
+      "excerpt": "事实：2026-10-02 同一仓库上有多个会话/agent 并行，撞了两次 ——",
+      "layer": "日志",
+      "target": "S3",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-299",
+      "source": "docs/开工前必读/接力文档.md",
+      "anchor": "docs/开工前必读/接力文档.md:156",
+      "heading": "## 6. 未证清单（**不许当\"通过\"用**）",
+      "excerpt": "1. ~~76c50a8a 的 push 阻塞步未取证~~ 已闭：失败步 = 13/13 前端全量（",
+      "layer": "日志",
+      "target": "S3",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-300",
+      "source": "docs/开工前必读/接力文档.md",
+      "anchor": "docs/开工前必读/接力文档.md:180",
+      "heading": "## 7. 环境与常用命令（本机实测）",
+      "excerpt": "| 事 | 命令/事实 |",
+      "layer": "日志",
+      "target": "S3",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-301",
+      "source": "docs/开工前必读/接力文档.md",
+      "anchor": "docs/开工前必读/接力文档.md:199",
+      "heading": "## 8. 坑与纪律（今天真踩过的）",
+      "excerpt": "- commitlint：subject 不得以大写字母开头（今天 perf: Cesium 预取…",
+      "layer": "日志",
+      "target": "S3",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-302",
+      "source": "docs/开工前必读/接力文档.md",
+      "anchor": "docs/开工前必读/接力文档.md:213",
+      "heading": "## 9. 证据索引（`.local/` 下，可复跑）",
+      "excerpt": "| 要什么 | 在哪 |",
+      "layer": "日志",
+      "target": "S3",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-303",
+      "source": "docs/开工前必读/接力文档.md",
+      "anchor": "docs/开工前必读/接力文档.md:240",
+      "heading": "## 10. 作废条件（本文哪些结论会被推翻）",
+      "excerpt": "- §1 的 SHA/refs 是 19:1x 快照：任何一次 push / 新提交 / 分支操作后",
+      "layer": "日志",
+      "target": "S3",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-304",
+      "source": "docs/开工前必读/接力文档.md",
+      "anchor": "docs/开工前必读/接力文档.md:252",
+      "heading": "## 11. 文档现状复核（2026-10-02 19:1x，L-DOC 窗口；用户指令「读完这批 docs 并更新需要的」）",
+      "excerpt": "改了什么（同笔 docs: 提交；只动 tracked 文件，未碰两本台账、未碰 docs/audi",
+      "layer": "日志",
+      "target": "S3",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-305",
+      "source": "docs/开工前必读/接力文档.md",
+      "anchor": "docs/开工前必读/接力文档.md:277",
+      "heading": "## 12. 历史未落地项（2026-10-02 整合时并入；**禁止随归档删除**）",
+      "excerpt": " 来源：docs/archive/交接文档-2026-10-01.md（原 §四 待办）+ docs",
+      "layer": "日志",
+      "target": "S3",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-306",
+      "source": "docs/开工前必读/接力文档.md",
+      "anchor": "docs/开工前必读/接力文档.md:284",
+      "heading": "### 12.1 来自「交接文档-2026-10-01」§四",
+      "excerpt": "| | 项 | 状态 | 依据 / 下一步 |",
+      "layer": "日志",
+      "target": "S3",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-307",
+      "source": "docs/开工前必读/接力文档.md",
+      "anchor": "docs/开工前必读/接力文档.md:298",
+      "heading": "### 12.2 来自「接力文档-2026-10-02」§4 / §6",
+      "excerpt": "| | 项 | 状态 | 依据 / 下一步 |",
+      "layer": "日志",
+      "target": "S3",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-308",
+      "source": "docs/开工前必读/接力文档.md",
+      "anchor": "docs/开工前必读/接力文档.md:317",
+      "heading": "### 12.3 未证清单（原 §6，**不许当\"通过\"用**）",
+      "excerpt": "| | 项 | 状态 |",
+      "layer": "日志",
+      "target": "S3",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-309",
+      "source": "docs/开工前必读/接力文档.md",
+      "anchor": "docs/开工前必读/接力文档.md:337",
+      "heading": "## 13. 2026-10-02 21:0x 文档整合（C + G + A；用户批准）",
+      "excerpt": " 范围口径：C 状态面 / G 归档 / A 协议面三类。E 不动（平陆运河3DTiles-READ",
+      "layer": "日志",
+      "target": "S3",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-310",
+      "source": "docs/开工前必读/接力文档.md",
+      "anchor": "docs/开工前必读/接力文档.md:362",
+      "heading": "## 14. 2026-10-02 21:4x B + F 收口（用户批准「继续」）",
+      "excerpt": "F 类（指标账死数）——已收口",
+      "layer": "日志",
+      "target": "S3",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-311",
+      "source": "docs/开工前必读/接力文档.md",
+      "anchor": "docs/开工前必读/接力文档.md:395",
+      "heading": "## 15. 2026-10-02 23:5x 04 瘦身 + 窗口留言回执",
+      "excerpt": "04-防复发清单 瘦身（A 类遗留项，已收口）",
+      "layer": "日志",
+      "target": "S3",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-312",
+      "source": "docs/开工前必读/接力文档.md",
+      "anchor": "docs/开工前必读/接力文档.md:423",
+      "heading": "## 16. 用户决策记录（2026-10-03 00:0x；**用户拍板，执行方不得自行选边**）",
+      "excerpt": " 记录人：session-c897664f。来源=用户 2026-10-03 对话原话，非转述。",
+      "layer": "日志",
+      "target": "S3",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-313",
+      "source": "docs/开工前必读/接力文档.md",
+      "anchor": "docs/开工前必读/接力文档.md:464",
+      "heading": "## 17. v4 进度（2026-10-03）",
+      "excerpt": "- S3 已收口（forecast 请求归属上移；两条 owned-layers 守卫口径记在 do",
+      "layer": "日志",
+      "target": "S3",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    },
+    {
+      "id": "KP-314",
+      "source": "docs/开工前必读/接力文档.md",
+      "anchor": "docs/开工前必读/接力文档.md:472",
+      "heading": "## 18. 文档入库口径（用户 2026-10-03 明确，**不要再问**）",
+      "excerpt": "- 文档默认不入库：docs/ 的忽略是既定政策（执行点 .gitignore:126 docs/ ",
+      "layer": "日志",
+      "target": "S3",
+      "authority": "old",
+      "status": "mapped",
+      "verifiedBy": "heading"
+    }
+  ]
+}

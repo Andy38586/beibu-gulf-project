@@ -1,0 +1,75 @@
+{
+  "version": 1,
+  "date": "2026-10-05",
+  "baselineRef": "HEAD",
+  "baselineCommit": "ab72a58128266677c3d654730aa4966cf270b3ed",
+  "role": "迁移基线快照（只读，非现行权威）：KP 抽取与「旧件内容逐字节不变」比对的唯一输入。以 .frozen 结尾＝冻结工具数据，不是 Markdown 活文档，不构成第二份口径；每件与基线 commit 的 git blob 逐字节一致（sha256 见下），可用 git hash-object 复核。",
+  "files": [
+    {
+      "doc": "AGENTS.md",
+      "file": "tools/doc-system/baseline/AGENTS.md.frozen",
+      "sha256": "7637d58e1ebc2a89ffbe3323d8603e7f5612140042d61e5e7871960046528d7d",
+      "bytes": 28427
+    },
+    {
+      "doc": "CLAUDE.md",
+      "file": "tools/doc-system/baseline/CLAUDE.md.frozen",
+      "sha256": "29c3060428213a40cdf811e0b3e699979b49fdcd855f0f7a4efeb492f50e7653",
+      "bytes": 3908
+    },
+    {
+      "doc": "docs/README.md",
+      "file": "tools/doc-system/baseline/docs/README.md.frozen",
+      "sha256": "7f5ee4a162b7008ebca360d828dd809a18e1f7e56abcb253264c238d8cae88bf",
+      "bytes": 24931
+    },
+    {
+      "doc": "docs/根基文档/项目全景.md",
+      "file": "tools/doc-system/baseline/docs/根基文档/项目全景.md.frozen",
+      "sha256": "d9cc54543b19c127d77d5b425e67282205fd26800ae228eb9959c6f0b6ecb380",
+      "bytes": 15882
+    },
+    {
+      "doc": "docs/根基文档/核心流程与数据流.md",
+      "file": "tools/doc-system/baseline/docs/根基文档/核心流程与数据流.md.frozen",
+      "sha256": "0762f08d473253759bead27134fbfe3bf2669180e1cbc3e2f4bdef9b8e0bcdc1",
+      "bytes": 21285
+    },
+    {
+      "doc": "docs/根基文档/开发指南与决策.md",
+      "file": "tools/doc-system/baseline/docs/根基文档/开发指南与决策.md.frozen",
+      "sha256": "02e98c55c70745ba482f55567c0cb23e26bd02801f3e4ff4b280a58818d91d15",
+      "bytes": 33359
+    },
+    {
+      "doc": "docs/根基文档/04-防复发清单.md",
+      "file": "tools/doc-system/baseline/docs/根基文档/04-防复发清单.md.frozen",
+      "sha256": "6a200f7201aa5c4e0bce6ac69e986c1e2901e334d7d4645c072a5c6f98151a20",
+      "bytes": 40801
+    },
+    {
+      "doc": "docs/根基文档/代码知识库.md",
+      "file": "tools/doc-system/baseline/docs/根基文档/代码知识库.md.frozen",
+      "sha256": "945f9bfb2503e17976aeddcd4d43108f5120316fb622fd80c12e918aafcfca52",
+      "bytes": 66095
+    },
+    {
+      "doc": "docs/根基文档/项目收敛路线图.md",
+      "file": "tools/doc-system/baseline/docs/根基文档/项目收敛路线图.md.frozen",
+      "sha256": "82cc793cb445805ce71067a54724ea4ff38bc48731ba621e6cd035d846532b7f",
+      "bytes": 34599
+    },
+    {
+      "doc": "docs/开工前必读/API契约文档.md",
+      "file": "tools/doc-system/baseline/docs/开工前必读/API契约文档.md.frozen",
+      "sha256": "0103311683ba9018a6af08abb140a8a84a600476244276fddbbfc254fb6fb231",
+      "bytes": 10170
+    },
+    {
+      "doc": "docs/开工前必读/接力文档.md",
+      "file": "tools/doc-system/baseline/docs/开工前必读/接力文档.md.frozen",
+      "sha256": "afc76633a81908d0ef6d3d59ab7699b5940a3a9a78bf13851439da68a26ff037",
+      "bytes": 52562
+    }
+  ]
+}

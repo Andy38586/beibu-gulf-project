@@ -1,0 +1,452 @@
+{
+  "meta": {
+    "version": 1,
+    "date": "2026-10-05",
+    "migrationOpen": true,
+    "layers": ["宪法", "契约", "日志", "标准库", "待迁移"],
+    "statuses": ["active", "stub", "planned", "parallel", "frozen", "external", "retired"],
+    "note": "信息源三层登记表：docs[] 文档、facts[] 单一事实源、tasks[] 读写矩阵；守卫 tools/v3-guard/doc-map-check.mjs。"
+  },
+  "docs": [
+    {
+      "id": "AGENTS",
+      "path": "AGENTS.md",
+      "layer": "宪法",
+      "role": "作业协议正本（纪律 + 读写矩阵 + 指针）",
+      "status": "active",
+      "guard": "tools/v3-guard/protocol-single-source.mjs",
+      "owns": ["作业协议", "任务读写矩阵"],
+      "readWhen": ["*"],
+      "writeWhen": ["流程修订（需用户批准）"],
+      "ts": ""
+    },
+    {
+      "id": "CLAUDE",
+      "path": "CLAUDE.md",
+      "layer": "宪法",
+      "role": "协议指针（不复制条文）",
+      "status": "active",
+      "guard": "tools/v3-guard/protocol-single-source.mjs",
+      "owns": ["协议指路"],
+      "readWhen": ["环境使用非 Codex 的 CLI 时"],
+      "writeWhen": ["指路目标变化时"],
+      "ts": ""
+    },
+    {
+      "id": "C1",
+      "path": "docs/宪法/C1-项目宪法.md",
+      "layer": "宪法",
+      "role": "项目身份、目标、架构分层与红线",
+      "status": "stub",
+      "guard": "tools/v3-guard/agent-docs-check.mjs",
+      "owns": ["项目定位与目标", "技术栈", "L0-L8 分层", "目录职责", "工程红线"],
+      "readWhen": ["A", "B", "D", "F"],
+      "writeWhen": ["架构口径变化且经用户批准"],
+      "ts": ""
+    },
+    {
+      "id": "C2",
+      "path": "docs/宪法/C2-质量不变量与根因守则.md",
+      "layer": "宪法",
+      "role": "六条不变量与 RC1–RC4 根因守则",
+      "status": "stub",
+      "guard": "tools/v3-guard/agent-docs-check.mjs",
+      "owns": ["单源/闭环/守恒/对称/可观测/受控", "RC1–RC4", "判据四要求"],
+      "readWhen": ["B", "C", "F"],
+      "writeWhen": ["不变量修订（需用户批准）"],
+      "ts": ""
+    },
+    {
+      "id": "C3",
+      "path": "docs/宪法/C3-信息源宪法.md",
+      "layer": "宪法",
+      "role": "三层定义、时间戳、权威切换、退役与登记规则",
+      "status": "active",
+      "guard": "tools/v3-guard/doc-map-check.mjs",
+      "owns": ["三层定义", "时间戳规则", "权威切换规则", "退役规则", "读写矩阵规则"],
+      "readWhen": ["E", "F", "*"],
+      "writeWhen": ["信息源规则修订（需用户批准）"],
+      "ts": ""
+    },
+    {
+      "id": "K1",
+      "path": "docs/契约/K1-技术规则集.md",
+      "layer": "契约",
+      "role": "改代码前必读的技术规则集（源自 04）",
+      "status": "stub",
+      "guard": "tools/v3-guard/agent-docs-check.mjs",
+      "owns": ["A–I 技术规则与自检", "F9 单一事实源登记", "F10 判据名实一致"],
+      "readWhen": ["A", "B", "E"],
+      "writeWhen": ["同类问题第 2 次出现；规则前提消失时原地标废弃"],
+      "ts": ""
+    },
+    {
+      "id": "K2",
+      "path": "docs/契约/K2-架构与流程契约.md",
+      "layer": "契约",
+      "role": "架构分层与端到端流程契约（源自 02+03）",
+      "status": "stub",
+      "guard": "tools/v3-guard/agent-docs-check.mjs",
+      "owns": ["数据流总览", "取数/响应规则", "主流程", "关键机制", "编码规范"],
+      "readWhen": ["A", "B"],
+      "writeWhen": ["流程/架构口径变化"],
+      "ts": ""
+    },
+    {
+      "id": "K3",
+      "path": "docs/契约/K3-接口与数据契约.md",
+      "layer": "契约",
+      "role": "前后端通信规则与接口/数据契约（源自 API 契约文档）",
+      "status": "stub",
+      "guard": "tools/v3-guard/agent-docs-check.mjs",
+      "owns": ["信封与错误码", "认证", "命名规约", "限流与安全", "接口索引指针"],
+      "readWhen": ["A", "B"],
+      "writeWhen": ["接口/契约变化"],
+      "ts": ""
+    },
+    {
+      "id": "K4",
+      "path": "docs/契约/K4-开发与门禁契约.md",
+      "layer": "契约",
+      "role": "任务流程细则、验证执行面、构建部署、门禁登记、工单与自查",
+      "status": "stub",
+      "guard": "tools/v3-guard/agent-docs-check.mjs",
+      "owns": [
+        "A–F 流程细则",
+        "E1–E5 执行面",
+        "门禁登记与 enforcedBy",
+        "工单与膨胀率",
+        "交付前自查"
+      ],
+      "readWhen": ["A", "B", "C", "C′", "D", "F"],
+      "writeWhen": ["流程/门禁口径变化"],
+      "ts": ""
+    },
+    {
+      "id": "BASE",
+      "path": "tools/doc-system/baseline/",
+      "layer": "日志",
+      "role": "迁移基线快照（只读、非权威）：KP 抽取与旧件逐字节比对的唯一输入",
+      "status": "frozen",
+      "guard": "tools/v3-guard/doc-map-check.mjs",
+      "owns": ["迁移基线（冻结副本 + sha256 清单）"],
+      "readWhen": ["生成/核对 kp-map 时"],
+      "writeWhen": ["不回写；重新冻结需用户批准并出新 manifest"],
+      "ts": "2026-10-05"
+    },
+    {
+      "id": "MAP",
+      "path": "docs/文档地图.md",
+      "layer": "契约",
+      "role": "三层索引 + 读写矩阵人读视图（生成件）",
+      "status": "active",
+      "guard": "tools/v3-guard/doc-map-check.mjs",
+      "generatedFrom": "tools/v3-guard/lib/doc-map.json",
+      "owns": ["文档索引", "任务矩阵人读视图", "迁移进度"],
+      "readWhen": ["*"],
+      "writeWhen": ["登记表变化后重跑 npm run docs:map"],
+      "ts": ""
+    },
+    {
+      "id": "S1",
+      "path": "docs/待解决问题.md",
+      "layer": "日志",
+      "role": "open 台账（编号唯一权威之一）",
+      "status": "external",
+      "external": false,
+      "guard": "tools/v3-guard/ledger-dedupe.mjs",
+      "owns": ["问题编号", "在册状态与行内钩子"],
+      "readWhen": ["A", "B", "C", "C′", "E", "F"],
+      "writeWhen": ["修/立/销账（同笔）"],
+      "ts": "rolling",
+      "note": "本轮不动位置与编号；仅登记。"
+    },
+    {
+      "id": "S2",
+      "path": "docs/已解决问题.md",
+      "layer": "日志",
+      "role": "已闭环台账（编号唯一权威之一）",
+      "status": "external",
+      "external": false,
+      "guard": "tools/v3-guard/ledger-dedupe.mjs",
+      "owns": ["已解决编号与 solve 日期"],
+      "readWhen": ["C′", "E"],
+      "writeWhen": ["销账移条（带依据与失效条件）"],
+      "ts": "rolling",
+      "note": "本轮不动位置与编号；仅登记。"
+    },
+    {
+      "id": "S3",
+      "path": "docs/日志/状态/接力状态.md",
+      "layer": "日志",
+      "role": "全项目滚动状态档（原开工前必读/接力文档，零改写移入）",
+      "status": "planned",
+      "planBatch": "D",
+      "guard": "tools/v3-guard/doc-map-check.mjs",
+      "owns": ["项目当前状态", "队列与未证清单"],
+      "readWhen": ["D", "接手"],
+      "writeWhen": ["状态变化（追加日期段）"],
+      "ts": "2026-10-05"
+    },
+    {
+      "id": "LOG-DECISIONS",
+      "path": "docs/日志/决策/",
+      "layer": "日志",
+      "role": "决策留痕目录（ADR 原文，带日期）",
+      "status": "planned",
+      "planBatch": "D",
+      "guard": "tools/v3-guard/doc-map-check.mjs",
+      "owns": ["历史与新增决策记录"],
+      "readWhen": ["设计取舍时"],
+      "writeWhen": ["新决策产生（新增带日期文件，不改旧件）"],
+      "ts": "2026-10-05"
+    },
+    {
+      "id": "SNAP-KB",
+      "path": "docs/日志/快照/代码知识库.md",
+      "layer": "日志",
+      "role": "代码事实快照（原根基文档/代码知识库，零改写移入，基线日期见文内）",
+      "status": "planned",
+      "planBatch": "D",
+      "guard": "tools/v3-guard/doc-map-check.mjs",
+      "owns": ["代码事实快照（时点）"],
+      "readWhen": ["找模块/函数位置时（先信代码与 K2）"],
+      "writeWhen": ["不修改；需要新事实时另开新快照"],
+      "ts": "2026-09-09"
+    },
+    {
+      "id": "SNAP-ROADMAP",
+      "path": "docs/日志/快照/项目收敛路线图.md",
+      "layer": "日志",
+      "role": "收敛路线图（原根基文档/项目收敛路线图，零改写移入）",
+      "status": "planned",
+      "planBatch": "D",
+      "guard": "tools/v3-guard/doc-map-check.mjs",
+      "owns": ["S0–S5 路线图与出口条件的时点版本"],
+      "readWhen": ["规划收敛主线时"],
+      "writeWhen": ["不修改；新路线另开带日期文件"],
+      "ts": "2026-10-02"
+    },
+    {
+      "id": "STD",
+      "path": "docs/根基文档/审查体系专项/",
+      "layer": "标准库",
+      "role": "审查标准库子域（约定 + 专项1-8 + 附录），本轮不动",
+      "status": "external",
+      "external": false,
+      "guard": "tools/audit-kit/metrics-index.mjs",
+      "owns": ["403 条指标", "审查流程约定", "指标固化状态"],
+      "readWhen": ["C", "C′"],
+      "writeWhen": ["标准库演进口径（当前批次不动）"],
+      "ts": "rolling"
+    },
+    {
+      "id": "AUDIT-LIB",
+      "path": "C:/Users/JionHappY/Desktop/_北部湾项目/02-审查流水账/audits",
+      "layer": "日志",
+      "role": "桌面审件库（版本控制外，仅登记指针；z066 反查句进 tracked 台账）",
+      "status": "external",
+      "external": true,
+      "guard": "tools/v3-guard/doc-map-check.mjs",
+      "owns": ["审查批次产出（易失）"],
+      "readWhen": ["C", "C′", "复核历史批次"],
+      "writeWhen": ["新批次产出（不写仓库）"],
+      "ts": "rolling"
+    },
+    {
+      "id": "OLD-01",
+      "path": "docs/根基文档/项目全景.md",
+      "layer": "待迁移",
+      "role": "旧根基文档 01（并行期；KP 迁移中）",
+      "status": "parallel",
+      "guard": "tools/v3-guard/agent-docs-check.mjs",
+      "owns": [],
+      "readWhen": ["C1 迁移完成前"],
+      "writeWhen": ["仅追加并行期横幅"],
+      "ts": ""
+    },
+    {
+      "id": "OLD-02",
+      "path": "docs/根基文档/核心流程与数据流.md",
+      "layer": "待迁移",
+      "role": "旧根基文档 02（并行期；KP 迁移中）",
+      "status": "parallel",
+      "guard": "tools/v3-guard/agent-docs-check.mjs",
+      "owns": [],
+      "readWhen": ["K2 迁移完成前"],
+      "writeWhen": ["仅追加并行期横幅与门禁条数同步"],
+      "ts": ""
+    },
+    {
+      "id": "OLD-03",
+      "path": "docs/根基文档/开发指南与决策.md",
+      "layer": "待迁移",
+      "role": "旧根基文档 03（并行期；KP 迁移中）",
+      "status": "parallel",
+      "guard": "tools/v3-guard/agent-docs-check.mjs",
+      "owns": [],
+      "readWhen": ["K2/K4 迁移完成前"],
+      "writeWhen": ["仅追加并行期横幅"],
+      "ts": ""
+    },
+    {
+      "id": "OLD-04",
+      "path": "docs/根基文档/04-防复发清单.md",
+      "layer": "待迁移",
+      "role": "旧根基文档 04（并行期；KP 迁移中）",
+      "status": "parallel",
+      "guard": "tools/v3-guard/agent-docs-check.mjs",
+      "owns": [],
+      "readWhen": ["K1 迁移完成前"],
+      "writeWhen": ["仅追加并行期横幅"],
+      "ts": ""
+    },
+    {
+      "id": "OLD-README",
+      "path": "docs/README.md",
+      "layer": "待迁移",
+      "role": "旧文档地图（并行期；由 MAP 取代）",
+      "status": "parallel",
+      "guard": "tools/v3-guard/agent-docs-check.mjs",
+      "owns": [],
+      "readWhen": ["MAP 生效前"],
+      "writeWhen": ["仅追加并行期横幅"],
+      "ts": ""
+    },
+    {
+      "id": "OLD-API",
+      "path": "docs/开工前必读/API契约文档.md",
+      "layer": "待迁移",
+      "role": "旧 API 契约文档（并行期；由 K3 取代）",
+      "status": "parallel",
+      "guard": "tools/v3-guard/agent-docs-check.mjs",
+      "owns": [],
+      "readWhen": ["K3 迁移完成前"],
+      "writeWhen": ["仅追加并行期横幅"],
+      "ts": ""
+    },
+    {
+      "id": "OLD-RELAY",
+      "path": "docs/开工前必读/接力文档.md",
+      "layer": "待迁移",
+      "role": "旧滚动状态档（Batch D 零改写移入 S3）",
+      "status": "parallel",
+      "guard": "tools/v3-guard/doc-map-check.mjs",
+      "owns": [],
+      "readWhen": ["S3 移入前"],
+      "writeWhen": ["不再更新（状态进 S3）"],
+      "ts": ""
+    },
+    {
+      "id": "OLD-KB",
+      "path": "docs/根基文档/代码知识库.md",
+      "layer": "待迁移",
+      "role": "旧代码知识库（Batch D 零改写移入 SNAP-KB）",
+      "status": "parallel",
+      "guard": "tools/v3-guard/doc-map-check.mjs",
+      "owns": [],
+      "readWhen": ["SNAP-KB 移入前"],
+      "writeWhen": ["不再更新"],
+      "ts": ""
+    },
+    {
+      "id": "OLD-ROADMAP",
+      "path": "docs/根基文档/项目收敛路线图.md",
+      "layer": "待迁移",
+      "role": "旧收敛路线图（Batch D 零改写移入 SNAP-ROADMAP）",
+      "status": "parallel",
+      "guard": "tools/v3-guard/doc-map-check.mjs",
+      "owns": [],
+      "readWhen": ["SNAP-ROADMAP 移入前"],
+      "writeWhen": ["不再更新"],
+      "ts": ""
+    }
+  ],
+  "facts": [
+    {
+      "id": "protocol-source",
+      "authority": { "kind": "doc", "ref": "AGENTS" },
+      "derived": [{ "site": "CLAUDE.md", "guard": "tools/v3-guard/protocol-single-source.mjs" }],
+      "guard": "tools/v3-guard/protocol-single-source.mjs"
+    },
+    {
+      "id": "doc-layers",
+      "authority": { "kind": "doc", "ref": "C3" },
+      "derived": [
+        { "site": "tools/v3-guard/lib/doc-map.json", "guard": "tools/v3-guard/doc-map-check.mjs" }
+      ],
+      "guard": "tools/v3-guard/doc-map-check.mjs"
+    },
+    {
+      "id": "guard-count",
+      "authority": { "kind": "code", "ref": "tools/v3-guard/run-all.mjs#GUARDS" },
+      "derived": [
+        { "site": ".husky/pre-push", "guard": "tools/v3-guard/doc-numbers.mjs" },
+        { "site": ".husky/pre-commit", "guard": "tools/v3-guard/doc-numbers.mjs" },
+        { "site": "README.md", "guard": "tools/v3-guard/doc-numbers.mjs" },
+        { "site": "tools/README.md", "guard": "tools/v3-guard/doc-numbers.mjs" }
+      ],
+      "guard": "tools/v3-guard/doc-numbers.mjs"
+    },
+    {
+      "id": "indicator-total",
+      "authority": { "kind": "code", "ref": "docs/根基文档/审查体系专项/专项1-数据链审查.md" },
+      "derived": [
+        {
+          "site": "docs/根基文档/审查体系专项/附录-指标固化状态与迁移路线图.md",
+          "guard": "tools/v3-guard/metrics-tally.mjs"
+        }
+      ],
+      "guard": "tools/v3-guard/metrics-tally.mjs"
+    },
+    {
+      "id": "routes-index",
+      "authority": { "kind": "code", "ref": "backend/src/routes.manifest.ts" },
+      "derived": [
+        { "site": "docs/开工前必读/API契约文档.md", "guard": "tools/v3-guard/routes-audit.mjs" }
+      ],
+      "guard": "tools/v3-guard/routes-audit.mjs"
+    },
+    {
+      "id": "ledger-ids",
+      "authority": { "kind": "doc", "ref": "S1" },
+      "derived": [{ "site": "docs/已解决问题.md", "guard": "tools/v3-guard/ledger-dedupe.mjs" }],
+      "guard": "tools/v3-guard/ledger-dedupe.mjs"
+    },
+    {
+      "id": "task-matrix",
+      "authority": { "kind": "doc", "ref": "AGENTS" },
+      "derived": [
+        {
+          "site": "tools/v3-guard/lib/doc-map.json#tasks",
+          "guard": "tools/v3-guard/doc-map-check.mjs"
+        }
+      ],
+      "guard": "tools/v3-guard/doc-map-check.mjs"
+    },
+    {
+      "id": "kp-authority",
+      "authority": { "kind": "code", "ref": "tools/doc-system/baseline/manifest.json" },
+      "derived": [
+        {
+          "site": "tools/doc-system/kp-map.json",
+          "guard": "tools/doc-system/build-kp-map.mjs"
+        },
+        {
+          "site": "docs/日志/迁移/",
+          "guard": "tools/doc-system/build-kp-map.mjs"
+        }
+      ],
+      "guard": "tools/v3-guard/doc-map-check.mjs"
+    }
+  ],
+  "tasks": [
+    { "id": "A", "read": ["K1", "K2", "S1"], "writeBack": ["K1", "S1"] },
+    { "id": "B", "read": ["C1", "C2", "K1", "K3"], "writeBack": ["K3", "K1", "S1"] },
+    { "id": "C", "read": ["STD", "S1"], "writeBack": ["AUDIT-LIB", "S1", "K1"] },
+    { "id": "C′", "read": ["STD", "AUDIT-LIB", "S1"], "writeBack": ["AUDIT-LIB", "S2"] },
+    { "id": "D", "read": ["C1", "K4", "S3"], "writeBack": ["S3"] },
+    { "id": "E", "read": ["MAP", "C3", "K1"], "writeBack": ["MAP", "C3", "S1"] },
+    { "id": "F", "read": ["K4", "C3", "MAP"], "writeBack": ["K4", "MAP", "S1"] }
+  ]
+}

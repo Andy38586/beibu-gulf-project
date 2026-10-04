@@ -35,6 +35,7 @@ export const GUARDS = [
   'ledger-dedupe',
   'doc-numbers',
   'protocol-single-source',
+  'doc-map-check',
   'cruise-coverage',
   'nest-controllers-data',
   'csp-sync',

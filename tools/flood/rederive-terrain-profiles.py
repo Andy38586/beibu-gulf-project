@@ -6,8 +6,8 @@
 # 高程源与线上不同源。本脚本按新标准重定线位 + 现 DEM 重采样：
 #   线位：锚点 = facilityPoints.json 各港最高价值码头设施（高德 POI，合法来源）；
 #         方向 = 正北（海→陆，北部湾岸线总体东西走向，陆在北）；
-#         海侧预留 1.5km（NoData 海掩膜点剔除后 distance 自首个有效点重计，对齐旧口径）。
-#   高程：filled_utm48n_cut.tif（ASTER 填洼 + 海掩膜，EGM96 口径，30m）最近邻采样。
+#         海侧预留 1.5km（海侧水深点剔除后 distance 自首个陆地点重计，对齐旧口径）。
+#   高程：与淹没演算同一条解析链（海陆一体优先；见 DEM_PATH）最近邻采样。
 #   基准：剖面高程 = EGM96 正高原值（海平面基准重派生后前端不再 +datumOffset）。
 # 输出：backend/data/flood/terrainProfile.json（schema 不变，前端契约零改动）
 # 运行：backend/algorithm-service/.venv/Scripts/python.exe tools/flood/rederive-terrain-profiles.py
@@ -16,6 +16,7 @@
 import json
 import os
 import sys
+import datetime
 from pathlib import Path
 
 import numpy as np
@@ -25,12 +26,14 @@ from rasterio.warp import transform as warp_transform
 
 ROOT = Path(__file__).resolve().parents[2]
 OUT_PATH = ROOT / "backend" / "data" / "flood" / "terrainProfile.json"
-# DEM 源：filled_CGCS2000_int16.tif = 处理成果里的**全量填洼版**（42.5MB，港区岸线有数据）。
-# 勿改用 filled_utm48n_cut.tif（30MB 裁剪版）——其海掩膜把钦州/防城港码头岸线全抹为
-# NoData（2026-09-12 实测，曾据此误判"贴港剖面无数据可采"）。原件树在用户 Desktop
-# 备援（原始 ASTER 6 幅 + 四级处理成果），workspace 副本属可再生产物，勿存唯一副本。
-DEM_PATH = Path(r"C:/Users/JionHappY/Desktop/_北部湾项目/数据_/项目数据/浸没分析"
-               r"/处理成果/filled_CGCS2000_int16.tif")
+# DEM 源：与淹没演算同一条解析链（海陆一体优先，回退陆地填洼版）——**一份地表，三处共用**
+# （淹没演算 / 设施高程 / 剖面）。2026-10-04 前本脚本直读未掩膜的 ASTER 全量版：
+# 那是被 06-sea-mask.py「逐列取最北顶点」缺陷逼出来的绕行——该缺陷会把河口/内湾列的
+# 陆地整列置 NoData（域内 1139.8 km²，含钦州/防城港码头岸线），2026-09-12 据此误判
+# "贴港剖面无数据可采"。缺陷已在 06-sea-mask.py 修正（加测深源确认），绕行随之撤销。
+sys.path.insert(0, str(ROOT / "tools" / "flood" / "engine"))
+from flood_engine import DEM_PATH  # noqa: E402
+
 NODATA = 32767
 
 # 4 条剖面（id/name 保持不变 = 前端契约零改动；锚点贴港重定）
@@ -99,15 +102,33 @@ def sample_line(src, anchor, sea_m, land_m, step_m):
     return out
 
 
+def dem_identity(path):
+    """(人读标签, md5)：产物自述必须能指到同一份输入（04-B10）。"""
+    import hashlib
+
+    merged = "landsea" in path.name
+    label = (
+        f"{path.name}（海陆一体 ASTER GDEM 填洼 + SRTM15+ 水深，EGM96 正高，30m）"
+        if merged
+        else f"{path.name}（陆地填洼版，海=NoData，EGM96 正高，30m）"
+    )
+    return label, hashlib.md5(path.read_bytes()).hexdigest()
+
+
 def main():
+    dem_label, dem_md5 = dem_identity(DEM_PATH)
     with rasterio.open(str(DEM_PATH)) as src:
         profiles_out = []
         for spec in PROFILES:
             samples = sample_line(src, spec["anchor"], SEA_OFFSET_M, LAND_EXTENT_M, STEP_M)
-            # 海侧 NoData 剔除；distance 自首个有效点重计（对齐旧口径）
+            # 海侧剔除 + distance 自首个**陆地**点重计（对齐旧口径）。
+            # 判据自 2026-10-04 起为 elev > 0：海陆一体 DEM 的海侧是真实水深（负值）而不再是
+            # NoData，「首个有效点」会落在海里、把剖面拖进海面（前端水位线也随之移位）。
             valid = [(lng, lat, elev) for lng, lat, elev in samples if elev is not None]
-            if not valid:
-                raise SystemExit(f"{spec['id']}：全线 NoData，锚点/方向配置有误")
+            land_start = next((i for i, t in enumerate(valid) if t[2] > 0), None)
+            if land_start is None:
+                raise SystemExit(f"{spec['id']}：全线无陆地（elev>0），锚点/方向配置有误")
+            valid = valid[land_start:]
             points = []
             for j, (lng, lat, elev) in enumerate(valid):
                 distance = round(j * STEP_M)  # 首个有效点 = 0，等间距步进
@@ -139,13 +160,17 @@ def main():
             "version": "2.0.0",
             "createdAt": "2026-09-12",
             "source": "computed_from_dem",
-            "demSource": "filled_utm48n_cut.tif (ASTER 填洼+海掩膜, 30m, EGM96 口径)",
+            "demSource": dem_label,
+            "demMd5": dem_md5,
             "lineSource": (
                 "锚点=facilityPoints.json 各港最高价值码头设施（高德 POI，红树林剖面为"
-                "茅尾海保护区公开位置）；方向=正北海→陆；海侧 1.5km NoData 剔除"
+                "茅尾海保护区公开位置）；方向=正北海→陆；海侧 1.5km 内水深点剔除（起点=首个陆地点）"
             ),
-            "generatedAt": "2026-09-12",
-            "note": "剖面高程为真 DEM 沿线采样；海侧 NoData 点已剔除，distance 自首个有效点重计；"
+            # 戳记必须写**本次生成日**（backend/test/data-freshness.spec.ts 判「戳记不得早于
+            # 文件最后一次 git 改动日」；写死会让每次重派生都过不了该守卫）
+            "generatedAt": datetime.date.today().isoformat(),
+            "note": "剖面高程为真 DEM 沿线采样；**起点=首个陆地点**（海侧水深点已剔除），distance 自该点重计；"
+                    "沿线潮沟/内湾等真实水域点保留原值（可为负，不再拿 NoData 当海）；"
                     "高程为 EGM96 原值（前端水位线同基准直绘，datumOffset 仅为过渡期兼容字段）",
             "datumOffset": 2.5,
             "verticalDatum": "剖面高程=EGM96 正高（≈海平面基准）；过渡期保留 datumOffset 供旧消费方",

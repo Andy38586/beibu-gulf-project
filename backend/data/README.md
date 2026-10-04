@@ -37,11 +37,17 @@ data/
     ├── waterLevel.json        #   水位档位
     ├── terrainProfile.json    #   地形剖面
     └── dem/                   #   DEM 栅格（flood-service 演算输入）
-        ├── filled_utm48n_cut.tif   # 填洼 UTM48N 裁切版（flood_engine 输入）
-        ├── dem_4326.tif / dem_4326_cut.tif
-        ├── dem_mosaic_utm48n.tif
+        ├── landsea_utm48n.tif   # **海陆一体**（陆=ASTER 填洼 + 海=SRTM15+ 水深，EGM96，30m）
+        │                        #   ← flood_engine / 设施高程 / 剖面 三处共用的那份地表
+        ├── filled_utm48n_cut.tif   # 陆地填洼裁切版（海=NoData，兜底输入）
         └── *.sgrd / *.mgrd / *.sdat（SGRD 系列中间产物）
 ```
+
+> `dem/` 下的 `.tif` 均 **gitignored**（体积 + 唯一原件在外部树）。重建调用链见
+> `tools/dem-pipeline/06-sea-mask.py`（海掩膜三条判据）→ `10-landsea-merge.py`（拼接）→
+> `11-seam-audit.py`（接缝审计）；载入顺序与基准换算见 `tools/flood/engine/README.md`。
+> 产物（`flood_levels.json.gz` / `floodStatistics.json` / `facilityPoints.json` /
+> `terrainProfile.json`）的 metadata 里都写 `demSource` + `demMd5`，用于回指本次输入。
 
 ## 三、存储基础设施：`utils/fileStore.js`（已退役）
 

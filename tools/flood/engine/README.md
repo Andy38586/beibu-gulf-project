@@ -22,6 +22,22 @@ Nest + PostGIS：淹没档位 → `/flood/flood-areas`、设施影响 → `/floo
 
 `flood_engine.py` 自足：只依赖 `numpy` / `affine` / `rasterio` / `scipy`，不 import 本包其他模块。
 
+## 输入地表：一份（海陆一体优先）
+
+`_resolve_dem_path()` 是**全项目"用哪份 DEM"的唯一解析点**（淹没演算 / 设施高程 / 剖面共用）：
+
+1. `FLOOD_DEM_PATH`（部署与临时复算的显式覆盖口）；
+2. `backend/data/flood/dem/landsea_utm48n.tif`——**海陆一体**（陆=Aster 填洼，
+   海=SRTM15+ 水深，EGM96 正高，30m，gitignored，由 `tools/dem-pipeline/06-sea-mask.py`
+   → `10-landsea-merge.py` 重建）；
+3. 回退 `filled_utm48n_cut.tif`（陆地填洼版，海=NoData，部署环境未同步资产时不炸）。
+
+垂直基准链：水位（理论深度基准面）− `datumOffset`（2.5，读 `backend/data/flood/waterLevel.json`
+的 `baseLevels.msl`）= EGM96 正高；产物 metadata 里写 `demSource` + `demMd5`，可回指同一份输入。
+
+海面语义（2026-10-04）：永久水体 = NoData ∪（与开海 NoData 连通的 dem<=0 分量）——
+被堤坝围住的负高程塘不算海源；无负值的陆地 DEM 自动退回"只有 NoData 是海"的旧行为。
+
 ## 运行环境
 
 三个 Python 工具（`tools/flood/flood_realify.py`、`tools/flood/rederive-terrain-profiles.py`、

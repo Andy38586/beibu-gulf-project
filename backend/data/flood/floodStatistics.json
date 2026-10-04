@@ -9,10 +9,12 @@
       "loss": "万元(假设)"
     },
     "source": "computed_from_dem",
+    "demSource": "landsea_utm48n.tif（海陆一体 ASTER GDEM 填洼 + SRTM15+ 水深，EGM96 正高，30m）",
+    "demMd5": "3b56775e2126a01f63fafa17ace12f29",
     "areaFrom": "flood_levels.json.gz / 现算 mask 像元统计",
     "facilityFrom": "facilityPoints.json (高德POI实抓) × 真淹没多边形点面判断",
     "lossAssumption": "estimatedLoss=Σ 设施价值×损伤率×水深因子(min(d/3,1))，系数为情景假设非实测",
-    "generatedAt": "2026-09-24"
+    "generatedAt": "2026-10-04"
   },
   "statistics": [
     {
@@ -43,51 +45,64 @@
       "waterLevel": 5,
       "riskLevel": "高风险",
       "riskLevelCode": 3,
-      "floodArea": 576.91,
-      "averageDepth": 2.04,
-      "maxDepth": 2.5,
-      "affectedFacilityCount": 0,
-      "affectedPorts": [],
-      "estimatedLoss": 0.0,
-      "description": "水位 5m（理论深度基准面，= EGM96 2.5m）真DEM连通性演算：淹没 576.91km²，平均水深 2.04m，受影响设施 0 处"
+      "floodArea": 365.84,
+      "averageDepth": 0.95,
+      "maxDepth": 1.5,
+      "affectedFacilityCount": 5,
+      "affectedPorts": [
+        "钦州港",
+        "防城港"
+      ],
+      "estimatedLoss": 17000.0,
+      "description": "水位 5m（理论深度基准面，= EGM96 2.5m）真DEM连通性演算：淹没 365.84km²，平均水深 0.95m，受影响设施 5 处"
     },
     {
       "waterLevel": 8,
       "riskLevel": "极高风险",
       "riskLevelCode": 4,
-      "floodArea": 1620.49,
-      "averageDepth": 1.32,
-      "maxDepth": 5.5,
-      "affectedFacilityCount": 0,
-      "affectedPorts": [],
-      "estimatedLoss": 0.0,
-      "description": "水位 8m（理论深度基准面，= EGM96 5.5m）真DEM连通性演算：淹没 1620.49km²，平均水深 1.32m，受影响设施 0 处"
+      "floodArea": 2132.92,
+      "averageDepth": 1.82,
+      "maxDepth": 4.5,
+      "affectedFacilityCount": 28,
+      "affectedPorts": [
+        "北海港",
+        "钦州港",
+        "防城港"
+      ],
+      "estimatedLoss": 245200.0,
+      "description": "水位 8m（理论深度基准面，= EGM96 5.5m）真DEM连通性演算：淹没 2132.92km²，平均水深 1.82m，受影响设施 28 处"
     },
     {
       "waterLevel": 10,
       "riskLevel": "灾难级",
       "riskLevelCode": 5,
-      "floodArea": 2379.81,
-      "averageDepth": 2.08,
-      "maxDepth": 7.5,
-      "affectedFacilityCount": 0,
-      "affectedPorts": [],
-      "estimatedLoss": 0.0,
-      "description": "水位 10m（理论深度基准面，= EGM96 7.5m）真DEM连通性演算：淹没 2379.81km²，平均水深 2.08m，受影响设施 0 处"
+      "floodArea": 3188.57,
+      "averageDepth": 2.9,
+      "maxDepth": 6.5,
+      "affectedFacilityCount": 41,
+      "affectedPorts": [
+        "北海港",
+        "钦州港",
+        "防城港"
+      ],
+      "estimatedLoss": 335100.0,
+      "description": "水位 10m（理论深度基准面，= EGM96 7.5m）真DEM连通性演算：淹没 3188.57km²，平均水深 2.9m，受影响设施 41 处"
     },
     {
       "waterLevel": 15,
       "riskLevel": "灾难级",
       "riskLevelCode": 5,
-      "floodArea": 3603.76,
-      "averageDepth": 4.3,
-      "maxDepth": 12.5,
-      "affectedFacilityCount": 1,
+      "floodArea": 4793.42,
+      "averageDepth": 6.14,
+      "maxDepth": 11.5,
+      "affectedFacilityCount": 43,
       "affectedPorts": [
-        "钦州港"
+        "北海港",
+        "钦州港",
+        "防城港"
       ],
-      "estimatedLoss": 3600.0,
-      "description": "水位 15m（理论深度基准面，= EGM96 12.5m）真DEM连通性演算：淹没 3603.76km²，平均水深 4.3m，受影响设施 1 处"
+      "estimatedLoss": 505100.0,
+      "description": "水位 15m（理论深度基准面，= EGM96 12.5m）真DEM连通性演算：淹没 4793.42km²，平均水深 6.14m，受影响设施 43 处"
     }
   ]
 }

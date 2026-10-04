@@ -13,6 +13,8 @@ import { computed, ref } from 'vue'
 
 import { useGCS, usePanelDrag } from '@/shared'
 
+import { useViewportTier } from '../useViewportTier'
+
 interface Props {
   w: number
   h: number
@@ -62,7 +64,9 @@ const {
   onPointerDown,
   abort: abortDrag,
 } = usePanelDrag({
-  enabled: () => props.draggable && !props.dragDisabled,
+  // v4-S10：<640px（compact 档）自由拖拽降级为长按弹"停靠到后台"——触屏拖拽
+  // 与地图手势冲突，且面板被地图手势接管时拖拽体验不可控
+  enabled: () => props.draggable && !props.dragDisabled && viewportTier.value !== 'compact',
   // 输入框 / 按钮 / 可滚动区不启动拖拽（否则点输入框即被拖走）
   ignoreSelector: 'input, textarea, select, button, a, [data-no-drag], [contenteditable="true"]',
   onDragStart: () => {
@@ -75,6 +79,46 @@ const {
     emit('dragend')
   },
 })
+
+// ── v4-S10：compact 档长按降级 ──
+const viewportTier = useViewportTier()
+const compactMode = computed(
+  () => props.draggable && !props.dragDisabled && viewportTier.value === 'compact'
+)
+const dockPopup = ref(false)
+let pressTimer: ReturnType<typeof setTimeout> | null = null
+const COMPACT_LONG_PRESS_MS = 600
+
+/** 手柄按下：compact 档走长按计时（不启动自由拖拽）；其余档交 usePanelDrag */
+function onHandlePointerDown(e: PointerEvent): void {
+  if (!compactMode.value) {
+    onPointerDown(e)
+    return
+  }
+  // jsdom 无 setPointerCapture —— 可选调用
+  ;(e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId)
+  pressTimer = setTimeout(() => {
+    dockPopup.value = true
+  }, COMPACT_LONG_PRESS_MS)
+}
+
+/** compact 档：指针移动/松开/取消都掐掉长按计时（长按=按住不动） */
+function onHandlePointerMoveOrUp(): void {
+  if (pressTimer) {
+    clearTimeout(pressTimer)
+    pressTimer = null
+  }
+}
+
+/** 弹层"停靠到后台"：emit drop + 合成 dock zone 元素（页面侧提交链零改动） */
+function dockFromCompact(): void {
+  const zone = compactDockBtn.value
+  if (zone) emit('drop', zone)
+  dockPopup.value = false
+}
+
+/** 隐藏合成 zone → 弹层的「停靠」按钮本身就是 zone 元素（带 dock 属性），emit 时交给页面 */
+const compactDockBtn = ref<HTMLElement | null>(null)
 
 const isDragging = computed(() => phase.value === 'dragging')
 
@@ -122,9 +166,21 @@ defineExpose({ abortDrag })
       class="GCS-panel__drag-handle"
       role="button"
       tabindex="0"
-      aria-label="拖拽面板到底部停靠到后台"
-      @pointerdown="onPointerDown"
+      :aria-label="compactMode ? '长按停靠到后台' : '拖拽面板到底部停靠到后台'"
+      @pointerdown="onHandlePointerDown"
+      @pointermove="onHandlePointerMoveOrUp"
+      @pointerup="onHandlePointerMoveOrUp"
+      @pointercancel="onHandlePointerMoveOrUp"
     />
+    <!-- v4-S10 compact 长按弹层：停靠走 drop 契约（停靠按钮即合成 dock zone 元素，
+         页面侧 isStackSlotZone/dock 分流零改动）；「取消」仅关弹层 -->
+    <div v-if="dockPopup" class="GCS-panel__dock-popup">
+      <span>停靠到后台？</span>
+      <button type="button" ref="compactDockBtn" data-task-dock-zone @click="dockFromCompact">
+        停靠
+      </button>
+      <button type="button" @click="dockPopup = false">取消</button>
+    </div>
     <slot />
   </div>
 </template>
@@ -219,5 +275,23 @@ defineExpose({ abortDrag })
   .GCS-panel.is-dragging {
     will-change: auto;
   }
+}
+
+/* v4-S10 compact 长按弹层：面板顶部之下的轻量操作条（不占布局流） */
+.GCS-panel__dock-popup {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid var(--GCS-border, #dcdfe6);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 4px 10px rgb(0 0 0 / 15%);
+  font-size: 12px;
+  z-index: 3;
 }
 </style>

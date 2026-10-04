@@ -89,6 +89,7 @@ def main() -> None:
         exts = sum(p.area for p in kept)
         holes = [r for p in kept for r in p.interiors]
         areas = [Polygon(r).area for r in holes]
+        n_invalid = sum(1 for r in holes if not Polygon(r).is_valid)
         small = sum(a for a in areas if a < MIN_UTM_M2)
         big = sum(a for a in areas if a >= MIN_UTM_M2)
         n_big = sum(1 for a in areas if a >= MIN_UTM_M2)
@@ -98,7 +99,8 @@ def main() -> None:
         pct = lambda a: 100 * a / (px_km2 * 1e6)  # noqa: E731
         print(
             f"\nlevel {level:5.1f}m ｜ mask {px_km2:8.2f} km² ｜ 过滤 -{drop_utm/1e6:.2f}(UTM) "
-            f"-{drop_deg2/1e6:.2f}(deg²) ｜ 保留外形 {exts/1e6:7.2f} km² ｜ 洞 {len(holes)} 个（小 {len(holes)-n_big} / 大 {n_big}）"
+            f"-{drop_deg2/1e6:.2f}(deg²) ｜ 保留外形 {exts/1e6:7.2f} km² ｜ 洞 {len(holes)} 个"
+            f"（小 {len(holes)-n_big} / 大 {n_big}；自相交 invalid {n_invalid}）"
         )
         print(
             f"  A 现状（洞全填）      : 画出 {(exts+small+big)/1e6:8.2f} km²（{pct(exts+small+big):5.1f}% of mask）｜ 洞 0 ｜ 顶点 {v_ext:>7d}"

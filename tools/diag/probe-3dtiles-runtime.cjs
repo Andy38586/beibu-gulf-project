@@ -24,6 +24,9 @@ const URL_ = arg('url', 'http://127.0.0.1:5174/route-analysis')
 const FLY = arg('fly', '108.6473,21.6745,1200,0,-35')
 const WAIT = Number(arg('wait', 30000))
 const RE = arg('re', 'qz-roads|qinzhou-port')
+// --netlog：记录 /static 请求，并在 fly 前（goto 后 12 s = 默认全域视角首屏）结算一次
+// "请求了哪些文件 + 合计字节"。字节取盘上文件大小（dev server 原样分发，无 gzip）。
+const NETLOG = process.argv.includes('--netlog')
 
 const Q = (reSrc) => {
   const re = new RegExp(reSrc)
@@ -100,12 +103,19 @@ const Q = (reSrc) => {
     ],
   })
   const page = await browser.newPage({ viewport: { width: 900, height: 620 } })
+  const seenStatic = new Map()
+  page.on('response', (r) => {
+    if (!NETLOG) return
+    const m = r.url().match(/\/static\/(.+)$/)
+    if (m) seenStatic.set(decodeURIComponent(m[1].split('?')[0]), true)
+  })
   page.on('console', (m) => {
     const t = m.text()
     if (/404|Failed to load|error/i.test(t)) console.log('[page]', t.slice(0, 160))
   })
   await page.goto(URL_, { waitUntil: 'domcontentloaded', timeout: 60000 })
   await page.waitForTimeout(12000)
+  const firstScreen = NETLOG ? [...seenStatic.keys()] : []
   const p = FLY.split(',').map(Number)
   await page.evaluate((a) => {
     const C = window.Cesium
@@ -154,6 +164,32 @@ const Q = (reSrc) => {
     await shot('roads-bf-on', 'on')
     await shot('roads-bf-off', 'nobackface')
     console.log('WROTE ' + OUT + '\\roads-bf-{none,on,off}.png')
+  }
+  if (NETLOG) {
+    const rows = []
+    let total = 0
+    for (const rel of firstScreen) {
+      const f = path.join(ROOT, 'backend', 'static', rel)
+      try {
+        const s = fs.statSync(f).size
+        total += s
+        rows.push([s, f])
+      } catch {
+        rows.push([0, f])
+      }
+    }
+    rows.sort((a, b) => b[0] - a[0])
+    console.log(
+      `NETLOG 首屏（goto 后 12 s，fly 前）：/static 请求 ${firstScreen.length} 个，合计 ${(total / 1048576).toFixed(2)} MB`
+    )
+    for (const [s, f] of rows.slice(0, 10)) {
+      console.log(`  ${(s / 1048576).toFixed(2)} MB  ${path.relative(ROOT, f)}`)
+    }
+    fs.writeFileSync(
+      path.join(OUT, 'netlog-firstscreen.json'),
+      JSON.stringify({ urls: firstScreen, totalBytes: total }, null, 1)
+    )
+    console.log('WROTE ' + path.join(OUT, 'netlog-firstscreen.json'))
   }
   await browser.close()
 })().catch((e) => {

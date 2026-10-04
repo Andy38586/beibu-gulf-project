@@ -367,6 +367,18 @@ tools/diag/probe-port-roads-vs-ground.py`（输出新增段" C 回退半径评�
   同一半径口径下整体落地。
 - **待裁**：四口径属改 §8.12 权威源（`groundLevel()` 的池定义），等用户一行裁定；裁定前不动
   `groundLevel()` 与道路层。发现经过见 §8.20"仍未闭（竖直，待裁）"。
+- **C 实施预案（裁定后开工单，2026-10-05）**：改动点两处、共用**一套**参考查询（禁两份实现，
+  半径口径取本节曲线：r=24 m、无参考保原常数）：
+  ① 新增 `tools/3dtiles-build/ground-ref.mjs`——从交付包 t4/t5 建 4 m 格（每格 ≥3 点取中位），
+  暴露 `nearestU(E, N, r)`（超半径返回 null）；roads/ground 共用；
+  ② `build-roads.mjs` `extrudeWay`：常数 `u = groundU + lift` 改为逐角查询
+  （null ⇒ 回落原常数口径）；
+  ③ `build-ground.mjs` `vert()`：同上（null ⇒ 回落 `groundU + 0.05`）。
+  重建与验收：`node tools/3dtiles-build/build-roads.mjs && node tools/3dtiles-build/build-ground.mjs`
+  → 探针"C 后"段复核：作业区窗口内埋没率 0%、路相对其参考地面 +0.15、路−ground 层恢复设计差
+  +0.10、两层 R≤24 m 覆盖 100%。**红样（实施笔必附）**：①停用逐顶点查询（回落常数）⇒ 窗口内
+  埋没率必须回到 100%；②查询参考整体 +1 m ⇒ 路−参考差必须偏离 +0.15；两者不红即假绿；
+  等价重构（+0.15 提为常量引用）不红。回退 = revert 本笔 + 重建（产物可复现，无外部依赖）。
 
 ### 8.13 运行时复查：「LOD 主体没有 / 道路缝隙 / 底图没正位」归因 · 2026-10-04 13:xx
 

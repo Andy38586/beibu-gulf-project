@@ -130,6 +130,11 @@ backend/algorithm-service/.venv/Scripts/python.exe -X utf8 -m pytest tools/dem-p
 CSV 点云走 scipy（venv 自带）；点云空白的最大回填距离 = `--max-fill-gap-m`（默认 60 m = 2×工作格网格）。
 融合只替换"现役海侧有效格"，落在现役非海区的交付值会跳过并计数（不擅自扩张海陆边界）。
 
+**真实规模干跑（2026-10-04，合成夹具、只写 `.local/dem-sea-work/rehearsal/`）**：目标 = 现役海侧
+全格网 9357×6074（227 MB）。GeoTIFF（444×333 ≈100 m，覆盖 P0）**1.7 s**、替换 1,524,701 格；
+CSV（147,852 点，`--datum lld --lld-height-m -4`）**8.0 s**、替换 1,525,542 格 —— 两种交付形态
+在真实格网上都不构成内存/时间瓶颈；换目标格网或改融合逻辑后计时须重测。
+
 ## 五、坑（都是实测，不在别处重复）
 
 1. NETCDF 子数据集**不带 CRS** ⇒ 裁剪步必须 `-a_srs EPSG:4326`，否则 `gdalwarp` 因"未知源坐标系"产出 1×1 空图；

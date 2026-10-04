@@ -117,6 +117,12 @@ npm run forecast:model
   默认值不拍脑袋。
 - 春节修正 k=0（假期日零活动）为保守假设，可调参重跑做敏感性。
 - MASE/闸门判据定义在 `lib/backtest.cjs`，与本文档口径逐字对应（04-B10）。
+- **敏感性对照（论文用，只读报告，不改默认值）**：`npm --prefix backend test -- scenario.sensitivity`
+  （或 `cd backend && npx vitest run test/scenario.sensitivity.spec.ts --silent=false`）打印
+  三档×三港 2029/2030/2035 年增量，以及「钦州倾斜 +5pp/+10pp（防/北按比例再归一）」对照。
+  三类敏感轴：总量口径缩放、江海联运口径缩放（作用于 `总量−区间` 段）、港域分摊倾斜——
+  前两者对增量严格线性，分摊按份额线性。默认分摊仍取 2022 现状结构；是否把倾斜/区间
+  写进默认或论文正文由用户裁定。
 
 ### 何时重跑
 

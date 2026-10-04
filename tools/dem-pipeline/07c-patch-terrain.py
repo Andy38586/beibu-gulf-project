@@ -16,7 +16,7 @@
    是否要保留既有挖方；备份见 `.local/926-rebake/backup-orig-terrain/`。
 """
 from __future__ import annotations
-import gzip, json, math
+import gzip, json, math, sys
 from pathlib import Path
 import numpy as np
 import rasterio
@@ -24,7 +24,7 @@ from rasterio.enums import Resampling
 from rasterio.vrt import WarpedVRT
 from rasterio.windows import from_bounds
 
-REPO = Path(r"C:/workspace/beibu-gulf-project")
+REPO = Path(__file__).resolve().parents[2]
 TERRAIN = REPO / "backend/static/terrain"
 POST = REPO / ".local/926-rebake/post_surface_utm48n.tif"
 SAMPLES, ENC_OFFSET, ENC_SCALE, MAXZ = 65, 1000.0, 5.0, 14
@@ -41,14 +41,15 @@ def tb(z, x, y):
 
 
 def main():
+    DRY = "--dry-run" in sys.argv
     layer = json.loads((TERRAIN / "layer.json").read_text(encoding="utf-8"))
+    # have 一律取**盘上实清单**：旧实现从 layer.json.available 反推，会把历史超声明带进来
+    # （2026-10-04 实测：z13 声明 48/实物 12、z14 声明 56/实物 16，多出的 76 张永远 404）。
     have = set()
-    for z, ranges in enumerate(layer["available"]):
-        rows = 2 ** z
-        for r in ranges:
-            for x in range(r["startX"], r["endX"] + 1):
-                for yt in range(r["startY"], r["endY"] + 1):
-                    have.add((z, x, rows - 1 - yt))
+    for p in TERRAIN.rglob("*.terrain"):
+        q = p.relative_to(TERRAIN).parts
+        if len(q) == 3:
+            have.add((int(q[0]), int(q[1]), int(q[2][: -len(".terrain")])))
     base = len(have)
     boxes = []
     for hub, (lon, lat, br, xa, xb, hw) in FOOT.items():
@@ -69,16 +70,18 @@ def main():
             for x in range(max(0, x0), min(cols - 1, x1) + 1):
                 for y in range(max(0, y0), min(rows - 1, y1) + 1):
                     new.add((z, x, y))
-    have |= new
-    print(f"原瓦片 {base} 张；新增 z13/z14 {len(new)} 张 → 合计 {len(have)}")
-
+    planned = have | new
+    print(f"盘上原瓦片 {base} 张；bbox 计划新增 z13/z14 {len(new)} 张 → 计划集 {len(planned)}")
     targets = set()
-    for z, x, y in have:
+    for z, x, y in planned:
         tw, ts, te, tn = tb(z, x, y)
         for w, s, e, n in boxes:
             if te > w and tw < e and tn > s and ts < n:
                 targets.add((z, x, y)); break
-    print(f"需重写/新建 {len(targets)} 张")
+    # 实写集 = 盘上原有 ∪ 真正新建的（targets∩new）——available 与 childTileMask 都必须按它写，
+    # 按计划集写会声明出永远不存在的瓦片（本次修的就是这条）。
+    have = have | (targets & new)
+    print(f"需重写/新建 {len(targets)} 张；实写后应有 {len(have)} 张（z13/z14 {len(have & new)}）")
 
     raw = rasterio.open(POST)
     dem = raw if raw.crs.to_epsg() == 4326 else WarpedVRT(raw, crs="EPSG:4326", resampling=Resampling.bilinear)
@@ -104,11 +107,13 @@ def main():
         payload = gzip.compress(enc.tobytes() + bytes([mask]) + bytes([0]))
         out = TERRAIN / str(z) / str(x) / ("%d.terrain" % y)
         old = out.read_bytes() if out.exists() else b""
-        out.parent.mkdir(parents=True, exist_ok=True)
         if old != payload:
-            out.write_bytes(payload); changed += 1
+            changed += 1
+            if not DRY:
+                out.parent.mkdir(parents=True, exist_ok=True)
+                out.write_bytes(payload)
         written += 1
-    print(f"写 {written} 张（内容变化 {changed}）")
+    print(f"{'[dry-run] 计划写' if DRY else '写'} {written} 张（内容变化 {changed}）")
 
     # layer.json：maxzoom → 14，available 追加 z13/z14
     by = {}
@@ -127,8 +132,12 @@ def main():
         avail.append(rng)
     layer["maxzoom"] = MAXZ
     layer["available"] = avail
-    (TERRAIN / "layer.json").write_text(json.dumps(layer, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(f"layer.json: maxzoom={MAXZ}，z13 {len(avail[13])} 区间 / z14 {len(avail[14])} 区间")
+    if not DRY:
+        (TERRAIN / "layer.json").write_text(json.dumps(layer, ensure_ascii=False, indent=2), encoding="utf-8")
+    n13 = sum((r["endX"] - r["startX"] + 1) * (abs(r["endY"] - r["startY"]) + 1) for r in avail[13])
+    n14 = sum((r["endX"] - r["startX"] + 1) * (abs(r["endY"] - r["startY"]) + 1) for r in avail[14])
+    print(f"{'[dry-run] ' if DRY else ''}layer.json: maxzoom={MAXZ}，z13 声明 {n13} 张"
+          f"（{len(avail[13])} 区间）/ z14 声明 {n14} 张（{len(avail[14])} 区间）")
 
 
 if __name__ == "__main__":

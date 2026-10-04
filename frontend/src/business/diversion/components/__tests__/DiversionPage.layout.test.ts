@@ -11,13 +11,26 @@
  * 布局断言直接读 GCSPanel 真实组件收到的 w/h/anchor/offset props（与其它页 GCS 规格同源），
  * 故 mount 真组件而非 shallowMount：AppLayout 以「渲染命名插槽」的替身承接（真身依赖路由/地图/store），
  * 图表与图层面板用轻量替身（ECharts 在 jsdom 无 canvas；LayerControlPanel 依赖 mapStore 图层目录）。
+ *
+ * 2026-10-04 位置收表之后：位置事实移到 `panels.ts` 注册表，模板只 v-bind。本文件补
+ * 派生侧三判据（strict 零重叠 / cell=80 等于旧字面量 / cell=70 贴标题行），mount 侧的
+ * 期望改由 `placementsFor(DIVERSION_PANELS, 80)` 派生——两侧对同一注册表断言。
  */
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick } from 'vue'
 
 import { BUSINESS_LAYER_MANAGER_KEY, type BusinessLayerManager, GCSPanel } from '@/core'
-import { diversionArcLayerId } from '@/shared'
+import {
+  computeLayout,
+  diversionArcLayerId,
+  findOverlaps,
+  placementsFor,
+  SAFE_MARGIN,
+  useGCS,
+} from '@/shared'
+
+import { DIVERSION_PANELS } from '../../panels'
 
 const api = vi.hoisted(() => ({
   getBreakdown: vi.fn(),
@@ -154,6 +167,38 @@ function panelWithClass(wrapper: ReturnType<typeof mountPage>['wrapper'], select
   return panel
 }
 
+/** mount 侧期望：注册表在 cell=80 的派生值（与模板同源，不手抄字面量） */
+const CELL80 = placementsFor(DIVERSION_PANELS, 80)
+
+describe('DiversionPage 布局派生（注册表 → props）', () => {
+  it('1320×800 strict：零重叠 + 不溢出 + 不越界', () => {
+    const layout = computeLayout(DIVERSION_PANELS, { width: 1320, height: 800 }, 'desktop', {
+      strict: true,
+    })
+    expect(layout.overflow).toEqual([])
+    expect(findOverlaps(layout.rects)).toEqual([])
+    for (const r of layout.rects) {
+      expect(r.x).toBeGreaterThanOrEqual(SAFE_MARGIN)
+      expect(r.x + r.w).toBeLessThanOrEqual(1320 - SAFE_MARGIN)
+      expect(r.y + r.h).toBeLessThanOrEqual(800 - SAFE_MARGIN)
+    }
+  })
+
+  it('cell=80 派生值等于旧字面量 1.25/5.5（像素零变化）', () => {
+    expect(placementsFor(DIVERSION_PANELS, 80)).toEqual({
+      transfer: { w: 4, h: 4, anchor: 'top-left', offsetX: 0, offsetY: 1.25 },
+      sankey: { w: 4, h: 4, anchor: 'top-left', offsetX: 0, offsetY: 5.5 },
+      year: { w: 4, h: 4, anchor: 'top-right', offsetX: 0, offsetY: 1.25 },
+      layers: { w: 4, h: 4, anchor: 'top-right', offsetX: 0, offsetY: 5.5 },
+    })
+  })
+
+  it('cell=70 首面板顶边贴标题行底（旧字面量差 2.5px 即红）', () => {
+    const first = placementsFor(DIVERSION_PANELS, 70).transfer
+    expect(20 + first.offsetY * 70).toBeCloseTo(110)
+  })
+})
+
 describe('DiversionPage 4×4 布局', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -171,27 +216,13 @@ describe('DiversionPage 4×4 布局', () => {
       expect(panel.props('h')).toBe(4)
     }
 
-    // 左上：转移量图表；左下：桑基图；右上：年份控制；右下：图层面板
-    expect(panelWithClass(wrapper, '.stub-bar-chart').props()).toMatchObject({
-      anchor: 'top-left',
-      offsetX: 0,
-      offsetY: 1.25,
-    })
-    expect(panelWithClass(wrapper, '.stub-sankey-chart').props()).toMatchObject({
-      anchor: 'top-left',
-      offsetX: 0,
-      offsetY: 5.5,
-    })
-    expect(panelWithClass(wrapper, '.year-panel').props()).toMatchObject({
-      anchor: 'top-right',
-      offsetX: 0,
-      offsetY: 1.25,
-    })
-    expect(panelWithClass(wrapper, '.stub-layer-control-panel').props()).toMatchObject({
-      anchor: 'top-right',
-      offsetX: 0,
-      offsetY: 5.5,
-    })
+    // 左上：转移量图表；左下：桑基图；右上：年份控制；右下：图层面板（位置期望由注册表派生）
+    expect(panelWithClass(wrapper, '.stub-bar-chart').props()).toMatchObject(CELL80.transfer)
+    expect(panelWithClass(wrapper, '.stub-sankey-chart').props()).toMatchObject(CELL80.sankey)
+    expect(panelWithClass(wrapper, '.year-panel').props()).toMatchObject(CELL80.year)
+    expect(panelWithClass(wrapper, '.stub-layer-control-panel').props()).toMatchObject(
+      CELL80.layers
+    )
 
     wrapper.unmount()
   })
@@ -248,7 +279,7 @@ describe('DiversionPage 4×4 布局', () => {
     expect(wrapper.find('.stub-sankey-chart').exists()).toBe(false)
     const sankeyPanel = panelWithClass(wrapper, '.empty')
     expect(sankeyPanel.find('.empty').text()).toBe('暂无数据')
-    expect(sankeyPanel.props()).toMatchObject({ anchor: 'top-left', offsetY: 5.5 })
+    expect(sankeyPanel.props()).toMatchObject(CELL80.sankey)
 
     wrapper.unmount()
   })
@@ -339,5 +370,30 @@ describe('DiversionPage 4×4 布局', () => {
     expect(canalColor()).toBe(canalNormal)
 
     wrapper.unmount()
+  })
+
+  it('cell=70 档：模板绑定跟随注册表（位置回写字面量即红，不依赖文本扫描）', async () => {
+    api.getBreakdown.mockResolvedValue(FIXTURE)
+    const { cellPixel } = useGCS()
+    const original = cellPixel.value
+    cellPixel.value = 70
+    try {
+      const derived70 = placementsFor(DIVERSION_PANELS, 70)
+      // 阳性对照：两档派生值确实不同（否则本用例对"回写字面量"零分辨力）
+      expect(derived70.transfer.offsetY).not.toBe(1.25)
+      expect(derived70.sankey.offsetY).not.toBe(5.5)
+
+      const { wrapper } = mountPage()
+      await flushPromises()
+      expect(panelWithClass(wrapper, '.stub-bar-chart').props()).toMatchObject(derived70.transfer)
+      expect(panelWithClass(wrapper, '.stub-sankey-chart').props()).toMatchObject(derived70.sankey)
+      expect(panelWithClass(wrapper, '.year-panel').props()).toMatchObject(derived70.year)
+      expect(panelWithClass(wrapper, '.stub-layer-control-panel').props()).toMatchObject(
+        derived70.layers
+      )
+      wrapper.unmount()
+    } finally {
+      cellPixel.value = original
+    }
   })
 })

@@ -9,7 +9,14 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 
 import { AppLayout, GCSPanel, LayerControlPanel } from '@/core'
 import { diversionAdapter, mapDataService, type DiversionResult } from '@/services'
-import { DEFAULT_LAYER_ORDER, PORT_PORTS, logger, showError, SliderSelectCard } from '@/shared'
+import {
+  DEFAULT_LAYER_ORDER,
+  PORT_PORTS,
+  logger,
+  showError,
+  SliderSelectCard,
+  usePanelPlacements,
+} from '@/shared'
 import { diversionArcLayerId } from '@/shared'
 import { BarChart, ChartLoading, SankeyChart, type SankeyClickPayload } from '@/visualization'
 
@@ -19,6 +26,7 @@ import {
   useDiversionLayer,
   type DiversionArcSpec,
 } from './composables/useDiversionLayer'
+import { DIVERSION_PANELS } from './panels'
 
 /** 节点/连线形状（与 SankeyChart props 结构化兼容，本地声明免跨层类型导出） */
 interface SankeyNode {
@@ -39,6 +47,9 @@ const yearCardOpen = ref(false)
 const yearPanelRef = ref<HTMLElement | null>(null)
 const result = ref<DiversionResult | null>(null)
 const loading = ref(false)
+
+/** 四面板位置由 panels.ts 派生（cell 档随全局；模板不写 offset 字面量） */
+const placements = usePanelPlacements(DIVERSION_PANELS)
 
 // ── 3D 弧线可视化（Cesium ③）──
 const { updateCanalLayer, updateArcLayers } = useDiversionLayer()
@@ -199,7 +210,7 @@ onUnmounted(() => {
     <AppLayout>
       <template #left>
         <!-- 左上 4×4：转移量可视化（BarChart）；原文字清单 + 数据口径说明合并为本面板图 + 一行脚注 -->
-        <GCSPanel :w="4" :h="4" anchor="top-left" :offset-x="0" :offset-y="1.25">
+        <GCSPanel v-bind="placements.transfer">
           <div class="transfer-panel">
             <div class="transfer-chart">
               <BarChart
@@ -215,7 +226,7 @@ onUnmounted(() => {
           </div>
         </GCSPanel>
         <!-- 左下 4×4：桑基图（自原右下迁入，props 与空态语义不变） -->
-        <GCSPanel :w="4" :h="4" anchor="top-left" :offset-x="0" :offset-y="5.5">
+        <GCSPanel v-bind="placements.sankey">
           <SankeyChart
             v-if="nodes.length"
             :nodes="nodes"
@@ -228,7 +239,7 @@ onUnmounted(() => {
       </template>
       <template #right>
         <!-- 右上 4×4：年份控制（滑块收进统一卡片，点击才展开；300ms 防抖逻辑不动） -->
-        <GCSPanel :w="4" :h="4" anchor="top-right" :offset-x="0" :offset-y="1.25">
+        <GCSPanel v-bind="placements.year">
           <div ref="yearPanelRef" class="year-panel">
             <!-- 三态选择卡片（公共组件 SliderSelectCard）：默认=按钮，点击进入选择态才渲染滑块 -->
             <SliderSelectCard
@@ -246,7 +257,7 @@ onUnmounted(() => {
           </div>
         </GCSPanel>
         <!-- 右下 4×4：图层控制面板（本页域图层 = 运河线位 + 三弧；三弧收进「分流弧线」组行） -->
-        <GCSPanel :w="4" :h="4" anchor="top-right" :offset-x="0" :offset-y="5.5">
+        <GCSPanel v-bind="placements.layers">
           <LayerControlPanel
             :layer-order="[...DEFAULT_LAYER_ORDER, DIVERSION_CANAL_LAYER_ID, ...ARC_LAYER_IDS]"
             :layer-groups="diversionLayerGroups"

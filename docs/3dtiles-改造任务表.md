@@ -418,6 +418,18 @@ node tools/diag/lod-ladder.cjs http://127.0.0.1:5174/route-analysis
 3. `shouldDropPortContent` 依赖 `extras.depth`：交付包换字段名 ⇒ 一个都不摘，形态退化回"全带粗层"（判据：300 m 档 tri 明显增大）；
 4. 探针依赖 dev server 与本地交付包（`.gitignore` 排除），换机复跑前先确认包在盘，否则红样不代表回归。
 
+**CI 侧不变量（2026-10-04 17:1x 追加）**：运行时阶梯探针进不了 CI（判据输入不可版本控制），
+故把这次的失效形态固化成一条**配置级耦合断言**（`beibu3dTiles.test.ts`「凡摘内容的条目必须同开
+折叠空层 + 压 root GE」）：作用域由清单派生（`BEIBU_TILES.filter(s => s.derive?.dropContent)`），
+不是手抄名单，新加一条摘内容的资产漏开关即红；并带阳性对照（无人摘内容时该用例自身会红，
+不允许静默恒真）。
+**红样（变异四式实跑，逐条还原后 md5 `B266617B1E27C41388198D4DCC23FF3A` 双向一致）**：
+① 删 `collapseEmptyLevels: true` ⇒ `expected [ 'qinzhou-port' ] to deeply equal []`；
+② 删 `capRootGeometricError: true` ⇒ 同上（另有 §8.15 原有断言 `expected 18000 to be 400`）；
+③ 等价重构（`dropContent: shouldDropPortContent` → 同语义内联箭头函数）⇒ 15 passed **不许红**。
+**失效条件**：若将来某资产"摘内容但不可能出现空终点"（例如只在叶子上摘且带兜底），
+按本条会误红——届时须显式改这条断言并在本节写明豁免理由，禁止直接删断言。
+
 ### 8.16 三枢纽「未正位」参照系复核 + 马道决定图（2026-10-04 16:2x）
 
 **为什么重开**：§8.11 遗留「下段仍偏西 120–200 m，**需用户读数**」，用户本轮未给读数。

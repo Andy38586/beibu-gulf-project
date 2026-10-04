@@ -97,6 +97,24 @@ describe('BEIBU_TILES 清单', () => {
     expect(others).toHaveLength(5)
     for (const s of others) expect(s.derive).toBeUndefined()
   })
+
+  it('不变量：凡摘内容的条目必须同开「折叠空层 + 压 root GE」（否则远距离整层空白）', () => {
+    // 2026-10-04 实测（docs/3dtiles-改造任务表.md §8.15）：dropContent 摘空的层**仍会被选为遍历终点**
+    // ⇒ 80 km 与 586 km（页面默认全域视角）整层空白，而同场景三枢纽 6/6 档都在场。
+    // 两个开关缺一不可：只删 cap ⇒ 586 km 反而拉全量 458283 tri，与其余资产不同构；
+    // 直接压 root 而不折叠 ⇒ 破坏 GE 沿树单调性，遍历停在 root、精细层永不加载。
+    //
+    // 作用域由清单派生（属性=数组长度），不是手抄名单：新加一条摘内容的资产、漏了这两个开关，此处必红。
+    // 这是「LOD 一致性要保证统一性」的可执行形态——运行时阶梯探针（tools/diag/lod-ladder.cjs）
+    // 需要 dev server 与 gitignored 交付包，进不了 CI，所以 CI 侧钉这条配置级不变量。
+    const droppers = BEIBU_TILES.filter((s) => s.derive?.dropContent)
+    // 阳性对照：若将来没人再摘内容，本用例会因下面这行失败而不是静默恒真
+    expect(droppers.length).toBeGreaterThan(0)
+    const offenders = droppers
+      .filter((s) => !s.derive?.collapseEmptyLevels || !s.derive?.capRootGeometricError)
+      .map((s) => s.id)
+    expect(offenders).toEqual([])
+  })
 })
 
 describe('QINZHOU_OPERATION_AREA — 裁剪球', () => {

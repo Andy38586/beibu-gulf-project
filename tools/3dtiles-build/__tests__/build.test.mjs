@@ -12,7 +12,7 @@ import path from 'node:path'
 
 import { describe, expect, it } from 'vitest'
 
-import { CONTAINER_TYPES, generateAll } from '../container-models.mjs'
+import { buildContainer, CONTAINER_TYPES, generateAll } from '../container-models.mjs'
 import { box, buildGLB, enuToGltf } from '../glb.mjs'
 import { buildRoads, extrudeWay } from '../build-roads.mjs'
 import { ribbon } from '../build-canal.mjs'
@@ -161,6 +161,51 @@ describe('挤出器 — 四边形绕序必须是正面朝上（否则背面剔�
     expect(r.indices.length).toBe(6)
     expect(triNormal(r.positions, ...r.indices.slice(0, 3))[1]).toBeGreaterThan(0.99)
     expect(triNormal(r.positions, ...r.indices.slice(3, 6))[1]).toBeGreaterThan(0.99)
+  })
+
+  it('buildBridge（城区五桥）：几何法线与声明法线同向（否则画的是内壁、默认剔除下正向 0%）', () => {
+    const toLocal = (lon, lat) => [(lon - 108.6) * 104000, (lat - 21.95) * 111000]
+    const way = {
+      geometry: [
+        { lon: 108.61, lat: 21.97 },
+        { lon: 108.63, lat: 21.97 },
+      ],
+    }
+    const b = buildBridge([way], { deckW: 20, towers: true }, toLocal)
+    expect(b.spans).toBeGreaterThan(0)
+    let n = 0,
+      pos = 0
+    for (let i = 0; i < b.indices.length; i += 3) {
+      const g = triNormal(b.positions, ...b.indices.slice(i, i + 3))
+      const d = b.normals[b.indices[i] * 3]
+      const e = b.normals[b.indices[i] * 3 + 1]
+      const f = b.normals[b.indices[i] * 3 + 2]
+      const L = Math.hypot(d, e, f) || 1
+      n++
+      if ((g[0] * d + g[1] * e + g[2] * f) / L > 0) pos++
+    }
+    // 逐面同向：位置逐位不变的前提下，绕序必须与声明的 box 法线一致
+    expect(n).toBeGreaterThan(0)
+    expect(pos / n).toBeGreaterThan(0.99)
+  })
+
+  it('集装箱模型：所有面的几何法线与声明法线同向（混合绕序会让箱体缺顶盖）', () => {
+    expect(CONTAINER_TYPES.length).toBeGreaterThan(0)
+    for (const t of CONTAINER_TYPES) {
+      const geo = buildContainer(t)
+      let n = 0,
+        pos = 0
+      for (let i = 0; i < geo.indices.length; i += 3) {
+        const g = triNormal(geo.positions, ...geo.indices.slice(i, i + 3))
+        const k = geo.indices[i] * 3
+        const L = Math.hypot(geo.normals[k], geo.normals[k + 1], geo.normals[k + 2]) || 1
+        n++
+        if ((g[0] * geo.normals[k] + g[1] * geo.normals[k + 1] + g[2] * geo.normals[k + 2]) / L > 0)
+          pos++
+      }
+      expect(n).toBeGreaterThan(0)
+      expect(pos / n).toBeGreaterThan(0.99)
+    }
   })
 })
 

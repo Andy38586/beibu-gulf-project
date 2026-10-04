@@ -83,7 +83,8 @@ const CORRUGATION_DEPTH = 0.03
 const END_INSET = 0.06
 
 /** 造一个箱型的三角面数据（glTF Y-up：X=长，Y=高，Z=宽） */
-function buildContainer(t) {
+/** 单款集装箱几何（导出供绕序/结构判据直接测，不必先落盘 GLB） */
+export function buildContainer(t) {
   const hx = t.len / 2,
     hy = t.hei / 2,
     hz = t.wid / 2
@@ -98,6 +99,9 @@ function buildContainer(t) {
       normals.push(n[0], n[1], n[2])
       colors.push(c[0], c[1], c[2])
     }
+    // 绕序：p 必须按"从 +n 方向看逆时针"给。给反了不报错，只在该面被背面剔除时**看不见**——
+    // 单面材质下箱体会缺块（2026-10-04 facing-audit 实测本文件曾 16/28 正向：±Z 侧面 8 面对、
+    // 端面/顶/底/门带 12 面反）。判据见 __tests__/build.test.mjs「集装箱绕序」。
     indices.push(base, base + 1, base + 2, base, base + 2, base + 3)
   }
   const shade = (k) => [t.color[0] * k, t.color[1] * k, t.color[2] * k]
@@ -136,36 +140,36 @@ function buildContainer(t) {
     const quad =
       sgn > 0
         ? [
-            [x, -hy, -hz],
-            [x, -hy, hz],
-            [x, hy, hz],
             [x, hy, -hz],
+            [x, hy, hz],
+            [x, -hy, hz],
+            [x, -hy, -hz],
           ]
         : [
-            [x, -hy, hz],
-            [x, -hy, -hz],
-            [x, hy, -hz],
             [x, hy, hz],
+            [x, hy, -hz],
+            [x, -hy, -hz],
+            [x, -hy, hz],
           ]
     push(quad, [sgn, 0, 0], c)
   }
   // 顶 / 底
   push(
     [
-      [-hx, hy, -hz],
-      [hx, hy, -hz],
-      [hx, hy, hz],
       [-hx, hy, hz],
+      [hx, hy, hz],
+      [hx, hy, -hz],
+      [-hx, hy, -hz],
     ],
     [0, 1, 0],
     shade(1.18)
   )
   push(
     [
-      [-hx, -hy, hz],
-      [hx, -hy, hz],
-      [hx, -hy, -hz],
       [-hx, -hy, -hz],
+      [hx, -hy, -hz],
+      [hx, -hy, hz],
+      [-hx, -hy, hz],
     ],
     [0, -1, 0],
     shade(0.55)
@@ -178,10 +182,10 @@ function buildContainer(t) {
       z1 = off * hz + 0.06
     push(
       [
-        [doorX, -hy, z0],
-        [doorX, -hy, z1],
-        [doorX, hy, z1],
         [doorX, hy, z0],
+        [doorX, hy, z1],
+        [doorX, -hy, z1],
+        [doorX, -hy, z0],
       ],
       [1, 0, 0],
       band

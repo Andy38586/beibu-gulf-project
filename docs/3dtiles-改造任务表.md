@@ -653,9 +653,33 @@ node .local/3d-review/roads-probe.cjs --url http://127.0.0.1:5174/route-analysis
 
 # 期望: WROTE roads-bf-on.png / roads-bf-off.png；随后与 roads-bf-none.png 比 → 2.71%
 
-```
+````
 
 **失效条件**：① 港区 `roads.glb` 未入库 ⇒ 换机复跑前必须先重建，否则看到的是旧绕序（0 像素）；
 ② 若有人给这些材质加 `doubleSided: true`，剔除会消失，但**绕序断言仍钉**（它测几何法线而非材质）；
 ③ 交付包换版导致材质名/u₀ 变化 ⇒ §8.12 与本节"仍未闭"段同时失效。
+
+**同族补完（同日 18:3x）**：`facing-audit.py`（`.local/3d-review/`，逐图元抽样算
+dot(几何法线, 声明法线)，含交付包作对照）扫**全部自建产物**又逮到两处同因缺陷：
+
+| 层                     | 修前                                                          | 机理                                                                                          | 修后                                                        |
+| ---------------------- | ------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| 城区五桥 `bridges-city` | 静态正向 **0%**、dot 中位 **−1.00**；运行时开/关剔除两张图互差 **11459 px**（画的是内壁） | `build-bridges.mjs` `addBox` 用 `(x,z)→(E,N)` 的**镜像**映射（权威是 `gltfToEnu=(x,−z,y)`）⇒ 绕序整体翻一次 | 静态 **100%**；运行时互差 **0**（位置逐位不变）              |
+| 集装箱备选层（默认关）   | 静态 **16/28 = 57%**（±Z 侧面 8 面对，端面/顶/底/门带 12 面反）⇒ 单面材质下箱体**缺顶盖/端面** | `container-models.mjs` 各面四边形顶点序不统一（`push` 的索引约定一致）                        | 静态 **100%**（10 块 cell + 5 款模型）                      |
+
+判据已进 `build.test.mjs`：`buildBridge` 逐面同向（红样 = 不翻索引 ⇒ `expected 0 to be greater than 0.99`）、
+`buildContainer` 逐面同向（红样 = 翻错一个四边形 ⇒ `expected 0.9642857… to be greater than 0.99`）。
+集装箱层的**运行时**对照未取证：该层默认关闭，且 10 块 cell（733,712 三角面 / 26204 实例）在本机
+9 s 窗口内没载入完成（`--re qz-containers` 两次都为 0 像素）⇒ 只凭静态体检 + 单测判修；
+复跑命令见下。`bridge-city` 与 `qinzhou-port/rebuilt` 两个目录都在 `.gitignore`（:231 / :192），
+**发布侧须各重跑一次** `node tools/3dtiles-build/build-bridges.mjs` 与
+`node tools/3dtiles-build/container-models.mjs && node tools/3dtiles-build/rebuild-containers.mjs`。
+
+**全家庭体检钩子**：```bash
+backend/algorithm-service/.venv/Scripts/python.exe -X utf8 .local/3d-review/facing-audit.py
+# 期望: 交付包对照 ✅100%、运河带 ✅100%、港区道路 ✅100%、港区地面 ✅100%、城区五桥 ✅100%
+````
+
+```
+
 ```

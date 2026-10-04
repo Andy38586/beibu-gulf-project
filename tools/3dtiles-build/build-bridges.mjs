@@ -125,8 +125,16 @@ export function buildBridge(wayGeoms, spec, toLocal) {
       )
       colors.push(color[0], color[1], color[2])
     }
-    for (let i = 0; i < g.indices.length; i++) void g.indices[i]
-    return { base, indices: g.indices }
+    // 绕序必须翻回来：上面这段 (x,z)→(E,N) 是**镜像**映射（权威映射是 gltfToEnu=(x,−z,y)），
+    // 它会把 box() 的三角面绕序整体翻一次。位置逐位不变（桥面仍沿 way 方向、栏杆两侧对称，
+    // 镜像在形状上看不出来），但绕序反了以后 Cesium 画的是**背面/内壁**：默认剔除下正向 0%、
+    // dot(几何法线,声明法线) 中位 −1.00，且开关 backFaceCulling 的两张图互差 11459 px
+    // （2026-10-04 facing-audit + roads-probe 实测）。判据见 __tests__/build.test.mjs「城区桥绕序」。
+    const flipped = []
+    for (let i = 0; i < g.indices.length; i += 3) {
+      flipped.push(g.indices[i], g.indices[i + 2], g.indices[i + 1])
+    }
+    return { base, indices: flipped }
   }
   const indices = []
   const emit = (cx, cy, cz, sx, sy, sz, color, rotY = 0) => {

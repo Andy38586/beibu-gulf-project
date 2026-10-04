@@ -832,7 +832,7 @@ dev server 原样分发；生产 nginx `gzip_types` 不含 .glb（`nginx.conf:15
 ```bash
 node tools/diag/probe-3dtiles-runtime.cjs --url http://127.0.0.1:5174/route-analysis \
   --fly 108.6473,21.6745,1200,0,-35 --wait 20000 --re "qinzhou-port" --netlog | grep NETLOG -A 3
-# 期望: /static 请求 ≈144 个、合计 ≈150 MB；首行目录分布与上表一致
+# 期望: NETLOG 行含"相机高 585937 m"、/static 请求 ≈144 个、合计 ≈150 MB；目录分布与上表一致
 ```
 
 **作废条件**：交付包换版、`BEIBU_TILES`/preload 清单或 derive 改动 ⇒ 上表重测；

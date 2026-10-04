@@ -116,6 +116,14 @@ const Q = (reSrc) => {
   await page.goto(URL_, { waitUntil: 'domcontentloaded', timeout: 60000 })
   await page.waitForTimeout(12000)
   const firstScreen = NETLOG ? [...seenStatic.keys()] : []
+  const firstScreenCameraH = NETLOG
+    ? await page.evaluate(() =>
+        Math.round(
+          document.querySelector('#app').__vue_app__.config.globalProperties.$pinia._s.get('map')
+            .currentRenderer.viewer.camera.positionCartographic.height
+        )
+      )
+    : null
   const p = FLY.split(',').map(Number)
   await page.evaluate((a) => {
     const C = window.Cesium
@@ -180,14 +188,18 @@ const Q = (reSrc) => {
     }
     rows.sort((a, b) => b[0] - a[0])
     console.log(
-      `NETLOG 首屏（goto 后 12 s，fly 前）：/static 请求 ${firstScreen.length} 个，合计 ${(total / 1048576).toFixed(2)} MB`
+      `NETLOG 首屏（goto 后 12 s，fly 前；相机高 ${firstScreenCameraH} m）：/static 请求 ${firstScreen.length} 个，合计 ${(total / 1048576).toFixed(2)} MB`
     )
     for (const [s, f] of rows.slice(0, 10)) {
       console.log(`  ${(s / 1048576).toFixed(2)} MB  ${path.relative(ROOT, f)}`)
     }
     fs.writeFileSync(
       path.join(OUT, 'netlog-firstscreen.json'),
-      JSON.stringify({ urls: firstScreen, totalBytes: total }, null, 1)
+      JSON.stringify(
+        { urls: firstScreen, totalBytes: total, cameraHeightM: firstScreenCameraH },
+        null,
+        1
+      )
     )
     console.log('WROTE ' + path.join(OUT, 'netlog-firstscreen.json'))
   }

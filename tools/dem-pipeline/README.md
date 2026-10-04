@@ -31,6 +31,7 @@ PowerShell 下调 python 一律加 `-X utf8`：脚本 stdout 含 "km²" 等字�
 | 10            | `10-landsea-merge.py`                                           | cut + sea → `landsea_utm48n.tif`                                | ✅ 逐位一致（数组 md5 `77f83a25…`）                                                                                              |
 | 11            | `11-seam-audit.py`                                              | 三件 → 接缝/分带/未填聚类审计                                   | ✅ 两侧中位差 −3.00 m（岸坡，非台阶）                                                                                            |
 | 12/13         | `12-terrain-factors.py` / `13-suitability-cells.py`             | DEM → 地形因子/适宜性格网（入 PostGIS）                         | ⚪ 需 Postgres，本机 DB 未起                                                                                                     |
+| **14**        | **`14-bathy-fuse.py`（本轮新增）**                              | 近岸测深交付件（GeoTIFF/CSV）→ 新海侧格网 + 差异报告            | ⚪ 数据未到位；红线/换算/融合判据 7 例全绿（`test_bathy_fuse.py`，pytest）                                                       |
 
 > **地形重切（07）未全量重跑**：它会把 `backend/static/terrain`（49,081 张、gitignored 的运行时资产）
 > 整树重写。本轮只做单瓦片比对：`python -X utf8 tools/diag/probe-terrain-vs-dem.py 12 6565 1549`
@@ -93,6 +94,34 @@ backend/algorithm-service/.venv/Scripts/python.exe -X utf8 tools/dem-pipeline/07
 # 期望：盘上原瓦片 49081 ｜ bbox 计划新增 96 ｜ 需重写 51 ｜ 实写后 49081
 #       layer.json: z13 声明 12 张 / z14 声明 16 张（即幽灵 76 张被消除）
 ```
+
+## 四-b、近岸测深到位后（14，只写 .local，不碰运行时资产）
+
+红线与判据正本：`docs/近岸测深数据需求-2026-10-04.md` §二/§三。数据未到位前第 1/2 条跑不出，
+第 3 条（判据自检）随时可跑。
+
+```powershell
+# 1) 只验收（不写盘；来源/基准声明缺一即拒收；分辨率 >100m 或与 P0 区零相交同样拒收）
+backend/algorithm-service/.venv/Scripts/python.exe -X utf8 `
+  tools/dem-pipeline/14-bathy-fuse.py .local/dem-sea-work/<交付件> `
+  --source "<出处>" --datum egm96 --check
+# 期望：✅ 验收通过 + 覆盖率/值域行；任一红线不过 ⇒ exit 2 且不产出文件
+
+# 2) 融合 → 新海侧格网 + 差异报告（旧格网保留可回退；--datum lld 时 h = Z − d）
+backend/algorithm-service/.venv/Scripts/python.exe -X utf8 `
+  tools/dem-pipeline/14-bathy-fuse.py .local/dem-sea-work/<交付件> `
+  --source "<出处>" --datum lld --lld-height-m <Z> `
+  --out .local/dem-sea-work/sea_custom_v2.tif `
+  --report .local/dem-sea-work/bathy-fuse-report.json
+# 期望：WROTE 两件；打印 0~20m 水深带差异（量级）+ 后续 10/11 命令（写运行时资产须用户点头）
+
+# 3) 判据自检（不依赖数据，随时可跑）
+backend/algorithm-service/.venv/Scripts/python.exe -X utf8 -m pytest tools/dem-pipeline/test_bathy_fuse.py -q
+# 期望：7 passed
+```
+
+CSV 点云走 scipy（venv 自带）；点云空白的最大回填距离 = `--max-fill-gap-m`（默认 60 m = 2×工作格网格）。
+融合只替换"现役海侧有效格"，落在现役非海区的交付值会跳过并计数（不擅自扩张海陆边界）。
 
 ## 五、坑（都是实测，不在别处重复）
 

@@ -15,6 +15,7 @@ import { effectScope } from 'vue'
 
 import { useSliderFocus } from '@/core'
 import { useSiteSuitabilityStore } from '@/stores'
+import { SNAPSHOT_WEIGHTS } from '@/stores/siteSuitabilityDefaults.snapshot'
 
 import SiteSuitabilityControlPanel from '../SiteSuitabilityControlPanel.vue'
 
@@ -46,14 +47,12 @@ describe('SiteSuitabilityControlPanel 权重卡片', () => {
       '交通可达',
       '产业需求',
     ])
-    // 已选态状态文案 = 当前权重（初始 0.4/0.1/0.2/0.2/0.1）
-    expect(wrapper.findAll('.ssc-status').map((n) => n.text())).toEqual([
-      '40%',
-      '10%',
-      '20%',
-      '20%',
-      '10%',
-    ])
+    // 已选态状态文案 = 当前权重（初值由快照派生，禁手抄旧 0.4/0.1/0.2/0.2/0.1）
+    expect(wrapper.findAll('.ssc-status').map((n) => n.text())).toEqual(
+      ['inundation', 'terrain', 'land', 'access', 'demand'].map(
+        (k) => `${Math.round(SNAPSHOT_WEIGHTS[k as keyof typeof SNAPSHOT_WEIGHTS] * 100)}%`
+      )
+    )
 
     wrapper.unmount()
   })
@@ -92,8 +91,10 @@ describe('SiteSuitabilityControlPanel 权重卡片', () => {
     expect(state.weights.inundation).toBeCloseTo(0.6)
     const sum = Object.values(state.weights).reduce((acc, v) => acc + v, 0)
     expect(sum).toBeCloseTo(1)
-    // 其余准则按原比例压缩：地形 0.1 → 0.1/0.6×0.4
-    expect(state.weights.terrain).toBeCloseTo((0.1 / 0.6) * 0.4)
+    // 其余准则按原比例压缩：地形快照值 → 快照/其余和×0.4
+    expect(state.weights.terrain).toBeCloseTo(
+      (SNAPSHOT_WEIGHTS.terrain / (1 - SNAPSHOT_WEIGHTS.inundation)) * 0.4
+    )
 
     // 仍处于选择态：状态文案随权重实时更新
     expect(wrapper.find('.ssc.selecting .ssc-status').text()).toBe('60%')
@@ -111,7 +112,9 @@ describe('SiteSuitabilityControlPanel 权重卡片', () => {
     await wrapper.vm.$nextTick()
 
     expect(wrapper.findAll('input[type="range"]')).toHaveLength(0)
-    expect(cardByLabel(wrapper, '产业需求').find('.ssc-status').text()).toBe('10%')
+    expect(cardByLabel(wrapper, '产业需求').find('.ssc-status').text()).toBe(
+      `${Math.round(SNAPSHOT_WEIGHTS.demand * 100)}%`
+    )
 
     wrapper.unmount()
   })

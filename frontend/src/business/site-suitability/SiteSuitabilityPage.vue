@@ -7,7 +7,7 @@
 import { computed, onUnmounted, watch } from 'vue'
 
 import { AppLayout, GCSPanel, LayerControlPanel, useMapControls } from '@/core'
-import { logger, PaginatedListPanel, useProfileSnapshot } from '@/shared'
+import { logger, PaginatedListPanel, usePanelPlacements, useProfileSnapshot } from '@/shared'
 import { useMapStore } from '@/stores'
 import { useSiteSuitabilityStore } from '@/stores'
 import type { ScoredXiaoqu } from '@/types/xiaoqu'
@@ -17,10 +17,12 @@ import SiteSuitabilityControlPanel from './components/SiteSuitabilityControlPane
 import SuitabilityRadarPanel from './components/SuitabilityRadarPanel.vue'
 import { useSiteSuitabilityLayer } from './composables/useSiteSuitabilityLayer'
 import { useSiteSuitabilityRequest } from './composables/useSiteSuitabilityRequest'
+import { SITE_SUITABILITY_PANELS } from './panels'
 
 const mapStore = useMapStore()
 const state = useSiteSuitabilityStore()
 const { flyTo } = useMapControls()
+const placements = usePanelPlacements(SITE_SUITABILITY_PANELS)
 
 /**
  * 契约缺口（局部窄化）：⑯ schema 目前只声明 properties 的 {id, score}，而响应实际带五准则
@@ -138,10 +140,10 @@ onUnmounted(() => {
     <AppLayout>
       <!-- 左侧（样式对齐旧版选址页）：左上雷达图 + 左下候选格名单 -->
       <template #left>
-        <GCSPanel :w="4" :h="4" anchor="top-left" :offset-x="0" :offset-y="1.25">
+        <GCSPanel v-bind="placements.radar">
           <SuitabilityRadarPanel :data="state.data" :loading="state.isRequesting" />
         </GCSPanel>
-        <GCSPanel :w="4" :h="4" anchor="top-left" :offset-x="0" :offset-y="5.5">
+        <GCSPanel v-bind="placements.candidates">
           <PaginatedListPanel
             :items="candidates"
             :page-size="4"
@@ -160,10 +162,10 @@ onUnmounted(() => {
         </GCSPanel>
       </template>
       <template #right>
-        <GCSPanel :w="4" :h="4" anchor="top-right" :offset-x="0" :offset-y="1.25">
+        <GCSPanel v-bind="placements.control">
           <SiteSuitabilityControlPanel />
         </GCSPanel>
-        <GCSPanel :w="4" :h="4" anchor="top-right" :offset-x="0" :offset-y="5.5">
+        <GCSPanel v-bind="placements.layers">
           <LayerControlPanel />
         </GCSPanel>
       </template>

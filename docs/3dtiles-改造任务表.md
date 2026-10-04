@@ -999,6 +999,31 @@ cd frontend && npx vitest run src/business/__tests__/preload.test.ts
 **作废条件**：交付包换版、`BEIBU_TILES`/preload 清单或 derive 改动 ⇒ 上表与 31.98 MB 重测；
 若线上改 `gzip/brotli` 覆盖 .glb，字节数口径需按传输后体积重取。
 
+**落地链复核（2026-10-05，netlog 复跑 56 文件 / 31.98 MB、相机高 585937 m）**：按目录实测
+（HEAD 逐件取 content-length，31.93/31.98 MB 有头）：`qinzhou-port/tiles` **25.19 MB/9 件**
+（`t0_0_0` 壳 1.79 + 7 块 d4/d5 23.37）、`pinglu/imagery` 2.20、`qinzhou-port/rebuilt` 1.71
+（含 `ground.glb` 0.82、`roads` 0.12）、`pinglu/canal` 1.43、`pinglu/tiles` 1.33、桥/地形 ≈0.07。
+
+- **① 维持现状**：零动作；`--netlog` 现状即判据。
+- **② 只预热默认视角一档**：权威源应落在清单（`BeibuTilesSpec` 增 `preheat:'root'|'derived'`），
+  `collectContentUris`（`preload.ts:47-56`）加"只取 root.content"开关；禁止在 `preload.ts` 手抄
+  图层名单（04-F）。预期 netlog：港区 25.19→**1.82 MB**（tileset 0.03 + 壳 1.79），全量
+  31.98→**≈8.6 MB**。判据：preload 新用例（root-only 只发 1 个 GET；删开关即红）+ 探针复跑。
+  代价：点进港区时 23.37 MB 改按需加载——正是"切入手感 vs 首屏字节"要你拍的取舍。
+- **③ 总量预算**：`preloadTilesets` 已逐项 HEAD（`preload.ts:100-111`）但只用了单项 40 MB 上限，
+  未累计总量 ⇒ 加 `totalBytes` 累加 + 超预算跳过即可；**但预算数值与优先级未定**（按 BEIBU_TILES
+  顺序会把 8.92 MB 的 t5 细块排在前、1.79 MB 的壳排在后），需你给数后才可落。
+- **④ 取消预热**：不是删一行——`App.vue:275`（及 `:6` import）去掉后 `preload.ts`/`preload.test.ts`
+  与 C5（单项 ≤40 MB 执行体）整块成死代码，须同笔删模块 + 测试 + 退役 C5 行并写废弃声明；否则
+  dead-code 棘轮红/规则悬空。`warmupAfterFirstFrame` 仍被 Cesium 预取用（`App.vue:269`），不能一起删。
+- **另发现（可并入②/③）**：`qz-containers`/`qz-ground` 均 `defaultVisible:false`，但预热照发
+  （netlog 实测 rebuilt 1.71 MB 里 ground 0.82 + 容器 ≈0.77）⇒ 若②/③落地，建议同笔把
+  "defaultVisible:false 不预热"作为默认口径（≈省 1.6 MB），或写明保留理由。
+- **共同验收**：`node tools/diag/probe-3dtiles-runtime.cjs --netlog`（现状 56/31.98 MB；②后
+  ≈8.6 MB、③后 ≤预算、④后港区 d4/d5 细块请求消失，壳是否随默认视角加载以复跑为准）+
+  `cd frontend && npx vitest run src/business/__tests__/preload.test.ts`（现 10 passed）。
+- **失效条件**：交付包换版 / `BEIBU_TILES` 或 derive 改动 / 预热实现改 / 线上 gzip 覆盖 .glb ⇒ 重测。
+
 ### 8.23 【复测反例】港区"远景壳"随视口宽度翻转（≤1180 px 整层空白）· 2026-10-04 21:0x
 
 **怎么发现**：为核 §8.22 的预热字节顺手在默认机位复量图层选择，发现同一机位

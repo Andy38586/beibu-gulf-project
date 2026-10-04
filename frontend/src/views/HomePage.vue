@@ -10,7 +10,10 @@ import { defineAsyncComponent, onMounted } from 'vue'
 // 6-01：经 business 桶入口取数（不再深路径穿透 composables）
 import { useOverviewCharts } from '@/business'
 import { AppLayout, GCSPanel } from '@/core'
+import { usePanelPlacements } from '@/shared'
 import { ChartLoading } from '@/visualization'
+
+import { HOME_PANELS } from './panels'
 
 // 图表异步化：echarts 移出首屏关键路径，就绪后替换 loading 占位。
 // loader 保留深路径：懒加载走入口会把整个 visualization 桶打进主 chunk，
@@ -26,6 +29,9 @@ const BarChart = defineAsyncComponent({
 
 const { chartData, barData, loadOverviewCharts } = useOverviewCharts()
 
+/** 两面板位置由 panels.ts 派生（cell 档随全局；模板不写 offset 字面量） */
+const placements = usePanelPlacements(HOME_PANELS)
+
 onMounted(loadOverviewCharts)
 </script>
 
@@ -34,11 +40,11 @@ onMounted(loadOverviewCharts)
     <AppLayout>
       <template #left>
         <!-- 左上：折线图 4×4 -->
-        <GCSPanel :w="4" :h="4" anchor="top-left" :offset-x="0" :offset-y="1.25">
+        <GCSPanel v-bind="placements.trend">
           <LineChart title="港口吞吐量趋势" :x-data="chartData.labels" :series="chartData.series" />
         </GCSPanel>
         <!-- 左下：柱状图 4×4 -->
-        <GCSPanel :w="4" :h="4" anchor="top-left" :offset-x="0" :offset-y="5.5">
+        <GCSPanel v-bind="placements.compare">
           <BarChart title="港口吞吐量对比" :x-data="barData.labels" :series="barData.series" />
         </GCSPanel>
       </template>

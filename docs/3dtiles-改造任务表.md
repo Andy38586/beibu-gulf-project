@@ -568,6 +568,16 @@ derive 新增 `topGeometricErrorFloor` 把港区顶层值抬到 90220.6 m ⇒ �
 `候选自检失败：alpha -2.4 标注 195.4°，应为 200.20°（差 +4.80°）`；正向
 `--cand "2.4,195.4;4.5,193.3;9.0,188.8"` ⇒ 正常出图（+38/−41、+73/−76、+147/−153 m）。
 
+**B1 落地链复核（2026-10-05）**：裁定后三步命令已核——① 朝向 `python tools/3dtiles-build/
+reframe-hubs.py --hub <hub> --bearing <deg>`（默认 dry-run；`--apply` 落盘）；② 平移 `node
+tools/3dtiles-build/reanchor-hubs.mjs --hub <hub> --dE <m> [--dN] [--dH]`（默认 dry-run；保持
+缩进防 diff 全变）；两者都改 tracked `backend/static/pinglu/tiles/tileset.json` ⇒ **回滚 =
+`git restore`**（§8.16 已示范逐位回退）。③ 记录：reanchor `--apply` 只追加 gitignored
+`.local/3d-review/reanchor-hubs-log.json`——**入库版 `tools/diag/data/reanchor-hubs-log.json`
+须人工同步**（当前两份语义同为 11 条、格式不同：3392 vs 3919 B）。④ 复核：重出决定图
+（`decision-overlay.py`）+ 按需 `probe-hub-heights.py`；运河带 `warpToHubs()` 经 `hubTargets()`
+读 child.transform 与 boundingVolume 中心 ⇒ **重锚后须重烘** `build-canal.mjs`，带才跟随新落位。
+
 **失效条件**：① 换影像源或按新位置重拉影像 ⇒ 本图读数作废；② 交付包换版或枢纽 child 变换再动 ⇒
 白线基准变，须重出图；③ OSM 若按实建线路整体更新（`build-canal.mjs` 已写失效条件）⇒ 参照表须重测。
 

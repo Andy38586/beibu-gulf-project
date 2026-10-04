@@ -19,6 +19,52 @@ import { ribbon } from '../build-canal.mjs'
 import { buildAll, buildBridge } from '../build-bridges.mjs'
 import { buildGround } from '../build-ground.mjs'
 
+/**
+ * 交付包资产不入库（backend/static/qinzhou-port/** 全树 gitignored），而 buildRoads /
+ * buildGround 要从交付包派生 root.transform 与地面基准 u₀。CI 的干净检出没有该资产
+ * （2026-10-05 实测 test:tools 两条用例 ENOENT），故测试造一份**最小夹具**自供：
+ * 一份 tileset.json（钦州港交付包锚点的 ENU→ECEF 常数矩阵）+ 一颗带 rail/concrete
+ * 两材质的 t4 瓦片；高度由夹具给（rail −17.56 / concrete −17.54 ⇒ u₀=−17.55），
+ * 不读生产资产，删改盒轴序等实现仍会让下方断言变红。
+ */
+function makePortTileFixture(dir, { railY = -17.56, concreteY = -17.54 } = {}) {
+  const tileDir = path.join(dir, 'tiles')
+  fs.mkdirSync(tileDir, { recursive: true })
+  // 锚点 108.6375E / 21.655N 的 ENU→ECEF（柱主序）；与交付包同锚便于沿用既有断言
+  const transform = [
+    -0.9475594486477835, -0.3195795539115551, 0, 0, 0.11793025766023646, -0.34966545437494045,
+    0.9294226833604593, 0, -0.29702448654361613, 0.8806832454057802, 0.3690169042944284, 0,
+    -1895326.9516715512, 5619680.418698535, 2338950.5411119526, 1,
+  ]
+  fs.writeFileSync(path.join(tileDir, 'tileset.json'), JSON.stringify({ root: { transform } }))
+  const tri = (y) => ({
+    positions: [0, y, 0, 10, y, 0, 0, y, 10],
+    normals: [0, 1, 0, 0, 1, 0, 0, 1, 0],
+    colors: [1, 1, 1, 1, 1, 1, 1, 1, 1],
+    indices: [0, 1, 2],
+  })
+  const mat = (name) => ({
+    name,
+    pbrMetallicRoughness: {
+      baseColorFactor: [1, 1, 1, 1],
+      metallicFactor: 0,
+      roughnessFactor: 0.9,
+    },
+  })
+  fs.writeFileSync(
+    path.join(tileDir, 't4_0_0.glb'),
+    buildGLB({
+      meshes: [
+        { primitives: [{ ...tri(railY), material: 0 }] },
+        { primitives: [{ ...tri(concreteY), material: 1 }] },
+      ],
+      materials: [mat('rail'), mat('concrete')],
+      nodes: [{ mesh: 0 }, { mesh: 1 }],
+    })
+  )
+  return tileDir
+}
+
 describe('enuToGltf — tile ENU → glTF Y-up', () => {
   it('(E,N,U) → (E, U, −N)', () => {
     expect(enuToGltf(10, 20, 30)).toEqual([10, 30, -20])
@@ -231,10 +277,12 @@ describe('buildRoads — root.boundingVolume 必须是 ENU(Z-up)', () => {
       ],
     }
     fs.writeFileSync(path.join(dir, 'osm.json'), JSON.stringify(osm))
+    const tileDir = makePortTileFixture(dir)
     buildRoads({
       osmFile: path.join(dir, 'osm.json'),
       outDir: path.join(dir, 'out'),
       rebuiltDir: 'backend/static/qinzhou-port/rebuilt',
+      tileDir,
     })
     const ts = JSON.parse(fs.readFileSync(path.join(dir, 'out', 'tileset.json'), 'utf8'))
     const b = ts.root.boundingVolume.box
@@ -310,12 +358,14 @@ describe('buildGround — 作业区地面片', () => {
       JSON.stringify({ note: 'test', bbox, size, bits: bits.toString('base64') })
     )
     fs.writeFileSync(path.join(dir, 'imagery.json'), JSON.stringify({ tiles: [{ bbox }] }))
+    const tileDir = makePortTileFixture(dir)
     const r = buildGround({
       outDir: path.join(dir, 'out'),
       rebuiltDir: 'backend/static/qinzhou-port/rebuilt',
       maskFile: path.join(dir, 'water-mask.json'),
       imageryFile: path.join(dir, 'imagery.json'),
       cell: 20,
+      tileDir,
     })
     expect(r.triangles).toBeGreaterThan(0)
     // 只铺了西半 ⇒ 铺格占比应落在 0.3~0.7（全铺=1.0、或一格不铺=0 都会红）

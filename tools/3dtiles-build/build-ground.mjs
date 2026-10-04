@@ -36,8 +36,8 @@ const GROUND_LIFT = 0.05
  */
 const TONE = [0.86, 0.85, 0.82]
 
-function rootTransform() {
-  const ts = JSON.parse(fs.readFileSync(path.join(TILE_DIR, 'tileset.json'), 'utf8'))
+function rootTransform(tileDir = TILE_DIR) {
+  const ts = JSON.parse(fs.readFileSync(path.join(tileDir, 'tileset.json'), 'utf8'))
   return ts.root.transform
 }
 
@@ -47,14 +47,15 @@ export function buildGround({
   maskFile,
   imageryFile,
   cell = GROUND_CELL,
+  tileDir = TILE_DIR,
 }) {
   const meta = JSON.parse(fs.readFileSync(imageryFile, 'utf8'))
   const [w, s, e, n] = meta.tiles[0].bbox
   const mask = loadWaterMask(maskFile)
-  const T = rootTransform()
+  const T = rootTransform(tileDir)
   const toLocal = makeToLocal(T)
   // 地面基准从**交付包几何**派生（见 build-roads.groundLevel 注释；旧实现读分桶盒底，低了 4.7 m）
-  const groundU = groundLevel()
+  const groundU = groundLevel(tileDir)
   const u = groundU + GROUND_LIFT
 
   // 网格建在经纬度上（每格等经纬），逐顶点转 ENU——2 km 尺度上等经纬 ≈ 等米

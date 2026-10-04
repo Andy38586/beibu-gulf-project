@@ -29,8 +29,8 @@ import { heightsOfMaterial, median, readGLB } from './glb-read.mjs'
 
 const TILE_DIR = 'backend/static/qinzhou-port/tiles'
 /** 与 qinzhou-port 交付包同一 root.transform（落位逐位对齐的前提） */
-function rootTransform() {
-  const ts = JSON.parse(fs.readFileSync(path.join(TILE_DIR, 'tileset.json'), 'utf8'))
+function rootTransform(tileDir = TILE_DIR) {
+  const ts = JSON.parse(fs.readFileSync(path.join(tileDir, 'tileset.json'), 'utf8'))
   return ts.root.transform
 }
 const WIDTH = { secondary: 12, tertiary: 9, unclassified: 7, service: 5 }
@@ -140,12 +140,12 @@ export function extrudeWay(pts, width, groundU, lift) {
   return { positions, normals, indices }
 }
 
-export function buildRoads({ osmFile, outDir, rebuiltDir }) {
+export function buildRoads({ osmFile, outDir, rebuiltDir, tileDir = TILE_DIR }) {
   const osm = JSON.parse(fs.readFileSync(osmFile, 'utf8'))
-  const T = rootTransform()
+  const T = rootTransform(tileDir)
   const toLocal = makeToLocal(T)
   // 地面基准从**交付包几何**派生（见 groundLevel 注释）；rebuiltDir 不再参与高程决策
-  const groundU = groundLevel()
+  const groundU = groundLevel(tileDir)
   const buckets = new Map()
   let ways = 0,
     segs = 0

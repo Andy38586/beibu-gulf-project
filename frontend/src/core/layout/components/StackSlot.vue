@@ -97,12 +97,12 @@ const visible = computed(
 
 .stack-empty-hint {
   padding: 14px 10px;
-  border: 1px dashed var(--GCS-color-primary, #409eff);
+  border: 1px dashed var(--GCS-color-primary);
   border-radius: 8px;
   text-align: center;
   font-size: 12px;
-  color: var(--GCS-text-muted, #8a93a6);
-  background: rgba(255, 255, 255, 0.85);
+  color: var(--GCS-text-muted);
+  background: rgb(255 255 255 / 85%);
 }
 
 .stack-head-row {
@@ -112,9 +112,9 @@ const visible = computed(
 
 .stack-expand-btn {
   padding: 4px 10px;
-  border: 1px solid var(--GCS-border, #dcdfe6);
+  border: 1px solid var(--GCS-border-default);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.92);
+  background: rgb(255 255 255 / 92%);
   font-size: 12px;
   cursor: pointer;
 }
@@ -129,7 +129,7 @@ const visible = computed(
   border: 1px solid var(--stack-color);
   border-left: 4px solid var(--stack-color);
   border-radius: 6px;
-  background: rgba(255, 255, 255, 0.92);
+  background: rgb(255 255 255 / 92%);
   font-size: 12px;
 }
 
@@ -146,7 +146,7 @@ const visible = computed(
 .stack-restore-btn {
   flex: none;
   padding: 2px 8px;
-  border: 1px solid var(--GCS-border, #dcdfe6);
+  border: 1px solid var(--GCS-border-default);
   border-radius: 4px;
   background: transparent;
   font-size: 11px;

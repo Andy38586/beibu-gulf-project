@@ -74,11 +74,11 @@ function onPointerUp(e: PointerEvent): void {
   padding: 5px 10px;
   border: 1px solid var(--chip-color);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.92);
+  background: rgb(255 255 255 / 92%);
   cursor: grab;
   touch-action: none;
   font-size: 12px;
-  color: var(--GCS-text-primary, #303133);
+  color: var(--GCS-text-primary);
   box-shadow: 0 2px 6px rgb(0 0 0 / 12%);
 }
 
@@ -105,7 +105,7 @@ function onPointerUp(e: PointerEvent): void {
 }
 
 .hint {
-  color: var(--GCS-text-muted, #8a93a6);
+  color: var(--GCS-text-muted);
   font-size: 11px;
 }
 </style>

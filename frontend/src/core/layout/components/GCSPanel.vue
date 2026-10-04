@@ -287,9 +287,9 @@ defineExpose({ abortDrag })
   align-items: center;
   gap: 8px;
   padding: 6px 10px;
-  border: 1px solid var(--GCS-border, #dcdfe6);
+  border: 1px solid var(--GCS-border-default);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.96);
+  background: rgb(255 255 255 / 96%);
   box-shadow: 0 4px 10px rgb(0 0 0 / 15%);
   font-size: 12px;
   z-index: 3;

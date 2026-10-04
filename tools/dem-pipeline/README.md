@@ -40,12 +40,18 @@ PowerShell 下调 python 一律加 `-X utf8`：脚本 stdout 含 "km²" 等字�
 > 583 个「10-04 掩膜归还陆地」节点上 0.84 m vs 0.77 m ⇒ 现有地形**不是旧掩膜时代的产物**，
 > 不因正确性必须重切。真要重切：先备份（`07c` 头注给的先例），再整树重跑。
 >
-> **layer.json 声明漂移（2026-10-04 探针实测）**：`layer.json.available` 声明 49,157 张，
-> 盘上实物 49,081 张 ⇒ 76 张幽灵声明（z13 36 + z14 40，永远 404、回退父层）。根因是旧 07c
-> 把 `have` 建在 bbox 计划集上、按计划集写 `available`。修复后 07c 从盘上实清单取 `have`、
-> 只把「真正写出的瓦片」写进 `available`/`childTileMask`；声明漂移的检查与作废条件见
-> `tools/diag/probe-terrain-tree-vs-layerjson.py`（根链缺 ⇒ 红；深层漂移 ⇒ ⚠ 记账不判红）。
-> **全量重切（含重写 layer.json）会写入 `backend/static/terrain`，未执行，等用户点头 + 先备份。**
+> **layer.json 两处缺陷（2026-10-04 探针 + 运行时实测）**：
+> ① 声明漂移：`available` 声明 49,157 张、盘上实物 49,081 张 ⇒ 76 张幽灵声明（z13 36 + z14 40）；
+> ② **镜像声明（更严重，运行时才现形）**：旧 07/07c 把 `available` 按 `rows-1-y`（TMS）翻转写，
+> 而盘上文件名是 slippy（y 从北），Cesium 1.142 又**按声明原样请求**——实测同一相机下
+> 声明位置 `3/12/4.terrain` ⇒ **404**、盘上实物 `3/12/3.terrain` ⇒ **200**（z2 同款：`2/6/2` 404、
+> `2/6/1` 200；camera 3 km 下 z0/z1 全 200、z2/z3 全 404）。**后果：z≥2 的每一张声明瓦片都被
+> 请求到镜像位置 ⇒ 全 404 ⇒ Cesium 回退父层，运行时地形实际只剩 z0/z1 精度**（≈90° 网格）。
+> 探针直接口径实测：声明∩盘上 = 10/49,157、镜像∩盘上 = 49,081 ⇒ EXIT=1（红）。
+> 修复（脚本已改，资产**待用户点头后**写，先备份 layer.json）：用盘上实清单重建 `available`、
+> **不翻 y**；改好的 `07c --dry-run` 打印「朝向自检：声明∩盘上 49081/49081 ｜ 镜像∩盘上 10」。
+> 判定口径见 `tools/diag/probe-terrain-tree-vs-layerjson.py`（镜像 ⇒ 红；根链缺 ⇒ 红；孤儿 ⇒ 红）。
+> **全量重切（写 51 张瓦片 + layer.json）会写入 `backend/static/terrain`，未执行，等用户点头 + 先备份。**
 
 ## 三、外置源与工作区产物（资产落地现状）
 
@@ -88,12 +94,14 @@ pwsh -File tools/dem-pipeline/06-restore-cut-dem.ps1
 
 # 4) 地形树完整性（layer.json 声明 vs 盘上实物，只读；venv）
 backend/algorithm-service/.venv/Scripts/python.exe -X utf8 tools/diag/probe-terrain-tree-vs-layerjson.py
-# 期望：盘上 49081 ｜ 根链(z≤2)缺 0 ｜ 深层漂移 76（z13 36 + z14 40）｜ 孤儿 0；EXIT=0
+# 期望（现役资产 = 镜像缺陷在册）：声明∩盘上 10/49157 ｜ 镜像∩盘上 49081 ⇒ ❌ 镜像声明，EXIT=1
+# 修复后（layer.json 用实清单重建）期望：声明∩盘上 49081/49081 ｜ 镜像∩盘上 10 ｜ 缺 0 ｜ 孤儿 0；EXIT=0
 
-# 4b) 修好的 07c 干跑（不写盘；核对删除幽灵声明后的声明数）
+# 4b) 修好的 07c 干跑（不写盘；核对幽灵声明删除 + available 朝向）
 backend/algorithm-service/.venv/Scripts/python.exe -X utf8 tools/dem-pipeline/07c-patch-terrain.py --dry-run
 # 期望：盘上原瓦片 49081 ｜ bbox 计划新增 96 ｜ 需重写 51 ｜ 实写后 49081
 #       layer.json: z13 声明 12 张 / z14 声明 16 张（即幽灵 76 张被消除）
+#       朝向自检：声明∩盘上 49081/49081 ｜ 镜像(翻 y)∩盘上 10（后者应为巧合位置，≈0）
 
 # 5) 头部链复现（6 幅 ASTER → filled_CGCS2000_int16，约 4 分钟；venv 调 gdalwarp/saga_cmd）
 backend/algorithm-service/.venv/Scripts/python.exe -X utf8 tools/dem-pipeline/01a-aster-chain-repro.py

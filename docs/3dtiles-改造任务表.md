@@ -1154,3 +1154,59 @@ node tools/diag/probe-app-selfprovide.cjs
 **失效条件**：① Vue 改 provide/inject 语义（自 provide 可见）⇒ 显式实参不再是必需，但保留无害；
 ② BLM/UnifiedMap 的 provide 位置再迁移 ⇒ 本探针需同步（它按 App 的实参路径判）；③ 探针依赖
 dev server 与 OL 渲染器形态（`r.map.getView()`），换渲染器须改读取通道。
+
+### 8.27 【根因】CTB 地形 `available` 与盘上镜像：z≥2 全 404，地形实际只剩 z0/z1 精度 · 2026-10-04
+
+**触发**：§8.26 控制台通道在 586 km 档抓到 5×`.terrain` 404（z2/z3）——与在册的
+「76 张幽灵声明（z13/z14）」**不是同一批**，沿这条线查出更大的缺陷。
+
+**机制（三方证据，全部可复跑）**：
+
+1. **盘上文件名 = slippy/北向**：`07-heightmap-reslice.py` 的 `tile_bounds` 以
+   `lat_n = 90 - y*180/rows` 生成、`07c` 的 `tb()` 同款；马道枢纽在 z13 的正确瓦片
+   `13/13149/3074.terrain` 在盘上存在（坐标按 GeographicTilingScheme 现算）。
+2. **`layer.json.available` 按 `rows-1-y`（TMS/南向）翻转写**：z2 声明 `(6,2)`、z3 声明
+   `12/13 × 4..5`、z13 声明 `13135..13138 × 5096..5099`——全部是盘上实物的镜像位置。
+3. **Cesium 1.142 按声明原样请求**（`scheme: slippyMap`，不做翻 y）：
+
+```bash
+# PowerShell 直连 dev server（实际跑法）：
+foreach ($u in @(
+  'http://127.0.0.1:5174/static/terrain/3/12/4.terrain?v=1.1.0',   # 声明位置
+  'http://127.0.0.1:5174/static/terrain/3/12/3.terrain?v=1.1.0'))  # 盘上实物
+  { try { $r = Invoke-WebRequest -Uri $u -UseBasicParsing -TimeoutSec 10
+          "200 $($r.RawContentLength) B $u" }
+    catch { "ERR $($_.Exception.Response.StatusCode.value__) $u" } }
+# 期望: ERR 404 .../3/12/4.terrain ｜ 200 8452 B .../3/12/3.terrain
+# 真 Edge + 真 Cesium（3 km 机位，.local 抓响应）：z0/z1 请求全 200、z2/z3 请求全 404
+```
+
+⇒ z≥2 的**每一张**声明瓦片都被请求到镜像位置、全部 404，Cesium 回退父层 ⇒ **运行时地形
+实际只剩 z0/z1 精度**（GeographicTilingScheme 的 z1 瓦片覆盖 90°×90°，等于没有地形细节）。
+这也解释了为什么此前"根链缺 0、EXIT=0"的探针结论看着全绿：**旧探针把 available 也翻了 y
+再比**（两边同错 ⇒ 抵消），运行时却不翻。
+
+**量化（直接口径，2026-10-04）**：
+
+```bash
+backend/algorithm-service/.venv/Scripts/python.exe -X utf8 tools/diag/probe-terrain-tree-vs-layerjson.py
+# 期望（现役资产）：声明∩盘上 10/49157 ｜ 镜像∩盘上 49081 ⇒ ❌ 镜像声明，EXIT=1
+backend/algorithm-service/.venv/Scripts/python.exe -X utf8 tools/dem-pipeline/09-audit-terrain.py
+# 期望（现役资产）：直接命中 10/49157 ｜ 镜像命中 49081 ⇒ [镜像] … FAIL，exit 1
+```
+
+**修法（脚本已改；资产未写，待用户点头 + 先备份）**：
+
+| 文件                                            | 改动                                                                               | dry-run 实测                                                                                                               |
+| ----------------------------------------------- | ---------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `tools/dem-pipeline/07c-patch-terrain.py`       | `available` 用盘上实清单、**不翻 y**；新增「朝向自检」，声明≠实写集即 exit 1       | 声明∩盘上 **49081/49081** ｜ 镜像∩盘上 10；z13 12 张 / z14 16 张（幽灵 76 消除）；实写后 49,081（重写 51 张 + layer.json） |
+| `tools/dem-pipeline/07-heightmap-reslice.py`    | 删 TMS 翻转；注释更正（旧注"available 与 scheme 无关、恒按 TMS 解析"被运行时证伪） | —（整树重跑用）                                                                                                            |
+| `tools/dem-pipeline/09-audit-terrain.py`        | 直接口径 + 镜像自检（镜像 ⇒ FAIL）                                                 | 现役资产 FAIL（见上）                                                                                                      |
+| `tools/diag/probe-terrain-tree-vs-layerjson.py` | 直接口径 + 镜像判定（镜像 ⇒ 红）；文档记实测                                       | 现役资产 EXIT=1                                                                                                            |
+
+**待办（需用户点头，属在册 07c 项的范围扩张）**：执行 `07c-patch-terrain.py`（先备份
+`layer.json`）⇒ 重写 51 张瓦片 + layer.json，之后探针应转 EXIT=0（声明与盘上逐张一致）。
+注意 `backend/static/terrain` 是 gitignored 运行时资产、且是"构建不覆盖"卷 ⇒ 上线要手动同步。
+
+**失效条件**：① Cesium 改 `available` 解析口径或 scheme 语义 ⇒ 本判据需按新版本重定；
+② 盘上瓦片按新口径重切/重建后，本条目作废（判据=probe EXIT=0 且"声明∩盘上=声明总数"）。

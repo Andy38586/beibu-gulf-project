@@ -116,6 +116,9 @@ def main():
     print(f"{'[dry-run] 计划写' if DRY else '写'} {written} 张（内容变化 {changed}）")
 
     # layer.json：maxzoom → 14，available 追加 z13/z14
+    # 朝向（2026-10-04 运行时实测更正）：available 与 scheme 同向解析——本层 scheme=slippyMap
+    # （y 从北），Cesium 1.142 按声明原样请求（3/12/4⇒404、3/12/3⇒200）⇒ available 必须写
+    # 盘上文件名同一口径（**不翻 y**）。旧实现翻 y 写的是镜像位置，z≥2 全部 404、回退父层。
     by = {}
     for tz, tx, ty in have:
         by.setdefault(tz, {}).setdefault(tx, []).append(ty)
@@ -126,7 +129,7 @@ def main():
             ys = sorted(by[tz][tx]); st = prev = ys[0]
             for yy in ys[1:] + [None]:
                 if yy is None or yy != prev + 1:
-                    rng.append({"startX": tx, "startY": rows - 1 - prev, "endX": tx, "endY": rows - 1 - st})
+                    rng.append({"startX": tx, "startY": st, "endX": tx, "endY": prev})
                     if yy is not None: st = yy
                 if yy is not None: prev = yy
         avail.append(rng)
@@ -138,6 +141,16 @@ def main():
     n14 = sum((r["endX"] - r["startX"] + 1) * (abs(r["endY"] - r["startY"]) + 1) for r in avail[14])
     print(f"{'[dry-run] ' if DRY else ''}layer.json: maxzoom={MAXZ}，z13 声明 {n13} 张"
           f"（{len(avail[13])} 区间）/ z14 声明 {n14} 张（{len(avail[14])} 区间）")
+    # 朝向自检：声明（原样）必须逐张命中盘上实物；镜像口径只应命中少量巧合位置。
+    decl = {(z, x, y) for z, rs in enumerate(avail) for r in rs
+            for x in range(r["startX"], r["endX"] + 1) for y in range(r["startY"], r["endY"] + 1)}
+    mirror = {(z, x, 2 ** z - 1 - y) for (z, x, y) in decl}
+    print(f"  朝向自检：声明∩盘上 {len(decl & have)}/{len(decl)} ｜ 镜像(翻 y)∩盘上 {len(mirror & have)}"
+          f"（前者应=全部、后者应≈0）")
+    if decl != have:
+        print(f"❌ 朝向自检不过：声明与实写集差 {len(have - decl)} / {len(decl - have)} 张——"
+              f"available 与盘上文件名必须同向（scheme=slippyMap ⇒ 不翻 y）")
+        return 1
 
 
 if __name__ == "__main__":

@@ -115,7 +115,10 @@ export function ribbon(pts, halfW, lift, color, groundU = 0, offset = 0) {
       normals.push(...GLTF_UP)
       colors.push(color[0], color[1], color[2])
     }
-    indices.push(base, base + 1, base + 2, base, base + 2, base + 3)
+    // 绕序同 build-roads：直连 A,B,C,D 会让几何法线朝 −Y（从上方看顺时针）⇒ Cesium 默认
+    // backFaceCulling 下整条运河带不可见（2026-10-04 实测：马道机位开剔除只见枢纽 6.71%，
+    // 关掉剔除后 12.18%，差的 5.5% 就是这条带）。正确写法见 build-ground.mjs:110-111。
+    indices.push(base + 3, base + 2, base, base + 2, base + 1, base)
   }
   return { positions, normals, colors, indices }
 }

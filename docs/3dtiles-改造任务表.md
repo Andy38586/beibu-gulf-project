@@ -601,3 +601,61 @@ qishi +25.8 / qingnian +45.2（其 DEM 差 −34.3 / +11.4 / +38.5）。已废�
 ③ 交付包换版、材质改名、换 DEM / 换大地水准面模型 ⇒ 对应行作废；
 ④ 「交付包生成器 `WGS84 baked curvature` 即竖直曲率烘焙」是**推断**——若查明该标记只覆盖块间衔接，
 第 2 条的最后一句作废（曲率缺陷本身仍独立成立，因为它有源码常量与 d²/2R 两重证据）。
+
+### 8.20 【根因】道路层与运河带整层不可见：四边形绕序反了 · 2026-10-04 18:0x
+
+**症状起点**：用户「钦州港作业区的道路不平、有缝隙」。本轮把「逐层画面贡献」判据打到港区 / 马道两个
+机位后发现更硬的事实——**这两层根本没画出来**（之前的证据全是"选了多少瓦片 / 多少三角面"，看不见
+剔除类缺陷）。
+
+**证据（真 Edge + 真 Cesium，`.local/3d-review/` 探针）**：
+
+| 层                    | 运行时状态                                                | 默认（`backFaceCulling=true`） | 人为关掉剔除      |
+| --------------------- | --------------------------------------------------------- | ------------------------------ | ----------------- |
+| 港区道路 `qz-roads`   | `sel=1 / tilesLoaded=true / model.ready=true / show=true` | **0.00%**（0 px）              | 2.71%（15144 px） |
+| 运河带 `pinglu-canal` | 同上，马道机位（带+枢纽两层同开）                         | **6.71%**（只有枢纽）          | 12.18%            |
+
+**静态根因**：`build-roads.mjs:133` 与 `build-canal.mjs:118` 的
+`indices.push(base, base+1, base+2, base, base+2, base+3)` 让四边形**几何法线朝 −Y**
+（从 +Y 俯视是顺时针），而顶点声明法线是 `GLTF_UP=(0,1,0)`；Cesium `backFaceCulling` 默认 true、
+glTF 材质也没写 `doubleSided` ⇒ 整层被剔除。**不报错、不缺瓦片、包围盒照旧**。
+历史解释：2026-10-03 的 `enuToGltf` 修复把坐标从 ENU 直通改成 `(E,U,−N)`，同一次正确变换**把这两个
+挤出器的绕序由正变反**——修好"浮空"的同时让它们隐形（当时截图里"天上的路网"其实是正面）。
+
+**修法**：2 行改为 `indices.push(base+3, base+2, base, base+2, base+1, base)`，
+与 `build-ground.mjs:110-111`（本来就对、并留了说明）同款。
+**判据**：`tools/3dtiles-build/__tests__/build.test.mjs` 新增「绕序」两条
+（`extrudeWay` / `ribbon`，含反向 way，取三角面叉积的 +Y 分量）；红样 = 改回旧顺序 ⇒
+`expected -1 to be greater than 0.99`。
+**产物**：`backend/static/pinglu/canal/canal.glb`（**入库**，已重建）；港区
+`backend/static/qinzhou-port/rebuilt/roads/roads.glb`（`.gitignore:192` 整目录排除）——
+本机已重建并复测，**发布侧须重跑** `node tools/3dtiles-build/build-roads.mjs`。
+
+**重建的附带效应（必须记账）**：`build-canal.mjs:239 hubTargets()` 读的是**现役** child 变换，而三枢纽
+在 §8.8–§8.16 累计被重锚 150~265 m（`.local/3d-review/reanchor-hubs-log.json`）⇒ 重建同时把运河带
+**重新扭曲到当前枢纽中心**：10.7% 顶点水平位移、最大 207 m，高度不变（y ≡ 0.4/1.2）。
+中线到枢纽**盒中心**：马道 107 → **75** m、企石 98 → **1** m、青年 178 → **41** m ⇒ 净改进。
+三张决定图已按新带重出（候选读数未变：马道 +38/−41、+73/−76、+147/−153；企石 ∓21/∓41；青年 ∓20/∓40）。
+
+**仍未闭（竖直，待裁）**：道路层是**绝对水平板** u = −17.40（= `groundLevel()` −17.55 + 0.15），
+而交付场地本身有起伏。逐顶点对场地（rail/concrete/opaque/water 4 m 格中位）比：中位 **Δ = −1.65 m**、
+95% 顶点 |Δ| > 0.5 m、13.7% > 3 m；另有 64% 顶点 6 m 内根本没有场地格。且 §8.12 写的
+「rail 中位 −15.52 / concrete 中位 −15.54」与现算不符（**−17.41 / −17.68**，−15.52 恰是 rail 的 P75）
+——基准该取"全 t4/t5 pool 中位"还是"只按渲染中的 7 块 / 上分位"，属**改权威源**，须用户裁定。
+脚本：`.local/3d-review/port-roads-fit.py`。
+
+**复算钩子**：```bash
+node tools/3dtiles-build/build-roads.mjs # 期望: 道路 92 条 / 754 段，地面 u=-17.55 m
+node tools/3dtiles-build/build-canal.mjs # 期望: 中线 2 链 → 稠密 3213 点；挤出 19218 三角面
+npx vitest run --root . tools/3dtiles-build/**tests**/build.test.mjs # 期望: 20 passed
+node .local/3d-review/roads-probe.cjs --url http://127.0.0.1:5174/route-analysis \
+ --fly 108.6473,21.6745,1200,0,-35 --wait 22000 --re "qz-roads" --backface
+
+# 期望: WROTE roads-bf-on.png / roads-bf-off.png；随后与 roads-bf-none.png 比 → 2.71%
+
+```
+
+**失效条件**：① 港区 `roads.glb` 未入库 ⇒ 换机复跑前必须先重建，否则看到的是旧绕序（0 像素）；
+② 若有人给这些材质加 `doubleSided: true`，剔除会消失，但**绕序断言仍钉**（它测几何法线而非材质）；
+③ 交付包换版导致材质名/u₀ 变化 ⇒ §8.12 与本节"仍未闭"段同时失效。
+```

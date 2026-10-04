@@ -130,7 +130,12 @@ export function extrudeWay(pts, width, groundU, lift) {
       positions.push(...enuToGltf(ee, nn, u))
     }
     for (let k = 0; k < 4; k++) normals.push(...GLTF_UP)
-    indices.push(base, base + 1, base + 2, base, base + 2, base + 3)
+    // 绕序必须让几何法线朝 +Y（= 声明的 GLTF_UP）：按 A,B,C,D 直连会**从上方看是顺时针**，
+    // 在 Cesium 默认 backFaceCulling 下整层被剔除——不报错、不缺瓦片、包围盒照旧，
+    // 只是**一个像素都不画**（2026-10-04 实测：港区道路层画面贡献 0.00%，
+    // 人为关掉剔除后 2.71%）。同族正确写法见 build-ground.mjs:110-111。
+    // 判据：__tests__/build.test.mjs「绕序」两条（删本条注释下的索引顺序即必红）。
+    indices.push(base + 3, base + 2, base, base + 2, base + 1, base)
   }
   return { positions, normals, indices }
 }

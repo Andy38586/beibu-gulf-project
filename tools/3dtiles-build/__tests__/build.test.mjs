@@ -101,6 +101,69 @@ describe('挤出器 — ENU 必须换成 glTF Y-up（删掉这条断言，浮空
   })
 })
 
+// 绕序判据（2026-10-04 补）：几何法线必须朝 +Y = 声明的 GLTF_UP。
+// 为什么单列一条：绕反了**不报错、不缺瓦片、包围盒照旧**，只在 Cesium 默认 backFaceCulling
+// 下整层不可见——运行时实测港区道路层画面贡献 0.00%（人为关掉剔除 2.71%）、运河带在马道
+// 机位差 5.5%（6.71% → 12.18%）。静态读 GLB 也看不出来，除非算这条叉积。
+describe('挤出器 — 四边形绕序必须是正面朝上（否则背面剔除整层不可见）', () => {
+  /** 三角面几何法线（右手：cross(B−A, C−A) 归一） */
+  const triNormal = (positions, i0, i1, i2) => {
+    const p = (i) => [positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2]]
+    const [ax, ay, az] = p(i0)
+    const b = p(i1)
+    const c = p(i2)
+    const u = [b[0] - ax, b[1] - ay, b[2] - az]
+    const v = [c[0] - ax, c[1] - ay, c[2] - az]
+    const n = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]]
+    const L = Math.hypot(...n) || 1
+    return n.map((x) => x / L)
+  }
+
+  it('extrudeWay（港区道路）：两个三角的几何法线都朝 +Y', () => {
+    const g = extrudeWay(
+      [
+        [0, 0],
+        [200, 0],
+      ],
+      10,
+      -17.55,
+      0.15
+    )
+    // 反向的 way（OSM 里两个方向都有）：绕序判据必须与方向无关
+    const rev = extrudeWay(
+      [
+        [200, 0],
+        [0, 0],
+      ],
+      10,
+      -17.55,
+      0.15
+    )
+    for (const geo of [g, rev]) {
+      expect(geo.indices.length).toBe(6)
+      expect(triNormal(geo.positions, ...geo.indices.slice(0, 3))[1]).toBeGreaterThan(0.99)
+      expect(triNormal(geo.positions, ...geo.indices.slice(3, 6))[1]).toBeGreaterThan(0.99)
+    }
+  })
+
+  it('ribbon（运河带水面/堤顶）：两个三角的几何法线都朝 +Y', () => {
+    const r = ribbon(
+      [
+        [0, 0],
+        [200, 0],
+      ],
+      60,
+      0.4,
+      [0.11, 0.28, 0.46],
+      0,
+      0
+    )
+    expect(r.indices.length).toBe(6)
+    expect(triNormal(r.positions, ...r.indices.slice(0, 3))[1]).toBeGreaterThan(0.99)
+    expect(triNormal(r.positions, ...r.indices.slice(3, 6))[1]).toBeGreaterThan(0.99)
+  })
+})
+
 describe('buildRoads — root.boundingVolume 必须是 ENU(Z-up)', () => {
   // 为什么单独钉这一条：positions 是 glTF Y-up、boundingVolume 是 ENU，两者轴序不同。
   // 2026-10-03 实测：把 glTF 的 min/max 直接当 box 用 ⇒ 包围盒中心落到椭球下 5351 m，

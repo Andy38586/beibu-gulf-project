@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import bt from '../lib/backtest.cjs'
+import { createWeightTracker } from '../lib/combination.cjs'
 
 const {
   runRollingBacktest,
@@ -245,5 +246,107 @@ describe('L5: 逐点 series（供 DM 检验对齐）', () => {
       expect(e.step).toBeGreaterThanOrEqual(1)
       expect(/^\d{4}-\d{2}$/.test(e.time)).toBe(true)
     }
+  })
+})
+
+// ── P0-1（2026-10-04）：组合模式（members + 因果 WeightTracker）──
+
+/** 组合夹具：恒定 100 共 36 个月；good 恒偏 4%，bad 按目标月变差（01=50%, 02=10%, 03=5%, 其余=20%） */
+function comboFixture() {
+  return Array.from({ length: 36 }, (_, i) => ({
+    time: `${2021 + Math.floor(i / 12)}-${String((i % 12) + 1).padStart(2, '0')}`,
+    value: 100,
+  }))
+}
+
+function comboBadForecast(t) {
+  const m = t.slice(5)
+  const pct = m === '01' ? 0.5 : m === '02' ? 0.1 : m === '03' ? 0.05 : 0.2
+  return 100 * (1 + pct)
+}
+
+function comboMembers() {
+  return [
+    { key: 'good', fitFn: () => ({}), forecastFn: () => 104 },
+    { key: 'bad', fitFn: () => ({}), forecastFn: (model, t) => comboBadForecast(t) },
+  ]
+}
+
+describe('P0-1: 组合模式（members/weightTracker）', () => {
+  it('因果性：权重逐 origin 只喂"目标时点 ≤ 当前 origin"的误差，未来步长不得入权', () => {
+    const real = createWeightTracker('inverse')
+    const updates = []
+    const spy = {
+      update(s) {
+        updates.push({ ...s })
+        real.update(s)
+      },
+      weights() {
+        return real.weights()
+      },
+    }
+    runRollingBacktest({
+      historical: comboFixture(),
+      members: comboMembers(),
+      weightTracker: spy,
+      originStart: '2023-01',
+      originEnd: '2023-03',
+      horizon: 3,
+    })
+    expect(updates.length).toBe(3)
+    // 各 origin 结束时可见的已实现误差（含同一时点多 origin 重复记入）：
+    expect(updates[0].good).toBeCloseTo(4, 10)
+    expect(updates[0].bad).toBeCloseTo(50, 10) // 泄漏版会掺 02/03 月步长 ⇒ 21.7
+    expect(updates[1].good).toBeCloseTo(4, 10)
+    expect(updates[1].bad).toBeCloseTo(70 / 3, 10)
+    expect(updates[2].good).toBeCloseTo(4, 10)
+    expect(updates[2].bad).toBeCloseTo(85 / 6, 10)
+  })
+
+  it('等权起步：tracker 未喂过时首 origin 组合 = 成员均值（{104,150} ⇒ 127，MAPE=27%）', () => {
+    const r = runRollingBacktest({
+      historical: comboFixture(),
+      members: comboMembers(),
+      weightTracker: createWeightTracker('inverse'),
+      originStart: '2023-01',
+      originEnd: '2023-01',
+      horizon: 1,
+    })
+    expect(r.overallMape).toBe(27)
+    const noTracker = runRollingBacktest({
+      historical: comboFixture(),
+      members: comboMembers(),
+      originStart: '2023-01',
+      originEnd: '2023-01',
+      horizon: 1,
+    })
+    expect(noTracker.overallMape).toBe(27) // 无 tracker ⇒ 恒等权，同值
+  })
+
+  it('权重随已实现误差收敛：memberScores 与 finalWeights 由平均误差 1/score 导出', () => {
+    const r = runRollingBacktest({
+      historical: comboFixture(),
+      members: comboMembers(),
+      weightTracker: createWeightTracker('inverse'),
+      originStart: '2023-01',
+      originEnd: '2023-03',
+      horizon: 1,
+    })
+    // 全期成员平均误差（报告口径）：good=4%，bad=(50+10+5)/3=21.67%
+    expect(r.memberScores.good).toBeCloseTo(4, 10)
+    expect(r.memberScores.bad).toBeCloseTo(21.67, 10)
+    // finalWeights 用 memberScores（含 21.67 舍入）反比归一
+    const wGood = 1 / 4 / (1 / 4 + 1 / 21.67)
+    expect(r.finalWeights.good).toBeCloseTo(wGood, 10)
+    expect(r.finalWeights.bad).toBeCloseTo(1 - wGood, 10)
+    // 自适应组合不劣于恒等权组合（同夹具、同 origin）
+    const equal = runRollingBacktest({
+      historical: comboFixture(),
+      members: comboMembers(),
+      originStart: '2023-01',
+      originEnd: '2023-03',
+      horizon: 1,
+    })
+    expect(r.overallMape).toBeLessThan(equal.overallMape)
   })
 })

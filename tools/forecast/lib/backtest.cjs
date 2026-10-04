@@ -19,6 +19,8 @@
  */
 'use strict'
 
+const { combinePredictions, combinationWeights } = require('./combination.cjs')
+
 function monthIndex(timeStr) {
   const [y, m] = timeStr.split('-').map(Number)
   return y * 12 + m
@@ -51,6 +53,11 @@ function seasonalNaiveScale(sortedValues, m) {
  * @param {Array<{time,value}>} p.historical 全量真数据
  * @param {Function} p.fitFn (train: [{time,value}]) => model | null（数据不足返回 null 则跳过该 origin）
  * @param {Function} p.forecastFn (model, timeStr) => number | null
+ * @param {Array<{key,fitFn,forecastFn}>} [p.members] 组合模式：非空时忽略 fitFn/forecastFn，
+ *   每个 origin 各成员分别拟合，按 weightTracker 当前权重（未喂过/快照空 → 等权）组合；
+ *   成员误差按"目标时点 ≤ 当前 origin"过滤后逐 origin 喂给 tracker——这些时点的真值在
+ *   下一 origin 的训练段内，属严格因果（防未来泄漏）。
+ * @param {Object} [p.weightTracker] createWeightTracker() 实例；仅组合模式使用
  * @param {Function} [p.intervalFn] (model, timeStr) => {lo,hi} | null（PICP 用；缺省不计区间覆盖率）
  * @param {string} [p.originStart] 默认与线性版一致（'2024-01'）
  * @param {string} [p.originEnd]   默认与线性版一致（'2026-06'）
@@ -61,6 +68,8 @@ function runRollingBacktest({
   historical,
   fitFn,
   forecastFn,
+  members = null,
+  weightTracker = null,
   intervalFn = null,
   originStart = '2024-01',
   originEnd = '2026-06',
@@ -94,20 +103,50 @@ function runRollingBacktest({
 
   let origin = originStart
   let originCount = 0
+  const memberErrors = [] // {time, key, pct}：各成员在每个时点的已实现相对误差（组合模式）
   while (origin <= originEnd) {
     const train = sorted.filter((d) => d.time < origin)
-    const model = fitFn(train)
+    const fitted = members
+      ? members.map((m) => ({ ...m, model: m.fitFn(train) })).filter((m) => m.model)
+      : null
+    const model = members ? (fitted.length > 0 ? { members: fitted } : null) : fitFn(train)
     if (model) {
       originCount++
       const q = seasonalNaiveScale(
         train.map((d) => d.value),
         m
       )
+      let weights = null
+      if (members) {
+        const trackerWeights = weightTracker ? weightTracker.weights() : null
+        // 未喂过或快照为空（首 origin 前无已实现误差）→ 等权起步（组合设计契约）
+        weights =
+          trackerWeights && Object.keys(trackerWeights).length > 0
+            ? trackerWeights
+            : Object.fromEntries(fitted.map((mm) => [mm.key, 1 / fitted.length]))
+      }
       for (let step = 1; step <= horizon; step++) {
         const t = addMonths(origin, step - 1)
         const actual = byTime.get(t)
         if (actual === undefined) continue
-        const predicted = forecastFn(model, t)
+        if (members) {
+          for (const mm of fitted) {
+            const mv = mm.forecastFn(mm.model, t)
+            if (Number.isFinite(mv) && actual !== 0) {
+              memberErrors.push({
+                time: t,
+                key: mm.key,
+                pct: Math.abs(actual - mv) / Math.abs(actual),
+              })
+            }
+          }
+        }
+        const predicted = members
+          ? combinePredictions(
+              fitted.map((mm) => ({ key: mm.key, value: mm.forecastFn(mm.model, t) })),
+              weights
+            )
+          : forecastFn(model, t)
         if (predicted === null || !Number.isFinite(predicted)) continue
         const absErr = Math.abs(actual - predicted)
         errByStep[step] += absErr / actual // 相对误差 → MAPE
@@ -131,9 +170,40 @@ function runRollingBacktest({
           qCntByStep[step]++
         }
       }
+      if (members && weightTracker) {
+        const scores = {}
+        for (const mm of members) {
+          // 严格因果：目标时点 ≤ 当前 origin 的误差，其真值在下一 origin 的训练段内；
+          // 目标时点 ≥ origin+1 的误差一律排除（防未来泄漏）
+          const errs = memberErrors.filter((e) => e.key === mm.key && e.time <= origin)
+          if (errs.length > 0) {
+            scores[mm.key] = (errs.reduce((a, e) => a + e.pct, 0) / errs.length) * 100
+          }
+        }
+        weightTracker.update(scores)
+      }
     }
     origin = addMonths(origin, 1)
   }
+  const memberScores = members
+    ? Object.fromEntries(
+        members.map((mm) => {
+          const errs = memberErrors.filter((e) => e.key === mm.key)
+          return [
+            mm.key,
+            errs.length > 0
+              ? Math.round((errs.reduce((a, e) => a + e.pct, 0) / errs.length) * 10000) / 100
+              : null,
+          ]
+        })
+      )
+    : null
+  const finalWeights =
+    members && memberScores
+      ? combinationWeights(
+          Object.fromEntries(Object.entries(memberScores).filter(([, v]) => v !== null))
+        )
+      : null
 
   const mapeByStep = {}
   const smapeByStep = {}
@@ -191,6 +261,8 @@ function runRollingBacktest({
       picpCntTotal > 0 ? Math.round((picpHitTotal / picpCntTotal) * 10000) / 10000 : null,
     overallMase: maseCnt > 0 ? Math.round((maseSum / maseCnt) * 100) / 100 : null,
     series,
+    memberScores,
+    finalWeights,
   }
 }
 

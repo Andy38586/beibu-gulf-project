@@ -12,6 +12,10 @@
 才可替换，达标者取 MAPE 最小（平局取参数少者）；组合（`lib/combination.cjs`）须严格优于
 当轮最好单模型才参与。各港胜者与全量对比表写入产物 `ports.*.model_comparison` 与
 `backtest.selected_model`；服务层 `model-loader.ts` 只消费胜者的分步长误差与预测段。
+**2026-10-04 P0-1 组合接线**：以 {线性, ETS, 季节朴素} 为成员、等权起步的 inverse-MAPE
+因果权重（`lib/combination.cjs`，逐 origin 只用已实现误差）跑同协议回测；六席组合 MAPE
+全 ≤ 原胜者，4 席换到组合（钦州货 / 钦州箱 / 北海箱 / 防城箱）。产物新增
+`model_comparison.combination`（`overall_mape/mase`、分步长、`final_weights`、`member_mape`）。
 
 > 覆盖范围说明（2026-08-29 更新）：产物覆盖 cargo 与 container 两个指标；
 > berth / traffic 为合成指标，不走该模型（数据文件自带 forecast 直接透传）。

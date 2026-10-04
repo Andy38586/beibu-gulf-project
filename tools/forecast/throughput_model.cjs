@@ -1,5 +1,6 @@
 /**
- * 吞吐量预测模型脚本（基线：季节分解+线性回归；候选：春节修正+阻尼 Holt-Winters；闸门选优）
+ * 吞吐量预测模型脚本（基线：季节分解+线性回归；候选：春节修正+阻尼 Holt-Winters、
+ * 季节朴素、三成员组合；闸门选优）
  *
  * 用途：生成模型产物（cargo / container 双指标，2026-08-29 起；2026-09-26 起带模型竞选）
  *   - 输入：backend/data/forecast/cargo.json、container.json（官方真数据 2021-01 ~ 2026-06，
@@ -10,9 +11,10 @@
  *           验证期误差比率校正，滚动原点回测产出分步长误差曲线
  *   - 候选方法：春节移动假期修正（节前日数法简化，k=0）→ 阻尼 Holt-Winters
  *           （加性/乘性季节 AICc 自动选择，lib/hw.cjs）
- *   - 闸门（2026-10-04 提准方案 §P0-2 修正）：线性 / ETS / 季节朴素 / 组合同协议滚动
+ *   - 闸门（2026-10-04 提准方案 §P0-1/§P0-2）：线性 / ETS / 季节朴素 / 组合同协议滚动
  *           回测（同 origin 同 horizon），候选须比线性好 ≥0.5pp 才可替换；达标者取
- *           MAPE 最小（平局取参数少者）；组合须严格优于当轮最好单模型才参与
+ *           MAPE 最小（平局取参数少者）；组合（{线性, ETS, 季节朴素} + inverse-MAPE
+ *           因果权重，lib/combination.cjs）须严格优于当轮最好单模型才参与
  *           （lib/backtest.cjs selectModel）
  *   - 单位：模型只做数值运算，产物值与各自输入文件同单位（万吨 / TEU），
  *           服务层 unit 取自指标数据文件，不在产物内混装
@@ -35,6 +37,7 @@ const path = require('path')
 
 const { fitHoltWinters, forecastFromFit } = require('./lib/hw.cjs')
 const { buildCnyContext } = require('./lib/cny.cjs')
+const { combinePredictions, createWeightTracker } = require('./lib/combination.cjs')
 const {
   runRollingBacktest,
   seasonalNaiveModel,
@@ -209,6 +212,18 @@ function predictTrend(model, timeIndex) {
   return model.intercept + model.slope * timeIndex
 }
 
+/** 线性候选（基线同式）：fit 记训练末条，预测用 0-based 外推索引 = 月差 − 1（防泄漏） */
+function fitLinearCandidate(train) {
+  const model = buildModel(train)
+  if (!model) return null
+  return { model, lastTime: train[train.length - 1].time }
+}
+
+function forecastLinearCandidate({ model, lastTime }, t) {
+  const idx0 = monthIndex(t) - monthIndex(lastTime) - 1
+  return (model.intercept + model.slope * (model.n + idx0)) * model.seasonalIndices[extractMonth(t)]
+}
+
 /** ETS 候选拟合：春节修正（h̄ 只用训练段重建，防泄漏）→ 阻尼 Holt-Winters。门槛与线性一致（≥24 个月）。 */
 function fitEtsCandidate(train) {
   if (train.length < 24) return null
@@ -306,18 +321,8 @@ function processPort(portId, historical) {
   // —— 候选模型同协议回测（线性 / ETS+春节修正 / 季节朴素基准）——
   const linH = runRollingBacktest({
     historical,
-    fitFn: (train) => {
-      const model = buildModel(train)
-      if (!model) return null
-      return { model, lastTime: train[train.length - 1].time }
-    },
-    forecastFn: ({ model, lastTime }, t) => {
-      // lastTime = train 末条（= origin 上个月）⇒ t 的 0-based 外推索引 = 月差 − 1
-      const idx0 = monthIndex(t) - monthIndex(lastTime) - 1
-      return (
-        (model.intercept + model.slope * (model.n + idx0)) * model.seasonalIndices[extractMonth(t)]
-      )
-    },
+    fitFn: fitLinearCandidate,
+    forecastFn: forecastLinearCandidate,
   })
   const etsH = runRollingBacktest({
     historical,
@@ -328,6 +333,17 @@ function processPort(portId, historical) {
     historical,
     fitFn: seasonalNaiveModel,
     forecastFn: seasonalNaiveForecast,
+  })
+  // P0-1 组合候选：{线性, ETS, 季节朴素} 同协议回测，inverse-MAPE 权重逐 origin 用
+  // 已实现误差更新（createWeightTracker 内部保证快照语义；过滤条件见 lib/backtest.cjs）
+  const comH = runRollingBacktest({
+    historical,
+    members: [
+      { key: 'linear', fitFn: fitLinearCandidate, forecastFn: forecastLinearCandidate },
+      { key: 'ets', fitFn: fitEtsCandidate, forecastFn: forecastEtsCandidate },
+      { key: 'seasonal_naive', fitFn: seasonalNaiveModel, forecastFn: seasonalNaiveForecast },
+    ],
+    weightTracker: createWeightTracker('inverse'),
   })
 
   // 同协议自检：harness 跑出的线性 MAPE 必须与原实现一致（防两套回测实现漂移）
@@ -357,11 +373,58 @@ function processPort(portId, historical) {
     linear: linH.overallMape,
     ets: etsH.overallMape,
     seasonal_naive: snH.overallMape,
+    combination: comH.overallMape,
   })
 
   const lastTime = historical[historical.length - 1].time
   let predictions
   let backtest
+
+  /** 线性胜者：保留原实现（组合分支缺件时的诚实降级路径） */
+  function linearWinner() {
+    const allModel = buildModel(historical)
+    if (!allModel) return null
+
+    const preds = []
+    const forecastStartIdx = allModel.n
+    let cursor = nextMonth(lastTime)
+
+    function addPrediction(timeStr) {
+      const month = extractMonth(timeStr)
+      const timeIndex = forecastStartIdx + preds.length // 顺序生成，relIdx 递增
+      const trendVal = predictTrend(allModel, timeIndex)
+      const correctedTrend = trendVal * correctionFactor
+      const value = correctedTrend * allModel.seasonalIndices[month]
+
+      // 区间宽度：来自滚动回测的分步长真实误差；超出回测步长后按 sqrt 外推放大
+      const relIdx = timeIndex - forecastStartIdx + 1
+      preds.push(forecastPoint(timeStr, value, rolling.mapeByStep, overallMAPE, relIdx))
+    }
+
+    // 2026-07 ~ 2026-12 逐月
+    while (cursor <= '2026-12') {
+      addPrediction(cursor)
+      cursor = nextMonth(cursor)
+    }
+    // 2027-2035 半年点（06/12）
+    for (let year = 2027; year <= 2035; year++) {
+      addPrediction(`${year}-06`)
+      addPrediction(`${year}-12`)
+    }
+
+    return {
+      predictions: preds,
+      backtest: {
+        selected_model: 'linear',
+        validation_overall_mape: Math.round(overallMAPE * 100) / 100,
+        validation_months: testPreds.length,
+        rolling_mape_by_step: rolling.mapeByStep,
+        rolling_samples_by_step: rolling.cntByStep,
+        bias,
+        correction_factor: Math.round(correctionFactor * 10000) / 10000,
+      },
+    }
+  }
 
   if (selected === 'ets' && fullEts) {
     // 胜者 ETS：修正空间全量拟合 → 预测 → 春节逆变换；区间宽度沿用线性版的
@@ -408,47 +471,62 @@ function processPort(portId, historical) {
       bias: null,
       correction_factor: null,
     }
+  } else if (selected === 'combination') {
+    // 胜者组合（P0-1）：成员全量重拟合 → 用回测 final_weights（全部来自生产 origin 之前的
+    // 已实现误差，因果）逐时点组合；区间宽度用组合自己的分步长 MAPE。
+    const fullFit = {
+      linear: fitLinearCandidate(historical),
+      ets: fitEtsCandidate(historical),
+      seasonal_naive: seasonalNaiveModel(historical),
+    }
+    const comboPreds = futureTargets(lastTime).map((t) => ({
+      time: t,
+      value: combinePredictions(
+        [
+          {
+            key: 'linear',
+            value: fullFit.linear ? forecastLinearCandidate(fullFit.linear, t) : null,
+          },
+          { key: 'ets', value: fullFit.ets ? forecastEtsCandidate(fullFit.ets, t) : null },
+          {
+            key: 'seasonal_naive',
+            value: fullFit.seasonal_naive ? seasonalNaiveForecast(fullFit.seasonal_naive, t) : null,
+          },
+        ],
+        comH.finalWeights ?? {}
+      ),
+    }))
+    if (comboPreds.some((p) => !Number.isFinite(p.value))) {
+      console.warn(`  ⚠️ ${portId}: 组合胜者全量成员/权重缺件——诚实降级回线性`)
+      const lin = linearWinner()
+      if (!lin) return null
+      predictions = lin.predictions
+      backtest = lin.backtest
+    } else {
+      predictions = comboPreds.map(({ time, value }) =>
+        forecastPoint(
+          time,
+          value,
+          comH.mapeByStep,
+          comH.overallMape,
+          monthIndex(time) - monthIndex(lastTime)
+        )
+      )
+      backtest = {
+        selected_model: 'combination',
+        rolling_mape_by_step: comH.mapeByStep,
+        rolling_samples_by_step: comH.samplesByStep,
+        // 线性专有口径（一次切分验证 / 偏差校正）不适用于组合路径——置 null 不伪造（04-B7）
+        validation_overall_mape: null,
+        bias: null,
+        correction_factor: null,
+      }
+    }
   } else {
-    // 保留线性基线：以下为原实现，逐字不动
-    const allModel = buildModel(historical)
-    if (!allModel) return null
-
-    predictions = []
-    const forecastStartIdx = allModel.n
-    let cursor = nextMonth(lastTime)
-
-    function addPrediction(timeStr) {
-      const month = extractMonth(timeStr)
-      const timeIndex = forecastStartIdx + (predictions.length + 0) // 顺序生成，relIdx 递增
-      const trendVal = predictTrend(allModel, timeIndex)
-      const correctedTrend = trendVal * correctionFactor
-      const value = correctedTrend * allModel.seasonalIndices[month]
-
-      // 区间宽度：来自滚动回测的分步长真实误差；超出回测步长后按 sqrt 外推放大
-      const relIdx = timeIndex - forecastStartIdx + 1
-      predictions.push(forecastPoint(timeStr, value, rolling.mapeByStep, overallMAPE, relIdx))
-    }
-
-    // 2026-07 ~ 2026-12 逐月
-    while (cursor <= '2026-12') {
-      addPrediction(cursor)
-      cursor = nextMonth(cursor)
-    }
-    // 2027-2035 半年点（06/12）
-    for (let year = 2027; year <= 2035; year++) {
-      addPrediction(`${year}-06`)
-      addPrediction(`${year}-12`)
-    }
-
-    backtest = {
-      selected_model: 'linear',
-      validation_overall_mape: Math.round(overallMAPE * 100) / 100,
-      validation_months: testPreds.length,
-      rolling_mape_by_step: rolling.mapeByStep,
-      rolling_samples_by_step: rolling.cntByStep,
-      bias,
-      correction_factor: Math.round(correctionFactor * 10000) / 10000,
-    }
+    const lin = linearWinner()
+    if (!lin) return null
+    predictions = lin.predictions
+    backtest = lin.backtest
   }
 
   const modelComparison = {
@@ -472,6 +550,15 @@ function processPort(portId, historical) {
       overall_mase: snH.overallMase,
       mape_by_step: snH.mapeByStep,
       mase_by_step: snH.maseByStep,
+    },
+    combination: {
+      overall_mape: comH.overallMape,
+      overall_mase: comH.overallMase,
+      mape_by_step: comH.mapeByStep,
+      mase_by_step: comH.maseByStep,
+      // P0-1 可复核面：final_weights 由各成员平均已实现误差（member_mape，%）反比归一
+      final_weights: comH.finalWeights,
+      member_mape: comH.memberScores,
     },
     selected,
     gate: '候选须比线性好 ≥0.5pp 才可替换；达标者取 MAPE 最小（平局取参数少者）；组合须严格优于当轮最好单模型',
@@ -535,8 +622,18 @@ function main() {
           `  同协议对比（全步长平均 MAPE / MASE）: ` +
             `linear=${mc.linear.overall_mape}%/${mc.linear.overall_mase}  ` +
             `ets=${mc.ets_damped.overall_mape}%/${mc.ets_damped.overall_mase}  ` +
-            `seasonal_naive=${mc.seasonal_naive.overall_mape}%/${mc.seasonal_naive.overall_mase}`
+            `seasonal_naive=${mc.seasonal_naive.overall_mape}%/${mc.seasonal_naive.overall_mase}  ` +
+            `combination=${mc.combination.overall_mape}%/${mc.combination.overall_mase}`
         )
+        if (bt.selected_model === 'combination') {
+          const w = mc.combination.final_weights ?? {}
+          console.log(
+            `  组合权重: ` +
+              Object.entries(w)
+                .map(([k, v]) => `${k}=${Math.round(v * 10000) / 100}%`)
+                .join('  ')
+          )
+        }
         console.log(
           `  所选模型分步长 MAPE: ` +
             Object.entries(bt.rolling_mape_by_step)

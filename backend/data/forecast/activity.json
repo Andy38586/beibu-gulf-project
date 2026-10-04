@@ -338,687 +338,687 @@
       "forecast": [
         {
           "time": "2026-07",
-          "value": 119.7,
+          "value": 119.3,
           "type": "forecast",
           "reliability": 0.95
         },
         {
           "time": "2026-08",
-          "value": 125.4,
+          "value": 119.3,
           "type": "forecast",
           "reliability": 0.94
         },
         {
           "time": "2026-09",
-          "value": 125.5,
+          "value": 121.6,
           "type": "forecast",
-          "reliability": 0.94
+          "reliability": 0.95
         },
         {
           "time": "2026-10",
-          "value": 125.1,
+          "value": 126.4,
           "type": "forecast",
-          "reliability": 0.94
+          "reliability": 0.95
         },
         {
           "time": "2026-11",
-          "value": 135.7,
+          "value": 127.2,
           "type": "forecast",
           "reliability": 0.94
         },
         {
           "time": "2026-12",
-          "value": 147.1,
+          "value": 135.3,
           "type": "forecast",
           "reliability": 0.94
         },
         {
           "time": "2027-01",
-          "value": 145.1,
+          "value": 134.5,
           "type": "forecast",
-          "reliability": 0.93
+          "reliability": 0.95
         },
         {
           "time": "2027-02",
-          "value": 143.1,
+          "value": 133.8,
           "type": "forecast",
-          "reliability": 0.93
+          "reliability": 0.95
         },
         {
           "time": "2027-03",
-          "value": 141.2,
+          "value": 133.2,
           "type": "forecast",
-          "reliability": 0.93
+          "reliability": 0.95
         },
         {
           "time": "2027-04",
-          "value": 139.1,
+          "value": 132.5,
           "type": "forecast",
-          "reliability": 0.93
+          "reliability": 0.95
         },
         {
           "time": "2027-05",
-          "value": 137.1,
+          "value": 131.8,
           "type": "forecast",
-          "reliability": 0.93
+          "reliability": 0.95
         },
         {
           "time": "2027-06",
-          "value": 135.1,
+          "value": 131.1,
           "type": "forecast",
-          "reliability": 0.93
+          "reliability": 0.94
         },
         {
           "time": "2027-07",
-          "value": 137.3,
+          "value": 132.2,
           "type": "forecast",
-          "reliability": 0.9
+          "reliability": 0.92
         },
         {
           "time": "2027-08",
-          "value": 139.6,
+          "value": 133.3,
           "type": "forecast",
-          "reliability": 0.9
+          "reliability": 0.92
         },
         {
           "time": "2027-09",
-          "value": 141.8,
+          "value": 134.5,
           "type": "forecast",
-          "reliability": 0.9
+          "reliability": 0.92
         },
         {
           "time": "2027-10",
-          "value": 144,
+          "value": 135.6,
           "type": "forecast",
-          "reliability": 0.9
+          "reliability": 0.92
         },
         {
           "time": "2027-11",
-          "value": 146.3,
+          "value": 136.7,
           "type": "forecast",
-          "reliability": 0.9
+          "reliability": 0.92
         },
         {
           "time": "2027-12",
-          "value": 148.5,
+          "value": 137.8,
           "type": "forecast",
-          "reliability": 0.9
+          "reliability": 0.92
         },
         {
           "time": "2028-01",
-          "value": 146.5,
+          "value": 137.1,
           "type": "forecast",
-          "reliability": 0.9
+          "reliability": 0.92
         },
         {
           "time": "2028-02",
-          "value": 144.5,
+          "value": 136.4,
           "type": "forecast",
-          "reliability": 0.9
+          "reliability": 0.92
         },
         {
           "time": "2028-03",
-          "value": 142.4,
+          "value": 135.6,
           "type": "forecast",
-          "reliability": 0.9
+          "reliability": 0.92
         },
         {
           "time": "2028-04",
-          "value": 140.4,
+          "value": 134.9,
           "type": "forecast",
-          "reliability": 0.9
+          "reliability": 0.92
         },
         {
           "time": "2028-05",
-          "value": 138.4,
+          "value": 134.2,
+          "type": "forecast",
+          "reliability": 0.92
+        },
+        {
+          "time": "2028-06",
+          "value": 133.4,
           "type": "forecast",
           "reliability": 0.9
         },
         {
-          "time": "2028-06",
-          "value": 136.4,
-          "type": "forecast",
-          "reliability": 0.88
-        },
-        {
           "time": "2028-07",
-          "value": 138.6,
+          "value": 134.6,
           "type": "forecast",
-          "reliability": 0.88
+          "reliability": 0.9
         },
         {
           "time": "2028-08",
-          "value": 140.9,
+          "value": 135.8,
           "type": "forecast",
-          "reliability": 0.88
+          "reliability": 0.9
         },
         {
           "time": "2028-09",
-          "value": 143.2,
+          "value": 137,
           "type": "forecast",
-          "reliability": 0.88
+          "reliability": 0.9
         },
         {
           "time": "2028-10",
-          "value": 145.4,
+          "value": 138.2,
           "type": "forecast",
-          "reliability": 0.88
+          "reliability": 0.9
         },
         {
           "time": "2028-11",
-          "value": 147.6,
+          "value": 139.4,
           "type": "forecast",
-          "reliability": 0.88
+          "reliability": 0.9
         },
         {
           "time": "2028-12",
-          "value": 149.9,
+          "value": 140.6,
           "type": "forecast",
-          "reliability": 0.88
+          "reliability": 0.9
         },
         {
           "time": "2029-01",
-          "value": 147.9,
+          "value": 139.8,
           "type": "forecast",
-          "reliability": 0.88
+          "reliability": 0.9
         },
         {
           "time": "2029-02",
-          "value": 145.8,
+          "value": 139,
           "type": "forecast",
-          "reliability": 0.88
+          "reliability": 0.9
         },
         {
           "time": "2029-03",
-          "value": 143.8,
+          "value": 138.2,
           "type": "forecast",
-          "reliability": 0.88
+          "reliability": 0.9
         },
         {
           "time": "2029-04",
-          "value": 141.7,
+          "value": 137.5,
+          "type": "forecast",
+          "reliability": 0.9
+        },
+        {
+          "time": "2029-05",
+          "value": 136.7,
+          "type": "forecast",
+          "reliability": 0.9
+        },
+        {
+          "time": "2029-06",
+          "value": 135.9,
           "type": "forecast",
           "reliability": 0.88
         },
         {
-          "time": "2029-05",
+          "time": "2029-07",
+          "value": 137.1,
+          "type": "forecast",
+          "reliability": 0.88
+        },
+        {
+          "time": "2029-08",
+          "value": 138.4,
+          "type": "forecast",
+          "reliability": 0.88
+        },
+        {
+          "time": "2029-09",
           "value": 139.7,
           "type": "forecast",
           "reliability": 0.88
         },
         {
-          "time": "2029-06",
-          "value": 137.7,
+          "time": "2029-10",
+          "value": 140.9,
+          "type": "forecast",
+          "reliability": 0.88
+        },
+        {
+          "time": "2029-11",
+          "value": 142.2,
+          "type": "forecast",
+          "reliability": 0.88
+        },
+        {
+          "time": "2029-12",
+          "value": 143.4,
+          "type": "forecast",
+          "reliability": 0.88
+        },
+        {
+          "time": "2030-01",
+          "value": 142.6,
+          "type": "forecast",
+          "reliability": 0.88
+        },
+        {
+          "time": "2030-02",
+          "value": 141.8,
+          "type": "forecast",
+          "reliability": 0.88
+        },
+        {
+          "time": "2030-03",
+          "value": 141,
+          "type": "forecast",
+          "reliability": 0.88
+        },
+        {
+          "time": "2030-04",
+          "value": 140.2,
+          "type": "forecast",
+          "reliability": 0.88
+        },
+        {
+          "time": "2030-05",
+          "value": 139.4,
+          "type": "forecast",
+          "reliability": 0.88
+        },
+        {
+          "time": "2030-06",
+          "value": 138.6,
           "type": "forecast",
           "reliability": 0.87
         },
         {
-          "time": "2029-07",
+          "time": "2030-07",
           "value": 139.9,
           "type": "forecast",
           "reliability": 0.87
         },
         {
-          "time": "2029-08",
-          "value": 142.2,
+          "time": "2030-08",
+          "value": 141.2,
           "type": "forecast",
           "reliability": 0.87
         },
         {
-          "time": "2029-09",
-          "value": 144.5,
+          "time": "2030-09",
+          "value": 142.5,
           "type": "forecast",
           "reliability": 0.87
         },
         {
-          "time": "2029-10",
-          "value": 146.7,
+          "time": "2030-10",
+          "value": 143.8,
           "type": "forecast",
           "reliability": 0.87
         },
         {
-          "time": "2029-11",
-          "value": 149,
-          "type": "forecast",
-          "reliability": 0.87
-        },
-        {
-          "time": "2029-12",
-          "value": 151.3,
-          "type": "forecast",
-          "reliability": 0.87
-        },
-        {
-          "time": "2030-01",
-          "value": 149.2,
-          "type": "forecast",
-          "reliability": 0.87
-        },
-        {
-          "time": "2030-02",
-          "value": 147.2,
-          "type": "forecast",
-          "reliability": 0.87
-        },
-        {
-          "time": "2030-03",
+          "time": "2030-11",
           "value": 145.1,
           "type": "forecast",
           "reliability": 0.87
         },
         {
-          "time": "2030-04",
+          "time": "2030-12",
+          "value": 146.4,
+          "type": "forecast",
+          "reliability": 0.87
+        },
+        {
+          "time": "2031-01",
+          "value": 145.6,
+          "type": "forecast",
+          "reliability": 0.87
+        },
+        {
+          "time": "2031-02",
+          "value": 144.7,
+          "type": "forecast",
+          "reliability": 0.87
+        },
+        {
+          "time": "2031-03",
+          "value": 143.9,
+          "type": "forecast",
+          "reliability": 0.87
+        },
+        {
+          "time": "2031-04",
           "value": 143,
           "type": "forecast",
           "reliability": 0.87
         },
         {
-          "time": "2030-05",
-          "value": 141,
+          "time": "2031-05",
+          "value": 142.1,
           "type": "forecast",
           "reliability": 0.87
         },
         {
-          "time": "2030-06",
-          "value": 138.9,
+          "time": "2031-06",
+          "value": 141.3,
           "type": "forecast",
           "reliability": 0.85
         },
         {
-          "time": "2030-07",
-          "value": 141.2,
+          "time": "2031-07",
+          "value": 142.6,
           "type": "forecast",
           "reliability": 0.85
         },
         {
-          "time": "2030-08",
-          "value": 143.5,
+          "time": "2031-08",
+          "value": 144,
           "type": "forecast",
           "reliability": 0.85
         },
         {
-          "time": "2030-09",
+          "time": "2031-09",
+          "value": 145.4,
+          "type": "forecast",
+          "reliability": 0.85
+        },
+        {
+          "time": "2031-10",
+          "value": 146.7,
+          "type": "forecast",
+          "reliability": 0.85
+        },
+        {
+          "time": "2031-11",
+          "value": 148,
+          "type": "forecast",
+          "reliability": 0.85
+        },
+        {
+          "time": "2031-12",
+          "value": 149.4,
+          "type": "forecast",
+          "reliability": 0.85
+        },
+        {
+          "time": "2032-01",
+          "value": 148.5,
+          "type": "forecast",
+          "reliability": 0.85
+        },
+        {
+          "time": "2032-02",
+          "value": 147.6,
+          "type": "forecast",
+          "reliability": 0.85
+        },
+        {
+          "time": "2032-03",
+          "value": 146.7,
+          "type": "forecast",
+          "reliability": 0.85
+        },
+        {
+          "time": "2032-04",
           "value": 145.8,
           "type": "forecast",
           "reliability": 0.85
         },
         {
-          "time": "2030-10",
-          "value": 148.1,
+          "time": "2032-05",
+          "value": 144.9,
           "type": "forecast",
           "reliability": 0.85
         },
         {
-          "time": "2030-11",
-          "value": 150.3,
+          "time": "2032-06",
+          "value": 144,
           "type": "forecast",
-          "reliability": 0.85
+          "reliability": 0.84
         },
         {
-          "time": "2030-12",
-          "value": 152.6,
+          "time": "2032-07",
+          "value": 145.4,
           "type": "forecast",
-          "reliability": 0.85
+          "reliability": 0.84
         },
         {
-          "time": "2031-01",
-          "value": 150.5,
+          "time": "2032-08",
+          "value": 146.8,
           "type": "forecast",
-          "reliability": 0.85
+          "reliability": 0.84
         },
         {
-          "time": "2031-02",
-          "value": 148.5,
+          "time": "2032-09",
+          "value": 148.3,
           "type": "forecast",
-          "reliability": 0.85
+          "reliability": 0.84
         },
         {
-          "time": "2031-03",
-          "value": 146.4,
+          "time": "2032-10",
+          "value": 149.6,
           "type": "forecast",
-          "reliability": 0.85
+          "reliability": 0.84
         },
         {
-          "time": "2031-04",
-          "value": 144.3,
+          "time": "2032-11",
+          "value": 151.1,
           "type": "forecast",
-          "reliability": 0.85
+          "reliability": 0.84
         },
         {
-          "time": "2031-05",
-          "value": 142.3,
+          "time": "2032-12",
+          "value": 152.5,
           "type": "forecast",
-          "reliability": 0.85
+          "reliability": 0.84
         },
         {
-          "time": "2031-06",
-          "value": 140.2,
+          "time": "2033-01",
+          "value": 151.6,
           "type": "forecast",
-          "reliability": 0.83
+          "reliability": 0.84
         },
         {
-          "time": "2031-07",
-          "value": 142.5,
+          "time": "2033-02",
+          "value": 150.6,
           "type": "forecast",
-          "reliability": 0.83
+          "reliability": 0.84
         },
         {
-          "time": "2031-08",
-          "value": 144.8,
+          "time": "2033-03",
+          "value": 149.7,
           "type": "forecast",
-          "reliability": 0.83
+          "reliability": 0.84
         },
         {
-          "time": "2031-09",
-          "value": 147.1,
+          "time": "2033-04",
+          "value": 148.7,
           "type": "forecast",
-          "reliability": 0.83
+          "reliability": 0.84
         },
         {
-          "time": "2031-10",
-          "value": 149.4,
+          "time": "2033-05",
+          "value": 147.8,
           "type": "forecast",
-          "reliability": 0.83
+          "reliability": 0.84
         },
         {
-          "time": "2031-11",
-          "value": 151.7,
-          "type": "forecast",
-          "reliability": 0.83
-        },
-        {
-          "time": "2031-12",
-          "value": 154,
+          "time": "2033-06",
+          "value": 146.8,
           "type": "forecast",
           "reliability": 0.83
         },
         {
-          "time": "2032-01",
-          "value": 152,
+          "time": "2033-07",
+          "value": 148.3,
           "type": "forecast",
           "reliability": 0.83
         },
         {
-          "time": "2032-02",
+          "time": "2033-08",
           "value": 149.8,
           "type": "forecast",
           "reliability": 0.83
         },
         {
-          "time": "2032-03",
-          "value": 147.8,
+          "time": "2033-09",
+          "value": 151.3,
           "type": "forecast",
           "reliability": 0.83
         },
         {
-          "time": "2032-04",
-          "value": 145.7,
+          "time": "2033-10",
+          "value": 152.7,
           "type": "forecast",
           "reliability": 0.83
         },
         {
-          "time": "2032-05",
-          "value": 143.5,
+          "time": "2033-11",
+          "value": 154.2,
           "type": "forecast",
           "reliability": 0.83
         },
         {
-          "time": "2032-06",
-          "value": 141.5,
+          "time": "2033-12",
+          "value": 155.6,
           "type": "forecast",
-          "reliability": 0.82
+          "reliability": 0.83
         },
         {
-          "time": "2032-07",
-          "value": 143.8,
+          "time": "2034-01",
+          "value": 154.6,
           "type": "forecast",
-          "reliability": 0.82
+          "reliability": 0.83
         },
         {
-          "time": "2032-08",
-          "value": 146.1,
+          "time": "2034-02",
+          "value": 153.6,
           "type": "forecast",
-          "reliability": 0.82
+          "reliability": 0.83
         },
         {
-          "time": "2032-09",
-          "value": 148.5,
+          "time": "2034-03",
+          "value": 152.7,
           "type": "forecast",
-          "reliability": 0.82
+          "reliability": 0.83
         },
         {
-          "time": "2032-10",
+          "time": "2034-04",
+          "value": 151.6,
+          "type": "forecast",
+          "reliability": 0.83
+        },
+        {
+          "time": "2034-05",
           "value": 150.7,
           "type": "forecast",
-          "reliability": 0.82
+          "reliability": 0.83
         },
         {
-          "time": "2032-11",
-          "value": 153.1,
+          "time": "2034-06",
+          "value": 149.7,
           "type": "forecast",
           "reliability": 0.82
         },
         {
-          "time": "2032-12",
-          "value": 155.4,
-          "type": "forecast",
-          "reliability": 0.82
-        },
-        {
-          "time": "2033-01",
-          "value": 153.3,
-          "type": "forecast",
-          "reliability": 0.82
-        },
-        {
-          "time": "2033-02",
+          "time": "2034-07",
           "value": 151.2,
           "type": "forecast",
           "reliability": 0.82
         },
         {
-          "time": "2033-03",
-          "value": 149.1,
-          "type": "forecast",
-          "reliability": 0.82
-        },
-        {
-          "time": "2033-04",
-          "value": 146.9,
-          "type": "forecast",
-          "reliability": 0.82
-        },
-        {
-          "time": "2033-05",
-          "value": 144.8,
-          "type": "forecast",
-          "reliability": 0.82
-        },
-        {
-          "time": "2033-06",
-          "value": 142.7,
-          "type": "forecast",
-          "reliability": 0.81
-        },
-        {
-          "time": "2033-07",
-          "value": 145,
-          "type": "forecast",
-          "reliability": 0.81
-        },
-        {
-          "time": "2033-08",
-          "value": 147.4,
-          "type": "forecast",
-          "reliability": 0.81
-        },
-        {
-          "time": "2033-09",
-          "value": 149.8,
-          "type": "forecast",
-          "reliability": 0.81
-        },
-        {
-          "time": "2033-10",
-          "value": 152.1,
-          "type": "forecast",
-          "reliability": 0.81
-        },
-        {
-          "time": "2033-11",
-          "value": 154.5,
-          "type": "forecast",
-          "reliability": 0.81
-        },
-        {
-          "time": "2033-12",
-          "value": 156.8,
-          "type": "forecast",
-          "reliability": 0.81
-        },
-        {
-          "time": "2034-01",
-          "value": 154.7,
-          "type": "forecast",
-          "reliability": 0.81
-        },
-        {
-          "time": "2034-02",
-          "value": 152.5,
-          "type": "forecast",
-          "reliability": 0.81
-        },
-        {
-          "time": "2034-03",
-          "value": 150.4,
-          "type": "forecast",
-          "reliability": 0.81
-        },
-        {
-          "time": "2034-04",
-          "value": 148.3,
-          "type": "forecast",
-          "reliability": 0.81
-        },
-        {
-          "time": "2034-05",
-          "value": 146.1,
-          "type": "forecast",
-          "reliability": 0.81
-        },
-        {
-          "time": "2034-06",
-          "value": 144,
-          "type": "forecast",
-          "reliability": 0.8
-        },
-        {
-          "time": "2034-07",
-          "value": 146.4,
-          "type": "forecast",
-          "reliability": 0.8
-        },
-        {
           "time": "2034-08",
-          "value": 148.7,
+          "value": 152.7,
           "type": "forecast",
-          "reliability": 0.8
+          "reliability": 0.82
         },
         {
           "time": "2034-09",
-          "value": 151.1,
+          "value": 154.2,
           "type": "forecast",
-          "reliability": 0.8
+          "reliability": 0.82
         },
         {
           "time": "2034-10",
-          "value": 153.5,
+          "value": 155.7,
           "type": "forecast",
-          "reliability": 0.8
+          "reliability": 0.82
         },
         {
           "time": "2034-11",
-          "value": 155.8,
+          "value": 157.3,
           "type": "forecast",
-          "reliability": 0.8
+          "reliability": 0.82
         },
         {
           "time": "2034-12",
-          "value": 158.2,
+          "value": 158.8,
           "type": "forecast",
-          "reliability": 0.8
+          "reliability": 0.82
         },
         {
           "time": "2035-01",
-          "value": 156,
+          "value": 157.7,
           "type": "forecast",
-          "reliability": 0.8
+          "reliability": 0.82
         },
         {
           "time": "2035-02",
-          "value": 153.9,
+          "value": 156.7,
           "type": "forecast",
-          "reliability": 0.8
+          "reliability": 0.82
         },
         {
           "time": "2035-03",
-          "value": 151.8,
+          "value": 155.7,
           "type": "forecast",
-          "reliability": 0.8
+          "reliability": 0.82
         },
         {
           "time": "2035-04",
-          "value": 149.6,
+          "value": 154.7,
           "type": "forecast",
-          "reliability": 0.8
+          "reliability": 0.82
         },
         {
           "time": "2035-05",
-          "value": 147.4,
+          "value": 153.6,
           "type": "forecast",
-          "reliability": 0.8
+          "reliability": 0.82
         },
         {
           "time": "2035-06",
-          "value": 145.3,
+          "value": 152.6,
           "type": "forecast",
-          "reliability": 0.79
+          "reliability": 0.81
         },
         {
           "time": "2035-07",
-          "value": 147.7,
+          "value": 154.2,
           "type": "forecast",
-          "reliability": 0.79
+          "reliability": 0.81
         },
         {
           "time": "2035-08",
-          "value": 150,
+          "value": 155.7,
           "type": "forecast",
-          "reliability": 0.79
+          "reliability": 0.81
         },
         {
           "time": "2035-09",
-          "value": 152.4,
+          "value": 157.3,
           "type": "forecast",
-          "reliability": 0.79
+          "reliability": 0.81
         },
         {
           "time": "2035-10",
-          "value": 154.8,
+          "value": 158.8,
           "type": "forecast",
-          "reliability": 0.79
+          "reliability": 0.81
         },
         {
           "time": "2035-11",
-          "value": 157.1,
+          "value": 160.4,
           "type": "forecast",
-          "reliability": 0.79
+          "reliability": 0.81
         },
         {
           "time": "2035-12",
-          "value": 159.5,
+          "value": 161.9,
           "type": "forecast",
-          "reliability": 0.79
+          "reliability": 0.81
         }
       ],
       "spatial": {
@@ -1103,120 +1103,120 @@
                 "2026-04": 115.3,
                 "2026-05": 113.7,
                 "2026-06": 119.2,
-                "2026-07": 119.7,
-                "2026-08": 125.4,
-                "2026-09": 125.5,
-                "2026-10": 125.1,
-                "2026-11": 135.7,
-                "2026-12": 147.1,
-                "2027-01": 145.1,
-                "2027-02": 143.1,
-                "2027-03": 141.2,
-                "2027-04": 139.1,
-                "2027-05": 137.1,
-                "2027-06": 135.1,
-                "2027-07": 137.3,
-                "2027-08": 139.6,
-                "2027-09": 141.8,
-                "2027-10": 144,
-                "2027-11": 146.3,
-                "2027-12": 148.5,
-                "2028-01": 146.5,
-                "2028-02": 144.5,
-                "2028-03": 142.4,
-                "2028-04": 140.4,
-                "2028-05": 138.4,
-                "2028-06": 136.4,
-                "2028-07": 138.6,
-                "2028-08": 140.9,
-                "2028-09": 143.2,
-                "2028-10": 145.4,
-                "2028-11": 147.6,
-                "2028-12": 149.9,
-                "2029-01": 147.9,
-                "2029-02": 145.8,
-                "2029-03": 143.8,
-                "2029-04": 141.7,
-                "2029-05": 139.7,
-                "2029-06": 137.7,
-                "2029-07": 139.9,
-                "2029-08": 142.2,
-                "2029-09": 144.5,
-                "2029-10": 146.7,
-                "2029-11": 149,
-                "2029-12": 151.3,
-                "2030-01": 149.2,
-                "2030-02": 147.2,
-                "2030-03": 145.1,
-                "2030-04": 143,
-                "2030-05": 141,
-                "2030-06": 138.9,
-                "2030-07": 141.2,
-                "2030-08": 143.5,
-                "2030-09": 145.8,
-                "2030-10": 148.1,
-                "2030-11": 150.3,
-                "2030-12": 152.6,
-                "2031-01": 150.5,
-                "2031-02": 148.5,
-                "2031-03": 146.4,
-                "2031-04": 144.3,
-                "2031-05": 142.3,
-                "2031-06": 140.2,
-                "2031-07": 142.5,
-                "2031-08": 144.8,
-                "2031-09": 147.1,
-                "2031-10": 149.4,
-                "2031-11": 151.7,
-                "2031-12": 154,
-                "2032-01": 152,
-                "2032-02": 149.8,
-                "2032-03": 147.8,
-                "2032-04": 145.7,
-                "2032-05": 143.5,
-                "2032-06": 141.5,
-                "2032-07": 143.8,
-                "2032-08": 146.1,
-                "2032-09": 148.5,
-                "2032-10": 150.7,
-                "2032-11": 153.1,
-                "2032-12": 155.4,
-                "2033-01": 153.3,
-                "2033-02": 151.2,
-                "2033-03": 149.1,
-                "2033-04": 146.9,
-                "2033-05": 144.8,
-                "2033-06": 142.7,
-                "2033-07": 145,
-                "2033-08": 147.4,
-                "2033-09": 149.8,
-                "2033-10": 152.1,
-                "2033-11": 154.5,
-                "2033-12": 156.8,
-                "2034-01": 154.7,
-                "2034-02": 152.5,
-                "2034-03": 150.4,
-                "2034-04": 148.3,
-                "2034-05": 146.1,
-                "2034-06": 144,
-                "2034-07": 146.4,
-                "2034-08": 148.7,
-                "2034-09": 151.1,
-                "2034-10": 153.5,
-                "2034-11": 155.8,
-                "2034-12": 158.2,
-                "2035-01": 156,
-                "2035-02": 153.9,
-                "2035-03": 151.8,
-                "2035-04": 149.6,
-                "2035-05": 147.4,
-                "2035-06": 145.3,
-                "2035-07": 147.7,
-                "2035-08": 150,
-                "2035-09": 152.4,
-                "2035-10": 154.8,
-                "2035-11": 157.1,
-                "2035-12": 159.5
+                "2026-07": 119.3,
+                "2026-08": 119.3,
+                "2026-09": 121.6,
+                "2026-10": 126.4,
+                "2026-11": 127.2,
+                "2026-12": 135.3,
+                "2027-01": 134.5,
+                "2027-02": 133.8,
+                "2027-03": 133.2,
+                "2027-04": 132.5,
+                "2027-05": 131.8,
+                "2027-06": 131.1,
+                "2027-07": 132.2,
+                "2027-08": 133.3,
+                "2027-09": 134.5,
+                "2027-10": 135.6,
+                "2027-11": 136.7,
+                "2027-12": 137.8,
+                "2028-01": 137.1,
+                "2028-02": 136.4,
+                "2028-03": 135.6,
+                "2028-04": 134.9,
+                "2028-05": 134.2,
+                "2028-06": 133.4,
+                "2028-07": 134.6,
+                "2028-08": 135.8,
+                "2028-09": 137,
+                "2028-10": 138.2,
+                "2028-11": 139.4,
+                "2028-12": 140.6,
+                "2029-01": 139.8,
+                "2029-02": 139,
+                "2029-03": 138.2,
+                "2029-04": 137.5,
+                "2029-05": 136.7,
+                "2029-06": 135.9,
+                "2029-07": 137.1,
+                "2029-08": 138.4,
+                "2029-09": 139.7,
+                "2029-10": 140.9,
+                "2029-11": 142.2,
+                "2029-12": 143.4,
+                "2030-01": 142.6,
+                "2030-02": 141.8,
+                "2030-03": 141,
+                "2030-04": 140.2,
+                "2030-05": 139.4,
+                "2030-06": 138.6,
+                "2030-07": 139.9,
+                "2030-08": 141.2,
+                "2030-09": 142.5,
+                "2030-10": 143.8,
+                "2030-11": 145.1,
+                "2030-12": 146.4,
+                "2031-01": 145.6,
+                "2031-02": 144.7,
+                "2031-03": 143.9,
+                "2031-04": 143,
+                "2031-05": 142.1,
+                "2031-06": 141.3,
+                "2031-07": 142.6,
+                "2031-08": 144,
+                "2031-09": 145.4,
+                "2031-10": 146.7,
+                "2031-11": 148,
+                "2031-12": 149.4,
+                "2032-01": 148.5,
+                "2032-02": 147.6,
+                "2032-03": 146.7,
+                "2032-04": 145.8,
+                "2032-05": 144.9,
+                "2032-06": 144,
+                "2032-07": 145.4,
+                "2032-08": 146.8,
+                "2032-09": 148.3,
+                "2032-10": 149.6,
+                "2032-11": 151.1,
+                "2032-12": 152.5,
+                "2033-01": 151.6,
+                "2033-02": 150.6,
+                "2033-03": 149.7,
+                "2033-04": 148.7,
+                "2033-05": 147.8,
+                "2033-06": 146.8,
+                "2033-07": 148.3,
+                "2033-08": 149.8,
+                "2033-09": 151.3,
+                "2033-10": 152.7,
+                "2033-11": 154.2,
+                "2033-12": 155.6,
+                "2034-01": 154.6,
+                "2034-02": 153.6,
+                "2034-03": 152.7,
+                "2034-04": 151.6,
+                "2034-05": 150.7,
+                "2034-06": 149.7,
+                "2034-07": 151.2,
+                "2034-08": 152.7,
+                "2034-09": 154.2,
+                "2034-10": 155.7,
+                "2034-11": 157.3,
+                "2034-12": 158.8,
+                "2035-01": 157.7,
+                "2035-02": 156.7,
+                "2035-03": 155.7,
+                "2035-04": 154.7,
+                "2035-05": 153.6,
+                "2035-06": 152.6,
+                "2035-07": 154.2,
+                "2035-08": 155.7,
+                "2035-09": 157.3,
+                "2035-10": 158.8,
+                "2035-11": 160.4,
+                "2035-12": 161.9
               }
             }
           }
@@ -3674,14 +3674,19 @@
   },
   "_coordinateProvenance": "空间锚点取库内 ports 表真坐标（4490→4326，与 frontend/public/data/ports.json 同源）：钦州港 108.590379,21.726917；北海港 109.130658,21.418792；防城港 108.340973,21.617689。替代早期 mock 市区坐标（见 cargo.json _coordinateProvenance）。",
   "model_info": {
-    "method": "seasonal_decomposition_with_correction",
+    "method": "baseline_linear_vs_cny_adjusted_damped_holt_winters_with_gate",
     "indicator": "cargo",
     "data_source": "cargo.json（官方真数据 2021-01~2026-06，yqb.gxzf.gov.cn）",
     "training_period": "2021-01 ~ 2024-12",
     "validation_period": "2025-01 ~ 2026-06",
     "rolling_backtest": "origin 2024-01 ~ 2026-06，horizon 12 个月",
     "forecast_period": "2026-07 ~ 2035-12",
-    "canal_assumption": "未建模平陆运河（2027 起隐含影响为零假设，情景区间待 intervention 层）"
+    "model_selection": {
+      "judge_metric": "滚动回测全步长（h1-12）平均 MAPE",
+      "rule": "候选（ETS / 季节朴素 / 组合）须比线性好 ≥0.5pp 才可替换；达标者取 MAPE 最小（平局取参数少者）；组合须严格优于当轮最好单模型",
+      "per_port_winner": "见 ports.*.backtest.selected_model 与 ports.*.model_comparison"
+    },
+    "canal_assumption": "未建模平陆运河（2026-09-16 已通航，预测=无运河反事实基线；情景层待工单 F3 落地）"
   },
   "_baseMeans": {
     "qinzhou": 1544.4,

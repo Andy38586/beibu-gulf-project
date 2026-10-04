@@ -3,22 +3,20 @@
     "qinzhou": {
       "name": "钦州港",
       "backtest": {
-        "selected_model": "linear",
-        "validation_overall_mape": 6.37,
-        "validation_months": 18,
+        "selected_model": "combination",
         "rolling_mape_by_step": {
-          "1": 5.43,
-          "2": 5.8,
-          "3": 5.72,
-          "4": 5.71,
-          "5": 5.88,
-          "6": 6.11,
-          "7": 6.8,
-          "8": 6.98,
-          "9": 6.55,
-          "10": 6.59,
-          "11": 6.66,
-          "12": 6.75
+          "1": 5.05,
+          "2": 5.85,
+          "3": 5.24,
+          "4": 5.42,
+          "5": 5.63,
+          "6": 5.62,
+          "7": 5.24,
+          "8": 5.35,
+          "9": 4.67,
+          "10": 4.96,
+          "11": 5.26,
+          "12": 6
         },
         "rolling_samples_by_step": {
           "1": 30,
@@ -34,8 +32,9 @@
           "11": 20,
           "12": 19
         },
-        "bias": "balanced",
-        "correction_factor": 1.0018
+        "validation_overall_mape": null,
+        "bias": null,
+        "correction_factor": null
       },
       "model_comparison": {
         "protocol": "滚动原点 origin 2024-01~2026-06，horizon 12，训练<origin，无校正防泄漏",
@@ -142,153 +141,195 @@
             "12": 1.09
           }
         },
-        "selected": "linear",
+        "combination": {
+          "overall_mape": 5.36,
+          "overall_mase": 0.75,
+          "mape_by_step": {
+            "1": 5.05,
+            "2": 5.85,
+            "3": 5.24,
+            "4": 5.42,
+            "5": 5.63,
+            "6": 5.62,
+            "7": 5.24,
+            "8": 5.35,
+            "9": 4.67,
+            "10": 4.96,
+            "11": 5.26,
+            "12": 6
+          },
+          "mase_by_step": {
+            "1": 0.7,
+            "2": 0.81,
+            "3": 0.73,
+            "4": 0.76,
+            "5": 0.79,
+            "6": 0.79,
+            "7": 0.74,
+            "8": 0.75,
+            "9": 0.66,
+            "10": 0.71,
+            "11": 0.73,
+            "12": 0.83
+          },
+          "final_weights": {
+            "linear": 0.3957848060180235,
+            "ets": 0.27403892049793804,
+            "seasonal_naive": 0.3301762734840385
+          },
+          "member_mape": {
+            "linear": 6.19,
+            "ets": 8.94,
+            "seasonal_naive": 7.42
+          }
+        },
+        "selected": "combination",
         "gate": "候选须比线性好 ≥0.5pp 才可替换；达标者取 MAPE 最小（平局取参数少者）；组合须严格优于当轮最好单模型"
       },
       "predictions": [
         {
           "time": "2026-07",
-          "value": 1849,
+          "value": 1842,
           "lower": 1749,
-          "upper": 1950
+          "upper": 1935
         },
         {
           "time": "2026-08",
-          "value": 1937,
-          "lower": 1824,
-          "upper": 2049
+          "value": 1842,
+          "lower": 1734,
+          "upper": 1950
         },
         {
           "time": "2026-09",
-          "value": 1938,
-          "lower": 1828,
-          "upper": 2049
+          "value": 1878,
+          "lower": 1780,
+          "upper": 1977
         },
         {
           "time": "2026-10",
-          "value": 1932,
-          "lower": 1822,
-          "upper": 2042
+          "value": 1952,
+          "lower": 1846,
+          "upper": 2058
         },
         {
           "time": "2026-11",
-          "value": 2096,
-          "lower": 1973,
-          "upper": 2220
+          "value": 1964,
+          "lower": 1853,
+          "upper": 2074
         },
         {
           "time": "2026-12",
-          "value": 2272,
-          "lower": 2133,
-          "upper": 2410
+          "value": 2089,
+          "lower": 1972,
+          "upper": 2207
         },
         {
           "time": "2027-06",
-          "value": 2087,
-          "lower": 1945,
-          "upper": 2229
+          "value": 2024,
+          "lower": 1903,
+          "upper": 2146
         },
         {
           "time": "2027-12",
-          "value": 2293,
-          "lower": 2133,
-          "upper": 2453
+          "value": 2129,
+          "lower": 1949,
+          "upper": 2310
         },
         {
           "time": "2028-06",
-          "value": 2106,
-          "lower": 1968,
-          "upper": 2244
+          "value": 2061,
+          "lower": 1847,
+          "upper": 2275
         },
         {
           "time": "2028-12",
-          "value": 2315,
-          "lower": 2162,
-          "upper": 2467
+          "value": 2171,
+          "lower": 1946,
+          "upper": 2397
         },
         {
           "time": "2029-06",
-          "value": 2126,
-          "lower": 1984,
-          "upper": 2268
+          "value": 2099,
+          "lower": 1848,
+          "upper": 2351
         },
         {
           "time": "2029-12",
-          "value": 2336,
-          "lower": 2178,
-          "upper": 2494
+          "value": 2215,
+          "lower": 1949,
+          "upper": 2481
         },
         {
           "time": "2030-06",
-          "value": 2146,
-          "lower": 1941,
-          "upper": 2350
+          "value": 2140,
+          "lower": 1853,
+          "upper": 2427
         },
         {
           "time": "2030-12",
-          "value": 2357,
-          "lower": 2132,
-          "upper": 2582
+          "value": 2261,
+          "lower": 1957,
+          "upper": 2564
         },
         {
           "time": "2031-06",
-          "value": 2165,
-          "lower": 1959,
-          "upper": 2372
+          "value": 2182,
+          "lower": 1861,
+          "upper": 2502
         },
         {
           "time": "2031-12",
-          "value": 2379,
-          "lower": 2152,
-          "upper": 2606
+          "value": 2307,
+          "lower": 1968,
+          "upper": 2646
         },
         {
           "time": "2032-06",
-          "value": 2185,
-          "lower": 1976,
-          "upper": 2393
+          "value": 2224,
+          "lower": 1871,
+          "upper": 2577
         },
         {
           "time": "2032-12",
-          "value": 2400,
-          "lower": 2171,
-          "upper": 2629
+          "value": 2355,
+          "lower": 1981,
+          "upper": 2729
         },
         {
           "time": "2033-06",
-          "value": 2204,
-          "lower": 1994,
-          "upper": 2415
-        },
-        {
-          "time": "2033-12",
-          "value": 2422,
-          "lower": 2190,
+          "value": 2268,
+          "lower": 1883,
           "upper": 2653
         },
         {
+          "time": "2033-12",
+          "value": 2403,
+          "lower": 1995,
+          "upper": 2811
+        },
+        {
           "time": "2034-06",
-          "value": 2224,
-          "lower": 2012,
-          "upper": 2436
+          "value": 2312,
+          "lower": 1896,
+          "upper": 2728
         },
         {
           "time": "2034-12",
-          "value": 2443,
-          "lower": 2210,
-          "upper": 2676
+          "value": 2452,
+          "lower": 2010,
+          "upper": 2893
         },
         {
           "time": "2035-06",
-          "value": 2244,
-          "lower": 2029,
-          "upper": 2458
+          "value": 2357,
+          "lower": 1909,
+          "upper": 2804
         },
         {
           "time": "2035-12",
-          "value": 2464,
-          "lower": 2176,
-          "upper": 2753
+          "value": 2501,
+          "lower": 2026,
+          "upper": 2975
         }
       ]
     },
@@ -432,6 +473,48 @@
             "10": 0.97,
             "11": 0.93,
             "12": 0.91
+          }
+        },
+        "combination": {
+          "overall_mape": 10.16,
+          "overall_mase": 0.71,
+          "mape_by_step": {
+            "1": 8.28,
+            "2": 9.84,
+            "3": 8.85,
+            "4": 9.71,
+            "5": 10.52,
+            "6": 9.52,
+            "7": 10.28,
+            "8": 10.57,
+            "9": 10.88,
+            "10": 12.18,
+            "11": 10.03,
+            "12": 11.26
+          },
+          "mase_by_step": {
+            "1": 0.6,
+            "2": 0.72,
+            "3": 0.63,
+            "4": 0.69,
+            "5": 0.75,
+            "6": 0.64,
+            "7": 0.7,
+            "8": 0.71,
+            "9": 0.73,
+            "10": 0.83,
+            "11": 0.69,
+            "12": 0.77
+          },
+          "final_weights": {
+            "linear": 0.40359738383448035,
+            "ets": 0.2739651115432731,
+            "seasonal_naive": 0.3224375046222466
+          },
+          "member_mape": {
+            "linear": 10.25,
+            "ets": 15.1,
+            "seasonal_naive": 12.83
           }
         },
         "selected": "linear",
@@ -724,6 +807,48 @@
             "10": 0.73,
             "11": 0.75,
             "12": 0.77
+          }
+        },
+        "combination": {
+          "overall_mape": 7.79,
+          "overall_mase": 0.61,
+          "mape_by_step": {
+            "1": 6.63,
+            "2": 7.49,
+            "3": 7.62,
+            "4": 7.29,
+            "5": 7.23,
+            "6": 7.53,
+            "7": 7.84,
+            "8": 8.08,
+            "9": 8.78,
+            "10": 8.41,
+            "11": 8.34,
+            "12": 8.24
+          },
+          "mase_by_step": {
+            "1": 0.51,
+            "2": 0.59,
+            "3": 0.59,
+            "4": 0.57,
+            "5": 0.56,
+            "6": 0.58,
+            "7": 0.61,
+            "8": 0.63,
+            "9": 0.68,
+            "10": 0.67,
+            "11": 0.67,
+            "12": 0.66
+          },
+          "final_weights": {
+            "linear": 0.37176106157645783,
+            "ets": 0.30574741512830167,
+            "seasonal_naive": 0.32249152329524045
+          },
+          "member_mape": {
+            "linear": 7.92,
+            "ets": 9.63,
+            "seasonal_naive": 9.13
           }
         },
         "selected": "linear",

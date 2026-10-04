@@ -1188,6 +1188,9 @@ node .local/tmp-app-inject/capture-terrain-requests.mjs http://127.0.0.1:5174/ro
 # Cesium 内部可用性对账（真相裁决）：
 node .local/tmp-app-inject/interrogate-terrain-provider.mjs --real
 # 期望: z3_12_3=true ｜ z3_12_4=false ｜ z13_13149_3074=true ｜ z2_6_1=true
+# 控制台整链复跑（586 km 单档）：
+node tools/diag/lod-ladder.cjs http://127.0.0.1:5174/route-analysis 586000
+# 期望: 控制台 136 条 ｜ terrain 相关 0 ｜ 404 0 ｜ pageerror 0 ｜ 四资产形态=粗一致、EXIT=0
 ```
 
 **变异四式（实跑；逐条还原后 md5 双向一致 `51DAFC15E3B42B9F9D3B689144E6D67B`）**：
@@ -1210,8 +1213,9 @@ Cesium 按声明原样请求 ⇒ 运行时地形只剩 z0/z1 精度」被上面�
 仍待 07c 全量重切（先备份 `layer.json`）——属 1004 批「07c 幽灵声明」条目，等用户点头。
 
 **影响面自陈（E3）**：① 预热通道由空转变实——z2/z3 的 5 张改请求盘上实物（实测全 200），
-预热队列 15 张全 200；② §8.26 控制台通道的 404 计数预期 -5（环境性 404 只剩 z13/z14 幽灵，
-需复跑确认）；③ 未新增 env / 依赖 / 守卫，未改 `MAX_PREHEAT_TILES` 与失败静默语义；
+预热队列 15 张全 200；② §8.26 控制台通道复跑（586 km 单档）确认：error/warning 143→136、
+`.terrain` 相关 0 条、404 0 条、pageerror 0、EXIT=0；③ 未新增 env / 依赖 / 守卫，未改
+`MAX_PREHEAT_TILES` 与失败静默语义；
 ④ 工具脚本还原后 `07c --dry-run` 回到 `be335c7e` 口径（第一版的「朝向自检」已随误判一起删）。
 
 **失效条件**：① `layer.json` 改非 TMS 口径（Cesium 改语义或资产重切为"available=slippy"）⇒

@@ -256,6 +256,50 @@ def main():
     print('  %-24s 逐顶点跟随 ⇒ Δ 恒 = +0.15（无格点除外；无格点需更大半径回退）'
           % ('C 逐顶点跟随'))
 
+    # —— C 的回退半径评估：每个道路采样点到最近地面格中心的距离。
+    #    语义：C 只对"找得到参考"的顶点有效；无参考点必须选回退半径与越界策略。
+    try:
+        from scipy.spatial import cKDTree
+        have_kd = True
+    except ImportError:
+        have_kd = False
+    if have_kd:
+        print('\nC 回退半径评估（道路采样点 → 最近地面格中心的距离）：')
+        for gname in grids:
+            grid = grids[gname]
+            keys = np.array(sorted(grid.keys()), dtype=np.float64)
+            centers = (keys + 0.5) * CELL
+            tree = cKDTree(centers)
+            tree_self = tree.query(centers, k=1)[0]
+            dmin, imin = tree.query(S[:, :2], k=1)
+            nn_u = np.array([grid[(int(k[0]), int(k[1]))] for k in keys])[imin]
+            print('  池 = %s ｜ 自检：格中心回喂距离 max=%.6f m（期望 0）'
+                  % (gname, float(tree_self.max())))
+            print('    距离分位 P50/P75/P90/P95/P99 = %.1f/%.1f/%.1f/%.1f/%.1f m'
+                  % tuple(float(np.percentile(dmin, q)) for q in (50, 75, 90, 95, 99)))
+            prev = np.zeros(len(dmin), dtype=bool)
+            for R in (4, 8, 12, 16, 24, 32, 48, 64, 128, 256):
+                cov = dmin <= R
+                new = cov & ~prev
+                med_new = float(np.median(u_roads - nn_u[new])) if new.any() else float('nan')
+                cov_in = float((dmin[inside] <= R).mean() * 100) if inside.any() else float('nan')
+                print('    R≤%3d m：全网覆盖 %5.1f%%（+%d 点）｜ 窗口内覆盖 %5.1f%% ｜ '
+                      '本档新增点现状Δ(u路−u格)中位 %+.2f m'
+                      % (R, cov.mean() * 100, int(new.sum()), cov_in, med_new))
+                prev = cov
+            edges = (4, 8, 16, 32, 64, 128, 256, 10**9)
+            for a, b in zip((0,) + edges[:-1], edges):
+                m = (dmin >= a) & (dmin < b)
+                if not m.any():
+                    continue
+                med = float(np.median(u_roads - nn_u[m]))
+                print('    距离 [%g,%g)：%d 点（%.1f%%）｜ 窗口内 %d 点 ｜ 现状Δ中位 %+.2f m'
+                      % (a, b, int(m.sum()), m.mean() * 100, int((m & inside).sum()), med))
+        print('  口径：C 的实施 = u 路顶点 := u(最近地面格) + 0.15；上表回答"回退半径取多大时'
+              '剩余无参考点可忽略、且不跨场地拉错参考"。')
+    else:
+        print('\nC 回退半径评估：缺 scipy ⇒ SKIPPED（不判红也不判绿）')
+
     # —— 每块细瓦片：地面材质中位（判断 u₀ 口径分歧来源）
     print('\nt4/t5 逐块（rail/concrete 中位 u；是否与道路 bbox 相交）：')
     for f in files:

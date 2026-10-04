@@ -686,7 +686,9 @@ glTF 材质也没写 `doubleSided` ⇒ 整层被剔除。**不报错、不缺瓦
 ——基准该取"全 t4/t5 pool 中位"还是"只按渲染中的 7 块 / 上分位"，属**改权威源**，须用户裁定。
 脚本：`tools/diag/probe-port-roads-vs-ground.py`（只读；u₀ 四口径量化见 §8.12）。
 
-**复算钩子**：```bash
+**复算钩子**：
+
+```bash
 node tools/3dtiles-build/build-roads.mjs # 期望: 道路 92 条 / 754 段，地面 u=-17.55 m
 node tools/3dtiles-build/build-canal.mjs # 期望: 中线 2 链 → 稠密 3213 点；挤出 19218 三角面
 npx vitest run --root . tools/3dtiles-build/**tests**/build.test.mjs # 期望: 20 passed
@@ -705,7 +707,7 @@ backend/algorithm-service/.venv/Scripts/python.exe -X utf8 tools/diag/diff-image
 
 # 期望: DIFF 0 / 558000 px = 0.00%（绕序修复后，关剔除不再多出任何像素；修前这 2.71% 只在关剔除后出现）
 
-````
+```
 
 **失效条件**：① 港区 `roads.glb` 未入库 ⇒ 换机复跑前必须先重建，否则看到的是旧绕序（0 像素）；
 ② 若有人给这些材质加 `doubleSided: true`，剔除会消失，但**绕序断言仍钉**（它测几何法线而非材质）；
@@ -714,10 +716,10 @@ backend/algorithm-service/.venv/Scripts/python.exe -X utf8 tools/diag/diff-image
 **同族补完（同日 18:3x）**：`tools/diag/probe-3dtiles-facing.py`（已入库，逐图元抽样算
 dot(几何法线, 声明法线)，含交付包作对照）扫**全部自建产物**又逮到两处同因缺陷：
 
-| 层                     | 修前                                                          | 机理                                                                                          | 修后                                                        |
-| ---------------------- | ------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
-| 城区五桥 `bridges-city` | 静态正向 **0%**、dot 中位 **−1.00**；运行时开/关剔除两张图互差 **11459 px**（画的是内壁） | `build-bridges.mjs` `addBox` 用 `(x,z)→(E,N)` 的**镜像**映射（权威是 `gltfToEnu=(x,−z,y)`）⇒ 绕序整体翻一次 | 静态 **100%**；运行时互差 **0**（位置逐位不变）              |
-| 集装箱备选层（默认关）   | 静态 **16/28 = 57%**（±Z 侧面 8 面对，端面/顶/底/门带 12 面反）⇒ 单面材质下箱体**缺顶盖/端面** | `container-models.mjs` 各面四边形顶点序不统一（`push` 的索引约定一致）                        | 静态 **100%**（10 块 cell + 5 款模型）                      |
+| 层                      | 修前                                                                                           | 机理                                                                                                        | 修后                                            |
+| ----------------------- | ---------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| 城区五桥 `bridges-city` | 静态正向 **0%**、dot 中位 **−1.00**；运行时开/关剔除两张图互差 **11459 px**（画的是内壁）      | `build-bridges.mjs` `addBox` 用 `(x,z)→(E,N)` 的**镜像**映射（权威是 `gltfToEnu=(x,−z,y)`）⇒ 绕序整体翻一次 | 静态 **100%**；运行时互差 **0**（位置逐位不变） |
+| 集装箱备选层（默认关）  | 静态 **16/28 = 57%**（±Z 侧面 8 面对，端面/顶/底/门带 12 面反）⇒ 单面材质下箱体**缺顶盖/端面** | `container-models.mjs` 各面四边形顶点序不统一（`push` 的索引约定一致）                                      | 静态 **100%**（10 块 cell + 5 款模型）          |
 
 判据已进 `build.test.mjs`：`buildBridge` 逐面同向（红样 = 不翻索引 ⇒ `expected 0 to be greater than 0.99`）、
 `buildContainer` 逐面同向（红样 = 翻错一个四边形 ⇒ `expected 0.9642857… to be greater than 0.99`）。
@@ -732,7 +734,9 @@ dot(几何法线, 声明法线)，含交付包作对照）扫**全部自建产�
 **发布侧须各重跑一次** `node tools/3dtiles-build/build-bridges.mjs` 与
 `node tools/3dtiles-build/container-models.mjs && node tools/3dtiles-build/rebuild-containers.mjs`。
 
-**全家庭体检钩子**：```bash
+**全家庭体检钩子**：
+
+```bash
 backend/algorithm-service/.venv/Scripts/python.exe -X utf8 tools/diag/probe-3dtiles-facing.py
 # 期望: 体检 17 个产物 —— 交付包对照 ✅100%、运河带 ✅100%、港区道路 ✅100%、港区地面 ✅100%、城区五桥 ✅100%
 # 阳性对照: python -X utf8 tools/diag/probe-3dtiles-facing.py --glb <整层翻绕序的样本> ⇒ ❌ 0% 正向、EXIT=1
@@ -742,7 +746,7 @@ backend/algorithm-service/.venv/Scripts/python.exe -X utf8 tools/diag/probe-3dti
 node tools/diag/probe-3dtiles-runtime.cjs --url http://127.0.0.1:5174/route-analysis \
  --fly 108.6473,21.6745,1200,0,-90 --wait 75000 --re "qz-containers" --backface
 # 期望: sel=6 / 6 块 modelReady；diff none↔on ≈ 5.46%（30466 px）、on↔off ≈ 0.07%（400 px）
-````
+```
 
 ### 8.21 【发布通道】港区/城区桥两组 3D Tiles 线上无到达路径（待裁）· 2026-10-04 19:3x
 
@@ -781,16 +785,16 @@ CI 从干净 checkout 构建（`ci.yml:443-467`）⇒ 按当前编排部署后�
 **顺带（注释腐烂）**：`nginx.conf:101-103` 注释称静态内容由"Dockerfile COPY backend/ 带入"，
 与 `Dockerfile:70` 实测不符，随选定方案一并改。
 
-**复算钩子**：```bash
+**复算钩子**：
+
+```bash
 git ls-files backend/static/qinzhou-port backend/static/bridges-city | wc -l # 期望: 0（现状=无入库通道）
 grep -n "backend/static" docker-compose.yml # 期望: 只有 dem/terrain/pinglu 三行
 grep -n "mkdir -p /app/backend/static" Dockerfile # 期望: 只有 dem/terrain/pinglu
 curl.exe -sk -o NUL -w '%{http_code}\n' https://112.74.32.206/static/qinzhou-port/rebuilt/roads/tileset.json
 
 # 期望: 404（部署后仍 404 ⇒ 本条继续成立；返 200 ⇒ 本条作废）
-
 ```
 
 **作废条件**：选定 ①/② 并部署后对应 URL 返 200；或服务器另有本机不可见的分发通道
 （以部署机实测为准）——任一成立则本条作废。
-```

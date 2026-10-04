@@ -50,6 +50,25 @@ function collectContentUris(json: unknown): string[] {
  *
  * @returns 实际取到的项数（供测试断言；失败项不计入且不抛错）
  */
+/**
+ * 取单项字节数（HEAD）。拿不到 `content-length` 或 HEAD 失败时返回 `null`
+ * —— 保守放行（不把没给头信息的服务器整项跳过），由调用方决定。
+ */
+async function headBytes(
+  url: string,
+  fetchImpl: typeof fetch,
+  signal?: AbortSignal
+): Promise<number | null> {
+  try {
+    const r = await fetchImpl(url, { method: 'HEAD', signal })
+    const raw = r.headers?.get?.('content-length')
+    const n = raw == null ? NaN : Number(raw)
+    return Number.isFinite(n) && n >= 0 ? n : null
+  } catch {
+    return null
+  }
+}
+
 export async function preloadTilesets(
   urls: readonly string[],
   signal?: AbortSignal,
@@ -68,6 +87,9 @@ export async function preloadTilesets(
         if (signal?.aborted) break
         // 已是绝对地址的原样用；站点根相对补 origin；其余拼基准目录
         const abs = /^[a-z][a-z0-9+.-]*:/i.test(uri) ? uri : uri.startsWith('/') ? uri : base + uri
+        // C5「单项 ≤ 40 MB」的执行体：超限项跳过预热（正式路径仍会在需要时按需加载）
+        const size = await headBytes(abs, fetchImpl, signal)
+        if (size !== null && size > PRELOAD_ITEM_LIMIT_BYTES) continue
         try {
           const r2 = await fetchImpl(abs, { signal })
           if (r2.ok) ok++

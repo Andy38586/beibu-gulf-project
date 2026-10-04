@@ -11,22 +11,31 @@ import { __resetPreloadForTest, preloadTilesets } from '../preload'
 
 afterEach(() => __resetPreloadForTest())
 
-/** 造一个可控 fetch：记录调用顺序，可指定失败项 */
-function makeFetch(plan: Record<string, { ok?: boolean; json?: unknown }>) {
+/** 造一个可控 fetch：记录"方法 + URL"调用顺序，可指定失败项与 content-length（HEAD 用） */
+function makeFetch(
+  plan: Record<string, { ok?: boolean; json?: unknown; size?: number; noHeaders?: boolean }>
+) {
   const calls: string[] = []
   let inflight = 0
   let maxInflight = 0
-  const impl = (async (url: string) => {
-    calls.push(url)
+  const impl = (async (url: string, init?: { method?: string }) => {
+    calls.push((init?.method ?? 'GET') + ' ' + url)
     inflight++
     if (inflight > maxInflight) maxInflight = inflight
     // 让出事件循环，暴露并发
     await new Promise((r) => setTimeout(r, 1))
     inflight--
     const p = plan[url] ?? { ok: false }
+    const headers = p.noHeaders
+      ? undefined
+      : {
+          get: (k: string) =>
+            k.toLowerCase() === 'content-length' && p.size != null ? String(p.size) : null,
+        }
     return {
       ok: p.ok ?? false,
       json: async () => p.json ?? {},
+      headers,
     } as unknown as Response
   }) as unknown as typeof fetch
   return { impl, calls, maxInflight: () => maxInflight }
@@ -45,7 +54,36 @@ describe('preloadTilesets', () => {
       '/static/t/b.glb': { ok: true },
     })
     const n = await preloadTilesets([TILESET], undefined, impl)
-    expect(calls).toEqual([TILESET, 'http://x.test/static/t/a.glb', '/static/t/b.glb'])
+    expect(calls).toEqual([
+      'GET ' + TILESET,
+      'HEAD http://x.test/static/t/a.glb',
+      'GET http://x.test/static/t/a.glb',
+      'HEAD /static/t/b.glb',
+      'GET /static/t/b.glb',
+    ])
+    expect(n).toBe(3)
+  })
+
+  it('**单项超限**：HEAD 报 50 MB ⇒ 跳过该内容（不发 GET、不计入 ok）', async () => {
+    const { impl, calls } = makeFetch({
+      [TILESET]: { ok: true, json: JSON_OK },
+      'http://x.test/static/t/a.glb': { ok: true, size: 50 * 1024 * 1024 },
+      '/static/t/b.glb': { ok: true },
+    })
+    const n = await preloadTilesets([TILESET], undefined, impl)
+    expect(calls).not.toContain('GET http://x.test/static/t/a.glb')
+    expect(calls).toContain('GET /static/t/b.glb')
+    expect(n).toBe(2)
+  })
+
+  it('HEAD 无 content-length ⇒ 保守放行（照常取）', async () => {
+    const { impl, calls } = makeFetch({
+      [TILESET]: { ok: true, json: JSON_OK },
+      'http://x.test/static/t/a.glb': { ok: true, noHeaders: true },
+      '/static/t/b.glb': { ok: true },
+    })
+    const n = await preloadTilesets([TILESET], undefined, impl)
+    expect(calls).toContain('GET http://x.test/static/t/a.glb')
     expect(n).toBe(3)
   })
 

@@ -109,20 +109,21 @@ npm run forecast:model
 ### 口径声明（诚实标注，写进产物 model_info）
 
 - 平陆运河（**2026-09-16 已通航**）：本基线产物不建模运河增量（= 无运河反事实）；三档情景
-  `design/median/induced` 由后端 `backend/src/modules/forecast/services/scenario.service.ts` 叠加、
-  前端可切换（仅 cargo）。锚点（2029=5340、2035=9550/10675/11800、2050=12000/13100/14200 万吨）
-  与出处见 `backend/src/modules/forecast/constants/scenario.constants.ts`；江海联运占比 =
+  `design/median/induced` 为**正式口径**（2026-10-05 定稿），由后端
+  `backend/src/modules/forecast/services/scenario.service.ts` 叠加、前端可切换（仅 cargo）。
+  锚点（2029=5340、2035=9550/10675/11800、2050=12000/13100/14200 万吨）与出处见
+  `backend/src/modules/forecast/constants/scenario.constants.ts`；江海联运占比 =
   （总运量 − 区间运量）/ 总运量，港口分摊默认取 2022 现状吞吐结构（钦 0.47 / 防 0.41 / 北 0.12，
-  和恒 = 1）。**剩余缺口**：占比与分摊的倾斜敏感性呈现（含钦州倾斜方案）待用户供数或授权区间化，
-  默认值不拍脑袋。
+  和恒 = 1）。**倾斜敏感性已定稿为区间呈现**（钦州 +5pp/+10pp 不进默认值），
+  增量表与区间见 `docs/日志/快照/预测分析-运河情景定稿-2026-10-05.md`。
 - 春节修正 k=0（假期日零活动）为保守假设，可调参重跑做敏感性。
 - MASE/闸门判据定义在 `lib/backtest.cjs`，与本文档口径逐字对应（04-B10）。
 - **敏感性对照（论文用，只读报告，不改默认值）**：`npm --prefix backend test -- scenario.sensitivity`
   （或 `cd backend && npx vitest run test/scenario.sensitivity.spec.ts --silent=false`）打印
   三档×三港 2029/2030/2035 年增量，以及「钦州倾斜 +5pp/+10pp（防/北按比例再归一）」对照。
   三类敏感轴：总量口径缩放、江海联运口径缩放（作用于 `总量−区间` 段）、港域分摊倾斜——
-  前两者对增量严格线性，分摊按份额线性。默认分摊仍取 2022 现状结构；是否把倾斜/区间
-  写进默认或论文正文由用户裁定。
+  前两者对增量严格线性，分摊按份额线性。默认分摊仍取 2022 现状结构；倾斜/区间引用以
+  上述定稿快照为准（2026-10-05 用户裁定定稿）。
 
 ### 何时重跑
 

@@ -662,7 +662,8 @@ function main() {
         canal_assumption:
           '平陆运河（2026-09-16 已通航）增量不在本基线内（本产物=无运河反事实）；' +
           '运河增量以三档情景（design/median/induced）由后端叠加、前端可切换，' +
-          '锚点与港口分摊出处见 scenario.constants.ts；占比/分摊敏感性呈现待用户授权',
+          '锚点与港口分摊出处见 scenario.constants.ts；占比/分摊敏感性已定稿' +
+          '（区间呈现，见 docs/日志/快照/预测分析-运河情景定稿-2026-10-05.md）',
       },
     }
 

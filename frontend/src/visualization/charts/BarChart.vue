@@ -14,11 +14,9 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   title: '港口吞吐量对比',
-  xData: () => ['钦州港', '北海港', '防城港'],
-  series: () => [
-    { name: '2023年', data: [190, 140, 150] },
-    { name: '2024年', data: [230, 180, 170] },
-  ],
+  // 缺省为空：见 LineChart 同款口径（F6：演示数据默认值可架空空态）
+  xData: () => [],
+  series: () => [],
 })
 
 const emit = defineEmits<{

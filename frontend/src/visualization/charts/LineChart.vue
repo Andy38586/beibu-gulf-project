@@ -18,12 +18,10 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   title: '港口吞吐量趋势',
-  xData: () => ['2019', '2020', '2021', '2022', '2023', '2024'],
-  series: () => [
-    { name: '钦州港', data: [120, 132, 101, 134, 190, 230] },
-    { name: '北海港', data: [90, 110, 120, 115, 140, 180] },
-    { name: '防城港', data: [80, 95, 110, 125, 150, 170] },
-  ],
+  // 缺省为空：演示数据默认值会架空空态（漏传 series 的调用点静默显示虚构吞吐量）。
+  // 数据一律由调用方显式传入；无数据走 EmptyState（F6）。
+  xData: () => [],
+  series: () => [],
   xMin: '',
   xMax: '',
   yUnit: '',

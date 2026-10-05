@@ -145,4 +145,13 @@ describe('P0-01 回归：useChartBase 不得返回过期快照', () => {
     expect(option.xAxis.data).toEqual([])
     expect(option.series).toEqual([])
   })
+
+  it('缺省 props：两组件不得有演示数据默认值（F6 红样：修前 LineChart 3 系列 / BarChart 2 系列）', () => {
+    mount(LineChart, { props: {} })
+    expect(captured.getOption!().series).toEqual([])
+    expect(captured.getOption!().xAxis.data).toEqual([])
+    mount(BarChart, { props: {} })
+    expect(captured.getOption!().series).toEqual([])
+    expect(captured.getOption!().xAxis.data).toEqual([])
+  })
 })

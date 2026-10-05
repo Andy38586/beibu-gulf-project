@@ -152,6 +152,12 @@ export class RouteRepository {
    *   ST_LineLocatePoint 返回 0~1 的投影位置（等价于 Python 侧算出的 r）；
    *   snap_m 用 geography 计算真实地面距离（对齐 QUERY_SNAP_RADIUS_M = 2000m 的语义）。
    * 返回空数组 = 附近无可通行边（诚实 not_snapped，不硬吸远路）。
+   *
+   * SRID 口径（F9，2026-10-05）：入参 lng/lat 是浏览器给的 **WGS84（4326）**，
+   * 而 roads_edges.geom 是 **CGCS2000（4490）**。旧实现直接把入参 ST_SetSRID(...,4490)
+   * 是基准错标（两基准在北部湾差亚米级，当下无感、基准变化时静默偏移无锚点）。
+   * 现统一 `ST_Transform(ST_SetSRID(...,4326),4490)`；真库实测同点同边同 fraction
+   * （109.12,21.48 → edge 3518 / f=0.21377507 / snap=32.0396m，新旧一致）。
    */
   async snapPoints(
     fromLng: number,
@@ -175,14 +181,17 @@ nearest AS (
          -- 偏差 = 边长×1e-6（亚毫米级），不影响里程口径。
          LEAST(
            GREATEST(
-             ST_LineLocatePoint(r.geom, ST_SetSRID(ST_MakePoint(p.lng, p.lat), 4490)),
+            ST_LineLocatePoint(
+              r.geom,
+              ST_Transform(ST_SetSRID(ST_MakePoint(p.lng, p.lat), 4326), 4490)
+            ),
              1e-6
            ),
            1 - 1e-6
          ) AS fraction,
          ST_Distance(
            r.geom::geography,
-           ST_SetSRID(ST_MakePoint(p.lng, p.lat), 4490)::geography
+          ST_Transform(ST_SetSRID(ST_MakePoint(p.lng, p.lat), 4326), 4490)::geography
          ) AS snap_m
   FROM pts p
   CROSS JOIN LATERAL (
@@ -195,7 +204,7 @@ nearest AS (
     --     这里保持书写与建图脚本【5】完全一致，便于 SQL 计划核对
     AND main_comp IS TRUE
     AND geom IS NOT NULL
-    ORDER BY geom <-> ST_SetSRID(ST_MakePoint(p.lng, p.lat), 4490)
+    ORDER BY geom <-> ST_Transform(ST_SetSRID(ST_MakePoint(p.lng, p.lat), 4326), 4490)
     LIMIT 1
   ) r
 )

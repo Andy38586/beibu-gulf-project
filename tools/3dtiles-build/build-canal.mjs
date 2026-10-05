@@ -76,6 +76,29 @@ export function densify(pts, step = 40) {
   return out
 }
 
+/** 两点近似距离（米）——中线拼接/稠密化用，误差 << 一个网格 */
+export function llDistM(a, b) {
+  const mlon = 111412.84 * Math.cos((((a.lat + b.lat) / 2) * Math.PI) / 180)
+  return Math.hypot((b.lon - a.lon) * mlon, (b.lat - a.lat) * 111132.9)
+}
+
+/** 经纬度折线按 ~step 米稠密化（线性插值；40 m 步长下与大地线偏差可忽略） */
+export function densifyLL(pts, step = 40) {
+  const out = []
+  for (let i = 0; i + 1 < pts.length; i++) {
+    const a = pts[i],
+      b = pts[i + 1]
+    const n = Math.max(1, Math.ceil(llDistM(a, b) / step))
+    for (let k = 0; k < n; k++)
+      out.push({
+        lon: a.lon + ((b.lon - a.lon) * k) / n,
+        lat: a.lat + ((b.lat - a.lat) * k) / n,
+      })
+  }
+  if (pts.length) out.push({ ...pts[pts.length - 1] })
+  return out
+}
+
 /**
  * 沿稠密折线挤出一条带。
  *
@@ -88,8 +111,8 @@ export function ribbon(pts, halfW, lift, color, groundU = 0, offset = 0) {
     colors = [],
     indices = []
   for (let i = 0; i + 1 < pts.length; i++) {
-    const [x0, y0] = pts[i],
-      [x1, y1] = pts[i + 1]
+    const [x0, y0, u0] = pts[i],
+      [x1, y1, u1] = pts[i + 1]
     const dx = x1 - x0,
       dy = y1 - y0
     const len = Math.hypot(dx, dy)
@@ -100,16 +123,18 @@ export function ribbon(pts, halfW, lift, color, groundU = 0, offset = 0) {
       oy = uy * offset
     const nx = ux * halfW,
       ny = uy * halfW
-    const u = groundU + lift
+    // 逐点大地高（pts 第 3 元，ENU 的 U 分量）；两元点维持旧的常量 groundU 行为
+    const uA = (u0 ?? groundU) + lift
+    const uB = (u1 ?? groundU) + lift
     const base = positions.length / 3
     // 同 build-roads：ENU 必须过 enuToGltf，直通会把整条运河抬到 N（实测最高 49 km）
-    for (const [ee, nn] of [
-      [x0 + ox + nx, y0 + oy + ny],
-      [x1 + ox + nx, y1 + oy + ny],
-      [x1 + ox - nx, y1 + oy - ny],
-      [x0 + ox - nx, y0 + oy - ny],
+    for (const [ee, nn, uu] of [
+      [x0 + ox + nx, y0 + oy + ny, uA],
+      [x1 + ox + nx, y1 + oy + ny, uB],
+      [x1 + ox - nx, y1 + oy - ny, uB],
+      [x0 + ox - nx, y0 + oy - ny, uA],
     ]) {
-      positions.push(...enuToGltf(ee, nn, u))
+      positions.push(...enuToGltf(ee, nn, uu))
     }
     for (let k = 0; k < 4; k++) {
       normals.push(...GLTF_UP)
@@ -195,17 +220,12 @@ export function buildCanal({ osmFile, outDir, groundU = 0 }) {
   const ts = JSON.parse(fs.readFileSync(path.join(TILE_DIR, 'tileset.json'), 'utf8'))
   const toEnu = makeToEnu(ts.root.transform)
 
-  // relation 17958090 的 members[].geometry 就是全线中线；按 way 顺序拼成折线
+  // relation 17958090 的 members[].geometry 就是全线中线；按 way 顺序拼成折线。
+  // 2026-10-05 大地高统一：中线保留经纬度，逐顶点按 (lng,lat,h) 精确投影到根 ENU。
   const segs = []
   for (const m of rel.elements[0].members ?? []) {
     const g = m.geometry ?? []
-    if (g.length >= 2)
-      segs.push(
-        g.map((p) => {
-          const [e, n] = toEnu(p.lon, p.lat)
-          return [e, n]
-        })
-      )
+    if (g.length >= 2) segs.push(g.map((p) => ({ lon: p.lon, lat: p.lat })))
   }
   if (!segs.length) throw new Error('中线为空')
   // 拼成**多条**链：OSM 的 members 里含主航道与支汊，一条链接不完。
@@ -225,7 +245,7 @@ export function buildCanal({ osmFile, outDir, groundU = 0 }) {
         const s = rest[i]
         for (const rev of [false, true]) {
           const p = rev ? s[s.length - 1] : s[0]
-          const d = Math.hypot(p[0] - end[0], p[1] - end[1])
+          const d = llDistM(p, end)
           if (d < bd) {
             bd = d
             bi = i
@@ -240,10 +260,82 @@ export function buildCanal({ osmFile, outDir, groundU = 0 }) {
     chains.push(chain.flat())
   }
   const hubs = hubTargets(TILE_DIR)
-  const centerline = warpToHubs(
-    chains.flatMap((c) => densify(c, 40)),
-    hubs
-  )
+  // 稠密化（经纬度线性插值，~40 m）→ 投 ENU → 枢纽局部扭曲（旧版同款，2 km 平方衰减）
+  const dense = chains.flatMap((c) => densifyLL(c, 40))
+  const enu = dense.map((p) => toEnu(p.lon, p.lat))
+  const warped = warpToHubs(enu, hubs)
+  // 扭曲量回写经纬度（位移 ≤248 m，用局部尺度近似，误差 cm 级）
+  const pts = dense.map((p, i) => {
+    const dx = warped[i][0] - enu[i][0]
+    const dy = warped[i][1] - enu[i][1]
+    return {
+      lon: p.lon + dx / (111412.84 * Math.cos((p.lat * Math.PI) / 180)),
+      lat: p.lat + dy / 111132.9,
+      e: warped[i][0],
+      n: warped[i][1],
+    }
+  })
+  // 链程 + 设计水位剖面（正高 → 大地高 = +N；N 为 EGM96 网格在枢纽处的实测值）
+  const s = [0]
+  for (let i = 1; i < pts.length; i++)
+    s[i] = s[i - 1] + Math.hypot(pts[i].e - pts[i - 1].e, pts[i].n - pts[i - 1].n)
+  const N = { madao: -21.61, qishi: -20.95, qingnian: -20.91 }
+  const LV = {
+    madaoUp: 62.3 + N.madao,
+    madaoDn: 32.7 + N.madao,
+    qishiDn: 8.7 + N.qishi,
+    qingnianDn: -1.62 + N.qingnian,
+  }
+  const hubKeyOf = (name) =>
+    /马道/.test(name)
+      ? 'madao'
+      : /企石/.test(name)
+        ? 'qishi'
+        : /青年/.test(name)
+          ? 'qingnian'
+          : null
+  const hubS = {}
+  for (const h of hubs) {
+    const k = hubKeyOf(h.name)
+    if (!k) continue
+    let bi = 0,
+      bd = Infinity
+    for (let i = 0; i < pts.length; i++) {
+      const d = Math.hypot(pts[i].e - h.e, pts[i].n - h.n)
+      if (d < bd) {
+        bd = d
+        bi = i
+      }
+    }
+    hubS[k] = s[bi]
+  }
+  const RAMP = 300
+  const rampT = (si, a, b) => (si - (a - RAMP)) / (2 * RAMP)
+  const waterAt = (si) => {
+    const sM = hubS.madao ?? 0
+    const sQ = hubS.qishi ?? 0
+    const sN = hubS.qingnian ?? 0
+    if (si <= sM - RAMP) return LV.madaoUp
+    if (si < sM + RAMP) {
+      const t = rampT(si, sM)
+      return LV.madaoUp * (1 - t) + LV.madaoDn * t
+    }
+    if (si <= sQ - RAMP) return LV.madaoDn
+    if (si < sQ + RAMP) {
+      const t = rampT(si, sQ)
+      return LV.madaoDn * (1 - t) + LV.qishiDn * t
+    }
+    if (si <= sN - RAMP) return LV.qishiDn
+    if (si < sN + RAMP) {
+      const t = rampT(si, sN)
+      return LV.qishiDn * (1 - t) + LV.qingnianDn * t
+    }
+    return LV.qingnianDn
+  }
+  const centerline = pts.map((p, i) => {
+    const u = toEnu(p.lon, p.lat, waterAt(s[i]))[2]
+    return [p.e, p.n, u]
+  })
 
   const meshes = [],
     materials = [],
@@ -314,8 +406,15 @@ export function buildCanal({ osmFile, outDir, groundU = 0 }) {
       if (v > mx[k]) mx[k] = v
     }
   }
-  mn[2] = groundU - 5
-  mx[2] = groundU + BANK_LIFT + 5
+  let uMin = Infinity,
+    uMax = -Infinity
+  for (const p of centerline) {
+    const u = p[2] ?? groundU
+    if (u < uMin) uMin = u
+    if (u > uMax) uMax = u
+  }
+  mn[2] = uMin - 5
+  mx[2] = uMax + BANK_LIFT + 5
   const c = [(mn[0] + mx[0]) / 2, (mn[1] + mx[1]) / 2, (mn[2] + mx[2]) / 2]
   const h = [(mx[0] - mn[0]) / 2 + 20, (mx[1] - mn[1]) / 2 + 20, (mx[2] - mn[2]) / 2 + 5]
   const tileset = {

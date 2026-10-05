@@ -130,6 +130,23 @@ describe('挤出器 — ENU 必须换成 glTF Y-up（删掉这条断言，浮空
     }
   })
 
+  it('ribbon（逐点大地高）：三元点按各点 U 分量 + lift 挤出（2026-10-05 统一基准）', () => {
+    const r = ribbon(
+      [
+        [0, 0, 10],
+        [200, 0, 20],
+      ],
+      60,
+      1,
+      [0.11, 0.28, 0.46],
+      0
+    )
+    // 顶点序：A(i,uA) / B(i+1,uB) / C(i+1,uB) / D(i,uA)，lift=1
+    expect([r.positions[1], r.positions[4], r.positions[7], r.positions[10]]).toEqual([
+      11, 21, 21, 11,
+    ])
+  })
+
   it('buildBridge：整桥竖直范围只有几十米（直通 ENU 时会变成 N≈2220）', () => {
     const toLocal = (lon, lat) => [(lon - 108.6) * 104000, (lat - 21.95) * 111000]
     const way = {

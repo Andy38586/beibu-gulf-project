@@ -215,8 +215,11 @@ for hub in sorted(data):
 
 if True:
     print('\n走廊/桥梁逐瓦片（椭球高，m；V0 = 该瓦片几何首点，沿程用）:')
+    want = ('corridor', 'bridges')
+    if '--per-node' in sys.argv:
+        want = want + ('madao', 'qishi', 'qingnian')
     for (key, uri) in sorted(per_uri):
-        if key not in ('corridor', 'bridges'):
+        if key not in want:
             continue
         d = per_uri[(key, uri)]
         w = float(np.median(np.concatenate(d['water']))) if 'water' in d else float('nan')
@@ -232,6 +235,13 @@ if True:
                 demt = float(np.median(w2[np.isfinite(w2)]))
         print('   %-16s 水 %+7.1f ｜ 岸 %+7.1f ｜ DEM@中心 %+7.1f ｜ %s,%s ｜ 材质 %s'
               % (uri, w, gr, demt, ('%.4f' % cc[0]) if cc else '-', ('%.4f' % cc[1]) if cc else '-', ','.join(sorted(d))))
+        if '--water-stats' in sys.argv and key in ('madao', 'qishi', 'qingnian'):
+            for mat in ('water', 'poolWater'):
+                if mat in d and len(np.concatenate(d[mat])):
+                    a = np.concatenate(d[mat])
+                    q = np.percentile(a, [5, 10, 25, 50, 75, 90, 95])
+                    print('        %-10s n=%-6d P5/10/25/50/75/90/95: %s'
+                          % (mat, len(a), ' '.join('%+.1f' % v for v in q)))
         allh = np.concatenate([np.concatenate(v) for v in d.values()])
         wh = np.concatenate(d['water']) if 'water' in d else np.array([])
         print('        世界椭球高：全体 %+.1f..%+.1f ｜ 水 %+.1f..%+.1f ｜ 全高中位 %+.1f'

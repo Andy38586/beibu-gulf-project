@@ -42,6 +42,13 @@ def tb(z, x, y):
 
 def main():
     DRY = "--dry-run" in sys.argv
+    post_path = POST
+    if "--post" in sys.argv:
+        post_path = Path(sys.argv[sys.argv.index("--post") + 1])
+    if "--terrain" in sys.argv:
+        global TERRAIN
+        TERRAIN = Path(sys.argv[sys.argv.index("--terrain") + 1])
+    print(f"[07c] post={post_path} terrain={TERRAIN}" + (" [dry-run]" if DRY else ""), flush=True)
     layer = json.loads((TERRAIN / "layer.json").read_text(encoding="utf-8"))
     # have 一律取**盘上实清单**：旧实现从 layer.json.available 反推，会把历史超声明带进来
     # （2026-10-04 实测：z13 声明 48/实物 12、z14 声明 56/实物 16，多出的 76 张永远 404）。
@@ -83,7 +90,7 @@ def main():
     have = have | (targets & new)
     print(f"需重写/新建 {len(targets)} 张；实写后应有 {len(have)} 张（z13/z14 {len(have & new)}）")
 
-    raw = rasterio.open(POST)
+    raw = rasterio.open(post_path)
     dem = raw if raw.crs.to_epsg() == 4326 else WarpedVRT(raw, crs="EPSG:4326", resampling=Resampling.bilinear)
     nodata = raw.nodata if raw.nodata is not None else -32768.0
     db = dem.bounds

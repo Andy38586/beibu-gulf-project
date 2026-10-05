@@ -90,6 +90,10 @@ def main() -> None:
     print(f"derived tiles (z0-12, DEM bbox intersect): {len(existing)}")
 
     src_path = DEM_4326 if DEM_4326.exists() else DEM_UTM
+    # 2026-10-05 基准切换（大地高）：显式传入已转椭球高的 DEM（15-ellipsoid-shift.py 产物）
+    if "--dem" in sys.argv:
+        src_path = Path(sys.argv[sys.argv.index("--dem") + 1])
+    print(f"[07] 源 DEM：{src_path}", flush=True)
     print(f"input DEM: {src_path.name}")
     with rasterio.open(src_path) as raw:
         nodata = raw.nodata if raw.nodata is not None else -32767.0

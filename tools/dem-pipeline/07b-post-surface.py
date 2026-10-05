@@ -19,6 +19,7 @@ GLO-30 是工程前地表（分水岭地带是山）。不处理的话，按真�
 """
 from __future__ import annotations
 
+import argparse
 import json
 import math
 import sys
@@ -57,7 +58,25 @@ TAPER = 260.0      # 上游渠底过渡段长（示意图）
 
 
 def main():
-    with rasterio.open(DEM) as src:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--dem", default=str(DEM))
+    ap.add_argument("--out-dir", default=str(OUT))
+    ap.add_argument(
+        "--grid",
+        default=str(REPO / ".local/proj/us_nga_egm96_15.tif"),
+        help="EGM96 15′ 网格；给出且存在时把设计水位（正高）按枢纽 N 换算为大地高（2026-10-05 统一基准）",
+    )
+    args = ap.parse_args()
+    n_shift = {h: 0.0 for h in HUBS}
+    if args.grid and Path(args.grid).exists():
+        with rasterio.open(args.grid) as g:
+            for h, c in HUBS.items():
+                n_shift[h] = float(next(g.sample([(c["lon"], c["lat"])]))[0])
+        print("[基准] 设计水位 +N（正高→大地高）： " + " ｜ ".join(f"{h} {n_shift[h]:+.2f}" for h in HUBS), flush=True)
+    out_dir = Path(args.out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    with rasterio.open(args.dem) as src:
         crs, tr = src.crs, src.transform
         W, H = src.width, src.height
         arr = src.read(1).astype(np.float64)
@@ -75,6 +94,8 @@ def main():
     mlon = 111412.84 * math.cos(math.radians(22.2))
     mlat = 111132.9
     for hub, c in HUBS.items():
+        up_wl = c["up_wl"] + n_shift[hub]
+        dn_wl = c["dn_wl"] + n_shift[hub]
         # 锚点 UTM
         ex, ny = warp_transform("EPSG:4326", crs, [c["lon"]], [c["lat"]])
         ax, ay = ex[0], ny[0]
@@ -91,13 +112,13 @@ def main():
         if not m.any():
             print(f"[{hub}] 窗口为空，跳过"); continue
         # 渠底分段：上游 → 闸室 → 下游（上游段设过渡）
-        bot_up = c["up_wl"] - DRAFT
-        bot_dn = c["dn_wl"] - DRAFT
+        bot_up = up_wl - DRAFT
+        bot_dn = dn_wl - DRAFT
         t = np.clip((s - (X_LOCK0 - TAPER)) / TAPER, 0.0, 1.0)
         bot = bot_up * (1 - t) + bot_dn * t
         bot = np.where(s >= X_LOCK0, bot_dn, bot)
         # 开挖面 = 渠槽 → 平台 → 1:2 边坡与原地形相接
-        plat = max(c["up_wl"], c["dn_wl"]) + PLAT_RISE
+        plat = max(up_wl, dn_wl) + PLAT_RISE
         ad = np.abs(d)
         ramp = np.where(ad <= CH_W / 2, bot,
                         np.where(ad <= PLAT_HALF, plat,
@@ -119,13 +140,13 @@ def main():
               f"最大挖深 {cut.max():6.1f} m | 挖方像元 {n_cut:7d}（≈{report[hub]['area_km2']:.2f} km²）")
         post = newv
 
-    out = OUT / "post_surface_utm48n.tif"
+    out = out_dir / "post_surface_utm48n.tif"
     prof.update(dtype="int16", nodata=-32768, compress="deflate")
     with rasterio.open(out, "w", **prof) as dst:
         o = np.where(valid, np.round(post), -32768).astype("int16")
         dst.write(o, 1)
     print(f"\n-> {out}  ({out.stat().st_size/1e6:.1f} MB)")
-    (OUT / "post-surface-report.json").write_text(
+    (out_dir / "post-surface-report.json").write_text(
         json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
 
 

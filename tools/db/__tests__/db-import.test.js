@@ -117,6 +117,29 @@ describe('buildImport 对账恒等式', () => {
     expect(a.statements[2]).toContain('TRUNCATE')
   })
 
+  it('🔴 数据源缺失 ⇒ 拒绝重灌：无清库语句、报告总体 FAIL（F2：旧形态清库还报 PASS）', () => {
+    fs.rmSync(path.join(dataDir, 'ports.json'))
+    const report = { warnings: [] }
+    const { statements, tables } = buildImport(dataDir, report)
+    // 修前：照旧生成 TRUNCATE + 其余表 INSERT，报告 PASS。修后：一条清库语句都不生成。
+    expect(statements.some((s) => s.includes('TRUNCATE'))).toBe(false)
+    expect(Object.keys(tables)).toHaveLength(0)
+    expect(report.missingSources.some((m) => m.includes('ports.json'))).toBe(true)
+
+    const md = renderReport(tables, report.warnings, report.missingSources)
+    expect(md).toContain('**总体：FAIL**')
+    expect(md).toContain('FAIL：')
+  })
+
+  it('🔴 site-selection 为空目录 ⇒ 同判缺源（F2：不允许「poi 空集照旧清库」）', () => {
+    const dir = path.join(dataDir, 'site-selection')
+    for (const f of fs.readdirSync(dir)) fs.rmSync(path.join(dir, f))
+    const report = { warnings: [] }
+    const { statements } = buildImport(dataDir, report)
+    expect(statements.some((s) => s.includes('TRUNCATE'))).toBe(false)
+    expect(report.missingSources.filter((m) => m.includes('site-selection'))).toHaveLength(2)
+  })
+
   it('favorites 映射携带展示载荷（T3.2 schema v2.1）：savedAt 入 created_at，snapshot 转 jsonb', () => {
     write(
       'favorites.json',

@@ -58,6 +58,37 @@ function readOptional(dataDir, p, report) {
 }
 
 /**
+ * 必需数据源清单（F2，2026-10-05）：这些是**数据源**（重灌的对象），缺失时绝不能
+ * 「按空集处理 + 照旧 TRUNCATE」——那会清空整表且对账源=写=0 判 PASS（实测
+ * `warnings=28 poi=0/0 xiaoqu=0/0 overallPASS=true` 即此形态）。
+ * 对照：plans/favorites/port_pier 属**运行态文件**，缺失仍按空集容错（本清单不含）。
+ */
+const REQUIRED_SOURCES = [
+  ['users', 'users.json'],
+  ['ports', 'ports.json'],
+  ['poi_facilities', 'site-selection'],
+  ['xiaoqu', 'site-selection'],
+  ['flood_facilities', 'flood/facilityPoints.json'],
+]
+
+/** 数据源体检：返回缺失清单（空数组=放行重灌） */
+function collectMissingSources(dataDir) {
+  const missing = []
+  for (const [table, rel] of REQUIRED_SOURCES) {
+    const full = path.join(dataDir, rel)
+    if (!fs.existsSync(full)) {
+      missing.push(`${table}（${rel}）`)
+      continue
+    }
+    // 目录型源（site-selection）要求非空：空目录等价于"源整体缺失"
+    if (fs.statSync(full).isDirectory() && fs.readdirSync(full).length === 0) {
+      missing.push(`${table}（${rel} 为空目录）`)
+    }
+  }
+  return missing
+}
+
+/**
  * 构建导入语句与对账报告（纯函数，可测）
  * @param {string} dataDir backend/data 绝对/相对路径
  * @param {{warnings: string[]}} report 警告收集器
@@ -68,6 +99,16 @@ export function buildImport(dataDir, report = { warnings: [] }) {
   const tables = {}
 
   const begin = (name) => (tables[name] ??= { source: 0, written: 0, filtered: 0 })
+
+  // F2 前置体检：数据源缺失 ⇒ 拒绝重灌（不生成 TRUNCATE/INSERT），报告记 FAIL。
+  // 在 BEGIN 之前返回：产物里连事务都不存在，杜绝"半量清库"。
+  const missingSources = collectMissingSources(dataDir)
+  if (missingSources.length > 0) {
+    report.missingSources = missingSources
+    report.warnings.push(`数据源缺失，拒绝重灌（未执行 TRUNCATE）：${missingSources.join('、')}`)
+    statements.push('-- 数据源缺失，拒绝重灌：未生成任何清库/写入语句（见对账报告 FAIL）')
+    return { statements, tables }
+  }
 
   statements.push('BEGIN;')
   // 版本指纹前置校验（第一性原理审查 2 整改）：TRUNCATE 重灌是销毁重建，
@@ -316,8 +357,13 @@ INSERT INTO import_meta (version, note) VALUES ('${IMPORT_VERSION}', 'v3 三城�
   return { statements, tables }
 }
 
-/** 对账报告 markdown（每表 source/written/filtered 全等即 PASS） */
-export function renderReport(tables, warnings) {
+/**
+ * 对账报告 markdown（每表 source/written/filtered 全等即 PASS）。
+ * missingSources（F2）：数据源缺失时整批 FAIL——即使 tables 为空也不得出「总体 PASS」。
+ * 注：不额外要求 written>0——源存在但恰好空集是合法状态（如 ports 首灌），
+ * 缺源另有 missingSources 通道拦截，两者不混同。
+ */
+export function renderReport(tables, warnings, missingSources = []) {
   const lines = [
     '# 数据迁移对账报告',
     '',
@@ -326,7 +372,10 @@ export function renderReport(tables, warnings) {
     '| 表 | 源条数 | 写入 | 过滤 | 结果 |',
     '| --- | --- | --- | --- | --- |',
   ]
-  let allPass = true
+  let allPass = missingSources.length === 0
+  if (missingSources.length > 0) {
+    lines.push(`| (数据源) | - | - | - | FAIL：${missingSources.join('、')} |`)
+  }
   for (const [name, t] of Object.entries(tables)) {
     const pass = t.source === t.written + t.filtered
     if (!pass) allPass = false
@@ -351,11 +400,20 @@ if (
 
   fs.mkdirSync('.local/tmp', { recursive: true })
   fs.writeFileSync('.local/tmp/import.sql', statements.join('\n'), 'utf8')
-  fs.writeFileSync('.local/tmp/import-report.md', renderReport(tables, report.warnings), 'utf8')
+  fs.writeFileSync(
+    '.local/tmp/import-report.md',
+    renderReport(tables, report.warnings, report.missingSources ?? []),
+    'utf8'
+  )
 
   const summary = Object.entries(tables)
     .map(([n, t]) => `${n} ${t.written}/${t.source}`)
     .join(', ')
-  console.log(`generated import.sql: ${statements.length - 2} statements`)
+  console.log(`generated import.sql: ${Math.max(0, statements.length - 2)} statements`)
   console.log(`report: .local/tmp/import-report.md (${summary})`)
+  if (report.missingSources?.length) {
+    // F2：缺源必须以非零退出码收场，防止 CI/人工把"拒绝重灌"当成"跑完了"
+    console.error(`数据源缺失，拒绝重灌（rc=1）：${report.missingSources.join('、')}`)
+    process.exitCode = 1
+  }
 }

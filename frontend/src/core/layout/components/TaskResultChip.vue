@@ -76,22 +76,22 @@ function onPointerUp(e: PointerEvent): void {
   padding: 5px 10px;
   border: 1px solid var(--chip-color);
   border-radius: 999px;
-  background: rgb(255 255 255 / 92%);
+  background: var(--GCS-bg-panel-translucent);
   cursor: grab;
   touch-action: none;
   font-size: 12px;
   color: var(--GCS-text-primary);
-  box-shadow: 0 2px 6px rgb(0 0 0 / 12%);
+  box-shadow: var(--GCS-shadow-sm);
 }
 
 .task-result-chip.dragging {
   cursor: grabbing;
   z-index: var(--GCS-z-panel-float, 300);
-  box-shadow: 0 6px 14px rgb(0 0 0 / 20%);
+  box-shadow: var(--GCS-shadow-float);
 }
 
 .task-result-chip.active {
-  background: color-mix(in srgb, var(--chip-color) 16%, white);
+  background: color-mix(in srgb, var(--chip-color) 16%, var(--GCS-bg-panel));
 }
 
 .dot {
@@ -107,7 +107,7 @@ function onPointerUp(e: PointerEvent): void {
 }
 
 .hint {
-  color: var(--GCS-text-muted);
+  color: var(--GCS-text-secondary);
   font-size: 11px;
 }
 </style>

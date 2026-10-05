@@ -203,7 +203,8 @@ export const useTaskStore = defineStore('task', () => {
     if (!slot || isTerminalStatus(slot.status)) return
 
     try {
-      const view = await api.get(slot.taskId)
+      // signal 接进轮询（F5）：控制器在取消/终态/登出时 abort，在途 GET 随之中断
+      const view = await api.get(slot.taskId, controllers.get(route)?.signal)
       pollErrors.delete(route)
 
       // await 之后再判一次：请求在飞时可能被新提交/取消取代
@@ -219,6 +220,11 @@ export const useTaskStore = defineStore('task', () => {
       }
       schedulePoll(route, seq)
     } catch (error) {
+      // 主动取消（F5）：控制器已 abort ⇒ 本次失败是取消的副作用，不算轮询故障、不再退避
+      if (controllers.get(route)?.signal.aborted || !controllers.has(route)) {
+        stopPolling(route)
+        return
+      }
       // 任务被 TTL 回收：当作「已结束」，停止轮询（不当故障提示）
       if (error && typeof error === 'object' && (error as { taskGone?: boolean }).taskGone) {
         stopPolling(route)
@@ -306,6 +312,10 @@ export const useTaskStore = defineStore('task', () => {
       docked: previous?.docked ?? false,
     }
 
+    // F5（2026-10-05）：登记**真实**控制器——此前 controllers 只有 abort/delete 调用点、
+    // 从未 set ⇒「取消」是空壳（在途轮询照跑、卸载后回调仍可能写 store）。
+    // 轮询请求带它的 signal；cancel/settle/clearAll/releaseController 一 abort 即真取消。
+    controllers.set(route, new AbortController())
     schedulePoll(route, seq)
     return res.taskId
   }

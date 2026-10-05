@@ -204,6 +204,35 @@ describe('useTaskStore', () => {
   })
 
   describe('轮询', () => {
+    it('🔴 取消真取消：轮询请求带控制器 signal 且取消时 abort（F5：空壳即红）', async () => {
+      mockFetch.mockResolvedValueOnce(
+        envelope({ taskId: 't-1', status: 'pending', queuePosition: 1, createdAt: 1 })
+      )
+      await store.submit({ route: '/flood-analysis', domain: 'flood-areas', params: {} })
+
+      let pollSignal: AbortSignal | undefined
+      mockFetch.mockImplementation(
+        (url: string, init?: { method?: string; signal?: AbortSignal }) => {
+          // 轮询 GET 挂起在途（不解析）：取消发生在请求在飞窗口内，才能观察 signal 是否被 abort
+          if (url.includes('/task/t-1') && (init?.method ?? 'GET') === 'GET') {
+            pollSignal = init?.signal
+            return new Promise(() => {})
+          }
+          return Promise.resolve(envelope(view({ status: 'cancelled' })))
+        }
+      )
+      // 超过 POLL_INTERVAL_MS(500) 让首轮轮询发出
+      await sleep(600)
+      expect(pollSignal).toBeInstanceOf(AbortSignal)
+      expect(pollSignal!.aborted).toBe(false)
+
+      // 用户取消：控制器 abort ⇒ 在途 GET 的 signal 必须已中止（修前 controllers 从未 set，
+      // 轮询只带 apiRequest 内部超时信号 ⇒ 这里恒 false）
+      await store.cancel('/flood-analysis')
+      expect(pollSignal!.aborted).toBe(true)
+      store.clearAll()
+    })
+
     it('推进状态 → 终态停止轮询，不再发请求', async () => {
       mockFetch.mockResolvedValueOnce(
         envelope({ taskId: 't-1', status: 'pending', queuePosition: 1, createdAt: 1 })

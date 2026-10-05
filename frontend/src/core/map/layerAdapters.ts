@@ -378,9 +378,8 @@ export const LAYER_ADAPTERS: Record<LayerType, LayerAdapter> = {
         maximumScreenSpaceError: payload.maximumScreenSpaceError,
       }
       renderer.removeLayer(key)
-      // ⚠️ 本路径拿不到 BLM 注入的 onError：`updateData` 的更新分支传的是
-      // `meta.options`（BLM 只在 create 分支注入 onError）。所以这里只能保证
-      // **留痕**（去掉 DEV 门控），失败上行要到 BLM 侧补注入才算通——已记入 922 副本。
+      // 2026-10-05（1004-01）：BLM `_runAdapter` 的 update 分支改传同一份注入了
+      // onError 的 options，本路径失败上行链路已通（前注「本路径拿不到 onError」作废）。
       void Promise.resolve(renderer.add3DTilesLayer(key, payload.url, tilesOptions))
         .then((ok) => {
           if (ok === false) {

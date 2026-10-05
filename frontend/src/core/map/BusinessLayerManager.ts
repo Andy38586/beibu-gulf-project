@@ -238,7 +238,10 @@ export class BusinessLayerManager {
   ): void {
     const adapter = this._getAdapter(layerType)
     if (!adapter) return
-    const createOptions = {
+    // create / update **同一条**失败回调通道：2026-10-05（1004-01）前 update 分支传裸 options，
+    // 注入的 onError 到不了 adapter ⇒ 重建类图层（3dtiles/imageOverlay/geotiff）更新失败
+    // 只 warn 不上行，registry 停在 visible=true。改名 createOptions→adapterOptions 以正名。
+    const adapterOptions = {
       ...options,
       // 契约 onError?: (err: unknown) => void——实参必须透传，
       // 旧实现 `onError: () =>` 零参丢弃 ⇒ 生产失败只有文案无原因
@@ -248,8 +251,8 @@ export class BusinessLayerManager {
     try {
       result = perfTimeFn(`layer:${op}:${layerType}`, () =>
         op === 'create'
-          ? adapter.create(renderer, key, data, createOptions)
-          : adapter.update(renderer, key, data, options)
+          ? adapter.create(renderer, key, data, adapterOptions)
+          : adapter.update(renderer, key, data, adapterOptions)
       )
     } catch (e) {
       this._handleCreateFailure(key, label, e)

@@ -706,6 +706,40 @@ describe('BusinessLayerManager', () => {
       expect(onError).toHaveBeenCalledTimes(1)
     })
 
+    it('🔴 update 通道同样注入 onError：adapter 异步失败（不抛、只回调）⇒ 回滚+上报', () => {
+      // 1004-01：update 分支旧传裸 options ⇒ adapter 侧 `options.onError?.()` 恒 undefined，
+      // 重建类图层（3dtiles/imageOverlay/geotiff）更新失败只 warn 不上行。按行为钉：
+      // 捕获到的 onError 必须真回调生效（把 update 分支改回 `options` 本用例即红）。
+      const captured: Array<(err: unknown) => void> = []
+      const renderer = {
+        hasLayer: vi.fn().mockReturnValue(true),
+        addHeatmapLayer: vi.fn(),
+        updateHeatmapLayer: vi.fn(
+          (_key: string, _data: unknown, options?: { onError?: (e: unknown) => void }) => {
+            if (options?.onError) captured.push(options.onError)
+          }
+        ),
+      }
+      mapStore.currentRenderer = renderer as unknown as MapRenderer
+      const payloads: LayerErrorPayload[] = []
+      manager.setErrorHandler((p) => payloads.push(p))
+      manager.register('update-async-fail', {
+        label: '更新异步失败层',
+        layerType: 'heatmap',
+        data: [{ lng: 108, lat: 21, value: 1 }],
+        visible: true,
+      })
+
+      manager.updateData('update-async-fail', { data: [{ lng: 108, lat: 21, value: 2 }] })
+
+      expect(captured).toHaveLength(1)
+      captured[0](new Error('update 异步失败'))
+
+      expect(manager.getMeta('update-async-fail')?.visible).toBe(false)
+      expect(payloads).toHaveLength(1)
+      expect(payloads[0]).toMatchObject({ key: 'update-async-fail', retryable: true })
+    })
+
     it('不可见图层 updateData 不建不更（保持现有语义）', () => {
       const renderer = {
         hasLayer: vi.fn(),

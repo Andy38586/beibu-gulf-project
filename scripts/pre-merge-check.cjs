@@ -107,7 +107,9 @@ function run(cmd, args, opts = {}) {
     error: r.error,
   }
 }
-const git = (args, opts) => run('git', args, opts)
+// core.quotepath 默认 true 会把非 ASCII 路径输出成八进制转义（ls-files / diff 均受影响）⇒
+// .env 检查与区间文件大小检查会漏掉中文路径，统一强制原始路径输出。
+const git = (args, opts) => run('git', ['-c', 'core.quotepath=false', ...args], opts)
 // 长任务实时输出（测试/build），只取退出码
 function npmRun(script, cwd) {
   console.log(gray(`      $ npm run ${script}${cwd ? ` (cwd=${path.relative(ROOT, cwd)})` : ''}`))

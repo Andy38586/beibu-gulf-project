@@ -241,7 +241,12 @@ export function auditDocMap(input) {
 /** 读取受版本控制的三层目录文件列表（git 不可用 ⇒ 记空并单独报） */
 function trackedUnderDirs() {
   try {
-    const out = execFileSync('git', ['ls-files', ...ACTIVE_DIRS], { cwd: ROOT, encoding: 'utf8' })
+    // core.quotepath 默认 true ⇒ 中文路径输出八进制转义，与 doc-map 登记的真实路径
+    // 对不上（本地仓库若显式设为 false 就本地绿、CI 红的假绿），此处强制原始路径输出。
+    const out = execFileSync('git', ['-c', 'core.quotepath=false', 'ls-files', ...ACTIVE_DIRS], {
+      cwd: ROOT,
+      encoding: 'utf8',
+    })
     return out
       .split(/\r?\n/)
       .filter(Boolean)

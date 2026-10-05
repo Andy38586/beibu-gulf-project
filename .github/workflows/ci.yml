@@ -209,7 +209,7 @@ jobs:
       # d053 补充: .env 类文件禁止入库(仅允许 .env.example)
       - name: Ensure .env files are not tracked
         run: |
-          if git ls-files | grep -E '(^|/)\.env(\.|$)' | grep -v '\.env\.example'; then
+          if git -c core.quotepath=false ls-files | grep -E '(^|/)\.env(\.|$)' | grep -v '\.env\.example'; then
             echo "::error::.env 文件被 git 跟踪,敏感配置禁止提交"
             exit 1
           fi

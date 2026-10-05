@@ -108,7 +108,10 @@ export function filesOfGroup(files, group) {
 }
 
 function trackedFiles() {
-  const r = spawnSync('git', ['ls-files', ...SCAN_ROOTS], { cwd: ROOT, encoding: 'utf8' })
+  const r = spawnSync('git', ['-c', 'core.quotepath=false', 'ls-files', ...SCAN_ROOTS], {
+    cwd: ROOT,
+    encoding: 'utf8',
+  })
   if (r.status !== 0) throw new Error('git ls-files 失败')
   return r.stdout.split('\n').filter(Boolean)
 }

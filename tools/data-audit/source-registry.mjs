@@ -79,7 +79,10 @@ export function validateRegistry(registry) {
 }
 
 function trackedDataFiles() {
-  const r = spawnSync('git', ['ls-files', ...SCAN_ROOTS], { cwd: ROOT, encoding: 'utf8' })
+  const r = spawnSync('git', ['-c', 'core.quotepath=false', 'ls-files', ...SCAN_ROOTS], {
+    cwd: ROOT,
+    encoding: 'utf8',
+  })
   if (r.status !== 0) throw new Error('git ls-files 失败：' + (r.stderr || '').slice(0, 200))
   return r.stdout.split('\n').filter(Boolean)
 }

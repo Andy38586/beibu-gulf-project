@@ -45,7 +45,11 @@ function baseIndex(root) {
   if (_index) return _index
   let listed = null
   try {
-    listed = execFileSync('git', ['ls-files'], { cwd: root, encoding: 'utf8', maxBuffer: 64 << 20 })
+    listed = execFileSync('git', ['-c', 'core.quotepath=false', 'ls-files'], {
+      cwd: root,
+      encoding: 'utf8',
+      maxBuffer: 64 << 20,
+    })
   } catch {
     return null
   }

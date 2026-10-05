@@ -64,7 +64,7 @@ node scripts/coverage-ratchet.cjs --freeze-check backend/coverage-baseline.json
 # .env 入库检查（CI 有同名步骤）。本地拦更有价值：一旦推上去就是既成事实，
 # 而 CI 报警时密钥已在远端历史里，清理成本远高于拦截成本。
 echo "[pre-push] 10/13 .env 入库检查"
-if git ls-files | grep -E '(^|/)\.env(\.|$)' | grep -v '\.env\.example'; then
+if git -c core.quotepath=false ls-files | grep -E '(^|/)\.env(\.|$)' | grep -v '\.env\.example'; then
   echo "::error::.env 文件被 git 跟踪，敏感配置禁止提交（只允许 .env.example）"
   exit 1
 fi

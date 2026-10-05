@@ -136,8 +136,10 @@ describe('protocol-single-source 守卫', () => {
   it(`🔴 式 1 删字面：规范文件缺行数指针句 → 必须报`, () => {
     const spec = DOC_SIZE_CEILINGS.find((s) => s.file !== PROTOCOL_SOURCE)
     const texts = realTexts()
+    // 约定文件可以有多句同义指针（1004-12 改双指针句的形态）；删字面必须把**指向执行体的
+    // 引用全删**。只删第一句时，第二句仍含 SIZE_POINTER 三要素 ⇒ 红样假绿（2026-10-06 实测）。
     texts[spec.file] = texts[spec.file].replace(
-      /行数上限由 [`']tools\/v3-guard\/protocol-single-source\.mjs[`'] 的体量表校验[^。\n]*。?/,
+      /[^。\n]*protocol-single-source\.mjs[^。\n]*。?/g,
       ''
     )
     expect(auditProtocolSingleSource(texts).join(' ')).toContain('缺行数指针')

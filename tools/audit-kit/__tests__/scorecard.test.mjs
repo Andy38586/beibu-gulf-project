@@ -15,10 +15,26 @@ import {
   renderScore,
   resolveAnchor,
   scoreBatch,
+  windowFiles,
 } from '../scorecard.mjs'
 import { ROOT } from '../paths.mjs'
 
 const HERE = 'tools/audit-kit/scorecard.mjs'
+
+describe('scorecard — 窗口发现（1004-17）', () => {
+  it('🔴 00-* 窗口件纳入；只排除 00-记分卡 与 README（改回 ^00- 排除即红）', () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'score-window-'))
+    writeFileSync(path.join(dir, '00-审查体系逐行复核-执行记录.md'), '# 窗\n')
+    writeFileSync(path.join(dir, '00-记分卡.md'), '# 产物\n')
+    writeFileSync(path.join(dir, 'README.md'), '# 说明\n')
+
+    const files = windowFiles(dir)
+    const ids = files.map((f) => f.id)
+    expect(ids).toContain('00-审查体系逐行复核-执行记录.md')
+    expect(ids).not.toContain('00-记分卡.md')
+    expect(ids).not.toContain('README.md')
+  })
+})
 
 describe('scorecard — 锚点量尺（可复核 / 真实 是两个数，不许合成一个）', () => {
   it('真实文件 + 合法行 ⇒ 真；同形态换成越界行 ⇒ 行越界', () => {

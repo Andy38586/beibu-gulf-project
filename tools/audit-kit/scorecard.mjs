@@ -210,7 +210,9 @@ export function windowFiles(batchDir) {
     for (const e of readdirSync(dir, { withFileTypes: true })) {
       const abs = path.join(dir, e.name)
       if (e.isDirectory()) walk(abs, depth + 1)
-      else if (/\.md$/.test(e.name) && !/^00-|^README/.test(e.name))
+      // 1004-17：00-* 窗口件（如 00-审查体系逐行复核-执行记录.md）必须纳入批次质量数；
+      // 只排除两类**非窗口**：00-记分卡.md（本工具产物）与 README（说明件）。
+      else if (/\.md$/.test(e.name) && !/^README/.test(e.name) && !/^00-记分卡/.test(e.name))
         out.push({ id: path.relative(batchDir, abs).replace(/\\/g, '/'), file: abs })
     }
   }

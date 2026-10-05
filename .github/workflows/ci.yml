@@ -156,6 +156,11 @@ jobs:
       - name: Run v3 guard
         run: npm run guard:v3
 
+      # 指标状态派生漂移核对（1004-09）：附录 §8 状态列手改即红。
+      # 该判据此前只挂在人手敲的 ci:local ⇒ 本地不跑就无人拦；CI 这步绕不过。
+      - name: Verify metrics status derivation
+        run: npm run metrics:derive
+
       # 红样「能红性」常设复验（约 3 分钟，不进 pre-commit 快集）：登记在
       # tools/v3-guard/run-all.mjs 的 SEPARATELY_RUN.enforcedBy，由 run-all.test.mjs
       # 核对本步存在。放这里而不是只放本地钩子：钩子可以 --no-verify，本步不行。

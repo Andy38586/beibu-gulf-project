@@ -39,4 +39,15 @@ describe('指标账派生器', () => {
       expect(ev.by).toBeTruthy() // 登记必须带依据
     }
   })
+
+  it('🔴 强制点接线（1004-09）：pre-push 与 CI 各有可执行的 metrics:derive 步骤', () => {
+    // 自查「手改即红」的判据必须有自动触发面；只挂 ci:local（人手敲）等于没有强制点。
+    for (const rel of ['.husky/pre-push', '.github/workflows/ci.yml']) {
+      const invoked = readFileSync(new URL(`../../../${rel}`, import.meta.url), 'utf8')
+        .split(/\r?\n/)
+        .filter((l) => !l.trim().startsWith('#')) // 注释行不算触发
+        .some((l) => l.includes('npm run metrics:derive'))
+      expect(invoked, `${rel} 缺 npm run metrics:derive 可执行步骤`).toBe(true)
+    }
+  })
 })

@@ -513,6 +513,18 @@
       "readWhen": ["裁决前"],
       "writeWhen": ["裁决后按结论处理"],
       "ts": ""
+    },
+    {
+      "id": "S-RETIRE",
+      "path": "docs/日志/退役/README.md",
+      "layer": "日志",
+      "role": "旧文档退役存放处说明（C3 §4 的落点）",
+      "status": "active",
+      "guard": "tools/v3-guard/doc-map-check.mjs",
+      "owns": ["退役件存放规则"],
+      "readWhen": ["E"],
+      "writeWhen": ["退役流程变更（追加日期段）"],
+      "ts": "2026-10-06"
     }
   ],
   "facts": [

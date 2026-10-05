@@ -48,6 +48,13 @@ describe('agent-docs-check（作业协议自述守卫）', () => {
     expect(checkRefs([{ token: 'docs/nope/', line: 1 }], NONE)).toHaveLength(1)
   })
 
+  it('@guard-red-sample 尾斜杠目录引用必须被抽出并校验（R6-07：旧版在 prefixedRefs 一律 skip）', () => {
+    expect(
+      prefixedRefs('产出见 `docs/audits/923/` 与 `frontend/src/`').map((r) => r.token)
+    ).toEqual(['docs/audits/923/', 'frontend/src/'])
+    expect(prefixedRefs('glob 与占位符不算：`docs/audits/*/`、`docs/audits/<日期>/`')).toEqual([])
+  })
+
   it('行号后缀必须先剥，否则真路径会被误判断链', () => {
     expect(classify('tools/db/db-schema.sql:77')).toEqual({
       kind: 'prefixed',
@@ -115,7 +122,7 @@ describe('agent-docs-check（作业协议自述守卫）', () => {
     }
   })
 
-  it('阳性对照：只取仓库根锚定路径，目录名/分层名/分支名不算引用', () => {
+  it('阳性对照：只取仓库根锚定路径；目录引用同样抽取（存在与否由 checkLiveDocs 判），分层名/分支名不算', () => {
     const text = [
       '死路径 `backend/src/nope.ts` 必须被抓',
       '历史留痕 `backend/dead/legacy.js` 已退役，按行豁免',
@@ -126,6 +133,7 @@ describe('agent-docs-check（作业协议自述守卫）', () => {
     expect(prefixedRefs(text).map((r) => r.token)).toEqual([
       'backend/src/nope.ts',
       'backend/dead/legacy.js',
+      'frontend/src/',
     ])
     expect(prefixedRefs(text)[1].exempt).toBe(true)
   })

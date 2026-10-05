@@ -83,7 +83,9 @@ const INTENT_MARKERS = /历史快照|旧稿|已退役|已删除|不存在|作废
 const ROOT_ANCHORS = ['backend/', 'frontend/', 'tools/', 'docs/', 'scripts/', '.github/', '.husky/']
 
 /**
- * 抽出「仓库根锚定」的路径引用（目录/层级名带尾斜杠的不算）。
+ * 抽出「仓库根锚定」的路径引用。**带尾斜杠的目录引用同样校验**（R6-07：旧版一律
+ * `skip` 尾斜杠 token ⇒ `docs/audits/923/…` 这类死目录引用永远逃过守卫）；
+ * 占位符/glob 由 NOT_A_PATH 排除，不靠尾斜杠兜。
  * @returns {Array<{token: string, line: number, exempt: boolean}>}
  */
 export function prefixedRefs(text) {
@@ -92,7 +94,7 @@ export function prefixedRefs(text) {
     const exempt = INTENT_MARKERS.test(line)
     for (const m of line.matchAll(/`([^`\n]+)`/g)) {
       const c = classify(m[1])
-      if (!c || c.kind !== 'prefixed' || c.value.endsWith('/')) continue
+      if (!c || c.kind !== 'prefixed') continue
       if (!ROOT_ANCHORS.some((a) => c.value.startsWith(a))) continue
       out.push({ token: c.value, line: i + 1, exempt })
     }

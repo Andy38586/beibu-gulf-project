@@ -90,9 +90,10 @@ data/
 
 ## 五、数据生成工具
 
-### `backend/flood-service/` — 洪涝在线演算（Python FastAPI）
+### `tools/flood/engine/` — 洪涝演算引擎（Python；FastAPI 微服务已退役）
 
-> 独立微服务，生成 `data/flood/` 中的连通性淹没 GeoJSON。
+> 现役形态：原独立微服务 `backend/flood-service/` 已删除（v3 收口）；引擎本体移至
+> `tools/flood/engine/flood_engine.py`，产物仍是 `data/flood/` 的连通性淹没 GeoJSON。
 
 - **`flood_engine.py`**：连通性淹没演算引擎。海平面抬升模型——水从海面（DEM NoData 区域）进入，只淹没与海面 8 连通的高程低于水位的区域。
   - 算法：`mask = (DEM <= level)` → 与 NoData(海域) 合并做连通域标注 → 保留「海域分量」中的淹没区。
@@ -100,9 +101,8 @@ data/
   - 降采样 4x（30m→120m，像元 ~6800万→~425万），单次演算秒级；模块级缓存 DEM（~17MB float32，只读一次）。
   - 输出：EPSG:4326 淹没多边形 GeoJSON FeatureCollection + 统计。
   - 依赖：numpy / scipy / rasterio（rasterio wheel 自带 GDAL）。
-- **`main.py`**：FastAPI 服务。`GET /api/flood/online?waterLevel=3.5` → `{level, featureCount, floodedKm2, features, elapsedMs}`；档位缓存（水位取整 0.1m，最近 64 档 LRU，滑块拖动重复档位秒回）；`@lru_cache` 首请求触发 DEM 加载。
-  - 启动：`cd backend/flood-service && .venv/Scripts/python.exe -m uvicorn main:app --port 8000`。
-  - 开发期 CORS 允许 Vite dev（5173），生产由 nginx 同源反代。
+- ~~**`main.py`**：FastAPI 服务~~ **已退役**：现役在线演算由 NestJS 洪涝域承接（v3 收口）；
+  历史启动/CORS 口径见 git 历史与 `docs/日志/快照/`。
 
 ### `backend/static/dem/` — 地形可视化产物
 

@@ -265,6 +265,10 @@ export function reconcile(entries, appendixMarkdown = readFileSync(APPENDIX, 'ut
         problems.push(
           `${专项} ${id}：等级不一致 附录=${a.get(id).level} 正文=${b.get(id).风险等级}`
         )
+      // F-02（2026-10-05）：名称列此前无任何执行体（改附录名称三闸全绿）。
+      // 附录:4 自述「编号/名称/风险等级三列无损提取」⇒ 对账面必须真覆盖三列。
+      else if (norm(a.get(id).name) !== norm(b.get(id).名称))
+        problems.push(`${专项} ${id}：名称不一致 附录=${a.get(id).name} 正文=${b.get(id).名称}`)
     }
     for (const id of [...b.keys()].sort())
       if (!a.has(id)) problems.push(`${专项} ${id}：正文有、附录无`)

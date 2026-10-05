@@ -50,4 +50,32 @@ describe('指标账派生器', () => {
       expect(invoked, `${rel} 缺 npm run metrics:derive 可执行步骤`).toBe(true)
     }
   })
+
+  it('🔴 A-/D 有登记通道且解析器同源（专3-F-01：只认 4 值即红）', () => {
+    // 附录值域 6 值（lib STATES）必须都能派生：A- 待激活 / D 常驻此前无 kind
+    expect(deriveStatus({ kind: 'pending-activation' })).toBe('A-')
+    expect(deriveStatus({ kind: 'resident' })).toBe('D')
+    expect(deriveStatus({ kind: 'guard' })).toBe('A')
+    expect(deriveStatus({ kind: 'test' })).toBe('B')
+    expect(deriveStatus({ kind: 'retired' })).toBe('退役')
+
+    // 解析器文本可注入：A- 与 D 数据行必须被 parseAppendix 收到（旧正则静默丢）
+    const md = [
+      '### 专项1',
+      '| 1.1 | 名称甲 | P2 | A- | 证据 |',
+      '| 1.2 | 名称乙 | P3 | D | 证据 |',
+      '| 1.3 | 名称丙 | P1 | C | 证据 |',
+    ].join('\n')
+    const { sections, unparsed } = parseAppendix(md)
+    expect(sections[0].rows.map((r) => r.status)).toEqual(['A-', 'D', 'C'])
+    expect(unparsed).toHaveLength(0)
+  })
+
+  it('🔴 值域外状态与结构漂移分开报（专3-F-01：误指「表格结构漂移」即红）', () => {
+    const md = ['### 专项1', '| 1.1 | 名称甲 | P2 | Z | 证据 |'].join('\n')
+    const { sections, unparsed } = parseAppendix(md)
+    expect(sections[0].rows).toHaveLength(0)
+    expect(unparsed).toHaveLength(1)
+    expect(unparsed[0].state).toBe('Z')
+  })
 })

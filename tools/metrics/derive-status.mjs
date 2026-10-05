@@ -33,6 +33,8 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { countBySpec } from '../audit-kit/metrics-index.mjs'
+// F-01（2026-10-05）：状态值域与附录 row 解析器同源（此前本文件自带第二套正则，只认 4 值）
+import { STATES } from '../v3-guard/lib/appendix-rows.mjs'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 export const APPENDIX = path.join(
@@ -63,19 +65,35 @@ export function loadEvidence() {
   return map
 }
 
-/** 派生单条状态（纯函数，便于测） */
+/** 派生单条状态（纯函数，便于测）。
+ *  F-01（2026-10-05）：值域与 `lib/appendix-rows.mjs` 的 STATES 六值对齐——
+ *  A-/D 此前没有登记通道（derive 只可能返回 A/B/C/退役）⇒ 合法登记被解析器丢弃、
+ *  报错还误指「表格结构漂移」。现补两种 kind 的派生路径。 */
 export function deriveStatus(ev) {
   if (!ev) return 'C'
   if (ev.kind === 'guard') return 'A'
   if (ev.kind === 'test') return 'B'
   if (ev.kind === 'retired') return '退役'
+  if (ev.kind === 'pending-activation') return 'A-'
+  if (ev.kind === 'resident') return 'D'
   return 'C'
 }
 
-/** 解析附录 §8：返回 [{name, rows:[{id,name,risk,status,line}]}]（line 为 1 基行号） */
+/** 附录状态值域唯一口径：与 lib/appendix-rows.mjs 同源（F-01：此前本文件自带第二套正则） */
+const STATE_RE = STATES.map((s) => s.replace(/[.*+?^${}()|[\]\\-]/g, '\\$&')).join('|')
+const ROW_RE = new RegExp(
+  `^\\|\\s*(\\d+\\.\\d+′?)\\s*\\|[^|]*\\|\\s*(P[0-3])\\s*\\|\\s*(${STATE_RE})\\s*\\|`
+)
+const ANY_ROW_RE = /^\|\s*(\d+\.\d+′?)\s*\|[^|]*\|\s*(P[0-3])\s*\|\s*([^|]*?)\s*\|/
+
+/**
+ * 解析附录 §8：返回 [{name, rows:[{id,risk,status,line}]}]（line 为 1 基行号）。
+ * `unparsed`＝形态是数据行但状态值不在值域的行（F-01：与「表格结构漂移」分开报）。
+ */
 export function parseAppendix(text) {
   const lines = text.split('\n')
   const sections = []
+  const unparsed = []
   let cur = null
   for (let i = 0; i < lines.length; i++) {
     const h = lines[i].match(/^### (专项\d)$/)
@@ -85,26 +103,42 @@ export function parseAppendix(text) {
       continue
     }
     if (cur) {
-      const m = lines[i].match(
-        /^\|\s*(\d+\.\d+′?)\s*\|[^|]*\|\s*(P[0-3])\s*\|\s*([A-C-]|退役)\s*\|/
-      )
-      if (m) cur.rows.push({ id: cur.name + ':' + m[1], risk: m[2], status: m[3], line: i + 1 })
+      const m = lines[i].match(ROW_RE)
+      if (m) {
+        cur.rows.push({ id: cur.name + ':' + m[1], risk: m[2], status: m[3], line: i + 1 })
+        continue
+      }
+      const any = lines[i].match(ANY_ROW_RE)
+      if (any) unparsed.push({ section: cur.name, id: any[1], state: any[3], line: i + 1 })
     }
   }
-  return { sections, lines }
+  return { sections, lines, unparsed }
 }
 
 function main() {
   const write = process.argv.includes('--write')
   const map = loadEvidence()
   const text = fs.readFileSync(APPENDIX, 'utf8')
-  const { sections, lines } = parseAppendix(text)
+  const { sections, lines, unparsed } = parseAppendix(text)
   const total = sections.reduce((a, s) => a + s.rows.length, 0)
   const expected = Object.values(countBySpec()).reduce((a, b) => a + b, 0)
   if (total !== expected) {
-    console.error(
-      `[metrics-derive] FAIL：§8 解析到 ${total} 条 ≠ 专项正文 ${expected} 条（表格结构漂移，先修表再派生）`
-    )
+    // F-01：把「状态值不在执行体值域」与「表格结构漂移」分开报——
+    // 旧文案把 A-/D 这类合法登记一律误指为表格坏了，最省事的保绿动作是删语义。
+    if (unparsed.length) {
+      console.error(
+        `[metrics-derive] FAIL：§8 有 ${unparsed.length} 行状态值不在执行体值域` +
+          `（${[...new Set(unparsed.map((u) => u.state))].join('/')}；合法值域=${STATES.join('/')}）` +
+          `——先为这些状态定义 evidence kind 或从附录值域删除`
+      )
+      unparsed
+        .slice(0, 5)
+        .forEach((u) => console.error(`  - ${u.section} ${u.id} 行${u.line}：${u.state}`))
+    } else {
+      console.error(
+        `[metrics-derive] FAIL：§8 解析到 ${total} 条 ≠ 专项正文 ${expected} 条（表格结构漂移，先修表再派生）`
+      )
+    }
     process.exit(1)
   }
 

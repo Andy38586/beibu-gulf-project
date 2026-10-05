@@ -152,6 +152,14 @@ describe('metrics-index — 与附录 §8 对账', () => {
     expect(reconcile(es, appendix).problems.some((p) => p.includes('等级不一致'))).toBe(true)
   })
 
+  it('🔴 改附录名称 ⇒ 必红（专3-F-02：名称列此前无执行体，改名三闸全绿）', () => {
+    const renamed = rows('| 1.1 | 改名探针 | P1 | C |\n| 1.2 | 返回点清单 | P2 | C |\n')
+    expect(reconcile(es, renamed).problems.some((p) => p.includes('名称不一致'))).toBe(true)
+    // 阳性对照：同批同形态、名称一致 ⇒ 零 problems（不许把正确项误红）
+    const ok = rows('| 1.1 | 入口清单 | P1 | C |\n| 1.2 | 返回点清单 | P2 | C |\n')
+    expect(reconcile(es, ok).problems).toEqual([])
+  })
+
   it('删掉正文一条指标 ⇒ 总数不等必红（第 1 式：删字面）', () => {
     const one = parseSpecText('x/专项1-a.md', '1', OK.slice(0, OK.indexOf('### 指标 1.2')))
     const appendix = rows('| 1.1 | 入口清单 | P1 | C |\n| 1.2 | 返回点清单 | P2 | C |\n')

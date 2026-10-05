@@ -7,6 +7,11 @@ v2 口径：土地主类**直接查源栅格**（landcover_4490_30m.tif，多边
 派生物），经纬度 → 仿射像素零变换；terrain 行读自库（权威行源）；KDE/可达
 在 SQL 内联（500m 方格小面，ST_Contains 便宜）。
 
+前置链（2026-10-05 A2 修正，缺一环实测全 NULL）：12 → 灌 `terrain_factors`（replace）
+→ **重刷 `tools/site-suitability/access-factors.sql`**（TRUNCATE+重灌，键=terrain_factors.id；
+不刷则本脚本产物 `dist_port_m`/`dist_road_m` 全 NULL）→ 本脚本 → 灌 `suitability_cells`
+（其 SQL 内 LEFT JOIN access_factors）。
+
 输出：.local/land-work/suitability_cells.sql（含 staging 临时表的完整导入脚本）
 导入：docker cp + psql -f（脚本尾打印命令）
 """

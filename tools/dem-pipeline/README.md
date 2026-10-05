@@ -31,7 +31,7 @@ PowerShell 下调 python 一律加 `-X utf8`：脚本 stdout 含 "km²" 等字�
 | **09b**       | **`09b-srtm15-sea-grid.ps1`（本轮新增）**                       | SRTM15+V2.6.nc → `srtm_4326_full.tif` → `sea_custom.tif`                                      | ✅ 逐位一致（`max                                                                                                                                                                                                                                                                        | Δ   | =0`，含 NaN 掩膜） |
 | 10            | `10-landsea-merge.py`                                           | cut + sea → `landsea_utm48n.tif`                                                              | ✅ 逐位一致（数组 md5 `77f83a25…`）                                                                                                                                                                                                                                                      |
 | 11            | `11-seam-audit.py`                                              | 三件 → 接缝/分带/未填聚类审计                                                                 | ✅ 两侧中位差 −3.00 m（岸坡，非台阶）                                                                                                                                                                                                                                                    |
-| 12/13         | `12-terrain-factors.py` / `13-suitability-cells.py`             | DEM → 地形因子/适宜性格网（入 PostGIS）                                                       | ⚪ 需 Postgres，本机 DB 未起                                                                                                                                                                                                                                                             |
+| 12/13         | `12-terrain-factors.py` / `13-suitability-cells.py`             | DEM → 地形因子/适宜性格网（入 PostGIS）                                                       | ✅ 2026-10-05 A2 重派生：12 幂等重灌（TRUNCATE 注入）165,966；13 前置补 access_factors 刷新后重灌 165,966（dist 全非空）；共有 148,423 块逐值零差、净增 17,543                                                                                                                           |
 | **14**        | **`14-bathy-fuse.py`（本轮新增）**                              | 近岸测深交付件（GeoTIFF/CSV）→ 新海侧格网 + 差异报告                                          | ⚪ 数据未到位；红线/换算/融合判据 7 例全绿（`test_bathy_fuse.py`，pytest）                                                                                                                                                                                                               |
 
 > **地形重切（07）已在 2026-10-04 23:05 全量执行**（`72050afe`：整树备份 `.local/terrain-backup-20261004/`，
@@ -72,11 +72,11 @@ PowerShell 下调 python 一律加 `-X utf8`：脚本 stdout 含 "km²" 等字�
 **取证（2026-10-05，只读；为 A2 待裁提供依据）**：三处副本**并非同源**，且外置归档包
 的合并件与其自家 cut 输入**不同代**——
 
-| 副本               | 路径                                                           | 大小       | md5         | 产出/归档时间    |
-| ------------------ | -------------------------------------------------------------- | ---------- | ----------- | ---------------- |
-| 服务消费件（现行） | `backend/data/flood/dem/landsea_utm48n.tif`                    | 26,232,455 | `3B56775E…` | 10-04 14:08      |
-| 工作区缓存（旧）   | `.local/dem-sea-work/landsea_utm48n.tif`                       | 25,405,984 | `E0DC45F6…` | 09-27 18:11      |
-| 外置归档（旧）     | `…\06-数据备份\数据_\海陆基准统一-20261004\landsea_utm48n.tif` | 25,405,984 | `E0DC45F6…` | 10-04 14:58 复制 |
+| 副本                     | 路径                                                           | 大小       | md5         | 产出/归档时间               |
+| ------------------------ | -------------------------------------------------------------- | ---------- | ----------- | --------------------------- |
+| 服务消费件（现行）       | `backend/data/flood/dem/landsea_utm48n.tif`                    | 26,232,455 | `3B56775E…` | 10-04 14:08                 |
+| 工作区镜像（10-05 换装） | `.local/dem-sea-work/landsea_utm48n.tif`                       | 26,232,455 | `3B56775E…` | 当前（旧 `E0DC45F6…` 下架） |
+| 外置归档（10-05 换装）   | `…\06-数据备份\数据_\海陆基准统一-20261004\landsea_utm48n.tif` | 26,232,455 | `3B56775E…` | 当前（旧 `E0DC45F6…` 下架） |
 
 - cut 三处同 md5 `C716DCD5…`（33,169,953 B：`.local/dem-work/`、`.local/dem-work/regen/`、
   外置包），即 10-04 归还陆地 4,997,148 px 后的版本；`sea_custom.tif` 三处同 md5 `8DACAB5F…`。
@@ -89,9 +89,17 @@ PowerShell 下调 python 一律加 `-X utf8`：脚本 stdout 含 "km²" 等字�
   （n=417,090，中位 −3.00、P75 −1.00、P95 0.00）⇒ −3m 是「修正海岸线 × 460m 海源上采样」
   的近岸梯度，**不是基准台阶**；但《高程与水深基准统一说明-2026-10-04》"两侧中位差 0.00m"
   的证据只覆盖旧掩膜产物（V1），对现行产物需按新口径重述。
-- **待裁（不自行选边）**：① 外置包是否用现行件 + 现行审计替换或另注；② 权威说明的
-  "0.00m 闭合"证据如何重述（旧掩膜 0.00m / 新掩膜 −3.00m 近岸梯度，闭合论据改为
-  "V1/V2 同分布、台阶不随产品变化"）；③ A2 的权威声明落点。裁定前不动任何一方。
+- **已裁定并落地（2026-10-05，用户 A2「全部跟上」）**：① 外置包与工作区镜像均换装现行件
+  （旧 `E0DC45F6…` 件及其 0.00m 审计下架，新审计 `seam-audit-rerun-20261005.txt`）；
+  ② 权威说明的"0.00m 闭合"改为「V1/V2 同分布、台阶不随产品变化」的闭合论据，重述落
+  `docs/日志/快照/高程与水深基准统一说明-2026-10-05-重述.md`；③ 权威声明落点 = 本节 +
+  `backend/data/flood/dem/landsea_utm48n.tif`（唯一权威，镜像必须同 md5）。
+- **12/13 链重派生（2026-10-05）**：`slope.tif` 由权威件重生成
+  `gdaldem slope -compute_edges -of GTiff <权威 DEM> slope.tif`（缺 `-compute_edges` 时首行/首列
+  31 像元 nodata 掺入块均值；复算 Checksum=61037 与现行件一致）；12 生成导入 SQL 时注入
+  `TRUNCATE TABLE "public"."terrain_factors"`（修前实测叠加 148,423+165,966=314,389）；
+  12 → 重刷 `access-factors.sql` → 13（缺这步 `dist_port_m`/`dist_road_m` 全 NULL）；重灌后
+  `terrain_factors` / `suitability_cells` 均 165,966 行，共有 148,423 块逐值零差、净增 17,543（无消失）。
 - **复算**：`& 'C:\Program Files\QGIS 3.44.12\apps\Python312\python.exe' -X utf8
 tools/diag/probe-seam-pairs.py .local/dem-work/filled_utm48n_cut.tif
 backend/data/flood/dem/landsea_utm48n.tif` ⇒ `中位 -3.00 … P95 +0.00`。
@@ -108,6 +116,7 @@ backend/data/flood/dem/landsea_utm48n.tif` ⇒ `中位 -3.00 … P95 +0.00`。
 **复算**：`python -X utf8 tools/diag/probe-mask-diff-cells.py
 .local/dem-work/filled_utm48n_cut.20260830mask.tif .local/dem-work/filled_utm48n_cut.tif`
 ⇒ `变化像元=4822464（8.50%）… 受影响含陆格=22289（13.43%）`。
+**以上缺口已于同日按「12/13 链重派生」收口**（见上）。
 
 ## 四、五分钟复跑（按顺序）
 

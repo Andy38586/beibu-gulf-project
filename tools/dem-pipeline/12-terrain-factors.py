@@ -1,16 +1,21 @@
 """
 12-terrain-factors.py — 地形因子面物化（新选址准则「高程地形」，W2 单元二；2026-09-29）
 
-输入（.local/dem-sea-work/，均 30m、custom TM CM108）：
-  landsea_utm48n.tif  海陆一体 DEM（Int16，32767=海/无）
-  slope.tif           gdaldem slope 产物（度，默认非 -p 百分比）
+输入（均 30m、custom TM CM108）：
+  backend/data/flood/dem/landsea_utm48n.tif
+                      海陆一体 DEM **权威件**（Int16，32767=海/无）——2026-10-05 A2 起
+                      脚本只读服务消费件，不再读 .local 镜像（镜像仅归档展示，须与权威同 md5）
+  slope.tif           gdaldem slope 产物（度，默认非 -p 百分比；由权威 DEM 重算：
+                      `gdaldem slope -compute_edges -of GTiff <权威 DEM> slope.tif`——
+                      缺 -compute_edges 时首行/首列 31 像元 nodata 掺入块均值，2026-10-05 实测修复）
   filled_utm48n_cut.tif  陆地权威版（取其海掩膜语义：==32767 为海）
 聚合：30m → 480m（16×16 块），陆像元统计 mean_elev/mean_slope/max_slope +
 land_frac（陆像元占比）；全海块跳过。块中心 custom TM → 4490 转换后入库。
 
 输出：
   .local/dem-sea-work/terrain_factors.gpkg / terrain_factors_import.sql
-导入（DDL 在 tools/db/db-schema-gis.sql terrain_factors 段）：
+导入（DDL 在 tools/db/db-schema-gis.sql terrain_factors 段；**replace 语义**——生成的 SQL
+在 BEGIN 后自带 TRUNCATE terrain_factors，重灌不叠加旧行）：
   docker cp <sql> beibu-postgis:/tmp/ && docker exec beibu-postgis psql -U postgres \
     -d beibu-gulf-data -v ON_ERROR_STOP=1 -f /tmp/terrain_factors_import.sql
 坑：gdal.Open 必须存变量（GC 悬空）；partial 块用 nodata 掩膜参与统计不丢边带。
@@ -23,7 +28,8 @@ from osgeo import gdal, ogr, osr, gdalconst
 gdal.UseExceptions()
 
 WORK = r"C:/workspace/beibu-gulf-project/.local/dem-sea-work"
-DEM = f"{WORK}/landsea_utm48n.tif"
+# 权威件唯一读入点（2026-10-05 A2 裁定「归档替换 + 链重派生」）：防再次错代
+DEM = r"C:/workspace/beibu-gulf-project/backend/data/flood/dem/landsea_utm48n.tif"
 SLOPE = f"{WORK}/slope.tif"
 CUT = r"C:/workspace/beibu-gulf-project/.local/dem-work/filled_utm48n_cut.tif"
 GPKG = f"{WORK}/terrain_factors.gpkg"
@@ -123,6 +129,17 @@ def main():
         layerName="terrain_factors",
         layerCreationOptions=["CREATE_TABLE=OFF", "GEOMETRY_NAME=geom", "SPATIAL_INDEX=NONE", "DROP_TABLE=OFF", "FID=id"],
     )
+    # replace 语义（2026-10-05 A2）：VectorTranslate 只出 INSERT，重灌会叠加旧行
+    #（实证 148,423 旧 + 165,966 新 = 314,389）。与 13 的 TRUNCATE suitability_cells 同款，
+    # 把 TRUNCATE 注进事务头，导入脚本可安全幂等重跑。
+    with open(SQL, encoding="utf-8") as f:
+        text = f.read()
+    anchor = "BEGIN;\n"
+    if anchor not in text:
+        raise RuntimeError("导入 SQL 缺 BEGIN; 锚点，无法注入 TRUNCATE")
+    text = text.replace(anchor, anchor + 'TRUNCATE TABLE "public"."terrain_factors";\n', 1)
+    with open(SQL, "w", encoding="utf-8", newline="\n") as f:
+        f.write(text)
     print("pgdump:", os.path.getsize(SQL) // 1024, "KB →", SQL, flush=True)
 
 

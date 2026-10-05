@@ -42,6 +42,11 @@ services:
       # 缺这一行的后果是静默的：nginx 的 /static/ alias 指向空目录 → 前端 fetch 404 被 catch 成
       # 一条 logger.warn，控制面板连按钮都不渲染，线上看不出"接了 3D Tiles"这件事失败过。
       - ./backend/static/pinglu:/app/backend/static/pinglu
+      # 钦州港交付包 + 自建层 / 城区桥（B5 裁定①，2026-10-05：gitignored 大资产走宿主挂载）。
+      # ⚠ 部署顺序：先把两个目录放上服务器（scp 到 /opt/beibu-gulf/backend/static/）再 up -d——
+      # Docker 对缺失的宿主路径会自动建成空目录，得到「挂载成功但 404」的假象（§8.21 落地链）。
+      - ./backend/static/qinzhou-port:/app/backend/static/qinzhou-port
+      - ./backend/static/bridges-city:/app/backend/static/bridges-city
       # TLS 证书（可选）：将 fullchain.pem + privkey.pem 放入 ./certs/ 即启用 HTTPS
       - ./certs:/etc/nginx/certs:ro
     ports:

@@ -405,6 +405,36 @@ export const portsArraySchema = z.array(portSchema)
 
 export type PortsArrayParsed = z.infer<typeof portsArraySchema>
 
+// ===== 静态 3D 资产边界（F7：页面经 loadStatic 收口加载时的 zod 校验） =====
+/**
+ * 3D Tiles tileset JSON 边界：asset.version + 顶层 geometricError + root 为对象。
+ * 递归节点细节不设 schema——`prepare*`/`tallyGroups` 的防御分支与单测承接深层结构，
+ * 对（无法本地预检的）外部交付包设过严 schema 反而会拒收合法资产。
+ */
+export const tilesetJsonSchema = z.looseObject({
+  asset: z.looseObject({ version: z.string() }),
+  geometricError: z.number(),
+  root: z.looseObject({}),
+})
+
+export type TilesetJsonParsed = z.infer<typeof tilesetJsonSchema>
+
+/** 平陆运河离线影像索引（imagery.json 顶层；条目字段与 PingluImageryEntry 对齐，容忍扩展键） */
+export const pingluImageryIndexSchema = z.looseObject({
+  tiles: z.array(
+    z.looseObject({
+      name: z.string(),
+      label: z.string(),
+      file: z.string(),
+      width: z.number(),
+      height: z.number(),
+      bbox: z.tuple([z.number(), z.number(), z.number(), z.number()]),
+    })
+  ),
+})
+
+export type PingluImageryIndexParsed = z.infer<typeof pingluImageryIndexSchema>
+
 // ⑲ /api/favorites（全局收藏；同用户下 itemType + itemId 全局唯一，幂等添加）
 export const favoriteItemSchema = z.object({
   id: z.string(),

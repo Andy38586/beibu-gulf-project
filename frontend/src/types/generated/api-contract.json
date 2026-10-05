@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-04",
+  "generatedAt": "2026-10-05",
   "source": "frontend/src/types/schemas.ts（单一事实源，types:gen 自动生成勿手改）",
   "schemas": {
     "userSchema": {
@@ -546,6 +546,32 @@
     "portsArraySchema": {
       "kind": "array",
       "fields": {}
+    },
+    "tilesetJsonSchema": {
+      "kind": "object",
+      "fields": {
+        "asset": {
+          "type": "object",
+          "optional": false
+        },
+        "geometricError": {
+          "type": "number",
+          "optional": false
+        },
+        "root": {
+          "type": "object",
+          "optional": false
+        }
+      }
+    },
+    "pingluImageryIndexSchema": {
+      "kind": "object",
+      "fields": {
+        "tiles": {
+          "type": "array",
+          "optional": false
+        }
+      }
     },
     "favoriteItemSchema": {
       "kind": "object",

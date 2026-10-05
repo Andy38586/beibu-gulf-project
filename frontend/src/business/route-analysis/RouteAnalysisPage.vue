@@ -21,10 +21,11 @@ import {
   toDataUri,
   useOwnedLayers,
 } from '@/core'
-import { DEFAULT_LAYER_ORDER, logger, showToast } from '@/shared'
+import { DEFAULT_LAYER_ORDER, loadStatic, logger, showToast } from '@/shared'
 import { useMapStore, useTaskStore } from '@/stores'
 import type { RoutePathResult } from '@/types'
 import type { TaskSlot } from '@/types/task'
+import { pingluImageryIndexSchema, tilesetJsonSchema } from '@/types/schemas'
 
 import RouteControlPanel from './components/RouteControlPanel.vue'
 import {
@@ -90,15 +91,22 @@ function canOverlayImagery(): boolean {
  * 那一轮仍会把图层永久挂到别人页面上（3D→3D 互切不重建渲染器，watch 也不触发）。
  */
 let disposed = false
+/**
+ * 本页静态资产请求的取消源（F7）：三处资源加载统一走 loadStatic 并带 signal，
+ * onUnmounted abort——离页后未完成的反序列化/注册不再发生（与 disposed 标志互补：
+ * 标志挡注册，signal 直接取消在飞请求）。
+ */
+const staticAbort = new AbortController()
 
 async function registerImageryLayers(): Promise<void> {
   if (imageryRegistered) return
   if (disposed) return
   if (!canOverlayImagery()) return
   try {
-    const res = await fetch(PINGLU_IMAGERY_INDEX_URL)
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
-    const index = (await res.json()) as PingluImageryIndex
+    const index: PingluImageryIndex = await loadStatic(PINGLU_IMAGERY_INDEX_URL, {
+      signal: staticAbort.signal,
+      schema: pingluImageryIndexSchema,
+    })
     if (disposed || !canOverlayImagery()) return
     for (const t of index.tiles) {
       const id = PINGLU_IMAGERY_LAYER_PREFIX + t.name
@@ -231,9 +239,10 @@ async function registerPingluGroups(): Promise<void> {
   if (!renderer || !isTiles3DCapable(renderer)) return
   try {
     // 取一次完整 tileset 作模板（派生只裁子树，不重新计算任何变换）
-    const res = await fetch(PINGLU_TILESET_URL)
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
-    const template = (await res.json()) as TilesetJson
+    const template: TilesetJson = await loadStatic(PINGLU_TILESET_URL, {
+      signal: staticAbort.signal,
+      schema: tilesetJsonSchema,
+    })
 
     // 异步期间渲染器可能被切走（切 2D / 换实例）或页面已卸载——注册前重验
     if (disposed || mapStore.currentRenderer !== renderer || !isTiles3DCapable(renderer)) return
@@ -331,9 +340,10 @@ async function registerBeibuTiles(): Promise<void> {
       // 外部交付瓦片 GE 相对包围尺度偏小，中高空 SSE 低于阈值会在 root 终止遍历、整片
       // 空白。前端取一次 tileset：绝对化 uri + 校正 GE 后以 Data URI 挂载（机制见
       // prepareTilesetForDataUri），不再把 http url 直接交给 Cesium。
-      const res = await fetch(spec.url)
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const raw = (await res.json()) as TilesetJson
+      const raw: TilesetJson = await loadStatic(spec.url, {
+        signal: staticAbort.signal,
+        schema: tilesetJsonSchema,
+      })
       // 异步期间渲染器可能被切走或页面卸载——注册前重验
       if (disposed || mapStore.currentRenderer !== renderer || !isTiles3DCapable(renderer)) return
       // 「哪条走裁剪、哪条走整包」由清单条目自己声明（spec.derive），
@@ -399,6 +409,8 @@ const stopImageryWatch = watch(
 onUnmounted(() => {
   // 先置标志：挡住"已发出、尚未 resolve"的那轮注册
   disposed = true
+  // 再取消在飞静态资产请求（loadStatic 组合信号，abort 直接拒绝）
+  staticAbort.abort()
   // 停 watch（否则后续 renderer 变化仍会重新挂上），再摘当前实例上的监听
   stopRendererWatch()
   stopTilesLayerWatch()

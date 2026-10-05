@@ -19,6 +19,7 @@ import {
   forecastMapDataSchema,
   indicatorComparisonResponseSchema,
   planSchema,
+  pingluImageryIndexSchema,
   poiSearchResponseSchema,
   portSchema,
   portsArraySchema,
@@ -29,6 +30,7 @@ import {
   diversionBreakdownResponseSchema,
   terrainProfileSchema,
   timeSeriesResponseSchema,
+  tilesetJsonSchema,
   waterAreaSchema,
 } from '../schemas'
 
@@ -703,5 +705,79 @@ describe('契约覆盖补齐的 schema（生成器门禁转红后补）', () => 
     })
     expect(stripped.success).toBe(true)
     expect(stripped.success && 'distanceM' in stripped.data).toBe(false)
+  })
+})
+
+describe('静态 3D 资产 schemas（F7）', () => {
+  it('tilesetJsonSchema：合法 tileset 通过（含扩展键），错形拒绝', () => {
+    const ok = tilesetJsonSchema.safeParse({
+      asset: { version: '1.1', generator: 'ctb' },
+      geometricError: 500,
+      root: { geometricError: 500, children: [] },
+      extras: { note: '宽松键不拒' },
+    })
+    expect(ok.success).toBe(true)
+    // 非 tileset JSON（缺 asset/geometricError/root）必须拒
+    expect(tilesetJsonSchema.safeParse({ root: {} }).success).toBe(false)
+    expect(tilesetJsonSchema.safeParse({ asset: {}, geometricError: 1, root: {} }).success).toBe(
+      false
+    )
+    expect(tilesetJsonSchema.safeParse({ asset: { version: '1.1' }, root: {} }).success).toBe(false)
+    // 缺 root 必须拒（root 是页面消费的入口字段）
+    expect(
+      tilesetJsonSchema.safeParse({ asset: { version: '1.1' }, geometricError: 1 }).success
+    ).toBe(false)
+    // 真实 tileset 必须通过（否则线上加载被 schema 误拒）
+    const realTileset = JSON.parse(
+      readFileSync(join(__dirname, '../../../../backend/static/pinglu/tiles/tileset.json'), 'utf8')
+    )
+    expect(tilesetJsonSchema.safeParse(realTileset).success).toBe(true)
+  })
+
+  it('pingluImageryIndexSchema：真索引形状通过（扩展键容忍），缺 bbox 拒绝', () => {
+    const ok = pingluImageryIndexSchema.safeParse({
+      note: '生成说明',
+      tiles: [
+        {
+          name: 'madao',
+          label: '马道枢纽',
+          file: 'madao.jpg',
+          width: 2048,
+          height: 2048,
+          zoom: 17,
+          bbox: [108.9294, 22.4389, 108.9514, 22.4592],
+          source: '天地图',
+        },
+      ],
+    })
+    expect(ok.success).toBe(true)
+    expect(
+      pingluImageryIndexSchema.safeParse({
+        tiles: [{ name: 'x', label: 'X', file: 'x.jpg', width: 1, height: 1 }],
+      }).success
+    ).toBe(false)
+    // 三元素 bbox 拒（必须是 [w,s,e,n] 四元组）
+    expect(
+      pingluImageryIndexSchema.safeParse({
+        tiles: [
+          {
+            name: 'x',
+            label: 'X',
+            file: 'x.jpg',
+            width: 1,
+            height: 1,
+            bbox: [1, 2, 3],
+          },
+        ],
+      }).success
+    ).toBe(false)
+    // 真实索引必须通过（扩展键 note/zoom/source 不拒）
+    const realIndex = JSON.parse(
+      readFileSync(
+        join(__dirname, '../../../../backend/static/pinglu/imagery/imagery.json'),
+        'utf8'
+      )
+    )
+    expect(pingluImageryIndexSchema.safeParse(realIndex).success).toBe(true)
   })
 })

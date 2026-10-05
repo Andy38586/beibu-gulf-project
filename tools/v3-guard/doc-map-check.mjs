@@ -44,11 +44,13 @@ export function auditDocMap(input) {
     exists = () => false,
     gitDate = () => null,
     readText = () => null,
+    staged = [],
   } = input
 
   const problems = []
   const push = (code, msg) => problems.push({ code, msg })
   const byId = new Map()
+  const stagedSet = new Set(staged)
 
   // ── 1. 登记项完整性 ────────────────────────────────────────────────
   for (const d of docs) {
@@ -154,7 +156,9 @@ export function auditDocMap(input) {
     if (d.generatedFrom) {
       const srcDate = gitDate(d.generatedFrom)
       const ownDate = gitDate(d.path)
-      if (srcDate && ownDate && srcDate > ownDate) {
+      // 同笔正在刷新生成件（已暂存）⇒ 不算落后：否则「改登记表 → 重跑 docs:map →
+      // 同一笔提交」永远卡在 pre-commit（源的新提交日 > 生成件的旧提交日），只能靠 --no-verify。
+      if (!stagedSet.has(d.path) && srcDate && ownDate && srcDate > ownDate) {
         push(
           'CONTRACT-STALE',
           `${d.id} 生成件落后于源：${d.generatedFrom} 提交于 ${srcDate} > ${ownDate}`
@@ -268,6 +272,20 @@ function gitDateOf(rel) {
   }
 }
 
+/** 本笔已暂存文件（pre-commit 时 = 即将入库的集合）；生成件在列 ⇒ 视为正在刷新 */
+function stagedFilesOf() {
+  try {
+    return execFileSync('git', ['diff', '--cached', '--name-only'], {
+      cwd: ROOT,
+      encoding: 'utf8',
+    })
+      .split(/\r?\n/)
+      .filter(Boolean)
+  } catch {
+    return []
+  }
+}
+
 function main() {
   const json = process.argv.includes('--json')
   const mapPath = path.join(ROOT, DOC_MAP_PATH)
@@ -283,6 +301,7 @@ function main() {
       trackedUnderActiveDirs: [],
       exists: (rel) => fs.existsSync(path.isAbsolute(rel) ? rel : path.join(ROOT, rel)),
       gitDate: gitDateOf,
+      staged: stagedFilesOf(),
       readText: (rel) => {
         try {
           return fs.readFileSync(path.join(ROOT, rel), 'utf8')

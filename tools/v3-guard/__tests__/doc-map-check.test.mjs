@@ -164,6 +164,22 @@ describe('doc-map-check', () => {
     expect(codes(auditDocMap(input))).toContain('CONTRACT-LOG')
   })
 
+  it('@guard-red-sample 生成件落后于源 ⇒ 红；同笔暂存重生成件 ⇒ 不红（序依赖解除）', () => {
+    const input = baseInput()
+    input.docs.find((d) => d.id === 'MAP').generatedFrom = 'tools/v3-guard/lib/doc-map.json'
+    input.gitDate = (p) =>
+      p === 'tools/v3-guard/lib/doc-map.json'
+        ? '2026-10-06'
+        : p === 'docs/文档地图.md'
+          ? '2026-10-05'
+          : null
+    input.readText = (p) => (p === 'docs/文档地图.md' ? CONTRACT_OK : null)
+    expect(codes(auditDocMap(input))).toContain('CONTRACT-STALE')
+    expect(codes(auditDocMap({ ...input, staged: ['docs/文档地图.md'] }))).not.toContain(
+      'CONTRACT-STALE'
+    )
+  })
+
   it('迁移声明结束后仍有 stub ⇒ 红', () => {
     const input = baseInput()
     input.meta.migrationOpen = false

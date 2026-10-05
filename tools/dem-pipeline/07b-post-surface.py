@@ -66,6 +66,11 @@ def main():
         default=str(REPO / ".local/proj/us_nga_egm96_15.tif"),
         help="EGM96 15′ 网格；给出且存在时把设计水位（正高）按枢纽 N 换算为大地高（2026-10-05 统一基准）",
     )
+    ap.add_argument(
+        "--canal-line",
+        default=None,
+        help="运河中线 JSON（build-canal.mjs --emit-line 产物：逐点 lon/lat/h 大地高）；给出时沿全线开挖渠槽",
+    )
     args = ap.parse_args()
     n_shift = {h: 0.0 for h in HUBS}
     if args.grid and Path(args.grid).exists():
@@ -123,11 +128,13 @@ def main():
         ramp = np.where(ad <= CH_W / 2, bot,
                         np.where(ad <= PLAT_HALF, plat,
                                  plat + (ad - PLAT_HALF) / SLOPE))
-        carve = np.minimum(post, ramp)
+        # nodata 像元（海侧/缺口，值=32767）不得参与开挖：否则会被"挖"成正常海拔、污染成陆
+        vm = post != nodata
+        carve = np.where(vm, np.minimum(post, ramp), post)
         # 渠底强制（|d| < 渠底宽/2）：保证渠槽存在
-        carve = np.where(ad < CH_W / 2, bot, carve)
+        carve = np.where(vm & (ad < CH_W / 2), bot, carve)
         # 平台面强制（渠边 → 平台半宽）：保证工地平台存在（只在下挖意义下）
-        carve = np.where((ad >= CH_W / 2) & (ad < PLAT_HALF),
+        carve = np.where(vm & (ad >= CH_W / 2) & (ad < PLAT_HALF),
                          np.minimum(carve, plat), carve)
         newv = np.where(m, carve, post)
         cut = np.maximum(0.0, post - newv)
@@ -139,6 +146,68 @@ def main():
         print(f"[{hub}] 渠底 上游 {bot_up:6.2f} / 下游 {bot_dn:6.2f} m | "
               f"最大挖深 {cut.max():6.1f} m | 挖方像元 {n_cut:7d}（≈{report[hub]['area_km2']:.2f} km²）")
         post = newv
+
+    # ===== 全线运河开挖（2026-10-05）=====
+    # 中线来自 computeCanalLine（与运河带同一来源）；渠槽：底宽 80 m（h−8）、1:2 边坡上升至岸边。
+    # 只挖不填（min(post, 开挖面)），逐段窗口矢量计算，段间重叠处 min 幂等。
+    if args.canal_line:
+        line = json.loads(Path(args.canal_line).read_text(encoding="utf-8"))["points"]
+        pts = []
+        for p in line:
+            ex, ny = warp_transform("EPSG:4326", crs, [p["lon"]], [p["lat"]])
+            pts.append((ex[0], ny[0], float(p["h"])))
+        MARGIN = 220.0
+        mask = np.zeros(post.shape, dtype=bool)
+        max_cut = 0.0
+        nodata_skipped = 0
+        for i in range(len(pts) - 1):
+            x0, y0, h0 = pts[i]
+            x1, y1, h1 = pts[i + 1]
+            seg = math.hypot(x1 - x0, y1 - y0)
+            if seg < 1e-6 or seg > 500:  # >500m = 两条链之间的真实断口，不得当作渠段
+                continue
+            ux, uy = (x1 - x0) / seg, (y1 - y0) / seg
+            left, top = (~tr) * (min(x0, x1) - MARGIN, max(y0, y1) + MARGIN)
+            right, bottom = (~tr) * (max(x0, x1) + MARGIN, min(y0, y1) - MARGIN)
+            c0 = max(0, int(math.floor(left)))
+            c1 = min(W - 1, int(math.ceil(right)))
+            r0 = max(0, int(math.floor(top)))
+            r1 = min(H - 1, int(math.ceil(bottom)))
+            if c1 < c0 or r1 < r0:
+                continue
+            cols, rows = np.meshgrid(np.arange(c0, c1 + 1), np.arange(r0, r1 + 1))
+            xs, ys = rasterio.transform.xy(tr, rows, cols)
+            xs = np.asarray(xs, dtype=np.float64).reshape(rows.shape)
+            ys = np.asarray(ys, dtype=np.float64).reshape(rows.shape)
+            t = np.clip((xs - x0) * ux + (ys - y0) * uy, 0.0, seg)
+            dist = np.hypot(xs - (x0 + ux * t), ys - (y0 + uy * t))
+            h = h0 + (h1 - h0) * (t / seg)
+            bed = h - DRAFT
+            profile = np.where(
+                dist <= CH_W / 2,
+                bed,
+                np.where(
+                    dist <= CH_W / 2 + DRAFT * SLOPE,
+                    bed + (dist - CH_W / 2) / SLOPE,
+                    h + (dist - (CH_W / 2 + DRAFT * SLOPE)) / SLOPE,
+                ),
+            )
+            block = post[r0 : r1 + 1, c0 : c1 + 1]
+            # nodata 像元保持原值（写出口径统一转 -32768），只挖有效地形
+            vblock = block != nodata
+            cut = np.where(vblock, np.minimum(block, profile), block)
+            dcut = np.where(vblock, block - cut, 0.0)
+            mask[r0 : r1 + 1, c0 : c1 + 1] |= dcut > 0.5
+            max_cut = max(max_cut, float(dcut.max()))
+            nodata_skipped += int((~vblock).sum())
+            post[r0 : r1 + 1, c0 : c1 + 1] = cut
+        report["canal"] = {"points": len(pts), "cells_cut": int(mask.sum()),
+                           "max_cut_m": max_cut, "nodata_cells_skipped": nodata_skipped}
+        print(
+            f"[canal] 中线 {len(pts)} 点 ｜ 最大挖深 {max_cut:6.1f} m ｜ 挖方像元 {int(mask.sum())}"
+            f"（≈{mask.sum() * 900 / 1e6:.2f} km²）｜ nodata 跳过 {nodata_skipped}",
+            flush=True,
+        )
 
     out = out_dir / "post_surface_utm48n.tif"
     prof.update(dtype="int16", nodata=-32768, compress="deflate")

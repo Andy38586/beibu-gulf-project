@@ -215,7 +215,8 @@ export function warpToHubs(pts, hubs, radius = 2000) {
   })
 }
 
-export function buildCanal({ osmFile, outDir, groundU = 0 }) {
+/** 计算全线中线（经纬度 + 逐点设计水位大地高 h）——运河带与地形开挖共用同一来源 */
+export function computeCanalLine(osmFile) {
   const rel = JSON.parse(fs.readFileSync(osmFile, 'utf8'))
   const ts = JSON.parse(fs.readFileSync(path.join(TILE_DIR, 'tileset.json'), 'utf8'))
   const toEnu = makeToEnu(ts.root.transform)
@@ -261,7 +262,15 @@ export function buildCanal({ osmFile, outDir, groundU = 0 }) {
   }
   const hubs = hubTargets(TILE_DIR)
   // 稠密化（经纬度线性插值，~40 m）→ 投 ENU → 枢纽局部扭曲（旧版同款，2 km 平方衰减）
-  const dense = chains.flatMap((c) => densifyLL(c, 40))
+  const denseGroups = chains.map((c) => densifyLL(c, 40))
+  const dense = []
+  const chainOf = []
+  denseGroups.forEach((g, ci) =>
+    g.forEach((p) => {
+      dense.push(p)
+      chainOf.push(ci)
+    })
+  )
   const enu = dense.map((p) => toEnu(p.lon, p.lat))
   const warped = warpToHubs(enu, hubs)
   // 扭曲量回写经纬度（位移 ≤248 m，用局部尺度近似，误差 cm 级）
@@ -334,8 +343,22 @@ export function buildCanal({ osmFile, outDir, groundU = 0 }) {
   }
   const centerline = pts.map((p, i) => {
     const u = toEnu(p.lon, p.lat, waterAt(s[i]))[2]
-    return [p.e, p.n, u]
+    return [p.e, p.n, u, chainOf[i]]
   })
+  const points = pts.map((p, i) => ({
+    lon: p.lon,
+    lat: p.lat,
+    e: p.e,
+    n: p.n,
+    h: waterAt(s[i]),
+    c: chainOf[i],
+  }))
+  return { points, centerline, hubs, toEnu, ts, chains: chains.length }
+}
+
+/** 平陆运河全线重烘：一条连续带（水面 + 两岸），逐点大地高（设计水位剖面） */
+export function buildCanal({ osmFile, outDir, groundU = 0 }) {
+  const { centerline, hubs, ts, chains } = computeCanalLine(osmFile)
 
   const meshes = [],
     materials = [],
@@ -366,15 +389,31 @@ export function buildCanal({ osmFile, outDir, groundU = 0 }) {
     },
   ]
   let tris = 0
+  // 按链分组：两条链之间是真实断口（~19 km），不得用一条带子把它们连起来
+  const byChain = new Map()
+  for (const p of centerline) {
+    const c = p[3] ?? 0
+    if (!byChain.has(c)) byChain.set(c, [])
+    byChain.get(c).push(p)
+  }
+  const chainGroups = [...byChain.values()]
   parts.forEach((p, i) => {
-    const g = ribbon(centerline, p.half, p.lift, p.color, groundU, p.offset)
+    const merged = { positions: [], normals: [], colors: [], indices: [] }
+    for (const g of chainGroups) {
+      const geo = ribbon(g, p.half, p.lift, p.color, groundU, p.offset)
+      const base = merged.positions.length / 3
+      merged.positions.push(...geo.positions)
+      merged.normals.push(...geo.normals)
+      merged.colors.push(...geo.colors)
+      merged.indices.push(...geo.indices.map((k) => k + base))
+    }
     meshes.push({
       primitives: [
         {
-          positions: g.positions,
-          normals: g.normals,
-          colors: g.colors,
-          indices: g.indices,
+          positions: merged.positions,
+          normals: merged.normals,
+          colors: merged.colors,
+          indices: merged.indices,
           material: i,
         },
       ],
@@ -388,7 +427,7 @@ export function buildCanal({ osmFile, outDir, groundU = 0 }) {
       },
     })
     nodes.push({ mesh: i })
-    tris += g.indices.length / 3
+    tris += merged.indices.length / 3
   })
   fs.mkdirSync(outDir, { recursive: true })
   fs.writeFileSync(path.join(outDir, 'canal.glb'), buildGLB({ meshes, materials, nodes }))
@@ -427,8 +466,8 @@ export function buildCanal({ osmFile, outDir, groundU = 0 }) {
       refine: 'ADD',
       content: { uri: 'canal.glb' },
       extras: {
-        chains: chains.length,
-        segments: chains.length,
+        chains,
+        segments: chains,
         centerlinePoints: centerline.length,
         section: '水面 120 m + 两岸各 60 m（按底宽 80 m + 边坡估算，非量测）',
         reconstruction: '按 OSM 中线挤出，断面为参数化取值',
@@ -436,7 +475,7 @@ export function buildCanal({ osmFile, outDir, groundU = 0 }) {
     },
   }
   fs.writeFileSync(path.join(outDir, 'tileset.json'), JSON.stringify(tileset))
-  return { segments: chains.length, points: centerline.length, tris, groundU, hubs }
+  return { segments: chains, points: centerline.length, tris, groundU, hubs }
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
@@ -444,12 +483,24 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     const i = process.argv.indexOf(k)
     return i > 0 ? process.argv[i + 1] : d
   }
-  const r = buildCanal({
-    osmFile: arg('--osm', '.local/926-rebake/osm_canal.json'),
-    outDir: arg('--out', 'backend/static/pinglu/canal'),
-    groundU: Number(arg('--ground', '0')),
-  })
-  console.log('中线 ' + r.segments + ' 链 → 稠密 ' + r.points + ' 点；挤出 ' + r.tris + ' 三角面')
-  console.log('已按枢纽局部扭曲: ' + r.hubs.map((h) => h.name).join(' / '))
-  console.log('写出 ' + arg('--out', 'backend/static/pinglu/canal'))
+  const osmFile = arg('--osm', '.local/926-rebake/osm_canal.json')
+  const emitLine = arg('--emit-line', null)
+  if (emitLine) {
+    // 供地形开挖（07b）使用：逐点经纬度 + 设计水位大地高
+    const { points } = computeCanalLine(osmFile)
+    fs.writeFileSync(
+      emitLine,
+      JSON.stringify({ points: points.map((p) => ({ lon: p.lon, lat: p.lat, h: p.h })) })
+    )
+    console.log('中线 ' + points.length + ' 点（含设计水位大地高）→ ' + emitLine)
+  } else {
+    const r = buildCanal({
+      osmFile,
+      outDir: arg('--out', 'backend/static/pinglu/canal'),
+      groundU: Number(arg('--ground', '0')),
+    })
+    console.log('中线 ' + r.segments + ' 链 → 稠密 ' + r.points + ' 点；挤出 ' + r.tris + ' 三角面')
+    console.log('已按枢纽局部扭曲: ' + r.hubs.map((h) => h.name).join(' / '))
+    console.log('写出 ' + arg('--out', 'backend/static/pinglu/canal'))
+  }
 }

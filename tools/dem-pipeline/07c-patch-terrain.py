@@ -48,6 +48,9 @@ def main():
     if "--terrain" in sys.argv:
         global TERRAIN
         TERRAIN = Path(sys.argv[sys.argv.index("--terrain") + 1])
+    canal_path = None
+    if "--canal-line" in sys.argv:
+        canal_path = Path(sys.argv[sys.argv.index("--canal-line") + 1])
     print(f"[07c] post={post_path} terrain={TERRAIN}" + (" [dry-run]" if DRY else ""), flush=True)
     layer = json.loads((TERRAIN / "layer.json").read_text(encoding="utf-8"))
     # have 一律取**盘上实清单**：旧实现从 layer.json.available 反推，会把历史超声明带进来
@@ -79,12 +82,35 @@ def main():
                     new.add((z, x, y))
     planned = have | new
     print(f"盘上原瓦片 {base} 张；bbox 计划新增 z13/z14 {len(new)} 张 → 计划集 {len(planned)}")
+    # ===== 运河走廊：沿全线补 z13/z14 瓦片，并重切走廊内全部层级（2026-10-05）=====
+    corridor_tiles = set()
+    if canal_path:
+        line = json.loads(canal_path.read_text(encoding="utf-8"))["points"]
+        for z in (13, 14):
+            cols, rows = 2 ** (z + 1), 2 ** z
+            for p in line:
+                x = int((p["lon"] + 180.0) / 360.0 * cols)
+                y = int((90.0 - p["lat"]) / 180.0 * rows)
+                for dx in (-1, 0, 1):
+                    for dy in (-1, 0, 1):
+                        if 0 <= x + dx < cols and 0 <= y + dy < rows:
+                            corridor_tiles.add((z, x + dx, y + dy))
+        new |= corridor_tiles
+        planned = have | new
+        print(f"运河走廊：补 z13/z14 {len(corridor_tiles)} 张（含 ±1 邻域）")
     targets = set()
     for z, x, y in planned:
         tw, ts, te, tn = tb(z, x, y)
         for w, s, e, n in boxes:
             if te > w and tw < e and tn > s and ts < n:
                 targets.add((z, x, y)); break
+    # 走廊瓦片 + 其全部祖先（父瓦片同样要按新地表重采样）
+    for z, x, y in corridor_tiles:
+        targets.add((z, x, y))
+        zz, xx, yy = z, x, y
+        while zz > 0:
+            zz, xx, yy = zz - 1, xx >> 1, yy >> 1
+            targets.add((zz, xx, yy))
     # 实写集 = 盘上原有 ∪ 真正新建的（targets∩new）——available 与 childTileMask 都必须按它写，
     # 按计划集写会声明出永远不存在的瓦片（本次修的就是这条）。
     have = have | (targets & new)

@@ -371,9 +371,10 @@ export function useApiRequest(): UseApiRequestReturn {
         const isExternalCancel =
           error instanceof ApiError && code === ErrorCode.REQUEST_FAILED && options.signal?.aborted
         if (!isGet || !isRetryable || isExternalCancel || attempt === MAX_RETRIES) {
-          // 失败采样日志（生产观测口）：重试耗尽/不可重试错误带请求 ID 输出
+          // 失败日志（生产观测口）：重试耗尽/不可重试错误带请求 ID 输出。
+          // F8：级别改 warn——logger.sampled 对 warn 不做采样（失败不得被 1% 吞掉）
           logger.sampled(
-            'info',
+            'warn',
             `[apiRequest:${rid}] ✗ ${options.method ?? 'GET'} ${path} 失败(${attempt}/${MAX_RETRIES})`,
             error instanceof ApiError ? error.code : String(error)
           )

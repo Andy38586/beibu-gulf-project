@@ -60,6 +60,17 @@ let storageListenerRegistered = false
 
 // 认证恢复标志，防止重复调用
 let authRestored = false
+/**
+ * 认证代次（1004-07）：每次登录/注册成功、或 restore 恢复出用户时 +1。
+ * `logout()` 在 await 前取样、finally 时比对——await 期间若新登录已完成（如登出接口慢、
+ * 用户已重新登录），旧 logout 的 finally 不得清掉新会话（原先无条件清场 = 后写者被覆盖）。
+ */
+let authGeneration = 0
+
+function bumpAuthGeneration(): void {
+  authGeneration += 1
+}
+
 /** 在途恢复单例：并发调用共享同一次 /auth/me（审查 L-11——
  *  原实现 authRestored 在 await 前置位，并发调用者拿到未完成结果） */
 let restorePromise: Promise<User | null> | null = null
@@ -90,6 +101,8 @@ async function doRestore(): Promise<User | null> {
       writeStoredUser(data.user)
       // Cookie 有效，设置占位 token 启用 isAuthenticated
       setToken('restored-from-cookie')
+      // 1004-07：恢复出用户同样是一次「新会话确立」，代次 +1（旧 logout 的 finally 不得再清它）
+      bumpAuthGeneration()
       return data.user
     }
   } catch (error) {
@@ -171,6 +184,7 @@ export function useAuth(): UseAuthReturn {
     setToken('cookie-auth')
     user.value = data.user
     writeStoredUser(data.user)
+    bumpAuthGeneration()
     return data.user
   }
 
@@ -187,21 +201,28 @@ export function useAuth(): UseAuthReturn {
     setToken('cookie-auth')
     user.value = data.user
     writeStoredUser(data.user)
+    bumpAuthGeneration()
     return data.user
   }
 
   /** 登出：调用后端接口清除 HttpOnly Cookie */
   async function logout(): Promise<void> {
+    const generationAtStart = authGeneration
     try {
       await apiRequest(ENDPOINTS.auth.logout, { method: 'POST' })
     } catch (error) {
       // 即使后端调用失败，也清理前端状态
       logger.debug('登出接口调用失败，但仍清理前端状态:', error)
     } finally {
-      // 清理前端状态（store 重置由 App.vue watch(user) 驱动）
-      clearToken()
-      user.value = null
-      writeStoredUser(null)
+      // 代次守卫（1004-07）：await 期间有新登录完成 ⇒ 本次 logout 已过时，不得清场。
+      // 反例（修前）：登出接口慢 + 用户重新登录成功 ⇒ 旧 finally 把新 user/token 清掉，
+      // 界面回未登录而后端 Cookie 有效（状态分叉）。
+      if (authGeneration === generationAtStart) {
+        // 清理前端状态（store 重置由 App.vue watch(user) 驱动）
+        clearToken()
+        user.value = null
+        writeStoredUser(null)
+      }
       // 登出不得重置 authRestored——「恢复期」只指首次 /auth/me 的窗口，
       // 登出是主动状态切换而非恢复过程；重登走 login 直接赋值、无第二次 restore
       // （restoreAuth 仅 App 挂载调用一次）。旧代码置 false 后永不回位 →

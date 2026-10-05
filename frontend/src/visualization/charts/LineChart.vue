@@ -12,6 +12,8 @@ interface Props {
   series?: Array<{ name: string; data: Array<number | null> }>
   xMin?: string
   xMax?: string
+  /** y 轴单位（如「万吨」）；F4 起由 ForecastPage 从接口 unit 透传 */
+  yUnit?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -24,6 +26,7 @@ const props = withDefaults(defineProps<Props>(), {
   ],
   xMin: '',
   xMax: '',
+  yUnit: '',
 })
 
 const emit = defineEmits<{

@@ -59,7 +59,7 @@ export function useForecastTimeseries(): UseForecastTimeseriesReturn {
         // 事务过期或请求被取消
         if (data === null) return
         if (data.series) {
-          forecastState.setRequestCache(cacheKey, { allSeries: data.series })
+          forecastState.setRequestCache(cacheKey, { allSeries: data.series, unit: data.unit })
         }
       } else {
         // 与 useForecastComparison 一致——缓存命中也校验事务有效性，
@@ -68,7 +68,7 @@ export function useForecastTimeseries(): UseForecastTimeseriesReturn {
       }
 
       const entry = forecastState.requestCache.get(cacheKey) as
-        | { allSeries?: SeriesItem[] }
+        | { allSeries?: SeriesItem[]; unit?: string }
         | undefined
       const allData = entry?.allSeries?.[0]?.data || []
       if (!allData.length) return
@@ -101,6 +101,8 @@ export function useForecastTimeseries(): UseForecastTimeseriesReturn {
         name: s.portName,
         data: (s.data || []).filter(inWindow).map((d) => d.value),
       }))
+      // F4：y 轴单位随数据入 store（LineChart :y-unit 消费）；缓存命中同路径
+      forecastState.chart.lineUnit = entry?.unit ?? ''
     } catch (e) {
       logger.error('[ForecastTimeseries] load error:', e)
       if (isAuthError(e)) {

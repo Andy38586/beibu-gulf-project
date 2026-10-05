@@ -110,7 +110,7 @@ describe('forecastAdapter', () => {
     expect(result.charts?.indicator).toBe('cargo')
   })
 
-  it('getTimeSeries 应透传 indicator/granularity/confidence 参数并只返回 series', async () => {
+  it('getTimeSeries 应透传参数并返回 series + unit（F4：unit 不再被丢）', async () => {
     const fetchMock = vi.mocked(fetch)
     const result = await forecastAdapter.getTimeSeries({
       indicator: 'cargo',
@@ -123,7 +123,7 @@ describe('forecastAdapter', () => {
     expect(calledUrl).toContain('indicator=cargo')
     expect(calledUrl).toContain('granularity=year')
     expect(calledUrl).toContain('confidence=0.9')
-    // 业务形状收口：不透传 indicator/granularity/confidence 原字段，只透传 series
+    // 业务形状收口：不透传 indicator/granularity 原字段，只透传 series + unit
     expect(result).toEqual({
       series: [
         {
@@ -135,10 +135,11 @@ describe('forecastAdapter', () => {
           ],
         },
       ],
+      unit: '万吨',
     })
   })
 
-  it('getIndicatorComparison 应请求 /forecast/indicator/:indicator 并只返回 ports', async () => {
+  it('getIndicatorComparison 应请求 /forecast/indicator/:indicator 并返回 ports + unit', async () => {
     const result = await forecastAdapter.getIndicatorComparison('cargo', {
       time: '2025-12',
       confidence: 0.9,
@@ -158,6 +159,7 @@ describe('forecastAdapter', () => {
           forecast: [{ time: '2025', value: 80, type: 'forecast' }],
         },
       },
+      unit: '万吨',
     })
   })
 

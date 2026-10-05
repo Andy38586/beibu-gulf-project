@@ -69,6 +69,8 @@ export const useForecastStore = defineStore('forecast', () => {
   const chart = reactive({
     lineXData: [] as string[],
     lineSeries: [] as Array<{ name: string; data: number[] }>,
+    /** 折线图 y 轴单位（接口 unit 透传；F4 前被适配器丢弃，图无单位标注） */
+    lineUnit: '',
     lineViewportXMin: '2023-01',
     lineViewportXMax: '2029-12',
     barXData: [] as string[],
@@ -78,6 +80,7 @@ export const useForecastStore = defineStore('forecast', () => {
   function clearChart(): void {
     chart.lineXData = []
     chart.lineSeries = []
+    chart.lineUnit = ''
     chart.lineViewportXMin = '2023-01'
     chart.lineViewportXMax = '2029-12'
     chart.barXData = []

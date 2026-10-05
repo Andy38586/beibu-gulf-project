@@ -81,9 +81,14 @@ export function useForecastComparison(): UseForecastComparisonReturn {
       if (results.some((r) => r === null)) return
       forecastState.chart.barXData = [...PORT_NAMES]
       forecastState.chart.barSeries = BAR_INDICATORS.map((ind, i) => {
-        const p = results[i]?.ports
+        const r = results[i]
+        const p = r?.ports
+        // F4：两指标单位不同（万吨 / 万TEU），y 轴单一单位表达不了 ⇒ 单位拼进系列名（图例可见）
+        const label = r?.unit
+          ? `${BAR_INDICATOR_LABELS[ind]}（${r.unit}）`
+          : BAR_INDICATOR_LABELS[ind]
         return {
-          name: BAR_INDICATOR_LABELS[ind],
+          name: label,
           // 无数据保留 null（图表空档），不再折叠为 0——
           // 后端 value 缺失时 `|| 0` 会把「无数据」伪装成「真实 0」。
           // 按 PORT_KEYS 取数：顺序与 barXData（PORT_NAMES）由同一权威源派生，不再手写 key

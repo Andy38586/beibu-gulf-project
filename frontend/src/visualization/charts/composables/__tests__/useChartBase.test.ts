@@ -27,7 +27,7 @@ interface ChartOptionLike {
   }
   legend: { bottom: number }
   xAxis: { data: unknown[]; type: string }
-  yAxis: { type: string }
+  yAxis: { type: string; name?: string }
   series: Array<{ data: unknown[]; type: string; smooth?: boolean; name?: string }>
 }
 
@@ -94,6 +94,19 @@ describe('P0-01 回归：useChartBase 不得返回过期快照', () => {
     await wrapper.setProps({ title: '新标题' })
     expect(captured.getOption!().title.text).toBe('新标题')
 
+    wrapper.unmount()
+  })
+
+  it('LineChart：yUnit 声明为 prop 并进 yAxis.name（F4 红样：修前未声明 ⇒ undefined）', () => {
+    const wrapper = mount(LineChart, {
+      props: {
+        title: '预测趋势',
+        xData: ['2024'],
+        series: [{ name: '钦州港', data: [100] }],
+        yUnit: '万吨',
+      },
+    })
+    expect(captured.getOption!().yAxis.name).toBe('万吨')
     wrapper.unmount()
   })
 

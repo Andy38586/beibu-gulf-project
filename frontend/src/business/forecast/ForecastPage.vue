@@ -157,6 +157,7 @@ onUnmounted(() => {
             :series="forecastState.chart.lineSeries"
             :x-min="forecastState.chart.lineViewportXMin"
             :x-max="forecastState.chart.lineViewportXMax"
+            :y-unit="forecastState.chart.lineUnit"
           />
           <!-- 数据刷新期 loading 覆盖（isRequesting 由事务 composable 驱动），
                原注释"加载态不绑定 UI"已废止——弱网下用户可感知更新进行中 -->

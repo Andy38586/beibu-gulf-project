@@ -29,7 +29,8 @@ export interface ForecastTimeSeriesParams {
   scenario?: string
 }
 
-export type ForecastTimeSeriesResult = Pick<TimeSeriesResponseParsed, 'series'>
+/** unit 随 series 一并带出（F4：图表 y 轴单位曾在此被丢弃，混图无单位标注） */
+export type ForecastTimeSeriesResult = Pick<TimeSeriesResponseParsed, 'series' | 'unit'>
 
 export interface ForecastComparisonParams {
   time: string
@@ -38,7 +39,8 @@ export interface ForecastComparisonParams {
   scenario?: string
 }
 
-export type ForecastComparisonResult = Pick<IndicatorComparisonResponseParsed, 'ports'>
+/** unit 随 ports 一并带出（F4：柱图多指标时由调用方拼进系列名标注） */
+export type ForecastComparisonResult = Pick<IndicatorComparisonResponseParsed, 'ports' | 'unit'>
 
 export const forecastAdapter = {
   /** 首页概览静态快照（/forecast/overview）：图表数据，schema 校验在 HTTP 边界完成 */
@@ -65,7 +67,7 @@ export const forecastAdapter = {
       signal,
       schema: timeSeriesResponseSchema,
     })
-    return { series: data.series }
+    return { series: data.series, unit: data.unit }
   },
 
   /** 港口对比（/forecast/indicator/:indicator）：同上，schema 校验后透传 ports */
@@ -87,6 +89,6 @@ export const forecastAdapter = {
         schema: indicatorComparisonResponseSchema,
       }
     )
-    return { ports: data.ports }
+    return { ports: data.ports, unit: data.unit }
   },
 }

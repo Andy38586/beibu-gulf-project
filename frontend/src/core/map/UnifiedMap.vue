@@ -99,6 +99,13 @@ const { manager: businessLayerManager } = useBusinessLayers()
 
 const spinnerSizeCss = computed(() => `${Math.round(CELL_PIXEL * 0.5)}px`)
 
+/** 遮罩文案：3D 未就绪时明确说在加载 3D（首进空白窗口必须可见） */
+const mapLoadingLabel = computed(() => {
+  const t = currentRenderer.value?.getType()
+  if (props.mapType === '3d' && t !== '3d') return '正在加载 3D 场景…'
+  return switching.value ? '切换视图中...' : '地图加载中...'
+})
+
 let portGeoJson: FeatureCollection | null = null
 let boundaryGeoJson: FeatureCollection | null = null
 
@@ -107,6 +114,13 @@ const LOAD_TIMEOUT_MS = 10000
 /** 组件级 abort：卸载后阻止异步回调继续写 ref（仅卸载/切换时 abort，超时不得全局 abort——
  *  曾因 withTimeout 超时误 abort 导致后续加载全部静默失效且错误提示被吞） */
 const loadAbort = new AbortController()
+
+/**
+ * 初始引擎构建过程（onMounted 的 loadData → initRenderer）：
+ * 路由在窗口内切到 3D 时，switchMapType 必须等它落地再判/再切，避免
+ * ① 与其并发二次 initRenderer；② 用 store 值当"已有该引擎"而提前跳过切换（首进竞态根因）。
+ */
+let initialInit: Promise<void> | null = null
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, errorMessage: string): Promise<T> {
   let timeoutId: ReturnType<typeof setTimeout>
@@ -467,29 +481,43 @@ async function switchMapType(newType: '2d' | '3d') {
     return
   }
 
-  // 用渲染器实际类型而非mapStore.mapType，后者可能已被route.meta.engine提前更新
-  const oldType = (currentRenderer.value?.getType() || mapStore.mapType) as '2d' | '3d'
-  switching.value = true
-  loading.value = true
-  // 气泡是 2D Overlay 能力，引擎切换即收（3D 无跟随能力）
-  closeBubble()
-
-  logger.debug(`[UnifiedMap] switchMapType: ${oldType} → ${newType}`)
-  logger.debug(
-    `[UnifiedMap] mapStore.mapType=${mapStore.mapType}, currentRenderer.type=${currentRenderer.value?.getType()}`
-  )
-
-  // 如果 oldType 和 newType 相同，无需切换
-  if (oldType === newType) {
-    logger.debug('[UnifiedMap] 类型相同，跳过切换')
-    switching.value = false
-    loading.value = false
+  // 🔴 判据只能用「实际渲染器类型」：currentRenderer 为空（初始引擎仍在建）时拿
+  // mapStore.mapType 当"已有该引擎"，会命中"类型相同，跳过切换"——遮罩被提前关掉、
+  // 正式初始化仍在跑（首进 3D 实测：0.62s 关遮罩、5.5s 才出 Cesium，中间地图区全空无反馈）。
+  const actualType = currentRenderer.value?.getType() ?? null
+  if (actualType === newType) {
+    logger.debug('[UnifiedMap] 实际渲染器已是目标类型，跳过切换')
     // 同类型提前返回时清空排队请求，避免悬挂
     pendingSwitchType.value = null
     return
   }
 
+  switching.value = true
+  loading.value = true
+  // 气泡是 2D Overlay 能力，引擎切换即收（3D 无跟随能力）
+  closeBubble()
+
+  let oldType: '2d' | '3d' | null = null
+
   try {
+    // 初始引擎仍在建：等它落地；落地后若已是目标类型即完成（遮罩由 finally 统一收）。
+    if (!currentRenderer.value && initialInit) {
+      await initialInit
+    }
+
+    const currentType = currentRenderer.value?.getType() ?? null
+    if (currentType === newType) {
+      logger.debug(`[UnifiedMap] 初始引擎已成为 ${newType}，无需再切`)
+      return
+    }
+
+    // 用渲染器实际类型而非mapStore.mapType，后者可能已被route.meta.engine提前更新
+    oldType = (currentType ?? mapStore.mapType) as '2d' | '3d'
+    logger.debug(`[UnifiedMap] switchMapType: ${oldType} → ${newType}`)
+    logger.debug(
+      `[UnifiedMap] mapStore.mapType=${mapStore.mapType}, currentRenderer.type=${currentRenderer.value?.getType()}`
+    )
+
     let cameraState: RendererState | null = null
     if (currentRenderer.value) {
       cameraState = currentRenderer.value.exportState()
@@ -549,7 +577,7 @@ async function switchMapType(newType: '2d' | '3d') {
     // ② 有排队意图（pendingSwitchType 非空）时不回滚 store：finally 的补跑会以
     //    最新意图重试，它自己的 catch 才会回滚；此处回滚会把 store 写成 oldType，
     //    与即将补跑的目标撕裂（补跑成功后 store 与渲染器类型不一致）。
-    if (oldType !== newType) {
+    if (oldType !== null && oldType !== newType) {
       const fallback = oldType === '2d' ? olRenderer.value : cesiumRenderer.value
       if (fallback && currentRenderer.value !== fallback) {
         currentRenderer.value = fallback
@@ -641,24 +669,28 @@ function watchContainerSize(container: HTMLElement | null): void {
 }
 
 onMounted(async () => {
-  await loadData()
-  if (loadAbort.signal.aborted) return
-  // 兜底：初始 3D 时容器尚未渲染（v-if 依赖 cesiumInitialized），
-  // 先置标志并等 nextTick 让容器挂载后再初始化，避免白图
-  if (props.mapType === '3d' && !cesiumInitialized.value) {
-    cesiumInitialized.value = true
-    await nextTick()
-    await nextTick()
-  }
-  // 首次挂载：v-if已渲染默认类型的容器
-  const container = getContainer(props.mapType)
-  try {
-    await initRenderer(props.mapType, container)
-  } catch {
-    // initRenderer 内部已 emit('error') + 设置 loadError；rethrow 仅服务 switchMapType 回滚，
-    // 首次挂载路径无回滚目标，此处吞掉防止 mounted hook unhandled rejection
-  }
-  loading.value = false
+  // 初始引擎构建收进 initialInit：路由切换若落在本窗口内，switchMapType 等它落地（见上）
+  initialInit = (async () => {
+    await loadData()
+    if (loadAbort.signal.aborted) return
+    // 兜底：初始 3D 时容器尚未渲染（v-if 依赖 cesiumInitialized），
+    // 先置标志并等 nextTick 让容器挂载后再初始化，避免白图
+    if (props.mapType === '3d' && !cesiumInitialized.value) {
+      cesiumInitialized.value = true
+      await nextTick()
+      await nextTick()
+    }
+    // 首次挂载：v-if已渲染当前意图类型的容器（props.mapType 可能已被路由改过）
+    const container = getContainer(props.mapType)
+    try {
+      await initRenderer(props.mapType, container)
+    } catch {
+      // initRenderer 内部已 emit('error') + 设置 loadError；rethrow 仅服务 switchMapType 回滚，
+      // 首次挂载路径无回滚目标，此处吞掉防止 mounted hook unhandled rejection
+    }
+    loading.value = false
+  })()
+  await initialInit
 
   // 观察 OL 容器（常驻）；Cesium 容器由下方 watch 在出现后观察
   watchContainerSize(olContainerRef.value)
@@ -761,7 +793,7 @@ defineExpose({
     <Transition name="fade">
       <div v-if="loading || switching" class="map-loading">
         <div class="loading-spinner"></div>
-        <span>{{ switching ? '切换视图中...' : '地图加载中...' }}</span>
+        <span>{{ mapLoadingLabel }}</span>
       </div>
     </Transition>
 

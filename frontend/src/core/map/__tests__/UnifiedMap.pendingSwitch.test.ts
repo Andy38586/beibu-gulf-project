@@ -13,7 +13,9 @@ import { createPinia, setActivePinia } from 'pinia'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { BusinessLayerManager } from '@/core/map/BusinessLayerManager'
+import { loadBoundaryGeoJson } from '@/core/map/composables/useBoundaryLayer'
 import { BUSINESS_LAYER_MANAGER_KEY } from '@/core/map/composables/useBusinessLayers'
+import { loadPorts } from '@/core/map/composables/usePortLayer'
 import { useMapStore } from '@/stores'
 
 import UnifiedMap from '../UnifiedMap.vue'
@@ -295,5 +297,42 @@ describe('UnifiedMap 切换失败后的补跑（a036）', () => {
     // 前置① 拦住回滚写；store 保持更新的意图
     expect(setMapTypeSpy).not.toHaveBeenCalled()
     expect(mapStore.mapType).toBe('2d')
+  })
+
+  it('🔴 初始引擎仍在建时切入 3D：不得提前跳过，遮罩须撑到 3D 真正就绪', async () => {
+    // 初始 loadData 挂起 ⇒ currentRenderer 保持 null；此时路由把意图写成 3d
+    let releasePorts: (v: unknown[]) => void = () => {}
+    const pendingPorts = new Promise<unknown[]>((resolve) => {
+      releasePorts = resolve
+    })
+    vi.mocked(loadPorts).mockImplementationOnce(() => pendingPorts as never)
+    void loadBoundaryGeoJson // 该模块同被 mock，此处仅表明数据链同源
+
+    wrapper = mount(UnifiedMap, {
+      props: { mapType: '2d' },
+      ...makeMountOptions(mapStore),
+    })
+    await flushPromises()
+    expect(wrapper.vm.getRenderer()).toBeNull() // 初始引擎未建（loadData 仍挂起）
+
+    await switchIntent(wrapper, mapStore, '3d')
+    await flushPromises()
+
+    // 旧实现用 store('3d') 判「类型相同」⇒ 提前跳过并关遮罩：本断言必红
+    const mask = wrapper.find('.map-loading')
+    expect(mask.exists()).toBe(true)
+    expect(mask.text()).toContain('3D')
+
+    // 放行初始 loadData ⇒ onMounted 以当前意图 3d 建渲染器；switchMapType 等它落地
+    releasePorts([])
+    await flushPromises()
+    await new Promise((r) => setTimeout(r, 50))
+    await flushPromises()
+
+    const renderer = wrapper.vm.getRenderer() as { getType: () => string } | null
+    expect(renderer?.getType()).toBe('3d')
+    expect(wrapper.find('.map-loading').exists()).toBe(false)
+    // 只允许一次 3D 创建：等待 initialInit，而非与它并发二次 initRenderer
+    expect(mockedCreateRenderer.mock.calls.filter((c) => c[0] === '3d')).toHaveLength(1)
   })
 })

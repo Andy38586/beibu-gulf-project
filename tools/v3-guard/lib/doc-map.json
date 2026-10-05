@@ -213,6 +213,18 @@
       "ts": "2026-10-05"
     },
     {
+      "id": "LOG-DEC-20261005",
+      "path": "docs/日志/决策/2026-10-05-三目标阶段裁定与协议补丁.md",
+      "layer": "日志",
+      "role": "三目标阶段用户裁定与协议补丁（N1–N7）",
+      "status": "active",
+      "guard": "tools/v3-guard/doc-map-check.mjs",
+      "owns": ["2026-10-05 三目标裁定原文与 N1–N7 新要求"],
+      "readWhen": ["实施 A/B/C 任一项或追溯 10-05 裁定来历时"],
+      "writeWhen": ["不回写；新裁定另开带日期文件"],
+      "ts": "2026-10-05"
+    },
+    {
       "id": "SNAP-PINGLU-TILES",
       "path": "docs/日志/快照/平陆运河3DTiles-README-2026-09-27.md",
       "layer": "日志",

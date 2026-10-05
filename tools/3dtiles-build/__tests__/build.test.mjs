@@ -14,7 +14,7 @@ import { describe, expect, it } from 'vitest'
 
 import { buildAll, buildBridge } from '../build-bridges.mjs'
 import { ribbon } from '../build-canal.mjs'
-import { buildGround } from '../build-ground.mjs'
+import { buildGround, edgeAlpha, EDGE_FADE_M } from '../build-ground.mjs'
 import { buildRoads, extrudeWay } from '../build-roads.mjs'
 import { buildContainer, CONTAINER_TYPES, generateAll } from '../container-models.mjs'
 import { box, buildGLB, enuToGltf } from '../glb.mjs'
@@ -723,6 +723,100 @@ describe('buildGLB — 结构自洽', () => {
     expect(json.accessors[ext.attributes.TRANSLATION].count).toBe(2)
     expect(json.accessors[ext.attributes.ROTATION].count).toBe(2)
     expect(json.accessors[ext.attributes.ROTATION].type).toBe('VEC4')
+  })
+
+  it('COLOR_0 按数据长度判维度：×4 → VEC4（B10 边缘 alpha）、×3 → VEC3（旧调用不变）', () => {
+    const mk = (arity) => {
+      const g = box(1, 1, 1)
+      const nv = g.positions.length / 3
+      const colors = new Array(nv * arity).fill(0.5)
+      const glb = buildGLB({
+        meshes: [{ primitives: [{ ...g, colors, material: 0 }] }],
+      })
+      const jlen = glb.readUInt32LE(12)
+      return JSON.parse(glb.subarray(20, 20 + jlen).toString('utf8'))
+    }
+    expect(mk(3).accessors[0].type).toBe('VEC3')
+    const j4 = mk(4)
+    const acc = j4.accessors[j4.meshes[0].primitives[0].attributes.COLOR_0]
+    expect(acc.type).toBe('VEC4')
+    expect(acc.count).toBe(24)
+  })
+
+  it('colors 数量与顶点×3/×4 均不符 ⇒ 抛错（错维度 COLOR_0 会被 Cesium 整片丢弃）', () => {
+    const g = box(1, 1, 1)
+    const colors = new Array(25).fill(0.5) // 24 顶点，25 既非 72 也非 96
+    expect(() => buildGLB({ meshes: [{ primitives: [{ ...g, colors, material: 0 }] }] })).toThrow(
+      /COLOR_0 维度判别失败/
+    )
+  })
+})
+
+describe('edgeAlpha — 片缘渐变纯函数（B10 裁定③）', () => {
+  it('片缘=0 / 带内线性 / 带外=1', () => {
+    const f = 0.2
+    expect(edgeAlpha(0, 50, 100, 100, f, f)).toBe(0) // 西缘
+    expect(edgeAlpha(50, 0, 100, 100, f, f)).toBe(0) // 南缘
+    expect(edgeAlpha(0, 0, 100, 100, f, f)).toBe(0) // 角点
+    expect(edgeAlpha(10, 50, 100, 100, f, f)).toBeCloseTo(0.5, 6) // 带内半程
+    expect(edgeAlpha(20, 50, 100, 100, f, f)).toBe(1) // 刚出带
+    expect(edgeAlpha(50, 50, 100, 100, f, f)).toBe(1) // 中心
+  })
+
+  it('渐变带宽于片宽 ⇒ 整片都在带内（比例夹 ≤1 后仍单调）', () => {
+    // fadeX=2：dx = 0.5/2 = 0.25 ⇒ 中心也只有 0.25
+    expect(edgeAlpha(50, 50, 100, 100, 2, 2)).toBeCloseTo(0.25, 6)
+    expect(edgeAlpha(0, 50, 100, 100, 2, 2)).toBe(0)
+  })
+})
+
+describe('buildGround — 边缘 alpha 渐变（B10 裁定③落地）', () => {
+  it('COLOR_0=VEC4、材质 BLEND、片缘顶点 alpha=0 且带外=1', () => {
+    const dir = 'node_modules/.cache/beibu-ground-fade-test'
+    fs.mkdirSync(dir, { recursive: true })
+    const size = 64
+    const bbox = [108.64, 21.66, 108.66, 21.68]
+    const bits = Buffer.alloc((size * size) / 8)
+    // 全陆（不跳格）：保证四缘顶点都存在，便于断言片缘 alpha
+    fs.writeFileSync(
+      path.join(dir, 'water-mask.json'),
+      JSON.stringify({ note: 'test', bbox, size, bits: bits.toString('base64') })
+    )
+    fs.writeFileSync(path.join(dir, 'imagery.json'), JSON.stringify({ tiles: [{ bbox }] }))
+    const tileDir = makePortTileFixture(dir)
+    const r = buildGround({
+      outDir: path.join(dir, 'out'),
+      maskFile: path.join(dir, 'water-mask.json'),
+      imageryFile: path.join(dir, 'imagery.json'),
+      cell: 20,
+      tileDir,
+    })
+    expect(r.nFaded).toBeGreaterThan(0)
+
+    const glb = fs.readFileSync(path.join(dir, 'out', 'ground.glb'))
+    const jlen = glb.readUInt32LE(12)
+    const j = JSON.parse(glb.subarray(20, 20 + jlen).toString('utf8'))
+    expect(j.materials[0].alphaMode).toBe('BLEND')
+    const acc = j.accessors[j.meshes[0].primitives[0].attributes.COLOR_0]
+    expect(acc.type).toBe('VEC4')
+    expect(acc.count).toBe(r.vertices)
+
+    // 从 BIN 读逐顶点 alpha（RGBA stride 4 的第 4 分量）
+    const bv = j.bufferViews[acc.bufferView]
+    const binStart = 20 + jlen + 8
+    const base = binStart + (bv.byteOffset ?? 0)
+    const alphas = []
+    for (let i = 0; i < acc.count; i++) {
+      alphas.push(glb.readFloatLE(base + (i * 4 + 3) * 4))
+    }
+    const mn = Math.min(...alphas)
+    const mx = Math.max(...alphas)
+    expect(mn).toBe(0) // 片缘顶点完全透出底图
+    expect(mx).toBe(1) // 带外不透明
+    // 默认 fade=300m、片宽≈2.2km ⇒ 渐变占比≈13.6%，带外顶点应占多数
+    const opaque = alphas.filter((a) => a === 1).length
+    expect(opaque / alphas.length).toBeGreaterThan(0.5)
+    expect(EDGE_FADE_M).toBe(300)
   })
 })
 

@@ -38,10 +38,28 @@ const GROUND_LIFT = 0.05
  * 与影像里浅灰的堆场不是同色系（2026-10-03 改前/改后对照见 .local/3d-review/sheet-tone.png）。
  */
 const TONE = [0.86, 0.85, 0.82]
+/**
+ * 边缘 alpha 渐变宽度（米，B10 裁定③「边缘淡化」）：自建片范围边界是影像 bbox 直边，
+ * 单色面片到界即断 ⇒ 硬缝。片缘 EDGE_FADE_M 内 alpha 线性降到 0（材质 alphaMode:'BLEND'），
+ * 让混凝土色淡入底图影像。Cesium 半透明 pass 会关闭该片深度写入——地面层本就贴在
+ * 道路层下 10 cm（GROUND_LIFT），路仍走不透明 pass，视觉顺序不受影响（A/B 见 B10 收口单）。
+ */
+export const EDGE_FADE_M = 300
 
 function rootTransform(tileDir = TILE_DIR) {
   const ts = JSON.parse(fs.readFileSync(path.join(tileDir, 'tileset.json'), 'utf8'))
   return ts.root.transform
+}
+
+/**
+ * 片缘 alpha（纯函数）：网格参数坐标 (i,j)∈[0,nx]×[0,ny]，到最近片缘的归一化距离
+ * 除以该轴渐变宽度（fadeX/fadeY = EDGE_FADE_M / 该轴物理宽度），两轴取小、夹 [0,1]。
+ * 片缘=0（完全透出底图）、渐变带内线性、带外=1（不透明混凝土色）。
+ */
+export function edgeAlpha(i, j, nx, ny, fadeX, fadeY) {
+  const dx = Math.min(i, nx - i) / nx / fadeX
+  const dy = Math.min(j, ny - j) / ny / fadeY
+  return Math.max(0, Math.min(1, Math.min(dx, dy)))
 }
 
 export function buildGround({
@@ -51,6 +69,7 @@ export function buildGround({
   imageryFile,
   cell = GROUND_CELL,
   tileDir = TILE_DIR,
+  fadeM = EDGE_FADE_M,
 }) {
   const meta = JSON.parse(fs.readFileSync(imageryFile, 'utf8'))
   const [w, s, e, n] = meta.tiles[0].bbox
@@ -68,6 +87,11 @@ export function buildGround({
   const midLat = ((s + n) / 2) * (Math.PI / 180)
   const nx = Math.max(1, Math.round(((e - w) * 111320 * Math.cos(midLat)) / cell))
   const ny = Math.max(1, Math.round(((n - s) * 110574) / cell))
+  // 边缘渐变宽度 → 各轴归一化比例（片比渐变带还窄时整片都在渐变带内，夹 ≤1）
+  const widthXm = (e - w) * 111320 * Math.cos(midLat)
+  const widthYm = (n - s) * 110574
+  const fadeX = Math.max(1e-6, Math.min(1, fadeM / widthXm))
+  const fadeY = Math.max(1e-6, Math.min(1, fadeM / widthYm))
 
   const pos = [],
     norm = [],
@@ -78,7 +102,8 @@ export function buildGround({
   let uMin = Infinity,
     uMax = -Infinity
   let nRef = 0,
-    nFallback = 0
+    nFallback = 0,
+    nFaded = 0
   const vid = new Int32Array((nx + 1) * (ny + 1)).fill(-1)
   const lngAt = (i) => w + (i / nx) * (e - w)
   const latAt = (j) => s + (j / ny) * (n - s)
@@ -98,9 +123,11 @@ export function buildGround({
     if (uu < uMin) uMin = uu
     if (uu > uMax) uMax = uu
     const g = enuToGltf(E, N, uu)
+    const a = edgeAlpha(i, j, nx, ny, fadeX, fadeY)
+    if (a < 1) nFaded++
     pos.push(g[0], g[1], g[2])
     norm.push(GLTF_UP[0], GLTF_UP[1], GLTF_UP[2])
-    col.push(TONE[0], TONE[1], TONE[2])
+    col.push(TONE[0], TONE[1], TONE[2], a)
     const id = pos.length / 3 - 1
     vid[k] = id
     return id
@@ -158,6 +185,8 @@ export function buildGround({
           metallicFactor: 0,
           roughnessFactor: 1,
         },
+        // B10 裁定③：COLOR_0 带 VEC4 alpha，必须 BLEND 才逐顶点淡出（OPAQUE/MASK 会忽略 alpha）
+        alphaMode: 'BLEND',
       },
     ],
     nodes: [{ mesh: 0 }],
@@ -189,6 +218,8 @@ export function buildGround({
     uMax,
     nRef,
     nFallback,
+    fadeM,
+    nFaded,
     refStats: ref.stats,
   }
 }
@@ -204,6 +235,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     maskFile: arg('mask', 'backend/static/qinzhou-port/imagery/water-mask.json'),
     imageryFile: arg('imagery', 'backend/static/qinzhou-port/imagery/imagery.json'),
     cell: Number(arg('cell', GROUND_CELL)),
+    fadeM: Number(arg('fade', EDGE_FADE_M)),
   })
   console.log(
     '格 ' +
@@ -245,4 +277,5 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
       r.refStats.vertices +
       ' 顶点（rail/concrete/opaque，4 m 格，r=48 m）'
   )
+  console.log('边缘渐变：' + r.nFaded + ' 顶点 alpha<1（fade=' + r.fadeM + ' m，alphaMode=BLEND）')
 }

@@ -120,7 +120,17 @@ export function buildGLB(spec) {
         POSITION: addAccessor(p.positions, 'VEC3', 5126, 34962, { min: mn, max: mx }),
       }
       if (p.normals) attributes.NORMAL = addAccessor(p.normals, 'VEC3', 5126, 34962)
-      if (p.colors) attributes.COLOR_0 = addAccessor(p.colors, 'VEC3', 5126, 34962)
+      if (p.colors) {
+        // 顶点色维度按数据长度自动判别（VEC3=RGB / VEC4=RGBA，B10 边缘 alpha 渐变用 VEC4）；
+        // 数量对不上任何一档直接抛——写错维度的 COLOR_0 会让 Cesium 整片丢弃或渲染错色
+        const nv = p.positions.length / 3
+        const arity = p.colors.length === nv * 4 ? 4 : p.colors.length === nv * 3 ? 3 : 0
+        if (!arity)
+          throw new Error(
+            `colors 数量(${p.colors.length})与顶点数(${nv})×3/×4 均不符（COLOR_0 维度判别失败）`
+          )
+        attributes.COLOR_0 = addAccessor(p.colors, arity === 4 ? 'VEC4' : 'VEC3', 5126, 34962)
+      }
       const use32 = p.positions.length / 3 > 65535
       prims.push({
         attributes,

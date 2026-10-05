@@ -18,9 +18,9 @@ MINSLOPE=0.01 **不复现**归档件。本脚本把 07-30 那条链固化为可�
   · ③ 抬高 12,672,522 px（归档报告 12,672,629）、降低 0、最大抬高 170.0 m；
        Int16 比对 max|Δ| 1 m、25,958 px 有差（>1 m 0 px）
 
-⚠ 待裁（不自行选边）：`02-fill-sinks.ps1` 用 MINSLOPE=0.01，实测抬高 35,390,751 px、
-与归档 Int16 差 >5 m 的像元 11,173,154 个 ⇒ 与现役输入不一致。01~03 是否作废/改写，
-属口径决策，由用户裁定；本脚本只做复现与比对，不改任何现役文件。
+2026-10-05 用户裁定②（A5）：01~03 已退役（`git rm`，历史可恢复，N7），本脚本为 ASTER 链
+唯一入口。旧支线差异（02 用 MINSLOPE=0.01：抬高 35,390,751 px、与归档 Int16 差 >5 m 的
+像元 11,173,154 个）作为历史留档于 README §五-7，不再维护。
 
 用法（venv python；需 QGIS 的 gdalwarp.exe 与 saga_cmd.exe）：
   backend/algorithm-service/.venv/Scripts/python.exe -X utf8 \
@@ -203,7 +203,7 @@ def main() -> int:
         compare(filled_int16, archive / 'filled_CGCS2000_int16.tif', '③ filled_CGCS2000_int16')
     else:
         print('（未跑填洼，③ 比对跳过）')
-    print('⇒ 头部链复现完成（数值差见上；口径分歧见文件头「待裁」）')
+    print('⇒ 头部链复现完成（数值差见上；旧支线退役留档见 README §五-7）')
     return 0
 
 

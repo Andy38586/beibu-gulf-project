@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": 1,
-    "date": "2026-10-05",
+    "date": "2026-10-06",
     "migrationOpen": false,
     "layers": ["宪法", "契约", "日志", "标准库", "待迁移"],
     "statuses": ["active", "stub", "planned", "parallel", "frozen", "external", "retired"],

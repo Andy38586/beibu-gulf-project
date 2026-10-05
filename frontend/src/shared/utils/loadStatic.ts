@@ -69,11 +69,11 @@ export async function loadStatic<T = unknown>(
 
   // 组合外部 signal（不用 AbortSignal.any：其下限 Safari 17.4 与 browserslist 的
   // Safari>=14.1 冲突，vite 亦不 polyfill 运行时 API —— 见 shared/utils/abortSignal.ts）
-  const combinedSignal = combineSignals([controller.signal, signal])
+  const combined = combineSignals([controller.signal, signal])
 
   const p = (async () => {
     try {
-      const response = await fetch(url, { signal: combinedSignal })
+      const response = await fetch(url, { signal: combined.signal })
       if (!response.ok) {
         throw new Error(`静态资源加载失败: ${url} (HTTP ${response.status})`)
       }
@@ -96,6 +96,8 @@ export async function loadStatic<T = unknown>(
     } finally {
       pending.delete(url)
       clearTimeout(timeoutId)
+      // 1004-05：settle 后摘除外源监听（正常完成路径同样要摘）
+      combined.dispose()
     }
   })()
 

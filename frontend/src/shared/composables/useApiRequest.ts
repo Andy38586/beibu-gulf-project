@@ -168,7 +168,8 @@ async function singleRequest<T = unknown>(
   // 组合外部 signal 与内部超时 signal
   // 2026-09-10：原用 AbortSignal.any（Chrome116/Safari17.4+），与 browserslist 声明的
   // Safari>=14.1 冲突且 vite 不 polyfill 运行时 API → 低版本浏览器传 signal 即 TypeError。
-  const signal = combineSignals([controller.signal, options.signal])
+  const combined = combineSignals([controller.signal, options.signal])
+  const signal = combined.signal
 
   // 统一 query 参数构造，避免手写模板字符串
   let fullPath = path
@@ -210,6 +211,8 @@ async function singleRequest<T = unknown>(
     // 超时定时器必须覆盖到 body 读取完成：fetch 已返回、body 传输卡住时（大 GeoJSON
     // 数 MB 最高发），若此刻已清定时器则 abort 永不触发 → 请求永久挂起（审查 M-7）
     clearTimeout(timeoutId)
+    // 1004-05：settle 后摘除外源监听（原先只在 abort 路径摘，正常完成每次残留一个闭包）
+    combined.dispose()
     let data: unknown = undefined
     if (text) {
       try {
@@ -316,6 +319,7 @@ async function singleRequest<T = unknown>(
     return unwrapped
   } catch (error) {
     clearTimeout(timeoutId)
+    combined.dispose()
     if (error instanceof ApiError) {
       throw error
     }

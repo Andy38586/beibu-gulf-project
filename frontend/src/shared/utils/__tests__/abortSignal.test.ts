@@ -10,31 +10,31 @@ import { combineSignals } from '../abortSignal'
 
 describe('combineSignals', () => {
   it('无有效输入 → 返回未中止的信号', () => {
-    expect(combineSignals([]).aborted).toBe(false)
-    expect(combineSignals([undefined, null]).aborted).toBe(false)
+    expect(combineSignals([]).signal.aborted).toBe(false)
+    expect(combineSignals([undefined, null]).signal.aborted).toBe(false)
   })
 
   it('单个输入 → 直接透传同一引用', () => {
     const c = new AbortController()
-    expect(combineSignals([c.signal])).toBe(c.signal)
-    expect(combineSignals([c.signal, undefined])).toBe(c.signal)
+    expect(combineSignals([c.signal]).signal).toBe(c.signal)
+    expect(combineSignals([c.signal, undefined]).signal).toBe(c.signal)
   })
 
   it('任一源中止 → 组合信号同步中止', () => {
     const a = new AbortController()
     const b = new AbortController()
     const combined = combineSignals([a.signal, b.signal])
-    expect(combined.aborted).toBe(false)
+    expect(combined.signal.aborted).toBe(false)
 
     b.abort()
-    expect(combined.aborted).toBe(true)
+    expect(combined.signal.aborted).toBe(true)
   })
 
   it('输入已处于中止态 → 返回的信号立即是中止态', () => {
     const a = new AbortController()
     a.abort()
     const b = new AbortController()
-    expect(combineSignals([a.signal, b.signal]).aborted).toBe(true)
+    expect(combineSignals([a.signal, b.signal]).signal.aborted).toBe(true)
   })
 
   it('中止后解绑监听：二次中止不抛错且状态稳定', () => {
@@ -42,10 +42,10 @@ describe('combineSignals', () => {
     const b = new AbortController()
     const combined = combineSignals([a.signal, b.signal])
     a.abort()
-    expect(combined.aborted).toBe(true)
+    expect(combined.signal.aborted).toBe(true)
     // 解绑未做时，此处会对已 settled 的 controller 重复 abort —— 不抛错但属泄漏面
     expect(() => b.abort()).not.toThrow()
-    expect(combined.aborted).toBe(true)
+    expect(combined.signal.aborted).toBe(true)
   })
 
   it('中止原因透传（reason 可用时）', () => {
@@ -53,6 +53,44 @@ describe('combineSignals', () => {
     const b = new AbortController()
     const combined = combineSignals([a.signal, b.signal])
     a.abort('timeout')
-    expect(combined.reason).toBe('timeout')
+    expect(combined.signal.reason).toBe('timeout')
+  })
+
+  it('🔴 正常完成调用 dispose ⇒ 外部源监听全部摘除（1004-05：不调即红）', () => {
+    // 计数假信号：只实现 add/removeEventListener 记账（真实 AbortSignal 无法数监听器）
+    let added = 0
+    let removed = 0
+    const counting = (): AbortSignal =>
+      ({
+        aborted: false,
+        addEventListener: () => {
+          added += 1
+        },
+        removeEventListener: () => {
+          removed += 1
+        },
+      }) as unknown as AbortSignal
+
+    const combined = combineSignals([counting(), counting()])
+    expect(added).toBe(2) // 两个源各挂一次
+    expect(removed).toBe(0)
+
+    // 正常完成路径（无 abort）：消费方 finally 调 dispose
+    combined.dispose()
+    expect(removed).toBe(2)
+
+    // 幂等：重复 dispose 不重复摘（重复 removeEventListener 虽无害，但计数会撒谎）
+    combined.dispose()
+    expect(removed).toBe(2)
+  })
+
+  it('🔴 dispose 后源中止不再影响组合信号（监听确已断开）', () => {
+    const a = new AbortController()
+    const b = new AbortController()
+    const combined = combineSignals([a.signal, b.signal])
+    combined.dispose()
+
+    a.abort()
+    expect(combined.signal.aborted).toBe(false)
   })
 })

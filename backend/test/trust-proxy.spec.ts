@@ -14,6 +14,7 @@ const stub = vi.hoisted(() => ({
   config: undefined as unknown as object,
   configClass: undefined as unknown as object,
   listenCalls: 0,
+  shutdownHooksCalls: 0,
 }))
 
 // app.module 是整棵 DI 图的入口，本件只关心 bootstrap 的控制流，故打桩
@@ -35,6 +36,10 @@ vi.mock('@nestjs/core', () => ({
       get: (token: unknown) => (token === stub.configClass ? stub.config : undefined),
       setGlobalPrefix: () => {},
       use: () => {},
+      // 1004-04：bootstrap 必须开 PID1 信号→生命周期钩子链（缺此调用 = 停机挂死）
+      enableShutdownHooks: () => {
+        stub.shutdownHooksCalls += 1
+      },
       listen: async () => {
         stub.listenCalls += 1
       },
@@ -68,6 +73,7 @@ async function loadBootstrap(env: NodeJS.ProcessEnv) {
   vi.resetModules()
   stub.expressApp = express()
   stub.listenCalls = 0
+  stub.shutdownHooksCalls = 0
   const { ConfigService } = await import('../src/infra/config/config.service')
   stub.configClass = ConfigService
   stub.config = new ConfigService(env)
@@ -114,6 +120,8 @@ describe('trust proxy 接线与启动断言（d058 行为面）', () => {
       await bootstrap()
       expect(stub.expressApp.get('trust proxy')).toBe(1)
       expect(stub.listenCalls).toBe(1)
+      // 1004-04 接线断言：删 app.enableShutdownHooks() 即红（容器 SIGTERM 生命周期钩子链）
+      expect(stub.shutdownHooksCalls).toBe(1)
     },
     CASE_TIMEOUT
   )

@@ -12,6 +12,7 @@ import {
   extractCommitExamples,
   extractTokens,
   isGitIgnored,
+  LIVE_DOCS,
   prefixedRefs,
   stripCommitType,
 } from '../agent-docs-check.mjs'
@@ -93,6 +94,13 @@ describe('agent-docs-check（作业协议自述守卫）', () => {
     expect(checkRefs([{ token: '.local/', line: 1 }], NONE)).toHaveLength(1)
   })
 
+  it('@guard-red-sample 活文档里的 gitignored 引用 ⇒ 不做存在性断言；默认仍从严', () => {
+    // 干净检出/CI 里该件不存在，断言存在性会误红；豁免后必须放行
+    expect(checkLiveDocs(['AGENTS.md'], NONE, () => true)).toEqual([])
+    // 阳性对照：同一输入不传 isIgnored 时必须仍报（豁免只作用于版本控制之外的目标）
+    expect(checkLiveDocs(['AGENTS.md'], NONE).length).toBeGreaterThan(0)
+  })
+
   it('反向样本剥出的就是裸主题（它必须被 commitlint 拒）', () => {
     expect(stripCommitType('fix(task): 穷尽派生 TASK_DOMAINS')).toBe('穷尽派生 TASK_DOMAINS')
   })
@@ -122,8 +130,10 @@ describe('agent-docs-check（作业协议自述守卫）', () => {
     expect(prefixedRefs(text)[1].exempt).toBe(true)
   })
 
-  it('回归锚：全部活文档当前无断链', () => {
-    expect(checkLiveDocs()).toEqual([])
+  it('回归锚：全部活文档当前无断链（按生产口径含 gitignored 豁免）', () => {
+    // 必须与 run() 的调用口径一致：干净检出/CI 里 gitignored 目标不存在，
+    // 用严格默认调会在 CI 上误红（这是 test:tools 在 CI 红的第二处消费点）。
+    expect(checkLiveDocs(LIVE_DOCS, undefined, isGitIgnored)).toEqual([])
   })
 
   it('🔴 口径单源（W13）：三份文档都禁 `type(scope)`，且 commitlint 侧有对应机器判据', () => {

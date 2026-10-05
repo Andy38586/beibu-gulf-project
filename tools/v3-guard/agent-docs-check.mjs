@@ -102,7 +102,8 @@ export function prefixedRefs(text) {
 
 export function checkLiveDocs(
   files = LIVE_DOCS,
-  exists = (rel) => fs.existsSync(path.join(ROOT, rel))
+  exists = (rel) => fs.existsSync(path.join(ROOT, rel)),
+  isIgnored = () => false
 ) {
   const bad = []
   for (const rel of files) {
@@ -112,7 +113,9 @@ export function checkLiveDocs(
       continue
     }
     for (const r of prefixedRefs(fs.readFileSync(abs, 'utf8'))) {
-      if (r.exempt || exists(r.token)) continue
+      // 与 checkRefs 同口径：gitignored 目标不会出现在干净检出/CI，不得做存在性断言
+      // （本地未入库文件存在 ⇒ 本地绿、CI 红的假绿正是这条缺失造成的）。
+      if (r.exempt || exists(r.token) || isIgnored(r.token)) continue
       bad.push({
         file: rel,
         line: r.line,
@@ -341,7 +344,7 @@ function run() {
     for (const s of cf.skipped) skipped.push({ file: rel, ...s })
   }
 
-  const violations = [...refBad, ...checkLiveDocs(), ...commitBad]
+  const violations = [...refBad, ...checkLiveDocs(LIVE_DOCS, undefined, isGitIgnored), ...commitBad]
   if (process.argv.includes('--json')) {
     console.log(JSON.stringify({ checked, violations, skipped }, null, 2))
     process.exit(violations.length ? 1 : 0)

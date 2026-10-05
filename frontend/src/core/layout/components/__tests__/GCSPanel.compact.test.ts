@@ -14,6 +14,11 @@ function setWidth(width: number): void {
   window.dispatchEvent(new Event('resize'))
 }
 
+/** G4 收口后档位唯一来源是 useGCS 的 150ms 防抖 resize —— 置宽后须先冲掉防抖再断言 */
+function flushTierDebounce(): void {
+  vi.advanceTimersByTime(200)
+}
+
 function fire(el: Element, type: string, x = 10, y = 10): void {
   const e = new Event(type, { bubbles: true }) as Event & {
     clientX: number
@@ -32,10 +37,12 @@ describe('GCSPanel compact 长按降级（v4-S10）', () => {
   beforeEach(() => {
     vi.useFakeTimers()
     setWidth(500) // <640 → compact
+    flushTierDebounce()
   })
   afterEach(() => {
-    vi.useRealTimers()
     setWidth(1280)
+    flushTierDebounce()
+    vi.useRealTimers()
   })
 
   it('compact 档：手柄指针按下+移动不启动自由拖拽（降级生效）', async () => {
@@ -75,6 +82,7 @@ describe('GCSPanel compact 长按降级（v4-S10）', () => {
 
   it('desktop 档不受影响：无长按弹层（自由拖拽由 usePanelDrag 既有测试兜底）', async () => {
     setWidth(1280)
+    flushTierDebounce()
     const wrapper = mount(GCSPanel, { props: { w: 4, h: 4, draggable: true } })
     const handle = wrapper.find('.GCS-panel__drag-handle')
     fire(handle.element, 'pointerdown')

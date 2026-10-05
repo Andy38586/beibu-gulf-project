@@ -46,6 +46,7 @@ export const GUARDS = [
   'owned-layers',
   'layer-keys',
   'flyto-single-entry',
+  'render-colors-single-source',
 ]
 
 /**

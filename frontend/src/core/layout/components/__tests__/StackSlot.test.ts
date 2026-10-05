@@ -1,7 +1,7 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 
-import { STACK_SLOT_ZONE_ATTR } from '@/shared'
+import { LAYER_IR_DOMAIN_COLORS, STACK_SLOT_ZONE_ATTR } from '@/shared'
 
 import StackSlot from '../StackSlot.vue'
 
@@ -34,8 +34,8 @@ describe('StackSlot（堆叠固定槽位）', () => {
     const wrapper = mount(StackSlot, {
       props: {
         items: [
-          { id: 'line', label: '预测趋势', color: '#3b82f6' },
-          { id: 'bar', label: '港口对比', color: '#f59e0b' },
+          { id: 'line', label: '预测趋势', color: LAYER_IR_DOMAIN_COLORS['flood-areas'] },
+          { id: 'bar', label: '港口对比', color: LAYER_IR_DOMAIN_COLORS['route-path'] },
         ],
       },
     })

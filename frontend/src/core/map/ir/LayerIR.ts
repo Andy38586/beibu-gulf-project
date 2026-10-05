@@ -15,11 +15,13 @@
  * ## L3 边界
  *
  * 本文件在 core，**不得 import business**：任务结果按结构判定（features 数组 /
- * coordinates 数组），不引用 flood/route 的业务类型。域语义（label/颜色）作为
- * 【作者设定】写死在本文件的映射表里——它是"拖出渲染"的展示口径，不是业务口径。
+ * coordinates 数组），不引用 flood/route 的业务类型。域语义（label）作为
+ * 【作者设定】写死在本文件的映射表里——它是"拖出渲染"的展示口径，不是业务口径；
+ * 渲染色走 `shared/constants/colors.ts` 单一来源（G3 收口：原域色 hex 手抄在表内）。
  */
 import type { Feature, FeatureCollection } from 'geojson'
 
+import { LAYER_IR_DOMAIN_COLORS } from '@/shared'
 import type { LayerOptions, RoutePathResult } from '@/types'
 import type { TaskDomain, TaskSlot } from '@/types/task'
 
@@ -53,8 +55,8 @@ export function layerIRKey(ir: Pick<LayerIR, 'origin' | 'kind'>): string {
 
 /** 各域拖出图层的展示色与标签（【作者设定】：拖出渲染的展示口径） */
 const DOMAIN_IR_PRESENTATION: Partial<Record<TaskDomain, { color: string; label: string }>> = {
-  'flood-areas': { color: '#3b82f6', label: '浸没结果' },
-  'route-path': { color: '#f59e0b', label: '航线结果' },
+  'flood-areas': { color: LAYER_IR_DOMAIN_COLORS['flood-areas'], label: '浸没结果' },
+  'route-path': { color: LAYER_IR_DOMAIN_COLORS['route-path'], label: '航线结果' },
 }
 
 /** 结构化判定：features 是否为可渲染的 GeoJSON Feature 数组（不引业务类型，L3） */

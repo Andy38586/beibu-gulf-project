@@ -52,6 +52,25 @@ export const LAYER_DEFAULTS = {
   zIndexOverlay: 100, // 覆盖层（水面 / 呼吸动画 / 淹没）
 } as const
 
+// ===== 拖出图层（LayerIR）与任务结果芯片 =====
+/**
+ * 品牌蓝渲染色（单一来源）：route-analysis 路径线 与 LayerIR flood-areas 域色同值，
+ * 两处都从此取——改一处即两处同变（G3 收口：原两处手抄同值）。
+ */
+export const RENDER_BLUE = '#3b82f6'
+/** 橙色渲染色（单一来源）：LayerIR route-path 域色。 */
+export const RENDER_ORANGE = '#f59e0b'
+/** LayerIR 域色表（LayerIR.ts 消费）：域语义标签仍在 LayerIR，颜色只在这里。 */
+export const LAYER_IR_DOMAIN_COLORS = {
+  'flood-areas': RENDER_BLUE,
+  'route-path': RENDER_ORANGE,
+} as const
+/**
+ * 任务结果芯片 / 堆叠卡渲染色兜底（单一来源）：App.vue、TaskResultChip、StackSlot
+ * 三处同值（G3 收口：原三副本零断言）。
+ */
+export const IR_FALLBACK_COLOR = '#8a93a6'
+
 // 水位剖面图系列色
 export const PROFILE_COLORS = {
   water: '#409EFF',

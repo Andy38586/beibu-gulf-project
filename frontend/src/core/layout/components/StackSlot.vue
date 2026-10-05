@@ -16,7 +16,7 @@
  */
 import { computed, ref } from 'vue'
 
-import { STACK_SLOT_ZONE_ATTR, useGlobalPanelDragActive } from '@/shared'
+import { IR_FALLBACK_COLOR, STACK_SLOT_ZONE_ATTR, useGlobalPanelDragActive } from '@/shared'
 
 interface StackSlotItem {
   id: string
@@ -65,7 +65,7 @@ const visible = computed(
           v-for="item in items"
           :key="item.id"
           class="stack-card"
-          :style="{ '--stack-color': item.color ?? '#8a93a6' }"
+          :style="{ '--stack-color': item.color ?? IR_FALLBACK_COLOR }"
         >
           <span class="stack-card-label">{{ item.label }}</span>
           <button

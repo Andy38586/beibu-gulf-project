@@ -29,6 +29,7 @@ import {
   ErrorBoundary,
   GCSModal,
   GCSToast,
+  IR_FALLBACK_COLOR,
   initAuthStorageListener,
   removeAuthStorageListener,
   showWarning,
@@ -180,7 +181,7 @@ const resultChips = computed(() => {
     chips.push({
       key: ir.id,
       label: ir.meta.label,
-      color: ir.style.strokeColor ?? '#8a93a6',
+      color: ir.style.strokeColor ?? IR_FALLBACK_COLOR,
       active: layerIR.owned.has(ir.id),
       ir,
     })

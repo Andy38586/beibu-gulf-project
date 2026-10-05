@@ -9,6 +9,8 @@
  */
 import { ref } from 'vue'
 
+import { IR_FALLBACK_COLOR } from '@/shared'
+
 const props = withDefaults(
   defineProps<{
     label: string
@@ -16,7 +18,7 @@ const props = withDefaults(
     /** 是否已上图（已上图时 chip 高亮描边，提示再拖=撤下） */
     active?: boolean
   }>(),
-  { color: '#8a93a6', active: false }
+  { color: IR_FALLBACK_COLOR, active: false }
 )
 
 const emit = defineEmits<{ (e: 'toggle'): void }>()

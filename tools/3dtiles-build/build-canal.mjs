@@ -171,6 +171,94 @@ export function hubTargets(tileDir) {
   }
   return out
 }
+
+/** 枢纽引航道（自带水面的 z2/z6 段）的盒窗口——运河带在这些窗口内裁掉，水归交付包 */
+export function hubCutWindows(tileDir, { nameRe = /上游引航道|下游引航道/, margin = 0 } = {}) {
+  const ts = JSON.parse(fs.readFileSync(path.join(tileDir, 'tileset.json'), 'utf8'))
+  const T = ts.root.transform
+  // 与 hubTargets 同款换算：ECEF → 根局部 ENU（减 T 平移、乘 Rᵀ）
+  const R = [T[0], T[1], T[2], T[4], T[5], T[6], T[8], T[9], T[10]]
+  const O = [T[12], T[13], T[14]]
+  const rot = (d) => [
+    R[0] * d[0] + R[1] * d[1] + R[2] * d[2],
+    R[3] * d[0] + R[4] * d[1] + R[5] * d[2],
+    R[6] * d[0] + R[7] * d[1] + R[8] * d[2],
+  ]
+  const out = []
+  for (const hub of ts.root.children ?? []) {
+    if (!/枢纽/.test(String(hub.extras?.name ?? ''))) continue
+    const Mh = hub.transform ? mat4mul(T, hub.transform) : T
+    for (const c of hub.children ?? []) {
+      if (!nameRe.test(String(c.extras?.name ?? ''))) continue
+      const b = c.boundingVolume?.box
+      if (!b) continue
+      const M = c.transform ? mat4mul(Mh, c.transform) : Mh
+      const M0 = applyMat(M, [0, 0, 0])
+      const C = rot(applyMat(M, [b[0], b[1], b[2]]).map((x, j) => x - O[j]))
+      const axes = [],
+        half = []
+      for (let i = 0; i < 3; i++) {
+        const v = rot(
+          applyMat(M, [b[3 + 3 * i], b[4 + 3 * i], b[5 + 3 * i]]).map((x, j) => x - M0[j])
+        )
+        const L = Math.hypot(...v)
+        axes.push(v.map((x) => x / L))
+        half.push(L + margin)
+      }
+      out.push({ name: String(c.extras?.name ?? ''), C, axes, half })
+    }
+  }
+  return out
+}
+
+/** 点是否在盒窗口内（含边界）——纯函数，供裁切与测试共用 */
+export function insideWindow(p, w) {
+  for (let i = 0; i < 3; i++) {
+    const d =
+      (p[0] - w.C[0]) * w.axes[i][0] +
+      (p[1] - w.C[1]) * w.axes[i][1] +
+      (p[2] - w.C[2]) * w.axes[i][2]
+    if (Math.abs(d) > w.half[i]) return false
+  }
+  return true
+}
+
+/**
+ * 把中线切成若干"带子跑段"：窗口内的点裁掉；链边界必断（跨链假带的老约束）；
+ * 太短（< minLen 米）的碎段丢弃，避免挤出一片孤立小面。
+ */
+export function splitRuns(points, windows, { keep = [], minLen = 40 } = {}) {
+  const runs = []
+  let cur = []
+  let prevChain = null
+  const len = (g) => {
+    let s = 0
+    for (let i = 1; i < g.length; i++) s += Math.hypot(g[i][0] - g[i - 1][0], g[i][1] - g[i - 1][1])
+    return s
+  }
+  const flush = () => {
+    if (cur.length >= 2 && len(cur) >= minLen) runs.push(cur)
+    cur = []
+  }
+  for (const p of points) {
+    const chain = p[3] ?? 0
+    if (chain !== prevChain) {
+      flush()
+      prevChain = chain
+    }
+    // 保护窗（船闸主体盒）优先：其内即使落在引航道窗口也保留——z3 无水面材质，
+    // 裁掉会让闸室成干河床；青年枢纽的上下游窗口互相盖满全段，靠这一条兜底。
+    const kept = keep.some((w) => insideWindow(p, w))
+    if (!kept && windows.some((w) => insideWindow(p, w))) {
+      flush()
+      continue
+    }
+    cur.push(p)
+  }
+  flush()
+  return runs
+}
+
 function mat4mul(a, b) {
   const o = new Array(16)
   for (let c = 0; c < 4; c++)
@@ -357,8 +445,13 @@ export function computeCanalLine(osmFile) {
 }
 
 /** 平陆运河全线重烘：一条连续带（水面 + 两岸），逐点大地高（设计水位剖面） */
-export function buildCanal({ osmFile, outDir, groundU = 0 }) {
+export function buildCanal({ osmFile, outDir, groundU = 0, tileDir = TILE_DIR, cutMargin = 30 }) {
   const { centerline, hubs, ts, chains } = computeCanalLine(osmFile)
+  // 枢纽引航道（自带水面的 z2/z6 段）窗口：运河带在这里裁掉，水面归交付包（消重叠）
+  const cutWindows = hubCutWindows(tileDir, { margin: cutMargin })
+  // 船闸主体（z3）保护窗：z3 无水面材质，裁掉会成干闸室（青年枢纽上下游窗口互相盖满全段）
+  const lockWindows = hubCutWindows(tileDir, { nameRe: /船闸主体/, margin: cutMargin })
+  const runs = splitRuns(centerline, cutWindows, { keep: lockWindows })
 
   const meshes = [],
     materials = [],
@@ -389,14 +482,8 @@ export function buildCanal({ osmFile, outDir, groundU = 0 }) {
     },
   ]
   let tris = 0
-  // 按链分组：两条链之间是真实断口（~19 km），不得用一条带子把它们连起来
-  const byChain = new Map()
-  for (const p of centerline) {
-    const c = p[3] ?? 0
-    if (!byChain.has(c)) byChain.set(c, [])
-    byChain.get(c).push(p)
-  }
-  const chainGroups = [...byChain.values()]
+  // 跑段 = 链边界（两条链之间是真实断口 ~19 km，不得连起来）+ 枢纽引航道窗口双重切分
+  const chainGroups = runs
   parts.forEach((p, i) => {
     const merged = { positions: [], normals: [], colors: [], indices: [] }
     for (const g of chainGroups) {
@@ -434,7 +521,7 @@ export function buildCanal({ osmFile, outDir, groundU = 0 }) {
 
   const mn = [Infinity, Infinity, Infinity],
     mx = [-Infinity, -Infinity, -Infinity]
-  for (const p of centerline) {
+  for (const p of runs.flat()) {
     for (const [k, v] of [
       [0, p[0] - BANK_HALF],
       [0, p[0] + BANK_HALF],
@@ -447,7 +534,7 @@ export function buildCanal({ osmFile, outDir, groundU = 0 }) {
   }
   let uMin = Infinity,
     uMax = -Infinity
-  for (const p of centerline) {
+  for (const p of runs.flat()) {
     const u = p[2] ?? groundU
     if (u < uMin) uMin = u
     if (u > uMax) uMax = u
@@ -468,14 +555,18 @@ export function buildCanal({ osmFile, outDir, groundU = 0 }) {
       extras: {
         chains,
         segments: chains,
+        runs: runs.length,
+        cutWindows: cutWindows.length,
+        lockWindows: lockWindows.length,
+        cutMargin,
         centerlinePoints: centerline.length,
         section: '水面 120 m + 两岸各 60 m（按底宽 80 m + 边坡估算，非量测）',
-        reconstruction: '按 OSM 中线挤出，断面为参数化取值',
+        reconstruction: '按 OSM 中线挤出，断面为参数化取值；枢纽引航道窗口内让位交付包水面',
       },
     },
   }
   fs.writeFileSync(path.join(outDir, 'tileset.json'), JSON.stringify(tileset))
-  return { segments: chains, points: centerline.length, tris, groundU, hubs }
+  return { segments: chains, points: centerline.length, runs: runs.length, tris, groundU, hubs }
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
@@ -500,6 +591,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
       groundU: Number(arg('--ground', '0')),
     })
     console.log('中线 ' + r.segments + ' 链 → 稠密 ' + r.points + ' 点；挤出 ' + r.tris + ' 三角面')
+    console.log('带子跑段 ' + r.runs + ' 段（枢纽引航道窗口已裁）')
     console.log('已按枢纽局部扭曲: ' + r.hubs.map((h) => h.name).join(' / '))
     console.log('写出 ' + arg('--out', 'backend/static/pinglu/canal'))
   }

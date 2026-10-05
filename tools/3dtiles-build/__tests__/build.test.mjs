@@ -13,7 +13,7 @@ import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 import { buildAll, buildBridge } from '../build-bridges.mjs'
-import { ribbon } from '../build-canal.mjs'
+import { insideWindow, ribbon, splitRuns } from '../build-canal.mjs'
 import { buildGround, edgeAlpha, EDGE_FADE_M } from '../build-ground.mjs'
 import { buildRoads, extrudeWay } from '../build-roads.mjs'
 import { buildContainer, CONTAINER_TYPES, generateAll } from '../container-models.mjs'
@@ -225,6 +225,90 @@ describe('挤出器 — 四边形绕序必须是正面朝上（否则背面剔�
     expect(r.indices.length).toBe(6)
     expect(triNormal(r.positions, ...r.indices.slice(0, 3))[1]).toBeGreaterThan(0.99)
     expect(triNormal(r.positions, ...r.indices.slice(3, 6))[1]).toBeGreaterThan(0.99)
+  })
+
+  it('splitRuns：枢纽引航道窗口内的点被裁掉、两侧各成一段（B 组水道重叠收口）', () => {
+    // 轴对齐盒：中心 (0,0,0)，半轴 100/50/20（本地轴即世界轴）
+    const w = {
+      C: [0, 0, 0],
+      axes: [
+        [1, 0, 0],
+        [0, 1, 0],
+        [0, 0, 1],
+      ],
+      half: [100, 50, 20],
+    }
+    const pts = []
+    for (let x = -300; x <= 300; x += 20) pts.push([x, 0, 0, 0])
+    expect(insideWindow([0, 0, 0, 0], w)).toBe(true)
+    expect(insideWindow([150, 0, 0, 0], w)).toBe(false)
+    expect(insideWindow([100, 0, 0, 0], w)).toBe(true) // 含边界
+    const runs = splitRuns(pts, [w])
+    expect(runs.length).toBe(2)
+    for (const g of runs) for (const p of g) expect(Math.abs(p[0])).toBeGreaterThanOrEqual(120)
+  })
+
+  it('splitRuns：链边界必断（跨链假带旧约束不回归）+ 碎段丢弃', () => {
+    // 同窗口，但两点分属不同链（第 4 元 0/1）⇒ 即使空间相邻也必须断成两段
+    const pts = [
+      [0, 0, 0, 0],
+      [50, 0, 0, 0],
+      [100, 0, 0, 0],
+      [200, 0, 0, 1],
+      [250, 0, 0, 1],
+      [300, 0, 0, 1],
+    ]
+    const runs = splitRuns(pts, [])
+    expect(runs.length).toBe(2)
+    expect(runs[0].every((p) => p[3] === 0)).toBe(true)
+    expect(runs[1].every((p) => p[3] === 1)).toBe(true)
+    // 只剩 10 m 的段（minLen=40 默认）⇒ 丢弃
+    expect(
+      splitRuns(
+        [
+          [0, 0, 0, 0],
+          [10, 0, 0, 0],
+        ],
+        []
+      ).length
+    ).toBe(0)
+  })
+
+  it('splitRuns：保护窗（船闸主体）优先于裁切窗——青年型「上下游窗口盖满全段」不成干河道', () => {
+    // 两个裁切窗从两侧盖住整段（青年枢纽实际形态），中段有船闸保护窗
+    const cutA = {
+      C: [-150, 0, 0],
+      axes: [
+        [1, 0, 0],
+        [0, 1, 0],
+        [0, 0, 1],
+      ],
+      half: [200, 50, 20],
+    }
+    const cutB = {
+      C: [150, 0, 0],
+      axes: [
+        [1, 0, 0],
+        [0, 1, 0],
+        [0, 0, 1],
+      ],
+      half: [200, 50, 20],
+    }
+    const lock = {
+      C: [0, 0, 0],
+      axes: [
+        [1, 0, 0],
+        [0, 1, 0],
+        [0, 0, 1],
+      ],
+      half: [60, 50, 20],
+    }
+    const pts = []
+    for (let x = -300; x <= 300; x += 20) pts.push([x, 0, 0, 0])
+    const runs = splitRuns(pts, [cutA, cutB], { keep: [lock] })
+    expect(runs.length).toBe(1)
+    for (const p of runs[0]) expect(Math.abs(p[0])).toBeLessThanOrEqual(80.001) // 保护窗 ±60 + 采样步长
+    expect(runs[0].length).toBeGreaterThan(4)
   })
 
   it('buildBridge（城区五桥）：几何法线与声明法线同向（否则画的是内壁、默认剔除下正向 0%）', () => {

@@ -9,9 +9,11 @@ import { describe, expect, it } from 'vitest'
 import {
   checkIndex,
   collectSurface,
+  collectSurfaceFromText,
   parseSpec,
   parseSpecText,
   reconcile,
+  scanExtraDocSurface,
   summarize,
 } from '../metrics-index.mjs'
 import { parseDetailRows } from '../../v3-guard/lib/appendix-rows.mjs'
@@ -198,5 +200,49 @@ describe('metrics-index — 真实仓库回归（钉住 09-26 收口的三件事
     const s = collectSurface({ 检查范围: '`tools/v3-guard/run-all.mjs` 与 `backend/nest/src/`' })
     expect(s.paths).toContain('tools/v3-guard/run-all.mjs')
     expect(s.missing).toContain('backend/nest/src/')
+  })
+})
+
+describe('metrics-index — Q8-01 证据面断链不再假绿（多根解析 + 整树删除 + 附录/约定）', () => {
+  it('@guard-red-sample 整树已删（父目录也没了）必须进 missing（旧实现静默丢弃）', () => {
+    const s = collectSurfaceFromText('backend/src/modules/site-analysis/services/scoring.ts')
+    expect(s.missing).toEqual(['backend/src/modules/site-analysis/services/scoring.ts'])
+  })
+
+  it('@guard-red-sample 模块相对写法必须多根解析：旧 site-analysis 报 missing、现役文件判活', () => {
+    const dead = collectSurfaceFromText('modules/site-analysis/services/scoring.ts')
+    expect(dead.missing).toEqual(['modules/site-analysis/services/scoring.ts'])
+    const alive = collectSurfaceFromText('modules/site-suitability/services/scoring.ts')
+    expect(alive.paths).toEqual(['modules/site-suitability/services/scoring.ts'])
+  })
+
+  it('@guard-red-sample 目录在但文件缺 ⇒ missing（原行为保留）', () => {
+    const s = collectSurfaceFromText('backend/src/modules/site-suitability/services/nonexistent.ts')
+    expect(s.missing).toEqual(['backend/src/modules/site-suitability/services/nonexistent.ts'])
+  })
+
+  it('防误报：文字并列（ECharts/Chart.js、main.ts/main.js）首段不是目录 ⇒ 不判', () => {
+    const s = collectSurfaceFromText('ECharts/Chart.js 与 main.ts/main.js 二选一')
+    expect(s.missing).toEqual([])
+    expect(s.paths).toEqual([])
+  })
+
+  it('回归锚：当前 403 条指标 + 附录/约定证据面零断链（真树）', () => {
+    const { problems } = checkIndex(parseSpec())
+    expect(problems.filter((p) => p.includes('证据面断链'))).toEqual([])
+    expect(scanExtraDocSurface()).toEqual([])
+  })
+
+  it('@guard-red-sample 附录/约定纳入判据面：约定里加一条死路径 ⇒ 必报', async () => {
+    const { mkdtempSync, mkdirSync, writeFileSync } = await import('node:fs')
+    const { tmpdir } = await import('node:os')
+    const { join } = await import('node:path')
+    const fakeRoot = mkdtempSync(join(tmpdir(), 'q801-'))
+    const dir = join(fakeRoot, 'docs/根基文档/审查体系专项')
+    mkdirSync(dir, { recursive: true })
+    writeFileSync(join(dir, '审查体系约定.md'), '见 `docs/根基文档/审查体系专项/NoSuch.md`\n')
+    const problems = scanExtraDocSurface(fakeRoot)
+    expect(problems).toHaveLength(1)
+    expect(problems[0]).toContain('NoSuch.md')
   })
 })

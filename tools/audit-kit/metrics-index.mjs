@@ -48,6 +48,102 @@ const LEVEL_RE = /^(P[0-3])/
 const PATH_TOKEN_RE =
   /(?<![\w/.-])(?:frontend|backend|tools|scripts|docs|deploy|node_modules|src|public|certs|\.github|\.husky)[\w\-./]*/g
 
+/**
+ * 模块相对路径 token（Q8-01）：`modules/x/y.ts` 型——不带顶层目录前缀，
+ * 旧正则直接不进扫描（整树删除也不报）。扩展名必须最长优先且有右边界，防 `.json` 被截成 `.js`。
+ */
+const REL_PATH_TOKEN_RE =
+  /(?:[\w.-]+\/)+[\w.-]+\.(?:tsx|ts|mjs|cjs|js|vue|py|json|sh|sql|md)(?![\w])/g
+
+/**
+ * 多根解析（Q8-01）：模块相对写法逐根试解析。顺序即优先级（仓库相对在前）。
+ */
+export const RESOLVE_ROOTS = [
+  '',
+  'frontend/src/',
+  'backend/src/',
+  'frontend/',
+  'backend/',
+  'tools/',
+  'docs/',
+  'docs/根基文档/',
+  'backend/test/',
+]
+
+/** 归一：剥掉相对前缀 `./` 与尾随标点 */
+function normalizeToken(t) {
+  return t.replace(/^\.\//, '').replace(/[.,;:)]+$/, '')
+}
+
+/** 多根存在性：任一解析根下命中即算活路径 */
+function existsUnderRoots(root, t) {
+  const norm = normalizeToken(t)
+  return RESOLVE_ROOTS.some((r) => existsSync(path.join(root, r + norm)))
+}
+
+/**
+ * 首段是否仓库目录：`modules/…` 的首段在某个解析根下是目录 ⇒ 视为仓库路径候选；
+ * `ECharts/Chart.js`、`main.ts/main.js` 这类文字并列的首段不是目录 ⇒ 不判（防误报）。
+ */
+function firstSegmentIsRepoDir(root, t) {
+  const norm = normalizeToken(t)
+  const first = norm.split('/')[0]
+  if (!first) return false
+  return RESOLVE_ROOTS.some((r) => {
+    try {
+      return statSync(path.join(root, r + first)).isDirectory()
+    } catch {
+      return false
+    }
+  })
+}
+
+/** 仓库路径候选：顶层目录名开头，或模块相对写法且首段是仓库目录 */
+function looksLikeRepoPath(root, t) {
+  const norm = normalizeToken(t)
+  if (
+    /^(frontend|backend|tools|scripts|docs|deploy|node_modules|src|public|certs|\.github|\.husky)(\/|$)/.test(
+      norm
+    )
+  ) {
+    return true
+  }
+  return firstSegmentIsRepoDir(root, norm)
+}
+
+/**
+ * 从任意文本抽证据面（Q8-01：多根解析 + 父目录缺失同样进 missing）。
+ * 判据输入 = 受版本控制的文档文本；`root` 可注入便于单测。
+ */
+export function collectSurfaceFromText(text, root = ROOT) {
+  const tokens = new Set()
+  for (const m of text.matchAll(PATH_TOKEN_RE)) {
+    const t = normalizeToken(m[0])
+    if (t.length > 6) tokens.add(t)
+  }
+  for (const m of text.matchAll(REL_PATH_TOKEN_RE)) tokens.add(normalizeToken(m[0]))
+  const paths = []
+  const patterns = []
+  const missing = []
+  for (const t of tokens) {
+    if (t.includes('*')) {
+      patterns.push(t)
+      continue
+    }
+    if (existsUnderRoots(root, t)) {
+      paths.push(t)
+      continue
+    }
+    // 整树删除（父目录也没了）同样进 missing —— 旧实现静默丢弃 = 假绿（Q8-01）
+    if (looksLikeRepoPath(root, t)) missing.push(t)
+  }
+  return {
+    paths: [...new Set(paths)].sort(),
+    patterns: [...new Set(patterns)].sort(),
+    missing: [...new Set(missing)].sort(),
+  }
+}
+
 function specFiles() {
   return readdirSync(SPEC_DIR)
     .filter((f) => /^专项[1-8]-.*\.md$/.test(f))
@@ -65,27 +161,40 @@ function headLine(line) {
   return null
 }
 
-/** 从「检查范围/需要查看/检查方法」里抽证据面：路径实测存在性，glob 原样保留待窗展开 */
+/** 从「检查范围/需要查看/检查方法」里抽证据面（多根解析见 collectSurfaceFromText） */
 export function collectSurface(entry, root = ROOT) {
   const text = [entry.检查范围, entry.需要查看, entry.检查方法].join('\n')
-  const tokens = new Set()
-  for (const m of text.matchAll(PATH_TOKEN_RE)) {
-    const t = m[0].replace(/[.,;:)]+$/, '')
-    if (t.length > 6) tokens.add(t)
+  return collectSurfaceFromText(text, root)
+}
+
+/**
+ * 附录/约定纳入证据面（Q8-01）：两件此前不参与任何证据面扫描。
+ * 判据：反引号里的路径 token（含 `/` 的才判；裸文件名交由 tracked 反查，避免把
+ * `00-记分卡.md` 这类非仓库产物误报）逐根解析，不可解析即问题。
+ */
+export function scanExtraDocSurface(root = ROOT) {
+  const DOCS = [
+    'docs/根基文档/审查体系专项/审查体系约定.md',
+    'docs/根基文档/审查体系专项/附录-指标固化状态与迁移路线图.md',
+  ]
+  const problems = []
+  for (const rel of DOCS) {
+    const abs = path.join(root, rel)
+    if (!existsSync(abs)) continue
+    const lines = readFileSync(abs, 'utf8').split(/\r?\n/)
+    lines.forEach((line, i) => {
+      for (const m of line.matchAll(/`([^`]+)`/g)) {
+        const t = m[1].trim().replace(/[，。；、）:：]+$/, '')
+        if (!/\//.test(t)) continue // 裸文件名不进判据面（无法区分仓库件与外部产物）
+        if (!/\.(tsx|ts|mjs|cjs|js|vue|py|json|sh|sql|md)$/.test(t) && !/\/$/.test(t)) continue
+        if (t.includes(' ') || t.includes('<') || t.includes('*')) continue
+        if (existsUnderRoots(root, t)) continue
+        if (!looksLikeRepoPath(root, t)) continue
+        problems.push(`${rel}:${i + 1} 证据面断链：引用不存在的路径 ${t}`)
+      }
+    })
   }
-  const paths = []
-  const patterns = []
-  const missing = []
-  for (const t of tokens) {
-    if (t.includes('*')) {
-      patterns.push(t)
-      continue
-    }
-    const abs = path.join(root, t)
-    if (existsSync(abs)) paths.push(t)
-    else if (!/\.[a-z]{2,5}$/i.test(t) || existsSync(path.dirname(abs))) missing.push(t)
-  }
-  return { paths: paths.sort(), patterns: patterns.sort(), missing: missing.sort() }
+  return problems
 }
 
 /** 判据能不能机器跑：检查方法里有没有真命令（命令常被反引号裹住，先剥掉再判） */
@@ -323,6 +432,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   }
   if (argv.includes('--check')) {
     const { problems } = checkIndex(entries)
+    // Q8-01：附录/约定纳入证据面（此前零扫描）
+    problems.push(...scanExtraDocSurface())
     if (!problems.length) console.log('[metrics-index] --check 通过')
     else {
       console.log(`[metrics-index] --check ${problems.length} 处违例：`)

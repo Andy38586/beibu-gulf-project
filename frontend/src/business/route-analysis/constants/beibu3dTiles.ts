@@ -335,9 +335,9 @@ export const BEIBU_TILES: readonly BeibuTilesSpec[] = [
   },
   {
     id: 'qz-containers',
-    // 由 tools/3dtiles-build/rebuild-containers.mjs 生成：8180 个箱区 → 79622 个
-    // 集装箱实例，5 款箱型（ISO 668），按 EXT_mesh_gpu_instancing 实例化。
-    // 整层 0.8 MB（逐实例展开顶点则是 178.3 MB）。
+    // 由 tools/3dtiles-build/rebuild-containers.mjs 生成：箱区 → 集装箱实例（5 款箱型，
+    // ISO 668），按 EXT_mesh_gpu_instancing 实例化。实例数/体积随数据与水面裁剪变化，
+    // 权威读数=重建脚本 stdout（不复述数字，防未受控产物计数腐烂）。
     // 2026-10-03：默认关闭。交付包原版已带 cargo（见上条），两层同开会互相穿插；
     // 留着重在"万一原版又出问题时有备选"，打开需手动勾选。
     label: '钦州港 · 集装箱（重建，备选）',

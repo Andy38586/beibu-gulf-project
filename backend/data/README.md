@@ -1,49 +1,46 @@
 # backend/data — 后端数据存储层
 
-> 项目静态数据与可写 JSON 存储的统一目录。
-> 静态业务数据（forecast / site-selection / flood）由 services 直接 `readFile` 读取；可写数据（users / markers / plans）经 `utils/fileStore.js` 原子写入 + 缓存。
+> 项目**只读静态数据**目录：forecast / flood 两类数据由 Nest 读模块经
+> `backend/src/infra/files/data-files.service.ts` 读取；可写数据（users / markers / plans）已迁
+> PostgreSQL（见 §三），本目录不再承载可写 JSON。
 
 ## 一、模块职责
 
 data 目录承担两类数据：
 
-1. **只读静态数据**：forecast 指标、site-selection POI、flood 洪涝预计算结果、markers 地理要素，由 services 读取后参与计算或直接返回前端。
-2. **可写持久化数据**：users / markers / plans 等 JSON 文件，经 `createFileStore` 工厂统一管理（原子写入 + 缓存 + 写锁）。
+1. **只读静态数据**：forecast 指标与模型产物、flood 洪涝预计算结果与 DEM 栅格，由 Nest 读模块（`modules/forecast`、`modules/flood`）读取后参与计算或直接返回前端。
+2. **可写持久化数据**：已整体迁 PostgreSQL（plans / favorites / users 由 `backend/src/modules/*/repositories/*.repository.ts` 承担）；本目录**不存在可写 JSON**。
+
+> 历史：老选址域（`site-selection/` POI 与 `siteAnalysisService`）已随 `db25009a`（2026-10-02）整体移除；
+> 现役选址（`site-suitability` 域）的 POI/评分在 PostGIS，不读本目录。
 
 ## 二、目录结构
 
 ```
 data/
-├── markers.json               # 地图标记（可写，经 fileStore）
-├── forecast/                  # 吞吐量预测数据（forecastService 读取）
+├── forecast/                  # 吞吐量预测数据（modules/forecast 读取）
 │   ├── index.json             #   指标索引/元信息
 │   ├── cargo.json             #   货物吞吐量历史 + spatial（页面历史数据源）
 │   ├── container.json         #   集装箱吞吐量历史 + spatial
-│   ├── throughput.json        #   吞吐量模型训练输入（三港 2018-2025 月度，随仓库提交）
-│   └── throughput_model.json  #   吞吐量模型产物（cargo 指标 2026-2035 预测 + 回测 MAPE）
-├── site-selection/            # 选址 POI 数据（siteAnalysisService 读取）
-│   ├── xiaoqu.json            #   小区点集
-│   ├── qz_hospital.json       #   医院
-│   ├── qz_primary_school.json #   小学
-│   ├── qz_middle_school.json  #   中学
-│   ├── qz_park.json           #   公园
-│   ├── qz_bus_station.json    #   公交站
-│   └── qz_mall_and_supermarket.json  # 商超
-└── flood/                     # 洪涝预计算数据 + DEM 栅格
+│   ├── activity.json          #   港口活动（合成示意数据，文件自带 historical+forecast）
+│   ├── berth.json             #   泊位（合成示意数据）
+│   ├── traffic.json           #   交通（合成示意数据）
+│   ├── container_model.json   #   集装箱模型产物
+│   └── throughput_model.json  #   吞吐量模型产物（cargo 2026-2035 预测 + 回测 MAPE）
+└── flood/                     # 洪涝预计算数据 + DEM 栅格（modules/flood 读取）
     ├── facilityPoints.json    #   受淹评估设施点
-    ├── floodArea.json         #   淹没区域
+    ├── flood_levels.json.gz   #   251 档预计算表（0~25m/0.1m 步长）
     ├── floodStatistics.json   #   洪涝统计
     ├── water-area.json        #   水域
     ├── waterLevel.json        #   水位档位
     ├── terrainProfile.json    #   地形剖面
-    └── dem/                   #   DEM 栅格（flood-service 演算输入）
+    └── dem/                   #   DEM 栅格（离线演算/3D 锚点用）
         ├── landsea_utm48n.tif   # **海陆一体**（陆=ASTER 填洼 + 海=SRTM15+ 水深，EGM96 正高，30m）
         │                        #   ← flood_engine / 设施高程 / 剖面 三处共用的那份地表（淹没链唯一权威）
         ├── landsea_utm48n_ell.tif  # 上件的椭球高版（+N，15-ellipsoid-shift.py 产物）——仅供
         │                        #   3D 资产锚点用（bridge-anchors.json / probe-bridge-vert.py），
         │                        #   淹没演算**不读它**（正高链与椭球链边界见 dem-pipeline README §三）
-        ├── filled_utm48n_cut.tif   # 陆地填洼裁切版（海=NoData，兜底输入）
-        └── *.sgrd / *.mgrd / *.sdat（SGRD 系列中间产物）
+        └── .gitkeep             # 目录占位（栅格本体 gitignored，来源见 tools/dem-pipeline/README.md）
 ```
 
 > `dem/` 下的 `.tif` 均 **gitignored**（体积 + 唯一原件在外部数据树；源路径、环境与复跑命令
@@ -75,18 +72,17 @@ data/
 
 ## 四、数据消费关系
 
-### 静态数据（直接 readFile）
+### 静态数据（Nest 读模块）
 
-- `forecastService.js` → `data/forecast/{cargo,container}.json`：`getOrComputeForecast` 读取后调 `computeForecast` 演算，缓存 5min（`SEC-014`）；指标白名单（`SEC-013`）拒绝路径遍历。
-- `siteAnalysisService.js` → `data/site-selection/qz_*.json` + `xiaoqu.json`：经 repositories 加载后做覆盖/交集/评分。
-- `floodService.js` → `data/flood/facilityPoints.json` 等：洪涝损失评估输入。
+- `modules/forecast` → `data/forecast/*.json`：经 `infra/files/data-files.service.ts` 读取（index/cargo/container/activity/berth/traffic + `*_model.json`），公开只读。
+- `modules/flood` → `data/flood/*.json`：facilityPoints / floodStatistics / water-area / waterLevel / terrainProfile / flood_levels.json.gz，纯计算评估输入。
+- ~~`siteAnalysisService` → `data/site-selection/qz_*.json` + `xiaoqu.json`~~：**已随 `db25009a` 整体移除**；现役选址 POI/评分在 PostGIS（`site-suitability` 域）。
 - ~~`ports.json`~~ → 2026-08-29 回迁前端 `frontend/public/data/ports.json`（纯透传端点已删，港口与 boundary 同为前端静态参考数据）。
 
-### 可写数据（经 fileStore）
+### 可写数据（已迁 PostgreSQL）
 
-- `users.json` ← `userService.js`（`d045` 启用缓存，`P2-10` 不可变更新）。
-- `markers.json` ← `markersRepository.js`。
-- `plans.json` ← `plansRepository.js`。
+- plans / favorites / users 由 `backend/src/modules/{plans,favorites,auth}/repositories/*.repository.ts` 读写；
+  历史 JSON 写入路径（users.json / markers.json / plans.json）已不存在。
 
 ## 五、数据生成工具
 
@@ -97,7 +93,7 @@ data/
 
 - **`flood_engine.py`**：连通性淹没演算引擎。海平面抬升模型——水从海面（DEM NoData 区域）进入，只淹没与海面 8 连通的高程低于水位的区域。
   - 算法：`mask = (DEM <= level)` → 与 NoData(海域) 合并做连通域标注 → 保留「海域分量」中的淹没区。
-  - 输入：`data/flood/dem/filled_utm48n_cut.tif`（UTM48N，30m，填洼版）。
+  - 输入：`data/flood/dem/landsea_utm48n.tif`（海陆一体，优先；多级回退链见 `tools/flood/engine/README.md`）。
   - 降采样 4x（30m→120m，像元 ~6800万→~425万），单次演算秒级；模块级缓存 DEM（~17MB float32，只读一次）。
   - 输出：EPSG:4326 淹没多边形 GeoJSON FeatureCollection + 统计。
   - 依赖：numpy / scipy / rasterio（rasterio wheel 自带 GDAL）。
@@ -110,24 +106,21 @@ data/
 
 ## 六、依赖关系
 
-- **services → data**：forecastService / siteAnalysisService / floodService 直接 readFile 静态数据。
-- **repositories → data**：markers/plans/users Repository 经 `createFileStore` 读写可写数据。
-- **flood-service → data/flood/dem**：Python 微服务读 DEM 栅格演算。
-- **向第三方依赖**（fileStore）：`fs/promises`；flood-service：numpy/scipy/rasterio/fastapi。
+- **Nest 读模块 → data**：`modules/forecast` / `modules/flood` 经 `data-files.service` 读静态 JSON（只读）。
+- **在线可写数据（PostgreSQL）**：plans / favorites / users 走 `backend/src/modules/*/repositories`，不再经本目录。
+- **离线演算 → data/flood/dem**：`tools/flood/engine/flood_engine.py` 读 DEM 栅格演算（产物回写 `data/flood/`）。
+- **向第三方依赖**：Python 演算侧 numpy/scipy/rasterio；Nest 侧无本目录专属依赖。
 
 ## 七、关键约束（@arch-note）
 
-| 标注      | 文件               | 约束                                                                      |
-| --------- | ------------------ | ------------------------------------------------------------------------- |
-| `R-01`    | utils/fileStore.js | 文件存储工厂，markers/plans/users 共用缓存/写锁基础设施                   |
-| `DAT-7`   | utils/fileStore.js | readAll 命中缓存返回对象引用（非深拷贝），调用方必须不可变更新后 writeAll |
-| 原子写入  | utils/fileStore.js | writeAll 先写 .tmp 再 rename，失败清理临时文件                            |
-| 写锁      | utils/fileStore.js | sequential 串行化写操作，消除 TOCTOU 竞态                                 |
-| `SEC-013` | forecastService    | 指标白名单 cargo/container，拒绝路径遍历，data/forecast 不可接受任意输入  |
-| `SEC-014` | forecastService    | 引擎结果缓存 TTL 5min，data/forecast/\*.json 更新后自动失效重算           |
+| 标注        | 位置                                    | 约束                                                       |
+| ----------- | --------------------------------------- | ---------------------------------------------------------- |
+| 只读边界    | `infra/files/data-files.service.ts`     | backend/data 静态数据统一入口；只读，不接受任意路径输入     |
+| `DATA_DIR`  | `infra/config/config.service.ts`        | 数据目录解析（env 优先，向上找 backend/data）               |
+| ~~`R-01`~~  | ~~utils/fileStore.js~~（已退役）        | 可写数据已迁 PostgreSQL；分层约束由 structure-check/cruise 强制 |
 
 ## 八、备注
 
-- DEM 栅格体积较大（`filled_utm48n_cut.tif` 等），已 `.gitkeep` 保留目录结构；大文件按需本地准备。
-- SGRD 系列（`.sgrd`/`.mgrd`/`.sdat`）为 SAGA GIS 中间产物，保留供溯源。
-- flood-service 为独立 Python 进程，不随 Node 后端启动，需单独运行。
+- DEM 栅格体积较大（`landsea_utm48n*.tif`），本目录以 `.gitkeep` 保留结构；大文件按需本地准备，
+  来源与复跑见 `tools/dem-pipeline/README.md`。
+- 洪涝演算引擎（`tools/flood/engine/`）为离线工具，不随 Node 后端启动；在线洪涝域只读其产物。

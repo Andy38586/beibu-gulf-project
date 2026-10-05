@@ -1007,6 +1007,33 @@ describe('BusinessLayerManager', () => {
       expect(renderer.setVisibility).toHaveBeenCalledWith('tiles-b', false)
     })
 
+    it('🔴 同 layerType 兄弟共存：开 tiles-b 不应关掉已开的 tiles-a（W1004-01）', () => {
+      // 互斥声明是「terrain ↔ 3dtiles」跨类型语义；同组内的两个 3dtiles 是兄弟。
+      // 旧实现按 `group.has(otherMeta.layerType)` 判定 ⇒ 开一个关掉全部同类兄弟，
+      // 分组"一键全开"只剩最后一个成员可见。本用例按行为钉（删同类型排除即红）。
+      manager.register('tiles-a', {
+        label: '3dtiles A',
+        layerType: '3dtiles',
+        data: { url: '/static/a/tileset.json' },
+        visible: true,
+      })
+      manager.register('tiles-b', {
+        label: '3dtiles B',
+        layerType: '3dtiles',
+        data: { url: '/static/b/tileset.json' },
+        visible: false,
+      })
+
+      const renderer = createMock3dRenderer()
+      mapStore.currentRenderer = renderer as unknown as MapRenderer
+
+      manager.setVisible('tiles-b', true)
+
+      expect(manager.getMeta('tiles-b')?.visible).toBe(true)
+      expect(manager.getMeta('tiles-a')?.visible).toBe(true)
+      expect(renderer.setVisibility).not.toHaveBeenCalledWith('tiles-a', false)
+    })
+
     it('🔴 打开任一 3dtiles 时自动关闭可见的 terrain', () => {
       manager.register('terrain', {
         label: '3D 真地形',

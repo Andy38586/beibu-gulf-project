@@ -524,16 +524,25 @@ export class BusinessLayerManager {
     const adapter = this._getAdapter(meta.layerType)
     if (!adapter) return
 
-    // 互斥：打开本图层时，先关闭与其 layerType 互斥的其他 layerType 的可见实例
+    // 互斥：打开本图层时，先关闭与其 layerType **互斥的其它类型**的可见实例
     //（terrain 与 3dtiles 互斥，见 findExclusiveGroup）。先收集要关闭的 key
     //（迭代 registry 时不能改动），再逐个 setVisible(false)——false 方向不触发
     // 互斥，不会递归。
+    // ⚠ 必须排除同 layerType 兄弟（W1004-01，2026-10-05）：互斥声明是"跨类型"语义
+    //（开任一 3dtiles 关地形、开地形关全部 3dtiles），而同组内两个 3dtiles 是兄弟
+    //——旧实现按 `group.has(otherMeta.layerType)` 判定，开 tiles-b 会静默关掉 tiles-a，
+    // 分组"一键全开"最终只剩最后一个成员可见。
     if (visible) {
       const group = findExclusiveGroup(meta.layerType)
       if (group) {
         const keysToClose: string[] = []
         for (const [otherKey, otherMeta] of this._registry.entries()) {
-          if (otherKey !== key && group.has(otherMeta.layerType) && otherMeta.visible) {
+          if (
+            otherKey !== key &&
+            otherMeta.layerType !== meta.layerType &&
+            group.has(otherMeta.layerType) &&
+            otherMeta.visible
+          ) {
             keysToClose.push(otherKey)
           }
         }

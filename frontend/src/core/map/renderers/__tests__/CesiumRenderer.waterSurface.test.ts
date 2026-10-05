@@ -64,7 +64,13 @@ vi.mock('cesium', () => {
 import { Cartesian3 } from 'cesium'
 
 import { BusinessLayerManager } from '../../BusinessLayerManager'
-import { CesiumRenderer, updateWaterLevel } from '../CesiumRenderer'
+import {
+  CesiumRenderer,
+  doRemoveLayer,
+  getViewportBBox,
+  setWaterSurfaceVisibility,
+  updateWaterLevel,
+} from '../CesiumRenderer'
 
 /** 白盒访问：渲染器运行时成员（非公开类型）需显式暴露（渲染器本体无 @ts-nocheck后已移除） */
 type CesiumRendererTestAccess = InstanceType<typeof CesiumRenderer> & {
@@ -261,5 +267,44 @@ describe('updateWaterLevel — 真实挂载语义：同步 remove+add 重建几�
     )._waterSurfaces.get('water-surface')
     expect(entry?.primitive).toBe(oldPrimitive)
     expect(entry?.height).toBe(1)
+  })
+})
+
+// 1004-03：43 处 `viewer!` 裸断言在引擎销毁（viewer=null）/空闲销毁（isDestroyed=true）
+// 竞态下会以 TypeError 形态炸开且打断清理链。以下三条按行为钉 aliveViewer 守卫：
+// 去掉守卫（回到 `viewer!`）本组即红——null 形态抛 TypeError、isDestroyed 形态误裁剪。
+describe('1004-03 引擎存活守卫（viewer 失效 ⇒ 降级而非 TypeError）', () => {
+  it('🔴 doRemoveLayer：viewer=null ⇒ 不抛错、监听引用置空、引擎侧调用不发生', () => {
+    const renderer = createRenderer()
+    renderer.viewer = null
+    const layer = {
+      instance: [{ id: 'a' }],
+      visible: true,
+      cameraListener: () => {},
+      _viewportRafId: null,
+    }
+
+    expect(() => doRemoveLayer(renderer, layer as never)).not.toThrow()
+    expect(layer.cameraListener).toBe(null)
+  })
+
+  it('🔴 getViewportBBox：viewer.isDestroyed()=true ⇒ 返回 null（不裁剪），不读已失效 camera', () => {
+    const renderer = createRenderer()
+    // 故意不提供 camera：旧代码判断过 `!renderer.viewer!` 后直接读 .camera.positionCartographic
+    renderer.viewer = { isDestroyed: () => true } as never
+
+    expect(getViewportBBox(renderer)).toBe(null)
+  })
+
+  it('🔴 setWaterSurfaceVisibility：viewer=null ⇒ 只改账本、不抛错', () => {
+    const renderer = createRenderer()
+    renderer.viewer = null
+    const primitive = { show: false }
+    ;(renderer as { _waterSurfaces: Map<string, unknown> })._waterSurfaces = new Map([
+      ['w', { primitive, visible: true, height: 1, coordinates: [], options: {}, terrainBase: [] }],
+    ])
+
+    expect(() => setWaterSurfaceVisibility(renderer, 'w', true)).not.toThrow()
+    expect(primitive.show).toBe(true)
   })
 })

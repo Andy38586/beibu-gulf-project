@@ -1236,6 +1236,18 @@ export function cartesianToLonLatArray(cartesian: Cartesian3): [number, number] 
 }
 
 /** 相机变化 300ms 防抖：之后触发渲染与 camera-changed 回传（避免拖拽/缩放中频繁更新） */
+/**
+ * 引擎存活守卫（1004-03）：viewer 为空或已销毁（30s 空闲销毁 / 引擎切换）一律返回 null。
+ * 原 43 处 `viewer!` 裸断言把「引擎已销毁」变成 TypeError（reading camera of null），
+ * 错误形态与真实原因无关，还会打断清理链；统一走本守卫 + 调用点降级（return / 跳过日志）。
+ */
+function aliveViewer(renderer: CesiumRenderer): Viewer | null {
+  const viewer = renderer.viewer
+  if (!viewer) return null
+  if (typeof viewer.isDestroyed === 'function' && viewer.isDestroyed() === true) return null
+  return viewer
+}
+
 export function setupCameraDebounce(renderer: CesiumRenderer): void {
   const DEBOUNCE_DELAY = 300
   // 保存监听器引用，供 destroy 移除，防止泄漏与 TypeError
@@ -1254,13 +1266,15 @@ export function setupCameraDebounce(renderer: CesiumRenderer): void {
       renderer._cameraDebounceTimer = null
     }, DEBOUNCE_DELAY)
   }
-  renderer.viewer!.camera.changed.addEventListener(renderer._cameraChangedHandler)
+  const viewer = aliveViewer(renderer)
+  if (!viewer) return
+  viewer.camera.changed.addEventListener(renderer._cameraChangedHandler)
 }
 
 /** 点击/移动监听：LEFT_CLICK 拾取要素 properties 并 emit click；MOUSE_MOVE 回传鼠标经纬度 */
 export function setupClickHandler(renderer: CesiumRenderer): void {
   // 闭包捕获局部引用：事件回调晚于卸载窗口触发，经共享 renderer 解构
-  // `viewer!` 依赖 destroyEvents 时序；setup 期一次判空 + 局部捕获更稳
+  // 裸 viewer 断言依赖 destroyEvents 时序；setup 期一次判空 + 局部捕获更稳（1004-03 复核）
   const clickViewer = renderer.viewer
   if (!clickViewer) return
   renderer._screenSpaceEventHandler = clickViewer.screenSpaceEventHandler
@@ -1293,9 +1307,9 @@ export function setupClickHandler(renderer: CesiumRenderer): void {
 
   // pointer-move 事件（对应 MapRendererEventMap 声明）
   handler.setInputAction((movement: { endPosition: Cartesian2 }) => {
-    const cartesian = renderer.viewer!.camera.pickEllipsoid(
+    const cartesian = clickViewer.camera.pickEllipsoid(
       movement.endPosition,
-      renderer.viewer!.scene.globe.ellipsoid
+      clickViewer.scene.globe.ellipsoid
     )
     if (cartesian) {
       const carto = Cartographic.fromCartesian(cartesian)
@@ -1310,8 +1324,9 @@ export function setupClickHandler(renderer: CesiumRenderer): void {
 /** 移除相机变化监听与屏幕事件处理器（LEFT_CLICK/MOUSE_MOVE），供 destroy 调用 */
 export function destroyEvents(renderer: CesiumRenderer): void {
   // 移除相机监听器
-  if (renderer.viewer && renderer._cameraChangedHandler) {
-    renderer.viewer!.camera.changed.removeEventListener(renderer._cameraChangedHandler)
+  const viewer = aliveViewer(renderer)
+  if (viewer && renderer._cameraChangedHandler) {
+    viewer.camera.changed.removeEventListener(renderer._cameraChangedHandler)
     renderer._cameraChangedHandler = null
   }
 
@@ -1368,9 +1383,16 @@ export function addPointLayer(
   const existing = renderer._layers.get(id)
   if (existing) renderer._doRemoveLayer(existing)
 
+  // 1004-03：viewer 已销毁/空 ⇒ 无法建 Entity，跳过（BLM 重试链兜底）
+  const viewer = aliveViewer(renderer)
+  if (!viewer) {
+    logger.warn(`[CesiumRenderer] addPointLayer ${id} 跳过：viewer 已销毁`)
+    return
+  }
+
   // 视口裁剪本身无条件生效（下方 _getViewportBBox + _isInViewport 过滤）；
   // DEV 仅控制诊断日志输出（2026-08-11 澄清：非功能门控）
-  const totalEntities = renderer.viewer!.entities.values.length + features.length
+  const totalEntities = viewer.entities.values.length + features.length
   if (totalEntities > 1000 && import.meta.env.DEV) {
     logger.debug(`[CesiumRenderer] Entity数量(${totalEntities})超过1000，启动视口裁剪`)
   }
@@ -1404,7 +1426,7 @@ export function addPointLayer(
   })
   renderer._applyPendingVisibility(id)
   // 触发渲染
-  renderer.viewer!.scene.requestRender()
+  viewer.scene.requestRender()
 
   // 注册相机变化监听，视口变化时增量更新
   renderer._setupViewportListener(id)
@@ -1451,7 +1473,9 @@ export function createCesiumPointEntity(
     alpha < 1
       ? new Color(baseColor.red * 0.7, baseColor.green * 0.7, baseColor.blue * 0.7, alpha)
       : baseColor
-  return renderer.viewer!.entities.add({
+  const viewer = aliveViewer(renderer)
+  if (!viewer) return null
+  return viewer.entities.add({
     // id 追加 index：同名要素 id 会碰撞，重复 id 会覆盖旧实体 → 要素丢失 + 视口裁剪增删错乱
     id: `${id}-${item.id || item.name || 'p'}-${index}`,
     position: Cartesian3.fromDegrees(lng, lat),
@@ -1490,6 +1514,13 @@ export function addPolygonLayer(
   const existing = renderer._layers.get(id)
   if (existing) renderer._doRemoveLayer(existing)
 
+  // 1004-03：viewer 已销毁/空 ⇒ 跳过（原先裸断言在销毁竞态下 TypeError）
+  const viewer = aliveViewer(renderer)
+  if (!viewer) {
+    logger.warn(`[CesiumRenderer] addPolygonLayer ${id} 跳过：viewer 已销毁`)
+    return
+  }
+
   const entities: Entity[] = []
 
   features.forEach((item: PolygonFeature) => {
@@ -1509,7 +1540,7 @@ export function addPolygonLayer(
           const holePoints = holeCoords.map(([lng, lat]) => Cartesian3.fromDegrees(lng, lat))
           return new PolygonHierarchy(holePoints)
         })
-        const entity = renderer.viewer!.entities.add({
+        const entity = viewer.entities.add({
           polygon: {
             hierarchy: new PolygonHierarchy(outerRing, holes),
             material: Color.fromCssColorString(options.fillColor || LAYER_DEFAULTS.fill),
@@ -1542,7 +1573,7 @@ export function addPolygonLayer(
     options,
   })
   renderer._applyPendingVisibility(id)
-  renderer.viewer!.scene.requestRender()
+  viewer.scene.requestRender()
 }
 
 /**
@@ -1629,11 +1660,8 @@ export async function addGeoJsonLayer(
   try {
     // 防御：viewer 可能已被 30s 空闲销毁（渲染器对象存活但 viewer 已失效），提前检出走 onError
     // 让 BLM 感知重试；isDestroyed 须严格 === true（mock 的 chainable 函数返回 truthy 会误判）
-    const viewerDestroyed =
-      !renderer.viewer ||
-      (typeof renderer.viewer!.isDestroyed === 'function' &&
-        renderer.viewer!.isDestroyed() === true)
-    if (viewerDestroyed) {
+    const viewer = aliveViewer(renderer)
+    if (!viewer) {
       renderer._geoJsonTokens.delete(id)
       ;(options.onError as ((msg: string) => void) | undefined)?.('Viewer 已销毁，图层创建失败')
       return
@@ -1643,17 +1671,18 @@ export async function addGeoJsonLayer(
 
     // await 后检查：若有更新的同 id 请求，丢弃本次结果
     if (renderer._geoJsonTokens.get(id) !== token) return
-    // await 期间 viewer 可能已销毁，后续 viewer! 裸引用防御（审查 L-7）
-    if (!renderer.viewer) return
+    // await 期间 viewer 可能已销毁；1004-03 起统一走 aliveViewer
+    const viewerAfterLoad = aliveViewer(renderer)
+    if (!viewerAfterLoad) return
 
     logger.debug(`[CesiumRenderer] GeoJSON ${id} entities:`, dataSource.entities.values.length)
     applyGeoJsonDataSourceStyle(dataSource, options)
     // 显式 void：add 返回 Promise 仅用于悬挂标记，此处生命周期由下方 token 复检兜底
-    void renderer.viewer!.dataSources.add(dataSource)
+    void viewerAfterLoad.dataSources.add(dataSource)
 
     // 再次检查 token，防止 await 期间被新请求覆盖
     if (renderer._geoJsonTokens.get(id) !== token) {
-      renderer.viewer!.dataSources.remove(dataSource, true)
+      viewerAfterLoad.dataSources.remove(dataSource, true)
       return
     }
 
@@ -1663,7 +1692,7 @@ export async function addGeoJsonLayer(
       options,
     })
     renderer._applyPendingVisibility(id)
-    renderer.viewer!.scene.requestRender()
+    viewerAfterLoad.scene.requestRender()
     // 成功路径清理 token，避免 Map 跨 id 累积增长
     renderer._geoJsonTokens.delete(id)
   } catch (error: unknown) {
@@ -1709,11 +1738,12 @@ export async function updateGeoJsonLayer(
     await dataSource.load(geojson)
 
     if (renderer._geoJsonTokens.get(id) !== token) return
-    // await 后 viewer 可能已销毁，requestRender 的 viewer! 裸引用防御（审查 L-7）
-    if (!renderer.viewer) return
+    // await 后 viewer 可能已销毁；1004-03 起统一走 aliveViewer
+    const viewer = aliveViewer(renderer)
+    if (!viewer) return
     applyGeoJsonDataSourceStyle(dataSource, entry.options)
     renderer._applyPendingVisibility(id)
-    renderer.viewer.scene.requestRender()
+    viewer.scene.requestRender()
     renderer._geoJsonTokens.delete(id)
   } catch (error: unknown) {
     if (renderer._geoJsonTokens.get(id) !== token) return
@@ -1779,7 +1809,13 @@ export function addGeoTIFFLayer(
       }
       provider.errorEvent.addEventListener(hillshadeErrorHandler)
     }
-    const imageryLayer = renderer.viewer!.imageryLayers.addImageryProvider(provider)
+    // 1004-03：viewer 已销毁/空 ⇒ 不挂影像，返回 false（既有失败语义）
+    const viewer = aliveViewer(renderer)
+    if (!viewer) {
+      logger.warn(`[CesiumRenderer] addGeoTIFFLayer ${id} 跳过：viewer 已销毁`)
+      return false
+    }
+    const imageryLayer = viewer.imageryLayers.addImageryProvider(provider)
     // hillshade 顶层叠加 + 默认 alpha 0.85：明暗清晰可辨（曾 0.45 太淡，用户视觉上看不到 DEM 图层；
     // 天地图影像在下层透出轮廓，注记层最上显示地名）；真 3D 已由地形瓦片承接，此为降级兜底
     imageryLayer.alpha = options.opacity ?? 0.85
@@ -1792,7 +1828,7 @@ export function addGeoTIFFLayer(
       options,
     })
     renderer._applyPendingVisibility(id)
-    renderer.viewer!.scene.requestRender()
+    viewer.scene.requestRender()
     logger.debug(`[CesiumRenderer] addGeoTIFFLayer 已添加 hillshade 回退贴图: ${id} → ${pngUrl}`)
     return true
   } catch (error: unknown) {
@@ -1928,15 +1964,19 @@ export function doSetVisibility(renderer: CesiumRenderer, id: string, visible: b
     } else if (typeof inst === 'object') {
       ;(inst as { show?: boolean }).show = visible
     }
-    renderer.viewer!.scene.requestRender()
+    // 1004-03：viewer 已销毁时显隐只改本账本，渲染请求跳过（不再 TypeError）
+    aliveViewer(renderer)?.scene.requestRender()
   }
 }
 
 /** 移除图层实例：先摘除视口裁剪监听（点图层特有），再按类型移除并释放资源 */
 export function doRemoveLayer(renderer: CesiumRenderer, layer: LayerState): void {
   // 移除视口监听（视口裁剪点图层特有，其它图层为 undefined）；rAF 挂起也一并取消
+  // 1004-03：viewer 已销毁时引擎侧对象随 viewer 一起消亡，摘除无意义；
+  // 本账本清理（监听引用置空 / rAF 取消 / 容器遍历跳过）照做，避免闭包与句柄泄漏。
+  const viewer = aliveViewer(renderer)
   if (layer.cameraListener) {
-    renderer.viewer!.camera.changed.removeEventListener(layer.cameraListener)
+    viewer?.camera.changed.removeEventListener(layer.cameraListener)
     layer.cameraListener = null
   }
   if (layer._viewportRafId) {
@@ -1947,29 +1987,29 @@ export function doRemoveLayer(renderer: CesiumRenderer, layer: LayerState): void
     if (Array.isArray(layer.instance)) {
       layer.instance.forEach((entity: unknown) => {
         if (entity && typeof entity === 'object') {
-          renderer.viewer!.entities.remove(entity as Entity)
+          viewer?.entities.remove(entity as Entity)
         }
       })
-    } else {
+    } else if (viewer) {
       // instance 为 unknown：按 Cesium 容器逐一尝试（imageryLayers / primitives / dataSources）
       const inst = layer.instance as unknown as
         | ImageryLayer
         | Cesium3DTileset
         | DataSource
         | undefined
-      if (inst && renderer.viewer!.imageryLayers.contains(inst as ImageryLayer)) {
+      if (inst && viewer.imageryLayers.contains(inst as ImageryLayer)) {
         // 影像图层（如 hillshade 回退贴图），destroy=true 释放 GPU 纹理
-        renderer.viewer!.imageryLayers.remove(inst as ImageryLayer, true)
-      } else if (inst && renderer.viewer!.scene.primitives.contains(inst as Cesium3DTileset)) {
+        viewer.imageryLayers.remove(inst as ImageryLayer, true)
+      } else if (inst && viewer.scene.primitives.contains(inst as Cesium3DTileset)) {
         // 3D Tiles 瓦片集（Cesium3DTileset 存于 scene.primitives，不在上两个容器里）；
         // PrimitiveCollection.remove 会调用其 destroy 释放几何缓冲与瓦片缓存
-        renderer.viewer!.scene.primitives.remove(inst as Cesium3DTileset)
+        viewer.scene.primitives.remove(inst as Cesium3DTileset)
       } else if (inst) {
         // 第二参数 destroy=true 让 Cesium 在移除时销毁 dataSource，防止内存泄漏
-        renderer.viewer!.dataSources.remove(inst as DataSource, true)
+        viewer.dataSources.remove(inst as DataSource, true)
       }
     }
-    renderer.viewer!.scene.requestRender()
+    viewer?.scene.requestRender()
   }
 }
 
@@ -1994,9 +2034,11 @@ export interface ViewportBBox {
  * 不可用时回退相机高度圆形估算；太高（>5000km）或无相机返回 null（不裁剪）。
  */
 export function getViewportBBox(renderer: CesiumRenderer): ViewportBBox | null {
-  if (!renderer.viewer!) return null
-  const camera = renderer.viewer!.camera
-  const scene = renderer.viewer!.scene
+  // 1004-03：viewer 空/已销毁 ⇒ 不裁剪（与「太高不裁剪」同语义）
+  const viewer = aliveViewer(renderer)
+  if (!viewer) return null
+  const camera = viewer.camera
+  const scene = viewer.scene
   const cartographic = camera.positionCartographic
   if (!cartographic) return null
   const height = cartographic.height
@@ -2050,12 +2092,16 @@ export function setupViewportListener(renderer: CesiumRenderer, id: string): voi
     })
   }
 
+  // 1004-03：viewer 空/已销毁 ⇒ 不注册（注册即 TypeError）
+  const viewer = aliveViewer(renderer)
+  if (!viewer) return
+
   // 移除旧监听（如果存在）
   if (layer.cameraListener) {
-    renderer.viewer!.camera.changed.removeEventListener(layer.cameraListener)
+    viewer.camera.changed.removeEventListener(layer.cameraListener)
   }
 
-  renderer.viewer!.camera.changed.addEventListener(updateHandler)
+  viewer.camera.changed.addEventListener(updateHandler)
   layer.cameraListener = updateHandler
 }
 
@@ -2066,6 +2112,9 @@ export function updateCulledLayer(renderer: CesiumRenderer, id: string): void {
 
   const bbox = getViewportBBox(renderer)
   if (!bbox) return
+  // 1004-03：viewer 空/已销毁 ⇒ 不增量更新（相机事件源已不存在）
+  const viewer = aliveViewer(renderer)
+  if (!viewer) return
 
   // 候选集：优先 rbush 索引查询（W4-17，相机移动 O(logN)），无索引回退全量遍历
   const spatialIndex = layer._spatialIndex as { query: (bbox: number[]) => unknown[] } | undefined
@@ -2093,7 +2142,7 @@ export function updateCulledLayer(renderer: CesiumRenderer, id: string): void {
   const entities = layer.instance as Entity[]
   for (const entity of entities) {
     if (!shouldShow.has(entity.id)) {
-      renderer.viewer!.entities.remove(entity)
+      viewer.entities.remove(entity)
     }
   }
 
@@ -2108,7 +2157,7 @@ export function updateCulledLayer(renderer: CesiumRenderer, id: string): void {
   })
 
   // 清理已移除的 Entity 引用（entities 为局部窄化数组，写回 instance）
-  layer.instance = entities.filter((e) => renderer.viewer!.entities.contains(e))
+  layer.instance = entities.filter((e) => viewer.entities.contains(e))
 }
 
 // ===== 水面：Primitive 管理（水位更新=先建后换） =====
@@ -2141,14 +2190,18 @@ async function sampleTerrainHeights(
   coordinates: [number, number][]
 ): Promise<number[]> {
   try {
-    const terrainProvider = renderer.viewer?.terrainProvider as
-      | { availability?: unknown }
-      | undefined
+    // 1004-03：统一走 aliveViewer（空/已销毁同判）；采样失败仍由下方 catch 兜底
+    const viewer = aliveViewer(renderer)
+    const terrainProvider = viewer?.terrainProvider as { availability?: unknown } | undefined
     if (!terrainProvider || !terrainProvider.availability) {
       return coordinates.map(() => 0)
     }
     const positions = coordinates.map(([lng, lat]) => Cartographic.fromDegrees(lng, lat))
-    const sampled = await sampleTerrain(renderer.viewer!.terrainProvider, 10, positions)
+    const sampled = await sampleTerrain(
+      terrainProvider as unknown as Parameters<typeof sampleTerrain>[0],
+      10,
+      positions
+    )
     return sampled.map((s) => s.height ?? 0)
   } catch {
     // 采样失败不阻断水面创建，回退椭球基准（与旧行为一致）
@@ -2207,14 +2260,15 @@ export async function addWaterSurface(
   removeWaterSurface(renderer, id)
   try {
     const terrainBase = await sampleTerrainHeights(renderer, coordinates)
-    // await 期间 viewer 可能已销毁（审查 L-7 同模式）：裸 viewer! 会以 TypeError 进 catch，
-    // 显式判空让失败语义可读（入口已 removeWaterSurface，此处返回 false 即"未挂上"）
-    if (!renderer.viewer) return false
+    // await 期间 viewer 可能已销毁（审查 L-7 同模式）：1004-03 起统一走 aliveViewer，
+    // 判空让失败语义可读（入口已 removeWaterSurface，此处返回 false 即"未挂上"）
+    const viewer = aliveViewer(renderer)
+    if (!viewer) return false
     const instance = buildWaterInstance(coordinates, height, options, terrainBase)
 
     const primitive = buildWaterPrimitive(instance)
 
-    renderer.viewer!.scene.primitives.add(primitive)
+    viewer.scene.primitives.add(primitive)
 
     // 保存水面状态供后续更新使用
     renderer._waterSurfaces = renderer._waterSurfaces || new Map()
@@ -2227,7 +2281,7 @@ export async function addWaterSurface(
       terrainBase: terrainBase,
     })
 
-    renderer.viewer!.scene.requestRender()
+    viewer.scene.requestRender()
     return true
   } catch (e) {
     // 坐标无效或几何体构建失败时不中断调用方
@@ -2268,7 +2322,10 @@ export function updateWaterLevel(renderer: CesiumRenderer, id: string, newHeight
         waterSurface.terrainBase
       )
     )
-    const scene = renderer.viewer!.scene
+    // 1004-03：viewer 已销毁 ⇒ 保持旧水位返回 false（与「构建失败」同语义）
+    const viewer = aliveViewer(renderer)
+    if (!viewer) return false
+    const scene = viewer.scene
     scene.primitives.remove(waterSurface.primitive)
     scene.primitives.add(newInstance)
     waterSurface.primitive = newInstance
@@ -2288,10 +2345,12 @@ export function updateWaterLevel(renderer: CesiumRenderer, id: string, newHeight
 export function removeWaterSurface(renderer: CesiumRenderer, id: string): boolean {
   const waterSurface: WaterSurfaceEntry | undefined = renderer._waterSurfaces?.get(id)
   if (waterSurface) {
-    renderer.viewer!.scene.primitives.remove(waterSurface.primitive)
+    // 1004-03：viewer 已销毁 ⇒ 引擎侧对象已不存在，只摘本账本
+    const viewer = aliveViewer(renderer)
+    viewer?.scene.primitives.remove(waterSurface.primitive)
     // _waterSurfaces 只可能在 viewer 销毁路径置 null；此处 waterSurface 非空即 Map 存在
     renderer._waterSurfaces!.delete(id)
-    renderer.viewer!.scene.requestRender()
+    viewer?.scene.requestRender()
     return true
   }
   return false
@@ -2318,7 +2377,8 @@ export function setWaterSurfaceVisibility(
   if (waterSurface) {
     waterSurface.visible = visible
     waterSurface.primitive.show = visible
-    renderer.viewer!.scene.requestRender()
+    // 1004-03：viewer 已销毁时只改本账本，渲染请求跳过
+    aliveViewer(renderer)?.scene.requestRender()
     return true
   }
   return false

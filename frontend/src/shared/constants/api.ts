@@ -27,8 +27,6 @@ export const ENDPOINTS = {
   plans: {
     root: '/plans',
     byId: (id: string) => `/plans/${id}`,
-    xiaoqu: (planId: string) => `/plans/${planId}/xiaoqu`,
-    xiaoquFromOne: (planId: string, xiaoquId: string) => `/plans/${planId}/xiaoqu/${xiaoquId}`,
   },
   forecast: {
     overview: '/forecast/overview',

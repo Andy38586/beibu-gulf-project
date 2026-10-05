@@ -19,7 +19,7 @@ export interface ScoredXiaoqu extends Xiaoqu {
   loss?: number // 损失（万元，value × damageRate；facilityPoints metadata.valueUnit 口径）
 }
 
-// 已保存的小区（方案中，持久化到 plans.json）
+// 已保存的小区（方案中；持久化在 PostgreSQL 的 plans 域，非 JSON 文件）
 export interface SavedXiaoqu extends ScoredXiaoqu {
   savedAt: string
   selectionCriteria?: {

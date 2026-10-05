@@ -81,7 +81,7 @@
 | 新选址适宜性 | `GET /site-suitability/map`                                                                                     | 公开          | 加权叠加格网 GeoJSON（五准则权重缺省回落 AHP 草案；min_land_frac 过滤；2026-09-29 单元四）     |
 | 分流分析     | `GET /diversion/breakdown`                                                                                      | 公开          | 西江转移+三港分摊+桑基流（year 2027~2050；2026-09-30 W10-11）                                  |
 | 分流分析     | `GET /diversion/canal-line`                                                                                     | 公开          | 运河线位 GeoJSON（15 段 LineString；DB `canal` 表 `status='osm-2026-10-01'`，2026-10-02 上线） |
-| 方案         | `GET/POST /plans`、`GET/PUT/DELETE /plans/:id`、`POST /plans/:id/xiaoqu`、`DELETE /plans/:id/xiaoqu/:xiaoquId`  | ✅ 全部需登录 | CRUD                                                                                           |
+| 方案         | `GET/POST /plans`、`GET/PUT/DELETE /plans/:id`、`POST /plans/:id/xiaoqu`、`DELETE /plans/:id/xiaoqu/:xiaoquId`  | ✅ 全部需登录 | CRUD（`/xiaoqu` 两式为兼容端点，前端零消费，见 K3 登记）                                       |
 | 预测         | `GET /forecast/timeseries`、`GET /forecast/indicator/:indicator`、`GET /forecast/map`、`GET /forecast/overview` | 公开          | —                                                                                              |
 | 预测         | `GET /forecast/:portId`                                                                                         | 公开          | 孤儿路由（前端零消费，保留兼容端点，2026-08-16 816 补录）                                      |
 | 洪涝         | `GET /flood/water-area`、`GET /flood/terrain-profiles`、`GET /flood/flood-areas`、`GET /flood/flood-statistics` | 公开          | Nest 查 PostGIS(flood_levels 251 档)；statistics 与 areas/disaster 同源                        |
@@ -90,6 +90,9 @@
 | 健康         | `GET /health`、`GET /health/ready`                                                                              | 公开          | 探针,置于限流前                                                                                |
 
 **已删除接口**(勿重新添加):`/api/markers/*`(死代码)、`/api/facilities/*`、`/api/flood/water-levels`、`/api/flood/facilities`(前端零调用孤儿)、`GET /ports`(2026-08-29 港口数据回迁前端静态 `frontend/public/data/ports.json`,纯透传端点无后端价值)、`GET /flood-online/api/flood/online|impact`(2026-09-10 随 algorithm-service 退役,前端零调用)。
+
+> **内部/兼容端点**：`POST /plans/:id/xiaoqu`、`DELETE /plans/:id/xiaoqu/:xiaoquId`、`GET /forecast/:portId`
+> 为前端零消费的兼容端点；权威登记与双向守卫见 `docs/契约/K3-接口与数据契约.md` 同名注记。
 
 **已移除域**(2026-10-02,`db25009a`):`POST /site-analysis` —— 老选址域(前端页面/后端模块/契约/守卫)整体删除,`git grep` 0 命中;替代者是 `GET /site-suitability/map`。域移除口径见 `docs/archive/老选址隔离与移除工单-2026-09-30.md`（该档已归档）。
 

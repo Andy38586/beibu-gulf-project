@@ -4,8 +4,9 @@
  *
  * ## 为什么需要（用户原话）
  * 「这个港口区根本不连续，那些路之间的缝隙太大了」。道路层只画路面（5~12 m 宽的带），
- * 路网之间的空地露的是底图影像 ⇒ 看着不连续。地面面片把这些空地按同一高程铺满，
- * 港区才成为一个连续面。
+ * 路网之间的空地露的是底图影像 ⇒ 看着不连续。地面面片把这些空地铺满，港区才成为一个连续面。
+ * 高程（2026-10-05 起，C 口径）：与道路层**同源逐顶点**查询交付包参考地面（ground-ref.mjs，
+ * r=48 m）；超半径回落常数 u₀+0.05。只改道路不改地面会把「路被埋」翻转成「路悬空」。
  *
  * ## 不覆盖水面
  * 逐格判 **四角 + 中心共 5 点**，任一点落水即不铺——与 rebuild-containers 的 onWater()
@@ -22,9 +23,11 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { buildGLB, enuToGltf, GLTF_UP } from './glb.mjs'
-import { loadWaterMask } from './rebuild-containers.mjs'
+
 import { groundLevel, makeToLocal } from './build-roads.mjs'
+import { buildGLB, enuToGltf, GLTF_UP } from './glb.mjs'
+import { buildGroundRef } from './ground-ref.mjs'
+import { loadWaterMask } from './rebuild-containers.mjs'
 
 const TILE_DIR = 'backend/static/qinzhou-port/tiles'
 const GROUND_CELL = 15
@@ -57,6 +60,9 @@ export function buildGround({
   // 地面基准从**交付包几何**派生（见 build-roads.groundLevel 注释；旧实现读分桶盒底，低了 4.7 m）
   const groundU = groundLevel(tileDir)
   const u = groundU + GROUND_LIFT
+  // C 口径（2026-10-05 用户裁定）：与道路层同源逐顶点参考（ground-ref，r=48 m 陆域池）。
+  // 地面层必须与道路层**同笔**改——只改道路会让「路被埋」翻转成「路悬空」（§8.12b 实测 98.9%）。
+  const ref = buildGroundRef({ tileDir })
 
   // 网格建在经纬度上（每格等经纬），逐顶点转 ENU——2 km 尺度上等经纬 ≈ 等米
   const midLat = ((s + n) / 2) * (Math.PI / 180)
@@ -69,6 +75,10 @@ export function buildGround({
     idx = []
   const enuMin = [Infinity, Infinity],
     enuMax = [-Infinity, -Infinity]
+  let uMin = Infinity,
+    uMax = -Infinity
+  let nRef = 0,
+    nFallback = 0
   const vid = new Int32Array((nx + 1) * (ny + 1)).fill(-1)
   const lngAt = (i) => w + (i / nx) * (e - w)
   const latAt = (j) => s + (j / ny) * (n - s)
@@ -81,7 +91,13 @@ export function buildGround({
     if (E > enuMax[0]) enuMax[0] = E
     if (N < enuMin[1]) enuMin[1] = N
     if (N > enuMax[1]) enuMax[1] = N
-    const g = enuToGltf(E, N, u)
+    const q = ref.nearestU(E, N)
+    if (q === null) nFallback++
+    else nRef++
+    const uu = q === null ? u : q + GROUND_LIFT
+    if (uu < uMin) uMin = uu
+    if (uu > uMax) uMax = uu
+    const g = enuToGltf(E, N, uu)
     pos.push(g[0], g[1], g[2])
     norm.push(GLTF_UP[0], GLTF_UP[1], GLTF_UP[2])
     col.push(TONE[0], TONE[1], TONE[2])
@@ -114,11 +130,11 @@ export function buildGround({
   }
   if (!land) throw new Error('地面网格为空：掩膜里没有陆地格（bbox/掩膜对不上？）')
 
-  // box 直接由 ENU 统计（绝不经 glTF 反算）
+  // box 直接由 ENU 统计（绝不经 glTF 反算）；竖轴按逐顶点 u 的实际范围（C 口径后不再恒定）
   const box = [
     (enuMin[0] + enuMax[0]) / 2,
     (enuMin[1] + enuMax[1]) / 2,
-    u,
+    (uMin + uMax) / 2,
     (enuMax[0] - enuMin[0]) / 2 + cell,
     0,
     0,
@@ -127,7 +143,7 @@ export function buildGround({
     0,
     0,
     0,
-    5,
+    (uMax - uMin) / 2 + 1,
   ]
   fs.mkdirSync(outDir, { recursive: true })
   const glb = buildGLB({
@@ -169,6 +185,11 @@ export function buildGround({
     bytes: glb.length,
     groundU,
     u,
+    uMin,
+    uMax,
+    nRef,
+    nFallback,
+    refStats: ref.stats,
   }
 }
 
@@ -206,7 +227,22 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
       r.groundU.toFixed(2) +
       ' + ' +
       GROUND_LIFT +
-      '） → ' +
+      '）｜C 口径逐顶点：有参考 ' +
+      r.nRef +
+      ' 顶点 / 回落 ' +
+      r.nFallback +
+      ' ｜u 范围 ' +
+      r.uMin.toFixed(2) +
+      '..' +
+      r.uMax.toFixed(2) +
+      ' m → ' +
       outDir
+  )
+  console.log(
+    '参考地面：' +
+      r.refStats.cells +
+      ' 格 / ' +
+      r.refStats.vertices +
+      ' 顶点（rail/concrete/opaque，4 m 格，r=48 m）'
   )
 }

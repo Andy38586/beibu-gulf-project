@@ -159,10 +159,18 @@ def main():
     G_land = np.concatenate(
         [a for m in ground.values() for mat, a in m.items() if mat in LAND_MATS]
     )
+    # 地面带（与 tools/3dtiles-build/ground-ref.mjs REF_BAND 同步，2026-10-05 实施新增）：
+    # opaque 材质混有吊机/箱顶/屋顶等构筑物面（实测 u=+5~+14.3，比本地地面高 20~30 m，
+    # 占窗口采样 7~9.5%），带外顶点不参与建格——否则最近格参考会被假台地污染。
+    BAND = (-24.0, -12.0)
+    n_band_drop = int(((G[:, 2] < BAND[0]) | (G[:, 2] > BAND[1])).sum())
+    G = G[(G[:, 2] >= BAND[0]) & (G[:, 2] <= BAND[1])]
+    G_land = G_land[(G_land[:, 2] >= BAND[0]) & (G_land[:, 2] <= BAND[1])]
     grids = {'全材质': grid_medians(G), '陆域(去水)': grid_medians(G_land)}
     files = sorted((PORT / 'tiles').glob('t[45]_*.glb'))
-    print('交付包地面顶点 %d（tileset 瓦片 %d 块，其中 t4/t5 细瓦片 %d 块；材质 %s）'
-          % (len(G), len(ground), len(files), ','.join(sorted({m for a in ground.values() for m in a}))))
+    print('交付包地面顶点 %d（t4/t5 细瓦片 %d 块；材质 %s）｜地面带 %s 挡掉带外 %d 点'
+          % (len(G), len(files), ','.join(sorted({m for a in ground.values() for m in a})),
+             BAND, n_band_drop))
     print('格子 %g m：%d 格（每格 ≥3 点）｜覆盖 ENU 范围 E %.0f..%.0f / N %.0f..%.0f'
           % (CELL, len(grids['全材质']), G[:, 0].min(), G[:, 0].max(), G[:, 1].min(), G[:, 1].max()))
 
@@ -384,7 +392,20 @@ def main():
                          float(np.percentile(dg, 99)), RR, float((dg <= RR).mean()) * 100))
                 u_c = np.where(d2 <= RR, nn2 + 0.15, u_roads)
                 dist_line('C 前：路(常数) − ground 层', np.full(int(gin.sum()), u_roads - ug))
-                dist_line('C 后：路(逐顶点) − ground 层', u_c - ug)
+                dist_line('C 后：路(逐顶点) − ground 层（模拟）', u_c - ug)
+                # 实测核对（2026-10-05：两层均已按 C 重烘。模拟行保留作对照）：
+                # ① 构造精确性——构造口径 = 最近格 ⇒ 路 u − 最近格参考 − 0.15 应恒 0
+                mism = S[gin][:, 2] - nn2 - 0.15
+                print('      【实测】构造核对（路 u − 最近格 − 0.15）：中位 %+.3f ｜ max|Δ| %.3f ｜ >1e-3 占比 %.1f%%'
+                      % (float(np.median(mism)), float(np.max(np.abs(mism))),
+                         float(np.mean(np.abs(mism) > 1e-3)) * 100))
+                # ② 路 − ground 层真实高差（最近 ground 顶点 ≤20 m；同源参考 ⇒ 设计差 = +0.10）
+                tree_g = cKDTree(Gg[:, :2])
+                dg2, ig2 = tree_g.query(S[gin][:, :2], k=1)
+                near = dg2 <= 20.0
+                if near.any():
+                    dist_line('【实测】路 − ground（最近顶点≤20m，设计差 +0.10）',
+                              S[gin][:, 2][near] - Gg[:, 2][ig2[near]])
                 print('      C 后高出 ground 层 >0.5 m 的点占 %.0f%%（C 前 %.0f%%）⇒ 若 ground 层不同步'
                       '逐顶点，路面会浮在它上方'
                       % (float(np.mean((u_c - ug) > 0.5)) * 100, float(np.mean((u_roads - ug) > 0.5)) * 100))

@@ -11,8 +11,10 @@
  * ## 落位
  *
  * 与钦州港交付包**同一 root.transform**，故与集装箱层逐位对齐。
- * 高程取交付包里箱区底面（即地面），由容器层的 cell 包围盒反算——
- * 不用 0：局部 ENU 的 u=0 是 root 原点高度，不是地面，直接铺会在空中或地下。
+ * 高程（2026-10-05 起，C 口径，用户裁定）：**逐顶点**向交付包几何查询参考地面
+ * （`ground-ref.mjs`：全瓦片去重、rail/concrete/opaque、4 m 格中位、r=48 m），
+ * 超半径顶点回落常数 `groundU`。此前整层用单一常数 u₀（全池中位 −17.55，双峰分布
+ * 统计假象）⇒ 作业区窗口内 100% 顶点埋没（Δ 中位 −1.63 m）。
  *
  * ## 宽度
  *
@@ -24,8 +26,10 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
+
 import { buildGLB, enuToGltf, GLTF_UP, gltfToEnu } from './glb.mjs'
 import { heightsOfMaterial, median, readGLB } from './glb-read.mjs'
+import { buildGroundRef } from './ground-ref.mjs'
 
 const TILE_DIR = 'backend/static/qinzhou-port/tiles'
 /** 与 qinzhou-port 交付包同一 root.transform（落位逐位对齐的前提） */
@@ -103,8 +107,8 @@ export function groundLevel(tileDir = 'backend/static/qinzhou-port/tiles') {
   return u
 }
 
-/** 把一条 way 挤出成路面（三角面 + 法线） */
-export function extrudeWay(pts, width, groundU, lift) {
+/** 把一条 way 挤出成路面（三角面 + 法线）。queryU(E,N) 给参考地面高（C 口径），null=超半径回落常数。 */
+export function extrudeWay(pts, width, groundU, lift, queryU = null) {
   const hw = width / 2
   const positions = [],
     normals = [],
@@ -118,16 +122,18 @@ export function extrudeWay(pts, width, groundU, lift) {
     if (len < 0.5) continue
     const nx = (-dy / len) * hw,
       ny = (dx / len) * hw
-    const u = groundU + lift
     const base = positions.length / 3
-    // 四个角先算 ENU，再统一过 enuToGltf——直通 ENU 会让整层按 N 抬高（见 glb.mjs 注释）
+    // 四个角先算 ENU，再统一过 enuToGltf——直通 ENU 会让整层按 N 抬高（见 glb.mjs 注释）。
+    // C 口径（2026-10-05 用户裁定）：**逐角**向交付包参考地面查询（ground-ref，r=48 m），
+    // 查不到（超出半径）回落原常数口径「超出保现状」。
     for (const [ee, nn] of [
       [x0 + nx, y0 + ny],
       [x1 + nx, y1 + ny],
       [x1 - nx, y1 - ny],
       [x0 - nx, y0 - ny],
     ]) {
-      positions.push(...enuToGltf(ee, nn, u))
+      const q = queryU ? queryU(ee, nn) : null
+      positions.push(...enuToGltf(ee, nn, (q === null ? groundU : q) + lift))
     }
     for (let k = 0; k < 4; k++) normals.push(...GLTF_UP)
     // 绕序必须让几何法线朝 +Y（= 声明的 GLTF_UP）：按 A,B,C,D 直连会**从上方看是顺时针**，
@@ -146,6 +152,11 @@ export function buildRoads({ osmFile, outDir, rebuiltDir, tileDir = TILE_DIR }) 
   const toLocal = makeToLocal(T)
   // 地面基准从**交付包几何**派生（见 groundLevel 注释）；rebuiltDir 不再参与高程决策
   const groundU = groundLevel(tileDir)
+  // C 口径（2026-10-05 用户裁定「道路瓦片的高度无统一坐标系，需要根治」）：
+  // 逐顶点向交付包参考地面查询（ground-ref：全瓦片去重、rail/concrete/opaque、4 m 格、
+  // r=48 m 陆域池）；超出半径的顶点回落常数口径。
+  const ref = buildGroundRef({ tileDir })
+  const queryU = (e, n) => ref.nearestU(e, n)
   const buckets = new Map()
   let ways = 0,
     segs = 0
@@ -158,7 +169,7 @@ export function buildRoads({ osmFile, outDir, rebuiltDir, tileDir = TILE_DIR }) 
       const [e, n] = toLocal(g.lon, g.lat)
       return [e, n]
     })
-    const geo = extrudeWay(pts, width, groundU, ROAD_LIFT)
+    const geo = extrudeWay(pts, width, groundU, ROAD_LIFT, queryU)
     if (!geo.indices.length) continue
     ways++
     segs += geo.indices.length / 6
@@ -242,6 +253,7 @@ export function buildRoads({ osmFile, outDir, rebuiltDir, tileDir = TILE_DIR }) 
     segs,
     groundU,
     byKind: Object.fromEntries([...buckets].map(([k, b]) => [k, b.indices.length / 6])),
+    refStats: ref.stats,
   }
 }
 
@@ -256,5 +268,12 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     rebuiltDir: arg('--rebuilt', 'backend/static/qinzhou-port/rebuilt'),
   })
   console.log('道路 ' + r.ways + ' 条 / ' + r.segs + ' 段，地面 u=' + r.groundU.toFixed(2) + ' m')
+  console.log(
+    '参考地面（C 口径）：' +
+      r.refStats.cells +
+      ' 格 / ' +
+      r.refStats.vertices +
+      ' 顶点（rail/concrete/opaque，4 m 格，r=48 m）'
+  )
   console.log('按等级: ' + JSON.stringify(r.byKind))
 }

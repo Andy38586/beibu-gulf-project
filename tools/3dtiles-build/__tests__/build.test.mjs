@@ -18,6 +18,7 @@ import { buildGround } from '../build-ground.mjs'
 import { buildRoads, extrudeWay } from '../build-roads.mjs'
 import { buildContainer, CONTAINER_TYPES, generateAll } from '../container-models.mjs'
 import { box, buildGLB, enuToGltf } from '../glb.mjs'
+import { buildGroundRef } from '../ground-ref.mjs'
 
 /**
  * 交付包资产不入库（backend/static/qinzhou-port/** 全树 gitignored），而 buildRoads /
@@ -481,6 +482,94 @@ describe('buildAll — 五桥垂直锚（净高语义：桥面结构底缘 = 水
         anchorsPath: path.join(dir, 'missing.json'),
       })
     ).toThrow(/锚点表/)
+  })
+})
+
+describe('ground-ref — 参考地面（C 口径：4 m 格中位、r=48 m、地面带、超半径 null）', () => {
+  // 合成夹具：rail 材质、2 m 步距铺 40×40 m 的两块瓦片——一块在带内 u=−16（应成格），
+  // 一块在带外 u=+2（构筑物面，应被地面带 [−24,−12] 挡掉、不成格）。
+  const fixture = () => {
+    const dir = 'node_modules/.cache/beibu-groundref-test'
+    fs.mkdirSync(dir, { recursive: true })
+    fs.writeFileSync(
+      path.join(dir, 'tileset.json'),
+      JSON.stringify({ root: { transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1] } })
+    )
+    const positions = [],
+      normals = [],
+      colors = [],
+      indices = []
+    const axis = []
+    for (let v = 0; v <= 40; v += 2) axis.push(v)
+    const patch = (xOff, y) => {
+      const base = positions.length / 3
+      for (const x of axis) {
+        for (const n of axis) {
+          // glTF：x=E、y=U、z=−N（与交付包同口径）
+          positions.push(xOff + x, y, -n)
+          normals.push(0, 1, 0)
+          colors.push(1, 1, 1)
+        }
+      }
+      const idx = (ix, iz) => base + iz * axis.length + ix
+      for (let iz = 0; iz < axis.length - 1; iz++) {
+        for (let ix = 0; ix < axis.length - 1; ix++) {
+          indices.push(
+            idx(ix, iz),
+            idx(ix + 1, iz),
+            idx(ix, iz + 1),
+            idx(ix + 1, iz),
+            idx(ix + 1, iz + 1),
+            idx(ix, iz + 1)
+          )
+        }
+      }
+    }
+    patch(0, -16) // 带内（地面）
+    patch(500, 2) // 带外（构筑物面：应被挡）
+    fs.writeFileSync(
+      path.join(dir, 't4_patch.glb'),
+      buildGLB({
+        meshes: [{ primitives: [{ positions, normals, colors, indices, material: 0 }] }],
+        materials: [{ name: 'rail', pbrMetallicRoughness: { baseColorFactor: [1, 1, 1, 1] } }],
+        nodes: [{ mesh: 0 }],
+      })
+    )
+    return dir
+  }
+  it('带内格命中、半径边界、超半径 null；带外（构筑物 u=+2）不成格', () => {
+    const ref = buildGroundRef({ tileDir: fixture() })
+    expect(ref.stats.cells).toBeGreaterThan(0)
+    expect(ref.stats.mats.rail).toBeGreaterThan(0)
+    expect(ref.nearestU(1, 1)).toBeCloseTo(-16, 5)
+    expect(ref.nearestU(38, 38)).toBeCloseTo(-16, 5)
+    // 最远「成格」中心在带内patch的 (38,2)（边界少点格不足 3 点未建）：
+    // 到 (85,0) 距离 ≈47.04 ≤ r 命中；到 (90,0) ≈52 > r 为 null
+    expect(ref.nearestU(85, 0)).toBeCloseTo(-16, 5)
+    expect(ref.nearestU(90, 0)).toBeNull()
+    // 带外patch（E≈500..540）：一个格都不该建 ⇒ 查询为 null（构筑物面被地面带挡掉）
+    expect(ref.nearestU(520, 20)).toBeNull()
+    expect(ref.nearestU(1000, 1000)).toBeNull()
+  })
+})
+
+describe('extrudeWay — C 口径逐角查询（null 回落常数）', () => {
+  it('逐角 queryU：命中走参考+lift、未命中回落 groundU+lift', () => {
+    const g = extrudeWay(
+      [
+        [0, 0],
+        [100, 0],
+      ],
+      10,
+      -20,
+      0.15,
+      (e) => (e < 50 ? -10 : null)
+    )
+    // 四角顺序：(x0+nx,y0+ny),(x1+nx,y1+ny),(x1−nx,y1−ny),(x0−nx,y0−ny)
+    expect(g.positions[1]).toBeCloseTo(-10 + 0.15, 5) // 角 0（x0=0，命中）
+    expect(g.positions[3 * 3 + 1]).toBeCloseTo(-10 + 0.15, 5) // 角 3（x0=0，命中）
+    expect(g.positions[3 + 1]).toBeCloseTo(-20 + 0.15, 5) // 角 1（x1=100，回落）
+    expect(g.positions[2 * 3 + 1]).toBeCloseTo(-20 + 0.15, 5) // 角 2（x1=100，回落）
   })
 })
 

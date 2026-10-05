@@ -6,7 +6,7 @@
  */
 import { onScopeDispose, type Ref, ref } from 'vue'
 
-import { LAYOUT_DESKTOP_MIN } from '@/shared'
+import { layoutTierFor } from '@/shared'
 
 /** 专注模式是否激活 */
 const active = ref(false)
@@ -29,7 +29,7 @@ export function useSliderFocus(): UseSliderFocusReturn {
    * 吞掉而丢失，否则专注模式会卡死（所有面板透明）。
    */
   function beginSliderFocus(el: HTMLElement | null): void {
-    if (typeof window !== 'undefined' && window.innerWidth >= LAYOUT_DESKTOP_MIN) return
+    if (typeof window !== 'undefined' && layoutTierFor(window.innerWidth) === 'desktop') return
     document.removeEventListener('pointerup', endSliderFocus)
     document.removeEventListener('pointercancel', endSliderFocus)
     activePanel.value = el?.closest('.GCS-panel') ?? null

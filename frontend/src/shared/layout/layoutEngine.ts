@@ -5,11 +5,11 @@
 // 堆叠口径与 useGCS 的 PPS 同源（x = SAFE_MARGIN / W-SAFE_MARGIN-w，y 按间距累加），
 // 现模板 1.25/5.5 只在 cell=80 时与堆叠一致（cell=70/90 差 2.5px），故以堆叠为准。
 import {
-  LAYOUT_DESKTOP_MIN,
-  LAYOUT_DRAWER_MIN,
   PANEL_SPACING,
   SAFE_MARGIN,
   getCellPixelByViewport,
+  layoutTierFor,
+  type LayoutTier,
 } from './config'
 import type { PanelSpec, PanelZone } from './panelRegistry'
 
@@ -18,7 +18,7 @@ interface Viewport {
   height: number
 }
 
-type LayoutMode = 'desktop' | 'drawer' | 'compact'
+type LayoutMode = LayoutTier
 
 interface PanelRect {
   id: string
@@ -63,9 +63,7 @@ const DOCK_H_CELLS = 1
 const COLLAPSED_H_CELLS = 1
 
 export function layoutModeFor(width: number): LayoutMode {
-  if (width >= LAYOUT_DESKTOP_MIN) return 'desktop'
-  if (width >= LAYOUT_DRAWER_MIN) return 'drawer'
-  return 'compact'
+  return layoutTierFor(width)
 }
 
 /** 同 zone 面板按 order 升序（桌面堆叠与 placementsFor 同口径；稳定排序） */

@@ -1028,14 +1028,14 @@
 
 1. 面板尺寸参数是否为整数 Cell（`w` / `h` 无小数、无 px 字面量）。
 2. `grep -rn "#[0-9a-fA-F]\{3,8\}"` 面板样式，确认零硬编码色值。
-3. 确认断点判定只在 `useGCS`，组件只消费 computed，不各自读视口宽度。
+3. 确认断点判定唯一实现 = `shared/layout/config.ts` 的 `layoutTierFor(width)`；组件只消费 `useGCS` 派生 computed（`useViewportTier` 是其别名），不各自读视口宽度。
 4. 跑 `npm run stylelint` 与 token 统计脚本，确认无新增违约。
    **需要查看**：面板组件模板与样式、`useGCS`、stylelint 配置。
    **正常标准**：尺寸为整数 Cell；色值全走 `var(--GCS-*)`；间距走 GAP / PANEL_SPACING / SAFE_MARGIN；无组件内断点判定。
    **异常情况**：可 grep 的模式——`w="3.5"` 之类非整数 Cell；样式里出现 `#` 色值或 `rgb(`；`window.innerWidth` 直接参与组件逻辑；面板内用绝对定位而不用锚点 offset。
    **风险等级**：P2
    **整改方向**：改用 GCSPanel 与 useGCS；色值收口 token；间距走布局常量。
-   **验收标准**：□ 尺寸整数 Cell □ 零硬编码色值 □ 间距走布局常量 □ 断点判定只在 useGCS
+   **验收标准**：□ 尺寸整数 Cell □ 零硬编码色值 □ 间距走布局常量 □ 断点判定只经 layoutTierFor（守卫 viewport-tier-single-source 零副本）
 
 ---
 

@@ -22,3 +22,18 @@ export function getCellPixelByViewport(width: number): number {
 // 档位 3 紧凑：<640px，cell 70，底部 nav 另行设计
 export const LAYOUT_DESKTOP_MIN = 3 * 4 * 80 // 960
 export const LAYOUT_DRAWER_MIN = 2 * 4 * 80 // 640
+
+export type LayoutTier = 'desktop' | 'drawer' | 'compact'
+
+/**
+ * 断点判定唯一实现（G4 收口）：桌面（≥960）/ 抽屉（640~959）/ 紧凑（<640）。
+ *
+ * 响应式入口 `useGCS().tier` 与纯函数 `layoutModeFor` 都从这里派生；
+ * 任何模块不得再写 `>= LAYOUT_DESKTOP_MIN` / `< LAYOUT_DRAWER_MIN` 比较——
+ * 守卫 `viewport-tier-single-source` 扫副本（测试与注释除外）。
+ */
+export function layoutTierFor(width: number): LayoutTier {
+  if (width >= LAYOUT_DESKTOP_MIN) return 'desktop'
+  if (width >= LAYOUT_DRAWER_MIN) return 'drawer'
+  return 'compact'
+}

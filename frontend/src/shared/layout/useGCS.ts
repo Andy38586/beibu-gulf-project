@@ -8,10 +8,10 @@ import {
   CELL_PADDING,
   GAP,
   getCellPixelByViewport,
-  LAYOUT_DESKTOP_MIN,
-  LAYOUT_DRAWER_MIN,
+  layoutTierFor,
   PANEL_SPACING,
   SAFE_MARGIN,
+  type LayoutTier,
 } from './config.js'
 
 /** 锚点类型 */
@@ -44,6 +44,8 @@ export interface UseGCSReturn {
   padding: number
   showPanels: ComputedRef<boolean>
   showTopArea: ComputedRef<boolean>
+  /** 三档档位（断点判定唯一实现 layoutTierFor 的响应式口径） */
+  tier: ComputedRef<LayoutTier>
   /** 档位 3（<640px）：底部 nav 紧凑化 */
   navCompact: ComputedRef<boolean>
   cell: (w: number, h: number) => { width: string; height: string }
@@ -115,9 +117,10 @@ export function useGCS(): UseGCSReturn {
    * 响应式显隐控制（档位化）
    * showPanels/showTopArea：≥960px（3 个 4-cell 面板宽）；navCompact：<640px
    */
-  const showPanels = computed(() => windowWidth.value >= LAYOUT_DESKTOP_MIN)
-  const showTopArea = computed(() => windowWidth.value >= LAYOUT_DESKTOP_MIN)
-  const navCompact = computed(() => windowWidth.value < LAYOUT_DRAWER_MIN)
+  const tier = computed(() => layoutTierFor(windowWidth.value))
+  const showPanels = computed(() => tier.value === 'desktop')
+  const showTopArea = computed(() => tier.value === 'desktop')
+  const navCompact = computed(() => tier.value === 'compact')
 
   /** w×h 个 Cell 的总尺寸（CSS 字符串） */
   function cell(w: number, h: number): { width: string; height: string } {
@@ -218,6 +221,7 @@ export function useGCS(): UseGCSReturn {
     padding: CELL_PADDING,
     showPanels,
     showTopArea,
+    tier,
     navCompact,
     cell,
     cellSize,

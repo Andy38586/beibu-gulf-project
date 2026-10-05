@@ -114,16 +114,16 @@ function deriveAnchors() {
     out[id] = ecefToGeo(world)
   }
   // 钦州港：交付包 root 原点是 anchor.json 的 108.6375/21.655（作业区中心在它东北 ~2.4 km，
-  // 交付包 96 块里的那一簇），交付包没把 catalog 的 harbour 条目一并提取 ⇒ 不能从 tileset 现算。
-  // 故读**前端自己的"飞到作业区"落点**（beibu3dTiles.ts 的 BEIBU_TILES_VIEWS['qinzhou-port']，
-  // 其出处即交付包 catalog harbour）——从源码正则取，常数一改本探针自动跟随，不手抄。
-  const tsSrc = fs.readFileSync(
-    path.join(ROOT, 'frontend/src/business/route-analysis/constants/beibu3dTiles.ts'),
-    'utf8'
+  // 交付包 96 块里的那一簇）。锚点直接读**交付包 catalog.json 的 harbour 条目**（单一出处；
+  // 前端 BEIBU_TILES_VIEWS 已按 B7 裁定删除，探针不得再依赖前端源码正则）。
+  const catalog = JSON.parse(
+    fs.readFileSync(path.join(ROOT, 'backend/static/qinzhou-port/tiles/catalog.json'), 'utf8')
   )
-  const m = tsSrc.match(/'qinzhou-port':\s*\{\s*lng:\s*([\d.]+),\s*lat:\s*([\d.]+)/)
-  if (!m) throw new Error('未能从 beibu3dTiles.ts 取到 qinzhou-port 落点')
-  out['beibu-qinzhou-port'] = { lng: Number(m[1]), lat: Number(m[2]) }
+  const harbour = (catalog.items || []).find((i) => i.kind === 'harbour' && i.sub === 'harbour')
+  if (!harbour || typeof harbour.lon !== 'number' || typeof harbour.lat !== 'number') {
+    throw new Error('未能从交付包 catalog.json 取到 harbour 落点')
+  }
+  out['beibu-qinzhou-port'] = { lng: harbour.lon, lat: harbour.lat }
   return out
 }
 

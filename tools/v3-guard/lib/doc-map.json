@@ -225,6 +225,18 @@
       "ts": "2026-10-05"
     },
     {
+      "id": "LOG-DEC-20261005-TRIAGE36",
+      "path": "docs/日志/决策/2026-10-05-台账36条分流复算与裁定单.md",
+      "layer": "日志",
+      "role": "台账 36 条对 HEAD 的四象限复算与一次性裁定默认值",
+      "status": "active",
+      "guard": "tools/v3-guard/doc-map-check.mjs",
+      "owns": ["36 条台账复算结论", "W0 裁定默认值（A-1…A-12）"],
+      "readWhen": ["W4/W5/W6/W7 任一施工批开工前"],
+      "writeWhen": ["不回写；裁定结果与实施终态另开带日期文件"],
+      "ts": "2026-10-05"
+    },
+    {
       "id": "SNAP-PINGLU-TILES",
       "path": "docs/日志/快照/平陆运河3DTiles-README-2026-09-27.md",
       "layer": "日志",

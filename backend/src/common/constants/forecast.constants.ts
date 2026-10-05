@@ -9,3 +9,16 @@
 // 两侧各自的名字与值由 tools/v3-guard/forecast-confidence.mjs 钉住。
 export const FALLBACK_CONFIDENCE = 1.0
 export const MAX_CONFIDENCE = 2
+
+/**
+ * 置信度入参的**唯一**解析口（F3，2026-10-05）：
+ * 非有限/≤0 ⇒ FALLBACK_CONFIDENCE；超过 MAX_CONFIDENCE ⇒ 钳到上限。
+ * 原实现有两份（controller 局部 parseConfidence 有上限；task-handlers 两处手写
+ * `Number.isFinite && >0` 无上限）⇒ 同参数 1e9 在同步/异步两路径不等价（异步侧结果可含
+ * Infinity/NaN）。controller / task-handlers / forecast-engine 三处一律走本函数。
+ */
+export function parseConfidence(raw: unknown): number {
+  const n = Number(raw)
+  if (!Number.isFinite(n) || n <= 0) return FALLBACK_CONFIDENCE
+  return Math.min(n, MAX_CONFIDENCE)
+}

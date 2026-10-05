@@ -2,6 +2,7 @@
 // 改写属算法审查域须另行立项）。确定性：固定种子 LCG（Park-Miller），
 // 种子由 timePoint + 港口索引哈希得到，禁止 Math.random 参与业务数值
 
+import { parseConfidence } from '../../../common/constants/forecast.constants'
 import { seededRandom } from '../../../common/seeded-random'
 
 export interface HistoricalPoint {
@@ -32,10 +33,9 @@ export function computeForecast(
   scenarioLevel = 1.0,
   forecastMonths = 120
 ): { forecast: ForecastPoint[]; metadata: EngineMetadata } {
-  // 输入边界防御：防止异常值经 Math.pow 产出非有限值（controller 已收口，此处双保险）
-  if (!Number.isFinite(scenarioLevel) || scenarioLevel <= 0) {
-    scenarioLevel = 1.0
-  }
+  // 输入边界防御（F3 下沉）：唯一解析口覆盖「非有限/≤0 回退」与「上限钳制」——
+  // 原实现只兜前一半，异步 task 路径 1e9 直入 ⇒ 经 Math.pow 产出 Infinity/NaN。
+  scenarioLevel = parseConfidence(scenarioLevel)
   if (!historicalData || historicalData.length < 12) {
     return { forecast: [], metadata: { error: '历史数据不足（至少需要 12 个月）' } }
   }

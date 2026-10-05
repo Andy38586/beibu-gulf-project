@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common'
 
+import { parseConfidence } from '../../../common/constants/forecast.constants'
 import { BusinessError, ErrorCode } from '../../../common/errors/business-error'
 import { FloodService } from '../../flood/services/flood.service'
 import { ForecastService } from '../../forecast/services/forecast.service'
@@ -72,14 +73,14 @@ export class TaskHandlers {
       }
       const optional = (key: string): string | undefined =>
         typeof params[key] === 'string' ? (params[key] as string) : undefined
-      const confidence = Number(params.confidence)
       return this.forecastService.getTimeSeriesData(
         indicator,
         optional('portId'),
         optional('start'),
         optional('end'),
         optional('granularity'),
-        Number.isFinite(confidence) && confidence > 0 ? confidence : 1.0
+        // F3：与同步 controller 共用唯一解析口（含 MAX_CONFIDENCE 上限钳制）
+        parseConfidence(params.confidence)
       )
     },
 
@@ -94,12 +95,7 @@ export class TaskHandlers {
       if (typeof time !== 'string' || time === '') {
         throw new BusinessError(ErrorCode.INVALID_PARAMS, '缺少或非法的参数：time')
       }
-      const confidence = Number(params.confidence)
-      return this.forecastService.getMapData(
-        indicator,
-        time,
-        Number.isFinite(confidence) && confidence > 0 ? confidence : 1.0
-      )
+      return this.forecastService.getMapData(indicator, time, parseConfidence(params.confidence))
     },
 
     // 选址热力图：GET /site-suitability/map 的异步化（方案 A「慢请求自动提议转后台」，2026-10-02）。

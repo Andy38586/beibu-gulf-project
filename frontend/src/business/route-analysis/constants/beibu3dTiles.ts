@@ -388,22 +388,3 @@ export const BEIBU_TILES: readonly BeibuTilesSpec[] = [
     defaultVisible: true,
   },
 ] as const
-
-/**
- * 各资产的观察落点（经纬高，供「飞到」使用）。
- *
- * 高为**椭球高**：Cesium 相机 destination 用的就是这个基准，取的高度只是俯视高度，
- * 与资产自身的地面高程无关，不做大地水准面改正。
- *
- * 经纬取各资产的实际上线位置：钦州港取自交付包 `catalog.json` 的 `harbour` 条目
- * （钦州保税港区 108.647304 / 21.674497）。
- */
-export const BEIBU_TILES_VIEWS: Record<BeibuTilesId, { lng: number; lat: number; height: number }> =
-  {
-    'pinglu-canal': { lng: 108.93696, lat: 22.44918, height: 20000 },
-    'qinzhou-port': { lng: 108.6473, lat: 21.6745, height: 6000 },
-    'qz-containers': { lng: 108.6473, lat: 21.6745, height: 1800 },
-    'qz-roads': { lng: 108.6473, lat: 21.6745, height: 3000 },
-    'qz-ground': { lng: 108.6473, lat: 21.6745, height: 2000 },
-    'qz-city-bridges': { lng: 108.63504, lat: 21.9689, height: 2500 },
-  }

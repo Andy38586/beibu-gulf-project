@@ -58,8 +58,6 @@ export interface CityFlyToTarget {
 /** 视图层级集合 */
 export interface MapViewLevels {
   REGION: MapViewLevel
-  CITY: MapViewLevel
-  DISTRICT: MapViewLevel
 }
 
 /** 地图全局配置 */
@@ -106,18 +104,6 @@ export const MAP_CONFIG: MapConfig = {
       zoom: 9,
       label: '北部湾区域',
     },
-    CITY: {
-      center: { lng: 108.61, lat: 21.94 },
-      height: 160000,
-      zoom: 12,
-      label: '钦州市',
-    },
-    DISTRICT: {
-      center: { lng: 108.61, lat: 21.94 },
-      height: 16000,
-      zoom: 14,
-      label: '区级',
-    },
   },
   // 与 VIEW_LEVELS 语义不同：前者是三港按钮定位，后者是相机层级档位，勿合并
   CITY_CENTERS: {
@@ -136,7 +122,7 @@ export function buildTiandituUrl(layerCode: string): string {
 
 /**
  * 相机 zoom ↔ height 互逆转换（经验公式 height = 300000000 / 2^zoom，
- * 基于 VIEW_LEVELS 校准：zoom 9/12/14 ≈ 586km/73km/18km）
+ * 历史三档校准：zoom 9/12/14 ≈ 586km/73km/18km）
  */
 
 /** zoom → height（OL → Cesium） */

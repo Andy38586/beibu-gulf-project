@@ -45,6 +45,7 @@ export const GUARDS = [
   'guard-red-sample',
   'owned-layers',
   'layer-keys',
+  'flyto-single-entry',
 ]
 
 /**

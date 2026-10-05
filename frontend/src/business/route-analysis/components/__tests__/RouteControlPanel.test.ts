@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   showWarning: vi.fn(),
   showError: vi.fn(),
   searchPois: vi.fn(),
+  flyTo: vi.fn(),
   cancel: vi.fn(),
   updateRouteLayers: vi.fn(),
   clearRouteLayers: vi.fn(),
@@ -36,6 +37,8 @@ vi.mock('@/shared', async (importOriginal) => {
 //（面板不再因 docked 而隐藏，见 TaskPanelSlot / RouteControlPanel 注释）。
 vi.mock('@/core', () => ({
   GCSPanel: { name: 'GCSPanel', template: '<div class="gcs-panel"><slot /></div>' },
+  // 飞行单入口：面板必须经它定位（不得裸用渲染器 flyTo）
+  useMapControls: () => ({ flyTo: mocks.flyTo }),
 }))
 
 vi.mock('@/stores', () => ({
@@ -131,6 +134,13 @@ describe('RouteControlPanel — 抓取/注入交互（2026-09-12 线上反馈回
 
     await wrapper.find('.poi-item').trigger('mousedown')
     await flushPromises()
+
+    // 抓取同时经统一飞行入口定位（useMapControls().flyTo）
+    expect(mocks.flyTo).toHaveBeenCalledTimes(1)
+    expect(mocks.flyTo.mock.calls[0][0]).toMatchObject({
+      lng: expect.any(Number),
+      lat: expect.any(Number),
+    })
 
     // 抓取态：搜索框被暂存条取代，来源标签来自服务端 source 字段，槽位**未**被自动填充
     expect(wrapper.find('.pending-chip').exists()).toBe(true)

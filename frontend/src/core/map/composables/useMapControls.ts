@@ -13,8 +13,6 @@ interface UseMapControlsReturn {
   startFacilityBreathing: (target: Array<GeoPoint & { color?: string }>, color?: string) => void
   stopFacilityBreathing: () => void
   zoomToRegion: () => void
-  zoomToCity: () => void
-  zoomToDistrict: () => void
   mapInstance: ComputedRef<UnifiedMapExposed | null | undefined>
 }
 
@@ -65,16 +63,6 @@ export function useMapControls(
     flyTo(regionLevel.center, { height: regionLevel.height, zoom: regionLevel.zoom })
   }
 
-  function zoomToCity(): void {
-    const cityLevel = MAP_CONFIG.VIEW_LEVELS.CITY
-    flyTo(cityLevel.center, { height: cityLevel.height })
-  }
-
-  function zoomToDistrict(): void {
-    const districtLevel = MAP_CONFIG.VIEW_LEVELS.DISTRICT
-    flyTo(districtLevel.center, { height: districtLevel.height })
-  }
-
   return {
     flyTo,
     startBreathing,
@@ -82,8 +70,6 @@ export function useMapControls(
     startFacilityBreathing,
     stopFacilityBreathing,
     zoomToRegion,
-    zoomToCity,
-    zoomToDistrict,
     mapInstance,
   }
 }

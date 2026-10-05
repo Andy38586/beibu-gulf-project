@@ -12,9 +12,9 @@
  */
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 
-import { GCSPanel } from '@/core'
+import { GCSPanel, useMapControls } from '@/core'
 import { logger, ROW_HEIGHT_CELL, showError, showWarning, useGCS } from '@/shared'
-import { useMapStore, useTaskStore } from '@/stores'
+import { useTaskStore } from '@/stores'
 import type { RoutePathParams, RoutePathResponse, RoutePathResult } from '@/types'
 import type { PoiSearchItemParsed } from '@/types/schemas'
 
@@ -55,7 +55,8 @@ const props = withDefaults(defineProps<Props>(), {
 })
 const emit = defineEmits<Emits>()
 
-const mapStore = useMapStore()
+// 飞行统一走 core 单入口（不得裸用 currentRenderer.flyTo）
+const { flyTo } = useMapControls()
 const taskStore = useTaskStore()
 // 🔴 v4：queryPath 已不再由此面板直接调用（请求经 taskStore 转交后端异步任务域）；
 // 仅保留 searchPois（POI 搜索是轻量辅助交互，不需要后台任务语义，也不参与保活）
@@ -234,7 +235,7 @@ function fillSlot(key: RouteSlotKey, point: RoutePoint): void {
   pendingPoint.value = null
   activeSlot.value = null
   poiDropOpen.value = false
-  void mapStore.currentRenderer?.flyTo({ lng: point.lng, lat: point.lat })
+  flyTo({ lng: point.lng, lat: point.lat })
 }
 
 /**
@@ -251,7 +252,7 @@ function pickPoi(poi: PoiSearchItemParsed): void {
     return
   }
   pendingPoint.value = { lng: poi.lng, lat: poi.lat, name: poi.name, source: poi.source }
-  void mapStore.currentRenderer?.flyTo({ lng: poi.lng, lat: poi.lat })
+  flyTo({ lng: poi.lng, lat: poi.lat })
   logger.debug('[RoutePanel] 抓取点（待注入）:', poi.name, poi.lng, poi.lat)
 }
 

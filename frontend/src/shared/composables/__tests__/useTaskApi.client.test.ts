@@ -10,7 +10,7 @@ vi.mock('../useApiRequest', () => ({
     apiRequest: async (url: string, opts: Record<string, unknown>) => {
       captured.push({ url, opts })
       return url === '/task'
-        ? { taskId: 't1', status: 'pending', queuePosition: 1, createdAt: 1 }
+        ? { taskId: 't1', status: 'pending', queuePosition: 1, createdAtMs: 1 }
         : {
             taskId: 't1',
             domain: 'flood-areas',
@@ -18,7 +18,7 @@ vi.mock('../useApiRequest', () => ({
             status: 'running',
             progress: 0,
             retryCount: 0,
-            createdAt: 1,
+            createdAtMs: 1,
           }
     },
   }),

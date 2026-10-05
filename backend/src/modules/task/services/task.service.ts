@@ -174,7 +174,7 @@ export class TaskService implements OnModuleInit, OnModuleDestroy {
       taskId,
       status: 'pending',
       queuePosition: position,
-      createdAt: record.createdAt,
+      createdAtMs: record.createdAt,
     }
   }
 
@@ -266,7 +266,7 @@ export class TaskService implements OnModuleInit, OnModuleDestroy {
       retryCount: record.retryCount,
       result: record.result,
       error: record.error,
-      createdAt: record.createdAt,
+      createdAtMs: record.createdAt,
       startedAt: record.startedAt,
       finishedAt: record.finishedAt,
     }

@@ -47,7 +47,8 @@ export interface TaskSubmitResponse {
   taskId: string
   status: TaskStatus
   queuePosition: number
-  createdAt: number
+  /** epoch-ms；与 user/plan 的 ISO string createdAt 同名异义，Ms 后缀区分（1004-F11） */
+  createdAtMs: number
 }
 
 /** `GET /task/:id` 响应（后端 TaskView 的镜像） */
@@ -64,7 +65,7 @@ export interface TaskView {
   retryCount: number
   result?: unknown
   error?: TaskError
-  createdAt: number
+  createdAtMs: number
   startedAt?: number
   finishedAt?: number
 }
@@ -87,7 +88,7 @@ export interface TaskSlot {
   retryCount: number
   result?: unknown
   error?: TaskError
-  createdAt: number
+  createdAtMs: number
   startedAt?: number
   finishedAt?: number
   /** 提交序号：只让最新一次提交的结果落地（防止快速连续提交时旧响应后到覆盖新状态） */

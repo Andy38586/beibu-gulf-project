@@ -50,7 +50,7 @@ function view(overrides: Record<string, unknown> = {}) {
     status: 'running',
     progress: 0.1,
     retryCount: 0,
-    createdAt: 1000,
+    createdAtMs: 1000,
     ...overrides,
   }
 }
@@ -89,7 +89,7 @@ describe('useTaskStore', () => {
   describe('submit', () => {
     it('提交后立刻建槽，落到 pending 并带 queuePosition', async () => {
       mockFetch.mockResolvedValueOnce(
-        envelope({ taskId: 't-1', status: 'pending', queuePosition: 1, createdAt: 1000 })
+        envelope({ taskId: 't-1', status: 'pending', queuePosition: 1, createdAtMs: 1000 })
       )
       // 轮询响应（后续会被 schedulePoll 触发）
       mockFetch.mockResolvedValue(envelope(view({ status: 'running', progress: 0.1 })))
@@ -113,7 +113,7 @@ describe('useTaskStore', () => {
 
     it('🔴 请求打到 /nest-api/task（功能域清单三副本漏一即回落 /api ⇒ 404）', async () => {
       mockFetch.mockResolvedValue(
-        envelope({ taskId: 't-1', status: 'pending', queuePosition: 1, createdAt: 1 })
+        envelope({ taskId: 't-1', status: 'pending', queuePosition: 1, createdAtMs: 1 })
       )
 
       // store 由 beforeEach 提供
@@ -128,7 +128,7 @@ describe('useTaskStore', () => {
 
     it('🔴 优先级：该 route 是当前路由 ⇒ high；否则 normal', async () => {
       mockFetch.mockResolvedValue(
-        envelope({ taskId: 't-x', status: 'pending', queuePosition: 1, createdAt: 1 })
+        envelope({ taskId: 't-x', status: 'pending', queuePosition: 1, createdAtMs: 1 })
       )
 
       // store 由 beforeEach 提供
@@ -140,7 +140,7 @@ describe('useTaskStore', () => {
 
       mockFetch.mockClear()
       mockFetch.mockResolvedValue(
-        envelope({ taskId: 't-y', status: 'pending', queuePosition: 1, createdAt: 2 })
+        envelope({ taskId: 't-y', status: 'pending', queuePosition: 1, createdAtMs: 2 })
       )
       // 后台路由（不是当前路由）
       await store.submit({ route: '/forecast', domain: 'forecast-timeseries', params: {} })
@@ -152,7 +152,7 @@ describe('useTaskStore', () => {
 
     it('🔴 分槽：A/B 两 route 的任务互不干扰', async () => {
       mockFetch.mockResolvedValue(
-        envelope({ taskId: 't-tmp', status: 'pending', queuePosition: 1, createdAt: 1 })
+        envelope({ taskId: 't-tmp', status: 'pending', queuePosition: 1, createdAtMs: 1 })
       )
 
       // store 由 beforeEach 提供
@@ -169,7 +169,7 @@ describe('useTaskStore', () => {
 
     it('🔴 同 route 再提交：旧任务被取消，槽位换成新任务', async () => {
       mockFetch.mockResolvedValue(
-        envelope({ taskId: 't-old', status: 'pending', queuePosition: 1, createdAt: 1 })
+        envelope({ taskId: 't-old', status: 'pending', queuePosition: 1, createdAtMs: 1 })
       )
       // store 由 beforeEach 提供
       await store.submit({ route: '/flood-analysis', domain: 'flood-areas', params: {} })
@@ -179,7 +179,7 @@ describe('useTaskStore', () => {
       // 取消旧任务的响应 + 新提交响应
       mockFetch.mockResolvedValueOnce(envelope(view({ taskId: 't-old', status: 'cancelled' })))
       mockFetch.mockResolvedValueOnce(
-        envelope({ taskId: 't-new', status: 'pending', queuePosition: 1, createdAt: 2 })
+        envelope({ taskId: 't-new', status: 'pending', queuePosition: 1, createdAtMs: 2 })
       )
       await store.submit({ route: '/flood-analysis', domain: 'flood-areas', params: {} })
 
@@ -190,7 +190,7 @@ describe('useTaskStore', () => {
 
     it('🔴 docked 状态跨重提交保留（用户拖进 dock 后重发，面板不该自己弹回来）', async () => {
       mockFetch.mockResolvedValue(
-        envelope({ taskId: 't-1', status: 'pending', queuePosition: 1, createdAt: 1 })
+        envelope({ taskId: 't-1', status: 'pending', queuePosition: 1, createdAtMs: 1 })
       )
       // store 由 beforeEach 提供
       await store.submit({ route: '/flood-analysis', domain: 'flood-areas', params: {} })
@@ -206,7 +206,7 @@ describe('useTaskStore', () => {
   describe('轮询', () => {
     it('🔴 取消真取消：轮询请求带控制器 signal 且取消时 abort（F5：空壳即红）', async () => {
       mockFetch.mockResolvedValueOnce(
-        envelope({ taskId: 't-1', status: 'pending', queuePosition: 1, createdAt: 1 })
+        envelope({ taskId: 't-1', status: 'pending', queuePosition: 1, createdAtMs: 1 })
       )
       await store.submit({ route: '/flood-analysis', domain: 'flood-areas', params: {} })
 
@@ -235,7 +235,7 @@ describe('useTaskStore', () => {
 
     it('推进状态 → 终态停止轮询，不再发请求', async () => {
       mockFetch.mockResolvedValueOnce(
-        envelope({ taskId: 't-1', status: 'pending', queuePosition: 1, createdAt: 1 })
+        envelope({ taskId: 't-1', status: 'pending', queuePosition: 1, createdAtMs: 1 })
       )
       mockFetch.mockResolvedValueOnce(envelope(view({ status: 'running', progress: 0.1 })))
       mockFetch.mockResolvedValueOnce(
@@ -263,7 +263,7 @@ describe('useTaskStore', () => {
 
     it('🔴 轮询不依赖组件生命周期（保活）：本测试没有任何组件，轮询照常推进', async () => {
       mockFetch.mockResolvedValueOnce(
-        envelope({ taskId: 't-1', status: 'pending', queuePosition: 1, createdAt: 1 })
+        envelope({ taskId: 't-1', status: 'pending', queuePosition: 1, createdAtMs: 1 })
       )
       mockFetch.mockResolvedValueOnce(envelope(view({ status: 'running', progress: 0.1 })))
       mockFetch.mockResolvedValueOnce(
@@ -283,7 +283,7 @@ describe('useTaskStore', () => {
 
     it('🔴 重试态：进入时提示一次，不重复弹、不暴露次数', async () => {
       mockFetch.mockResolvedValueOnce(
-        envelope({ taskId: 't-1', status: 'pending', queuePosition: 1, createdAt: 1 })
+        envelope({ taskId: 't-1', status: 'pending', queuePosition: 1, createdAtMs: 1 })
       )
       // 连续两次 retrying（模拟后端多次重试）
       mockFetch.mockResolvedValue(envelope(view({ status: 'retrying', retryCount: 1 })))
@@ -304,7 +304,7 @@ describe('useTaskStore', () => {
 
     it('终态 failed ⇒ 走 showError', async () => {
       mockFetch.mockResolvedValueOnce(
-        envelope({ taskId: 't-1', status: 'pending', queuePosition: 1, createdAt: 1 })
+        envelope({ taskId: 't-1', status: 'pending', queuePosition: 1, createdAtMs: 1 })
       )
       mockFetch.mockResolvedValueOnce(
         envelope(view({ status: 'failed', error: { message: '分析计算失败' } }))
@@ -322,7 +322,7 @@ describe('useTaskStore', () => {
 
     it('任务被回收（404001）⇒ 静默停轮询，不弹错', async () => {
       mockFetch.mockResolvedValueOnce(
-        envelope({ taskId: 't-1', status: 'pending', queuePosition: 1, createdAt: 1 })
+        envelope({ taskId: 't-1', status: 'pending', queuePosition: 1, createdAtMs: 1 })
       )
       // 轮询请求返回 404 业务码。
       // 夹具必须与生产同形（business-error.filter.ts 的 404 分支）：HTTP 404 的信封
@@ -357,7 +357,7 @@ describe('useTaskStore', () => {
   describe('取消', () => {
     it('cancel 后槽位变 cancelled，且停止轮询', async () => {
       mockFetch.mockResolvedValueOnce(
-        envelope({ taskId: 't-1', status: 'pending', queuePosition: 1, createdAt: 1 })
+        envelope({ taskId: 't-1', status: 'pending', queuePosition: 1, createdAtMs: 1 })
       )
       // store 由 beforeEach 提供
       await store.submit({ route: '/flood-analysis', domain: 'flood-areas', params: {} })
@@ -379,7 +379,7 @@ describe('useTaskStore', () => {
 
     it('cancel 时后端报错 ⇒ 本地仍按已取消处理（面板不卡在运行中）', async () => {
       mockFetch.mockResolvedValueOnce(
-        envelope({ taskId: 't-1', status: 'pending', queuePosition: 1, createdAt: 1 })
+        envelope({ taskId: 't-1', status: 'pending', queuePosition: 1, createdAtMs: 1 })
       )
       // store 由 beforeEach 提供
       await store.submit({ route: '/flood-analysis', domain: 'flood-areas', params: {} })
@@ -403,7 +403,7 @@ describe('useTaskStore', () => {
         status: 'done',
         progress: 1,
         retryCount: 0,
-        createdAt: 1,
+        createdAtMs: 1,
         submitSeq: 1,
         docked: false,
       }
@@ -423,7 +423,7 @@ describe('useTaskStore', () => {
       })
       mockFetch.mockImplementationOnce(() => firstPromise)
       mockFetch.mockResolvedValue(
-        envelope({ taskId: 't-second', status: 'pending', queuePosition: 1, createdAt: 2 })
+        envelope({ taskId: 't-second', status: 'pending', queuePosition: 1, createdAtMs: 2 })
       )
 
       // store 由 beforeEach 提供
@@ -438,7 +438,7 @@ describe('useTaskStore', () => {
 
       // 现在放行第一个提交的响应——它应当被丢弃（且顺带取消掉这个孤儿任务）
       resolveFirst(
-        envelope({ taskId: 't-first', status: 'pending', queuePosition: 1, createdAt: 1 })
+        envelope({ taskId: 't-first', status: 'pending', queuePosition: 1, createdAtMs: 1 })
       )
       await p1
 
@@ -452,7 +452,7 @@ describe('useTaskStore', () => {
   describe('dismiss / clearAll', () => {
     it('dismiss 移除单个槽位', async () => {
       mockFetch.mockResolvedValue(
-        envelope({ taskId: 't-1', status: 'pending', queuePosition: 1, createdAt: 1 })
+        envelope({ taskId: 't-1', status: 'pending', queuePosition: 1, createdAtMs: 1 })
       )
       // store 由 beforeEach 提供
       await store.submit({ route: '/flood-analysis', domain: 'flood-areas', params: {} })
@@ -467,7 +467,7 @@ describe('useTaskStore', () => {
 
     it('🔴 clearAll 清空全部槽位并停止轮询（登出链用）', async () => {
       mockFetch.mockResolvedValue(
-        envelope({ taskId: 't-1', status: 'pending', queuePosition: 1, createdAt: 1 })
+        envelope({ taskId: 't-1', status: 'pending', queuePosition: 1, createdAtMs: 1 })
       )
       // store 由 beforeEach 提供
       await store.submit({ route: '/flood-analysis', domain: 'flood-areas', params: {} })
@@ -495,7 +495,7 @@ describe('useTaskStore', () => {
         progress: 1,
         retryCount: 0,
         result: { features: [] },
-        createdAt: 1,
+        createdAtMs: 1,
         submitSeq: 1,
         docked: false,
       }
@@ -519,7 +519,7 @@ describe('useTaskStore', () => {
         domain: 'flood-areas' as const,
         progress: 0,
         retryCount: 0,
-        createdAt: 1,
+        createdAtMs: 1,
         submitSeq: 1,
         docked: false,
       }
@@ -539,7 +539,7 @@ describe('useTaskStore', () => {
       domain: 'route-path' as const,
       progress: 0,
       retryCount: 0,
-      createdAt: 1,
+      createdAtMs: 1,
       submitSeq: 1,
       docked: false,
     }
@@ -606,7 +606,7 @@ describe('useTaskStore', () => {
 
     it('submitAndWait：提交 + 等到终态，返回 {taskId, slot}', async () => {
       mockFetch.mockResolvedValueOnce(
-        envelope({ taskId: 't-9', status: 'pending', queuePosition: 0, createdAt: 1000 })
+        envelope({ taskId: 't-9', status: 'pending', queuePosition: 0, createdAtMs: 1000 })
       )
       mockFetch.mockResolvedValue(
         envelope(

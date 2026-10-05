@@ -520,7 +520,8 @@ export const taskSubmitResponseSchema = z.looseObject({
   taskId: z.string(),
   status: z.enum(TASK_STATUSES),
   queuePosition: z.number(),
-  createdAt: z.number(),
+  // epoch-ms；与 user/plan 的 ISO string createdAt 同名异义，Ms 后缀区分（1004-F11）
+  createdAtMs: z.number(),
 })
 
 export type TaskSubmitResponseParsed = z.infer<typeof taskSubmitResponseSchema>
@@ -540,7 +541,7 @@ export const taskViewResponseSchema = z.looseObject({
       bizCode: z.number().optional(),
     })
     .optional(),
-  createdAt: z.number(),
+  createdAtMs: z.number(),
   startedAt: z.number().optional(),
   finishedAt: z.number().optional(),
 })

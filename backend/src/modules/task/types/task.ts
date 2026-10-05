@@ -77,6 +77,7 @@ export interface TaskRecord {
    */
   resultBytes?: number
   error?: TaskError
+  /** 内部记录字段（epoch-ms）；对外投影下发为 `createdAtMs`（见 TaskView，跨域同名异义收口 1004-F11） */
   createdAt: number
   startedAt?: number
   finishedAt?: number
@@ -93,7 +94,8 @@ export interface TaskView {
   retryCount: number
   result?: unknown
   error?: TaskError
-  createdAt: number
+  /** epoch-ms；与 plans/users 的 ISO string `createdAt` 同名异义，故对外用 Ms 后缀（1004-F11） */
+  createdAtMs: number
   startedAt?: number
   finishedAt?: number
 }
@@ -103,7 +105,8 @@ export interface TaskSubmitResponse {
   taskId: string
   status: TaskStatus
   queuePosition: number
-  createdAt: number
+  /** epoch-ms（同 TaskView.createdAtMs 口径，1004-F11） */
+  createdAtMs: number
 }
 
 // ── 常量 ────────────────────────────────────────────────────────────────────

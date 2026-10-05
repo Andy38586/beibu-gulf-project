@@ -177,7 +177,7 @@ describe('task 通道响应契约（useTaskApi 三点运行期校验共用同一
     status: 'running',
     progress: 0.1,
     retryCount: 0,
-    createdAt: 1,
+    createdAtMs: 1,
   }
 
   it('合法 TaskView / 提交响应通过（可选字段可缺可多）', () => {
@@ -198,20 +198,21 @@ describe('task 通道响应契约（useTaskApi 三点运行期校验共用同一
         taskId: 't1',
         status: 'pending',
         queuePosition: 1,
-        createdAt: 1,
+        createdAtMs: 1,
       }).success
     ).toBe(true)
   })
 
   it('🔴 后端删/改名必填字段 ⇒ 运行期校验失败（旧形态只有 TS 泛型，形状对不上无人知）', () => {
-    for (const key of ['status', 'progress', 'retryCount', 'createdAt'] as const) {
+    for (const key of ['status', 'progress', 'retryCount', 'createdAtMs'] as const) {
       const broken: Record<string, unknown> = { ...view }
       delete broken[key]
       expect(taskViewResponseSchema.safeParse(broken).success, `缺 ${key} 应被拒`).toBe(false)
     }
     // 提交响应的 queuePosition 也是必填（提交当下就要告诉用户排第几位）
     expect(
-      taskSubmitResponseSchema.safeParse({ taskId: 't1', status: 'pending', createdAt: 1 }).success
+      taskSubmitResponseSchema.safeParse({ taskId: 't1', status: 'pending', createdAtMs: 1 })
+        .success
     ).toBe(false)
   })
 

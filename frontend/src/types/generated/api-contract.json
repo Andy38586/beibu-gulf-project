@@ -729,7 +729,7 @@
           "type": "number",
           "optional": false
         },
-        "createdAt": {
+        "createdAtMs": {
           "type": "number",
           "optional": false
         }
@@ -774,7 +774,7 @@
           "type": "object",
           "optional": true
         },
-        "createdAt": {
+        "createdAtMs": {
           "type": "number",
           "optional": false
         },
@@ -878,7 +878,7 @@
         "taskId": 3,
         "status": 3,
         "queuePosition": 1,
-        "createdAt": 3
+        "createdAtMs": 2
       }
     }
   }

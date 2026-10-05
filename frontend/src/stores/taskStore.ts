@@ -306,7 +306,7 @@ export const useTaskStore = defineStore('task', () => {
       progress: 0,
       queuePosition: res.queuePosition,
       retryCount: 0,
-      createdAt: res.createdAt,
+      createdAtMs: res.createdAtMs,
       submitSeq: seq,
       // 保留原 docked 状态：用户已经把面板拖进 dock 后重发，面板不该自己回来
       docked: previous?.docked ?? false,

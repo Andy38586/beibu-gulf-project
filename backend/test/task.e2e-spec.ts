@@ -201,7 +201,7 @@ describe('v4 异步任务域（/nest-api/task）', () => {
     expect(view.progress).toBe(1)
     expect(view.retryCount).toBe(0)
     expect(view.result).toEqual({ ok: true })
-    expect(typeof view.createdAt).toBe('number')
+    expect(typeof view.createdAtMs).toBe('number')
     expect(typeof view.startedAt).toBe('number')
     expect(typeof view.finishedAt).toBe('number')
     // 终态不再占用队列 ⇒ 前端应停止轮询排队位次

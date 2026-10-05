@@ -35,6 +35,14 @@ const ENV_COPIES = [
   path.join(ROOT, '.github/workflows/ci.yml'),
 ]
 
+// 测试侧域开关副本（F13 · 1004-T2 上闸）：测试环境必须与生产默认域集对齐，
+// 缺域 ⇒ 该域测试走 /api 回退产生假绿/假红，死域 ⇒ 测试域集与生产分叉。
+// 与 ENV_COPIES 口径不同：测试侧是固定默认值，必须全覆盖（不适用"部分回退"）。
+const TEST_SIDE_COPIES = [
+  path.join(ROOT, 'frontend/test/setup.ts'),
+  path.join(ROOT, 'frontend/vitest.config.js'),
+]
+
 // 生产镜像域清单副本：Dockerfile 的 ARG VITE_USE_NEST_MODULES 默认值。
 // 与上面的 env 副本口径不同——env 副本允许部分覆盖（文档化回滚开关），
 // 而构建期默认值必须**全覆盖**：它是生产镜像不经任何外部环境时的域清单。
@@ -142,6 +150,10 @@ export function extractEnvDomainLists(content) {
   ))
     lists.push(m[1])
   for (const m of content.matchAll(/VITE_USE_NEST_MODULES=([^\s"'#]+)/g)) lists.push(m[1])
+  // 测试侧两种写法：vitest.config.js 的 env 明值 / test/setup.ts 的 vi.stubEnv
+  for (const m of content.matchAll(/VITE_USE_NEST_MODULES\s*:\s*'([^']+)'/g)) lists.push(m[1])
+  for (const m of content.matchAll(/vi\.stubEnv\(\s*'VITE_USE_NEST_MODULES'\s*,\s*'([^']+)'\s*\)/g))
+    lists.push(m[1])
   return lists.map((s) =>
     s
       .split(',')
@@ -180,6 +192,38 @@ export function auditProductionDefault(dockerfileContent, manifestDomains) {
   for (const d of listed) {
     if (!manifestDomains.includes(d))
       problems.push(`Dockerfile 的 VITE_USE_NEST_MODULES 含未知/过期域 '${d}'`)
+  }
+  return problems
+}
+
+/**
+ * 测试侧域清单审计（F13 · 1004-T2）：test/setup.ts 的 vi.stubEnv 与 vitest.config.js 的 env
+ * 都是"测试环境与部署默认对齐"的固定副本——两者必须覆盖全部业务域且不含未知/过期域。
+ * 与 auditProductionDefault 同口径（全覆盖），区别只是副本文件与提取写法。
+ */
+export function auditTestSideDefaults(copies, manifestDomains) {
+  const problems = []
+  const bizDomains = manifestDomains.filter((d) => !NON_BIZ_DOMAINS.has(d))
+  for (const { file, content } of copies) {
+    const lists = extractEnvDomainLists(content)
+    if (lists.length === 0) {
+      problems.push(
+        `${path.relative(ROOT, file)} 未找到 VITE_USE_NEST_MODULES 域清单（测试域开关被改名/删除？守卫失去对象）`
+      )
+      continue
+    }
+    for (const list of lists) {
+      for (const d of bizDomains) {
+        if (!list.includes(d))
+          problems.push(
+            `${path.relative(ROOT, file)} 测试域清单缺 '${d}'——该域测试将回落 /api 前缀（假绿/假红）`
+          )
+      }
+      for (const d of list) {
+        if (!manifestDomains.includes(d))
+          problems.push(`${path.relative(ROOT, file)} 测试域清单含未知/过期域 '${d}'`)
+      }
+    }
   }
   return problems
 }
@@ -269,7 +313,11 @@ function main() {
     readFileSync(DOCKERFILE, 'utf8'),
     manifestDomains
   )
-  const allProblems = [...contractProblems, ...productionProblems]
+  const testSideProblems = auditTestSideDefaults(
+    TEST_SIDE_COPIES.map((file) => ({ file, content: readFileSync(file, 'utf8') })),
+    manifestDomains
+  )
+  const allProblems = [...contractProblems, ...productionProblems, ...testSideProblems]
 
   if (missing.length === 0 && extra.length === 0 && allProblems.length === 0) {
     console.log(

@@ -9,12 +9,14 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./test/setup.ts'],
-    // 功能域清单固定为生产默认值（与 docker-compose.yml 的 VITE_USE_NEST_MODULES 同源）：
+    // 功能域清单固定为生产默认值（与 docker-compose.yml / Dockerfile 的 VITE_USE_NEST_MODULES 同源，
+    // routes-audit 对测试侧做全覆盖断言）：
     // 此前测试路由解析依赖本机 .env.local（不入库）→ CI 干净树上清单为空，
     // route 域解析回退 /api 致 useRouteApi 前缀断言红（2026-09-12 两轮 CI 实锤）。
     // 测试环境必须与部署默认对齐，禁止依赖本机未入库 env。
     env: {
-      VITE_USE_NEST_MODULES: 'auth,plans,favorites,forecast,flood,site-analysis,route,task',
+      VITE_USE_NEST_MODULES:
+        'auth,plans,favorites,forecast,flood,site-suitability,diversion,route,task',
       VITE_NEST_API_BASE: '/nest-api',
       VITE_API_BASE: '/api',
     },

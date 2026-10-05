@@ -207,4 +207,55 @@ describe('useFavorites（全局收藏单例）', () => {
     await nextTick()
     expect(favorites.favorites.value).toHaveLength(0)
   })
+
+  it('🔴 登出清 pendingFavorite：换账号登录不补交上一账号的收藏意图（1004-06）', async () => {
+    const { useFavorites } = await importFreshFavorites()
+    const favorites = useFavorites()
+    const postCalls = () =>
+      mockApiRequest.mock.calls.filter(
+        ([, options]) => (options as { method?: string } | undefined)?.method === 'POST'
+      )
+    // 未登录期排队一个收藏意图
+    favorites.queuePendingFavorite(input)
+    // 账号 A 登录：补交失败 ⇒ 意图回滚保留（pendingFavorite = input）
+    mockApiRequest.mockImplementation((_path: string, options?: { method?: string }) => {
+      if (options?.method === 'POST') {
+        return Promise.reject(new Error('boom'))
+      }
+      return Promise.resolve([])
+    })
+    loginAs(TEST_USER)
+    await vi.waitFor(() => expect(postCalls()).toHaveLength(1))
+    await nextTick()
+
+    // 登出：必须同时丢弃残留意图（修前不清 ⇒ 下一步换账号后被补交）
+    logout()
+    await nextTick()
+
+    // 账号 B 登录
+    mockApiRequest.mockImplementation((_path: string, options?: { method?: string }) => {
+      if (options?.method === 'POST') {
+        return Promise.resolve({
+          favorite: { id: 'f2', userId: 'u2', ...input, savedAt: 't' },
+          existed: false,
+        })
+      }
+      return Promise.resolve([])
+    })
+    loginAs({ ...TEST_USER, id: 'u2', username: 'other' })
+    // 等登录驱动的 GET 落账后再留一个稳定窗口：mutation 版（登出不清意图）会在
+    // 此窗口内发出第二笔 POST；修复版停在 1 笔。sleep 60ms 远大于全部 mock 的微任务链。
+    await vi.waitFor(() =>
+      expect(
+        mockApiRequest.mock.calls.filter(
+          ([, options]) => (options as { method?: string } | undefined)?.method !== 'POST'
+        ).length
+      ).toBeGreaterThanOrEqual(2)
+    )
+    await new Promise((resolve) => setTimeout(resolve, 60))
+
+    // 仍只有账号 A 那次失败的 POST，没有第二笔（跨账号补交）
+    expect(postCalls()).toHaveLength(1)
+    expect(favorites.favorites.value).toEqual([])
+  })
 })

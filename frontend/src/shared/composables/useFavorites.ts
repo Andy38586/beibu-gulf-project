@@ -86,6 +86,9 @@ watch(
   async ([u]) => {
     if (!u) {
       favorites.value = []
+      // 1004-06：登出必须同时丢弃未登录期的收藏意图——否则跨账号登录时会把上一账号
+      // 的收藏意图补到新账号名下（pendingFavorite 是模块级单例，登出不清即跨会话残留）
+      pendingFavorite = null
       return
     }
     await loadFavorites()

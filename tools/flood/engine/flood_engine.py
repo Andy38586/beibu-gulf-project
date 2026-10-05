@@ -123,8 +123,10 @@ DOWNSAMPLE = 1
 # 8 连通结构（含对角）
 STRUCT8 = np.ones((3, 3), dtype=bool)
 
-# 输出简化：过滤面积小于该值（4326 度²，约 0.25 km²）的碎片多边形
-MIN_AREA_DEG2 = 0.0002
+# 输出简化：过滤面积小于该值（4326 度²）的碎片多边形。
+# 2026-10-05 A4 裁定③（D2 修复）：原 0.0002°² 在本纬度 ≈2.28km²，是注释本意 0.25km²
+# 的 10 倍 ⇒ 把 0.25~2.28km² 的合法淹没片整片丢掉；对齐为 0.00002°²（≈0.23km²，1°²≈11,400km²@22°N）。
+MIN_AREA_DEG2 = 0.00002
 
 
 def _affine_for_out_shape(src: rasterio.io.DatasetReader, out_shape: tuple[int, int]):
@@ -262,10 +264,16 @@ def mask_to_geojson(
             # 渲染时外环覆盖海面、hole 挖空不完全 → 用户看到"多边形大部分在海上"。
             # 只保留大的洞（海湾/大湖），小斑块并入外环（视觉可接受，几何大幅简化）。
             if len(part.interiors) > 0:
-                keep_holes = [ring for ring in part.interiors if abs(ring.area) >= 250_000]
-                if len(keep_holes) < len(part.interiors):
-                    from shapely.geometry import Polygon as ShapelyPolygon
+                from shapely.geometry import Polygon as ShapelyPolygon
 
+                # D1 修复（2026-10-05 A4 裁定③）：shapely 2.x 的 LinearRing.area 恒为 0
+                # （Polygon(ring).area 才是有向面积）⇒ 原判据 abs(ring.area)>=250_000 恒假、
+                # 一个洞都不留（与上句注释相反）。Polygon(ring) 对自相交环走 shoelace、
+                # 不抛异常，判定可跑（探针实测误差面 ≤0.7%）。
+                keep_holes = [
+                    ring for ring in part.interiors if abs(ShapelyPolygon(ring).area) >= 250_000
+                ]
+                if len(keep_holes) < len(part.interiors):
                     part = (
                         ShapelyPolygon(part.exterior, keep_holes)
                         if keep_holes

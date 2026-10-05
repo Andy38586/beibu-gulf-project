@@ -88,7 +88,13 @@ export class TaskService implements OnModuleInit, OnModuleDestroy {
           error: { message: detail, bizCode: isBusiness ? error.bizCode : undefined },
         })
       },
-      isCancelled: (taskId) => this.registry.get(taskId)?.status === 'cancelled',
+      // 三态取消判定（1004-04）：cancelled=用户取消；undefined=注册表条目已不存在
+      //（onModuleDestroy → dispose 清表，或 TTL 回收）——后者在停机下与"已取消"同判，
+      // 否则在飞 handler 跑完后继续走重试/onSuccess 链，把「已销毁」当成「没取消」。
+      isCancelled: (taskId) => {
+        const status = this.registry.get(taskId)?.status
+        return status === 'cancelled' || status === undefined
+      },
     })
   }
 

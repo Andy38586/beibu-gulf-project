@@ -31,6 +31,11 @@ async function bootstrap() {
   http.set('trust proxy', config.trustProxyHops)
   // listen 前必填校验（缺 JWT_SECRET / 生产缺 PG_* 或 TRUST_PROXY_HOPS 直接 fail fast，不带弱配置上线）
   config.validateStartup()
+  // 停机钩子（1004-04）：Nest 默认不监听进程信号 ⇒ 容器 SIGTERM/recreate 时
+  // onModuleDestroy 不可达（DbService.pool.end() 不执行、TaskService.registry.dispose()
+  // 不执行）——滚动发布会挂住直到被强杀。此处开启 PID1 信号→生命周期钩子链；
+  // 在飞任务的三态取消判定见 task.service.ts（缺失条目=已销毁 ⇒ 同判取消）。
+  app.enableShutdownHooks()
   // 全局前缀 nest-api：Nest 独立端口时代（3100）的反代路径惯用，
   // Express 退役后端口回切 3000，nginx 反代目标不变（/api、/nest-api 均可代理到本服务）
   app.setGlobalPrefix('nest-api')
@@ -120,4 +125,12 @@ async function bootstrap() {
 // 免得起真服务/连库。
 export { bootstrap }
 
-if (!process.env.VITEST) void bootstrap()
+// 启动失败必须带原因退出（1004-04）：原先裸 `void bootstrap()` 的 rejection 无人接管，
+// 容器里表现为「进程静默退出/npm 层报错丢失原始 cause」，排障只能猜。显式落日志再标死退出码。
+if (!process.env.VITEST) {
+  void bootstrap().catch((e: unknown) => {
+    const err = e instanceof Error ? e : new Error(String(e))
+    Logger.error(`bootstrap 失败：${err.message}`, err.stack, 'Bootstrap')
+    process.exitCode = 1
+  })
+}

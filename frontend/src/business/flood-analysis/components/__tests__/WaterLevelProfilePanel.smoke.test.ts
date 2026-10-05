@@ -92,4 +92,23 @@ describe('WaterLevelProfilePanel 冒烟', () => {
     wrapper.unmount()
     expect(h.chart.dispose).toHaveBeenCalled()
   })
+
+  it('🔴 卸载摘除 resize 监听（1004-16：删 removeEventListener 即红）', async () => {
+    // 头注此前自称「卸载 → dispose + 移除 resize 监听」，但只断言了 dispose；
+    // 变异实测（注释掉组件 :560 的 removeEventListener）不红。本用例按**同一 handler 引用**钉死：
+    // addEventListener 注册的那个函数，必须在卸载时被 removeEventListener 摘除。
+    const addSpy = vi.spyOn(window, 'addEventListener')
+    const removeSpy = vi.spyOn(window, 'removeEventListener')
+    const wrapper = shallowMount(WaterLevelProfilePanel)
+    await flushPromises()
+
+    const resizeHandler = addSpy.mock.calls.find(([type]) => type === 'resize')?.[1]
+    expect(resizeHandler, '组件未注册 resize 监听（挂载路径变了？）').toBeTypeOf('function')
+
+    wrapper.unmount()
+    expect(removeSpy).toHaveBeenCalledWith('resize', resizeHandler)
+
+    addSpy.mockRestore()
+    removeSpy.mockRestore()
+  })
 })

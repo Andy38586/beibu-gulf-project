@@ -157,6 +157,44 @@ describe('MapRenderer Interface', () => {
 
       expect(renderer._layers.has('layer1')).toBe(false)
     })
+
+    it('🔴 _doRemoveLayer 抛错时账本仍摘除（1004-02：删 finally 即红）', () => {
+      // 旧顺序：先 _doRemoveLayer 后 delete ⇒ 引擎侧抛错留下幽灵条目，
+      // hasLayer 恒 true、removeLayer 反复抛同一错、BLM 重注册走 update 而引擎无此层。
+      class ThrowingRenderer extends MockRenderer {
+        _doRemoveLayer(): void {
+          throw new Error('引擎侧摘除失败')
+        }
+      }
+      const renderer = new ThrowingRenderer('test-container')
+      renderer._layers.set('layer1', { instance: {}, visible: true })
+
+      expect(() => renderer.removeLayer('layer1')).toThrow('引擎侧摘除失败')
+      expect(renderer._layers.has('layer1')).toBe(false)
+    })
+
+    it('🔴 destroy 逐项容错：单层摘除抛错不阻断其余层与清理（1004-02：删 try/catch 即红）', () => {
+      const removed: string[] = []
+      class FlakyRenderer extends MockRenderer {
+        _doRemoveLayer(layer: unknown): void {
+          const id = (layer as { instance: { id: string } }).instance.id
+          if (id === 'b') throw new Error('b 摘除失败')
+          removed.push(id)
+        }
+      }
+      const renderer = new FlakyRenderer('test-container')
+      renderer._layers.set('a', { instance: { id: 'a' }, visible: true })
+      renderer._layers.set('b', { instance: { id: 'b' }, visible: true })
+      renderer._layers.set('c', { instance: { id: 'c' }, visible: true })
+      renderer._pendingVisibility.set('a', false)
+
+      expect(() => renderer.destroy()).not.toThrow()
+
+      // 修前：迭代在 b 中断 ⇒ removed=['a'] 且 _layers.size=3（clear 不执行）
+      expect(removed).toEqual(['a', 'c'])
+      expect(renderer._layers.size).toBe(0)
+      expect(renderer._pendingVisibility.size).toBe(0)
+    })
   })
 
   describe('FlyTo Normalization', () => {

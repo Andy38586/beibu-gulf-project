@@ -130,8 +130,14 @@ export class MapRenderer implements MapRendererContract {
     const layer = this._layers.get(id)
     if (!layer) return
 
-    this._doRemoveLayer(layer)
-    this._layers.delete(id)
+    // 摘账兜底（1004-02）：引擎侧摘除抛错时账本必须同步摘除——旧顺序（先 _doRemoveLayer
+    // 后 delete）在抛错时留下幽灵条目：hasLayer 恒 true、后续 removeLayer 反复抛同一错、
+    // BLM 重注册走 update 分支而实际引擎里根本没这个图层。错误本身照旧上抛（不吞）。
+    try {
+      this._doRemoveLayer(layer)
+    } finally {
+      this._layers.delete(id)
+    }
   }
 
   /** 图层是否已存在（公开方法，替代业务层直读私有 _layers，如 UnifiedMap.vue 重复添加检查） */
@@ -230,7 +236,15 @@ export class MapRenderer implements MapRendererContract {
   }
 
   destroy(): void {
-    this._layers.forEach((layer) => this._doRemoveLayer(layer))
+    // 逐项容错（1004-02）：任一层摘除抛错不得阻断其余层与环境清理。旧实现单层抛错即中断，
+    // 剩余图层全留在 Map 上、destroy 的其它清理（_eventBus 重建）也不执行。
+    this._layers.forEach((layer, id) => {
+      try {
+        this._doRemoveLayer(layer)
+      } catch (e) {
+        logger.warn(`[MapRenderer] destroy 摘除图层 ${id} 失败（已继续清理）:`, e)
+      }
+    })
     this._layers.clear()
     this._pendingVisibility.clear()
     this._eventBus = new EventTarget()

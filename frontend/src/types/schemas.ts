@@ -293,6 +293,8 @@ export const floodStatisticsResponseSchema = z.looseObject({
   actualWaterLevel: z.number().optional(),
   riskLevel: z.string(),
   riskLevelCode: z.number().optional(),
+  // 陆域口径（2026-10-05 A3/z048 裁定①）：= 下发几何的裁剪面积汇总（后端 clipped_km2）；
+  // DB 全域真值列不再直出
   floodArea: z.number().optional(),
   averageDepth: z.number().optional(),
   maxDepth: z.number().optional(),

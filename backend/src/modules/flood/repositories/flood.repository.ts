@@ -31,6 +31,13 @@ export interface FloodLevelFeatureRow {
   feature_count: number
   flooded_km2: string
   geometry: string | null
+  /**
+   * 陆域裁剪后面积（km² = ST_Area(x.clip::geography)/1e6，6 位小数；无几何行 NULL）。
+   * floodArea 的唯一取数口径（flood.service.getFloodStatistics 逐行汇总）；flooded_km2
+   * 为全域真值列，不再直出为响应数字（2026-10-05 A3/z048 裁定①「图文一致」）。
+   * LIST_LEVELS_SQL（未指定水位路径）不裁剪，恒 NULL。
+   */
+  clipped_km2: string | null
   area: string | null
 }
 
@@ -75,6 +82,9 @@ SELECT c.level, c.feature_count, c.flooded_km2,
        -- 0 档 NULL 几何行经 WHERE 首分支保留（「档位存在但无淹没」语义不破坏）。
        -- 全档无水位兼容路径（LIST_LEVELS_SQL）不裁剪，原样下发。
        ST_AsGeoJSON(x.clip) AS geometry,
+       -- 陆域裁剪面积（2026-10-05 z048 裁定①）：与下发几何 x.clip 同口径，service 汇总为
+       -- floodArea；全域真值 c.flooded_km2 仅供其它路径/审计，不再直出为响应数字。
+       ROUND((ST_Area(x.clip::geography) / 1e6)::numeric, 6) AS clipped_km2,
        ROUND(ST_Area(t.g)::numeric, 6) AS area
 FROM chosen c
 LEFT JOIN LATERAL ST_Dump(c.geom) AS d ON TRUE
@@ -97,6 +107,8 @@ SELECT l.level, l.feature_count, l.flooded_km2,
        -- ST_MakeValid：与 PICK_LEVEL_SQL 同因（源数据含自交部件，防下游按无效跳过）；
        -- CASE 门控同口径（valid 片零开销）
        ST_AsGeoJSON(CASE WHEN ST_IsValid(t.g) THEN t.g ELSE ST_MakeValid(t.g) END) AS geometry,
+       -- 未指定水位路径不裁陆域（数字口径仅指定水位路径为陆域），NULL 保持行形状一致
+       NULL::numeric AS clipped_km2,
        ROUND(ST_Area(t.g)::numeric, 6) AS area
 FROM flood_levels l
 LEFT JOIN LATERAL ST_Dump(l.geom) AS d ON TRUE

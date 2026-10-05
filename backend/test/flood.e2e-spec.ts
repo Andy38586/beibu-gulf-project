@@ -6,6 +6,35 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { AppModule } from '../src/app.module'
 import { DbService } from '../src/infra/db/db.service'
 
+/** flood-areas 下发的 GeoJSON 面（PICK_LEVEL_SQL 的 x.clip，Polygon/MultiPolygon） */
+type GeoJsonGeom = { type: string; coordinates: number[][][] | number[][][][] }
+
+/**
+ * GeoJSON 面球面面积（km²，球半径 6371.0088km 的梯形公式；与 PostGIS geography 椭球面积差 <0.5%）。
+ * 内环按负面积扣减（polygon 坐标数组第 2 个起为洞）。
+ */
+function geoJsonAreaKm2(geom: GeoJsonGeom): number {
+  const R2 = 6371.0088 * 6371.0088
+  const ringArea = (ring: number[][]): number => {
+    let total = 0
+    for (let i = 0; i < ring.length - 1; i++) {
+      const lon1 = (ring[i][0] * Math.PI) / 180
+      const lat1 = (ring[i][1] * Math.PI) / 180
+      const lon2 = (ring[i + 1][0] * Math.PI) / 180
+      const lat2 = (ring[i + 1][1] * Math.PI) / 180
+      total += (lon2 - lon1) * (2 + Math.sin(lat1) + Math.sin(lat2))
+    }
+    return (total * R2) / 2
+  }
+  const polygonArea = (poly: number[][][]): number =>
+    poly.reduce((sum, ring, i) => sum + (i === 0 ? 1 : -1) * Math.abs(ringArea(ring)), 0)
+  if (geom.type === 'Polygon') return Math.abs(polygonArea(geom.coordinates as number[][][]))
+  if (geom.type === 'MultiPolygon') {
+    return (geom.coordinates as number[][][][]).reduce((s, p) => s + Math.abs(polygonArea(p)), 0)
+  }
+  return 0
+}
+
 // flood e2e：连真实 backend/data/flood 静态数据 + PostGIS `flood_levels` 档位表
 //（公开只读 + 纯计算，免登录）。
 //
@@ -198,9 +227,30 @@ describe('flood e2e（真数据文件 + 真库档位表）', () => {
         expect(statsRes.body.data.waterLevel).toBe(areasRes.body.data.actualWaterLevel)
         expect(statsRes.body.data.waterLevel).toBe(2.5)
         expect(statsRes.body.data.riskLevel).toBe(areasRes.body.data.riskLevel)
-        // 面积来自档位表 flooded_km2（原值透传）；水深仍标参考档位 5（6 档反演表）
+        // 面积=陆域裁剪几何面积（clipped_km2 汇总，2026-10-05 A3/z048 裁定①）；
+        // 水深仍标参考档位 5（6 档反演表）
         expect(typeof statsRes.body.data.floodArea).toBe('number')
         expect(statsRes.body.data.depthRefLevel).toBe(5)
+      })
+
+      it('floodArea=下发几何的陆域裁剪面积（图文一致；不再透传全域真值）', async () => {
+        // 判据（数据无关、真库）：statistics 的报告数字 ≈ flood-areas 下发多边形的球面面积之和。
+        // 球面近似与 PostGIS geography 椭球面积差 <0.5%，容差取 1%；数字为 0 或与几何不符即红。
+        for (const level of ['1', '3', '5']) {
+          const [areasRes, statsRes] = await Promise.all([
+            request(app.getHttpServer()).get(`${base}/flood-areas?waterLevel=${level}`).expect(200),
+            request(app.getHttpServer())
+              .get(`${base}/flood-statistics?waterLevel=${level}`)
+              .expect(200),
+          ])
+          const geoms = (areasRes.body.data.features ?? []).map(
+            (f: { geometry: GeoJsonGeom }) => f.geometry
+          )
+          const areaKm2 = geoms.reduce((s: number, g: GeoJsonGeom) => s + geoJsonAreaKm2(g), 0)
+          const reported = Number(statsRes.body.data.floodArea)
+          expect(reported).toBeGreaterThan(0)
+          expect(Math.abs(reported - areaKm2) / areaKm2).toBeLessThan(0.01)
+        }
       })
 
       it('flood-statistics 与 analysis/disaster 同水位设施数/损失一致（同一次点面判定）', async () => {

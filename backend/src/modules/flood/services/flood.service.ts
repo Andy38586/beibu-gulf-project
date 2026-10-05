@@ -189,7 +189,9 @@ export class FloodService {
    * 于是请求 4.5 返回 5 档、请求 5.1 返回 8 档——面板面积/水深来自与地图不同的水位，
    * 且该文件生成于 SRID 修复之前（设施数恒 0、损失与 disaster 差两个数量级）。
    * 现改为与 flood-areas / analysis/disaster 同源：
-   *   · 档位与淹没面积 → PostGIS flood_levels（251 档，flooded_km2 原值透传）
+   *   · 档位与淹没面积 → PostGIS flood_levels（251 档；floodArea=逐多边形陆域裁剪面积
+   *     clipped_km2 之和，与下发几何同口径——2026-10-05 A3/z048 裁定①「图文一致」；
+   *     DB 列 flooded_km2 仍是全域真值，仅作其它路径/审计用，不直出）
    *   · 风险等级/编码   → RISK_LEVEL_BANDS 分段派生（与 areas/disaster 同一函数）
    *   · 设施数/受影响港口/预估损失 → 与 disaster 同一次点面判定（ST_Covers）与同一损失口径
    *   · 平均/最大水深 → 仍取 6 档 DEM 反演参考表（源数据无 251 档水深），
@@ -230,7 +232,12 @@ export class FloodService {
     const assessment = await this.assessDisaster(facilityData.facilities, level, zone)
 
     const actualLevel = Number(rows[0].level)
-    const floodArea = Number(rows[0].flooded_km2)
+    // 陆域口径（2026-10-05 A3/z048 裁定①）：数字=下发几何的面积——PICK_LEVEL_SQL 已按
+    // admin_boundary_union 裁剪，逐多边形 clipped_km2 汇总；全域真值列 flooded_km2 不再直出。
+    // 0 档/无几何行 clipped_km2=NULL ⇒ 该行计 0（不 NaN）。
+    const floodArea = Number(
+      rows.reduce((sum, r) => sum + (Number(r.clipped_km2) || 0), 0).toFixed(6)
+    )
     const depthRef = pickZone(reference.statistics, level)
     const affectedFacilityCount = assessment.affectedFacilities.length
     const affectedPorts = [
@@ -274,7 +281,9 @@ export class FloodService {
       // 与 disaster 同口径（value × damageRate）；单位万元——facilityPoints.json
       // metadata.valueUnit=万元，前端 formatLoss 亦按万元换算（亿/万）
       estimatedLoss: assessment.totalLoss,
-      description: `水位 ${actualLevel}m 连通性演算：淹没 ${floodArea} km²，受影响设施 ${affectedFacilityCount} 处${depthNote}`,
+      // 「（陆域口径）」为 z048 裁定①的接口侧注明：数字与下发的裁剪几何同口径；
+      // 未指定水位路径（LIST_LEVELS_SQL）与 6 档参考表不裁，仅指定水位路径为陆域。
+      description: `水位 ${actualLevel}m 连通性演算：淹没 ${floodArea} km²（陆域口径），受影响设施 ${affectedFacilityCount} 处${depthNote}`,
     }
   }
 

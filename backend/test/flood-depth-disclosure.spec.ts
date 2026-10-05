@@ -48,6 +48,7 @@ function buildService(): FloodService {
         level: String(gridLevel(level)),
         feature_count: 0,
         flooded_km2: '0',
+        clipped_km2: '0',
         geometry: null,
         area: '0',
       },

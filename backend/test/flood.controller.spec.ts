@@ -31,12 +31,15 @@ const MOCK_FLOOD_AREA = JSON.stringify({
 // PG 返回行 fixture（NUMERIC 经 node-postgres 为 string；geometry 为 ST_AsGeoJSON 文本）
 function mockLevelRows(
   levels: Array<[number, number]>,
-  floodedKm2 = '2.0'
+  floodedKm2 = '2.0',
+  // 陆域裁剪面积（A3/z048 裁定①）：默认与全域值同值，需要区分两口径的用例显式传第三个参数
+  clippedKm2: string | null | Array<string | null> = floodedKm2
 ): FloodLevelFeatureRow[] {
-  return levels.map(([level, area]) => ({
+  return levels.map(([level, area], i) => ({
     level: String(level),
     feature_count: 1,
     flooded_km2: floodedKm2,
+    clipped_km2: Array.isArray(clippedKm2) ? clippedKm2[i] : clippedKm2,
     geometry: JSON.stringify({
       type: 'Polygon',
       coordinates: [
@@ -304,6 +307,35 @@ describe('getFloodStatistics - 与 flood-areas/disaster 同源（251 档 + 空�
       riskLevel: '高风险',
       riskLevelCode: 3,
     })
+  })
+
+  it('floodArea 用陆域裁剪面积（clipped_km2），不再透传全域 flooded_km2（A3/z048 裁定①）', async () => {
+    const service = makeStatisticsService(mockLevelRows([[4.5, 0.5]], '777.7', '233.31'), [])
+    const result = (await service.getFloodStatistics('4.5')) as Record<string, unknown>
+    expect(result.floodArea).toBe(233.31)
+    expect(String(result.description)).toContain('陆域口径')
+  })
+
+  it('floodArea 为逐多边形 clipped_km2 之和（多部件档位逐行累加）', async () => {
+    const service = makeStatisticsService(
+      mockLevelRows(
+        [
+          [4.5, 0.5],
+          [4.5, 0.3],
+        ],
+        '10',
+        ['4', '3.5']
+      ),
+      []
+    )
+    const result = (await service.getFloodStatistics('4.5')) as Record<string, unknown>
+    expect(result.floodArea).toBe(7.5)
+  })
+
+  it('0 档/无几何行 clipped_km2=NULL → floodArea 计 0（不 NaN）', async () => {
+    const service = makeStatisticsService(mockLevelRows([[0, 0]], '0', [null]), [])
+    const result = (await service.getFloodStatistics('0')) as Record<string, unknown>
+    expect(result.floodArea).toBe(0)
   })
 
   it('水深为 6 档参考表值并由 depthRefLevel 标注所属档位（4.5 → 5 档）', async () => {

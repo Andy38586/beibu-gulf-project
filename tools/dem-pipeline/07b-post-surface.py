@@ -12,7 +12,11 @@ GLO-30 是工程前地表（分水岭地带是山）。不处理的话，按真�
       − 门槛水深 8 m、底宽 80 m、1:2 边坡）+ 枢纽平台（半宽按正射实测）。
 **只减不增**，物理上不会把地形抬高。
 
-输入：`.local/dem-work/filled_utm48n_cut.tif`（与 07-heightmap-reslice 同源）
+输入：`.local/dem-work/filled_utm48n_cut_ell.tif`（椭球件优先，15-ellipsoid-shift.py
+      产物；缺失回退 filled_utm48n_cut.tif 走 EGM96 正高链）。
+      基准纪律（2026-10-05 统一基准后）：设计水位（正高）是否 +N 换算**跟随 DEM 基准**，
+      不跟随 --grid 是否存在——EGM96 地表配椭球水位（或反之）= 渠底整体错位 ~21m，
+      属静默错位地表；椭球件缺 grid 直接报错，不出错件。
 输出：`post_surface_utm48n.tif` → 交给 07c 重切
 
 ⚠ 原始 DEM 只读，不修改。
@@ -35,7 +39,35 @@ from rasterio.windows import from_bounds
 REPO = Path(r"C:\workspace\beibu-gulf-project")
 OUT = REPO / ".local/926-rebake"
 DEM = REPO / ".local/dem-work/filled_utm48n_cut.tif"
+# 2026-10-05 统一基准后的椭球件（15-ellipsoid-shift.py 产物；命名约定 *_ell.tif）
+DEM_ELL = REPO / ".local/dem-work/filled_utm48n_cut_ell.tif"
 ANCHOR = (108.8300, 22.2000)
+
+
+def default_dem() -> Path:
+    """缺省源 DEM：椭球件优先（现役地形链口径），缺失回退 EGM96 正高件。"""
+    return DEM_ELL if DEM_ELL.exists() else DEM
+
+
+def datum_kind(dem: Path) -> str:
+    """DEM 垂直基准判别：文件名带 ``_ell``（15 号产物命名约定）⇒ 椭球高，否则 EGM96 正高。"""
+    return "ell" if "_ell" in Path(dem).stem else "egm96"
+
+
+def plan_level_shift(dem: Path, grid_available: bool) -> str:
+    """设计水位（正高）是否 +N 换算——跟随 DEM 基准，不跟随 grid 是否存在。
+
+    返回 'shift'（椭球链：水位 +N）/ 'skip'（EGM96 自洽链：水位原样）；
+    椭球件缺 grid 时抛 ValueError（水位无法换算，fail-loud 不出静默错位地表）。
+    """
+    if datum_kind(dem) == "ell":
+        if not grid_available:
+            raise ValueError(
+                f"{Path(dem).name} 是椭球件，设计水位（正高）必须 +N 换算，"
+                "但 EGM96 网格不可用：传 --grid <us_nga_egm96_15.tif> 或改用 EGM96 正高件"
+            )
+        return "shift"
+    return "skip"
 
 # 与方案一致：设计水位（正高）/ 航道参数
 # 开挖范围按**正射实测工地尺寸**（2026-09-27 量）：
@@ -59,12 +91,13 @@ TAPER = 260.0      # 上游渠底过渡段长（示意图）
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--dem", default=str(DEM))
+    ap.add_argument("--dem", default=None,
+                    help="源 DEM；缺省自动解析（椭球件 *_ell.tif 优先，回退 EGM96 正高件）")
     ap.add_argument("--out-dir", default=str(OUT))
     ap.add_argument(
         "--grid",
         default=str(REPO / ".local/proj/us_nga_egm96_15.tif"),
-        help="EGM96 15′ 网格；给出且存在时把设计水位（正高）按枢纽 N 换算为大地高（2026-10-05 统一基准）",
+        help="EGM96 15′ 网格；椭球 DEM 时用于把设计水位（正高）+N 换算为大地高（对 EGM96 DEM 无效，自动忽略）",
     )
     ap.add_argument(
         "--canal-line",
@@ -72,16 +105,33 @@ def main():
         help="运河中线 JSON（build-canal.mjs --emit-line 产物：逐点 lon/lat/h 大地高）；给出时沿全线开挖渠槽",
     )
     args = ap.parse_args()
+    dem_path = Path(args.dem) if args.dem else default_dem()
+    grid_ok = bool(args.grid) and Path(args.grid).exists()
+    # 水位换算跟随 DEM 基准：椭球件缺 grid 在此 fail-loud，不出静默错位地表
+    try:
+        plan = plan_level_shift(dem_path, grid_ok)
+    except ValueError as e:
+        raise SystemExit(f"[基准] {e}")
+    if args.canal_line and plan != "shift":
+        raise SystemExit(
+            "[基准] --canal-line 的中线 h 是大地高，只能刻椭球 DEM；"
+            "改用 *_ell.tif（15-ellipsoid-shift.py 产物）"
+        )
     n_shift = {h: 0.0 for h in HUBS}
-    if args.grid and Path(args.grid).exists():
+    if plan == "shift":
         with rasterio.open(args.grid) as g:
             for h, c in HUBS.items():
                 n_shift[h] = float(next(g.sample([(c["lon"], c["lat"])]))[0])
-        print("[基准] 设计水位 +N（正高→大地高）： " + " ｜ ".join(f"{h} {n_shift[h]:+.2f}" for h in HUBS), flush=True)
+        print("[基准] 大地高链：" + dem_path.name + " ｜ 设计水位 +N（正高→椭球）： "
+              + " ｜ ".join(f"{h} {n_shift[h]:+.2f}" for h in HUBS), flush=True)
+    elif args.grid and grid_ok:
+        print(f"[基准] EGM96 正高链：{dem_path.name} ｜ --grid 对正高件无效，水位不换算", flush=True)
+    else:
+        print(f"[基准] EGM96 正高链：{dem_path.name} ｜ 设计水位原样使用", flush=True)
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    with rasterio.open(args.dem) as src:
+    with rasterio.open(dem_path) as src:
         crs, tr = src.crs, src.transform
         W, H = src.width, src.height
         arr = src.read(1).astype(np.float64)

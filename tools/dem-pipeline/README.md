@@ -36,6 +36,8 @@ PowerShell 下调 python 一律加 `-X utf8`：脚本 stdout 含 "km²" 等字�
 > **地形重切（07）已在 2026-10-04 23:05 全量执行**（`72050afe`：整树备份 `.local/terrain-backup-20261004/`，
 > 07c 重写 51 张 + layer.json；复跑 `probe-terrain-tree-vs-layerjson.py` ⇒ 声明 49,081 = 盘上 49,081、
 > 根链缺 0、深层漂移 0、孤儿 0）。
+> **该树已被 2026-10-05 16:xx 椭球高全量重切取代**（统一基准 `6647f3dc` 之后：源 = 椭球件，
+> 49,628 张全部为该时段产物，`09-audit` PASS 声明=磁盘；10-04 的 49,081 为 EGM96 代，数字作废）。
 > 单瓦片抽样（10-04）：`probe-terrain-vs-dem.py 12 6565 1549` ⇒ served 对当前 DEM 均 |Δ| 0.34 m；
 > **10-05 六瓦片扩样（全「归还陆区」瓦片）**：均 |Δ| 0.23–4.15 m，其中 2/6 张 >5 m 节点占 22%/26%
 > ⇒ 「不因正确性必须重切」的 10-04 单瓦片结论**不能外推到全归还区**；是否整树 07 重切待用户裁
@@ -93,6 +95,24 @@ PowerShell 下调 python 一律加 `-X utf8`：脚本 stdout 含 "km²" 等字�
   ② 权威说明的"0.00m 闭合"改为「V1/V2 同分布、台阶不随产品变化」的闭合论据，重述落
   `docs/日志/快照/高程与水深基准统一说明-2026-10-05-重述.md`；③ 权威声明落点 = 本节 +
   `backend/data/flood/dem/landsea_utm48n.tif`（唯一权威，镜像必须同 md5）。
+- **双面口径权威声明（2026-10-05 晚，用户裁定「3D 统一 = 大地高（椭球高）」后收口）**：
+
+  | 链               | 垂直基准                    | 权威输入                                                                                                                                                                               | 消费产物                                                                                      |
+  | ---------------- | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+  | **淹没链**       | **EGM96 正高**（口径不变）  | `backend/data/flood/dem/landsea_utm48n.tif`（本节上述唯一权威）                                                                                                                        | 251 档 flood_levels / 设施高程 / 剖面 / 水深统计                                              |
+  | **地形 & 3D 链** | **椭球高**（2026-10-05 起） | `.local/dem-work/filled_utm48n_cut_ell.tif`（15 号产物，`*_ell.tif` 命名约定）；`backend/data/flood/dem/landsea_utm48n_ell.tif` 仅供 3D 资产锚点（bridge-anchors / probe-bridge-vert） | `backend/static/terrain/` 瓦片树（2026-10-05 16:xx 全量椭球重切，49,628 张，`09-audit` PASS） |
+  - **两链边界 = 前端贴地渲染**：淹没面与设施点全部 `CLAMP_TO_GROUND`
+    （`frontend/src/core/map/renderers/CesiumRenderer.ts` 淹没面/点两处），剖面与统计为
+    2D 图表/数字 ⇒ 淹没几何**不携带绝对高**，与椭球地形无垂直耦合。§8.28 遗留的
+    「淹没链 +N 换算」经 2026-10-05 核查**裁定为不需要**（淹没链保持 EGM96 口径，
+    档位语义与 datumOffset 换算均不动）；作废条件：淹没产物改为携带绝对高（如 3D 水面网格）。
+  - **07b 水位换算纪律（同笔修复）**：设计水位（正高）是否 +N **跟随 DEM 基准**而非
+    `--grid` 存在性——修前默认组合（EGM96 件 + grid 存在即换算）会产出「EGM96 地表被
+    椭球水位雕刻」的静默错位地表（渠底偏浅 ~21 m）。现规则：`*_ell.tif` + grid ⇒ 换算；
+    EGM96 件 ⇒ 永不换算（grid 忽略并警告）；椭球件缺 grid / `--canal-line` 配 EGM96 件
+    ⇒ fail-loud 退出。判据 `tools/dem-pipeline/test_post_surface_datum.py`（pytest 6 例，
+    变异四式 M1/M2/M4 红、M3 不红）。
+
 - **12/13 链重派生（2026-10-05）**：`slope.tif` 由权威件重生成
   `gdaldem slope -compute_edges -of GTiff <权威 DEM> slope.tif`（缺 `-compute_edges` 时首行/首列
   31 像元 nodata 掺入块均值；复算 Checksum=61037 与现行件一致）；12 生成导入 SQL 时注入
@@ -154,7 +174,11 @@ backend/algorithm-service/.venv/Scripts/python.exe -X utf8 tools/dem-pipeline/07
 # 4c) 07b 复算（只写 .local；先备份现役件再跑，防覆盖参考）
 Copy-Item .local/926-rebake/post_surface_utm48n.tif .local/repro-07b/post_surface_utm48n.tif.bak
 backend/algorithm-service/.venv/Scripts/python.exe -X utf8 tools/dem-pipeline/07b-post-surface.py
-# 期望（10-05 实测）：挖方 1695/170/245 像元；与 9-27 归档件差 4,822,464 px（全在 hub 窗外）
+# 期望（10-05 晚起，缺省=椭球链）：首行 [基准] 大地高链：filled_utm48n_cut_ell.tif ｜
+#       设计水位 +N（正高→椭球）：madao/qishi/qingnian 逐枢纽 N 值；
+#       挖方像元数随链代而变（旧 1695/170/245 为 10-05 晨 EGM96 链实测，已过代），
+#       以 [基准] 行 + pytest（test_post_surface_datum.py 6 例）为准；
+#       椭球件缺 grid、或 --canal-line 配 EGM96 件 ⇒ 打印 [基准] 错误并 exit≠0（fail-loud）
 
 # 4d) 08 根瓦片幂等核对（只读不写）
 backend/algorithm-service/.venv/Scripts/python.exe -X utf8 tools/dem-pipeline/08-backfill-root-tiles.py

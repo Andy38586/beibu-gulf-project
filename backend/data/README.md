@@ -37,8 +37,11 @@ data/
     ├── waterLevel.json        #   水位档位
     ├── terrainProfile.json    #   地形剖面
     └── dem/                   #   DEM 栅格（flood-service 演算输入）
-        ├── landsea_utm48n.tif   # **海陆一体**（陆=ASTER 填洼 + 海=SRTM15+ 水深，EGM96，30m）
-        │                        #   ← flood_engine / 设施高程 / 剖面 三处共用的那份地表
+        ├── landsea_utm48n.tif   # **海陆一体**（陆=ASTER 填洼 + 海=SRTM15+ 水深，EGM96 正高，30m）
+        │                        #   ← flood_engine / 设施高程 / 剖面 三处共用的那份地表（淹没链唯一权威）
+        ├── landsea_utm48n_ell.tif  # 上件的椭球高版（+N，15-ellipsoid-shift.py 产物）——仅供
+        │                        #   3D 资产锚点用（bridge-anchors.json / probe-bridge-vert.py），
+        │                        #   淹没演算**不读它**（正高链与椭球链边界见 dem-pipeline README §三）
         ├── filled_utm48n_cut.tif   # 陆地填洼裁切版（海=NoData，兜底输入）
         └── *.sgrd / *.mgrd / *.sdat（SGRD 系列中间产物）
 ```

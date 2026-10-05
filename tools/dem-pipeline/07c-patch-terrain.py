@@ -14,6 +14,8 @@
 
 ⚠ `backend/static/terrain/` 在 .gitignore:161 内（整棵树不入库）—— 重跑本脚本前请先确认
    是否要保留既有挖方；备份见 `.local/926-rebake/backup-orig-terrain/`。
+基准（2026-10-05 统一后）：本脚本不换算基准，post_surface 必须与目标瓦片树同基准——
+   现役树为椭球高，故 POST 须由椭球件生成（07b 缺省已自动解析椭球件，见其 [基准] 行）。
 """
 from __future__ import annotations
 import gzip, json, math, sys

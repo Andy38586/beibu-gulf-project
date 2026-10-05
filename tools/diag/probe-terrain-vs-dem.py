@@ -28,7 +28,10 @@ from rasterio.warp import transform as warp_transform
 
 REPO = Path(__file__).resolve().parents[2]
 TERRAIN = REPO / "backend/static/terrain"
-CUR = REPO / ".local/dem-work/filled_utm48n_cut.tif"
+# 2026-10-05 统一基准后地形树为椭球高：CUR 必须取椭球件（*_ell.tif，缺省解析口径与
+# 07b-post-surface.py 的 default_dem() 一致），否则对比会误报 ~21m 系统性漂移
+CUR_ELL = REPO / ".local/dem-work/filled_utm48n_cut_ell.tif"
+CUR = CUR_ELL if CUR_ELL.exists() else REPO / ".local/dem-work/filled_utm48n_cut.tif"
 OLD = REPO / ".local/dem-work/filled_utm48n_cut.20260830mask.tif"
 SAMPLES = 65
 

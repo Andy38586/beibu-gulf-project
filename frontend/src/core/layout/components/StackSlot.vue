@@ -51,7 +51,7 @@ const visible = computed(
     v-if="visible"
     :class="$attrs.class"
     class="stack-slot"
-    v-bind="dragActive ? { [STACK_SLOT_ZONE_ATTR]: 'stack' } : {}"
+    v-bind="{ [STACK_SLOT_ZONE_ATTR]: 'stack' }"
   >
     <div v-if="items.length === 0" class="stack-empty-hint">叠到这里</div>
     <template v-else>

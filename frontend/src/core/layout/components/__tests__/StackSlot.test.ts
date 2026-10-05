@@ -21,6 +21,15 @@ describe('StackSlot（堆叠固定槽位）', () => {
     expect(slot.find('.stack-empty-hint').exists()).toBe(true)
   })
 
+  it('生产形态（不传 dragActive prop，有堆叠项）→ 落点属性必须在（G1 红样：旧实现恒缺）', () => {
+    const wrapper = mount(StackSlot, {
+      props: { items: [{ id: 'line', label: '预测趋势' }] },
+    })
+    const slot = wrapper.find('.stack-slot')
+    expect(slot.exists()).toBe(true)
+    expect(slot.attributes(STACK_SLOT_ZONE_ATTR)).toBe('stack')
+  })
+
   it('有堆叠项 → 卡头列表；点击「堆叠」展开；点「还原」emit restore', async () => {
     const wrapper = mount(StackSlot, {
       props: {

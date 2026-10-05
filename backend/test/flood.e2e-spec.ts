@@ -90,7 +90,10 @@ describe('flood e2e（真数据文件 + 真库档位表）', () => {
         // 2026-09-12：取档几何加 ST_IsValid/ST_MakeValid 自愈门控后，全档兼容路径
         //（4869 片 transform+校验）SQL 实测 ~4.4s，超 vitest 默认 5s —— 本路径为
         // 兼容保留（前端恒传 waterLevel，真实 UI 走轻量取档路径），放宽本用例超时
-        { timeout: 15_000 },
+        // 2026-10-05：CI 两连红且两次推送均不含后端改动；本地真库复跑 5.4s 通过、
+        // db-readiness 的 251 档断言同轮通过 ⇒ 判定为共享 runner 冷缓存下的超时抖动，
+        // 15s → 45s。断言口径不变；若再红须按「真慢/真错」重新归因，不得继续放宽。
+        { timeout: 45_000 },
         async () => {
           const res = await request(app.getHttpServer()).get(`${base}/flood-areas`).expect(200)
           expect(res.body.code).toBe(200)

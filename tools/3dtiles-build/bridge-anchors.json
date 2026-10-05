@@ -1,0 +1,32 @@
+{
+  "note": "桥垂直锚点（净高语义：桥面结构底缘 = 水面 + clearance_m）。surface_ell_m = 统一 DEM（椭球高）在各桥中点取值；生成：tools/diag/probe-bridge-vert.py --emit-anchors。",
+  "dem": "backend/data/flood/dem/landsea_utm48n_ell.tif md5 0fc6092e1512e0398617e872adfb9643",
+  "clearance_note": "子材大桥净高 19.3 m（公开资料）；其余四座无公开净高，暂同口径（假设，有资料即改）。",
+  "bridges": {
+    "金海湾大桥": {
+      "surface_ell_m": -16.0,
+      "clearance_m": 19.3,
+      "sample_lonlat": [108.62131, 21.942148]
+    },
+    "钦江大桥": {
+      "surface_ell_m": -16.0,
+      "clearance_m": 19.3,
+      "sample_lonlat": [108.624969, 21.957114]
+    },
+    "子材大桥": {
+      "surface_ell_m": -11.0,
+      "clearance_m": 19.3,
+      "sample_lonlat": [108.631597, 21.970541]
+    },
+    "永福大桥": {
+      "surface_ell_m": -7.0,
+      "clearance_m": 19.3,
+      "sample_lonlat": [108.638563, 21.978007]
+    },
+    "敏昌大桥": {
+      "surface_ell_m": -12.0,
+      "clearance_m": 19.3,
+      "sample_lonlat": [108.645533, 21.990206]
+    }
+  }
+}

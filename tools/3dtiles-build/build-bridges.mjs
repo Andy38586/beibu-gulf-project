@@ -17,12 +17,19 @@
  * 一桥（南珠大桥 / 南珠大街跨江桥）OSM 无 bridge 标签，本脚本不含；
  * 其官方名在 2025 年命名批复里也存疑（批复「市区内 6 座」列的是「钦江大桥」）。
  *
- * 用法：node tools/3dtiles-build/build-bridges.mjs [--osm 文件] [--out 目录]
+ * 用法：node tools/3dtiles-build/build-bridges.mjs [--osm 文件] [--out 目录] [--anchors 锚点表]
  */
 import fs from 'node:fs'
 import path from 'node:path'
-import { pathToFileURL } from 'node:url'
-import { buildGLB, box, enuNormalToGltf, enuToGltf, gltfToEnu } from './glb.mjs'
+import { fileURLToPath, pathToFileURL } from 'node:url'
+
+import { box, buildGLB, enuNormalToGltf, enuToGltf, gltfToEnu } from './glb.mjs'
+
+/** 垂直锚点表（构建输入；生成：tools/diag/probe-bridge-vert.py --emit-anchors） */
+const DEFAULT_ANCHORS = path.join(
+  path.dirname(fileURLToPath(import.meta.url)),
+  'bridge-anchors.json'
+)
 
 /** 城区桥清单：名称 → OSM way id 列表（多段同名 way 取并集，用其几何端点定轴向） */
 export const CITY_BRIDGES = [
@@ -100,7 +107,7 @@ function collectWays(osm, ids) {
 }
 
 /** 一座桥的三角面：桥面 + 桥墩 + 栏杆（+ 可选双塔） */
-export function buildBridge(wayGeoms, spec, toLocal) {
+export function buildBridge(wayGeoms, spec, toLocal, du = 0) {
   const positions = [],
     normals = [],
     colors = []
@@ -137,8 +144,9 @@ export function buildBridge(wayGeoms, spec, toLocal) {
     return { base, indices: flipped }
   }
   const indices = []
+  // du：整桥垂直位移（ENU 上向，米）。锚点语义见 buildAll 段：桥面结构底缘 = 水面 + clearance。
   const emit = (cx, cy, cz, sx, sy, sz, color, rotY = 0) => {
-    const r = addBox(cx, cy, cz, sx, sy, sz, color, rotY)
+    const r = addBox(cx, cy, cz + du, sx, sy, sz, color, rotY)
     for (let i = 0; i < r.indices.length; i++) indices.push(r.indices[i] + r.base)
   }
   const DECK = [0.72, 0.72, 0.74],
@@ -187,8 +195,22 @@ export function buildBridge(wayGeoms, spec, toLocal) {
   return { positions, normals, colors, indices, spans }
 }
 
-export function buildAll({ osmFile, outDir }) {
+export function buildAll({ osmFile, outDir, anchorsPath = DEFAULT_ANCHORS }) {
   const osm = JSON.parse(fs.readFileSync(osmFile, 'utf8'))
+  // 垂直锚点（构建输入，必须显式存在）。2026-10-05 实测根因：此前的构建把 u=22 当作
+  // "比水面高 22 m"，但 ENU 锚点在 h=0（椭球零面）⇒ 实际成为"比椭球 0 高 22 m"，
+  // 五桥整体浮空 7~16 m、桥墩悬在水面上方 4.6~14.3 m。缺表必须报错，不得静默回退。
+  let anchors
+  try {
+    anchors = JSON.parse(fs.readFileSync(anchorsPath, 'utf8'))
+  } catch (e) {
+    throw new Error(
+      '桥垂直锚点表缺失/不可读：' +
+        anchorsPath +
+        '（生成：tools/diag/probe-bridge-vert.py --emit-anchors）',
+      { cause: e }
+    )
+  }
   const all = osm.elements.filter((e) => (e.geometry ?? []).length >= 2)
   // 以子材大桥中点为锚建局部 ENU
   const anchorWay = all.find((e) => e.tags?.name === '子材大桥')
@@ -227,7 +249,25 @@ export function buildAll({ osmFile, outDir }) {
       built.push({ ...spec, spans: 0, note: 'OSM 无此桥' })
       continue
     }
-    const g = buildBridge(ways, spec, toLocal)
+    const anc = anchors.bridges?.[spec.name]
+    if (!anc || !Number.isFinite(anc.surface_ell_m) || !Number.isFinite(anc.clearance_m)) {
+      throw new Error(
+        '锚点表缺「' + spec.name + '」或字段不完整（surface_ell_m / clearance_m）：' + anchorsPath
+      )
+    }
+    // 净高语义：桥面结构**底缘** = 水面 + clearance；桥面板厚 2.5 ⇒ 顶面 = +2.5。
+    // 几何按顶面 u=22 建 ⇒ du = 目标顶面 − 22。
+    const du = anc.surface_ell_m + anc.clearance_m + 2.5 - 22
+    const g = buildBridge(ways, spec, toLocal, du)
+    // 锚点是 h=0 的**切平面**：局部上坐标 u 与世界椭球高差 +d²/2R（切平面悬在椭球面上方，
+    // 实测最远的金海湾差 +0.84 m）。逐顶点减去该曲率 ⇒ 任意水平位置的桥面/墩世界椭球高
+    // 都精确落在锚点表目标上（含 4.4 km 外）。glTF 轴序：x=E、z=−N ⇒ d² = x²+z²。
+    const R_EARTH = 6371000
+    for (let i = 0; i < g.positions.length; i += 3) {
+      const x = g.positions[i],
+        z = g.positions[i + 2]
+      g.positions[i + 1] -= (x * x + z * z) / (2 * R_EARTH)
+    }
     if (!g.indices.length) {
       built.push({ ...spec, spans: 0, note: '几何为空' })
       continue
@@ -288,9 +328,14 @@ export function buildAll({ osmFile, outDir }) {
         spans: g.spans,
         triangles: g.indices.length / 3,
         reconstruction: '参数化还原（OSM 桥位 + 公开资料桥型），非实测几何',
+        verticalAnchor: {
+          surface_ell_m: anc.surface_ell_m,
+          clearance_m: anc.clearance_m,
+          du: Number(du.toFixed(2)),
+        },
       },
     })
-    built.push({ ...spec, spans: g.spans, tris: g.indices.length / 3 })
+    built.push({ ...spec, spans: g.spans, tris: g.indices.length / 3, du })
   }
   const mn = [Infinity, Infinity, Infinity],
     mx = [-Infinity, -Infinity, -Infinity]
@@ -339,6 +384,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const r = buildAll({
     osmFile: arg('--osm', '.local/3d-diag/bridges-osm.json'),
     outDir: arg('--out', 'backend/static/bridges-city'),
+    anchorsPath: arg('--anchors', DEFAULT_ANCHORS),
   })
   console.log(
     '锚点 ' + r.anchor.lat.toFixed(5) + ',' + r.anchor.lng.toFixed(5) + '  建成 ' + r.count + ' 座'
@@ -350,7 +396,8 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
         String(b.aka).padEnd(8) +
         ' 段' +
         String(b.spans).padStart(2) +
-        (b.tris ? '  ' + b.tris + ' 面' : '  ' + (b.note ?? ''))
+        (b.tris ? '  ' + b.tris + ' 面' : '  ' + (b.note ?? '')) +
+        (Number.isFinite(b.du) ? '  Δu ' + b.du.toFixed(1) + ' m' : '')
     )
   }
 }

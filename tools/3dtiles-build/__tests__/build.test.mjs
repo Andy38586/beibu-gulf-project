@@ -12,12 +12,12 @@ import path from 'node:path'
 
 import { describe, expect, it } from 'vitest'
 
+import { buildAll, buildBridge } from '../build-bridges.mjs'
+import { ribbon } from '../build-canal.mjs'
+import { buildGround } from '../build-ground.mjs'
+import { buildRoads, extrudeWay } from '../build-roads.mjs'
 import { buildContainer, CONTAINER_TYPES, generateAll } from '../container-models.mjs'
 import { box, buildGLB, enuToGltf } from '../glb.mjs'
-import { buildRoads, extrudeWay } from '../build-roads.mjs'
-import { ribbon } from '../build-canal.mjs'
-import { buildAll, buildBridge } from '../build-bridges.mjs'
-import { buildGround } from '../build-ground.mjs'
 
 /**
  * 交付包资产不入库（backend/static/qinzhou-port/** 全树 gitignored），而 buildRoads /
@@ -330,7 +330,20 @@ describe('buildAll — 产出的 GLB 必须自洽（Cesium 对无效 material / 
       elements: [mk('金海湾大桥', 108.6), mk('子材大桥', 108.63), mk('钦江大桥', 108.62)],
     }
     fs.writeFileSync(path.join(dir, 'osm.json'), JSON.stringify(osm))
-    buildAll({ osmFile: path.join(dir, 'osm.json'), outDir: path.join(dir, 'out') })
+    const anchors = {
+      note: 'test fixture',
+      bridges: {
+        金海湾大桥: { surface_ell_m: -16, clearance_m: 19.3 },
+        子材大桥: { surface_ell_m: -11, clearance_m: 19.3 },
+        钦江大桥: { surface_ell_m: -16, clearance_m: 19.3 },
+      },
+    }
+    fs.writeFileSync(path.join(dir, 'anchors.json'), JSON.stringify(anchors))
+    buildAll({
+      osmFile: path.join(dir, 'osm.json'),
+      outDir: path.join(dir, 'out'),
+      anchorsPath: path.join(dir, 'anchors.json'),
+    })
     const files = fs.readdirSync(path.join(dir, 'out')).filter((f) => f.endsWith('.glb'))
     expect(files.length).toBeGreaterThanOrEqual(2)
     for (const f of files) {
@@ -348,6 +361,126 @@ describe('buildAll — 产出的 GLB 必须自洽（Cesium 对无效 material / 
         }
       }
     }
+  })
+})
+
+describe('buildAll — 五桥垂直锚（净高语义：桥面结构底缘 = 水面 + clearance）', () => {
+  // 2026-10-05 实测：此前 u=22 被当作"比水面高 22 m"，但 ENU 锚在 h=0（椭球零面）⇒
+  // 实际成了"比椭球 0 高 22 m"，五桥整体浮空 7~16 m、桥墩悬空 4.6~14.3 m
+  // （探针 tools/diag/probe-bridge-vert.py）。本组钉锚点语义与 fail-loud。
+  const readGLB = (buf) => {
+    const jlen = buf.readUInt32LE(12)
+    const json = JSON.parse(buf.subarray(20, 20 + jlen).toString('utf8'))
+    let off = 20 + jlen
+    while (off % 4 !== 0) off++
+    const blen = buf.readUInt32LE(off)
+    return { json, bin: buf.subarray(off + 8, off + 8 + blen) }
+  }
+  const readVec3 = ({ json, bin }, idx) => {
+    const a = json.accessors[idx]
+    const bv = json.bufferViews[a.bufferView]
+    const base = (bv.byteOffset || 0) + (a.byteOffset || 0)
+    const out = []
+    for (let i = 0; i < a.count; i++)
+      out.push(
+        bin.readFloatLE(base + i * 12),
+        bin.readFloatLE(base + i * 12 + 4),
+        bin.readFloatLE(base + i * 12 + 8)
+      )
+    return out
+  }
+  const fixture = () => {
+    const dir = 'node_modules/.cache/beibu-bridges-anchor-test'
+    fs.mkdirSync(dir, { recursive: true })
+    const way = (name, lon, lat) => ({
+      type: 'way',
+      id: Math.round(lon * 1e5),
+      tags: { name, bridge: 'yes', highway: 'primary' },
+      geometry: [
+        { lon, lat },
+        { lon: lon + 0.001, lat: lat + 0.001 },
+      ],
+    })
+    fs.writeFileSync(
+      path.join(dir, 'osm.json'),
+      JSON.stringify({
+        elements: [
+          way('子材大桥', 108.63, 21.97),
+          // 远端桥：距锚点（子材中点）≈3.3 km——专门钉住 d²/2R 曲率补偿（裸切平面会多 +0.84 m）
+          way('金海湾大桥', 108.6, 21.94),
+        ],
+      })
+    )
+    fs.writeFileSync(
+      path.join(dir, 'anchors.json'),
+      JSON.stringify({
+        note: 'fixture',
+        bridges: {
+          子材大桥: { surface_ell_m: -11, clearance_m: 19.3 },
+          金海湾大桥: { surface_ell_m: -16, clearance_m: 19.3 },
+        },
+      })
+    )
+    return dir
+  }
+  it('桥面底 = 水面+19.3、墩底入水；远端桥含曲率补偿；锚点写入 extras', () => {
+    const dir = fixture()
+    buildAll({
+      osmFile: path.join(dir, 'osm.json'),
+      outDir: path.join(dir, 'out'),
+      anchorsPath: path.join(dir, 'anchors.json'),
+    })
+    // 桥面/墩的世界椭球高 ≈ 局部 u + d²/2R（锚点为切平面）；判据按世界高，与探针同口径
+    const bucket = (file, color) => {
+      const glb = readGLB(fs.readFileSync(path.join(dir, 'out', file)))
+      const pr = glb.json.meshes[0].primitives[0]
+      const pos = readVec3(glb, pr.attributes.POSITION)
+      const col = readVec3(glb, pr.attributes.COLOR_0)
+      const out = []
+      for (let i = 0; i < col.length / 3; i++) {
+        const [r, g, b] = [col[i * 3], col[i * 3 + 1], col[i * 3 + 2]]
+        if (
+          Math.abs(r - color[0]) < 1e-3 &&
+          Math.abs(g - color[1]) < 1e-3 &&
+          Math.abs(b - color[2]) < 1e-3
+        ) {
+          const [x, y, z] = [pos[i * 3], pos[i * 3 + 1], pos[i * 3 + 2]]
+          out.push(y + (x * x + z * z) / (2 * 6371000))
+        }
+      }
+      return out
+    }
+    const DECK = [0.72, 0.72, 0.74],
+      PIER = [0.55, 0.55, 0.57]
+    for (const [file, surf] of [
+      ['zicai.glb', -11],
+      ['jinhaiwan.glb', -16],
+    ]) {
+      const deck = bucket(file, DECK),
+        pier = bucket(file, PIER)
+      expect(deck.length).toBeGreaterThan(0)
+      expect(pier.length).toBeGreaterThan(0)
+      expect(Math.min(...deck)).toBeCloseTo(surf + 19.3, 1) // 桥面底=水面+净高
+      expect(Math.max(...deck)).toBeCloseTo(surf + 19.3 + 2.5, 1) // 桥面顶=+板厚
+      expect(Math.min(...pier)).toBeLessThanOrEqual(surf) // 墩底 ≤ 水面
+    }
+    const ts = JSON.parse(fs.readFileSync(path.join(dir, 'out', 'tileset.json'), 'utf8'))
+    expect(
+      ts.root.children.find((c) => c.extras.name === '子材大桥').extras.verticalAnchor
+    ).toMatchObject({
+      surface_ell_m: -11,
+      clearance_m: 19.3,
+    })
+  })
+  it('缺锚点表 ⇒ 报错（fail-loud，不静默退回"椭球 0"锚）', () => {
+    const dir = fixture()
+    expect(() =>
+      buildAll({
+        osmFile: path.join(dir, 'osm.json'),
+        outDir: path.join(dir, 'out2'),
+        anchorsPath: path.join(dir, 'missing.json'),
+      })
+    ).toThrow(/锚点表/)
   })
 })
 

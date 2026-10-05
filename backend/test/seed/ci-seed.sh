@@ -68,7 +68,9 @@ for f in db-schema.sql db-schema-gis.sql db-schema-flood.sql schema-migrations.s
 done
 
 echo "[seed] 仓库内真数据（ports 3 / flood_facilities 83 / data_archive 13）..."
-(cd "$ROOT" && node tools/db/db-import.mjs >/dev/null)
+# CI 库为一次性库；users/site-selection 是运行时源（不入库），显式放行其缺席；
+# 仓库必需源（ports/facilityPoints）仍缺源即拒（rc=1，见 db-import F2 体检）。
+(cd "$ROOT" && node tools/db/db-import.mjs --allow-runtime-missing >/dev/null)
 psql_run -q -f "$ROOT/.local/tmp/import.sql"
 
 echo "[seed] flood_levels 251 档真数据（flood_levels.json.gz）..."

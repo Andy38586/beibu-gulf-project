@@ -7,6 +7,7 @@
 import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 const esc = (v) => (v == null ? 'NULL' : `'${String(v).replaceAll("'", "''")}'`)
 const pt = (lng, lat) =>
@@ -58,33 +59,43 @@ function readOptional(dataDir, p, report) {
 }
 
 /**
- * 必需数据源清单（F2，2026-10-05）：这些是**数据源**（重灌的对象），缺失时绝不能
- * 「按空集处理 + 照旧 TRUNCATE」——那会清空整表且对账源=写=0 判 PASS（实测
- * `warnings=28 poi=0/0 xiaoqu=0/0 overallPASS=true` 即此形态）。
- * 对照：plans/favorites/port_pier 属**运行态文件**，缺失仍按空集容错（本清单不含）。
+ * 数据源分两档（F2 修复 + 2026-10-05 CI 复盘）：
+ * - `REPO_SOURCES` 仓库必需源：清单里的件在干净检出必存在（或按消费侧回退可得，如 ports
+ *   回退 `frontend/public/data/ports.json`）——缺失 ⇒ 拒绝重灌，任何模式不放行；
+ * - `RUNTIME_SOURCES` 运行时源：只在本机运行态出现（users / site-selection，均不入库）。
+ *   默认仍拒绝（防本机路径损坏时静默清库，F2 原意）；CI seed 以 `--allow-runtime-missing`
+ *   显式放行（CI 库为一次性库，poi/xiaoqu 由 ⑤/⑥ 合成夹具另行灌入）。
+ * 对照：plans/favorites/port_pier 属运行态文件，缺失仍按空集容错（两档都不含）。
  */
-const REQUIRED_SOURCES = [
-  ['users', 'users.json'],
-  ['ports', 'ports.json'],
-  ['poi_facilities', 'site-selection'],
-  ['xiaoqu', 'site-selection'],
+const REPO_SOURCES = [
+  ['ports', 'ports.json', 'frontend/public/data/ports.json'],
   ['flood_facilities', 'flood/facilityPoints.json'],
 ]
+const RUNTIME_SOURCES = [
+  ['users', 'users.json'],
+  ['poi_facilities', 'site-selection'],
+  ['xiaoqu', 'site-selection'],
+]
+const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 
 /** 数据源体检：返回缺失清单（空数组=放行重灌） */
-function collectMissingSources(dataDir) {
+function collectMissingSources(dataDir, { allowRuntimeMissing = false } = {}) {
   const missing = []
-  for (const [table, rel] of REQUIRED_SOURCES) {
+  const check = ([table, rel], fallback) => {
     const full = path.join(dataDir, rel)
-    if (!fs.existsSync(full)) {
+    const okPrimary = fs.existsSync(full)
+    const okFallback = fallback ? fs.existsSync(path.join(REPO_ROOT, fallback)) : false
+    if (!okPrimary && !okFallback) {
       missing.push(`${table}（${rel}）`)
-      continue
+      return
     }
     // 目录型源（site-selection）要求非空：空目录等价于"源整体缺失"
-    if (fs.statSync(full).isDirectory() && fs.readdirSync(full).length === 0) {
+    if (okPrimary && fs.statSync(full).isDirectory() && fs.readdirSync(full).length === 0) {
       missing.push(`${table}（${rel} 为空目录）`)
     }
   }
+  for (const s of REPO_SOURCES) check(s, s[2])
+  if (!allowRuntimeMissing) for (const s of RUNTIME_SOURCES) check(s)
   return missing
 }
 
@@ -94,7 +105,7 @@ function collectMissingSources(dataDir) {
  * @param {{warnings: string[]}} report 警告收集器
  * @returns {{ statements: string[], tables: Record<string, {source:number, written:number, filtered:number}> }}
  */
-export function buildImport(dataDir, report = { warnings: [] }) {
+export function buildImport(dataDir, report = { warnings: [] }, opts = {}) {
   const statements = []
   const tables = {}
 
@@ -102,7 +113,16 @@ export function buildImport(dataDir, report = { warnings: [] }) {
 
   // F2 前置体检：数据源缺失 ⇒ 拒绝重灌（不生成 TRUNCATE/INSERT），报告记 FAIL。
   // 在 BEGIN 之前返回：产物里连事务都不存在，杜绝"半量清库"。
-  const missingSources = collectMissingSources(dataDir)
+  if (opts.allowRuntimeMissing) {
+    for (const [table, rel] of RUNTIME_SOURCES) {
+      if (!fs.existsSync(path.join(dataDir, rel))) {
+        report.warnings.push(
+          `运行时源缺席（--allow-runtime-missing 已放行，按空集处理）：${table}（${rel}）`
+        )
+      }
+    }
+  }
+  const missingSources = collectMissingSources(dataDir, opts)
   if (missingSources.length > 0) {
     report.missingSources = missingSources
     report.warnings.push(`数据源缺失，拒绝重灌（未执行 TRUNCATE）：${missingSources.join('、')}`)
@@ -396,7 +416,8 @@ if (
   import.meta.url === new URL(`file://${process.argv[1].replaceAll('\\', '/')}`).href
 ) {
   const report = { warnings: [] }
-  const { statements, tables } = buildImport('backend/data', report)
+  const allowRuntimeMissing = process.argv.includes('--allow-runtime-missing')
+  const { statements, tables } = buildImport('backend/data', report, { allowRuntimeMissing })
 
   fs.mkdirSync('.local/tmp', { recursive: true })
   fs.writeFileSync('.local/tmp/import.sql', statements.join('\n'), 'utf8')

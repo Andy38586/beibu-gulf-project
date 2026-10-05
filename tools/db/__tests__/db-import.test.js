@@ -118,13 +118,14 @@ describe('buildImport 对账恒等式', () => {
   })
 
   it('🔴 数据源缺失 ⇒ 拒绝重灌：无清库语句、报告总体 FAIL（F2：旧形态清库还报 PASS）', () => {
-    fs.rmSync(path.join(dataDir, 'ports.json'))
+    // 用仓库必需源（flood/facilityPoints.json，无回退）触发；ports 有前端静态回退，不当缺源
+    fs.rmSync(path.join(dataDir, 'flood', 'facilityPoints.json'))
     const report = { warnings: [] }
     const { statements, tables } = buildImport(dataDir, report)
     // 修前：照旧生成 TRUNCATE + 其余表 INSERT，报告 PASS。修后：一条清库语句都不生成。
     expect(statements.some((s) => s.includes('TRUNCATE'))).toBe(false)
     expect(Object.keys(tables)).toHaveLength(0)
-    expect(report.missingSources.some((m) => m.includes('ports.json'))).toBe(true)
+    expect(report.missingSources.some((m) => m.includes('facilityPoints'))).toBe(true)
 
     const md = renderReport(tables, report.warnings, report.missingSources)
     expect(md).toContain('**总体：FAIL**')
@@ -138,6 +139,21 @@ describe('buildImport 对账恒等式', () => {
     const { statements } = buildImport(dataDir, report)
     expect(statements.some((s) => s.includes('TRUNCATE'))).toBe(false)
     expect(report.missingSources.filter((m) => m.includes('site-selection'))).toHaveLength(2)
+  })
+
+  it('CI 放行运行时源（--allow-runtime-missing）：仓库源齐 ⇒ 照常重灌；缺仓库源仍拒', () => {
+    fs.rmSync(path.join(dataDir, 'users.json'))
+    fs.rmSync(path.join(dataDir, 'site-selection'), { recursive: true, force: true })
+    const report = { warnings: [] }
+    const ok = buildImport(dataDir, report, { allowRuntimeMissing: true })
+    expect(ok.statements.some((s) => s.includes('TRUNCATE'))).toBe(true)
+    expect(report.missingSources ?? []).toHaveLength(0)
+
+    fs.rmSync(path.join(dataDir, 'flood', 'facilityPoints.json'))
+    const report2 = { warnings: [] }
+    const refused = buildImport(dataDir, report2, { allowRuntimeMissing: true })
+    expect(refused.statements.some((s) => s.includes('TRUNCATE'))).toBe(false)
+    expect(report2.missingSources.some((m) => m.includes('facilityPoints'))).toBe(true)
   })
 
   it('favorites 映射携带展示载荷（T3.2 schema v2.1）：savedAt 入 created_at，snapshot 转 jsonb', () => {

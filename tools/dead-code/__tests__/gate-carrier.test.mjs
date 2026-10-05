@@ -22,19 +22,25 @@ describe('G 类门禁载体判别（从契约快照派生，不手抄名单）',
     expect(p('ZzFooParsed')).toBe(false)
   })
 
-  it('真实仓库：三分类互斥且并集完整；G 类全部是 *Parsed 且在 schemas.ts', () => {
-    const { dead, redundantExport, gateCarrier } = scan()
-    const all = [...dead, ...redundantExport, ...gateCarrier]
-    const keys = new Set(all.map((e) => `${e.file}:${e.line}:${e.name}`))
-    expect(keys.size).toBe(all.length) // 三分类互斥，无重复计入
-    expect(gateCarrier.length).toBeGreaterThan(0) // 当前快照下必有配对类型（防空真）
-    const p = gateCarrierPredicateFromRepo()
-    // dead 与 G 判别互斥：凡被判"彻底没人用"的，不得同时命中契约配对谓词。
-    // （孤儿 Parsed —— schema 已删 —— 落 dead 是对的：快照重生成后谓词不再命中它）
-    expect(dead.every((e) => !p(e.name))).toBe(true)
-    expect(gateCarrier.every((e) => /Parsed$/i.test(e.name))).toBe(true)
-    expect(gateCarrier.every((e) => e.file === 'frontend/src/types/schemas.ts')).toBe(true)
-  })
+  // 整仓扫描是 IO 密集型：慢盘（CI 变体/容器挂载盘实测 11s）会撞 vitest 默认 5s 伪红，
+  // 显式放宽到 30s；断言语义不变。
+  it(
+    '真实仓库：三分类互斥且并集完整；G 类全部是 *Parsed 且在 schemas.ts',
+    { timeout: 30_000 },
+    () => {
+      const { dead, redundantExport, gateCarrier } = scan()
+      const all = [...dead, ...redundantExport, ...gateCarrier]
+      const keys = new Set(all.map((e) => `${e.file}:${e.line}:${e.name}`))
+      expect(keys.size).toBe(all.length) // 三分类互斥，无重复计入
+      expect(gateCarrier.length).toBeGreaterThan(0) // 当前快照下必有配对类型（防空真）
+      const p = gateCarrierPredicateFromRepo()
+      // dead 与 G 判别互斥：凡被判"彻底没人用"的，不得同时命中契约配对谓词。
+      // （孤儿 Parsed —— schema 已删 —— 落 dead 是对的：快照重生成后谓词不再命中它）
+      expect(dead.every((e) => !p(e.name))).toBe(true)
+      expect(gateCarrier.every((e) => /Parsed$/i.test(e.name))).toBe(true)
+      expect(gateCarrier.every((e) => e.file === 'frontend/src/types/schemas.ts')).toBe(true)
+    }
+  )
 
   it('真实仓库：快照可读 ⇒ 判别函数可用（不可用时 scan 的 A 账会含 Parsed，ratchet 基线会拦）', () => {
     expect(gateCarrierPredicateFromRepo()).not.toBe(null)

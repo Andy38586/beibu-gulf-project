@@ -21,10 +21,10 @@
 
 import {
   deriveGroupTileset,
-  nodeName,
-  normalizeTilesetGeometricError,
   type DeriveOptions,
   type GroupSpec,
+  nodeName,
+  normalizeTilesetGeometricError,
   type TilesetJson,
 } from '@/core'
 
@@ -101,25 +101,21 @@ export const PINGLU_GROUPS: readonly GroupSpec<PingluGroupId>[] = [
  */
 
 /**
- * 派生时剔除的瓦片：交付包给每个枢纽配的「地形与边坡」层
- * （`extras.name` = 「马道枢纽 · 地形与边坡」等，文件 `*-z1-terrain.glb`）。
+ * 派生选项（2026-10-05 用户裁定：枢纽自带「地形与边坡」**不再剔除**）。
  *
- * 它是交付方用 **Copernicus DEM** 生成的**局部地表**；而本项目的真地形来自
- * **CTB**（ASTER GDEM 派生 + 海陆掩膜）。两套 DEM 不同源，高程必然不一致——
- * 2026-09-28 项目内实测：同时开启时表现为一块**斜插进地形的平板**，侧视能看到
- * 硬直的交接线与互相穿插，三个枢纽全中。
+ * 沿革：2026-09-28 曾剔除每个枢纽的 `*-z1-terrain.glb`（`extras.name` 含
+ * 「地形与边坡」），理由 = 它是交付方用 **Copernicus DEM** 生成的局部地表，
+ * 与项目 CTB 地形不同源，同开会叠两层地表（侧视见硬直交界）。
  *
- * 剔除它，闸室 / 闸门 / 引航道等**构筑物**便落回项目地形：**地形归地形，
- * 构筑物归构筑物**，渲染层不再叠两层地表。
+ * 2026-10-05 用户实测反馈推翻该取舍：剔除后**枢纽周边的高边坡多级台阶整圈消失**
+ * （马道 188 m / 青年 75 m 的放坡平台都在这一件里——实测 732 顶点、高差
+ * −85~+132 m、材质 rock/earth/grass）。用户裁定「要包的效果」⇒ 放行 z1；
+ * 双地表穿插的旧风险如实保留（S1 有收口块与失效条件）。
  *
- * 判定用 `extras.name` 而非 uri 前缀——与分组配置同一口径，改文件名不会静默失效。
+ * **回退方式**：若侧视再出现"斜插进地形的平板"，在下方恢复 drop 谓词一笔即可：
+ * `drop: (node) => (nodeName(node) ?? '').includes('地形与边坡')`。
  */
-const PINGLU_DROPPED_LABEL = '地形与边坡'
-
-/** 派生选项：剔除枢纽自带的「地形与边坡」层（理由见上） */
-export const PINGLU_DERIVE_OPTIONS: DeriveOptions = {
-  drop: (node) => (nodeName(node) ?? '').includes(PINGLU_DROPPED_LABEL),
-}
+export const PINGLU_DERIVE_OPTIONS: DeriveOptions = {}
 
 /**
  * 三枢纽分组注册用的屏误差（像素）。

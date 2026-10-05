@@ -246,9 +246,9 @@ async function registerPingluGroups(): Promise<void> {
 
     const ids: string[] = []
     for (const group of PINGLU_GROUPS) {
-      // 带剪枝派生：剔除各枢纽自带的「地形与边坡」层——那是交付方用另一套 DEM
-      // 生成的局部地表，与项目 CTB 地形不同源，同开会糊成一块斜插进地形的平板。
-      // 判据与理由见 constants/pingluTiles 的 PINGLU_DERIVE_OPTIONS。
+      // 派生（含统一 LOD 口径）：2026-10-05 起枢纽自带的「地形与边坡」(z1) 放行
+      // ——那是周边高边坡多级台阶的唯一载体，剔除后枢纽整圈没有台阶（用户裁定）。
+      // 判据、沿革与回退方式见 constants/pingluTiles 的 PINGLU_DERIVE_OPTIONS。
       // 派生 + GE 校正 + 统一 LOD 切换口径都在本函数里（判据见 constants/pingluTiles
       // 的 preparePingluHubTileset）——页面不再手拼链，链里漏一步单测会红。
       const derived = preparePingluHubTileset(template, group)
@@ -289,9 +289,8 @@ const stopTilesLayerWatch = watch(
       // 三条理由，任一条都足够：
       //   ① 它不在模板的 layer-order 里 ⇒ 图层面板没有对应开关，**常驻且用户关不掉**；
       //   ② 与 PINGLU_GROUPS 的 `pinglu-madao` 分组内容重复，等于把马道渲染两份；
-      //   ③ 它走整包挂载，拿不到派生侧的剪枝 ⇒ 枢纽自带的「地形与边坡」层
-      //      （与项目 CTB 地形不同源，会糊成斜插进地形的平板）始终存在，
-      //      而面板上偏偏没有能关掉它的开关。
+      //   ③（2026-10-05 起失效，留档）它走整包挂载、拿不到派生侧的剪枝 ⇒ 当时
+      //      枢纽自带的「地形与边坡」层会常驻；现 z1 已按用户裁定放行，此条不再成立。
       // 马道枢纽现由 `pinglu-madao` 分组承担：带剪枝、逐条可控、归 owner 册管理。
       if (pingluRegistered) return
       void registerPingluGroups()

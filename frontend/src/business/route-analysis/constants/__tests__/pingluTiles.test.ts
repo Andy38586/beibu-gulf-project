@@ -56,12 +56,21 @@ function makeDeliveryTileset(): TilesetJson {
     企石枢纽: ['z1-terrain', 'z2-upstream', 'z3-lock', 'z4-pool', 'z6-downstream'],
     青年枢纽: ['z1-terrain', 'z2-upstream', 'z3-lock', 'z6-downstream'],
   }
+  // 零件中文名（与交付包 extras.name 同口径；drop 谓词按名字匹配，缺名字会让断言成假红壳）
+  const PART_LABEL: Record<string, string> = {
+    'z1-terrain': '地形与边坡',
+    'z2-upstream': '上游引航道',
+    'z3-lock': '船闸主体',
+    'z4-pool': '省水池与泄水建筑物',
+    'z6-downstream': '下游引航道',
+  }
   const hub = (name: string, uri: string) => ({
     content: { uri },
     extras: { name, order: 1 },
     geometricError: 40,
     children: HUB_PARTS[name].map((part) => ({
       content: { uri: uri.replace('.glb', `-${part}.glb`) },
+      extras: { name: `${name} · ${PART_LABEL[part]}` },
       geometricError: 20,
     })),
   })
@@ -220,5 +229,13 @@ describe('preparePingluHubTileset — 统一 LOD 切换口径在链内', () => {
         LOD_REFINE_GE_PER_SSE * PINGLU_HUB_MAX_SSE
       )
     }
+  })
+
+  it('2026-10-05 裁定：枢纽自带「地形与边坡」(z1) 放行——不得再被派生剔除', () => {
+    // 用户实测：剔除后枢纽周边高边坡多级台阶整圈消失。恢复 drop 谓词 ⇒ 本条必红。
+    const prepared = preparePingluHubTileset(makeDeliveryTileset(), PINGLU_GROUPS[0], BASE)!
+    const uris = prepared.root.children![0].children!.map((c) => c.content!.uri as string)
+    expect(uris.some((u) => u.includes('-z1-terrain.glb'))).toBe(true)
+    expect(uris).toHaveLength(5) // z1/z2/z3/z4/z6 一件不少
   })
 })

@@ -52,6 +52,21 @@ const LAYER_TYPE: LayerType = 'heatmap'
 /** 热力图色带与渲染参数（与预测图层同款形式，weightField 改 score） */
 const GRADIENT = ['#00f', '#0ff', '#0f0', '#ff0', '#f00']
 
+/**
+ * 展示阈值（v4 后续迭代 2026-10-05 用户选定「阈值渲染」）：只上图 score ≥ 本值的格——
+ * 全量渲染会把中低分格也涂成实色，'哪里适宜'反而不可见（用户实测'全图都是'）。
+ * 左上面板/Top-N 仍消费全量分布（store.setData 不受影响），本阈值只作用于图层。
+ * 调整口径：与左侧候选名单阈值视觉对齐即可，无文献锚点（作者设定）。
+ */
+const MIN_DISPLAY_SCORE = 0.7
+
+/** 图层渲染只保留达标格（GeoJSON FeatureCollection 过滤，不引业务类型） */
+function filterByScore(features: SiteSuitabilityResponseParsed['features']) {
+  return features.filter(
+    (f) => Number((f.properties as { score?: number }).score) >= MIN_DISPLAY_SCORE
+  )
+}
+
 function getLayerOptions(): LayerOptions {
   return { weightField: 'score', radius: 18, blur: 14, gradient: GRADIENT }
 }
@@ -156,7 +171,7 @@ export function useSiteSuitabilityLayer(): UseSiteSuitabilityLayerReturn {
     if (!result || !Array.isArray(result.features)) return
     state.setData(result)
     manager.updateData(SITE_SUITABILITY_LAYER_KEY, {
-      data: result.features,
+      data: filterByScore(result.features),
       options: getLayerOptions(),
     })
   }
@@ -190,7 +205,7 @@ export function useSiteSuitabilityLayer(): UseSiteSuitabilityLayerReturn {
         //（旧事务的 finally 见事务已失效不会回写，否则 loading 会永久悬停）
         state.setIsRequesting(false)
         manager.updateData(SITE_SUITABILITY_LAYER_KEY, {
-          data: cached.features,
+          data: filterByScore(cached.features),
           options: getLayerOptions(),
         })
         return
@@ -225,7 +240,7 @@ export function useSiteSuitabilityLayer(): UseSiteSuitabilityLayerReturn {
       state.setData(geojson)
       requestCache.set(key, geojson)
       manager.updateData(SITE_SUITABILITY_LAYER_KEY, {
-        data: geojson.features,
+        data: filterByScore(geojson.features),
         options: getLayerOptions(),
       })
     } catch (e) {

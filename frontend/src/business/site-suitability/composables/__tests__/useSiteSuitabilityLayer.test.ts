@@ -63,7 +63,7 @@ describe('useSiteSuitabilityLayer（BLM 注册/更新 + 事务取消）', () => 
         {
           type: 'Feature',
           geometry: { type: 'Point', coordinates: [108.6, 21.9] },
-          properties: { id: 1, score: 0.5 },
+          properties: { id: 1, score: 0.85 },
         },
       ],
       metadata: {
@@ -176,5 +176,64 @@ describe('useSiteSuitabilityLayer（BLM 注册/更新 + 事务取消）', () => 
       closeModal()
       vi.useRealTimers()
     }
+  })
+})
+
+describe('阈值渲染（v4 后续迭代：只上图 score ≥ 0.7 的格）', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.clearAllMocks()
+    useMapStore().currentRenderer = fakeRenderer as never
+  })
+
+  it('低分格被过滤、达标格上图（删过滤 ⇒ 全图实色红复现，必红）', async () => {
+    mockApiRequest.mockResolvedValue({
+      type: 'FeatureCollection',
+      features: [
+        {
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: [108.6, 21.9] },
+          properties: { id: 1, score: 0.95 },
+        },
+        {
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: [108.7, 21.8] },
+          properties: { id: 2, score: 0.75 },
+        },
+        {
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: [108.8, 21.7] },
+          properties: { id: 3, score: 0.3 },
+        },
+        {
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: [108.9, 21.6] },
+          properties: { id: 4, score: 0.1 },
+        },
+      ],
+      metadata: {
+        count: 4,
+        weights: {},
+        weightsSource: 'ahp-default',
+        kdeP99: 0,
+        minLandFrac: 0.5,
+      },
+    })
+    const scope = effectScope()
+    scope.run(() => {
+      const { updateLayer } = useSiteSuitabilityLayer()
+      const { startTransaction } = useSiteSuitabilityRequest()
+      const { transactionId, signal } = startTransaction()
+      void updateLayer(transactionId, signal)
+    })
+    await scope.run(async () => undefined)
+    await vi.waitFor(() => expect(mockManager.updateData).toHaveBeenCalled())
+    console.log('CALLS-FULL:', JSON.stringify(mockManager.updateData.mock.calls))
+    console.log('T4-DUMP:', JSON.stringify(mockManager.updateData.mock.calls))
+    const data = mockManager.updateData.mock.calls[0]?.[1]?.data
+    console.log('THRESH-DUMP:', JSON.stringify(mockManager.updateData.mock.calls))
+    const scores = (data as Array<{ properties: { score: number } }>).map((f) => f.properties.score)
+    // 0.95/0.75 达标上图，0.3/0.1 被阈值滤掉
+    expect(scores).toEqual([0.95, 0.75])
   })
 })

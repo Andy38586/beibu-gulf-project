@@ -2,7 +2,7 @@
   "note": "证据映射（指标账派生器输入）。键 = 专项N:编号（全限定防跨专项撞号——「2.4」在四个专项各有一行）。kind=guard（ref 须被 run-all 登记）/ test / retired；by 记登记依据。新守卫入库必须同步登记其固化的指标编号——没有登记的固化不算固化。",
   "专项1:2.4": {
     "kind": "guard",
-    "ref": "tools/v3-guard/nest-controllers-data.mjs",
+    "ref": "tools/v3-guard/nest-controllers.mjs",
     "by": "S3 收口窗 2026-09-26：守卫「controller 无直读数据文件」即专项1 指标 2.4「绕过 service 的直接调用」"
   },
   "专项1:5.2": {

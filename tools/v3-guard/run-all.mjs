@@ -39,7 +39,7 @@ export const GUARDS = [
   'protocol-single-source',
   'doc-map-check',
   'cruise-coverage',
-  'nest-controllers-data',
+  'nest-controllers',
   'csp-sync',
   'anchor-check',
   'tiles3d-check',

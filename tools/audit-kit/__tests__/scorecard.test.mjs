@@ -12,6 +12,7 @@ import {
   auditCoverage,
   auditHooks,
   auditTags,
+  failedThresholds,
   renderScore,
   resolveAnchor,
   scoreBatch,
@@ -35,15 +36,19 @@ describe('scorecard — 窗口发现（1004-17）', () => {
     expect(ids).not.toContain('README.md')
   })
 
-  it('🔴 混合命名（1004-QC-06）：W*.md 与非 W 窗件同时纳入；W id 仍对齐 claims', () => {
+  it('🔴 混合命名（1004-QC-06）：W*.md 与非 W 窗件同时纳入；问题副本是衍生物不占窗（1005-QC-02）', () => {
     const dir = mkdtempSync(path.join(tmpdir(), 'score-mixed-'))
     writeFileSync(path.join(dir, 'W1.md'), '# W1\n')
     writeFileSync(path.join(dir, '专项1-数据链审查-执行记录.md'), '# 执行记录\n')
     writeFileSync(path.join(dir, '专项1-数据链审查-问题副本.md'), '# 问题副本\n')
+    writeFileSync(path.join(dir, '00-派单账.md'), '# 派单账\n')
     const ids = windowFiles(dir).map((f) => f.id)
     expect(ids).toContain('W1')
     expect(ids).toContain('专项1-数据链审查-执行记录.md')
-    expect(ids).toContain('专项1-数据链审查-问题副本.md')
+    // 问题副本 = 窗口 §2 的衍生物：当窗会让「无负责集的窗」凭空多一条
+    expect(ids).not.toContain('专项1-数据链审查-问题副本.md')
+    // 00-派单账 = 派单器产物（与 00-记分卡 同类），不是窗口
+    expect(ids).not.toContain('00-派单账.md')
   })
 })
 
@@ -221,5 +226,19 @@ git rev-parse --short HEAD
     expect(md).toContain('可复核率')
     const empty = scoreBatch(mkdtempSync(path.join(tmpdir(), 'bbg-score2-')))
     expect(renderScore(empty)).toContain('未取证')
+    // 无未达标项但有未取证 ⇒ 不许打「全部门槛达标」（QC-02 同族：缺输入不是达标）
+    expect(renderScore(empty)).not.toContain('全部门槛达标')
+    expect(renderScore(empty)).toContain('未取证**')
+  })
+
+  it('🔴 批末门禁 --strict：无 claims.json ⇒ 覆盖率未取证也判失败（默认口径不红）', () => {
+    const noClaims = scoreBatch(mkdtempSync(path.join(tmpdir(), 'bbg-score3-')))
+    expect(noClaims.门槛.覆盖率).toContain('未取证')
+    // 默认：未取证不拦（缺输入 ≠ 违规），只有未达标红
+    expect(failedThresholds(noClaims, false).map(([k]) => k)).not.toContain('覆盖率')
+    // --strict：未取证同样红 —— claims.json 交件必填
+    expect(failedThresholds(noClaims, true).map(([k]) => k)).toContain('覆盖率')
+    // 阳性对照：有 claims（覆盖率「已算」）时 strict 不因覆盖率红
+    expect(failedThresholds(b, true).map(([k]) => k)).not.toContain('覆盖率')
   })
 })

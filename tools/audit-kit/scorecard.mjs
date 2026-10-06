@@ -17,6 +17,8 @@
  *   - 窗件发现：全部非 README/00-记分卡 的 .md 都纳入（混合命名批次不再只认 W*.md）。
  *
  * 用法：node tools/audit-kit/scorecard.mjs <批次目录> [--out 00-记分卡.md] [--json]
+ *      [--strict]  --strict：把「未取证」也判为失败（批末门禁用——claims.json 是交件必填，
+ *                  缺它就等于覆盖率没有输入，不许以 exit 0 混过）
  */
 import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
@@ -256,6 +258,8 @@ export function loadClaims(batchDir) {
 export function windowFiles(batchDir) {
   // 全部非 00-记分卡/README 的 .md 都纳入（1004-QC-06：混合命名批次里 W*.md 曾让
   // 非 W 窗件与问题副本被吞；W 文件仍以 `W\d+` 作 id 以对齐 claims.json）。
+  // 例外二（1005-QC-02）：`*问题副本*` 是窗口 §2 的**衍生物**（问题清单副本），不是判定窗；
+  // 把它当窗会让「无负责集的窗」凭空多一条，覆盖率分母的读法跟着被带偏。
   const out = []
   const walk = (dir, depth) => {
     if (depth > 3) return
@@ -264,7 +268,13 @@ export function windowFiles(batchDir) {
       if (e.isDirectory()) walk(abs, depth + 1)
       // 1004-17：00-* 窗口件（如 00-审查体系逐行复核-执行记录.md）必须纳入批次质量数；
       // 只排除两类**非窗口**：00-记分卡.md（本工具产物）与 README（说明件）。
-      else if (/\.md$/.test(e.name) && !/^README/.test(e.name) && !/^00-记分卡/.test(e.name)) {
+      else if (
+        /\.md$/.test(e.name) &&
+        !/^README/.test(e.name) &&
+        !/^00-记分卡/.test(e.name) &&
+        !/^00-派单账/.test(e.name) &&
+        !/问题副本/.test(e.name)
+      ) {
         const w = e.name.match(/^(W\d+)\b/)
         out.push({
           id: w ? w[1] : path.relative(batchDir, abs).replace(/\\/g, '/'),
@@ -361,7 +371,10 @@ export function renderScore(b) {
         `| ${w.id} | ${w.负责数} | ${w.负责数 ? `${(w.覆盖.覆盖率 * 100).toFixed(0)}%（未判 ${w.覆盖.未判.length}）` : '未取证'} | ${w.锚点.总数}/${w.锚点.可核} | ${w.锚点.可核 ? `${(w.锚点.真实率 * 100).toFixed(1)}%` : '未取证'} | ${w.判据.块数}/${w.判据.带期望} | ${w.标签.标签.引入}/${w.标签.标签.收口不足} |`
     )
     .join('\n')
-  const bad = Object.entries(b.门槛).filter(([, v]) => v === '未达标')
+  // 判定分两栏（1005-QC-02 同族）：未达标是红，未取证是缺输入——两者都不是「通过」，
+  // 旧写法在「无未达标项」时打一句「全部门槛达标」，会把未取证一起读成达标（名实不符）。
+  const 未达 = Object.entries(b.门槛).filter(([, v]) => v === '未达标')
+  const 未证 = Object.entries(b.门槛).filter(([, v]) => String(v).startsWith('未取证'))
   return `# ${path.basename(b.目录)} 记分卡（生成件，勿手改）
 
 > 生成：\`node tools/audit-kit/scorecard.mjs ${b.目录}\`
@@ -393,18 +406,39 @@ ${
 
 ## 判定
 
-${bad.length ? bad.map(([k, v]) => `- **${k} ${v}**`).join('\n') : '- 全部门槛达标（本行仅在无未达标项时出现）'}
+${
+  未达.length
+    ? 未达.map(([k, v]) => `- **${k} ${v}**`).join('\n')
+    : 未证.length
+      ? '- 无未达标项（不等于全绿：下列未取证项缺输入）'
+      : '- 全部门槛达标（本行仅在无未达标项时出现）'
+}
+${未证.map(([k, v]) => `- **${k} 未取证**：${v}`).join('\n')}
 - 未取证 ≠ 通过（AGENTS §5.4）：凡标「未取证」的，缺的是输入产物，不是判据。
 `
+}
+
+/**
+ * 门槛失败项（CLI 与单测共用同一份判定）。
+ * 默认只红「未达标」；--strict 下「未取证」同样红——批末门禁口径：claims.json 是交件必填，
+ * 缺它覆盖率就没有输入，不许以 exit 0 混过（1005-QC-02）。
+ */
+export function failedThresholds(b, strict = false) {
+  return Object.entries(b.门槛).filter(
+    ([, v]) => v === '未达标' || (strict && String(v).startsWith('未取证'))
+  )
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const argv = process.argv.slice(2)
   const dir = argv.find((a) => !a.startsWith('--'))
   if (!dir || !existsSync(dir)) {
-    console.error('用法: node tools/audit-kit/scorecard.mjs <批次目录> [--out <文件>] [--json]')
+    console.error(
+      '用法: node tools/audit-kit/scorecard.mjs <批次目录> [--out <文件>] [--json] [--strict]'
+    )
     process.exit(2)
   }
+  const strict = argv.includes('--strict')
   const b = scoreBatch(path.resolve(dir))
   if (argv.includes('--json')) console.log(JSON.stringify(b, null, 1))
   else {
@@ -416,6 +450,12 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     console.log(md)
     console.log(`已写 ${path.relative(ROOT, out)}`)
   }
-  const bad = Object.values(b.门槛).filter((v) => v === '未达标')
+  const bad = failedThresholds(b, strict)
+  if (strict && bad.length) {
+    console.error(
+      `[scorecard] --strict 未通过：${bad.map(([k, v]) => `${k}=${v}`).join('；')}` +
+        '（未取证 = 缺输入产物，补齐再重跑；本模式是批末门禁口径）'
+    )
+  }
   process.exit(bad.length ? 1 : 0)
 }

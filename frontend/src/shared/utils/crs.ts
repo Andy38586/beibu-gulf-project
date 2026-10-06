@@ -45,7 +45,9 @@ export function normalizePoint(input: LaxPoint): GeoPoint<CRS> | null {
 }
 
 /** 北部湾业务区域边界（EPSG:4326），用于数据入口校验、过滤明显越界的异常坐标。
- *  与后端 siteAnalysisService.js 同源（后端权威，8-8 统一：原 112/23.5 收紧于后端 115/25） */
+ *  权威 = 后端 `backend/src/common/constants/gis.constants.ts` 的 `GULF_BOUNDS`（8-8 统一：
+ *  原 112/23.5 收紧于后端 115/25）；本副本由 `tools/v3-guard/constants-audit.mjs` 逐字段对账
+ *  （d036：注释不是判据，双份手抄必须有能红的一致性守卫）。 */
 export const BEIBU_GULF_BBOX = {
   minLng: 105.0,
   maxLng: 115.0,

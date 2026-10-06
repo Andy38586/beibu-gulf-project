@@ -42,6 +42,20 @@ const FRONTEND_BIZ = `export const AUTH_BIZ_CODE = {
   WRONG_PASSWORD: 401003,
 } as const
 `
+const BACKEND_GIS = `export const GULF_BOUNDS = {
+  minLng: 105,
+  maxLng: 115,
+  minLat: 18,
+  maxLat: 25,
+} as const
+`
+const FRONTEND_CRS = `export const BEIBU_GULF_BBOX = {
+  minLng: 105.0,
+  maxLng: 115.0,
+  minLat: 18.0,
+  maxLat: 25.0,
+} as const
+`
 
 describe('parseNumericConst — 数值常量解析', () => {
   it('解析水位上限', () => {
@@ -65,10 +79,25 @@ describe('auditSharedConstants — 跨进程常量一致性', () => {
     frontendFlood: FRONTEND_FLOOD,
     backendBiz: BACKEND_BIZ,
     frontendBiz: FRONTEND_BIZ,
+    backendGis: BACKEND_GIS,
+    frontendCrs: FRONTEND_CRS,
   }
 
   it('双侧一致 → 无问题', () => {
     expect(auditSharedConstants(base)).toEqual([])
+  })
+
+  it('@guard-red-sample 业务边界框漂移（前端 maxLng 收紧到 112）⇒ 必红（d036）', () => {
+    const problems = auditSharedConstants({
+      ...base,
+      frontendCrs: FRONTEND_CRS.replace('maxLng: 115.0', 'maxLng: 112.0'),
+    })
+    expect(problems.some((p) => p.includes('业务边界框 maxLng 前后端漂移'))).toBe(true)
+  })
+
+  it('@guard-red-sample 边界框常量被改名 ⇒ 解析失败必红（不许静默当通过）', () => {
+    const problems = auditSharedConstants({ ...base, backendGis: 'export const X = 1' })
+    expect(problems.some((p) => p.includes('业务边界框解析失败'))).toBe(true)
   })
 
   it('@guard-red-sample MAX_WATER_LEVEL 前端漂移（曾写死 15）→ 报问题', () => {

@@ -18,6 +18,8 @@ const BACKEND_FLOOD_CONSTANTS = 'backend/src/common/constants/flood.constants.ts
 const FRONTEND_FLOOD_CONSTANTS = 'frontend/src/shared/constants/flood.ts'
 const BACKEND_BUSINESS_ERROR = 'backend/src/common/errors/business-error.ts'
 const FRONTEND_BIZ_CODES = 'frontend/src/shared/constants/bizCodes.ts'
+const BACKEND_GIS_CONSTANTS = 'backend/src/common/constants/gis.constants.ts'
+const FRONTEND_CRS = 'frontend/src/shared/utils/crs.ts'
 
 /** 从文件文本解析 `export const NAME = <数字>`（宽松空白匹配） */
 export function parseNumericConst(content, name) {
@@ -65,6 +67,25 @@ export function parseRiskBands(content, name) {
  * 一致性审计：水位上限双侧同值；风险分档表逐档同源；前端消费的业务码必须是
  * 后端 ErrorCode 的子集（前端允许只消费子集，不允许出现后端已重编/删除的码）。
  */
+/**
+ * 从 `export const NAME = { minLng: 105, maxLng: 115, minLat: 18, maxLat: 25 }` 解析边界框。
+ * d036 收口：后端 `GULF_BOUNDS`（权威）与前端 `BEIBU_GULF_BBOX` 是两份手抄副本，
+ * 前端注释写着"与后端同源"——注释不是判据，本函数把它变成逐字段对账。
+ */
+export function parseBounds(content, name) {
+  const block = content.match(
+    new RegExp(`export const ${name}\\s*=\\s*\\{([\\s\\S]*?)\\}\\s*as const`)
+  )
+  if (!block) return null
+  const out = {}
+  for (const key of ['minLng', 'maxLng', 'minLat', 'maxLat']) {
+    const m = block[1].match(new RegExp(`${key}\\s*:\\s*(-?\\d+(?:\\.\\d+)?)`))
+    if (!m) return null
+    out[key] = Number(m[1])
+  }
+  return out
+}
+
 export function auditSharedConstants(files) {
   const problems = []
   const backendMax = parseNumericConst(files.backendFlood, 'MAX_WATER_LEVEL')
@@ -120,6 +141,25 @@ export function auditSharedConstants(files) {
       }
     }
   }
+
+  // 业务边界框（d036）：后端 GULF_BOUNDS 为权威，前端 BEIBU_GULF_BBOX 逐字段对账
+  const backendBbox = parseBounds(files.backendGis ?? '', 'GULF_BOUNDS')
+  const frontendBbox = parseBounds(files.frontendCrs ?? '', 'BEIBU_GULF_BBOX')
+  if (!backendBbox || !frontendBbox) {
+    problems.push(
+      `业务边界框解析失败：backend=${JSON.stringify(backendBbox)} ` +
+        `frontend=${JSON.stringify(frontendBbox)}（常量被改名/删除？）`
+    )
+  } else {
+    for (const key of ['minLng', 'maxLng', 'minLat', 'maxLat']) {
+      if (backendBbox[key] !== frontendBbox[key]) {
+        problems.push(
+          `业务边界框 ${key} 前后端漂移：backend=${backendBbox[key]} frontend=${frontendBbox[key]}` +
+            '（后端 GULF_BOUNDS 为权威，前端 BEIBU_GULF_BBOX 须同步）'
+        )
+      }
+    }
+  }
   return problems
 }
 
@@ -130,9 +170,11 @@ function main() {
     frontendFlood: read(FRONTEND_FLOOD_CONSTANTS),
     backendBiz: read(BACKEND_BUSINESS_ERROR),
     frontendBiz: read(FRONTEND_BIZ_CODES),
+    backendGis: read(BACKEND_GIS_CONSTANTS),
+    frontendCrs: read(FRONTEND_CRS),
   })
   if (problems.length === 0) {
-    console.log('[constants-audit] OK：水位上限双侧一致，前端业务码 ⊆ 后端 ErrorCode')
+    console.log('[constants-audit] OK：水位上限/业务边界框双侧一致，前端业务码 ⊆ 后端 ErrorCode')
     return
   }
   console.error(`[constants-audit] FAIL：跨进程共享常量漂移 ${problems.length} 处`)

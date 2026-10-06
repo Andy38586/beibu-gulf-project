@@ -603,6 +603,20 @@
         }
       ],
       "guard": "tools/v3-guard/doc-map-check.mjs"
+    },
+    {
+      "id": "gulf-bounds",
+      "authority": {
+        "kind": "code",
+        "ref": "backend/src/common/constants/gis.constants.ts#GULF_BOUNDS"
+      },
+      "derived": [
+        {
+          "site": "frontend/src/shared/utils/crs.ts#BEIBU_GULF_BBOX",
+          "guard": "tools/v3-guard/constants-audit.mjs"
+        }
+      ],
+      "guard": "tools/v3-guard/constants-audit.mjs"
     }
   ],
   "tasks": [

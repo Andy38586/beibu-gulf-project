@@ -66,13 +66,36 @@ L8 entry      main / router / App
 环境要求：Node `^22.18.0 || >=24.12.0`。生产链只需 Node + Docker（PostGIS）；**Python 不再是运行时依赖**——淹没演算已改为离线管线产出的 PostGIS 档位表，仅重跑数据生产时才需要 Python（见 `tools/dem-pipeline/`、`tools/README.md`）。
 
 ```bash
-# 1. 安装依赖
+# 1. 安装依赖（根 + backend 两个 package）
 npm install
+npm --prefix backend ci
 
-# 2. 起数据库（PostGIS）
+# 2. 构建本地 PostGIS+pgRouting 镜像并起库
+#    （compose 引用的 local/postgis-pgrouting 是仓库自建镜像，新机器必须先 build；
+#      空目录做 context 的理由见 tools/db/Dockerfile.pgrouting 头注释）
+mkdir -p /tmp/pgrbuild && cp tools/db/Dockerfile.pgrouting /tmp/pgrbuild/Dockerfile
+docker build -t local/postgis-pgrouting:16-3.4 /tmp/pgrbuild
 docker compose -f docker-compose.v3.yml up -d
 
-# 3. 启动前端 (5173) 与后端 (3000)
+# 3. 建扩展与 schema（4 个文件幂等；CI 的等价序列见 backend/test/seed/ci-seed.sh）
+docker exec -i beibu-postgis psql -U postgres -d beibu-gulf-data -v ON_ERROR_STOP=1 \
+  -c "CREATE EXTENSION IF NOT EXISTS postgis; CREATE EXTENSION IF NOT EXISTS pgrouting;"
+for f in db-schema.sql db-schema-gis.sql db-schema-flood.sql schema-migrations.sql; do
+  docker exec -i beibu-postgis psql -U postgres -d beibu-gulf-data -v ON_ERROR_STOP=1 < "tools/db/$f"
+done
+
+# 4. 灌仓库自带默认数据（forecast 全量 + 洪涝设施/251 档；users/plans/favorites 为运行时数据）
+node tools/db/db-import.mjs --allow-runtime-missing
+docker cp .local/tmp/import.sql beibu-postgis:/tmp/
+docker exec beibu-postgis psql -U postgres -d beibu-gulf-data -f /tmp/import.sql
+node tools/flood/flood-levels-to-pg.mjs
+docker cp .local/tmp/flood-import.sql beibu-postgis:/tmp/
+docker exec beibu-postgis psql -U postgres -d beibu-gulf-data -f /tmp/flood-import.sql
+
+# 5. 后端本地 env（JWT_SECRET 必填，生成命令见文件内注释；PG 默认值对齐 compose）
+cp backend/.env.example backend/.env
+
+# 6. 启动前端 (5173) 与后端 (3000)
 npm run dev                    # 前端 Vite
 npm --prefix backend run start:dev   # 后端 NestJS
 ```
@@ -80,13 +103,22 @@ npm --prefix backend run start:dev   # 后端 NestJS
 > 说明：原 `dev:flood` / `test:algorithm` 已随 FastAPI 退役删除，`dev:server` 现等于 `dev:nest`，
 > 因此 `npm run dev:all` 可直接用（2026-10-06 清理后复核）。
 
+**换成你自己的数据**：后端数据根用 `DATA_DIR` 覆盖（默认向上查找 `backend/data`，静态资产取同级的
+`backend/static`；见 `backend/.env.example` 与 `config.service.ts::resolveDataDir`）；库表形状 =
+`tools/db/db-schema*.sql`，JSON 导入契约 = `tools/db/db-import.mjs` + `backend/data/README.md`。
+两类域需要你自己的数据（作者数据不随仓库分发）：路网（`tools/roads/`，`roads_edges` 由该管线建）
+与选址因子面（`tools/site-suitability/materialize-cells.sql`）；缺失时对应页面按无数据降级。
+数据来源与许可登记在 `tools/data-audit/source-registry.json`（含 pending 项，再分发前必须核）。
+可选大资产（真地形 `backend/static/terrain/**`、`qinzhou-port/`、`bim-hub/`）不入库：缺失时 3D 地形
+自动降级为平坦椭球、对应图层不加载，其余功能不受影响。
+
 访问 <http://localhost:5173>。NestJS 启动时读可选的本地 env 文件（模板 `backend/.env.example`，真实文件按设计不入库）；必填项缺失时当前行为是**打印错误后继续挂载**，不是 fail fast——这是在册缺口（`validateEnv` 名为校验实不阻断），修它之前请勿把它当作已存在的保护。
 
 ## 测试与质量门禁
 
 ```bash
-npm test                       # 前端 Vitest（64 个 *.test.ts，用例数以本地实跑输出为准）
-npm run test --prefix backend  # 后端 Vitest（29 个 *.spec.ts）
+npm test                       # 前端 Vitest（文件数与用例数以本地实跑输出为准）
+npm --prefix backend test      # 后端 Vitest（含真库门控跳过，以实跑输出为准）
 npm run test:tools             # 守卫自身的测试（vitest，tools/ 下）
 npm run lint                   # ESLint（0 告警基线）
 npm run typecheck              # vue-tsc 全量类型检查

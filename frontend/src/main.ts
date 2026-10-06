@@ -60,17 +60,6 @@ void initErrorReporting()
 //（algorithm-service 退役，能力由 Nest+PostGIS 覆盖），VITE_DATA_SOURCE 环境变量
 // 与 setDataSource 初始化一并移除。
 
-// ResizeObserver polyfill for Safari < 13.1（按需动态导入）
-if (typeof window !== 'undefined' && !('ResizeObserver' in window)) {
-  import('resize-observer-polyfill')
-    .then(({ default: ResizeObserverPolyfill }) => {
-      window.ResizeObserver = ResizeObserverPolyfill
-    })
-    .catch(() => {
-      logger.warn('ResizeObserver polyfill 加载失败，部分响应式布局可能不可用')
-    })
-}
-
 const app = createApp(App)
 
 app.use(createPinia())

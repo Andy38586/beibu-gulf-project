@@ -558,7 +558,7 @@ onUnmounted(() => {
       </div>
 
       <div v-if="alignmentIssues.length > 0" class="hud-issues">
-        <div v-for="(issue, index) in alignmentIssues" :key="`${issue.name}-${index}`">
+        <div v-for="issue in alignmentIssues" :key="`${issue.name}-${issue.field}`">
           {{ issue.name }} {{ issue.field }}={{ issue.value }}px (expected {{ issue.expected }})
         </div>
       </div>

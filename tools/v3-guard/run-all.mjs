@@ -47,6 +47,7 @@ export const GUARDS = [
   'guard-red-sample',
   'owned-layers',
   'layer-keys',
+  'vue-list-keys',
   'flyto-single-entry',
   'render-colors-single-source',
   'viewport-tier-single-source',

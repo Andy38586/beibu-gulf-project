@@ -6,11 +6,15 @@
 - `killed`＝改坏后测试变红，约束成立；
 - `survived`＝改坏后测试仍绿，说明这条测试太松，需要补强或在 `cases.mjs` 的 `KNOWN_SURVIVORS` 显式登记理由。
 
+> **定位**：手动度量工具（非常设门禁）——不挂 pre-commit / pre-push / CI 任何自动点，
+> 未运行即无保护；读数只对运行当时的 HEAD 有效。用例必须随目标模块存亡同笔清理
+> （2026-10-06 已清理指向整体移除的 site-analysis 模块的 M5/M6 两条死用例）。
+
 ## 用法
 
 ```bash
 npm run test:mutation           # 跑全部变异用例（每条：注入→跑测试→必定还原）
-node tools/mutation-probe/run.mjs --id M5        # 只跑某条
+node tools/mutation-probe/run.mjs --id M3        # 只跑某条
 node tools/mutation-probe/run.mjs --json r.json  # 额外落 JSON 报告
 ```
 

@@ -12,7 +12,7 @@
  *
  * 用法：
  *   node tools/mutation-probe/run.mjs            # 跑全部用例
- *   node tools/mutation-probe/run.mjs --id M1    # 只跑某条
+ *   node tools/mutation-probe/run.mjs --id M3    # 只跑某条
  *   node tools/mutation-probe/run.mjs --json out # 额外写 JSON 报告
  *
  * 退出码：全部 killed（或仅余已登记的 known-survivor）→ 0；出现未登记 survived/用例错误 → 1。

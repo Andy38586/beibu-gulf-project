@@ -33,22 +33,6 @@ export const CASES = [
 
   // ───────── 业务关键纯函数：契约级测试必须抓住数值被改坏（测试松不松，一突变便知）─────────
   {
-    id: 'M5',
-    desc: '距离衰减百分制被改成十分制（半程应 50 分）',
-    target: 'backend/src/modules/site-analysis/services/scoring.ts',
-    find: 'return (1 - distance / maxDistance) * 100',
-    replace: 'return (1 - distance / maxDistance) * 10',
-    test: { cwd: 'backend', command: ['npx', 'vitest', 'run', 'test/invariants-contract.spec.ts'] },
-  },
-  {
-    id: 'M6',
-    desc: '重要程度 5 档半径系数 2.2 被改（契约逐值锁定）',
-    target: 'backend/src/common/constants/scoring.constants.ts',
-    find: '  5: 2.2,',
-    replace: '  5: 2.1,',
-    test: { cwd: 'backend', command: ['npx', 'vitest', 'run', 'test/invariants-contract.spec.ts'] },
-  },
-  {
     id: 'M7',
     desc: '月度线性插值被改成恒取起点值（中间月应 105/110/115…）',
     target: 'backend/src/modules/forecast/services/model-loader.ts',

@@ -37,8 +37,11 @@
 ## §0 五分钟核对
 
 ```bash
-git rev-parse --short HEAD
+# 基线钉「取证时点的 sha」/ blob hash —— 禁止钉移动的 HEAD（下一笔提交起必红，1005-QC-04）
+git rev-parse --short a736ab30
 # 期望: a736ab30
+git rev-parse HEAD:frontend/src/style.css
+# 期望: <取证时点的 blob sha>
 node tools/v3-guard/ledger-dedupe.mjs | head -1
 # 期望: 待解决 57 项
 ```
@@ -46,6 +49,7 @@ node tools/v3-guard/ledger-dedupe.mjs | head -1
 
 - 期望值写成**实际 stdout 的原样摘录**（子串匹配），不要写「应该会通过」这类判断。
 - 需要改坏源码才能复现的变异，放到 `§1` 之后 —— 本工具只复算 `§0`。
+- **基线锚只钉取证 sha / blob hash / 文件 md5**：`git rev-parse --short HEAD` 这种写法在主干前进后必红，红因与问题无关；期望里写死的 HEAD 值 = 下一笔提交的定时炸弹（1005-QC-04）。
 
 ## 用法
 

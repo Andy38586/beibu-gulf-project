@@ -189,6 +189,18 @@
       "ts": "2026-10-05"
     },
     {
+      "id": "EXTERNAL-DEPS",
+      "path": "docs/日志/状态/外部依赖登记.md",
+      "layer": "日志",
+      "role": "W6 外部依赖与用户执行指令单登记（E-1…E-7 六段模板；登记即从 S1 销账）",
+      "status": "active",
+      "guard": "tools/v3-guard/doc-map-check.mjs",
+      "owns": ["外部依赖执行状态与销账映射"],
+      "readWhen": ["D", "外部项执行/回填"],
+      "writeWhen": ["外部项状态变化（追加执行记录）"],
+      "ts": "2026-10-06"
+    },
+    {
       "id": "LOG-DECISIONS",
       "path": "docs/日志/决策/",
       "layer": "日志",

@@ -4,7 +4,7 @@
 -- 用途：
 --   ① 切换前验证：拿**应用同款 SQL**（吸附 → pgr_withPoints → 里程汇总）在候选表上
 --      跑固定点对，与生产现值对比，确认结果合理再切；
---   ② B-5 精度验收：与 FastAPI 基线对照。
+--   ② B-5 精度验收：与原 FastAPI 基线对照。
 --
 -- 用法（psql 变量选表，默认 roads_noded）：
 --   docker exec -i beibu-postgis psql -U postgres -d beibu-gulf-data -v tbl=roads        < tools/roads/route-verify.sql

@@ -16,9 +16,9 @@ precompute_levels.py — 预计算 0~25m 档位淹没数据（0.1m 步长，251 
 - 多进程并行（每档 1 任务）：连通性演算各档位相互独立，天然可并行；
   numpy/scipy/rasterio 为 C 扩展（释放 GIL），ProcessPoolExecutor 避开 Python 层 GIL。
 
-跑法：
-  cd backend/algorithm-service
-  ./.venv/Scripts/python.exe precompute_levels.py
+跑法（在仓库根执行；venv 按 setup-runtime.ps1 的保留决策仍置于
+backend/algorithm-service/.venv）：
+  backend/algorithm-service/.venv/Scripts/python.exe tools/flood/engine/precompute_levels.py
 
 依赖：flood_engine（numpy/scipy/rasterio/shapely）。
 """

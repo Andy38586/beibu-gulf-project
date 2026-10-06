@@ -1,5 +1,5 @@
 -- =============================================================================
--- roads 端点投影切分（口径来源 algorithm-service/route/topology.py:split_at_endpoints，
+-- roads 端点投影切分（口径来源：原 algorithm-service/route/topology.py 的 split_at_endpoints，
 -- 该文件已于 2026-09-26 随 FastAPI 服务移除 ⇒ **本文件现为该切分口径的唯一载体**，
 -- 需要原始实现请查 git 历史（2026-09-26 之前的 backend/algorithm-service/route/topology.py））
 -- + 网格法建拓扑 + 权重 + 主干分量 → 产出 **roads_noded**（新表，不动 roads）

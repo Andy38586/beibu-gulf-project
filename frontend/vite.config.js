@@ -32,7 +32,8 @@ function removeCesiumHtmlTags() {
 }
 
 export default defineConfig(({ mode, command }) => {
-  // 本地 dev 下，Vite 把 /api、/nest-api、/flood-online 转发到本机回环后端。
+  // 本地 dev 下，Vite 把 /api、/nest-api 转发到本机回环后端（/flood-online 代理
+  // 已随 algorithm-service 退役删除，见下方 proxy 段 2026-09-11 注记）。
   // 若系统开着 Clash/V2Ray 并设置了 HTTP(S)_PROXY/ALL_PROXY（且 NO_PROXY 未覆盖回环），
   // http-proxy 会把「到 127.0.0.1 后端」的请求也发给代理，代理无法回源回环 → 固定 ~2s 后 502，
   // 而直连后端正常，极易误判成「后端挂了/服务器无响应」。dev 的上游全是本机，直接移除上游

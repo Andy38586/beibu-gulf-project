@@ -23,13 +23,15 @@ uv python install 3.12 3.13
 
 # --- 3. 生成侧 venv（venv 里烧死绝对路径，换机必须重建） ---
 # 2026-09-26：FastAPI（algorithm-service）已从版本库移除，引擎层搬到 tools/flood/engine/。
-# 目录名沿用 backend/algorithm-service —— 只因 venv 的绝对路径与三个 py 工具的既有用法指向它，
-# 改名/搬家会让 venv 失效（烧死路径）。该目录从此**不在版本控制内**，新克隆时由下面这步建出来。
+# 目录名沿用 backend/algorithm-service（原 FastAPI 服务目录，已退役）—— 只因 venv 的绝对路径
+# 与三个 py 工具的既有用法指向它，改名/搬家会让 venv 失效（烧死路径）。
+# 该目录从此**不在版本控制内**，新克隆时由下面这步建出来。
+$VenvHome = "$Repo\backend\algorithm-service"   # 已退役服务的 venv 宿主目录（非在役服务）
 Write-Host '--- 重建 backend/algorithm-service/.venv ---'
-if (-not (Test-Path "$Repo\backend\algorithm-service")) {
-  New-Item -ItemType Directory -Force -Path "$Repo\backend\algorithm-service" | Out-Null
+if (-not (Test-Path $VenvHome)) {
+  New-Item -ItemType Directory -Force -Path $VenvHome | Out-Null
 }
-Push-Location "$Repo\backend\algorithm-service"
+Push-Location $VenvHome
 uv venv .venv --python 3.12 --seed
 uv pip install -r "$Repo\tools\flood\engine\requirements.lock.txt" -p .venv\Scripts\python.exe
 Pop-Location

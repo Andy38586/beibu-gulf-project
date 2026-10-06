@@ -412,7 +412,7 @@ record(
 // D. 测试与构建（--static 跳过）
 // ============================================================
 if (FLAGS.tests) {
-  section('D. 测试（前端 coverage / tools / 后端 coverage / algorithm pytest + 动态看门狗）')
+  section('D. 测试（前端 coverage / tools / 后端 coverage + 动态看门狗）')
   // EP-DYN（2026-09-15）：前后端测试改 report 变体，额外落 vitest JSON；跑完由 test-watchdog
   // 动态兜底——本地无库时门控套件允许跳过但必须在 test-gate.config.json 登记、每个测试文件都得
   // 真执行、新增未登记 .skip 直接 fail（此前「整组 skip 仍 exit 0」的放行洞在此被堵）。
@@ -424,7 +424,6 @@ if (FLAGS.tests) {
       cwd: null,
       desc: '后端 Nest vitest（coverage + JSON；无 PG 时门控套件按登记跳过）',
     },
-    { args: ['run', 'test:algorithm'], cwd: null, desc: 'FastAPI pytest（离线套件）' },
   ]
   for (const s of dSteps) {
     const r = run(NPM, s.args, { cwd: s.cwd ?? undefined, stdio: 'inherit' })

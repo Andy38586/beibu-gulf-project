@@ -96,7 +96,8 @@ ALTER TABLE poi_facilities ADD COLUMN IF NOT EXISTS city TEXT;
 ALTER TABLE xiaoqu        ADD COLUMN IF NOT EXISTS city TEXT;
 
 -- 真数据 JSON 存档（2026-08-14 加）：backend/data 全部静态真数据原样复制一份，
--- 供 v3 Nest/FastAPI 接入时建模；假数据（mock/合成）不入库，留在文件系统。
+-- 供 v3 Nest 接入时建模（规划期原文含 FastAPI，该服务已于 2026-09-10 退役，不再接入）；
+-- 假数据（mock/合成）不入库，留在文件系统。
 CREATE TABLE IF NOT EXISTS data_archive (
   name        TEXT PRIMARY KEY,          -- 相对路径标识，如 forecast/cargo.json
   payload     JSONB NOT NULL,            -- 原样 JSON

@@ -28,16 +28,16 @@
 
 ## 技术栈
 
-| 层       | 选型                                                 | 说明                                                                                                                                                                                                                                                                          |
-| -------- | ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 前端     | Vue 3 + TypeScript + Vite + Pinia                    | Composition API，分层架构（见下）                                                                                                                                                                                                                                             |
-| 地图 2D  | OpenLayers                                           | 低功耗 / 低需求场景默认引擎                                                                                                                                                                                                                                                   |
-| 地图 3D  | Cesium                                               | 按需懒加载，不常驻首屏                                                                                                                                                                                                                                                        |
-| 图表     | ECharts                                              | 仅预测页异步加载                                                                                                                                                                                                                                                              |
-| 后端     | Node.js + NestJS（TypeScript）                       | controller → service → repository 三层，pg 仅 repository 层                                                                                                                                                                                                                   |
-| 在线演算 | ~~Python + FastAPI~~ **已退役**（2026-09-10 阶段 4） | 容器 4→3，重计算改为「PostGIS 查表 + 离线 Python 数据管线」（`tools/dem-pipeline/`、`tools/flood/`）。⚠️ 代码侧尚存退役残留：`dev:server` 仍 `run-p dev:nest dev:flood`、`ci:local` 仍含 `test:algorithm`（见 `package.json` scripts），启动 `dev:all` 会去拉已下线的 uvicorn |
-| 数据     | PostgreSQL + PostGIS + 静态 JSON                     | 库已承载选址/方案/收藏/洪涝查询（空间算子下沉库内）；预测/地形/静态资源为文件源                                                                                                                                                                                               |
-| 部署     | Docker Compose + Nginx + GitHub Actions              | 支持挂载 TLS 证书启用 HTTPS（手动），已预留 ACME 挑战目录                                                                                                                                                                                                                     |
+| 层       | 选型                                                 | 说明                                                                                                                                                                                                                                 |
+| -------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 前端     | Vue 3 + TypeScript + Vite + Pinia                    | Composition API，分层架构（见下）                                                                                                                                                                                                    |
+| 地图 2D  | OpenLayers                                           | 低功耗 / 低需求场景默认引擎                                                                                                                                                                                                          |
+| 地图 3D  | Cesium                                               | 按需懒加载，不常驻首屏                                                                                                                                                                                                               |
+| 图表     | ECharts                                              | 仅预测页异步加载                                                                                                                                                                                                                     |
+| 后端     | Node.js + NestJS（TypeScript）                       | controller → service → repository 三层，pg 仅 repository 层                                                                                                                                                                          |
+| 在线演算 | ~~Python + FastAPI~~ **已退役**（2026-09-10 阶段 4） | 容器 4→3，重计算改为「PostGIS 查表 + 离线 Python 数据管线」（`tools/dem-pipeline/`、`tools/flood/`）。2026-10-06 复核：`dev:server`/`ci:local` 的 FastAPI 残留（`dev:flood`/`test:algorithm`）已清理，`dev:all` = `dev` + `dev:nest` |
+| 数据     | PostgreSQL + PostGIS + 静态 JSON                     | 库已承载选址/方案/收藏/洪涝查询（空间算子下沉库内）；预测/地形/静态资源为文件源                                                                                                                                                      |
+| 部署     | Docker Compose + Nginx + GitHub Actions              | 支持挂载 TLS 证书启用 HTTPS（手动），已预留 ACME 挑战目录                                                                                                                                                                            |
 
 ## 架构
 
@@ -77,7 +77,8 @@ npm run dev                    # 前端 Vite
 npm --prefix backend run start:dev   # 后端 NestJS
 ```
 
-> ⚠️ 仓库里仍有 `npm run dev:all` / `dev:server` / `dev:flood`，它们会去拉**已退役的 FastAPI 洪涝服务**（`dev:server = run-p dev:nest dev:flood`）——本地开发请用上面两条命令，别用 `dev:all`。
+> 说明：原 `dev:flood` / `test:algorithm` 已随 FastAPI 退役删除，`dev:server` 现等于 `dev:nest`，
+> 因此 `npm run dev:all` 可直接用（2026-10-06 清理后复核）。
 
 访问 <http://localhost:5173>。NestJS 启动时读可选的本地 env 文件（模板 `backend/.env.example`，真实文件按设计不入库）；必填项缺失时当前行为是**打印错误后继续挂载**，不是 fail fast——这是在册缺口（`validateEnv` 名为校验实不阻断），修它之前请勿把它当作已存在的保护。
 
@@ -90,12 +91,12 @@ npm run test:tools             # 守卫自身的测试（vitest，tools/ 下）
 npm run lint                   # ESLint（0 告警基线）
 npm run typecheck              # vue-tsc 全量类型检查
 npm run cruise                 # dependency-cruiser 分层依赖守护
-npm run guard:v3               # 29 项 v3 守卫（全名见 tools/README.md 的 v3-guard 行）
+npm run guard:v3               # 30 项 v3 守卫（全名见 tools/README.md 的 v3-guard 行）
 npm run tmp:clean              # 清空 .local/tmp（临时文件唯一落点）
 npm run build:analyze          # 构建体积分析（rollup-plugin-visualizer）
 ```
 
-CI（GitHub Actions）：8 个 job，各自实际内容如下（**以 `.github/workflows/ci.yml` 为准**）——`changes` 变更探测；`audit` 根与 Nest 两侧 `npm audit`（high+ 阻断）；`static-checks` 跑 29 项 v3 守卫、格式、lint、stylelint、cruise 分层契约、API 契约自检、双侧 typecheck、gitleaks 密钥扫描、`.env` 未被跟踪、覆盖率基线冻结；`frontend-tests` 前端测试（覆盖率 + 棘轮 + watchdog）与 `test:tools`；`commit-discipline` 校验 `fix:`/`refactor:` 提交必须含 test 文件；`backend-tests` 真库 seed + Nest 测试（门控套件必须真跑）+ 后端覆盖率棘轮；`build-push-images` 构建推镜像；`deploy` 服务器上只 `docker compose pull`，不在机上构建。
+CI（GitHub Actions）：8 个 job，各自实际内容如下（**以 `.github/workflows/ci.yml` 为准**）——`changes` 变更探测；`audit` 根与 Nest 两侧 `npm audit`（high+ 阻断）；`static-checks` 跑 30 项 v3 守卫、格式、lint、stylelint、cruise 分层契约、API 契约自检、双侧 typecheck、gitleaks 密钥扫描、`.env` 未被跟踪、覆盖率基线冻结；`frontend-tests` 前端测试（覆盖率 + 棘轮 + watchdog）与 `test:tools`；`commit-discipline` 校验 `fix:`/`refactor:` 提交必须含 test 文件；`backend-tests` 真库 seed + Nest 测试（门控套件必须真跑）+ 后端覆盖率棘轮；`build-push-images` 构建推镜像；`deploy` 服务器上只 `docker compose pull`，不在机上构建。
 
 ## 部署
 

@@ -35,7 +35,7 @@ from rasterio.features import shapes as rio_shapes
 from rasterio.warp import transform_geom
 from scipy import ndimage
 
-# 仓库根锚点：本文件在 tools/flood/engine/ 下（2026-09-26 从 backend/algorithm-service/
+# 仓库根锚点：本文件在 tools/flood/engine/ 下（2026-09-26 自原 algorithm-service 拆出，
 # 拆出时曾用 parents[1]，搬迁后指向 tools/flood ⇒ DEM/waterLevel 全部解析到不存在的
 # tools/flood/data/...，生成链自 9-26 起不可跑；2026-10-04 修正为显式 parents[3]）。
 REPO_ROOT = Path(__file__).resolve().parents[3]

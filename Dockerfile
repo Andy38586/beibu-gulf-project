@@ -19,7 +19,8 @@ ENV VITE_TIANDITU_KEY=$VITE_TIANDITU_KEY
 # /api/site-suitability/map 与 /api/diversion/breakdown 均 404「接口不存在」，
 # 生产仅靠 nginx 的 /api→/nest-api rewrite 侥幸兜住；
 # 本行自 2026-10-01 起纳入 routes-audit「生产默认域清单必须全覆盖」断言，防第三次复发）；
-# 回滚旧版或临时走 Express 时清空此值（compose build.args 覆盖）
+# Express 回滚路径已随该服务退役删除（2026-09-10），本开关现只控制 Nest 域清单
+#（compose build.args 覆盖）
 ARG VITE_USE_NEST_MODULES=auth,plans,favorites,forecast,flood,site-suitability,diversion,route,task
 ENV VITE_USE_NEST_MODULES=$VITE_USE_NEST_MODULES
 
@@ -54,8 +55,9 @@ FROM node:22-alpine AS production
 
 WORKDIR /app
 
-# d068: 安装 nginx（原 su-exec 服务于 Express 进程降权，v3 三服务分离后 app 容器
-# 只承载前端 + nginx，不再启动后端进程——nest/algorithm-service/postgis 为独立容器）
+# d068: 安装 nginx（原 su-exec 服务于 Express 进程降权，该服务已退役；v3 三服务分离后
+# app 容器只承载前端 + nginx，不再启动后端进程——nest/postgis 为 compose 独立容器，
+# algorithm-service 服务定义已于 2026-09-11 删除）
 # brotli 模块来自 alpine community 仓库（动态匹配基础镜像小版本），提供实时 brotli 压缩
 #（副-07；构建时验证：包缺失会 fail 构建，不会带病上线）
 RUN apk add --no-cache nginx \
@@ -83,7 +85,7 @@ RUN if grep -q '^user ' /etc/nginx/nginx.conf; then \
       sed -i '1i user node;' /etc/nginx/nginx.conf; \
     fi
 
-# 启动脚本（只拉起 nginx；nest / algorithm-service 为 compose 独立服务）
+# 启动脚本（只拉起 nginx；nest 为 compose 独立服务——algorithm-service 已退役删除）
 COPY docker-entrypoint.sh /app/
 RUN chmod +x /app/docker-entrypoint.sh
 

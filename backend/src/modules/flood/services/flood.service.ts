@@ -12,7 +12,7 @@ import { FloodLevelFeatureRow, FloodRepository } from '../repositories/flood.rep
 
 // 洪涝业务层（逐行等价移植 backend/services/floodService.js）：
 // 读编排（取档/风险注入/基准偏移）与设施评估都在此层，controller 只做路由委托。
-// 设施点与淹没多边形空间筛选（与 FastAPI compute_impact 同口径），损失 = value × damageRate；
+// 设施点与淹没多边形空间筛选（与原 FastAPI compute_impact 同口径，该服务已退役），损失 = value × damageRate；
 // 空间筛选已下沉 PostGIS（ST_Covers），与 turf.booleanPointInPolygon 命中集合一致；
 // 评分/损失加权留在 Node（业务口径不进 SQL）
 export interface FloodFacility {

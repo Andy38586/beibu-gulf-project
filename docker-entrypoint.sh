@@ -112,8 +112,8 @@ server {
         add_header X-Content-Type-Options "nosniff" always;
         add_header X-Frame-Options "SAMEORIGIN" always;
         add_header Content-Security-Policy-Report-Only "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; media-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; report-uri /nest-api/csp-report" always;
-        # 2026-08-09：.terrain 瓦片本身是 gzip 压缩流（CTB 输出，后端 Express 也这样
-        # Content-Encoding: gzip 响应，Cesium 才能解压 heightmap）；nginx 直发需补该头，
+        # 2026-08-09：.terrain 瓦片本身是 gzip 压缩流（CTB 输出；原 Express 后端也这样
+        # Content-Encoding: gzip 响应——该后端已退役，nginx 直发需补该头，
         # 否则 Cesium 按原始字节解析 → RangeError: Invalid typed array length。
         # 2026-08-10 修复：gzip 头只对 .terrain 生效（嵌套 location）——原无条件 add_header
         # 让 layer.json 被声明 gzip 但内容未压缩 → ERR_CONTENT_DECODING_FAILED → 真地形失效
@@ -191,8 +191,8 @@ else
 fi
 
 # === 2. 启动 nginx ===
-# v3 三服务分离后，本容器只承载前端 + nginx 反代；nest（3000）与 algorithm-service（8000）
-# 为 compose 独立容器，经服务名互连——此处不再启动内嵌 Express（已退役）
+# v3 三服务分离后，本容器只承载前端 + nginx 反代；nest（3000）为 compose 独立容器，
+# 经服务名互连——此处不再启动内嵌 Express（已退役），algorithm-service（8000）已退役删除
 nginx -g 'daemon off;' &
 NGINX_PID=$!
 

@@ -108,7 +108,7 @@ async function bootstrap() {
   if (!config.isProduction) {
     const swaggerConfig = new DocumentBuilder()
       .setTitle('beibu-gulf v3 API')
-      .setDescription('NestJS 业务层（strangler 迁移期与老 Express 并存）')
+      .setDescription('NestJS 业务层（v3 单一后端；原 Express / FastAPI 均已退役）')
       .setVersion('0.1')
       .build()
     const document = SwaggerModule.createDocument(app, swaggerConfig)

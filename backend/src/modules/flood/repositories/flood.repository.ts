@@ -42,7 +42,7 @@ export interface FloodLevelFeatureRow {
 }
 
 // 取档查询（向上取档）：
-//   picked   = >= 请求水位的最低档（与 FastAPI _level_key 的 ceil 同向——宁可高估风险不可低估）
+//   picked   = >= 请求水位的最低档（与原 FastAPI _level_key 的 ceil 同向——宁可高估风险不可低估）
 //   fallback = 超档（水位 > 25）时回落最高档（对齐原 pickZone 的「超档取最高档」语义）
 //   LEFT JOIN LATERAL ST_Dump：档位无几何（如 0 档）时仍返回该档一行，使调用方能区分
 //   「档位存在但无淹没」与「表为空」两种情形

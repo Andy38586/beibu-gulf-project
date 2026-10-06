@@ -111,8 +111,8 @@
       "source": "本项目文档",
       "license": "MIT",
       "fetchedAt": "不适用",
-      "coverage": "说明件（⚠️ 已腐烂：仍写 site-selection/、throughput.json 与已退役 Express 服务）",
-      "quality": "git grep -n \"site-selection\" -- backend/data/README.md（命中即证明未更新）",
+      "coverage": "说明件（2026-10-06 复核：与现役 data/ 口径一致；site-selection/Express 仅以「历史/已移除」条目标注，无在役叙述）",
+      "quality": "git grep -n \"site-selection\" -- backend/data/README.md（命中行须带历史/已移除语境）；git grep -n \"throughput\\.json\" -- backend/data/README.md（应为空）",
       "provenanceStatus": "confirmed"
     }
   ]

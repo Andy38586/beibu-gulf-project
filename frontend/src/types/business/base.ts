@@ -10,28 +10,21 @@
 // GeoPoint 收敛为单一权威（crs.ts 带 CRS 泛型版本）；
 // 原 base.ts 独立定义（无 crs 字段）与 crs.ts 同名不同义，已移除，此处仅 re-export 兼容既有引用。
 // 注意：re-export 不引入本地作用域，本文件内部使用需显式 import。
-import type { AffectedFacilityParsed, FloodFeatureParsed } from '../schemas'
+import type {
+  AffectedFacilityParsed,
+  FloodFeatureParsed,
+  FloodStatisticsResponseParsed,
+} from '../schemas'
 export type { GeoPoint } from '../crs'
 
 // ===== 浸没分析业务类型 =====
 
-/** 淹没统计数据（显式声明后端字段 + adapter 派生字段；riskLevel 必填，其余按数据源可选） */
-export interface FloodStatistics {
-  riskLevel: string // 风险等级（所有数据源均提供）
-  // —— 后端 flood-statistics 字段（2026-09-11 起与 flood-areas/disaster 同源）——
-  waterLevel?: number // 水位档位（m，251 档实际档位）
-  riskLevelCode?: number // 风险等级编码（RISK_LEVEL_BANDS 下标，P1-9 补类型）
-  floodArea?: number // 淹没面积（km²）
-  averageDepth?: number // 平均水深（m，6 档 DEM 反演参考值）
-  maxDepth?: number // 最大水深（m，6 档 DEM 反演参考值）
-  depthRefLevel?: number // 平均/最大水深所属的 DEM 反演参考档位（m，基准=理论深度基准面）
-  depthUnderstatedBy?: number // 参考档水深相对实际档位的低估量（m）；> 0 即需打 * 披露（W19）
-  // 计数语义改名 affectedFacilityCount，消除与 FloodSavedState.affectedFacilities（数组）同名不同型
-  affectedFacilityCount?: number // 受影响设施数量（计数，非数组）
-  affectedPorts?: string[] // 受影响港口列表
-  estimatedLoss?: number // 预估损失（万元，value × damageRate，与 disaster.totalLoss 同口径；facilityPoints metadata.valueUnit）
-  description?: string // 情景描述
-}
+/**
+ * 淹没统计数据——从 floodStatisticsResponseSchema z.infer 派生（D1：schema 与业务类型编译期绑定）。
+ * 原为手抄 interface：漏了 `requestedWaterLevel`/`actualWaterLevel` 两字段（后端与 schema 都有），
+ * adapter 用 `as FloodStatistics` 缝合 ⇒ 漂移无编译期提示；z039④ 收口为同源派生。
+ */
+export type FloodStatistics = FloodStatisticsResponseParsed
 
 /** 淹没区域要素（GeoJSON Feature）——从 floodFeatureSchema z.infer 派生（D1：schema 与业务类型编译期绑定） */
 export type FloodFeature = FloodFeatureParsed & {

@@ -9,6 +9,8 @@ import { computed } from 'vue'
 import { formatLoss, useGCS } from '@/shared'
 import { useFloodStore } from '@/stores'
 
+import { summarizeFacilityTypes } from '../constants/facilityTypeLabels'
+
 const floodStore = useFloodStore()
 const { cellPixel, css } = useGCS()
 // 解构出 CSS 变量供 v-bind() 使用
@@ -55,6 +57,26 @@ const depthHint = computed(() =>
     ? `参考 ${depthRefLevel.value}m 档 DEM 反演值（基准比实际档位低 ${depthUnderstatedBy.value}m）`
     : ''
 )
+
+/** 设施分类统计（z039④）：聚合结果挂「受影响设施」行 title——后端已有 type，前端不新造数据 */
+const facilityTypeSummary = computed(() => summarizeFacilityTypes(floodStore.affectedFacilities))
+
+/**
+ * 档位对齐披露（z039④）：请求水位向上取档后，面板/几何用的是**实际档**。
+ * 两值不等才披露（请求 4.5 → 实际 5），避免被读成精确水位。
+ */
+const levelAdjustment = computed(() => {
+  const stats = floodStore.floodStatistics
+  const requested = Number(stats?.requestedWaterLevel)
+  const actual = Number(stats?.actualWaterLevel ?? stats?.waterLevel)
+  if (!Number.isFinite(requested) || !Number.isFinite(actual) || requested === actual) return null
+  return { requested, actual }
+})
+const levelHint = computed(() =>
+  levelAdjustment.value
+    ? `请求 ${levelAdjustment.value.requested}m 档 → 实际取 ${levelAdjustment.value.actual}m 档（向上取档；面板数值与地图几何均按实际档）`
+    : ''
+)
 </script>
 
 <template>
@@ -70,7 +92,14 @@ const depthHint = computed(() =>
            受影响设施以 store 计算列表为单一事实源 -->
       <div v-if="floodStore.floodStatistics" class="info-item">
         <span class="info-label">淹没面积</span>
-        <span class="info-value">{{ floodStore.floodStatistics.floodArea ?? 0 }} km²</span>
+        <span class="info-value"
+          >{{ floodStore.floodStatistics.floodArea ?? 0 }} km²<span
+            v-if="levelAdjustment"
+            class="level-adjust-mark"
+            :title="levelHint"
+            >⇧</span
+          ></span
+        >
       </div>
       <div v-if="floodStore.floodStatistics" class="info-item">
         <span class="info-label">平均水深</span>
@@ -94,7 +123,12 @@ const depthHint = computed(() =>
       </div>
       <div class="info-item">
         <span class="info-label">受影响设施</span>
-        <span class="info-value">{{ floodStore.affectedFacilities.length }} 个</span>
+        <span
+          class="info-value"
+          :title="facilityTypeSummary || undefined"
+          :class="{ 'has-hint': facilityTypeSummary }"
+          >{{ floodStore.affectedFacilities.length }} 个</span
+        >
       </div>
       <!-- 预估损失（X4）：disaster 的 totalLoss 与 floodStatistics 的 estimatedLoss 现同式
            （value × damageRate × min(d/3,1)），故 ?? 兜底链两侧口径一致、可互换 -->
@@ -192,6 +226,17 @@ const depthHint = computed(() =>
 .info-value.highlight {
   color: var(--GCS-color-danger);
   font-weight: 600;
+}
+
+.info-value.has-hint {
+  cursor: help;
+}
+
+/* 档位对齐标注（⇧）：请求水位向上取档后，提示面板数字用的是实际档 */
+.level-adjust-mark {
+  margin-left: 2px;
+  color: var(--GCS-text-secondary);
+  cursor: help;
 }
 
 /* 水深参考档位标注（*）：提示该值来自 6 档 DEM 反演参考表而非当前水位 */

@@ -19,6 +19,8 @@ export interface LayerState {
   instance: unknown
   visible: boolean
   options?: LayerOptions
+  /** z038②：交互期降载标记（顶点规模 ≥ 阈值；相机 moveStart 隐藏、moveEnd 按 visible 恢复） */
+  interactionHeavy?: boolean
   /** Cesium 子类扩展：原始全量要素（culling 用）与相机监听句柄（rAF 防抖） */
   allFeatures?: PointFeature[]
   cameraListener?: (() => void) | null

@@ -54,6 +54,14 @@ import type {
   WaterSurfaceOptions,
 } from '@/types'
 
+import {
+  isHeavyGeoJson,
+  isHeavyPolygons,
+  isHeavyVertexCount,
+  scheduleLazySkyBox,
+  setupCameraDebounce,
+  unbindPerf,
+} from '../perf/cameraPerf'
 import { type LayerState, MapRenderer } from './MapRenderer'
 
 /** 相机默认俯仰角（度）：-90° 俯视（引擎切换刻意不传递倾斜状态——OL 无 pitch 概念） */
@@ -130,6 +138,7 @@ class CesiumViewerManager {
     this.viewer = new Viewer(container, {
       baseLayer: false,
       baseLayerPicker: false,
+      skyBox: false, // z038③ 星空懒加载：首帧后 idle 补建（见 cameraPerf.scheduleLazySkyBox）
       fullscreenButton: false,
       homeButton: false,
       // 默认 geocoder 启用会发 Ion 请求（公网依赖+隐私），显式关闭
@@ -168,6 +177,7 @@ class CesiumViewerManager {
     this.viewer.scene.fog.enabled = false
 
     this.isMounted = true
+    scheduleLazySkyBox(this.viewer)
     return this.viewer
   }
 
@@ -445,7 +455,6 @@ export class CesiumRenderer extends MapRenderer {
    */
   _webglContextLostHandler: ((e: Event) => void) | null
   _screenSpaceEventHandler: ScreenSpaceEventHandler | null
-  _cameraChangedHandler: (() => void) | null
   _waterSurfaces: Map<string, WaterSurfaceEntry> | null
   _breathingEntities: unknown[]
   _breathingAnimId: number | null
@@ -486,7 +495,6 @@ export class CesiumRenderer extends MapRenderer {
     this._imageryErrorProviders = []
     this._webglContextLostHandler = null
     this._screenSpaceEventHandler = null
-    this._cameraChangedHandler = null
     this._waterSurfaces = null
     this._breathingEntities = []
     this._breathingAnimId = null
@@ -1226,7 +1234,7 @@ export class CesiumRenderer extends MapRenderer {
 // ===== 事件：相机防抖 / 点击 / 指针移动（模块级函数，经 renderer 实例委托） =====
 /**
  * 事件管理：click / pointer-move / camera-changed 的注册与清理。
- * 处理器引用存于 renderer 实例（_screenSpaceEventHandler / _cameraChangedHandler），供 destroy 注销。
+ * 处理器引用存于 renderer 实例（_screenSpaceEventHandler）；相机回调存 cameraPerf 的 WeakMap。
  */
 
 /** Cartesian3 → [lng, lat]（角度制） */
@@ -1235,7 +1243,6 @@ export function cartesianToLonLatArray(cartesian: Cartesian3): [number, number] 
   return [CesiumMath.toDegrees(cartographic.longitude), CesiumMath.toDegrees(cartographic.latitude)]
 }
 
-/** 相机变化 300ms 防抖：之后触发渲染与 camera-changed 回传（避免拖拽/缩放中频繁更新） */
 /**
  * 引擎存活守卫（1004-03）：viewer 为空或已销毁（30s 空闲销毁 / 引擎切换）一律返回 null。
  * 原 43 处 `viewer!` 裸断言把「引擎已销毁」变成 TypeError（reading camera of null），
@@ -1246,29 +1253,6 @@ function aliveViewer(renderer: CesiumRenderer): Viewer | null {
   if (!viewer) return null
   if (typeof viewer.isDestroyed === 'function' && viewer.isDestroyed() === true) return null
   return viewer
-}
-
-export function setupCameraDebounce(renderer: CesiumRenderer): void {
-  const DEBOUNCE_DELAY = 300
-  // 保存监听器引用，供 destroy 移除，防止泄漏与 TypeError
-  renderer._cameraChangedHandler = () => {
-    // 清除之前的防抖定时器
-    if (renderer._cameraDebounceTimer) {
-      clearTimeout(renderer._cameraDebounceTimer)
-    }
-    renderer._cameraDebounceTimer = setTimeout(() => {
-      // viewer 可能已置空，防御（真值判断内写非空断言等于没写）
-      if (renderer.viewer) {
-        renderer.viewer.scene.requestRender()
-        // 相机变化防抖后回传状态（复用 _cameraChangedHandler，勿新增监听）
-        renderer.emit('camera-changed', renderer._getCameraState())
-      }
-      renderer._cameraDebounceTimer = null
-    }, DEBOUNCE_DELAY)
-  }
-  const viewer = aliveViewer(renderer)
-  if (!viewer) return
-  viewer.camera.changed.addEventListener(renderer._cameraChangedHandler)
 }
 
 /** 点击/移动监听：LEFT_CLICK 拾取要素 properties 并 emit click；MOUSE_MOVE 回传鼠标经纬度 */
@@ -1323,12 +1307,8 @@ export function setupClickHandler(renderer: CesiumRenderer): void {
 
 /** 移除相机变化监听与屏幕事件处理器（LEFT_CLICK/MOUSE_MOVE），供 destroy 调用 */
 export function destroyEvents(renderer: CesiumRenderer): void {
-  // 移除相机监听器
-  const viewer = aliveViewer(renderer)
-  if (viewer && renderer._cameraChangedHandler) {
-    viewer.camera.changed.removeEventListener(renderer._cameraChangedHandler)
-    renderer._cameraChangedHandler = null
-  }
+  // 移除相机监听（changed 防抖 + z038② 交互期降载；具名回调存 cameraPerf 的 WeakMap）
+  unbindPerf(renderer)
 
   // 清理屏幕事件处理器，防止内存泄漏
   if (renderer._screenSpaceEventHandler) {
@@ -1569,6 +1549,7 @@ export function addPolygonLayer(
     instance: entities,
     visible: true,
     options,
+    interactionHeavy: isHeavyPolygons(features), // z038②：相机移动期隐藏重图层
   })
   renderer._applyPendingVisibility(id)
   viewer.scene.requestRender()
@@ -1688,6 +1669,7 @@ export async function addGeoJsonLayer(
       instance: dataSource,
       visible: true,
       options,
+      interactionHeavy: isHeavyGeoJson(geojson), // z038②：相机移动期隐藏重图层
     })
     renderer._applyPendingVisibility(id)
     viewerAfterLoad.scene.requestRender()
@@ -1738,6 +1720,7 @@ export async function updateGeoJsonLayer(
     const viewer = aliveViewer(renderer)
     if (!viewer) return
     applyGeoJsonDataSourceStyle(dataSource, entry.options)
+    entry.interactionHeavy = isHeavyGeoJson(geojson) // z038②：数据换 ⇒ 顶点规模重算
     renderer._applyPendingVisibility(id)
     viewer.scene.requestRender()
     renderer._geoJsonTokens.delete(id)
@@ -2169,6 +2152,8 @@ interface WaterSurfaceEntry {
   coordinates: [number, number][]
   options: WaterSurfaceOptions
   visible: boolean
+  /** z038②：交互期降载标记（顶点数达标；只切 primitive.show，不覆盖 visible 权威值） */
+  interactionHeavy?: boolean
   /** 地形基准（每顶点地形高度，椭球高制）：海面抬升语义 = 基准 + 水位；无真地形时全 0 */
   terrainBase: number[]
 }
@@ -2273,6 +2258,7 @@ export async function addWaterSurface(
       options: options,
       visible: true,
       terrainBase: terrainBase,
+      interactionHeavy: isHeavyVertexCount(coordinates.length), // z038②：多顶点贴地大面
     })
 
     viewer.scene.requestRender()

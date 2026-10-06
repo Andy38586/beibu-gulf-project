@@ -24,7 +24,7 @@
  *
  * **新增 `import … from 'cesium'` 的运行时名字时，必须同步在下面加一行导出**，
  * 否则该名字在 dev 下会是 `undefined`（只在运行时暴露，构建期不报错）。
- * 当前名单来自 `CesiumRenderer.ts`（全仓唯一运行时消费者，31 个名字）。
+ * 当前名单来自 `CesiumRenderer.ts`（全仓唯一运行时消费者，33 个名字）。
  */
 import type * as CesiumTypes from 'cesium'
 
@@ -37,6 +37,7 @@ if (!C) {
   )
 }
 
+export const buildModuleUrl = C.buildModuleUrl
 export const CallbackProperty = C.CallbackProperty
 export const Cartesian2 = C.Cartesian2
 export const Cartesian3 = C.Cartesian3
@@ -66,6 +67,7 @@ export const sampleTerrain = C.sampleTerrain
 export const ScreenSpaceEventHandler = C.ScreenSpaceEventHandler
 export const ScreenSpaceEventType = C.ScreenSpaceEventType
 export const SingleTileImageryProvider = C.SingleTileImageryProvider
+export const SkyBox = C.SkyBox
 export const UrlTemplateImageryProvider = C.UrlTemplateImageryProvider
 export const Viewer = C.Viewer
 

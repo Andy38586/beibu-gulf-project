@@ -18,16 +18,25 @@ interface SankeyOptionLike {
   }>
 }
 
-const captured: { option: SankeyOptionLike | null } = { option: null }
+const captured: {
+  option: SankeyOptionLike | null
+  setOptionArgs: { notMerge?: boolean; replaceMerge?: string[]; lazyUpdate?: boolean } | null
+} = { option: null, setOptionArgs: null }
 
 vi.mock('echarts/core', async (importOriginal) => {
   const mod = await importOriginal<typeof import('echarts/core')>()
   return {
     ...mod,
     init: vi.fn(() => ({
-      setOption: vi.fn((o: SankeyOptionLike) => {
-        captured.option = o
-      }),
+      setOption: vi.fn(
+        (
+          o: SankeyOptionLike,
+          opts?: { notMerge?: boolean; replaceMerge?: string[]; lazyUpdate?: boolean }
+        ) => {
+          captured.option = o
+          captured.setOptionArgs = opts ?? null
+        }
+      ),
       on: vi.fn(),
       off: vi.fn(),
       resize: vi.fn(),
@@ -82,5 +91,14 @@ describe('SankeyChart 可见性回归', () => {
     expect(o.series[0].type).toBe('sankey')
     expect(o.series[0].links).toEqual(LINKS)
     expect(o.title.text).toBe('西江货类转移流向')
+  })
+
+  it('z038④：setOption 走全量 merge（notMerge:false + replaceMerge series），不再整体重建', () => {
+    chartOption()
+    expect(captured.setOptionArgs).toEqual({
+      notMerge: false,
+      replaceMerge: ['series'],
+      lazyUpdate: true,
+    })
   })
 })

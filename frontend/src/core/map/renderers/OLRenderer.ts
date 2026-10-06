@@ -2,8 +2,7 @@
 import type { FeatureCollection } from 'geojson'
 import { Attribution, Zoom } from 'ol/control'
 import type { EventsKey } from 'ol/events'
-import type { FeatureLike } from 'ol/Feature'
-import Feature from 'ol/Feature'
+import Feature, { type FeatureLike } from 'ol/Feature'
 import GeoJSON from 'ol/format/GeoJSON'
 import MultiPolygon from 'ol/geom/MultiPolygon'
 import Point from 'ol/geom/Point'
@@ -33,6 +32,7 @@ import { normalizePoint } from '@/shared'
 import type { LayerOptions, MapRendererEventMap, PointFeature, PolygonFeature } from '@/types'
 import type { CameraState, FlyToOptions, FlyToTarget, GeoPoint } from '@/types'
 
+import { type AreaAwareVectorLayer, createVectorLayerByGeometry } from '../perf/areaLayer'
 import { MapRenderer } from './MapRenderer'
 
 /** Web 墨卡托投影标识（View/GeoJSON 读取共用，避免字面量散落） */
@@ -658,7 +658,7 @@ export class OLRenderer extends MapRenderer {
 
     const map = this.map
     if (!map) return
-    const vectorLayer = new VectorLayer({
+    const vectorLayer = createVectorLayerByGeometry(olFeatures, {
       source: new VectorSource({ features: olFeatures }),
       style,
     })
@@ -679,7 +679,7 @@ export class OLRenderer extends MapRenderer {
       this.addGeoJsonLayer(id, geojson, options)
       return
     }
-    const layer = entry.instance as VectorLayer<VectorSource>
+    const layer = entry.instance as AreaAwareVectorLayer
     const source = layer.getSource()
     if (!source) {
       this.addGeoJsonLayer(id, geojson, options)
@@ -733,7 +733,7 @@ export class OLRenderer extends MapRenderer {
       const geom = feature.getGeometry()
       return geom?.getType() === 'Point' ? pointStyle : polygonStyle
     }
-    const vectorLayer = new VectorLayer({
+    const vectorLayer = createVectorLayerByGeometry(features, {
       source: new VectorSource({ features }),
       style: options.style || defaultStyle,
     })

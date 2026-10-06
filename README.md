@@ -97,7 +97,7 @@ npm run tmp:clean              # 清空 .local/tmp（临时文件唯一落点）
 npm run build:analyze          # 构建体积分析（rollup-plugin-visualizer）
 ```
 
-CI（GitHub Actions）：9 个 job，各自实际内容如下（**以 `.github/workflows/ci.yml` 为准**）——`changes` 变更探测；`audit` 根与 Nest 两侧 `npm audit`（high+ 阻断）；`static-checks` 跑 27 项 v3 守卫、格式、lint、stylelint、cruise 分层契约、API 契约自检、双侧 typecheck、gitleaks 密钥扫描、`.env` 未被跟踪、覆盖率基线冻结；`frontend-tests` 前端测试（覆盖率 + 棘轮 + watchdog）与 `test:tools`；`e2e` Playwright 关键路径冒烟 + 首屏 ≤5s 探针（2026-10-06 · z019/z037，无后端依赖，失败传 trace）；`commit-discipline` 校验 `fix:`/`refactor:` 提交必须含 test 文件；`backend-tests` 真库 seed + Nest 测试（门控套件必须真跑）+ 后端覆盖率棘轮；`build-push-images` 构建推镜像；`deploy` 服务器上只 `docker compose pull`，不在机上构建。
+CI（GitHub Actions）：9 个 job，各自实际内容如下（**以 `.github/workflows/ci.yml` 为准**）——`changes` 变更探测；`audit` 根与 Nest 两侧 `npm audit`（high+ 阻断）；`static-checks` 跑 27 项 v3 守卫、格式、lint、stylelint、cruise 分层契约、API 契约自检、双侧 typecheck、gitleaks 密钥扫描、`.env` 未被跟踪、覆盖率基线冻结；`frontend-tests` 前端测试（覆盖率 + 棘轮 + watchdog）与 `test:tools`；`e2e` Playwright 关键路径冒烟 + 首屏 ≤5s 探针 + 2D 拖图帧率探针（2026-10-06 · z019/z037/z038，无后端依赖，失败传 trace）；`commit-discipline` 校验 `fix:`/`refactor:` 提交必须含 test 文件；`backend-tests` 真库 seed + Nest 测试（门控套件必须真跑）+ 后端覆盖率棘轮；`build-push-images` 构建推镜像；`deploy` 服务器上只 `docker compose pull`，不在机上构建。
 
 ## 部署
 

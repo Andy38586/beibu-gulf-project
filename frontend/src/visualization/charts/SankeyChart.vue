@@ -106,7 +106,9 @@ function getOption(): Record<string, unknown> {
 }
 
 function updateChart(): void {
-  instance?.setOption(getOption(), true)
+  // z038④：全量 merge（与 useECharts 同一口径）——notMerge:false 保留轴/主题，
+  // replaceMerge:['series'] 整体替换 series 防旧节点残留，lazyUpdate 合并渲染。
+  instance?.setOption(getOption(), { notMerge: false, replaceMerge: ['series'], lazyUpdate: true })
 }
 
 onMounted(() => {

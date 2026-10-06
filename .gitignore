@@ -185,6 +185,9 @@ docs/archive/*
 !docs/archive/交接文档-2026-09-05.md
 !docs/archive/交接文档-2026-10-01.md
 !docs/archive/接力文档-2026-10-02.md
+# 挂起守卫归档（2026-10-06：三条单发迁移期守卫停用，复活条件见该档 README）
+!docs/archive/guards-hung-20261006/
+!docs/archive/guards-hung-20261006/**
 # docs/图片/ 已于 2026-10-02 移出仓库 → 桌面《_北部湾项目\04-项目文档\架构图.svg》
 docs/v3-施工日志/
 # 审查/修复报告（2026-09-12 裁决入库，已登记文档地图；docs/* 默认忽略，逐份放行）

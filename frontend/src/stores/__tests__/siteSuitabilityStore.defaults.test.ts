@@ -23,7 +23,6 @@ import { useSiteSuitabilityStore } from '../siteSuitabilityStore'
 import {
   SNAPSHOT_MIN_LAND_FRAC,
   SNAPSHOT_PROVENANCE,
-  SNAPSHOT_THRESHOLDS,
   SNAPSHOT_WEIGHTS,
 } from '../siteSuitabilityDefaults.snapshot'
 
@@ -39,7 +38,14 @@ const FINAL_WEIGHTS: Record<string, number> = {
 function remoteDefaults() {
   return {
     weights: { ...FINAL_WEIGHTS },
-    thresholds: { ...SNAPSHOT_THRESHOLDS },
+    thresholds: {
+      inundLowM: 1,
+      inundHighM: 6,
+      slopeBestDeg: 5,
+      slopeWorstDeg: 20,
+      portScaleM: 8000,
+      roadScaleM: 2000,
+    },
     minLandFrac: 0.5,
     resolution: 0,
     source: 'SITE_AHP_MATRIX@2026-09-30',

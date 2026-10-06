@@ -18,7 +18,7 @@
 | `data-download/` | 原始数据    | 陆地 DEM / OSM / 海底地形下载（网络可用时跑）                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `perf-bench/`    | 性能基准    | 选址覆盖分析、服务端压测                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | `diag/`          | 诊断        | 淹没多边形 vs DEM 高程基准、3D 页面实况抓取                                                                                                                                                                                                                                                                                                                                                                                                       |
-| `v3-guard/`      | 质量守卫    | 编号外泄 / 分层结构 / 协议自述 / 路由契约 / 常量审计 / CSS 检查可见性 / 预测置信度 / 指标自洽 / 台账编号 / 分层互引覆盖 / 控制器面契约（数据/参数/公开面） / CSP 同步 / 锚点校验 / 3D Tiles / 临时文件卫生 / 文档条数对账 / 跨文档引用解析 / 手抄数字扫描 / 协议单源 / 文档体系登记 / 守卫红样自证 / 图层归属 / 图层 key 字面量 / Vue 列表 key / 宿主属性双断言 / DEV 门控日志 / 退役词条残留 / 飞行单入口 / 渲染色单源 / 断点单源，30 项 CI 断言 |
+| `v3-guard/`      | 质量守卫    | 编号外泄 / 分层结构 / 协议自述 / 路由契约 / 常量审计 / CSS 检查可见性 / 预测置信度 / 指标自洽 / 台账编号 / 分层互引覆盖 / 控制器面契约（数据/参数/公开面） / CSP 同步 / 锚点校验 / 3D Tiles / 临时文件卫生 / 文档条数对账 / 跨文档引用解析 / 手抄数字扫描 / 协议单源 / 文档体系登记 / 守卫红样自证 / 图层归属 / 图层 key 字面量 / Vue 列表 key / 宿主属性双断言 / DEV 门控日志 / 退役词条残留 / 飞行单入口 / 渲染色单源 / 断点单源，27 项 CI 断言 |
 
 ## 根目录单文件（工程与元工具）
 
@@ -45,7 +45,7 @@ dem-pipeline/（DEM 处理）      ─┘                                  →  
 npm run forecast:model       # tools/forecast/throughput_model.cjs
 npm run forecast:activity    # tools/forecast/derive-activity.mjs
 npm run verify-gis           # tools/gis-import/verify.mjs
-npm run guard:v3             # tools/v3-guard/*.mjs（30 项守卫，run-all.mjs 串联不短路）
+npm run guard:v3             # tools/v3-guard/*.mjs（27 项守卫，run-all.mjs 串联不短路）
 ```
 
 ## 约定

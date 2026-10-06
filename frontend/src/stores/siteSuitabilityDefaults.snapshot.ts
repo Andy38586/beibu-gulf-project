@@ -31,20 +31,8 @@ export const SNAPSHOT_WEIGHTS: SuitabilityWeightsState = {
 
 export const SNAPSHOT_MIN_LAND_FRAC = 0.5
 
-/** 阈值表定稿值镜像（前端暂无消费方，随 defaults schema 做形状守卫，不手抄第二份） */
-export const SNAPSHOT_THRESHOLDS = {
-  inundLowM: 1,
-  inundHighM: 6,
-  slopeBestDeg: 5,
-  slopeWorstDeg: 20,
-  portScaleM: 8000,
-  roadScaleM: 2000,
-} as const
-
 /** 快照身份：每次 warn 兜底时原样输出，凭它判定"这次是兜底" */
 export const SNAPSHOT_PROVENANCE = {
   source: 'SITE_AHP_MATRIX@2026-09-30',
   backendCommit: 'a7f0cdb0',
-  generatedAt: '2026-10-04',
-  generator: 'backend/test/site-suitability-defaults.spec.ts FINAL_WEIGHTS',
 } as const

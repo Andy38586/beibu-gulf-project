@@ -61,6 +61,31 @@ interface PerfState {
   cesium?: CesiumTimings
 }
 
+/**
+ * 控制台入口（`window.__perf`）的类型。
+ * 宿主对象属性走 `declare global` **声明扩展面**（z043）：不再用
+ * `(window as unknown as Record<string, unknown>).__perf = api` 这种双断言挂属性 ——
+ * 那种写法在属性名/形状漂移时不会有任何编译期提示（d134 实锤同形态）。
+ */
+type PerfReporterApi = {
+  state: PerfState
+  mark: typeof perfMark
+  measure: typeof perfMeasure
+  time: typeof perfTimeFn
+  recordCesium: typeof recordCesium
+  recordApi: typeof perfRecordApi
+  reportError: typeof perfReportError
+  report: typeof buildPerfReport
+  print: () => void
+}
+
+declare global {
+  interface Window {
+    /** 性能基线入口：控制台 `window.__perf.print()` / `window.__perf.report()` */
+    __perf?: PerfReporterApi
+  }
+}
+
 const IS_DEV = import.meta.env.DEV
 
 /**
@@ -348,7 +373,7 @@ export function initPerfReporter(): void {
   }
   requestAnimationFrame(sample)
 
-  const api = {
+  const api: PerfReporterApi = {
     state,
     mark: perfMark,
     measure: perfMeasure,
@@ -365,7 +390,7 @@ export function initPerfReporter(): void {
       printSummary()
     },
   }
-  ;(window as unknown as Record<string, unknown>).__perf = api
+  window.__perf = api
   // eslint-disable-next-line no-console
   console.log(
     `[perf] PerfReporter 已挂载${IS_DEV ? '（dev）' : '（production）'}，window.__perf.print() 查看基线`

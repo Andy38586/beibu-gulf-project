@@ -9,10 +9,12 @@
 # 前置：
 #   1. Docker PostGIS 运行中：docker compose -f docker-compose.v3.yml up -d postgis
 #   2. 建表：docker cp tools/db/db-schema-gis.sql beibu-postgis:/tmp/ 后 exec psql 执行
-#   3. 源数据位于桌面项目数据目录（缺省）
+#   3. 源数据位于 -DataRoot 下，子树：路网\、多边形\{平陆运河,工业园区,红树林,保护用地}
+#      （缺省 = 仓库 .local\data\gis；外置数据树用 -DataRoot 指向）
 param(
   [ValidateSet('all', 'roads', 'railways', 'canal', 'industrial', 'mangroves', 'protected')]
-  [string]$Section = 'all'
+  [string]$Section = 'all',
+  [string]$DataRoot = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -24,7 +26,9 @@ $GDAL = 'C:\Program Files\QGIS 3.44.12\bin\ogr2ogr.exe'
 if (-not (Test-Path $GDAL)) { throw "ogr2ogr 未找到：$GDAL（需 QGIS 安装）" }
 $DockerCli = 'C:\Program Files\Docker\Docker\resources\bin\docker.exe'
 if (-not (Test-Path $DockerCli)) { throw "docker CLI 未找到：$DockerCli（需 Docker Desktop）" }
-$DataRoot = 'C:\Users\JionHappY\Desktop\_北部湾项目\数据_\项目数据'
+if (-not $DataRoot) {
+  $DataRoot = Join-Path (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path '.local\data\gis'
+}
 # PG 连接（对齐 docker-compose.v3.yml 与 verify.mjs）
 $PG = 'PG:host=localhost port=5432 user=postgres password=postgres dbname=beibu-gulf-data active_schema=public'
 

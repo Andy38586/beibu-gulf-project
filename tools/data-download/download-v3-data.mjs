@@ -4,7 +4,8 @@
 //
 // Usage:
 //   $env:HTTPS_PROXY = "http://127.0.0.1:7890"; $env:HTTP_PROXY = "http://127.0.0.1:7890"
-//   node --use-env-proxy tools/data-download/download-v3-data.mjs "C:\Users\JionHappY\Desktop\项目数据" [--osm] [--bathymetry]
+//   node --use-env-proxy tools/data-download/download-v3-data.mjs [目标目录] [--osm] [--bathymetry]
+//   缺省目标 = 仓库 .local/data/downloads（gitignored，可传参指向自己的数据树）
 //
 // Features: Range-based resume, 5x retry, 4-way concurrency for tiles, progress log.
 // SRTM 30m is NOT included: the public skadi bucket no longer serves those keys (2026-08 verified);
@@ -14,7 +15,8 @@ import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 
-const target = process.argv[2] ?? 'C:\\Users\\JionHappY\\Desktop\\项目数据'
+const target =
+  process.argv[2] ?? path.join(import.meta.dirname, '..', '..', '.local', 'data', 'downloads')
 const includeOsm = process.argv.includes('--osm')
 const includeBathy = process.argv.includes('--bathymetry')
 

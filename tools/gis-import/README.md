@@ -27,6 +27,9 @@ powershell -File tools/gis-import/import-gis.ps1 -Section all
 npm run verify-gis
 ```
 
+> 源数据缺省读仓库 `.local\data\gis\`（子树：`路网\`、`多边形\{平陆运河,工业园区,红树林,保护用地}`）；
+> 外置数据树用 `-DataRoot <你的数据根>` 指向。
+
 ## 质检项（verify.mjs）
 
 | 检查              | 语义                                            |

@@ -4,6 +4,7 @@
 # Usage:
 #   powershell -ExecutionPolicy Bypass -File tools\download-v3-data.ps1
 #   powershell -ExecutionPolicy Bypass -File tools\download-v3-data.ps1 -IncludeOSM -IncludeBathymetry
+# 缺省 -Target = 仓库 .local\data\downloads（gitignored，可 -Target 指向自己的数据树）。
 # Notes:
 #   - Resume supported: re-run to continue interrupted downloads (curl -C -).
 #   - Sources are public AWS/NOAA/Geofabrik endpoints; no registration needed.
@@ -11,12 +12,15 @@
 #     here; see docs/v3-data-acquisition-2026-08-14.md (Chinese) for manual steps.
 
 param(
-  [string]$Target = "C:\Users\JionHappY\Desktop\项目数据",
+  [string]$Target = '',
   [switch]$IncludeOSM,        # China OSM extract ~1.4GB (roads + railways)
   [switch]$IncludeBathymetry  # SRTM15+ global bathymetry ~2.6GB (15 arc-sec)
 )
 
 $ErrorActionPreference = 'Continue'
+if (-not $Target) {
+  $Target = Join-Path (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path '.local\data\downloads'
+}
 $script:failCount = 0
 
 function Ensure-Dir([string]$p) { New-Item -ItemType Directory -Force -Path $p | Out-Null }

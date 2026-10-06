@@ -7,6 +7,7 @@ import { createPinia } from 'pinia'
 import type { ComponentPublicInstance } from 'vue'
 import { createApp } from 'vue'
 
+import { preloadCesium } from '@/core'
 import {
   captureError,
   initErrorReporting,
@@ -39,6 +40,15 @@ function validateEnv(): void {
 }
 
 validateEnv()
+
+// z037：3D 直链首屏不做「首帧后错峰」——首屏本身就是 3D 页时，Cesium（5.8 MB）的下载
+// 必须从启动即与路由 chunk 并行，而不是等壳首帧画完才起步（实测后者把 /flood-analysis
+// 直链压到 A-6 预算 5000 ms 的边缘：4535/4535/4536 ms）。判据取自路由表 meta.engine
+// （单一来源 = business/manifest.ts 派生），不写死路径清单；2D 直链不受影响，仍走
+// App.vue 的 warmupAfterFirstFrame 空闲预热（不与首屏抢带宽）。
+if (router.resolve(window.location.pathname).meta?.engine === '3d') {
+  preloadCesium()
+}
 
 // 尽早挂载性能观察者，捕获 FCP/LCP/TTI/longtask（dev-only，不进生产包）
 initPerfReporter()

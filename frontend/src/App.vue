@@ -224,6 +224,17 @@ function onDockCardOpen(target: string): void {
 const waitForRenderer = (callback: () => void) =>
   useWaitForRenderer(() => unifiedMapRef.value?.getRenderer?.() ?? null, callback)
 
+/** 路由 meta.engine → mapStore 的单一转换点（直链预解析与下方 watcher 共用；合法域 2d/3d） */
+function applyEngineFromMeta(engine: unknown): void {
+  if (engine === '2d' || engine === '3d') mapStore.setMapType(engine)
+}
+
+// z037：直链（刷新/外链）进 3D 路由时，route.meta 要等懒加载组件落地才更新——App setup
+// 阶段 route 仍是 START_LOCATION，仅靠下方 watcher 来不及阻止 UnifiedMap 先按默认 2D
+// 建渲染器再切 3D（实测直链首次多付 ~0.6s，全叠在 A-6 首屏预算上）。挂载子组件前按
+// location 预解析一次；判据与 watcher 同源（meta.engine → applyEngineFromMeta），不写死路径清单。
+applyEngineFromMeta(router.resolve(window.location.pathname).meta?.engine)
+
 /**
  * 统一处理路由变化与引擎切换：检测 meta.engine 变化区分二者，
  * 避免引擎切换时 watcher 覆盖 importState 设置的相机位置
@@ -252,10 +263,7 @@ watch(
     })
 
     // 更新地图引擎类型
-    const engine = newRoute.engine as string
-    if (engine && ['2d', '3d'].includes(engine)) {
-      mapStore.setMapType(engine as '2d' | '3d')
-    }
+    applyEngineFromMeta(newRoute.engine)
 
     // 仅非引擎切换场景执行相机重置（引擎切换时相机由 importState 管理）
     if (!isEngineSwitch) {

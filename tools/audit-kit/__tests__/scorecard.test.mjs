@@ -3,7 +3,7 @@
  * 每条负数结论都要有同形态的阳性对照（AGENTS §5.4）。
  */
 import { describe, expect, it } from 'vitest'
-import { mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 
@@ -34,6 +34,17 @@ describe('scorecard — 窗口发现（1004-17）', () => {
     expect(ids).not.toContain('00-记分卡.md')
     expect(ids).not.toContain('README.md')
   })
+
+  it('🔴 混合命名（1004-QC-06）：W*.md 与非 W 窗件同时纳入；W id 仍对齐 claims', () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'score-mixed-'))
+    writeFileSync(path.join(dir, 'W1.md'), '# W1\n')
+    writeFileSync(path.join(dir, '专项1-数据链审查-执行记录.md'), '# 执行记录\n')
+    writeFileSync(path.join(dir, '专项1-数据链审查-问题副本.md'), '# 问题副本\n')
+    const ids = windowFiles(dir).map((f) => f.id)
+    expect(ids).toContain('W1')
+    expect(ids).toContain('专项1-数据链审查-执行记录.md')
+    expect(ids).toContain('专项1-数据链审查-问题副本.md')
+  })
 })
 
 describe('scorecard — 锚点量尺（可复核 / 真实 是两个数，不许合成一个）', () => {
@@ -57,10 +68,14 @@ describe('scorecard — 锚点量尺（可复核 / 真实 是两个数，不许�
     expect(resolveAnchor('README.md', [ROOT]).态).toBe('同名歧义')
   })
 
-  it('中文路径的锚点必须被认出来（旧正则用 \\w 会把 `专项1-x.md:47` 截成 `.md:47`）', () => {
+  it('中文路径锚点被认出 + 行界/内容两把尺分开（该文件 224 行实为空白 ⇒ 可核但非真）', () => {
     const r = auditAnchors('`docs/根基文档/审查体系专项/专项1-数据链审查.md:224`', ROOT)
     expect(r.总数).toBe(1)
-    expect(r.真).toBe(1)
+    expect(r.可核).toBe(1)
+    expect(r.空白行).toBe(1)
+    expect(r.真).toBe(0)
+    // 阳性对照：同文件 225 行有内容 ⇒ 真（旧正则的 \\w 缺陷也一并钉住）
+    expect(auditAnchors('`docs/根基文档/审查体系专项/专项1-数据链审查.md:225`', ROOT).真).toBe(1)
   })
 
   it('全量裸文件名的批次只能得「未取证」，不得得达标（防削分母造假绿）', () => {
@@ -112,13 +127,56 @@ describe('scorecard — §0 契约与覆盖率、归属标签', () => {
     expect(auditCoverage('随便什么 P1', []).覆盖率).toBe(null)
   })
 
-  it('归属四态只数反引号标签；条目没打标 ⇒ 未打标计数，膨胀率不伪装成 0', () => {
+  it('归属四态：反引号形态计数；条目没打标 ⇒ 未打标计数，膨胀率不伪装成 0', () => {
     const t = auditTags('| P1 x `引入` y\n| P1 z `收口不足`\n| P2 w 无标签')
     expect(t.标签.引入).toBe(1)
     expect(t.标签.收口不足).toBe(1)
     expect(t.修复条目数).toBe(3)
     expect(t.未打标).toBe(1)
     expect(t.膨胀率).toBeCloseTo(0.67)
+  })
+
+  it('🔴 内容级下限（1004-QC-03）：锚点指到空白行 ⇒ 不判真；同文件有内容行 ⇒ 真（阳性对照）', () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'score-blank-'))
+    mkdirSync(path.join(dir, 'sub'), { recursive: true })
+    writeFileSync(path.join(dir, 'sub', 'blank.md'), '# t\n\nreal\n')
+    const bad = auditAnchors('sub/blank.md:2', dir)
+    expect(bad.空白行).toBe(1)
+    expect(bad.真).toBe(0)
+    expect(bad.真实率).toBe(0)
+    expect(auditAnchors('sub/blank.md:3', dir).真).toBe(1)
+  })
+
+  it('🔴 判据面只算 §0（1004-QC-03）：§3 里带 `# 期望:` 的块不得充数', () => {
+    const doc = [
+      '## §0 入口',
+      '```bash',
+      'npm run a',
+      '# 期望: ok',
+      '```',
+      '',
+      '## §3 钩子',
+      '```bash',
+      'git status',
+      '# 期望: clean',
+      '```',
+    ].join('\n')
+    const h = auditHooks(doc)
+    expect(h.带期望).toBe(1)
+    expect(h.块数).toBe(1)
+  })
+
+  it('🔴 条目三形态都识别（1004-QC-03/07）：P 前缀 / 全角括号 / 分隔符+加粗档位', () => {
+    const t = auditTags('### F1（P0）foo\n### G1：bar｜**P1**｜baz\n| P2 x\n### 无档位')
+    expect(t.修复条目数).toBe(3)
+  })
+
+  it('🔴 归属：**引入**（非反引号）也计入（1004-QC-07），同一行只记一次', () => {
+    const t = auditTags('### G9：x｜**P1**｜y\n归属：**引入**\n### G10：z｜**P2**｜w\n归属：`流程`')
+    expect(t.标签.引入).toBe(1)
+    expect(t.标签.流程).toBe(1)
+    expect(t.带归属条目数).toBe(2)
+    expect(t.未打标).toBe(0)
   })
 
   it('RC 打标：只数产物里真写的（RC1–RC4），没写就是 0 条', () => {

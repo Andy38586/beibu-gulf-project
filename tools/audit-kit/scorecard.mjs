@@ -9,6 +9,13 @@
  * 输入：一个批次目录（含各窗交付件；有 claims.json 时才算覆盖率）。
  * 判红口径：任一门槛未达标 ⇒ exit 1（这是**人手动敲的工具**，不挂 hook、不进 CI）。
  *
+ * 1004-QC-03/06/07 收口（口径与实现对齐）：
+ *   - 锚点真实率 = 机械定位成功子集上「行界内 **且目标行非空白**」的比例（旧实现只查行号界内）；
+ *   - 可复跑判据只数 **§0 章节**内带 `# 期望:` 的命令（旧实现把 §3 钩子清单也数进去）；
+ *   - 条目识别三形态（`P0-…` 前缀 / `### …（P1）…` / `### …｜**P1**｜…`）；
+ *   - 归属标签两形态（反引号 `` `引入` `` 与 `归属：**引入**`）都计入；
+ *   - 窗件发现：全部非 README/00-记分卡 的 .md 都纳入（混合命名批次不再只认 W*.md）。
+ *
  * 用法：node tools/audit-kit/scorecard.mjs <批次目录> [--out 00-记分卡.md] [--json]
  */
 import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from 'node:fs'
@@ -30,13 +37,25 @@ export const THRESHOLD = { 绝对锚点: 60, 锚点真实率: 0.93, 可复跑判
 const ANCHOR_RE =
   /([\p{L}\p{N}][\p{L}\p{N}._/-]*\.(?:ts|js|mjs|cjs|vue|css|scss|py|sql|json|md|yml|yaml|sh|html))[:：](\d+)/gu
 const VERDICT_RE = /(P[0-3]|属实|不属实|通过|证伪|豁免|未证|不适用|降级|已修|未修|半修)/
-const TAG_RE = /`(引入|收口不足|取证漏|流程)`/g
 const RC_RE = /\bRC([1-4])\b/g
+const TAG_TOKEN = '(引入|收口不足|取证漏|流程)'
+const TAG_BACKTICK_RE = new RegExp('`' + TAG_TOKEN + '`', 'gu')
+const TAG_ATTRIB_RE = new RegExp('归属\\s*[:：]\\s*[*`【]*\\s*' + TAG_TOKEN, 'u')
+/** 条目行三形态：`P0-…` 前缀 / `### …（P1）…` / `### …｜**P1**｜…`（1004-QC-03/07） */
+const ENTRY_RES = [
+  /^\s*[|>\-*]?\s*\**P[0-3]\b/,
+  /^#{1,6}\s+.*?（P[0-3]）/, // 全角括号形态：### F1（P0）…
+  /^#{1,6}\s+.*?[｜|·]\s*\**P[0-3]\**\s*(?:[｜|·]|$)/, // 分隔符形态：### G1：…｜**P1**｜…
+]
+const isEntryLine = (l) => ENTRY_RES.some((re) => re.test(l))
 
-const lineCountOf = new Map()
+const linesCache = new Map()
+function linesOf(abs) {
+  if (!linesCache.has(abs)) linesCache.set(abs, readFileSync(abs, 'utf8').split(/\r?\n/))
+  return linesCache.get(abs)
+}
 function fileLines(abs) {
-  if (!lineCountOf.has(abs)) lineCountOf.set(abs, readFileSync(abs, 'utf8').split(/\r?\n/).length)
-  return lineCountOf.get(abs)
+  return linesOf(abs).length
 }
 
 /** tracked 文件索引：basename → [相对路径]。git 不可用 ⇒ null（相关判据记未取证，不判红不判绿） */
@@ -86,7 +105,11 @@ export function resolveAnchor(raw, bases, root = ROOT) {
   return { 态: '找不到' }
 }
 
-/** 抽锚点并分类：真实率只在「可机械定位」的子集上算，可复核率单列（裸文件名写法是新发现的靶子） */
+/**
+ * 抽锚点并分类：真实率只在「可机械定位」的子集上算，可复核率单列（裸文件名写法是新发现的靶子）。
+ * 内容级下限（1004-QC-03）：真 = 行界内 **且目标行非空白**——旧实现只查 `1<=line<=fileLines`，
+ * 指到空行也算「真」；excerpt 级内容核对由抽检（anchor-spot 手法）承担，不在本量尺内冒充。
+ */
 export function auditAnchors(md, batchDir) {
   const bases = [ROOT, batchDir, path.dirname(batchDir)]
   const hits = []
@@ -95,7 +118,11 @@ export function auditAnchors(md, batchDir) {
     const r = resolveAnchor(m[1], bases)
     let 状态 = r.态
     if (!状态) {
-      状态 = line >= 1 && line <= fileLines(r.abs) ? '真' : '行越界'
+      if (line < 1 || line > fileLines(r.abs)) 状态 = '行越界'
+      else {
+        const 目标行 = linesOf(r.abs)[line - 1] ?? ''
+        状态 = 目标行.trim() ? '真' : '空白行'
+      }
     }
     hits.push({
       锚点: `${m[1]}:${m[2]}`,
@@ -104,13 +131,15 @@ export function auditAnchors(md, batchDir) {
     })
   }
   const cnt = (t) => hits.filter((h) => h.状态 === t).length
-  const 可核 = cnt('真') + cnt('行越界')
+  // 可核 = 机械定位成功（真/行越界/空白行都算定位到）；空白行与越界都拉低真实率
+  const 可核 = cnt('真') + cnt('行越界') + cnt('空白行')
   const 真集 = new Set(hits.filter((h) => h.状态 === '真').map((h) => h.锚点))
   return {
     命中: hits,
     总数: hits.length,
     真: cnt('真'),
     行越界: cnt('行越界'),
+    空白行: cnt('空白行'),
     歧义: cnt('同名歧义'),
     找不到: cnt('找不到'),
     可核,
@@ -122,24 +151,40 @@ export function auditAnchors(md, batchDir) {
   }
 }
 
-/** §0 契约：抽得出块、且块内每条命令都紧跟一行 `# 期望:` */
+/**
+ * §0 契约：抽得出块、且块内每条命令都紧跟一行 `# 期望:`。
+ * 判据面**只限 §0 章节**（1004-QC-03）：旧实现 `extractBashBlocks(全文)` 把 §3 钩子清单里
+ * 带 `# 期望:` 的块也算进「可复跑判据」，名额被非 §0 内容充数。
+ */
 export function auditHooks(md) {
-  const blocks = extractBashBlocks(md)
+  const lines = md.split(/\r?\n/)
+  const s = lines.findIndex((l) => /^#{1,3}\s*§?0\b/.test(l))
+  let scope = ''
+  if (s >= 0) {
+    let e = lines.length
+    for (let i = s + 1; i < lines.length; i++)
+      if (/^##\s/.test(lines[i])) {
+        e = i
+        break
+      }
+    scope = lines.slice(s, e).join('\n')
+  }
+  const blocks = extractBashBlocks(scope)
   let 命令 = 0
   let 带期望 = 0
   const 裸命令 = []
   for (const b of blocks) {
-    const lines = b.split(/\r?\n/)
-    for (let i = 0; i < lines.length; i++) {
-      const l = lines[i]
+    const blines = b.split(/\r?\n/)
+    for (let i = 0; i < blines.length; i++) {
+      const l = blines[i]
       if (!l.trim() || /^\s*#/.test(l) || /^\s*(cd|export|set|for|done|\})\b/.test(l)) continue
       命令++
-      const next = lines.slice(i + 1, i + 3).find((x) => x && x.trim())
+      const next = blines.slice(i + 1, i + 3).find((x) => x && x.trim())
       if (next && /^# 期望:/.test(next.trim())) 带期望++
       else 裸命令.push(l.trim().slice(0, 60))
     }
   }
-  return { 块数: blocks.length, 命令, 带期望, 裸命令 }
+  return { 块数: blocks.length, 命令, 带期望, 裸命令, '无§0': s < 0 }
 }
 
 /** 覆盖率：负责集里每条指标是否被点名并给出可判定的结论词 */
@@ -170,15 +215,25 @@ export function auditCoverage(md, 负责) {
 /** 归属四态 + RC 打标：只报产物里真有的标签，没打标就明说，不替窗口编数 */
 export function auditTags(md) {
   const 标签 = { 引入: 0, 收口不足: 0, 取证漏: 0, 流程: 0 }
-  for (const m of md.matchAll(new RegExp(TAG_RE.source, 'gu'))) 标签[m[1]]++
   const RC = { RC1: 0, RC2: 0, RC3: 0, RC4: 0 }
   for (const m of md.matchAll(new RegExp(RC_RE.source, 'gu'))) RC[`RC${m[1]}`]++
   const 行 = md.split(/\r?\n/)
-  const 条目 = 行.filter((l) => /^\s*[|>\-*]?\s*\**P[0-3]\b/.test(l)).length
-  const 带归属 = 行.filter(
-    (l) =>
-      new RegExp(TAG_RE.source, 'u').test(l) || /归属\s*[:：]\s*(引入|收口不足|取证漏|流程)/.test(l)
-  ).length
+  let 带归属 = 0
+  for (const l of 行) {
+    // 标签两形态都认（1004-QC-07）：反引号 `引入` 与 归属：**引入**；同一行只记一次归属
+    const attr = l.match(TAG_ATTRIB_RE)
+    if (attr) {
+      标签[attr[1]]++
+      带归属++
+      continue
+    }
+    const bt = [...l.matchAll(TAG_BACKTICK_RE)]
+    if (bt.length) {
+      for (const x of bt) 标签[x[1]]++
+      带归属++
+    }
+  }
+  const 条目 = 行.filter(isEntryLine).length
   const 字面 = 标签.引入 + 标签.收口不足
   return {
     标签,
@@ -199,11 +254,8 @@ export function loadClaims(batchDir) {
 }
 
 export function windowFiles(batchDir) {
-  const direct = readdirSync(batchDir)
-    .filter((f) => /^W\d+.*\.md$/.test(f))
-    .map((f) => ({ id: f.match(/^W\d+/)[0], file: path.join(batchDir, f) }))
-  if (direct.length) return direct
-  // 历史批次不是 W*.md 命名：递归收全部 .md，让记分卡也能回算旧件（回算才是复算，不是重述）
+  // 全部非 00-记分卡/README 的 .md 都纳入（1004-QC-06：混合命名批次里 W*.md 曾让
+  // 非 W 窗件与问题副本被吞；W 文件仍以 `W\d+` 作 id 以对齐 claims.json）。
   const out = []
   const walk = (dir, depth) => {
     if (depth > 3) return
@@ -212,11 +264,22 @@ export function windowFiles(batchDir) {
       if (e.isDirectory()) walk(abs, depth + 1)
       // 1004-17：00-* 窗口件（如 00-审查体系逐行复核-执行记录.md）必须纳入批次质量数；
       // 只排除两类**非窗口**：00-记分卡.md（本工具产物）与 README（说明件）。
-      else if (/\.md$/.test(e.name) && !/^README/.test(e.name) && !/^00-记分卡/.test(e.name))
-        out.push({ id: path.relative(batchDir, abs).replace(/\\/g, '/'), file: abs })
+      else if (/\.md$/.test(e.name) && !/^README/.test(e.name) && !/^00-记分卡/.test(e.name)) {
+        const w = e.name.match(/^(W\d+)\b/)
+        out.push({
+          id: w ? w[1] : path.relative(batchDir, abs).replace(/\\/g, '/'),
+          file: abs,
+        })
+      }
     }
   }
   walk(batchDir, 0)
+  const seen = new Set()
+  for (const f of out) {
+    // W id 撞号（W1.md 与 W1-补.md 并存）⇒ 退回相对路径，绝不静默覆盖
+    if (seen.has(f.id)) f.id = path.relative(batchDir, f.file).replace(/\\/g, '/')
+    seen.add(f.id)
+  }
   return out.sort((a, b) => a.id.localeCompare(b.id))
 }
 

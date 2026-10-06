@@ -1,20 +1,19 @@
 {
   "generatedFrom": "tools/dup/scan.mjs",
   "minTokens": 12,
-  "totalGroups": 192,
-  "totalRedundantTokens": 4478,
+  "totalGroups": 183,
+  "totalRedundantTokens": 4263,
   "byModule": {
-    "frontend/src/core": 2011,
-    "backend/src/modules": 882,
-    "跨模块": 524,
+    "frontend/src/core": 2003,
+    "backend/src/modules": 807,
+    "跨模块": 489,
     "frontend/src/visualization": 256,
-    "frontend/src/business": 212,
+    "frontend/src/business": 174,
     "frontend/src/shared": 197,
     "frontend/src/types": 137,
     "frontend/src/services": 36,
     "backend/src/main.ts": 19,
     "frontend/src/views": 70,
-    "backend/src/infra": 59,
     "frontend/src/stores": 75
   },
   "groups": [
@@ -48,17 +47,6 @@
       "count": 2,
       "files": ["frontend/src/core/map/renderers/OLRenderer.ts"],
       "redundantTokens": 108
-    },
-    {
-      "text": "( typeof raw === 'object' && raw !== null ? raw : { } )",
-      "tokenCount": 15,
-      "count": 6,
-      "files": [
-        "backend/src/modules/auth/dto/auth.dto.ts",
-        "backend/src/modules/favorites/dto/favorites.dto.ts",
-        "backend/src/modules/plans/dto/plans.dto.ts"
-      ],
-      "redundantTokens": 75
     },
     {
       "text": ". filter ( ( p ) => Number . isFinite ( p . lng ) && Number . isFinite ( p . lat ) )",
@@ -156,7 +144,7 @@
       "redundantTokens": 48
     },
     {
-      "text": "export interface TaskView { taskId : string domain : TaskDomain route : string status : TaskStatus progress : number queuePosition ? : number retryCount : number result ? : unknown error ? : TaskError createdAt : number startedAt ? : number finishedAt ? : number }",
+      "text": "export interface TaskView { taskId : string domain : TaskDomain route : string status : TaskStatus progress : number queuePosition ? : number retryCount : number result ? : unknown error ? : TaskError createdAtMs : number startedAt ? : number finishedAt ? : number }",
       "tokenCount": 46,
       "count": 2,
       "files": ["backend/src/modules/task/types/task.ts", "frontend/src/types/task.ts"],
@@ -258,6 +246,17 @@
       "redundantTokens": 32
     },
     {
+      "text": "{ notMerge : false , replaceMerge : [ 'series' ] , lazyUpdate : true }",
+      "tokenCount": 15,
+      "count": 3,
+      "files": [
+        "frontend/src/business/flood-analysis/components/WaterLevelProfilePanel.vue",
+        "frontend/src/visualization/charts/SankeyChart.vue",
+        "frontend/src/visualization/composables/useECharts.ts"
+      ],
+      "redundantTokens": 30
+    },
+    {
       "text": "new TileLayer ( { source : new XYZ ( { url : buildTiandituUrl ( code ) , crossOrigin : 'anonymous' , } ) , className : 'ol-base-layer' , } )",
       "tokenCount": 30,
       "count": 2,
@@ -277,16 +276,6 @@
       "count": 2,
       "files": ["frontend/src/core/map/renderers/CesiumRenderer.ts"],
       "redundantTokens": 28
-    },
-    {
-      "text": "{ inundLowM : 1 , inundHighM : 6 , slopeBestDeg : 5 , slopeWorstDeg : 20 , portScaleM : 8000 , roadScaleM : 2000 , }",
-      "tokenCount": 26,
-      "count": 2,
-      "files": [
-        "backend/src/modules/site-suitability/constants/score.constants.ts",
-        "frontend/src/stores/siteSuitabilityDefaults.snapshot.ts"
-      ],
-      "redundantTokens": 26
     },
     {
       "text": "if ( this . hooks . isCancelled ( job . taskId ) )",
@@ -445,16 +434,6 @@
       "tokenCount": 24,
       "count": 2,
       "files": ["frontend/src/core/map/renderers/OLRenderer.ts"],
-      "redundantTokens": 24
-    },
-    {
-      "text": "( window as unknown as Record < string , unknown > )",
-      "tokenCount": 12,
-      "count": 3,
-      "files": [
-        "frontend/src/core/map/renderers/index.ts",
-        "frontend/src/shared/utils/perfReporter.ts"
-      ],
       "redundantTokens": 24
     },
     {
@@ -670,16 +649,6 @@
       "redundantTokens": 20
     },
     {
-      "text": "withDefaults ( defineProps < SiteSuitabilityPanelProps > ( ) , { data : null , loading : false , } )",
-      "tokenCount": 20,
-      "count": 2,
-      "files": [
-        "frontend/src/business/site-suitability/components/SuitabilityDistributionPanel.vue",
-        "frontend/src/business/site-suitability/components/SuitabilityTopCellsPanel.vue"
-      ],
-      "redundantTokens": 20
-    },
-    {
       "text": "interface FacilityBubbleData { id ? : string name : string poiType : string lng : number lat : number }",
       "tokenCount": 20,
       "count": 2,
@@ -704,13 +673,6 @@
       "tokenCount": 20,
       "count": 2,
       "files": ["frontend/src/core/map/renderers/CesiumRenderer.ts"],
-      "redundantTokens": 20
-    },
-    {
-      "text": "new VectorLayer ( { source : new VectorSource ( { features : olFeatures } ) , style , } )",
-      "tokenCount": 20,
-      "count": 2,
-      "files": ["frontend/src/core/map/renderers/OLRenderer.ts"],
       "redundantTokens": 20
     },
     {
@@ -810,13 +772,6 @@
       "redundantTokens": 19
     },
     {
-      "text": "return res . rows . map ( ( r ) => Number ( r . i ) )",
-      "tokenCount": 18,
-      "count": 2,
-      "files": ["backend/src/infra/db/spatial.repository.ts"],
-      "redundantTokens": 18
-    },
-    {
       "text": "return res . rows . map ( ( r ) => this . toView ( r ) )",
       "tokenCount": 18,
       "count": 2,
@@ -831,13 +786,6 @@
       "tokenCount": 18,
       "count": 2,
       "files": ["backend/src/modules/route/repositories/route.repository.ts"],
-      "redundantTokens": 18
-    },
-    {
-      "text": "as TilesetJson if ( disposed || mapStore . currentRenderer !== renderer || ! isTiles3DCapable ( renderer ) )",
-      "tokenCount": 18,
-      "count": 2,
-      "files": ["frontend/src/business/route-analysis/RouteAnalysisPage.vue"],
       "redundantTokens": 18
     },
     {
@@ -896,7 +844,7 @@
       "redundantTokens": 17
     },
     {
-      "text": "export interface TaskSubmitResponse { taskId : string status : TaskStatus queuePosition : number createdAt : number }",
+      "text": "export interface TaskSubmitResponse { taskId : string status : TaskStatus queuePosition : number createdAtMs : number }",
       "tokenCount": 17,
       "count": 2,
       "files": ["backend/src/modules/task/types/task.ts", "frontend/src/types/task.ts"],
@@ -1097,16 +1045,6 @@
       "redundantTokens": 15
     },
     {
-      "text": "{ notMerge : false , replaceMerge : [ 'series' ] , lazyUpdate : true }",
-      "tokenCount": 15,
-      "count": 2,
-      "files": [
-        "frontend/src/business/flood-analysis/components/WaterLevelProfilePanel.vue",
-        "frontend/src/visualization/composables/useECharts.ts"
-      ],
-      "redundantTokens": 15
-    },
-    {
       "text": ". reduce ( ( s , n ) => s + n , 0 )",
       "tokenCount": 15,
       "count": 2,
@@ -1170,20 +1108,6 @@
         "frontend/src/visualization/charts/LineChart.vue"
       ],
       "redundantTokens": 15
-    },
-    {
-      "text": "return toFeature ( res . rows [ 0 ] ?. geom ?? null )",
-      "tokenCount": 14,
-      "count": 2,
-      "files": ["backend/src/infra/db/spatial.repository.ts"],
-      "redundantTokens": 14
-    },
-    {
-      "text": "{ if ( isFatalDbError ( e ) ) throw e return [ ] }",
-      "tokenCount": 14,
-      "count": 2,
-      "files": ["backend/src/infra/db/spatial.repository.ts"],
-      "redundantTokens": 14
     },
     {
       "text": "throw new BusinessError ( ErrorCode . ANALYSIS_FAILED , engineResult . metadata . error )",
@@ -1263,13 +1187,6 @@
       "count": 2,
       "files": ["frontend/src/stores/forecastStore.ts"],
       "redundantTokens": 14
-    },
-    {
-      "text": "{ if ( isFatalDbError ( e ) ) throw e return null }",
-      "tokenCount": 13,
-      "count": 2,
-      "files": ["backend/src/infra/db/spatial.repository.ts"],
-      "redundantTokens": 13
     },
     {
       "text": "throw new BusinessError ( ErrorCode . INVALID_PARAMS , 'itemType 无效（xiaoqu | facility）' )",
@@ -1537,6 +1454,13 @@
       "redundantTokens": 12
     },
     {
+      "text": "( window as unknown as Record < string , unknown > )",
+      "tokenCount": 12,
+      "count": 2,
+      "files": ["frontend/src/core/map/renderers/index.ts"],
+      "redundantTokens": 12
+    },
+    {
       "text": "result . error . issues . slice ( 0 , 3 )",
       "tokenCount": 12,
       "count": 2,
@@ -1558,7 +1482,7 @@
       "redundantTokens": 12
     }
   ],
-  "updatedAt": "2026-10-04",
+  "updatedAt": "2026-10-06",
   "history": [
     {
       "at": "2026-09-26",
@@ -1573,6 +1497,13 @@
       "totalRedundantTokens": 4478,
       "kind": "真清理",
       "note": "1005 批 dup 收口：backend 种子随机/矩阵助手、frontend core 注入态与 types 形状、business 面板 props/查询参数、shared 布局排序、services scenario、stores 事务计数器逐模块收敛；全 12 模块 ≤ 旧基线后锁定"
+    },
+    {
+      "at": "2026-10-06",
+      "totalGroups": 183,
+      "totalRedundantTokens": 4263,
+      "kind": "真清理",
+      "note": "删三个零挂载面板（M4）：重复模板对随文件消失"
     }
   ]
 }

@@ -1339,8 +1339,8 @@ node tools/diag/probe-app-selfprovide.cjs
 是否同 `zoomToRegion` 一样两字段都传，待裁（改它就是改既有 2D 导航落点）。
 **2026-10-05 落地链复核（前提收窄）**：`zoomToCity`/`zoomToDistrict` 在**产品里零消费**——
 `rg -n "zoomToCity|zoomToDistrict" frontend/src` 只命中 `useMapControls.ts:68/73` 两处定义；
-`useMapControls` 的 5 个消费点（`App.vue:57`、`useScreenActions.ts:16`、`SiteSuitabilityPage.vue:24`、
-`AffectedFacilityListPanel.vue:18`、`SuitabilityTopCellsPanel.vue:42`）都只取
+`useMapControls` 的 4 个消费点（`App.vue:57`、`useScreenActions.ts:16`、`SiteSuitabilityPage.vue:24`、
+`AffectedFacilityListPanel.vue:18`；原第 5 点 `SuitabilityTopCellsPanel.vue:42` 已随 2026-10-06 减负删除）都只取
 `flyTo`/`startBreathing`/`stopBreathing`（App 另取 `zoomToRegion`）。⇒ 2D 落点不一致是**潜伏
 缺陷**，「改它就是改既有 2D 导航落点」今日**不成立**（作废条件：出现消费点即重评）。B9 选项：
 ① 对称补齐两字段（`useMapControls.ts:70/75` 各加 `zoom`；2 行 + 测试，今日无用户可见变化，

@@ -70,9 +70,62 @@ export const RESOLVE_ROOTS = [
   'backend/test/',
 ]
 
+/**
+ * 环境产物路径（QC-05，2026-10-05）：`node_modules/**` 只有装过依赖的工作树才有，
+ * 干净检出没有 —— 它若参与存在性判据，同一条命令就会给两组数（工作树 56/18/329、
+ * 干净检出 56/16/331、断链 0 vs 2）。
+ * 判据输入必须受版本控制（AGENTS §5.4）：这类 token 归入「环境面」，只登记、不判红，
+ * 也不当「有可核面」——专项 prose 里写 `node_modules/@types` 是给读者的检查对象，
+ * 不是本仓的版本控制件。
+ */
+export const ENV_DEPENDENT_RE = /^node_modules(?:\/|$)/
+
 /** 归一：剥掉相对前缀 `./` 与尾随标点 */
 function normalizeToken(t) {
   return t.replace(/^\.\//, '').replace(/[.,;:)]+$/, '')
+}
+
+/**
+ * 形态识别（二）：git ignore 产物 —— `frontend/dist/assets`（构建产物）、
+ * `.local/tmp/import-report.md`（本机临时件）与 `node_modules/` 同类：工作树有、干净检出没有。
+ * 判据是**批量问一次 git**（`check-ignore -z --stdin`，一次进程；逐 token 调 150 次 ≈ 3.5s，不可接受）。
+ * 「已删除的仓库路径」不在 ignore 规则里，该进 missing 的仍进 missing（Q8-01 语义不变）。
+ * git 不可用/不是仓库 ⇒ 空集：分类退回存在性口径，不假装有信息。
+ */
+export function collectIgnoredTokens(tokens, root = ROOT) {
+  const list = [...new Set(tokens)].filter(Boolean)
+  if (!list.length) return new Set()
+  try {
+    const out = execFileSync('git', ['check-ignore', '-z', '--stdin'], {
+      cwd: root,
+      input: list.join('\0'),
+      encoding: 'utf8',
+      maxBuffer: 16 * 1024 * 1024,
+    })
+    return new Set(out.split('\0').filter(Boolean))
+  } catch {
+    return new Set()
+  }
+}
+
+/**
+ * 把 ignore 产物从 paths/missing 移到 env（QC-05 同族收全）。
+ * 只改分类，不删任何 token：环境面仍可被 `--dump` 看见，只是不参与断链与可核面计数。
+ */
+export function applyIgnoredEnv(entries, root = ROOT) {
+  const tokens = []
+  for (const e of entries) tokens.push(...e.面.paths, ...e.面.missing, ...e.面.unresolved)
+  const ignored = collectIgnoredTokens(tokens, root)
+  if (!ignored.size) return entries
+  for (const e of entries) {
+    for (const key of ['paths', 'missing', 'unresolved']) {
+      const keep = []
+      for (const t of e.面[key]) (ignored.has(t) ? e.面.env : keep).push(t)
+      e.面[key] = keep
+    }
+    e.面.env = [...new Set(e.面.env)].sort()
+  }
+  return entries
 }
 
 /** 多根存在性：任一解析根下命中即算活路径 */
@@ -125,7 +178,14 @@ export function collectSurfaceFromText(text, root = ROOT) {
   const paths = []
   const patterns = []
   const missing = []
+  const env = []
+  const unresolved = []
   for (const t of tokens) {
+    // 形态识别先于存在性判定：安装产物不因「这台机器装没装依赖」改变判据结论（QC-05）
+    if (ENV_DEPENDENT_RE.test(t)) {
+      env.push(t)
+      continue
+    }
     if (t.includes('*')) {
       patterns.push(t)
       continue
@@ -136,11 +196,17 @@ export function collectSurfaceFromText(text, root = ROOT) {
     }
     // 整树删除（父目录也没了）同样进 missing —— 旧实现静默丢弃 = 假绿（Q8-01）
     if (looksLikeRepoPath(root, t)) missing.push(t)
+    // 存在性不可判且不像仓库路径（多为文字并列 `ECharts/Chart.js`）：既不判红也不计面。
+    // 留桶而不是原地丢弃：applyIgnoredEnv 要在这里面捞 git ignore 产物（QC-05 —— `.local/`
+    // 这类临时件在干净检出里就是「不存在 + 首段不是仓库目录」，只按存在性分桶会两边不一致）。
+    else unresolved.push(t)
   }
   return {
     paths: [...new Set(paths)].sort(),
     patterns: [...new Set(patterns)].sort(),
     missing: [...new Set(missing)].sort(),
+    env: [...new Set(env)].sort(),
+    unresolved: [...new Set(unresolved)].sort(),
   }
 }
 
@@ -182,17 +248,28 @@ export function scanExtraDocSurface(root = ROOT) {
     const abs = path.join(root, rel)
     if (!existsSync(abs)) continue
     const lines = readFileSync(abs, 'utf8').split(/\r?\n/)
+    const candidates = []
     lines.forEach((line, i) => {
       for (const m of line.matchAll(/`([^`]+)`/g)) {
         const t = m[1].trim().replace(/[，。；、）:：]+$/, '')
         if (!/\//.test(t)) continue // 裸文件名不进判据面（无法区分仓库件与外部产物）
+        if (ENV_DEPENDENT_RE.test(t)) continue // 环境产物同上（QC-05）：不受版本控制不判红
         if (!/\.(tsx|ts|mjs|cjs|js|vue|py|json|sh|sql|md)$/.test(t) && !/\/$/.test(t)) continue
         if (t.includes(' ') || t.includes('<') || t.includes('*')) continue
         if (existsUnderRoots(root, t)) continue
         if (!looksLikeRepoPath(root, t)) continue
-        problems.push(`${rel}:${i + 1} 证据面断链：引用不存在的路径 ${t}`)
+        candidates.push({ line: i + 1, t })
       }
     })
+    // 与 parseSpec 同一条 git ignore 判据（QC-05）：构建产物/临时件不是断链
+    const ignored = collectIgnoredTokens(
+      candidates.map((c) => c.t),
+      root
+    )
+    for (const c of candidates) {
+      if (ignored.has(c.t)) continue
+      problems.push(`${rel}:${c.line} 证据面断链：引用不存在的路径 ${c.t}`)
+    }
   }
   return problems
 }
@@ -305,6 +382,11 @@ export function parseSpec(files = specFiles()) {
     const 专项 = (path.basename(file).match(/^专项(\d)/) || [])[1]
     entries.push(...parseSpecText(rel, 专项, readFileSync(file, 'utf8')))
   }
+  // 判别输入受版本控制（QC-05）：构建/安装/临时产物按 git 的真实 ignore 规则移入环境面
+  applyIgnoredEnv(entries, ROOT)
+  // 可执行性跟着最终证据面走：env 移出后必须重算，否则工作树（dist 在）判 static、
+  // 干净检出（dist 不在）判 manual —— 同一个 可执行性 又变成环境依赖的（QC-05 同族）
+  for (const e of entries) e.可执行性 = judgeExecutable(e)
   return entries
 }
 
@@ -355,6 +437,7 @@ export function summarize(entries) {
     有证据面数: withSurface,
     只有模式面数: onlyPattern,
     无落点数: entries.length - withSurface - onlyPattern,
+    环境面数: entries.filter((e) => e.面.env.length).length,
     可执行性: byExec,
   }
 }
@@ -418,6 +501,11 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   console.log(
     `  可执行性 auto-candidate ${s.可执行性['auto-candidate']}｜static ${s.可执行性.static}｜manual ${s.可执行性.manual}`
   )
+  if (s.环境面数) {
+    console.log(
+      `  环境面（node_modules 等安装产物，不受版本控制：只登记不判红、不计可核面）${s.环境面数} 条指标`
+    )
+  }
 
   let code = 0
   if (argv.includes('--dump')) {

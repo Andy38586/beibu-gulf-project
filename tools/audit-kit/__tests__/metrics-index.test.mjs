@@ -246,3 +246,40 @@ describe('metrics-index — Q8-01 证据面断链不再假绿（多根解析 + �
     expect(problems[0]).toContain('NoSuch.md')
   })
 })
+
+describe('metrics-index — QC-05 环境产物不进判据面（工作树/干净检出同口径）', () => {
+  it('@guard-red-sample node_modules token 归环境面：目录不存在也不进 missing（删豁免 ⇒ 本用例红）', () => {
+    // root 指向不存在的目录 = 模拟干净检出（没装依赖）。
+    // 若去掉 ENV_DEPENDENT_RE 的形态识别，node_modules/ 会掉进 missing ⇒ 本用例当场红。
+    const s = collectSurfaceFromText(
+      '**需要查看**：`package.json`、`node_modules/@types`、自定义 `.d.ts`',
+      '/no-such-root-qc05'
+    )
+    expect(s.env).toEqual(['node_modules/'])
+    expect(s.missing).toEqual([])
+  })
+
+  it('grep 过滤词里的 node_modules（专项8 形态）同样归环境面，兄弟路径不受影响', () => {
+    const s = collectSurfaceFromText(
+      "grep -rn 'Math.random' backend frontend/src | grep -v 'node_modules|test'"
+    )
+    expect(s.env).toEqual(['node_modules'])
+    expect(s.paths).toEqual(['backend', 'frontend/src'])
+    expect(s.missing).toEqual([])
+  })
+
+  it('真树锚：环境面 4 条（node_modules ×2 / dist / .local 临时件），且断链 0', () => {
+    const es = parseSpec()
+    expect(es.filter((e) => e.面.env.length).map((e) => e.id)).toEqual([
+      '专1-9.1',
+      '专3-7.3',
+      '专5-3.5',
+      '专5-5.3',
+    ])
+    expect(summarize(es).断链指标数).toBe(0)
+    // 环境面不算「有可核面」：这两条的可执行性不因本机装没装依赖而翻面
+    expect(es.find((e) => e.id === '专3-7.3').可执行性).toBe('manual')
+    // dist 在工作树存在时曾把 专5-3.5 判成 static；环境面移出后必须回落 manual（跨口径一致）
+    expect(es.find((e) => e.id === '专5-3.5').可执行性).toBe('manual')
+  })
+})

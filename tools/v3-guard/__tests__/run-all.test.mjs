@@ -1,13 +1,46 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 
 import { describe, expect, it } from 'vitest'
 
-import { EXECUTOR_NAME, GUARDS, SEPARATELY_RUN, executionPlan, runAll } from '../run-all.mjs'
+import {
+  EXECUTOR_NAME,
+  GUARDS,
+  SEPARATELY_RUN,
+  ciTriggerProblems,
+  executionPlan,
+  hookFiringProblems,
+  runAll,
+} from '../run-all.mjs'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const GUARD_DIR = path.resolve(HERE, '..')
+const ROOT = path.resolve(GUARD_DIR, '../..')
+
+/** CI 里跑 `npm run <script>` 的 job：按「两空格缩进的 job 键」切块（不引 YAML 依赖） */
+export function jobBlockOf(text, script) {
+  const lines = text.split(/\r?\n/)
+  const idx = lines.findIndex(
+    (l) => !l.trim().startsWith('#') && /^\s+run:\s/.test(l) && l.includes(`npm run ${script}`)
+  )
+  if (idx < 0) return null
+  let start = -1
+  for (let i = idx; i >= 0; i--)
+    if (/^ {2}[\w-]+:\s*$/.test(lines[i])) {
+      start = i
+      break
+    }
+  if (start < 0) return null
+  let end = lines.length
+  for (let i = start + 1; i < lines.length; i++)
+    if (/^ {2}[\w-]+:\s*$/.test(lines[i])) {
+      end = i
+      break
+    }
+  return { id: lines[start].trim().replace(/:$/, ''), block: lines.slice(start, end).join('\n') }
+}
 
 describe('guard:v3 串联执行器（审查 z163）', () => {
   it('全部通过时 ok=true，且逐项记录退出码 0', () => {
@@ -108,5 +141,52 @@ describe('guard:v3 串联执行器（审查 z163）', () => {
       expect(g.why, `${g.name} 缺少 why`).toBeTruthy()
       expect(g.why.length).toBeGreaterThan(8)
     }
+  })
+
+  it('@guard-red-sample 强制点必须真会触发：hooksPath→shim 在位，workflow on: 有效且 job 无 if:', () => {
+    // 真仓：core.hooksPath → husky shim；shim 不在 = .husky/<hook> 永远不会被执行（z063 实测漏洞）
+    let hooksPath = null
+    try {
+      hooksPath = execFileSync('git', ['config', '--get', 'core.hooksPath'], {
+        cwd: ROOT,
+        encoding: 'utf8',
+      }).trim()
+    } catch {
+      hooksPath = null
+    }
+    const hooks = [
+      ...new Set(
+        SEPARATELY_RUN.flatMap((g) => g.enforcedBy)
+          .filter((rel) => rel.startsWith('.husky/'))
+          .map((rel) => path.basename(rel))
+      ),
+    ]
+    expect(
+      hookFiringProblems(hooksPath, hooks, (rel) => fs.existsSync(path.join(ROOT, rel)))
+    ).toEqual([])
+    // workflow：on: 真的在；跑 guard:mutation 的 job 不许带条件
+    const wf = fs.readFileSync(path.join(ROOT, '.github/workflows/ci.yml'), 'utf8')
+    expect(ciTriggerProblems(wf, 'guard:mutation', jobBlockOf)).toEqual([])
+  })
+
+  it('@guard-red-sample 强制点自证的两种违约：缺 shim / job 带 if: 都必须报', () => {
+    // 式 1（停用/置空）：hooksPath 下没有 shim ⇒ 必须报（把 fileExists 换成恒 false = 变异）
+    expect(hookFiringProblems('.husky/_', ['pre-push'], () => false)).toHaveLength(1)
+    expect(hookFiringProblems('.husky/_', ['pre-push'], () => true)).toEqual([])
+    // 式 2（同义改写违约）：把 job 内容换成带 if: 的形态 ⇒ 必须报
+    const wf = [
+      'on:',
+      '  push:',
+      'jobs:',
+      '  static-checks:',
+      '    if: github.event_name == "push"',
+      '    steps:',
+      '      - name: 红样复验',
+      '        run: npm run guard:mutation',
+      '',
+    ].join('\n')
+    const problems = ciTriggerProblems(wf, 'guard:mutation', jobBlockOf)
+    expect(problems).toHaveLength(1)
+    expect(problems[0]).toContain('带 if: 条件')
   })
 })

@@ -86,6 +86,44 @@ export function executionPlan() {
 }
 
 /**
+ * 强制点「真会触发」判据（z063）——**文件在位 ≠ git 会调用它**。
+ *
+ * 旧断言只证明「enforcedBy 文件里有一行 `npm run <script>`」。实测漏洞：core.hooksPath
+ * 没指向 husky 的 shim 目录时，`.husky/pre-push` 一个字节都不会被执行——文件、命令行、
+ * 注释全都在，判据却是假绿。所以强制点必须对两件事分别取证：
+ *   ① 钩子：hooksPath 下存在同名 shim（或未设 hooksPath 时 `.git/hooks/<name>` 为主档）；
+ *   ② workflow：有 `on:` 触发器，且跑该 script 的 job **不带 `if:`**（带条件的 job 可能整段不跑）。
+ * 纯函数便于单测与变异复验；真实挂钩点由调用方传文件系统与文本。
+ */
+export function hookFiringProblems(hooksPath, hookNames, fileExists) {
+  const problems = []
+  if (!hooksPath) {
+    for (const h of hookNames)
+      if (!fileExists(`.git/hooks/${h}`))
+        problems.push(`core.hooksPath 未设置，且 .git/hooks/${h} 不存在 ⇒ ${h} 不会被 git 触发`)
+    return problems
+  }
+  const dir = hooksPath.replace(/\/+$/, '')
+  for (const h of hookNames)
+    if (!fileExists(`${dir}/${h}`))
+      problems.push(`core.hooksPath=${hooksPath} 下没有 ${h} shim ⇒ .husky/${h} 永远不会被执行`)
+  return problems
+}
+
+/** workflow 的 `on:` 触发器 + 目标 job 不得带 `if:`（z063；jobOf 由调用方按缩进解析注入） */
+export function ciTriggerProblems(text, script, jobOf) {
+  const problems = []
+  if (!/^on:\s*$/m.test(text)) problems.push('ci.yml 缺顶层 on: 触发器 —— 该 workflow 不会自动跑')
+  else if (!/^\s{2}(push|pull_request|workflow_dispatch):/m.test(text))
+    problems.push('ci.yml 的 on: 下没有 push/pull_request/workflow_dispatch 之一')
+  const job = jobOf(text, script)
+  if (!job) problems.push(`ci.yml 里找不到执行 npm run ${script} 的 job`)
+  else if (/^\s+if:/m.test(job.block))
+    problems.push(`ci.yml 的 job「${job.id}」带 if: 条件 —— 条件不成立时它不跑，等于没挂强制点`)
+  return problems
+}
+
+/**
  * 顺序执行全部守卫，**不短路**。
  * @param {(name: string) => { code: number|null, signal: string|null }} exec 执行注入点（测试用）
  * @returns {{ results: Array<{name: string, code: number|null, signal: string|null}>, ok: boolean }}

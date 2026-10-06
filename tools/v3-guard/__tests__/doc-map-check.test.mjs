@@ -135,6 +135,15 @@ describe('doc-map-check', () => {
     expect(codes(auditDocMap(input))).toContain('DOC-UNREG')
   })
 
+  it('@guard-red-sample 登记在册的文档被删（DOC-MISS）⇒ 红（z062 承接面的能红判据）', () => {
+    // z062 把 pre-commit 的空名单守卫删了；「文档不见了要有人喊」由本判据承接：
+    // 登记的 active 文档在盘上找不到 ⇒ DOC-MISS。删这份文档 = 本用例变红。
+    const input = baseInput()
+    const drop = 'docs/宪法/C3-信息源宪法.md'
+    input.exists = (rel) => baseInput().exists(rel) && rel !== drop
+    expect(codes(auditDocMap(input))).toContain('DOC-MISS')
+  })
+
   it('同一 KP 锚点指向两个目标（双权威）⇒ 红', () => {
     const input = baseInput()
     input.kp.kps.push({

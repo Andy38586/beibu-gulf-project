@@ -79,10 +79,6 @@ describe('useTaskStore', () => {
     it('无任务、无活跃槽位', () => {
       // store 由 beforeEach 提供
       expect(store.slots).toEqual({})
-      expect(store.activeSlots).toEqual([])
-      expect(store.occupiedSlots).toEqual([])
-      expect(store.currentSlot).toBeNull()
-      expect(store.hasActiveTask('/flood-analysis')).toBe(false)
     })
   })
 
@@ -472,11 +468,10 @@ describe('useTaskStore', () => {
       // store 由 beforeEach 提供
       await store.submit({ route: '/flood-analysis', domain: 'flood-areas', params: {} })
       await store.submit({ route: '/forecast', domain: 'forecast-timeseries', params: {} })
-      expect(store.occupiedSlots.length).toBe(2)
+      expect(Object.keys(store.slots).length).toBe(2)
 
       store.clearAll()
       expect(store.slots).toEqual({})
-      expect(store.occupiedSlots).toEqual([])
 
       const calls = mockFetch.mock.calls.length
       await sleep(700)
@@ -484,52 +479,11 @@ describe('useTaskStore', () => {
     })
   })
 
-  describe('consumeResult / setDocked', () => {
-    it('consumeResult 取回结果但不删除槽位（幂等供渲染）', () => {
-      // store 由 beforeEach 提供
-      store.slots['/flood-analysis'] = {
-        taskId: 't-1',
-        route: '/flood-analysis',
-        domain: 'flood-areas',
-        status: 'done',
-        progress: 1,
-        retryCount: 0,
-        result: { features: [] },
-        createdAtMs: 1,
-        submitSeq: 1,
-        docked: false,
-      }
-      expect(store.consumeResult('/flood-analysis')).toEqual({ features: [] })
-      // 再次取仍能拿到（不消耗）
-      expect(store.consumeResult('/flood-analysis')).toEqual({ features: [] })
-    })
-
+  describe('setDocked', () => {
     it('setDocked 对不存在的槽位是空操作', () => {
       // store 由 beforeEach 提供
       expect(() => store.setDocked('/nope', true)).not.toThrow()
       expect(store.getSlot('/nope')).toBeNull()
-    })
-  })
-
-  describe('activeSlots / hasActiveTask', () => {
-    it('活跃态计入，终态不计入', () => {
-      // store 由 beforeEach 提供
-      const base = {
-        route: '/flood-analysis',
-        domain: 'flood-areas' as const,
-        progress: 0,
-        retryCount: 0,
-        createdAtMs: 1,
-        submitSeq: 1,
-        docked: false,
-      }
-      store.slots['/a'] = { ...base, taskId: 't-a', route: '/a', status: 'running' }
-      store.slots['/b'] = { ...base, taskId: 't-b', route: '/b', status: 'done' }
-      store.slots['/c'] = { ...base, taskId: 't-c', route: '/c', status: 'retrying' }
-
-      expect(store.activeSlots.map((s) => s.route).sort()).toEqual(['/a', '/c'])
-      expect(store.hasActiveTask('/a')).toBe(true)
-      expect(store.hasActiveTask('/b')).toBe(false)
     })
   })
 

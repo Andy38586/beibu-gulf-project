@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
+import { ref } from 'vue'
 
 import { useTaskApi } from '@/shared/composables/useTaskApi'
 import { showError, showWarning } from '@/shared/utils/errorHandler'
@@ -82,26 +82,9 @@ export const useTaskStore = defineStore('task', () => {
   /** 每个槽位连续轮询失败次数 */
   const pollErrors = new Map<string, number>()
 
-  // ── 派生 ────────────────────────────────────────────────────────────────
+  // ── 查询 ────────────────────────────────────────────────────────────────
 
-  /** 有活跃任务的槽位（用于底栏 dock 与进度环） */
-  const activeSlots = computed(() =>
-    Object.values(slots.value).filter((s) => isActiveStatus(s.status))
-  )
-
-  /** 有任务的槽位（含已完成的，供 dock 显示结果待查看） */
-  const occupiedSlots = computed(() => Object.values(slots.value))
-
-  /** 当前路由的任务（面板用它渲染自己的状态） */
-  const currentSlot = computed<TaskSlot | null>(() => slots.value[currentRoute.value] ?? null)
-
-  /** 某路由是否有活跃任务（进度环判据） */
-  function hasActiveTask(route: string): boolean {
-    const slot = slots.value[route]
-    return !!slot && isActiveStatus(slot.status)
-  }
-
-  /** 某路由的任务（供导航按钮进度环读取） */
+  /** 某路由的任务（供导航按钮进度环/页面读取） */
   function getSlot(route: string): TaskSlot | null {
     return slots.value[route] ?? null
   }
@@ -362,14 +345,6 @@ export const useTaskStore = defineStore('task', () => {
     }
   }
 
-  /** 取走结果并从槽位移除（页面画完图后调用，避免重复渲染） */
-  function consumeResult(route: string): unknown {
-    const slot = slots.value[route]
-    if (!slot || slot.result === undefined) return undefined
-    const result = slot.result
-    return result
-  }
-
   /**
    * 等待某路由的任务进入终态，返回终态槽位（v4-S3）。
    *
@@ -459,12 +434,7 @@ export const useTaskStore = defineStore('task', () => {
     // 状态
     slots,
     currentRoute,
-    // 派生
-    activeSlots,
-    occupiedSlots,
-    currentSlot,
     // 查询
-    hasActiveTask,
     getSlot,
     // 动作
     setCurrentRoute,
@@ -472,7 +442,6 @@ export const useTaskStore = defineStore('task', () => {
     submitAndWait,
     cancel,
     waitForResult,
-    consumeResult,
     setDocked,
     dismiss,
     clearAll,

@@ -22,7 +22,7 @@
 #
 # 2026-10-04 修订（本脚本此前跑不起来，四处死路径 + 一处缺参，逐条修）：
 #   ① venv：backend/flood-service/.venv 已随 FastAPI 移除 ⇒ 改 backend/algorithm-service/.venv；
-#   ② ASTER 源与输出：原写 Desktop\数据_\... 单点，实际原件在 06-数据备份\数据_\...；
+#   ② ASTER 源与输出：源可 -Aster/-Coast 指向外置数据树，缺省落仓库 .local\data\（不入库）；
 #      中间件与 cut 改回 workspace（.local\dem-work\），与 10-landsea-merge.py / 07b 的默认读入一致；
 #   ③ 海掩膜缺第 4 参（测深栅格）：只跑海岸线单判据 = 2026-08-30 旧行为（会把码头岸线抹成海），
 #      现补 $bathy=sea_custom.tif（由 09b-srtm15-sea-grid.ps1 生成、与 DEM 同 CRS 的投影栅格）；
@@ -33,15 +33,19 @@
 #   与 .local\dem-work\filled_utm48n_cut.tif 逐像元差 0（数组 md5 ed15d45e…）。
 # =============================================================================
 #Requires -Version 5.1
+param(
+    [string]$Aster = '',
+    [string]$Coast = ''
+)
 $ErrorActionPreference = 'Stop'
 
-# --- 路径配置 ---
+# --- 路径配置（-Aster/-Coast 可指向自己的外置数据树）---
 $gdalBin  = 'C:\Program Files\QGIS 3.44.12\bin'
 $gdalwarp = Join-Path $gdalBin 'gdalwarp.exe'
-$repo     = 'C:\workspace\beibu-gulf-project'
+$repo     = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $venvPy   = Join-Path $repo 'backend\algorithm-service\.venv\Scripts\python.exe'
-$aster    = 'C:\Users\JionHappY\Desktop\_北部湾项目\06-数据备份\数据_\项目数据\浸没分析\处理成果\filled_CGCS2000_int16.tif'
-$coast    = 'C:\Users\JionHappY\Desktop\_北部湾项目\06-数据备份\数据_\项目数据\海岸线\beibu-coastline.geojson'
+if (-not $Aster) { $Aster = Join-Path $repo '.local\data\aster\filled_CGCS2000_int16.tif' }
+if (-not $Coast) { $Coast = Join-Path $repo '.local\data\coastline\beibu-coastline.geojson' }
 $bathy    = Join-Path $repo '.local\dem-sea-work\sea_custom.tif'
 $masked   = Join-Path $repo '.local\dem-work\aster_coastmasked.tif'
 $dstTif   = Join-Path $repo '.local\dem-work\filled_utm48n_cut.tif'

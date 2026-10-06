@@ -24,16 +24,18 @@
 # 失效条件：
 #   ① 换 SRTM15+ 版本/范围 ⇒ 第 [1] 步窗口须按新源重取并重跑比对；
 #   ② 陆地 cut 换 CRS ⇒ 第 [2] 步自动跟随（现读 WKT），但产物网格会变，须重跑 10/11；
-#   ③ 外置 nc 缺失 ⇒ 本脚本报错停下，不回退任何近似源。
+#   ③ 外置 nc 缺失（缺省读 .local\data\srtm15\SRTM15_V2.6.nc，-Nc 可覆盖）⇒ 本脚本
+#      报错停下，不回退任何近似源。
 # =============================================================================
 #Requires -Version 5.1
 param(
-    [string]$Nc = 'C:\Users\JionHappY\Desktop\_北部湾项目\06-数据备份\数据_\项目数据\海底DEM\SRTM15_V2.6.nc',
+    [string]$Nc = '',
     [string]$Cut = '',
     [string]$OutDir = ''
 )
 $ErrorActionPreference = 'Stop'
 $repo = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
+if (-not $Nc)     { $Nc = Join-Path $repo '.local\data\srtm15\SRTM15_V2.6.nc' }
 if (-not $Cut)    { $Cut = Join-Path $repo '.local\dem-work\filled_utm48n_cut.tif' }
 if (-not $OutDir) { $OutDir = Join-Path $repo '.local\dem-sea-work' }
 

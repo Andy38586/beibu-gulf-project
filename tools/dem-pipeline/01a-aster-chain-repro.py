@@ -27,6 +27,8 @@ MINSLOPE=0.01 **不复现**归档件。本脚本把 07-30 那条链固化为可�
     tools/dem-pipeline/01a-aster-chain-repro.py            # 全链（SAGA 约 2.5 分钟）
     ... --skip-fill                                       # 只跑 ①②（约 15 秒）
     ... --reuse                                           # 复存在产物，只重跑比对
+输入缺省：6 幅 .img 放 `.local/data/aster-gdem/`，比对归档件放 `.local/data/aster/`
+（均可 --aster-dir/--archive-dir 覆盖；外置数据树不随仓库分发）。
 输出只写 `.local/dem-aster/`（gitignored），不碰任何运行时资产。
 """
 from __future__ import annotations
@@ -45,12 +47,9 @@ QGIS = Path(r'C:\Program Files\QGIS 3.44.12')
 GDALWARP = QGIS / 'bin/gdalwarp.exe'
 SAGA = QGIS / 'apps/saga/saga_cmd.exe'
 
-ASTER_DIR_DEFAULT = Path(
-    r'C:\Users\JionHappY\Desktop\_北部湾项目\06-数据备份\数据_\项目数据\浸没分析'
-    r'\ASTER-GDEM-30m\解压后')
-ASTER_DIR_OLD = Path(r'C:\Users\JionHappY\Desktop\项目数据\浸没分析\ASTER-GDEM-30m\解压后')
-ARCHIVE_DIR_DEFAULT = Path(
-    r'C:\Users\JionHappY\Desktop\_北部湾项目\06-数据备份\数据_\项目数据\浸没分析\处理成果')
+# 数据树不随仓库分发：缺省用仓库内约定位置（命令行可覆盖，无第二回退点）
+ASTER_DIR_DEFAULT = REPO / '.local/data/aster-gdem'
+ARCHIVE_DIR_DEFAULT = REPO / '.local/data/aster'
 
 # 目标格网：直接取归档件的 4 角 + 尺寸（不许估计）
 WGS84_TE = (106.9855287, 20.9791452, 110.0075215, 23.0222690)
@@ -136,8 +135,7 @@ def main() -> int:
     out.mkdir(parents=True, exist_ok=True)
     archive = Path(args.archive_dir)
 
-    aster = Path(args.aster_dir) if args.aster_dir else (
-        ASTER_DIR_DEFAULT if ASTER_DIR_DEFAULT.exists() else ASTER_DIR_OLD)
+    aster = Path(args.aster_dir) if args.aster_dir else ASTER_DIR_DEFAULT
     imgs = sorted(aster.glob('*.img'))
     if len(imgs) != 6:
         raise SystemExit('❌ ASTER 输入应为 6 幅 .img，实际 %d 幅（%s）' % (len(imgs), aster))

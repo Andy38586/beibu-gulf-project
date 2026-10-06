@@ -66,11 +66,13 @@ PowerShell 下调 python 一律加 `-X utf8`：脚本 stdout 含 "km²" 等字�
 | 中间件                                   | 仓库 `.local\dem-work\`、`.local\dem-sea-work\`（gitignored）                                            | 各脚本默认落点                |
 | 消费产物                                 | `backend/data/flood/dem\landsea_utm48n.tif`（淹没演算 + 地形重切共用）、`backend/data/flood\*.json(.gz)` | 服务读这里；`.tif` gitignored |
 
-> 干净检出复跑：`06-sea-mask.py` 的海岸线缺省读
-> `.local/data/coastline/beibu-coastline.geojson`（第 3 参覆盖）；`diag_datum.py`
-> 缺省复用 `flood_engine` 的 DEM 唯一解析点（第 1 参覆盖，外置覆盖口
-> `FLOOD_DEM_PATH`，见 `tools/flood/engine/README.md`）。请把数据放到缺省位置或用
-> 参数指向你自己的外置数据树。
+> 干净检出复跑：外置源缺省落仓库 gitignored 的 `.local/data/`——`06-sea-mask.py` 海岸线
+> `coastline/beibu-coastline.geojson`（第 3 参覆盖）；`06-restore-cut-dem.ps1` 的
+> `-Aster`/`-Coast` 缺省 `aster/filled_CGCS2000_int16.tif` + 上述海岸线；`01a` 的 6 幅
+> `.img` 放 `aster-gdem/`、比对归档件放 `aster/`（`--aster-dir`/`--archive-dir` 覆盖）；
+> `09b` 的 `SRTM15_V2.6.nc` 放 `srtm15/`（`-Nc` 覆盖）。`diag_datum.py` 缺省复用
+> `flood_engine` 的 DEM 唯一解析点（第 1 参覆盖，外置覆盖口 `FLOOD_DEM_PATH`，见
+> `tools/flood/engine/README.md`）。请把数据放到缺省位置或用参数指向你自己的外置数据树。
 
 **待裁（不自行选边）**：外置树与 workspace 谁是"权威副本"——现行做法是"外置树存原始与
 处理成果、workspace 只放可再生的缓存"（z047 既有口径），但 `backend/data/flood/dem/` 同时

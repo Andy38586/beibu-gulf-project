@@ -1,13 +1,17 @@
 # -*- coding: utf-8 -*-
 """
 extract-industrial.py — 从 OSM PBF 提取北部湾 bbox 内的工业园区多边形(landuse=industrial)。
-用法: python extract-industrial.py   (输入用 ASCII 硬链接,输出到桌面数据目录)
+用法: python extract-industrial.py
+缺省: pbf = 仓库 .local/tmp/china.osm.pbf；输出 = 仓库 .local/data/industrial
 输出: beibu-industrial.geojson (Polygon)
 """
 import json
 import os
+from pathlib import Path
 
 import osmium
+
+REPO = Path(__file__).resolve().parents[2]
 
 BBOX = (106.0, 20.0, 111.0, 24.0)
 
@@ -29,10 +33,10 @@ class IndustrialHandler(osmium.SimpleHandler):
 
 
 def main():
-    pbf = r'C:\workspace\beibu-gulf-project\.local/tmp\china.osm.pbf'
-    outdir = r'C:\Users\JionHappY\Desktop\项目数据\多边形\工业园区'
+    pbf = str(REPO / '.local/tmp/china.osm.pbf')
+    outdir = str(REPO / '.local/data/industrial')
     os.makedirs(outdir, exist_ok=True)
-    idx_dir = r'C:\workspace\beibu-gulf-project\.local/tmp'
+    idx_dir = str(REPO / '.local/tmp')
     os.makedirs(idx_dir, exist_ok=True)
 
     handler = IndustrialHandler()

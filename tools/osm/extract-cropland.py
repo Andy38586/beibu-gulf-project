@@ -3,16 +3,17 @@
 extract-cropland.py — 从 ESA WorldCover 10m 瓦片提取耕地(class 40)掩膜 + 面积统计。
 用法: python extract-cropland.py
 依赖: rasterio (flood-service venv 已装)
-输出: 项目数据/多边形/土地类型/cropland_beibu.tif (0/1 掩膜, 4326) + 面积统计打印
+输入: 4 幅 ESA WorldCover 瓦片放仓库 .local/data/worldcover/（缺省源目录）
+输出: 与源瓦片同目录的 *_cropland.tif（0/1 掩膜）+ 面积统计打印
 """
 import os
+from pathlib import Path
 
 import numpy as np
 import rasterio
 from rasterio.warp import calculate_default_transform, reproject, Resampling
 
-SRC = r'C:\Users\JionHappY\Desktop\项目数据\多边形\土地类型\ESA-WorldCover-10m'
-OUT = r'C:\Users\JionHappY\Desktop\项目数据\多边形\土地类型\cropland_beibu.tif'
+SRC = Path(__file__).resolve().parents[2] / '.local/data/worldcover'
 TILES = [
     'ESA_WorldCover_10m_2021_v200_N18E105_Map.tif',
     'ESA_WorldCover_10m_2021_v200_N18E108_Map.tif',

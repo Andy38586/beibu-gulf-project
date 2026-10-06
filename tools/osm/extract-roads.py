@@ -2,14 +2,18 @@
 """
 extract-roads.py — 从 OSM PBF 提取北部湾 bbox 内的公路(highway=*)与铁路(railway=*)。
 用法: python extract-roads.py [pbf] [输出目录]
+缺省: pbf = 仓库 .local/tmp/china.osm.pbf；输出目录 = 仓库 .local/data/roads
 依赖: pyosmium; 输入 PBF 建议用 ASCII 路径硬链接(pyosmium C++ 不支持中文路径)。
 输出: beibu-roads.geojson / beibu-railways.geojson (LineString)
 """
 import json
 import os
 import sys
+from pathlib import Path
 
 import osmium
+
+REPO = Path(__file__).resolve().parents[2]
 
 BBOX = (106.0, 20.0, 111.0, 24.0)  # west, south, east, north (钦北防+南宁+平陆运河走廊)
 
@@ -44,10 +48,10 @@ class RoadHandler(osmium.SimpleHandler):
 
 
 def main():
-    pbf = sys.argv[1] if len(sys.argv) > 1 else r'C:\workspace\beibu-gulf-project\.local/tmp\china.osm.pbf'
-    outdir = sys.argv[2] if len(sys.argv) > 2 else r'C:\Users\JionHappY\Desktop\项目数据\路网'
+    pbf = sys.argv[1] if len(sys.argv) > 1 else str(REPO / '.local/tmp/china.osm.pbf')
+    outdir = sys.argv[2] if len(sys.argv) > 2 else str(REPO / '.local/data/roads')
     os.makedirs(outdir, exist_ok=True)
-    idx_dir = r'C:\workspace\beibu-gulf-project\.local/tmp'
+    idx_dir = str(REPO / '.local/tmp')
     os.makedirs(idx_dir, exist_ok=True)
     idx_path = os.path.join(idx_dir, 'roads-idx.cache')
 

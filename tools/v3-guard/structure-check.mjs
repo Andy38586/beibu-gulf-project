@@ -30,7 +30,7 @@ const FORBIDDEN_FILENAMES = /\.(tmp|bak|orig|swp)(\.\w+)?$/i
  * 冻结值取 2026-10-06 实测（A-1 裁定的 2121/1051 是 10-05 实测值，其后合法改动增长 ⇒ 本日起重锚）。
  */
 export const RENDERER_SIZE_CEILINGS = [
-  { file: 'frontend/src/core/map/renderers/CesiumRenderer.ts', max: 2376 },
+  { file: 'frontend/src/core/map/renderers/CesiumRenderer.ts', max: 2362 },
   { file: 'frontend/src/core/map/renderers/OLRenderer.ts', max: 1120 },
 ]
 

@@ -1,7 +1,7 @@
 import { fileURLToPath, URL } from 'node:url'
 
 import vue from '@vitejs/plugin-vue'
-import { defineConfig } from 'vitest/config'
+import { configDefaults, defineConfig } from 'vitest/config'
 
 export default defineConfig({
   plugins: [vue()],
@@ -9,6 +9,10 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./test/setup.ts'],
+    // z019：E2E（frontend/e2e/*.spec.ts）归 Playwright 跑；vitest 默认 include 会把
+    // `*.spec.ts` 一并收进来 ⇒ 两个 runner 抢同一目录（实见 npm test 2 文件红）。
+    // 只排除 e2e，其余沿用 vitest 默认排除表，防手抄清单漂移。
+    exclude: [...configDefaults.exclude, 'e2e/**'],
     // 功能域清单固定为生产默认值（与 docker-compose.yml / Dockerfile 的 VITE_USE_NEST_MODULES 同源，
     // routes-audit 对测试侧做全覆盖断言）：
     // 此前测试路由解析依赖本机 .env.local（不入库）→ CI 干净树上清单为空，

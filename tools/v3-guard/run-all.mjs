@@ -34,6 +34,7 @@ export const GUARDS = [
   'metrics-tally',
   'ledger-dedupe',
   'doc-numbers',
+  'doc-ref-check',
   'protocol-single-source',
   'doc-map-check',
   'cruise-coverage',

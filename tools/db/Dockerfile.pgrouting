@@ -16,7 +16,7 @@
 # 若服务器 apt 源不可达 → 回退 D2 路径（本地构建 + save + scp + load）：
 #   docker build -t local/postgis-pgrouting:16-3.4 -f tools/db/Dockerfile.pgrouting .docker-context
 #   docker save local/postgis-pgrouting:16-3.4 | gzip > pgr.tar.gz
-#   scp pgr.tar.gz admin@112.74.32.206:/tmp/
+#   scp pgr.tar.gz <user>@<server>:/tmp/
 #   ssh ... 'gunzip -c /tmp/pgr.tar.gz | docker load'
 #
 # 切换后需做（compose 里 image 改指 local/postgis-pgrouting:16-3.4）：

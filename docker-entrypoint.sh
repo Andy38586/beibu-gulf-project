@@ -31,7 +31,7 @@ server {
     # location 都必须把这 4 个头重复一遍，原因：
     #   nginx 的 add_header 是**层级全量替换**语义——子级只要出现任意一条 add_header，
     #   父级（server 块）的所有 add_header **全部不再继承**，不是合并。
-    # 后果（线上 112.74.32.206 实测证据）：
+    # 后果（线上实测证据）：
     #   GET /                      → 200，4 个安全头齐全 ✅
     #   GET /nest-api/             → 404，4 个安全头齐全 ✅（无自带 add_header）
     #   GET /assets/js/index-*.js  → 200，**4 个全丢** ❌ ← 首屏必加载的 JS

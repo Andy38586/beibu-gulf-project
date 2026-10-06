@@ -1,6 +1,8 @@
 import { taskSubmitResponseSchema, taskViewResponseSchema } from '@/types/schemas'
 import type { TaskSubmitResponse, TaskView } from '@/types/task'
 
+import { ENDPOINTS } from '../constants/api'
+
 import { useApiRequest } from './useApiRequest'
 
 /**
@@ -61,7 +63,7 @@ export function useTaskApi(): UseTaskApiReturn {
 
   return {
     async submit(payload) {
-      const res = await apiRequest<unknown>('/task', {
+      const res = await apiRequest<unknown>(ENDPOINTS.task.root, {
         method: 'POST',
         body: JSON.stringify(payload),
         headers: clientHeaders(),
@@ -77,7 +79,7 @@ export function useTaskApi(): UseTaskApiReturn {
 
     async get(taskId, signal) {
       try {
-        const res = await apiRequest<unknown>(`/task/${encodeURIComponent(taskId)}`, {
+        const res = await apiRequest<unknown>(ENDPOINTS.task.byId(taskId), {
           headers: clientHeaders(),
           signal,
           timeoutMs: POLL_TIMEOUT_MS,
@@ -103,7 +105,7 @@ export function useTaskApi(): UseTaskApiReturn {
     },
 
     async cancel(taskId) {
-      const res = await apiRequest<unknown>(`/task/${encodeURIComponent(taskId)}`, {
+      const res = await apiRequest<unknown>(ENDPOINTS.task.byId(taskId), {
         method: 'DELETE',
         headers: clientHeaders(),
         timeoutMs: POLL_TIMEOUT_MS,

@@ -54,4 +54,10 @@ export const ENDPOINTS = {
     // （多源点集合并口径不变，limit 1..200）
     pois: '/route/pois',
   },
+  // task 域（v4 系统 B）：提交/查询/取消三端点。2026-10-06 Swagger 契约核对抓到
+  // useTaskApi 曾在此表外裸写 '/task' 字面量（端点第二源）⇒ 收口回本表。
+  task: {
+    root: '/task',
+    byId: (id: string) => `/task/${encodeURIComponent(id)}`,
+  },
 } as const

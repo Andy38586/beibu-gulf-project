@@ -4,12 +4,13 @@ import path from 'node:path'
 import { Logger } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
 import type { NestExpressApplication } from '@nestjs/platform-express'
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
+import { SwaggerModule } from '@nestjs/swagger'
 import cookieParser from 'cookie-parser'
 import express from 'express'
 
 import { AppModule } from './app.module'
 import { ConfigService } from './infra/config/config.service'
+import { buildSwaggerConfig } from './swagger'
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule)
@@ -106,11 +107,7 @@ async function bootstrap() {
   // 漂移校验脚本拉取（与前端 zod 形状比对，契约先行方案）；UI 仅供开发调试，
   // 生产环境关闭暴露面（契约比对脚本在开发环境运行，不受影响）
   if (!config.isProduction) {
-    const swaggerConfig = new DocumentBuilder()
-      .setTitle('beibu-gulf v3 API')
-      .setDescription('NestJS 业务层（v3 单一后端；原 Express / FastAPI 均已退役）')
-      .setVersion('0.1')
-      .build()
+    const swaggerConfig = buildSwaggerConfig()
     const document = SwaggerModule.createDocument(app, swaggerConfig)
     SwaggerModule.setup('nest-api/docs', app, document)
   }

@@ -14,17 +14,9 @@ import { fileURLToPath } from 'node:url'
 
 import { describe, expect, it } from 'vitest'
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..')
+import { COMPAT_ENDPOINTS } from '../../../backend/src/routes.compat'
 
-const COMPAT_ENDPOINTS = [
-  { method: 'POST', path: 'nest-api/plans/:id/xiaoqu', consumerRe: /\/plans\/[^'"\s`]*xiaoqu/ },
-  {
-    method: 'DELETE',
-    path: 'nest-api/plans/:id/xiaoqu/:xiaoquId',
-    consumerRe: /\/plans\/[^'"\s`]*xiaoqu/,
-  },
-  { method: 'GET', path: 'nest-api/forecast/:portId' },
-]
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..')
 
 function walk(dir, out = []) {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {

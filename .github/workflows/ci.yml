@@ -186,6 +186,10 @@ jobs:
       - name: API contract check
         run: npm run types:check
 
+      # b018：Swagger 文档 ↔ 前端 ENDPOINTS 双向核对（path 级；后端独有端点须逐条登记）
+      - name: API contract check (Swagger ↔ ENDPOINTS)
+        run: npm run contract:check
+
       - name: Type check
         run: npm run typecheck
 

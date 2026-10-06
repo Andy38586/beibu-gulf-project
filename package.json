@@ -51,6 +51,7 @@
     "typecheck": "vue-tsc --noEmit -p frontend/tsconfig.app.json",
     "types:check": "node scripts/gen-api-contract.cjs --check",
     "types:gen": "node scripts/gen-api-contract.cjs",
+    "contract:check": "npm --prefix backend run test -- test/swagger-contract.spec.ts",
     "verify-gis": "node tools/gis-import/verify.mjs"
   },
   "dependencies": {

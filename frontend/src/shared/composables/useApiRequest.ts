@@ -119,8 +119,6 @@ export interface RequestOptions {
    * 业务类型仍由调用方 T 声明，宽松 schema 才不会与业务 interface 编译冲突。
    */
   schema?: ZodType<unknown>
-  /** 是否解包响应信封（{ code, data } → data），默认 true；跨服务裸 JSON 调用传 false 跳过 */
-  envelope?: boolean
   /**
    * 单次请求超时（ms），缺省 API_TIMEOUT_MS（10s）。慢查询端点（如 route 寻路，
    * 生产实测单次可达 26s）显式放宽；每次重试的计时独立重置。
@@ -268,27 +266,21 @@ async function singleRequest<T = unknown>(
       throw new ApiError(errMsg || `请求失败 HTTP ${res.status}`, ErrorCode.REQUEST_FAILED, bizCode)
     }
 
-    // 统一解包响应信封（{ code, data } → data）：调用方始终拿到业务数据 T，无需手动 .data；跨服务裸 JSON 传 envelope: false 跳过
-    let unwrapped: T
-    if (options.envelope === false) {
-      unwrapped = data as T
-    } else {
-      // D2：code 契约 = 同 HTTP 状态（后端 sendSuccess code=statusCode 恒 2xx）——
-      // HTTP 2xx 但 code≥400 的业务错误信封显式失败，杜绝「错误数据被当成功解包」静默放大
-      const code =
-        typeof data === 'object' && data !== null && 'code' in data
-          ? (data as Record<string, unknown>).code
-          : undefined
-      if (typeof code === 'number' && code >= 400) {
-        throw new ApiError(`响应业务错误（code=${code}）`, ErrorCode.REQUEST_FAILED)
-      }
-      unwrapped = unwrapEnvelope<T>(data)
+    // 统一解包响应信封（{ code, data } → data）：调用方始终拿到业务数据 T，无需手动 .data。
+    // D2：code 契约 = 同 HTTP 状态（后端 sendSuccess code=statusCode 恒 2xx）——
+    // HTTP 2xx 但 code≥400 的业务错误信封显式失败，杜绝「错误数据被当成功解包」静默放大
+    const code =
+      typeof data === 'object' && data !== null && 'code' in data
+        ? (data as Record<string, unknown>).code
+        : undefined
+    if (typeof code === 'number' && code >= 400) {
+      throw new ApiError(`响应业务错误（code=${code}）`, ErrorCode.REQUEST_FAILED)
     }
+    const unwrapped: T = unwrapEnvelope<T>(data)
 
     // dev 响应日志
     if (import.meta.env.DEV) {
       logger.debug(`[apiRequest:${rid}] ← ${res.status} ${path}`, {
-        envelope: options.envelope === false ? 'raw' : 'envelope',
         schema: options.schema ? 'zod' : 'none',
       })
     } else {

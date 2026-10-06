@@ -63,4 +63,22 @@ describe('nest-controllers-data：controller 不直读数据文件（z055 承接
     // 行号定位到真实位置
     expect(violations.every((v) => v.line >= 1 && v.line <= 5)).toBe(true)
   })
+
+  it('@guard-red-sample @Body 未经 DtoPipe 且不在豁免清单 ⇒ 红（d025 收口）', () => {
+    const bare = writeController(
+      'backend/src/modules/newwrite/controllers/newwrite.controller.ts',
+      "import { Body, Post } from '@nestjs/common'\nexport class C { @Post() m(@Body() body: { a?: unknown }) { return body } }\n"
+    )
+    const { violations } = auditControllers([bare])
+    expect(violations.some((v) => v.why.includes('DtoPipe'))).toBe(true)
+    expect(violations[0].why).toContain('BODY_VALIDATION_EXEMPTIONS')
+  })
+
+  it('阳性对照：@Body 经 DtoPipe 收口 ⇒ 不红（同一形态换写法不误报）', () => {
+    const piped = writeController(
+      'backend/src/modules/newwrite/controllers/newwrite.controller.ts',
+      "import { Body, Post } from '@nestjs/common'\nexport class C { @Post() m(@Body(new DtoPipe(X.parse)) body: X) { return body } }\n"
+    )
+    expect(auditControllers([piped]).violations).toEqual([])
+  })
 })

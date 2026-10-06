@@ -3,10 +3,9 @@ import { ApiTags } from '@nestjs/swagger'
 import { SkipThrottle } from '@nestjs/throttler'
 import type { Request } from 'express'
 
-import { BusinessError, ErrorCode } from '../../../common/errors/business-error'
-import { HTTP_TASK_DOMAINS, TASK_PRIORITIES } from '../dto/task.dto'
+import { DtoPipe } from '../../../common/pipes/dto.pipe'
+import { TaskSubmitBody } from '../dto/task.dto'
 import { TaskService } from '../services/task.service'
-import type { TaskDomain, TaskPriority } from '../types/task'
 import { resolveRequestOwner } from '../utils/request-owner'
 
 /**
@@ -34,46 +33,14 @@ export class TaskController {
   /** 提交任务。@HttpCode(200)：非资源创建端点，回报 taskId 属查询语义 */
   @Post()
   @HttpCode(200)
-  submit(
-    @Body() body: { domain?: unknown; route?: unknown; priority?: unknown; params?: unknown },
-    @Req() req: Request
-  ) {
-    const { domain, route, priority, params } = body ?? {}
-
-    if (typeof domain !== 'string' || !HTTP_TASK_DOMAINS.includes(domain as TaskDomain)) {
-      throw new BusinessError(
-        ErrorCode.INVALID_PARAMS,
-        `domain 必须为以下之一：${HTTP_TASK_DOMAINS.join(' / ')}`
-      )
-    }
-    if (typeof route !== 'string' || route === '') {
-      // route 是前端分槽依据（1 个路由 1 个任务），缺失会让前端无法归属结果
-      throw new BusinessError(ErrorCode.INVALID_PARAMS, '缺少参数：route')
-    }
-    const priorityValue: TaskPriority =
-      priority === undefined
-        ? 'normal'
-        : TASK_PRIORITIES.includes(priority as TaskPriority)
-          ? (priority as TaskPriority)
-          : (() => {
-              throw new BusinessError(
-                ErrorCode.INVALID_PARAMS,
-                `priority 必须为 ${TASK_PRIORITIES.join(' / ')}`
-              )
-            })()
-    if (
-      params !== undefined &&
-      (typeof params !== 'object' || params === null || Array.isArray(params))
-    ) {
-      throw new BusinessError(ErrorCode.INVALID_PARAMS, 'params 应为对象')
-    }
-
+  submit(@Body(new DtoPipe(TaskSubmitBody.parse)) body: TaskSubmitBody, @Req() req: Request) {
+    // 参数校验在 TaskSubmitBody.parse（边界统一入口）；本方法只做编排
     return this.taskService.submit({
-      domain: domain as TaskDomain,
-      route,
+      domain: body.domain,
+      route: body.route,
       ownerId: resolveRequestOwner(req),
-      priority: priorityValue,
-      params: (params as Record<string, unknown> | undefined) ?? {},
+      priority: body.priority,
+      params: body.params,
     })
   }
 

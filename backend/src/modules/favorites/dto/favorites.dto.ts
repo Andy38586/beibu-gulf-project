@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger'
 
 import { BusinessError, ErrorCode } from '../../../common/errors/business-error'
+import { asRecord } from '../../../common/utils/as-record'
 
 // 收藏对象类型白名单：选址小区 / 浸没设施（对齐 Express favoritesController）
 export const FAVORITE_ITEM_TYPES = ['xiaoqu', 'facility'] as const
@@ -26,7 +27,7 @@ export class FavoriteAddBody {
   snapshot: Record<string, unknown> | null = null
 
   static parse(raw: unknown): FavoriteAddBody {
-    const body = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>
+    const body = asRecord(raw)
     const { itemType, itemId, name, lng, lat, snapshot } = body
 
     if (!FAVORITE_ITEM_TYPES.includes(itemType as FavoriteItemType)) {

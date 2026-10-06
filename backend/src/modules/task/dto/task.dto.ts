@@ -1,4 +1,5 @@
 import { BusinessError, ErrorCode } from '../../../common/errors/business-error'
+import { asRecord } from '../../../common/utils/as-record'
 import { TASK_DOMAINS, type TaskDomain, type TaskPriority } from '../types/task'
 
 export const TASK_PRIORITIES: readonly TaskPriority[] = ['high', 'normal'] as const
@@ -25,7 +26,7 @@ export class TaskSubmitBody {
   params!: Record<string, unknown>
 
   static parse(raw: unknown): TaskSubmitBody {
-    const body = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>
+    const body = asRecord(raw)
     const { domain, route, priority, params } = body
     if (typeof domain !== 'string' || !HTTP_TASK_DOMAINS.includes(domain as TaskDomain)) {
       throw new BusinessError(

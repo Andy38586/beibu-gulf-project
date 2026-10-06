@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptions } from '@nestjs/swagger'
 
 import { missingParamError } from '../../../common/errors/business-error'
+import { asRecord } from '../../../common/utils/as-record'
 import { parseScenarioId } from '../services/scenario.service'
 
 /**
@@ -30,7 +31,7 @@ const OPTIONAL_SCENARIO_PROP: ApiPropertyOptions = {
 
 /** 查询参数兜底形态：非对象（含 null）一律落空记录；两个 parse 共用 */
 function queryRecord(raw: unknown): Record<string, unknown> {
-  return (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>
+  return asRecord(raw)
 }
 
 /** GET /forecast/map 查询参数 */

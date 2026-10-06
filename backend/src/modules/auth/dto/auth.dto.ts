@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger'
 
 import { BusinessError, ErrorCode } from '../../../common/errors/business-error'
+import { asRecord } from '../../../common/utils/as-record'
 
 // DTO 白名单校验：对齐老 Express authController 的入参校验顺序与文案（逐字节），
 // 但不留裸 body 透传——只挑白名单字段、非字符串显式拒绝（Express 对 number 等
@@ -42,7 +43,7 @@ export class CredentialsBody {
 
 export class LoginBody extends CredentialsBody {
   static parse(raw: unknown): LoginBody {
-    const body = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>
+    const body = asRecord(raw)
     CredentialsBody.assertNotEmpty(body)
     const dto = new LoginBody()
     dto.username = body.username as string
@@ -53,7 +54,7 @@ export class LoginBody extends CredentialsBody {
 
 export class RegisterBody extends CredentialsBody {
   static parse(raw: unknown): RegisterBody {
-    const body = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>
+    const body = asRecord(raw)
     CredentialsBody.assertNotEmpty(body)
     const dto = new RegisterBody()
     dto.username = body.username as string

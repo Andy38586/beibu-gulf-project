@@ -98,6 +98,16 @@ let disposed = false
  */
 const staticAbort = new AbortController()
 
+/** 本页两处 tileset.json 静态请求共用：signal 取消源 + schema 单源 */
+function loadTileset(url: string) {
+  return loadStatic(url, { signal: staticAbort.signal, schema: tilesetJsonSchema })
+}
+
+/** 异步回来后渲染器是否仍是同一实例且具备 3D Tiles 能力（两处注册共用） */
+function isSameUsableRenderer(renderer: NonNullable<typeof mapStore.currentRenderer>): boolean {
+  return !disposed && mapStore.currentRenderer === renderer && isTiles3DCapable(renderer)
+}
+
 async function registerImageryLayers(): Promise<void> {
   if (imageryRegistered) return
   if (disposed) return
@@ -239,13 +249,10 @@ async function registerPingluGroups(): Promise<void> {
   if (!renderer || !isTiles3DCapable(renderer)) return
   try {
     // 取一次完整 tileset 作模板（派生只裁子树，不重新计算任何变换）
-    const template: TilesetJson = await loadStatic(PINGLU_TILESET_URL, {
-      signal: staticAbort.signal,
-      schema: tilesetJsonSchema,
-    })
+    const template: TilesetJson = await loadTileset(PINGLU_TILESET_URL)
 
     // 异步期间渲染器可能被切走（切 2D / 换实例）或页面已卸载——注册前重验
-    if (disposed || mapStore.currentRenderer !== renderer || !isTiles3DCapable(renderer)) return
+    if (!isSameUsableRenderer(renderer)) return
 
     const { counts, unassigned } = tallyGroups(template, PINGLU_GROUPS)
     if (unassigned.length) {
@@ -340,12 +347,9 @@ async function registerBeibuTiles(): Promise<void> {
       // 外部交付瓦片 GE 相对包围尺度偏小，中高空 SSE 低于阈值会在 root 终止遍历、整片
       // 空白。前端取一次 tileset：绝对化 uri + 校正 GE 后以 Data URI 挂载（机制见
       // prepareTilesetForDataUri），不再把 http url 直接交给 Cesium。
-      const raw: TilesetJson = await loadStatic(spec.url, {
-        signal: staticAbort.signal,
-        schema: tilesetJsonSchema,
-      })
+      const raw: TilesetJson = await loadTileset(spec.url)
       // 异步期间渲染器可能被切走或页面卸载——注册前重验
-      if (disposed || mapStore.currentRenderer !== renderer || !isTiles3DCapable(renderer)) return
+      if (!isSameUsableRenderer(renderer)) return
       // 「哪条走裁剪、哪条走整包」由清单条目自己声明（spec.derive），
       // 分支实现与判据在 prepareBeibuTileset（单测直调它，删掉裁剪分支即红）。
       const prepared = prepareBeibuTileset(raw, spec)

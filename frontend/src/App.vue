@@ -172,11 +172,14 @@ const panelDragActive = useGlobalPanelDragActive()
 // （chip 显示已上图、BLM 里却没有该图层）。
 const layerIR = useLayerIRLayer(businessLayerManager)
 
+/** 任务槽位列表（resultChips 与 dockCards 共用；Object.values 只保留一处） */
+const taskSlots = computed(() => Object.values(taskStore.slots))
+
 /** 终态且可渲染的任务结果 → chip 视图模型（domain 不支持/结果畸形的不出手柄） */
 const resultChips = computed(() => {
   const chips: Array<{ key: string; label: string; color: string; active: boolean; ir: LayerIR }> =
     []
-  for (const slot of Object.values(taskStore.slots)) {
+  for (const slot of taskSlots.value) {
     if (!slot || slot.status !== 'done' || !slot.result) continue
     const ir = taskResultToIR(slot)
     if (!ir) continue
@@ -201,7 +204,7 @@ function onResultChipToggle(ir: LayerIR): void {
 // label/icon 由槽位路由反查业务清单——反向依赖（core→business）被禁止，所以在 App 侧查好再传。
 const dockCards = computed<TaskDockCard[]>(() => {
   const cards: TaskDockCard[] = []
-  for (const slot of Object.values(taskStore.slots)) {
+  for (const slot of taskSlots.value) {
     if (!slot || !slot.docked) continue
     const mod = businessModules.find((m) => m.path === slot.route)
     cards.push({

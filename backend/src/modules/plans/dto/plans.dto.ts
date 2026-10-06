@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger'
 
 import { BusinessError, ErrorCode } from '../../../common/errors/business-error'
+import { asRecord } from '../../../common/utils/as-record'
 
 // 方案名称正则（对齐 Express plansController：中文/字母/数字/下划线/连字符/空格，1-50）
 export const PLAN_NAME_REGEX = /^[\u4e00-\u9fa5a-zA-Z0-9_\-\s]{1,50}$/
@@ -20,7 +21,7 @@ export class PlanCreateBody {
 
   // 校验顺序与文案逐字节对齐 Express createOne
   static parse(raw: unknown): PlanCreateBody {
-    const body = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>
+    const body = asRecord(raw)
     const { name, selectedKeys, typeSettings, weights } = body
     if (!name || !selectedKeys) {
       throw new BusinessError(ErrorCode.INVALID_PARAMS, '缺少必要字段: name, selectedKeys')
@@ -49,7 +50,7 @@ export class PlanUpdateBody {
   // 返回普通对象而非类实例：ES2022 define-fields 下类声明字段会以 undefined 进入
   // 自有属性集，repo 的 `key in updates` 判定会把未传字段当"显式传 undefined"覆盖掉
   static parse(raw: unknown): Record<string, unknown> {
-    const body = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>
+    const body = asRecord(raw)
     const updates: Record<string, unknown> = {}
     if (body.name !== undefined) {
       if (typeof body.name !== 'string' || !PLAN_NAME_REGEX.test(body.name)) {
@@ -69,7 +70,7 @@ export class PlanXiaoquBody {
 
   // 对齐 Express saveXiaoquToOne：xiaoqu 对象整体透传（含 id 必填）
   static parse(raw: unknown): PlanXiaoquBody {
-    const body = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>
+    const body = asRecord(raw)
     const xiaoqu = body.xiaoqu
     if (!xiaoqu || typeof xiaoqu !== 'object' || !(xiaoqu as Record<string, unknown>).id) {
       throw new BusinessError(ErrorCode.INVALID_PARAMS, '缺少小区信息')

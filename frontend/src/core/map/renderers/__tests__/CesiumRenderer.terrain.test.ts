@@ -5,53 +5,13 @@
 import { describe, expect, it, vi } from 'vitest'
 
 // 全量 mock cesium（CesiumRenderer.waterSurface.test.ts 同款工厂）
-vi.mock('cesium', () => {
-  function makeChainable(): object {
-    return new Proxy(function () {}, {
-      get(_t: unknown, prop: string | symbol) {
-        if (prop === 'then') return undefined
-        if (prop === 'fromCssColorString') return () => ({})
-        return makeChainable()
-      },
-      apply() {
-        return makeChainable()
-      },
-      construct() {
-        return makeChainable()
-      },
-    })
-  }
-
-  class MockCesiumClass {
-    constructor() {
-      return makeChainable() as unknown as MockCesiumClass
-    }
-  }
-
-  return {
-    CallbackProperty: MockCesiumClass,
-    Cartesian2: MockCesiumClass,
-    Cartesian3: Object.assign(MockCesiumClass, { fromDegrees: () => ({}) }),
-    Cartographic: MockCesiumClass,
-    Color: { fromCssColorString: () => ({}) },
-    ColorGeometryInstanceAttribute: MockCesiumClass,
-    CesiumTerrainProvider: Object.assign(MockCesiumClass, { fromUrl: () => Promise.resolve({}) }),
-    Ellipsoid: MockCesiumClass,
-    EllipsoidTerrainProvider: MockCesiumClass,
-    GeographicTilingScheme: MockCesiumClass,
-    GeometryInstance: MockCesiumClass,
-    Math: { toRadians: () => 0, fromRadians: () => 0 },
-    PerInstanceColorAppearance: MockCesiumClass,
-    PointGraphics: MockCesiumClass,
-    PolygonGeometry: MockCesiumClass,
-    PolygonHierarchy: MockCesiumClass,
-    Primitive: MockCesiumClass,
-    Rectangle: MockCesiumClass,
-    ScreenSpaceEventType: MockCesiumClass,
-    SingleTileImageryProvider: MockCesiumClass,
-    UrlTemplateImageryProvider: MockCesiumClass,
-    Viewer: MockCesiumClass,
-  }
+vi.mock('cesium', async () => {
+  const { makeCesiumMock, makeChainableClass } = await import('./cesiumMock')
+  return makeCesiumMock({
+    CesiumTerrainProvider: Object.assign(makeChainableClass(), {
+      fromUrl: () => Promise.resolve({}),
+    }),
+  })
 })
 
 import { CesiumRenderer } from '../CesiumRenderer'

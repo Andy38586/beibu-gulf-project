@@ -8,115 +8,81 @@
 // 把可疑路径固化成了能跑通。现实现为同步 remove+add 重建几何，本文件断言真实挂载语义。
 import { describe, expect, it, vi } from 'vitest'
 
-// 全量 mock cesium：提供显式具名导出（避免递归 Proxy 在 vitest 模块加载期崩溃）
-vi.mock('cesium', () => {
-  function makeChainable(): object {
-    return new Proxy(function () {}, {
-      get(_t: unknown, prop: string | symbol) {
-        if (prop === 'then') return undefined
-        if (prop === 'fromCssColorString') return () => ({})
-        return makeChainable()
-      },
-      apply() {
-        return makeChainable()
-      },
-      construct() {
-        return makeChainable()
-      },
-    })
-  }
-
-  class MockCesiumClass {
-    constructor() {
-      return makeChainable() as unknown as MockCesiumClass
-    }
-  }
-
-  return {
-    CallbackProperty: MockCesiumClass,
-    Cartesian2: MockCesiumClass,
-    // _positionCamera 首屏定位用到 Cartesian3.fromDegrees（mock 不做真实坐标运算，返回空对象即可）；
-    // vi.fn 记录入参供"新几何含新水位"断言（terrainBase + height 烘进顶点坐标）
-    Cartesian3: Object.assign(MockCesiumClass, { fromDegrees: vi.fn(() => ({}) as object) }),
-    Cartographic: MockCesiumClass,
-    // fromCssColorString(...).withAlpha(alpha) 是 buildWaterInstance 的真实调用链，
-    // 返回值必须携带 withAlpha（旧 mock 返回裸 {}，真实路径从未被执行到过）
-    Color: { fromCssColorString: () => ({ withAlpha: () => ({}) }) },
-    // fromColor 为类上静态调用（MockCesiumClass 无静态成员，须显式提供）
-    ColorGeometryInstanceAttribute: Object.assign(MockCesiumClass, { fromColor: () => ({}) }),
-    Ellipsoid: MockCesiumClass,
-    GeographicTilingScheme: MockCesiumClass,
-    GeometryInstance: MockCesiumClass,
-    Math: { toRadians: () => 0, fromRadians: () => 0 },
-    PerInstanceColorAppearance: MockCesiumClass,
-    PointGraphics: MockCesiumClass,
-    PolygonGeometry: MockCesiumClass,
-    PolygonHierarchy: MockCesiumClass,
-    Primitive: MockCesiumClass,
-    Rectangle: MockCesiumClass,
-    ScreenSpaceEventType: MockCesiumClass,
-    SingleTileImageryProvider: MockCesiumClass,
-    UrlTemplateImageryProvider: MockCesiumClass,
-    Viewer: MockCesiumClass,
-  }
+// 全量 mock cesium：Primitive 用可回读的普通对象（show 是公开可观测状态），
+// 其余导出走共享工厂（避免递归 Proxy 在 vitest 模块加载期崩溃）
+vi.mock('cesium', async () => {
+  const { makeCesiumMock } = await import('./cesiumMock')
+  return makeCesiumMock({
+    Primitive: class TestPrimitive {
+      show = true
+    },
+  })
 })
 
 import { Cartesian3 } from 'cesium'
 
 import { BusinessLayerManager } from '../../BusinessLayerManager'
-import {
-  CesiumRenderer,
-  doRemoveLayer,
-  getViewportBBox,
-  setWaterSurfaceVisibility,
-  updateWaterLevel,
-} from '../CesiumRenderer'
+import { CesiumRenderer, doRemoveLayer, getViewportBBox } from '../CesiumRenderer'
 
-/** 白盒访问：渲染器运行时成员（非公开类型）需显式暴露（渲染器本体无 @ts-nocheck后已移除） */
-type CesiumRendererTestAccess = InstanceType<typeof CesiumRenderer> & {
-  _waterSurfaces: Map<string, unknown>
-  _layers: Map<string, unknown>
-  updateWaterLevel: ReturnType<typeof vi.fn>
-  addWaterSurface: ReturnType<typeof vi.fn>
-}
-
-function createRenderer(): CesiumRendererTestAccess {
+function createRenderer(): CesiumRenderer {
   const container = { appendChild: vi.fn(), removeChild: vi.fn() } as unknown as HTMLElement
-  return new CesiumRenderer(container) as unknown as CesiumRendererTestAccess
+  return new CesiumRenderer(container)
 }
 
-describe('CesiumRenderer.hasLayer 覆写（水面存于 _waterSurfaces）', () => {
-  // 渲染器运行时成员与测试访问类型合并后带具体泛型，赋值统一走断言
-  function setWaterSurfaces(renderer: CesiumRendererTestAccess, entries: Array<[string, unknown]>) {
-    ;(renderer as { _waterSurfaces: Map<string, unknown> })._waterSurfaces = new Map(entries)
+/** 替换构造期 chainable Viewer：只暴露水面路径消费的 scene.primitives / requestRender */
+function attachViewer(renderer: CesiumRenderer) {
+  const added: Array<{ show: boolean }> = []
+  const primitives = {
+    add: vi.fn((primitive: { show: boolean }) => {
+      added.push(primitive)
+      return primitive
+    }),
+    remove: vi.fn(),
   }
+  const requestRender = vi.fn()
+  renderer.viewer = {
+    isDestroyed: () => false,
+    scene: { primitives, requestRender },
+  } as unknown as CesiumRenderer['viewer']
+  return { primitives, requestRender, added }
+}
 
-  it('_waterSurfaces 中的水面 id → hasLayer 返回 true（增量更新可达）', () => {
+describe('CesiumRenderer.hasLayer 覆写（水面经公开 API 注册）', () => {
+  it('addWaterSurface 后 hasLayer/isLayerVisible 均命中（基类只查 _layers 会漏）', async () => {
     const renderer = createRenderer()
-    setWaterSurfaces(renderer, [['water-surface', { primitive: {} }]])
-    renderer._layers = new Map()
+    attachViewer(renderer)
+
+    await expect(renderer.addWaterSurface('water-surface', [[108.5, 21.5]], 1)).resolves.toBe(true)
+
     expect(renderer.hasLayer('water-surface')).toBe(true)
+    expect(renderer.isLayerVisible('water-surface')).toBe(true)
   })
 
-  it('_layers 中的普通图层 id → 仍返回 true（基类行为保留）', () => {
+  it('removeWaterSurface 后 hasLayer 回 false（账本随引擎摘除同步）', async () => {
     const renderer = createRenderer()
-    setWaterSurfaces(renderer, [])
-    ;(renderer as { _layers: Map<string, unknown> })._layers = new Map([['ports', {}]])
-    expect(renderer.hasLayer('ports')).toBe(true)
-  })
+    const { primitives } = attachViewer(renderer)
+    await renderer.addWaterSurface('water-surface', [[108.5, 21.5]], 1)
 
-  it('两处都不存在的 id → false', () => {
-    const renderer = createRenderer()
-    setWaterSurfaces(renderer, [])
-    renderer._layers = new Map()
-    expect(renderer.hasLayer('nope')).toBe(false)
-  })
-
-  it('_waterSurfaces 未初始化（undefined）时防御不抛错', () => {
-    const renderer = createRenderer()
-    ;(renderer as { _waterSurfaces: Map<string, unknown> | undefined })._waterSurfaces = undefined
-    renderer._layers = new Map()
+    expect(renderer.removeWaterSurface('water-surface')).toBe(true)
     expect(renderer.hasLayer('water-surface')).toBe(false)
+    expect(primitives.remove).toHaveBeenCalledTimes(1)
+  })
+
+  it('未注册任何水面（_waterSurfaces 为 null）时查询不抛错且为 false', () => {
+    const renderer = createRenderer()
+
+    expect(renderer.hasLayer('water-surface')).toBe(false)
+    expect(renderer.isLayerVisible('water-surface')).toBe(false)
+  })
+
+  it('setWaterSurfaceVisibility 改写水面权威可见性', async () => {
+    const renderer = createRenderer()
+    const { added } = attachViewer(renderer)
+    await renderer.addWaterSurface('water-surface', [[108.5, 21.5]], 1)
+
+    expect(renderer.setWaterSurfaceVisibility('water-surface', false)).toBe(true)
+    expect(renderer.isLayerVisible('water-surface')).toBe(false)
+    expect(added[0].show).toBe(false)
   })
 })
 
@@ -188,35 +154,22 @@ describe('BLM.updateData 对已创建 waterSurface 走增量 update（不重建�
 })
 
 describe('updateWaterLevel — 真实挂载语义：同步 remove+add 重建几何（审查 H-1 回归）', () => {
-  function setupEntry(height: number) {
+  async function setup(height: number) {
     const renderer = createRenderer()
-    const primitives = { add: vi.fn(), remove: vi.fn() }
-    const requestRender = vi.fn()
-    ;(renderer as unknown as { viewer: unknown }).viewer = { scene: { primitives, requestRender } }
-    const oldPrimitive = { marker: 'old' }
-    ;(
-      renderer as unknown as { _waterSurfaces: Map<string, Record<string, unknown>> }
-    )._waterSurfaces = new Map([
-      [
-        'water-surface',
-        {
-          primitive: oldPrimitive,
-          height,
-          coordinates: [[108.5, 21.5]] as [number, number][],
-          options: {},
-          visible: true,
-          terrainBase: [30, 31],
-        },
-      ],
-    ])
-    return { renderer, primitives, requestRender, oldPrimitive }
+    const { primitives, requestRender, added } = attachViewer(renderer)
+    await renderer.addWaterSurface('water-surface', [[108.5, 21.5]], height)
+    const oldPrimitive = added[0]
+    primitives.add.mockClear()
+    primitives.remove.mockClear()
+    requestRender.mockClear()
+    vi.mocked(Cartesian3.fromDegrees).mockClear()
+    return { renderer, primitives, requestRender, added, oldPrimitive }
   }
 
-  it('水位变化 → 移除旧 Primitive、挂载新 Primitive，新几何顶点含新水位', () => {
-    const { renderer, primitives, requestRender, oldPrimitive } = setupEntry(1)
-    vi.mocked(Cartesian3.fromDegrees).mockClear()
+  it('水位变化 → 移除旧 Primitive、挂载新 Primitive，新几何顶点含新水位', async () => {
+    const { renderer, primitives, requestRender, oldPrimitive } = await setup(1)
 
-    expect(updateWaterLevel(renderer, 'water-surface', 5)).toBe(true)
+    expect(renderer.updateWaterLevel('water-surface', 5)).toBe(true)
 
     // 旧实例被移除、新实例被挂载（替换 geometryInstances 的旧实现两者都不发生）
     expect(primitives.remove).toHaveBeenCalledTimes(1)
@@ -225,48 +178,44 @@ describe('updateWaterLevel — 真实挂载语义：同步 remove+add 重建几�
     const added = primitives.add.mock.calls[0][0]
     expect(added).not.toBe(oldPrimitive)
 
-    // entry 同步指向新实例与新水位（后续更新沿新 Primitive 继续）
-    const entry = (
-      renderer as unknown as { _waterSurfaces: Map<string, Record<string, unknown>> }
-    )._waterSurfaces.get('water-surface')
-    expect(entry?.primitive).toBe(added)
-    expect(entry?.height).toBe(5)
+    // 账本同步指向新实例：第二次更新必须移除第一次挂上的新 Primitive
+    expect(renderer.updateWaterLevel('water-surface', 10)).toBe(true)
+    expect(primitives.remove).toHaveBeenLastCalledWith(added)
 
-    // 几何按新高度重建：顶点高 = 地形基准 30 + 水位 5（旧实现替换属性后 Cesium 不再读取）
-    expect(Cartesian3.fromDegrees).toHaveBeenCalledWith(108.5, 21.5, 35)
+    // 几何按新高度重建：无真地形时基准 0 + 水位（旧实现替换属性后 Cesium 不再读取）
+    expect(Cartesian3.fromDegrees).toHaveBeenCalledWith(108.5, 21.5, 5)
 
     // 按需渲染模式需显式请求一帧
-    expect(requestRender).toHaveBeenCalledTimes(1)
+    expect(requestRender.mock.calls.length).toBeGreaterThanOrEqual(1)
   })
 
-  it('同值更新 → 跳过重建（滑块拖动触发同值）', () => {
-    const { renderer, primitives } = setupEntry(5)
-    expect(updateWaterLevel(renderer, 'water-surface', 5)).toBe(true)
+  it('同值更新 → 跳过重建（滑块拖动触发同值）', async () => {
+    const { renderer, primitives } = await setup(5)
+    expect(renderer.updateWaterLevel('water-surface', 5)).toBe(true)
     expect(primitives.remove).not.toHaveBeenCalled()
     expect(primitives.add).not.toHaveBeenCalled()
   })
 
-  it('id 不存在 → false 且不动场景', () => {
-    const { renderer, primitives } = setupEntry(1)
-    expect(updateWaterLevel(renderer, 'nope', 5)).toBe(false)
+  it('id 不存在 → false 且不动场景', async () => {
+    const { renderer, primitives } = await setup(1)
+    expect(renderer.updateWaterLevel('nope', 5)).toBe(false)
     expect(primitives.remove).not.toHaveBeenCalled()
     expect(primitives.add).not.toHaveBeenCalled()
   })
 
-  it('构建失败 → 旧 Primitive 原地保留（先建后换，不闪不消失）', () => {
-    const { renderer, primitives, oldPrimitive } = setupEntry(1)
+  it('构建失败 → 旧 Primitive 原地保留（先建后换，不闪不消失）', async () => {
+    const { renderer, primitives, oldPrimitive } = await setup(1)
     vi.mocked(Cartesian3.fromDegrees).mockImplementationOnce(() => {
       throw new Error('bad coordinate')
     })
 
-    expect(updateWaterLevel(renderer, 'water-surface', 5)).toBe(false)
+    expect(renderer.updateWaterLevel('water-surface', 5)).toBe(false)
     expect(primitives.remove).not.toHaveBeenCalled()
     expect(primitives.add).not.toHaveBeenCalled()
-    const entry = (
-      renderer as unknown as { _waterSurfaces: Map<string, Record<string, unknown>> }
-    )._waterSurfaces.get('water-surface')
-    expect(entry?.primitive).toBe(oldPrimitive)
-    expect(entry?.height).toBe(1)
+
+    // 旧水位仍在：下一次成功更新仍从旧 Primitive 换起
+    expect(renderer.updateWaterLevel('water-surface', 5)).toBe(true)
+    expect(primitives.remove).toHaveBeenCalledWith(oldPrimitive)
   })
 })
 
@@ -296,15 +245,18 @@ describe('1004-03 引擎存活守卫（viewer 失效 ⇒ 降级而非 TypeError�
     expect(getViewportBBox(renderer)).toBe(null)
   })
 
-  it('🔴 setWaterSurfaceVisibility：viewer=null ⇒ 只改账本、不抛错', () => {
+  it('🔴 setWaterSurfaceVisibility：viewer=null ⇒ 只改账本、不抛错', async () => {
     const renderer = createRenderer()
-    renderer.viewer = null
-    const primitive = { show: false }
-    ;(renderer as { _waterSurfaces: Map<string, unknown> })._waterSurfaces = new Map([
-      ['w', { primitive, visible: true, height: 1, coordinates: [], options: {}, terrainBase: [] }],
-    ])
+    const { added } = attachViewer(renderer)
+    await renderer.addWaterSurface('w', [[108.5, 21.5]], 1)
+    expect(renderer.setWaterSurfaceVisibility('w', false)).toBe(true)
+    const [primitive] = added
 
-    expect(() => setWaterSurfaceVisibility(renderer, 'w', true)).not.toThrow()
+    renderer.viewer = null
+    expect(primitive.show).toBe(false)
+
+    expect(() => renderer.setWaterSurfaceVisibility('w', true)).not.toThrow()
     expect(primitive.show).toBe(true)
+    expect(renderer.isLayerVisible('w')).toBe(true)
   })
 })

@@ -3,63 +3,14 @@
 // 隐藏只切引擎侧 show，不得改写面板权威值（否则恢复时用错值 = 图层永久消失）。
 import { describe, expect, it, vi } from 'vitest'
 
-vi.mock('cesium', () => {
-  // 任意 cesium 对象：构造/调用/读属性都返回安全的链式 mock（同 geojson 测试手法）
-  function makeChainable(): object {
-    return new Proxy(function () {}, {
-      get(_t: unknown, prop: string | symbol) {
-        if (prop === 'then') return undefined
-        if (prop === 'fromCssColorString') return () => ({})
-        return makeChainable()
-      },
-      apply() {
-        return makeChainable()
-      },
-      construct() {
-        return makeChainable()
-      },
-    })
-  }
-  class MockCesiumClass {
-    constructor() {
-      return makeChainable() as unknown as MockCesiumClass
-    }
-  }
-  return {
-    buildModuleUrl: (relativeUrl: string) => `/cesium/${relativeUrl}`,
-    CallbackProperty: MockCesiumClass,
-    Cartesian2: MockCesiumClass,
-    Cartesian3: Object.assign(MockCesiumClass, { fromDegrees: () => ({}) }),
-    Cartographic: MockCesiumClass,
-    Cesium3DTileset: MockCesiumClass,
-    CesiumTerrainProvider: MockCesiumClass,
-    ClassificationType: MockCesiumClass,
-    Color: { fromCssColorString: () => ({}) },
-    ColorGeometryInstanceAttribute: MockCesiumClass,
-    DataSource: MockCesiumClass,
-    EllipsoidTerrainProvider: MockCesiumClass,
-    Entity: MockCesiumClass,
-    EntityCollection: MockCesiumClass,
-    GeographicTilingScheme: MockCesiumClass,
-    GeoJsonDataSource: MockCesiumClass,
-    GeometryInstance: MockCesiumClass,
-    HeightReference: MockCesiumClass,
-    ImageryLayer: MockCesiumClass,
-    Math: { toRadians: () => 0, fromRadians: () => 0 },
-    PerInstanceColorAppearance: MockCesiumClass,
-    PointGraphics: MockCesiumClass,
-    PolygonGeometry: MockCesiumClass,
-    PolygonHierarchy: MockCesiumClass,
-    Primitive: MockCesiumClass,
-    Rectangle: MockCesiumClass,
-    sampleTerrain: () => Promise.resolve([]),
-    ScreenSpaceEventHandler: MockCesiumClass,
-    ScreenSpaceEventType: MockCesiumClass,
-    SingleTileImageryProvider: MockCesiumClass,
-    SkyBox: MockCesiumClass,
-    UrlTemplateImageryProvider: MockCesiumClass,
-    Viewer: MockCesiumClass,
-  }
+// Primitive 用可回读 show 的普通对象；其余导出走共享工厂
+vi.mock('cesium', async () => {
+  const { makeCesiumMock } = await import('./cesiumMock')
+  return makeCesiumMock({
+    Primitive: class TestPrimitive {
+      show = true
+    },
+  })
 })
 
 import { countCoordinatePairs, setupCameraDebounce } from '../../perf/cameraPerf'
@@ -82,8 +33,40 @@ function makeRenderer() {
   const renderer = new CesiumRenderer(container)
   const camera = { changed: makeEvent(), moveStart: makeEvent(), moveEnd: makeEvent() }
   const scene = { requestRender: vi.fn() }
-  renderer.viewer = { isDestroyed: () => false, scene, camera } as never
-  return { renderer, camera, scene }
+  const entities: Array<{ show?: boolean }> = []
+  const primitives: Array<{ show: boolean }> = []
+  renderer.viewer = {
+    isDestroyed: () => false,
+    scene: {
+      ...scene,
+      primitives: {
+        add: vi.fn((primitive: { show: boolean }) => {
+          primitives.push(primitive)
+          return primitive
+        }),
+        remove: vi.fn(),
+      },
+    },
+    camera,
+    entities: {
+      add: vi.fn((entity: { show?: boolean }) => {
+        entities.push(entity)
+        return entity
+      }),
+      values: entities,
+      remove: vi.fn(),
+    },
+  } as never
+  return { renderer, camera, scene, entities, primitives }
+}
+
+/** 3001 个坐标对 ⇒ 越过 3000 顶点降载阈值，addPolygonLayer 会登记 interactionHeavy */
+function heavyPolygon() {
+  const ring: Array<[number, number]> = Array.from({ length: 3001 }, (_, i) => [
+    108.5 + i * 1e-5,
+    21.5,
+  ])
+  return [{ geometry: { type: 'Polygon' as const, coordinates: [ring] }, properties: {} }]
 }
 
 describe('CesiumRenderer 交互期降载（z038②）', () => {
@@ -122,59 +105,55 @@ describe('CesiumRenderer 交互期降载（z038②）', () => {
   })
 
   it('moveStart 隐藏重图层、moveEnd 按 visible 恢复；轻图层不动', () => {
-    const { renderer, camera } = makeRenderer()
+    const { renderer, camera, entities } = makeRenderer()
     setupCameraDebounce(renderer)
-    const heavy = [{ show: true }, { show: true }]
-    const light = [{ show: true }]
-    renderer._layers.set('flood-area', { instance: heavy, visible: true, interactionHeavy: true })
-    renderer._layers.set('ports', { instance: light, visible: true })
+    renderer.addPolygonLayer('flood-area', heavyPolygon(), {})
+    const heavy = entities.slice()
+    const heavyCount = heavy.length
+    renderer.addPointLayer('ports', [{ id: 'p1', lng: 108.5, lat: 21.5 }], {})
+    const light = entities.slice(heavyCount)
+
+    expect(heavy.length).toBeGreaterThan(0)
+    expect(light).toHaveLength(1)
 
     camera.moveStart.fire()
     expect(heavy.every((e) => e.show === false)).toBe(true)
-    expect(light[0].show).toBe(true)
+    expect(light[0].show).not.toBe(false)
     // 隐藏期不改面板权威值（恢复判据）
-    expect(renderer._layers.get('flood-area')?.visible).toBe(true)
+    expect(renderer.isLayerVisible('flood-area')).toBe(true)
 
     camera.moveEnd.fire()
     expect(heavy.every((e) => e.show === true)).toBe(true)
   })
 
   it('用户已隐藏的重图层：恢复时保持隐藏（按 visible 权威值，不亮回来）', () => {
-    const { renderer, camera } = makeRenderer()
+    const { renderer, camera, entities } = makeRenderer()
     setupCameraDebounce(renderer)
-    const entities = [{ show: false }]
-    renderer._layers.set('hidden-heavy', {
-      instance: entities,
-      visible: false,
-      interactionHeavy: true,
-    })
+    renderer.addPolygonLayer('hidden-heavy', heavyPolygon(), {})
+    renderer.setVisibility('hidden-heavy', false)
+    const heavy = entities.slice()
+    expect(heavy.every((e) => e.show === false)).toBe(true)
+
     camera.moveStart.fire()
-    expect(entities[0].show).toBe(false)
+    expect(heavy.every((e) => e.show === false)).toBe(true)
     camera.moveEnd.fire()
-    expect(entities[0].show).toBe(false)
+    expect(heavy.every((e) => e.show === false)).toBe(true)
+    expect(renderer.isLayerVisible('hidden-heavy')).toBe(false)
   })
 
-  it('水面（Primitive）同受降载；恢复不改写 water.visible', () => {
-    const { renderer, camera } = makeRenderer()
+  it('水面（Primitive）同受降载；恢复不改写 water.visible', async () => {
+    const { renderer, camera, primitives } = makeRenderer()
     setupCameraDebounce(renderer)
-    const primitive = { show: true }
-    const water = {
-      primitive,
-      height: 0,
-      coordinates: [] as [number, number][],
-      options: {},
-      visible: true,
-      terrainBase: [],
-      interactionHeavy: true,
-    }
-    // 测试替身：只需 primitive.show / visible / interactionHeavy 三个被消费成员
-    renderer._waterSurfaces = new Map([['water', water]]) as unknown as NonNullable<
-      typeof renderer._waterSurfaces
-    >
+    const coordinates: Array<[number, number]> = Array.from({ length: 3001 }, (_, i) => [
+      108.5 + i * 1e-5,
+      21.5,
+    ])
+    await expect(renderer.addWaterSurface('water', coordinates, 1)).resolves.toBe(true)
+    const [primitive] = primitives
 
     camera.moveStart.fire()
     expect(primitive.show).toBe(false)
-    expect(water.visible).toBe(true)
+    expect(renderer.isLayerVisible('water')).toBe(true)
     camera.moveEnd.fire()
     expect(primitive.show).toBe(true)
   })

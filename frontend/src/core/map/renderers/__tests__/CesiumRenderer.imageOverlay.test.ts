@@ -12,49 +12,14 @@ const { providerArgs, throwOnConstruct } = vi.hoisted(() => ({
   throwOnConstruct: { v: false },
 }))
 
-vi.mock('cesium', () => {
-  function makeChainable(): object {
-    return new Proxy(function () {}, {
-      get(_t: unknown, prop: string | symbol) {
-        if (prop === 'then') return undefined
-        return makeChainable()
-      },
-      apply() {
-        return makeChainable()
-      },
-      construct() {
-        return makeChainable()
-      },
-    })
-  }
-
-  class MockCesiumClass {
-    constructor() {
-      return makeChainable() as unknown as MockCesiumClass
-    }
-  }
-
-  return {
-    CallbackProperty: MockCesiumClass,
-    Cartesian2: MockCesiumClass,
-    Cartesian3: Object.assign(MockCesiumClass, { fromDegrees: vi.fn(() => ({}) as object) }),
-    Cartographic: MockCesiumClass,
-    Cesium3DTileset: Object.assign(MockCesiumClass, { fromUrl: vi.fn() }),
-    Color: { fromCssColorString: () => ({ withAlpha: () => ({}) }) },
-    ColorGeometryInstanceAttribute: Object.assign(MockCesiumClass, { fromColor: () => ({}) }),
-    Ellipsoid: MockCesiumClass,
+vi.mock('cesium', async () => {
+  const { makeCesiumMock, makeChainableClass } = await import('./cesiumMock')
+  return makeCesiumMock({
+    Cesium3DTileset: Object.assign(makeChainableClass(), { fromUrl: vi.fn() }),
     // 记录构造入参供断言；provider 实例只需可被 imageryLayers 接收
     GeographicTilingScheme: class {},
-    GeometryInstance: MockCesiumClass,
-    Math: { toRadians: () => 0, fromRadians: () => 0 },
-    PerInstanceColorAppearance: MockCesiumClass,
-    PointGraphics: MockCesiumClass,
-    PolygonGeometry: MockCesiumClass,
-    PolygonHierarchy: MockCesiumClass,
-    Primitive: MockCesiumClass,
     // 真实调用链是 Rectangle.fromDegrees(w, s, e, n)，记录参数验证经纬顺序
     Rectangle: { fromDegrees: vi.fn((...a: number[]) => ({ __rect: a })) },
-    ScreenSpaceEventType: MockCesiumClass,
     SingleTileImageryProvider: class {
       constructor(opts: Record<string, unknown>) {
         // 真实实现缺 tileWidth/tileHeight 会抛 DeveloperError，测试用同一路径验证失败兜底
@@ -62,16 +27,10 @@ vi.mock('cesium', () => {
         providerArgs.push(opts)
       }
     },
-    UrlTemplateImageryProvider: MockCesiumClass,
-    Viewer: MockCesiumClass,
-  }
+  })
 })
 
 import { addImageOverlayLayer, CesiumRenderer } from '../CesiumRenderer'
-
-type LayerEntry = { instance: unknown; visible: boolean; options?: unknown }
-
-type TestAccess = InstanceType<typeof CesiumRenderer> & { _layers: Map<string, LayerEntry> }
 
 function setup() {
   const added: unknown[] = []
@@ -87,7 +46,7 @@ function setup() {
   const primitives = { add: vi.fn(), remove: vi.fn(), contains: vi.fn(() => false) }
   const requestRender = vi.fn()
   const container = { appendChild: vi.fn(), removeChild: vi.fn() } as unknown as HTMLElement
-  const renderer = new CesiumRenderer(container) as unknown as TestAccess
+  const renderer = new CesiumRenderer(container)
   ;(renderer as unknown as { viewer: unknown }).viewer = {
     scene: { primitives, requestRender },
     imageryLayers,
@@ -107,7 +66,7 @@ describe('CesiumRenderer.addImageOverlayLayer', () => {
     providerArgs.length = 0
   })
 
-  it('按 bbox 与像素尺寸构造 provider，并登记进 _layers', () => {
+  it('按 bbox 与像素尺寸构造 provider，并登记进图层册', () => {
     const { renderer, imageryLayers, requestRender } = setup()
 
     const ok = addImageOverlayLayer(renderer, 'pinglu-imagery-madao', DATA)
@@ -122,7 +81,8 @@ describe('CesiumRenderer.addImageOverlayLayer', () => {
     // GeographicTilingScheme 必填：默认 WebMercator 会把 22°N 的矩形投歪
     expect(providerArgs[0].tilingScheme).toBeDefined()
     expect(imageryLayers.addImageryProvider).toHaveBeenCalledTimes(1)
-    expect(renderer._layers.get('pinglu-imagery-madao')?.instance).toBeDefined()
+    // 断言走公开 API（图层册可查），不探私有账本
+    expect(renderer.hasLayer('pinglu-imagery-madao')).toBe(true)
     expect(requestRender).toHaveBeenCalled()
   })
 
@@ -138,7 +98,7 @@ describe('CesiumRenderer.addImageOverlayLayer', () => {
 
   it('viewer 未就绪：返回 false，不构造 provider', () => {
     const container = { appendChild: vi.fn(), removeChild: vi.fn() } as unknown as HTMLElement
-    const renderer = new CesiumRenderer(container) as unknown as TestAccess
+    const renderer = new CesiumRenderer(container)
     ;(renderer as unknown as { viewer: unknown }).viewer = null
 
     const ok = addImageOverlayLayer(renderer, 'x', DATA)
@@ -154,7 +114,7 @@ describe('CesiumRenderer.addImageOverlayLayer', () => {
       const ok = addImageOverlayLayer(renderer, 'x', DATA)
       expect(ok).toBe(false)
       // 失败时不得登记图层，否则 BLM 会认为已挂载而不再重试
-      expect(renderer._layers.has('x')).toBe(false)
+      expect(renderer.hasLayer('x')).toBe(false)
     } finally {
       throwOnConstruct.v = false
     }

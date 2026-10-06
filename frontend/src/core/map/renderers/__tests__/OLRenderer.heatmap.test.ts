@@ -177,48 +177,50 @@ interface OLHeatLayerInstanceLike {
 }
 
 /**
- * 白盒测试访问类型：渲染器运行时成员（非公开类型）经断言暴露（渲染器本体无 @ts-nocheck后已移除）
- * 未声明在类型中，需显式暴露供 afterEach 检查 disposed 状态。
+ * 测试只经公开面观测：getMap() 取渲染器与 OL Map 的协作对象，读其 layers 中
+ * 渲染器真正 addLayer 的实例与 source；hasLayer() 判存在——不读渲染器私有 _layers。
  */
-type OLRendererTestAccess = InstanceType<typeof OLRenderer> & {
-  map: unknown
-}
-
 describe('OLRenderer 热力图（P0-1）', () => {
-  let renderer: OLRendererTestAccess | undefined
+  let renderer: InstanceType<typeof OLRenderer> | undefined
   let container: HTMLElement
+  let layerBaseline = 0
 
   beforeEach(() => {
     moveendListeners.length = 0
     container = document.createElement('div')
-    renderer = new OLRenderer(container) as unknown as OLRendererTestAccess
+    renderer = new OLRenderer(container)
+    layerBaseline = (renderer.getMap() as unknown as FakeMap).layers.length
   })
 
   afterEach(() => {
-    if (renderer?.map && !(renderer.map as unknown as { disposed: boolean }).disposed) {
+    if (renderer?.getMap() && !(renderer.getMap() as unknown as FakeMap).disposed) {
       renderer.destroy()
     }
   })
+
+  /** 渲染器实际挂到 OL Map 上的热力图实例（不读 _layers） */
+  function heatLayer(): OLHeatLayerInstanceLike {
+    const map = renderer!.getMap() as unknown as FakeMap
+    return map.layers[layerBaseline] as OLHeatLayerInstanceLike
+  }
 
   describe('addHeatmapLayer', () => {
     it('用例A：传入 GeoJSON Feature 数组不抛错，图层注册成功', () => {
       const features = makeHeatFeatures(3)
       expect(() => renderer!.addHeatmapLayer('heat', features, {})).not.toThrow()
-      expect(renderer!._layers.get('heat')).toBeTruthy()
+      expect(renderer!.hasLayer('heat')).toBe(true)
     })
 
     it('用例C：coordinates 缺失时跳过该要素（不落 (0,0) 哨兵）不抛错', () => {
       const features = [{ geometry: {}, properties: { value: 1 } }]
       expect(() => renderer!.addHeatmapLayer('heat-empty', features, {})).not.toThrow()
-      expect(renderer!._layers.get('heat-empty')).toBeTruthy()
+      expect(renderer!.hasLayer('heat-empty')).toBe(true)
     })
 
     it('坐标正确写入要素（lng/lat 取自数组）', () => {
       const features = makeHeatFeatures(1)
       renderer!.addHeatmapLayer('heat-1', features, {})
-      const source = (
-        renderer!._layers.get('heat-1')!.instance as OLHeatLayerInstanceLike
-      ).getSource()
+      const source = heatLayer().getSource()
       const [feature] = source.getFeatures()
       const geom = feature.getGeometry()
       const [x, y] = geom.getCoordinates()
@@ -236,9 +238,7 @@ describe('OLRenderer 热力图（P0-1）', () => {
       renderer!.addHeatmapLayer('heat-upd', initial, {})
       const updated = makeHeatFeatures(5)
       expect(() => renderer!.updateHeatmapLayer('heat-upd', updated, {})).not.toThrow()
-      const source = (
-        renderer!._layers.get('heat-upd')!.instance as OLHeatLayerInstanceLike
-      ).getSource()
+      const source = heatLayer().getSource()
       expect(source.getFeatures()).toHaveLength(5)
     })
 

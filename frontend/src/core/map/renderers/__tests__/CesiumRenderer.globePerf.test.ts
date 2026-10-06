@@ -9,63 +9,7 @@ import { describe, expect, it, vi } from 'vitest'
 // 全量 mock cesium（同 waterSurface 测试手法）：CesiumRenderer 模块加载需要具名导出，
 // 避免递归 Proxy 在 vitest 模块加载期崩溃。本测试只直调 _applyGlobePerfTuning
 //（传普通对象），不触 Viewer 构造，mock 成员仅为满足模块加载。
-vi.mock('cesium', () => {
-  function makeChainable(): object {
-    return new Proxy(function () {}, {
-      get(_t: unknown, prop: string | symbol) {
-        if (prop === 'then') return undefined
-        if (prop === 'fromCssColorString') return () => ({})
-        return makeChainable()
-      },
-      apply() {
-        return makeChainable()
-      },
-      construct() {
-        return makeChainable()
-      },
-    })
-  }
-
-  class MockCesiumClass {
-    constructor() {
-      return makeChainable() as unknown as MockCesiumClass
-    }
-  }
-
-  return {
-    CallbackProperty: MockCesiumClass,
-    Cartesian2: MockCesiumClass,
-    Cartesian3: Object.assign(MockCesiumClass, { fromDegrees: () => ({}) }),
-    Cartographic: MockCesiumClass,
-    CesiumTerrainProvider: MockCesiumClass,
-    ClassificationType: MockCesiumClass,
-    Color: { fromCssColorString: () => ({}) },
-    ColorGeometryInstanceAttribute: MockCesiumClass,
-    DataSource: MockCesiumClass,
-    Ellipsoid: MockCesiumClass,
-    EllipsoidTerrainProvider: MockCesiumClass,
-    Entity: MockCesiumClass,
-    EntityCollection: MockCesiumClass,
-    GeographicTilingScheme: MockCesiumClass,
-    GeoJsonDataSource: MockCesiumClass,
-    GeometryInstance: MockCesiumClass,
-    HeightReference: MockCesiumClass,
-    ImageryLayer: MockCesiumClass,
-    Math: { toRadians: () => 0, fromRadians: () => 0 },
-    PerInstanceColorAppearance: MockCesiumClass,
-    PointGraphics: MockCesiumClass,
-    PolygonGeometry: MockCesiumClass,
-    PolygonHierarchy: MockCesiumClass,
-    Primitive: MockCesiumClass,
-    Rectangle: MockCesiumClass,
-    sampleTerrain: () => Promise.resolve([]),
-    ScreenSpaceEventHandler: MockCesiumClass,
-    ScreenSpaceEventType: MockCesiumClass,
-    SingleTileImageryProvider: MockCesiumClass,
-    UrlTemplateImageryProvider: MockCesiumClass,
-    Viewer: MockCesiumClass,
-  }
-})
+vi.mock('cesium', async () => (await import('./cesiumMock')).makeCesiumMock())
 
 import { cesiumViewerManager } from '../CesiumRenderer'
 

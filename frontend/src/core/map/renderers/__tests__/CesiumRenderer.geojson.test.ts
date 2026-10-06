@@ -4,58 +4,12 @@ import { describe, expect, it, vi } from 'vitest'
 
 // 全量 mock cesium：提供显式具名导出（避免递归 Proxy 在 vitest 模块加载期崩溃），
 // 仅暴露 GeoJsonDataSource.load 供测试可控（默认 resolve 空 entities）。
-vi.mock('cesium', () => {
-  // 任意 cesium 对象：构造/调用/读属性都返回安全的链式 mock
-  // 返回类型为 object：ProxyHandler 的 apply/construct trap 签名要求返回 object
-  function makeChainable(): object {
-    return new Proxy(function () {}, {
-      get(_t: unknown, prop: string | symbol) {
-        if (prop === 'then') return undefined // 避免被当作 thenable
-        if (prop === 'fromCssColorString') return () => ({})
-        return makeChainable()
-      },
-      apply() {
-        return makeChainable()
-      },
-      construct() {
-        return makeChainable()
-      },
-    })
-  }
-
-  class MockCesiumClass {
-    constructor() {
-      return makeChainable() as unknown as MockCesiumClass
-    }
-  }
-
-  const GeoJsonDataSource = {
-    load: vi.fn().mockResolvedValue({ entities: { values: [] } }),
-  }
-
-  return {
-    CallbackProperty: MockCesiumClass,
-    Cartesian2: MockCesiumClass,
-    // _positionCamera 首屏定位用到 Cartesian3.fromDegrees（mock 不做真实坐标运算，返回空对象即可）
-    Cartesian3: Object.assign(MockCesiumClass, { fromDegrees: () => ({}) }),
-    Cartographic: MockCesiumClass,
-    Color: { fromCssColorString: () => ({}) },
-    ColorGeometryInstanceAttribute: MockCesiumClass,
-    GeoJsonDataSource,
-    GeographicTilingScheme: MockCesiumClass,
-    GeometryInstance: MockCesiumClass,
-    Math: { toRadians: () => 0, fromRadians: () => 0 },
-    PerInstanceColorAppearance: MockCesiumClass,
-    PointGraphics: MockCesiumClass,
-    PolygonGeometry: MockCesiumClass,
-    PolygonHierarchy: MockCesiumClass,
-    Primitive: MockCesiumClass,
-    Rectangle: MockCesiumClass,
-    ScreenSpaceEventType: MockCesiumClass,
-    SingleTileImageryProvider: MockCesiumClass,
-    UrlTemplateImageryProvider: MockCesiumClass,
-    Viewer: MockCesiumClass,
-  }
+vi.mock('cesium', async () => {
+  const { makeCesiumMock } = await import('./cesiumMock')
+  return makeCesiumMock({
+    // load 供测试逐例控制 resolve/reject（token 竞态保护）
+    GeoJsonDataSource: { load: vi.fn().mockResolvedValue({ entities: { values: [] } }) },
+  })
 })
 
 import { GeoJsonDataSource } from 'cesium'

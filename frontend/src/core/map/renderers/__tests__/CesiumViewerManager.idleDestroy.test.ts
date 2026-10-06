@@ -19,51 +19,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // 全量 mock cesium（同 CesiumRenderer.geojson.test.ts 的 chainable 方案），
 // 本测试不触发 create()（不 new Viewer），仅操作已注入的 fake viewer。
-vi.mock('cesium', () => {
-  function makeChainable(): object {
-    return new Proxy(function () {}, {
-      get(_t: unknown, prop: string | symbol) {
-        if (prop === 'then') return undefined
-        if (prop === 'fromCssColorString') return () => ({})
-        return makeChainable()
-      },
-      apply() {
-        return makeChainable()
-      },
-      construct() {
-        return makeChainable()
-      },
-    })
-  }
-
-  class MockCesiumClass {
-    constructor() {
-      return makeChainable() as unknown as MockCesiumClass
-    }
-  }
-
-  return {
-    CallbackProperty: MockCesiumClass,
-    Cartesian2: MockCesiumClass,
-    Cartesian3: MockCesiumClass,
-    Cartographic: MockCesiumClass,
-    Color: { fromCssColorString: () => ({}) },
-    ColorGeometryInstanceAttribute: MockCesiumClass,
+vi.mock('cesium', async () => {
+  const { makeCesiumMock } = await import('./cesiumMock')
+  return makeCesiumMock({
     GeoJsonDataSource: { load: vi.fn().mockResolvedValue({ entities: { values: [] } }) },
-    GeographicTilingScheme: MockCesiumClass,
-    GeometryInstance: MockCesiumClass,
-    Math: { toRadians: () => 0, fromRadians: () => 0 },
-    PerInstanceColorAppearance: MockCesiumClass,
-    PointGraphics: MockCesiumClass,
-    PolygonGeometry: MockCesiumClass,
-    PolygonHierarchy: MockCesiumClass,
-    Primitive: MockCesiumClass,
-    Rectangle: MockCesiumClass,
-    ScreenSpaceEventType: MockCesiumClass,
-    SingleTileImageryProvider: MockCesiumClass,
-    UrlTemplateImageryProvider: MockCesiumClass,
-    Viewer: MockCesiumClass,
-  }
+  })
 })
 
 import { CesiumRenderer, cesiumViewerManager } from '../CesiumRenderer'

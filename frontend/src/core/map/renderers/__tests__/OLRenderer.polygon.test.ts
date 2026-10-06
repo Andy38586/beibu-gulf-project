@@ -73,13 +73,8 @@ interface OlSourceLike {
   getFeatures(): OlFeatureLike[]
 }
 
-interface LayerEntry {
-  instance: { getSource(): OlSourceLike }
-}
-
-type OLRendererTestAccess = InstanceType<typeof OLRenderer> & {
-  map: unknown
-  _layers: Map<string, unknown>
+interface OlLayerLike {
+  getSource(): OlSourceLike
 }
 
 const OUTER = [
@@ -101,24 +96,28 @@ const PART2 = [
   [108.8, 21.8],
 ]
 
-function firstGeom(renderer: OLRendererTestAccess, id: string) {
-  const entry = renderer._layers.get(id) as LayerEntry | undefined
-  const [feature] = entry!.instance.getSource().getFeatures()
+/** 渲染器最后挂到 OL Map 上的图层 source（观测公开协作面，不读 _layers） */
+function lastLayer(renderer: InstanceType<typeof OLRenderer>): OlLayerLike {
+  const map = renderer.getMap() as unknown as FakeMap
+  return map.layers[map.layers.length - 1] as OlLayerLike
+}
+
+function firstGeom(renderer: InstanceType<typeof OLRenderer>) {
+  const [feature] = lastLayer(renderer).getSource().getFeatures()
   return feature?.getGeometry()
 }
 
-function featureCount(renderer: OLRendererTestAccess, id: string) {
-  const entry = renderer._layers.get(id) as LayerEntry | undefined
-  return entry!.instance.getSource().getFeatures().length
+function featureCount(renderer: InstanceType<typeof OLRenderer>) {
+  return lastLayer(renderer).getSource().getFeatures().length
 }
 
 describe('OLRenderer 多边形契约（内环/部件/幂等）', () => {
-  let renderer: OLRendererTestAccess
+  let renderer: InstanceType<typeof OLRenderer>
   let container: HTMLElement
 
   beforeEach(() => {
     container = document.createElement('div')
-    renderer = new OLRenderer(container) as unknown as OLRendererTestAccess
+    renderer = new OLRenderer(container)
   })
 
   afterEach(() => {
@@ -136,7 +135,7 @@ describe('OLRenderer 多边形契约（内环/部件/幂等）', () => {
       ],
       {}
     )
-    const geom = firstGeom(renderer, 'poly-holes')
+    const geom = firstGeom(renderer)
     expect(geom).toBeDefined()
     expect(geom.getType()).toBe('Polygon')
     expect(geom.getCoordinates()).toHaveLength(2) // [外环, 内环]——丢内环=填实孔洞
@@ -153,7 +152,7 @@ describe('OLRenderer 多边形契约（内环/部件/幂等）', () => {
       ],
       {}
     )
-    const geom = firstGeom(renderer, 'poly-notype')
+    const geom = firstGeom(renderer)
     expect(geom).toBeDefined()
     expect(geom.getType()).toBe('Polygon')
     expect(geom.getCoordinates()).toHaveLength(1) // 仅外环
@@ -165,7 +164,7 @@ describe('OLRenderer 多边形契约（内环/部件/幂等）', () => {
       [{ coordinates: OUTER as unknown as never, properties: {} }],
       {}
     )
-    expect(featureCount(renderer, 'poly-flat')).toBe(0)
+    expect(featureCount(renderer)).toBe(0)
   })
 
   it('MultiPolygon 双部件 → ol MultiPolygon 且部件数=2（部件不互为孔洞）', () => {
@@ -182,7 +181,7 @@ describe('OLRenderer 多边形契约（内环/部件/幂等）', () => {
       ],
       {}
     )
-    const geom = firstGeom(renderer, 'multi-2parts')
+    const geom = firstGeom(renderer)
     expect(geom).toBeDefined()
     expect(geom.getType()).toBe('MultiPolygon')
     const polys = geom.getCoordinates() as unknown as unknown[][][]
@@ -198,11 +197,11 @@ describe('OLRenderer 多边形契约（内环/部件/幂等）', () => {
         properties: {},
       },
     ]
-    const map = renderer.map as unknown as FakeMap
+    const map = renderer.getMap() as unknown as FakeMap
     const baseline = map.layers.length // 构造器已挂底图 TileLayer，以增量计
     renderer.addPolygonLayer('poly-idem', mk(), {})
     renderer.addPolygonLayer('poly-idem', mk(), {}) // 重复 add 同 id
     expect(map.layers.length).toBe(baseline + 1) // 旧图层已被移除，仅存新图层
-    expect(renderer._layers.get('poly-idem')).toBeTruthy()
+    expect(renderer.hasLayer('poly-idem')).toBe(true)
   })
 })

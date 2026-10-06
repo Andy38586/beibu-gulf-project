@@ -160,4 +160,16 @@
 - `tools/v3-guard/protocol-single-source.mjs`：正本唯一、指针文件不得复制条文、体量上限、不得写死门禁条数。
 - `tools/v3-guard/doc-map-check.mjs`：§二矩阵与 `tools/v3-guard/lib/doc-map.json` 双向对账；三层文档必须登记；契约时间戳与 KP 权威唯一。
 - `tools/doc-system/kp-map.json`：迁移期 KP 权威切换表；输入是只读基线快照 `tools/doc-system/baseline/`（旧件逐字节冻结，见 C3 §3），重跑 `node tools/doc-system/build-kp-map.mjs`。
-- `tools/v3-guard/agent-docs-check.mjs`：本文件引用的路径必须存在；§六 的 commit 示例必须真能过 commitlint。
+- `tools/v3-guard/agent-docs-check.mjs`：本文件引用的路径必须存在；§六 的 commit 示例必须真能过 commitlint；§十三 的 npm 声称必须可达（专项5 指标 9.1）。
+
+## 十三、反过度工程（减法优先）
+
+> 本节把铁律 5 的准入判据落成硬限制；机器判据 = 专项5 指标 9.1 的声称面可达性，执行体在 `tools/v3-guard/agent-docs-check.mjs`。说不清「不这样做会怎样」的新增，回退重做。
+
+1. **先减后加**：提新机制、依赖、开关、脚本或抽象前，先回答「能不能删掉一件现有同类」；只做加法不做减法的一批，逐件给出准入答案。
+2. **机制必须有挂点**：自动化的检查/守卫/校验必须在 `.husky/` 或 CI 有**真会触发**的执行点；只进人手敲的聚合入口（如 `ci:local`）不算挂点。挂不上就删除，不留「以后会用」。
+3. **手动工具必须登记**：不打算自动跑的脚本，逐条登记进 K4 §1「手动工具豁免清单」（owner/时机/等价凭据）；未登记 = 无豁免；新增豁免属 §四-10，须用户批准。
+4. **声称即受限**：本文件每写出一条 `npm run <script>`，就是「它会跑」的声称——script 必须真实存在于 `package.json`，且被 `.husky/**`/workflows 触发面命中或列入豁免清单，否则守卫当场红。
+5. **随源存亡**：模块/脚本删除时，其用例、守卫锚点、文档引用同笔清理；锚点失配必须红。
+6. **兜底不超支持矩阵**：polyfill/兼容分支只覆盖 `engines`/`browserslist` 声明范围；要支持声明外环境，先改矩阵再改代码。
+7. **零调用即删**：读侧不再消费的分支、端点、字段、脚本同笔删除，或补一条能红守卫；禁止「保留待用」。

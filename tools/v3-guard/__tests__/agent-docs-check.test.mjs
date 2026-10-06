@@ -5,16 +5,19 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
 import {
+  checkClaimReachability,
   checkCommitForm,
   checkLiveDocs,
   checkRefs,
   classify,
   extractCommitExamples,
+  extractClaimedScripts,
   extractTokens,
   isGitIgnored,
   LIVE_DOCS,
   prefixedRefs,
   stripCommitType,
+  triggerSurfaceFiles,
 } from '../agent-docs-check.mjs'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..')
@@ -159,5 +162,70 @@ describe('agent-docs-check（作业协议自述守卫）', () => {
       expect(/禁[^\n]{0,10}<?type>?\(<?scope/.test(text), `${rel} 未写明禁 type(scope)`).toBe(true)
       expect(text, `${rel} 仍把 type(scope): 当推荐写法`).not.toMatch(/`type\(scope\): 中文说明`/)
     }
+  })
+
+  it('@guard-red-sample 声称的 npm script 无触发面且未豁免 ⇒ 必报', () => {
+    const v = checkClaimReachability({
+      agentsText: '准备合并：`npm run ghost`',
+      triggerTexts: { '.husky/pre-push': 'npm run guard:v3' },
+      packageScripts: { ghost: 'node ghost.mjs' },
+      k4Text: '',
+    })
+    expect(v).toHaveLength(1)
+    expect(v[0].why).toContain('触发面')
+  })
+
+  it('@guard-red-sample 幽灵命令：声称的 script 不在 package.json ⇒ 必报', () => {
+    const v = checkClaimReachability({
+      agentsText: '下一步 `npm run does-not-exist`',
+      triggerTexts: { '.husky/pre-push': 'npm run does-not-exist' },
+      packageScripts: { 'guard:v3': 'x' },
+      k4Text: '',
+    })
+    expect(v).toHaveLength(1)
+    expect(v[0].why).toContain('幽灵命令')
+  })
+
+  it('阳性对照：触发面命中或列入 K4 豁免 ⇒ 不报', () => {
+    const base = {
+      triggerTexts: { '.husky/pre-push': 'npm run guard:v3' },
+      packageScripts: { 'guard:v3': 'x', 'review:score': 'y' },
+      k4Text: '### 手动工具豁免清单\n| `npm run review:score` |\n## §2 任务流程\n',
+    }
+    expect(checkClaimReachability({ agentsText: '`npm run guard:v3`', ...base })).toEqual([])
+    expect(checkClaimReachability({ agentsText: '`npm run review:score`', ...base })).toEqual([])
+  })
+
+  it('@guard-red-sample 幽灵豁免：K4 清单列了 package.json 不存在的 script ⇒ 必报', () => {
+    const v = checkClaimReachability({
+      agentsText: '',
+      triggerTexts: {},
+      packageScripts: {},
+      k4Text: '### 手动工具豁免清单\n| `npm run ghost:tool` |\n## §2 任务流程\n',
+    })
+    expect(v).toHaveLength(1)
+    expect(v[0].why).toContain('幽灵豁免')
+  })
+
+  it('声称面提取含数字：`guard:v3` 不得被截成 `guard:v`（指标 9.1 的已知坑）', () => {
+    expect(extractClaimedScripts('跑 `npm run guard:v3` 与 `npm run e2e2`')).toEqual([
+      { script: 'guard:v3', line: 1 },
+      { script: 'e2e2', line: 1 },
+    ])
+  })
+
+  it('回归锚：现仓 AGENTS 声称面可达（按生产口径读钩子/workflow/package/K4）', () => {
+    const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8')
+    const triggerTexts = {}
+    for (const rel of triggerSurfaceFiles(ROOT)) triggerTexts[rel] = read(rel)
+    const pkg = JSON.parse(read('package.json'))
+    expect(
+      checkClaimReachability({
+        agentsText: read('AGENTS.md'),
+        triggerTexts,
+        packageScripts: pkg.scripts ?? {},
+        k4Text: read('docs/契约/K4-开发与门禁契约.md'),
+      })
+    ).toEqual([])
   })
 })

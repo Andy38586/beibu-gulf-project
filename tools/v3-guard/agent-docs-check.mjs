@@ -29,6 +29,13 @@
  *   而没有任何断言会因此变红。行内含「历史快照 / 旧稿 / 已退役 / 不存在 / 已删除 / 作废」
  *   之一的，视为**有意引用死路径**（取证或历史留痕），按行豁免——豁免标记必须与该引用
  *   同一行，避免整份文档被开后门。
+ * 断言 5（声称面可达性，2026-10-06）：专项5 指标 9.1 的机械化 —— AGENTS.md 里每写出一条
+ *   `npm run X` 就是"它会跑"的声称：① X 必须真实存在于 package.json（幽灵命令必报）；
+ *   ② X 必须被 `.husky/**` / `.github/workflows/**` 命中，或列入 K4 §1「手动工具豁免清单」；
+ *   ③ 豁免清单里的 X 也必须真实存在（幽灵豁免必报）。
+ *   **已知漏口（如实写）**：触发面按指标 9.1 第 1 步原文取钩子/workflow 全文，注释里提到
+ *   也算命中；严格化（只认命令行、不认注释）会差出 `ci:local`（人工聚合入口）—— 那属
+ *   判据域变更（K4 §1 / AGENTS §四-10），不在本守卫内自行放宽或收紧。
  *
  * 用法：
  *   node tools/v3-guard/agent-docs-check.mjs          # 校验（违规 exit 1）
@@ -127,6 +134,96 @@ export function checkLiveDocs(
     }
   }
   return bad
+}
+
+/** 触发面文件：钩子（排除 husky 生成的 `_/`）与 workflow —— 新增文件自动进判据面，不手抄清单 */
+export function triggerSurfaceFiles(root = ROOT) {
+  const out = []
+  const husky = path.join(root, '.husky')
+  if (fs.existsSync(husky)) {
+    for (const name of fs.readdirSync(husky)) {
+      if (name === '_') continue
+      const abs = path.join(husky, name)
+      if (fs.statSync(abs).isFile()) out.push(path.relative(root, abs).replace(/\\/g, '/'))
+    }
+  }
+  const wf = path.join(root, '.github', 'workflows')
+  if (fs.existsSync(wf)) {
+    for (const name of fs.readdirSync(wf)) {
+      if (/\.ya?ml$/.test(name))
+        out.push(path.relative(root, path.join(wf, name)).replace(/\\/g, '/'))
+    }
+  }
+  return out
+}
+
+const npmRunRe = () => /npm run ([a-zA-Z0-9:_-]+)/g
+
+/** 声称面：AGENTS.md 全文里出现的每条 `npm run X`（指标 9.1 第 2 步原文口径） */
+export function extractClaimedScripts(text) {
+  const out = []
+  text.split(/\r?\n/).forEach((line, i) => {
+    for (const m of line.matchAll(npmRunRe())) out.push({ script: m[1], line: i + 1 })
+  })
+  return out
+}
+
+/** 触发面：钩子/workflow 文本里的 `npm run X`（指标 9.1 第 1 步原文口径，含注释提及） */
+export function extractTriggeredScripts(texts) {
+  const set = new Set()
+  for (const t of Object.values(texts)) {
+    for (const m of t.matchAll(npmRunRe())) set.add(m[1])
+  }
+  return set
+}
+
+/** K4 §1「手动工具豁免清单」里的 `npm run X` —— 未列 = 无豁免 */
+export function extractManualWhitelist(k4Text) {
+  const start = k4Text.indexOf('手动工具豁免清单')
+  const end = start >= 0 ? k4Text.indexOf('## §2', start) : -1
+  const section = start >= 0 ? k4Text.slice(start, end >= 0 ? end : undefined) : ''
+  const set = new Set()
+  for (const m of section.matchAll(/`npm run ([a-zA-Z0-9:_-]+)`/g)) set.add(m[1])
+  return set
+}
+
+/**
+ * 断言 5 纯函数：AGENTS 声称面 ⊆（package.json 实存 ∩ 触发面 ∪ 手动豁免）；反向查幽灵豁免。
+ * @param {{agentsText: string, triggerTexts: Record<string,string>, packageScripts: object, k4Text: string}} input
+ */
+export function checkClaimReachability({ agentsText, triggerTexts, packageScripts, k4Text }) {
+  const violations = []
+  const triggered = extractTriggeredScripts(triggerTexts)
+  const whitelist = extractManualWhitelist(k4Text)
+  for (const c of extractClaimedScripts(agentsText)) {
+    if (!Object.prototype.hasOwnProperty.call(packageScripts, c.script)) {
+      violations.push({
+        file: 'AGENTS.md',
+        line: c.line,
+        ref: `npm run ${c.script}`,
+        why: '幽灵命令：AGENTS.md 声称的 npm script 不存在于 package.json',
+      })
+      continue
+    }
+    if (!triggered.has(c.script) && !whitelist.has(c.script)) {
+      violations.push({
+        file: 'AGENTS.md',
+        line: c.line,
+        ref: `npm run ${c.script}`,
+        why: '声称会跑但触发面（.husky/** ∪ .github/workflows/**）找不到，也不在 K4 §1 手动豁免清单',
+      })
+    }
+  }
+  for (const s of whitelist) {
+    if (!Object.prototype.hasOwnProperty.call(packageScripts, s)) {
+      violations.push({
+        file: 'docs/契约/K4-开发与门禁契约.md',
+        ref: `npm run ${s}`,
+        why: '幽灵豁免：K4 §1 手动豁免清单列了 package.json 不存在的 script',
+      })
+    }
+  }
+  return violations
 }
 
 /** 抽出正文里所有反引号片段，带行号 */
@@ -346,7 +443,28 @@ function run() {
     for (const s of cf.skipped) skipped.push({ file: rel, ...s })
   }
 
-  const violations = [...refBad, ...checkLiveDocs(LIVE_DOCS, undefined, isGitIgnored), ...commitBad]
+  // 断言 5：AGENTS 声称面可达性（专项5 指标 9.1 的机械化，2026-10-06）
+  const triggerTexts = {}
+  for (const rel of triggerSurfaceFiles()) {
+    triggerTexts[rel] = fs.readFileSync(path.join(ROOT, rel), 'utf8')
+  }
+  const agentsText = fs.readFileSync(path.join(ROOT, 'AGENTS.md'), 'utf8')
+  const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'))
+  const k4Text = fs.readFileSync(path.join(ROOT, 'docs/契约/K4-开发与门禁契约.md'), 'utf8')
+  const claimBad = checkClaimReachability({
+    agentsText,
+    triggerTexts,
+    packageScripts: pkg.scripts ?? {},
+    k4Text,
+  })
+  checked += extractClaimedScripts(agentsText).length
+
+  const violations = [
+    ...refBad,
+    ...checkLiveDocs(LIVE_DOCS, undefined, isGitIgnored),
+    ...commitBad,
+    ...claimBad,
+  ]
   if (process.argv.includes('--json')) {
     console.log(JSON.stringify({ checked, violations, skipped }, null, 2))
     process.exit(violations.length ? 1 : 0)
@@ -370,7 +488,7 @@ function run() {
     process.exit(1)
   }
   console.log(
-    `[agent-docs-check] OK：${PROTOCOL_DOCS.join(' + ')} 的 ${checked} 条路径引用与 commit 示例全部自洽` +
+    `[agent-docs-check] OK：${PROTOCOL_DOCS.join(' + ')} 的 ${checked} 条路径引用、commit 示例与 npm 声称全部自洽` +
       (skipped.length ? `（另 ${skipped.length} 条断言因工具不可用记 SKIPPED）` : '')
   )
 }

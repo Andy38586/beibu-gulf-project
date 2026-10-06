@@ -10,8 +10,9 @@
  * 判据（两条，全部**派生**）：
  *   ① 门禁条数 `\d+\s*项(静态)?守卫`：每一处的数字必须落在 `doc-numbers` 登记站点
  *      （DOC_NUMBER_SITES）的捕获组范围内 —— 值由那条守卫对账，本守卫只管"没登记"；
- *   ② 体量/行数上限 `(≤|<=|不超过)\s*\d+\s*行` / `\d+\s*行以内`：同行必须出现执行体
- *      路径 `protocol-single-source.mjs`（指针句/历史引述），否则就是一份不在册的副本。
+ *   ② 体量/行数上限 `(≤|<=|不超过)\s*\d+\s*行` / `\d+\s*行以内`：同行必须出现**执行点**
+ *      （某个 `.mjs/.ts/.json/.sh` 文件或 `npm run …`——数字与它的执行体/指针句同现），
+ *      否则就是一份不在册的副本（典型：约定旧版自称「≤ 80 行」而执行体表里是 140）。
  *
  * 扫描集 = doc-numbers 站点文件 ∪ doc-map 里 layer∈{宪法,契约} 且 active 的 .md ∪ 约定
  * （被体量表管理的根节点）。判据输入 = **索引**内容（`git show :<path>`，AGENTS §5.4）。
@@ -37,8 +38,12 @@ const SELF_EXEMPT = [
 
 /** 扫描层：与 doc-ref-check 同口径（治理文档，不含日志/标准库/待迁移） */
 export const SCAN_LAYERS = ['宪法', '契约']
-/** 体量数字的执行体（指针句必须出现它；数字只在它的表里） */
-export const SIZE_EXECUTOR = 'protocol-single-source.mjs'
+/**
+ * 体量数字的「执行点」判据（同行出现即算有落点）：文件路径或 npm script。
+ * 不写死某个具体文件——文档体量在 protocol-single-source 的体量表，代码体量在 structure-check
+ * 的棘轮表……写死一处会把另一处变成假红（同族收全：认「有执行点」这个形态）。
+ */
+export const EXECUTOR_ON_LINE = /[\w./-]+\.(?:mjs|cjs|js|ts|json|sh)\b|npm run /
 /** ① 门禁条数家族 */
 export const GUARD_COUNT_RE = /(\d+)\s*项(?:静态)?守卫/g
 /** ② 体量/行数上限家族 */
@@ -94,11 +99,12 @@ export function auditClaimNumbers(files, { sites = DOC_NUMBER_SITES } = {}) {
     }
     // ② 体量/行数上限：同行必须与执行体路径同现（指针句或历史引述）
     for (const m of f.text.matchAll(new RegExp(SIZE_CLAIM_RE.source, 'g'))) {
-      if (lineOf(m.index).includes(SIZE_EXECUTOR)) continue
+      if (EXECUTOR_ON_LINE.test(lineOf(m.index))) continue
       const num = m[1] || m[2]
       problems.push(
         `${f.path}:${at(m.index)} 手抄体量数字「${m[0].trim()}」（${num} 行）没有执行体：` +
-          `删掉数字、改写成指向 ${SIZE_EXECUTOR} 体量表的指针句（数字只在执行体）`
+          `删掉数字、改写成指向执行体（如 protocol-single-source.mjs 的体量表、` +
+          `structure-check.mjs 的棘轮表）的指针句（数字只在执行体）`
       )
     }
   }
@@ -147,7 +153,7 @@ function main() {
   }
   console.log(
     `[doc-claim-numbers] OK：${files.length} 份文档的自述数字全部可追溯到执行体` +
-      `（门禁条数→doc-numbers 登记站点；体量→${SIZE_EXECUTOR}）✓`
+      `（门禁条数→doc-numbers 登记站点；体量→同行执行点）✓`
   )
 }
 

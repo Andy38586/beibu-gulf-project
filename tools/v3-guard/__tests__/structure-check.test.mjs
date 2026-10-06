@@ -10,7 +10,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-import { audit } from '../structure-check.mjs'
+import { RENDERER_SIZE_CEILINGS, audit, auditFileSizes } from '../structure-check.mjs'
 
 /** 造一个 modules 目录：{ 模块名: [文件名...] } */
 function modulesDir(modules) {
@@ -23,6 +23,36 @@ function modulesDir(modules) {
 }
 
 const FULL = ['foo.module.ts', 'foo.controller.ts', 'foo.service.ts']
+
+describe('structure-check — 渲染器体量棘轮（z016 / 裁定 A-1）', () => {
+  it('@guard-red-sample 超冻结上限 → 必红（差 1 行的阳性对照不许红）', () => {
+    const one = [RENDERER_SIZE_CEILINGS[0]]
+    const { file, max } = one[0]
+    expect(auditFileSizes([{ path: file, lines: max }], one)).toEqual([])
+    const over = auditFileSizes([{ path: file, lines: max + 1 }], one)
+    expect(over).toHaveLength(1)
+    expect(over[0]).toContain(`> 冻结上限 ${max} 行`)
+  })
+
+  it('@guard-red-sample 登记的渲染器改名/搬家（棘轮指不到文件）→ 必红', () => {
+    const problems = auditFileSizes([])
+    expect(problems).toHaveLength(RENDERER_SIZE_CEILINGS.length)
+    expect(problems[0]).toContain('体量棘轮登记的渲染器不存在')
+  })
+
+  it('真仓棘轮与冻结值一致（实际行数 = 上限，不是上限-1 的虚设）', async () => {
+    const { readFileSync } = await import('node:fs')
+    const path = await import('node:path')
+    const here = path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'))
+    const root = path.resolve(here, '../../..')
+    const files = RENDERER_SIZE_CEILINGS.map((c) => ({
+      path: c.file,
+      lines: (readFileSync(path.join(root, c.file), 'utf8').match(/\n/g) || []).length,
+    }))
+    expect(auditFileSizes(files)).toEqual([])
+    expect(files.map((f) => f.lines)).toEqual(RENDERER_SIZE_CEILINGS.map((c) => c.max))
+  })
+})
 
 describe('structure-check — 后端模块分层契约', () => {
   it('合规模块（module + controller + service）→ 无问题', () => {

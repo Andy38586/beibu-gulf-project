@@ -58,12 +58,12 @@ const emit = defineEmits<Emits>()
 // 飞行统一走 core 单入口（不得裸用 currentRenderer.flyTo）
 const { flyTo } = useMapControls()
 const taskStore = useTaskStore()
-// 🔴 v4：queryPath 已不再由此面板直接调用（请求经 taskStore 转交后端异步任务域）；
-// 仅保留 searchPois（POI 搜索是轻量辅助交互，不需要后台任务语义，也不参与保活）
+// 🔴 面板只消费 searchPois（POI 搜索是轻量辅助交互，不需要后台任务语义，也不参与保活；
+// 寻路请求经 taskStore 转交后端异步任务域）
 const { searchPois } = useRouteApi()
 // 图层操作走 props（页面注入）：本面板**不**自建 owner 册 —— 归属必须与业务同寿，见 Props 注释
 
-/** 查询进行中（v4：由本面板自行维护，替代原 useRouteApi 的 calculating） */
+/** 查询进行中（v4 起由本面板自行维护） */
 const calculating = ref(false)
 
 /**

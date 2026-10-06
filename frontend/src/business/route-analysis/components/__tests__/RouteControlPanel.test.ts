@@ -8,7 +8,6 @@ const mocks = vi.hoisted(() => ({
   showError: vi.fn(),
   searchPois: vi.fn(),
   flyTo: vi.fn(),
-  cancel: vi.fn(),
   updateRouteLayers: vi.fn(),
   clearRouteLayers: vi.fn(),
   isWithinThreeCities: vi.fn(),
@@ -53,10 +52,8 @@ vi.mock('@/stores', () => ({
 
 vi.mock('../../composables/useRouteApi', () => ({
   useRouteApi: () => ({
-    // v4：queryPath 已不由面板调用（请求经 taskStore）；仅 searchPois 仍在使用
+    // 面板只消费 searchPois（寻路请求经 taskStore 转交后端异步任务域）
     searchPois: mocks.searchPois,
-    calcError: ref(''),
-    cancel: mocks.cancel,
   }),
 }))
 

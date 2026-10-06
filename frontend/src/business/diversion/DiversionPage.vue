@@ -66,6 +66,15 @@ const diversionLayerGroups = [
   { key: 'diversion-arcs', label: '分流弧线', memberKeys: ARC_LAYER_IDS },
 ]
 
+/**
+ * 页面级取消（z020）：离页即 abort 本页在途请求；await 之后一律先查 `unmounted`，
+ * 拦下迟到响应——否则 `updateCanalLayer/updateArcLayers` 会在已离页的路由上重建图层
+ * （ownership 已随页面 onScopeDispose 注销，迟到写入就是"画到别的页上"）。
+ * 与 taskStore 无关：本页任务全为即时请求，无跨页保活语义。
+ */
+const pageAbort = new AbortController()
+let unmounted = false
+
 /** 转移量图 x 轴：四个货类（顺序与 result.transfer 字段一致） */
 const transferXData = ['煤炭', '粮食', '铁矿石', '砂石水泥']
 
@@ -94,13 +103,16 @@ const links = computed<SankeyLink[]>(() =>
 async function load(): Promise<void> {
   loading.value = true
   try {
-    result.value = await diversionAdapter.getBreakdown(year.value)
+    const data = await diversionAdapter.getBreakdown(year.value, pageAbort.signal)
+    if (unmounted) return
+    result.value = data
     refreshArcs()
   } catch (e) {
+    if (unmounted || pageAbort.signal.aborted) return
     logger.error('[DiversionPage] load error:', e)
     showError(e, { fallback: '加载分流数据失败' })
   } finally {
-    loading.value = false
+    if (!unmounted) loading.value = false
   }
 }
 
@@ -151,9 +163,10 @@ function handleSankeyClick(payload: SankeyClickPayload): void {
 async function loadGeometry(): Promise<void> {
   try {
     const [canal, ports] = await Promise.all([
-      diversionAdapter.getCanalLine(),
-      mapDataService.getPorts(),
+      diversionAdapter.getCanalLine(pageAbort.signal),
+      mapDataService.getPorts(pageAbort.signal),
     ])
+    if (unmounted) return
     portEndpoints = resolvePortEndpoints(ports)
     const missing = PORT_PORTS.filter((p) => !(p.key in portEndpoints)).map(
       (p) => PORT_JSON_NAMES[p.key]
@@ -168,6 +181,7 @@ async function loadGeometry(): Promise<void> {
     if (!canalEnd) logger.warn('[DiversionPage] 运河线位为空，弧线跳过')
     refreshArcs()
   } catch (e) {
+    if (unmounted || pageAbort.signal.aborted) return
     logger.error('[DiversionPage] 运河几何加载失败（弧线层缺席，面板功能不受影响）:', e)
   }
 }
@@ -197,6 +211,8 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  unmounted = true
+  pageAbort.abort()
   document.removeEventListener('click', handleGlobalClick)
   if (debounceTimer) {
     clearTimeout(debounceTimer)

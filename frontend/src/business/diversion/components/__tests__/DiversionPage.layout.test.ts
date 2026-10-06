@@ -247,7 +247,7 @@ describe('DiversionPage 4×4 布局', () => {
 
     // 不新增接口调用：首屏仍只有适配器这一次取数
     expect(api.getBreakdown).toHaveBeenCalledTimes(1)
-    expect(api.getBreakdown).toHaveBeenCalledWith(2035)
+    expect(api.getBreakdown).toHaveBeenCalledWith(2035, expect.any(AbortSignal))
 
     wrapper.unmount()
   })
@@ -315,7 +315,7 @@ describe('DiversionPage 4×4 布局', () => {
     await new Promise((resolve) => setTimeout(resolve, 250))
     await flushPromises()
     expect(api.getBreakdown).toHaveBeenCalledTimes(2)
-    expect(api.getBreakdown).toHaveBeenLastCalledWith(2040)
+    expect(api.getBreakdown).toHaveBeenLastCalledWith(2040, expect.any(AbortSignal))
     expect(yearPanel.find('.ssc-status').text()).toBe('2040')
 
     wrapper.unmount()

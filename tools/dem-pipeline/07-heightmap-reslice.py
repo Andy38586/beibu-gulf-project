@@ -130,7 +130,6 @@ def main() -> None:
                 )
                 heights[i0 : i1 + 1, j0 : j1 + 1] = sub
             heights = np.where(np.isfinite(heights) & (heights != nodata), heights, 0.0)
-            heights = np.where(np.isfinite(heights) & (heights != nodata), heights, 0.0)
             # 编码 uint16：(h + 1000) * 5，负高程 clamp 到 -1000
             encoded = np.clip((heights + ENC_OFFSET) * ENC_SCALE, 0, 65535).astype("<u2")
             # heightmap-1.0 瓦片布局（CesiumTerrainProvider.createHeightmapTerrainData）：

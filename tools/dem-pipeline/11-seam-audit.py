@@ -57,7 +57,6 @@ for r0 in range(0, H, 1500):
     i0 = np.clip(np.floor(fr).astype(np.int64), 0, sea.shape[0] - 2)
     j0 = np.clip(np.floor(fc).astype(np.int64), 0, sea.shape[1] - 2)
     fy, fx = fr - i0, fc - j0
-    p = sea[i0, j0: j0 + 1] if False else None
     p00 = sea[i0, j0]; p01 = sea[i0, j0 + 1]; p10 = sea[i0 + 1, j0]; p11 = sea[i0 + 1, j0 + 1]
     ok = ~np.isnan(p00) & ~np.isnan(p01) & ~np.isnan(p10) & ~np.isnan(p11)
     bil = (p00 * (1 - fx) + p01 * fx) * (1 - fy) + (p10 * (1 - fx) + p11 * fx) * fy

@@ -13,6 +13,8 @@ import {
   notifyTaskIndicator,
   registerRouteReadiness,
   registerTaskIndicator,
+  TaskDock,
+  type TaskDockCard,
   TaskDropZone,
   TaskResultChip,
 } from '@/core'
@@ -194,6 +196,30 @@ function onResultChipToggle(ir: LayerIR): void {
   logger.debug('[App] 任务结果拖出上图 toggle:', ir.meta.label, action)
 }
 
+// ===== v4-S5 TaskDock：已转后台（docked）任务的卡片条 =====
+// 数据由根入口从 taskStore 派生后以 props 供给（core 组件不接 store，同 TaskDropZone 先例）；
+// label/icon 由槽位路由反查业务清单——反向依赖（core→business）被禁止，所以在 App 侧查好再传。
+const dockCards = computed<TaskDockCard[]>(() => {
+  const cards: TaskDockCard[] = []
+  for (const slot of Object.values(taskStore.slots)) {
+    if (!slot || !slot.docked) continue
+    const mod = businessModules.find((m) => m.path === slot.route)
+    cards.push({
+      taskId: slot.taskId,
+      route: slot.route,
+      label: mod?.navLabel ?? slot.route,
+      icon: mod?.navIcon ?? '⏳',
+      status: slot.status,
+      progress: slot.progress,
+    })
+  }
+  return cards
+})
+
+function onDockCardOpen(target: string): void {
+  void router.push(target)
+}
+
 // 等待渲染器就绪后再执行缩放（公共 composable：500ms×10 有限重试，卸载自动取消）
 const waitForRenderer = (callback: () => void) =>
   useWaitForRenderer(() => unifiedMapRef.value?.getRenderer?.() ?? null, callback)
@@ -303,6 +329,9 @@ onUnmounted(() => {
          常态完全透明且不吃指针事件；拖拽期显形虚线提示。
          🔴 必须常驻渲染（不做 v-if）：元素不在 DOM 则 elementFromPoint 落空、drop 永不触发 -->
     <TaskDropZone :drag-active="panelDragActive" :drop-active="panelDragActive" />
+    <!-- v4-S5 TaskDock：已转后台任务的卡片条。点击回路由（面板在原位可用）；空态整体不渲染（L1）。
+         只列 docked 槽位——在跑但没拖入 dock 的任务由导航按钮进度环表达，不在这里重复 -->
+    <TaskDock :cards="dockCards" @open="onDockCardOpen" />
     <!-- v4-S8 系统 C：已完成任务结果「拖出上图」芯片条（数据跨路由，纯渲染不重算）。
          空态整体不渲染（同 dock 空态口径）；常驻不随路由卸载——跨路由上图是它的存在意义。
          点击/拖拽松开同义：上图⇄撤下 toggle（去重键 = taskId+kind，永不重复） -->

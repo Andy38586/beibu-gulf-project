@@ -37,6 +37,8 @@ export { default as NavButton } from './layout/components/NavButton.vue'
 //    任务状态一律由导航按钮上「绕按钮一圈」的进度环表达。
 export { default as TaskDropZone } from './layout/components/TaskDropZone.vue'
 export { default as TaskResultChip } from './layout/components/TaskResultChip.vue'
+export { default as TaskDock } from './layout/components/TaskDock.vue'
+export type { TaskDockCard } from './layout/components/TaskDock.vue'
 export { default as TaskPanelSlot } from './layout/components/TaskPanelSlot.vue'
 export { default as StackSlot } from './layout/components/StackSlot.vue'
 export { default as TaskProgressRing } from './layout/components/TaskProgressRing.vue'

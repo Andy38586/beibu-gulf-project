@@ -14,7 +14,7 @@ import { DataFilesService } from '../../../infra/files/data-files.service'
 // 接回生产链路，消除精度退化。
 //
 // SQL 放本 repository 而非 SpatialRepository：后者收口"空间算子"
-//（unionBuffers/intersect/pointIndicesInAnyPolygon/areaKm2），本处是 flood 域专属取数。
+//（现役仅 pointIndicesInAnyPolygon），本处是 flood 域专属取数。
 const FLOOD_FILES = {
   floodStatistics: 'flood/floodStatistics.json',
   facilityPoints: 'flood/facilityPoints.json',

@@ -3,8 +3,8 @@
 // 用法: node tools/gis-import/import-port-poi.mjs > .local/tmp/import-port-poi.sql
 // 然后: docker exec -i beibu-postgis psql -U postgres -d beibu-gulf-data < .local/tmp/import-port-poi.sql
 //
-// 输入（已由 fetch-port-poi.mjs 抓取到桌面）:
-//   C:/Users/JionHappY/Desktop/_北部湾项目/数据_/项目数据/POI-高德重抓/{城市}_{port/pier/berth}.json
+// 输入（由 fetch-port-poi.mjs 抓取）:
+//   $BEIBU_POI_DIR 或 tools/.poi_cache/{城市}_{port/pier/berth}.json
 // 输出:
 //   SQL 语句，每条 INSERT 带 id/type/name/district/city/geom(Point 4490)
 //   去重：同一 id 只保留第一个（高德 POI id 全局唯一，跨城市不冲突）
@@ -12,7 +12,8 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
-const srcDir = 'C:/Users/JionHappY/Desktop/_北部湾项目/数据_/项目数据/POI-高德重抓'
+// 输入目录：BEIBU_POI_DIR 优先；缺省 tools/.poi_cache（与 fetch-port-poi.mjs 对齐）
+const srcDir = process.env.BEIBU_POI_DIR ?? path.join(import.meta.dirname, '..', '.poi_cache')
 const cityMap = {
   钦州: 'qz',
   北海: 'bh',

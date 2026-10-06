@@ -8,7 +8,7 @@
 // 不触碰 users/plans 等其他表。
 //
 // 源（09-05 完整快照，命名与 db-import POI_TYPES 对齐）:
-//   C:/Users/JionHappY/Desktop/_北部湾项目/老后端/site-selection-json-20260905/{city}_{type}.json
+//   $BEIBU_POI_SNAPSHOT 或 .local/data/poi-snapshot/{city}_{type}.json
 // 用法:
 //   node tools/gis-import/restore-poi-xiaoqu.mjs > .local/tmp/restore-poi-xiaoqu.sql
 //   docker exec -i beibu-postgis psql -U postgres -d beibu-gulf-data -v ON_ERROR_STOP=1 \
@@ -16,7 +16,10 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
-const SRC = 'C:/Users/JionHappY/Desktop/_北部湾项目/老后端/site-selection-json-20260905'
+// 快照目录：BEIBU_POI_SNAPSHOT 优先；缺省 .local/data/poi-snapshot（外置快照不随仓库分发）
+const SRC =
+  process.env.BEIBU_POI_SNAPSHOT ??
+  path.join(import.meta.dirname, '..', '..', '.local', 'data', 'poi-snapshot')
 const CITIES = [
   ['qz', 'qz'],
   ['bh', 'bh'],

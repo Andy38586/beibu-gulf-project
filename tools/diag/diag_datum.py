@@ -15,11 +15,14 @@ from shapely.ops import unary_union
 from shapely.prepared import prep
 
 ROOT = Path(__file__).resolve().parents[2]
-# 默认 06-数据备份 里的 ASTER 填洼版；可传参换 DEM（如复原的 cut 版）：
-# python -X utf8 diag_datum.py <tif路径>
-DEM = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(
-    r"C:/Users/JionHappY/Desktop/_北部湾项目/06-数据备份/数据_/项目数据/浸没分析/处理成果/filled_CGCS2000_int16.tif"
-)
+sys.path.insert(0, str(ROOT / "tools" / "flood" / "engine"))
+# DEM 选择：命令行第 1 参显式覆盖（诊断任意 DEM）；缺省复用 flood_engine 的
+# 唯一解析点（FLOOD_DEM_PATH > landsea > cut），与淹没演算同一份输入。
+# python -X utf8 diag_datum.py [tif路径]
+from flood_engine import DEM_PATH as DEM  # noqa: E402
+
+if len(sys.argv) > 1:
+    DEM = Path(sys.argv[1])
 GZ = ROOT / "backend/data/flood/flood_levels.json.gz"
 LEVELS = [2, 5, 10, 15]
 

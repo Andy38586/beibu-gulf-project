@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // fetch-port-poi.mjs — 高德港口码头 POI 补抓（T4.3 产物）
 // 复用 fetch-amap-poi.mjs 的抓取模式：三城（钦州/北海/防城港）× 三类目（港口/码头/泊位），
-// 分页拉到完，输出 {city}_{type}.json 到项目数据目录，与既有 POI 格式兼容
+// 分页拉到完，输出 {city}_{type}.json 到 $BEIBU_POI_DIR（缺省 tools/.poi_cache），与既有 POI 格式兼容
 // {id,name,lng,lat,district}。去重入库由 import 环节处理。
 //
 // 用法:
@@ -12,7 +12,8 @@ import path from 'node:path'
 
 const key = fs.readFileSync('tools/.amap_key', 'utf8').trim()
 const dryRun = process.argv.includes('--dry-run')
-const OUT = 'C:/Users/JionHappY/Desktop/_北部湾项目/数据_/项目数据/POI-高德重抓'
+// 输出目录：BEIBU_POI_DIR 优先；缺省落 gitignored 的 tools/.poi_cache（与 import-port-poi.mjs 同源）
+const OUT = process.env.BEIBU_POI_DIR ?? path.join(import.meta.dirname, '..', '.poi_cache')
 fs.mkdirSync(OUT, { recursive: true })
 
 // 港口类目：type=port_pier 落 poi_facilities（T4.3 拍板：入库既有 poi 表，同构复用渲染与验证）

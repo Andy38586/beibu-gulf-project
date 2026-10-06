@@ -41,7 +41,7 @@ from flood_engine import compute_flood_mask  # noqa: E402
 from flood_engine import DEM_PATH as ENGINE_DEM_PATH  # noqa: E402
 
 # 2026-08-30 全链路重算口径：DEM 源复用 flood_engine 的多级回退解析
-# （FLOOD_DEM_PATH > workspace dem/ > Desktop 处理成果），与 online 服务同链同口径。
+# （FLOOD_DEM_PATH > workspace dem/），与 online 服务同链同口径。
 # 最终链 = ASTER 填洼版 + 海岸线矢量海掩膜（见 dem-pipeline/06-restore-cut-dem.ps1）：
 # ASTER 沿海低地真实但海面整 0 值，掩膜后海面干净；GLO-30 因沿海偏高 12~30m 弃用。
 DEM_SOURCE = ENGINE_DEM_PATH

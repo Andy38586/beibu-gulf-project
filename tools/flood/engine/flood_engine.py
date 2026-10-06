@@ -41,10 +41,9 @@ from scipy import ndimage
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
 # 输入：钦北防范围、填洼、UTM48N 裁切版（路线 B ① 的产物）
-# DEM 路径多级回退（2026-08-30）：workspace dem/ 副本会被本机清理进程删除
-# （原 169MB 版 8-27 被清理，复原版实测写入后分钟级再被删），故回退到 Desktop
-# 处理成果复原版；部署/CI 用 FLOOD_DEM_PATH 显式覆盖。复原命令见
-# tools/dem-pipeline/06-restore-cut-dem.ps1。
+# DEM 路径多级回退（2026-08-30）：workspace dem/ 副本曾被本机清理进程删除
+# （原 169MB 版 8-27 被清理）；部署/CI 与外部数据树用 FLOOD_DEM_PATH 显式覆盖。
+# 复原命令见 tools/dem-pipeline/06-restore-cut-dem.ps1。
 def _resolve_dem_path() -> Path:
     import os
 
@@ -74,13 +73,9 @@ def _resolve_dem_path() -> Path:
     )
     if repo.exists():
         return repo
-    # 2026-10-04 路径修订：原件随数据整理进了 06-数据备份 树（原"数据_\项目数据\..."已不存在），
-    # 复算钩子 = Test-Path 该路径（tools/dem-pipeline/README.md §三 有同一张表）。
-    desktop = Path(
-        r"C:/Users/JionHappY/Desktop/_北部湾项目/06-数据备份/数据_/项目数据/浸没分析"
-        r"/处理成果/filled_utm48n_cut.tif"
-    )
-    return desktop if desktop.exists() else repo
+    # 外置数据树不随仓库分发，数据未同步时回落仓库内路径，缺失由调用方报错，
+    # 不静默换源（外置覆盖口只有上面的 FLOOD_DEM_PATH）。
+    return repo
 
 
 DEM_PATH = _resolve_dem_path()

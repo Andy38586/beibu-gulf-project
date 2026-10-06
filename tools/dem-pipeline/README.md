@@ -1,6 +1,6 @@
 # tools/dem-pipeline — 海陆 DEM 管线（2026-10-04 修订）
 
-> **定位**：从**外置数据备份树**（`C:\Users\JionHappY\Desktop\_北部湾项目\06-数据备份\数据_\...`）
+> **定位**：从**作者外置数据备份树**（不随仓库分发；路径示例见 §三 表，环境变量可覆盖）
 > 里的原始/处理成果栅格，到仓库内**淹没演算 + 地形切片**所消费的数据，全链路的落点与复跑口径。
 > 2026-10-04 之前：链路里"海侧格网"一环**没有任何脚本**（`sea_custom.tif` 是一次性手工产物），
 > 且 06 脚本的 venv / 源 / 输出路径均已失效 ⇒ 干净检出复跑不出来（台账 z047 的
@@ -62,9 +62,15 @@ PowerShell 下调 python 一律加 `-X utf8`：脚本 stdout 含 "km²" 等字�
 | ---------------------------------------- | -------------------------------------------------------------------------------------------------------- | ----------------------------- |
 | SRTM15+V2.6.nc（6.5 GB，全球 15″）       | `…\06-数据备份\数据_\项目数据\海底DEM\`                                                                  | 09b 的源（缺则脚本报错停下）  |
 | ASTER 填洼版 `filled_CGCS2000_int16.tif` | `…\06-数据备份\数据_\项目数据\浸没分析\处理成果\`                                                        | 06 的源                       |
-| 海岸线 `beibu-coastline.geojson`         | `…\06-数据备份\数据_\项目数据\海岸线\`                                                                   | 06 的掩膜源                   |
+| 海岸线 `beibu-coastline.geojson`         | `…\06-数据备份\数据_\项目数据\海岸线\`（06 第 3 参可覆盖）                                               | 06 的掩膜源                   |
 | 中间件                                   | 仓库 `.local\dem-work\`、`.local\dem-sea-work\`（gitignored）                                            | 各脚本默认落点                |
 | 消费产物                                 | `backend/data/flood/dem\landsea_utm48n.tif`（淹没演算 + 地形重切共用）、`backend/data/flood\*.json(.gz)` | 服务读这里；`.tif` gitignored |
+
+> 干净检出复跑：`06-sea-mask.py` 的海岸线缺省读
+> `.local/data/coastline/beibu-coastline.geojson`（第 3 参覆盖）；`diag_datum.py`
+> 缺省复用 `flood_engine` 的 DEM 唯一解析点（第 1 参覆盖，外置覆盖口
+> `FLOOD_DEM_PATH`，见 `tools/flood/engine/README.md`）。请把数据放到缺省位置或用
+> 参数指向你自己的外置数据树。
 
 **待裁（不自行选边）**：外置树与 workspace 谁是"权威副本"——现行做法是"外置树存原始与
 处理成果、workspace 只放可再生的缓存"（z047 既有口径），但 `backend/data/flood/dem/` 同时

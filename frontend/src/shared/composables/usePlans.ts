@@ -53,9 +53,8 @@ export function usePlans(): UsePlansReturn {
         await handleAuthError(router)
         throw error
       }
-      if (import.meta.env.DEV) {
-        logger.error('[usePlans] getPlans failed:', error)
-      }
+      logger.error('[usePlans] getPlans failed:', error)
+
       throw error
     } finally {
       if (isLatest(signal)) loading.value = false
@@ -81,9 +80,8 @@ export function usePlans(): UsePlansReturn {
         await handleAuthError(router)
         throw error
       }
-      if (import.meta.env.DEV) {
-        logger.error('[usePlans] deletePlan failed:', error)
-      }
+      logger.error('[usePlans] deletePlan failed:', error)
+
       throw error
     } finally {
       deleting.value = false
@@ -115,9 +113,8 @@ export function usePlans(): UsePlansReturn {
         await handleAuthError(router)
         throw error
       }
-      if (import.meta.env.DEV) {
-        logger.error('[usePlans] updatePlan failed:', error)
-      }
+      logger.error('[usePlans] updatePlan failed:', error)
+
       throw error
     } finally {
       updating.value = false

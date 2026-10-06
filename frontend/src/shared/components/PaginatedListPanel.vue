@@ -161,9 +161,7 @@ async function toggleFavorite(item: ScoredXiaoqu) {
     showError(error, {
       fallback: already ? '取消收藏失败，请稍后重试' : '收藏失败，请稍后重试',
     })
-    if (import.meta.env.DEV) {
-      logger.error('[PaginatedListPanel] 收藏操作失败:', error)
-    }
+    logger.error('[PaginatedListPanel] 收藏操作失败:', error)
   }
 }
 

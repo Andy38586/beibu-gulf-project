@@ -81,9 +81,7 @@ app.config.errorHandler = (
   // 上报（z021）：未配置 VITE_SENTRY_DSN 时是 no-op
   captureError(err, { source: 'vue.errorHandler', info })
   // 开发环境显示详细错误，生产环境显示友好提示
-  if (import.meta.env.DEV) {
-    logger.error('错误详情:', { err, instance, info })
-  }
+  logger.error('错误详情:', { err, instance, info })
 }
 
 // 窗口级兜底——捕获未被 Vue errorHandler 覆盖的错误

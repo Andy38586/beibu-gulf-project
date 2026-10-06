@@ -49,6 +49,7 @@ export const GUARDS = [
   'layer-keys',
   'vue-list-keys',
   'host-object-cast',
+  'dev-gated-logs',
   'flyto-single-entry',
   'render-colors-single-source',
   'viewport-tier-single-source',

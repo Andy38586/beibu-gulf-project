@@ -1555,9 +1555,7 @@ export function addPolygonLayer(
         })
         entities.push(entity)
       } catch (e) {
-        if (import.meta.env.DEV) {
-          logger.warn('创建多边形实体失败:', e)
-        }
+        logger.warn('创建多边形实体失败:', e)
       }
     }
     if (geometryType === 'MultiPolygon') {
@@ -1699,9 +1697,7 @@ export async function addGeoJsonLayer(
     // 陈旧请求（已被更新的同 id 请求覆盖）失败不触发 onError，避免误报
     if (renderer._geoJsonTokens.get(id) !== token) return
     renderer._geoJsonTokens.delete(id)
-    if (import.meta.env.DEV) {
-      logger.error(`GeoJSON图层 ${id} 加载失败`, error)
-    }
+    logger.error(`GeoJSON图层 ${id} 加载失败`, error)
     ;(options.onError as ((msg: string) => void) | undefined)?.('GeoJSON数据加载失败')
   }
 }
@@ -1748,9 +1744,7 @@ export async function updateGeoJsonLayer(
   } catch (error: unknown) {
     if (renderer._geoJsonTokens.get(id) !== token) return
     renderer._geoJsonTokens.delete(id)
-    if (import.meta.env.DEV) {
-      logger.error(`GeoJSON图层 ${id} 增量更新失败`, error)
-    }
+    logger.error(`GeoJSON图层 ${id} 增量更新失败`, error)
     ;(options.onError as ((msg: string) => void) | undefined)?.('GeoJSON数据更新失败')
   }
 }
@@ -2285,9 +2279,8 @@ export async function addWaterSurface(
     return true
   } catch (e) {
     // 坐标无效或几何体构建失败时不中断调用方
-    if (import.meta.env.DEV) {
-      logger.warn(`[CesiumRenderer] 水面图层 ${id} 创建失败:`, e)
-    }
+    logger.warn(`[CesiumRenderer] 水面图层 ${id} 创建失败:`, e)
+
     return false
   }
 }
@@ -2304,9 +2297,8 @@ export async function addWaterSurface(
 export function updateWaterLevel(renderer: CesiumRenderer, id: string, newHeight: number): boolean {
   const waterSurface: WaterSurfaceEntry | undefined = renderer._waterSurfaces?.get(id)
   if (!waterSurface) {
-    if (import.meta.env.DEV) {
-      logger.warn(`水面图层 ${id} 不存在，无法更新水位`)
-    }
+    logger.warn(`水面图层 ${id} 不存在，无法更新水位`)
+
     return false
   }
 
@@ -2334,9 +2326,8 @@ export function updateWaterLevel(renderer: CesiumRenderer, id: string, newHeight
     return true
   } catch (e) {
     // 构建失败保持旧水位（不闪、不崩），仅日志
-    if (import.meta.env.DEV) {
-      logger.warn(`[CesiumRenderer] 水面 ${id} 水位更新失败（保持旧水位）:`, e)
-    }
+    logger.warn(`[CesiumRenderer] 水面 ${id} 水位更新失败（保持旧水位）:`, e)
+
     return false
   }
 }

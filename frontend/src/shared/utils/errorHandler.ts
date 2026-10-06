@@ -45,9 +45,7 @@ export function showError(
     message = sanitizeMessage(String((error as { message: unknown }).message), fallback)
   }
 
-  if (import.meta.env.DEV) {
-    logger.error('[ErrorHandler]', error)
-  }
+  logger.error('[ErrorHandler]', error)
 
   if (!silent) {
     if (retry) {
@@ -132,9 +130,8 @@ export function describeError(err: unknown, fallback = '操作失败，请稍后
 
 /** 统一警告提示（非阻塞） */
 export function showWarning(message: string): void {
-  if (import.meta.env.DEV) {
-    logger.warn('[ErrorHandler:Warning]', message)
-  }
+  logger.warn('[ErrorHandler:Warning]', message)
+
   showToast(message, 'warning')
 }
 

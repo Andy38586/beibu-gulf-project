@@ -156,9 +156,8 @@ function waitForContainerVisible(container: HTMLElement | null): Promise<void> {
         _pendingRafIds.add(currentRafId)
       } else {
         _pendingRafIds.delete(currentRafId)
-        if (import.meta.env.DEV) {
-          logger.warn('waitForContainerVisible: 容器尺寸检查超时，继续执行')
-        }
+        logger.warn('waitForContainerVisible: 容器尺寸检查超时，继续执行')
+
         resolve()
       }
     }
@@ -192,9 +191,8 @@ async function loadData() {
       portsResult.reason instanceof Error
         ? portsResult.reason
         : new Error(String(portsResult.reason))
-    if (import.meta.env.DEV) {
-      logger.error('港口数据加载失败:', err)
-    }
+    logger.error('港口数据加载失败:', err)
+
     loadError.value = err.message.includes('超时') ? err.message : '港口图层加载失败，请刷新重试'
   }
 
@@ -205,9 +203,8 @@ async function loadData() {
       boundaryResult.reason instanceof Error
         ? boundaryResult.reason
         : new Error(String(boundaryResult.reason))
-    if (import.meta.env.DEV) {
-      logger.error('边界数据加载失败:', err)
-    }
+    logger.error('边界数据加载失败:', err)
+
     loadError.value = err.message.includes('超时') ? err.message : '行政区划图层加载失败'
   }
 
@@ -237,9 +234,8 @@ function reapplyBusinessLayers(renderer: MapRenderer): void {
 /** 初始化指定类型的渲染器（首次创建或复用） */
 async function initRenderer(type: '2d' | '3d', container: HTMLElement | null) {
   if (!container) {
-    if (import.meta.env.DEV) {
-      logger.error(`initRenderer: ${type}容器为空`)
-    }
+    logger.error(`initRenderer: ${type}容器为空`)
+
     return
   }
 
@@ -298,9 +294,8 @@ async function initRenderer(type: '2d' | '3d', container: HTMLElement | null) {
     }
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error))
-    if (import.meta.env.DEV) {
-      logger.error(`Renderer ${type} 初始化失败:`, err)
-    }
+    logger.error(`Renderer ${type} 初始化失败:`, err)
+
     loadError.value = err.message || '地图初始化失败'
     emit('error', err)
     // 上抛给 switchMapType 统一回滚（mapType + currentRenderer）；吞错会导致
@@ -564,9 +559,8 @@ async function switchMapType(newType: '2d' | '3d') {
     emit('type-change', newType)
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error))
-    if (import.meta.env.DEV) {
-      logger.error(`切换到 ${newType} 失败:`, err)
-    }
+    logger.error(`切换到 ${newType} 失败:`, err)
+
     loadError.value = err.message || '地图切换失败'
 
     // 初始化失败时回滚 currentRenderer 与 mapStore.mapType（含 store 悬空引用），
@@ -740,7 +734,7 @@ onUnmounted(() => {
           r.destroy()
         }
       } catch (e) {
-        if (import.meta.env.DEV) logger.warn('[UnifiedMap] 渲染器卸载失败:', e)
+        logger.warn('[UnifiedMap] 渲染器卸载失败:', e)
       }
     }
   })

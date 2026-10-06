@@ -7,10 +7,8 @@ const hasError = ref(false)
 
 onErrorCaptured((err) => {
   // 错误上报（可集成 Sentry 等服务）
-  if (import.meta.env.DEV) {
-    logger.error('[ErrorBoundary]', err)
-    logger.error('错误堆栈:', err.stack)
-  }
+  logger.error('[ErrorBoundary]', err)
+  logger.error('错误堆栈:', err.stack)
 
   // 降级 UI 只展示友好文案，技术细节仅 DEV 记录（生产不暴露内部 message）
   hasError.value = true

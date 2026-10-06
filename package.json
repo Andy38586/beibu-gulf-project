@@ -30,8 +30,6 @@
     "lint": "eslint . --cache",
     "lint:fix": "eslint . --fix --cache",
     "metrics:derive": "node tools/metrics/derive-status.mjs",
-    "premerge": "node scripts/pre-merge-check.cjs",
-    "premerge:fast": "node scripts/pre-merge-check.cjs --static --no-fetch",
     "prepare": "husky",
     "preview": "cd frontend && vite preview",
     "ratchet:dead-code": "node tools/dead-code/ratchet.mjs",

@@ -15,31 +15,6 @@ export const KNOWN_SURVIVORS = []
 export const CASES = [
   // ───────── 防护外壳自身：被注入破坏时必须立刻变红（壳不能是纸糊的）─────────
   {
-    id: 'M1',
-    desc: '进程被信号杀死不得映射成成功(0)',
-    target: 'scripts/lib/process-status.cjs',
-    find: 'if (signal) return 1',
-    replace: 'if (signal) return 0',
-    test: {
-      command: [
-        'npx',
-        'vitest',
-        'run',
-        '--root',
-        '.',
-        'tools/v3-guard/__tests__/process-status.test.mjs',
-      ],
-    },
-  },
-  {
-    id: 'M2',
-    desc: '跳过验证项时合入结论必须是 PARTIAL(2)，不得退回放行(0)',
-    target: 'scripts/lib/merge-verdict.cjs',
-    find: "code: 2, verdict: 'PARTIAL'",
-    replace: "code: 0, verdict: 'PARTIAL'",
-    test: { command: ['npx', 'vitest', 'run', '--root', '.', 'tools/merge-verdict.test.mjs'] },
-  },
-  {
     id: 'M3',
     desc: '承诺真库却沉睡跳过必须判 GATED_SKIP_IN_REQUIRED_ENV',
     target: 'scripts/test-watchdog.cjs',

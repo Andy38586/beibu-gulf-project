@@ -186,6 +186,21 @@ export default defineConfig([
   },
 
   {
+    // E2E（z019）：独立 tsconfig——不并入 app 工程（Playwright 类型不进生产构建面），
+    // 但 eslint 的类型感知解析与 typecheck 都要覆盖它（此前漏配即 "not found in project"）。
+    files: ['frontend/e2e/**/*.ts', 'frontend/playwright.config.ts'],
+    languageOptions: {
+      parser: tsParser,
+      parserOptions: {
+        ecmaVersion: 2022,
+        sourceType: 'module',
+        tsconfigRootDir: fileURLToPath(new URL('./frontend', import.meta.url)),
+        project: './tsconfig.e2e.json',
+      },
+    },
+  },
+
+  {
     // backend 是独立 TS 工程（自带 strict tsconfig），parserOptions 必须指向它自身
     // 的 tsconfig——沿用上面的 frontend 块会让 nest 文件报 "TSConfig does not include
     // this file"（z127 同类机理）。本块须置于 frontend 解析块之后才能覆盖同键。

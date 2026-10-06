@@ -281,6 +281,42 @@ jobs:
       - name: Run tools tests
         run: npm run test:tools
 
+  # ------------------------------------------------------------------
+  # E2E（z019 关键路径冒烟 + z037 首屏就绪探针，A-6：直链 ≤5s）
+  #
+  # 只起前端 dev server（webServer 自管 5199）；后端域请求由用例内拦截为 404
+  # ⇒ 不需要库/后端容器，CI 稳定。失败时上传 trace/截图（产物落 .local，不入库）。
+  e2e:
+    runs-on: ubuntu-latest
+    needs: [changes]
+    if: needs.changes.outputs.run-frontend == 'true'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers (chromium)
+        run: npx playwright install --with-deps chromium
+
+      - name: Run E2E (smoke + first-paint)
+        run: npm run e2e
+
+      - name: Upload E2E traces (failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-traces
+          path: .local/tmp-w3/playwright-results
+          if-no-files-found: ignore
+
   # ── 提交规范门禁（2026-09-18 CI 审计 D-02）────────────────────────────────
   # 「fix:/refactor: 改动实现必须附测试」（03 §1.6 提交约定）。
   #
@@ -293,6 +329,7 @@ jobs:
   #
   # 独立 job 的代价：多一个 runner 启动（约 5-10s），收益是规则对**任意提交**都执行。
   # 本 job 不受 changes 门控、不需要依赖安装，纯 git 操作。
+  # ------------------------------------------------------------------
   commit-discipline:
     runs-on: ubuntu-latest
     steps:

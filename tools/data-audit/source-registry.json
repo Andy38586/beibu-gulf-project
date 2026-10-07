@@ -39,18 +39,14 @@
       "note": "⚠️ 入库件停在 2026-09-11，其内嵌 model_info 副本早于 09-26 的模型升级（L6 复算发现，待用户裁决是否刷新）"
     },
     {
-      "id": "forecast-synthetic-and-index",
-      "title": "预测域·合成指标与索引",
-      "paths": [
-        "backend/data/forecast/berth.json",
-        "backend/data/forecast/traffic.json",
-        "backend/data/forecast/index.json"
-      ],
-      "source": "本项目合成/索引（tools/forecast/README.md 明示 berth/traffic 为合成指标，不走模型）",
+      "id": "forecast-index-meta",
+      "title": "预测域·指标索引元信息",
+      "paths": ["backend/data/forecast/index.json"],
+      "source": "本项目维护（指标清单与三港权威锚点；合成指标 berth/traffic 及其数据文件已于 2026-10-07 清理）",
       "license": "MIT（随仓库）",
-      "fetchedAt": "随仓库提交（合成件，非抓取）",
-      "coverage": "泊位/交通合成指标 + 指标索引元信息",
-      "quality": "git grep -n \"berth|traffic\" -- tools/forecast/README.md（合成口径有明文）",
+      "fetchedAt": "随仓库提交（元信息件，非抓取）",
+      "coverage": "指标索引 + metadata.ports 权威锚点（与 frontend/public/data/ports.json 同源）",
+      "quality": "backend/test/forecast.anchors.spec.ts（index metadata.ports 与权威源逐位一致）",
       "provenanceStatus": "confirmed"
     },
     {

@@ -32,8 +32,6 @@ const TARGET_FILES = [
   'site-selection/qz_mall_and_supermarket.json',
   'site-selection/qz_park.json',
   'forecast/throughput.json',
-  'forecast/traffic.json',
-  'forecast/berth.json',
   'forecast/cargo.json',
   'forecast/container.json',
   'forecast/throughput_model.json',

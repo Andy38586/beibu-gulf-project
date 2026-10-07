@@ -24,7 +24,7 @@ import {
 //（固定基线 scenarioLevel 1.0，缺失降级引擎）；引擎结果缓存 TTL+LRU 上限防枚举放大
 
 // 指标白名单：拒绝路径遍历（..）与非法指标名——路由公开不代表接受任意输入。
-// berth/traffic 为纯合成指标，已下架消费（源文件保留标 _provenance，2026-09-08 数据平面大换代）
+// berth/traffic 为纯合成指标：2026-09-08 下架消费，2026-10-07 删除数据文件（防 mock 坐标回流）
 const ALLOWED_INDICATORS = new Set(['cargo', 'container', 'activity'])
 
 // 文件自带完整 forecast 直接透传的指标（实为真数据派生产物，非合成）：

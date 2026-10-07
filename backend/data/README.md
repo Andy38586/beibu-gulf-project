@@ -22,9 +22,7 @@ data/
 │   ├── index.json             #   指标索引/元信息
 │   ├── cargo.json             #   货物吞吐量历史 + spatial（页面历史数据源）
 │   ├── container.json         #   集装箱吞吐量历史 + spatial
-│   ├── activity.json          #   港口活动（合成示意数据，文件自带 historical+forecast）
-│   ├── berth.json             #   泊位（合成示意数据）
-│   ├── traffic.json           #   交通（合成示意数据）
+│   ├── activity.json          #   港口吞吐活跃度指数（真数据派生：cargo 官方吞吐量基期归一，非合成）
 │   ├── container_model.json   #   集装箱模型产物
 │   └── throughput_model.json  #   吞吐量模型产物（cargo 2026-2035 预测 + 回测 MAPE）
 └── flood/                     # 洪涝预计算数据 + DEM 栅格（modules/flood 读取）
@@ -74,7 +72,7 @@ data/
 
 ### 静态数据（Nest 读模块）
 
-- `modules/forecast` → `data/forecast/*.json`：经 `infra/files/data-files.service.ts` 读取（index/cargo/container/activity/berth/traffic + `*_model.json`），公开只读。
+- `modules/forecast` → `data/forecast/*.json`：经 `infra/files/data-files.service.ts` 读取（index/cargo/container/activity + `*_model.json`），公开只读。
 - `modules/flood` → `data/flood/*.json`：facilityPoints / floodStatistics / water-area / waterLevel / terrainProfile / flood_levels.json.gz，纯计算评估输入。
 - ~~`siteAnalysisService` → `data/site-selection/qz_*.json` + `xiaoqu.json`~~：**已随 `db25009a` 整体移除**；现役选址 POI/评分在 PostGIS（`site-suitability` 域）。
 - ~~`ports.json`~~ → 2026-08-29 回迁前端 `frontend/public/data/ports.json`（纯透传端点已删，港口与 boundary 同为前端静态参考数据）。

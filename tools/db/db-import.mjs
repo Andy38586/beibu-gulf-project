@@ -331,7 +331,7 @@ END $$;
 
   // ===== data_archive（静态真数据原样存档；假数据/mock 不入库；ports 已有独立表且源在前端静态，不再存档）=====
   const archiveFiles = [
-    ...['index', 'cargo', 'container', 'container_model', 'throughput_model', 'traffic', 'berth']
+    ...['index', 'cargo', 'container', 'container_model', 'throughput_model']
       .filter((n) => fs.existsSync(path.join(dataDir, `forecast/${n}.json`)))
       .map((n) => `forecast/${n}.json`),
     ...CITIES.flatMap(([city]) =>

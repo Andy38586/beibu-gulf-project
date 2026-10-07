@@ -11,8 +11,8 @@
  *      唯一权威源）中，
  *      每个指标文件、每个港口的 spatial 锚点，距最近权威港口 ≤ 2km；
  *   2. index.json 的 metadata.ports（锚点原始来源，曾被下游复制）同样在容差内；
- *   3. 已下架指标（berth/traffic）未被前端重新消费，且文件保留「未对齐/已废弃」
- *      来源标注——防止废弃坐标被当成真值再次复制（同根因二次污染）。
+ *   3. 已下架指标（berth/traffic，合成数据文件 2026-10-07 已删除）未被前端重新消费；
+ *      若文件被重新添加，须带「未对齐/已废弃」来源标注——防止废弃坐标被当成真值复制。
  *
  * 权威坐标：frontend/public/data/ports.json（与库内 ports 表、热力锚点同源）。
  *
@@ -26,9 +26,9 @@ import { fileURLToPath } from 'node:url'
 export const ANCHOR_TOLERANCE_KM = 2
 export const EARTH_RADIUS_KM = 6371.0088
 
-/** 已下架指标（源文件保留、坐标有意不对齐）——不得被前端重新消费 */
+/** 已下架指标（合成数据文件已删除）——不得被前端重新消费；若重加，须带来源标注 */
 export const RETIRED_INDICATORS = ['berth', 'traffic']
-/** 下架文件必须保留的来源标注关键词（任一命中即可） */
+/** 下架指标文件被重新添加时必须带有的来源标注关键词（任一命中即可） */
 export const RETIRED_MARKERS = ['已废弃', '未对齐']
 
 const PORTS_FILE = 'frontend/public/data/ports.json'
@@ -201,7 +201,7 @@ export function runAnchorCheck(root) {
     problems.push(`${FORECAST_DIR}/index.json：metadata.ports 缺失（锚点原始来源须在册）`)
   }
 
-  // 5) 已下架指标：不得被重新消费，且须保留来源标注
+  // 5) 已下架指标：不得被重新消费；文件被重新添加时须带来源标注
   for (const retired of RETIRED_INDICATORS) {
     if ((indicators ?? []).includes(retired)) {
       problems.push(`${retired}：已下架指标重新进入前端消费清单（INDICATORS）`)
@@ -210,7 +210,7 @@ export function runAnchorCheck(root) {
     try {
       data = readJson(path.join(FORECAST_DIR, `${retired}.json`))
     } catch {
-      continue // 源文件已删除属正常演进，不报
+      continue // 源文件已删除（2026-10-07 按数据清理计划删除），不报
     }
     const marker = String(data?._coordinateProvenance ?? '')
     if (!RETIRED_MARKERS.some((k) => marker.includes(k))) {

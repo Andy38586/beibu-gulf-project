@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 
 import { describe, expect, it } from 'vitest'
@@ -13,8 +13,8 @@ import { describe, expect, it } from 'vitest'
  * 同一个港口三套坐标，且在用的 cargo/container 热力点落在市区而非港口。
  * 本测试把「所有消费中的锚点必须等于权威源」固化为断言，防止将来又被复制歪。
  *
- * 注意：berth / traffic 前端已下架（无消费者），按设计**保留** mock 坐标，
- * 故不在断言范围内；二者的 _coordinateProvenance 已标注「已废弃指标，坐标未对齐」。
+ * 注意：berth / traffic 前端已下架，其合成数据文件已于 2026-10-07 删除；
+ * 下方保留一条「文件不得回流」断言，防止 mock 坐标被再度当回真值复制。
  */
 
 const ROOT = path.resolve(__dirname, '../..')
@@ -77,10 +77,14 @@ describe('热力锚点一致性（防三轨回归）', () => {
     }
   })
 
-  it('已下架的 berth / traffic 保留 mock 坐标但溯源文案须声明「已废弃」', () => {
+  it('已下架的 berth / traffic 数据文件已删除（mock 坐标不得回流）', () => {
+    // 阳性对照：同目录在用指标存在 ⇒ 本判据不是「路径写错恒不命中」
+    expect(existsSync(path.join(ROOT, 'backend/data/forecast/cargo.json'))).toBe(true)
     for (const name of ['berth', 'traffic']) {
-      const data = readJson(`backend/data/forecast/${name}.json`)
-      expect(data._coordinateProvenance, `${name}.json 缺少废弃标注`).toContain('已废弃指标')
+      expect(
+        existsSync(path.join(ROOT, `backend/data/forecast/${name}.json`)),
+        `${name}.json 重新出现：若确要启用，先对齐权威锚点并在 anchor-check 与用例中同步登记`
+      ).toBe(false)
     }
   })
 

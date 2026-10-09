@@ -133,7 +133,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
+        # doc-map-check 的 CONTRACT-LOG 判据用 `git log -1 --format=%cs -- <path>` 取
+        # "逐文件最后提交日"；默认浅克隆（depth=1）会把每个文件的该日期误报成 HEAD 提交日 ⇒ 契约
+        # 「变更记录早于最后提交日」假红（2026-10-09 实测 4 条，static-checks 在 Run v3
+        # guard 早崩）。同 data-freshness 守卫 job 的修法：本 job 必须全量历史。
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         # engines 要求 node >= 22.18.0，CI 版本必须与之对齐

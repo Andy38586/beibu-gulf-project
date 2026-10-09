@@ -1580,3 +1580,69 @@ B7 删该常量后改读交付包 `backend/static/qinzhou-port/tiles/catalog.jso
 **失效条件**：① 交付包/07c 换版改变块划分或 low 壳粒度 ⇒ 重跑两钩子并更新本表；② Cesium 改
 SSE/traversal 语义 ⇒「形态=块数」口径重审；③ 用户改 K ⇒ 切换带整体平移，字节表仍有效但边界须
 重测；④ 交付包目录改名使 `*/tiles/` 过滤失配 ⇒ `lod-bytes-join.cjs` 以 missing/多副本点名变红。
+
+### 8.30 【已落地】3D 真地形图层化（默认关、与 3dtiles 互斥）+ 马道精确校准 · 2026-10-09/10
+
+**用户诉求**：① 挂载时自动开启的 3D 真地形与 3dtiles 不能共存，需把地形收进图层管理、默认关、
+二者互斥；② 马道 3dtiles 位置/朝向又歪了，用 Cesium 方法微调让模型覆盖底图施工区。
+
+**一、3D 真地形图层化（提交 `b45d3747`，8 文件）**
+
+- `LayerType` 加 `'terrain'`；renderer 加正式 `TerrainToggleCapability.setTerrainEnabled`；
+  地形占位改真适配器（engines:[cesium]）；`UnifiedMap` 注册「3D 真地形」默认关。
+- `CesiumRenderer._terrainEnabled` 默认 `false`：挂载只预加载 provider、不应用，首屏不再自动上地形。
+- 互斥：`BusinessLayerManager` 加模块级 `EXCLUSIVE_LAYER_TYPE_GROUPS`（一组
+  `new Set(['terrain','3dtiles'])`）+ 纯函数 `findExclusiveGroup`；`setVisible` 开任一图层前先关
+  同组其他图层。
+- 坑：图层 key 与 layerType 同名 `'terrain'` 会被 layer-keys 守卫误判；key 改 `'real-terrain'`
+  （`LAYER_KEYS.terrain='real-terrain'`，layerType 仍 `'terrain'`）。
+- 失效条件：若希望改为「仅提示、手动关」需调整 BLM；若新增第三种需互斥的图层类型，加入同组集合。
+
+**二、马道枢纽精确校准（固化数据侧 child transform，非前端纠偏）**
+
+- 校准对象 `pinglu-madao`（07 交付版；BIM 版已废弃删除，见 `beibu3dTiles.ts` 废弃节）。
+- 落点在数据侧：`pingluTiles.ts` 明确「前端只挂载显隐，不做坐标纠偏」，故用
+  `tools/3dtiles-build/reanchor-hubs.mjs` 把旋转+平移合进 `tileset.json` 马道 child transform。
+- 工具新增模式②：`--angle + --target-lon/--target-lat/--target-h`，与 Cesium ENU 校正等价——
+  在 P0 处建 eastNorthUp，先绕上轴转 angle、再把 P0 移到 target，合回 child
+  （`NEW_CHILD = ROOT^-1·M·ROOT·OLD_CHILD`，P0=`root·child·(180,162.5,0)`）。
+- **最终参数（已固化）**：`angle=17`、`target=108.940167,22.447154`、`h=20`。
+  固化命令：
+  `node tools/3dtiles-build/reanchor-hubs.mjs --hub madao --angle 17 --target-lon 108.940167`
+  `--target-lat 22.447154 --target-h 20 --apply`
+
+**三、判据（产物级，不是目测拍的）**
+
+- **朝向**：施工影像中央导堤/引航道东侧 16 条竖直边缘实测世界正南（az≈90.14/180，
+  `levy_track`/`fit_embankment`）；模型未旋转 +X 为 az=197.84（南偏西 17.8）⇒ 正角 `angle=17`，
+  旋转后 +X az=180.8（正南）、+Y az=90.8（正东）。核心区 45°/135° 是蝴蝶翅膀省水池径向条，
+  非闸室方向；白长条是临时栈桥（非导航墙）。
+- **位置（方案 B，核心长墙优先）**：主体底板东西边缘 px=823/904、南北 py=1105/1375，与真实
+  两条最长导航墙 x=826/902 误差仅 3~5 m（`z3_edge_overlay`）。方案 A（px=592~673）偏西约
+  230 px（≈250 m），否决。
+- **高程**：解析 CTB heightmap（GeographicTilingScheme，gzip 后 65×65 uint16、单位 0.01m）；
+  h=20 时模型墙顶 50.4~52.5m，与真实船闸边坡平台 50.3~52.1m 误差 <1m。
+- **南段（模型固有限制，接受）**：真实下游引航道向南向西弯曲（核心 x≈860→南端 x≈500），
+  模型 z6 为直线，南段远端偏东约 200~300px；同一刚体不可兼得，采用方案 B（核心/北段优先）。
+- **干净挂载**：清浏览器缓存（后端 static 对 `/static` 发 `max-age=604800,immutable`，普通 reload
+  不重新请求）后重新加载，data URI 马道 child transform[0]=-0.013965、P0 自动落 target，
+  模型默认（modelMatrix=identity）即竖直覆盖施工区，无需运行时 apply2。
+
+**四、复算钩子**
+
+```bash
+# 校准数学（含 P0 落点、+X/+Y 世界方位、与固化值一致）
+npx vitest run --root . tools/3dtiles-build/__tests__/reanchor.test.mjs
+# 期望: 9 passed；EXIT=0
+# 从固化 tileset 直接投影 z3（不叠加 M），核心边缘应紧贴真实长墙 826/902
+python .local/verify_fixed.py
+# 期望: 生成 verify_fixed.png，z3 主体边缘 px≈823/904 与 826/902 差 <6
+```
+
+**证据件（本机 gitignore）**：`.local/3d-review/reanchor-hubs-log.json`、`.local/verify_fixed.png`、
+`z3_edge_overlay.png`、`z3_walltop3.py`（墙顶高程）、`modelM_export.json`。
+
+**失效条件**：① `pinglu/tiles/tileset.json` 重新交付覆盖马道 child transform ⇒ 重跑固化命令；
+② 模型若重新含旋转后的不同初始朝向 ⇒ 重新测定 angle（方法：模型 +X 世界 az 与正南之差）；
+③ 工具在已固化文件上重复 `--apply` 会叠加旋转（P0 幂等落 target 但模型其余部分错），固化只跑一次；
+④ 企石、青年枢纽尚未做朝向校准（旧记录仅平移量 dE=-87/-76，是否需旋转未确认），另案。

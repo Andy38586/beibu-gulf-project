@@ -1,103 +1,291 @@
 #!/usr/bin/env node
 /**
- * reanchor-hubs.mjs — 按**施工影像**实测的偏移，平移交付包里三枢纽的落位。
+ * reanchor-hubs.mjs — 按**施工影像**实测，校准交付包里三枢纽的落位（平移 + 朝向）。
  *
  * ## 为什么是改 child.transform
  * 交付包 pinglu/tiles/tileset.json 的 17 个 child **各自带 transform**（root 只是外包络），
- * 所以按枢纽整体平移 = 改该枢纽 depth-1 child 的 transform 平移量（ENU 米），子孙自动跟随。
+ * 所以按枢纽整体校准 = 改该枢纽 depth-1 child 的 transform（在 ENU 米系），子孙自动跟随。
+ *
+ * ## 两种模式
+ * ① 纯平移（旧）：--dE/--dN/--dH，直接叠加到 child transform 平移量。
+ * ② 朝向 + 平移（新）：--angle <度> + --target-lon/--target-lat/--target-h。
+ *    与 Cesium 的 ENU 校正等价：在 P0 处建 eastNorthUp，先绕上轴转 angle，再把 P0 移到
+ *    target，最后合回 child transform（P0 = root·child·(180,162.5,0)）。
  *
  * ## 判据从哪来（不是我拍的）
- * .local/3d-review/align-hub3.py：在运河带 ±120 m 走廊内，取「影像水面」与「枢纽模型水面」
- * 逐行重心之差，中位滤波后取中位数。该脚本自带阳性对照（人为平移已知量必须复原，实测复原 0.0 px）。
- * 2026-10-03 实测（模型-影像，负=模型在西侧）：马道 -96 m / 企石 -87 m / 青年 -76 m；
- * MAD 分别 ±51/±39/±70 m —— 方向与量级可信，**精度只到十米级**，故按 5 m 取整。
+ * 2026-10-09 马道：施工影像中央导堤/建成船闸长墙实测朝向正南（az=180），模型未旋转
+ * +X 为 az=197.8 ⇒ angle=17；船闸长墙（x=826/902）与高程（墙顶对齐边坡 51.5m）定
+ * target=108.940167,22.447154、h=20。
  *
  * ## 用法
- *   node tools/3dtiles-build/reanchor-hubs.mjs --hub madao --dE 95 --dN 0
- *   node tools/3dtiles-build/reanchor-hubs.mjs --hub madao --dE 95 --dN 0 --apply
- * 未给 --apply 时只打印将要做的改动，不落盘。
+ *   node tools/3dtiles-build/reanchor-hubs.mjs --hub madao --angle 17 \
+ *     --target-lon 108.940167 --target-lat 22.447154 --target-h 20
+ *   加 --apply 才落盘，否则只打印。
  */
 import fs from 'node:fs'
 import path from 'node:path'
+import { pathToFileURL } from 'node:url'
 
 const TILESET = 'backend/static/pinglu/tiles/tileset.json'
 const LEDGER = '.local/3d-review/reanchor-hubs-log.json'
-const HUBS = ['madao', 'qishi', 'qingnian']
+export const HUBS = ['madao', 'qishi', 'qingnian']
+/** P0 在 child 坐标系的固定局部点（与浏览器 init_benchmark 一致） */
+export const P0_LOCAL = [180, 162.5, 0]
+const A = 6378137.0
+const F = 1 / 298.257223563
+const E2 = F * (2 - F)
+
+// ---- 4x4 矩阵（列主序 16 数组 <-> 数学矩阵）----
+export function toMath(a) {
+  // Cesium 列主序 -> math：M[row][col] = a[col*4+row]
+  const M = Array.from({ length: 4 }, () => [0, 0, 0, 0])
+  for (let c = 0; c < 4; c++) for (let r = 0; r < 4; r++) M[r][c] = a[c * 4 + r]
+  return M
+}
+export function toCol(M) {
+  const a = new Array(16)
+  for (let c = 0; c < 4; c++) for (let r = 0; r < 4; r++) a[c * 4 + r] = M[r][c]
+  return a
+}
+export function mul(A, B) {
+  const R = Array.from({ length: 4 }, () => [0, 0, 0, 0])
+  for (let r = 0; r < 4; r++)
+    for (let c = 0; c < 4; c++) {
+      let s = 0
+      for (let k = 0; k < 4; k++) s += A[r][k] * B[k][c]
+      R[r][c] = s
+    }
+  return R
+}
+export function mulPoint(M, p) {
+  const out = [0, 0, 0, 0]
+  for (let r = 0; r < 4; r++) {
+    let s = 0
+    for (let k = 0; k < 4; k++) s += M[r][k] * p[k]
+    out[r] = s
+  }
+  return out
+}
+export function identity() {
+  return [
+    [1, 0, 0, 0],
+    [0, 1, 0, 0],
+    [0, 0, 1, 0],
+    [0, 0, 0, 1],
+  ]
+}
+export function inv(A) {
+  // 高斯-若尔当消元（含部分选主与行交换）
+  const M = A.map((r) => r.slice())
+  const R = identity()
+  for (let c = 0; c < 4; c++) {
+    let p = c
+    for (let r = c + 1; r < 4; r++) if (Math.abs(M[r][c]) > Math.abs(M[p][c])) p = r
+    if (Math.abs(M[p][c]) < 1e-12) throw new Error('奇异矩阵')
+    if (p !== c) {
+      ;[M[c], M[p]] = [M[p], M[c]]
+      ;[R[c], R[p]] = [R[p], R[c]]
+    }
+    const d = M[c][c]
+    for (let k = 0; k < 4; k++) {
+      M[c][k] /= d
+      R[c][k] /= d
+    }
+    for (let r = 0; r < 4; r++) {
+      if (r === c) continue
+      const f = M[r][c]
+      for (let k = 0; k < 4; k++) {
+        M[r][k] -= f * M[c][k]
+        R[r][k] -= f * R[c][k]
+      }
+    }
+  }
+  return R
+}
+export function geocentric(lon, lat, h) {
+  const lo = (lon * Math.PI) / 180
+  const la = (lat * Math.PI) / 180
+  const N = A / Math.sqrt(1 - E2 * Math.sin(la) ** 2)
+  return [
+    (N + h) * Math.cos(la) * Math.cos(lo),
+    (N + h) * Math.cos(la) * Math.sin(lo),
+    (N * (1 - E2) + h) * Math.sin(la),
+  ]
+}
+export function ecefToLlh(p) {
+  const [x, y, z] = p
+  const lon = Math.atan2(y, x)
+  const p2 = Math.hypot(x, y)
+  let lat = Math.atan2(z, p2 * (1 - E2))
+  let h = 0
+  for (let i = 0; i < 8; i++) {
+    const N = A / Math.sqrt(1 - E2 * Math.sin(lat) ** 2)
+    h = p2 / Math.cos(lat) - N
+    lat = Math.atan2(z, p2 * (1 - (E2 * N) / (N + h)))
+  }
+  return [(lon * 180) / Math.PI, (lat * 180) / Math.PI, h]
+}
+export function enuFrame(center) {
+  const [lon, lat] = ecefToLlh(center)
+  const lo = (lon * Math.PI) / 180
+  const la = (lat * Math.PI) / 180
+  const so = Math.sin(lo)
+  const co = Math.cos(lo)
+  const sl = Math.sin(la)
+  const cl = Math.cos(la)
+  const M = identity()
+  M[0][0] = -so
+  M[1][0] = co
+  M[2][0] = 0
+  M[0][1] = -sl * co
+  M[1][1] = -sl * so
+  M[2][1] = cl
+  M[0][2] = cl * co
+  M[1][2] = cl * so
+  M[2][2] = sl
+  M[0][3] = center[0]
+  M[1][3] = center[1]
+  M[2][3] = center[2]
+  return M
+}
+
+/**
+ * 计算校准后的 child 数学矩阵。
+ * @param {number[][]} ROOT root 数学矩阵
+ * @param {number[][]} OLD  当前 child 数学矩阵
+ * @param {{angle?:number,targetLon?:number,targetLat?:number,targetH?:number,
+ *          dE?:number,dN?:number,dH?:number}} spec
+ */
+export function computeNew(ROOT, OLD, spec) {
+  const {
+    angle = null,
+    targetLon = null,
+    targetLat = null,
+    targetH = 0,
+    dE = 0,
+    dN = 0,
+    dH = 0,
+  } = spec
+  if (angle !== null) {
+    // P0 = ROOT·OLD·P0_LOCAL
+    const P0ecef = mulPoint(mul(ROOT, OLD), [...P0_LOCAL, 1]).slice(0, 3)
+    const enu = enuFrame(P0ecef)
+    const rad = (Number(angle) * Math.PI) / 180
+    const Rz = identity()
+    Rz[0][0] = Math.cos(rad)
+    Rz[0][1] = -Math.sin(rad)
+    Rz[1][0] = Math.sin(rad)
+    Rz[1][1] = Math.cos(rad)
+    let M
+    if (targetLon !== null && targetLat !== null) {
+      // localM = Rz + 平移到 target（先转再平移）
+      const tgt = geocentric(Number(targetLon), Number(targetLat), targetH)
+      const tgtLocal = mulPoint(inv(enu), [...tgt, 1]).slice(0, 3)
+      const localM = identity()
+      localM[0][0] = Rz[0][0]
+      localM[0][1] = Rz[0][1]
+      localM[1][0] = Rz[1][0]
+      localM[1][1] = Rz[1][1]
+      localM[0][3] = tgtLocal[0]
+      localM[1][3] = tgtLocal[1]
+      localM[2][3] = tgtLocal[2]
+      M = mul(mul(enu, localM), inv(enu))
+    } else {
+      M = mul(mul(enu, Rz), inv(enu))
+    }
+    return mul(mul(inv(ROOT), mul(M, ROOT)), OLD)
+  }
+  // 纯平移（child 坐标是 root 系）
+  const NEW = OLD.map((r) => r.slice())
+  NEW[0][3] += dE
+  NEW[1][3] += dN
+  NEW[2][3] += dH
+  return NEW
+}
 
 function arg(k, d) {
   const i = process.argv.indexOf('--' + k)
   return i > -1 ? process.argv[i + 1] : d
 }
 
-const hub = arg('hub', null)
-const dE = Number(arg('dE', 0))
-const dN = Number(arg('dN', 0))
-const dH = Number(arg('dH', 0))
-const apply = process.argv.includes('--apply')
+function main() {
+  const hub = arg('hub', null)
+  const apply = process.argv.includes('--apply')
+  const angle = arg('angle', null)
+  const targetLon = arg('target-lon', null)
+  const targetLat = arg('target-lat', null)
+  const targetH = Number(arg('target-h', 0))
+  const dE = Number(arg('dE', 0))
+  const dN = Number(arg('dN', 0))
+  const dH = Number(arg('dH', 0))
 
-if (!hub || !HUBS.includes(hub)) {
-  console.error(
-    '用法: node tools/3dtiles-build/reanchor-hubs.mjs --hub <madao|qishi|qingnian> --dE <米> [--dN <米>] [--dH <米>] [--apply]'
+  if (!hub || !HUBS.includes(hub)) {
+    console.error(
+      '用法: node tools/3dtiles-build/reanchor-hubs.mjs --hub <madao|qishi|qingnian> ' +
+        '[--angle 度 --target-lon .. --target-lat .. --target-h 米] 或 [--dE .. --dN .. --dH ..] [--apply]'
+    )
+    process.exit(2)
+  }
+
+  const ts = JSON.parse(fs.readFileSync(TILESET, 'utf8'))
+  const child = (ts.root.children || []).find((c) =>
+    ((c.content || {}).uri || '').startsWith(hub + '-')
   )
-  process.exit(2)
+  if (!child) {
+    console.error('找不到 ' + hub + ' 的 depth-1 child')
+    process.exit(3)
+  }
+
+  const before = child.transform ? child.transform.slice(12, 15) : [0, 0, 0]
+  if (!child.transform) {
+    child.transform = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
+  }
+
+  const ROOT = toMath(ts.root.transform)
+  const OLD = toMath(child.transform)
+  const NEW = computeNew(ROOT, OLD, { angle, targetLon, targetLat, targetH, dE, dN, dH })
+
+  child.transform = toCol(NEW)
+  const after = child.transform.slice(12, 15)
+  console.log('枢纽 ' + hub + '：uri=' + child.content.uri)
+  console.log('  平移 ' + JSON.stringify(before) + ' -> ' + JSON.stringify(after))
+  const P0check = ecefToLlh(mulPoint(mul(ROOT, NEW), [...P0_LOCAL, 1]).slice(0, 3))
+  console.log(
+    '  P0 落点 lon=' +
+      P0check[0].toFixed(6) +
+      ' lat=' +
+      P0check[1].toFixed(6) +
+      ' h=' +
+      P0check[2].toFixed(2)
+  )
+  if (!apply) {
+    console.log('  （未给 --apply，未落盘）')
+    process.exit(0)
+  }
+
+  fs.mkdirSync(path.dirname(LEDGER), { recursive: true })
+  const log = fs.existsSync(LEDGER) ? JSON.parse(fs.readFileSync(LEDGER, 'utf8')) : []
+  log.push({
+    at: new Date().toISOString(),
+    hub,
+    angle: angle === null ? null : Number(angle),
+    target: targetLon === null ? null : [Number(targetLon), Number(targetLat), targetH],
+    dE,
+    dN,
+    dH,
+    before,
+    after,
+  })
+  fs.writeFileSync(LEDGER, JSON.stringify(log, null, 2))
+  // 保持缩进（探测第二行前导空格）
+  const raw = fs.readFileSync(TILESET, 'utf8')
+  const l2 = raw.split('\n')[1] ?? ''
+  const ind = l2.length - l2.replace(/^ +/, '').length || 2
+  fs.writeFileSync(TILESET, JSON.stringify(ts, null, ind) + '\n')
+  console.log('  写出缩进=' + ind)
+  console.log('  已写入 ' + TILESET + '（记录 ' + LEDGER + '）')
 }
 
-const ts = JSON.parse(fs.readFileSync(TILESET, 'utf8'))
-const child = (ts.root.children || []).find((c) =>
-  ((c.content || {}).uri || '').startsWith(hub + '-')
-)
-if (!child) {
-  console.error('找不到 ' + hub + ' 的 depth-1 child')
-  process.exit(3)
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main()
 }
-
-const before = child.transform ? child.transform.slice(12, 15) : [0, 0, 0]
-if (!child.transform) {
-  // 没有自身 transform 的补一个「单位旋转 + 平移」（列主序：平移在最后一行）
-  child.transform = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, dE, dN, dH, 1]
-} else {
-  child.transform[12] += dE
-  child.transform[13] += dN
-  child.transform[14] += dH
-}
-const after = child.transform.slice(12, 15)
-console.log('枢纽 ' + hub + '：uri=' + child.content.uri)
-console.log(
-  '  平移 ' +
-    JSON.stringify(before) +
-    ' -> ' +
-    JSON.stringify(after) +
-    '  (dE=' +
-    dE +
-    ' dN=' +
-    dN +
-    ' dH=' +
-    dH +
-    ')'
-)
-if (!apply) {
-  console.log('  （未给 --apply，未落盘）')
-  process.exit(0)
-}
-
-fs.mkdirSync(path.dirname(LEDGER), { recursive: true })
-const log = fs.existsSync(LEDGER) ? JSON.parse(fs.readFileSync(LEDGER, 'utf8')) : []
-log.push({
-  at: new Date().toISOString(),
-  hub,
-  dE,
-  dN,
-  dH,
-  before,
-  after,
-  source: '.local/3d-review/align-hub3.py',
-})
-fs.writeFileSync(LEDGER, JSON.stringify(log, null, 2))
-// 保持与原文件同款缩进（探测第二行的前导空格）：压成一行或换缩进都会让整份 diff 变成
-// 「1 增 1506 删」，复核不了（上一窗口与本会话都踩过）
-const raw = fs.readFileSync(TILESET, 'utf8')
-const l2 = raw.split('\n')[1] ?? ''
-const ind = l2.length - l2.replace(/^ +/, '').length || 2
-fs.writeFileSync(TILESET, JSON.stringify(ts, null, ind) + '\n')
-console.log('  写出缩进=' + ind)
-console.log('  已写入 ' + TILESET + '（记录 ' + LEDGER + '）')

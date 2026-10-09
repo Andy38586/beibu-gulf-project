@@ -1,6 +1,14 @@
 import type { Feature, FeatureCollection, Point } from 'geojson'
 
 /**
+ * 坐标是否为有限经纬度。
+ * 收敛 OLRenderer/CesiumRenderer 呼吸灯过滤谓词（原 4 处逐行复制）。
+ */
+export function isFiniteLngLat(p: { lng: number; lat: number }): boolean {
+  return Number.isFinite(p.lng) && Number.isFinite(p.lat)
+}
+
+/**
  * 把"坐标点对象数组"构造成 Point FeatureCollection。
  * 收敛 usePortLayer.buildPortGeoJson 与 useAnalysisLayer.buildMatchedGeoJson 的
  * 同构样板（过滤无效坐标 → 构造 Point Feature → 注入 featureType + 透传属性）。

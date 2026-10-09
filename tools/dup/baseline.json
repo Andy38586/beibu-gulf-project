@@ -1,19 +1,11 @@
 {
   "generatedFrom": "tools/dup/scan.mjs",
   "minTokens": 12,
-  "totalGroups": 174,
-  "totalRedundantTokens": 3722,
+  "totalGroups": 173,
+  "totalRedundantTokens": 3647,
   "updatedAt": "2026-10-09",
-  "note": "非认证控制器 SkipThrottle 登录/注册豁免收敛到共享常量",
+  "note": "单元6 收口渲染器 isFiniteLngLat 谓词",
   "groups": [
-    {
-      "text": ". filter ( ( p ) => Number . isFinite ( p . lng ) && Number . isFinite ( p . lat ) )",
-      "count": 4,
-      "files": [
-        "frontend/src/core/map/renderers/CesiumRenderer.ts",
-        "frontend/src/core/map/renderers/OLRenderer.ts"
-      ]
-    },
     {
       "text": "[ { maxLevel : 0 , label : '无风险' } , { maxLevel : 2 , label : '低风险' } , { maxLevel : 4.3 , label : '中风险' } , { maxLevel : 6 , label : '高风险' } , { maxLevel : 8 , label : '极高风险' } , { maxLevel : Number . POSITIVE_INFINITY , label : '灾难级' } , ]",
       "count": 2,

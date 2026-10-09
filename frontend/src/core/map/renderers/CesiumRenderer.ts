@@ -40,7 +40,7 @@ import { buildTiandituUrl, MAP_CONFIG, zoomToHeight } from '@/core/config/map'
 import type { IndexedItem } from '@/shared'
 import { createSpatialIndex, LAYER_DEFAULTS, showError, showWarning } from '@/shared'
 import { logger } from '@/shared'
-import { normalizePoint } from '@/shared'
+import { isFiniteLngLat, normalizePoint } from '@/shared'
 import type {
   CameraState,
   FlyToOptions,
@@ -994,9 +994,7 @@ export class CesiumRenderer extends MapRenderer {
     const viewer = this.viewer
     if (!viewer) return
     // 非有限坐标跳过（不落 (0,0) 哨兵——crs.ts 禁令）
-    const points = (Array.isArray(target) ? target : [target]).filter(
-      (p) => Number.isFinite(p.lng) && Number.isFinite(p.lat)
-    )
+    const points = (Array.isArray(target) ? target : [target]).filter(isFiniteLngLat)
     if (points.length === 0) return
     const startTime = Date.now()
     // 预解析呼吸灯基准色（缺省 LAYER_DEFAULTS.color = '#409eff'；设施 POI 呼吸传设施色）
@@ -1051,9 +1049,7 @@ export class CesiumRenderer extends MapRenderer {
     this.stopFacilityBreathing()
     const viewer = this.viewer
     if (!viewer) return
-    const points = (Array.isArray(target) ? target : [target]).filter(
-      (p) => Number.isFinite(p.lng) && Number.isFinite(p.lat)
-    )
+    const points = (Array.isArray(target) ? target : [target]).filter(isFiniteLngLat)
     if (points.length === 0) return
     const startTime = Date.now()
     // 每点一个 color CallbackProperty（闭包各自基准色），共享 startTime 相位同步；

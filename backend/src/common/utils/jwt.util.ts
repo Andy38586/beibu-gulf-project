@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken'
 // JWT 工具：对齐老 Express middleware/auth.js 的签发/验签行为
 //（payload {id, username, tokenVersion}，7 天有效期，secret 强制 ≥32 位）
 
-export interface JwtPayload {
+interface JwtPayload {
   id: string
   username: string
   tokenVersion: number

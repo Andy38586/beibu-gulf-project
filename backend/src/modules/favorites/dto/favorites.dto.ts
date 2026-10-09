@@ -4,7 +4,7 @@ import { BusinessError, ErrorCode } from '../../../common/errors/business-error'
 import { asRecord } from '../../../common/utils/as-record'
 
 // 收藏对象类型白名单：选址小区 / 浸没设施（对齐 Express favoritesController）
-export const FAVORITE_ITEM_TYPES = ['xiaoqu', 'facility'] as const
+const FAVORITE_ITEM_TYPES = ['xiaoqu', 'facility'] as const
 export type FavoriteItemType = (typeof FAVORITE_ITEM_TYPES)[number]
 
 // 校验顺序与文案逐字节对齐 Express validateItem（差异即缺陷）

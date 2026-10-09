@@ -17,7 +17,7 @@ import { type TaskJob, TaskQueue } from './task-queue'
 import { TaskRegistry } from './task-registry'
 
 /** 提交入参（controller 已做形状校验，这里是领域内的窄化版本） */
-export interface SubmitTaskInput {
+interface SubmitTaskInput {
   domain: TaskJob['domain']
   route: string
   /** 提交者属主（d059）：controller 从请求身份解析；匿名端点用 ANONYMOUS_OWNER */

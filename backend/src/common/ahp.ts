@@ -2,7 +2,7 @@
 // 判断矩阵 → 特征向量法权重 → CR<0.1 一致性检验（不过检验直接拒收）。
 // 只做数学，不含业务语义；准则层定义与判断矩阵草案在 constants/site-ahp.constants.ts。
 
-export interface AhpResult {
+interface AhpResult {
   /** 特征向量法权重（L1 归一化，Σ=1） */
   weights: number[]
   /** 最大特征值 λmax */
@@ -21,10 +21,10 @@ export const RI_TABLE: readonly number[] = [
 export const CR_THRESHOLD = 0.1
 
 /** 判断矩阵：只读二维方阵（互反阵） */
-export type JudgmentMatrix = readonly (readonly number[])[]
+type JudgmentMatrix = readonly (readonly number[])[]
 
 /** 判断矩阵合法性：方阵、全正、对角恒 1、互反性（a_ij·a_ji=1，容差 1e-9） */
-export function validateJudgmentMatrix(matrix: JudgmentMatrix): void {
+function validateJudgmentMatrix(matrix: JudgmentMatrix): void {
   const n = matrix.length
   if (n < 1 || n > 15) {
     throw new Error(`判断矩阵阶数须在 1..15（当前 ${n}）`)

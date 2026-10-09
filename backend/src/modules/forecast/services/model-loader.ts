@@ -85,7 +85,7 @@ interface ModelFileShape {
   ports?: Record<string, ModelPort>
 }
 
-export interface ModelForecast {
+interface ModelForecast {
   forecast: Array<{
     time: string
     value: number

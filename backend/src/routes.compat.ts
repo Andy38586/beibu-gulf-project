@@ -7,7 +7,7 @@
  *   · backend/test/swagger-contract.spec.ts（Swagger 双向核对的后端独有端点白名单）
  * 新增/删除条目 = 改判据域，须按 K3 登记意图写明理由。
  */
-export interface CompatEndpoint {
+interface CompatEndpoint {
   method: 'GET' | 'POST' | 'PUT' | 'DELETE'
   /** routes.manifest 的 path 形态（含 nest-api 前缀、`:param` 参数段） */
   path: string

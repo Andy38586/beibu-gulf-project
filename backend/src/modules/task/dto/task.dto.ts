@@ -2,7 +2,7 @@ import { BusinessError, ErrorCode } from '../../../common/errors/business-error'
 import { asRecord } from '../../../common/utils/as-record'
 import { TASK_DOMAINS, type TaskDomain, type TaskPriority } from '../types/task'
 
-export const TASK_PRIORITIES: readonly TaskPriority[] = ['high', 'normal'] as const
+const TASK_PRIORITIES: readonly TaskPriority[] = ['high', 'normal'] as const
 
 /**
  * 业务侧允许通过 HTTP 提交的域。

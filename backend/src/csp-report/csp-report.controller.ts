@@ -29,7 +29,7 @@ const MAX_FIELD_LEN = 200
 const sanitizeField = (v: unknown): string => sanitizeDetail(v, MAX_FIELD_LEN)
 
 /** 归一化后的报告（只保留排障必需的三项） */
-export interface NormalizedCspReport {
+interface NormalizedCspReport {
   documentUri: string
   directive: string
   blockedUri: string

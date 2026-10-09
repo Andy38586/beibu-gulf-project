@@ -22,7 +22,7 @@ export { PASSWORD_REGEX }
  */
 export const USERNAME_REGEX = /^[\u4e00-\u9fa5a-zA-Z0-9_]+$/
 
-export class CredentialsBody {
+class CredentialsBody {
   @ApiProperty({ description: '用户名（2-20 字符）', example: 'demo_user' })
   username!: string
 

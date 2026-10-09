@@ -8,7 +8,7 @@ import { ConfigService, resolveDataDir } from '../config/config.service'
 
 // backend/data 静态只读数据统一入口：对齐老 Express readStaticJson
 //（统一 TTL+LRU 读缓存，路径→解析后 JSON；只读数据直读，DB 只留给有真实职责的 repository）
-export type ReadFileFn = (filePath: string) => Promise<string>
+type ReadFileFn = (filePath: string) => Promise<string>
 
 export const DEFAULT_READ_FILE: ReadFileFn = (filePath) => readFile(filePath, 'utf-8')
 

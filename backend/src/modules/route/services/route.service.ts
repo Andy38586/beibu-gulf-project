@@ -32,10 +32,10 @@ import {
 const SNAP_RADIUS_M = 2000.0
 
 /** 合法空结果的空因（取值与 graph.py:406/409/419 逐字一致） */
-export type RouteEmptyReason = 'origin_not_snapped' | 'destination_not_snapped' | 'unreachable'
+type RouteEmptyReason = 'origin_not_snapped' | 'destination_not_snapped' | 'unreachable'
 
 /** 寻路成功（字段集对齐 graph.py:431-437） */
-export interface RoutePathFound {
+interface RoutePathFound {
   found: true
   mode: RouteMode
   distanceM: number
@@ -54,7 +54,7 @@ export interface RoutePathFound {
  * discriminatedUnion 的 found:false 分支同样只接受这两个字段。
  * （迁移期曾额外带 mode/snapDistanceM 等字段「供诊断」，属自造的契约偏差，已去除。）
  */
-export interface RoutePathEmpty {
+interface RoutePathEmpty {
   found: false
   reason: RouteEmptyReason
 }

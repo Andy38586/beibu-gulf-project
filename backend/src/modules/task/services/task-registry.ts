@@ -55,7 +55,7 @@ function estimateResultBytes(value: unknown, depth = 0): number {
  *   · 重启即丢任务。任务本身是「用户主动发起的短时计算」，重放代价远低于持久化成本。
  */
 /** 容量上限（可注入**仅为单测**用小数值验证「淘汰 / 拒绝」两条路径，默认即生产值） */
-export interface TaskRegistryLimits {
+interface TaskRegistryLimits {
   maxRecords: number
   maxBytes: number
   minRetainMs: number

@@ -1,7 +1,7 @@
 {
   "generatedFrom": "tools/dead-code/scan.mjs",
   "totalDead": 0,
-  "totalRedundantExport": 26,
+  "totalRedundantExport": 3,
   "byModule": {},
   "dead": [],
   "updatedAt": "2026-10-09",
@@ -61,6 +61,13 @@
       "totalRedundantExport": 26,
       "kind": "真清理",
       "note": "剥离前端 business 层 12 处仅本文件使用的 export"
+    },
+    {
+      "at": "2026-10-09",
+      "totalDead": 0,
+      "totalRedundantExport": 3,
+      "kind": "真清理",
+      "note": "剥离后端 23 处仅本文件使用的 export（余 3 = schemas.ts 契约门禁载体）"
     }
   ]
 }

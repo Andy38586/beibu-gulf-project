@@ -8,7 +8,7 @@ import { DbService } from '../../../infra/db/db.service'
 // 语义对齐老 Express favoritesRepository.js（favorites.json → PG 单表）：
 // 全局唯一键 (user_id, item_type, item_id)，幂等添加 = 冲突忽略；
 // created_at 列承载 Express 的 savedAt（ISO 字符串口径），SQL 全参数化
-export interface FavoriteRow {
+interface FavoriteRow {
   id: string | null
   user_id: string
   item_type: string

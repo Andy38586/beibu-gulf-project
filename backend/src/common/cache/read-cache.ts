@@ -1,7 +1,7 @@
 // 读缓存工厂：对齐老 Express createReadCache（TTL + LRU 近似淘汰 FIFO + 容量上限）。
 // get 命中且 TTL 有效返回 value，过期删除并返回 undefined（不自动重算，调用方决定）；
 // set 超 maxSize 淘汰最旧插入项；不做访问刷新（读命中不挪序）。
-export interface ReadCache<T> {
+interface ReadCache<T> {
   get(key: string): T | undefined
   set(key: string, value: T): void
   has(key: string): boolean

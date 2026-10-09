@@ -15,7 +15,7 @@ import { FloodLevelFeatureRow, FloodRepository } from '../repositories/flood.rep
 // 设施点与淹没多边形空间筛选（与原 FastAPI compute_impact 同口径，该服务已退役），损失 = value × damageRate；
 // 空间筛选已下沉 PostGIS（ST_Covers），与 turf.booleanPointInPolygon 命中集合一致；
 // 评分/损失加权留在 Node（业务口径不进 SQL）
-export interface FloodFacility {
+interface FloodFacility {
   id: string
   name: string
   type: string
@@ -27,20 +27,20 @@ export interface FloodFacility {
   damageRate: number
 }
 
-export interface FloodZoneFeature {
+interface FloodZoneFeature {
   /** GeoJSON Feature 固有字段（PostGIS 路径由本层组装，JSON 路径原样透传） */
   type?: string
   geometry?: GeoJsonGeometry | null
   properties?: Record<string, unknown>
 }
 
-export interface FloodZone {
+interface FloodZone {
   waterLevel: number
   riskLevel: string
   features?: FloodZoneFeature[]
 }
 
-export interface DisasterAssessment {
+interface DisasterAssessment {
   affectedFacilities: Array<Record<string, unknown>>
   totalLoss: number
   riskLevel: string

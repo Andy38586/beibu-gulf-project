@@ -9,7 +9,7 @@ import { DbService } from '../../../infra/db/db.service'
 // name 为列、其余业务字段整体存 payload JSONB（整体存取语义不变）；
 // 视图合并顺序 {…payload, id, userId, name, createdAt, updatedAt}——权威列必须后置胜出，
 // 否则导入行 payload 内的旧快照会覆盖列值（重命名后刷新即回滚旧名，d063）
-export interface PlanRow {
+interface PlanRow {
   id: string
   user_id: string
   name: string | null

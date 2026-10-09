@@ -12,6 +12,7 @@ import {
 import { SkipThrottle } from '@nestjs/throttler'
 import type { Request } from 'express'
 
+import { SKIP_AUTH_NAMED_THROTTLERS } from '../../../common/constants/throttling.constants'
 import { DtoPipe } from '../../../common/pipes/dto.pipe'
 import { AuthGuard } from '../../auth/guards/auth.guard'
 import { FavoriteAddBody, ItemTypeParam } from '../dto/favorites.dto'
@@ -19,7 +20,7 @@ import { FavoritesService } from '../services/favorites.service'
 
 // 收藏属于用户数据，全部需登录（对齐 Express router.use(authenticate)；）
 // @SkipThrottle 必需：登录用户的收藏操作不应消耗 login 桶（50/15min）配额
-@SkipThrottle({ login: true, register: true })
+@SkipThrottle(SKIP_AUTH_NAMED_THROTTLERS)
 @Controller('favorites')
 @UseGuards(AuthGuard)
 export class FavoritesController {

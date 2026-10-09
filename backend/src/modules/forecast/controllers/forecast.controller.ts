@@ -3,10 +3,11 @@ import { ApiTags } from '@nestjs/swagger'
 import { SkipThrottle } from '@nestjs/throttler'
 
 import { parseConfidence } from '../../../common/constants/forecast.constants'
+import { SKIP_AUTH_NAMED_THROTTLERS } from '../../../common/constants/throttling.constants'
 import { DtoPipe } from '../../../common/pipes/dto.pipe'
 import { ForecastMapQuery, ForecastTimeseriesQuery } from '../dto/forecast.dto'
-import { parseScenarioId } from '../services/scenario.service'
 import { ForecastService } from '../services/forecast.service'
+import { parseScenarioId } from '../services/scenario.service'
 
 @Controller('forecast')
 /**
@@ -20,7 +21,7 @@ import { ForecastService } from '../services/forecast.service'
  * 原为裸 `@SkipThrottle()`（= 三桶全豁免）——那与 csp-report/health 的"有意全豁免"不同：
  * 那两个是被浏览器/探针高频调用的接收端，本域是用户可主动连点的计算端点。
  */
-@SkipThrottle({ login: true, register: true })
+@SkipThrottle(SKIP_AUTH_NAMED_THROTTLERS)
 @ApiTags('forecast')
 export class ForecastController {
   constructor(private readonly forecastService: ForecastService) {}

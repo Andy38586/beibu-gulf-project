@@ -2,6 +2,7 @@ import { Body, Controller, Get, HttpCode, Post, Query } from '@nestjs/common'
 import { ApiTags } from '@nestjs/swagger'
 import { SkipThrottle } from '@nestjs/throttler'
 
+import { SKIP_AUTH_NAMED_THROTTLERS } from '../../../common/constants/throttling.constants'
 import { FloodService } from '../services/flood.service'
 
 /**
@@ -14,7 +15,7 @@ import { FloodService } from '../services/flood.service'
  * 实际被 login/register 桶（50/15min）卡死：一次进入浸没分析页要打 water-area、
  * flood-areas、flood-statistics、terrain-profiles 四次，15 分钟内进出约 12 次即全线 429。
  */
-@SkipThrottle({ login: true, register: true })
+@SkipThrottle(SKIP_AUTH_NAMED_THROTTLERS)
 @Controller('flood')
 @ApiTags('flood')
 export class FloodController {

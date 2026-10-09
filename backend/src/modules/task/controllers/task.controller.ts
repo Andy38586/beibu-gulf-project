@@ -3,6 +3,7 @@ import { ApiTags } from '@nestjs/swagger'
 import { SkipThrottle } from '@nestjs/throttler'
 import type { Request } from 'express'
 
+import { SKIP_AUTH_NAMED_THROTTLERS } from '../../../common/constants/throttling.constants'
 import { DtoPipe } from '../../../common/pipes/dto.pipe'
 import { TaskSubmitBody } from '../dto/task.dto'
 import { TaskService } from '../services/task.service'
@@ -24,7 +25,7 @@ import { resolveRequestOwner } from '../utils/request-owner'
  * 不 skip 会被误伤 —— 任务提交是用户主动的短时动作，前端还会 500ms 轮询 GET，
  * 15 分钟进出十几次即 429（同 flood.controller 的事故）。
  */
-@SkipThrottle({ login: true, register: true })
+@SkipThrottle(SKIP_AUTH_NAMED_THROTTLERS)
 @Controller('task')
 @ApiTags('task')
 export class TaskController {

@@ -1,26 +1,11 @@
 {
   "generatedFrom": "tools/dup/scan.mjs",
   "minTokens": 12,
-  "totalGroups": 175,
-  "totalRedundantTokens": 3830,
+  "totalGroups": 174,
+  "totalRedundantTokens": 3722,
   "updatedAt": "2026-10-09",
-  "note": "OLRenderer 热力图要素构造收口为模块内函数 + 描边 Stroke 六处并为单例",
+  "note": "非认证控制器 SkipThrottle 登录/注册豁免收敛到共享常量",
   "groups": [
-    {
-      "text": "SkipThrottle ( { login : true , register : true } )",
-      "count": 10,
-      "files": [
-        "backend/src/modules/auth/controllers/auth.controller.ts",
-        "backend/src/modules/diversion/controllers/diversion.controller.ts",
-        "backend/src/modules/favorites/controllers/favorites.controller.ts",
-        "backend/src/modules/flood/controllers/flood.controller.ts",
-        "backend/src/modules/forecast/controllers/forecast.controller.ts",
-        "backend/src/modules/plans/controllers/plans.controller.ts",
-        "backend/src/modules/route/controllers/route.controller.ts",
-        "backend/src/modules/site-suitability/controllers/site-suitability.controller.ts",
-        "backend/src/modules/task/controllers/task.controller.ts"
-      ]
-    },
     {
       "text": ". filter ( ( p ) => Number . isFinite ( p . lng ) && Number . isFinite ( p . lat ) )",
       "count": 4,

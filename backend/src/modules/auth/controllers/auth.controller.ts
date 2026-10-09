@@ -2,11 +2,12 @@ import { Body, Controller, Get, HttpCode, Post, Req, Res, UseGuards } from '@nes
 import { SkipThrottle } from '@nestjs/throttler'
 import type { Request, Response } from 'express'
 
+import { SKIP_AUTH_NAMED_THROTTLERS } from '../../../common/constants/throttling.constants'
 import { DtoPipe } from '../../../common/pipes/dto.pipe'
 import { ConfigService } from '../../../infra/config/config.service'
 import { LoginBody, RegisterBody } from '../dto/auth.dto'
-import { AuthGuard } from '../guards/auth.guard'
 import type { AuthenticatedRequest, AuthUserView } from '../guards/auth.guard'
+import { AuthGuard } from '../guards/auth.guard'
 import type { LoginUserView, RegisterUserView } from '../services/auth.service'
 import { AuthService } from '../services/auth.service'
 
@@ -65,7 +66,7 @@ export class AuthController {
 
   @Post('logout')
   @HttpCode(200)
-  @SkipThrottle({ login: true, register: true })
+  @SkipThrottle(SKIP_AUTH_NAMED_THROTTLERS)
   async logout(
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response
@@ -78,7 +79,7 @@ export class AuthController {
 
   // 认证响应禁止缓存：ETag 304 会让前端 fetch 误判登出（对齐 Express me 的 no-store）
   @Get('me')
-  @SkipThrottle({ login: true, register: true })
+  @SkipThrottle(SKIP_AUTH_NAMED_THROTTLERS)
   @UseGuards(AuthGuard)
   me(
     @Req() req: AuthenticatedRequest,

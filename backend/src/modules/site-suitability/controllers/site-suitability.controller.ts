@@ -2,6 +2,7 @@ import { Controller, Get, Query } from '@nestjs/common'
 import { ApiTags } from '@nestjs/swagger'
 import { SkipThrottle } from '@nestjs/throttler'
 
+import { SKIP_AUTH_NAMED_THROTTLERS } from '../../../common/constants/throttling.constants'
 import { parseSuitabilityQuery } from '../dto/site-suitability.dto'
 import {
   SiteSuitabilityService,
@@ -14,7 +15,7 @@ import {
  * 入参 = 五准则权重（w_*，缺省回落 AHP 定稿特征向量 SITE_AHP_MATRIX）+ min_land_frac 过滤；
  * 出参 = 格网 GeoJSON（siteSuitabilityResponseSchema 契约）。
  */
-@SkipThrottle({ login: true, register: true })
+@SkipThrottle(SKIP_AUTH_NAMED_THROTTLERS)
 @Controller('site-suitability')
 @ApiTags('site-suitability')
 export class SiteSuitabilityController {

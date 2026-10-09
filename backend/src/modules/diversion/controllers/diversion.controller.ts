@@ -2,8 +2,9 @@ import { Controller, Get, Query } from '@nestjs/common'
 import { ApiTags } from '@nestjs/swagger'
 import { SkipThrottle } from '@nestjs/throttler'
 
-import { BusinessError, ErrorCode } from '../../../common/errors/business-error'
+import { SKIP_AUTH_NAMED_THROTTLERS } from '../../../common/constants/throttling.constants'
 import type { CanalLineResponse } from '../../../common/diversion'
+import { BusinessError, ErrorCode } from '../../../common/errors/business-error'
 import {
   DIVERSION_YEAR_DEFAULT,
   DIVERSION_YEAR_MAX,
@@ -16,7 +17,7 @@ import {
  * 免鉴权纯计算（同 forecast/site-suitability 口径：公开端点只豁免命名桶）。
  * 出参 = 西江转移量（分货类）+ 三港分摊 + 桑基图节点流（sankeyFlows）。
  */
-@SkipThrottle({ login: true, register: true })
+@SkipThrottle(SKIP_AUTH_NAMED_THROTTLERS)
 @Controller('diversion')
 @ApiTags('diversion')
 export class DiversionController {

@@ -1,6 +1,7 @@
 import { Controller, Get, Query } from '@nestjs/common'
 import { SkipThrottle } from '@nestjs/throttler'
 
+import { SKIP_AUTH_NAMED_THROTTLERS } from '../../../common/constants/throttling.constants'
 import { PoiSearchService } from '../services/pois-search.service'
 import { RouteService } from '../services/route.service'
 
@@ -8,7 +9,7 @@ import { RouteService } from '../services/route.service'
 // 响应结构逐字段对齐 FastAPI，前端 useRouteApi 仅需切换 ENDPOINTS。
 // @SkipThrottle 必需：命名桶默认套用所有路由，漏挂会被 login 桶（50/15min）误伤
 //——地图高频交互 15 分钟 51 次即 429（flood 域同款事故，见 flood.controller 注释）
-@SkipThrottle({ login: true, register: true })
+@SkipThrottle(SKIP_AUTH_NAMED_THROTTLERS)
 @Controller('route')
 export class RouteController {
   constructor(

@@ -28,10 +28,11 @@ const FORBIDDEN_FILENAMES = /\.(tmp|bak|orig|swp)(\.\w+)?$/i
  * 前端渲染器体量棘轮（冻结值，只许下调；新增量另开文件）。
  * 计法 = 换行符数（`wc -l` 口径：`\n` 计数），与历史实测同尺；
  * 冻结值取 2026-10-06 实测（A-1 裁定的 2121/1051 是 10-05 实测值，其后合法改动增长 ⇒ 本日起重锚）。
+ * 2026-10-09 随减重计划单元 6 收口，按「上限=实测」下修至 2358/1111。
  */
 export const RENDERER_SIZE_CEILINGS = [
-  { file: 'frontend/src/core/map/renderers/CesiumRenderer.ts', max: 2362 },
-  { file: 'frontend/src/core/map/renderers/OLRenderer.ts', max: 1115 },
+  { file: 'frontend/src/core/map/renderers/CesiumRenderer.ts', max: 2358 },
+  { file: 'frontend/src/core/map/renderers/OLRenderer.ts', max: 1111 },
 ]
 
 /**

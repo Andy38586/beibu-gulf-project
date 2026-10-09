@@ -4,11 +4,13 @@
  * 常设复算钩子：任何一次 canal.glb / pinglu 交付包重烘之后都应重跑——期望各枢纽
  * 只剩船闸主体窗（z3，交付包无水面材质）内的带子，引航道（z2/z6）段重叠=0。
  * 口径：pinglu/tiles 与 pinglu/canal 共用同一 root.transform ⇒ 本地 ENU 系可直接比较。
- * gltf→ENU：E=gx, N=-gz, U=gy（与 build-ground.mjs enuToGltf 互逆）。
+ * gltf→ENU 轴序走 `tools/3dtiles-build/glb.mjs` 的 gltfToEnu（唯一权威源，不自行实现）。
  * 输出：每枢纽 盒尺寸/运河带穿盒长度/重叠面积/两水面高度差（含分位）。
  */
 import fs from 'node:fs'
 import path from 'node:path'
+
+import { gltfToEnu } from '../3dtiles-build/glb.mjs'
 
 const TILES = 'backend/static/pinglu/tiles'
 const CANAL = 'backend/static/pinglu/canal'
@@ -80,7 +82,7 @@ function collect(file, M, matRe) {
       if (!matRe.test(mname)) continue
       const pos = readAccessor(g, prim.attributes.POSITION)
       for (let i = 0; i < pos.length; i += 3) {
-        const enu = xf(M, [pos[i], -pos[i + 2], pos[i + 1]])
+        const enu = xf(M, gltfToEnu(pos[i], pos[i + 1], pos[i + 2]))
         pts.push({ x: enu[0], z: enu[1], y: enu[2], m: mname })
       }
     }

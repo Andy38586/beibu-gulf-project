@@ -24,6 +24,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { readGLB } from '../3dtiles-build/glb-read.mjs'
+import { gltfToEnu } from '../3dtiles-build/glb.mjs'
 
 const A = 6378137.0
 const F = 1 / 298.257223563
@@ -158,7 +159,7 @@ function readTileset(file) {
   return { tileset: d, st, st45 }
 }
 
-/** GLB 内容 AABB → ENU（glTF(x,y,z)→ENU(x,−z,y)，逐轴取 min/max） */
+/** GLB 内容 AABB → ENU（轴序走 glb.mjs 的 gltfToEnu，逐轴取 min/max） */
 function glbAabbENU(file) {
   const { json } = readGLB(file)
   const mn = [Infinity, Infinity, Infinity]
@@ -172,14 +173,11 @@ function glbAabbENU(file) {
         mx[i] = Math.max(mx[i], a.max[i])
       }
     }
-  return {
-    minE: mn[0],
-    maxE: mx[0],
-    minN: -mx[2],
-    maxN: -mn[2],
-    minU: mn[1],
-    maxU: mx[1],
-  }
+  // 轴序单源：取 (xmin,ymin,zmax) / (xmax,ymax,zmin) 两个角经 gltfToEnu 映射，
+  // 即得 ENU 三轴的 min/max（等价于原先的逐轴取反写法）。
+  const [minE, minN, minU] = gltfToEnu(mn[0], mn[1], mx[2])
+  const [maxE, maxN, maxU] = gltfToEnu(mx[0], mx[1], mn[2])
+  return { minE, maxE, minN, maxN, minU, maxU }
 }
 
 function fmt(n, d = 1) {

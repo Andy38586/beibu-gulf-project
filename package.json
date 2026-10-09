@@ -64,7 +64,7 @@
     "pinia": "^3.0.4",
     "rbush": "^4.0.1",
     "vite-plugin-cesium": "^1.2.23",
-    "vue": "^3.5.38",
+    "vue": "^3.5.43",
     "vue-router": "^5.1.0",
     "zod": "^4.4.3"
   },
@@ -106,7 +106,7 @@
   },
   "overrides": {
     "brace-expansion": "^5.0.12",
-    "dompurify": "^3.4.13",
+    "dompurify": "^3.4.16",
     "fast-uri": "^4.1.4",
     "glob": "^10.5.0",
     "js-yaml": "^4.3.2",
@@ -114,6 +114,7 @@
     "postcss": "^8.5.23",
     "protobufjs": "^8.7.1",
     "shell-quote": "^1.8.5",
+    "source-map-js": "^1.2.2",
     "undici": "^7.29.1"
   },
   "lint-staged": {

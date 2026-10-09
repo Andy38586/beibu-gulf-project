@@ -1596,6 +1596,10 @@ SSE/traversal 语义 ⇒「形态=块数」口径重审；③ 用户改 K ⇒ �
   同组其他图层。
 - 坑：图层 key 与 layerType 同名 `'terrain'` 会被 layer-keys 守卫误判；key 改 `'real-terrain'`
   （`LAYER_KEYS.terrain='real-terrain'`，layerType 仍 `'terrain'`）。
+- 组按钮响应式（同批修复）：`groupButtons` 旧只遍历静态 layerGroups、读非响应式 `registry.visible`，
+  开地形整组关闭 3dtiles 后组按钮仍高亮（钦州港组蓝着）。改为 computed 内读响应式 `layerCatalog`
+  作触发器（visible 权威值仍取 registry）。含影像（imageOverlay）的平陆组因影像不互斥、按钮保持亮，
+  为正确。
 - 失效条件：若希望改为「仅提示、手动关」需调整 BLM；若新增第三种需互斥的图层类型，加入同组集合。
 
 **二、马道枢纽精确校准（固化数据侧 child transform，非前端纠偏）**

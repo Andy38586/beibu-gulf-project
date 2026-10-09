@@ -101,3 +101,51 @@ describe('LayerControlPanel 未上屏四态（a029）', () => {
     expect(findBtn()?.attributes('title')).toBeUndefined()
   })
 })
+
+// 组按钮响应式（terrain↔3dtiles 互斥引入）：groupButtons 旧只遍历静态 layerGroups、
+// 读非响应式 registry.visible，成员被互斥整组关闭后组按钮仍高亮（实测开地形后钦州港组蓝着）。
+describe('LayerControlPanel 图层组响应式', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+  })
+
+  it('🔴 组内 3dtiles 成员被互斥关闭后，组按钮 active 随即变 false', async () => {
+    const mapStore = useMapStore()
+    const renderer = {
+      getType: () => '3d',
+      add3DTilesLayer: vi.fn().mockResolvedValue(true),
+      hasLayer: vi.fn().mockReturnValue(true),
+      setVisibility: vi.fn(),
+    }
+    mapStore.setCurrentRenderer(renderer as unknown as MapRenderer)
+
+    const manager = new BusinessLayerManager(mapStore)
+    manager.register('a', {
+      label: '甲模型',
+      layerType: '3dtiles',
+      data: { url: 'a.json' },
+      visible: true,
+    })
+    manager.register('b', {
+      label: '乙模型',
+      layerType: '3dtiles',
+      data: { url: 'b.json' },
+      visible: true,
+    })
+
+    const wrapper = mount(LayerControlPanel, {
+      props: { layerGroups: [{ key: 'grp', label: '枢纽组', memberKeys: ['a', 'b'] }] },
+      global: { provide: { [BUSINESS_LAYER_MANAGER_KEY]: manager } },
+    })
+    const groupBtn = () => wrapper.findAll('.layer-btn').find((el) => el.text().includes('枢纽组'))
+
+    expect(groupBtn()?.classes()).toContain('active')
+
+    // 模拟开地形时互斥：外部关闭两个 3dtiles 成员
+    manager.setVisible('a', false)
+    manager.setVisible('b', false)
+    await wrapper.vm.$nextTick()
+
+    expect(groupBtn()?.classes()).not.toContain('active')
+  })
+})

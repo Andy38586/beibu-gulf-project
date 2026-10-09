@@ -127,15 +127,22 @@ const layerButtons = computed(() => {
 /** 图层组行：任一成员可见即亮；点击对全部成员 setVisible(统一值)。
  * 成员里不支持当前引擎的跳过（单成员层同行逻辑），锁定成员跳过。 */
 const groupButtons = computed(() => {
+  // catalog 是响应式触发器：setVisible 经 mapStore 更新它，visible 权威值仍取 registry。
+  // 不读 catalog 时，互斥整组关闭后组按钮高亮不刷新（registry 成员 visible 非响应式）。
+  const catalog = layerCatalog.value
+  const catalogEntry = (k: string) => catalog.find((l) => l.key === k)
   return props.layerGroups.map((g) => {
-    const members = g.memberKeys.map((k) => ({
-      key: k,
-      visible: businessLayerManager.getMeta(k)?.visible ?? false,
-      unsupported:
-        businessLayerManager.getMeta(k)?.engines?.includes(mapStore.currentEngineName as never) ===
-        false,
-      locked: businessLayerManager.getMeta(k)?.locked ?? false,
-    }))
+    const members = g.memberKeys.map((k) => {
+      const meta = businessLayerManager.getMeta(k)
+      const cat = catalogEntry(k)
+      return {
+        key: k,
+        visible: meta?.visible ?? cat?.visible ?? false,
+        unsupported:
+          (meta?.engines ?? cat?.engines)?.includes(mapStore.currentEngineName as never) === false,
+        locked: meta?.locked ?? cat?.locked ?? false,
+      }
+    })
     const usable = members.filter((m) => !m.unsupported && !m.locked)
     const active = usable.some((m) => m.visible)
     return {

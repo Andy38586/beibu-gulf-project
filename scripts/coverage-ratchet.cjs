@@ -44,6 +44,25 @@ if (process.argv.includes('--freeze-check')) {
   }
   const { execFileSync, spawnSync } = require('node:child_process')
   const repoRoot = path.resolve(__dirname, '..')
+  // ⚠️ hook 环境陷阱（2026-10-10 linked worktree 推送实测）：git 在 pre-commit/pre-push
+  // 钩子里会导出 GIT_DIR=<真实 gitdir>。子进程里 `git -C <dir>` 只改 cwd；「GIT_DIR 已
+  // 指定、GIT_WORK_TREE 未指定」时 git 把该 cwd 当工作树顶层 ⇒ 对
+  // `frontend/coverage-baseline.json` 的 `--show-toplevel` 返回 `.../frontend` 本身，
+  // relPath 退化成文件名 → ls-tree 判 NOT_TRACKED **假红**，正常推送被前置钩子拦下。
+  // 修法：本模式全部子进程 git 调用统一传剥离「仓库定位类」变量的 env，恢复 -C 的
+  // 「从该目录发现仓库」语义（GIT_DIR 等只影响本次判定，不应泄漏进子进程）。
+  const gitEnv = { ...process.env }
+  for (const key of [
+    'GIT_DIR',
+    'GIT_WORK_TREE',
+    'GIT_INDEX_FILE',
+    'GIT_COMMON_DIR',
+    'GIT_OBJECT_DIRECTORY',
+    'GIT_ALTERNATE_OBJECT_DIRECTORIES',
+    'GIT_NAMESPACE',
+  ]) {
+    delete gitEnv[key]
+  }
   // ⚠️ 相对路径解析基准 = **cwd 优先**（CLI 直觉），不存在时再退回 repoRoot。
   // 历史坑：先前一律以 repoRoot 为基准，导致 `cd frontend && node ../scripts/... --freeze-check
   // coverage-baseline.json` 被解析成 `<repo>/coverage-baseline.json`（不存在）而不是
@@ -78,7 +97,7 @@ if (process.argv.includes('--freeze-check')) {
     const top = spawnSync(
       'git',
       ['-C', path.dirname(freezeBaselineFile), 'rev-parse', '--show-toplevel'],
-      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }
+      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env: gitEnv }
     )
     if (top.status === 0) ownRoot = realOr(top.stdout.trim())
   } catch {
@@ -108,6 +127,7 @@ if (process.argv.includes('--freeze-check')) {
     const rv = spawnSync('git', ['-C', ownRoot, 'rev-parse', '--verify', '--quiet', 'HEAD'], {
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
+      env: gitEnv,
     })
     hasHead = rv.status === 0
     if (hasHead) {
@@ -117,6 +137,7 @@ if (process.argv.includes('--freeze-check')) {
         {
           encoding: 'utf8',
           stdio: ['ignore', 'pipe', 'pipe'],
+          env: gitEnv,
         }
       )
       trackedInHead = ls.status === 0 && ls.stdout.trim().length > 0
@@ -148,6 +169,7 @@ if (process.argv.includes('--freeze-check')) {
       const head = execFileSync('git', ['-C', ownRoot, 'show', `HEAD:${relPath}`], {
         encoding: 'utf8',
         stdio: ['ignore', 'pipe', 'pipe'],
+        env: gitEnv,
       })
       if (head.trim() === workRaw.trim()) {
         verdict = 'MATCH'

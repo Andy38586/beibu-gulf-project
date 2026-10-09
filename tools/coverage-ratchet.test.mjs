@@ -3,9 +3,9 @@
  * 脚本顶层读 argv 且有退出副作用，故以子进程真实执行，断言退出码与输出。
  */
 import { execFileSync, spawnSync } from 'node:child_process'
-import { closeSync, mkdtempSync, openSync, readFileSync, writeFileSync } from 'node:fs'
+import { closeSync, mkdirSync, mkdtempSync, openSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { describe, expect, it } from 'vitest'
@@ -138,11 +138,11 @@ describe('coverage-ratchet（注入：基线异常不得静默放行）', () => 
 // 两者混淆会让检查在 CI 里静默失效（这正是本次审计要根除的模式）。
 describe('coverage-ratchet --freeze-check（基线冻结校验）', () => {
   /** 在临时 git 仓库里放一个 baseline，提交后再可选改动它 */
-  function gitRepoFixture({ commit = true, mutate = null } = {}) {
+  function gitRepoFixture({ commit = true, mutate = null, rel = 'coverage-baseline.json' } = {}) {
     const dir = mkdtempSync(join(tmpdir(), 'freeze-'))
-    const rel = 'coverage-baseline.json'
     const abs = join(dir, rel)
     const git = (args) => execFileSync('git', args, { cwd: dir, stdio: 'ignore' })
+    mkdirSync(dirname(abs), { recursive: true })
     writeFileSync(abs, JSON.stringify({ lines: 50, functions: 50, branches: 50, statements: 50 }))
     git(['init', '-q'])
     git(['config', 'user.email', 't@t.t'])
@@ -246,6 +246,28 @@ describe('coverage-ratchet --freeze-check（基线冻结校验）', () => {
       status = spawnSync(process.execPath, [SCRIPT, '--freeze-check', 'coverage-baseline.json'], {
         cwd: fileURLToPath(new URL('../frontend/', import.meta.url)),
         stdio: ['ignore', fd, fd],
+      }).status
+    } finally {
+      closeSync(fd)
+    }
+    expect(status).toBe(0)
+    expect(readFileSync(outFile, 'utf8')).toContain('基线冻结校验通过')
+  })
+
+  // 回归锁（2026-10-10）：git 在 pre-commit/pre-push 钩子里会导出 GIT_DIR=<gitdir>。
+  // 子进程里 `git -C <dir>` 只改 cwd；「GIT_DIR 已指定、GIT_WORK_TREE 未指定」时 git
+  // 把该 cwd 当工作树顶层 ⇒ `--show-toplevel` 返回 -C 目录本身，relPath 退化成文件名
+  // → ls-tree 判 NOT_TRACKED **假红**（linked worktree 推送实测，正常推送被拦）。
+  // 脚本必须剥离仓库定位类环境变量，恢复 -C 的「从该目录发现仓库」语义。
+  it('环境携带 GIT_DIR（hook 实测环境）→ 基线在子目录时仍须 MATCH，不误红', () => {
+    const { dir, abs } = gitRepoFixture({ rel: 'frontend/coverage-baseline.json' })
+    const outFile = join(mkdtempSync(join(tmpdir(), 'ratchet-hookenv-')), 'combined.log')
+    const fd = openSync(outFile, 'w')
+    let status = null
+    try {
+      status = spawnSync(process.execPath, [SCRIPT, '--freeze-check', abs], {
+        stdio: ['ignore', fd, fd],
+        env: { ...process.env, GIT_DIR: join(dir, '.git') },
       }).status
     } finally {
       closeSync(fd)

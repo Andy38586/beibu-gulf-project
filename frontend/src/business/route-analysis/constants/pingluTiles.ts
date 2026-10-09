@@ -171,12 +171,12 @@ export function pingluLayerId(groupId: PingluGroupId): string {
  * 备份在 `.local/tmp/pinglu-tiles-backup-20260928/`。切换方式是把交付包的 30 个 GLB
  * 覆盖进来 + 补回交付包漏掉的 `corridor-10`（其 README 自称已补回，实物没有）——
  * 不补就会踩 `tiles3d-check` 的覆盖事故指纹（内容节点 30 < 下限 31）。
- * `tiles-v2`（9/16 s3 管线的 63 瓦片版）仍在仓库，未被本处引用。
+ * `tiles-v2`（9/16 s3 管线的 63 瓦片版）已于 2026-10-09 删除（成文见下），未被本处引用。
  */
 export const PINGLU_TILESET_URL = '/static/pinglu/tiles/tileset.json'
 
 /**
- * ## 2026-10-03 废弃成文：`pinglu/tiles-v2`（**读侧不消费，但仍在盘上**）
+ * ## 2026-10-03 废弃成文：`pinglu/tiles-v2`（**2026-10-09 已删**）
  *
  * 用户裁定原文：「我好像带回来两套，以最后那一套为准」。实测两套是：
  *
@@ -192,16 +192,17 @@ export const PINGLU_TILESET_URL = '/static/pinglu/tiles/tileset.json'
  * 另：`tiles-v2` 里**没有钦州港内容**（关键词 qinzhou/port/terminal/cargo/container
  * 命中均为 0），只有「钦州湾海面」一块 2.23 MB 的 b3dm。
  *
- * **读侧仍有 2 处指向它，都是遗留物**（不是活消费）：
- * - `frontend/public/probe-3dtiles.html:88,153,182` —— 调试页，硬编码 tiles-v2 路径
+ * **读侧曾有 2 处指向它的遗留物**（不是活消费；2026-10-09 已随手删掉）：
+ * - `frontend/public/probe-3dtiles.html:88,153,182` —— 调试页，硬编码 tiles-v2 路径（已删）
  * - `frontend/public/madao-hub.json:29` —— 从 tiles-v2 派生的单枢纽预览件
+ *   （连同其入口 `madao-hub.html` 一并删除）
  *
- * **失效条件**：若日后有人把 `tiles-v2` 当权威源读回去（最可能通过那个调试页），
- * 本条作废的前提不成立，须先删掉那两处指向再谈。
+ * **失效条件**：若日后从 git 历史或备份里把 `tiles-v2` 取回盘上并重新接线，本条
+ * 「盘上不存在」的前提不成立，须先按 2026-10-03 的口径裁定（权威源 = `tiles/`）复核。
  *
- * 盘上 43.5 MB 是否删除由用户定（删资产属破坏性操作，不自行决定）；本条只声明
- * **读侧不消费**，并留一条能红的判据：下面的断言钉死 `PINGLU_TILESET_URL` 不得
- * 指向 tiles-v2。
+ * 2026-10-09：随减重计划批 2 单元 7 执行删除 —— 盘上 43.5 MB（gitignored，未入库）
+ * 已移除，上列 3 个遗留调试件同笔 `git rm`。能红判据保留：下面的断言钉死
+ * `PINGLU_TILESET_URL` 不得指向 tiles-v2。
  */
 
 /** 离线影像索引地址（z=17 拼接图 + bbox，每块一个可开关图层） */

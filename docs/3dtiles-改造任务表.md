@@ -101,7 +101,8 @@ GET 且页面真实裁剪逻辑产出的请求全部 200"，但**渲染结果是
 - **桥梁是参数化还原**，非实测几何（各节点 `extras.reconstruction` 已标注）
 - **走廊接缝未达标**（最大 7314 m）——要按弧长重新切分走廊（重新烘焙），平移解决不了
 - **变异四式只跑了第一、二式**，第三、四式未取证
-- **`tiles-v2` 43.5 MB 是否删除**由用户定（删资产属破坏性操作）
+- **`tiles-v2` 43.5 MB 及 3 个遗留调试件已删**（2026-10-09 减重计划批 2 单元 7，
+  读侧 0 引用后执行；可自 git 历史复取）
 
 ---
 
@@ -119,7 +120,7 @@ GET 且页面真实裁剪逻辑产出的请求全部 200"，但**渲染结果是
 | `tmp-pinglu/`                                                                 | **370.9 MB**  | 平陆运河建模中间件                                          |
 | `pinglu-canal-3dtiles/`                                                       | **143.3 MB**  | 09-27 的旧建模产物（`.gitignore:215` 已排除）               |
 | `.local/926-rebake/backup-pinglu-canal-3dtiles-1722/`                         | **121.6 MB**  | 09-27 17:22 快照                                            |
-| `backend/static/pinglu/tiles-v2/`                                             | **43.5 MB**   | 9/16 s3 管线版，**已废弃成文**（权威源 = `tiles/`）         |
+| `backend/static/pinglu/tiles-v2/`                                             | **43.5 MB**   | 9/16 s3 管线版，**2026-10-09 已删**（权威源 = `tiles/`）    |
 | `.local/{925-shallow,cc2,f926,f926b,f926c,probe-080209,wt-z4,audit3-930}/...` | ≈ **86 MB**   | 各轮 worktree 残留（10 份 7.4 MB + 1 份 12.1 MB 副本）      |
 | `backend/static/bim-hub/pinglu-{madao,qishi,qingnian}-hub/`                   | **4.6 MB**    | 与 `pinglu-*` 重复的两套模型，**已从图层清单摘除**          |
 | `.local/quarantine-20260921/web-tiles-17node/`                                | 3.4 MB        | 09-21 隔离的 17 节点残缺版                                  |

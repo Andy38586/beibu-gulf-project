@@ -111,19 +111,22 @@ GET 且页面真实裁剪逻辑产出的请求全部 200"，但**渲染结果是
 用户裁定：**「我确定了当前web的现实效果，达标了之后，可以把其他的版本全部删了」**
 —— 这是**条件授权**：前置条件是你在页面上确认效果达标。**未确认前不执行任何删除。**
 
+**2026-10-09 进展**：前两行（`tiles-v2` 43.5 MB、`bim-hub/pinglu-*-hub` 4.6 MB）已按
+用户批准的减重计划批 2（分支 `codex/trim-redundancy-20261009`）删除；其余各行未动。
+
 ### 6.1 建议删除（旧版本 / 中间产物，合计 ≈ 2.4 GB）
 
-| 路径                                                                          | 体积          | 为什么可删                                                  |
-| ----------------------------------------------------------------------------- | ------------- | ----------------------------------------------------------- |
-| `tmp-3dtiles/`                                                                | **1390.8 MB** | 09-20 的建模中间件，产物已进 `backend/static/pinglu/tiles/` |
-| `.local/backups/`                                                             | **784.6 MB**  | 历史备份堆，非当前基准                                      |
-| `tmp-pinglu/`                                                                 | **370.9 MB**  | 平陆运河建模中间件                                          |
-| `pinglu-canal-3dtiles/`                                                       | **143.3 MB**  | 09-27 的旧建模产物（`.gitignore:215` 已排除）               |
-| `.local/926-rebake/backup-pinglu-canal-3dtiles-1722/`                         | **121.6 MB**  | 09-27 17:22 快照                                            |
-| `backend/static/pinglu/tiles-v2/`                                             | **43.5 MB**   | 9/16 s3 管线版，**2026-10-09 已删**（权威源 = `tiles/`）    |
-| `.local/{925-shallow,cc2,f926,f926b,f926c,probe-080209,wt-z4,audit3-930}/...` | ≈ **86 MB**   | 各轮 worktree 残留（10 份 7.4 MB + 1 份 12.1 MB 副本）      |
-| `backend/static/bim-hub/pinglu-{madao,qishi,qingnian}-hub/`                   | **4.6 MB**    | 与 `pinglu-*` 重复的两套模型，**已从图层清单摘除**          |
-| `.local/quarantine-20260921/web-tiles-17node/`                                | 3.4 MB        | 09-21 隔离的 17 节点残缺版                                  |
+| 路径                                                                          | 体积          | 为什么可删                                                         |
+| ----------------------------------------------------------------------------- | ------------- | ------------------------------------------------------------------ |
+| `tmp-3dtiles/`                                                                | **1390.8 MB** | 09-20 的建模中间件，产物已进 `backend/static/pinglu/tiles/`        |
+| `.local/backups/`                                                             | **784.6 MB**  | 历史备份堆，非当前基准                                             |
+| `tmp-pinglu/`                                                                 | **370.9 MB**  | 平陆运河建模中间件                                                 |
+| `pinglu-canal-3dtiles/`                                                       | **143.3 MB**  | 09-27 的旧建模产物（`.gitignore:215` 已排除）                      |
+| `.local/926-rebake/backup-pinglu-canal-3dtiles-1722/`                         | **121.6 MB**  | 09-27 17:22 快照                                                   |
+| `backend/static/pinglu/tiles-v2/`                                             | **43.5 MB**   | 9/16 s3 管线版，**2026-10-09 已删**（权威源 = `tiles/`）           |
+| `.local/{925-shallow,cc2,f926,f926b,f926c,probe-080209,wt-z4,audit3-930}/...` | ≈ **86 MB**   | 各轮 worktree 残留（10 份 7.4 MB + 1 份 12.1 MB 副本）             |
+| `backend/static/bim-hub/pinglu-{madao,qishi,qingnian}-hub/`                   | **4.6 MB**    | 与 `pinglu-*` 重复的两套模型，**2026-10-09 已删**（见 §六 进展行） |
+| `.local/quarantine-20260921/web-tiles-17node/`                                | 3.4 MB        | 09-21 隔离的 17 节点残缺版                                         |
 
 ### 6.2 **必须保留**（删了会坏或不可复现）
 

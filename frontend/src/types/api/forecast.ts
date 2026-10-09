@@ -11,28 +11,12 @@ export type PortId = string
 export interface ForecastPoint {
   /** 时间标签，如 "2018-01" */
   time: string
-  /** 指标值，单位见所属 ForecastSeries.unit */
+  /** 指标值，单位见所属数据文件的 unit 字段 */
   value: number
   /** 数据性质：历史实测 或 模型预测 */
   type: 'historical' | 'forecast'
   /** 置信度（数据文件自带；schema 已补可选字段防止剥除） */
   confidence?: number
-}
-
-/** 单港口的历史序列 + 可选预测序列 */
-export interface ForecastPortSeries {
-  historical: ForecastPoint[]
-  forecast?: ForecastPoint[]
-}
-
-/** 预测指标完整响应（对应 public/data/forecast/*.json 顶层） */
-export interface ForecastSeries {
-  /** 指标标识，如 "cargo"（货物吞吐量）/ "activity"（港口吞吐活跃度指数） */
-  indicator: string
-  /** 单位，如 "万吨" / "%" */
-  unit: string
-  /** 按港口分组的序列，key 为港口 id（如 "qinzhou" / "beibu"） */
-  data: Record<PortId, ForecastPortSeries>
 }
 
 /** 地图热力图响应（对应后端 /forecast/map 的 data 字段） */

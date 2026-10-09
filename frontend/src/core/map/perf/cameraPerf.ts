@@ -13,21 +13,21 @@ import type { Viewer } from 'cesium'
 import { buildModuleUrl, SkyBox } from 'cesium'
 
 /** 图层条目的结构化最小面（隐藏/恢复只碰 visible 与引擎侧 show） */
-export interface DegradableLayer {
+interface DegradableLayer {
   instance: unknown
   visible: boolean
   interactionHeavy?: boolean
 }
 
 /** 水面条目的结构化最小面 */
-export interface DegradableWaterSurface {
+interface DegradableWaterSurface {
   primitive: { show: boolean }
   visible: boolean
   interactionHeavy?: boolean
 }
 
 /** 宿主的结构化视图——不 import 回 CesiumRenderer，避免运行时环 */
-export interface CameraPerfHost {
+interface CameraPerfHost {
   viewer: Viewer | null
   _cameraDebounceTimer: ReturnType<typeof setTimeout> | null
   _layers: Map<string, DegradableLayer>
@@ -81,7 +81,7 @@ export function isHeavyGeoJson(geojson: { features: Array<{ geometry?: unknown }
  * 普通图层走 host._doSetVisibility（不改 entry.visible）；水面直接切 primitive.show
  * ——不能用 setWaterSurfaceVisibility，它会改写 water.visible，恢复时即丢权威值。
  */
-export function setInteractionHeavyLayersHidden(host: CameraPerfHost, hidden: boolean): void {
+function setInteractionHeavyLayersHidden(host: CameraPerfHost, hidden: boolean): void {
   for (const [id, layer] of host._layers) {
     if (layer.interactionHeavy) host._doSetVisibility(id, hidden ? false : layer.visible)
   }

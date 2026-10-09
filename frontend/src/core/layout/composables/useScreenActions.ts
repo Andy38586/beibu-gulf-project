@@ -8,7 +8,7 @@ import { MAP_CONFIG } from '@/core/config/map'
 import { useMapControls } from '@/core/map/composables/useMapControls'
 
 /** useScreenActions 返回值结构 */
-export interface UseScreenActionsReturn {
+interface UseScreenActionsReturn {
   flyToCity: (city: string) => void
 }
 

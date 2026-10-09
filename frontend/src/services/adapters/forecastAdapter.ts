@@ -21,7 +21,7 @@ function scenarioParam(scenario?: string): Record<string, string> {
   return scenario ? { scenario } : {}
 }
 
-export interface ForecastTimeSeriesParams {
+interface ForecastTimeSeriesParams {
   indicator: string
   granularity: string
   confidence: number
@@ -30,9 +30,9 @@ export interface ForecastTimeSeriesParams {
 }
 
 /** unit 随 series 一并带出（F4：图表 y 轴单位曾在此被丢弃，混图无单位标注） */
-export type ForecastTimeSeriesResult = Pick<TimeSeriesResponseParsed, 'series' | 'unit'>
+type ForecastTimeSeriesResult = Pick<TimeSeriesResponseParsed, 'series' | 'unit'>
 
-export interface ForecastComparisonParams {
+interface ForecastComparisonParams {
   time: string
   confidence: number
   /** 运河情景（仅 cargo 有意义；缺省不传参，后端默认 baseline） */
@@ -40,7 +40,7 @@ export interface ForecastComparisonParams {
 }
 
 /** unit 随 ports 一并带出（F4：柱图多指标时由调用方拼进系列名标注） */
-export type ForecastComparisonResult = Pick<IndicatorComparisonResponseParsed, 'ports' | 'unit'>
+type ForecastComparisonResult = Pick<IndicatorComparisonResponseParsed, 'ports' | 'unit'>
 
 export const forecastAdapter = {
   /** 首页概览静态快照（/forecast/overview）：图表数据，schema 校验在 HTTP 边界完成 */

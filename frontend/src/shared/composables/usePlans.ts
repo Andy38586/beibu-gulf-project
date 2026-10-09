@@ -14,7 +14,7 @@ import { useAuth } from './useAuth'
 import { useLatestRequest } from './useLatestRequest'
 
 /** 返回契约显式化，防重构时签名静默漂移 */
-export interface UsePlansReturn {
+interface UsePlansReturn {
   getPlans: () => Promise<Plan[]>
   updatePlan: (id: string, name: string, typeSettings: Record<string, TypeSetting>) => Promise<Plan>
   deletePlan: (id: string) => Promise<void>

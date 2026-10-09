@@ -7,9 +7,9 @@
 import { reactive } from 'vue'
 
 /** Modal 模式：error（重试/取消）/ login（去登录/取消）/ confirm（确定/取消） */
-export type GCSModalMode = 'error' | 'login' | 'confirm'
+type GCSModalMode = 'error' | 'login' | 'confirm'
 /** Toast 类型：语义色对应 --GCS-color-success/warning/error */
-export type GCSToastType = 'success' | 'warning' | 'error'
+type GCSToastType = 'success' | 'warning' | 'error'
 
 interface GCSModalState {
   visible: boolean

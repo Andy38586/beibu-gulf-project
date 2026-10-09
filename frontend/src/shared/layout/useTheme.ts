@@ -9,10 +9,10 @@ import { computed, type ComputedRef, readonly, type Ref, ref } from 'vue'
 
 import { getSafeStorage } from '@/shared/utils/safeStorage'
 
-export type ThemeMode = 'light' | 'dark'
+type ThemeMode = 'light' | 'dark'
 
 /** 返回契约（显式化，防重构时签名静默漂移） */
-export interface UseThemeReturn {
+interface UseThemeReturn {
   theme: Readonly<Ref<ThemeMode>>
   isDark: ComputedRef<boolean>
   initTheme: () => void

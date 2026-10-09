@@ -16,7 +16,7 @@ import { useApiRequest } from './useApiRequest'
  * 前提是 `MODULE_BY_PATH_PREFIX` 里有 `task` 键、且 `VITE_USE_NEST_MODULES` 含 `task`——
  * 漏一处就会回落 `/api` 旧前缀而 404（见 frontend/.env.example 的同步须知）。
  */
-export interface UseTaskApiReturn {
+interface UseTaskApiReturn {
   submit: (payload: {
     domain: string
     route: string

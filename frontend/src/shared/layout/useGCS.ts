@@ -15,7 +15,7 @@ import {
 } from './config.js'
 
 /** 锚点类型 */
-export type Anchor =
+type Anchor =
   | 'top-left'
   | 'top-right'
   | 'top-center'
@@ -24,7 +24,7 @@ export type Anchor =
   | 'bottom-right'
 
 /** panelPosition 返回值 */
-export interface PanelPosition {
+interface PanelPosition {
   left: string
   top: string
   width: string
@@ -34,7 +34,7 @@ export interface PanelPosition {
 }
 
 /** useGCS 返回值 */
-export interface UseGCSReturn {
+interface UseGCSReturn {
   windowWidth: Ref<number>
   windowHeight: Ref<number>
   cellPixel: Ref<number>

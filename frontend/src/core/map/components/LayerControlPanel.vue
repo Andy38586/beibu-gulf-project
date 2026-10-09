@@ -17,7 +17,7 @@ import type { LayerType } from '@/types/core/layerManager'
 
 /** 图层组规格：多个图层共用面板上的**一个**开关（层级可分、控制合一）。
  * 成员必须是有 layerType 的业务图层（base 类互斥单选不可入组）。 */
-export interface LayerGroupSpec {
+interface LayerGroupSpec {
   key: string
   label: string
   memberKeys: string[]

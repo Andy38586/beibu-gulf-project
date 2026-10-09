@@ -18,7 +18,7 @@ const MAX_CACHE_SIZE = 100
 const cache = new BoundedMap<string, { data: unknown; cachedAt: number }>(MAX_CACHE_SIZE)
 const pending = new Map<string, Promise<unknown>>()
 
-export interface LoadStaticOptions<T = unknown> {
+interface LoadStaticOptions<T = unknown> {
   /** 超时毫秒数，默认 10000 */
   timeout?: number
   /** 缓存 TTL（有效期）毫秒数，设为 0 禁用缓存，默认 5min */

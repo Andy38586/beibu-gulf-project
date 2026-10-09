@@ -29,7 +29,7 @@ export interface RoutePathResult {
 }
 
 /** 路径查询合法空结果（不可达 / 起终点未吸附——断链语义，合法空非错误） */
-export interface RouteEmptyResult {
+interface RouteEmptyResult {
   found: false
   /** 空因：origin_not_snapped / destination_not_snapped / unreachable */
   reason: 'origin_not_snapped' | 'destination_not_snapped' | 'unreachable'

@@ -59,7 +59,7 @@ export const LAYER_DEFAULTS = {
  */
 export const RENDER_BLUE = '#3b82f6'
 /** 橙色渲染色（单一来源）：LayerIR route-path 域色。 */
-export const RENDER_ORANGE = '#f59e0b'
+const RENDER_ORANGE = '#f59e0b'
 /** LayerIR 域色表（LayerIR.ts 消费）：域语义标签仍在 LayerIR，颜色只在这里。 */
 export const LAYER_IR_DOMAIN_COLORS = {
   'flood-areas': RENDER_BLUE,

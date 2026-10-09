@@ -8,7 +8,7 @@ import { type Ref, ref } from 'vue'
 const drawerOpen = ref(false)
 
 /** 返回契约（显式化，防重构时签名静默漂移） */
-export interface UseMobileDrawerReturn {
+interface UseMobileDrawerReturn {
   drawerOpen: Ref<boolean>
   openDrawer: () => void
   closeDrawer: () => void

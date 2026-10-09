@@ -8,7 +8,7 @@
 import { readonly, ref } from 'vue'
 
 /** 导航项类型 */
-export type NavItemType = 'home' | 'profile' | 'business'
+type NavItemType = 'home' | 'profile' | 'business'
 
 /** 导航项结构 */
 export interface NavItem {

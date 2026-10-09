@@ -10,7 +10,7 @@
  *
  * 本实现用 AbortController + abort 事件手写等价语义，不依赖任何新增 API。
  */
-export interface CombinedSignal {
+interface CombinedSignal {
   /** 组合后的信号（多源时为新 controller 的信号；单源/空源为透传或空信号） */
   signal: AbortSignal
   /**

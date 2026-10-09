@@ -7,32 +7,32 @@ if (!TIANDITU_KEY) {
 }
 
 /** 天地图底图图层配置 */
-export interface MapBaseLayerConfig {
+interface MapBaseLayerConfig {
   name: string
   layers: string[]
 }
 
 /** 天地图底图集合 */
-export interface MapBaseLayersConfig {
+interface MapBaseLayersConfig {
   image: MapBaseLayerConfig
   vector: MapBaseLayerConfig
 }
 
 /** 数据文件路径配置 */
-export interface MapDataPaths {
+interface MapDataPaths {
   ports: string
   boundary: string
 }
 
 /** 相机中心点（含高度） */
-export interface MapCameraCenter {
+interface MapCameraCenter {
   lng: number
   lat: number
   height: number
 }
 
 /** 相机初始参数 */
-export interface MapCameraConfig {
+interface MapCameraConfig {
   center: MapCameraCenter
   heading: number
   pitch: number
@@ -40,7 +40,7 @@ export interface MapCameraConfig {
 }
 
 /** 视图层级配置（区域 / 城市 / 区级） */
-export interface MapViewLevel {
+interface MapViewLevel {
   center: { lng: number; lat: number }
   height: number
   zoom: number
@@ -48,7 +48,7 @@ export interface MapViewLevel {
 }
 
 /** 城市 flyTo 坐标（北部湾三港，按钮定位用，收归地图配置单一权威源） */
-export interface CityFlyToTarget {
+interface CityFlyToTarget {
   lng: number
   lat: number
   height: number
@@ -56,12 +56,12 @@ export interface CityFlyToTarget {
 }
 
 /** 视图层级集合 */
-export interface MapViewLevels {
+interface MapViewLevels {
   REGION: MapViewLevel
 }
 
 /** 地图全局配置 */
-export interface MapConfig {
+interface MapConfig {
   TIANDITU_KEY: string
   BASE_LAYERS: MapBaseLayersConfig
   TIANDITU_URL: string

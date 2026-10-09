@@ -14,7 +14,7 @@ const active = ref(false)
 const activePanel = ref<HTMLElement | null>(null)
 
 /** 返回契约（显式化，防重构时签名静默漂移） */
-export interface UseSliderFocusReturn {
+interface UseSliderFocusReturn {
   active: Ref<boolean>
   activePanel: Ref<HTMLElement | null>
   beginSliderFocus: (el: HTMLElement | null) => void

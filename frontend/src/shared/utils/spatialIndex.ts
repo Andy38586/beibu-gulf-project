@@ -15,7 +15,7 @@ export interface IndexedItem<T = unknown> extends BBox {
 }
 
 /** 返回契约（显式化，防重构时签名静默漂移） */
-export interface SpatialIndex<T = unknown> {
+interface SpatialIndex<T = unknown> {
   load: (items: IndexedItem<T>[]) => void
   query: (extent: [number, number, number, number]) => IndexedItem<T>[]
   clear: () => void

@@ -32,7 +32,7 @@ const { apiRequest } = useApiRequest()
 const { user, token } = useAuth()
 
 /** 返回契约（对齐 显式化，防签名静默漂移） */
-export interface UseFavoritesReturn {
+interface UseFavoritesReturn {
   favorites: Readonly<Ref<FavoriteItem[]>>
   isLoggedIn: ComputedRef<boolean>
   isFavorite: (itemType: FavoriteItemType, itemId: string) => boolean

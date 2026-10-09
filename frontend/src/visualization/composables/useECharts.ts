@@ -34,7 +34,7 @@ export interface ChartClickParams {
 }
 
 /** useECharts 配置选项 */
-export interface UseEChartsOptions {
+interface UseEChartsOptions {
   getOption: () => Record<string, unknown>
   watchSources?: WatchSource<unknown>[]
   onClick?: ((params: ChartClickParams) => void) | null

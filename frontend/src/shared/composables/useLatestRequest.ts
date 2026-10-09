@@ -8,7 +8,7 @@
  */
 
 /** 返回契约（显式化，防重构时签名静默漂移） */
-export interface UseLatestRequestReturn {
+interface UseLatestRequestReturn {
   createSignal: () => AbortSignal
   isLatest: (signal: AbortSignal) => boolean
   getCurrentSignal: () => AbortSignal | undefined

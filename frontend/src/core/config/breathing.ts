@@ -19,7 +19,7 @@
  */
 
 /** 呼吸周期（秒）。两条链路共用，保证同屏时相位一致 */
-export const BREATHING_PERIOD_SEC = 1
+const BREATHING_PERIOD_SEC = 1
 
 /** 尺寸脉动：基准 10 ± 5（px） */
 export function breathingSize(elapsedSec: number): number {

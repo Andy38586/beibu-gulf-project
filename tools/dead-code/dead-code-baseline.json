@@ -1,10 +1,10 @@
 {
   "generatedFrom": "tools/dead-code/scan.mjs",
   "totalDead": 0,
-  "totalRedundantExport": 110,
+  "totalRedundantExport": 38,
   "byModule": {},
   "dead": [],
-  "updatedAt": "2026-09-26",
+  "updatedAt": "2026-10-09",
   "history": [
     {
       "at": "2026-09-25",
@@ -47,6 +47,13 @@
       "totalRedundantExport": 110,
       "kind": "口径调整",
       "note": "G 类（契约配对 Parsed 类型，gen-api-contract 动态拼名消费）单列——A 账 20→0 属尺子变准而非债减少，S3 前置闭合"
+    },
+    {
+      "at": "2026-10-09",
+      "totalDead": 0,
+      "totalRedundantExport": 38,
+      "kind": "真清理",
+      "note": "剥离前端非 business 层 56 处仅本文件使用的 export（typecheck 暴露 2 处真死类型同笔删除）"
     }
   ]
 }

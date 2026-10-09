@@ -1238,7 +1238,7 @@ export class CesiumRenderer extends MapRenderer {
  */
 
 /** Cartesian3 → [lng, lat]（角度制） */
-export function cartesianToLonLatArray(cartesian: Cartesian3): [number, number] {
+function cartesianToLonLatArray(cartesian: Cartesian3): [number, number] {
   const cartographic = Cartographic.fromCartesian(cartesian)
   return [CesiumMath.toDegrees(cartographic.longitude), CesiumMath.toDegrees(cartographic.latitude)]
 }
@@ -1256,7 +1256,7 @@ function aliveViewer(renderer: CesiumRenderer): Viewer | null {
 }
 
 /** 点击/移动监听：LEFT_CLICK 拾取要素 properties 并 emit click；MOUSE_MOVE 回传鼠标经纬度 */
-export function setupClickHandler(renderer: CesiumRenderer): void {
+function setupClickHandler(renderer: CesiumRenderer): void {
   // 闭包捕获局部引用：事件回调晚于卸载窗口触发，经共享 renderer 解构
   // 裸 viewer 断言依赖 destroyEvents 时序；setup 期一次判空 + 局部捕获更稳（1004-03 复核）
   const clickViewer = renderer.viewer
@@ -1432,7 +1432,7 @@ function buildPointSpatialIndex(features: PointFeature[]) {
 }
 
 /** 构建 Cesium 点 Entity（含 label/properties），点图层与视口裁剪复用（构建逻辑单一来源） */
-export function createCesiumPointEntity(
+function createCesiumPointEntity(
   renderer: CesiumRenderer,
   id: string,
   item: PointFeature,
@@ -1928,7 +1928,7 @@ export function addImageOverlayLayer(
 }
 
 /** 设置图层可见性：Entity 数组逐个 show；dataSource / imageryLayer 直接设 show */
-export function doSetVisibility(renderer: CesiumRenderer, id: string, visible: boolean): void {
+function doSetVisibility(renderer: CesiumRenderer, id: string, visible: boolean): void {
   const layer = renderer._layers.get(id)
   const inst = layer?.instance
   if (inst) {
@@ -1997,7 +1997,7 @@ export function doRemoveLayer(renderer: CesiumRenderer, layer: LayerState): void
  */
 
 /** 视口经纬度范围 */
-export interface ViewportBBox {
+interface ViewportBBox {
   west: number
   east: number
   south: number
@@ -2049,13 +2049,13 @@ export function getViewportBBox(renderer: CesiumRenderer): ViewportBBox | null {
 }
 
 /** 点是否在视口内（bbox 为 null 时不裁剪，返回 true） */
-export function isInViewport(lng: number, lat: number, bbox: ViewportBBox | null): boolean {
+function isInViewport(lng: number, lat: number, bbox: ViewportBBox | null): boolean {
   if (!bbox) return true // 无视口信息时不裁剪
   return lng >= bbox.west && lng <= bbox.east && lat >= bbox.south && lat <= bbox.north
 }
 
 /** 注册视口变化监听：相机移动时 requestAnimationFrame 防抖合并，增量更新裁剪图层 */
-export function setupViewportListener(renderer: CesiumRenderer, id: string): void {
+function setupViewportListener(renderer: CesiumRenderer, id: string): void {
   const layer = renderer._layers.get(id)
   if (!layer || !layer.allFeatures) return
 
@@ -2083,7 +2083,7 @@ export function setupViewportListener(renderer: CesiumRenderer, id: string): voi
 }
 
 /** 增量更新裁剪图层：移除出视口的 Entity，添加新进入的（Entity ID 与 _createCesiumPointEntity 一致） */
-export function updateCulledLayer(renderer: CesiumRenderer, id: string): void {
+function updateCulledLayer(renderer: CesiumRenderer, id: string): void {
   const layer = renderer._layers.get(id)
   if (!layer || !layer.allFeatures || !layer.visible) return
 

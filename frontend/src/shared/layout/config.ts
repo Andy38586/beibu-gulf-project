@@ -20,8 +20,8 @@ export function getCellPixelByViewport(width: number): number {
 // 档位 1 桌面：≥960px（3 个面板宽），cell 80（1920+ 为 90）
 // 档位 2 抽屉模式：640~959px，cell 70，面板收进侧滑抽屉
 // 档位 3 紧凑：<640px，cell 70，底部 nav 另行设计
-export const LAYOUT_DESKTOP_MIN = 3 * 4 * 80 // 960
-export const LAYOUT_DRAWER_MIN = 2 * 4 * 80 // 640
+const LAYOUT_DESKTOP_MIN = 3 * 4 * 80 // 960
+const LAYOUT_DRAWER_MIN = 2 * 4 * 80 // 640
 
 export type LayoutTier = 'desktop' | 'drawer' | 'compact'
 

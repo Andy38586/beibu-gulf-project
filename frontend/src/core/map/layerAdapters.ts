@@ -35,7 +35,7 @@ import type { LayerType, Tiles3DData, WaterSurfaceData } from '@/types/core/laye
  *   · not-mounted —— 开关是"想显示"，但 BLM 重绘后该层没上屏（data 未就绪，a029）：
  *     标灰但**仍可点**（点一次关掉它，或等数据到位后自动变蓝），不再让用户以为是自己看错
  */
-export type LayerPanelState = 'on' | 'off' | 'unsupported' | 'not-mounted'
+type LayerPanelState = 'on' | 'off' | 'unsupported' | 'not-mounted'
 
 /**
  * 四态判定（纯函数，供面板与单测共用）。
@@ -155,7 +155,7 @@ export function isImageOverlayCapable(
 
 /** 真地形开关能力检查：仅 Cesium 实现（setTerrainEnabled 切换 terrainProvider）。
  *  对外导出——业务页注册真地形图层前用能力检查替代 getType() 引擎判断 */
-export function isTerrainCapable(
+function isTerrainCapable(
   renderer: MapRenderer
 ): renderer is MapRenderer & TerrainToggleCapability {
   return typeof (renderer as Partial<TerrainToggleCapability>).setTerrainEnabled === 'function'

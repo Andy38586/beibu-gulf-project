@@ -18,7 +18,7 @@
 import { vi } from 'vitest'
 
 /** 任意 Cesium 对象：构造/调用/读属性都返回安全的链式 mock（`then` 置空避免被当 thenable） */
-export function makeChainable(): object {
+function makeChainable(): object {
   return new Proxy(function () {}, {
     get(_t: unknown, prop: string | symbol) {
       if (prop === 'then') return undefined

@@ -38,6 +38,9 @@ import { MapRenderer } from './MapRenderer'
 /** Web 墨卡托投影标识（View/GeoJSON 读取共用，避免字面量散落） */
 const WEB_MERCATOR = 'EPSG:3857'
 
+/** 通用描边样式单例（OL 不在渲染期改写 Stroke；原 6 处同构造收敛到一处） */
+const OUTLINE_STROKE = new Stroke({ color: LAYER_DEFAULTS.outline, width: 2 })
+
 /**
  * 解析 #rrggbb → rgb 三元组；非法入参返回 null（解析不内置缺省色，避免与缺省常量相互依赖）。
  * OL 逐帧拼 rgba 字符串只能吃数值分量，故渲染层需把 hex 拆成三元组
@@ -57,6 +60,23 @@ function parseBreathingColor(color?: string): [number, number, number] | null {
 const DEFAULT_BREATHING_RGB: [number, number, number] = parseBreathingColor(
   LAYER_DEFAULTS.color
 ) ?? [0, 0, 0]
+
+/** 热力散点要素 → OL Point Feature（add/update 两路共用；缺失坐标跳过） */
+function toHeatmapOlFeatures(features: PointFeature[]): Feature<Point>[] {
+  return features.flatMap((f) => {
+    const coords = f.geometry?.coordinates
+    const point = normalizePoint(coords ? { lng: coords[0], lat: coords[1] } : f)
+    if (!point) return []
+    const feature = new Feature({
+      geometry: new Point(fromLonLat([point.lng, point.lat])),
+    })
+    // 将 properties 展开为 feature 属性（weightField 对应的值用于热力权重）
+    Object.entries(f.properties || {}).forEach(([key, value]) => {
+      feature.set(key, value)
+    })
+    return [feature]
+  })
+}
 
 /** 2D 视图层级限位（ 提常量：与 3D CAMERA_*_ZOOM_DISTANCE 对应；原散落 9/6/20） */
 const OL_VIEW_ZOOM = 9
@@ -78,7 +98,7 @@ function withClusterStyle(base: Style | StyleFunction): StyleFunction {
         image: new Circle({
           radius,
           fill: new Fill({ color: LAYER_DEFAULTS.color }),
-          stroke: new Stroke({ color: LAYER_DEFAULTS.outline, width: 2 }),
+          stroke: OUTLINE_STROKE,
         }),
         text: new Text({
           text: String(members.length),
@@ -541,7 +561,7 @@ export class OLRenderer extends MapRenderer {
         fill: new Fill({
           color: alpha >= 1 ? color : withAlpha(dimHex(color, INACTIVE_DIM_FACTOR), alpha),
         }),
-        stroke: new Stroke({ color: LAYER_DEFAULTS.outline, width: 2 }),
+        stroke: OUTLINE_STROKE,
       })
     const baseStyle = new Style({ image: makeImage(baseColor, 1) })
     // (color, alpha) 样式缓存：附近设施合并图层 6 色 × 2 档透明度，命中缓存则零分配
@@ -576,7 +596,7 @@ export class OLRenderer extends MapRenderer {
           text: feature.get(options.labelField as string),
           font: '12px sans-serif',
           fill: new Fill({ color: LAYER_DEFAULTS.text }),
-          stroke: new Stroke({ color: LAYER_DEFAULTS.outline, width: 2 }),
+          stroke: OUTLINE_STROKE,
           offsetY: 15,
         }),
       })
@@ -723,7 +743,7 @@ export class OLRenderer extends MapRenderer {
       image: new Circle({
         radius: (options.markerSize || 10) / 2,
         fill: new Fill({ color: options.markerColor || LAYER_DEFAULTS.marker }),
-        stroke: new Stroke({ color: LAYER_DEFAULTS.outline, width: 2 }),
+        stroke: OUTLINE_STROKE,
       }),
     })
     // TODO: 支持 options.style 回调，用于 per-feature 样式。
@@ -759,19 +779,7 @@ export class OLRenderer extends MapRenderer {
     } = options
 
     // 将 features 数组转为 OpenLayers Feature（坐标归一化走 normalizePoint，含 longitude 别名；缺失坐标跳过）
-    const olFeatures = features.flatMap((f) => {
-      const coords = f.geometry?.coordinates
-      const point = normalizePoint(coords ? { lng: coords[0], lat: coords[1] } : f)
-      if (!point) return []
-      const feature = new Feature({
-        geometry: new Point(fromLonLat([point.lng, point.lat])),
-      })
-      // 将 properties 展开为 feature 属性（weightField 对应的值用于热力权重）
-      Object.entries(f.properties || {}).forEach(([key, value]) => {
-        feature.set(key, value)
-      })
-      return [feature]
-    })
+    const olFeatures = toHeatmapOlFeatures(features)
 
     const source = new VectorSource({ features: olFeatures })
 
@@ -810,20 +818,7 @@ export class OLRenderer extends MapRenderer {
     const source = layer.getSource()
     if (!source) return false
 
-    const { weightField: _weightField = 'value' } = options
-
-    const olFeatures = features.flatMap((f) => {
-      const coords = f.geometry?.coordinates
-      const point = normalizePoint(coords ? { lng: coords[0], lat: coords[1] } : f)
-      if (!point) return []
-      const feature = new Feature({
-        geometry: new Point(fromLonLat([point.lng, point.lat])),
-      })
-      Object.entries(f.properties || {}).forEach(([key, value]) => {
-        feature.set(key, value)
-      })
-      return [feature]
-    })
+    const olFeatures = toHeatmapOlFeatures(features)
 
     source.clear()
     source.addFeatures(olFeatures)
@@ -979,7 +974,7 @@ export class OLRenderer extends MapRenderer {
         image: new Circle({
           radius: breathingSize(t),
           fill: new Fill({ color: `rgba(${r},${g},${b},${breathingAlpha(t)})` }),
-          stroke: new Stroke({ color: LAYER_DEFAULTS.outline, width: 2 }),
+          stroke: OUTLINE_STROKE,
         }),
       })
     }
@@ -1037,7 +1032,7 @@ export class OLRenderer extends MapRenderer {
         image: new Circle({
           radius: breathingSize(t),
           fill: new Fill({ color: `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${breathingAlpha(t)})` }),
-          stroke: new Stroke({ color: LAYER_DEFAULTS.outline, width: 2 }),
+          stroke: OUTLINE_STROKE,
         }),
       })
     }

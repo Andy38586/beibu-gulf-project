@@ -30,14 +30,14 @@ export interface RouteSlot {
 }
 
 /** 路径线样式（双引擎通用；色值走模块 constants，不硬编码） */
-export const ROUTE_PATH_STYLE: LayerOptions = {
+const ROUTE_PATH_STYLE: LayerOptions = {
   strokeColor: ROUTE_COLOR,
   strokeWidth: 4,
   featureType: ROUTE_PATH_LAYER_ID,
 }
 
 /** 端点标记样式 */
-export const ROUTE_ENDPOINT_STYLE: LayerOptions = {
+const ROUTE_ENDPOINT_STYLE: LayerOptions = {
   size: 9,
   color: ROUTE_COLOR,
   featureType: ROUTE_ENDPOINT_LAYER_ID,
@@ -82,7 +82,7 @@ export function buildEndpointGeoJson(slots: RouteSlot[]): FeatureCollection {
 }
 
 /** useRouteLayer 返回值 */
-export interface UseRouteLayerReturn {
+interface UseRouteLayerReturn {
   /** 更新路径线（多段）+ 端点标记图层（幂等：空集时清理对应图层；未注册先注册） */
   updateRouteLayers: (segments: RoutePathResult[], slots: RouteSlot[]) => void
   /**

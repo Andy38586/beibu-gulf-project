@@ -8,13 +8,13 @@ import { type Ref, ref } from 'vue'
 import { forecastAdapter } from '@/services'
 import { describeError, logger, showWarning } from '@/shared'
 
-export interface ChartDataset {
+interface ChartDataset {
   labels: string[]
   series: Array<{ name: string; data: number[] }>
 }
 
 /** 返回契约（显式化，防重构时签名静默漂移） */
-export interface UseOverviewChartsReturn {
+interface UseOverviewChartsReturn {
   chartData: Ref<ChartDataset>
   barData: Ref<ChartDataset>
   loadOverviewCharts: () => Promise<void>

@@ -48,12 +48,12 @@ export interface FloodAnalysisPayload {
   actualWaterLevel?: number
 }
 
-export interface FloodImpactPayload {
+interface FloodImpactPayload {
   affectedFacilities: AffectedFacility[]
   totalLoss: number
 }
 
-export interface UseFloodRequestReturn {
+interface UseFloodRequestReturn {
   /**
    * 取淹没分析（范围 + 统计 + 风险等级）。
    *

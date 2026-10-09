@@ -9,7 +9,7 @@ import { computed, type ComputedRef } from 'vue'
 import { useLatestRequest } from '@/shared'
 import { useSiteSuitabilityStore } from '@/stores'
 
-export interface UseSiteSuitabilityRequestReturn {
+interface UseSiteSuitabilityRequestReturn {
   isLoading: ComputedRef<boolean>
   startTransaction: () => { transactionId: number; signal: AbortSignal }
   isTransactionValid: (transactionId: number) => boolean

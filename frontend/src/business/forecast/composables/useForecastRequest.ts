@@ -10,7 +10,7 @@ import { ApiError, ErrorCode, useLatestRequest } from '@/shared'
 import { useForecastStore } from '@/stores'
 
 /** 返回契约（显式化，防重构时签名静默漂移） */
-export interface UseForecastRequestReturn {
+interface UseForecastRequestReturn {
   isLoading: ComputedRef<boolean>
   startTransaction: () => { transactionId: number; signal: AbortSignal }
   isTransactionValid: (transactionId: number) => boolean

@@ -9,7 +9,7 @@ import { ENDPOINTS, logger, showError, useApiRequest } from '@/shared'
 import { terrainProfileSchema } from '@/types/schemas'
 
 /** 剖面线点（对应 terrainProfile.json points） */
-export interface TerrainProfilePoint {
+interface TerrainProfilePoint {
   distance: number
   lng: number
   lat: number
@@ -17,7 +17,7 @@ export interface TerrainProfilePoint {
 }
 
 /** 剖面线（对应 terrainProfile.json profiles；startPoint/endPoint 数据自带，当前零消费） */
-export interface TerrainProfile {
+interface TerrainProfile {
   id: string
   name: string
   port?: string
@@ -33,7 +33,7 @@ export interface TerrainProfile {
 }
 
 /** 返回契约（显式化） */
-export interface UseTerrainProfilesReturn {
+interface UseTerrainProfilesReturn {
   profiles: Ref<TerrainProfile[]>
   selectedProfileId: Ref<string | null>
   loadProfiles: (signal?: AbortSignal) => Promise<void>

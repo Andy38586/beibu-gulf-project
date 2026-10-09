@@ -1,7 +1,7 @@
 {
   "generatedFrom": "tools/dead-code/scan.mjs",
   "totalDead": 0,
-  "totalRedundantExport": 38,
+  "totalRedundantExport": 26,
   "byModule": {},
   "dead": [],
   "updatedAt": "2026-10-09",
@@ -54,6 +54,13 @@
       "totalRedundantExport": 38,
       "kind": "真清理",
       "note": "剥离前端非 business 层 56 处仅本文件使用的 export（typecheck 暴露 2 处真死类型同笔删除）"
+    },
+    {
+      "at": "2026-10-09",
+      "totalDead": 0,
+      "totalRedundantExport": 26,
+      "kind": "真清理",
+      "note": "剥离前端 business 层 12 处仅本文件使用的 export"
     }
   ]
 }

@@ -33,6 +33,10 @@
  *    直接 continue，而成功文案写的是全称判断 —— 于是**摘掉或改名某个守卫的 test 文件，
  *    该守卫就整体退出复验且装置照报 OK**，本装置自己犯的正是它要治的病（04-F1）。
  *    现在 skip 计入问题、且必须显式登记才豁免；成功文案改成带计数的非全称判断。
+ * 5. **注入点取函数体、注入物过解析**（2026-10-09）。旧版取第一个 `{`，对解构参数
+ *    （`function f({ a } = {})`）会把 `return []` 插进参数表 ⇒ 子进程 parse error 被记成
+ *    `killed`（假杀；`tools/diag/probe-guard-injection-syntax.mjs` 实测 8/28 命中）。
+ * 6. **写回带重试**（2026-10-09）。变异对着子进程刚读过的文件写回，Windows 实测连崩 3 次。
  *
  * ## 用法
  *
@@ -79,13 +83,58 @@ export function pickInjectables(source, names) {
   return names.filter((n) => source.includes(`export function ${n}`))
 }
 
+/**
+ * 找导出函数的函数体起始花括号：从参数表开括号起按括号深度找配对的 `)`，
+ * 再取其后的第一个 `{`。解构参数（`{ a } = {}`）里的花括号因此不会被当成函数体。
+ */
+function findBodyBrace(source, fromIdx) {
+  const open = source.indexOf('(', fromIdx)
+  if (open === -1) return -1
+  let depth = 0
+  for (let i = open; i < source.length; i++) {
+    const ch = source[i]
+    if (ch === '(' || ch === '[' || ch === '{') depth++
+    else if (ch === ')' || ch === ']' || ch === '}') {
+      depth--
+      if (depth === 0) return source.indexOf('{', i + 1)
+    }
+  }
+  return -1
+}
+
 /** 在指定导出函数的函数体开头注入 `return []`，使其整体失效；找不到锚点返回 null */
 export function injectEarlyReturn(source, fnName) {
   const idx = source.indexOf(`export function ${fnName}`)
   if (idx === -1) return null
-  const brace = source.indexOf('{', idx)
+  const brace = findBodyBrace(source, idx + `export function ${fnName}`.length)
   if (brace === -1) return null
   return source.slice(0, brace + 1) + '\n  return []\n' + source.slice(brace + 1)
+}
+
+/** 注入产物必须仍是合法模块：否则"子进程非零"只是解析错误，不是判据咬住了 */
+export function parsesModule(source) {
+  const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'grm-syn-')), 'probe.mjs')
+  fs.writeFileSync(file, source)
+  return spawnSync(process.execPath, ['--check', file], { stdio: 'ignore' }).status === 0
+}
+
+/**
+ * 写文件带重试：子进程刚读过目标文件时写回可能短暂失败（见头注 6）。
+ * 重试尽仍失败才抛错——此时装置中止，工作树可能停在注入态，需手工核对。
+ */
+function writeFileRetry(file, content) {
+  for (let i = 1; ; i++) {
+    try {
+      fs.writeFileSync(file, content)
+      return
+    } catch (err) {
+      if (i >= 15) throw err
+      const until = Date.now() + 100
+      while (Date.now() < until) {
+        // 同步自旋等待：本装置全同步执行，让出事件循环也无人接手
+      }
+    }
+  }
 }
 
 /** 判定（纯函数，便于红样测试）：返回问题列表（空 = 通过） */
@@ -161,12 +210,19 @@ export function probeGuard(guardName, { guardDir = HERE, root = ROOT } = {}) {
   for (const fn of injectables) {
     const mutated = injectEarlyReturn(orig, fn)
     if (mutated === null) continue
-    fs.writeFileSync(guardPath, mutated)
+    if (!parsesModule(mutated)) {
+      return {
+        guard: guardName,
+        status: 'error',
+        detail: `停用 ${fn} 后源码解析失败（假杀形状）；注入器必须落在函数体上`,
+      }
+    }
+    writeFileRetry(guardPath, mutated)
     let r
     try {
       r = runTestFile(testRel)
     } finally {
-      fs.writeFileSync(guardPath, orig)
+      writeFileRetry(guardPath, orig)
     }
     if (r.status === null) {
       return {

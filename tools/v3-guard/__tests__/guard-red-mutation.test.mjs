@@ -11,6 +11,8 @@
  *   5) 复验清单从 run-all 的登记派生（含执行装置、不含自身、无幽灵登记）；
  *   6) **端到端**：对真实守卫 `tmp-hygiene` 跑一次完整探测，断言它 killed ——
  *      证明装置真的会跑子进程、真的能区分「红」与「跑不起来」。
+ *   7) 注入点必须落在**函数体**（跳过解构参数），且注入产物必须可解析 ——
+ *      2026-10-09 假杀修复：旧实现把 `return []` 插进参数表 ⇒ parse error 被当成 killed。
  */
 import { mkdtempSync, readdirSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -23,6 +25,7 @@ import {
   guardsToProbe,
   importedNames,
   injectEarlyReturn,
+  parsesModule,
   pickInjectables,
   probeGuard,
 } from '../guard-red-mutation.mjs'
@@ -45,6 +48,20 @@ describe('guard-red-mutation — 守卫红样能红性复验', () => {
     const out = injectEarlyReturn('export function f(a) {\n  return a\n}\n', 'f')
     expect(out).toContain('export function f(a) {\n  return []\n')
     expect(injectEarlyReturn('const x = 1\n', 'f')).toBeNull()
+  })
+
+  it('@guard-red-sample 解构参数的注入点落在函数体，旧形状（插进参数表）必须解析失败', () => {
+    const src = 'export function scan({ root = ROOT, ext = [] } = {}) {\n  return root\n}\n'
+    const out = injectEarlyReturn(src, 'scan')
+    expect(out).not.toBeNull()
+    expect(
+      out.indexOf('return []'),
+      '注入必须发生在参数表闭合之后（旧实现落进解构参数 = 假杀）'
+    ).toBeGreaterThan(out.indexOf('} = {})'))
+    expect(parsesModule(out), '注入产物必须仍是合法模块').toBe(true)
+    // 阳性对照：旧实现的形状（紧跟第一个 `{` 注入）必须解析失败，否则本用例证明不了假杀
+    const oldShape = src.replace('export function scan({', 'export function scan({\n  return []\n')
+    expect(parsesModule(oldShape), '旧形状应当解析失败').toBe(false)
   })
 
   it('@guard-red-sample survived ⇒ 必报（假绿样是本守卫要抓的东西）', () => {

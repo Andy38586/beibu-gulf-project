@@ -31,7 +31,7 @@ const FORBIDDEN_FILENAMES = /\.(tmp|bak|orig|swp)(\.\w+)?$/i
  */
 export const RENDERER_SIZE_CEILINGS = [
   { file: 'frontend/src/core/map/renderers/CesiumRenderer.ts', max: 2362 },
-  { file: 'frontend/src/core/map/renderers/OLRenderer.ts', max: 1120 },
+  { file: 'frontend/src/core/map/renderers/OLRenderer.ts', max: 1115 },
 ]
 
 /**

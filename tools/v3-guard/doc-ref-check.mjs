@@ -135,11 +135,17 @@ export function loadPlan(docMap) {
     text: showFromIndex(path.relative(ROOT, CONVENTION).replace(/\\/g, '/')),
   })
   const metricIds = new Map()
-  const specFiles = execFileSync('git', ['ls-files', '--', 'docs/根基文档/审查体系专项/专项*.md'], {
-    cwd: ROOT,
-    encoding: 'utf8',
-  })
-    .split(/\r?\n/)
+  // `-z` 取清单：默认 core.quotepath=true（CI 即如此）会把中文路径 quote 成八进制转义，
+  // 非 -z 输出会让下面的 basename 正则失配 ⇒ 指标集静默为空、全部引用假红。
+  const specFiles = execFileSync(
+    'git',
+    ['ls-files', '-z', '--', 'docs/根基文档/审查体系专项/专项*.md'],
+    {
+      cwd: ROOT,
+      encoding: 'utf8',
+    }
+  )
+    .split('\0')
     .filter(Boolean)
     .sort()
   for (const rel of specFiles) {

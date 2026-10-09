@@ -49,4 +49,26 @@ describe('doc-ref-check — 节号解析', () => {
     expect(plan.files.length).toBeGreaterThanOrEqual(8)
     expect(auditRefs(plan.files, plan.targets, plan.metricIds)).toEqual([])
   })
+
+  it('本地 git 配置不可信：强制 core.quotepath=true（CI 默认）端到端仍绿', () => {
+    // 本机 .git/config 曾设 core.quotepath=false 把红盖住；CI 默认 true 时
+    // `git ls-files` 会把中文路径 quote 成八进制转义 ⇒ 取清单不得依赖该开关。
+    const saved = {
+      GIT_CONFIG_COUNT: process.env.GIT_CONFIG_COUNT,
+      GIT_CONFIG_KEY_0: process.env.GIT_CONFIG_KEY_0,
+      GIT_CONFIG_VALUE_0: process.env.GIT_CONFIG_VALUE_0,
+    }
+    process.env.GIT_CONFIG_COUNT = '1'
+    process.env.GIT_CONFIG_KEY_0 = 'core.quotepath'
+    process.env.GIT_CONFIG_VALUE_0 = 'true'
+    try {
+      const plan = loadPlan()
+      expect(auditRefs(plan.files, plan.targets, plan.metricIds)).toEqual([])
+    } finally {
+      for (const [k, v] of Object.entries(saved)) {
+        if (v === undefined) delete process.env[k]
+        else process.env[k] = v
+      }
+    }
+  })
 })

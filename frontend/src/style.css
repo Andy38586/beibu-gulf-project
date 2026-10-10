@@ -321,12 +321,15 @@ body {
   /* 2026-08-10：释放内联 min-width（4 cell=280px > body 内容区 270px），
    * 否则面板横向溢出 → 抽屉底部出现横向滑动条 */
   min-width: 0 !important;
-  min-height: 260px;
+  /* !important 必需：GCSPanel 内联 --GCS-panel-min-height（h*cell，如 4×8=560px）
+   * 经 scoped 规则解析，特异性相同时 scoped 注入晚于本全局样式，会盖住 260px */
+  min-height: 260px !important;
   margin-bottom: 12px;
 
   /* 2026-08-10：内容不被裁剪——登录表单等高内容面板（4×8=640px 内容远超
-   * min-height 260px）原先被 overflow:hidden 裁掉大部分，只能看到顶部一截 */
-  overflow: visible;
+   * min-height 260px）原先被 overflow:hidden 裁掉大部分，只能看到顶部一截。
+   * !important 同上：scoped `.GCS-panel{overflow:hidden}` 否则会盖回 hidden */
+  overflow: visible !important;
 }
 
 /* 2026-08-10：解除面板内 height:100% 高度链——GCSPanel 高度自适应内容后，
@@ -334,6 +337,29 @@ body {
  * 避免 flex 塌缩把登录表单压缩进 min-height 内被裁剪 */
 .GCS-drawer__body .GCS-panel > * {
   height: auto !important;
+}
+
+/* 个人中心登录面板：profile-content 为 flex column 且 overflow:hidden，
+ * 其内 .profile-login 是 flex:1 1 0 / min-height:0，高度链改为 auto 后
+ * 该 flex 项在 auto 高度容器中无剩余空间可分配，会塌缩到 14px，
+ * 登录表单被 profile-content 的 overflow:hidden 裁掉（实测：抽屉里只看到
+ * 顶部一条蓝色按钮边）。此处令登录面板及表单区按内容自然撑开。 */
+/* 选择器带 .GCS-panel 提一层：目标 scoped 规则（.profile-content[data-v] /
+ * .profile-login[data-v]）特异性 0,2,0 且注入晚于全局，本规则须达 0,3,0 才盖得住 */
+.GCS-drawer__body .GCS-panel .profile-content {
+  overflow: visible;
+}
+
+.GCS-drawer__body .GCS-panel .profile-login,
+.GCS-drawer__body .GCS-panel .profile-logged-in {
+  flex: 0 0 auto;
+  height: auto;
+}
+
+.GCS-drawer__body .profile-login .form-area,
+.GCS-drawer__body .profile-logged-in .favorites-container {
+  flex: 0 0 auto;
+  height: auto;
 }
 
 /* 抽屉滑入/滑出动画 */

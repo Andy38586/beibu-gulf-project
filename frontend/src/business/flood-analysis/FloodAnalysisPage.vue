@@ -198,14 +198,8 @@ function saveCurrentState() {
 
 /** 挂载时恢复保存的状态 */
 onMounted(async () => {
-  // v4-S3：把渲染回调注入面板——面板发完请求后调它们写 store + 上图。
-  // 🔴 必须在面板 mount 之后注册（ref 此时才可用），故放本页 onMounted 最前。
-  //    顺序讲究：先注册回调，再（可能地）触发首屏，避免首屏结果回来时回调还是空的。
-  waterPanelRef.value?.registerRenderers({
-    analysis: applyFloodAnalysis,
-    impact: applyImpactAssessment,
-    waterSurface: updateWaterSurfaceHeight,
-  })
+  // 渲染回调注入见下方 watch(waterPanelRef)：面板随业务面板懒挂载（菜单打开才出现），
+  // 页面 onMounted 时 ref 恒为 null，在 onMounted 注册会被 optional chaining 静默跳过。
 
   // 恢复路径整体兜底——renderFloodAreas/renderAffectedFacilities 经 BLM updateData
   // 对未注册图层 throw（layerAdapters 数据守卫），async 钩子无 catch 会成 unhandledrejection
@@ -297,6 +291,26 @@ type FloodPanelExposed = {
   dockToTask: () => Promise<boolean>
 }
 const waterPanelRef = ref<FloodPanelExposed | null>(null)
+
+/**
+ * 面板挂载后注入渲染回调。
+ *
+ * 🔴 面板随业务面板懒挂载（菜单打开才出现）：页面 onMounted 时 ref 恒为 null，
+ *    在 onMounted 注册会被 optional chaining 静默跳过 ⇒ renderers 永远为空，
+ *    面板拿到淹没面/受影响设施数据也无处上图（实际压测复现：滑块调至 7.5m，
+ *    flood-areas 请求成功，但地图不渲染）。改用 watch 等 ref 出现即注入。
+ */
+watch(
+  waterPanelRef,
+  (panel) => {
+    panel?.registerRenderers({
+      analysis: applyFloodAnalysis,
+      impact: applyImpactAssessment,
+      waterSurface: updateWaterSurfaceHeight,
+    })
+  },
+  { immediate: true }
+)
 
 /** 页面已卸载标志：丢弃迟到响应，防止离开后图层复活 */
 let unmounted = false

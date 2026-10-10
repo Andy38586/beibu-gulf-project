@@ -22,6 +22,7 @@
  */
 import { flushPromises, shallowMount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
+import { defineComponent, h as vueH } from 'vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { useFloodStore } from '@/stores'
@@ -249,5 +250,58 @@ describe('FloodAnalysisPage 卸载守卫（v4-S3）', () => {
     await flushPromises()
 
     expect(h.showWarning).not.toHaveBeenCalled()
+  })
+
+  /**
+   * 渲染回调注入时序（2026-10-10 压测修复）：WaterLevelProfilePanel 随业务面板懒挂载，
+   * 页面 onMounted 时 ref 为 null，原 onMounted 内的 registerRenderers 被 optional
+   * chaining 静默跳过，面板 renderers 恒为空 ⇒ 拿到淹没数据也无处上图。
+   * 改用 watch(waterPanelRef) 等 ref 出现即注入。此处用带 registerRenderers 替身的
+   * 自定义 stub，断言面板挂载后回调被注入且三个函数齐备。
+   */
+  it('面板挂载后注入渲染回调（懒挂载时序，曾恒为空）', async () => {
+    const registerRenderers = vi.fn()
+    // 模板 ref 在子组件上取的是 exposed；setup 中显式 expose 才拿得到 registerRenderers
+    const panelStub = defineComponent({
+      name: 'WaterLevelProfilePanel',
+      setup(_, { expose }) {
+        expose({ registerRenderers })
+        return () => vueH('div', { class: 'wl-stub' })
+      },
+    })
+    // 自动 stub 默认不渲染 slot：面板嵌在 AppLayout 的具名 #right → TaskPanelSlot 的
+    // 默认 slot 里，两层都不渲染则 ref 恒 null。把这两层换成透传 slot 的 stub。
+    const passthrough = defineComponent({
+      setup(_, { slots }) {
+        return () => {
+          const nodes: unknown[] = []
+          const push = (fn?: () => unknown[]) => {
+            if (fn) nodes.push(...fn())
+          }
+          push(slots.default)
+          push(slots.left)
+          push(slots.right)
+          return nodes
+        }
+      },
+    })
+    const wrapper = shallowMount(FloodAnalysisPage, {
+      global: {
+        stubs: {
+          AppLayout: passthrough,
+          TaskPanelSlot: passthrough,
+          WaterLevelProfilePanel: panelStub,
+        },
+      },
+    })
+    await flushPromises()
+
+    expect(registerRenderers).toHaveBeenCalledTimes(1)
+    const injected = registerRenderers.mock.calls[0]![0] as Record<string, unknown>
+    expect(typeof injected.analysis).toBe('function')
+    expect(typeof injected.impact).toBe('function')
+    expect(typeof injected.waterSurface).toBe('function')
+
+    wrapper.unmount()
   })
 })

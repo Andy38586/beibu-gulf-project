@@ -114,13 +114,21 @@
   --GCS-overlay-highlight: rgb(255 255 255 / 22%); /* 按钮悬浮高光，仅高光用 */
 }
 
-/* c056：暗色主题下底图压暗（纯 CSS，零 JS）——天地图影像不再刺眼；
-    仅作用于底图（ol-base-layer / cesium-widget），业务图层不受影响；
-    Cesium 原 ImageryLayer.brightness 方案需 JS 联动，纯 CSS 覆盖更轻。 */
-:root[data-theme='dark'] .ol-base-layer,
+/* c056：暗色主题下底图跟随变暗（纯 CSS，零 JS），仅作用于底图、业务图层不受影响。
+   影像底图：卫星影像本就偏暗，brightness 自然压暗即可。
+   矢量底图：白底 brightness 只能压到灰；改用 invert+hue-rotate 真变暗
+   （黑底白字、海洋保留蓝色，等价 Carto Dark 风格）。 */
+:root[data-theme='dark'] .ol-base-image {
+  filter: brightness(0.65) saturate(0.9);
+}
+:root[data-theme='dark'] .ol-base-vector {
+  filter: invert(1) hue-rotate(180deg) saturate(0.85) brightness(1.03);
+}
+/* Cesium 底图绘制在主 WebGL canvas，无法仅 filter 底图；深色下整体压暗避免刺眼
+   （含 3dtiles/业务层，3D 端简化）。精确控制需 ImageryLayer JS 联动，暂不做。 */
 :root[data-theme='dark'] .cesium-widget canvas,
 :root[data-theme='dark'] .cesium-viewer canvas {
-  filter: brightness(0.65) saturate(0.9);
+  filter: brightness(0.7) saturate(0.9);
 }
 
 /* c055：dark 块仅覆盖随主题变化的颜色类 token；

@@ -16,6 +16,7 @@ import {
   handleAuthError,
   isAuthError,
   showError,
+  LAYER_DEFAULTS,
   SITE_SUITABILITY_LAYER_KEY,
   useApiRequest,
   useSlowRequestOffer,
@@ -49,8 +50,8 @@ const SITE_SUITABILITY_ROUTE_PATH = '/site-suitability'
 const DISPLAY_RESOLUTION_DEG = 0.02
 const LAYER_TYPE: LayerType = 'heatmap'
 
-/** 热力图色带与渲染参数（与预测图层同款形式，weightField 改 score） */
-const GRADIENT = ['#00f', '#0ff', '#0f0', '#ff0', '#f00']
+/** 热力图色带与渲染参数（与预测图层同款形式，weightField 改 score）；色带单源 LAYER_DEFAULTS.heatmapGradient（D21-4） */
+const GRADIENT = [...LAYER_DEFAULTS.heatmapGradient]
 
 /**
  * 展示阈值（v4 后续迭代 2026-10-05 用户选定「阈值渲染」）：只上图 score ≥ 本值的格——

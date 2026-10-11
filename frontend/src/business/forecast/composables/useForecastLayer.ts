@@ -21,7 +21,7 @@ import {
   useApiRequest,
 } from '@/shared'
 import { logger } from '@/shared'
-import { DEFAULT_CONFIDENCE, forecastLayerId, FORECAST_INDICATORS } from '@/shared'
+import { DEFAULT_CONFIDENCE, forecastLayerId, FORECAST_INDICATORS, LAYER_DEFAULTS } from '@/shared'
 import { useForecastStore } from '@/stores'
 import { useMapStore } from '@/stores'
 import type { LayerOptions, LayerType, MapRenderer } from '@/types'
@@ -43,8 +43,8 @@ const LAYER_TYPES: Record<string, LayerType> = {
   activity: 'heatmap',
 }
 
-/** 热力图色带（显式常量，不散落魔法数组） */
-const FORECAST_HEATMAP_GRADIENT = ['#00f', '#0ff', '#0f0', '#ff0', '#f00']
+/** 热力图色带：单源 LAYER_DEFAULTS.heatmapGradient（D21-4，原手抄与选址层逐位重复） */
+const FORECAST_HEATMAP_GRADIENT = [...LAYER_DEFAULTS.heatmapGradient]
 
 /** useForecastLayer 返回值 */
 interface UseForecastLayerReturn {

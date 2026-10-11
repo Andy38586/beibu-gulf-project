@@ -668,27 +668,6 @@ defineExpose({ registerRenderers, dockToTask })
   width: calc(2 * var(--GCS-cell));
 }
 
-.control-section {
-  display: flex;
-  flex-direction: column;
-  gap: v-bind(cell8px);
-}
-
-.control-label {
-  font-size: 13px;
-  color: var(--GCS-text-secondary);
-}
-
-.action-buttons {
-  display: flex;
-  gap: v-bind(cell8px);
-}
-
-.action-buttons .el-button {
-  flex: 1;
-  font-size: 12px;
-}
-
 .chart-container {
   flex: 1;
   min-height: 0;
@@ -728,7 +707,7 @@ defineExpose({ registerRenderers, dockToTask })
   box-shadow: 0 1px 3px rgb(0 0 0 / 35%);
 }
 
-/* 刻度 7 档上下交错（上 3 下 4）：刻度层绝对覆盖滑块容器，top 行贴滑块上方、
+/* 刻度 5 档上下交错（上 2 下 3，见 scaleMarks）：刻度层绝对覆盖滑块容器，top 行贴滑块上方、
    bottom 行贴滑块下方；left=value/FLOOD_DISPLAY_MAX_WATER_LEVEL 与轨道真实位置一致，nowrap 防折行，
    首尾单侧对齐防溢出面板 */
 .scale-marks {

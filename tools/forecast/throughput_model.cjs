@@ -87,6 +87,12 @@ const ROLLING_HORIZON = 12
 // P0-3 区间校准：80% 区间 = 胜者回测的逐 origin 已实现相对误差分位数（月步长 1-12）
 const INTERVAL_CALIBRATION = { level: 0.8, minSamples: 10 }
 
+/** 选模闸门规则（单一来源）：产物内 gate 与 model_selection.rule 两处引用同此常量，
+ *  改闸门（阈值/DM 条件）只改这里，防两处描述漂移（逐行审计 K6-1）。 */
+const GATE_RULE =
+  '候选（ETS / 季节朴素 / 组合）须比线性好 ≥0.5pp 且 DM(vs 线性) p<0.1 才可替换；' +
+  '达标者取 MAPE 最小（平局取参数少者）；组合须严格优于当轮最好单模型'
+
 function loadData(file) {
   const raw = fs.readFileSync(path.join(forecastDir(), file), 'utf-8')
   return JSON.parse(raw)
@@ -624,7 +630,7 @@ function processPort(portId, historical) {
     },
     dm_vs_linear: dmVsLinear,
     selected,
-    gate: '候选须比线性好 ≥0.5pp 且 DM(vs 线性) p<0.1 才可替换；达标者取 MAPE 最小（平局取参数少者）；组合须严格优于当轮最好单模型',
+    gate: GATE_RULE,
   }
 
   return {
@@ -650,7 +656,7 @@ function main() {
         forecast_period: '2026-07 ~ 2035-12',
         model_selection: {
           judge_metric: '滚动回测全步长（h1-12）平均 MAPE',
-          rule: '候选（ETS / 季节朴素 / 组合）须比线性好 ≥0.5pp 且 DM(vs 线性) p<0.1 才可替换；达标者取 MAPE 最小（平局取参数少者）；组合须严格优于当轮最好单模型',
+          rule: GATE_RULE,
           per_port_winner: '见 ports.*.backtest.selected_model 与 ports.*.model_comparison',
         },
         interval_calibration:

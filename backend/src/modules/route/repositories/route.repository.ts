@@ -365,13 +365,4 @@ ORDER BY t.ord
     )
     return res.rows
   }
-
-  /** 兜底：pgr_withPoints 无结果时的诊断——统计可通行边数（区分「拓扑未建」与「确实不连通」） */
-  async countTraversableEdges(): Promise<number> {
-    const res = await this.db.query<{ n: string }>(
-      // 双向任一方向可通行即计入（v2 有单向边：只数 cost_m > 0 会漏掉反向单行段）
-      'SELECT count(*)::text AS n FROM ' + ROUTING_TABLE + ' WHERE cost_m > 0 OR reverse_cost_m > 0'
-    )
-    return Number(res.rows[0]?.n ?? 0)
-  }
 }

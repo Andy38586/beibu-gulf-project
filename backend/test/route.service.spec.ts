@@ -26,7 +26,6 @@ function makeRepoMock() {
     shortestPathByPoints: vi.fn(),
     sumSegmentCosts: vi.fn(),
     segmentGeometry: vi.fn(),
-    countTraversableEdges: vi.fn(),
   } as unknown as RouteRepository & {
     snapPoints: ReturnType<typeof vi.fn>
     shortestPathByPoints: ReturnType<typeof vi.fn>

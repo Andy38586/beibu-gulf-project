@@ -30,6 +30,26 @@ import { PlansService } from '../services/plans.service'
 export class PlansController {
   constructor(private readonly plansService: PlansService) {}
 
+  /**
+   * 属主校验唯一入口（逐行审计 K6-2 收口）：6 个端点原各自手抄
+   * 「getById → 404 → userId 比对 → 403」三行组，唯一差异是 403 文案动词。
+   * 收口后头注「文案逐字节一致」由构造保证——改属主口径只改这里。
+   */
+  private async requireOwnedPlan(
+    id: string,
+    req: Request & { user?: { id: string } },
+    action: '访问' | '修改' | '删除'
+  ) {
+    const plan = await this.plansService.getById(id)
+    if (!plan) {
+      throw new BusinessError(ErrorCode.NOT_FOUND, '方案不存在')
+    }
+    if (plan.userId !== req.user!.id) {
+      throw new BusinessError(ErrorCode.FORBIDDEN, `无权${action}该方案`)
+    }
+    return plan
+  }
+
   @Get()
   list(@Req() req: Request & { user?: { id: string } }) {
     return this.plansService.listByUser(req.user!.id)
@@ -37,14 +57,7 @@ export class PlansController {
 
   @Get(':id')
   async getOne(@Param('id') id: string, @Req() req: Request & { user?: { id: string } }) {
-    const plan = await this.plansService.getById(id)
-    if (!plan) {
-      throw new BusinessError(ErrorCode.NOT_FOUND, '方案不存在')
-    }
-    if (plan.userId !== req.user!.id) {
-      throw new BusinessError(ErrorCode.FORBIDDEN, '无权访问该方案')
-    }
-    return plan
+    return this.requireOwnedPlan(id, req, '访问')
   }
 
   // POST 默认 201，对齐 Express sendSuccess(res, newPlan, 201)
@@ -72,13 +85,7 @@ export class PlansController {
     @Body(new DtoPipe(PlanUpdateBody.parse)) body: Record<string, unknown>,
     @Req() req: Request & { user?: { id: string } }
   ) {
-    const plan = await this.plansService.getById(id)
-    if (!plan) {
-      throw new BusinessError(ErrorCode.NOT_FOUND, '方案不存在')
-    }
-    if (plan.userId !== req.user!.id) {
-      throw new BusinessError(ErrorCode.FORBIDDEN, '无权修改该方案')
-    }
+    const plan = await this.requireOwnedPlan(id, req, '修改')
     if (body.name !== undefined) {
       const all = await this.plansService.listByUser(req.user!.id)
       if (all.some((p) => p.name === body.name && p.id !== id)) {
@@ -96,13 +103,7 @@ export class PlansController {
     @Req() req: Request & { user?: { id: string } },
     @Res() res: Response
   ): Promise<void> {
-    const plan = await this.plansService.getById(id)
-    if (!plan) {
-      throw new BusinessError(ErrorCode.NOT_FOUND, '方案不存在')
-    }
-    if (plan.userId !== req.user!.id) {
-      throw new BusinessError(ErrorCode.FORBIDDEN, '无权删除该方案')
-    }
+    await this.requireOwnedPlan(id, req, '删除')
     const success = await this.plansService.remove(id)
     if (!success) {
       throw new BusinessError(ErrorCode.NOT_FOUND, '方案不存在')
@@ -118,13 +119,7 @@ export class PlansController {
     @Body(new DtoPipe(PlanXiaoquBody.parse)) body: PlanXiaoquBody,
     @Req() req: Request & { user?: { id: string } }
   ) {
-    const plan = await this.plansService.getById(id)
-    if (!plan) {
-      throw new BusinessError(ErrorCode.NOT_FOUND, '方案不存在')
-    }
-    if (plan.userId !== req.user!.id) {
-      throw new BusinessError(ErrorCode.FORBIDDEN, '无权修改该方案')
-    }
+    await this.requireOwnedPlan(id, req, '修改')
     return this.plansService.saveXiaoqu(id, body.xiaoqu)
   }
 
@@ -134,13 +129,7 @@ export class PlansController {
     @Param('xiaoquId') xiaoquId: string,
     @Req() req: Request & { user?: { id: string } }
   ) {
-    const plan = await this.plansService.getById(id)
-    if (!plan) {
-      throw new BusinessError(ErrorCode.NOT_FOUND, '方案不存在')
-    }
-    if (plan.userId !== req.user!.id) {
-      throw new BusinessError(ErrorCode.FORBIDDEN, '无权修改该方案')
-    }
+    await this.requireOwnedPlan(id, req, '修改')
     return this.plansService.removeXiaoqu(id, xiaoquId)
   }
 }

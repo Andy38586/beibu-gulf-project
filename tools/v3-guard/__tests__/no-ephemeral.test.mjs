@@ -6,9 +6,10 @@
  * 「它在违例时会红」。本笔把核心判定 `scanFile` 与模式表 `PATTERNS` 导出，
  * 于是红样可写：造一个含审查编号的临时源文件，断言它必报。
  */
-import { mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, relative, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
 import { scanFile } from '../no-ephemeral.mjs'
@@ -44,5 +45,36 @@ describe('no-ephemeral — 施工/审查编号不得进源码', () => {
     const baseline = new Map([['sample.ts', new Set(['// 批次1 的修复'])]])
     // isFrontend=false（后端侧）：基线不豁免
     expect(scanFile(p, false, baseline).length).toBeGreaterThan(0)
+  })
+
+  it('基线豁免阳性路径：frontend 文件命中基线 → 放行；无基线/后端侧 → 必报（D18 假绿洞修复）', () => {
+    // 夹具必须落在 frontend/ 之下：scanFile 内部以 path.relative(ROOT, file) 查基线，
+    // 旧用例的 tmp 目录 rel 是 ../ 开头、与任何基线键永不相等 ⇒ 豁免分支从未被走到
+    //（旧用例在该分支整体删除后依然全绿，D18 判其假绿）。
+    // 三级上溯：__tests__ → v3-guard → tools → 仓库根（resolve 以末段为文件，与本体 ROOT 同口径）
+    const ROOT = resolve(fileURLToPath(import.meta.url), '../../../..')
+    const dir = join(ROOT, 'frontend', 'd18-fixture')
+    mkdirSync(dir, { recursive: true })
+    const p = join(dir, 'sample.ts')
+    const content = '// 批次1 的修复'
+    writeFileSync(p, content)
+    const rel = relative(ROOT, p).replaceAll('\\', '/')
+    const baseline = new Map([[rel, new Set([content])]])
+    console.log(
+      '[D18-debug] rel =',
+      JSON.stringify(rel),
+      '| baseline.has =',
+      baseline.get(rel)?.has(content)
+    )
+    try {
+      // 阳性路径：frontend + 命中基线 ⇒ 豁免放行（0 hits）
+      expect(scanFile(p, true, baseline)).toEqual([])
+      // 对照①：同一文件无基线 ⇒ 必报（证明夹具本身是真违例，放行来自基线而非判定失效）
+      expect(scanFile(p, true, new Map()).length).toBeGreaterThan(0)
+      // 对照②：同 rel 同基线但 isFrontend=false ⇒ 必报（豁免只对前端生效）
+      expect(scanFile(p, false, baseline).length).toBeGreaterThan(0)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
   })
 })

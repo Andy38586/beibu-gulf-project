@@ -28,7 +28,9 @@ import type { TaskDomain, TaskSlot } from '@/types/task'
 import type { BusinessLayerManagerLike } from '../composables/useBusinessLayers'
 import { useOwnedLayers } from '../composables/useOwnedLayers'
 
-type LayerIRKind = 'polygon' | 'polyline' | 'point' | 'raster'
+// 'raster' 已于 2026-10-09 删（W17）：全仓无生产者、无引用；栅格图层的承载口径是
+// LayerOptions.layerType（types/map.ts），不进 LayerIR 的任务结果 kind
+type LayerIRKind = 'polygon' | 'polyline' | 'point'
 
 interface LayerIROrigin {
   taskId: string

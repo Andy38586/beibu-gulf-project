@@ -80,7 +80,7 @@ export function useForecastLayer(): UseForecastLayerReturn {
       await nextTick()
       if (disposed) return
 
-      // 渲染器就绪时注册全部 4 个图层
+      // 渲染器就绪时注册全部指标图层（数量由 FORECAST_INDICATORS 派生，不写死——见文件头注）
       for (const indicator of FORECAST_INDICATORS) {
         const key = forecastLayerId(indicator)
         if (manager.has(key)) continue

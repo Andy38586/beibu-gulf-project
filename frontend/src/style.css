@@ -105,9 +105,9 @@
   --GCS-font-size-xs: 12px; /* 小字（角标/辅助标注；原组件散落 10/11px 越档） */
   --GCS-font-size-lg: 16px; /* 面板标题（原三处 16px 字面量散落） */
 
-  /* 滑块尺寸单一 token（自绘滑块全走 .gcs-slider 档） */
+  /* 滑块尺寸单一 token（EP Slider :deep 覆盖与风险徽章圆角共用；原自绘 .gcs-slider
+     档已随三处消费点迁 EP 组件而孤儿化，2026-10-11 逐行审计删除） */
   --GCS-slider-thumb-size: 14px; /* 拇指直径（原 conf 16px / t-slider 18px / factor 14px 三套） */
-  --GCS-slider-track-height: 6px; /* 轨道高（原 4px/6px 两套） */
 
   /* 白叠层高光双主题化：组件硬编码 rgb(255 255 255 / x%) 只按亮色设计，暗色下需调淡，
      故独立成 token，暗色档见 dark 块 */
@@ -424,38 +424,4 @@ body {
 .slider-focus-mode .GCS-drawer__backdrop,
 .slider-focus-mode .GCS-drawer__header {
   transition: opacity 0.15s ease;
-}
-
-/* ===== c017: 公共滑块 thumb 样式（消除 3 处重复） =====
- * 使用方式：input[type=range] 加 class="gcs-slider"；
- * 尺寸基准见 --GCS-slider-thumb-size/--GCS-slider-track-height（816-S7-44 单一 token） */
-.gcs-slider {
-  appearance: none;
-  width: 100%;
-  height: var(--GCS-slider-track-height);
-  border-radius: calc(var(--GCS-slider-track-height) / 2);
-  background: linear-gradient(to right, var(--GCS-border-default), var(--GCS-color-primary));
-  outline: none;
-  cursor: pointer;
-}
-
-.gcs-slider::-webkit-slider-thumb {
-  appearance: none;
-  width: var(--GCS-slider-thumb-size);
-  height: var(--GCS-slider-thumb-size);
-  border-radius: var(--GCS-radius-round);
-  background: var(--GCS-bg-panel);
-  border: none;
-  box-shadow: var(--GCS-shadow-sm);
-  cursor: pointer;
-}
-
-.gcs-slider::-moz-range-thumb {
-  width: var(--GCS-slider-thumb-size);
-  height: var(--GCS-slider-thumb-size);
-  border-radius: var(--GCS-radius-round);
-  background: var(--GCS-bg-panel);
-  border: none;
-  box-shadow: var(--GCS-shadow-sm);
-  cursor: pointer;
 }

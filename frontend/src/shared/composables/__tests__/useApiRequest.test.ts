@@ -159,6 +159,23 @@ describe('useApiRequest', () => {
       })
     })
 
+    it('非对象响应体（纯字符串 JSON）走安全窄化兜底文案（考古 P2 回归：readEnvelopeFields 非对象守卫）', async () => {
+      // 网关可能回纯文本 JSON 串（如 "gateway timeout"）；data 非对象时 error 取空串
+      // ⇒ 500 落到缺省文案，且不再抛「Cannot use 'in' operator」一类次生错误
+      mockFetch.mockResolvedValue(jsonResponse('gateway timeout', 500))
+      const { apiRequest } = useApiRequest()
+      await expect(apiRequest('/gw', { method: 'POST' })).rejects.toMatchObject({
+        code: ErrorCode.SERVER_ERROR,
+        message: '服务器错误，请稍后重试',
+      })
+    })
+
+    it('信封 code 为非 number（如字符串 "400"）不触发业务错误抛出（等价重构钉：与 typeof 守卫原语义一致）', async () => {
+      mockFetch.mockResolvedValue(jsonResponse({ code: '400', data: { ok: 1 } }, 200))
+      const { apiRequest } = useApiRequest()
+      await expect(apiRequest('/weird-code')).resolves.toEqual({ ok: 1 })
+    })
+
     it('非 fetch 文案的 TypeError（如 Safari "Load failed"）同样归 NETWORK_ERROR（审查 M-8 回归）', async () => {
       // 各运行时 fetch 失败文案不一致，按 message.includes('fetch') 匹配会漏判
       mockFetch.mockRejectedValue(new TypeError('Load failed'))

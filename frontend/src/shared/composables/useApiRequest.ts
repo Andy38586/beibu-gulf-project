@@ -105,6 +105,20 @@ function clearToken(): void {
 // 认证态判据 isAuthenticated 已上移 useAuth（token+user 双判据，审查 M-10/M-9）——
 // 此处仅 token 不够判定登录态，勿再在此重建第二份判据
 
+/**
+ * 信封字段安全窄化：响应体可能是任意 JSON（纯字符串/数字等非对象），统一在此守卫取
+ * `error`（string，缺省空串）与 `code`（number | undefined）。考古 P2：401 分支、
+ * 非 401 错误分支、信封解包守卫三处同构提取原为复制粘贴，收口一处防漂移。
+ */
+function readEnvelopeFields(data: unknown): { error: string; code: number | undefined } {
+  if (typeof data !== 'object' || data === null) return { error: '', code: undefined }
+  const rec = data as Record<string, unknown>
+  return {
+    error: 'error' in rec ? String(rec.error) : '',
+    code: typeof rec.code === 'number' ? rec.code : undefined,
+  }
+}
+
 export interface RequestOptions {
   method?: string
   body?: string
@@ -223,38 +237,18 @@ async function singleRequest<T = unknown>(
     if (res.status === 401) {
       // 认证失败透传服务端文案；后端已细分登录失败成因（401002 账号不存在 / 401003 密码错误），
       // bizCode 随 ApiError 上抛供调用方细粒度分支（LoginPanel 据此引导注册/只报密码错误）
-      const authErrMsg =
-        typeof data === 'object' && data !== null && 'error' in data
-          ? String((data as Record<string, unknown>).error)
-          : ''
-      const bizCode =
-        typeof data === 'object' &&
-        data !== null &&
-        'code' in data &&
-        typeof (data as Record<string, unknown>).code === 'number'
-          ? ((data as Record<string, unknown>).code as number)
-          : undefined
+      const { error: authErrMsg, code: bizCode } = readEnvelopeFields(data)
       // 401 只抛错不跳转：是否提示登录由调用方决定（选址分析不需要，收藏才需要）
       throw new ApiError(authErrMsg || '请先登录', ErrorCode.UNAUTHORIZED, bizCode)
     }
 
     if (!res.ok) {
-      // 安全窄化：data 可能为非对象（如纯字符串/数字），用 typeof + in 守卫
-      const errMsg =
-        typeof data === 'object' && data !== null && 'error' in data
-          ? String((data as Record<string, unknown>).error)
-          : ''
+      // 安全窄化收口到 readEnvelopeFields（data 可能为纯字符串/数字等非对象）
+      const { error: errMsg, code: bizCode } = readEnvelopeFields(data)
       // 🔴 业务码（响应信封 code）必须一并上抛。taskStore 靠 `bizCode === 404001`
       // 区分「任务已被 TTL 回收 = 正常结束，停轮询不弹错」与「真的取不到」。
       // 此前只有 401 分支传了第三参，下面三处恒抛 undefined ⇒ 那条判定永不成立，
       // 回收任务被连计 5 次后误报「服务繁忙/任务超时」（04-D1 吞错误对象 + 04-B1）。
-      const bizCode =
-        typeof data === 'object' &&
-        data !== null &&
-        'code' in data &&
-        typeof (data as Record<string, unknown>).code === 'number'
-          ? ((data as Record<string, unknown>).code as number)
-          : undefined
       // 网关级 5xx（nginx 502/503/504）：后端进程不可达而非应用自身错误——
       // 归 SERVER_ERROR 语义，describeError 统一按「服务器无响应」口径提示
       if (res.status === 502 || res.status === 503 || res.status === 504) {
@@ -269,11 +263,8 @@ async function singleRequest<T = unknown>(
     // 统一解包响应信封（{ code, data } → data）：调用方始终拿到业务数据 T，无需手动 .data。
     // D2：code 契约 = 同 HTTP 状态（后端 sendSuccess code=statusCode 恒 2xx）——
     // HTTP 2xx 但 code≥400 的业务错误信封显式失败，杜绝「错误数据被当成功解包」静默放大
-    const code =
-      typeof data === 'object' && data !== null && 'code' in data
-        ? (data as Record<string, unknown>).code
-        : undefined
-    if (typeof code === 'number' && code >= 400) {
+    const { code } = readEnvelopeFields(data)
+    if (code !== undefined && code >= 400) {
       throw new ApiError(`响应业务错误（code=${code}）`, ErrorCode.REQUEST_FAILED)
     }
     const unwrapped: T = unwrapEnvelope<T>(data)

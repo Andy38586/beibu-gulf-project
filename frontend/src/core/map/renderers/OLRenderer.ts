@@ -24,11 +24,11 @@ import type { StyleFunction } from 'ol/style/Style'
 import View from 'ol/View'
 
 import { breathingAlpha, breathingSize, elapsedSeconds } from '@/core/config/breathing'
-import { buildTiandituUrl, heightToZoom, MAP_CONFIG } from '@/core/config/map'
+import { buildTiandituUrl, defaultCameraCenter, heightToZoom, MAP_CONFIG } from '@/core/config/map'
 import { LAYER_DEFAULTS } from '@/shared'
 import { logger } from '@/shared'
 import { createSpatialIndex, VIEWPORT_CULL_THRESHOLD } from '@/shared'
-import { isFiniteLngLat, normalizePoint } from '@/shared'
+import { breathingPoints, normalizePoint } from '@/shared'
 import type { LayerOptions, MapRendererEventMap, PointFeature, PolygonFeature } from '@/types'
 import type { CameraState, FlyToOptions, FlyToTarget, GeoPoint } from '@/types'
 
@@ -907,7 +907,7 @@ export class OLRenderer extends MapRenderer {
       // 与 CesiumRenderer._getCameraState 同源兜底：视图未就绪时回退配置相机中心。
       // 曾硬编码 (0,0)/zoom6，被跨引擎相机恢复当作真实目标 → 飞向几内亚湾（审查 M-13）
       return {
-        center: { lng: MAP_CONFIG.CAMERA.center.lng, lat: MAP_CONFIG.CAMERA.center.lat },
+        center: defaultCameraCenter(),
         zoom: heightToZoom(MAP_CONFIG.CAMERA.center.height),
       }
     }
@@ -954,7 +954,7 @@ export class OLRenderer extends MapRenderer {
   startBreathing(target: GeoPoint | GeoPoint[], color?: string): void {
     this.stopBreathing()
     // 非有限坐标跳过（不落 (0,0) 哨兵——crs.ts 禁令）
-    const points = (Array.isArray(target) ? target : [target]).filter(isFiniteLngLat)
+    const points = breathingPoints(target)
     if (points.length === 0) return
     const startTime = Date.now()
     // 设施 POI 呼吸传 FACILITY_COLORS_MAP 的 hex；单点定位（小区/受影响设施）不传，取缺省主色
@@ -1008,7 +1008,7 @@ export class OLRenderer extends MapRenderer {
    */
   startFacilityBreathing(target: Array<GeoPoint & { color?: string }>, color?: string): void {
     this.stopFacilityBreathing()
-    const points = (Array.isArray(target) ? target : [target]).filter(isFiniteLngLat)
+    const points = breathingPoints(target)
     if (points.length === 0) return
     const startTime = Date.now()
     const fallback = parseBreathingColor(color) ?? DEFAULT_BREATHING_RGB

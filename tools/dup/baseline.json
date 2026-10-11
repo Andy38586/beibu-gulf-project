@@ -1,12 +1,12 @@
 {
   "generatedFrom": "tools/dup/scan.mjs",
   "minTokens": 12,
-  "totalGroups": 164,
-  "totalRedundantTokens": 3415,
+  "totalGroups": 160,
+  "totalRedundantTokens": 3277,
   "byModule": {
     "跨模块": 471,
     "backend/src/modules": 699,
-    "frontend/src/core": 1307,
+    "frontend/src/core": 1169,
     "frontend/src/visualization": 261,
     "frontend/src/business": 174,
     "frontend/src/shared": 166,
@@ -100,26 +100,6 @@
       "redundantTokens": 44
     },
     {
-      "text": "{ lng : MAP_CONFIG . CAMERA . center . lng , lat : MAP_CONFIG . CAMERA . center . lat }",
-      "tokenCount": 21,
-      "count": 3,
-      "files": [
-        "frontend/src/core/map/renderers/CesiumRenderer.ts",
-        "frontend/src/core/map/renderers/OLRenderer.ts"
-      ],
-      "redundantTokens": 42
-    },
-    {
-      "text": "( Array . isArray ( target ) ? target : [ target ] )",
-      "tokenCount": 14,
-      "count": 4,
-      "files": [
-        "frontend/src/core/map/renderers/CesiumRenderer.ts",
-        "frontend/src/core/map/renderers/OLRenderer.ts"
-      ],
-      "redundantTokens": 42
-    },
-    {
       "text": "this . _layers . set ( id , { instance : vectorLayer , visible : true , options , } )",
       "tokenCount": 21,
       "count": 3,
@@ -207,13 +187,6 @@
       "redundantTokens": 28
     },
     {
-      "text": "{ return { center : { lng : MAP_CONFIG . CAMERA . center . lng , lat : MAP_CONFIG . CAMERA . center . lat } } }",
-      "tokenCount": 28,
-      "count": 2,
-      "files": ["frontend/src/core/map/renderers/CesiumRenderer.ts"],
-      "redundantTokens": 28
-    },
-    {
       "text": "if ( this . hooks . isCancelled ( job . taskId ) )",
       "tokenCount": 13,
       "count": 3,
@@ -252,13 +225,6 @@
         "frontend/src/core/map/renderers/CesiumRenderer.ts",
         "frontend/src/core/map/renderers/OLRenderer.ts"
       ],
-      "redundantTokens": 26
-    },
-    {
-      "text": "return { center : { lng : MAP_CONFIG . CAMERA . center . lng , lat : MAP_CONFIG . CAMERA . center . lat } }",
-      "tokenCount": 26,
-      "count": 2,
-      "files": ["frontend/src/core/map/renderers/CesiumRenderer.ts"],
       "redundantTokens": 26
     },
     {
@@ -1336,6 +1302,13 @@
       "totalRedundantTokens": 3415,
       "kind": "未标注",
       "note": "K1-1 收口 OLRenderer 坐标转换 toMapCoord/toPointGeometry（10 点位）"
+    },
+    {
+      "at": "2026-10-11",
+      "totalGroups": 160,
+      "totalRedundantTokens": 3277,
+      "kind": "未标注",
+      "note": "K1-2 收口呼吸灯目标归一 breathingPoints 与 defaultCameraCenter"
     }
   ]
 }

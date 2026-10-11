@@ -113,6 +113,15 @@ export const MAP_CONFIG: MapConfig = {
   },
 }
 
+/**
+ * 配置相机中心的二维快照（考古 K1-2：两渲染器 3 处同构收口）。
+ * 刻意只取 lng/lat 不含 height——CAMERA.center.height 走 zoom 换算通道
+ * （heightToZoom），不随水平中心进 CameraState。
+ */
+export function defaultCameraCenter(): { lng: number; lat: number } {
+  return { lng: MAP_CONFIG.CAMERA.center.lng, lat: MAP_CONFIG.CAMERA.center.lat }
+}
+
 export function buildTiandituUrl(layerCode: string): string {
   return MAP_CONFIG.TIANDITU_URL.replace('{layerCode}', layerCode).replace(
     '{key}',

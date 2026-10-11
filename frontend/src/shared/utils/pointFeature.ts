@@ -9,6 +9,14 @@ export function isFiniteLngLat(p: { lng: number; lat: number }): boolean {
 }
 
 /**
+ * 呼吸灯目标归一：单点收数组并过滤非法经纬度（考古 K1-2：原 4 处整行同构收口）。
+ * 泛型保留调用方的扩展字段（如 startFacilityBreathing 的 color）。
+ */
+export function breathingPoints<T extends { lng: number; lat: number }>(target: T | T[]): T[] {
+  return (Array.isArray(target) ? target : [target]).filter(isFiniteLngLat)
+}
+
+/**
  * 把"坐标点对象数组"构造成 Point FeatureCollection。
  * 收敛 usePortLayer.buildPortGeoJson 与 useAnalysisLayer.buildMatchedGeoJson 的
  * 同构样板（过滤无效坐标 → 构造 Point Feature → 注入 featureType + 透传属性）。

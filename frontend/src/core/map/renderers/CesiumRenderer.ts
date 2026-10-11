@@ -36,11 +36,11 @@ import {
 import type { FeatureCollection } from 'geojson'
 
 import { breathingAlpha, breathingSize, elapsedSeconds } from '@/core/config/breathing'
-import { buildTiandituUrl, MAP_CONFIG, zoomToHeight } from '@/core/config/map'
+import { buildTiandituUrl, defaultCameraCenter, MAP_CONFIG, zoomToHeight } from '@/core/config/map'
 import type { IndexedItem } from '@/shared'
 import { createSpatialIndex, LAYER_DEFAULTS, showError, showWarning } from '@/shared'
 import { logger } from '@/shared'
-import { isFiniteLngLat, normalizePoint } from '@/shared'
+import { breathingPoints, normalizePoint } from '@/shared'
 import type {
   CameraState,
   FlyToOptions,
@@ -889,12 +889,12 @@ export class CesiumRenderer extends MapRenderer {
   _getCameraState(): CameraState {
     const camera = this.viewer?.camera
     if (!camera) {
-      return { center: { lng: MAP_CONFIG.CAMERA.center.lng, lat: MAP_CONFIG.CAMERA.center.lat } }
+      return { center: defaultCameraCenter() }
     }
     const posCartographic = camera.positionCartographic
     // 弧度坐标未就绪（极早期帧）防御：与 getViewportBBox 的判空口径一致（审查 L-6）
     if (!posCartographic) {
-      return { center: { lng: MAP_CONFIG.CAMERA.center.lng, lat: MAP_CONFIG.CAMERA.center.lat } }
+      return { center: defaultCameraCenter() }
     }
 
     // 导出 pitch（恢复时用）
@@ -994,7 +994,7 @@ export class CesiumRenderer extends MapRenderer {
     const viewer = this.viewer
     if (!viewer) return
     // 非有限坐标跳过（不落 (0,0) 哨兵——crs.ts 禁令）
-    const points = (Array.isArray(target) ? target : [target]).filter(isFiniteLngLat)
+    const points = breathingPoints(target)
     if (points.length === 0) return
     const startTime = Date.now()
     // 预解析呼吸灯基准色（缺省 LAYER_DEFAULTS.color = '#409eff'；设施 POI 呼吸传设施色）
@@ -1049,7 +1049,7 @@ export class CesiumRenderer extends MapRenderer {
     this.stopFacilityBreathing()
     const viewer = this.viewer
     if (!viewer) return
-    const points = (Array.isArray(target) ? target : [target]).filter(isFiniteLngLat)
+    const points = breathingPoints(target)
     if (points.length === 0) return
     const startTime = Date.now()
     // 每点一个 color CallbackProperty（闭包各自基准色），共享 startTime 相位同步；

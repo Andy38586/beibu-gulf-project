@@ -40,7 +40,7 @@ import { buildTiandituUrl, defaultCameraCenter, MAP_CONFIG, zoomToHeight } from 
 import type { IndexedItem } from '@/shared'
 import { createSpatialIndex, LAYER_DEFAULTS, showError, showWarning } from '@/shared'
 import { logger } from '@/shared'
-import { breathingPoints, normalizePoint } from '@/shared'
+import { breathingPoints, isStaleToken, normalizePoint } from '@/shared'
 import type {
   CameraState,
   FlyToOptions,
@@ -1645,7 +1645,7 @@ export async function addGeoJsonLayer(
     const dataSource = await GeoJsonDataSource.load(geojson)
 
     // await 后检查：若有更新的同 id 请求，丢弃本次结果
-    if (renderer._geoJsonTokens.get(id) !== token) return
+    if (isStaleToken(renderer._geoJsonTokens, id, token)) return
     // await 期间 viewer 可能已销毁；1004-03 起统一走 aliveViewer
     const viewerAfterLoad = aliveViewer(renderer)
     if (!viewerAfterLoad) return
@@ -1656,7 +1656,7 @@ export async function addGeoJsonLayer(
     void viewerAfterLoad.dataSources.add(dataSource)
 
     // 再次检查 token，防止 await 期间被新请求覆盖
-    if (renderer._geoJsonTokens.get(id) !== token) {
+    if (isStaleToken(renderer._geoJsonTokens, id, token)) {
       viewerAfterLoad.dataSources.remove(dataSource, true)
       return
     }
@@ -1673,7 +1673,7 @@ export async function addGeoJsonLayer(
     renderer._geoJsonTokens.delete(id)
   } catch (error: unknown) {
     // 陈旧请求（已被更新的同 id 请求覆盖）失败不触发 onError，避免误报
-    if (renderer._geoJsonTokens.get(id) !== token) return
+    if (isStaleToken(renderer._geoJsonTokens, id, token)) return
     renderer._geoJsonTokens.delete(id)
     logger.error(`GeoJSON图层 ${id} 加载失败`, error)
     ;(options.onError as ((msg: string) => void) | undefined)?.('GeoJSON数据加载失败')
@@ -1711,7 +1711,7 @@ export async function updateGeoJsonLayer(
     entry.options = { ...entry.options, ...options }
     await dataSource.load(geojson)
 
-    if (renderer._geoJsonTokens.get(id) !== token) return
+    if (isStaleToken(renderer._geoJsonTokens, id, token)) return
     // await 后 viewer 可能已销毁；1004-03 起统一走 aliveViewer
     const viewer = aliveViewer(renderer)
     if (!viewer) return
@@ -1721,7 +1721,7 @@ export async function updateGeoJsonLayer(
     viewer.scene.requestRender()
     renderer._geoJsonTokens.delete(id)
   } catch (error: unknown) {
-    if (renderer._geoJsonTokens.get(id) !== token) return
+    if (isStaleToken(renderer._geoJsonTokens, id, token)) return
     renderer._geoJsonTokens.delete(id)
     logger.error(`GeoJSON图层 ${id} 增量更新失败`, error)
     ;(options.onError as ((msg: string) => void) | undefined)?.('GeoJSON数据更新失败')

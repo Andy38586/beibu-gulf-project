@@ -52,7 +52,7 @@
       "redundantTokens": 52
     },
     {
-      "text": "if ( renderer . _geoJsonTokens . get ( id ) !== token )",
+      "text": "if ( isStaleToken ( renderer . _geoJsonTokens , id , token ) )",
       "tokenCount": 13,
       "count": 5,
       "files": ["frontend/src/core/map/renderers/CesiumRenderer.ts"],
@@ -1309,6 +1309,20 @@
       "totalRedundantTokens": 3277,
       "kind": "未标注",
       "note": "K1-2 收口呼吸灯目标归一 breathingPoints 与 defaultCameraCenter"
+    },
+    {
+      "at": "2026-10-11",
+      "totalGroups": 160,
+      "totalRedundantTokens": 3277,
+      "kind": "未标注",
+      "note": "K1-3 收口 CesiumRenderer 异步陈旧判定 isStaleToken（5 点位）"
+    },
+    {
+      "at": "2026-10-11",
+      "totalGroups": 160,
+      "totalRedundantTokens": 3277,
+      "kind": "未标注",
+      "note": "K1-3 isStaleToken 5 点位：语义收口但旧组以 1:1 调用形态留存（13token 过阈），组数不变"
     }
   ]
 }

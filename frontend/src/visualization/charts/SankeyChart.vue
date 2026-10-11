@@ -1,18 +1,21 @@
 <script setup lang="ts">
-// 桑基图（分流分析 W10-11）：ECharts Sankey 需单独注册（useECharts 只注册了
+// 桑基图（分流分析 W10-11）：ECharts Sankey 需单独注册（useECharts 只注册
 // Line/Bar）——本组件内 echarts.use 一次性注册，全局幂等。
+// 生命周期/resize/主题响应收敛 useECharts（D19：原手写版丢 ResizeObserver、
+// resize 只 setOption 不调 instance.resize ⇒ canvas 不随窗口重设，疑似真 bug 已修）。
+// 主题色保留原字面量（#e5eaf3/#303133）——CHART_COLORS.textPrimary.dark（#e8edf4）
+// 与现值不同，合并属视觉变更需产品定，不在本笔范围。
 // Cesium ③ A3：节点/边点击经 bindSankeyClick 转发 sankey-click（载荷形态见 sankeyClick.ts），
-// 供分流页做 3D 弧线高亮联动；注销与注册同作用域（onUnmounted 调解绑器）。
-import type { ECharts } from 'echarts'
+// 注销与注册同作用域（onUnmounted 调解绑器）。
 import { SankeyChart } from 'echarts/charts'
 import { LegendComponent, TitleComponent, TooltipComponent } from 'echarts/components'
 import * as echarts from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
-import type { Ref, WatchSource } from 'vue'
-import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { onMounted, onUnmounted } from 'vue'
 
 import { useTheme } from '@/shared'
 
+import { useECharts } from '@/visualization/composables/useECharts'
 import { bindSankeyClick, type SankeyClickPayload } from './sankeyClick'
 
 echarts.use([SankeyChart, TitleComponent, TooltipComponent, LegendComponent, CanvasRenderer])
@@ -38,9 +41,6 @@ const emit = defineEmits<{ (e: 'sankey-click', payload: SankeyClickPayload): voi
 const props = withDefaults(defineProps<Props>(), { title: '西江货类转移流向' })
 
 const { isDark } = useTheme()
-const chartRef = ref<HTMLElement | null>(null)
-let instance: ECharts | null = null
-let disposeClick: (() => void) | null = null
 
 /**
  * 最深一列（绘制在画布右边界）的节点名集合。
@@ -105,32 +105,30 @@ function getOption(): Record<string, unknown> {
   }
 }
 
-function updateChart(): void {
-  // z038④：全量 merge（与 useECharts 同一口径）——notMerge:false 保留轴/主题，
-  // replaceMerge:['series'] 整体替换 series 防旧节点残留，lazyUpdate 合并渲染。
-  instance?.setOption(getOption(), { notMerge: false, replaceMerge: ['series'], lazyUpdate: true })
-}
+// D19：生命周期/更新/resize（window + ResizeObserver）/主题响应全部收敛 useECharts；
+// merge 口径（notMerge:false + replaceMerge:['series'] + lazyUpdate）与原手写版逐字一致。
+const { chartRef, getInstance, updateChart } = useECharts({
+  getOption,
+  watchSources: [() => props.nodes, () => props.links],
+})
+
+let disposeClick: (() => void) | null = null
 
 onMounted(() => {
-  if (!chartRef.value) return
-  instance = echarts.init(chartRef.value)
-  updateChart()
-  // 点击→emit（A3 桑基联动）；解绑器与注册同作用域，unmount 时注销（禁忌 4）
-  disposeClick = bindSankeyClick(instance, (payload) => emit('sankey-click', payload))
-  // 主题/数据变化重渲染；容器尺寸变化由 echarts 内置 resize 监听
-  watch([() => props.nodes, () => props.links, isDark] as WatchSource<unknown>[], updateChart)
-  window.addEventListener('resize', updateChart)
+  // useECharts 的 onMounted（initChart）先于本组件 onMounted 注册 ⇒ getInstance 必已就绪
+  const inst = getInstance()
+  if (inst) {
+    // 点击→emit（A3 桑基联动）；解绑器与注册同作用域，unmount 时注销（禁忌 4）
+    disposeClick = bindSankeyClick(inst, (payload) => emit('sankey-click', payload))
+  }
 })
 
 onUnmounted(() => {
   disposeClick?.()
   disposeClick = null
-  window.removeEventListener('resize', updateChart)
-  instance?.dispose()
-  instance = null
 })
 
-defineExpose({ chartRef: chartRef as Ref<HTMLElement | null>, updateChart })
+defineExpose({ chartRef, updateChart })
 </script>
 
 <template>

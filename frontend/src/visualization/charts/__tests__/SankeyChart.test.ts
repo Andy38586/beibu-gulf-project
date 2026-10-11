@@ -45,8 +45,9 @@ vi.mock('echarts/core', async (importOriginal) => {
     use: vi.fn(),
   }
 })
-vi.mock('echarts/charts', () => ({ SankeyChart: {} }))
+vi.mock('echarts/charts', () => ({ BarChart: {}, LineChart: {}, SankeyChart: {} })) // D19：import 链经 useECharts 含 Line/Bar
 vi.mock('echarts/components', () => ({
+  GridComponent: {}, // D19：SankeyChart 改引 useECharts，其 import 链含 GridComponent
   LegendComponent: {},
   TitleComponent: {},
   TooltipComponent: {},

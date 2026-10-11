@@ -17,7 +17,12 @@ import {
 import { useForecastStore } from '@/stores'
 
 import { useForecastOrchestrator } from '../composables/useForecastOrchestrator'
-import { currentTimeToStep, stepToTime as timelineStepToTime } from '../timeline'
+import {
+  currentTimeToStep,
+  monthMaxSteps,
+  stepToTime as timelineStepToTime,
+  yearMaxSteps,
+} from '../timeline'
 
 const forecastState = useForecastStore()
 
@@ -181,11 +186,9 @@ const isYearMode = computed({
   set: (v) => forecastState.setTimeGranularity(v ? 'year' : 'month'),
 })
 
-const maxSteps = computed(() =>
-  // 月模式最大合法步 = (END_YEAR-BASE_YEAR)*12+11（=2031-12，stepToTime 闭合）；
-  // 原 (END_YEAR-BASE_YEAR+1)*12=132 会越界到 2032-01
-  isYearMode.value ? END_YEAR - BASE_YEAR : (END_YEAR - BASE_YEAR) * 12 + 11
-)
+// 步数上限收口 ../timeline（D21-1：两条公式原在此手抄——timeline 同款函数即
+// H-3 越界事故的收口正本，面板改调函数后手抄清零）
+const maxSteps = computed(() => (isYearMode.value ? yearMaxSteps() : monthMaxSteps()))
 
 // 步数换算收口 ../timeline（年/月双基共用一索引；年串切月 m 缺省兜 1，防 NaN——审查 H-3）
 const currentStep = computed(() => currentTimeToStep(forecastState.currentTime, isYearMode.value))

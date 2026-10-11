@@ -153,6 +153,30 @@ export function isImageOverlayCapable(
   return typeof (renderer as Partial<ImageOverlayCapability>).addImageOverlayLayer === 'function'
 }
 
+/**
+ * 3dtiles 异步失败上行（逐行审计 K4-2 收口）：add3DTilesLayer 是 async 且以 resolve(false)
+ * 表达失败（不抛）——只挂 .catch 等于失败永不触发；上行必须走 onError（BLM 据此回滚
+ * registry/catalog 并提示重试）。create/重建两路同构，收口一处（同 applyGeoTIFFOrReport 形状）。
+ */
+function report3DTilesFailure(
+  promise: Promise<boolean | void>,
+  key: string,
+  action: '创建' | '重建',
+  options: LayerOptions
+): void {
+  void promise
+    .then((ok) => {
+      if (ok === false) {
+        logger.warn(`[layerAdapters] 3dtiles 图层 ${key} ${action}失败（异步）`)
+        options.onError?.(new Error(`3dtiles 图层${action}失败: ${key}`))
+      }
+    })
+    .catch((e) => {
+      logger.warn(`[layerAdapters] 3dtiles 图层 ${key} ${action}异常（异步）:`, e)
+      options.onError?.(e)
+    })
+}
+
 /** 真地形开关能力检查：仅 Cesium 实现（setTerrainEnabled 切换 terrainProvider）。
  *  对外导出——业务页注册真地形图层前用能力检查替代 getType() 引擎判断 */
 function isTerrainCapable(
@@ -351,20 +375,15 @@ export const LAYER_ADAPTERS: Record<LayerType, LayerAdapter> = {
         ...options,
         maximumScreenSpaceError: payload.maximumScreenSpaceError,
       }
-      // add3DTilesLayer 是 async 且用 resolve(false) 表达失败（不抛）——只挂 .catch
-      // 等于失败永不触发。失败上行必须走 onError（BLM 据此回滚状态 + 提示重试）。
-      // 原 warn 被 import.meta.env.DEV 门控，生产环境连一条痕迹都没有（违 04-D2）。
-      void Promise.resolve(renderer.add3DTilesLayer(key, payload.url, tilesOptions))
-        .then((ok) => {
-          if (ok === false) {
-            logger.warn(`[layerAdapters] 3dtiles 图层 ${key} 创建失败（异步）`)
-            options.onError?.(new Error(`3dtiles 图层创建失败: ${key}`))
-          }
-        })
-        .catch((e) => {
-          logger.warn(`[layerAdapters] 3dtiles 图层 ${key} 创建异常（异步）:`, e)
-          options.onError?.(e)
-        })
+      // add3DTilesLayer 是 async 且用 resolve(false) 表达失败（不抛）——失败上行走
+      // report3DTilesFailure（BLM 据以回滚状态 + 提示重试），原 warn 被 DEV 门控致
+      // 生产零痕迹（违 04-D2）的缺口已随收口闭合。
+      report3DTilesFailure(
+        Promise.resolve(renderer.add3DTilesLayer(key, payload.url, tilesOptions)),
+        key,
+        '创建',
+        options
+      )
     },
     // 瓦片树与 URL 绑定，无法原地换内容 ⇒ 更新语义 = 移除后按新 URL 重建
     update: (renderer, key, data, options) => {
@@ -378,17 +397,12 @@ export const LAYER_ADAPTERS: Record<LayerType, LayerAdapter> = {
       renderer.removeLayer(key)
       // 2026-10-05（1004-01）：BLM `_runAdapter` 的 update 分支改传同一份注入了
       // onError 的 options，本路径失败上行链路已通（前注「本路径拿不到 onError」作废）。
-      void Promise.resolve(renderer.add3DTilesLayer(key, payload.url, tilesOptions))
-        .then((ok) => {
-          if (ok === false) {
-            logger.warn(`[layerAdapters] 3dtiles 图层 ${key} 重建失败（异步）`)
-            options.onError?.(new Error(`3dtiles 图层重建失败: ${key}`))
-          }
-        })
-        .catch((e) => {
-          logger.warn(`[layerAdapters] 3dtiles 图层 ${key} 重建异常（异步）:`, e)
-          options.onError?.(e)
-        })
+      report3DTilesFailure(
+        Promise.resolve(renderer.add3DTilesLayer(key, payload.url, tilesOptions)),
+        key,
+        '重建',
+        options
+      )
     },
     remove: (renderer, key) => {
       renderer.removeLayer(key)

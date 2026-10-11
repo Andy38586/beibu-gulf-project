@@ -15,7 +15,7 @@ import VectorLayer from 'ol/layer/Vector'
 import OlMap from 'ol/Map'
 import type MapBrowserEvent from 'ol/MapBrowserEvent'
 import Overlay from 'ol/Overlay'
-import { fromLonLat, toLonLat } from 'ol/proj'
+import { toGeoCoord, toMapCoord, toPointGeometry } from '../olCoord'
 import Cluster from 'ol/source/Cluster'
 import VectorSource from 'ol/source/Vector'
 import XYZ from 'ol/source/XYZ'
@@ -68,7 +68,7 @@ function toHeatmapOlFeatures(features: PointFeature[]): Feature<Point>[] {
     const point = normalizePoint(coords ? { lng: coords[0], lat: coords[1] } : f)
     if (!point) return []
     const feature = new Feature({
-      geometry: new Point(fromLonLat([point.lng, point.lat])),
+      geometry: toPointGeometry(point.lng, point.lat),
     })
     // 将 properties 展开为 feature 属性（weightField 对应的值用于热力权重）
     Object.entries(f.properties || {}).forEach(([key, value]) => {
@@ -221,7 +221,7 @@ export class OLRenderer extends MapRenderer {
     const view = new View({
       // 显式声明投影：业务坐标为 WGS84，地图渲染统一 Web 墨卡托
       projection: WEB_MERCATOR,
-      center: fromLonLat([MAP_CONFIG.CAMERA.center.lng, MAP_CONFIG.CAMERA.center.lat]),
+      center: toMapCoord(MAP_CONFIG.CAMERA.center.lng, MAP_CONFIG.CAMERA.center.lat),
       zoom: OL_VIEW_ZOOM,
       minZoom: OL_VIEW_MIN_ZOOM,
       maxZoom: OL_VIEW_MAX_ZOOM,
@@ -287,7 +287,7 @@ export class OLRenderer extends MapRenderer {
     // 具名处理器 + key 保存：destroy 时能注销，匿名回调无引用可解绑
     this._clickHandler = (event: unknown) => {
       const evt = event as MapBrowserEvent<PointerEvent>
-      const coordinate = toLonLat(evt.coordinate)
+      const coordinate = toGeoCoord(evt.coordinate)
       let clickedFeature = false
 
       map.forEachFeatureAtPixel(
@@ -340,7 +340,7 @@ export class OLRenderer extends MapRenderer {
     // pointer-move：实时回传鼠标经纬度（坐标从 EPSG:3857 反算到 WGS84）+ POI 悬停命中（要素气泡驱动）
     this._pointerMoveHandler = (evt) => {
       const mapEvt = evt as MapBrowserEvent<PointerEvent>
-      const coord = toLonLat(mapEvt.coordinate)
+      const coord = toGeoCoord(mapEvt.coordinate)
       this.emit('pointer-move', { lng: coord[0], lat: coord[1] })
       this.emit('hover', this._hitTestPort(mapEvt))
     }
@@ -376,7 +376,7 @@ export class OLRenderer extends MapRenderer {
           featureType: 'port',
           data: feature.getProperties(),
           // 锚点取要素自身坐标（非光标处）：气泡精确钉在 POI 上
-          coordinate: toLonLat((geometry as Point).getCoordinates()) as [number, number],
+          coordinate: toGeoCoord((geometry as Point).getCoordinates()),
         })
         return true
       },
@@ -404,7 +404,7 @@ export class OLRenderer extends MapRenderer {
       })
       this.map.addOverlay(this._bubbleOverlay)
     }
-    this._bubbleOverlay.setPosition(coordinate ? fromLonLat(coordinate) : undefined)
+    this._bubbleOverlay.setPosition(coordinate ? toMapCoord(...coordinate) : undefined)
   }
 
   addPointLayer(id: string, features: PointFeature[], options: LayerOptions = {}): void {
@@ -430,7 +430,7 @@ export class OLRenderer extends MapRenderer {
       if (!point) return []
       const { lng, lat } = point
       const feature = new Feature({
-        geometry: new Point(fromLonLat([lng, lat])),
+        geometry: toPointGeometry(lng, lat),
       })
       const featureType = options?.featureType || item?.featureType || 'point'
       feature.setProperties({ ...item, featureType })
@@ -467,7 +467,7 @@ export class OLRenderer extends MapRenderer {
         features: features.flatMap((item: PointFeature) => {
           const point = normalizePoint(item)
           if (!point) return []
-          const feature = new Feature({ geometry: new Point(fromLonLat([point.lng, point.lat])) })
+          const feature = new Feature({ geometry: toPointGeometry(point.lng, point.lat) })
           feature.setProperties({ ...item, featureType })
           return [feature]
         }),
@@ -492,7 +492,7 @@ export class OLRenderer extends MapRenderer {
     const indexItems = features.flatMap((item: PointFeature) => {
       const point = normalizePoint(item)
       if (!point) return []
-      const coord = fromLonLat([point.lng, point.lat])
+      const coord = toMapCoord(point.lng, point.lat)
       return [{ minX: coord[0], minY: coord[1], maxX: coord[0], maxY: coord[1], data: item }]
     })
     index.load(indexItems)
@@ -543,7 +543,7 @@ export class OLRenderer extends MapRenderer {
     const olFeatures = visible.flatMap((item) => {
       const point = normalizePoint(item.data)
       if (!point) return []
-      const feature = new Feature({ geometry: new Point(fromLonLat([point.lng, point.lat])) })
+      const feature = new Feature({ geometry: toPointGeometry(point.lng, point.lat) })
       feature.setProperties({ ...item.data, featureType: entry.featureType })
       return [feature]
     })
@@ -638,7 +638,7 @@ export class OLRenderer extends MapRenderer {
             .filter(isRing)
             .map((ring) => ensureRingClosed(ring))
             .filter((r): r is [number, number][] => r !== null)
-            .map((ring) => ring.map(([lng, lat]) => fromLonLat([lng, lat]) as [number, number]))
+            .map((ring) => ring.map(([lng, lat]) => toMapCoord(lng, lat)))
           return closed.length > 0 ? closed : null
         }
 
@@ -894,7 +894,7 @@ export class OLRenderer extends MapRenderer {
     const zoom =
       options.zoom ?? (options.height != null ? heightToZoom(options.height) : view.getZoom())
     view.animate({
-      center: fromLonLat([point.lng, point.lat]),
+      center: toMapCoord(point.lng, point.lat),
       zoom,
       // duration 读 FlyToOptions.duration（毫秒）?? 默认 1000
       duration: options.duration ?? 1000,
@@ -911,11 +911,11 @@ export class OLRenderer extends MapRenderer {
         zoom: heightToZoom(MAP_CONFIG.CAMERA.center.height),
       }
     }
-    const lonLat = toLonLat(center)
+    const [lng0, lat0] = toGeoCoord(center)
     const zoom = view.getZoom()
 
     const state: CameraState = {
-      center: { lng: lonLat[0], lat: lonLat[1] },
+      center: { lng: lng0, lat: lat0 },
       zoom: zoom ?? undefined,
     }
 
@@ -942,7 +942,7 @@ export class OLRenderer extends MapRenderer {
 
     // 原子设置 center+zoom，避免分离调用触发的动画冲突导致 view 状态错乱
     view.animate({
-      center: fromLonLat([state.center.lng, state.center.lat]),
+      center: toMapCoord(state.center.lng, state.center.lat),
       zoom: clampedZoom,
       duration: 0,
     })
@@ -962,7 +962,7 @@ export class OLRenderer extends MapRenderer {
     const breathingFeatures = points.map(
       (p) =>
         new Feature({
-          geometry: new Point(fromLonLat([p.lng, p.lat])),
+          geometry: toPointGeometry(p.lng, p.lat),
         })
     )
     // 脉动参数取自 core/config/breathing（与 Cesium 侧同源；此前两处逐行复制）
@@ -1014,7 +1014,7 @@ export class OLRenderer extends MapRenderer {
     const fallback = parseBreathingColor(color) ?? DEFAULT_BREATHING_RGB
     const breathingFeatures = points.map((p) => {
       const f = new Feature({
-        geometry: new Point(fromLonLat([p.lng, p.lat])),
+        geometry: toPointGeometry(p.lng, p.lat),
       })
       // per-point color 挂到 feature 属性，样式函数按点取色（多类型混合呼吸）
       if (p.color) f.set('color', p.color)

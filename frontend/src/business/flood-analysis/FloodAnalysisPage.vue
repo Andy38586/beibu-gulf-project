@@ -572,32 +572,6 @@ onUnmounted(() => {
   pointer-events: auto;
 }
 
-.panel-placeholder {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-
-  /* S7 P1-2：硬编码白 rgba → 容器/token 文字色（明暗主题均可正确切换） */
-  background: var(--GCS-bg-container);
-  border: 1px dashed var(--GCS-border-default);
-  border-radius: 8px;
-  color: var(--GCS-text-secondary);
-}
-
-.placeholder-title {
-  font-size: var(--GCS-font-size-lg); /* 面板标题字号归档 */
-  font-weight: 500;
-  margin-bottom: 8px;
-}
-
-.placeholder-desc {
-  font-size: 13px;
-  opacity: 0.7;
-}
-
 /* Cesium 3D路由禁用backdrop-filter，避免WebGL性能问题 */
 .flood-analysis-page :deep(.GCS-panel) {
   backdrop-filter: none !important;

@@ -89,6 +89,16 @@ export interface LayerOptions {
   blur?: number
 }
 
+/**
+ * 底图注册表形状（影像/矢量两槽，考古 K1-4：原 CesiumRenderer 三处内联字面收口）。
+ * 槽内元素类型暂为 unknown[]（Cesium ImageryLayer 的收敛留待接线时定），
+ * 收口目的是让三处消费点共享同一具名形状，改槽结构只改这里。
+ */
+export interface BaseLayerPair {
+  image: unknown[]
+  vector: unknown[]
+}
+
 /** 水面选项（3D Only） */
 export interface WaterSurfaceOptions {
   color?: string

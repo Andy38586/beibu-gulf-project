@@ -1,12 +1,12 @@
 {
   "generatedFrom": "tools/dup/scan.mjs",
   "minTokens": 12,
-  "totalGroups": 160,
-  "totalRedundantTokens": 3277,
+  "totalGroups": 157,
+  "totalRedundantTokens": 3191,
   "byModule": {
     "跨模块": 471,
     "backend/src/modules": 699,
-    "frontend/src/core": 1169,
+    "frontend/src/core": 1083,
     "frontend/src/visualization": 261,
     "frontend/src/business": 174,
     "frontend/src/shared": 166,
@@ -152,13 +152,6 @@
       "redundantTokens": 36
     },
     {
-      "text": "( options . onError as ( ( msg : string ) => void ) | undefined )",
-      "tokenCount": 17,
-      "count": 3,
-      "files": ["frontend/src/core/map/renderers/CesiumRenderer.ts"],
-      "redundantTokens": 34
-    },
-    {
       "text": "{ const header = req . headers . authorization if ( header && header . startsWith ( 'Bearer ' ) ) { token = header . slice ( 7 ) } }",
       "tokenCount": 32,
       "count": 2,
@@ -211,13 +204,6 @@
       "redundantTokens": 26
     },
     {
-      "text": "{ image : unknown [ ] ; vector : unknown [ ] }",
-      "tokenCount": 13,
-      "count": 3,
-      "files": ["frontend/src/core/map/renderers/CesiumRenderer.ts"],
-      "redundantTokens": 26
-    },
-    {
       "text": "{ clearTimeout ( this . _cameraDebounceTimer ) this . _cameraDebounceTimer = null }",
       "tokenCount": 13,
       "count": 3,
@@ -225,13 +211,6 @@
         "frontend/src/core/map/renderers/CesiumRenderer.ts",
         "frontend/src/core/map/renderers/OLRenderer.ts"
       ],
-      "redundantTokens": 26
-    },
-    {
-      "text": "options . onError as ( ( msg : string ) => void )",
-      "tokenCount": 13,
-      "count": 3,
-      "files": ["frontend/src/core/map/renderers/CesiumRenderer.ts"],
       "redundantTokens": 26
     },
     {
@@ -1323,6 +1302,13 @@
       "totalRedundantTokens": 3277,
       "kind": "未标注",
       "note": "K1-3 isStaleToken 5 点位：语义收口但旧组以 1:1 调用形态留存（13token 过阈），组数不变"
+    },
+    {
+      "at": "2026-10-11",
+      "totalGroups": 157,
+      "totalRedundantTokens": 3191,
+      "kind": "未标注",
+      "note": "K1-4 BaseLayerPair 具名类型 + onError 去强转（类型债修法：修类型不抽 helper）"
     }
   ]
 }

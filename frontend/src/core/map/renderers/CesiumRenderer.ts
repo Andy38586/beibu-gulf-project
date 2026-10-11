@@ -39,9 +39,9 @@ import { breathingAlpha, breathingSize, elapsedSeconds } from '@/core/config/bre
 import { buildTiandituUrl, defaultCameraCenter, MAP_CONFIG, zoomToHeight } from '@/core/config/map'
 import type { IndexedItem } from '@/shared'
 import { createSpatialIndex, LAYER_DEFAULTS, showError, showWarning } from '@/shared'
-import { logger } from '@/shared'
-import { breathingPoints, isStaleToken, normalizePoint } from '@/shared'
+import { breathingPoints, isStaleToken, logger, normalizePoint } from '@/shared'
 import type {
+  BaseLayerPair,
   CameraState,
   FlyToOptions,
   FlyToTarget,
@@ -97,7 +97,7 @@ class CesiumViewerManager {
   _baseLayersInitialized: boolean
   _idleDestroyTimer: ReturnType<typeof setTimeout> | null
   IDLE_DESTROY_DELAY: number
-  _baseLayers: { image: unknown[]; vector: unknown[] }
+  _baseLayers: BaseLayerPair
   /** mount 后双 rAF 补 resize/补帧的句柄，destroy 时统一取消防卸载后回调 */
   _deferredRafIds: Set<number>
   /**
@@ -378,7 +378,7 @@ class CesiumViewerManager {
   }
 
   /** 设置底图引用（供复用的新 CesiumRenderer 实例获取，替代直写私有字段） */
-  setBaseLayers(layers: { image: unknown[]; vector: unknown[] }): void {
+  setBaseLayers(layers: BaseLayerPair): void {
     this._baseLayers = layers
   }
 
@@ -419,7 +419,7 @@ export const cesiumViewerManager = new CesiumViewerManager()
  */
 export class CesiumRenderer extends MapRenderer {
   viewer: Viewer | null
-  baseLayers: { image: unknown[]; vector: unknown[] }
+  baseLayers: BaseLayerPair
   _isReusing: boolean
   _cameraDebounceTimer: ReturnType<typeof setTimeout> | null
 
@@ -1638,7 +1638,7 @@ export async function addGeoJsonLayer(
     const viewer = aliveViewer(renderer)
     if (!viewer) {
       renderer._geoJsonTokens.delete(id)
-      ;(options.onError as ((msg: string) => void) | undefined)?.('Viewer 已销毁，图层创建失败')
+      options.onError?.('Viewer 已销毁，图层创建失败')
       return
     }
 
@@ -1676,7 +1676,7 @@ export async function addGeoJsonLayer(
     if (isStaleToken(renderer._geoJsonTokens, id, token)) return
     renderer._geoJsonTokens.delete(id)
     logger.error(`GeoJSON图层 ${id} 加载失败`, error)
-    ;(options.onError as ((msg: string) => void) | undefined)?.('GeoJSON数据加载失败')
+    options.onError?.('GeoJSON数据加载失败')
   }
 }
 
@@ -1724,7 +1724,7 @@ export async function updateGeoJsonLayer(
     if (isStaleToken(renderer._geoJsonTokens, id, token)) return
     renderer._geoJsonTokens.delete(id)
     logger.error(`GeoJSON图层 ${id} 增量更新失败`, error)
-    ;(options.onError as ((msg: string) => void) | undefined)?.('GeoJSON数据更新失败')
+    options.onError?.('GeoJSON数据更新失败')
   }
 }
 

@@ -32,7 +32,7 @@ const { beginSliderFocus, endSliderFocus } = useSliderFocus()
 // GCS 尺寸变量：cell8px=0.1cell 面板内边距；cell16px=0.2cell 按钮间距
 const { cellPixel, css } = useGCS()
 const { cell8px, cell16px } = css
-/** 按钮高度：固定行高，系数取自 panelGridCapacity 的 ROW_HEIGHT_CELL（与容量公式共用同一份比例） */
+/** 按钮高度：固定行高，系数取自 panelCapacity 的 ROW_HEIGHT_CELL（与容量公式共用同一份比例） */
 const btnHeightCss = computed(() => `${cellPixel.value * ROW_HEIGHT_CELL}px`)
 /** 字体档位：0.175cell 标签、0.2cell 图标、0.15cell 小字、0.125cell 角标 */
 const labelFontSizeCss = computed(() => `${cellPixel.value * 0.175}px`)
@@ -389,8 +389,8 @@ onUnmounted(() => stopPlayback())
   flex: 1;
   min-height: 0;
 
-  /* 容量出口（c043）：容量按 panelGridCapacity 公式算，不钉常数；条目超出可见高时
-     不被 GCSPanel 的 overflow:hidden 裁掉，可滚可达 */
+  /* 容量出口（c043 口径随 2026-09-30 反转废止，此处保留滚动可达性）：条目超出可见高时
+     不被 GCSPanel 的 overflow:hidden 裁掉，可滚可达（D21-2 同步） */
   overflow-y: auto;
 }
 

@@ -103,7 +103,7 @@ const hasResult = ref(false)
 
 const { cellPixel, css } = useGCS()
 const { cell8px, cell16px } = css
-/** 网格行高，系数取自 panelGridCapacity 的 ROW_HEIGHT_CELL（与容量公式共用同一份比例） */
+/** 网格行高，系数取自 panelCapacity 的 ROW_HEIGHT_CELL（与容量公式共用同一份比例） */
 const btnHeightCss = computed(() => `${cellPixel.value * ROW_HEIGHT_CELL}px`)
 const labelFontSizeCss = computed(() => `${cellPixel.value * 0.175}px`)
 

@@ -59,7 +59,7 @@ const { cellPixel, css } = useGCS()
 // 解构出 CSS 变量供 v-bind() 使用（cell8px=0.1cell 面板边缘；cell16px=0.2cell 按钮间间隙）
 const { cell8px, cell16px } = css
 
-/** 按钮高度：网格行高，系数取自 panelGridCapacity 的 ROW_HEIGHT_CELL —— 容量公式与本网格
+/** 按钮高度：网格行高，系数取自 panelCapacity 的 ROW_HEIGHT_CELL —— 行高与网格
  *  必须共用同一份比例，否则「按公式算出的容量」与实际能放的行数各说各话。 */
 const btnHeightCss = computed(() => `${cellPixel.value * ROW_HEIGHT_CELL}px`) // cell=80 时 64px
 /** 字体大小：0.175cell = 14px（基准），0.1cell = 8px（小字） */
@@ -313,11 +313,10 @@ function handleToggle(key: string) {
 }
 
 /* 图层按钮网格：GCS（网格化布局系统）规格 —— 面板边缘 0.1cell(padding)，按钮间 0.2cell(gap)，
-   按钮 1.8×0.8cell 占满网格单元：4×4 面板 2列×4行 = 8 条。容量不在组件里钉常数——
-   按 `panelGridCapacity` 公式算（见 shared/layout/panelCapacity.ts），因为目录条目是
-   **运行期派生**的（首屏 12 项、航线页 14 项），钉 8/13/14 都会随目录变化失效。
-   超出容量时条目不再被 GCSPanel 的 overflow:hidden 静默裁掉：本容器自带滚动出口
-   （`overflow-y:auto` + `data-overflow-exit="scroll"`），判据见 LayerControlPanel.capacity.test.ts。
+   按钮 1.8×0.8cell 占满网格单元：4×4 面板 2列×4行 = 8 条。容量规则（2026-09-30 反转，
+   留痕见 :44 PANEL_MAX_ROWS 注）：硬上限 8、超出截断 + DEV 报错——原「容量按公式算 +
+   滚动出口」口径与公式（panelGridCapacity）已废止删除（D21-2），判据见
+   LayerControlPanel.capacity.test.ts。
    列用 1.8fr 均分（1.8fr×2 + gap 0.2cell = 内容宽 3.8cell，精确等于 1.8cell/按钮）；
    行高固定 0.8cell，不足容量时从顶部排、底部留白（边缘 0.1cell 仍保持）。 */
 .layer-grid {

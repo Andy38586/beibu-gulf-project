@@ -1,45 +1,8 @@
-// GCS 面板网格容量：由「面板高度 + 盒子模型比例」推导可完整呈现的条目数（c043）。
+// GCS 面板网格行高系数（三控制面板统一 0.8cell）。
 //
-// 为什么要有这个函数：容量此前只活在注释里（`LayerControlPanel.vue` 写着"4×4 面板内
-// 2列×4行共 8 按钮**正好填满**"），而目录条目是**运行期派生**的（航线页 14 项、
-// 首屏 12 项）⇒ 多出的 6 个开关存在、却落在 `GCSPanel` 的 `overflow:hidden` 之外，
-// 无断言、无收纳、无出口。任何"钉 8 / 钉 13 / 钉 14"的判据都会在下一次目录变化时失效，
-// 故容量必须**按公式算**，并且"超出时有可达出口"要成为可断言的事实。
-import { CELL_PIXEL } from './config'
-
-/** 盒子模型比例（相对 1 cell）：面板内边距 0.1cell、按钮行高 0.8cell、行间距 0.2cell */
-const PANEL_PADDING_CELL = 0.1
+// 历史注记（2026-10-11 D21-2 删）：本文件原有 panelGridCapacity 公式（c043，
+// 按面板高度推导可完整呈现条目数，「超出走滚动出口」）。2026-09-30 容量规则
+// 反转为「硬上限 8、超出截断 + DEV 报错」（PANEL_MAX_ROWS，钉在
+// LayerControlPanel；红样见 LayerControlPanel.capacity.test.ts）——公式失去
+// 全部消费方，按零调用即删（§十三-7）。ROW_HEIGHT_CELL 仍被四个面板消费，保留。
 export const ROW_HEIGHT_CELL = 0.8
-const ROW_GAP_CELL = 0.2
-/** 控制台类面板统一 2 列（LayerControlPanel / SiteSuitabilityControlPanel / ForecastControlPanel） */
-const PANEL_COLUMNS = 2
-
-interface PanelGridCapacityInput {
-  /** 面板高度，单位 cell（GCSPanel 的 `h` 属性值） */
-  heightCells: number
-  /** 1 cell 的像素现值（`useGCS().cellPixel`；窄屏会缩小）；缺省取桌面基准 */
-  cellPx?: number
-  /** 列数，缺省 2 */
-  columns?: number
-}
-
-/**
- * 面板网格在给定高度下能**完整呈现**（不被容器裁切）的条目数上界。
- *
- * 可放行数 = ⌊(可用高 + 行间距) / (行高 + 行间距)⌋，容量 = 行数 × 列数。
- * 比例全用 cell 表达 ⇒ 容量不随 cellPixel 漂移（实测 cell 70/80/90 下 h=4 均为 8）。
- *
- * @returns 容量上界（≥0）
- */
-export function panelGridCapacity({
-  heightCells,
-  cellPx = CELL_PIXEL,
-  columns = PANEL_COLUMNS,
-}: PanelGridCapacityInput): number {
-  const cell = cellPx > 0 ? cellPx : CELL_PIXEL
-  const available = heightCells * cell - 2 * PANEL_PADDING_CELL * cell
-  const rowH = ROW_HEIGHT_CELL * cell
-  const gap = ROW_GAP_CELL * cell
-  const rows = Math.floor((available + gap) / (rowH + gap))
-  return Math.max(0, rows) * columns
-}

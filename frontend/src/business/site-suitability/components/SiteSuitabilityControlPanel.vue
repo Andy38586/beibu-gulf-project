@@ -19,7 +19,7 @@ const { cellPixel, css } = useGCS()
 const { cell8px } = css
 const labelFontSizeCss = computed(() => `${cellPixel.value * 0.175}px`)
 const smallFontSizeCss = computed(() => `${cellPixel.value * 0.15}px`)
-/** 卡片行高系数与 panelGridCapacity 的 ROW_HEIGHT_CELL 同源（三处控制面板统一 0.8cell） */
+/** 卡片行高系数与 panelCapacity 的 ROW_HEIGHT_CELL 同源（三处控制面板统一 0.8cell） */
 const cardHeightCss = computed(() => `${cellPixel.value * ROW_HEIGHT_CELL}px`)
 
 const panelRef = ref<HTMLElement | null>(null)

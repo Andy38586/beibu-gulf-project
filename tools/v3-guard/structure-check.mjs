@@ -103,30 +103,33 @@ export function audit(modulesDir = MODULES) {
   return problems
 }
 
-const problems = audit()
+const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+if (isMain) {
+  const problems = audit()
 
-// 体量棘轮（z016）：读真文件行数；文件不在（被改名）也报（登记的棘轮必须指到真实文件）
-const sizeProblems = auditFileSizes(
-  RENDERER_SIZE_CEILINGS.map((c) => ({
-    path: c.file,
-    lines: (() => {
-      try {
-        const text = readFileSync(path.join(ROOT, c.file), 'utf8')
-        return (text.match(/\n/g) || []).length // wc -l 口径（尾行无换行不计）
-      } catch {
-        return undefined
-      }
-    })(),
-  })).filter((f) => f.lines !== undefined)
-)
-problems.push(...sizeProblems)
+  // 体量棘轮（z016）：读真文件行数；文件不在（被改名）也报（登记的棘轮必须指到真实文件）
+  const sizeProblems = auditFileSizes(
+    RENDERER_SIZE_CEILINGS.map((c) => ({
+      path: c.file,
+      lines: (() => {
+        try {
+          const text = readFileSync(path.join(ROOT, c.file), 'utf8')
+          return (text.match(/\n/g) || []).length // wc -l 口径（尾行无换行不计）
+        } catch {
+          return undefined
+        }
+      })(),
+    })).filter((f) => f.lines !== undefined)
+  )
+  problems.push(...sizeProblems)
 
-if (problems.length > 0) {
-  console.log('[structure-check] 模块分层契约违规：')
-  for (const p of problems) console.log(`  - ${p}`)
-  process.exit(1)
+  if (problems.length > 0) {
+    console.log('[structure-check] 模块分层契约违规：')
+    for (const p of problems) console.log(`  - ${p}`)
+    process.exit(1)
+  }
+  console.log(
+    `[structure-check] OK：${readdirSync(MODULES).length} 个模块满足分层契约；` +
+      `渲染器体量棘轮 ${RENDERER_SIZE_CEILINGS.length} 项未超限`
+  )
 }
-console.log(
-  `[structure-check] OK：${readdirSync(MODULES).length} 个模块满足分层契约；` +
-    `渲染器体量棘轮 ${RENDERER_SIZE_CEILINGS.length} 项未超限`
-)

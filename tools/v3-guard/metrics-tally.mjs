@@ -14,7 +14,9 @@
  * 用法：node tools/v3-guard/metrics-tally.mjs [--json]
  * 返回码：0 = 体系自描述自洽；1 = 存在漂移（CI 可直接挂接）。
  */
+import path from 'node:path'
 import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 
 import { CONVENTION } from '../audit-kit/paths.mjs'
 import { countBySpec } from '../audit-kit/metrics-index.mjs'
@@ -112,30 +114,33 @@ export function crossCheckConvention(conv, declared) {
   return problems
 }
 
-const { problems, summary, total } = auditAppendix()
-problems.push(
-  ...crossCheckConvention(parseConventionCounts(readFileSync(CONVENTION, 'utf8')), DECLARED)
-)
-
-if (process.argv.includes('--json')) {
-  console.log(JSON.stringify({ summary, total, problems }, null, 2))
-  process.exit(problems.length ? 1 : 0)
-}
-
-console.log('专项   | 总数 | A规则 | B测试 | A-待激活 | C配置 | D常驻 | 退役')
-for (const s of summary) {
-  console.log(
-    `${s.专项}  |  ${String(s.总数).padStart(2)}  |  ${String(s.A).padStart(2)}   |  ${String(s.B).padStart(2)}   |    ${String(s['A-']).padStart(2)}    |   ${String(s.C).padStart(2)}   |  ${String(s.D).padStart(3)}  |  ${s.退役}`
+const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+if (isMain) {
+  const { problems, summary, total } = auditAppendix()
+  problems.push(
+    ...crossCheckConvention(parseConventionCounts(readFileSync(CONVENTION, 'utf8')), DECLARED)
   )
-}
-const pct = (n) => ((n / total.总数) * 100).toFixed(1) + '%'
-console.log(
-  `\n合计 ${total.总数} 条｜已固化(A+B) ${total.A + total.B} (${pct(total.A + total.B)})｜待激活(A-) ${total['A-']}｜常驻(D) ${total.D} (${pct(total.D)})｜退役 ${total.退役}`
-)
 
-if (problems.length) {
-  console.log(`\n[metrics-tally] ${problems.length} 处体系自描述漂移：`)
-  for (const p of problems) console.log('  - ' + p)
-  process.exit(1)
+  if (process.argv.includes('--json')) {
+    console.log(JSON.stringify({ summary, total, problems }, null, 2))
+    process.exit(problems.length ? 1 : 0)
+  }
+
+  console.log('专项   | 总数 | A规则 | B测试 | A-待激活 | C配置 | D常驻 | 退役')
+  for (const s of summary) {
+    console.log(
+      `${s.专项}  |  ${String(s.总数).padStart(2)}  |  ${String(s.A).padStart(2)}   |  ${String(s.B).padStart(2)}   |    ${String(s['A-']).padStart(2)}    |   ${String(s.C).padStart(2)}   |  ${String(s.D).padStart(3)}  |  ${s.退役}`
+    )
+  }
+  const pct = (n) => ((n / total.总数) * 100).toFixed(1) + '%'
+  console.log(
+    `\n合计 ${total.总数} 条｜已固化(A+B) ${total.A + total.B} (${pct(total.A + total.B)})｜待激活(A-) ${total['A-']}｜常驻(D) ${total.D} (${pct(total.D)})｜退役 ${total.退役}`
+  )
+
+  if (problems.length) {
+    console.log(`\n[metrics-tally] ${problems.length} 处体系自描述漂移：`)
+    for (const p of problems) console.log('  - ' + p)
+    process.exit(1)
+  }
+  console.log('[metrics-tally] OK：审查体系自描述自洽（指标数/状态值/汇总表三处一致）')
 }
-console.log('[metrics-tally] OK：审查体系自描述自洽（指标数/状态值/汇总表三处一致）')

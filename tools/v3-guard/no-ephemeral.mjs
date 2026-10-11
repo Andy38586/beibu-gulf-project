@@ -104,32 +104,37 @@ function genBaseline() {
   process.stdout.write(out.join('\n') + '\n')
 }
 
-if (process.argv.includes('--gen-baseline')) {
-  genBaseline()
-  process.exit(0)
-}
+const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+if (isMain) {
+  if (process.argv.includes('--gen-baseline')) {
+    genBaseline()
+    process.exit(0)
+  }
 
-const baseline = loadBaseline()
-let failed = 0
-const report = []
-for (const root of [NEST_SRC, FRONTEND_SRC]) {
-  const isFrontend = root === FRONTEND_SRC
-  for (const file of walk(root)) {
-    const rel = path.relative(ROOT, file).replaceAll('\\', '/')
-    const hits = scanFile(file, isFrontend, baseline)
-    for (const h of hits) {
-      failed++
-      report.push(`  ${rel}:${h.line}  ${h.text}`)
+  const baseline = loadBaseline()
+  let failed = 0
+  const report = []
+  for (const root of [NEST_SRC, FRONTEND_SRC]) {
+    const isFrontend = root === FRONTEND_SRC
+    for (const file of walk(root)) {
+      const rel = path.relative(ROOT, file).replaceAll('\\', '/')
+      const hits = scanFile(file, isFrontend, baseline)
+      for (const h of hits) {
+        failed++
+        report.push(`  ${rel}:${h.line}  ${h.text}`)
+      }
     }
   }
-}
 
-if (failed > 0) {
-  console.log(
-    `[no-ephemeral] ${failed} 处携带施工/审查编号的代码行（后端为硬命中断言；前端未在基线冻结内）：`
-  )
-  process.stdout.write(report.join('\n') + '\n')
-  console.log('处理：新写法改为纯描述（编号进台账/日志）；前端存量用 --gen-baseline 后随迁移清理。')
-  process.exit(1)
+  if (failed > 0) {
+    console.log(
+      `[no-ephemeral] ${failed} 处携带施工/审查编号的代码行（后端为硬命中断言；前端未在基线冻结内）：`
+    )
+    process.stdout.write(report.join('\n') + '\n')
+    console.log(
+      '处理：新写法改为纯描述（编号进台账/日志）；前端存量用 --gen-baseline 后随迁移清理。'
+    )
+    process.exit(1)
+  }
+  console.log('[no-ephemeral] OK：无施工/审查编号进入源码')
 }
-console.log('[no-ephemeral] OK：无施工/审查编号进入源码')

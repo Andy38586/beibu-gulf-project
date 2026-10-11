@@ -132,23 +132,26 @@ export function scan({ root = ROOT, watched = WATCHED } = {}) {
   return hits
 }
 
-const hits = scan()
+const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+if (isMain) {
+  const hits = scan()
 
-if (process.argv.includes('--json')) {
-  console.log(JSON.stringify({ hits }, null, 2))
-  process.exit(hits.length ? 1 : 0)
-}
-
-if (hits.length > 0) {
-  console.log(`[tmp-hygiene] ${hits.length} 个临时条目残留在受控目录：`)
-  for (const h of hits) {
-    const kind = h.type === 'dir' ? '目录' : '文件'
-    // ⚠️ 必须用 `!= null`（同时排除 null 与 undefined）：文件条目的 shallowEntries 是
-    // null，若用 `!== null` 判定，展开后仍会带上 undefined 而打印「一级含 undefined 项」。
-    const extra = h.shallowEntries != null ? `，一级含 ${h.shallowEntries} 项` : ''
-    console.log(`  - ${h.dir}${h.name}（${kind}${extra}；${h.why}）`)
+  if (process.argv.includes('--json')) {
+    console.log(JSON.stringify({ hits }, null, 2))
+    process.exit(hits.length ? 1 : 0)
   }
-  console.log('处理：移动到 .local/tmp/（待删则 .local/trash/），或 npm run tmp:clean 清理。')
-  process.exit(1)
+
+  if (hits.length > 0) {
+    console.log(`[tmp-hygiene] ${hits.length} 个临时条目残留在受控目录：`)
+    for (const h of hits) {
+      const kind = h.type === 'dir' ? '目录' : '文件'
+      // ⚠️ 必须用 `!= null`（同时排除 null 与 undefined）：文件条目的 shallowEntries 是
+      // null，若用 `!== null` 判定，展开后仍会带上 undefined 而打印「一级含 undefined 项」。
+      const extra = h.shallowEntries != null ? `，一级含 ${h.shallowEntries} 项` : ''
+      console.log(`  - ${h.dir}${h.name}（${kind}${extra}；${h.why}）`)
+    }
+    console.log('处理：移动到 .local/tmp/（待删则 .local/trash/），或 npm run tmp:clean 清理。')
+    process.exit(1)
+  }
+  console.log(`[tmp-hygiene] OK：${WATCHED.length} 个受控目录无临时文件/目录残留`)
 }
-console.log(`[tmp-hygiene] OK：${WATCHED.length} 个受控目录无临时文件/目录残留`)

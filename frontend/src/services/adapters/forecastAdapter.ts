@@ -2,7 +2,7 @@
  * forecastAdapter — 预测数据适配器：统一 Nest 后端 /forecast/*（全局前缀按功能域解析）的
  * 请求与 zod 校验，隔离业务层与 HTTP 细节；返回业务形状，图表直接消费、零原始字段透传。
  */
-import { ENDPOINTS, useApiRequest } from '@/shared'
+import { ENDPOINTS, scenarioParam, useApiRequest } from '@/shared'
 import type {
   ForecastIndicatorIndexParsed,
   IndicatorComparisonResponseParsed,
@@ -15,11 +15,6 @@ import {
 } from '@/types/schemas'
 
 const { apiRequest } = useApiRequest()
-
-/** 缺省不携带 scenario 参数：与「未选情景=后端默认基线」的请求语义一致 */
-function scenarioParam(scenario?: string): Record<string, string> {
-  return scenario ? { scenario } : {}
-}
 
 interface ForecastTimeSeriesParams {
   indicator: string

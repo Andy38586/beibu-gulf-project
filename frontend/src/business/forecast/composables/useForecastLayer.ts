@@ -28,7 +28,7 @@ import type { LayerOptions, LayerType, MapRenderer } from '@/types'
 import type { ForecastMapData } from '@/types/api/forecast'
 import { forecastMapDataSchema } from '@/types/schemas'
 
-import { scenarioParam } from '../queryParams'
+import { scenarioParam } from '@/shared'
 
 import { useForecastRequest } from './useForecastRequest'
 

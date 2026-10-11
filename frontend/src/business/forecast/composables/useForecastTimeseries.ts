@@ -11,7 +11,7 @@ import { handleAuthError, isAuthError, logger, showError } from '@/shared'
 import { DEFAULT_CONFIDENCE } from '@/shared'
 import { useForecastStore } from '@/stores'
 
-import { scenarioParam } from '../queryParams'
+import { scenarioParam } from '@/shared'
 import { useForecastRequest } from './useForecastRequest'
 
 interface SeriesItem {

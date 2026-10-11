@@ -37,6 +37,7 @@ export * from './utils/perfReporter'
 export * from './utils/pointFeature'
 export * from './utils/responseEnvelope'
 export * from './utils/safeStorage'
+export * from './utils/scenario'
 export * from './utils/spatialIndex'
 export * from './utils/warmupAfterFirstFrame'
 // 收口：组件聚合导出

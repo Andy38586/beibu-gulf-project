@@ -7,6 +7,12 @@
 # 保留不删（回滚用），但本栈不再构建/启动它（原定义会让 `up -d` 白建一个退役服务）。
 services:
   postgis:
+    # ── 同源口径（W20 登记，2026-10-09）：postgis 服务定义两份 compose 同源手抄 ──
+    # 分工：本文件（v3）= 本地开发栈，只保连接面（image/container/env/volume）；
+    # docker-compose.yml（根）= 生产栈，为权威源（mem_limit/command/healthcheck/pull_policy
+    # 等生产参数只在权威源演进，本文件刻意不带，免两份漂移）。
+    # 同改规则：镜像 tag / container_name / POSTGRES_* / 卷名改动必须两处同步（roots cause：
+    # 只改一处 = 本地与生产库镜像/卷不对版，2026-10-01 d053/d054 就是这么修的）。
     # 2026-10-01 治本（d054/d053）：route 域 pgr_withPoints 需要 pgRouting，而 postgis/postgis:16-3.4
     # 不带该扩展 ⇒ /route/path 实测 500。改用仓库内自建镜像（= postgis 3.4 + postgresql-16-pgrouting，
     # 构建配方见 tools/db/Dockerfile.pgrouting；刻意不用官方 pgrouting/pgrouting —— 那只带 PostGIS 3.5，

@@ -720,19 +720,16 @@ onUnmounted(() => {
     r?.off?.('hover', handleRendererHover)
   })
 
-  // 遍历销毁两个缓存渲染器（而非只销毁当前渲染器），销毁后 ref 显式置空
+  // 遍历销毁两个缓存渲染器（而非只销毁当前渲染器），销毁后 ref 显式置空。
+  // 两类渲染器统一走 destroy：Cesium 的 destroy 内含「保留 Viewer 复用的卸载语义 +
+  // 30s 空闲销毁窗口」（类上无 unmount 方法，误调是 no-op ⇒ 事件清理/水面清理/
+  // 空闲销毁定时器全部跳过，WebGL 永久泄漏）；OL 无复用设计，正常销毁。
+  // （考古 P10：原 if/else 两支代码逐字相同仅注释不同，已折叠）
   const cachedRenderers = [olRenderer.value, cesiumRenderer.value]
   cachedRenderers.forEach((r) => {
     if (r) {
       try {
-        if (r === cesiumRenderer.value) {
-          // Cesium 常规卸载走 destroy（内部为保留 Viewer 复用的卸载语义 + 30s 空闲销毁窗口）；
-          // 类上无 unmount 方法，误调是 no-op，事件清理/水面清理/空闲销毁定时器全部跳过，WebGL 永久泄漏
-          r.destroy()
-        } else {
-          // OL 无复用设计，正常销毁
-          r.destroy()
-        }
+        r.destroy()
       } catch (e) {
         logger.warn('[UnifiedMap] 渲染器卸载失败:', e)
       }

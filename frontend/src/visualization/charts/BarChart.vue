@@ -9,7 +9,11 @@ interface Props {
   title?: string
   xData?: string[]
   // data 允许 null（无数据空档，ECharts 原生支持），禁止调用方折叠为 0
-  series?: Array<{ name: string; data: Array<number | null> }>
+  series?: Array<{ name: string; data: Array<number | null>; yAxisIndex?: number }>
+  /** 左轴单位（如「万吨」）；F4 起由 ForecastPage 从接口 unit 透传 */
+  yUnit?: string
+  /** 右轴单位：传入时渲染双 Y 轴（不同量纲系列各占一轴） */
+  yUnitRight?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -17,6 +21,8 @@ const props = withDefaults(defineProps<Props>(), {
   // 缺省为空：见 LineChart 同款口径（F6：演示数据默认值可架空空态）
   xData: () => [],
   series: () => [],
+  yUnit: '',
+  yUnitRight: '',
 })
 
 const emit = defineEmits<{

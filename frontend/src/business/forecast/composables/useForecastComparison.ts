@@ -52,10 +52,14 @@ export function useForecastComparison(): UseForecastComparisonReturn {
         if (!isTransactionValid(transactionId)) return
         const c = cached as {
           xData: string[]
-          series: Array<{ name: string; data: Array<number | null> }>
+          series: Array<{ name: string; data: Array<number | null>; yAxisIndex?: number }>
+          barUnit?: string
+          barUnitRight?: string
         }
         forecastState.chart.barXData = c.xData
         forecastState.chart.barSeries = c.series
+        forecastState.chart.barUnit = c.barUnit ?? ''
+        forecastState.chart.barUnitRight = c.barUnitRight ?? ''
         return
       }
       // 双真指标并行请求（3 港 × 2 指标 = 6 柱）
@@ -80,24 +84,29 @@ export function useForecastComparison(): UseForecastComparisonReturn {
       // 任一请求事务过期 → 整体跳过本次渲染（等下一次状态变化）
       if (results.some((r) => r === null)) return
       forecastState.chart.barXData = [...PORT_NAMES]
+      // F4：两指标量纲不同（万吨 / TEU），单轴会把小量纲 cargo 压成不可见 ⇒
+      // 改为左右双轴：cargo 走左轴、container 走右轴；单位只标在轴上，系列名保持简洁。
+      // 两轴单位取自接口 unit（不硬编码，防后端改口径后名实不符）
+      forecastState.chart.barUnit = results[0]?.unit ?? ''
+      forecastState.chart.barUnitRight = results[1]?.unit ?? ''
       forecastState.chart.barSeries = BAR_INDICATORS.map((ind, i) => {
         const r = results[i]
         const p = r?.ports
-        // F4：两指标单位不同（万吨 / 万TEU），y 轴单一单位表达不了 ⇒ 单位拼进系列名（图例可见）
-        const label = r?.unit
-          ? `${BAR_INDICATOR_LABELS[ind]}（${r.unit}）`
-          : BAR_INDICATOR_LABELS[ind]
         return {
-          name: label,
+          name: BAR_INDICATOR_LABELS[ind],
           // 无数据保留 null（图表空档），不再折叠为 0——
           // 后端 value 缺失时 `|| 0` 会把「无数据」伪装成「真实 0」。
-          // 按 PORT_KEYS 取数：顺序与 barXData（PORT_NAMES）由同一权威源派生，不再手写 key
+          // 按 PORT_KEYS 取数：顺序与 barXData（PORT_NAMES）由同一权威源派生
           data: PORT_KEYS.map((k) => p?.[k]?.value ?? null),
+          // container 量纲不同（TEU）绑右轴；cargo 留默认左轴（index 0）
+          ...(ind === 'container' ? { yAxisIndex: 1 } : {}),
         }
       })
       forecastState.setRequestCache(cacheKey, {
         xData: forecastState.chart.barXData,
         series: forecastState.chart.barSeries,
+        barUnit: forecastState.chart.barUnit,
+        barUnitRight: forecastState.chart.barUnitRight,
       })
     } catch (e) {
       logger.error('[ForecastComparison] load error:', e)

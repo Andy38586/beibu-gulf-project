@@ -177,6 +177,8 @@ onUnmounted(() => {
             title="港口对比"
             :x-data="forecastState.chart.barXData"
             :series="forecastState.chart.barSeries"
+            :y-unit="forecastState.chart.barUnit"
+            :y-unit-right="forecastState.chart.barUnitRight"
           />
           <ChartLoading v-if="forecastState.isRequesting" />
         </GCSPanel>

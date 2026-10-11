@@ -74,7 +74,14 @@ export const useForecastStore = defineStore('forecast', () => {
     lineViewportXMin: '2023-01',
     lineViewportXMax: '2029-12',
     barXData: [] as string[],
-    barSeries: [] as Array<{ name: string; data: Array<number | null> }>,
+    barSeries: [] as Array<{
+      name: string
+      data: Array<number | null>
+      yAxisIndex?: number
+    }>,
+    /** 柱状图左右轴单位（接口 unit 透传；双轴各自标注，单位不再拼进系列名） */
+    barUnit: '',
+    barUnitRight: '',
   })
 
   function clearChart(): void {
@@ -85,6 +92,8 @@ export const useForecastStore = defineStore('forecast', () => {
     chart.lineViewportXMax = '2029-12'
     chart.barXData = []
     chart.barSeries = []
+    chart.barUnit = ''
+    chart.barUnitRight = ''
   }
 
   /** 请求进行态写入口（isRequesting 不再被 composable 直改） */

@@ -7,10 +7,13 @@ interface ChartBaseProps {
   title?: string
   xData?: string[]
   // data 允许 null（无数据空档，ECharts 原生支持）
-  series?: Array<{ name: string; data: Array<number | null> }>
+  // yAxisIndex：该系列绑定的数值轴（双轴图使用；省略默认 0 即左轴）
+  series?: Array<{ name: string; data: Array<number | null>; yAxisIndex?: number }>
   xMin?: string
   xMax?: string
   yUnit?: string
+  // 右轴单位：传入时渲染左右双 Y 轴（不同量纲系列各占一轴）；省略为单轴
+  yUnitRight?: string
 }
 
 /** 图表事件发射器 */
@@ -94,25 +97,46 @@ export function useChartBase(
         ...(props.xMin ? { min: props.xMin } : {}),
         ...(props.xMax ? { max: props.xMax } : {}),
       },
-      yAxis: {
-        type: 'value',
-        splitLine: {
-          lineStyle: { color: dark ? CHART_COLORS.splitLine.dark : CHART_COLORS.splitLine.light },
-        },
-        axisLabel: {
-          color: dark ? CHART_COLORS.textSecondary.dark : CHART_COLORS.textSecondary.light,
-          fontSize: 10,
-        },
-        ...(props.yUnit
-          ? {
-              name: props.yUnit,
-              nameTextStyle: {
-                fontSize: 10,
-                color: dark ? CHART_COLORS.textMuted.dark : CHART_COLORS.textMuted.light,
-              },
-            }
-          : {}),
-      },
+      // 左轴（单轴图即此轴）。双轴时右轴不画分割线（两套网格会交错成噪音）
+      yAxis: (() => {
+        const left = {
+          type: 'value',
+          splitLine: {
+            lineStyle: {
+              color: dark ? CHART_COLORS.splitLine.dark : CHART_COLORS.splitLine.light,
+            },
+          },
+          axisLabel: {
+            color: dark ? CHART_COLORS.textSecondary.dark : CHART_COLORS.textSecondary.light,
+            fontSize: 10,
+          },
+          ...(props.yUnit
+            ? {
+                name: props.yUnit,
+                nameTextStyle: {
+                  fontSize: 10,
+                  color: dark ? CHART_COLORS.textMuted.dark : CHART_COLORS.textMuted.light,
+                },
+              }
+            : {}),
+        }
+        if (!props.yUnitRight) return left
+        const right = {
+          type: 'value',
+          position: 'right',
+          splitLine: { show: false },
+          axisLabel: {
+            color: dark ? CHART_COLORS.textSecondary.dark : CHART_COLORS.textSecondary.light,
+            fontSize: 10,
+          },
+          name: props.yUnitRight,
+          nameTextStyle: {
+            fontSize: 10,
+            color: dark ? CHART_COLORS.textMuted.dark : CHART_COLORS.textMuted.light,
+          },
+        }
+        return [left, right]
+      })(),
       animationDuration: 300,
       animationEasing: 'linear',
       series: (props.series || []).map((s) => ({
@@ -120,6 +144,7 @@ export function useChartBase(
         name: s.name,
         type: chartType,
         data: s.data || [],
+        ...(s.yAxisIndex != null ? { yAxisIndex: s.yAxisIndex } : {}),
         ...seriesConfig,
       })),
     }
@@ -133,6 +158,7 @@ export function useChartBase(
       () => props.series,
       () => props.xMin,
       () => props.xMax,
+      () => props.yUnitRight,
     ],
     onClick: handleClick,
   })

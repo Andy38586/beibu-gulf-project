@@ -9,12 +9,17 @@ import { computed, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { useAuth, usePlans } from '@/shared'
-import { showModal } from '@/shared'
-import { showError } from '@/shared'
-import { showToast } from '@/shared'
-import { logger } from '@/shared'
-import { EmptyState, PaginatedListPanel, PlanSaveModal, sanitizeMessage } from '@/shared'
-import { useFavorites } from '@/shared'
+import {
+  EmptyState,
+  PaginatedListPanel,
+  PlanSaveModal,
+  sanitizeMessage,
+  showModal,
+  showError,
+  showToast,
+  logger,
+  useFavorites,
+} from '@/shared'
 import { useFloodStore } from '@/stores'
 import type { AffectedFacility, FloodFeature } from '@/types/business/base'
 import type { FavoriteItem } from '@/types/business/base'
@@ -555,34 +560,6 @@ watch(
 
 .fav-section :deep(.paginated-list-panel) {
   background: var(--GCS-bg-container);
-}
-
-/* 小区列表样式 */
-.xq-rank {
-  color: var(--GCS-text-muted);
-  font-size: 12px;
-  width: 20px;
-  text-align: center;
-  flex-shrink: 0;
-}
-
-.xq-name {
-  color: var(--GCS-text-primary);
-  font-weight: 500;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  flex: 1;
-  text-align: center;
-  min-width: 0;
-  font-size: 12px;
-}
-
-.xq-score {
-  color: var(--GCS-color-primary);
-  font-weight: 600;
-  flex-shrink: 0;
-  font-size: 12px;
 }
 
 .facility-name {

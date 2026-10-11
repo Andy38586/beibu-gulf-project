@@ -537,7 +537,6 @@ onUnmounted(() => {
           anchor="top-right"
           :offset-x="0"
           :offset-y="1.25"
-          label="水位控制"
           :task-slot="floodTaskSlot"
           @dock="handleDock"
         >

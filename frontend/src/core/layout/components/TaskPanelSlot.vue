@@ -47,8 +47,6 @@ interface Props {
     | 'bottom-right'
   offsetX?: number
   offsetY?: number
-  /** 面板名（拖拽无障碍标签用，如「水位控制」） */
-  label?: string
   /**
    * 该路由的任务槽（null = 无任务）。
    *
@@ -62,7 +60,6 @@ const props = withDefaults(defineProps<Props>(), {
   anchor: 'top-left',
   offsetX: 0,
   offsetY: 0,
-  label: '控制面板',
   taskSlot: null,
 })
 

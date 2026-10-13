@@ -1,7 +1,8 @@
 // core/index.ts — 公开 API 入口（全量收口，01 原则10 不豁免）
 // 组件经 index.ts 聚合导出（UnifiedMap / AppLayout / GCSPanel 等），消费方一律走 @/core，禁止深路径穿透。
 // renderers 内部实现（P8 后 CesiumRenderer 单文件，无拆分辅助文件）不 re-export
-// renderers/index.ts 的 createRenderer/OLRenderer 仅在 core 内部使用，不对外暴露
+// renderers 里**只有工厂与预载**经入口对外（createRenderer / preloadCesium，见文件末尾的
+// export 段）；实现类 OLRenderer / CesiumRenderer 不对外。
 export * from './config/map'
 export * from './layout/composables/useScreenActions'
 export * from './layout/navConfig'

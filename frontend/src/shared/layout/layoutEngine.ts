@@ -115,7 +115,7 @@ export function computeLayout(
     const visible = panels
       .filter((p) => mode !== 'compact' || p.priority === 1)
       .sort((a, b) => a.priority - b.priority || a.order - b.order)
-    let y = SAFE_MARGIN + (mode === 'drawer' ? 0 : 0)
+    let y = SAFE_MARGIN
     for (const p of visible) {
       const width = Math.min(p.w * cell, viewport.width - SAFE_MARGIN * 2)
       rects.push({

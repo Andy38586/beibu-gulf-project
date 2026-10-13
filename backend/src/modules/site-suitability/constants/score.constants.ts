@@ -12,6 +12,16 @@
  * 北部湾沿海耕地转用受占补平衡制度约束（政策成本），裸地/草地转用成本最低——
  * 耕地与草地在临港口径下反转，且裸地升为次优。此调整为作者判断，论文附说明。
  * 湿地/红树林低分另有生态红线依据（红树林为保护地，项目库内有 mangroves 表）。 */
+/**
+ * 评分维度键（顺序与 `SITE_CRITERIA` 的五个准则一一对应：浸没风险/高程地形/土地适宜/交通可达/需求引力）。
+ *
+ * 2026-10-13 收口（B3）：此前 `dto/site-suitability.dto.ts` 与 `services/scoring.ts`
+ * **各手抄一份逐字相同**的清单 ⇒ 同一事实两份，增删维度必漏一处（且两处失配的表现是
+ * 「DTO 收了、评分不认」或反之，静默）。现收为模块内单一来源，两处 import。
+ * 注意与 `SITE_CRITERIA`（中文标签）是**平行关系**而非派生关系——两者的顺序必须手工对齐。
+ */
+export const WEIGHT_KEYS = ['inundation', 'terrain', 'land', 'access', 'demand'] as const
+
 export const LAND_CLASS_SCORE: Readonly<Record<number, number>> = {
   50: 1.0, // 人造地表（≈刘文"建设用地"五级，硬锚）
   60: 0.85, // 裸地（转用成本最低，语境化次优）

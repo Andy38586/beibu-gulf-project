@@ -4,6 +4,7 @@ import {
   inundationScore,
   LAND_CLASS_SCORE,
   terrainScore,
+  WEIGHT_KEYS,
 } from '../constants/score.constants'
 // 适宜性评分纯函数（单元四）：子因子归一化（score.constants）→ 加权和。
 // 勘误#5 口径：预物化准则面在库（suitability_cells），端点只做归一化+加权和。
@@ -16,8 +17,6 @@ export interface SuitabilityWeights {
   access: number
   demand: number
 }
-
-const WEIGHT_KEYS = ['inundation', 'terrain', 'land', 'access', 'demand'] as const
 
 /** 权重校验：五键齐全、有限、∈[0,1]、和=1（容差 1e-6）——不过直接抛错拒收 */
 export function parseWeights(raw: Record<string, unknown>): SuitabilityWeights {

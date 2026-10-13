@@ -4,6 +4,8 @@
 import { ahpWeights } from '../../../common/ahp'
 import { SITE_AHP_MATRIX, SITE_CRITERIA } from '../../../common/constants/site-ahp.constants'
 import { BusinessError, ErrorCode } from '../../../common/errors/business-error'
+// 维度键收为模块内单一来源（2026-10-13 收口 B3）：原先此处与 scoring.ts 各手抄一份
+import { WEIGHT_KEYS } from '../constants/score.constants'
 
 /**
  * 解析缺省值单源（04-B3）：parse 与 GET /defaults 共用，禁止在别处再手抄 0.5/0。
@@ -35,8 +37,6 @@ const CRITERION_KEY: Record<string, string> = {
   交通可达: 'access',
   需求引力: 'demand',
 }
-
-const WEIGHT_KEYS = ['inundation', 'terrain', 'land', 'access', 'demand'] as const
 
 export function parseSuitabilityQuery(query: Record<string, unknown>): SuitabilityQuery {
   const weights: Record<string, number> = {}

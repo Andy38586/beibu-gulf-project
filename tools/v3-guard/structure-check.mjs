@@ -29,10 +29,15 @@ const FORBIDDEN_FILENAMES = /\.(tmp|bak|orig|swp)(\.\w+)?$/i
  * 计法 = 换行符数（`wc -l` 口径：`\n` 计数），与历史实测同尺；
  * 冻结值取 2026-10-06 实测（A-1 裁定的 2121/1051 是 10-05 实测值，其后合法改动增长 ⇒ 本日起重锚）。
  * 2026-10-09 随减重计划单元 6 收口，按「上限=实测」下修至 2358/1111。
+ * 2026-10-13 OLRenderer 重锚为 1114（用户当日批准提额）：同一条公式「上限=实测」，
+ *   本次实测 1114 = 原锚 1111 + 呼吸样式去重（−1）+ zoom 双源修复（+4）。
+ *   **本意未变，仍是防增长**：新增内容一律另开文件；本次只是让锚点重新等于实测，
+ *   不是给新功能腾地方——此后任何净增行仍须先走"另开文件"或再次裁定。
+ *   它是这批改动**唯一**需要的提额：先做净减项再看是否真超，确实超了才提（见交接记录）。
  */
 export const RENDERER_SIZE_CEILINGS = [
   { file: 'frontend/src/core/map/renderers/CesiumRenderer.ts', max: 2358 },
-  { file: 'frontend/src/core/map/renderers/OLRenderer.ts', max: 1111 },
+  { file: 'frontend/src/core/map/renderers/OLRenderer.ts', max: 1114 },
 ]
 
 /**

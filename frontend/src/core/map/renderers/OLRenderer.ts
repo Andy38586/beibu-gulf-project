@@ -61,6 +61,21 @@ const DEFAULT_BREATHING_RGB: [number, number, number] = parseBreathingColor(
   LAYER_DEFAULTS.color
 ) ?? [0, 0, 0]
 
+/**
+ * 呼吸样式建构（2026-10-12 收口 A2）：两套呼吸的 Style/Circle 嵌套构造逐字相同，
+ * 只有取色方式不同 ⇒ 取色由调用方算好传入；脉动口径见 core/config/breathing。
+ */
+function pulseStyleAt(startTime: number, rgb: [number, number, number]): Style {
+  const t = elapsedSeconds(startTime)
+  return new Style({
+    image: new Circle({
+      radius: breathingSize(t),
+      fill: new Fill({ color: `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${breathingAlpha(t)})` }),
+      stroke: OUTLINE_STROKE,
+    }),
+  })
+}
+
 /** 热力散点要素 → OL Point Feature（add/update 两路共用；缺失坐标跳过） */
 function toHeatmapOlFeatures(features: PointFeature[]): Feature<Point>[] {
   return features.flatMap((f) => {
@@ -938,7 +953,11 @@ export class OLRenderer extends MapRenderer {
     }
 
     // 钳制在合法范围内
-    const clampedZoom = zoom != null ? Math.min(Math.max(zoom, 6), 20) : (view.getZoom() ?? 6)
+    // 限位取 OL_VIEW_MIN/MAX_ZOOM（2026-10-12 收口 A2）：原手抄 6/20，与 _initMap 的 View 限位是同一条规则的两份口径
+    const clampedZoom =
+      zoom != null
+        ? Math.min(Math.max(zoom, OL_VIEW_MIN_ZOOM), OL_VIEW_MAX_ZOOM)
+        : (view.getZoom() ?? OL_VIEW_MIN_ZOOM)
 
     // 原子设置 center+zoom，避免分离调用触发的动画冲突导致 view 状态错乱
     view.animate({
@@ -958,7 +977,7 @@ export class OLRenderer extends MapRenderer {
     if (points.length === 0) return
     const startTime = Date.now()
     // 设施 POI 呼吸传 FACILITY_COLORS_MAP 的 hex；单点定位（小区/受影响设施）不传，取缺省主色
-    const [r, g, b] = parseBreathingColor(color) ?? DEFAULT_BREATHING_RGB
+    const rgb = parseBreathingColor(color) ?? DEFAULT_BREATHING_RGB
     const breathingFeatures = points.map(
       (p) =>
         new Feature({
@@ -966,16 +985,7 @@ export class OLRenderer extends MapRenderer {
         })
     )
     // 脉动参数取自 core/config/breathing（与 Cesium 侧同源；此前两处逐行复制）
-    const breathingStyle = () => {
-      const t = elapsedSeconds(startTime)
-      return new Style({
-        image: new Circle({
-          radius: breathingSize(t),
-          fill: new Fill({ color: `rgba(${r},${g},${b},${breathingAlpha(t)})` }),
-          stroke: OUTLINE_STROKE,
-        }),
-      })
-    }
+    const breathingStyle = () => pulseStyleAt(startTime, rgb)
     this._breathingLayer = new VectorLayer({
       source: new VectorSource({ features: breathingFeatures }),
       style: breathingStyle,
@@ -1021,17 +1031,10 @@ export class OLRenderer extends MapRenderer {
       return f
     })
     // 与 startBreathing 同源（core/config/breathing）：多处呼吸节奏一致，同屏不打架
-    const breathingStyle = (feature: FeatureLike) => {
-      const t = elapsedSeconds(startTime)
-      const rgb = parseBreathingColor((feature.get('color') as string) || color) ?? fallback
-      return new Style({
-        image: new Circle({
-          radius: breathingSize(t),
-          fill: new Fill({ color: `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${breathingAlpha(t)})` }),
-          stroke: OUTLINE_STROKE,
-        }),
-      })
-    }
+    // 取色按 feature 属性逐点算（多类型混合呼吸各按类型色），缺省用统一 color 参数
+    const rgbOf = (f: FeatureLike) =>
+      parseBreathingColor((f.get('color') as string) || color) ?? fallback
+    const breathingStyle = (feature: FeatureLike) => pulseStyleAt(startTime, rgbOf(feature))
     this._facilityBreathingLayer = new VectorLayer({
       source: new VectorSource({ features: breathingFeatures }),
       style: breathingStyle,

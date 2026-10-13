@@ -134,5 +134,3 @@ export function showWarning(message: string): void {
 
   showToast(message, 'warning')
 }
-
-export default { showError, describeError, handleAuthError, isAuthError, showWarning }

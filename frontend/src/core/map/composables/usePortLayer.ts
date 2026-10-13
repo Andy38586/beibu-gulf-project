@@ -1,7 +1,7 @@
 import type { FeatureCollection } from 'geojson'
 
 import { mapDataService } from '@/services'
-import { buildPointFeatureCollection, FACILITY_COLORS } from '@/shared'
+import { buildPointFeatureCollection, PORT_FEATURE_COLOR } from '@/shared'
 import { logger } from '@/shared'
 import type { LayerOptions, Port } from '@/types'
 
@@ -28,7 +28,7 @@ export function buildPortGeoJson(portsData: Port[]): FeatureCollection {
 
 export const PORT_STYLE: LayerOptions = {
   size: 12,
-  color: FACILITY_COLORS[0],
+  color: PORT_FEATURE_COLOR,
   labelField: 'name',
   featureType: 'port',
 }

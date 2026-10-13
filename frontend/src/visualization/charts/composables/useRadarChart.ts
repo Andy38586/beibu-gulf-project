@@ -76,7 +76,6 @@ interface UseRadarChartReturn {
   renderRadar: () => void
   handleScoreClick: () => void
   handleGlobalClick: (e: MouseEvent) => void
-  setupResizeObserver: () => void
 }
 
 export function useRadarChart({
@@ -246,7 +245,7 @@ export function useRadarChart({
   )
 
   // 统一图表生命周期委托 useECharts：init/dispose/resize/theme/watch 由它管理
-  const { updateChart, getInstance } = useECharts({
+  const { updateChart } = useECharts({
     getOption: buildRadarOption,
     chartRef,
     recomputeOptionOnResize: true,
@@ -312,11 +311,6 @@ export function useRadarChart({
     }
   }
 
-  /** 设置 ResizeObserver：useECharts 已在 init 时内置 ResizeObserver，无需重复实现 */
-  function setupResizeObserver(): void {
-    void getInstance
-  }
-
   onBeforeUnmount(() => {
     // 全局点击监听由 RadarChart.vue 的 watch/卸载钩子管理；此处清理尺寸重试定时器
     if (retryTimer) {
@@ -332,6 +326,5 @@ export function useRadarChart({
     renderRadar,
     handleScoreClick,
     handleGlobalClick,
-    setupResizeObserver,
   }
 }

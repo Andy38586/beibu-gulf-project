@@ -153,7 +153,6 @@ function goBusiness(item: NavItem): void {
               :visible="true"
               :xiaoqu="radarXiaoqu"
               :selected-types="radarSelectedTypes"
-              :embedded="false"
               :snapshot="radarIsSnapshot"
             />
           </GCSPanel>

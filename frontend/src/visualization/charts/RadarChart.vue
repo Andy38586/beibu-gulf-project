@@ -20,7 +20,6 @@ interface Props {
   visible?: boolean
   xiaoqu?: ScoredXiaoqu | null
   selectedTypes?: string[]
-  embedded?: boolean
   facilityPoi?: Record<string, FacilityPoint[]>
   /** 雷达图标题，默认显示"xx小区评分详情图" */
   title?: string
@@ -46,7 +45,6 @@ const props = withDefaults(defineProps<Props>(), {
   visible: true,
   xiaoqu: null,
   selectedTypes: () => [],
-  embedded: false,
   facilityPoi: () => ({}),
   title: '',
   snapshot: false,
@@ -61,19 +59,13 @@ const { cellPixel } = useGCS()
 const unitPx = computed(() => `${cellPixel.value * 0.1}px`)
 
 /** 使用 useRadarChart composable 处理雷达图逻辑（chartRef 由组件声明，模板 v-if 绑定） */
-const {
-  tooltipVisible,
-  tooltipPosition,
-  renderRadar,
-  handleScoreClick,
-  handleGlobalClick,
-  setupResizeObserver,
-} = useRadarChart({
-  chartRef,
-  getScoreAreaRef: () => scoreAreaRef.value,
-  getProps: () => props,
-  emit,
-})
+const { tooltipVisible, tooltipPosition, renderRadar, handleScoreClick, handleGlobalClick } =
+  useRadarChart({
+    chartRef,
+    getScoreAreaRef: () => scoreAreaRef.value,
+    getProps: () => props,
+    emit,
+  })
 
 // 标记监听器是否已添加，防止泄漏
 let globalClickListenerAdded = false
@@ -107,7 +99,6 @@ watch(
   [() => props.xiaoqu, () => props.selectedTypes, () => props.facilityPoi],
   ([newXiaoqu, newTypes, newPoi]) => {
     logger.debug('[RadarChart] 数据变化:', { xiaoqu: newXiaoqu, types: newTypes, poi: newPoi })
-    setupResizeObserver()
     void nextTick(() => renderRadar())
   },
   {

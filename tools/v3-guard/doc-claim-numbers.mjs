@@ -22,12 +22,14 @@
  *
  * 用法：node tools/v3-guard/doc-claim-numbers.mjs   （违例 exit 1）
  */
-import { execFileSync } from 'node:child_process'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { CONVENTION } from '../audit-kit/paths.mjs'
 import { DOC_NUMBER_SITES } from './doc-numbers.mjs'
+// 2026-10-13 收口（D31）：`showFromIndex` 原在本文件与 doc-ref-check.mjs **各写一份逐字相同**的实现
+// ⇒ 改为共用后者的导出（它本就是 export，说明设计意图就是共用；单一事实源内部不该再分叉）。
+import { showFromIndex } from './doc-ref-check.mjs'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const DOC_MAP_REL = 'tools/v3-guard/lib/doc-map.json'
@@ -109,14 +111,6 @@ export function auditClaimNumbers(files, { sites = DOC_NUMBER_SITES } = {}) {
     }
   }
   return problems
-}
-
-function showFromIndex(rel) {
-  return execFileSync('git', ['show', `:${rel}`], {
-    cwd: ROOT,
-    encoding: 'utf8',
-    maxBuffer: 64 * 1024 * 1024,
-  })
 }
 
 export function loadFiles() {

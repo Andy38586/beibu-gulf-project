@@ -171,14 +171,23 @@ export function removeAuthStorageListener(): void {
 }
 
 export function useAuth(): UseAuthReturn {
-  async function login(username: string, password: string): Promise<User> {
-    const data = await apiRequest<AuthResponse>(ENDPOINTS.auth.login, {
+  /**
+   * login / register 的共同实现：除端点与文案外逐字相同（原为两份 30 行复刻，D21 批 5 收口）。
+   * actionLabel 用于保留各自的中文错误文案，行为逐字等价。
+   */
+  async function authenticate(
+    endpoint: string,
+    actionLabel: string,
+    username: string,
+    password: string
+  ): Promise<User> {
+    const data = await apiRequest<AuthResponse>(endpoint, {
       method: 'POST',
       body: JSON.stringify({ username, password }),
       schema: authResponseSchema,
     })
     if (!data || !data.user) {
-      throw new ApiError('登录响应数据无效', ErrorCode.REQUEST_FAILED)
+      throw new ApiError(`${actionLabel}响应数据无效`, ErrorCode.REQUEST_FAILED)
     }
     // token 由 HttpOnly Cookie 携带，前端仅设占位符启用 isAuthenticated
     setToken('cookie-auth')
@@ -188,21 +197,12 @@ export function useAuth(): UseAuthReturn {
     return data.user
   }
 
+  async function login(username: string, password: string): Promise<User> {
+    return authenticate(ENDPOINTS.auth.login, '登录', username, password)
+  }
+
   async function register(username: string, password: string): Promise<User> {
-    const data = await apiRequest<AuthResponse>(ENDPOINTS.auth.register, {
-      method: 'POST',
-      body: JSON.stringify({ username, password }),
-      schema: authResponseSchema,
-    })
-    if (!data || !data.user) {
-      throw new ApiError('注册响应数据无效', ErrorCode.REQUEST_FAILED)
-    }
-    // token 走 Cookie，同 login
-    setToken('cookie-auth')
-    user.value = data.user
-    writeStoredUser(data.user)
-    bumpAuthGeneration()
-    return data.user
+    return authenticate(ENDPOINTS.auth.register, '注册', username, password)
   }
 
   /** 登出：调用后端接口清除 HttpOnly Cookie */

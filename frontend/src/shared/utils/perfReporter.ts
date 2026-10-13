@@ -396,14 +396,3 @@ export function initPerfReporter(): void {
     `[perf] PerfReporter 已挂载${IS_DEV ? '（dev）' : '（production）'}，window.__perf.print() 查看基线`
   )
 }
-
-export default {
-  initPerfReporter,
-  perfMark,
-  perfMeasure,
-  perfTimeFn,
-  perfRecordApi,
-  perfReportError,
-  recordCesium,
-  buildPerfReport,
-}

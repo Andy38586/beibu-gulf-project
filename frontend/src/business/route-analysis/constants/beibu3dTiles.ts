@@ -191,25 +191,6 @@ export const QINZHOU_OPERATION_AREA: CropSphere = {
 export const QINZHOU_COARSE_MAX_DEPTH = 3
 
 /**
- * 是否为交付包自带的**粗层地表**节点（钦州港 d0~d3）。
- *
- * 判据用 `extras.depth` 而不是材质名：材质要解 GLB 才能读到，而 depth 是建模器
- * 直接写在 extras 里的结构化字段（`tiles3dGroups` 的 `nodeName` 同款思路）。
- *
- * 为什么必须**只摘内容、不删节点**：这些粗层节点是精细子瓦片的唯一通路，
- * 节点一删，其下 d4/d5 的集装箱/龙门架跟着整棵消失（`dropContent` 的语义，
- * 与 `drop` 的连子树删相反）。理由与平陆运河剔 `*-z1-terrain` 一致：
- * 自带地表与项目 CTB 地形不同源，同开即两层地面；地形归地形、地物归地物。
- *
- * **失效条件**：交付包若把地物下沉到 d3 或把地表上抬到 d4，本判据立即失效——
- * 判据是「裁剪后保留的瓦片里必须出现 cargo 或 metal 材质」。
- */
-export function isCoarseTerrainLayer(node: TilesetNode): boolean {
-  const d = node.extras?.depth
-  return typeof d === 'number' && d <= QINZHOU_COARSE_MAX_DEPTH
-}
-
-/**
  * 交付包**根节点**（depth 0）的粗层**保留内容**——它是远景唯一可见的"主体壳"。
  *
  * ## 为什么不能连 root 一起摘（2026-10-04 运行时阶梯实测）
@@ -226,7 +207,9 @@ export function isCoarseTerrainLayer(node: TilesetNode): boolean {
  *
  * **失效条件**：① 交付包换版若把 depth 0 的内容换成纯地形片（无 metal），则本条作废，
  * 需改为自建远景壳；② 若 60~80 km 之间出现"壳与精细层同时可见"的重叠，说明 REPLACE
- * 语义在该树未生效，须重新裁决保留层级。
+ * 语义在该树未生效，须重新裁决保留层级；③ 交付包若把地物下沉到 d3 或把地表上抬到 d4，
+ * 本判据立即失效——届时应改用「裁剪后保留的瓦片里必须出现 cargo 或 metal 材质」
+ * （③ 系 2026-10-13 自被删的 `isCoarseTerrainLayer` 迁来，免随函数一起消失）。
  */
 export function shouldDropPortContent(node: TilesetNode): boolean {
   // root（depth 0）**不摘**：它是远景唯一带结构的主体粗模（t0_0_0.glb，1.9 MB，

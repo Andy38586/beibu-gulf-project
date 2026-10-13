@@ -26,7 +26,6 @@ import {
   QINZHOU_OPERATION_AREA,
   QINZHOU_SHELL_GUARD_DISTANCE,
   QINZHOU_TOP_GE_FLOOR,
-  isCoarseTerrainLayer,
   prepareBeibuTileset,
   shouldDropPortContent,
   type BeibuTilesSpec,
@@ -191,22 +190,6 @@ describe('QINZHOU_TOP_GE_FLOOR — 港区整层早退闸门的下限', () => {
     // 旧值（capRootGeometricError 的数据上确界，夹具里是 400）已不再是权威——它会让
     // 港区的切换距离比三枢纽远 2.14×（见 LOD_REFINE_GE_PER_SSE 的实测注）。
     expect(out!.root.geometricError).toBe(LOD_REFINE_GE_PER_SSE * QINZHOU.maximumScreenSpaceError)
-  })
-})
-
-describe('isCoarseTerrainLayer — 粗层判据', () => {
-  it('depth ≤ 3 ⇒ 粗层（摘内容）；d4/d5 ⇒ 地物（保留）', () => {
-    for (let d = 0; d <= QINZHOU_COARSE_MAX_DEPTH; d++) {
-      expect(isCoarseTerrainLayer({ extras: { depth: d } })).toBe(true)
-    }
-    expect(isCoarseTerrainLayer({ extras: { depth: 4 } })).toBe(false)
-    expect(isCoarseTerrainLayer({ extras: { depth: 5 } })).toBe(false)
-  })
-
-  it('无 depth 字段一律不判为粗层（宁多留不误删）', () => {
-    expect(isCoarseTerrainLayer({})).toBe(false)
-    expect(isCoarseTerrainLayer({ extras: {} })).toBe(false)
-    expect(isCoarseTerrainLayer({ extras: { depth: '3' } })).toBe(false)
   })
 })
 

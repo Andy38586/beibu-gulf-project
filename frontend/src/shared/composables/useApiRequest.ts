@@ -32,58 +32,21 @@ export class ApiError extends Error {
 }
 
 const token: Ref<string> = ref('')
-const API_BASE: string = import.meta.env.VITE_API_BASE || '/api'
-// 逐模块切换：Nest 后端前缀与启用功能域清单（未启用域落到 /api 旧前缀）
-// 回滚开关：清空 VITE_USE_NEST_MODULES 即全部走 /api 旧前缀（Express 已退役，dev 与 nginx 均兼容指向同一 Nest 服务）
-const NEST_API_BASE: string = import.meta.env.VITE_NEST_API_BASE || '/nest-api'
-// import.meta.env.VITE_* 为 any 型，显式 String() 收窄，避免 map 回调参数隐式 any（TS7006）
-const NEST_ENABLED_MODULES: Set<string> = new Set(
-  String(import.meta.env.VITE_USE_NEST_MODULES || '')
-    .split(',')
-    .map((m) => m.trim())
-    .filter(Boolean)
-)
-const API_TIMEOUT_MS: number = 10000
-
 /**
- * 请求 path 首段 → 功能域（v3 七业务域 + v4 的 task 域；与 backend routes.manifest
- * 由 routes-audit.mjs 双向断言，guard:v3 拦截漂移）。
+ * 后端基址（**单前缀**）。
  *
- * 🔴 新增后端业务域时**必须**同步这里 + 部署侧 VITE_USE_NEST_MODULES，否则该域的请求
- * 会回落到 API_BASE（/api 旧前缀）——Express 已退役，结果是一律 404。
- * 这不是假设：v4 加 task 域时 routes-audit 立即报了出来。
+ * 2026-10-12（D1a 收口）：原为「双前缀 + 逐模块开关」——`VITE_USE_NEST_MODULES` 列出已迁 Nest
+ * 的域走 `/nest-api`，其余回落 `/api`（Express 旧前缀）。Express 退役后那一侧不再有独立实现，
+ * 且两个环境里分支归宿并不一致（实测）：
+ *   · dev：`vite.config.js` 的 `/api` 代理**无 rewrite** ⇒ 原样转给 Nest，而 Nest 全局前缀是
+ *     `nest-api` ⇒ 落到 `/api` 就是 **404**（即开关在 dev 是承重的，清单漏一域即 404）；
+ *   · 生产：nginx 的 `/api` location **有** `rewrite → /nest-api` ⇒ 与 `/nest-api` 同一服务。
+ * 即该开关改的只是 URL 前缀、不是后端实现。迁移期已过，故收口为单前缀；
+ * `VITE_USE_NEST_MODULES`、域清单 `MODULE_BY_PATH_PREFIX`、逐域解析、路由日志一并删除
+ * （判据对象的消失见 routes-audit 的同步退役说明）。
  */
-const MODULE_BY_PATH_PREFIX: Record<string, string> = {
-  auth: 'auth',
-  plans: 'plans',
-  favorites: 'favorites',
-  forecast: 'forecast',
-  flood: 'flood',
-  'site-suitability': 'site-suitability',
-  diversion: 'diversion',
-  route: 'route',
-  task: 'task',
-}
-
-/** 按功能域解析后端前缀：启用了 Nest 的模块走 /nest-api，其余走 /api 旧前缀（兼容） */
-export function resolveBackendPrefix(path: string): string {
-  const firstSegment = path.split('/').filter(Boolean)[0] ?? ''
-  const module = MODULE_BY_PATH_PREFIX[firstSegment]
-  return module && NEST_ENABLED_MODULES.has(module) ? NEST_API_BASE : API_BASE
-}
-
-// 模块→后端映射只打一次（dev 观测口，避免每请求噪音）：bootstrap 后首个请求输出当前路由态
-let routingLogged = false
-function logRoutingOnce(): void {
-  if (routingLogged) return
-  routingLogged = true
-  logger.sampled(
-    'info',
-    `[per-module routing] nest-base=${NEST_API_BASE} enabled=[${
-      [...NEST_ENABLED_MODULES].join(',') || 'none'
-    }]（未启用域走 /api 旧前缀）`
-  )
-}
+const NEST_API_BASE: string = import.meta.env.VITE_NEST_API_BASE || '/nest-api'
+const API_TIMEOUT_MS: number = 10000
 
 // 请求关联 ID 序列：每次 apiRequest 自增生成，日志显式携带（并发安全，不做全局设置）
 let requestSeq = 0
@@ -201,13 +164,12 @@ async function singleRequest<T = unknown>(
   try {
     // 以 /api、/nest-api 开头（如 auth/plans 等 REST 路径）视为已含前缀，不再叠加——
     // 曾因双重拼接打成 /api/api/ports → 404 → 港口图层加载失败（ 回归，2026-08-17 修复）
-    // 其余路径按功能域解析前缀（启用了 Nest 的模块 → /nest-api，否则 /api 旧前缀）
+    // 其余路径一律按单前缀 NEST_API_BASE 拼接（D1a 收口后已无逐功能域分支）
     // 2026-09-10（阶段 4）：原 /flood-online 前缀分支已随 FastAPI 退役移除
-    logRoutingOnce()
     const url =
       path.startsWith('/api/') || path.startsWith('/nest-api/')
         ? fullPath
-        : `${resolveBackendPrefix(path)}${fullPath}`
+        : `${NEST_API_BASE}${fullPath}`
     const res = await fetch(url, {
       method: options.method,
       body: options.body,

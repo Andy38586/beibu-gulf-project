@@ -16,17 +16,9 @@ class MockResizeObserver {
 // DOM lib 已定义 ResizeObserver，赋值类型兼容（运行时 jsdom 缺失才需补丁）
 globalThis.ResizeObserver = globalThis.ResizeObserver || MockResizeObserver
 
-// VITE_USE_NEST_MODULES 测试环境兜底（2026-09-12，CI run#169/#170 复现定位）：
-// 该变量只写在 gitignored 的 frontend/.env.local，CI fresh checkout 下为 undefined →
-// useApiRequest 的 NEST_ENABLED_MODULES 空集 → route 域回退 /api 前缀 →
-// useRouteApi.test.ts「直连 /nest-api」断言本地恒绿、CI 必红（环境依赖型假绿/假红）。
-// 此处 stub 生产同口径清单——生产镜像由 ci.yml build-args 注入同一串值（单一事实源），
-// setupFiles 先于测试模块加载执行，stub 对模块顶层求值的 Set 生效。
-// 回滚开关与 .env.local 同口径：清空字符串即恢复全回退 /api 语义。
-// ⚠️ 本清单是生产默认域集的测试侧副本（与 vitest.config.js / docker-compose.yml / Dockerfile 同源），
-// routes-audit 对测试侧做全覆盖断言——漏域即红（该域测试回落 /api 产生假绿/假红；
-// taskStore.test.ts:124 是回落探针）。新增/删除功能域必须随 routes.manifest 同步本行。
-vi.stubEnv(
-  'VITE_USE_NEST_MODULES',
-  'auth,plans,favorites,forecast,flood,site-suitability,diversion,route,task'
-)
+// VITE_USE_NEST_MODULES 测试环境兜底 —— **已随 D1a 收口删除**（2026-10-12）：
+// 该变量曾用于「逐模块前缀切换」，只写在 gitignored 的 frontend/.env.local，CI fresh
+// checkout 下为 undefined ⇒ 域清单空集 ⇒ 回退 /api 前缀 ⇒ 环境依赖型假绿/假红
+// （2026-09-12 CI run#169/#170 实锤），故当时在测试侧 stub 生产同口径清单。
+// 收口为**单前缀**后，该变量与域清单整体退役 ⇒ 本 stub 的断言对象不存在，一并删除。
+// 前缀解析现在只依赖 VITE_NEST_API_BASE（见 vitest.config.js 的 env）。

@@ -317,14 +317,47 @@ describe('useApiRequest', () => {
     })
   })
 
-  describe('API_BASE 前缀判定 (d071)', () => {
+  describe('后端单前缀判定 (D1a 收口后)', () => {
     // 2026-09-10（阶段 4）：原 /flood-online 前缀判定两用例已随 FastAPI 退役删除
-    it('非功能域普通路径加 /api 前缀', async () => {
-      // 功能域路径（/forecast/* 等）前缀由 per-module 路由决定，此处用无功能域路径验证默认回退
+    // 2026-10-12（D1a 收口）：原「双前缀 + 逐模块开关」收口为单前缀 NEST_API_BASE，
+    //   故不再有"某功能域走哪个前缀"的分支用例。此处 pin 住的三件事：
+    //   ① 任何未含前缀的路径（含功能域路径）一律拼 /nest-api；② 已含前缀者不得二次拼接；
+    //   ③ VITE_NEST_API_BASE 仍可覆盖基址（前缀常量在模块求值时读取 env）。
+    afterEach(() => {
+      delete import.meta.env.VITE_NEST_API_BASE
+      vi.resetModules()
+    })
+
+    it('未含前缀的普通路径拼 /nest-api', async () => {
       mockFetch.mockResolvedValue(jsonResponse({ code: 200, data: null }))
       const { apiRequest } = useApiRequest()
       await apiRequest('/search')
-      expect(mockFetch.mock.calls[0][0]).toBe('/api/search')
+      expect(mockFetch.mock.calls[0][0]).toBe('/nest-api/search')
+    })
+
+    it('功能域路径同样走 /nest-api（收口后已无逐域分支）', async () => {
+      mockFetch.mockResolvedValue(jsonResponse({ code: 200, data: null }))
+      const { apiRequest } = useApiRequest()
+      await apiRequest('/forecast/overview')
+      await apiRequest('/task', { method: 'POST' })
+      expect(mockFetch.mock.calls[0][0]).toBe('/nest-api/forecast/overview')
+      expect(mockFetch.mock.calls[1][0]).toBe('/nest-api/task')
+    })
+
+    it('显式 /nest-api/ 路径不二次拼接（历史 /api/api/ports → 404 回归）', async () => {
+      mockFetch.mockResolvedValue(jsonResponse({ code: 200, data: null }))
+      const { apiRequest } = useApiRequest()
+      await apiRequest('/nest-api/auth/me')
+      expect(mockFetch.mock.calls[0][0]).toBe('/nest-api/auth/me')
+    })
+
+    it('自定义 VITE_NEST_API_BASE 生效', async () => {
+      import.meta.env.VITE_NEST_API_BASE = '/v3-proxy'
+      vi.resetModules()
+      mockFetch.mockResolvedValue(jsonResponse({ code: 200, data: null }))
+      const fresh = await import('../useApiRequest')
+      await fresh.useApiRequest().apiRequest('/flood/flood-areas')
+      expect(mockFetch.mock.calls[0][0]).toBe('/v3-proxy/flood/flood-areas')
     })
   })
 
@@ -342,58 +375,5 @@ describe('useApiRequest', () => {
         })
       }
     )
-  })
-
-  describe('per-module 前缀路由', () => {
-    // VITE_USE_NEST_MODULES 按批填功能域即切 Nest，清空走 /api 旧前缀。
-    // 前缀常量在模块求值时读取 import.meta.env，故每个用例先用 beforeEach 清模块缓存与 env，
-    // 再经动态 import 重新求值（否则顶部静态 import 的旧模块实例会带着 .env.local 的开关值命中缓存）
-    beforeEach(() => {
-      delete import.meta.env.VITE_USE_NEST_MODULES
-      vi.resetModules()
-    })
-    afterEach(() => {
-      delete import.meta.env.VITE_USE_NEST_MODULES
-      delete import.meta.env.VITE_NEST_API_BASE
-      vi.resetModules()
-    })
-
-    it('启用 auth/plans/favorites → 三域走 /nest-api，未启用域走 /api 旧前缀', async () => {
-      import.meta.env.VITE_USE_NEST_MODULES = 'auth,plans,favorites'
-      mockFetch.mockResolvedValue(jsonResponse({ code: 200, data: null }))
-      const { useApiRequest } = await import('../useApiRequest')
-      const { apiRequest } = useApiRequest()
-      await apiRequest('/auth/login', { method: 'POST' })
-      await apiRequest('/plans', { method: 'POST' })
-      await apiRequest('/favorites', { method: 'POST' })
-      await apiRequest('/forecast/overview')
-      expect(mockFetch.mock.calls[0][0]).toBe('/nest-api/auth/login')
-      expect(mockFetch.mock.calls[1][0]).toBe('/nest-api/plans')
-      expect(mockFetch.mock.calls[2][0]).toBe('/nest-api/favorites')
-      expect(mockFetch.mock.calls[3][0]).toBe('/api/forecast/overview')
-    })
-
-    it('空白分隔容忍 + 显式 /nest-api/ 路径不叠加前缀', async () => {
-      import.meta.env.VITE_USE_NEST_MODULES = ' flood , task '
-      mockFetch.mockResolvedValue(jsonResponse({ code: 200, data: null }))
-      const { useApiRequest } = await import('../useApiRequest')
-      const { apiRequest } = useApiRequest()
-      await apiRequest('/flood/water-area')
-      await apiRequest('/task', { method: 'POST' })
-      await apiRequest('/nest-api/auth/me')
-      expect(mockFetch.mock.calls[0][0]).toBe('/nest-api/flood/water-area')
-      expect(mockFetch.mock.calls[1][0]).toBe('/nest-api/task')
-      expect(mockFetch.mock.calls[2][0]).toBe('/nest-api/auth/me')
-    })
-
-    it('自定义 VITE_NEST_API_BASE 生效', async () => {
-      import.meta.env.VITE_USE_NEST_MODULES = 'flood'
-      import.meta.env.VITE_NEST_API_BASE = '/v3-proxy'
-      mockFetch.mockResolvedValue(jsonResponse({ code: 200, data: null }))
-      const { useApiRequest } = await import('../useApiRequest')
-      const { apiRequest } = useApiRequest()
-      await apiRequest('/flood/flood-areas')
-      expect(mockFetch.mock.calls[0][0]).toBe('/v3-proxy/flood/flood-areas')
-    })
   })
 })

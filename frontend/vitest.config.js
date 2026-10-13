@@ -13,16 +13,12 @@ export default defineConfig({
     // `*.spec.ts` 一并收进来 ⇒ 两个 runner 抢同一目录（实见 npm test 2 文件红）。
     // 只排除 e2e，其余沿用 vitest 默认排除表，防手抄清单漂移。
     exclude: [...configDefaults.exclude, 'e2e/**'],
-    // 功能域清单固定为生产默认值（与 docker-compose.yml / Dockerfile 的 VITE_USE_NEST_MODULES 同源，
-    // routes-audit 对测试侧做全覆盖断言）：
-    // 此前测试路由解析依赖本机 .env.local（不入库）→ CI 干净树上清单为空，
-    // route 域解析回退 /api 致 useRouteApi 前缀断言红（2026-09-12 两轮 CI 实锤）。
-    // 测试环境必须与部署默认对齐，禁止依赖本机未入库 env。
+    // 前缀解析只依赖单前缀基址（D1a 收口后 VITE_USE_NEST_MODULES 与 VITE_API_BASE 已退役）。
+    // 此前测试路由解析依赖本机 .env.local 的域清单（不入库）→ CI 干净树上清单为空，
+    // 域解析回退 /api 致 useRouteApi 前缀断言红（2026-09-12 两轮 CI 实锤）；
+    // 收口后无域清单可依赖，环境依赖型的假绿/假红前提随之消失。
     env: {
-      VITE_USE_NEST_MODULES:
-        'auth,plans,favorites,forecast,flood,site-suitability,diversion,route,task',
       VITE_NEST_API_BASE: '/nest-api',
-      VITE_API_BASE: '/api',
     },
     // 进程挂起根因：forks 池下 mount 组件的测试（UnifiedMap 等）测试完成后
     // worker 残留 open handle 不退出 → 套件"跑不完"（测试本身全绿）。

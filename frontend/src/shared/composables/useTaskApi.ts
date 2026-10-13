@@ -12,9 +12,9 @@ import { useApiRequest } from './useApiRequest'
  * ① 端点路径只有一个来源，改路径不会漏改；
  * ② 便于单测（store 测试可注入假实现，不碰网络）。
  *
- * 🔴 三个端点全走 `/task` 前缀 ⇒ `resolveBackendPrefix` 会解析到 `/nest-api`。
- * 前提是 `MODULE_BY_PATH_PREFIX` 里有 `task` 键、且 `VITE_USE_NEST_MODULES` 含 `task`——
- * 漏一处就会回落 `/api` 旧前缀而 404（见 frontend/.env.example 的同步须知）。
+ * 🔴 三个端点全走 `/task` 前缀 ⇒ 按**单前缀基址**解析到 `/nest-api`（D1a 收口 2026-10-12）。
+ * 原注释要求「`MODULE_BY_PATH_PREFIX` 有 `task` 键 + `VITE_USE_NEST_MODULES` 含 `task`，
+ * 漏一处即回落 `/api` 而 404」——收口后无逐域分支、无域清单，该同步须知随之作废。
  */
 interface UseTaskApiReturn {
   submit: (payload: {

@@ -4,9 +4,10 @@
  *
  * 从 controller 装饰器提取实际路由（含 nest-api 全局前缀），与
  * backend/src/routes.manifest.ts 契约清单双向比对：路由增删未同步清单即失败。
- * 同时审计前端路由契约消费副本：useApiRequest 功能域清单与部署侧
- * VITE_USE_NEST_MODULES 必须与 manifest 域集一致（历史教训：route 域漏配致
- * dev 航线查询 404，靠 nginx 旧前缀 rewrite 侥幸在役）。
+ * 2026-10-12（D1a 收口）：原「前端功能域清单 + 部署侧 VITE_USE_NEST_MODULES」三处一致性审计
+ * 已随双前缀收口**整体退役**——收口后前端只有一个前缀，不存在"漏配某个域"这回事，
+ * 该组断言的不变量变为空真。判断对象消失 ⇒ 断言随之删除，不是放宽判据域。
+ * 本条守卫的主体（controller 装饰器 ↔ routes.manifest 双向比对）不受影响。
  *
  * 用法：
  *  node tools/v3-guard/routes-audit.mjs        # 比对（默认；不一致 exit 1）
@@ -20,37 +21,6 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const NEST_SRC = path.join(ROOT, 'backend/src')
 const MANIFEST = path.join(NEST_SRC, 'routes.manifest.ts')
 const GLOBAL_PREFIX = 'nest-api'
-
-// 前端路由契约联动：功能域单一事实源是 routes.manifest，前端 useApiRequest 的
-// MODULE_BY_PATH_PREFIX 与部署侧 VITE_USE_NEST_MODULES 都是它的消费副本。历史教训：
-// route 域下沉 Nest 时漏改前端清单，dev 航线查询 404、生产靠 nginx 旧前缀 rewrite
-// 侥幸在役——路由漂移的下游副本必须纳入本守卫，不能靠联调发现。
-const FRONTEND_API_REQUEST = path.join(ROOT, 'frontend/src/shared/composables/useApiRequest.ts')
-// 基础设施探针域：前端无 apiRequest 调用，不要求出现在前端清单
-// csp-report = CSP 违规上报接收端点（z153），由浏览器直发、前端代码不调用
-const NON_BIZ_DOMAINS = new Set(['health', 'csp-report'])
-// env 注入副本（部分域回退 Express 是文档化的回滚开关，故只查未知/过期域名，不强制全覆盖）
-const ENV_COPIES = [
-  path.join(ROOT, 'docker-compose.yml'),
-  path.join(ROOT, '.github/workflows/ci.yml'),
-]
-
-// 测试侧域开关副本（F13 · 1004-T2 上闸）：测试环境必须与生产默认域集对齐，
-// 缺域 ⇒ 该域测试走 /api 回退产生假绿/假红，死域 ⇒ 测试域集与生产分叉。
-// 与 ENV_COPIES 口径不同：测试侧是固定默认值，必须全覆盖（不适用"部分回退"）。
-const TEST_SIDE_COPIES = [
-  path.join(ROOT, 'frontend/test/setup.ts'),
-  path.join(ROOT, 'frontend/vitest.config.js'),
-]
-
-// 生产镜像域清单副本：Dockerfile 的 ARG VITE_USE_NEST_MODULES 默认值。
-// 与上面的 env 副本口径不同——env 副本允许部分覆盖（文档化回滚开关），
-// 而构建期默认值必须**全覆盖**：它是生产镜像不经任何外部环境时的域清单。
-// 2026-10-01 事故：site-suitability/diversion 两域漏登 ⇒ dev 经 vite 代理（无 /api rewrite）
-// 实测 /api/site-suitability/map、/api/diversion/breakdown 双双 404「接口不存在」；
-// 生产仅靠 nginx 的 /api→/nest-api rewrite 侥幸兜住。故本副本纳入全覆盖断言。
-const DOCKERFILE = path.join(ROOT, 'Dockerfile')
-const DOCKERFILE_ARG_RE = /^\s*ARG\s+VITE_USE_NEST_MODULES\s*=\s*(\S*)\s*$/m
 
 // 方法装饰器：@Get('sub') / @Post() / @Delete(':id')；路径参数 (:id 等) 原样保留。
 // 捕获组 1 = 方法名，组 3 = 括号内原文（用于区分「无参」与「有参但无法解析」）。
@@ -134,131 +104,21 @@ function routeKey(r) {
   return `${r.method} ${r.path}`
 }
 
-/** 提取前端 useApiRequest.ts 的 MODULE_BY_PATH_PREFIX 键集（功能域清单消费副本） */
-export function extractFrontendDomains(content) {
-  const m = content.match(/MODULE_BY_PATH_PREFIX[^{]*\{([^}]*)\}/)
-  if (!m) throw new Error('useApiRequest.ts 未找到 MODULE_BY_PATH_PREFIX（清单被改名/删除？）')
-  // 键可能带引号（'site-analysis' 这类含连字符域必须引号），两侧均可选
-  return [...m[1].matchAll(/'?([a-z][a-z-]*)'?\s*:/g)].map((k) => k[1])
-}
-
-/** 提取 env 副本中 VITE_USE_NEST_MODULES 的域清单（兼容 compose 默认值与 CI 明值两种写法） */
-export function extractEnvDomainLists(content) {
-  const lists = []
-  for (const m of content.matchAll(
-    /VITE_USE_NEST_MODULES\s*:\s*\$\{VITE_USE_NEST_MODULES:-([^}]*)\}/g
-  ))
-    lists.push(m[1])
-  for (const m of content.matchAll(/VITE_USE_NEST_MODULES=([^\s"'#]+)/g)) lists.push(m[1])
-  // 测试侧两种写法：vitest.config.js 的 env 明值 / test/setup.ts 的 vi.stubEnv
-  for (const m of content.matchAll(/VITE_USE_NEST_MODULES\s*:\s*'([^']+)'/g)) lists.push(m[1])
-  for (const m of content.matchAll(/vi\.stubEnv\(\s*'VITE_USE_NEST_MODULES'\s*,\s*'([^']+)'\s*\)/g))
-    lists.push(m[1])
-  return lists.map((s) =>
-    s
-      .split(',')
-      .map((d) => d.trim())
-      .filter(Boolean)
-  )
-}
-
-/** 提取 Dockerfile ARG 默认值里的域清单（生产镜像的构建期域清单副本） */
-export function extractDockerfileDefaultModules(content) {
-  const m = content.match(DOCKERFILE_ARG_RE)
-  if (!m)
-    throw new Error(
-      'Dockerfile 未找到 ARG VITE_USE_NEST_MODULES=<默认值>（生产域清单副本被改名/删除？）'
-    )
-  return m[1]
-    .split(',')
-    .map((d) => d.trim())
-    .filter(Boolean)
-}
-
 /**
- * 生产默认域清单审计：Dockerfile 的 ARG 默认值必须覆盖全部业务域（部分覆盖不是合法回滚态，
- * 回滚 = 清空该变量）。历史事故见常量处注释（route 域、task 域、site-suitability/diversion）。
+ * 契约双向差集：清单有而代码无（missing）/ 代码有而清单无（extra）。
+ *
+ * 单独导出**是为了让红样直接打在本守卫的核心判据上**：D1a 退役了此前承载
+ * `@guard-red-sample` 的前端清单断言后，本条成为唯一判据，必须自带可红证明
+ * （`guard-red-sample` 元守卫当场红过一次：删掉承载红样的函数 ⇒ 「未交付红样」）。
+ * 只把红样留在解析函数上是不够的——解析正确 ≠ 差集判得对。
  */
-export function auditProductionDefault(dockerfileContent, manifestDomains) {
-  const problems = []
-  const listed = extractDockerfileDefaultModules(dockerfileContent)
-  const bizDomains = manifestDomains.filter((d) => !NON_BIZ_DOMAINS.has(d))
-  for (const d of bizDomains) {
-    if (!listed.includes(d))
-      problems.push(
-        `生产镜像默认域清单缺 '${d}'（Dockerfile ARG VITE_USE_NEST_MODULES）——该域请求将回落 /api 前缀 ⇒ 404`
-      )
+export function diffRoutes(declared, actual) {
+  const actualKeys = new Set(actual.map(routeKey))
+  const declaredKeys = new Set(declared.map(routeKey))
+  return {
+    missing: declared.filter((r) => !actualKeys.has(routeKey(r))),
+    extra: actual.filter((r) => !declaredKeys.has(routeKey(r))),
   }
-  for (const d of listed) {
-    if (!manifestDomains.includes(d))
-      problems.push(`Dockerfile 的 VITE_USE_NEST_MODULES 含未知/过期域 '${d}'`)
-  }
-  return problems
-}
-
-/**
- * 测试侧域清单审计（F13 · 1004-T2）：test/setup.ts 的 vi.stubEnv 与 vitest.config.js 的 env
- * 都是"测试环境与部署默认对齐"的固定副本——两者必须覆盖全部业务域且不含未知/过期域。
- * 与 auditProductionDefault 同口径（全覆盖），区别只是副本文件与提取写法。
- */
-export function auditTestSideDefaults(copies, manifestDomains) {
-  const problems = []
-  const bizDomains = manifestDomains.filter((d) => !NON_BIZ_DOMAINS.has(d))
-  for (const { file, content } of copies) {
-    const lists = extractEnvDomainLists(content)
-    if (lists.length === 0) {
-      problems.push(
-        `${path.relative(ROOT, file)} 未找到 VITE_USE_NEST_MODULES 域清单（测试域开关被改名/删除？守卫失去对象）`
-      )
-      continue
-    }
-    for (const list of lists) {
-      for (const d of bizDomains) {
-        if (!list.includes(d))
-          problems.push(
-            `${path.relative(ROOT, file)} 测试域清单缺 '${d}'——该域测试将回落 /api 前缀（假绿/假红）`
-          )
-      }
-      for (const d of list) {
-        if (!manifestDomains.includes(d))
-          problems.push(`${path.relative(ROOT, file)} 测试域清单含未知/过期域 '${d}'`)
-      }
-    }
-  }
-  return problems
-}
-
-/**
- * 前端契约联动审计：
- * ① 后端业务域（manifest 顶层段，剔除基础设施探针）必须收录进前端功能域清单；
- * ② 前端清单不得出现 manifest 已无路由的过期域名；
- * ③ env 副本不得出现未知/过期域名（不强制全覆盖——部分回退是文档化的回滚开关）。
- */
-export function auditFrontendContract(frontendContent, envCopies, manifestDomains) {
-  const problems = []
-  const frontendDomains = new Set(extractFrontendDomains(frontendContent))
-  const bizDomains = manifestDomains.filter((d) => !NON_BIZ_DOMAINS.has(d))
-  for (const d of bizDomains) {
-    if (!frontendDomains.has(d))
-      problems.push(
-        `后端业务域 '${d}' 未收录进前端 MODULE_BY_PATH_PREFIX（该域请求将误回退 Express 前缀）`
-      )
-  }
-  for (const stale of frontendDomains) {
-    if (!manifestDomains.includes(stale))
-      problems.push(`前端功能域 '${stale}' 在 routes.manifest 中已无对应路由（过期域名）`)
-  }
-  for (const { file, content } of envCopies) {
-    for (const list of extractEnvDomainLists(content)) {
-      for (const d of list) {
-        if (!manifestDomains.includes(d))
-          problems.push(
-            `${path.relative(ROOT, file)} 的 VITE_USE_NEST_MODULES 含未知/过期域 '${d}'`
-          )
-      }
-    }
-  }
-  return problems
 }
 
 function generateManifest(routes) {
@@ -285,7 +145,6 @@ function main() {
   for (const file of controllers) {
     for (const r of extractRoutes(file).routes) actual.push(r)
   }
-  const actualKeys = new Set(actual.map(routeKey))
 
   if (process.argv.includes('--gen')) {
     const count = generateManifest(actual)
@@ -296,32 +155,12 @@ function main() {
   }
 
   const declared = parseManifest()
-  const declaredKeys = new Set(declared.map(routeKey))
+  const { missing, extra } = diffRoutes(declared, actual)
 
-  const missing = declared.filter((r) => !actualKeys.has(routeKey(r)))
-  const extra = actual.filter((r) => !declaredKeys.has(routeKey(r)))
-
-  // manifest 顶层段 = 功能域全集（nest-api/<域>/...，剔除全局前缀与空段）
-  const manifestDomains = [...new Set(declared.map((r) => r.path.split('/')[1]).filter(Boolean))]
-  const envCopies = ENV_COPIES.map((file) => ({ file, content: readFileSync(file, 'utf8') }))
-  const contractProblems = auditFrontendContract(
-    readFileSync(FRONTEND_API_REQUEST, 'utf8'),
-    envCopies,
-    manifestDomains
-  )
-  const productionProblems = auditProductionDefault(
-    readFileSync(DOCKERFILE, 'utf8'),
-    manifestDomains
-  )
-  const testSideProblems = auditTestSideDefaults(
-    TEST_SIDE_COPIES.map((file) => ({ file, content: readFileSync(file, 'utf8') })),
-    manifestDomains
-  )
-  const allProblems = [...contractProblems, ...productionProblems, ...testSideProblems]
-
-  if (missing.length === 0 && extra.length === 0 && allProblems.length === 0) {
+  if (missing.length === 0 && extra.length === 0) {
     console.log(
-      `[routes-audit] OK：${actual.length} 条实际路由与契约清单一致（${controllers.length} 个 controller），前端功能域清单同步（${manifestDomains.length} 域）`
+      `[routes-audit] OK：${actual.length} 条实际路由与契约清单一致（${controllers.length} 个 controller）。` +
+        '前端域清单/部署侧副本审计已随 D1a 收口退役（判据对象消失，见文件头）'
     )
     return
   }
@@ -331,7 +170,6 @@ function main() {
   )
   for (const r of missing) console.error(`  清单有但代码无：${routeKey(r)}`)
   for (const r of extra) console.error(`  代码有但清单无：${routeKey(r)}`)
-  for (const p of allProblems) console.error(`  ${p}`)
   console.error(
     '  修复：路由增删后运行 node tools/v3-guard/routes-audit.mjs --gen 并提交新清单；前端功能域清单与 env 副本同步更新'
   )

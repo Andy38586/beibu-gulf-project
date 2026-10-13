@@ -29,11 +29,6 @@ interface SuitabilityCellRow {
 export class SiteSuitabilityRepository {
   constructor(private readonly db: DbService) {}
 
-  /** 全量格网行（land_frac 下限过滤由 SQL 做，降低传输量）；KDE 99 分位同程取回 */
-  async fetchCells(minLandFrac: number): Promise<SuitabilityCellRow[]> {
-    return this.fetchCellsAt(minLandFrac, 0)
-  }
-
   /**
    * 取格网行；resolution > 0 时按粗格聚合（性能治本，2026-10-02）。
    *

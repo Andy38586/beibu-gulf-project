@@ -9,7 +9,10 @@ import {
   type TaskStatus,
 } from '../types/task'
 
-/** 任务进入终态后仍保留在注册表中的时长（便于前端轮询到结果后再被回收） */
+/**
+ * 终态集合（done/failed/cancelled）。**用途是"还能不能被回收"这一判断**，与保留时长无关
+ * ——保留时长见 `types/task.ts` 的 `TASK_TTL_MS`（此处原挂着一份错位的时长注释，2026-10-13 改）
+ */
 const TERMINAL_STATUSES: ReadonlySet<TaskStatus> = new Set(['done', 'failed', 'cancelled'])
 
 /**

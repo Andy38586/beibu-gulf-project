@@ -31,7 +31,6 @@ interface Props {
   /** 加载进行态 */
   loading?: boolean
   showFavorite?: boolean
-  mapInteraction?: boolean
   /** 点击列表项自动跳转（flyTo）：由业务层注入实现，页面不再各自处理 */
   flyTo?: (item: ScoredXiaoqu) => void
 }
@@ -51,7 +50,6 @@ const props = withDefaults(defineProps<Props>(), {
   planNamePrefix: '收藏',
   loading: false,
   showFavorite: true,
-  mapInteraction: true,
   // 显式 undefined：flyTo 为可选能力（个人中心 PlansPanel 无地图上下文），非遗漏默认值
   flyTo: undefined,
 })
@@ -179,15 +177,11 @@ function handleItemClick(item: ScoredXiaoqu) {
   logger.debug('[PaginatedListPanel] 点击项:', item)
   logger.debug('[PaginatedListPanel] breakdown:', item.breakdown)
 
-  const lng = item.lng
-  const lat = item.lat
-
-  // 规范化数据对象，确保字段一致性
-  const normalizedItem = {
-    ...item,
-    lng,
-    lat,
-  }
+  // 浅拷贝后透传（2026-10-12 收敛，A2）：原写法先取 `const lng/lat = item.lng/lat`
+  // 再塞回 `{ ...item, lng, lat }`——是 **no-op**：展开本就含这两个字段，
+  // 注释所称「规范化数据对象，确保字段一致性」实际什么都没做。保留浅拷贝本身
+  // （不改身份语义：调用方拿到的是副本而非原件引用）。
+  const normalizedItem = { ...item }
 
   // 地图交互由业务层注入（shared 不依赖 core）
   props.flyTo?.(normalizedItem)

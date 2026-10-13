@@ -130,11 +130,6 @@ export const useForecastStore = defineStore('forecast', () => {
     requestCache.value.set(key, value)
   }
 
-  /** 清空请求缓存（组件卸载时调用） */
-  function clearRequestCache(): void {
-    requestCache.value = new BoundedMap<string, unknown>(MAX_REQUEST_CACHE_ENTRIES)
-  }
-
   /** 快照恢复（跨页面登录返回）：一次性批量写回（禁止调用方逐字段直改 state） */
   function restoreState(saved: ForecastSavedState): void {
     currentTime.value = saved.currentTime
@@ -219,12 +214,10 @@ export const useForecastStore = defineStore('forecast', () => {
     setConfidenceThreshold,
     setIsPlaying,
     setRequestCache,
-    clearRequestCache,
     restoreState,
     resetTransactionState,
     reset,
     // 跨页面持久化
-    hasPersistedState: persisted.hasPersistedState,
     saveState,
     consumeState,
     clearState,

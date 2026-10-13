@@ -170,7 +170,11 @@ export function auditControllers(files, { root = ROOT, face = CONTROLLER_FACE } 
   const violations = []
   for (const file of files) {
     const rel = path.relative(root, file).replace(/\\/g, '/')
-    const lines = readFileSync(file, 'utf8').split(/\r?\n/)
+    // 单次读取（2026-10-13 收口 D31）：原此处与下方「公开面」段**各读一次同一文件**
+    // （审计记「文件双读」）。三面判据（数据面 / @Body / 公开面）共用一份内容即可，
+    // 且避免两次读之间文件被改动导致同一文件的两面判据口径分叉。
+    const content = readFileSync(file, 'utf8')
+    const lines = content.split(/\r?\n/)
     lines.forEach((text, i) => {
       for (const { re, why } of FORBIDDEN) {
         if (re.test(text)) {
@@ -195,7 +199,7 @@ export function auditControllers(files, { root = ROOT, face = CONTROLLER_FACE } 
       }
     })
     // 公开面/限流豁免（d026/d050）：必须登记，且声明与实装一致（注释剥离后判）
-    const code = stripComments(readFileSync(file, 'utf8'))
+    const code = stripComments(content)
     const declared = face.find((e) => e.file === rel)
     if (!declared) {
       violations.push({
@@ -241,5 +245,12 @@ if (isMain) {
     console.error(`\n[nest-controllers] ${violations.length} 处违例`)
     process.exit(1)
   }
-  console.log('[nest-controllers] controller 无直读数据文件 ✓')
+  // 文案与判据面保持一致（2026-10-13 收口 D31）：原只写「无直读数据文件」——
+  // 那是**数据面一条**，而本守卫自 z055/d025/d026 合并后已守**三面**
+  // （数据面 / @Body 参数面 / 公开面与限流豁免）。单判据时代的文案会让通过者
+  // 误以为只查了数据面。
+  console.log(
+    '[nest-controllers] 三面契约均满足 ✓：① 无直读数据文件 ② @Body 经 DtoPipe 收口 ' +
+      '③ 公开面与限流豁免已登记且与实装一致'
+  )
 }

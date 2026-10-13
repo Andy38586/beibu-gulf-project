@@ -29,8 +29,9 @@ const confirmPassword = ref('')
 const loading = ref(false)
 
 // CSS v-bind 计算属性（响应式 cellPixel，随视口变化）
-const inputFontSizeCss = computed(() => `${cellPixel.value * 0.175}px`) // 14px
-const btnFontSizeCss = computed(() => `${cellPixel.value * 0.175}px`) // 14px
+// 表单控件字号统一 0.175 Cell（14px）。原先 input/btn 各写一份逐字相同的 computed
+// ⇒ 同公式两名，改名或调值必须同步两处；合并为单一来源。
+const controlFontSizeCss = computed(() => `${cellPixel.value * 0.175}px`) // 14px
 // 1.8×0.8 Cell 按钮尺寸
 const modeBtnWidthCss = computed(() => `${cellPixel.value * 1.8}px`) // 144px
 const modeBtnHeightCss = computed(() => `${cellPixel.value * 0.8}px`) // 64px
@@ -196,7 +197,7 @@ async function handleSubmit() {
   border: 1px solid var(--GCS-border-default);
   border-radius: var(--GCS-radius-md);
   background: var(--GCS-bg-panel);
-  font-size: v-bind(btnFontSizeCss);
+  font-size: v-bind(controlFontSizeCss);
   color: var(--GCS-text-regular);
   cursor: pointer;
   transition:
@@ -234,7 +235,7 @@ async function handleSubmit() {
 
   /* 背景走 token：暗色模式下原生 input 默认白底会刺眼 */
   background: var(--GCS-bg-container);
-  font-size: v-bind(inputFontSizeCss);
+  font-size: v-bind(controlFontSizeCss);
   color: var(--GCS-text-regular);
   box-sizing: border-box;
   outline: none;
@@ -256,7 +257,7 @@ async function handleSubmit() {
   border-radius: var(--GCS-radius-md);
   background: var(--GCS-color-primary);
   color: var(--GCS-text-inverse);
-  font-size: v-bind(btnFontSizeCss);
+  font-size: v-bind(controlFontSizeCss);
   font-weight: 500;
   cursor: pointer;
   transition: background-color 0.2s ease;

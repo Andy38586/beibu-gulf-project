@@ -119,12 +119,9 @@ export function useForecastLayer(): UseForecastLayerReturn {
     }
   }
 
-  function getRenderData(
-    layerType: LayerType,
-    geojson: ForecastMapData
-  ): ForecastMapData | ForecastMapData['features'] {
-    if (layerType === 'heatmap') return geojson.features || []
-    return geojson
+  /** LAYER_TYPES 三键全为 heatmap ⇒ 恒取 features；非 heatmap 分支不可达已删（D21 批 2） */
+  function getRenderData(geojson: ForecastMapData): ForecastMapData['features'] {
+    return geojson.features || []
   }
 
   // 地图数据缓存：同一 (indicator, time, confidence) 只请求一次，播放/拖动重放同时间点零请求。
@@ -164,7 +161,6 @@ export function useForecastLayer(): UseForecastLayerReturn {
       const scenario =
         indicator === 'cargo' ? forecastState.canalScenario || 'baseline' : 'baseline'
       const cacheKey = mapCacheKey(indicator, time, confidence, scenario)
-      const layerType = LAYER_TYPES[indicator]
       const options = getLayerOptions()
 
       // LRU 命中：播放/拖动重放同一时间点，直接渲染缓存，零请求
@@ -173,7 +169,7 @@ export function useForecastLayer(): UseForecastLayerReturn {
         // 缓存命中也校验事务有效性（对齐 useForecastTimeseries 同款模式）——
         // 滑块快速连点（事务 A→B→C）时，旧事务 B 的缓存命中不得写回画面（「最后操作=最新结果」）
         if (!isTransactionValid(transactionId)) return
-        manager.updateData(key, { data: getRenderData(layerType, cached), options })
+        manager.updateData(key, { data: getRenderData(cached), options })
         return
       }
 
@@ -200,7 +196,7 @@ export function useForecastLayer(): UseForecastLayerReturn {
       // 写缓存（BoundedMap 上限自动淘汰最旧键）
       mapRequestCache.set(cacheKey, geojson)
 
-      manager.updateData(key, { data: getRenderData(layerType, geojson), options })
+      manager.updateData(key, { data: getRenderData(geojson), options })
     } catch (e) {
       if (isAuthError(e)) {
         void handleAuthError(router)

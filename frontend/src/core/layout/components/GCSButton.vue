@@ -39,10 +39,9 @@ const buttonStyle = computed(() => ({
   fontSize: `${cellPixel.value * 0.18}px`,
 }))
 
+/** 仅保留 cell 派生项；fontSize/opacity 与 .button-icon 同值双写已删（D21 批 4） */
 const iconStyle = computed(() => ({
   marginTop: `${cellPixel.value * 0.05}px`,
-  fontSize: '0.85em',
-  opacity: 0.9,
 }))
 
 function handleClick() {

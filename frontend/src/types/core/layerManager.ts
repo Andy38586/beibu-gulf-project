@@ -28,7 +28,6 @@ export interface Tiles3DData {
   /** tileset.json 地址（同源路径，如 /static/pinglu/tiles/tileset.json） */
   url: string
   /**
-  /**
    * 瓦片集最大屏误差（像素）：越小越清晰、加载越多。
    * 缺省交给 Cesium 默认值 16；大场景可调到 32 换取更少瓦片。
    */

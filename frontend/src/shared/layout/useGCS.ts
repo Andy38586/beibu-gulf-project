@@ -10,7 +10,6 @@ import {
   getCellPixelByViewport,
   layoutTierFor,
   PANEL_SPACING,
-  SAFE_MARGIN,
   type LayoutTier,
 } from './config.js'
 
@@ -33,14 +32,10 @@ interface PanelPosition {
   [key: string]: string
 }
 
-/** useGCS 返回值 */
+/** useGCS 返回值（2026-10-13 收口 A2：删去 6 个全仓零消费成员——见文件内 return 处说明） */
 interface UseGCSReturn {
-  windowWidth: Ref<number>
-  windowHeight: Ref<number>
   cellPixel: Ref<number>
   gap: ComputedRef<number>
-  panelSpacing: ComputedRef<number>
-  safeMargin: ComputedRef<number>
   padding: number
   showPanels: ComputedRef<boolean>
   showTopArea: ComputedRef<boolean>
@@ -49,8 +44,6 @@ interface UseGCSReturn {
   /** 档位 3（<640px）：底部 nav 紧凑化 */
   navCompact: ComputedRef<boolean>
   cell: (w: number, h: number) => { width: string; height: string }
-  cellSize: (w: number, h: number) => { width: number; height: number }
-  panelContentSize: (w: number, h: number) => { width: number; height: number }
   panelPosition: (
     w: number,
     h: number,
@@ -104,12 +97,6 @@ export function useGCS(): UseGCSReturn {
     if (windowWidth.value <= 0) windowWidth.value = 1920
   }
 
-  // Panel 间距 = 2 × GAP
-  const panelSpacing = computed(() => PANEL_SPACING)
-
-  // Panel 到屏幕边缘距离 = PANEL_SPACING
-  const safeMargin = computed(() => SAFE_MARGIN)
-
   // 基础间距单位 = GAP（用于 Grid 参考线计算）
   const gap = computed(() => GAP)
 
@@ -119,7 +106,10 @@ export function useGCS(): UseGCSReturn {
    */
   const tier = computed(() => layoutTierFor(windowWidth.value))
   const showPanels = computed(() => tier.value === 'desktop')
-  const showTopArea = computed(() => tier.value === 'desktop')
+  // 顶区与面板同档显示（2026-10-13 收口 A2）：原两处**各自写同一谓词**，
+  // 改名或改档漏一处就会出现「面板在、顶区不在」的分叉。改为派生自 showPanels：
+  // 保留两个公开名（AppLayout/BottomNavBar 一处都不用改），但只留**一份**谓词。
+  const showTopArea = showPanels
   const navCompact = computed(() => tier.value === 'compact')
 
   /** w×h 个 Cell 的总尺寸（CSS 字符串） */
@@ -127,22 +117,6 @@ export function useGCS(): UseGCSReturn {
     return {
       width: `${w * cellPixel.value}px`,
       height: `${h * cellPixel.value}px`,
-    }
-  }
-
-  /** w×h 个 Cell 的像素尺寸（数值） */
-  function cellSize(w: number, h: number): { width: number; height: number } {
-    return {
-      width: w * cellPixel.value,
-      height: h * cellPixel.value,
-    }
-  }
-
-  /** Panel 内容区像素尺寸（减去 Cell 内边距） */
-  function panelContentSize(w: number, h: number): { width: number; height: number } {
-    return {
-      width: w * cellPixel.value - 2 * CELL_PADDING,
-      height: h * cellPixel.value - 2 * CELL_PADDING,
     }
   }
 
@@ -211,21 +185,19 @@ export function useGCS(): UseGCSReturn {
     fontSizeSmall: computed(() => '12px'),
   }
 
+  // 2026-10-13 收口 A2：删去 windowWidth/windowHeight/panelSpacing/safeMargin/
+  // cellSize/panelContentSize 六个成员——全仓（含测试）零解构、零点号访问，
+  // 属"返回面看起来比真实可用面大"的负资产。内部若仍需这些值，各自的 ref/computed
+  // 保留在本作用域内（不对外即不再是契约）。
   return {
-    windowWidth,
-    windowHeight,
     cellPixel,
     gap,
-    panelSpacing,
-    safeMargin,
     padding: CELL_PADDING,
     showPanels,
     showTopArea,
     tier,
     navCompact,
     cell,
-    cellSize,
-    panelContentSize,
     panelPosition,
     css,
     cell8px: css.cell8px,

@@ -96,8 +96,6 @@ const { chartRef } = useECharts({
   watchSources: [() => props.data, isDark],
   recomputeOptionOnResize: true,
 })
-
-defineExpose({ chartRef, peak })
 </script>
 
 <template>

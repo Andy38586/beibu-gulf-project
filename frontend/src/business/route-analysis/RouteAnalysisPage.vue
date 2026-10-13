@@ -421,13 +421,13 @@ onUnmounted(() => {
   stopBeibuWatch()
   stopImageryWatch()
   mapStore.currentRenderer?.off?.('click', handleRendererClick)
-  // 🔴 停 watch 只挡"以后不再挂"，**已经挂上的仍留在 App 级 BLM 里**：
-  // 3D→3D 互切（航线→浸没）既不重建渲染器、也不触发 renderer watch，
-  // 于是这 5+3 个图层跨路由残留，并在每次引擎切换时被 reapplyAll 重建；
-  // 图层控制面板固定 2×4 格被 extra 追加到溢出，后面几个开关直接点不到。
-  // 同功能的 `RouteControlPanel` / `FloodAnalysisPage` 都写了这条清理，本页是漏的那个。
-  // 图层注销**不再由本页负责**：注册时经 useOwnedLayers 登记归属，作用域销毁自动清。
-  // 这正是这条结构约束的用意 —— 页面「不需要、也无法」忘记清图层（这里已经没有那个动作）。
+  // 图层注销**不由本页负责**：注册时经 useOwnedLayers 登记归属，作用域销毁自动清。
+  // 这正是该结构约束的用意 —— 页面「不需要、也无法」忘记清图层（这里已经没有那个动作）。
+  // 2026-10-12 注释收口（A1）：上方原文以现在时叙述「已挂上的图层仍留在 App 级 BLM 里、
+  // 本页是漏的那个」——那是本页引入 useOwnedLayers **之前**的故障态，早已不成立；
+  // 与紧随其后的「这里已经没有那个动作」直接冲突，会让人以为残留 bug 仍在。
+  // 该故障的背景（3D→3D 互切不触发 renderer watch ⇒ 5+3 图层跨路由残留 ⇒ 图层面板溢出）
+  // 只作历史留档，勿据此判断现状。
   // 本段只复位本页自己的展示态。
   pingluLayerIds.value = []
   imageryLayerIds.value = []
@@ -525,12 +525,6 @@ onUnmounted(() => {
   margin-top: 4px;
   font-size: 12px;
   color: var(--GCS-text-regular);
-}
-
-.summary-hint {
-  margin-top: 8px;
-  font-size: 10px;
-  color: var(--GCS-text-muted);
 }
 
 .result-hint {

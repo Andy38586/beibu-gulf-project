@@ -56,6 +56,23 @@ const FRONTEND_CRS = `export const BEIBU_GULF_BBOX = {
   maxLat: 25.0,
 } as const
 `
+// D4② 寻路权重口径：后端 MODE_WEIGHT 键为权威；前端两处手抄 mode 联合。
+const BACKEND_ROUTE = `const MODE_WEIGHT = {
+  distance: { cost: 'cost_m', reverseCost: 'reverse_cost_m' },
+  time: { cost: 'route_cost_min', reverseCost: 'route_reverse_cost_min' },
+} as const
+`
+const FRONTEND_ROUTE = `export interface RoutePathParams {
+  fromLng: number
+  /** 权重口径：distance=距离（米）/ time=时长（分） */
+  mode?: 'distance' | 'time'
+}
+export interface RoutePathResult {
+  found: true
+  mode: 'distance' | 'time'
+  distanceM: number
+}
+`
 
 describe('parseNumericConst — 数值常量解析', () => {
   it('解析水位上限', () => {
@@ -81,10 +98,52 @@ describe('auditSharedConstants — 跨进程常量一致性', () => {
     frontendBiz: FRONTEND_BIZ,
     backendGis: BACKEND_GIS,
     frontendCrs: FRONTEND_CRS,
+    backendRoute: BACKEND_ROUTE,
+    frontendRoute: FRONTEND_ROUTE,
   }
 
   it('双侧一致 → 无问题', () => {
     expect(auditSharedConstants(base)).toEqual([])
+  })
+
+  it('@guard-red-sample 后端 MODE_WEIGHT 新增 mode 而前端未同步 ⇒ 必红（D4②）', () => {
+    const problems = auditSharedConstants({
+      ...base,
+      backendRoute: BACKEND_ROUTE.replace(
+        '  time: {',
+        "  scenic: { cost: 'cost_m', reverseCost: 'reverse_cost_m' },\n  time: {"
+      ),
+    })
+    expect(problems.some((p) => p.includes('寻路 mode') && p.includes('缺 [scenic]'))).toBe(true)
+  })
+
+  it('@guard-red-sample 前端多出一个后端不存在的 mode ⇒ 必红（D4②）', () => {
+    const problems = auditSharedConstants({
+      ...base,
+      frontendRoute: FRONTEND_ROUTE.replace(
+        /mode\??: 'distance' \| 'time'/g,
+        "mode?: 'distance' | 'time' | 'walk'"
+      ),
+    })
+    expect(problems.some((p) => p.includes('寻路 mode') && p.includes('多 [walk]'))).toBe(true)
+  })
+
+  it('@guard-red-sample 前端第二处手抄漏同步 ⇒ 必红（两处都要对账）', () => {
+    const problems = auditSharedConstants({
+      ...base,
+      frontendRoute: FRONTEND_ROUTE.replace(
+        "  mode: 'distance' | 'time'\n",
+        "  mode: 'distance'\n"
+      ),
+    })
+    expect(problems.some((p) => p.includes('寻路 mode 第 2 处') && p.includes('缺 [time]'))).toBe(
+      true
+    )
+  })
+
+  it('寻路口径常量被改名/删除 ⇒ 解析失败必红（不许静默当通过）', () => {
+    const problems = auditSharedConstants({ ...base, backendRoute: 'export const X = 1' })
+    expect(problems.some((p) => p.includes('寻路口径解析失败'))).toBe(true)
   })
 
   it('@guard-red-sample 业务边界框漂移（前端 maxLng 收紧到 112）⇒ 必红（d036）', () => {

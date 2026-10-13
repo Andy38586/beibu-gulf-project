@@ -87,7 +87,9 @@ let disposed = false
  *   · distance（最短）——纯几何最短，不加任何道路偏好；
  *   · time（最快）     ——按等级限速算时间（高速 110/国道 80/支路 40/居住区 25 km/h），
  *                        并对低等级道与受限通行道加权（避村道、避免穿小区抄近路）。
- * 权重口径与后端 route.repository 的 MODE_WEIGHT 一一对应，改这里要同步那边。
+ * 权重口径与后端 route.repository 的 MODE_WEIGHT 一一对应。**已有守卫**（D4② 收口）：
+ * `tools/v3-guard/constants-audit.mjs` 第 4 对镜像对账 backend MODE_WEIGHT 键 ↔
+ * `types/route.ts` 各处 mode 字面量联合——改一处遗漏另一处，`npm run guard:v3` 当场红。
  */
 type RouteModeKey = NonNullable<RoutePathParams['mode']>
 const mode = ref<RouteModeKey>('distance')

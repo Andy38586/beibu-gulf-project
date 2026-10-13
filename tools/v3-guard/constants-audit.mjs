@@ -20,6 +20,10 @@ const BACKEND_BUSINESS_ERROR = 'backend/src/common/errors/business-error.ts'
 const FRONTEND_BIZ_CODES = 'frontend/src/shared/constants/bizCodes.ts'
 const BACKEND_GIS_CONSTANTS = 'backend/src/common/constants/gis.constants.ts'
 const FRONTEND_CRS = 'frontend/src/shared/utils/crs.ts'
+// D4②：寻路权重口径。后端 MODE_WEIGHT 的键为权威；前端 types/route.ts 里 mode 的
+// 字面量联合是手抄（当前两处：RoutePathParams.mode 与 RoutePathResult.mode）。
+const BACKEND_ROUTE_MODES = 'backend/src/modules/route/repositories/route.repository.ts'
+const FRONTEND_ROUTE_TYPES = 'frontend/src/types/route.ts'
 
 /** 从文件文本解析 `export const NAME = <数字>`（宽松空白匹配） */
 export function parseNumericConst(content, name) {
@@ -82,6 +86,25 @@ export function parseBounds(content, name) {
     const m = block[1].match(new RegExp(`${key}\\s*:\\s*(-?\\d+(?:\\.\\d+)?)`))
     if (!m) return null
     out[key] = Number(m[1])
+  }
+  return out
+}
+
+/** 后端寻路权重口径键集（MODE_WEIGHT 的键 = RouteMode 联合，权威源） */
+export function parseBackendModeKeys(content) {
+  const block = content.match(/const MODE_WEIGHT = \{([\s\S]*?)\n\} as const/)
+  if (!block) return null
+  return [...block[1].matchAll(/^\s*([A-Za-z_$][\w$]*)\s*:/gm)].map((m) => m[1])
+}
+
+/**
+ * 前端 mode 字面量联合的全部出现处（可能多处手抄）。
+ * 按「引号锚定的字面量联合」提取，注释里的 mode 不含引号字面量，故不会误命中。
+ */
+export function parseFrontendModeLiterals(content) {
+  const out = []
+  for (const m of content.matchAll(/\bmode\??\s*:\s*((?:'[^']+'\s*\|\s*)*'[^']+')/g)) {
+    out.push([...m[1].matchAll(/'([^']+)'/g)].map((x) => x[1]))
   }
   return out
 }
@@ -160,6 +183,30 @@ export function auditSharedConstants(files) {
       }
     }
   }
+  // 寻路权重口径（D4②）：后端 MODE_WEIGHT 键为权威，前端 mode 字面量联合须逐处一致。
+  // 此前前端 'distance'|'time' 手抄两处、后端第三处，三处无守卫——
+  // 后端加一个 mode 前端不会报错（只是不提供该选项），前端加一个后端只会 400。
+  const backendModes = parseBackendModeKeys(files.backendRoute ?? '')
+  const frontendModes = parseFrontendModeLiterals(files.frontendRoute ?? '')
+  if (!backendModes || backendModes.length === 0 || frontendModes.length === 0) {
+    problems.push(
+      `寻路口径解析失败：backend=${backendModes === null ? 'null' : backendModes.length} 个键 ` +
+        `frontend=${frontendModes.length} 处（常量被改名/删除？）`
+    )
+  } else {
+    const backendSet = new Set(backendModes)
+    frontendModes.forEach((literals, i) => {
+      const front = new Set(literals)
+      const missing = [...backendSet].filter((m) => !front.has(m))
+      const extra = [...front].filter((m) => !backendSet.has(m))
+      if (missing.length || extra.length) {
+        problems.push(
+          `寻路 mode 第 ${i + 1} 处与后端 MODE_WEIGHT 漂移：缺 [${missing.join(',')}] ` +
+            `多 [${extra.join(',')}]（backend route.repository 的 MODE_WEIGHT 键为权威）`
+        )
+      }
+    })
+  }
   return problems
 }
 
@@ -172,9 +219,13 @@ function main() {
     frontendBiz: read(FRONTEND_BIZ_CODES),
     backendGis: read(BACKEND_GIS_CONSTANTS),
     frontendCrs: read(FRONTEND_CRS),
+    backendRoute: read(BACKEND_ROUTE_MODES),
+    frontendRoute: read(FRONTEND_ROUTE_TYPES),
   })
   if (problems.length === 0) {
-    console.log('[constants-audit] OK：水位上限/业务边界框双侧一致，前端业务码 ⊆ 后端 ErrorCode')
+    console.log(
+      '[constants-audit] OK：水位上限/业务边界框/寻路 mode 双侧一致，前端业务码 ⊆ 后端 ErrorCode'
+    )
     return
   }
   console.error(`[constants-audit] FAIL：跨进程共享常量漂移 ${problems.length} 处`)

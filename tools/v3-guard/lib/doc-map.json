@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": 1,
-    "date": "2026-10-06",
+    "date": "2026-10-13",
     "migrationOpen": false,
     "layers": ["宪法", "契约", "日志", "标准库", "待迁移"],
     "statuses": ["active", "stub", "planned", "parallel", "frozen", "external", "retired"],
@@ -187,6 +187,36 @@
       "readWhen": ["D", "接手"],
       "writeWhen": ["状态变化（追加日期段）"],
       "ts": "2026-10-05"
+    },
+    {
+      "id": "HANDOFF-20261012-SEG1",
+      "path": "docs/日志/状态/接力文档-2026-10-12-三层简化换窗交接.md",
+      "layer": "日志",
+      "role": "换窗交接正本·一段（ZC00 → WB00；三层简化已批执行队列/对账表/纪律/已知坑）",
+      "status": "frozen",
+      "guard": "tools/v3-guard/doc-map-check.mjs",
+      "owns": ["一段换窗交接快照"],
+      "ts": "2026-10-12"
+    },
+    {
+      "id": "HANDOFF-20261012-SEG2",
+      "path": "docs/日志/状态/接力文档-2026-10-12-二段-WB00交接.md",
+      "layer": "日志",
+      "role": "换窗交接正本·二段（WB00 → 下一窗；附录 A–D 为 WB00 全程流水）",
+      "status": "frozen",
+      "guard": "tools/v3-guard/doc-map-check.mjs",
+      "owns": ["二段换窗交接快照与附录流水"],
+      "ts": "2026-10-12"
+    },
+    {
+      "id": "HANDOFF-20261013-SEG3",
+      "path": "docs/日志/状态/接力文档-2026-10-13-三段交接.md",
+      "layer": "日志",
+      "role": "换窗交接正本·三段（WB00 → 下一窗；30 秒定位 + 两条发现 + 落盘命令）",
+      "status": "frozen",
+      "guard": "tools/v3-guard/doc-map-check.mjs",
+      "owns": ["三段换窗交接快照"],
+      "ts": "2026-10-13"
     },
     {
       "id": "EXTERNAL-DEPS",

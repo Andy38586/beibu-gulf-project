@@ -64,8 +64,9 @@ const ordered = computed(() =>
           cx="11"
           cy="11"
           r="9"
-          :stroke-dasharray="56.55"
-          :stroke-dashoffset="56.55 * (1 - card.progress)"
+          pathLength="100"
+          stroke-dasharray="100"
+          :stroke-dashoffset="100 * (1 - card.progress)"
         />
       </svg>
       <span v-else class="task-dock__dot" :class="`dot-${card.status}`" />

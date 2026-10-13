@@ -4,7 +4,7 @@
  * 继承 AppLayout 布局基座：左侧吞吐量图表（自 AppLayout 下沉），
  * 右侧单个 4×8 Panel 放置登录/用户信息/收藏夹（UserInfoCard、PlansPanel 为独立子组件）。
  */
-import { defineAsyncComponent, onMounted, watch } from 'vue'
+import { computed, defineAsyncComponent, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { useOverviewCharts } from '@/business'
@@ -58,11 +58,13 @@ async function handleLogout() {
 }
 
 // 退出按钮尺寸（Cell 单位，样式自 UserInfoCard 下沉）
-const logoutWidthCss = `${cellPixel.value * 3.8}px`
-const logoutHeightCss = `${cellPixel.value * 0.8}px`
-const logoutFontCss = `${cellPixel.value * 0.175}px`
+// 🔴 必须是 computed：`v-bind()` 只跟踪响应式依赖，写成普通 const 会在首次求值时把
+// `cellPixel.value` 读死 ⇒ 窗口缩放后按钮尺寸**不跟随**（同页 LoginPanel 用的是 computed）。
+const logoutWidthCss = computed(() => `${cellPixel.value * 3.8}px`)
+const logoutHeightCss = computed(() => `${cellPixel.value * 0.8}px`)
+const logoutFontCss = computed(() => `${cellPixel.value * 0.175}px`)
 // 内边距 0.1 Cell（与 GCS 面板边缘规格一致）
-const logoutPaddingCss = `${cellPixel.value * 0.1}px`
+const logoutPaddingCss = computed(() => `${cellPixel.value * 0.1}px`)
 </script>
 
 <template>

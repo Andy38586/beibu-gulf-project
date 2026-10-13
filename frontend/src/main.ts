@@ -30,9 +30,9 @@ function validateEnv(): void {
     errors.push('VITE_TIANDITU_KEY 缺失：地图底图无法加载，请在 .env 文件中配置')
   }
 
-  // 非必需：API 基础路径（有 fallback '/api'）
-  if (!import.meta.env.VITE_API_BASE) {
-    warnings.push('VITE_API_BASE 未配置，使用默认值 /api')
+  // 非必需：后端基址（有 fallback '/nest-api'）。D1a 收口后为单前缀，原 VITE_API_BASE 已退役。
+  if (!import.meta.env.VITE_NEST_API_BASE) {
+    warnings.push('VITE_NEST_API_BASE 未配置，使用默认值 /nest-api')
   }
 
   warnings.forEach((msg: string) => logger.warn(`[env] ${msg}`))
@@ -50,7 +50,10 @@ if (router.resolve(window.location.pathname).meta?.engine === '3d') {
   preloadCesium()
 }
 
-// 尽早挂载性能观察者，捕获 FCP/LCP/TTI/longtask（dev-only，不进生产包）
+// 尽早挂载性能观察者，捕获 FCP/LCP/TTI/longtask。
+// 开关口径（2026-10-12 修，原注释「dev-only，不进生产包」失实）：
+// **dev 恒开；生产仅当显式注入 VITE_PERF_ENABLED=true 才开**——`perfReporter.ts` 的
+// `resolvePerfEnabled(IS_DEV, flag)` 即此口径，且该文件头部已点名本条注释自相矛盾。
 initPerfReporter()
 
 // 错误上报（z021）：仅当 VITE_SENTRY_DSN 配置时初始化；未配置为 no-op，本地/CI 零影响
@@ -74,13 +77,13 @@ app.config.errorHandler = (
   instance: ComponentPublicInstance | null,
   info: string
 ): void => {
-  logger.error('[Global Error]', err, info)
+  // 单条日志带全量上下文：原实现连打两条（'[Global Error]' + '错误详情:'），
+  // 第二条注释自称「生产显示友好提示」但代码未门控 ⇒ 生产同样重复打印。D21 批 3 合并。
+  logger.error('[Global Error]', { err, instance, info })
   // 性能埋点：Vue 渲染/生命周期错误计数（生产可见）
   perfReportError('vue')
   // 上报（z021）：未配置 VITE_SENTRY_DSN 时是 no-op
   captureError(err, { source: 'vue.errorHandler', info })
-  // 开发环境显示详细错误，生产环境显示友好提示
-  logger.error('错误详情:', { err, instance, info })
 }
 
 // 窗口级兜底——捕获未被 Vue errorHandler 覆盖的错误

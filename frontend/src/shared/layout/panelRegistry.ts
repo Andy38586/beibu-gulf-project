@@ -15,7 +15,6 @@ export interface PanelSpec {
   h: number
   /** 1 = 紧凑档优先保留 */
   priority: 1 | 2 | 3
-  collapsible?: boolean
   defaultCollapsed?: boolean
 }
 
@@ -38,5 +37,7 @@ export function definePanels(specs: PanelSpec[]): PanelSpec[] {
     assertCellMultiple(s.w, `${s.id}.w`)
     assertCellMultiple(s.h, `${s.id}.h`)
   }
-  return specs.map((s) => ({ collapsible: true, ...s }))
+  // 保留逐项浅拷贝：definePanels 只负责校验，返回副本以保住"入参不被返回物别名"的既有语义
+  // （2026-10-12 删掉原先注入的 `collapsible: true` 默认值——该字段全仓零读，属投机预留）
+  return specs.map((s) => ({ ...s }))
 }

@@ -4,12 +4,7 @@ import { createReadCache } from '../../../common/cache/read-cache'
 import { BusinessError, ErrorCode, missingParamError } from '../../../common/errors/business-error'
 import { DataFilesService } from '../../../infra/files/data-files.service'
 
-import type {
-  EngineMetadata,
-  ForecastPoint,
-  HistoricalPoint,
-  SpatialFeature,
-} from './forecast-engine'
+import type { ForecastPoint, HistoricalPoint, SpatialFeature } from './forecast-engine'
 import { computeForecast, generateSpatialValues } from './forecast-engine'
 import { getModelForecast } from './model-loader'
 import {
@@ -25,14 +20,21 @@ import {
 
 // 指标白名单：拒绝路径遍历（..）与非法指标名——路由公开不代表接受任意输入。
 // berth/traffic 为纯合成指标：2026-09-08 下架消费，2026-10-07 删除数据文件（防 mock 坐标回流）
-const ALLOWED_INDICATORS = new Set(['cargo', 'container', 'activity'])
+/**
+ * 主指标名（'cargo'）。2026-10-13 收口（B2）：原在文件内散写五处（白名单/模型白名单/
+ * 缓存键拼装/运河场景判定/默认指标数组）⇒ 改指标名必漏。'container'/'activity' 同理，
+ * 但当前无同名语义分支，暂不提升。
+ */
+const CARGO_INDICATOR = 'cargo'
+
+const ALLOWED_INDICATORS = new Set([CARGO_INDICATOR, 'container', 'activity'])
 
 // 文件自带完整 forecast 直接透传的指标（实为真数据派生产物，非合成）：
 // activity=港口吞吐活跃度（cargo 官方真吞吐量基期归一指数，见 tools/forecast/derive-activity.mjs）
 const FILE_FORECAST_INDICATORS = new Set(['activity'])
 
 // 走吞吐量模型产物的指标：模型为固定基线（scenarioLevel 恒 1.0）；产物缺失时降级引擎
-const MODEL_INDICATORS = new Set(['cargo', 'container'])
+const MODEL_INDICATORS = new Set([CARGO_INDICATOR, 'container'])
 
 const MAX_CACHE_SIZE = 100
 
@@ -102,7 +104,9 @@ export class ForecastService {
   private getCacheKey(indicator: string, scenarioLevel: number, canalScenario: ScenarioId): string {
     // 仅 cargo 有运河文献锚点（04-B10）⇒ 键随情景变化只需覆盖 cargo；其余指标情景恒
     // baseline（上游守卫拒绝），键保持 scenarioLevel 原形
-    return indicator === 'cargo' ? `${indicator}:${canalScenario}` : `${indicator}:${scenarioLevel}`
+    return indicator === CARGO_INDICATOR
+      ? `${indicator}:${canalScenario}`
+      : `${indicator}:${scenarioLevel}`
   }
 
   private async getOrComputeForecast(
@@ -120,7 +124,7 @@ export class ForecastService {
     // 此前查 MODEL_INDICATORS（含 container）放行了无参数依据的集装箱情景预测：
     // 注释口径是 cargo-only 而实现放行两指标，且旧门控测试因 mock 缺 container.json
     // 以错误原因变绿（守卫可删而测试仍绿 = 假绿壳，F5 修复 + 变异取证）
-    if (canalScenario !== 'baseline' && indicator !== 'cargo') {
+    if (canalScenario !== 'baseline' && indicator !== CARGO_INDICATOR) {
       throw new BusinessError(ErrorCode.INVALID_PARAMS, '运河情景仅支持 cargo 指标')
     }
     const key = this.getCacheKey(indicator, scenarioLevel, canalScenario)
@@ -259,7 +263,7 @@ export class ForecastService {
     end?: string,
     canalScenario: ScenarioId = 'baseline'
   ): Promise<Record<string, unknown>> {
-    const indicators = indicator ? [indicator] : ['cargo', 'container']
+    const indicators = indicator ? [indicator] : [CARGO_INDICATOR, 'container']
     const result: Record<string, unknown> = { portId, portName: '', canalScenario, indicators: {} }
     const indicatorsOut = result.indicators as Record<string, unknown>
 
@@ -379,5 +383,3 @@ export class ForecastService {
     this.engineCache.clear()
   }
 }
-
-export type { EngineMetadata }

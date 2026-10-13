@@ -10,20 +10,16 @@ const drawerOpen = ref(false)
 /** 返回契约（显式化，防重构时签名静默漂移） */
 interface UseMobileDrawerReturn {
   drawerOpen: Ref<boolean>
-  openDrawer: () => void
   closeDrawer: () => void
   toggleDrawer: () => void
 }
 
 export function useMobileDrawer(): UseMobileDrawerReturn {
-  function openDrawer(): void {
-    drawerOpen.value = true
-  }
   function closeDrawer(): void {
     drawerOpen.value = false
   }
   function toggleDrawer(): void {
     drawerOpen.value = !drawerOpen.value
   }
-  return { drawerOpen, openDrawer, closeDrawer, toggleDrawer }
+  return { drawerOpen, closeDrawer, toggleDrawer }
 }

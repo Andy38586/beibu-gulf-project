@@ -114,6 +114,34 @@ GET 且页面真实裁剪逻辑产出的请求全部 200"，但**渲染结果是
 **2026-10-09 进展**：前两行（`tiles-v2` 43.5 MB、`bim-hub/pinglu-*-hub` 4.6 MB）已按
 用户批准的减重计划批 2（分支 `codex/trim-redundancy-20261009`）删除；其余各行未动。
 
+**2026-10-12 已执行（WB00 · D6 收口）**：用户复批「需要，全部都需要」后执行。**实收 ≈2.4 GB**，与本节预估吻合：
+
+| 已删                                                                      | 实测                                      |
+| ------------------------------------------------------------------------- | ----------------------------------------- |
+| `tmp-3dtiles/`                                                            | 189 MB（W08 已先清 Edge 缓存，原 1390.8） |
+| `tmp-pinglu/`                                                             | 371 MB                                    |
+| `pinglu-canal-3dtiles/`                                                   | 145 MB                                    |
+| `.local/backups/`                                                         | 785 MB                                    |
+| `.local/926-rebake/backup-pinglu-canal-3dtiles-1722/`                     | 123 MB                                    |
+| `.local/{925-shallow,audit3-930,cc2,f926,f926b,f926c,probe-080209,wt-z4}` | 184+105+498+99 MB                         |
+| `.local/quarantine-20260921/`                                             | 3.5 MB                                    |
+
+**🔴 执行时查出的两处与本节清单不符（已按实情处理）**：
+
+1. **`.local/926-rebake/` 整目录不可删**——本节只点它的 `backup-pinglu-canal-3dtiles-1722/` 子目录，是对的；
+   但须注意该目录是 **dem-pipeline 的活跃工作区**：`07b-post-surface.py` 写入它、
+   `07c-patch-terrain.py` 读其中的 `post_surface_utm48n.tif`、`3dtiles-build/build-canal.mjs`
+   默认入参 `.local/926-rebake/osm_canal.json`，且 `backup-orig-terrain/` 被 07c 的注释引用为备份位置。
+   ⇒ **只删快照子目录，工具入参一律保留**（本次已如此执行）。
+2. **worktree 残留清理要走 git**：`.local/wt-z4` 是**已注册的 git worktree**，直接 `rm -rf` 会留下脏注册；
+   本次用 `git worktree remove` + `git worktree prune` 处置（目录与注册均已清）。其余 5 个（`cc2/f926/f926b/f926c/probe-080209`）
+   未在注册表内，按普通目录删。
+
+**执行前置判据的更正**：交接文档记「执行前先核航线页 3D 现状（b0066 在册）」——
+实核**台账内不存在 `b0066`**（最接近的 `b006` 是 2026-07-30 已解决的「浸没字段 lng/lat」，与本项无关）。
+本次改用的机械判据为：对 8 个目标逐项 grep 引用面（`tools/**`、`scripts/**`、`backend/src/**`、
+`frontend/src/**`、`.github/**`），并逐个处理命中的真实依赖（见上第 1 条）。
+
 ### 6.1 建议删除（旧版本 / 中间产物，合计 ≈ 2.4 GB）
 
 | 路径                                                                          | 体积          | 为什么可删                                                         |
@@ -130,13 +158,13 @@ GET 且页面真实裁剪逻辑产出的请求全部 200"，但**渲染结果是
 
 ### 6.2 **必须保留**（删了会坏或不可复现）
 
-| 路径                                                  | 体积     | 理由                                                                                               |
-| ----------------------------------------------------- | -------- | -------------------------------------------------------------------------------------------------- |
-| `backend/static/qinzhou-port/tiles/`                  | 143.5 MB | **作业区 7 块里 `t4_576_704` 仍指向 `../tiles/`**（它没有 cargo，未被 clean 复制）。删了该瓦片 404 |
-| `.local/tmp/pinglu-tiles-backup-20260928/`            | 3.9 MB   | **三枢纽重锚的参照基准**——偏移量由它算出。删了重锚不可复现                                         |
-| `backend/static/bim-hub/qinzhou-port-terminal/`       | 200.7 MB | 在用（`qz-terminal-bim` 图层）                                                                     |
-| `backend/static/pinglu/imagery/`                      | —        | 在用（施工影像，权威源）                                                                           |
-| `backend/static/{qinzhou-port/rebuilt,bridges-city}/` | ~12 MB   | 本次新建，在用                                                                                     |
+| 路径                                                  | 体积     | 理由                                                                                                                                                                    |
+| ----------------------------------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `backend/static/qinzhou-port/tiles/`                  | 143.5 MB | **作业区 7 块里 `t4_576_704` 仍指向 `../tiles/`**（它没有 cargo，未被 clean 复制）。删了该瓦片 404                                                                      |
+| `.local/pinglu-tiles-backup-20260928/`                | 4.1 MB   | **三枢纽重锚的参照基准**——偏移量由它算出。删了重锚不可复现。**2026-10-12 由 `.local/tmp/` 移出**（WB00 · D9b：`.local/tmp` 判废清空，故先移此件再清；路径引用同步更新） |
+| `backend/static/bim-hub/qinzhou-port-terminal/`       | 200.7 MB | 在用（`qz-terminal-bim` 图层）                                                                                                                                          |
+| `backend/static/pinglu/imagery/`                      | —        | 在用（施工影像，权威源）                                                                                                                                                |
+| `backend/static/{qinzhou-port/rebuilt,bridges-city}/` | ~12 MB   | 本次新建，在用                                                                                                                                                          |
 
 ### 6.3 若要连 6.2 的两项也删，需要先做
 

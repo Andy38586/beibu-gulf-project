@@ -35,6 +35,20 @@ export function usePlans(): UsePlansReturn {
   // 读操作竞态守卫用 useLatestRequest；写操作不打断，避免误取消已提交的写请求
   const { createSignal, isLatest, cancel: cancelRequest } = useLatestRequest()
 
+  /**
+   * 三处 catch（getPlans / deletePlan / updatePlan）逐字同构，差别只有日志里的动作名
+   * ⇒ 抽成一处（2026-10-12，A2）。语义与原三份完全一致：
+   * 鉴权错先走 `handleAuthError` 统一处理，其余记日志；**两条路径都由调用方原样抛出错误**
+   * （故本函数只负责"处理副作用"，不接管抛出——避免 Promise<never> 的收窄歧义）。
+   */
+  async function handlePlanFailure(error: unknown, action: string): Promise<void> {
+    if (isAuthError(error)) {
+      await handleAuthError(router)
+      return
+    }
+    logger.error(`[usePlans] ${action} failed:`, error)
+  }
+
   async function getPlans(): Promise<Plan[]> {
     const signal = createSignal()
     loading.value = true
@@ -49,12 +63,7 @@ export function usePlans(): UsePlansReturn {
       }
       return data
     } catch (error) {
-      if (isAuthError(error)) {
-        await handleAuthError(router)
-        throw error
-      }
-      logger.error('[usePlans] getPlans failed:', error)
-
+      await handlePlanFailure(error, 'getPlans')
       throw error
     } finally {
       if (isLatest(signal)) loading.value = false
@@ -76,12 +85,7 @@ export function usePlans(): UsePlansReturn {
     try {
       await apiRequest(ENDPOINTS.plans.byId(id), { method: 'DELETE' })
     } catch (error) {
-      if (isAuthError(error)) {
-        await handleAuthError(router)
-        throw error
-      }
-      logger.error('[usePlans] deletePlan failed:', error)
-
+      await handlePlanFailure(error, 'deletePlan')
       throw error
     } finally {
       deleting.value = false
@@ -109,12 +113,7 @@ export function usePlans(): UsePlansReturn {
         schema: planSchema,
       })
     } catch (error) {
-      if (isAuthError(error)) {
-        await handleAuthError(router)
-        throw error
-      }
-      logger.error('[usePlans] updatePlan failed:', error)
-
+      await handlePlanFailure(error, 'updatePlan')
       throw error
     } finally {
       updating.value = false

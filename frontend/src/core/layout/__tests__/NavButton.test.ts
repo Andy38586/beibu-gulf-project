@@ -13,8 +13,8 @@ const ROUTE = '/flood-analysis'
 function mountWith(state: { occupied: boolean; preparing: boolean }) {
   registerTaskIndicator(() =>
     state.occupied
-      ? { active: false, occupied: true, status: 'done', progress: 1 }
-      : { active: false, occupied: false, status: null, progress: 0 }
+      ? { occupied: true, status: 'done', progress: 1 }
+      : { occupied: false, status: null, progress: 0 }
   )
   registerRouteReadiness(() => ({ preparing: state.preparing }))
   return mount(NavButton, { props: { label: '浸没', icon: '🌊', taskRoute: ROUTE } })
@@ -52,7 +52,6 @@ describe('NavButton 进度环：任务 与 页面准备 两个来源', () => {
 
   it('没有 taskRoute（如菜单键）⇒ 永不画环', () => {
     registerTaskIndicator(() => ({
-      active: true,
       occupied: true,
       status: 'running',
       progress: 0.1,

@@ -24,12 +24,15 @@ describe('taskIndicator', () => {
   it('注入后按路由取值', () => {
     registerTaskIndicator((route) =>
       route === '/flood-analysis'
-        ? { active: true, occupied: true, status: 'running', progress: 0.1 }
+        ? { occupied: true, status: 'running', progress: 0.1 }
         : EMPTY_TASK_INDICATOR
     )
 
-    expect(getTaskIndicator('/flood-analysis').active).toBe(true)
-    expect(getTaskIndicator('/forecast').active).toBe(false)
+    // 2026-10-12：原以已删字段 `.active` 为探针；改用仍在契约里的 status/occupied，
+    // 且非匹配路由改用**全等空态**（比逐字段断言强——多一个字段泄漏也会红）。
+    expect(getTaskIndicator('/flood-analysis').status).toBe('running')
+    expect(getTaskIndicator('/flood-analysis').occupied).toBe(true)
+    expect(getTaskIndicator('/forecast')).toEqual(EMPTY_TASK_INDICATOR)
   })
 
   it('registerTaskIndicator 递增版本号（core 侧据此重算）', () => {

@@ -23,8 +23,6 @@ import { createInjectedRouteState } from './injectedRouteState'
 
 /** 导航指示状态：某路由当前是否有任务、什么状态、进度多少 */
 export interface TaskIndicatorState {
-  /** 是否有活跃任务（pending/running/retrying） */
-  active: boolean
   /** 是否有任何任务（含终态，用于显示结果待查看标记） */
   occupied: boolean
   status: TaskStatus | null
@@ -34,7 +32,6 @@ export interface TaskIndicatorState {
 
 /** 默认空态（未注入 / 该路由无任务时的唯一真相） */
 export const EMPTY_TASK_INDICATOR: TaskIndicatorState = Object.freeze({
-  active: false,
   occupied: false,
   status: null,
   progress: 0,

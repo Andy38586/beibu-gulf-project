@@ -128,10 +128,9 @@ registerNavItems([
 registerTaskIndicator((routePath) => {
   const slot = taskStore.getSlot(routePath)
   if (!slot) {
-    return { active: false, occupied: false, status: null, progress: 0 }
+    return { occupied: false, status: null, progress: 0 }
   }
   return {
-    active: slot.status === 'pending' || slot.status === 'running' || slot.status === 'retrying',
     occupied: true,
     status: slot.status,
     progress: slot.progress,
@@ -339,7 +338,7 @@ onUnmounted(() => {
     <!-- v4 任务投递区：导航条上方的透明命中区，拖到这里 = 任务转后台（不改 .app-layout 结构，L1）。
          常态完全透明且不吃指针事件；拖拽期显形虚线提示。
          🔴 必须常驻渲染（不做 v-if）：元素不在 DOM 则 elementFromPoint 落空、drop 永不触发 -->
-    <TaskDropZone :drag-active="panelDragActive" :drop-active="panelDragActive" />
+    <TaskDropZone :drag-active="panelDragActive" />
     <!-- v4-S5 TaskDock：已转后台任务的卡片条。点击回路由（面板在原位可用）；空态整体不渲染（L1）。
          只列 docked 槽位——在跑但没拖入 dock 的任务由导航按钮进度环表达，不在这里重复 -->
     <TaskDock :cards="dockCards" @open="onDockCardOpen" />

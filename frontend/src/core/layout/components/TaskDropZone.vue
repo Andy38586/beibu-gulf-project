@@ -25,36 +25,31 @@ export default { name: 'GCSTaskDropZone' }
  * 只靠 CSS 在"非拖拽"时彻底透明 + 不接收指针事件。
  */
 
-import { computed } from 'vue'
-
 /**
  * 拖拽期才显形的高亮。由上层注入全局拖拽态（App.vue ← useGlobalPanelDragActive）。
+ * 「已对准」的悬停反馈不在此处：由面板侧 `usePanelDrag.overZone` 给面板自身加
+ * `is-over-zone`（GCSPanel.vue:159），App.vue:160 有同注。原 dropActive prop 从未接通
+ * （App.vue 曾把同一个 panelDragActive 同时喂给两个 prop ⇒ 假「已对准」），D21 批 3 删除。
  */
 interface Props {
   /** 是否有面板正在拖拽（拖拽期显示虚线提示） */
   dragActive?: boolean
-  /** 指针是否悬停在本区上方（命中时加强高亮） */
-  dropActive?: boolean
 }
 
-const props = withDefaults(defineProps<Props>(), {
+withDefaults(defineProps<Props>(), {
   dragActive: false,
-  dropActive: false,
 })
-
-/** 显形条件：有人在拖（悬停中更强）——除此之外完全透明 */
-const highlighted = computed(() => props.dragActive || props.dropActive)
 </script>
 
 <template>
   <div
     class="task-drop-zone"
-    :class="{ 'is-highlighted': highlighted, 'is-hovered': dropActive }"
+    :class="{ 'is-highlighted': dragActive }"
     :data-task-dock-zone="'task-dock'"
     role="region"
     aria-label="拖到此处让任务转入后台运行"
   >
-    <span v-if="highlighted" class="task-drop-zone__hint">松手后该任务转为后台排队</span>
+    <span v-if="dragActive" class="task-drop-zone__hint">松手后该任务转为后台排队</span>
   </div>
 </template>
 
@@ -117,11 +112,6 @@ const highlighted = computed(() => props.dragActive || props.dropActive)
 .task-drop-zone.is-highlighted {
   background: var(--GCS-bg-panel-translucent, var(--GCS-bg-panel));
   outline-color: var(--GCS-color-primary);
-}
-
-/* 悬停命中：加实背景，给出"已对准"的确认 */
-.task-drop-zone.is-hovered {
-  background: var(--GCS-bg-panel);
 }
 
 .task-drop-zone__hint {

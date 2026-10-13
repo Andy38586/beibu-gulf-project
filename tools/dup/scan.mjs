@@ -244,6 +244,46 @@ export function codeOf(source, ext) {
  * 扫描（纯函数，输入已在内存里，便于测试）。
  * @param {Array<{relPath:string, text:string}>} entries 已是**代码面**（.vue 请先过 codeOf）
  */
+/**
+ * 「具名函数等价调用」判定（D5 降权口径）。
+ *
+ * 为什么需要：重复组里有一类是**同一具名调用/守卫在多个调用点重复**，例如
+ *   `if (isStaleToken(renderer._geoJsonTokens, id, token))` ×5
+ *   `layerCatalog.value.find((e) => e.key === key)` ×4
+ * 它们是**「有共享函数」的正常后果**——调用点本就该各写一次，抽不出更少的东西。
+ * 按 `(次数−1)×token` 计入冗余会让**指标惩罚正确的共享**（越是把逻辑收口成单一函数，
+ * 调用面上的"重复"越多，指标越差）。故此类不计入冗余 token，仅列出供人看。
+ *
+ * 判据（须全部满足，宁可漏判不可误判——误判会把真重复洗白）：
+ *   ① 无 `{` / `}` ⇒ 不是含块结构的代码段（`computed(() => {…})`、`interface X {…}` 均被排除）
+ *   ② 剥掉 if/while/return/await/void/typeof 外壳与其后的一层括号
+ *   ③ 剥壳后以 `this` 或标识符开头，可带 `.member` 链，其后紧跟 `(`
+ *   ④ **参数表必须是平凡的**——只有标识符/成员链/字面量/逗号/括号。
+ *      参数里一旦出现 lambda(`=>`) 或运算符(`&& || ? === !== <= >= + * / < > !`)，说明
+ *      **被重复的是参数里的逻辑本身**，那是真重复（可抽函数），不得降权。
+ *
+ * ④ 是**被既有测试逼出来的收紧**：宽松版曾把
+ * `features.filter((p) => Number.isFinite(p.lng) && Number.isFinite(p.lat))`
+ * 判成调用重复并降权（`scan.test.mjs` 的「跨文件重复 ⇒ 检出并列出两侧文件」当场红）。
+ * 那次红是对的——本条判据的失效模式就是把真重复洗白。
+ */
+export function isNamedCallRepetition(text) {
+  if (/[{}]/.test(text)) return false
+  let s = text.trim()
+  const SHELL = /^(?:if|while|return|await|void|typeof)\b\s*/
+  for (let guard = 0; guard < 4; guard++) {
+    const before = s
+    const m = s.match(SHELL)
+    if (m) s = s.slice(m[0].length).trim()
+    if (s.startsWith('(')) s = s.slice(1).trim()
+    if (s === before) break
+  }
+  const head = s.match(/^(?:this|[A-Za-z_$][\w$]*)(?:\s*\.\s*[A-Za-z_$][\w$]*)*\s*\(/)
+  if (!head) return false
+  const args = s.slice(head[0].length)
+  return !/(=>|&&|\|\||\?|===|!==|<=|>=|[+*/<>!-])/.test(args)
+}
+
 export function scanTexts(entries, { minTokens = MIN_TOKENS } = {}) {
   const byText = new Map()
   for (const { relPath, text } of entries) {
@@ -258,19 +298,25 @@ export function scanTexts(entries, { minTokens = MIN_TOKENS } = {}) {
   for (const [text, sites] of byText) {
     if (sites.length < 2) continue
     const tokenCount = sites[0].tokenCount
+    const callSite = isNamedCallRepetition(text)
     groups.push({
       text,
       tokenCount,
       count: sites.length,
       files: [...new Set(sites.map((s) => s.file))],
-      redundantTokens: (sites.length - 1) * tokenCount,
+      // 具名调用重复降权为 0（仍列出），其余按「多写了几份」计
+      redundantTokens: callSite ? 0 : (sites.length - 1) * tokenCount,
+      kind: callSite ? 'call-site' : 'block',
     })
   }
-  groups.sort((a, b) => b.redundantTokens - a.redundantTokens)
+  groups.sort((a, b) => b.redundantTokens - a.redundantTokens || b.tokenCount - a.tokenCount)
+  const callSiteGroups = groups.filter((g) => g.kind === 'call-site')
   return {
     groups,
     totalGroups: groups.length,
     totalRedundantTokens: groups.reduce((a, g) => a + g.redundantTokens, 0),
+    callSiteGroups: callSiteGroups.length,
+    callSiteTokens: callSiteGroups.reduce((a, g) => a + g.count * g.tokenCount, 0),
   }
 }
 
@@ -320,11 +366,15 @@ function main() {
   const { update, note } = parseArgs(process.argv.slice(2))
   const files = collectFiles()
   const current = scanDuplication(files)
-  const { groups, totalGroups, totalRedundantTokens } = current
+  const { groups, totalGroups, totalRedundantTokens, callSiteGroups, callSiteTokens } = current
 
   console.log(
     `[dup-scan] 扫描 ${files.length} 个源文件（min ${MIN_TOKENS} tok）｜重复表达式组 ${totalGroups} 个｜` +
       `冗余 token ${totalRedundantTokens}`
+  )
+  console.log(
+    `[dup-scan] 其中「具名调用重复」${callSiteGroups} 组 / ${callSiteTokens} tok 已降权为 0` +
+      `（共享函数的正常调用面，见 isNamedCallRepetition 的判据与理由）`
   )
   for (const g of groups.slice(0, 12)) {
     console.log(`  ×${g.count}  ${g.tokenCount}tok  ${g.text.slice(0, 72)}`)
@@ -355,9 +405,21 @@ function main() {
     minTokens: MIN_TOKENS,
     totalGroups,
     totalRedundantTokens,
+    callSiteGroups,
+    callSiteTokens,
     updatedAt: new Date().toISOString().slice(0, 10),
     note,
-    groups: groups.slice(0, 212).map((g) => ({ text: g.text, count: g.count, files: g.files })),
+    // 条目形状须与原基线一致（text/tokenCount/count/files/redundantTokens），只追加 kind。
+    // 曾经的形态漂移：生成器只写 {text,count,files}，一重跑就把 212 条里的
+    // tokenCount/redundantTokens 静默剥掉，而测试只断言顶层字段 ⇒ 无人发现。
+    groups: groups.slice(0, 212).map((g) => ({
+      text: g.text,
+      tokenCount: g.tokenCount,
+      count: g.count,
+      files: g.files,
+      redundantTokens: g.redundantTokens,
+      kind: g.kind,
+    })),
   }
   fs.writeFileSync(BASELINE, JSON.stringify(data, null, 2) + '\n')
   console.log(`[dup-scan] 已写基线：${path.relative(ROOT, BASELINE)}（${totalGroups} 组）`)

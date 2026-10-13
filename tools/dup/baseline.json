@@ -1,21 +1,12 @@
 {
   "generatedFrom": "tools/dup/scan.mjs",
   "minTokens": 12,
-  "totalGroups": 157,
-  "totalRedundantTokens": 3191,
-  "byModule": {
-    "跨模块": 471,
-    "backend/src/modules": 699,
-    "frontend/src/core": 1083,
-    "frontend/src/visualization": 261,
-    "frontend/src/business": 174,
-    "frontend/src/shared": 166,
-    "frontend/src/types": 137,
-    "frontend/src/services": 36,
-    "backend/src/main.ts": 19,
-    "frontend/src/views": 70,
-    "frontend/src/stores": 75
-  },
+  "totalGroups": 154,
+  "totalRedundantTokens": 2783,
+  "callSiteGroups": 13,
+  "callSiteTokens": 438,
+  "updatedAt": "2026-10-12",
+  "note": "D5 降权：仅『参数表平凡』的具名调用重复不计冗余（参数含 lambda/运算符视为真重复，见 isNamedCallRepetition）；新增 callSiteGroups/callSiteTokens 两顶层字段与组条目 kind 字段",
   "groups": [
     {
       "text": "[ { maxLevel : 0 , label : '无风险' } , { maxLevel : 2 , label : '低风险' } , { maxLevel : 4.3 , label : '中风险' } , { maxLevel : 6 , label : '高风险' } , { maxLevel : 8 , label : '极高风险' } , { maxLevel : Number . POSITIVE_INFINITY , label : '灾难级' } , ]",
@@ -25,14 +16,8 @@
         "backend/src/common/constants/flood.constants.ts",
         "frontend/src/shared/constants/flood.ts"
       ],
-      "redundantTokens": 64
-    },
-    {
-      "text": "{ throw new BusinessError ( ErrorCode . NOT_FOUND , '方案不存在' ) }",
-      "tokenCount": 12,
-      "count": 6,
-      "files": ["backend/src/modules/plans/controllers/plans.controller.ts"],
-      "redundantTokens": 60
+      "redundantTokens": 64,
+      "kind": "block"
     },
     {
       "text": "layerCatalog . value . find ( ( e : LayerEntry ) => e . key === key )",
@@ -42,21 +27,8 @@
         "frontend/src/core/map/components/LayerControlPanel.vue",
         "frontend/src/stores/mapStore.ts"
       ],
-      "redundantTokens": 54
-    },
-    {
-      "text": "if ( plan . userId !== req . user ! . id )",
-      "tokenCount": 13,
-      "count": 5,
-      "files": ["backend/src/modules/plans/controllers/plans.controller.ts"],
-      "redundantTokens": 52
-    },
-    {
-      "text": "if ( isStaleToken ( renderer . _geoJsonTokens , id , token ) )",
-      "tokenCount": 13,
-      "count": 5,
-      "files": ["frontend/src/core/map/renderers/CesiumRenderer.ts"],
-      "redundantTokens": 52
+      "redundantTokens": 54,
+      "kind": "block"
     },
     {
       "text": "computed ( ( ) => { if ( ! props . series || props . series . length === 0 ) return false return props . series . some ( ( s ) => s . data && s . data . length > 0 ) } )",
@@ -66,14 +38,16 @@
         "frontend/src/visualization/charts/BarChart.vue",
         "frontend/src/visualization/charts/LineChart.vue"
       ],
-      "redundantTokens": 48
+      "redundantTokens": 48,
+      "kind": "block"
     },
     {
       "text": "export interface TaskView { taskId : string domain : TaskDomain route : string status : TaskStatus progress : number queuePosition ? : number retryCount : number result ? : unknown error ? : TaskError createdAtMs : number startedAt ? : number finishedAt ? : number }",
       "tokenCount": 46,
       "count": 2,
       "files": ["backend/src/modules/task/types/task.ts", "frontend/src/types/task.ts"],
-      "redundantTokens": 46
+      "redundantTokens": 46,
+      "kind": "block"
     },
     {
       "text": "( adapterFn : ( ) => Promise < T > , transactionId : number )",
@@ -83,28 +57,24 @@
         "frontend/src/business/forecast/composables/useForecastRequest.ts",
         "frontend/src/business/site-suitability/composables/useSiteSuitabilityRequest.ts"
       ],
-      "redundantTokens": 45
+      "redundantTokens": 45,
+      "kind": "block"
     },
     {
       "text": "{ time : string value : number type : string reliability : number lower ? : number upper ? : number }",
       "tokenCount": 22,
       "count": 3,
       "files": ["backend/src/modules/forecast/services/model-loader.ts"],
-      "redundantTokens": 44
+      "redundantTokens": 44,
+      "kind": "block"
     },
     {
       "text": "{ color : dark ? CHART_COLORS . textSecondary . dark : CHART_COLORS . textSecondary . light , fontSize : 10 , }",
       "tokenCount": 22,
       "count": 3,
       "files": ["frontend/src/visualization/charts/composables/useChartBase.ts"],
-      "redundantTokens": 44
-    },
-    {
-      "text": "this . _layers . set ( id , { instance : vectorLayer , visible : true , options , } )",
-      "tokenCount": 21,
-      "count": 3,
-      "files": ["frontend/src/core/map/renderers/OLRenderer.ts"],
-      "redundantTokens": 42
+      "redundantTokens": 44,
+      "kind": "block"
     },
     {
       "text": "{ if ( ! props . series || props . series . length === 0 ) return false return props . series . some ( ( s ) => s . data && s . data . length > 0 ) }",
@@ -114,14 +84,24 @@
         "frontend/src/visualization/charts/BarChart.vue",
         "frontend/src/visualization/charts/LineChart.vue"
       ],
-      "redundantTokens": 42
+      "redundantTokens": 42,
+      "kind": "block"
+    },
+    {
+      "text": "this . _layers . set ( id , { instance : vectorLayer , visible : true , options , } )",
+      "tokenCount": 21,
+      "count": 3,
+      "files": ["frontend/src/core/map/renderers/OLRenderer.ts"],
+      "redundantTokens": 42,
+      "kind": "block"
     },
     {
       "text": "{ position : Cartesian3 . fromDegrees ( p . lng , p . lat ) , point : { pixelSize : pixelSizeProperty , color : colorProperty , outlineColor : Color . WHITE , outlineWidth : 2 , } , }",
       "tokenCount": 40,
       "count": 2,
       "files": ["frontend/src/core/map/renderers/CesiumRenderer.ts"],
-      "redundantTokens": 40
+      "redundantTokens": 40,
+      "kind": "block"
     },
     {
       "text": "{ name : string ; data : Array < number | null > ; yAxisIndex ? : number }",
@@ -132,14 +112,16 @@
         "frontend/src/visualization/charts/BarChart.vue",
         "frontend/src/visualization/charts/composables/useChartBase.ts"
       ],
-      "redundantTokens": 38
+      "redundantTokens": 38,
+      "kind": "block"
     },
     {
       "text": "{ state . entries . push ( { name , start : s , duration : d } ) if ( state . entries . length > MAX_DEV_ENTRIES ) state . entries . shift ( ) }",
       "tokenCount": 37,
       "count": 2,
       "files": ["frontend/src/shared/utils/perfReporter.ts"],
-      "redundantTokens": 37
+      "redundantTokens": 37,
+      "kind": "block"
     },
     {
       "text": "if ( ! Number . isFinite ( v ) || v < 0 || v > 1 )",
@@ -149,7 +131,8 @@
         "backend/src/modules/site-suitability/dto/site-suitability.dto.ts",
         "backend/src/modules/site-suitability/services/scoring.ts"
       ],
-      "redundantTokens": 36
+      "redundantTokens": 36,
+      "kind": "block"
     },
     {
       "text": "{ const header = req . headers . authorization if ( header && header . startsWith ( 'Bearer ' ) ) { token = header . slice ( 7 ) } }",
@@ -159,39 +142,16 @@
         "backend/src/modules/auth/guards/auth.guard.ts",
         "backend/src/modules/task/utils/request-owner.ts"
       ],
-      "redundantTokens": 32
-    },
-    {
-      "text": "{ notMerge : false , replaceMerge : [ 'series' ] , lazyUpdate : true }",
-      "tokenCount": 15,
-      "count": 3,
-      "files": [
-        "frontend/src/business/flood-analysis/components/WaterLevelProfilePanel.vue",
-        "frontend/src/visualization/charts/SankeyChart.vue",
-        "frontend/src/visualization/composables/useECharts.ts"
-      ],
-      "redundantTokens": 30
+      "redundantTokens": 32,
+      "kind": "block"
     },
     {
       "text": "{ this . _runAdapter ( 'create' , renderer , key , meta . label , meta . layerType , meta . data , meta . options ) }",
       "tokenCount": 28,
       "count": 2,
       "files": ["frontend/src/core/map/BusinessLayerManager.ts"],
-      "redundantTokens": 28
-    },
-    {
-      "text": "if ( this . hooks . isCancelled ( job . taskId ) )",
-      "tokenCount": 13,
-      "count": 3,
-      "files": ["backend/src/modules/task/services/task-queue.ts"],
-      "redundantTokens": 26
-    },
-    {
-      "text": "this . _runAdapter ( 'create' , renderer , key , meta . label , meta . layerType , meta . data , meta . options )",
-      "tokenCount": 26,
-      "count": 2,
-      "files": ["frontend/src/core/map/BusinessLayerManager.ts"],
-      "redundantTokens": 26
+      "redundantTokens": 28,
+      "kind": "block"
     },
     {
       "text": "showModal ( { message : '收藏功能需要登录，是否前往登录？' , mode : 'login' , onConfirm : ( ) => void router . push ( '/profile' ) , } )",
@@ -201,24 +161,16 @@
         "frontend/src/core/map/components/MapFacilityBubble.vue",
         "frontend/src/shared/components/PaginatedListPanel.vue"
       ],
-      "redundantTokens": 26
-    },
-    {
-      "text": "{ clearTimeout ( this . _cameraDebounceTimer ) this . _cameraDebounceTimer = null }",
-      "tokenCount": 13,
-      "count": 3,
-      "files": [
-        "frontend/src/core/map/renderers/CesiumRenderer.ts",
-        "frontend/src/core/map/renderers/OLRenderer.ts"
-      ],
-      "redundantTokens": 26
+      "redundantTokens": 26,
+      "kind": "block"
     },
     {
       "text": "{ featureType : string | null data : Record < string , unknown > | null coordinate : [ number , number ] | null }",
       "tokenCount": 26,
       "count": 2,
       "files": ["frontend/src/types/renderer.ts"],
-      "redundantTokens": 26
+      "redundantTokens": 26,
+      "kind": "block"
     },
     {
       "text": "{ color : dark ? CHART_COLORS . textPrimary . dark : CHART_COLORS . textPrimary . light , fontSize : 16 , fontWeight : 600 , }",
@@ -228,7 +180,19 @@
         "frontend/src/visualization/charts/composables/useChartBase.ts",
         "frontend/src/visualization/charts/composables/useRadarChart.ts"
       ],
-      "redundantTokens": 26
+      "redundantTokens": 26,
+      "kind": "block"
+    },
+    {
+      "text": "{ clearTimeout ( this . _cameraDebounceTimer ) this . _cameraDebounceTimer = null }",
+      "tokenCount": 13,
+      "count": 3,
+      "files": [
+        "frontend/src/core/map/renderers/CesiumRenderer.ts",
+        "frontend/src/core/map/renderers/OLRenderer.ts"
+      ],
+      "redundantTokens": 26,
+      "kind": "block"
     },
     {
       "text": "return false return props . series . some ( ( s ) => s . data && s . data . length > 0 )",
@@ -238,14 +202,19 @@
         "frontend/src/visualization/charts/BarChart.vue",
         "frontend/src/visualization/charts/LineChart.vue"
       ],
-      "redundantTokens": 25
+      "redundantTokens": 25,
+      "kind": "block"
     },
     {
-      "text": "{ throw new BusinessError ( ErrorCode . FORBIDDEN , '无权修改该方案' ) }",
-      "tokenCount": 12,
-      "count": 3,
-      "files": ["backend/src/modules/plans/controllers/plans.controller.ts"],
-      "redundantTokens": 24
+      "text": "{ inst . setOption ( option , { notMerge : false , replaceMerge : [ 'series' ] , lazyUpdate : true } ) }",
+      "tokenCount": 24,
+      "count": 2,
+      "files": [
+        "frontend/src/business/flood-analysis/components/WaterLevelProfilePanel.vue",
+        "frontend/src/visualization/composables/useECharts.ts"
+      ],
+      "redundantTokens": 24,
+      "kind": "block"
     },
     {
       "text": "import { computed , onMounted , onUnmounted , ref , watch }",
@@ -256,45 +225,40 @@
         "frontend/src/business/forecast/ForecastPage.vue",
         "frontend/src/core/layout/components/GCSDebugOverlay.vue"
       ],
-      "redundantTokens": 24
-    },
-    {
-      "text": "{ inst . setOption ( option , { notMerge : false , replaceMerge : [ 'series' ] , lazyUpdate : true } ) }",
-      "tokenCount": 24,
-      "count": 2,
-      "files": [
-        "frontend/src/business/flood-analysis/components/WaterLevelProfilePanel.vue",
-        "frontend/src/visualization/composables/useECharts.ts"
-      ],
-      "redundantTokens": 24
+      "redundantTokens": 24,
+      "kind": "block"
     },
     {
       "text": "Color . fromCssColorString ( options . strokeColor || LAYER_DEFAULTS . stroke )",
       "tokenCount": 12,
       "count": 3,
       "files": ["frontend/src/core/map/renderers/CesiumRenderer.ts"],
-      "redundantTokens": 24
+      "redundantTokens": 24,
+      "kind": "block"
     },
     {
       "text": "( [ 0 - 9a - f ] { 2 } )",
       "tokenCount": 12,
       "count": 3,
       "files": ["frontend/src/core/map/renderers/OLRenderer.ts"],
-      "redundantTokens": 24
+      "redundantTokens": 24,
+      "kind": "block"
     },
     {
       "text": "{ instance : vectorLayer , visible : true , options , }",
       "tokenCount": 12,
       "count": 3,
       "files": ["frontend/src/core/map/renderers/OLRenderer.ts"],
-      "redundantTokens": 24
+      "redundantTokens": 24,
+      "kind": "block"
     },
     {
       "text": "if ( pointerId === null || e . pointerId !== pointerId )",
       "tokenCount": 12,
       "count": 3,
       "files": ["frontend/src/shared/composables/usePanelDrag.ts"],
-      "redundantTokens": 24
+      "redundantTokens": 24,
+      "kind": "block"
     },
     {
       "text": ". sort ( ( a , b ) => b [ 1 ] . max - a [ 1 ] . max )",
@@ -304,7 +268,8 @@
         "frontend/src/core/layout/components/GCSDebugOverlay.vue",
         "frontend/src/shared/utils/perfReporter.ts"
       ],
-      "redundantTokens": 23
+      "redundantTokens": 23,
+      "kind": "block"
     },
     {
       "text": "{ message : '收藏功能需要登录，是否前往登录？' , mode : 'login' , onConfirm : ( ) => void router . push ( '/profile' ) , }",
@@ -314,28 +279,24 @@
         "frontend/src/core/map/components/MapFacilityBubble.vue",
         "frontend/src/shared/components/PaginatedListPanel.vue"
       ],
-      "redundantTokens": 23
+      "redundantTokens": 23,
+      "kind": "block"
     },
     {
       "text": "features . forEach ( ( feature ) => { feature . set ( 'featureType' , options . featureType || 'geojson' ) } )",
       "tokenCount": 23,
       "count": 2,
       "files": ["frontend/src/core/map/renderers/OLRenderer.ts"],
-      "redundantTokens": 23
-    },
-    {
-      "text": "{ method : 'POST' , body : JSON . stringify ( { username , password } ) , schema : authResponseSchema , }",
-      "tokenCount": 23,
-      "count": 2,
-      "files": ["frontend/src/shared/composables/useAuth.ts"],
-      "redundantTokens": 23
+      "redundantTokens": 23,
+      "kind": "block"
     },
     {
       "text": "return this . writePayload ( client , planId , row , { ... row . payload , savedXiaoqu : newSavedXiaoqu } )",
       "tokenCount": 22,
       "count": 2,
       "files": ["backend/src/modules/plans/repositories/plans.repository.ts"],
-      "redundantTokens": 22
+      "redundantTokens": 22,
+      "kind": "block"
     },
     {
       "text": "inst . setOption ( option , { notMerge : false , replaceMerge : [ 'series' ] , lazyUpdate : true } )",
@@ -345,7 +306,8 @@
         "frontend/src/business/flood-analysis/components/WaterLevelProfilePanel.vue",
         "frontend/src/visualization/composables/useECharts.ts"
       ],
-      "redundantTokens": 22
+      "redundantTokens": 22,
+      "kind": "block"
     },
     {
       "text": "function startFacilityBreathing ( target : Array < GeoPoint & { color ? : string } > , color ? : string )",
@@ -355,35 +317,40 @@
         "frontend/src/core/map/UnifiedMap.vue",
         "frontend/src/core/map/composables/useMapControls.ts"
       ],
-      "redundantTokens": 22
+      "redundantTokens": 22,
+      "kind": "block"
     },
     {
       "text": "new VectorLayer ( { source : new VectorSource ( { features : breathingFeatures } ) , style : breathingStyle , } )",
       "tokenCount": 22,
       "count": 2,
       "files": ["frontend/src/core/map/renderers/OLRenderer.ts"],
-      "redundantTokens": 22
+      "redundantTokens": 22,
+      "kind": "block"
     },
     {
       "text": "( ENDPOINTS . flood . statistics , { params : { waterLevel } , signal , schema : floodStatisticsResponseSchema , } )",
       "tokenCount": 22,
       "count": 2,
       "files": ["frontend/src/services/adapters/floodAdapter.ts"],
-      "redundantTokens": 22
+      "redundantTokens": 22,
+      "kind": "block"
     },
     {
       "text": "if ( ! Number . isFinite ( item . lng ) || ! Number . isFinite ( item . lat ) )",
       "tokenCount": 22,
       "count": 2,
       "files": ["frontend/src/shared/components/PaginatedListPanel.vue"],
-      "redundantTokens": 22
+      "redundantTokens": 22,
+      "kind": "block"
     },
     {
       "text": "z . object ( { start : z . string ( ) , end : z . string ( ) } )",
       "tokenCount": 22,
       "count": 2,
       "files": ["frontend/src/types/schemas.ts"],
-      "redundantTokens": 22
+      "redundantTokens": 22,
+      "kind": "block"
     },
     {
       "text": "{ lineStyle : { color : dark ? CHART_COLORS . axisLine . dark : CHART_COLORS . axisLine . light } , }",
@@ -393,14 +360,16 @@
         "frontend/src/visualization/charts/composables/useChartBase.ts",
         "frontend/src/visualization/charts/composables/useRadarChart.ts"
       ],
-      "redundantTokens": 22
+      "redundantTokens": 22,
+      "kind": "block"
     },
     {
       "text": "{ fontSize : 10 , color : dark ? CHART_COLORS . textMuted . dark : CHART_COLORS . textMuted . light , }",
       "tokenCount": 22,
       "count": 2,
       "files": ["frontend/src/visualization/charts/composables/useChartBase.ts"],
-      "redundantTokens": 22
+      "redundantTokens": 22,
+      "kind": "block"
     },
     {
       "text": "list ( @ Req ( ) req : Request & { user ? : { id : string } } )",
@@ -410,14 +379,16 @@
         "backend/src/modules/favorites/controllers/favorites.controller.ts",
         "backend/src/modules/plans/controllers/plans.controller.ts"
       ],
-      "redundantTokens": 21
+      "redundantTokens": 21,
+      "kind": "block"
     },
     {
       "text": "data as Tiles3DData if ( ! payload || typeof payload . url !== 'string' || payload . url === '' )",
       "tokenCount": 21,
       "count": 2,
       "files": ["frontend/src/core/map/layerAdapters.ts"],
-      "redundantTokens": 21
+      "redundantTokens": 21,
+      "kind": "block"
     },
     {
       "text": "startFacilityBreathing ( target : Array < GeoPoint & { color ? : string } > , color ? : string )",
@@ -427,21 +398,24 @@
         "frontend/src/core/map/renderers/CesiumRenderer.ts",
         "frontend/src/core/map/renderers/OLRenderer.ts"
       ],
-      "redundantTokens": 21
+      "redundantTokens": 21,
+      "kind": "block"
     },
     {
       "text": "( event : K , handler : ( event : CustomEvent < MapRendererEventMap [ K ] > ) => void )",
       "tokenCount": 21,
       "count": 2,
       "files": ["frontend/src/core/map/renderers/MapRenderer.ts"],
-      "redundantTokens": 21
+      "redundantTokens": 21,
+      "kind": "block"
     },
     {
       "text": "( _event : K , _handler : ( event : CustomEvent < MapRendererEventMap [ K ] > ) => void )",
       "tokenCount": 21,
       "count": 2,
       "files": ["frontend/src/types/renderer.ts"],
-      "redundantTokens": 21
+      "redundantTokens": 21,
+      "kind": "block"
     },
     {
       "text": "{ itemType : string itemId : string name : string lng : number lat : number snapshot : unknown }",
@@ -451,7 +425,8 @@
         "backend/src/modules/favorites/repositories/favorites.repository.ts",
         "backend/src/modules/favorites/services/favorites.service.ts"
       ],
-      "redundantTokens": 20
+      "redundantTokens": 20,
+      "kind": "block"
     },
     {
       "text": ". sort ( ( a , b ) => a . time . localeCompare ( b . time ) )",
@@ -461,7 +436,8 @@
         "backend/src/modules/forecast/services/forecast-engine.ts",
         "backend/src/modules/forecast/services/model-loader.ts"
       ],
-      "redundantTokens": 20
+      "redundantTokens": 20,
+      "kind": "block"
     },
     {
       "text": "interface FacilityBubbleData { id ? : string name : string poiType : string lng : number lat : number }",
@@ -471,7 +447,8 @@
         "frontend/src/core/map/UnifiedMap.vue",
         "frontend/src/core/map/components/MapFacilityBubble.vue"
       ],
-      "redundantTokens": 20
+      "redundantTokens": 20,
+      "kind": "block"
     },
     {
       "text": "( target : Array < GeoPoint & { color ? : string } > , color ? : string )",
@@ -481,42 +458,40 @@
         "frontend/src/core/map/composables/useMapControls.ts",
         "frontend/src/core/provideKeys.ts"
       ],
-      "redundantTokens": 20
+      "redundantTokens": 20,
+      "kind": "block"
     },
     {
       "text": "{ pixelSize : pixelSizeProperty , color : colorProperty , outlineColor : Color . WHITE , outlineWidth : 2 , }",
       "tokenCount": 20,
       "count": 2,
       "files": ["frontend/src/core/map/renderers/CesiumRenderer.ts"],
-      "redundantTokens": 20
+      "redundantTokens": 20,
+      "kind": "block"
     },
     {
       "text": "this . _layers . set ( id , { instance : vectorLayer , visible : true , options } )",
       "tokenCount": 20,
       "count": 2,
       "files": ["frontend/src/core/map/renderers/OLRenderer.ts"],
-      "redundantTokens": 20
-    },
-    {
-      "text": "z . array ( z . array ( z . array ( z . number ( ) ) ) )",
-      "tokenCount": 20,
-      "count": 2,
-      "files": ["frontend/src/types/schemas.ts"],
-      "redundantTokens": 20
+      "redundantTokens": 20,
+      "kind": "block"
     },
     {
       "text": "( req : express . Request , res : express . Response , next : express . NextFunction )",
       "tokenCount": 19,
       "count": 2,
       "files": ["backend/src/main.ts"],
-      "redundantTokens": 19
+      "redundantTokens": 19,
+      "kind": "block"
     },
     {
       "text": "{ indicator : string unit : string canalScenario : ScenarioId ports : Record < string , ComputedPort > }",
       "tokenCount": 19,
       "count": 2,
       "files": ["backend/src/modules/forecast/services/forecast.service.ts"],
-      "redundantTokens": 19
+      "redundantTokens": 19,
+      "kind": "block"
     },
     {
       "text": "if ( forecastState . isPlaying && e instanceof ApiError && e . message . includes ( '过于频繁' ) )",
@@ -526,7 +501,8 @@
         "frontend/src/business/forecast/composables/useForecastComparison.ts",
         "frontend/src/business/forecast/composables/useForecastLayer.ts"
       ],
-      "redundantTokens": 19
+      "redundantTokens": 19,
+      "kind": "block"
     },
     {
       "text": "addPointLayer ( id : string , features : PointFeature [ ] , options : LayerOptions = { } )",
@@ -536,7 +512,8 @@
         "frontend/src/core/map/renderers/CesiumRenderer.ts",
         "frontend/src/core/map/renderers/OLRenderer.ts"
       ],
-      "redundantTokens": 19
+      "redundantTokens": 19,
+      "kind": "block"
     },
     {
       "text": "addPolygonLayer ( id : string , features : PolygonFeature [ ] , options : LayerOptions = { } )",
@@ -546,7 +523,8 @@
         "frontend/src/core/map/renderers/CesiumRenderer.ts",
         "frontend/src/core/map/renderers/OLRenderer.ts"
       ],
-      "redundantTokens": 19
+      "redundantTokens": 19,
+      "kind": "block"
     },
     {
       "text": "_doRemoveLayer ( layer : { instance : unknown ; visible : boolean ; options ? : LayerOptions } )",
@@ -556,35 +534,40 @@
         "frontend/src/core/map/renderers/CesiumRenderer.ts",
         "frontend/src/core/map/renderers/OLRenderer.ts"
       ],
-      "redundantTokens": 19
+      "redundantTokens": 19,
+      "kind": "block"
     },
     {
       "text": "new CallbackProperty ( ( ) => { return breathingSize ( elapsedSeconds ( startTime ) ) } , false )",
       "tokenCount": 19,
       "count": 2,
       "files": ["frontend/src/core/map/renderers/CesiumRenderer.ts"],
-      "redundantTokens": 19
+      "redundantTokens": 19,
+      "kind": "block"
     },
     {
       "text": "new Feature ( { geometry : toPointGeometry ( p . lng , p . lat ) , } )",
       "tokenCount": 19,
       "count": 2,
       "files": ["frontend/src/core/map/renderers/OLRenderer.ts"],
-      "redundantTokens": 19
+      "redundantTokens": 19,
+      "kind": "block"
     },
     {
       "text": "defineAsyncComponent ( { loader : ( ) => import ( '@/visualization/charts/LineChart.vue' ) , loadingComponent : ChartLoading , } )",
       "tokenCount": 19,
       "count": 2,
       "files": ["frontend/src/views/HomePage.vue", "frontend/src/views/ProfilePage.vue"],
-      "redundantTokens": 19
+      "redundantTokens": 19,
+      "kind": "block"
     },
     {
       "text": "defineAsyncComponent ( { loader : ( ) => import ( '@/visualization/charts/BarChart.vue' ) , loadingComponent : ChartLoading , } )",
       "tokenCount": 19,
       "count": 2,
       "files": ["frontend/src/views/HomePage.vue", "frontend/src/views/ProfilePage.vue"],
-      "redundantTokens": 19
+      "redundantTokens": 19,
+      "kind": "block"
     },
     {
       "text": "return res . rows . map ( ( r ) => this . toView ( r ) )",
@@ -594,56 +577,56 @@
         "backend/src/modules/favorites/repositories/favorites.repository.ts",
         "backend/src/modules/plans/repositories/plans.repository.ts"
       ],
-      "redundantTokens": 18
+      "redundantTokens": 18,
+      "kind": "block"
     },
     {
       "text": "{ seq : number ; coords : Array < [ number , number ] > | null }",
       "tokenCount": 18,
       "count": 2,
       "files": ["backend/src/modules/route/repositories/route.repository.ts"],
-      "redundantTokens": 18
-    },
-    {
-      "text": "void Promise . resolve ( renderer . add3DTilesLayer ( key , payload . url , tilesOptions ) )",
-      "tokenCount": 18,
-      "count": 2,
-      "files": ["frontend/src/core/map/layerAdapters.ts"],
-      "redundantTokens": 18
+      "redundantTokens": 18,
+      "kind": "block"
     },
     {
       "text": "new Feature ( { geometry : toPointGeometry ( point . lng , point . lat ) } )",
       "tokenCount": 18,
       "count": 2,
       "files": ["frontend/src/core/map/renderers/OLRenderer.ts"],
-      "redundantTokens": 18
+      "redundantTokens": 18,
+      "kind": "block"
     },
     {
       "text": "{ source : new VectorSource ( { features : breathingFeatures } ) , style : breathingStyle , }",
       "tokenCount": 18,
       "count": 2,
       "files": ["frontend/src/core/map/renderers/OLRenderer.ts"],
-      "redundantTokens": 18
+      "redundantTokens": 18,
+      "kind": "block"
     },
     {
       "text": "{ samples : [ ] , sum : 0 , min : Infinity , longFrames : 0 }",
       "tokenCount": 18,
       "count": 2,
       "files": ["frontend/src/shared/utils/perfReporter.ts"],
-      "redundantTokens": 18
+      "redundantTokens": 18,
+      "kind": "block"
     },
     {
       "text": "state . entries . push ( { name , start : s , duration : d } )",
       "tokenCount": 18,
       "count": 2,
       "files": ["frontend/src/shared/utils/perfReporter.ts"],
-      "redundantTokens": 18
+      "redundantTokens": 18,
+      "kind": "block"
     },
     {
       "text": "layerCatalog . value . findIndex ( ( e : LayerEntry ) => e . key === key )",
       "tokenCount": 18,
       "count": 2,
       "files": ["frontend/src/stores/mapStore.ts"],
-      "redundantTokens": 18
+      "redundantTokens": 18,
+      "kind": "block"
     },
     {
       "text": "req . headers . authorization if ( header && header . startsWith ( 'Bearer ' ) )",
@@ -653,7 +636,8 @@
         "backend/src/modules/auth/guards/auth.guard.ts",
         "backend/src/modules/task/utils/request-owner.ts"
       ],
-      "redundantTokens": 17
+      "redundantTokens": 17,
+      "kind": "block"
     },
     {
       "text": "{ userId : string name : string selectedKeys : unknown typeSettings : unknown weights : unknown }",
@@ -663,56 +647,64 @@
         "backend/src/modules/plans/repositories/plans.repository.ts",
         "backend/src/modules/plans/services/plans.service.ts"
       ],
-      "redundantTokens": 17
+      "redundantTokens": 17,
+      "kind": "block"
     },
     {
       "text": "export interface TaskSubmitResponse { taskId : string status : TaskStatus queuePosition : number createdAtMs : number }",
       "tokenCount": 17,
       "count": 2,
       "files": ["backend/src/modules/task/types/task.ts", "frontend/src/types/task.ts"],
-      "redundantTokens": 17
+      "redundantTokens": 17,
+      "kind": "block"
     },
     {
       "text": "{ features : FloodFeature [ ] statistics : FloodStatistics riskLevel : string actualWaterLevel ? : number }",
       "tokenCount": 17,
       "count": 2,
       "files": ["frontend/src/business/flood-analysis/FloodAnalysisPage.vue"],
-      "redundantTokens": 17
+      "redundantTokens": 17,
+      "kind": "block"
     },
     {
       "text": "( renderer : MapRenderer , key : string , data : unknown , options : LayerOptions )",
       "tokenCount": 17,
       "count": 2,
       "files": ["frontend/src/core/map/layerAdapters.ts"],
-      "redundantTokens": 17
+      "redundantTokens": 17,
+      "kind": "block"
     },
     {
       "text": "( { item , index } : { item : PointFeature ; index : number } )",
       "tokenCount": 17,
       "count": 2,
       "files": ["frontend/src/core/map/renderers/CesiumRenderer.ts"],
-      "redundantTokens": 17
+      "redundantTokens": 17,
+      "kind": "block"
     },
     {
       "text": "new XYZ ( { url : buildTiandituUrl ( code ) , crossOrigin : 'anonymous' , } )",
       "tokenCount": 17,
       "count": 2,
       "files": ["frontend/src/core/map/renderers/OLRenderer.ts"],
-      "redundantTokens": 17
+      "redundantTokens": 17,
+      "kind": "block"
     },
     {
       "text": "if ( ( window as unknown as Record < string , unknown > ) . Cesium )",
       "tokenCount": 17,
       "count": 2,
       "files": ["frontend/src/core/map/renderers/index.ts"],
-      "redundantTokens": 17
+      "redundantTokens": 17,
+      "kind": "block"
     },
     {
       "text": "{ start : z . string ( ) , end : z . string ( ) }",
       "tokenCount": 17,
       "count": 2,
       "files": ["frontend/src/types/schemas.ts"],
-      "redundantTokens": 17
+      "redundantTokens": 17,
+      "kind": "block"
     },
     {
       "text": "{ color : dark ? CHART_COLORS . axisLine . dark : CHART_COLORS . axisLine . light }",
@@ -722,35 +714,40 @@
         "frontend/src/visualization/charts/composables/useChartBase.ts",
         "frontend/src/visualization/charts/composables/useRadarChart.ts"
       ],
-      "redundantTokens": 17
+      "redundantTokens": 17,
+      "kind": "block"
     },
     {
       "text": "{ throw new BusinessError ( ErrorCode . ANALYSIS_FAILED , engineResult . metadata . error ) }",
       "tokenCount": 16,
       "count": 2,
       "files": ["backend/src/modules/forecast/services/forecast.service.ts"],
-      "redundantTokens": 16
+      "redundantTokens": 16,
+      "kind": "block"
     },
     {
       "text": "( `SELECT ${PLAN_COLUMNS} FROM plans WHERE id = $1 FOR UPDATE` , [ planId ] )",
       "tokenCount": 16,
       "count": 2,
       "files": ["backend/src/modules/plans/repositories/plans.repository.ts"],
-      "redundantTokens": 16
+      "redundantTokens": 16,
+      "kind": "block"
     },
     {
       "text": "( row . payload ?. savedXiaoqu as Record < string , unknown > [ ] )",
       "tokenCount": 16,
       "count": 2,
       "files": ["backend/src/modules/plans/repositories/plans.repository.ts"],
-      "redundantTokens": 16
+      "redundantTokens": 16,
+      "kind": "block"
     },
     {
       "text": "this . queue . findIndex ( ( job ) => job . taskId === taskId )",
       "tokenCount": 16,
       "count": 2,
       "files": ["backend/src/modules/task/services/task-queue.ts"],
-      "redundantTokens": 16
+      "redundantTokens": 16,
+      "kind": "block"
     },
     {
       "text": "onMounted ( ( ) => { document . addEventListener ( 'click' , handleGlobalClick ) } )",
@@ -760,21 +757,24 @@
         "frontend/src/business/forecast/components/ForecastControlPanel.vue",
         "frontend/src/business/site-suitability/components/SiteSuitabilityControlPanel.vue"
       ],
-      "redundantTokens": 16
+      "redundantTokens": 16,
+      "kind": "block"
     },
     {
       "text": "Math . sin ( ( elapsedSec / BREATHING_PERIOD_SEC ) * Math . PI * 2 )",
       "tokenCount": 16,
       "count": 2,
       "files": ["frontend/src/core/config/breathing.ts"],
-      "redundantTokens": 16
+      "redundantTokens": 16,
+      "kind": "block"
     },
     {
       "text": "if ( container && container . offsetWidth > 0 && container . offsetHeight > 0 )",
       "tokenCount": 16,
       "count": 2,
       "files": ["frontend/src/core/map/UnifiedMap.vue"],
-      "redundantTokens": 16
+      "redundantTokens": 16,
+      "kind": "block"
     },
     {
       "text": "function startBreathing ( target : GeoPoint | GeoPoint [ ] , color ? : string )",
@@ -784,63 +784,75 @@
         "frontend/src/core/map/UnifiedMap.vue",
         "frontend/src/core/map/composables/useMapControls.ts"
       ],
-      "redundantTokens": 16
+      "redundantTokens": 16,
+      "kind": "block"
     },
     {
       "text": "{ l . setZIndex ( LAYER_DEFAULTS . zIndexBase ) map . addLayer ( l ) }",
       "tokenCount": 16,
       "count": 2,
       "files": ["frontend/src/core/map/renderers/OLRenderer.ts"],
-      "redundantTokens": 16
+      "redundantTokens": 16,
+      "kind": "block"
     },
     {
       "text": "{ source : new VectorSource ( { features : olFeatures } ) , style , }",
       "tokenCount": 16,
       "count": 2,
       "files": ["frontend/src/core/map/renderers/OLRenderer.ts"],
-      "redundantTokens": 16
+      "redundantTokens": 16,
+      "kind": "block"
     },
     {
       "text": "{ route : string domain : TaskDomain params : Record < string , unknown > }",
       "tokenCount": 16,
       "count": 2,
       "files": ["frontend/src/stores/taskStore.ts"],
-      "redundantTokens": 16
-    },
-    {
-      "text": "z . record ( z . string ( ) , z . unknown ( ) )",
-      "tokenCount": 16,
-      "count": 2,
-      "files": ["frontend/src/types/schemas.ts"],
-      "redundantTokens": 16
+      "redundantTokens": 16,
+      "kind": "block"
     },
     {
       "text": "{ loader : ( ) => import ( '@/visualization/charts/LineChart.vue' ) , loadingComponent : ChartLoading , }",
       "tokenCount": 16,
       "count": 2,
       "files": ["frontend/src/views/HomePage.vue", "frontend/src/views/ProfilePage.vue"],
-      "redundantTokens": 16
+      "redundantTokens": 16,
+      "kind": "block"
     },
     {
       "text": "{ loader : ( ) => import ( '@/visualization/charts/BarChart.vue' ) , loadingComponent : ChartLoading , }",
       "tokenCount": 16,
       "count": 2,
       "files": ["frontend/src/views/HomePage.vue", "frontend/src/views/ProfilePage.vue"],
-      "redundantTokens": 16
+      "redundantTokens": 16,
+      "kind": "block"
     },
     {
       "text": "{ throw new BusinessError ( ErrorCode . INVALID_PARAMS , 'itemType 无效（xiaoqu | facility）' ) }",
       "tokenCount": 15,
       "count": 2,
       "files": ["backend/src/modules/favorites/dto/favorites.dto.ts"],
-      "redundantTokens": 15
+      "redundantTokens": 15,
+      "kind": "block"
     },
     {
       "text": "boolean { return status === 'pending' || status === 'running' || status === 'retrying' }",
       "tokenCount": 15,
       "count": 2,
       "files": ["backend/src/modules/task/services/task.service.ts", "frontend/src/types/task.ts"],
-      "redundantTokens": 15
+      "redundantTokens": 15,
+      "kind": "block"
+    },
+    {
+      "text": "{ notMerge : false , replaceMerge : [ 'series' ] , lazyUpdate : true }",
+      "tokenCount": 15,
+      "count": 2,
+      "files": [
+        "frontend/src/business/flood-analysis/components/WaterLevelProfilePanel.vue",
+        "frontend/src/visualization/composables/useECharts.ts"
+      ],
+      "redundantTokens": 15,
+      "kind": "block"
     },
     {
       "text": ". reduce ( ( s , n ) => s + n , 0 )",
@@ -850,14 +862,16 @@
         "frontend/src/core/layout/components/GCSDebugOverlay.vue",
         "frontend/src/shared/utils/perfReporter.ts"
       ],
-      "redundantTokens": 15
+      "redundantTokens": 15,
+      "kind": "block"
     },
     {
       "text": "{ cesiumInitialized . value = true await nextTick ( ) await nextTick ( ) }",
       "tokenCount": 15,
       "count": 2,
       "files": ["frontend/src/core/map/UnifiedMap.vue"],
-      "redundantTokens": 15
+      "redundantTokens": 15,
+      "kind": "block"
     },
     {
       "text": "startBreathing ( target : GeoPoint | GeoPoint [ ] , color ? : string )",
@@ -867,28 +881,24 @@
         "frontend/src/core/map/renderers/CesiumRenderer.ts",
         "frontend/src/core/map/renderers/OLRenderer.ts"
       ],
-      "redundantTokens": 15
+      "redundantTokens": 15,
+      "kind": "block"
     },
     {
       "text": "{ geometry : toPointGeometry ( p . lng , p . lat ) , }",
       "tokenCount": 15,
       "count": 2,
       "files": ["frontend/src/core/map/renderers/OLRenderer.ts"],
-      "redundantTokens": 15
+      "redundantTokens": 15,
+      "kind": "block"
     },
     {
       "text": "{ clearInterval ( timer ) resolve ( { ... slot } ) return true }",
       "tokenCount": 15,
       "count": 2,
       "files": ["frontend/src/stores/taskStore.ts"],
-      "redundantTokens": 15
-    },
-    {
-      "text": "z . array ( z . array ( z . number ( ) ) )",
-      "tokenCount": 15,
-      "count": 2,
-      "files": ["frontend/src/types/schemas.ts"],
-      "redundantTokens": 15
+      "redundantTokens": 15,
+      "kind": "block"
     },
     {
       "text": "if ( ! props . series || props . series . length === 0 )",
@@ -898,28 +908,32 @@
         "frontend/src/visualization/charts/BarChart.vue",
         "frontend/src/visualization/charts/LineChart.vue"
       ],
-      "redundantTokens": 15
+      "redundantTokens": 15,
+      "kind": "block"
     },
     {
       "text": "throw new BusinessError ( ErrorCode . ANALYSIS_FAILED , engineResult . metadata . error )",
       "tokenCount": 14,
       "count": 2,
       "files": ["backend/src/modules/forecast/services/forecast.service.ts"],
-      "redundantTokens": 14
+      "redundantTokens": 14,
+      "kind": "block"
     },
     {
       "text": "await this . plansService . listByUser ( req . user ! . id )",
       "tokenCount": 14,
       "count": 2,
       "files": ["backend/src/modules/plans/controllers/plans.controller.ts"],
-      "redundantTokens": 14
+      "redundantTokens": 14,
+      "kind": "block"
     },
     {
       "text": "mapStore . currentRenderer if ( ! renderer || ! isTiles3DCapable ( renderer ) )",
       "tokenCount": 14,
       "count": 2,
       "files": ["frontend/src/business/route-analysis/RouteAnalysisPage.vue"],
-      "redundantTokens": 14
+      "redundantTokens": 14,
+      "kind": "block"
     },
     {
       "text": "function flyTo ( target : FlyToTarget , options : FlyToOptions = { } )",
@@ -929,7 +943,8 @@
         "frontend/src/core/map/UnifiedMap.vue",
         "frontend/src/core/map/composables/useMapControls.ts"
       ],
-      "redundantTokens": 14
+      "redundantTokens": 14,
+      "kind": "block"
     },
     {
       "text": "( target : GeoPoint | GeoPoint [ ] , color ? : string )",
@@ -939,14 +954,16 @@
         "frontend/src/core/map/composables/useMapControls.ts",
         "frontend/src/core/provideKeys.ts"
       ],
-      "redundantTokens": 14
+      "redundantTokens": 14,
+      "kind": "block"
     },
     {
       "text": "if ( ! renderer . addImageOverlayLayer ( key , payload , options ) )",
       "tokenCount": 14,
       "count": 2,
       "files": ["frontend/src/core/map/layerAdapters.ts"],
-      "redundantTokens": 14
+      "redundantTokens": 14,
+      "kind": "block"
     },
     {
       "text": "{ instance : unknown ; visible : boolean ; options ? : LayerOptions }",
@@ -956,63 +973,64 @@
         "frontend/src/core/map/renderers/CesiumRenderer.ts",
         "frontend/src/core/map/renderers/OLRenderer.ts"
       ],
-      "redundantTokens": 14
+      "redundantTokens": 14,
+      "kind": "block"
     },
     {
       "text": "{ geometry : toPointGeometry ( point . lng , point . lat ) }",
       "tokenCount": 14,
       "count": 2,
       "files": ["frontend/src/core/map/renderers/OLRenderer.ts"],
-      "redundantTokens": 14
+      "redundantTokens": 14,
+      "kind": "block"
     },
     {
       "text": "{ feature . set ( 'featureType' , options . featureType || 'geojson' ) }",
       "tokenCount": 14,
       "count": 2,
       "files": ["frontend/src/core/map/renderers/OLRenderer.ts"],
-      "redundantTokens": 14
+      "redundantTokens": 14,
+      "kind": "block"
     },
     {
       "text": "{ params : { waterLevel } , signal , schema : floodStatisticsResponseSchema , }",
       "tokenCount": 14,
       "count": 2,
       "files": ["frontend/src/services/adapters/floodAdapter.ts"],
-      "redundantTokens": 14
+      "redundantTokens": 14,
+      "kind": "block"
     },
     {
       "text": "{ cargo : DEFAULT_CONFIDENCE , container : DEFAULT_CONFIDENCE , activity : DEFAULT_CONFIDENCE , }",
       "tokenCount": 14,
       "count": 2,
       "files": ["frontend/src/stores/forecastStore.ts"],
-      "redundantTokens": 14
+      "redundantTokens": 14,
+      "kind": "block"
     },
     {
       "text": "throw new BusinessError ( ErrorCode . INVALID_PARAMS , 'itemType 无效（xiaoqu | facility）' )",
       "tokenCount": 13,
       "count": 2,
       "files": ["backend/src/modules/favorites/dto/favorites.dto.ts"],
-      "redundantTokens": 13
-    },
-    {
-      "text": "for ( const record of this . registry . list ( ) )",
-      "tokenCount": 13,
-      "count": 2,
-      "files": ["backend/src/modules/task/services/task.service.ts"],
-      "redundantTokens": 13
+      "redundantTokens": 13,
+      "kind": "block"
     },
     {
       "text": "finally { if ( ! disposed ) requesting . value = false }",
       "tokenCount": 13,
       "count": 2,
       "files": ["frontend/src/business/flood-analysis/components/WaterLevelProfilePanel.vue"],
-      "redundantTokens": 13
+      "redundantTokens": 13,
+      "kind": "block"
     },
     {
       "text": "( { labels : [ ] , series : [ ] } )",
       "tokenCount": 13,
       "count": 2,
       "files": ["frontend/src/business/forecast/composables/useOverviewCharts.ts"],
-      "redundantTokens": 13
+      "redundantTokens": 13,
+      "kind": "block"
     },
     {
       "text": "( segments : RoutePathResult [ ] , slots : RouteSlot [ ] )",
@@ -1022,7 +1040,8 @@
         "frontend/src/business/route-analysis/components/RouteControlPanel.vue",
         "frontend/src/business/route-analysis/composables/useRouteLayer.ts"
       ],
-      "redundantTokens": 13
+      "redundantTokens": 13,
+      "kind": "block"
     },
     {
       "text": "ref ( typeof window !== 'undefined' ? window . innerWidth : 1920 )",
@@ -1032,7 +1051,8 @@
         "frontend/src/core/layout/components/GCSDebugOverlay.vue",
         "frontend/src/shared/layout/useGCS.ts"
       ],
-      "redundantTokens": 13
+      "redundantTokens": 13,
+      "kind": "block"
     },
     {
       "text": "ref ( typeof window !== 'undefined' ? window . innerHeight : 1080 )",
@@ -1042,7 +1062,8 @@
         "frontend/src/core/layout/components/GCSDebugOverlay.vue",
         "frontend/src/shared/layout/useGCS.ts"
       ],
-      "redundantTokens": 13
+      "redundantTokens": 13,
+      "kind": "block"
     },
     {
       "text": "_doFlyTo ( target : FlyToTarget , options : FlyToOptions = { } )",
@@ -1052,7 +1073,8 @@
         "frontend/src/core/map/renderers/CesiumRenderer.ts",
         "frontend/src/core/map/renderers/OLRenderer.ts"
       ],
-      "redundantTokens": 13
+      "redundantTokens": 13,
+      "kind": "block"
     },
     {
       "text": "{ cancelAnimationFrame ( this . _breathingAnimId ) this . _breathingAnimId = null }",
@@ -1062,7 +1084,8 @@
         "frontend/src/core/map/renderers/CesiumRenderer.ts",
         "frontend/src/core/map/renderers/OLRenderer.ts"
       ],
-      "redundantTokens": 13
+      "redundantTokens": 13,
+      "kind": "block"
     },
     {
       "text": "{ cancelAnimationFrame ( this . _facilityBreathingAnimId ) this . _facilityBreathingAnimId = null }",
@@ -1072,105 +1095,120 @@
         "frontend/src/core/map/renderers/CesiumRenderer.ts",
         "frontend/src/core/map/renderers/OLRenderer.ts"
       ],
-      "redundantTokens": 13
+      "redundantTokens": 13,
+      "kind": "block"
     },
     {
       "text": "{ url : buildTiandituUrl ( code ) , crossOrigin : 'anonymous' , }",
       "tokenCount": 13,
       "count": 2,
       "files": ["frontend/src/core/map/renderers/OLRenderer.ts"],
-      "redundantTokens": 13
+      "redundantTokens": 13,
+      "kind": "block"
     },
     {
       "text": "{ this . addGeoJsonLayer ( id , geojson , options ) return }",
       "tokenCount": 13,
       "count": 2,
       "files": ["frontend/src/core/map/renderers/OLRenderer.ts"],
-      "redundantTokens": 13
+      "redundantTokens": 13,
+      "kind": "block"
     },
     {
       "text": "{ throw new BusinessError ( ErrorCode . UNAUTHORIZED , '认证令牌无效或已过期' ) }",
       "tokenCount": 12,
       "count": 2,
       "files": ["backend/src/modules/auth/guards/auth.guard.ts"],
-      "redundantTokens": 12
+      "redundantTokens": 12,
+      "kind": "block"
+    },
+    {
+      "text": "{ throw new BusinessError ( ErrorCode . NOT_FOUND , '方案不存在' ) }",
+      "tokenCount": 12,
+      "count": 2,
+      "files": ["backend/src/modules/plans/controllers/plans.controller.ts"],
+      "redundantTokens": 12,
+      "kind": "block"
     },
     {
       "text": "{ throw new BusinessError ( ErrorCode . DUPLICATE_RESOURCE , '方案名称已存在' ) }",
       "tokenCount": 12,
       "count": 2,
       "files": ["backend/src/modules/plans/controllers/plans.controller.ts"],
-      "redundantTokens": 12
+      "redundantTokens": 12,
+      "kind": "block"
     },
     {
       "text": "{ throw new BusinessError ( ErrorCode . INVALID_PARAMS , PLAN_NAME_MESSAGE ) }",
       "tokenCount": 12,
       "count": 2,
       "files": ["backend/src/modules/plans/dto/plans.dto.ts"],
-      "redundantTokens": 12
-    },
-    {
-      "text": "return this . toView ( res . rows [ 0 ] )",
-      "tokenCount": 12,
-      "count": 2,
-      "files": ["backend/src/modules/plans/repositories/plans.repository.ts"],
-      "redundantTokens": 12
+      "redundantTokens": 12,
+      "kind": "block"
     },
     {
       "text": "segments . map ( ( s ) => s . edgeId )",
       "tokenCount": 12,
       "count": 2,
       "files": ["backend/src/modules/route/repositories/route.repository.ts"],
-      "redundantTokens": 12
+      "redundantTokens": 12,
+      "kind": "block"
     },
     {
       "text": "segments . map ( ( s ) => s . lo )",
       "tokenCount": 12,
       "count": 2,
       "files": ["backend/src/modules/route/repositories/route.repository.ts"],
-      "redundantTokens": 12
+      "redundantTokens": 12,
+      "kind": "block"
     },
     {
       "text": "segments . map ( ( s ) => s . hi )",
       "tokenCount": 12,
       "count": 2,
       "files": ["backend/src/modules/route/repositories/route.repository.ts"],
-      "redundantTokens": 12
+      "redundantTokens": 12,
+      "kind": "block"
     },
     {
       "text": "{ throw new BusinessError ( ErrorCode . INVALID_PARAMS , '缺少或非法的参数：indicator' ) }",
       "tokenCount": 12,
       "count": 2,
       "files": ["backend/src/modules/task/services/task-handlers.ts"],
-      "redundantTokens": 12
+      "redundantTokens": 12,
+      "kind": "block"
     },
     {
       "text": "if ( ! TERMINAL_STATUSES . has ( record . status ) )",
       "tokenCount": 12,
       "count": 2,
       "files": ["backend/src/modules/task/services/task-registry.ts"],
-      "redundantTokens": 12
+      "redundantTokens": 12,
+      "kind": "block"
     },
     {
       "text": "{ throw new BusinessError ( ErrorCode . NOT_FOUND , '任务不存在或已过期' ) }",
       "tokenCount": 12,
       "count": 2,
       "files": ["backend/src/modules/task/services/task.service.ts"],
-      "redundantTokens": 12
+      "redundantTokens": 12,
+      "kind": "block"
     },
     {
       "text": "[ 'flood-areas' , 'route-path' , 'forecast-timeseries' , 'forecast-map' , 'site-suitability-map' , ]",
       "tokenCount": 12,
       "count": 2,
       "files": ["backend/src/modules/task/types/task.ts", "frontend/src/types/task.ts"],
-      "redundantTokens": 12
+      "redundantTokens": 12,
+      "kind": "block"
     },
     {
       "text": "export interface TaskError { message : string bizCode ? : number }",
       "tokenCount": 12,
       "count": 2,
       "files": ["backend/src/modules/task/types/task.ts", "frontend/src/types/task.ts"],
-      "redundantTokens": 12
+      "redundantTokens": 12,
+      "kind": "block"
     },
     {
       "text": "async function load ( transactionId : number , signal : AbortSignal )",
@@ -1180,7 +1218,8 @@
         "frontend/src/business/forecast/composables/useForecastComparison.ts",
         "frontend/src/business/forecast/composables/useForecastTimeseries.ts"
       ],
-      "redundantTokens": 12
+      "redundantTokens": 12,
+      "kind": "block"
     },
     {
       "text": "false onScopeDispose ( ( ) => { disposed = true } )",
@@ -1190,21 +1229,8 @@
         "frontend/src/business/forecast/composables/useForecastLayer.ts",
         "frontend/src/business/site-suitability/composables/useSiteSuitabilityLayer.ts"
       ],
-      "redundantTokens": 12
-    },
-    {
-      "text": "renderer . add3DTilesLayer ( key , payload . url , tilesOptions )",
-      "tokenCount": 12,
-      "count": 2,
-      "files": ["frontend/src/core/map/layerAdapters.ts"],
-      "redundantTokens": 12
-    },
-    {
-      "text": "Cartesian3 . fromDegrees ( p . lng , p . lat )",
-      "tokenCount": 12,
-      "count": 2,
-      "files": ["frontend/src/core/map/renderers/CesiumRenderer.ts"],
-      "redundantTokens": 12
+      "redundantTokens": 12,
+      "kind": "block"
     },
     {
       "text": "{ featureType : null , data : null , coordinate , }",
@@ -1214,101 +1240,160 @@
         "frontend/src/core/map/renderers/CesiumRenderer.ts",
         "frontend/src/core/map/renderers/OLRenderer.ts"
       ],
-      "redundantTokens": 12
+      "redundantTokens": 12,
+      "kind": "block"
     },
     {
       "text": "Color . fromCssColorString ( options . fillColor || LAYER_DEFAULTS . fill )",
       "tokenCount": 12,
       "count": 2,
       "files": ["frontend/src/core/map/renderers/CesiumRenderer.ts"],
-      "redundantTokens": 12
-    },
-    {
-      "text": "( feature . get ( 'color' ) as string | undefined )",
-      "tokenCount": 12,
-      "count": 2,
-      "files": ["frontend/src/core/map/renderers/OLRenderer.ts"],
-      "redundantTokens": 12
+      "redundantTokens": 12,
+      "kind": "block"
     },
     {
       "text": ". readFeatures ( geojson , { featureProjection : WEB_MERCATOR , } )",
       "tokenCount": 12,
       "count": 2,
       "files": ["frontend/src/core/map/renderers/OLRenderer.ts"],
-      "redundantTokens": 12
+      "redundantTokens": 12,
+      "kind": "block"
     },
     {
       "text": "feature . set ( 'featureType' , options . featureType || 'geojson' )",
       "tokenCount": 12,
       "count": 2,
       "files": ["frontend/src/core/map/renderers/OLRenderer.ts"],
-      "redundantTokens": 12
+      "redundantTokens": 12,
+      "kind": "block"
     },
     {
       "text": "( window as unknown as Record < string , unknown > )",
       "tokenCount": 12,
       "count": 2,
       "files": ["frontend/src/core/map/renderers/index.ts"],
-      "redundantTokens": 12
-    },
-    {
-      "text": "result . error . issues . slice ( 0 , 3 )",
-      "tokenCount": 12,
-      "count": 2,
-      "files": ["frontend/src/shared/composables/useApiRequest.ts"],
-      "redundantTokens": 12
+      "redundantTokens": 12,
+      "kind": "block"
     },
     {
       "text": "list . find ( ( s ) => s . aborted )",
       "tokenCount": 12,
       "count": 2,
       "files": ["frontend/src/shared/utils/abortSignal.ts"],
-      "redundantTokens": 12
+      "redundantTokens": 12,
+      "kind": "block"
     },
     {
       "text": "if ( ! slot || isTerminalStatus ( slot . status ) )",
       "tokenCount": 12,
       "count": 2,
       "files": ["frontend/src/stores/taskStore.ts"],
-      "redundantTokens": 12
-    }
-  ],
-  "updatedAt": "2026-10-11",
-  "history": [
-    {
-      "at": "2026-10-11",
-      "totalGroups": 164,
-      "totalRedundantTokens": 3415,
-      "kind": "未标注",
-      "note": "K1-1 收口 OLRenderer 坐标转换 toMapCoord/toPointGeometry（10 点位）"
+      "redundantTokens": 12,
+      "kind": "block"
     },
     {
-      "at": "2026-10-11",
-      "totalGroups": 160,
-      "totalRedundantTokens": 3277,
-      "kind": "未标注",
-      "note": "K1-2 收口呼吸灯目标归一 breathingPoints 与 defaultCameraCenter"
+      "text": "this . _runAdapter ( 'create' , renderer , key , meta . label , meta . layerType , meta . data , meta . options )",
+      "tokenCount": 26,
+      "count": 2,
+      "files": ["frontend/src/core/map/BusinessLayerManager.ts"],
+      "redundantTokens": 0,
+      "kind": "call-site"
     },
     {
-      "at": "2026-10-11",
-      "totalGroups": 160,
-      "totalRedundantTokens": 3277,
-      "kind": "未标注",
-      "note": "K1-3 收口 CesiumRenderer 异步陈旧判定 isStaleToken（5 点位）"
+      "text": "z . array ( z . array ( z . array ( z . number ( ) ) ) )",
+      "tokenCount": 20,
+      "count": 2,
+      "files": ["frontend/src/types/schemas.ts"],
+      "redundantTokens": 0,
+      "kind": "call-site"
     },
     {
-      "at": "2026-10-11",
-      "totalGroups": 160,
-      "totalRedundantTokens": 3277,
-      "kind": "未标注",
-      "note": "K1-3 isStaleToken 5 点位：语义收口但旧组以 1:1 调用形态留存（13token 过阈），组数不变"
+      "text": "Promise . resolve ( renderer . add3DTilesLayer ( key , payload . url , tilesOptions ) )",
+      "tokenCount": 17,
+      "count": 2,
+      "files": ["frontend/src/core/map/layerAdapters.ts"],
+      "redundantTokens": 0,
+      "kind": "call-site"
     },
     {
-      "at": "2026-10-11",
-      "totalGroups": 157,
-      "totalRedundantTokens": 3191,
-      "kind": "未标注",
-      "note": "K1-4 BaseLayerPair 具名类型 + onError 去强转（类型债修法：修类型不抽 helper）"
+      "text": "z . record ( z . string ( ) , z . unknown ( ) )",
+      "tokenCount": 16,
+      "count": 2,
+      "files": ["frontend/src/types/schemas.ts"],
+      "redundantTokens": 0,
+      "kind": "call-site"
+    },
+    {
+      "text": "z . array ( z . array ( z . number ( ) ) )",
+      "tokenCount": 15,
+      "count": 2,
+      "files": ["frontend/src/types/schemas.ts"],
+      "redundantTokens": 0,
+      "kind": "call-site"
+    },
+    {
+      "text": "if ( this . hooks . isCancelled ( job . taskId ) )",
+      "tokenCount": 13,
+      "count": 3,
+      "files": ["backend/src/modules/task/services/task-queue.ts"],
+      "redundantTokens": 0,
+      "kind": "call-site"
+    },
+    {
+      "text": "for ( const record of this . registry . list ( ) )",
+      "tokenCount": 13,
+      "count": 2,
+      "files": ["backend/src/modules/task/services/task.service.ts"],
+      "redundantTokens": 0,
+      "kind": "call-site"
+    },
+    {
+      "text": "if ( isStaleToken ( renderer . _geoJsonTokens , id , token ) )",
+      "tokenCount": 13,
+      "count": 5,
+      "files": ["frontend/src/core/map/renderers/CesiumRenderer.ts"],
+      "redundantTokens": 0,
+      "kind": "call-site"
+    },
+    {
+      "text": "return this . toView ( res . rows [ 0 ] )",
+      "tokenCount": 12,
+      "count": 2,
+      "files": ["backend/src/modules/plans/repositories/plans.repository.ts"],
+      "redundantTokens": 0,
+      "kind": "call-site"
+    },
+    {
+      "text": "renderer . add3DTilesLayer ( key , payload . url , tilesOptions )",
+      "tokenCount": 12,
+      "count": 2,
+      "files": ["frontend/src/core/map/layerAdapters.ts"],
+      "redundantTokens": 0,
+      "kind": "call-site"
+    },
+    {
+      "text": "Cartesian3 . fromDegrees ( p . lng , p . lat )",
+      "tokenCount": 12,
+      "count": 2,
+      "files": ["frontend/src/core/map/renderers/CesiumRenderer.ts"],
+      "redundantTokens": 0,
+      "kind": "call-site"
+    },
+    {
+      "text": "( feature . get ( 'color' ) as string | undefined )",
+      "tokenCount": 12,
+      "count": 2,
+      "files": ["frontend/src/core/map/renderers/OLRenderer.ts"],
+      "redundantTokens": 0,
+      "kind": "call-site"
+    },
+    {
+      "text": "result . error . issues . slice ( 0 , 3 )",
+      "tokenCount": 12,
+      "count": 2,
+      "files": ["frontend/src/shared/composables/useApiRequest.ts"],
+      "redundantTokens": 0,
+      "kind": "call-site"
     }
   ]
 }

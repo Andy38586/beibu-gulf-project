@@ -19,6 +19,7 @@ import {
   balancedGroups,
   codeOf,
   compareToBaseline,
+  isNamedCallRepetition,
   scanTexts,
   tokenize,
 } from '../scan.mjs'
@@ -127,5 +128,49 @@ describe('dup-scan — 重复表达式判据', () => {
     expect(baseline.minTokens).toBe(MIN_TOKENS)
     expect(typeof baseline.totalGroups).toBe('number')
     expect(typeof baseline.totalRedundantTokens).toBe('number')
+    // D5 降权后新增两字段：基线必须带，否则降权口径与基线不同源
+    expect(typeof baseline.callSiteGroups).toBe('number')
+    expect(typeof baseline.callSiteTokens).toBe('number')
+  })
+})
+
+describe('D5 降权 — 具名调用重复不计冗余（防指标惩罚正确的共享）', () => {
+  it('@guard-red-sample 同一具名调用重复 ⇒ 判为降权，冗余 token 记 0', () => {
+    // 注意 fixture 长度：内层调用须 ≥ MIN_TOKENS，否则进不了组，
+    // 测的就不是降权而是"没检出"（一次实测踩过：10 tok 的 isStaleToken 三参形态被 MIN 挡掉）
+    const line = 'isStaleToken(renderer._geoJsonTokens, layerId, requestToken, options)\n'
+    const r = scanTexts([{ relPath: 'x.ts', text: line + line }])
+    expect(r.totalGroups).toBeGreaterThan(0)
+    expect(r.callSiteGroups).toBeGreaterThan(0)
+    expect(r.totalRedundantTokens).toBe(0)
+  })
+
+  it('🔴 成员链调用但**参数含 lambda** ⇒ 不降权（被重复的是参数里的逻辑，属真重复）', () => {
+    const line = 'const e = layerCatalog.value.find((x) => x.key === key)\n'
+    const r = scanTexts([
+      { relPath: 'a.ts', text: line },
+      { relPath: 'b.ts', text: line },
+    ])
+    expect(r.callSiteGroups).toBe(0)
+    expect(r.totalRedundantTokens).toBeGreaterThan(0)
+  })
+
+  it('🔴 含块结构的重复**不得**被降权（否则真重复被洗白）', () => {
+    const block =
+      'const c = computed(() => { if (!props.series || props.series.length === 0) return false; return true })\n'
+    const r = scanTexts([
+      { relPath: 'BarChart.vue', text: block },
+      { relPath: 'LineChart.vue', text: block },
+    ])
+    expect(r.callSiteGroups).toBe(0)
+    expect(r.totalRedundantTokens).toBeGreaterThan(0)
+  })
+
+  it('🔴 接口/参数表等非调用形态不得被降权', () => {
+    expect(isNamedCallRepetition('export interface TaskView { taskId : string }')).toBe(false)
+    expect(
+      isNamedCallRepetition('( adapterFn : ( ) => Promise < T > , transactionId : number )')
+    ).toBe(false)
+    expect(isNamedCallRepetition('if ( ! Number . isFinite ( v ) || v < 0 || v > 1 )')).toBe(false)
   })
 })

@@ -20,7 +20,7 @@ const GUARD_DIR = path.resolve(HERE, '..')
 const ROOT = path.resolve(GUARD_DIR, '../..')
 
 /** CI 里跑 `npm run <script>` 的 job：按「两空格缩进的 job 键」切块（不引 YAML 依赖） */
-export function jobBlockOf(text, script) {
+function jobBlockOf(text, script) {
   const lines = text.split(/\r?\n/)
   const idx = lines.findIndex(
     (l) => !l.trim().startsWith('#') && /^\s+run:\s/.test(l) && l.includes(`npm run ${script}`)

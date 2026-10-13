@@ -1,7 +1,9 @@
 /**
  * 图表统一布局 Token（可视化看板外边距的单一事实源）：
  * LineChart / BarChart 的 grid 共用此值（标题/坐标轴均在 canvas 内，需 40px 上边距）。
- * RadarChart 不在此列：其标题与综合评分是面板内 HTML 元素，canvas 内只做居中最大化。
+ * RadarChart **也消费 `top`**：其标题由 ECharts 绘制、占 canvas 顶部 CHART_GRID.top 高度
+ * （2026-10-13 修失实注释：原文写「RadarChart 不在此列、其标题是面板内 HTML 元素」，
+ * 与该实现的现行口径**相反**——只有雷达多边形本身在 canvas 内居中最大化）。
  * 单位 px；数值与 GCS cell（80px）对齐：top/bottom/left = 0.5 cell，right = 0.2 cell。
  */
 export const CHART_GRID = { top: 40, right: 16, bottom: 40, left: 40 } as const

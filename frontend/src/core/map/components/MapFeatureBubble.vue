@@ -27,7 +27,7 @@ function handleClose(): void {
 </script>
 
 <template>
-  <div class="map-feature-bubble">
+  <div class="map-bubble map-feature-bubble">
     <div class="bubble-header">
       <span class="bubble-title">{{ port.name }}</span>
       <span v-if="port.type" class="bubble-type">{{ port.type }}</span>
@@ -52,96 +52,4 @@ function handleClose(): void {
   </div>
 </template>
 
-<style scoped>
-.map-feature-bubble {
-  position: relative;
-  min-width: 170px;
-  padding: 8px 10px;
-  background: var(--GCS-bg-panel);
-  border: 1px solid var(--GCS-border-default);
-  border-radius: var(--GCS-radius-md);
-  box-shadow: 0 2px 8px rgb(0 0 0 / 18%);
-  box-sizing: border-box;
-  font-size: var(--GCS-font-size-xs);
-  color: var(--GCS-text-primary);
-}
-
-.bubble-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 4px;
-}
-
-.bubble-title {
-  font-weight: 600;
-  color: var(--GCS-text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.bubble-type {
-  flex-shrink: 0;
-  padding: 0 4px;
-  background: var(--GCS-bg-hover);
-  border-radius: var(--GCS-radius-sm);
-  color: var(--GCS-text-secondary);
-}
-
-.bubble-close {
-  flex-shrink: 0;
-  margin-left: auto;
-  padding: 0 2px;
-  border: none;
-  background: transparent;
-  color: var(--GCS-text-secondary);
-  font-size: var(--GCS-font-size-body);
-  line-height: 1;
-  cursor: pointer;
-}
-
-.bubble-close:hover {
-  color: var(--GCS-text-primary);
-}
-
-.bubble-row {
-  display: flex;
-  gap: 6px;
-  line-height: 1.6;
-}
-
-.bubble-label {
-  flex-shrink: 0;
-  color: var(--GCS-text-secondary);
-}
-
-.bubble-value {
-  color: var(--GCS-text-primary);
-  word-break: break-all;
-}
-
-.bubble-tail {
-  position: absolute;
-  bottom: -8px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 0;
-  height: 0;
-  border-left: 8px solid transparent;
-  border-right: 8px solid transparent;
-  border-top: 9px solid var(--GCS-border-default);
-}
-
-.bubble-tail::after {
-  content: '';
-  position: absolute;
-  left: -7px;
-  top: -10px;
-  width: 0;
-  height: 0;
-  border-left: 7px solid transparent;
-  border-right: 7px solid transparent;
-  border-top: 8px solid var(--GCS-bg-panel);
-}
-</style>
+<style scoped src="./bubble.css"></style>

@@ -88,7 +88,7 @@ function handleClose(): void {
 </script>
 
 <template>
-  <div class="map-facility-bubble">
+  <div class="map-bubble map-facility-bubble">
     <div class="bubble-header">
       <span class="bubble-title">{{ facility.name }}</span>
       <span class="bubble-type">{{ typeLabel }}</span>
@@ -113,75 +113,9 @@ function handleClose(): void {
   </div>
 </template>
 
+<style scoped src="./bubble.css"></style>
+
 <style scoped>
-.map-facility-bubble {
-  position: relative;
-  min-width: 170px;
-  padding: 8px 10px;
-  background: var(--GCS-bg-panel);
-  border: 1px solid var(--GCS-border-default);
-  border-radius: var(--GCS-radius-md);
-  box-shadow: 0 2px 8px rgb(0 0 0 / 18%);
-  box-sizing: border-box;
-  font-size: var(--GCS-font-size-xs);
-  color: var(--GCS-text-primary);
-}
-
-.bubble-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 4px;
-}
-
-.bubble-title {
-  font-weight: 600;
-  color: var(--GCS-text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.bubble-type {
-  flex-shrink: 0;
-  padding: 0 4px;
-  background: var(--GCS-bg-hover);
-  border-radius: var(--GCS-radius-sm);
-  color: var(--GCS-text-secondary);
-}
-
-.bubble-close {
-  flex-shrink: 0;
-  margin-left: auto;
-  padding: 0 2px;
-  border: none;
-  background: transparent;
-  color: var(--GCS-text-secondary);
-  font-size: var(--GCS-font-size-body);
-  line-height: 1;
-  cursor: pointer;
-}
-
-.bubble-close:hover {
-  color: var(--GCS-text-primary);
-}
-
-.bubble-row {
-  display: flex;
-  gap: 6px;
-  line-height: 1.6;
-}
-
-.bubble-label {
-  flex-shrink: 0;
-  color: var(--GCS-text-secondary);
-}
-
-.bubble-value {
-  color: var(--GCS-text-primary);
-  word-break: break-all;
-}
-
 .bubble-actions {
   display: flex;
   justify-content: flex-end;

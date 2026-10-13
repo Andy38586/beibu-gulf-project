@@ -197,14 +197,6 @@ const levelHint = computed(() =>
   padding: v-bind(cell16px);
 }
 
-/* 信息列表容器：占满灰色面板，info-item左右对齐 */
-.info-list {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
 /* 信息行：左右对齐，占满灰色面板宽度 */
 .info-item {
   display: flex;

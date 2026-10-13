@@ -16,7 +16,7 @@ export interface AuthResponse {
   user: User
 }
 
-// API 错误响应
-export interface ApiError {
-  error: string
-}
+// 注（2026-10-12 删）：此处原有 `export interface ApiError { error: string }`，
+// 全仓零 importer，且与 `@/shared` 的 `ApiError` **class** 撞名（B2：同一实体只能有一处
+// 类型定义）。经 `types/index.ts` 星导出后，`import { ApiError } from '@/types'` 会拿到这个
+// 空壳接口而非真 class —— 是误用温床。HTTP 错误一律用 shared 的 class。

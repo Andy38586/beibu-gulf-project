@@ -94,7 +94,10 @@ export async function loadBoundaryGeoJson(
       }
 
       if (isLastAttempt) {
-        // 仅在开发环境输出错误
+        // 🔴 刻意**不**做 DEV 门控（2026-10-12 修失实注释，A2）：
+        // 原注释写「仅在开发环境输出错误」，但这一行本就无门控——**注释失实**（K1 H1）。
+        // 且不该照注释去加门控：错误必须上报，门控掉等于在生产吞掉真实失败。
+        // 与上方 `logger.debug`（尝试次数噪声）是两个不同性质的日志，后者才是该门控的。
         logger.error('边界数据加载失败:', e)
         onError?.('边界数据加载失败，图层可能缺失')
         return null

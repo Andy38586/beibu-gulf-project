@@ -145,15 +145,9 @@ describe('guard:v3 串联执行器（审查 z163）', () => {
 
   it('@guard-red-sample 强制点必须真会触发：hooksPath→shim 在位，workflow on: 有效且 job 无 if:', () => {
     // 真仓：core.hooksPath → husky shim；shim 不在 = .husky/<hook> 永远不会被执行（z063 实测漏洞）
-    let hooksPath = null
-    try {
-      hooksPath = execFileSync('git', ['config', '--get', 'core.hooksPath'], {
-        cwd: ROOT,
-        encoding: 'utf8',
-      }).trim()
-    } catch {
-      hooksPath = null
-    }
+    // 区分两种 null：① git 可派生但键未设（exit 1，走 .git/hooks 真判据）② git 不可派生
+    //（ENOENT/EBUSY 等）。后者按 AGENTS §5.4 记 SKIPPED —— 否则「工具不可用」被误报成
+    //「shim 缺失」，同一红在两类因上不可区分（本仓实测：EBUSY 环境即此红，长期无人查）。
     const hooks = [
       ...new Set(
         SEPARATELY_RUN.flatMap((g) => g.enforcedBy)
@@ -161,10 +155,26 @@ describe('guard:v3 串联执行器（审查 z163）', () => {
           .map((rel) => path.basename(rel))
       ),
     ]
-    expect(
-      hookFiringProblems(hooksPath, hooks, (rel) => fs.existsSync(path.join(ROOT, rel)))
-    ).toEqual([])
-    // workflow：on: 真的在；跑 guard:mutation 的 job 不许带条件
+    let gitUsable = true
+    let hooksPath = null
+    try {
+      hooksPath =
+        execFileSync('git', ['config', '--get', 'core.hooksPath'], {
+          cwd: ROOT,
+          encoding: 'utf8',
+        }).trim() || null
+    } catch (err) {
+      if (err && err.status === 1) hooksPath = null
+      else gitUsable = false
+    }
+    if (gitUsable) {
+      expect(
+        hookFiringProblems(hooksPath, hooks, (rel) => fs.existsSync(path.join(ROOT, rel)))
+      ).toEqual([])
+    } else {
+      console.warn('[run-all.test] SKIPPED：git 不可派生，hooksPath→shim 自证跳过（AGENTS §5.4）')
+    }
+    // workflow 断言不依赖 git 派生，照常跑：on: 真的在；跑 guard:mutation 的 job 不许带条件
     const wf = fs.readFileSync(path.join(ROOT, '.github/workflows/ci.yml'), 'utf8')
     expect(ciTriggerProblems(wf, 'guard:mutation', jobBlockOf)).toEqual([])
   })

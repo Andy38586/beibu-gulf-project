@@ -150,22 +150,4 @@ describe('useForecastRequest', () => {
       expect(store.isRequesting).toBe(false)
     })
   })
-
-  describe('isLoading', () => {
-    it('透传 store 的 isRequesting', async () => {
-      const { startTransaction, runInTransaction, isLoading } = useForecastRequest()
-      const t = startTransaction()
-
-      let resolveAdapter: (v: unknown) => void
-      const pending = new Promise((resolve) => {
-        resolveAdapter = resolve
-      })
-      const promise = runInTransaction(vi.fn().mockReturnValue(pending), t.transactionId)
-      expect(isLoading.value).toBe(true)
-
-      resolveAdapter!({ ok: true })
-      await promise
-      expect(isLoading.value).toBe(false)
-    })
-  })
 })

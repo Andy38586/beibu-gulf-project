@@ -1,16 +1,18 @@
 /**
  * useSiteSuitabilityRequest — 选址模块请求事务管理器。
- * 复刻 useForecastRequest 模式（同一 useLatestRequest 竞态守卫 + store 事务 ID）：
- * 一次评价任务的请求共享同一事务 ID，新事务自动取消旧请求（AbortController 透传），
- * 事务过期静默丢弃响应；AbortController 由本实例持有，不进 store。
+ * 事务骨架与 useForecastRequest 同源（跨域 `useTransactionGuard`）：一次评价任务的请求共享
+ * 同一事务 ID，新事务自动取消旧请求（AbortController 透传），事务过期静默丢弃响应；
+ * AbortController 由本实例持有，不进 store。
+ *
+ * 与预测域的差异是**行为核心**，故不抽公共：
+ *   ① 本域**不**托管 store.isRequesting —— loading 的唯一写入口在 useSiteSuitabilityLayer
+ *     （缓存命中 / 新旧事务交错时口径与预测域不同）；
+ *   ② 取消的判据是"事务已失效"（任何错误），而非特定 ApiError 码。
  */
-import { computed, type ComputedRef } from 'vue'
-
-import { useLatestRequest } from '@/shared'
+import { useTransactionGuard } from '@/shared'
 import { useSiteSuitabilityStore } from '@/stores'
 
 interface UseSiteSuitabilityRequestReturn {
-  isLoading: ComputedRef<boolean>
   startTransaction: () => { transactionId: number; signal: AbortSignal }
   isTransactionValid: (transactionId: number) => boolean
   runInTransaction: <T>(adapterFn: () => Promise<T>, transactionId: number) => Promise<T | null>
@@ -19,19 +21,7 @@ interface UseSiteSuitabilityRequestReturn {
 
 export function useSiteSuitabilityRequest(): UseSiteSuitabilityRequestReturn {
   const state = useSiteSuitabilityStore()
-  const { createSignal, cancel: cancelRequest } = useLatestRequest()
-
-  const isLoading: ComputedRef<boolean> = computed(() => state.isRequesting)
-
-  function startTransaction() {
-    const transactionId = state.bumpTransactionId()
-    const signal = createSignal()
-    return { transactionId, signal }
-  }
-
-  function isTransactionValid(transactionId: number): boolean {
-    return transactionId === state.activeTransactionId
-  }
+  const { startTransaction, isTransactionValid, cancelRequest } = useTransactionGuard(state)
 
   async function runInTransaction<T>(
     adapterFn: () => Promise<T>,
@@ -43,6 +33,7 @@ export function useSiteSuitabilityRequest(): UseSiteSuitabilityRequestReturn {
       if (!isTransactionValid(transactionId)) return null
       return result
     } catch (e) {
+      // 事务已失效时的任何错误（含新事务 abort 旧请求）静默返回 null，避免误弹 toast
       if (!isTransactionValid(transactionId)) return null
       throw e
     }
@@ -52,5 +43,5 @@ export function useSiteSuitabilityRequest(): UseSiteSuitabilityRequestReturn {
     cancelRequest()
   }
 
-  return { isLoading, startTransaction, isTransactionValid, runInTransaction, cancelAll }
+  return { startTransaction, isTransactionValid, runInTransaction, cancelAll }
 }

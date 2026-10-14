@@ -2,16 +2,14 @@
  * useForecastRequest — 预测模块请求事务管理器：一次预测任务的三个请求共享同一事务 ID，
  * 新事务自动取消旧请求（AbortController 透传 signal），事务过期时静默丢弃响应。
  * 事务 ID 与 isRequesting 存于 store 跨组件共享，随 store.reset() 一并复位；
- * AbortController 不可序列化、不响应式，由本实例持有
+ * AbortController 不可序列化、不响应式，由本实例持有。
+ * 事务骨架（ID 推进 / signal / 有效性 / 取消）走跨域公共 `useTransactionGuard`。
  */
-import { computed, type ComputedRef } from 'vue'
-
-import { ApiError, ErrorCode, useLatestRequest } from '@/shared'
+import { ApiError, ErrorCode, useTransactionGuard } from '@/shared'
 import { useForecastStore } from '@/stores'
 
 /** 返回契约（显式化，防重构时签名静默漂移） */
 interface UseForecastRequestReturn {
-  isLoading: ComputedRef<boolean>
   startTransaction: () => { transactionId: number; signal: AbortSignal }
   isTransactionValid: (transactionId: number) => boolean
   runInTransaction: <T>(adapterFn: () => Promise<T>, transactionId: number) => Promise<T | null>
@@ -20,40 +18,20 @@ interface UseForecastRequestReturn {
 
 export function useForecastRequest(): UseForecastRequestReturn {
   const forecastState = useForecastStore()
-  // 竞态守卫统一走 useLatestRequest；AbortController 实例不进 store（不可序列化、不响应式）
-  const { createSignal, cancel: cancelRequest } = useLatestRequest()
-
-  // 透传 store 的 isRequesting 作为响应式 isLoading（保留原接口契约）
-  const isLoading: ComputedRef<boolean> = computed(() => forecastState.isRequesting)
-
-  /** 状态变化前调用：取消旧事务并生成新事务 ID */
-  function startTransaction() {
-    // 事务 ID 推进走 store action，不再直改 state
-    const transactionId = forecastState.bumpTransactionId()
-    const signal = createSignal()
-
-    return {
-      transactionId,
-      signal,
-    }
-  }
-
-  /** 事务是否仍为最新（ID 未过期） */
-  function isTransactionValid(transactionId: number): boolean {
-    return transactionId === forecastState.activeTransactionId
-  }
+  const { startTransaction, isTransactionValid, cancelRequest } = useTransactionGuard(forecastState)
 
   /**
    * 在事务上下文中执行请求：调用前/await 后校验事务，过期或已被新事务取消时静默返回 null；
-   * 业务错误（如 401）照常抛出由调用方处理
+   * 业务错误（如 401）照常抛出由调用方处理。
+   *
+   * 本域特色（不抽公共）：托管 store.isRequesting；取消判据是特定 ApiError 码
+   * （TIMEOUT / REQUEST_FAILED）而非"任何错误"—— 选址域口径不同，见 useSiteSuitabilityRequest。
    */
   async function runInTransaction<T>(
     adapterFn: () => Promise<T>,
     transactionId: number
   ): Promise<T | null> {
-    if (!isTransactionValid(transactionId)) {
-      return null
-    }
+    if (!isTransactionValid(transactionId)) return null
 
     try {
       forecastState.setIsRequesting(true)
@@ -61,9 +39,7 @@ export function useForecastRequest(): UseForecastRequestReturn {
       const result = await adapterFn()
 
       // await 后再次检查事务是否仍然有效（可能在 await 期间被取消）
-      if (!isTransactionValid(transactionId)) {
-        return null
-      }
+      if (!isTransactionValid(transactionId)) return null
 
       return result
     } catch (error) {
@@ -78,9 +54,7 @@ export function useForecastRequest(): UseForecastRequestReturn {
       }
       throw error
     } finally {
-      if (isTransactionValid(transactionId)) {
-        forecastState.setIsRequesting(false)
-      }
+      if (isTransactionValid(transactionId)) forecastState.setIsRequesting(false)
     }
   }
 
@@ -90,11 +64,5 @@ export function useForecastRequest(): UseForecastRequestReturn {
     forecastState.resetTransactionState()
   }
 
-  return {
-    isLoading,
-    startTransaction,
-    isTransactionValid,
-    runInTransaction,
-    cancelAll,
-  }
+  return { startTransaction, isTransactionValid, runInTransaction, cancelAll }
 }

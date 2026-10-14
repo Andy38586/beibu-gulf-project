@@ -20,6 +20,10 @@ const BACKEND_BUSINESS_ERROR = 'backend/src/common/errors/business-error.ts'
 const FRONTEND_BIZ_CODES = 'frontend/src/shared/constants/bizCodes.ts'
 const BACKEND_GIS_CONSTANTS = 'backend/src/common/constants/gis.constants.ts'
 const FRONTEND_CRS = 'frontend/src/shared/utils/crs.ts'
+// D29/A1：flood 风险分段跨语言。后端 TS `RISK_LEVEL_BANDS` 为权威，Python
+// `tools/flood/flood_realify.py` 的 `RISK_BANDS`/`RISK_CODE` 是手抄副本（生成侧离线跑、不在 CI），
+// 此前只靠注释挂接 —— 改 TS 一侧 PY 不报错，须逐档对账。
+const FLOOD_PY_REALIFY = 'tools/flood/flood_realify.py'
 // D4②：寻路权重口径。后端 MODE_WEIGHT 的键为权威；前端 types/route.ts 里 mode 的
 // 字面量联合是手抄（当前两处：RoutePathParams.mode 与 RoutePathResult.mode）。
 const BACKEND_ROUTE_MODES = 'backend/src/modules/route/repositories/route.repository.ts'
@@ -48,7 +52,12 @@ export function parseFrontendBizCodes(content) {
  */
 function normalizeMaxLevel(raw) {
   const compact = raw.replace(/\s+/g, '')
-  if (/^(Number\.)?POSITIVE_INFINITY$/.test(compact) || compact === 'Infinity') return 'Infinity'
+  if (
+    /^(Number\.)?POSITIVE_INFINITY$/.test(compact) ||
+    compact === 'Infinity' ||
+    /^float\(["']inf["']\)$/.test(compact)
+  )
+    return 'Infinity'
   const n = Number(compact)
   return Number.isFinite(n) ? String(n) : compact
 }
@@ -65,6 +74,23 @@ export function parseRiskBands(content, name) {
   if (!block) return null
   const items = [...block[1].matchAll(/\{\s*maxLevel:\s*([^,]+?)\s*,\s*label:\s*'([^']*)'\s*\}/g)]
   return items.map((m) => ({ maxLevel: normalizeMaxLevel(m[1]), label: m[2] }))
+}
+
+/** 从 Python `RISK_BANDS = [ (0, "无风险"), … ]` 解析分档（跨语言手抄副本） */
+export function parsePyRiskBands(content) {
+  const block = content.match(/^RISK_BANDS\s*=\s*\[([\s\S]*?)\n\]/m)
+  if (!block) return null
+  const items = [...block[1].matchAll(/\(\s*([^,]+?)\s*,\s*"([^"]*)"\s*\)/g)]
+  return items.map((m) => ({ maxLevel: normalizeMaxLevel(m[1]), label: m[2] }))
+}
+
+/** 从 Python `RISK_CODE = { "无风险": 0, … }` 解析「标签 → 码」 */
+export function parsePyRiskCode(content) {
+  const block = content.match(/^RISK_CODE\s*=\s*\{([\s\S]*?)\}/m)
+  if (!block) return null
+  const out = {}
+  for (const m of block[1].matchAll(/"([^"]+)"\s*:\s*(\d+)/g)) out[m[1]] = Number(m[2])
+  return out
 }
 
 /**
@@ -207,6 +233,33 @@ export function auditSharedConstants(files) {
       }
     })
   }
+  // flood 风险分段跨语言（D29/A1）：TS RISK_LEVEL_BANDS 为权威，Python flood_realify.py 的
+  // RISK_BANDS（逐档 maxLevel/label）与 RISK_CODE（标签→码，须等于档序）是手抄副本。
+  const pyBands = parsePyRiskBands(files.floodPy ?? '')
+  const pyCode = parsePyRiskCode(files.floodPy ?? '')
+  if (!backendBands || !pyBands || pyBands.length === 0 || !pyCode) {
+    problems.push(
+      `flood 风险分段 Python 副本解析失败：bands=${pyBands?.length ?? 'null'} 档 ` +
+        `code=${pyCode ? Object.keys(pyCode).length : 'null'} 条（常量被改名/删除？）`
+    )
+  } else if (backendBands.length !== pyBands.length) {
+    problems.push(
+      `flood 风险分段跨语言档位数漂移：TS=${backendBands.length} 档 PY=${pyBands.length} 档`
+    )
+  } else {
+    backendBands.forEach((b, i) => {
+      const p = pyBands[i]
+      if (b.maxLevel !== p.maxLevel || b.label !== p.label) {
+        problems.push(
+          `flood 风险分段第 ${i + 1} 档 TS↔PY 漂移：TS=${b.maxLevel}/${b.label} ` +
+            `PY=${p.maxLevel}/${p.label}（backend flood.constants 为权威）`
+        )
+      }
+      if (pyCode[b.label] !== i) {
+        problems.push(`flood 风险码表 PY 漂移：${b.label} → ${pyCode[b.label]}（应为档序 ${i}）`)
+      }
+    })
+  }
   return problems
 }
 
@@ -221,10 +274,12 @@ function main() {
     frontendCrs: read(FRONTEND_CRS),
     backendRoute: read(BACKEND_ROUTE_MODES),
     frontendRoute: read(FRONTEND_ROUTE_TYPES),
+    floodPy: read(FLOOD_PY_REALIFY),
   })
   if (problems.length === 0) {
     console.log(
-      '[constants-audit] OK：水位上限/业务边界框/寻路 mode 双侧一致，前端业务码 ⊆ 后端 ErrorCode'
+      '[constants-audit] OK：水位上限/业务边界框/寻路 mode 双侧一致、flood 分段 TS↔PY 一致，' +
+        '前端业务码 ⊆ 后端 ErrorCode'
     )
     return
   }

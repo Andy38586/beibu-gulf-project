@@ -73,6 +73,18 @@ export interface RoutePathResult {
   distanceM: number
 }
 `
+// D29/A1 flood 分段跨语言：Python flood_realify.py 的 RISK_BANDS/RISK_CODE 手抄 TS 权威。
+const FLOOD_PY = `RISK_CODE = {"无风险": 0, "低风险": 1, "中风险": 2, "高风险": 3, "极高风险": 4, "灾难级": 5}
+
+RISK_BANDS = [
+    (0, "无风险"),
+    (2, "低风险"),
+    (4.3, "中风险"),
+    (6, "高风险"),
+    (8, "极高风险"),
+    (float("inf"), "灾难级"),
+]
+`
 
 describe('parseNumericConst — 数值常量解析', () => {
   it('解析水位上限', () => {
@@ -100,6 +112,7 @@ describe('auditSharedConstants — 跨进程常量一致性', () => {
     frontendCrs: FRONTEND_CRS,
     backendRoute: BACKEND_ROUTE,
     frontendRoute: FRONTEND_ROUTE,
+    floodPy: FLOOD_PY,
   }
 
   it('双侧一致 → 无问题', () => {
@@ -214,5 +227,36 @@ describe('风险分档逐档对账', () => {
       frontendFlood: FRONTEND_FLOOD.replace("label: '灾难级'", "label: '极高风险'"),
     })
     expect(problems.some((p) => p.includes('第 6 档漂移'))).toBe(true)
+  })
+})
+
+describe('flood 风险分段跨语言（TS ↔ PY · D29/A1）', () => {
+  const base = {
+    backendFlood: BACKEND_FLOOD,
+    frontendFlood: FRONTEND_FLOOD,
+    backendBiz: BACKEND_BIZ,
+    frontendBiz: FRONTEND_BIZ,
+    floodPy: FLOOD_PY,
+  }
+
+  it('@guard-red-sample PY 某档阈值漂移（4.3 → 5）⇒ 必红（指出第 3 档）', () => {
+    const problems = auditSharedConstants({
+      ...base,
+      floodPy: FLOOD_PY.replace('(4.3, "中风险")', '(5, "中风险")'),
+    })
+    expect(problems.some((p) => p.includes('第 3 档 TS↔PY 漂移'))).toBe(true)
+  })
+
+  it('@guard-red-sample PY 风险码表漂移（灾难级→2）⇒ 必红', () => {
+    const problems = auditSharedConstants({
+      ...base,
+      floodPy: FLOOD_PY.replace('"灾难级": 5', '"灾难级": 2'),
+    })
+    expect(problems.some((p) => p.includes('风险码表 PY 漂移'))).toBe(true)
+  })
+
+  it('@guard-red-sample PY 分档被删 ⇒ 解析失败必红（不许静默当通过）', () => {
+    const problems = auditSharedConstants({ ...base, floodPy: 'X = 1' })
+    expect(problems.some((p) => p.includes('Python 副本解析失败'))).toBe(true)
   })
 })

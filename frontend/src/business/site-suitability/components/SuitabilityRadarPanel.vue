@@ -13,7 +13,7 @@ import { RadarChart } from 'echarts/charts'
 import { TitleComponent, TooltipComponent } from 'echarts/components'
 import * as echarts from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 
 import { CHART_COLORS, EmptyState, useTheme } from '@/shared'
 import { useECharts } from '@/visualization'
@@ -91,7 +91,10 @@ function getOption(): Record<string, unknown> {
 
 // 容器用 v-if（有数据才挂载）：useECharts 的 init 是幂等的、且带 ResizeObserver，
 // 正是为 v-if 场景设计的用法；早前用 v-show + 手工 echarts.init 会按 0 尺寸初始化成空白图。
-const { chartRef } = useECharts({
+// chartRef 由组件声明并传入 useECharts（模板 v-if 绑定 + 脚本侧作入参消费；同 RadarChart 形态）。
+const chartRef = ref<HTMLElement | null>(null)
+useECharts({
+  chartRef,
   getOption,
   watchSources: [() => props.data, isDark],
   recomputeOptionOnResize: true,

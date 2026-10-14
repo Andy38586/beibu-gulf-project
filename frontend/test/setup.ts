@@ -1,6 +1,5 @@
 // 全局测试环境补丁：jsdom 缺失的浏览器 API + 测试环境 env 兜底
 //
-import { vi } from 'vitest'
 // ResizeObserver —— UnifiedMap.vue watchContainerSize（a043）依赖它观察地图容器尺寸。
 // jsdom 未实现 ResizeObserver，直接 `new ResizeObserver(...)` 会抛 ReferenceError，
 // 且抛错发生在赋值语句上导致变量保持 null、后续 watch 反复重试 →

@@ -23,6 +23,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { parseReportText } from './fetch-jtt-monthly.mjs'
+import { toCsv } from './lib/jtt-csv.mjs'
 
 export { tableToLines, buildTableLines, cumDiffCheck, normalizeOcrWord }
 
@@ -156,51 +157,6 @@ function buildTableLines(ocrJson) {
     lines.push(`${label} ${unit} ${nums.map((n) => n.t).join(' ')}`)
   }
   return lines
-}
-
-// ---------- CSV ----------
-function toCsv(records, modeOf) {
-  const head = [
-    'year',
-    'month',
-    'mode',
-    'cargo_fang_cum_10kt',
-    'cargo_fang_month_10kt',
-    'cargo_qin_cum_10kt',
-    'cargo_qin_month_10kt',
-    'cargo_bei_cum_10kt',
-    'cargo_bei_month_10kt',
-    'cargo_beibu_cum_10kt',
-    'cargo_beibu_month_10kt',
-    'container_beibu_cum_teu',
-    'container_beibu_month_teu',
-    'sum_check_pct',
-    'source_url',
-    'fetched_at',
-  ]
-  const rows = records
-    .sort((a, b) => a.year * 100 + a.month - (b.year * 100 + b.month))
-    .map((r) =>
-      [
-        r.year,
-        r.month,
-        modeOf(r),
-        r.fang_cargo?.cum ?? '',
-        r.fang_cargo?.month ?? '',
-        r.qin_cargo?.cum ?? '',
-        r.qin_cargo?.month ?? '',
-        r.bei_cargo?.cum ?? '',
-        r.bei_cargo?.month ?? '',
-        r.beibu_cargo?.cum ?? '',
-        r.beibu_cargo?.month ?? '',
-        r.beibu_container?.cum ?? '',
-        r.beibu_container?.month ?? '',
-        r.sum_check_pct ?? '',
-        r.source_url,
-        new Date().toISOString().slice(0, 10),
-      ].join(',')
-    )
-  return [head.join(','), ...rows].join('\n')
 }
 
 // ---------- 跨期一致性：同年相邻月 累计差分 ≈ 本月值 ----------

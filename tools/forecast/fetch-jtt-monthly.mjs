@@ -35,6 +35,8 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { toCsv } from './lib/jtt-csv.mjs'
+
 const COLUMN_BASE = 'https://jtt.gxzf.gov.cn/zfxxgk/fdzdgk/jttj/glslys/'
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) beibu-gulf-data-pipeline/1.0'
 
@@ -197,49 +199,6 @@ async function crawlReportUrls() {
   return urls
 }
 
-// ---------- CSV ----------
-function toCsv(records) {
-  const head = [
-    'year',
-    'month',
-    'cargo_fang_cum_10kt',
-    'cargo_fang_month_10kt',
-    'cargo_qin_cum_10kt',
-    'cargo_qin_month_10kt',
-    'cargo_bei_cum_10kt',
-    'cargo_bei_month_10kt',
-    'cargo_beibu_cum_10kt',
-    'cargo_beibu_month_10kt',
-    'container_beibu_cum_teu',
-    'container_beibu_month_teu',
-    'sum_check_pct',
-    'source_url',
-    'fetched_at',
-  ]
-  const rows = records
-    .sort((a, b) => a.year * 100 + a.month - (b.year * 100 + b.month))
-    .map((r) =>
-      [
-        r.year,
-        r.month,
-        r.fang_cargo?.cum ?? '',
-        r.fang_cargo?.month ?? '',
-        r.qin_cargo?.cum ?? '',
-        r.qin_cargo?.month ?? '',
-        r.bei_cargo?.cum ?? '',
-        r.bei_cargo?.month ?? '',
-        r.beibu_cargo?.cum ?? '',
-        r.beibu_cargo?.month ?? '',
-        r.beibu_container?.cum ?? '',
-        r.beibu_container?.month ?? '',
-        r.sum_check_pct ?? '',
-        r.source_url,
-        new Date().toISOString().slice(0, 10),
-      ].join(',')
-    )
-  return [head.join(','), ...rows].join('\n')
-}
-
 // ---------- 自检（真实公报原文，不触网） ----------
 function selftest() {
   // 形态一：2016-06（t3966599 检索原文）。列序 = 累计、本月、同比累计、同比本月
@@ -307,6 +266,8 @@ if (mode === '--selftest') {
   selftest()
 } else if (mode === '--crawl') {
   const outIdx = argv.indexOf('--out')
+  // 默认落 `.local/tmp/`（tools/README「输出物不进源码树」）：backend/data/forecast/ 是**已跟踪目录**，
+  // 产物写进去会污染 git status（审计 E 批 387「已跟踪数据目录」违规，潜伏）。
   const out =
     outIdx > 0
       ? argv[outIdx + 1]
@@ -314,9 +275,8 @@ if (mode === '--selftest') {
           path.dirname(fileURLToPath(import.meta.url)),
           '..',
           '..',
-          'backend',
-          'data',
-          'forecast',
+          '.local',
+          'tmp',
           'jtt_monthly.csv'
         )
   console.log('抓取栏目列表…')

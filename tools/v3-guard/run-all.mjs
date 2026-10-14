@@ -28,6 +28,7 @@ export const GUARDS = [
   'structure-check',
   'agent-docs-check',
   'routes-audit',
+  'compat-endpoints',
   'constants-audit',
   'css-lint-visibility',
   'forecast-confidence',

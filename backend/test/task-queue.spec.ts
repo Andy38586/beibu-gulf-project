@@ -454,12 +454,11 @@ describe('TaskQueue', () => {
     expect(captured).toEqual(['plain string'])
   })
 
-  it('drain 结束后队列清空且 isBusy 归位', async () => {
+  it('drain 结束后队列清空', async () => {
     const { hooks } = makeHooks({ run: async () => ({}) })
     const queue = new TaskQueue(hooks)
     queue.enqueue(job('t1'))
     await sleep(30)
-    expect(queue.isBusy).toBe(false)
     expect(queue.pendingCount).toBe(0)
   })
 
@@ -471,6 +470,5 @@ describe('TaskQueue', () => {
     queue.kick()
     await sleep(10)
     expect(run).not.toHaveBeenCalled()
-    expect(queue.isBusy).toBe(false)
   })
 })

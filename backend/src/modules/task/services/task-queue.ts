@@ -54,11 +54,6 @@ export class TaskQueue {
     return this.queue.length
   }
 
-  /** 是否正在执行 */
-  get isBusy(): boolean {
-    return this.draining
-  }
-
   /**
    * 入队并唤醒消费循环。
    * priority='high' ⇒ **插队首**（口径 #16：当前路由的任务优先）。

@@ -33,7 +33,7 @@ export function timeToYearFloat(time: string): number {
   return y + (m - 0.5) / 12
 }
 
-/** 锚点分段线性插值：首锚点前取 0（运河未通航），末锚点后持平（不外推发散） */
+/** 锚点分段线性插值：首锚点前持平首锚点值、末锚点后持平末锚点值（两端都不外推） */
 function interpolate(anchors: Array<[number, number]>, x: number): number {
   if (x <= anchors[0][0]) return anchors[0][1]
   const last = anchors[anchors.length - 1]

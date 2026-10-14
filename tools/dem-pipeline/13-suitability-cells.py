@@ -20,14 +20,16 @@ import os
 import json
 import subprocess
 import sys
+from pathlib import Path
 
 import numpy as np
 from osgeo import gdal, gdalconst, ogr, osr
 
 gdal.UseExceptions()
 
-LC = r"C:/workspace/beibu-gulf-project/.local/land-work/landcover_4490_30m.tif"
-OUT_SQL = r"C:/workspace/beibu-gulf-project/.local/land-work/suitability_cells.sql"
+REPO = str(Path(__file__).resolve().parents[2])
+LC = f"{REPO}/.local/land-work/landcover_4490_30m.tif"
+OUT_SQL = f"{REPO}/.local/land-work/suitability_cells.sql"
 
 PSQL = ["docker", "exec", "-i", "beibu-postgis", "psql", "-U", "postgres",
         "-d", "beibu-gulf-data", "-v", "ON_ERROR_STOP=1", "-qAt", "-c"]
@@ -61,7 +63,7 @@ def main():
     H, W = classes.shape
 
     drv = ogr.GetDriverByName("GPKG")
-    gpkg = r"C:/workspace/beibu-gulf-project/.local/land-work/suitability_staging.gpkg"
+    gpkg = f"{REPO}/.local/land-work/suitability_staging.gpkg"
     if os.path.exists(gpkg):
         drv.DeleteDataSource(gpkg)
     ds = drv.CreateDataSource(gpkg)
@@ -96,14 +98,14 @@ def main():
     print(f"land_class 命中 {n_cls}/{len(terrain)}（空洞/出图为 NULL）", flush=True)
 
     gdal.VectorTranslate(
-        r"C:/workspace/beibu-gulf-project/.local/land-work/suitability_staging.sql",
+        f"{REPO}/.local/land-work/suitability_staging.sql",
         gpkg,
         format="PGDump",
         layerName="cells",
         layerCreationOptions=["CREATE_TABLE=OFF", "GEOMETRY_NAME=geom", "SPATIAL_INDEX=NONE", "DROP_TABLE=OFF", "FID=oid"],
     )
     # 组装最终 SQL：staging 临时表 + 主表灌入 + KDE/可达内联
-    staging_sql = io.open(r"C:/workspace/beibu-gulf-project/.local/land-work/suitability_staging.sql", encoding="utf-8").read()
+    staging_sql = io.open(f"{REPO}/.local/land-work/suitability_staging.sql", encoding="utf-8").read()
     body = staging_sql.split("BEGIN;", 1)[1].rsplit("COMMIT;", 1)[0]
     body = body.replace('INSERT INTO "public"."cells"', "INSERT INTO cells_staging")
     final = f"""-- suitability_cells 物化 v2（13 脚本生成；土地主类=源栅格像素查得，绕开多边形包含）

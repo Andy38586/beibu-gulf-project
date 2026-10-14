@@ -12,8 +12,9 @@ from scipy import ndimage
 gdal.UseExceptions()
 
 import sys
+from pathlib import Path
 
-REPO = r"C:/workspace/beibu-gulf-project"
+REPO = str(Path(__file__).resolve().parents[2])
 CUT = sys.argv[1] if len(sys.argv) > 1 else rf"{REPO}/.local/dem-work/filled_utm48n_cut.tif"
 SEA = sys.argv[2] if len(sys.argv) > 2 else rf"{REPO}/.local/dem-sea-work/sea_custom.tif"
 OUT = sys.argv[3] if len(sys.argv) > 3 else rf"{REPO}/.local/dem-sea-work/landsea_utm48n.tif"

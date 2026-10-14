@@ -22,16 +22,18 @@ land_frac（陆像元占比）；全海块跳过。块中心 custom TM → 4490 
 """
 import os
 import sys
+from pathlib import Path
 
 from osgeo import gdal, ogr, osr, gdalconst
 
 gdal.UseExceptions()
 
-WORK = r"C:/workspace/beibu-gulf-project/.local/dem-sea-work"
+REPO = str(Path(__file__).resolve().parents[2])
+WORK = f"{REPO}/.local/dem-sea-work"
 # 权威件唯一读入点（2026-10-05 A2 裁定「归档替换 + 链重派生」）：防再次错代
-DEM = r"C:/workspace/beibu-gulf-project/backend/data/flood/dem/landsea_utm48n.tif"
+DEM = f"{REPO}/backend/data/flood/dem/landsea_utm48n.tif"
 SLOPE = f"{WORK}/slope.tif"
-CUT = r"C:/workspace/beibu-gulf-project/.local/dem-work/filled_utm48n_cut.tif"
+CUT = f"{REPO}/.local/dem-work/filled_utm48n_cut.tif"
 GPKG = f"{WORK}/terrain_factors.gpkg"
 SQL = f"{WORK}/terrain_factors_import.sql"
 NOD = 32767

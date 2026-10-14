@@ -34,7 +34,7 @@ from rasterio.transform import from_origin
 from rasterio.warp import transform as warp_transform
 from rasterio.windows import from_bounds
 
-REPO = Path(r"C:\workspace\beibu-gulf-project")
+REPO = Path(__file__).resolve().parents[2]
 OUT = REPO / ".local/926-rebake"
 DEM = REPO / ".local/dem-work/filled_utm48n_cut.tif"
 # 2026-10-05 统一基准后的椭球件（15-ellipsoid-shift.py 产物；命名约定 *_ell.tif）

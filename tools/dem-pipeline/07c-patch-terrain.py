@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """07c —— 用「工程后地表」重切受影响的 terrain 瓦片，并把 maxzoom 提到 14。
 
 为什么必须加密：渠槽底宽仅 80 m，而 z12 的网格间距约 70 m ⇒ 渠槽被欠采样，

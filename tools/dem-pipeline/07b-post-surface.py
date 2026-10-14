@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """07b —— 生成「工程后地表」栅格（只挖不填）。
 
 背景（2026-09-27）：平陆运河三枢纽现在是**已建成**状态，而 07-heightmap-reslice 用的

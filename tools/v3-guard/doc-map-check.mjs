@@ -331,14 +331,14 @@ function main() {
     console.error(`[doc-map-check] FAIL：登记表缺失 ${DOC_MAP_PATH}`)
     process.exit(1)
   }
-  const problems = auditDocMap(collect(missing))
+  const input = collect(missing)
+  const problems = auditDocMap(input)
   if (json) {
     console.log(JSON.stringify({ problems }, null, 1))
   } else if (problems.length) {
     console.error(`[doc-map-check] FAIL：${problems.length} 处`)
     for (const p of problems) console.error(`  - [${p.code}] ${p.msg}`)
   } else {
-    const input = collect(missing)
     const active = input.docs.filter((d) => d.status === 'active').length
     const planned = input.docs.filter((d) => d.status === 'planned' || d.status === 'stub').length
     console.log(

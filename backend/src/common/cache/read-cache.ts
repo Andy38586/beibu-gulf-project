@@ -4,9 +4,7 @@
 interface ReadCache<T> {
   get(key: string): T | undefined
   set(key: string, value: T): void
-  has(key: string): boolean
   clear(): void
-  readonly size: number
 }
 
 export function createReadCache<T>({ maxSize = 100, ttlMs = 5 * 60 * 1000 } = {}): ReadCache<T> {
@@ -30,18 +28,6 @@ export function createReadCache<T>({ maxSize = 100, ttlMs = 5 * 60 * 1000 } = {}
     cache.set(key, { value, cachedAt: Date.now() })
   }
 
-  function has(key: string): boolean {
-    // has 与 get 的 TTL 语义对齐：过期条目删除并返回 false，
-    // 避免 has() 为 true 而 get() 返回 undefined 的矛盾窗口
-    const entry = cache.get(key)
-    if (!entry) return false
-    if (Date.now() - entry.cachedAt > ttlMs) {
-      cache.delete(key)
-      return false
-    }
-    return true
-  }
-
   function clear(): void {
     cache.clear()
   }
@@ -49,10 +35,6 @@ export function createReadCache<T>({ maxSize = 100, ttlMs = 5 * 60 * 1000 } = {}
   return {
     get,
     set,
-    has,
     clear,
-    get size() {
-      return cache.size
-    },
   }
 }

@@ -136,17 +136,6 @@ export function registerCallRegex(methods = REGISTER_METHODS) {
   return new RegExp(`(^|[^.\\w])([A-Za-z_$][\\w$]*)\\.(${methods.join('|')})\\s*\\(`)
 }
 
-/** 卸载块里**不是**图层注销的调用 —— 卸载时它们完全正常，不能误伤 */
-const NON_LAYER_CALLS = new Set([
-  'clearTimeout',
-  'clearInterval',
-  'clearImmediate',
-  'removeEventListener',
-  'addEventListener',
-  'setTimeout',
-  'setInterval',
-])
-
 /**
  * 注销动词前缀。**不含 `dispose` / `teardown`** —— 它们更常出现在非图层资源上
  * （实测 `WaterLevelProfilePanel.vue:553` 的 `chartInstance.dispose()` 是 ECharts 实例销毁，
@@ -155,7 +144,9 @@ const NON_LAYER_CALLS = new Set([
 const TEARDOWN_VERB = /^(remove|release|clear|detach|purge|unregister)/i
 
 /**
- * 卸载钩子块内**允许**出现的调用（白名单）。
+ * 卸载钩子块内**允许**出现的调用（白名单）——**唯一的判据名单**。
+ * （原另有一份 `NON_LAYER_CALLS`「非图层调用」集合与之口径重叠，且已退化为只影响提示
+ * 文案；已并入本表口径，`looksLikeLayerTeardown` 改查本表。）
  *
  * ## 为什么反过来：白名单（默认拒绝）而不是识别注销（默认放行）
  *
@@ -241,7 +232,7 @@ export const UNMOUNT_ALLOWED = new Set([
  * 以 layer(s) 结尾也不在动词表里，天然不匹配 —— 无需为它们开豁免口。
  */
 export function looksLikeLayerTeardown(name) {
-  if (NON_LAYER_CALLS.has(name)) return false
+  if (UNMOUNT_ALLOWED.has(name)) return false
   if (/layers?$/i.test(name)) return true
   return TEARDOWN_VERB.test(name)
 }

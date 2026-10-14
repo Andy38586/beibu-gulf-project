@@ -272,3 +272,7 @@ backend/static/bridges-city/
 
 # 3D Tiles 资产改造任务表（2026-10-03 批，可勾选执行记录 + Web 端实测）
 !docs/3dtiles-改造任务表.md
+
+# 会话运行时产物：ZCode 忽略文件（同上方 .zcode/）+ agent 工作目录（非项目源码，不入库）
+.zcodeignore
+untitled-project/

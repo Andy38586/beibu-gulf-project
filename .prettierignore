@@ -57,3 +57,7 @@ pinglu-canal-3dtiles/
 docs/根基文档/04-防复发清单.md
 docs/根基文档/审查体系专项/审查体系约定.md
 docs/根基文档/审查体系专项/专项2-生命周期复查清单.md
+# 会话运行时产物（同 .zcode/ 先例）：ZCode 忽略文件无 parser，未忽略会让 format:check 直接报错；
+# agent 工作目录含运行时文件，非项目源码
+.zcodeignore
+untitled-project/

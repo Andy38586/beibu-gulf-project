@@ -20,9 +20,10 @@
  *
  * 用法：node tools/v3-guard/host-object-cast.mjs   # 违例 exit 1
  */
-import { execFileSync } from 'node:child_process'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+
+import { TS_VUE, collectCandidates } from './lib/collect-candidates.mjs'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const SCAN_DIRS = ['frontend/src', 'backend/src']
@@ -61,40 +62,13 @@ export function auditHostObjectCasts(files) {
   return problems
 }
 
-/** 候选文件：索引里含 `as unknown as` 的 .ts/.vue */
-export function collectCandidates() {
-  let listing = ''
-  try {
-    listing = execFileSync(
-      'git',
-      ['grep', '--cached', '-l', '-e', 'as unknown as', '--', ...SCAN_DIRS],
-      { cwd: ROOT, encoding: 'utf8' }
-    )
-  } catch {
-    return []
-  }
-  const out = []
-  for (const rel of listing.split(/\r?\n/)) {
-    const p = rel.trim()
-    if (!p || !/\.(ts|vue)$/.test(p)) continue
-    try {
-      out.push({
-        path: p,
-        text: execFileSync('git', ['show', `:${p}`], {
-          cwd: ROOT,
-          encoding: 'utf8',
-          maxBuffer: 32 << 20,
-        }),
-      })
-    } catch {
-      // 索引读不到：跳过（不假装读过）
-    }
-  }
-  return out
-}
-
 function main() {
-  const files = collectCandidates()
+  const files = collectCandidates({
+    root: ROOT,
+    tokens: ['as unknown as'],
+    pathspecs: SCAN_DIRS,
+    accept: TS_VUE,
+  })
   const problems = auditHostObjectCasts(files)
   if (problems.length) {
     console.error('[host-object-cast] 未通过：双断言写宿主对象属性')

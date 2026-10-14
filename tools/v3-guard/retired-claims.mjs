@@ -29,9 +29,10 @@
  *
  * 用法：node tools/v3-guard/retired-claims.mjs   # 违例 exit 1
  */
-import { execFileSync } from 'node:child_process'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+
+import { collectCandidates } from './lib/collect-candidates.mjs'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 
@@ -98,53 +99,13 @@ export function auditRetiredClaims(files) {
   return problems
 }
 
-/** 候选文件：索引里命中三个词条的判据面文件 */
-export function collectCandidates() {
-  let listing = ''
-  try {
-    listing = execFileSync(
-      'git',
-      [
-        'grep',
-        '--cached',
-        '-l',
-        '-e',
-        'FastAPI',
-        '-e',
-        'flood-online',
-        '-e',
-        'algorithm-service',
-        '--',
-        ...SURFACES,
-        ...EXCLUDES.map((e) => `:(exclude)${e}`),
-      ],
-      { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 << 20 }
-    )
-  } catch {
-    return []
-  }
-  const out = []
-  for (const rel of listing.split(/\r?\n/)) {
-    const p = rel.trim()
-    if (!p) continue
-    try {
-      out.push({
-        path: p,
-        text: execFileSync('git', ['show', `:${p}`], {
-          cwd: ROOT,
-          encoding: 'utf8',
-          maxBuffer: 64 << 20,
-        }),
-      })
-    } catch {
-      // 索引读不到：跳过（不假装读过）
-    }
-  }
-  return out
-}
-
 function main() {
-  const files = collectCandidates()
+  const files = collectCandidates({
+    root: ROOT,
+    tokens: ['FastAPI', 'flood-online', 'algorithm-service'],
+    pathspecs: [...SURFACES, ...EXCLUDES.map((e) => `:(exclude)${e}`)],
+    maxBuffer: 64 << 20,
+  })
   const problems = auditRetiredClaims(files)
   if (problems.length) {
     console.error(`[retired-claims] 未通过：${problems.length} 处退役机制以在役口吻残留`)

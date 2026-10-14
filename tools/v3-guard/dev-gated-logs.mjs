@@ -17,9 +17,10 @@
  *
  * 用法：node tools/v3-guard/dev-gated-logs.mjs   # 违例 exit 1
  */
-import { execFileSync } from 'node:child_process'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+
+import { TS_VUE, collectCandidates } from './lib/collect-candidates.mjs'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const SCAN_DIR = 'frontend/src'
@@ -49,40 +50,13 @@ export function auditDevGatedLogs(files, { lookahead = 3 } = {}) {
   return problems
 }
 
-/** 候选文件：索引里含 `import.meta.env.DEV` 的 ts/vue */
-export function collectCandidates() {
-  let listing = ''
-  try {
-    listing = execFileSync(
-      'git',
-      ['grep', '--cached', '-l', '-e', 'import.meta.env.DEV', '--', SCAN_DIR],
-      { cwd: ROOT, encoding: 'utf8' }
-    )
-  } catch {
-    return []
-  }
-  const out = []
-  for (const rel of listing.split(/\r?\n/)) {
-    const p = rel.trim()
-    if (!p || !/\.(ts|vue)$/.test(p)) continue
-    try {
-      out.push({
-        path: p,
-        text: execFileSync('git', ['show', `:${p}`], {
-          cwd: ROOT,
-          encoding: 'utf8',
-          maxBuffer: 32 << 20,
-        }),
-      })
-    } catch {
-      // 索引读不到：跳过（不假装读过）
-    }
-  }
-  return out
-}
-
 function main() {
-  const files = collectCandidates()
+  const files = collectCandidates({
+    root: ROOT,
+    tokens: ['import.meta.env.DEV'],
+    pathspecs: [SCAN_DIR],
+    accept: TS_VUE,
+  })
   const problems = auditDevGatedLogs(files)
   if (problems.length) {
     console.error('[dev-gated-logs] 未通过：生产可观测被 DEV 门控')

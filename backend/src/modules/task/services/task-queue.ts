@@ -1,12 +1,7 @@
 import { Logger } from '@nestjs/common'
 
 import { sanitizeDetail } from '../../../common/utils/sanitize-detail'
-import {
-  TASK_CONCURRENCY,
-  TASK_RETRY_BACKOFF_MS,
-  type TaskDomain,
-  type TaskPriority,
-} from '../types/task'
+import { TASK_RETRY_BACKOFF_MS, type TaskDomain, type TaskPriority } from '../types/task'
 
 /** 队列项：任务执行所需的最小信息（不含状态，状态在注册表中） */
 export interface TaskJob {
@@ -114,9 +109,6 @@ export class TaskQueue {
    * 结构说明：`draining` 在 finally 里归位 —— 这一步很关键。若在循环出口处归位，
    * 则 `finally` 与出口之间的新任务会看到 `draining=true` 而被永久搁置
    *（「队列有任务但没人消费」的静默卡死）。归位后再 kick 一次兜住这个窗口。
-   *
-   * TASK_CONCURRENCY 固定是 1，这里写成循环内 while + 常量判断，是为了让「如果将来
-   * 要放开并发，改哪里」显式可见；当前**不允许**改（总纲 §四明确串行）。
    */
   private async drain(): Promise<void> {
     this.draining = true
@@ -125,8 +117,6 @@ export class TaskQueue {
         const job = this.queue.shift()
         if (!job) break
         await this.execute(job)
-        // 串行上限：即使将来 TASK_CONCURRENCY 变大，这个 await 也保证了一次只有一个在飞
-        if (TASK_CONCURRENCY <= 0) break
       }
     } finally {
       this.draining = false

@@ -29,11 +29,6 @@ const OPTIONAL_SCENARIO_PROP: ApiPropertyOptions = {
   description: '运河情景（可选）：baseline | design | median | induced；仅 cargo 指标生效',
 }
 
-/** 查询参数兜底形态：非对象（含 null）一律落空记录；两个 parse 共用 */
-function queryRecord(raw: unknown): Record<string, unknown> {
-  return asRecord(raw)
-}
-
 /** GET /forecast/map 查询参数 */
 export class ForecastMapQuery {
   @ApiProperty(INDICATOR_PROP)
@@ -51,7 +46,7 @@ export class ForecastMapQuery {
   scenario?: string
 
   static parse(raw: unknown): ForecastMapQuery {
-    const q = queryRecord(raw)
+    const q = asRecord(raw)
     const { indicator, time, confidence, scenario } = q
 
     if (!indicator || !time) {
@@ -92,7 +87,7 @@ export class ForecastTimeseriesQuery {
   scenario?: string
 
   static parse(raw: unknown): ForecastTimeseriesQuery {
-    const q = queryRecord(raw)
+    const q = asRecord(raw)
     const { indicator, portId, start, end, granularity, confidence, scenario } = q
 
     if (!indicator) {

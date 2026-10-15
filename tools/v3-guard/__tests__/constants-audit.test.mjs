@@ -56,6 +56,9 @@ const FRONTEND_CRS = `export const BEIBU_GULF_BBOX = {
   maxLat: 25.0,
 } as const
 `
+// D29 tools 侧唯一来源：`.mjs` 无 `as const` 也要能解析。
+const TOOLS_GULF = `export const GULF_BOUNDS = { minLng: 105, maxLng: 115, minLat: 18, maxLat: 25 }
+`
 // D4② 寻路权重口径：后端 MODE_WEIGHT 键为权威；前端两处手抄 mode 联合。
 const BACKEND_ROUTE = `const MODE_WEIGHT = {
   distance: { cost: 'cost_m', reverseCost: 'reverse_cost_m' },
@@ -113,6 +116,7 @@ describe('auditSharedConstants — 跨进程常量一致性', () => {
     backendRoute: BACKEND_ROUTE,
     frontendRoute: FRONTEND_ROUTE,
     floodPy: FLOOD_PY,
+    toolsGulfBounds: TOOLS_GULF,
   }
 
   it('双侧一致 → 无问题', () => {
@@ -170,6 +174,15 @@ describe('auditSharedConstants — 跨进程常量一致性', () => {
   it('@guard-red-sample 边界框常量被改名 ⇒ 解析失败必红（不许静默当通过）', () => {
     const problems = auditSharedConstants({ ...base, backendGis: 'export const X = 1' })
     expect(problems.some((p) => p.includes('业务边界框解析失败'))).toBe(true)
+  })
+
+  it('@guard-red-sample tools 侧业务边界漂移（maxLng 115→112）⇒ 必红（D29 唯一来源）', () => {
+    const problems = auditSharedConstants({
+      ...base,
+      toolsGulfBounds:
+        'export const GULF_BOUNDS = { minLng: 105, maxLng: 112, minLat: 18, maxLat: 25 }',
+    })
+    expect(problems.some((p) => p.includes('tools 侧漂移') && p.includes('maxLng'))).toBe(true)
   })
 
   it('@guard-red-sample MAX_WATER_LEVEL 前端漂移（曾写死 15）→ 报问题', () => {

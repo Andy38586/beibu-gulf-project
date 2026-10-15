@@ -10,6 +10,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { GULF_BOUNDS } from '../lib/gulf-bounds.mjs'
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const DATA_DIR = path.resolve(__dirname, '..', '..', 'backend', 'data', 'forecast')
 
@@ -26,7 +28,8 @@ export const PORT_COORDS = {
   fangchenggang: { name: '防城港', lng: 108.340973, lat: 21.617689 },
 }
 
-export const GULF_BOUNDS = { minLng: 105, maxLng: 115, minLat: 18, maxLat: 25 }
+// 业务边界：tools 侧唯一来源（权威 = backend GULF_BOUNDS，由 constants-audit 对账）；此处再导出供测试消费
+export { GULF_BOUNDS }
 
 // ===== 时间工具（与服务层 model-loader 同算法） =====
 export function monthOffset(time) {

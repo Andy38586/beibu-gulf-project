@@ -24,6 +24,8 @@ const FRONTEND_CRS = 'frontend/src/shared/utils/crs.ts'
 // `tools/flood/flood_realify.py` 的 `RISK_BANDS`/`RISK_CODE` 是手抄副本（生成侧离线跑、不在 CI），
 // 此前只靠注释挂接 —— 改 TS 一侧 PY 不报错，须逐档对账。
 const FLOOD_PY_REALIFY = 'tools/flood/flood_realify.py'
+// D29：tools 侧业务边界的**唯一来源**（工具脚本统一从这里取；权威仍是 backend GULF_BOUNDS）。
+const TOOLS_GULF_BOUNDS = 'tools/lib/gulf-bounds.mjs'
 // D4②：寻路权重口径。后端 MODE_WEIGHT 的键为权威；前端 types/route.ts 里 mode 的
 // 字面量联合是手抄（当前两处：RoutePathParams.mode 与 RoutePathResult.mode）。
 const BACKEND_ROUTE_MODES = 'backend/src/modules/route/repositories/route.repository.ts'
@@ -103,8 +105,9 @@ export function parsePyRiskCode(content) {
  * 前端注释写着"与后端同源"——注释不是判据，本函数把它变成逐字段对账。
  */
 export function parseBounds(content, name) {
+  // `.mjs` 侧无 `as const`、且工具脚本未必 `export` ⇒ 两处放宽（对既有 TS 侧无影响）
   const block = content.match(
-    new RegExp(`export const ${name}\\s*=\\s*\\{([\\s\\S]*?)\\}\\s*as const`)
+    new RegExp(`(?:export\\s+)?const ${name}\\s*=\\s*\\{([\\s\\S]*?)\\}\\s*(?:as const)?`)
   )
   if (!block) return null
   const out = {}
@@ -209,6 +212,21 @@ export function auditSharedConstants(files) {
       }
     }
   }
+  // tools 侧业务边界单一来源（D29）：`tools/lib/gulf-bounds.mjs` 是工具脚本的唯一取处，
+  // 须与后端 GULF_BOUNDS 逐字段一致（此前 derive-activity / restore-poi-xiaoqu 各自手抄）。
+  const toolsBbox = parseBounds(files.toolsGulfBounds ?? '', 'GULF_BOUNDS')
+  if (!toolsBbox) {
+    problems.push('业务边界框 tools 侧来源解析失败：tools/lib/gulf-bounds.mjs（常量被改名/删除？）')
+  } else if (backendBbox) {
+    for (const key of ['minLng', 'maxLng', 'minLat', 'maxLat']) {
+      if (backendBbox[key] !== toolsBbox[key]) {
+        problems.push(
+          `业务边界框 ${key} tools 侧漂移：tools/lib/gulf-bounds.mjs=${toolsBbox[key]} ` +
+            `backend(权威)=${backendBbox[key]}`
+        )
+      }
+    }
+  }
   // 寻路权重口径（D4②）：后端 MODE_WEIGHT 键为权威，前端 mode 字面量联合须逐处一致。
   // 此前前端 'distance'|'time' 手抄两处、后端第三处，三处无守卫——
   // 后端加一个 mode 前端不会报错（只是不提供该选项），前端加一个后端只会 400。
@@ -275,11 +293,12 @@ function main() {
     backendRoute: read(BACKEND_ROUTE_MODES),
     frontendRoute: read(FRONTEND_ROUTE_TYPES),
     floodPy: read(FLOOD_PY_REALIFY),
+    toolsGulfBounds: read(TOOLS_GULF_BOUNDS),
   })
   if (problems.length === 0) {
     console.log(
-      '[constants-audit] OK：水位上限/业务边界框/寻路 mode 双侧一致、flood 分段 TS↔PY 一致，' +
-        '前端业务码 ⊆ 后端 ErrorCode'
+      '[constants-audit] OK：水位上限/业务边界框（含 tools 侧）/寻路 mode 双侧一致、' +
+        'flood 分段 TS↔PY 一致，前端业务码 ⊆ 后端 ErrorCode'
     )
     return
   }

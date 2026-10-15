@@ -16,6 +16,8 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
+import { GULF_BOUNDS as GULF } from '../lib/gulf-bounds.mjs'
+
 // 快照目录：BEIBU_POI_SNAPSHOT 优先；缺省 .local/data/poi-snapshot（外置快照不随仓库分发）
 const SRC =
   process.env.BEIBU_POI_SNAPSHOT ??
@@ -34,8 +36,7 @@ const POI_TYPES = [
   'mall',
   'port_pier',
 ]
-// 北部湾业务边界（与 db-import GULF_BOUNDS 同值副本，导入期坐标守卫）
-const GULF = { minLng: 105, maxLng: 115, minLat: 18, maxLat: 25 }
+// 北部湾业务边界：导入期坐标守卫；值来自 tools 侧唯一来源（权威 = backend GULF_BOUNDS，由 constants-audit 对账）
 
 const esc = (v) => (v == null ? 'NULL' : `'${String(v).replaceAll("'", "''")}'`)
 const pt = (lng, lat) => `ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4490)`

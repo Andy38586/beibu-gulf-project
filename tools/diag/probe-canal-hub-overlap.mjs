@@ -11,50 +11,10 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 import { gltfToEnu } from '../3dtiles-build/glb.mjs'
+import { accessor, readGLB } from '../lib/glb.mjs'
 
 const TILES = 'backend/static/pinglu/tiles'
 const CANAL = 'backend/static/pinglu/canal'
-
-function loadGLB(file) {
-  const b = fs.readFileSync(file)
-  const jl = b.readUInt32LE(12)
-  const json = JSON.parse(b.subarray(20, 20 + jl).toString('utf8'))
-  let bin = Buffer.alloc(0)
-  let off = 20 + jl
-  while (off + 8 <= b.length) {
-    const len = b.readUInt32LE(off)
-    const type = b.subarray(off + 4, off + 8).toString('ascii')
-    if (type === 'BIN\u0000') bin = b.subarray(off + 8, off + 8 + len)
-    off += 8 + len + ((4 - (len % 4)) % 4)
-  }
-  return { json, bin }
-}
-const CTYPE = {
-  5120: Int8Array,
-  5121: Uint8Array,
-  5122: Int16Array,
-  5123: Uint16Array,
-  5125: Uint32Array,
-  5126: Float32Array,
-}
-const CSIZE = { VEC2: 2, VEC3: 3, VEC4: 4, SCALAR: 1 }
-function readAccessor({ json, bin }, idx) {
-  const a = json.accessors[idx]
-  const bv = json.bufferViews[a.bufferView]
-  const T = CTYPE[a.componentType]
-  const n = CSIZE[a.type]
-  const start = (bv.byteOffset ?? 0) + (a.byteOffset ?? 0)
-  const out = []
-  const dv = new DataView(bin.buffer, bin.byteOffset + start, a.count * n * T.BYTES_PER_ELEMENT)
-  for (let i = 0; i < a.count; i++)
-    for (let k = 0; k < n; k++)
-      out.push(
-        dv[
-          `get${T === Float32Array ? 'Float32' : T === Uint16Array ? 'Uint16' : T === Uint32Array ? 'Uint32' : T === Uint8Array ? 'Uint8' : 'Int16'}`
-        ](i * n * T.BYTES_PER_ELEMENT + k * T.BYTES_PER_ELEMENT, true)
-      )
-  return out
-}
 const mul = (a, b) => {
   const o = new Array(16).fill(0)
   for (let c = 0; c < 4; c++)
@@ -74,13 +34,13 @@ const I4 = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
 
 /** 某 GLB 内按材质名收集顶点的 ENU 坐标（含矩阵链） */
 function collect(file, M, matRe) {
-  const g = loadGLB(file)
+  const g = readGLB(file)
   const pts = []
   for (const mesh of g.json.meshes ?? [])
     for (const prim of mesh.primitives ?? []) {
       const mname = g.json.materials?.[prim.material]?.name ?? ''
       if (!matRe.test(mname)) continue
-      const pos = readAccessor(g, prim.attributes.POSITION)
+      const pos = accessor(g.json, g.bin, prim.attributes.POSITION)
       for (let i = 0; i < pos.length; i += 3) {
         const enu = xf(M, gltfToEnu(pos[i], pos[i + 1], pos[i + 2]))
         pts.push({ x: enu[0], z: enu[1], y: enu[2], m: mname })

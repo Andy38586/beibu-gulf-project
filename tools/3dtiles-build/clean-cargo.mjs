@@ -20,54 +20,11 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { buildGLB } from './glb.mjs'
+import { accessor, readGLB } from '../lib/glb.mjs'
 
 const TILE_DIR = 'backend/static/qinzhou-port/tiles'
 /** 要摘的材质名（实测交付包里集装箱统一用 cargo） */
 const DROP_MATERIALS = new Set(['cargo'])
-
-const CS = { 5120: 1, 5121: 1, 5122: 2, 5123: 2, 5125: 4, 5126: 4 }
-const NC = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4 }
-
-function readGLB(p) {
-  const buf = fs.readFileSync(p)
-  let off = 12,
-    json = null,
-    bin = null
-  while (off + 8 <= buf.length) {
-    const len = buf.readUInt32LE(off),
-      type = buf.readUInt32LE(off + 4)
-    const d = buf.subarray(off + 8, off + 8 + len)
-    if (type === 0x4e4f534a) json = JSON.parse(d.toString('utf8'))
-    else if (type === 0x004e4942) bin = d
-    off += 8 + len + ((4 - (len % 4)) % 4)
-  }
-  return { json, bin }
-}
-
-function readAccessor(j, bin, ai) {
-  const a = j.accessors[ai],
-    bv = j.bufferViews[a.bufferView]
-  const nc = NC[a.type],
-    sz = CS[a.componentType]
-  const stride = bv.byteStride || sz * nc
-  const base = (bv.byteOffset || 0) + (a.byteOffset || 0)
-  const out = new Array(a.count * nc)
-  const rd = (o) =>
-    a.componentType === 5126
-      ? bin.readFloatLE(o)
-      : a.componentType === 5125
-        ? bin.readUInt32LE(o)
-        : a.componentType === 5123
-          ? bin.readUInt16LE(o)
-          : a.componentType === 5122
-            ? bin.readInt16LE(o)
-            : a.componentType === 5120
-              ? bin.readInt8(o)
-              : bin.readUInt8(o)
-  for (let i = 0; i < a.count; i++)
-    for (let c = 0; c < nc; c++) out[i * nc + c] = rd(base + i * stride + c * sz)
-  return { data: out, nc, count: a.count, componentType: a.componentType, type: a.type }
-}
 
 /** 摘掉 cargo 后重建一个 GLB；返回 { buffer, kept, dropped, tris } */
 export function cleanTile(file) {
@@ -88,12 +45,12 @@ export function cleanTile(file) {
         continue
       }
       kept++
-      const pos = readAccessor(json, bin, pr.attributes.POSITION)
+      const pos = accessor(json, bin, pr.attributes.POSITION)
       const nrm =
-        pr.attributes.NORMAL !== undefined ? readAccessor(json, bin, pr.attributes.NORMAL) : null
+        pr.attributes.NORMAL !== undefined ? accessor(json, bin, pr.attributes.NORMAL) : null
       const col =
-        pr.attributes.COLOR_0 !== undefined ? readAccessor(json, bin, pr.attributes.COLOR_0) : null
-      const idx = pr.indices !== undefined ? readAccessor(json, bin, pr.indices) : null
+        pr.attributes.COLOR_0 !== undefined ? accessor(json, bin, pr.attributes.COLOR_0) : null
+      const idx = pr.indices !== undefined ? accessor(json, bin, pr.indices) : null
       if (!matIndex.has(pr.material)) {
         matIndex.set(pr.material, keptMaterials.length)
         keptMaterials.push(
@@ -102,15 +59,15 @@ export function cleanTile(file) {
           }
         )
       }
-      const indices = idx ? idx.data : Array.from({ length: pos.count }, (_, i) => i)
+      const indices = idx ?? Array.from({ length: pos.length / 3 }, (_, i) => i)
       tris += indices.length / 3
       const prim = {
-        positions: pos.data,
+        positions: pos,
         indices,
         material: matIndex.get(pr.material),
       }
-      if (nrm) prim.normals = nrm.data
-      if (col) prim.colors = col.data
+      if (nrm) prim.normals = nrm
+      if (col) prim.colors = col
       prims.push(prim)
     }
     if (prims.length) meshes.push({ primitives: prims })

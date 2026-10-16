@@ -23,7 +23,7 @@
  */
 import fs from 'node:fs'
 import path from 'node:path'
-import { readGLB } from '../3dtiles-build/glb-read.mjs'
+import { readGLB } from '../lib/glb.mjs'
 import { gltfToEnu } from '../3dtiles-build/glb.mjs'
 import { ecefToGeo, makeToEnu } from '../lib/geo.mjs'
 

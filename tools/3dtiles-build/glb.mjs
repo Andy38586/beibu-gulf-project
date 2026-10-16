@@ -47,8 +47,7 @@ export function enuNormalToGltf(e, n, u) {
 /** glTF Y-up 竖直方向（ENU 的 +U）——平铺面片（路面/运河带）的法线 */
 export const GLTF_UP = enuNormalToGltf(0, 0, 1)
 
-const CS = { 5121: 1, 5123: 2, 5125: 4, 5126: 4 }
-const NC = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4 }
+import { BIN_CHUNK, CS, GLB_MAGIC, JSON_CHUNK, NC } from '../lib/glb.mjs'
 
 function pad4(n) {
   return (4 - (n % 4)) % 4
@@ -184,15 +183,15 @@ export function buildGLB(spec) {
   const binBuf = Buffer.concat(chunks)
   const total = 12 + 8 + jsonBuf.length + 8 + binBuf.length
   const head = Buffer.alloc(12)
-  head.writeUInt32LE(0x46546c67, 0)
+  head.writeUInt32LE(GLB_MAGIC, 0)
   head.writeUInt32LE(2, 4)
   head.writeUInt32LE(total, 8)
   const jh = Buffer.alloc(8)
   jh.writeUInt32LE(jsonBuf.length, 0)
-  jh.writeUInt32LE(0x4e4f534a, 4)
+  jh.writeUInt32LE(JSON_CHUNK, 4)
   const bh = Buffer.alloc(8)
   bh.writeUInt32LE(binBuf.length, 0)
-  bh.writeUInt32LE(0x004e4942, 4)
+  bh.writeUInt32LE(BIN_CHUNK, 4)
   return Buffer.concat([head, jh, jsonBuf, bh, binBuf])
 }
 

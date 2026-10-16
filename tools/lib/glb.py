@@ -1,6 +1,6 @@
 """GLB（binary glTF 2.0）读链 —— tools 侧 Python 唯一来源。
 
-与 JS 侧 `tools/3dtiles-build/glb-read.mjs` 同口径：只切 JSON 块与 BIN 块，不校验 magic / version。
+与 JS 侧 `tools/lib/glb.mjs` 同口径：只切 JSON 块与 BIN 块，不校验 magic / version。
 
 - `read_glb(path)` → `(json, bin)`：`json` 是 dict，`bin` 是 `bytes`（不可变）；
   要就地改 BIN 的站点自己 `bytearray(bin)`（现只有 preview-roads-vertfollow.py 一处）。

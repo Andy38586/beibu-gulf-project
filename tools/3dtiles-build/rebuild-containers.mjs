@@ -23,6 +23,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { accessor, readGLB } from '../lib/glb.mjs'
 import { buildGLB, enuToGltf } from './glb.mjs'
 import { CONTAINER_TYPES } from './container-models.mjs'
 import { makeEnuToLngLat } from '../lib/geo.mjs'
@@ -32,62 +33,6 @@ const TILE_DIR = 'backend/static/qinzhou-port/tiles'
 const OP_CENTER = [1014.26, 2159.18]
 const OP_RADIUS = 1500
 const LAYER_H = 2.591
-
-/* ---------- 极简 GLB 读 ---------- */
-function readGLB(p) {
-  const buf = fs.readFileSync(p)
-  let off = 12,
-    json = null,
-    bin = null
-  while (off + 8 <= buf.length) {
-    const len = buf.readUInt32LE(off),
-      type = buf.readUInt32LE(off + 4)
-    const d = buf.subarray(off + 8, off + 8 + len)
-    if (type === 0x4e4f534a) json = JSON.parse(d.toString('utf8'))
-    else if (type === 0x004e4942) bin = d
-    off += 8 + len + ((4 - (len % 4)) % 4)
-  }
-  return { json, bin }
-}
-const CS = { 5120: 1, 5121: 1, 5122: 2, 5123: 2, 5125: 4, 5126: 4 }
-const NC = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4 }
-function readAccessor(j, bin, ai) {
-  const a = j.accessors[ai],
-    bv = j.bufferViews[a.bufferView]
-  const nc = NC[a.type],
-    sz = CS[a.componentType]
-  const stride = bv.byteStride || sz * nc
-  const base = (bv.byteOffset || 0) + (a.byteOffset || 0)
-  const out = new Float64Array(a.count * nc)
-  const rd = (o) =>
-    a.componentType === 5126
-      ? bin.readFloatLE(o)
-      : a.componentType === 5125
-        ? bin.readUInt32LE(o)
-        : a.componentType === 5123
-          ? bin.readUInt16LE(o)
-          : bin.readUInt8(o)
-  for (let i = 0; i < a.count; i++)
-    for (let c = 0; c < nc; c++) out[i * nc + c] = rd(base + i * stride + c * sz)
-  return { data: out, nc, count: a.count }
-}
-function readIndices(j, bin, ai) {
-  const a = j.accessors[ai],
-    bv = j.bufferViews[a.bufferView]
-  const sz = CS[a.componentType],
-    base = (bv.byteOffset || 0) + (a.byteOffset || 0)
-  const out = new Uint32Array(a.count)
-  for (let i = 0; i < a.count; i++) {
-    const o = base + i * sz
-    out[i] =
-      a.componentType === 5125
-        ? bin.readUInt32LE(o)
-        : a.componentType === 5123
-          ? bin.readUInt16LE(o)
-          : bin.readUInt8(o)
-  }
-  return out
-}
 
 /* ---------- 提取箱区 ---------- */
 const Q = 0.25
@@ -112,18 +57,18 @@ function extractBlocks(tileDir) {
       for (const pr of m.primitives ?? []) {
         const matName = json.materials?.[pr.material]?.name ?? ''
         if (matName !== 'cargo') continue
-        const pos = readAccessor(json, bin, pr.attributes.POSITION)
-        const idx = pr.indices !== undefined ? readIndices(json, bin, pr.indices) : null
-        const N = pos.count
+        const pos = accessor(json, bin, pr.attributes.POSITION)
+        const idx = pr.indices !== undefined ? accessor(json, bin, pr.indices) : null
+        const N = pos.length / 3
         const key = new Array(N),
           map = new Map()
         for (let i = 0; i < N; i++) {
           const k =
-            Math.round(pos.data[i * 3] / Q) +
+            Math.round(pos[i * 3] / Q) +
             '|' +
-            Math.round(pos.data[i * 3 + 1] / Q) +
+            Math.round(pos[i * 3 + 1] / Q) +
             '|' +
-            Math.round(pos.data[i * 3 + 2] / Q)
+            Math.round(pos[i * 3 + 2] / Q)
           if (!map.has(k)) map.set(k, [])
           map.get(k).push(i)
           key[i] = k
@@ -166,9 +111,9 @@ function extractBlocks(tileDir) {
             z0 = 1e18,
             z1 = -1e18
           for (const i of ids) {
-            const x = pos.data[i * 3],
-              y = pos.data[i * 3 + 1],
-              z = pos.data[i * 3 + 2]
+            const x = pos[i * 3],
+              y = pos[i * 3 + 1],
+              z = pos[i * 3 + 2]
             if (x < x0) x0 = x
             if (x > x1) x1 = x
             if (y < y0) y0 = y
@@ -193,14 +138,14 @@ function extractBlocks(tileDir) {
             mx = 0,
             my = 0
           for (const i of ids) {
-            mx += pos.data[i * 3]
-            my += -pos.data[i * 3 + 2]
+            mx += pos[i * 3]
+            my += -pos[i * 3 + 2]
           }
           mx /= ids.length
           my /= ids.length
           for (const i of ids) {
-            const dx = pos.data[i * 3] - mx,
-              dy = -pos.data[i * 3 + 2] - my
+            const dx = pos[i * 3] - mx,
+              dy = -pos[i * 3 + 2] - my
             sxx += dx * dx
             sxy += dx * dy
             syy += dy * dy
@@ -215,8 +160,8 @@ function extractBlocks(tileDir) {
             s0 = 1e18,
             s1 = -1e18
           for (const i of ids) {
-            const dx = pos.data[i * 3] - mx,
-              dy = -pos.data[i * 3 + 2] - my
+            const dx = pos[i * 3] - mx,
+              dy = -pos[i * 3 + 2] - my
             const pl = dx * ca + dy * sa
             const ps = -dx * sa + dy * ca
             if (pl < l0) l0 = pl
@@ -339,10 +284,10 @@ export function rebuild({ outDir, cellSize = 400, modelsDir }) {
     const pr = json.meshes[0].primitives[0]
     models[t.key] = {
       geo: {
-        positions: readAccessor(json, bin, pr.attributes.POSITION).data,
-        normals: readAccessor(json, bin, pr.attributes.NORMAL).data,
-        colors: readAccessor(json, bin, pr.attributes.COLOR_0).data,
-        indices: readIndices(json, bin, pr.indices),
+        positions: accessor(json, bin, pr.attributes.POSITION),
+        normals: accessor(json, bin, pr.attributes.NORMAL),
+        colors: accessor(json, bin, pr.attributes.COLOR_0),
+        indices: accessor(json, bin, pr.indices),
       },
       color: t.color,
     }

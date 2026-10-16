@@ -25,10 +25,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 
-import { readGLB } from './glb-read.mjs'
+import { accessor, readGLB } from '../lib/glb.mjs'
 
-const CS = { 5120: 1, 5121: 1, 5122: 2, 5123: 2, 5125: 4, 5126: 4 }
-const NC = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4 }
 export const REF_MATS = new Set(['rail', 'concrete', 'opaque'])
 export const REF_CELL = 4
 export const REF_RADIUS = 48
@@ -72,18 +70,11 @@ export function buildGroundRef({
       for (const pr of m.primitives ?? []) {
         const name = json.materials?.[pr.material]?.name ?? ''
         if (!mats.has(name)) continue
-        const a = json.accessors[pr.attributes.POSITION]
-        if (!a) continue
-        const bv = json.bufferViews[a.bufferView]
-        const nc = NC[a.type]
-        const sz = CS[a.componentType]
-        const stride = bv.byteStride || sz * nc
-        const base = (bv.byteOffset ?? 0) + (a.byteOffset ?? 0)
-        for (let i = 0; i < a.count; i++) {
-          const off = base + i * stride
-          const E = bin.readFloatLE(off)
-          const U = bin.readFloatLE(off + sz)
-          const Z = bin.readFloatLE(off + 2 * sz)
+        const p = accessor(json, bin, pr.attributes.POSITION)
+        for (let i = 0; i < p.length / 3; i++) {
+          const E = p[i * 3]
+          const U = p[i * 3 + 1]
+          const Z = p[i * 3 + 2]
           const N = -Z
           if (band && (U < band[0] || U > band[1])) continue
           const k = key(Math.floor(E / cell), Math.floor(N / cell))

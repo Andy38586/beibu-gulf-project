@@ -222,7 +222,7 @@
       "id": "EXTERNAL-DEPS",
       "path": "docs/日志/状态/外部依赖登记.md",
       "layer": "日志",
-      "role": "W6 外部依赖与用户执行指令单登记（E-1…E-7 六段模板；登记即从 S1 销账）",
+      "role": "W6 外部依赖与用户执行指令单登记（E-1…E-8 六段模板；登记即从 S1 销账）",
       "status": "active",
       "guard": "tools/v3-guard/doc-map-check.mjs",
       "owns": ["外部依赖执行状态与销账映射"],

@@ -12,7 +12,7 @@
 实测（2026-10-03，.local/3d-review/band-dir.py）：马道 +35.8°、企石 -6.5°、青年 +11.2°。
 用法：python tools/3dtiles-build/reframe-hubs.py [--apply]
 """
-import json, os, struct, math, sys
+import json, os, math, sys
 import numpy as np
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -20,24 +20,10 @@ TILES = os.path.join(ROOT, 'backend/static/pinglu/tiles/tileset.json')
 CANAL = os.path.join(ROOT, 'backend/static/pinglu/canal')
 sys.path.insert(0, os.path.join(ROOT, 'tools', 'lib'))
 from geo import DEG_M_LAT, DEG_M_LNG, ecef_to_geo  # noqa: E402
+from glb import accessor, read_glb  # noqa: E402
 APPLY = '--apply' in sys.argv
 
-def read_glb(p):
-    b = open(p, 'rb').read(); off, js, bin_ = 12, None, None
-    while off + 8 <= len(b):
-        ln, ty = struct.unpack_from('<II', b, off)
-        d = b[off + 8:off + 8 + ln]
-        if ty == 0x4E4F534A: js = json.loads(d)
-        elif ty == 0x004E4942: bin_ = d
-        off += 8 + ln + ((4 - ln % 4) % 4)
-    return js, bin_
-CS = {5120:('b',1),5121:('B',1),5122:('h',2),5123:('H',2),5125:('I',4),5126:('f',4)}
-NC = {'SCALAR':1,'VEC2':2,'VEC3':3,'VEC4':4}
-def acc(j, b, i):
-    a = j['accessors'][i]; bv = j['bufferViews'][a['bufferView']]
-    fmt, sz = CS[a['componentType']]; nc = NC[a['type']]
-    st = bv.get('byteStride') or sz * nc; base = bv.get('byteOffset', 0) + a.get('byteOffset', 0)
-    return [struct.unpack_from('<' + fmt * nc, b, base + k * st) for k in range(a['count'])]
+
 def ap(m, p):
     return [m[0]*p[0]+m[4]*p[1]+m[8]*p[2]+m[12], m[1]*p[0]+m[5]*p[1]+m[9]*p[2]+m[13], m[2]*p[0]+m[6]*p[1]+m[10]*p[2]+m[14]]
 def to_lnglat(p):
@@ -52,7 +38,7 @@ band = []
 for m in cj['meshes']:
     for pr in m['primitives']:
         if 'water' not in (cj.get('materials') or [{}])[pr.get('material', 0)].get('name', ''): continue
-        for p in acc(cj, cb, pr['attributes']['POSITION']):
+        for p in accessor(cj, cb, pr['attributes']['POSITION']).astype(np.float64):
             lng, lat = to_lnglat(ap(Tc, [p[0], -p[2], p[1]]))
             band.append((lng, lat))
 band = np.array(band)

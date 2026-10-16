@@ -15,7 +15,7 @@
   backend/algorithm-service/.venv/Scripts/python.exe -X utf8 tools/diag/probe-bridge-vert.py
   … tools/diag/probe-bridge-vert.py --emit-anchors tools/3dtiles-build/bridge-anchors.json
 """
-import argparse, ast, hashlib, json, math, os, struct, sys
+import argparse, ast, hashlib, json, math, os, sys
 import numpy as np
 import rasterio
 from rasterio.warp import transform as rtransform
@@ -25,8 +25,6 @@ ROOT = os.path.dirname(os.path.dirname(HERE))
 DEFAULT_TILES = os.path.join(ROOT, 'backend/static/bridges-city')
 DEFAULT_DEM = os.path.join(ROOT, 'backend/data/flood/dem/landsea_utm48n_ell.tif')
 
-CS = {5120: ('b', 1), 5121: ('B', 1), 5122: ('h', 2), 5123: ('H', 2), 5125: ('I', 4), 5126: ('f', 4)}
-NC = {'SCALAR': 1, 'VEC2': 2, 'VEC3': 3, 'VEC4': 4}
 PALETTE_SOURCE = os.path.join(ROOT, 'tools', 'lib', 'bridge-palette.mjs')
 
 def load_bridge_palette(path=PALETTE_SOURCE):
@@ -57,31 +55,6 @@ def load_bridge_palette(path=PALETTE_SOURCE):
 PALETTE = load_bridge_palette()
 BUCKETS = {k: tuple(v) for k, v in PALETTE.items()}
 
-def read_glb(p):
-    b = open(p, 'rb').read()
-    off, js, bin_ = 12, None, None
-    while off + 8 <= len(b):
-        ln, ty = struct.unpack_from('<II', b, off)
-        d = b[off + 8:off + 8 + ln]
-        if ty == 0x4E4F534A:
-            js = json.loads(d)
-        elif ty == 0x004E4942:
-            bin_ = d
-        off += 8 + ln + ((4 - ln % 4) % 4)
-    return js, bin_
-
-def acc(j, b, i):
-    a = j['accessors'][i]
-    bv = j['bufferViews'][a['bufferView']]
-    fmt, sz = CS[a['componentType']]
-    nc = NC[a['type']]
-    st = bv.get('byteStride') or sz * nc
-    base = bv.get('byteOffset', 0) + a.get('byteOffset', 0)
-    arr = np.frombuffer(b, dtype=np.dtype('<' + fmt), count=a['count'] * nc, offset=base)
-    if st == sz * nc:
-        return arr.reshape(a['count'], nc)
-    return np.array(np.lib.stride_tricks.as_strided(arr, shape=(a['count'], nc), strides=(st, sz)))
-
 def mul(x, y):
     o = [0.0] * 16
     for i in range(4):
@@ -91,6 +64,7 @@ def mul(x, y):
 
 sys.path.insert(0, os.path.join(ROOT, 'tools', 'lib'))
 from geo import ecef_to_geo  # noqa: E402
+from glb import accessor, read_glb  # noqa: E402
 
 def ecef2ll(E):
     return ecef_to_geo(E)  # 实现唯一位于 tools/lib/geo.py（P4 收口）
@@ -115,8 +89,8 @@ def walk_vertices(tiles_dir, ts):
         j, b = read_glb(os.path.join(tiles_dir, uri))
         M3 = np.array([[W[0], W[1], W[2]], [W[4], W[5], W[6]], [W[8], W[9], W[10]]])
         Tt = np.array([W[12], W[13], W[14]])
-        pos = acc(j, b, j['meshes'][0]['primitives'][0]['attributes']['POSITION']).astype(np.float64)
-        col = acc(j, b, j['meshes'][0]['primitives'][0]['attributes']['COLOR_0']).astype(np.float64)
+        pos = accessor(j, b, j['meshes'][0]['primitives'][0]['attributes']['POSITION']).astype(np.float64)
+        col = accessor(j, b, j['meshes'][0]['primitives'][0]['attributes']['COLOR_0']).astype(np.float64)
         P = np.empty_like(pos)
         P[:, 0] = pos[:, 0]
         P[:, 1] = -pos[:, 2]

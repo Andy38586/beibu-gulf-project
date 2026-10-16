@@ -23,18 +23,19 @@ n=93 行：中位 −52 m / MAD 70 m；分段 = 北段 −45±34 m、中段 −1
       [--imagery .local/3d-review/port-r1.jpg]
   产出：.local/port-align2/port-quay-offset-overlay.png（红=模型岸缘、青=影像水边界）
 """
-import argparse, json, math, os, struct, sys
+import argparse, json, math, os, sys
 import numpy as np
 from PIL import Image, ImageDraw
 from scipy import ndimage
 
-# 每度经纬长实现唯一位于 tools/lib/geo.py（P4 收口）
-sys.path.insert(0, os.path.join(HERE, '..', '..', 'tools', 'lib'))
-from geo import DEG_M_LNG  # noqa: E402
-
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
 OUT = os.path.join(ROOT, '.local', 'port-align2')
+
+# 每度经纬长 / 反算实现唯一位于 tools/lib/{geo,glb}.py（P4 收口）
+sys.path.insert(0, os.path.join(ROOT, 'tools', 'lib'))
+from geo import DEG_M_LNG  # noqa: E402
+from glb import accessor, read_glb  # noqa: E402
 
 ap = argparse.ArgumentParser()
 ap.add_argument('--imagery', default=os.path.join('.local', '3d-review', 'port-r1.jpg'))
@@ -65,34 +66,6 @@ water_i = ndimage.binary_opening(water_i, iterations=1)
 print('影像水面 %.2f%%' % (water_i.mean() * 100))
 
 # ---------- 交付包 water / 陆地两类材质 ----------
-def read_glb(p):
-    b = open(p, 'rb').read()
-    off, js, bin_ = 12, None, None
-    while off + 8 <= len(b):
-        ln, ty = struct.unpack_from('<II', b, off)
-        d = b[off + 8:off + 8 + ln]
-        if ty == 0x4E4F534A:
-            js = json.loads(d)
-        elif ty == 0x004E4942:
-            bin_ = d
-        off += 8 + ln + ((4 - ln % 4) % 4)
-    return js, bin_
-
-CS = {5120: ('b', 1), 5121: ('B', 1), 5122: ('h', 2), 5123: ('H', 2), 5125: ('I', 4), 5126: ('f', 4)}
-NC = {'SCALAR': 1, 'VEC2': 2, 'VEC3': 3, 'VEC4': 4}
-
-def acc(j, b, i):
-    ac = j['accessors'][i]
-    bv = j['bufferViews'][ac['bufferView']]
-    fmt, sz = CS[ac['componentType']]
-    nc = NC[ac['type']]
-    st = bv.get('byteStride') or sz * nc
-    base = bv.get('byteOffset', 0) + ac.get('byteOffset', 0)
-    arr = np.frombuffer(b, dtype=np.dtype('<' + fmt), count=ac['count'] * nc, offset=base)
-    if st == sz * nc:
-        return arr.reshape(ac['count'], nc)
-    return np.array(np.lib.stride_tricks.as_strided(arr, shape=(ac['count'], nc), strides=(st, sz)))
-
 def mul(x, y):
     o = [0.0] * 16
     for i in range(4):
@@ -126,7 +99,7 @@ def walk(node, Mx):
                 for pr in mesh['primitives']:
                     mi = pr.get('material')
                     nm = mats[mi].get('name', '') if mi is not None else ''
-                    pos = acc(j, b, pr['attributes']['POSITION']).astype(np.float64)
+                    pos = accessor(j, b, pr['attributes']['POSITION']).astype(np.float64)
                     P = np.empty_like(pos)
                     P[:, 0] = pos[:, 0]
                     P[:, 1] = -pos[:, 2]
@@ -134,7 +107,7 @@ def walk(node, Mx):
                     lng, lat = ecef2ll(P @ M3 + Tt)
                     X = (lng - w) / (e - w) * W
                     Y = (n - lat) / (n - s) * H
-                    ind = (acc(j, b, pr['indices']).reshape(-1).astype(np.int64)
+                    ind = (accessor(j, b, pr['indices']).reshape(-1).astype(np.int64)
                            if 'indices' in pr else np.arange(len(pos), dtype=np.int64))
                     ind = ind[:(len(ind) // 3) * 3].reshape(-1, 3)
                     xs, ys = X[ind], Y[ind]

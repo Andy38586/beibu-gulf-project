@@ -11,32 +11,19 @@
 """
 import json
 import struct
+import sys
 from pathlib import Path
 
 import numpy as np
 from scipy.spatial import cKDTree
 
 REPO = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(REPO / 'tools' / 'lib'))
+from glb import BIN_CHUNK, JSON_CHUNK, accessor, read_glb  # noqa: E402
 PORT = REPO / 'backend/static/qinzhou-port'
 OUT = REPO / '.local/c-preview'
 OUT.mkdir(parents=True, exist_ok=True)
 CELL, R = 4.0, 48.0
-CS = {5120: ('b', 1), 5121: ('B', 1), 5122: ('h', 2), 5123: ('H', 2), 5125: ('I', 4), 5126: ('f', 4)}
-NC = {'SCALAR': 1, 'VEC2': 2, 'VEC3': 3, 'VEC4': 4}
-
-
-def read_chunks(p):
-    b = open(p, 'rb').read()
-    off, js, bn = 12, None, None
-    while off + 8 <= len(b):
-        ln, ty = struct.unpack_from('<II', b, off)
-        d = b[off + 8:off + 8 + ln]
-        if ty == 0x4E4F534A:
-            js = json.loads(d)
-        elif ty == 0x004E4942:
-            bn = bytearray(d)
-        off += 8 + ln
-    return js, bn
 
 
 def write_glb(p, js, bn):
@@ -47,20 +34,10 @@ def write_glb(p, js, bn):
     total = 12 + 8 + len(jb) + 8 + len(bb)
     with open(p, 'wb') as f:
         f.write(struct.pack('<III', 0x46546C67, 2, total))
-        f.write(struct.pack('<II', len(jb), 0x4E4F534A))
+        f.write(struct.pack('<II', len(jb), JSON_CHUNK))
         f.write(jb)
-        f.write(struct.pack('<II', len(bb), 0x004E4942))
+        f.write(struct.pack('<II', len(bb), BIN_CHUNK))
         f.write(bb)
-
-
-def get_pos(js, bn, ai):
-    a = js['accessors'][ai]
-    bv = js['bufferViews'][a['bufferView']]
-    assert a['componentType'] == 5126 and a['type'] == 'VEC3', a
-    assert bv.get('byteStride') in (None, 12), bv
-    base = bv.get('byteOffset', 0) + a.get('byteOffset', 0)
-    arr = np.frombuffer(bn, dtype='<f4', count=a['count'] * 3, offset=base).reshape(a['count'], 3)
-    return arr, base
 
 
 def build_grid():
@@ -74,7 +51,7 @@ def build_grid():
             seen.add(uri)
             p = d / uri
             if p.exists():
-                js2, bn2 = read_chunks(p)
+                js2, bn2 = read_glb(p)
                 mats = js2.get('materials') or [{}]
                 for mesh in js2['meshes']:
                     for pr in mesh['primitives']:
@@ -82,7 +59,7 @@ def build_grid():
                         nm = mats[mi].get('name', '?') if mi is not None else '?'
                         if nm not in ('rail', 'concrete', 'opaque'):
                             continue
-                        pos, _ = get_pos(js2, bn2, pr['attributes']['POSITION'])
+                        pos = accessor(js2, bn2, pr['attributes']['POSITION'])
                         E = pos[:, 0].astype(np.float64)
                         N = -pos[:, 2].astype(np.float64)
                         U = pos[:, 1].astype(np.float64)
@@ -99,7 +76,8 @@ def build_grid():
 
 
 def deform(src, dst, lift, grid, keys, tree):
-    js, bn = read_chunks(src)
+    js, bn = read_glb(src)
+    bn = bytearray(bn)
     seen, tot, hit = set(), 0, 0
     for mesh in js['meshes']:
         for pr in mesh['primitives']:
@@ -107,7 +85,7 @@ def deform(src, dst, lift, grid, keys, tree):
             if ai in seen:
                 continue
             seen.add(ai)
-            pos, _ = get_pos(js, bn, ai)
+            pos = accessor(js, bn, ai)
             E = pos[:, 0].astype(np.float64)
             N = -pos[:, 2].astype(np.float64)
             d, ii = tree.query(np.stack([E, N], 1), k=1)
@@ -127,12 +105,12 @@ def deform(src, dst, lift, grid, keys, tree):
 
 
 def verify(dst, lift, grid, keys, tree):
-    js, bn = read_chunks(dst)
+    js, bn = read_glb(dst)
     worst = 0.0
     n = 0
     for mesh in js['meshes']:
         for pr in mesh['primitives']:
-            pos, _ = get_pos(js, bn, pr['attributes']['POSITION'])
+            pos = accessor(js, bn, pr['attributes']['POSITION'])
             E = pos[:, 0].astype(np.float64)
             N = -pos[:, 2].astype(np.float64)
             d, ii = tree.query(np.stack([E, N], 1), k=1)

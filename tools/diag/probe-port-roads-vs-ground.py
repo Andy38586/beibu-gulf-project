@@ -19,13 +19,14 @@ rail/concrete/opaque/water 顶点按 4 m 格取中位（每格 ≥3 点）；Δ(
 from __future__ import annotations
 
 import json
-import struct
 import sys
 from pathlib import Path
 
 import numpy as np
 
 REPO = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(REPO / 'tools' / 'lib'))
+from glb import accessor, read_glb  # noqa: E402
 PORT = REPO / 'backend/static/qinzhou-port'
 TILESET = PORT / 'tiles/tileset.json'
 ROADS_TILESET = PORT / 'rebuilt/roads/tileset.json'
@@ -34,37 +35,6 @@ GROUND_MATS = ('rail', 'concrete', 'opaque', 'water')
 LAND_MATS = ('rail', 'concrete', 'opaque')  # 陆域地面（水拿掉：码头边水面会像"立面"拉低参考）
 CELL = 4.0  # 格子边长（米）
 MAX_SAMPLE = 40000  # Δ 统计的道路顶点采样上限
-
-CS = {5120: ('b', 1), 5121: ('B', 1), 5122: ('h', 2), 5123: ('H', 2), 5125: ('I', 4), 5126: ('f', 4)}
-NC = {'SCALAR': 1, 'VEC2': 2, 'VEC3': 3, 'VEC4': 4}
-
-
-def read_glb(p):
-    b = open(p, 'rb').read()
-    off, js, bin_ = 12, None, None
-    while off + 8 <= len(b):
-        ln, ty = struct.unpack_from('<II', b, off)
-        d = b[off + 8:off + 8 + ln]
-        if ty == 0x4E4F534A:
-            js = json.loads(d)
-        elif ty == 0x004E4942:
-            bin_ = d
-        off += 8 + ln + ((4 - ln % 4) % 4)
-    return js, bin_
-
-
-def acc(j, b, i):
-    a = j['accessors'][i]
-    bv = j['bufferViews'][a['bufferView']]
-    fmt, sz = CS[a['componentType']]
-    nc = NC[a['type']]
-    st = bv.get('byteStride') or sz * nc
-    base = bv.get('byteOffset', 0) + a.get('byteOffset', 0)
-    arr = np.frombuffer(b, dtype=np.dtype('<' + fmt), count=a['count'] * nc, offset=base)
-    if st == sz * nc:
-        return arr.reshape(a['count'], nc)
-    return np.array(np.lib.stride_tricks.as_strided(arr, shape=(a['count'], nc), strides=(st, sz)))
-
 
 def enu_from_gltf(pos):
     """glTF (x,y,z) → ENU (E,N,U) = (x, -z, y)：与 tools/3dtiles-build/glb.mjs 同款"""
@@ -94,7 +64,7 @@ def walk_tiles(tileset_path, want):
                         name = mats[mi].get('name', '?') if mi is not None else '?'
                         if want and name not in want:
                             continue
-                        pos = acc(j, b, pr['attributes']['POSITION'])
+                        pos = accessor(j, b, pr['attributes']['POSITION'])
                         E, N, U = enu_from_gltf(pos)
                         per_mat.setdefault(name, []).append(np.stack([E, N, U], 1))
         for c in node.get('children', []):
@@ -361,7 +331,7 @@ def main():
         parts = []
         for mesh in jg['meshes']:
             for pr in mesh['primitives']:
-                pos = acc(jg, bg, pr['attributes']['POSITION'])
+                pos = accessor(jg, bg, pr['attributes']['POSITION'])
                 E, N, U = enu_from_gltf(pos)
                 parts.append(np.stack([E, N, U], 1))
         Gg = np.concatenate(parts)

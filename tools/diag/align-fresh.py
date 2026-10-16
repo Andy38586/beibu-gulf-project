@@ -4,7 +4,7 @@
   backend/algorithm-service/.venv/Scripts/python.exe tools/diag/align-fresh.py madao .local/3d-review/madao-r2
   # BASE 也可指盘上影像词干，如 backend/static/pinglu/imagery/qishi（读 <BASE>.jpg + <BASE>.json）
 """
-import json, os, struct, sys, math
+import json, os, sys, math
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
 from statistics import median
@@ -13,22 +13,8 @@ ROOT=os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 HUB=sys.argv[1]; BASE=os.path.join(ROOT, sys.argv[2])
 sys.path.insert(0, os.path.join(ROOT,'tools','lib'))
 from geo import DEG_M_LNG, ecef_to_geo  # noqa: E402
+from glb import accessor, read_glb  # noqa: E402
 FEAT=('water',) if '--no-pool' in sys.argv else ('water','poolWater')
-def read_glb(p):
-    b=open(p,'rb').read(); off,js,bin_=12,None,None
-    while off+8<=len(b):
-        ln,ty=struct.unpack_from('<II',b,off); d=b[off+8:off+8+ln]
-        if ty==0x4E4F534A: js=json.loads(d)
-        elif ty==0x004E4942: bin_=d
-        off+=8+ln+((4-ln%4)%4)
-    return js,bin_
-CS={5120:('b',1),5121:('B',1),5122:('h',2),5123:('H',2),5125:('I',4),5126:('f',4)}
-NC={'SCALAR':1,'VEC2':2,'VEC3':3,'VEC4':4}
-def acc(j,b,i):
-    a=j['accessors'][i]; bv=j['bufferViews'][a['bufferView']]
-    fmt,sz=CS[a['componentType']]; nc=NC[a['type']]
-    st=bv.get('byteStride') or sz*nc; base=bv.get('byteOffset',0)+a.get('byteOffset',0)
-    return [struct.unpack_from('<'+fmt*nc,b,base+k*st) for k in range(a['count'])]
 def mul(a,b):
     o=[0.0]*16
     for i in range(4):
@@ -62,9 +48,9 @@ def walk(node,M):
         for m in j['meshes']:
             for pr in m['primitives']:
                 if (j.get('materials') or [{}])[pr.get('material',0)].get('name','') not in FEAT: continue
-                pos=acc(j,bin_,pr['attributes']['POSITION'])
-                ind=acc(j,bin_,pr['indices']) if 'indices' in pr else None
-                order=[i[0] for i in ind] if ind else list(range(len(pos)))
+                pos=accessor(j,bin_,pr['attributes']['POSITION']).astype(np.float64)
+                ind=accessor(j,bin_,pr['indices']) if 'indices' in pr else None
+                order=[int(i[0]) for i in ind] if ind is not None else list(range(len(pos)))
                 flat=[px(*to_lnglat(ap(Wm,[pos[k][0],-pos[k][2],pos[k][1]]))) for k in order]
                 for k in range(0,len(flat)-2,3):
                     t=[flat[k],flat[k+1],flat[k+2]]

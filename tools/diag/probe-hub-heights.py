@@ -7,7 +7,7 @@
   backend/algorithm-service/.venv/Scripts/python.exe -X utf8 tools/diag/probe-hub-heights.py
   # 可选：与运行时 Cesium 对账 —— --sphere <uri>（打印 glTF 盒中心/复合变换链，浏览器侧同点应同一行）
 """
-import json, os, math, struct, sys
+import json, os, math, sys
 import numpy as np
 import rasterio
 from rasterio.warp import transform as wtransform
@@ -15,37 +15,7 @@ from rasterio.warp import transform as wtransform
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(ROOT, 'tools', 'lib'))
 from geo import ecef_to_geo  # noqa: E402
-
-
-def read_glb(p):
-    b = open(p, 'rb').read()
-    off, js, bin_ = 12, None, None
-    while off + 8 <= len(b):
-        ln, ty = struct.unpack_from('<II', b, off)
-        d = b[off + 8:off + 8 + ln]
-        if ty == 0x4E4F534A:
-            js = json.loads(d)
-        elif ty == 0x004E4942:
-            bin_ = d
-        off += 8 + ln + ((4 - ln % 4) % 4)
-    return js, bin_
-
-
-CS = {5120: ('b', 1), 5121: ('B', 1), 5122: ('h', 2), 5123: ('H', 2), 5125: ('I', 4), 5126: ('f', 4)}
-NC = {'SCALAR': 1, 'VEC2': 2, 'VEC3': 3, 'VEC4': 4}
-
-
-def acc(j, b, i):
-    a = j['accessors'][i]
-    bv = j['bufferViews'][a['bufferView']]
-    fmt, sz = CS[a['componentType']]
-    nc = NC[a['type']]
-    st = bv.get('byteStride') or sz * nc
-    base = bv.get('byteOffset', 0) + a.get('byteOffset', 0)
-    arr = np.frombuffer(b, dtype=np.dtype('<' + fmt), count=a['count'] * nc, offset=base)
-    if st == sz * nc:
-        return arr.reshape(a['count'], nc)
-    return np.array(np.lib.stride_tricks.as_strided(arr, shape=(a['count'], nc), strides=(st, sz)))
+from glb import accessor, read_glb  # noqa: E402
 
 
 def mul(a, b):
@@ -117,7 +87,7 @@ def walk(node, M):
             Tt = np.array(Wm[12:15])
             for mesh in j['meshes']:
                 for pr in mesh['primitives']:
-                    pos = acc(j, b, pr['attributes']['POSITION']).astype(np.float64)
+                    pos = accessor(j, b, pr['attributes']['POSITION']).astype(np.float64)
                     P = np.empty_like(pos)
                     P[:, 0] = pos[:, 0]
                     P[:, 1] = -pos[:, 2]
@@ -252,7 +222,7 @@ if '--sphere' in sys.argv:
             Tt = np.array(Wm[12:15])
             for mesh in j['meshes']:
                 for pr in mesh['primitives']:
-                    pos = acc(j, b, pr['attributes']['POSITION']).astype(np.float64)
+                    pos = accessor(j, b, pr['attributes']['POSITION']).astype(np.float64)
                     P = np.empty_like(pos)
                     P[:, 0] = pos[:, 0]
                     P[:, 1] = -pos[:, 2]
@@ -322,7 +292,7 @@ def cwalk(node, M):
         Tt = np.array(Wm[12:15])
         for mesh in j['meshes']:
             for pr in mesh['primitives']:
-                pos = acc(j, b, pr['attributes']['POSITION']).astype(np.float64)
+                pos = accessor(j, b, pr['attributes']['POSITION']).astype(np.float64)
                 P = np.empty_like(pos)
                 P[:, 0] = pos[:, 0]
                 P[:, 1] = -pos[:, 2]
@@ -389,7 +359,7 @@ def pwalk(node, M):
                 name = mats[mi].get('name', '?') if mi is not None else '?'
                 if name not in ('rail', 'concrete', 'opaque', 'metal', 'water', 'cargo'):
                     continue
-                pos = acc(j, b, pr['attributes']['POSITION']).astype(np.float64)
+                pos = accessor(j, b, pr['attributes']['POSITION']).astype(np.float64)
                 P = np.empty_like(pos)
                 P[:, 0] = pos[:, 0]
                 P[:, 1] = -pos[:, 2]

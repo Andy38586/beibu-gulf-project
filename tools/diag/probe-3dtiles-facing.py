@@ -17,45 +17,17 @@ from __future__ import annotations
 
 import glob
 import json
-import struct
 import sys
 from pathlib import Path
 
 import numpy as np
 
 REPO = Path(__file__).resolve().parents[2]
-CS = {5120: ('b', 1), 5121: ('B', 1), 5122: ('h', 2), 5123: ('H', 2), 5125: ('I', 4), 5126: ('f', 4)}
-NC = {'SCALAR': 1, 'VEC2': 2, 'VEC3': 3, 'VEC4': 4}
+sys.path.insert(0, str(REPO / 'tools' / 'lib'))
+from glb import accessor, read_glb  # noqa: E402
 SAMPLE = 200
 if '--sample' in sys.argv:
     SAMPLE = int(sys.argv[sys.argv.index('--sample') + 1])
-
-
-def read_glb(p):
-    b = open(p, 'rb').read()
-    off, js, bin_ = 12, None, None
-    while off + 8 <= len(b):
-        ln, ty = struct.unpack_from('<II', b, off)
-        d = b[off + 8:off + 8 + ln]
-        if ty == 0x4E4F534A:
-            js = json.loads(d)
-        elif ty == 0x004E4942:
-            bin_ = d
-        off += 8 + ln + ((4 - ln % 4) % 4)
-    return js, bin_
-
-
-def acc(j, b, i):
-    a = j['accessors'][i]
-    bv = j['bufferViews'][a['bufferView']]
-    fmt, sz = CS[a['componentType']]
-    nc = NC[a['type']]
-    st = bv.get('byteStride') or sz * nc
-    base = bv.get('byteOffset', 0) + a.get('byteOffset', 0)
-    arr = np.frombuffer(b, dtype=np.dtype('<' + fmt), count=a['count'] * nc, offset=base)
-    if st == sz * nc:
-        return arr.reshape(a['count'], nc)
-    return np.array(np.lib.stride_tricks.as_strided(arr, shape=(a['count'], nc), strides=(st, sz)))
 
 
 def audit_glb(p, label):
@@ -64,8 +36,8 @@ def audit_glb(p, label):
     rows = []
     for mesh in j['meshes']:
         for pr in mesh['primitives']:
-            pos = acc(j, b, pr['attributes']['POSITION']).astype(np.float64)
-            idx = acc(j, b, pr['indices']).reshape(-1).astype(np.int64) if 'indices' in pr else np.arange(len(pos))
+            pos = accessor(j, b, pr['attributes']['POSITION']).astype(np.float64)
+            idx = accessor(j, b, pr['indices']).reshape(-1).astype(np.int64) if 'indices' in pr else np.arange(len(pos))
             tri = idx.reshape(-1, 3)
             if len(tri) == 0:
                 continue
@@ -80,7 +52,7 @@ def audit_glb(p, label):
             mi = pr.get('material')
             nm = mats[mi].get('name', '?') if mi is not None else '?'
             if 'NORMAL' in pr['attributes']:
-                nrm = acc(j, b, pr['attributes']['NORMAL']).astype(np.float64)[tri[::step, 0]][ok]
+                nrm = accessor(j, b, pr['attributes']['NORMAL']).astype(np.float64)[tri[::step, 0]][ok]
                 nn = np.linalg.norm(nrm, axis=1)
                 keep = nn > 1e-9
                 dots = (g[keep] * (nrm[keep] / nn[keep, None])).sum(1)

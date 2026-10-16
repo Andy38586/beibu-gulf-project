@@ -9,7 +9,7 @@
   backend/algorithm-service/.venv/Scripts/python.exe tools/diag/port-align.py
 前置：交付包 tiles/ 与 imagery/{imagery.json,water-mask.json} 在盘（.gitignore 排除）。
 """
-import json, os, sys, math, struct, base64
+import json, os, sys, math, base64
 import numpy as np
 from PIL import Image, ImageDraw
 
@@ -17,37 +17,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 N = 1024
 sys.path.insert(0, os.path.join(ROOT, 'tools', 'lib'))
 from geo import DEG_M_LNG, ecef_to_geo  # noqa: E402
-
-
-def read_glb(p):
-    b = open(p, 'rb').read()
-    off, js, bin_ = 12, None, None
-    while off + 8 <= len(b):
-        ln, ty = struct.unpack_from('<II', b, off)
-        d = b[off + 8:off + 8 + ln]
-        if ty == 0x4E4F534A:
-            js = json.loads(d)
-        elif ty == 0x004E4942:
-            bin_ = d
-        off += 8 + ln + ((4 - ln % 4) % 4)
-    return js, bin_
-
-
-CS = {5120: ('b', 1), 5121: ('B', 1), 5122: ('h', 2), 5123: ('H', 2), 5125: ('I', 4), 5126: ('f', 4)}
-NC = {'SCALAR': 1, 'VEC2': 2, 'VEC3': 3, 'VEC4': 4}
-
-
-def acc(j, b, i):
-    a = j['accessors'][i]
-    bv = j['bufferViews'][a['bufferView']]
-    fmt, sz = CS[a['componentType']]
-    nc = NC[a['type']]
-    st = bv.get('byteStride') or sz * nc
-    base = bv.get('byteOffset', 0) + a.get('byteOffset', 0)
-    arr = np.frombuffer(b, dtype=np.dtype('<' + fmt), count=a['count'] * nc, offset=base)
-    if st == sz * nc:
-        return arr.reshape(a['count'], nc)
-    return np.array(np.lib.stride_tricks.as_strided(arr, shape=(a['count'], nc), strides=(st, sz)))
+from glb import accessor, read_glb  # noqa: E402
 
 
 def mul(a, b):
@@ -112,7 +82,7 @@ def walk(node, Mx):
                     mi = pr.get('material')
                     if mi is None or mats[mi].get('name', '') != 'water':
                         continue
-                    pos = acc(j, b, pr['attributes']['POSITION']).astype(np.float64)
+                    pos = accessor(j, b, pr['attributes']['POSITION']).astype(np.float64)
                     P = np.empty_like(pos)
                     P[:, 0] = pos[:, 0]
                     P[:, 1] = -pos[:, 2]
@@ -122,7 +92,7 @@ def walk(node, Mx):
                     X = (lng - w) / (e - w) * N
                     Y = (n - lat) / (n - s) * N
                     if 'indices' in pr:
-                        ind = acc(j, b, pr['indices']).reshape(-1).astype(np.int64)
+                        ind = accessor(j, b, pr['indices']).reshape(-1).astype(np.int64)
                     else:
                         ind = np.arange(len(pos), dtype=np.int64)
                     ind = ind[:(len(ind) // 3) * 3].reshape(-1, 3)

@@ -24,7 +24,6 @@ from __future__ import annotations
 import json
 import math
 import os
-import struct
 import sys
 
 import numpy as np
@@ -34,39 +33,12 @@ TILES = os.path.join(ROOT, 'backend/static/qinzhou-port/tiles')
 TILESET = os.path.join(TILES, 'tileset.json')
 sys.path.insert(0, os.path.join(ROOT, 'tools', 'lib'))
 from geo import ecef_to_geo  # noqa: E402
+from glb import accessor, read_glb  # noqa: E402
 
 WATER_HINT = ('water', 'sea')
 YARD_HINT = ('rail', 'concrete', 'opaque', 'asphalt', 'ground')
 CARGO_HINT = ('cargo', 'container', 'box')
 
-
-def read_glb(path):
-    with open(path, 'rb') as f:
-        data = f.read()
-    magic, version, _ = struct.unpack('<III', data[:12])
-    if magic != 0x46546C67:
-        raise ValueError('not glb: %s' % path)
-    off, js, bins = 12, None, []
-    while off + 8 <= len(data):
-        length, ctype = struct.unpack('<II', data[off:off + 8])
-        chunk = data[off + 8:off + 8 + length]
-        if ctype == 0x4E4F534A:
-            js = json.loads(chunk.decode('utf-8'))
-        elif ctype == 0x004E4942:
-            bins.append(chunk)
-        off += 8 + length + ((4 - length % 4) % 4 if length % 4 else 0)
-    return js, (bins[0] if bins else b'')
-
-
-def acc(j, b, i):
-    a = j['accessors'][i]
-    bv = j['bufferViews'][a['bufferView']]
-    off = bv.get('byteOffset', 0) + a.get('byteOffset', 0)
-    comp = {5126: ('f', 4), 5125: ('I', 4), 5123: ('H', 2)}[a['componentType']]
-    ncomp = {'SCALAR': 1, 'VEC2': 2, 'VEC3': 3, 'VEC4': 4}[a['type']]
-    n = a['count'] * ncomp
-    vals = struct.unpack_from('<%d%s' % (n, comp[0]), b, off)
-    return np.array(vals).reshape(a['count'], ncomp)
 
 
 def mul(a, b):
@@ -134,7 +106,7 @@ def main() -> int:
                     mi = pr.get('material')
                     if 'POSITION' not in pr.get('attributes', {}):
                         continue
-                    pos = acc(j, b, pr['attributes']['POSITION']).astype(np.float64)
+                    pos = accessor(j, b, pr['attributes']['POSITION']).astype(np.float64)
                     P = np.empty_like(pos)
                     P[:, 0] = pos[:, 0]
                     P[:, 1] = -pos[:, 2]

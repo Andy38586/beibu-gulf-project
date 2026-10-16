@@ -6,8 +6,6 @@ WGS84 地理底座 —— **tools 侧 Python 唯一来源**（工具脚本一律
 （改一侧不报错 = 漂移）；站点侧只准 `from geo import …`，不得再写 6378137 / 111320 字面量。
 """
 
-import math
-
 import numpy as np
 
 #: WGS84 长半轴（米）与扁率 —— 与 tools/lib/geo.mjs 的 WGS84_A / WGS84_F 同值
@@ -46,9 +44,3 @@ def ecef_to_geo(p):
     if scalar:
         return float(lng[0]), float(lat[0]), float(h[0])
     return lng, lat, h
-
-
-def m_per_deg(lat_deg):
-    """纬度 `lat_deg`（度）处每度经、纬弧长（米）—— 经向随纬度收缩。"""
-    lat = math.radians(lat_deg)
-    return DEG_M_LNG * math.cos(lat), DEG_M_LAT

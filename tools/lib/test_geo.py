@@ -130,8 +130,8 @@ def test_authority_shape():
     assert DEG_M_LNG > DEG_M_LAT  # 赤道处 1° 经度 > 1° 纬度
 
 
-def test_roundtrip_and_m_per_deg():
-    """反算与每度米可用：正算 → 反算回到原点，每度经长随纬度收缩。"""
+def test_roundtrip():
+    """反算可用：正算 → 反算回到原点。"""
     lng, lat, h = 108.940167, 22.447154, 20.0
     b = math.radians(lat)
     n = WGS84_A / math.sqrt(1 - WGS84_E2 * math.sin(b) ** 2)

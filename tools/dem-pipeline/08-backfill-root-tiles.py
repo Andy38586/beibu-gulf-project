@@ -6,11 +6,9 @@ layer.json 声明了 z0 两张全球根瓦片与 1/3/1，但瓦片目录是旧�
 导致 Cesium 根四叉树建立失败、影像底图被整体拖黑）。
 
 不依赖原始 DEM：用磁盘上已有的子瓦片上采样合成父瓦片，保证与现有金字塔物理一致；
-纯海洋瓦片直接写常量。编码规则与 07-heightmap-reslice.py 完全一致：
-  - 每瓦片 65x65 uint16 小端，编码值 = (高程米 + 1000) * 5，海洋/NoData = 5000
+纯海洋瓦片直接写常量。瓦片编码、payload 布局与 childTileMask 位口径见
+lib/terrain_enc.py（单一源）：
   - 行主序：北→南、西→东；相邻瓦片共享边缘
-  - payload = gzip(heights.tobytes() + 1字节 childTileMask + 1字节 waterMask)
-  - childTileMask 位：bit0=SW(2x,2y+1) bit1=SE(2x+1,2y+1) bit2=NW(2x,2y) bit3=NE(2x+1,2y)
   - waterMask：全海洋（高程全 0）= 0xFF，否则 0x00
 切片方案：GeographicTilingScheme（EPSG:4326），z 级 cols=2^(z+1)、rows=2^z，y=0 最北。
 
@@ -26,8 +24,8 @@ from pathlib import Path
 
 import numpy as np
 
-GRID = 65
-OCEAN_VALUE = 5000
+sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+from terrain_enc import OCEAN_VALUE, RAW_BYTES, SAMPLES  # noqa: E402
 # 目标瓦片：(z,x,y, 是否纯海洋)。顺序：先补子瓦片 1/3/1，再合成其父 0/1/0
 TARGETS = [(1, 3, 1, True), (0, 0, 0, True), (0, 1, 0, False)]
 
@@ -39,10 +37,9 @@ def tile_path(root: Path, z: int, x: int, y: int) -> Path:
 def decode_tile(path: Path) -> tuple[np.ndarray, int, int]:
     """返回 (65x65 uint16 高程编码值, childTileMask, waterMask)。"""
     raw = gzip.decompress(path.read_bytes())
-    expected = GRID * GRID * 2 + 2
-    if len(raw) != expected:
-        raise ValueError(f"{path} 解压后 {len(raw)}B，期望 {expected}B")
-    heights = np.frombuffer(raw[:-2], dtype="<u2").reshape(GRID, GRID).copy()
+    if len(raw) != RAW_BYTES:
+        raise ValueError(f"{path} 解压后 {len(raw)}B，期望 {RAW_BYTES}B")
+    heights = np.frombuffer(raw[:-2], dtype="<u2").reshape(SAMPLES, SAMPLES).copy()
     return heights, raw[-2], raw[-1]
 
 
@@ -68,7 +65,7 @@ def child_mask_from_disk(root: Path, z: int, x: int, y: int) -> int:
 
 
 def ocean_tile(root: Path, z: int, x: int, y: int) -> bytes:
-    heights = np.full((GRID, GRID), OCEAN_VALUE, dtype="<u2")
+    heights = np.full((SAMPLES, SAMPLES), OCEAN_VALUE, dtype="<u2")
     return encode_tile(heights, child_mask_from_disk(root, z, x, y), 0xFF)
 
 
@@ -84,18 +81,18 @@ def aggregate_from_children(root: Path, z: int, x: int, y: int) -> np.ndarray:
     for (qx, qy), (cx, cy) in child_index.items():
         p = tile_path(root, z + 1, cx, cy)
         cache[(qx, qy)] = decode_tile(p)[0] if p.exists() else np.full(
-            (GRID, GRID), OCEAN_VALUE, dtype="<u2"
+            (SAMPLES, SAMPLES), OCEAN_VALUE, dtype="<u2"
         )
 
-    parent = np.empty((GRID, GRID), dtype="<u2")
-    for i in range(GRID):
-        v = i / (GRID - 1)          # 北→南 0..1
+    parent = np.empty((SAMPLES, SAMPLES), dtype="<u2")
+    for i in range(SAMPLES):
+        v = i / (SAMPLES - 1)          # 北→南 0..1
         qy = min(int(v * 2), 1)
-        li = int(round((v * 2 - qy) * (GRID - 1)))
-        for j in range(GRID):
-            u = j / (GRID - 1)      # 西→东 0..1
+        li = int(round((v * 2 - qy) * (SAMPLES - 1)))
+        for j in range(SAMPLES):
+            u = j / (SAMPLES - 1)      # 西→东 0..1
             qx = min(int(u * 2), 1)
-            lj = int(round((u * 2 - qx) * (GRID - 1)))
+            lj = int(round((u * 2 - qx) * (SAMPLES - 1)))
             parent[i, j] = cache[(qx, qy)][li, lj]
     return parent
 

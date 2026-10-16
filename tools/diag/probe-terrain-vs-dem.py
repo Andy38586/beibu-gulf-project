@@ -1,7 +1,7 @@
 """probe-terrain-vs-dem.py — 服务中的地形瓦片 vs 当前统一 DEM 的一致性探针（只读）。
 
 用途：回答"服务里的地形是不是旧掩膜/旧 DEM 时代的产物、要不要重切"。
-做法：取一张 z 级瓦片，按 heightmap-1.0 解码 65×65 高程网格，把每个节点换算回 DEM 坐标
+做法：取一张 z 级瓦片，按 heightmap-1.0 解码 SAMPLES×SAMPLES 高程网格（网格尺寸见 lib/terrain_enc.py），把每个节点换算回 DEM 坐标
 取样当前 DEM，比 served（盘上瓦片）与 fresh（可选：另一份重切结果）各自对 DEM 的偏差；
 并把节点按"是否落在 10-04 海掩膜修归还的陆地区"（旧掩膜版 nodata）分组。
 
@@ -18,13 +18,15 @@
 """
 from __future__ import annotations
 
-import gzip
 import sys
 from pathlib import Path
 
 import numpy as np
 import rasterio
 from rasterio.warp import transform as warp_transform
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "dem-pipeline" / "lib"))
+from terrain_enc import SAMPLES, read_heights  # noqa: E402
 
 REPO = Path(__file__).resolve().parents[2]
 TERRAIN = REPO / "backend/static/terrain"
@@ -33,14 +35,6 @@ TERRAIN = REPO / "backend/static/terrain"
 CUR_ELL = REPO / ".local/dem-work/filled_utm48n_cut_ell.tif"
 CUR = CUR_ELL if CUR_ELL.exists() else REPO / ".local/dem-work/filled_utm48n_cut.tif"
 OLD = REPO / ".local/dem-work/filled_utm48n_cut.20260830mask.tif"
-SAMPLES = 65
-
-
-def decode(path: Path) -> np.ndarray:
-    raw = gzip.decompress(path.read_bytes())
-    return np.frombuffer(raw[: SAMPLES * SAMPLES * 2], dtype="<u2").reshape(SAMPLES, SAMPLES).astype(
-        float
-    ) / 5.0 - 1000.0
 
 
 def main() -> None:
@@ -48,8 +42,8 @@ def main() -> None:
     z, x, y = (int(v) for v in (args[:3] or (12, 6565, 1549)))
     fresh_path = next((Path(a) for a in sys.argv[1:] if a.endswith(".terrain")), None)
 
-    served = decode(TERRAIN / str(z) / str(x) / f"{y}.terrain")
-    fresh = decode(fresh_path) if fresh_path else None
+    served = read_heights(TERRAIN / str(z) / str(x) / f"{y}.terrain")
+    fresh = read_heights(fresh_path) if fresh_path else None
     lon_w = -180.0 + x * 360.0 / 2 ** (z + 1)
     lon_e = lon_w + 360.0 / 2 ** (z + 1)
     lat_n = 90.0 - y * 180.0 / 2**z

@@ -5,7 +5,7 @@
   - layer.json.available 恒为 TMS 朝向（y=0 在南），磁盘文件按 slippyMap（y=0 在北），
     GeographicTilingScheme 下 rows=2^z，换算 y_slippy = rows-1-y_tms；
   - 检查"声明了但磁盘缺失"（线上 404 黑屏的直接原因）与"磁盘有但未声明"两类问题；
-  - 每张瓦片回读校验字节长度 = 65*65*2+2。
+  - 每张瓦片回读校验字节长度 = lib/terrain_enc.py 的 RAW_BYTES。
 用法：python 09-audit-terrain.py [terrain_dir]
 退出码：0 全部一致；1 存在不一致。
 """
@@ -16,8 +16,8 @@ import json
 import sys
 from pathlib import Path
 
-GRID = 65
-EXPECTED_RAW = GRID * GRID * 2 + 2
+sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+from terrain_enc import RAW_BYTES  # noqa: E402
 
 
 def main() -> int:
@@ -42,7 +42,7 @@ def main() -> int:
         y = int(yfile.split(".")[0])
         on_disk.add((z, x, y))
         try:
-            if len(gzip.decompress(p.read_bytes())) != EXPECTED_RAW:
+            if len(gzip.decompress(p.read_bytes())) != RAW_BYTES:
                 bad_bytes.append(str(p.relative_to(root)))
         except Exception as exc:  # noqa: BLE001
             bad_bytes.append(f"{p.relative_to(root)} (解压失败 {exc})")

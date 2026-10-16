@@ -4,9 +4,8 @@
 背景（2026-09-05）：原 backend/static/terrain/ 为 ctb-quantized-mesh 产出，但
 layer.json 声明 heightmap-1.0 与数据不符 + gzip 头缺失，Cesium 端解码自始
 RangeError（8-10 生产"无起伏"即本 bug 症状），瓦片从未渲染成功。
-本脚本按 Cesium 官方 heightmap-1.0 规范重切：
-  - 每瓦片 65×65 uint16，行主序北→南/西→东，编码 = (高程米 + 1000) * 5
-  - 海洋/NoData 按 0m 计（编码 5000）
+本脚本按 Cesium 官方 heightmap-1.0 规范重切（网格/编码/海洋记法见 lib/terrain_enc.py，单一源）：
+  - 行主序北→南/西→东；海洋/NoData 按 0m 计
   - gzip 压缩输出 .terrain；layer.json format 保持 heightmap-1.0
   - 层级枚举沿用现有瓦片目录树（z/x/y 集合不变，tiles 模板不变）
 
@@ -18,7 +17,6 @@ from __future__ import annotations
 
 import gzip
 import math
-import struct
 import sys
 from pathlib import Path
 
@@ -27,6 +25,9 @@ import rasterio
 from rasterio.enums import Resampling
 from rasterio.vrt import WarpedVRT
 from rasterio.windows import from_bounds
+
+sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+from terrain_enc import SAMPLES, encode  # noqa: E402
 
 REPO = Path(__file__).resolve().parents[2]
 # 2026-10-04 路径修订：原两个默认路径（dem/ 下的 dem_4326_cut.tif 与 filled_utm48n_cut.tif）
@@ -37,11 +38,6 @@ REPO = Path(__file__).resolve().parents[2]
 DEM_4326 = REPO / ".local/dem-work/dem_4326_cut.tif"  # 可选加速件（本机已无）；缺失即回落
 DEM_UTM = REPO / ".local/dem-work/filled_utm48n_cut.tif"  # 06 脚本产出的工作版（实际走这条）
 TERRAIN_DIR = REPO / "backend/static/terrain"
-SAMPLES = 65  # heightmap-1.0 默认网格（CesiumTerrainProvider heightmapWidth）
-
-# 编码常量：uint16 = (米 + 1000) * 5（-1000..10086 m 覆盖域）
-ENC_OFFSET = 1000.0
-ENC_SCALE = 5.0
 
 
 def tile_bounds(z: int, x: int, y: int) -> tuple[float, float, float, float]:
@@ -111,7 +107,7 @@ def main() -> None:
             heights = np.full((SAMPLES, SAMPLES), 0.0)
             step_lat = (lat_n - lat_s) / (SAMPLES - 1)
             step_lon = (lon_e - lon_w) / (SAMPLES - 1)
-            # 瓦片 65 网格与 DEM 范围求交集（WarpedVRT 不支持 boundless，越界补 0 高程=海洋）
+            # 瓦片 SAMPLES 网格与 DEM 范围求交集（WarpedVRT 不支持 boundless，越界补 0 高程=海洋）
             j0 = max(0, math.ceil((dem_bounds.left - lon_w) / step_lon))
             j1 = min(SAMPLES - 1, math.floor((dem_bounds.right - lon_w) / step_lon))
             i0 = max(0, math.ceil((lat_n - dem_bounds.top) / step_lat))
@@ -130,10 +126,9 @@ def main() -> None:
                 )
                 heights[i0 : i1 + 1, j0 : j1 + 1] = sub
             heights = np.where(np.isfinite(heights) & (heights != nodata), heights, 0.0)
-            # 编码 uint16：(h + 1000) * 5，负高程 clamp 到 -1000
-            encoded = np.clip((heights + ENC_OFFSET) * ENC_SCALE, 0, 65535).astype("<u2")
-            # heightmap-1.0 瓦片布局（CesiumTerrainProvider.createHeightmapTerrainData）：
-            # 65×65 uint16 heights + 1B childTileMask + N B waterMask。childTileMask 位：
+            encoded = encode(heights)
+            # heightmap-1.0 瓦片布局（见 lib/terrain_enc.py）：heights + 1B childTileMask
+            # + N B waterMask。childTileMask 位：
             # bit0=SW bit1=SE bit2=NW bit3=NE，按真实瓦片树存在性置位（缺子树=0 防 404 重试）
             mask = 0
             for bit, (cx, cy) in (
@@ -147,7 +142,8 @@ def main() -> None:
             payload = gzip.compress(
                 encoded.tobytes()
                 + bytes([mask])
-                + bytes([0xFF if bool((heights == 0).all()) else 0x00])
+                + bytes([0xFF if bool((heights == 0).all()) else 0x00]),
+                mtime=0,  # 产物确定性，便于 diff/校验（与 07c/08 同款约定）
             )
             out = TERRAIN_DIR / str(z) / str(x) / f"{y}.terrain"
             out.parent.mkdir(parents=True, exist_ok=True)

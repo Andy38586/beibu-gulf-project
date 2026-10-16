@@ -24,8 +24,8 @@ z12 盘上 228 列 × 160 行 = 36,480 张，与逐一列目录计数一致）�
 """
 from __future__ import annotations
 
-import gzip
 import json
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -34,12 +34,16 @@ from rasterio.features import rasterize
 from rasterio.warp import transform_geom
 from rasterio.warp import transform as warp_transform
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "dem-pipeline" / "lib"))
+from terrain_enc import SAMPLES, read_heights  # noqa: E402
+
 REPO = Path(__file__).resolve().parents[2]
 TERRAIN = REPO / "backend/static/terrain"
 CUR = REPO / ".local/dem-work/filled_utm48n_cut.tif"
 OLD = REPO / ".local/dem-work/filled_utm48n_cut.20260830mask.tif"
 BOUNDARY = REPO / "frontend/public/data/route-analysis/boundary.geojson"
-SAMPLES = 65
+# 判"显著差异"的阈值（米）：与编码口径无关，故留在站内
+DIFF_M = 5.0
 
 
 def tile_nodes(z: int, x: int, y: int):
@@ -53,13 +57,6 @@ def tile_nodes(z: int, x: int, y: int):
         np.linspace(lon_w, lon_e, SAMPLES), np.linspace(lat_n, lat_s, SAMPLES)
     )
     return LON, LAT
-
-
-def decode(path: Path) -> np.ndarray:
-    raw = gzip.decompress(path.read_bytes())
-    return np.frombuffer(raw[: SAMPLES * SAMPLES * 2], dtype="<u2").reshape(
-        SAMPLES, SAMPLES
-    ).astype(float) / 5.0 - 1000.0
 
 
 def main() -> None:
@@ -152,13 +149,13 @@ def main() -> None:
             full.append((x, y))
         elif n_ret > 0:
             partial.append((x, y))
-        served = decode(TERRAIN / str(z) / str(x) / f"{y}.terrain")
+        served = read_heights(TERRAIN / str(z) / str(x) / f"{y}.terrain")
         diff = np.abs(served - cur_grid.astype(float))
         m = ret_grid
         if m.any():
             d = diff[m]
             p95 = float(np.percentile(d, 95))
-            gt5 = int((d > 5.0).sum())
+            gt5 = int((d > DIFF_M).sum())
             detail.append((x, y, float(d.mean()), p95, gt5, n_valid, n_ret))
         inb_grid = inb[rr, cc].reshape(SAMPLES, SAMPLES) & ok_grid
         m_in = ret_grid & inb_grid
@@ -170,7 +167,7 @@ def main() -> None:
                     y,
                     float(d_in.mean()),
                     float(np.percentile(d_in, 95)),
-                    int((d_in > 5.0).sum()),
+                    int((d_in > DIFF_M).sum()),
                     int(m_in.sum()),
                 )
             )

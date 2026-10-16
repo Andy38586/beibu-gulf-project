@@ -24,10 +24,13 @@ from rasterio.enums import Resampling
 from rasterio.vrt import WarpedVRT
 from rasterio.windows import from_bounds
 
+sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+from terrain_enc import SAMPLES, encode  # noqa: E402
+
 REPO = Path(__file__).resolve().parents[2]
 TERRAIN = REPO / "backend/static/terrain"
 POST = REPO / ".local/926-rebake/post_surface_utm48n.tif"
-SAMPLES, ENC_OFFSET, ENC_SCALE, MAXZ = 65, 1000.0, 5.0, 14
+MAXZ = 14  # layer.json 的 maxzoom（枢纽渠槽加密层级；层级参数，不属编码口径）
 # (lon, lat, bearing, x0, x1, half_w) —— 轴向范围 = 模型渠槽实测范围（非对称）
 FOOT = {"madao": (108.93922, 22.44632, 198.0, -1478.0, 801.0, 305.0),
         "qishi": (108.94146, 22.32265, 182.0, -687.0, 1003.0, 349.0),
@@ -131,7 +134,7 @@ def main():
             win = from_bounds(lon_w + j0 * so, lat_n - i1 * sl, lon_w + j1 * so, lat_n - i0 * sl, transform=dem.transform)
             sub = dem.read(1, window=win, out_shape=(i1 - i0 + 1, j1 - j0 + 1), resampling=Resampling.bilinear).astype(np.float64)
             h[i0:i1 + 1, j0:j1 + 1] = np.where((sub == nodata) | ~np.isfinite(sub), 0.0, sub)
-        enc = np.clip((h + ENC_OFFSET) * ENC_SCALE, 0, 65535).astype("<u2")
+        enc = encode(h)
         mask = 0
         for bit, (cx, cy) in ((0, (2 * x, 2 * y + 1)), (1, (2 * x + 1, 2 * y + 1)),
                               (2, (2 * x, 2 * y)), (3, (2 * x + 1, 2 * y))):

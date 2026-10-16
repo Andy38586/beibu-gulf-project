@@ -23,10 +23,14 @@ n=93 行：中位 −52 m / MAD 70 m；分段 = 北段 −45±34 m、中段 −1
       [--imagery .local/3d-review/port-r1.jpg]
   产出：.local/port-align2/port-quay-offset-overlay.png（红=模型岸缘、青=影像水边界）
 """
-import argparse, json, math, os, struct
+import argparse, json, math, os, struct, sys
 import numpy as np
 from PIL import Image, ImageDraw
 from scipy import ndimage
+
+# 每度经纬长实现唯一位于 tools/lib/geo.py（P4 收口）
+sys.path.insert(0, os.path.join(HERE, '..', '..', 'tools', 'lib'))
+from geo import DEG_M_LNG  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
@@ -44,7 +48,7 @@ bj = json.load(open(os.path.splitext(IMG)[0] + '.json', encoding='utf-8'))
 w, s, e, n = bj['bbox']
 im = Image.open(IMG).convert('RGB')
 W, H = im.size
-mperpx_e = (e - w) * 111320.0 * math.cos(math.radians((s + n) / 2)) / W
+mperpx_e = (e - w) * DEG_M_LNG * math.cos(math.radians((s + n) / 2)) / W
 mperpx_n = (n - s) * 110540.0 / H
 mperpx = (mperpx_e + mperpx_n) / 2
 print('影像 %dx%d bbox=[%.5f,%.5f,%.5f,%.5f] %.3f m/px' % (W, H, w, s, e, n, mperpx))
@@ -96,19 +100,11 @@ def mul(x, y):
             o[i * 4 + j] = sum(x[k * 4 + j] * y[i * 4 + k] for k in range(4))
     return o
 
-A_, F = 6378137.0, 1 / 298.257223563
-E2 = F * (2 - F)
+from geo import ecef_to_geo  # noqa: E402
 
 def ecef2ll(E):
-    x, y, z = E[:, 0], E[:, 1], E[:, 2]
-    lng = np.degrees(np.arctan2(y, x))
-    p2 = np.sqrt(x * x + y * y)
-    lat = np.arctan2(z, p2 * (1 - E2))
-    for _ in range(6):
-        Nn = A_ / np.sqrt(1 - E2 * np.sin(lat) ** 2)
-        h = p2 / np.cos(lat) - Nn
-        lat = np.arctan2(z, p2 * (1 - E2 * Nn / (Nn + h)))
-    return lng, np.degrees(lat)
+    lng, lat, _ = ecef_to_geo(E)  # 实现唯一位于 tools/lib/geo.py（P4 收口）
+    return lng, lat
 
 ts = json.load(open(os.path.join(TILES, 'tileset.json'), encoding='utf-8'))
 tris_w, tris_l, nodes, missing = [], [], [0], [0]

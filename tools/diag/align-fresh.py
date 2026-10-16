@@ -11,7 +11,8 @@ from statistics import median
 
 ROOT=os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 HUB=sys.argv[1]; BASE=os.path.join(ROOT, sys.argv[2])
-A_,F=6378137.0,1/298.257223563; E2=F*(2-F)
+sys.path.insert(0, os.path.join(ROOT,'tools','lib'))
+from geo import DEG_M_LNG, ecef_to_geo  # noqa: E402
 FEAT=('water',) if '--no-pool' in sys.argv else ('water','poolWater')
 def read_glb(p):
     b=open(p,'rb').read(); off,js,bin_=12,None,None
@@ -36,11 +37,8 @@ def mul(a,b):
 def ap(m,p):
     return [m[0]*p[0]+m[4]*p[1]+m[8]*p[2]+m[12],m[1]*p[0]+m[5]*p[1]+m[9]*p[2]+m[13],m[2]*p[0]+m[6]*p[1]+m[10]*p[2]+m[14]]
 def to_lnglat(p):
-    x,y,z=p; lng=np.degrees(np.arctan2(y,x)); p2=np.hypot(x,y); lat=np.arctan2(z,p2*(1-E2))
-    for _ in range(8):
-        N=A_/np.sqrt(1-E2*np.sin(lat)**2); h=p2/np.cos(lat)-N
-        lat=np.arctan2(z,p2*(1-E2*N/(N+h)))
-    return lng,np.degrees(lat)
+    lng, lat, _ = ecef_to_geo(p)   # 实现唯一位于 tools/lib/geo.py（P4 收口）
+    return lng, lat
 
 if os.path.exists(BASE+'.json'):
     meta=json.load(open(BASE+'.json')); w,s,e,n=meta['bbox']
@@ -51,7 +49,7 @@ else:
     w,s,e,n=ent['bbox']
     img=Image.open(os.path.join(ROOT,'backend/static/pinglu/imagery',ent['file'])).convert('RGB')
 W,H=img.size
-mperpx=(e-w)*111320*math.cos(math.radians((s+n)/2))/W
+mperpx=(e-w)*DEG_M_LNG*math.cos(math.radians((s+n)/2))/W
 px=lambda lng,lat:((lng-w)/(e-w)*W,(n-lat)/(n-s)*H)
 TILES=os.path.join(ROOT,'backend/static/pinglu/tiles')
 ts=json.load(open(os.path.join(TILES,'tileset.json'),encoding='utf-8'))

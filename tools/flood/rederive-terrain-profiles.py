@@ -39,6 +39,10 @@ from flood_engine import DEM_PATH  # noqa: E402
 sys.path.insert(0, str(ROOT / "tools" / "flood" / "lib"))
 from dem_identity import dem_identity  # noqa: E402
 
+# 每度纬长实现唯一位于 tools/lib/geo.py（P4 收口）
+sys.path.insert(0, str(ROOT / "tools" / "lib"))
+from geo import DEG_M_LNG  # noqa: E402
+
 NODATA = 32767
 
 # 4 条剖面（id/name 保持不变 = 前端契约零改动；锚点贴港重定）
@@ -77,9 +81,9 @@ PROFILES = [
 SEA_OFFSET_M = 1500   # 锚点向南入海（NoData 侧）
 LAND_EXTENT_M = 2500  # 锚点向北登陆
 STEP_M = 100
-M_PER_DEG_LAT = 111320.0  # 北部湾 21.6°N 附近，经线米长（纬向采样用）
-
-LAT_DEG_PER_M = 1.0 / M_PER_DEG_LAT
+# 站内原值 111320 == DEG_M_LNG（赤道每度经长）却用于纬向采样，与「经线米长」的
+# 字面语义不一致：**保持原行为不动**，口径是否改为 DEG_M_LAT 待裁（见接力状态 §27）。
+LAT_DEG_PER_M = 1.0 / DEG_M_LNG
 
 
 def sample_line(src, anchor, sea_m, land_m, step_m):

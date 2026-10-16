@@ -13,8 +13,8 @@ import rasterio
 from rasterio.warp import transform as wtransform
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-A_, F = 6378137.0, 1 / 298.257223563
-E2 = F * (2 - F)
+sys.path.insert(0, os.path.join(ROOT, 'tools', 'lib'))
+from geo import ecef_to_geo  # noqa: E402
 
 
 def read_glb(p):
@@ -63,21 +63,11 @@ def ap(m, p):
 
 
 def ecef2llh(P):
-    x, y, z = P[:, 0], P[:, 1], P[:, 2]
-    lng = np.degrees(np.arctan2(y, x))
-    p2 = np.hypot(x, y)
-    lat = np.arctan2(z, p2 * (1 - E2))
-    for _ in range(10):
-        Nn = A_ / np.sqrt(1 - E2 * np.sin(lat) ** 2)
-        h = p2 / np.cos(lat) - Nn
-        lat = np.arctan2(z, p2 * (1 - E2 * Nn / (Nn + h)))
-    Nn = A_ / np.sqrt(1 - E2 * np.sin(lat) ** 2)
-    h = p2 / np.cos(lat) - Nn
-    return lng, np.degrees(lat), h
+    return ecef_to_geo(P)  # 实现唯一位于 tools/lib/geo.py（P4 收口）
 
 
 def pt2llh(p):
-    lng, lat, h = ecef2llh(np.array([p], dtype=np.float64))
+    lng, lat, h = ecef_to_geo(np.array([p], dtype=np.float64))
     return lng[0], lat[0], h[0]
 
 

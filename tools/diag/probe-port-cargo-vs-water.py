@@ -32,6 +32,8 @@ import numpy as np
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 TILES = os.path.join(ROOT, 'backend/static/qinzhou-port/tiles')
 TILESET = os.path.join(TILES, 'tileset.json')
+sys.path.insert(0, os.path.join(ROOT, 'tools', 'lib'))
+from geo import ecef_to_geo  # noqa: E402
 
 WATER_HINT = ('water', 'sea')
 YARD_HINT = ('rail', 'concrete', 'opaque', 'asphalt', 'ground')
@@ -76,19 +78,7 @@ def ap(m, p):
 
 
 def ecef2llh(P):
-    a, f = 6378137.0, 1 / 298.257223563
-    e2 = f * (2 - f)
-    x, y, z = P[:, 0], P[:, 1], P[:, 2]
-    lon = np.arctan2(y, x)
-    p = np.hypot(x, y)
-    lat = np.arctan2(z, p * (1 - e2))
-    for _ in range(6):
-        N = a / np.sqrt(1 - e2 * np.sin(lat) ** 2)
-        h = p / np.cos(lat) - N
-        lat = np.arctan2(z, p * (1 - e2 * N / (N + h)))
-    N = a / np.sqrt(1 - e2 * np.sin(lat) ** 2)
-    h = p / np.cos(lat) - N
-    return lon, lat, h
+    return ecef_to_geo(P)  # 实现唯一位于 tools/lib/geo.py（P4 收口）
 
 
 def bucket(name: str):

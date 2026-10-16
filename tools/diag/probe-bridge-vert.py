@@ -89,19 +89,11 @@ def mul(x, y):
             o[i * 4 + j] = sum(x[k * 4 + j] * y[i * 4 + k] for k in range(4))
     return o
 
-A_, F = 6378137.0, 1 / 298.257223563
-E2 = F * (2 - F)
+sys.path.insert(0, os.path.join(ROOT, 'tools', 'lib'))
+from geo import ecef_to_geo  # noqa: E402
 
 def ecef2ll(E):
-    x, y, z = E[:, 0], E[:, 1], E[:, 2]
-    lng = np.degrees(np.arctan2(y, x))
-    p2 = np.sqrt(x * x + y * y)
-    lat = np.arctan2(z, p2 * (1 - E2))
-    for _ in range(6):
-        Nn = A_ / np.sqrt(1 - E2 * np.sin(lat) ** 2)
-        h = p2 / np.cos(lat) - Nn
-        lat = np.arctan2(z, p2 * (1 - E2 * Nn / (Nn + h)))
-    return lng, np.degrees(lat), h
+    return ecef_to_geo(E)  # 实现唯一位于 tools/lib/geo.py（P4 收口）
 
 def sample(ds, lng, lat):
     xs, ys = rtransform('EPSG:4326', ds.crs, [lng], [lat])

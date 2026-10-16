@@ -18,8 +18,8 @@ import numpy as np
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 TILES = os.path.join(ROOT, 'backend/static/pinglu/tiles/tileset.json')
 CANAL = os.path.join(ROOT, 'backend/static/pinglu/canal')
-A_, F = 6378137.0, 1 / 298.257223563
-E2 = F * (2 - F)
+sys.path.insert(0, os.path.join(ROOT, 'tools', 'lib'))
+from geo import DEG_M_LAT, DEG_M_LNG, ecef_to_geo  # noqa: E402
 APPLY = '--apply' in sys.argv
 
 def read_glb(p):
@@ -41,11 +41,8 @@ def acc(j, b, i):
 def ap(m, p):
     return [m[0]*p[0]+m[4]*p[1]+m[8]*p[2]+m[12], m[1]*p[0]+m[5]*p[1]+m[9]*p[2]+m[13], m[2]*p[0]+m[6]*p[1]+m[10]*p[2]+m[14]]
 def to_lnglat(p):
-    x, y, z = p; lng = math.degrees(math.atan2(y, x)); p2 = math.hypot(x, y); lat = math.atan2(z, p2*(1-E2))
-    for _ in range(8):
-        N = A_/math.sqrt(1-E2*math.sin(lat)**2); h = p2/math.cos(lat)-N
-        lat = math.atan2(z, p2*(1-E2*N/(N+h)))
-    return lng, math.degrees(lat)
+    lng, lat, _ = ecef_to_geo(p)   # 实现唯一位于 tools/lib/geo.py（P4 收口）
+    return lng, lat
 
 ts = json.load(open(TILES, encoding='utf-8'))
 ct = json.load(open(os.path.join(CANAL, 'tileset.json'), encoding='utf-8'))
@@ -77,7 +74,7 @@ for hub in (ONLY,) if ONLY else ('madao', 'qishi', 'qingnian'):
     # 中心在 root 的 ENU 系里（child 变换即 ENU 系内的变换）——**不复合 root.transform**
     C = ap(cT, c_local)
     hl = to_lnglat(ap(ts['root']['transform'], ap(cT, c_local)))
-    dd = np.hypot((band[:,0]-hl[0])*111320*math.cos(math.radians(hl[1])), (band[:,1]-hl[1])*110574)
+    dd = np.hypot((band[:,0]-hl[0])*DEG_M_LNG*math.cos(math.radians(hl[1])), (band[:,1]-hl[1])*DEG_M_LAT)
     near = band[dd < 1200]
     if len(near) < 50:
         print('%s: 带样本不足' % hub); continue
@@ -85,7 +82,7 @@ for hub in (ONLY,) if ONLY else ('madao', 'qishi', 'qingnian'):
     q = max(5, len(order)//12)
     s0 = near[order[:q]].mean(axis=0)   # 南端（下游）
     s1 = near[order[-q:]].mean(axis=0)  # 北端（上游）
-    dE = (s0[0]-s1[0])*111320*math.cos(math.radians(hl[1])); dN = (s0[1]-s1[1])*110574
+    dE = (s0[0]-s1[0])*DEG_M_LNG*math.cos(math.radians(hl[1])); dN = (s0[1]-s1[1])*DEG_M_LAT
     bearing = (math.degrees(math.atan2(dE, dN)) + 360) % 360
     # --bearing 覆盖：影像本身能给出更可信的走向时以影像为准（用户裁定「以施工影像为准」）。
     # 实测马道：运河带 187.1° vs 影像水道 193.3°（.local/3d-review/align-fresh.py 的斜率拟合）。

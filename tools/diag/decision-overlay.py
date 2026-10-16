@@ -22,8 +22,8 @@ from PIL import Image, ImageDraw
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 HUB = sys.argv[1]
 BASE = os.path.join(ROOT, sys.argv[2])
-A_, F = 6378137.0, 1 / 298.257223563
-E2 = F * (2 - F)
+sys.path.insert(0, os.path.join(ROOT, 'tools', 'lib'))
+from geo import DEG_M_LNG, ecef_to_geo  # noqa: E402
 
 
 def read_glb(p):
@@ -69,15 +69,8 @@ def ap(m, p):
 
 
 def to_lnglat(p):
-    x, y, z = p
-    lng = np.degrees(np.arctan2(y, x))
-    p2 = np.hypot(x, y)
-    lat = np.arctan2(z, p2 * (1 - E2))
-    for _ in range(8):
-        N = A_ / np.sqrt(1 - E2 * np.sin(lat) ** 2)
-        h = p2 / np.cos(lat) - N
-        lat = np.arctan2(z, p2 * (1 - E2 * N / (N + h)))
-    return lng, np.degrees(lat)
+    lng, lat, _ = ecef_to_geo(p)  # 实现唯一位于 tools/lib/geo.py（P4 收口）
+    return lng, lat
 
 
 if os.path.exists(BASE + '.json'):
@@ -93,7 +86,7 @@ if img is not None:
     W, H = img.size
 else:
     W = H = json.load(open(BASE + '.json'))['size'][0]
-mperpx = (e - w) * 111320 * math.cos(math.radians((s + n) / 2)) / W
+mperpx = (e - w) * DEG_M_LNG * math.cos(math.radians((s + n) / 2)) / W
 
 CANDS = [(4.5, '193.3'), (9.0, '188.8')]
 if '--cand' in sys.argv:

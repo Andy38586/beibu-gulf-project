@@ -6,14 +6,14 @@
   backend/algorithm-service/.venv/Scripts/python.exe tools/diag/port-overlay.py
 输出：.local/3d-review/port-overlay.png（不入库，只作决定图）
 """
-import json, os, math, struct, base64
+import json, os, math, struct, base64, sys
 import numpy as np
 from PIL import Image, ImageDraw
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 N = 2048
-A_, F = 6378137.0, 1 / 298.257223563
-E2 = F * (2 - F)
+sys.path.insert(0, os.path.join(ROOT, 'tools', 'lib'))
+from geo import DEG_M_LNG, ecef_to_geo  # noqa: E402
 
 
 def read_glb(p):
@@ -56,21 +56,14 @@ def mul(a, b):
 
 
 def ecef2ll(P):
-    x, y, z = P[:, 0], P[:, 1], P[:, 2]
-    lng = np.degrees(np.arctan2(y, x))
-    p2 = np.hypot(x, y)
-    lat = np.arctan2(z, p2 * (1 - E2))
-    for _ in range(8):
-        Nn = A_ / np.sqrt(1 - E2 * np.sin(lat) ** 2)
-        h = p2 / np.cos(lat) - Nn
-        lat = np.arctan2(z, p2 * (1 - E2 * Nn / (Nn + h)))
-    return lng, np.degrees(lat)
+    lng, lat, _ = ecef_to_geo(P)  # 实现唯一位于 tools/lib/geo.py（P4 收口）
+    return lng, lat
 
 
 idx = json.load(open(os.path.join(ROOT, 'backend/static/qinzhou-port/imagery/imagery.json'), encoding='utf-8'))
 ent = idx['tiles'][0]
 w, s, e, n = ent['bbox']
-mperpx = (e - w) * 111320 * math.cos(math.radians((s + n) / 2)) / N
+mperpx = (e - w) * DEG_M_LNG * math.cos(math.radians((s + n) / 2)) / N
 
 TILES = os.path.join(ROOT, 'backend/static/qinzhou-port/tiles')
 ts = json.load(open(os.path.join(TILES, 'tileset.json'), encoding='utf-8'))

@@ -5,7 +5,7 @@
 
   A. 数值 oracle：3 个 fixture 点 + 3 个格心，逐格对比 mass（相对误差 ≤1e-9）
   B. 质量守恒：真实 poi_facilities（2846 点）物化后 Σmass ≈ Σv，容差 2%（3h 截断 ~1.1%）
-  C. 网格健全：cell 面积（geography 口径）与 (cell_m/111320·cosφ)² 换算一致（±1%）
+  C. 网格健全：cell 面积（geography 口径）与 (cell_m/DEG_M_LNG·cosφ)² 换算一致（±1%）
 
 用法：python kde-verify.py   （依赖本机 docker exec beibu-postgis 可达；不改主 schema，
 fixture/输出全在 pg_temp，会话结束自动消失；B 的演示物化表 kde_poi_h2000_c500 在
@@ -14,6 +14,11 @@ fixture/输出全在 pg_temp，会话结束自动消失；B 的演示物化表 k
 import math
 import subprocess
 import sys
+from pathlib import Path  # noqa: E402
+
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / 'tools' / 'lib'))
+from geo import DEG_M_LNG  # noqa: E402
 
 R = 6371008.8  # PostGIS 3.4 ST_DistanceSphere 实测等效半径（WGS84 平均半径；
                # 旧文档 6370986 已失效——实测偏差 3.6e-6，见 2026-09-29 标定）
@@ -62,7 +67,7 @@ def gaussian_mass(center_lon, center_lat, pts, h):
 def scenario_a():
     """A. 数值 oracle：fixture 3 点，物化到 pg_temp，逐格对比"""
     # 点位沿纬线 21.7 排布（0 / 600m / 2000m 东向偏移），v = 10/40/2.5
-    lat0, mdeg = 21.7, 1 / (111320 * math.cos(math.radians(21.7)))
+    lat0, mdeg = 21.7, 1 / (DEG_M_LNG * math.cos(math.radians(21.7)))
     pts = [
         (108.60, lat0, 10.0),
         (108.60 + 600 * mdeg, lat0, 40.0),
@@ -183,8 +188,8 @@ def scenario_c():
           f"Σ(mass·area)/Σv = {ratio:.4f}（信息性；界外点被边界截断拉低）")
     # 面积健全：度方格面积随纬度变化（bbox 跨 1.65°），下界锚最大纬度、上界锚最小纬度
     def cell_km2(lat):
-        east = cell / 111320.0 * math.cos(math.radians(lat)) * 111.32
-        north = cell / 111320.0 * 111.32
+        east = cell / DEG_M_LNG * math.cos(math.radians(lat)) * 111.32
+        north = cell / DEG_M_LNG * 111.32
         return east * north
 
     e_min, e_max = cell_km2(22.62), cell_km2(20.96)

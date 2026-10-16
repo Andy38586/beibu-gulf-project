@@ -50,6 +50,8 @@ except ImportError:  # 点云（CSV）交付需要 scipy；网格（GeoTIFF）�
 
 REPO = Path(__file__).resolve().parents[2]
 DEFAULT_SEA = REPO / '.local/dem-sea-work/sea_custom.tif'
+sys.path.insert(0, str(REPO / 'tools' / 'lib'))
+from geo import DEG_M_LAT, DEG_M_LNG  # noqa: E402
 
 # 以下三项的数值口径全部来自需求书，改这里必须同步改正本
 P0_BOX = (108.45, 21.55, 108.85, 21.85)  # §一 P0：钦州港航道 + 茅尾海 + 龙门水道
@@ -87,8 +89,8 @@ def resolution_m(crs, tr, height) -> float:
     rx, ry = abs(tr.a), abs(tr.e)
     if crs is not None and crs.is_geographic:
         lat = tr.f + tr.e * height / 2.0
-        mx = 111320.0 * math.cos(math.radians(lat))
-        my = 110574.0
+        mx = DEG_M_LNG * math.cos(math.radians(lat))
+        my = DEG_M_LAT
         return max(rx * mx, ry * my)
     return max(rx, ry)
 

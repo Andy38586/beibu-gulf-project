@@ -18,7 +18,7 @@ export interface ForecastPoint {
   reliability: number
 }
 
-export interface EngineMetadata {
+interface EngineMetadata {
   baseValue?: number
   baseTime?: string
   avgGrowthRate?: number

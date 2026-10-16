@@ -9,12 +9,12 @@
 import { useLatestRequest } from './useLatestRequest'
 
 /** 事务状态所在 store 的最小面（预测 / 选址两 store 均满足） */
-export interface TransactionStore {
+interface TransactionStore {
   readonly activeTransactionId: number
   bumpTransactionId(): number
 }
 
-export interface UseTransactionGuardReturn {
+interface UseTransactionGuardReturn {
   startTransaction: () => { transactionId: number; signal: AbortSignal }
   isTransactionValid: (transactionId: number) => boolean
   /** 取消在途请求（AbortController 由本 guard 持有）；各域 cancelAll 的公共底座 */

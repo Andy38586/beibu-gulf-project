@@ -4,7 +4,7 @@ import type { Feature, FeatureCollection, Point } from 'geojson'
  * 坐标是否为有限经纬度。
  * 收敛 OLRenderer/CesiumRenderer 呼吸灯过滤谓词（原 4 处逐行复制）。
  */
-export function isFiniteLngLat(p: { lng: number; lat: number }): boolean {
+function isFiniteLngLat(p: { lng: number; lat: number }): boolean {
   return Number.isFinite(p.lng) && Number.isFinite(p.lat)
 }
 

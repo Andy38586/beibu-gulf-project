@@ -50,24 +50,12 @@ DOWNSAMPLE = 1  # 与 flood_engine 同步：30m 全分辨率（2026-08-30 起）
 FLOOD_DIR = ROOT / "backend" / "data" / "flood"
 
 
-def _dem_identity(path: Path) -> tuple[str, str]:
-    """DEM 溯源（04-B10：产物自述必须能在运行侧指到同一份输入）。
+# DEM 溯源实现唯一位于 tools/flood/lib/dem_identity.py（A2 收口）：本文件与
+# rederive-terrain-profiles.py 共用同一份 label/md5 口径。
+sys.path.insert(0, str(ROOT / "tools" / "flood" / "lib"))
+from dem_identity import dem_identity  # noqa: E402
 
-    返回 (人读标签, md5)。缺失即抛——无 DEM 的"重算"只会产出假产物。
-    """
-    import hashlib
-
-    digest = hashlib.md5(path.read_bytes()).hexdigest()
-    merged = "landsea" in path.name
-    label = (
-        f"{path.name}（海陆一体 ASTER GDEM 填洼 + SRTM15+ 水深，EGM96 正高，30m）"
-        if merged
-        else f"{path.name}（陆地填洼版，海=NoData，EGM96 正高，30m）"
-    )
-    return label, digest
-
-
-DEM_LABEL, DEM_MD5 = _dem_identity(DEM_SOURCE)
+DEM_LABEL, DEM_MD5 = dem_identity(DEM_SOURCE)
 # 生成时写入（原为硬编码 "2026-08-30"）：戳记必须是**本次生成日**——写死会让数据自述随时间
 # 失真（实测 facilityPoints.json 的 updatedAt 落后其内容改动 10 天），且与
 # backend/test/data-freshness.spec.ts 的「戳记 vs git 改动日」核对直接冲突

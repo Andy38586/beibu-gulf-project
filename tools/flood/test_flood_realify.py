@@ -1,12 +1,14 @@
 """flood_realify.py 的生成侧契约断言（pytest）。
 
-钉三件事（都是 2026-10-04 收口的承重点）：
+钉四件事（③ 是 2026-10-04 收口的承重点，④ 是 CMC01 P5/A2 收口）：
   ① 不再写已废弃件 floodArea.json，也不再写 terrainProfile.json（唯一写入方是
      rederive-terrain-profiles.py）——把写入步加回来，test_no_retired_outputs_* 必红；
   ② 产物自述必须带**本次 DEM** 的 md5（04-B10 溯源）——把 demMd5 换成硬编码，
      test_dem_provenance_* 必红；
   ③ riskLevel 由权威分段派生、逐档不同码——把 risk_label 换成固定「中风险」，
-     test_risk_labels_* 必红。
+     test_risk_labels_* 必红；
+  ④ DEM 溯源的 label/md5 只有一份实现（tools/flood/lib/dem_identity.py，A2 收口）——
+     任一站点把 import 换回站内手抄，test_dem_identity_single_source 必红。
 
 全部在临时目录里用合成 DEM/夹具跑，不碰 backend/data。
 运行：backend/algorithm-service/.venv/Scripts/python.exe -m pytest tools/flood/test_flood_realify.py -q
@@ -182,3 +184,38 @@ def test_risk_labels_derived_from_authoritative_bands(sandbox):
     want = {lv: fr.RISK_CODE[fr.risk_label(lv)] for lv in fr.LEVELS}
     assert got == want
     assert len(set(got.values())) > 1, "6 档全写同一个码即 d057 复发"
+
+
+def test_dem_identity_single_source(tmp_path):
+    """A2 收口：两处消费者的 DEM 溯源必须绑定 lib/dem_identity.py 的同一份实现。
+
+    变异取证：任一站点把 import 换成站内手抄 def ⇒ `is` 断言必红（双源复活）；
+    剖面站保留 import 却把调用点换成等价自算 ⇒ 调用点断言必红；把 lib 里的三元
+    改写成 if/else（等价重构）⇒ 不许红。
+    失效条件：本用例钉"绑定 + 调用 + 真算"，不钉 label 全文（措辞改动属等价重构）；
+    剖面站的 sys.path.insert 若缺失，在"flood_realify 已先导入 lib"的同进程下不红
+    （独立运行时会 ImportError，天然拦住）。
+    """
+    import importlib.util
+
+    src = Path(fr.__file__).resolve().parent / "rederive-terrain-profiles.py"
+    spec = importlib.util.spec_from_file_location("rederive_terrain_profiles", src)
+    assert spec is not None and spec.loader is not None
+    rederive = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(rederive)
+
+    shared = fr.dem_identity
+    assert rederive.dem_identity is shared, "两站各持一份手抄实现即 A2 双源复活"
+    aliases = {n for n, v in vars(rederive).items() if v is shared}
+    assert aliases, "剖面站没有绑定共享实现"
+    assert aliases & set(rederive.main.__code__.co_names), "剖面站把调用点摘掉，共享实现成了摆设"
+
+    # 绑定之外还要真算：把 lib 的 md5 换成常量、或丢掉海上分支，本段必红
+    merged = tmp_path / "landsea_utm48n.tif"
+    merged.write_bytes(b"DEM-P5")
+    plain = tmp_path / "filled_utm48n_cut.tif"
+    plain.write_bytes(b"DEM-P5")
+    label_m, digest_m = shared(merged)
+    assert digest_m == hashlib.md5(b"DEM-P5").hexdigest(), "共享实现必须算内容 md5，不得写死"
+    assert "海陆一体" in label_m and merged.name in label_m
+    assert "陆地填洼版" in shared(plain)[0], "非 landsea 源必须走陆地填洼版文案"

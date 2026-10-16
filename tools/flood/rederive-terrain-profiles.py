@@ -34,6 +34,11 @@ OUT_PATH = ROOT / "backend" / "data" / "flood" / "terrainProfile.json"
 sys.path.insert(0, str(ROOT / "tools" / "flood" / "engine"))
 from flood_engine import DEM_PATH  # noqa: E402
 
+# DEM 溯源实现唯一位于 tools/flood/lib/dem_identity.py（A2 收口）：与 flood_realify.py
+# 共用同一份 label/md5 口径，避免同一份 DEM 在两件产物自述里显示成两个来源。
+sys.path.insert(0, str(ROOT / "tools" / "flood" / "lib"))
+from dem_identity import dem_identity  # noqa: E402
+
 NODATA = 32767
 
 # 4 条剖面（id/name 保持不变 = 前端契约零改动；锚点贴港重定）
@@ -100,19 +105,6 @@ def sample_line(src, anchor, sea_m, land_m, step_m):
             elevation = None
         out.append((lngs[i], lats[i], elevation))
     return out
-
-
-def dem_identity(path):
-    """(人读标签, md5)：产物自述必须能指到同一份输入（04-B10）。"""
-    import hashlib
-
-    merged = "landsea" in path.name
-    label = (
-        f"{path.name}（海陆一体 ASTER GDEM 填洼 + SRTM15+ 水深，EGM96 正高，30m）"
-        if merged
-        else f"{path.name}（陆地填洼版，海=NoData，EGM96 正高，30m）"
-    )
-    return label, hashlib.md5(path.read_bytes()).hexdigest()
 
 
 def main():

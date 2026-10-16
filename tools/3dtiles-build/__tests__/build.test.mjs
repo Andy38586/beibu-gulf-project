@@ -10,9 +10,10 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
+import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
 
-import { buildAll, buildBridge } from '../build-bridges.mjs'
+import { BRIDGE_PALETTE, buildAll, buildBridge } from '../build-bridges.mjs'
 import { insideWindow, ribbon, splitRuns } from '../build-canal.mjs'
 import { buildGround, edgeAlpha, EDGE_FADE_M } from '../build-ground.mjs'
 import { buildRoads, extrudeWay } from '../build-roads.mjs'
@@ -535,8 +536,7 @@ describe('buildAll — 五桥垂直锚（净高语义：桥面结构底缘 = 水
       }
       return out
     }
-    const DECK = [0.72, 0.72, 0.74],
-      PIER = [0.55, 0.55, 0.57]
+    const { deck: DECK, pier: PIER } = BRIDGE_PALETTE
     for (const [file, surf] of [
       ['zicai.glb', -11],
       ['jinhaiwan.glb', -16],
@@ -926,5 +926,107 @@ describe('CONTAINER_TYPES — 箱型表', () => {
       expect(r.tris).toBeGreaterThan(0)
       expect(r.bytes).toBeGreaterThan(100)
     }
+  })
+})
+
+describe('桥构件色单源（P3·D23 余项）', () => {
+  // 权威源 = tools/lib/bridge-palette.mjs：build-bridges.mjs 建模、本测试分桶、
+  // tools/diag/probe-bridge-vert.py 按顶点色分桶，三处一律从它派生。色值抄成第二份
+  // **不会报错**——只会让探针分桶为空、判据恒红，故必须由扫描型判据兜住。
+  // 判据面 = 全仓 .mjs/.cjs/.js/.ts/.vue（.vue 只取其 <script>），唯一例外是权威源自身；
+  // 2026-10-16 实测全仓命中数 0，故"0 命中"是"确实没有第二份"，不是"没扫到"。
+  const ROOT = new URL('../../../', import.meta.url)
+  const PALETTE_REL = 'tools/lib/bridge-palette.mjs'
+  const SKIP = new Set([
+    'node_modules',
+    '.git',
+    '.local',
+    '.venv',
+    '__pycache__',
+    'coverage',
+    'dist',
+  ])
+  const TRIPLES = Object.values(BRIDGE_PALETTE).map((v) => v.map(Number))
+
+  /** .vue 只取 <script> 块；其余原样 */
+  function sourceOf(file, text) {
+    if (!file.endsWith('.vue')) return text
+    return [...text.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)].map((m) => m[1]).join('\n')
+  }
+
+  /** 扫三元数字字面量（按数值比对：0.80 / 8e-1 / 0.8 同判），返回「文件:行」 */
+  function scanColorTriples(source, file) {
+    const kind = file.endsWith('.ts') ? ts.ScriptKind.TS : ts.ScriptKind.JS
+    const sf = ts.createSourceFile(file, source, ts.ScriptTarget.ES2022, true, kind)
+    const hits = []
+    const visit = (n) => {
+      if (
+        ts.isArrayLiteralExpression(n) &&
+        n.elements.length === 3 &&
+        n.elements.every(ts.isNumericLiteral)
+      ) {
+        const vals = n.elements.map((e) => Number(e.text))
+        if (TRIPLES.some((t) => t.every((x, i) => Math.abs(x - vals[i]) < 1e-9))) {
+          hits.push(file + ':' + (sf.getLineAndCharacterOfPosition(n.getStart()).line + 1))
+        }
+      }
+      ts.forEachChild(n, visit)
+    }
+    visit(sf)
+    return hits
+  }
+
+  /** 全仓扫描（跳过权威源自身）；返回 { hits, scanned } */
+  function scanRepo() {
+    const hits = []
+    let scanned = 0
+    const walk = (url, relDir) => {
+      for (const e of fs.readdirSync(url, { withFileTypes: true })) {
+        if (SKIP.has(e.name) || e.name.startsWith('tmp-')) continue
+        const rel = relDir ? relDir + '/' + e.name : e.name
+        if (e.isDirectory()) {
+          walk(new URL(e.name + '/', url), rel)
+          continue
+        }
+        if (!/\.(mjs|cjs|js|ts|vue)$/.test(e.name) || rel === PALETTE_REL) continue
+        scanned++
+        hits.push(
+          ...scanColorTriples(sourceOf(rel, fs.readFileSync(new URL(e.name, url), 'utf8')), rel)
+        )
+      }
+    }
+    walk(ROOT, '')
+    return { hits, scanned }
+  }
+
+  it('权威源形状 = 4 个构件 × 3 通道，且都在 [0,1]', () => {
+    expect(Object.keys(BRIDGE_PALETTE)).toEqual(['deck', 'pier', 'rail', 'tower'])
+    for (const [name, rgb] of Object.entries(BRIDGE_PALETTE)) {
+      expect(rgb, name).toHaveLength(3)
+      for (const c of rgb) expect(c, name).toBeGreaterThanOrEqual(0)
+      expect(Math.max(...rgb), name).toBeLessThanOrEqual(1)
+    }
+  })
+
+  it('全仓再无第二份桥构件色（阴性 0 命中 + 阳性对照）', () => {
+    // 阳性对照一律从权威源派生，**不得手写色值** —— 否则改色值后对照先失灵、
+    // 判据对合法变更误红（2026-10-16 变异 D 实测）。
+    const [d0, d1, d2] = BRIDGE_PALETTE.deck
+    const [p0, p1, p2] = BRIDGE_PALETTE.pier
+    const exp = (x) => Number(x).toExponential()
+    expect(scanColorTriples(`const D = [${d0}, ${d1}, ${d2}]\n`, 'synth-a.mjs')).toHaveLength(1)
+    expect(
+      scanColorTriples(`const D = [${exp(d0)}, ${d1}, ${exp(d2)}]\n`, 'synth-b.mjs')
+    ).toHaveLength(1)
+    expect(
+      scanColorTriples(
+        sourceOf('synth-c.vue', `<script>const D = [${p0}, ${p1}, ${p2}]</script>`),
+        'synth-c.vue'
+      )
+    ).toHaveLength(1)
+    expect(scanColorTriples(`const D = [${d0}, ${d1}, ${d2 + 0.01}]\n`, 'synth-d.mjs')).toEqual([])
+    const { hits, scanned } = scanRepo()
+    expect(scanned, '扫描面为空 ⇒ 根路径写错，先红').toBeGreaterThan(50)
+    expect(hits).toEqual([])
   })
 })

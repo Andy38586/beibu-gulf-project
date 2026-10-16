@@ -23,6 +23,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
+import { BRIDGE_PALETTE } from '../lib/bridge-palette.mjs'
 import { box, buildGLB, enuNormalToGltf, enuToGltf, gltfToEnu } from './glb.mjs'
 
 /** 垂直锚点表（构建输入；生成：tools/diag/probe-bridge-vert.py --emit-anchors） */
@@ -30,6 +31,12 @@ const DEFAULT_ANCHORS = path.join(
   path.dirname(fileURLToPath(import.meta.url)),
   'bridge-anchors.json'
 )
+
+/**
+ * 桥构件色（GLB 顶点 COLOR_0）。**唯一权威源** = tools/lib/bridge-palette.mjs；
+ * 本文件只再导出，供测试与探针共用（说明见该模块头注释）。P3·D23 余项
+ */
+export { BRIDGE_PALETTE }
 
 /** 城区桥清单：名称 → OSM way id 列表（多段同名 way 取并集，用其几何端点定轴向） */
 export const CITY_BRIDGES = [
@@ -149,10 +156,7 @@ export function buildBridge(wayGeoms, spec, toLocal, du = 0) {
     const r = addBox(cx, cy, cz + du, sx, sy, sz, color, rotY)
     for (let i = 0; i < r.indices.length; i++) indices.push(r.indices[i] + r.base)
   }
-  const DECK = [0.72, 0.72, 0.74],
-    PIER = [0.55, 0.55, 0.57],
-    RAIL = [0.35, 0.42, 0.55],
-    TOWER = [0.8, 0.78, 0.72]
+  const { deck: DECK, pier: PIER, rail: RAIL, tower: TOWER } = BRIDGE_PALETTE
 
   let spans = 0
   for (const g of wayGeoms) {

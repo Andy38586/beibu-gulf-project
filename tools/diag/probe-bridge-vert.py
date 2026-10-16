@@ -15,7 +15,7 @@
   backend/algorithm-service/.venv/Scripts/python.exe -X utf8 tools/diag/probe-bridge-vert.py
   … tools/diag/probe-bridge-vert.py --emit-anchors tools/3dtiles-build/bridge-anchors.json
 """
-import argparse, hashlib, json, math, os, struct, sys
+import argparse, ast, hashlib, json, math, os, struct, sys
 import numpy as np
 import rasterio
 from rasterio.warp import transform as rtransform
@@ -27,12 +27,35 @@ DEFAULT_DEM = os.path.join(ROOT, 'backend/data/flood/dem/landsea_utm48n_ell.tif'
 
 CS = {5120: ('b', 1), 5121: ('B', 1), 5122: ('h', 2), 5123: ('H', 2), 5125: ('I', 4), 5126: ('f', 4)}
 NC = {'SCALAR': 1, 'VEC2': 2, 'VEC3': 3, 'VEC4': 4}
-BUCKETS = {
-    'deck': (0.72, 0.72, 0.74),
-    'pier': (0.55, 0.55, 0.57),
-    'rail': (0.35, 0.42, 0.55),
-    'tower': (0.80, 0.78, 0.72),
-}
+PALETTE_SOURCE = os.path.join(ROOT, 'tools', 'lib', 'bridge-palette.mjs')
+
+def load_bridge_palette(path=PALETTE_SOURCE):
+    """取权威源里的 BRIDGE_PALETTE 对象字面量（与 build-bridges.mjs 同一份）。
+
+    两侧各抄一份时色值漂移**不报错**，只让分桶为空、判据恒红，故本探针不内联色值。
+    用 ast 解析而非正则：换引号 / 换缩进 / 重排行都不至于静默取空（P3·D23 余项）。
+    """
+    text = open(path, encoding='utf-8').read()
+    i = text.index('export const BRIDGE_PALETTE =')
+    i = text.index('{', i)
+    depth = 0
+    end = None
+    for j in range(i, len(text)):
+        if text[j] == '{':
+            depth += 1
+        elif text[j] == '}':
+            depth -= 1
+            if depth == 0:
+                end = j
+                break
+    if end is None:
+        raise ValueError('权威源里没有闭合的 BRIDGE_PALETTE 对象字面量：%s' % path)
+    node = ast.parse(text[i:end + 1], mode='eval').body
+    return {key.id: [elt.value for elt in val.elts] for key, val in zip(node.keys, node.values)}
+
+# 构件色分桶表（P3·D23 余项：权威源 tools/lib/bridge-palette.mjs，三处一律从它派生）
+PALETTE = load_bridge_palette()
+BUCKETS = {k: tuple(v) for k, v in PALETTE.items()}
 
 def read_glb(p):
     b = open(p, 'rb').read()

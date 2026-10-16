@@ -10,9 +10,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   computeNew,
-  ecefToLlh,
   enuFrame,
-  geocentric,
   identity,
   inv,
   mul,
@@ -21,6 +19,7 @@ import {
   toCol,
   toMath,
 } from '../reanchor-hubs.mjs'
+import { ecefToGeo as ecefToLlh, geoToEcef as geocentric } from '../../lib/geo.mjs'
 
 // ROOT 取交付包（入库）：它不随校准变化，仅提供 ECEF 参考系
 const TILESET = 'backend/static/pinglu/tiles/tileset.json'

@@ -25,6 +25,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { buildGLB, enuToGltf, GLTF_UP } from './glb.mjs'
+import { makeToEnu } from '../lib/geo.mjs'
 
 /** 与 pinglu 交付包同一 root.transform（落位逐位对齐的前提） */
 const TILE_DIR = 'backend/static/pinglu/tiles'
@@ -34,33 +35,6 @@ const BANK_HALF = 120
 /** 水面高程与堤顶抬高（相对地面，米） */
 const WATER_LIFT = 0.4
 const BANK_LIFT = 1.2
-
-const A = 6378137.0,
-  F = 1 / 298.257223563,
-  E2 = F * (2 - F)
-function ecef(lng, lat, h) {
-  const L = (lng * Math.PI) / 180,
-    B = (lat * Math.PI) / 180
-  const N = A / Math.sqrt(1 - E2 * Math.sin(B) ** 2)
-  return [
-    (N + h) * Math.cos(B) * Math.cos(L),
-    (N + h) * Math.cos(B) * Math.sin(L),
-    (N * (1 - E2) + h) * Math.sin(B),
-  ]
-}
-function makeToEnu(T) {
-  const R = [T[0], T[1], T[2], T[4], T[5], T[6], T[8], T[9], T[10]]
-  const O = [T[12], T[13], T[14]]
-  return (lng, lat, h = 0) => {
-    const P = ecef(lng, lat, h)
-    const d = [P[0] - O[0], P[1] - O[1], P[2] - O[2]]
-    return [
-      R[0] * d[0] + R[1] * d[1] + R[2] * d[2],
-      R[3] * d[0] + R[4] * d[1] + R[5] * d[2],
-      R[6] * d[0] + R[7] * d[1] + R[8] * d[2],
-    ]
-  }
-}
 
 /** 把中线折线按 ~40 m 稠密化 */
 export function densify(pts, step = 40) {

@@ -33,24 +33,7 @@ const URL_ =
     : 'http://localhost:5174/route-analysis'
 
 /* ---------- 离线：三枢纽的真实位置（child 盒 × child transform） ---------- */
-const A = 6378137.0,
-  F = 1 / 298.257223563,
-  E2 = F * (2 - F)
-function geo(p) {
-  const x = p[0],
-    y = p[1],
-    z = p[2]
-  const lng = Math.atan2(y, x),
-    p2 = Math.hypot(x, y)
-  let lat = Math.atan2(z, p2 * (1 - E2)),
-    h = 0
-  for (let i = 0; i < 8; i++) {
-    const N = A / Math.sqrt(1 - E2 * Math.sin(lat) ** 2)
-    h = p2 / Math.cos(lat) - N
-    lat = Math.atan2(z, p2 * (1 - (E2 * N) / (N + h)))
-  }
-  return [(lng * 180) / Math.PI, (lat * 180) / Math.PI, h]
-}
+const { ecefToGeo: geo } = require('../lib/geo.mjs')
 const mul = (a, b) => {
   const o = new Array(16).fill(0)
   for (let i = 0; i < 4; i++)

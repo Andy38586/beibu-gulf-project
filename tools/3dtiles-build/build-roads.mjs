@@ -30,6 +30,7 @@ import { pathToFileURL } from 'node:url'
 import { buildGLB, enuToGltf, GLTF_UP, gltfToEnu } from './glb.mjs'
 import { heightsOfMaterial, median, readGLB } from './glb-read.mjs'
 import { buildGroundRef } from './ground-ref.mjs'
+import { makeToEnu } from '../lib/geo.mjs'
 
 const TILE_DIR = 'backend/static/qinzhou-port/tiles'
 /** 与 qinzhou-port 交付包同一 root.transform（落位逐位对齐的前提） */
@@ -40,33 +41,6 @@ function rootTransform(tileDir = TILE_DIR) {
 const WIDTH = { secondary: 12, tertiary: 9, unclassified: 7, service: 5 }
 const DEFAULT_WIDTH = 6
 const ROAD_LIFT = 0.15
-
-const A = 6378137.0,
-  F = 1 / 298.257223563,
-  E2 = F * (2 - F)
-function ecef(lng, lat, h) {
-  const L = (lng * Math.PI) / 180,
-    B = (lat * Math.PI) / 180
-  const N = A / Math.sqrt(1 - E2 * Math.sin(B) ** 2)
-  return [
-    (N + h) * Math.cos(B) * Math.cos(L),
-    (N + h) * Math.cos(B) * Math.sin(L),
-    (N * (1 - E2) + h) * Math.sin(B),
-  ]
-}
-export function makeToLocal(T) {
-  const R = [T[0], T[1], T[2], T[4], T[5], T[6], T[8], T[9], T[10]]
-  const O = [T[12], T[13], T[14]]
-  return (lng, lat, h = 0) => {
-    const P = ecef(lng, lat, h)
-    const d = [P[0] - O[0], P[1] - O[1], P[2] - O[2]]
-    return [
-      R[0] * d[0] + R[1] * d[1] + R[2] * d[2],
-      R[3] * d[0] + R[4] * d[1] + R[5] * d[2],
-      R[6] * d[0] + R[7] * d[1] + R[8] * d[2],
-    ]
-  }
-}
 
 /**
  * 作业区**地面高程基准** u₀（米，交付包 ENU 的 u）——全项目唯一一处定义。
@@ -149,7 +123,7 @@ export function extrudeWay(pts, width, groundU, lift, queryU = null) {
 export function buildRoads({ osmFile, outDir, rebuiltDir, tileDir = TILE_DIR }) {
   const osm = JSON.parse(fs.readFileSync(osmFile, 'utf8'))
   const T = rootTransform(tileDir)
-  const toLocal = makeToLocal(T)
+  const toLocal = makeToEnu(T)
   // 地面基准从**交付包几何**派生（见 groundLevel 注释）；rebuiltDir 不再参与高程决策
   const groundU = groundLevel(tileDir)
   // C 口径（2026-10-05 用户裁定「道路瓦片的高度无统一坐标系，需要根治」）：

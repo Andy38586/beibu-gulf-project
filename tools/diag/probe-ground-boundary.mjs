@@ -25,38 +25,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { readGLB } from '../3dtiles-build/glb-read.mjs'
 import { gltfToEnu } from '../3dtiles-build/glb.mjs'
-
-const A = 6378137.0
-const F = 1 / 298.257223563
-const E2 = F * (2 - F)
-const D2R = Math.PI / 180
-const R2D = 180 / Math.PI
-
-function geoToEcef(lon, lat, h = 0) {
-  const L = lon * D2R
-  const B = lat * D2R
-  const N = A / Math.sqrt(1 - E2 * Math.sin(B) ** 2)
-  return [
-    (N + h) * Math.cos(B) * Math.cos(L),
-    (N + h) * Math.cos(B) * Math.sin(L),
-    (N * (1 - E2) + h) * Math.sin(B),
-  ]
-}
-
-function ecefToGeo(x, y, z) {
-  const lon = Math.atan2(y, x)
-  const p = Math.hypot(x, y)
-  let lat = Math.atan2(z, p * (1 - E2))
-  let h = 0
-  for (let i = 0; i < 12; i++) {
-    const sp = Math.sin(lat)
-    const cp = Math.cos(lat)
-    const N = A / Math.sqrt(1 - E2 * sp * sp)
-    h = p / cp - N
-    lat = Math.atan2(z, p * (1 - (E2 * N) / (N + h)))
-  }
-  return { lon: lon * R2D, lat: lat * R2D, h }
-}
+import { ecefToGeo, makeToEnu } from '../lib/geo.mjs'
 
 const I4 = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
 
@@ -142,8 +111,8 @@ function walk(node, baseWorld, baseLocal, isRoot, st, leafFilter, leafOnly) {
     for (const c of boxCorners(box)) {
       const l = xf(local, c)
       const w = xf(world, c)
-      const g = ecefToGeo(w[0], w[1], w[2])
-      addPoint(st, l[0], l[1], l[2], g.lon, g.lat)
+      const [glon, glat] = ecefToGeo(w)
+      addPoint(st, l[0], l[1], l[2], glon, glat)
     }
   }
   for (const child of node.children ?? [])
@@ -224,15 +193,7 @@ const T = delivered.root.transform
 const R = [T[0], T[1], T[2], T[4], T[5], T[6], T[8], T[9], T[10]]
 const O = [T[12], T[13], T[14]]
 
-function toENU(lon, lat, h = 0) {
-  const p = geoToEcef(lon, lat, h)
-  const d = [p[0] - O[0], p[1] - O[1], p[2] - O[2]]
-  return [
-    R[0] * d[0] + R[1] * d[1] + R[2] * d[2],
-    R[3] * d[0] + R[4] * d[1] + R[5] * d[2],
-    R[6] * d[0] + R[7] * d[1] + R[8] * d[2],
-  ]
-}
+const toENU = makeToEnu(T)
 
 function enuToEcef(E, N, U) {
   return [
@@ -250,8 +211,8 @@ function geoBoxOf(st) {
         Number.isFinite(st.minU) ? st.minU : 0,
         Number.isFinite(st.maxU) ? st.maxU : 0,
       ]) {
-        const g = ecefToGeo(...enuToEcef(E, N, U))
-        addPoint(out, E, N, U, g.lon, g.lat)
+        const [glon, glat] = ecefToGeo(enuToEcef(E, N, U))
+        addPoint(out, E, N, U, glon, glat)
       }
   return out
 }

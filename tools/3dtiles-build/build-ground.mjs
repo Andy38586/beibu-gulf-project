@@ -24,7 +24,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 
-import { groundLevel, makeToLocal } from './build-roads.mjs'
+import { groundLevel } from './build-roads.mjs'
+import { DEG_M_LAT, DEG_M_LNG, makeToEnu } from '../lib/geo.mjs'
 import { buildGLB, enuToGltf, GLTF_UP } from './glb.mjs'
 import { buildGroundRef } from './ground-ref.mjs'
 import { loadWaterMask } from './rebuild-containers.mjs'
@@ -75,7 +76,7 @@ export function buildGround({
   const [w, s, e, n] = meta.tiles[0].bbox
   const mask = loadWaterMask(maskFile)
   const T = rootTransform(tileDir)
-  const toLocal = makeToLocal(T)
+  const toLocal = makeToEnu(T)
   // 地面基准从**交付包几何**派生（见 build-roads.groundLevel 注释；旧实现读分桶盒底，低了 4.7 m）
   const groundU = groundLevel(tileDir)
   const u = groundU + GROUND_LIFT
@@ -85,11 +86,11 @@ export function buildGround({
 
   // 网格建在经纬度上（每格等经纬），逐顶点转 ENU——2 km 尺度上等经纬 ≈ 等米
   const midLat = ((s + n) / 2) * (Math.PI / 180)
-  const nx = Math.max(1, Math.round(((e - w) * 111320 * Math.cos(midLat)) / cell))
-  const ny = Math.max(1, Math.round(((n - s) * 110574) / cell))
+  const nx = Math.max(1, Math.round(((e - w) * DEG_M_LNG * Math.cos(midLat)) / cell))
+  const ny = Math.max(1, Math.round(((n - s) * DEG_M_LAT) / cell))
   // 边缘渐变宽度 → 各轴归一化比例（片比渐变带还窄时整片都在渐变带内，夹 ≤1）
-  const widthXm = (e - w) * 111320 * Math.cos(midLat)
-  const widthYm = (n - s) * 110574
+  const widthXm = (e - w) * DEG_M_LNG * Math.cos(midLat)
+  const widthYm = (n - s) * DEG_M_LAT
   const fadeX = Math.max(1e-6, Math.min(1, fadeM / widthXm))
   const fadeY = Math.max(1e-6, Math.min(1, fadeM / widthYm))
 

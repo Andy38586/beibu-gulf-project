@@ -25,6 +25,7 @@ import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { buildGLB, enuToGltf } from './glb.mjs'
 import { CONTAINER_TYPES } from './container-models.mjs'
+import { makeEnuToLngLat } from '../lib/geo.mjs'
 
 const TILE_DIR = 'backend/static/qinzhou-port/tiles'
 /** 只重建作业区（与前端 keepSphere 一致：局部 ENU (1014.26,2159.18) r=1500） */
@@ -295,10 +296,6 @@ export function loadWaterMask(file) {
   }
 }
 
-/** WGS84 椭球参数（ENU ↔ 经纬换算用） */
-const A = 6378137.0
-const E2 = (1 / 298.257223563) * (2 - 1 / 298.257223563)
-
 /**
  * 实例是否压在水面上——按**外廓**采样，不只看中心。
  *
@@ -332,24 +329,6 @@ function onWater(mask, toLngLat, inst) {
     if (mask.isWater(lng, lat)) wet++
   }
   return wet >= 1
-}
-
-/** ENU(e,n,u) → 经纬度：局部 → ECEF（用 tileset 的 root.transform）→ 经纬 */
-function makeEnuToLngLat(T) {
-  return (e, n, u) => {
-    const x = T[0] * e + T[4] * n + T[8] * u + T[12]
-    const y = T[1] * e + T[5] * n + T[9] * u + T[13]
-    const z = T[2] * e + T[6] * n + T[10] * u + T[14]
-    const lng = (Math.atan2(y, x) * 180) / Math.PI
-    const p = Math.hypot(x, y)
-    let lat = Math.atan2(z, p * (1 - E2))
-    for (let i = 0; i < 6; i++) {
-      const N = A / Math.sqrt(1 - E2 * Math.sin(lat) ** 2)
-      const h = p / Math.cos(lat) - N
-      lat = Math.atan2(z, p * (1 - (E2 * N) / (N + h)))
-    }
-    return [lng, (lat * 180) / Math.PI]
-  }
 }
 
 export function rebuild({ outDir, cellSize = 400, modelsDir }) {

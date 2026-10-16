@@ -25,16 +25,13 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { ecefToGeo as ecefToLlh, geoToEcef as geocentric } from '../lib/geo.mjs'
 
 const TILESET = 'backend/static/pinglu/tiles/tileset.json'
 const LEDGER = '.local/3d-review/reanchor-hubs-log.json'
 export const HUBS = ['madao', 'qishi', 'qingnian']
 /** P0 在 child 坐标系的固定局部点（与浏览器 init_benchmark 一致） */
 export const P0_LOCAL = [180, 162.5, 0]
-const A = 6378137.0
-const F = 1 / 298.257223563
-const E2 = F * (2 - F)
-
 // ---- 4x4 矩阵（列主序 16 数组 <-> 数学矩阵）----
 export function toMath(a) {
   // Cesium 列主序 -> math：M[row][col] = a[col*4+row]
@@ -101,29 +98,6 @@ export function inv(A) {
     }
   }
   return R
-}
-export function geocentric(lon, lat, h) {
-  const lo = (lon * Math.PI) / 180
-  const la = (lat * Math.PI) / 180
-  const N = A / Math.sqrt(1 - E2 * Math.sin(la) ** 2)
-  return [
-    (N + h) * Math.cos(la) * Math.cos(lo),
-    (N + h) * Math.cos(la) * Math.sin(lo),
-    (N * (1 - E2) + h) * Math.sin(la),
-  ]
-}
-export function ecefToLlh(p) {
-  const [x, y, z] = p
-  const lon = Math.atan2(y, x)
-  const p2 = Math.hypot(x, y)
-  let lat = Math.atan2(z, p2 * (1 - E2))
-  let h = 0
-  for (let i = 0; i < 8; i++) {
-    const N = A / Math.sqrt(1 - E2 * Math.sin(lat) ** 2)
-    h = p2 / Math.cos(lat) - N
-    lat = Math.atan2(z, p2 * (1 - (E2 * N) / (N + h)))
-  }
-  return [(lon * 180) / Math.PI, (lat * 180) / Math.PI, h]
 }
 export function enuFrame(center) {
   const [lon, lat] = ecefToLlh(center)

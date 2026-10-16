@@ -39,6 +39,7 @@ const path = require('path')
 const { execFileSync } = require('child_process')
 const GROOT = require('child_process').execSync('npm root -g').toString().trim()
 const { chromium } = require(path.join(GROOT, 'playwright-core'))
+const { ecefToGeo } = require('../lib/geo.mjs')
 
 const ROOT = path.resolve(__dirname, '..', '..')
 const OUT = path.join(ROOT, '.local', '3d-review', 'lod-ladder')
@@ -85,19 +86,6 @@ function matMul(a, b) {
   }
   return o
 }
-function ecefToGeo([x, y, z]) {
-  const a = 6378137.0
-  const f = 1 / 298.257223563
-  const e2 = f * (2 - f)
-  const b = a * (1 - f)
-  const ep2 = (a * a - b * b) / (b * b)
-  const p = Math.hypot(x, y)
-  const th = Math.atan2(z * a, p * b)
-  const lon = Math.atan2(y, x)
-  const lat = Math.atan2(z + ep2 * b * Math.sin(th) ** 3, p - e2 * a * Math.cos(th) ** 3)
-  return { lng: (lon * 180) / Math.PI, lat: (lat * 180) / Math.PI }
-}
-
 function deriveAnchors() {
   const out = {}
   const pinglu = JSON.parse(
@@ -111,7 +99,8 @@ function deriveAnchors() {
     if (!id) continue
     const local = c.boundingVolume.box.slice(0, 3)
     const world = c.transform ? mul(rootT, mul(c.transform, local)) : mul(rootT, local)
-    out[id] = ecefToGeo(world)
+    const [lng, lat] = ecefToGeo(world)
+    out[id] = { lng, lat }
   }
   // 钦州港：交付包 root 原点是 anchor.json 的 108.6375/21.655（作业区中心在它东北 ~2.4 km，
   // 交付包 96 块里的那一簇）。锚点直接读**交付包 catalog.json 的 harbour 条目**（单一出处；

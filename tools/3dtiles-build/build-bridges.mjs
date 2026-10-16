@@ -25,6 +25,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 
 import { BRIDGE_PALETTE } from '../lib/bridge-palette.mjs'
 import { box, buildGLB, enuNormalToGltf, enuToGltf, gltfToEnu } from './glb.mjs'
+import { geoToEcef, makeToEnu } from '../lib/geo.mjs'
 
 /** 垂直锚点表（构建输入；生成：tools/diag/probe-bridge-vert.py --emit-anchors） */
 const DEFAULT_ANCHORS = path.join(
@@ -63,19 +64,6 @@ export const CITY_BRIDGES = [
   { key: 'minchang', name: '敏昌大桥', aka: '钦江五桥', ways: [], deckW: 30, towers: 0 },
 ]
 
-const A = 6378137.0,
-  F = 1 / 298.257223563,
-  E2 = F * (2 - F)
-function ecef(lng, lat, h) {
-  const L = (lng * Math.PI) / 180,
-    B = (lat * Math.PI) / 180
-  const N = A / Math.sqrt(1 - E2 * Math.sin(B) ** 2)
-  return [
-    (N + h) * Math.cos(B) * Math.cos(L),
-    (N + h) * Math.cos(B) * Math.sin(L),
-    (N * (1 - E2) + h) * Math.sin(B),
-  ]
-}
 /** 以锚点建 ENU 旋转 + 平移（与交付包同款列优先 4×4） */
 export function enuTransform(lng, lat, h = 0) {
   const L = (lng * Math.PI) / 180,
@@ -87,7 +75,7 @@ export function enuTransform(lng, lat, h = 0) {
   const east = [-sL, cL, 0]
   const north = [-sB * cL, -sB * sL, cB]
   const up = [cB * cL, cB * sL, sB]
-  const o = ecef(lng, lat, h)
+  const o = geoToEcef(lng, lat, h)
   return [
     east[0],
     east[1],
@@ -220,17 +208,7 @@ export function buildAll({ osmFile, outDir, anchorsPath = DEFAULT_ANCHORS }) {
   const anchorWay = all.find((e) => e.tags?.name === '子材大桥')
   const ag = anchorWay.geometry[Math.floor(anchorWay.geometry.length / 2)]
   const T = enuTransform(ag.lon, ag.lat)
-  const R = [T[0], T[1], T[2], T[4], T[5], T[6], T[8], T[9], T[10]]
-  const O = [T[12], T[13], T[14]]
-  const toLocal = (lng, lat, h = 0) => {
-    const P = ecef(lng, lat, h)
-    const d = [P[0] - O[0], P[1] - O[1], P[2] - O[2]]
-    return [
-      R[0] * d[0] + R[1] * d[1] + R[2] * d[2],
-      R[3] * d[0] + R[4] * d[1] + R[5] * d[2],
-      R[6] * d[0] + R[7] * d[1] + R[8] * d[2],
-    ]
-  }
+  const toLocal = makeToEnu(T)
 
   // 按名字归并 way
   const byName = new Map()

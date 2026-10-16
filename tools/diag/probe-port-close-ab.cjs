@@ -21,10 +21,15 @@
 'use strict'
 const fs = require('fs')
 const path = require('path')
-const GROOT = require('child_process').execSync('npm root -g').toString().trim()
-const { chromium } = require(path.join(GROOT, 'playwright-core'))
-
-const ROOT = path.resolve(__dirname, '..', '..')
+const {
+  ROOT,
+  launchPage,
+  shotUrl,
+  onlyLayer,
+  snapVis,
+  restoreVis,
+  PXDIFF,
+} = require('./lib/browser.cjs')
 const OUT = path.join(ROOT, '.local', 'coverage')
 fs.mkdirSync(OUT, { recursive: true })
 const arg = (k, d) => {
@@ -38,97 +43,14 @@ const CAMS = [
 ]
 
 ;(async () => {
-  const browser = await chromium.launch({
-    channel: 'msedge',
-    headless: true,
-    args: [
-      '--use-angle=default',
-      '--enable-webgl',
-      '--ignore-certificate-errors',
-      '--enable-unsafe-swiftshader',
-    ],
+  const { browser, page } = await launchPage({
+    viewport: { width: 900, height: 620 },
+    deviceScaleFactor: 1,
   })
-  const page = await (
-    await browser.newContext({ viewport: { width: 900, height: 620 }, deviceScaleFactor: 1 })
-  ).newPage()
   await page.goto(URL_, { waitUntil: 'domcontentloaded', timeout: 60000 })
   await page.waitForTimeout(24000)
 
-  const onlyLayer = (layerId) =>
-    page.evaluate((id) => {
-      const r = document
-        .querySelector('#app')
-        .__vue_app__.config.globalProperties.$pinia._s.get('map').currentRenderer
-      for (const [lid, rec] of r._layers) {
-        const inst = rec && rec.instance
-        if (!inst) continue
-        const on = id != null && lid === id
-        inst.show = on
-        if (on && rec) rec.visible = true
-      }
-      r.viewer.scene.requestRender()
-    }, layerId)
-  const snapVis = () =>
-    page.evaluate(() => {
-      const r = document
-        .querySelector('#app')
-        .__vue_app__.config.globalProperties.$pinia._s.get('map').currentRenderer
-      const out = []
-      for (const [lid, rec] of r._layers) {
-        const inst = rec && rec.instance
-        if (!inst) continue
-        out.push([lid, !!inst.show, rec ? !!rec.visible : null])
-      }
-      return out
-    })
-  const restoreVis = (snap) =>
-    page.evaluate((rows) => {
-      const r = document
-        .querySelector('#app')
-        .__vue_app__.config.globalProperties.$pinia._s.get('map').currentRenderer
-      for (const [lid, show, visible] of rows) {
-        const rec = r._layers.get(lid)
-        const inst = rec && rec.instance
-        if (!inst) continue
-        inst.show = show
-        if (rec && visible != null) rec.visible = visible
-      }
-      r.viewer.scene.requestRender()
-    }, snap)
-  const shotUrl = async () =>
-    'data:image/png;base64,' + (await page.screenshot()).toString('base64')
-  const PXDIFF = ([a, b]) =>
-    new Promise((res) => {
-      const A = new Image()
-      const B = new Image()
-      let got = 0
-      const go = () => {
-        if (++got < 2) return
-        const c = document.createElement('canvas')
-        c.width = A.width
-        c.height = A.height
-        const g = c.getContext('2d', { willReadFrequently: true })
-        g.drawImage(A, 0, 0)
-        const da = g.getImageData(0, 0, c.width, c.height).data
-        g.clearRect(0, 0, c.width, c.height)
-        g.drawImage(B, 0, 0)
-        const db = g.getImageData(0, 0, c.width, c.height).data
-        let n = 0
-        for (let i = 0; i < da.length; i += 4) {
-          if (
-            Math.abs(da[i] - db[i]) > 12 ||
-            Math.abs(da[i + 1] - db[i + 1]) > 12 ||
-            Math.abs(da[i + 2] - db[i + 2]) > 12
-          )
-            n++
-        }
-        res(n)
-      }
-      A.onload = go
-      B.onload = go
-      A.src = a
-      B.src = b
-    })
+  /* onlyLayer / snapVis / restoreVis / shotUrl / PXDIFF 见 ./lib/browser.cjs */
 
   const layerIds = await page.evaluate(() => {
     const r = document
@@ -165,15 +87,15 @@ const CAMS = [
           ? { sel: inst.statistics.selected, tri: inst.statistics.numberOfTrianglesSelected }
           : null
       }, id)
-      const snap = await snapVis()
-      await onlyLayer(null)
+      const snap = await snapVis(page)
+      await onlyLayer(page, null)
       await page.waitForTimeout(2500)
-      const base = await shotUrl()
-      await onlyLayer(id)
+      const base = await shotUrl(page)
+      await onlyLayer(page, id)
       await page.waitForTimeout(3500)
-      const on = await shotUrl()
-      const px = await page.evaluate(PXDIFF, [base, on])
-      await restoreVis(snap)
+      const on = await shotUrl(page)
+      const px = (await page.evaluate(PXDIFF, [base, on])).n
+      await restoreVis(page, snap)
       await page.waitForTimeout(800)
       console.log(
         `${id.padEnd(24)} selected=${st ? st.sel : '-'} tris=${st ? st.tri : '-'} px=${px}`

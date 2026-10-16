@@ -14,13 +14,8 @@
 'use strict'
 const fs = require('fs')
 const path = require('path')
-// PW_GROOT 环境变量可覆盖全局 node_modules（spawn cmd.exe 被拦/锁的环境下用）；
-// 未设时保持原路径：npm root -g 现场解析。
-const GROOT =
-  process.env.PW_GROOT || require('child_process').execSync('npm root -g').toString().trim()
-const { chromium } = require(path.join(GROOT, 'playwright-core'))
+const { ROOT, launchPage, shotUrl, setLayer, PXDIFF } = require('./lib/browser.cjs')
 
-const ROOT = path.resolve(__dirname, '..', '..')
 const OUT = path.join(ROOT, '.local', 'ground-fade-ab')
 fs.mkdirSync(OUT, { recursive: true })
 const BEFORE = path.join(OUT, 'ground-before.glb')
@@ -34,21 +29,10 @@ const CAMS = [
 let MODE = 'after'
 
 ;(async () => {
-  const browser = await chromium.launch({
-    channel: 'msedge',
-    headless: true,
-    args: [
-      '--use-angle=default',
-      '--enable-webgl',
-      '--ignore-certificate-errors',
-      '--enable-unsafe-swiftshader',
-    ],
-  })
-  const ctx = await browser.newContext({
+  const { browser, page } = await launchPage({
     viewport: { width: 900, height: 620 },
     deviceScaleFactor: 1,
   })
-  const page = await ctx.newPage()
   await page.route('**/rebuilt/ground/ground.glb', (route) => {
     if (MODE === 'before') return route.fulfill({ path: BEFORE, contentType: 'model/gltf-binary' })
     return route.continue()
@@ -71,54 +55,7 @@ let MODE = 'after'
       },
       [id]
     )
-  const setLayer = (id, on) =>
-    page.evaluate(
-      ([lid, v]) => {
-        const r = document
-          .querySelector('#app')
-          .__vue_app__.config.globalProperties.$pinia._s.get('map').currentRenderer
-        const rec = r._layers.get(lid)
-        const inst = rec && rec.instance
-        if (!inst) return false
-        inst.show = v
-        if (v && rec) rec.visible = true
-        r.viewer.scene.requestRender()
-        return true
-      },
-      [id, on]
-    )
-  const PXDIFF = ([a, b]) =>
-    new Promise((res) => {
-      const A = new Image()
-      const B = new Image()
-      let got = 0
-      const go = () => {
-        if (++got < 2) return
-        const c = document.createElement('canvas')
-        c.width = A.width
-        c.height = A.height
-        const g = c.getContext('2d', { willReadFrequently: true })
-        g.drawImage(A, 0, 0)
-        const da = g.getImageData(0, 0, c.width, c.height).data
-        g.clearRect(0, 0, c.width, c.height)
-        g.drawImage(B, 0, 0)
-        const db = g.getImageData(0, 0, c.width, c.height).data
-        let n = 0
-        for (let i = 0; i < da.length; i += 4) {
-          if (
-            Math.abs(da[i] - db[i]) > 12 ||
-            Math.abs(da[i + 1] - db[i + 1]) > 12 ||
-            Math.abs(da[i + 2] - db[i + 2]) > 12
-          )
-            n++
-        }
-        res(n)
-      }
-      A.onload = go
-      B.onload = go
-      A.src = a
-      B.src = b
-    })
+  /* setLayer / PXDIFF 见 ./lib/browser.cjs；ensureLayer 只此一处，留站内 */
 
   const shots = {} // shots[mode][cam] = dataURL
   const run = async (mode) => {
@@ -134,8 +71,8 @@ let MODE = 'after'
         'BLM 不可达（App setupState 无 businessLayerManager），无法走 setVisible 补建'
       )
     await page.waitForTimeout(8000) // 等目录 watcher 建层 + 瓦片加载
-    const okRoads = await setLayer('beibu-qz-roads', true)
-    const okGround = await setLayer('beibu-qz-ground', true)
+    const okRoads = await setLayer(page, 'beibu-qz-roads', true)
+    const okGround = await setLayer(page, 'beibu-qz-ground', true)
     if (!okRoads) throw new Error('roads 层未注册（交付包/服务异常）')
     if (!okGround) throw new Error('ground 层开关失败（ensureLayer 后仍未实例化）')
     shots[mode] = {}
@@ -175,12 +112,12 @@ let MODE = 'after'
       })
     }, c3cam)
     await page.waitForTimeout(6000)
-    const withRoads = 'data:image/png;base64,' + (await page.screenshot()).toString('base64')
-    await setLayer('beibu-qz-roads', false)
+    const withRoads = await shotUrl(page)
+    await setLayer(page, 'beibu-qz-roads', false)
     await page.waitForTimeout(2500)
-    const noRoads = 'data:image/png;base64,' + (await page.screenshot()).toString('base64')
-    await setLayer('beibu-qz-roads', true)
-    return await page.evaluate(PXDIFF, [noRoads, withRoads])
+    const noRoads = await shotUrl(page)
+    await setLayer(page, 'beibu-qz-roads', true)
+    return (await page.evaluate(PXDIFF, [noRoads, withRoads])).n
   }
 
   const roadsPxAfter = await run('after')
@@ -190,17 +127,15 @@ let MODE = 'after'
   // C1/C2：缝机位差应显著、港芯下视差应≈0
   const fail = []
   // PXDIFF 依赖浏览器 canvas——把 before/after 的差放到第二次打开的页面里算
-  const browser2 = await chromium.launch({ channel: 'msedge', headless: true })
-  const page2 = await (
-    await browser2.newContext({ viewport: { width: 900, height: 620 } })
-  ).newPage()
+  const { browser: browser2, page: page2 } = await launchPage({
+    viewport: { width: 900, height: 620 },
+  })
   await page2.goto('http://127.0.0.1:5174/', { waitUntil: 'domcontentloaded', timeout: 60000 })
   const results = {}
   for (const cam of CAMS) {
-    results[cam.name] = await page2.evaluate(PXDIFF, [
-      shots.before[cam.name],
-      shots.after[cam.name],
-    ])
+    results[cam.name] = (
+      await page2.evaluate(PXDIFF, [shots.before[cam.name], shots.after[cam.name]])
+    ).n
   }
   await browser2.close()
 

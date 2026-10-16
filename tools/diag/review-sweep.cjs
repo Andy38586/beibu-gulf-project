@@ -4,9 +4,7 @@
 'use strict'
 const fs = require('fs'),
   path = require('path')
-const GROOT = require('child_process').execSync('npm root -g').toString().trim()
-const { chromium } = require(path.join(GROOT, 'playwright-core'))
-const ROOT = path.resolve(__dirname, '..', '..')
+const { ROOT, launchPage } = require('./lib/browser.cjs')
 const arg = (n, d) => {
   const i = process.argv.indexOf('--' + n)
   return i > -1 ? process.argv[i + 1] : d
@@ -30,19 +28,10 @@ const DEFAULT = [
 ].join(';')
 const CAMS = arg('cams', DEFAULT).split(';').filter(Boolean)
 ;(async () => {
-  const browser = await chromium.launch({
-    channel: 'msedge',
-    headless: true,
-    args: [
-      '--use-angle=default',
-      '--enable-webgl',
-      '--ignore-certificate-errors',
-      '--enable-unsafe-swiftshader',
-    ],
+  const { browser, page } = await launchPage({
+    viewport: { width: 1100, height: 800 },
+    deviceScaleFactor: 1,
   })
-  const page = await (
-    await browser.newContext({ viewport: { width: 1100, height: 800 }, deviceScaleFactor: 1 })
-  ).newPage()
   await page.goto(arg('url', 'http://localhost:5174/route-analysis'), {
     waitUntil: 'domcontentloaded',
     timeout: 60000,

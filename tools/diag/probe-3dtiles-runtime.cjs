@@ -9,10 +9,8 @@
 'use strict'
 const fs = require('fs')
 const path = require('path')
-const GROOT = require('child_process').execSync('npm root -g').toString().trim()
-const { chromium } = require(path.join(GROOT, 'playwright-core'))
+const { ROOT, launchPage } = require('./lib/browser.cjs')
 
-const ROOT = path.resolve(__dirname, '..', '..')
 const OUT = path.join(ROOT, '.local', '3d-review')
 fs.mkdirSync(OUT, { recursive: true })
 
@@ -92,17 +90,7 @@ const Q = (reSrc) => {
 }
 
 ;(async () => {
-  const browser = await chromium.launch({
-    channel: 'msedge',
-    headless: true,
-    args: [
-      '--use-angle=default',
-      '--enable-webgl',
-      '--ignore-certificate-errors',
-      '--enable-unsafe-swiftshader',
-    ],
-  })
-  const page = await browser.newPage({ viewport: { width: 900, height: 620 } })
+  const { browser, page } = await launchPage({ viewport: { width: 900, height: 620 } })
   const seenStatic = new Map()
   page.on('response', (r) => {
     if (!NETLOG) return

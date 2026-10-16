@@ -18,11 +18,8 @@
 'use strict'
 const fs = require('fs')
 const path = require('path')
-const { execSync } = require('child_process')
-const GROOT = execSync('npm root -g').toString().trim()
-const { chromium } = require(path.join(GROOT, 'playwright-core'))
+const { ROOT, launchPage } = require('./lib/browser.cjs')
 
-const ROOT = path.resolve(__dirname, '..', '..')
 const URL_ = process.argv[2] || 'http://127.0.0.1:5174/profile'
 
 /** REGION.zoom 从配置源码读（不手抄）：`zoom: 9,` 紧随 REGION 块 */
@@ -35,14 +32,11 @@ if (!m) {
 const EXPECT_ZOOM = Number(m[1])
 
 ;(async () => {
-  const browser = await chromium.launch({
-    channel: 'msedge',
-    headless: true,
+  // 本探针只查 Vue 注入链、不渲 3D ⇒ 用两参覆盖公共启动参数（无需 webgl/swiftshader）
+  const { browser, page } = await launchPage({
+    viewport: { width: 1280, height: 860 },
     args: ['--ignore-certificate-errors', '--enable-unsafe-swiftshader'],
   })
-  const page = await (
-    await browser.newContext({ viewport: { width: 1280, height: 860 } })
-  ).newPage()
   const consoleMsgs = []
   const pageErrors = []
   page.on('console', (msg) => {

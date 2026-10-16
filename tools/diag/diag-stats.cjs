@@ -3,21 +3,9 @@
  * 用法: node tools/diag/diag-stats.cjs [url]
  */
 'use strict'
-const path = require('path')
-const GROOT = require('child_process').execSync('npm root -g').toString().trim()
-const { chromium } = require(path.join(GROOT, 'playwright-core'))
+const { launchPage } = require('./lib/browser.cjs')
 ;(async () => {
-  const browser = await chromium.launch({
-    channel: 'msedge',
-    headless: true,
-    args: [
-      '--use-angle=default',
-      '--enable-webgl',
-      '--ignore-certificate-errors',
-      '--enable-unsafe-swiftshader',
-    ],
-  })
-  const page = await (await browser.newContext({ viewport: { width: 900, height: 620 } })).newPage()
+  const { browser, page } = await launchPage({ viewport: { width: 900, height: 620 } })
   const reqs = []
   page.on('response', (r) => {
     const u = r.url()

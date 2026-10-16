@@ -10,10 +10,8 @@
 'use strict'
 const fs = require('fs')
 const path = require('path')
-const GROOT = require('child_process').execSync('npm root -g').toString().trim()
-const { chromium } = require(path.join(GROOT, 'playwright-core'))
+const { ROOT, launchPage } = require('./lib/browser.cjs')
 
-const ROOT = path.resolve(__dirname, '..', '..')
 const arg = (n, d) => {
   const i = process.argv.indexOf('--' + n)
   return i > -1 ? process.argv[i + 1] : d
@@ -226,17 +224,7 @@ const PROBE = (filterSrc) => {
 }
 
 ;(async () => {
-  const browser = await chromium.launch({
-    channel: 'msedge',
-    headless: true,
-    args: [
-      '--use-angle=default',
-      '--enable-webgl',
-      '--ignore-certificate-errors',
-      '--enable-unsafe-swiftshader',
-    ],
-  })
-  const page = await browser.newPage({ viewport: { width: 1280, height: 800 } })
+  const { browser, page } = await launchPage({ viewport: { width: 1280, height: 800 } })
   page.on('console', (m) => {
     const t = m.text()
     if (/\[CesiumRenderer\]|error|Error/.test(t)) console.log('[page]', t.slice(0, 200))

@@ -14,8 +14,7 @@
  */
 'use strict'
 const path = require('path')
-const GROOT = require('child_process').execSync('npm root -g').toString().trim()
-const { chromium } = require(path.join(GROOT, 'playwright-core'))
+const { ROOT, launchPage } = require('./lib/browser.cjs')
 
 const URL_ = process.argv[2] || 'http://127.0.0.1:5174/route-analysis'
 const WIDTHS = (process.argv[3] || '1440,1280,1180,1100,1024,900').split(',').map(Number)
@@ -44,17 +43,9 @@ const read = () => {
   const rows = []
   let red = 0
   for (const w of WIDTHS) {
-    const browser = await chromium.launch({
-      channel: 'msedge',
-      headless: true,
-      args: [
-        '--use-angle=default',
-        '--enable-webgl',
-        '--ignore-certificate-errors',
-        '--enable-unsafe-swiftshader',
-      ],
+    const { browser, page } = await launchPage({
+      viewport: { width: w, height: Math.round(w * 0.672) },
     })
-    const page = await browser.newPage({ viewport: { width: w, height: Math.round(w * 0.672) } })
     await page.goto(URL_, { waitUntil: 'domcontentloaded', timeout: 60000 })
     await page.waitForTimeout(12000)
     await page.evaluate(
@@ -83,12 +74,7 @@ const read = () => {
     )
     await browser.close()
   }
-  const out = path.join(
-    path.resolve(__dirname, '..', '..'),
-    '.local',
-    '3d-review',
-    'port-far-view-vs-viewport.json'
-  )
+  const out = path.join(ROOT, '.local', '3d-review', 'port-far-view-vs-viewport.json')
   require('fs').mkdirSync(path.dirname(out), { recursive: true })
   require('fs').writeFileSync(out, JSON.stringify({ url: URL_, height: HEIGHT, rows }, null, 1))
   console.log(

@@ -20,9 +20,15 @@
 'use strict'
 const fs = require('fs'),
   path = require('path')
-const GROOT = require('child_process').execSync('npm root -g').toString().trim()
-const { chromium } = require(path.join(GROOT, 'playwright-core'))
-const ROOT = path.resolve(__dirname, '..', '..')
+const {
+  ROOT,
+  launchPage,
+  shotUrl,
+  onlyLayer,
+  snapVis,
+  restoreVis,
+  PXDIFF,
+} = require('./lib/browser.cjs')
 const OUT = path.join(ROOT, '.local', 'coverage')
 fs.mkdirSync(OUT, { recursive: true })
 const ONLY =
@@ -108,103 +114,20 @@ function hubCameras() {
         )
         .join('  ')
   )
-  const browser = await chromium.launch({
-    channel: 'msedge',
-    headless: true,
-    args: [
-      '--use-angle=default',
-      '--enable-webgl',
-      '--ignore-certificate-errors',
-      '--enable-unsafe-swiftshader',
-    ],
+  const { browser, page } = await launchPage({
+    viewport: { width: 900, height: 620 },
+    deviceScaleFactor: 1,
   })
-  const page = await (
-    await browser.newContext({ viewport: { width: 900, height: 620 }, deviceScaleFactor: 1 })
-  ).newPage()
   await page.goto(URL_, {
     waitUntil: 'domcontentloaded',
     timeout: 60000,
   })
   await page.waitForTimeout(24000)
 
-  /* ---------- 像素级 A/B：把全部图层关掉当基线，再只开一层 ---------- */
-  const onlyLayer = (layerId) =>
-    page.evaluate((id) => {
-      const r = document
-        .querySelector('#app')
-        .__vue_app__.config.globalProperties.$pinia._s.get('map').currentRenderer
-      for (const [lid, rec] of r._layers) {
-        const inst = rec && rec.instance
-        if (!inst) continue
-        const on = id != null && lid === id
-        inst.show = on
-        // 默认关闭的图层：应用侧会把 show 再压回 false，故同时把 rec.visible 置位
-        if (on && rec) rec.visible = true
-      }
-      r.viewer.scene.requestRender()
-    }, layerId)
-  const shotUrl = async () =>
-    'data:image/png;base64,' + (await page.screenshot()).toString('base64')
-  /* A/B 相位只改可见性 ⇒ 测完必须还原，否则会污染下一个目标的遍历状态（实测：不还原则全跑 5/7 假 GAP） */
-  const snapVis = () =>
-    page.evaluate(() => {
-      const r = document
-        .querySelector('#app')
-        .__vue_app__.config.globalProperties.$pinia._s.get('map').currentRenderer
-      const out = []
-      for (const [lid, rec] of r._layers) {
-        const inst = rec && rec.instance
-        if (!inst) continue
-        out.push([lid, !!inst.show, rec ? !!rec.visible : null])
-      }
-      return out
-    })
-  const restoreVis = (snap) =>
-    page.evaluate((rows) => {
-      const r = document
-        .querySelector('#app')
-        .__vue_app__.config.globalProperties.$pinia._s.get('map').currentRenderer
-      for (const [lid, show, visible] of rows) {
-        const rec = r._layers.get(lid)
-        const inst = rec && rec.instance
-        if (!inst) continue
-        inst.show = show
-        if (rec && visible != null) rec.visible = visible
-      }
-      r.viewer.scene.requestRender()
-    }, snap)
-  const PXDIFF = ([a, b]) =>
-    new Promise((res) => {
-      const A = new Image()
-      const B = new Image()
-      let got = 0
-      const go = () => {
-        if (++got < 2) return
-        const c = document.createElement('canvas')
-        c.width = A.width
-        c.height = A.height
-        const g = c.getContext('2d', { willReadFrequently: true })
-        g.drawImage(A, 0, 0)
-        const da = g.getImageData(0, 0, c.width, c.height).data
-        g.clearRect(0, 0, c.width, c.height)
-        g.drawImage(B, 0, 0)
-        const db = g.getImageData(0, 0, c.width, c.height).data
-        let n = 0
-        for (let i = 0; i < da.length; i += 4) {
-          if (
-            Math.abs(da[i] - db[i]) > 12 ||
-            Math.abs(da[i + 1] - db[i + 1]) > 12 ||
-            Math.abs(da[i + 2] - db[i + 2]) > 12
-          )
-            n++
-        }
-        res({ n, w: c.width, h: c.height })
-      }
-      A.onload = go
-      B.onload = go
-      A.src = a
-      B.src = b
-    })
+  /* ---------- 像素级 A/B：把全部图层关掉当基线，再只开一层 ----------
+     onlyLayer / shotUrl / snapVis / restoreVis / PXDIFF 见 ./lib/browser.cjs
+     （A/B 相位只改可见性 ⇒ 测完必须还原，否则会污染下一个目标的遍历状态：
+      实测不还原则全跑 5/7 假 GAP） */
 
   const targets = await page.evaluate(() => {
     const C = window.Cesium
@@ -270,15 +193,15 @@ function hubCameras() {
     const ok = best.sel > 0 && best.tri > 0
     let px = 0
     if (ok) {
-      const snap = await snapVis()
-      await onlyLayer(null)
+      const snap = await snapVis(page)
+      await onlyLayer(page, null)
       await page.waitForTimeout(2500)
-      const base = await shotUrl()
-      await onlyLayer(t.id)
+      const base = await shotUrl(page)
+      await onlyLayer(page, t.id)
       await page.waitForTimeout(3200)
-      const on = await shotUrl()
+      const on = await shotUrl(page)
       px = (await page.evaluate(PXDIFF, [base, on])).n
-      await restoreVis(snap)
+      await restoreVis(page, snap)
       await page.waitForTimeout(1200)
     }
     const pass = ok && px > 0

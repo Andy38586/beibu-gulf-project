@@ -37,11 +37,9 @@
 const fs = require('fs')
 const path = require('path')
 const { execFileSync } = require('child_process')
-const GROOT = require('child_process').execSync('npm root -g').toString().trim()
-const { chromium } = require(path.join(GROOT, 'playwright-core'))
+const { ROOT, launchPage } = require('./lib/browser.cjs')
 const { ecefToGeo } = require('../lib/geo.mjs')
 
-const ROOT = path.resolve(__dirname, '..', '..')
 const OUT = path.join(ROOT, '.local', '3d-review', 'lod-ladder')
 fs.mkdirSync(OUT, { recursive: true })
 /** 像素判据的取数依赖：自建 diff 工具 + 带 Pillow 的 venv（与 §8.20 的截图 A/B 同一通道） */
@@ -323,19 +321,7 @@ async function measureBody(page, id, clip, h) {
 }
 
 ;(async () => {
-  const browser = await chromium.launch({
-    channel: 'msedge',
-    headless: true,
-    args: [
-      '--use-angle=default',
-      '--enable-webgl',
-      '--ignore-certificate-errors',
-      '--enable-unsafe-swiftshader',
-    ],
-  })
-  const page = await (
-    await browser.newContext({ viewport: { width: 1280, height: 860 } })
-  ).newPage()
+  const { browser, page } = await launchPage({ viewport: { width: 1280, height: 860 } })
   const consoleMsgs = []
   const pageErrors = []
   page.on('console', (m) => {

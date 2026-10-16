@@ -15,10 +15,8 @@
 'use strict'
 const fs = require('fs')
 const path = require('path')
-const GROOT = require('child_process').execSync('npm root -g').toString().trim()
-const { chromium } = require(path.join(GROOT, 'playwright-core'))
+const { ROOT, launchPage } = require('./lib/browser.cjs')
 
-const ROOT = path.resolve(__dirname, '..', '..')
 const OUT = path.join(ROOT, '.local', '3d-review', 'lod-probe')
 fs.mkdirSync(OUT, { recursive: true })
 
@@ -117,19 +115,10 @@ function snapshot(watch) {
 }
 
 ;(async () => {
-  const browser = await chromium.launch({
-    channel: 'msedge',
-    headless: true,
-    args: [
-      '--use-angle=default',
-      '--enable-webgl',
-      '--ignore-certificate-errors',
-      '--enable-unsafe-swiftshader',
-    ],
+  const { browser, page } = await launchPage({
+    viewport: { width: 1280, height: 860 },
+    deviceScaleFactor: 1,
   })
-  const page = await (
-    await browser.newContext({ viewport: { width: 1280, height: 860 }, deviceScaleFactor: 1 })
-  ).newPage()
   const consoleMsgs = []
   const failedReq = []
   page.on('console', (m) => {

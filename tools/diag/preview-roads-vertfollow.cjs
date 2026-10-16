@@ -13,10 +13,7 @@
 'use strict'
 const fs = require('fs')
 const path = require('path')
-const GROOT = require('child_process').execSync('npm root -g').toString().trim()
-const { chromium } = require(path.join(GROOT, 'playwright-core'))
-
-const ROOT = path.resolve(__dirname, '..', '..')
+const { ROOT, launchPage, shotUrl, setLayer, PXDIFF } = require('./lib/browser.cjs')
 const OUT = path.join(ROOT, '.local', 'c-preview')
 fs.mkdirSync(OUT, { recursive: true })
 const ROADS_C = path.join(OUT, 'roads-c.glb')
@@ -29,21 +26,10 @@ const CAMS = [
 let MODE = 'now'
 
 ;(async () => {
-  const browser = await chromium.launch({
-    channel: 'msedge',
-    headless: true,
-    args: [
-      '--use-angle=default',
-      '--enable-webgl',
-      '--ignore-certificate-errors',
-      '--enable-unsafe-swiftshader',
-    ],
-  })
-  const ctx = await browser.newContext({
+  const { browser, page } = await launchPage({
     viewport: { width: 900, height: 620 },
     deviceScaleFactor: 1,
   })
-  const page = await ctx.newPage()
   const guard = async (route) => {
     const u = route.request().url()
     if (MODE === 'c' && u.endsWith('/rebuilt/roads/roads.glb'))
@@ -55,56 +41,7 @@ let MODE = 'now'
   await page.route('**/rebuilt/roads/roads.glb', guard)
   await page.route('**/rebuilt/ground/ground.glb', guard)
 
-  const setLayer = (id, on) =>
-    page.evaluate(
-      ([lid, v]) => {
-        const r = document
-          .querySelector('#app')
-          .__vue_app__.config.globalProperties.$pinia._s.get('map').currentRenderer
-        const rec = r._layers.get(lid)
-        const inst = rec && rec.instance
-        if (!inst) return false
-        inst.show = v
-        if (v && rec) rec.visible = true
-        r.viewer.scene.requestRender()
-        return true
-      },
-      [id, on]
-    )
-  const shotUrl = async () =>
-    'data:image/png;base64,' + (await page.screenshot()).toString('base64')
-  const PXDIFF = ([a, b]) =>
-    new Promise((res) => {
-      const A = new Image()
-      const B = new Image()
-      let got = 0
-      const go = () => {
-        if (++got < 2) return
-        const c = document.createElement('canvas')
-        c.width = A.width
-        c.height = A.height
-        const g = c.getContext('2d', { willReadFrequently: true })
-        g.drawImage(A, 0, 0)
-        const da = g.getImageData(0, 0, c.width, c.height).data
-        g.clearRect(0, 0, c.width, c.height)
-        g.drawImage(B, 0, 0)
-        const db = g.getImageData(0, 0, c.width, c.height).data
-        let n = 0
-        for (let i = 0; i < da.length; i += 4) {
-          if (
-            Math.abs(da[i] - db[i]) > 12 ||
-            Math.abs(da[i + 1] - db[i + 1]) > 12 ||
-            Math.abs(da[i + 2] - db[i + 2]) > 12
-          )
-            n++
-        }
-        res(n)
-      }
-      A.onload = go
-      B.onload = go
-      A.src = a
-      B.src = b
-    })
+  /* setLayer / shotUrl / PXDIFF 见 ./lib/browser.cjs；MKDIFF 只此一处，留站内 */
   const MKDIFF = ([a, b]) =>
     new Promise((res) => {
       const A = new Image()
@@ -154,8 +91,8 @@ let MODE = 'now'
       return [...r._layers.keys()]
     })
     console.log('layers: ' + layerKeys.join(', '))
-    const okRoads = await setLayer('beibu-qz-roads', true)
-    const okGround = await setLayer('beibu-qz-ground', false)
+    const okRoads = await setLayer(page, 'beibu-qz-roads', true)
+    const okGround = await setLayer(page, 'beibu-qz-ground', false)
     if (!okRoads) console.log('WARN roads layer missing')
     if (!okGround)
       console.log(
@@ -174,32 +111,32 @@ let MODE = 'now'
         })
       }, cam)
       await page.waitForTimeout(8000)
-      await setLayer('beibu-qz-ground', false)
-      await setLayer('beibu-qz-roads', true)
+      await setLayer(page, 'beibu-qz-ground', false)
+      await setLayer(page, 'beibu-qz-roads', true)
       await page.waitForTimeout(2500)
-      const withRoads = await shotUrl()
+      const withRoads = await shotUrl(page)
       await page.screenshot({ path: path.join(OUT, `c-preview-${mode}-${cam.name}.png`) })
-      await setLayer('beibu-qz-roads', false)
+      await setLayer(page, 'beibu-qz-roads', false)
       await page.waitForTimeout(2500)
-      const noRoads = await shotUrl()
-      const roadsPx = await page.evaluate(PXDIFF, [noRoads, withRoads])
+      const noRoads = await shotUrl(page)
+      const roadsPx = (await page.evaluate(PXDIFF, [noRoads, withRoads])).n
       const diffPng = await page.evaluate(MKDIFF, [noRoads, withRoads])
       fs.writeFileSync(
         path.join(OUT, `diff-${mode}-${cam.name}.png`),
         Buffer.from(String(diffPng).split(',')[1], 'base64')
       )
-      await setLayer('beibu-qz-roads', true)
+      await setLayer(page, 'beibu-qz-roads', true)
       await page.waitForTimeout(2000)
       let groundPx = 'n/a'
       if (okGround) {
-        await setLayer('beibu-qz-ground', true)
+        await setLayer(page, 'beibu-qz-ground', true)
         await page.waitForTimeout(2500)
-        const withGround = await shotUrl()
-        groundPx = await page.evaluate(PXDIFF, [withRoads, withGround])
+        const withGround = await shotUrl(page)
+        groundPx = (await page.evaluate(PXDIFF, [withRoads, withGround])).n
         await page.screenshot({
           path: path.join(OUT, `c-preview-${mode}-${cam.name}-groundon.png`),
         })
-        await setLayer('beibu-qz-ground', false)
+        await setLayer(page, 'beibu-qz-ground', false)
       }
       console.log(
         `[${mode}] ${cam.name}: roads px=${roadsPx} | ground(on top of roads) px=${groundPx}`

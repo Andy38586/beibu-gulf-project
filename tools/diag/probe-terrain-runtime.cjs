@@ -16,28 +16,14 @@
 'use strict'
 const fs = require('fs')
 const path = require('path')
-const GROOT = require('child_process').execSync('npm root -g').toString().trim()
-const { chromium } = require(path.join(GROOT, 'playwright-core'))
+const { ROOT, launchPage } = require('./lib/browser.cjs')
 
-const ROOT = path.resolve(__dirname, '..', '..')
 const BASE = process.argv[2] || 'http://127.0.0.1:5174'
 const OUT = path.join(ROOT, '.local', 'terrain-runtime')
 
 ;(async () => {
   fs.mkdirSync(OUT, { recursive: true })
-  const browser = await chromium.launch({
-    channel: 'msedge',
-    headless: true,
-    args: [
-      '--use-angle=default',
-      '--enable-webgl',
-      '--ignore-certificate-errors',
-      '--enable-unsafe-swiftshader',
-    ],
-  })
-  const page = await (
-    await browser.newContext({ viewport: { width: 1280, height: 860 } })
-  ).newPage()
+  const { browser, page } = await launchPage({ viewport: { width: 1280, height: 860 } })
   let ok = 0
   const errs = []
   const urls = new Set()

@@ -520,15 +520,15 @@
     },
     {
       "id": "OLD-04",
-      "path": "docs/根基文档/04-防复发清单.md",
-      "layer": "待迁移",
-      "role": "旧根基文档 04（并行期只读；KP 已全部切 new，待用户批准退役）",
-      "status": "parallel",
+      "path": "docs/日志/退役/04-防复发清单.md",
+      "layer": "日志",
+      "role": "旧根基文档 04（2026-10-18 用户裁决 N8 退役；75 条 KP 权威已全切 K1，原文保留备查）",
+      "status": "retired",
       "guard": "tools/v3-guard/agent-docs-check.mjs",
       "owns": [],
-      "readWhen": ["仅追溯旧文原文/退役过渡期"],
-      "writeWhen": ["仅追加并行期横幅"],
-      "ts": ""
+      "readWhen": ["仅追溯旧文原文"],
+      "writeWhen": ["不写（已退役）"],
+      "ts": "2026-10-18"
     },
     {
       "id": "OLD-README",

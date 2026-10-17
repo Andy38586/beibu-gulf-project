@@ -155,3 +155,49 @@ describe('P0-01 回归：useChartBase 不得返回过期快照', () => {
     expect(captured.getOption!().xAxis.data).toEqual([])
   })
 })
+
+describe('U2：空态判定随 useChartBase 一并返回（两图不再各抄一份）', () => {
+  it('🔴 @guard-red-sample 无数据系列时两图都渲染空态浮层，有数据即撤（摘下沉判定即红）', async () => {
+    // 治的失效：判定原先在 LineChart / BarChart 各手抄一份，改一边漏一边 ⇒
+    // 一图空态常驻（有数据也盖着"暂无数据"），另一图永远不显示空态。
+    const line = mount(LineChart, { props: { series: [] } })
+    expect(line.find('.line-chart-empty').exists()).toBe(true)
+    await line.setProps({ series: [{ name: '钦州港', data: [1, 2] }] })
+    expect(line.find('.line-chart-empty').exists()).toBe(false)
+    line.unmount()
+
+    const bar = mount(BarChart, { props: { series: [] } })
+    expect(bar.find('.bar-chart-empty').exists()).toBe(true)
+    await bar.setProps({ series: [{ name: '钦州港', data: [1, 2] }] })
+    expect(bar.find('.bar-chart-empty').exists()).toBe(false)
+    bar.unmount()
+  })
+
+  it('判定口径：系列空数组 / 系列内 data 全空算无数据，任一系列有数据即有数据', () => {
+    const cases: Array<[Array<{ name: string; data: Array<number | null> }>, boolean]> = [
+      [[], false],
+      [[{ name: 'a', data: [] }], false],
+      [
+        [
+          { name: 'a', data: [] },
+          { name: 'b', data: [] },
+        ],
+        false,
+      ],
+      [[{ name: 'a', data: [0] }], true],
+      [[{ name: 'a', data: [null] }], true],
+      [
+        [
+          { name: 'a', data: [] },
+          { name: 'b', data: [null, 1] },
+        ],
+        true,
+      ],
+    ]
+    for (const [series, expected] of cases) {
+      const wrapper = mount(LineChart, { props: { series } })
+      expect(wrapper.find('.line-chart-empty').exists(), JSON.stringify(series)).toBe(!expected)
+      wrapper.unmount()
+    }
+  })
+})

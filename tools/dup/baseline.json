@@ -1,12 +1,23 @@
 {
   "generatedFrom": "tools/dup/scan.mjs",
   "minTokens": 12,
-  "totalGroups": 154,
-  "totalRedundantTokens": 2783,
+  "totalGroups": 146,
+  "totalRedundantTokens": 2515,
   "callSiteGroups": 13,
   "callSiteTokens": 438,
-  "updatedAt": "2026-10-12",
-  "note": "D5 降权：仅『参数表平凡』的具名调用重复不计冗余（参数含 lambda/运算符视为真重复，见 isNamedCallRepetition）；新增 callSiteGroups/callSiteTokens 两顶层字段与组条目 kind 字段",
+  "byModule": {
+    "跨模块": 456,
+    "frontend/src/business": 174,
+    "backend/src/modules": 524,
+    "frontend/src/core": 865,
+    "frontend/src/shared": 131,
+    "frontend/src/visualization": 79,
+    "frontend/src/types": 86,
+    "frontend/src/services": 36,
+    "backend/src/main.ts": 19,
+    "frontend/src/views": 70,
+    "frontend/src/stores": 75
+  },
   "groups": [
     {
       "text": "[ { maxLevel : 0 , label : '无风险' } , { maxLevel : 2 , label : '低风险' } , { maxLevel : 4.3 , label : '中风险' } , { maxLevel : 6 , label : '高风险' } , { maxLevel : 8 , label : '极高风险' } , { maxLevel : Number . POSITIVE_INFINITY , label : '灾难级' } , ]",
@@ -28,17 +39,6 @@
         "frontend/src/stores/mapStore.ts"
       ],
       "redundantTokens": 54,
-      "kind": "block"
-    },
-    {
-      "text": "computed ( ( ) => { if ( ! props . series || props . series . length === 0 ) return false return props . series . some ( ( s ) => s . data && s . data . length > 0 ) } )",
-      "tokenCount": 48,
-      "count": 2,
-      "files": [
-        "frontend/src/visualization/charts/BarChart.vue",
-        "frontend/src/visualization/charts/LineChart.vue"
-      ],
-      "redundantTokens": 48,
       "kind": "block"
     },
     {
@@ -66,33 +66,6 @@
       "count": 3,
       "files": ["backend/src/modules/forecast/services/model-loader.ts"],
       "redundantTokens": 44,
-      "kind": "block"
-    },
-    {
-      "text": "{ color : dark ? CHART_COLORS . textSecondary . dark : CHART_COLORS . textSecondary . light , fontSize : 10 , }",
-      "tokenCount": 22,
-      "count": 3,
-      "files": ["frontend/src/visualization/charts/composables/useChartBase.ts"],
-      "redundantTokens": 44,
-      "kind": "block"
-    },
-    {
-      "text": "{ if ( ! props . series || props . series . length === 0 ) return false return props . series . some ( ( s ) => s . data && s . data . length > 0 ) }",
-      "tokenCount": 42,
-      "count": 2,
-      "files": [
-        "frontend/src/visualization/charts/BarChart.vue",
-        "frontend/src/visualization/charts/LineChart.vue"
-      ],
-      "redundantTokens": 42,
-      "kind": "block"
-    },
-    {
-      "text": "this . _layers . set ( id , { instance : vectorLayer , visible : true , options , } )",
-      "tokenCount": 21,
-      "count": 3,
-      "files": ["frontend/src/core/map/renderers/OLRenderer.ts"],
-      "redundantTokens": 42,
       "kind": "block"
     },
     {
@@ -146,6 +119,14 @@
       "kind": "block"
     },
     {
+      "text": "{ color : chartColor ( 'textSecondary' , dark ) , fontSize : 10 , }",
+      "tokenCount": 15,
+      "count": 3,
+      "files": ["frontend/src/visualization/charts/composables/useChartBase.ts"],
+      "redundantTokens": 30,
+      "kind": "block"
+    },
+    {
       "text": "{ this . _runAdapter ( 'create' , renderer , key , meta . label , meta . layerType , meta . data , meta . options ) }",
       "tokenCount": 28,
       "count": 2,
@@ -173,17 +154,6 @@
       "kind": "block"
     },
     {
-      "text": "{ color : dark ? CHART_COLORS . textPrimary . dark : CHART_COLORS . textPrimary . light , fontSize : 16 , fontWeight : 600 , }",
-      "tokenCount": 26,
-      "count": 2,
-      "files": [
-        "frontend/src/visualization/charts/composables/useChartBase.ts",
-        "frontend/src/visualization/charts/composables/useRadarChart.ts"
-      ],
-      "redundantTokens": 26,
-      "kind": "block"
-    },
-    {
       "text": "{ clearTimeout ( this . _cameraDebounceTimer ) this . _cameraDebounceTimer = null }",
       "tokenCount": 13,
       "count": 3,
@@ -192,17 +162,6 @@
         "frontend/src/core/map/renderers/OLRenderer.ts"
       ],
       "redundantTokens": 26,
-      "kind": "block"
-    },
-    {
-      "text": "return false return props . series . some ( ( s ) => s . data && s . data . length > 0 )",
-      "tokenCount": 25,
-      "count": 2,
-      "files": [
-        "frontend/src/visualization/charts/BarChart.vue",
-        "frontend/src/visualization/charts/LineChart.vue"
-      ],
-      "redundantTokens": 25,
       "kind": "block"
     },
     {
@@ -238,14 +197,6 @@
     },
     {
       "text": "( [ 0 - 9a - f ] { 2 } )",
-      "tokenCount": 12,
-      "count": 3,
-      "files": ["frontend/src/core/map/renderers/OLRenderer.ts"],
-      "redundantTokens": 24,
-      "kind": "block"
-    },
-    {
-      "text": "{ instance : vectorLayer , visible : true , options , }",
       "tokenCount": 12,
       "count": 3,
       "files": ["frontend/src/core/map/renderers/OLRenderer.ts"],
@@ -353,25 +304,6 @@
       "kind": "block"
     },
     {
-      "text": "{ lineStyle : { color : dark ? CHART_COLORS . axisLine . dark : CHART_COLORS . axisLine . light } , }",
-      "tokenCount": 22,
-      "count": 2,
-      "files": [
-        "frontend/src/visualization/charts/composables/useChartBase.ts",
-        "frontend/src/visualization/charts/composables/useRadarChart.ts"
-      ],
-      "redundantTokens": 22,
-      "kind": "block"
-    },
-    {
-      "text": "{ fontSize : 10 , color : dark ? CHART_COLORS . textMuted . dark : CHART_COLORS . textMuted . light , }",
-      "tokenCount": 22,
-      "count": 2,
-      "files": ["frontend/src/visualization/charts/composables/useChartBase.ts"],
-      "redundantTokens": 22,
-      "kind": "block"
-    },
-    {
       "text": "list ( @ Req ( ) req : Request & { user ? : { id : string } } )",
       "tokenCount": 21,
       "count": 2,
@@ -470,14 +402,6 @@
       "kind": "block"
     },
     {
-      "text": "this . _layers . set ( id , { instance : vectorLayer , visible : true , options } )",
-      "tokenCount": 20,
-      "count": 2,
-      "files": ["frontend/src/core/map/renderers/OLRenderer.ts"],
-      "redundantTokens": 20,
-      "kind": "block"
-    },
-    {
       "text": "( req : express . Request , res : express . Response , next : express . NextFunction )",
       "tokenCount": 19,
       "count": 2,
@@ -566,6 +490,17 @@
       "tokenCount": 19,
       "count": 2,
       "files": ["frontend/src/views/HomePage.vue", "frontend/src/views/ProfilePage.vue"],
+      "redundantTokens": 19,
+      "kind": "block"
+    },
+    {
+      "text": "{ color : chartColor ( 'textPrimary' , dark ) , fontSize : 16 , fontWeight : 600 , }",
+      "tokenCount": 19,
+      "count": 2,
+      "files": [
+        "frontend/src/visualization/charts/composables/useChartBase.ts",
+        "frontend/src/visualization/charts/composables/useRadarChart.ts"
+      ],
       "redundantTokens": 19,
       "kind": "block"
     },
@@ -703,17 +638,6 @@
       "tokenCount": 17,
       "count": 2,
       "files": ["frontend/src/types/schemas.ts"],
-      "redundantTokens": 17,
-      "kind": "block"
-    },
-    {
-      "text": "{ color : dark ? CHART_COLORS . axisLine . dark : CHART_COLORS . axisLine . light }",
-      "tokenCount": 17,
-      "count": 2,
-      "files": [
-        "frontend/src/visualization/charts/composables/useChartBase.ts",
-        "frontend/src/visualization/charts/composables/useRadarChart.ts"
-      ],
       "redundantTokens": 17,
       "kind": "block"
     },
@@ -901,13 +825,21 @@
       "kind": "block"
     },
     {
-      "text": "if ( ! props . series || props . series . length === 0 )",
+      "text": "{ lineStyle : { color : chartColor ( 'axisLine' , dark ) } , }",
       "tokenCount": 15,
       "count": 2,
       "files": [
-        "frontend/src/visualization/charts/BarChart.vue",
-        "frontend/src/visualization/charts/LineChart.vue"
+        "frontend/src/visualization/charts/composables/useChartBase.ts",
+        "frontend/src/visualization/charts/composables/useRadarChart.ts"
       ],
+      "redundantTokens": 15,
+      "kind": "block"
+    },
+    {
+      "text": "{ fontSize : 10 , color : chartColor ( 'textMuted' , dark ) , }",
+      "tokenCount": 15,
+      "count": 2,
+      "files": ["frontend/src/visualization/charts/composables/useChartBase.ts"],
       "redundantTokens": 15,
       "kind": "block"
     },
@@ -1394,6 +1326,16 @@
       "files": ["frontend/src/shared/composables/useApiRequest.ts"],
       "redundantTokens": 0,
       "kind": "call-site"
+    }
+  ],
+  "updatedAt": "2026-10-17",
+  "history": [
+    {
+      "at": "2026-10-17",
+      "totalGroups": 146,
+      "totalRedundantTokens": 2515,
+      "kind": "真清理",
+      "note": "U2 图表重复收口：hasData 双抄下沉 useChartBase、图表主题色 18 站点收敛为 chartColor"
     }
   ]
 }

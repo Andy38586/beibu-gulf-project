@@ -109,6 +109,18 @@ export const CHART_COLORS = {
   },
 } as const
 
+/**
+ * 取图表主题色：唯一入口，避免各图表 option 内手抄 `dark ? CHART_COLORS.x.dark : CHART_COLORS.x.light`。
+ * 亮/暗取值仍以 CHART_COLORS 为权威源，此处只做「按当前主题二选一」；
+ * 形参只收双主题标量键（seriesPalette / radarSplitArea 是数组，不走本入口）。
+ */
+export function chartColor(
+  key: Exclude<keyof typeof CHART_COLORS, 'seriesPalette' | 'radarSplitArea'>,
+  dark: boolean
+): string {
+  return CHART_COLORS[key][dark ? 'dark' : 'light']
+}
+
 // 开发验收用的 QA 覆盖层调试色（GCSDebugOverlay）
 export const INSPECTION_COLORS = {
   primary: '#ff6b6b',

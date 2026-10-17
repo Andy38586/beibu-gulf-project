@@ -15,7 +15,7 @@ import * as echarts from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
 import { computed, ref } from 'vue'
 
-import { CHART_COLORS, EmptyState, useTheme } from '@/shared'
+import { chartColor, EmptyState, useTheme } from '@/shared'
 import { useECharts } from '@/visualization'
 
 import { CRITERIA } from '../constants/criteria'
@@ -52,9 +52,9 @@ const scoreText = computed(() => (peak.value ? peak.value.properties.score.toFix
 
 function getOption(): Record<string, unknown> {
   const dark = isDark.value
-  const text = dark ? CHART_COLORS.textPrimary.dark : CHART_COLORS.textPrimary.light
+  const text = chartColor('textPrimary', dark)
   const gridColor = dark ? 'rgba(255,255,255,.18)' : 'rgba(0,0,0,.12)'
-  const muted = dark ? CHART_COLORS.textSecondary.dark : CHART_COLORS.textSecondary.light
+  const muted = chartColor('textSecondary', dark)
   return {
     backgroundColor: 'transparent',
     title: {

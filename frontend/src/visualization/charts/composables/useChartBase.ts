@@ -1,4 +1,6 @@
-import { CHART_COLORS, CHART_GRID, useTheme } from '@/shared'
+import { computed, type ComputedRef } from 'vue'
+
+import { CHART_COLORS, CHART_GRID, chartColor, useTheme } from '@/shared'
 import type { ChartClickParams, UseEChartsReturn } from '@/visualization/composables/useECharts'
 import { useECharts } from '@/visualization/composables/useECharts'
 
@@ -24,8 +26,14 @@ export function useChartBase(
   emit: ChartEmit,
   chartType: string,
   seriesConfig: Record<string, unknown> = {}
-): UseEChartsReturn {
+): UseEChartsReturn & { hasData: ComputedRef<boolean> } {
   const { isDark } = useTheme()
+
+  /** 是否有可画的数据：LineChart / BarChart 的空态浮层共用（chartRef 始终挂载） */
+  const hasData = computed<boolean>(() => {
+    if (!props.series || props.series.length === 0) return false
+    return props.series.some((s) => s.data && s.data.length > 0)
+  })
 
   function handleClick(params: ChartClickParams): void {
     if (params.dataIndex == null) return
@@ -52,7 +60,7 @@ export function useChartBase(
         text: props.title,
         left: 'center',
         textStyle: {
-          color: dark ? CHART_COLORS.textPrimary.dark : CHART_COLORS.textPrimary.light,
+          color: chartColor('textPrimary', dark),
           fontSize: 16,
           fontWeight: 600,
         },
@@ -77,7 +85,7 @@ export function useChartBase(
       legend: {
         bottom: 0,
         textStyle: {
-          color: dark ? CHART_COLORS.textSecondary.dark : CHART_COLORS.textSecondary.light,
+          color: chartColor('textSecondary', dark),
           fontSize: 10,
         },
         itemWidth: 10,
@@ -87,10 +95,10 @@ export function useChartBase(
         type: 'category',
         data: props.xData || [],
         axisLine: {
-          lineStyle: { color: dark ? CHART_COLORS.axisLine.dark : CHART_COLORS.axisLine.light },
+          lineStyle: { color: chartColor('axisLine', dark) },
         },
         axisLabel: {
-          color: dark ? CHART_COLORS.textSecondary.dark : CHART_COLORS.textSecondary.light,
+          color: chartColor('textSecondary', dark),
           fontSize: 10,
           ...(dense ? { interval: 2, rotate: 30 } : {}),
         },
@@ -103,11 +111,11 @@ export function useChartBase(
           type: 'value',
           splitLine: {
             lineStyle: {
-              color: dark ? CHART_COLORS.splitLine.dark : CHART_COLORS.splitLine.light,
+              color: chartColor('splitLine', dark),
             },
           },
           axisLabel: {
-            color: dark ? CHART_COLORS.textSecondary.dark : CHART_COLORS.textSecondary.light,
+            color: chartColor('textSecondary', dark),
             fontSize: 10,
           },
           ...(props.yUnit
@@ -115,7 +123,7 @@ export function useChartBase(
                 name: props.yUnit,
                 nameTextStyle: {
                   fontSize: 10,
-                  color: dark ? CHART_COLORS.textMuted.dark : CHART_COLORS.textMuted.light,
+                  color: chartColor('textMuted', dark),
                 },
               }
             : {}),
@@ -126,13 +134,13 @@ export function useChartBase(
           position: 'right',
           splitLine: { show: false },
           axisLabel: {
-            color: dark ? CHART_COLORS.textSecondary.dark : CHART_COLORS.textSecondary.light,
+            color: chartColor('textSecondary', dark),
             fontSize: 10,
           },
           name: props.yUnitRight,
           nameTextStyle: {
             fontSize: 10,
-            color: dark ? CHART_COLORS.textMuted.dark : CHART_COLORS.textMuted.light,
+            color: chartColor('textMuted', dark),
           },
         }
         return [left, right]
@@ -150,16 +158,19 @@ export function useChartBase(
     }
   }
 
-  return useECharts({
-    getOption: buildOption,
-    watchSources: [
-      () => props.title,
-      () => props.xData,
-      () => props.series,
-      () => props.xMin,
-      () => props.xMax,
-      () => props.yUnitRight,
-    ],
-    onClick: handleClick,
-  })
+  return {
+    ...useECharts({
+      getOption: buildOption,
+      watchSources: [
+        () => props.title,
+        () => props.xData,
+        () => props.series,
+        () => props.xMin,
+        () => props.xMax,
+        () => props.yUnitRight,
+      ],
+      onClick: handleClick,
+    }),
+    hasData,
+  }
 }

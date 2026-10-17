@@ -9,6 +9,7 @@ import { onBeforeUnmount, ref, watch } from 'vue'
 import {
   CHART_COLORS,
   CHART_GRID,
+  chartColor,
   FACILITY_COLORS_MAP,
   FACILITY_FALLBACK_COLOR,
   RADAR_AXIS_NAME_ALLOWANCE,
@@ -155,7 +156,7 @@ export function useRadarChart({
         text: title,
         left: 'center',
         textStyle: {
-          color: dark ? CHART_COLORS.textPrimary.dark : CHART_COLORS.textPrimary.light,
+          color: chartColor('textPrimary', dark),
           fontSize: 16,
           fontWeight: 600,
         },
@@ -169,14 +170,14 @@ export function useRadarChart({
         // 下发到各指示器轴模型，axisName 节点只承载样式（写在 axisName 里不生效）
         triggerEvent: true,
         axisName: {
-          color: dark ? CHART_COLORS.accent.dark : CHART_COLORS.accent.light,
+          color: chartColor('accent', dark),
           fontSize: RADAR_AXIS_NAME_FONT_SIZE,
           fontWeight: 500,
           gap: RADAR_AXIS_NAME_GAP,
           cursor: 'pointer',
         },
         splitLine: {
-          lineStyle: { color: dark ? CHART_COLORS.splitLine.dark : CHART_COLORS.splitLine.light },
+          lineStyle: { color: chartColor('splitLine', dark) },
         },
         splitArea: {
           areaStyle: {
@@ -185,7 +186,7 @@ export function useRadarChart({
           },
         },
         axisLine: {
-          lineStyle: { color: dark ? CHART_COLORS.axisLine.dark : CHART_COLORS.axisLine.light },
+          lineStyle: { color: chartColor('axisLine', dark) },
         },
       },
       series: [
@@ -194,16 +195,16 @@ export function useRadarChart({
           symbolSize: 6,
           lineStyle: {
             width: 2,
-            color: dark ? CHART_COLORS.accent.dark : CHART_COLORS.accent.light,
+            color: chartColor('accent', dark),
           },
-          itemStyle: { color: dark ? CHART_COLORS.accent.dark : CHART_COLORS.accent.light },
+          itemStyle: { color: chartColor('accent', dark) },
           data: [
             {
               value: values,
               name: name,
               areaStyle: {
                 opacity: 0.3,
-                color: dark ? CHART_COLORS.accent.dark : CHART_COLORS.accent.light,
+                color: chartColor('accent', dark),
               },
             },
           ],

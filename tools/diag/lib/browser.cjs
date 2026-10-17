@@ -24,11 +24,19 @@
 'use strict'
 const path = require('path')
 
-/* playwright-core 装在全局（不随仓库 node_modules 分发），npm root -g 现场解析；
- * PW_GROOT 可覆盖——spawn cmd.exe 被拦/锁的环境用（原为 preview-ground-fade 独有口子）。 */
+/* playwright-core 取链：全局优先（GROOT 由 npm root -g 现场解析，PW_GROOT 可覆盖）；
+ * 全局缺失时回落仓库 node_modules——CI 不装全局包（run 287/288 报 Cannot find module 的红样），
+ * 而 @playwright/test 的传递依赖 playwright-core 就在仓库里，同版本。
+ * 本机全局在位 ⇒ 首槽命中，行为与收口前逐位一致。 */
 const GROOT =
   process.env.PW_GROOT || require('child_process').execSync('npm root -g').toString().trim()
-const { chromium } = require(path.join(GROOT, 'playwright-core'))
+const chromium = (() => {
+  try {
+    return require(path.join(GROOT, 'playwright-core')).chromium
+  } catch {
+    return require('playwright-core').chromium
+  }
+})()
 
 /* 仓库根：本文件在 tools/diag/lib/ ⇒ 上溯三级 */
 const ROOT = path.resolve(__dirname, '..', '..', '..')

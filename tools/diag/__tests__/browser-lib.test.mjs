@@ -30,15 +30,25 @@ const LIB_REL = 'tools/diag/lib/browser.cjs'
 const LIB = path.join(ROOT, LIB_REL)
 
 /** 公共底座的取链：全局 playwright-core；测试用假实现注入同一缓存槽位。
- *  显式调 cmd（Windows）/ sh，不经 PATH 解析——本判据在任何宿主下都要能取到。 */
+ *  显式调 cmd（Windows）/ sh，不经 PATH 解析——本判据在任何宿主下都要能取到。
+ *  2026-10-18（CI run 287/288）：CI 无全局 playwright-core ⇒ 槽位解析与 lib 同序
+ *  （全局优先、缺失回落仓库 node_modules），注入必须命中 lib 实际 require 的那一个。 */
 const GROOT = execFileSync(
   process.platform === 'win32' ? 'cmd' : 'sh',
   process.platform === 'win32' ? ['/c', 'npm root -g'] : ['-c', 'npm root -g'],
   { encoding: 'utf8' }
 ).trim()
 
+function resolvePwEntry() {
+  try {
+    return require.resolve(path.join(GROOT, 'playwright-core'))
+  } catch {
+    return require.resolve('playwright-core')
+  }
+}
+
 function loadLibWith(fakeChromium) {
-  const pwEntry = require.resolve(path.join(GROOT, 'playwright-core'))
+  const pwEntry = resolvePwEntry()
   delete require.cache[LIB]
   require.cache[pwEntry] = {
     id: pwEntry,

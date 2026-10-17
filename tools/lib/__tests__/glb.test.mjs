@@ -1,10 +1,10 @@
 import fs from 'node:fs'
-import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
 
-import { BIN_CHUNK, CS, GLB_MAGIC, JSON_CHUNK, NC, accessor, readGLB } from '../glb.mjs'
+import { accessor, BIN_CHUNK, CS, GLB_MAGIC, JSON_CHUNK, NC, readGLB } from '../glb.mjs'
 
 /**
  * 守 `tools/lib/glb.mjs` 是 tools 侧 GLB 读链**唯一**来源。
@@ -157,9 +157,13 @@ describe('GLB 读链单源（P4 遗留 glb.py/glb.mjs 补做）', () => {
   })
 
   it('真语料取数：入库 canal.glb 可读且元素宽度 = componentType 原生宽度', () => {
-    const file = new URL('../../../backend/static/pinglu/canal/canal.glb', import.meta.url)
+    // fileURLToPath 而非 URL.pathname：Linux 上 pathname 剥首斜杠会退化成相对路径
+    // （CI run 287/288 的 ENOENT 红样），Windows 上恰好是绝对路径故本机一直绿。
+    const file = fileURLToPath(
+      new URL('../../../backend/static/pinglu/canal/canal.glb', import.meta.url)
+    )
     expect(fs.existsSync(file), '夹具必须受版本控制（5.4）').toBe(true)
-    const { json, bin } = readGLB(file.pathname.replace(/^\//, ''))
+    const { json, bin } = readGLB(file)
     expect(json.asset.version).toBe('2.0')
     expect(Buffer.isBuffer(bin)).toBe(true)
     const ai = json.meshes[0].primitives[0].attributes.POSITION

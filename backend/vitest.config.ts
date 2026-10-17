@@ -11,6 +11,9 @@ export default defineConfig({
     // 会产生跨套件的库状态竞态（run#177：auth.e2e 的用户清理落在 plans.e2e 执行期间
     // → 认证守卫查库无此人 → 对方 9 用例全 401）。测试文件必须串行执行。
     fileParallelism: false,
+    // 2026-10-17 用户裁决 4A（全局 30s）：与根/前端同口径，抬默认 5s 上限，
+    // 防真库 e2e 在机器负载下概率性 `Test timed out in 5000ms`。只抬上限，不改用例语义。
+    testTimeout: 30000,
     // @nestjs/throttler 是 CJS 包，vite ESM interop 会丢 named export（SkipThrottle），
     // inline 强制走 Node 解析
     server: {

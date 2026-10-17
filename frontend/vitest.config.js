@@ -20,6 +20,12 @@ export default defineConfig({
     env: {
       VITE_NEST_API_BASE: '/nest-api',
     },
+    // 2026-10-17 用户裁决 4A（全局 30s）：默认 5s 曾在**全量并行**下被 CPU 争抢拖红——
+    // 实测 \`frontend/src/core/map/renderers/__tests__/MapRenderer.interface.test.ts:260\`
+    // 报 \`Error: Test timed out in 5000ms\`（冷启动 \`import('../OLRenderer')\` 的总 import 负载，
+    // 见 \`docs/日志/状态/接力状态.md\` §26 首跑定因）；定向单跑该文件远快于 5s。
+    // 只抬上限，不改任何用例语义；真挂死的用例仍会红，只是晚 25s。
+    testTimeout: 30000,
     // 进程挂起根因：forks 池下 mount 组件的测试（UnifiedMap 等）测试完成后
     // worker 残留 open handle 不退出 → 套件"跑不完"（测试本身全绿）。
     // 方案：全局用 threads 池（实测正常退出）；OLRenderer 两个测试文件因

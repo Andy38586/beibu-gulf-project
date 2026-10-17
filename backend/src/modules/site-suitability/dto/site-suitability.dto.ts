@@ -6,6 +6,7 @@ import { SITE_AHP_MATRIX, SITE_CRITERIA } from '../../../common/constants/site-a
 import { BusinessError, ErrorCode } from '../../../common/errors/business-error'
 // 维度键收为模块内单一来源（2026-10-13 收口 B3）：原先此处与 scoring.ts 各手抄一份
 import { WEIGHT_KEYS } from '../constants/score.constants'
+import { isUnitInterval } from '../constants/unit-interval'
 
 /**
  * 解析缺省值单源（04-B3）：parse 与 GET /defaults 共用，禁止在别处再手抄 0.5/0。
@@ -76,7 +77,7 @@ export function parseSuitabilityQuery(query: Record<string, unknown>): Suitabili
 function parseResolution(raw: unknown): number {
   if (raw === undefined || raw === '') return DEFAULT_RESOLUTION
   const v = Number(raw)
-  if (!Number.isFinite(v) || v < 0 || v > 1)
+  if (!isUnitInterval(v))
     throw new BusinessError(ErrorCode.INVALID_PARAMS, 'resolution 须 ∈ (0,1]，或 0 表示全分辨率')
   return v
 }
@@ -84,7 +85,7 @@ function parseResolution(raw: unknown): number {
 function parseMinLandFrac(raw: unknown): number {
   if (raw === undefined || raw === '') return DEFAULT_MIN_LAND_FRAC
   const v = Number(raw)
-  if (!Number.isFinite(v) || v < 0 || v > 1) {
+  if (!isUnitInterval(v)) {
     throw new BusinessError(ErrorCode.INVALID_PARAMS, 'min_land_frac 须 ∈ [0,1]')
   }
   return v

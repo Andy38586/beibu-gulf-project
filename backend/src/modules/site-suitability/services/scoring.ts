@@ -6,6 +6,7 @@ import {
   terrainScore,
   WEIGHT_KEYS,
 } from '../constants/score.constants'
+import { isUnitInterval } from '../constants/unit-interval'
 // 适宜性评分纯函数（单元四）：子因子归一化（score.constants）→ 加权和。
 // 勘误#5 口径：预物化准则面在库（suitability_cells），端点只做归一化+加权和。
 // 权重由端点入参给定（AHP 定稿前前端可调滑块），和≠1 拒收。
@@ -24,7 +25,7 @@ export function parseWeights(raw: Record<string, unknown>): SuitabilityWeights {
   let sum = 0
   for (const k of WEIGHT_KEYS) {
     const v = Number(raw[k])
-    if (!Number.isFinite(v) || v < 0 || v > 1) {
+    if (!isUnitInterval(v)) {
       throw new BusinessError(
         ErrorCode.INVALID_PARAMS,
         `权重 ${k}=${String(raw[k])} 非法（须 ∈ [0,1] 且有限）`

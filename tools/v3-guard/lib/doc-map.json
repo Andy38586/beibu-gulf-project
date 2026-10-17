@@ -219,6 +219,16 @@
       "ts": "2026-10-13"
     },
     {
+      "id": "HANDOFF-20261017-DOCS-REWRITE",
+      "path": "docs/日志/状态/接力文档-2026-10-17-docs体系重写交接.md",
+      "layer": "日志",
+      "role": "docs 体系重写立项与交接正本（待触发工单；用户 2026-10-17 四项裁决 + 11 条既有矛盾靶子）",
+      "status": "frozen",
+      "guard": "tools/v3-guard/doc-map-check.mjs",
+      "owns": ["docs 体系重写任务的范围、裁决、触发条件与矛盾清单"],
+      "ts": "2026-10-17"
+    },
+    {
       "id": "EXTERNAL-DEPS",
       "path": "docs/日志/状态/外部依赖登记.md",
       "layer": "日志",

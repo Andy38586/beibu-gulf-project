@@ -35,6 +35,7 @@ coverage
 !.vscode/extensions.json
 .idea
 .trae/
+_traetmp/
 *.suo
 *.ntvs*
 *.njsproj

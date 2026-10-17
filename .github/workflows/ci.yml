@@ -173,6 +173,16 @@ jobs:
       - name: Run guard red-mutation probe
         run: npm run guard:mutation
 
+      # 代码资产棘轮（死物 / 冗余导出 / 重复）：此前只挂在人手敲的 ci:local ⇒ 不敲就无人拦
+      # （AGENTS §十三-2）。放 CI 而不是只放本地钩子：钩子可以 --no-verify，本步不行。
+      # 强制点自证按 z063 口径：本 job 不得加 `if:`（加了等于整段不跑），由 run-all 的
+      # ciTriggerProblems 核对——步骤级 `if:` 不在该判据的判据域内。
+      - name: Code asset dead-code ratchet
+        run: npm run ratchet:dead-code
+
+      - name: Code asset duplicate ratchet
+        run: npm run ratchet:dup
+
       - name: Check format
         # 2026-08-09：全仓 prettier 格式化完成，恢复硬性阻断
         run: npm run format:check

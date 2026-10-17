@@ -1,8 +1,8 @@
 {
   "generatedFrom": "tools/dup/scan.mjs",
   "minTokens": 12,
-  "totalGroups": 146,
-  "totalRedundantTokens": 2515,
+  "totalGroups": 143,
+  "totalRedundantTokens": 2442,
   "callSiteGroups": 13,
   "callSiteTokens": 438,
   "byModule": {
@@ -10,9 +10,9 @@
     "frontend/src/business": 174,
     "backend/src/modules": 524,
     "frontend/src/core": 865,
-    "frontend/src/shared": 131,
     "frontend/src/visualization": 79,
     "frontend/src/types": 86,
+    "frontend/src/shared": 58,
     "frontend/src/services": 36,
     "backend/src/main.ts": 19,
     "frontend/src/views": 70,
@@ -86,14 +86,6 @@
         "frontend/src/visualization/charts/composables/useChartBase.ts"
       ],
       "redundantTokens": 38,
-      "kind": "block"
-    },
-    {
-      "text": "{ state . entries . push ( { name , start : s , duration : d } ) if ( state . entries . length > MAX_DEV_ENTRIES ) state . entries . shift ( ) }",
-      "tokenCount": 37,
-      "count": 2,
-      "files": ["frontend/src/shared/utils/perfReporter.ts"],
-      "redundantTokens": 37,
       "kind": "block"
     },
     {
@@ -536,22 +528,6 @@
       "tokenCount": 18,
       "count": 2,
       "files": ["frontend/src/core/map/renderers/OLRenderer.ts"],
-      "redundantTokens": 18,
-      "kind": "block"
-    },
-    {
-      "text": "{ samples : [ ] , sum : 0 , min : Infinity , longFrames : 0 }",
-      "tokenCount": 18,
-      "count": 2,
-      "files": ["frontend/src/shared/utils/perfReporter.ts"],
-      "redundantTokens": 18,
-      "kind": "block"
-    },
-    {
-      "text": "state . entries . push ( { name , start : s , duration : d } )",
-      "tokenCount": 18,
-      "count": 2,
-      "files": ["frontend/src/shared/utils/perfReporter.ts"],
       "redundantTokens": 18,
       "kind": "block"
     },
@@ -1336,6 +1312,13 @@
       "totalRedundantTokens": 2515,
       "kind": "真清理",
       "note": "U2 图表重复收口：hasData 双抄下沉 useChartBase、图表主题色 18 站点收敛为 chartColor"
+    },
+    {
+      "at": "2026-10-17",
+      "totalGroups": 143,
+      "totalRedundantTokens": 2442,
+      "kind": "真清理",
+      "note": "U3 perfReporter 重复收口：dev 明细环形上限与 FPS 空态各归一处"
     }
   ]
 }

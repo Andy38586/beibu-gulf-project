@@ -114,6 +114,11 @@ const API_SAMPLE_WINDOW = 50
 /** FPS 滚动窗口帧数（~3s @60fps） */
 const FPS_WINDOW = 180
 
+/** 空 FPS 聚合态（初值；reset 复用同一份形状，避免两处手抄漂移） */
+function emptyFps(): PerfState['fps'] {
+  return { samples: [], sum: 0, min: Infinity, longFrames: 0 }
+}
+
 const state: PerfState = {
   marks: {},
   measures: {},
@@ -121,12 +126,22 @@ const state: PerfState = {
   timers: new Map(),
   api: new Map(),
   errors: {},
-  fps: { samples: [], sum: 0, min: Infinity, longFrames: 0 },
+  fps: emptyFps(),
   cls: 0,
   longtasks: 0,
 }
 
 let started = false
+
+/**
+ * dev 明细入环形缓冲（F-6：超过 MAX_DEV_ENTRIES 丢最旧，防长会话内存增长）。
+ * perfMeasure / perfTimeFn 共用同一条口径：两处各抄一份时，改一处就会让另一条路径继续涨内存。
+ */
+function pushDevEntry(name: string, start: number, duration: number): void {
+  if (!IS_DEV) return
+  state.entries.push({ name, start, duration })
+  if (state.entries.length > MAX_DEV_ENTRIES) state.entries.shift()
+}
 
 /** 打点（时间点标记） */
 export function perfMark(name: string): void {
@@ -142,11 +157,7 @@ export function perfMeasure(name: string, startMark: string, endMark: string): n
   if (s == null || e == null) return null
   const d = e - s
   state.measures[name] = d
-  // F-6：dev 明细 entries 环形上限（长会话防内存增长；超出丢最旧）
-  if (IS_DEV) {
-    state.entries.push({ name, start: s, duration: d })
-    if (state.entries.length > MAX_DEV_ENTRIES) state.entries.shift()
-  }
+  pushDevEntry(name, s, d)
   return d
 }
 
@@ -163,11 +174,7 @@ export function perfTimeFn<T>(name: string, fn: () => T): T {
     agg.total += d
     if (d > agg.max) agg.max = d
     state.timers.set(name, agg)
-    // F-6：同 perfMeasure，entries 环形上限
-    if (IS_DEV) {
-      state.entries.push({ name, start: s, duration: d })
-      if (state.entries.length > MAX_DEV_ENTRIES) state.entries.shift()
-    }
+    pushDevEntry(name, s, d)
   }
 }
 
@@ -240,6 +247,11 @@ export function buildPerfReport(): Record<string, unknown> {
   }
 }
 
+/** 测试专用：读聚合态本身（entries 环形上限与 FPS 空态形状的能红判据入口） */
+export function _perfStateForTest(): Readonly<PerfState> {
+  return state
+}
+
 /** 测试专用：重置聚合态（避免用例间累积污染断言） */
 export function _resetPerfForTest(): void {
   state.marks = {}
@@ -248,7 +260,7 @@ export function _resetPerfForTest(): void {
   state.timers = new Map()
   state.api = new Map()
   state.errors = {}
-  state.fps = { samples: [], sum: 0, min: Infinity, longFrames: 0 }
+  state.fps = emptyFps()
   state.cls = 0
   state.longtasks = 0
   state.fcp = undefined

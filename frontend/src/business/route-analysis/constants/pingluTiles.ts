@@ -168,7 +168,8 @@ export function pingluLayerId(groupId: PingluGroupId): string {
  * 前端只负责挂载与显隐，**不做任何坐标纠偏**。
  *
  * 2026-09-28：`tiles/` 已换成交付包的**增强版瓦片**（带贴图/UV），旧版（9/27 白模落位版）
- * 备份在 `.local/tmp/pinglu-tiles-backup-20260928/`。切换方式是把交付包的 30 个 GLB
+ * 备份在 `.local/pinglu-tiles-backup-20260928/`（2026-10-12 D9b 由 `.local/tmp/` 移出）。
+ * 切换方式是把交付包的 30 个 GLB
  * 覆盖进来 + 补回交付包漏掉的 `corridor-10`（其 README 自称已补回，实物没有）——
  * 不补就会踩 `tiles3d-check` 的覆盖事故指纹（内容节点 30 < 下限 31）。
  * `tiles-v2`（9/16 s3 管线的 63 瓦片版）已于 2026-10-09 删除（成文见下），未被本处引用。

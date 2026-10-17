@@ -131,7 +131,7 @@ GLB 套是交付包增强版，**B3DM 套仍是本仓 9/27 白模版**——两�
 
 ```bash
 # 覆盖前的完整快照（64 文件）
-cp -r .local/tmp/pinglu-tiles-backup-20260928/tiles/. backend/static/pinglu/tiles/
+cp -r .local/pinglu-tiles-backup-20260928/tiles/. backend/static/pinglu/tiles/
 ```
 
 ### 6.4 覆盖后实测（项目 Cesium 内，2026-09-28）

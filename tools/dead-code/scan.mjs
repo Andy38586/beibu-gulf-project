@@ -45,23 +45,39 @@ const REF_ONLY = { roots: ['tools', 'scripts', '.github'], exts: /\.(ts|vue|mjs|
 const SKIP_DIRS = new Set(['node_modules', 'dist', '.venv'])
 
 /**
- * G 类（门禁载体）判别：`*Parsed` 契约配对类型。
+ * G 类（门禁载体）判别：契约源 `schemas.ts` 里的 `*Schema` 本体与其 `*Parsed` 配对类型。
  *
- * `scripts/gen-api-contract.cjs` 对 `schemas.ts` 里每个 `XSchema` 用**动态拼名**的
- * 文本级 regex（`\w*<base>Parsed`，带 'i' 标志）要求同名 `z.infer` 类型导出 ——
- * 这种消费是静态引用分析看不见的，于是配对类型被误判成 A 类死物
- * （实测 2026-09-25：A 账 22 项全部此类，且**删不得**——types:check 会红）。
+ * `scripts/gen-api-contract.cjs` 对 `schemas.ts` 用**动态拼名**的文本级 regex
+ * （`^export const (\w+Schema)\s*=` 取本体、`\w*<base>Parsed` 配对类型，带 'i' 标志）
+ * 消费这两个名字 —— 这种消费是静态引用分析看不见的，于是被误判成 A 类死物或
+ * 「多余 export」（实测 2026-09-25：A 账 22 项全部此类，且**删不得**——types:check 会红）。
  *
  * 名单**从契约快照派生**（gen-api-contract 的产物、受版本控制、types:check 强制其
  * 与 schemas.ts 同步），不手抄 —— S3 的「死物账=0」前置（门禁载体单列）由本分类闭合。
  * 快照缺失/损坏时返回 null ⇒ 不分类（全部落回 A 类，宁可误报也不静默吞）。
+ * 派生面是**快照里的名字**：不在快照内的 `*Schema` 不是载体（漏跑 types:gen 的假 schema
+ * 照常落账），故「名字以 Schema 结尾」本身不构成豁免。
  */
 const CONTRACT_SNAPSHOT = 'frontend/src/types/generated/api-contract.json'
+/** 契约源唯一落点：`*Schema` 本体只在 `gen-api-contract.cjs` 解析的这一个文件里算载体 */
+const SCHEMA_SOURCE = 'frontend/src/types/schemas.ts'
 
 export function gateCarrierPredicate(snapshot = null) {
   if (!snapshot) return null
-  const bases = Object.keys(snapshot.schemas ?? {}).map((n) => n.replace(/Schema$/, ''))
-  return (name) => bases.some((b) => new RegExp(`^\\w*${b}Parsed$`, 'i').test(name))
+  const carriers = Object.keys(snapshot.schemas ?? {})
+  const bases = carriers.map((n) => n.replace(/Schema$/, ''))
+  return (name) =>
+    carriers.includes(name) || bases.some((b) => new RegExp(`^\\w*${b}Parsed$`, 'i').test(name))
+}
+
+/**
+ * G 类归属判定（scan 的分类分支与判据共用同一入口，避免判据复刻一份条件）。
+ * 两道闸缺一不可：① 名字在契约快照内（`*Schema` 本体或 `*Parsed` 配对）；
+ * ② 声明落在契约源文件 `schemas.ts` 内 —— 换个文件写同名导出不是载体（否则
+ * 「以 Schema 结尾」就成了全仓豁免口）。谓词为 null（快照缺失）时一律不归 G 类。
+ */
+export function isGateCarrierExport(entry, isGateCarrier) {
+  return !!isGateCarrier && entry.file === SCHEMA_SOURCE && isGateCarrier(entry.name)
 }
 
 export function gateCarrierPredicateFromRepo() {
@@ -155,12 +171,18 @@ export function scan({ roots = SCAN_ROOTS } = {}) {
     const files = where.get(e.name) ?? new Set()
     const external = [...files].filter((f) => f !== e.file)
     if (external.length > 0) continue
-    // 零外部引用还要再分两类，否则报告会误导清理：
+    // 零外部引用还要再分三类，否则报告会误导清理：
+    //   G 类门禁载体（契约源文件里、快照登记的名字）⇒ 被 gen-api-contract 动态拼名消费，
+    //     静态引用看不见；**先判**，否则 `*Schema` 本体会被下面的 hits>1 归成"多余 export"
+    //     而建议去掉 export —— 那会当场打红 types:check
     //   同文件内除定义行外还出现过 ⇒ 它在自己文件里用着，只是 export 多余 → 去掉 export 即可
-    //   同文件内也没再用           ⇒ 彻底没人用（或 G 类门禁载体）→ 见下
+    //   同文件内也没再用           ⇒ 彻底没人用 → 见下
+    if (isGateCarrierExport(e, isGateCarrier)) {
+      gateCarrier.push(e)
+      continue
+    }
     const hits = (readCache(e.file).match(new RegExp(`\\b${e.name}\\b`, 'g')) ?? []).length
     if (hits > 1) redundantExport.push(e)
-    else if (isGateCarrier && isGateCarrier(e.name)) gateCarrier.push(e)
     else dead.push(e)
   }
   return { exports, dead, redundantExport, gateCarrier }

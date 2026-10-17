@@ -1,10 +1,10 @@
 {
   "generatedFrom": "tools/dead-code/scan.mjs",
   "totalDead": 0,
-  "totalRedundantExport": 3,
+  "totalRedundantExport": 0,
   "byModule": {},
   "dead": [],
-  "updatedAt": "2026-10-09",
+  "updatedAt": "2026-10-17",
   "history": [
     {
       "at": "2026-09-25",
@@ -68,6 +68,13 @@
       "totalRedundantExport": 3,
       "kind": "真清理",
       "note": "剥离后端 23 处仅本文件使用的 export（余 3 = schemas.ts 契约门禁载体）"
+    },
+    {
+      "at": "2026-10-17",
+      "totalDead": 0,
+      "totalRedundantExport": 0,
+      "kind": "口径调整",
+      "note": "3A 契约载体判别扩认 *Schema 本体：schemas.ts 的三个 *Schema 由 redundantExport 归入 gateCarrier，账 3→0（用户 2026-10-17 裁决 3A；两道闸：名字在快照内 + 声明落在 schemas.ts）"
     }
   ]
 }

@@ -7,9 +7,8 @@
  * 收藏走全局 favorites 单例（itemType 'facility' 与浸没设施同型，后端白名单已含）。
  */
 import { computed } from 'vue'
-import { useRouter } from 'vue-router'
 
-import { FACILITY_LABELS, showModal, showToast, useAuth, useFavorites } from '@/shared'
+import { FACILITY_LABELS, showToast, useAuth, useFavorites } from '@/shared'
 import type { FavoriteAddInput } from '@/types'
 
 interface FacilityBubbleData {
@@ -30,8 +29,7 @@ const emit = defineEmits<{
   (_e: 'close'): void
 }>()
 
-const router = useRouter()
-const { isFavorite, addFavorite, removeFavorite, queuePendingFavorite } = useFavorites()
+const { isFavorite, addFavorite, removeFavorite, promptLoginForFavorite } = useFavorites()
 const { isAuthenticated } = useAuth()
 
 const typeLabel = computed(() => FACILITY_LABELS[props.facility.poiType] ?? props.facility.poiType)
@@ -60,12 +58,7 @@ async function toggleFavorite(): Promise<void> {
   if (!props.facility.id) return
   if (!isAuthenticated.value) {
     // 未登录：记录收藏意图 + 登录引导（登录成功后自动补完，与列表收藏同一条链路）
-    queuePendingFavorite(toFavoriteInput())
-    showModal({
-      message: '收藏功能需要登录，是否前往登录？',
-      mode: 'login',
-      onConfirm: () => void router.push('/profile'),
-    })
+    promptLoginForFavorite(toFavoriteInput())
     return
   }
   const already = isFav.value

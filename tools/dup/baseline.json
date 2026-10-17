@@ -1,12 +1,12 @@
 {
   "generatedFrom": "tools/dup/scan.mjs",
   "minTokens": 12,
-  "totalGroups": 143,
-  "totalRedundantTokens": 2442,
+  "totalGroups": 141,
+  "totalRedundantTokens": 2393,
   "callSiteGroups": 13,
   "callSiteTokens": 438,
   "byModule": {
-    "跨模块": 456,
+    "跨模块": 407,
     "frontend/src/business": 174,
     "backend/src/modules": 524,
     "frontend/src/core": 865,
@@ -127,17 +127,6 @@
       "kind": "block"
     },
     {
-      "text": "showModal ( { message : '收藏功能需要登录，是否前往登录？' , mode : 'login' , onConfirm : ( ) => void router . push ( '/profile' ) , } )",
-      "tokenCount": 26,
-      "count": 2,
-      "files": [
-        "frontend/src/core/map/components/MapFacilityBubble.vue",
-        "frontend/src/shared/components/PaginatedListPanel.vue"
-      ],
-      "redundantTokens": 26,
-      "kind": "block"
-    },
-    {
       "text": "{ featureType : string | null data : Record < string , unknown > | null coordinate : [ number , number ] | null }",
       "tokenCount": 26,
       "count": 2,
@@ -210,17 +199,6 @@
       "files": [
         "frontend/src/core/layout/components/GCSDebugOverlay.vue",
         "frontend/src/shared/utils/perfReporter.ts"
-      ],
-      "redundantTokens": 23,
-      "kind": "block"
-    },
-    {
-      "text": "{ message : '收藏功能需要登录，是否前往登录？' , mode : 'login' , onConfirm : ( ) => void router . push ( '/profile' ) , }",
-      "tokenCount": 23,
-      "count": 2,
-      "files": [
-        "frontend/src/core/map/components/MapFacilityBubble.vue",
-        "frontend/src/shared/components/PaginatedListPanel.vue"
       ],
       "redundantTokens": 23,
       "kind": "block"
@@ -1319,6 +1297,13 @@
       "totalRedundantTokens": 2442,
       "kind": "真清理",
       "note": "U3 perfReporter 重复收口：dev 明细环形上限与 FPS 空态各归一处"
+    },
+    {
+      "at": "2026-10-17",
+      "totalGroups": 141,
+      "totalRedundantTokens": 2393,
+      "kind": "真清理",
+      "note": "U4 未登录收藏引导合一：两处收藏入口手抄的「落账意图+弹登录弹窗」收口为 useFavorites.promptLoginForFavorite"
     }
   ]
 }

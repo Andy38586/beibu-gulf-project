@@ -6,14 +6,13 @@
  * 点击项的地图跳转（flyTo）由业务层注入，shared 不依赖 core。
  */
 import { computed, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
 
 import EmptyState from '@/shared/components/EmptyState.vue'
 import { useAuth } from '@/shared/composables/useAuth'
 import { useFavorites } from '@/shared/composables/useFavorites'
 import { useGCS } from '@/shared/layout/useGCS'
 import { showError } from '@/shared/utils/errorHandler'
-import { showModal, showToast } from '@/shared/utils/gcsFeedback'
+import { showToast } from '@/shared/utils/gcsFeedback'
 import { logger } from '@/shared/utils/logger'
 import type { FavoriteAddInput, FavoriteItemType } from '@/types'
 import type { ScoredXiaoqu } from '@/types/xiaoqu'
@@ -64,10 +63,9 @@ const {
   isFavorite: isFavoriteInStore,
   addFavorite,
   removeFavorite,
-  queuePendingFavorite,
+  promptLoginForFavorite,
 } = useFavorites()
 const { isAuthenticated } = useAuth()
-const router = useRouter()
 
 /** 统一的登录状态判断：使用 isAuthenticated 而非 user.value */
 const isLoggedIn = computed(() => isAuthenticated.value)
@@ -135,13 +133,7 @@ async function toggleFavorite(item: ScoredXiaoqu) {
     return
   }
   if (!isLoggedIn.value) {
-    queuePendingFavorite(toFavoriteInput(item))
-    // 未登录弹 GCSModal 登录引导
-    showModal({
-      message: '收藏功能需要登录，是否前往登录？',
-      mode: 'login',
-      onConfirm: () => void router.push('/profile'),
-    })
+    promptLoginForFavorite(toFavoriteInput(item))
     return
   }
 

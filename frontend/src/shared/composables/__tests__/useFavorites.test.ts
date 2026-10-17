@@ -4,6 +4,11 @@
  * 登录守卫（未登录 add/remove 抛错）、幂等添加（existed 透传）、登录态驱动的拉取与清空、
  * 未登录收藏意图（pendingFavorite）在登录成功后自动补完。
  */
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+import ts from 'typescript'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Ref } from 'vue'
 import { nextTick } from 'vue'
@@ -78,6 +83,110 @@ const favoriteRecord = {
   lng: 1,
   lat: 2,
   savedAt: 't',
+}
+
+const HERE = path.dirname(fileURLToPath(import.meta.url))
+/** 判据域 = frontend/src（两处收藏入口、唯一实现、调试面板都在此） */
+const SRC = path.resolve(HERE, '..', '..', '..')
+const SKIP_DIR = /^(__tests__|__mocks__|node_modules|\.local|dist)$/
+const SCRIPT_RE = /<script\b[^>]*>([\s\S]*?)<\/script>/g
+
+/** 两处收藏入口：未登录时必须走 promptLoginForFavorite，不得自写登录弹窗 */
+const FAVORITE_ENTRY_FILES = [
+  'core/map/components/MapFacilityBubble.vue',
+  'shared/components/PaginatedListPanel.vue',
+]
+/**
+ * 收藏登录引导文案的全部合法持有者：唯一实现 + 调试面板预览。
+ * 调试面板（core/layout/components/GCSDebugOverlay.vue）是人工点验用的预览按钮，
+ * 不落账意图、语义不同，刻意不复用 promptLoginForFavorite。
+ */
+const LOGIN_GUIDE_MESSAGE = '收藏功能需要登录，是否前往登录？'
+const LOGIN_GUIDE_MESSAGE_OWNERS = [
+  'core/layout/components/GCSDebugOverlay.vue',
+  'shared/composables/useFavorites.ts',
+]
+
+interface SourceFile {
+  rel: string
+  text: string
+}
+
+/** 取 .vue 的 script 块（其余内容换成等量换行，保留行号；逻辑只在 script 区） */
+function scriptOnly(text: string): string {
+  let out = ''
+  let last = 0
+  for (const match of text.matchAll(SCRIPT_RE)) {
+    const at = match.index ?? 0
+    out += text.slice(last, at).replace(/[^\n]/g, '')
+    out += match[1]
+    last = at + match[0].length
+  }
+  return out + text.slice(last).replace(/[^\n]/g, '')
+}
+
+function readAllSources(): SourceFile[] {
+  const files: SourceFile[] = []
+  const walk = (current: string): void => {
+    for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
+      if (entry.isDirectory()) {
+        if (!SKIP_DIR.test(entry.name)) walk(path.join(current, entry.name))
+        continue
+      }
+      if (!/\.(ts|vue)$/.test(entry.name)) continue
+      const abs = path.join(current, entry.name)
+      const raw = fs.readFileSync(abs, 'utf8')
+      files.push({
+        rel: path.relative(SRC, abs).split(path.sep).join('/'),
+        text: abs.endsWith('.vue') ? scriptOnly(raw) : raw,
+      })
+    }
+  }
+  walk(SRC)
+  return files
+}
+
+/**
+ * 找「自写登录弹窗」：showModal({ …, mode: 'login', … })。
+ * 用 AST 不用文本子串：注释与字符串里的同款文案不该被判成命中。
+ */
+function scanLoginModals(file: SourceFile): Array<{ line: number }> {
+  const sf = ts.createSourceFile(file.rel, file.text, ts.ScriptTarget.Latest, true)
+  const hits: Array<{ line: number }> = []
+  const visit = (node: ts.Node): void => {
+    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression)) {
+      const first = node.arguments[0]
+      if (node.expression.text === 'showModal' && first && ts.isObjectLiteralExpression(first)) {
+        for (const prop of first.properties) {
+          if (
+            ts.isPropertyAssignment(prop) &&
+            ts.isIdentifier(prop.name) &&
+            prop.name.text === 'mode' &&
+            ts.isStringLiteralLike(prop.initializer) &&
+            prop.initializer.text === 'login'
+          ) {
+            hits.push({ line: sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1 })
+          }
+        }
+      }
+    }
+    ts.forEachChild(node, visit)
+  }
+  visit(sf)
+  return hits
+}
+
+/** 阳性对照样本：第 3 行是手抄形态，扫描器必须咬到 */
+function loginModalSample(): SourceFile {
+  return {
+    rel: 'probe.ts',
+    text: [
+      "import { showModal } from '@/shared'",
+      'export function go(): void {',
+      "  showModal({ message: '收藏功能需要登录，是否前往登录？', mode: 'login' })",
+      '}',
+    ].join('\n'),
+  }
 }
 
 beforeEach(() => {
@@ -179,7 +288,7 @@ describe('useFavorites（全局收藏单例）', () => {
   it('未登录收藏意图 → 登录成功后自动补完（GET + POST）', async () => {
     const { useFavorites } = await importFreshFavorites()
     const favorites = useFavorites()
-    favorites.queuePendingFavorite(input)
+    favorites.promptLoginForFavorite(input)
     // mock 在 loginAs 之前就位：GET 空，POST 返回收藏项
     mockApiRequest.mockImplementation((_path: string, options?: { method?: string }) => {
       if (options?.method === 'POST') {
@@ -208,6 +317,68 @@ describe('useFavorites（全局收藏单例）', () => {
     expect(favorites.favorites.value).toHaveLength(0)
   })
 
+  it('🔴 @guard-red-sample 收藏引导一步到位：落账意图 + 弹登录引导（登录后自动补交）', async () => {
+    const { useFavorites } = await importFreshFavorites()
+    // resetModules 之后取到的才是 useFavorites 实际用到的那个 gcsFeedback 实例
+    const { gcsModalState, closeModal } = await import('@/shared/utils/gcsFeedback')
+    const favorites = useFavorites()
+    favorites.promptLoginForFavorite(input)
+
+    // 第一步：登录引导弹窗，文案与模式固定；「去登录」走 GCSModal 的 login 默认分支
+    expect(gcsModalState.visible).toBe(true)
+    expect(gcsModalState.message).toBe('收藏功能需要登录，是否前往登录？')
+    expect(gcsModalState.mode).toBe('login')
+    expect(gcsModalState.confirmText).toBe('去登录')
+    expect(gcsModalState.onConfirm).toBeNull()
+    closeModal()
+
+    // 第二步：意图已落账 ⇒ 登录成功后自动补交（拆成两个公开方法后调用方漏写第一步即在此变红）
+    mockApiRequest.mockImplementation((_path: string, options?: { method?: string }) => {
+      if (options?.method === 'POST') {
+        return Promise.resolve({
+          favorite: { id: 'f1', userId: 'u1', ...input, savedAt: 't' },
+          existed: false,
+        })
+      }
+      return Promise.resolve([])
+    })
+    loginAs(TEST_USER)
+    await vi.waitFor(() =>
+      expect(favorites.favorites.value.some((f) => f.itemId === 'B1')).toBe(true)
+    )
+    const postBody = mockApiRequest.mock.calls.find(
+      ([, options]) => (options as { method?: string } | undefined)?.method === 'POST'
+    )?.[1] as { body?: unknown } | undefined
+    // 补交的是用户刚才点收藏的那一项（不是别的意图）：apiRequest 的 body 是 JSON 串
+    expect(JSON.parse(String(postBody?.body))).toMatchObject({ itemType: 'xiaoqu', itemId: 'B1' })
+  })
+
+  it('🔴 @guard-red-sample 收藏登录引导只经 promptLoginForFavorite 一个入口，两处收藏面板不得自抄 showModal', async () => {
+    const sources = readAllSources()
+    const offenders = sources
+      .filter((file) => FAVORITE_ENTRY_FILES.includes(file.rel))
+      .flatMap((file) => scanLoginModals(file).map((hit) => `${file.rel}:${hit.line} 手抄登录弹窗`))
+    expect(offenders, '收藏面板必须调 promptLoginForFavorite，不得自写 showModal 登录引导').toEqual(
+      []
+    )
+    // 阳性对照：换成手抄形态必须能被扫到（否则上一条断言是空转）
+    expect(scanLoginModals(loginModalSample()).map((hit) => hit.line)).toContain(3)
+    // 两处入口确实都在调唯一入口（删掉调用点即在此变红）
+    for (const rel of FAVORITE_ENTRY_FILES) {
+      const file = sources.find((item) => item.rel === rel)
+      expect(file, `收藏入口文件不存在：${rel}`).toBeDefined()
+      expect(file!.text, `${rel} 未调用 promptLoginForFavorite`).toContain(
+        'promptLoginForFavorite('
+      )
+    }
+    // 收藏引导文案只有两处：useFavorites（唯一实现）与调试面板预览（不接受参数、不落账意图）
+    const messageOwners = sources
+      .filter((file) => file.text.includes(LOGIN_GUIDE_MESSAGE))
+      .map((file) => file.rel)
+      .sort()
+    expect(messageOwners).toEqual([...LOGIN_GUIDE_MESSAGE_OWNERS].sort())
+  })
+
   it('🔴 登出清 pendingFavorite：换账号登录不补交上一账号的收藏意图（1004-06）', async () => {
     const { useFavorites } = await importFreshFavorites()
     const favorites = useFavorites()
@@ -216,7 +387,7 @@ describe('useFavorites（全局收藏单例）', () => {
         ([, options]) => (options as { method?: string } | undefined)?.method === 'POST'
       )
     // 未登录期排队一个收藏意图
-    favorites.queuePendingFavorite(input)
+    favorites.promptLoginForFavorite(input)
     // 账号 A 登录：补交失败 ⇒ 意图回滚保留（pendingFavorite = input）
     mockApiRequest.mockImplementation((_path: string, options?: { method?: string }) => {
       if (options?.method === 'POST') {

@@ -16,7 +16,7 @@ import {
 } from '@/types/schemas'
 
 import { showError } from '../utils/errorHandler'
-import { showToast } from '../utils/gcsFeedback'
+import { showModal, showToast } from '../utils/gcsFeedback'
 
 import { useApiRequest } from './useApiRequest'
 import { isAuthRestoreDone, useAuth } from './useAuth'
@@ -38,7 +38,7 @@ interface UseFavoritesReturn {
   isFavorite: (itemType: FavoriteItemType, itemId: string) => boolean
   addFavorite: (input: FavoriteAddInput) => Promise<{ existed: boolean }>
   removeFavorite: (itemType: FavoriteItemType, itemId: string) => Promise<boolean>
-  queuePendingFavorite: (input: FavoriteAddInput) => void
+  promptLoginForFavorite: (input: FavoriteAddInput) => void
 }
 
 async function fetchFavorites(): Promise<void> {
@@ -154,9 +154,16 @@ export function useFavorites(): UseFavoritesReturn {
     return res.removed
   }
 
-  function queuePendingFavorite(input: FavoriteAddInput): void {
+  /**
+   * 未登录收藏引导：同一入口完成「记录收藏意图 + 弹登录引导」两步。
+   * 拆成两个公开方法时，两处收藏入口各自手抄这两步：漏掉第一步 ⇒ 用户点收藏、去登录、
+   * 回来发现没收藏（静默丢失）；文案各写一份 ⇒ 改一处漏一处。
+   * 「去登录」的跳转走 GCSModal 的 login 默认分支（未注入 onConfirm → push('/profile')）。
+   */
+  function promptLoginForFavorite(input: FavoriteAddInput): void {
     pendingFavorite = input
+    showModal({ message: '收藏功能需要登录，是否前往登录？', mode: 'login' })
   }
 
-  return { favorites, isLoggedIn, isFavorite, addFavorite, removeFavorite, queuePendingFavorite }
+  return { favorites, isLoggedIn, isFavorite, addFavorite, removeFavorite, promptLoginForFavorite }
 }

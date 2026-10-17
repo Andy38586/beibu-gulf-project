@@ -57,9 +57,23 @@ export const useMapStore = defineStore('map', () => {
     mapType.value = type
   }
 
+  /**
+   * 目录条目按键查找（唯一入口）：各 action 与图层面板共用同一谓词。
+   * 手抄 find/findIndex 的谓词一旦漂移（如漏 : LayerEntry 标注或改比较方向），
+   * 会出现「注册判存在」与「删除定位」两套口径，条目被静默重复注册或删错下标。
+   */
+  function findLayerEntry(key: string): LayerEntry | undefined {
+    return layerCatalog.value.find((e: LayerEntry) => e.key === key)
+  }
+
+  /** 目录条目按键定位（同上，用于按下标删除/更新） */
+  function findLayerEntryIndex(key: string): number {
+    return layerCatalog.value.findIndex((e: LayerEntry) => e.key === key)
+  }
+
   /** 注册底图条目（幂等——UnifiedMap 每次引擎切换都会调用，已存在则跳过） */
   function registerBaseLayer(key: string, label: string): void {
-    const existing = layerCatalog.value.find((e: LayerEntry) => e.key === key)
+    const existing = findLayerEntry(key)
     if (existing) return
     const isFirstBase = layerCatalog.value.every((e: LayerEntry) => e.category !== 'base')
     // 可见性以持久化的底图 key 为准，未设置时默认第一张可见
@@ -78,7 +92,7 @@ export const useMapStore = defineStore('map', () => {
     listed: boolean = true,
     locked: boolean = false
   ): void {
-    const existing = layerCatalog.value.find((e: LayerEntry) => e.key === key)
+    const existing = findLayerEntry(key)
     if (existing) {
       // 已存在则更新可见性与类型（不可变更新，配合 shallowRef 浅响应式）
       layerCatalog.value = layerCatalog.value.map((e: LayerEntry) =>
@@ -102,7 +116,7 @@ export const useMapStore = defineStore('map', () => {
   /** 切换底图（互斥）：key 持久化到 localStorage，catalog base 条目 visible 同步镜像，供控制面板调用 */
   let lastBaseRenderer: MapRenderer | null = null // 底图指令最近应用到的渲染器实例（引擎切换后需重放）
   function setBaseLayer(key: string): void {
-    const entry = layerCatalog.value.find((e: LayerEntry) => e.key === key)
+    const entry = findLayerEntry(key)
     if (!entry || entry.category !== 'base') return
 
     // 通知当前渲染器切换底图引擎（OL/Cesium 渲染器均实现 setBaseLayer）
@@ -131,7 +145,7 @@ export const useMapStore = defineStore('map', () => {
   }
 
   function removeLayer(key: string): void {
-    const idx = layerCatalog.value.findIndex((e: LayerEntry) => e.key === key)
+    const idx = findLayerEntryIndex(key)
     if (idx < 0) return
     // 仅删条目：显隐由 BusinessLayerManager.setVisible 驱动（不可变更新，配合 shallowRef）
     layerCatalog.value = layerCatalog.value.filter((_, i) => i !== idx)
@@ -143,7 +157,7 @@ export const useMapStore = defineStore('map', () => {
 
   /** 设置图层可见性：必须经 action 走不可变更新，Pinia 状态库才能正确追踪（绕过 action 直接改条目会丢响应式与 DevTools 记录） */
   function setLayerVisible(key: string, visible: boolean): void {
-    const idx = layerCatalog.value.findIndex((e: LayerEntry) => e.key === key)
+    const idx = findLayerEntryIndex(key)
     if (idx < 0) {
       logger.debug(`setLayerVisible: 未找到key为“${key}”的图层`)
       return
@@ -176,6 +190,9 @@ export const useMapStore = defineStore('map', () => {
     debugMode,
     setCurrentRenderer,
     setMapType,
+    // 目录条目按键查找/定位（面板等消费方走同一入口，勿再手抄 find 谓词）
+    findLayerEntry,
+    findLayerEntryIndex,
     registerBaseLayer,
     registerBusinessLayer,
     setBaseLayer,

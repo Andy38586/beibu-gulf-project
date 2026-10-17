@@ -1,12 +1,12 @@
 {
   "generatedFrom": "tools/dup/scan.mjs",
   "minTokens": 12,
-  "totalGroups": 129,
-  "totalRedundantTokens": 2180,
+  "totalGroups": 127,
+  "totalRedundantTokens": 2108,
   "callSiteGroups": 11,
   "callSiteTokens": 380,
   "byModule": {
-    "跨模块": 346,
+    "跨模块": 292,
     "frontend/src/business": 174,
     "backend/src/modules": 407,
     "frontend/src/core": 830,
@@ -16,7 +16,7 @@
     "frontend/src/services": 36,
     "backend/src/main.ts": 19,
     "frontend/src/views": 70,
-    "frontend/src/stores": 75
+    "frontend/src/stores": 57
   },
   "groups": [
     {
@@ -28,17 +28,6 @@
         "frontend/src/shared/constants/flood.ts"
       ],
       "redundantTokens": 64,
-      "kind": "block"
-    },
-    {
-      "text": "layerCatalog . value . find ( ( e : LayerEntry ) => e . key === key )",
-      "tokenCount": 18,
-      "count": 4,
-      "files": [
-        "frontend/src/core/map/components/LayerControlPanel.vue",
-        "frontend/src/stores/mapStore.ts"
-      ],
-      "redundantTokens": 54,
       "kind": "block"
     },
     {
@@ -454,14 +443,6 @@
       "tokenCount": 18,
       "count": 2,
       "files": ["frontend/src/core/map/renderers/OLRenderer.ts"],
-      "redundantTokens": 18,
-      "kind": "block"
-    },
-    {
-      "text": "layerCatalog . value . findIndex ( ( e : LayerEntry ) => e . key === key )",
-      "tokenCount": 18,
-      "count": 2,
-      "files": ["frontend/src/stores/mapStore.ts"],
       "redundantTokens": 18,
       "kind": "block"
     },
@@ -1225,6 +1206,13 @@
       "totalRedundantTokens": 2180,
       "kind": "真清理",
       "note": "U9 单位区间判据单一入口：site-suitability 的 parseResolution/parseMinLandFrac（dto）与 parseWeights（scoring）手抄的 !Number.isFinite(v) || v<0 || v>1 收口为 constants/unit-interval.isUnitInterval"
+    },
+    {
+      "at": "2026-10-17",
+      "totalGroups": 127,
+      "totalRedundantTokens": 2108,
+      "kind": "真清理",
+      "note": "U10 目录键查找单一入口：mapStore 与 LayerControlPanel 手抄的 layerCatalog.value.find/findIndex 键谓词收口为 findLayerEntry / findLayerEntryIndex"
     }
   ]
 }

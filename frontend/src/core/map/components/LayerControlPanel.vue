@@ -234,7 +234,7 @@ function getLayerIcon(label: string, layerType?: LayerType): string {
 /** 点击图层按钮 */
 function handleToggle(key: string) {
   // 业务图层（有 layerType 字段）→ 走 Manager.setVisible
-  const catalogEntry = layerCatalog.value.find((e: LayerEntry) => e.key === key)
+  const catalogEntry = mapStore.findLayerEntry(key)
   if (catalogEntry && catalogEntry.layerType) {
     // 锁定层（基础能力，如地形山影）：按钮已禁用，此处再挡一道，防其它路径误调
     if (businessLayerManager.getMeta(key)?.locked) return

@@ -1,18 +1,18 @@
 {
   "generatedFrom": "tools/dup/scan.mjs",
   "minTokens": 12,
-  "totalGroups": 127,
-  "totalRedundantTokens": 2108,
+  "totalGroups": 126,
+  "totalRedundantTokens": 2064,
   "callSiteGroups": 11,
   "callSiteTokens": 380,
   "byModule": {
     "跨模块": 292,
     "frontend/src/business": 174,
-    "backend/src/modules": 407,
     "frontend/src/core": 830,
     "frontend/src/visualization": 79,
     "frontend/src/types": 86,
     "frontend/src/shared": 58,
+    "backend/src/modules": 363,
     "frontend/src/services": 36,
     "backend/src/main.ts": 19,
     "frontend/src/views": 70,
@@ -47,14 +47,6 @@
         "frontend/src/business/site-suitability/composables/useSiteSuitabilityRequest.ts"
       ],
       "redundantTokens": 45,
-      "kind": "block"
-    },
-    {
-      "text": "{ time : string value : number type : string reliability : number lower ? : number upper ? : number }",
-      "tokenCount": 22,
-      "count": 3,
-      "files": ["backend/src/modules/forecast/services/model-loader.ts"],
-      "redundantTokens": 44,
       "kind": "block"
     },
     {
@@ -1213,6 +1205,13 @@
       "totalRedundantTokens": 2108,
       "kind": "真清理",
       "note": "U10 目录键查找单一入口：mapStore 与 LayerControlPanel 手抄的 layerCatalog.value.find/findIndex 键谓词收口为 findLayerEntry / findLayerEntryIndex"
+    },
+    {
+      "at": "2026-10-17",
+      "totalGroups": 126,
+      "totalRedundantTokens": 2064,
+      "kind": "真清理",
+      "note": "U11 模型点输出形状单一入口：model-loader 三处匿名同形字面量收口为 ModelForecastPoint"
     }
   ]
 }

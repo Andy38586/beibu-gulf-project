@@ -18,6 +18,18 @@ interface ModelPort {
   backtest?: Record<string, unknown> & { rolling_mape_by_step?: Record<string, number> }
 }
 
+// 模型点输出形状（月度序列）：interpolateMonthly 的返回值、其内部累积数组、
+// ModelForecast.forecast 三处原先各写一份同形字面量；漂移由 tsc 兜，但「一份声明」
+// 本身无信号 ⇒ 同笔加 backend/test/model-forecast-point.spec.ts 结构判据。
+interface ModelForecastPoint {
+  time: string
+  value: number
+  type: string
+  reliability: number
+  lower?: number
+  upper?: number
+}
+
 function monthOffset(time: string): number {
   const [y, m] = time.split('-').map(Number)
   return y * 12 + (m - 1)
@@ -30,30 +42,13 @@ function timeFromOffset(off: number): string {
 }
 
 // 模型点 → 月度序列：丢弃 ≤ afterTime 的重叠点，半年节点间线性插值（与 forecastEngine 输出同形）
-export function interpolateMonthly(
-  points: ModelPoint[],
-  afterTime?: string
-): Array<{
-  time: string
-  value: number
-  type: string
-  reliability: number
-  lower?: number
-  upper?: number
-}> {
+export function interpolateMonthly(points: ModelPoint[], afterTime?: string): ModelForecastPoint[] {
   const afterOff = afterTime ? monthOffset(afterTime) : -Infinity
   const kept = points
     .filter((p) => monthOffset(p.time) > afterOff)
     .sort((a, b) => a.time.localeCompare(b.time))
 
-  const out: Array<{
-    time: string
-    value: number
-    type: string
-    reliability: number
-    lower?: number
-    upper?: number
-  }> = []
+  const out: ModelForecastPoint[] = []
   for (let i = 0; i < kept.length; i++) {
     const cur = kept[i]
     out.push({ time: cur.time, value: cur.value, type: 'forecast', reliability: 1 })
@@ -86,14 +81,7 @@ interface ModelFileShape {
 }
 
 interface ModelForecast {
-  forecast: Array<{
-    time: string
-    value: number
-    type: string
-    reliability: number
-    lower?: number
-    upper?: number
-  }>
+  forecast: ModelForecastPoint[]
   // scenarioLevel 不在此声明：产物为固定基线，由调用方（forecast.service）注入 1.0
   metadata: Record<string, unknown>
 }

@@ -126,6 +126,56 @@ export function ciTriggerProblems(text, script, jobOf) {
 }
 
 /**
+ * workflow 里跑 `npm run <script>` 的那个**步骤**：按 YAML 步骤块切出（`- ` 起、同级下一个
+ * `- ` 止），`run:` 行识别口径与 `jobBlockOf` 相同（非注释、含 `npm run <script>`）。
+ */
+export function stepBlockOf(text, script) {
+  const lines = text.split(/\r?\n/)
+  const idx = lines.findIndex(
+    (l) => !l.trim().startsWith('#') && /^\s+run:\s/.test(l) && l.includes(`npm run ${script}`)
+  )
+  if (idx < 0) return null
+  const indentOf = (l) => l.match(/^ */)[0].length
+  let start = -1
+  for (let i = idx; i >= 0; i--)
+    if (!lines[i].trim().startsWith('#') && /^\s*-\s+\S/.test(lines[i])) {
+      start = i
+      break
+    }
+  if (start < 0) return null
+  const at = indentOf(lines[start])
+  let end = lines.length
+  for (let i = start + 1; i < lines.length; i++)
+    if (
+      !lines[i].trim().startsWith('#') &&
+      /^\s*-\s+\S/.test(lines[i]) &&
+      indentOf(lines[i]) <= at
+    ) {
+      end = i
+      break
+    }
+  return { id: lines[start].trim(), block: lines.slice(start, end).join('\n') }
+}
+
+/**
+ * **步骤级** `if:` 判据（2026-10-17 · N2）。
+ *
+ * z063 的 `ciTriggerProblems` 只判 job 级条件；实测（2A 变异 M2）把跑该 script 的**步骤**
+ * 包进 `if: false` 后判据仍绿 —— 条件不成立时该步同样不跑，等于没挂强制点。步骤级条件在
+ * 本仓真实存在（ci.yml 的 `if: failure()` 步骤），不是假想形态，故单独一条判据。
+ */
+export function stepIfProblems(text, script, stepOf) {
+  const step = stepOf(text, script)
+  if (!step) return [`ci.yml 里找不到执行 npm run ${script} 的步骤`]
+  const lines = step.block.split(/\r?\n/).filter((l) => !l.trim().startsWith('#'))
+  if (lines.some((l) => /^\s*if:/.test(l)))
+    return [
+      `ci.yml 执行 npm run ${script} 的步骤「${step.id}」带步骤级 if: 条件 —— 条件不成立时该步不跑，等于没挂强制点`,
+    ]
+  return []
+}
+
+/**
  * 顺序执行全部守卫，**不短路**。
  * @param {(name: string) => { code: number|null, signal: string|null }} exec 执行注入点（测试用）
  * @returns {{ results: Array<{name: string, code: number|null, signal: string|null}>, ok: boolean }}

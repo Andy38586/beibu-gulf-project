@@ -13,6 +13,8 @@ import {
   executionPlan,
   hookFiringProblems,
   runAll,
+  stepBlockOf,
+  stepIfProblems,
 } from '../run-all.mjs'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
@@ -177,6 +179,30 @@ describe('guard:v3 串联执行器（审查 z163）', () => {
     // workflow 断言不依赖 git 派生，照常跑：on: 真的在；跑 guard:mutation 的 job 不许带条件
     const wf = fs.readFileSync(path.join(ROOT, '.github/workflows/ci.yml'), 'utf8')
     expect(ciTriggerProblems(wf, 'guard:mutation', jobBlockOf)).toEqual([])
+  })
+
+  it('@guard-red-sample 步骤级 if: 也是强制点失效（z063 只判 job 级；步骤级条件同样让该步不跑）', () => {
+    // 真仓（N2）：跑这两个棘轮的步骤不得带步骤级条件
+    const wf = fs.readFileSync(path.join(ROOT, '.github/workflows/ci.yml'), 'utf8')
+    for (const s of ['ratchet:dead-code', 'ratchet:dup'])
+      expect(stepIfProblems(wf, s, stepBlockOf), `真 ci.yml 的 ${s} 步骤带条件`).toEqual([])
+    // 红样：把该步包进 `if: false` ⇒ 必须报（2A 变异 M2 的实测形态，当时判据未覆盖）
+    const wfGated = [
+      'on:',
+      '  push:',
+      'jobs:',
+      '  static-checks:',
+      '    steps:',
+      '      - name: Code asset dead-code ratchet',
+      '        if: false',
+      '        run: npm run ratchet:dead-code',
+      '',
+    ].join('\n')
+    const problems = stepIfProblems(wfGated, 'ratchet:dead-code', stepBlockOf)
+    expect(problems).toHaveLength(1)
+    expect(problems[0]).toContain('步骤级 if:')
+    // 无该步骤 ⇒ 必须报（不静默通过）
+    expect(stepIfProblems('on:\n  push:\n', 'ratchet:dead-code', stepBlockOf)).toHaveLength(1)
   })
 
   it('@guard-red-sample 强制点自证的两种违约：缺 shim / job 带 if: 都必须报', () => {

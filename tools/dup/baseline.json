@@ -1,14 +1,14 @@
 {
   "generatedFrom": "tools/dup/scan.mjs",
   "minTokens": 12,
-  "totalGroups": 134,
-  "totalRedundantTokens": 2297,
+  "totalGroups": 132,
+  "totalRedundantTokens": 2265,
   "callSiteGroups": 11,
   "callSiteTokens": 380,
   "byModule": {
     "跨模块": 346,
     "frontend/src/business": 174,
-    "backend/src/modules": 524,
+    "backend/src/modules": 492,
     "frontend/src/core": 830,
     "frontend/src/visualization": 79,
     "frontend/src/types": 86,
@@ -570,22 +570,6 @@
       "tokenCount": 16,
       "count": 2,
       "files": ["backend/src/modules/forecast/services/forecast.service.ts"],
-      "redundantTokens": 16,
-      "kind": "block"
-    },
-    {
-      "text": "( `SELECT ${PLAN_COLUMNS} FROM plans WHERE id = $1 FOR UPDATE` , [ planId ] )",
-      "tokenCount": 16,
-      "count": 2,
-      "files": ["backend/src/modules/plans/repositories/plans.repository.ts"],
-      "redundantTokens": 16,
-      "kind": "block"
-    },
-    {
-      "text": "( row . payload ?. savedXiaoqu as Record < string , unknown > [ ] )",
-      "tokenCount": 16,
-      "count": 2,
-      "files": ["backend/src/modules/plans/repositories/plans.repository.ts"],
       "redundantTokens": 16,
       "kind": "block"
     },
@@ -1253,6 +1237,13 @@
       "totalRedundantTokens": 2297,
       "kind": "真清理",
       "note": "U6 ECharts 增量更新口径单一入口：useECharts 与自建实例的水位剖面面板手抄同一份 setOption 合并选项（notMerge/replaceMerge/lazyUpdate）收口为 applyChartOption"
+    },
+    {
+      "at": "2026-10-17",
+      "totalGroups": 132,
+      "totalRedundantTokens": 2265,
+      "kind": "真清理",
+      "note": "U7 plans 先读后写公共前缀：update / saveXiaoqu / removeXiaoqu 手抄的事务+FOR UPDATE 行锁+行不存在短路收口为 withPlanRow"
     }
   ]
 }

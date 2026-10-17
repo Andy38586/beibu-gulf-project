@@ -58,6 +58,31 @@ export class PlansRepository {
     return res.rows[0] ?? null
   }
 
+  // 方案行的「先读后写」公共前缀：事务 + FOR UPDATE 行锁 + 行不存在短路。
+  // plans 的 update / saveXiaoqu / removeXiaoqu 三处共用同一原子化口径——
+  // 任一处漏走事务或漏加行锁，就重新引入「基于旧快照写回」的丢更新窗口。
+  private async withPlanRow<T>(
+    id: string,
+    runner: (client: PoolClient, row: PlanRow) => Promise<T>
+  ): Promise<T | null> {
+    return this.db.withTransaction(async (client) => {
+      const res = await client.query<PlanRow>(
+        `SELECT ${PLAN_COLUMNS} FROM plans WHERE id = $1 FOR UPDATE`,
+        [id]
+      )
+      const row = res.rows[0]
+      if (!row) return null
+      return runner(client, row)
+    })
+  }
+
+  // payload.savedXiaoqu 的既有列表：缺失或非数组一律视作空列表（对齐旧 Express 语义）
+  private savedXiaoquOf(row: PlanRow): Record<string, unknown>[] {
+    return Array.isArray(row.payload?.savedXiaoqu)
+      ? (row.payload?.savedXiaoqu as Record<string, unknown>[])
+      : []
+  }
+
   async findAllByUserId(userId: string): Promise<Record<string, unknown>[]> {
     // created_at ASC 对齐 Express plans.json 追加序（文件插入序）；id 作同毫秒 tiebreak
     const res = await this.db.query<PlanRow>(
@@ -101,13 +126,7 @@ export class PlansRepository {
     id: string,
     updates: Record<string, unknown>
   ): Promise<Record<string, unknown> | null> {
-    return this.db.withTransaction(async (client) => {
-      const res = await client.query<PlanRow>(
-        `SELECT ${PLAN_COLUMNS} FROM plans WHERE id = $1 FOR UPDATE`,
-        [id]
-      )
-      const row = res.rows[0]
-      if (!row) return null
+    return this.withPlanRow(id, async (client, row) => {
       const payload: Record<string, unknown> = { ...(row.payload ?? {}) }
       for (const key of PLAN_UPDATE_PAYLOAD_FIELDS) {
         if (key in updates) payload[key] = updates[key]
@@ -140,16 +159,8 @@ export class PlansRepository {
   ): Promise<Record<string, unknown> | null> {
     const savedAt = new Date().toISOString()
     const merged = { ...xiaoqu, savedAt }
-    return this.db.withTransaction(async (client) => {
-      const res = await client.query<PlanRow>(
-        `SELECT ${PLAN_COLUMNS} FROM plans WHERE id = $1 FOR UPDATE`,
-        [planId]
-      )
-      const row = res.rows[0]
-      if (!row) return null
-      const existing = Array.isArray(row.payload?.savedXiaoqu)
-        ? (row.payload?.savedXiaoqu as Record<string, unknown>[])
-        : []
+    return this.withPlanRow(planId, async (client, row) => {
+      const existing = this.savedXiaoquOf(row)
       const newSavedXiaoqu = existing.some((xq) => xq.id === xiaoqu.id)
         ? existing.map((xq) => (xq.id === xiaoqu.id ? merged : xq))
         : [...existing, merged]
@@ -160,16 +171,8 @@ export class PlansRepository {
   // 移除小区：键不存在返回原方案（对齐 Express 返回未变更 plan，不报错）；
   // 事务 + FOR UPDATE 行锁：并发场景以最新行做过滤，避免基于旧快照的误写
   async removeXiaoqu(planId: string, xiaoquId: string): Promise<Record<string, unknown> | null> {
-    return this.db.withTransaction(async (client) => {
-      const res = await client.query<PlanRow>(
-        `SELECT ${PLAN_COLUMNS} FROM plans WHERE id = $1 FOR UPDATE`,
-        [planId]
-      )
-      const row = res.rows[0]
-      if (!row) return null
-      const existing = Array.isArray(row.payload?.savedXiaoqu)
-        ? (row.payload?.savedXiaoqu as Record<string, unknown>[])
-        : []
+    return this.withPlanRow(planId, async (client, row) => {
+      const existing = this.savedXiaoquOf(row)
       const newSavedXiaoqu = existing.filter((xq) => xq.id !== xiaoquId)
       if (newSavedXiaoqu.length === existing.length) {
         return this.toView(row)

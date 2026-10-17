@@ -51,6 +51,16 @@ export interface UseEChartsReturn {
   getInstance: () => ECharts | null
 }
 
+/**
+ * 图表增量更新口径的单一入口：notMerge=false 保留轴/样式，replaceMerge:['series'] 整体替换
+ * series 防残留（series 增减时靠 series.id 对位），lazyUpdate 合并渲染。
+ * 自建实例的页面（如水位剖面面板）必须复用本函数——手抄第二份时只改一侧就会造成 series 残留
+ * 或轴样式被重置，且此前的两份注释都写着「perfTimeFn 闭包内 TS 无法收窄实例」。
+ */
+export function applyChartOption(inst: ECharts, option: Record<string, unknown>): void {
+  inst.setOption(option, { notMerge: false, replaceMerge: ['series'], lazyUpdate: true })
+}
+
 export function useECharts({
   getOption,
   watchSources = [],
@@ -90,14 +100,14 @@ export function useECharts({
     }
   }
 
-  /** 更新图表配置：增量更新（notMerge 保留轴/样式，replaceMerge 整体替换 series 防残留，lazyUpdate 合并渲染） */
+  /** 更新图表配置：增量更新口径见 applyChartOption */
   function updateChart(): void {
     if (!chartInstance) return
     const option = getOption()
     // perfTimeFn 闭包内 TS 无法收窄 chartInstance（const 收窄不跨箭头函数），先取局部常量
     const inst = chartInstance
     perfTimeFn('echarts:setOption', () => {
-      inst.setOption(option, { notMerge: false, replaceMerge: ['series'], lazyUpdate: true })
+      applyChartOption(inst, option)
     })
   }
 

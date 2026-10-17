@@ -46,6 +46,7 @@ import { useGCS } from '@/shared'
 import { perfTimeFn } from '@/shared'
 import { useFloodStore, useTaskStore } from '@/stores'
 import { isActiveStatus } from '@/types/task'
+import { applyChartOption } from '@/visualization'
 
 import type { FloodAnalysisPayload } from '../composables/useFloodRequest'
 import {
@@ -493,11 +494,11 @@ function updateChart() {
     ],
   }
 
-  // 增量更新：notMerge=false 保留轴/样式，replaceMerge:['series'] 整体替换系列防残留，lazyUpdate 延迟渲染
+  // 增量更新口径见 applyChartOption（自建实例不随 useECharts 走，必须复用同一入口）
   // perfTimeFn 闭包内 TS 无法收窄 chartInstance，故先取局部常量
   const inst = chartInstance
   perfTimeFn('echarts:setOption:waterLevel', () => {
-    inst.setOption(option, { notMerge: false, replaceMerge: ['series'], lazyUpdate: true })
+    applyChartOption(inst, option)
   })
 }
 

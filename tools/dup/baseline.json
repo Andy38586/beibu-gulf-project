@@ -1,12 +1,12 @@
 {
   "generatedFrom": "tools/dup/scan.mjs",
   "minTokens": 12,
-  "totalGroups": 137,
-  "totalRedundantTokens": 2358,
+  "totalGroups": 134,
+  "totalRedundantTokens": 2297,
   "callSiteGroups": 11,
   "callSiteTokens": 380,
   "byModule": {
-    "跨模块": 407,
+    "跨模块": 346,
     "frontend/src/business": 174,
     "backend/src/modules": 524,
     "frontend/src/core": 830,
@@ -146,17 +146,6 @@
       "kind": "block"
     },
     {
-      "text": "{ inst . setOption ( option , { notMerge : false , replaceMerge : [ 'series' ] , lazyUpdate : true } ) }",
-      "tokenCount": 24,
-      "count": 2,
-      "files": [
-        "frontend/src/business/flood-analysis/components/WaterLevelProfilePanel.vue",
-        "frontend/src/visualization/composables/useECharts.ts"
-      ],
-      "redundantTokens": 24,
-      "kind": "block"
-    },
-    {
       "text": "import { computed , onMounted , onUnmounted , ref , watch }",
       "tokenCount": 12,
       "count": 3,
@@ -216,17 +205,6 @@
       "tokenCount": 22,
       "count": 2,
       "files": ["backend/src/modules/plans/repositories/plans.repository.ts"],
-      "redundantTokens": 22,
-      "kind": "block"
-    },
-    {
-      "text": "inst . setOption ( option , { notMerge : false , replaceMerge : [ 'series' ] , lazyUpdate : true } )",
-      "tokenCount": 22,
-      "count": 2,
-      "files": [
-        "frontend/src/business/flood-analysis/components/WaterLevelProfilePanel.vue",
-        "frontend/src/visualization/composables/useECharts.ts"
-      ],
       "redundantTokens": 22,
       "kind": "block"
     },
@@ -710,17 +688,6 @@
       "tokenCount": 15,
       "count": 2,
       "files": ["backend/src/modules/task/services/task.service.ts", "frontend/src/types/task.ts"],
-      "redundantTokens": 15,
-      "kind": "block"
-    },
-    {
-      "text": "{ notMerge : false , replaceMerge : [ 'series' ] , lazyUpdate : true }",
-      "tokenCount": 15,
-      "count": 2,
-      "files": [
-        "frontend/src/business/flood-analysis/components/WaterLevelProfilePanel.vue",
-        "frontend/src/visualization/composables/useECharts.ts"
-      ],
       "redundantTokens": 15,
       "kind": "block"
     },
@@ -1279,6 +1246,13 @@
       "totalRedundantTokens": 2358,
       "kind": "真清理",
       "note": "U5 layerAdapters 创建/重建共用半边：3dtiles 与 imageOverlay 的 create/update 手抄同一段失败上行收口为 applyTiles3DOrReport / applyImageOverlayOrReport"
+    },
+    {
+      "at": "2026-10-17",
+      "totalGroups": 134,
+      "totalRedundantTokens": 2297,
+      "kind": "真清理",
+      "note": "U6 ECharts 增量更新口径单一入口：useECharts 与自建实例的水位剖面面板手抄同一份 setOption 合并选项（notMerge/replaceMerge/lazyUpdate）收口为 applyChartOption"
     }
   ]
 }

@@ -3,6 +3,7 @@ import type { Request } from 'express'
 
 import { BusinessError, ErrorCode } from '../../../common/errors/business-error'
 import { verifyToken } from '../../../common/utils/jwt.util'
+import { extractRequestToken } from '../../../common/utils/request-token'
 import { UsersRepository } from '../repositories/users.repository'
 
 /**
@@ -35,13 +36,7 @@ export class AuthGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const req = context.switchToHttp().getRequest<Request>()
 
-    let token = req.cookies?.auth_token
-    if (!token) {
-      const header = req.headers.authorization
-      if (header && header.startsWith('Bearer ')) {
-        token = header.slice(7)
-      }
-    }
+    const token = extractRequestToken(req)
 
     if (!token) {
       throw new BusinessError(ErrorCode.UNAUTHORIZED, '未提供认证令牌')

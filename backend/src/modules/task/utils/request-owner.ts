@@ -1,6 +1,7 @@
 import type { Request } from 'express'
 
 import { verifyToken } from '../../../common/utils/jwt.util'
+import { extractRequestToken } from '../../../common/utils/request-token'
 import { ANONYMOUS_OWNER } from '../types/task'
 
 /**
@@ -20,7 +21,8 @@ import { ANONYMOUS_OWNER } from '../types/task'
  * 未带该头的旧客户端仍共享 ANONYMOUS_OWNER（公开端点语义不变），属已知残留：只影响
  * 「都不带头的客户端彼此之间」，不影响带头客户端与登录用户。
  *
- * 令牌读取顺序与 AuthGuard 逐字一致（cookie 优先、Bearer 兜底），但**不做**用户存在性与
+ * 令牌读取顺序的权威源是 `common/utils/request-token.ts`（cookie 优先、Bearer 兜底），
+ * AuthGuard 与本函数共用同一提取；这里**不做**用户存在性与
  * tokenVersion 校验——那需要查库，而这里只需要「不可伪造的稳定标识」；验签已保证这一点
  *（伪造/过期一律落到匿名，不会冒充他人属主）。
  */
@@ -31,13 +33,7 @@ export const ANONYMOUS_OWNER_PREFIX = 'anon:'
 const CLIENT_ID_RE = /^[A-Za-z0-9_-]{16,64}$/
 
 export function resolveRequestOwner(req: Request): string {
-  let token = req.cookies?.auth_token
-  if (!token) {
-    const header = req.headers.authorization
-    if (header && header.startsWith('Bearer ')) {
-      token = header.slice(7)
-    }
-  }
+  const token = extractRequestToken(req)
   const fromToken = token ? verifyToken(token)?.id : undefined
   if (fromToken) return fromToken
 

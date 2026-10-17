@@ -1,15 +1,15 @@
 {
   "generatedFrom": "tools/dup/scan.mjs",
   "minTokens": 12,
-  "totalGroups": 141,
-  "totalRedundantTokens": 2393,
-  "callSiteGroups": 13,
-  "callSiteTokens": 438,
+  "totalGroups": 137,
+  "totalRedundantTokens": 2358,
+  "callSiteGroups": 11,
+  "callSiteTokens": 380,
   "byModule": {
     "跨模块": 407,
     "frontend/src/business": 174,
     "backend/src/modules": 524,
-    "frontend/src/core": 865,
+    "frontend/src/core": 830,
     "frontend/src/visualization": 79,
     "frontend/src/types": 86,
     "frontend/src/shared": 58,
@@ -281,14 +281,6 @@
         "backend/src/modules/favorites/controllers/favorites.controller.ts",
         "backend/src/modules/plans/controllers/plans.controller.ts"
       ],
-      "redundantTokens": 21,
-      "kind": "block"
-    },
-    {
-      "text": "data as Tiles3DData if ( ! payload || typeof payload . url !== 'string' || payload . url === '' )",
-      "tokenCount": 21,
-      "count": 2,
-      "files": ["frontend/src/core/map/layerAdapters.ts"],
       "redundantTokens": 21,
       "kind": "block"
     },
@@ -844,14 +836,6 @@
       "kind": "block"
     },
     {
-      "text": "if ( ! renderer . addImageOverlayLayer ( key , payload , options ) )",
-      "tokenCount": 14,
-      "count": 2,
-      "files": ["frontend/src/core/map/layerAdapters.ts"],
-      "redundantTokens": 14,
-      "kind": "block"
-    },
-    {
       "text": "{ instance : unknown ; visible : boolean ; options ? : LayerOptions }",
       "tokenCount": 14,
       "count": 2,
@@ -1194,14 +1178,6 @@
       "kind": "call-site"
     },
     {
-      "text": "Promise . resolve ( renderer . add3DTilesLayer ( key , payload . url , tilesOptions ) )",
-      "tokenCount": 17,
-      "count": 2,
-      "files": ["frontend/src/core/map/layerAdapters.ts"],
-      "redundantTokens": 0,
-      "kind": "call-site"
-    },
-    {
       "text": "z . record ( z . string ( ) , z . unknown ( ) )",
       "tokenCount": 16,
       "count": 2,
@@ -1246,14 +1222,6 @@
       "tokenCount": 12,
       "count": 2,
       "files": ["backend/src/modules/plans/repositories/plans.repository.ts"],
-      "redundantTokens": 0,
-      "kind": "call-site"
-    },
-    {
-      "text": "renderer . add3DTilesLayer ( key , payload . url , tilesOptions )",
-      "tokenCount": 12,
-      "count": 2,
-      "files": ["frontend/src/core/map/layerAdapters.ts"],
       "redundantTokens": 0,
       "kind": "call-site"
     },
@@ -1304,6 +1272,13 @@
       "totalRedundantTokens": 2393,
       "kind": "真清理",
       "note": "U4 未登录收藏引导合一：两处收藏入口手抄的「落账意图+弹登录弹窗」收口为 useFavorites.promptLoginForFavorite"
+    },
+    {
+      "at": "2026-10-17",
+      "totalGroups": 137,
+      "totalRedundantTokens": 2358,
+      "kind": "真清理",
+      "note": "U5 layerAdapters 创建/重建共用半边：3dtiles 与 imageOverlay 的 create/update 手抄同一段失败上行收口为 applyTiles3DOrReport / applyImageOverlayOrReport"
     }
   ]
 }

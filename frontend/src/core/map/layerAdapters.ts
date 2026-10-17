@@ -19,7 +19,6 @@ import type {
   PolygonFeature,
   TerrainToggleCapability,
   Tiles3DCapability,
-  Tiles3DOptions,
   Water3DCapability,
 } from '@/types'
 import { DEFAULT_ENGINES, ENGINE_NAMES } from '@/types'
@@ -175,6 +174,53 @@ function report3DTilesFailure(
       logger.warn(`[layerAdapters] 3dtiles 图层 ${key} ${action}异常（异步）:`, e)
       options.onError?.(e)
     })
+}
+
+/** 单张影像覆盖创建/重建半边（同 applyGeoTIFFOrReport 形状）：addImageOverlayLayer 以
+ *  **返回值**表达失败（不抛异常），返回值此前被整体丢弃 ⇒ 图片 404 / SingleTileImageryProvider
+ *  构造抛错时，图层开关仍是"已开"、屏幕无物。create 与重建两条路径若各自手抄这段，任一侧
+ *  漏改就会让失败只剩一半上行（04-D2/D4）。文案按动作词区分，逐字节不变。 */
+function applyImageOverlayOrReport(
+  renderer: MapRenderer & ImageOverlayCapability,
+  key: string,
+  payload: ImageOverlayData,
+  options: LayerOptions,
+  action: '创建' | '重建'
+): void {
+  if (!renderer.addImageOverlayLayer(key, payload, options)) {
+    logger.warn(`[layerAdapters] imageOverlay 图层 ${key} ${action}失败`)
+    options.onError?.(new Error(`imageOverlay 图层${action}失败: ${key}`))
+  }
+}
+
+/** 3dtiles 创建/重建半边（同 applyGeoTIFFOrReport 形状）：create 与重建必须共用同一份载荷
+ *  校验与渲染选项——分开手抄时任一侧漏改 maximumScreenSpaceError 会让两条路径参数漂移；
+ *  重建先移除旧层再按新 URL 建，失败上行统一走 report3DTilesFailure。
+ *  返回 false = 载荷不合格（create 侧据此 warn，重建侧静默跳过——与 02 §5.3 的"设计内跳过
+ *  不打扰用户"一致）。 */
+function applyTiles3DOrReport(
+  renderer: MapRenderer & Tiles3DCapability,
+  key: string,
+  data: unknown,
+  options: LayerOptions,
+  action: '创建' | '重建',
+  rebuild: boolean
+): boolean {
+  const payload = data as Tiles3DData
+  if (!payload || typeof payload.url !== 'string' || payload.url === '') return false
+  if (rebuild) renderer.removeLayer(key)
+  report3DTilesFailure(
+    Promise.resolve(
+      renderer.add3DTilesLayer(key, payload.url, {
+        ...options,
+        maximumScreenSpaceError: payload.maximumScreenSpaceError,
+      })
+    ),
+    key,
+    action,
+    options
+  )
+  return true
 }
 
 /** 真地形开关能力检查：仅 Cesium 实现（setTerrainEnabled 切换 terrainProvider）。
@@ -366,43 +412,19 @@ export const LAYER_ADAPTERS: Record<LayerType, LayerAdapter> = {
         )
         return
       }
-      const payload = data as Tiles3DData
-      if (!payload || typeof payload.url !== 'string' || payload.url === '') {
-        logger.warn(`[layerAdapters] 3dtiles 图层 ${key} 缺少 tileset.json 地址，跳过`)
-        return
-      }
-      const tilesOptions: Tiles3DOptions = {
-        ...options,
-        maximumScreenSpaceError: payload.maximumScreenSpaceError,
-      }
       // add3DTilesLayer 是 async 且用 resolve(false) 表达失败（不抛）——失败上行走
       // report3DTilesFailure（BLM 据以回滚状态 + 提示重试），原 warn 被 DEV 门控致
-      // 生产零痕迹（违 04-D2）的缺口已随收口闭合。
-      report3DTilesFailure(
-        Promise.resolve(renderer.add3DTilesLayer(key, payload.url, tilesOptions)),
-        key,
-        '创建',
-        options
-      )
+      // 生产零痕迹（违 04-D2）的缺口已随收口闭合。载荷不合格 = 静默跳过，不打扰用户。
+      if (!applyTiles3DOrReport(renderer, key, data, options, '创建', false)) {
+        logger.warn(`[layerAdapters] 3dtiles 图层 ${key} 缺少 tileset.json 地址，跳过`)
+      }
     },
     // 瓦片树与 URL 绑定，无法原地换内容 ⇒ 更新语义 = 移除后按新 URL 重建
     update: (renderer, key, data, options) => {
       if (!isTiles3DCapable(renderer)) return
-      const payload = data as Tiles3DData
-      if (!payload || typeof payload.url !== 'string' || payload.url === '') return
-      const tilesOptions: Tiles3DOptions = {
-        ...options,
-        maximumScreenSpaceError: payload.maximumScreenSpaceError,
-      }
-      renderer.removeLayer(key)
       // 2026-10-05（1004-01）：BLM `_runAdapter` 的 update 分支改传同一份注入了
       // onError 的 options，本路径失败上行链路已通（前注「本路径拿不到 onError」作废）。
-      report3DTilesFailure(
-        Promise.resolve(renderer.add3DTilesLayer(key, payload.url, tilesOptions)),
-        key,
-        '重建',
-        options
-      )
+      applyTiles3DOrReport(renderer, key, data, options, '重建', true)
     },
     remove: (renderer, key) => {
       renderer.removeLayer(key)
@@ -429,13 +451,8 @@ export const LAYER_ADAPTERS: Record<LayerType, LayerAdapter> = {
         logger.warn(`[layerAdapters] imageOverlay 图层 ${key} 缺少 url/bbox/size，跳过`)
         return
       }
-      // addImageOverlayLayer 以**返回值**表达失败（不抛异常），返回值此前被整体丢弃 ⇒
-      // 图片 404 / SingleTileImageryProvider 构造抛错时，图层开关仍是"已开"、屏幕无物。
       // 注意：2D 无能力那条分支是设计内跳过（02 §5.3 水面同款），**不**报失败不弹 toast。
-      if (!renderer.addImageOverlayLayer(key, payload, options)) {
-        logger.warn(`[layerAdapters] imageOverlay 图层 ${key} 创建失败`)
-        options.onError?.(new Error(`imageOverlay 图层创建失败: ${key}`))
-      }
+      applyImageOverlayOrReport(renderer, key, payload, options, '创建')
     },
     // provider 与 URL 绑定，换图只能重建（沿用 geotiff 的移除后重建语义）
     update: (renderer, key, data, options) => {
@@ -443,10 +460,7 @@ export const LAYER_ADAPTERS: Record<LayerType, LayerAdapter> = {
       const payload = data as ImageOverlayData
       if (!payload || typeof payload.url !== 'string') return
       renderer.removeLayer(key)
-      if (!renderer.addImageOverlayLayer(key, payload, options)) {
-        logger.warn(`[layerAdapters] imageOverlay 图层 ${key} 重建失败`)
-        options.onError?.(new Error(`imageOverlay 图层重建失败: ${key}`))
-      }
+      applyImageOverlayOrReport(renderer, key, payload, options, '重建')
     },
     remove: (renderer, key) => {
       renderer.removeLayer(key)

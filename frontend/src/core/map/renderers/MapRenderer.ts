@@ -120,6 +120,25 @@ export class MapRenderer implements MapRendererContract {
     }
   }
 
+  /**
+   * 图层注册的唯一入口：由基类构造 LayerState（初始 visible + options 透传），登记后立即
+   * 把挂起的可见性意图落到该实例上。
+   *
+   * 为什么不留给各注册点自己「造状态 + set + apply」：双引擎 12 个注册点曾逐字重复这三步，
+   * 漏写 apply 的站点会让「显隐先于创建」的意图静默丢失（面板已是关闭态、地图上却显示），
+   * 漏写 visible/options 则图层默认状态与调用方意图错位。顺序固定 set → apply；
+   * 两引擎共用同一条不变式，新增注册点只交实例与差异字段（extra）。
+   */
+  registerLayer(
+    id: string,
+    instance: unknown,
+    options: LayerOptions = {},
+    extra: Omit<Partial<LayerState>, 'instance' | 'visible' | 'options'> = {}
+  ): void {
+    this._layers.set(id, { instance, visible: true, options, ...extra })
+    this._applyPendingVisibility(id)
+  }
+
   /** 清除某图层的待定可见性：create 失败后调用，防止过期意图（业务图层管理器 BLM 已回滚 visible）在下次 create 时被错误应用 */
   clearPendingVisibility(id: string): void {
     this._pendingVisibility.delete(id)

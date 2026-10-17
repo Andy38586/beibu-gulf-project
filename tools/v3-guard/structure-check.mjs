@@ -34,10 +34,11 @@ const FORBIDDEN_FILENAMES = /\.(tmp|bak|orig|swp)(\.\w+)?$/i
  *   **本意未变，仍是防增长**：新增内容一律另开文件；本次只是让锚点重新等于实测，
  *   不是给新功能腾地方——此后任何净增行仍须先走"另开文件"或再次裁定。
  *   它是这批改动**唯一**需要的提额：先做净减项再看是否真超，确实超了才提（见交接记录）。
+ * 2026-10-17 图层注册十二站点收口为 MapRenderer.registerLayer（净减 23/22 行）⇒ 按「上限=实测」下修至 2335/1092。
  */
 export const RENDERER_SIZE_CEILINGS = [
-  { file: 'frontend/src/core/map/renderers/CesiumRenderer.ts', max: 2358 },
-  { file: 'frontend/src/core/map/renderers/OLRenderer.ts', max: 1114 },
+  { file: 'frontend/src/core/map/renderers/CesiumRenderer.ts', max: 2335 },
+  { file: 'frontend/src/core/map/renderers/OLRenderer.ts', max: 1092 },
 ]
 
 /**

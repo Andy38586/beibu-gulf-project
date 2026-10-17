@@ -1391,16 +1391,12 @@ export function addPointLayer(
     logger.debug(`[CesiumRenderer] 图层 ${id} 视口内无可见要素（总 ${features.length} 个）`)
   }
 
-  renderer._layers.set(id, {
-    instance: entities,
-    visible: true,
-    options,
+  renderer.registerLayer(id, entities, options, {
     // 保存原始 features 供视口变化时增量更新
     allFeatures: features,
     // 空间索引（W4-17）：相机移动增量更新时按视口 bbox 查询候选，替代全量遍历 O(N)
     _spatialIndex: buildPointSpatialIndex(features),
   })
-  renderer._applyPendingVisibility(id)
   // 触发渲染
   viewer.scene.requestRender()
 
@@ -1541,13 +1537,9 @@ export function addPolygonLayer(
       createPolygon(coords)
     }
   })
-  renderer._layers.set(id, {
-    instance: entities,
-    visible: true,
-    options,
+  renderer.registerLayer(id, entities, options, {
     interactionHeavy: isHeavyPolygons(features), // z038②：相机移动期隐藏重图层
   })
-  renderer._applyPendingVisibility(id)
   viewer.scene.requestRender()
 }
 
@@ -1661,13 +1653,9 @@ export async function addGeoJsonLayer(
       return
     }
 
-    renderer._layers.set(id, {
-      instance: dataSource,
-      visible: true,
-      options,
+    renderer.registerLayer(id, dataSource, options, {
       interactionHeavy: isHeavyGeoJson(geojson), // z038②：相机移动期隐藏重图层
     })
-    renderer._applyPendingVisibility(id)
     viewerAfterLoad.scene.requestRender()
     // 成功路径清理 token，避免 Map 跨 id 累积增长
     renderer._geoJsonTokens.delete(id)
@@ -1795,12 +1783,7 @@ export function addGeoTIFFLayer(
     // 图层实例统一登记进 _layers 注册表（移除/显隐均走该表，无需额外实例字段）
     // 不得 lowerToBottom：hillshade 须在天地图之上（alpha 半透明叠加），沉底会被盖住致 DEM 图层不可见
 
-    renderer._layers.set(id, {
-      instance: imageryLayer,
-      visible: true,
-      options,
-    })
-    renderer._applyPendingVisibility(id)
+    renderer.registerLayer(id, imageryLayer, options)
     viewer.scene.requestRender()
     logger.debug(`[CesiumRenderer] addGeoTIFFLayer 已添加 hillshade 回退贴图: ${id} → ${pngUrl}`)
     return true
@@ -1848,12 +1831,7 @@ export async function add3DTilesLayer(
 
     renderer.viewer.scene.primitives.add(tileset)
     // 图层实例统一登记进 _layers 注册表（显隐/移除均走该表，无需额外实例字段）
-    renderer._layers.set(id, {
-      instance: tileset,
-      visible: true,
-      options,
-    })
-    renderer._applyPendingVisibility(id)
+    renderer.registerLayer(id, tileset, options)
     renderer.viewer.scene.requestRender()
     // statistics（瓦片就绪/加载计数）Cesium 1.142 的 Cesium.d.ts 未导出（仅运行时存在），
     // 结构化断言读取，仅用于日志、不参与逻辑
@@ -1909,8 +1887,7 @@ export function addImageOverlayLayer(
     // 缺省不透明：该图层用于与 3D Tiles 模型对照核验，盖住在线底图才看得清
     imageryLayer.alpha = options.opacity ?? 1
 
-    renderer._layers.set(id, { instance: imageryLayer, visible: true, options })
-    renderer._applyPendingVisibility(id)
+    renderer.registerLayer(id, imageryLayer, options)
     renderer.viewer.scene.requestRender()
     logger.debug(`[CesiumRenderer] addImageOverlayLayer 已添加影像块: ${id} → ${data.url}`)
     return true

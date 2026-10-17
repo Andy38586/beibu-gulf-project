@@ -458,12 +458,7 @@ export class OLRenderer extends MapRenderer {
     })
     vectorLayer.setZIndex(this._resolveLayerZIndex(options))
     this.map?.addLayer(vectorLayer)
-    this._layers.set(id, {
-      instance: vectorLayer,
-      visible: true,
-      options,
-    })
-    this._applyPendingVisibility(id)
+    this.registerLayer(id, vectorLayer, options)
   }
 
   /** 大数量点图层的视口裁剪：R-tree 索引（EPSG:3857 投影坐标），初始只渲染视口内要素，moveend 增量更新 */
@@ -494,8 +489,7 @@ export class OLRenderer extends MapRenderer {
       })
       vectorLayer.setZIndex(this._resolveLayerZIndex(options))
       this.map?.addLayer(vectorLayer)
-      this._layers.set(id, { instance: vectorLayer, visible: true, options })
-      this._applyPendingVisibility(id)
+      this.registerLayer(id, vectorLayer, options)
       if (import.meta.env.DEV) {
         logger.info(`[OLRenderer] 图层 ${id} 启用聚合渲染，共 ${features.length} 个要素`)
       }
@@ -516,8 +510,7 @@ export class OLRenderer extends MapRenderer {
     const vectorLayer = new VectorLayer({ source, style })
     vectorLayer.setZIndex(this._resolveLayerZIndex(options))
     this.map?.addLayer(vectorLayer)
-    this._layers.set(id, { instance: vectorLayer, visible: true, options })
-    this._applyPendingVisibility(id)
+    this.registerLayer(id, vectorLayer, options)
 
     this._cullLayers.set(id, { source, index, options, featureType })
     this._ensureMoveendListener()
@@ -699,12 +692,7 @@ export class OLRenderer extends MapRenderer {
     })
     vectorLayer.setZIndex(this._resolveLayerZIndex(options))
     this.map?.addLayer(vectorLayer)
-    this._layers.set(id, {
-      instance: vectorLayer,
-      visible: true,
-      options,
-    })
-    this._applyPendingVisibility(id)
+    this.registerLayer(id, vectorLayer, options)
   }
 
   /** 增量更新 GeoJSON 图层：复用图层实例，仅替换 source 数据，避免重建闪烁 */
@@ -774,12 +762,7 @@ export class OLRenderer extends MapRenderer {
     })
     vectorLayer.setZIndex(this._resolveLayerZIndex(options))
     this.map?.addLayer(vectorLayer)
-    this._layers.set(id, {
-      instance: vectorLayer,
-      visible: true,
-      options,
-    })
-    this._applyPendingVisibility(id)
+    this.registerLayer(id, vectorLayer, options)
   }
 
   addHeatmapLayer(id: string, features: PointFeature[], options: LayerOptions = {}): boolean {
@@ -815,12 +798,7 @@ export class OLRenderer extends MapRenderer {
     const map = this.map
     if (!map) return false
     map.addLayer(layer)
-    this._layers.set(id, {
-      instance: layer,
-      visible: true,
-      options,
-    })
-    this._applyPendingVisibility(id)
+    this.registerLayer(id, layer, options)
 
     return true
   }

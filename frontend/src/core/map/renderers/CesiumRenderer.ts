@@ -1302,7 +1302,7 @@ function setupClickHandler(renderer: CesiumRenderer): void {
 }
 
 /** 移除相机变化监听与屏幕事件处理器（LEFT_CLICK/MOUSE_MOVE），供 destroy 调用 */
-export function destroyEvents(renderer: CesiumRenderer): void {
+function destroyEvents(renderer: CesiumRenderer): void {
   // 移除相机监听（changed 防抖 + z038② 交互期降载；具名回调存 cameraPerf 的 WeakMap）
   unbindPerf(renderer)
 
@@ -1920,7 +1920,7 @@ function doSetVisibility(renderer: CesiumRenderer, id: string, visible: boolean)
 }
 
 /** 移除图层实例：先摘除视口裁剪监听（点图层特有），再按类型移除并释放资源 */
-export function doRemoveLayer(renderer: CesiumRenderer, layer: LayerState): void {
+function doRemoveLayer(renderer: CesiumRenderer, layer: LayerState): void {
   // 移除视口监听（视口裁剪点图层特有，其它图层为 undefined）；rAF 挂起也一并取消
   // 1004-03：viewer 已销毁时引擎侧对象随 viewer 一起消亡，摘除无意义；
   // 本账本清理（监听引用置空 / rAF 取消 / 容器遍历跳过）照做，避免闭包与句柄泄漏。
@@ -1983,7 +1983,7 @@ interface ViewportBBox {
  * 优先 computeViewRectangle 取真实视口四角投影（倾斜视角下边缘要素不再被圆形估算误裁），
  * 不可用时回退相机高度圆形估算；太高（>5000km）或无相机返回 null（不裁剪）。
  */
-export function getViewportBBox(renderer: CesiumRenderer): ViewportBBox | null {
+function getViewportBBox(renderer: CesiumRenderer): ViewportBBox | null {
   // 1004-03：viewer 空/已销毁 ⇒ 不裁剪（与「太高不裁剪」同语义）
   const viewer = aliveViewer(renderer)
   if (!viewer) return null

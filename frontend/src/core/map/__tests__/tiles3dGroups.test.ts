@@ -14,19 +14,14 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  boundingIntersectsSphere,
-  cropTileset,
   cropTilesetForDataUri,
   deriveGroupTileset,
-  hasAnyContent,
   normalizeTilesetGeometricError,
   nodeName,
-  nodeUri,
   prepareTilesetForDataUri,
-  resolveUri,
-  setRefineSwitchGeometricError,
   tallyGroups,
   toDataUri,
+  type CropSphere,
   type GroupSpec,
   type TilesetJson,
   type TilesetNode,
@@ -70,12 +65,6 @@ const GROUP_B: GroupSpec<'b'> = {
 const GROUPS = [GROUP_A, GROUP_B] as const
 
 describe('节点读取helper', () => {
-  it('nodeUri 兼容 content.uri 与旧版 content.url', () => {
-    expect(nodeUri({ content: { uri: 'a.glb' } })).toBe('a.glb')
-    expect(nodeUri({ content: { url: 'b.glb' } })).toBe('b.glb')
-    expect(nodeUri({})).toBeUndefined()
-  })
-
   it('nodeName 只认字符串型 extras.name', () => {
     expect(nodeName({ extras: { name: 'X' } })).toBe('X')
     expect(nodeName({ extras: { name: 42 } })).toBe('')
@@ -207,33 +196,41 @@ describe('deriveGroupTileset — drop 剪枝（剔除选中分组内的指定内
   })
 })
 
-describe('resolveUri — 相对路径绝对化', () => {
+describe('uri 绝对化 — 经派生/裁剪公开面', () => {
   // jsdom 环境有 location：站点根相对必须补全到 scheme 级绝对地址——
   // data: 基准下 Cesium 把根相对 uri 拼成 data:///… 畸形地址（2026-09-26 实测零渲染缺陷）
   it('站点相对基准 → 拼出 scheme 级绝对地址', () => {
-    const out = resolveUri('/static/x/tiles/tileset.json', 'alpha.glb')
-    expect(out.startsWith('http')).toBe(true)
-    expect(new URL(out).pathname).toBe('/static/x/tiles/alpha.glb')
+    const out = deriveGroupTileset(makeTileset(), GROUP_A, '/static/x/tiles/tileset.json')!
+    const a = out.root.children![0]
+    expect(a.content!.uri!.startsWith('http')).toBe(true)
+    expect(new URL(a.content!.uri!).pathname).toBe('/static/x/tiles/alpha.glb')
+    expect(new URL(a.children![0].content!.uri!).pathname).toBe('/static/x/tiles/alpha-part.glb')
   })
 
   it('带协议前缀的基准 → 保留协议与主机', () => {
-    expect(resolveUri('https://x.test/a/b/tileset.json', 'c.glb')).toBe('https://x.test/a/b/c.glb')
+    const out = deriveGroupTileset(makeTileset(), GROUP_A, 'https://x.test/a/b/tileset.json')!
+    expect(out.root.children![0].content!.uri).toBe('https://x.test/a/b/alpha.glb')
   })
 
   it('已是绝对地址（http/data/blob）→ 原样返回', () => {
-    for (const u of [
-      'http://a/b.glb',
-      'https://a/b.glb',
-      'data:application/octet-stream;base64,AA',
-    ]) {
-      expect(resolveUri('/static/tileset.json', u)).toBe(u)
-    }
+    const src = makeTileset()
+    const abs = ['http://a/b.glb', 'https://a/b.glb', 'data:application/octet-stream;base64,AA']
+    abs.forEach((u, i) => {
+      src.root.children![i].content!.uri = u
+    })
+    const out = cropTilesetForDataUri(src, '/static/tileset.json')!
+    expect(out.root.children![0].content!.uri).toBe('http://a/b.glb')
+    expect(out.root.children![1].content!.uri).toBe('https://a/b.glb')
+    expect(out.root.children![2].content!.uri).toBe('data:application/octet-stream;base64,AA')
   })
 
   it('uri 以斜杠开头按站点根处理（补 origin 成 scheme 级绝对，不拼基准目录）', () => {
-    const out = resolveUri('/static/x/tiles/tileset.json', '/static/y.glb')
-    expect(new URL(out).pathname).toBe('/static/y.glb')
-    expect(out.startsWith('http')).toBe(true)
+    const src = makeTileset()
+    src.root.children![0].content!.uri = '/static/y.glb'
+    const out = deriveGroupTileset(src, GROUP_A, '/static/x/tiles/tileset.json')!
+    const u = out.root.children![0].content!.uri!
+    expect(new URL(u).pathname).toBe('/static/y.glb')
+    expect(u.startsWith('http')).toBe(true)
   })
 })
 
@@ -455,51 +452,73 @@ function makeDeepTileset(): TilesetJson {
   }
 }
 
-describe('boundingIntersectsSphere — OBB vs 球', () => {
+describe('包围体与球的相交判定 — 经 cropTilesetForDataUri({ keepSphere }) 公开面', () => {
   const box = [0, 0, 0, 10, 0, 0, 0, 10, 0, 0, 0, 10]
+  // 对照 child：盒心远在 1e6，任何用例的球都够不着 ⇒ 它必须每次都被剔除，
+  // 用来证明「保留/剔除」确实由包围体判定驱动，而不是「谁都没被裁」的假绿。
+  const FAR = [1e6, 0, 0, 10, 0, 0, 0, 10, 0, 0, 0, 10]
 
-  it('球心在盒内 ⇒ 相交', () => {
-    expect(boundingIntersectsSphere({ box }, { center: [0, 0, 0], radius: 1 })).toBe(true)
+  /** root 自带内容（保证结果非 null）+ case/far 两个 child，只有 case 的包围体随用例变化 */
+  const makeBvTileset = (bv: unknown): TilesetJson => ({
+    asset: { version: '1.1' },
+    geometricError: 0,
+    root: {
+      content: { uri: 'root.glb' },
+      geometricError: 0,
+      children: [
+        { boundingVolume: bv, geometricError: 0, content: { uri: 'case.glb' } },
+        { boundingVolume: { box: FAR }, geometricError: 0, content: { uri: 'far.glb' } },
+      ],
+    },
   })
 
-  it('球擦到盒角 ⇒ 相交（边界包含）', () => {
+  const keptUris = (bv: unknown, sphere: CropSphere): string[] => {
+    const out = cropTilesetForDataUri(makeBvTileset(bv), 'http://x.test/t.json', {
+      keepSphere: sphere,
+    })
+    expect(out).not.toBeNull()
+    // 裁剪公开面会把 uri 绝对化，故这里只比对文件名
+    return out!.root.children!.map((c) => new URL(c.content!.uri!).pathname.split('/').pop()!)
+  }
+
+  it('球心在盒内 ⇒ 保留；对照 child 仍被剔除', () => {
+    expect(keptUris({ box }, { center: [0, 0, 0], radius: 1 })).toEqual(['case.glb'])
+  })
+
+  it('球擦到盒角 ⇒ 保留（边界包含）', () => {
     // 角点 (10,10,10) 距原点 √300；球心在角外 1m 处、半径 √300 ⇒ 恰好相交
     const r = Math.sqrt(300)
-    expect(boundingIntersectsSphere({ box }, { center: [10 + r, 10, 10], radius: r })).toBe(true)
+    expect(keptUris({ box }, { center: [10 + r, 10, 10], radius: r })).toEqual(['case.glb'])
   })
 
-  it('球在盒外且不接触 ⇒ 不相交', () => {
-    expect(boundingIntersectsSphere({ box }, { center: [100, 0, 0], radius: 1 })).toBe(false)
+  it('球在盒外且不接触 ⇒ 剔除', () => {
+    expect(keptUris({ box }, { center: [100, 0, 0], radius: 1 })).toEqual([])
   })
 
   it('斜对角方向按最近点判，不用「球心距 ≤ 半径+最长半轴」的保守近似', () => {
     // 球心 (30,30,0)：到盒最近点 (10,10,0)，距离 √800 ≈ 28.284
     // 保守近似会算 |center| - 10 ≈ 42.43-10 = 32.43，半径 28 会被误判为相交
-    expect(boundingIntersectsSphere({ box }, { center: [30, 30, 0], radius: 28 })).toBe(false)
-    expect(boundingIntersectsSphere({ box }, { center: [30, 30, 0], radius: 28.3 })).toBe(true)
+    expect(keptUris({ box }, { center: [30, 30, 0], radius: 28 })).toEqual([])
+    expect(keptUris({ box }, { center: [30, 30, 0], radius: 28.3 })).toEqual(['case.glb'])
   })
 
   it('sphere 包围体按球心距 + 半径判', () => {
-    expect(
-      boundingIntersectsSphere({ sphere: [0, 0, 0, 5] }, { center: [6, 0, 0], radius: 1 })
-    ).toBe(true)
-    expect(
-      boundingIntersectsSphere({ sphere: [0, 0, 0, 5] }, { center: [7, 0, 0], radius: 1 })
-    ).toBe(false)
+    expect(keptUris({ sphere: [0, 0, 0, 5] }, { center: [6, 0, 0], radius: 1 })).toEqual([
+      'case.glb',
+    ])
+    expect(keptUris({ sphere: [0, 0, 0, 5] }, { center: [7, 0, 0], radius: 1 })).toEqual([])
   })
 
   it('无法识别的包围体一律保留（宁多留不误删）', () => {
-    expect(boundingIntersectsSphere(undefined, { center: [1e6, 0, 0], radius: 1 })).toBe(true)
-    expect(boundingIntersectsSphere({ box: [0, 0, 0] }, { center: [1e6, 0, 0], radius: 1 })).toBe(
-      true
-    )
+    expect(keptUris(undefined, { center: [1e9, 0, 0], radius: 1 })).toEqual(['case.glb'])
+    expect(keptUris({ box: [0, 0, 0] }, { center: [1e9, 0, 0], radius: 1 })).toEqual(['case.glb'])
   })
 })
 
-describe('cropTileset — 整包空间裁剪', () => {
+describe('cropTilesetForDataUri — 整包空间裁剪', () => {
   it('球外子树整棵剔除，球内保留且 uri 绝对化', () => {
     const src = makeDeepTileset()
-    const out = cropTileset(src, 'http://x.test/static/x/tileset.json', {
+    const out = cropTilesetForDataUri(src, 'http://x.test/static/x/tileset.json', {
       keepSphere: { center: [0, 0, 0], radius: 500 },
     })
     expect(out).not.toBeNull()
@@ -510,19 +529,21 @@ describe('cropTileset — 整包空间裁剪', () => {
     expect(a.children![0].children![0].content!.uri).toBe('http://x.test/static/x/c.glb')
   })
 
-  it('落位不变量：root 的 transform / boundingVolume / geometricError 与整包逐位相同', () => {
+  it('落位不变量：root 的 transform / boundingVolume 与整包逐位相同（GE 另行重锚）', () => {
     const src = makeDeepTileset()
-    const out = cropTileset(src, 'http://x.test/x/tileset.json', {
+    const out = cropTilesetForDataUri(src, 'http://x.test/x/tileset.json', {
       keepSphere: { center: [0, 0, 0], radius: 500 },
     })
     expect(out!.root.transform).toEqual(src.root.transform)
     expect(out!.root.boundingVolume).toEqual(src.root.boundingVolume)
-    expect(out!.root.geometricError).toBe(src.root.geometricError)
+    // 空间裁剪本身不动 GE；但公开入口 cropTilesetForDataUri 含 GE 重锚（见上一 describe），
+    // 故此处只钉「不低于原值」，等值锚定由 normalizeTilesetGeometricError 的用例负责
+    expect(out!.root.geometricError).toBeGreaterThanOrEqual(src.root.geometricError ?? 0)
   })
 
   it('球远离全部内容 ⇒ 返回 null（不返回空树）', () => {
     const src = makeDeepTileset()
-    const out = cropTileset(src, 'http://x.test/x/tileset.json', {
+    const out = cropTilesetForDataUri(src, 'http://x.test/x/tileset.json', {
       keepSphere: { center: [100000, 0, 0], radius: 10 },
     })
     expect(out).toBeNull()
@@ -530,7 +551,7 @@ describe('cropTileset — 整包空间裁剪', () => {
 
   it('dropContent 只摘内容、保留子树（与 drop 的连子树删相反）', () => {
     const src = makeDeepTileset()
-    const out = cropTileset(src, 'http://x.test/x/tileset.json', {
+    const out = cropTilesetForDataUri(src, 'http://x.test/x/tileset.json', {
       dropContent: (n) => nodeName(n) === 'root' || nodeName(n) === 'a',
     })
     expect(out).not.toBeNull()
@@ -545,13 +566,15 @@ describe('cropTileset — 整包空间裁剪', () => {
 
   it('dropContent 摘掉全部内容 ⇒ 返回 null', () => {
     const src = makeDeepTileset()
-    const out = cropTileset(src, 'http://x.test/x/tileset.json', { dropContent: () => true })
+    const out = cropTilesetForDataUri(src, 'http://x.test/x/tileset.json', {
+      dropContent: () => true,
+    })
     expect(out).toBeNull()
   })
 
   it('drop 与 keepSphere 可叠加：drop 优先整棵删', () => {
     const src = makeDeepTileset()
-    const out = cropTileset(src, 'http://x.test/x/tileset.json', {
+    const out = cropTilesetForDataUri(src, 'http://x.test/x/tileset.json', {
       keepSphere: { center: [0, 0, 0], radius: 5000 },
       drop: (n) => nodeName(n) === 'a',
     })
@@ -564,7 +587,7 @@ describe('cropTileset — 整包空间裁剪', () => {
   it('纯函数：不改入参', () => {
     const src = makeDeepTileset()
     const before = JSON.stringify(src)
-    cropTileset(src, 'http://x.test/x/tileset.json', {
+    cropTilesetForDataUri(src, 'http://x.test/x/tileset.json', {
       keepSphere: { center: [0, 0, 0], radius: 500 },
     })
     expect(JSON.stringify(src)).toBe(before)
@@ -572,11 +595,19 @@ describe('cropTileset — 整包空间裁剪', () => {
 })
 
 describe('hasAnyContent / cropTilesetForDataUri', () => {
-  it('hasAnyContent 认自身与任意后代', () => {
-    expect(hasAnyContent({ content: { uri: 'x.glb' } })).toBe(true)
-    expect(hasAnyContent({ children: [{ content: { uri: 'x.glb' } }] })).toBe(true)
-    expect(hasAnyContent({ children: [{ children: [] }] })).toBe(false)
-    expect(hasAnyContent({ content: {} })).toBe(false)
+  // hasAnyContent 已收为模块内部（公开面入口 = cropTilesetForDataUri）：这里用它的
+  // 「整棵树一个带 content 的节点都不剩 ⇒ 返回 null」间接钉住「自身与任意后代都算数」。
+  const cropOf = (root: TilesetNode): TilesetJson | null =>
+    cropTilesetForDataUri(
+      { asset: { version: '1.1' }, geometricError: 0, root },
+      'http://x.test/t.json'
+    )
+
+  it('hasAnyContent 认自身与任意后代（经 cropTileset 的非 null / null 判定）', () => {
+    expect(cropOf({ content: { uri: 'x.glb' } })).not.toBeNull()
+    expect(cropOf({ children: [{ content: { uri: 'x.glb' } }] })).not.toBeNull()
+    expect(cropOf({ children: [{ children: [] }] })).toBeNull()
+    expect(cropOf({ content: {} })).toBeNull()
   })
 
   it('cropTilesetForDataUri = 裁剪 + GE 校正', () => {
@@ -673,7 +704,7 @@ describe('cropTilesetForDataUri — 摘空层折叠与 root GE 上压', () => {
   })
 })
 
-// 统一 LOD 切换口径（refineGeometricError / setRefineSwitchGeometricError）：
+// 统一 LOD 切换口径（公开入口 = normalizeTilesetGeometricError 的 refineGeometricError 选项）：
 // 把「带内容 + 有子节点」的节点（细化开关）GE 设为统一值 ⇒ 多资产在同一相机距离切换粗精。
 // 机制、实测与失效条件见 beibu3dTiles 的 LOD_REFINE_GE_PER_SSE；这里钉机制本身。
 describe('setRefineSwitchGeometricError / refineGeometricError — 统一 LOD 切换口径', () => {
@@ -699,7 +730,8 @@ describe('setRefineSwitchGeometricError / refineGeometricError — 统一 LOD �
       },
     }
     const before = JSON.stringify(src)
-    const out = setRefineSwitchGeometricError(src, 777)
+    // setRefineSwitchGeometricError 已收为模块内部；带 refineGeometricError 的 normalize 是它的公开入口
+    const out = normalizeTilesetGeometricError(src, { refineGeometricError: 777 })
     const root = out.root
     const [mid, container] = root.children!
     expect(root.geometricError).toBe(777) // 开关①（远景壳）
@@ -707,14 +739,19 @@ describe('setRefineSwitchGeometricError / refineGeometricError — 统一 LOD �
     expect(mid.children![0].geometricError).toBe(0) // 叶子不动
     expect(container.geometricError).toBe(800) // 纯容器不动
     expect(container.children![0].geometricError).toBe(0)
-    expect(out.geometricError).toBe(5000) // 顶层（整层早退闸门输入）不归本项管
+    // 顶层（整层早退闸门输入）不归本项管：normalize 只做 max 抬升，此树无包围体 ⇒ 尺度 0 ⇒ 保持 5000
+    expect(out.geometricError).toBe(5000)
     expect(JSON.stringify(src)).toBe(before) // 纯函数：不改入参
   })
 
-  it('值 ≤ 0 ⇒ 原样返回（不误设；调用方据此不传也不生效）', () => {
-    const src = makeDeepTileset()
-    expect(setRefineSwitchGeometricError(src, 0)).toBe(src)
-    expect(setRefineSwitchGeometricError(src, -1)).toBe(src)
+  it('值 ≤ 0 ⇒ 细化开关一律不动（不误设；调用方据此不传也不生效）', () => {
+    // normalize 走 max 抬升后 root 尺度为 8000；refine 值 ≤ 0 时必须仍是 8000，而不是 0 / -1
+    for (const bad of [0, -1]) {
+      expect(
+        normalizeTilesetGeometricError(makeDeepTileset(), { refineGeometricError: bad }).root
+          .geometricError
+      ).toBe(8000)
+    }
   })
 
   it('normalize 带选项：尺度抬升后统一细化开关；不带选项保持旧行为', () => {
@@ -740,5 +777,26 @@ describe('setRefineSwitchGeometricError / refineGeometricError — 统一 LOD �
     })
     expect(unified!.root.geometricError).toBe(500)
     expect(unified!.root.children![0].geometricError).toBe(500)
+  })
+})
+
+// D3 去 export：六个仅内部消费的符号已收为模块内部。
+// 本组是「公开面收窄」本身的判据——任何形式的再导出（export 关键字或 export { … } 列表）都必须红。
+describe('公开面收窄 — 六个内部符号不得再导出', () => {
+  const INTERNAL = [
+    'nodeUri',
+    'resolveUri',
+    'boundingIntersectsSphere',
+    'setRefineSwitchGeometricError',
+    'hasAnyContent',
+    'cropTileset',
+  ]
+  const PUBLIC = ['cropTilesetForDataUri', 'normalizeTilesetGeometricError', 'deriveGroupTileset']
+
+  it('内部符号不在模块公开面；公开符号仍在（阳性对照）', async () => {
+    const mod = (await import('../tiles3dGroups')) as unknown as Record<string, unknown>
+    for (const k of INTERNAL) expect(mod[k], k + ' 应已收为模块内部').toBeUndefined()
+    // 阳性对照：漏掉它时，整模块导入失败或名字打错也会让上面全绿
+    for (const k of PUBLIC) expect(typeof mod[k], k + ' 应仍是公开面').toBe('function')
   })
 })

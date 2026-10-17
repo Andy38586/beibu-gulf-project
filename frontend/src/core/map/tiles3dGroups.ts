@@ -67,7 +67,7 @@ export interface GroupSpec<Id extends string = string> {
 }
 
 /** 取节点 uri（兼容 content.uri 与旧版 content.url） */
-export function nodeUri(n: TilesetNode): string | undefined {
+function nodeUri(n: TilesetNode): string | undefined {
   const u = n.content?.uri ?? n.content?.url
   return u ? String(u) : undefined
 }
@@ -97,7 +97,7 @@ export function nodeName(n: TilesetNode): string {
  * 内容 404、图层开着但什么都没有。故有浏览器环境（location 可用）时必须补全到
  * `origin + path`；无 location（单测/node）退回站点根相对。
  */
-export function resolveUri(baseUrl: string, uri: string): string {
+function resolveUri(baseUrl: string, uri: string): string {
   // 已是绝对地址：原样返回
   if (/^[a-z][a-z0-9+.-]*:/i.test(uri)) return uri
   const idx = baseUrl.lastIndexOf('/')
@@ -159,7 +159,7 @@ function isTilesetNode(c: TilesetNode | null): c is TilesetNode {
  * 无法识别包围体（既非 12 元盒也非 4 元球）时返回 `true`（**保留**）：
  * 宁可多留也不误删——误删的后果是「图层开着但内容缺一块」，比多留难发现得多。
  */
-export function boundingIntersectsSphere(bv: unknown, sphere: CropSphere): boolean {
+function boundingIntersectsSphere(bv: unknown, sphere: CropSphere): boolean {
   const b = bv as BoundingVolume | undefined
   if (b?.sphere && b.sphere.length >= 4) {
     const d = Math.hypot(
@@ -419,7 +419,7 @@ function normalizeNode(node: TilesetNode): TilesetNode {
  *
  * 纯函数：返回新对象，不改入参。
  */
-export function setRefineSwitchGeometricError(tileset: TilesetJson, value: number): TilesetJson {
+function setRefineSwitchGeometricError(tileset: TilesetJson, value: number): TilesetJson {
   if (!(value > 0)) return tileset
   const walk = (node: TilesetNode): TilesetNode => {
     const children = (node.children ?? []).map(walk)
@@ -465,7 +465,7 @@ export function normalizeTilesetGeometricError(
 }
 
 /** 子树里是否还剩至少一个带 content 的节点（含 root 自身） */
-export function hasAnyContent(node: TilesetNode): boolean {
+function hasAnyContent(node: TilesetNode): boolean {
   if (node.content && nodeUri(node)) return true
   return (node.children ?? []).some(hasAnyContent)
 }
@@ -483,7 +483,7 @@ export function hasAnyContent(node: TilesetNode): boolean {
  * @returns 裁剪后的 tileset；**内容被剪空时返回 null**（不返回空树——那会让 Cesium
  *          建出一个永远无内容的瓦片集，表现为「图层开着但什么都没有」）
  */
-export function cropTileset(
+function cropTileset(
   tileset: TilesetJson,
   baseUrl: string,
   options: DeriveOptions = {}

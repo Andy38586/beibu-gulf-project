@@ -17,7 +17,7 @@ vi.mock('cesium', async () => {
   })
 })
 
-import { add3DTilesLayer, CesiumRenderer, doRemoveLayer } from '../CesiumRenderer'
+import { add3DTilesLayer, CesiumRenderer } from '../CesiumRenderer'
 
 /** 构造一个最小可用的 tileset 替身：测试只关心 tileFailed 监听与 statistics 日志读值 */
 function makeTileset(total = 18) {
@@ -131,7 +131,7 @@ describe('CesiumRenderer.doRemoveLayer 对 3D Tiles 的移除分支', () => {
   it('Cesium3DTileset 走 primitives.remove（不得落到 dataSources.remove）', () => {
     const { renderer, primitives, dataSources } = setup()
     const tileset = makeTileset()
-    doRemoveLayer(renderer, { instance: tileset, visible: true })
+    renderer._doRemoveLayer({ instance: tileset, visible: true })
 
     expect(primitives.contains).toHaveBeenCalledWith(tileset)
     expect(primitives.remove).toHaveBeenCalledWith(tileset)
@@ -142,10 +142,17 @@ describe('CesiumRenderer.doRemoveLayer 对 3D Tiles 的移除分支', () => {
     const { renderer, imageryLayers, primitives, dataSources } = setup()
     imageryLayers.contains.mockReturnValue(true)
     const imagery = { show: true }
-    doRemoveLayer(renderer, { instance: imagery, visible: true })
+    renderer._doRemoveLayer({ instance: imagery, visible: true })
 
     expect(imageryLayers.remove).toHaveBeenCalledWith(imagery, true)
     expect(primitives.remove).not.toHaveBeenCalled()
     expect(dataSources.remove).not.toHaveBeenCalled()
+  })
+
+  // D3 去 export：doRemoveLayer 已收为模块内部；本组是「公开面收窄」本身的判据。
+  it('doRemoveLayer 不在模块公开面；实例替身仍在（阳性对照）', async () => {
+    const mod = (await import('../CesiumRenderer')) as unknown as Record<string, unknown>
+    expect(mod.doRemoveLayer, 'doRemoveLayer 应已收为模块内部').toBeUndefined()
+    expect(typeof CesiumRenderer.prototype._doRemoveLayer).toBe('function')
   })
 })

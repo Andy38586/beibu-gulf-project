@@ -22,7 +22,7 @@ vi.mock('cesium', async () => {
 import { Cartesian3 } from 'cesium'
 
 import { BusinessLayerManager } from '../../BusinessLayerManager'
-import { CesiumRenderer, doRemoveLayer, getViewportBBox } from '../CesiumRenderer'
+import { CesiumRenderer } from '../CesiumRenderer'
 
 function createRenderer(): CesiumRenderer {
   const container = { appendChild: vi.fn(), removeChild: vi.fn() } as unknown as HTMLElement
@@ -233,7 +233,7 @@ describe('1004-03 引擎存活守卫（viewer 失效 ⇒ 降级而非 TypeError�
       _viewportRafId: null,
     }
 
-    expect(() => doRemoveLayer(renderer, layer as never)).not.toThrow()
+    expect(() => renderer._doRemoveLayer(layer as never)).not.toThrow()
     expect(layer.cameraListener).toBe(null)
   })
 
@@ -242,7 +242,7 @@ describe('1004-03 引擎存活守卫（viewer 失效 ⇒ 降级而非 TypeError�
     // 故意不提供 camera：旧代码判断过 `!renderer.viewer!` 后直接读 .camera.positionCartographic
     renderer.viewer = { isDestroyed: () => true } as never
 
-    expect(getViewportBBox(renderer)).toBe(null)
+    expect(renderer._getViewportBBox()).toBe(null)
   })
 
   it('🔴 setWaterSurfaceVisibility：viewer=null ⇒ 只改账本、不抛错', async () => {
@@ -258,5 +258,14 @@ describe('1004-03 引擎存活守卫（viewer 失效 ⇒ 降级而非 TypeError�
     expect(() => renderer.setWaterSurfaceVisibility('w', true)).not.toThrow()
     expect(primitive.show).toBe(true)
     expect(renderer.isLayerVisible('w')).toBe(true)
+  })
+
+  // D3 去 export：doRemoveLayer / getViewportBBox 已收为模块内部；本组是「公开面收窄」本身的判据。
+  it('doRemoveLayer / getViewportBBox 不在模块公开面；实例替身仍在（阳性对照）', async () => {
+    const mod = (await import('../CesiumRenderer')) as unknown as Record<string, unknown>
+    expect(mod.doRemoveLayer, 'doRemoveLayer 应已收为模块内部').toBeUndefined()
+    expect(mod.getViewportBBox, 'getViewportBBox 应已收为模块内部').toBeUndefined()
+    expect(typeof CesiumRenderer.prototype._doRemoveLayer).toBe('function')
+    expect(typeof CesiumRenderer.prototype._getViewportBBox).toBe('function')
   })
 })

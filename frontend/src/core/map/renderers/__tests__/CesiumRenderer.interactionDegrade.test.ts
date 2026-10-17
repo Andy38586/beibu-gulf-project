@@ -14,7 +14,7 @@ vi.mock('cesium', async () => {
 })
 
 import { countCoordinatePairs, setupCameraDebounce } from '../../perf/cameraPerf'
-import { CesiumRenderer, destroyEvents } from '../CesiumRenderer'
+import { CesiumRenderer } from '../CesiumRenderer'
 
 /** 记录监听器的 Cesium 事件替身 */
 function makeEvent() {
@@ -164,11 +164,19 @@ describe('CesiumRenderer 交互期降载（z038②）', () => {
     expect(camera.moveStart.handlers.size).toBe(1)
     expect(camera.moveEnd.handlers.size).toBe(1)
 
-    destroyEvents(renderer)
+    // destroyEvents 已收为模块内部（唯一生产调用点 = destroy）；改走公开的 destroy 实例方法
+    renderer.destroy()
     expect(camera.moveStart.removeEventListener).toHaveBeenCalled()
     expect(camera.moveEnd.removeEventListener).toHaveBeenCalled()
     expect(camera.moveStart.handlers.size).toBe(0)
     expect(camera.moveEnd.handlers.size).toBe(0)
     expect(camera.changed.handlers.size).toBe(0)
+  })
+
+  // D3 去 export：destroyEvents 已收为模块内部；本组是「公开面收窄」本身的判据。
+  it('destroyEvents 不在模块公开面；实例 destroy 仍在（阳性对照）', async () => {
+    const mod = (await import('../CesiumRenderer')) as unknown as Record<string, unknown>
+    expect(mod.destroyEvents, 'destroyEvents 应已收为模块内部').toBeUndefined()
+    expect(typeof CesiumRenderer.prototype.destroy).toBe('function')
   })
 })

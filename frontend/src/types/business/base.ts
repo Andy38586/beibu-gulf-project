@@ -67,7 +67,6 @@ export interface ConfidenceThresholds {
   cargo: number
   container: number
   activity: number
-  /** 开放扩展：未来新增指标（如 gdp、population）的置信度阈值 */
   [key: string]: number
 }
 

@@ -8,13 +8,12 @@
 shared 提供与业务无关、可被任意上层复用的「公共基础设施」：
 
 1. **请求与认证**：`useApiRequest`（fetch 封装 + 信封解包 + 重试）、`useAuth`（认证状态 + 多标签页同步）、`usePlans`（方案 CRUD）。
-2. **通用异步数据**：`useAsyncData`（loading/error/data/refresh/cancel 五元组，竞态守卫）。
-3. **静态资源加载**：`loadStatic`（超时 + 缓存 + in-flight 去重 + LRU + zod 校验）。
-4. **错误处理**：`errorHandler`（统一出口，替换分散的 ElMessage/console）。
-5. **GCS 布局**：`config.ts`（布局常量）+ `useGCS`（响应式 cell 尺寸 / 面板定位 PPS）。
-6. **空间索引**：`spatialIndex`（rbush 视口裁剪，EPSG:3857）。
-7. **常量与标签**：`constants/colors`、`constants/forecast`、`facilityLabels`。
-8. **基础组件**：`EmptyState` / `ErrorBoundary` / `ErrorModal` / `PaginatedListPanel` / `PanelTitle` / `PlanSaveModal`。
+2. **静态资源加载**：`loadStatic`（超时 + 缓存 + in-flight 去重 + LRU + zod 校验）。
+3. **错误处理**：`errorHandler`（统一出口，替换分散的 ElMessage/console）。
+4. **GCS 布局**：`config.ts`（布局常量）+ `useGCS`（响应式 cell 尺寸 / 面板定位 PPS）。
+5. **空间索引**：`spatialIndex`（rbush 视口裁剪，EPSG:3857）。
+6. **常量与标签**：`constants/colors`、`constants/forecast`、`facilityLabels`。
+7. **基础组件**：`EmptyState` / `ErrorBoundary` / `ErrorModal` / `PaginatedListPanel` / `PanelTitle` / `PlanSaveModal`。
 
 ## 二、目录结构
 
@@ -30,7 +29,6 @@ shared/
 │   └── PlanSaveModal.vue
 ├── composables/
 │   ├── useApiRequest.ts  # fetch 封装 + ErrorCode + ApiError
-│   ├── useAsyncData.ts   # 通用异步数据管理（@audit-note DAT-4 预留未接入）
 │   ├── useAuth.ts        # 认证状态 + localStorage + 多标签页同步
 │   ├── usePlans.ts       # 方案 CRUD + 小区收藏
 │   └── __tests__/useApiRequest.test.ts
@@ -75,11 +73,6 @@ shared/
 - **Cookie 权威**（d033）：`restoreAuth` 始终以 Cookie 为准，无论 localStorage 有无 user 均调 `/auth/me` 验证。
 - 多标签页 `storage` 事件同步；`setResetStoresHandler` 由 App.vue 注入 store 重置逻辑（z053，避免 useAuth 反向依赖 stores）。
 
-### `useAsyncData`（z034）
-
-- 封装 `loading/error/data/refresh/cancel`；事务序号 `seq` 仅最新请求写 data，防竞态。
-- `@audit-note DAT-4`：当前 0 调用方，作为通用工具保留，待首个消费方接入后脱离「伪 shared」标签。简单页保持 `onMounted` 直接调用（D-4 克制）。
-
 ### `loadStatic`
 
 - 默认超时 10s、缓存 TTL 5min；in-flight Promise 去重（同 URL 并发只发一次）。
@@ -120,7 +113,6 @@ shared/
 | `SEC-021`  | useApiRequest                        | 区分内部超时 abort vs 外部 signal 主动取消，取消不提示「超时」                                                                               |
 | `z044`     | errorHandler                         | `handleAuthError(router)` 的 router 必选，移除动态 import 打断循环依赖链                                                                     |
 | `z050-FE`  | loadStatic                           | 缓存硬上限 100，超限近似 LRU 淘汰，防长会话内存膨胀                                                                                          |
-| `DAT-4`    | useAsyncData                         | 预留未接入，当前 0 调用方，勿删除                                                                                                            |
 | `d033`     | useAuth                              | Cookie 为认证权威，localStorage 仅缓存，`restoreAuth` 始终验证 Cookie                                                                        |
 | 同名不同义 | spatialIndex                         | 前端视口裁剪 / 后端多边形覆盖，同名勿混用                                                                                                    |
 

@@ -28,7 +28,6 @@ function repoWith(
       }
       return [row]
     },
-    fetchCells: async () => [row],
     fetchKdeP99: async () => 1,
   } as unknown as SiteSuitabilityRepository
 }

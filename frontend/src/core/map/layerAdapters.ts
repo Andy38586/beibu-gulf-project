@@ -495,6 +495,4 @@ export const LAYER_ADAPTERS: Record<LayerType, LayerAdapter> = {
       renderer.setTerrainEnabled(visible)
     },
   },
-
-  // 预留: entity, primitive, volume ...（这三个尚未进入 LayerType，故不需要适配器）
 }

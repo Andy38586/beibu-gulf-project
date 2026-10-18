@@ -5,11 +5,9 @@ import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 
 import { useSliderFocus } from '@/core'
 import {
-  BASE_YEAR,
   CANAL_SCENARIO_OPTIONS,
   CONFIRM_DELAY,
   DEFAULT_CONFIDENCE,
-  END_YEAR,
   ROW_HEIGHT_CELL,
   SliderSelectCard,
   useGCS,
@@ -21,6 +19,8 @@ import {
   currentTimeToStep,
   monthMaxSteps,
   stepToTime as timelineStepToTime,
+  timelineYears,
+  yearMarkPosition,
   yearMaxSteps,
 } from '../timeline'
 
@@ -208,23 +208,8 @@ function onTimePointerDown(e: PointerEvent) {
   if (target?.matches?.('input[type="range"]')) beginSliderFocus(target)
 }
 
-/** 中位年份（起止年中点；刻度与步长共用同一取值） */
-const MID_YEAR = Math.round((BASE_YEAR + END_YEAR) / 2)
-
-const YEAR_MARKS = [
-  { year: BASE_YEAR, step: 0, label: `${BASE_YEAR}.1` },
-  {
-    year: MID_YEAR,
-    step: (MID_YEAR - BASE_YEAR) * 12,
-    label: `${MID_YEAR}.1`,
-  },
-  { year: END_YEAR, step: (END_YEAR - BASE_YEAR) * 12, label: `${END_YEAR}.1` },
-]
-
-function yearMarkPosition(year: number) {
-  if (isYearMode.value) return ((year - BASE_YEAR) / (END_YEAR - BASE_YEAR)) * 100
-  return (((year - BASE_YEAR) * 12) / maxSteps.value) * 100
-}
+/** 刻度年份（起止+中点）与标签：年份域单源在 ../timeline，位置公式同源（不手抄年数差） */
+const YEAR_MARKS = timelineYears().map((year) => ({ year, label: `${year}.1` }))
 
 function jumpToYear(year: number) {
   forecastState.setCurrentTime(`${year}-01`)
@@ -350,9 +335,11 @@ onUnmounted(() => stopPlayback())
               class="t-tick clickable"
               :class="{
                 't-tick--start': i === 0,
-                't-tick--end': i === YEAR_MARKS.length - 1 && yearMarkPosition(m.year) >= 100,
+                't-tick--end':
+                  i === YEAR_MARKS.length - 1 &&
+                  yearMarkPosition(m.year, isYearMode, maxSteps) >= 100,
               }"
-              :style="{ left: yearMarkPosition(m.year) + '%' }"
+              :style="{ left: yearMarkPosition(m.year, isYearMode, maxSteps) + '%' }"
               @click="jumpToYear(m.year)"
               >{{ m.label }}</span
             >

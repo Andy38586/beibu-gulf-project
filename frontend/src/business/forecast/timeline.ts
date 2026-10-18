@@ -33,3 +33,17 @@ export function stepToTime(step: number, yearMode: boolean): string {
   if (yearMode) return String(BASE_YEAR + step)
   return `${BASE_YEAR + Math.floor(step / 12)}-${String((step % 12) + 1).padStart(2, '0')}`
 }
+
+/** 时间轴刻度年份：起止年与中点年（中点取整，与年步长同一域） */
+export function timelineYears(): number[] {
+  return [BASE_YEAR, Math.round((BASE_YEAR + END_YEAR) / 2), END_YEAR]
+}
+
+/**
+ * 年份刻度在时间轴上的百分比位置（0–100）。
+ * 年模式取年步、月模式取该年 1 月的月步，分母即当前粒度上限 maxSteps；
+ * 换算经 currentTimeToStep 派生，不复制 (year-BASE_YEAR)*12 与年数差。
+ */
+export function yearMarkPosition(year: number, yearMode: boolean, maxSteps: number): number {
+  return (currentTimeToStep(yearMode ? String(year) : `${year}-01`, yearMode) / maxSteps) * 100
+}

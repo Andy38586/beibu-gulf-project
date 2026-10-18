@@ -5,15 +5,12 @@
  * 2. 消费方不再需要手动类型断言（ref<T|null> 由 provider 端保证）；
  * 3. 与 App.vue 的 provide 一一对应（BUSINESS_LAYER_MANAGER_KEY 定义于 map/composables/useBusinessLayers.ts）。
  * 对应消费方：
- * - RESTORE_PLAN_DATA_KEY / EDITING_PLAN_KEY → ProfilePage
  * - UNIFIED_MAP_KEY → useMapControls
  */
 import type { InjectionKey, Ref } from 'vue'
 
 import type { MapRenderer } from '@/core/map/renderers/MapRenderer'
 import type { FlyToOptions, FlyToTarget, GeoPoint } from '@/types'
-import type { TypeSetting } from '@/types/facility'
-import type { Plan } from '@/types/plan'
 
 /** UnifiedMap 组件通过 defineExpose 暴露的地图控制接口（与 UnifiedMap.vue 暴露成员一致） */
 export interface UnifiedMapExposed {
@@ -25,13 +22,6 @@ export interface UnifiedMapExposed {
   stopFacilityBreathing: () => void
   getRenderer: () => MapRenderer | null
 }
-
-/** 计划恢复数据（编辑 / 加载计划时暂存，供 ProfilePage 消费） */
-export const RESTORE_PLAN_DATA_KEY: InjectionKey<Ref<Record<string, TypeSetting> | null>> =
-  Symbol('restorePlanData')
-
-/** 当前编辑中的计划 */
-export const EDITING_PLAN_KEY: InjectionKey<Ref<Plan | null>> = Symbol('editingPlan')
 
 /** UnifiedMap 组件实例（defineExpose 暴露的地图控制接口） */
 export const UNIFIED_MAP_KEY: InjectionKey<Ref<UnifiedMapExposed | null>> = Symbol('unifiedMap')

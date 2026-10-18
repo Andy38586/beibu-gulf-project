@@ -16,7 +16,7 @@ core 承担三类「与业务无关」的基础能力：
 ```
 core/
 ├── index.ts                 # 公开 API 入口（re-export 非组件模块 + 组件聚合导出）
-├── provideKeys.ts           # 类型化 InjectionKey（3 个 provide 键；BLM key 定义于 map/composables/useBusinessLayers.ts）
+├── provideKeys.ts           # 类型化 InjectionKey（1 个 provide 键；BLM key 定义于 map/composables/useBusinessLayers.ts）
 ├── config/
 │   └── map.ts               # MAP_CONFIG + buildTiandituUrl + zoomToHeight/heightToZoom
 ├── layout/
@@ -49,10 +49,8 @@ core/
 
 ### `provideKeys.ts`
 
-用类型化 `InjectionKey` 替代字符串 key，对应 App.vue 的 3 个 provide（BUSINESS_LAYER_MANAGER_KEY 定义于 `map/composables/useBusinessLayers.ts`）：
+用类型化 `InjectionKey` 替代字符串 key，对应 App.vue 的 1 个 provide（BUSINESS_LAYER_MANAGER_KEY 定义于 `map/composables/useBusinessLayers.ts`）：
 
-- `RESTORE_PLAN_DATA_KEY` → ProfilePage 消费（计划恢复数据）
-- `EDITING_PLAN_KEY` → ProfilePage 消费（当前编辑计划）
 - `UNIFIED_MAP_KEY` → `useMapControls` 消费（UnifiedMap 暴露接口：flyTo/startBreathing/stopBreathing/getRenderer）
 
 ## 四、关键机制

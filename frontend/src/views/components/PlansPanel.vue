@@ -2,8 +2,7 @@
 /**
  * PlansPanel - 个人中心收藏夹（方案抽屉）
  * 职责单一：方案列表加载/展开/加载到业务页/重命名/删除 + 收藏切换刷新。
- * useAuth/usePlans/useFloodStore 为 Pinia 单例；方案恢复所需的 provide/inject 链路
- * （RESTORE_PLAN_DATA_KEY / EDITING_PLAN_KEY）由 ProfilePage 消费，本面板不再涉及。
+ * useAuth/usePlans/useFloodStore 为 Pinia 单例。
  */
 import { computed, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'

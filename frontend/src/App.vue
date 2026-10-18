@@ -19,12 +19,7 @@ import {
   TaskResultChip,
 } from '@/core'
 import { useMapControls } from '@/core'
-import {
-  EDITING_PLAN_KEY,
-  RESTORE_PLAN_DATA_KEY,
-  UNIFIED_MAP_KEY,
-  type UnifiedMapExposed,
-} from '@/core'
+import { UNIFIED_MAP_KEY, type UnifiedMapExposed } from '@/core'
 import { preloadCesium, UnifiedMap } from '@/core'
 import { type LayerIR, taskResultToIR, useLayerIRLayer } from '@/core/map/ir/LayerIR'
 import {
@@ -42,8 +37,6 @@ import {
 } from '@/shared'
 import { logger } from '@/shared'
 import { useMapStore, useTaskStore } from '@/stores'
-import type { TypeSetting } from '@/types/facility'
-import type { Plan } from '@/types/plan'
 
 const route = useRoute()
 const router = useRouter()
@@ -53,14 +46,10 @@ const mapStore = useMapStore()
 const taskStore = useTaskStore()
 
 const unifiedMapRef = ref<UnifiedMapExposed | null>(null)
-const restorePlanData = ref<Record<string, TypeSetting> | null>(null)
-const editingPlan = ref<Plan | null>(null)
 // App 自己 provide 的键对自己不可注入 ⇒ 必须显式传入 unifiedMapRef；
 // 不传时 zoomToRegion 恒空转（2026-10-04 实测：z6 push('/') 后不复位到 REGION z9）。
 const { zoomToRegion, stopBreathing } = useMapControls(unifiedMapRef)
 
-provide(RESTORE_PLAN_DATA_KEY, restorePlanData)
-provide(EDITING_PLAN_KEY, editingPlan)
 provide(UNIFIED_MAP_KEY, unifiedMapRef)
 
 // 提供 BusinessLayerManager — 必须在 App.vue 而非 UnifiedMap，

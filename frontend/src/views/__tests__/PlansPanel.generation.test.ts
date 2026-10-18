@@ -48,20 +48,12 @@ vi.mock('vue-router', () => ({
   useRouter: () => ({ push: vi.fn() }),
 }))
 
-import { EDITING_PLAN_KEY, RESTORE_PLAN_DATA_KEY } from '@/core'
 import PlansPanel from '../components/PlansPanel.vue'
 
 const PLAN_A = [{ id: 'p-a', name: 'A 的方案', userId: 'u-a', selectedKeys: [], typeSettings: {} }]
 
 function mountPanel() {
-  return mount(PlansPanel, {
-    global: {
-      provide: {
-        [RESTORE_PLAN_DATA_KEY as symbol]: { value: null },
-        [EDITING_PLAN_KEY as symbol]: { value: null },
-      },
-    },
-  })
+  return mount(PlansPanel)
 }
 
 function plansListOf(wrapper: ReturnType<typeof mount>): unknown[] {

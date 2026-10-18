@@ -7,6 +7,8 @@
 // 稳健性判据（门槛先定，阈值见下方 STABILITY 常量；论证见报告）：
 //   Spearman ρ ≥ 0.90 且 Top-500 Jaccard ≥ 0.70 —— 全部扰动维度须同时满足。
 // 口径：一次一维（OFAT）扰动，权重扰动后归一化。
+import path from 'node:path'
+
 import { describe, expect, it } from 'vitest'
 
 import {
@@ -216,7 +218,7 @@ ${lines.join('\n')}
 `
     await import('node:fs').then((fs) =>
       fs.promises.writeFile(
-        'C:/workspace/beibu-gulf-project/.local/敏感性分析-2026-09-30.md',
+        path.resolve(__dirname, '..', '..', '.local', '敏感性分析-2026-09-30.md'),
         report,
         'utf8'
       )

@@ -32,6 +32,7 @@
 """
 import os
 import sys
+from pathlib import Path
 
 for k in ("http_proxy", "https_proxy", "HTTP_PROXY", "HTTPS_PROXY", "all_proxy", "ALL_PROXY"):
     os.environ.pop(k, None)
@@ -61,7 +62,10 @@ TILES = ["N21E108", "N21E105", "N18E108", "N18E105"]
 # 项目 bbox（=陆地 DEM cut 角点换算，2026-09-27 PROJ 实测：107.292-110.000, 20.958-22.611）
 BBOX = (107.29, 20.96, 110.00, 22.61)
 RES = 0.00028  # ≈30m，与 DEM 因子分辨率对齐
-WORK = r"C:/workspace/beibu-gulf-project/.local/land-work"
+# 仓库根从脚本位置派生（同族先例 tools/dem-pipeline/13-suitability-cells.py:30-32）——
+# 烧死 C:/workspace/... 换机器/换克隆即跑不通（D23 收口 dem-pipeline 后本件为同族漏网）。
+REPO = str(Path(__file__).resolve().parents[2])
+WORK = f"{REPO}/.local/land-work"
 TIF = f"{WORK}/landcover_4490_30m.tif"
 GPKG = f"{WORK}/landcover_4490_30m.gpkg"
 SQL = f"{WORK}/landcover_import.sql"

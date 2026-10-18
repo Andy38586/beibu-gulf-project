@@ -11,7 +11,7 @@ import { computed, defineAsyncComponent, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { MAP_CONFIG } from '@/core/config/map'
-import { useScreenActions } from '@/core/layout/composables/useScreenActions'
+import { useMapControls } from '@/core/map/composables/useMapControls'
 import LayerControlPanel from '@/core/map/components/LayerControlPanel.vue'
 import { PanelTitle, useGCS, useTheme } from '@/shared'
 import { useMapStore } from '@/stores'
@@ -37,7 +37,14 @@ const GCSDebugOverlay = import.meta.env.DEV
 const route = useRoute()
 const router = useRouter()
 const { showPanels, showTopArea } = useGCS()
-const { flyToCity } = useScreenActions()
+const { flyTo } = useMapControls()
+// 城市切换（必要性审判波次二·单元 F）：原 useScreenActions 只是 flyTo 的同义转发层，
+// 就地按 MAP_CONFIG.CITY_CENTERS（单一权威源）取坐标，不新增第二份城市表。
+function flyToCity(city: string): void {
+  const target = MAP_CONFIG.CITY_CENTERS[city]
+  if (!target) return
+  flyTo({ lng: target.lng, lat: target.lat }, { height: target.height, zoom: target.zoom })
+}
 // 主题切换：图标显示当前模式的另一侧（暗色显示 ☀️、亮色显示 🌙）
 const { isDark, toggleTheme } = useTheme()
 // 抽屉开关（模块级单例，nav 菜单按钮与抽屉共享）

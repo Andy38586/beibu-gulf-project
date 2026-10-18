@@ -8,7 +8,7 @@
 core 承担三类「与业务无关」的基础能力：
 
 1. **地图核心**：`UnifiedMap` 双引擎容器（OL 2D / Cesium 3D），`MapRenderer` 抽象基类 + 子类策略，`BusinessLayerManager`（BLM）业务图层生命周期，`layerAdapters` 分派注册表。
-2. **布局基座**：`AppLayout` GCS V2 面板定位系统（PPS），导航注册机制，屏幕操作（首页/个人中心/城市飞行）。
+2. **布局基座**：`AppLayout` GCS V2 面板定位系统（PPS），导航注册机制。
 3. **地图配置**：天地图底图、相机参数、视图层级、zoom↔height 互逆公式。
 
 ## 二、目录结构
@@ -22,9 +22,7 @@ core/
 ├── layout/
 │   ├── AppLayout.vue        # GCS V2 布局基座（PPS 定位 + 抽屉菜单）
 │   ├── useMobileDrawer.ts   # 移动端抽屉状态（模块级单例）
-│   ├── components/          # BottomNavBar(3键dock) / GCSButton / GCSPanel / NavButton / MobileDrawer / DebugToggle
-│   └── composables/
-│       └── useScreenActions.ts   # goHome/goProfileOrBack/flyToCity/userButtonLabel
+│   └── components/          # BottomNavBar(3键dock) / GCSButton / GCSPanel / NavButton / MobileDrawer / DebugToggle
 └── map/
     ├── UnifiedMap.vue            # 双引擎容器（v-show 切换，渲染器复用不销毁）
     ├── BusinessLayerManager.ts   # 业务图层注册/更新/显隐/移除/reapplyAll

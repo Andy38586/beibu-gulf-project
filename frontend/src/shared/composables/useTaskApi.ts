@@ -1,5 +1,5 @@
 import { taskSubmitResponseSchema, taskViewResponseSchema } from '@/types/schemas'
-import type { TaskSubmitResponse, TaskView } from '@/types/task'
+import type { TaskDomain, TaskPriority, TaskSubmitResponse, TaskView } from '@/types/task'
 
 import { ENDPOINTS } from '../constants/api'
 
@@ -17,10 +17,14 @@ import { useApiRequest } from './useApiRequest'
  * 漏一处即回落 `/api` 而 404」——收口后无逐域分支、无域清单，该同步须知随之作废。
  */
 interface UseTaskApiReturn {
+  /**
+   * 跨端字段按前端类型副本收口（domain/priority 与 backend/src/modules/task/types/task.ts
+   * 的 TaskDomain/TaskPriority 同名同域）——原写裸 string 会让「提交了后端不认的域」在编译期无声通过。
+   */
   submit: (payload: {
-    domain: string
+    domain: TaskDomain
     route: string
-    priority: string
+    priority: TaskPriority
     params: Record<string, unknown>
   }) => Promise<TaskSubmitResponse>
   get: (taskId: string, signal?: AbortSignal) => Promise<TaskView>

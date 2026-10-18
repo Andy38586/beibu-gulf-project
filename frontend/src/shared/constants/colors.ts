@@ -35,6 +35,14 @@ export const FACILITY_COLORS_MAP: Record<string, string> = {
 /** 设施未知 key 兜底色（原两处散落 '#666' 收口；仅图表 fallback 用，未知设施类型按中性灰显示） */
 export const FACILITY_FALLBACK_COLOR = '#666666'
 
+/**
+ * 取设施渲染色：唯一入口，避免图表侧手抄 `FACILITY_COLORS_MAP[key] || FACILITY_FALLBACK_COLOR`
+ * （2026-10-18 收口 RadarScoreTooltip 与 useRadarChart 两处同构实现）。
+ */
+export function facilityColor(key: string): string {
+  return FACILITY_COLORS_MAP[key] || FACILITY_FALLBACK_COLOR
+}
+
 // 水面/覆盖层填充色（COLOR_PRIMARY 的透明度派生，收口两处散落 rgba 硬编码）
 /** 水面填充（FloodAnalysisPage 水面图层） */
 export const LAYER_FILL_WATER = 'rgba(64, 158, 255, 0.5)'

@@ -10,8 +10,7 @@ import {
   CHART_COLORS,
   CHART_GRID,
   chartColor,
-  FACILITY_COLORS_MAP,
-  FACILITY_FALLBACK_COLOR,
+  facilityColor,
   RADAR_AXIS_NAME_ALLOWANCE,
   RADAR_AXIS_NAME_FONT_SIZE,
   RADAR_AXIS_NAME_GAP,
@@ -101,11 +100,6 @@ export function useRadarChart({
 
   /** 点亮的设施类型集合（互斥：同时只允许一类呼吸，新类型点亮即熄灭旧类型） */
   const activeFacilityTypes = ref<Set<string>>(new Set())
-
-  /** 获取设施颜色（从 shared 色值映射取，不依赖 business 层） */
-  function getFacilityColor(key: string): string {
-    return FACILITY_COLORS_MAP[key] || FACILITY_FALLBACK_COLOR
-  }
 
   /** 构建雷达图 option（每次现取容器尺寸，radius 依赖容器大小） */
   function buildRadarOption(): Record<string, unknown> {
@@ -231,7 +225,7 @@ export function useRadarChart({
     emit('show-facility-layer', {
       type: key,
       poiList: getProps().facilityPoi[key] || [],
-      color: getFacilityColor(key),
+      color: facilityColor(key),
       label: FACILITY_LABELS[key],
     })
   }

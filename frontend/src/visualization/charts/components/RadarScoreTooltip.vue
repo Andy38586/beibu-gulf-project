@@ -6,7 +6,7 @@
 
 import { computed } from 'vue'
 
-import { FACILITY_COLORS_MAP, FACILITY_FALLBACK_COLOR } from '@/shared'
+import { facilityColor } from '@/shared'
 import { RADAR_TOOLTIP_HEIGHT_CELL } from '@/shared'
 import { RADAR_TOOLTIP_WIDTH_CELL } from '@/shared'
 import { useGCS } from '@/shared'
@@ -32,11 +32,6 @@ const { cellPixel } = useGCS()
 const panelW = computed(() => cellPixel.value * RADAR_TOOLTIP_WIDTH_CELL)
 const panelH = computed(() => cellPixel.value * RADAR_TOOLTIP_HEIGHT_CELL)
 const unitPx = computed(() => `${cellPixel.value * 0.1}px`)
-
-/** 获取设施颜色（从 shared 色值映射取，不依赖 business 层） */
-function getFacilityColor(key: string) {
-  return FACILITY_COLORS_MAP[key] || FACILITY_FALLBACK_COLOR
-}
 </script>
 
 <template>
@@ -53,7 +48,7 @@ function getFacilityColor(key: string) {
     >
       <div class="tooltip-grid">
         <template v-for="key in selectedTypes" :key="key">
-          <span class="tooltip-label" :style="{ color: getFacilityColor(key) }">{{
+          <span class="tooltip-label" :style="{ color: facilityColor(key) }">{{
             FACILITY_LABELS[key]
           }}</span>
           <span class="tooltip-value">{{ xiaoqu.breakdown?.[key] ?? 0 }}分</span>

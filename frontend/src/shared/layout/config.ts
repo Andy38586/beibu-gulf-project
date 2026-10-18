@@ -28,7 +28,7 @@ export type LayoutTier = 'desktop' | 'drawer' | 'compact'
 /**
  * 断点判定唯一实现（G4 收口）：桌面（≥960）/ 抽屉（640~959）/ 紧凑（<640）。
  *
- * 响应式入口 `useGCS().tier` 与纯函数 `layoutModeFor` 都从这里派生；
+ * 响应式入口 `useGCS().tier` 与 `computeLayout` 的默认档位（modeInput 缺省）都从这里派生；
  * 任何模块不得再写 `>= LAYOUT_DESKTOP_MIN` / `< LAYOUT_DRAWER_MIN` 比较——
  * 守卫 `viewport-tier-single-source` 扫副本（测试与注释除外）。
  */

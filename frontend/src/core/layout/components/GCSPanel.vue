@@ -13,8 +13,6 @@ import { computed, ref } from 'vue'
 
 import { useGCS, usePanelDrag } from '@/shared'
 
-import { useViewportTier } from '../useViewportTier'
-
 interface Props {
   w: number
   h: number
@@ -51,7 +49,7 @@ const emit = defineEmits<{
   dragend: []
 }>()
 
-const { panelPosition, cellPixel } = useGCS()
+const { panelPosition, cellPixel, tier: viewportTier } = useGCS()
 
 /** 拖拽期间挂在面板上的标记 class（供外部 :deep 覆盖视觉） */
 const dragActive = ref(false)
@@ -81,7 +79,7 @@ const {
 })
 
 // ── v4-S10：compact 档长按降级 ──
-const viewportTier = useViewportTier()
+// 波二（必要性审判）：useViewportTier 是 1 消费点的纯别名，已内联为 useGCS().tier
 const compactMode = computed(
   () => props.draggable && !props.dragDisabled && viewportTier.value === 'compact'
 )

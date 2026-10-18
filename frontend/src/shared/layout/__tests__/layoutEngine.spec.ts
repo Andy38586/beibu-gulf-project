@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { PANEL_SPACING, SAFE_MARGIN } from '../config'
-import { LayoutOverflowError, computeLayout, findOverlaps, layoutModeFor } from '../layoutEngine'
+import { LayoutOverflowError, computeLayout, findOverlaps } from '../layoutEngine'
 import { definePanels, type PanelSpec } from '../panelRegistry'
 
 // 现模板形态复刻：每列两个 4×4（offset-y=1.25/5.5 在 cell=80 时即堆叠 120/460），
@@ -80,7 +80,10 @@ describe('布局注册表与引擎（事实单源）', () => {
   })
 
   it('档位派生：紧凑档只留 priority=1，抽屉档全量按 priority 排序', () => {
-    expect(layoutModeFor(1320)).toBe('desktop')
+    expect(computeLayout(typical, { width: 1320, height: 800 }).mode).toBe('desktop')
+    // 缺省档位走 layoutTierFor（非 desktop 视口也必须派生对，不许写死）
+    expect(computeLayout(typical, { width: 800, height: 900 }).mode).toBe('drawer')
+    expect(computeLayout(typical, { width: 500, height: 900 }).mode).toBe('compact')
     const compact = computeLayout(typical, { width: 500, height: 900 }, 'compact')
     expect(compact.rects.map((r) => r.id).sort()).toEqual(['l1', 'r1'])
     const drawer = computeLayout(typical, { width: 800, height: 900 }, 'drawer')
@@ -95,5 +98,18 @@ describe('公开面收窄 — assertCellMultiple 不得再导出', () => {
     const mod = (await import('../panelRegistry')) as unknown as Record<string, unknown>
     for (const k of INTERNAL) expect(mod[k], k + ' 应已收为模块内部').toBeUndefined()
     expect(typeof mod.definePanels).toBe('function')
+  })
+})
+
+// 波二（必要性审判）：layoutModeFor 是 1 行同义委托且 0 生产消费点 ⇒ 已删，
+// computeLayout 缺省档位直接走唯一实现 layoutTierFor；本组是收窄本身的判据。
+describe('公开面收窄 — layoutModeFor 不得再导出', () => {
+  const INTERNAL = ['layoutModeFor']
+
+  it('同义委托不在模块公开面；computeLayout/findOverlaps 仍在（阳性对照）', async () => {
+    const mod = (await import('../layoutEngine')) as unknown as Record<string, unknown>
+    for (const k of INTERNAL) expect(mod[k], k + ' 应已删除').toBeUndefined()
+    expect(typeof mod.computeLayout).toBe('function')
+    expect(typeof mod.findOverlaps).toBe('function')
   })
 })

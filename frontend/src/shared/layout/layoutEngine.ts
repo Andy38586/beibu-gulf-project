@@ -62,10 +62,6 @@ const DOCK_H_CELLS = 1
 /** 折叠态面板按 1 格计高 */
 const COLLAPSED_H_CELLS = 1
 
-export function layoutModeFor(width: number): LayoutMode {
-  return layoutTierFor(width)
-}
-
 /** 同 zone 面板按 order 升序（桌面堆叠与 placementsFor 同口径；稳定排序） */
 export function orderedZonePanels(panels: PanelSpec[], zone: PanelZone): PanelSpec[] {
   return panels.filter((p) => p.zone === zone).sort((a, b) => a.order - b.order)
@@ -77,7 +73,7 @@ export function computeLayout(
   modeInput?: LayoutMode,
   options: LayoutOptions = {}
 ): LayoutResult {
-  const mode = modeInput ?? layoutModeFor(viewport.width)
+  const mode = modeInput ?? layoutTierFor(viewport.width)
   const cell = getCellPixelByViewport(viewport.width)
   const collapsed = options.collapsed ?? {}
   const rects: PanelRect[] = []

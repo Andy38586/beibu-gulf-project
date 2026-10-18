@@ -1028,7 +1028,7 @@
 
 1. 面板尺寸参数是否为整数 Cell（`w` / `h` 无小数、无 px 字面量）。
 2. `grep -rn "#[0-9a-fA-F]\{3,8\}"` 面板样式，确认零硬编码色值。
-3. 确认断点判定唯一实现 = `shared/layout/config.ts` 的 `layoutTierFor(width)`；组件只消费 `useGCS` 派生 computed（`useViewportTier` 是其别名），不各自读视口宽度。
+3. 确认断点判定唯一实现 = `shared/layout/config.ts` 的 `layoutTierFor(width)`；组件只消费 `useGCS` 派生 computed（`tier` / `showPanels` / `navCompact`），不各自读视口宽度。
 4. 跑 `npm run stylelint` 与 token 统计脚本，确认无新增违约。
    **需要查看**：面板组件模板与样式、`useGCS`、stylelint 配置。
    **正常标准**：尺寸为整数 Cell；色值全走 `var(--GCS-*)`；间距走 GAP / PANEL_SPACING / SAFE_MARGIN；无组件内断点判定。

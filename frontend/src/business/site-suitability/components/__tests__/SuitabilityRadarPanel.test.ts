@@ -6,6 +6,9 @@
  * ③ 面板底部显示综合得分；无数据时不渲染图表（走空态）。
  * 阳性对照：把 peak 换成 features[0] / 轴序改乱 ⇒ 本文件必红。
  */
+import { existsSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -17,6 +20,8 @@ interface RadarOptionLike {
 }
 
 const captured: { option: RadarOptionLike | null } = { option: null }
+
+const HERE = dirname(fileURLToPath(import.meta.url))
 
 vi.mock('echarts/core', async (importOriginal) => {
   const mod = await importOriginal<typeof import('echarts/core')>()
@@ -107,6 +112,19 @@ describe('SuitabilityRadarPanel', () => {
   it('无数据时不挂载图表容器，显示空态（v-if：容器随数据出现）', () => {
     const w = mount(SuitabilityRadarPanel, { props: { data: null } })
     expect(w.find('.suit-radar-chart').exists()).toBe(false)
+    expect(w.text()).toContain('暂无数据')
+  })
+})
+
+// 必要性审判波次二·单元 C：panelProps.ts 是 1 消费点的纯类型壳（原注释「三张面板共用」
+// 经 A1 核实失实）⇒ 已内联回本组件。本组是「类型壳不再单独存在 + 契约不变」的判据。
+describe('公开面收窄 — panelProps 类型壳不得再存在', () => {
+  it('类型壳源文件已删除（用 fs 判存在，静态 import 会直接炸编译）', () => {
+    expect(existsSync(resolve(HERE, '../../panelProps.ts'))).toBe(false)
+  })
+
+  it('内联后 defineProps 契约不变：不传 props 走 withDefaults 空态（阳性对照）', () => {
+    const w = mount(SuitabilityRadarPanel)
     expect(w.text()).toContain('暂无数据')
   })
 })

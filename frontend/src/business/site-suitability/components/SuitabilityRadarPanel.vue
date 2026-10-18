@@ -16,13 +16,27 @@ import { CanvasRenderer } from 'echarts/renderers'
 import { computed, ref } from 'vue'
 
 import { chartColor, EmptyState, useTheme } from '@/shared'
+import type { SiteSuitabilityResponseParsed } from '@/types/schemas'
 import { useECharts } from '@/visualization'
 
 import { CRITERIA } from '../constants/criteria'
-import type { SiteSuitabilityPanelProps } from '../panelProps'
 
 // 雷达图组件不在 useECharts 的注册表里（那里只注册折线/柱状），此处一次性补注册（全局幂等）。
 echarts.use([RadarChart, TitleComponent, TooltipComponent, CanvasRenderer])
+
+/**
+ * 面板 props 形状：页面透传 /site-suitability/map 解析响应与请求进行态。
+ *
+ * 原为共享类型文件 panelProps.ts；2026-10-12（A1）核实其注释所称「三张只读面板共用」
+ * 失实——全仓唯一消费者是本组件。2026-10-18 必要性审判（波次二·单元 C）按三问判定
+ * 「消费点 1 个 ⇒ 内联回消费点」内联到此。
+ */
+interface SiteSuitabilityPanelProps {
+  /** /site-suitability/map 解析响应；null = 尚未取到数据 */
+  data?: SiteSuitabilityResponseParsed | null
+  /** 请求进行态：true 时显示加载态而非空态（面板文案各定） */
+  loading?: boolean
+}
 
 const props = withDefaults(defineProps<SiteSuitabilityPanelProps>(), { data: null, loading: false })
 

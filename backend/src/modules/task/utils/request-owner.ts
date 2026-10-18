@@ -28,7 +28,7 @@ import { ANONYMOUS_OWNER } from '../types/task'
  */
 export const TASK_CLIENT_HEADER = 'x-task-client'
 /** 匿名属主前缀：与 JWT 用户 id 分命名空间，避免与真实用户 id 撞槽 */
-export const ANONYMOUS_OWNER_PREFIX = 'anon:'
+const ANONYMOUS_OWNER_PREFIX = 'anon:'
 /** 合法会话 id：16–64 位 URL 安全串（短于此易被穷举，长于此没必要） */
 const CLIENT_ID_RE = /^[A-Za-z0-9_-]{16,64}$/
 

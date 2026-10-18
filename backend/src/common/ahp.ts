@@ -18,7 +18,7 @@ export const RI_TABLE: readonly number[] = [
   0, 0, 0, 0.58, 0.9, 1.12, 1.24, 1.32, 1.41, 1.46, 1.49, 1.51, 1.54, 1.56, 1.57, 1.59,
 ]
 
-export const CR_THRESHOLD = 0.1
+const CR_THRESHOLD = 0.1
 
 /** 判断矩阵：只读二维方阵（互反阵） */
 type JudgmentMatrix = readonly (readonly number[])[]

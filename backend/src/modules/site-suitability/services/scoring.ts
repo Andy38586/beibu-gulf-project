@@ -59,7 +59,7 @@ export interface CellScore {
 }
 
 /** 需求子分数的分母：kde 质量的 99 分位（防离群点把全场压扁），调用方一次算好传入 */
-export function demandScore(kdeMass: number, kdeP99: number): number {
+function demandScore(kdeMass: number, kdeP99: number): number {
   if (kdeP99 <= 0) return 0
   return Math.min(1, kdeMass / kdeP99)
 }

@@ -1,7 +1,7 @@
 import { Logger } from '@nestjs/common'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { CspReportController, extractFirstReport } from '../src/csp-report/csp-report.controller'
+import { CspReportController } from '../src/csp-report/csp-report.controller'
 
 describe('CSP 违规上报接收端点（审查 z153）', () => {
   let ctrl: CspReportController
@@ -23,54 +23,58 @@ describe('CSP 违规上报接收端点（审查 z153）', () => {
   const post = (body: unknown): void =>
     (ctrl as unknown as { report: (b: unknown) => void }).report({ body } as never)
 
-  describe('extractFirstReport 归一化（两种上报格式）', () => {
-    it('report-uri 格式（横线命名字段）', () => {
-      expect(
-        extractFirstReport({
-          'csp-report': {
-            'document-uri': 'https://x/y',
-            'violated-directive': 'script-src',
-            'blocked-uri': 'https://evil/a.js',
-          },
-        })
-      ).toEqual({
-        documentUri: 'https://x/y',
-        directive: 'script-src',
-        blockedUri: 'https://evil/a.js',
+  describe('两种上报格式归一化（经 report() 公开面）', () => {
+    // 归一化函数已收为模块内部（唯一消费者 = report()）；断言改走真端点行为，
+    // 覆盖同一批形状而不依赖内部返回值。
+    it('report-uri 格式（横线命名字段）→ warn 三项白名单', () => {
+      post({
+        'csp-report': {
+          'document-uri': 'https://x/y',
+          'violated-directive': 'script-src',
+          'blocked-uri': 'https://evil/a.js',
+        },
       })
+      expect(warn).toHaveBeenCalledTimes(1)
+      const line = String(warn.mock.calls[0]?.[0])
+      expect(line).toContain('directive=script-src')
+      expect(line).toContain('blocked=https://evil/a.js')
+      expect(line).toContain('doc=https://x/y')
     })
 
     it('report-to / Reporting API 格式（数组 + 驼峰字段）', () => {
-      expect(
-        extractFirstReport([
-          {
-            type: 'csp-violation',
-            body: {
-              documentURL: 'https://x/y',
-              effectiveDirective: 'connect-src',
-              blockedURL: 'https://t0.tianditu.gov.cn/',
-            },
+      post([
+        {
+          type: 'csp-violation',
+          body: {
+            documentURL: 'https://x/y',
+            effectiveDirective: 'connect-src',
+            blockedURL: 'https://t0.tianditu.gov.cn/',
           },
-        ])
-      ).toEqual({
-        documentUri: 'https://x/y',
-        directive: 'connect-src',
-        blockedUri: 'https://t0.tianditu.gov.cn/',
-      })
+        },
+      ])
+      expect(warn).toHaveBeenCalledTimes(1)
+      const line = String(warn.mock.calls[0]?.[0])
+      expect(line).toContain('directive=connect-src')
+      expect(line).toContain('blocked=https://t0.tianditu.gov.cn/')
+      expect(line).toContain('doc=https://x/y')
     })
 
-    it('非法形状一律返回 null（不抛）', () => {
+    it('非法形状一律静默返回（不抛、不记）', () => {
       for (const bad of [undefined, null, {}, [], 'str', 42, { 'csp-report': 'x' }]) {
-        expect(extractFirstReport(bad)).toBeNull()
+        post(bad)
       }
+      expect(warn).not.toHaveBeenCalled()
     })
 
     it('字段超长被截断（防日志被单条报告撑爆）', () => {
-      const r = extractFirstReport({
+      post({
         'csp-report': { 'document-uri': 'a'.repeat(500), 'violated-directive': 'img-src' },
       })
-      expect(r?.documentUri).toHaveLength(201) // 200 + 省略号
-      expect(r?.documentUri.endsWith('…')).toBe(true)
+      expect(warn).toHaveBeenCalledTimes(1)
+      const line = String(warn.mock.calls[0]?.[0])
+      const doc = line.slice(line.indexOf('doc=') + 4)
+      expect(doc).toHaveLength(201) // 200 + 省略号
+      expect(doc.endsWith('…')).toBe(true)
     })
   })
 
@@ -115,5 +119,19 @@ describe('CSP 违规上报接收端点（审查 z153）', () => {
       expect(String(warn.mock.calls[60]?.[0])).toContain('另有 15 条报告因配额被抑制')
       expect(String(warn.mock.calls[61]?.[0])).toContain('directive=d999')
     })
+  })
+})
+
+describe('公开面收窄 — extractFirstReport 不得再导出', () => {
+  // 本组是「公开面收窄」本身的判据——任何形式的再导出（export 关键字或 export { … } 列表）都必须红。
+  it('内部符号不在模块公开面；公开符号仍在（阳性对照）', async () => {
+    const mod = (await import('../src/csp-report/csp-report.controller')) as unknown as Record<
+      string,
+      unknown
+    >
+    const INTERNAL = ['extractFirstReport']
+    const PUBLIC = ['CspReportController']
+    for (const k of INTERNAL) expect(mod[k], k + ' 应已收为模块内部').toBeUndefined()
+    for (const k of PUBLIC) expect(mod[k], k + ' 应仍是公开面').toBeDefined()
   })
 })

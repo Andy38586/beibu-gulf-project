@@ -81,7 +81,7 @@ export function isRouteMode(m: unknown): m is RouteMode {
  * 旧表 `roads_noded`（614,015 段，主分量 94.9%）保留在库里仅作回滚与 A/B 对照，
  * 不再被任何查询引用。回退只需把本常量改回 'roads_noded'（同时 directed 也要回退）。
  */
-export const ROUTING_TABLE = 'roads_edges'
+const ROUTING_TABLE = 'roads_edges'
 
 /**
  * 虚拟点编号（Points SQL 用**正数**）。

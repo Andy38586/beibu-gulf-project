@@ -5,8 +5,6 @@ import {
   CHANGZHOU_LOCK_SERIES,
   diversionBreakdown,
   PORT_DISPLAY_NAMES,
-  WEST_RIVER_TRANSFER_ANCHORS,
-  westRiverTransferAt,
 } from '../src/common/diversion'
 import { CANAL_PORT_SHARES } from '../src/modules/forecast/constants/scenario.constants'
 
@@ -25,24 +23,49 @@ describe('长洲基线序列（对照组）', () => {
   })
 })
 
-describe('westRiverTransferAt 插值', () => {
+describe('西江转移量插值（经公开面 diversionBreakdown）', () => {
+  // 转移量与锚点表已收为模块内部（唯一消费者 = diversionBreakdown）；期望值全部手工复算，
+  // 不从实现反推（本文件头纪律），锚点年值也写字面量——比从实现取 `anchors[i]` 更强。
+  const transferAt = (year: number) => diversionBreakdown(year, { qinzhou: 1 }).transfer
+
   it('锚点年原值透传（2030/2040/2050）', () => {
-    expect(westRiverTransferAt(2030)).toEqual(WEST_RIVER_TRANSFER_ANCHORS[0])
-    expect(westRiverTransferAt(2050)).toEqual(WEST_RIVER_TRANSFER_ANCHORS[2])
+    expect(transferAt(2030)).toEqual({
+      year: 2030,
+      coal: 386.89,
+      grain: 783.47,
+      ironOre: 294.06,
+      sandCement: 0,
+    })
+    expect(transferAt(2040)).toEqual({
+      year: 2040,
+      coal: 470.47,
+      grain: 891.64,
+      ironOre: 333.22,
+      sandCement: 0,
+    })
+    expect(transferAt(2050)).toEqual({
+      year: 2050,
+      coal: 522.48,
+      grain: 996.74,
+      ironOre: 361.22,
+      sandCement: 0,
+    })
   })
   it('2035 中点：煤 (386.89+470.47)/2=428.68，粮食 (783.47+891.64)/2=837.555', () => {
-    const r = westRiverTransferAt(2035)
+    const r = transferAt(2035)
     expect(r.coal).toBeCloseTo(428.68, 9)
     expect(r.grain).toBeCloseTo(837.555, 9)
     expect(r.ironOre).toBeCloseTo((294.06 + 333.22) / 2, 9)
   })
   it('域外 clamp 不外推：2027=2030 值、2055=2050 值（罗淳未给锚点外依据）', () => {
-    expect(westRiverTransferAt(2027)).toEqual(WEST_RIVER_TRANSFER_ANCHORS[0])
-    expect(westRiverTransferAt(2055)).toEqual(WEST_RIVER_TRANSFER_ANCHORS[2])
+    expect(transferAt(2027).coal).toBe(386.89)
+    expect(transferAt(2027).grain).toBe(783.47)
+    expect(transferAt(2055).coal).toBe(522.48)
+    expect(transferAt(2055).grain).toBe(996.74)
   })
   it('砂石水泥恒 0（罗淳 §5.3.4：下行砂石水泥不可能转移——负结果锚点）', () => {
     for (const y of [2027, 2030, 2035, 2040, 2045, 2050, 2060]) {
-      expect(westRiverTransferAt(y).sandCement).toBe(0)
+      expect(transferAt(y).sandCement).toBe(0)
     }
   })
 })
@@ -110,5 +133,16 @@ describe('港口中文显示名权威源（跨边界契约）', () => {
   it('PORT_DISPLAY_NAMES 与 frontend PORT_PORTS 逐键一致——改任一侧即红', () => {
     const authoritative = Object.fromEntries(PORT_PORTS.map((p) => [p.key, p.name]))
     expect(PORT_DISPLAY_NAMES).toEqual(authoritative)
+  })
+})
+
+describe('公开面收窄 — WEST_RIVER_TRANSFER_ANCHORS / westRiverTransferAt 不得再导出', () => {
+  // 本组是「公开面收窄」本身的判据——任何形式的再导出（export 关键字或 export { … } 列表）都必须红。
+  it('内部符号不在模块公开面；公开符号仍在（阳性对照）', async () => {
+    const mod = (await import('../src/common/diversion')) as unknown as Record<string, unknown>
+    const INTERNAL = ['WEST_RIVER_TRANSFER_ANCHORS', 'westRiverTransferAt']
+    const PUBLIC = ['diversionBreakdown', 'PORT_DISPLAY_NAMES', 'CHANGZHOU_LOCK_SERIES']
+    for (const k of INTERNAL) expect(mod[k], k + ' 应已收为模块内部').toBeUndefined()
+    for (const k of PUBLIC) expect(mod[k], k + ' 应仍是公开面').toBeDefined()
   })
 })

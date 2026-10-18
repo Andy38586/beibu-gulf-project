@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { BusinessError } from '../src/common/errors/business-error'
-import { DEFAULT_READ_FILE } from '../src/infra/files/data-files.service'
 import { DataFilesService } from '../src/infra/files/data-files.service'
 import { ForecastService } from '../src/modules/forecast/services/forecast.service'
 
@@ -68,7 +67,7 @@ function makeEnoentError() {
 }
 
 function makeService(mockReadFile: ReturnType<typeof vi.fn>): ForecastService {
-  const files = new DataFilesService(mockReadFile as unknown as typeof DEFAULT_READ_FILE)
+  const files = new DataFilesService(mockReadFile as unknown as (p: string) => Promise<string>)
   return new ForecastService(files)
 }
 
@@ -337,5 +336,19 @@ describe('validateIndicator', () => {
     await expect(service.getMapData('cargoX' as never, '2020')).rejects.toMatchObject({
       bizCode: 404001,
     })
+  })
+})
+
+describe('公开面收窄 — DEFAULT_READ_FILE 不得再导出', () => {
+  // 本组是「公开面收窄」本身的判据——任何形式的再导出（export 关键字或 export { … } 列表）都必须红。
+  it('内部符号不在模块公开面；公开符号仍在（阳性对照）', async () => {
+    const mod = (await import('../src/infra/files/data-files.service')) as unknown as Record<
+      string,
+      unknown
+    >
+    const INTERNAL = ['DEFAULT_READ_FILE']
+    const PUBLIC = ['DataFilesService']
+    for (const k of INTERNAL) expect(mod[k], k + ' 应已收为模块内部').toBeUndefined()
+    for (const k of PUBLIC) expect(mod[k], k + ' 应仍是公开面').toBeDefined()
   })
 })

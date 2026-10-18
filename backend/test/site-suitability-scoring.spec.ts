@@ -11,11 +11,7 @@ import {
   defaultWeights,
   parseSuitabilityQuery,
 } from '../src/modules/site-suitability/dto/site-suitability.dto'
-import {
-  cellScore,
-  demandScore,
-  parseWeights,
-} from '../src/modules/site-suitability/services/scoring'
+import { cellScore, parseWeights } from '../src/modules/site-suitability/services/scoring'
 
 // 适宜性评分单测（单元四）。oracle 全部按 constants 分段定义手工复算。
 
@@ -76,11 +72,14 @@ describe('子分数单调性（手工复算 oracle）', () => {
     expect(LAND_CLASS_SCORE[10]).toBeGreaterThan(LAND_CLASS_SCORE[95])
     expect(LAND_CLASS_SCORE[80]).toBe(0)
   })
-  it('需求归一：kde=99 分位→1，超界钳 1；分母 0→0', () => {
-    expect(demandScore(5, 5)).toBe(1)
-    expect(demandScore(50, 5)).toBe(1)
-    expect(demandScore(2.5, 5)).toBe(0.5)
-    expect(demandScore(1, 0)).toBe(0)
+  it('需求归一：kde=99 分位→1，超界钳 1；分母 0→0（经 cellScore 的 sub.demand）', () => {
+    const wDemand = { inundation: 0, terrain: 0, land: 0, access: 0, demand: 1 }
+    const demand = (kdeMass: number, kdeP99: number): number =>
+      cellScore({ ...BASE_CELL, kdeMass }, wDemand, kdeP99).sub.demand
+    expect(demand(5, 5)).toBe(1)
+    expect(demand(50, 5)).toBe(1)
+    expect(demand(2.5, 5)).toBe(0.5)
+    expect(demand(1, 0)).toBe(0)
   })
 })
 
@@ -172,5 +171,20 @@ describe('site-suitability 入参非法 ⇒ BusinessError(400001)', () => {
   it('阳性对照：合法入参不抛（缺省权重 / AHP 特征向量）', () => {
     expect(() => parseSuitabilityQuery({})).not.toThrow()
     expect(() => parseWeights(defaultWeights())).not.toThrow()
+  })
+})
+
+describe('公开面收窄 — demandScore 不得再导出', () => {
+  // 本组是「公开面收窄」本身的判据——任何形式的再导出（export 关键字或 export { … } 列表）都必须红。
+  it('内部符号不在模块公开面；公开符号仍在（阳性对照）', async () => {
+    const mod =
+      (await import('../src/modules/site-suitability/services/scoring')) as unknown as Record<
+        string,
+        unknown
+      >
+    const INTERNAL = ['demandScore']
+    const PUBLIC = ['cellScore', 'parseWeights']
+    for (const k of INTERNAL) expect(mod[k], k + ' 应已收为模块内部').toBeUndefined()
+    for (const k of PUBLIC) expect(mod[k], k + ' 应仍是公开面').toBeDefined()
   })
 })

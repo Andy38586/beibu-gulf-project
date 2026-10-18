@@ -17,7 +17,7 @@ import { expect, describe, it, vi } from 'vitest'
 
 import { deriveRiskLevel, deriveRiskLevelCode } from '../src/common/constants/flood.constants'
 import { SpatialRepository } from '../src/infra/db/spatial.repository'
-import { DEFAULT_READ_FILE, DataFilesService } from '../src/infra/files/data-files.service'
+import { DataFilesService } from '../src/infra/files/data-files.service'
 import { FloodRepository } from '../src/modules/flood/repositories/flood.repository'
 import { FloodService } from '../src/modules/flood/services/flood.service'
 
@@ -73,7 +73,7 @@ function deriveRiskLevelBand(): string[] {
 describe('运行侧不再消费表中的预置标签（d057 的治本侧）', () => {
   function makeService(): FloodService {
     // assessDisaster 不读数据文件；空间判定打桩返回全部命中 ⇒ 本地可跑（不需要 PG）
-    const files = new DataFilesService(vi.fn() as unknown as typeof DEFAULT_READ_FILE)
+    const files = new DataFilesService(vi.fn() as unknown as (p: string) => Promise<string>)
     const spatial = {
       pointIndicesInAnyPolygon: vi.fn().mockResolvedValue([0]),
     } as unknown as SpatialRepository
@@ -136,5 +136,19 @@ describe('运行侧不再消费表中的预置标签（d057 的治本侧）', ()
       FLOOD_ZONE_WITH_FEATURE(15, '无风险')
     )
     expect(result.riskLevel).toBe('灾难级')
+  })
+})
+
+describe('公开面收窄 — DEFAULT_READ_FILE 不得再导出', () => {
+  // 本组是「公开面收窄」本身的判据——任何形式的再导出（export 关键字或 export { … } 列表）都必须红。
+  it('内部符号不在模块公开面；公开符号仍在（阳性对照）', async () => {
+    const mod = (await import('../src/infra/files/data-files.service')) as unknown as Record<
+      string,
+      unknown
+    >
+    const INTERNAL = ['DEFAULT_READ_FILE']
+    const PUBLIC = ['DataFilesService']
+    for (const k of INTERNAL) expect(mod[k], k + ' 应已收为模块内部').toBeUndefined()
+    for (const k of PUBLIC) expect(mod[k], k + ' 应仍是公开面').toBeDefined()
   })
 })

@@ -11,11 +11,7 @@ import {
   TASK_TERMINAL_MIN_RETAIN_MS,
   type TaskRecord,
 } from '../src/modules/task/types/task'
-import {
-  ANONYMOUS_OWNER_PREFIX,
-  resolveRequestOwner,
-  TASK_CLIENT_HEADER,
-} from '../src/modules/task/utils/request-owner'
+import { resolveRequestOwner, TASK_CLIENT_HEADER } from '../src/modules/task/utils/request-owner'
 
 // d059 / d060 / d061 的判据回归（922-R4 §1.3 三条最小判据，逐条对应）：
 //   d059 取代键与取消/查询都必须带属主——只按 route 判定时任何人提交同一 route
@@ -170,7 +166,7 @@ describe('resolveRequestOwner（请求 → 属主）', () => {
   it('🔴 无令牌但带合法会话头 ⇒ 匿名按会话分槽（同一路由下匿名不再互相取代/取消）', () => {
     const idA = 'a'.repeat(32)
     const idB = 'b'.repeat(32)
-    expect(resolveRequestOwner(req({ client: idA }))).toBe(`${ANONYMOUS_OWNER_PREFIX}${idA}`)
+    expect(resolveRequestOwner(req({ client: idA }))).toBe(`anon:${idA}`)
     expect(resolveRequestOwner(req({ client: idA }))).not.toBe(
       resolveRequestOwner(req({ client: idB }))
     )
@@ -190,8 +186,8 @@ describe('resolveRequestOwner（请求 → 属主）', () => {
   })
 
   it('🔴 两个匿名会话之间不可互相取代/取消（服务层同判据：属主不等即 404）', async () => {
-    const ownerA = `${ANONYMOUS_OWNER_PREFIX}${'a'.repeat(32)}`
-    const ownerB = `${ANONYMOUS_OWNER_PREFIX}${'b'.repeat(32)}`
+    const ownerA = `anon:${'a'.repeat(32)}`
+    const ownerB = `anon:${'b'.repeat(32)}`
     const gate = makeGate()
     const service = makeService(async () => {
       await gate.promise
@@ -315,5 +311,19 @@ describe('d060 注册表容量三重维度', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+})
+
+describe('公开面收窄 — ANONYMOUS_OWNER_PREFIX 不得再导出', () => {
+  // 本组是「公开面收窄」本身的判据——任何形式的再导出（export 关键字或 export { … } 列表）都必须红。
+  it('内部符号不在模块公开面；公开符号仍在（阳性对照）', async () => {
+    const mod = (await import('../src/modules/task/utils/request-owner')) as unknown as Record<
+      string,
+      unknown
+    >
+    const INTERNAL = ['ANONYMOUS_OWNER_PREFIX']
+    const PUBLIC = ['resolveRequestOwner', 'TASK_CLIENT_HEADER']
+    for (const k of INTERNAL) expect(mod[k], k + ' 应已收为模块内部').toBeUndefined()
+    for (const k of PUBLIC) expect(mod[k], k + ' 应仍是公开面').toBeDefined()
   })
 })

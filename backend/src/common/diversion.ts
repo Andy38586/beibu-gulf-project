@@ -19,7 +19,7 @@ interface WestRiverTransfer {
 }
 
 /** 西江→运河转移量锚点（罗淳直接可用预测；线性插值，域外 clamp） */
-export const WEST_RIVER_TRANSFER_ANCHORS: readonly WestRiverTransfer[] = [
+const WEST_RIVER_TRANSFER_ANCHORS: readonly WestRiverTransfer[] = [
   { year: 2030, coal: 386.89, grain: 783.47, ironOre: 294.06, sandCement: 0 },
   { year: 2040, coal: 470.47, grain: 891.64, ironOre: 333.22, sandCement: 0 },
   { year: 2050, coal: 522.48, grain: 996.74, ironOre: 361.22, sandCement: 0 },
@@ -46,7 +46,7 @@ export const CHANGZHOU_LOCK_SERIES: readonly { year: number; through: number }[]
 ]
 
 /** 任意年西江转移量：锚点间线性插值，域外取最近锚点（clamp，不外推） */
-export function westRiverTransferAt(year: number): WestRiverTransfer {
+function westRiverTransferAt(year: number): WestRiverTransfer {
   const anchors = WEST_RIVER_TRANSFER_ANCHORS
   if (year <= anchors[0].year) return { ...anchors[0] }
   const last = anchors[anchors.length - 1]

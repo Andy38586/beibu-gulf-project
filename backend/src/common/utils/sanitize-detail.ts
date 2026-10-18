@@ -12,7 +12,7 @@
  */
 
 /** 默认截断长度（与 csp-report 原口径一致：200 字） */
-export const MAX_DETAIL_LEN = 200
+const MAX_DETAIL_LEN = 200
 
 /** 压平换行/制表符与首尾空白后按长度截断（非字符串一律 String() 归一） */
 export function sanitizeDetail(value: unknown, maxLen: number = MAX_DETAIL_LEN): string {

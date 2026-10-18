@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { ahpWeights, CR_THRESHOLD, RI_TABLE } from '../src/common/ahp'
+import { ahpWeights, RI_TABLE } from '../src/common/ahp'
 import { SITE_AHP_MATRIX } from '../src/common/constants/site-ahp.constants'
 
 // AHP 纯函数单测（工单 §四单元三）。oracle 用 Saaty 教科书已发表算例，
@@ -38,7 +38,7 @@ describe('ahpWeights Saaty 已发表算例（独立 oracle）', () => {
     expect(r.weights[2]).toBeCloseTo(0.105, 2)
     expect(r.lambdaMax).toBeCloseTo(3.0385, 3)
     expect(r.cr).toBeCloseTo(0.0332, 3)
-    expect(r.cr).toBeLessThan(CR_THRESHOLD)
+    expect(r.cr).toBeLessThan(0.1)
   })
 })
 
@@ -88,7 +88,7 @@ describe('ahpWeights 拒收（阴性）', () => {
 describe('定稿判断矩阵（constants/site-ahp）', () => {
   it('SITE_AHP_MATRIX 通过一致性检验且和为 1（定稿有效性门槛）', () => {
     const r = ahpWeights(SITE_AHP_MATRIX)
-    expect(r.cr).toBeLessThan(CR_THRESHOLD)
+    expect(r.cr).toBeLessThan(0.1)
     const sum = r.weights.reduce((a, b) => a + b, 0)
     expect(Math.abs(sum - 1)).toBeLessThan(1e-9)
     // 权重序可观测：浸没风险居首（安全门槛型判据），与草案逐格依据的定性叙述一致
@@ -99,5 +99,16 @@ describe('定稿判断矩阵（constants/site-ahp）', () => {
     expect(RI_TABLE[1]).toBe(0)
     expect(RI_TABLE[2]).toBe(0)
     for (let n = 3; n < 15; n++) expect(RI_TABLE[n]).toBeLessThanOrEqual(RI_TABLE[n + 1]!)
+  })
+})
+
+describe('公开面收窄 — CR_THRESHOLD 不得再导出', () => {
+  // 本组是「公开面收窄」本身的判据——任何形式的再导出（export 关键字或 export { … } 列表）都必须红。
+  it('内部符号不在模块公开面；公开符号仍在（阳性对照）', async () => {
+    const mod = (await import('../src/common/ahp')) as unknown as Record<string, unknown>
+    const INTERNAL = ['CR_THRESHOLD']
+    const PUBLIC = ['ahpWeights', 'RI_TABLE']
+    for (const k of INTERNAL) expect(mod[k], k + ' 应已收为模块内部').toBeUndefined()
+    for (const k of PUBLIC) expect(mod[k], k + ' 应仍是公开面').toBeDefined()
   })
 })

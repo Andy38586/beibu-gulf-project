@@ -49,7 +49,7 @@ const pick = (o: Record<string, unknown>, keys: string[]): string => {
  *   · `report-to` / Reporting API：`[ { type, body: {...} } ]`，字段驼峰命名
  * 两者都可能出现，取第一条即可（同一次违规不会同时走两条通道）。
  */
-export function extractFirstReport(body: unknown): NormalizedCspReport | null {
+function extractFirstReport(body: unknown): NormalizedCspReport | null {
   const raw = Array.isArray(body) ? body[0] : body
   if (!raw || typeof raw !== 'object') return null
   const obj = raw as Record<string, unknown>

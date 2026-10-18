@@ -7,7 +7,6 @@ import {
   PID_TO,
   RouteRepository,
   type RouteSegment,
-  ROUTING_TABLE,
   type SnapRow,
 } from '../src/modules/route/repositories/route.repository'
 
@@ -143,7 +142,7 @@ describe('RouteRepository.shortestPathByPoints - SQL 契约', () => {
     const sql = calls[0].sql
     expect(sql).toContain('edge_source')
     expect(sql).toContain('edge_target')
-    expect(sql).toContain(`LEFT JOIN ${ROUTING_TABLE}`)
+    expect(sql).toContain('LEFT JOIN roads_edges')
   })
 
   it('有向图语义：directed := true + cost/reverse_cost 分列（v2 路网，单向边 reverse=-1 表达不可行方向）', async () => {
@@ -172,7 +171,7 @@ describe('RouteRepository.shortestPathByPoints - SQL 契约', () => {
 })
 
 describe('路由表选择（2026-09-10：必须走切分表）', () => {
-  it('所有查询都指向 ROUTING_TABLE，不得回落到未切分的原始 roads', async () => {
+  it('所有查询都指向切分表 roads_edges，不得回落到未切分的原始 roads', async () => {
     const { db, calls } = makeDbMock()
     const repo = new RouteRepository(db)
     await repo.snapPoints(108.6, 21.7, 108.7, 21.75, 2000)
@@ -185,11 +184,11 @@ describe('路由表选择（2026-09-10：必须走切分表）', () => {
       expect(sql).not.toMatch(/\bFROM roads\b/)
       expect(sql).not.toMatch(/\bJOIN roads\b/)
     }
-    expect(calls[0].sql).toContain(`FROM ${ROUTING_TABLE}`)
-    expect(calls[1].sql).toContain(`FROM ${ROUTING_TABLE}`)
-    expect(calls[1].sql).toContain(`LEFT JOIN ${ROUTING_TABLE}`)
-    expect(calls[2].sql).toContain(`JOIN ${ROUTING_TABLE} r`)
-    expect(calls[3].sql).toContain(`JOIN ${ROUTING_TABLE} r`)
+    expect(calls[0].sql).toContain('FROM roads_edges')
+    expect(calls[1].sql).toContain('FROM roads_edges')
+    expect(calls[1].sql).toContain('LEFT JOIN roads_edges')
+    expect(calls[2].sql).toContain('JOIN roads_edges r')
+    expect(calls[3].sql).toContain('JOIN roads_edges r')
   })
 })
 
@@ -292,5 +291,20 @@ describe('RouteRepository - mode 白名单', () => {
     expect(isRouteMode('cost_m; DROP TABLE roads')).toBe(false)
     expect(isRouteMode(undefined)).toBe(false)
     expect(isRouteMode(1)).toBe(false)
+  })
+})
+
+describe('公开面收窄 — ROUTING_TABLE 不得再导出', () => {
+  // 本组是「公开面收窄」本身的判据——任何形式的再导出（export 关键字或 export { … } 列表）都必须红。
+  it('内部符号不在模块公开面；公开符号仍在（阳性对照）', async () => {
+    const mod =
+      (await import('../src/modules/route/repositories/route.repository')) as unknown as Record<
+        string,
+        unknown
+      >
+    const INTERNAL = ['ROUTING_TABLE']
+    const PUBLIC = ['RouteRepository', 'isRouteMode']
+    for (const k of INTERNAL) expect(mod[k], k + ' 应已收为模块内部').toBeUndefined()
+    for (const k of PUBLIC) expect(mod[k], k + ' 应仍是公开面').toBeDefined()
   })
 })

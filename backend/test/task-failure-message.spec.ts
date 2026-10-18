@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
 import { BusinessError, ErrorCode } from '../src/common/errors/business-error'
-import { MAX_DETAIL_LEN } from '../src/common/utils/sanitize-detail'
 import { ANONYMOUS_OWNER } from '../src/modules/task/types/task'
 import { TaskHandlers } from '../src/modules/task/services/task-handlers'
 import { TaskService } from '../src/modules/task/services/task.service'
@@ -87,7 +86,7 @@ describe('TaskService 失败下发语义', () => {
       const message = service.get(taskId, ANONYMOUS_OWNER).error?.message ?? ''
       expect(message).not.toMatch(/[\r\n]/)
       expect(message.endsWith('…')).toBe(true)
-      expect(message.length).toBe(MAX_DETAIL_LEN + 1)
+      expect(message.length).toBe(201)
       // 净化只作用于文案，业务码不变
       expect(service.get(taskId, ANONYMOUS_OWNER).error?.bizCode).toBe(400001)
     } finally {

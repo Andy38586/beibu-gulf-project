@@ -4,7 +4,7 @@ import { deriveRiskLevel, deriveRiskLevelCode } from '../src/common/constants/fl
 import { BusinessError } from '../src/common/errors/business-error'
 import { DbService } from '../src/infra/db/db.service'
 import { SpatialRepository } from '../src/infra/db/spatial.repository'
-import { DataFilesService, DEFAULT_READ_FILE } from '../src/infra/files/data-files.service'
+import { DataFilesService } from '../src/infra/files/data-files.service'
 import {
   FloodLevelFeatureRow,
   FloodRepository,
@@ -137,7 +137,7 @@ function makeService(
   // 默认：PG 已向上取档到 3.0（对应原 6 档 fixture 的 2.5 → 3.0 语义）
   levelRows: FloodLevelFeatureRow[] = mockLevelRows([[3.0, 0.5]])
 ): FloodService {
-  const files = new DataFilesService(mockReadFile as unknown as typeof DEFAULT_READ_FILE)
+  const files = new DataFilesService(mockReadFile as unknown as (p: string) => Promise<string>)
   // db 桩：query 恒返回注入的档位行（模拟 PG 已选好档位；取档语义在 SQL 内，见文件头注释）
   const db = { query: vi.fn().mockResolvedValue({ rows: levelRows }) } as unknown as DbService
   const repository = new FloodRepository(files, db)
@@ -289,7 +289,7 @@ describe('getFloodStatistics - 与 flood-areas/disaster 同源（251 档 + 空�
     facilityPoints?: string
   ): FloodService {
     const files = new DataFilesService(
-      makeStatisticsReadFile(facilityPoints) as unknown as typeof DEFAULT_READ_FILE
+      makeStatisticsReadFile(facilityPoints) as unknown as (p: string) => Promise<string>
     )
     const db = { query: vi.fn().mockResolvedValue({ rows: levelRows }) } as unknown as DbService
     return new FloodService(new FloodRepository(files, db), stubSpatial(hitIndices))
@@ -506,7 +506,7 @@ describe.skipIf(!withDb)('floodService.assessDisaster - 空间筛选与损失计
   function makeDbService(): FloodService {
     // assessDisaster 不读数据文件，repository 用空桩构造；db 取真库（beforeAll 内建，
     // 本组用例直接调 assessDisaster 不触发 repository 查询，故仅需类型占位）
-    const files = new DataFilesService(vi.fn() as unknown as typeof DEFAULT_READ_FILE)
+    const files = new DataFilesService(vi.fn() as unknown as (p: string) => Promise<string>)
     return new FloodService(new FloodRepository(files, db as DbService), spatial)
   }
 
@@ -597,7 +597,7 @@ describe('DataFilesService 统一入口 - 读盘缓存', () => {
   // 以 getWaterArea 为触发器：getFloodAreas 已改走 PostGIS（不再读盘），而缓存行为属
   // DataFilesService 自身，用任一仍读盘的端点即可验证。
   function makeReadService(mockReadFile: ReturnType<typeof vi.fn>): FloodService {
-    const files = new DataFilesService(mockReadFile as unknown as typeof DEFAULT_READ_FILE)
+    const files = new DataFilesService(mockReadFile as unknown as (p: string) => Promise<string>)
     const db = { query: vi.fn() } as unknown as DbService
     return new FloodService(new FloodRepository(files, db), spatial)
   }
@@ -631,7 +631,7 @@ describe('DataFilesService 统一入口 - 读盘缓存', () => {
     const mockReadFile = vi
       .fn()
       .mockImplementation((p: string) => Promise.resolve(JSON.stringify({ f: String(p) })))
-    const files = new DataFilesService(mockReadFile as unknown as typeof DEFAULT_READ_FILE)
+    const files = new DataFilesService(mockReadFile as unknown as (p: string) => Promise<string>)
     for (let i = 0; i < 25; i++) {
       await files.read(`file${i}.json`)
     }

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-05",
+  "generatedAt": "2026-10-18",
   "source": "frontend/src/types/schemas.ts（单一事实源，types:gen 自动生成勿手改）",
   "schemas": {
     "userSchema": {
@@ -876,7 +876,7 @@
       "file": "backend/src/modules/task/types/task.ts",
       "occurrence": {
         "taskId": 3,
-        "status": 3,
+        "status": 7,
         "queuePosition": 1,
         "createdAtMs": 2
       }

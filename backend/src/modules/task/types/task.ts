@@ -12,6 +12,22 @@
 export type TaskStatus = 'pending' | 'running' | 'retrying' | 'done' | 'failed' | 'cancelled'
 
 /**
+ * 活跃态 / 终态判定——后端唯一权威源（必要性审判波次二·单元 H）。
+ * 此前该判据在 task.service.ts / task-registry.ts / 前端三个 core 组件各手抄一份，改一处漏四处。
+ * 两谓词互斥且合起来恰为 TaskStatus 全集，由 frontend/src/types/__tests__/taskStatus.test.ts 守护。
+ */
+const ACTIVE_STATUSES: readonly TaskStatus[] = ['pending', 'running', 'retrying']
+const TERMINAL_STATUSES: readonly TaskStatus[] = ['done', 'failed', 'cancelled']
+
+export function isActiveStatus(status: TaskStatus): boolean {
+  return ACTIVE_STATUSES.includes(status)
+}
+
+export function isTerminalStatus(status: TaskStatus): boolean {
+  return TERMINAL_STATUSES.includes(status)
+}
+
+/**
  * 优先级（口径 #16：当前路由插队）。
  * high = 发起时用户正看着这个路由 ⇒ 插队首；normal = 后台路由 ⇒ 排队尾。
  */

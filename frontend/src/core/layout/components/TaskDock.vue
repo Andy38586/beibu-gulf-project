@@ -11,12 +11,14 @@
  */
 import { computed } from 'vue'
 
+import { isActiveStatus, type TaskStatus } from '@/types/task'
+
 export interface TaskDockCard {
   taskId: string
   route: string
   label: string
   icon: string
-  status: 'pending' | 'running' | 'retrying' | 'done' | 'failed' | 'cancelled'
+  status: TaskStatus
   progress: number
 }
 
@@ -33,11 +35,10 @@ const STATUS_TEXT: Record<TaskDockCard['status'], string> = {
   cancelled: '已取消',
 }
 
-const isActive = (s: TaskDockCard['status']): boolean =>
-  s === 'pending' || s === 'running' || s === 'retrying'
-
 const ordered = computed(() =>
-  [...props.cards].sort((a, b) => Number(isActive(b.status)) - Number(isActive(a.status)))
+  [...props.cards].sort(
+    (a, b) => Number(isActiveStatus(b.status)) - Number(isActiveStatus(a.status))
+  )
 )
 </script>
 
@@ -53,7 +54,7 @@ const ordered = computed(() =>
       @click="emit('open', card.route)"
     >
       <svg
-        v-if="isActive(card.status)"
+        v-if="isActiveStatus(card.status)"
         class="task-dock__ring"
         viewBox="0 0 22 22"
         aria-hidden="true"

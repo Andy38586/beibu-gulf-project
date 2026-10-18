@@ -1,4 +1,6 @@
 import {
+  isActiveStatus,
+  isTerminalStatus,
   TASK_QUEUE_LIMIT,
   TASK_REGISTRY_MAX_BYTES,
   TASK_REGISTRY_MAX_RECORDS,
@@ -6,14 +8,7 @@ import {
   TASK_TERMINAL_MIN_RETAIN_MS,
   TASK_TTL_MS,
   type TaskRecord,
-  type TaskStatus,
 } from '../types/task'
-
-/**
- * 终态集合（done/failed/cancelled）。**用途是"还能不能被回收"这一判断**，与保留时长无关
- * ——保留时长见 `types/task.ts` 的 `TASK_TTL_MS`（此处原挂着一份错位的时长注释，2026-10-13 改）
- */
-const TERMINAL_STATUSES: ReadonlySet<TaskStatus> = new Set(['done', 'failed', 'cancelled'])
 
 /**
  * 结果体字节估算（d060 的字节维度）。
@@ -120,7 +115,7 @@ export class TaskRegistry {
       this.bytes += record.resultBytes
     }
     // 终态必须带 finishedAt：前端进度环据此停止动画、结果面板据此判定「跑完了」
-    if (TERMINAL_STATUSES.has(record.status) && record.finishedAt === undefined) {
+    if (isTerminalStatus(record.status) && record.finishedAt === undefined) {
       record.finishedAt = Date.now()
     }
     return record
@@ -138,7 +133,7 @@ export class TaskRegistry {
   sweep(now = Date.now()): number {
     let removed = 0
     for (const record of [...this.records.values()]) {
-      if (!TERMINAL_STATUSES.has(record.status)) continue
+      if (!isTerminalStatus(record.status)) continue
       const finishedAt = record.finishedAt ?? record.createdAt
       if (now - finishedAt >= TASK_TTL_MS) {
         this.drop(record)
@@ -200,7 +195,7 @@ export class TaskRegistry {
   private oldestEvictableTerminal(now: number): TaskRecord | undefined {
     let victim: TaskRecord | undefined
     for (const record of this.records.values()) {
-      if (!TERMINAL_STATUSES.has(record.status)) continue
+      if (!isTerminalStatus(record.status)) continue
       const finishedAt = record.finishedAt ?? record.createdAt
       if (now - finishedAt < this.limits.minRetainMs) continue
       if (!victim || finishedAt < (victim.finishedAt ?? victim.createdAt)) victim = record
@@ -246,12 +241,7 @@ export class TaskRegistry {
   activeCount(): number {
     let count = 0
     for (const record of this.records.values()) {
-      if (
-        record.status === 'pending' ||
-        record.status === 'running' ||
-        record.status === 'retrying'
-      )
-        count++
+      if (isActiveStatus(record.status)) count++
     }
     return count
   }

@@ -29,7 +29,7 @@
 
 import { computed } from 'vue'
 
-import type { TaskSlot } from '@/types/task'
+import { isActiveStatus, type TaskSlot } from '@/types/task'
 
 import GCSPanel from './GCSPanel.vue'
 
@@ -77,7 +77,7 @@ const emit = defineEmits<{
 const dragLocked = computed(() => {
   const s = props.taskSlot
   if (!s) return false
-  return s.status === 'pending' || s.status === 'running' || s.status === 'retrying'
+  return isActiveStatus(s.status)
 })
 </script>
 

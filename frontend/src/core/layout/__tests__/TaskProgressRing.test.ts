@@ -1,6 +1,8 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 
+import type { TaskStatus } from '@/types/task'
+
 import TaskProgressRing from '../components/TaskProgressRing.vue'
 
 /**
@@ -115,7 +117,7 @@ describe('TaskProgressRing', () => {
     const success = 'var(--GCS-color-success)'
     const danger = 'var(--GCS-color-danger)'
 
-    const at = (status: 'pending' | 'running' | 'retrying' | 'done' | 'failed') =>
+    const at = (status: TaskStatus) =>
       mount(TaskProgressRing, { props: { status, progress: 0.5 } })
         .find('.task-progress-ring__bar')
         .attributes('stroke')

@@ -32,7 +32,7 @@
 
 import { computed } from 'vue'
 
-import type { TaskStatus } from '@/types/task'
+import { isActiveStatus, type TaskStatus } from '@/types/task'
 
 interface Props {
   /** 尺寸（px），默认 44（套在 0.8 cell 按钮上） */
@@ -110,13 +110,7 @@ const ringColor = computed(() => {
 })
 
 /** 呼吸动画只在活跃态启用（完成后静止，失败后静止——静止本身是信息；不定进度恒呼吸） */
-const isBreathing = computed(
-  () =>
-    props.indeterminate ||
-    props.status === 'pending' ||
-    props.status === 'running' ||
-    props.status === 'retrying'
-)
+const isBreathing = computed(() => props.indeterminate || isActiveStatus(props.status))
 
 const sizeStyle = computed(() => ({
   width: `${props.size}px`,

@@ -3,11 +3,11 @@ import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/commo
 import { BusinessError, ErrorCode } from '../../../common/errors/business-error'
 import { sanitizeDetail } from '../../../common/utils/sanitize-detail'
 import {
+  isActiveStatus,
   TASK_MAX_WAIT_MS,
   TASK_QUEUE_LIMIT,
   type TaskPriority,
   type TaskRecord,
-  type TaskStatus,
   type TaskSubmitResponse,
   type TaskView,
 } from '../types/task'
@@ -137,7 +137,7 @@ export class TaskService implements OnModuleInit, OnModuleDestroy {
     for (const record of this.registry.list()) {
       if (record.route !== input.route) continue
       if (record.ownerId !== input.ownerId) continue
-      if (!isActive(record.status)) continue
+      if (!isActiveStatus(record.status)) continue
       this.queue.remove(record.taskId)
       this.registry.patch(record.taskId, {
         status: 'cancelled',
@@ -210,7 +210,7 @@ export class TaskService implements OnModuleInit, OnModuleDestroy {
     if (!record || record.ownerId !== requesterId) {
       throw new BusinessError(ErrorCode.NOT_FOUND, '任务不存在或已过期')
     }
-    if (isActive(record.status)) {
+    if (isActiveStatus(record.status)) {
       this.queue.remove(taskId)
       this.registry.patch(taskId, {
         status: 'cancelled',
@@ -271,9 +271,4 @@ export class TaskService implements OnModuleInit, OnModuleDestroy {
       finishedAt: record.finishedAt,
     }
   }
-}
-
-/** 活跃 = 尚未进入终态 */
-function isActive(status: TaskStatus): boolean {
-  return status === 'pending' || status === 'running' || status === 'retrying'
 }

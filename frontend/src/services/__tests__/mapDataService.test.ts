@@ -5,6 +5,8 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { clearStaticCache } from '@/shared'
+
 // mock 全局 fetch，隔离网络；loadStatic 走 res.json()（非 text()），mock 需配套
 const fetchMock = vi.fn()
 vi.stubGlobal('fetch', fetchMock)
@@ -21,8 +23,9 @@ function mockJsonResponse(body: unknown) {
 
 beforeEach(() => {
   fetchMock.mockReset()
-  // loadStatic 模块级 TTL 缓存会跨测试污染（首测 ports 被缓存，后续测试拿到旧值）
-  mapDataService.clearCache()
+  // loadStatic 模块级 TTL 缓存会跨测试污染（首测 ports 被缓存，后续测试拿到旧值）；
+  // 失效入口归 loadStatic 权威源（clearStaticCache），service 不再自带薄封装（必要性审判波次二·单元 E）
+  clearStaticCache()
 })
 
 describe('mapDataService 港口静态数据加载', () => {
@@ -60,12 +63,12 @@ describe('mapDataService 港口静态数据加载', () => {
     await expect(mapDataService.getPorts()).rejects.toThrow('港口数据格式不正确')
   })
 
-  it('clearCache 后重新发起请求（TTL 缓存已失效）', async () => {
+  it('清缓存后重新发起请求（TTL 缓存已失效）', async () => {
     mockJsonResponse([{ id: '1', name: '第一版港', address: 'a', lng: 108.5, lat: 21.5 }])
     const first = await mapDataService.getPorts()
     expect(first[0].name).toBe('第一版港')
 
-    mapDataService.clearCache()
+    clearStaticCache()
     mockJsonResponse([{ id: '1', name: '第二版港', address: 'a', lng: 108.5, lat: 21.5 }])
     const second = await mapDataService.getPorts()
     expect(second[0].name).toBe('第二版港')

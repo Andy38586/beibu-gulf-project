@@ -38,9 +38,9 @@ const api = vi.hoisted(() => ({
   getPorts: vi.fn(),
 }))
 
-// 只替身数据适配器与静态港口取数：页面取数链路不动，断言其调用次数/参数
-vi.mock('@/services/adapters/diversionAdapter', () => ({
-  diversionAdapter: { getBreakdown: api.getBreakdown, getCanalLine: api.getCanalLine },
+// 只替身取数 composable 与静态港口取数：页面取数链路不动，断言其调用次数/参数
+vi.mock('../../composables/useDiversionApi', () => ({
+  useDiversionApi: () => ({ getBreakdown: api.getBreakdown, getCanalLine: api.getCanalLine }),
 }))
 vi.mock('@/services/mapDataService', () => ({
   mapDataService: { getPorts: api.getPorts },

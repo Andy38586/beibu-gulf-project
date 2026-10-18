@@ -110,8 +110,3 @@ export function clearStaticCache(): void {
   cache.clear()
   pending.clear()
 }
-
-/** 清除指定 URL 的缓存 */
-export function invalidateStatic(url: string): void {
-  cache.delete(url)
-}

@@ -13,6 +13,9 @@ services/
     └── forecastAdapter.ts# 预测三端点（timeseries / indicator / overview，schema 边界校验）
 ```
 
+单业务取数不上 adapter：分流分析经 `business/diversion/composables/useDiversionApi.ts`
+（2026-10-18 必要性审判波次二·单元 E，按本节第 4 条约定收口）。
+
 ## 约定
 
 - **所有 HTTP 请求必须经 `useApiRequest`**（统一信封解包 / 超时重试 / zod 校验 / 请求 ID）

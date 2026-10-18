@@ -1,6 +1,6 @@
 // 深路径导入 @/core/config/map：走 @/core 入口会形成 core↔services 循环依赖（no-circular），此模块是叶子配置
 import { MAP_CONFIG } from '@/core/config/map'
-import { invalidateStatic, isInBeibuGulf, loadStatic, logger } from '@/shared'
+import { isInBeibuGulf, loadStatic, logger } from '@/shared'
 import type { Port } from '@/types'
 import { portsArraySchema } from '@/types/schemas'
 
@@ -33,9 +33,5 @@ export const mapDataService = {
       logger.error('加载港口数据失败:', error)
       throw error
     }
-  },
-
-  clearCache(): void {
-    invalidateStatic(MAP_CONFIG.DATA_PATHS.ports)
   },
 }

@@ -43,3 +43,14 @@ describe('loadStatic 缓存上限 (z050-FE)', () => {
     expect(fetchMock).toHaveBeenCalledTimes(N)
   })
 })
+
+describe('clearStaticCache 失效入口（必要性审判波次二·单元 E）', () => {
+  it('清缓存后同一 URL 重新请求会再次 fetch（TTL 未到期也失效）', async () => {
+    await loadStatic('/data/ports.json')
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+
+    clearStaticCache()
+    await loadStatic('/data/ports.json')
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+})

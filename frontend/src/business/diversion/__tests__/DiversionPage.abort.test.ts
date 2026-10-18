@@ -19,13 +19,13 @@ vi.mock('@/services', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/services')>()
   return {
     ...actual,
-    diversionAdapter: {
-      getBreakdown: h.getBreakdown,
-      getCanalLine: h.getCanalLine,
-    },
     mapDataService: { ...actual.mapDataService, getPorts: h.getPorts },
   }
 })
+
+vi.mock('../composables/useDiversionApi', () => ({
+  useDiversionApi: () => ({ getBreakdown: h.getBreakdown, getCanalLine: h.getCanalLine }),
+}))
 
 vi.mock('../composables/useDiversionLayer', () => ({
   DIVERSION_CANAL_LAYER_ID: 'diversion-canal',

@@ -2,13 +2,13 @@
   分流分析页（W10-11）：四面板全 4×4 —— 左上转移量 BarChart（图 + 一行口径脚注合并为一面板，
   替代原文字清单）、左下桑基图（自右下迁入）、右上 年份卡片（点击才展开滑块）、右下 图层面板
   （LayerControlPanel）。
-  数据经 diversionAdapter（schema 校验在 HTTP 边界）；年份本地状态（无跨页需求）。
+  数据经 useDiversionApi（业务专属取数，schema 校验在 HTTP 边界）；年份本地状态（无跨页需求）。
 -->
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 
 import { AppLayout, GCSPanel, LayerControlPanel } from '@/core'
-import { diversionAdapter, mapDataService, type DiversionResult } from '@/services'
+import { mapDataService } from '@/services'
 import {
   DEFAULT_LAYER_ORDER,
   PORT_PORTS,
@@ -19,8 +19,10 @@ import {
 } from '@/shared'
 import { diversionArcLayerId } from '@/shared'
 import { BarChart, ChartLoading, SankeyChart, type SankeyClickPayload } from '@/visualization'
+import type { DiversionBreakdownResponseParsed } from '@/types/schemas'
 
 import { PORT_JSON_NAMES, resolvePortEndpoints, type LngLat } from './constants/diversionMap'
+import { useDiversionApi } from './composables/useDiversionApi'
 import {
   DIVERSION_CANAL_LAYER_ID,
   useDiversionLayer,
@@ -45,7 +47,8 @@ const year = ref(2035)
 /** 年份卡片展开态：默认收起（无 range），点击卡片进入选择态才渲染滑块；点面板外回到已选态 */
 const yearCardOpen = ref(false)
 const yearPanelRef = ref<HTMLElement | null>(null)
-const result = ref<DiversionResult | null>(null)
+const { getBreakdown, getCanalLine } = useDiversionApi()
+const result = ref<DiversionBreakdownResponseParsed | null>(null)
 const loading = ref(false)
 
 /** 四面板位置由 panels.ts 派生（cell 档随全局；模板不写 offset 字面量） */
@@ -103,7 +106,7 @@ const links = computed<SankeyLink[]>(() =>
 async function load(): Promise<void> {
   loading.value = true
   try {
-    const data = await diversionAdapter.getBreakdown(year.value, pageAbort.signal)
+    const data = await getBreakdown(year.value, pageAbort.signal)
     if (unmounted) return
     result.value = data
     refreshArcs()
@@ -163,7 +166,7 @@ function handleSankeyClick(payload: SankeyClickPayload): void {
 async function loadGeometry(): Promise<void> {
   try {
     const [canal, ports] = await Promise.all([
-      diversionAdapter.getCanalLine(pageAbort.signal),
+      getCanalLine(pageAbort.signal),
       mapDataService.getPorts(pageAbort.signal),
     ])
     if (unmounted) return

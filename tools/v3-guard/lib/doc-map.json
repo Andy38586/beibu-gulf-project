@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": 1,
-    "date": "2026-10-18",
+    "date": "2026-10-19",
     "migrationOpen": false,
     "layers": ["宪法", "契约", "日志", "标准库", "待迁移"],
     "statuses": ["active", "stub", "planned", "parallel", "frozen", "external", "retired"],
@@ -263,6 +263,18 @@
       "readWhen": ["D", "外部项执行/回填"],
       "writeWhen": ["外部项状态变化（追加执行记录）"],
       "ts": "2026-10-06"
+    },
+    {
+      "id": "NECESSITY-LEDGER",
+      "path": "docs/日志/状态/必要性审判总账.md",
+      "layer": "日志",
+      "role": "必要性审判（goal-efae0e79）滚动处置账：删 / 并 / 保留三张表 + DoD 对账 + 待问清单",
+      "status": "active",
+      "guard": "tools/v3-guard/doc-map-check.mjs",
+      "owns": ["必要性审判处置与保留理由"],
+      "readWhen": ["A", "C", "接手"],
+      "writeWhen": ["每落一笔处置或销账（追加行 / 更新 DoD 对账）"],
+      "ts": "2026-10-19"
     },
     {
       "id": "LOG-DECISIONS",

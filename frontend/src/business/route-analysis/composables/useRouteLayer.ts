@@ -1,10 +1,8 @@
 import type { Feature, FeatureCollection, LineString } from 'geojson'
 
 import { useOwnedLayers } from '@/core'
-import { LAYER_KEYS } from '@/shared'
+import { LAYER_KEYS, RENDER_BLUE } from '@/shared'
 import type { LayerOptions, RoutePathResult } from '@/types'
-
-import { ROUTE_COLOR } from '../constants/colors'
 
 /** 路径线图层 id（业务命名空间前缀 route-；BLM registry / catalog / 渲染器 featureType 三处同源） */
 export const ROUTE_PATH_LAYER_ID = LAYER_KEYS.routePath
@@ -29,9 +27,9 @@ export interface RouteSlot {
   point: RoutePoint | null
 }
 
-/** 路径线样式（双引擎通用；色值走模块 constants，不硬编码） */
+/** 路径线样式（双引擎通用；色值走 shared 权威源 RENDER_BLUE，不硬编码） */
 const ROUTE_PATH_STYLE: LayerOptions = {
-  strokeColor: ROUTE_COLOR,
+  strokeColor: RENDER_BLUE,
   strokeWidth: 4,
   featureType: ROUTE_PATH_LAYER_ID,
 }
@@ -39,7 +37,7 @@ const ROUTE_PATH_STYLE: LayerOptions = {
 /** 端点标记样式 */
 const ROUTE_ENDPOINT_STYLE: LayerOptions = {
   size: 9,
-  color: ROUTE_COLOR,
+  color: RENDER_BLUE,
   featureType: ROUTE_ENDPOINT_LAYER_ID,
 }
 

@@ -21,7 +21,6 @@ land_frac（陆像元占比）；全海块跳过。块中心 custom TM → 4490 
 坑：gdal.Open 必须存变量（GC 悬空）；partial 块用 nodata 掩膜参与统计不丢边带。
 """
 import os
-import sys
 from pathlib import Path
 
 from osgeo import gdal, ogr, osr, gdalconst

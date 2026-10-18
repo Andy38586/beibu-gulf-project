@@ -22,7 +22,6 @@ Y-up→Z-up（`(x, −z, y)`）→ ECEF → WGS84 **椭球高**，按材质名�
 from __future__ import annotations
 
 import json
-import math
 import os
 import sys
 

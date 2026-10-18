@@ -7,7 +7,7 @@
   backend/algorithm-service/.venv/Scripts/python.exe -X utf8 tools/diag/probe-hub-heights.py
   # 可选：与运行时 Cesium 对账 —— --sphere <uri>（打印 glTF 盒中心/复合变换链，浏览器侧同点应同一行）
 """
-import json, os, math, sys
+import json, os, sys
 import numpy as np
 import rasterio
 from rasterio.warp import transform as wtransform

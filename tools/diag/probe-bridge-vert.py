@@ -15,7 +15,7 @@
   backend/algorithm-service/.venv/Scripts/python.exe -X utf8 tools/diag/probe-bridge-vert.py
   … tools/diag/probe-bridge-vert.py --emit-anchors tools/3dtiles-build/bridge-anchors.json
 """
-import argparse, ast, hashlib, json, math, os, sys
+import argparse, ast, hashlib, json, os, sys
 import numpy as np
 import rasterio
 from rasterio.warp import transform as rtransform

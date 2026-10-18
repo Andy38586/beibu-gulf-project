@@ -17,12 +17,9 @@ v2 口径：土地主类**直接查源栅格**（landcover_4490_30m.tif，多边
 """
 import io
 import os
-import json
 import subprocess
-import sys
 from pathlib import Path
 
-import numpy as np
 from osgeo import gdal, gdalconst, ogr, osr
 
 gdal.UseExceptions()

@@ -14,7 +14,6 @@
 #       （venv 路径未变；该目录已随 FastAPI 移除、不再受版本控制）
 # =============================================================================
 import json
-import os
 import sys
 import datetime
 from pathlib import Path

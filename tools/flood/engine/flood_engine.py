@@ -230,7 +230,6 @@ def mask_to_geojson(
     """
     import rasterio
     from shapely.geometry import shape
-    from shapely.ops import transform as shp_transform
 
     def _utm_to_4326(g):
         # shapely 坐标 → 4326（rasterio.warp.transform_geom 接收 GeoJSON-like dict）

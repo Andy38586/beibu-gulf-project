@@ -24,15 +24,11 @@ from __future__ import annotations
 import argparse
 import json
 import math
-import sys
 from pathlib import Path
 
 import numpy as np
 import rasterio
-from rasterio.crs import CRS
-from rasterio.transform import from_origin
 from rasterio.warp import transform as warp_transform
-from rasterio.windows import from_bounds
 
 REPO = Path(__file__).resolve().parents[2]
 OUT = REPO / ".local/926-rebake"

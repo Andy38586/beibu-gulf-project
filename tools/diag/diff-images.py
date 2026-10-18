@@ -3,7 +3,7 @@
 用法（需 Pillow）：python tools/diag/diff-images.py a.png b.png
 判据：阈值 >12/255 记"不同"；全 0 即"两图完全相同 ⇒ 该层对画面零贡献"。
 """
-import sys, os
+import sys
 try:  # Windows 控制台默认 GBK：n=0 时打印“⇒”会 UnicodeEncodeError 把“零差分”判成失败
     sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 except Exception:

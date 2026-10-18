@@ -24,7 +24,7 @@ describe('createSpatialIndex', () => {
       makePointItem(10, 10, { id: 2 }),
       makePointItem(20, 20, { id: 3 }),
     ])
-    expect(index.size()).toBe(3)
+    expect(index.query([-1, -1, 1001, 1001])).toHaveLength(3)
   })
 
   it('query 应能查询 BBox 范围内的要素', () => {
@@ -38,17 +38,10 @@ describe('createSpatialIndex', () => {
     expect(result[0].data).toEqual({ id: 2 })
   })
 
-  it('clear 应能清空索引', () => {
+  it('重复 load 累加要素（不覆盖已有索引）', () => {
     index.load([makePointItem(0, 0, { id: 1 })])
-    expect(index.size()).toBe(1)
-    index.clear()
-    expect(index.size()).toBe(0)
-  })
-
-  it('size 应返回索引项数量', () => {
-    expect(index.size()).toBe(0)
-    index.load([makePointItem(0, 0, { id: 1 }), makePointItem(1, 1, { id: 2 })])
-    expect(index.size()).toBe(2)
+    index.load([makePointItem(10, 10, { id: 2 })])
+    expect(index.query([-1, -1, 1001, 1001])).toHaveLength(2)
   })
 })
 
@@ -121,7 +114,7 @@ describe('万级要素的查询正确性（确定性数据集）', () => {
   it('load 万级要素后 query 视口返回精确交集（不多不少）', () => {
     const index = createSpatialIndex<POI>()
     index.load(items)
-    expect(index.size()).toBe(COUNT)
+    expect(index.query([-1, -1, 1001, 1001])).toHaveLength(COUNT)
 
     const box: [number, number, number, number] = [200, 200, 800, 800]
     const result = index.query(box)
@@ -145,5 +138,11 @@ describe('万级要素的查询正确性（确定性数据集）', () => {
 describe('VIEWPORT_CULL_THRESHOLD 常量', () => {
   it('值应为 1000', () => {
     expect(VIEWPORT_CULL_THRESHOLD).toBe(1000)
+  })
+})
+
+describe('公开面收窄（必要性审判波二·单元 J）', () => {
+  it('createSpatialIndex 只暴露 load / query（clear / size 已删，重新加回即红）', () => {
+    expect(Object.keys(createSpatialIndex()).sort()).toEqual(['load', 'query'])
   })
 })

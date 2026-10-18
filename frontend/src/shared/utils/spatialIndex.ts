@@ -14,12 +14,10 @@ export interface IndexedItem<T = unknown> extends BBox {
   data: T
 }
 
-/** 返回契约（显式化，防重构时签名静默漂移） */
+/** 返回契约：只暴露生产消费面（load / query）——clear / size 零消费，2026-10-19 删 */
 interface SpatialIndex<T = unknown> {
   load: (items: IndexedItem<T>[]) => void
   query: (extent: [number, number, number, number]) => IndexedItem<T>[]
-  clear: () => void
-  size: () => number
 }
 
 /** 空间索引封装（load 批量加载，query 传入视口 extent 即得可见要素） */
@@ -41,15 +39,5 @@ export function createSpatialIndex<T = unknown>(): SpatialIndex<T> {
     })
   }
 
-  /** 清空索引 */
-  function clear(): void {
-    tree.clear()
-  }
-
-  /** 索引项数量 */
-  function size(): number {
-    return tree.all().length
-  }
-
-  return { load, query, clear, size }
+  return { load, query }
 }

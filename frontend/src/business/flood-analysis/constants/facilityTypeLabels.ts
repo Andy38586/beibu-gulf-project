@@ -6,11 +6,19 @@
  * 命中 0/4，映射恒不生效。
  */
 
-export const FACILITY_TYPE_LABELS: Record<string, string> = {
+const FACILITY_TYPE_LABELS: Record<string, string> = {
   港口码头: '港口码头',
   堆场: '堆场',
   仓储: '仓储',
   物流: '物流',
+}
+
+/**
+ * 词表键集（跨端核对入口）：测试用它枚举「本表登记了哪些 type」。
+ * 不导出整张映射表——本表值恒等于键（运行期查表恒等），映射细节无对外意义。
+ */
+export function facilityTypeLabelKeys(): string[] {
+  return Object.keys(FACILITY_TYPE_LABELS)
 }
 
 /** 设施类型展示标签：未登记的类型原样回显（不伪装成已知类型） */

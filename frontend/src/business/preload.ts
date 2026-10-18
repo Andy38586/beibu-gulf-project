@@ -89,7 +89,7 @@ async function headBytes(
   }
 }
 
-export async function preloadTilesets(
+async function preloadTilesets(
   targets: readonly PreloadTarget[],
   signal?: AbortSignal,
   fetchImpl: typeof fetch = fetch
@@ -127,18 +127,30 @@ export async function preloadTilesets(
   return ok
 }
 
-/** 预热本页 3D Tiles 资产（幂等）。供 warmupAfterFirstFrame 调用。 */
-export async function preloadBusinessAssets(signal?: AbortSignal): Promise<number> {
+/** 默认预热清单：从权威源 BEIBU_TILES 派生（与注册点同一函数） */
+function businessPreloadTargets(): PreloadTarget[] {
+  return BEIBU_TILES.map((s) => ({
+    url: s.url,
+    // 与注册点同一函数（RouteAnalysisPage 也调它）——预热与渲染的清单永远一致
+    prepare: (raw: TilesetJson) => prepareBeibuTileset(raw, s),
+  }))
+}
+
+/**
+ * 预热本页 3D Tiles 资产（幂等）。供 warmupAfterFirstFrame 调用。
+ *
+ * targets/fetchImpl 是注入缝：唯一生产消费者（App.vue）不传，走默认清单与全局 fetch；
+ * 测试用它注入合成清单与夹具 fetch——preloadTilesets 已收为模块内部（N18），
+ * 这是保留「串行 / 单项超限 / 可中断 / 派生感知」四组用例可断言性的唯一入口。
+ */
+export async function preloadBusinessAssets(
+  signal?: AbortSignal,
+  targets: readonly PreloadTarget[] = businessPreloadTargets(),
+  fetchImpl: typeof fetch = fetch
+): Promise<number> {
   if (done) return 0
   done = true
-  return preloadTilesets(
-    BEIBU_TILES.map((s) => ({
-      url: s.url,
-      // 与注册点同一函数（RouteAnalysisPage 也调它）——预热与渲染的清单永远一致
-      prepare: (raw: TilesetJson) => prepareBeibuTileset(raw, s),
-    })),
-    signal
-  )
+  return preloadTilesets(targets, signal, fetchImpl)
 }
 
 /** 仅供测试重置幂等标志 */

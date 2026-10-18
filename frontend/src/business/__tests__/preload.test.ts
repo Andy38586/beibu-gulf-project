@@ -15,7 +15,7 @@ import {
   type BeibuTilesSpec,
 } from '@/business/route-analysis/constants/beibu3dTiles'
 
-import { __resetPreloadForTest, preloadTilesets } from '../preload'
+import { __resetPreloadForTest, preloadBusinessAssets } from '../preload'
 
 afterEach(() => __resetPreloadForTest())
 
@@ -65,14 +65,14 @@ const JSON_OK = {
   root: { content: { uri: 'a.glb' }, children: [{ content: { uri: '/static/t/b.glb' } }] },
 }
 
-describe('preloadTilesets', () => {
+describe('preloadBusinessAssets', () => {
   it('取 tileset.json 后再取其内容 GLB（绝对/站点根相对都拼对）', async () => {
     const { impl, calls } = makeFetch({
       [TILESET]: { ok: true, json: JSON_OK },
       'http://x.test/static/t/a.glb': { ok: true },
       '/static/t/b.glb': { ok: true },
     })
-    const n = await preloadTilesets([{ url: TILESET }], undefined, impl)
+    const n = await preloadBusinessAssets(undefined, [{ url: TILESET }], impl)
     expect(calls).toEqual([
       'GET ' + TILESET,
       'HEAD http://x.test/static/t/a.glb',
@@ -89,7 +89,7 @@ describe('preloadTilesets', () => {
       'http://x.test/static/t/a.glb': { ok: true, size: 50 * 1024 * 1024 },
       '/static/t/b.glb': { ok: true },
     })
-    const n = await preloadTilesets([{ url: TILESET }], undefined, impl)
+    const n = await preloadBusinessAssets(undefined, [{ url: TILESET }], impl)
     expect(calls).not.toContain('GET http://x.test/static/t/a.glb')
     expect(calls).toContain('GET /static/t/b.glb')
     expect(n).toBe(2)
@@ -101,7 +101,7 @@ describe('preloadTilesets', () => {
       'http://x.test/static/t/a.glb': { ok: true, noHeaders: true },
       '/static/t/b.glb': { ok: true },
     })
-    const n = await preloadTilesets([{ url: TILESET }], undefined, impl)
+    const n = await preloadBusinessAssets(undefined, [{ url: TILESET }], impl)
     expect(calls).toContain('GET http://x.test/static/t/a.glb')
     expect(n).toBe(3)
   })
@@ -112,18 +112,18 @@ describe('preloadTilesets', () => {
       'http://x.test/static/t/a.glb': { ok: true },
       '/static/t/b.glb': { ok: true },
     })
-    await preloadTilesets([{ url: TILESET }], undefined, impl)
+    await preloadBusinessAssets(undefined, [{ url: TILESET }], impl)
     expect(maxInflight()).toBe(1)
   })
 
   it('失败静默：tileset.json 404 → 不抛错、计 0', async () => {
     const { impl } = makeFetch({ [TILESET]: { ok: false } })
-    await expect(preloadTilesets([{ url: TILESET }], undefined, impl)).resolves.toBe(0)
+    await expect(preloadBusinessAssets(undefined, [{ url: TILESET }], impl)).resolves.toBe(0)
   })
 
   it('失败静默：内容 GLB 失败不影响 tileset 本身计数', async () => {
     const { impl } = makeFetch({ [TILESET]: { ok: true, json: JSON_OK } })
-    const n = await preloadTilesets([{ url: TILESET }], undefined, impl)
+    const n = await preloadBusinessAssets(undefined, [{ url: TILESET }], impl)
     expect(n).toBe(1)
   })
 
@@ -131,14 +131,14 @@ describe('preloadTilesets', () => {
     const boom = (async () => {
       throw new Error('network')
     }) as unknown as typeof fetch
-    await expect(preloadTilesets([{ url: TILESET }], undefined, boom)).resolves.toBe(0)
+    await expect(preloadBusinessAssets(undefined, [{ url: TILESET }], boom)).resolves.toBe(0)
   })
 
   it('**可中断**：已 abort 时一个请求都不发', async () => {
     const { impl, calls } = makeFetch({ [TILESET]: { ok: true, json: JSON_OK } })
     const ac = new AbortController()
     ac.abort()
-    const n = await preloadTilesets([{ url: TILESET }], ac.signal, impl)
+    const n = await preloadBusinessAssets(ac.signal, [{ url: TILESET }], impl)
     expect(calls).toEqual([])
     expect(n).toBe(0)
   })
@@ -203,9 +203,9 @@ describe('preloadTilesets', () => {
       ['*' + U('t2_near.glb')]: { ok: true },
       ['*' + U('t4_far.glb')]: { ok: true },
     })
-    const n = await preloadTilesets(
-      [{ url: TILESET, prepare: (raw) => prepareBeibuTileset(raw, PORT) }],
+    const n = await preloadBusinessAssets(
       undefined,
+      [{ url: TILESET, prepare: (raw) => prepareBeibuTileset(raw, PORT) }],
       impl
     )
     // 只看文件名（origin 由 resolveUri 决定：有 location 时绝对化到当前 origin，测试环境也一样）
@@ -225,8 +225,21 @@ describe('preloadTilesets', () => {
       'http://x.test/static/t/a.glb': { ok: true },
       '/static/t/b.glb': { ok: true },
     })
-    const n = await preloadTilesets([{ url: TILESET, prepare: () => null }], undefined, impl)
+    const n = await preloadBusinessAssets(undefined, [{ url: TILESET, prepare: () => null }], impl)
     expect(calls).toEqual(['GET ' + TILESET])
     expect(n).toBe(0)
+  })
+})
+
+// N18 去 export：preloadTilesets 已收为模块内部（唯一消费者 = preloadBusinessAssets）；
+// 本组是「公开面收窄」本身的判据。
+describe('公开面收窄 — preloadTilesets 不得再导出', () => {
+  const INTERNAL = ['preloadTilesets']
+
+  it('内部符号不在模块公开面；公开符号仍在（阳性对照）', async () => {
+    const mod = (await import('../preload')) as unknown as Record<string, unknown>
+    for (const k of INTERNAL) expect(mod[k], k + ' 应已收为模块内部').toBeUndefined()
+    expect(typeof mod.preloadBusinessAssets).toBe('function')
+    expect(typeof mod.__resetPreloadForTest).toBe('function')
   })
 })

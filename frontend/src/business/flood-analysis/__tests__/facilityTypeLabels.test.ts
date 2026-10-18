@@ -3,7 +3,7 @@ import { join } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
 
-import { FACILITY_TYPE_LABELS, getFacilityTypeLabel } from '../constants/facilityTypeLabels'
+import { facilityTypeLabelKeys, getFacilityTypeLabel } from '../constants/facilityTypeLabels'
 
 /**
  * 修复守卫：设施类型词表必须覆盖后端数据侧全部 type。
@@ -18,12 +18,12 @@ describe('facilityTypeLabels：词表与后端数据侧 type 对齐', () => {
 
   it('数据侧每个 type 都在词表里（命中 4/4）', () => {
     expect(dataTypes.length).toBeGreaterThan(0)
-    const missing = dataTypes.filter((t) => !(t in FACILITY_TYPE_LABELS))
+    const missing = dataTypes.filter((t) => !facilityTypeLabelKeys().includes(t))
     expect(missing).toEqual([])
   })
 
   it('词表没有数据侧不存在的僵尸键', () => {
-    const extra = Object.keys(FACILITY_TYPE_LABELS).filter((k) => !dataTypes.includes(k))
+    const extra = facilityTypeLabelKeys().filter((k) => !dataTypes.includes(k))
     expect(extra).toEqual([])
   })
 
@@ -32,5 +32,21 @@ describe('facilityTypeLabels：词表与后端数据侧 type 对齐', () => {
     expect(getFacilityTypeLabel('某新类型')).toBe('某新类型')
     expect(getFacilityTypeLabel(undefined)).toBe('')
     expect(getFacilityTypeLabel('')).toBe('')
+  })
+})
+
+// N18 去 export：FACILITY_TYPE_LABELS 已收为模块内部（唯一消费者 = getFacilityTypeLabel）；
+// 本组是「公开面收窄」本身的判据。
+describe('公开面收窄 — FACILITY_TYPE_LABELS 不得再导出', () => {
+  const INTERNAL = ['FACILITY_TYPE_LABELS']
+
+  it('内部符号不在模块公开面；公开符号仍在（阳性对照）', async () => {
+    const mod = (await import('../constants/facilityTypeLabels')) as unknown as Record<
+      string,
+      unknown
+    >
+    for (const k of INTERNAL) expect(mod[k], k + ' 应已收为模块内部').toBeUndefined()
+    expect(typeof mod.getFacilityTypeLabel).toBe('function')
+    expect(typeof mod.summarizeFacilityTypes).toBe('function')
   })
 })

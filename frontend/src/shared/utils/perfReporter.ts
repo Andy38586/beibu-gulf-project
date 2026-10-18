@@ -94,7 +94,7 @@ const IS_DEV = import.meta.env.DEV
  * 口径变更（2026-09-10）：原实现 `flag !== 'false'` 是**默认开**，使生产构建常挂
  * 4 个 PerformanceObserver + 一个永续 rAF 采样循环，与「dev-only」注释矛盾。
  */
-export function resolvePerfEnabled(dev: boolean, flag?: string): boolean {
+function resolvePerfEnabled(dev: boolean, flag?: string): boolean {
   return dev || flag === 'true'
 }
 

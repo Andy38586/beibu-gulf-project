@@ -13,7 +13,7 @@ vi.mock('cesium', async () => {
   })
 })
 
-import { countCoordinatePairs, setupCameraDebounce } from '../../perf/cameraPerf'
+import { isHeavyGeoJson, isHeavyPolygons, setupCameraDebounce } from '../../perf/cameraPerf'
 import { CesiumRenderer } from '../CesiumRenderer'
 
 /** 记录监听器的 Cesium 事件替身 */
@@ -70,38 +70,29 @@ function heavyPolygon() {
 }
 
 describe('CesiumRenderer 交互期降载（z038②）', () => {
-  it('countCoordinatePairs：GeoJSON 嵌套形态计数（Polygon/MultiPolygon/非法输入）', () => {
-    expect(countCoordinatePairs(undefined)).toBe(0)
-    expect(countCoordinatePairs([])).toBe(0)
-    // Polygon: 外环 3 点
-    expect(
-      countCoordinatePairs([
-        [
-          [0, 0],
-          [1, 0],
-          [1, 1],
-        ],
-      ])
-    ).toBe(3)
-    // MultiPolygon: 两部件各 3 点
-    expect(
-      countCoordinatePairs([
-        [
-          [
-            [0, 0],
-            [1, 0],
-            [1, 1],
-          ],
-        ],
-        [
-          [
-            [2, 2],
-            [3, 2],
-            [3, 3],
-          ],
-        ],
-      ])
-    ).toBe(6)
+  // countCoordinatePairs 已收为模块内部（不再直调）；嵌套形态计数经公开的阈值判定表达。
+  it('顶点计数：GeoJSON 嵌套形态经 isHeavyGeoJson 阈值判定（Polygon/MultiPolygon/非法输入）', () => {
+    const ring = (n: number, off = 0): Array<[number, number]> =>
+      Array.from({ length: n }, (_, i) => [108.5 + off + i * 1e-5, 21.5])
+    const polygon = (n: number) => ({
+      features: [{ geometry: { type: 'Polygon', coordinates: [ring(n)] } }],
+    })
+    // 非法输入计 0：几何缺失 / 空 coordinates
+    expect(isHeavyGeoJson({ features: [{ geometry: undefined }] } as never)).toBe(false)
+    expect(isHeavyGeoJson(polygon(0))).toBe(false)
+    // Polygon：2999 未达线、3000 与 3001 达线（嵌套层级确实被展开计数）
+    expect(isHeavyGeoJson(polygon(2999))).toBe(false)
+    expect(isHeavyGeoJson(polygon(3000))).toBe(true)
+    expect(isHeavyGeoJson(polygon(3001))).toBe(true)
+    // MultiPolygon：两部件顶点数相加后判线（1500+1499 未达 / 1500+1501 达）
+    const multi = (a: number, b: number) => ({
+      features: [{ geometry: { type: 'MultiPolygon', coordinates: [[ring(a)], [ring(b, 1)]] } }],
+    })
+    expect(isHeavyGeoJson(multi(1500, 1499))).toBe(false)
+    expect(isHeavyGeoJson(multi(1500, 1501))).toBe(true)
+    // PolygonFeature[] 入口：coordinates 优先、geometry.coordinates 兜底两条路径都达线
+    expect(isHeavyPolygons([{ coordinates: [ring(3001)] }])).toBe(true)
+    expect(isHeavyPolygons([{ geometry: { coordinates: [ring(3001)] } }])).toBe(true)
   })
 
   it('moveStart 隐藏重图层、moveEnd 按 visible 恢复；轻图层不动', () => {
@@ -178,5 +169,13 @@ describe('CesiumRenderer 交互期降载（z038②）', () => {
     const mod = (await import('../CesiumRenderer')) as unknown as Record<string, unknown>
     expect(mod.destroyEvents, 'destroyEvents 应已收为模块内部').toBeUndefined()
     expect(typeof CesiumRenderer.prototype.destroy).toBe('function')
+  })
+
+  // D3 去 export：countCoordinatePairs 已收为模块内部（公开面 = isHeavyGeoJson / isHeavyPolygons）。
+  it('countCoordinatePairs 不在 cameraPerf 公开面；阈值谓词仍在（阳性对照）', async () => {
+    const mod = (await import('../../perf/cameraPerf')) as unknown as Record<string, unknown>
+    expect(mod.countCoordinatePairs, 'countCoordinatePairs 应已收为模块内部').toBeUndefined()
+    expect(typeof mod.isHeavyGeoJson).toBe('function')
+    expect(typeof mod.isHeavyPolygons).toBe('function')
   })
 })

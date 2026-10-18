@@ -26,7 +26,7 @@ import { getCurrentScope, onScopeDispose } from 'vue'
 import { showModal } from '../utils/gcsFeedback'
 
 /** 默认阈值（毫秒）。3s：短于它的等待不算「卡」，长于它的等待用户已经在干等 */
-export const SLOW_REQUEST_THRESHOLD_MS = 3000
+const SLOW_REQUEST_THRESHOLD_MS = 3000
 
 const DEFAULT_MESSAGE = '这次分析较慢，转到后台继续？'
 const DEFAULT_CONFIRM_TEXT = '转到后台'

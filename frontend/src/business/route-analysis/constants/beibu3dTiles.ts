@@ -182,13 +182,13 @@ export function beibuTilesLayerId(id: BeibuTilesId): string {
  * **失效条件**：交付包更换或 root.transform 变化时中心须按同一算法重算；
  * 判据是「裁剪后保留的瓦片里必须出现 cargo 或 metal 材质」。
  */
-export const QINZHOU_OPERATION_AREA: CropSphere = {
+const QINZHOU_OPERATION_AREA: CropSphere = {
   center: [1014.26, 2159.18, -0.45],
   radius: 1500,
 }
 
 /** 钦州港交付包里「自带粗层地表」的最大深度（含） */
-export const QINZHOU_COARSE_MAX_DEPTH = 3
+const QINZHOU_COARSE_MAX_DEPTH = 3
 
 /**
  * 交付包**根节点**（depth 0）的粗层**保留内容**——它是远景唯一可见的"主体壳"。
@@ -227,7 +227,7 @@ const QINZHOU_MAX_SSE = 32
  *
  * 默认机位 585,937 m 为页面首屏实测（`zoom 9 → 300e6/2^9`，2026-10-04 探针），取整 586 km。
  */
-export const QINZHOU_SHELL_GUARD_DISTANCE = 2 * 586_000
+const QINZHOU_SHELL_GUARD_DISTANCE = 2 * 586_000
 
 /** 推导用最小画布高（px）：探针最窄档 900 px 宽实测 605 px 高，取整留余 */
 const QINZHOU_MIN_CANVAS_HEIGHT_PX = 600
@@ -266,7 +266,7 @@ const SSE_DENOMINATOR_MAX_60DEG = 2 * Math.tan(Math.PI / 6)
  * ~1.5 Mm（最坏纵横比）~2.2 Mm（常用 1.49 纵横比）后整层仍会被 Cesium 剔除——
  * 这是「整层太小不值得画」的固有行为，要到那个量级须再抬下限。
  */
-export const QINZHOU_TOP_GE_FLOOR =
+const QINZHOU_TOP_GE_FLOOR =
   (QINZHOU_MAX_SSE *
     QINZHOU_GATE_MARGIN *
     QINZHOU_SHELL_GUARD_DISTANCE *

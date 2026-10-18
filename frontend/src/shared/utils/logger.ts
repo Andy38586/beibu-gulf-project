@@ -28,7 +28,7 @@ function emit(level: LogLevel, args: unknown[]): void {
  * 采样判定（纯函数，F8 可测单源）：dev 全量；**warn 不采样**（失败日志必须落地）；
  * info 按 PROD_SAMPLE_RATE 低噪。import.meta.env 不在本函数内读，便于用 isDev 参数钉口径。
  */
-export function shouldEmitSampled(
+function shouldEmitSampled(
   level: 'info' | 'warn',
   isDev: boolean,
   random: number,

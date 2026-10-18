@@ -8,7 +8,7 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 
 import ts from 'typescript'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
   _perfStateForTest,
@@ -20,7 +20,6 @@ import {
   perfRecordApi,
   perfReportError,
   perfTimeFn,
-  resolvePerfEnabled,
 } from '../perfReporter'
 
 interface ApiBucket {
@@ -108,26 +107,42 @@ describe('PerfReporter 聚合（生产可用版）', () => {
 })
 
 describe('PerfReporter 开关口径（生产默认关）', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs()
+    vi.resetModules()
+  })
+
   // 回归守卫：2026-09-10 前口径是 `flag !== 'false'`（默认开），生产因此常挂
   // 4 个 PerformanceObserver + 永续 rAF 采样循环。此处锁定「生产默认关」。
-  it('dev 恒开，与 flag 取值无关', () => {
-    expect(resolvePerfEnabled(true, undefined)).toBe(true)
-    expect(resolvePerfEnabled(true, 'false')).toBe(true)
+  // resolvePerfEnabled 已收为模块内部（不再直调）；经公开的 isPerfEnabled() 重载模块表达。
+  it('dev 恒开，与 flag 取值无关', async () => {
+    expect(await reloadedIsPerfEnabled(true, undefined)).toBe(true)
+    expect(await reloadedIsPerfEnabled(true, 'false')).toBe(true)
   })
 
-  it('生产（dev=false）默认关闭：未注入 flag 时不开', () => {
-    expect(resolvePerfEnabled(false, undefined)).toBe(false)
+  it('生产（dev=false）默认关闭：未注入 flag 时不开', async () => {
+    expect(await reloadedIsPerfEnabled(false, undefined)).toBe(false)
   })
 
-  it('生产仅当显式 VITE_PERF_ENABLED=true 才开', () => {
-    expect(resolvePerfEnabled(false, 'true')).toBe(true)
-    expect(resolvePerfEnabled(false, 'false')).toBe(false)
+  it('生产仅当显式 VITE_PERF_ENABLED=true 才开', async () => {
+    expect(await reloadedIsPerfEnabled(false, 'true')).toBe(true)
+    expect(await reloadedIsPerfEnabled(false, 'false')).toBe(false)
   })
 
   it('测试环境走 dev 语义，isPerfEnabled 为 true（保证聚合用例有效）', () => {
     expect(isPerfEnabled()).toBe(true)
   })
 })
+
+/** 重载模块后读公开的 isPerfEnabled()：dev/flag 两个环境变量造态（VITE_PERF_ENABLED 未注入时置空） */
+async function reloadedIsPerfEnabled(dev: boolean, flag?: string): Promise<boolean> {
+  vi.stubEnv('DEV', dev)
+  if (flag === undefined) vi.stubEnv('VITE_PERF_ENABLED', '')
+  else vi.stubEnv('VITE_PERF_ENABLED', flag)
+  vi.resetModules()
+  const mod = await import('../perfReporter')
+  return mod.isPerfEnabled()
+}
 
 /**
  * 扫出「对 state.entries 做环形缓冲式修改的代码落在哪些函数里」（AST 层，不认字符串/注释）。
@@ -249,5 +264,15 @@ describe('dev 明细环形上限与 FPS 空态（F-6：长会话防内存增长�
     expect(second).toEqual(first)
     expect(second).not.toBe(first)
     expect(_perfStateForTest().entries).toHaveLength(0)
+  })
+})
+// D3 去 export：resolvePerfEnabled 已收为模块内部；本组是「公开面收窄」本身的判据。
+describe('公开面收窄 — resolvePerfEnabled 不得再导出', () => {
+  const INTERNAL = ['resolvePerfEnabled']
+
+  it('内部符号不在模块公开面；公开符号仍在（阳性对照）', async () => {
+    const mod = (await import('../perfReporter')) as unknown as Record<string, unknown>
+    for (const k of INTERNAL) expect(mod[k], k + ' 应已收为模块内部').toBeUndefined()
+    expect(typeof mod.isPerfEnabled).toBe('function')
   })
 })

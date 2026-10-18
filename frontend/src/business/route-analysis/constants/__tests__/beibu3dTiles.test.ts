@@ -22,10 +22,6 @@ import { LOD_REFINE_GE_PER_SSE } from '../lodRefinePolicy'
 import { PINGLU_GROUPS, PINGLU_HUB_MAX_SSE, preparePingluHubTileset } from '../pingluTiles'
 import {
   BEIBU_TILES,
-  QINZHOU_COARSE_MAX_DEPTH,
-  QINZHOU_OPERATION_AREA,
-  QINZHOU_SHELL_GUARD_DISTANCE,
-  QINZHOU_TOP_GE_FLOOR,
   prepareBeibuTileset,
   shouldDropPortContent,
   type BeibuTilesSpec,
@@ -35,9 +31,16 @@ const QINZHOU = BEIBU_TILES.find((s) => s.id === 'qinzhou-port') as BeibuTilesSp
 /** 未声明 derive 的条目（走整包路径）——取城区五桥，它确实是整包挂载 */
 const WHOLE = BEIBU_TILES.find((s) => s.id === 'qz-city-bridges') as BeibuTilesSpec
 
+/**
+ * 裁剪球与顶层 GE 下限**经清单条目取**（两个常量已收为模块内部，公开面 = BEIBU_TILES 条目）。
+ * 取 .derive 本身也是接线断言：条目漏声明 derive 时 AREA 为 undefined，下面用例必红。
+ */
+const AREA = QINZHOU.derive!.keepSphere!
+const TOP_GE_FLOOR = QINZHOU.derive!.topGeometricErrorFloor!
+
 /** 造一棵「作业区内 d4 精细瓦片 + 球外 5km 的 d4 瓦片 + 覆盖全场的 d0 粗层」的树 */
 function makeTileset(): TilesetJson {
-  const c = QINZHOU_OPERATION_AREA.center
+  const c = AREA.center
   const leaf = (tile: string, depth: number, dx: number): TilesetNode => ({
     content: { uri: tile + '.glb' },
     extras: { tile, depth },
@@ -136,15 +139,15 @@ describe('BEIBU_TILES 清单', () => {
   })
 })
 
-describe('QINZHOU_OPERATION_AREA — 裁剪球', () => {
+describe('裁剪球 — 清单条目 keepSphere（球外剔除的边界）', () => {
   it('半径为正、中心为三元组', () => {
-    expect(QINZHOU_OPERATION_AREA.radius).toBeGreaterThan(0)
-    expect(QINZHOU_OPERATION_AREA.center).toHaveLength(3)
-    for (const v of QINZHOU_OPERATION_AREA.center) expect(Number.isFinite(v)).toBe(true)
+    expect(AREA.radius).toBeGreaterThan(0)
+    expect(AREA.center).toHaveLength(3)
+    for (const v of AREA.center) expect(Number.isFinite(v)).toBe(true)
   })
 
   it('中心落在交付包包围盒内（局部 ENU，半轴 8078×9022）', () => {
-    const [e, n] = QINZHOU_OPERATION_AREA.center
+    const [e, n] = AREA.center
     expect(Math.abs(e)).toBeLessThan(8078)
     expect(Math.abs(n)).toBeLessThan(9022)
   })
@@ -154,7 +157,7 @@ describe('QINZHOU_OPERATION_AREA — 裁剪球', () => {
 // 「整层在屏幕上太小」，SSE ≤ maxSSE 即直接 return（visited=0，root 内容也不选）。
 // 586 km 默认机位实测：旧顶层值 18045.7 在 900 px 窗（H=605）闸门 SSE 24.0 ≤ 32 ⇒ 整层空白；
 // 下限把同一机位抬到 >32，且只动闸门距离、不动 root GE（LOD 切换距离不变）。
-describe('QINZHOU_TOP_GE_FLOOR — 港区整层早退闸门的下限', () => {
+describe('港区整层早退闸门的下限 — 清单条目 topGeometricErrorFloor', () => {
   // Cesium 口径：gateSSE = geTop·H/(d·sseDenominator)（root 无 parent ⇒ geTop = 顶层值）
   const gateSse = (geTop: number, hPx: number, d: number, denom: number) =>
     (geTop * hPx) / (d * denom)
@@ -168,24 +171,23 @@ describe('QINZHOU_TOP_GE_FLOOR — 港区整层早退闸门的下限', () => {
 
   it('旧值在 900 px 默认机位必触发早退（重现 4/6 红），下限值不触发', () => {
     expect(gateSse(GE_TOP_LEGACY, H_900, D_DEFAULT, DENOM_DEFAULT)).toBeLessThanOrEqual(32)
-    expect(gateSse(QINZHOU_TOP_GE_FLOOR, H_900, D_DEFAULT, DENOM_DEFAULT)).toBeGreaterThan(32)
+    expect(gateSse(TOP_GE_FLOOR, H_900, D_DEFAULT, DENOM_DEFAULT)).toBeGreaterThan(32)
   })
 
   it('守卫：2× 默认机位、H=600、最坏纵横比（≤1，60° 当竖直）仍不触发早退', () => {
     const denomWorst = 2 * Math.tan(Math.PI / 6)
-    expect(
-      gateSse(QINZHOU_TOP_GE_FLOOR, 600, QINZHOU_SHELL_GUARD_DISTANCE, denomWorst)
-    ).toBeGreaterThan(32)
+    // 守卫场景 = 2 × 默认机位（D_DEFAULT 是测试自己实测的首屏距离，不是生产常量的副本）
+    expect(gateSse(TOP_GE_FLOOR, 600, 2 * D_DEFAULT, denomWorst)).toBeGreaterThan(32)
   })
 
-  it('清单接线：港区条目声明了下限，maxSSE 仍是推导里的那个 32', () => {
-    expect(QINZHOU.derive?.topGeometricErrorFloor).toBe(QINZHOU_TOP_GE_FLOOR)
+  it('清单接线：港区条目声明了下限且 maxSSE 仍是推导里的那个 32', () => {
+    expect(QINZHOU.derive?.topGeometricErrorFloor).toBeGreaterThan(0)
     expect(QINZHOU.maximumScreenSpaceError).toBe(32)
   })
 
   it('端到端派生：顶层值被抬到下限；root（细化开关）GE 被设为统一口径 K × maxSSE', () => {
     const out = prepareBeibuTileset(makeTileset(), QINZHOU)
-    expect(out!.geometricError).toBe(QINZHOU_TOP_GE_FLOOR)
+    expect(out!.geometricError).toBe(TOP_GE_FLOOR)
     // root 带内容 + 折叠后仍有子节点 ⇒ 是"细化开关"，GE 由 refineGeometricError 设定。
     // 旧值（capRootGeometricError 的数据上确界，夹具里是 400）已不再是权威——它会让
     // 港区的切换距离比三枢纽远 2.14×（见 LOD_REFINE_GE_PER_SSE 的实测注）。
@@ -196,7 +198,7 @@ describe('QINZHOU_TOP_GE_FLOOR — 港区整层早退闸门的下限', () => {
 describe('shouldDropPortContent — 远景壳例外（root 不摘）', () => {
   it('depth 0 保留内容（远景壳）；depth 1~3 摘；d4/d5 保留', () => {
     expect(shouldDropPortContent({ extras: { depth: 0 } })).toBe(false)
-    for (let d = 1; d <= QINZHOU_COARSE_MAX_DEPTH; d++) {
+    for (const d of [1, 2, 3]) {
       expect(shouldDropPortContent({ extras: { depth: d } })).toBe(true)
     }
     expect(shouldDropPortContent({ extras: { depth: 4 } })).toBe(false)
@@ -303,5 +305,20 @@ describe('LOD 统一切换口径 — 四资产同一相机距离切换粗精', (
     expect(portRatio).toBe(K)
     // 与枢纽侧同式：K 相同 ⇒ d_switch = K·H / sseDenominator 与资产无关
     expect(portRatio).toBe((K * PINGLU_HUB_MAX_SSE) / PINGLU_HUB_MAX_SSE)
+  })
+})
+// D3 去 export：QINZHOU_OPERATION_AREA / QINZHOU_COARSE_MAX_DEPTH / QINZHOU_SHELL_GUARD_DISTANCE / QINZHOU_TOP_GE_FLOOR 已收为模块内部；本组是「公开面收窄」本身的判据。
+describe('公开面收窄 — 四个内部常量不得再导出', () => {
+  const INTERNAL = [
+    'QINZHOU_OPERATION_AREA',
+    'QINZHOU_COARSE_MAX_DEPTH',
+    'QINZHOU_SHELL_GUARD_DISTANCE',
+    'QINZHOU_TOP_GE_FLOOR',
+  ]
+
+  it('内部符号不在模块公开面；公开符号仍在（阳性对照）', async () => {
+    const mod = (await import('../beibu3dTiles')) as unknown as Record<string, unknown>
+    for (const k of INTERNAL) expect(mod[k], k + ' 应已收为模块内部').toBeUndefined()
+    expect(typeof mod.prepareBeibuTileset).toBe('function')
   })
 })

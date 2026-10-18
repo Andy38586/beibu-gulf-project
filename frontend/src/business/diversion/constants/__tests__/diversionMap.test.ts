@@ -2,14 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import type { Port } from '@/types'
 
-import {
-  ARC_SEGMENTS,
-  ARC_WIDTH_MAX,
-  ARC_WIDTH_MIN,
-  arcWidthFor,
-  buildPortArc,
-  resolvePortEndpoints,
-} from '../diversionMap'
+import { arcWidthFor, buildPortArc, resolvePortEndpoints } from '../diversionMap'
 
 // 分流弧线几何/宽度判据（Cesium ③）：端点保持、确定性、南向鼓出、宽度相对编码。
 
@@ -27,9 +20,9 @@ describe('buildPortArc', () => {
     expect(buildPortArc(START, END)).toEqual(buildPortArc(START, END))
   })
 
-  it('采样点数 = ARC_SEGMENTS + 1，且弧顶在弦中点以南（南向离岸鼓出）', () => {
+  it('默认 64 段（65 点，字面锚定），且弧顶在弦中点以南（南向离岸鼓出）', () => {
     const pts = buildPortArc(START, END)
-    expect(pts).toHaveLength(ARC_SEGMENTS + 1)
+    expect(pts).toHaveLength(65)
     const mid = pts[Math.floor(pts.length / 2)]
     const chordMidLat = (START.lat + END.lat) / 2
     expect(mid[1]).toBeLessThan(chordMidLat)
@@ -38,19 +31,19 @@ describe('buildPortArc', () => {
 
 describe('arcWidthFor（弧宽 ∝ 万吨，同批相对编码）', () => {
   it('0 → 最小宽；基准值 → 最大宽；超基准 clamp 不越界', () => {
-    expect(arcWidthFor(0, 1000)).toBe(ARC_WIDTH_MIN)
-    expect(arcWidthFor(1000, 1000)).toBe(ARC_WIDTH_MAX)
-    expect(arcWidthFor(9999, 1000)).toBe(ARC_WIDTH_MAX)
+    expect(arcWidthFor(0, 1000)).toBe(2)
+    expect(arcWidthFor(1000, 1000)).toBe(14)
+    expect(arcWidthFor(9999, 1000)).toBe(14)
   })
 
   it('比例中点落在宽度区间内（线性映射未退化成常数——删比例项即红）', () => {
     const w = arcWidthFor(500, 1000)
-    expect(w).toBeGreaterThan(ARC_WIDTH_MIN)
-    expect(w).toBeLessThan(ARC_WIDTH_MAX)
+    expect(w).toBeGreaterThan(2)
+    expect(w).toBeLessThan(14)
   })
 
   it('基准非正（无数据/全零）退最小宽，不产生 NaN/Infinity', () => {
-    expect(arcWidthFor(500, 0)).toBe(ARC_WIDTH_MIN)
+    expect(arcWidthFor(500, 0)).toBe(2)
     expect(Number.isFinite(arcWidthFor(500, -3))).toBe(true)
   })
 })
@@ -75,5 +68,15 @@ describe('resolvePortEndpoints（ports.json 名称匹配，缺条目跳过不抛
       PORT('防城港', 108.340973, 21.617689),
     ])
     expect(Object.keys(r)).toEqual(['qinzhou', 'fangchenggang'])
+  })
+})
+// D3 去 export：ARC_SEGMENTS / ARC_WIDTH_MIN / ARC_WIDTH_MAX 已收为模块内部；本组是「公开面收窄」本身的判据。
+describe('公开面收窄 — 三个内部常量不得再导出', () => {
+  const INTERNAL = ['ARC_SEGMENTS', 'ARC_WIDTH_MIN', 'ARC_WIDTH_MAX']
+
+  it('内部符号不在模块公开面；公开符号仍在（阳性对照）', async () => {
+    const mod = (await import('../diversionMap')) as unknown as Record<string, unknown>
+    for (const k of INTERNAL) expect(mod[k], k + ' 应已收为模块内部').toBeUndefined()
+    expect(typeof mod.buildPortArc).toBe('function')
   })
 })

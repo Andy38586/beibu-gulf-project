@@ -27,7 +27,7 @@ import { useForecastRequest } from './useForecastRequest'
 import { useForecastTimeseries } from './useForecastTimeseries'
 
 /** 注入 key（页面 provide、面板 inject；business 内部契约，不上提 core/shared） */
-export const FORECAST_ORCHESTRATOR_KEY = 'forecast-orchestrator'
+const FORECAST_ORCHESTRATOR_KEY = 'forecast-orchestrator'
 
 interface ForecastOrchestrator {
   /** 三路事务：预测趋势 + 港口对比 + 图层数据（共享同一事务 ID，旧事务自动取消） */

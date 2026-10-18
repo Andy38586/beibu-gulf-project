@@ -12,22 +12,31 @@
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { effectScope, nextTick } from 'vue'
+import { defineComponent, effectScope, h, nextTick } from 'vue'
+import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 
 import { useSliderFocus } from '@/core'
 import { useForecastStore } from '@/stores'
 
-import { FORECAST_ORCHESTRATOR_KEY } from '../../composables/useForecastOrchestrator'
+import { provideForecastOrchestrator } from '../../composables/useForecastOrchestrator'
 import ForecastControlPanel from '../ForecastControlPanel.vue'
 
-/** v4-S3：面板从页面 inject 编排器（缺提供即抛错，设计如此）——测件按真实拓扑注入桩 */
+/** v4-S3：面板从页面 inject 编排器（缺提供即抛错，设计如此）——测件按真实拓扑注入桩。
+ *  编排器 key 已收为模块内部（去 export），故经 provideForecastOrchestrator 真建实例后替换其
+ *  doForecastUpdate 为桩：与 ForecastPage.vue 的 provide 路径同形，且注入靠组件树而非 key 字面量。 */
 const doForecastUpdate = vi.fn(() => Promise.resolve())
+let router: Router
 function mountPanel(attach = false) {
-  return mount(ForecastControlPanel, {
-    attachTo: attach ? document.body : undefined,
-    global: {
-      provide: { [FORECAST_ORCHESTRATOR_KEY]: { doForecastUpdate, cancelAll: vi.fn() } },
+  const Parent = defineComponent({
+    setup() {
+      const orchestrator = provideForecastOrchestrator({ updateForecastLayer: async () => {} })
+      orchestrator.doForecastUpdate = doForecastUpdate
+      return () => h(ForecastControlPanel)
     },
+  })
+  return mount(Parent, {
+    attachTo: attach ? document.body : undefined,
+    global: { plugins: [router] },
   })
 }
 
@@ -39,8 +48,11 @@ function timeCard(wrapper: ReturnType<typeof mount>) {
 describe('ForecastControlPanel 时间轴卡片', () => {
   let originalWidth = 0
 
-  beforeEach(() => {
+  beforeEach(async () => {
     setActivePinia(createPinia())
+    router = createRouter({ history: createMemoryHistory(), routes: [] })
+    await router.push('/')
+    await router.isReady()
     originalWidth = window.innerWidth
     // 专注模式仅在 <960px 抽屉档生效（桌面档 beginSliderFocus 主动 return）
     Object.defineProperty(window, 'innerWidth', { value: 800, writable: true, configurable: true })
@@ -212,8 +224,11 @@ describe('ForecastControlPanel 时间轴卡片', () => {
 
 // ── F4：运河情景芯片——仅 cargo 有文献锚点，非 cargo 指标禁用非基线档 ──
 describe('ForecastControlPanel 运河情景芯片（F4）', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     setActivePinia(createPinia())
+    router = createRouter({ history: createMemoryHistory(), routes: [] })
+    await router.push('/')
+    await router.isReady()
   })
 
   it('cargo 下四档可选：点「中位」写 store.canalScenario（阳性对照）', async () => {
@@ -251,5 +266,18 @@ describe('ForecastControlPanel 运河情景芯片（F4）', () => {
     expect(store.canalScenario).toBe('baseline')
 
     wrapper.unmount()
+  })
+})
+// D3 去 export：FORECAST_ORCHESTRATOR_KEY 已收为模块内部；本组是「公开面收窄」本身的判据。
+describe('公开面收窄 — FORECAST_ORCHESTRATOR_KEY 不得再导出', () => {
+  const INTERNAL = ['FORECAST_ORCHESTRATOR_KEY']
+
+  it('内部符号不在模块公开面；公开符号仍在（阳性对照）', async () => {
+    const mod = (await import('../../composables/useForecastOrchestrator')) as unknown as Record<
+      string,
+      unknown
+    >
+    for (const k of INTERNAL) expect(mod[k], k + ' 应已收为模块内部').toBeUndefined()
+    expect(typeof mod.provideForecastOrchestrator).toBe('function')
   })
 })

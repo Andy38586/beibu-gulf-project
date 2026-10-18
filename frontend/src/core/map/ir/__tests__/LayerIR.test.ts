@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 
 import { BUSINESS_LAYER_MANAGER_KEY, type BusinessLayerManager } from '@/core'
 
-import { type LayerIR, layerIRKey, taskResultToIR, useLayerIRLayer } from '../LayerIR'
+import { type LayerIR, taskResultToIR, useLayerIRLayer } from '../LayerIR'
 
 // LayerIR 单测（v4-S8）：任务结果 → IR 判定、去重键含 kind、toggle 拖出语义。
 // 变异四式取证见提交正文（去重键漏 kind 红 / toggle 反转红 / 结构判定放宽红）。
@@ -137,16 +137,8 @@ describe('taskResultToIR（结构判定，L3 不引业务类型）', () => {
   })
 })
 
-describe('layerIRKey（去重键：taskId + kind）', () => {
-  it('同任务不同 kind → 键不同（多边形与折线可并存）；同任务同 kind → 键相同', () => {
-    const base = { origin: { taskId: 't-1', route: '/flood-analysis' } }
-    expect(layerIRKey({ ...base, kind: 'polygon' })).not.toBe(
-      layerIRKey({ ...base, kind: 'polyline' })
-    )
-    expect(layerIRKey({ ...base, kind: 'polygon' })).toBe(layerIRKey({ ...base, kind: 'polygon' }))
-  })
-})
-
+// layerIRKey 已收为模块内部（不再直调）；去重键含 kind 的行为面由下方用例承载：
+// 「多边形与折线互不顶掉」用同一 manager 注册键断言两种 kind 并存。
 describe('useLayerIRLayer（BLM 通道：渲染/撤下/toggle）', () => {
   it('toggleIR：未上图 → 渲染；再拖 → 撤下（永不产生第二份）', () => {
     const { fake, api } = mountLayerHook()
@@ -217,5 +209,15 @@ describe('useLayerIRLayer — 显式传 manager（provide 者自己的通道）'
     const ir = taskResultToIR(FLOOD_SLOT) as LayerIR
     api.toggleIR(ir)
     expect(fake.calls).toEqual([])
+  })
+})
+// D3 去 export：layerIRKey 已收为模块内部；本组是「公开面收窄」本身的判据。
+describe('公开面收窄 — layerIRKey 不得再导出', () => {
+  const INTERNAL = ['layerIRKey']
+
+  it('内部符号不在模块公开面；公开符号仍在（阳性对照）', async () => {
+    const mod = (await import('../LayerIR')) as unknown as Record<string, unknown>
+    for (const k of INTERNAL) expect(mod[k], k + ' 应已收为模块内部').toBeUndefined()
+    expect(typeof mod.taskResultToIR).toBe('function')
   })
 })

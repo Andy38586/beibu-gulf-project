@@ -22,7 +22,7 @@ export interface PanelSpec {
 const SUBCELL = 0.5
 
 /** 尺寸非法即抛（注册期拒绝，不靠注释提醒） */
-export function assertCellMultiple(value: number, what: string): void {
+function assertCellMultiple(value: number, what: string): void {
   const ratio = value / SUBCELL
   if (!Number.isFinite(value) || Math.abs(ratio - Math.round(ratio)) > 1e-9) {
     throw new Error(`${what}=${value} 不是 ${SUBCELL} 的整数倍（面板尺寸只允许整数×SUBCELL）`)

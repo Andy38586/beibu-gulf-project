@@ -50,7 +50,7 @@ export interface LayerIR {
 }
 
 /** 拖出图层的 BLM 键（owned-layers 体系内的 first-class 业务图层） */
-export function layerIRKey(ir: Pick<LayerIR, 'origin' | 'kind'>): string {
+function layerIRKey(ir: Pick<LayerIR, 'origin' | 'kind'>): string {
   // kind 必须进键：同任务可能同时拖出多边形与折线两类结果，去重键漏 kind 会互相顶掉
   return `task-ir-${ir.origin.taskId}-${ir.kind}`
 }

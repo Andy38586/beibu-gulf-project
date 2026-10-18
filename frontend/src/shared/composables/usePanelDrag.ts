@@ -23,7 +23,7 @@ import { onUnmounted, readonly, ref } from 'vue'
 type PanelDragPhase = 'idle' | 'pending' | 'dragging'
 
 /** 落点判定：命中该属性的元素即视为投递区 */
-export const TASK_DOCK_ZONE_ATTR = 'data-task-dock-zone'
+const TASK_DOCK_ZONE_ATTR = 'data-task-dock-zone'
 
 /**
  * 堆叠槽位落点（v4-S9 系统 D）：可视化面板拖入固定槽位的命中属性。
@@ -38,7 +38,7 @@ export function isStackSlotZone(zone: HTMLElement): boolean {
 }
 
 /** 触发拖拽的最小位移（px）。低于此值视为点击，防误触 */
-export const DRAG_THRESHOLD_PX = 4
+const DRAG_THRESHOLD_PX = 4
 
 /**
  * 全局拖拽态（模块级单例）。

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { PANEL_SPACING, SAFE_MARGIN } from '../config'
 import { LayoutOverflowError, computeLayout, findOverlaps, layoutModeFor } from '../layoutEngine'
-import { assertCellMultiple, definePanels, type PanelSpec } from '../panelRegistry'
+import { definePanels, type PanelSpec } from '../panelRegistry'
 
 // 现模板形态复刻：每列两个 4×4（offset-y=1.25/5.5 在 cell=80 时即堆叠 120/460），
 // 1320×800 为常见笔记本预算（cell=80，标题行 1 格 + 上下 SAFE_MARGIN）。
@@ -14,11 +14,20 @@ const typical: PanelSpec[] = definePanels([
 ])
 
 describe('布局注册表与引擎（事实单源）', () => {
-  it('非法尺寸注册期拒绝（1.25 之类非 0.5 倍数即抛）', () => {
-    expect(() => assertCellMultiple(1.25, 'demo.w')).toThrow()
-    expect(() => assertCellMultiple(4.3, 'demo.h')).toThrow()
-    expect(() => assertCellMultiple(5.5, 'demo.h')).not.toThrow()
-    expect(() => assertCellMultiple(4, 'demo.w')).not.toThrow()
+  it('非法尺寸注册期拒绝（1.25 之类非 0.5 倍数即抛）——经 definePanels 公开面', () => {
+    const spec = (w: number, h: number): PanelSpec => ({
+      id: 'demo',
+      title: 'D',
+      zone: 'left',
+      order: 1,
+      w,
+      h,
+      priority: 1,
+    })
+    expect(() => definePanels([spec(1.25, 4)])).toThrow()
+    expect(() => definePanels([spec(4, 4.3)])).toThrow()
+    expect(() => definePanels([spec(5.5, 4)])).not.toThrow()
+    expect(() => definePanels([spec(4, 4)])).not.toThrow()
     expect(() =>
       definePanels([
         { id: 'dup', title: 'D', zone: 'left', order: 1, w: 4, h: 4, priority: 1 },
@@ -76,5 +85,15 @@ describe('布局注册表与引擎（事实单源）', () => {
     expect(compact.rects.map((r) => r.id).sort()).toEqual(['l1', 'r1'])
     const drawer = computeLayout(typical, { width: 800, height: 900 }, 'drawer')
     expect(drawer.rects).toHaveLength(typical.length)
+  })
+})
+// D3 去 export：assertCellMultiple 已收为模块内部；本组是「公开面收窄」本身的判据。
+describe('公开面收窄 — assertCellMultiple 不得再导出', () => {
+  const INTERNAL = ['assertCellMultiple']
+
+  it('内部符号不在模块公开面；公开符号仍在（阳性对照）', async () => {
+    const mod = (await import('../panelRegistry')) as unknown as Record<string, unknown>
+    for (const k of INTERNAL) expect(mod[k], k + ' 应已收为模块内部').toBeUndefined()
+    expect(typeof mod.definePanels).toBe('function')
   })
 })

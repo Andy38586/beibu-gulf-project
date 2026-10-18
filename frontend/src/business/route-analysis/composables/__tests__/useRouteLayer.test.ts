@@ -5,13 +5,7 @@ import { BUSINESS_LAYER_MANAGER_KEY, type BusinessLayerManager } from '@/core'
 import type { RoutePathResult } from '@/types'
 
 import type { RouteSlot } from '../useRouteLayer'
-import {
-  buildEndpointGeoJson,
-  buildRouteGeoJson,
-  ROUTE_ENDPOINT_LAYER_ID,
-  ROUTE_PATH_LAYER_ID,
-  useRouteLayer,
-} from '../useRouteLayer'
+import { ROUTE_ENDPOINT_LAYER_ID, ROUTE_PATH_LAYER_ID, useRouteLayer } from '../useRouteLayer'
 
 /** 最小 manager 假桩（记录调用，不触渲染器） */
 function createFakeManager() {
@@ -52,6 +46,14 @@ const RESULT: RoutePathResult = {
     [108.8, 21.8],
   ],
 }
+
+type FeatureLike = { geometry: { type: string }; properties?: Record<string, unknown> }
+type CollectionLike = { features: FeatureLike[] }
+type Fake = ReturnType<typeof createFakeManager>
+const pathData = (fake: Fake): CollectionLike =>
+  fake.registry.get(ROUTE_PATH_LAYER_ID)!.data as CollectionLike
+const endpointData = (fake: Fake): CollectionLike =>
+  fake.registry.get(ROUTE_ENDPOINT_LAYER_ID)!.data as CollectionLike
 
 const SLOT = (key: RouteSlot['key'], lng: number, lat: number): RouteSlot => ({
   key,
@@ -141,7 +143,9 @@ describe('useRouteLayer', () => {
     expect(fake.manager.has(ROUTE_ENDPOINT_LAYER_ID)).toBe(false)
   })
 
-  it('buildRouteGeoJson：多段产出多个 LineString，单段 <2 点跳过，全无效空集', () => {
+  // 几何构造是模块内部实现（去 export 后按公开面 updateRouteLayers 取证）
+  it('路径线几何：多段产出多个 LineString，单段 <2 点跳过（空集 ⇒ 不注册）', () => {
+    const { fake, api } = mountLayerHook()
     const seg2: RoutePathResult = {
       ...RESULT,
       coordinates: [
@@ -149,24 +153,40 @@ describe('useRouteLayer', () => {
         [109.1, 22.1],
       ],
     }
-    const multi = buildRouteGeoJson([RESULT, seg2])
+    api.updateRouteLayers([RESULT, seg2], [])
+    const multi = pathData(fake)
     expect(multi.features.length).toBe(2)
     expect(multi.features.every((f) => f.geometry.type === 'LineString')).toBe(true)
+
+    const { fake: fake2, api: api2 } = mountLayerHook()
     const thin: RoutePathResult = { ...RESULT, coordinates: [[1, 2]] }
-    expect(buildRouteGeoJson([thin]).features.length).toBe(0)
+    api2.updateRouteLayers([thin], [])
+    expect(fake2.manager.has(ROUTE_PATH_LAYER_ID)).toBe(false)
   })
 
-  it('buildEndpointGeoJson：四槽仅非空槽产出，role 随 properties，POI 名带上', () => {
+  it('端点几何：四槽仅非空槽产出，role 随 properties，POI 名带上', () => {
+    const { fake, api } = mountLayerHook()
     const slots: RouteSlot[] = [
       { key: 'from', point: { lng: 1, lat: 2, name: '钦州港' } },
       { key: 'waypoint-1', point: null },
       { key: 'waypoint-2', point: { lng: Number.NaN, lat: 4 } },
       { key: 'to', point: { lng: 3, lat: 4 } },
     ]
-    const geo = buildEndpointGeoJson(slots)
+    api.updateRouteLayers([], slots)
+    const geo = endpointData(fake)
     expect(geo.features.length).toBe(2)
     expect(geo.features[0].properties?.role).toBe('from')
     expect(geo.features[0].properties?.name).toBe('钦州港')
     expect(geo.features[1].properties?.role).toBe('to')
+  })
+})
+// D3 去 export：buildRouteGeoJson / buildEndpointGeoJson 已收为模块内部；本组是「公开面收窄」本身的判据。
+describe('公开面收窄 — 两个几何构造器不得再导出', () => {
+  const INTERNAL = ['buildRouteGeoJson', 'buildEndpointGeoJson']
+
+  it('内部符号不在模块公开面；公开符号仍在（阳性对照）', async () => {
+    const mod = (await import('../useRouteLayer')) as unknown as Record<string, unknown>
+    for (const k of INTERNAL) expect(mod[k], k + ' 应已收为模块内部').toBeUndefined()
+    expect(typeof mod.useRouteLayer).toBe('function')
   })
 })

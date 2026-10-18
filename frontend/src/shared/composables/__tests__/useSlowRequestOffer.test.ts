@@ -2,11 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { effectScope } from 'vue'
 
 import { closeModal, confirmModal, gcsModalState } from '../../utils/gcsFeedback'
-import {
-  SLOW_REQUEST_THRESHOLD_MS,
-  useSlowRequestOffer,
-  type UseSlowRequestOfferReturn,
-} from '../useSlowRequestOffer'
+import { useSlowRequestOffer, type UseSlowRequestOfferReturn } from '../useSlowRequestOffer'
 
 // 方案 A 的触发器：超阈值才问，阈值内零打扰。
 // 🔴 两条对照缺一不可：只测「慢必弹」的话，一个恒弹的实现（删掉计时判断）照样绿；
@@ -98,7 +94,30 @@ describe('useSlowRequestOffer', () => {
     release('done')
   })
 
-  it('默认阈值是 3000ms（常量即口径，改它要有实测依据）', () => {
-    expect(SLOW_REQUEST_THRESHOLD_MS).toBe(3000)
+  it('默认阈值是 3000ms（常量即口径，改它要有实测依据）——经默认路径行为钉住', async () => {
+    // SLOW_REQUEST_THRESHOLD_MS 已收为模块内部（不再直调）；改走不传 thresholdMs 的默认路径：
+    // 2999ms 不弹（近失）、3000ms 弹（达线）。
+    const onAccept = vi.fn()
+    const offer = useSlowRequestOffer({ onAccept })
+    let release: (v: string) => void = () => undefined
+    const pending = offer.track(() => new Promise<string>((r) => (release = r)))
+
+    await vi.advanceTimersByTimeAsync(2999)
+    expect(gcsModalState.visible).toBe(false)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(gcsModalState.visible).toBe(true)
+
+    release('done')
+    await pending
+  })
+})
+// D3 去 export：SLOW_REQUEST_THRESHOLD_MS 已收为模块内部；本组是「公开面收窄」本身的判据。
+describe('公开面收窄 — SLOW_REQUEST_THRESHOLD_MS 不得再导出', () => {
+  const INTERNAL = ['SLOW_REQUEST_THRESHOLD_MS']
+
+  it('内部符号不在模块公开面；公开符号仍在（阳性对照）', async () => {
+    const mod = (await import('../useSlowRequestOffer')) as unknown as Record<string, unknown>
+    for (const k of INTERNAL) expect(mod[k], k + ' 应已收为模块内部').toBeUndefined()
+    expect(typeof mod.useSlowRequestOffer).toBe('function')
   })
 })

@@ -2,7 +2,6 @@ import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { effectScope } from 'vue'
 
-import { SLOW_REQUEST_THRESHOLD_MS } from '@/shared/composables/useSlowRequestOffer'
 import { closeModal, confirmModal, gcsModalState } from '@/shared/utils/gcsFeedback'
 import { useMapStore } from '@/stores/mapStore'
 import { useSiteSuitabilityStore } from '@/stores/siteSuitabilityStore'
@@ -47,6 +46,10 @@ import { useSiteSuitabilityLayer } from '../useSiteSuitabilityLayer'
 import { useSiteSuitabilityRequest } from '../useSiteSuitabilityRequest'
 
 const fakeRenderer = { getType: () => '2d' }
+
+// SLOW_REQUEST_THRESHOLD_MS 已收为模块内部（唯一消费者 = useSlowRequestOffer 自身）；
+// 本用例按权威值 3000 自持字面量：阈值改数即本组红（同族收全，2026-10-18）。
+const SLOW_REQUEST_THRESHOLD_MS = 3000
 
 describe('useSiteSuitabilityLayer（BLM 注册/更新 + 事务取消）', () => {
   beforeEach(() => {

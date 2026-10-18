@@ -26,7 +26,7 @@ const MAX_PREHEAT_TILES = 64
  * CesiumTerrainProvider 自己会翻（实测 isTileAvailable 对盘上位置返回 true），
  * 故本函数是"按 available 拼 URL"的消费者里唯一需要自己翻的一处。
  */
-export function collectTerrainTileUrls(layer: TerrainLayerJson, maxZoom: number): string[] {
+function collectTerrainTileUrls(layer: TerrainLayerJson, maxZoom: number): string[] {
   const template = layer.tiles?.[0] ?? '/static/terrain/{z}/{x}/{y}.terrain'
   const version = layer.version ?? ''
   const available = Array.isArray(layer.available) ? layer.available : []

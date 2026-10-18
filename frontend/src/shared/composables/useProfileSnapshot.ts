@@ -19,6 +19,6 @@ export function useProfileSnapshot(handlers: { save: () => void; clear?: () => v
 }
 
 /** 个人中心路径判定（独立纯函数便于单测；登录上下文里可能带 redirect 参数，取 path 比对） */
-export function isProfilePath(path: string): boolean {
+function isProfilePath(path: string): boolean {
   return path === '/profile'
 }

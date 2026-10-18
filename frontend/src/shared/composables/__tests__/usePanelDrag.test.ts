@@ -2,12 +2,12 @@ import { mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick } from 'vue'
 
-import {
-  DRAG_THRESHOLD_PX,
-  TASK_DOCK_ZONE_ATTR,
-  useGlobalPanelDragActive,
-  usePanelDrag,
-} from '../usePanelDrag'
+import { useGlobalPanelDragActive, usePanelDrag } from '../usePanelDrag'
+
+// TASK_DOCK_ZONE_ATTR / DRAG_THRESHOLD_PX 已收为模块内部（不再直调）；
+// 两常量是 DOM 属性名与 4px 防误触口径，测试按字面量钉住消费面。
+const TASK_DOCK_ZONE_ATTR = 'data-task-dock-zone'
+const DRAG_THRESHOLD_PX = 4
 
 /**
  * usePanelDrag 单测（v4-S4）
@@ -395,5 +395,16 @@ describe('usePanelDrag', () => {
       await nextTick()
       expect(active.value).toBe(false)
     })
+  })
+})
+// D3 去 export：TASK_DOCK_ZONE_ATTR / DRAG_THRESHOLD_PX 已收为模块内部；本组是「公开面收窄」本身的判据。
+describe('公开面收窄 — 落点属性与拖拽阈值不得再导出', () => {
+  const INTERNAL = ['TASK_DOCK_ZONE_ATTR', 'DRAG_THRESHOLD_PX']
+
+  it('内部符号不在模块公开面；公开符号仍在（阳性对照）', async () => {
+    const mod = (await import('../usePanelDrag')) as unknown as Record<string, unknown>
+    for (const k of INTERNAL) expect(mod[k], k + ' 应已收为模块内部').toBeUndefined()
+    expect(typeof mod.STACK_SLOT_ZONE_ATTR).toBe('string')
+    expect(typeof mod.isStackSlotZone).toBe('function')
   })
 })

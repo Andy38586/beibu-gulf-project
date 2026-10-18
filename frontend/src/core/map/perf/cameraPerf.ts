@@ -50,7 +50,7 @@ export function isHeavyVertexCount(vertexCount: number): boolean {
 }
 
 /** 递归累计坐标对数（GeoJSON/PolygonFeature 嵌套形态通吃；非法输入计 0） */
-export function countCoordinatePairs(coords: unknown): number {
+function countCoordinatePairs(coords: unknown): number {
   if (!Array.isArray(coords) || coords.length === 0) return 0
   if (typeof coords[0] === 'number') return 1
   return coords.reduce<number>((sum, c) => sum + countCoordinatePairs(c), 0)

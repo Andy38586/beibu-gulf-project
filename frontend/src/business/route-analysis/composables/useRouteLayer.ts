@@ -48,7 +48,7 @@ const ROUTE_ENDPOINT_STYLE: LayerOptions = {
  * 前端逐段拼接：起点→途径1→途径2→终点按非空槽顺序分段查询，后端 /route/path 仅支持单段。
  * 单段 coordinates <2 点（未吸附无折线）跳过；全部无效返回空集。
  */
-export function buildRouteGeoJson(segments: RoutePathResult[]): FeatureCollection<LineString> {
+function buildRouteGeoJson(segments: RoutePathResult[]): FeatureCollection<LineString> {
   const features: Feature<LineString>[] = []
   for (const result of segments) {
     const coords = result.coordinates ?? []
@@ -63,7 +63,7 @@ export function buildRouteGeoJson(segments: RoutePathResult[]): FeatureCollectio
 }
 
 /** 由四槽选点构建端点标记点集（role 区分 from/waypoint-1/waypoint-2/to，name 随 properties 供气泡/调试） */
-export function buildEndpointGeoJson(slots: RouteSlot[]): FeatureCollection {
+function buildEndpointGeoJson(slots: RouteSlot[]): FeatureCollection {
   const features: Feature[] = []
   for (const slot of slots) {
     const p = slot.point

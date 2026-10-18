@@ -1,11 +1,14 @@
 // @vitest-environment jsdom
 /**
- * collectTerrainTileUrls 单测：锁定 layer.json（heightmap-1.0）→ 低层瓦片 URL 的拼装契约。
+ * preloadTerrain 单测：锁定 layer.json（heightmap-1.0）→ 低层瓦片 URL 的拼装契约。
  * 预热链路（preloadCesium → preloadTerrain）依赖 URL 与真实瓦片目录一致，拼错 = 预热全空转。
+ *
+ * collectTerrainTileUrls 已收为模块内部（唯一消费者 = preloadTerrain）；本组改走公开入口，
+ * 以 mock fetch 记录实际发出的瓦片请求。
  */
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { collectTerrainTileUrls } from '../terrainPreload'
+import { preloadTerrain } from '../terrainPreload'
 
 /**
  * 与 backend/static/terrain/layer.json 同构的最小样例（z0~z3 各一档范围）。
@@ -27,9 +30,28 @@ const sampleLayer = {
   ],
 }
 
-describe('collectTerrainTileUrls', () => {
-  it('按 available 展开范围并替换 z/x/y/version', () => {
-    const urls = collectTerrainTileUrls(sampleLayer, 3)
+/** 装上 fetch 桩：layer.json 返回给定载荷，其余请求记进返回的 urls 数组 */
+function stubFetch(layer: unknown, ok = true): string[] {
+  const urls: string[] = []
+  vi.stubGlobal('fetch', async (input: unknown) => {
+    const url = String(input)
+    if (url === '/static/terrain/layer.json') {
+      return { ok, json: async () => layer } as never
+    }
+    urls.push(url)
+    return { ok: true } as never
+  })
+  return urls
+}
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
+
+describe('preloadTerrain', () => {
+  it('按 available 展开范围并替换 z/x/y/version', async () => {
+    const urls = stubFetch(sampleLayer)
+    await preloadTerrain(3)
     expect(urls).toContain('/static/terrain/0/1/0.terrain?v=1.1.0')
     // TMS → slippy：z1 rows=2，y 1→0
     expect(urls).toContain('/static/terrain/1/3/0.terrain?v=1.1.0')
@@ -39,8 +61,9 @@ describe('collectTerrainTileUrls', () => {
     expect(urls).toHaveLength(5)
   })
 
-  it('回归：z2/z3 必须请求盘上实物而非镜像（2026-10-04 实跑 5×404 的地址不得出现）', () => {
-    const urls = collectTerrainTileUrls(sampleLayer, 3)
+  it('回归：z2/z3 必须请求盘上实物而非镜像（2026-10-04 实跑 5×404 的地址不得出现）', async () => {
+    const urls = stubFetch(sampleLayer)
+    await preloadTerrain(3)
     // 漏翻时发出的镜像地址（盘上不存在，实测 404）——修复后必须一个都没有
     for (const mirror of [
       '/static/terrain/2/6/2.terrain?v=1.1.0',
@@ -55,32 +78,52 @@ describe('collectTerrainTileUrls', () => {
     expect(urls).toContain('/static/terrain/3/12/2.terrain?v=1.1.0')
   })
 
-  it('maxZoom 截断：只收 0~maxZoom 层', () => {
-    const urls = collectTerrainTileUrls(sampleLayer, 1)
+  it('maxZoom 截断：只收 0~maxZoom 层', async () => {
+    const urls = stubFetch(sampleLayer)
+    await preloadTerrain(1)
     expect(urls).toHaveLength(2)
     expect(
       urls.every((u) => u.startsWith('/static/terrain/0/') || u.startsWith('/static/terrain/1/'))
     ).toBe(true)
   })
 
-  it('tiles 模板缺失时回退默认路径', () => {
-    const urls = collectTerrainTileUrls(
-      { available: [[{ startX: 0, startY: 0, endX: 0, endY: 0 }]] },
-      0
-    )
+  it('tiles 模板缺失时回退默认路径', async () => {
+    const urls = stubFetch({ available: [[{ startX: 0, startY: 0, endX: 0, endY: 0 }]] })
+    await preloadTerrain(0)
     expect(urls).toEqual(['/static/terrain/0/0/0.terrain'])
   })
 
-  it('available 缺失/畸形返回空数组（防御异常 layer.json）', () => {
-    expect(collectTerrainTileUrls({}, 3)).toEqual([])
-    expect(collectTerrainTileUrls({ available: [undefined as never] }, 3)).toEqual([])
+  it('available 缺失/畸形返回空数组（防御异常 layer.json）', async () => {
+    const empty = stubFetch({})
+    await preloadTerrain(3)
+    expect(empty).toEqual([])
+    const malformed = stubFetch({ available: [undefined] })
+    await preloadTerrain(3)
+    expect(malformed).toEqual([])
   })
 
-  it('范围写爆时按 64 上限截断（不 hammer 服务端）', () => {
-    const wild = {
+  it('范围写爆时按 64 上限截断（不 hammer 服务端）', async () => {
+    const urls = stubFetch({
       tiles: ['/static/terrain/{z}/{x}/{y}.terrain'],
       available: [[{ startX: 0, startY: 0, endX: 999, endY: 999 }]],
-    }
-    expect(collectTerrainTileUrls(wild, 0)).toHaveLength(64)
+    })
+    await preloadTerrain(0)
+    expect(urls).toHaveLength(64)
+  })
+
+  it('阳性对照：layer.json 拉取失败（!ok）⇒ 一片瓦片都不请求', async () => {
+    const urls = stubFetch(sampleLayer, false)
+    await preloadTerrain(3)
+    expect(urls).toEqual([])
+  })
+})
+// D3 去 export：collectTerrainTileUrls 已收为模块内部；本组是「公开面收窄」本身的判据。
+describe('公开面收窄 — collectTerrainTileUrls 不得再导出', () => {
+  const INTERNAL = ['collectTerrainTileUrls']
+
+  it('内部符号不在模块公开面；公开符号仍在（阳性对照）', async () => {
+    const mod = (await import('../terrainPreload')) as unknown as Record<string, unknown>
+    for (const k of INTERNAL) expect(mod[k], k + ' 应已收为模块内部').toBeUndefined()
+    expect(typeof mod.preloadTerrain).toBe('function')
   })
 })

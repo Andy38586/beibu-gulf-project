@@ -30,11 +30,11 @@ export const PORT_JSON_NAMES: Record<string, string> = {
 const ARC_BULGE_RATIO = 0.18
 
 /** 弧线离散段数（贝塞尔采样点数 - 1；64 段在 3D 缩放下平滑且顶点量级可忽略） */
-export const ARC_SEGMENTS = 64
+const ARC_SEGMENTS = 64
 
 /** 弧线像素宽范围：width = min + t×(max-min)，t = 该港值/三弧最大值 */
-export const ARC_WIDTH_MIN = 2
-export const ARC_WIDTH_MAX = 14
+const ARC_WIDTH_MIN = 2
+const ARC_WIDTH_MAX = 14
 
 /** 弧线（常规/高亮）与运河线样式（模块 constants，组件不硬编码色值——route 域同纪律） */
 export const ARC_COLOR = '#2f7bff'

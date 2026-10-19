@@ -53,6 +53,9 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { EXECUTOR_NAME, executionPlan } from './run-all.mjs'
+// 红样标记与「必须有阴性对照」是同一件事的两面：标记说「我负责红样」，
+// 对照说「我还证明了合规时不红」。两处必须读同一个常量，否则改名即静默失配。
+import { MARKER } from './guard-red-sample.mjs'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const ROOT = path.resolve(HERE, '../..')
@@ -76,6 +79,54 @@ export function importedNames(testSource) {
     .split(',')
     .map((s) => s.trim().replace(/^type\s+/, ''))
     .filter((s) => /^[A-Za-z_$][\w$]*$/.test(s))
+}
+
+/**
+ * 红样必须自带**阳性对照**（AGENTS §5.4「负结果不单独成立」）。
+ *
+ * ## 治的失效（连续四笔踩过）
+ *
+ * 「把某段收集代码包进 `if (false)`」这类变异，在**真实仓库本来就是空的**时候，
+ * 与「算出 0」表现完全一样 —— 测试照绿。四次实测：
+ *   · PD-1 M6（去掉行首锚定 → 负样本覆盖不足）
+ *   · PD-2 M2c（正向校验只有端到端兜底，夹具没咬住）
+ *   · PD-3 M4（判据钉死文案措辞，等价改写误红）
+ *   · PA-3 M2（真实仓库空模块 = 0，停用收集仍是 0）
+ * 按 AGENTS §十「同一形态第 3 次出现 ⇒ 升格为门禁」，本条把「有阳性对照」变成可判的事实：
+ *
+ * 判据：测试文件里，**能红的用例**（含 `@guard-red-sample` 标记）之外，必须另有
+ * **能绿的用例**（断言 `toBe(0)` / `toEqual([])` / `not.toThrow()` / `not.toContain`
+ * 这类「负结果」断言）。只有红样、没有阴性对照 ⇒ 红。
+ *
+ * 为什么限定「负结果断言」：阳性对照的作用是证明「同一装置、合规输入下不红」。
+ * 只断言 `toBe(1)`（红）的用例不承担这个职责 —— 那只是第二条红样。
+ */
+export function redSampleNeedsControl(testSource) {
+  const lines = testSource.split(/\r?\n/)
+  // 用例之间的边界只看**顶层** `it(` / `test(`（行首两个空格内），
+  // 否则多行 `expect(\n  audit(...)\n).toEqual([])` 会被切到上一个用例之外。
+  const isCaseStart = (l) => /^ {0,2}(it|test)\s*\(/.test(l)
+  const cases = []
+  let cur = null
+  for (let i = 0; i < lines.length; i++) {
+    if (isCaseStart(lines[i])) {
+      if (cur) cases.push(cur)
+      cur = { line: i + 1, text: lines[i], body: [] }
+    }
+    if (cur) cur.body.push(lines[i])
+  }
+  if (cur) cases.push(cur)
+
+  const isNegative = (body) =>
+    /expect\([\s\S]*?\)\.toEqual\(\s*\[\s*\]\s*\)/.test(body) ||
+    /expect\([\s\S]*?\)\.toBe\(\s*0\s*\)/.test(body) ||
+    /\.not\.toThrow\(/.test(body) ||
+    /\.not\.toContain/.test(body) ||
+    /\.toBeNull\(/.test(body)
+
+  const red = cases.filter((c) => c.body[0].includes(MARKER))
+  const control = cases.filter((c) => isNegative(c.body.join('\n')))
+  return { red: red.length, control: control.length, needs: red.length > 0 && control.length === 0 }
 }
 
 /** 从守卫源码筛出「可注入」的导出函数名（函数体开头可插语句的那些） */
@@ -153,6 +204,28 @@ export function auditResults(results, { baseline = BASELINE } = {}) {
       continue
     }
     problems.push(`${r.guard}: ${r.status}${r.detail ? ' — ' + r.detail : ''}`)
+  }
+  return problems
+}
+
+/**
+ * 判据：有红样的守卫，其测试里必须有阴性对照（见 `redSampleNeedsControl` 头注）。
+ * @param {(guard:string)=>string|null} readTest 读测试源码（无测试返回 null）
+ */
+export function auditControls(guards, readTest) {
+  const problems = []
+  for (const g of guards) {
+    const src = readTest(g)
+    if (!src) continue // 无测试由 skip 那一格负责
+    const r = redSampleNeedsControl(src)
+    if (r.needs) {
+      problems.push(
+        `${g}: 有 ${r.red} 条红样但没有阴性对照 —— 红样只证明「违例时会红」，` +
+          `证明不了「合规时不红」。真实仓库恰好为空时，停用判据与算出 0 表现一样，` +
+          `这类假绿连续踩过四次（PD-1 M6 / PD-2 M2c / PD-3 M4 / PA-3 M2）。` +
+          `补一条断言负结果的用例（toBe(0) / toEqual([]) / not.toThrow）。`
+      )
+    }
   }
   return problems
 }
@@ -288,6 +361,13 @@ function main() {
   }
 
   const problems = auditResults(results)
+  // 阴性对照判据：红样只证明「违例时会红」，还须证明「合规时不红」
+  const testRel = (n) => `tools/v3-guard/__tests__/${n}.test.mjs`
+  const controls = auditControls(guards, (n) => {
+    const p = path.join(ROOT, testRel(n))
+    return fs.existsSync(p) ? fs.readFileSync(p, 'utf8') : null
+  })
+  problems.push(...controls)
   const killed = results.filter((r) => r.status === 'killed').length
   const skipped = results.filter((r) => r.status === 'skip').length
   console.log(

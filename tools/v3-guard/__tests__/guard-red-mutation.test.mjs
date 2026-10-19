@@ -21,6 +21,7 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
 import {
+  auditControls,
   auditResults,
   guardsToProbe,
   importedNames,
@@ -28,6 +29,7 @@ import {
   parsesModule,
   pickInjectables,
   probeGuard,
+  redSampleNeedsControl,
 } from '../guard-red-mutation.mjs'
 import { EXECUTOR_NAME, executionPlan } from '../run-all.mjs'
 
@@ -134,4 +136,46 @@ describe('guard-red-mutation — 守卫红样能红性复验', () => {
     expect(r.status).toBe('killed')
     expect(r.detail).toContain('exit')
   }, 120000)
+})
+
+describe('红样必须自带阴性对照（AGENTS §5.4：负结果不单独成立）', () => {
+  const RED = "it('@guard-red-sample 违例 ⇒ 必红', () => {\n  expect(f([])).toEqual(['boom'])\n})\n"
+  const CTRL = "it('合规输入 ⇒ 不红', () => {\n  expect(f(['ok'])).toEqual([])\n})\n"
+
+  it('@guard-red-sample 只有红样、没有阴性对照 ⇒ 判红', () => {
+    const r = redSampleNeedsControl(RED)
+    expect(r.red).toBe(1)
+    expect(r.control).toBe(0)
+    expect(r.needs).toBe(true)
+    const problems = auditControls(['x'], (g) => (g === 'x' ? RED : null))
+    expect(problems).toHaveLength(1)
+    expect(problems[0]).toContain('没有阴性对照')
+  })
+
+  it('红样 + 阴性对照 ⇒ 不判红', () => {
+    const r = redSampleNeedsControl(RED + CTRL)
+    expect(r.red).toBe(1)
+    expect(r.control).toBe(1)
+    expect(r.needs).toBe(false)
+    expect(auditControls(['x'], () => RED + CTRL)).toEqual([])
+  })
+
+  it('没有红样的测试文件不在本判据责任范围（由 skip 那一格负责）', () => {
+    expect(redSampleNeedsControl(CTRL).needs).toBe(false)
+    expect(auditControls(['x'], () => null)).toEqual([])
+  })
+
+  it('@guard-red-sample 多行 expect 里的负结果断言也能被认出（按用例切，不按行切）', () => {
+    const multi = [
+      "it('真仓当前 = 通过', () => {",
+      '  expect(',
+      '    audit({',
+      '      a: 1,',
+      '    })',
+      '  ).toEqual([])',
+      '})',
+      '',
+    ].join('\n')
+    expect(redSampleNeedsControl(RED + multi).control).toBe(1)
+  })
 })

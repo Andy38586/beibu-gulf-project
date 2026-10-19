@@ -1,9 +1,15 @@
+import fs from 'node:fs'
+import path from 'node:path'
+
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { useForecastStore } from '@/stores'
 
 import { businessModules, runBusinessLogoutReset } from '../manifest'
+
+/** 判据扫描面：排除依赖目录与测试目录（本文件必然要写这两个模式，否则判据自咬） */
+const SKIP_DIRS = new Set(['node_modules', '__mocks__', '__tests__'])
 
 /**
  * manifest → 登出重置注册映射单测。
@@ -38,7 +44,6 @@ describe('business/manifest 登出重置注册', () => {
     const route = businessModules.find((m) => m.name === 'RouteAnalysis')
     expect(route).toBeDefined()
     expect(route?.component).not.toBeNull()
-    expect(route?.navDisabled).toBeUndefined()
     expect(route?.reset).toBeDefined()
   })
 
@@ -49,6 +54,37 @@ describe('business/manifest 登出重置注册', () => {
     expect(forecast.currentTime).toBe('2026-06') // reset() 的默认值
   })
 
+  /**
+   * 预留字段守卫（必要性审判·单元 S）：`navDisabled` 已于 2026-10-19 删除 —— 5 个模块无一
+   * 设置它，生产侧只有 App.vue 读一次且恒取 false。
+   *
+   * 只咬**声明面**（`navDisabled?:`）与**成员读**（`.navDisabled`）：处置留痕的散文注释里
+   * 出现字段名是历史记录，不是回潮；测试目录自身也被排除（它必然要写这两个模式）。
+   * 扫描分母兜底（>50 个源文件），否则目录被挪走时判据会退化成空扫全绿。
+   */
+  it('navDisabled 不得回潮（声明面与成员读两处）', () => {
+    const SRC = path.resolve(__dirname, '..', '..')
+    const DECL = /navDisabled\s*\?:/
+    const READ = /\.navDisabled\b/
+    const hits: string[] = []
+    let scanned = 0
+    const walk = (dir: string): void => {
+      for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+        const p = path.join(dir, e.name)
+        if (e.isDirectory()) {
+          if (SKIP_DIRS.has(e.name)) continue
+          walk(p)
+        } else if (/\.(ts|vue)$/.test(e.name)) {
+          scanned += 1
+          const text = fs.readFileSync(p, 'utf8')
+          if (DECL.test(text) || READ.test(text)) hits.push(path.relative(SRC, p))
+        }
+      }
+    }
+    walk(SRC)
+    expect(scanned, '扫描分母过小：判据可能已空转').toBeGreaterThan(50)
+    expect(hits, 'navDisabled 已删除，声明面/成员读不得回潮').toEqual([])
+  })
   it('可重复执行（登出多次无障碍）', () => {
     expect(() => {
       runBusinessLogoutReset()

@@ -70,6 +70,12 @@ export function useOwnedLayers(
     return true
   }
 
+  /**
+   * 幂等上图：返回是否**落到图面**（注册成功或更新成功）；已卸载一律 false。
+   *
+   * 为什么返回值是"落图"而不是"新建了注册"：消费方唯一要回答的问题是
+   * 「这次迟到响应要不要被拒」，而更新被拒同样意味着图上不会动 —— 两者对外同义。
+   */
   function applyOrUpdate(key: string, desc: LayerDescriptor): boolean {
     if (disposed) return reject(key)
     if (owned.has(key)) {

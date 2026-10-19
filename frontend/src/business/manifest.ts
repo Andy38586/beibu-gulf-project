@@ -3,6 +3,10 @@
  * 新增业务模块只需在清单追加一条并新建 `business/<name>/` 目录，无需再改 router/App.vue；
  * 静态路由（首页/个人中心）与模块自有资产（adapter/store/types/constants）不在此清单。
  * 登出重置也在此声明（App.vue 批量调用，新增模块的 store 重置无需再改 App.vue）。
+ *
+ * 2026-10-19 必要性审判：删 `navDisabled?` —— 5 个模块无一设置，生产仅 `App.vue` 读一次
+ * （恒 `false`），属「预留模块占位」型的零生产者字段；未实现模块已由 `component: null`
+ * 表达（`buildBusinessRoutes()` 跳过），导航禁用不再需要第二条通道。
  */
 import type { RouteRecordRaw } from 'vue-router'
 
@@ -21,8 +25,6 @@ interface BusinessModule {
   navLabel: string
   /** 底部导航图标 */
   navIcon: string
-  /** 导航禁用（预留模块占位,如"航线分析"未实现） */
-  navDisabled?: boolean
   /** 路由懒加载组件；null = 模块未实现（仅占位导航，不注册路由） */
   component: (() => Promise<unknown>) | null
   /** 登出时执行的业务状态重置（无状态模块可省略）；调用点在 App.vue 登出重置链 */

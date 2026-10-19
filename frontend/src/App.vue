@@ -106,7 +106,7 @@ registerNavItems([
     label: m.navLabel,
     icon: m.navIcon,
     path: m.path,
-    disabled: !!m.navDisabled,
+    disabled: false,
   })),
   { type: 'profile', label: '个人中心', icon: '👤', path: '/profile', disabled: false },
 ])

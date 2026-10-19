@@ -259,6 +259,20 @@ onMounted(async () => {
 //    面板拖进 dock 后页面会被卸载，请求若长在页面里，"后台跑"就无从谈起。
 //    同时 flood 的滑块拖动走**直连**（不走任务队列），理由见 useFloodRequest 头注释。
 
+/** 淹没分析结果载荷：注册表与页面 apply 函数共用同一形状，避免两处手抄后漂移 */
+interface FloodAnalysisPayload {
+  features: FloodFeature[]
+  statistics: FloodStatistics
+  riskLevel: string
+  actualWaterLevel?: number
+}
+
+/** 影响评估载荷（同上，注册表与 apply 共用） */
+interface FloodImpactPayload {
+  affectedFacilities: AffectedFacility[]
+  totalLoss: number
+}
+
 /**
  * 渲染回调注册表（与 forecast 页同款注入模式）。
  *
@@ -267,14 +281,9 @@ onMounted(async () => {
  */
 interface FloodRenderers {
   /** 淹没范围 + 统计 → store + 图层 */
-  analysis?: (payload: {
-    features: FloodFeature[]
-    statistics: FloodStatistics
-    riskLevel: string
-    actualWaterLevel?: number
-  }) => void
+  analysis?: (payload: FloodAnalysisPayload) => void
   /** 受影响设施 → store + 图层 */
-  impact?: (payload: { affectedFacilities: AffectedFacility[]; totalLoss: number }) => void
+  impact?: (payload: FloodImpactPayload) => void
   /** 请求真正落地后抬升水面高度。
    *
    * 与下方 `watch(floodStore.waterLevel)` 的分工：那个 watch 是**乐观预览**
@@ -324,17 +333,20 @@ function shouldRenderForCurrentRoute() {
   return expected === actual
 }
 
+/**
+ * 迟到响应统一闸：路由已切走或页面已卸载 ⇒ 丢弃（防污染别的引擎 / 防离开后图层复活）。
+ *
+ * 两个 apply 回调原先各自手抄这对判据，注释还一长一短 —— 收成一处后「哪些回调受这条闸约束」
+ * 在代码里只有一种答案。两式是等价的布尔合取（都在同一 tick 内同步求值），保留原判序
+ * （先路由后卸载）以免改变任何一处既有的求值顺序假设。
+ */
+function acceptsLateResponse(): boolean {
+  return shouldRenderForCurrentRoute() && !unmounted
+}
+
 /** 渲染淹没问题（v4-S3：请求已由面板发起，本函数只负责写 store + 上图） */
-function applyFloodAnalysis(payload: {
-  features: FloodFeature[]
-  statistics: FloodStatistics
-  riskLevel: string
-  actualWaterLevel?: number
-}): void {
-  // 如果当前路由不再是 3D，丢弃过期响应防止污染 2D 渲染器
-  if (!shouldRenderForCurrentRoute()) return
-  // 页面已卸载则丢弃响应，防止离开后图层复活
-  if (unmounted) return
+function applyFloodAnalysis(payload: FloodAnalysisPayload): void {
+  if (!acceptsLateResponse()) return
 
   const { statistics, features, riskLevel, actualWaterLevel } = payload
 
@@ -358,12 +370,8 @@ function applyFloodAnalysis(payload: {
 }
 
 /** 渲染影响评估（v4-S3：同上，只做写 store + 上图） */
-function applyImpactAssessment(payload: {
-  affectedFacilities: AffectedFacility[]
-  totalLoss: number
-}): void {
-  if (!shouldRenderForCurrentRoute()) return
-  if (unmounted) return
+function applyImpactAssessment(payload: FloodImpactPayload): void {
+  if (!acceptsLateResponse()) return
 
   const { affectedFacilities, totalLoss } = payload
 

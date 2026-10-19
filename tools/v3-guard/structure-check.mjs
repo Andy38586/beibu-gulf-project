@@ -38,10 +38,11 @@ const FORBIDDEN_FILENAMES = /\.(tmp|bak|orig|swp)(\.\w+)?$/i
  * 2026-10-18 删 cluster 死实现（PA-1：cluster 分支 + withClusterStyle + click 解包，净减 68 行）⇒
  *   按同一条公式下修至 1024。**这是下调，不是提额**：删掉的是零生产者能力（`LayerOptions.cluster`
  *   全仓 0 处赋值），棘轮随实测一起回落，方才保证「上限=实测，不是上限-1 的虚设」。
+ * 2026-10-17 必要性审判波二：删 addGeoJsonLayer 里已于同函数落地的过期 TODO（-2 行）⇒ 再下修至 1022。
  */
 export const RENDERER_SIZE_CEILINGS = [
   { file: 'frontend/src/core/map/renderers/CesiumRenderer.ts', max: 2335 },
-  { file: 'frontend/src/core/map/renderers/OLRenderer.ts', max: 1024 },
+  { file: 'frontend/src/core/map/renderers/OLRenderer.ts', max: 1022 },
 ]
 
 /**

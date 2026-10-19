@@ -304,4 +304,87 @@ describe('FloodAnalysisPage 卸载守卫（v4-S3）', () => {
 
     wrapper.unmount()
   })
+
+  /**
+   * 迟到响应闸（必要性审判·单元 S）：两个 apply 回调原先各自手抄「路由还对不对」+
+   * 「页面卸载没有」这对判据，收成 `acceptsLateResponse()` 后本条把它钉在行为面上 ——
+   * 合取少写一半（只判路由或只判卸载）都必须红。
+   */
+  async function mountWithRenderers() {
+    const registerRenderers = vi.fn()
+    const panelStub = defineComponent({
+      name: 'WaterLevelProfilePanel',
+      setup(_, { expose }) {
+        expose({ registerRenderers })
+        return () => vueH('div', { class: 'wl-stub' })
+      },
+    })
+    const passthrough = defineComponent({
+      setup(_, { slots }) {
+        return () => {
+          const nodes: unknown[] = []
+          const push = (fn?: () => unknown[]) => {
+            if (fn) nodes.push(...fn())
+          }
+          push(slots.default)
+          push(slots.left)
+          push(slots.right)
+          return nodes
+        }
+      },
+    })
+    const wrapper = shallowMount(FloodAnalysisPage, {
+      global: {
+        stubs: {
+          AppLayout: passthrough,
+          TaskPanelSlot: passthrough,
+          WaterLevelProfilePanel: panelStub,
+        },
+      },
+    })
+    // 路由 meta.engine = 'ol'（见文件头 vi.mock('vue-router')）⇒ 渲染器须同为 'ol' 才过闸
+    useMapStore().currentRenderer = WATER_CAPABLE_RENDERER
+    await flushPromises()
+    const injected = registerRenderers.mock.calls[0]![0] as {
+      analysis: (p: unknown) => void
+      impact: (p: unknown) => void
+    }
+    return { wrapper, injected }
+  }
+
+  const ANALYSIS_PAYLOAD = { features: [], statistics: {}, riskLevel: '无风险' }
+  const IMPACT_PAYLOAD = { affectedFacilities: [], totalLoss: 0 }
+
+  it('迟到响应闸：路由引擎不匹配 ⇒ 两个 apply 均不写 store', async () => {
+    const { wrapper, injected } = await mountWithRenderers()
+    const floodStore = useFloodStore()
+
+    // 阳性对照：引擎匹配时确实会写（否则下面对照形同虚设）
+    floodStore.startFloodAnalysis({} as never, [], '基准')
+    injected.analysis(ANALYSIS_PAYLOAD)
+    expect(floodStore.floodRiskLevel, '阳性对照不成立：匹配态下也没写 store').toBe('无风险')
+
+    useMapStore().currentRenderer = { getType: () => '3d' } as never
+    floodStore.startFloodAnalysis({} as never, [], '高风险')
+    injected.analysis(ANALYSIS_PAYLOAD)
+    expect(floodStore.floodRiskLevel, '路由闸失效：切走引擎后仍写了 store').toBe('高风险')
+    floodStore.setPortImpactResult([], 42)
+    injected.impact(IMPACT_PAYLOAD)
+    expect(floodStore.totalLoss, '路由闸失效：切走引擎后仍写了影响评估').toBe(42)
+
+    wrapper.unmount()
+  })
+
+  it('迟到响应闸：页面已卸载 ⇒ 两个 apply 均不写 store', async () => {
+    const { wrapper, injected } = await mountWithRenderers()
+    wrapper.unmount()
+    const floodStore = useFloodStore()
+    floodStore.startFloodAnalysis({} as never, [], '高风险')
+    floodStore.setPortImpactResult([], 42)
+
+    injected.analysis(ANALYSIS_PAYLOAD)
+    expect(floodStore.floodRiskLevel, '卸载闸失效：卸载后仍写了 store').toBe('高风险')
+    injected.impact(IMPACT_PAYLOAD)
+    expect(floodStore.totalLoss, '卸载闸失效：卸载后仍写了影响评估').toBe(42)
+  })
 })

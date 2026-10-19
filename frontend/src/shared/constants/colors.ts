@@ -68,6 +68,7 @@ export const LAYER_DEFAULTS = {
   // 图层叠放层级（OL setZIndex 默认值，消除对 addLayer 调用顺序的依赖）
   zIndex: 10, // 业务图层默认层级
   zIndexBase: 0, // 底图
+  zIndexCover: 15, // 覆盖类业务层（淹没范围 / 受影响设施 / 预测图层）：叠在普通业务层之上
   zIndexOverlay: 100, // 覆盖层（水面 / 呼吸动画 / 淹没）
 } as const
 

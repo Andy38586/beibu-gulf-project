@@ -95,3 +95,20 @@ const DIVERSION_ARC_PREFIX = 'diversion-arc-'
 export function diversionArcLayerId(portId: string): string {
   return DIVERSION_ARC_PREFIX + portId
 }
+
+/**
+ * 覆盖类图层 key 判定（叠放层级高于普通业务层的那些）。
+ *
+ * **派生而非手抄**：判据直接引用 `LAYER_KEYS` 与 `FORECAST_LAYER_PREFIX`，不写字面量。
+ * 此前 `OLRenderer._resolveLayerZIndex` 用 `options.featureType` 比 `'flood-facilities'`
+ * 与 `'forecast-'` —— 前者是**图层 key**（本文件 `LAYER_KEYS.floodFacilities` 的值，真实
+ * featureType 是 `'flood-facility-point'`），后者是**图层 key 前缀**（预测图层根本不传
+ * featureType）⇒ 三条判据里两条恒假。判定依据必须是 key，不是 featureType。
+ */
+export function isCoverLayerKey(key: string): boolean {
+  return (
+    key === LAYER_KEYS.floodArea ||
+    key === LAYER_KEYS.floodFacilities ||
+    key.startsWith(FORECAST_LAYER_PREFIX)
+  )
+}

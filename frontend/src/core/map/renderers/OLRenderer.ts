@@ -28,6 +28,7 @@ import { LAYER_DEFAULTS } from '@/shared'
 import { logger } from '@/shared'
 import { createSpatialIndex, VIEWPORT_CULL_THRESHOLD } from '@/shared'
 import { breathingPoints, normalizePoint } from '@/shared'
+import { isCoverLayerKey } from '@/shared'
 import type { LayerOptions, MapRendererEventMap, PointFeature, PolygonFeature } from '@/types'
 import type { CameraState, FlyToOptions, FlyToTarget, GeoPoint } from '@/types'
 
@@ -188,16 +189,15 @@ export class OLRenderer extends MapRenderer {
   }
 
   /**
-   * 图层默认叠放层级（差异化，消除全回退同一档位的顺序依赖）：
-   * 普通业务层 10；覆盖类（淹没范围/受影响设施/预测图层）15 叠于其上；底图 0、呼吸层 100 不变
+   * 图层叠放层级：普通业务层 10；覆盖类（淹没范围/受影响设施/预测图层）15；底图 0、呼吸层 100。
+   *
+   * 判据读**图层 key**（`id`），不读 `options.featureType` —— 两者是两个命名空间。旧实现在
+   * featureType 里比 `'flood-facilities'`（那是 key）和 `'forecast-'`（那是 key 前缀）⇒ 三条判据
+   * 两条恒假。判定收口在 `isCoverLayerKey()`，key 由 `LAYER_KEYS` / `forecastLayerId()` 单源保证。
    */
-  _resolveLayerZIndex(options: LayerOptions): number {
+  _resolveLayerZIndex(id: string, options: LayerOptions): number {
     if (options.zIndex != null) return options.zIndex
-    const ft = options.featureType
-    if (ft === 'flood-area' || ft === 'flood-facilities' || ft?.startsWith('forecast-')) {
-      return LAYER_DEFAULTS.zIndexOverlay - 85
-    }
-    return LAYER_DEFAULTS.zIndex
+    return isCoverLayerKey(id) ? LAYER_DEFAULTS.zIndexCover : LAYER_DEFAULTS.zIndex
   }
   _initMap(): void {
     const view = new View({
@@ -414,7 +414,7 @@ export class OLRenderer extends MapRenderer {
       source: new VectorSource({ features: olFeatures }),
       style,
     })
-    vectorLayer.setZIndex(this._resolveLayerZIndex(options))
+    vectorLayer.setZIndex(this._resolveLayerZIndex(id, options))
     this.map?.addLayer(vectorLayer)
     this.registerLayer(id, vectorLayer, options)
   }
@@ -440,7 +440,7 @@ export class OLRenderer extends MapRenderer {
 
     const source = new VectorSource()
     const vectorLayer = new VectorLayer({ source, style })
-    vectorLayer.setZIndex(this._resolveLayerZIndex(options))
+    vectorLayer.setZIndex(this._resolveLayerZIndex(id, options))
     this.map?.addLayer(vectorLayer)
     this.registerLayer(id, vectorLayer, options)
 
@@ -622,7 +622,7 @@ export class OLRenderer extends MapRenderer {
       source: new VectorSource({ features: olFeatures }),
       style,
     })
-    vectorLayer.setZIndex(this._resolveLayerZIndex(options))
+    vectorLayer.setZIndex(this._resolveLayerZIndex(id, options))
     this.map?.addLayer(vectorLayer)
     this.registerLayer(id, vectorLayer, options)
   }
@@ -692,7 +692,7 @@ export class OLRenderer extends MapRenderer {
       source: new VectorSource({ features }),
       style: options.style || defaultStyle,
     })
-    vectorLayer.setZIndex(this._resolveLayerZIndex(options))
+    vectorLayer.setZIndex(this._resolveLayerZIndex(id, options))
     this.map?.addLayer(vectorLayer)
     this.registerLayer(id, vectorLayer, options)
   }
@@ -726,7 +726,7 @@ export class OLRenderer extends MapRenderer {
     })
 
     layer.set('id', id)
-    layer.setZIndex(this._resolveLayerZIndex(options))
+    layer.setZIndex(this._resolveLayerZIndex(id, options))
     const map = this.map
     if (!map) return false
     map.addLayer(layer)

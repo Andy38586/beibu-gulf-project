@@ -2,8 +2,9 @@ import { describe, expect, it } from 'vitest'
 
 import { readFileSync } from 'node:fs'
 
-import { deriveStatus, loadEvidence, parseAppendix } from '../derive-status.mjs'
+import { deriveStatus, loadEvidence, parseAppendix, unregisteredGuards } from '../derive-status.mjs'
 import { countBySpec } from '../../audit-kit/metrics-index.mjs'
+import { executionPlan } from '../../v3-guard/run-all.mjs'
 
 describe('指标账派生器', () => {
   it('kind → 状态字母：guard=A / test=B / retired=退役 / 无映射或未知=C', () => {
@@ -38,6 +39,61 @@ describe('指标账派生器', () => {
       expect(['guard', 'test', 'retired']).toContain(ev.kind)
       expect(ev.by).toBeTruthy() // 登记必须带依据
     }
+  })
+
+  it('🔴 反向校验（W74）：执行计划里的每个守卫都必须登记固化的指标编号', () => {
+    // 治的失效：修前只有「登记了但守卫没了」正向一条路径，「守卫在跑却没登记固化哪条指标」
+    // 无代码路径 ⇒ 29 个执行体只登记 2 条、401/403 条停在 C 级占位，metrics:derive 仍 exit 0。
+    // 判据收在 loadEvidence() 里（不是散在 main()）：否则删掉 main 的那段仍全绿（变异 M1 实测）。
+    expect(() => loadEvidence()).not.toThrow()
+    expect(unregisteredGuards(executionPlan(), loadEvidence())).toEqual([])
+    // 分母自洽：判据集非空（空集合下 filter/every 恒真 ⇒ 假绿壳）
+    expect(executionPlan().length).toBeGreaterThan(0)
+  })
+
+  it('🔴 反向校验能红：合成映射漏掉任一执行体即抛，且点名', () => {
+    // 阳性对照：把真实映射的最后一整条删掉，必须抛错并点出那个守卫。
+    const real = JSON.parse(readFileSync(new URL('../evidence.json', import.meta.url), 'utf8'))
+    const ids = Object.keys(real).filter((k) => k.startsWith('专项'))
+    // 只留一半登记 ⇒ 必然有一批执行体没有归属
+    const half = {}
+    for (const id of ids.slice(0, Math.floor(ids.length / 2))) half[id] = real[id]
+    expect(() => loadEvidence(half)).toThrow(/没有登记固化的指标编号/)
+    // 阴性对照：全量映射不许抛
+    expect(() => loadEvidence(real)).not.toThrow()
+  })
+
+  it('🔴 正向校验能红：ref 文件存在但不在执行计划 ⇒ 抛「未被 run-all 登记」', () => {
+    // 治的失效：守卫被删/改名后，证据映射仍声称「这条指标由它固化」⇒ 派生出的 A 是假 A。
+    // 合成映射用真实存在但非守卫的文件（appendix-rows.mjs 是库，不是执行体），
+    // 这样判据不依赖「文件不存在」那条更早的分支。
+    const synth = {
+      '专项1:1.1': {
+        kind: 'guard',
+        refs: ['tools/v3-guard/lib/appendix-rows.mjs'],
+        by: '合成夹具',
+      },
+    }
+    expect(() => loadEvidence(synth)).toThrow(/未被 run-all 登记/)
+    // 阴性对照：同样一条换成真实执行体就不许抛（否则判据等于「凡合成必红」）
+    const ok = {
+      '专项1:1.1': {
+        kind: 'guard',
+        refs: [`tools/v3-guard/${executionPlan()[0]}.mjs`],
+        by: '合成夹具',
+      },
+    }
+    expect(() => loadEvidence(ok)).toThrow(/没有登记固化的指标编号/) // 只因反向校验缺其余守卫
+  })
+
+  it('🔴 判定按 basename 去后缀比对（防止判据只认整条路径字面量）', () => {
+    // 纯函数直测：refs 里放不同目录深度，只要 basename 是执行体名就算已登记
+    const guard = executionPlan()[0]
+    const map = {
+      '专项1:1.1': { kind: 'guard', refs: [`tools/v3-guard/${guard}.mjs`], by: '合成夹具' },
+    }
+    expect(unregisteredGuards([guard], map)).toEqual([])
+    expect(unregisteredGuards(['not-this-one'], map)).toEqual(['not-this-one'])
   })
 
   it('🔴 强制点接线（1004-09）：pre-push 与 CI 各有可执行的 metrics:derive 步骤', () => {

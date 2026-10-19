@@ -56,7 +56,10 @@ export interface FlyToOptions {
 // ===== 图层选项 =====
 
 export interface LayerOptions {
-  visible?: boolean
+  // 注：显隐**不在**本接口。图层的 visible 由 `LayerDescriptor.visible`（register/applyOrUpdate
+  // 的入参）承载，渲染器经 registry 状态读写（`MapRenderer.setVisibility` / `isVisible`）。
+  // 曾有一个同名的 `visible?: boolean` 留在这里：全仓 0 处赋值、0 处读取，
+  // 直到 2026-10-19 立「可选字段零生产者」守卫才被扫出来（W67 / PB-1）。
   zIndex?: number
   markerColor?: string
   markerSize?: number

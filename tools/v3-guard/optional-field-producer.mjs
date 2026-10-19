@@ -54,15 +54,6 @@ export const MANAGED = [
  */
 export const ALLOWED = [
   {
-    iface: 'LayerOptions',
-    field: 'visible',
-    why:
-      '图层显隐由 LayerDescriptor.visible（register/applyOrUpdate 的入参）承载，' +
-      '渲染器的 LayerOptions.visible 是历史分层遗留的同名异义字段。' +
-      '**这是待清理项，不是合法豁免**——登记在此只为让守卫先上线而不误红；' +
-      '清理路径见待执行清单（删字段或让渲染器改读 descriptor）。',
-  },
-  {
     iface: 'FlyToOptions',
     field: 'roll',
     why:

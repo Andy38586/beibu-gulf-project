@@ -135,28 +135,4 @@ function handleClose(): void {
   color: var(--GCS-color-primary);
   border-color: var(--GCS-color-primary);
 }
-
-.bubble-tail {
-  position: absolute;
-  bottom: -8px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 0;
-  height: 0;
-  border-left: 8px solid transparent;
-  border-right: 8px solid transparent;
-  border-top: 9px solid var(--GCS-border-default);
-}
-
-.bubble-tail::after {
-  content: '';
-  position: absolute;
-  left: -7px;
-  top: -10px;
-  width: 0;
-  height: 0;
-  border-left: 7px solid transparent;
-  border-right: 7px solid transparent;
-  border-top: 8px solid var(--GCS-bg-panel);
-}
 </style>

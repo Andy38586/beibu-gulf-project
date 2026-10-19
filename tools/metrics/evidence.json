@@ -129,6 +129,11 @@
     "refs": ["tools/v3-guard/cruise-coverage.mjs"],
     "by": "dependency-cruiser 的 business 模块集合 == 实际目录集合，新目录无守护规则即红——「架构守护工具覆盖新目录」"
   },
+  "专项7:1.1": {
+    "kind": "guard",
+    "refs": ["tools/v3-guard/color-channel-parity.mjs"],
+    "by": "断言 CSS 通道（style.css 的 --GCS-color-*）与 canvas 通道（colors.ts 的具名常量）语义色成对存在、且权威源之外无裸 hex——「设计 token 单一来源」在双通道面的落点：canvas 读不到 var(--GCS-*) 是物理限制，两份必须存在但必须成对，任一侧被单改即红（W67 实测 3 组语义色两侧对比度 5.43/4.84/4.91 vs 2.24/2.19/2.90）"
+  },
   "专项7:5.2": {
     "kind": "guard",
     "refs": ["tools/v3-guard/css-lint-visibility.mjs"],

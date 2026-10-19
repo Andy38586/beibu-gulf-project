@@ -53,6 +53,7 @@ export const GUARDS = [
   'dev-gated-logs',
   'retired-claims',
   'optional-field-producer',
+  'color-channel-parity',
 ]
 
 /**

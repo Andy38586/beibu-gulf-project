@@ -10,7 +10,7 @@ import { authResponseSchema, userSchema } from '@/types/schemas'
 import { ApiError, ErrorCode, useApiRequest } from './useApiRequest'
 
 /** 返回契约（显式化，防重构时签名静默漂移） */
-export interface UseAuthReturn {
+interface UseAuthReturn {
   user: Ref<User | null>
   token: Ref<string>
   isAuthenticated: ComputedRef<boolean>

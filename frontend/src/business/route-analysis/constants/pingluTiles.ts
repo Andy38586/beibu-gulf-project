@@ -35,7 +35,7 @@ import { LOD_REFINE_GE_PER_SSE } from './lodRefinePolicy'
  *
  * 定义在此而非 core：这是本业务的图层命名约定。
  */
-export type PingluGroupId = 'madao' | 'qishi' | 'qingnian'
+type PingluGroupId = 'madao' | 'qishi' | 'qingnian'
 
 /**
  * 平陆运河 3D Tiles 分组表。

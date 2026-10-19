@@ -37,7 +37,8 @@ export const TASK_DOMAINS = [
 
 export type TaskDomain = (typeof TASK_DOMAINS)[number]
 
-export interface TaskError {
+/** 任务失败信息（只被本文件的 TaskView/TaskSlot 引用，2026-10-19 必要性审判收为模块内部） */
+interface TaskError {
   message: string
   bizCode?: number
 }

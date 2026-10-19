@@ -7,40 +7,18 @@ key 从 .env 的 VITE_TIANDITU_KEY 读，不硬编码。
 
 用法：python tools/3dtiles-build/fetch-port-imagery.py
 """
-import json, math, os, sys, urllib.request
+import json, os, sys, urllib.request
 from io import BytesIO
 from PIL import Image
 
-def read_key():
-    import re
-    for p in ('.env', 'frontend/.env', 'frontend/.env.local'):
-        try:
-            with open(p, encoding='utf-8') as f:
-                m = re.search(r'VITE_TIANDITU_KEY\s*=\s*(\S+)', f.read())
-                if m:
-                    return m.group(1)
-        except OSError:
-            pass
-    raise SystemExit('找不到 VITE_TIANDITU_KEY（在 .env / frontend/.env）')
-
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(ROOT, 'tools', 'lib'))
+from tianditu import read_key, tile_lnglat, tile_xy  # noqa: E402
 
 KEY = read_key()
 Z = 17
 LNG, LAT = 108.6473, 21.6745
 N = 8
-
-def tile_xy(lng, lat, z):
-    n = 2 ** z
-    x = (lng + 180.0) / 360.0 * n
-    lat_r = math.radians(lat)
-    y = (1.0 - math.log(math.tan(lat_r) + 1.0 / math.cos(lat_r)) / math.pi) / 2.0 * n
-    return x, y
-
-def tile_lnglat(x, y, z):
-    n = 2 ** z
-    lng = x / n * 360.0 - 180.0
-    lat = math.degrees(math.atan(math.sinh(math.pi * (1 - 2 * y / n))))
-    return lng, lat
 
 cx, cy = tile_xy(LNG, LAT, Z)
 x0 = int(cx) - N // 2

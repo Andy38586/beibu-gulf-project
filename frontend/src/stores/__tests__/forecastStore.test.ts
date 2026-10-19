@@ -75,6 +75,31 @@ describe('useForecastStore', () => {
       expect(store.requestCache.size).toBe(0)
       expect(store.confidenceThresholds.cargo).toBe(0.8)
     })
+
+    it('reset() 也清空 chart 九字段（clearChart 内联后行为不变）', () => {
+      const store = useForecastStore()
+      store.chart.lineXData = ['2026-01']
+      store.chart.lineSeries = [{ name: 'x', data: [1] }]
+      store.chart.lineUnit = '万吨'
+      store.chart.lineViewportXMin = '2024-03'
+      store.chart.lineViewportXMax = '2028-06'
+      store.chart.barXData = ['2026-01']
+      store.chart.barSeries = [{ name: 'y', data: [2] }]
+      store.chart.barUnit = '万TEU'
+      store.chart.barUnitRight = '亿元'
+
+      store.reset()
+
+      expect(store.chart.lineXData).toEqual([])
+      expect(store.chart.lineSeries).toEqual([])
+      expect(store.chart.lineUnit).toBe('')
+      expect(store.chart.lineViewportXMin).toBe('2023-01')
+      expect(store.chart.lineViewportXMax).toBe('2029-12')
+      expect(store.chart.barXData).toEqual([])
+      expect(store.chart.barSeries).toEqual([])
+      expect(store.chart.barUnit).toBe('')
+      expect(store.chart.barUnitRight).toBe('')
+    })
   })
 
   describe('事务状态 (b039)', () => {

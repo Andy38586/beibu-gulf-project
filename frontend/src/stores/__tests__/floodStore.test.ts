@@ -88,4 +88,22 @@ describe('useFloodStore', () => {
       expect(store.hasPersistedState).toBe(false)
     })
   })
+
+  describe('resetSubStates（resetWaterLevel / resetPortImpact 内联后行为不变）', () => {
+    it('清空水位与港口影响，但保留分析数据', () => {
+      const store = useFloodStore()
+      store.startFloodAnalysis({ riskLevel: '低', affectedFacilityCount: 2 }, [], '中')
+      store.setWaterLevel(4.5)
+      store.setPortImpactResult([{ lng: 1, lat: 2, type: 'port', name: 'x' }] as never, 123)
+
+      store.resetSubStates()
+
+      expect(store.waterLevel).toBe(0)
+      expect(store.affectedFacilities).toEqual([])
+      expect(store.totalLoss).toBe(0)
+      // 分析数据不受影响（跨页面保留）
+      expect(store.floodStatistics).not.toBeNull()
+      expect(store.floodRiskLevel).toBe('中')
+    })
+  })
 })

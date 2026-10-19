@@ -75,18 +75,6 @@ export const useSiteSuitabilityStore = defineStore('siteSuitability', () => {
     minLandFrac.value = Math.min(1, Math.max(0, v))
   }
 
-  /** 后端 defaults 全量应用（逐键赋值：schema 的 Record 形不直接等同州形状） */
-  function applyDefaults(d: SiteSuitabilityDefaultsParsed): void {
-    weights.value = {
-      inundation: d.weights.inundation,
-      terrain: d.weights.terrain,
-      land: d.weights.land,
-      access: d.weights.access,
-      demand: d.weights.demand,
-    }
-    minLandFrac.value = d.minLandFrac
-  }
-
   /**
    * 默认值单源拉取（幂等）：成功覆盖为后端值并 info 留痕；失败保留快照初值
    * 并 warn 留痕（带快照身份 + 错误摘要）。生产控制台"无 warn = 直连成功、
@@ -100,7 +88,15 @@ export const useSiteSuitabilityStore = defineStore('siteSuitability', () => {
           ENDPOINTS.siteSuitability.defaults,
           { method: 'GET', schema: siteSuitabilityDefaultsSchema }
         )
-        applyDefaults(d)
+        // 后端 defaults 全量应用（逐键赋值：schema 的 Record 形不直接等同州形状）
+        weights.value = {
+          inundation: d.weights.inundation,
+          terrain: d.weights.terrain,
+          land: d.weights.land,
+          access: d.weights.access,
+          demand: d.weights.demand,
+        }
+        minLandFrac.value = d.minLandFrac
         defaultsSource.value = 'remote'
         logger.info('[site-suitability] defaults 后端直连成功', d.source)
       } catch (e) {
@@ -149,7 +145,6 @@ export const useSiteSuitabilityStore = defineStore('siteSuitability', () => {
     setData,
     setWeight,
     setMinLandFrac,
-    applyDefaults,
     loadDefaults,
     normalizedWeights,
     reset,

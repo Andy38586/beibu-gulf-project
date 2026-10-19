@@ -84,18 +84,6 @@ export const useForecastStore = defineStore('forecast', () => {
     barUnitRight: '',
   })
 
-  function clearChart(): void {
-    chart.lineXData = []
-    chart.lineSeries = []
-    chart.lineUnit = ''
-    chart.lineViewportXMin = '2023-01'
-    chart.lineViewportXMax = '2029-12'
-    chart.barXData = []
-    chart.barSeries = []
-    chart.barUnit = ''
-    chart.barUnitRight = ''
-  }
-
   /** 请求进行态写入口（isRequesting 不再被 composable 直改） */
   function setIsRequesting(v: boolean): void {
     isRequesting.value = v
@@ -168,7 +156,15 @@ export const useForecastStore = defineStore('forecast', () => {
     }
     activeForecastLayer.value = null
     requestCache.value = new BoundedMap<string, unknown>(MAX_REQUEST_CACHE_ENTRIES)
-    clearChart()
+    chart.lineXData = []
+    chart.lineSeries = []
+    chart.lineUnit = ''
+    chart.lineViewportXMin = '2023-01'
+    chart.lineViewportXMax = '2029-12'
+    chart.barXData = []
+    chart.barSeries = []
+    chart.barUnit = ''
+    chart.barUnitRight = ''
     resetTransactionState()
   }
 
@@ -202,7 +198,6 @@ export const useForecastStore = defineStore('forecast', () => {
     activeForecastLayer,
     requestCache,
     chart,
-    clearChart,
     activeTransactionId,
     isRequesting,
     bumpTransactionId,

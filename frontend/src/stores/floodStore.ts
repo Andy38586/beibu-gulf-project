@@ -68,25 +68,17 @@ export const useFloodStore = defineStore('flood', () => {
     waterLevel.value = level
   }
 
-  function resetWaterLevel(): void {
-    waterLevel.value = 0
-  }
-
   // ─── 港口影响 ──────────────────────────────────────────────
   function setPortImpactResult(facilities: AffectedFacility[], loss: number): void {
     affectedFacilities.value = facilities
     totalLoss.value = loss
   }
 
-  function resetPortImpact(): void {
-    affectedFacilities.value = []
-    totalLoss.value = 0
-  }
-
   // ─── 子状态统一重置（不清分析数据，保留跨页面数据） ──────
   function resetSubStates(): void {
-    resetWaterLevel()
-    resetPortImpact()
+    waterLevel.value = 0
+    affectedFacilities.value = []
+    totalLoss.value = 0
   }
 
   // ─── 跨页面状态持久化 ──────────────────────────────────────
@@ -135,13 +127,11 @@ export const useFloodStore = defineStore('flood', () => {
     waterLevel,
     waterLevelActive,
     setWaterLevel,
-    resetWaterLevel,
     // 港口影响
     portImpactActive,
     affectedFacilities,
     totalLoss,
     setPortImpactResult,
-    resetPortImpact,
     // 子状态重置
     resetSubStates,
     // 计算属性

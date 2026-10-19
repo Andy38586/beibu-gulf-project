@@ -42,7 +42,35 @@ const VERDICT_RE = /(P[0-3]|属实|不属实|通过|证伪|豁免|未证|不适�
 const RC_RE = /\bRC([1-4])\b/g
 const TAG_TOKEN = '(引入|收口不足|取证漏|流程)'
 const TAG_BACKTICK_RE = new RegExp('`' + TAG_TOKEN + '`', 'gu')
-const TAG_ATTRIB_RE = new RegExp('归属\\s*[:：]\\s*[*`【]*\\s*' + TAG_TOKEN, 'u')
+/**
+ * 归属标签：`- **归属**：**引入**` 一族。
+ *
+ * 三个锚点都是量出来的（2026-10-19，真批次 `2026-10-17-八轮深度审查` 18 件 81 处标签）：
+ *   - 行首锚定 `^\s*(?:[-*]\s+)?`：不锚首会被三类**非标签**用法命中——格式说明
+ *     （`> 条目格式：… 归属/RC …`）、正文引用（`② 归属：7469b594 …` blame 说明）、
+ *     批级汇总（`| 归属分布 | **引入×2** … |`）。锚首后全批次命中 67 行、误认 0 行。
+ *   - `\*{0,2}归属\*{0,2}`：真实写法把**标签名**也加粗（`- **归属**：`），旧正则要求
+ *     `归属` 紧跟冒号 ⇒ 全批次 81 处只认到 3 处（认不到的那 78 处才是全部条目）。
+ *   - 值侧 `[*`【]{0,3}`：加粗/反引号/方括号混用，如 `**归属**：**引入**` 与 `` `流程` ``。
+ */
+const TAG_ATTRIB_RE = new RegExp(
+  '^\\s*(?:[-*]\\s+)?\\*{0,2}归属\\*{0,2}\\s*[:：]\\s*[*`【]{0,3}\\s*' + TAG_TOKEN,
+  'u'
+)
+/**
+ * 归属标签第三形态：发现清单**表格单元格** `| W01 | … | P1 | 收口不足 | RC2 |`。
+ *
+ * 为什么必须认它：9 份执行记录里 4 份用这一形态逐条打标（§2 发现清单表的「归属」列），
+ * 5 份把标签只写在问题副本里（见 `问题副本` 配对）。只认行内 `归属：` 时，**九个窗的
+ * 「引入/收口不足」列全是 0/0** —— 这正是 W73 报的「判据输入集合结构性为空」。
+ * 判据：行内先有一个恰为 `P0`–`P3` 的单元格，其后某单元格恰为四态之一（允许 `**`、`×N`、括注）。
+ */
+const TAG_TABLE_RE = new RegExp(
+  '\\|\\s*\\**P[0-3]\\**\\s*\\|(?:[^|]*\\|)*?\\s*\\**(' +
+    '引入|收口不足|取证漏|流程' +
+    ')\\**\\s*(?:×\\d+)?\\s*(?:（[^|]*）)?\\s*(?=\\|)',
+  'u'
+)
 /** 条目行三形态：`P0-…` 前缀 / `### …（P1）…` / `### …｜**P1**｜…`（1004-QC-03/07） */
 const ENTRY_RES = [
   /^\s*[|>\-*]?\s*\**P[0-3]\b/,
@@ -222,8 +250,9 @@ export function auditTags(md) {
   const 行 = md.split(/\r?\n/)
   let 带归属 = 0
   for (const l of 行) {
-    // 标签两形态都认（1004-QC-07）：反引号 `引入` 与 归属：**引入**；同一行只记一次归属
-    const attr = l.match(TAG_ATTRIB_RE)
+    // 三形态（1004-QC-07 + 2026-10-19 W73 收口）：行内 `归属：` / 表格单元格 / 反引号；
+    // 同一行只记一次归属，免得 `- **归属**：**引入** ｜ ~~~引入~~~` 被数两遍。
+    const attr = l.match(TAG_ATTRIB_RE) || l.match(TAG_TABLE_RE)
     if (attr) {
       标签[attr[1]]++
       带归属++
@@ -255,11 +284,36 @@ export function loadClaims(batchDir) {
   return new Map(j.窗.map((w) => [w.id, w.指标]))
 }
 
+/**
+ * 两份标签账取其一（窗件表格 vs 问题副本）。
+ *
+ * **为什么不是相加**：实测真批次（`2026-10-17-八轮深度审查`，8 对窗）两边编号的**交集
+ * 占窗件的 99%（71/72）** —— 同一条发现的两个视图。相加会把条目数与分子都翻倍（实测
+ * sum=145 而并集=74），膨胀率的分母虚涨一倍。
+ *
+ * **为什么逐项取 max 也不行**：那会合成一份两边都不存在的账（窗件 `引入×3/流程×0` +
+ * 副本 `引入×2/流程×1` ⇒ 拼成 4 条）。故按**整份**取：哪一份「带归属 / 条目」比例更高
+ * （更完整）就整份采用，另一份只在完全无标签时兜底。
+ *
+ * **为什么「更完整」用带归属数而不是条目数**：条目数两边几乎相等（实测 72 vs 73），
+ * 真正区分度在「有多少条真打了标」—— 那才是本数的意义。
+ */
+export function mergeTags(窗, 副本) {
+  if (!副本) return 窗
+  const 分数 = (t) => (t.修复条目数 ? t.带归属条目数 / t.修复条目数 : -1)
+  const 主 = 分数(副本) > 分数(窗) ? 副本 : 窗
+  const 备 = 主 === 窗 ? 副本 : 窗
+  // 主账一条标都没有、而备账有 ⇒ 说明标签写在另一份里，整份改用备账
+  return 主.带归属条目数 === 0 && 备.带归属条目数 > 0 ? 备 : 主
+}
+
 export function windowFiles(batchDir) {
   // 全部非 00-记分卡/README 的 .md 都纳入（1004-QC-06：混合命名批次里 W*.md 曾让
   // 非 W 窗件与问题副本被吞；W 文件仍以 `W\d+` 作 id 以对齐 claims.json）。
   // 例外二（1005-QC-02）：`*问题副本*` 是窗口 §2 的**衍生物**（问题清单副本），不是判定窗；
   // 把它当窗会让「无负责集的窗」凭空多一条，覆盖率分母的读法跟着被带偏。
+  // 2026-10-19 W73 收口：衍生物**不占窗**，但它的**标签面**必须并回同名窗（见 attachProblemCopies），
+  // 否则「归属逐条打标」这条规则的唯一输入集合落在扫描面之外 ⇒ 九个窗的标签数恒为 0。
   const out = []
   const walk = (dir, depth) => {
     if (depth > 3) return
@@ -293,20 +347,52 @@ export function windowFiles(batchDir) {
   return out.sort((a, b) => a.id.localeCompare(b.id))
 }
 
+/**
+ * 把每个窗的 `*问题副本.md` 按文件名配对挂到该窗上（**不新增窗**，只供标签面读数）。
+ *
+ * 配对规则：窗件 `专项1-数据链审查-执行记录.md` ↔ `专项1-数据链审查-问题副本.md`
+ * ⇒ 取窗件去掉 `-执行记录` 后的词干 + `-问题副本.md`。同一批次里找不到就不挂，
+ * 并在 `scoreBatch` 的「无问题副本的窗」里明说（不静默当 0 条）。
+ */
+export function attachProblemCopies(batchDir, windows) {
+  const 词干到副本 = new Map()
+  const walk = (dir, depth) => {
+    if (depth > 3) return
+    for (const e of readdirSync(dir, { withFileTypes: true })) {
+      const abs = path.join(dir, e.name)
+      if (e.isDirectory()) walk(abs, depth + 1)
+      else if (/\.md$/.test(e.name) && /问题副本/.test(e.name)) {
+        词干到副本.set(e.name.replace(/-?问题副本\.md$/, ''), abs)
+      }
+    }
+  }
+  walk(batchDir, 0)
+  return windows.map((w) => {
+    const base = path.basename(w.file, '.md')
+    const stem = base.replace(/-?执行记录$/, '')
+    const copy = 词干到副本.get(stem) ?? 词干到副本.get(base)
+    return { ...w, 问题副本: copy ?? null }
+  })
+}
+
 export function scoreBatch(batchDir) {
   const claims = loadClaims(batchDir)
-  const files = windowFiles(batchDir)
+  const files = attachProblemCopies(batchDir, windowFiles(batchDir))
   const 窗账 = []
   for (const w of files) {
     const md = readFileSync(w.file, 'utf8')
     const 负责 = claims?.get(w.id) || []
+    // 标签面 = 窗件 + 它的问题副本（W73：衍生物不占窗，但归属标签只写在衍生物里）。
+    // 覆盖/锚点/判据三栏**只读窗件**——那是窗口自己的交件面，并入衍生物会把分母算成两份。
+    const 副本md = w.问题副本 ? readFileSync(w.问题副本, 'utf8') : ''
     窗账.push({
       id: w.id,
       件: path.relative(ROOT, w.file).replace(/\\/g, '/'),
+      问题副本: w.问题副本 ? path.relative(ROOT, w.问题副本).replace(/\\/g, '/') : null,
       覆盖: auditCoverage(md, 负责),
       锚点: auditAnchors(md, batchDir),
       判据: auditHooks(md),
-      标签: auditTags(md),
+      标签: mergeTags(auditTags(md), 副本md ? auditTags(副本md) : null),
       负责数: 负责.length,
     })
   }

@@ -13,6 +13,7 @@ import {
   auditHooks,
   auditTags,
   failedThresholds,
+  mergeTags,
   renderScore,
   resolveAnchor,
   scoreBatch,
@@ -186,6 +187,114 @@ describe('scorecard — §0 契约与覆盖率、归属标签', () => {
 
   it('RC 打标：只数产物里真写的（RC1–RC4），没写就是 0 条', () => {
     expect(auditTags('这条属 `RC2` 与 RC1 各一次').RC).toEqual({ RC1: 1, RC2: 1, RC3: 0, RC4: 0 })
+  })
+
+  it('🔴 真实件形态：标签名被加粗 `- **归属**：**引入**` 必须计入（W73；改回不认 `**归属**` 即红）', () => {
+    const md = [
+      '### W44：DTO 双源｜**P1**｜4.1',
+      '',
+      '- **归属**：**引入**',
+      '### W42：未使用变量｜**P2**｜1.4',
+      '',
+      '- **归属**：收口不足（存量）｜**RC**：RC1',
+      '- **归属**：**流程**（标尺老化，存量）｜**RC**：RC2',
+    ].join('\n')
+    const t = auditTags(md)
+    expect(t.标签.引入).toBe(1)
+    expect(t.标签.收口不足).toBe(1)
+    expect(t.标签.流程).toBe(1)
+    expect(t.带归属条目数).toBe(3)
+    expect(t.未打标).toBe(0)
+  })
+
+  it('🔴 真实件形态：发现清单表格单元格 `| W01 | … | P1 | 收口不足 | RC2 |` 必须计入（W73 第三形态）', () => {
+    const md = [
+      '| # | 指标 | 证据 | 等级 | 归属 | RC |',
+      '| --- | --- | --- | --- | --- | --- |',
+      '| W01 | 4.6 空数据兜底 | 34 个无判据 | P1 | 收口不足 | — |',
+      '| W08 | 2.1 可画出性 | routes-audit 0 命中 | P2 | **引入** | RC1 |',
+      '| W13 | 2.2 守卫文案 | 判据已删 | P3 | **引入** | RC4 |',
+    ].join('\n')
+    const t = auditTags(md)
+    expect(t.标签.收口不足).toBe(1)
+    expect(t.标签.引入).toBe(2)
+    expect(t.带归属条目数).toBe(3)
+  })
+
+  it('🔴 三类非标签用法不得被认成标签（负样本：格式说明 / 正文 blame 引用 / 表头 / 口径自述）', () => {
+    const md = [
+      '> 条目格式：`### <编号>：<标题>｜**P<0-3>**｜<指标>` → 归属（引入/收口不足/取证漏/流程）→ RC1–RC4',
+      '  5. 归属：`OLRenderer.ts:262/:275` blame = `54b3514672` ⇒ in-base。',
+      '| 归属分布 | **引入×2**（W30 W32）｜**收口不足×11** |',
+      '| # | 指标 | 证据 | 等级 | 归属 | RC |',
+      // 这一行是真件原文（00-审查体系约定-问题副本.md:5）：去掉行首锚定后它会被误认成 1 条「引入」
+      '> 归属口径：`归属：**引入|收口不足|取证漏|流程**`；RC1–RC4 定义取 `docs/宪法/C2-质量不变量与根因守则.md:28-31`',
+    ].join('\n')
+    const t = auditTags(md)
+    expect(t.标签.引入).toBe(0)
+    expect(t.标签.收口不足).toBe(0)
+    expect(t.标签.流程).toBe(0)
+    expect(t.带归属条目数).toBe(0)
+  })
+})
+
+describe('scorecard — 问题副本归一（W73：衍生物不占窗，但标签面必须并回同窗）', () => {
+  it('🔴 窗件表格 + 问题副本标题：标签并回同窗，且不把同一条数两遍', () => {
+    const 窗 = auditTags(
+      ['| W01 | x | e | P1 | 收口不足 | — |', '| W08 | y | e | P2 | **引入** | RC1 |'].join('\n')
+    )
+    const 副本 = auditTags(
+      [
+        '### W01：x｜**P1**｜4.6',
+        '',
+        '- **归属**：收口不足（存量）',
+        '### W08：y｜**P2**｜2.1',
+        '',
+        '- **归属**：**引入**',
+      ].join('\n')
+    )
+    const m = mergeTags(窗, 副本)
+    // 同一条两个视图 ⇒ 分子/条目都不得翻倍
+    expect(m.标签.收口不足).toBe(1)
+    expect(m.标签.引入).toBe(1)
+    expect(m.修复条目数).toBe(2)
+    expect(m.带归属条目数).toBe(2)
+    expect(m.膨胀率分子).toBe(2)
+  })
+
+  it('窗件无标签、副本有 ⇒ 整份改用副本（标签只写在衍生物里的情形）', () => {
+    const 窗 = auditTags('| W01 | x | e | P1 | — | — |')
+    const 副本 = auditTags(['### W01：x｜**P1**｜4.6', '', '- **归属**：**流程**'].join('\n'))
+    expect(窗.带归属条目数).toBe(0)
+    const m = mergeTags(窗, 副本)
+    expect(m.标签.流程).toBe(1)
+    expect(m.带归属条目数).toBe(1)
+  })
+
+  it('无问题副本 ⇒ 原账不动（配对不上不得静默补 0）', () => {
+    const 窗 = auditTags('### W1：a｜**P1**｜4.6\n\n- **归属**：**引入**')
+    expect(mergeTags(窗, null)).toBe(窗)
+  })
+
+  it('🔴 端到端：问题副本仍不占窗（1005-QC-02 不得被本笔改坏），但其标签进同窗', () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'bbg-score-copy-'))
+    writeFileSync(
+      path.join(dir, '专项1-数据链审查-执行记录.md'),
+      '| W01 | x | e | P1 | 收口不足 | — |\n| W08 | y | e | P2 | **引入** | RC1 |\n'
+    )
+    writeFileSync(
+      path.join(dir, '专项1-数据链审查-问题副本.md'),
+      '### W01：x｜**P1**｜4.6\n\n- **归属**：收口不足（存量）\n### W08：y｜**P2**｜2.1\n\n- **归属**：**引入**\n'
+    )
+    const b = scoreBatch(dir)
+    // 窗数 = 1（问题副本不占窗）
+    expect(b.窗数).toBe(1)
+    expect(b.窗账[0].问题副本).toContain('问题副本')
+    // 标签面来自配对后的合并账，不是 0/0
+    expect(b.总.标签合计.引入).toBe(1)
+    expect(b.总.标签合计.收口不足).toBe(1)
+    expect(b.总.修复条目数).toBe(2)
+    expect(b.总.膨胀率).toBe(1)
   })
 })
 

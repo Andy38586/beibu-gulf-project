@@ -19,7 +19,6 @@ interface UsePlansReturn {
   updatePlan: (id: string, name: string, typeSettings: Record<string, TypeSetting>) => Promise<Plan>
   deletePlan: (id: string) => Promise<void>
   cancel: () => void
-  updating: Ref<boolean>
   loading: Ref<boolean>
   deleting: Ref<boolean>
 }
@@ -29,7 +28,6 @@ export function usePlans(): UsePlansReturn {
   // isAuthenticated 取自 useAuth（token+user 双判据）——窗口期/他页登录不再误判未登录
   const { apiRequest } = useApiRequest()
   const { isAuthenticated } = useAuth()
-  const updating: Ref<boolean> = ref(false)
   const loading: Ref<boolean> = ref(false)
   const deleting: Ref<boolean> = ref(false)
   // 读操作竞态守卫用 useLatestRequest；写操作不打断，避免误取消已提交的写请求
@@ -101,7 +99,6 @@ export function usePlans(): UsePlansReturn {
     if (!isAuthenticated.value) {
       throw new Error('请先登录')
     }
-    updating.value = true
     try {
       const settings = typeSettings ?? {}
       const selectedKeys = Object.entries(settings)
@@ -115,8 +112,6 @@ export function usePlans(): UsePlansReturn {
     } catch (error) {
       await handlePlanFailure(error, 'updatePlan')
       throw error
-    } finally {
-      updating.value = false
     }
   }
 
@@ -125,7 +120,6 @@ export function usePlans(): UsePlansReturn {
     updatePlan,
     deletePlan,
     cancel,
-    updating,
     loading,
     deleting,
   }

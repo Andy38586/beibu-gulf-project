@@ -1,5 +1,5 @@
-import type { ComputedRef, Ref } from 'vue'
-import { computed, inject } from 'vue'
+import type { Ref } from 'vue'
+import { inject } from 'vue'
 
 import { MAP_CONFIG } from '@/core/config/map'
 import { UNIFIED_MAP_KEY, type UnifiedMapExposed } from '@/core/provideKeys'
@@ -10,10 +10,7 @@ interface UseMapControlsReturn {
   flyTo: (target: FlyToTarget, options?: FlyToOptions) => void
   startBreathing: (target: GeoPoint | GeoPoint[], color?: string) => void
   stopBreathing: () => void
-  startFacilityBreathing: (target: Array<GeoPoint & { color?: string }>, color?: string) => void
-  stopFacilityBreathing: () => void
   zoomToRegion: () => void
-  mapInstance: ComputedRef<UnifiedMapExposed | null | undefined>
 }
 
 /**
@@ -30,29 +27,17 @@ export function useMapControls(
 ): UseMapControlsReturn {
   // 显式传入优先（App 自身场景）；`??` 短路保证这条路径不再触发 inject 的失败告警
   const unifiedMapRef = mapRef ?? inject(UNIFIED_MAP_KEY, null)
-  const mapInstance = computed(() => unifiedMapRef?.value)
 
   function flyTo(target: FlyToTarget, options: FlyToOptions = {}): void {
-    mapInstance.value?.flyTo(target, options)
+    unifiedMapRef?.value?.flyTo(target, options)
   }
 
   function startBreathing(target: GeoPoint | GeoPoint[], color?: string): void {
-    mapInstance.value?.startBreathing(target, color)
+    unifiedMapRef?.value?.startBreathing(target, color)
   }
 
   function stopBreathing(): void {
-    mapInstance.value?.stopBreathing()
-  }
-
-  function startFacilityBreathing(
-    target: Array<GeoPoint & { color?: string }>,
-    color?: string
-  ): void {
-    mapInstance.value?.startFacilityBreathing(target, color)
-  }
-
-  function stopFacilityBreathing(): void {
-    mapInstance.value?.stopFacilityBreathing()
+    unifiedMapRef?.value?.stopBreathing()
   }
 
   function zoomToRegion(): void {
@@ -63,13 +48,5 @@ export function useMapControls(
     flyTo(regionLevel.center, { height: regionLevel.height, zoom: regionLevel.zoom })
   }
 
-  return {
-    flyTo,
-    startBreathing,
-    stopBreathing,
-    startFacilityBreathing,
-    stopFacilityBreathing,
-    zoomToRegion,
-    mapInstance,
-  }
+  return { flyTo, startBreathing, stopBreathing, zoomToRegion }
 }

@@ -4,8 +4,8 @@
  * 登录后自动拉取；登出清空；未登录期的收藏意图（pendingFavorite）在登录成功后自动补完——
  * 用户点收藏 → 登录 → 无需再点一次。
  */
-import type { ComputedRef, Ref } from 'vue'
-import { computed, ref, watch } from 'vue'
+import type { Ref } from 'vue'
+import { ref, watch } from 'vue'
 
 import { ENDPOINTS } from '@/shared/constants/api'
 import type { FavoriteAddInput, FavoriteItem, FavoriteItemType } from '@/types'
@@ -34,7 +34,6 @@ const { user, token } = useAuth()
 /** 返回契约（对齐 显式化，防签名静默漂移） */
 interface UseFavoritesReturn {
   favorites: Readonly<Ref<FavoriteItem[]>>
-  isLoggedIn: ComputedRef<boolean>
   isFavorite: (itemType: FavoriteItemType, itemId: string) => boolean
   addFavorite: (input: FavoriteAddInput) => Promise<{ existed: boolean }>
   removeFavorite: (itemType: FavoriteItemType, itemId: string) => Promise<boolean>
@@ -125,8 +124,6 @@ async function commitFavorite(input: FavoriteAddInput): Promise<{ existed: boole
 }
 
 export function useFavorites(): UseFavoritesReturn {
-  const isLoggedIn = computed(() => user.value !== null)
-
   function isFavorite(itemType: FavoriteItemType, itemId: string): boolean {
     return favorites.value.some((f) => f.itemType === itemType && f.itemId === itemId)
   }
@@ -165,5 +162,5 @@ export function useFavorites(): UseFavoritesReturn {
     showModal({ message: '收藏功能需要登录，是否前往登录？', mode: 'login' })
   }
 
-  return { favorites, isLoggedIn, isFavorite, addFavorite, removeFavorite, promptLoginForFavorite }
+  return { favorites, isFavorite, addFavorite, removeFavorite, promptLoginForFavorite }
 }

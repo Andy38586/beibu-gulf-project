@@ -59,7 +59,7 @@ core/
 
 - **双引擎策略**：OL 与 Cesium 容器均 `v-show` 切换；渲染器实例**长期复用、不销毁**，首次创建后保留在 `olRenderer`/`cesiumRenderer` ref。
 - **Cesium 懒加载**：3D 首次切换时动态注入 `<script>` 加载 Cesium.js（5.7MB），首屏零开销；`ensureCesiumLoaded` 幂等（模块级单例 promise）。
-- **引擎切换流程**：`switchMapType` → 导出旧相机状态 → `initRenderer`（复用则 `updateSize`+`setupLayers`，新建则 `createRenderer`+`setupLayers`+`setupEvents`）→ 导入相机状态 → `emit('type-change')`（816：kebab-case 化）。
+- **引擎切换流程**：`switchMapType` → 导出旧相机状态 → `initRenderer`（复用则 `updateSize`+`setupLayers`，新建则 `createRenderer`+`setupLayers`+`setupEvents`）→ 导入相机状态。`mapStore.mapType` 已是唯一状态源，切换成功后不再额外 emit 事件（原 `type-change` 全仓零监听，必要性审判波二·单元 P 删除）。
 - **重入保护**：切换进行中排队最新请求，完成后仅执行最后一个（`pendingSwitchType`）。
 - **核心常驻层收口**（`@arch-note a033 / D-12=B`）：boundary/ports 不再由组件直管，统一收口到 BLM，与业务图层走同一 registry。
 

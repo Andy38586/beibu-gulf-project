@@ -70,10 +70,6 @@ export function useGlobalPanelDragActive() {
 }
 
 interface UsePanelDragOptions {
-  /** 拖拽开始时回调（用于挂 dragging class / 暂停内部动画等） */
-  onDragStart?: () => void
-  /** 拖拽结束（无论投递成功与否）回调 */
-  onDragEnd?: () => void
   /** 命中投递区时回调，参数为命中的投递区元素 */
   onDrop?: (zone: HTMLElement) => void
   /** 投递失败（未命中 / 取消）时回调，用于显示回滚提示 */
@@ -152,7 +148,7 @@ function findDropZone(x: number, y: number): HTMLElement | null {
 }
 
 export function usePanelDrag(options: UsePanelDragOptions = {}): UsePanelDragReturn {
-  const { onDragStart, onDragEnd, onDrop, onCancel, ignoreSelector, enabled = () => true } = options
+  const { onDrop, onCancel, ignoreSelector, enabled = () => true } = options
 
   const phase = ref<PanelDragPhase>('idle')
   const offsetX = ref(0)
@@ -208,7 +204,6 @@ export function usePanelDrag(options: UsePanelDragOptions = {}): UsePanelDragRet
       //    ⚠️ 本帧的 overZone 可能还没命中（DOM 更新在 microtask 后），
       //    但 handleUp 发生在拖拽**末尾**、DOM 早已更新，故落点判定可靠。
       markGlobalDrag(true)
-      onDragStart?.()
     }
 
     offsetX.value = dx
@@ -233,7 +228,6 @@ export function usePanelDrag(options: UsePanelDragOptions = {}): UsePanelDragRet
       } else {
         onCancel?.()
       }
-      onDragEnd?.()
     }
 
     reset()
@@ -245,7 +239,6 @@ export function usePanelDrag(options: UsePanelDragOptions = {}): UsePanelDragRet
     releaseCapture()
     if (phase.value === 'dragging') {
       onCancel?.()
-      onDragEnd?.()
     }
     reset()
   }
@@ -276,7 +269,6 @@ export function usePanelDrag(options: UsePanelDragOptions = {}): UsePanelDragRet
     releaseCapture()
     if (phase.value === 'dragging') {
       onCancel?.()
-      onDragEnd?.()
     }
     reset()
   }

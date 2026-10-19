@@ -25,15 +25,10 @@ const props = withDefaults(defineProps<Props>(), {
   yUnitRight: '',
 })
 
-const emit = defineEmits<{
-  select: [dataIndex: number]
-}>()
-
 /** 无数据时以 absolute 浮层显示空态；判定随 useChartBase 一并返回 */
 const chartRef = ref<HTMLElement | null>(null)
 const { hasData } = useChartBase(
   props,
-  emit,
   'bar',
   {
     barWidth: '30%',

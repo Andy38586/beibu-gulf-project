@@ -1,7 +1,7 @@
 import { computed, type ComputedRef, type Ref } from 'vue'
 
 import { CHART_COLORS, CHART_GRID, chartColor, useTheme } from '@/shared'
-import type { ChartClickParams, UseEChartsReturn } from '@/visualization/composables/useECharts'
+import type { UseEChartsReturn } from '@/visualization/composables/useECharts'
 import { useECharts } from '@/visualization/composables/useECharts'
 
 /** 图表基础 props（LineChart / BarChart 通用） */
@@ -18,16 +18,12 @@ interface ChartBaseProps {
   yUnitRight?: string
 }
 
-/** 图表事件发射器 */
-type ChartEmit = (event: 'select', dataIndex: number) => void
-
 /**
  * @param chartRef 组件自持的容器 ref（模板 ref 必须绑定到 setup 作用域内的变量）。
  *   缺省时 useECharts 内部自建——此时绑定不到模板，仅适用于无模板容器的场景。
  */
 export function useChartBase(
   props: ChartBaseProps,
-  emit: ChartEmit,
   chartType: string,
   seriesConfig: Record<string, unknown> = {},
   chartRef?: Ref<HTMLElement | null>
@@ -39,11 +35,6 @@ export function useChartBase(
     if (!props.series || props.series.length === 0) return false
     return props.series.some((s) => s.data && s.data.length > 0)
   })
-
-  function handleClick(params: ChartClickParams): void {
-    if (params.dataIndex == null) return
-    emit('select', params.dataIndex)
-  }
 
   /**
    * option 每次调用时现取 props 构建（避免一次性快照导致 props 更新后图表不刷新）。
@@ -174,7 +165,6 @@ export function useChartBase(
         () => props.xMax,
         () => props.yUnitRight,
       ],
-      onClick: handleClick,
       ...(chartRef ? { chartRef } : {}),
     }),
     hasData,

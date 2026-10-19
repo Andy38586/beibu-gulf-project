@@ -34,11 +34,6 @@ interface Props {
   flyTo?: (item: ScoredXiaoqu) => void
 }
 
-interface Emits {
-  (_e: 'click-item', _item: ScoredXiaoqu): void
-  (_e: 'favorite-change', _data: { item: ScoredXiaoqu; isFavorite: boolean }): void
-}
-
 const props = withDefaults(defineProps<Props>(), {
   items: () => [],
   pageSize: 4,
@@ -52,8 +47,6 @@ const props = withDefaults(defineProps<Props>(), {
   // 显式 undefined：flyTo 为可选能力（个人中心 PlansPanel 无地图上下文），非遗漏默认值
   flyTo: undefined,
 })
-
-const emit = defineEmits<Emits>()
 
 // 从 useGCS 解构 CSS 变量供 v-bind() 使用
 const { css } = useGCS()
@@ -69,9 +62,6 @@ const { isAuthenticated } = useAuth()
 
 /** 统一的登录状态判断：使用 isAuthenticated 而非 user.value */
 const isLoggedIn = computed(() => isAuthenticated.value)
-
-/** 当前选中的项（用于地图可视化） */
-const selectedItem = ref<ScoredXiaoqu | null>(null)
 
 /** 收藏对象类型：随面板业务类型（flood → facility） */
 const favoriteItemType = computed<FavoriteItemType>(() =>
@@ -146,7 +136,6 @@ async function toggleFavorite(item: ScoredXiaoqu) {
       const { existed } = await addFavorite(toFavoriteInput(item))
       showToast(existed ? '已在收藏中' : `已收藏：${item.name}`, 'success')
     }
-    emit('favorite-change', { item, isFavorite: !already })
   } catch (error) {
     showError(error, {
       fallback: already ? '取消收藏失败，请稍后重试' : '收藏失败，请稍后重试',
@@ -162,10 +151,8 @@ function goToPage(page: number) {
   }
 }
 
-/** 点击列表项：注入 flyTo 跳转并 emit 规范化数据给父组件（雷达图等） */
+/** 点击列表项：把规范化副本交给调用方注入的 flyTo（shared 不依赖 core） */
 function handleItemClick(item: ScoredXiaoqu) {
-  selectedItem.value = item
-
   logger.debug('[PaginatedListPanel] 点击项:', item)
   logger.debug('[PaginatedListPanel] breakdown:', item.breakdown)
 
@@ -177,9 +164,6 @@ function handleItemClick(item: ScoredXiaoqu) {
 
   // 地图交互由业务层注入（shared 不依赖 core）
   props.flyTo?.(normalizedItem)
-
-  // 向父组件 emit 规范化数据（雷达图等用）
-  emit('click-item', normalizedItem)
 }
 
 /** 监听数据变化，重置到第一页 */

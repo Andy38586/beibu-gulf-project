@@ -23,8 +23,6 @@ let api: ReturnType<typeof usePanelDrag>
 const Host = defineComponent({
   setup() {
     api = usePanelDrag({
-      onDragStart: spy.start,
-      onDragEnd: spy.end,
       onDrop: spy.drop,
       onCancel: spy.cancel,
     })
@@ -37,8 +35,6 @@ const Host = defineComponent({
 })
 
 const spy = {
-  start: vi.fn(),
-  end: vi.fn(),
   drop: vi.fn(),
   cancel: vi.fn(),
 }
@@ -145,7 +141,6 @@ describe('usePanelDrag', () => {
     downOnHost(100, 100)
     await nextTick()
     expect(api.phase.value).toBe('pending')
-    expect(spy.start).not.toHaveBeenCalled()
   })
 
   it('位移小于 4px 阈值不进入 dragging（防误触）', async () => {
@@ -154,16 +149,14 @@ describe('usePanelDrag', () => {
     await nextTick()
 
     expect(api.phase.value).toBe('pending')
-    expect(spy.start).not.toHaveBeenCalled()
   })
 
-  it('位移达到阈值进入 dragging 并触发 onDragStart', async () => {
+  it('位移达到阈值进入 dragging', async () => {
     downOnHost(100, 100)
     window.dispatchEvent(pointer('pointermove', 100 + DRAG_THRESHOLD_PX, 100))
     await nextTick()
 
     expect(api.phase.value).toBe('dragging')
-    expect(spy.start).toHaveBeenCalledTimes(1)
   })
 
   it('拖拽中位移随指针更新（transform 数据源）', async () => {
@@ -235,7 +228,6 @@ describe('usePanelDrag', () => {
     expect(spy.drop).toHaveBeenCalledTimes(1)
     expect(spy.drop.mock.calls[0]![0]).toBe(zone)
     expect(spy.cancel).not.toHaveBeenCalled()
-    expect(spy.end).toHaveBeenCalledTimes(1)
     expect(api.phase.value).toBe('idle')
   })
 
@@ -248,7 +240,6 @@ describe('usePanelDrag', () => {
 
     expect(spy.drop).not.toHaveBeenCalled()
     expect(spy.cancel).toHaveBeenCalledTimes(1)
-    expect(spy.end).toHaveBeenCalledTimes(1)
     expect(api.phase.value).toBe('idle')
     expect(api.offsetX.value).toBe(0)
     expect(api.offsetY.value).toBe(0)
@@ -263,7 +254,6 @@ describe('usePanelDrag', () => {
 
     expect(spy.drop).not.toHaveBeenCalled()
     expect(spy.cancel).not.toHaveBeenCalled()
-    expect(spy.end).not.toHaveBeenCalled()
     expect(api.phase.value).toBe('idle')
   })
 
@@ -406,5 +396,29 @@ describe('公开面收窄 — 落点属性与拖拽阈值不得再导出', () =>
     for (const k of INTERNAL) expect(mod[k], k + ' 应已收为模块内部').toBeUndefined()
     expect(typeof mod.STACK_SLOT_ZONE_ATTR).toBe('string')
     expect(typeof mod.isStackSlotZone).toBe('function')
+  })
+
+  /**
+   * 必要性审判波二·单元 P：onDragStart / onDragEnd 两个回调全仓唯一生产消费方
+   * （GCSPanel）从不消费其载荷，而拖拽起止已由 phase 与全局拖拽态表达 ⇒ 删除。
+   * 判据 = 静态形态：选项面与调用点都不得再出现这两个名字（运行时无从断言：
+   * 它们是可选回调，传了也只是被忽略，测试恒绿）。
+   */
+  it('拖拽回调面只剩 onDrop / onCancel（onDragStart / onDragEnd 已删）', async () => {
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const { fileURLToPath } = await import('node:url')
+    const here = path.dirname(fileURLToPath(import.meta.url))
+    const src = fs.readFileSync(path.resolve(here, '..', 'usePanelDrag.ts'), 'utf8')
+    expect(src).not.toMatch(/\bonDragStart\b/)
+    expect(src).not.toMatch(/\bonDragEnd\b/)
+    // 阳性对照：保留下来的两个回调仍在（否则本条会因文件被清空而假绿）
+    expect(src).toMatch(/\bonDrop\b/)
+    expect(src).toMatch(/\bonCancel\b/)
+    // 返回面仍是四个导出（收窄过程不得顺手丢公开 API）
+    const mod = (await import('../usePanelDrag')) as unknown as Record<string, unknown>
+    expect(Object.keys(mod).sort()).toEqual(
+      ['STACK_SLOT_ZONE_ATTR', 'isStackSlotZone', 'useGlobalPanelDragActive', 'usePanelDrag'].sort()
+    )
   })
 })

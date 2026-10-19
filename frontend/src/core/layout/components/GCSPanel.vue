@@ -41,18 +41,11 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const emit = defineEmits<{
-  /** 命中 dock 投递区 */
+  /** 命中 dock 投递区（拖拽落点与 compact 停靠按钮两条路径共用） */
   drop: [zone: HTMLElement]
-  /** 拖拽开始 */
-  dragstart: []
-  /** 拖拽结束（投递成功或回滚均触发） */
-  dragend: []
 }>()
 
 const { panelPosition, cellPixel, tier: viewportTier } = useGCS()
-
-/** 拖拽期间挂在面板上的标记 class（供外部 :deep 覆盖视觉） */
-const dragActive = ref(false)
 
 const { phase, offsetX, offsetY, overZone, onPointerDown } = usePanelDrag({
   // v4-S10：<640px（compact 档）自由拖拽降级为长按弹"停靠到后台"——触屏拖拽
@@ -60,15 +53,7 @@ const { phase, offsetX, offsetY, overZone, onPointerDown } = usePanelDrag({
   enabled: () => props.draggable && !props.dragDisabled && viewportTier.value !== 'compact',
   // 输入框 / 按钮 / 可滚动区不启动拖拽（否则点输入框即被拖走）
   ignoreSelector: 'input, textarea, select, button, a, [data-no-drag], [contenteditable="true"]',
-  onDragStart: () => {
-    dragActive.value = true
-    emit('dragstart')
-  },
   onDrop: (zone) => emit('drop', zone),
-  onDragEnd: () => {
-    dragActive.value = false
-    emit('dragend')
-  },
 })
 
 // ── v4-S10：compact 档长按降级 ──

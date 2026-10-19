@@ -35,8 +35,6 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const emit = defineEmits<{
-  // 事件名改 kebab-case（03 1.2 命名约定；原 typeChange camelCase）
-  'type-change': [newType: '2d' | '3d']
   click: [payload: MapRendererEventMap['click']]
   error: [error: Error]
 }>()
@@ -555,8 +553,6 @@ async function switchMapType(newType: '2d' | '3d') {
     if (cameraState && currentRenderer.value) {
       currentRenderer.value.importState(cameraState)
     }
-
-    emit('type-change', newType)
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error))
     logger.error(`切换到 ${newType} 失败:`, err)

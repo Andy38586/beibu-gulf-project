@@ -26,8 +26,9 @@ echarts.use([
   CanvasRenderer,
 ])
 
-/** ECharts 点击事件回调参数（仅声明实际使用的字段） */
-export interface ChartClickParams {
+/** ECharts 点击事件回调参数（仅声明实际使用的字段）；只在本文件被 UseEChartsOptions 引用，
+ *  不对外导出（必要性审判波二·单元 P：useChartBase 的点击转发删除后失去唯一外部消费者） */
+interface ChartClickParams {
   componentType: string
   name?: string
   dataIndex?: number

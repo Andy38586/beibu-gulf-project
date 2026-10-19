@@ -10,10 +10,10 @@ import {
   checkLiveDocs,
   checkRefs,
   classify,
-  extractCommitExamples,
   extractClaimedScripts,
+  extractCommitExamples,
   extractTokens,
-  isGitIgnored,
+  gitIgnored,
   LIVE_DOCS,
   prefixedRefs,
   stripCommitType,
@@ -121,7 +121,7 @@ describe('agent-docs-check（作业协议自述守卫）', () => {
         ...e,
         file: rel,
       }))
-      expect(checkRefs(entries, undefined, isGitIgnored), rel).toEqual([])
+      expect(checkRefs(entries, undefined, gitIgnored), rel).toEqual([])
     }
   })
 
@@ -144,7 +144,16 @@ describe('agent-docs-check（作业协议自述守卫）', () => {
   it('回归锚：全部活文档当前无断链（按生产口径含 gitignored 豁免）', () => {
     // 必须与 run() 的调用口径一致：干净检出/CI 里 gitignored 目标不存在，
     // 用严格默认调会在 CI 上误红（这是 test:tools 在 CI 红的第二处消费点）。
-    expect(checkLiveDocs(LIVE_DOCS, undefined, isGitIgnored)).toEqual([])
+    expect(checkLiveDocs(LIVE_DOCS, undefined, gitIgnored)).toEqual([])
+  })
+
+  it('@guard-red-sample 适配器只认 === true：非 git 环境不豁免（三态漏成二态即红）', () => {
+    // gitIgnored 是生产适配器本身，不是测试里的手抄：把它改成 !== false（把 null 当豁免）
+    // 或改回只看 status === 0 的二态实现，本条立刻红。
+    const NON_GIT = path.parse(ROOT).root // 盘符根：任何仓外路径都不在 git 工作树里
+    expect(gitIgnored('.local/', NON_GIT)).toBe(false)
+    // 阳性对照：同一判定在仓库内为 true（否则上一条会被"恒 false"蒙过）
+    expect(gitIgnored('.local/')).toBe(true)
   })
 
   it('🔴 口径单源（W13）：三份文档都禁 `type(scope)`，且 commitlint 侧有对应机器判据', () => {

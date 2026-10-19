@@ -46,6 +46,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { isGitIgnored } from './lib/git-ignored.mjs'
+
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const PROTOCOL_DOCS = ['AGENTS.md', 'CLAUDE.md']
 const BARE_DIRS = ['', 'docs/', 'docs/根基文档/']
@@ -249,14 +251,13 @@ export function classify(token) {
 /**
  * 目标是否在**版本控制之外**（gitignored）。按 AGENTS §5.4，判据不得对这类目标做存在性
  * 断言 —— 它本就不会出现在干净检出/CI 里。只在"看起来违规"时才 spawn git，正常路径零开销。
+ *
+ * 实现归 `lib/git-ignored.mjs`（三态）；本守卫要的是二态，故 `=== true` —— 非 git 环境
+ * 判「不忽略」，与改前的 `status === 0` 逐值等价，不放宽。
+ *
+ * `root` 可注入只为让判据能造出「非 git 环境」这一档（生产调用点不传，走仓库根）。
  */
-export function isGitIgnored(rel) {
-  // `stdio: 'ignore'` 是必须的：受限执行环境拒绝**管道式**子进程，spawnSync 会返回
-  // status=null，于是本函数恒返回 false、豁免静默失效（本仓第三次踩同一个坑 ——
-  // 前两次见 mutation-probe 与 runCommitlint）。这里只要退出码，不需要任何输出。
-  const r = spawnSync('git', ['check-ignore', '-q', '--', rel], { cwd: ROOT, stdio: 'ignore' })
-  return r.status === 0
-}
+export const gitIgnored = (rel, root = ROOT) => isGitIgnored(rel, { root }) === true
 
 /**
  * @param {Array<{token: string, line: number}>} entries 已带来源文件标注的片段
@@ -437,7 +438,7 @@ function run() {
     const text = fs.readFileSync(abs, 'utf8')
     const entries = extractTokens(text).map((e) => ({ ...e, file: rel }))
     checked += entries.filter((e) => classify(e.token)).length
-    for (const b of checkRefs(entries, undefined, isGitIgnored)) refBad.push({ file: rel, ...b })
+    for (const b of checkRefs(entries, undefined, gitIgnored)) refBad.push({ file: rel, ...b })
     const cf = checkCommitForm(text)
     for (const b of cf.violations) commitBad.push({ file: rel, ...b })
     for (const s of cf.skipped) skipped.push({ file: rel, ...s })
@@ -461,7 +462,7 @@ function run() {
 
   const violations = [
     ...refBad,
-    ...checkLiveDocs(LIVE_DOCS, undefined, isGitIgnored),
+    ...checkLiveDocs(LIVE_DOCS, undefined, gitIgnored),
     ...commitBad,
     ...claimBad,
   ]

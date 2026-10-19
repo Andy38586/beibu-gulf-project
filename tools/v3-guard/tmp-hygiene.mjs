@@ -26,10 +26,11 @@
  *   node tools/v3-guard/tmp-hygiene.mjs              # 扫描（违规 exit 1）
  *   node tools/v3-guard/tmp-hygiene.mjs --json       # 机器可读输出
  */
-import { spawnSync } from 'node:child_process'
 import { readdirSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+
+import { isGitIgnored } from './lib/git-ignored.mjs'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 
@@ -50,8 +51,9 @@ const TEMP_PATTERNS = [
 /** 合法长驻文件（历史约定，不是残渣） */
 const ALLOWED = new Set(['.eslintcache', '.tmp-hygiene.json'])
 
-/**
+/*
  * 合法长驻**目录**处理规则（显式判定，避免用「模糊豁免」把守卫再度削成摆设）。
+ * 判定实现在 scan()：isGitIgnored 归 lib/git-ignored.mjs（三态），调用侧取 === true。
  *
  * 判定原则（2026-09-18 定）：`tmp-` 前缀目录本身是**根目录污染**——但若它已经被
  * .gitignore 明确忽略（见 .gitignore 中 `tmp-` 通配那条），则它属于「本机会话工作区」，
@@ -68,23 +70,9 @@ const ALLOWED = new Set(['.eslintcache', '.tmp-hygiene.json'])
  * 换言之：本守卫对**文件**是强约束，对**目录**是弱约束——不要把它当作「根目录没有
  * tmp- 目录」的保证；那是 .gitignore 与人工整理的责任。
  *
- * ⚠️ 别在本注释里写「星号加斜杠」的 glob 字面量：它会提前闭合 JSDoc（2026-09-18 踩中，
+ * ⚠️ 别在这段注释里写「星号加斜杠」的 glob 字面量：它会提前闭合块注释（2026-09-18 踩中，
  * 直接导致 SyntaxError）。
  */
-function isGitIgnored(absPath) {
-  try {
-    const r = spawnSync('git', ['-C', ROOT, 'check-ignore', '-q', absPath], {
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'pipe'],
-    })
-    // check-ignore: 0 = 被忽略；1 = 未被忽略；128 = 非 git 环境
-    if (r.status === 0) return true
-    if (r.status === 1) return false
-    return null // 非 git 环境：无法判定
-  } catch {
-    return null
-  }
-}
 
 /** 统计目录一级条目数（仅用于报告可读性，不递归） */
 function shallowCount(dir) {
@@ -118,7 +106,7 @@ export function scan({ root = ROOT, watched = WATCHED } = {}) {
       const abs = path.join(dir, e.name)
       // 目录级残渣：已被 .gitignore 忽略 ⇒ 视为本机会话工作区，豁免；
       // 未被忽略（或非 git 环境无法判定）⇒ 报红。
-      if (isDir && isGitIgnored(abs) === true) continue
+      if (isDir && isGitIgnored(abs, { root }) === true) continue
       const count = isDir ? shallowCount(abs) : null
       hits.push({
         dir: rel === '.' ? '(仓库根)' : rel + '/',

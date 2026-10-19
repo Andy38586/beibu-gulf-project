@@ -35,10 +35,13 @@ const FORBIDDEN_FILENAMES = /\.(tmp|bak|orig|swp)(\.\w+)?$/i
  *   不是给新功能腾地方——此后任何净增行仍须先走"另开文件"或再次裁定。
  *   它是这批改动**唯一**需要的提额：先做净减项再看是否真超，确实超了才提（见交接记录）。
  * 2026-10-17 图层注册十二站点收口为 MapRenderer.registerLayer（净减 23/22 行）⇒ 按「上限=实测」下修至 2335/1092。
+ * 2026-10-18 删 cluster 死实现（PA-1：cluster 分支 + withClusterStyle + click 解包，净减 68 行）⇒
+ *   按同一条公式下修至 1024。**这是下调，不是提额**：删掉的是零生产者能力（`LayerOptions.cluster`
+ *   全仓 0 处赋值），棘轮随实测一起回落，方才保证「上限=实测，不是上限-1 的虚设」。
  */
 export const RENDERER_SIZE_CEILINGS = [
   { file: 'frontend/src/core/map/renderers/CesiumRenderer.ts', max: 2335 },
-  { file: 'frontend/src/core/map/renderers/OLRenderer.ts', max: 1092 },
+  { file: 'frontend/src/core/map/renderers/OLRenderer.ts', max: 1024 },
 ]
 
 /**

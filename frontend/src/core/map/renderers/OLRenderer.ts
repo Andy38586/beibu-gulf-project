@@ -16,7 +16,6 @@ import OlMap from 'ol/Map'
 import type MapBrowserEvent from 'ol/MapBrowserEvent'
 import Overlay from 'ol/Overlay'
 import { toGeoCoord, toMapCoord, toPointGeometry } from '../olCoord'
-import Cluster from 'ol/source/Cluster'
 import VectorSource from 'ol/source/Vector'
 import XYZ from 'ol/source/XYZ'
 import { Circle, Fill, Stroke, Style, Text } from 'ol/style'
@@ -97,38 +96,6 @@ function toHeatmapOlFeatures(features: PointFeature[]): Feature<Point>[] {
 const OL_VIEW_ZOOM = 9
 const OL_VIEW_MIN_ZOOM = 6
 const OL_VIEW_MAX_ZOOM = 20
-
-/**
- * 聚合样式包装（W4-18）：Cluster 源下成员数 >1 的聚合点画大圆 + 数量标注，
- * 单体沿用原样式（Style 或 StyleFunction）。
- * 单体必须解包成员 feature 再交给样式函数——cluster feature 只携带 features 数组，
- * 不带业务属性（per-point color/opacity），直接传会让单体全部退化为图层默认色。
- */
-function withClusterStyle(base: Style | StyleFunction): StyleFunction {
-  return (feature: FeatureLike, resolution: number) => {
-    const members = feature.get('features')
-    if (Array.isArray(members) && members.length > 1) {
-      const radius = Math.min(10 + members.length, 24)
-      return new Style({
-        image: new Circle({
-          radius,
-          fill: new Fill({ color: LAYER_DEFAULTS.color }),
-          stroke: OUTLINE_STROKE,
-        }),
-        text: new Text({
-          text: String(members.length),
-          font: '12px sans-serif',
-          fill: new Fill({ color: LAYER_DEFAULTS.outline }),
-          offsetY: 0,
-        }),
-      })
-    }
-    if (Array.isArray(members) && members.length === 1) {
-      return typeof base === 'function' ? base(members[0] as FeatureLike, resolution) : base
-    }
-    return typeof base === 'function' ? base(feature, resolution) : base
-  }
-}
 
 /**
  * hex 颜色加 alpha（OL Fill 用）：'#rrggbb' → 'rgba(r,g,b,a)'。
@@ -308,18 +275,9 @@ export class OLRenderer extends MapRenderer {
       map.forEachFeatureAtPixel(
         evt.pixel,
         (feature) => {
-          // Cluster 源命中到的是聚合 feature（只带 features 数组，无业务属性）：
-          // 单体解包成员（携带 featureType/properties），聚合团（>1）跳过不派发——
-          // 点聚合不算点中要素（走空白分支关气泡），避免误开单体气泡
-          const members = feature.get('features') as unknown[] | undefined
-          let target = feature
-          if (Array.isArray(members)) {
-            if (members.length !== 1) return undefined
-            target = members[0] as typeof feature
-          }
-          const featureType = target.get('featureType')
+          const featureType = feature.get('featureType')
           if (featureType) {
-            const properties = target.getProperties()
+            const properties = feature.getProperties()
             this.emit('click', {
               featureType,
               data: properties,
@@ -469,32 +427,6 @@ export class OLRenderer extends MapRenderer {
     style: Style | StyleFunction
   ): void {
     const featureType = options?.featureType || 'point'
-
-    // 聚合模式（options.cluster）：全量数据走 Cluster 源，OL 渲染端按距离聚合（替代裁剪），
-    // 聚合点显示成员数；单体沿用原样式。默认关闭——裁剪路径行为不变
-    if (options.cluster) {
-      const fullSource = new VectorSource({
-        features: features.flatMap((item: PointFeature) => {
-          const point = normalizePoint(item)
-          if (!point) return []
-          const feature = new Feature({ geometry: toPointGeometry(point.lng, point.lat) })
-          feature.setProperties({ ...item, featureType })
-          return [feature]
-        }),
-      })
-      const clusterSource = new Cluster({ distance: 40, source: fullSource })
-      const vectorLayer = new VectorLayer({
-        source: clusterSource,
-        style: withClusterStyle(style),
-      })
-      vectorLayer.setZIndex(this._resolveLayerZIndex(options))
-      this.map?.addLayer(vectorLayer)
-      this.registerLayer(id, vectorLayer, options)
-      if (import.meta.env.DEV) {
-        logger.info(`[OLRenderer] 图层 ${id} 启用聚合渲染，共 ${features.length} 个要素`)
-      }
-      return
-    }
 
     // 构建 R-tree 索引项：[minX, minY, maxX, maxY] + 原始数据；缺失坐标跳过
     const index = createSpatialIndex<PointFeature>()

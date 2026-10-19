@@ -52,6 +52,7 @@ export const GUARDS = [
   'host-object-cast',
   'dev-gated-logs',
   'retired-claims',
+  'optional-field-producer',
 ]
 
 /**

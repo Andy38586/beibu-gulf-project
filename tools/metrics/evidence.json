@@ -109,6 +109,11 @@
     "refs": ["tools/v3-guard/structure-check.mjs"],
     "by": "渲染器体量棘轮：CesiumRenderer/OLRenderer 的冻结行数上限（现为冻结时实测值，只许下调不许提额），超限即红、大文件不拆分只能另开文件——「超大文件识别：行数异常的文件是职责膨胀与维护负担的集中点」"
   },
+  "专项6:3.2": {
+    "kind": "guard",
+    "refs": ["tools/v3-guard/optional-field-producer.mjs"],
+    "by": "守卫断言受管接口（LayerOptions / FlyToOptions / WaterSurfaceOptions）的每个可选字段都有生产点、读取点或成文豁免——「模块公开 API 清晰性：最小化，不存在导出过多内部细节」在类型面的落点：一个没人传的可选字段就是承诺了却没人用的内部细节（LayerOptions.cluster 活了 68 天的机制修复）"
+  },
   "专项6:8.2": {
     "kind": "guard",
     "refs": ["tools/v3-guard/structure-check.mjs"],

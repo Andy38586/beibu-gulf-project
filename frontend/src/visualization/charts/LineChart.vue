@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { ref } from 'vue'
+
 import { EmptyState } from '@/shared'
 
 import { useChartBase } from './composables/useChartBase'
@@ -29,16 +31,21 @@ const emit = defineEmits<{
   select: [dataIndex: number]
 }>()
 
-/** 无数据时以 absolute 浮层显示空态；判定随 useChartBase 一并返回（chartRef 始终挂载） */
-const { chartRef, hasData } = useChartBase(props, emit, 'line', {
-  smooth: true,
-  symbol: 'circle',
-  symbolSize: 6,
-  lineStyle: { width: 2 },
-  areaStyle: { opacity: 0.15 },
-})
-
-defineExpose({ chartRef })
+/** 无数据时以 absolute 浮层显示空态；判定随 useChartBase 一并返回 */
+const chartRef = ref<HTMLElement | null>(null)
+const { hasData } = useChartBase(
+  props,
+  emit,
+  'line',
+  {
+    smooth: true,
+    symbol: 'circle',
+    symbolSize: 6,
+    lineStyle: { width: 2 },
+    areaStyle: { opacity: 0.15 },
+  },
+  chartRef
+)
 </script>
 
 <template>

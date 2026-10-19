@@ -1,4 +1,4 @@
-import { computed, type ComputedRef } from 'vue'
+import { computed, type ComputedRef, type Ref } from 'vue'
 
 import { CHART_COLORS, CHART_GRID, chartColor, useTheme } from '@/shared'
 import type { ChartClickParams, UseEChartsReturn } from '@/visualization/composables/useECharts'
@@ -21,11 +21,16 @@ interface ChartBaseProps {
 /** 图表事件发射器 */
 type ChartEmit = (event: 'select', dataIndex: number) => void
 
+/**
+ * @param chartRef 组件自持的容器 ref（模板 ref 必须绑定到 setup 作用域内的变量）。
+ *   缺省时 useECharts 内部自建——此时绑定不到模板，仅适用于无模板容器的场景。
+ */
 export function useChartBase(
   props: ChartBaseProps,
   emit: ChartEmit,
   chartType: string,
-  seriesConfig: Record<string, unknown> = {}
+  seriesConfig: Record<string, unknown> = {},
+  chartRef?: Ref<HTMLElement | null>
 ): UseEChartsReturn & { hasData: ComputedRef<boolean> } {
   const { isDark } = useTheme()
 
@@ -170,6 +175,7 @@ export function useChartBase(
         () => props.yUnitRight,
       ],
       onClick: handleClick,
+      ...(chartRef ? { chartRef } : {}),
     }),
     hasData,
   }

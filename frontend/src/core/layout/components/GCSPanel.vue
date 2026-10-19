@@ -54,14 +54,7 @@ const { panelPosition, cellPixel, tier: viewportTier } = useGCS()
 /** 拖拽期间挂在面板上的标记 class（供外部 :deep 覆盖视觉） */
 const dragActive = ref(false)
 
-const {
-  phase,
-  offsetX,
-  offsetY,
-  overZone,
-  onPointerDown,
-  abort: abortDrag,
-} = usePanelDrag({
+const { phase, offsetX, offsetY, overZone, onPointerDown } = usePanelDrag({
   // v4-S10：<640px（compact 档）自由拖拽降级为长按弹"停靠到后台"——触屏拖拽
   // 与地图手势冲突，且面板被地图手势接管时拖拽体验不可控
   enabled: () => props.draggable && !props.dragDisabled && viewportTier.value !== 'compact',
@@ -144,8 +137,6 @@ const panelStyle = computed(() => {
   }
   return style
 })
-
-defineExpose({ abortDrag })
 </script>
 
 <template>

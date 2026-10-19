@@ -11,7 +11,7 @@ import { SankeyChart } from 'echarts/charts'
 import { LegendComponent, TitleComponent, TooltipComponent } from 'echarts/components'
 import * as echarts from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
-import { onMounted, onUnmounted } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
 
 import { useTheme } from '@/shared'
 
@@ -107,9 +107,11 @@ function getOption(): Record<string, unknown> {
 
 // D19：生命周期/更新/resize（window + ResizeObserver）/主题响应全部收敛 useECharts；
 // merge 口径（notMerge:false + replaceMerge:['series'] + lazyUpdate）与原手写版逐字一致。
-const { chartRef, getInstance, updateChart } = useECharts({
+const chartRef = ref<HTMLElement | null>(null)
+const { getInstance } = useECharts({
   getOption,
   watchSources: [() => props.nodes, () => props.links],
+  chartRef,
 })
 
 let disposeClick: (() => void) | null = null
@@ -127,8 +129,6 @@ onUnmounted(() => {
   disposeClick?.()
   disposeClick = null
 })
-
-defineExpose({ chartRef, updateChart })
 </script>
 
 <template>

@@ -39,10 +39,16 @@ export const BASELINE_PATH = path.join(ROOT, 'tools/dead-code/dead-code-baseline
 
 /** 当前计数（总量 + 按模块 + 明细） */
 export function currentCounts() {
-  const { dead, redundantExport } = scan()
+  const { dead, redundantExport, emptyModules } = scan()
   const byModule = {}
   for (const [mod, items] of groupByModule(dead)) byModule[mod] = items.length
-  return { totalDead: dead.length, totalRedundantExport: redundantExport.length, byModule, dead }
+  return {
+    totalDead: dead.length,
+    totalRedundantExport: redundantExport.length,
+    totalEmptyModule: emptyModules.length,
+    byModule,
+    dead,
+  }
 }
 
 /**
@@ -61,6 +67,12 @@ export function compare(current, baseline) {
     bad.push(
       `totalRedundantExport 上涨：${baseline.totalRedundantExport} → ${current.totalRedundantExport}`
     )
+  }
+  // 空模块（`export {}` 壳）三类盲区之一：老账本没有这一栏，默认按 0 算 ——
+  // 即**基线未升级时新造一个空模块也立刻红**，不必等下次 --update 才生效。
+  const baseEmpty = baseline.totalEmptyModule ?? 0
+  if (current.totalEmptyModule > baseEmpty) {
+    bad.push(`totalEmptyModule 上涨：${baseEmpty} → ${current.totalEmptyModule}（空模块不许新增）`)
   }
   if (baseline.byModule) {
     for (const [mod, n] of Object.entries(current.byModule)) {
@@ -117,6 +129,7 @@ function main() {
       generatedFrom: baseline.generatedFrom ?? 'tools/dead-code/scan.mjs',
       totalDead: current.totalDead,
       totalRedundantExport: current.totalRedundantExport,
+      totalEmptyModule: current.totalEmptyModule,
       byModule: current.byModule,
       dead: current.dead,
       updatedAt: new Date().toISOString().slice(0, 10),
@@ -140,7 +153,8 @@ function main() {
   }
   console.log(
     `[dead-code-ratchet] OK：死物 ${current.totalDead} ≤ 基线 ${baseline.totalDead}；` +
-      `冗余导出 ${current.totalRedundantExport} ≤ ${baseline.totalRedundantExport}` +
+      `冗余导出 ${current.totalRedundantExport} ≤ ${baseline.totalRedundantExport}；` +
+      `空模块 ${current.totalEmptyModule} ≤ ${baseline.totalEmptyModule ?? 0}` +
       (baseline.byModule
         ? `；模块 ${Object.keys(current.byModule).length} 个逐项未涨`
         : '（基线尚无按模块数据，下次 --update 写入）')

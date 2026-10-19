@@ -13,6 +13,13 @@
  *   · barrel（名为 index.ts 的文件）不参与定义提取，但参与引用统计 ——
  *     否则「只被 barrel 转发」的东西会被误判成有用。
  *
+ * **已知不覆盖的一类（如实声明，不假装扫得到）**：纯注释形态的「预留 / 待用 / 暂未启用」。
+ * 它不是代码实体，静态分析没有可判定的引用关系；把它算进死物需要读中文注释语义。
+ * 三次实测（`layerAdapters.ts` 预留注释、`types/business/base.ts` gdp/population 注释、
+ * `shared/README.md` 失实描述）都是**人读到才发现**的，本器一条都没报过。
+ * 处置：这类只在人工审查面收敛，本器**不认账也不假装认账**——不计入任何栏位，
+ * 也不设基线（设了基线就等于宣称「我们管着它」，那是第二种口径）。
+ *
  * 基线由 dead-code-baseline.json 承载，供后续棘轮消费；本器只负责"看得见"。
  *
  * 用法：node tools/dead-code/scan.mjs [--json <out>] [--top <n>]
@@ -117,6 +124,28 @@ export function listSources(roots = SCAN_ROOTS, { isDef = true, exts = /\.(ts|vu
 const DECL_RE =
   /^\s*export\s+(?:declare\s+)?(?:async\s+)?(function|const|let|var|class|interface|type|enum)\s+([A-Za-z_$][\w$]*)/gm
 
+/**
+ * 空模块：去掉注释与空白后**整份只剩 `export {}`**。
+ *
+ * 为什么单列一类：这类文件是「删剩一个壳」的产物——所有人 import 都被摘掉，
+ * 只剩编译器不报错的 `export {}` 撑着。它既没有导出声明（`DECL_RE` 抓不到），
+ * 也没有任何引用方（引用侧无从统计），于是在原有两栏里**一格都不占**，
+ * 扫描器报 `totalDead 0` 时它依然躺在仓库里。`frontend/src/views/index.ts`
+ * 就是这样活到最后（PZ-1，已删）；本类判据让「复建必红」。
+ *
+ * 豁免：生成件（`*.d.ts`，由 `unplugin-auto-import` / `unplugin-vue-components` 产出）
+ * 不在定义侧，也不应被当作债——它们本来就可能只有 `export {}` 收尾。
+ */
+export function isEmptyModule(relPath, text) {
+  if (/\.d\.ts$/.test(relPath)) return false
+  if (path.basename(relPath) === 'index.ts') return false // barrel：转发文件，空转发不属本类
+  const bare = text
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/^\s*\/\/.*$/gm, '')
+    .trim()
+  return /^export\s*\{\s*\}\s*;?$/.test(bare)
+}
+
 /** 从文件文本提取导出声明（barrel 除外） */
 export function extractExports(relPath, text) {
   const base = path.basename(relPath)
@@ -152,7 +181,11 @@ export function scan({ roots = SCAN_ROOTS } = {}) {
   }
 
   const exports = []
-  for (const f of defFiles) exports.push(...extractExports(f, readCache(f)))
+  const emptyModules = []
+  for (const f of defFiles) {
+    exports.push(...extractExports(f, readCache(f)))
+    if (isEmptyModule(f, readCache(f))) emptyModules.push({ file: f })
+  }
 
   // 标识符索引：name -> 出现该名字的文件集合
   const where = new Map()
@@ -185,7 +218,7 @@ export function scan({ roots = SCAN_ROOTS } = {}) {
     if (hits > 1) redundantExport.push(e)
     else dead.push(e)
   }
-  return { exports, dead, redundantExport, gateCarrier }
+  return { exports, dead, redundantExport, gateCarrier, emptyModules }
 }
 
 /** 按模块分组（模块 = 路径前两段） */
@@ -206,13 +239,14 @@ function main() {
   const topIdx = args.indexOf('--top')
   const top = topIdx >= 0 ? Number(args[topIdx + 1]) : 30
 
-  const { exports, dead, redundantExport, gateCarrier } = scan()
+  const { exports, dead, redundantExport, gateCarrier, emptyModules } = scan()
   const groups = groupByModule(dead)
 
   console.log(`[dead-code] 扫描范围：${SCAN_ROOTS.join(' / ')}`)
   console.log(`[dead-code] 导出声明 ${exports.length} 个`)
   console.log(`[dead-code]   A 彻底没人用（可删）        ${dead.length}`)
   console.log(`[dead-code]   B 只在本文件用（去掉 export）${redundantExport.length}`)
+  console.log(`[dead-code]   E 空模块（只剩 export {}）  ${emptyModules.length}`)
   console.log(
     gateCarrier
       ? `[dead-code]   G 门禁载体（契约配对 *Parsed，删不得）${gateCarrier.length}`
@@ -242,8 +276,10 @@ function main() {
           generatedFrom: 'tools/dead-code/scan.mjs',
           totalDead: dead.length,
           totalRedundantExport: redundantExport.length,
+          totalEmptyModule: emptyModules.length,
           dead,
           redundantExport,
+          emptyModules,
           gateCarrier,
         },
         null,

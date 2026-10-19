@@ -56,4 +56,24 @@ describe('dead-code 棘轮 — 基线只许下降或持平', () => {
       compare({ totalDead: 10, totalRedundantExport: 20, byModule: { 'a/b': 99 } }, noMod)
     ).toEqual([])
   })
+
+  // ── 空模块（PZ-1 / PA-3 第一类盲区）─────────────────────────────────────
+  it('@guard-red-sample 空模块新增 ⇒ 必报（老基线无此栏也按 0 算）', () => {
+    const bad = compare({ ...BASE, totalEmptyModule: 1 }, BASE)
+    expect(bad).toHaveLength(1)
+    expect(bad[0]).toContain('totalEmptyModule 上涨：0 → 1')
+  })
+
+  it('@guard-red-sample 有 totalEmptyModule 栏时同样咬住上涨', () => {
+    const withEmpty = { ...BASE, totalEmptyModule: 2 }
+    const bad = compare({ ...BASE, totalEmptyModule: 3 }, withEmpty)
+    expect(bad).toHaveLength(1)
+    expect(bad[0]).toContain('totalEmptyModule 上涨：2 → 3')
+  })
+
+  it('空模块持平 / 归零 ⇒ 不报', () => {
+    const withEmpty = { ...BASE, totalEmptyModule: 2 }
+    expect(compare({ ...BASE, totalEmptyModule: 2 }, withEmpty)).toEqual([])
+    expect(compare({ ...BASE, totalEmptyModule: 0 }, withEmpty)).toEqual([])
+  })
 })

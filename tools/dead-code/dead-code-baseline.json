@@ -2,6 +2,7 @@
   "generatedFrom": "tools/dead-code/scan.mjs",
   "totalDead": 0,
   "totalRedundantExport": 0,
+  "totalEmptyModule": 0,
   "byModule": {},
   "dead": [],
   "updatedAt": "2026-10-17",

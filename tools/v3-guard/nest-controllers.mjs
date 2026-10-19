@@ -35,6 +35,8 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { emptyInputProblem } from './lib/input-set.mjs'
+
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 
 /** 注释剥离：判定只认真实装饰器，注释里提到 @UseGuards/@SkipThrottle 不算（task 注释即此形态） */
@@ -238,6 +240,15 @@ if (isMain) {
   const files = listControllers()
   const { violations } = auditControllers(files)
   console.log(`[nest-controllers] 扫描 ${files.length} 个 controller`)
+  // W58：空分母防护（修前 0 个 controller 仍打印「三面契约均满足 ✓」）
+  const empty = emptyInputProblem(files.length, {
+    what: 'controller',
+    hint: 'backend/src/modules/*/controllers 与两个独立 controller 的路径没被挪位',
+  })
+  if (empty) {
+    console.error(`[nest-controllers] FAIL：${empty}`)
+    process.exit(1)
+  }
   if (violations.length) {
     for (const v of violations) {
       console.error(`✗ ${v.file}:${v.line} ${v.why}\n    ${v.text}`)

@@ -28,6 +28,8 @@ import { fileURLToPath } from 'node:url'
 import { CONVENTION } from '../audit-kit/paths.mjs'
 import { parseSpecText } from '../audit-kit/metrics-index.mjs'
 
+import { emptyInputProblem } from './lib/input-set.mjs'
+
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const DOC_MAP_REL = 'tools/v3-guard/lib/doc-map.json'
 
@@ -165,6 +167,15 @@ function main() {
   } catch (err) {
     console.error(`[doc-ref-check] 无法取证（git 不可用或 doc-map 读不到）：${err.message}`)
     process.exit(2)
+  }
+  // W58：空分母防护——0 份输入时判据的循环体一次都没执行，不能报「全部满足」
+  const empty = emptyInputProblem(plan.files.length, {
+    what: '受控文档',
+    hint: 'doc-map 登记表里的文档条目还在、`loadPlan()` 的扫描面没被改窄',
+  })
+  if (empty) {
+    console.error(`[doc-ref-check] FAIL：${empty}`)
+    process.exit(1)
   }
   const problems = auditRefs(plan.files, plan.targets, plan.metricIds)
   if (problems.length) {

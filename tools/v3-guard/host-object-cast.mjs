@@ -25,6 +25,8 @@ import { fileURLToPath } from 'node:url'
 
 import { TS_VUE, collectCandidates } from './lib/collect-candidates.mjs'
 
+import { emptyInputProblem } from './lib/input-set.mjs'
+
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const SCAN_DIRS = ['frontend/src', 'backend/src']
 
@@ -69,6 +71,15 @@ function main() {
     pathspecs: SCAN_DIRS,
     accept: TS_VUE,
   })
+  // W58：空分母防护——0 份输入时判据的循环体一次都没执行，不能报「全部满足」
+  const empty = emptyInputProblem(files.length, {
+    what: '含 `as unknown as` 的候选文件',
+    hint: 'SCAN_DIRS（frontend/src、backend/src）存在、词条 `as unknown as` 仍是本仓的实际写法',
+  })
+  if (empty) {
+    console.error(`[host-object-cast] FAIL：${empty}`)
+    process.exit(1)
+  }
   const problems = auditHostObjectCasts(files)
   if (problems.length) {
     console.error('[host-object-cast] 未通过：双断言写宿主对象属性')

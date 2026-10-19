@@ -19,6 +19,8 @@ import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { emptyInputProblem } from './lib/input-set.mjs'
+
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 
 const CRUISE_CONFIG = '.dependency-cruiser.cjs'
@@ -101,6 +103,15 @@ if (isMain) {
     process.exit(1)
   }
   const dirs = listBusinessModules()
+  // W58：空分母防护——0 个目录时「规则集合 == 目录集合 ✓」是空对空，判据没跑
+  const empty = emptyInputProblem(dirs.length, {
+    what: 'business 模块目录',
+    hint: 'frontend/src/business 没被挪位、`listBusinessModules()` 的过滤条件没把目录全筛掉',
+  })
+  if (empty) {
+    console.error(`[cruise-coverage] FAIL：${empty}`)
+    process.exit(1)
+  }
   const { problems, rules } = auditCoverage(config, dirs)
 
   console.log(`[cruise-coverage] business 目录 ${dirs.length} 个：${dirs.join('、')}`)

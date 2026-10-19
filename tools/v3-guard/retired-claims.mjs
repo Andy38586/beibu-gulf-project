@@ -34,6 +34,8 @@ import { fileURLToPath } from 'node:url'
 
 import { collectCandidates } from './lib/collect-candidates.mjs'
 
+import { emptyInputProblem } from './lib/input-set.mjs'
+
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 
 /** 判据面：生产/构建/部署/门禁的活执行面 */
@@ -106,6 +108,15 @@ function main() {
     pathspecs: [...SURFACES, ...EXCLUDES.map((e) => `:(exclude)${e}`)],
     maxBuffer: 64 << 20,
   })
+  // W58：空分母防护——0 份输入时判据的循环体一次都没执行，不能报「全部满足」
+  const empty = emptyInputProblem(files.length, {
+    what: '含退役词条的候选文件',
+    hint: 'SURFACES 里的部署/门禁面文件仍在版本控制内、退役词条（FastAPI 等）仍能在历史语境里检索到',
+  })
+  if (empty) {
+    console.error(`[retired-claims] FAIL：${empty}`)
+    process.exit(1)
+  }
   const problems = auditRetiredClaims(files)
   if (problems.length) {
     console.error(`[retired-claims] 未通过：${problems.length} 处退役机制以在役口吻残留`)

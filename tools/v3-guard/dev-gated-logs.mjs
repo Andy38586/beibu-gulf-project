@@ -22,6 +22,8 @@ import { fileURLToPath } from 'node:url'
 
 import { TS_VUE, collectCandidates } from './lib/collect-candidates.mjs'
 
+import { emptyInputProblem } from './lib/input-set.mjs'
+
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const SCAN_DIR = 'frontend/src'
 const DEV_RE = /import\.meta\.env\.DEV/
@@ -57,6 +59,15 @@ function main() {
     pathspecs: [SCAN_DIR],
     accept: TS_VUE,
   })
+  // W58：空分母防护——0 份输入时判据的循环体一次都没执行，不能报「全部满足」
+  const empty = emptyInputProblem(files.length, {
+    what: '含 import.meta.env.DEV 的候选文件',
+    hint: 'SCAN_DIR（frontend/src）存在、词条 `import.meta.env.DEV` 仍是本仓的实际写法',
+  })
+  if (empty) {
+    console.error(`[dev-gated-logs] FAIL：${empty}`)
+    process.exit(1)
+  }
   const problems = auditDevGatedLogs(files)
   if (problems.length) {
     console.error('[dev-gated-logs] 未通过：生产可观测被 DEV 门控')

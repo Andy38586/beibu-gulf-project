@@ -31,6 +31,8 @@ import { DOC_NUMBER_SITES } from './doc-numbers.mjs'
 // ⇒ 改为共用后者的导出（它本就是 export，说明设计意图就是共用；单一事实源内部不该再分叉）。
 import { showFromIndex } from './doc-ref-check.mjs'
 
+import { emptyInputProblem } from './lib/input-set.mjs'
+
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const DOC_MAP_REL = 'tools/v3-guard/lib/doc-map.json'
 const SELF_EXEMPT = [
@@ -135,6 +137,15 @@ function main() {
   } catch (err) {
     console.error(`[doc-claim-numbers] 无法取证（git 不可用或 doc-map 读不到）：${err.message}`)
     process.exit(2)
+  }
+  // W58：空分母防护——0 份输入时判据的循环体一次都没执行，不能报「全部满足」
+  const empty = emptyInputProblem(files.length, {
+    what: '受控文档',
+    hint: 'doc-map 登记表里的文档条目还在、`loadFiles()` 的扫描面没被改窄',
+  })
+  if (empty) {
+    console.error(`[doc-claim-numbers] FAIL：${empty}`)
+    process.exit(1)
   }
   const missing = files.filter((f) => f.missing).map((f) => f.path)
   const problems = auditClaimNumbers(files.filter((f) => !f.missing))

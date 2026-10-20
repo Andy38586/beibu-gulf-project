@@ -138,6 +138,22 @@ module.exports = {
       to: { path: '^frontend/src/core/', pathNot: '^frontend/src/core/config/map' },
     },
     {
+      name: 'core-not-import-services',
+      comment:
+        '分层契约：core 禁止 import services（W61，2026-10-20 补——此前该方向零规则，' +
+        '反向边只有 usePortLayer.ts 一处却无约束）。唯一豁免为 core/map/composables/usePortLayer.ts' +
+        '（港口图层取数经 mapDataService；业务归属是否移出 core 另裁，本条先让这一面受约束）。',
+      severity: 'error',
+      from: {
+        path: '^frontend/src/core/',
+        // 正则里 `\.` 转义点号会被 no-useless-escape 记 error（正则里的点号本就匹配字面点，
+        // 此处不需要转义；同文件 :81/:84 的 `index\\.(js|ts)` 转义成立是因为点紧邻量词）。
+        // 改成 `.ts$` 语义不变。
+        pathNot: '^frontend/src/core/map/composables/usePortLayer.ts$',
+      },
+      to: { path: '^frontend/src/services/' },
+    },
+    {
       name: 'no-circular',
       severity: 'error',
       comment: '禁止循环依赖（z055 升级 error）',

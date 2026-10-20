@@ -64,6 +64,46 @@ export function parseRuleModules(config) {
 }
 
 /**
+ * 分层规则覆盖面（W61 M4）：本表登记的每条分层规则，其 `from.path` 必须覆盖它宣称的整层。
+ *
+ * 为什么需要它：实测把 `core-not-import-services` 的 `from.path` 从 `^frontend/src/core/`
+ * 窄写成 `^frontend/src/core/map/` 时，规则名与 comment 仍宣称「core 层」，而
+ * `core/config`、`core/layout` 等子目录的反向边静默无人守 ⇒ 名实不符的假面。
+ * 断言「规则名宣称的层 == from.path 的前缀」即可堵住这一面。
+ */
+const LAYER_RULES = [
+  { name: 'core-not-import-services', prefix: '^frontend/src/core/' },
+  { name: 'services-not-import-core', prefix: '^frontend/src/services/' },
+  { name: 'core-imports-business', prefix: '^frontend/src/core/' },
+  { name: 'services-imports-business', prefix: '^frontend/src/services/' },
+  { name: 'shared-not-import-core', prefix: '^frontend/src/shared/' },
+]
+
+export function auditLayerRules(cruiseConfig) {
+  const forbidden = Array.isArray(cruiseConfig?.forbidden) ? cruiseConfig.forbidden : []
+  const problems = []
+  for (const { name, prefix } of LAYER_RULES) {
+    const rule = forbidden.find((r) => r?.name === name)
+    if (!rule) {
+      problems.push(`✗ 分层规则 ${name} 不在 .dependency-cruiser.cjs 里（名实相符要求它在册）`)
+      continue
+    }
+    const fromPath = typeof rule.from?.path === 'string' ? rule.from.path : ''
+    // 「覆盖整层」= 以前缀开头且前缀之后只剩正则结束符。
+    // 不能只用 startsWith：`^frontend/src/core/map/` 同样以 `^frontend/src/core/` 开头，
+    // 窄口径会被判成合法——那正是本断言要堵的假面（W61 M4 实测）。
+    const rest = fromPath.startsWith(prefix) ? fromPath.slice(prefix.length) : null
+    const coversWholeLayer = rest === '' || rest === '$' || rest === "$'" || rest === "')"
+    if (!coversWholeLayer) {
+      problems.push(
+        `✗ 分层规则 ${name} 的 from.path 未覆盖整层：${fromPath}（应为 ${prefix}；写窄会让该层其余子目录的反向边无人守）`
+      )
+    }
+  }
+  return problems
+}
+
+/**
  * E2 对账。
  * @returns {{ problems: string[], rules: string[], dirs: string[] }}
  */
@@ -113,15 +153,18 @@ if (isMain) {
     process.exit(1)
   }
   const { problems, rules } = auditCoverage(config, dirs)
+  const layerProblems = auditLayerRules(config)
 
   console.log(`[cruise-coverage] business 目录 ${dirs.length} 个：${dirs.join('、')}`)
   console.log(
     `[cruise-coverage] 互引规则 ${rules.length} 条：${rules.map((r) => RULE_PREFIX + r).join('、')}`
   )
-  if (problems.length) {
-    console.error('\n' + problems.join('\n'))
-    console.error(`\n[cruise-coverage] 04-E2 对账未通过（${problems.length} 处）`)
+  const allProblems = [...problems, ...layerProblems]
+  if (allProblems.length) {
+    console.error('\n' + allProblems.join('\n'))
+    console.error(`\n[cruise-coverage] 04-E2 对账未通过（${allProblems.length} 处）`)
     process.exit(1)
   }
   console.log('[cruise-coverage] 规则集合 == 目录集合 ✓')
+  console.log(`[cruise-coverage] 分层规则覆盖面 ${LAYER_RULES.length} 条 ✓`)
 }

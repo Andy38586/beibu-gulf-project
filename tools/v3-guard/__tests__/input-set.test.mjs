@@ -131,7 +131,12 @@ describe('W58 空分母：0 输入不得报「全部满足」', () => {
       'frontend/src/business/flood-analysis/.keep': '',
       '.dependency-cruiser.cjs':
         'module.exports = { forbidden: [{ name: "business-cross-import-flood-analysis",' +
-        ' from: { path: "^frontend/src/business/flood-analysis/" } }] }\n',
+        ' from: { path: "^frontend/src/business/flood-analysis/" } },' +
+        '{ name: "core-not-import-services", from: { path: "^frontend/src/core/" } },' +
+        '{ name: "services-not-import-core", from: { path: "^frontend/src/services/" } },' +
+        '{ name: "core-imports-business", from: { path: "^frontend/src/core/" } },' +
+        '{ name: "services-imports-business", from: { path: "^frontend/src/services/" } },' +
+        '{ name: "shared-not-import-core", from: { path: "^frontend/src/shared/" } }] }\n',
     })
     const { code, output } = runGuard(r, 'cruise-coverage')
     expect(output).toContain('business 目录 1 个')

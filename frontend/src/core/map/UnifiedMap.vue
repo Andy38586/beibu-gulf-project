@@ -48,6 +48,9 @@ const switching = ref(false)
 const pendingSwitchType = ref<'2d' | '3d' | null>(null)
 const loadError = ref('')
 const boundaryWarning = ref('')
+// 港口数据为空（接口 fulfilled 但 0 条）时，港口图层不注册——若无提示，
+// 用户看到的是「图层开关在哪、图上看不到点」，无从判断是没数据还是坏了
+const portEmptyWarning = ref('')
 // 渲染器实例必须 shallowRef：深度 ref 会把 OL Map/Cesium Viewer 包成 reactive Proxy，
 // 引擎内部身份比较（getSource()===、事件 target）与拖拽帧性能都被 proxy/raw 双身份破坏；
 // store 层（mapStore）同用 shallowRef，全系统渲染器保持 raw 单一身份
@@ -184,6 +187,9 @@ async function loadData() {
 
   if (portsResult.status === 'fulfilled') {
     portGeoJson = buildPortGeoJson(portsResult.value) as FeatureCollection
+    if (portsResult.value.length === 0) {
+      portEmptyWarning.value = '港口数据为空：未获取到任何港口，港口位置图层未显示'
+    }
   } else {
     const err =
       portsResult.reason instanceof Error
@@ -786,6 +792,7 @@ defineExpose({
 
     <p v-if="loadError" class="map-error">{{ loadError }}</p>
     <div v-if="boundaryWarning" class="boundary-warning">{{ boundaryWarning }}</div>
+    <div v-if="portEmptyWarning" class="port-empty-warning">{{ portEmptyWarning }}</div>
   </div>
 </template>
 
@@ -865,6 +872,18 @@ defineExpose({
   /* S7 P1-1：硬编码黄 → 语义警告色 token（暗色下柔和橙替代刺眼亮黄） */
   background: var(--GCS-color-warning);
   padding: 6px 12px; /* 6px/12px 非8的整数倍，保留（ 复核：已登记取舍项） */
+  border-radius: 6px;
+  font-size: 13px;
+  z-index: var(--GCS-z-map-overlay);
+}
+
+.port-empty-warning {
+  position: absolute;
+  bottom: 10px; /* 10px 非8的整数倍，保留 */
+  right: 10px; /* 与 boundary-warning 同高度分置左右，避免两条提示重叠 */
+  background: var(--GCS-bg-elevated);
+  color: var(--GCS-color-warning);
+  padding: 6px 12px; /* 6px/12px 非8的整数倍，保留（同 boundary-warning） */
   border-radius: 6px;
   font-size: 13px;
   z-index: var(--GCS-z-map-overlay);

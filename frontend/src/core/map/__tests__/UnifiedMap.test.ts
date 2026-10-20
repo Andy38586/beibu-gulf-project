@@ -6,7 +6,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 
 import { BusinessLayerManager } from '@/core/map/BusinessLayerManager'
 import { BUSINESS_LAYER_MANAGER_KEY } from '@/core/map/composables/useBusinessLayers'
-import { buildPortGeoJson, PORT_STYLE } from '@/core/map/composables/usePortLayer'
+import { buildPortGeoJson, loadPorts, PORT_STYLE } from '@/core/map/composables/usePortLayer'
 import { createRenderer } from '@/core/map/renderers'
 import { useMapStore } from '@/stores'
 import type { Port } from '@/types'
@@ -691,5 +691,64 @@ describe('UnifiedMap switchMapType no-op (LIF-6)', () => {
 
     // 不应再次调用 createRenderer（验证 early-return 生效）
     expect(mockedCreateRenderer.mock.calls.length).toBe(callsBefore)
+  })
+})
+
+describe('UnifiedMap 港口空数据提示（W01，2026-10-20）', () => {
+  let wrapper: VueWrapper<InstanceType<typeof UnifiedMap>>
+  let pinia: ReturnType<typeof createPinia>
+  let mapStore: ReturnType<typeof useMapStore>
+  const mockedLoadPorts = vi.mocked(loadPorts)
+
+  beforeEach(() => {
+    pinia = createPinia()
+    setActivePinia(pinia)
+    mapStore = useMapStore()
+    vi.clearAllMocks()
+  })
+
+  afterEach(() => {
+    wrapper?.unmount()
+  })
+
+  // 失效场景：接口 fulfilled 但返回 0 条港口时，港口图层不注册（:343 validFeatures
+  // 为空），此前面板无任何提示——用户只看到「港口开关在、图上没点」，无法区分
+  // 「没数据」与「坏了」。
+  it('@guard-red-sample 港口返回空数组 ⇒ 显示空数据提示，且不建图层', async () => {
+    mockedLoadPorts.mockResolvedValueOnce([])
+
+    wrapper = mount(UnifiedMap, {
+      props: { mapType: '2d' },
+      ...makeMountOptions(mapStore),
+    })
+
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    await flushPromises()
+    await new Promise((resolve) => setTimeout(resolve, 50))
+
+    const warning = wrapper.find('.port-empty-warning')
+    expect(warning.exists()).toBe(true)
+    expect(warning.text()).toContain('港口数据为空')
+
+    const renderer = mockedCreateRenderer.mock.results[0]?.value
+    expect(renderer?.addPointLayer).not.toHaveBeenCalledWith(
+      'ports',
+      expect.anything(),
+      expect.anything()
+    )
+  })
+
+  // 阳性对照：有数据时不出现空态提示（否则提示恒显，用户被误导）
+  it('阳性对照：有港口数据 ⇒ 无空数据提示', async () => {
+    wrapper = mount(UnifiedMap, {
+      props: { mapType: '2d' },
+      ...makeMountOptions(mapStore),
+    })
+
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    await flushPromises()
+    await new Promise((resolve) => setTimeout(resolve, 50))
+
+    expect(wrapper.find('.port-empty-warning').exists()).toBe(false)
   })
 })

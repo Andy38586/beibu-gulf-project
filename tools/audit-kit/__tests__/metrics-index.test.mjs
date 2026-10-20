@@ -227,7 +227,7 @@ describe('metrics-index — Q8-01 证据面断链不再假绿（多根解析 + �
     expect(s.paths).toEqual([])
   })
 
-  it('回归锚：当前 403 条指标 + 附录/约定证据面零断链（真树）', () => {
+  it('回归锚：指标条数与附录/约定证据面零断链（真树）', () => {
     const { problems } = checkIndex(parseSpec())
     expect(problems.filter((p) => p.includes('证据面断链'))).toEqual([])
     expect(scanExtraDocSurface()).toEqual([])

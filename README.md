@@ -59,7 +59,7 @@ L8 entry      main / router / App
 
 **请求铁律**：API 一律走统一入口 `useApiRequest`（超时 / 重试 / 竞态 / 信封解包），静态资源走 `loadStatic`，边界 zod 校验，禁止业务组件裸 fetch。
 
-**跨端一致性实际由两层守护，强度不同，别混**：**路由与业务域**由 `routes-audit` 守卫在 CI 双向比对（controller 装饰器 ↔ `backend/src/routes.manifest.ts` ↔ 前端 `MODULE_BY_PATH_PREFIX` ↔ 部署侧 `VITE_USE_NEST_MODULES`，漏配即 exit 1）；**响应字段**则是前端 zod 在运行时与单测里校验 + `npm run types:check` 保证「每个 schema 都有 `z.infer` 导出不被测试漏掉」——**该脚本只读前端 `schemas.ts`，不比对后端响应形状**，字段跨端一致仍需人工核对两侧（快照文件 `api-contract.json` 目前无消费者）。
+**跨端一致性分三层守护，强度不同，别混**：**路由**由 `routes-audit` 守卫（controller 装饰器 ↔ `backend/src/routes.manifest.ts`，漏配即 exit 1）与 `npm run contract:check`（`backend/test/swagger-contract.spec.ts`：Swagger 文档 ↔ 前端 `ENDPOINTS` 表，双向，漏一侧即红）分工把守；**响应字段**由两层——前端 zod 运行时校验，加 `npm run types:check`（`scripts/gen-api-contract.cjs`）同时把三件事：每个 schema 有 `z.infer` 导出、每个 schema 被 `schemas.test.ts` 引用、带 `@backend-contract <文件> [类型名]` 注解的 schema 与后端类型做字段集合与可选性的类型级比对。**未注解的 schema 不在此判据面**，其响应字段仍需人工核对（快照 `api-contract.json` 无运行时消费者，只作生成器的对账产物）。**请求体形状两面都没覆盖**：Swagger 无 `@ApiBody`/`requestBody`（13 个写操作实测均为 0），DTO 上的 `@ApiProperty` 只进文档、不进任何断言——靠 `TaskSubmitBody.parse` 这类运行时 `parse` 拦脏数据。
 
 ## 快速开始
 

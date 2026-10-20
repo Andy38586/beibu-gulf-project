@@ -171,7 +171,7 @@ function main() {
   for (const r of missing) console.error(`  清单有但代码无：${routeKey(r)}`)
   for (const r of extra) console.error(`  代码有但清单无：${routeKey(r)}`)
   console.error(
-    '  修复：路由增删后运行 node tools/v3-guard/routes-audit.mjs --gen 并提交新清单；前端功能域清单与 env 副本同步更新'
+    '  修复：路由增删后运行 node tools/v3-guard/routes-audit.mjs --gen 并提交新清单；前端 ENDPOINTS 增删后运行 npm run contract:check 对账 Swagger'
   )
   process.exit(1)
 }

@@ -1,6 +1,6 @@
 /**
  * 后端端点单一事实源：业务层/适配层严禁裸 URL 字面量，一律引用本表。
- * 前缀（/api 或 /nest-api）由 useApiRequest 按功能域自动拼接；
+ * 前缀由 `useApiRequest` 统一拼接为单前缀 `NEST_API_BASE`（默认 `/nest-api`），已无逐功能域分支。
  * 原 flood.online/impact 的 FastAPI（flood-service）全路径已随 algorithm-service 退役删除。
  * 端点演进（新增/改名）只改此处，避免散落调用点漏改。
  */

@@ -108,6 +108,7 @@ export const forecastPointSchema = z.object({
 export type ForecastPointParsed = z.infer<typeof forecastPointSchema>
 
 // @backend-contract backend/src/modules/forecast/services/forecast.service.ts
+// @backend-contract-no-type 三个 forecast 端点的返回类型都是 Promise<Record<string, unknown>>，响应对象由 service 内联字面量构造，无具名类型可逐字段对照（字段名级核对仍在跑）
 export const timeSeriesResponseSchema = z.object({
   indicator: z.string(),
   unit: z.string(),
@@ -127,6 +128,7 @@ export type TimeSeriesResponseParsed = z.infer<typeof timeSeriesResponseSchema>
 
 // ⑦ /forecast/indicator/:indicator 响应
 // @backend-contract backend/src/modules/forecast/services/forecast.service.ts
+// @backend-contract-no-type 同 timeSeriesResponseSchema：返回类型是 Promise<Record<string, unknown>>，无具名类型
 export const indicatorComparisonResponseSchema = z.object({
   indicator: z.string(),
   unit: z.string(),
@@ -146,6 +148,7 @@ export type IndicatorComparisonResponseParsed = z.infer<typeof indicatorComparis
 
 // ⑧ /forecast/map 响应（GeoJSON FeatureCollection）
 // @backend-contract backend/src/modules/forecast/services/forecast.service.ts
+// @backend-contract-no-type 同上：返回值由 service 内联构造的 GeoJSON 字面量，无具名类型
 export const forecastMapDataSchema = z.looseObject({
   indicator: z.string(),
   unit: z.string(),
@@ -201,7 +204,7 @@ export const forecastIndicatorIndexSchema = z.object({
 export type ForecastIndicatorIndexParsed = z.infer<typeof forecastIndicatorIndexSchema>
 
 // ⑯ /site-suitability/map 响应（新选址单元四加权叠加；格网 GeoJSON）
-// @backend-contract backend/src/modules/site-suitability/services/site-suitability.service.ts
+// @backend-contract backend/src/modules/site-suitability/services/site-suitability.service.ts SuitabilityResult
 export const siteSuitabilityResponseSchema = z.object({
   type: z.literal('FeatureCollection'),
   features: z.array(
@@ -229,7 +232,7 @@ export const siteSuitabilityResponseSchema = z.object({
 export type SiteSuitabilityResponseParsed = z.infer<typeof siteSuitabilityResponseSchema>
 
 // ㉒ /site-suitability/defaults 默认值单源（权重定稿向量 + 阈值表 + 过滤/分辨率缺省）
-// @backend-contract backend/src/modules/site-suitability/services/site-suitability.service.ts
+// @backend-contract backend/src/modules/site-suitability/services/site-suitability.service.ts SuitabilityDefaults
 export const siteSuitabilityDefaultsSchema = z.object({
   weights: z.looseObject(suitabilityWeightsShape),
   thresholds: z.looseObject({
@@ -249,6 +252,7 @@ export type SiteSuitabilityDefaultsParsed = z.infer<typeof siteSuitabilityDefaul
 
 // ⑰ /diversion/breakdown 响应（分流分析 W10-11；西江转移+三港分摊+桑基流）
 // @backend-contract backend/src/common/diversion.ts
+// @backend-contract-no-type year 由调用方补上（diversion.service.ts:29 的 DiversionYearResult extends DiversionBreakdown），接口本身没有 year；把年度结果挂到 DiversionBreakdown 上才能逐字段比，但那会让契约比后端接口更宽——现有字段名级核对保留
 export const diversionBreakdownResponseSchema = z.object({
   year: z.number(),
   transfer: z.looseObject({
@@ -287,6 +291,7 @@ export type CanalLineResponseParsed = z.infer<typeof canalLineResponseSchema>
 // 2026-09-11 起与 flood-areas/disaster 同源：waterLevel 为 251 档实际档位（不再是 6 档粗化值）；
 // averageDepth/maxDepth 仍来自 6 档 DEM 反演参考表，由 depthRefLevel 标注其所属档位
 // @backend-contract backend/src/modules/flood/services/flood.service.ts
+// @backend-contract-no-type getFloodStatistics 返回 Promise<unknown>，统计对象在该方法内用局部变量拼装；文件里的 FloodStatisticsData（:62）只有 statistics 一个字段，与本 schema 的 14 个字段不是同一个契约
 export const floodStatisticsResponseSchema = z.looseObject({
   waterLevel: z.number().optional(),
   requestedWaterLevel: z.number().optional(),
@@ -515,7 +520,7 @@ export type PoiSearchResponseParsed = z.infer<typeof poiSearchResponseSchema>
 // 「任务成功但没结果」，比报错更难查（types/task.ts 头注释即为此写的维护约束）。
 // 必填字段按后端 TaskView / TaskSubmitResponse 原样声明（不 optional 化）：
 // 只有必填才能让"后端字段消失"在运行期直接抛错。
-// @backend-contract backend/src/modules/task/types/task.ts
+// @backend-contract backend/src/modules/task/types/task.ts TaskSubmitResponse
 export const taskSubmitResponseSchema = z.looseObject({
   taskId: z.string(),
   status: z.enum(TASK_STATUSES),
@@ -526,6 +531,7 @@ export const taskSubmitResponseSchema = z.looseObject({
 
 export type TaskSubmitResponseParsed = z.infer<typeof taskSubmitResponseSchema>
 
+// @backend-contract backend/src/modules/task/types/task.ts TaskView
 export const taskViewResponseSchema = z.looseObject({
   taskId: z.string(),
   domain: z.enum(TASK_DOMAINS),

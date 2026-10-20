@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-18",
+  "generatedAt": "2026-10-20",
   "source": "frontend/src/types/schemas.ts（单一事实源，types:gen 自动生成勿手改）",
   "schemas": {
     "userSchema": {
@@ -793,7 +793,7 @@
     "timeSeriesResponseSchema": {
       "file": "backend/src/modules/forecast/services/forecast.service.ts",
       "occurrence": {
-        "indicator": 29,
+        "indicator": 30,
         "unit": 14,
         "granularity": 2,
         "canalScenario": 26,
@@ -803,7 +803,7 @@
     "indicatorComparisonResponseSchema": {
       "file": "backend/src/modules/forecast/services/forecast.service.ts",
       "occurrence": {
-        "indicator": 29,
+        "indicator": 30,
         "unit": 14,
         "canalScenario": 26,
         "ports": 10
@@ -812,12 +812,12 @@
     "forecastMapDataSchema": {
       "file": "backend/src/modules/forecast/services/forecast.service.ts",
       "occurrence": {
-        "indicator": 29,
+        "indicator": 30,
         "unit": 14,
         "time": 11,
         "canalScenario": 26,
         "type": 8,
-        "features": 4
+        "features": 6
       }
     },
     "siteSuitabilityResponseSchema": {
@@ -826,6 +826,10 @@
         "type": 6,
         "features": 2,
         "metadata": 2
+      },
+      "optionality": {
+        "type": "SuitabilityResult",
+        "drift": []
       }
     },
     "siteSuitabilityDefaultsSchema": {
@@ -836,6 +840,10 @@
         "minLandFrac": 6,
         "resolution": 6,
         "source": 2
+      },
+      "optionality": {
+        "type": "SuitabilityDefaults",
+        "drift": []
       }
     },
     "diversionBreakdownResponseSchema": {
@@ -851,19 +859,23 @@
       "file": "backend/src/common/diversion.ts",
       "occurrence": {
         "lines": 1
+      },
+      "optionality": {
+        "type": "CanalLineResponse",
+        "drift": []
       }
     },
     "floodStatisticsResponseSchema": {
       "file": "backend/src/modules/flood/services/flood.service.ts",
       "occurrence": {
-        "waterLevel": 21,
+        "waterLevel": 24,
         "requestedWaterLevel": 5,
         "actualWaterLevel": 4,
         "riskLevel": 16,
         "riskLevelCode": 2,
         "floodArea": 3,
-        "averageDepth": 2,
-        "maxDepth": 2,
+        "averageDepth": 3,
+        "maxDepth": 3,
         "depthRefLevel": 2,
         "depthUnderstatedBy": 3,
         "affectedFacilityCount": 3,
@@ -877,8 +889,33 @@
       "occurrence": {
         "taskId": 3,
         "status": 7,
-        "queuePosition": 1,
+        "queuePosition": 3,
         "createdAtMs": 2
+      },
+      "optionality": {
+        "type": "TaskSubmitResponse",
+        "drift": []
+      }
+    },
+    "taskViewResponseSchema": {
+      "file": "backend/src/modules/task/types/task.ts",
+      "occurrence": {
+        "taskId": 3,
+        "domain": 2,
+        "route": 2,
+        "status": 7,
+        "progress": 2,
+        "queuePosition": 3,
+        "retryCount": 2,
+        "result": 2,
+        "error": 2,
+        "createdAtMs": 2,
+        "startedAt": 2,
+        "finishedAt": 2
+      },
+      "optionality": {
+        "type": "TaskView",
+        "drift": []
       }
     }
   }

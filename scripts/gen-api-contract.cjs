@@ -192,27 +192,24 @@ const problems = [
 // 后端把某字段删掉/改名时，schema 依旧自洽 ⇒ 快照与覆盖率都不红（实测 exit=0），
 // 契约里就留着一个没人产出的字段（affectedCount 即这类遗留）。
 //
-// 判据：带 `// @backend-contract <相对路径>` 注解的 schema，其每个字段名都必须在该后端
+// 判据：带 `// @backend-contract <相对路径> [类型名]` 注解的 schema，其每个字段名都必须在该后端
 // 文件里以**键位**出现（字段名后接 , : ) }）——只要求"名字还在"，不要求解析后端 AST；
 // 文本级判定，与本脚本其余部分同粒度。注解写在 schema 声明的上方注释里。
-function backendContractOf(declStart) {
-  const lines = schemasText.slice(0, declStart).split('\n')
-  for (let i = lines.length - 1; i >= 0; i--) {
-    const line = lines[i].trim()
-    if (line === '') continue
-    const hit = line.match(/^\/\/\s*@backend-contract\s+(\S+)/)
-    if (hit) return hit[1]
-    // 只向上回溯连续注释；遇到代码即停（注解必须紧贴该 schema 的声明注释块）
-    if (!line.startsWith('//') && !line.startsWith('*') && !line.startsWith('/*')) return null
-  }
-  return null
-}
+// 注解解析与「缺类型名」判据都在 lib/contract-fields.cjs（那里能被测试直接喂合成注解）。
+const {
+  tsTypeFields,
+  compareFields,
+  backendContractOf,
+  annotationProblems,
+} = require('./lib/contract-fields.cjs')
 
 const contractBackends = {}
 for (const def of defs) {
   const own = declStarts.find((d) => d.name === def.name)
-  const rel = backendContractOf(own.index)
-  if (!rel) continue
+  const ann = backendContractOf(schemasText, own.index)
+  if (!ann) continue
+  problems.push(...annotationProblems(def.name, ann))
+  const rel = ann.file
   const abs = path.join(ROOT, rel)
   if (!fs.existsSync(abs)) {
     problems.push(`✗ ${def.name}: @backend-contract 指向的文件不存在（${rel}）`)
@@ -221,15 +218,40 @@ for (const def of defs) {
   const src = fs.readFileSync(abs, 'utf8')
   const occurrence = {}
   for (const field of Object.keys(def.fields)) {
-    // 键位 = 字段名后接 , : ) }；`const affectedPorts = [...]` 这种引用不算
-    const hits = src.match(new RegExp(`\\b${field}\\s*(?:[,:]|\\)|\\})`, 'g'))
+    // 键位 = 字段名（可带 TS 可选标记 `?`）后接 , : ) }；`const affectedPorts = [...]` 这种引用不算。
+    // 可选标记不能漏：`result?: unknown` 是合法键位，不认 `?` 时可选字段一律 0 次，
+    // 会被误报成「后端删了字段」——W44 给 taskViewResponseSchema 补注解时当场撞上。
+    const hits = src.match(new RegExp(`\\b${field}\\s*\\??\\s*(?:[,:]|\\)|\\})`, 'g'))
     occurrence[field] = hits ? hits.length : 0
     // 硬性判据：契约字段必须在后端真被产出（0 次 = 死字段，affectedCount 即此类）
     if (occurrence[field] === 0) {
       problems.push(`✗ ${def.name}.${field}: ${rel} 里已是 0 次键位出现（后端删/改名而未同步契约）`)
     }
   }
-  contractBackends[def.name] = { file: rel, occurrence }
+  // 注解带类型名 ⇒ 升级为类型级比对：字段集合 + 可选性逐项对照（指标 7.6）
+  let optionality = null
+  if (ann.type) {
+    const tf = tsTypeFields(src, ann.type)
+    if (!tf) {
+      problems.push(
+        `✗ ${def.name}: @backend-contract 声明的类型 ${ann.type} 在 ${rel} 里解析不到` +
+          `（删/改名了，或注解写错——不能让一个指不到东西的类型名充当已核对）`
+      )
+    } else {
+      optionality = { type: ann.type, drift: compareFields(def.fields, tf) }
+      for (const d of optionality.drift) {
+        // 文案在这里定（lib 返回结构化条目）——改文案不牵连判据
+        const what =
+          d.issue === 'zod-only'
+            ? 'zod 有 / 后端类型无'
+            : d.issue === 'ts-only'
+              ? '后端类型有 / zod 无'
+              : `zod ${d.zodOptional ? '选填' : '必填'} / 后端类型 ${d.tsOptional ? '选填' : '必填'}`
+        problems.push(`✗ ${def.name}.${d.field}: ${what}（契约双源漂移，指标 7.6）`)
+      }
+    }
+  }
+  contractBackends[def.name] = { file: rel, occurrence, ...(optionality ? { optionality } : {}) }
 }
 const indirect = []
 for (const def of defs) {

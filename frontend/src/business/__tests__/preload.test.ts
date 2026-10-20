@@ -9,11 +9,7 @@
 //      `dropContent`/球外裁剪后**永远不会渲染**的内容也拖下来（港区实测 ≈118 MB 纯浪费）。
 import { afterEach, describe, expect, it } from 'vitest'
 
-import {
-  BEIBU_TILES,
-  prepareBeibuTileset,
-  type BeibuTilesSpec,
-} from '@/business/route-analysis/constants/beibu3dTiles'
+import { BEIBU_TILES, prepareBeibuTileset, type BeibuTilesSpec } from '@/business/route-analysis'
 
 import { __resetPreloadForTest, preloadBusinessAssets } from '../preload'
 

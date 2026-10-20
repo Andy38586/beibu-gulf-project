@@ -1,0 +1,423 @@
+{
+  "generatedFrom": "tools/deep-import/scan.mjs",
+  "total": 80,
+  "byGroup": {
+    "core/map": 7,
+    "shared/constants": 6,
+    "types/business": 8,
+    "types/api": 1,
+    "core/config": 8,
+    "types/core": 4,
+    "shared/utils": 22,
+    "shared/layout": 5,
+    "shared/composables": 5,
+    "stores/factories": 4,
+    "visualization/charts": 4,
+    "views/components": 2,
+    "visualization/composables": 4
+  },
+  "items": [
+    {
+      "file": "App.vue",
+      "target": "core/map/ir/LayerIR",
+      "group": "core/map"
+    },
+    {
+      "file": "business/diversion/panels.ts",
+      "target": "shared/constants/panels",
+      "group": "shared/constants"
+    },
+    {
+      "file": "business/flood-analysis/composables/useFloodRequest.ts",
+      "target": "types/business/base",
+      "group": "types/business"
+    },
+    {
+      "file": "business/flood-analysis/FloodAnalysisPage.vue",
+      "target": "types/business/base",
+      "group": "types/business"
+    },
+    {
+      "file": "business/forecast/composables/useForecastLayer.ts",
+      "target": "types/api/forecast",
+      "group": "types/api"
+    },
+    {
+      "file": "business/preload.ts",
+      "target": "core/map/tiles3dGroups",
+      "group": "core/map"
+    },
+    {
+      "file": "business/route-analysis/constants/beibu3dTiles.ts",
+      "target": "core/map/tiles3dGroups",
+      "group": "core/map"
+    },
+    {
+      "file": "business/site-suitability/panels.ts",
+      "target": "shared/constants/panels",
+      "group": "shared/constants"
+    },
+    {
+      "file": "core/layout/AppLayout.vue",
+      "target": "core/config/map",
+      "group": "core/config"
+    },
+    {
+      "file": "core/layout/AppLayout.vue",
+      "target": "core/map/components/LayerControlPanel.vue",
+      "group": "core/map"
+    },
+    {
+      "file": "core/layout/AppLayout.vue",
+      "target": "core/map/composables/useMapControls",
+      "group": "core/map"
+    },
+    {
+      "file": "core/layout/components/BottomNavBar.vue",
+      "target": "core/map/renderers",
+      "group": "core/map"
+    },
+    {
+      "file": "core/map/BusinessLayerManager.ts",
+      "target": "types/core/layerManager",
+      "group": "types/core"
+    },
+    {
+      "file": "core/map/components/LayerControlPanel.vue",
+      "target": "types/core/layerManager",
+      "group": "types/core"
+    },
+    {
+      "file": "core/map/composables/useBoundaryLayer.ts",
+      "target": "core/config/map",
+      "group": "core/config"
+    },
+    {
+      "file": "core/map/composables/useMapControls.ts",
+      "target": "core/config/map",
+      "group": "core/config"
+    },
+    {
+      "file": "core/map/layerAdapters.ts",
+      "target": "types/core/layerManager",
+      "group": "types/core"
+    },
+    {
+      "file": "core/map/renderers/CesiumRenderer.ts",
+      "target": "core/config/breathing",
+      "group": "core/config"
+    },
+    {
+      "file": "core/map/renderers/CesiumRenderer.ts",
+      "target": "core/config/map",
+      "group": "core/config"
+    },
+    {
+      "file": "core/map/renderers/OLRenderer.ts",
+      "target": "core/config/breathing",
+      "group": "core/config"
+    },
+    {
+      "file": "core/map/renderers/OLRenderer.ts",
+      "target": "core/config/map",
+      "group": "core/config"
+    },
+    {
+      "file": "core/provideKeys.ts",
+      "target": "core/map/renderers/MapRenderer",
+      "group": "core/map"
+    },
+    {
+      "file": "services/adapters/floodAdapter.ts",
+      "target": "types/business/base",
+      "group": "types/business"
+    },
+    {
+      "file": "services/mapDataService.ts",
+      "target": "core/config/map",
+      "group": "core/config"
+    },
+    {
+      "file": "shared/components/ErrorBoundary.vue",
+      "target": "shared/utils/logger",
+      "group": "shared/utils"
+    },
+    {
+      "file": "shared/components/GCSModal.vue",
+      "target": "shared/layout/useGCS",
+      "group": "shared/layout"
+    },
+    {
+      "file": "shared/components/GCSModal.vue",
+      "target": "shared/utils/gcsFeedback",
+      "group": "shared/utils"
+    },
+    {
+      "file": "shared/components/GCSToast.vue",
+      "target": "shared/layout/useGCS",
+      "group": "shared/layout"
+    },
+    {
+      "file": "shared/components/GCSToast.vue",
+      "target": "shared/utils/gcsFeedback",
+      "group": "shared/utils"
+    },
+    {
+      "file": "shared/components/PaginatedListPanel.vue",
+      "target": "shared/composables/useAuth",
+      "group": "shared/composables"
+    },
+    {
+      "file": "shared/components/PaginatedListPanel.vue",
+      "target": "shared/composables/useFavorites",
+      "group": "shared/composables"
+    },
+    {
+      "file": "shared/components/PaginatedListPanel.vue",
+      "target": "shared/layout/useGCS",
+      "group": "shared/layout"
+    },
+    {
+      "file": "shared/components/PaginatedListPanel.vue",
+      "target": "shared/utils/errorHandler",
+      "group": "shared/utils"
+    },
+    {
+      "file": "shared/components/PaginatedListPanel.vue",
+      "target": "shared/utils/gcsFeedback",
+      "group": "shared/utils"
+    },
+    {
+      "file": "shared/components/PaginatedListPanel.vue",
+      "target": "shared/utils/logger",
+      "group": "shared/utils"
+    },
+    {
+      "file": "shared/components/PanelTitle.vue",
+      "target": "shared/layout/useGCS",
+      "group": "shared/layout"
+    },
+    {
+      "file": "shared/composables/useApiRequest.ts",
+      "target": "shared/utils/abortSignal",
+      "group": "shared/utils"
+    },
+    {
+      "file": "shared/composables/useApiRequest.ts",
+      "target": "shared/utils/logger",
+      "group": "shared/utils"
+    },
+    {
+      "file": "shared/composables/useApiRequest.ts",
+      "target": "shared/utils/perfReporter",
+      "group": "shared/utils"
+    },
+    {
+      "file": "shared/composables/useApiRequest.ts",
+      "target": "shared/utils/responseEnvelope",
+      "group": "shared/utils"
+    },
+    {
+      "file": "shared/composables/useAuth.ts",
+      "target": "shared/constants/api",
+      "group": "shared/constants"
+    },
+    {
+      "file": "shared/composables/useAuth.ts",
+      "target": "shared/utils/logger",
+      "group": "shared/utils"
+    },
+    {
+      "file": "shared/composables/useAuth.ts",
+      "target": "shared/utils/safeStorage",
+      "group": "shared/utils"
+    },
+    {
+      "file": "shared/composables/useFavorites.ts",
+      "target": "shared/constants/api",
+      "group": "shared/constants"
+    },
+    {
+      "file": "shared/composables/useFavorites.ts",
+      "target": "shared/utils/errorHandler",
+      "group": "shared/utils"
+    },
+    {
+      "file": "shared/composables/useFavorites.ts",
+      "target": "shared/utils/gcsFeedback",
+      "group": "shared/utils"
+    },
+    {
+      "file": "shared/composables/usePlans.ts",
+      "target": "shared/constants/api",
+      "group": "shared/constants"
+    },
+    {
+      "file": "shared/composables/usePlans.ts",
+      "target": "shared/utils/errorHandler",
+      "group": "shared/utils"
+    },
+    {
+      "file": "shared/composables/usePlans.ts",
+      "target": "shared/utils/logger",
+      "group": "shared/utils"
+    },
+    {
+      "file": "shared/composables/useSlowRequestOffer.ts",
+      "target": "shared/utils/gcsFeedback",
+      "group": "shared/utils"
+    },
+    {
+      "file": "shared/composables/useTaskApi.ts",
+      "target": "shared/constants/api",
+      "group": "shared/constants"
+    },
+    {
+      "file": "shared/constants/panels.ts",
+      "target": "shared/layout/panelRegistry",
+      "group": "shared/layout"
+    },
+    {
+      "file": "shared/layout/useGCS.ts",
+      "target": "shared/utils/logger",
+      "group": "shared/utils"
+    },
+    {
+      "file": "shared/layout/useTheme.ts",
+      "target": "shared/utils/safeStorage",
+      "group": "shared/utils"
+    },
+    {
+      "file": "shared/utils/errorHandler.ts",
+      "target": "shared/composables/useApiRequest",
+      "group": "shared/composables"
+    },
+    {
+      "file": "shared/utils/errorHandler.ts",
+      "target": "shared/composables/useAuth",
+      "group": "shared/composables"
+    },
+    {
+      "file": "stores/floodStore.ts",
+      "target": "stores/factories/createPersistedState",
+      "group": "stores/factories"
+    },
+    {
+      "file": "stores/floodStore.ts",
+      "target": "types/business/base",
+      "group": "types/business"
+    },
+    {
+      "file": "stores/forecastStore.ts",
+      "target": "stores/factories/createPersistedState",
+      "group": "stores/factories"
+    },
+    {
+      "file": "stores/forecastStore.ts",
+      "target": "stores/factories/createTransactionId",
+      "group": "stores/factories"
+    },
+    {
+      "file": "stores/forecastStore.ts",
+      "target": "types/business/base",
+      "group": "types/business"
+    },
+    {
+      "file": "stores/mapStore.ts",
+      "target": "shared/utils/safeStorage",
+      "group": "shared/utils"
+    },
+    {
+      "file": "stores/siteSuitabilityStore.ts",
+      "target": "stores/factories/createTransactionId",
+      "group": "stores/factories"
+    },
+    {
+      "file": "stores/taskStore.ts",
+      "target": "shared/composables/useTaskApi",
+      "group": "shared/composables"
+    },
+    {
+      "file": "stores/taskStore.ts",
+      "target": "shared/utils/errorHandler",
+      "group": "shared/utils"
+    },
+    {
+      "file": "stores/taskStore.ts",
+      "target": "shared/utils/logger",
+      "group": "shared/utils"
+    },
+    {
+      "file": "types/map.ts",
+      "target": "types/core/layerManager",
+      "group": "types/core"
+    },
+    {
+      "file": "types/renderer.ts",
+      "target": "types/business/base",
+      "group": "types/business"
+    },
+    {
+      "file": "views/components/PlansPanel.vue",
+      "target": "types/business/base",
+      "group": "types/business"
+    },
+    {
+      "file": "views/components/PlansPanel.vue",
+      "target": "types/business/base",
+      "group": "types/business"
+    },
+    {
+      "file": "views/HomePage.vue",
+      "target": "visualization/charts/BarChart.vue",
+      "group": "visualization/charts"
+    },
+    {
+      "file": "views/HomePage.vue",
+      "target": "visualization/charts/LineChart.vue",
+      "group": "visualization/charts"
+    },
+    {
+      "file": "views/ProfilePage.vue",
+      "target": "views/components/PlansPanel.vue",
+      "group": "views/components"
+    },
+    {
+      "file": "views/ProfilePage.vue",
+      "target": "views/components/UserInfoCard.vue",
+      "group": "views/components"
+    },
+    {
+      "file": "views/ProfilePage.vue",
+      "target": "visualization/charts/BarChart.vue",
+      "group": "visualization/charts"
+    },
+    {
+      "file": "views/ProfilePage.vue",
+      "target": "visualization/charts/LineChart.vue",
+      "group": "visualization/charts"
+    },
+    {
+      "file": "visualization/charts/composables/useChartBase.ts",
+      "target": "visualization/composables/useECharts",
+      "group": "visualization/composables"
+    },
+    {
+      "file": "visualization/charts/composables/useChartBase.ts",
+      "target": "visualization/composables/useECharts",
+      "group": "visualization/composables"
+    },
+    {
+      "file": "visualization/charts/composables/useRadarChart.ts",
+      "target": "visualization/composables/useECharts",
+      "group": "visualization/composables"
+    },
+    {
+      "file": "visualization/charts/SankeyChart.vue",
+      "target": "visualization/composables/useECharts",
+      "group": "visualization/composables"
+    }
+  ],
+  "updatedAt": "2026-10-20",
+  "history": []
+}

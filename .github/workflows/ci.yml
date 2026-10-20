@@ -183,6 +183,11 @@ jobs:
       - name: Code asset duplicate ratchet
         run: npm run ratchet:dup
 
+      # 深路径穿透棘轮（W59）：治「越过目标模块入口直插内部」的 import。
+      # 与上两条同一条挂点理由（AGENTS §十三-2：钩子可 --no-verify，本步不行）。
+      - name: Code asset deep-import ratchet
+        run: npm run ratchet:deep-import
+
       - name: Check format
         # 2026-08-09：全仓 prettier 格式化完成，恢复硬性阻断
         run: npm run format:check

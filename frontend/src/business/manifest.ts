@@ -7,6 +7,11 @@
  * 2026-10-19 必要性审判：删 `navDisabled?` —— 5 个模块无一设置，生产仅 `App.vue` 读一次
  * （恒 `false`），属「预留模块占位」型的零生产者字段；未实现模块已由 `component: null`
  * 表达（`buildBusinessRoutes()` 跳过），导航禁用不再需要第二条通道。
+ *
+ * 2026-10-20 W59：懒加载由 `@/business/<mod>/<Mod>Page.vue` 深路径改走 `@/business/<mod>`
+ * 模块入口（各模块 index.ts 只 export Page 组件）。此前注释称「动态 import 属构建优化，
+ * 保留深路径」——那是给 barrel 自身穿透找的说法；模块入口同样是单次动态加载，
+ * 没有构建层面的差别（Vite 对入口文件与内部文件一视同仁地产出 chunk）。
  */
 import type { RouteRecordRaw } from 'vue-router'
 
@@ -40,7 +45,7 @@ export const businessModules: BusinessModule[] = [
     title: '选址分析',
     navLabel: '选址分析',
     navIcon: '◎',
-    component: () => import('@/business/site-suitability/SiteSuitabilityPage.vue'),
+    component: () => import('@/business/site-suitability'),
     reset: () => useSiteSuitabilityStore().reset(),
   },
   {
@@ -51,7 +56,7 @@ export const businessModules: BusinessModule[] = [
     title: '分流分析',
     navLabel: '分流分析',
     navIcon: '≋',
-    component: () => import('@/business/diversion/DiversionPage.vue'),
+    component: () => import('@/business/diversion'),
     // 页面状态为本地 ref（年份/结果），无持久 store；登出时路由保留，
     // reset 声明为 no-op 以维持"已实现模块必须声明 reset"的清单不变量（同上一条）
     reset: () => {},
@@ -63,7 +68,7 @@ export const businessModules: BusinessModule[] = [
     title: '预测分析',
     navLabel: '预测分析',
     navIcon: '📊',
-    component: () => import('@/business/forecast/ForecastPage.vue'),
+    component: () => import('@/business/forecast'),
     // 登出须清快照：reset() 刻意不清快照（保卸载重置链路），clearState 兜底清登出前旧会话
     reset: () => {
       useForecastStore().reset()
@@ -77,7 +82,7 @@ export const businessModules: BusinessModule[] = [
     title: '浸没分析',
     navLabel: '浸没分析',
     navIcon: '🌊',
-    component: () => import('@/business/flood-analysis/FloodAnalysisPage.vue'),
+    component: () => import('@/business/flood-analysis'),
     reset: () => useFloodStore().clearState(),
   },
   {
@@ -87,7 +92,7 @@ export const businessModules: BusinessModule[] = [
     title: '航线分析',
     navLabel: '航线分析',
     navIcon: '🚢',
-    component: () => import('@/business/route-analysis/RouteAnalysisPage.vue'),
+    component: () => import('@/business/route-analysis'),
     // 页面状态为本地 ref（起终点/结果），无持久 store；登出时路由保留、图层由页面清理，
     // reset 声明为 no-op 以维持"已实现模块必须声明 reset"的清单不变量（单一事实源不变量）
     reset: () => {},

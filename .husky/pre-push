@@ -61,12 +61,15 @@ echo "[pre-push] 9/15 覆盖率基线冻结校验"
 node scripts/coverage-ratchet.cjs --freeze-check frontend/coverage-baseline.json
 node scripts/coverage-ratchet.cjs --freeze-check backend/coverage-baseline.json
 
-# 代码资产棘轮（死物 / 冗余导出 / 重复）：此前只挂在人手敲的 ci:local ⇒ 不敲 ci:local
+# 代码资产棘轮（死物 / 冗余导出 / 重复 / 深路径穿透）：此前只挂在人手敲的 ci:local ⇒ 不敲 ci:local
 # 就无人拦（AGENTS §十三-2「只进人手敲的聚合入口不算挂点」）。放在覆盖率冻结之后：
 # 两者都读仓库内基线文件，基线若处于「改了未提交」状态，棘轮判定本身就不可信。
-echo "[pre-push] 10/15 代码资产棘轮（死物 / 冗余导出 / 重复）"
+# 深路径穿透棘轮（W59）单独一条：它治的是「越过目标模块入口直插内部」，
+# 与 cruise 的布尔规则互补——存量 80 条照跑但不许再涨，白名单要抄 80 条路径（§七-7）。
+echo "[pre-push] 10/15 代码资产棘轮（死物 / 冗余导出 / 重复 / 深路径穿透）"
 npm run ratchet:dead-code
 npm run ratchet:dup
+npm run ratchet:deep-import
 
 # .env 入库检查（CI 有同名步骤）。本地拦更有价值：一旦推上去就是既成事实，
 # 而 CI 报警时密钥已在远端历史里，清理成本远高于拦截成本。

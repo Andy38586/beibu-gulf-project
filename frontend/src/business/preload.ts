@@ -21,7 +21,8 @@
  *
  * ## 为什么不在这里硬编码 tileset 清单
  *
- * 清单的权威源是 `business/route-analysis/constants/beibu3dTiles`（图层面板也从它读）。
+ * 清单的权威源是 `business/route-analysis`（模块入口 re-export 自
+ * `constants/beibu3dTiles`；图层面板也从它读）。
  * 本模块只接受 URL 列表，由调用方传入——避免「同一份名单两处手抄」（04-F）。
  *
  * ## 为什么预热要**先派生再取内容**（2026-10-04 23:4x）
@@ -35,7 +36,7 @@
  * 注意口径：本项只砍"永远不渲染"的内容；"可渲染内容要不要全预热/设预算/取消"是另一档
  * 取舍（§8.22 待裁），不在本项内自行决定。
  */
-import { BEIBU_TILES, prepareBeibuTileset } from '@/business/route-analysis/constants/beibu3dTiles'
+import { BEIBU_TILES, prepareBeibuTileset } from '@/business/route-analysis'
 import type { TilesetJson } from '@/core/map/tiles3dGroups'
 
 /** 预热目标：URL + 可选派生（与注册点同一函数；返回 null ⇒ 该资产裁空、无内容可预热） */

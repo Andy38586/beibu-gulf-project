@@ -85,12 +85,22 @@ if git rev-parse -q --verify HEAD >/dev/null 2>&1 && git rev-parse -q --verify H
   case "$last_msg" in
     fix:*|fix\(*|refactor:*|refactor\(*)
       changed="$(git diff --name-only HEAD~1 HEAD)"
-      src_changed="$(echo "$changed" | grep -E '^(frontend/src|backend)/.*\.(ts|vue|js|mjs|cjs)$' | grep -vE '\.(test|spec)\.' || true)"
-      test_changed="$(echo "$changed" | grep -E '\.(test|spec)\.(ts|js|vue)$' || true)"
+      # 两条正则必须成对读：impl_re = 实现面，test_re = 测试面。
+      # test_re 只写一份，既判 test_changed，也把测试文件从 impl 面剔掉——
+      # 写两份必然分叉，本轮就是：impl 剔测试用 '\.(test|spec)\.'，而
+      # backend/test/*.e2e-spec.ts 记法为 '-spec.'，于是它被算成「改了实现」。
+      # 2026-10-19 扩面（用户裁决，AGENTS §四-10）：原 impl_re 只认
+      # frontend/src|backend ⇒ tools/ 下 116 个实现文件与 80 个 .test.mjs
+      # 在该检查里两边都数成 0，本仓最该被检查的守卫改动反而静默通过。
+      impl_re='^(frontend/src|backend|tools)/.*\.(ts|tsx|vue|js|jsx|mjs|cjs)$'
+      test_re='(\.(test|spec)|-spec)\.(ts|tsx|js|jsx|mjs|cjs|vue)$'
+      src_changed="$(echo "$changed" | grep -E "$impl_re" | grep -vE "$test_re" || true)"
+      test_changed="$(echo "$changed" | grep -E "$test_re" || true)"
       if [ -n "$src_changed" ] && [ -z "$test_changed" ]; then
-        echo "::error::fix/refactor 提交改动 src 实现但未附测试（03 §1.6）："
+        echo "::error::fix/refactor 提交改动实现但未附测试（03 §1.6）："
         echo "$src_changed"
-        echo "::error::确无测试必要（如纯配置/常量）请改用 chore:/docs: 前缀，或在提交信息中说明理由。"
+        echo "::error::确无测试必要（如纯配置/常量/纯删除）请改用 chore:/docs: 前缀。"
+        echo "::error::注意：在 commit body 里写理由**不会**被本检查识别——它只读标题（%s）。"
         exit 1
       fi
       echo "  fix/refactor 检查通过"

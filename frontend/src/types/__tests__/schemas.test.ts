@@ -101,6 +101,28 @@ describe('planSchema（存量记录形态回归：fixture 固化，环境无关�
     expect(result.success).toBe(false)
   })
 
+  // 能红性：把 createdAt/updatedAt 改回 z.string()，下列两条即失败。
+  // 依据：DB 里两列是 TEXT 且无 NOT NULL（tools/db/db-schema.sql:22-23），null 是合法存量值。
+  it('🔴 createdAt/updatedAt 为 null 时仍通过（W45：DDL 无 NOT NULL）', () => {
+    const plan = { ...legacyPlanFixtures[0], createdAt: null, updatedAt: null }
+    const result = planSchema.safeParse(plan)
+    expect(result.success, `null 时间列被拒: ${JSON.stringify(result.error?.issues)}`).toBe(true)
+  })
+
+  it('🔴 favoriteItemSchema 的 savedAt 为 null 时仍通过（W45 同族第二站点）', () => {
+    const result = favoriteItemSchema.safeParse({
+      id: 'f1',
+      userId: 'u1',
+      itemType: 'xiaoqu',
+      itemId: 'x1',
+      name: '某小区',
+      lng: null,
+      lat: null,
+      savedAt: null,
+    })
+    expect(result.success, `savedAt=null 被拒: ${JSON.stringify(result.error?.issues)}`).toBe(true)
+  })
+
   it('浸没方案载荷（审查 M-1 回归）：合法 floodFeatures/floodStatistics 通过', () => {
     const plan = {
       id: 'p1',

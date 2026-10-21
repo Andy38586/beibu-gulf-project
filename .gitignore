@@ -287,3 +287,7 @@ backend/static/bridges-city/
 # 会话运行时产物：ZCode 忽略文件（同上方 .zcode/）+ agent 工作目录（非项目源码，不入库）
 .zcodeignore
 untitled-project/
+
+# dsh 会话运行时产物：ops 写盘锁与运行目录（非项目源码，出现在源码树里会污染全仓 walker）
+.dsh-ops/
+.dsh-ops-update-*.lock

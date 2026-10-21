@@ -70,6 +70,21 @@ data/
 
 ## 四、数据消费关系
 
+### 双源权威归属（同一事实只许一份说了算）
+
+`modules/flood/repositories/flood.repository.ts:9-23` 只有注释声明「双源并存」，没有一张表说清谁权威。
+现状（2026-10-21 实测）：
+
+| 事实                                   | 权威源                      | 另一份载体的角色                        | 运行期读谁       |
+| -------------------------------------- | --------------------------- | --------------------------------------- | ---------------- |
+| 251 档淹没范围（0~25m，0.1m 步长）     | PostgreSQL 表 `flood_levels` | `flood/flood_levels.json.gz` 是导入源，不再被运行期读取 | 表（repository 的 SQL） |
+| 洪涝统计 / 设施点 / 水域 / 地形剖面    | `flood/*.json`              | 无第二份                                | `DataFilesService` |
+| 吞吐历史 / 模型产物                    | `forecast/*.json`           | 无第二份                                | `DataFilesService` |
+| plans / favorites / users              | PostgreSQL 表               | 历史 JSON（plans.json 等）已不存在       | repository       |
+
+**失效条件与已知缺口**：`floodArea.json` 的 6 档已于 2026-09-10 退役，但「有人重新读它」
+目前**没有守卫能红**（W05 已登记）。新增第三个来源前必须先改本表，否则本表退化为第三份叙述。
+
 ### 静态数据（Nest 读模块）
 
 - `modules/forecast` → `data/forecast/*.json`：经 `infra/files/data-files.service.ts` 读取（index/cargo/container/activity + `*_model.json`），公开只读。

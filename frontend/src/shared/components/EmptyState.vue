@@ -3,16 +3,13 @@
     <div v-if="icon" class="empty-state__icon" aria-hidden="true">{{ icon }}</div>
     <p class="empty-state__message">{{ message }}</p>
     <p v-if="hint" class="empty-state__hint">{{ hint }}</p>
-    <div v-if="$slots.action" class="empty-state__action">
-      <slot name="action" />
-    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 /**
  * 统一空数据占位组件（c057）：全项目共用，避免各图表/列表各自拼写"暂无数据"；
- * 支持 icon / hint / action 插槽，替代各页面内联空态；
+ * 只有 icon / hint 两个 prop，没有具名插槽：原 action 通道全仓 0 填充者，2026-10-20 删；
  * 直接用全局 --GCS-* 变量，避免 shared → core 反向依赖。
  */
 withDefaults(
@@ -63,9 +60,5 @@ withDefaults(
 .empty-state__hint {
   margin: 0;
   font-size: 12px;
-}
-
-.empty-state__action {
-  margin-top: 4px;
 }
 </style>

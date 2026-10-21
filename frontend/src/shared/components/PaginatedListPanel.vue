@@ -1,7 +1,8 @@
 <script setup lang="ts">
 /**
  * PaginatedListPanel — 通用分页列表面板：
- * 分页 + 自定义插槽 + 收藏逻辑（对接 usePlans 的真实登录与 savedXiaoqu 判断）。
+ * 分页 + 收藏逻辑（对接 usePlans 的真实登录与 savedXiaoqu 判断）。
+ * 具名插槽只有 #item；#loading / #empty 全仓 0 填充者，2026-10-20 收窄为直写兜底内容。
  * 前端称"收藏"，后端 API/数据库称 saved/save——字段名沿用后端约定，前端不做转换；
  * 点击项的地图跳转（flyTo）由业务层注入，shared 不依赖 core。
  */
@@ -209,19 +210,15 @@ watch(
 
       <!-- 加载进行态（loading 与空态分离，不变量8） -->
       <div v-else-if="loading" class="no-data-section">
-        <slot name="loading">
-          <div class="loading-hint">
-            <span class="loading-spinner" aria-hidden="true"></span>
-            <span>计算中…</span>
-          </div>
-        </slot>
+        <div class="loading-hint">
+          <span class="loading-spinner" aria-hidden="true"></span>
+          <span>计算中…</span>
+        </div>
       </div>
 
       <!-- 无数据提示（c057：统一走 EmptyState，含图标/引导文案） -->
       <div v-else class="no-data-section">
-        <slot name="empty">
-          <EmptyState :message="emptyText" :hint="emptyHint" icon="📭" />
-        </slot>
+        <EmptyState :message="emptyText" :hint="emptyHint" icon="📭" />
       </div>
 
       <!-- 分页控制区 -->

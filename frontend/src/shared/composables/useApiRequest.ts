@@ -48,6 +48,11 @@ const token: Ref<string> = ref('')
 const NEST_API_BASE: string = import.meta.env.VITE_NEST_API_BASE || '/nest-api'
 const API_TIMEOUT_MS: number = 10000
 
+// 请求关联头的名字。后端 backend/src/common/filters/business-error.filter.ts 读同名头，
+// 把同一个 rid 写进错误日志——此前 rid 只活在前端控制台，一条用户报障无法跨端串联。
+// 前后端不共享模块，故这里是两份常量之一；头名没有机器对账判据（在册待裁）。
+export const REQUEST_ID_HEADER = 'x-request-id'
+
 // 请求关联 ID 序列：每次 apiRequest 自增生成，日志显式携带（并发安全，不做全局设置）
 let requestSeq = 0
 function nextRequestId(): string {
@@ -134,6 +139,8 @@ async function singleRequest<T = unknown>(
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...options.headers,
+    // rid 贯穿重试循环（同一逻辑请求的 3 次尝试共用一个 id），后端错误日志据此反查
+    [REQUEST_ID_HEADER]: rid,
   }
 
   // 认证走 HttpOnly Cookie（credentials: 'include'），token 仅用于前端登录态判断，不参与传输

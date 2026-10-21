@@ -42,13 +42,18 @@ describe('ErrorCode 契约（对齐 Express）', () => {
 // BusinessError.message 可来自请求输入，必须净化后写日志并回显
 // （对齐 csp-report.controller 的 clip 口径：滤 CR/LF + 200 字截断）
 describe('BusinessErrorFilter 详情净化', () => {
-  function fakeHost() {
+  function fakeHost(reqHeaders: Record<string, string | string[] | undefined> = {}) {
     const res = {
       status: vi.fn().mockReturnThis(),
       json: vi.fn().mockReturnThis(),
     }
     return {
-      host: { switchToHttp: () => ({ getResponse: () => res }) } as never,
+      host: {
+        switchToHttp: () => ({
+          getResponse: () => res,
+          getRequest: () => ({ headers: reqHeaders }),
+        }),
+      } as never,
       res,
     }
   }
@@ -98,6 +103,73 @@ describe('BusinessErrorFilter 详情净化', () => {
       )
       const body = res.json.mock.calls[0][0] as { error: string }
       expect(body.error).toBe('mode 必须为 distance / time，收到：fastest')
+    } finally {
+      warnSpy.mockRestore()
+    }
+  })
+})
+
+// 前端 useApiRequest 每次请求写 x-request-id，后端错误日志必须带上同一个值——
+// 否则「用户报障 → 查服务端日志」这一步只能靠时间戳猜。
+describe('BusinessErrorFilter 请求关联 id', () => {
+  function hostOf(headers: Record<string, string | string[] | undefined>) {
+    const res = { status: vi.fn().mockReturnThis(), json: vi.fn().mockReturnThis() }
+    return {
+      host: {
+        switchToHttp: () => ({ getResponse: () => res, getRequest: () => ({ headers }) }),
+      } as never,
+      res,
+    }
+  }
+
+  it('🔴 业务错误的 warn 日志带上请求头里的 rid', () => {
+    const warnSpy = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => {})
+    try {
+      const { host } = hostOf({ 'x-request-id': 'r7-abc123' })
+      new BusinessErrorFilter().catch(new BusinessError(ErrorCode.NOT_FOUND), host)
+      const logged = String(warnSpy.mock.calls[0][0])
+      expect(logged).toContain('r7-abc123')
+    } finally {
+      warnSpy.mockRestore()
+    }
+  })
+
+  it('🔴 未捕获错误的 error 日志也带 rid（这条通道此前完全没有关联键）', () => {
+    const errorSpy = vi.spyOn(Logger.prototype, 'error').mockImplementation(() => {})
+    try {
+      const { host } = hostOf({ 'x-request-id': 'r9-zzz' })
+      new BusinessErrorFilter().catch(new Error('boom'), host)
+      expect(String(errorSpy.mock.calls[0][0])).toContain('r9-zzz')
+    } finally {
+      errorSpy.mockRestore()
+    }
+  })
+
+  it('🔴 头值里的换行被滤平：rid 是攻击面，日志必须仍是单行', () => {
+    // 阳性对照：不净化时下面这个值会把日志劈成两行，伪造出一条 [BusinessError] 记录
+    const warnSpy = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => {})
+    try {
+      const { host } = hostOf({ 'x-request-id': 'r1\n[BusinessError] 401 401001: 伪造' })
+      new BusinessErrorFilter().catch(new BusinessError(ErrorCode.NOT_FOUND), host)
+      const logged = String(warnSpy.mock.calls[0][0])
+      expect(logged.split('\n')).toHaveLength(1)
+      expect(logged).not.toMatch(/[\r\n]/)
+    } finally {
+      warnSpy.mockRestore()
+    }
+  })
+
+  it('缺头时不崩、日志仍可读（老客户端/直连 curl）', () => {
+    // 只钉「不崩 + 不把 undefined 写进日志」，不钉占位符的形状——那是可等价改写的措辞
+    const warnSpy = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => {})
+    try {
+      const { host } = hostOf({})
+      expect(() =>
+        new BusinessErrorFilter().catch(new BusinessError(ErrorCode.NOT_FOUND), host)
+      ).not.toThrow()
+      const logged = String(warnSpy.mock.calls[0][0])
+      expect(logged).not.toContain('undefined')
+      expect(logged.split('\n')).toHaveLength(1)
     } finally {
       warnSpy.mockRestore()
     }

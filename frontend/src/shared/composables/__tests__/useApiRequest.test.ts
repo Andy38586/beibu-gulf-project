@@ -305,6 +305,44 @@ describe('useApiRequest', () => {
     })
   })
 
+  describe('请求关联 id 头', () => {
+    // 后端 business-error.filter.ts 读同名头写错误日志。没有头时，一条用户报障
+    // 只能与「某个时间段的所有请求」对齐，无法定位到具体一次调用。
+    const initOf = (i: number) => mockFetch.mock.calls[i][1] as { headers: Record<string, string> }
+
+    it('🔴 每次请求都带 x-request-id，且非空字符串', async () => {
+      mockFetch.mockResolvedValue(jsonResponse({ code: 200, data: null }))
+      const { apiRequest } = useApiRequest()
+      await apiRequest('/a')
+      await apiRequest('/b')
+      expect(initOf(0).headers['x-request-id']).toMatch(/^r\d+-[a-z0-9]+$/)
+      expect(initOf(1).headers['x-request-id']).toMatch(/^r\d+-[a-z0-9]+$/)
+      // 两次独立调用不得共用同一个 id，否则日志里分不开
+      expect(initOf(0).headers['x-request-id']).not.toBe(initOf(1).headers['x-request-id'])
+    })
+
+    it('🔴 重试的 3 次尝试共用一个 id（同一逻辑请求应能串起来）', async () => {
+      mockFetch
+        .mockRejectedValueOnce(new TypeError('fetch failed'))
+        .mockRejectedValueOnce(new TypeError('fetch failed'))
+        .mockResolvedValueOnce(jsonResponse({ code: 200, data: { ok: 1 } }))
+      const { apiRequest } = useApiRequest()
+      await apiRequest('/retry-me')
+      expect(mockFetch).toHaveBeenCalledTimes(3)
+      const ids = [0, 1, 2].map((i) => initOf(i).headers['x-request-id'])
+      expect(new Set(ids).size).toBe(1)
+    })
+
+    it('🔴 调用方传同名头时仍以框架 rid 为准（日志与我方 rid 必须能对上）', async () => {
+      // 本文件日志一律带 `[apiRequest:${rid}]`；若允许调用方覆盖头值，前端日志与服务端
+      // 日志就指向两个不同的 id，且失败时不会有任何报错——静默失去关联能力。
+      mockFetch.mockResolvedValue(jsonResponse({ code: 200, data: null }))
+      const { apiRequest } = useApiRequest()
+      await apiRequest('/c', { headers: { 'x-request-id': 'caller-owned' } })
+      expect(initOf(0).headers['x-request-id']).toMatch(/^r\d+-[a-z0-9]+$/)
+    })
+  })
+
   describe('params 拼接', () => {
     it('正确拼接 query 参数', async () => {
       mockFetch.mockResolvedValue(jsonResponse({ code: 200, data: null }))

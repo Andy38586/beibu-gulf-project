@@ -57,6 +57,13 @@ export async function initErrorReporting(): Promise<void> {
     init({
       dsn,
       environment: import.meta.env.MODE,
+      // W56：release 让 Sentry 能把「这个错误是哪个版本引入/修掉的」和部署记录对上。
+      // 取构建期注入的 VITE_APP_VERSION；未配置时为 undefined（Sentry 按「未知版本」处理，
+      // 不阻断上报，也不伪造一个 'dev' 让它看起来像真版本）。
+      release: import.meta.env.VITE_APP_VERSION || undefined,
+      // W56：性能采样固定 10%——100% 会把配额烧在一次页面加载的几十个 span 上，
+      // 1% 又不足以在日活量级下看出慢请求分布。该值属可观测性取舍，不是可调参数。
+      tracesSampleRate: 0.1,
       integrations: withoutGlobalHandlers,
     })
     capture = (error, context) => {

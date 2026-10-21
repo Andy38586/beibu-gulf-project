@@ -23,6 +23,28 @@ describe('errorReporting（z021 错误上报收口）', () => {
     vi.resetModules()
   })
 
+  // W56：release 与性能采样是「能定位」与「不烧配额」的两条前提。
+  it('🔴 配置 VITE_APP_VERSION 时透传为 release（版本对比的前提）', async () => {
+    import.meta.env.VITE_SENTRY_DSN = DSN
+    import.meta.env.VITE_APP_VERSION = 'run-42'
+    const mod = await import('../errorReporting')
+    await mod.initErrorReporting()
+
+    expect(sentryMock.init.mock.calls[0][0]).toMatchObject({ release: 'run-42' })
+    delete import.meta.env.VITE_APP_VERSION
+  })
+
+  it('🔴 未配置版本时不伪造 release，且性能采样固定 0.1', async () => {
+    import.meta.env.VITE_SENTRY_DSN = DSN
+    const mod = await import('../errorReporting')
+    await mod.initErrorReporting()
+
+    const opts = sentryMock.init.mock.calls[0][0] as Record<string, unknown>
+    // 伪造 'dev' 会让 Sentry 的版本对比把本地与线上混成一个版本
+    expect(opts.release).toBeUndefined()
+    expect(opts.tracesSampleRate).toBe(0.1)
+  })
+
   it('未配置 VITE_SENTRY_DSN → 不初始化 SDK；captureError 静默 no-op（本地/CI 零影响）', async () => {
     const mod = await import('../errorReporting')
     await mod.initErrorReporting()

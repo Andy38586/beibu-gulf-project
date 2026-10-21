@@ -93,6 +93,15 @@ RISK_BANDS = [
     (float("inf"), "灾难级"),
 ]
 `
+// B1 跨端请求头名：前后端各一份副本；前端 x-task-client 刻意不 export（只在本文件用）。
+const FE_API_REQUEST = `export const REQUEST_ID_HEADER = 'x-request-id'
+`
+const BE_ERROR_FILTER = `export const REQUEST_ID_HEADER = 'x-request-id'
+`
+const FE_TASK_API = `const TASK_CLIENT_HEADER = 'x-task-client'
+`
+const BE_REQUEST_OWNER = `export const TASK_CLIENT_HEADER = 'x-task-client'
+`
 
 describe('parseNumericConst — 数值常量解析', () => {
   it('解析水位上限', () => {
@@ -124,10 +133,52 @@ describe('auditSharedConstants — 跨进程常量一致性', () => {
     toolsGulfBounds: TOOLS_GULF,
     // 唯一来源判据的输入集合：正常仓库 = 无第二份手抄（扫到的都是合法派生）
     localBoundDefs: [],
+    frontendApiRequest: FE_API_REQUEST,
+    backendErrorFilter: BE_ERROR_FILTER,
+    frontendTaskApi: FE_TASK_API,
+    backendRequestOwner: BE_REQUEST_OWNER,
   }
 
   it('双侧一致 → 无问题', () => {
     expect(auditSharedConstants(base)).toEqual([])
+  })
+
+  it('@guard-red-sample 前端改 x-request-id ⇒ 必红（B1）', () => {
+    const problems = auditSharedConstants({
+      ...base,
+      frontendApiRequest: FE_API_REQUEST.replace("'x-request-id'", "'x-trace-id'"),
+    })
+    expect(
+      problems.some((p) => p.includes('请求头名漂移') && p.includes('REQUEST_ID_HEADER'))
+    ).toBe(true)
+  })
+
+  it('@guard-red-sample 后端改 x-task-client ⇒ 必红（B1，反向也咬）', () => {
+    const problems = auditSharedConstants({
+      ...base,
+      backendRequestOwner: BE_REQUEST_OWNER.replace("'x-task-client'", "'x-task-id'"),
+    })
+    expect(
+      problems.some((p) => p.includes('请求头名漂移') && p.includes('TASK_CLIENT_HEADER'))
+    ).toBe(true)
+  })
+
+  it('@guard-red-sample 头名常量被改名/删除 ⇒ 解析失败必红（不许静默当通过）', () => {
+    const problems = auditSharedConstants({
+      ...base,
+      backendErrorFilter: BE_ERROR_FILTER.replace('REQUEST_ID_HEADER', 'RID_HEADER'),
+    })
+    expect(
+      problems.some((p) => p.includes('请求头名解析失败') && p.includes('REQUEST_ID_HEADER'))
+    ).toBe(true)
+  })
+
+  it('等价重构（给前端常量补 export、换声明位置）⇒ 不误红（变异四式第 3 式）', () => {
+    const problems = auditSharedConstants({
+      ...base,
+      frontendTaskApi: `// 头名在这里声明\nexport const TASK_CLIENT_HEADER = 'x-task-client'\n`,
+    })
+    expect(problems).toEqual([])
   })
 
   it('@guard-red-sample 后端 MODE_WEIGHT 新增 mode 而前端未同步 ⇒ 必红（D4②）', () => {

@@ -2,7 +2,7 @@
 /**
  * constants-audit.mjs — 跨进程共享常量一致性守卫。
  *
- * 前后端各自维护的"同一权威值"（水位上限、登录业务码）是双轨排查方案定义的
+ * 前后端各自维护的"同一权威值"（水位上限、登录业务码、请求头名）是双轨排查方案定义的
  * 跨进程副本——类型系统够不着、改一侧不报错。本守卫把双侧值解析出来做一致性
  * 断言，漂移在 guard:v3 拦下而非线上静默失效。
  *
@@ -30,6 +30,13 @@ const TOOLS_GULF_BOUNDS = 'tools/lib/gulf-bounds.mjs'
 // 字面量联合是手抄（当前两处：RoutePathParams.mode 与 RoutePathResult.mode）。
 const BACKEND_ROUTE_MODES = 'backend/src/modules/route/repositories/route.repository.ts'
 const FRONTEND_ROUTE_TYPES = 'frontend/src/types/route.ts'
+// B1：跨端请求头名。前后端不共享模块，同一头名各写一份，改一侧另一侧不报错——
+// 后果是日志里搜不到对方写的头（rid 跨端断链 / 任务属主识别失效）。
+// 只断言两侧字面量相等，不选哪侧是权威源（选边属 §四-9）。
+const FRONTEND_API_REQUEST = 'frontend/src/shared/composables/useApiRequest.ts'
+const BACKEND_ERROR_FILTER = 'backend/src/common/filters/business-error.filter.ts'
+const FRONTEND_TASK_API = 'frontend/src/shared/composables/useTaskApi.ts'
+const BACKEND_REQUEST_OWNER = 'backend/src/modules/task/utils/request-owner.ts'
 
 /** 从文件文本解析 `export const NAME = <数字>`（宽松空白匹配） */
 export function parseNumericConst(content, name) {
@@ -136,6 +143,15 @@ export function parseFrontendModeLiterals(content) {
     out.push([...m[1].matchAll(/'([^']+)'/g)].map((x) => x[1]))
   }
   return out
+}
+
+/**
+ * 字符串常量（`[export] const NAME = 'value'`）。
+ * 跨端头名这类副本常有一侧不 export（只在本文件内用），故 export 可省。
+ */
+export function parseStringConst(content, name) {
+  const m = content.match(new RegExp(`(?:export\\s+)?const ${name}\\s*=\\s*['"]([^'"]+)['"]`))
+  return m ? m[1] : null
 }
 
 export function auditSharedConstants(files) {
@@ -296,6 +312,26 @@ export function auditSharedConstants(files) {
       }
     })
   }
+  // 跨端请求头名（B1）：x-request-id / x-task-client 各有一份前后端副本。
+  // 缺失即解析失败（不许静默当通过）；不相等即漂移。
+  const headerPairs = [
+    ['REQUEST_ID_HEADER', files.frontendApiRequest, files.backendErrorFilter],
+    ['TASK_CLIENT_HEADER', files.frontendTaskApi, files.backendRequestOwner],
+  ]
+  for (const [constName, frontendSrc, backendSrc] of headerPairs) {
+    const fe = parseStringConst(frontendSrc ?? '', constName)
+    const be = parseStringConst(backendSrc ?? '', constName)
+    if (fe === null || be === null) {
+      problems.push(
+        `请求头名解析失败：${constName} frontend=${fe} backend=${be}（常量被改名/删除？）`
+      )
+    } else if (fe !== be) {
+      problems.push(
+        `请求头名漂移：${constName} frontend='${fe}' backend='${be}'` +
+          '（同一头名跨端两份副本，须逐字相等，否则日志/属主识别静默断链）'
+      )
+    }
+  }
   return problems
 }
 
@@ -378,11 +414,15 @@ function main() {
     floodPy: read(FLOOD_PY_REALIFY),
     toolsGulfBounds: read(TOOLS_GULF_BOUNDS),
     localBoundDefs: scanLocalGulfBoundsDefs(ROOT),
+    frontendApiRequest: read(FRONTEND_API_REQUEST),
+    backendErrorFilter: read(BACKEND_ERROR_FILTER),
+    frontendTaskApi: read(FRONTEND_TASK_API),
+    backendRequestOwner: read(BACKEND_REQUEST_OWNER),
   })
   if (problems.length === 0) {
     console.log(
       '[constants-audit] OK：水位上限/业务边界框（含 tools 侧）/寻路 mode 双侧一致、' +
-        'flood 分段 TS↔PY 一致，前端业务码 ⊆ 后端 ErrorCode'
+        'flood 分段 TS↔PY 一致、跨端请求头名逐字相等，前端业务码 ⊆ 后端 ErrorCode'
     )
     return
   }

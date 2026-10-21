@@ -39,9 +39,4 @@ export class DataFilesService {
     this.cache.set(relPath, data)
     return data
   }
-
-  /** 测试钩子：清空统一只读缓存，避免跨用例污染（对齐 Express _clearCacheForTest） */
-  _clearCacheForTest(): void {
-    this.cache.clear()
-  }
 }

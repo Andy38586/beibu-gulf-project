@@ -4,7 +4,6 @@
 interface ReadCache<T> {
   get(key: string): T | undefined
   set(key: string, value: T): void
-  clear(): void
 }
 
 export function createReadCache<T>({ maxSize = 100, ttlMs = 5 * 60 * 1000 } = {}): ReadCache<T> {
@@ -28,13 +27,8 @@ export function createReadCache<T>({ maxSize = 100, ttlMs = 5 * 60 * 1000 } = {}
     cache.set(key, { value, cachedAt: Date.now() })
   }
 
-  function clear(): void {
-    cache.clear()
-  }
-
   return {
     get,
     set,
-    clear,
   }
 }

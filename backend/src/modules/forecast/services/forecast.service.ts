@@ -377,9 +377,4 @@ export class ForecastService {
       series,
     }
   }
-
-  /** 测试钩子：清空引擎缓存（对齐 Express 侧 resetModules 清缓存模式） */
-  _clearEngineCacheForTest(): void {
-    this.engineCache.clear()
-  }
 }

@@ -309,7 +309,7 @@ export const useTaskStore = defineStore('task', () => {
    * 绝大多数调用方要的都是「发出去 → 等它跑完 → 拿结果」，
    * 拆两步会让每个调用点重复写一遍「先 submit 再 wait」的样板。
    *
-   * 返回 `{ taskId, slot }`：`slot` 为 null 表示任务被移除（dismiss/clearAll）。
+   * 返回 `{ taskId, slot }`：`slot` 为 null 表示任务被移除（clearAll，D30 起没有单条移除入口）。
    */
   async function submitAndWait(input: {
     route: string
@@ -375,7 +375,7 @@ export const useTaskStore = defineStore('task', () => {
       const check = (): boolean => {
         const slot = slots.value[route]
         if (!slot) {
-          // 槽位被 dismiss/clearAll 移除：无任务可等
+          // 槽位被 clearAll 移除：无任务可等
           clearInterval(timer)
           resolve(null)
           return true
@@ -407,14 +407,6 @@ export const useTaskStore = defineStore('task', () => {
     slots.value[route] = { ...slot, docked }
   }
 
-  /** 移除某路由的槽位（用户手动关闭任务卡） */
-  function dismiss(route: string): void {
-    stopPolling(route)
-    releaseController(route)
-    delete slots.value[route]
-    delete submitSeqByRoute.value[route]
-  }
-
   /**
    * 全清（登出 / 多标签页登出链调用）。
    * taskStore 属常驻层、不在 `manifest.ts` 的业务模块清单里，所以由
@@ -443,7 +435,6 @@ export const useTaskStore = defineStore('task', () => {
     cancel,
     waitForResult,
     setDocked,
-    dismiss,
     clearAll,
   }
 })

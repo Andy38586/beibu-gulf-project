@@ -13,7 +13,7 @@ const COLOR_PRIMARY = '#409eff'
  * 港口要素渲染色（原 `FACILITY_COLORS[0]` 具名化，2026-10-13 收口 A2）。
  * 原为 4 元色板 `['#409eff','#67C23A','#e74c3c','#4dabf7']`，实测**只有 [0] 被消费**（usePortLayer）；
  * [1..3] 零消费，且这三个色在本文件他处各有具名来源（success 绿 → PROFILE_AREA_STOP_* 的 rgba 派生、
- * 危险红 → FACILITY_COLORS_MAP.hospital、边界蓝 → LAYER_DEFAULTS.stroke/fillColor）⇒ 色板拆掉。
+ * 危险红 → FACILITY_COLORS_MAP.hospital、边界蓝 → LAYER_DEFAULTS.stroke）⇒ 色板拆掉。
  */
 export const PORT_FEATURE_COLOR = COLOR_PRIMARY
 
@@ -58,7 +58,6 @@ export const LAYER_DEFAULTS = {
   color: COLOR_PRIMARY, // 默认点 / 要素色
   stroke: '#4dabf7', // 默认描边（边界 / 多边形）
   marker: COLOR_PRIMARY, // 默认标记色
-  fillColor: '#4dabf7', // 默认填充色（polygon / geojson）
   boundaryFill: 'rgba(77,171,247,0.15)', // 边界图层填充（从 useBoundaryLayer 提取的硬编码字面量）
   fill: 'rgba(77, 171, 247, 0.2)',
   outline: '#ffffff', // 描边 / 外框白

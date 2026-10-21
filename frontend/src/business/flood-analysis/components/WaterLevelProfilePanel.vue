@@ -263,7 +263,7 @@ async function dockToTask(): Promise<boolean> {
     })
     if (disposed) return false
 
-    // 任务被移除（dismiss/clearAll）：不置停靠态
+    // 任务被移除（clearAll）：不置停靠态
     if (!slot) return false
 
     // 结果由 renderers 消费（面板停靠后页面仍持有渲染回调）

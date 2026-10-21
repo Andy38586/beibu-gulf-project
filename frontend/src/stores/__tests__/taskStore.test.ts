@@ -445,22 +445,7 @@ describe('useTaskStore', () => {
     })
   })
 
-  describe('dismiss / clearAll', () => {
-    it('dismiss 移除单个槽位', async () => {
-      mockFetch.mockResolvedValue(
-        envelope({ taskId: 't-1', status: 'pending', queuePosition: 1, createdAtMs: 1 })
-      )
-      // store 由 beforeEach 提供
-      await store.submit({ route: '/flood-analysis', domain: 'flood-areas', params: {} })
-      await store.submit({ route: '/forecast', domain: 'forecast-timeseries', params: {} })
-
-      store.dismiss('/flood-analysis')
-      expect(store.getSlot('/flood-analysis')).toBeNull()
-      expect(store.getSlot('/forecast')).not.toBeNull()
-
-      store.clearAll()
-    })
-
+  describe('clearAll', () => {
     it('🔴 clearAll 清空全部槽位并停止轮询（登出链用）', async () => {
       mockFetch.mockResolvedValue(
         envelope({ taskId: 't-1', status: 'pending', queuePosition: 1, createdAtMs: 1 })
@@ -533,7 +518,7 @@ describe('useTaskStore', () => {
       expect(slot?.status).toBe('done')
     })
 
-    it('waitForResult：槽位被移除（dismiss/clearAll）⇒ resolve null', async () => {
+    it('waitForResult：槽位被移除（clearAll）⇒ resolve null', async () => {
       store.slots['/route-analysis'] = { ...base, taskId: 't-1', status: 'running' }
 
       const p = store.waitForResult('/route-analysis')

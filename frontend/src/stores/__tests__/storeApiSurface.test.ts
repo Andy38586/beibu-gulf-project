@@ -185,4 +185,27 @@ const useDemo = defineStore('demo', () => {
     }
     expect(present).toEqual([])
   })
+
+  /**
+   * 上面第四条只管「内联后不得复活」；本条的族不同：成员是**零消费的对外动作**，
+   * 结局是删，而且删了之后不会有任何消费点报错——不钉住就会在下次重构里被顺手写回。
+   * taskStore.dismiss 2026-10-20 删（D31）：TaskDock 只 emit open、无关闭按钮，
+   * 全仓唯一调用在它自己的测试里，属「自证式导出」。
+   */
+  it('已删的零消费对外动作不得重回 return 面', () => {
+    // 阳性对照：探针形态必须先被认出来，否则下面的空集可能只是「扫不到」
+    const sample = `import { defineStore } from 'pinia'
+const useDemo = defineStore('demo', () => {
+  return { dismiss: () => {} }
+})`
+    expect(returnedMembers(sample)).toContain('dismiss')
+
+    const DELETED = ['dismiss']
+    const present: string[] = []
+    for (const name of STORES) {
+      const members = returnedMembers(STORE_SOURCES.get(name)!.text)
+      for (const member of DELETED) if (members.includes(member)) present.push(name + '.' + member)
+    }
+    expect(present).toEqual([])
+  })
 })

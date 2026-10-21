@@ -31,6 +31,7 @@
  * 用法：
  *   node tools/deep-import/ratchet.mjs            # 校验（上涨 exit 1）
  *   node tools/deep-import/ratchet.mjs --update --kind=真清理 --note="为什么下调"
+ *   node tools/deep-import/ratchet.mjs --baseline=<另一份基线文件>   # 只读，供测试注入
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -83,18 +84,26 @@ export function newItems(current, baseline) {
 }
 
 function parseArgs(argv) {
-  const out = { update: false, note: null, kind: null }
+  const out = { update: false, note: null, kind: null, baseline: null }
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === '--update') out.update = true
     else if (argv[i] === '--note') out.note = argv[++i]
     else if (argv[i] === '--kind') out.kind = argv[++i]
+    else if (argv[i] === '--baseline') out.baseline = argv[++i]
   }
   return out
 }
 
 function main() {
   const args = parseArgs(process.argv.slice(2))
-  const baseline = JSON.parse(fs.readFileSync(BASELINE_PATH, 'utf8'))
+  // `--baseline` 只用于「换一份基线来判」，永远只读：它与 `--update` 同用会把
+  // 基线写成另一份文件，等于给「上调基线」开了后门，故直接拒绝。
+  if (args.baseline && args.update) {
+    console.error('[deep-import-ratchet] --baseline 只读，不能与 --update 同用。')
+    process.exit(1)
+  }
+  const baselinePath = args.baseline ? path.resolve(ROOT, args.baseline) : BASELINE_PATH
+  const baseline = JSON.parse(fs.readFileSync(baselinePath, 'utf8'))
   const current = currentCounts()
   const bad = compare(current, baseline)
 

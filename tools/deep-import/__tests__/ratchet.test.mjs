@@ -1,4 +1,5 @@
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -114,30 +115,50 @@ describe('端到端：真实仓库上跑 ratchet 主流程', () => {
 
 import { execFileSync } from 'node:child_process'
 
-/** 用指定基线跑一次主流程：备份 → 覆写 → 跑 → 还原（一次只动一个文件） */
+/**
+ * 用指定基线跑一次主流程。
+ *
+ * 走 `--baseline=<临时文件>` 注入，**不写仓库里的基线文件**：旧写法是「备份 → 覆写
+ * BASELINE_PATH → 跑 → finally 还原」，写入或还原任一步失败（只读沙箱、进程被杀、
+ * 超时）都会把仓库基线写成 `total` 与 `items` 自相矛盾的样子，而那个矛盾态**没有
+ * 任何判据能发现**——2026-10-21 的工作树就是这样被留在 `total 79 / items 80` 的。
+ */
 function spawnRatchetWithBaseline(baselineObj) {
-  const original = fs.readFileSync(BASELINE_PATH, 'utf8')
-  fs.writeFileSync(BASELINE_PATH, JSON.stringify(baselineObj, null, 2) + '\n')
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'deep-import-baseline-'))
+  const tmp = path.join(dir, 'baseline.json')
+  fs.writeFileSync(tmp, JSON.stringify(baselineObj, null, 2) + '\n')
   try {
-    return spawnRatchet()
+    return spawnRatchet(['--baseline', tmp])
   } finally {
-    fs.writeFileSync(BASELINE_PATH, original)
+    fs.rmSync(dir, { recursive: true, force: true })
   }
 }
 
-function spawnRatchet() {
+/**
+ * 跑一次棘轮主流程，取退出码与合并后的输出。
+ *
+ * 用**文件描述符**承接子进程输出，不用 `stdio: 'pipe'`：受限沙箱封的是「父进程拉管道」
+ * （`spawnSync … EPERM`），而 `stdio: [fd, fd]` 走文件句柄不受限——两条 E2E 用例因此
+ * 能在受限环境里取证，而不是长期挂着「环境限制」不跑（AGENTS §5.4：从未红过的门禁 =
+ * 不存在）。
+ */
+function spawnRatchet(extraArgs = []) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'deep-import-run-'))
+  const out = path.join(dir, 'out.txt')
+  const fd = fs.openSync(out, 'w')
   try {
-    const stdout = execFileSync(
-      process.execPath,
-      [path.join(ROOT, 'tools/deep-import/ratchet.mjs')],
-      {
-        cwd: ROOT,
-        encoding: 'utf8',
-        stdio: ['ignore', 'pipe', 'pipe'],
-      }
-    )
-    return { code: 0, output: stdout }
-  } catch (e) {
-    return { code: e.status ?? 1, output: `${e.stdout ?? ''}${e.stderr ?? ''}` }
+    try {
+      execFileSync(
+        process.execPath,
+        [path.join(ROOT, 'tools/deep-import/ratchet.mjs'), ...extraArgs],
+        { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', fd, fd] }
+      )
+      return { code: 0, output: fs.readFileSync(out, 'utf8') }
+    } catch (e) {
+      return { code: e.status ?? 1, output: fs.readFileSync(out, 'utf8') }
+    }
+  } finally {
+    fs.closeSync(fd)
+    fs.rmSync(dir, { recursive: true, force: true })
   }
 }

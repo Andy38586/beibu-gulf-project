@@ -8,7 +8,7 @@
  *
  * 用法：node tools/v3-guard/constants-audit.mjs   # 不一致 exit 1
  */
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -140,6 +140,24 @@ export function parseFrontendModeLiterals(content) {
 
 export function auditSharedConstants(files) {
   const problems = []
+  // 业务边界「唯一来源」不得被绕开（2026-10-19）：上方 toolsBbox 一致性只证明
+  // `tools/lib/gulf-bounds.mjs` 与后端同值，证明不了「没有第二份手抄」——
+  // `tools/db/db-import.mjs` 就这么绕过了一整年（自身注释写「等值副本」却不在任何判据域内）。
+  // files.localBoundDefs 由调用方扫全仓得到；空集合必须报红（W58 同族：判据输入为空不许静默通过）。
+  // 空集防护的正确形态不是「0 命中即红」（同值手抄全部清掉后就是 0，那时它是绿），
+  // 而是**阳性对照**：扫描器必须能在夹具文件里命中一次。见 scanLocalGulfBoundsDefs 的自检。
+  const localDefs = files.localBoundDefs
+  if (!Array.isArray(localDefs)) {
+    problems.push('业务边界唯一来源判据输入缺失：localBoundDefs 未提供（判据失效，不是无违例）')
+  } else {
+    for (const d of localDefs) {
+      problems.push(
+        `业务边界出现第二份手抄副本：${d.file}:${d.line} 自定义 GULF_BOUNDS` +
+          '（tools 侧唯一取处是 tools/lib/gulf-bounds.mjs，import 它而不是复制它的值）'
+      )
+    }
+  }
+
   const backendMax = parseNumericConst(files.backendFlood, 'MAX_WATER_LEVEL')
   const frontendMax = parseNumericConst(files.frontendFlood, 'MAX_WATER_LEVEL')
   if (backendMax === null || frontendMax === null) {
@@ -281,6 +299,71 @@ export function auditSharedConstants(files) {
   return problems
 }
 
+/**
+ * 扫全仓「自定义 GULF_BOUNDS」的位置（唯一来源判据的输入集合）。
+ * 排除：tools/lib/gulf-bounds.mjs 本体（唯一合法定义）、测试夹具（构造红样用）。
+ * 返回 { file, line }[]，file 为仓库相对路径（/ 分隔），便于判据文案指路。
+ */
+export function scanLocalGulfBoundsDefs(rootDir) {
+  const SKIP_DIRS = new Set([
+    'node_modules',
+    'dist',
+    'coverage',
+    '.git',
+    '.local',
+    '__pycache__',
+    '.pytest_cache',
+    '.venv',
+    'algorithm-service', // 退役：目录已不在版本控制内，保留此名只为跳过其遗留产物
+    '.trae',
+    '_traetmp',
+  ])
+  const out = []
+  const walk = (dir) => {
+    let entries
+    try {
+      entries = readdirSync(dir, { withFileTypes: true })
+    } catch {
+      return
+    }
+    for (const e of entries) {
+      const p = path.join(dir, e.name)
+      if (e.isDirectory()) {
+        if (!SKIP_DIRS.has(e.name)) walk(p)
+        continue
+      }
+      if (!/\.(mjs|js|cjs|ts|py)$/.test(e.name)) continue
+      const rel = path.relative(rootDir, p).split(path.sep).join('/')
+      if (rel === 'tools/lib/gulf-bounds.mjs') continue
+      if (rel.includes('__tests__') || rel.endsWith('.test.mjs') || rel.endsWith('.test.js'))
+        continue
+      if (rel === 'backend/src/common/constants/gis.constants.ts') continue
+      if (rel === 'frontend/src/shared/utils/crs.ts') continue
+      let text
+      try {
+        text = readFileSync(p, 'utf8')
+      } catch {
+        continue
+      }
+      const lines = text.split(/\r?\n/)
+      for (let i = 0; i < lines.length; i++) {
+        const m = /(?:const|let|var)\s+GULF_BOUNDS\s*=\s*(.*)$/.exec(lines[i])
+        if (!m) continue
+        // 只咬「自己写死数值」的形态。以下两种是合法的权威派生，必须放行：
+        //   ① import { GULF_BOUNDS } from '…/gulf-bounds.mjs'（tools 侧唯一取处）
+        //   ② = parseGulfBounds(readFileSync(…)) 这类从后端权威源**解析**（tools/gis-import/verify.mjs
+        //      即此形态，解析失败会 throw，比 import 更严）
+        // 判据咬的是「复制了值」，不是「提到了这个名字」——后者判红会逼人改成更难读的形态。
+        const rhs = m[1].trim()
+        const isLiteral = /^\{/.test(rhs) || /^-?\d/.test(rhs) || /^['"]/.test(rhs)
+        if (isLiteral) out.push({ file: rel, line: i + 1 })
+      }
+    }
+  }
+  walk(rootDir)
+  return out
+}
+
 function main() {
   const read = (rel) => readFileSync(path.join(ROOT, rel), 'utf8')
   const problems = auditSharedConstants({
@@ -294,6 +377,7 @@ function main() {
     frontendRoute: read(FRONTEND_ROUTE_TYPES),
     floodPy: read(FLOOD_PY_REALIFY),
     toolsGulfBounds: read(TOOLS_GULF_BOUNDS),
+    localBoundDefs: scanLocalGulfBoundsDefs(ROOT),
   })
   if (problems.length === 0) {
     console.log(

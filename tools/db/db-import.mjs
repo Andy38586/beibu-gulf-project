@@ -9,13 +9,14 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+// 业务边界取 tools 侧唯一来源（权威仍是 backend GULF_BOUNDS，逐字段对账由 constants-audit 强制）。
+// 原为本地手抄副本：单一事实源在别处却复制一份，改边界时本脚本静默不跟随。
+import { GULF_BOUNDS } from '../lib/gulf-bounds.mjs'
+
 const esc = (v) => (v == null ? 'NULL' : `'${String(v).replaceAll("'", "''")}'`)
 const pt = (lng, lat) =>
   lng == null || lat == null ? 'NULL' : `ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4490)`
 
-// 北部湾业务边界（与 backend/src/common/constants/gis.constants.ts GULF_BOUNDS 同值，
-// 单一事实源在 Nest；此处为导入期坐标守卫的等值副本——导入守卫用同一范围拒绝越界源数据）
-const GULF_BOUNDS = { minLng: 105, maxLng: 115, minLat: 18, maxLat: 25 }
 // 坐标合法性：非 84 坐标系/异常坐标（GCJ 偏移、投影坐标、[0,0]）通常越出业务边界
 // 或落在异常值——统一在此拒绝而非静默入库（坐标系守卫，2026-09-08）
 const isGulfCoord = (lng, lat) =>

@@ -210,4 +210,18 @@ describe('doc-map-check', () => {
     input.kp.kps[0].target = 'SNAP'
     expect(codes(auditDocMap(input))).not.toContain('KP-AUTH')
   })
+
+  it('@guard-red-sample git 取不到三层目录清单 ⇒ 红（不许把「没输入」当「没违例」）', () => {
+    // W58：修前 trackedUnderDirs() 的 catch 返回 null、调用点写 `|| []`，
+    // 于是 git 不可用时 DOC-UNREG 这一面一条都没检查，主流程照样打印 OK。
+    // 2026-10-20 本机实测（沙箱内 spawnSync git EPERM）：doc-map-check 输出
+    // 「OK：登记 51 件（active 19 / 待迁移 0）」exit 0 —— 判据整条面静默消失。
+    const input = baseInput()
+    input.inputErrors = ['git ls-files 取不到三层目录清单']
+    expect(codes(auditDocMap(input))).toContain('INPUT-UNAVAILABLE')
+  })
+
+  it('阴性对照：git 采集正常（inputErrors 空）时不出现 INPUT-UNAVAILABLE', () => {
+    expect(codes(auditDocMap(baseInput()))).not.toContain('INPUT-UNAVAILABLE')
+  })
 })

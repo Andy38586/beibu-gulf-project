@@ -1,3 +1,7 @@
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+
 import { describe, expect, it } from 'vitest'
 
 import {
@@ -5,6 +9,7 @@ import {
   parseBackendBizCodes,
   parseFrontendBizCodes,
   parseNumericConst,
+  scanLocalGulfBoundsDefs,
 } from '../constants-audit.mjs'
 
 const BACKEND_FLOOD = `// 水位上限（米）：251 档 0-25m
@@ -117,6 +122,8 @@ describe('auditSharedConstants — 跨进程常量一致性', () => {
     frontendRoute: FRONTEND_ROUTE,
     floodPy: FLOOD_PY,
     toolsGulfBounds: TOOLS_GULF,
+    // 唯一来源判据的输入集合：正常仓库 = 无第二份手抄（扫到的都是合法派生）
+    localBoundDefs: [],
   }
 
   it('双侧一致 → 无问题', () => {
@@ -207,6 +214,86 @@ describe('auditSharedConstants — 跨进程常量一致性', () => {
   it('常量被改名/删除 → 解析失败告警', () => {
     const problems = auditSharedConstants({ ...base, frontendFlood: 'export const X = 1' })
     expect(problems[0]).toContain('解析失败')
+  })
+
+  // 2026-10-19：业务边界「唯一来源」不得被绕开。上方 toolsGulfBounds 一致性只证明
+  // tools/lib/gulf-bounds.mjs 与后端同值，证明不了「没有第二份手抄」——
+  // tools/db/db-import.mjs 与 tools/gis-import/verify.mjs 都曾各自定义过。
+  it('@guard-red-sample 出现第二份手抄 GULF_BOUNDS ⇒ 必红（§七-7 无权威源的多份副本）', () => {
+    const problems = auditSharedConstants({
+      ...base,
+      localBoundDefs: [{ file: 'tools/db/db-import.mjs', line: 18 }],
+    })
+    expect(
+      problems.some((p) => p.includes('第二份手抄副本') && p.includes('db-import.mjs:18'))
+    ).toBe(true)
+  })
+
+  it('唯一来源判据输入缺失（未提供 localBoundDefs）⇒ 必红，不许静默放行', () => {
+    const { localBoundDefs: _omit, ...withoutInput } = base
+    const problems = auditSharedConstants(withoutInput)
+    expect(problems.some((p) => p.includes('判据输入缺失'))).toBe(true)
+  })
+})
+
+describe('scanLocalGulfBoundsDefs — 只咬「复制了值」，不咬「提到了名字」', () => {
+  // 判据咬的是「复制了值」。以下几种形态都必须区分开，否则判据会逼作者把
+  // 合法派生改成更难读的写法（§5.3 式 3 等价重构必须绿的反面）。
+  const mkFixture = (files) => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gulf-scan-'))
+    for (const [rel, content] of Object.entries(files)) {
+      const p = path.join(dir, rel)
+      fs.mkdirSync(path.dirname(p), { recursive: true })
+      fs.writeFileSync(p, content, 'utf8')
+    }
+    return dir
+  }
+
+  it('写死数值的副本 ⇒ 命中（真违约）', () => {
+    const dir = mkFixture({
+      'tools/db/copy.mjs': 'const GULF_BOUNDS = { minLng: 105, maxLng: 115 }\n',
+    })
+    const hits = scanLocalGulfBoundsDefs(dir)
+    expect(hits).toHaveLength(1)
+    expect(hits[0].file).toBe('tools/db/copy.mjs')
+    expect(hits[0].line).toBe(1)
+    fs.rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('从权威源解析（parseGulfBounds(readFileSync(...))）⇒ 不命中（合法派生）', () => {
+    const dir = mkFixture({
+      'tools/gis-import/verify.mjs':
+        "const GULF_BOUNDS = parseGulfBounds(readFileSync(GULF_BOUNDS_FILE, 'utf8'))\n",
+    })
+    expect(scanLocalGulfBoundsDefs(dir)).toEqual([])
+    fs.rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('import 取值得来的 ⇒ 不命中（合法）', () => {
+    const dir = mkFixture({
+      'tools/x/use.mjs': "import { GULF_BOUNDS } from '../lib/gulf-bounds.mjs'\n",
+    })
+    expect(scanLocalGulfBoundsDefs(dir)).toEqual([])
+    fs.rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('唯一来源本体与测试夹具 ⇒ 豁免（它们本来就是定义处 / 红样）', () => {
+    const dir = mkFixture({
+      'tools/lib/gulf-bounds.mjs': 'export const GULF_BOUNDS = { minLng: 105 }\n',
+      'tools/x/__tests__/y.test.mjs': 'const GULF_BOUNDS = { minLng: 105 }\n',
+    })
+    expect(scanLocalGulfBoundsDefs(dir)).toEqual([])
+    fs.rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('阳性对照：扫描器必须在含违约的夹具上非空（治「0 命中 = 扫描器没跑」的假绿）', () => {
+    const dir = mkFixture({
+      'tools/db/copy.mjs': 'const GULF_BOUNDS = { minLng: 105 }\n',
+      'tools/gis-import/verify.mjs': 'const GULF_BOUNDS = parseGulfBounds(x)\n',
+    })
+    const hits = scanLocalGulfBoundsDefs(dir)
+    expect(hits.length).toBeGreaterThan(0)
+    fs.rmSync(dir, { recursive: true, force: true })
   })
 })
 

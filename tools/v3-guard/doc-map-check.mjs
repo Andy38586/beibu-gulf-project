@@ -41,6 +41,7 @@ export function auditDocMap(input) {
     meta = {},
     agentsText = '',
     trackedUnderActiveDirs = [],
+    inputErrors = [],
     exists = () => false,
     gitDate = () => null,
     readText = () => null,
@@ -49,6 +50,8 @@ export function auditDocMap(input) {
 
   const problems = []
   const push = (code, msg) => problems.push({ code, msg })
+  // 采集失败的输入不是「空集」：W58。混成空数组会让 DOC-UNREG 这一面静默消失。
+  for (const msg of inputErrors) push('INPUT-UNAVAILABLE', msg)
   const byId = new Map()
   const stagedSet = new Set(staged)
 
@@ -242,7 +245,15 @@ export function auditDocMap(input) {
   return problems
 }
 
-/** 读取受版本控制的三层目录文件列表（git 不可用 ⇒ 记空并单独报） */
+/**
+ * 读取受版本控制的三层目录文件列表。
+ *
+ * W58：修前这里是 `catch { return null }` + 调用点 `|| []` —— git 跑不起来时
+ * trackedUnderActiveDirs 静默变空数组，于是「三层目录下有未登记文档」这一面
+ * **一条都没检查**，而主流程照常打印 OK（2026-10-20 本机实测：spawnSync git EPERM
+ * 下 doc-map-check 仍输出「OK：登记 51 件」exit 0）。空集与「确实没有野文档」
+ * 是两种状态，不许混成一个返回值：git 失败 ⇒ 返回 null，由 main 转成失败。
+ */
 function trackedUnderDirs() {
   try {
     // core.quotepath 默认 true ⇒ 中文路径输出八进制转义，与 doc-map 登记的真实路径
@@ -299,6 +310,8 @@ function main() {
       meta: {},
       agentsText: '',
       trackedUnderActiveDirs: [],
+      // git 采集失败不算「空集」：空集会静默关掉 DOC-UNREG 这一面，必须在出口处判红
+      inputErrors: [],
       exists: (rel) => fs.existsSync(path.isAbsolute(rel) ? rel : path.join(ROOT, rel)),
       gitDate: gitDateOf,
       staged: stagedFilesOf(),
@@ -317,7 +330,21 @@ function main() {
     input.tasks = map.tasks || []
     input.meta = map.meta || {}
     input.agentsText = input.readText('AGENTS.md') || ''
-    input.trackedUnderActiveDirs = trackedUnderDirs() || []
+    const tracked = trackedUnderDirs()
+    if (tracked) {
+      input.trackedUnderActiveDirs = tracked
+    } else {
+      // 同一根因连坐三面，一并说清：gitDateOf() 的 catch 也回 null，而 null 在
+      // auditDocMap 里既不进 CONTRACT-LOG 的「变更记录早于最后提交日」，也不进
+      // CONTRACT-STALE 的「生成件落后于源」—— 两处都是 `if (commit && …)` 形态，
+      // 判据静默跳过。主干已全量历史（ci.yml static-checks 的 fetch-depth: 0），
+      // 故本档只在 git 整体不可用时出现。
+      input.inputErrors.push(
+        'git 取不到版本控制信息（git 不可用 / 非仓库 / 被沙箱挡住），以下三面本次一条都没检查：' +
+          'DOC-UNREG（三层目录下有未登记文档）、CONTRACT-LOG 的「变更记录早于最后提交日」、' +
+          'CONTRACT-STALE（生成件落后于源）—— 不许把「没输入」当「没违例」'
+      )
+    }
     if (!absent.includes(KP_MAP_PATH) && fs.existsSync(kpPath)) {
       input.kp = JSON.parse(fs.readFileSync(kpPath, 'utf8'))
     }

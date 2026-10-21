@@ -24,7 +24,11 @@ export function parseScenarioId(raw: unknown): ScenarioId {
   throw new BusinessError(ErrorCode.INVALID_PARAMS, `未知运河情景: ${v}`)
 }
 
-/** 'YYYY-MM' | 'YYYY-MM-DD' → 年份小数（月中点口径，全域唯一时间解析入口，04-B5） */
+/** 'YYYY-MM' | 'YYYY-MM-DD' → 年份小数（月中点口径，04-B5）。
+ * 只管「年份小数」这一种语义，不是全域时间解析的唯一入口：`forecast-engine.ts:62` 解析基期
+ * 年月做日历递推、`model-loader.ts:33` 用 `y*12+(m-1)` 做月序编号，三者语义不同（小数年 /
+ * 日历推进 / 月序），不可互相替代——原注释「全域唯一时间解析入口」属过称（2026-10-19 复核
+ * #63 更正）。 */
 export function timeToYearFloat(time: string): number {
   const [y, m] = time.split('-').map(Number)
   if (!Number.isFinite(y) || !Number.isFinite(m) || m < 1 || m > 12) {

@@ -7,12 +7,7 @@ import { DataFilesService } from '../../../infra/files/data-files.service'
 import type { ForecastPoint, HistoricalPoint, SpatialFeature } from './forecast-engine'
 import { computeForecast, generateSpatialValues } from './forecast-engine'
 import { getModelForecast } from './model-loader'
-import {
-  applyCanalScenario,
-  parseScenarioId,
-  scenarioLabel,
-  type ScenarioId,
-} from './scenario.service'
+import { applyCanalScenario, scenarioLabel, type ScenarioId } from './scenario.service'
 
 // 预测服务（逐行等价移植 backend/services/forecastService.js）：
 // 指标白名单拒绝路径遍历；activity 文件自带完整 forecast 直接透传；cargo/container 走模型产物

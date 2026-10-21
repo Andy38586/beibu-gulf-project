@@ -85,7 +85,7 @@ export class PlansController {
     @Body(new DtoPipe(PlanUpdateBody.parse)) body: Record<string, unknown>,
     @Req() req: Request & { user?: { id: string } }
   ) {
-    const plan = await this.requireOwnedPlan(id, req, '修改')
+    await this.requireOwnedPlan(id, req, '修改')
     if (body.name !== undefined) {
       const all = await this.plansService.listByUser(req.user!.id)
       if (all.some((p) => p.name === body.name && p.id !== id)) {

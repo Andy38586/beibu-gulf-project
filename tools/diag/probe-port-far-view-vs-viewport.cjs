@@ -18,7 +18,6 @@ const { ROOT, launchPage } = require('./lib/browser.cjs')
 
 const URL_ = process.argv[2] || 'http://127.0.0.1:5174/route-analysis'
 const WIDTHS = (process.argv[3] || '1440,1280,1180,1100,1024,900').split(',').map(Number)
-const LAYER = 'beibu-qinzhou-port'
 const ANCHOR = [108.6473, 21.6745] // 与 lod-ladder 同源（beibu3dTiles 的飞到作业区落点）
 const HEIGHT = 586000
 

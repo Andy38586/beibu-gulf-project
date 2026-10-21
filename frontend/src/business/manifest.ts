@@ -45,7 +45,7 @@ export const businessModules: BusinessModule[] = [
     title: '选址分析',
     navLabel: '选址分析',
     navIcon: '◎',
-    component: () => import('@/business/site-suitability'),
+    component: () => import('@/business/site-suitability').then((m) => m.SiteSuitabilityPage),
     reset: () => useSiteSuitabilityStore().reset(),
   },
   {
@@ -56,7 +56,7 @@ export const businessModules: BusinessModule[] = [
     title: '分流分析',
     navLabel: '分流分析',
     navIcon: '≋',
-    component: () => import('@/business/diversion'),
+    component: () => import('@/business/diversion').then((m) => m.DiversionPage),
     // 页面状态为本地 ref（年份/结果），无持久 store；登出时路由保留，
     // reset 声明为 no-op 以维持"已实现模块必须声明 reset"的清单不变量（同上一条）
     reset: () => {},
@@ -68,7 +68,7 @@ export const businessModules: BusinessModule[] = [
     title: '预测分析',
     navLabel: '预测分析',
     navIcon: '📊',
-    component: () => import('@/business/forecast'),
+    component: () => import('@/business/forecast').then((m) => m.ForecastPage),
     // 登出须清快照：reset() 刻意不清快照（保卸载重置链路），clearState 兜底清登出前旧会话
     reset: () => {
       useForecastStore().reset()
@@ -82,7 +82,7 @@ export const businessModules: BusinessModule[] = [
     title: '浸没分析',
     navLabel: '浸没分析',
     navIcon: '🌊',
-    component: () => import('@/business/flood-analysis'),
+    component: () => import('@/business/flood-analysis').then((m) => m.FloodAnalysisPage),
     reset: () => useFloodStore().clearState(),
   },
   {
@@ -92,7 +92,7 @@ export const businessModules: BusinessModule[] = [
     title: '航线分析',
     navLabel: '航线分析',
     navIcon: '🚢',
-    component: () => import('@/business/route-analysis'),
+    component: () => import('@/business/route-analysis').then((m) => m.RouteAnalysisPage),
     // 页面状态为本地 ref（起终点/结果），无持久 store；登出时路由保留、图层由页面清理，
     // reset 声明为 no-op 以维持"已实现模块必须声明 reset"的清单不变量（单一事实源不变量）
     reset: () => {},

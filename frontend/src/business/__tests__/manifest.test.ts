@@ -2,11 +2,12 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 import { createPinia, setActivePinia } from 'pinia'
+import { createMemoryHistory, createRouter } from 'vue-router'
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { useForecastStore } from '@/stores'
 
-import { businessModules, runBusinessLogoutReset } from '../manifest'
+import { buildBusinessRoutes, businessModules, runBusinessLogoutReset } from '../manifest'
 
 /** 判据扫描面：排除依赖目录与测试目录（本文件必然要写这两个模式，否则判据自咬） */
 const SKIP_DIRS = new Set(['node_modules', '__mocks__', '__tests__'])
@@ -45,6 +46,31 @@ describe('business/manifest 登出重置注册', () => {
     expect(route).toBeDefined()
     expect(route?.component).not.toBeNull()
     expect(route?.reset).toBeDefined()
+  })
+
+  /**
+   * 2026-10-20 补：`component !== null` 只证明「加载器存在」，证明不了「解析出组件」。
+   * W59 把懒加载从 `@/business/<mod>/<Mod>Page.vue` 深路径改走模块入口后，`import()`
+   * 拿到的是 ESM namespace；vue-router 对 ESM 恒取 `.default`（本仓模块入口无 default），
+   * 于是 5 条业务路由在运行期全部解析成 undefined —— 单测全绿、点进页面就白屏。
+   *
+   * 判据直接用 vue-router 真实导航，不复制它的 isESModule 内部逻辑：问的是
+   * 「路由记录自己解析出了什么」，而不是「我以为它会怎么解析」。
+   */
+  it('🔴 每条业务路由导航后都必须解析出组件对象（barrel 直返 namespace 即红）', async () => {
+    const router = createRouter({ history: createMemoryHistory(), routes: buildBusinessRoutes() })
+    const report: string[] = []
+    for (const r of buildBusinessRoutes()) {
+      await router.push(String(r.path))
+      await router.isReady()
+      const resolved = router.currentRoute.value.matched[0]?.components?.default as unknown
+      report.push(`${String(r.path)} → ${typeof resolved}`)
+      expect(typeof resolved, `${String(r.path)} 未解析出组件：${report.join(' / ')}`).toBe(
+        'object'
+      )
+      expect(resolved, `${String(r.path)} 解析成 undefined`).not.toBeUndefined()
+    }
+    expect(report.length, '路由数为 0：判据空转').toBe(5)
   })
 
   it('runBusinessLogoutReset 批量执行不抛错，且 Forecast 运行时状态复位', () => {

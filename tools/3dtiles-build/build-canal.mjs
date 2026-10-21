@@ -36,20 +36,6 @@ const BANK_HALF = 120
 const WATER_LIFT = 0.4
 const BANK_LIFT = 1.2
 
-/** 把中线折线按 ~40 m 稠密化 */
-export function densify(pts, step = 40) {
-  const out = []
-  for (let i = 0; i + 1 < pts.length; i++) {
-    const [x0, y0] = pts[i],
-      [x1, y1] = pts[i + 1]
-    const d = Math.hypot(x1 - x0, y1 - y0)
-    const n = Math.max(1, Math.ceil(d / step))
-    for (let k = 0; k < n; k++) out.push([x0 + ((x1 - x0) * k) / n, y0 + ((y1 - y0) * k) / n])
-  }
-  if (pts.length) out.push(pts[pts.length - 1])
-  return out
-}
-
 /** 两点近似距离（米）——中线拼接/稠密化用，误差 << 一个网格 */
 export function llDistM(a, b) {
   const mlon = 111412.84 * Math.cos((((a.lat + b.lat) / 2) * Math.PI) / 180)

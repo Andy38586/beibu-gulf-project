@@ -59,7 +59,6 @@ import { MARKER } from './guard-red-sample.mjs'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const ROOT = path.resolve(HERE, '../..')
-const TEST_DIR = path.join(HERE, '__tests__')
 const IS_WIN = process.platform === 'win32'
 const NPX = IS_WIN ? 'npx.cmd' : 'npx'
 

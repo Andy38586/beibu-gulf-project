@@ -72,18 +72,6 @@ function mul(m, v) {
     m[2] * v[0] + m[6] * v[1] + m[10] * v[2] + m[14],
   ]
 }
-/** 列主序 4×4 相乘（a∘b：先 b 后 a） */
-function matMul(a, b) {
-  const o = new Array(16).fill(0)
-  for (let c = 0; c < 4; c++) {
-    for (let r = 0; r < 4; r++) {
-      let s = 0
-      for (let k = 0; k < 4; k++) s += a[k * 4 + r] * b[c * 4 + k]
-      o[c * 4 + r] = s
-    }
-  }
-  return o
-}
 function deriveAnchors() {
   const out = {}
   const pinglu = JSON.parse(

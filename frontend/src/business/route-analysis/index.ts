@@ -2,5 +2,7 @@
 // `@/business/route-analysis/constants/beibu3dTiles` 深路径穿透模块内部。本文件收口公开面。
 // 只收 preload 与测试消费的三个符号；beibuTilesLayerId / shouldDropPortContent 仍是模块内
 // 相对路径消费（RouteAnalysisPage.vue:36），不属跨模块公开面，不进本入口。
+// 页面组件在公开面内：manifest.ts 按模块入口懒加载它（2026-10-20 修路由组件解析为 undefined）。
+export { default as RouteAnalysisPage } from './RouteAnalysisPage.vue'
 export { BEIBU_TILES, prepareBeibuTileset } from './constants/beibu3dTiles'
 export type { BeibuTilesSpec } from './constants/beibu3dTiles'

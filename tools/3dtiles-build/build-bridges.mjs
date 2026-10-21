@@ -96,11 +96,6 @@ export function enuTransform(lng, lat, h = 0) {
   ]
 }
 
-function collectWays(osm, ids) {
-  const set = new Set(ids)
-  return osm.elements.filter((e) => set.has(e.id) && (e.geometry ?? []).length >= 2)
-}
-
 /** 一座桥的三角面：桥面 + 桥墩 + 栏杆（+ 可选双塔） */
 export function buildBridge(wayGeoms, spec, toLocal, du = 0) {
   const positions = [],

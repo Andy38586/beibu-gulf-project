@@ -5,6 +5,7 @@ import { BusinessError, ErrorCode } from '../../../common/errors/business-error'
 import { FloodService } from '../../flood/services/flood.service'
 import { ForecastService } from '../../forecast/services/forecast.service'
 import { RouteService } from '../../route/services/route.service'
+import { readRouteCoords } from '../../route/utils/route-params'
 import { parseSuitabilityQuery } from '../../site-suitability/dto/site-suitability.dto'
 import { SiteSuitabilityService } from '../../site-suitability/services/site-suitability.service'
 import type { TaskDomain } from '../types/task'
@@ -45,21 +46,11 @@ export class TaskHandlers {
       )
     },
 
-    // 路径规划：GET /route/path 的异步化。参数名逐字对齐 route.controller（fromLng/fromLat/toLng/toLat）
+    // 路径规划：GET /route/path 的异步化。参数名逐字对齐 route.controller（fromLng/fromLat/toLng/toLat），
+    // 解析口径也共用 route/utils/route-params，避免两条路径对同一非法入参给出不同结果
     'route-path': async (params) => {
-      const read = (key: string): number => {
-        const raw = params[key]
-        const value = Number(raw)
-        if (!Number.isFinite(value)) {
-          throw new BusinessError(ErrorCode.INVALID_PARAMS, `缺少或非法的参数：${key}`)
-        }
-        return value
-      }
       return this.routeService.findPath({
-        fromLng: read('fromLng'),
-        fromLat: read('fromLat'),
-        toLng: read('toLng'),
-        toLat: read('toLat'),
+        ...readRouteCoords(params),
         mode: typeof params.mode === 'string' ? params.mode : undefined,
       })
     },

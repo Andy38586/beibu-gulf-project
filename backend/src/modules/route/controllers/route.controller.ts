@@ -4,6 +4,7 @@ import { SkipThrottle } from '@nestjs/throttler'
 import { SKIP_AUTH_NAMED_THROTTLERS } from '../../../common/constants/throttling.constants'
 import { PoiSearchService } from '../services/pois-search.service'
 import { RouteService } from '../services/route.service'
+import { readRouteCoords } from '../utils/route-params'
 
 // 路径规划（route 域，公开只读免鉴权）——下沉自 algorithm-service 的 /route/path。
 // 响应结构逐字段对齐 FastAPI，前端 useRouteApi 仅需切换 ENDPOINTS。
@@ -34,19 +35,9 @@ export class RouteController {
 
   /** GET /route/path?fromLng=&fromLat=&toLng=&toLat=&mode=distance|time */
   @Get('path')
-  findPath(
-    @Query('fromLng') fromLng: string,
-    @Query('fromLat') fromLat: string,
-    @Query('toLng') toLng: string,
-    @Query('toLat') toLat: string,
-    @Query('mode') mode?: string
-  ): Promise<unknown> {
-    return this.routeService.findPath({
-      fromLng: Number(fromLng),
-      fromLat: Number(fromLat),
-      toLng: Number(toLng),
-      toLat: Number(toLat),
-      mode,
-    })
+  findPath(@Query() query: Record<string, string | undefined>): Promise<unknown> {
+    // 坐标解析与异步任务域共用同一口径（route/utils/route-params）：
+    // 非法参数一律 400，不把 NaN 静默传给下游
+    return this.routeService.findPath({ ...readRouteCoords(query), mode: query.mode })
   }
 }

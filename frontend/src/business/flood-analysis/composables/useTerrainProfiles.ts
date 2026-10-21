@@ -16,15 +16,16 @@ interface TerrainProfilePoint {
   elevation: number
 }
 
-/** 剖面线（对应 terrainProfile.json profiles；startPoint/endPoint 数据自带，当前零消费） */
+/** 剖面线（对应 terrainProfile.json profiles） */
 interface TerrainProfile {
   id: string
   name: string
   port?: string
   description?: string
   points: TerrainProfilePoint[]
-  startPoint?: { lng: number; lat: number }
-  endPoint?: { lng: number; lat: number }
+  // startPoint/endPoint：后端 terrainProfile.json 每条剖面自带（详见 data/flood/terrainProfile.json），
+  // 前端零消费 —— 本接口只声明消费面（2026-10-20 必要性审判删声明；schema 走 z.looseObject 不校验该字段，
+  // 故后端仍可保留数据，需要时在此加回即可，删声明不影响传输）
   /**
    * 垂直基准偏移：水位(理论深度基准面) - datumOffset = 剖面高程基准(EGM96 正高)。
    * 由后端从 waterLevel.json(baseLevels.msl) 透传，前端水面线须换算后与地形同基准绘制。

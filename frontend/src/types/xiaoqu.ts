@@ -1,5 +1,3 @@
-import type { FacilityType, TypeSetting } from './facility'
-
 // 基础小区（POI/小区数据源，随旧版选址域归档）
 // 坐标系统：WGS84(EPSG:4326)，lng/lat 为地理经纬度
 interface Xiaoqu {
@@ -22,8 +20,4 @@ export interface ScoredXiaoqu extends Xiaoqu {
 // 已保存的小区（方案中；持久化在 PostgreSQL 的 plans 域，非 JSON 文件）
 export interface SavedXiaoqu extends ScoredXiaoqu {
   savedAt: string
-  selectionCriteria?: {
-    selectedTypes: FacilityType[]
-    typeSettings: Record<string, TypeSetting>
-  }
 }

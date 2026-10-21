@@ -31,7 +31,6 @@ echarts.use([
 interface ChartClickParams {
   componentType: string
   name?: string
-  dataIndex?: number
 }
 
 /** useECharts 配置选项 */

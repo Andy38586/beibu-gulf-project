@@ -292,6 +292,10 @@ export type CanalLineResponseParsed = z.infer<typeof canalLineResponseSchema>
 // averageDepth/maxDepth 仍来自 6 档 DEM 反演参考表，由 depthRefLevel 标注其所属档位
 // @backend-contract backend/src/modules/flood/services/flood.service.ts
 // @backend-contract-no-type getFloodStatistics 返回 Promise<unknown>，统计对象在该方法内用局部变量拼装；文件里的 FloodStatisticsData（:62）只有 statistics 一个字段，与本 schema 的 14 个字段不是同一个契约
+// looseObject 而非 strict（W15 登记，2026-10-21）：本端点是字段持续扩张的聚合响应，
+// 前端按需读取、未声明的键不参与渲染。必填键（riskLevel 等）改名/改型仍会被咬住 ——
+// loose 只放行「后端新增而前端未声明」的键，不放行「已声明键的改名」。若该响应将来进入
+// 持久化或参与逐字段校验，须改回 strict 并补全键名。
 export const floodStatisticsResponseSchema = z.looseObject({
   waterLevel: z.number().optional(),
   requestedWaterLevel: z.number().optional(),

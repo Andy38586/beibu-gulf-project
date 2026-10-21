@@ -87,11 +87,9 @@ export const boundaryCacheSchema = z.looseObject({
 
 export type BoundaryCacheParsed = z.infer<typeof boundaryCacheSchema>
 
-// ⑤ 认证响应（{ user, token? }）
+// ⑤ 认证响应（只含 user）：token 已删，认证由 HttpOnly Cookie 承载
 export const authResponseSchema = z.object({
   user: userSchema,
-  // @deprecated：token 已移至 HttpOnly Cookie，响应体不再回传；optional 兼容旧响应
-  token: z.string().optional(),
 })
 
 export type AuthResponseParsed = z.infer<typeof authResponseSchema>

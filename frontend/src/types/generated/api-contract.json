@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-20",
+  "generatedAt": "2026-10-21",
   "source": "frontend/src/types/schemas.ts（单一事实源，types:gen 自动生成勿手改）",
   "schemas": {
     "userSchema": {
@@ -105,10 +105,6 @@
         "user": {
           "type": "userSchema",
           "optional": false
-        },
-        "token": {
-          "type": "string",
-          "optional": true
         }
       }
     },

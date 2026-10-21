@@ -10,9 +10,8 @@ export interface User {
   createdAt: string | null
 }
 
+// 2026-10-21 删 `token?`：生产零读，认证已改由 HttpOnly Cookie 承载。
 export interface AuthResponse {
-  /** @deprecated：token 已移至 HttpOnly Cookie，响应体不再回传 */
-  token?: string
   user: User
 }
 

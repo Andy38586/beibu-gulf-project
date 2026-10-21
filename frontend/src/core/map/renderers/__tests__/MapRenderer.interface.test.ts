@@ -279,6 +279,11 @@ describe('MapRenderer Interface', () => {
       for (const m of required) {
         expect(typeof proto[m], `OLRenderer 缺少 MapRenderer 契约方法 ${m}`).toBe('function')
       }
-    })
+      // 本用例唯一的耗时是首行动态 import 整棵 ol 依赖树；在 --coverage
+      // （pre-push 第 14 步 test:report:fe）下 v8 逐模块插桩放大约 16 倍，
+      // 实测 1.05s → 34.9s，撞全局 30s 上限（本机 2026-10-21 复现）。
+      // 只抬本用例上限，不动全局 testTimeout 与任何断言；同族先例见
+      // taskStore.test.ts:565（15000）与 UnifiedMap.cesiumRecreate.test.ts:123（60000）。
+    }, 60000)
   })
 })

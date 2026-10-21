@@ -71,7 +71,12 @@ describe('business/manifest 登出重置注册', () => {
       expect(resolved, `${String(r.path)} 解析成 undefined`).not.toBeUndefined()
     }
     expect(report.length, '路由数为 0：判据空转').toBe(5)
-  })
+    // 本用例串行导航 5 条业务路由，每条 lazy import 一整页 SFC 与其依赖树；
+    // 在 --coverage（pre-push 第 14 步 test:report:fe）下 v8 逐模块插桩放大约 16 倍，
+    // 实测 2.3s → 36.6s，撞全局 30s 上限（本机 2026-10-21 复现）。
+    // 只抬本用例上限，不动全局 testTimeout 与任何断言；同族先例见
+    // taskStore.test.ts:565（15000）与 UnifiedMap.cesiumRecreate.test.ts:123（60000）。
+  }, 60000)
 
   it('runBusinessLogoutReset 批量执行不抛错，且 Forecast 运行时状态复位', () => {
     const forecast = useForecastStore()

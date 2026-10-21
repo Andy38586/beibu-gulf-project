@@ -11,15 +11,21 @@
  *      ⇒ 红；
  *   ② `:key` 里出现 `Date.now(` / `Math.random(` ⇒ 红（每次都新 key = 每帧重建 DOM）。
  *
- * 判据输入 = **索引**内容（`git grep --cached` 列候选 + `git show :<path>` 读内容，AGENTS §5.4）。
+ * 判据输入 = **索引**内容（`git grep --cached -l` 列候选 + `git show :<path>` 读内容，AGENTS §5.4），
+ * 采集走 `lib/collect-candidates.mjs`：git 跑不起来一律 throw，**不得**伪装成「0 命中合法空集」
+ * 后拿空分母报通过（W58；本件 2026-10-20 修前实测就是这个形态——git 被沙箱挡住，索引里实有 15 份
+ * 含 `:key=` 的 .vue，守卫却打印「0 份……全部使用稳定 key ✓」exit 0）。
+ *
  * 已知漏口（如实写）：跨元素拼接（`v-for` 与 `:key` 分属父子元素）、`:key` 写在 `v-bind` 对象里
  * （`v-bind="{ key: idx }"`）、以及自定义渲染函数（`.tsx`）不在判据面内。
  *
  * 用法：node tools/v3-guard/vue-list-keys.mjs   # 违例 exit 1
  */
-import { execFileSync } from 'node:child_process'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+
+import { collectCandidates } from './lib/collect-candidates.mjs'
+import { emptyInputProblem } from './lib/input-set.mjs'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const SCAN_DIR = 'frontend/src'
@@ -67,39 +73,22 @@ export function auditVueTemplate(relPath, text) {
   return problems
 }
 
-/** 候选文件：索引里含 `:key=` 的 .vue（git grep 粗筛；无命中 ⇒ 空数组） */
-export function collectVueFiles() {
-  let listing = ''
-  try {
-    listing = execFileSync('git', ['grep', '--cached', '-l', '-e', ':key=', '--', SCAN_DIR], {
-      cwd: ROOT,
-      encoding: 'utf8',
-    })
-  } catch {
-    return []
-  }
-  const out = []
-  for (const rel of listing.split(/\r?\n/)) {
-    const p = rel.trim()
-    if (!p || !/\.vue$/.test(p)) continue
-    try {
-      out.push({
-        path: p,
-        text: execFileSync('git', ['show', `:${p}`], {
-          cwd: ROOT,
-          encoding: 'utf8',
-          maxBuffer: 32 << 20,
-        }),
-      })
-    } catch {
-      // 索引读不到：跳过（不假装读过）
-    }
-  }
-  return out
-}
-
 function main() {
-  const files = collectVueFiles()
+  const files = collectCandidates({
+    root: ROOT,
+    tokens: [':key='],
+    pathspecs: [SCAN_DIR],
+    accept: (rel) => /\.vue$/.test(rel),
+  })
+  // W58：空分母防护——0 份输入时下面的循环体一次都没执行，不能报「全部使用稳定 key」
+  const empty = emptyInputProblem(files.length, {
+    what: '含 :key= 的 .vue 候选文件',
+    hint: 'SCAN_DIR（frontend/src）存在、词条 `:key=` 仍是本仓模板绑定的实际写法',
+  })
+  if (empty) {
+    console.error(`[vue-list-keys] FAIL：${empty}`)
+    process.exit(1)
+  }
   const problems = files.flatMap((f) => auditVueTemplate(f.path, f.text))
   if (problems.length) {
     console.error('[vue-list-keys] 未通过：列表 key 不稳定')

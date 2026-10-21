@@ -18,7 +18,11 @@ import { FloodService } from '../src/modules/flood/services/flood.service'
 //
 // 本件用**真数据文件 + 打桩 repository**（不连库、不起服务）跑真实 getFloodStatistics，
 // 逐档断言「披露 ⇔ 低估 > 0」并钉住披露出量值。判据随源码走（不手写镜像）。
-const FLOOD_DIR = path.resolve(process.cwd(), 'data', 'flood')
+// 用 __dirname 而非 process.cwd() 锚定：vitest 的 root 是 backend/，但 cwd 取决于调用方式
+//（`npm --prefix backend test` 会 chdir 到 backend/，而 `vitest --root backend` 从仓根直调时
+// cwd=仓根、仓根没有 data/ ⇒ 原写法在那种跑法下整文件加载即 ENOENT，2 条用例被静默清零）。
+// 同族两件均按 __dirname 锚定：test/data-freshness.spec.ts:19-20、test/flood-risk-consistency.spec.ts:24。
+const FLOOD_DIR = path.resolve(__dirname, '..', 'data', 'flood')
 
 const statsFile = JSON.parse(
   readFileSync(path.join(FLOOD_DIR, 'floodStatistics.json'), 'utf8')

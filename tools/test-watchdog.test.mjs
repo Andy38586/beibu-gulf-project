@@ -47,6 +47,9 @@ function makeResult(files) {
 }
 
 // 最小 project（evaluateProject 会把结果内路径相对化到 rootAbs；测试取空基准、直接用相对键）
+// allowSkipped 的三条登记也必须在清单里，否则会被 (b0) 的反查判成 STALE_ALLOW_ENTRY ——
+// 那是夹具自身失真（登记指向不存在的文件），不是被测行为。
+const PROJECT_FILES = ['test/gated.e2e-spec.ts', 'test/data.spec.ts', 'test/fixture.e2e-spec.ts']
 const PROJECT = {
   root: '',
   include: ['test/**/*.spec.ts', 'test/**/*.e2e-spec.ts'],
@@ -65,10 +68,18 @@ const PROJECT = {
 }
 
 function evalWith(files, opts = {}) {
-  return wd.evaluateProject(PROJECT, makeResult(files), {
+  // 夹具补全：allowSkipped 的三条登记必须在盘上，否则 (b0) 反查会报 STALE_ALLOW_ENTRY ——
+  // 那是夹具自身失真（登记指向不存在的文件），不是被测行为。同时给它们一条 passed 结果，
+  // 免得 (a) 反过来误报 TEST_FILE_NOT_RUN。
+  const full = { ...files }
+  for (const f of PROJECT_FILES) if (!(f in full)) full[f] = ['passed']
+  const onDisk = opts.filesOnDisk
+    ? [...new Set([...opts.filesOnDisk, ...PROJECT_FILES])]
+    : Object.keys(full)
+  return wd.evaluateProject(PROJECT, makeResult(full), {
     rootAbs: '',
     env: opts.env ?? {},
-    filesOnDisk: opts.filesOnDisk ?? Object.keys(files),
+    filesOnDisk: onDisk,
   })
 }
 
@@ -131,6 +142,41 @@ describe('watchdog.evaluateProject —— 跳过治理（静默 skip≠绿）', 
   it('注入：有用例失败 → RESULT_FAILED_TESTS（纵深防御，不信任上游退出码）', () => {
     const r = evalWith({ 'test/a.spec.ts': ['passed', 'failed'] })
     expect(r.violations.map((v) => v.code)).toEqual(['RESULT_FAILED_TESTS'])
+  })
+})
+
+// ── 白名单反查（2026-10-20）：僵尸豁免口 ─────────────────────────────────────
+// 动机：(b) 只做前向查询（文件真跳过时反查登记），从不遍历 allowSkipped 的键 ⇒ 登记所指
+// 文件被删/改名后该条目永久静默。实测：test-gate.config.json 曾留 3 条指向 54bdf721 已删的
+// site-analysis 系列用例（test/site-analysis.{e2e-spec,snapshot.spec,service.spec}.ts），
+// 而 watchdog 全场仍绿。与 agent-docs-check 的「幽灵豁免」断言同源。
+describe('watchdog.evaluateProject —— 白名单登记必须指向真实测试文件', () => {
+  const P = {
+    root: '',
+    include: ['test/**/*.spec.ts'],
+    result: 'x',
+    allowSkipped: {
+      'test/live.spec.ts': { mode: 'gated', reason: '真库' },
+      'test/gone.spec.ts': { mode: 'gated', reason: '该用例已被删除，登记没删' },
+    },
+  }
+  const evalP = (files, onDisk) =>
+    wd.evaluateProject(P, makeResult(files), { rootAbs: '', env: {}, filesOnDisk: onDisk })
+
+  it('登记了清单里不存在的文件 → STALE_ALLOW_ENTRY 判红（僵尸豁免口）', () => {
+    const r = evalP({ 'test/live.spec.ts': ['passed'] }, ['test/live.spec.ts'])
+    expect(r.violations.map((v) => v.code)).toEqual(['STALE_ALLOW_ENTRY'])
+    expect(r.violations[0].file).toBe('test/gone.spec.ts')
+    expect(r.violations[0].detail).toContain('僵尸登记')
+  })
+
+  it('登记文件都在清单里 → 不报（免误红：正常跳过仍由 (b) 治理）', () => {
+    const r = evalP({ 'test/live.spec.ts': ['pending'], 'test/gone.spec.ts': ['passed'] }, [
+      'test/live.spec.ts',
+      'test/gone.spec.ts',
+    ])
+    expect(r.violations).toEqual([])
+    expect(r.allowedSkips.map((a) => a.file)).toEqual(['test/live.spec.ts'])
   })
 })
 

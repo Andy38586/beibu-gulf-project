@@ -35,16 +35,6 @@
           "env": "V3_ROADS_FIXTURE",
           "reason": "断言 backend/test/seed/roads-graph-fixture.sql 的合成夹具图拓扑（单向边反向 unreachable / time 口径 9.0~10.5 分钟），夹具严禁灌真库（ci-seed.sh 第 ④ 步）⇒ 门控独立为 V3_ROADS_FIXTURE：本地未设即整组跳过，CI 灌了夹具（设 =1）则必须真跑、一条不许跳"
         },
-        "test/site-analysis.e2e-spec.ts": {
-          "mode": "gated",
-          "reason": "选址链路「不变量」组需 PostGIS + 库内有 POI/小区（CI 由 backend/test/seed/site-analysis-fixture.sql 合成夹具提供 poi 6 / xiaoqu 12）；另有「参数校验」组不门控、任何环境永远执行。⇒ 数据缺席即判红（CI 必须灌夹具），不得沉睡报绿。原绑定全量数据分布的快照断言已拆入 site-analysis.snapshot.spec.ts",
-          "note": "2026-09-15 之前本条 mode=gated 却靠 probePoiCount()===0 自跳过，而 CI 有意不灌 POI ⇒ 必判 GATED_SKIP_IN_REQUIRED_ENV（实测退出 1）。修法＝补合成夹具，而非放松登记"
-        },
-        "test/site-analysis.snapshot.spec.ts": {
-          "mode": "gated",
-          "env": "V3_FULL_DATASET",
-          "reason": "绑定**全量真实数据分布**的快照断言（bh hospital 101 / TOP1 滨海·江语湖 94.7 / coverage 必 MultiPolygon 等）。AMap 抓取源不入仓库 ⇒ CI 物理无法满足，故门控独立为 V3_FULL_DATASET：本地 `export V3_INTEGRATION_DB=1 V3_FULL_DATASET=1` 真跑；CI 不设 ⇒ 整组按本登记跳过（有界、带理由）"
-        },
         "test/site-suitability-input.e2e-spec.ts": {
           "mode": "gated",
           "reason": "入参非法两条 + 阳性对照不门控、任何环境都跑；「出参契约」一条（200 + FeatureCollection 非空 + properties.id 是 number）需真库数据（CI 由 backend/test/seed/suitability-cells-fixture.sql 提供 7 格合成因子面，本地为全量面）⇒ 按项目级 V3_INTEGRATION_DB 门控：CI 设了该变量就必须真跑，不得沉睡报绿"
@@ -53,10 +43,6 @@
           "mode": "gated",
           "env": "V3_FULL_DATASET",
           "reason": "依赖本地物化**全量** suitability_cells（142477 格，敏感性实验物化表）；CI seed 只灌 7 格合成夹具（suitability-cells-fixture.sql，供端点契约用），分布类断言物理无法满足 ⇒ 门控独立为 V3_FULL_DATASET：本地 `export V3_INTEGRATION_DB=1 V3_FULL_DATASET=1` 真跑；CI 不设 ⇒ 整组按本登记跳过（有界、带理由）"
-        },
-        "test/site-analysis.service.spec.ts": {
-          "mode": "gated",
-          "reason": "空间算子（覆盖/求交/筛选）与选址流水线需 PostGIS"
         },
         "test/spatial.repository.spec.ts": {
           "mode": "gated",

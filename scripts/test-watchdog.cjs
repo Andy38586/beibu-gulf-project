@@ -264,6 +264,23 @@ function evaluateProject(project, result, ctx) {
     }
   }
 
+  // (b0) 反查白名单：登记的文件必须真的在测试清单里。
+  //      (b) 只做前向查询（某文件真跳过时反查登记），**从不遍历 allowSkipped 的键**——
+  //      于是「登记所指的测试文件被删/改名/挪出 include」时该条目永久静默。
+  //      2026-10-20 实测：backend 的 allowSkipped 有 3 条指向 54bdf721 已删的 site-analysis
+  //      系列用例，watchdog 全场仍绿（与 agent-docs-check 的「幽灵豁免」是同一种缺陷）。
+  for (const file of Object.keys(allow)) {
+    if (!disk.includes(file)) {
+      violations.push({
+        code: 'STALE_ALLOW_ENTRY',
+        file,
+        detail:
+          '白名单登记了该文件的跳过容忍，但它不在本项目的测试清单里（文件已删/改名/挪出 include）——' +
+          '僵尸登记永远不会被前向查询命中，等于永久静默的豁免口；请删掉该条或修正路径',
+      })
+    }
+  }
+
   // (b) 逐文件治理跳过
   for (const [file, info] of Object.entries(norm.byFile)) {
     if (info.failed > 0) {

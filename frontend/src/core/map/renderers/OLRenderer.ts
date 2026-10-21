@@ -17,7 +17,8 @@ import type MapBrowserEvent from 'ol/MapBrowserEvent'
 import Overlay from 'ol/Overlay'
 import { toGeoCoord, toMapCoord, toPointGeometry } from '../olCoord'
 import VectorSource from 'ol/source/Vector'
-import XYZ from 'ol/source/XYZ'
+import type XYZ from 'ol/source/XYZ'
+import { createBaseTileSource } from '../baseTileSource'
 import { Circle, Fill, Stroke, Style, Text } from 'ol/style'
 import type { StyleFunction } from 'ol/style/Style'
 import View from 'ol/View'
@@ -226,10 +227,7 @@ export class OLRenderer extends MapRenderer {
     if (!map) return
     const imageLayers = MAP_CONFIG.BASE_LAYERS.image.layers.map((code: string) => {
       const layer = new TileLayer({
-        source: new XYZ({
-          url: buildTiandituUrl(code),
-          crossOrigin: 'anonymous',
-        }),
+        source: createBaseTileSource(buildTiandituUrl(code)),
         // c056：底图专用 className（区分影像/矢量，暗色 filter 见 style.css）
         className: 'ol-base-layer ol-base-image',
       })
@@ -239,10 +237,7 @@ export class OLRenderer extends MapRenderer {
     })
     const vectorLayers = MAP_CONFIG.BASE_LAYERS.vector.layers.map((code) => {
       const layer = new TileLayer({
-        source: new XYZ({
-          url: buildTiandituUrl(code),
-          crossOrigin: 'anonymous',
-        }),
+        source: createBaseTileSource(buildTiandituUrl(code)),
         // c056：矢量底图独立 className（暗色走 invert 真变暗，见 style.css）
         className: 'ol-base-layer ol-base-vector',
       })

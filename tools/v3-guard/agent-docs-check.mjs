@@ -43,6 +43,7 @@
  */
 import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -310,31 +311,59 @@ export function stripCommitType(message) {
   return message.replace(/^[a-z][a-z-]*(\([^)]*\))?!?:\s*/, '')
 }
 
+/**
+ * 「工具跑不起来」与「消息被 commitlint 判不合规」是两件事（2026-10-20 修，§5.4）。
+ *
+ * 两种不可用形态：① spawn 失败 ⇒ `status === null`；② 子进程自己崩 —— `status === 1` 但输出是
+ * Node 崩溃栈（实测本仓沙箱 `--edit` 通道下的 `Error: spawn EPERM`，来自 commitlint 内部调
+ * `git config core.commentChar`）。崩溃栈与 lint 判词（`✖ subject may not be empty`）形态不同，
+ * 只认前者：**任何真判词都不许被这条吞掉**，否则「协议示例过不了 commitlint」这一面会静悄悄变绿。
+ *
+ * @param {number|null} status 子进程退出码
+ * @param {string} out 子进程 stdout+stderr（重定向到同一文件描述符）
+ * @returns {boolean} true ⇒ 按 SKIPPED 记入报告，不判红也不判绿
+ */
+export function isCommitlintUnavailable(status, out) {
+  if (status === null) return true
+  if (status === 0) return false
+  return /\bError: (spawn|EPERM|EBADF|EACCES)/.test(out)
+}
+
 function runCommitlint(message) {
   const cli = path.join(ROOT, 'node_modules', '@commitlint', 'cli', 'cli.js')
-  if (!fs.existsSync(cli)) return { rc: null, why: 'commitlint CLI 缺失，无法校验断言 3' }
+  if (!fs.existsSync(cli))
+    return { rc: null, unavailable: true, why: 'commitlint CLI 缺失，无法校验断言 3' }
 
   // 输出捕获**不走** `encoding:'utf8'` 的匿名管道：受限执行环境（加固终端 / 本仓沙箱）会
   // 拒绝创建管道子进程（实测 spawnSync 报 EBUSY），那会让断言 3 退化成"环境不可用"而红，
   // 把真实的 commitlint 行为整个掩盖掉。改为：
-  //   ① 消息写临时文件、用 `--edit <file>` 传入 —— 与 `.husky/commit-msg` 的调用方式一致；
+  //   ① 消息经 **stdin** 传入（commitlint 无位置参数即读 stdin）—— 不能用 `--edit <file>`：
+  //      `--edit` 分支会先跑 `git config core.commentChar`（node_modules/@commitlint/cli/lib/cli.js:226-237），
+  //      受限环境里那个子进程 EPERM 直接把 commitlint 打崩（exit 1 + `Error: spawn EPERM` 崩溃栈），
+  //      于是「工具跑不起来」被伪造成「协议示例不合规」——实测一次性报 2 处假红。两条通道最终
+  //      都进同一个 `@commitlint/lint` 引擎，判据（哪条消息合规）逐字不变，变的只是输入通道。
   //   ② stdout/stderr 重定向到文件描述符，不建管道。
   // 判据（正向示例必须过 / 剥 type 必须拒 / 带 scope 必须拒）逐字不变。
-  const tmpDir = path.join(ROOT, '.local', 'tmp')
-  fs.mkdirSync(tmpDir, { recursive: true })
-  const stamp = `${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-  const msgFile = path.join(tmpDir, `commitlint-msg-${stamp}.txt`)
-  const outFile = path.join(tmpDir, `commitlint-out-${stamp}.log`)
+  //
+  // 落点用 os.tmpdir() 而不是 `.local/tmp`（2026-10-20 修）：`.local/` 是 gitignored 目录，
+  // 受限执行环境下对它写入会 EPERM（实测本仓沙箱：`EPERM open .../.local/tmp/commitlint-msg-*.txt`），
+  // 守卫因此**整条红在环境上**、断言 3 的三格（正向过 / 剥 type 拒 / 带 scope 拒）一格都没跑。
+  // 这违反本文件头注与 AGENTS §5.4 同一条原则：工具不可用要记 SKIPPED，不能让守卫自己死在环境上。
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'commitlint-'))
+  const msgFile = path.join(tmpDir, 'msg.txt')
+  const outFile = path.join(tmpDir, 'out.log')
   fs.writeFileSync(msgFile, `${message}\n`)
 
+  const fdIn = fs.openSync(msgFile, 'r')
   const fd = fs.openSync(outFile, 'w')
   let r
   try {
-    r = spawnSync(process.execPath, [cli, '--edit', msgFile], {
+    r = spawnSync(process.execPath, [cli], {
       cwd: ROOT,
-      stdio: ['ignore', fd, fd],
+      stdio: [fdIn, fd, fd],
     })
   } finally {
+    fs.closeSync(fdIn)
     fs.closeSync(fd)
   }
   let out = ''
@@ -343,21 +372,21 @@ function runCommitlint(message) {
   } catch {
     /* 读不到即空，不改变 rc 判定 */
   }
-  for (const f of [msgFile, outFile]) {
-    try {
-      fs.unlinkSync(f)
-    } catch {
-      /* 清理失败不改变判据 */
-    }
+  try {
+    fs.rmSync(tmpDir, { recursive: true, force: true })
+  } catch {
+    /* 清理失败不改变判据 */
   }
+  const unavailable = isCommitlintUnavailable(r.status, out)
   return {
     rc: r.status,
-    // spawn 失败时 status=null 且无 error.message 以外的线索：给一句可诊断的话，
-    // 别再让上层打印 `undefined`（那会让守卫红得无法定位）
-    why:
-      r.status === null
+    unavailable,
+    // 不可用时给一句可诊断的话，别再让上层打印 `undefined`（那会让守卫红得无法定位）
+    why: unavailable
+      ? r.status === null
         ? `commitlint 子进程未正常退出：${r.error?.message ?? '未知原因'}`
-        : undefined,
+        : 'commitlint 子进程启动即崩（输出是 Node 崩溃栈，不是 lint 判词）'
+      : undefined,
     out,
   }
 }
@@ -372,6 +401,9 @@ function runCommitlint(message) {
 export function checkCommitForm(text, lint = runCommitlint) {
   const violations = []
   const skipped = []
+  // 兼容两种「工具不可用」记法：新实现给的 `unavailable` 标记，与注入替身沿用至今的
+  // `rc === null`。两者都进 SKIPPED，绝不进 violations。
+  const isUnavailable = (r) => r.unavailable === true || r.rc === null
   const examples = extractCommitExamples(text)
   if (examples.length === 0) {
     return {
@@ -383,7 +415,7 @@ export function checkCommitForm(text, lint = runCommitlint) {
   }
   for (const ex of examples) {
     const pass = lint(ex.message)
-    if (pass.rc === null) {
+    if (isUnavailable(pass)) {
       skipped.push({ ref: `commitlint(${ex.message})`, why: pass.why })
       continue
     }
@@ -399,7 +431,7 @@ export function checkCommitForm(text, lint = runCommitlint) {
   // 反向样本必须被拒 —— 放行即「hook 规则没生效，本断言成了恒真摆设」
   const negative = stripCommitType(examples[0].message)
   const reject = lint(negative)
-  if (reject.rc === null) {
+  if (isUnavailable(reject)) {
     skipped.push({ ref: `commitlint(反向样本 ${negative})`, why: reject.why })
   } else if (reject.rc === 0) {
     violations.push({
@@ -413,7 +445,7 @@ export function checkCommitForm(text, lint = runCommitlint) {
   // 若有人删掉 `package.json` 的 `commitlint.rules.scope-empty`，或把口径改回允许，这里立刻红。
   const scoped = examples[0].message.replace(/^([a-z][a-z-]*)!?:/, '$1(scope):')
   const scopedCheck = lint(scoped)
-  if (scopedCheck.rc === null) {
+  if (isUnavailable(scopedCheck)) {
     skipped.push({ ref: `commitlint(${scoped})`, why: scopedCheck.why })
   } else if (scopedCheck.rc === 0) {
     violations.push({

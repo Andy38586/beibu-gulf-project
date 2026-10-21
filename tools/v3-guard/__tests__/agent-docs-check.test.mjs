@@ -14,6 +14,7 @@ import {
   extractCommitExamples,
   extractTokens,
   gitIgnored,
+  isCommitlintUnavailable,
   LIVE_DOCS,
   prefixedRefs,
   stripCommitType,
@@ -221,6 +222,30 @@ describe('agent-docs-check（作业协议自述守卫）', () => {
       { script: 'guard:v3', line: 1 },
       { script: 'e2e2', line: 1 },
     ])
+  })
+
+  it('@guard-red-sample 子进程启动即崩（输出是 Node 崩溃栈）⇒ 记 SKIPPED，不冒充「示例不合规」', () => {
+    // 本仓沙箱实测：commitlint 的 `--edit` 通道内部跑 `git config core.commentChar` 被 EPERM，
+    // commitlint 自己 exit 1 并把崩溃栈打在输出里。旧实现只看 `rc !== 0` ⇒ 报 2 处「协议示例过不了
+    // commitlint」假红。判据形态必须是「异常形态可判、真判词不可吞」，所以三个方向都要钉住。
+    const CRASH = [
+      'file:///x/node_modules/@commitlint/cli/lib/cli.js:132',
+      '        throw err;',
+      '        ^',
+      'Error: spawn EPERM',
+      '    at ChildProcess.spawn (node:internal/child_process:420:11)',
+    ].join('\n')
+    expect(isCommitlintUnavailable(null, '')).toBe(true) // ① spawn 失败
+    expect(isCommitlintUnavailable(1, CRASH)).toBe(true) // ② 子进程自己崩
+    expect(isCommitlintUnavailable(0, '')).toBe(false) // ③ 正常通过
+    const VERDICT =
+      '⧗ input: 裸主题\n✖ subject may not be empty [subject-empty]\n✖ found 1 problems'
+    expect(isCommitlintUnavailable(1, VERDICT)).toBe(false) // ④ 真判词不得被吞
+    // 端到端：崩溃栈喂给 checkCommitForm ⇒ 三条断言全进 skipped，violations 必须为空
+    const crashLint = () => ({ rc: 1, unavailable: true, why: 'commitlint 子进程启动即崩' })
+    const r = checkCommitForm('例：`fix: 修 xxx`\n', crashLint)
+    expect(r.violations).toEqual([])
+    expect(r.skipped).toHaveLength(3)
   })
 
   it('回归锚：现仓 AGENTS 声称面可达（按生产口径读钩子/workflow/package/K4）', () => {

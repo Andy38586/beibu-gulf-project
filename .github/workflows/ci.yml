@@ -327,7 +327,7 @@ jobs:
       - name: Install Playwright browsers (chromium)
         run: npx playwright install --with-deps chromium
 
-      - name: Run E2E (smoke + first-paint)
+      - name: Run E2E (smoke + first-paint + perf-drag)
         run: npm run e2e
 
       - name: Upload E2E traces (failure)

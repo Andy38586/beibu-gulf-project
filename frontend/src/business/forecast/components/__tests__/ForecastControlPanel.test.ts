@@ -268,6 +268,35 @@ describe('ForecastControlPanel 运河情景芯片（F4）', () => {
     wrapper.unmount()
   })
 })
+// W17：热力散射点的空间分布是示意性插值（每港 40 点按距离衰减铺在港口周围），
+// 此前只在后端 forecast-engine.ts 的注释里说明，UI 零披露 ⇒ 用户会把热力面读成实测点位。
+describe('ForecastControlPanel 空间口径披露（W17）', () => {
+  beforeEach(async () => {
+    setActivePinia(createPinia())
+    router = createRouter({ history: createMemoryHistory(), routes: [] })
+    await router.push('/')
+    await router.isReady()
+  })
+
+  it('面板披露「空间分布是示意性插值、非实测」，且不在按钮网格的滚动区内', () => {
+    const wrapper = mountPanel()
+
+    const note = wrapper.find('.forecast-note')
+    expect(note.exists()).toBe(true)
+    // 只钉承重三段：披露对象（空间分布）、性质（示意）、否定项（非实测）——
+    // 不钉整句措辞，措辞是等价可改的（AGENTS §5.3 第三式）。
+    const text = note.text()
+    expect(text).toContain('空间分布')
+    expect(text).toContain('示意')
+    expect(text).toContain('非实测')
+    // 位置约束：脚注必须常驻可见。落进 .btn-grid 会被 overflow-y:auto 滚走，
+    // 那时披露等于没有（.btn-grid 是 flex:1 的可滚区，见 panelOverflowExit 的容量出口判据）。
+    expect(wrapper.find('.btn-grid').element.contains(note.element)).toBe(false)
+
+    wrapper.unmount()
+  })
+})
+
 // D3 去 export：FORECAST_ORCHESTRATOR_KEY 已收为模块内部；本组是「公开面收窄」本身的判据。
 describe('公开面收窄 — FORECAST_ORCHESTRATOR_KEY 不得再导出', () => {
   const INTERNAL = ['FORECAST_ORCHESTRATOR_KEY']

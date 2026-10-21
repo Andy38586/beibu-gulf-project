@@ -352,6 +352,7 @@ onUnmounted(() => stopPlayback())
         </div>
       </div>
     </div>
+    <div class="forecast-note">空间分布为示意性插值，非实测点位。</div>
   </div>
 </template>
 
@@ -561,5 +562,18 @@ onUnmounted(() => stopPlayback())
 /* ing 态图标反色（其余视觉由 .btn-cell.ing 组合提供；选择卡片样式归 SliderSelectCard） */
 .btn-cell.ing .ind-icon {
   color: var(--GCS-text-inverse);
+}
+
+/* 数据口径脚注（W17）：热力散射点的**空间分布**是示意性插值（每港 40 点、按距离衰减加随机权重
+   铺在港口周围 0.025–0.05°，见 backend/src/modules/forecast/services/forecast-engine.ts
+   generateSpatialValues），**指标值本身仍是官方吞吐量/真数据派生**——脚注只披露空间口径，
+   不能让人以为数值也是编的。与 diversion 的 .transfer-note 同型（4×4 面板内一行小字）。
+   flex-shrink:0 且不占 .btn-grid 的 flex:1，故只压缩按钮网格的可滚动区，不改变其容量语义。 */
+.forecast-note {
+  flex-shrink: 0;
+  padding: 0 v-bind(cell8px);
+  font-size: v-bind(smallFontSizeCss);
+  line-height: 1.4;
+  color: var(--GCS-text-muted);
 }
 </style>

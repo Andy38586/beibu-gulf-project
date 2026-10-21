@@ -17,9 +17,21 @@ import { createPersistedState } from './factories/createPersistedState'
  * （saveState/consumeState/clearState）。UI 显隐与剖面选择已由图层状态/组件本地 ref 承担，不入 store。
  */
 
-/** 仅持久化快照部分（不含当前分析数据） */
-interface FloodPersistedSnapshot {
-  waterLevel: number
+/**
+ * 仅持久化快照部分（不含当前分析数据）。
+ *
+ * `waterLevel` 用契约派生（W03）：原手抄 interface 把字段名/类型重写一遍，
+ * `floodStatisticsResponseSchema` 里改名或改型（如 number→string）时这里不报错，
+ * 运行时才表现为「恢复后水位是 undefined」。改成 `NonNullable<FloodStatistics['waterLevel']>`
+ * 后改名/去掉 optional 都会在 `npm run typecheck` 当场红。
+ *
+ * 另两个字段**不是**契约字段，保持显式声明（不硬塞成 Pick）：
+ * - `affectedFacilities` 是「受影响设施数组」，与契约里的 `affectedFacilityCount` 是
+ *   同名不同型（base.ts 的 FloodSavedState 已就此留注）；
+ * - `totalLoss` 是港口影响逐项求和的结果，与契约的 `estimatedLoss` 不是同一口径。
+ */
+type FloodPersistedSnapshot = {
+  waterLevel: NonNullable<FloodStatistics['waterLevel']>
   affectedFacilities: AffectedFacility[]
   totalLoss: number
 }

@@ -28,4 +28,16 @@ describe('DbService 连接池 error 监听（断库进程存活回归）', () =>
       'terminating connection due to administrator command'
     )
   })
+
+  it('onModuleDestroy 关闭连接池（pool.end 被真正调用）', async () => {
+    // W41：此前 afterAll 只"调用" onModuleDestroy 无任何 expect ⇒ 把
+    // `await this.pool.end()` 删掉测试仍全绿（"只被调用、从未被断言的钩子"）。
+    // 自建局部实例，避免干扰上面那条用例共享的 service 单例。
+    // Pool 惰性连接，无连接时 end() 也正常 resolve，无需真库。
+    const local = new DbService()
+    const pool = (local as unknown as { pool: Pool }).pool
+    const endSpy = vi.spyOn(pool, 'end').mockResolvedValue()
+    await local.onModuleDestroy()
+    expect(endSpy).toHaveBeenCalledTimes(1)
+  })
 })

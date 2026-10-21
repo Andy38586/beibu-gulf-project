@@ -44,6 +44,13 @@ interface CameraPerfHost {
  */
 const INTERACTION_HEAVY_VERTEX_THRESHOLD = 3000
 
+/**
+ * 相机变化防抖时长（毫秒）——W39：此前 `cameraPerf.ts` 与 `OLRenderer.ts` 各写
+ * 一个裸 `}, 300)`（同一「防抖后 emit camera-changed」形状）。改时长只改一处会
+ * 出现「3D 300ms / 2D 其他节奏」的相机回传差，且没有任何判据会红（AGENTS §七-7）。
+ */
+export const CAMERA_DEBOUNCE_MS = 300
+
 /** 顶点规模是否达到交互期降载登记线 */
 export function isHeavyVertexCount(vertexCount: number): boolean {
   return vertexCount >= INTERACTION_HEAVY_VERTEX_THRESHOLD
@@ -112,7 +119,7 @@ export function setupCameraDebounce(host: CameraPerfHost): void {
         host.emit('camera-changed', host._getCameraState())
       }
       host._cameraDebounceTimer = null
-    }, 300)
+    }, CAMERA_DEBOUNCE_MS)
   }
   const handlers: CameraPerfHandlers = {
     changed,

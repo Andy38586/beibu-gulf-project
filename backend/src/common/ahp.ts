@@ -1,3 +1,4 @@
+import { COMPARE_TOLERANCE, ITERATION_TOLERANCE } from './numeric-tolerance'
 // AHP 层次分析法纯函数库（Saaty 1980；论文主线工单 §四单元三）。
 // 判断矩阵 → 特征向量法权重 → CR<0.1 一致性检验（不过检验直接拒收）。
 // 只做数学，不含业务语义；准则层定义与判断矩阵草案在 constants/site-ahp.constants.ts。
@@ -38,8 +39,9 @@ function validateJudgmentMatrix(matrix: JudgmentMatrix): void {
         throw new Error(`判断矩阵[${i}][${j}] = ${a} 非正数`)
       }
       if (i === j) {
-        if (Math.abs(a - 1) > 1e-9) throw new Error(`判断矩阵对角元[${i}][${i}] = ${a} ≠ 1`)
-      } else if (Math.abs(a * matrix[j][i] - 1) > 1e-9) {
+        if (Math.abs(a - 1) > COMPARE_TOLERANCE)
+          throw new Error(`判断矩阵对角元[${i}][${i}] = ${a} ≠ 1`)
+      } else if (Math.abs(a * matrix[j][i] - 1) > COMPARE_TOLERANCE) {
         throw new Error(
           `判断矩阵互反性破坏：[${i}][${j}]=${a} 与 [${j}][${i}]=${matrix[j][i]} 之积 ≠ 1`
         )
@@ -57,7 +59,7 @@ function matVec(matrix: JudgmentMatrix, w: readonly number[]): number[] {
 function principalEigenvector(
   matrix: JudgmentMatrix,
   iterations = 1000,
-  tolerance = 1e-12
+  tolerance = ITERATION_TOLERANCE
 ): { weights: number[]; lambdaMax: number } {
   const n = matrix.length
   let w = new Array<number>(n).fill(1 / n)

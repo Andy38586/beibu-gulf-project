@@ -9,6 +9,7 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 
 import { useSliderFocus } from '@/core'
 import { ROW_HEIGHT_CELL, SliderSelectCard, useGCS } from '@/shared'
+import { COMPARE_TOLERANCE } from '@/shared/constants/tolerance'
 import { useSiteSuitabilityStore } from '@/stores'
 
 import { CRITERIA } from '../constants/criteria'
@@ -95,7 +96,7 @@ onUnmounted(() => {
             :key="s"
             type="button"
             class="frac-btn"
-            :class="{ sel: Math.abs(state.minLandFrac - s) < 1e-9 }"
+            :class="{ sel: Math.abs(state.minLandFrac - s) < COMPARE_TOLERANCE }"
             @click="state.setMinLandFrac(s)"
           >
             ≥{{ Math.round(s * 100) }}%

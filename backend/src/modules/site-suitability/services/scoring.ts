@@ -1,4 +1,5 @@
 import { BusinessError, ErrorCode } from '../../../common/errors/business-error'
+import { SUM_TOLERANCE } from '../../../common/numeric-tolerance'
 import {
   accessScore,
   inundationScore,
@@ -34,7 +35,7 @@ export function parseWeights(raw: Record<string, unknown>): SuitabilityWeights {
     out[k] = v
     sum += v
   }
-  if (Math.abs(sum - 1) > 1e-6) {
+  if (Math.abs(sum - 1) > SUM_TOLERANCE) {
     throw new BusinessError(ErrorCode.INVALID_PARAMS, `权重和 = ${sum} ≠ 1，拒收`)
   }
   return out

@@ -1,3 +1,4 @@
+import { COMPARE_TOLERANCE } from './numeric-tolerance'
 // 分流分析框架（论文 W10-11；数据锚点出处见后端 scenario.constants.ts 头注释与
 // .local/papers/提取-运河参数-2026-09-26.md §二/§四，罗淳 2024 §5.3.4/附录 A-6）。
 //
@@ -104,7 +105,7 @@ export function diversionBreakdown(
   portShares: Record<string, number>
 ): DiversionBreakdown {
   const shareSum = Object.values(portShares).reduce((a, b) => a + b, 0)
-  if (Math.abs(shareSum - 1) > 1e-9) {
+  if (Math.abs(shareSum - 1) > COMPARE_TOLERANCE) {
     throw new Error(`港口份额和 ≠ 1（${shareSum}）`)
   }
   const transfer = westRiverTransferAt(year)

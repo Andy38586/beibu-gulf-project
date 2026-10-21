@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common'
 
 import { BusinessError, ErrorCode } from '../../../common/errors/business-error'
+import { COMPARE_TOLERANCE } from '../../../common/numeric-tolerance'
 import {
   isRouteMode,
   PID_FROM,
@@ -211,7 +212,7 @@ export class RouteService {
     // ⑤ 几何拼接（按 lo~hi 截取；reverse 的分段把坐标倒过来，保证首尾相接）
     // 零长度分段（吸附点正好落在边的端点上，如 fraction=0）不产生几何，先剔除——
     // ST_LineSubstring(geom, f, f) 是退化调用，没必要让 DB 去处理
-    const drawable = segments.filter((s) => s.hi - s.lo > 1e-9)
+    const drawable = segments.filter((s) => s.hi - s.lo > COMPARE_TOLERANCE)
     const segCoords = await this.routeRepository.segmentGeometry(drawable)
     const coordinates: Array<[number, number]> = []
     for (const item of segCoords) {

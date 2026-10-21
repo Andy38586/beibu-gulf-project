@@ -1,3 +1,4 @@
+import { COMPARE_TOLERANCE } from '@/shared/constants/tolerance'
 // 面板注册表：位置与尺寸的事实单源（布局层通用形状）。
 // 为什么是注册表：面板 id/列/顺序/宽高此前散落在页面模板的字面量里，
 // 新增面板靠记忆找位置；事实应进数据，约束应进断言。
@@ -24,7 +25,7 @@ const SUBCELL = 0.5
 /** 尺寸非法即抛（注册期拒绝，不靠注释提醒） */
 function assertCellMultiple(value: number, what: string): void {
   const ratio = value / SUBCELL
-  if (!Number.isFinite(value) || Math.abs(ratio - Math.round(ratio)) > 1e-9) {
+  if (!Number.isFinite(value) || Math.abs(ratio - Math.round(ratio)) > COMPARE_TOLERANCE) {
     throw new Error(`${what}=${value} 不是 ${SUBCELL} 的整数倍（面板尺寸只允许整数×SUBCELL）`)
   }
 }

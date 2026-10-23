@@ -156,6 +156,75 @@ describe('P0-01 回归：useChartBase 不得返回过期快照', () => {
   })
 })
 
+describe('轴样式单源化回归（2026-10-23 压缩 buildOption）', () => {
+  type Axis = {
+    type: string
+    name?: string
+    position?: string
+    splitLine?: { show?: boolean; lineStyle?: { color?: string } }
+    axisLabel?: { color?: string; fontSize?: number; interval?: number; rotate?: number }
+    nameTextStyle?: { fontSize?: number; color?: string }
+  }
+  const axesOf = (option: ChartOptionLike) => option.yAxis as unknown as Axis | Axis[]
+
+  it('单轴无单位：不写 name，且保留分割线颜色', () => {
+    mount(LineChart, { props: { title: 'T', xData: ['x'], series: [{ name: 'n', data: [1] }] } })
+    const axis = axesOf(captured.getOption!()) as Axis
+    expect(Array.isArray(axis)).toBe(false)
+    expect(axis.name).toBeUndefined()
+    expect(axis.splitLine?.lineStyle?.color).toBeTypeOf('string')
+    expect(axis.axisLabel).toMatchObject({ fontSize: 10 })
+  })
+
+  it('双轴：左轴分割线在、右轴 position=right 且关闭分割线，单位各挂各轴', () => {
+    mount(BarChart, {
+      props: {
+        title: 'T',
+        xData: ['x'],
+        series: [{ name: 'n', data: [1], yAxisIndex: 1 }],
+        yUnit: '万吨',
+        yUnitRight: 'TEU',
+      },
+    })
+    const axes = axesOf(captured.getOption!()) as Axis[]
+    expect(axes).toHaveLength(2)
+    expect(axes[0]).toMatchObject({ type: 'value', name: '万吨' })
+    expect(axes[0].splitLine?.lineStyle?.color).toBeTypeOf('string')
+    expect(axes[1]).toMatchObject({
+      type: 'value',
+      name: 'TEU',
+      position: 'right',
+      splitLine: { show: false },
+    })
+    // 两轴标签样式来自同一工厂：颜色/字号必须逐字相等
+    expect(axes[0].axisLabel).toEqual(axes[1].axisLabel)
+  })
+
+  it('密集刻度：>24 点才加 interval/rotate，24 点整不加', () => {
+    const many = Array.from({ length: 25 }, (_, i) => String(i))
+    const m1 = mount(LineChart, { props: { xData: many, series: [{ name: 'n', data: [1] }] } })
+    const xAxisOf = () => (captured.getOption!() as unknown as { xAxis: Axis }).xAxis
+    expect(xAxisOf().axisLabel).toMatchObject({ interval: 2, rotate: 30 })
+    m1.unmount()
+
+    const exact = many.slice(0, 24)
+    mount(LineChart, { props: { xData: exact, series: [{ name: 'n', data: [1] }] } })
+    const label = xAxisOf().axisLabel!
+    expect(label.interval).toBeUndefined()
+    expect(label.rotate).toBeUndefined()
+  })
+
+  it('图例与轴标签共用同一样式源', () => {
+    mount(LineChart, { props: { xData: ['x'], series: [{ name: 'n', data: [1] }] } })
+    const option = captured.getOption!()
+    const label = (axesOf(option) as Axis).axisLabel!
+    expect(option.legend).toMatchObject({ bottom: 0 })
+    expect((option as unknown as { legend: { textStyle: unknown } }).legend.textStyle).toEqual(
+      label
+    )
+  })
+})
+
 describe('U2：空态判定随 useChartBase 一并返回（两图不再各抄一份）', () => {
   it('🔴 @guard-red-sample 无数据系列时两图都渲染空态浮层，有数据即撤（摘下沉判定即红）', async () => {
     // 治的失效：判定原先在 LineChart / BarChart 各手抄一份，改一边漏一边 ⇒

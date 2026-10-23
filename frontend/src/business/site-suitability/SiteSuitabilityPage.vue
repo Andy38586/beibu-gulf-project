@@ -6,7 +6,14 @@
 <script setup lang="ts">
 import { computed, onUnmounted, watch } from 'vue'
 
-import { AppLayout, GCSPanel, LayerControlPanel, useMapControls } from '@/core'
+import {
+  AppLayout,
+  GCSPanel,
+  LayerControlPanel,
+  StackSlot,
+  useMapControls,
+  useStackablePanels,
+} from '@/core'
 import { logger, PaginatedListPanel, usePanelPlacements, useProfileSnapshot } from '@/shared'
 import { useMapStore } from '@/stores'
 import { useSiteSuitabilityStore } from '@/stores'
@@ -23,6 +30,13 @@ const mapStore = useMapStore()
 const state = useSiteSuitabilityStore()
 const { flyTo } = useMapControls()
 const placements = usePanelPlacements(SITE_SUITABILITY_PANELS)
+
+// 可视化面板可拖入堆叠槽（与预测页同一套方法：useStackablePanels + StackSlot）
+const STACKABLE_PANELS = [
+  { id: 'radar', label: '五准则画像' },
+  { id: 'candidates', label: '候选格名单' },
+] as const
+const { stackItems, isStacked, onDrop, restore } = useStackablePanels(STACKABLE_PANELS)
 
 /**
  * 契约缺口（局部窄化）：⑯ schema 目前只声明 properties 的 {id, score}，而响应实际带五准则
@@ -143,10 +157,20 @@ onUnmounted(() => {
     <AppLayout>
       <!-- 左侧（样式对齐旧版选址页）：左上雷达图 + 左下候选格名单 -->
       <template #left>
-        <GCSPanel v-bind="placements.radar">
+        <GCSPanel
+          v-if="!isStacked('radar')"
+          v-bind="placements.radar"
+          draggable
+          @drop="(z: HTMLElement) => onDrop('radar', z)"
+        >
           <SuitabilityRadarPanel :data="state.data" :loading="state.isRequesting" />
         </GCSPanel>
-        <GCSPanel v-bind="placements.candidates">
+        <GCSPanel
+          v-if="!isStacked('candidates')"
+          v-bind="placements.candidates"
+          draggable
+          @drop="(z: HTMLElement) => onDrop('candidates', z)"
+        >
           <PaginatedListPanel
             :items="candidates"
             :page-size="4"
@@ -173,6 +197,7 @@ onUnmounted(() => {
         </GCSPanel>
       </template>
     </AppLayout>
+    <StackSlot :items="stackItems" @restore="restore" />
   </div>
 </template>
 

@@ -83,10 +83,15 @@ describe('cruise-coverage：分层规则覆盖面（W61 M4：from.path 不许窄
       { name: 'core-imports-business', from: { path: '^frontend/src/core/' }, to: {} },
       { name: 'services-imports-business', from: { path: '^frontend/src/services/' }, to: {} },
       { name: 'shared-not-import-core', from: { path: '^frontend/src/shared/' }, to: {} },
+      {
+        name: 'business-root-not-deep-import-modules',
+        from: { path: '^frontend/src/business/[^/]+\\.ts$' },
+        to: {},
+      },
     ],
   }
 
-  it('五条分层规则的 from.path 各覆盖其整层 ⇒ 无问题', () => {
+  it('六条分层规则的 from.path 各覆盖其整层 ⇒ 无问题', () => {
     expect(auditLayerRules(LAYER_OK)).toEqual([])
   })
 

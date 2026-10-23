@@ -154,6 +154,22 @@ module.exports = {
       to: { path: '^frontend/src/services/' },
     },
     {
+      name: 'business-root-not-deep-import-modules',
+      comment:
+        '分层契约：business 根层文件不得直接引用某个业务模块的内部实现，只能走模块入口（index.ts）。' +
+        'W62：五条 business-cross-import-* 的 from.path 只匹配 ^frontend/src/business/<模块>/ 子目录，' +
+        '根层（index.ts / manifest.ts / preload.ts）不受任何一条约束——实测在根层深路径引用模块内部，' +
+        'cruise 一条规则都不咬。' +
+        '注意：不能把这五条的 from.path 改成整层，tools/v3-guard/cruise-coverage.mjs 的 parseRuleModules ' +
+        '强制「规则名后缀 == from 路径里的模块目录名」，改整层会直接抛错。',
+      severity: 'error',
+      from: { path: '^frontend/src/business/[^/]+\\.ts$' },
+      to: {
+        path: '^frontend/src/business/[^/]+/',
+        pathNot: '^frontend/src/business/[^/]+/index\\.ts$',
+      },
+    },
+    {
       name: 'no-circular',
       severity: 'error',
       comment: '禁止循环依赖（z055 升级 error）',

@@ -77,6 +77,7 @@ const LAYER_RULES = [
   { name: 'core-imports-business', prefix: '^frontend/src/core/' },
   { name: 'services-imports-business', prefix: '^frontend/src/services/' },
   { name: 'shared-not-import-core', prefix: '^frontend/src/shared/' },
+  { name: 'business-root-not-deep-import-modules', prefix: '^frontend/src/business/[^/]+\\.ts$' },
 ]
 
 export function auditLayerRules(cruiseConfig) {

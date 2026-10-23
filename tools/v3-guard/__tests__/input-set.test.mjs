@@ -136,7 +136,12 @@ describe('W58 空分母：0 输入不得报「全部满足」', () => {
         '{ name: "services-not-import-core", from: { path: "^frontend/src/services/" } },' +
         '{ name: "core-imports-business", from: { path: "^frontend/src/core/" } },' +
         '{ name: "services-imports-business", from: { path: "^frontend/src/services/" } },' +
-        '{ name: "shared-not-import-core", from: { path: "^frontend/src/shared/" } }] }\n',
+        '{ name: "shared-not-import-core", from: { path: "^frontend/src/shared/" } },' +
+        // W62 起 LAYER_RULES 是 6 条：登在表里的每条都必须在配置里，否则
+        // auditLayerRules 报「不在册」——本夹具是 W58 的阳性对照（证明红的
+        // 是空分母不是装置），它必须随表一起长。
+        '{ name: "business-root-not-deep-import-modules",' +
+        ' from: { path: "^frontend/src/business/[^/]+\\\\.ts$" } }] }\n',
     })
     const { code, output } = runGuard(r, 'cruise-coverage')
     expect(output).toContain('business 目录 1 个')

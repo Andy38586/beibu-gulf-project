@@ -7,16 +7,10 @@
    */
 -->
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { onMounted, onUnmounted, watch } from 'vue'
 
-import { AppLayout, GCSPanel, LayerControlPanel, StackSlot } from '@/core'
-import {
-  DEFAULT_LAYER_ORDER,
-  forecastLayerId,
-  isStackSlotZone,
-  logger,
-  useProfileSnapshot,
-} from '@/shared'
+import { AppLayout, GCSPanel, LayerControlPanel, StackSlot, useStackablePanels } from '@/core'
+import { DEFAULT_LAYER_ORDER, forecastLayerId, logger, useProfileSnapshot } from '@/shared'
 import { useForecastStore } from '@/stores'
 import { useMapStore } from '@/stores'
 import type { ForecastSavedState } from '@/stores/forecastStore'
@@ -49,23 +43,17 @@ const { doForecastUpdate, cancelAll } = provideForecastOrchestrator({ updateFore
 // ── v4-S9 系统 D：可视化面板堆叠（固定槽位，iOS Stack）──
 // 图表面板拖入右侧堆叠槽（只露卡头，点击展开，可还原）；dock 投递区对图表面板无意义
 //（图表面板不是任务）⇒ 落 dock 忽略（usePanelDrag 自动回滚原位）。
-const stackedPanels = ref<string[]>([])
+// 叠入/还原/落点分流的判据收在 useStackablePanels（各业务页共用同一份，不再逐页手写）。
 const STACKABLE_PANELS = [
   { id: 'line', label: '预测趋势' },
   { id: 'bar', label: '港口对比' },
 ] as const
-const stackItems = computed(() =>
-  STACKABLE_PANELS.filter((p) => stackedPanels.value.includes(p.id)).map((p) => ({
-    id: p.id,
-    label: p.label,
-  }))
-)
-function onPanelDrop(panelId: string, zone: HTMLElement): void {
-  if (isStackSlotZone(zone)) stackedPanels.value.push(panelId)
-}
-function restorePanel(id: string): void {
-  stackedPanels.value = stackedPanels.value.filter((p) => p !== id)
-}
+const {
+  stackItems,
+  isStacked,
+  onDrop,
+  restore: restorePanel,
+} = useStackablePanels(STACKABLE_PANELS)
 
 /** 跳转个人中心（登录）时保存状态，返回恢复；其它路由离开清除快照（对齐浸没/选址页先例） */
 useProfileSnapshot({
@@ -142,14 +130,14 @@ onUnmounted(() => {
     <AppLayout>
       <template #left>
         <GCSPanel
-          v-if="!stackedPanels.includes('line')"
+          v-if="!isStacked('line')"
           :w="4"
           :h="4"
           anchor="top-left"
           :offset-x="0"
           :offset-y="1.25"
           draggable
-          @drop="(z: HTMLElement) => onPanelDrop('line', z)"
+          @drop="(z: HTMLElement) => onDrop('line', z)"
         >
           <LineChart
             title="预测趋势"
@@ -164,14 +152,14 @@ onUnmounted(() => {
           <ChartLoading v-if="forecastState.isRequesting" />
         </GCSPanel>
         <GCSPanel
-          v-if="!stackedPanels.includes('bar')"
+          v-if="!isStacked('bar')"
           :w="4"
           :h="4"
           anchor="top-left"
           :offset-x="0"
           :offset-y="5.5"
           draggable
-          @drop="(z: HTMLElement) => onPanelDrop('bar', z)"
+          @drop="(z: HTMLElement) => onDrop('bar', z)"
         >
           <BarChart
             title="港口对比"

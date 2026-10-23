@@ -38,7 +38,6 @@ import {
   PINGLU_GROUPS,
   PINGLU_HUB_MAX_SSE,
   PINGLU_IMAGERY_INDEX_URL,
-  PINGLU_IMAGERY_LAYER_PREFIX,
   PINGLU_TILESET_URL,
   type PingluImageryIndex,
   pingluLayerId,
@@ -118,9 +117,12 @@ async function registerImageryLayers(): Promise<void> {
       schema: pingluImageryIndexSchema,
     })
     if (disposed || !canOverlayImagery()) return
+    // 局部 ids 收齐后整体赋值：中途抛错/被拒时不把半截 id 留在册上——
+    // 旧实现逐条追加，失败后 imageryRegistered 仍为 false，切 2D 不清理、补注册还会重复追加
+    const ids: string[] = []
     for (const t of index.tiles) {
       const id = PINGLU_IMAGERY_LAYER_PREFIX + t.name
-      ownedLayers.register(id, {
+      const ok = ownedLayers.register(id, {
         label: `${t.label}影像`,
         layerType: 'imageOverlay',
         data: {
@@ -131,9 +133,10 @@ async function registerImageryLayers(): Promise<void> {
         // 默认开：该图与 3D Tiles 同源同坐标系，用于对照核验模型落位；不需要时在面板关掉
         visible: true,
       })
-      imageryLayerIds.value = [...imageryLayerIds.value, id]
+      if (ok) ids.push(id)
     }
-    imageryRegistered = true
+    imageryLayerIds.value = ids
+    imageryRegistered = ids.length > 0
   } catch (e) {
     logger.warn('[RouteAnalysis] 离线影像索引加载失败（已跳过影像图层）:', e)
   }

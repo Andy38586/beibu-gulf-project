@@ -7,7 +7,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 
-import { AppLayout, GCSPanel, LayerControlPanel } from '@/core'
+import { AppLayout, GCSPanel, LayerControlPanel, StackSlot, useStackablePanels } from '@/core'
 import { mapDataService } from '@/services'
 import {
   DEFAULT_LAYER_ORDER,
@@ -53,6 +53,13 @@ const loading = ref(false)
 
 /** 四面板位置由 panels.ts 派生（cell 档随全局；模板不写 offset 字面量） */
 const placements = usePanelPlacements(DIVERSION_PANELS)
+
+// 可视化面板共用堆叠拖拽（与预测/选址同一方法）
+const STACKABLE_PANELS = [
+  { id: 'transfer', label: '转移量' },
+  { id: 'sankey', label: '桑基图' },
+] as const
+const { stackItems, isStacked, onDrop, restore } = useStackablePanels(STACKABLE_PANELS)
 
 // ── 3D 弧线可视化（Cesium ③）──
 const { updateCanalLayer, updateArcLayers } = useDiversionLayer()
@@ -229,7 +236,12 @@ onUnmounted(() => {
     <AppLayout>
       <template #left>
         <!-- 左上 4×4：转移量可视化（BarChart）；原文字清单 + 数据口径说明合并为本面板图 + 一行脚注 -->
-        <GCSPanel v-bind="placements.transfer">
+        <GCSPanel
+          v-if="!isStacked('transfer')"
+          v-bind="placements.transfer"
+          draggable
+          @drop="(z: HTMLElement) => onDrop('transfer', z)"
+        >
           <div class="transfer-panel">
             <div class="transfer-chart">
               <BarChart
@@ -245,7 +257,12 @@ onUnmounted(() => {
           </div>
         </GCSPanel>
         <!-- 左下 4×4：桑基图（自原右下迁入，props 与空态语义不变） -->
-        <GCSPanel v-bind="placements.sankey">
+        <GCSPanel
+          v-if="!isStacked('sankey')"
+          v-bind="placements.sankey"
+          draggable
+          @drop="(z: HTMLElement) => onDrop('sankey', z)"
+        >
           <SankeyChart
             v-if="nodes.length"
             :nodes="nodes"
@@ -260,11 +277,12 @@ onUnmounted(() => {
         <!-- 右上 4×4：年份控制（滑块收进统一卡片，点击才展开；300ms 防抖逻辑不动） -->
         <GCSPanel v-bind="placements.year">
           <div ref="yearPanelRef" class="year-panel">
+            <div class="year-head">年份</div>
             <!-- 三态选择卡片（公共组件 SliderSelectCard）：默认=按钮，点击进入选择态才渲染滑块 -->
             <SliderSelectCard
               :selecting="yearCardOpen"
               :selected="true"
-              label="年份"
+              label="当前年份"
               :status-text="String(year)"
               :slider-value="yearCardOpen ? year : null"
               :slider-min="YEAR_MIN"
@@ -273,6 +291,9 @@ onUnmounted(() => {
               @toggle="yearCardOpen = true"
               @update:slider-value="onYearInput"
             />
+            <p class="year-hint">
+              可调范围 {{ YEAR_MIN }}–{{ YEAR_MAX }}；切换年份会重算转移量与桑基图。
+            </p>
           </div>
         </GCSPanel>
         <!-- 右下 4×4：图层控制面板（本页域图层 = 运河线位 + 三弧；三弧收进「分流弧线」组行） -->
@@ -284,6 +305,7 @@ onUnmounted(() => {
         </GCSPanel>
       </template>
     </AppLayout>
+    <StackSlot :items="stackItems" @restore="restore" />
   </div>
 </template>
 
@@ -320,11 +342,32 @@ onUnmounted(() => {
   color: var(--GCS-text-muted);
 }
 
-/* 年份卡片填满 4×4 面板：滑块默认收进卡片，点击才展开 */
+/* 年份卡片：标题 + 收起态按钮 + 口径提示，避免 4×4 面板被一张卡片拉成大白块 */
 .year-panel {
   height: 100%;
   padding: 8px;
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.year-panel :deep(.ssc) {
+  height: 48px;
+  flex: none;
+}
+
+.year-head {
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  color: var(--GCS-text-secondary);
+}
+
+.year-hint {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--GCS-text-muted);
 }
 
 .empty {

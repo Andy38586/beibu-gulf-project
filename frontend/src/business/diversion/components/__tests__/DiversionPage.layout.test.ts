@@ -296,7 +296,7 @@ describe('DiversionPage 4×4 布局', () => {
     expect(yearPanel.findAll('input[type="range"]')).toHaveLength(0)
     const card = yearPanel.find('button.ssc')
     expect(card.exists()).toBe(true)
-    expect(card.find('.ssc-label').text()).toBe('年份')
+    expect(card.find('.ssc-label').text()).toBe('当前年份')
     expect(card.find('.ssc-status').text()).toBe('2035')
 
     // 点击卡片 → 选择态才渲染滑块，值=当前年份，档位=2027..2050

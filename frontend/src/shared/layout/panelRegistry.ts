@@ -1,4 +1,4 @@
-import { COMPARE_TOLERANCE } from '@/shared/constants/tolerance'
+import { COMPARE_TOLERANCE } from '@/shared/constants'
 // 面板注册表：位置与尺寸的事实单源（布局层通用形状）。
 // 为什么是注册表：面板 id/列/顺序/宽高此前散落在页面模板的字面量里，
 // 新增面板靠记忆找位置；事实应进数据，约束应进断言。

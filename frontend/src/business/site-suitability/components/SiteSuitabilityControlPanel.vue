@@ -9,7 +9,7 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 
 import { useSliderFocus } from '@/core'
 import { ROW_HEIGHT_CELL, SliderSelectCard, useGCS } from '@/shared'
-import { COMPARE_TOLERANCE } from '@/shared/constants/tolerance'
+import { COMPARE_TOLERANCE } from '@/shared/constants'
 import { useSiteSuitabilityStore } from '@/stores'
 
 import { CRITERIA } from '../constants/criteria'

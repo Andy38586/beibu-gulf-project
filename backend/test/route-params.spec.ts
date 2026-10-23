@@ -43,7 +43,10 @@ describe('route 坐标参数解析（同步/异步同源）', () => {
     const { controller, findPath } = makeController()
     let caught: unknown
     try {
-      controller.findPath({ fromLng: 'abc', fromLat: '21.5', toLng: '108.4', toLat: '21.8' })
+      // 断言的是「解析阶段同步抛」——readRouteCoords 在 service 调用之前求值，
+      // 所以这里拿不到 promise 可 await。void 是显式声明「不等待返回值」，
+      // 不是把 promise 吞掉：真要是异步 reject，catch 抓不到、下面两条断言会红。
+      void controller.findPath({ fromLng: 'abc', fromLat: '21.5', toLng: '108.4', toLat: '21.8' })
     } catch (e) {
       caught = e
     }

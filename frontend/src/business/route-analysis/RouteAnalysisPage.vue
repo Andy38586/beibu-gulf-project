@@ -38,6 +38,7 @@ import {
   PINGLU_GROUPS,
   PINGLU_HUB_MAX_SSE,
   PINGLU_IMAGERY_INDEX_URL,
+  PINGLU_IMAGERY_LAYER_PREFIX,
   PINGLU_TILESET_URL,
   type PingluImageryIndex,
   pingluLayerId,

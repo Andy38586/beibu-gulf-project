@@ -18,6 +18,7 @@ import { useTaskStore } from '@/stores'
 import type { RoutePathParams, RoutePathResponse, RoutePathResult } from '@/types'
 import type { PoiSearchItemParsed } from '@/types/schemas'
 
+import { formatLngLat } from '../composables/formatLngLat'
 import { isWithinThreeCities } from '../composables/useCityBoundary'
 import { useRouteApi } from '../composables/useRouteApi'
 import type { RoutePoint, RouteSlot, RouteSlotKey } from '../composables/useRouteLayer'
@@ -132,7 +133,7 @@ function slotLabel(key: RouteSlotKey): string {
   if (activeSlot.value === key) return `${SLOT_LABELS[key]}：选下方 POI 或点地图`
   const p = slots.value[key]
   if (!p) return `+ ${SLOT_LABELS[key]}`
-  return p.name ?? `${p.lng.toFixed(4)}, ${p.lat.toFixed(4)}`
+  return p.name ?? formatLngLat(p)
 }
 
 /** 已选槽位计数（查询按钮可用性：至少起终点齐） */
@@ -166,7 +167,7 @@ const pendingPoint = ref<{ lng: number; lat: number; name?: string; source?: str
 const pendingLabel = computed(() => {
   const p = pendingPoint.value
   if (!p) return ''
-  return p.name ?? `${p.lng.toFixed(4)}, ${p.lat.toFixed(4)}`
+  return p.name ?? formatLngLat(p)
 })
 /** 暂存点来源标签（港口/设施点/小区/POI；地图抓取无来源则不显示） */
 const pendingSource = computed(() =>
@@ -450,7 +451,7 @@ async function handleQuery(): Promise<void> {
 }
 
 function slotName(p: RoutePoint): string {
-  return p.name ?? `${p.lng.toFixed(3)}, ${p.lat.toFixed(3)}`
+  return p.name ?? formatLngLat(p)
 }
 
 function collectSlots(): RouteSlot[] {

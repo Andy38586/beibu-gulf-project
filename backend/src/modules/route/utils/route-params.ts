@@ -7,7 +7,9 @@ import { BusinessError, ErrorCode } from '../../../common/errors/business-error'
  * 下游后表现为「查询结果为空」而不是「参数错误」——用户看到的是空地图，日志里也没有 400，
  * 无从判断是数据没有还是参数错。两处口径分叉还会让同一请求在同步/异步路径上行为不同。
  */
-export function readCoordinate(params: Record<string, unknown>, key: string): number {
+// 本文件私有：四个坐标逐个取值只被下面的 readRouteCoords 用，外部没有消费者。
+// 留着 export 会让死物棘轮记一条「只在本文件用的导出」——那是真债，不是豁免项。
+function readCoordinate(params: Record<string, unknown>, key: string): number {
   const raw = params[key]
   const value = Number(raw)
   if (raw === undefined || raw === null || raw === '' || !Number.isFinite(value)) {

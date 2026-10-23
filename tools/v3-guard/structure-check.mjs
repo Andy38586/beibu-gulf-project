@@ -39,10 +39,13 @@ const FORBIDDEN_FILENAMES = /\.(tmp|bak|orig|swp)(\.\w+)?$/i
  *   按同一条公式下修至 1024。**这是下调，不是提额**：删掉的是零生产者能力（`LayerOptions.cluster`
  *   全仓 0 处赋值），棘轮随实测一起回落，方才保证「上限=实测，不是上限-1 的虚设」。
  * 2026-10-17 必要性审判波二：删 addGeoJsonLayer 里已于同函数落地的过期 TODO（-2 行）⇒ 再下修至 1022。
+ * 2026-10-21 底图瓦片容错收口（W48）：两处裸 new XYZ 换成 createBaseTileSource，渲染器净减 5 行 ⇒
+ *   按同一条公式下修至 1017。**同样是下调，不是提额**：W48 只改构造口径与容错，删掉的是
+ *   重复的内联构造，棘轮随实测一起回落。
  */
 export const RENDERER_SIZE_CEILINGS = [
   { file: 'frontend/src/core/map/renderers/CesiumRenderer.ts', max: 2335 },
-  { file: 'frontend/src/core/map/renderers/OLRenderer.ts', max: 1022 },
+  { file: 'frontend/src/core/map/renderers/OLRenderer.ts', max: 1017 },
 ]
 
 /**

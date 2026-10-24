@@ -1,3 +1,5 @@
+import fs from 'node:fs'
+
 /**
  * ratchet-main — 三个棘轮（dead-code / dup / deep-import）共用的 CLI 骨架（F94 收口）。
  *

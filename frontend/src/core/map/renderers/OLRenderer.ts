@@ -375,6 +375,17 @@ export class OLRenderer extends MapRenderer {
     this._bubbleOverlay.setPosition(coordinate ? toMapCoord(...coordinate) : undefined)
   }
 
+  /** 点要素构造收口：坐标归一化（缺失则跳过）→ Point 几何 → 合并原始属性并写入 featureType */
+  private toPointFeature(item: PointFeature, featureType: string): Feature | null {
+    const point = normalizePoint(item)
+    if (!point) return null
+    const feature = new Feature({
+      geometry: toPointGeometry(point.lng, point.lat),
+    })
+    feature.setProperties({ ...item, featureType })
+    return feature
+  }
+
   addPointLayer(id: string, features: PointFeature[], options: LayerOptions = {}): void {
     // 幂等防御（与 CesiumRenderer 对齐）：重复 add 同 id 先移除旧图层——
     // 否则旧 VectorLayer 仍挂在 map 上而 _layers 引用已被覆盖，成为无法回收的孤儿
@@ -393,16 +404,12 @@ export class OLRenderer extends MapRenderer {
     }
 
     const olFeatures = features.flatMap((item: PointFeature) => {
-      // 数据入口归一化：统一 lng/lon/longitude 字段名为标准 GeoPoint；缺失坐标跳过该要素
-      const point = normalizePoint(item)
-      if (!point) return []
-      const { lng, lat } = point
-      const feature = new Feature({
-        geometry: toPointGeometry(lng, lat),
-      })
-      const featureType = options?.featureType || item?.featureType || 'point'
-      feature.setProperties({ ...item, featureType })
-      return [feature]
+      // item.featureType 因索引签名推断 unknown：按既有契约断言为 string（运行时不转换）
+      const feature = this.toPointFeature(
+        item,
+        (options?.featureType || item?.featureType || 'point') as string
+      )
+      return feature ? [feature] : []
     })
 
     const vectorLayer = new VectorLayer({
@@ -476,11 +483,8 @@ export class OLRenderer extends MapRenderer {
     const visible = entry.index.query(extent)
 
     const olFeatures = visible.flatMap((item) => {
-      const point = normalizePoint(item.data)
-      if (!point) return []
-      const feature = new Feature({ geometry: toPointGeometry(point.lng, point.lat) })
-      feature.setProperties({ ...item.data, featureType: entry.featureType })
-      return [feature]
+      const feature = this.toPointFeature(item.data, entry.featureType)
+      return feature ? [feature] : []
     })
 
     entry.source.clear()
@@ -904,11 +908,9 @@ export class OLRenderer extends MapRenderer {
     }
     this._breathingAnimId = requestAnimationFrame(animate)
   }
-  /** 呼吸层公共清理：先停帧（有则取消）再摘层并释放；字段置空由调用方负责，保持原执行顺序 */
+  /** 呼吸层公共清理：先停帧再摘层释放；字段置空由调用方负责（保持原执行顺序） */
   private disposeBreathingPair(animId: number | null, layer: VectorLayer | null): void {
-    if (animId) {
-      cancelAnimationFrame(animId)
-    }
+    if (animId) cancelAnimationFrame(animId)
     if (layer) {
       this.map?.removeLayer(layer)
       layer.dispose()

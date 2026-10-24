@@ -1029,14 +1029,8 @@ export class CesiumRenderer extends MapRenderer {
   }
 
   stopBreathing(): void {
-    if (this._breathingAnimId) {
-      cancelAnimationFrame(this._breathingAnimId)
-      this._breathingAnimId = null
-    }
-    if (this.viewer && this._breathingEntities.length > 0) {
-      const viewer = this.viewer
-      this._breathingEntities.forEach((e) => viewer.entities.remove(e as Entity))
-    }
+    this.disposeBreathingEntities(this._breathingAnimId, this._breathingEntities)
+    this._breathingAnimId = null
     this._breathingEntities = []
     this._breathingAnimation = null
   }
@@ -1087,16 +1081,17 @@ export class CesiumRenderer extends MapRenderer {
   }
 
   stopFacilityBreathing(): void {
-    if (this._facilityBreathingAnimId) {
-      cancelAnimationFrame(this._facilityBreathingAnimId)
-      this._facilityBreathingAnimId = null
-    }
-    if (this.viewer && this._facilityBreathingEntities.length > 0) {
-      const viewer = this.viewer
-      this._facilityBreathingEntities.forEach((e) => viewer.entities.remove(e as Entity))
-    }
+    this.disposeBreathingEntities(this._facilityBreathingAnimId, this._facilityBreathingEntities)
+    this._facilityBreathingAnimId = null
     this._facilityBreathingEntities = []
     this._facilityBreathingAnimation = null
+  }
+
+  /** 呼吸动画清理共用体：先撤帧（真值才 cancel）再摘 entity；三字段归零由调用方负责 */
+  private disposeBreathingEntities(animId: number | null, entities: unknown[]): void {
+    if (animId) cancelAnimationFrame(animId)
+    const viewer = this.viewer
+    if (viewer && entities.length > 0) entities.forEach((e) => viewer.entities.remove(e as Entity))
   }
 
   // 水面方法委托至模块级函数（本文件下方）

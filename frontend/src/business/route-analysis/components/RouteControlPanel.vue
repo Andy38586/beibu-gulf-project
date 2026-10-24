@@ -133,7 +133,8 @@ function slotLabel(key: RouteSlotKey): string {
   if (activeSlot.value === key) return `${SLOT_LABELS[key]}：选下方 POI 或点地图`
   const p = slots.value[key]
   if (!p) return `+ ${SLOT_LABELS[key]}`
-  return p.name ?? formatLngLat(p)
+  // 回落文案统一走 slotName（`名称 ?? 4 位小数坐标`），见其注释
+  return slotName(p)
 }
 
 /** 已选槽位计数（查询按钮可用性：至少起终点齐） */
@@ -167,7 +168,7 @@ const pendingPoint = ref<{ lng: number; lat: number; name?: string; source?: str
 const pendingLabel = computed(() => {
   const p = pendingPoint.value
   if (!p) return ''
-  return p.name ?? formatLngLat(p)
+  return slotName(p)
 })
 /** 暂存点来源标签（港口/设施点/小区/POI；地图抓取无来源则不显示） */
 const pendingSource = computed(() =>
@@ -450,6 +451,13 @@ async function handleQuery(): Promise<void> {
   }
 }
 
+/**
+ * 「名称优先、否则坐标」的显示文案——槽位按钮 / 暂存点 / 航段名**三处唯一实现**。
+ *
+ * 坐标精度一律 4 位小数（`formatLngLat`：≈11m，够区分港区内两个泊位）。此前三处各写各的
+ * 回落表达式，其中一处还写死 3 位（≈111m），同一坐标在面板与航段名里精度不同且无任何提示；
+ * 现在精度只在 formatLngLat 一处，回落表达式只在这里一处。
+ */
 function slotName(p: RoutePoint): string {
   return p.name ?? formatLngLat(p)
 }

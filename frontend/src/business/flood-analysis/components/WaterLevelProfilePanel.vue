@@ -138,6 +138,19 @@ let disposed = false
 let analysisTimer: ReturnType<typeof setTimeout> | null = null
 
 /**
+ * 清掉待跑的水位防抖（重排前 / 转后台前 / 卸载时三处共用）。
+ *
+ * 🔴 必须「clearTimeout + 置 null」成对做：只 clear 不置 null 会留下一个仍为真值的
+ *    失效句柄，让后续 `if (analysisTimer)` 判据长期为真（下一轮 clear 一个已完成的
+ *    timer，无害但语义是假的）。三处的意图完全一致——「取消还没跑的那一轮」。
+ */
+function clearAnalysisTimer(): void {
+  if (!analysisTimer) return
+  clearTimeout(analysisTimer)
+  analysisTimer = null
+}
+
+/**
  * 跑一轮完整分析（淹没范围 → 影响评估）。
  *
  * ## 为什么两路串行
@@ -215,7 +228,8 @@ async function runAnalysis(waterLevel: number, viaTask = false): Promise<void> {
  *    用户在 dock 里"后台跑"的那次续跑由 `dockToTask()` 触发（拖拽 drop 事件链）。
  */
 function scheduleAnalysis(level: number): void {
-  if (analysisTimer) clearTimeout(analysisTimer)
+  // 重排：先清掉上一轮待跑的，再把本轮排到最后（连续拖动只跑最后一轮）
+  clearAnalysisTimer()
   analysisTimer = setTimeout(() => {
     analysisTimer = null
     void runAnalysis(level, false)
@@ -254,10 +268,8 @@ async function dockToTask(): Promise<boolean> {
     return true
   }
 
-  if (analysisTimer) {
-    clearTimeout(analysisTimer)
-    analysisTimer = null
-  }
+  // 转后台：待跑的那一轮直连作废（下面提交的任务会取当前水位，重复跑即双请求）
+  clearAnalysisTimer()
   abortInflight()
 
   requesting.value = true
@@ -576,6 +588,8 @@ onUnmounted(() => {
   //
   // 🔴 `abortInflight()` 只 abort **直连 HTTP**，不碰后端任务（见 useFloodRequest 头注释）。
   abortInflight()
+  // 卸载后再排请求无意义，待跑的那一轮直接作废。钩子内不调本地包装（owned-layers
+  // 判据默认拒绝非白名单调用），内联与 clearAnalysisTimer 等价的三行
   if (analysisTimer) {
     clearTimeout(analysisTimer)
     analysisTimer = null

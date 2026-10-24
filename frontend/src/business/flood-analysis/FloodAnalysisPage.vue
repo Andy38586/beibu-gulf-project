@@ -405,8 +405,8 @@ function renderFloodAreas(features: FloodFeature[]) {
     visible: true,
     data: { type: 'FeatureCollection', features },
     options: {
-      fillColor: getRiskFillColor(riskLevel),
-      strokeColor: getRiskColor(riskLevel),
+      fillColor: riskPalette(riskLevel).fill,
+      strokeColor: riskPalette(riskLevel).stroke,
       strokeWidth: 2,
       featureType: 'flood-area',
     },
@@ -447,12 +447,14 @@ function renderAffectedFacilities(facilities: AffectedFacility[]) {
   })
 }
 
-function getRiskColor(riskLevel: string) {
-  return (FLOOD_RISK_COLORS[riskLevel] ?? FLOOD_RISK_DEFAULT).stroke
-}
-
-function getRiskFillColor(riskLevel: string) {
-  return (FLOOD_RISK_COLORS[riskLevel] ?? FLOOD_RISK_DEFAULT).fill
+/**
+ * 风险等级 → 调色板（未识别等级回落默认色板）。
+ *
+ * 描边/填充此前是两份同形函数，各自重复一遍 `?? FLOOD_RISK_DEFAULT` 回落——
+ * 回落口径只有一个（缺等级不等于"没有颜色"），故收成一次解析，调用方各取 `.stroke` / `.fill`。
+ */
+function riskPalette(riskLevel: string) {
+  return FLOOD_RISK_COLORS[riskLevel] ?? FLOOD_RISK_DEFAULT
 }
 
 /**

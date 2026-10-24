@@ -87,6 +87,40 @@ export function useFloodRequest(): UseFloodRequestReturn {
     createImpactSignal()
   }
 
+  /**
+   * 三段取数共用的执行骨架（淹没分析 / 统计补齐 / 影响评估）。
+   *
+   * 三段此前各写一遍，只有「调哪个 adapter 方法」和「失败文案」不同，其余逐字相同：
+   * 建新 signal → await → 竞态校验 → 失败 toast + 日志 → 返回 null。
+   * 竞态校验必须出现**两次**：await 之后（迟到的成功响应不写回）与 catch 里
+   * （被抢占的请求 reject 的是 AbortError，不是业务错误，不该弹 toast）。
+   *
+   * @param createSignal 该路的竞态守卫（flood / impact 两路互不干扰，故由调用方注入）
+   * @param load 实际取数，signal 由本函数创建后传入
+   * @param fallback 失败 toast 文案
+   * @param log 失败日志前缀（含冒号，与收口前逐字一致）
+   */
+  async function loadWithSignal<T>(
+    createSignal: () => AbortSignal,
+    load: (signal: AbortSignal) => Promise<T>,
+    fallback: string,
+    log: string
+  ): Promise<T | null> {
+    const signal = createSignal()
+    try {
+      const data = await load(signal)
+      if (signal.aborted) return null
+      return data
+    } catch (error) {
+      // 主动取消（新请求抢占/卸载）静默——showError 只兜真实错误
+      if (signal.aborted) return null
+      // 失败用 toast：滑块拖动即自动重试，"重试"按钮是伪需求
+      showError(error, { fallback })
+      logger.error(log, error)
+      return null
+    }
+  }
+
   async function fetchAnalysis(
     waterLevel: number,
     viaTask = false
@@ -139,58 +173,46 @@ export function useFloodRequest(): UseFloodRequestReturn {
     }
 
     // ── 直连路径（滑块拖动走这条，与 v3 完全一致）────────────────────────
-    const signal = createFloodSignal()
-    try {
-      const { features, statistics, riskLevel, actualWaterLevel } =
-        await floodAdapter.getFloodAnalysis(waterLevel, { signal })
-      if (signal.aborted) return null
-      return {
-        features: features as FloodFeature[],
-        statistics: statistics as FloodStatistics,
-        riskLevel,
-        actualWaterLevel,
-      }
-    } catch (error) {
-      // 主动取消（新请求抢占/卸载）静默——showError 只兜真实错误
-      if (signal.aborted) return null
-      // 失败用 toast：滑块拖动即自动重试，"重试"按钮是伪需求
-      showError(error, { fallback: '淹没分析失败，请检查网络连接' })
-      logger.error('[Flood] 淹没分析失败:', error)
-      return null
+    const analysis = await loadWithSignal(
+      createFloodSignal,
+      (signal) => floodAdapter.getFloodAnalysis(waterLevel, { signal }),
+      '淹没分析失败，请检查网络连接',
+      '[Flood] 淹没分析失败:'
+    )
+    if (!analysis) return null
+
+    return {
+      features: analysis.features as FloodFeature[],
+      statistics: analysis.statistics as FloodStatistics,
+      riskLevel: analysis.riskLevel,
+      actualWaterLevel: analysis.actualWaterLevel,
     }
   }
 
   /** 单取统计数据（任务路径的补齐步骤；直连路径由 adapter 内部并行取） */
   async function fetchStatistics(waterLevel: number): Promise<FloodStatistics | null> {
-    const signal = createFloodSignal()
-    try {
-      const stats = await floodAdapter.getFloodStatistics(waterLevel, { signal })
-      if (signal.aborted) return null
-      return stats as FloodStatistics
-    } catch (error) {
-      if (signal.aborted) return null
-      showError(error, { fallback: '淹没统计加载失败，请检查网络连接' })
-      logger.error('[Flood] 统计加载失败:', error)
-      return null
-    }
+    const stats = await loadWithSignal(
+      createFloodSignal,
+      (signal) => floodAdapter.getFloodStatistics(waterLevel, { signal }),
+      '淹没统计加载失败，请检查网络连接',
+      '[Flood] 统计加载失败:'
+    )
+    // schema 解析类型 → 业务统计类型，单断言透传（与直连路径同口径）
+    return stats as FloodStatistics | null
   }
 
   async function fetchImpact(waterLevel: number): Promise<FloodImpactPayload | null> {
-    const signal = createImpactSignal()
-    try {
-      const { affectedFacilities, totalLoss } = await floodAdapter.getImpactAssessment(waterLevel, {
-        signal,
-      })
-      if (signal.aborted) return null
-      return {
-        affectedFacilities: affectedFacilities as AffectedFacility[],
-        totalLoss,
-      }
-    } catch (error) {
-      if (signal.aborted) return null
-      showError(error, { fallback: '影响评估失败，请检查网络连接' })
-      logger.error('[Flood] 影响评估失败:', error)
-      return null
+    const impact = await loadWithSignal(
+      createImpactSignal,
+      (signal) => floodAdapter.getImpactAssessment(waterLevel, { signal }),
+      '影响评估失败，请检查网络连接',
+      '[Flood] 影响评估失败:'
+    )
+    if (!impact) return null
+
+    return {
+      affectedFacilities: impact.affectedFacilities as AffectedFacility[],
+      totalLoss: impact.totalLoss,
     }
   }
 

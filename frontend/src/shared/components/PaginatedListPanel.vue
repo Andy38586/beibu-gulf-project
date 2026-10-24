@@ -91,6 +91,20 @@ const hasData = computed(() => props.items.length > 0)
 /** 是否需要分页控件 */
 const needPagination = computed(() => props.pageSize > 0 && totalPages.value > 1)
 
+/**
+ * 分页按钮配置：四个按钮只有 label 与跳转目标不同，按「左组 / 右组」两组收口。
+ * 组内 disabled 判据是同一个（已在首页 / 已在末页），故配置驱动优于四段重复模板；
+ * 中间的 page-info 把两组隔开，所以是两次 v-for 而不是一次（顺序即渲染顺序）。
+ */
+const prevPageActions = computed(() => [
+  { key: 'first', label: '<<', target: 1 },
+  { key: 'prev', label: '<', target: currentPage.value - 1 },
+])
+const nextPageActions = computed(() => [
+  { key: 'next', label: '>', target: currentPage.value + 1 },
+  { key: 'last', label: '>>', target: totalPages.value },
+])
+
 /** 收藏判定（全局 favorites 单例，itemType 随面板业务类型） */
 function isFav(item: ScoredXiaoqu): boolean {
   return isFavoriteInStore(favoriteItemType.value, item.id)
@@ -221,13 +235,16 @@ watch(
         <EmptyState :message="emptyText" :hint="emptyHint" icon="📭" />
       </div>
 
-      <!-- 分页控制区 -->
+      <!-- 分页控制区：左右两组同形按钮由配置驱动（见 prevPageActions / nextPageActions） -->
       <div v-if="needPagination" class="pagination-section">
-        <ElButton size="small" :disabled="currentPage === 1" @click="goToPage(1)">
-          &lt;&lt;
-        </ElButton>
-        <ElButton size="small" :disabled="currentPage === 1" @click="goToPage(currentPage - 1)">
-          &lt;
+        <ElButton
+          v-for="action in prevPageActions"
+          :key="action.key"
+          size="small"
+          :disabled="currentPage === 1"
+          @click="goToPage(action.target)"
+        >
+          {{ action.label }}
         </ElButton>
 
         <div class="page-info">
@@ -237,14 +254,13 @@ watch(
         </div>
 
         <ElButton
+          v-for="action in nextPageActions"
+          :key="action.key"
           size="small"
           :disabled="currentPage === totalPages"
-          @click="goToPage(currentPage + 1)"
+          @click="goToPage(action.target)"
         >
-          &gt;
-        </ElButton>
-        <ElButton size="small" :disabled="currentPage === totalPages" @click="goToPage(totalPages)">
-          &gt;&gt;
+          {{ action.label }}
         </ElButton>
       </div>
     </div>

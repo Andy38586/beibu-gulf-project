@@ -1213,5 +1213,7 @@
       "kind": "真清理",
       "note": "U11 模型点输出形状单一入口：model-loader 三处匿名同形字面量收口为 ModelForecastPoint"
     }
-  ]
+  ],
+  "moduleDeclGroups": 2,
+  "moduleDeclTokens": 48
 }

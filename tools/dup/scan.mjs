@@ -267,6 +267,19 @@ export function codeOf(source, ext) {
  * 判成调用重复并降权（`scan.test.mjs` 的「跨文件重复 ⇒ 检出并列出两侧文件」当场红）。
  * 那次红是对的——本条判据的失效模式就是把真重复洗白。
  */
+/**
+ * 「import / export…from 声明」判定（2026-10-24 扩降权口径，与 D5 具名调用降权同族）：
+ * 模块图的**声明**不是重复逻辑——两个模块 import 同一批名字是依赖图的自然形态，
+ * 收口手段是改依赖关系而不是抽函数。`import` 开头即声明（词条流会把 from 截掉，
+ * 不能依赖它）；`export` 须带 from 才算再导出声明——`export interface/const` 是真定义，
+ * 它的跨文件重复正是要抓的契约副本（flood.constants ↔ flood.ts 即此形态）。
+ */
+export function isModuleDeclaration(text) {
+  const s = text.trim()
+  if (/^import\b/.test(s)) return true
+  return /^export\b/.test(s) && /\bfrom\b/.test(s)
+}
+
 export function isNamedCallRepetition(text) {
   if (/[{}]/.test(text)) return false
   let s = text.trim()
@@ -299,24 +312,28 @@ export function scanTexts(entries, { minTokens = MIN_TOKENS } = {}) {
     if (sites.length < 2) continue
     const tokenCount = sites[0].tokenCount
     const callSite = isNamedCallRepetition(text)
+    const moduleDecl = isModuleDeclaration(text)
     groups.push({
       text,
       tokenCount,
       count: sites.length,
       files: [...new Set(sites.map((s) => s.file))],
-      // 具名调用重复降权为 0（仍列出），其余按「多写了几份」计
-      redundantTokens: callSite ? 0 : (sites.length - 1) * tokenCount,
-      kind: callSite ? 'call-site' : 'block',
+      // 具名调用 / import 声明降权为 0（仍列出），其余按「多写了几份」计
+      redundantTokens: callSite || moduleDecl ? 0 : (sites.length - 1) * tokenCount,
+      kind: callSite ? 'call-site' : moduleDecl ? 'module-decl' : 'block',
     })
   }
   groups.sort((a, b) => b.redundantTokens - a.redundantTokens || b.tokenCount - a.tokenCount)
   const callSiteGroups = groups.filter((g) => g.kind === 'call-site')
+  const moduleDeclGroups = groups.filter((g) => g.kind === 'module-decl')
   return {
     groups,
     totalGroups: groups.length,
     totalRedundantTokens: groups.reduce((a, g) => a + g.redundantTokens, 0),
     callSiteGroups: callSiteGroups.length,
     callSiteTokens: callSiteGroups.reduce((a, g) => a + g.count * g.tokenCount, 0),
+    moduleDeclGroups: moduleDeclGroups.length,
+    moduleDeclTokens: moduleDeclGroups.reduce((a, g) => a + g.count * g.tokenCount, 0),
   }
 }
 

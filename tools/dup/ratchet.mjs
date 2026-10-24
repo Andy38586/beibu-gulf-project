@@ -38,15 +38,31 @@ export const BASELINE_PATH = path.join(ROOT, 'tools/dup/baseline.json')
 
 /** 当前计数：总量 + 按模块 + 组明细。模块取路径前三段；组跨模块时冗余 token 入「跨模块」桶 */
 export function currentCounts() {
-  const { groups, totalGroups, totalRedundantTokens, callSiteGroups, callSiteTokens } =
-    scanDuplication()
+  const {
+    groups,
+    totalGroups,
+    totalRedundantTokens,
+    callSiteGroups,
+    callSiteTokens,
+    moduleDeclGroups,
+    moduleDeclTokens,
+  } = scanDuplication()
   const byModule = {}
   for (const g of groups) {
     const mods = [...new Set(g.files.map((f) => f.split('/').slice(0, 3).join('/')))]
     const key = mods.length === 1 ? mods[0] : '跨模块'
     byModule[key] = (byModule[key] ?? 0) + g.redundantTokens
   }
-  return { totalGroups, totalRedundantTokens, callSiteGroups, callSiteTokens, byModule, groups }
+  return {
+    totalGroups,
+    totalRedundantTokens,
+    callSiteGroups,
+    callSiteTokens,
+    moduleDeclGroups,
+    moduleDeclTokens,
+    byModule,
+    groups,
+  }
 }
 
 /**
@@ -101,6 +117,8 @@ function main() {
         // D5 降权口径：基线必须同步带这几字段，否则 ratchet 自身测试判「基线形状不对」
         callSiteGroups: current.callSiteGroups,
         callSiteTokens: current.callSiteTokens,
+        moduleDeclGroups: current.moduleDeclGroups,
+        moduleDeclTokens: current.moduleDeclTokens,
         byModule: current.byModule,
         groups: current.groups,
       },

@@ -19,6 +19,7 @@ import {
   balancedGroups,
   codeOf,
   compareToBaseline,
+  isModuleDeclaration,
   isNamedCallRepetition,
   scanTexts,
   tokenize,
@@ -130,6 +131,8 @@ describe('dup-scan — 重复表达式判据', () => {
     expect(typeof baseline.totalRedundantTokens).toBe('number')
     // D5 降权后新增两字段：基线必须带，否则降权口径与基线不同源
     expect(typeof baseline.callSiteGroups).toBe('number')
+    expect(typeof baseline.moduleDeclGroups).toBe('number')
+    expect(typeof baseline.moduleDeclTokens).toBe('number')
     expect(typeof baseline.callSiteTokens).toBe('number')
   })
 })
@@ -172,5 +175,35 @@ describe('D5 降权 — 具名调用重复不计冗余（防指标惩罚正确�
       isNamedCallRepetition('( adapterFn : ( ) => Promise < T > , transactionId : number )')
     ).toBe(false)
     expect(isNamedCallRepetition('if ( ! Number . isFinite ( v ) || v < 0 || v > 1 )')).toBe(false)
+  })
+})
+
+describe('module-decl 降权 — import 声明不计冗余（模块图的自然形态，2026-10-24）', () => {
+  it('@guard-red-sample 同一 import 声明重复 ⇒ 判 module-decl，冗余 token 记 0', () => {
+    // 长度须 ≥ MIN_TOKENS（12），否则测的是『没检出』不是降权——D5 用例同款教训
+    const line =
+      "import { AppLayout, GCSPanel, LayerControlPanel, StackSlot, useStackablePanels } from '@/core/layout'\n"
+    const r = scanTexts([{ relPath: 'a.vue', text: line + line }])
+    expect(r.moduleDeclGroups).toBeGreaterThan(0)
+    expect(r.totalRedundantTokens).toBe(0)
+  })
+
+  it('🔴 export interface（真定义）不得降权——跨文件类型副本正是要抓的契约漂移', () => {
+    const line =
+      'export interface FloodImpactPayload { affectedFacilities: AffectedFacility[] totalLoss: number }\n'
+    const r = scanTexts([
+      { relPath: 'a.ts', text: line },
+      { relPath: 'b.ts', text: line },
+    ])
+    expect(r.moduleDeclGroups).toBe(0)
+    expect(r.totalRedundantTokens).toBeGreaterThan(0)
+  })
+
+  it('isModuleDeclaration 谓词：import 即真；export 须带 from；export interface 为假', () => {
+    expect(isModuleDeclaration("import { A } from 'x'")).toBe(true)
+    expect(isModuleDeclaration('import { A }')).toBe(true)
+    expect(isModuleDeclaration("export * from './x'")).toBe(true)
+    expect(isModuleDeclaration('export interface X { a: number }')).toBe(false)
+    expect(isModuleDeclaration('const x = 1')).toBe(false)
   })
 })

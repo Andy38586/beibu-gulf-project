@@ -225,35 +225,26 @@ export class OLRenderer extends MapRenderer {
   _initBaseLayers(): void {
     const map = this.map
     if (!map) return
-    const imageLayers = MAP_CONFIG.BASE_LAYERS.image.layers.map((code: string) => {
-      const layer = new TileLayer({
-        source: createBaseTileSource(buildTiandituUrl(code)),
-        // c056：底图专用 className（区分影像/矢量，暗色 filter 见 style.css）
-        className: 'ol-base-layer ol-base-image',
+    // c056：底图专用 className（区分影像/矢量；暗色 filter 见 style.css，矢量走 invert 真变暗）
+    const buildBaseLayers = (codes: string[], type: 'image' | 'vector') =>
+      codes.map((code: string) => {
+        const layer = new TileLayer({
+          source: createBaseTileSource(buildTiandituUrl(code)),
+          className: `ol-base-layer ol-base-${type}`,
+        })
+        layer.set('isBaseMap', true)
+        layer.set('baseType', type)
+        // 矢量底图建层即隐藏（2D 首屏只显示影像，矢量由底图切换指令再显示）
+        if (type === 'vector') layer.setVisible(false)
+        return layer
       })
-      layer.set('isBaseMap', true)
-      layer.set('baseType', 'image')
-      return layer
-    })
-    const vectorLayers = MAP_CONFIG.BASE_LAYERS.vector.layers.map((code) => {
-      const layer = new TileLayer({
-        source: createBaseTileSource(buildTiandituUrl(code)),
-        // c056：矢量底图独立 className（暗色走 invert 真变暗，见 style.css）
-        className: 'ol-base-layer ol-base-vector',
-      })
-      layer.set('isBaseMap', true)
-      layer.set('baseType', 'vector')
-      layer.setVisible(false)
-      return layer
-    })
+    const imageLayers = buildBaseLayers(MAP_CONFIG.BASE_LAYERS.image.layers, 'image')
+    const vectorLayers = buildBaseLayers(MAP_CONFIG.BASE_LAYERS.vector.layers, 'vector')
     this.baseLayers.image = imageLayers
     this.baseLayers.vector = vectorLayers
 
-    imageLayers.forEach((l) => {
-      l.setZIndex(LAYER_DEFAULTS.zIndexBase)
-      map.addLayer(l)
-    })
-    vectorLayers.forEach((l) => {
+    // 挂载顺序：先 image 后 vector；行首分号防 ASI 把 [ 接成上一行的下标访问
+    ;[...imageLayers, ...vectorLayers].forEach((l) => {
       l.setZIndex(LAYER_DEFAULTS.zIndexBase)
       map.addLayer(l)
     })

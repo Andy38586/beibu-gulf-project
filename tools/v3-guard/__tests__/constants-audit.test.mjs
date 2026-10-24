@@ -11,7 +11,9 @@ import {
   parseFrontendBizCodes,
   parseNumericConst,
   parseNumericLiterals,
+  parseAliasTarget,
   parsePortMaps,
+  parseTsconfigAlias,
   parseViteProxyPorts,
   scanLocalGulfBoundsDefs,
 } from '../constants-audit.mjs'
@@ -133,8 +135,22 @@ const COMPOSE_V3 = `    ports:
 const VITE_CONFIG = `          target: 'http://127.0.0.1:3000',
           target: 'http://127.0.0.1:3000',
           target: 'http://127.0.0.1:3000',
+      alias: [
+        { find: '@', replacement: fileURLToPath(new URL('./src', import.meta.url)) },
 `
 const SERVER_SETUP = `PORT=3000
+`
+// PC-4 路径别名族：tsconfig 为参照（类型侧），vite/vitest 须同键同目标。
+const TSCONFIG_APP = `"compilerOptions": {
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+`
+const VITEST_CONFIG = `  resolve: {
+    alias: {
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+    },
+  },
 `
 
 // 全量基座：所有族的输入齐全（唯一来源扫描正常返回空）。各 describe 在此之上做覆盖/删键变异；
@@ -165,6 +181,8 @@ const base = {
   composeV3: COMPOSE_V3,
   viteConfig: VITE_CONFIG,
   serverSetup: SERVER_SETUP,
+  frontendTsconfigApp: TSCONFIG_APP,
+  frontendVitestConfig: VITEST_CONFIG,
 }
 
 describe('parseNumericConst — 数值常量解析', () => {
@@ -609,6 +627,59 @@ describe('端口跨进程副本对账（PC-3/W53）', () => {
       composeMain: "      PORT: '3000'\n      PG_PORT: '5432'\n",
     })
     expect(problems.some((p) => p.includes('端口副本解析失败') && p.includes('健康探针'))).toBe(
+      true
+    )
+  })
+})
+
+describe('路径别名三侧对账（PC-4/W43）', () => {
+  it('parseTsconfigAlias：剥离 glob 后缀与 ./ 前缀', () => {
+    expect(parseTsconfigAlias(TSCONFIG_APP)).toEqual({ key: '@', target: 'src' })
+  })
+
+  it('parseAliasTarget：按 key 锚定，不误咬同数组的正则 find 项', () => {
+    expect(parseAliasTarget(VITE_CONFIG, '@')).toBe('src')
+    expect(parseAliasTarget(VITE_CONFIG + '        { find: /^cesium$/ },', '@')).toBe('src')
+    expect(parseAliasTarget(VITEST_CONFIG, '@')).toBe('src')
+    expect(parseAliasTarget(VITE_CONFIG, '~')).toBeNull()
+  })
+
+  it('三侧同键同目标 → 无问题', () => {
+    expect(auditSharedConstants(base)).toEqual([])
+  })
+
+  it('等价重构：vitest 键改双引号、tsconfig 缩进变化 ⇒ 不误红', () => {
+    const problems = auditSharedConstants({
+      ...base,
+      frontendVitestConfig: VITEST_CONFIG.replace("'@'", '"@"'),
+      frontendTsconfigApp: TSCONFIG_APP.replace('    "paths"', '  "paths"'),
+    })
+    expect(problems).toEqual([])
+  })
+
+  it('@guard-red-sample vitest 目标漂移（./src → ./test）⇒ 必红（测试侧解析分叉）', () => {
+    const problems = auditSharedConstants({
+      ...base,
+      frontendVitestConfig: VITEST_CONFIG.replace('./src', './test'),
+    })
+    expect(problems.some((p) => p.includes('路径别名漂移') && p.includes('vitest.config.js'))).toBe(
+      true
+    )
+  })
+
+  it('@guard-red-sample tsconfig paths 被删 ⇒ 参照解析失败必红', () => {
+    const problems = auditSharedConstants({ ...base, frontendTsconfigApp: '{}' })
+    expect(problems.some((p) => p.includes('路径别名解析失败') && p.includes('tsconfig'))).toBe(
+      true
+    )
+  })
+
+  it('@guard-red-sample vite 别名键改名（@ → ~）⇒ 缺定义必红', () => {
+    const problems = auditSharedConstants({
+      ...base,
+      viteConfig: VITE_CONFIG.replace("find: '@'", "find: '~'"),
+    })
+    expect(problems.some((p) => p.includes("缺 '@' 的定义") && p.includes('vite.config.js'))).toBe(
       true
     )
   })

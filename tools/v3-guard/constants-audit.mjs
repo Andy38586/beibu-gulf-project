@@ -52,6 +52,12 @@ const COMPOSE_MAIN = 'docker-compose.yml'
 const COMPOSE_V3 = 'docker-compose.v3.yml'
 const FRONTEND_VITE_CONFIG = 'frontend/vite.config.js'
 const SERVER_SETUP_SH = 'scripts/server-setup.sh'
+// PC-4（W43）：路径别名对账。`@ → ./src` 在 tsconfig（类型侧）、vite（dev/build 侧）、
+// vitest（测试侧）各写一份，三套解析器互不隶属——改一处漏两处时 typecheck 与
+// 运行时/测试的解析分叉（测试绿但跑的是另一份代码）。以 tsconfig 为参照，
+// 另两处必须同键同目标。
+const FRONTEND_TSCONFIG_APP = 'frontend/tsconfig.app.json'
+const FRONTEND_VITEST_CONFIG = 'frontend/vitest.config.js'
 
 /** 单值端口副本站点表：re 的第 1 捕获组 = 端口数字。key 对应 auditSharedConstants 输入键 */
 const PORT_SITES = [
@@ -239,6 +245,35 @@ export function parseViteProxyPorts(content) {
 /** compose `ports:` 暴露映射 host:container 列表 */
 export function parsePortMaps(content) {
   return [...content.matchAll(/-\s*'(\d+):(\d+)'/g)].map((m) => [Number(m[1]), Number(m[2])])
+}
+
+/** 别名目标归一：`./src/*` 与 `./src` 是同一事实的两种记法（tsconfig 带 glob 后缀） */
+function normalizeAliasTarget(raw) {
+  return raw.replace(/^\.\//, '').replace(/\/\*$/, '')
+}
+
+/** tsconfig `paths` 首条：`"@/*": ["./src/*"]` → { key: '@', target: 'src' } */
+export function parseTsconfigAlias(content) {
+  const m = content.match(/"([^"/]+)\/\*"\s*:\s*\[\s*"([^"]+?)\/\*"\s*\]/)
+  if (!m) return null
+  return { key: m[1], target: normalizeAliasTarget(m[2]) }
+}
+
+/**
+ * vite/vitest 配置里 key 对应的别名目标（找不到返回 null）。
+ * 两种形状：vite 数组项 `find: '<key>', replacement: fileURLToPath(new URL('…'))`、
+ * vitest 对象 `'<key>': fileURLToPath(new URL('…'))`。按 key 精确锚定——
+ * vite 的 alias 数组里并存 `find: /^cesium$/`（正则形状），按 key 锚定才不会误咬。
+ */
+export function parseAliasTarget(content, key) {
+  const esc = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const m =
+    content.match(
+      new RegExp(
+        `find:\\s*['"]${esc}['"]\\s*,\\s*replacement:\\s*fileURLToPath\\(new URL\\('([^']+)'`
+      )
+    ) || content.match(new RegExp(`['"]${esc}['"]\\s*:\\s*fileURLToPath\\(new URL\\('([^']+)'`))
+  return m ? normalizeAliasTarget(m[1]) : null
 }
 
 export function auditSharedConstants(files) {
@@ -502,6 +537,30 @@ export function auditSharedConstants(files) {
       }
     }
   }
+  // 路径别名对账（PC-4/W43）：tsconfig 为参照，vite/vitest 必须同键同目标；
+  // 任一处解析失败（被删/改名）即红，不许静默当通过。
+  const tsAlias = parseTsconfigAlias(files.frontendTsconfigApp ?? '')
+  if (!tsAlias) {
+    problems.push('路径别名解析失败：frontend/tsconfig.app.json 无 paths 别名（被删/改名？）')
+  } else {
+    const aliasSites = [
+      ['frontend/vite.config.js', parseAliasTarget(files.viteConfig ?? '', tsAlias.key)],
+      [
+        'frontend/vitest.config.js',
+        parseAliasTarget(files.frontendVitestConfig ?? '', tsAlias.key),
+      ],
+    ]
+    for (const [file, target] of aliasSites) {
+      if (target === null) {
+        problems.push(`路径别名解析失败：${file} 缺 '${tsAlias.key}' 的定义（被改名/删除？）`)
+      } else if (target !== tsAlias.target) {
+        problems.push(
+          `路径别名漂移：${file} 的 '${tsAlias.key}'→'${target}' 与 tsconfig 的 ` +
+            `'${tsAlias.key}'→'${tsAlias.target}' 不一致（三套解析器须同键同目标）`
+        )
+      }
+    }
+  }
   return problems
 }
 
@@ -597,12 +656,14 @@ function main() {
     composeV3: read(COMPOSE_V3),
     viteConfig: read(FRONTEND_VITE_CONFIG),
     serverSetup: read(SERVER_SETUP_SH),
+    frontendTsconfigApp: read(FRONTEND_TSCONFIG_APP),
+    frontendVitestConfig: read(FRONTEND_VITEST_CONFIG),
   })
   if (problems.length === 0) {
     console.log(
       '[constants-audit] OK：水位上限/业务边界框（含 tools 侧）/寻路 mode 双侧一致、' +
         'flood 分段 TS↔PY 一致、跨端请求头名逐字相等、浮点容差前端子集同值、' +
-        '端口 3000/5432 全部副本对等，前端业务码 ⊆ 后端 ErrorCode'
+        '端口 3000/5432 全部副本对等、路径别名三侧同键同目标，前端业务码 ⊆ 后端 ErrorCode'
     )
     return
   }

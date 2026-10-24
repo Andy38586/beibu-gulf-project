@@ -2,7 +2,8 @@ import { computed, ref } from 'vue'
 
 import { isStackSlotZone } from '@/shared/composables/usePanelDrag'
 
-export interface StackablePanelSpec {
+/** 面板规格（仅本文件签名用；页面传字面量数组，不需要 import 此类型） */
+interface StackablePanelSpec {
   id: string
   label: string
 }

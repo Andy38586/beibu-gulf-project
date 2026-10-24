@@ -47,6 +47,7 @@ export const GUARDS = [
   'tmp-hygiene',
   'guard-red-sample',
   'owned-layers',
+  'cesium-import-allowlist',
   'layer-keys',
   'vue-list-keys',
   'host-object-cast',

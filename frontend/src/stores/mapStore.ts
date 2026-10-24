@@ -29,6 +29,14 @@ export const useMapStore = defineStore('map', () => {
   const mapType: Ref<MapType> = ref('2d')
   // shallowRef（浅响应式）：条目变更由各 action 重建数组触发，避免深度代理 50 个图层对象
   const layerCatalog: ShallowRef<LayerEntry[]> = shallowRef([])
+
+  /** 不可变更新条目（配合 shallowRef 浅响应式）：命中项替换，其余保持原引用 */
+  function patchEntries(
+    match: (e: LayerEntry) => boolean,
+    patch: (e: LayerEntry) => LayerEntry
+  ): void {
+    layerCatalog.value = layerCatalog.value.map((e) => (match(e) ? patch(e) : e))
+  }
   const baseLayerKey: Ref<string | null> = ref(readStoredBaseLayer())
 
   /** 当前渲染器引用（由UnifiedMap设置，供业务组件访问） */
@@ -95,8 +103,9 @@ export const useMapStore = defineStore('map', () => {
     const existing = findLayerEntry(key)
     if (existing) {
       // 已存在则更新可见性与类型（不可变更新，配合 shallowRef 浅响应式）
-      layerCatalog.value = layerCatalog.value.map((e: LayerEntry) =>
-        e.key === key ? { ...e, visible, layerType, engines, listed, locked } : e
+      patchEntries(
+        (e) => e.key === key,
+        (e) => ({ ...e, visible, layerType, engines, listed, locked })
       )
       return
     }
@@ -129,10 +138,10 @@ export const useMapStore = defineStore('map', () => {
     if (baseLayerKey.value === key && entry.visible && renderer === lastBaseRenderer) return
 
     // base 条目互斥可见（不可变更新，配合 shallowRef 浅响应式）
-    layerCatalog.value = layerCatalog.value.map((e: LayerEntry) => {
-      if (e.category !== 'base') return e
-      return { ...e, visible: e.key === key }
-    })
+    patchEntries(
+      (e) => e.category === 'base',
+      (e) => ({ ...e, visible: e.key === key })
+    )
 
     baseLayerKey.value = key
     writeStoredBaseLayer(key)
@@ -162,8 +171,9 @@ export const useMapStore = defineStore('map', () => {
       logger.debug(`setLayerVisible: 未找到key为“${key}”的图层`)
       return
     }
-    layerCatalog.value = layerCatalog.value.map((e: LayerEntry) =>
-      e.key === key ? { ...e, visible } : e
+    patchEntries(
+      (e) => e.key === key,
+      (e) => ({ ...e, visible })
     )
   }
 

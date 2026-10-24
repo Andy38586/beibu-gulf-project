@@ -58,7 +58,7 @@ const placements = usePanelPlacements(DIVERSION_PANELS)
 const STACKABLE_PANELS = [
   { id: 'transfer', label: '转移量' },
   { id: 'sankey', label: '桑基图' },
-] as const
+]
 const { stackItems, isStacked, onDrop, restore } = useStackablePanels(STACKABLE_PANELS)
 
 // ── 3D 弧线可视化（Cesium ③）──

@@ -35,7 +35,7 @@ const placements = usePanelPlacements(SITE_SUITABILITY_PANELS)
 const STACKABLE_PANELS = [
   { id: 'radar', label: '五准则画像' },
   { id: 'candidates', label: '候选格名单' },
-] as const
+]
 const { stackItems, isStacked, onDrop, restore } = useStackablePanels(STACKABLE_PANELS)
 
 /**

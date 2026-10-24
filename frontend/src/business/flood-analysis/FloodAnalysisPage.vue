@@ -48,7 +48,7 @@ const taskStore = useTaskStore()
 const STACKABLE_PANELS = [
   { id: 'report', label: '浸没分析报告' },
   { id: 'facilities', label: '受影响设施' },
-] as const
+]
 const { stackItems, isStacked, onDrop, restore } = useStackablePanels(STACKABLE_PANELS)
 const { manager: businessLayerManager } = useBusinessLayers()
 

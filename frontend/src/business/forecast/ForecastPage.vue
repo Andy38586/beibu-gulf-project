@@ -47,7 +47,7 @@ const { doForecastUpdate, cancelAll } = provideForecastOrchestrator({ updateFore
 const STACKABLE_PANELS = [
   { id: 'line', label: '预测趋势' },
   { id: 'bar', label: '港口对比' },
-] as const
+]
 const {
   stackItems,
   isStacked,

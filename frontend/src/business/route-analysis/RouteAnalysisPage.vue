@@ -149,7 +149,7 @@ const mapStore = useMapStore()
 const taskStore = useTaskStore()
 
 // 路径结果面板共用堆叠拖拽（与预测/选址/分流同一方法）
-const STACKABLE_PANELS = [{ id: 'result', label: '路径结果' }] as const
+const STACKABLE_PANELS = [{ id: 'result', label: '路径结果' }]
 const { stackItems, isStacked, onDrop, restore } = useStackablePanels(STACKABLE_PANELS)
 
 /** v4：本页路由标识（taskStore 按 route 分槽的 key；与 manifest.path 一致） */

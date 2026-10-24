@@ -100,17 +100,22 @@ function assertPolygonArray(data: unknown): asserts data is PolygonFeature[] {
   }
 }
 
+/** 能力守卫的唯一实现：某方法存在即认为具备该能力（六个 isXxxCapable 共用） */
+function hasCapability<C>(renderer: MapRenderer, method: string): renderer is MapRenderer & C {
+  return typeof (renderer as unknown as Record<string, unknown>)[method] === 'function'
+}
+
 /** 水面能力检查：渲染器是否实现 Water3DCapability（3D 专用，仅 CesiumRenderer）。
  *  对外导出——业务页注册水面/DEM 前用能力检查替代 getType() 引擎判断 */
 export function isWater3DCapable(
   renderer: MapRenderer
 ): renderer is MapRenderer & Water3DCapability {
-  return typeof (renderer as Partial<Water3DCapability>).addWaterSurface === 'function'
+  return hasCapability<Water3DCapability>(renderer, 'addWaterSurface')
 }
 
 /** GeoTIFF 能力检查：Cesium 独占（3D hillshade 贴图回退；OL 2D COG 已按 Cesium 独占定义移除） */
 function isGeoTIFFCapable(renderer: MapRenderer): renderer is MapRenderer & GeoTIFFCapability {
-  return typeof (renderer as Partial<GeoTIFFCapability>).addGeoTIFFLayer === 'function'
+  return hasCapability<GeoTIFFCapability>(renderer, 'addGeoTIFFLayer')
 }
 
 /** geotiff 创建/重建共用的失败上行半边（a029）：addGeoTIFFLayer 以**返回值**表达失败（不抛
@@ -133,7 +138,7 @@ function applyGeoTIFFOrReport(
 
 /** 热力图能力检查：仅 OL 实现（2D Only） */
 function isHeatmapCapable(renderer: MapRenderer): renderer is MapRenderer & HeatmapCapability {
-  return typeof (renderer as Partial<HeatmapCapability>).addHeatmapLayer === 'function'
+  return hasCapability<HeatmapCapability>(renderer, 'addHeatmapLayer')
 }
 
 /** 3D Tiles 能力检查：仅 Cesium 实现（Cesium3DTileset 流式加载瓦片集）。
@@ -141,7 +146,7 @@ function isHeatmapCapable(renderer: MapRenderer): renderer is MapRenderer & Heat
 export function isTiles3DCapable(
   renderer: MapRenderer
 ): renderer is MapRenderer & Tiles3DCapability {
-  return typeof (renderer as Partial<Tiles3DCapability>).add3DTilesLayer === 'function'
+  return hasCapability<Tiles3DCapability>(renderer, 'add3DTilesLayer')
 }
 
 /** 单张影像覆盖能力检查：仅 Cesium 实现（SingleTileImageryProvider 按矩形铺图）。
@@ -149,7 +154,7 @@ export function isTiles3DCapable(
 export function isImageOverlayCapable(
   renderer: MapRenderer
 ): renderer is MapRenderer & ImageOverlayCapability {
-  return typeof (renderer as Partial<ImageOverlayCapability>).addImageOverlayLayer === 'function'
+  return hasCapability<ImageOverlayCapability>(renderer, 'addImageOverlayLayer')
 }
 
 /**
@@ -228,7 +233,7 @@ function applyTiles3DOrReport(
 function isTerrainCapable(
   renderer: MapRenderer
 ): renderer is MapRenderer & TerrainToggleCapability {
-  return typeof (renderer as Partial<TerrainToggleCapability>).setTerrainEnabled === 'function'
+  return hasCapability<TerrainToggleCapability>(renderer, 'setTerrainEnabled')
 }
 
 /** Adapter 函数签名 */

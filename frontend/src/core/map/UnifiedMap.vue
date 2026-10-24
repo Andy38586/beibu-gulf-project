@@ -133,6 +133,11 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number, errorMessage: st
   return Promise.race([promise, timeoutPromise]).finally(() => clearTimeout(timeoutId))
 }
 
+/** 错误归一化：非 Error 的抛出值（字符串/对象/null）统一包成 Error，保证 .message 可读 */
+function toError(reason: unknown): Error {
+  return reason instanceof Error ? reason : new Error(String(reason))
+}
+
 // v-show切换后浏览器未必完成layout，用rAF等待容器有实际尺寸再初始化渲染器
 // rafIds 收集器供 onUnmounted 取消，防止组件卸载后回调仍执行
 const _pendingRafIds = new Set<number>()
@@ -191,10 +196,7 @@ async function loadData() {
       portEmptyWarning.value = '港口数据为空：未获取到任何港口，港口位置图层未显示'
     }
   } else {
-    const err =
-      portsResult.reason instanceof Error
-        ? portsResult.reason
-        : new Error(String(portsResult.reason))
+    const err = toError(portsResult.reason)
     logger.error('港口数据加载失败:', err)
 
     loadError.value = err.message.includes('超时') ? err.message : '港口图层加载失败，请刷新重试'
@@ -203,10 +205,7 @@ async function loadData() {
   if (boundaryResult.status === 'fulfilled' && boundaryResult.value) {
     boundaryGeoJson = boundaryResult.value
   } else if (boundaryResult.status === 'rejected') {
-    const err =
-      boundaryResult.reason instanceof Error
-        ? boundaryResult.reason
-        : new Error(String(boundaryResult.reason))
+    const err = toError(boundaryResult.reason)
     logger.error('边界数据加载失败:', err)
 
     loadError.value = err.message.includes('超时') ? err.message : '行政区划图层加载失败'
@@ -297,7 +296,7 @@ async function initRenderer(type: '2d' | '3d', container: HTMLElement | null) {
       reapplyBusinessLayers(renderer)
     }
   } catch (error) {
-    const err = error instanceof Error ? error : new Error(String(error))
+    const err = toError(error)
     logger.error(`Renderer ${type} 初始化失败:`, err)
 
     loadError.value = err.message || '地图初始化失败'
@@ -560,7 +559,7 @@ async function switchMapType(newType: '2d' | '3d') {
       currentRenderer.value.importState(cameraState)
     }
   } catch (error) {
-    const err = error instanceof Error ? error : new Error(String(error))
+    const err = toError(error)
     logger.error(`切换到 ${newType} 失败:`, err)
 
     loadError.value = err.message || '地图切换失败'

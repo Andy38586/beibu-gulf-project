@@ -121,6 +121,13 @@ export const useTaskStore = defineStore('task', () => {
    * 🔴 保留 `docked`：它表达的是「用户是否把面板拖进了 dock」这一**展示语义**，
    * 后端不知道也不该知道。若这里整体覆写，任务每次轮询回来都会把面板"弹"出来。
    */
+  /** 槽位部分更新（不可变；slot 不存在时保持原状） */
+  function patchSlot(route: string, patch: Partial<TaskSlot>): void {
+    const slot = slots.value[route]
+    if (!slot) return
+    slots.value[route] = { ...slot, ...patch }
+  }
+
   function mergeView(route: string, view: TaskView): void {
     const existing = slots.value[route]
     if (!existing) return
@@ -131,8 +138,7 @@ export const useTaskStore = defineStore('task', () => {
       showWarning('服务繁忙，正在重试…')
     }
 
-    slots.value[route] = {
-      ...existing,
+    patchSlot(route, {
       status: view.status,
       progress: view.progress,
       queuePosition: view.queuePosition,
@@ -141,7 +147,7 @@ export const useTaskStore = defineStore('task', () => {
       error: view.error,
       startedAt: view.startedAt,
       finishedAt: view.finishedAt,
-    }
+    })
   }
 
   /** 终态处理：停轮询、放控制器、按需提示 */
@@ -341,7 +347,7 @@ export const useTaskStore = defineStore('task', () => {
       mergeView(route, view)
     } catch {
       // 后端失败（可能刚好终态或已被回收）：本地按取消处理，避免面板卡在"运行中"
-      slots.value[route] = { ...slot, status: 'cancelled', error: { message: '任务已取消' } }
+      patchSlot(route, { status: 'cancelled', error: { message: '任务已取消' } })
     }
   }
 
@@ -404,7 +410,7 @@ export const useTaskStore = defineStore('task', () => {
   function setDocked(route: string, docked: boolean): void {
     const slot = slots.value[route]
     if (!slot) return
-    slots.value[route] = { ...slot, docked }
+    patchSlot(route, { docked })
   }
 
   /**

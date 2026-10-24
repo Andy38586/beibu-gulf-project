@@ -17,6 +17,7 @@ import {
   ALLOWED,
   auditOptionalProducers,
   candidateBlocks,
+  MANAGED as REAL_MANAGED,
   optionalFieldsOf,
 } from '../optional-field-producer.mjs'
 
@@ -108,6 +109,17 @@ describe('optionalFieldsOf / candidateBlocks：判据域的形状', () => {
     expect(blocks.some((b) => /\ba\s*:/.test(b))).toBe(true)
     expect(blocks.some((b) => /\bb\s*:/.test(b))).toBe(true)
     expect(blocks.some((b) => /\bc\s*:/.test(b))).toBe(true)
+  })
+
+  it('扩接口棘轮：CameraState 必须在受管清单（2026-10-24 §四-10 扩容不得静默缩域）', () => {
+    expect(
+      REAL_MANAGED.some(
+        (m) => m.name === 'CameraState' && m.file === 'frontend/src/types/renderer.ts'
+      )
+    ).toBe(true)
+    // 同族对照：数据载体接口（GeoJSON Feature 形状）不得进受管清单——
+    // 其字段由后端数据/GeoJSON 解析动态生产，L2/L3 字面量口径结构性不可见，纳入只会产出永久豁免
+    expect(REAL_MANAGED.every((m) => !/(Point|Polygon)Feature/.test(m.name))).toBe(true)
   })
 
   it('真实豁免清单每条都写了理由（空理由 = 无豁免）', () => {

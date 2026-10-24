@@ -41,11 +41,16 @@ import ts from 'typescript'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 
-/** 受管接口：声明文件 + 接口名。新增受管接口 = 改判据域（AGENTS §四-10）。 */
+/** 受管接口：声明文件 + 接口名。新增受管接口 = 改判据域（AGENTS §四-10）。
+ *  2026-10-24 PB-1 扩接口（§109 取证后用户已批「六件判据域」）：renderer.ts 内带可选字段的
+ *  能力形接口 6 个——LayerOptions/FlyToOptions/WaterSurfaceOptions 已管，本次补 CameraState；
+ *  PointFeature/PolygonFeature 是 GeoJSON 数据载体（properties/coordinates 由后端数据与
+ *  GeoJSON 解析动态生产，L2/L3 代码字面量口径结构性不可见），纳入只会产出永久豁免，成文不纳。 */
 export const MANAGED = [
   { file: 'frontend/src/types/renderer.ts', name: 'LayerOptions' },
   { file: 'frontend/src/types/renderer.ts', name: 'FlyToOptions' },
   { file: 'frontend/src/types/renderer.ts', name: 'WaterSurfaceOptions' },
+  { file: 'frontend/src/types/renderer.ts', name: 'CameraState' },
 ]
 
 /**
@@ -60,6 +65,15 @@ export const ALLOWED = [
       'Cesium 相机朝向三件套（heading/pitch/roll）中 roll 由 CameraState 侧构造' +
       '（`core/config/map.ts:98` 的 `roll: 0` 与 CesiumRenderer 三处），' +
       '不经 FlyToOptions 传；保留字段是为与 CameraState 形状对齐，避免调用方拼半个朝向。',
+  },
+  {
+    iface: 'CameraState',
+    field: 'roll',
+    why:
+      '相机朝向三件套同源：roll 的真实生产点是 `core/config/map.ts:98` 的 CAMERA 配置字面量与 ' +
+      'CesiumRenderer 相机字面量（:684/:884/:973 的 `roll: 0`），均无 `CameraState` 类型标注，' +
+      'L2 形态抓不到（2026-10-24 精确 grep 实证）；renderer.ts 的 CameraState.roll 是读侧契约。' +
+      '删除条件：相机朝向重构把 roll 收进类型化字面量（届时 L2 可见，豁免同笔删）或 roll 字段删除。',
   },
 ]
 

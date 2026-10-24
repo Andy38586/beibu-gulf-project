@@ -65,18 +65,22 @@ export function useTaskApi(): UseTaskApiReturn {
     [TASK_CLIENT_HEADER]: taskClientId(),
   })
 
+  /** 三个请求点共用的轮询选项（超时 + 不重试），避免三处逐行重复 */
+  const pollOptions = () => ({
+    headers: clientHeaders(),
+    timeoutMs: POLL_TIMEOUT_MS,
+    retry: false,
+  })
+
   return {
     async submit(payload) {
       const res = await apiRequest<unknown>(ENDPOINTS.task.root, {
         method: 'POST',
         body: JSON.stringify(payload),
-        headers: clientHeaders(),
         // 提交应当很快（后端实测 < 100ms），超时给 8s 足够；
         // 不开重试：提交重试会创建重复任务（后端虽按 route 去重，但会平白取消掉刚提交的那个）
-        timeoutMs: POLL_TIMEOUT_MS,
-        retry: false,
-      })
-      // 契约校验（三个请求点都必须过）：后端删/改名必填字段时当场抛错，
+        ...pollOptions(),
+      }) // 契约校验（三个请求点都必须过）：后端删/改名必填字段时当场抛错，
       // 而不是让 queuePosition/status 静默变 undefined 一路漏到 UI
       return taskSubmitResponseSchema.parse(res) satisfies TaskSubmitResponse
     },
@@ -84,10 +88,8 @@ export function useTaskApi(): UseTaskApiReturn {
     async get(taskId, signal) {
       try {
         const res = await apiRequest<unknown>(ENDPOINTS.task.byId(taskId), {
-          headers: clientHeaders(),
+          ...pollOptions(),
           signal,
-          timeoutMs: POLL_TIMEOUT_MS,
-          retry: false,
         })
         return taskViewResponseSchema.parse(res) satisfies TaskView
       } catch (error) {
@@ -111,9 +113,7 @@ export function useTaskApi(): UseTaskApiReturn {
     async cancel(taskId) {
       const res = await apiRequest<unknown>(ENDPOINTS.task.byId(taskId), {
         method: 'DELETE',
-        headers: clientHeaders(),
-        timeoutMs: POLL_TIMEOUT_MS,
-        retry: false,
+        ...pollOptions(),
       })
       return taskViewResponseSchema.parse(res) satisfies TaskView
     },

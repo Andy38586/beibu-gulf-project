@@ -904,16 +904,20 @@ export class OLRenderer extends MapRenderer {
     }
     this._breathingAnimId = requestAnimationFrame(animate)
   }
+  /** 呼吸层公共清理：先停帧（有则取消）再摘层并释放；字段置空由调用方负责，保持原执行顺序 */
+  private disposeBreathingPair(animId: number | null, layer: VectorLayer | null): void {
+    if (animId) {
+      cancelAnimationFrame(animId)
+    }
+    if (layer) {
+      this.map?.removeLayer(layer)
+      layer.dispose()
+    }
+  }
   stopBreathing(): void {
-    if (this._breathingAnimId) {
-      cancelAnimationFrame(this._breathingAnimId)
-      this._breathingAnimId = null
-    }
-    if (this._breathingLayer) {
-      this.map?.removeLayer(this._breathingLayer)
-      this._breathingLayer.dispose()
-      this._breathingLayer = null
-    }
+    this.disposeBreathingPair(this._breathingAnimId, this._breathingLayer)
+    this._breathingAnimId = null
+    this._breathingLayer = null
   }
   /**
    * 设施 POI 专属呼吸（第二层筛选主角）：旧版缩放式动效——半径 10±5 脉动 + 透明度随动，视觉显眼。
@@ -953,15 +957,9 @@ export class OLRenderer extends MapRenderer {
     this._facilityBreathingAnimId = requestAnimationFrame(animate)
   }
   stopFacilityBreathing(): void {
-    if (this._facilityBreathingAnimId) {
-      cancelAnimationFrame(this._facilityBreathingAnimId)
-      this._facilityBreathingAnimId = null
-    }
-    if (this._facilityBreathingLayer) {
-      this.map?.removeLayer(this._facilityBreathingLayer)
-      this._facilityBreathingLayer.dispose()
-      this._facilityBreathingLayer = null
-    }
+    this.disposeBreathingPair(this._facilityBreathingAnimId, this._facilityBreathingLayer)
+    this._facilityBreathingAnimId = null
+    this._facilityBreathingLayer = null
   }
   getType() {
     // 返回 '2d' 与 MapType 一致：原 'ol' 与 mapType==='2d'/'3d' 比较错位（切换白屏、同类型短路）

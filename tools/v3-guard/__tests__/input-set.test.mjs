@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 
 import { afterAll, describe, expect, it } from 'vitest'
 
+import { LIVE_DOCS } from '../agent-docs-check.mjs'
 import { collectCandidates } from '../lib/collect-candidates.mjs'
 import { emptyInputProblem } from '../lib/input-set.mjs'
 
@@ -31,6 +32,12 @@ const GUARD_SRC = (name) =>
   fs.readFileSync(path.join(ROOT, 'tools/v3-guard', `${name}.mjs`), 'utf8')
 const LIB_SRC = (name) =>
   fs.readFileSync(path.join(ROOT, 'tools/v3-guard/lib', `${name}.mjs`), 'utf8')
+
+// owned-layers 模块加载时硬读的实现件（派生注册语义集）——夹具用版本控制内的真件
+const OWNED_LAYERS_SRC_TEXT = fs.readFileSync(
+  path.join(ROOT, 'frontend/src/core/map/composables/useOwnedLayers.ts'),
+  'utf8'
+)
 
 /** 起子进程跑守卫；非零退出不抛，返回 {code, output} */
 function runGuard(root, name) {
@@ -177,5 +184,159 @@ describe('collectCandidates：git 故障不得伪装成 0 命中', () => {
         accept: (rel) => /\.ts$/.test(rel),
       })
     ).toThrow(/不是「0 命中」/)
+  })
+})
+
+describe('W58 扩 5 守卫：layer-keys / guard-red-sample / owned-layers / tmp-hygiene / agent-docs-check', () => {
+  // layer-keys：词表文件本身在扫描面内，纯输入 sabotage 构造不出「词表在、扫描面空」；
+  // 真实失效形态是「源码目录挪位而词表留原地」——用改写复制件的 SRC_ROOT 模拟（内容即输入）。
+  it('layer-keys 扫描面挪位 ⇒ exit 1，不得报「无裸写」', () => {
+    const r = root({
+      'tools/v3-guard/layer-keys.mjs': GUARD_SRC('layer-keys').replace(
+        "'frontend/src'",
+        "'frontend/src-void'"
+      ),
+      'tools/v3-guard/lib/input-set.mjs': LIB_SRC('input-set'),
+      'frontend/src/shared/constants/layers.ts':
+        "export const LAYER_KEYS = { port: 'port' } as const\n",
+    })
+    const { code, output } = runGuard(r, 'layer-keys')
+    expect(code).toBe(1)
+    expect(output).toContain('扫描到 0 个源文件')
+    expect(output).not.toContain('判据域内无裸写')
+  })
+
+  it('layer-keys 阳性对照：扫描面在（1 个源文件 + 词表）⇒ exit 0', () => {
+    const r = root({
+      'tools/v3-guard/layer-keys.mjs': GUARD_SRC('layer-keys'),
+      'tools/v3-guard/lib/input-set.mjs': LIB_SRC('input-set'),
+      'frontend/src/shared/constants/layers.ts':
+        "export const LAYER_KEYS = { port: 'port' } as const\n",
+      'frontend/src/business/a.vue': '<template><div /></template>\n',
+    })
+    const { code, output } = runGuard(r, 'layer-keys')
+    expect(output).toContain('OK：判据域内无裸写')
+    expect(code).toBe(0)
+  })
+
+  // guard-red-sample：登记清空时分母自洽检查是 0==0 通过——用空 GUARDS 的 run-all 替身模拟
+  it('guard-red-sample 登记被清空 ⇒ exit 1，不得报「已交付红样」', () => {
+    const r = root({
+      'tools/v3-guard/guard-red-sample.mjs': GUARD_SRC('guard-red-sample'),
+      'tools/v3-guard/run-all.mjs':
+        "export const EXECUTOR_NAME = 'run-all'\nexport const GUARDS = []\n" +
+        'export const SEPARATELY_RUN = []\n',
+      'tools/v3-guard/lib/input-set.mjs': LIB_SRC('input-set'),
+    })
+    const { code, output } = runGuard(r, 'guard-red-sample')
+    expect(code).toBe(1)
+    expect(output).toContain('扫描到 0 个守卫')
+    expect(output).not.toContain('已交付红样')
+  })
+
+  it('guard-red-sample 阳性对照：1 个守卫带红样 ⇒ exit 0', () => {
+    const r = root({
+      'tools/v3-guard/guard-red-sample.mjs': GUARD_SRC('guard-red-sample'),
+      'tools/v3-guard/run-all.mjs':
+        "export const EXECUTOR_NAME = 'run-all'\nexport const GUARDS = ['demo-g']\n" +
+        'export const SEPARATELY_RUN = []\n',
+      'tools/v3-guard/lib/input-set.mjs': LIB_SRC('input-set'),
+      'tools/v3-guard/demo-g.mjs': 'export const x = 1\n',
+      'tools/v3-guard/__tests__/demo-g.test.mjs':
+        "import { it } from 'vitest'\nit('@guard-red-sample 样例', () => {})\n",
+    })
+    const { code, output } = runGuard(r, 'guard-red-sample')
+    expect(output).toContain('1 个已交付红样')
+    expect(code).toBe(0)
+  })
+
+  // owned-layers：扫描面是 frontend/src/business——目录整个缺席 = 纯输入 sabotage 可达。
+  // 守卫模块加载时硬读 useOwnedLayers.ts 派生注册语义集，夹具必须带真件（版本控制内输入）。
+  it('owned-layers 扫到 0 个源文件 ⇒ exit 1，不得报「全部在白名单」', () => {
+    const r = root({
+      'tools/v3-guard/owned-layers.mjs': GUARD_SRC('owned-layers'),
+      'tools/v3-guard/lib/input-set.mjs': LIB_SRC('input-set'),
+      'frontend/src/core/map/composables/useOwnedLayers.ts': OWNED_LAYERS_SRC_TEXT,
+      'frontend/src/.keep': '',
+    })
+    const { code, output } = runGuard(r, 'owned-layers')
+    expect(code).toBe(1)
+    expect(output).toContain('扫描到 0 个源文件')
+    expect(output).not.toContain('全部在白名单')
+  })
+
+  it('owned-layers 阳性对照：1 个无违规的 .vue ⇒ exit 0', () => {
+    const r = root({
+      'tools/v3-guard/owned-layers.mjs': GUARD_SRC('owned-layers'),
+      'tools/v3-guard/lib/input-set.mjs': LIB_SRC('input-set'),
+      'frontend/src/core/map/composables/useOwnedLayers.ts': OWNED_LAYERS_SRC_TEXT,
+      'frontend/src/business/a.vue': '<template><div /></template>\n',
+    })
+    const { code, output } = runGuard(r, 'owned-layers')
+    expect(output).toContain('1 个业务页面')
+    expect(code).toBe(0)
+  })
+
+  // tmp-hygiene：WATCHED 清空（复制件改写 = 登记) ⇒ scannedDirs 0 ⇒ 红；部分缺失仍合法跳过
+  it('tmp-hygiene 受控目录表清空 ⇒ exit 1，不得报「N 个受控目录无残留」', () => {
+    const r = root({
+      'tools/v3-guard/tmp-hygiene.mjs': GUARD_SRC('tmp-hygiene').replace(
+        "['.', 'docs', 'tools', 'scripts', 'backend', 'frontend']",
+        '[]'
+      ),
+      'tools/v3-guard/lib/input-set.mjs': LIB_SRC('input-set'),
+      'tools/v3-guard/lib/git-ignored.mjs': LIB_SRC('git-ignored'),
+    })
+    const { code, output } = runGuard(r, 'tmp-hygiene')
+    expect(code).toBe(1)
+    expect(output).toContain('扫描到 0 个受控目录')
+    expect(output).not.toContain('无临时文件')
+  })
+
+  it('tmp-hygiene 阳性对照：未改件的真仓形态（. 恒在）⇒ exit 0', () => {
+    const r = root({
+      'tools/v3-guard/tmp-hygiene.mjs': GUARD_SRC('tmp-hygiene'),
+      'tools/v3-guard/lib/input-set.mjs': LIB_SRC('input-set'),
+      'tools/v3-guard/lib/git-ignored.mjs': LIB_SRC('git-ignored'),
+    })
+    const { code, output } = runGuard(r, 'tmp-hygiene')
+    expect(output).toContain('个受控目录无临时文件')
+    expect(code).toBe(0)
+  })
+
+  // agent-docs-check：校验分母 = 解析到的引用/示例条数；文档清空 ⇒ 0 失真 + 0 校验的假绿
+  it('agent-docs-check 协议文档被清空 ⇒ exit 1，不得报「全部自洽」', () => {
+    const r = root({
+      'tools/v3-guard/agent-docs-check.mjs': GUARD_SRC('agent-docs-check'),
+      'tools/v3-guard/lib/input-set.mjs': LIB_SRC('input-set'),
+      'tools/v3-guard/lib/git-ignored.mjs': LIB_SRC('git-ignored'),
+      'AGENTS.md': '# 协议\n只有一行普通文字，没有任何可校验引用。\n',
+      'CLAUDE.md': '指向 AGENTS.md。\n',
+      'package.json': '{ "name": "x", "version": "0.0.0", "scripts": {} }\n',
+      'docs/契约/K4-开发与门禁契约.md': '# K4\n',
+    })
+    const { code, output } = runGuard(r, 'agent-docs-check')
+    expect(code).toBe(1)
+    expect(output).toContain('扫描到 0 个可校验引用')
+    expect(output).not.toContain('全部自洽')
+  })
+
+  it('agent-docs-check 阳性对照：一条可达路径引用 ⇒ exit 0', () => {
+    const r = root({
+      'tools/v3-guard/agent-docs-check.mjs': GUARD_SRC('agent-docs-check'),
+      'tools/v3-guard/lib/input-set.mjs': LIB_SRC('input-set'),
+      'tools/v3-guard/lib/git-ignored.mjs': LIB_SRC('git-ignored'),
+      'AGENTS.md':
+        '# 协议\n入口见 `tools/v3-guard/demo-g.mjs`。\n\n例：`fix: 修复存储键的第二份手抄`\n',
+      'CLAUDE.md': '指向 AGENTS.md。\n\n例：`fix: 修复存储键的第二份手抄`\n',
+      'package.json': '{ "name": "x", "version": "0.0.0", "scripts": {} }\n',
+      'docs/契约/K4-开发与门禁契约.md': '# K4\n',
+      'tools/v3-guard/demo-g.mjs': 'export const x = 1\n',
+      // 索引声明的活文档必须真实存在，否则红的是「活文档缺失」不是空分母阳性对照
+      ...Object.fromEntries(LIVE_DOCS.map((rel) => [rel, '# 占位\n'])),
+    })
+    const { code, output } = runGuard(r, 'agent-docs-check')
+    expect(output).toContain('全部自洽')
+    expect(code).toBe(0)
   })
 })

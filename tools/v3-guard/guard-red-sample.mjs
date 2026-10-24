@@ -27,6 +27,8 @@ import { fileURLToPath } from 'node:url'
 
 import { EXECUTOR_NAME, GUARDS, SEPARATELY_RUN } from './run-all.mjs'
 
+import { emptyInputProblem } from './lib/input-set.mjs'
+
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const GUARD_DIR = path.join(ROOT, 'tools/v3-guard')
 const TEST_DIR = path.join(GUARD_DIR, '__tests__')
@@ -109,6 +111,15 @@ function main() {
         `${SEPARATELY_RUN.length}）。分母必须从登记派生：对不上就是把执行装置算了进来，` +
         '或登记集里有重名。'
     )
+    process.exit(1)
+  }
+  // W58 同族：登记清空时分母自洽检查是 0==0 通过，必须单独立空分母判据
+  const empty = emptyInputProblem(names.length, {
+    what: '守卫',
+    hint: 'run-all.mjs 的 GUARDS/SEPARATELY_RUN 登记被清空',
+  })
+  if (empty) {
+    console.error(`[guard-red-sample] FAIL：${empty}`)
     process.exit(1)
   }
   const problems = auditRedSamples(names)

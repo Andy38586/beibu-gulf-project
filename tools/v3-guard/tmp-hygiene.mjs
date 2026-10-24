@@ -31,6 +31,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { isGitIgnored } from './lib/git-ignored.mjs'
+import { emptyInputProblem } from './lib/input-set.mjs'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 
@@ -88,8 +89,9 @@ function shallowCount(dir) {
  * root/watched 可注入 —— 否则守卫只能整体跑真实仓库，红样无从写起
  * （本仓 4 个守卫此前都因此没有 test，红样元守卫一直把它们记在棘轮基线上）。
  */
-export function scan({ root = ROOT, watched = WATCHED } = {}) {
+export function scan({ root = ROOT, watched = WATCHED } = {}, stats = null) {
   const hits = []
+  let scannedDirs = 0
   for (const rel of watched) {
     const dir = path.join(root, rel)
     let entries
@@ -98,6 +100,7 @@ export function scan({ root = ROOT, watched = WATCHED } = {}) {
     } catch {
       continue // 目录不存在（如未安装子项目）则跳过
     }
+    scannedDirs++
     for (const e of entries) {
       if (ALLOWED.has(e.name)) continue
       const hit = TEMP_PATTERNS.find((p) => p.re.test(e.name))
@@ -117,12 +120,24 @@ export function scan({ root = ROOT, watched = WATCHED } = {}) {
       })
     }
   }
+  if (stats) stats.scannedDirs = scannedDirs
   return hits
 }
 
 const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
 if (isMain) {
-  const hits = scan()
+  // W58 同族：扫描面为空（WATCHED 清空 / 全部受控目录改名搬家）时 0 命中是「没扫」，
+  // 不是「干净」——部分缺失（子项目未装）仍是合法跳过，只有全部扫不到才红。
+  const stats = {}
+  const hits = scan({}, stats)
+  const empty = emptyInputProblem(stats.scannedDirs ?? 0, {
+    what: '受控目录',
+    hint: 'WATCHED 表被清空，或全部受控目录被改名/搬家',
+  })
+  if (empty) {
+    console.error(`[tmp-hygiene] FAIL：${empty}`)
+    process.exit(1)
+  }
 
   if (process.argv.includes('--json')) {
     console.log(JSON.stringify({ hits }, null, 2))

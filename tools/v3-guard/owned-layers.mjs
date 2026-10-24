@@ -35,6 +35,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { emptyInputProblem } from './lib/input-set.mjs'
+
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const BUSINESS = path.join(ROOT, 'frontend/src/business')
 
@@ -437,6 +439,15 @@ export function ownerScopeViolations(sources) {
 function main() {
   const sources = collectSources()
   const sites = layerRegisterSites(sources)
+  // W58 同族：扫描面为空 = 卸载钩子审计一次都不跑（与 nest-controllers 同形）
+  const empty = emptyInputProblem(sources.length, {
+    what: '源文件',
+    hint: 'collectSources 的 frontend/src 扫描面被挪位或清空',
+  })
+  if (empty) {
+    console.error(`[owned-layers] FAIL：${empty}`)
+    process.exit(1)
+  }
   const problems = [...auditSources(sources), ...ownerScopeViolations(sources)]
 
   const t = registerSiteTally(sites)

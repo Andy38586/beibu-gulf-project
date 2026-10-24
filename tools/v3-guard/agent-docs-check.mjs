@@ -48,6 +48,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { isGitIgnored } from './lib/git-ignored.mjs'
+import { emptyInputProblem } from './lib/input-set.mjs'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const PROTOCOL_DOCS = ['AGENTS.md', 'CLAUDE.md']
@@ -506,6 +507,16 @@ function run() {
   // 免得「没装依赖的环境」看上去像「文档全部自洽」。
   for (const s of skipped) {
     console.log(`[agent-docs-check] SKIPPED ${s.file}  ${s.ref} —— ${s.why}`)
+  }
+  // W58 同族：校验分母为 0 = 协议文档被清空或引用解析正则失效——「0 处失真」是
+  // 空分母下的谎报。SKIPPED 是登记过的降级态（§5.4），不计入分母但单独豁免于本判据。
+  if (checked === 0 && skipped.length === 0) {
+    const empty = emptyInputProblem(checked, {
+      what: '可校验引用',
+      hint: 'AGENTS.md/CLAUDE.md 被清空，或引用/npm 声称解析正则失效（PROTOCOL_DOCS 文件缺失会在读取时抛）',
+    })
+    console.error(`[agent-docs-check] FAIL：${empty}`)
+    process.exit(1)
   }
   if (violations.length) {
     console.log(

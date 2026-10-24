@@ -60,6 +60,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { emptyInputProblem } from './lib/input-set.mjs'
+
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const SRC_ROOT = path.join(ROOT, 'frontend/src')
 // export：自测要按同一条路径读权威表做交叉核对，路径不得在测试里手抄第二份
@@ -227,6 +229,15 @@ export function collectSources(dir = SRC_ROOT) {
 
 function main() {
   const files = collectSources()
+  // W58 同族：扫描面为空 = 循环体一次都不跑，「无裸写」是空分母下的谎报（词表侧空已在加载时抛）
+  const empty = emptyInputProblem(files.length, {
+    what: '源文件',
+    hint: 'collectSources 的 frontend/src 扫描面被挪位或清空',
+  })
+  if (empty) {
+    console.error(`[layer-keys] FAIL：${empty}`)
+    process.exit(1)
+  }
   const { problems, exempted } = auditLayerKeys(files)
   console.log(
     `[layer-keys] 词表 ${LAYER_KEYS.length} 项（派生自 ${LAYERS_TABLE_REL}），扫描 ${files.length} 个源文件`

@@ -41,6 +41,58 @@ const BACKEND_REQUEST_OWNER = 'backend/src/modules/task/utils/request-owner.ts'
 // 前端 tolerance.ts 只持有前端用到的几何档——前端是后端的**子集**，同名档必须同值。
 const BACKEND_TOLERANCE = 'backend/src/common/numeric-tolerance.ts'
 const FRONTEND_TOLERANCE = 'frontend/src/shared/constants/tolerance.ts'
+// PC-3（W53）：端口 3000/5432 跨进程手抄族。backend/.env.example 是**声明权威**
+// （其注释自述「与 docker-compose.yml / vite proxy 一致」——注释不是判据，本族把它变成判据）：
+// 运行时兜底字面量、compose 容器 env、compose 健康探针、vite 代理目标、生产初始化脚本
+// 各持一份副本，改一处漏一处不会报错。权威值不写死在本守卫里，逐站点解析对等。
+const PORT_AUTHORITY_FILE = 'backend/.env.example'
+const BACKEND_CONFIG_SERVICE = 'backend/src/infra/config/config.service.ts'
+const BACKEND_DB_CONFIG = 'backend/src/infra/db/db.config.ts'
+const COMPOSE_MAIN = 'docker-compose.yml'
+const COMPOSE_V3 = 'docker-compose.v3.yml'
+const FRONTEND_VITE_CONFIG = 'frontend/vite.config.js'
+const SERVER_SETUP_SH = 'scripts/server-setup.sh'
+
+/** 单值端口副本站点表：re 的第 1 捕获组 = 端口数字。key 对应 auditSharedConstants 输入键 */
+const PORT_SITES = [
+  {
+    label: '运行时兜底 backend/src/infra/config/config.service.ts',
+    key: 'backendConfigService',
+    re: /Number\(env\.PORT\)\s*\|\|\s*(\d+)/,
+  },
+  {
+    label: 'compose 容器 env docker-compose.yml',
+    key: 'composeMain',
+    re: /(?<![A-Za-z_])PORT:\s*'(\d+)'/,
+  },
+  {
+    label: 'compose 健康探针 docker-compose.yml',
+    key: 'composeMain',
+    re: /http:\/\/127\.0\.0\.1:(\d+)\/nest-api\/health/,
+  },
+  {
+    label: '生产初始化 scripts/server-setup.sh',
+    key: 'serverSetup',
+    re: /^PORT=(\d+)\s*$/m,
+  },
+]
+const PG_PORT_SITES = [
+  {
+    label: '运行时兜底 db.config.ts 读侧',
+    key: 'backendDbConfig',
+    re: /env\.PG_PORT\s*\?\?\s*(\d+)/,
+  },
+  {
+    label: '运行时兜底 db.config.ts 非法值回落',
+    key: 'backendDbConfig',
+    re: /\?\s*port\s*:\s*(\d+)/,
+  },
+  {
+    label: 'compose 容器 env docker-compose.yml',
+    key: 'composeMain',
+    re: /(?<![A-Za-z_])PG_PORT:\s*'(\d+)'/,
+  },
+]
 
 /** 从文件文本解析 `export const NAME = <数字>`（宽松空白匹配） */
 export function parseNumericConst(content, name) {
@@ -171,6 +223,22 @@ export function parseNumericLiterals(content) {
     out[m[1]] = Number(m[2])
   }
   return out
+}
+
+/** `.env`/`.sh` 的 `KEY=<数字>`（行首锚定：`^PORT=` 不会撞 `PG_PORT=`） */
+export function parseEnvPort(content, key) {
+  const m = content.match(new RegExp(`^${key}=(\\d+)\\s*$`, 'm'))
+  return m ? Number(m[1]) : null
+}
+
+/** vite.config 代理目标里的全部 `127.0.0.1:<port>`（多点站点：删光 = 判据输入空） */
+export function parseViteProxyPorts(content) {
+  return [...content.matchAll(/127\.0\.0\.1:(\d+)/g)].map((m) => Number(m[1]))
+}
+
+/** compose `ports:` 暴露映射 host:container 列表 */
+export function parsePortMaps(content) {
+  return [...content.matchAll(/-\s*'(\d+):(\d+)'/g)].map((m) => [Number(m[1]), Number(m[2])])
 }
 
 export function auditSharedConstants(files) {
@@ -377,6 +445,63 @@ export function auditSharedConstants(files) {
       }
     }
   }
+  // 端口对账（PC-3/W53）：`.env.example` 为声明权威；运行时兜底/compose/vite/生产脚本
+  // 各持副本。副本缺失 = 解析失败红（不许静默当通过）；漂移逐一指认站点。
+  const authPort = parseEnvPort(files.backendEnvExample ?? '', 'PORT')
+  if (authPort === null) {
+    problems.push('端口权威解析失败：backend/.env.example 缺 PORT= 行（声明权威被删/改名？）')
+  } else {
+    for (const site of PORT_SITES) {
+      const m = (files[site.key] ?? '').match(site.re)
+      const v = m ? Number(m[1]) : null
+      if (v === null) {
+        problems.push(`端口副本解析失败：${site.label}（3000 族副本被改名/删除？）`)
+      } else if (v !== authPort) {
+        problems.push(`端口漂移：${site.label}=${v}，backend/.env.example PORT=${authPort}（权威）`)
+      }
+    }
+    const vitePorts = parseViteProxyPorts(files.viteConfig ?? '')
+    if (vitePorts.length === 0) {
+      problems.push(
+        '端口副本解析失败：frontend/vite.config.js 无 127.0.0.1 代理目标（判据输入为空）'
+      )
+    }
+    for (const p of new Set(vitePorts)) {
+      if (p !== authPort) {
+        problems.push(
+          `端口漂移：frontend/vite.config.js 代理目标 :${p}，backend/.env.example PORT=${authPort}（权威）`
+        )
+      }
+    }
+  }
+  const authPgPort = parseEnvPort(files.backendEnvExample ?? '', 'PG_PORT')
+  if (authPgPort === null) {
+    problems.push('端口权威解析失败：backend/.env.example 缺 PG_PORT= 行（声明权威被删/改名？）')
+  } else {
+    for (const site of PG_PORT_SITES) {
+      const m = (files[site.key] ?? '').match(site.re)
+      const v = m ? Number(m[1]) : null
+      if (v === null) {
+        problems.push(`端口副本解析失败：${site.label}（5432 族副本被改名/删除？）`)
+      } else if (v !== authPgPort) {
+        problems.push(
+          `端口漂移：${site.label}=${v}，backend/.env.example PG_PORT=${authPgPort}（权威）`
+        )
+      }
+    }
+    const v3Maps = parsePortMaps(files.composeV3 ?? '')
+    if (v3Maps.length === 0) {
+      problems.push('端口副本解析失败：docker-compose.v3.yml 无端口暴露映射（判据输入为空）')
+    }
+    for (const [host, container] of v3Maps) {
+      if (host !== authPgPort || container !== authPgPort) {
+        problems.push(
+          `端口漂移：docker-compose.v3.yml postgres 暴露 ${host}:${container}，` +
+            `backend/.env.example PG_PORT=${authPgPort}（权威，host 侧漂移会让本机直连落空）`
+        )
+      }
+    }
+  }
   return problems
 }
 
@@ -465,11 +590,19 @@ function main() {
     backendRequestOwner: read(BACKEND_REQUEST_OWNER),
     frontendTolerance: read(FRONTEND_TOLERANCE),
     backendTolerance: read(BACKEND_TOLERANCE),
+    backendEnvExample: read(PORT_AUTHORITY_FILE),
+    backendConfigService: read(BACKEND_CONFIG_SERVICE),
+    backendDbConfig: read(BACKEND_DB_CONFIG),
+    composeMain: read(COMPOSE_MAIN),
+    composeV3: read(COMPOSE_V3),
+    viteConfig: read(FRONTEND_VITE_CONFIG),
+    serverSetup: read(SERVER_SETUP_SH),
   })
   if (problems.length === 0) {
     console.log(
       '[constants-audit] OK：水位上限/业务边界框（含 tools 侧）/寻路 mode 双侧一致、' +
-        'flood 分段 TS↔PY 一致、跨端请求头名逐字相等、浮点容差前端子集同值，前端业务码 ⊆ 后端 ErrorCode'
+        'flood 分段 TS↔PY 一致、跨端请求头名逐字相等、浮点容差前端子集同值、' +
+        '端口 3000/5432 全部副本对等，前端业务码 ⊆ 后端 ErrorCode'
     )
     return
   }

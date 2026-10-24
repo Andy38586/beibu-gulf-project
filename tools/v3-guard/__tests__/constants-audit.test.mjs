@@ -7,9 +7,12 @@ import { describe, expect, it } from 'vitest'
 import {
   auditSharedConstants,
   parseBackendBizCodes,
+  parseEnvPort,
   parseFrontendBizCodes,
   parseNumericConst,
   parseNumericLiterals,
+  parsePortMaps,
+  parseViteProxyPorts,
   scanLocalGulfBoundsDefs,
 } from '../constants-audit.mjs'
 
@@ -110,6 +113,29 @@ export const ITERATION_TOLERANCE = 1e-12
 `
 const FRONTEND_TOL = `export const COMPARE_TOLERANCE = 1e-9
 `
+// PC-3 端口族：.env.example 为声明权威，五个副本站点按真实文件形状缩样。
+const ENV_EXAMPLE = `# 监听端口（统一 3000）
+PORT=3000
+PG_PORT=5432
+`
+const CONFIG_SERVICE = `this.port = Number(env.PORT) || 3000
+`
+const DB_CONFIG = `const port = Number(env.PG_PORT ?? 5432)
+  port: Number.isInteger(port) && port > 0 ? port : 5432,
+`
+const COMPOSE_MAIN = `      PORT: '3000'
+      PG_PORT: '5432'
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:3000/nest-api/health/ready || exit 1']
+`
+const COMPOSE_V3 = `    ports:
+      - '5432:5432'
+`
+const VITE_CONFIG = `          target: 'http://127.0.0.1:3000',
+          target: 'http://127.0.0.1:3000',
+          target: 'http://127.0.0.1:3000',
+`
+const SERVER_SETUP = `PORT=3000
+`
 
 // 全量基座：所有族的输入齐全（唯一来源扫描正常返回空）。各 describe 在此之上做覆盖/删键变异；
 // 想做「只看本族」的断言时按问题文本过滤，不要裁剪基座——auditSharedConstants 是全族审计。
@@ -132,6 +158,13 @@ const base = {
   backendRequestOwner: BE_REQUEST_OWNER,
   frontendTolerance: FRONTEND_TOL,
   backendTolerance: BACKEND_TOL,
+  backendEnvExample: ENV_EXAMPLE,
+  backendConfigService: CONFIG_SERVICE,
+  backendDbConfig: DB_CONFIG,
+  composeMain: COMPOSE_MAIN,
+  composeV3: COMPOSE_V3,
+  viteConfig: VITE_CONFIG,
+  serverSetup: SERVER_SETUP,
 }
 
 describe('parseNumericConst — 数值常量解析', () => {
@@ -491,5 +524,92 @@ describe('浮点容差跨端同族对账（PC-2/W72）', () => {
   it('@guard-red-sample 后端容差文件被改名/清空 ⇒ 必红（不许静默当通过）', () => {
     const problems = auditSharedConstants({ ...base, backendTolerance: '// 只剩注释\n' })
     expect(problems.some((p) => p.includes('浮点容差解析失败'))).toBe(true)
+  })
+})
+
+describe('端口跨进程副本对账（PC-3/W53）', () => {
+  it('parseEnvPort：行首锚定，PG_PORT 不撞 PORT', () => {
+    expect(parseEnvPort(ENV_EXAMPLE, 'PORT')).toBe(3000)
+    expect(parseEnvPort(ENV_EXAMPLE, 'PG_PORT')).toBe(5432)
+  })
+
+  it('parseViteProxyPorts / parsePortMaps：多点站点全收集', () => {
+    expect(parseViteProxyPorts(VITE_CONFIG)).toEqual([3000, 3000, 3000])
+    expect(parsePortMaps(COMPOSE_V3)).toEqual([[5432, 5432]])
+  })
+
+  it('全副本对等 → 无问题', () => {
+    expect(auditSharedConstants(base)).toEqual([])
+  })
+
+  it('等价重构：compose 冒号后加空格、兜底表达式去空格 ⇒ 不误红', () => {
+    const problems = auditSharedConstants({
+      ...base,
+      composeMain: COMPOSE_MAIN.replace("PORT: '3000'", "PORT:   '3000'"),
+      backendConfigService: 'this.port = Number(env.PORT)||3000\n',
+    })
+    expect(problems).toEqual([])
+  })
+
+  it('@guard-red-sample 权威改口（PORT=3001）⇒ 全部副本站点必红', () => {
+    const problems = auditSharedConstants({
+      ...base,
+      backendEnvExample: ENV_EXAMPLE.replace('PORT=3000', 'PORT=3001'),
+    })
+    expect(problems.filter((p) => p.includes('端口漂移')).length).toBeGreaterThanOrEqual(4)
+    expect(problems.some((p) => p.includes('config.service.ts') && p.includes('=3001'))).toBe(true)
+    expect(problems.some((p) => p.includes('vite.config.js') && p.includes(':3000'))).toBe(true)
+  })
+
+  it('@guard-red-sample vite 一处代理目标漂移（3000→3001）⇒ 必红', () => {
+    const problems = auditSharedConstants({
+      ...base,
+      viteConfig: VITE_CONFIG.replace('3000', '3001'),
+    })
+    expect(
+      problems.some(
+        (p) => p.includes('端口漂移') && p.includes('vite.config.js') && p.includes(':3001')
+      )
+    ).toBe(true)
+  })
+
+  it('@guard-red-sample db.config 非法值回落漂移（5432→15432）⇒ 必红', () => {
+    const problems = auditSharedConstants({
+      ...base,
+      backendDbConfig: DB_CONFIG.replace('? port : 5432', '? port : 15432'),
+    })
+    expect(
+      problems.some(
+        (p) => p.includes('端口漂移') && p.includes('非法值回落') && p.includes('=15432')
+      )
+    ).toBe(true)
+  })
+
+  it('@guard-red-sample v3 compose postgres 暴露漂移（host 侧 15432）⇒ 必红', () => {
+    const problems = auditSharedConstants({
+      ...base,
+      composeV3: "    ports:\n      - '15432:5432'\n",
+    })
+    expect(problems.some((p) => p.includes('docker-compose.v3.yml') && p.includes('15432'))).toBe(
+      true
+    )
+  })
+
+  it('@guard-red-sample .env.example 删掉 PG_PORT ⇒ 权威解析失败必红', () => {
+    const problems = auditSharedConstants({
+      ...base,
+      backendEnvExample: 'PORT=3000\n',
+    })
+    expect(problems.some((p) => p.includes('缺 PG_PORT= 行'))).toBe(true)
+  })
+
+  it('@guard-red-sample compose 健康探针被删 ⇒ 副本解析失败必红（不许静默当通过）', () => {
+    const problems = auditSharedConstants({
+      ...base,
+      composeMain: "      PORT: '3000'\n      PG_PORT: '5432'\n",
+    })
+    expect(problems.some((p) => p.includes('端口副本解析失败') && p.includes('健康探针'))).toBe(
+      true
+    )
   })
 })

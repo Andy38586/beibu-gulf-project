@@ -12,9 +12,11 @@ import {
   GCSPanel,
   isWater3DCapable,
   LayerControlPanel,
+  StackSlot,
   TaskPanelSlot,
   useBusinessLayers,
   useOwnedLayers,
+  useStackablePanels,
 } from '@/core'
 import { floodAdapter } from '@/services'
 import {
@@ -41,6 +43,13 @@ import { FLOOD_RISK_COLORS, FLOOD_RISK_DEFAULT } from './constants/colors'
 const floodStore = useFloodStore()
 const mapStore = useMapStore()
 const taskStore = useTaskStore()
+
+// 可视化面板共用堆叠拖拽（与预测/选址/分流同一方法）
+const STACKABLE_PANELS = [
+  { id: 'report', label: '浸没分析报告' },
+  { id: 'facilities', label: '受影响设施' },
+] as const
+const { stackItems, isStacked, onDrop, restore } = useStackablePanels(STACKABLE_PANELS)
 const { manager: businessLayerManager } = useBusinessLayers()
 
 /** v4：本页路由标识（taskStore 按 route 分槽的 key）——单一事实源在 useFloodRequest */
@@ -528,11 +537,29 @@ onUnmounted(() => {
   <div class="flood-analysis-page">
     <AppLayout>
       <template #left>
-        <GCSPanel :w="4" :h="4" anchor="top-left" :offset-x="0" :offset-y="1.25">
+        <GCSPanel
+          v-if="!isStacked('report')"
+          :w="4"
+          :h="4"
+          anchor="top-left"
+          :offset-x="0"
+          :offset-y="1.25"
+          draggable
+          @drop="(z: HTMLElement) => onDrop('report', z)"
+        >
           <FloodAnalysisReportPanel />
         </GCSPanel>
 
-        <GCSPanel :w="4" :h="4" anchor="top-left" :offset-x="0" :offset-y="5.5">
+        <GCSPanel
+          v-if="!isStacked('facilities')"
+          :w="4"
+          :h="4"
+          anchor="top-left"
+          :offset-x="0"
+          :offset-y="5.5"
+          draggable
+          @drop="(z: HTMLElement) => onDrop('facilities', z)"
+        >
           <AffectedFacilityListPanel />
         </GCSPanel>
       </template>
@@ -563,6 +590,7 @@ onUnmounted(() => {
         </GCSPanel>
       </template>
     </AppLayout>
+    <StackSlot :items="stackItems" @restore="restore" />
   </div>
 </template>
 

@@ -16,10 +16,12 @@ import {
   isImageOverlayCapable,
   isTiles3DCapable,
   LayerControlPanel,
+  StackSlot,
   tallyGroups,
   type TilesetJson,
   toDataUri,
   useOwnedLayers,
+  useStackablePanels,
 } from '@/core'
 import { DEFAULT_LAYER_ORDER, loadStatic, logger, showToast } from '@/shared'
 import { useMapStore, useTaskStore } from '@/stores'
@@ -145,6 +147,10 @@ async function registerImageryLayers(): Promise<void> {
 
 const mapStore = useMapStore()
 const taskStore = useTaskStore()
+
+// 路径结果面板共用堆叠拖拽（与预测/选址/分流同一方法）
+const STACKABLE_PANELS = [{ id: 'result', label: '路径结果' }] as const
+const { stackItems, isStacked, onDrop, restore } = useStackablePanels(STACKABLE_PANELS)
 
 /** v4：本页路由标识（taskStore 按 route 分槽的 key；与 manifest.path 一致） */
 const ROUTE_PATH = '/route-analysis'
@@ -447,7 +453,16 @@ onUnmounted(() => {
     <AppLayout>
       <!-- 左下：路径结果摘要面板 -->
       <template #left>
-        <GCSPanel :w="4" :h="4" anchor="top-left" :offset-x="0" :offset-y="1.25">
+        <GCSPanel
+          v-if="!isStacked('result')"
+          :w="4"
+          :h="4"
+          anchor="top-left"
+          :offset-x="0"
+          :offset-y="1.25"
+          draggable
+          @drop="(z: HTMLElement) => onDrop('result', z)"
+        >
           <div class="result-panel">
             <h3 class="panel-title">路径结果</h3>
             <template v-if="summary">
@@ -497,6 +512,7 @@ onUnmounted(() => {
         </GCSPanel>
       </template>
     </AppLayout>
+    <StackSlot :items="stackItems" @restore="restore" />
   </div>
 </template>
 

@@ -37,6 +37,10 @@ const FRONTEND_API_REQUEST = 'frontend/src/shared/composables/useApiRequest.ts'
 const BACKEND_ERROR_FILTER = 'backend/src/common/filters/business-error.filter.ts'
 const FRONTEND_TASK_API = 'frontend/src/shared/composables/useTaskApi.ts'
 const BACKEND_REQUEST_OWNER = 'backend/src/modules/task/utils/request-owner.ts'
+// PC-2（W72）：浮点容差跨端同族。后端 numeric-tolerance.ts 持有三档全集，
+// 前端 tolerance.ts 只持有前端用到的几何档——前端是后端的**子集**，同名档必须同值。
+const BACKEND_TOLERANCE = 'backend/src/common/numeric-tolerance.ts'
+const FRONTEND_TOLERANCE = 'frontend/src/shared/constants/tolerance.ts'
 
 /** 从文件文本解析 `export const NAME = <数字>`（宽松空白匹配） */
 export function parseNumericConst(content, name) {
@@ -152,6 +156,21 @@ export function parseFrontendModeLiterals(content) {
 export function parseStringConst(content, name) {
   const m = content.match(new RegExp(`(?:export\\s+)?const ${name}\\s*=\\s*['"]([^'"]+)['"]`))
   return m ? m[1] : null
+}
+
+/**
+ * 解析文件里全部数值常量（`[export] const NAME = <字面量>`），按 **数值** 归一：
+ * `1e-9` 与 `0.000000001` 是等价写法，必须比成同值（§5.3 式 3：等价重构不许红）；
+ * 故解析阶段就转 Number，比较阶段用全等。容差类字面量（1e-6/1e-9/1e-12）是主消费者。
+ */
+export function parseNumericLiterals(content) {
+  const out = {}
+  for (const m of content.matchAll(
+    /(?:^|\n)\s*(?:export\s+)?const\s+([A-Za-z_$][\w$]*)\s*=\s*(-?(?:\d+(?:\.\d+)?|\.\d+)(?:[eE][+-]?\d+)?)/g
+  )) {
+    out[m[1]] = Number(m[2])
+  }
+  return out
 }
 
 export function auditSharedConstants(files) {
@@ -332,6 +351,32 @@ export function auditSharedConstants(files) {
       )
     }
   }
+  // 浮点容差跨端同族（PC-2/W72）：前端 tolerance.ts 的文件头自述「跨端一致性没有守卫」——
+  // 本块就是那个守卫。前端是后端三档全集的子集：前端出现的每个档名，后端必须同名且同值。
+  // 判据输入为空（文件被清空/改名）不许静默当通过（W58 同族语义）。
+  const feTolerance = parseNumericLiterals(files.frontendTolerance ?? '')
+  const beTolerance = parseNumericLiterals(files.backendTolerance ?? '')
+  const feTolNames = Object.keys(feTolerance)
+  if (feTolNames.length === 0 || Object.keys(beTolerance).length === 0) {
+    problems.push(
+      `浮点容差解析失败：frontend=${feTolNames.length} 档 backend=${Object.keys(beTolerance).length} 档` +
+        '（容差常量文件被清空/整体改名？）'
+    )
+  } else {
+    for (const name of feTolNames) {
+      if (!(name in beTolerance)) {
+        problems.push(
+          `浮点容差档位在后端同族文件不存在：${name}` +
+            '（backend/src/common/numeric-tolerance.ts 为三档全集权威，前端不得自立档名）'
+        )
+      } else if (feTolerance[name] !== beTolerance[name]) {
+        problems.push(
+          `浮点容差跨端漂移：${name} frontend=${feTolerance[name]} backend=${beTolerance[name]}` +
+            '（同族两份须同值，改一侧另一侧不会报错，必须同步）'
+        )
+      }
+    }
+  }
   return problems
 }
 
@@ -418,11 +463,13 @@ function main() {
     backendErrorFilter: read(BACKEND_ERROR_FILTER),
     frontendTaskApi: read(FRONTEND_TASK_API),
     backendRequestOwner: read(BACKEND_REQUEST_OWNER),
+    frontendTolerance: read(FRONTEND_TOLERANCE),
+    backendTolerance: read(BACKEND_TOLERANCE),
   })
   if (problems.length === 0) {
     console.log(
       '[constants-audit] OK：水位上限/业务边界框（含 tools 侧）/寻路 mode 双侧一致、' +
-        'flood 分段 TS↔PY 一致、跨端请求头名逐字相等，前端业务码 ⊆ 后端 ErrorCode'
+        'flood 分段 TS↔PY 一致、跨端请求头名逐字相等、浮点容差前端子集同值，前端业务码 ⊆ 后端 ErrorCode'
     )
     return
   }

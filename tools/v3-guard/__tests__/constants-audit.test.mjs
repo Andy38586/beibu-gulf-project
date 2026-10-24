@@ -9,6 +9,7 @@ import {
   parseBackendBizCodes,
   parseFrontendBizCodes,
   parseNumericConst,
+  parseNumericLiterals,
   scanLocalGulfBoundsDefs,
 } from '../constants-audit.mjs'
 
@@ -102,6 +103,36 @@ const FE_TASK_API = `const TASK_CLIENT_HEADER = 'x-task-client'
 `
 const BE_REQUEST_OWNER = `export const TASK_CLIENT_HEADER = 'x-task-client'
 `
+// PC-2 浮点容差：后端三档全集（求和 1e-6 / 几何 1e-9 / 迭代 1e-12），前端只持几何档。
+const BACKEND_TOL = `export const SUM_TOLERANCE = 1e-6
+export const COMPARE_TOLERANCE = 1e-9
+export const ITERATION_TOLERANCE = 1e-12
+`
+const FRONTEND_TOL = `export const COMPARE_TOLERANCE = 1e-9
+`
+
+// 全量基座：所有族的输入齐全（唯一来源扫描正常返回空）。各 describe 在此之上做覆盖/删键变异；
+// 想做「只看本族」的断言时按问题文本过滤，不要裁剪基座——auditSharedConstants 是全族审计。
+const base = {
+  backendFlood: BACKEND_FLOOD,
+  frontendFlood: FRONTEND_FLOOD,
+  backendBiz: BACKEND_BIZ,
+  frontendBiz: FRONTEND_BIZ,
+  backendGis: BACKEND_GIS,
+  frontendCrs: FRONTEND_CRS,
+  backendRoute: BACKEND_ROUTE,
+  frontendRoute: FRONTEND_ROUTE,
+  floodPy: FLOOD_PY,
+  toolsGulfBounds: TOOLS_GULF,
+  // 唯一来源判据的输入集合：正常仓库 = 无第二份手抄（扫到的都是合法派生）
+  localBoundDefs: [],
+  frontendApiRequest: FE_API_REQUEST,
+  backendErrorFilter: BE_ERROR_FILTER,
+  frontendTaskApi: FE_TASK_API,
+  backendRequestOwner: BE_REQUEST_OWNER,
+  frontendTolerance: FRONTEND_TOL,
+  backendTolerance: BACKEND_TOL,
+}
 
 describe('parseNumericConst — 数值常量解析', () => {
   it('解析水位上限', () => {
@@ -120,25 +151,6 @@ describe('业务码提取', () => {
 })
 
 describe('auditSharedConstants — 跨进程常量一致性', () => {
-  const base = {
-    backendFlood: BACKEND_FLOOD,
-    frontendFlood: FRONTEND_FLOOD,
-    backendBiz: BACKEND_BIZ,
-    frontendBiz: FRONTEND_BIZ,
-    backendGis: BACKEND_GIS,
-    frontendCrs: FRONTEND_CRS,
-    backendRoute: BACKEND_ROUTE,
-    frontendRoute: FRONTEND_ROUTE,
-    floodPy: FLOOD_PY,
-    toolsGulfBounds: TOOLS_GULF,
-    // 唯一来源判据的输入集合：正常仓库 = 无第二份手抄（扫到的都是合法派生）
-    localBoundDefs: [],
-    frontendApiRequest: FE_API_REQUEST,
-    backendErrorFilter: BE_ERROR_FILTER,
-    frontendTaskApi: FE_TASK_API,
-    backendRequestOwner: BE_REQUEST_OWNER,
-  }
-
   it('双侧一致 → 无问题', () => {
     expect(auditSharedConstants(base)).toEqual([])
   })
@@ -409,5 +421,75 @@ describe('flood 风险分段跨语言（TS ↔ PY · D29/A1）', () => {
   it('@guard-red-sample PY 分档被删 ⇒ 解析失败必红（不许静默当通过）', () => {
     const problems = auditSharedConstants({ ...base, floodPy: 'X = 1' })
     expect(problems.some((p) => p.includes('Python 副本解析失败'))).toBe(true)
+  })
+})
+
+describe('浮点容差跨端同族对账（PC-2/W72）', () => {
+  it('parseNumericLiterals：指数/小数形式按数值归一', () => {
+    expect(parseNumericLiterals(BACKEND_TOL)).toEqual({
+      SUM_TOLERANCE: 1e-6,
+      COMPARE_TOLERANCE: 1e-9,
+      ITERATION_TOLERANCE: 1e-12,
+    })
+  })
+
+  it('前端子集同值 → 容差族无问题（全量基座下其余族也绿）', () => {
+    expect(auditSharedConstants(base)).toEqual([])
+  })
+
+  it('等价重构：1e-9 写成 0.000000001 ⇒ 不误红（变异四式第 3 式）', () => {
+    const problems = auditSharedConstants({
+      ...base,
+      frontendTolerance: 'export const COMPARE_TOLERANCE = 0.000000001\n',
+    })
+    expect(problems).toEqual([])
+  })
+
+  it('等价重构：注释/声明位置变化 ⇒ 不误红', () => {
+    const problems = auditSharedConstants({
+      ...base,
+      frontendTolerance: '// 几何档在前\nconst COMPARE_TOLERANCE = 1e-9\n',
+    })
+    expect(problems).toEqual([])
+  })
+
+  it('@guard-red-sample 前端档值漂移（1e-9 → 1e-12）⇒ 必红', () => {
+    const problems = auditSharedConstants({
+      ...base,
+      frontendTolerance: 'export const COMPARE_TOLERANCE = 1e-12\n',
+    })
+    expect(
+      problems.some((p) => p.includes('浮点容差跨端漂移') && p.includes('COMPARE_TOLERANCE'))
+    ).toBe(true)
+  })
+
+  it('@guard-red-sample 后端档值漂移（1e-9 → 1e-6）⇒ 必红（反向也咬）', () => {
+    const problems = auditSharedConstants({
+      ...base,
+      backendTolerance: BACKEND_TOL.replace('COMPARE_TOLERANCE = 1e-9', 'COMPARE_TOLERANCE = 1e-6'),
+    })
+    expect(
+      problems.some((p) => p.includes('浮点容差跨端漂移') && p.includes('COMPARE_TOLERANCE'))
+    ).toBe(true)
+  })
+
+  it('@guard-red-sample 前端自立后端不存在的档名 ⇒ 必红（后端为全集权威）', () => {
+    const problems = auditSharedConstants({
+      ...base,
+      frontendTolerance: 'export const COMPARE_TOLERANCE = 1e-9\nexport const MY_EPS = 1e-3\n',
+    })
+    expect(
+      problems.some((p) => p.includes('档位在后端同族文件不存在') && p.includes('MY_EPS'))
+    ).toBe(true)
+  })
+
+  it('@guard-red-sample 前端容差文件被清空 ⇒ 必红（判据输入不许为空，W58 同族）', () => {
+    const problems = auditSharedConstants({ ...base, frontendTolerance: 'export const X = "s"\n' })
+    expect(problems.some((p) => p.includes('浮点容差解析失败'))).toBe(true)
+  })
+
+  it('@guard-red-sample 后端容差文件被改名/清空 ⇒ 必红（不许静默当通过）', () => {
+    const problems = auditSharedConstants({ ...base, backendTolerance: '// 只剩注释\n' })
+    expect(problems.some((p) => p.includes('浮点容差解析失败'))).toBe(true)
   })
 })

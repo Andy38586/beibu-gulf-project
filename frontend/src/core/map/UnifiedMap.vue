@@ -789,9 +789,11 @@ defineExpose({
       </div>
     </Transition>
 
-    <p v-if="loadError" class="map-error">{{ loadError }}</p>
-    <div v-if="boundaryWarning" class="boundary-warning">{{ boundaryWarning }}</div>
-    <div v-if="portEmptyWarning" class="port-empty-warning">{{ portEmptyWarning }}</div>
+    <p v-if="loadError" class="map-error map-status-tip">{{ loadError }}</p>
+    <div v-if="boundaryWarning" class="boundary-warning map-status-tip">{{ boundaryWarning }}</div>
+    <div v-if="portEmptyWarning" class="port-empty-warning map-status-tip">
+      {{ portEmptyWarning }}
+    </div>
   </div>
 </template>
 
@@ -850,41 +852,45 @@ defineExpose({
   }
 }
 
-.map-error {
+/* 地图状态提示条公共盒子（加载失败 / 边界告警 / 港口空态）：
+   定位方式、内边距、圆角、字号三处同构，统一在此声明；
+   方向偏移、语义配色、层级与个例内边距等差异，留在各自类里单独覆盖 */
+.map-status-tip {
   position: absolute;
+  padding: 6px 12px; /* 6px/12px 非8的整数倍，保留（复核：已登记取舍项） */
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.map-error {
   top: 10px; /* 10px 非8的整数倍，保留 */
   left: 10px; /* 10px 非8的整数倍，保留 */
   color: var(--GCS-color-error);
 
+  /* 本元素原无 font-size（继承 body 16px），公共类 13px 会缩小字号并带高盒子高度；
+     显式写回继承语义，保持渲染等价（比硬编码 16px 更抗基准字号变更） */
+  font-size: inherit;
+
   /* S7 P1-1：硬编码白底 → 浮层背景 token（暗色随主题） */
   background: var(--GCS-bg-elevated);
-  padding: v-bind(cell8px) 12px; /* 12px 非8的整数倍，保留 */
-  border-radius: 6px;
+  padding: v-bind(cell8px) 12px; /* 覆盖公共 6px：纵向用 cell8px token；12px 非8的整数倍，保留 */
   z-index: var(--GCS-z-map-status);
 }
 
 .boundary-warning {
-  position: absolute;
   bottom: 10px; /* 10px 非8的整数倍，保留 */
   left: 10px; /* 10px 非8的整数倍，保留 */
 
   /* S7 P1-1：硬编码黄 → 语义警告色 token（暗色下柔和橙替代刺眼亮黄） */
   background: var(--GCS-color-warning);
-  padding: 6px 12px; /* 6px/12px 非8的整数倍，保留（ 复核：已登记取舍项） */
-  border-radius: 6px;
-  font-size: 13px;
   z-index: var(--GCS-z-map-overlay);
 }
 
 .port-empty-warning {
-  position: absolute;
   bottom: 10px; /* 10px 非8的整数倍，保留 */
   right: 10px; /* 与 boundary-warning 同高度分置左右，避免两条提示重叠 */
   background: var(--GCS-bg-elevated);
   color: var(--GCS-color-warning);
-  padding: 6px 12px; /* 6px/12px 非8的整数倍，保留（同 boundary-warning） */
-  border-radius: 6px;
-  font-size: 13px;
   z-index: var(--GCS-z-map-overlay);
 }
 

@@ -26,7 +26,6 @@ const USER_STORAGE_KEY = STORAGE_KEYS.authUser
 
 /** 读取 localStorage 用户信息：经 schema 运行时校验，失败即清缓存返回 null */
 function readStoredUser(): User | null {
-  if (typeof window === 'undefined') return null
   const stored = readStoredJSON<unknown>(USER_STORAGE_KEY)
   if (stored === null) return null
   const result = userSchema.safeParse(stored)

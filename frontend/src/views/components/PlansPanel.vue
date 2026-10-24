@@ -114,12 +114,25 @@ function handleLoadPlan(plan: Plan) {
   logger.warn('[PlansPanel] 未知方案类型，忽略恢复: ' + plan.businessType)
 }
 
-/** 最小类型守卫：对象是否具备 FloodFeature 必需字段 */
-function isFloodFeature(obj: unknown): obj is FloodFeature {
+/**
+ * 对象守卫的唯一实现：先判「是非 null 对象」，再把字段判据交给调用方。
+ * 两个对象守卫（FloodFeature / AffectedFacility）原先各手抄同一段前置判定与同一句
+ * `obj as Record<string, unknown>` 强转——漏改一处就会让某一对守卫的口径悄悄分叉。
+ */
+function isRecordMatching<T>(
+  obj: unknown,
+  predicate: (o: Record<string, unknown>) => boolean
+): obj is T {
   if (typeof obj !== 'object' || obj === null) return false
-  const o = obj as Record<string, unknown>
-  return o.type === 'Feature' && typeof o.geometry === 'object' && o.geometry !== null
+  return predicate(obj as Record<string, unknown>)
 }
+
+/** 最小类型守卫：对象是否具备 FloodFeature 必需字段 */
+const isFloodFeature = (obj: unknown): obj is FloodFeature =>
+  isRecordMatching(
+    obj,
+    (o) => o.type === 'Feature' && typeof o.geometry === 'object' && o.geometry !== null
+  )
 
 /** 数组守卫的唯一实现：元素全过 guard 即为 T[]（两个字段共用，判据只此一份） */
 function isArrayOf<T>(data: unknown, guard: (v: unknown) => v is T): data is T[] {
@@ -131,29 +144,30 @@ const isFloodFeatureArray = (data: unknown): data is FloodFeature[] =>
   isArrayOf(data, isFloodFeature)
 
 /** 最小类型守卫：对象是否具备 AffectedFacility 必需字段 */
-function isAffectedFacility(obj: unknown): obj is AffectedFacility {
-  if (typeof obj !== 'object' || obj === null) return false
-  const o = obj as Record<string, unknown>
-  return (
-    typeof o.id === 'string' &&
-    typeof o.name === 'string' &&
-    typeof o.lng === 'number' &&
-    typeof o.lat === 'number'
+const isAffectedFacility = (obj: unknown): obj is AffectedFacility =>
+  isRecordMatching(
+    obj,
+    (o) =>
+      typeof o.id === 'string' &&
+      typeof o.name === 'string' &&
+      typeof o.lng === 'number' &&
+      typeof o.lat === 'number'
   )
-}
 
 const isAffectedFacilityArray = (data: unknown): data is AffectedFacility[] =>
   isArrayOf(data, isAffectedFacility)
 
 /** 加载浸没分析方案：类型守卫收窄后存入 floodStore 再跳转，不通过降级为空数组 */
 function loadFloodPlan(plan: Plan) {
-  const okFeatures = isFloodFeatureArray(plan.floodFeatures)
-  const okFacilities = isAffectedFacilityArray(plan.affectedFacilities)
-  // okXxx 布尔不参与 TS 的谓词收窄，故此处按已判定的结果断言（守卫结果就在上一行）
-  const floodFeatures: FloodFeature[] = okFeatures ? (plan.floodFeatures as FloodFeature[]) : []
-  const affectedFacilities: AffectedFacility[] = okFacilities
-    ? (plan.affectedFacilities as AffectedFacility[])
-    : []
+  // 每个字段只取一次、只判一次：原写法判一次再把同一属性取一遍做断言（147/152 行对
+  // floodFeatures 重复求值）。局部 const 让守卫结果能参与收窄，断言随之可去掉。
+  const rawFeatures = plan.floodFeatures
+  const rawFacilities = plan.affectedFacilities
+  const okFeatures = isFloodFeatureArray(rawFeatures)
+  const okFacilities = isAffectedFacilityArray(rawFacilities)
+
+  const floodFeatures: FloodFeature[] = okFeatures ? rawFeatures : []
+  const affectedFacilities: AffectedFacility[] = okFacilities ? rawFacilities : []
 
   if (!okFeatures) {
     logger.debug('[PlansPanel] 方案 floodFeatures 数据格式异常，已降级为空数组')

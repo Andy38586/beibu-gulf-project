@@ -4,7 +4,7 @@
  * 继承 AppLayout 布局基座：左侧吞吐量图表（自 AppLayout 下沉），
  * 右侧单个 4×8 Panel 放置登录/用户信息/收藏夹（UserInfoCard、PlansPanel 为独立子组件）。
  */
-import { computed, defineAsyncComponent, onMounted, watch } from 'vue'
+import { defineAsyncComponent, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { useOverviewCharts } from '@/business'
@@ -27,7 +27,7 @@ const BarChart = defineAsyncComponent({
 })
 
 const { user, logout } = useAuth()
-const { cellPixel } = useGCS()
+const { cellCss, css } = useGCS()
 const { chartData, barData, loadOverviewCharts } = useOverviewCharts()
 
 // 与首页共用 useOverviewCharts（图表数据统一来源，无本页假数据）
@@ -58,13 +58,13 @@ async function handleLogout() {
 }
 
 // 退出按钮尺寸（Cell 单位，样式自 UserInfoCard 下沉）
-// 🔴 必须是 computed：`v-bind()` 只跟踪响应式依赖，写成普通 const 会在首次求值时把
-// `cellPixel.value` 读死 ⇒ 窗口缩放后按钮尺寸**不跟随**（同页 LoginPanel 用的是 computed）。
-const logoutWidthCss = computed(() => `${cellPixel.value * 3.8}px`)
-const logoutHeightCss = computed(() => `${cellPixel.value * 0.8}px`)
-const logoutFontCss = computed(() => `${cellPixel.value * 0.175}px`)
-// 内边距 0.1 Cell（与 GCS 面板边缘规格一致）
-const logoutPaddingCss = computed(() => `${cellPixel.value * 0.1}px`)
+// 🔴 必须是 computed（cellCss 返回 computed）：`v-bind()` 只跟踪响应式依赖，写成普通字符串
+// 会在首次求值时把 cellPixel 读死 ⇒ 窗口缩放后按钮尺寸**不跟随**。
+const logoutWidthCss = cellCss(3.8)
+const logoutHeightCss = cellCss(0.8)
+const logoutFontCss = cellCss(0.175)
+// 内边距 0.1 Cell（与 GCS 面板边缘规格一致）：复用 useGCS 既有的 cell8px，不再手算系数
+const logoutPaddingCss = css.cell8px
 </script>
 
 <template>

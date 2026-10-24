@@ -44,6 +44,13 @@ interface UseGCSReturn {
   /** 档位 3（<640px）：底部 nav 紧凑化 */
   navCompact: ComputedRef<boolean>
   cell: (w: number, h: number) => { width: string; height: string }
+  /**
+   * Cell 倍数 → CSS 像素串的唯一工厂（v-bind() 用）。
+   * 同一公式原先在组件里手抄（本批收掉 9 处，全仓仍有 27 处待迁），改倍数要逐处同步；
+   * 且写成普通 const 会读死 cellPixel ⇒ 窗口缩放不跟随。此工厂内部即 computed，
+   * 在 setup 期调用即绑定组件 scope、随实例销毁。
+   */
+  cellCss: (multiplier: number) => ComputedRef<string>
   panelPosition: (
     w: number,
     h: number,
@@ -175,11 +182,20 @@ export function useGCS(): UseGCSReturn {
     }
   }
 
-  /** CSS 尺寸工具集（供 v-bind() 使用） */
+  /**
+   * Cell 倍数 → CSS 像素串工厂（2026-10-25 F46）。
+   * `computed` 而非普通函数：v-bind() 只跟踪响应式依赖，普通 const 会在首次求值时
+   * 把 cellPixel 读死（窗口缩放后尺寸不跟随——ProfilePage 曾踩此坑，见其原注释）。
+   */
+  function cellCss(multiplier: number): ComputedRef<string> {
+    return computed(() => `${cellPixel.value * multiplier}px`)
+  }
+
+  /** CSS 尺寸工具集（供 v-bind() 使用）；固定倍数也走 cellCss，公式只此一份 */
   const css = {
-    cell8px: computed(() => `${cellPixel.value * 0.1}px`),
-    cell16px: computed(() => `${cellPixel.value * 0.2}px`),
-    cell40px: computed(() => `${cellPixel.value * 0.5}px`),
+    cell8px: cellCss(0.1),
+    cell16px: cellCss(0.2),
+    cell40px: cellCss(0.5),
     fontSizeTitle: computed(() => '16px'),
     fontSizeBody: computed(() => '14px'),
     fontSizeSmall: computed(() => '12px'),
@@ -198,6 +214,7 @@ export function useGCS(): UseGCSReturn {
     tier,
     navCompact,
     cell,
+    cellCss,
     panelPosition,
     css,
     cell8px: css.cell8px,

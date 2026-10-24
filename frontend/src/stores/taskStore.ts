@@ -227,12 +227,14 @@ export const useTaskStore = defineStore('task', () => {
       if (count >= POLL_MAX_CONSECUTIVE_ERRORS) {
         stopPolling(route)
         // 后端自己的重试链可能仍在跑，这里只代表**前端看不到了**，
-        // 所以按失败告知用户，而不是假装成功
-        slots.value[route] = {
-          ...(slots.value[route] as TaskSlot),
+        // 所以按失败告知用户，而不是假装成功。
+        // 走 patchSlot：原先此处裸写 `{ ...(slots.value[route] as TaskSlot), ... }`——
+        // 槽位若已被 clearAll 移除，`as TaskSlot` 断言会把 undefined 展开成
+        // 只有 status/error、缺 taskId/route/domain 的畸形槽位再写回去。
+        patchSlot(route, {
           status: 'failed',
           error: { message: '与服务器失去联系，任务状态未知，请稍后重新发起' },
-        }
+        })
         showError(null, { fallback: '与服务器失去联系，请稍后重试' })
         return
       }

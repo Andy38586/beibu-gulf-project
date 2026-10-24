@@ -11,7 +11,7 @@
  * - 后端不可达（NETWORK_ERROR/TIMEOUT）→「服务器无响应」（经 describeError，不往「登录」上引）
  */
 
-import { computed, ref } from 'vue'
+import { ref } from 'vue'
 
 import { ApiError, AUTH_BIZ_CODE, describeError, showToast, useAuth, useGCS } from '@/shared'
 
@@ -19,7 +19,7 @@ import { ApiError, AUTH_BIZ_CODE, describeError, showToast, useAuth, useGCS } fr
 // 组件内手抄数字曾有的漂移风险消除）
 
 const { login, register } = useAuth()
-const { cellPixel, css } = useGCS()
+const { cellCss, css } = useGCS()
 const { cell8px, cell16px } = css
 
 const mode = ref('login') // 'login' | 'register'
@@ -29,15 +29,15 @@ const confirmPassword = ref('')
 const loading = ref(false)
 
 // CSS v-bind 计算属性（响应式 cellPixel，随视口变化）
-// 表单控件字号统一 0.175 Cell（14px）。原先 input/btn 各写一份逐字相同的 computed
-// ⇒ 同公式两名，改名或调值必须同步两处；合并为单一来源。
-const controlFontSizeCss = computed(() => `${cellPixel.value * 0.175}px`) // 14px
+// 像素值统一经 useGCS().cellCss 派生（同公式曾在表单控件/按钮各处手抄）
+// 表单控件字号统一 0.175 Cell（14px）
+const controlFontSizeCss = cellCss(0.175) // 14px
 // 1.8×0.8 Cell 按钮尺寸
-const modeBtnWidthCss = computed(() => `${cellPixel.value * 1.8}px`) // 144px
-const modeBtnHeightCss = computed(() => `${cellPixel.value * 0.8}px`) // 64px
+const modeBtnWidthCss = cellCss(1.8) // 144px
+const modeBtnHeightCss = cellCss(0.8) // 64px
 // 3.8×0.8 Cell 表单控件尺寸（输入框 + 提交按钮 + 退出按钮）
-const formWidthCss = computed(() => `${cellPixel.value * 3.8}px`) // 304px
-const formHeightCss = computed(() => `${cellPixel.value * 0.8}px`) // 64px
+const formWidthCss = cellCss(3.8) // 304px
+const formHeightCss = cellCss(0.8) // 64px
 
 function switchMode(m: string) {
   mode.value = m

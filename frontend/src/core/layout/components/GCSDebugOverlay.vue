@@ -27,53 +27,95 @@ const { cellPixel, gap, padding } = useGCS()
 // GCS 反馈测试入口：与生产共用 gcsFeedback 单例，可直接预览 modal/toast
 import { showModal, showToast } from '@/shared'
 
-function testErrorModal(): void {
-  showModal({
-    message: '网络异常，请检查网络连接后重试',
-    mode: 'error',
-    onConfirm: () => showToast('已重试', 'success'),
-  })
+/** 反馈测试按钮：一条数据 = 一个按钮（label + 触发动作），模板只做遍历渲染 */
+interface FeedbackAction {
+  label: string
+  run: () => void
 }
-function testLoginModal(): void {
-  showModal({ message: '收藏功能需要登录，是否前往登录？', mode: 'login' })
+
+/** 第一行：modal 三种 mode（error / login / confirm） */
+const modalActions: FeedbackAction[] = [
+  {
+    label: 'Error Modal',
+    run: () =>
+      showModal({
+        message: '网络异常，请检查网络连接后重试',
+        mode: 'error',
+        onConfirm: () => showToast('已重试', 'success'),
+      }),
+  },
+  {
+    label: 'Login Modal',
+    run: () => showModal({ message: '收藏功能需要登录，是否前往登录？', mode: 'login' }),
+  },
+  {
+    label: 'Confirm Modal',
+    run: () =>
+      showModal({
+        message: '确定要删除方案"调试测试方案"吗？',
+        mode: 'confirm',
+        onConfirm: () => showToast('已删除', 'success'),
+      }),
+  },
+]
+
+/** 第二行：toast 三级 + 长文案（长文案用于验证固定 3cell 胶囊单行尾部省略、不换行不溢出） */
+const toastActions: FeedbackAction[] = [
+  { label: 'Toast ✓', run: () => showToast('已收藏：调试示例设施', 'success') },
+  { label: 'Toast ⚠', run: () => showToast('账号不存在，请先注册', 'warning') },
+  { label: 'Toast ✗', run: () => showToast('服务器无响应，请检查网络后重试', 'error') },
+  {
+    label: 'Toast 长文',
+    run: () =>
+      showToast('长文案示例：固定胶囊单行展示，超出宽度部分尾部省略，不换行不溢出', 'warning'),
+  },
+]
+
+/**
+ * Cell 比例表：调试覆盖层的所有尺寸都是「CELL_PIXEL × 比例」。
+ * 比例集中在此表 → 换算统一走 cellPx/cellCss，不再逐条复制同形 Math.round 表达式。
+ */
+const CELL_RATIO = {
+  labelOffset: 0.05,
+  labelFontSizeSmall: 0.1375,
+  labelFontSizeMedium: 0.15,
+  labelPaddingY: 0.025,
+  labelPaddingX: 0.075,
+  infoPanelOffset: 0.25,
+  infoPanelPadding: 0.2,
+  infoPanelMinWidth: 2.5,
+  infoTitleFontSize: 0.175,
+  infoTitleMargin: 0.15,
+  infoTitlePadding: 0.1,
+  infoItemMargin: 0.1,
+} as const
+
+/** 比例 → 整数 px 字符串（舍入规则唯一：Math.round） */
+function cellPx(ratio: number): string {
+  return `${Math.round(CELL_PIXEL * ratio)}px`
 }
-function testConfirmModal(): void {
-  showModal({
-    message: '确定要删除方案"调试测试方案"吗？',
-    mode: 'confirm',
-    onConfirm: () => showToast('已删除', 'success'),
-  })
-}
-function testSuccessToast(): void {
-  showToast('已收藏：调试示例设施', 'success')
-}
-function testWarningToast(): void {
-  showToast('账号不存在，请先注册', 'warning')
-}
-function testErrorToast(): void {
-  showToast('服务器无响应，请检查网络后重试', 'error')
-}
-// 长文案验证：固定 3cell 胶囊单行容纳不下时尾部省略（不换行、不溢出）
-function testLongToast(): void {
-  showToast('长文案示例：固定胶囊单行展示，超出宽度部分尾部省略，不换行不溢出', 'warning')
+
+/** 比例 → 响应式 px 字符串（供 CSS v-bind 使用） */
+function cellCss(ratio: number) {
+  return computed(() => cellPx(ratio))
 }
 
 // CSS v-bind：标签位置（CELL_PIXEL 比例）
-const labelOffsetCss = computed(() => `${Math.round(CELL_PIXEL * 0.05)}px`)
-const labelFontSizeSmallCss = computed(() => `${Math.round(CELL_PIXEL * 0.1375)}px`)
-const labelFontSizeMediumCss = computed(() => `${Math.round(CELL_PIXEL * 0.15)}px`)
+const labelOffsetCss = cellCss(CELL_RATIO.labelOffset)
+const labelFontSizeSmallCss = cellCss(CELL_RATIO.labelFontSizeSmall)
+const labelFontSizeMediumCss = cellCss(CELL_RATIO.labelFontSizeMedium)
 const labelPaddingCss = computed(
-  () => `${Math.round(CELL_PIXEL * 0.025)}px ${Math.round(CELL_PIXEL * 0.075)}px`
+  () => `${cellPx(CELL_RATIO.labelPaddingY)} ${cellPx(CELL_RATIO.labelPaddingX)}`
 )
 
 // 信息面板样式（CELL_PIXEL 比例）
-const infoPanelOffsetCss = computed(() => `${Math.round(CELL_PIXEL * 0.25)}px`)
-const infoPanelPaddingCss = computed(() => `${Math.round(CELL_PIXEL * 0.2)}px`)
-const infoPanelMinWidthCss = computed(() => `${Math.round(CELL_PIXEL * 2.5)}px`)
-const infoTitleFontSizeCss = computed(() => `${Math.round(CELL_PIXEL * 0.175)}px`)
-const infoTitleMarginCss = computed(() => `${Math.round(CELL_PIXEL * 0.15)}px`)
-const infoTitlePaddingCss = computed(() => `${Math.round(CELL_PIXEL * 0.1)}px`)
-const infoItemMarginCss = computed(() => `${Math.round(CELL_PIXEL * 0.1)}px`)
+const infoPanelOffsetCss = cellCss(CELL_RATIO.infoPanelOffset)
+const infoPanelPaddingCss = cellCss(CELL_RATIO.infoPanelPadding)
+const infoPanelMinWidthCss = cellCss(CELL_RATIO.infoPanelMinWidth)
+const infoTitleFontSizeCss = cellCss(CELL_RATIO.infoTitleFontSize)
+const infoTitleMarginCss = cellCss(CELL_RATIO.infoTitleMargin)
+const infoTitlePaddingCss = cellCss(CELL_RATIO.infoTitlePadding)
+const infoItemMarginCss = cellCss(CELL_RATIO.infoItemMargin)
 
 // 响应式视口尺寸
 const viewportWidth = ref(typeof window !== 'undefined' ? window.innerWidth : 1920)
@@ -159,19 +201,16 @@ function isPpsAligned(value: number) {
   const S = SAFE_MARGIN
   const W = viewportWidth.value
 
-  // left 锚点
-  const remainder1 = (value - S) % C
-  if (remainder1 <= 1 || remainder1 >= C - 1) return true
-
-  // right 锚点
-  const remainder2 = (W - S - value) % C
-  if (remainder2 <= 1 || remainder2 >= C - 1) return true
-
-  // center 锚点
-  const remainder3 = (W - value * 2) % C
-  if (remainder3 <= 1 || remainder3 >= C - 1) return true
-
-  return false
+  // 三个锚点各自的「距锚点偏移量」，任一落在 Cell 整数倍（±1px）即视为对齐
+  const anchorOffsets = [
+    value - S, // left 锚点
+    W - S - value, // right 锚点
+    W - value * 2, // center 锚点
+  ]
+  return anchorOffsets.some((offset) => {
+    const remainder = offset % C
+    return remainder <= 1 || remainder >= C - 1
+  })
 }
 
 /** 数值是否为 Cell 的整数倍（允许 1px 误差，验证 Panel 尺寸） */
@@ -230,23 +269,17 @@ function validateEdgeSpacing(panel: {
 }) {
   const minSpacing = SAFE_MARGIN
 
-  // 上边缘
-  if (panel.y < minSpacing - 1) {
-    recordIssue(panel.label, 'top-edge', panel.y, `>= ${minSpacing}px`)
-  }
-  // 左边缘
-  if (panel.x < minSpacing - 1) {
-    recordIssue(panel.label, 'left-edge', panel.x, `>= ${minSpacing}px`)
-  }
-  // 右边缘
-  const rightEdge = viewportWidth.value - (panel.x + panel.width)
-  if (rightEdge < minSpacing - 1) {
-    recordIssue(panel.label, 'right-edge', rightEdge, `>= ${minSpacing}px`)
-  }
-  // 下边缘
-  const bottomEdge = viewportHeight.value - (panel.y + panel.height)
-  if (bottomEdge < minSpacing - 1) {
-    recordIssue(panel.label, 'bottom-edge', bottomEdge, `>= ${minSpacing}px`)
+  // 四边距统一表驱动：上/左为绝对坐标，右/下换算为「屏幕边长 - 面板远端」
+  const edges: [field: string, spacing: number][] = [
+    ['top-edge', panel.y],
+    ['left-edge', panel.x],
+    ['right-edge', viewportWidth.value - (panel.x + panel.width)],
+    ['bottom-edge', viewportHeight.value - (panel.y + panel.height)],
+  ]
+  for (const [field, spacing] of edges) {
+    if (spacing < minSpacing - 1) {
+      recordIssue(panel.label, field, spacing, `>= ${minSpacing}px`)
+    }
   }
 }
 
@@ -566,15 +599,24 @@ onUnmounted(() => {
       <!-- GCS 反馈测试：modal/toast 预览入口，与生产共用 gcsFeedback 单例 -->
       <div class="hud-sec">── GCS 反馈测试 ──</div>
       <div class="feedback-test">
-        <button class="feedback-btn" @click="testErrorModal">Error Modal</button>
-        <button class="feedback-btn" @click="testLoginModal">Login Modal</button>
-        <button class="feedback-btn" @click="testConfirmModal">Confirm Modal</button>
+        <button
+          v-for="action in modalActions"
+          :key="action.label"
+          class="feedback-btn"
+          @click="action.run()"
+        >
+          {{ action.label }}
+        </button>
       </div>
       <div class="feedback-test">
-        <button class="feedback-btn" @click="testSuccessToast">Toast ✓</button>
-        <button class="feedback-btn" @click="testWarningToast">Toast ⚠</button>
-        <button class="feedback-btn" @click="testErrorToast">Toast ✗</button>
-        <button class="feedback-btn" @click="testLongToast">Toast 长文</button>
+        <button
+          v-for="action in toastActions"
+          :key="action.label"
+          class="feedback-btn"
+          @click="action.run()"
+        >
+          {{ action.label }}
+        </button>
       </div>
     </div>
   </div>

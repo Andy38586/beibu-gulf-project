@@ -66,21 +66,19 @@ const onSliderInput = (e: Event) => {
     <span v-if="statusText" class="ssc-status">{{ statusText }}</span>
   </div>
 
-  <!-- 已选态：白底 + 状态文案 -->
-  <button v-else-if="selected" type="button" class="ssc confirmed" @click.stop="emit('toggle')">
+  <!-- 已选态 / 默认态：同一按钮骨架（色点/图标 + 名称 + 小标），已选态多一行状态文案 -->
+  <button
+    v-else
+    type="button"
+    class="ssc"
+    :class="{ confirmed: selected }"
+    @click.stop="emit('toggle')"
+  >
     <span v-if="!$slots.icon && dotColor" class="ssc-dot" :style="{ color: dotColor }">●</span>
     <slot name="icon" />
     <span class="ssc-label">{{ label }}</span>
     <span v-if="badge" class="ssc-badge">{{ badge }}</span>
-    <span v-if="statusText" class="ssc-status">{{ statusText }}</span>
-  </button>
-
-  <!-- 默认态：白底 + 名称 -->
-  <button v-else type="button" class="ssc" @click.stop="emit('toggle')">
-    <span v-if="!$slots.icon && dotColor" class="ssc-dot" :style="{ color: dotColor }">●</span>
-    <slot name="icon" />
-    <span class="ssc-label">{{ label }}</span>
-    <span v-if="badge" class="ssc-badge">{{ badge }}</span>
+    <span v-if="selected && statusText" class="ssc-status">{{ statusText }}</span>
   </button>
 </template>
 

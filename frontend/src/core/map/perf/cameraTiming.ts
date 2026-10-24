@@ -6,5 +6,8 @@
  * 尚未注入即抛）——OLRenderer 静态引它就把整个 2D eager 图拖进了「UMD 注入竞速」，
  * 冷浏览器输掉竞速 = dev 首屏永远停在加载页（2026-10-24 实测）。2D 首屏链上的
  * 常量必须与 cesium 解耦；本文件零 import，可被 eager 图安全消费。
+ *
+ * W39：两个引擎曾各写一个裸 `}, 300)`（同一「防抖后 emit camera-changed」形状）；
+ * 改时长只改这里，否则会出现「3D 300ms / 2D 其他节奏」且无判据可红。
  */
 export const CAMERA_DEBOUNCE_MS = 300

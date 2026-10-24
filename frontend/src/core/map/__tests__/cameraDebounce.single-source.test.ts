@@ -16,6 +16,7 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
 const RENDERERS = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'renderers')
+const PERF = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'perf')
 
 function readRenderer(name: string): string {
   return readFileSync(`${RENDERERS}/${name}`, 'utf8')
@@ -52,5 +53,15 @@ describe('相机防抖时长单源（CAMERA_DEBOUNCE_MS）', () => {
       '// 防抖 300ms\nsetTimeout(() => { emit() }, CAMERA_DEBOUNCE_MS)'
     )
     expect(tokens).toEqual(['CAMERA_DEBOUNCE_MS'])
+  })
+
+  it('常量只在 cameraTiming 定义，两个消费点都从它导入', () => {
+    const timing = readFileSync(`${PERF}/cameraTiming.ts`, 'utf8')
+    // 定义唯一 + 零 import（eager 链可安全消费）
+    expect(timing).toMatch(/export const CAMERA_DEBOUNCE_MS = \d+/)
+    expect(timing).not.toMatch(/^\s*import\s/m)
+    // 两个消费点必须指向同一文件；本地再声明一份即红（原先只查「是不是标识符」）
+    expect(readRenderer('OLRenderer.ts')).toMatch(/from '\.\.\/perf\/cameraTiming'/)
+    expect(readFileSync(`${PERF}/cameraPerf.ts`, 'utf8')).toMatch(/from '\.\/cameraTiming'/)
   })
 })

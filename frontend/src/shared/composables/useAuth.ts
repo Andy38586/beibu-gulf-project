@@ -37,9 +37,8 @@ function readStoredUser(): User | null {
   return result.data as User
 }
 
-/** 写入 localStorage（传 null 清除） */
+/** 写入 localStorage（传 null 清除）；SSR 兜底由 writeStoredJSON 内部的 getSafeStorage 承担 */
 function writeStoredUser(user: User | null): void {
-  if (typeof window === 'undefined') return
   writeStoredJSON(USER_STORAGE_KEY, user)
 }
 

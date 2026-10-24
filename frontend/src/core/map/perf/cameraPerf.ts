@@ -65,25 +65,23 @@ function countCoordinatePairs(coords: unknown): number {
 
 /** 顶点成本累计（PolygonFeature 与 GeoJSON 共用；coordinates 优先，geometry.coordinates 兜底） */
 function sumCoordinatePairs(
-  features: Array<{ coordinates?: unknown; geometry?: { coordinates?: unknown } | null }>
+  features: Array<{ coordinates?: unknown; geometry?: unknown }>
 ): number {
-  return features.reduce(
-    (sum, f) => sum + countCoordinatePairs(f.coordinates ?? f.geometry?.coordinates),
-    0
-  )
+  return features.reduce((sum, f) => {
+    const geometry = f.geometry as { coordinates?: unknown } | null | undefined
+    return sum + countCoordinatePairs(f.coordinates ?? geometry?.coordinates)
+  }, 0)
 }
 
 /** PolygonFeature[] 顶点成本 */
 export function isHeavyPolygons(
-  features: Array<{ coordinates?: unknown; geometry?: { coordinates?: unknown } | null }>
+  features: Array<{ coordinates?: unknown; geometry?: { coordinates?: unknown } }>
 ): boolean {
   return isHeavyVertexCount(sumCoordinatePairs(features))
 }
 
 /** GeoJSON FeatureCollection 顶点成本 */
-export function isHeavyGeoJson(geojson: {
-  features: Array<{ geometry?: { coordinates?: unknown } | null }>
-}): boolean {
+export function isHeavyGeoJson(geojson: { features: Array<{ geometry?: unknown }> }): boolean {
   return isHeavyVertexCount(sumCoordinatePairs(geojson.features))
 }
 

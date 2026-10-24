@@ -464,7 +464,7 @@ onUnmounted(() => {
           @drop="(z: HTMLElement) => onDrop('result', z)"
         >
           <div class="result-panel">
-            <h3 class="panel-title">路径结果</h3>
+            <div class="panel-header"><div class="header-title">路径结果</div></div>
             <template v-if="summary">
               <div class="summary-main">{{ summary.totalKm.toFixed(1) }} km</div>
               <div class="summary-sub">
@@ -524,13 +524,20 @@ onUnmounted(() => {
 }
 
 .result-panel {
-  padding: 12px;
+  padding: 0 12px 12px;
   color: var(--GCS-text-primary);
 }
 
-.panel-title {
-  margin: 0 0 8px;
-  font-size: 14px;
+/* 面板标题：与浸没报告/受影响设施同一口径（居中、字号归档、600） */
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 0 8px;
+}
+
+.header-title {
+  font-size: var(--GCS-font-size-lg);
   font-weight: 600;
   color: var(--GCS-text-primary);
 }

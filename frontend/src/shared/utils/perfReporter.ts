@@ -303,6 +303,18 @@ function printSummary(): void {
   console.log(`[perf] ${parts.join(' | ')}`)
 }
 
+/** 注册一个 PerformanceObserver（类型不支持时静默忽略）：四类观测共用同一注册壳 */
+function observe(type: string, onEntries: (entries: PerformanceEntryList) => void): void {
+  try {
+    new PerformanceObserver((list) => onEntries(list.getEntries())).observe({
+      type,
+      buffered: true,
+    } as PerformanceObserverInit)
+  } catch {
+    /* 该观测类型不支持时忽略 */
+  }
+}
+
 /** 初始化观察者（FCP/LCP/CLS/longtask/TTI）与 FPS 采样，挂载 window.__perf */
 export function initPerfReporter(): void {
   if (!PERF_ENABLED) return
@@ -310,50 +322,29 @@ export function initPerfReporter(): void {
   started = true
 
   // FCP
-  try {
-    const po = new PerformanceObserver((list) => {
-      for (const entry of list.getEntries()) {
-        if (entry.name === 'first-contentful-paint') state.fcp = entry.startTime
-      }
-    })
-    po.observe({ type: 'paint', buffered: true })
-  } catch {
-    /* PerformanceObserver paint 不支持时忽略 */
-  }
+  observe('paint', (entries) => {
+    for (const entry of entries) {
+      if (entry.name === 'first-contentful-paint') state.fcp = entry.startTime
+    }
+  })
 
   // LCP
-  try {
-    const po = new PerformanceObserver((list) => {
-      const entries = list.getEntries()
-      const last = entries[entries.length - 1]
-      state.lcp = last.startTime
-    })
-    po.observe({ type: 'largest-contentful-paint', buffered: true })
-  } catch {
-    /* LCP 不支持时忽略 */
-  }
+  observe('largest-contentful-paint', (entries) => {
+    const last = entries[entries.length - 1]
+    state.lcp = last.startTime
+  })
 
   // CLS（布局稳定，Web Vitals 三件套）
-  try {
-    const po = new PerformanceObserver((list) => {
-      for (const entry of list.getEntries()) {
-        state.cls += (entry as { value?: number }).value ?? 0
-      }
-    })
-    po.observe({ type: 'layout-shift', buffered: true })
-  } catch {
-    /* layout-shift 不支持时忽略 */
-  }
+  observe('layout-shift', (entries) => {
+    for (const entry of entries) {
+      state.cls += (entry as { value?: number }).value ?? 0
+    }
+  })
 
   // longtask（掉帧 / 长任务）
-  try {
-    const po = new PerformanceObserver((_list) => {
-      state.longtasks += 1
-    })
-    po.observe({ type: 'longtask', buffered: true })
-  } catch {
-    /* longtask 不支持时忽略 */
-  }
+  observe('longtask', () => {
+    state.longtasks += 1
+  })
 
   // TTI 近似：load 事件结束时刻
   window.addEventListener('load', () => {

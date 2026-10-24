@@ -20,5 +20,3 @@ export const STORAGE_KEYS = {
   /** 行政边界 GeoJSON 缓存（useBoundaryLayer） */
   boundaryCache: 'beibu-gulf-boundary-cache',
 } as const
-
-export type StorageKey = keyof typeof STORAGE_KEYS

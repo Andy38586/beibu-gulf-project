@@ -10,7 +10,7 @@ import { loadStatic } from '@/shared'
 import { logger } from '@/shared'
 import type { LayerOptions } from '@/types'
 import { boundaryCacheSchema } from '@/types/schemas'
-import { STORAGE_KEYS } from '@/shared/constants/storageKeys'
+import { STORAGE_KEYS } from '@/shared/constants'
 
 export async function loadBoundaryGeoJson(
   onError?: (msg: string) => void,

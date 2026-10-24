@@ -7,7 +7,7 @@ import { readStoredJSON, writeStoredJSON } from '@/shared/utils/safeStorage'
 import type { EngineName, LayerEntry, LayerType, MapType } from '@/types'
 import type { MapRenderer } from '@/types'
 import { DEFAULT_ENGINES, ENGINE_NAMES } from '@/types'
-import { STORAGE_KEYS } from '@/shared/constants/storageKeys'
+import { STORAGE_KEYS } from '@/shared/constants'
 
 /** localStorage 键：底图 */
 const BASE_LAYER_STORAGE_KEY = STORAGE_KEYS.baseLayer

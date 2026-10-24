@@ -4,7 +4,7 @@ import type { TaskDomain, TaskPriority, TaskSubmitResponse, TaskView } from '@/t
 import { ENDPOINTS } from '../constants/api'
 
 import { useApiRequest } from './useApiRequest'
-import { STORAGE_KEYS } from '@/shared/constants/storageKeys'
+import { STORAGE_KEYS } from '@/shared/constants'
 
 /**
  * task 端点客户端（v4 系统 B）。

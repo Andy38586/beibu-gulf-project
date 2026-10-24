@@ -8,7 +8,7 @@ import type { AuthResponse, User } from '@/types/api'
 import { authResponseSchema, userSchema } from '@/types/schemas'
 
 import { ApiError, ErrorCode, useApiRequest } from './useApiRequest'
-import { STORAGE_KEYS } from '@/shared/constants/storageKeys'
+import { STORAGE_KEYS } from '@/shared/constants'
 
 /** 返回契约（显式化，防重构时签名静默漂移） */
 interface UseAuthReturn {

@@ -63,24 +63,28 @@ function countCoordinatePairs(coords: unknown): number {
   return coords.reduce<number>((sum, c) => sum + countCoordinatePairs(c), 0)
 }
 
-/** PolygonFeature[] 顶点成本（coordinates 优先，geometry.coordinates 兜底） */
-export function isHeavyPolygons(
-  features: Array<{ coordinates?: unknown; geometry?: { coordinates?: unknown } }>
-): boolean {
-  const cost = features.reduce(
+/** 顶点成本累计（PolygonFeature 与 GeoJSON 共用；coordinates 优先，geometry.coordinates 兜底） */
+function sumCoordinatePairs(
+  features: Array<{ coordinates?: unknown; geometry?: { coordinates?: unknown } | null }>
+): number {
+  return features.reduce(
     (sum, f) => sum + countCoordinatePairs(f.coordinates ?? f.geometry?.coordinates),
     0
   )
-  return isHeavyVertexCount(cost)
+}
+
+/** PolygonFeature[] 顶点成本 */
+export function isHeavyPolygons(
+  features: Array<{ coordinates?: unknown; geometry?: { coordinates?: unknown } | null }>
+): boolean {
+  return isHeavyVertexCount(sumCoordinatePairs(features))
 }
 
 /** GeoJSON FeatureCollection 顶点成本 */
-export function isHeavyGeoJson(geojson: { features: Array<{ geometry?: unknown }> }): boolean {
-  const cost = geojson.features.reduce((sum, f) => {
-    const geometry = f.geometry as { coordinates?: unknown } | null | undefined
-    return sum + countCoordinatePairs(geometry?.coordinates)
-  }, 0)
-  return isHeavyVertexCount(cost)
+export function isHeavyGeoJson(geojson: {
+  features: Array<{ geometry?: { coordinates?: unknown } | null }>
+}): boolean {
+  return isHeavyVertexCount(sumCoordinatePairs(geojson.features))
 }
 
 /**

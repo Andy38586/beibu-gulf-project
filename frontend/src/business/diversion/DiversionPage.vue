@@ -275,9 +275,8 @@ onUnmounted(() => {
       </template>
       <template #right>
         <!-- 右上 4×4：年份控制（滑块收进统一卡片，点击才展开；300ms 防抖逻辑不动） -->
-        <GCSPanel v-bind="placements.year">
+        <GCSPanel v-bind="placements.year" title="年份">
           <div ref="yearPanelRef" class="year-panel">
-            <div class="year-head">年份</div>
             <!-- 三态选择卡片（公共组件 SliderSelectCard）：默认=按钮，点击进入选择态才渲染滑块 -->
             <SliderSelectCard
               :selecting="yearCardOpen"
@@ -355,12 +354,6 @@ onUnmounted(() => {
 .year-panel :deep(.ssc) {
   height: 48px;
   flex: none;
-}
-
-.year-head {
-  font-size: 12px;
-  letter-spacing: 0.5px;
-  color: var(--GCS-text-secondary);
 }
 
 .year-hint {

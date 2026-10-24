@@ -30,6 +30,8 @@ interface Props {
   draggable?: boolean
   /** 拖拽时是否锁定（如任务运行中不允许再次拖走） */
   dragDisabled?: boolean
+  /** 统一面板头：有值时在内容上方渲染 .GCS-panel__header */
+  title?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -155,6 +157,7 @@ const panelStyle = computed(() => {
       </button>
       <button type="button" @click="dockPopup = false">取消</button>
     </div>
+    <header v-if="title" class="GCS-panel__header">{{ title }}</header>
     <slot />
   </div>
 </template>
@@ -267,5 +270,13 @@ const panelStyle = computed(() => {
   box-shadow: var(--GCS-shadow-md);
   font-size: 12px;
   z-index: 3;
+}
+
+/* 统一面板头：提取自 DiversionPage 既有 .year-head，作为组件级 token（标题/年份等语义头） */
+.GCS-panel__header {
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  color: var(--GCS-text-secondary);
+  padding: 8px 12px 0;
 }
 </style>

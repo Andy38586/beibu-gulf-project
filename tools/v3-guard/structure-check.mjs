@@ -42,10 +42,12 @@ const FORBIDDEN_FILENAMES = /\.(tmp|bak|orig|swp)(\.\w+)?$/i
  * 2026-10-21 底图瓦片容错收口（W48）：两处裸 new XYZ 换成 createBaseTileSource，渲染器净减 5 行 ⇒
  *   按同一条公式下修至 1017。**同样是下调，不是提额**：W48 只改构造口径与容错，删掉的是
  *   重复的内联构造，棘轮随实测一起回落。
+ * 2026-10-24 F5/F7/F8/F11/F13 五笔同形收口（workbuddy 流水线）：渲染器净减 OL 9 行 / Cesium 10 行 ⇒
+ *   按「上限=实测」下修至 1008/2325。重复内联构造与 stop 双胞胎换成了共享 helper，棘轮随实测回落。
  */
 export const RENDERER_SIZE_CEILINGS = [
-  { file: 'frontend/src/core/map/renderers/CesiumRenderer.ts', max: 2335 },
-  { file: 'frontend/src/core/map/renderers/OLRenderer.ts', max: 1017 },
+  { file: 'frontend/src/core/map/renderers/CesiumRenderer.ts', max: 2325 },
+  { file: 'frontend/src/core/map/renderers/OLRenderer.ts', max: 1008 },
 ]
 
 /**

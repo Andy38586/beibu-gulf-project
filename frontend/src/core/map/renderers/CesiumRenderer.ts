@@ -718,29 +718,24 @@ export class CesiumRenderer extends MapRenderer {
         .replace('{layerCode}', layerCode)
         .replace('{key}', MAP_CONFIG.TIANDITU_KEY)
 
-    const imageBaseProvider = new UrlTemplateImageryProvider({
-      url: tiandituUrlForCesium(MAP_CONFIG.BASE_LAYERS.image.layers[0]),
-      maximumLevel: 18,
-    })
+    // 四个底图 Provider 同构（仅 layerCode 不同），maximumLevel 统一 18
+    const tiandituProvider = (layerCode: string) =>
+      new UrlTemplateImageryProvider({
+        url: tiandituUrlForCesium(layerCode),
+        maximumLevel: 18,
+      })
+
+    const imageBaseProvider = tiandituProvider(MAP_CONFIG.BASE_LAYERS.image.layers[0])
     attachImageryErrorLog(imageBaseProvider)
     const imageBaseLayer = viewer.imageryLayers.addImageryProvider(imageBaseProvider)
-    const imageAnnotationProvider = new UrlTemplateImageryProvider({
-      url: tiandituUrlForCesium(MAP_CONFIG.BASE_LAYERS.image.layers[1]),
-      maximumLevel: 18,
-    })
+    const imageAnnotationProvider = tiandituProvider(MAP_CONFIG.BASE_LAYERS.image.layers[1])
     attachImageryErrorLog(imageAnnotationProvider)
     const imageAnnotationLayer = viewer.imageryLayers.addImageryProvider(imageAnnotationProvider)
     const vectorBaseProvider = viewer.imageryLayers.addImageryProvider(
-      new UrlTemplateImageryProvider({
-        url: tiandituUrlForCesium(MAP_CONFIG.BASE_LAYERS.vector.layers[0]),
-        maximumLevel: 18,
-      })
+      tiandituProvider(MAP_CONFIG.BASE_LAYERS.vector.layers[0])
     )
     const vectorAnnotationProvider = viewer.imageryLayers.addImageryProvider(
-      new UrlTemplateImageryProvider({
-        url: tiandituUrlForCesium(MAP_CONFIG.BASE_LAYERS.vector.layers[1]),
-        maximumLevel: 18,
-      })
+      tiandituProvider(MAP_CONFIG.BASE_LAYERS.vector.layers[1])
     )
     vectorBaseProvider.show = false
     vectorAnnotationProvider.show = false

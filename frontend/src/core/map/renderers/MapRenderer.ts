@@ -203,10 +203,8 @@ export class MapRenderer implements MapRendererContract {
     handler: (event: CustomEvent<MapRendererEventMap[K]>) => void
   ): void
   on(event: string, handler: EventListenerOrEventListenerObject): void
-  // 实现签名用 unknown：兼容泛型 handler (CustomEvent<T>)=>void 与 EventListener 的参数逆变，体内窄化后交给 EventTarget
-
   on(event: string, handler: unknown): void {
-    this._eventBus.addEventListener(event, handler as EventListener)
+    this._eventBusApply('addEventListener', event, handler)
   }
 
   off<K extends keyof MapRendererEventMap>(
@@ -214,9 +212,22 @@ export class MapRenderer implements MapRendererContract {
     handler: (event: CustomEvent<MapRendererEventMap[K]>) => void
   ): void
   off(event: string, handler: EventListenerOrEventListenerObject): void
-
   off(event: string, handler: unknown): void {
-    this._eventBus.removeEventListener(event, handler as EventListener)
+    this._eventBusApply('removeEventListener', event, handler)
+  }
+
+  /**
+   * on/off 的唯一实现：两个公开方法此前除 add/remove 一词外逐字同构，收在这里后
+   * 「登记/摘除必须成对」只有一处可改错。公开签名仍由各自的泛型+string 重载声明保证。
+   * 实现签名用 unknown：兼容泛型 handler (CustomEvent<T>)=>void 与 EventListener 的参数逆变，
+   * 体内窄化后交给 EventTarget。
+   */
+  _eventBusApply(
+    op: 'addEventListener' | 'removeEventListener',
+    event: string,
+    handler: unknown
+  ): void {
+    this._eventBus[op](event, handler as EventListener)
   }
 
   emit<K extends keyof MapRendererEventMap>(event: K, data: MapRendererEventMap[K]): void

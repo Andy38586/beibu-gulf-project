@@ -65,7 +65,47 @@ const btnStates = reactive(
     ])
   )
 )
-const timers: Record<string, ReturnType<typeof setTimeout> | null> = {}
+
+/**
+ * 定时器登记处：本组件 4 条链（confirm:指标键 按钮确认 / confidence 置信度防抖 /
+ * refresh 刷新防抖 / playback 播放）共用一套「登记 → 撤销 → 卸载清空」。
+ * 收口前每条链各自手抄三件套——可空句柄声明、清理前判空、卸载时再抄一遍，
+ * 漏一处就是「卸载后仍写 store」，或「同名计时器叠加」把防抖变成串行。
+ * 值存句柄 + kind：timeout 与 interval 的撤销 API 不同，卸载钩子内须以白名单
+ * API 名逐字调（owned-layers 判据默认拒绝钩子内的非白名单调用），故撤销在
+ * clearNamedTimer 按(kind)判定，钩子内联展开时同构。
+ */
+const timers = new Map<
+  string,
+  { handle: ReturnType<typeof setTimeout>; kind: 'timeout' | 'interval' }
+>()
+
+/** 撤销并摘登记（未登记即无操作，天然幂等） */
+function clearNamedTimer(name: string): void {
+  const t = timers.get(name)
+  if (t) {
+    if (t.kind === 'interval') clearInterval(t.handle)
+    else clearTimeout(t.handle)
+  }
+  timers.delete(name)
+}
+
+/** 覆盖式排程（debounce / 重置语义）：先撤销同名旧定时器，到点先摘登记再执行 */
+function scheduleNamedTimer(name: string, delay: number, fn: () => void): void {
+  clearNamedTimer(name)
+  const handle = setTimeout(() => {
+    timers.delete(name)
+    fn()
+  }, delay)
+  timers.set(name, { handle, kind: 'timeout' })
+}
+
+/** 周期定时器（播放）：同样走登记，撤销方式为 clearInterval */
+function startNamedInterval(name: string, delay: number, fn: () => void): void {
+  clearNamedTimer(name)
+  const handle = setInterval(fn, delay)
+  timers.set(name, { handle, kind: 'interval' })
+}
 
 function toggleBtn(key: string) {
   const s = btnStates[key]
@@ -89,13 +129,11 @@ function onSliderInput(key: string) {
 }
 
 // 置信度滑块防抖
-let confidenceDebounceTimer: ReturnType<typeof setTimeout> | null = null
 function onConfidenceSliderInput(key: string, value: string) {
-  if (confidenceDebounceTimer) clearTimeout(confidenceDebounceTimer)
-  confidenceDebounceTimer = setTimeout(() => {
+  scheduleNamedTimer('confidence', 300, () => {
     forecastState.setConfidenceThreshold(key, Number(value))
     onSliderInput(key)
-  }, 300)
+  })
 }
 function confirmBtn(key: string) {
   if (btnStates[key].selecting) {
@@ -104,14 +142,10 @@ function confirmBtn(key: string) {
   }
 }
 function resetTimer(key: string) {
-  clearTimer(key)
-  timers[key] = setTimeout(() => confirmBtn(key), CONFIRM_DELAY)
+  scheduleNamedTimer(`confirm:${key}`, CONFIRM_DELAY, () => confirmBtn(key))
 }
 function clearTimer(key: string) {
-  if (timers[key]) {
-    clearTimeout(timers[key])
-    timers[key] = null
-  }
+  clearNamedTimer(`confirm:${key}`)
 }
 function confirmAll() {
   Object.keys(btnStates).forEach((k) => {
@@ -143,7 +177,6 @@ const { doForecastUpdate } = useForecastOrchestrator()
 
 /** 距最后一次操作 300ms 统一刷新：合并 indicator/time/confidence/运河情景 的连续变化，避免双触发 */
 const REFRESH_DEBOUNCE_MS = 300
-let refreshTimer: ReturnType<typeof setTimeout> | null = null
 watch(
   () => [
     forecastState.activeIndicator,
@@ -152,8 +185,7 @@ watch(
     forecastState.canalScenario,
   ],
   () => {
-    if (refreshTimer) clearTimeout(refreshTimer)
-    refreshTimer = setTimeout(() => void doForecastUpdate(), REFRESH_DEBOUNCE_MS)
+    scheduleNamedTimer('refresh', REFRESH_DEBOUNCE_MS, () => void doForecastUpdate())
   }
 )
 
@@ -162,19 +194,15 @@ onMounted(() => {
 })
 onUnmounted(() => {
   document.removeEventListener('click', handleGlobalClick)
-  Object.keys(timers).forEach(clearTimer)
-  // 置信度滑块防抖定时器清理：卸载后不再写 store
-  if (confidenceDebounceTimer) {
-    clearTimeout(confidenceDebounceTimer)
-    confidenceDebounceTimer = null
+  // 卸载清理一次收口：按钮确认计时器 / 置信度防抖（卸载后不再写 store）/
+  // 刷新防抖（v4-S3：与页面 cancelAll 互补，这边防的是"还没发出去"的那一次）/ 播放。
+  // 钩子内只调白名单 API（owned-layers 判据默认拒绝非白名单调用），故按 kind 内联展开；
+  // 不调 timers.clear()（clear 同样不在白名单）——组件销毁后 Map 随实例回收，无泄漏
+  for (const { handle, kind } of timers.values()) {
+    if (kind === 'interval') clearInterval(handle)
+    else clearTimeout(handle)
   }
-  // 卸载时若滑块专注模式仍激活立即退出，避免残留下页面板全透明
   endSliderFocus()
-  // v4-S3：卸载后不再发起请求（与页面的 cancelAll 互补：这边防的是"还没发出去"的那一次）
-  if (refreshTimer) {
-    clearTimeout(refreshTimer)
-    refreshTimer = null
-  }
 })
 
 // ===== 时间滑块 =====
@@ -221,14 +249,13 @@ const displayTime = computed(() => {
 })
 
 // ===== 播放 =====
-let playbackTimer: ReturnType<typeof setInterval> | null = null
 function togglePlay() {
   forecastState.setIsPlaying(!forecastState.isPlaying)
   if (forecastState.isPlaying) startPlayback()
   else stopPlayback()
 }
 function startPlayback() {
-  playbackTimer = setInterval(() => {
+  startNamedInterval('playback', forecastState.playSpeed, () => {
     // !Number.isFinite 防御：currentTime 异常（坏快照/历史脏数据）时 currentStep 为 NaN，
     // NaN >= N 恒 false 曾穿透守卫死循环（H-3）——异常值直接停播而非永续推进
     if (
@@ -241,15 +268,11 @@ function startPlayback() {
       return
     }
     forecastState.setCurrentTime(stepToTime(currentStep.value + 1))
-  }, forecastState.playSpeed)
+  })
 }
 function stopPlayback() {
-  if (playbackTimer) {
-    clearInterval(playbackTimer)
-    playbackTimer = null
-  }
+  clearNamedTimer('playback')
 }
-onUnmounted(() => stopPlayback())
 </script>
 
 <template>

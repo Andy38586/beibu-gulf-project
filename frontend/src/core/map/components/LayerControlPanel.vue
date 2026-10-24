@@ -72,6 +72,22 @@ const iconFontSizeCss = computed(() => `${cellPixel.value * 0.2}px`) // 16px
  * 按 registry 重建，杜绝双副本失步）；底图条目以 baseLayerKey 为权威源。
  */
 const excluded = computed(() => new Set(props.excludeKeys))
+
+/**
+ * 面板取值的唯一口径：registry meta 优先、目录镜像（LayerEntry）兜底。
+ * 收口前 visible / locked / engines 三处各手抄一遍 `getMeta(k)?.x ?? layer.x`，
+ * 而 engines 恰是「目录优先、registry 兜底」的反序——同一套优先级散在四处手抄，
+ * 抄反一处就是面板与地图静默失步。`??` 不能写成 `||`：false 是合法权威值（图层确实是关的）。
+ */
+function metaOr<T>(
+  key: string,
+  fallback: T,
+  pick: (meta: NonNullable<ReturnType<typeof businessLayerManager.getMeta>>) => T | undefined
+): T {
+  const meta = businessLayerManager.getMeta(key)
+  return (meta ? pick(meta) : undefined) ?? fallback
+}
+
 const groupMembers = computed(() => new Set(props.layerGroups.flatMap((g) => g.memberKeys)))
 
 const layerButtons = computed(() => {
@@ -91,17 +107,15 @@ const layerButtons = computed(() => {
   return [...ordered, ...extra]
     .filter((l: LayerEntry) => !excluded.value.has(l.key) && !groupMembers.value.has(l.key))
     .map((layer) => {
-      const engines =
-        layer.engines ?? businessLayerManager.getMeta(layer.key)?.engines ?? DEFAULT_ENGINES
+      // engines 的顺序与 visible/locked 相反（目录优先、registry 兜底），故 ?? 链在此单独保留
+      const engines = layer.engines ?? metaOr(layer.key, DEFAULT_ENGINES, (m) => m.engines)
       // 单变量原则：按钮状态即 registry.visible（BLM 唯一权威），蓝 = 图层在显示
       const active = layer.layerType
-        ? (businessLayerManager.getMeta(layer.key)?.visible ?? layer.visible)
+        ? metaOr(layer.key, layer.visible, (m) => m.visible)
         : mapStore.baseLayerKey === layer.key
       // 锁定层不可关：按钮置灰禁用（当前恒为「开」态）。呈现层也判一次，
       // 不依赖 BLM 的 setVisible 拒绝兜底——禁用态要提前告知用户，而非点了没反应
-      const locked = layer.layerType
-        ? (businessLayerManager.getMeta(layer.key)?.locked ?? layer.locked)
-        : false
+      const locked = layer.layerType ? metaOr(layer.key, layer.locked, (m) => m.locked) : false
       return {
         key: layer.key,
         label: layer.label,
@@ -242,8 +256,7 @@ function handleToggle(key: string) {
     // BLM.setVisible 不做引擎判定，误调会让它在不适用的引擎上尝试创建
     if (layerButtons.value.find((i) => i.key === key)?.state === 'unsupported') return
     // 单变量原则：读 registry 状态再取反，一次生效（不读实例状态避免错位）
-    const registryVisible = businessLayerManager.getMeta(key)?.visible
-    const currentVisible = registryVisible ?? catalogEntry.visible
+    const currentVisible = metaOr(key, catalogEntry.visible, (m) => m.visible)
     businessLayerManager.setVisible(key, !currentVisible)
     return
   }

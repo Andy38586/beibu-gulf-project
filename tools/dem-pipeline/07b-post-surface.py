@@ -77,7 +77,6 @@ HUBS = {
 CH_W = 80.0        # 渠底宽（假设）
 DRAFT = 8.0        # 门槛水深（公开值）
 SLOPE = 2.0        # 1:2（假设）
-PLAT_HALF = 300.0  # 枢纽平台半宽（容纳省水池/泄水闸/电站/场坪，按正射工地范围假设）
 PLAT_RISE = 12.0   # 平台面高于上游水位的高差（马道 62.3+12=74.3 ≈ 公开坝顶 73.5）
 X_UP, X_LOCK0, X_LOCK1, X_DN = -963.0, 0.0, 400.0, 1055.0   # 与白模同参
 TAPER = 260.0      # 上游渠底过渡段长（示意图）
@@ -156,8 +155,8 @@ def main():
         s = dx * math.sin(br) + dy * math.cos(br)
         d = dx * math.cos(br) - dy * math.sin(br)
         # 只处理模型范围外扩 400 m 的窗口，省算力
-        PLAT_HALF = c["half_w"]      # 逐枢纽平台半宽（正射实测）
-        m = (s > c["x0"] - 200) & (s < c["x1"] + 200) & (np.abs(d) < PLAT_HALF + 900)
+        plat_half = c["half_w"]      # 逐枢纽平台半宽（正射实测；原同名变量遮蔽了模块级死常量）
+        m = (s > c["x0"] - 200) & (s < c["x1"] + 200) & (np.abs(d) < plat_half + 900)
         if not m.any():
             print(f"[{hub}] 窗口为空，跳过"); continue
         # 渠底分段：上游 → 闸室 → 下游（上游段设过渡）
@@ -170,15 +169,15 @@ def main():
         plat = max(up_wl, dn_wl) + PLAT_RISE
         ad = np.abs(d)
         ramp = np.where(ad <= CH_W / 2, bot,
-                        np.where(ad <= PLAT_HALF, plat,
-                                 plat + (ad - PLAT_HALF) / SLOPE))
+                        np.where(ad <= plat_half, plat,
+                                 plat + (ad - plat_half) / SLOPE))
         # nodata 像元（海侧/缺口，值=32767）不得参与开挖：否则会被"挖"成正常海拔、污染成陆
         vm = post != nodata
         carve = np.where(vm, np.minimum(post, ramp), post)
         # 渠底强制（|d| < 渠底宽/2）：保证渠槽存在
         carve = np.where(vm & (ad < CH_W / 2), bot, carve)
         # 平台面强制（渠边 → 平台半宽）：保证工地平台存在（只在下挖意义下）
-        carve = np.where(vm & (ad >= CH_W / 2) & (ad < PLAT_HALF),
+        carve = np.where(vm & (ad >= CH_W / 2) & (ad < plat_half),
                          np.minimum(carve, plat), carve)
         newv = np.where(m, carve, post)
         cut = np.maximum(0.0, post - newv)

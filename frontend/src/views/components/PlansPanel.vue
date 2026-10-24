@@ -121,10 +121,14 @@ function isFloodFeature(obj: unknown): obj is FloodFeature {
   return o.type === 'Feature' && typeof o.geometry === 'object' && o.geometry !== null
 }
 
-/** 最小类型守卫：数组元素是否全部为 FloodFeature */
-function isFloodFeatureArray(data: unknown): data is FloodFeature[] {
-  return Array.isArray(data) && data.every(isFloodFeature)
+/** 数组守卫的唯一实现：元素全过 guard 即为 T[]（两个字段共用，判据只此一份） */
+function isArrayOf<T>(data: unknown, guard: (v: unknown) => v is T): data is T[] {
+  return Array.isArray(data) && data.every(guard)
 }
+
+/** 最小类型守卫：数组元素是否全部为 FloodFeature */
+const isFloodFeatureArray = (data: unknown): data is FloodFeature[] =>
+  isArrayOf(data, isFloodFeature)
 
 /** 最小类型守卫：对象是否具备 AffectedFacility 必需字段 */
 function isAffectedFacility(obj: unknown): obj is AffectedFacility {
@@ -138,21 +142,23 @@ function isAffectedFacility(obj: unknown): obj is AffectedFacility {
   )
 }
 
-function isAffectedFacilityArray(data: unknown): data is AffectedFacility[] {
-  return Array.isArray(data) && data.every(isAffectedFacility)
-}
+const isAffectedFacilityArray = (data: unknown): data is AffectedFacility[] =>
+  isArrayOf(data, isAffectedFacility)
 
 /** 加载浸没分析方案：类型守卫收窄后存入 floodStore 再跳转，不通过降级为空数组 */
 function loadFloodPlan(plan: Plan) {
-  const floodFeatures = isFloodFeatureArray(plan.floodFeatures) ? plan.floodFeatures : []
-  const affectedFacilities = isAffectedFacilityArray(plan.affectedFacilities)
-    ? plan.affectedFacilities
+  const okFeatures = isFloodFeatureArray(plan.floodFeatures)
+  const okFacilities = isAffectedFacilityArray(plan.affectedFacilities)
+  // okXxx 布尔不参与 TS 的谓词收窄，故此处按已判定的结果断言（守卫结果就在上一行）
+  const floodFeatures: FloodFeature[] = okFeatures ? (plan.floodFeatures as FloodFeature[]) : []
+  const affectedFacilities: AffectedFacility[] = okFacilities
+    ? (plan.affectedFacilities as AffectedFacility[])
     : []
 
-  if (!isFloodFeatureArray(plan.floodFeatures)) {
+  if (!okFeatures) {
     logger.debug('[PlansPanel] 方案 floodFeatures 数据格式异常，已降级为空数组')
   }
-  if (!isAffectedFacilityArray(plan.affectedFacilities)) {
+  if (!okFacilities) {
     logger.debug('[PlansPanel] 方案 affectedFacilities 数据格式异常，已降级为空数组')
   }
 

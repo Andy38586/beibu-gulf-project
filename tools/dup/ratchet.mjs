@@ -27,6 +27,9 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { applyRatchetUpdate, failRatchet, parseRatchetArgs } from '../lib/ratchet-main.mjs'
+
+const TAG = '[dup-ratchet]'
 
 import { scanDuplication } from './scan.mjs'
 
@@ -73,72 +76,49 @@ export function compare(current, baseline) {
   return bad
 }
 
-function parseArgs(argv) {
-  const out = { update: false, note: null, kind: null }
-  for (let i = 0; i < argv.length; i++) {
-    if (argv[i] === '--update') out.update = true
-    else if (argv[i] === '--note') out.note = argv[++i]
-    else if (argv[i] === '--kind') out.kind = argv[++i]
-  }
-  return out
-}
-
 function main() {
-  const args = parseArgs(process.argv.slice(2))
+  const args = parseRatchetArgs(process.argv.slice(2))
   const baseline = JSON.parse(fs.readFileSync(BASELINE_PATH, 'utf8'))
   const current = currentCounts()
   const bad = compare(current, baseline)
 
   if (args.update) {
-    if (bad.length) {
-      console.error('[dup-ratchet] 拒绝 --update：当前值高于基线。')
-      console.error('  上调基线 = 把「上涨即红」这条判据作废。先把重复收敛掉；')
-      console.error('  确属框架惯用且不可收敛的，写明理由走评审后并入基线。')
-      bad.forEach((b) => console.error('  - ' + b))
-      process.exit(1)
-    }
-    if (!args.note) {
-      console.error('[dup-ratchet] --update 必须带 --note="为什么下调"。')
-      console.error('  可另带 --kind=真清理|口径调整（默认「未标注」）。')
-      process.exit(1)
-    }
-    const history = [
-      ...(baseline.history ?? []),
-      {
-        at: new Date().toISOString().slice(0, 10),
+    applyRatchetUpdate({
+      tag: TAG,
+      baselinePath: BASELINE_PATH,
+      baseline,
+      bad,
+      args,
+      historyMetrics: {
         totalGroups: current.totalGroups,
         totalRedundantTokens: current.totalRedundantTokens,
-        kind: args.kind ?? '未标注',
-        note: args.note,
       },
-    ]
-    const next = {
-      generatedFrom: baseline.generatedFrom ?? 'tools/dup/scan.mjs',
-      minTokens: baseline.minTokens ?? 12,
-      totalGroups: current.totalGroups,
-      totalRedundantTokens: current.totalRedundantTokens,
-      // D5 降权口径：基线必须同步带这两字段，否则 ratchet 自身测试判「基线形状不对」
-      callSiteGroups: current.callSiteGroups,
-      callSiteTokens: current.callSiteTokens,
-      byModule: current.byModule,
-      groups: current.groups,
-      updatedAt: new Date().toISOString().slice(0, 10),
-      history,
-    }
-    fs.writeFileSync(BASELINE_PATH, JSON.stringify(next, null, 2) + '\n')
-    console.log(
-      `[dup-ratchet] 基线已下调：totalGroups ${baseline.totalGroups} → ${current.totalGroups}；` +
-        `totalRedundantTokens ${baseline.totalRedundantTokens} → ${current.totalRedundantTokens}`
-    )
-    console.log(`  [${next.history.at(-1).kind}] ${args.note}`)
+      nextBaseline: {
+        generatedFrom: baseline.generatedFrom ?? 'tools/dup/scan.mjs',
+        minTokens: baseline.minTokens ?? 12,
+        totalGroups: current.totalGroups,
+        totalRedundantTokens: current.totalRedundantTokens,
+        // D5 降权口径：基线必须同步带这几字段，否则 ratchet 自身测试判「基线形状不对」
+        callSiteGroups: current.callSiteGroups,
+        callSiteTokens: current.callSiteTokens,
+        byModule: current.byModule,
+        groups: current.groups,
+      },
+      downMessage:
+        `totalGroups ${baseline.totalGroups} → ${current.totalGroups}；` +
+        `totalRedundantTokens ${baseline.totalRedundantTokens} → ${current.totalRedundantTokens}`,
+      rejectAdvice:
+        '  上调基线 = 把「上涨即红」这条判据作废。先把重复收敛掉；\n' +
+        '  确属框架惯用且不可收敛的，写明理由走评审后并入基线。',
+      noteAdvice: '  可另带 --kind=真清理|口径调整（默认「未标注」）。',
+    })
     return
   }
 
   if (bad.length) {
-    console.error(`[dup-ratchet] FAIL：${bad.length} 处上涨（基线只许下降或持平）`)
-    bad.forEach((b) => console.error('  - ' + b))
-    console.error('  处理：收敛新增的重复表达式；框架惯用且不可收敛的，按 §四 走评审并基线。')
-    process.exit(1)
+    failRatchet(TAG, bad, {
+      advice: '  处理：收敛新增的重复表达式；框架惯用且不可收敛的，按 §四 走评审并基线。',
+    })
   }
   console.log(
     `[dup-ratchet] OK：重复 ${current.totalGroups} 组 ≤ 基线 ${baseline.totalGroups}；` +

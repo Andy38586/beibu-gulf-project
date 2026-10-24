@@ -40,6 +40,9 @@ import { fileURLToPath } from 'node:url'
 import { emptyInputProblem } from '../v3-guard/lib/input-set.mjs'
 
 import { scanDeepImports } from './scan.mjs'
+import { applyRatchetUpdate, failRatchet, parseRatchetArgs } from '../lib/ratchet-main.mjs'
+
+const TAG = '[deep-import-ratchet]'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 export const BASELINE_PATH = path.join(ROOT, 'tools/deep-import/baseline.json')
@@ -83,19 +86,8 @@ export function newItems(current, baseline) {
   return current.items.filter((i) => !known.has(`${i.file} → ${i.target}`))
 }
 
-function parseArgs(argv) {
-  const out = { update: false, note: null, kind: null, baseline: null }
-  for (let i = 0; i < argv.length; i++) {
-    if (argv[i] === '--update') out.update = true
-    else if (argv[i] === '--note') out.note = argv[++i]
-    else if (argv[i] === '--kind') out.kind = argv[++i]
-    else if (argv[i] === '--baseline') out.baseline = argv[++i]
-  }
-  return out
-}
-
 function main() {
-  const args = parseArgs(process.argv.slice(2))
+  const args = parseRatchetArgs(process.argv.slice(2), ['baseline'])
   // `--baseline` 只用于「换一份基线来判」，永远只读：它与 `--update` 同用会把
   // 基线写成另一份文件，等于给「上调基线」开了后门，故直接拒绝。
   if (args.baseline && args.update) {
@@ -108,56 +100,39 @@ function main() {
   const bad = compare(current, baseline)
 
   if (args.update) {
-    if (bad.length) {
-      console.error('[deep-import-ratchet] 拒绝 --update：当前值高于基线。')
-      console.error('  上调基线 = 把「上涨即红」这条判据作废。先把新增的穿透收敛成走入口；')
-      console.error('  确属框架惯用且不可收敛的，写明理由走评审后并入基线。')
-      bad.forEach((b) => console.error('  - ' + b))
-      process.exit(1)
-    }
-    if (!args.note) {
-      console.error('[deep-import-ratchet] --update 必须带 --note="为什么下调"。')
-      console.error('  可另带 --kind=真清理|口径调整（默认「未标注」）。')
-      process.exit(1)
-    }
-    const history = [
-      ...(baseline.history ?? []),
-      {
-        at: new Date().toISOString().slice(0, 10),
+    applyRatchetUpdate({
+      tag: TAG,
+      baselinePath: BASELINE_PATH,
+      baseline,
+      bad,
+      args,
+      historyMetrics: { total: current.total },
+      nextBaseline: {
+        generatedFrom: 'tools/deep-import/scan.mjs',
         total: current.total,
-        kind: args.kind ?? '未标注',
-        note: args.note,
+        byGroup: current.byGroup,
+        items: current.items,
       },
-    ]
-    const next = {
-      generatedFrom: 'tools/deep-import/scan.mjs',
-      total: current.total,
-      byGroup: current.byGroup,
-      items: current.items,
-      updatedAt: new Date().toISOString().slice(0, 10),
-      history,
-    }
-    fs.writeFileSync(BASELINE_PATH, JSON.stringify(next, null, 2) + '\n')
-    console.log(
-      `[deep-import-ratchet] 基线已下调：总量 ${baseline.total} → ${current.total}` +
-        `（模块组 ${Object.keys(current.byGroup).length} 个）`
-    )
-    console.log(`  [${next.history.at(-1).kind}] ${args.note}`)
+      downMessage:
+        `总量 ${baseline.total} → ${current.total}` +
+        `（模块组 ${Object.keys(current.byGroup).length} 个）`,
+      rejectAdvice:
+        '  上调基线 = 把「上涨即红」这条判据作废。先把新增的穿透收敛成走入口；\n' +
+        '  确属框架惯用且不可收敛的，写明理由走评审后并入基线。',
+      noteAdvice: '  可另带 --kind=真清理|口径调整（默认「未标注」）。',
+    })
     return
   }
 
   const added = newItems(current, baseline)
   if (bad.length) {
-    console.error(`[deep-import-ratchet] FAIL：${bad.length} 处上涨（基线只许下降或持平）`)
-    bad.forEach((b) => console.error('  - ' + b))
+    const extra = []
     if (added.length) {
-      console.error(
-        `  新增穿透 ${added.length} 条（每条都要么收敛成走目标模块入口，要么并入基线）：`
-      )
-      added.slice(0, 20).forEach((i) => console.error(`    ${i.file} → ${i.target}`))
-      if (added.length > 20) console.error(`    ……另 ${added.length - 20} 条`)
+      extra.push(`  新增穿透 ${added.length} 条（每条都要么收敛成走目标模块入口，要么并入基线）：`)
+      added.slice(0, 20).forEach((i) => extra.push(`    ${i.file} → ${i.target}`))
+      if (added.length > 20) extra.push(`    ……另 ${added.length - 20} 条`)
     }
-    process.exit(1)
+    failRatchet(TAG, bad, { extraLines: extra })
   }
   console.log(
     `[deep-import-ratchet] OK：穿透 ${current.total} 条 ≤ 基线 ${baseline.total}` +

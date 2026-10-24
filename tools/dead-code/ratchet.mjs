@@ -33,6 +33,9 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { groupByModule, scan } from './scan.mjs'
+import { applyRatchetUpdate, failRatchet, parseRatchetArgs } from '../lib/ratchet-main.mjs'
+
+const TAG = '[dead-code-ratchet]'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 export const BASELINE_PATH = path.join(ROOT, 'tools/dead-code/dead-code-baseline.json')
@@ -83,73 +86,49 @@ export function compare(current, baseline) {
   return bad
 }
 
-function parseArgs(argv) {
-  const out = { update: false, note: null, kind: null }
-  for (let i = 0; i < argv.length; i++) {
-    if (argv[i] === '--update') out.update = true
-    else if (argv[i] === '--note') out.note = argv[++i]
-    else if (argv[i] === '--kind') out.kind = argv[++i]
-  }
-  return out
-}
-
 function main() {
-  const args = parseArgs(process.argv.slice(2))
-  const update = args.update
+  const args = parseRatchetArgs(process.argv.slice(2))
   const baseline = JSON.parse(fs.readFileSync(BASELINE_PATH, 'utf8'))
   const current = currentCounts()
   const bad = compare(current, baseline)
 
-  if (update) {
-    if (bad.length) {
-      console.error('[dead-code-ratchet] 拒绝 --update：当前值高于基线。')
-      console.error('  上调基线 = 把「上涨即红」这条判据作废。先把死物清回来；')
-      console.error('  若确属必要公开 API，请把理由写进提交并把该条并入基线（需评审）。')
-      bad.forEach((b) => console.error('  - ' + b))
-      process.exit(1)
-    }
-    // 强制留痕：数字下降有两种来源（真清理 / 口径调整），不区分就说不清「到底清了几个」
-    if (!args.note) {
-      console.error('[dead-code-ratchet] --update 必须带 --note="为什么下调"。')
-      console.error('  可另带 --kind=真清理|口径调整（默认「未标注」）。')
-      console.error('  没有 note 的下调无法与口径调整区分 —— 数字降了不代表债少了。')
-      process.exit(1)
-    }
-    const history = [
-      ...(baseline.history ?? []),
-      {
-        at: new Date().toISOString().slice(0, 10),
+  if (args.update) {
+    applyRatchetUpdate({
+      tag: TAG,
+      baselinePath: BASELINE_PATH,
+      baseline,
+      bad,
+      args,
+      historyMetrics: {
         totalDead: current.totalDead,
         totalRedundantExport: current.totalRedundantExport,
-        kind: args.kind ?? '未标注',
-        note: args.note,
       },
-    ]
-    const next = {
-      generatedFrom: baseline.generatedFrom ?? 'tools/dead-code/scan.mjs',
-      totalDead: current.totalDead,
-      totalRedundantExport: current.totalRedundantExport,
-      totalEmptyModule: current.totalEmptyModule,
-      byModule: current.byModule,
-      dead: current.dead,
-      updatedAt: new Date().toISOString().slice(0, 10),
-      history,
-    }
-    fs.writeFileSync(BASELINE_PATH, JSON.stringify(next, null, 2) + '\n')
-    console.log(
-      `[dead-code-ratchet] 基线已下调：totalDead ${baseline.totalDead} → ${current.totalDead}；` +
+      nextBaseline: {
+        generatedFrom: baseline.generatedFrom ?? 'tools/dead-code/scan.mjs',
+        totalDead: current.totalDead,
+        totalRedundantExport: current.totalRedundantExport,
+        totalEmptyModule: current.totalEmptyModule,
+        byModule: current.byModule,
+        dead: current.dead,
+      },
+      downMessage:
+        `totalDead ${baseline.totalDead} → ${current.totalDead}；` +
         `totalRedundantExport ${baseline.totalRedundantExport} → ${current.totalRedundantExport}` +
-        `（模块 ${Object.keys(current.byModule).length} 个）`
-    )
-    console.log(`  [${next.history.at(-1).kind}] ${args.note}`)
+        `（模块 ${Object.keys(current.byModule).length} 个）`,
+      rejectAdvice:
+        '  上调基线 = 把「上涨即红」这条判据作废。先把死物清回来；\n' +
+        '  若确属必要公开 API，请把理由写进提交并把该条并入基线（需评审）。',
+      noteAdvice:
+        '  可另带 --kind=真清理|口径调整（默认「未标注」）。\n' +
+        '  没有 note 的下调无法与口径调整区分 —— 数字降了不代表债少了。',
+    })
     return
   }
 
   if (bad.length) {
-    console.error(`[dead-code-ratchet] FAIL：${bad.length} 处上涨（基线只许下降或持平）`)
-    bad.forEach((b) => console.error('  - ' + b))
-    console.error('  处理：清掉新增的死物；确属必要公开 API 的，按 §四-10 走评审后并入基线。')
-    process.exit(1)
+    failRatchet(TAG, bad, {
+      advice: '  处理：清掉新增的死物；确属必要公开 API 的，按 §四-10 走评审后并入基线。',
+    })
   }
   console.log(
     `[dead-code-ratchet] OK：死物 ${current.totalDead} ≤ 基线 ${baseline.totalDead}；` +

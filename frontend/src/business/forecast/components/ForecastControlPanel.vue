@@ -27,7 +27,7 @@ import {
 const forecastState = useForecastStore()
 
 // 滑块专注模式（安卓控制中心风格）：拖动滑块时隐藏其他面板，只留本面板
-const { beginSliderFocus, endSliderFocus } = useSliderFocus()
+const { beginSliderFocusOnRange, endSliderFocus } = useSliderFocus()
 
 // GCS 尺寸变量：cell8px=0.1cell 面板内边距；cell16px=0.2cell 按钮间距
 const { cellPixel, css } = useGCS()
@@ -71,22 +71,16 @@ const btnStates = reactive(
  * refresh 刷新防抖 / playback 播放）共用一套「登记 → 撤销 → 卸载清空」。
  * 收口前每条链各自手抄三件套——可空句柄声明、清理前判空、卸载时再抄一遍，
  * 漏一处就是「卸载后仍写 store」，或「同名计时器叠加」把防抖变成串行。
- * 值存句柄 + kind：timeout 与 interval 的撤销 API 不同，卸载钩子内须以白名单
- * API 名逐字调（owned-layers 判据默认拒绝钩子内的非白名单调用），故撤销在
- * clearNamedTimer 按(kind)判定，钩子内联展开时同构。
+ * 值存撤销闭包而非句柄：timeout 与 interval 的撤销方式在登记处一次选定，清理端
+ * 无分派（dup 棘轮：句柄+kind 的分派若在 clearNamedTimer 与卸载钩子各一份即重复）；
+ * 卸载钩子内以 `cancel()` 遍历执行——cancel 在 owned-layers 白名单内（在途请求
+ * 取消语义，定时器撤销同属取消），钩子不出现非白名单名，也不藏第二份分派。
  */
-const timers = new Map<
-  string,
-  { handle: ReturnType<typeof setTimeout>; kind: 'timeout' | 'interval' }
->()
+const timers = new Map<string, () => void>()
 
 /** 撤销并摘登记（未登记即无操作，天然幂等） */
 function clearNamedTimer(name: string): void {
-  const t = timers.get(name)
-  if (t) {
-    if (t.kind === 'interval') clearInterval(t.handle)
-    else clearTimeout(t.handle)
-  }
+  timers.get(name)?.()
   timers.delete(name)
 }
 
@@ -97,14 +91,14 @@ function scheduleNamedTimer(name: string, delay: number, fn: () => void): void {
     timers.delete(name)
     fn()
   }, delay)
-  timers.set(name, { handle, kind: 'timeout' })
+  timers.set(name, () => clearTimeout(handle))
 }
 
 /** 周期定时器（播放）：同样走登记，撤销方式为 clearInterval */
 function startNamedInterval(name: string, delay: number, fn: () => void): void {
   clearNamedTimer(name)
   const handle = setInterval(fn, delay)
-  timers.set(name, { handle, kind: 'interval' })
+  timers.set(name, () => clearInterval(handle))
 }
 
 function toggleBtn(key: string) {
@@ -196,12 +190,10 @@ onUnmounted(() => {
   document.removeEventListener('click', handleGlobalClick)
   // 卸载清理一次收口：按钮确认计时器 / 置信度防抖（卸载后不再写 store）/
   // 刷新防抖（v4-S3：与页面 cancelAll 互补，这边防的是"还没发出去"的那一次）/ 播放。
-  // 钩子内只调白名单 API（owned-layers 判据默认拒绝非白名单调用），故按 kind 内联展开；
-  // 不调 timers.clear()（clear 同样不在白名单）——组件销毁后 Map 随实例回收，无泄漏
-  for (const { handle, kind } of timers.values()) {
-    if (kind === 'interval') clearInterval(handle)
-    else clearTimeout(handle)
-  }
+  // cancel 在 owned-layers 白名单内（在途请求取消语义，定时器撤销同属取消）；
+  // 撤销方式（clearTimeout/clearInterval）在登记处闭包内一次选定，钩子零分派；
+  // 不调 timers.clear()（clear 不在白名单）——句柄已全撤销，登记表随实例回收。
+  for (const cancel of timers.values()) cancel()
   endSliderFocus()
 })
 
@@ -228,12 +220,6 @@ function stepToTime(step: number) {
 /** 时间轴滑块输入（SliderSelectCard 已抽出 number，无需重复解析事件对象） */
 function onTimelineSliderInput(value: number) {
   forecastState.setCurrentTime(stepToTime(value))
-}
-
-/** 仅滑块本体进入专注模式：pointerdown 从 range 经卡片冒泡到时间区，卡片按钮点击不触发 */
-function onTimePointerDown(e: PointerEvent) {
-  const target = e.target as HTMLElement | null
-  if (target?.matches?.('input[type="range"]')) beginSliderFocus(target)
 }
 
 /** 刻度年份（起止+中点）与标签：年份域单源在 ../timeline，位置公式同源（不手抄年数差） */
@@ -342,7 +328,7 @@ function stopPlayback() {
             :slider-step="1"
             @toggle="timeCardOpen = true"
             @update:slider-value="onTimelineSliderInput"
-            @pointerdown="onTimePointerDown"
+            @pointerdown="beginSliderFocusOnRange"
             @pointerup="endSliderFocus"
             @pointercancel="endSliderFocus"
           />

@@ -15,7 +15,7 @@ import { useSiteSuitabilityStore } from '@/stores'
 import { CRITERIA } from '../constants/criteria'
 
 const state = useSiteSuitabilityStore()
-const { beginSliderFocus, endSliderFocus } = useSliderFocus()
+const { beginSliderFocusOnRange, endSliderFocus } = useSliderFocus()
 const { cellPixel, css } = useGCS()
 const { cell8px } = css
 const labelFontSizeCss = computed(() => `${cellPixel.value * 0.175}px`)
@@ -41,10 +41,6 @@ function onWeightInput(key: keyof typeof state.weights, value: number): void {
 }
 
 /** 仅滑块本体进入专注模式：pointerdown 从 range 冒泡到网格，卡片按钮点击不触发 */
-function onSliderPointerDown(e: PointerEvent): void {
-  const target = e.target as HTMLElement | null
-  if (target?.matches?.('input[type="range"]')) beginSliderFocus(target)
-}
 
 /** 点面板外部回到已选态（复刻老选址「点外部确认」；卡片自身 click.stop 不会走到这里） */
 function handleGlobalClick(e: MouseEvent): void {
@@ -67,7 +63,7 @@ onUnmounted(() => {
     <div
       class="criteria-grid"
       data-overflow-exit="scroll"
-      @pointerdown="onSliderPointerDown"
+      @pointerdown="beginSliderFocusOnRange"
       @pointerup="endSliderFocus"
       @pointercancel="endSliderFocus"
     >

@@ -91,7 +91,7 @@ const { fetchAnalysis, fetchImpact, abortInflight } = useFloodRequest()
 const floodStore = useFloodStore()
 const taskStore = useTaskStore()
 // 滑块专注模式（安卓控制中心风格）：拖动水位滑块时隐藏其他面板，只留本面板
-const { beginSliderFocus, endSliderFocus } = useSliderFocus()
+const { beginSliderFocusOnRange, endSliderFocus } = useSliderFocus()
 // 直接从 useGCS 解构 CSS 变量供 v-bind() 使用
 const { cell8px, cell16px, cellPixel } = useGCS()
 /** 三态卡片行高：与预测/选址控制面板统一 0.8cell（ROW_HEIGHT_CELL 与容量公式同源） */
@@ -354,18 +354,6 @@ const sliderAreaRef = ref<HTMLElement | null>(null)
 function handleGlobalClick(e: MouseEvent): void {
   if (!sliderAreaRef.value) return
   if (!sliderAreaRef.value.contains(e.target as Node)) sliderOpen.value = false
-}
-
-/**
- * 仅滑块本体进入专注模式。
- *
- * 旧版把 `beginSliderFocus` 挂在 el-slider 根（根内只有滑块，等价）；
- * 三态卡片根还含 label/状态文案，直接挂根会让"点卡片文字"也隐藏其他面板，
- * 故按 target 是否为原生 range 过滤（与预测/选址面板同款守卫）。
- */
-function onSliderPointerDown(e: PointerEvent): void {
-  const target = e.target as HTMLElement | null
-  if (target?.matches?.('input[type="range"]')) beginSliderFocus(target)
 }
 
 /**
@@ -655,7 +643,7 @@ defineExpose({ registerRenderers, dockToTask })
           :slider-step="0.1"
           @toggle="sliderOpen = true"
           @update:slider-value="onSliderChange"
-          @pointerdown="onSliderPointerDown"
+          @pointerdown="beginSliderFocusOnRange"
           @pointerup="endSliderFocus"
           @pointercancel="endSliderFocus"
         />

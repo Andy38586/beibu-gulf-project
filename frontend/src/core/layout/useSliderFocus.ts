@@ -18,6 +18,8 @@ interface UseSliderFocusReturn {
   active: Ref<boolean>
   activePanel: Ref<HTMLElement | null>
   beginSliderFocus: (el: HTMLElement | null) => void
+  /** 三页滑块统一入口：事件目标是原生 range 才进入专注模式（卡片文字/标签按下不触发） */
+  beginSliderFocusOnRange: (e: PointerEvent) => void
   endSliderFocus: () => void
 }
 
@@ -37,6 +39,15 @@ export function useSliderFocus(): UseSliderFocusReturn {
     document.addEventListener('pointerup', endSliderFocus)
     document.addEventListener('pointercancel', endSliderFocus)
   }
+  /**
+   * 三页滑块的统一按下守卫（浸没/预测/选址同构 27tok 曾散三份，dup 棘轮咬住后收此）：
+   * SliderSelectCard 的根还含 label/状态文案，直接挂根会让点卡片文字也触发专注，
+   * 故按 target 是否为原生 range 过滤。
+   */
+  function beginSliderFocusOnRange(e: PointerEvent): void {
+    const target = e.target as HTMLElement | null
+    if (target?.matches?.('input[type="range"]')) beginSliderFocus(target)
+  }
   /** 滑块松手/取消：退出专注模式（幂等） */
   function endSliderFocus(): void {
     document.removeEventListener('pointerup', endSliderFocus)
@@ -47,5 +58,5 @@ export function useSliderFocus(): UseSliderFocusReturn {
   // 作用域卸载兜底——调用方组件卸载时 document 监听随 endSliderFocus 解绑，
   // 防止监听残留（专注模式卡死）
   onScopeDispose(endSliderFocus)
-  return { active, activePanel, beginSliderFocus, endSliderFocus }
+  return { active, activePanel, beginSliderFocus, beginSliderFocusOnRange, endSliderFocus }
 }

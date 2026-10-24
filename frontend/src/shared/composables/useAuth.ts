@@ -8,6 +8,7 @@ import type { AuthResponse, User } from '@/types/api'
 import { authResponseSchema, userSchema } from '@/types/schemas'
 
 import { ApiError, ErrorCode, useApiRequest } from './useApiRequest'
+import { STORAGE_KEYS } from '@/shared/constants/storageKeys'
 
 /** 返回契约（显式化，防重构时签名静默漂移） */
 interface UseAuthReturn {
@@ -21,7 +22,7 @@ interface UseAuthReturn {
 }
 
 /** localStorage 键：持久化用户信息 */
-const USER_STORAGE_KEY = 'beibu-gulf-user'
+const USER_STORAGE_KEY = STORAGE_KEYS.authUser
 
 /** 读取 localStorage 用户信息：经 schema 运行时校验，失败即清缓存返回 null */
 function readStoredUser(): User | null {

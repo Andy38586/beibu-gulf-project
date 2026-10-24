@@ -8,6 +8,7 @@
 import { computed, type ComputedRef, readonly, type Ref, ref } from 'vue'
 
 import { getSafeStorage } from '@/shared/utils/safeStorage'
+import { STORAGE_KEYS } from '@/shared/constants/storageKeys'
 
 type ThemeMode = 'light' | 'dark'
 
@@ -20,7 +21,7 @@ interface UseThemeReturn {
   onThemeChange: (cb: (mode: ThemeMode) => void) => () => void
 }
 
-const THEME_STORAGE_KEY = 'gcs-theme'
+const THEME_STORAGE_KEY = STORAGE_KEYS.theme
 
 function getInitialTheme(): ThemeMode {
   if (typeof window === 'undefined') return 'light'

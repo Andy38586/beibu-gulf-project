@@ -10,13 +10,14 @@ import { loadStatic } from '@/shared'
 import { logger } from '@/shared'
 import type { LayerOptions } from '@/types'
 import { boundaryCacheSchema } from '@/types/schemas'
+import { STORAGE_KEYS } from '@/shared/constants/storageKeys'
 
 export async function loadBoundaryGeoJson(
   onError?: (msg: string) => void,
   /** 外部取消信号：组件卸载即停止 fetch 并放弃续试 */
   signal?: AbortSignal
 ): Promise<FeatureCollection | null> {
-  const CACHE_KEY = 'beibu-gulf-boundary-cache'
+  const CACHE_KEY = STORAGE_KEYS.boundaryCache
   const CACHE_EXPIRY = 24 * 60 * 60 * 1000 // 24小时缓存有效期
   const MAX_RETRIES = 3
   // sessionStorage 写入大小硬上限（500KB 字符），超限仅留内存层不持久化

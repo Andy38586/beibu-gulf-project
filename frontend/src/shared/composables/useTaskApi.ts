@@ -4,6 +4,7 @@ import type { TaskDomain, TaskPriority, TaskSubmitResponse, TaskView } from '@/t
 import { ENDPOINTS } from '../constants/api'
 
 import { useApiRequest } from './useApiRequest'
+import { STORAGE_KEYS } from '@/shared/constants/storageKeys'
 
 /**
  * task 端点客户端（v4 系统 B）。
@@ -36,7 +37,7 @@ const POLL_TIMEOUT_MS = 8000
 
 /** 后端读取的匿名会话标识头（与 backend/src/modules/task/utils/request-owner.ts 同名） */
 const TASK_CLIENT_HEADER = 'x-task-client'
-const TASK_CLIENT_STORAGE_KEY = 'beibu-gulf-task-client'
+const TASK_CLIENT_STORAGE_KEY = STORAGE_KEYS.taskClient
 /** 无 sessionStorage（隐私模式/被测环境）时的进程内兜底：同一次页面会话内仍稳定 */
 let memoryClientId: string | null = null
 

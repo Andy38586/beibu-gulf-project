@@ -58,6 +58,9 @@ const SERVER_SETUP_SH = 'scripts/server-setup.sh'
 // 另两处必须同键同目标。
 const FRONTEND_TSCONFIG_APP = 'frontend/tsconfig.app.json'
 const FRONTEND_VITEST_CONFIG = 'frontend/vitest.config.js'
+// PC-5（W63）：本地存储键唯一来源。权威源持有全部键定义；消费侧 import，
+// 第二份手抄即红。键清单由守卫从权威源解析派生（不写死在守卫里）。
+const FRONTEND_STORAGE_KEYS = 'frontend/src/shared/constants/storageKeys.ts'
 
 /** 单值端口副本站点表：re 的第 1 捕获组 = 端口数字。key 对应 auditSharedConstants 输入键 */
 const PORT_SITES = [
@@ -561,15 +564,33 @@ export function auditSharedConstants(files) {
       }
     }
   }
+  // 存储键唯一来源（PC-5/W63）：五个键此前以裸字面量散在消费文件里；立
+  // `frontend/src/shared/constants/storageKeys.ts` 为权威后，第二份手抄即红。
+  // 键清单从权威源**解析派生**（根因 C：判据不许写死字符串）；判据输入缺失必须报红
+  // 而不是当无违例（W58 同族）。
+  const storageKeyDefs = parseStorageKeys(files.storageKeys ?? '')
+  if (Object.keys(storageKeyDefs).length === 0) {
+    problems.push(
+      '存储键权威解析失败：frontend/src/shared/constants/storageKeys.ts 无键定义（被删/改名？）'
+    )
+  } else {
+    const strays = files.strayStorageKeys
+    if (!Array.isArray(strays)) {
+      problems.push('存储键唯一来源判据输入缺失：strayStorageKeys 未提供（判据失效，不是无违例）')
+    } else {
+      for (const s of strays) {
+        problems.push(
+          `存储键第二份手抄：${s.file}:${s.line} '${s.key}'` +
+            '（唯一取处是 frontend/src/shared/constants/storageKeys.ts，import STORAGE_KEYS 而不是复制它的值）'
+        )
+      }
+    }
+  }
   return problems
 }
 
-/**
- * 扫全仓「自定义 GULF_BOUNDS」的位置（唯一来源判据的输入集合）。
- * 排除：tools/lib/gulf-bounds.mjs 本体（唯一合法定义）、测试夹具（构造红样用）。
- * 返回 { file, line }[]，file 为仓库相对路径（/ 分隔），便于判据文案指路。
- */
-export function scanLocalGulfBoundsDefs(rootDir) {
+/** 仓库目录遍历（两个唯一来源扫描器共用；SKIP_DIRS 是全仓统一的跳过集） */
+function walkRepoFiles(rootDir, extensions, visit) {
   const SKIP_DIRS = new Set([
     'node_modules',
     'dist',
@@ -583,7 +604,7 @@ export function scanLocalGulfBoundsDefs(rootDir) {
     '.trae',
     '_traetmp',
   ])
-  const out = []
+  const extRe = new RegExp(`\\.(${extensions})$`)
   const walk = (dir) => {
     let entries
     try {
@@ -597,35 +618,86 @@ export function scanLocalGulfBoundsDefs(rootDir) {
         if (!SKIP_DIRS.has(e.name)) walk(p)
         continue
       }
-      if (!/\.(mjs|js|cjs|ts|py)$/.test(e.name)) continue
+      if (!extRe.test(e.name)) continue
       const rel = path.relative(rootDir, p).split(path.sep).join('/')
-      if (rel === 'tools/lib/gulf-bounds.mjs') continue
-      if (rel.includes('__tests__') || rel.endsWith('.test.mjs') || rel.endsWith('.test.js'))
-        continue
-      if (rel === 'backend/src/common/constants/gis.constants.ts') continue
-      if (rel === 'frontend/src/shared/utils/crs.ts') continue
       let text
       try {
         text = readFileSync(p, 'utf8')
       } catch {
         continue
       }
-      const lines = text.split(/\r?\n/)
-      for (let i = 0; i < lines.length; i++) {
-        const m = /(?:const|let|var)\s+GULF_BOUNDS\s*=\s*(.*)$/.exec(lines[i])
-        if (!m) continue
-        // 只咬「自己写死数值」的形态。以下两种是合法的权威派生，必须放行：
-        //   ① import { GULF_BOUNDS } from '…/gulf-bounds.mjs'（tools 侧唯一取处）
-        //   ② = parseGulfBounds(readFileSync(…)) 这类从后端权威源**解析**（tools/gis-import/verify.mjs
-        //      即此形态，解析失败会 throw，比 import 更严）
-        // 判据咬的是「复制了值」，不是「提到了这个名字」——后者判红会逼人改成更难读的形态。
-        const rhs = m[1].trim()
-        const isLiteral = /^\{/.test(rhs) || /^-?\d/.test(rhs) || /^['"]/.test(rhs)
-        if (isLiteral) out.push({ file: rel, line: i + 1 })
-      }
+      visit(rel, text)
     }
   }
   walk(rootDir)
+}
+
+/**
+ * 扫全仓「自定义 GULF_BOUNDS」的位置（唯一来源判据的输入集合）。
+ * 排除：tools/lib/gulf-bounds.mjs 本体（唯一合法定义）、测试夹具（构造红样用）。
+ * 返回 { file, line }[]，file 为仓库相对路径（/ 分隔），便于判据文案指路。
+ */
+export function scanLocalGulfBoundsDefs(rootDir) {
+  const out = []
+  walkRepoFiles(rootDir, 'mjs|js|cjs|ts|py', (rel, text) => {
+    if (rel === 'tools/lib/gulf-bounds.mjs') return
+    if (rel.includes('__tests__') || rel.endsWith('.test.mjs') || rel.endsWith('.test.js')) return
+    if (rel === 'backend/src/common/constants/gis.constants.ts') return
+    if (rel === 'frontend/src/shared/utils/crs.ts') return
+    const lines = text.split(/\r?\n/)
+    for (let i = 0; i < lines.length; i++) {
+      const m = /(?:const|let|var)\s+GULF_BOUNDS\s*=\s*(.*)$/.exec(lines[i])
+      if (!m) continue
+      // 只咬「自己写死数值」的形态。以下两种是合法的权威派生，必须放行：
+      //   ① import { GULF_BOUNDS } from '…/gulf-bounds.mjs'（tools 侧唯一取处）
+      //   ② = parseGulfBounds(readFileSync(…)) 这类从后端权威源**解析**（tools/gis-import/verify.mjs
+      //      即此形态，解析失败会 throw，比 import 更严）
+      // 判据咬的是「复制了值」，不是「提到了这个名字」——后者判红会逼人改成更难读的形态。
+      const rhs = m[1].trim()
+      const isLiteral = /^\{/.test(rhs) || /^-?\d/.test(rhs) || /^['"]/.test(rhs)
+      if (isLiteral) out.push({ file: rel, line: i + 1 })
+    }
+  })
+  return out
+}
+
+/** 从权威源 `storageKeys.ts` 解析键清单：`authUser: 'beibu-gulf-user'` → { authUser: '…' }。
+ *  守卫不手抄键值——键清单从这里派生（根因 C：判据不许写死字符串）。 */
+export function parseStorageKeys(content) {
+  const out = {}
+  for (const m of content.matchAll(/^\s{2}([A-Za-z_$][\w$]*):\s*'([^']+)'/gm)) {
+    out[m[1]] = m[2]
+  }
+  return out
+}
+
+/**
+ * 扫 frontend/src 内「存储键第二份手抄」（PC-5/W63 唯一来源判据的输入集合）。
+ * 键值以**引号锚定**匹配——注释里不带引号地提到键名不误伤（useTheme 的说明注释即此形态）。
+ * 排除：权威源本体、测试夹具（构造红样用）。返回 { file, line, key }[]。
+ */
+export function scanStrayStorageKeys(frontendSrcDir, authorityRel, keys) {
+  const out = []
+  if (!Array.isArray(keys) || keys.length === 0) return out
+  walkRepoFiles(frontendSrcDir, 'ts|vue|js|mjs', (rel, text) => {
+    if (`frontend/src/${rel}` === authorityRel) return
+    if (
+      rel.includes('__tests__') ||
+      /\.test\.(ts|js|mjs)$/.test(rel) ||
+      /\.spec\.(ts|js)$/.test(rel)
+    )
+      return
+    const lines = text.split(/\r?\n/)
+    for (let i = 0; i < lines.length; i++) {
+      for (const key of keys) {
+        if (
+          new RegExp(`['"\`]${key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}['"\`]`).test(lines[i])
+        ) {
+          out.push({ file: `frontend/src/${rel}`, line: i + 1, key })
+        }
+      }
+    }
+  })
   return out
 }
 
@@ -658,12 +730,19 @@ function main() {
     serverSetup: read(SERVER_SETUP_SH),
     frontendTsconfigApp: read(FRONTEND_TSCONFIG_APP),
     frontendVitestConfig: read(FRONTEND_VITEST_CONFIG),
+    storageKeys: read(FRONTEND_STORAGE_KEYS),
+    strayStorageKeys: scanStrayStorageKeys(
+      path.join(ROOT, 'frontend/src'),
+      FRONTEND_STORAGE_KEYS,
+      Object.values(parseStorageKeys(read(FRONTEND_STORAGE_KEYS)))
+    ),
   })
   if (problems.length === 0) {
     console.log(
       '[constants-audit] OK：水位上限/业务边界框（含 tools 侧）/寻路 mode 双侧一致、' +
         'flood 分段 TS↔PY 一致、跨端请求头名逐字相等、浮点容差前端子集同值、' +
-        '端口 3000/5432 全部副本对等、路径别名三侧同键同目标，前端业务码 ⊆ 后端 ErrorCode'
+        '端口 3000/5432 全部副本对等、路径别名三侧同键同目标、存储键单源无手抄，' +
+        '前端业务码 ⊆ 后端 ErrorCode'
     )
     return
   }

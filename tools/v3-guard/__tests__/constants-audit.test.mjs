@@ -13,9 +13,11 @@ import {
   parseNumericLiterals,
   parseAliasTarget,
   parsePortMaps,
+  parseStorageKeys,
   parseTsconfigAlias,
   parseViteProxyPorts,
   scanLocalGulfBoundsDefs,
+  scanStrayStorageKeys,
 } from '../constants-audit.mjs'
 
 const BACKEND_FLOOD = `// 水位上限（米）：251 档 0-25m
@@ -152,6 +154,12 @@ const VITEST_CONFIG = `  resolve: {
     },
   },
 `
+// PC-5 存储键族：权威源（缩样）与消费侧手抄夹具。
+const STORAGE_KEYS_AUTH = `export const STORAGE_KEYS = {
+  authUser: 'beibu-gulf-user',
+  theme: 'gcs-theme',
+} as const
+`
 
 // 全量基座：所有族的输入齐全（唯一来源扫描正常返回空）。各 describe 在此之上做覆盖/删键变异；
 // 想做「只看本族」的断言时按问题文本过滤，不要裁剪基座——auditSharedConstants 是全族审计。
@@ -183,6 +191,8 @@ const base = {
   serverSetup: SERVER_SETUP,
   frontendTsconfigApp: TSCONFIG_APP,
   frontendVitestConfig: VITEST_CONFIG,
+  storageKeys: STORAGE_KEYS_AUTH,
+  strayStorageKeys: [],
 }
 
 describe('parseNumericConst — 数值常量解析', () => {
@@ -682,5 +692,71 @@ describe('路径别名三侧对账（PC-4/W43）', () => {
     expect(problems.some((p) => p.includes("缺 '@' 的定义") && p.includes('vite.config.js'))).toBe(
       true
     )
+  })
+})
+
+describe('存储键唯一来源（PC-5/W63）', () => {
+  it('parseStorageKeys：从权威源解析键清单（守卫不手抄键值）', () => {
+    expect(parseStorageKeys(STORAGE_KEYS_AUTH)).toEqual({
+      authUser: 'beibu-gulf-user',
+      theme: 'gcs-theme',
+    })
+  })
+
+  it('scanStrayStorageKeys：手抄命中 / 权威与测试豁免 / 注释裸提不误伤', () => {
+    const mk = (files) => {
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'storage-keys-'))
+      for (const [rel, content] of Object.entries(files)) {
+        const p = path.join(dir, rel)
+        fs.mkdirSync(path.dirname(p), { recursive: true })
+        fs.writeFileSync(p, content, 'utf8')
+      }
+      return dir
+    }
+    const dir = mk({
+      // 权威本体：豁免
+      'shared/constants/storageKeys.ts': "export const STORAGE_KEYS = { theme: 'gcs-theme' }\n",
+      // 第二份手抄：命中
+      'composables/useX.ts': "const K = 'gcs-theme'\n",
+      // 注释里裸提键名：不命中（引号锚定）
+      'layout/y.ts': '// 主题存于 gcs-theme 键\n',
+      // 测试夹具：豁免
+      'composables/__tests__/x.test.ts': "const K = 'gcs-theme'\n",
+    })
+    const hits = scanStrayStorageKeys(dir, 'frontend/src/shared/constants/storageKeys.ts', [
+      'gcs-theme',
+    ])
+    expect(hits).toEqual([{ file: 'frontend/src/composables/useX.ts', line: 1, key: 'gcs-theme' }])
+    fs.rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('scanStrayStorageKeys：键清单为空 ⇒ 返回空（由权威解析失败判据兜底）', () => {
+    expect(scanStrayStorageKeys('nonexistent-dir', 'frontend/src/x', [])).toEqual([])
+  })
+
+  it('全绿基座：无第二份手抄 → 存储键族无问题', () => {
+    const problems = auditSharedConstants(base).filter((p) => p.includes('存储键'))
+    expect(problems).toEqual([])
+  })
+
+  it('@guard-red-sample 出现第二份手抄 ⇒ 必红（§七-7）', () => {
+    const problems = auditSharedConstants({
+      ...base,
+      strayStorageKeys: [{ file: 'frontend/src/composables/useX.ts', line: 9, key: 'gcs-theme' }],
+    })
+    expect(problems.some((p) => p.includes('存储键第二份手抄') && p.includes('useX.ts:9'))).toBe(
+      true
+    )
+  })
+
+  it('@guard-red-sample 判据输入缺失（strayStorageKeys 未提供）⇒ 必红', () => {
+    const { strayStorageKeys: _omit, ...withoutInput } = base
+    const problems = auditSharedConstants(withoutInput)
+    expect(problems.some((p) => p.includes('存储键唯一来源判据输入缺失'))).toBe(true)
+  })
+
+  it('@guard-red-sample 权威源被清空 ⇒ 解析失败必红', () => {
+    const problems = auditSharedConstants({ ...base, storageKeys: '// 只剩注释\n' })
+    expect(problems.some((p) => p.includes('存储键权威解析失败'))).toBe(true)
   })
 })

@@ -47,44 +47,29 @@ function switchMode(m: string) {
 async function handleSubmit() {
   const trimmedUsername = username.value.trim()
 
-  // 空值分校验分开报：缺哪个报哪个，不合并成一句
-  if (trimmedUsername === '') {
-    showToast('请输入用户名', 'warning')
+  // 校验规则按顺序表驱动：空值分校验分开报（缺哪个报哪个），文案逐字不变。
+  // ⚠️ 09-11 双轨消除：用户名/密码的**字符集与强度**规则已从本文件删除，权威判据在
+  // backend auth.dto.ts（USERNAME_REGEX / PASSWORD_REGEX），由其 400001 文案回传展示。
+  // 保留的仅是本端可判且不需要服务端知识的两条：最小长度（即时反馈）与两次一致（纯前端）。
+  const checks: Array<{ when: () => boolean; message: string }> = [
+    { when: () => trimmedUsername === '', message: '请输入用户名' },
+    { when: () => password.value === '', message: '请输入密码' },
+    {
+      when: () => trimmedUsername.length < 2 || trimmedUsername.length > 20,
+      message: '用户名长度须为 2-20 个字符',
+    },
+    ...(mode.value === 'register'
+      ? [
+          { when: () => password.value.length < 6, message: '密码长度不能少于 6 位' },
+          { when: () => confirmPassword.value === '', message: '请输入确认密码' },
+          { when: () => password.value !== confirmPassword.value, message: '两次密码输入不一致' },
+        ]
+      : []),
+  ]
+  const failed = checks.find((c) => c.when())
+  if (failed) {
+    showToast(failed.message, 'warning')
     return
-  }
-  if (password.value === '') {
-    showToast('请输入密码', 'warning')
-    return
-  }
-
-  // 用户名长度校验（2-20 字符）；文案精简适配 3cell 单行胶囊容量
-  if (trimmedUsername.length < 2 || trimmedUsername.length > 20) {
-    showToast('用户名长度须为 2-20 个字符', 'warning')
-    return
-  }
-
-  if (mode.value === 'register') {
-    // ⚠️ 09-11 双轨消除：用户名/密码的**字符集与强度**规则已从本文件删除，权威判据在
-    // backend auth.dto.ts（USERNAME_REGEX / PASSWORD_REGEX），由其 400001 文案回传展示。
-    //
-    // 为什么删：这两条正则此前在后端**已 export**（auth.dto.ts:12 / plans.dto.ts:6），
-    // 前端却各抄一份字面量，两副本独立演化、无类型系统约束——76a15b65 那个「合法账号
-    // 永远登不进」的 bug 正是同一病灶（当时只把前端校验下沉到 register 分支止血，未根除）。
-    // 跨进程副本无法靠 TS 兜底，唯一可靠解法是**不保留副本**。
-    //
-    // 保留的仅是本端可判且不需要服务端知识的两条：最小长度（即时反馈）与两次一致（纯前端）。
-    if (password.value.length < 6) {
-      showToast('密码长度不能少于 6 位', 'warning')
-      return
-    }
-    if (confirmPassword.value === '') {
-      showToast('请输入确认密码', 'warning')
-      return
-    }
-    if (password.value !== confirmPassword.value) {
-      showToast('两次密码输入不一致', 'warning')
-      return
-    }
   }
   loading.value = true
   try {

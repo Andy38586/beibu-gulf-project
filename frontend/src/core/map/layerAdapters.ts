@@ -235,17 +235,19 @@ interface LayerAdapter {
 /** 通用移除：7 个 adapter 的 remove 逐字相同（水面/地形有独立能力检查，不在此列） */
 const removeLayerAdapter: LayerAdapter['remove'] = (renderer, key) => renderer.removeLayer(key)
 
-/** 能力不支持：warn 后由调用方直接 return（heatmap/geotiff 四个通用 adapter 共用） */
-function skipUnsupported(
-  renderer: MapRenderer,
-  key: string,
-  label: string,
-  method: string,
-  action = '创建'
-): boolean {
-  if (typeof (renderer as unknown as Record<string, unknown>)[method] === 'function') return false
+/** 能力不支持时的统一提示（文案单源；能否调用仍由各自的类型谓词判定） */
+function warnUnsupported(key: string, label: string, action = '创建'): void {
   logger.warn(`[layerAdapters] ${label} 图层 ${key} ${action}跳过（渲染器不支持）`)
-  return true
+}
+
+/** GeoTIFF 能力检查：Cesium 独占（3D hillshade 贴图回退） */
+function isGeoTIFFCapable(renderer: MapRenderer): renderer is MapRenderer & GeoTIFFCapability {
+  return hasCapability<GeoTIFFCapability>(renderer, 'addGeoTIFFLayer')
+}
+
+/** 热力图能力检查：仅 OL 实现（2D Only） */
+function isHeatmapCapable(renderer: MapRenderer): renderer is MapRenderer & HeatmapCapability {
+  return hasCapability<HeatmapCapability>(renderer, 'addHeatmapLayer')
 }
 
 export const LAYER_ADAPTERS: Record<LayerType, LayerAdapter> = {
@@ -254,13 +256,19 @@ export const LAYER_ADAPTERS: Record<LayerType, LayerAdapter> = {
     // addHeatmapLayer 为可选能力（2D Only），经类型守卫后调用，替代 ! 断言
     create: (renderer, key, data, options) => {
       assertPointArray(data)
-      if (skipUnsupported(renderer, key, 'heatmap', 'addHeatmapLayer')) return
-      ;(renderer as MapRenderer & HeatmapCapability).addHeatmapLayer(key, data, options)
+      if (!isHeatmapCapable(renderer)) {
+        warnUnsupported(key, 'heatmap')
+        return
+      }
+      renderer.addHeatmapLayer(key, data, options)
     },
     update: (renderer, key, data, options) => {
       assertPointArray(data)
-      if (skipUnsupported(renderer, key, 'heatmap', 'updateHeatmapLayer', '更新')) return
-      ;(renderer as MapRenderer & HeatmapCapability).updateHeatmapLayer(key, data, options)
+      if (!isHeatmapCapable(renderer)) {
+        warnUnsupported(key, 'heatmap', '更新')
+        return
+      }
+      renderer.updateHeatmapLayer(key, data, options)
     },
     remove: removeLayerAdapter,
   },
@@ -359,14 +367,20 @@ export const LAYER_ADAPTERS: Record<LayerType, LayerAdapter> = {
     // 经类型守卫后调用；data 为 hillshade PNG 路径。3D 下 DEM（数字高程模型）也是独立影像图层，
     // 与普通图层走同一显隐语义，不做 terrainProvider 特殊处理
     create: (renderer, key, data, options) => {
-      if (skipUnsupported(renderer, key, 'geotiff', 'addGeoTIFFLayer')) return
-      applyGeoTIFFOrReport(renderer as MapRenderer & GeoTIFFCapability, key, data, options, '创建')
+      if (!isGeoTIFFCapable(renderer)) {
+        warnUnsupported(key, 'geotiff')
+        return
+      }
+      applyGeoTIFFOrReport(renderer, key, data, options, '创建')
     },
     update: (renderer, key, data, options) => {
-      if (skipUnsupported(renderer, key, 'geotiff', 'addGeoTIFFLayer', '更新')) return
+      if (!isGeoTIFFCapable(renderer)) {
+        warnUnsupported(key, 'geotiff', '更新')
+        return
+      }
       renderer.removeLayer(key)
       // create 的同族半边（重建语义同 imageOverlay：移除后按新内容重加）
-      applyGeoTIFFOrReport(renderer as MapRenderer & GeoTIFFCapability, key, data, options, '重建')
+      applyGeoTIFFOrReport(renderer, key, data, options, '重建')
     },
     remove: removeLayerAdapter,
     /**

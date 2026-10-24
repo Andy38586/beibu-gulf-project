@@ -60,17 +60,20 @@ export function resolveLayerPanelState(
 /** 要素上限：超限直接抛错，防止误传超大集合拖垮渲染（潜伏 OOM 缺口） */
 const MAX_FEATURES = 500_000
 
+/** 要素数硬上限：三个数据守卫共用同一文案与阈值 */
+function assertMaxFeatures(count: number): void {
+  if (count > MAX_FEATURES) {
+    throw new Error(`[layerAdapters] 要素数超上限（${MAX_FEATURES}），实际 ${count}，请分批或裁剪`)
+  }
+}
+
 function assertPointArray(data: unknown): asserts data is PointFeature[] {
   if (!Array.isArray(data)) {
     throw new Error(
       `[layerAdapters] points/heatmap 图层数据必须是 PointFeature[]，实际: ${typeof data}`
     )
   }
-  if (data.length > MAX_FEATURES) {
-    throw new Error(
-      `[layerAdapters] 要素数超上限（${MAX_FEATURES}），实际 ${data.length}，请分批或裁剪`
-    )
-  }
+  assertMaxFeatures(data.length)
 }
 
 function assertFeatureCollection(data: unknown): asserts data is FeatureCollection {
@@ -82,22 +85,14 @@ function assertFeatureCollection(data: unknown): asserts data is FeatureCollecti
     throw new Error('[layerAdapters] geojson 图层数据必须是 FeatureCollection')
   }
   const features = (data as FeatureCollection).features ?? []
-  if (features.length > MAX_FEATURES) {
-    throw new Error(
-      `[layerAdapters] 要素数超上限（${MAX_FEATURES}），实际 ${features.length}，请分批或裁剪`
-    )
-  }
+  assertMaxFeatures(features.length)
 }
 
 function assertPolygonArray(data: unknown): asserts data is PolygonFeature[] {
   if (!Array.isArray(data)) {
     throw new Error(`[layerAdapters] polygon 图层数据必须是 PolygonFeature[]，实际: ${typeof data}`)
   }
-  if (data.length > MAX_FEATURES) {
-    throw new Error(
-      `[layerAdapters] 要素数超上限（${MAX_FEATURES}），实际 ${data.length}，请分批或裁剪`
-    )
-  }
+  assertMaxFeatures(data.length)
 }
 
 /** 能力守卫的唯一实现：某方法存在即认为具备该能力（六个 isXxxCapable 共用） */
@@ -111,11 +106,6 @@ export function isWater3DCapable(
   renderer: MapRenderer
 ): renderer is MapRenderer & Water3DCapability {
   return hasCapability<Water3DCapability>(renderer, 'addWaterSurface')
-}
-
-/** GeoTIFF 能力检查：Cesium 独占（3D hillshade 贴图回退；OL 2D COG 已按 Cesium 独占定义移除） */
-function isGeoTIFFCapable(renderer: MapRenderer): renderer is MapRenderer & GeoTIFFCapability {
-  return hasCapability<GeoTIFFCapability>(renderer, 'addGeoTIFFLayer')
 }
 
 /** geotiff 创建/重建共用的失败上行半边（a029）：addGeoTIFFLayer 以**返回值**表达失败（不抛
@@ -134,11 +124,6 @@ function applyGeoTIFFOrReport(
     logger.warn(`[layerAdapters] geotiff 图层 ${key} ${action}失败`)
     options.onError?.(new Error(`geotiff 图层${action}失败: ${key}`))
   }
-}
-
-/** 热力图能力检查：仅 OL 实现（2D Only） */
-function isHeatmapCapable(renderer: MapRenderer): renderer is MapRenderer & HeatmapCapability {
-  return hasCapability<HeatmapCapability>(renderer, 'addHeatmapLayer')
 }
 
 /** 3D Tiles 能力检查：仅 Cesium 实现（Cesium3DTileset 流式加载瓦片集）。
@@ -250,25 +235,32 @@ interface LayerAdapter {
 /** 通用移除：7 个 adapter 的 remove 逐字相同（水面/地形有独立能力检查，不在此列） */
 const removeLayerAdapter: LayerAdapter['remove'] = (renderer, key) => renderer.removeLayer(key)
 
+/** 能力不支持：warn 后由调用方直接 return（heatmap/geotiff 四个通用 adapter 共用） */
+function skipUnsupported(
+  renderer: MapRenderer,
+  key: string,
+  label: string,
+  method: string,
+  action = '创建'
+): boolean {
+  if (typeof (renderer as unknown as Record<string, unknown>)[method] === 'function') return false
+  logger.warn(`[layerAdapters] ${label} 图层 ${key} ${action}跳过（渲染器不支持）`)
+  return true
+}
+
 export const LAYER_ADAPTERS: Record<LayerType, LayerAdapter> = {
   heatmap: {
     engines: [ENGINE_NAMES.OPENLAYERS], // addHeatmapLayer 为 OL 独有能力
     // addHeatmapLayer 为可选能力（2D Only），经类型守卫后调用，替代 ! 断言
     create: (renderer, key, data, options) => {
       assertPointArray(data)
-      if (!isHeatmapCapable(renderer)) {
-        logger.warn(`[layerAdapters] heatmap 图层 ${key} 当前渲染器不支持，跳过`)
-        return
-      }
-      renderer.addHeatmapLayer(key, data, options)
+      if (skipUnsupported(renderer, key, 'heatmap', 'addHeatmapLayer')) return
+      ;(renderer as MapRenderer & HeatmapCapability).addHeatmapLayer(key, data, options)
     },
     update: (renderer, key, data, options) => {
       assertPointArray(data)
-      if (!isHeatmapCapable(renderer)) {
-        logger.warn(`[layerAdapters] heatmap 图层 ${key} 更新跳过（渲染器不支持）`)
-        return
-      }
-      renderer.updateHeatmapLayer(key, data, options)
+      if (skipUnsupported(renderer, key, 'heatmap', 'updateHeatmapLayer', '更新')) return
+      ;(renderer as MapRenderer & HeatmapCapability).updateHeatmapLayer(key, data, options)
     },
     remove: removeLayerAdapter,
   },
@@ -367,20 +359,14 @@ export const LAYER_ADAPTERS: Record<LayerType, LayerAdapter> = {
     // 经类型守卫后调用；data 为 hillshade PNG 路径。3D 下 DEM（数字高程模型）也是独立影像图层，
     // 与普通图层走同一显隐语义，不做 terrainProvider 特殊处理
     create: (renderer, key, data, options) => {
-      if (!isGeoTIFFCapable(renderer)) {
-        logger.warn(`[layerAdapters] geotiff 图层 ${key} 当前渲染器不支持，跳过`)
-        return
-      }
-      applyGeoTIFFOrReport(renderer, key, data, options, '创建')
+      if (skipUnsupported(renderer, key, 'geotiff', 'addGeoTIFFLayer')) return
+      applyGeoTIFFOrReport(renderer as MapRenderer & GeoTIFFCapability, key, data, options, '创建')
     },
     update: (renderer, key, data, options) => {
-      if (!isGeoTIFFCapable(renderer)) {
-        logger.warn(`[layerAdapters] geotiff 图层 ${key} 更新跳过（渲染器不支持）`)
-        return
-      }
+      if (skipUnsupported(renderer, key, 'geotiff', 'addGeoTIFFLayer', '更新')) return
       renderer.removeLayer(key)
       // create 的同族半边（重建语义同 imageOverlay：移除后按新内容重加）
-      applyGeoTIFFOrReport(renderer, key, data, options, '重建')
+      applyGeoTIFFOrReport(renderer as MapRenderer & GeoTIFFCapability, key, data, options, '重建')
     },
     remove: removeLayerAdapter,
     /**

@@ -247,6 +247,9 @@ interface LayerAdapter {
   engines: EngineName[]
 }
 
+/** 通用移除：7 个 adapter 的 remove 逐字相同（水面/地形有独立能力检查，不在此列） */
+const removeLayerAdapter: LayerAdapter['remove'] = (renderer, key) => renderer.removeLayer(key)
+
 export const LAYER_ADAPTERS: Record<LayerType, LayerAdapter> = {
   heatmap: {
     engines: [ENGINE_NAMES.OPENLAYERS], // addHeatmapLayer 为 OL 独有能力
@@ -267,9 +270,7 @@ export const LAYER_ADAPTERS: Record<LayerType, LayerAdapter> = {
       }
       renderer.updateHeatmapLayer(key, data, options)
     },
-    remove: (renderer, key) => {
-      renderer.removeLayer(key)
-    },
+    remove: removeLayerAdapter,
   },
 
   geojson: {
@@ -294,9 +295,7 @@ export const LAYER_ADAPTERS: Record<LayerType, LayerAdapter> = {
         renderer.addGeoJsonLayer(key, data, options)
       }
     },
-    remove: (renderer, key) => {
-      renderer.removeLayer(key)
-    },
+    remove: removeLayerAdapter,
   },
 
   points: {
@@ -310,9 +309,7 @@ export const LAYER_ADAPTERS: Record<LayerType, LayerAdapter> = {
       renderer.removeLayer(key)
       renderer.addPointLayer(key, data, options)
     },
-    remove: (renderer, key) => {
-      renderer.removeLayer(key)
-    },
+    remove: removeLayerAdapter,
   },
 
   polygon: {
@@ -326,9 +323,7 @@ export const LAYER_ADAPTERS: Record<LayerType, LayerAdapter> = {
       renderer.removeLayer(key)
       renderer.addPolygonLayer(key, data, options)
     },
-    remove: (renderer, key) => {
-      renderer.removeLayer(key)
-    },
+    remove: removeLayerAdapter,
   },
 
   waterSurface: {
@@ -387,9 +382,7 @@ export const LAYER_ADAPTERS: Record<LayerType, LayerAdapter> = {
       // create 的同族半边（重建语义同 imageOverlay：移除后按新内容重加）
       applyGeoTIFFOrReport(renderer, key, data, options, '重建')
     },
-    remove: (renderer, key) => {
-      renderer.removeLayer(key)
-    },
+    remove: removeLayerAdapter,
     /**
      * geotiff 图层显隐委派（纯显隐，**不联动真地形**）。
      *
@@ -431,9 +424,7 @@ export const LAYER_ADAPTERS: Record<LayerType, LayerAdapter> = {
       // onError 的 options，本路径失败上行链路已通（前注「本路径拿不到 onError」作废）。
       applyTiles3DOrReport(renderer, key, data, options, '重建', true)
     },
-    remove: (renderer, key) => {
-      renderer.removeLayer(key)
-    },
+    remove: removeLayerAdapter,
   },
 
   // 离线提取的影像块：按地理矩形铺一张图（与 3D Tiles 模型同源同坐标系，便于对齐核验）
@@ -467,9 +458,7 @@ export const LAYER_ADAPTERS: Record<LayerType, LayerAdapter> = {
       renderer.removeLayer(key)
       applyImageOverlayOrReport(renderer, key, payload, options, '重建')
     },
-    remove: (renderer, key) => {
-      renderer.removeLayer(key)
-    },
+    remove: removeLayerAdapter,
   },
 
   // 真地形（3D Only）：Cesium 经 setTerrainEnabled 在 CTB 真地形（z 起伏）与

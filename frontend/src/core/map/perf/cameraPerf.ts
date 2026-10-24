@@ -11,6 +11,7 @@
  */
 import type { Viewer } from 'cesium'
 import { buildModuleUrl, SkyBox } from 'cesium'
+import { CAMERA_DEBOUNCE_MS } from './cameraTiming'
 
 /** 图层条目的结构化最小面（隐藏/恢复只碰 visible 与引擎侧 show） */
 interface DegradableLayer {
@@ -49,7 +50,6 @@ const INTERACTION_HEAVY_VERTEX_THRESHOLD = 3000
  * 一个裸 `}, 300)`（同一「防抖后 emit camera-changed」形状）。改时长只改一处会
  * 出现「3D 300ms / 2D 其他节奏」的相机回传差，且没有任何判据会红（AGENTS §七-7）。
  */
-export const CAMERA_DEBOUNCE_MS = 300
 
 /** 顶点规模是否达到交互期降载登记线 */
 export function isHeavyVertexCount(vertexCount: number): boolean {

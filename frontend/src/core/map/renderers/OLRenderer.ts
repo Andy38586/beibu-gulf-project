@@ -34,7 +34,7 @@ import type { LayerOptions, MapRendererEventMap, PointFeature, PolygonFeature } 
 import type { CameraState, FlyToOptions, FlyToTarget, GeoPoint } from '@/types'
 
 import { type AreaAwareVectorLayer, createVectorLayerByGeometry } from '../perf/areaLayer'
-import { CAMERA_DEBOUNCE_MS } from '../perf/cameraPerf'
+import { CAMERA_DEBOUNCE_MS } from '../perf/cameraTiming'
 import { MapRenderer } from './MapRenderer'
 /** Web 墨卡托投影标识（View/GeoJSON 读取共用，避免字面量散落） */
 const WEB_MERCATOR = 'EPSG:3857'

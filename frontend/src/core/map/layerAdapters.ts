@@ -108,11 +108,31 @@ export function isWater3DCapable(
   return hasCapability<Water3DCapability>(renderer, 'addWaterSurface')
 }
 
+/**
+ * 「返回值即成败」类同步 add 方法的失败上行单源（geotiff / imageOverlay 共用）。
+ *
+ * 两者形状逐字同构：add 返回 false ⇒ 一行 warn + 一条 onError，差别只有 label 与动作词。
+ * 拆成两份手抄时，任一侧漏改就只剩一半上行（04-D2/D4：失败必须在生产可见，且 create 与
+ * 重建两条路径都得可见）。label 取字面量联合而非 string —— 文案前缀拼错在类型层就红。
+ */
+function reportApplyFailure(
+  label: 'geotiff' | 'imageOverlay',
+  key: string,
+  action: '创建' | '重建',
+  options: LayerOptions,
+  ok: boolean
+): void {
+  if (ok) return
+  logger.warn(`[layerAdapters] ${label} 图层 ${key} ${action}失败`)
+  options.onError?.(new Error(`${label} 图层${action}失败: ${key}`))
+}
+
 /** geotiff 创建/重建共用的失败上行半边（a029）：addGeoTIFFLayer 以**返回值**表达失败（不抛
  *  异常）——3D 非 hillshade 回退在 `CesiumRenderer.addGeoTIFFLayer` 里 `return false`，
  *  投影/imageryLayers 构造或 PNG 加载失败同样 return false。返回值曾被整体丢弃 ⇒ 图层开关
  *  仍是"已开"、屏幕无物、BLM 无从感知。false ⇒ warn + onError，BLM 据以回滚
- *  registry/catalog 并弹 toast（与 imageOverlay 同款收口）。文案按动作词区分，逐字节不变。 */
+ *  registry/catalog 并弹 toast（上行实现与 imageOverlay 同源：reportApplyFailure）。
+ *  文案按动作词区分，逐字节不变。 */
 function applyGeoTIFFOrReport(
   renderer: MapRenderer & GeoTIFFCapability,
   key: string,
@@ -120,10 +140,13 @@ function applyGeoTIFFOrReport(
   options: LayerOptions,
   action: '创建' | '重建'
 ): void {
-  if (!renderer.addGeoTIFFLayer(key, data as string, options)) {
-    logger.warn(`[layerAdapters] geotiff 图层 ${key} ${action}失败`)
-    options.onError?.(new Error(`geotiff 图层${action}失败: ${key}`))
-  }
+  reportApplyFailure(
+    'geotiff',
+    key,
+    action,
+    options,
+    renderer.addGeoTIFFLayer(key, data as string, options)
+  )
 }
 
 /** 3D Tiles 能力检查：仅 Cesium 实现（Cesium3DTileset 流式加载瓦片集）。
@@ -166,10 +189,10 @@ function report3DTilesFailure(
     })
 }
 
-/** 单张影像覆盖创建/重建半边（同 applyGeoTIFFOrReport 形状）：addImageOverlayLayer 以
- *  **返回值**表达失败（不抛异常），返回值此前被整体丢弃 ⇒ 图片 404 / SingleTileImageryProvider
- *  构造抛错时，图层开关仍是"已开"、屏幕无物。create 与重建两条路径若各自手抄这段，任一侧
- *  漏改就会让失败只剩一半上行（04-D2/D4）。文案按动作词区分，逐字节不变。 */
+/** 单张影像覆盖创建/重建半边（同 applyGeoTIFFOrReport 形状，上行同走 reportApplyFailure）：
+ *  addImageOverlayLayer 以**返回值**表达失败（不抛异常），返回值此前被整体丢弃 ⇒ 图片 404 /
+ *  SingleTileImageryProvider 构造抛错时，图层开关仍是"已开"、屏幕无物。create 与重建两条路径
+ *  若各自手抄这段，任一侧漏改就会让失败只剩一半上行（04-D2/D4）。文案按动作词区分，逐字节不变。 */
 function applyImageOverlayOrReport(
   renderer: MapRenderer & ImageOverlayCapability,
   key: string,
@@ -177,10 +200,13 @@ function applyImageOverlayOrReport(
   options: LayerOptions,
   action: '创建' | '重建'
 ): void {
-  if (!renderer.addImageOverlayLayer(key, payload, options)) {
-    logger.warn(`[layerAdapters] imageOverlay 图层 ${key} ${action}失败`)
-    options.onError?.(new Error(`imageOverlay 图层${action}失败: ${key}`))
-  }
+  reportApplyFailure(
+    'imageOverlay',
+    key,
+    action,
+    options,
+    renderer.addImageOverlayLayer(key, payload, options)
+  )
 }
 
 /** 3dtiles 创建/重建半边（同 applyGeoTIFFOrReport 形状）：create 与重建必须共用同一份载荷
@@ -235,9 +261,24 @@ interface LayerAdapter {
 /** 通用移除：7 个 adapter 的 remove 逐字相同（水面/地形有独立能力检查，不在此列） */
 const removeLayerAdapter: LayerAdapter['remove'] = (renderer, key) => renderer.removeLayer(key)
 
-/** 能力不支持时的统一提示（文案单源；能否调用仍由各自的类型谓词判定） */
+/** 能力不支持时的统一提示（文案单源；能否调用仍由各自的类型谓词判定）。
+ *  用于「能力缺失」而非「3D 专有」这一类 —— 后者文案含引擎名，见 warn3DOnly。 */
 function warnUnsupported(key: string, label: string, action = '创建'): void {
   logger.warn(`[layerAdapters] ${label} 图层 ${key} ${action}跳过（渲染器不支持）`)
+}
+
+/**
+ * 3D 专有图层落到 2D 渲染器上的统一跳过（文案单源）。
+ *
+ * 水面 / 3D Tiles / 影像块 / 真地形四处原本各自手抄同一句 warn（3 行块 ×4，只差 label），
+ * 且都要带上当前引擎名以便排障。能力判定仍由各自的类型谓词给出，此处只负责文案与引擎名，
+ * 调用方随即 return（设计内跳过，**不**报 onError、不弹 toast —— 02 §5.3）。
+ * 文案逐字保留：`${label} 图层仅 3D 渲染器支持，当前 ${engine} 跳过: ${key}`。
+ */
+function warn3DOnly(renderer: MapRenderer, key: string, label: string): void {
+  logger.warn(
+    `[layerAdapters] ${label} 图层仅 3D 渲染器支持，当前 ${renderer.getType()} 跳过: ${key}`
+  )
 }
 
 /** GeoTIFF 能力检查：Cesium 独占（3D hillshade 贴图回退） */
@@ -332,9 +373,7 @@ export const LAYER_ADAPTERS: Record<LayerType, LayerAdapter> = {
     // 能力检查替代基类 no-op stub：不支持的渲染器上跳过并 warn
     create: (renderer, key, data, options) => {
       if (!isWater3DCapable(renderer)) {
-        logger.warn(
-          `[layerAdapters] waterSurface 图层仅 3D 渲染器支持，当前 ${renderer.getType()} 跳过: ${key}`
-        )
+        warn3DOnly(renderer, key, 'waterSurface')
         return
       }
       const payload = data as WaterSurfaceData
@@ -405,9 +444,7 @@ export const LAYER_ADAPTERS: Record<LayerType, LayerAdapter> = {
     // （先取回 tileset.json 再建瓦片树），rejection 兜底防浮动 Promise（同 waterSurface 处理）
     create: (renderer, key, data, options) => {
       if (!isTiles3DCapable(renderer)) {
-        logger.warn(
-          `[layerAdapters] 3dtiles 图层仅 3D 渲染器支持，当前 ${renderer.getType()} 跳过: ${key}`
-        )
+        warn3DOnly(renderer, key, '3dtiles')
         return
       }
       // add3DTilesLayer 是 async 且用 resolve(false) 表达失败（不抛）——失败上行走
@@ -432,9 +469,7 @@ export const LAYER_ADAPTERS: Record<LayerType, LayerAdapter> = {
     engines: [ENGINE_NAMES.CESIUM],
     create: (renderer, key, data, options) => {
       if (!isImageOverlayCapable(renderer)) {
-        logger.warn(
-          `[layerAdapters] imageOverlay 图层仅 3D 渲染器支持，当前 ${renderer.getType()} 跳过: ${key}`
-        )
+        warn3DOnly(renderer, key, 'imageOverlay')
         return
       }
       const payload = data as ImageOverlayData
@@ -468,9 +503,7 @@ export const LAYER_ADAPTERS: Record<LayerType, LayerAdapter> = {
     engines: [ENGINE_NAMES.CESIUM],
     create: (renderer, key) => {
       if (!isTerrainCapable(renderer)) {
-        logger.warn(
-          `[layerAdapters] terrain 图层仅 3D 渲染器支持，当前 ${renderer.getType()} 跳过: ${key}`
-        )
+        warn3DOnly(renderer, key, 'terrain')
         return
       }
       renderer.setTerrainEnabled(true)

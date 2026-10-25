@@ -12,13 +12,15 @@
  *   node tools/audit-kit/dispatch.mjs --windows 6 --batch 926 [--only 专项1,专项5] [--out <目录>] [--dry]
  *   默认输出到 <审件库>/<batch>/，只写不存在的文件；--dry 只打印切分账。
  */
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { arg, hasFlag } from '../lib/cli-args.mjs'
+
 import { parseSpec, summarize } from './metrics-index.mjs'
-import { ROOT, CONVENTION, AUDITS_DIR } from './paths.mjs'
+import { AUDITS_DIR, CONVENTION, ROOT } from './paths.mjs'
 
 const CN = { 一: 1, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9, 十: 10 }
 
@@ -320,12 +322,11 @@ ${ctx.重叠.length ? ctx.重叠.map((o) => `- ${o.对}：重叠 ${o.重叠率}%
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const argv = process.argv.slice(2)
-  const arg = (name, dflt) =>
-    argv.includes(`--${name}`) ? argv[argv.indexOf(`--${name}`) + 1] : dflt
-  const windows = Number(arg('windows', 8))
-  const batch = arg('batch', null)
-  const dry = argv.includes('--dry')
-  const only = arg('only', '')
+  // 参数读取统一走 tools/lib/cli-args（裸名，`--` 由库补；边界语义见库头注释）
+  const windows = Number(arg('windows', 8, argv))
+  const batch = arg('batch', null, argv)
+  const dry = hasFlag('dry', argv)
+  const only = arg('only', '', argv)
     .split(',')
     .filter(Boolean)
     .map((s) => s.replace(/^专/, '专项'))

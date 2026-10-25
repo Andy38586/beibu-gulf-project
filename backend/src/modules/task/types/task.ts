@@ -28,6 +28,12 @@ export function isTerminalStatus(status: TaskStatus): boolean {
 }
 
 /**
+ * 中断型终态：取代 / 取消 / 排队超时三条路径的落点（终态中除正常完成 `done` 外的两种）。
+ * 单独命名而非在调用点手抄联合——`taskStatus.test.ts` 规则 C 禁止状态字面量联合出现在权威源之外。
+ */
+export type TaskAbortStatus = Extract<TaskStatus, 'cancelled' | 'failed'>
+
+/**
  * 优先级（口径 #16：当前路由插队）。
  * high = 发起时用户正看着这个路由 ⇒ 插队首；normal = 后台路由 ⇒ 排队尾。
  */

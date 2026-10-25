@@ -13,9 +13,11 @@
  *  node tools/v3-guard/routes-audit.mjs        # 比对（默认；不一致 exit 1）
  *  node tools/v3-guard/routes-audit.mjs --gen  # 改路由后重新生成契约清单（随改动一起提交）
  */
-import { readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+
+import { walkFiles } from './lib/walk.mjs'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const NEST_SRC = path.join(ROOT, 'backend/src')
@@ -32,17 +34,7 @@ const CONTROLLER_DECORATOR_RE = /@Controller\s*\(\s*['"`]([^'"`]*)['"`]\s*\)/
 const MANIFEST_ENTRY_RE = /\{\s*method:\s*'([A-Z]+)'\s*,\s*path:\s*'([^']+)'\s*,?\s*\}/g
 
 function walkControllers(dir) {
-  const out = []
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    const full = path.join(dir, entry.name)
-    if (entry.isDirectory()) {
-      if (['node_modules', 'dist', 'coverage'].includes(entry.name)) continue
-      out.push(...walkControllers(full))
-    } else if (entry.name.endsWith('.controller.ts')) {
-      out.push(full)
-    }
-  }
-  return out
+  return walkFiles(dir, { match: (name) => name.endsWith('.controller.ts'), output: 'abs' })
 }
 
 /**

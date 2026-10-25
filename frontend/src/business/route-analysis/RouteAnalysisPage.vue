@@ -8,7 +8,7 @@
  * 与浸没分析一致——同为 3D 的路由互切时 UnifiedMap 直接复用同一 Viewer，不卸载、不重建上下文。
  * 路径线/端点图层走 BLM 注册（双引擎通用，本页不再暴露 OL 链路）。
  */
-import { computed, onUnmounted, ref, watch } from 'vue'
+import { computed, onUnmounted, type Ref, ref, watch } from 'vue'
 
 import {
   AppLayout,
@@ -25,7 +25,7 @@ import {
 } from '@/core'
 import { DEFAULT_LAYER_ORDER, loadStatic, logger, showToast } from '@/shared'
 import { useMapStore, useTaskStore } from '@/stores'
-import type { RoutePathResult } from '@/types'
+import type { MapRenderer, RoutePathResult } from '@/types'
 import type { TaskSlot } from '@/types/task'
 import { pingluImageryIndexSchema, tilesetJsonSchema } from '@/types/schemas'
 
@@ -73,9 +73,6 @@ const ownedLayers = useOwnedLayers('route-analysis')
  * 图层归属必须与业务同寿，故由页面建册、面板只消费。
  */
 const { updateRouteLayers, clearRouteLayers } = useRouteLayer()
-/** 影像索引加载与注册均已完成（防重复注册） */
-let imageryRegistered = false
-
 /** 当前渲染器是否支持影像块（局部变量收窄，避免属性访问在能力检查里失去 narrowing） */
 function canOverlayImagery(): boolean {
   const r = mapStore.currentRenderer
@@ -111,7 +108,7 @@ function isSameUsableRenderer(renderer: NonNullable<typeof mapStore.currentRende
 }
 
 async function registerImageryLayers(): Promise<void> {
-  if (imageryRegistered) return
+  if (imageryLayerIds.value.length > 0) return
   if (disposed) return
   if (!canOverlayImagery()) return
   try {
@@ -121,7 +118,7 @@ async function registerImageryLayers(): Promise<void> {
     })
     if (disposed || !canOverlayImagery()) return
     // 局部 ids 收齐后整体赋值：中途抛错/被拒时不把半截 id 留在册上——
-    // 旧实现逐条追加，失败后 imageryRegistered 仍为 false，切 2D 不清理、补注册还会重复追加
+    // 旧实现逐条追加，失败后「已注册」判定仍为假，切 2D 不清理、补注册还会重复追加
     const ids: string[] = []
     for (const t of index.tiles) {
       const id = PINGLU_IMAGERY_LAYER_PREFIX + t.name
@@ -139,7 +136,6 @@ async function registerImageryLayers(): Promise<void> {
       if (ok) ids.push(id)
     }
     imageryLayerIds.value = ids
-    imageryRegistered = ids.length > 0
   } catch (e) {
     logger.warn('[RouteAnalysis] 离线影像索引加载失败（已跳过影像图层）:', e)
   }
@@ -248,12 +244,11 @@ const stopRendererWatch = watch(
 //
 // v5：整包 → 5 个分组。派生 tileset 是异步的（要先取一次完整 tileset.json 当模板），
 // 故注册整体放进 async 函数，且中途渲染器可能被切走 ⇒ 每步前后都重验能力。
-let pingluRegistered = false
-/** 已注册的分组图层 id（供切引擎时成组清理） */
+/** 已注册的分组图层 id（非空 ⇔ 已注册；供切引擎时成组清理） */
 const pingluLayerIds = ref<string[]>([])
 
 async function registerPingluGroups(): Promise<void> {
-  if (pingluRegistered) return
+  if (pingluLayerIds.value.length > 0) return
   if (disposed) return
   const renderer = mapStore.currentRenderer
   if (!renderer || !isTiles3DCapable(renderer)) return
@@ -300,35 +295,55 @@ async function registerPingluGroups(): Promise<void> {
       }
     }
     pingluLayerIds.value = ids
-    pingluRegistered = ids.length > 0
   } catch (e) {
     logger.warn('[RouteAnalysis] 3D Tiles 瓦片集模板加载失败（已跳过 3D 图层）:', e)
   }
 }
 
-const stopTilesLayerWatch = watch(
-  () => mapStore.currentRenderer,
-  (renderer) => {
-    if (!renderer) return
-    if (isTiles3DCapable(renderer)) {
-      // 2026-09-28 移除了曾经的兜底图层 `pinglu-madao-model`（整包 + nameFilter:'马道'），
-      // 三条理由，任一条都足够：
-      //   ① 它不在模板的 layer-order 里 ⇒ 图层面板没有对应开关，**常驻且用户关不掉**；
-      //   ② 与 PINGLU_GROUPS 的 `pinglu-madao` 分组内容重复，等于把马道渲染两份；
-      //   ③（2026-10-05 起失效，留档）它走整包挂载、拿不到派生侧的剪枝 ⇒ 当时
-      //      枢纽自带的「地形与边坡」层会常驻；现 z1 已按用户裁定放行，此条不再成立。
-      // 马道枢纽现由 `pinglu-madao` 分组承担：带剪枝、逐条可控、归 owner 册管理。
-      if (pingluRegistered) return
-      void registerPingluGroups()
-    } else if (pingluRegistered) {
-      // 切到 2D 渲染器：3D Tiles 无对应能力，移除本页 3D 独占图层，避免面板留死开关
+/**
+ * 「渲染器能力守卫 → 注册 / 反注册」watch 的唯一骨架（本页三条 3D 独占图层共用）。
+ *
+ * 三条图层（平陆 3D Tiles / 北部湾 3D Tiles / 离线影像）此前各写一份 watch：能力具备
+ * 就注册、失去能力就成组反注册并清空 ids —— 时机与清理动作完全相同，差别只在能力判据
+ * 与注册函数。收成一处后，新加一条图层不会再漏「切 2D 要清」这一步。
+ *
+ * 「是否在册」一律由 `ids` 派生（ids 非空 ⇔ 已注册）：此前另有三个布尔标志各自维护，
+ * 每次赋值恒等于 `ids.length > 0` —— 两份状态就是两条会分叉的真相。
+ */
+function watchCapabilityLayers(
+  ids: Ref<string[]>,
+  capable: (renderer: MapRenderer) => boolean,
+  register: () => void | Promise<void>
+): () => void {
+  return watch(
+    () => mapStore.currentRenderer,
+    (renderer) => {
+      if (!renderer) return
+      if (capable(renderer)) {
+        void register()
+        return
+      }
+      if (ids.value.length === 0) return
+      // 切到 2D 渲染器：该类图层无对应能力，成组移除，避免面板留死开关。
       // 走 unregister 而非直接 remove：归属册要与实际一致，否则卸载时的统一清理会清到已摘的键
-      for (const id of pingluLayerIds.value) ownedLayers.unregister(id)
-      pingluLayerIds.value = []
-      pingluRegistered = false
-    }
-  },
-  { immediate: true }
+      for (const id of ids.value) ownedLayers.unregister(id)
+      ids.value = []
+    },
+    { immediate: true }
+  )
+}
+
+// 2026-09-28 移除了曾经的兜底图层 `pinglu-madao-model`（整包 + nameFilter:'马道'），
+// 三条理由，任一条都足够：
+//   ① 它不在模板的 layer-order 里 ⇒ 图层面板没有对应开关，**常驻且用户关不掉**；
+//   ② 与 PINGLU_GROUPS 的 `pinglu-madao` 分组内容重复，等于把马道渲染两份；
+//   ③（2026-10-05 起失效，留档）它走整包挂载、拿不到派生侧的剪枝 ⇒ 当时
+//      枢纽自带的「地形与边坡」层会常驻；现 z1 已按用户裁定放行，此条不再成立。
+// 马道枢纽现由 `pinglu-madao` 分组承担：带剪枝、逐条可控、归 owner 册管理。
+const stopTilesLayerWatch = watchCapabilityLayers(
+  pingluLayerIds,
+  isTiles3DCapable,
+  registerPingluGroups
 )
 
 // ---- 北部湾 3D Tiles 资产（2026-09-28 外部交付包） ----
@@ -341,11 +356,11 @@ const stopTilesLayerWatch = watch(
 // 2026-10-03：原三条平陆运河 BIM 枢纽（bim-madao/qishi/qingnian）已从清单移除——它们与
 // pinglu-madao/qishi/qingnian 是同一枢纽的两套模型（包围盒逐位相同、锚点差 ~200 m），
 // 默认全开即在同一位置渲染两套互相穿插的模型。废弃判据与失效条件见清单文件头。
+/** 已注册的资产图层 id（非空 ⇔ 已注册） */
 const beibuLayerIds = ref<string[]>([])
-let beibuRegistered = false
 
 async function registerBeibuTiles(): Promise<void> {
-  if (beibuRegistered) return
+  if (beibuLayerIds.value.length > 0) return
   if (disposed) return
   const renderer = mapStore.currentRenderer
   if (!renderer || !isTiles3DCapable(renderer)) return
@@ -385,39 +400,15 @@ async function registerBeibuTiles(): Promise<void> {
     }
   }
   beibuLayerIds.value = ids
-  beibuRegistered = ids.length > 0
 }
 
-const stopBeibuWatch = watch(
-  () => mapStore.currentRenderer,
-  (renderer) => {
-    if (!renderer) return
-    if (isTiles3DCapable(renderer)) {
-      void registerBeibuTiles()
-    } else if (beibuRegistered) {
-      // 切 2D：本组同样无对应能力，走 unregister 保持归属册与实际一致
-      for (const id of beibuLayerIds.value) ownedLayers.unregister(id)
-      beibuLayerIds.value = []
-      beibuRegistered = false
-    }
-  },
-  { immediate: true }
-)
+const stopBeibuWatch = watchCapabilityLayers(beibuLayerIds, isTiles3DCapable, registerBeibuTiles)
 
-// 离线影像块：与 3D Tiles 同款能力守卫驱动；默认开启，用于与模型对照核验落位
-const stopImageryWatch = watch(
-  () => mapStore.currentRenderer,
-  (renderer) => {
-    if (!renderer) return
-    if (isImageOverlayCapable(renderer)) {
-      void registerImageryLayers()
-    } else if (imageryRegistered) {
-      for (const id of imageryLayerIds.value) ownedLayers.unregister(id)
-      imageryLayerIds.value = []
-      imageryRegistered = false
-    }
-  },
-  { immediate: true }
+// 离线影像块：与 3D Tiles 同款能力守卫驱动（同一骨架）；默认开启，用于与模型对照核验落位
+const stopImageryWatch = watchCapabilityLayers(
+  imageryLayerIds,
+  isImageOverlayCapable,
+  registerImageryLayers
 )
 
 onUnmounted(() => {
@@ -442,9 +433,6 @@ onUnmounted(() => {
   pingluLayerIds.value = []
   imageryLayerIds.value = []
   beibuLayerIds.value = []
-  pingluRegistered = false
-  imageryRegistered = false
-  beibuRegistered = false
 })
 </script>
 

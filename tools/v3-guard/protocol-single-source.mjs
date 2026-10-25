@@ -22,6 +22,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { walkFiles } from './lib/walk.mjs'
+
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 
 /** 协议正本。引用它的文件叫"指针文件"，指针文件里不许有条文副本。 */
@@ -174,36 +176,23 @@ export function auditProtocolSingleSource(texts) {
   return problems
 }
 
-/** 扫描时跳过的目录名（第三方/产物/本机区，不可能是协议正本）。 */
-const SKIP_DIRS = new Set([
-  'node_modules',
-  'dist',
-  'coverage',
-  '.venv',
-  '.git',
-  '.local',
-  '.workbuddy',
-  '.reasonix',
-  '.staging-react',
-  'pdf_build',
-])
-
-function walkMd(dir, acc, depth = 0) {
-  if (depth > 6) return acc
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    if (entry.isDirectory()) {
-      if (SKIP_DIRS.has(entry.name) || (entry.name.startsWith('.') && depth === 0)) continue
-      walkMd(path.join(dir, entry.name), acc, depth + 1)
-    } else if (entry.name.endsWith('.md')) {
-      acc.push(path.relative(ROOT, path.join(dir, entry.name)).split(path.sep).join('/'))
-    }
-  }
-  return acc
+/**
+ * 全仓 .md 清单。跳过集用 lib/walk 的默认集（本守卫此前独有 `.staging-react`/`pdf_build`，
+ * 已并入默认集）；额外只跳「根层点开头目录」——那是本机工作区，不可能是协议正本。
+ * 深度上限 6 与收口前一致（协议文档最深层级）。
+ */
+function walkMd(dir) {
+  return walkFiles(dir, {
+    match: (name) => name.endsWith('.md'),
+    skipEntry: (name, depth) => name.startsWith('.') && depth === 0,
+    maxDepth: 6,
+    relBase: ROOT,
+  })
 }
 
 function collectTexts() {
   const out = {}
-  for (const file of new Set([PROTOCOL_SOURCE, ...POINTER_FILES, ...walkMd(ROOT, [])])) {
+  for (const file of new Set([PROTOCOL_SOURCE, ...POINTER_FILES, ...walkMd(ROOT)])) {
     const abs = path.join(ROOT, file)
     out[file] = fs.existsSync(abs) ? fs.readFileSync(abs, 'utf8') : undefined
   }

@@ -5,8 +5,21 @@
  * AbortController 不可序列化、不响应式，由本实例持有。
  * 事务骨架（ID 推进 / signal / 有效性 / 取消）走跨域公共 `useTransactionGuard`。
  */
-import { ApiError, ErrorCode, useTransactionGuard } from '@/shared'
+import type { Router } from 'vue-router'
+
+import { ApiError, ErrorCode, handleAuthError, isAuthError, useTransactionGuard } from '@/shared'
 import { useForecastStore } from '@/stores'
+
+/**
+ * 401 前置守卫：三个 forecast composable 的 catch 尾部（auth → 429 → showError）共用这一入口。
+ * 命中则触发跳登录并返回 true，调用方一行 `if (guardForecastAuth(e, router)) return` 收口。
+ * 只覆盖「先跳登录再 return」这一用法；需要等待跳转结果的场景仍直接用 handleAuthError。
+ */
+export function guardForecastAuth(error: unknown, router: Router): boolean {
+  if (!isAuthError(error)) return false
+  void handleAuthError(router)
+  return true
+}
 
 /** 返回契约（显式化，防重构时签名静默漂移） */
 interface UseForecastRequestReturn {

@@ -11,26 +11,18 @@ import { computed, nextTick, onScopeDispose, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { type BusinessLayerManager, useBusinessLayers, useOwnedLayers } from '@/core'
-import {
-  ApiError,
-  BoundedMap,
-  ENDPOINTS,
-  handleAuthError,
-  isAuthError,
-  showError,
-  useApiRequest,
-} from '@/shared'
+import type { LayerDescriptor } from '@/core'
+import { ApiError, BoundedMap, ENDPOINTS, showError, useApiRequest } from '@/shared'
 import { logger } from '@/shared'
-import { DEFAULT_CONFIDENCE, forecastLayerId, FORECAST_INDICATORS, LAYER_DEFAULTS } from '@/shared'
+import { DEFAULT_CONFIDENCE, FORECAST_INDICATORS, forecastLayerId, LAYER_DEFAULTS } from '@/shared'
+import { scenarioParam } from '@/shared'
 import { useForecastStore } from '@/stores'
 import { useMapStore } from '@/stores'
 import type { LayerOptions, LayerType, MapRenderer } from '@/types'
 import type { ForecastMapData } from '@/types/api/forecast'
 import { forecastMapDataSchema } from '@/types/schemas'
 
-import { scenarioParam } from '@/shared'
-
-import { useForecastRequest } from './useForecastRequest'
+import { guardForecastAuth, useForecastRequest } from './useForecastRequest'
 
 const INDICATOR_LABELS: Record<string, string> = {
   cargo: '货物吞吐量热力',
@@ -70,6 +62,15 @@ export function useForecastLayer(): UseForecastLayerReturn {
     disposed = true
   })
 
+  /** 注册体（唯一一份）：watch 与 update 共用，免五字段字面量两处漂移 */
+  const layerDescriptor = (indicator: string, visible: boolean): LayerDescriptor => ({
+    label: INDICATOR_LABELS[indicator],
+    layerType: LAYER_TYPES[indicator],
+    data: null,
+    options: getLayerOptions(),
+    visible,
+  })
+
   // 合并 watch：同时监听 renderer 和 activeIndicator，确保图层状态同步
   watch(
     [() => renderer.value, () => forecastState.activeIndicator],
@@ -83,15 +84,9 @@ export function useForecastLayer(): UseForecastLayerReturn {
       // 渲染器就绪时注册全部指标图层（数量由 FORECAST_INDICATORS 派生，不写死——见文件头注）
       for (const indicator of FORECAST_INDICATORS) {
         const key = forecastLayerId(indicator)
-        if (manager.has(key)) continue
-        const isActive = indicator === newInd
-        owned.register(key, {
-          label: INDICATOR_LABELS[indicator],
-          layerType: LAYER_TYPES[indicator],
-          data: null,
-          options: getLayerOptions(),
-          visible: isActive,
-        })
+        if (!manager.has(key)) {
+          owned.register(key, layerDescriptor(indicator, indicator === newInd))
+        }
       }
 
       // 指标切换时更新图层可见性：old 隐藏；new 尊重 registry——
@@ -141,18 +136,10 @@ export function useForecastLayer(): UseForecastLayerReturn {
     const time = rawTime.includes('-') ? rawTime : `${rawTime}-12`
     const key = forecastLayerId(indicator)
 
-    // 检查图层是否已注册，若未注册则先注册
+    // 检查图层是否已注册，若未注册则先注册（注册体与 watch 同一份）
     if (!manager.has(key)) {
       await nextTick()
-      if (!manager.has(key)) {
-        owned.register(key, {
-          label: INDICATOR_LABELS[indicator],
-          layerType: LAYER_TYPES[indicator],
-          data: null,
-          options: getLayerOptions(),
-          visible: true,
-        })
-      }
+      if (!manager.has(key)) owned.register(key, layerDescriptor(indicator, true))
     }
 
     try {
@@ -198,10 +185,7 @@ export function useForecastLayer(): UseForecastLayerReturn {
 
       manager.updateData(key, { data: getRenderData(geojson), options })
     } catch (e) {
-      if (isAuthError(e)) {
-        void handleAuthError(router)
-        return
-      }
+      if (guardForecastAuth(e, router)) return
       // 播放中命中限流（429）静默降级不弹窗（连续高频交互，弹窗打断演示）；手动操作照常提示
       if (forecastState.isPlaying && e instanceof ApiError && e.message.includes('过于频繁')) {
         if (import.meta.env.DEV)

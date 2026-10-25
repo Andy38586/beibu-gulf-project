@@ -6,14 +6,7 @@
 import { useRouter } from 'vue-router'
 
 import { forecastAdapter } from '@/services'
-import {
-  ApiError,
-  DEFAULT_CONFIDENCE,
-  handleAuthError,
-  isAuthError,
-  logger,
-  showError,
-} from '@/shared'
+import { ApiError, DEFAULT_CONFIDENCE, logger, showError } from '@/shared'
 import { PORT_KEYS, PORT_NAMES } from '@/shared'
 import { useForecastStore } from '@/stores'
 
@@ -22,7 +15,7 @@ interface UseForecastComparisonReturn {
   load: (transactionId: number, signal: AbortSignal) => Promise<void>
 }
 
-import { useForecastRequest } from './useForecastRequest'
+import { guardForecastAuth, useForecastRequest } from './useForecastRequest'
 
 // 柱状图固定对比真实吞吐量指标（cargo/container；合成数据不入图），当前 3 港 × 2 指标 = 6 柱
 const BAR_INDICATORS = ['cargo', 'container'] as const
@@ -110,10 +103,7 @@ export function useForecastComparison(): UseForecastComparisonReturn {
       })
     } catch (e) {
       logger.error('[ForecastComparison] load error:', e)
-      if (isAuthError(e)) {
-        void handleAuthError(router)
-        return
-      }
+      if (guardForecastAuth(e, router)) return
       // 播放中命中后端限流（429）：静默降级不弹窗（同 useForecastLayer）
       if (forecastState.isPlaying && e instanceof ApiError && e.message.includes('过于频繁')) {
         return

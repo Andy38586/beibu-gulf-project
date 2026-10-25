@@ -77,6 +77,21 @@ async function loadFavorites(): Promise<void> {
   }
 }
 
+/** 补完未登录期的收藏意图：须在 loadFavorites 之后（先拉后补）；成功清意图，失败回滚待下次登录重试 */
+async function flushPendingFavorite(): Promise<void> {
+  if (!pendingFavorite) return
+  const input = pendingFavorite
+  pendingFavorite = null
+  try {
+    const { existed } = await commitFavorite(input)
+    showToast(existed ? '已在收藏中' : `已收藏：${input.name}`, 'success')
+  } catch (error) {
+    pendingFavorite = input
+    // 走 showError 区分真实成因（服务器无响应 ≠ 笼统失败），与收藏面板同口径
+    showError(error, { fallback: '收藏失败，请稍后重试' })
+  }
+}
+
 /** 登录态驱动：登录 → 拉取 + 补完未登录期的收藏意图；登出 → 清空。
  *  源含 token：restore 以「保留临时登录态」收场时（后端不可达 ≠ 未登录）user 不变，
  *  仅 token 置位 —— 监听 token 空→非空让该路径也能触发重拉（恢复期分级） */
@@ -91,18 +106,7 @@ watch(
       return
     }
     await loadFavorites()
-    if (pendingFavorite) {
-      const input = pendingFavorite
-      pendingFavorite = null
-      try {
-        const { existed } = await commitFavorite(input)
-        showToast(existed ? '已在收藏中' : `已收藏：${input.name}`, 'success')
-      } catch (error) {
-        pendingFavorite = input
-        // 走 showError 区分真实成因（服务器无响应 ≠ 笼统失败），与收藏面板同口径
-        showError(error, { fallback: '收藏失败，请稍后重试' })
-      }
-    }
+    await flushPendingFavorite()
   },
   { immediate: true }
 )

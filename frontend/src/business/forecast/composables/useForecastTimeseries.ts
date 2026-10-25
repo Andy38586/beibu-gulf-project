@@ -7,14 +7,14 @@
 import { useRouter } from 'vue-router'
 
 import { forecastAdapter } from '@/services'
-import { handleAuthError, isAuthError, logger, showError } from '@/shared'
+import { logger, showError } from '@/shared'
 import { DEFAULT_CONFIDENCE } from '@/shared'
+import { scenarioParam } from '@/shared'
 import { useForecastStore } from '@/stores'
 
 import { fromMonthOrdinal, toMonthOrdinal } from '../timeline'
 
-import { scenarioParam } from '@/shared'
-import { useForecastRequest } from './useForecastRequest'
+import { guardForecastAuth, useForecastRequest } from './useForecastRequest'
 
 interface SeriesItem {
   portName: string
@@ -108,10 +108,7 @@ export function useForecastTimeseries(): UseForecastTimeseriesReturn {
       forecastState.chart.lineUnit = entry?.unit ?? ''
     } catch (e) {
       logger.error('[ForecastTimeseries] load error:', e)
-      if (isAuthError(e)) {
-        void handleAuthError(router)
-        return
-      }
+      if (guardForecastAuth(e, router)) return
       // 失败用 toast：切换时间/指标即自动重试
       showError(e, { fallback: '加载趋势数据失败' })
     }

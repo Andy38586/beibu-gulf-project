@@ -429,31 +429,32 @@ export function checkCommitForm(text, lint = runCommitlint) {
     }
   }
 
+  // 单样本判定：工具不可用 → SKIPPED（不判红也不判绿）；`bad(r)` 成立 → VIOLATION
+  const judge = (ref, sample, bad, why) => {
+    const r = lint(sample)
+    if (isUnavailable(r)) skipped.push({ ref: `commitlint(${ref})`, why: r.why })
+    else if (bad(r)) violations.push({ ref, why })
+  }
+
   // 反向样本必须被拒 —— 放行即「hook 规则没生效，本断言成了恒真摆设」
   const negative = stripCommitType(examples[0].message)
-  const reject = lint(negative)
-  if (isUnavailable(reject)) {
-    skipped.push({ ref: `commitlint(反向样本 ${negative})`, why: reject.why })
-  } else if (reject.rc === 0) {
-    violations.push({
-      ref: negative,
-      why: '反向样本（剥掉 type 前缀）未被 commitlint 拒绝 ⇒ hook 侧规则没生效，本断言是恒真摆设',
-    })
-  }
+  judge(
+    `反向样本 ${negative}`,
+    negative,
+    (r) => r.rc === 0,
+    '反向样本（剥掉 type 前缀）未被 commitlint 拒绝 ⇒ hook 侧规则没生效，本断言是恒真摆设'
+  )
 
   // 口径（`AGENTS.md` §六 / `开发指南与决策.md` §1.6）：**禁 `type(scope):` 括号写法**。
   // 文档这么说就必须有机器判据——把示例同义改写成带 scope 的形态，断言 commitlint 拒它；
   // 若有人删掉 `package.json` 的 `commitlint.rules.scope-empty`，或把口径改回允许，这里立刻红。
   const scoped = examples[0].message.replace(/^([a-z][a-z-]*)!?:/, '$1(scope):')
-  const scopedCheck = lint(scoped)
-  if (isUnavailable(scopedCheck)) {
-    skipped.push({ ref: `commitlint(${scoped})`, why: scopedCheck.why })
-  } else if (scopedCheck.rc === 0) {
-    violations.push({
-      ref: scoped,
-      why: '口径禁 `type(scope):`，但带 scope 的样本被 commitlint 放行 ⇒ 口径无机器判据（需 package.json 的 commitlint.rules.scope-empty）',
-    })
-  }
+  judge(
+    scoped,
+    scoped,
+    (r) => r.rc === 0,
+    '口径禁 `type(scope):`，但带 scope 的样本被 commitlint 放行 ⇒ 口径无机器判据（需 package.json 的 commitlint.rules.scope-empty）'
+  )
   return { violations, skipped }
 }
 

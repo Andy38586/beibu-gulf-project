@@ -22,9 +22,10 @@
  * 动态 import 本就是惰性求值，不构成 eager 风险；传递拉入（经 cameraPerf）
  * 的防线仍是 cesium-global shim 的运行时抛错——两层防线各守一段。
  */
-import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+
+import { walkFiles } from './lib/walk.mjs'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const FRONTEND_SRC = path.join(ROOT, 'frontend/src')
@@ -77,21 +78,12 @@ export function scanCesiumImports(sources) {
 }
 
 function main() {
-  const files = []
-  const walk = (dir) => {
-    for (const name of fs.readdirSync(dir)) {
-      const full = path.join(dir, name)
-      const stat = fs.statSync(full)
-      if (stat.isDirectory()) {
-        if (name === '__tests__' || name === 'node_modules') continue
-        walk(full)
-      } else if (/\.(ts|tsx|vue|js|jsx|mjs)$/.test(name)) {
-        const relPath = path.relative(FRONTEND_SRC, full).split(path.sep).join('/')
-        files.push({ relPath, text: fs.readFileSync(full, 'utf8') })
-      }
-    }
-  }
-  walk(FRONTEND_SRC)
+  // 遍历与跳过集统一走 lib/walk；`__tests__` 是本守卫额外要跳的（测试夹具不是产品代码）
+  const files = walkFiles(FRONTEND_SRC, {
+    match: (name) => /\.(ts|tsx|vue|js|jsx|mjs)$/.test(name),
+    skip: ['__tests__'],
+    output: 'sources',
+  }).map((f) => ({ relPath: f.path, text: f.text }))
 
   const bad = scanCesiumImports(files)
   if (bad.length > 0) {

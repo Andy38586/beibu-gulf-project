@@ -61,6 +61,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { emptyInputProblem } from './lib/input-set.mjs'
+import { walkFiles } from './lib/walk.mjs'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const SRC_ROOT = path.join(ROOT, 'frontend/src')
@@ -203,28 +204,13 @@ export function auditLayerKeys(files, { baseline = BASELINE } = {}) {
 
 /** 收集扫描源文件（frontend/src 的 .ts/.vue） */
 export function collectSources(dir = SRC_ROOT) {
-  const out = []
-  const walk = (abs) => {
-    let entries
-    try {
-      entries = fs.readdirSync(abs, { withFileTypes: true })
-    } catch {
-      return
-    }
-    for (const e of entries) {
-      const p = path.join(abs, e.name)
-      if (e.isDirectory()) {
-        if (e.name !== 'node_modules') walk(p)
-      } else if (/\.(ts|vue)$/.test(e.name)) {
-        out.push({
-          relPath: path.relative(ROOT, p).replace(/\\/g, '/'),
-          text: fs.readFileSync(p, 'utf8'),
-        })
-      }
-    }
-  }
-  walk(dir)
-  return out.sort((a, b) => a.relPath.localeCompare(b.relPath))
+  return walkFiles(dir, {
+    match: (name) => /\.(ts|vue)$/.test(name),
+    relBase: ROOT,
+    output: 'sources',
+  })
+    .map((f) => ({ relPath: f.path, text: f.text }))
+    .sort((a, b) => a.relPath.localeCompare(b.relPath))
 }
 
 function main() {

@@ -2,9 +2,11 @@
 // 用法: node --use-env-proxy tools/poi/fetch-amap-poi.mjs [city]
 // key: 读 tools/.amap_key(注意:该文件已从 git 跟踪移除,需自行保管/轮换)
 // 输出: $BEIBU_POI_DIR 或 tools/.poi_cache/{type}.json —— 与现有 qz_*.json 格式兼容
-// 限速: 每请求 250ms(个人配额友好);分页 offset=20 直到取完
+// 限速: 每请求 250ms(个人配额友好);分页/收敛/节流见 amap-text-search.mjs（与 port-poi 同源）
 import fs from 'node:fs'
 import path from 'node:path'
+
+import { fetchAmapText, sleep } from './amap-text-search.mjs'
 
 const city = process.argv[2] ?? '钦州'
 const key = fs.readFileSync('tools/.amap_key', 'utf8').trim()
@@ -22,47 +24,11 @@ const TYPES = [
   ['xiaoqu', '小区'],
 ]
 
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
-
-async function fetchType(file, keyword) {
-  const pois = []
-  let offset = 1
-  const PAGE = 20
-  for (;;) {
-    const url =
-      'https://restapi.amap.com/v3/place/text?keywords=' +
-      encodeURIComponent(keyword) +
-      '&city=' +
-      encodeURIComponent(city) +
-      '&key=' +
-      key +
-      '&output=json&offset=' +
-      PAGE +
-      '&page=' +
-      offset
-    const r = await fetch(url)
-    const j = await r.json()
-    if (j.status !== '1') {
-      console.log(`[warn] ${file}: API status=${j.status} info=${j.info}`)
-      break
-    }
-    for (const p of j.pois ?? []) {
-      const [lng, lat] = (p.location || '').split(',').map(Number)
-      pois.push({ id: p.id, name: p.name, lng, lat, district: p.district ?? '' })
-    }
-    const total = Number(j.count ?? 0)
-    console.log(`[fetch] ${file} 页${offset}: 累计 ${pois.length}/${total}`)
-    if (pois.length >= total || (j.pois ?? []).length === 0) break
-    offset++
-    await sleep(250)
-  }
+for (const [file, kw] of TYPES) {
+  const pois = await fetchAmapText({ key, city, keyword: kw, label: file })
   const out = path.join(OUT, `${file}.json`)
   fs.writeFileSync(out, JSON.stringify(pois, null, 2), 'utf8')
   console.log(`[done] ${file}: ${pois.length} 条 -> ${out}`)
-}
-
-for (const [file, kw] of TYPES) {
-  await fetchType(file, kw)
   await sleep(250)
 }
 console.log('[all done]')

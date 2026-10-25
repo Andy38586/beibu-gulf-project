@@ -16,9 +16,11 @@
  *
  * 用法：node tools/v3-guard/compat-endpoints.mjs   # 违例 exit 1
  */
-import { readdirSync, readFileSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+
+import { walkFiles } from './lib/walk.mjs'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const COMPAT_SRC = path.join(ROOT, 'backend/src/routes.compat.ts')
@@ -71,18 +73,14 @@ export function auditCompatEndpoints({ compatText, manifestText, frontendFiles }
   return problems
 }
 
-/** 前端源文件（跳过无关目录与测试夹具，同原测试的 walk()） */
-function frontendSources(dir, out = []) {
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    const full = path.join(dir, entry.name)
-    if (entry.isDirectory()) {
-      if (['node_modules', 'dist', 'coverage', '__tests__'].includes(entry.name)) continue
-      frontendSources(full, out)
-    } else if (/\.(ts|vue|js|mjs)$/.test(entry.name)) {
-      out.push({ path: path.relative(ROOT, full), text: readFileSync(full, 'utf8') })
-    }
-  }
-  return out
+/** 前端源文件（跳过测试夹具：登记表的消费面只看产品代码） */
+function frontendSources(dir) {
+  return walkFiles(dir, {
+    match: (name) => /\.(ts|vue|js|mjs)$/.test(name),
+    skip: ['__tests__'],
+    relBase: ROOT,
+    output: 'sources',
+  })
 }
 
 function main() {

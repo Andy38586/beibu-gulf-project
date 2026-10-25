@@ -14,9 +14,11 @@
  *  node tools/v3-guard/no-ephemeral.mjs            # 扫描（默认；违规 exit 1）
  *  node tools/v3-guard/no-ephemeral.mjs --gen-baseline   # 重新冻结 frontend 基线（重写清债后调用）
  */
-import { existsSync, readdirSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+
+import { walkFiles } from './lib/walk.mjs'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const NEST_SRC = path.join(ROOT, 'backend/src')
@@ -40,17 +42,7 @@ export const PATTERNS = [
 const EXTENSIONS = new Set(['.ts', '.vue', '.css', '.js', '.md', '.mjs', '.cjs'])
 
 function walk(dir) {
-  const out = []
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    const full = path.join(dir, entry.name)
-    if (entry.isDirectory()) {
-      if (['node_modules', 'dist', 'coverage', '.vite'].includes(entry.name)) continue
-      out.push(...walk(full))
-    } else if (EXTENSIONS.has(path.extname(entry.name))) {
-      out.push(full)
-    }
-  }
-  return out
+  return walkFiles(dir, { match: (name) => EXTENSIONS.has(path.extname(name)), output: 'abs' })
 }
 
 export function scanFile(file, isFrontend, baseline) {

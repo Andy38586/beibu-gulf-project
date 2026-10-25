@@ -1,14 +1,16 @@
 #!/usr/bin/env node
 // fetch-port-poi.mjs — 高德港口码头 POI 补抓（T4.3 产物）
-// 复用 fetch-amap-poi.mjs 的抓取模式：三城（钦州/北海/防城港）× 三类目（港口/码头/泊位），
-// 分页拉到完，输出 {city}_{type}.json 到 $BEIBU_POI_DIR（缺省 tools/.poi_cache），与既有 POI 格式兼容
-// {id,name,lng,lat,district}。去重入库由 import 环节处理。
+// 复用 fetch-amap-poi 的抓取模式（同一份 amap-text-search.mjs）：三城（钦州/北海/防城港）×
+// 三类目（港口/码头/泊位），分页拉到完，输出 {city}_{type}.json 到 $BEIBU_POI_DIR
+//（缺省 tools/.poi_cache），与既有 POI 格式兼容 {id,name,lng,lat,district}。去重入库由 import 环节处理。
 //
 // 用法:
 //   node tools/gis-import/fetch-port-poi.mjs              # 全量抓取三城三类型
 //   node tools/gis-import/fetch-port-poi.mjs --dry-run    # 只试连通性，每城一类采样（不写文件）
 import fs from 'node:fs'
 import path from 'node:path'
+
+import { fetchAmapText, sleep } from '../poi/amap-text-search.mjs'
 
 const key = fs.readFileSync('tools/.amap_key', 'utf8').trim()
 const dryRun = process.argv.includes('--dry-run')
@@ -23,52 +25,18 @@ const TYPES = [
   ['pier', '码头'],
   ['berth', '泊位'],
 ]
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
-
-async function fetchType(city, file, keyword) {
-  const pois = []
-  let offset = 1
-  const PAGE = 20
-  for (;;) {
-    const url =
-      'https://restapi.amap.com/v3/place/text?keywords=' +
-      encodeURIComponent(keyword) +
-      '&city=' +
-      encodeURIComponent(city) +
-      '&key=' +
-      key +
-      '&output=json&offset=' +
-      PAGE +
-      '&page=' +
-      offset
-    const r = await fetch(url)
-    const j = await r.json()
-    if (j.status !== '1') {
-      console.log(`[warn] ${city}_${file}: API status=${j.status} info=${j.info}`)
-      break
-    }
-    for (const p of j.pois ?? []) {
-      const [lng, lat] = (p.location || '').split(',').map(Number)
-      pois.push({ id: p.id, name: p.name, lng, lat, district: p.district ?? '' })
-    }
-    const total = Number(j.count ?? 0)
-    console.log(`[fetch] ${city}_${file} 页${offset}: 累计 ${pois.length}/${total}`)
-    if (pois.length >= total || (j.pois ?? []).length === 0) break
-    offset++
-    await sleep(250)
-  }
-  if (dryRun) {
-    console.log(`[dry-run] ${city}_${file}: ${pois.length} 条命中（不落盘）`)
-    return
-  }
-  const out = path.join(OUT, `${city}_${file}.json`)
-  fs.writeFileSync(out, JSON.stringify(pois, null, 2), 'utf8')
-  console.log(`[done] ${file}: ${pois.length} 条 -> ${out}`)
-}
 
 for (const city of CITIES) {
   for (const [file, kw] of TYPES) {
-    await fetchType(city, file, kw)
+    const label = `${city}_${file}`
+    const pois = await fetchAmapText({ key, city, keyword: kw, label })
+    if (dryRun) {
+      console.log(`[dry-run] ${label}: ${pois.length} 条命中（不落盘）`)
+    } else {
+      const out = path.join(OUT, `${label}.json`)
+      fs.writeFileSync(out, JSON.stringify(pois, null, 2), 'utf8')
+      console.log(`[done] ${file}: ${pois.length} 条 -> ${out}`)
+    }
     await sleep(250)
   }
 }

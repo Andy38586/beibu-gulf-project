@@ -197,6 +197,7 @@ describe('W58 扩 5 守卫：layer-keys / guard-red-sample / owned-layers / tmp-
         "'frontend/src-void'"
       ),
       'tools/v3-guard/lib/input-set.mjs': LIB_SRC('input-set'),
+      'tools/v3-guard/lib/walk.mjs': LIB_SRC('walk'),
       'frontend/src/shared/constants/layers.ts':
         "export const LAYER_KEYS = { port: 'port' } as const\n",
     })
@@ -210,6 +211,7 @@ describe('W58 扩 5 守卫：layer-keys / guard-red-sample / owned-layers / tmp-
     const r = root({
       'tools/v3-guard/layer-keys.mjs': GUARD_SRC('layer-keys'),
       'tools/v3-guard/lib/input-set.mjs': LIB_SRC('input-set'),
+      'tools/v3-guard/lib/walk.mjs': LIB_SRC('walk'),
       'frontend/src/shared/constants/layers.ts':
         "export const LAYER_KEYS = { port: 'port' } as const\n",
       'frontend/src/business/a.vue': '<template><div /></template>\n',
@@ -256,6 +258,7 @@ describe('W58 扩 5 守卫：layer-keys / guard-red-sample / owned-layers / tmp-
     const r = root({
       'tools/v3-guard/owned-layers.mjs': GUARD_SRC('owned-layers'),
       'tools/v3-guard/lib/input-set.mjs': LIB_SRC('input-set'),
+      'tools/v3-guard/lib/walk.mjs': LIB_SRC('walk'),
       'frontend/src/core/map/composables/useOwnedLayers.ts': OWNED_LAYERS_SRC_TEXT,
       'frontend/src/.keep': '',
     })
@@ -269,6 +272,7 @@ describe('W58 扩 5 守卫：layer-keys / guard-red-sample / owned-layers / tmp-
     const r = root({
       'tools/v3-guard/owned-layers.mjs': GUARD_SRC('owned-layers'),
       'tools/v3-guard/lib/input-set.mjs': LIB_SRC('input-set'),
+      'tools/v3-guard/lib/walk.mjs': LIB_SRC('walk'),
       'frontend/src/core/map/composables/useOwnedLayers.ts': OWNED_LAYERS_SRC_TEXT,
       'frontend/src/business/a.vue': '<template><div /></template>\n',
     })

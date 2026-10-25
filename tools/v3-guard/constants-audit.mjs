@@ -8,9 +8,11 @@
  *
  * 用法：node tools/v3-guard/constants-audit.mjs   # 不一致 exit 1
  */
-import { readFileSync, readdirSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+
+import { walkFiles } from './lib/walk.mjs'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 
@@ -279,6 +281,193 @@ export function parseAliasTarget(content, key) {
   return m ? normalizeAliasTarget(m[1]) : null
 }
 
+/** 业务边界框的四个字段（两侧逐字段对账，键序即报错序） */
+const BBOX_KEYS = ['minLng', 'maxLng', 'minLat', 'maxLat']
+
+/** 解析失效判据：null/undefined，或空数组/空对象。**0 与 '' 不是空**（它们是合法取值） */
+function isEmptyParsed(v) {
+  if (v === null || v === undefined) return true
+  return typeof v === 'object' && Object.keys(v).length === 0
+}
+
+/**
+ * 「两侧（或三侧）副本对账」的统一骨架：**解析 → 任一失效即报解析失败 → 否则逐项比**。
+ *
+ * 本守卫有 8 组同形对账（水位上限 / 风险分档 TS↔TS / 业务码子集 / 业务边界框 ×2 /
+ * 寻路口径 / flood 分段 TS↔PY），四步骨架相同，差异只有三件事：
+ * - `read`：取出待比的副本（2 侧或 3 侧）；
+ * - `valid`：**失效判据**（默认 null 或空集）—— W58：解析失败必须报红，不许当「无违例」；
+ * - `compare`：逐项比规则（同值 / 档位数 / 子集 / 集合差），漂移文案由它逐条给出。
+ *
+ * 段序即报错序（同一条输入可能有多组问题，测试对 `problems[0]` 有断言）。
+ */
+const PAIR_AUDITS = [
+  {
+    // 251 档 0-25m 口径以 backend 为权威，前端须同步
+    read: (f) => [
+      parseNumericConst(f.backendFlood, 'MAX_WATER_LEVEL'),
+      parseNumericConst(f.frontendFlood, 'MAX_WATER_LEVEL'),
+    ],
+    fail: ([b, f]) => `水位上限常量解析失败：backend=${b} frontend=${f}（常量被改名/删除？）`,
+    compare: ([b, f], bad) => {
+      if (b !== f) {
+        bad(
+          `MAX_WATER_LEVEL 前后端漂移：backend=${b} frontend=${f}` +
+            '（251 档 0-25m 口径以 backend 为权威，前端须同步）'
+        )
+      }
+    },
+  },
+  {
+    // 档位数不同是历史高发形态：前端曾少末档 ⇒ (最高档阈值, ∞] 段整段回落成上一档，
+    // 把最高一档低报一级，而类型系统与两侧各自单测都发现不了。
+    read: (f) => [
+      parseRiskBands(f.backendFlood, 'RISK_LEVEL_BANDS'),
+      parseRiskBands(f.frontendFlood, 'RISK_LEVEL_THRESHOLDS'),
+    ],
+    valid: ([b, f]) => !!b?.length && !!f?.length,
+    fail: ([b, f]) =>
+      `风险分档解析失败：backend=${b?.length ?? 'null'} 档 ` +
+      `frontend=${f?.length ?? 'null'} 档（常量被改名/删除？）`,
+    compare: ([b, f], bad) => {
+      if (b.length !== f.length) {
+        bad(`风险分档档位数漂移：backend=${b.length} 档 frontend=${f.length} 档`)
+        return
+      }
+      b.forEach((x, i) => {
+        if (x.maxLevel !== f[i].maxLevel || x.label !== f[i].label) {
+          bad(
+            `风险分档第 ${i + 1} 档漂移：backend=${x.maxLevel}/${x.label} ` +
+              `frontend=${f[i].maxLevel}/${f[i].label}`
+          )
+        }
+      })
+    },
+  },
+  {
+    // 前端允许只消费后端业务码的子集；出现后端已重编/删除的码即漂移
+    read: (f) => [parseBackendBizCodes(f.backendBiz), parseFrontendBizCodes(f.frontendBiz)],
+    valid: ([b, f]) => b.length > 0 && f.length > 0,
+    fail: ([b, f]) => `业务码解析失败：backend=${b.length} 条 frontend=${f.length} 条`,
+    compare: ([b, f], bad) => {
+      for (const code of f) {
+        if (!b.includes(code)) {
+          bad(`前端消费的业务码 ${code} 在后端 ErrorCode 中不存在（曾手抄 401002 同款漂移）`)
+        }
+      }
+    },
+  },
+  {
+    // d036：后端 GULF_BOUNDS 为权威，前端 BEIBU_GULF_BBOX 逐字段对账
+    read: (f) => [
+      parseBounds(f.backendGis ?? '', 'GULF_BOUNDS'),
+      parseBounds(f.frontendCrs ?? '', 'BEIBU_GULF_BBOX'),
+    ],
+    fail: ([b, f]) =>
+      `业务边界框解析失败：backend=${JSON.stringify(b)} ` +
+      `frontend=${JSON.stringify(f)}（常量被改名/删除？）`,
+    compare: ([b, f], bad) => {
+      for (const key of BBOX_KEYS) {
+        if (b[key] !== f[key]) {
+          bad(
+            `业务边界框 ${key} 前后端漂移：backend=${b[key]} frontend=${f[key]}` +
+              '（后端 GULF_BOUNDS 为权威，前端 BEIBU_GULF_BBOX 须同步）'
+          )
+        }
+      }
+    },
+  },
+  {
+    // D29 tools 侧唯一来源：与后端逐字段一致（此前 derive-activity / restore-poi-xiaoqu 各自手抄）
+    read: (f) => [
+      parseBounds(f.backendGis ?? '', 'GULF_BOUNDS'),
+      parseBounds(f.toolsGulfBounds ?? '', 'GULF_BOUNDS'),
+    ],
+    // 后端侧解析失败已由上一组报出，此处只判 tools 侧（不重复刷屏）
+    valid: ([, t]) => !!t,
+    fail: () => '业务边界框 tools 侧来源解析失败：tools/lib/gulf-bounds.mjs（常量被改名/删除？）',
+    compare: ([b, t], bad) => {
+      if (!b) return
+      for (const key of BBOX_KEYS) {
+        if (b[key] !== t[key]) {
+          bad(
+            `业务边界框 ${key} tools 侧漂移：tools/lib/gulf-bounds.mjs=${t[key]} ` +
+              `backend(权威)=${b[key]}`
+          )
+        }
+      }
+    },
+  },
+  {
+    // D4②：后端 MODE_WEIGHT 键为权威，前端 mode 字面量联合逐处一致。
+    // 此前前端两处、后端一处，三处无守卫——后端加 mode 前端不报错，前端加后端只会 400。
+    read: (f) => [
+      parseBackendModeKeys(f.backendRoute ?? ''),
+      parseFrontendModeLiterals(f.frontendRoute ?? ''),
+    ],
+    valid: ([b, f]) => !!b?.length && f.length > 0,
+    fail: ([b, f]) =>
+      `寻路口径解析失败：backend=${b === null ? 'null' : b.length} 个键 ` +
+      `frontend=${f.length} 处（常量被改名/删除？）`,
+    compare: ([b, f], bad) => {
+      const backendSet = new Set(b)
+      f.forEach((literals, i) => {
+        const front = new Set(literals)
+        const missing = [...backendSet].filter((m) => !front.has(m))
+        const extra = [...front].filter((m) => !backendSet.has(m))
+        if (missing.length || extra.length) {
+          bad(
+            `寻路 mode 第 ${i + 1} 处与后端 MODE_WEIGHT 漂移：缺 [${missing.join(',')}] ` +
+              `多 [${extra.join(',')}]（backend route.repository 的 MODE_WEIGHT 键为权威）`
+          )
+        }
+      })
+    },
+  },
+  {
+    // D29/A1 flood 风险分段跨语言：TS RISK_LEVEL_BANDS 为权威；PY 的 RISK_BANDS 逐档手抄，
+    // RISK_CODE 须等于档序。生成侧离线跑、不在 CI，改 TS 一侧 PY 不报错。
+    read: (f) => [
+      parseRiskBands(f.backendFlood, 'RISK_LEVEL_BANDS'),
+      parsePyRiskBands(f.floodPy ?? ''),
+      parsePyRiskCode(f.floodPy ?? ''),
+    ],
+    valid: ([b, p, c]) => !!b && !!p?.length && !!c,
+    fail: ([, p, c]) =>
+      `flood 风险分段 Python 副本解析失败：bands=${p?.length ?? 'null'} 档 ` +
+      `code=${c ? Object.keys(c).length : 'null'} 条（常量被改名/删除？）`,
+    compare: ([b, p, c], bad) => {
+      if (b.length !== p.length) {
+        bad(`flood 风险分段跨语言档位数漂移：TS=${b.length} 档 PY=${p.length} 档`)
+        return
+      }
+      b.forEach((x, i) => {
+        if (x.maxLevel !== p[i].maxLevel || x.label !== p[i].label) {
+          bad(
+            `flood 风险分段第 ${i + 1} 档 TS↔PY 漂移：TS=${x.maxLevel}/${x.label} ` +
+              `PY=${p[i].maxLevel}/${p[i].label}（backend flood.constants 为权威）`
+          )
+        }
+        if (c[x.label] !== i) {
+          bad(`flood 风险码表 PY 漂移：${x.label} → ${c[x.label]}（应为档序 ${i}）`)
+        }
+      })
+    },
+  },
+]
+
+/** 依次跑 PAIR_AUDITS：失效即报解析失败，否则逐项对账（漂移文案由条目自己给） */
+function runPairAudits(files, problems) {
+  for (const a of PAIR_AUDITS) {
+    const sides = a.read(files)
+    if (a.valid ? !a.valid(sides) : sides.some(isEmptyParsed)) {
+      problems.push(a.fail(sides))
+      continue
+    }
+    a.compare(sides, (msg) => problems.push(msg))
+  }
+}
+
 export function auditSharedConstants(files) {
   const problems = []
   // 业务边界「唯一来源」不得被绕开（2026-10-19）：上方 toolsBbox 一致性只证明
@@ -299,144 +488,8 @@ export function auditSharedConstants(files) {
     }
   }
 
-  const backendMax = parseNumericConst(files.backendFlood, 'MAX_WATER_LEVEL')
-  const frontendMax = parseNumericConst(files.frontendFlood, 'MAX_WATER_LEVEL')
-  if (backendMax === null || frontendMax === null) {
-    problems.push(
-      `水位上限常量解析失败：backend=${backendMax} frontend=${frontendMax}（常量被改名/删除？）`
-    )
-  } else if (backendMax !== frontendMax) {
-    problems.push(
-      `MAX_WATER_LEVEL 前后端漂移：backend=${backendMax} frontend=${frontendMax}` +
-        '（251 档 0-25m 口径以 backend 为权威，前端须同步）'
-    )
-  }
+  runPairAudits(files, problems)
 
-  const backendBands = parseRiskBands(files.backendFlood, 'RISK_LEVEL_BANDS')
-  const frontendBands = parseRiskBands(files.frontendFlood, 'RISK_LEVEL_THRESHOLDS')
-  if (!backendBands || !frontendBands || backendBands.length === 0 || frontendBands.length === 0) {
-    problems.push(
-      `风险分档解析失败：backend=${backendBands?.length ?? 'null'} 档 ` +
-        `frontend=${frontendBands?.length ?? 'null'} 档（常量被改名/删除？）`
-    )
-  } else if (backendBands.length !== frontendBands.length) {
-    // 档位数不同是历史高发形态：前端曾少末档 ⇒ (最高档阈值, ∞] 段整段回落成上一档，
-    // 把最高一档低报一级，而类型系统与两侧各自单测都发现不了。
-    problems.push(
-      `风险分档档位数漂移：backend=${backendBands.length} 档 frontend=${frontendBands.length} 档`
-    )
-  } else {
-    backendBands.forEach((b, i) => {
-      const f = frontendBands[i]
-      if (b.maxLevel !== f.maxLevel || b.label !== f.label) {
-        problems.push(
-          `风险分档第 ${i + 1} 档漂移：backend=${b.maxLevel}/${b.label} ` +
-            `frontend=${f.maxLevel}/${f.label}`
-        )
-      }
-    })
-  }
-
-  const backendCodes = parseBackendBizCodes(files.backendBiz)
-  const frontendCodes = parseFrontendBizCodes(files.frontendBiz)
-  if (backendCodes.length === 0 || frontendCodes.length === 0) {
-    problems.push(
-      `业务码解析失败：backend=${backendCodes.length} 条 frontend=${frontendCodes.length} 条`
-    )
-  } else {
-    for (const code of frontendCodes) {
-      if (!backendCodes.includes(code)) {
-        problems.push(
-          `前端消费的业务码 ${code} 在后端 ErrorCode 中不存在（曾手抄 401002 同款漂移）`
-        )
-      }
-    }
-  }
-
-  // 业务边界框（d036）：后端 GULF_BOUNDS 为权威，前端 BEIBU_GULF_BBOX 逐字段对账
-  const backendBbox = parseBounds(files.backendGis ?? '', 'GULF_BOUNDS')
-  const frontendBbox = parseBounds(files.frontendCrs ?? '', 'BEIBU_GULF_BBOX')
-  if (!backendBbox || !frontendBbox) {
-    problems.push(
-      `业务边界框解析失败：backend=${JSON.stringify(backendBbox)} ` +
-        `frontend=${JSON.stringify(frontendBbox)}（常量被改名/删除？）`
-    )
-  } else {
-    for (const key of ['minLng', 'maxLng', 'minLat', 'maxLat']) {
-      if (backendBbox[key] !== frontendBbox[key]) {
-        problems.push(
-          `业务边界框 ${key} 前后端漂移：backend=${backendBbox[key]} frontend=${frontendBbox[key]}` +
-            '（后端 GULF_BOUNDS 为权威，前端 BEIBU_GULF_BBOX 须同步）'
-        )
-      }
-    }
-  }
-  // tools 侧业务边界单一来源（D29）：`tools/lib/gulf-bounds.mjs` 是工具脚本的唯一取处，
-  // 须与后端 GULF_BOUNDS 逐字段一致（此前 derive-activity / restore-poi-xiaoqu 各自手抄）。
-  const toolsBbox = parseBounds(files.toolsGulfBounds ?? '', 'GULF_BOUNDS')
-  if (!toolsBbox) {
-    problems.push('业务边界框 tools 侧来源解析失败：tools/lib/gulf-bounds.mjs（常量被改名/删除？）')
-  } else if (backendBbox) {
-    for (const key of ['minLng', 'maxLng', 'minLat', 'maxLat']) {
-      if (backendBbox[key] !== toolsBbox[key]) {
-        problems.push(
-          `业务边界框 ${key} tools 侧漂移：tools/lib/gulf-bounds.mjs=${toolsBbox[key]} ` +
-            `backend(权威)=${backendBbox[key]}`
-        )
-      }
-    }
-  }
-  // 寻路权重口径（D4②）：后端 MODE_WEIGHT 键为权威，前端 mode 字面量联合须逐处一致。
-  // 此前前端 'distance'|'time' 手抄两处、后端第三处，三处无守卫——
-  // 后端加一个 mode 前端不会报错（只是不提供该选项），前端加一个后端只会 400。
-  const backendModes = parseBackendModeKeys(files.backendRoute ?? '')
-  const frontendModes = parseFrontendModeLiterals(files.frontendRoute ?? '')
-  if (!backendModes || backendModes.length === 0 || frontendModes.length === 0) {
-    problems.push(
-      `寻路口径解析失败：backend=${backendModes === null ? 'null' : backendModes.length} 个键 ` +
-        `frontend=${frontendModes.length} 处（常量被改名/删除？）`
-    )
-  } else {
-    const backendSet = new Set(backendModes)
-    frontendModes.forEach((literals, i) => {
-      const front = new Set(literals)
-      const missing = [...backendSet].filter((m) => !front.has(m))
-      const extra = [...front].filter((m) => !backendSet.has(m))
-      if (missing.length || extra.length) {
-        problems.push(
-          `寻路 mode 第 ${i + 1} 处与后端 MODE_WEIGHT 漂移：缺 [${missing.join(',')}] ` +
-            `多 [${extra.join(',')}]（backend route.repository 的 MODE_WEIGHT 键为权威）`
-        )
-      }
-    })
-  }
-  // flood 风险分段跨语言（D29/A1）：TS RISK_LEVEL_BANDS 为权威，Python flood_realify.py 的
-  // RISK_BANDS（逐档 maxLevel/label）与 RISK_CODE（标签→码，须等于档序）是手抄副本。
-  const pyBands = parsePyRiskBands(files.floodPy ?? '')
-  const pyCode = parsePyRiskCode(files.floodPy ?? '')
-  if (!backendBands || !pyBands || pyBands.length === 0 || !pyCode) {
-    problems.push(
-      `flood 风险分段 Python 副本解析失败：bands=${pyBands?.length ?? 'null'} 档 ` +
-        `code=${pyCode ? Object.keys(pyCode).length : 'null'} 条（常量被改名/删除？）`
-    )
-  } else if (backendBands.length !== pyBands.length) {
-    problems.push(
-      `flood 风险分段跨语言档位数漂移：TS=${backendBands.length} 档 PY=${pyBands.length} 档`
-    )
-  } else {
-    backendBands.forEach((b, i) => {
-      const p = pyBands[i]
-      if (b.maxLevel !== p.maxLevel || b.label !== p.label) {
-        problems.push(
-          `flood 风险分段第 ${i + 1} 档 TS↔PY 漂移：TS=${b.maxLevel}/${b.label} ` +
-            `PY=${p.maxLevel}/${p.label}（backend flood.constants 为权威）`
-        )
-      }
-      if (pyCode[b.label] !== i) {
-        problems.push(`flood 风险码表 PY 漂移：${b.label} → ${pyCode[b.label]}（应为档序 ${i}）`)
-      }
-    })
-  }
   // 跨端请求头名（B1）：x-request-id / x-task-client 各有一份前后端副本。
   // 缺失即解析失败（不许静默当通过）；不相等即漂移。
   const headerPairs = [
@@ -589,47 +642,20 @@ export function auditSharedConstants(files) {
   return problems
 }
 
-/** 仓库目录遍历（两个唯一来源扫描器共用；SKIP_DIRS 是全仓统一的跳过集） */
+/**
+ * 仓库文件遍历（两个「唯一来源」扫描器共用）。
+ * 跳过集统一在 lib/walk：本守卫此前独有 `algorithm-service`（退役目录的遗留产物），
+ * 已并入默认集 —— 于是「为什么这个守卫少扫这类目录」在默认集里只有一处出处。
+ */
 function walkRepoFiles(rootDir, extensions, visit) {
-  const SKIP_DIRS = new Set([
-    'node_modules',
-    'dist',
-    'coverage',
-    '.git',
-    '.local',
-    '__pycache__',
-    '.pytest_cache',
-    '.venv',
-    'algorithm-service', // 退役：目录已不在版本控制内，保留此名只为跳过其遗留产物
-    '.trae',
-    '_traetmp',
-  ])
   const extRe = new RegExp(`\\.(${extensions})$`)
-  const walk = (dir) => {
-    let entries
-    try {
-      entries = readdirSync(dir, { withFileTypes: true })
-    } catch {
-      return
-    }
-    for (const e of entries) {
-      const p = path.join(dir, e.name)
-      if (e.isDirectory()) {
-        if (!SKIP_DIRS.has(e.name)) walk(p)
-        continue
-      }
-      if (!extRe.test(e.name)) continue
-      const rel = path.relative(rootDir, p).split(path.sep).join('/')
-      let text
-      try {
-        text = readFileSync(p, 'utf8')
-      } catch {
-        continue
-      }
-      visit(rel, text)
-    }
+  for (const f of walkFiles(rootDir, {
+    match: (name) => extRe.test(name),
+    relBase: rootDir,
+    output: 'sources',
+  })) {
+    visit(f.path, f.text)
   }
-  walk(rootDir)
 }
 
 /**

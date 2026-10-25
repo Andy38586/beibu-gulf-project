@@ -77,6 +77,54 @@ const levelHint = computed(() =>
     ? `请求 ${levelAdjustment.value.requested}m 档 → 实际取 ${levelAdjustment.value.actual}m 档（向上取档；面板数值与地图几何均按实际档）`
     : ''
 )
+
+/** 报告行：label + 值文本 + 可选后缀标注（⇧ / *）+ 可选 title/高亮类 */
+interface ReportRow {
+  label: string
+  value: string
+  title?: string
+  valueClass?: 'highlight' | 'has-hint'
+  mark?: { text: string; class: 'level-adjust-mark' | 'ref-mark'; title?: string }
+}
+
+const row = (label: string, value: string, extra: Partial<ReportRow> = {}): ReportRow => ({
+  label,
+  value,
+  ...extra,
+})
+
+/**
+ * 7 行报告的唯一事实源：模板侧一段 v-for，不再逐行写标签/值的重复结构。
+ * 前三行（面积/水深）随 floodStatistics 出现或消失——门控在这里表达；
+ * 数值统一 `?? 0`（合法 0 不经 OR 链误判跳到下一兜底）。
+ */
+const rows = computed<ReportRow[]>(() => {
+  const s = floodStore.floodStatistics
+  const depthMark = depthIsReference.value ? { text: '*', class: 'ref-mark' as const } : undefined
+  const upMark = levelAdjustment.value
+    ? { text: '⇧', class: 'level-adjust-mark' as const, title: levelHint.value }
+    : undefined
+  const summary = facilityTypeSummary.value || undefined
+  const loss = formatLoss(Number(floodStore.totalLoss ?? s?.estimatedLoss ?? 0))
+  const depthRows = [
+    row('平均水深', `${s?.averageDepth ?? 0} m`, { title: depthHint.value, mark: depthMark }),
+    row('最大水深', `${s?.maxDepth ?? 0} m`, { title: depthHint.value, mark: depthMark }),
+  ]
+  const list: ReportRow[] = s
+    ? [row('淹没面积', `${s.floodArea ?? 0} km²`, { mark: upMark }), ...depthRows]
+    : []
+  list.push(
+    row('受影响设施', `${floodStore.affectedFacilities.length} 个`, {
+      title: summary,
+      valueClass: summary ? 'has-hint' : undefined,
+    }),
+    // 预估损失（X4）：disaster 的 totalLoss 与 estimatedLoss 现同式，?? 兜底链两侧可互换
+    row('预估损失', `${loss}元`, { valueClass: 'highlight' }),
+    row('影响等级', impactLevel.value)
+  )
+  if (affectedPorts.value.length) list.push(row('受影响港口', affectedPorts.value.join('、')))
+  return list
+})
 </script>
 
 <template>
@@ -88,67 +136,15 @@ const levelHint = computed(() =>
 
     <!-- 灰色内容区：3.8宽×2.8高，距标题下方0.6cell、左右各0.1cell -->
     <div class="report-content" :style="contentStyle">
-      <!-- 数值展示统一 ?? 语义：合法 0 不经 OR 链误判跳到下一兜底；
-           受影响设施以 store 计算列表为单一事实源 -->
-      <div v-if="floodStore.floodStatistics" class="info-item">
-        <span class="info-label">淹没面积</span>
-        <span class="info-value"
-          >{{ floodStore.floodStatistics.floodArea ?? 0 }} km²<span
-            v-if="levelAdjustment"
-            class="level-adjust-mark"
-            :title="levelHint"
-            >⇧</span
-          ></span
+      <!-- 行集与前置门控见 rows computed；受影响设施 title 为后端 type 聚合，不新造数据 -->
+      <div v-for="item in rows" :key="item.label" class="info-item">
+        <span class="info-label">{{ item.label }}</span>
+        <span class="info-value" :class="item.valueClass" :title="item.title"
+          >{{ item.value
+          }}<span v-if="item.mark" :class="item.mark.class" :title="item.mark.title">{{
+            item.mark.text
+          }}</span></span
         >
-      </div>
-      <div v-if="floodStore.floodStatistics" class="info-item">
-        <span class="info-label">平均水深</span>
-        <span class="info-value" :title="depthHint"
-          >{{ floodStore.floodStatistics.averageDepth ?? 0 }} m<span
-            v-if="depthIsReference"
-            class="ref-mark"
-            >*</span
-          ></span
-        >
-      </div>
-      <div v-if="floodStore.floodStatistics" class="info-item">
-        <span class="info-label">最大水深</span>
-        <span class="info-value" :title="depthHint"
-          >{{ floodStore.floodStatistics.maxDepth ?? 0 }} m<span
-            v-if="depthIsReference"
-            class="ref-mark"
-            >*</span
-          ></span
-        >
-      </div>
-      <div class="info-item">
-        <span class="info-label">受影响设施</span>
-        <span
-          class="info-value"
-          :title="facilityTypeSummary || undefined"
-          :class="{ 'has-hint': facilityTypeSummary }"
-          >{{ floodStore.affectedFacilities.length }} 个</span
-        >
-      </div>
-      <!-- 预估损失（X4）：disaster 的 totalLoss 与 floodStatistics 的 estimatedLoss 现同式
-           （value × damageRate × min(d/3,1)），故 ?? 兜底链两侧口径一致、可互换 -->
-      <div class="info-item">
-        <span class="info-label">预估损失</span>
-        <span class="info-value highlight"
-          >{{
-            formatLoss(
-              Number(floodStore.totalLoss ?? floodStore.floodStatistics?.estimatedLoss ?? 0)
-            )
-          }}元</span
-        >
-      </div>
-      <div class="info-item">
-        <span class="info-label">影响等级</span>
-        <span class="info-value">{{ impactLevel }}</span>
-      </div>
-      <div v-if="affectedPorts.length > 0" class="info-item">
-        <span class="info-label">受影响港口</span>
-        <span class="info-value">{{ affectedPorts.join('、') }}</span>
       </div>
     </div>
   </div>

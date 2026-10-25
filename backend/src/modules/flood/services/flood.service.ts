@@ -115,8 +115,7 @@ export class FloodService {
    */
   async getFloodAreas(waterLevel?: string): Promise<unknown> {
     if (waterLevel !== undefined) {
-      const level = validateWaterLevel(waterLevel)
-      const rows = await this.floodRepository.pickFloodLevel(level)
+      const { level, rows } = await this.resolveFloodLevel(waterLevel)
 
       // 表为空（未灌数）的防御兜底；正常路径不可达（请求 0-25 均有档位可取）
       if (rows.length === 0) {
@@ -142,6 +141,14 @@ export class FloodService {
    * 「预计算档位表无 riskLevel 字段，由水位分段派生」而写，此前因表在 Python 侧从未接通；
    * 251 档下不可能每档存 riskLevel（仅 6 种取值），派生是唯一无冗余解。
    */
+  /** 水位入参 → 档位 + 该档淹没范围（三入口共同前置：向上取档/超档回落口径不可能漂移） */
+  private async resolveFloodLevel(
+    waterLevel: unknown
+  ): Promise<{ level: number; rows: FloodLevelFeatureRow[] }> {
+    const level = validateWaterLevel(waterLevel)
+    return { level, rows: await this.floodRepository.pickFloodLevel(level) }
+  }
+
   private rowsToZoneResponse(rows: FloodLevelFeatureRow[], requestedLevel: number): unknown {
     const actualLevel = Number(rows[0].level)
     const riskLevel = deriveRiskLevel(actualLevel)
@@ -205,8 +212,7 @@ export class FloodService {
       return reference.statistics
     }
 
-    const level = validateWaterLevel(waterLevel)
-    const rows = await this.floodRepository.pickFloodLevel(level)
+    const { level, rows } = await this.resolveFloodLevel(waterLevel)
 
     // 表未灌数（正常路径不可达）：与 getFloodAreas 同口径的零值响应，不静默返 null
     if (rows.length === 0) {
@@ -329,12 +335,11 @@ export class FloodService {
       throw new BusinessError(ErrorCode.INVALID_PARAMS, '缺少水位参数')
     }
 
-    const level = validateWaterLevel(waterLevel)
+    // 档位淹没范围取自 PostGIS（与 getFloodAreas 同口径，向上取档；超档回落到最高档，不静默空评估）
+    const { level, rows } = await this.resolveFloodLevel(waterLevel)
 
-    // 读取设施数据；档位淹没范围取自 PostGIS（与 getFloodAreas 同口径，向上取档；
-    // 超档回落到最高档，不静默空评估）
     const facilityData = (await this.floodRepository.readFacilityPoints()) as FacilityData
-    const zones = this.rowsToZones(await this.floodRepository.pickFloodLevel(level))
+    const zones = this.rowsToZones(rows)
 
     // pickFloodLevel 只返回选中档的多边形，故分组后至多一项；表为空 → null 走"无受影响设施"分支
     const floodZone: FloodZone | null = zones[0] ?? null

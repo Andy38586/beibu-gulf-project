@@ -44,6 +44,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { walkFiles } from './lib/walk.mjs'
+
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 
 export const STYLE_FILE = 'frontend/src/style.css'
@@ -191,20 +193,13 @@ export function contrastOnWhite(rgb) {
 }
 
 function listSources() {
-  const out = []
-  const walk = (abs) => {
-    for (const e of fs.readdirSync(abs, { withFileTypes: true })) {
-      if (['node_modules', 'dist', '.venv'].includes(e.name)) continue
-      const p = path.join(abs, e.name)
-      if (e.isDirectory()) walk(p)
-      else if (/\.(ts|tsx|vue)$/.test(e.name) && !/\.d\.ts$/.test(e.name)) {
-        const rel = path.relative(ROOT, p).replace(/\\/g, '/')
-        if (!/\.(test|spec)\./.test(rel) && !/__tests__/.test(rel)) out.push(rel)
-      }
-    }
-  }
-  walk(path.join(ROOT, 'frontend/src'))
-  return out.sort()
+  // 声明文件（.d.ts）与测试夹具都不是语义色消费方，故在判据里排除（不是靠目录跳过）
+  return walkFiles(path.join(ROOT, 'frontend/src'), {
+    match: (name) => /\.(ts|tsx|vue)$/.test(name) && !/\.d\.ts$/.test(name),
+    relBase: ROOT,
+  })
+    .filter((rel) => !/\.(test|spec)\./.test(rel) && !/__tests__/.test(rel))
+    .sort()
 }
 
 function main() {

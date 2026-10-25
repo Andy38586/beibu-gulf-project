@@ -36,6 +36,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { emptyInputProblem } from './lib/input-set.mjs'
+import { walkFiles } from './lib/walk.mjs'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const BUSINESS = path.join(ROOT, 'frontend/src/business')
@@ -254,28 +255,14 @@ export function ownedReceivers(source) {
 
 /** 收集业务源文件（.vue + .ts，排除测试） */
 export function collectSources(dir = BUSINESS) {
-  const out = []
-  const walk = (abs) => {
-    let entries
-    try {
-      entries = fs.readdirSync(abs, { withFileTypes: true })
-    } catch {
-      return
-    }
-    for (const e of entries) {
-      const p = path.join(abs, e.name)
-      if (e.isDirectory()) {
-        if (e.name !== '__tests__' && e.name !== 'node_modules') walk(p)
-      } else if (/\.(vue|ts)$/.test(e.name)) {
-        out.push({
-          relPath: path.relative(ROOT, p).replace(/\\/g, '/'),
-          text: fs.readFileSync(p, 'utf8'),
-        })
-      }
-    }
-  }
-  walk(dir)
-  return out.sort((a, b) => a.relPath.localeCompare(b.relPath))
+  return walkFiles(dir, {
+    match: (name) => /\.(vue|ts)$/.test(name),
+    skip: ['__tests__'],
+    relBase: ROOT,
+    output: 'sources',
+  })
+    .map((f) => ({ relPath: f.path, text: f.text }))
+    .sort((a, b) => a.relPath.localeCompare(b.relPath))
 }
 
 /** 取每个卸载钩子的块（大括号配平），返回 [{ line, text }...] 的行数组 */

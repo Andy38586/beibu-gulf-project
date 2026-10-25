@@ -28,6 +28,7 @@ import { arg } from '../lib/cli-args.mjs'
 import { geoToEcef, makeToEnu } from '../lib/geo.mjs'
 
 import { box, buildGLB, enuNormalToGltf, enuToGltf, gltfToEnu } from './glb.mjs'
+import { boxFromCenterHalf, mergeBoxes, paddedHalf } from './tileset-bounds.mjs'
 
 /** 垂直锚点表（构建输入；生成：tools/diag/probe-bridge-vert.py --emit-anchors） */
 const DEFAULT_ANCHORS = path.join(
@@ -293,11 +294,11 @@ export function buildAll({ osmFile, outDir, anchorsPath = DEFAULT_ANCHORS }) {
     // 整桥挪到别处（实测桥位包围盒中心比真实低 ~150 m、北向塌到 35 m）⇒ 近机位整层被剔除
     // （statistics.visited=0，桥在自己的位置上看不见），远机位视锥大才偶尔选中。
     const gCenter = [(mn[0] + mx[0]) / 2, (mn[1] + mx[1]) / 2, (mn[2] + mx[2]) / 2]
-    const gHalf = [(mx[0] - mn[0]) / 2 + 5, (mx[1] - mn[1]) / 2 + 5, (mx[2] - mn[2]) / 2 + 5]
+    const gHalf = paddedHalf([(mx[0] - mn[0]) / 2, (mx[1] - mn[1]) / 2, (mx[2] - mn[2]) / 2])
     const c0 = gltfToEnu(gCenter[0], gCenter[1], gCenter[2])
     const h0 = [gHalf[0], gHalf[2], gHalf[1]]
     children.push({
-      boundingVolume: { box: [c0[0], c0[1], c0[2], h0[0], 0, 0, 0, h0[1], 0, 0, 0, h0[2]] },
+      boundingVolume: { box: boxFromCenterHalf(c0, h0) },
       geometricError: 0,
       refine: 'ADD',
       content: { uri },
@@ -316,36 +317,13 @@ export function buildAll({ osmFile, outDir, anchorsPath = DEFAULT_ANCHORS }) {
     })
     built.push({ ...spec, spans: g.spans, tris: g.indices.length / 3, du })
   }
-  const mn = [Infinity, Infinity, Infinity],
-    mx = [-Infinity, -Infinity, -Infinity]
-  for (const c of children) {
-    const b = c.boundingVolume.box
-    for (let k = 0; k < 3; k++) {
-      mn[k] = Math.min(mn[k], b[k] - b[3 + k * 4])
-      mx[k] = Math.max(mx[k], b[k] + b[3 + k * 4])
-    }
-  }
+  const merged = mergeBoxes(children.map((c) => c.boundingVolume.box))
   const tileset = {
     asset: { version: '1.1', generator: 'beibu-3dtiles-build/build-bridges' },
     geometricError: 2048,
     root: {
       transform: T,
-      boundingVolume: {
-        box: [
-          (mn[0] + mx[0]) / 2,
-          (mn[1] + mx[1]) / 2,
-          (mn[2] + mx[2]) / 2,
-          (mx[0] - mn[0]) / 2 + 50,
-          0,
-          0,
-          0,
-          (mx[1] - mn[1]) / 2 + 50,
-          0,
-          0,
-          0,
-          (mx[2] - mn[2]) / 2 + 50,
-        ],
-      },
+      boundingVolume: { box: boxFromCenterHalf(merged.center, paddedHalf(merged.half)) },
       geometricError: 1024,
       refine: 'ADD',
       children,

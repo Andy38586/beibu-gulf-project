@@ -29,6 +29,7 @@ import { arg } from '../lib/cli-args.mjs'
 import { makeToEnu } from '../lib/geo.mjs'
 
 import { buildGLB, enuToGltf, GLTF_UP } from './glb.mjs'
+import { boxFromCenterHalf, paddedHalf } from './tileset-bounds.mjs'
 
 /** 与 pinglu 交付包同一 root.transform（落位逐位对齐的前提） */
 const TILE_DIR = 'backend/static/pinglu/tiles'
@@ -505,13 +506,13 @@ export function buildCanal({ osmFile, outDir, groundU = 0, tileDir = TILE_DIR, c
   mn[2] = uMin - 5
   mx[2] = uMax + BANK_LIFT + 5
   const c = [(mn[0] + mx[0]) / 2, (mn[1] + mx[1]) / 2, (mn[2] + mx[2]) / 2]
-  const h = [(mx[0] - mn[0]) / 2 + 20, (mx[1] - mn[1]) / 2 + 20, (mx[2] - mn[2]) / 2 + 5]
+  const h = paddedHalf([(mx[0] - mn[0]) / 2, (mx[1] - mn[1]) / 2, (mx[2] - mn[2]) / 2])
   const tileset = {
     asset: { version: '1.1', generator: 'beibu-3dtiles-build/build-canal' },
     geometricError: 8192,
     root: {
       transform: ts.root.transform,
-      boundingVolume: { box: [c[0], c[1], c[2], h[0], 0, 0, 0, h[1], 0, 0, 0, h[2]] },
+      boundingVolume: { box: boxFromCenterHalf(c, h) },
       geometricError: 4096,
       refine: 'ADD',
       content: { uri: 'canal.glb' },

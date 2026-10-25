@@ -31,6 +31,7 @@ import { arg } from '../lib/cli-args.mjs'
 import { makeToEnu } from '../lib/geo.mjs'
 
 import { buildGLB, enuToGltf, GLTF_UP, gltfToEnu } from './glb.mjs'
+import { boxFromCenterHalf, paddedHalf } from './tileset-bounds.mjs'
 import { heightsOfMaterial, median, readGLB } from './glb-read.mjs'
 import { buildGroundRef } from './ground-ref.mjs'
 
@@ -208,7 +209,7 @@ export function buildRoads({ osmFile, outDir, rebuiltDir, tileDir = TILE_DIR }) 
   // Cesium 近机位整层剔除（visited=0，路网不显示）。故过 gltfToEnu 并把半轴按同一次
   // 轴置换重排：glTF(x,y,z)→ENU(x,−z,y) ⇒ 半轴 (hx,hy,hz)→(hx,hz,hy)。
   const gCenter = [(mn[0] + mx[0]) / 2, (mn[1] + mx[1]) / 2, (mn[2] + mx[2]) / 2]
-  const gHalf = [(mx[0] - mn[0]) / 2 + 5, (mx[1] - mn[1]) / 2 + 5, (mx[2] - mn[2]) / 2 + 5]
+  const gHalf = paddedHalf([(mx[0] - mn[0]) / 2, (mx[1] - mn[1]) / 2, (mx[2] - mn[2]) / 2])
   const c0 = gltfToEnu(gCenter[0], gCenter[1], gCenter[2])
   const h0 = [gHalf[0], gHalf[2], gHalf[1]]
   const tileset = {
@@ -216,7 +217,7 @@ export function buildRoads({ osmFile, outDir, rebuiltDir, tileDir = TILE_DIR }) 
     geometricError: 512,
     root: {
       transform: T,
-      boundingVolume: { box: [c0[0], c0[1], c0[2], h0[0], 0, 0, 0, h0[1], 0, 0, 0, h0[2]] },
+      boundingVolume: { box: boxFromCenterHalf(c0, h0) },
       geometricError: 256,
       refine: 'ADD',
       content: { uri: 'roads.glb' },

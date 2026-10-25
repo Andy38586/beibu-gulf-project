@@ -11,6 +11,7 @@ import { logger, showError } from '@/shared'
 import { DEFAULT_CONFIDENCE } from '@/shared'
 import { scenarioParam } from '@/shared'
 import { useForecastStore } from '@/stores'
+import type { ForecastDataSource } from '@/types/schemas'
 
 import { fromMonthOrdinal, toMonthOrdinal } from '../timeline'
 
@@ -61,7 +62,12 @@ export function useForecastTimeseries(): UseForecastTimeseriesReturn {
         // 事务过期或请求被取消
         if (data === null) return
         if (data.series) {
-          forecastState.setRequestCache(cacheKey, { allSeries: data.series, unit: data.unit })
+          forecastState.setRequestCache(cacheKey, {
+            allSeries: data.series,
+            unit: data.unit,
+            // P1-1：降级标记随缓存一起存，缓存命中重建时必须同口径（否则角标只在首帧出现）
+            dataSource: data.dataSource,
+          })
         }
       } else {
         // 与 useForecastComparison 一致——缓存命中也校验事务有效性，
@@ -70,8 +76,10 @@ export function useForecastTimeseries(): UseForecastTimeseriesReturn {
       }
 
       const entry = forecastState.requestCache.get(cacheKey) as
-        | { allSeries?: SeriesItem[]; unit?: string }
+        | { allSeries?: SeriesItem[]; unit?: string; dataSource?: ForecastDataSource }
         | undefined
+      // P1-1：降级标记先于空数据判断落 store——本次响应是否降级与窗口内有没有点无关
+      forecastState.chart.lineDataSource = entry?.dataSource ?? null
       const allData = entry?.allSeries?.[0]?.data || []
       if (!allData.length) return
 

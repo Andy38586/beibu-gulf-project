@@ -11,6 +11,11 @@ export interface ForecastMapData {
   unit: string
   time: string
   type: 'FeatureCollection'
+  /**
+   * 预测数据来源（P1-1 降级可观测，可选）：'engine-fallback' = 模型产物不可用、
+   * 已降级趋势外推。旧响应/文件透传不带此字段。
+   */
+  metadata?: { dataSource?: 'model' | 'engine-fallback' }
   features: Array<{
     type: 'Feature'
     geometry: { type: string; coordinates: number[] }

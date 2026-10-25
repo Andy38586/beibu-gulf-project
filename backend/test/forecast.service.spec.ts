@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { BusinessError } from '../src/common/errors/business-error'
@@ -350,5 +351,134 @@ describe('公开面收窄 — DEFAULT_READ_FILE 不得再导出', () => {
     const PUBLIC = ['DataFilesService']
     for (const k of INTERNAL) expect(mod[k], k + ' 应已收为模块内部').toBeUndefined()
     for (const k of PUBLIC) expect(mod[k], k + ' 应仍是公开面').toBeDefined()
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// P1-1 降级可观测：预测响应的 metadata.dataSource
+//
+// 判据口径：模型产物命中 ⇒ 'model'；产物缺失/港口缺失（降级 computeForecast）⇒
+// 'engine-fallback'。四个返回预测的端点必须同族一致——只标一处即未完成。
+// ─────────────────────────────────────────────────────────────────────────────
+
+type DataSourceResponse = { metadata?: { dataSource?: string } }
+
+const MODEL_INFO = {
+  method: 'holt-winters',
+  training_period: '2018-01~2021-12',
+  validation_period: '2021-01~2021-12',
+  forecast_period: '2022-01~2030-12',
+  data_source: 'official',
+}
+
+/** 模型产物港口段：predictions 必须晚于 cargoData 历史末点（2021-12），
+ * 否则 interpolateMonthly 全部丢弃 → getModelForecast 返回 null，模型路径会被误判成降级 */
+function modelPort(baseValue: number) {
+  return {
+    predictions: [
+      { time: '2022-01', value: baseValue },
+      { time: '2022-07', value: baseValue + 100 },
+    ],
+    backtest: {},
+  }
+}
+
+/** 按路径分派的 reader：模型产物可控（ok/missing/partial），指标文件恒为 cargoData */
+function makeModelReader(state: 'ok' | 'missing' | 'partial') {
+  return vi.fn().mockImplementation((p: string) => {
+    if (p.endsWith('throughput_model.json')) {
+      if (state === 'missing') return Promise.reject(makeEnoentError())
+      const ports =
+        state === 'partial' ? { p1: modelPort(1200) } : { p1: modelPort(1200), p2: modelPort(2200) }
+      return Promise.resolve(JSON.stringify({ model_info: MODEL_INFO, ports }))
+    }
+    if (p.endsWith('cargo.json')) return Promise.resolve(JSON.stringify(cargoData))
+    return Promise.reject(makeEnoentError())
+  })
+}
+
+describe('metadata.dataSource（P1-1 降级可观测）', () => {
+  it('模型产物命中 → dataSource=model，且预测段确实来自产物（非外推）', async () => {
+    const service = makeService(makeModelReader('ok'))
+    const res = (await service.getTimeSeriesData(
+      'cargo',
+      'p1',
+      undefined,
+      undefined,
+      undefined
+    )) as DataSourceResponse & {
+      series: Array<{ data: Array<{ time: string; value: number }> }>
+    }
+    expect(res.metadata?.dataSource).toBe('model')
+    // 产物首点原值 1200：趋势外推不会恰好给出同一整数（证明走的模型分支而非默认值）
+    expect(res.series[0].data.find((d) => d.time === '2022-01')?.value).toBe(1200)
+  })
+
+  it('模型产物读取失败 → dataSource=engine-fallback，四个预测端点一致 + 日志旁证仍在', async () => {
+    const warnSpy = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => {})
+    const service = makeService(makeModelReader('missing'))
+
+    const responses: Array<Record<string, unknown>> = [
+      await service.getMapData('cargo', '2022-01'),
+      await service.getTimeSeriesData('cargo', 'p1', undefined, undefined, undefined),
+      await service.getIndicatorData('cargo', '2022-01', 'p1'),
+      await service.getPortData('p1', 'cargo'),
+    ]
+    for (const res of responses) {
+      expect((res as DataSourceResponse).metadata?.dataSource).toBe('engine-fallback')
+    }
+    // 日志是旁证、不是唯一事实：保留 logger.warn
+    expect(warnSpy).toHaveBeenCalled()
+    warnSpy.mockRestore()
+  })
+
+  it('模型产物缺某港口（部分降级）→ 响应整体标 engine-fallback（部分也须可见）', async () => {
+    const service = makeService(makeModelReader('partial'))
+    const res = (await service.getTimeSeriesData(
+      'cargo',
+      undefined,
+      undefined,
+      undefined,
+      undefined
+    )) as DataSourceResponse
+    expect(res.metadata?.dataSource).toBe('engine-fallback')
+  })
+
+  it('activity 文件透传（真数据、非降级）→ 不写 dataSource（阴性对照）', async () => {
+    const mockReadFile = vi.fn().mockResolvedValue(JSON.stringify(activityData))
+    const service = makeService(mockReadFile)
+    const res = (await service.getTimeSeriesData(
+      'activity',
+      'p1',
+      undefined,
+      undefined,
+      undefined
+    )) as DataSourceResponse
+    expect(res.metadata?.dataSource).toBeUndefined()
+  })
+
+  it('运河情景叠加不丢标记（metadata 覆盖顺序）', async () => {
+    const qinzhouCargo = { ...cargoData, data: { qinzhou: cargoData.data.p1 } }
+    const reader = vi.fn().mockImplementation((p: string) => {
+      if (p.endsWith('throughput_model.json')) {
+        return Promise.resolve(
+          JSON.stringify({ model_info: MODEL_INFO, ports: { qinzhou: modelPort(1200) } })
+        )
+      }
+      if (p.endsWith('cargo.json')) return Promise.resolve(JSON.stringify(qinzhouCargo))
+      return Promise.reject(makeEnoentError())
+    })
+    const service = makeService(reader)
+    const res = (await service.getTimeSeriesData(
+      'cargo',
+      'qinzhou',
+      undefined,
+      undefined,
+      undefined,
+      1.0,
+      'design'
+    )) as DataSourceResponse & { canalScenario: string }
+    expect(res.metadata?.dataSource).toBe('model')
+    expect(res.canalScenario).toBe('design')
   })
 })

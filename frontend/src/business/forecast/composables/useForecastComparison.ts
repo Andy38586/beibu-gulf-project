@@ -9,6 +9,7 @@ import { forecastAdapter } from '@/services'
 import { ApiError, DEFAULT_CONFIDENCE, logger, showError } from '@/shared'
 import { PORT_KEYS, PORT_NAMES } from '@/shared'
 import { useForecastStore } from '@/stores'
+import type { ForecastDataSource } from '@/types/schemas'
 
 /** 返回契约（显式化，防重构时签名静默漂移）。v4-S3：结果写 store.chart，不再持本地 ref */
 interface UseForecastComparisonReturn {
@@ -48,11 +49,14 @@ export function useForecastComparison(): UseForecastComparisonReturn {
           series: Array<{ name: string; data: Array<number | null>; yAxisIndex?: number }>
           barUnit?: string
           barUnitRight?: string
+          dataSource?: ForecastDataSource
         }
         forecastState.chart.barXData = c.xData
         forecastState.chart.barSeries = c.series
         forecastState.chart.barUnit = c.barUnit ?? ''
         forecastState.chart.barUnitRight = c.barUnitRight ?? ''
+        // P1-1：缓存命中同样恢复降级标记（首帧与重放同口径）
+        forecastState.chart.barDataSource = c.dataSource ?? null
         return
       }
       // 双真指标并行请求（3 港 × 2 指标 = 6 柱）
@@ -82,6 +86,13 @@ export function useForecastComparison(): UseForecastComparisonReturn {
       // 两轴单位取自接口 unit（不硬编码，防后端改口径后名实不符）
       forecastState.chart.barUnit = results[0]?.unit ?? ''
       forecastState.chart.barUnitRight = results[1]?.unit ?? ''
+      // P1-1：cargo/container 模型产物各自独立 ⇒ 任一降级即柱图整体标降级
+      const barSources = results.map((r) => r?.dataSource)
+      forecastState.chart.barDataSource = barSources.includes('engine-fallback')
+        ? 'engine-fallback'
+        : barSources.includes('model')
+          ? 'model'
+          : null
       forecastState.chart.barSeries = BAR_INDICATORS.map((ind, i) => {
         const r = results[i]
         const p = r?.ports
@@ -100,6 +111,7 @@ export function useForecastComparison(): UseForecastComparisonReturn {
         series: forecastState.chart.barSeries,
         barUnit: forecastState.chart.barUnit,
         barUnitRight: forecastState.chart.barUnitRight,
+        dataSource: forecastState.chart.barDataSource,
       })
     } catch (e) {
       logger.error('[ForecastComparison] load error:', e)

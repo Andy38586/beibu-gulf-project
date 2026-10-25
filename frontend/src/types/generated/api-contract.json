@@ -151,6 +151,10 @@
         "series": {
           "type": "array",
           "optional": false
+        },
+        "metadata": {
+          "type": "forecastMetadataSchema",
+          "optional": true
         }
       }
     },
@@ -172,6 +176,10 @@
         "ports": {
           "type": "record",
           "optional": false
+        },
+        "metadata": {
+          "type": "forecastMetadataSchema",
+          "optional": true
         }
       }
     },
@@ -197,6 +205,10 @@
         "type": {
           "type": "literal",
           "optional": false
+        },
+        "metadata": {
+          "type": "forecastMetadataSchema",
+          "optional": true
         },
         "features": {
           "type": "array",
@@ -793,7 +805,8 @@
         "unit": 12,
         "granularity": 2,
         "canalScenario": 24,
-        "series": 2
+        "series": 2,
+        "metadata": 15
       }
     },
     "indicatorComparisonResponseSchema": {
@@ -802,7 +815,8 @@
         "indicator": 28,
         "unit": 12,
         "canalScenario": 24,
-        "ports": 8
+        "ports": 8,
+        "metadata": 15
       }
     },
     "forecastMapDataSchema": {
@@ -813,6 +827,7 @@
         "time": 11,
         "canalScenario": 24,
         "type": 8,
+        "metadata": 15,
         "features": 6
       }
     },

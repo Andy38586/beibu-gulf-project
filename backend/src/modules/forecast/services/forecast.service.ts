@@ -83,6 +83,57 @@ type ComputedForecast = {
   ports: Record<string, ComputedPort>
 }
 
+/**
+ * 预测数据来源标记（P1-1 降级可观测）：调用方可见的**唯一事实**，logger 只是旁证。
+ * - 'model'：走吞吐量模型产物（getModelForecast 命中）
+ * - 'engine-fallback'：模型产物不可用，降级 computeForecast 趋势外推
+ *
+ * 可选：activity 等「文件自带真数据」指标既非模型产物也非降级，不打标记——
+ * 保持旧响应形状，也不把真数据误标成降级。
+ */
+export type ForecastDataSource = 'model' | 'engine-fallback'
+
+/** metadata 是宽类型（模型产物字段随产物演进），取标记处收窄 */
+function dataSourceOf(metadata: Record<string, unknown> | null): ForecastDataSource | undefined {
+  const value = metadata?.dataSource
+  return value === 'model' || value === 'engine-fallback' ? value : undefined
+}
+
+/**
+ * 响应级聚合：任一端口降级 ⇒ 'engine-fallback'（部分降级同样必须对外可见）；
+ * 全部走模型 ⇒ 'model'；无任何标记（activity 文件透传）⇒ undefined（响应不写该字段）。
+ */
+function aggregateDataSource(
+  sources: Array<ForecastDataSource | undefined>
+): ForecastDataSource | undefined {
+  if (sources.includes('engine-fallback')) return 'engine-fallback'
+  return sources.includes('model') ? 'model' : undefined
+}
+
+/** metadata 打标记：4 个预测端点共用，避免同一展开式手抄四份（P1-1） */
+function withDataSource(
+  metadata: Record<string, unknown> | null,
+  dataSource: ForecastDataSource
+): Record<string, unknown> {
+  return { ...(metadata ?? {}), dataSource }
+}
+
+/** 响应级标记：无标记（旧/文件透传）时返回空对象，保持响应形状 */
+function sourceMetadata(dataSource: ForecastDataSource | undefined): {
+  metadata?: { dataSource: ForecastDataSource }
+} {
+  return dataSource ? { metadata: { dataSource } } : {}
+}
+
+/** 收集端口标记：无 port.metadata 的端口不参与聚合 */
+function pushPortSource(
+  list: Array<ForecastDataSource | undefined>,
+  metadata: Record<string, unknown> | null
+): void {
+  const source = dataSourceOf(metadata)
+  if (source) list.push(source)
+}
+
 @Injectable()
 export class ForecastService {
   // 引擎结果缓存（TTL + LRU 上限）：上限防枚举 confidence 造成内存放大
@@ -160,8 +211,9 @@ export class ForecastService {
         const modelResult = await getModelForecast(this.dataFiles, portId, lastTime, indicator)
         if (modelResult) {
           forecast = modelResult.forecast
-          metadata = { ...modelResult.metadata, scenarioLevel: 1.0 }
+          metadata = withDataSource({ ...modelResult.metadata, scenarioLevel: 1.0 }, 'model')
         } else {
+          // 降级保留日志旁证，但对外事实只认 metadata.dataSource（P1-1）
           logger.warn(`${indicator}/${portId} 模型产物不可用，降级趋势外推`)
           const engineResult = computeForecast(historical ?? null, 1.0)
           // 历史数据不足（防御路径）错误走业务错误通道（R7），不塞进成功信封
@@ -169,7 +221,10 @@ export class ForecastService {
             throw new BusinessError(ErrorCode.ANALYSIS_FAILED, engineResult.metadata.error)
           }
           forecast = engineResult.forecast
-          metadata = engineResult.metadata as Record<string, unknown>
+          metadata = withDataSource(
+            engineResult.metadata as Record<string, unknown>,
+            'engine-fallback'
+          )
         }
         // 运河情景叠加（只动预测段；历史段永不修改）——变换在缓存前执行，键已含情景
         if (canalScenario !== 'baseline') {
@@ -184,13 +239,17 @@ export class ForecastService {
         // 文件自带完整 forecast（真数据派生产物，如 activity）直接透传
         forecast = portData.forecast || []
       } else {
-        // 防御兜底（当前无真实指标走此路）：趋势外推引擎演算
+        // 防御兜底（当前无真实指标走此路）：趋势外推引擎演算——同属降级，必须与模型缺失
+        // 分支同一标记，否则「只标一处」会让该分支继续静默（P1-1 同族一次收全）
         const engineResult = computeForecast(historical ?? null, scenarioLevel)
         if (engineResult.metadata?.error) {
           throw new BusinessError(ErrorCode.ANALYSIS_FAILED, engineResult.metadata.error)
         }
         forecast = engineResult.forecast
-        metadata = engineResult.metadata as Record<string, unknown>
+        metadata = withDataSource(
+          engineResult.metadata as Record<string, unknown>,
+          'engine-fallback'
+        )
       }
 
       result.ports[portId] = {
@@ -214,6 +273,9 @@ export class ForecastService {
   ): Promise<Record<string, unknown>> {
     const computed = await this.getOrComputeForecast(indicator, scenarioLevel, canalScenario)
     const features: unknown[] = []
+    // 只统计真正产出图元的港口：无 spatial / 该时刻无值（0 图元）的港口不参与降级判定，
+    // 否则会出现「看不见的港口降级把可见结果整体标红」
+    const dataSources: Array<ForecastDataSource | undefined> = []
 
     for (const portId in computed.ports) {
       const port = computed.ports[portId]
@@ -226,6 +288,8 @@ export class ForecastService {
         time,
         spatial.features
       )
+      if (spatialValues.length === 0) continue
+      pushPortSource(dataSources, port.metadata)
 
       for (const feature of spatialValues) {
         features.push({
@@ -241,6 +305,8 @@ export class ForecastService {
       }
     }
 
+    const dataSource = aggregateDataSource(dataSources)
+
     return {
       indicator: computed.indicator,
       unit: computed.unit,
@@ -248,6 +314,8 @@ export class ForecastService {
       canalScenario: computed.canalScenario,
       type: 'FeatureCollection',
       features,
+      // 可选字段：无标记（旧/文件透传路径）时不写，保持响应形状
+      ...sourceMetadata(dataSource),
     }
   }
 
@@ -261,11 +329,14 @@ export class ForecastService {
     const indicators = indicator ? [indicator] : [CARGO_INDICATOR, 'container']
     const result: Record<string, unknown> = { portId, portName: '', canalScenario, indicators: {} }
     const indicatorsOut = result.indicators as Record<string, unknown>
+    // 多指标一次返回：逐指标收集该港口的标记，任一降级即整体标降级（P1-1）
+    const dataSources: Array<ForecastDataSource | undefined> = []
 
     for (const ind of indicators) {
       const computed = await this.getOrComputeForecast(ind, 1.0, canalScenario)
       const port = computed.ports[portId]
       if (!port) continue
+      pushPortSource(dataSources, port.metadata)
 
       if (!result.portName) result.portName = port.portName
 
@@ -283,7 +354,13 @@ export class ForecastService {
       indicatorsOut[ind] = { unit: computed.unit, historical, forecast }
     }
 
-    return result
+    const dataSource = aggregateDataSource(dataSources)
+
+    return {
+      ...result,
+      // 可选字段：无标记时不写（保持旧响应形状）
+      ...sourceMetadata(dataSource),
+    }
   }
 
   async getIndicatorData(
@@ -302,10 +379,13 @@ export class ForecastService {
     }
     const portsOut = result.ports as Record<string, unknown>
     const ports = portId ? [portId] : Object.keys(computed.ports)
+    // 只聚合**实际返回**的港口：portId 过滤后，未返回港口的降级不该污染本次响应（P1-1）
+    const dataSources: Array<ForecastDataSource | undefined> = []
 
     for (const pid of ports) {
       const port = computed.ports[pid]
       if (!port) continue
+      pushPortSource(dataSources, port.metadata)
       let value: number | null = null
       if (time) {
         const point =
@@ -320,7 +400,12 @@ export class ForecastService {
       }
     }
 
-    return result
+    const dataSource = aggregateDataSource(dataSources)
+
+    return {
+      ...result,
+      ...sourceMetadata(dataSource),
+    }
   }
 
   async getTimeSeriesData(
@@ -335,10 +420,13 @@ export class ForecastService {
     const computed = await this.getOrComputeForecast(indicator, scenarioLevel, canalScenario)
     const ports = portId ? [portId] : Object.keys(computed.ports)
     const series: unknown[] = []
+    // 同 getIndicatorData：只聚合实际返回的港口（P1-1）
+    const dataSources: Array<ForecastDataSource | undefined> = []
 
     for (const pid of ports) {
       const port = computed.ports[pid]
       if (!port) continue
+      pushPortSource(dataSources, port.metadata)
       let allData: Array<HistoricalPoint | ForecastPoint> = [...port.historical, ...port.forecast]
       if (start) allData = allData.filter((d) => d.time >= start)
       if (end) allData = allData.filter((d) => d.time <= end)
@@ -364,12 +452,15 @@ export class ForecastService {
       series.push({ portId: pid, portName: port.portName, data: allData })
     }
 
+    const dataSource = aggregateDataSource(dataSources)
+
     return {
       indicator: computed.indicator,
       unit: computed.unit,
       granularity: granularity || 'month',
       canalScenario: computed.canalScenario,
       series,
+      ...sourceMetadata(dataSource),
     }
   }
 }

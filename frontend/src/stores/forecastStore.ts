@@ -5,6 +5,7 @@ import { reactive, ref, shallowRef } from 'vue'
 // 分层铁律：stores 不得引用 business——初始化所需共享常量一律从 shared 取
 import { BoundedMap, DEFAULT_CONFIDENCE } from '@/shared'
 import type { ConfidenceThresholds } from '@/types/business/base'
+import type { ForecastDataSource } from '@/types/schemas'
 
 import { createPersistedState } from './factories/createPersistedState'
 import { createTransactionId } from './factories/createTransactionId'
@@ -71,6 +72,11 @@ export const useForecastStore = defineStore('forecast', () => {
     lineSeries: [] as Array<{ name: string; data: number[] }>,
     /** 折线图 y 轴单位（接口 unit 透传；F4 前被适配器丢弃，图无单位标注） */
     lineUnit: '',
+    /**
+     * 折线图数据来源（P1-1 降级可观测，接口 metadata.dataSource 透传）：
+     * 'engine-fallback' 时页面显示降级角标；null = 模型路径/未标记（旧响应）。
+     */
+    lineDataSource: null as ForecastDataSource | null,
     lineViewportXMin: '2023-01',
     lineViewportXMax: '2029-12',
     barXData: [] as string[],
@@ -82,6 +88,8 @@ export const useForecastStore = defineStore('forecast', () => {
     /** 柱状图左右轴单位（接口 unit 透传；双轴各自标注，单位不再拼进系列名） */
     barUnit: '',
     barUnitRight: '',
+    /** 柱状图数据来源（P1-1）：两指标任一降级即为 'engine-fallback'；null = 未标记 */
+    barDataSource: null as ForecastDataSource | null,
   })
 
   /** 请求进行态写入口（isRequesting 不再被 composable 直改） */
@@ -159,12 +167,14 @@ export const useForecastStore = defineStore('forecast', () => {
     chart.lineXData = []
     chart.lineSeries = []
     chart.lineUnit = ''
+    chart.lineDataSource = null
     chart.lineViewportXMin = '2023-01'
     chart.lineViewportXMax = '2029-12'
     chart.barXData = []
     chart.barSeries = []
     chart.barUnit = ''
     chart.barUnitRight = ''
+    chart.barDataSource = null
     resetTransactionState()
   }
 

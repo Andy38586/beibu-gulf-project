@@ -105,6 +105,22 @@ export const forecastPointSchema = z.object({
 
 export type ForecastPointParsed = z.infer<typeof forecastPointSchema>
 
+/**
+ * 预测数据来源标记（P1-1 降级可观测）：后端四预测端点共用同一字段名。
+ * - 'model'：走吞吐量模型产物
+ * - 'engine-fallback'：模型不可用，降级趋势外推（页面须显示角标）
+ *
+ * 可选：activity 等「文件自带真数据」指标不打标记；旧响应也无此字段 ⇒ 两侧都必须容缺。
+ */
+const forecastDataSourceSchema = z.enum(['model', 'engine-fallback'])
+
+export type ForecastDataSource = z.infer<typeof forecastDataSourceSchema>
+
+/** 预测响应顶层 metadata（可选；当前只有 dataSource 一个事实字段） */
+const forecastMetadataSchema = z.object({
+  dataSource: forecastDataSourceSchema.optional(),
+})
+
 // @backend-contract backend/src/modules/forecast/services/forecast.service.ts
 // @backend-contract-no-type 三个 forecast 端点的返回类型都是 Promise<Record<string, unknown>>，响应对象由 service 内联字面量构造，无具名类型可逐字段对照（字段名级核对仍在跑）
 export const timeSeriesResponseSchema = z.object({
@@ -120,6 +136,8 @@ export const timeSeriesResponseSchema = z.object({
       data: z.array(forecastPointSchema),
     })
   ),
+  // P1-1：降级标记（可选；旧响应/文件透传路径不带）
+  metadata: forecastMetadataSchema.optional(),
 })
 
 export type TimeSeriesResponseParsed = z.infer<typeof timeSeriesResponseSchema>
@@ -140,6 +158,8 @@ export const indicatorComparisonResponseSchema = z.object({
       forecast: z.array(forecastPointSchema),
     })
   ),
+  // P1-1：降级标记（可选；旧响应不带）
+  metadata: forecastMetadataSchema.optional(),
 })
 
 export type IndicatorComparisonResponseParsed = z.infer<typeof indicatorComparisonResponseSchema>
@@ -153,6 +173,8 @@ export const forecastMapDataSchema = z.looseObject({
   time: z.string(),
   canalScenario: z.string(),
   type: z.literal('FeatureCollection'),
+  // P1-1：降级标记（可选；无 spatial/文件透传路径不带）
+  metadata: forecastMetadataSchema.optional(),
   features: z.array(
     z.looseObject({
       type: z.literal('Feature'),

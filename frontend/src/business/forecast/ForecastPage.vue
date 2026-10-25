@@ -7,7 +7,7 @@
    */
 -->
 <script setup lang="ts">
-import { onMounted, onUnmounted, watch } from 'vue'
+import { computed, onMounted, onUnmounted, watch } from 'vue'
 
 import { AppLayout, GCSPanel, LayerControlPanel, StackSlot, useStackablePanels } from '@/core'
 import { DEFAULT_LAYER_ORDER, forecastLayerId, logger, useProfileSnapshot } from '@/shared'
@@ -17,6 +17,7 @@ import type { ForecastSavedState } from '@/stores/forecastStore'
 import { BarChart, ChartLoading, LineChart } from '@/visualization'
 
 import ForecastControlPanel from './components/ForecastControlPanel.vue'
+import ForecastFallbackBadge from './components/ForecastFallbackBadge.vue'
 import { useForecastLayer } from './composables/useForecastLayer'
 import { provideForecastOrchestrator } from './composables/useForecastOrchestrator'
 
@@ -32,6 +33,14 @@ const FORECAST_PANEL_ORDER: string[] = ['cargo', 'activity', 'container'].map(fo
 
 const forecastState = useForecastStore()
 const mapStore = useMapStore()
+
+/**
+ * P1-1 降级角标：只有接口显式标记 'engine-fallback' 才渲染。
+ * 'model' / 未标记（旧响应、activity 文件透传）一律不渲染 ⇒ 正常路径布局零变化。
+ * 两个图表各标各的：cargo/container 模型产物独立降级，不能用一个角标代表全部。
+ */
+const isLineFallback = computed(() => forecastState.chart.lineDataSource === 'engine-fallback')
+const isBarFallback = computed(() => forecastState.chart.barDataSource === 'engine-fallback')
 
 // v4-S3：三路事务编排器单实例（页面创建并 provide，面板 inject 后发起用户请求——
 // AbortController 是实例级持有，两份实例会裂开竞态守卫）。
@@ -150,6 +159,8 @@ onUnmounted(() => {
           <!-- 数据刷新期 loading 覆盖（isRequesting 由事务 composable 驱动），
                原注释"加载态不绑定 UI"已废止——弱网下用户可感知更新进行中 -->
           <ChartLoading v-if="forecastState.isRequesting" />
+          <!-- P1-1 降级角标：仅 engine-fallback 渲染，覆盖在图表右上角（不占布局） -->
+          <ForecastFallbackBadge v-if="isLineFallback" test-id="forecast-fallback-badge-line" />
         </GCSPanel>
         <GCSPanel
           v-if="!isStacked('bar')"
@@ -169,6 +180,7 @@ onUnmounted(() => {
             :y-unit-right="forecastState.chart.barUnitRight"
           />
           <ChartLoading v-if="forecastState.isRequesting" />
+          <ForecastFallbackBadge v-if="isBarFallback" test-id="forecast-fallback-badge-bar" />
         </GCSPanel>
       </template>
       <template #right>

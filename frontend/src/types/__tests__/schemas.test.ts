@@ -328,6 +328,27 @@ describe('forecast schemas（构造样本）', () => {
     ).toBe(false)
     const bad = timeSeriesResponseSchema.safeParse({ indicator: 'cargo' })
     expect(bad.success).toBe(false)
+    // P1-1：metadata.dataSource 可选（旧响应缺省通过），值域仅 model / engine-fallback
+    expect(
+      timeSeriesResponseSchema.safeParse({
+        indicator: 'cargo',
+        unit: '万吨',
+        granularity: 'monthly',
+        canalScenario: 'baseline',
+        series: [{ portId: 'qinzhou', portName: '钦州', data: [point] }],
+        metadata: { dataSource: 'engine-fallback' },
+      }).success
+    ).toBe(true)
+    expect(
+      timeSeriesResponseSchema.safeParse({
+        indicator: 'cargo',
+        unit: '万吨',
+        granularity: 'monthly',
+        canalScenario: 'baseline',
+        series: [],
+        metadata: { dataSource: 'trend' },
+      }).success
+    ).toBe(false)
   })
 
   it('indicatorComparisonResponseSchema 通过/拒绝', () => {

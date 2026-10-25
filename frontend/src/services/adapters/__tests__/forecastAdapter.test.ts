@@ -42,6 +42,8 @@ const fixtures: Record<string, unknown> = {
       unit: '万吨',
       granularity: 'year',
       canalScenario: 'baseline',
+      // P1-1：模型路径标记（响应顶层 metadata，可选）
+      metadata: { dataSource: 'model' },
       series: [
         {
           portId: 'QZ',
@@ -60,6 +62,8 @@ const fixtures: Record<string, unknown> = {
       indicator: 'cargo',
       unit: '万吨',
       canalScenario: 'baseline',
+      // 降级响应：模型产物不可用时的标记
+      metadata: { dataSource: 'engine-fallback' },
       ports: {
         QZ: {
           portName: '钦州港',
@@ -110,7 +114,7 @@ describe('forecastAdapter', () => {
     expect(result.charts?.indicator).toBe('cargo')
   })
 
-  it('getTimeSeries 应透传参数并返回 series + unit（F4：unit 不再被丢）', async () => {
+  it('getTimeSeries 应透传参数并返回 series + unit + dataSource（P1-1 降级标记）', async () => {
     const fetchMock = vi.mocked(fetch)
     const result = await forecastAdapter.getTimeSeries({
       indicator: 'cargo',
@@ -123,7 +127,7 @@ describe('forecastAdapter', () => {
     expect(calledUrl).toContain('indicator=cargo')
     expect(calledUrl).toContain('granularity=year')
     expect(calledUrl).toContain('confidence=0.9')
-    // 业务形状收口：不透传 indicator/granularity 原字段，只透传 series + unit
+    // 业务形状收口：不透传 indicator/granularity 原字段，只透传 series + unit + dataSource
     expect(result).toEqual({
       series: [
         {
@@ -136,14 +140,16 @@ describe('forecastAdapter', () => {
         },
       ],
       unit: '万吨',
+      dataSource: 'model',
     })
   })
 
-  it('getIndicatorComparison 应请求 /forecast/indicator/:indicator 并返回 ports + unit', async () => {
+  it('getIndicatorComparison 应请求 /forecast/indicator/:indicator 并返回 ports + unit + dataSource', async () => {
     const result = await forecastAdapter.getIndicatorComparison('cargo', {
       time: '2025-12',
       confidence: 0.9,
     })
+    expect(result.dataSource).toBe('engine-fallback')
     expect(result).toEqual({
       ports: {
         QZ: {
@@ -160,7 +166,37 @@ describe('forecastAdapter', () => {
         },
       },
       unit: '万吨',
+      dataSource: 'engine-fallback',
     })
+  })
+
+  it('旧响应无 metadata → dataSource 为 undefined（向后兼容，不误判为降级）', async () => {
+    // 旧后端响应：顶层无 metadata（apiRequest 按 text() 解析，故 text/json 须同源）
+    const legacy = {
+      code: 200,
+      data: {
+        indicator: 'cargo',
+        unit: '万吨',
+        granularity: 'year',
+        canalScenario: 'baseline',
+        series: [],
+      },
+    }
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: true,
+        status: 200,
+        json: async () => legacy,
+        text: async () => JSON.stringify(legacy),
+      }))
+    )
+    const result = await forecastAdapter.getTimeSeries({
+      indicator: 'cargo',
+      granularity: 'year',
+      confidence: 0.9,
+    })
+    expect(result.dataSource).toBeUndefined()
   })
 
   it('scenario 缺省不携带参数；提供时透传（运河情景 F4）', async () => {

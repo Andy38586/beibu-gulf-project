@@ -17,6 +17,19 @@ export const APPENDIX = path.join(
 )
 export const STATES = ['A', 'B', 'A-', 'C', 'D', '退役']
 
+/**
+ * 状态值域的**派生**正则段（F78：此前本行手抄 `(A-|A|B|C|D|退役)`，与 STATES 两份口径）。
+ * 必须按长度降序再拼 alternation：`A-` 排在 `A` 前才不会被前缀截胡（正则序语义，
+ * 当年写死的原因即此——派生时显式排序，改值域只改 STATES 一处）。
+ */
+const STATE_ALT = [...STATES]
+  .sort((a, b) => b.length - a.length)
+  .map((s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+  .join('|')
+const ROW_RE = new RegExp(
+  `^\\|\\s*([\\d.]+)(′?)\\s*\\|\\s*(.+?)\\s*\\|\\s*(P\\d)\\s*\\|\\s*(${STATE_ALT})\\s*\\|`
+)
+
 /** 专项 → [{id,name,level,state}]，只认 `### 专项N` 分节下的四列表行 */
 export function parseDetailRows(markdown = readFileSync(APPENDIX, 'utf8')) {
   const rows = new Map()
@@ -28,7 +41,7 @@ export function parseDetailRows(markdown = readFileSync(APPENDIX, 'utf8')) {
       if (!rows.has(section)) rows.set(section, [])
       continue
     }
-    const m = l.match(/^\|\s*([\d.]+)(′?)\s*\|\s*(.+?)\s*\|\s*(P\d)\s*\|\s*(A-|A|B|C|D|退役)\s*\|/)
+    const m = l.match(ROW_RE)
     if (m && section) {
       rows.get(section).push({ id: m[1] + m[2], name: m[3], level: m[4], state: m[5] })
     }

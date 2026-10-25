@@ -153,5 +153,10 @@
     "kind": "guard",
     "refs": ["tools/v3-guard/forecast-confidence.mjs"],
     "by": "同一语义参数（默认置信度）在前端为 0.8（UI 滑块阈值）、后端曾为 1.0（兜底），同名异值即「同语义多套传参」；守卫钉住两侧名字与值，并把后端改名为 FALLBACK_CONFIDENCE 消除同名异义——「前后端口径一致」。与专项1:6.3 是同一守卫的两个指标面：1.6.3 判「同名是否异义」，8.4.3 判「同义是否多套值」"
+  },
+  "专项3:3.4": {
+    "kind": "guard",
+    "refs": ["tools/v3-guard/cesium-import-allowlist.mjs"],
+    "by": "「2D eager 图禁止静态 import cesium」白名单判据（§四-10，2026-10-24 用户裁定；dev 首屏竞速崩 b5260498 的机制化收口）——渲染器能力差异处理（cesium=3D 专有能力，仅 CesiumRenderer/cameraPerf/cesium-global 三文件可直引）"
   }
 }

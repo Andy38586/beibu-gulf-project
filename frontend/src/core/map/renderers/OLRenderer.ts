@@ -140,6 +140,12 @@ function dimHex(cssColor: string, factor: number): string {
  *  0.7 = 向黑混 30%，卫星底图上暗而不隐身；与 POI_BASE_OPACITY 联动裁决 */
 const INACTIVE_DIM_FACTOR = 0.7
 
+/** 呼吸通道状态：默认呼吸（小区/定位）与设施 POI 呼吸各一条，同屏互不顶掉 */
+interface BreathingChannel {
+  layer: VectorLayer<VectorSource> | null
+  animId: number | null
+}
+
 /** 视口裁剪图层条目（_cullLayers 值类型） */
 interface CullLayerEntry {
   source: VectorSource
@@ -160,11 +166,9 @@ export class OLRenderer extends MapRenderer {
   _cameraDebounceTimer: ReturnType<typeof setTimeout> | null
   _clickKey: EventsKey | null
   _clickHandler: EventsKey['listener'] | null
-  _breathingLayer: VectorLayer<VectorSource> | null
-  _breathingAnimId: number | null
-  // 设施 POI 专属呼吸（缩放式动效）：独立实例，与 startBreathing（呼吸灯式）同屏并存
-  _facilityBreathingLayer: VectorLayer<VectorSource> | null = null
-  _facilityBreathingAnimId: number | null = null
+  _breathing: BreathingChannel = { layer: null, animId: null }
+  // 设施 POI 专属呼吸（缩放式动效）：独立通道，与 startBreathing（呼吸灯式）同屏并存
+  _facilityBreathing: BreathingChannel = { layer: null, animId: null }
   // 要素气泡（2D）：Overlay 归渲染器持有（随地图移动自动跟随），元素由 UnifiedMap 渲染树提供
   _bubbleOverlay: Overlay | null
   _bubbleElement: HTMLElement | null
@@ -182,8 +186,6 @@ export class OLRenderer extends MapRenderer {
     this._cameraDebounceTimer = null
     this._clickKey = null
     this._clickHandler = null
-    this._breathingLayer = null
-    this._breathingAnimId = null
     this._bubbleOverlay = null
     this._bubbleElement = null
     this._initMap()
@@ -870,89 +872,83 @@ export class OLRenderer extends MapRenderer {
   }
   startBreathing(target: GeoPoint | GeoPoint[], color?: string): void {
     this.stopBreathing()
-    // 非有限坐标跳过（不落 (0,0) 哨兵——crs.ts 禁令）
-    const points = breathingPoints(target)
-    if (points.length === 0) return
-    const startTime = Date.now()
-    // 设施 POI 呼吸传 FACILITY_COLORS_MAP 的 hex；单点定位（小区/受影响设施）不传，取缺省主色
-    const rgb = parseBreathingColor(color) ?? DEFAULT_BREATHING_RGB
-    const breathingFeatures = points.map(
-      (p) =>
-        new Feature({
-          geometry: toPointGeometry(p.lng, p.lat),
-        })
-    )
-    // 脉动参数取自 core/config/breathing（与 Cesium 侧同源；此前两处逐行复制）
-    const breathingStyle = () => pulseStyleAt(startTime, rgb)
-    this._breathingLayer = new VectorLayer({
-      source: new VectorSource({ features: breathingFeatures }),
-      style: breathingStyle,
-    })
-    // 呼吸动画层必须置顶（覆盖业务层），保持改动前"最后 add 即最上"的视觉语义
-    this._breathingLayer.setZIndex(LAYER_DEFAULTS.zIndexOverlay)
-    this.map?.addLayer(this._breathingLayer)
-    const animate = () => {
-      if (this._breathingLayer) {
-        this._breathingLayer.changed()
-        this._breathingAnimId = requestAnimationFrame(animate)
-      }
-    }
-    this._breathingAnimId = requestAnimationFrame(animate)
+    // 单点定位（小区/受影响设施）不传色，取缺省主色
+    this.startBreathingLayer(this._breathing, target, color, false)
   }
-  /** 呼吸层公共清理：先停帧再摘层释放；字段置空由调用方负责（保持原执行顺序） */
-  private disposeBreathingPair(animId: number | null, layer: VectorLayer | null): void {
-    if (animId) cancelAnimationFrame(animId)
-    if (layer) {
-      this.map?.removeLayer(layer)
-      layer.dispose()
-    }
-  }
-  stopBreathing(): void {
-    this.disposeBreathingPair(this._breathingAnimId, this._breathingLayer)
-    this._breathingAnimId = null
-    this._breathingLayer = null
-  }
+
   /**
    * 设施 POI 专属呼吸（第二层筛选主角）：旧版缩放式动效——半径 10±5 脉动 + 透明度随动，视觉显眼。
    * 点可携带 per-point color（多类型混合呼吸各按类型色），缺省用统一 color 参数
    */
   startFacilityBreathing(target: Array<GeoPoint & { color?: string }>, color?: string): void {
     this.stopFacilityBreathing()
+    this.startBreathingLayer(this._facilityBreathing, target, color, true)
+  }
+
+  /**
+   * 两路呼吸的共同骨架：非有限坐标剔除 → 建点要素 → 建层置顶 → rAF 帧循环。
+   * 唯一差异是取色口径（`perPoint`）：真则按要素属性逐点解析（多类型混合呼吸各按类型色），
+   * 假则整层共用同一基准色——与原 startBreathing 的常量取色逐字等价（样式函数仍每帧重建）。
+   */
+  private startBreathingLayer(
+    channel: BreathingChannel,
+    target: Array<GeoPoint & { color?: string }> | (GeoPoint & { color?: string }),
+    color: string | undefined,
+    perPoint: boolean
+  ): void {
     const points = breathingPoints(target)
     if (points.length === 0) return
     const startTime = Date.now()
     const fallback = parseBreathingColor(color) ?? DEFAULT_BREATHING_RGB
-    const breathingFeatures = points.map((p) => {
-      const f = new Feature({
-        geometry: toPointGeometry(p.lng, p.lat),
-      })
-      // per-point color 挂到 feature 属性，样式函数按点取色（多类型混合呼吸）
-      if (p.color) f.set('color', p.color)
-      return f
+    const rgbOf: (f: FeatureLike) => [number, number, number] = perPoint
+      ? (f) => parseBreathingColor((f.get('color') as string) || color) ?? fallback
+      : () => fallback
+    const layer = new VectorLayer({
+      source: new VectorSource({
+        features: points.map((p) => {
+          const f = new Feature({
+            geometry: toPointGeometry(p.lng, p.lat),
+          })
+          // per-point color 挂到 feature 属性，样式函数按点取色（多类型混合呼吸）
+          if (p.color) f.set('color', p.color)
+          return f
+        }),
+      }),
+      // 脉动参数取自 core/config/breathing（与 Cesium 侧同源；此前两处逐行复制）
+      style: (feature: FeatureLike) => pulseStyleAt(startTime, rgbOf(feature)),
     })
-    // 与 startBreathing 同源（core/config/breathing）：多处呼吸节奏一致，同屏不打架
-    // 取色按 feature 属性逐点算（多类型混合呼吸各按类型色），缺省用统一 color 参数
-    const rgbOf = (f: FeatureLike) =>
-      parseBreathingColor((f.get('color') as string) || color) ?? fallback
-    const breathingStyle = (feature: FeatureLike) => pulseStyleAt(startTime, rgbOf(feature))
-    this._facilityBreathingLayer = new VectorLayer({
-      source: new VectorSource({ features: breathingFeatures }),
-      style: breathingStyle,
-    })
-    this._facilityBreathingLayer.setZIndex(LAYER_DEFAULTS.zIndexOverlay)
-    this.map?.addLayer(this._facilityBreathingLayer)
+    channel.layer = layer
+    // 呼吸动画层必须置顶（覆盖业务层），保持改动前"最后 add 即最上"的视觉语义
+    layer.setZIndex(LAYER_DEFAULTS.zIndexOverlay)
+    this.map?.addLayer(layer)
     const animate = () => {
-      if (this._facilityBreathingLayer) {
-        this._facilityBreathingLayer.changed()
-        this._facilityBreathingAnimId = requestAnimationFrame(animate)
+      if (channel.layer) {
+        channel.layer.changed()
+        channel.animId = requestAnimationFrame(animate)
       }
     }
-    this._facilityBreathingAnimId = requestAnimationFrame(animate)
+    channel.animId = requestAnimationFrame(animate)
   }
+
+  /** 呼吸层公共清理：先停帧再摘层释放；字段置空由调用方负责（保持原执行顺序） */
+  private disposeBreathing(channel: BreathingChannel): void {
+    if (channel.animId) cancelAnimationFrame(channel.animId)
+    if (channel.layer) {
+      this.map?.removeLayer(channel.layer)
+      channel.layer.dispose()
+    }
+  }
+
+  stopBreathing(): void {
+    this.disposeBreathing(this._breathing)
+    this._breathing.animId = null
+    this._breathing.layer = null
+  }
+
   stopFacilityBreathing(): void {
-    this.disposeBreathingPair(this._facilityBreathingAnimId, this._facilityBreathingLayer)
-    this._facilityBreathingAnimId = null
-    this._facilityBreathingLayer = null
+    this.disposeBreathing(this._facilityBreathing)
+    this._facilityBreathing.animId = null
+    this._facilityBreathing.layer = null
   }
   getType() {
     // 返回 '2d' 与 MapType 一致：原 'ol' 与 mapType==='2d'/'3d' 比较错位（切换白屏、同类型短路）

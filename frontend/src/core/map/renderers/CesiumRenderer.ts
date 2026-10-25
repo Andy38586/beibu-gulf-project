@@ -456,13 +456,9 @@ export class CesiumRenderer extends MapRenderer {
   _webglContextLostHandler: ((e: Event) => void) | null
   _screenSpaceEventHandler: ScreenSpaceEventHandler | null
   _waterSurfaces: Map<string, WaterSurfaceEntry> | null
-  _breathingEntities: unknown[]
-  _breathingAnimId: number | null
-  _breathingAnimation: unknown | null
-  // 设施 POI 专属呼吸（缩放式动效）：独立实例，与 startBreathing（呼吸灯式）同屏并存
-  _facilityBreathingEntities: unknown[]
-  _facilityBreathingAnimId: number | null
-  _facilityBreathingAnimation: unknown | null
+  _breathing: BreathingChannel = { entities: [], animId: null, frame: null }
+  // 设施 POI 专属呼吸（缩放式动效）：独立通道，与 startBreathing（呼吸灯式）同屏并存
+  _facilityBreathing: BreathingChannel = { entities: [], animId: null, frame: null }
   _geoJsonTokens: Map<string, symbol>
 
   constructor(container: HTMLElement) {
@@ -496,12 +492,8 @@ export class CesiumRenderer extends MapRenderer {
     this._webglContextLostHandler = null
     this._screenSpaceEventHandler = null
     this._waterSurfaces = null
-    this._breathingEntities = []
-    this._breathingAnimId = null
-    this._breathingAnimation = null
-    this._facilityBreathingEntities = []
-    this._facilityBreathingAnimId = null
-    this._facilityBreathingAnimation = null
+    this._breathing = { entities: [], animId: null, frame: null }
+    this._facilityBreathing = { entities: [], animId: null, frame: null }
     this._geoJsonTokens = new Map()
     this._initViewer()
   }
@@ -986,48 +978,15 @@ export class CesiumRenderer extends MapRenderer {
 
   startBreathing(target: GeoPoint | GeoPoint[], color?: string): void {
     this.stopBreathing()
-    const viewer = this.viewer
-    if (!viewer) return
-    // 非有限坐标跳过（不落 (0,0) 哨兵——crs.ts 禁令）
-    const points = breathingPoints(target)
-    if (points.length === 0) return
-    const startTime = Date.now()
-    // 预解析呼吸灯基准色（缺省 LAYER_DEFAULTS.color = '#409eff'；设施 POI 呼吸传设施色）
-    const baseColor = Color.fromCssColorString(color || LAYER_DEFAULTS.color)
-    // 脉动参数取自 core/config/breathing（与 OL 侧同源；此前两个渲染器各逐行复制一份）
-    const pixelSizeProperty = new CallbackProperty(() => {
-      return breathingSize(elapsedSeconds(startTime))
-    }, false)
-    const colorProperty = new CallbackProperty(() => {
-      return baseColor.withAlpha(breathingAlpha(elapsedSeconds(startTime)))
-    }, false)
-    this._breathingEntities = points.map((p) =>
-      viewer.entities.add({
-        position: Cartesian3.fromDegrees(p.lng, p.lat),
-        point: {
-          pixelSize: pixelSizeProperty,
-          color: colorProperty,
-          outlineColor: Color.WHITE,
-          outlineWidth: 2,
-        },
-      })
-    )
-    this._breathingAnimation = () => {
-      if (this._breathingEntities.length > 0 && this.viewer) {
-        this.viewer.scene.requestRender()
-        this._breathingAnimId = requestAnimationFrame(
-          this._breathingAnimation as FrameRequestCallback
-        )
-      }
-    }
-    this._breathingAnimId = requestAnimationFrame(this._breathingAnimation as FrameRequestCallback)
+    // 单点定位（小区/受影响设施）不传色，取缺省主色
+    this.startBreathingEntities(this._breathing, target, color, false)
   }
 
   stopBreathing(): void {
-    this.disposeBreathingEntities(this._breathingAnimId, this._breathingEntities)
-    this._breathingAnimId = null
-    this._breathingEntities = []
-    this._breathingAnimation = null
+    this.disposeBreathingEntities(this._breathing)
+    this._breathing.animId = null
+    this._breathing.entities = []
+    this._breathing.frame = null
   }
 
   /**
@@ -1036,57 +995,74 @@ export class CesiumRenderer extends MapRenderer {
    */
   startFacilityBreathing(target: Array<GeoPoint & { color?: string }>, color?: string): void {
     this.stopFacilityBreathing()
+    this.startBreathingEntities(this._facilityBreathing, target, color, true)
+  }
+
+  stopFacilityBreathing(): void {
+    this.disposeBreathingEntities(this._facilityBreathing)
+    this._facilityBreathing.animId = null
+    this._facilityBreathing.entities = []
+    this._facilityBreathing.frame = null
+  }
+
+  /**
+   * 两路呼吸的共同骨架：viewer 守卫 → 非有限坐标剔除 → 建点实体 → rAF 帧循环。
+   * 唯一差异是取色口径（`perPoint`）：假则整层共用一个 color 属性（与原 startBreathing 同一对象），
+   * 真则逐点各建一个回调属性（闭包各自基准色），两者共享同一 startTime 相位。
+   */
+  private startBreathingEntities(
+    channel: BreathingChannel,
+    target: Array<GeoPoint & { color?: string }> | (GeoPoint & { color?: string }),
+    color: string | undefined,
+    perPoint: boolean
+  ): void {
     const viewer = this.viewer
     if (!viewer) return
+    // 非有限坐标跳过（不落 (0,0) 哨兵——crs.ts 禁令）
     const points = breathingPoints(target)
     if (points.length === 0) return
     const startTime = Date.now()
-    // 每点一个 color CallbackProperty（闭包各自基准色），共享 startTime 相位同步；
-    // pixelSize 全局共用一个（尺寸统一，无逐点差异）
-    // 脉动参数同上，取自 core/config/breathing（同屏节奏与小区呼吸一致，不打架）
+    // 脉动参数取自 core/config/breathing（与 OL 侧同源；此前两个渲染器各逐行复制一份）
     const pixelSizeProperty = new CallbackProperty(() => {
       return breathingSize(elapsedSeconds(startTime))
     }, false)
-    this._facilityBreathingEntities = points.map((p) => {
-      const pointColor = Color.fromCssColorString(p.color || color || LAYER_DEFAULTS.color)
-      const colorProperty = new CallbackProperty(() => {
-        return pointColor.withAlpha(breathingAlpha(elapsedSeconds(startTime)))
+    const pulseColor = (c: Color) =>
+      new CallbackProperty(() => {
+        return c.withAlpha(breathingAlpha(elapsedSeconds(startTime)))
       }, false)
-      return viewer.entities.add({
+    // 缺省 LAYER_DEFAULTS.color = '#409eff'；perPoint=false 时整层共用这一个属性
+    const sharedColorProperty = perPoint
+      ? null
+      : pulseColor(Color.fromCssColorString(color || LAYER_DEFAULTS.color))
+    channel.entities = points.map((p) =>
+      viewer.entities.add({
         position: Cartesian3.fromDegrees(p.lng, p.lat),
         point: {
           pixelSize: pixelSizeProperty,
-          color: colorProperty,
+          color:
+            sharedColorProperty ??
+            pulseColor(Color.fromCssColorString(p.color || color || LAYER_DEFAULTS.color)),
           outlineColor: Color.WHITE,
           outlineWidth: 2,
         },
       })
-    })
-    this._facilityBreathingAnimation = () => {
-      if (this._facilityBreathingEntities.length > 0 && this.viewer) {
+    )
+    channel.frame = () => {
+      if (channel.entities.length > 0 && this.viewer) {
         this.viewer.scene.requestRender()
-        this._facilityBreathingAnimId = requestAnimationFrame(
-          this._facilityBreathingAnimation as FrameRequestCallback
-        )
+        channel.animId = requestAnimationFrame(channel.frame as FrameRequestCallback)
       }
     }
-    this._facilityBreathingAnimId = requestAnimationFrame(
-      this._facilityBreathingAnimation as FrameRequestCallback
-    )
-  }
-
-  stopFacilityBreathing(): void {
-    this.disposeBreathingEntities(this._facilityBreathingAnimId, this._facilityBreathingEntities)
-    this._facilityBreathingAnimId = null
-    this._facilityBreathingEntities = []
-    this._facilityBreathingAnimation = null
+    channel.animId = requestAnimationFrame(channel.frame as FrameRequestCallback)
   }
 
   /** 呼吸动画清理共用体：先撤帧（真值才 cancel）再摘 entity；三字段归零由调用方负责 */
-  private disposeBreathingEntities(animId: number | null, entities: unknown[]): void {
-    if (animId) cancelAnimationFrame(animId)
+  private disposeBreathingEntities(channel: BreathingChannel): void {
+    if (channel.animId) cancelAnimationFrame(channel.animId)
     const viewer = this.viewer
-    if (viewer && entities.length > 0) entities.forEach((e) => viewer.entities.remove(e as Entity))
+    if (viewer && channel.entities.length > 0) {
+      channel.entities.forEach((e) => viewer.entities.remove(e as Entity))
+    }
   }
 
   // 水面方法委托至模块级函数（本文件下方）
@@ -1531,6 +1507,13 @@ export function addPolygonLayer(
     interactionHeavy: isHeavyPolygons(features), // z038②：相机移动期隐藏重图层
   })
   viewer.scene.requestRender()
+}
+
+/** 呼吸通道状态：默认呼吸（小区/定位）与设施 POI 呼吸各一条，同屏互不顶掉 */
+interface BreathingChannel {
+  entities: unknown[]
+  animId: number | null
+  frame: unknown | null
 }
 
 /**

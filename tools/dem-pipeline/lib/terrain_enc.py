@@ -32,6 +32,14 @@ def encode(heights: np.ndarray) -> np.ndarray:
     return np.clip((heights + ENC_OFFSET) * ENC_SCALE, 0, UINT16_MAX).astype("<u2")
 
 
+def derive_water_mask(encoded_heights: np.ndarray) -> int:
+    """waterMask：整瓦片全为 0 m（海洋/NoData）⇒ 0xFF，否则 0x00。
+
+    07 / 07c / 08 共用这一处；07c 曾硬编码 0，与 08 的 0xFF 互相覆盖。
+    """
+    return 0xFF if bool(np.all(encoded_heights == OCEAN_VALUE)) else 0x00
+
+
 def read_heights(path: Path) -> np.ndarray:
     """读 .terrain（gzip）→ SAMPLES×SAMPLES 高程（米，float64）；尾部 2B 掩膜不参与换算。"""
     raw = gzip.decompress(Path(path).read_bytes())

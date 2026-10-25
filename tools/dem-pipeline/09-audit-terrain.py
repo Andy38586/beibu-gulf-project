@@ -16,8 +16,14 @@ import json
 import sys
 from pathlib import Path
 
+import numpy as np
+
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
-from terrain_enc import RAW_BYTES  # noqa: E402
+from terrain_enc import RAW_BYTES, derive_water_mask  # noqa: E402
+
+# Windows 控制台/重定向默认 GBK，末尾 ✅/❌ 会 UnicodeEncodeError；统一 UTF-8 输出。
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
 
 
 def main() -> int:
@@ -36,16 +42,26 @@ def main() -> int:
 
     on_disk: set[tuple[int, int, int]] = set()
     bad_bytes: list[str] = []
+    bad_water: list[str] = []
     for p in root.rglob("*.terrain"):
         rel = p.relative_to(root).parts
         z, x, yfile = int(rel[0]), int(rel[1]), rel[2]
         y = int(yfile.split(".")[0])
         on_disk.add((z, x, y))
         try:
-            if len(gzip.decompress(p.read_bytes())) != RAW_BYTES:
-                bad_bytes.append(str(p.relative_to(root)))
+            raw = gzip.decompress(p.read_bytes())
         except Exception as exc:  # noqa: BLE001
             bad_bytes.append(f"{p.relative_to(root)} (解压失败 {exc})")
+            continue
+        if len(raw) != RAW_BYTES:
+            bad_bytes.append(str(p.relative_to(root)))
+            continue
+        heights = np.frombuffer(raw[:-2], dtype="<u2")
+        expected = derive_water_mask(heights)
+        if raw[-1] != expected:
+            bad_water.append(
+                f"{p.relative_to(root)} waterMask=0x{raw[-1]:02x} 期望 0x{expected:02x}"
+            )
 
     missing = sorted(declared - on_disk)
     extra = sorted(on_disk - declared)
@@ -65,8 +81,14 @@ def main() -> int:
         print(f"\n[损坏] 字节长度/解压异常（{len(bad_bytes)}）：")
         for b in bad_bytes[:50]:
             print("  ", b)
+    if bad_water:
+        print(f"\n[waterMask] 与单源派生不一致（{len(bad_water)}）：")
+        for b in bad_water[:50]:
+            print("  ", b)
+        if len(bad_water) > 50:
+            print("   ... 其余", len(bad_water) - 50, "张")
 
-    ok = not missing and not extra and not bad_bytes
+    ok = not missing and not extra and not bad_bytes and not bad_water
     print("\n结果：", "PASS ✅ 声明与磁盘完全一致" if ok else "FAIL ❌ 见上")
     return 0 if ok else 1
 

@@ -25,7 +25,7 @@ from rasterio.vrt import WarpedVRT
 from rasterio.windows import from_bounds
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
-from terrain_enc import SAMPLES, encode  # noqa: E402
+from terrain_enc import SAMPLES, derive_water_mask, encode  # noqa: E402
 
 REPO = Path(__file__).resolve().parents[2]
 TERRAIN = REPO / "backend/static/terrain"
@@ -41,6 +41,17 @@ def tb(z, x, y):
     cols, rows = 2 ** (z + 1), 2 ** z
     return (-180.0 + x * 360.0 / cols, 90.0 - (y + 1) * 180.0 / rows,
             -180.0 + (x + 1) * 360.0 / cols, 90.0 - y * 180.0 / rows)
+
+
+def build_payload(encoded: np.ndarray, child_mask: int) -> bytes:
+    """heightmap-1.0 瓦片 payload：heights + 1B childTileMask + 1B waterMask。
+
+    waterMask 口径须与 07/08 同源（lib/terrain_enc.py）；07c 曾在此硬编码 0，
+    与 08 的 0xFF 互相覆盖，形成执行顺序相关的数据竞态。
+    """
+    return gzip.compress(
+        encoded.tobytes() + bytes([child_mask]) + bytes([derive_water_mask(encoded)]), mtime=0
+    )
 
 
 def main():
@@ -141,7 +152,7 @@ def main():
             if (z + 1, cx, cy) in have:
                 mask |= 1 << bit
         # mtime=0：gzip 头不带当前时间 ⇒ 同内容同字节（与 08 同款确定性约定）
-        payload = gzip.compress(enc.tobytes() + bytes([mask]) + bytes([0]), mtime=0)
+        payload = build_payload(enc, mask)
         out = TERRAIN / str(z) / str(x) / ("%d.terrain" % y)
         old = out.read_bytes() if out.exists() else b""
         if old != payload:

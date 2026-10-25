@@ -25,7 +25,7 @@ from pathlib import Path
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
-from terrain_enc import OCEAN_VALUE, RAW_BYTES, SAMPLES  # noqa: E402
+from terrain_enc import OCEAN_VALUE, RAW_BYTES, SAMPLES, derive_water_mask  # noqa: E402
 # 目标瓦片：(z,x,y, 是否纯海洋)。顺序：先补子瓦片 1/3/1，再合成其父 0/1/0
 TARGETS = [(1, 3, 1, True), (0, 0, 0, True), (0, 1, 0, False)]
 
@@ -116,7 +116,7 @@ def main() -> int:
             blob = ocean_tile(root, z, x, y)
         else:
             heights = aggregate_from_children(root, z, x, y)
-            water_mask = 0xFF if bool(np.all(heights == OCEAN_VALUE)) else 0x00
+            water_mask = derive_water_mask(heights)
             blob = encode_tile(heights, child_mask_from_disk(root, z, x, y), water_mask)
         out.write_bytes(blob)
         # 回读自检

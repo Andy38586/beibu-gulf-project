@@ -43,6 +43,11 @@ FORBIDDEN_INT = {65, 5000, 65535, 8452}
 FORBIDDEN_FLOAT = {1000.0}
 ENCODING_FACTORS = {5.0, 1000.0}  # ENC_SCALE / ENC_OFFSET 的值面
 LIB_NAMES = {"SAMPLES", "ENC_OFFSET", "ENC_SCALE", "UINT16_MAX", "OCEAN_VALUE", "RAW_BYTES"}
+WATER_MASK_STATIONS = {
+    "tools/dem-pipeline/07-heightmap-reslice.py",
+    "tools/dem-pipeline/07c-patch-terrain.py",
+    "tools/dem-pipeline/08-backfill-root-tiles.py",
+}
 
 
 def _tree(rel: str) -> tuple[ast.Module, str]:
@@ -101,6 +106,8 @@ def test_stations_import_single_source():
             missing.append(f"{rel}: 未从 terrain_enc 导入任何名字")
         elif not has_path:
             missing.append(f"{rel}: 导入了 {sorted(names)} 但 sys.path 未指向 lib")
+        elif rel in WATER_MASK_STATIONS and "derive_water_mask" not in names:
+            missing.append(f"{rel}: 未导入 derive_water_mask（waterMask 口径未接单一源）")
     assert not missing, "共享实现被停用（import 摘掉或 sys.path 缺失）：\n" + "\n".join(missing)
 
 
@@ -136,6 +143,22 @@ def test_read_heights_round_trip(tmp_path: Path):
     assert got.shape == (te.SAMPLES, te.SAMPLES)
     # 期望 = encode 的投影（量化到 1/ENC_SCALE 米），不是原值本身
     assert np.allclose(got, te.encode(src).astype(np.float64) / te.ENC_SCALE - te.ENC_OFFSET)
+
+
+def test_07c_water_mask_all_ocean_and_land():
+    """07c 写入的 waterMask 必须与 07/08 同口径：全海洋 0xFF、全陆地 0x00。"""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "patch_terrain", ROOT / "tools/dem-pipeline/07c-patch-terrain.py"
+    )
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+
+    ocean = te.encode(np.zeros((te.SAMPLES, te.SAMPLES)))
+    land = te.encode(np.full((te.SAMPLES, te.SAMPLES), 12.0))
+    assert gzip.decompress(mod.build_payload(ocean, 0))[-1] == 0xFF
+    assert gzip.decompress(mod.build_payload(land, 0))[-1] == 0x00
 
 
 def test_payload_layout_is_heights_plus_two_masks(tmp_path: Path):

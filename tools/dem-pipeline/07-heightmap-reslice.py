@@ -27,7 +27,7 @@ from rasterio.vrt import WarpedVRT
 from rasterio.windows import from_bounds
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
-from terrain_enc import SAMPLES, encode  # noqa: E402
+from terrain_enc import SAMPLES, derive_water_mask, encode  # noqa: E402
 
 REPO = Path(__file__).resolve().parents[2]
 # 2026-10-04 路径修订：原两个默认路径（dem/ 下的 dem_4326_cut.tif 与 filled_utm48n_cut.tif）
@@ -139,7 +139,7 @@ def main() -> None:
             payload = gzip.compress(
                 encoded.tobytes()
                 + bytes([mask])
-                + bytes([0xFF if bool((heights == 0).all()) else 0x00]),
+                + bytes([derive_water_mask(encoded)]),
                 mtime=0,  # 产物确定性，便于 diff/校验（与 07c/08 同款约定）
             )
             out = TERRAIN_DIR / str(z) / str(x) / f"{y}.terrain"

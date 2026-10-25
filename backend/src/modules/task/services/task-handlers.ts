@@ -1,9 +1,7 @@
 import { Injectable } from '@nestjs/common'
 
-import { parseConfidence } from '../../../common/constants/forecast.constants'
 import { BusinessError, ErrorCode } from '../../../common/errors/business-error'
 import { FloodService } from '../../flood/services/flood.service'
-import { ForecastService } from '../../forecast/services/forecast.service'
 import { RouteService } from '../../route/services/route.service'
 import { readRouteCoords } from '../../route/utils/route-params'
 import { parseSuitabilityQuery } from '../../site-suitability/dto/site-suitability.dto'
@@ -33,7 +31,6 @@ export class TaskHandlers {
   constructor(
     private readonly floodService: FloodService,
     private readonly routeService: RouteService,
-    private readonly forecastService: ForecastService,
     private readonly siteSuitabilityService: SiteSuitabilityService
   ) {}
 
@@ -53,40 +50,6 @@ export class TaskHandlers {
         ...readRouteCoords(params),
         mode: typeof params.mode === 'string' ? params.mode : undefined,
       })
-    },
-
-    // 预测时序：GET /forecast/timeseries 的异步化。
-    // 参数顺序逐字对齐 forecast.controller:55-62（indicator 为必填，其余可选）
-    'forecast-timeseries': async (params) => {
-      const indicator = params.indicator
-      if (typeof indicator !== 'string' || indicator === '') {
-        throw new BusinessError(ErrorCode.INVALID_PARAMS, '缺少或非法的参数：indicator')
-      }
-      const optional = (key: string): string | undefined =>
-        typeof params[key] === 'string' ? (params[key] as string) : undefined
-      return this.forecastService.getTimeSeriesData(
-        indicator,
-        optional('portId'),
-        optional('start'),
-        optional('end'),
-        optional('granularity'),
-        // F3：与同步 controller 共用唯一解析口（含 MAX_CONFIDENCE 上限钳制）
-        parseConfidence(params.confidence)
-      )
-    },
-
-    // 预测热力图：GET /forecast/map 的异步化（v4-S3 补入）。
-    // 参数逐字对齐 forecast.controller:34-45（indicator/time 必填，confidence 可选）
-    'forecast-map': async (params) => {
-      const indicator = params.indicator
-      const time = params.time
-      if (typeof indicator !== 'string' || indicator === '') {
-        throw new BusinessError(ErrorCode.INVALID_PARAMS, '缺少或非法的参数：indicator')
-      }
-      if (typeof time !== 'string' || time === '') {
-        throw new BusinessError(ErrorCode.INVALID_PARAMS, '缺少或非法的参数：time')
-      }
-      return this.forecastService.getMapData(indicator, time, parseConfidence(params.confidence))
     },
 
     // 选址热力图：GET /site-suitability/map 的异步化（方案 A「慢请求自动提议转后台」，2026-10-02）。

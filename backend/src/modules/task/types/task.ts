@@ -47,13 +47,7 @@ export type TaskPriority = 'high' | 'normal'
  * `HTTP_TASK_DOMAINS` 亦由本数组派生。此前枚举与 DTO 白名单各写一份且不一致，
  * 导致 forecast-map 任务恒 400（热力图永久无数据）。
  */
-export const TASK_DOMAINS = [
-  'flood-areas',
-  'route-path',
-  'forecast-timeseries',
-  'forecast-map',
-  'site-suitability-map',
-] as const
+export const TASK_DOMAINS = ['flood-areas', 'route-path', 'site-suitability-map'] as const
 
 export type TaskDomain = (typeof TASK_DOMAINS)[number]
 

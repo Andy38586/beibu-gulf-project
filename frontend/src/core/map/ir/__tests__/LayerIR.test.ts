@@ -111,12 +111,12 @@ describe('taskResultToIR（结构判定，L3 不引业务类型）', () => {
     expect(ir!.data.features[0].geometry).toMatchObject({ type: 'LineString' })
   })
 
-  it('不可渲染域（forecast-timeseries）→ null：不支持就不出手柄', () => {
+  it('不可渲染域（site-suitability-map）→ null：不支持就不出手柄', () => {
     expect(
       taskResultToIR({
         taskId: 't1',
-        route: '/forecast',
-        domain: 'forecast-timeseries',
+        route: '/site-suitability',
+        domain: 'site-suitability-map',
         result: { series: [] },
       })
     ).toBeNull()

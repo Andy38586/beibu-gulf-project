@@ -47,11 +47,11 @@ describe('TaskService 失败下发语义', () => {
     process.env.NODE_ENV = 'production'
     try {
       const service = makeService(async () => {
-        throw new BusinessError(ErrorCode.INVALID_PARAMS, '缺少或非法的参数：indicator')
+        throw new BusinessError(ErrorCode.INVALID_PARAMS, '缺少或非法的参数：fromLng')
       })
       const { taskId } = service.submit({
-        domain: 'forecast-timeseries',
-        route: '/forecast',
+        domain: 'route-path',
+        route: '/route-analysis',
         ownerId: ANONYMOUS_OWNER,
         priority: 'normal',
         params: {},
@@ -59,7 +59,7 @@ describe('TaskService 失败下发语义', () => {
       await new Promise((r) => setTimeout(r, SETTLE_MS))
       const view = service.get(taskId, ANONYMOUS_OWNER)
       expect(view.status).toBe('failed')
-      expect(view.error?.message).toBe('缺少或非法的参数：indicator')
+      expect(view.error?.message).toBe('缺少或非法的参数：fromLng')
       expect(view.error?.bizCode).toBe(400001)
     } finally {
       process.env.NODE_ENV = prev
@@ -76,8 +76,8 @@ describe('TaskService 失败下发语义', () => {
         throw new BusinessError(ErrorCode.INVALID_PARAMS, injected)
       })
       const { taskId } = service.submit({
-        domain: 'forecast-timeseries',
-        route: '/forecast',
+        domain: 'route-path',
+        route: '/route-analysis',
         ownerId: ANONYMOUS_OWNER,
         priority: 'normal',
         params: {},

@@ -27,13 +27,7 @@ export type TaskStatus = (typeof TASK_STATUSES)[number]
 export type TaskPriority = 'high' | 'normal'
 
 /** 可提交的任务域（与后端 TaskHandlers 支持的域一致，多一个都会被 400 拒绝） */
-export const TASK_DOMAINS = [
-  'flood-areas',
-  'route-path',
-  'forecast-timeseries',
-  'forecast-map',
-  'site-suitability-map',
-] as const
+export const TASK_DOMAINS = ['flood-areas', 'route-path', 'site-suitability-map'] as const
 
 export type TaskDomain = (typeof TASK_DOMAINS)[number]
 

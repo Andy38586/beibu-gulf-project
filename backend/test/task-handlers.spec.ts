@@ -17,16 +17,14 @@ import { TASK_DOMAINS } from '../src/modules/task/types/task'
 function build() {
   const floodService = { getFloodAreas: vi.fn().mockResolvedValue({ features: [] }) }
   const routeService = { findPath: vi.fn().mockResolvedValue({ found: true }) }
-  const forecastService = { getTimeSeriesData: vi.fn().mockResolvedValue({ series: [] }) }
   const siteSuitabilityService = { compute: vi.fn().mockResolvedValue({ features: [] }) }
 
   const handlers = new TaskHandlers(
     floodService as never,
     routeService as never,
-    forecastService as never,
     siteSuitabilityService as never
   )
-  return { handlers, floodService, routeService, forecastService, siteSuitabilityService }
+  return { handlers, floodService, routeService, siteSuitabilityService }
 }
 
 describe('TaskHandlers 委托接线', () => {
@@ -131,60 +129,6 @@ describe('TaskHandlers 委托接线', () => {
       })
       expect(routeService.findPath).toHaveBeenCalledWith(
         expect.objectContaining({ mode: undefined })
-      )
-    })
-  })
-
-  describe('forecast-timeseries', () => {
-    it('🔴 按 getTimeSeriesData(indicator, portId, start, end, granularity, confidence) 的位置传参', async () => {
-      const { handlers, forecastService } = build()
-      await handlers.get('forecast-timeseries')({
-        indicator: 'cargo',
-        portId: 'P01',
-        start: '2020-01',
-        end: '2025-12',
-        granularity: 'year',
-        confidence: 0.9,
-      })
-      expect(forecastService.getTimeSeriesData).toHaveBeenCalledWith(
-        'cargo',
-        'P01',
-        '2020-01',
-        '2025-12',
-        'year',
-        0.9
-      )
-    })
-
-    it('可选参数缺省传 undefined；confidence 缺省为 1.0', async () => {
-      const { handlers, forecastService } = build()
-      await handlers.get('forecast-timeseries')({ indicator: 'container' })
-      expect(forecastService.getTimeSeriesData).toHaveBeenCalledWith(
-        'container',
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        1.0
-      )
-    })
-
-    it('缺 indicator ⇒ BusinessError', async () => {
-      const { handlers, forecastService } = build()
-      await expect(handlers.get('forecast-timeseries')({})).rejects.toThrow(/indicator/)
-      expect(forecastService.getTimeSeriesData).not.toHaveBeenCalled()
-    })
-
-    it('confidence 非法值回落 1.0（不把 NaN 传进 service）', async () => {
-      const { handlers, forecastService } = build()
-      await handlers.get('forecast-timeseries')({ indicator: 'cargo', confidence: 'abc' })
-      expect(forecastService.getTimeSeriesData).toHaveBeenCalledWith(
-        'cargo',
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        1.0
       )
     })
   })

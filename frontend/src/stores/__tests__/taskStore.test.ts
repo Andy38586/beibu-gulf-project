@@ -139,7 +139,7 @@ describe('useTaskStore', () => {
         envelope({ taskId: 't-y', status: 'pending', queuePosition: 1, createdAtMs: 2 })
       )
       // 后台路由（不是当前路由）
-      await store.submit({ route: '/forecast', domain: 'forecast-timeseries', params: {} })
+      await store.submit({ route: '/site-suitability', domain: 'site-suitability-map', params: {} })
       const secondBody = JSON.parse(String(mockFetch.mock.calls[0][1].body))
       expect(secondBody.priority).toBe('normal')
 
@@ -153,10 +153,10 @@ describe('useTaskStore', () => {
 
       // store 由 beforeEach 提供
       await store.submit({ route: '/flood-analysis', domain: 'flood-areas', params: {} })
-      await store.submit({ route: '/forecast', domain: 'forecast-timeseries', params: {} })
+      await store.submit({ route: '/site-suitability', domain: 'site-suitability-map', params: {} })
 
       expect(store.getSlot('/flood-analysis')).not.toBeNull()
-      expect(store.getSlot('/forecast')).not.toBeNull()
+      expect(store.getSlot('/site-suitability')).not.toBeNull()
       expect(store.getSlot('/route-analysis')).toBeNull()
       expect(Object.keys(store.slots)).toHaveLength(2)
 
@@ -452,7 +452,7 @@ describe('useTaskStore', () => {
       )
       // store 由 beforeEach 提供
       await store.submit({ route: '/flood-analysis', domain: 'flood-areas', params: {} })
-      await store.submit({ route: '/forecast', domain: 'forecast-timeseries', params: {} })
+      await store.submit({ route: '/site-suitability', domain: 'site-suitability-map', params: {} })
       expect(Object.keys(store.slots).length).toBe(2)
 
       store.clearAll()

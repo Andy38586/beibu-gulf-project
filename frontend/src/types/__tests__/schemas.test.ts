@@ -243,7 +243,9 @@ describe('task 通道响应契约（useTaskApi 三点运行期校验共用同一
       false
     )
     expect(taskViewResponseSchema.safeParse({ ...view, status: 'finished' }).success).toBe(false)
-    expect(taskViewResponseSchema.safeParse({ ...view, domain: 'forecast-map' }).success).toBe(true)
+    expect(
+      taskViewResponseSchema.safeParse({ ...view, domain: 'site-suitability-map' }).success
+    ).toBe(true)
   })
 })
 

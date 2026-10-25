@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
 import {
   FALLBACK_CONFIDENCE,
@@ -7,7 +7,6 @@ import {
 } from '../src/common/constants/forecast.constants'
 import { computeForecast } from '../src/modules/forecast/services/forecast-engine'
 import type { HistoricalPoint } from '../src/modules/forecast/services/forecast-engine'
-import { TaskHandlers } from '../src/modules/task/services/task-handlers'
 
 /**
  * F3（2026-10-05）confidence 上限钳制单源收口回归。
@@ -40,31 +39,5 @@ describe('F3 confidence 上限钳制（单源 parseConfidence）', () => {
     expect(huge.forecast.length).toBeGreaterThan(0)
     expect(huge.forecast.every((p) => Number.isFinite(p.value))).toBe(true)
     expect(huge.forecast).toEqual(capped.forecast)
-  })
-
-  it('🔴 异步 handler 与同步 controller 同口径：1e9 也钳到 MAX（修前裸传 1e9）', async () => {
-    const forecastService = {
-      getTimeSeriesData: vi.fn().mockResolvedValue({ series: [] }),
-      getMapData: vi.fn().mockResolvedValue({ features: [] }),
-    }
-    const handlers = new TaskHandlers(
-      {} as never,
-      {} as never,
-      forecastService as never,
-      {} as never
-    )
-
-    await handlers.get('forecast-map')({ indicator: 'cargo', time: '2026-10', confidence: 1e9 })
-    expect(forecastService.getMapData).toHaveBeenCalledWith('cargo', '2026-10', MAX_CONFIDENCE)
-
-    await handlers.get('forecast-timeseries')({ indicator: 'cargo', confidence: '1e9' })
-    expect(forecastService.getTimeSeriesData).toHaveBeenCalledWith(
-      'cargo',
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      MAX_CONFIDENCE
-    )
   })
 })

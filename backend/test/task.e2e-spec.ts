@@ -283,8 +283,8 @@ describe('v4 异步任务域（/nest-api/task）', () => {
       })
     )
     stub(
-      'forecast-timeseries',
-      tracked('forecast-timeseries', async () => {
+      'site-suitability-map',
+      tracked('site-suitability-map', async () => {
         await settle(120)
         return { forecast: true }
       })
@@ -295,7 +295,7 @@ describe('v4 异步任务域（/nest-api/task）', () => {
     const submissions: Array<[string, string]> = [
       ['route-path', '/route-analysis'],
       ['flood-areas', '/flood-analysis'],
-      ['forecast-timeseries', '/forecast'],
+      ['site-suitability-map', '/site-suitability'],
     ]
     const ids: string[] = []
     for (const [domain, route] of submissions) {
@@ -336,8 +336,8 @@ describe('v4 异步任务域（/nest-api/task）', () => {
       tracked('flood-areas', async () => ({ normal: true }))
     )
     stub(
-      'forecast-timeseries',
-      tracked('forecast-timeseries', async () => ({ high: true }))
+      'site-suitability-map',
+      tracked('site-suitability-map', async () => ({ high: true }))
     )
 
     const leader = await submit({ domain: 'route-path', route: '/route-analysis', params: {} })
@@ -351,8 +351,8 @@ describe('v4 异步任务域（/nest-api/task）', () => {
       params: {},
     }).expect(200)
     const high = await submit({
-      domain: 'forecast-timeseries',
-      route: '/forecast',
+      domain: 'site-suitability-map',
+      route: '/site-suitability',
       priority: 'high',
       params: {},
     }).expect(200)
@@ -365,14 +365,14 @@ describe('v4 异步任务域（/nest-api/task）', () => {
 
   it('V6 自动重试：连续失败 3 次后判 failed（handler 共被调用 4 次）', async () => {
     let calls = 0
-    stub('forecast-timeseries', async () => {
+    stub('site-suitability-map', async () => {
       calls++
       throw new Error('模拟下游故障')
     })
 
     const res = await submit({
-      domain: 'forecast-timeseries',
-      route: '/forecast',
+      domain: 'site-suitability-map',
+      route: '/site-suitability',
       params: {},
     }).expect(200)
 

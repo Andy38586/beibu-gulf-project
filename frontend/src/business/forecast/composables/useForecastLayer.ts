@@ -89,16 +89,22 @@ export function useForecastLayer(): UseForecastLayerReturn {
         }
       }
 
-      // 指标切换时更新图层可见性：old 隐藏；new 尊重 registry——
-      // 用户手动隐藏过的层（renderer 已有实例）不强制重开，仅首次激活（无实例）自动显示
-      if (oldInd && oldInd !== newInd) {
-        const oldKey = forecastLayerId(oldInd)
-        if (manager.has(oldKey)) manager.setVisible(oldKey, false)
-      }
-      const newKey = forecastLayerId(newInd)
-      if (manager.has(newKey)) {
-        const renderedBefore = r.hasLayer?.(newKey) ?? false
-        if (!renderedBefore) manager.setVisible(newKey, true)
+      // 可见性只在**指标真的切换**时调整；引擎切换（oldInd === newInd）一律不动 ——
+      // registry.visible 是用户意图，实例由 reapplyAll 按该意图重建。
+      // 旧实现拿「新渲染器上有没有实例」当「用户是否隐藏过」的代理：引擎切换后实例必然不在，
+      // 于是被用户关掉的层会被这里误开（D6 复现用例坐实 —— 2D↔3D 切一次，关掉的层自己回来了）。
+      if (oldInd !== newInd) {
+        if (oldInd) {
+          const oldKey = forecastLayerId(oldInd)
+          if (manager.has(oldKey)) manager.setVisible(oldKey, false)
+        }
+        // 指标切换时 new 尊重 registry——用户手动隐藏过的层（renderer 已有实例）不强制重开，
+        // 仅首次激活（无实例）自动显示
+        const newKey = forecastLayerId(newInd)
+        if (manager.has(newKey)) {
+          const renderedBefore = r.hasLayer?.(newKey) ?? false
+          if (!renderedBefore) manager.setVisible(newKey, true)
+        }
       }
     },
     { immediate: true }

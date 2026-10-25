@@ -10,14 +10,11 @@
 const fs = require('fs')
 const path = require('path')
 const { ROOT, launchPage } = require('./lib/browser.cjs')
+const { arg } = require('../lib/cli-args.mjs')
 
 const OUT = path.join(ROOT, '.local', '3d-review')
 fs.mkdirSync(OUT, { recursive: true })
 
-const arg = (n, d) => {
-  const i = process.argv.indexOf('--' + n)
-  return i > -1 ? process.argv[i + 1] : d
-}
 const URL_ = arg('url', 'http://127.0.0.1:5174/route-analysis')
 const FLY = arg('fly', '108.6473,21.6745,1200,0,-35')
 const WAIT = Number(arg('wait', 30000))

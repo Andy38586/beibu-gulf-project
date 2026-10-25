@@ -25,6 +25,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 
+import { arg } from '../lib/cli-args.mjs'
 import { accessor, readGLB } from '../lib/glb.mjs'
 
 export const REF_MATS = new Set(['rail', 'concrete', 'opaque'])
@@ -130,10 +131,6 @@ export function buildGroundRef({
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const arg = (k, d) => {
-    const i = process.argv.indexOf('--' + k)
-    return i > -1 ? process.argv[i + 1] : d
-  }
   const ref = buildGroundRef({ tileDir: arg('tile-dir', TILE_DIR) })
   console.log(
     '参考地面：瓦片 %d ｜ 顶点 %d（%s）｜ %d m 格 %d 格 ｜ 半径 %d m',

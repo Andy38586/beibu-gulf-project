@@ -18,11 +18,7 @@
 const fs = require('fs')
 const path = require('path')
 const { ROOT, launchPage } = require('./lib/browser.cjs')
-
-const arg = (n, d) => {
-  const i = process.argv.indexOf('--' + n)
-  return i > -1 ? process.argv[i + 1] : d
-}
+const { arg } = require('../lib/cli-args.mjs')
 const OUTDIR = path.join(ROOT, '.local', '3d-review')
 fs.mkdirSync(OUTDIR, { recursive: true })
 

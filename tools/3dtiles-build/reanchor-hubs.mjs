@@ -25,6 +25,8 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
+
+import { arg } from '../lib/cli-args.mjs'
 import { ecefToGeo as ecefToLlh, geoToEcef as geocentric } from '../lib/geo.mjs'
 
 const TILESET = 'backend/static/pinglu/tiles/tileset.json'
@@ -175,11 +177,6 @@ export function computeNew(ROOT, OLD, spec) {
   NEW[1][3] += dN
   NEW[2][3] += dH
   return NEW
-}
-
-function arg(k, d) {
-  const i = process.argv.indexOf('--' + k)
-  return i > -1 ? process.argv[i + 1] : d
 }
 
 function main() {

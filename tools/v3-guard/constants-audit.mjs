@@ -139,25 +139,51 @@ function normalizeMaxLevel(raw) {
 }
 
 /**
+ * 分档表**方言表**（F70 收口）：TS 与 PY 两份解析此前各写一遍，骨架（取块 → 逐条目 →
+ * 阈值归一 → 同一输出结构）逐行相同，差异只有两处**语法**：
+ * - 块边界：TS 以 `] as const` 收尾、常量名由调用方给；PY 无 `as const`、常量名固定 `RISK_BANDS`，
+ *   块尾是行首的 `]`（前面的 `\n` 保证不把条目里的 `]` 当块尾）。
+ * - 条目形状：TS `{ maxLevel: 0, label: '无风险' }`（单引号）/ PY `(0, "无风险")`（双引号）。
+ *
+ * 故只把方言放进表里，解析骨架留一份 —— 加第三种语言（如 Go 生成侧）只需加一行方言，
+ * 不会出现「两份骨架各自漂移、其中一份漏改阈值归一」的老形态。
+ */
+const RISK_BAND_DIALECTS = {
+  ts: {
+    blockRe: (name) => new RegExp(`export const ${name}\\s*=\\s*\\[([\\s\\S]*?)\\]\\s*as const`),
+    itemRe: /\{\s*maxLevel:\s*([^,]+?)\s*,\s*label:\s*'([^']*)'\s*\}/g,
+  },
+  py: {
+    blockRe: (name) => new RegExp(`^${name}\\s*=\\s*\\[([\\s\\S]*?)\\n\\]`, 'm'),
+    itemRe: /\(\s*([^,]+?)\s*,\s*"([^"]*)"\s*\)/g,
+  },
+}
+
+/**
+ * 分档表解析骨架（唯一定义）：按方言取块 → 逐条目取 (maxLevel, label) → 阈值归一。
+ * `matchAll` 不消费传入正则的 lastIndex（内部克隆），故方言表里的 /g 正则可安全复用。
+ */
+function parseRiskBandsByDialect(content, dialect, name) {
+  const block = content.match(dialect.blockRe(name))
+  if (!block) return null
+  return [...block[1].matchAll(dialect.itemRe)].map((m) => ({
+    maxLevel: normalizeMaxLevel(m[1]),
+    label: m[2],
+  }))
+}
+
+/**
  * 从 `export const NAME = [ { maxLevel, label } … ] as const` 解析风险分档表。
  * 分档表是前后端各自手写的同源副本：类型系统够不着、改一侧不报错，
  * 而档位数或阈值错一处就会让展示域整段低报/高报一级，故必须逐档对账。
  */
 export function parseRiskBands(content, name) {
-  const block = content.match(
-    new RegExp(`export const ${name}\\s*=\\s*\\[([\\s\\S]*?)\\]\\s*as const`)
-  )
-  if (!block) return null
-  const items = [...block[1].matchAll(/\{\s*maxLevel:\s*([^,]+?)\s*,\s*label:\s*'([^']*)'\s*\}/g)]
-  return items.map((m) => ({ maxLevel: normalizeMaxLevel(m[1]), label: m[2] }))
+  return parseRiskBandsByDialect(content, RISK_BAND_DIALECTS.ts, name)
 }
 
 /** 从 Python `RISK_BANDS = [ (0, "无风险"), … ]` 解析分档（跨语言手抄副本） */
 export function parsePyRiskBands(content) {
-  const block = content.match(/^RISK_BANDS\s*=\s*\[([\s\S]*?)\n\]/m)
-  if (!block) return null
-  const items = [...block[1].matchAll(/\(\s*([^,]+?)\s*,\s*"([^"]*)"\s*\)/g)]
-  return items.map((m) => ({ maxLevel: normalizeMaxLevel(m[1]), label: m[2] }))
+  return parseRiskBandsByDialect(content, RISK_BAND_DIALECTS.py, 'RISK_BANDS')
 }
 
 /** 从 Python `RISK_CODE = { "无风险": 0, … }` 解析「标签 → 码」 */

@@ -412,54 +412,52 @@ function processPort(portId, historical) {
   )
 
   const lastTime = historical[historical.length - 1].time
-  let predictions
-  let backtest
 
-  /** 线性胜者：保留原实现（组合分支缺件时的诚实降级路径） */
-  function linearWinner() {
-    const allModel = buildModel(historical)
-    if (!allModel) return null
-
-    const preds = []
-    const forecastStartIdx = allModel.n
-    let cursor = nextMonth(lastTime)
-
-    function addPrediction(timeStr) {
-      const month = extractMonth(timeStr)
-      const timeIndex = forecastStartIdx + preds.length // 顺序生成，relIdx 递增
-      const trendVal = predictTrend(allModel, timeIndex)
-      const correctedTrend = trendVal * correctionFactor
-      const value = correctedTrend * allModel.seasonalIndices[month]
-
-      // 区间宽度：来自滚动回测的分步长真实误差；超出回测步长后按 sqrt 外推放大
-      // relIdx 用月差（与 ETS/朴素/组合同口径）；顺序序号在半年点错位（2027-06 会误取 step7）
-      const relIdx = monthIndex(timeStr) - monthIndex(lastTime)
-      preds.push(
-        forecastPoint(
-          timeStr,
-          value,
-          linH.intervalOffsets,
-          linH.mapeByStep,
-          linH.overallMape,
-          relIdx
-        )
-      )
-    }
-
-    // 2026-07 ~ 2026-12 逐月
-    while (cursor <= '2026-12') {
-      addPrediction(cursor)
-      cursor = nextMonth(cursor)
-    }
-    // 2027-2035 半年点（06/12）
-    for (let year = 2027; year <= 2035; year++) {
-      addPrediction(`${year}-06`)
-      addPrediction(`${year}-12`)
-    }
-
+  /**
+   * 候选胜者的回测对象（F81 收口）：ETS / 季节朴素 / 组合三条路径的字段逐字同构，
+   * 唯一差异是 `selected_model`。此前三处各写一份 11 行字面量 —— 加一个产物字段要改三处，
+   * 漏一处就是「产物字段对某个胜者静默缺失」（下游只看到 undefined）。
+   *
+   * 线性胜者**不**走这里：它多三项一次切分口径（validation_overall_mape / bias /
+   * correction_factor），且 mape/samples 取自 legacy `rollingBacktest`（基线数字不因升级漂移），
+   * 属于「自带口径」而非「同构副本」。
+   */
+  function candidateBacktest(selectedModel, harness) {
     return {
-      predictions: preds,
-      backtest: {
+      selected_model: selectedModel,
+      rolling_mape_by_step: harness.mapeByStep,
+      rolling_samples_by_step: harness.samplesByStep,
+      rolling_picp_by_step: harness.picpByStep,
+      overall_picp: harness.overallPicp,
+      interval_offsets: harness.intervalOffsets,
+      // 线性专有口径（一次切分验证 / 偏差校正）不适用于候选路径——置 null 不伪造（04-B7）
+      validation_overall_mape: null,
+      bias: null,
+      correction_factor: null,
+    }
+  }
+
+  /**
+   * 胜者分支表（F82）：四个分支的差异只有四件事 ——
+   *   ① `fit`：全量重拟合用哪个模型（线性趋势 / ETS / 季节朴素 / 三成员组合）；
+   *   ② `predict`：给定拟合件与目标月产出点值（线性还要序列序号 i —— 趋势按步数外推）；
+   *   ③ `harness`：区间构造取哪份同协议回测（分步长 MAPE / 覆盖率 / 区间偏移）；
+   *   ④ `onFitFail`：拟合缺件时 `abort`（返回 null）还是 `linear`（诚实降级）。
+   * 其余三件（目标时点序列 futureTargets、forecastPoint 构造、relIdx = 月差）四个分支完全同源。
+   * 此前是四段 30~80 行的平行分支：加第 5 个候选要重抄一遍，且「只在一条分支里改口径」无人拦。
+   *
+   * 线性回测口径**混源**（基线数字不得因升级漂移）：mape/samples 取 legacy `rollingBacktest`，
+   * picp/interval 取同协议 harness `linH` —— 这是既有事实，不是笔误，故 linear 自带 backtest 构造。
+   */
+  const WINNER_BRANCHES = {
+    linear: {
+      fit: () => buildModel(historical),
+      predict: (model, t, i) =>
+        predictTrend(model, model.n + i) *
+        correctionFactor *
+        model.seasonalIndices[extractMonth(t)],
+      harness: linH,
+      backtest: () => ({
         selected_model: 'linear',
         validation_overall_mape: Math.round(overallMAPE * 100) / 100,
         validation_months: testPreds.length,
@@ -470,124 +468,87 @@ function processPort(portId, historical) {
         interval_offsets: linH.intervalOffsets,
         bias,
         correction_factor: Math.round(correctionFactor * 10000) / 10000,
-      },
+      }),
+      onFitFail: 'abort',
+    },
+    ets: {
+      // 修正空间全量拟合 → 预测 → 春节逆变换（候选口径全在 forecastEtsCandidate 内）
+      fit: () => fullEts,
+      predict: (model, t) => forecastEtsCandidate(model, t),
+      harness: etsH,
+      backtest: () => candidateBacktest('ets', etsH),
+      onFitFail: 'linear',
+    },
+    seasonal_naive: {
+      // 全量训练取最近一年的同月值；不做趋势/校正（朴素法定义）
+      fit: () => seasonalNaiveModel(historical),
+      predict: (model, t) => seasonalNaiveForecast(model, t),
+      harness: snH,
+      backtest: () => candidateBacktest('seasonal_naive', snH),
+      onFitFail: 'abort',
+    },
+    combination: {
+      // 成员全量重拟合 → 用回测 final_weights（均来自生产 origin 之前的已实现误差，因果）逐时点组合
+      fit: () => ({
+        linear: fitLinearCandidate(historical),
+        ets: fitEtsCandidate(historical),
+        seasonal_naive: seasonalNaiveModel(historical),
+      }),
+      predict: (fit, t) =>
+        combinePredictions(
+          [
+            { key: 'linear', value: fit.linear ? forecastLinearCandidate(fit.linear, t) : null },
+            { key: 'ets', value: fit.ets ? forecastEtsCandidate(fit.ets, t) : null },
+            {
+              key: 'seasonal_naive',
+              value: fit.seasonal_naive ? seasonalNaiveForecast(fit.seasonal_naive, t) : null,
+            },
+          ],
+          comH.finalWeights ?? {}
+        ),
+      harness: comH,
+      backtest: () => candidateBacktest('combination', comH),
+      onFitFail: 'linear',
+      // 成员/权重任一件缺失 ⇒ 点值非有限 ⇒ 诚实降级（04-B7：不伪造）
+      requireFinite: true,
+      downgradeWarn: `  ⚠️ ${portId}: 组合胜者全量成员/权重缺件——诚实降级回线性`,
+    },
+  }
+
+  /**
+   * 按分支表产出「预测序列 + 回测对象」。失败路径与原四条分支逐一对齐：
+   * `abort` → null；`linear` → 重走线性分支（可再失败 → null）。
+   */
+  function buildWinner(branch) {
+    if (!branch) return null
+    const model = branch.fit()
+    if (!model) {
+      return branch.onFitFail === 'linear' ? buildWinner(WINNER_BRANCHES.linear) : null
+    }
+    const targets = futureTargets(lastTime)
+    const values = targets.map((t, i) => branch.predict(model, t, i))
+    if (branch.requireFinite && values.some((v) => !Number.isFinite(v))) {
+      console.warn(branch.downgradeWarn)
+      return buildWinner(WINNER_BRANCHES.linear)
+    }
+    return {
+      predictions: targets.map((t, i) =>
+        forecastPoint(
+          t,
+          values[i],
+          branch.harness.intervalOffsets,
+          branch.harness.mapeByStep,
+          branch.harness.overallMape,
+          monthIndex(t) - monthIndex(lastTime)
+        )
+      ),
+      backtest: branch.backtest(),
     }
   }
 
-  if (selected === 'ets' && fullEts) {
-    // 胜者 ETS：修正空间全量拟合 → 预测 → 春节逆变换；区间宽度沿用线性版的
-    // 「步长 MAPE + sqrt 年外推」构造（步长误差换 winner 自己的，口径同源）
-    predictions = futureTargets(lastTime).map((t) =>
-      forecastPoint(
-        t,
-        forecastEtsCandidate(fullEts, t),
-        etsH.intervalOffsets,
-        etsH.mapeByStep,
-        etsH.overallMape,
-        monthIndex(t) - monthIndex(lastTime)
-      )
-    )
-    backtest = {
-      selected_model: 'ets',
-      rolling_mape_by_step: etsH.mapeByStep,
-      rolling_samples_by_step: etsH.samplesByStep,
-      rolling_picp_by_step: etsH.picpByStep,
-      overall_picp: etsH.overallPicp,
-      interval_offsets: etsH.intervalOffsets,
-      // 线性专有口径（一次切分验证 / 偏差校正）不适用于 ETS 路径——置 null 不伪造（04-B7）
-      validation_overall_mape: null,
-      bias: null,
-      correction_factor: null,
-    }
-  } else if (selected === 'seasonal_naive') {
-    // 胜者季节朴素（P0-2）：全量训练取最近一年的同月值；不做趋势/校正（朴素法定义），
-    // 区间宽度用朴素法自己的分步长 MAPE，构造与其余胜者同源。
-    const fullSn = seasonalNaiveModel(historical)
-    if (!fullSn) return null
-    predictions = futureTargets(lastTime).map((t) => {
-      const relIdx = monthIndex(t) - monthIndex(lastTime)
-      return forecastPoint(
-        t,
-        seasonalNaiveForecast(fullSn, t),
-        snH.intervalOffsets,
-        snH.mapeByStep,
-        snH.overallMape,
-        relIdx
-      )
-    })
-    backtest = {
-      selected_model: 'seasonal_naive',
-      rolling_mape_by_step: snH.mapeByStep,
-      rolling_samples_by_step: snH.samplesByStep,
-      rolling_picp_by_step: snH.picpByStep,
-      overall_picp: snH.overallPicp,
-      interval_offsets: snH.intervalOffsets,
-      // 线性专有口径（一次切分验证 / 偏差校正）不适用于朴素路径——置 null 不伪造（04-B7）
-      validation_overall_mape: null,
-      bias: null,
-      correction_factor: null,
-    }
-  } else if (selected === 'combination') {
-    // 胜者组合（P0-1）：成员全量重拟合 → 用回测 final_weights（全部来自生产 origin 之前的
-    // 已实现误差，因果）逐时点组合；区间宽度用组合自己的分步长 MAPE。
-    const fullFit = {
-      linear: fitLinearCandidate(historical),
-      ets: fitEtsCandidate(historical),
-      seasonal_naive: seasonalNaiveModel(historical),
-    }
-    const comboPreds = futureTargets(lastTime).map((t) => ({
-      time: t,
-      value: combinePredictions(
-        [
-          {
-            key: 'linear',
-            value: fullFit.linear ? forecastLinearCandidate(fullFit.linear, t) : null,
-          },
-          { key: 'ets', value: fullFit.ets ? forecastEtsCandidate(fullFit.ets, t) : null },
-          {
-            key: 'seasonal_naive',
-            value: fullFit.seasonal_naive ? seasonalNaiveForecast(fullFit.seasonal_naive, t) : null,
-          },
-        ],
-        comH.finalWeights ?? {}
-      ),
-    }))
-    if (comboPreds.some((p) => !Number.isFinite(p.value))) {
-      console.warn(`  ⚠️ ${portId}: 组合胜者全量成员/权重缺件——诚实降级回线性`)
-      const lin = linearWinner()
-      if (!lin) return null
-      predictions = lin.predictions
-      backtest = lin.backtest
-    } else {
-      predictions = comboPreds.map(({ time, value }) =>
-        forecastPoint(
-          time,
-          value,
-          comH.intervalOffsets,
-          comH.mapeByStep,
-          comH.overallMape,
-          monthIndex(time) - monthIndex(lastTime)
-        )
-      )
-      backtest = {
-        selected_model: 'combination',
-        rolling_mape_by_step: comH.mapeByStep,
-        rolling_samples_by_step: comH.samplesByStep,
-        rolling_picp_by_step: comH.picpByStep,
-        overall_picp: comH.overallPicp,
-        interval_offsets: comH.intervalOffsets,
-        // 线性专有口径（一次切分验证 / 偏差校正）不适用于组合路径——置 null 不伪造（04-B7）
-        validation_overall_mape: null,
-        bias: null,
-        correction_factor: null,
-      }
-    }
-  } else {
-    const lin = linearWinner()
-    if (!lin) return null
-    predictions = lin.predictions
-    backtest = lin.backtest
-  }
+  const winner = buildWinner(WINNER_BRANCHES[selected] ?? WINNER_BRANCHES.linear)
+  if (!winner) return null
+  const { predictions, backtest } = winner
 
   const modelComparison = {
     protocol: `滚动原点 origin ${ROLLING_START}~${ROLLING_END}，horizon ${ROLLING_HORIZON}，训练<origin，无校正防泄漏`,

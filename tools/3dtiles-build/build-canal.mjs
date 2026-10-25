@@ -24,8 +24,11 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { buildGLB, enuToGltf, GLTF_UP } from './glb.mjs'
+
+import { arg } from '../lib/cli-args.mjs'
 import { makeToEnu } from '../lib/geo.mjs'
+
+import { buildGLB, enuToGltf, GLTF_UP } from './glb.mjs'
 
 /** 与 pinglu 交付包同一 root.transform（落位逐位对齐的前提） */
 const TILE_DIR = 'backend/static/pinglu/tiles'
@@ -530,12 +533,8 @@ export function buildCanal({ osmFile, outDir, groundU = 0, tileDir = TILE_DIR, c
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const arg = (k, d) => {
-    const i = process.argv.indexOf(k)
-    return i > 0 ? process.argv[i + 1] : d
-  }
-  const osmFile = arg('--osm', '.local/926-rebake/osm_canal.json')
-  const emitLine = arg('--emit-line', null)
+  const osmFile = arg('osm', '.local/926-rebake/osm_canal.json')
+  const emitLine = arg('emit-line', null)
   if (emitLine) {
     // 供地形开挖（07b）使用：逐点经纬度 + 设计水位大地高
     const { points } = computeCanalLine(osmFile)
@@ -547,12 +546,12 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   } else {
     const r = buildCanal({
       osmFile,
-      outDir: arg('--out', 'backend/static/pinglu/canal'),
-      groundU: Number(arg('--ground', '0')),
+      outDir: arg('out', 'backend/static/pinglu/canal'),
+      groundU: Number(arg('ground', '0')),
     })
     console.log('中线 ' + r.segments + ' 链 → 稠密 ' + r.points + ' 点；挤出 ' + r.tris + ' 三角面')
     console.log('带子跑段 ' + r.runs + ' 段（枢纽引航道窗口已裁）')
     console.log('已按枢纽局部扭曲: ' + r.hubs.map((h) => h.name).join(' / '))
-    console.log('写出 ' + arg('--out', 'backend/static/pinglu/canal'))
+    console.log('写出 ' + arg('out', 'backend/static/pinglu/canal'))
   }
 }

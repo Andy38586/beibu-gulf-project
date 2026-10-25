@@ -30,13 +30,10 @@ const {
   restoreVis,
   PXDIFF,
 } = require('./lib/browser.cjs')
+const { arg } = require('../lib/cli-args.mjs')
 const OUT = path.join(ROOT, '.local', 'coverage')
 fs.mkdirSync(OUT, { recursive: true })
-const arg = (k, d) => {
-  const i = process.argv.indexOf(k)
-  return i > -1 && process.argv[i + 1] ? process.argv[i + 1] : d
-}
-const URL_ = arg('--url', 'http://127.0.0.1:5174/route-analysis')
+const URL_ = arg('url', 'http://127.0.0.1:5174/route-analysis')
 const CAMS = [
   { name: 'port-core-420-down', lng: 108.6473, lat: 21.6745, h: 420, pitch: -90 },
   { name: 'port-core-900-oblique', lng: 108.6473, lat: 21.6745, h: 900, pitch: -55 },

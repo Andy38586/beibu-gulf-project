@@ -27,10 +27,12 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 
+import { arg } from '../lib/cli-args.mjs'
+import { makeToEnu } from '../lib/geo.mjs'
+
 import { buildGLB, enuToGltf, GLTF_UP, gltfToEnu } from './glb.mjs'
 import { heightsOfMaterial, median, readGLB } from './glb-read.mjs'
 import { buildGroundRef } from './ground-ref.mjs'
-import { makeToEnu } from '../lib/geo.mjs'
 
 const TILE_DIR = 'backend/static/qinzhou-port/tiles'
 /** 与 qinzhou-port 交付包同一 root.transform（落位逐位对齐的前提） */
@@ -232,14 +234,10 @@ export function buildRoads({ osmFile, outDir, rebuiltDir, tileDir = TILE_DIR }) 
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const arg = (k, d) => {
-    const i = process.argv.indexOf(k)
-    return i > 0 ? process.argv[i + 1] : d
-  }
   const r = buildRoads({
-    osmFile: arg('--osm', '.local/3d-diag/roads.json'),
-    outDir: arg('--out', 'backend/static/qinzhou-port/rebuilt/roads'),
-    rebuiltDir: arg('--rebuilt', 'backend/static/qinzhou-port/rebuilt'),
+    osmFile: arg('osm', '.local/3d-diag/roads.json'),
+    outDir: arg('out', 'backend/static/qinzhou-port/rebuilt/roads'),
+    rebuiltDir: arg('rebuilt', 'backend/static/qinzhou-port/rebuilt'),
   })
   console.log('道路 ' + r.ways + ' 条 / ' + r.segs + ' 段，地面 u=' + r.groundU.toFixed(2) + ' m')
   console.log(

@@ -99,6 +99,34 @@ function intervalBounds(relIdx, horizon, stepOffsets, mapeByStep, overallMape) {
  * @param {number} [p.horizon]     默认 12
  * @param {number} [p.m]           季节周期，默认 12
  */
+
+/**
+ * 分步长累加器清单（F84 收口）：九个指标此前各写一遍「建表 + 逐 step 置 0」，
+ * 加一个指标要同改三处（声明/初始化/汇总），漏改只能靠 NaN 暴露。改由单份清单驱动。
+ * 注意顺序无关语义，但保持与历史声明序一致，便于 diff 复核。
+ */
+const STEP_ACCUMULATORS = [
+  'err',
+  'absErr',
+  'cnt',
+  'qSum',
+  'qCnt',
+  'smapeSum',
+  'smapeCnt',
+  'picpHit',
+  'picpCnt',
+]
+
+/** 建「step → 0」表组：{ err: {1:0,…,h:0}, … }（唯一置零实现） */
+function createStepAccumulators(horizon) {
+  const out = {}
+  for (const name of STEP_ACCUMULATORS) {
+    out[name] = {}
+    for (let s = 1; s <= horizon; s++) out[name][s] = 0
+  }
+  return out
+}
+
 function runRollingBacktest({
   historical,
   fitFn,
@@ -115,27 +143,19 @@ function runRollingBacktest({
   const sorted = [...historical].sort((a, b) => a.time.localeCompare(b.time))
   const byTime = new Map(sorted.map((d) => [d.time, d.value]))
 
-  const errByStep = {}
-  const absErrByStep = {}
-  const cntByStep = {}
-  const qSumByStep = {}
-  const qCntByStep = {}
-  const smapeSumByStep = {}
-  const smapeCntByStep = {}
-  const picpHitByStep = {}
-  const picpCntByStep = {}
+  // 九个分步长累加器由工厂单点建表+置零（F84）；就地解构只为让热循环里保持短名字
+  const {
+    err: errByStep,
+    absErr: absErrByStep,
+    cnt: cntByStep,
+    qSum: qSumByStep,
+    qCnt: qCntByStep,
+    smapeSum: smapeSumByStep,
+    smapeCnt: smapeCntByStep,
+    picpHit: picpHitByStep,
+    picpCnt: picpCntByStep,
+  } = createStepAccumulators(horizon)
   const series = []
-  for (let s = 1; s <= horizon; s++) {
-    errByStep[s] = 0
-    absErrByStep[s] = 0
-    cntByStep[s] = 0
-    qSumByStep[s] = 0
-    qCntByStep[s] = 0
-    smapeSumByStep[s] = 0
-    smapeCntByStep[s] = 0
-    picpHitByStep[s] = 0
-    picpCntByStep[s] = 0
-  }
 
   let origin = originStart
   let originCount = 0
@@ -297,43 +317,35 @@ function runRollingBacktest({
   const smapeByStep = {}
   const picpByStep = {}
   const maseByStep = {}
-  let mapeSum = 0
-  let mapeCnt = 0
-  let smapeSum = 0
-  let smapeCnt = 0
-  let picpHitTotal = 0
-  let picpCntTotal = 0
-  let maseSum = 0
-  let maseCnt = 0
+  // 总量汇总（F84）：四组「求和 + 计非空档数」原本各写一段 if，合并为一处 tally；
+  // null = 该档样本不足，不进分母（与逐档口径一致，不伪造覆盖）。
+  const totals = { mape: 0, mapeN: 0, smape: 0, smapeN: 0, picp: 0, picpN: 0, mase: 0, maseN: 0 }
+  function addTotal(key, value) {
+    if (value === null) return
+    totals[key] += value
+    totals[`${key}N`] += 1
+  }
   for (let s = 1; s <= horizon; s++) {
     mapeByStep[s] =
       cntByStep[s] > 0 ? Math.round((errByStep[s] / cntByStep[s]) * 10000) / 100 : null
-    if (mapeByStep[s] !== null) {
-      mapeSum += mapeByStep[s]
-      mapeCnt++
-    }
+    addTotal('mape', mapeByStep[s])
     smapeByStep[s] =
       smapeCntByStep[s] > 0
         ? Math.round((smapeSumByStep[s] / smapeCntByStep[s]) * 10000) / 100
         : null
-    if (smapeByStep[s] !== null) {
-      smapeSum += smapeByStep[s]
-      smapeCnt++
-    }
+    addTotal('smape', smapeByStep[s])
     picpByStep[s] =
       picpCntByStep[s] > 0
         ? Math.round((picpHitByStep[s] / picpCntByStep[s]) * 10000) / 10000
         : null
-    picpHitTotal += picpHitByStep[s]
-    picpCntTotal += picpCntByStep[s]
+    // 覆盖率总量是**命中数/样本数**的比值口径，不是逐档比值的平均 ⇒ 必须直接累加原始计数
+    totals.picp += picpHitByStep[s]
+    totals.picpN += picpCntByStep[s]
     const meanAbsErr = cntByStep[s] > 0 ? absErrByStep[s] / cntByStep[s] : null
     const meanQ = qCntByStep[s] > 0 ? qSumByStep[s] / qCntByStep[s] : 0
     maseByStep[s] =
       meanAbsErr !== null && meanQ > 0 ? Math.round((meanAbsErr / meanQ) * 100) / 100 : null
-    if (maseByStep[s] !== null) {
-      maseSum += maseByStep[s]
-      maseCnt++
-    }
+    addTotal('mase', maseByStep[s])
   }
 
   return {
@@ -343,11 +355,10 @@ function runRollingBacktest({
     maseByStep,
     samplesByStep: cntByStep,
     origins: originCount,
-    overallMape: mapeCnt > 0 ? Math.round((mapeSum / mapeCnt) * 100) / 100 : null,
-    overallSmape: smapeCnt > 0 ? Math.round((smapeSum / smapeCnt) * 100) / 100 : null,
-    overallPicp:
-      picpCntTotal > 0 ? Math.round((picpHitTotal / picpCntTotal) * 10000) / 10000 : null,
-    overallMase: maseCnt > 0 ? Math.round((maseSum / maseCnt) * 100) / 100 : null,
+    overallMape: totals.mapeN > 0 ? Math.round((totals.mape / totals.mapeN) * 100) / 100 : null,
+    overallSmape: totals.smapeN > 0 ? Math.round((totals.smape / totals.smapeN) * 100) / 100 : null,
+    overallPicp: totals.picpN > 0 ? Math.round((totals.picp / totals.picpN) * 10000) / 10000 : null,
+    overallMase: totals.maseN > 0 ? Math.round((totals.mase / totals.maseN) * 100) / 100 : null,
     series,
     memberScores,
     finalWeights,

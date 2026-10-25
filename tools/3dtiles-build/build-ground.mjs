@@ -24,8 +24,10 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 
-import { groundLevel } from './build-roads.mjs'
+import { arg } from '../lib/cli-args.mjs'
 import { DEG_M_LAT, DEG_M_LNG, makeToEnu } from '../lib/geo.mjs'
+
+import { groundLevel } from './build-roads.mjs'
 import { buildGLB, enuToGltf, GLTF_UP } from './glb.mjs'
 import { buildGroundRef } from './ground-ref.mjs'
 import { loadWaterMask } from './rebuild-containers.mjs'
@@ -226,10 +228,6 @@ export function buildGround({
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const arg = (k, d) => {
-    const i = process.argv.indexOf('--' + k)
-    return i > -1 ? process.argv[i + 1] : d
-  }
   const outDir = arg('out', 'backend/static/qinzhou-port/rebuilt/ground')
   const r = buildGround({
     outDir,

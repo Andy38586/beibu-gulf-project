@@ -23,10 +23,13 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { accessor, readGLB } from '../lib/glb.mjs'
-import { buildGLB, enuToGltf } from './glb.mjs'
-import { CONTAINER_TYPES } from './container-models.mjs'
+
+import { arg } from '../lib/cli-args.mjs'
 import { makeEnuToLngLat } from '../lib/geo.mjs'
+import { accessor, readGLB } from '../lib/glb.mjs'
+
+import { CONTAINER_TYPES } from './container-models.mjs'
+import { buildGLB, enuToGltf } from './glb.mjs'
 
 const TILE_DIR = 'backend/static/qinzhou-port/tiles'
 /** 只重建作业区（与前端 keepSphere 一致：局部 ENU (1014.26,2159.18) r=1500） */
@@ -430,12 +433,8 @@ export function rebuild({ outDir, cellSize = 400, modelsDir }) {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const arg = (k, d) => {
-    const i = process.argv.indexOf(k)
-    return i > 0 ? process.argv[i + 1] : d
-  }
-  const outDir = arg('--out', 'backend/static/qinzhou-port/rebuilt')
-  const cellSize = Number(arg('--cell', 400))
+  const outDir = arg('out', 'backend/static/qinzhou-port/rebuilt')
+  const cellSize = Number(arg('cell', 400))
   const r = rebuild({ outDir, cellSize, modelsDir: path.join(outDir, 'models') })
   console.log(
     '箱区 ' +

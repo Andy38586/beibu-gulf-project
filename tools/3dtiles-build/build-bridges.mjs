@@ -24,8 +24,10 @@ import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 import { BRIDGE_PALETTE } from '../lib/bridge-palette.mjs'
-import { box, buildGLB, enuNormalToGltf, enuToGltf, gltfToEnu } from './glb.mjs'
+import { arg } from '../lib/cli-args.mjs'
 import { geoToEcef, makeToEnu } from '../lib/geo.mjs'
+
+import { box, buildGLB, enuNormalToGltf, enuToGltf, gltfToEnu } from './glb.mjs'
 
 /** 垂直锚点表（构建输入；生成：tools/diag/probe-bridge-vert.py --emit-anchors） */
 const DEFAULT_ANCHORS = path.join(
@@ -354,14 +356,10 @@ export function buildAll({ osmFile, outDir, anchorsPath = DEFAULT_ANCHORS }) {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const arg = (k, d) => {
-    const i = process.argv.indexOf(k)
-    return i > 0 ? process.argv[i + 1] : d
-  }
   const r = buildAll({
-    osmFile: arg('--osm', '.local/3d-diag/bridges-osm.json'),
-    outDir: arg('--out', 'backend/static/bridges-city'),
-    anchorsPath: arg('--anchors', DEFAULT_ANCHORS),
+    osmFile: arg('osm', '.local/3d-diag/bridges-osm.json'),
+    outDir: arg('out', 'backend/static/bridges-city'),
+    anchorsPath: arg('anchors', DEFAULT_ANCHORS),
   })
   console.log(
     '锚点 ' + r.anchor.lat.toFixed(5) + ',' + r.anchor.lng.toFixed(5) + '  建成 ' + r.count + ' 座'

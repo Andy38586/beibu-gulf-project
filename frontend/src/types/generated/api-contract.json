@@ -864,7 +864,7 @@
     "floodStatisticsResponseSchema": {
       "file": "backend/src/modules/flood/services/flood.service.ts",
       "occurrence": {
-        "waterLevel": 24,
+        "waterLevel": 26,
         "requestedWaterLevel": 5,
         "actualWaterLevel": 4,
         "riskLevel": 16,

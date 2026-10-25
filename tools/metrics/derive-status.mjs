@@ -40,7 +40,9 @@ import { fileURLToPath } from 'node:url'
 
 import { countBySpec } from '../audit-kit/metrics-index.mjs'
 // F-01（2026-10-05）：状态值域与附录 row 解析器同源（此前本文件自带第二套正则，只认 4 值）
-import { STATES } from '../v3-guard/lib/appendix-rows.mjs'
+// F78（2026-10-26）：**行语法**也同源——本文件不再持有 ROW_RE/ANY_ROW_RE，只消费 lib 的
+// parseRow + isState；两者对值域外状态的处置不同（本文件归 unparsed），差异留在本文件。
+import { isState, parseRow, STATES } from '../v3-guard/lib/appendix-rows.mjs'
 // W74：正向校验与反向校验必须读**同一份**执行计划，否则两张清单会各自漂移
 import { executionPlan } from '../v3-guard/run-all.mjs'
 
@@ -132,16 +134,13 @@ export function deriveStatus(ev) {
   return 'C'
 }
 
-/** 附录状态值域唯一口径：与 lib/appendix-rows.mjs 同源（F-01：此前本文件自带第二套正则） */
-const STATE_RE = STATES.map((s) => s.replace(/[.*+?^${}()|[\]\\-]/g, '\\$&')).join('|')
-const ROW_RE = new RegExp(
-  `^\\|\\s*(\\d+\\.\\d+′?)\\s*\\|[^|]*\\|\\s*(P[0-3])\\s*\\|\\s*(${STATE_RE})\\s*\\|`
-)
-const ANY_ROW_RE = /^\|\s*(\d+\.\d+′?)\s*\|[^|]*\|\s*(P[0-3])\s*\|\s*([^|]*?)\s*\|/
-
 /**
  * 解析附录 §8：返回 [{name, rows:[{id,risk,status,line}]}]（line 为 1 基行号）。
  * `unparsed`＝形态是数据行但状态值不在值域的行（F-01：与「表格结构漂移」分开报）。
+ *
+ * 行语法唯一出处是 `lib/appendix-rows.mjs` 的 `parseRow`（F78）——本文件不再自带正则，
+ * 否则同一张表又被两种口径解释（紧邻 `|` vs 任意空白、`P[0-3]` vs `P\d`）。
+ * 本文件只保留**自己的**那一件事：值域外状态要分类报出，而不是像附录侧那样丢掉。
  */
 export function parseAppendix(text) {
   const lines = text.split('\n')
@@ -155,14 +154,18 @@ export function parseAppendix(text) {
       sections.push(cur)
       continue
     }
-    if (cur) {
-      const m = lines[i].match(ROW_RE)
-      if (m) {
-        cur.rows.push({ id: cur.name + ':' + m[1], risk: m[2], status: m[3], line: i + 1 })
-        continue
-      }
-      const any = lines[i].match(ANY_ROW_RE)
-      if (any) unparsed.push({ section: cur.name, id: any[1], state: any[3], line: i + 1 })
+    if (!cur) continue
+    const row = parseRow(lines[i])
+    if (!row) continue
+    if (isState(row.state)) {
+      cur.rows.push({
+        id: cur.name + ':' + row.id,
+        risk: row.level,
+        status: row.state,
+        line: i + 1,
+      })
+    } else {
+      unparsed.push({ section: cur.name, id: row.id, state: row.state, line: i + 1 })
     }
   }
   return { sections, lines, unparsed }

@@ -12,6 +12,8 @@ import {
   parseNumericConst,
   parseNumericLiterals,
   parseAliasTarget,
+  parsePyRiskBands,
+  parseRiskBands,
   parsePortMaps,
   parseStorageKeys,
   parseTsconfigAlias,
@@ -758,5 +760,17 @@ describe('存储键唯一来源（PC-5/W63）', () => {
   it('@guard-red-sample 权威源被清空 ⇒ 解析失败必红', () => {
     const problems = auditSharedConstants({ ...base, storageKeys: '// 只剩注释\n' })
     expect(problems.some((p) => p.includes('存储键权威解析失败'))).toBe(true)
+  })
+})
+
+describe('F70 风险带解析单骨架', () => {
+  it('TS 与 PY 同档位/同标签 ⇒ 同一解析结果', () => {
+    const ts = parseRiskBands(
+      "export const RISK_LEVEL_BANDS = [\n  { maxLevel: 2, label: '低风险' },\n] as const",
+      'RISK_LEVEL_BANDS'
+    )
+    const py = parsePyRiskBands('RISK_BANDS = [\n  (2, "低风险"),\n]')
+    expect(ts).toEqual(py)
+    expect(ts).toEqual([{ maxLevel: '2', label: '低风险' }])
   })
 })

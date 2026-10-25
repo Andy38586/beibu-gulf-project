@@ -169,6 +169,10 @@ describe('F101 B：注入只写临时 worktree 副本（硬杀不留注入态）
       expect(copy, '注入路径必须在副本里').not.toBe(realGuard)
       expect(readFileSync(copy, 'utf8')).toContain('return []')
       expect(fileMd5(realGuard), '副本注入不得改真件').toBe(before)
+      const shim = join(ROOT, '.husky/_/pre-push')
+      if (existsSync(shim)) {
+        expect(existsSync(join(wt.dir, '.husky/_/pre-push')), 'husky shim 必须随副本').toBe(true)
+      }
     } finally {
       removeProbeWorktree(wt.dir)
     }

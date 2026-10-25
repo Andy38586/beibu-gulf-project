@@ -305,6 +305,12 @@ export function createProbeWorktree({ root = ROOT } = {}) {
     const src = path.join(root, 'tools', 'v3-guard')
     const dst = path.join(dir, 'tools', 'v3-guard')
     fs.cpSync(src, dst, { recursive: true, force: true })
+    // .husky/_ 是 husky 安装期生成的 shim，被 .husky/_/.gitignore 忽略、worktree 里没有；
+    // run-all 的「强制点真会触发」判据会读它，缺了就是假红（不是判据本身的问题）
+    const shim = path.join(root, '.husky', '_')
+    if (fs.existsSync(shim)) {
+      fs.cpSync(shim, path.join(dir, '.husky', '_'), { recursive: true, force: true })
+    }
   } catch (err) {
     removeProbeWorktree(dir, { root })
     throw err

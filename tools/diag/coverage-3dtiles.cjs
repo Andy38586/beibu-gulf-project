@@ -40,21 +40,9 @@ const URL_ =
 
 /* ---------- 离线：三枢纽的真实位置（child 盒 × child transform） ---------- */
 const { ecefToGeo: geo } = require('../lib/geo.mjs')
-const mul = (a, b) => {
-  const o = new Array(16).fill(0)
-  for (let i = 0; i < 4; i++)
-    for (let j = 0; j < 4; j++) {
-      let s = 0
-      for (let k = 0; k < 4; k++) s += a[k * 4 + j] * b[i * 4 + k]
-      o[i * 4 + j] = s
-    }
-  return o
-}
-const ap = (m, p) => [
-  m[0] * p[0] + m[4] * p[1] + m[8] * p[2] + m[12],
-  m[1] * p[0] + m[5] * p[1] + m[9] * p[2] + m[13],
-  m[2] * p[0] + m[6] * p[1] + m[10] * p[2] + m[14],
-]
+// 矩阵乘/点变换走单源（2026-10-25 F56）：本探针手里的矩阵是 tileset 列主序 16 数组，
+// 直接用边界适配器 mulCol / applyCol（= toMath → mul / mulPoint → toCol），不再自带一份。
+const { applyCol, mulCol } = require('../lib/mat4.mjs')
 const ID = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
 function hubCameras() {
   const tileFile = path.join(ROOT, 'backend/static/pinglu/tiles/tileset.json')
@@ -68,7 +56,7 @@ function hubCameras() {
   const groups = { madao: [], qishi: [], qingnian: [] }
   ;(function walk(n, M) {
     let W = M
-    if (n.transform) W = mul(M, n.transform)
+    if (n.transform) W = mulCol(M, n.transform)
     const uri = n.content && n.content.uri
     if (uri)
       for (const k of Object.keys(groups)) if (uri.startsWith(k + '-')) groups[k].push({ n, W })
@@ -87,7 +75,7 @@ function hubCameras() {
           i & 2 ? b[1] + b[7] : b[1] - b[7],
           i & 4 ? b[2] + b[11] : b[2] - b[11],
         ]
-        const w = ap(W, g)
+        const w = applyCol(W, g)
         for (let c = 0; c < 3; c++) {
           mn[c] = Math.min(mn[c], w[c])
           mx[c] = Math.max(mx[c], w[c])

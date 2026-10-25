@@ -28,79 +28,18 @@ import { pathToFileURL } from 'node:url'
 
 import { arg } from '../lib/cli-args.mjs'
 import { ecefToGeo as ecefToLlh, geoToEcef as geocentric } from '../lib/geo.mjs'
+import { identity, inv, mul, mulPoint, toCol, toMath } from '../lib/mat4.mjs'
 
 const TILESET = 'backend/static/pinglu/tiles/tileset.json'
 const LEDGER = '.local/3d-review/reanchor-hubs-log.json'
 export const HUBS = ['madao', 'qishi', 'qingnian']
 /** P0 在 child 坐标系的固定局部点（与浏览器 init_benchmark 一致） */
 export const P0_LOCAL = [180, 162.5, 0]
-// ---- 4x4 矩阵（列主序 16 数组 <-> 数学矩阵）----
-export function toMath(a) {
-  // Cesium 列主序 -> math：M[row][col] = a[col*4+row]
-  const M = Array.from({ length: 4 }, () => [0, 0, 0, 0])
-  for (let c = 0; c < 4; c++) for (let r = 0; r < 4; r++) M[r][c] = a[c * 4 + r]
-  return M
-}
-export function toCol(M) {
-  const a = new Array(16)
-  for (let c = 0; c < 4; c++) for (let r = 0; r < 4; r++) a[c * 4 + r] = M[r][c]
-  return a
-}
-export function mul(A, B) {
-  const R = Array.from({ length: 4 }, () => [0, 0, 0, 0])
-  for (let r = 0; r < 4; r++)
-    for (let c = 0; c < 4; c++) {
-      let s = 0
-      for (let k = 0; k < 4; k++) s += A[r][k] * B[k][c]
-      R[r][c] = s
-    }
-  return R
-}
-export function mulPoint(M, p) {
-  const out = [0, 0, 0, 0]
-  for (let r = 0; r < 4; r++) {
-    let s = 0
-    for (let k = 0; k < 4; k++) s += M[r][k] * p[k]
-    out[r] = s
-  }
-  return out
-}
-export function identity() {
-  return [
-    [1, 0, 0, 0],
-    [0, 1, 0, 0],
-    [0, 0, 1, 0],
-    [0, 0, 0, 1],
-  ]
-}
-export function inv(A) {
-  // 高斯-若尔当消元（含部分选主与行交换）
-  const M = A.map((r) => r.slice())
-  const R = identity()
-  for (let c = 0; c < 4; c++) {
-    let p = c
-    for (let r = c + 1; r < 4; r++) if (Math.abs(M[r][c]) > Math.abs(M[p][c])) p = r
-    if (Math.abs(M[p][c]) < 1e-12) throw new Error('奇异矩阵')
-    if (p !== c) {
-      ;[M[c], M[p]] = [M[p], M[c]]
-      ;[R[c], R[p]] = [R[p], R[c]]
-    }
-    const d = M[c][c]
-    for (let k = 0; k < 4; k++) {
-      M[c][k] /= d
-      R[c][k] /= d
-    }
-    for (let r = 0; r < 4; r++) {
-      if (r === c) continue
-      const f = M[r][c]
-      for (let k = 0; k < 4; k++) {
-        M[r][k] -= f * M[c][k]
-        R[r][k] -= f * R[c][k]
-      }
-    }
-  }
-  return R
-}
+
+// 4×4 矩阵（行主序 number[][]）的实现已收口到 tools/lib/mat4.mjs（2026-10-25 F56）。
+// 这里**原样再导出**：既有消费点（`__tests__/reanchor.test.mjs`、诊断脚本）继续从本文件
+// import，不必知道实现搬了家；本文件内部也直接用这批符号，不再自带第二份。
+export { identity, inv, mul, mulPoint, toCol, toMath }
 export function enuFrame(center) {
   const [lon, lat] = ecefToLlh(center)
   const lo = (lon * Math.PI) / 180

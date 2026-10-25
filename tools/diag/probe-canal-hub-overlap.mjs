@@ -12,24 +12,12 @@ import path from 'node:path'
 
 import { gltfToEnu } from '../3dtiles-build/glb.mjs'
 import { accessor, readGLB } from '../lib/glb.mjs'
+import { applyCol, mulCol } from '../lib/mat4.mjs'
 
 const TILES = 'backend/static/pinglu/tiles'
 const CANAL = 'backend/static/pinglu/canal'
-const mul = (a, b) => {
-  const o = new Array(16).fill(0)
-  for (let c = 0; c < 4; c++)
-    for (let r = 0; r < 4; r++) {
-      let s = 0
-      for (let k = 0; k < 4; k++) s += a[k * 4 + r] * b[c * 4 + k]
-      o[c * 4 + r] = s
-    }
-  return o
-}
-const xf = (m, p) => [
-  m[0] * p[0] + m[4] * p[1] + m[8] * p[2] + m[12],
-  m[1] * p[0] + m[5] * p[1] + m[9] * p[2] + m[13],
-  m[2] * p[0] + m[6] * p[1] + m[10] * p[2] + m[14],
-]
+// 矩阵乘/点变换走单源（2026-10-25 F56）：本探针手里的矩阵都是 tileset 的列主序 16 数组，
+// 直接用边界适配器 mulCol / applyCol（= toMath → mul / mulPoint → toCol），不再自带一份。
 const I4 = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
 
 /** 某 GLB 内按材质名收集顶点的 ENU 坐标（含矩阵链） */
@@ -42,7 +30,7 @@ function collect(file, M, matRe) {
       if (!matRe.test(mname)) continue
       const pos = accessor(g.json, g.bin, prim.attributes.POSITION)
       for (let i = 0; i < pos.length; i += 3) {
-        const enu = xf(M, gltfToEnu(pos[i], pos[i + 1], pos[i + 2]))
+        const enu = applyCol(M, gltfToEnu(pos[i], pos[i + 1], pos[i + 2]))
         pts.push({ x: enu[0], z: enu[1], y: enu[2], m: mname })
       }
     }
@@ -50,7 +38,7 @@ function collect(file, M, matRe) {
 }
 
 function walk(node, M, out) {
-  const m = node.transform ? mul(M, node.transform) : M
+  const m = node.transform ? mulCol(M, node.transform) : M
   if (node.content?.uri) out.push({ uri: node.content.uri, M: m, name: node.extras?.name ?? '' })
   for (const c of node.children ?? []) walk(c, m, out)
 }
@@ -69,11 +57,13 @@ console.log(
 
 const hubs = (tileset.root.children ?? []).filter((c) => /枢纽/.test(c.extras?.name ?? ''))
 for (const hub of hubs) {
-  const Mh = hub.transform ? mul(I4, hub.transform) : I4
+  const Mh = hub.transform ? mulCol(I4, hub.transform) : I4
   const box = hub.boundingVolume.box
-  const C = xf(Mh, [box[0], box[1], box[2]])
+  const C = applyCol(Mh, [box[0], box[1], box[2]])
   const ax = [0, 1, 2].map((i) =>
-    xf(Mh, [box[3 + 3 * i], box[4 + 3 * i], box[5 + 3 * i]]).map((v, j) => v - xf(Mh, [0, 0, 0])[j])
+    applyCol(Mh, [box[3 + 3 * i], box[4 + 3 * i], box[5 + 3 * i]]).map(
+      (v, j) => v - applyCol(Mh, [0, 0, 0])[j]
+    )
   )
   const half = ax.map((v, i) => Math.hypot(...v))
   const unit = ax.map((v) => v.map((x) => x / Math.hypot(...v)))

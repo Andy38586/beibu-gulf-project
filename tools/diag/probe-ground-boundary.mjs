@@ -23,30 +23,16 @@
  */
 import fs from 'node:fs'
 import path from 'node:path'
-import { readGLB } from '../lib/glb.mjs'
+
 import { gltfToEnu } from '../3dtiles-build/glb.mjs'
 import { ecefToGeo, makeToEnu } from '../lib/geo.mjs'
+import { readGLB } from '../lib/glb.mjs'
+import { applyCol, mulCol } from '../lib/mat4.mjs'
 
 const I4 = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
 
-function mul(a, b) {
-  const r = new Array(16)
-  for (let c = 0; c < 4; c++)
-    for (let row = 0; row < 4; row++) {
-      let s = 0
-      for (let k = 0; k < 4; k++) s += a[k * 4 + row] * b[c * 4 + k]
-      r[c * 4 + row] = s
-    }
-  return r
-}
-
-function xf(T, p) {
-  return [
-    T[0] * p[0] + T[4] * p[1] + T[8] * p[2] + T[12],
-    T[1] * p[0] + T[5] * p[1] + T[9] * p[2] + T[13],
-    T[2] * p[0] + T[6] * p[1] + T[10] * p[2] + T[14],
-  ]
-}
+// 矩阵乘/点变换走单源（2026-10-25 F56）：本探针手里的矩阵都是 tileset 的列主序 16 数组，
+// 直接用边界适配器 mulCol / applyCol（= toMath → mul / mulPoint → toCol），不再自带一份。
 
 function boxCorners(b) {
   const [cx, cy, cz] = b
@@ -100,8 +86,8 @@ function addPoint(st, e, n, u, lon, lat) {
  * root 自己的 box 就在 ENU 帧（local=I4, world=T）；子节点的 box 帧才乘各自 transform。
  */
 function walk(node, baseWorld, baseLocal, isRoot, st, leafFilter, leafOnly) {
-  const world = isRoot ? baseWorld : node.transform ? mul(baseWorld, node.transform) : baseWorld
-  const local = isRoot ? baseLocal : node.transform ? mul(baseLocal, node.transform) : baseLocal
+  const world = isRoot ? baseWorld : node.transform ? mulCol(baseWorld, node.transform) : baseWorld
+  const local = isRoot ? baseLocal : node.transform ? mulCol(baseLocal, node.transform) : baseLocal
   st.nodes++
   const uri = node.content?.uri
   const wanted = !leafOnly || (uri && leafFilter.test(path.basename(uri)))
@@ -109,8 +95,8 @@ function walk(node, baseWorld, baseLocal, isRoot, st, leafFilter, leafOnly) {
   if (box && uri && wanted) {
     st.contents++
     for (const c of boxCorners(box)) {
-      const l = xf(local, c)
-      const w = xf(world, c)
+      const l = applyCol(local, c)
+      const w = applyCol(world, c)
       const [glon, glat] = ecefToGeo(w)
       addPoint(st, l[0], l[1], l[2], glon, glat)
     }

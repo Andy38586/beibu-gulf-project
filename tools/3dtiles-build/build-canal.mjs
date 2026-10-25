@@ -27,6 +27,7 @@ import { pathToFileURL } from 'node:url'
 
 import { arg } from '../lib/cli-args.mjs'
 import { makeToEnu } from '../lib/geo.mjs'
+import { applyCol, mulCol } from '../lib/mat4.mjs'
 
 import { buildGLB, enuToGltf, GLTF_UP } from './glb.mjs'
 import { boxFromCenterHalf, paddedHalf } from './tileset-bounds.mjs'
@@ -122,10 +123,10 @@ export function hubTargets(tileDir) {
   for (const c of ts.root.children ?? []) {
     const nm = String(c.extras?.name ?? c.extras?.tile ?? '')
     if (!/枢纽/.test(nm)) continue
-    const local = c.transform ? mat4mul(T, c.transform) : T
+    const local = c.transform ? mulCol(T, c.transform) : T
     const b = c.boundingVolume?.box
     if (!b) continue
-    const P = applyMat(local, [b[0], b[1], b[2]])
+    const P = applyCol(local, [b[0], b[1], b[2]])
     const d = [P[0] - O[0], P[1] - O[1], P[2] - O[2]]
     out.push({
       name: nm,
@@ -151,19 +152,19 @@ export function hubCutWindows(tileDir, { nameRe = /上游引航道|下游引航�
   const out = []
   for (const hub of ts.root.children ?? []) {
     if (!/枢纽/.test(String(hub.extras?.name ?? ''))) continue
-    const Mh = hub.transform ? mat4mul(T, hub.transform) : T
+    const Mh = hub.transform ? mulCol(T, hub.transform) : T
     for (const c of hub.children ?? []) {
       if (!nameRe.test(String(c.extras?.name ?? ''))) continue
       const b = c.boundingVolume?.box
       if (!b) continue
-      const M = c.transform ? mat4mul(Mh, c.transform) : Mh
-      const M0 = applyMat(M, [0, 0, 0])
-      const C = rot(applyMat(M, [b[0], b[1], b[2]]).map((x, j) => x - O[j]))
+      const M = c.transform ? mulCol(Mh, c.transform) : Mh
+      const M0 = applyCol(M, [0, 0, 0])
+      const C = rot(applyCol(M, [b[0], b[1], b[2]]).map((x, j) => x - O[j]))
       const axes = [],
         half = []
       for (let i = 0; i < 3; i++) {
         const v = rot(
-          applyMat(M, [b[3 + 3 * i], b[4 + 3 * i], b[5 + 3 * i]]).map((x, j) => x - M0[j])
+          applyCol(M, [b[3 + 3 * i], b[4 + 3 * i], b[5 + 3 * i]]).map((x, j) => x - M0[j])
         )
         const L = Math.hypot(...v)
         axes.push(v.map((x) => x / L))
@@ -223,23 +224,11 @@ export function splitRuns(points, windows, { keep = [], minLen = 40 } = {}) {
   return runs
 }
 
-function mat4mul(a, b) {
-  const o = new Array(16)
-  for (let c = 0; c < 4; c++)
-    for (let r = 0; r < 4; r++) {
-      let s = 0
-      for (let k = 0; k < 4; k++) s += a[k * 4 + r] * b[c * 4 + k]
-      o[c * 4 + r] = s
-    }
-  return o
-}
-function applyMat(m, p) {
-  return [
-    m[0] * p[0] + m[4] * p[1] + m[8] * p[2] + m[12],
-    m[1] * p[0] + m[5] * p[1] + m[9] * p[2] + m[13],
-    m[2] * p[0] + m[6] * p[1] + m[10] * p[2] + m[14],
-  ]
-}
+// 矩阵乘已收口到 tools/lib/mat4.mjs（2026-10-25 F56）：这里的矩阵**原生就是** tileset 的
+// 列主序 16 数组（`root.transform × child.transform` 逐层套），所以直接用边界适配器
+// `mulCol` / `applyCol`——顺序语义与单源 `mul` 一致（父·子），不是第二套算法。
+// 历史：本文件原有一段 `mat4mul`（列主序扁平）+ `applyMat`，与 reanchor-hubs 的行主序版
+// 同一语义两套实现；改一处漏一处只表现为"运河穿不进枢纽"，没有任何断言看得见。
 
 /**
  * 把中线在**枢纽附近局部拉过去**，使运河穿过枢纽。

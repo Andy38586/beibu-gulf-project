@@ -17,7 +17,6 @@ import type { ForecastSavedState } from '@/stores/forecastStore'
 import { BarChart, ChartLoading, LineChart } from '@/visualization'
 
 import ForecastControlPanel from './components/ForecastControlPanel.vue'
-import ForecastFallbackBadge from './components/ForecastFallbackBadge.vue'
 import { useForecastLayer } from './composables/useForecastLayer'
 import { provideForecastOrchestrator } from './composables/useForecastOrchestrator'
 
@@ -160,7 +159,13 @@ onUnmounted(() => {
                原注释"加载态不绑定 UI"已废止——弱网下用户可感知更新进行中 -->
           <ChartLoading v-if="forecastState.isRequesting" />
           <!-- P1-1 降级角标：仅 engine-fallback 渲染，覆盖在图表右上角（不占布局） -->
-          <ForecastFallbackBadge v-if="isLineFallback" test-id="forecast-fallback-badge-line" />
+          <div
+            v-if="isLineFallback"
+            class="forecast-fallback-badge"
+            data-testid="forecast-fallback-badge-line"
+          >
+            当前为趋势外推降级结果
+          </div>
         </GCSPanel>
         <GCSPanel
           v-if="!isStacked('bar')"
@@ -180,7 +185,13 @@ onUnmounted(() => {
             :y-unit-right="forecastState.chart.barUnitRight"
           />
           <ChartLoading v-if="forecastState.isRequesting" />
-          <ForecastFallbackBadge v-if="isBarFallback" test-id="forecast-fallback-badge-bar" />
+          <div
+            v-if="isBarFallback"
+            class="forecast-fallback-badge"
+            data-testid="forecast-fallback-badge-bar"
+          >
+            当前为趋势外推降级结果
+          </div>
         </GCSPanel>
       </template>
       <template #right>
@@ -206,5 +217,24 @@ onUnmounted(() => {
 
 .forecast-page :deep(.GCS-panel) {
   pointer-events: auto;
+}
+
+/* P1-1 降级角标：绝对定位覆盖在图表右上角，不参与布局流 ⇒ 正常路径（不渲染）布局零变化。
+   top: 22px 避开 GCSPanel 顶部 16px 拖拽手柄；ECharts title 在左上、legend 在底部，
+   右上角为空区 ⇒ 不遮挡标题/图例/坐标轴。pointer-events:none 不抢拖拽与 tooltip 命中。 */
+.forecast-fallback-badge {
+  position: absolute;
+  top: 22px;
+  right: 8px;
+  z-index: 1;
+  padding: 2px 6px;
+  border: 1px solid var(--GCS-color-warning);
+  border-radius: var(--GCS-radius-sm);
+  color: var(--GCS-color-warning);
+  background: var(--GCS-bg-panel);
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: nowrap;
+  pointer-events: none;
 }
 </style>

@@ -96,6 +96,7 @@ describe('ForecastPage 降级角标（P1-1）', () => {
     store.chart.lineDataSource = 'engine-fallback'
     await nextTick()
     expect(badge().exists()).toBe(true)
+    expect(badge().classes()).toContain('forecast-fallback-badge')
     expect(badge().text()).toContain('趋势外推')
 
     // 模型路径：角标消失（正常路径布局零变化）

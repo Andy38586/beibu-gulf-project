@@ -67,8 +67,18 @@ describe('ConfigService', () => {
   })
 
   it('jwtSecret 出口与 jwt.util 强校验同源：缺 JWT_SECRET 抛错', () => {
-    expect(() => new ConfigService({}).jwtSecret).toThrow(/JWT_SECRET/)
-    expect(() => new ConfigService({}).validateStartup()).toThrow(/JWT_SECRET/)
+    // 环境隔离（2026-10-25）：getJwtSecret() 直读 process.env（不经构造注入），
+    // 而本机按文档执行 `source backend/.env` 后 JWT_SECRET 已在环境里 ——
+    // 此时「缺 JWT_SECRET」这个前提根本不成立，断言必失败（CI 无 .env 才偶然绿）。
+    // 故显式摘掉再断言，finally 还原，与下方 ALLOW_INSECURE 用例同一模式。
+    const prevSecret = process.env.JWT_SECRET
+    delete process.env.JWT_SECRET
+    try {
+      expect(() => new ConfigService({}).jwtSecret).toThrow(/JWT_SECRET/)
+      expect(() => new ConfigService({}).validateStartup()).toThrow(/JWT_SECRET/)
+    } finally {
+      if (prevSecret !== undefined) process.env.JWT_SECRET = prevSecret
+    }
   })
 
   it('z054：cookieSecure 由显式配置决定（生产默认 true，ALLOW_INSECURE=1 转 false，开发默认 false）', () => {

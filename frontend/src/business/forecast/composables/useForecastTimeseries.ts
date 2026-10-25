@@ -11,6 +11,8 @@ import { handleAuthError, isAuthError, logger, showError } from '@/shared'
 import { DEFAULT_CONFIDENCE } from '@/shared'
 import { useForecastStore } from '@/stores'
 
+import { fromMonthOrdinal, toMonthOrdinal } from '../timeline'
+
 import { scenarioParam } from '@/shared'
 import { useForecastRequest } from './useForecastRequest'
 
@@ -84,8 +86,9 @@ export function useForecastTimeseries(): UseForecastTimeseriesReturn {
       const rawStart = isYear
         ? fmt(sliderYear - 11, 1)
         : (() => {
-            const total = sliderYear * 12 + (sliderMonth - 1) - 11
-            return fmt(Math.floor(total / 12), (total % 12) + 1)
+            // D4：绝对月序收口 timeline.toMonthOrdinal/fromMonthOrdinal（原第三份内联口径）
+            const [y, m] = fromMonthOrdinal(toMonthOrdinal(sliderYear, sliderMonth) - 11)
+            return fmt(y, m)
           })()
       const rawEnd = fmt(sliderYear, sliderMonth)
       const windowStart = rawStart >= dataMin ? rawStart : dataMin

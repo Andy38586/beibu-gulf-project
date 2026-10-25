@@ -47,3 +47,21 @@ export function timelineYears(): number[] {
 export function yearMarkPosition(year: number, yearMode: boolean, maxSteps: number): number {
   return (currentTimeToStep(yearMode ? String(year) : `${year}-01`, yearMode) / maxSteps) * 100
 }
+
+/**
+ * 绝对月序（D4 收口）：`y*12+(m-1)` 与步索引（`(y-BASE_YEAR)*12+(m-1)`，滑块域）是本文件
+ * 并存的两套月索引口径——useForecastTimeseries 的 12 点窗口曾自带第三份内联实现，跨文件
+ * 不可比。统一收口此处：绝对月序做纯函数对，与步索引的关系一行注释钉死
+ * （ordinal = step + BASE_YEAR*12）。窗口/差值运算用绝对月序（无 BASE 依赖、可跨年负移），
+ * 滑块位置用步索引，两域不得混用。
+ */
+
+/** 年月 → 绝对月序（m 为 1-12；缺省按 1 月，与 currentTimeToStep 的兜底口径一致） */
+export function toMonthOrdinal(year: number, month = 1): number {
+  return year * 12 + (month - 1)
+}
+
+/** 绝对月序 → [年, 月(1-12)]（Math.floor/mod 对负序同样成立，支持跨 BASE_YEAR 回看） */
+export function fromMonthOrdinal(ordinal: number): [year: number, month: number] {
+  return [Math.floor(ordinal / 12), (ordinal % 12) + 1]
+}

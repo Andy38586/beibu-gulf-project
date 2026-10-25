@@ -47,3 +47,30 @@ describe('步数上限', () => {
     expect(monthMaxSteps()).toBe((END_YEAR - BASE_YEAR) * 12 + 11)
   })
 })
+
+describe('D4 绝对月序收口 —— toMonthOrdinal/fromMonthOrdinal', () => {
+  it('往返恒等：任意年月 encode→decode 还原（含 1 月与 12 月边界）', async () => {
+    const { fromMonthOrdinal, toMonthOrdinal } = await import('../timeline')
+    for (const [y, m] of [
+      [2025, 1],
+      [2025, 12],
+      [2029, 6],
+      [2031, 12],
+    ]) {
+      expect(fromMonthOrdinal(toMonthOrdinal(y, m))).toEqual([y, m])
+    }
+  })
+
+  it('与步索引的关系钉死：ordinal = step + BASE_YEAR*12（两域不得混用的机读口径）', async () => {
+    const { currentTimeToStep, toMonthOrdinal } = await import('../timeline')
+    const { BASE_YEAR } = await import('@/shared')
+    // 2029-06：步索引走滑块域，绝对月序走差值域，换算只经这一条关系
+    expect(toMonthOrdinal(2029, 6) - currentTimeToStep('2029-06', false)).toBe(BASE_YEAR * 12)
+  })
+
+  it('窗口差值语义保持：11 个月前的月序 = 当前 − 11（原内联公式等价性）', async () => {
+    const { fromMonthOrdinal, toMonthOrdinal } = await import('../timeline')
+    // 2025-01 往前 11 个月 = 2024-02（跨年回看，Math.floor 对小序成立）
+    expect(fromMonthOrdinal(toMonthOrdinal(2025, 1) - 11)).toEqual([2024, 2])
+  })
+})

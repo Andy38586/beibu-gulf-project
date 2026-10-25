@@ -1113,3 +1113,40 @@ describe('BusinessLayerManager', () => {
     })
   })
 })
+
+describe('D1 定向用例：创建失败不留半截 id（回滚三面）', () => {
+  let d1Store: ReturnType<typeof createMockMapStore>
+  let d1Manager: BusinessLayerManager
+  beforeEach(() => {
+    d1Store = createMockMapStore()
+    d1Manager = new BusinessLayerManager(d1Store)
+  })
+  it('imageOverlay add 返回 false ⇒ catalog/registry 回滚为不可见、无半截注册态', async () => {
+    // 渲染器桩：addImageOverlayLayer 失败（返回 false = 图片 404/构造抛错的契约路径）
+    const renderer = {
+      addImageOverlayLayer: vi.fn(() => false),
+      getType: () => '3d',
+      clearPendingVisibility: vi.fn(),
+    }
+    d1Store.currentRenderer = renderer as unknown as MapRenderer
+
+    d1Manager.register('d1-imagery', {
+      label: '影像块',
+      layerType: 'imageOverlay',
+      data: { url: 'https://example.com/x.png', bbox: [108, 21, 109, 22], size: [1024, 768] },
+      visible: true,
+    })
+    // imageOverlay 的失败上行经异步链（onError 在微任务后触发），先等它落定
+    await new Promise((r) => setTimeout(r, 50))
+
+    // 回滚面 1：catalog 条目 visible 落回 false（面板开关回到可点亮态，不谎报在显示）
+    const entry = d1Store.layerCatalog.find((e: MockCatalogEntry) => e.key === 'd1-imagery')
+    expect(entry!.visible).toBe(false)
+    // 回滚面 2：registry meta 同步回滚（BLM 内部单源，经 setLayerVisible 双写一致）
+    expect(d1Store.setLayerVisible).toHaveBeenCalledWith('d1-imagery', false)
+    // 回滚面 3：待定可见性清空（防过期意图在下次 create 时错误应用——D1 半截态的具体形态）
+    expect(renderer.clearPendingVisibility).toHaveBeenCalledWith('d1-imagery')
+    // add 确实尝试过（失败路径走的是契约 false，不是没进 adapter）
+    expect(renderer.addImageOverlayLayer).toHaveBeenCalledTimes(1)
+  })
+})

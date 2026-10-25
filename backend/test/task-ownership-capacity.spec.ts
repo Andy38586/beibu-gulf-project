@@ -282,8 +282,11 @@ describe('d060 注册表容量三重维度', () => {
     expect(registry.trimTerminal(now)).toBe(0)
     expect(registry.capacityProblem()).toBeDefined()
 
-    // 过窗：淘汰最旧终态 ⇒ 不再超限
-    expect(registry.trimTerminal(now + 1000)).toBe(1)
+    // 过窗：淘汰最旧终态 ⇒ 不再超限。
+    // 以 finishedAt 为基准推进：patch 时的 Date.now() 可能晚于外层 now，CI 慢机上
+    // now+1000 会落在 1s 保留窗内，导致这条用例概率性红（2026-10-25 CI 实测）。
+    const finishedAt = registry.get('old')?.finishedAt ?? now
+    expect(registry.trimTerminal(finishedAt + 1000)).toBe(1)
     expect(registry.capacityProblem()).toBeUndefined()
     expect(registry.totalBytes).toBe(0)
   })

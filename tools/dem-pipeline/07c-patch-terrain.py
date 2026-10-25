@@ -16,7 +16,7 @@
    现役树为椭球高，故 POST 须由椭球件生成（07b 缺省已自动解析椭球件，见其 [基准] 行）。
 """
 from __future__ import annotations
-import gzip, json, math, sys
+import json, math, sys
 from pathlib import Path
 import numpy as np
 import rasterio
@@ -25,7 +25,7 @@ from rasterio.vrt import WarpedVRT
 from rasterio.windows import from_bounds
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
-from terrain_enc import SAMPLES, derive_water_mask, encode  # noqa: E402
+from terrain_enc import SAMPLES, build_payload, encode  # noqa: E402
 
 REPO = Path(__file__).resolve().parents[2]
 TERRAIN = REPO / "backend/static/terrain"
@@ -41,17 +41,6 @@ def tb(z, x, y):
     cols, rows = 2 ** (z + 1), 2 ** z
     return (-180.0 + x * 360.0 / cols, 90.0 - (y + 1) * 180.0 / rows,
             -180.0 + (x + 1) * 360.0 / cols, 90.0 - y * 180.0 / rows)
-
-
-def build_payload(encoded: np.ndarray, child_mask: int) -> bytes:
-    """heightmap-1.0 瓦片 payload：heights + 1B childTileMask + 1B waterMask。
-
-    waterMask 口径须与 07/08 同源（lib/terrain_enc.py）；07c 曾在此硬编码 0，
-    与 08 的 0xFF 互相覆盖，形成执行顺序相关的数据竞态。
-    """
-    return gzip.compress(
-        encoded.tobytes() + bytes([child_mask]) + bytes([derive_water_mask(encoded)]), mtime=0
-    )
 
 
 def main():

@@ -106,8 +106,8 @@ def test_stations_import_single_source():
             missing.append(f"{rel}: 未从 terrain_enc 导入任何名字")
         elif not has_path:
             missing.append(f"{rel}: 导入了 {sorted(names)} 但 sys.path 未指向 lib")
-        elif rel in WATER_MASK_STATIONS and "derive_water_mask" not in names:
-            missing.append(f"{rel}: 未导入 derive_water_mask（waterMask 口径未接单一源）")
+        elif rel in WATER_MASK_STATIONS and "build_payload" not in names:
+            missing.append(f"{rel}: 未导入 build_payload（waterMask 口径未接单一源）")
     assert not missing, "共享实现被停用（import 摘掉或 sys.path 缺失）：\n" + "\n".join(missing)
 
 
@@ -145,20 +145,40 @@ def test_read_heights_round_trip(tmp_path: Path):
     assert np.allclose(got, te.encode(src).astype(np.float64) / te.ENC_SCALE - te.ENC_OFFSET)
 
 
-def test_07c_water_mask_all_ocean_and_land():
-    """07c 写入的 waterMask 必须与 07/08 同口径：全海洋 0xFF、全陆地 0x00。"""
-    import importlib.util
+def test_stations_call_build_payload():
+    """07/07c/08 必须导入并**调用** build_payload；只 import 不调用 = 假门禁。"""
+    missing: list[str] = []
+    for rel in WATER_MASK_STATIONS:
+        tree, _ = _tree(rel)
+        imported = called = False
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom) and node.module == "terrain_enc":
+                if any(a.name == "build_payload" for a in node.names):
+                    imported = True
+            if (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Name)
+                and node.func.id == "build_payload"
+            ):
+                called = True
+        if not imported:
+            missing.append(f"{rel}: 未导入 build_payload")
+        elif not called:
+            missing.append(f"{rel}: 导入了 build_payload 但未调用")
+    assert not missing, "waterMask payload 未走单源：\n" + "\n".join(missing)
 
-    spec = importlib.util.spec_from_file_location(
-        "patch_terrain", ROOT / "tools/dem-pipeline/07c-patch-terrain.py"
-    )
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
 
+def test_build_payload_water_mask_and_layout():
+    """单源 payload：布局 = heights + 2B；全海洋 0xFF、全陆地 0x00。"""
     ocean = te.encode(np.zeros((te.SAMPLES, te.SAMPLES)))
     land = te.encode(np.full((te.SAMPLES, te.SAMPLES), 12.0))
-    assert gzip.decompress(mod.build_payload(ocean, 0))[-1] == 0xFF
-    assert gzip.decompress(mod.build_payload(land, 0))[-1] == 0x00
+    raw_ocean = gzip.decompress(te.build_payload(ocean, 0x0F))
+    assert len(raw_ocean) == te.RAW_BYTES
+    assert raw_ocean[-2] == 0x0F
+    assert raw_ocean[-1] == 0xFF
+    raw_land = gzip.decompress(te.build_payload(land, 0x0A))
+    assert raw_land[-2] == 0x0A
+    assert raw_land[-1] == 0x00
 
 
 def test_payload_layout_is_heights_plus_two_masks(tmp_path: Path):

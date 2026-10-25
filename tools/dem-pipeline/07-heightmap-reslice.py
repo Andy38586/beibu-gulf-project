@@ -15,7 +15,6 @@ RangeError（8-10 生产"无起伏"即本 bug 症状），瓦片从未渲染成�
 """
 from __future__ import annotations
 
-import gzip
 import math
 import sys
 from pathlib import Path
@@ -27,7 +26,7 @@ from rasterio.vrt import WarpedVRT
 from rasterio.windows import from_bounds
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
-from terrain_enc import SAMPLES, derive_water_mask, encode  # noqa: E402
+from terrain_enc import SAMPLES, build_payload, encode  # noqa: E402
 
 REPO = Path(__file__).resolve().parents[2]
 # 2026-10-04 路径修订：原两个默认路径（dem/ 下的 dem_4326_cut.tif 与 filled_utm48n_cut.tif）
@@ -136,12 +135,8 @@ def main() -> None:
             ):
                 if (z + 1, cx, cy) in tile_set:
                     mask |= 1 << bit
-            payload = gzip.compress(
-                encoded.tobytes()
-                + bytes([mask])
-                + bytes([derive_water_mask(encoded)]),
-                mtime=0,  # 产物确定性，便于 diff/校验（与 07c/08 同款约定）
-            )
+            # 产物确定性，便于 diff/校验（与 07c/08 同款约定）
+            payload = build_payload(encoded, mask)
             out = TERRAIN_DIR / str(z) / str(x) / f"{y}.terrain"
             out.parent.mkdir(parents=True, exist_ok=True)
             out.write_bytes(payload)

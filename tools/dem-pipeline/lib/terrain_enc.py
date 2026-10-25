@@ -40,6 +40,20 @@ def derive_water_mask(encoded_heights: np.ndarray) -> int:
     return 0xFF if bool(np.all(encoded_heights == OCEAN_VALUE)) else 0x00
 
 
+def build_payload(encoded_heights: np.ndarray, child_mask: int) -> bytes:
+    """heightmap-1.0 瓦片 payload：heights + 1B childTileMask + 1B waterMask。
+
+    waterMask 由 derive_water_mask 派生；07 / 07c / 08 共用这一处组装，
+    gzip mtime=0 保证同内容同字节。
+    """
+    payload = (
+        encoded_heights.astype("<u2", copy=False).tobytes()
+        + bytes([child_mask & 0xFF])
+        + bytes([derive_water_mask(encoded_heights)])
+    )
+    return gzip.compress(payload, compresslevel=9, mtime=0)
+
+
 def read_heights(path: Path) -> np.ndarray:
     """读 .terrain（gzip）→ SAMPLES×SAMPLES 高程（米，float64）；尾部 2B 掩膜不参与换算。"""
     raw = gzip.decompress(Path(path).read_bytes())

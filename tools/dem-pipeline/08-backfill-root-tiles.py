@@ -25,7 +25,7 @@ from pathlib import Path
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
-from terrain_enc import OCEAN_VALUE, RAW_BYTES, SAMPLES, derive_water_mask  # noqa: E402
+from terrain_enc import OCEAN_VALUE, RAW_BYTES, SAMPLES, build_payload  # noqa: E402
 # 目标瓦片：(z,x,y, 是否纯海洋)。顺序：先补子瓦片 1/3/1，再合成其父 0/1/0
 TARGETS = [(1, 3, 1, True), (0, 0, 0, True), (0, 1, 0, False)]
 
@@ -43,10 +43,8 @@ def decode_tile(path: Path) -> tuple[np.ndarray, int, int]:
     return heights, raw[-2], raw[-1]
 
 
-def encode_tile(heights: np.ndarray, child_mask: int, water_mask: int) -> bytes:
-    payload = heights.astype("<u2", copy=False).tobytes() + bytes([child_mask & 0xFF, water_mask & 0xFF])
-    # mtime=0：产物确定性，便于 diff/校验
-    return gzip.compress(payload, compresslevel=9, mtime=0)
+def encode_tile(heights: np.ndarray, child_mask: int) -> bytes:
+    return build_payload(heights, child_mask)
 
 
 def child_mask_from_disk(root: Path, z: int, x: int, y: int) -> int:
@@ -66,7 +64,7 @@ def child_mask_from_disk(root: Path, z: int, x: int, y: int) -> int:
 
 def ocean_tile(root: Path, z: int, x: int, y: int) -> bytes:
     heights = np.full((SAMPLES, SAMPLES), OCEAN_VALUE, dtype="<u2")
-    return encode_tile(heights, child_mask_from_disk(root, z, x, y), 0xFF)
+    return encode_tile(heights, child_mask_from_disk(root, z, x, y))
 
 
 def aggregate_from_children(root: Path, z: int, x: int, y: int) -> np.ndarray:
@@ -116,8 +114,7 @@ def main() -> int:
             blob = ocean_tile(root, z, x, y)
         else:
             heights = aggregate_from_children(root, z, x, y)
-            water_mask = derive_water_mask(heights)
-            blob = encode_tile(heights, child_mask_from_disk(root, z, x, y), water_mask)
+            blob = encode_tile(heights, child_mask_from_disk(root, z, x, y))
         out.write_bytes(blob)
         # 回读自检
         h, cm, wm = decode_tile(out)

@@ -26,6 +26,9 @@ paths = [
   '^README\.md$',
   '\.venv/',
   '(^|/)dist(-[^/]*)?/',
+  # 2026-10-25：测试夹具的假 key（test_tianditu.py:128 断言 KEY_PATTERN 能取出
+  # "VITE_TIANDITU_KEY=abc123"）被 generic-api-key 误报；该文件不含真实凭据。
+  'tools/lib/test_tianditu\.py$',
   # 🔴 2026-09-19 修正：原为未锚定的 '\.env'，会连 `.env.example`（合法入库文件）一起放行，
   # 使密钥门禁对这些文件静默失效。锚定为「恰好叫 .env 的文件」。
   '(^|/)\.env$',

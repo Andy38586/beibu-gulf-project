@@ -48,6 +48,7 @@ export const GUARDS = [
   'guard-red-sample',
   'owned-layers',
   'cesium-import-allowlist',
+  'pg-import-allowlist',
   'layer-keys',
   'vue-list-keys',
   'host-object-cast',

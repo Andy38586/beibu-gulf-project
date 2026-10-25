@@ -121,8 +121,8 @@
   },
   "专项6:8.3": {
     "kind": "guard",
-    "refs": ["tools/v3-guard/nest-controllers.mjs"],
-    "by": "守卫断言 controller 不直读数据文件、必须经 service/repository——「DB 访问收口（repository 层唯一）」在 controller 这一面的落点；与专项1:2.4 是同一守卫的两个指标面（1:2.4 判「有没有绕过 service」，6:8.3 判「数据访问有没有收口在 repository」）"
+    "refs": ["tools/v3-guard/nest-controllers.mjs", "tools/v3-guard/pg-import-allowlist.mjs"],
+    "by": "两条守卫各守「DB 访问收口（repository 层唯一）」的一面：nest-controllers 断言 controller 不直读数据文件、必须经 service/repository；pg-import-allowlist 断言 backend/src 直引 pg 的站点只在 infra/db 或 modules/*/repositories（其余模块绕过 repository 直连驱动即红）。与专项1:2.4 是同一守卫的两个指标面（1:2.4 判「有没有绕过 service」，6:8.3 判「数据访问有没有收口在 repository」）"
   },
   "专项6:8.4": {
     "kind": "guard",

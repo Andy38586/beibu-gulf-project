@@ -19,7 +19,24 @@
  * 跑该守卫自己的测试：
  *   · 变红 ⇒ `killed`（红样咬的是承重判据，约束成立）；
  *   · 仍绿 ⇒ `survived`（假绿样，必须补强断言）。
- * 每个注入点跑完**立即还原**原文件（try/finally 语义，异常也不留脏）。
+ * 每个注入点跑完**立即还原**（try/finally 语义，异常也不留脏）。
+ *
+ * ## 注入面（F101 B，用户 2026-10-25 裁定 B）
+ *
+ * **绝不在工作树真件上注入**。旧版直接改 `tools/v3-guard/<guard>.mjs` 再还原；硬杀
+ * （Ctrl+C / 任务被杀 / 断电）会把 `return []` 留在真件里，实测已留下注入态——这等于
+ * 复验装置自己制造了它要抓的「假守卫」。
+ *
+ * 现在每次复验建一个**临时 git worktree**（`.local/tmp/grm-wt-<pid>-<ts>`）：
+ *   · worktree 是完整仓库副本，守卫里的 `ROOT=../..`、`git ls-files`、真文档读取都照常成立
+ *     （纯拷贝目录做不到这点：git 索引会空、路径基准会错）；
+ *   · 注入只写 worktree 内的副本，真件 md5 前后一致（`probeGuard` 每次自检并在变化时判 error）；
+ *   · 正常退出 `git worktree remove --force` 清理；硬杀遗留的目录由下次启动
+ *     `sweepStaleWorktrees()` 清扫（按文件名里的 pid 判断，活进程的副本不动）。
+ *
+ * 不用「拷 tools/v3-guard 树 + 改相对 import」：守卫测试大量依赖仓库根锚点
+ * （`git show :docs/...`、`.husky`、真 `frontend/src`），改 import 只能解决模块解析，
+ * 解决不了「ROOT 指到临时目录后读到的是另一棵树」——那会让基线判断失真。
  *
  * ## 四条防自欺的口径（都是踩过的坑换来的）
  *
@@ -47,6 +64,7 @@
  * 退出码：0 = 全部 killed（或已登记豁免）；1 = 存在未登记的 survived / error / skip。
  */
 import { spawnSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -59,10 +77,12 @@ import { MARKER } from './guard-red-sample.mjs'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const ROOT = path.resolve(HERE, '../..')
-const IS_WIN = process.platform === 'win32'
-const NPX = IS_WIN ? 'npx.cmd' : 'npx'
-
 const SELF = 'guard-red-mutation'
+
+/** 前缀含 pid：下次启动只清扫「进程已不在」的副本，不误删并行运行的另一个复验 */
+const WORKTREE_PREFIX = 'grm-wt-'
+/** vitest 入口（直接 node 调用，不依赖 npx 解析与 shell；受限环境实测更稳） */
+const VITEST_BIN = path.join(ROOT, 'node_modules', 'vitest', 'vitest.mjs')
 
 /**
  * 棘轮基线：已知无法做「停用审计函数」注入的守卫（逐项登记并写明理由，不许悄悄扩大）。
@@ -170,7 +190,7 @@ export function parsesModule(source) {
 
 /**
  * 写文件带重试：子进程刚读过目标文件时写回可能短暂失败（见头注 6）。
- * 重试尽仍失败才抛错——此时装置中止，工作树可能停在注入态，需手工核对。
+ * 重试尽仍失败才抛错——此时装置中止，**只影响临时副本**，真件不动。
  */
 function writeFileRetry(file, content) {
   for (let i = 1; ; i++) {
@@ -185,6 +205,170 @@ function writeFileRetry(file, content) {
       }
     }
   }
+}
+
+/** 文件 md5：用于「真件在复验期间未被改动」的运行时自检 */
+export function fileMd5(file) {
+  return createHash('md5').update(fs.readFileSync(file)).digest('hex')
+}
+
+function runGit(args, { cwd = ROOT, trim = true } = {}) {
+  const r = spawnSync('git', args, { cwd, encoding: 'utf8', timeout: 120000 })
+  const out = r.stdout ?? ''
+  return { status: r.status, out: trim ? out.trim() : out, err: (r.stderr ?? '').trim() }
+}
+
+/**
+ * 解析 `git status --porcelain=v1 -z` 原始输出。
+ *
+ * 不得先 trim：首条修改的状态码是「空格 + M」（工作区改动），trim 会把状态码前导
+ * 空格吃掉，随后 `slice(3)` 少切一位、路径首字母丢失 —— 第一个修改文件永远复制不进
+ * 副本，基线就会拿 HEAD 版本判绿（实测：f101-b 首个改动文件 flood colors 被漏拷）。
+ */
+export function parsePorcelainZ(raw) {
+  return raw
+    .split('\0')
+    .filter(Boolean)
+    .map((entry) => ({ code: entry.slice(0, 2), rel: entry.slice(3) }))
+    .filter((e) => e.rel)
+}
+
+/** pid 是否仍存活；EPERM（无权限发信号）按「活着」保守处理，避免误删并行副本 */
+function pidAlive(pid) {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch (err) {
+    return err.code === 'EPERM'
+  }
+}
+
+/** 删除目录，但不跟随 symlink/junction（worktree 内本不该有，防御性） */
+function removeTreeNoFollow(dir) {
+  if (!fs.existsSync(dir)) return
+  for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+    const p = path.join(dir, e.name)
+    if (e.isSymbolicLink()) fs.unlinkSync(p)
+    else if (e.isDirectory()) removeTreeNoFollow(p)
+    else fs.unlinkSync(p)
+  }
+  fs.rmdirSync(dir)
+}
+
+/** 把工作区里「已修改/已暂存/未跟踪」的文件覆盖进 worktree（HEAD 版本会丢当前改动） */
+export function copyWorkingTreeChanges(root, dir) {
+  const st = runGit(['status', '--porcelain=v1', '-z', '--untracked-files=all', '--no-renames'], {
+    cwd: root,
+    trim: false,
+  })
+  if (st.status !== 0) throw new Error(`git status 失败：${st.err || st.out}`)
+  for (const { code, rel } of parsePorcelainZ(st.out)) {
+    const from = path.join(root, rel)
+    const to = path.join(dir, rel)
+    if (code.includes('D') || !fs.existsSync(from)) {
+      fs.rmSync(to, { recursive: true, force: true })
+      continue
+    }
+    fs.mkdirSync(path.dirname(to), { recursive: true })
+    fs.copyFileSync(from, to)
+  }
+}
+
+/** 临时 worktree 落点（每次复验会话一个） */
+function worktreeParent(root) {
+  return path.join(root, '.local', 'tmp')
+}
+
+/**
+ * 建临时注入副本（**唯一**允许写入的注入面）。
+ *
+ * 为什么是 git worktree 而不是拷目录：守卫测试的锚点是仓库根（`ROOT=../..`），
+ * 会读 `git ls-files` / `git show :docs/...` / `.husky` / 真 `frontend/src`。
+ * 只拷 `tools/v3-guard` 再改相对 import，模块能解析，但这些锚点会指向另一棵树，
+ * 基线判断失真（实测纯拷贝下 doc-ref-check 的 git 索引为空、基线直接红）。
+ */
+export function createProbeWorktree({ root = ROOT } = {}) {
+  if (!fs.existsSync(path.join(root, '.git'))) {
+    throw new Error(`${root} 不是 git 仓库，无法创建注入副本`)
+  }
+  const parent = worktreeParent(root)
+  fs.mkdirSync(parent, { recursive: true })
+  sweepStaleWorktrees({ root })
+
+  const dir = path.join(parent, `${WORKTREE_PREFIX}${process.pid}-${Date.now()}`)
+  const add = runGit(['worktree', 'add', '--detach', dir, 'HEAD'], { cwd: root })
+  if (add.status !== 0) throw new Error(`git worktree add 失败：${add.err || add.out}`)
+
+  try {
+    copyWorkingTreeChanges(root, dir)
+    // 守卫树用工作区当前版本整体覆盖：worktree 是 HEAD 版本，未提交的守卫/测试改动会丢
+    const src = path.join(root, 'tools', 'v3-guard')
+    const dst = path.join(dir, 'tools', 'v3-guard')
+    fs.cpSync(src, dst, { recursive: true, force: true })
+  } catch (err) {
+    removeProbeWorktree(dir, { root })
+    throw err
+  }
+  return { dir, root }
+}
+
+/** 删除一个注入副本：先走 git worktree remove，失败再按不跟随符号链接的方式硬删 */
+export function removeProbeWorktree(dir, { root = ROOT } = {}) {
+  if (!dir) return
+  if (fs.existsSync(dir)) {
+    const r = runGit(['worktree', 'remove', '--force', dir], { cwd: root })
+    if (r.status !== 0 && fs.existsSync(dir)) removeTreeNoFollow(dir)
+  }
+  runGit(['worktree', 'prune'], { cwd: root })
+}
+
+/**
+ * 清扫硬杀遗留的副本（正常退出由 `cleanupProbeWorktree` 负责）。
+ *
+ * 只看文件名里的 pid：活进程的副本不动（并行跑两个复验时不能互删）；
+ * 本进程的会话副本也不动（由 finally 清理）。
+ */
+export function sweepStaleWorktrees({ root = ROOT } = {}) {
+  const parent = worktreeParent(root)
+  if (!fs.existsSync(parent)) return 0
+  let swept = 0
+  for (const name of fs.readdirSync(parent)) {
+    if (!name.startsWith(WORKTREE_PREFIX)) continue
+    const pid = Number(name.slice(WORKTREE_PREFIX.length).match(/^(\d+)-/)?.[1] ?? 0)
+    if (pid === process.pid) continue
+    if (pid && pidAlive(pid)) continue
+    removeProbeWorktree(path.join(parent, name), { root })
+    swept++
+  }
+  runGit(['worktree', 'prune'], { cwd: root })
+  return swept
+}
+
+/** 会话级单例：一次 `guard:mutation` 只建一个 worktree（建一次约 7s，不能每守卫建） */
+let sessionWorktree = null
+
+export function ensureProbeWorktree() {
+  if (!sessionWorktree) sessionWorktree = createProbeWorktree()
+  return sessionWorktree
+}
+
+export function cleanupProbeWorktree() {
+  if (!sessionWorktree) return
+  removeProbeWorktree(sessionWorktree.dir)
+  sessionWorktree = null
+}
+
+/**
+ * 在副本里注入某守卫的某函数（测试/硬杀自测用；**不碰真件**）。
+ * @returns {string|null} 被注入的副本路径；找不到注入锚点返回 null
+ */
+export function stageInjection(wt, guardName, fnName) {
+  const real = path.join(HERE, `${guardName}.mjs`)
+  const copy = path.join(wt.dir, 'tools', 'v3-guard', `${guardName}.mjs`)
+  const mutated = injectEarlyReturn(fs.readFileSync(real, 'utf8'), fnName)
+  if (mutated === null) return null
+  writeFileRetry(copy, mutated)
+  return copy
 }
 
 /** 判定（纯函数，便于红样测试）：返回问题列表（空 = 通过） */
@@ -230,19 +414,26 @@ export function auditControls(guards, readTest) {
 }
 
 /** 跑单个测试文件；输出走 fd，`status=null` 语义由调用方判 error */
-function runTestFile(testRel) {
+function runTestFile(testRel, cwd = ROOT) {
   const outFile = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'grm-')), 'out.log')
   const fd = fs.openSync(outFile, 'w')
   const started = Date.now()
   let status = null
   try {
-    status = spawnSync(NPX, ['vitest', 'run', '--root', '.', '--dir', 'tools', testRel], {
-      cwd: ROOT,
-      stdio: ['ignore', fd, fd],
-      shell: IS_WIN,
-      env: { ...process.env, NODE_OPTIONS: '' },
-      timeout: 300000,
-    }).status
+    if (!fs.existsSync(VITEST_BIN)) {
+      fs.writeSync(fd, `vitest 入口不存在：${VITEST_BIN}`)
+    } else {
+      status = spawnSync(
+        process.execPath,
+        [VITEST_BIN, 'run', '--root', '.', '--dir', 'tools', testRel],
+        {
+          cwd,
+          stdio: ['ignore', fd, fd],
+          env: { ...process.env, NODE_OPTIONS: '' },
+          timeout: 300000,
+        }
+      ).status
+    }
   } finally {
     fs.closeSync(fd)
   }
@@ -251,7 +442,12 @@ function runTestFile(testRel) {
   return { status, ms, tail }
 }
 
-/** 探测单个守卫：基线校验 → 逐个注入 → 判定 */
+/**
+ * 探测单个守卫：建副本 → 基线校验 → 逐个注入（只写副本）→ 判定。
+ *
+ * 真件只读：进出各取一次 md5，任何变化都判 `error`（不是「差不多就行」）。
+ * 这既防实现回退到「改真件再还原」，也防测试/子进程意外写入守卫源。
+ */
 export function probeGuard(guardName, { guardDir = HERE, root = ROOT } = {}) {
   const guardPath = path.join(guardDir, `${guardName}.mjs`)
   const testRel = path.join('tools/v3-guard/__tests__', `${guardName}.test.mjs`)
@@ -269,56 +465,108 @@ export function probeGuard(guardName, { guardDir = HERE, root = ROOT } = {}) {
     }
   }
 
-  const base = runTestFile(testRel)
-  if (base.status !== 0) {
+  // 自定义 root/guardDir 是单测夹具（如「无 test 文件」），没有完整仓库可建 worktree。
+  // 不提供「就地注入」的降级路径：那条路正是硬杀留注入态的根因。
+  if (root !== ROOT || guardDir !== HERE) {
     return {
       guard: guardName,
       status: 'error',
-      detail: `基线非绿（status=${base.status}，${base.ms}ms）—— 测试本身就红，无法判定能红性`,
+      detail: '自定义 root/guardDir 不支持副本注入（临时 worktree 需真实仓库根）',
     }
   }
 
-  const tried = []
-  for (const fn of injectables) {
-    const mutated = injectEarlyReturn(orig, fn)
-    if (mutated === null) continue
-    if (!parsesModule(mutated)) {
+  const beforeHash = fileMd5(guardPath)
+
+  const runProbe = () => {
+    const wt = ensureProbeWorktree()
+    const guardRel = path.join('tools', 'v3-guard', `${guardName}.mjs`)
+    const wtGuard = path.join(wt.dir, guardRel)
+    const wtTest = path.join(wt.dir, testRel)
+    // 每守卫都从真件刷新副本：上一守卫若异常，副本里可能残留注入
+    fs.copyFileSync(guardPath, wtGuard)
+    fs.copyFileSync(testAbs, wtTest)
+
+    const base = runTestFile(testRel, wt.dir)
+    if (base.status !== 0) {
       return {
         guard: guardName,
         status: 'error',
-        detail: `停用 ${fn} 后源码解析失败（假杀形状）；注入器必须落在函数体上`,
+        detail: `基线非绿（status=${base.status}，${base.ms}ms）—— 测试本身就红，无法判定能红性`,
       }
     }
-    writeFileRetry(guardPath, mutated)
-    let r
-    try {
-      r = runTestFile(testRel)
-    } finally {
-      writeFileRetry(guardPath, orig)
+
+    const tried = []
+    for (const fn of injectables) {
+      const mutated = injectEarlyReturn(orig, fn)
+      if (mutated === null) continue
+      if (!parsesModule(mutated)) {
+        return {
+          guard: guardName,
+          status: 'error',
+          detail: `停用 ${fn} 后源码解析失败（假杀形状）；注入器必须落在函数体上`,
+        }
+      }
+      writeFileRetry(wtGuard, mutated)
+      let r
+      try {
+        r = runTestFile(testRel, wt.dir)
+      } finally {
+        writeFileRetry(wtGuard, orig)
+      }
+      if (r.status === null) {
+        return {
+          guard: guardName,
+          status: 'error',
+          detail: `停用 ${fn} 后子进程未起（status=null）`,
+          ms: r.ms,
+        }
+      }
+      tried.push(`${fn}:${r.status === 0 ? '仍绿' : `红(${r.status},${r.ms}ms)`}`)
+      if (r.status !== 0) {
+        return {
+          guard: guardName,
+          status: 'killed',
+          detail: `停用 ${fn} ⇒ 测试 exit ${r.status}`,
+          ms: r.ms,
+        }
+      }
     }
-    if (r.status === null) {
-      return {
+    return {
+      guard: guardName,
+      status: 'survived',
+      detail: `停用 ${injectables.join('/')} 后测试仍绿（${tried.join(' ')}）—— 红样没咬住承重判据`,
+    }
+  }
+
+  let result
+  try {
+    result = runProbe()
+  } catch (err) {
+    result = {
+      guard: guardName,
+      status: 'error',
+      detail: `副本注入流程异常：${err instanceof Error ? err.message : String(err)}`,
+    }
+  }
+
+  try {
+    if (fileMd5(guardPath) !== beforeHash) {
+      result = {
         guard: guardName,
         status: 'error',
-        detail: `停用 ${fn} 后子进程未起（status=null）`,
-        ms: r.ms,
+        detail:
+          `真件 md5 在复验期间变化（${beforeHash} → ${fileMd5(guardPath)}）—— ` +
+          '注入只能写 worktree 副本，真件必须前后一致',
       }
     }
-    tried.push(`${fn}:${r.status === 0 ? '仍绿' : `红(${r.status},${r.ms}ms)`}`)
-    if (r.status !== 0) {
-      return {
-        guard: guardName,
-        status: 'killed',
-        detail: `停用 ${fn} ⇒ 测试 exit ${r.status}`,
-        ms: r.ms,
-      }
+  } catch (err) {
+    result = {
+      guard: guardName,
+      status: 'error',
+      detail: `复验后读不到真件：${err instanceof Error ? err.message : String(err)}`,
     }
   }
-  return {
-    guard: guardName,
-    status: 'survived',
-    detail: `停用 ${injectables.join('/')} 后测试仍绿（${tried.join(' ')}）—— 红样没咬住承重判据`,
-  }
+  return result
 }
 
 function parseArgs(argv) {
@@ -347,16 +595,31 @@ function main() {
     process.exit(1)
   }
 
+  // 硬杀（SIGKILL）无法拦截，但 Ctrl+C / SIGTERM 要先把副本清掉；
+  // 真正的硬杀残留由下次启动的 sweepStaleWorktrees 兜底。
+  const onSignal = (sig) => {
+    cleanupProbeWorktree()
+    process.exit(sig === 'SIGINT' ? 130 : 143)
+  }
+  process.once('SIGINT', onSignal)
+  process.once('SIGTERM', onSignal)
+
+  const swept = sweepStaleWorktrees()
   console.log(
-    `[guard-red-mutation] 逐个注入「停用审计函数」并跑该守卫的测试（${guards.length} 个，约 3 分钟）\n`
+    `[guard-red-mutation] 逐个注入「停用审计函数」并跑该守卫的测试（${guards.length} 个，约 3 分钟）\n` +
+      `  注入面 = 临时 git worktree（真件只读）${swept ? `；已清扫 ${swept} 个硬杀残留` : ''}\n`
   )
   const results = []
-  for (const g of guards) {
-    const r = probeGuard(g)
-    results.push(r)
-    const icon =
-      r.status === 'killed' ? 'killed ✓' : r.status === 'skip' ? 'skip ✗' : r.status.toUpperCase()
-    console.log(`  · ${g.padEnd(23)} ${icon.padEnd(14)} ${r.detail ?? ''}`)
+  try {
+    for (const g of guards) {
+      const r = probeGuard(g)
+      results.push(r)
+      const icon =
+        r.status === 'killed' ? 'killed ✓' : r.status === 'skip' ? 'skip ✗' : r.status.toUpperCase()
+      console.log(`  · ${g.padEnd(23)} ${icon.padEnd(14)} ${r.detail ?? ''}`)
+    }
+  } finally {
+    cleanupProbeWorktree()
   }
 
   const problems = auditResults(results)

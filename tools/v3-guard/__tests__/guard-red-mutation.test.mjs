@@ -14,15 +14,28 @@
  *   7) 注入点必须落在**函数体**（跳过解构参数），且注入产物必须可解析 ——
  *      2026-10-09 假杀修复：旧实现把 `return []` 插进参数表 ⇒ parse error 被当成 killed。
  */
-import { mkdtempSync, readdirSync, writeFileSync } from 'node:fs'
+import { spawn, spawnSync } from 'node:child_process'
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { describe, expect, it } from 'vitest'
+import { afterAll, describe, expect, it } from 'vitest'
 
 import {
   auditControls,
   auditResults,
+  cleanupProbeWorktree,
+  copyWorkingTreeChanges,
+  createProbeWorktree,
+  fileMd5,
   guardsToProbe,
   importedNames,
   injectEarlyReturn,
@@ -30,10 +43,17 @@ import {
   pickInjectables,
   probeGuard,
   redSampleNeedsControl,
+  removeProbeWorktree,
+  stageInjection,
+  sweepStaleWorktrees,
 } from '../guard-red-mutation.mjs'
 import { EXECUTOR_NAME, executionPlan } from '../run-all.mjs'
 
 const GUARD_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+const ROOT = resolve(GUARD_DIR, '../..')
+
+// 会话级副本只在 main() 的 finally 里清理；测试里要自己收尾，否则留下 100MB+ 目录
+afterAll(() => cleanupProbeWorktree())
 
 describe('guard-red-mutation — 守卫红样能红性复验', () => {
   it('importedNames 只取守卫自身 import 的具名导出', () => {
@@ -135,6 +155,106 @@ describe('guard-red-mutation — 守卫红样能红性复验', () => {
     const r = probeGuard('tmp-hygiene')
     expect(r.status).toBe('killed')
     expect(r.detail).toContain('exit')
+  }, 120000)
+})
+
+describe('F101 B：注入只写临时 worktree 副本（硬杀不留注入态）', () => {
+  it('@guard-red-sample 副本注入：真件 md5 不变，正常清理后副本消失', () => {
+    const realGuard = join(GUARD_DIR, 'tmp-hygiene.mjs')
+    const before = fileMd5(realGuard)
+    const wt = createProbeWorktree()
+    try {
+      const copy = stageInjection(wt, 'tmp-hygiene', 'scan')
+      expect(copy, '找不到注入锚点').toBeTruthy()
+      expect(copy, '注入路径必须在副本里').not.toBe(realGuard)
+      expect(readFileSync(copy, 'utf8')).toContain('return []')
+      expect(fileMd5(realGuard), '副本注入不得改真件').toBe(before)
+    } finally {
+      removeProbeWorktree(wt.dir)
+    }
+    expect(existsSync(wt.dir), '正常清理后副本目录必须消失').toBe(false)
+    expect(fileMd5(realGuard)).toBe(before)
+  }, 120000)
+
+  it('工作区首个修改文件也必须复制进副本（-z 前导空格不得被 trim）', () => {
+    const repo = mkdtempSync(join(tmpdir(), 'grm-copy-repo-'))
+    const dest = mkdtempSync(join(tmpdir(), 'grm-copy-dest-'))
+    const git = (args) => {
+      const r = spawnSync('git', args, { cwd: repo, encoding: 'utf8' })
+      if (r.status !== 0) throw new Error(`git ${args.join(' ')} 失败：${r.stderr}`)
+    }
+    try {
+      git(['init', '-q'])
+      writeFileSync(join(repo, 'a.ts'), 'old a\n')
+      writeFileSync(join(repo, 'b.ts'), 'old b\n')
+      git(['add', '.'])
+      git(['-c', 'user.email=t@example.com', '-c', 'user.name=t', 'commit', '-qm', 'init'])
+      writeFileSync(join(repo, 'a.ts'), 'new a\n')
+      writeFileSync(join(repo, 'b.ts'), 'new b\n')
+      copyWorkingTreeChanges(repo, dest)
+      expect(readFileSync(join(dest, 'a.ts'), 'utf8'), '首条状态码前导空格被 trim').toBe('new a\n')
+      expect(readFileSync(join(dest, 'b.ts'), 'utf8')).toBe('new b\n')
+    } finally {
+      rmSync(repo, { recursive: true, force: true })
+      rmSync(dest, { recursive: true, force: true })
+    }
+  })
+
+  it('@guard-red-sample 硬杀：副本注入后 SIGKILL，真件逐字不变、注入态只在副本、清扫后无残留', async () => {
+    const realGuard = join(GUARD_DIR, 'tmp-hygiene.mjs')
+    const beforeText = readFileSync(realGuard, 'utf8')
+    const beforeMd5 = fileMd5(realGuard)
+    const work = mkdtempSync(join(tmpdir(), 'grm-kill-'))
+    const marker = join(work, 'ready.txt')
+    const childFile = join(work, 'child.mjs')
+    const modUrl = new URL('../guard-red-mutation.mjs', import.meta.url).href
+    writeFileSync(
+      childFile,
+      [
+        "import fs from 'node:fs'",
+        `import { createProbeWorktree, stageInjection } from ${JSON.stringify(modUrl)}`,
+        'const marker = process.argv[2]',
+        'const wt = createProbeWorktree()',
+        "const copy = stageInjection(wt, 'tmp-hygiene', 'scan')",
+        "if (!copy) throw new Error('stageInjection returned null')",
+        'fs.writeFileSync(marker, wt.dir)',
+        'setInterval(() => {}, 1000)',
+      ].join('\n')
+    )
+
+    const child = spawn(process.execPath, [childFile, marker], { stdio: 'ignore' })
+    const exited = new Promise((r) => child.once('exit', r))
+    let wtDir = null
+    try {
+      const deadline = Date.now() + 90000
+      while (Date.now() < deadline) {
+        if (existsSync(marker)) {
+          wtDir = readFileSync(marker, 'utf8').trim()
+          break
+        }
+        await new Promise((r) => setTimeout(r, 100))
+      }
+      expect(wtDir, '子进程未在 90s 内建好注入副本').toBeTruthy()
+      const copyPath = join(wtDir, 'tools/v3-guard/tmp-hygiene.mjs')
+      expect(readFileSync(copyPath, 'utf8'), '副本必须停在注入态').toContain('return []')
+    } finally {
+      child.kill('SIGKILL')
+      await exited
+    }
+
+    // 硬杀发生在「副本已注入」之后：若实现回退成改真件，这里必红
+    expect(fileMd5(realGuard), '硬杀后真件 md5 必须不变').toBe(beforeMd5)
+    expect(readFileSync(realGuard, 'utf8'), '硬杀后真件内容必须逐字不变').toBe(beforeText)
+
+    const swept = sweepStaleWorktrees()
+    expect(swept, '应当清扫掉被硬杀的副本').toBeGreaterThanOrEqual(1)
+    expect(existsSync(wtDir), '清扫后副本目录必须消失').toBe(false)
+    const list = spawnSync('git', ['worktree', 'list', '--porcelain'], {
+      cwd: ROOT,
+      encoding: 'utf8',
+    }).stdout
+    expect(list, 'git worktree 登记不得残留').not.toContain(wtDir)
+    rmSync(work, { recursive: true, force: true })
   }, 120000)
 })
 

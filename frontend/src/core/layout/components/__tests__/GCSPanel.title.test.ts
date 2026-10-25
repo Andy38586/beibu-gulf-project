@@ -19,4 +19,20 @@ describe('GCSPanel title 面板头', () => {
     const wrapper = mount(GCSPanel, { props: { w: 4, h: 4 } })
     expect(wrapper.find('.GCS-panel__header').exists()).toBe(false)
   })
+
+  // 两档语义：label（默认，年份等小标签）与 heading（面板标题，原 .panel-header 口径）
+  it('默认档为 label：class 含 GCS-panel__header--label', () => {
+    const wrapper = mount(GCSPanel, { props: { w: 4, h: 4, title: '年份' } })
+    expect(wrapper.find('.GCS-panel__header').classes()).toContain('GCS-panel__header--label')
+  })
+
+  it('titleVariant="heading"：同一 header 节点挂 heading 修饰类且文本不变', () => {
+    const wrapper = mount(GCSPanel, {
+      props: { w: 4, h: 4, title: '路径结果', titleVariant: 'heading' },
+    })
+    const header = wrapper.find('.GCS-panel__header')
+    expect(header.classes()).toContain('GCS-panel__header--heading')
+    expect(header.classes()).not.toContain('GCS-panel__header--label')
+    expect(header.text()).toBe('路径结果')
+  })
 })

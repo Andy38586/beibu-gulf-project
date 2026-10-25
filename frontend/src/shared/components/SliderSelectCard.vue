@@ -99,7 +99,7 @@ const onSliderInput = (e: Event) => {
   background: var(--GCS-bg-panel);
   color: var(--GCS-text-regular);
   cursor: pointer;
-  font-size: 14px;
+  font-size: var(--GCS-font-size-body);
   letter-spacing: -0.5px;
   line-height: 1.2;
   text-align: center;

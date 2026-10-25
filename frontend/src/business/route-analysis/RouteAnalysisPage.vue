@@ -448,11 +448,12 @@ onUnmounted(() => {
           anchor="top-left"
           :offset-x="0"
           :offset-y="1.25"
+          title="路径结果"
+          title-variant="heading"
           draggable
           @drop="(z: HTMLElement) => onDrop('result', z)"
         >
           <div class="result-panel">
-            <div class="panel-header"><div class="header-title">路径结果</div></div>
             <template v-if="summary">
               <div class="summary-main">{{ summary.totalKm.toFixed(1) }} km</div>
               <div class="summary-sub">
@@ -516,19 +517,8 @@ onUnmounted(() => {
   color: var(--GCS-text-primary);
 }
 
-/* 面板标题：与浸没报告/受影响设施同一口径（居中、字号归档、600） */
-.panel-header {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 12px 0 8px;
-}
-
-.header-title {
-  font-size: var(--GCS-font-size-lg);
-  font-weight: 600;
-  color: var(--GCS-text-primary);
-}
+/* 面板标题已迁 GCSPanel title（title-variant="heading"）：原 .panel-header/.header-title
+   两段样式由 .GCS-panel__header--heading 承接，此处不再保留重复定义 */
 
 .summary-main {
   font-size: 20px;

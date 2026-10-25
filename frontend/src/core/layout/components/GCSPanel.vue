@@ -32,6 +32,12 @@ interface Props {
   dragDisabled?: boolean
   /** 统一面板头：有值时在内容上方渲染 .GCS-panel__header */
   title?: string
+  /**
+   * 面板头语义档（标题层级不同，两档都已在产线存在，故只做 token 归并、不改视觉）：
+   * - label（默认）：小字灰标签头，如分流页「年份」（原 .year-head 口径）
+   * - heading：面板标题头，居中 16/600 主文字色（原各页 .panel-header/.header-title 口径）
+   */
+  titleVariant?: 'label' | 'heading'
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -40,6 +46,7 @@ const props = withDefaults(defineProps<Props>(), {
   offsetY: 0,
   draggable: false,
   dragDisabled: false,
+  titleVariant: 'label',
 })
 
 const emit = defineEmits<{
@@ -157,7 +164,9 @@ const panelStyle = computed(() => {
       </button>
       <button type="button" @click="dockPopup = false">取消</button>
     </div>
-    <header v-if="title" class="GCS-panel__header">{{ title }}</header>
+    <header v-if="title" class="GCS-panel__header" :class="`GCS-panel__header--${titleVariant}`">
+      {{ title }}
+    </header>
     <slot />
   </div>
 </template>
@@ -278,5 +287,16 @@ const panelStyle = computed(() => {
   letter-spacing: 0.5px;
   color: var(--GCS-text-secondary);
   padding: 8px 12px 0;
+}
+
+/* 标题档：与迁移前各页 .panel-header（padding 12px 0 8px）+ .header-title
+   （--GCS-font-size-lg / 600 / primary）逐值对齐——迁移只换渲染位置，不改视觉与占位高度 */
+.GCS-panel__header--heading {
+  font-size: var(--GCS-font-size-lg);
+  font-weight: 600;
+  letter-spacing: normal;
+  color: var(--GCS-text-primary);
+  text-align: center;
+  padding: 12px 0 8px;
 }
 </style>

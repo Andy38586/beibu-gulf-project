@@ -12,7 +12,7 @@ import { useBusinessLayers } from '@/core/map/composables/useBusinessLayers'
 import { DEFAULT_LAYER_ORDER, ROW_HEIGHT_CELL, useGCS } from '@/shared'
 import { useMapStore } from '@/stores'
 import type { LayerEntry } from '@/types'
-import { DEFAULT_ENGINES, ENGINE_LABELS } from '@/types'
+import { DEFAULT_ENGINES } from '@/types'
 import type { LayerType } from '@/types/core/layerManager'
 
 /** 图层组规格：多个图层共用面板上的**一个**开关（层级可分、控制合一）。
@@ -51,8 +51,6 @@ const PANEL_MAX_ROWS = 8
 // layerCatalog 直连 mapStore，底图切换走 setBaseLayer
 const mapStore = useMapStore()
 
-/** 引擎徽标仅 DEV 构建/测试模式展示：后台能力标号不进生产 UI */
-const isDev = import.meta.env.DEV
 const layerCatalog = computed(() => mapStore.layerCatalog)
 const { manager: businessLayerManager } = useBusinessLayers()
 const { cellPixel, css } = useGCS()
@@ -121,8 +119,6 @@ const layerButtons = computed(() => {
         label: layer.label,
         // 透传 layerType 供图标数据驱动（core 不解析业务 label 语义）
         layerType: layer.layerType,
-        // 引擎适用标记：registry meta 优先，目录镜像兜底；仅单引擎图层显示角标（双引擎保持干净）
-        engines,
         active,
         locked,
         // 三态（a035）：单引擎特化图层遇另一引擎 ⇒ unsupported，按钮不可点亮
@@ -184,7 +180,6 @@ const panelRows = computed(() => {
     locked: false,
     disabled: g.disabled,
     state: 'ok' as const,
-    engines: [] as string[],
     layerType: undefined,
   }))
   const rows = [...singleRows, ...groupRows]
@@ -292,14 +287,6 @@ function handleToggle(key: string) {
         >
           <span class="layer-icon">{{ getLayerIcon(item.label, item.layerType) }}</span>
           <span class="layer-label">{{ item.label }}</span>
-          <!-- 引擎角标：仅 DEV+调试模式、且为单引擎特化图层时显示（双引擎保持干净） -->
-          <span
-            v-if="isDev && mapStore.debugMode && item.engines && item.engines.length === 1"
-            class="engine-corner"
-            :title="item.engines.join(' / ')"
-          >
-            {{ ENGINE_LABELS[item.engines[0]] }}
-          </span>
         </button>
         <button
           v-else
@@ -364,18 +351,7 @@ function handleToggle(key: string) {
   box-sizing: border-box;
 }
 
-/* 引擎角标：单引擎特化图层的右上角标（DEV+调试模式可见） */
-.engine-corner {
-  position: absolute;
-  top: 2px;
-  right: 4px;
-  font-size: 8px;
-  line-height: 1.1;
-  color: var(--GCS-text-muted);
-  background: var(--GCS-bg-container);
-  border-radius: var(--GCS-radius-sm);
-  padding: 0 3px;
-}
+/* 引擎角标已随 GCS 调试层一并删除（2026-10-26）：后台能力标号不再进任何构建 */
 
 .layer-btn:hover {
   border-color: var(--GCS-color-primary);

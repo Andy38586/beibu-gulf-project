@@ -86,7 +86,7 @@ const favoriteRecord = {
 }
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
-/** 判据域 = frontend/src（两处收藏入口、唯一实现、调试面板都在此） */
+/** 判据域 = frontend/src（两处收藏入口、唯一实现都在此） */
 const SRC = path.resolve(HERE, '..', '..', '..')
 const SKIP_DIR = /^(__tests__|__mocks__|node_modules|\.local|dist)$/
 const SCRIPT_RE = /<script\b[^>]*>([\s\S]*?)<\/script>/g
@@ -97,15 +97,12 @@ const FAVORITE_ENTRY_FILES = [
   'shared/components/PaginatedListPanel.vue',
 ]
 /**
- * 收藏登录引导文案的全部合法持有者：唯一实现 + 调试面板预览。
- * 调试面板（core/layout/components/GCSDebugOverlay.vue）是人工点验用的预览按钮，
- * 不落账意图、语义不同，刻意不复用 promptLoginForFavorite。
+ * 收藏登录引导文案的**唯一**合法持有者：useFavorites 里的 promptLoginForFavorite 实现。
+ * 原先调试面板（core/layout/components/GCSDebugOverlay.vue）另有一份人工点验用的预览按钮，
+ * 语义不同故刻意不复用；该面板已于 2026-10-26 随 GCS 调试层删除 ⇒ 持有者收敛为一处。
  */
 const LOGIN_GUIDE_MESSAGE = '收藏功能需要登录，是否前往登录？'
-const LOGIN_GUIDE_MESSAGE_OWNERS = [
-  'core/layout/components/GCSDebugOverlay.vue',
-  'shared/composables/useFavorites.ts',
-]
+const LOGIN_GUIDE_MESSAGE_OWNERS = ['shared/composables/useFavorites.ts']
 
 interface SourceFile {
   rel: string
@@ -371,7 +368,7 @@ describe('useFavorites（全局收藏单例）', () => {
         'promptLoginForFavorite('
       )
     }
-    // 收藏引导文案只有两处：useFavorites（唯一实现）与调试面板预览（不接受参数、不落账意图）
+    // 收藏引导文案只有一处：useFavorites（唯一实现，不接受第二份手抄副本）
     const messageOwners = sources
       .filter((file) => file.text.includes(LOGIN_GUIDE_MESSAGE))
       .map((file) => file.rel)

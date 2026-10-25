@@ -132,14 +132,4 @@ export function chartColor(
   return CHART_COLORS[key][dark ? 'dark' : 'light']
 }
 
-// 开发验收用的 QA 覆盖层调试色（GCSDebugOverlay）
-export const INSPECTION_COLORS = {
-  primary: '#ff6b6b',
-  warn: '#ffa502',
-  danger: '#ff3838',
-  highlight: '#ffd93d',
-  muted: '#95a5a6',
-  ok: '#2ecc71',
-} as const
-
 // FLOOD_RISK_* 配色已下沉至 business/flood-analysis/constants/colors.ts（仅洪涝业务使用）

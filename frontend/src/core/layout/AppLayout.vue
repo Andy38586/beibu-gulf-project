@@ -6,15 +6,13 @@
  * 抽屉模式（<960px）下抽屉同时承载业务面板（slot left/right）。
  */
 
-import { storeToRefs } from 'pinia'
-import { computed, defineAsyncComponent, onUnmounted, watch } from 'vue'
+import { computed, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { MAP_CONFIG } from '@/core/config/map'
 import { useMapControls } from '@/core/map/composables/useMapControls'
 import LayerControlPanel from '@/core/map/components/LayerControlPanel.vue'
 import { PanelTitle, useGCS, useTheme } from '@/shared'
-import { useMapStore } from '@/stores'
 import { RadarChart, SNAPSHOT_SELECTED_TYPES, SNAPSHOT_XIAOQU } from '@/visualization'
 
 import BottomNavBar from './components/BottomNavBar.vue'
@@ -24,15 +22,6 @@ import NavButton from './components/NavButton.vue'
 import { type NavItem, navItems } from './navConfig'
 import { useMobileDrawer } from './useMobileDrawer'
 import { useSliderFocus } from './useSliderFocus'
-
-// Debug 组件动态导入且仅 DEV 引用——生产构建彻底 tree-shake
-// （原静态 import 使 debug chunk 进生产包，违反 「仅 dev 构建加载」）
-const DebugToggle = import.meta.env.DEV
-  ? defineAsyncComponent(() => import('./components/DebugToggle.vue'))
-  : null
-const GCSDebugOverlay = import.meta.env.DEV
-  ? defineAsyncComponent(() => import('./components/GCSDebugOverlay.vue'))
-  : null
 
 const route = useRoute()
 const router = useRouter()
@@ -62,13 +51,6 @@ const businessNavItems = computed<NavItem[]>(() => [
 const radarXiaoqu = computed(() => SNAPSHOT_XIAOQU)
 const radarIsSnapshot = computed(() => true)
 const radarSelectedTypes = computed(() => SNAPSHOT_SELECTED_TYPES)
-
-// 调试模式状态（网格 + 性能监控，类似 MC F3）
-// 仅本地开发渲染：import.meta.env.DEV 是编译期常量，生产构建后 v-if 恒 false；
-// 状态住 mapStore（引擎徽标等 DEV 标号跨组件消费同一开关，Pinia 单一状态）
-const showDebug = import.meta.env.DEV
-const mapStore = useMapStore()
-const { debugMode } = storeToRefs(mapStore)
 
 // 专注模式 class 挂 body 而非根节点：抽屉 Teleport 到 body，根节点选择器匹配不到抽屉内面板。
 // body 加 slider-focus-mode（CSS 透明化其他面板），滑块所在面板标记 slider-focus-panel，底部 nav 排除。
@@ -220,14 +202,8 @@ function goBusiness(item: NavItem): void {
       </div>
     </MobileDrawer>
 
-    <!-- 独立调试开关：仅本地开发渲染，固定右下、不随响应式布局变化 -->
-    <DebugToggle v-if="showDebug" v-model="debugMode" />
-
     <!-- 底部导航（3 按钮：首页/个人中心/菜单） -->
     <BottomNavBar />
-
-    <!-- 调试模式：网格参考线 + 性能监控信息（MC F3 风格，不拦截鼠标，仅本地开发） -->
-    <GCSDebugOverlay v-if="showDebug && debugMode" :enabled="debugMode" />
   </div>
 </template>
 

@@ -43,9 +43,6 @@ export const useMapStore = defineStore('map', () => {
   /** 当前渲染器引用（由UnifiedMap设置，供业务组件访问） */
   const currentRenderer: ShallowRef<MapRenderer | null> = shallowRef(null)
 
-  /** 调试模式（仅 DEV 构建消费：引擎徽标等后台标号的统一开关，AppLayout DebugToggle 切换） */
-  const debugMode = ref(false)
-
   // 由 UnifiedMap 在渲染器初始化/切换时调用
   function setCurrentRenderer(renderer: MapRenderer | null): void {
     currentRenderer.value = renderer
@@ -197,8 +194,6 @@ export const useMapStore = defineStore('map', () => {
     currentRenderer,
     // 当前引擎名（面板三态判定与 BLM 引擎过滤共用）
     currentEngineName,
-    // 调试模式（仅 DEV 构建消费：引擎徽标等后台标号的统一开关）
-    debugMode,
     setCurrentRenderer,
     setMapType,
     // 目录条目按键查找/定位（面板等消费方走同一入口，勿再手抄 find 谓词）

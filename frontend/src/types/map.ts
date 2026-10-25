@@ -27,12 +27,6 @@ export const ENGINE_NAMES = { OPENLAYERS: 'openlayers', CESIUM: 'cesium' } as co
 /** 缺省引擎集（registry meta 与目录镜像均无标记时视为双引擎通用，与 LayerEntry.engines 缺省语义一致） */
 export const DEFAULT_ENGINES: EngineName[] = [ENGINE_NAMES.OPENLAYERS, ENGINE_NAMES.CESIUM]
 
-/** 引擎徽标文案（图层控制面板 DEV 标号；与应用层 UI 文案解耦） */
-export const ENGINE_LABELS: Record<EngineName, string> = {
-  openlayers: 'OL',
-  cesium: 'CS',
-}
-
 export interface LayerEntry {
   key: string
   label: string

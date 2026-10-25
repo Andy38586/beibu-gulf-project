@@ -6,7 +6,6 @@ export const GAP = 10
 export const CELL_PADDING = GAP
 export const PANEL_SPACING = GAP * 2
 export const SAFE_MARGIN = PANEL_SPACING
-export const GRID_SIZE = 100
 
 export function getCellPixelByViewport(width: number): number {
   if (width >= 1920) return 90

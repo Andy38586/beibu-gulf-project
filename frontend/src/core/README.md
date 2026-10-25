@@ -22,7 +22,7 @@ core/
 ├── layout/
 │   ├── AppLayout.vue        # GCS V2 布局基座（PPS 定位 + 抽屉菜单）
 │   ├── useMobileDrawer.ts   # 移动端抽屉状态（模块级单例）
-│   └── components/          # BottomNavBar(3键dock) / GCSButton / GCSPanel / NavButton / MobileDrawer / DebugToggle
+│   └── components/          # BottomNavBar(3键dock) / GCSButton / GCSPanel / NavButton / MobileDrawer
 └── map/
     ├── UnifiedMap.vue            # 双引擎容器（v-show 切换，渲染器复用不销毁）
     ├── BusinessLayerManager.ts   # 业务图层注册/更新/显隐/移除/reapplyAll
@@ -43,7 +43,7 @@ core/
 公开 API 聚合点。约定（全量收口，01 原则10 不豁免）：
 
 - `components/` 与 `*.vue` 组件经 `index.ts` 聚合导出（`UnifiedMap` / `AppLayout` / `GCSPanel` / `LayerControlPanel` / `GCSButton` / `NavButton` / `MobileDrawer` / `BottomNavBar`），消费方一律走 `@/core`，**禁止深路径穿透**。
-- `DebugToggle` / `GCSDebugOverlay` 仅 DEV 构建加载（03 §三.3「仅 dev 构建加载」），不静态导出——AppLayout 以 `import.meta.env.DEV` 条件动态导入（tree-shake 语义）。
+- GCS 调试层（DebugToggle / GCSDebugOverlay）已于 2026-10-26 下线（用户裁 C）；调试面板栅格/性能叠层不再随包发布。
 - `renderers/index.ts` 的 `createRenderer` / `preloadCesium` 经 `@/core` 对外（App.vue 使用）；`OLRenderer` / `CesiumRenderer` 实现类不对外。
 - renderers 子目录内部文件不 re-export。
 

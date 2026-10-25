@@ -6,7 +6,6 @@ export default { name: 'GCSBottomNavBar' }
  * BottomNavBar - 底部业务导航条（消费 navConfig 注入项，core 不引 business）
  * 三档形态：档位 1（≥960px）首页+业务+个人中心原位、无菜单键；
  * 档位 2（640~959px）追加菜单键；档位 3（<640px）仅首页/个人中心/菜单。
- * 调试开关不在 dock（独立 DebugToggle，固定右下）。
  */
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'

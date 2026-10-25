@@ -45,4 +45,5 @@ export { default as StackSlot } from './layout/components/StackSlot.vue'
 export { default as TaskProgressRing } from './layout/components/TaskProgressRing.vue'
 export { default as LayerControlPanel } from './map/components/LayerControlPanel.vue'
 export { default as UnifiedMap } from './map/UnifiedMap.vue'
-// DebugToggle/GCSDebugOverlay 仅 DEV 构建加载（03 §三.3），不静态导出——保持 tree-shake 语义
+// DEV 调试层（DebugToggle / GCSDebugOverlay）已于 2026-10-26 删除：二者仅
+// `import.meta.env.DEV` 下动态挂载、生产构建本就被 tree-shake，且无业务消费方。

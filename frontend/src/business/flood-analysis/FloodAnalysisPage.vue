@@ -30,13 +30,18 @@ import {
 } from '@/shared'
 import { useFloodStore, useTaskStore } from '@/stores'
 import { useMapStore } from '@/stores'
-import type { AffectedFacility, FloodFeature, FloodStatistics } from '@/types/business/base'
+import type { AffectedFacility, FloodFeature } from '@/types/business/base'
 import type { TaskSlot } from '@/types/task'
 
 import AffectedFacilityListPanel from './components/AffectedFacilityListPanel.vue'
 import FloodAnalysisReportPanel from './components/FloodAnalysisReportPanel.vue'
 import WaterLevelProfilePanel from './components/WaterLevelProfilePanel.vue'
-import { FLOOD_ANALYSIS_DELAY, FLOOD_ROUTE_PATH } from './composables/useFloodRequest'
+import {
+  FLOOD_ANALYSIS_DELAY,
+  FLOOD_ROUTE_PATH,
+  type FloodAnalysisPayload,
+  type FloodImpactPayload,
+} from './composables/useFloodRequest'
 import { FLOOD_RISK_COLORS, FLOOD_RISK_DEFAULT } from './constants/colors'
 
 // waterLevel/portImpact/profile 三 store 已并入 floodStore，统一从此取
@@ -267,20 +272,6 @@ onMounted(async () => {
 // 🔴 关键：请**不要**在本页重新引入请求。请求归面板的理由与 forecast 一致——
 //    面板拖进 dock 后页面会被卸载，请求若长在页面里，"后台跑"就无从谈起。
 //    同时 flood 的滑块拖动走**直连**（不走任务队列），理由见 useFloodRequest 头注释。
-
-/** 淹没分析结果载荷：注册表与页面 apply 函数共用同一形状，避免两处手抄后漂移 */
-interface FloodAnalysisPayload {
-  features: FloodFeature[]
-  statistics: FloodStatistics
-  riskLevel: string
-  actualWaterLevel?: number
-}
-
-/** 影响评估载荷（同上，注册表与 apply 共用） */
-interface FloodImpactPayload {
-  affectedFacilities: AffectedFacility[]
-  totalLoss: number
-}
 
 /**
  * 渲染回调注册表（与 forecast 页同款注入模式）。

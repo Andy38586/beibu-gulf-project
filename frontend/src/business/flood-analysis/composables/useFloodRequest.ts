@@ -48,7 +48,7 @@ export interface FloodAnalysisPayload {
   actualWaterLevel?: number
 }
 
-interface FloodImpactPayload {
+export interface FloodImpactPayload {
   affectedFacilities: AffectedFacility[]
   totalLoss: number
 }

@@ -7,11 +7,7 @@
  * 「无风险」不是语义状态色（UI 侧无对应 CSS token），取共享的中性灰常量。
  * 这样改语义色只需改单源表一处，本文件不会再有第二份字面量可漂移。
  */
-import {
-  FLOOD_RISK_NEUTRAL_COLOR,
-  SEMANTIC_COLORS,
-  withAlpha,
-} from '../../../shared/constants/colors'
+import { FLOOD_RISK_NEUTRAL_COLOR, SEMANTIC_COLORS, withAlpha } from '@/shared'
 
 /** 一档风险色：stroke + 同色同 alpha 的 fill（alpha 按档位递进） */
 const riskTier = (stroke: string, alpha: number) => ({

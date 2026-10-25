@@ -19,6 +19,7 @@ import {
 } from '@/shared'
 import { FACILITY_LABELS } from '@/shared'
 import { useGCS } from '@/shared'
+import { chartAxisLineOption, chartTitleOption } from '@/visualization/charts/chartTheme'
 import { useTheme } from '@/shared'
 import { logger } from '@/shared'
 import { perfMark, perfMeasure } from '@/shared'
@@ -146,15 +147,7 @@ export function useRadarChart({
 
     return {
       backgroundColor: 'transparent',
-      title: {
-        text: title,
-        left: 'center',
-        textStyle: {
-          color: chartColor('textPrimary', dark),
-          fontSize: 16,
-          fontWeight: 600,
-        },
-      },
+      title: chartTitleOption(title, dark),
       tooltip: { show: false },
       radar: {
         indicator: indicators,
@@ -179,9 +172,7 @@ export function useRadarChart({
             color: CHART_COLORS.radarSplitArea[dark ? 'dark' : 'light'],
           },
         },
-        axisLine: {
-          lineStyle: { color: chartColor('axisLine', dark) },
-        },
+        axisLine: chartAxisLineOption(dark),
       },
       series: [
         {

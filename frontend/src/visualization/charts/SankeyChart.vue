@@ -3,8 +3,8 @@
 // Line/Bar）——本组件内 echarts.use 一次性注册，全局幂等。
 // 生命周期/resize/主题响应收敛 useECharts（D19：原手写版丢 ResizeObserver、
 // resize 只 setOption 不调 instance.resize ⇒ canvas 不随窗口重设，疑似真 bug 已修）。
-// 主题色保留原字面量（#e5eaf3/#303133）——CHART_COLORS.textPrimary.dark（#e8edf4）
-// 与现值不同，合并属视觉变更需产品定，不在本笔范围。
+// 主题色走 chartColor('textPrimary')（W67 收口）：原 #e5eaf3 与 CHART_COLORS.textPrimary.dark
+// （#e8edf4）是近失字面量，已并入单源；暗色标签因此有 ≤5 阶的观感微调（非布局变更）。
 // Cesium ③ A3：节点/边点击经 bindSankeyClick 转发 sankey-click（载荷形态见 sankeyClick.ts），
 // 注销与注册同作用域（onUnmounted 调解绑器）。
 import { SankeyChart } from 'echarts/charts'
@@ -13,8 +13,9 @@ import * as echarts from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
 import { onMounted, onUnmounted, ref } from 'vue'
 
-import { useTheme } from '@/shared'
+import { chartColor, useTheme } from '@/shared'
 
+import { chartTitleOption } from '@/visualization/charts/chartTheme'
 import { useECharts } from '@/visualization/composables/useECharts'
 import { bindSankeyClick, type SankeyClickPayload } from './sankeyClick'
 
@@ -73,15 +74,7 @@ function getOption(): Record<string, unknown> {
   const deepestNames = deepestNodeNames()
   return {
     backgroundColor: 'transparent',
-    title: {
-      text: props.title,
-      left: 'center',
-      textStyle: {
-        color: dark ? '#e5eaf3' : '#303133',
-        fontSize: 16,
-        fontWeight: 600,
-      },
-    },
+    title: chartTitleOption(props.title, dark),
     // confine: true —— 与折线/柱状同款修复：html tooltip 会"躲视口边缘"逃出容器，
     // 而 4×4 面板是 overflow:hidden ⇒ 被裁（用户实测"分流分析也看不到"）。
     tooltip: { trigger: 'item', triggerOn: 'mousemove', confine: true },
@@ -94,7 +87,7 @@ function getOption(): Record<string, unknown> {
         emphasis: { focus: 'adjacency' },
         nodeGap: 14,
         nodeWidth: 18,
-        label: { color: dark ? '#e5eaf3' : '#303133', fontSize: 12 },
+        label: { color: chartColor('textPrimary', dark), fontSize: 12 },
         lineStyle: { color: 'gradient', curveness: 0.5, opacity: 0.35 },
         data: props.nodes.map((n) =>
           deepestNames.has(n.name) ? { ...n, label: { position: 'left' } } : n

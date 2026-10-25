@@ -1,6 +1,7 @@
 import { computed, type ComputedRef, type Ref } from 'vue'
 
 import { CHART_COLORS, CHART_GRID, chartColor, useTheme } from '@/shared'
+import { chartAxisLineOption, chartTitleOption } from '@/visualization/charts/chartTheme'
 import type { UseEChartsReturn } from '@/visualization/composables/useECharts'
 import { useECharts } from '@/visualization/composables/useECharts'
 
@@ -79,17 +80,9 @@ export function useChartBase(
       // 随主题重渲染（useECharts watchSources 含 isDark）
       color: CHART_COLORS.seriesPalette[dark ? 'dark' : 'light'],
       grid: { ...CHART_GRID },
-      title: {
-        // 不显式设置 top：保持 ECharts 默认（tokens.size.m=15 + padding 5 → 文字顶边 12px），
-        // 与 CHART_TITLE_TOP 对齐（scripts/measure-title.mjs 实测；改默认前需同步该常量）
-        text: props.title,
-        left: 'center',
-        textStyle: {
-          color: chartColor('textPrimary', dark),
-          fontSize: 16,
-          fontWeight: 600,
-        },
-      },
+      // 不显式设置 top：保持 ECharts 默认（tokens.size.m=15 + padding 5 → 文字顶边 12px），
+      // 与 CHART_TITLE_TOP 对齐（scripts/measure-title.mjs 实测；改默认前需同步该常量）
+      title: chartTitleOption(props.title, dark),
       // confine: true —— 把 tooltip 约束在图表 DOM 内。
       // 4×4 面板（GCSPanel）是 overflow:hidden，而 ECharts 的 html tooltip 默认会"躲视口边缘"
       // 逃出容器 ⇒ 被面板裁掉。2026-10-02 实测（320×320 面板悬停铁矿石柱）：tooltip x=-25、
@@ -108,9 +101,7 @@ export function useChartBase(
       xAxis: {
         type: 'category',
         data: props.xData || [],
-        axisLine: {
-          lineStyle: { color: chartColor('axisLine', dark) },
-        },
+        axisLine: chartAxisLineOption(dark),
         axisLabel: axisLabel(dense ? { interval: 2, rotate: 30 } : {}),
         ...(props.xMin ? { min: props.xMin } : {}),
         ...(props.xMax ? { max: props.xMax } : {}),

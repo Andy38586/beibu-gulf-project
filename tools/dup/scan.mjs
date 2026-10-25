@@ -106,6 +106,11 @@ export function tokenize(source) {
   const tokens = []
   const n = source.length
   let i = 0
+  /** 产出 [i, end) 的 token 并把游标推到 end —— 六处 `push + i=j` 的同一动作 */
+  const emit = (end) => {
+    tokens.push({ text: source.slice(i, end), line: lineAt(i) })
+    i = end
+  }
   while (i < n) {
     const c = source[i]
     if (/\s/.test(c)) {
@@ -135,38 +140,32 @@ export function tokenize(source) {
         }
         j++
       }
-      tokens.push({ text: source.slice(i, j), line: lineAt(i) })
-      i = j
+      emit(j)
       continue
     }
     if (isIdStart(c)) {
       let j = i
       while (j < n && isIdChar(source[j])) j++
-      tokens.push({ text: source.slice(i, j), line: lineAt(i) })
-      i = j
+      emit(j)
       continue
     }
     if (/[0-9]/.test(c)) {
       let j = i
       while (j < n && /[\w.]/.test(source[j])) j++
-      tokens.push({ text: source.slice(i, j), line: lineAt(i) })
-      i = j
+      emit(j)
       continue
     }
     const three = source.slice(i, i + 3)
     const two = source.slice(i, i + 2)
     if (OPS3.includes(three)) {
-      tokens.push({ text: three, line: lineAt(i) })
-      i += 3
+      emit(i + 3)
       continue
     }
     if (OPS2.includes(two)) {
-      tokens.push({ text: two, line: lineAt(i) })
-      i += 2
+      emit(i + 2)
       continue
     }
-    tokens.push({ text: c, line: lineAt(i) })
-    i++
+    emit(i + 1)
   }
   return tokens
 }

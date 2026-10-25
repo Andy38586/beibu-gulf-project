@@ -46,8 +46,8 @@ const FORBIDDEN_FILENAMES = /\.(tmp|bak|orig|swp)(\.\w+)?$/i
  *   按「上限=实测」下修至 1008/2325。重复内联构造与 stop 双胞胎换成了共享 helper，棘轮随实测回落。
  */
 export const RENDERER_SIZE_CEILINGS = [
-  { file: 'frontend/src/core/map/renderers/CesiumRenderer.ts', max: 2325 },
-  { file: 'frontend/src/core/map/renderers/OLRenderer.ts', max: 1008 },
+  { file: 'frontend/src/core/map/renderers/CesiumRenderer.ts', max: 2308 },
+  { file: 'frontend/src/core/map/renderers/OLRenderer.ts', max: 1004 },
 ]
 
 /**

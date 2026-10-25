@@ -44,21 +44,3 @@ const { hasData } = useChartBase(
     <EmptyState v-if="!hasData" class="bar-chart-empty" />
   </div>
 </template>
-
-<style scoped>
-.bar-chart-container {
-  position: relative;
-  width: 100%;
-  height: 100%;
-}
-
-.bar-chart {
-  width: 100%;
-  height: 100%;
-}
-
-.bar-chart-empty {
-  position: absolute;
-  inset: 0;
-}
-</style>

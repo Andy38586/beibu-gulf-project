@@ -6,6 +6,7 @@ import {
   isActiveStatus,
   TASK_MAX_WAIT_MS,
   TASK_QUEUE_LIMIT,
+  type TaskAbortStatus,
   type TaskPriority,
   type TaskRecord,
   type TaskSubmitResponse,
@@ -138,12 +139,7 @@ export class TaskService implements OnModuleInit, OnModuleDestroy {
       if (record.route !== input.route) continue
       if (record.ownerId !== input.ownerId) continue
       if (!isActiveStatus(record.status)) continue
-      this.queue.remove(record.taskId)
-      this.registry.patch(record.taskId, {
-        status: 'cancelled',
-        queuePosition: undefined,
-        error: { message: '已被同一路由的新任务取代' },
-      })
+      this.settle(record.taskId, 'cancelled', '已被同一路由的新任务取代')
     }
 
     const taskId = this.nextTaskId()
@@ -211,12 +207,7 @@ export class TaskService implements OnModuleInit, OnModuleDestroy {
       throw new BusinessError(ErrorCode.NOT_FOUND, '任务不存在或已过期')
     }
     if (isActiveStatus(record.status)) {
-      this.queue.remove(taskId)
-      this.registry.patch(taskId, {
-        status: 'cancelled',
-        queuePosition: undefined,
-        error: { message: '任务已取消' },
-      })
+      this.settle(taskId, 'cancelled', '任务已取消')
     }
     return this.toView(this.registry.get(taskId) as TaskRecord)
   }
@@ -237,15 +228,20 @@ export class TaskService implements OnModuleInit, OnModuleDestroy {
     for (const record of this.registry.list()) {
       if (record.status !== 'pending') continue
       if (now - record.createdAt < TASK_MAX_WAIT_MS) continue
-      this.queue.remove(record.taskId)
-      this.registry.patch(record.taskId, {
-        status: 'failed',
-        queuePosition: undefined,
-        error: { message: '任务排队超时，请稍后重试' },
-      })
+      this.settle(record.taskId, 'failed', '任务排队超时，请稍后重试')
       expired++
     }
     return expired
+  }
+
+  /** 终态转移：出队 → 记终态 + 文案（三处同形，仅状态/文案不同；先出队再 patch 的顺序不可换） */
+  private settle(taskId: string, status: TaskAbortStatus, message: string): void {
+    this.queue.remove(taskId)
+    this.registry.patch(taskId, {
+      status,
+      queuePosition: undefined,
+      error: { message },
+    })
   }
 
   /** taskId 形如 `t-<时间戳36>-<递增序号>`：可读、可按时间排序、单进程内唯一 */

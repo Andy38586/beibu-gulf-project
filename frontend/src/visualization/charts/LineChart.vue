@@ -49,21 +49,3 @@ const { hasData } = useChartBase(
     <EmptyState v-if="!hasData" class="line-chart-empty" />
   </div>
 </template>
-
-<style scoped>
-.line-chart-container {
-  position: relative;
-  width: 100%;
-  height: 100%;
-}
-
-.line-chart {
-  width: 100%;
-  height: 100%;
-}
-
-.line-chart-empty {
-  position: absolute;
-  inset: 0;
-}
-</style>

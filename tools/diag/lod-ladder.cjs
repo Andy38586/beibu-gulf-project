@@ -487,29 +487,29 @@ async function measureBody(page, id, clip, h) {
     }
   }
 
-  // 一致性表：行=资产，列=高度
-  console.log('\n一致性表（Y=有主体像素 / !=在场但中心窗口零贡献 / ·=整层空白；列=相机高度 m）')
-  console.log('asset'.padEnd(26) + HEIGHTS.map((h) => String(h).padStart(8)).join(''))
-  for (const id of ASSETS) {
-    const cells = HEIGHTS.map((h) => {
-      const row = rows.find((r) => r.asset === id && r.height === h)
-      const mark = !row || row.blank ? '·' : row.noBody ? '!' : 'Y'
-      return mark.padStart(8)
-    })
-    console.log(id.padEnd(26) + cells.join(''))
+  // 两张表（一致性 / 形态）同形：行=资产、列=高度、缺行或整层空白一律 `·`，只有单元格标记不同
+  const rowAt = (id, h) => rows.find((r) => r.asset === id && r.height === h)
+  const printTable = (title, markOf) => {
+    console.log(`\n${title}`)
+    console.log('asset'.padEnd(26) + HEIGHTS.map((h) => String(h).padStart(8)).join(''))
+    for (const id of ASSETS) {
+      const cells = HEIGHTS.map((h) => {
+        const row = rowAt(id, h)
+        const mark = !row || row.blank ? '·' : row.noBody ? '!' : markOf(row)
+        return mark.padStart(8)
+      })
+      console.log(id.padEnd(26) + cells.join(''))
+    }
   }
 
+  printTable(
+    '一致性表（Y=有主体像素 / !=在场但中心窗口零贡献 / ·=整层空白；列=相机高度 m）',
+    () => 'Y'
+  )
   // 形态表：同一高度下四资产必须同为「细」或同为「粗」（判据③；失效条件见文件头）
-  console.log('\n形态表（细=选中≥2 块 / 粗=只选中 1 块远景壳 / ·=整层空白；列=相机高度 m）')
-  console.log('asset'.padEnd(26) + HEIGHTS.map((h) => String(h).padStart(8)).join(''))
-  for (const id of ASSETS) {
-    const cells = HEIGHTS.map((h) => {
-      const row = rows.find((r) => r.asset === id && r.height === h)
-      const mark = !row || row.blank ? '·' : row.noBody ? '!' : row.coarse ? '粗' : '细'
-      return mark.padStart(8)
-    })
-    console.log(id.padEnd(26) + cells.join(''))
-  }
+  printTable('形态表（细=选中≥2 块 / 粗=只选中 1 块远景壳 / ·=整层空白；列=相机高度 m）', (row) =>
+    row.coarse ? '粗' : '细'
+  )
 
   fs.writeFileSync(
     path.join(OUT, 'lod-ladder.json'),
@@ -540,7 +540,7 @@ async function measureBody(page, id, clip, h) {
   const noBody = []
   for (const id of ASSETS) {
     for (const h of HEIGHTS) {
-      const row = rows.find((r) => r.asset === id && r.height === h)
+      const row = rowAt(id, h)
       if (!row || row.blank) blank.push(`${id}@${h}m`)
       else if (row.noBody) noBody.push(`${id}@${h}m`)
     }

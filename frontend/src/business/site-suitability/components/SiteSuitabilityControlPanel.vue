@@ -91,7 +91,7 @@ onUnmounted(() => {
             v-for="s in LAND_FRAC_STEPS"
             :key="s"
             type="button"
-            class="frac-btn"
+            class="frac-btn gcs-chip"
             :class="{ sel: Math.abs(state.minLandFrac - s) < COMPARE_TOLERANCE }"
             @click="state.setMinLandFrac(s)"
           >
@@ -153,23 +153,10 @@ onUnmounted(() => {
   gap: v-bind(cell8px);
 }
 
+/* 静态面见 style.css 的 .gcs-chip（F29 收口）；只有随 cell 尺寸走的两项与不换行留在组件内 */
 .frac-btn {
-  flex: 1;
-  min-width: 0;
   padding: v-bind(cell8px) 0;
-  background: var(--GCS-bg-container);
-  border: 1px solid var(--GCS-border-default);
-  border-radius: var(--GCS-radius-lg);
   font-size: v-bind(smallFontSizeCss);
-  color: var(--GCS-text-regular);
   white-space: nowrap;
-  cursor: pointer;
-}
-
-.frac-btn.sel {
-  background: var(--GCS-bg-active);
-  border-color: var(--GCS-color-primary);
-  color: var(--GCS-color-primary);
-  font-weight: 600;
 }
 </style>

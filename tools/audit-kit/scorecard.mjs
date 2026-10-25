@@ -307,6 +307,20 @@ export function mergeTags(窗, 副本) {
   return 主.带归属条目数 === 0 && 备.带归属条目数 > 0 ? 备 : 主
 }
 
+/**
+ * 批次目录里 `.md` 的递归（深度 ≤3，批次是浅结构；越深必是归档残留）——**唯一实现**。
+ * 原先 windowFiles 与 attachProblemCopies 各写一份同形 walk，改深度上限要同步两处。
+ * `visit(absPath, name)` 只拿文件项，目录项由本函数自己下钻。
+ */
+function walkMdFiles(dir, visit, depth = 0) {
+  if (depth > 3) return
+  for (const e of readdirSync(dir, { withFileTypes: true })) {
+    const abs = path.join(dir, e.name)
+    if (e.isDirectory()) walkMdFiles(abs, visit, depth + 1)
+    else if (/\.md$/.test(e.name)) visit(abs, e.name)
+  }
+}
+
 export function windowFiles(batchDir) {
   // 全部非 00-记分卡/README 的 .md 都纳入（1004-QC-06：混合命名批次里 W*.md 曾让
   // 非 W 窗件与问题副本被吞；W 文件仍以 `W\d+` 作 id 以对齐 claims.json）。
@@ -315,29 +329,17 @@ export function windowFiles(batchDir) {
   // 2026-10-19 W73 收口：衍生物**不占窗**，但它的**标签面**必须并回同名窗（见 attachProblemCopies），
   // 否则「归属逐条打标」这条规则的唯一输入集合落在扫描面之外 ⇒ 九个窗的标签数恒为 0。
   const out = []
-  const walk = (dir, depth) => {
-    if (depth > 3) return
-    for (const e of readdirSync(dir, { withFileTypes: true })) {
-      const abs = path.join(dir, e.name)
-      if (e.isDirectory()) walk(abs, depth + 1)
-      // 1004-17：00-* 窗口件（如 00-审查体系逐行复核-执行记录.md）必须纳入批次质量数；
-      // 只排除两类**非窗口**：00-记分卡.md（本工具产物）与 README（说明件）。
-      else if (
-        /\.md$/.test(e.name) &&
-        !/^README/.test(e.name) &&
-        !/^00-记分卡/.test(e.name) &&
-        !/^00-派单账/.test(e.name) &&
-        !/问题副本/.test(e.name)
-      ) {
-        const w = e.name.match(/^(W\d+)\b/)
-        out.push({
-          id: w ? w[1] : path.relative(batchDir, abs).replace(/\\/g, '/'),
-          file: abs,
-        })
-      }
-    }
-  }
-  walk(batchDir, 0)
+  walkMdFiles(batchDir, (abs, name) => {
+    // 1004-17：00-* 窗口件（如 00-审查体系逐行复核-执行记录.md）必须纳入批次质量数；
+    // 只排除两类**非窗口**：00-记分卡.md（本工具产物）与 README（说明件）。
+    if (/^README/.test(name) || /^00-记分卡/.test(name) || /^00-派单账/.test(name)) return
+    if (/问题副本/.test(name)) return
+    const w = name.match(/^(W\d+)\b/)
+    out.push({
+      id: w ? w[1] : path.relative(batchDir, abs).replace(/\\/g, '/'),
+      file: abs,
+    })
+  })
   const seen = new Set()
   for (const f of out) {
     // W id 撞号（W1.md 与 W1-补.md 并存）⇒ 退回相对路径，绝不静默覆盖
@@ -356,17 +358,9 @@ export function windowFiles(batchDir) {
  */
 export function attachProblemCopies(batchDir, windows) {
   const 词干到副本 = new Map()
-  const walk = (dir, depth) => {
-    if (depth > 3) return
-    for (const e of readdirSync(dir, { withFileTypes: true })) {
-      const abs = path.join(dir, e.name)
-      if (e.isDirectory()) walk(abs, depth + 1)
-      else if (/\.md$/.test(e.name) && /问题副本/.test(e.name)) {
-        词干到副本.set(e.name.replace(/-?问题副本\.md$/, ''), abs)
-      }
-    }
-  }
-  walk(batchDir, 0)
+  walkMdFiles(batchDir, (abs, name) => {
+    if (/问题副本/.test(name)) 词干到副本.set(name.replace(/-?问题副本\.md$/, ''), abs)
+  })
   return windows.map((w) => {
     const base = path.basename(w.file, '.md')
     const stem = base.replace(/-?执行记录$/, '')

@@ -7,13 +7,11 @@ key 从 .env 的 VITE_TIANDITU_KEY 读，不硬编码。
 
 用法：python tools/3dtiles-build/fetch-port-imagery.py
 """
-import json, os, sys, urllib.request
-from io import BytesIO
-from PIL import Image
+import json, os, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(ROOT, 'tools', 'lib'))
-from tianditu import read_key, tile_lnglat, tile_xy  # noqa: E402
+from tianditu import fetch_mosaic, read_key, tile_lnglat, tile_xy  # noqa: E402
 
 KEY = read_key()
 Z = 17
@@ -25,22 +23,9 @@ x0 = int(cx) - N // 2
 y0 = int(cy) - N // 2
 print('中心瓦片 %.2f,%.2f -> 起始 %d,%d' % (cx, cy, x0, y0))
 
-canvas = Image.new('RGB', (256 * N, 256 * N))
-ok = 0
-for j in range(N):
-    for i in range(N):
-        col, row = x0 + i, y0 + j
-        url = ('https://t%d.tianditu.gov.cn/img_w/wmts?SERVICE=WMTS&REQUEST=GetTile'
-               '&VERSION=1.0.0&LAYER=img&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles'
-               '&TILEMATRIX=%d&TILEROW=%d&TILECOL=%d&tk=%s') % (j % 8, Z, row, col, KEY)
-        try:
-            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-            data = urllib.request.urlopen(req, timeout=30).read()
-            im = Image.open(BytesIO(data)).convert('RGB')
-            canvas.paste(im, (i * 256, j * 256))
-            ok += 1
-        except Exception as e:
-            print('  瓦片 %d,%d 失败: %s' % (col, row, str(e)[:80]))
+canvas, ok = fetch_mosaic(
+    x0, y0, Z, N, lambda col, row, e: print('  瓦片 %d,%d 失败: %s' % (col, row, str(e)[:80]))
+)
 print('成功 %d/%d 瓦片' % (ok, N * N))
 if ok == 0:
     sys.exit(1)

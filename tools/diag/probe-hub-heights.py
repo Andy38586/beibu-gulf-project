@@ -140,6 +140,27 @@ def n_of(k):
     return N_EGM96[k.split('/')[0]]
 
 
+def dem_median_near(e, n, half=2):
+    """(e,n) 为中心的 (2*half+1)² 窗口 DEM 中位（无有效值 → nan）。原三处内联同一算式。"""
+    r, c = ds.index(e, n)
+    win = ds.read(1, window=((max(0, r - half), r + half + 1),
+                             (max(0, c - half), c + half + 1))).astype(np.float64)
+    good = win[np.isfinite(win)]
+    return float(np.median(good)) if good.size else float('nan')
+
+
+def print_band(name, cnt, p5, p50, p95, w=14):
+    """素材分位三连打印（宽度按站点名长短调）"""
+    print('   %-*s n=%-8d %+7.1f / %+7.1f / %+7.1f' % (w, name, cnt, p5, p50, p95))
+
+
+def print_dem_diff(dlt, ok, total, indent=3, label='正高制，模型−DEM'):
+    """逐顶点模型−DEM 差的三分位打印（两处口径只差缩进与标签）"""
+    print('%s逐顶点 DEM 差（%s）：中位 %+.1f ｜ P10 %+.1f ｜ P90 %+.1f ｜ 有效 %d/%d'
+          % (' ' * indent, label, np.median(dlt), np.percentile(dlt, 10),
+             np.percentile(dlt, 90), int(ok.sum()), total))
+
+
 for hub in sorted(data):
     if hub in centers:
         lng, lat, hc = centers[hub]
@@ -150,13 +171,10 @@ for hub in sorted(data):
     for name, hs in sorted(data[hub].items()):
         a = np.concatenate(hs)
         parts.append((name, len(a), float(np.percentile(a, 5)), float(np.median(a)), float(np.percentile(a, 95))))
-    E, N = to_dem_xy(lng, lat)
-    r, c = ds.index(E, N)
-    win = ds.read(1, window=((max(0, r - 2), r + 3), (max(0, c - 2), c + 3))).astype(np.float64)
-    dem = float(np.median(win[np.isfinite(win)])) if np.isfinite(win).any() else float('nan')
+    dem = dem_median_near(*to_dem_xy(lng, lat))
     print('\n%s 中心 %.6f,%.6f 椭球高 %.1f ｜ DEM(EGM96) %.1f m ｜ 素材（椭球高 P5/中位/P95，m）:' % (hub, lng, lat, hc, dem))
     for name, cnt, p5, p50, p95 in parts:
-        print('   %-14s n=%-8d %+7.1f / %+7.1f / %+7.1f' % (name, cnt, p5, p50, p95))
+        print_band(name, cnt, p5, p50, p95)
     wat = np.concatenate(data[hub]['water']) if 'water' in data[hub] else np.array([])
     grp = [k for k in ('earth', 'grass', 'road', 'rock') if k in data[hub]]
     gr = np.concatenate([np.concatenate(data[hub][k]) for k in grp]) if grp else np.array([])
@@ -170,8 +188,7 @@ for hub in sorted(data):
     ok, vals = dem_at_pts(pts)
     hm = np.array([p[2] for p in pts])
     dlt = (hm[ok] - n_of(hub)) - vals[ok]
-    print('   逐顶点 DEM 差（正高制，模型−DEM）：中位 %+.1f ｜ P10 %+.1f ｜ P90 %+.1f ｜ 有效 %d/%d'
-          % (np.median(dlt), np.percentile(dlt, 10), np.percentile(dlt, 90), int(ok.sum()), len(pts)))
+    print_dem_diff(dlt, ok, len(pts))
 
 if True:
     print('\n走廊/桥梁逐瓦片（椭球高，m；V0 = 该瓦片几何首点，沿程用）:')
@@ -186,13 +203,7 @@ if True:
         g = [k for k in ('grass', 'rock') if k in d]
         gr = float(np.median(np.concatenate([np.concatenate(d[k]) for k in g]))) if g else float('nan')
         cc = centers.get(uri)
-        demt = float('nan')
-        if cc:
-            E2_, N2_ = to_dem_xy(cc[0], cc[1])
-            rr, ccc = ds.index(E2_, N2_)
-            w2 = ds.read(1, window=((max(0, rr - 2), rr + 3), (max(0, ccc - 2), ccc + 3))).astype(np.float64)
-            if np.isfinite(w2).any():
-                demt = float(np.median(w2[np.isfinite(w2)]))
+        demt = dem_median_near(*to_dem_xy(cc[0], cc[1])) if cc else float('nan')
         print('   %-16s 水 %+7.1f ｜ 岸 %+7.1f ｜ DEM@中心 %+7.1f ｜ %s,%s ｜ 材质 %s'
               % (uri, w, gr, demt, ('%.4f' % cc[0]) if cc else '-', ('%.4f' % cc[1]) if cc else '-', ','.join(sorted(d))))
         if '--water-stats' in sys.argv and key in ('madao', 'qishi', 'qingnian'):
@@ -314,14 +325,12 @@ cwalk(cts['root'], [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1])
 print('\ncanal（我方重建带 = beibu-pinglu-canal 层）素材（椭球高 P5/中位/P95，m）:')
 for name, hs in sorted(cdata.items()):
     a = np.concatenate(hs)
-    print('   %-14s n=%-8d %+7.1f / %+7.1f / %+7.1f'
-          % (name, len(a), float(np.percentile(a, 5)), float(np.median(a)), float(np.percentile(a, 95))))
+    print_band(name, len(a), float(np.percentile(a, 5)), float(np.median(a)), float(np.percentile(a, 95)))
 if csamp:
     ok, vals = dem_at_pts(csamp)
     hm = np.array([p[2] for p in csamp])
     dlt = (hm[ok] - (-21.4)) - vals[ok]
-    print('   逐顶点 DEM 差（正高制，模型−DEM）：中位 %+.1f ｜ P10 %+.1f ｜ P90 %+.1f ｜ 有效 %d/%d'
-          % (np.median(dlt), np.percentile(dlt, 10), np.percentile(dlt, 90), int(ok.sum()), len(csamp)))
+    print_dem_diff(dlt, ok, len(csamp))
     print('   带内水面 vs 枢纽模型（半径 800 m 取样，椭球高 m）：')
     for hub in HUBS:
         if hub not in centers:
@@ -380,18 +389,14 @@ _bs = [
 ]
 plng = (min(b[0] for b in _bs) + max(b[2] for b in _bs)) / 2
 plat = (min(b[1] for b in _bs) + max(b[3] for b in _bs)) / 2
-E, N = to_dem_xy(plng, plat)
-r, c = ds.index(E, N)
-win = ds.read(1, window=((max(0, r - 2), r + 3), (max(0, c - 2), c + 3))).astype(np.float64)
-pdem = float(np.median(win[np.isfinite(win)])) if np.isfinite(win).any() else float('nan')
+pdem = dem_median_near(*to_dem_xy(plng, plat))
 print('port DEM(EGM96) @ %.5f,%.5f = %s' % (plng, plat, ('%.1f' % pdem) if np.isfinite(pdem) else 'NaN(海/无值)'))
 for name, hs in sorted(pdata.items()):
     a = np.concatenate(hs)
-    print('   %-10s n=%-8d %+7.1f / %+7.1f / %+7.1f' % (name, len(a), float(np.percentile(a, 5)), float(np.median(a)), float(np.percentile(a, 95))))
+    print_band(name, len(a), float(np.percentile(a, 5)), float(np.median(a)), float(np.percentile(a, 95)), w=10)
     pts = psamp.get(name) or []
     if pts:
         ok, vals = dem_at_pts(pts)
         hm = np.array([p[2] for p in pts])
         dlt = (hm[ok] - (-20.50)) - vals[ok]
-        print('              逐顶点 DEM 差（模型正高−DEM）：中位 %+.1f ｜ P10 %+.1f ｜ P90 %+.1f ｜ 有效 %d/%d'
-              % (np.median(dlt), np.percentile(dlt, 10), np.percentile(dlt, 90), int(ok.sum()), len(pts)))
+        print_dem_diff(dlt, ok, len(pts), indent=14, label='模型正高−DEM')

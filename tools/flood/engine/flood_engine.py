@@ -53,29 +53,13 @@ def _resolve_dem_path() -> Path:
     # 海陆一体 DEM 优先（2026-10-04 统一海陆基准的落地口径）：同名目录下若存在
     # landsea_utm48n.tif，则淹没演算与地形重切共用这一份海陆一体地表；缺失时
     # 回退陆地填洼版（旧行为），保证部署环境未同步资产时不炸。
-    merged = (
-        REPO_ROOT
-        / "backend"
-        / "data"
-        / "flood"
-        / "dem"
-        / "landsea_utm48n.tif"
-    )
-    if merged.exists():
-        return merged
-    repo = (
-        REPO_ROOT
-        / "backend"
-        / "data"
-        / "flood"
-        / "dem"
-        / "filled_utm48n_cut.tif"
-    )
-    if repo.exists():
-        return repo
     # 外置数据树不随仓库分发，数据未同步时回落仓库内路径，缺失由调用方报错，
     # 不静默换源（外置覆盖口只有上面的 FLOOD_DEM_PATH）。
-    return repo
+    base = REPO_ROOT / "backend" / "data" / "flood" / "dem"
+    for name in ("landsea_utm48n.tif", "filled_utm48n_cut.tif"):
+        if (base / name).exists():
+            return base / name
+    return base / "filled_utm48n_cut.tif"
 
 
 DEM_PATH = _resolve_dem_path()
@@ -134,20 +118,26 @@ def _affine_for_out_shape(src: rasterio.io.DatasetReader, out_shape: tuple[int, 
 _dem_cache: dict | None = None
 
 
+def read_dem(path: Path, downsample: int = DOWNSAMPLE):
+    """读裁切 DEM（降采样）→ `(data, nodata, transform, crs)`。**读取的唯一实现**：
+
+    生成侧 `tools/flood/flood_realify.py:load_dem_ds` 原先逐字手抄同一套
+    open→read(1, out_shape)→Affine.scale（F96）；改为反向 import 本函数。
+    """
+    import rasterio
+
+    with rasterio.open(path) as src:
+        out_shape = (src.height // downsample, src.width // downsample)
+        data = src.read(1, out_shape=out_shape)
+        return data, src.nodata, _affine_for_out_shape(src, out_shape), src.crs
+
+
 def load_dem(downsample: int = DOWNSAMPLE):
     """读取裁切 DEM（降采样），模块级缓存（425万 float32 ≈ 17MB，服务内只读一次）。"""
     global _dem_cache
     if _dem_cache is not None:
         return _dem_cache
-    import rasterio
-
-    with rasterio.open(DEM_PATH) as src:
-        out_shape = (src.height // downsample, src.width // downsample)
-        data = src.read(1, out_shape=out_shape)
-        nodata = src.nodata
-        transform = _affine_for_out_shape(src, out_shape)
-        crs = src.crs
-    _dem_cache = (data, nodata, transform, crs)
+    _dem_cache = read_dem(DEM_PATH, downsample)
     return _dem_cache
 
 

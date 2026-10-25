@@ -32,12 +32,11 @@ sys.path.insert(0, str(ROOT / "tools" / "flood" / "engine"))
 
 import numpy as np  # noqa: E402
 import rasterio  # noqa: E402
-from affine import Affine  # noqa: E402
 from rasterio.warp import transform_geom  # noqa: E402
 from shapely.geometry import shape as shp_shape, Point  # noqa: E402
 from shapely.ops import unary_union  # noqa: E402
 
-from flood_engine import compute_flood_mask  # noqa: E402
+from flood_engine import compute_flood_mask, datum_offset, read_dem  # noqa: E402
 from flood_engine import DEM_PATH as ENGINE_DEM_PATH  # noqa: E402
 
 # 2026-08-30 全链路重算口径：DEM 源复用 flood_engine 的多级回退解析
@@ -113,19 +112,9 @@ def load_levels_gz():
         return json.load(f)
 
 
-def datum_offset():
-    """
-    垂直基准换算：水位（理论深度基准面）→ DEM 正高（EGM96 / 平均海平面）。
-
-    waterLevel.json 中 verticalDatum='理论深度基准面'，baseLevels 给出
-    msl(平均海平面)=2.5m —— 即"水位 H"对应的 EGM96 正高为 H - 2.5。
-    基准偏移量从该文件的 baseLevels 读取（单一数据源），不另行硬编码。
-    """
-    wl = json.loads(WL_PATH.read_text(encoding="utf-8"))
-    msl = next((b["height"] for b in wl.get("baseLevels", []) if b.get("id") == "msl"), None)
-    if msl is None:
-        raise RuntimeError("waterLevel.json 缺少 baseLevels.msl，无法确定垂直基准偏移")
-    return float(msl)
+# 垂直基准换算与 DEM 读取均收口在 flood_engine（F96/F97）：本文件原先各抄一份
+# 「水位(理论深度基准面)→DEM 正高(EGM96)」的 msl 读取与抛错、以及 open→read→scale
+# 的读栅格算式。基准语义（msl=2.5 ⇒ 正高 = 水位 − 2.5）的说明见 flood_engine 同名函数。
 
 
 FACILITY_WINDOW_RADII = (2, 5, 10, 20)  # ±60m → ±600m，逐级外扩找陆地点
@@ -190,16 +179,11 @@ def facility_depths(facilities, level):
 
 
 def load_dem_ds(downsample=DOWNSAMPLE):
-    """自读填洼 DEM（降采样 4x，与 flood_engine.load_dem 同逻辑），返回 (data, nodata, transform, crs)。"""
-    with rasterio.open(DEM_SOURCE) as src:
-        out_shape = (src.height // downsample, src.width // downsample)
-        data = src.read(1, out_shape=out_shape)
-        sx = src.width / out_shape[1]
-        sy = src.height / out_shape[0]
-        transform = src.transform * Affine.scale(sx, sy)
-        nodata = src.nodata
-        crs = src.crs
-    return data, nodata, transform, crs
+    """自读填洼 DEM，返回 (data, nodata, transform, crs)。
+
+    读取实现收口在 flood_engine.read_dem（F96）；本函数只固定源路径（= ENGINE_DEM_PATH）。
+    """
+    return read_dem(DEM_SOURCE, downsample)
 
 
 def main():

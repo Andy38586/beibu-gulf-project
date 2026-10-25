@@ -43,6 +43,31 @@ def sync_sql():
         raise RuntimeError(f"docker cp 失败：{r.stderr}")
 
 
+def fixture_ddl(table: str, pts: list[tuple[float, float, float]]) -> str:
+    """pg_temp fixture 的建表+插值 DDL（A/B 两处原先逐字各抄一份）"""
+    body = ",".join(
+        f"(ST_SetSRID(ST_MakePoint({lo:.17g},{la:.17g}),4490),{v!r})" for lo, la, v in pts
+    )
+    return (
+        f"CREATE TABLE {table}(geom geometry(Point,4490), v double precision);"
+        f"INSERT INTO {table} VALUES {body};"
+    )
+
+
+def run_kde_sql(src_table, src_geom, src_value, h, cell, bbox, out_table, *, ddl=None,
+                tail: tuple = ()) -> str:
+    """KDE 物化唯一调用壳：`-v` 七参数 + 可选 fixture DDL + SQL 文件 + 尾部 -c（三处原先各抄一遍）"""
+    args = [
+        "-v", f"src_table={src_table}", "-v", f"src_geom={src_geom}",
+        "-v", f"src_value={src_value}", "-v", f"h_m={h}", "-v", f"cell_m={cell}",
+        "-v", f"bbox_wkt={bbox}", "-v", f"out_table={out_table}",
+    ]
+    if ddl:
+        args += ["-c", ddl]
+    args += ["-f", SQL_IN_CONTAINER, *tail]
+    return psql(args)
+
+
 def haversine(lon1, lat1, lon2, lat2):
     p1, p2 = math.radians(lat1), math.radians(lat2)
     dp = p2 - p1
@@ -76,26 +101,18 @@ def scenario_a():
     wkt = ",".join(f"{lo:.10f} {la:.10f}" for lo, la, _ in pts)
     wkt = f"POLYGON(({wkt},{pts[0][0]:.10f} {lat0:.10f}))"
     h, cell = 1000.0, 500.0
-    ddl = (
-        "CREATE TABLE pg_temp.kde_test_pts("
-        "geom geometry(Point,4490), v double precision);"
-        f"INSERT INTO pg_temp.kde_test_pts VALUES "
-        + ",".join(
-            f"(ST_SetSRID(ST_MakePoint({lo:.17g},{la:.17g}),4490),{v!r})" for lo, la, v in pts
-        ) + ";"
+    out = run_kde_sql(
+        "pg_temp.kde_test_pts", "geom", "v", h, cell, wkt, "pg_temp.kde_test_out",
+        ddl=fixture_ddl("pg_temp.kde_test_pts", pts),
+        tail=(
+            "-c",
+            "SELECT st_x(st_centroid(geom))::text,"
+            " st_y(st_centroid(geom))::text,"
+            " mass::numeric, area_km2::numeric FROM pg_temp.kde_test_out"
+            " WHERE st_centroid(geom) && st_expand("
+            " st_setsrid(st_makepoint(108.60,21.7),4490), 0.02);",
+        ),
     )
-    out = psql([
-        "-v", "src_table=pg_temp.kde_test_pts", "-v", "src_geom=geom",
-        "-v", "src_value=v", "-v", f"h_m={h}", "-v", f"cell_m={cell}",
-        "-v", f"bbox_wkt={wkt}", "-v", "out_table=pg_temp.kde_test_out",
-        "-c", ddl,
-        "-f", SQL_IN_CONTAINER,
-        "-c", "SELECT st_x(st_centroid(geom))::text,"
-              " st_y(st_centroid(geom))::text,"
-              " mass::numeric, area_km2::numeric FROM pg_temp.kde_test_out"
-              " WHERE st_centroid(geom) && st_expand("
-              " st_setsrid(st_makepoint(108.60,21.7),4490), 0.02);",
-    ])
     rows = [ln.split("|") for ln in out.strip().splitlines()]
     assert rows, "A: 物化结果为空"
     worst = 0.0
@@ -111,12 +128,7 @@ def scenario_a():
 
 
 def _materialize(src_table, src_geom, out_table, h, cell, bbox):
-    psql([
-        "-v", f"src_table={src_table}", "-v", f"src_geom={src_geom}",
-        "-v", "src_value=1", "-v", f"h_m={h}", "-v", f"cell_m={cell}",
-        "-v", f"bbox_wkt={bbox}", "-v", f"out_table={out_table}",
-        "-f", SQL_IN_CONTAINER,
-    ])
+    run_kde_sql(src_table, src_geom, 1, h, cell, bbox, out_table)
 
 
 def scenario_b():
@@ -140,26 +152,16 @@ def scenario_b():
         f"{lon0 + 9 * step + pad} {lat0 + 19 * step + pad},"
         f"{lon0 - pad} {lat0 + 19 * step + pad},{lon0 - pad} {lat0 - pad}))"
     )
-    ddl = (
-        "CREATE TABLE pg_temp.kde_cons_pts("
-        "geom geometry(Point,4490), v double precision);"
-        "INSERT INTO pg_temp.kde_cons_pts VALUES "
-        + ",".join(
-            f"(ST_SetSRID(ST_MakePoint({lo:.17g},{la:.17g}),4490),{v!r})"
-            for lo, la, v in pts
-        )
-        + ";"
-    )
     # pg_temp 生命周期 = 单个 psql 会话：fixture/物化/统计必须在同一次调用内
-    stats = psql([
-        "-v", "src_table=pg_temp.kde_cons_pts", "-v", "src_geom=geom",
-        "-v", "src_value=v", "-v", f"h_m={h}", "-v", f"cell_m={cell}",
-        "-v", f"bbox_wkt={wkt}", "-v", "out_table=pg_temp.kde_cons_out",
-        "-c", ddl, "-f", SQL_IN_CONTAINER,
-        "-c", "SELECT count(*), sum(mass * area_km2 * 1e6)::numeric"
-              " FROM pg_temp.kde_cons_out;",
-        "-c", "SELECT sum(v)::numeric FROM pg_temp.kde_cons_pts;",
-    ]).strip().splitlines()
+    stats = run_kde_sql(
+        "pg_temp.kde_cons_pts", "geom", "v", h, cell, wkt, "pg_temp.kde_cons_out",
+        ddl=fixture_ddl("pg_temp.kde_cons_pts", pts),
+        tail=(
+            "-c", "SELECT count(*), sum(mass * area_km2 * 1e6)::numeric"
+                  " FROM pg_temp.kde_cons_out;",
+            "-c", "SELECT sum(v)::numeric FROM pg_temp.kde_cons_pts;",
+        ),
+    ).strip().splitlines()
     cells, total_mass = stats[0].split("|")
     total_v = float(stats[1])
     ratio = float(total_mass) / total_v

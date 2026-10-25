@@ -302,7 +302,7 @@ function stopPlayback() {
           v-for="opt in CANAL_SCENARIO_OPTIONS"
           :key="opt.id"
           type="button"
-          class="scenario-chip"
+          class="scenario-chip gcs-chip"
           :class="{ sel: forecastState.canalScenario === opt.id }"
           :disabled="scenarioDisabled && opt.id !== 'baseline'"
           @click="pickScenario(opt.id)"
@@ -438,28 +438,10 @@ function stopPlayback() {
   min-width: 0;
 }
 
+/* 静态面见 style.css 的 .gcs-chip（F29 收口）；只有随 cell 尺寸走的两项留在组件内 */
 .scenario-chip {
-  flex: 1;
-  min-width: 0;
   padding: v-bind(cell8px) 0;
-  background: var(--GCS-bg-container);
-  border: 1px solid var(--GCS-border-default);
-  border-radius: var(--GCS-radius-lg);
   font-size: v-bind(smallFontSizeCss);
-  color: var(--GCS-text-regular);
-  cursor: pointer;
-}
-
-.scenario-chip.sel {
-  background: var(--GCS-bg-active);
-  border-color: var(--GCS-color-primary);
-  color: var(--GCS-color-primary);
-  font-weight: 600;
-}
-
-.scenario-chip:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
 }
 
 /* ===== 时间轴（滑块收进统一卡片；控件行高 0.8cell，与卡片行高同源） ===== */

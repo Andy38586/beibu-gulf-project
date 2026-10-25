@@ -87,6 +87,16 @@ export function collectArtifacts(files, dataDir = DATA_DIR) {
   })
 }
 
+/**
+ * 三个全步长误差指标（论文表里的列）：`key` 是产物字段名，`name` 只是标签措辞。
+ * 三者除字段名与标签外完全同形，改成表驱动——加指标只加一行，不再抄一段 if。
+ */
+const OVERALL_METRICS = [
+  { key: 'overall_mape', name: 'MAPE' },
+  { key: 'overall_mase', name: 'MASE' },
+  { key: 'overall_smape', name: 'sMAPE' },
+]
+
 /** 从产物里派生"论文数字 → 字段"映射（**由产物结构派生，不手写清单**） */
 export function buildFieldMap(artifact, sourceName) {
   const rows = []
@@ -94,26 +104,14 @@ export function buildFieldMap(artifact, sourceName) {
     const bt = p.backtest ?? {}
     const cmp = p.model_comparison ?? {}
     for (const [model, m] of Object.entries(cmp)) {
-      if (typeof m?.overall_mape === 'number') {
-        rows.push({
-          label: port + ' 全步长 MAPE（' + model + '）',
-          field: sourceName + ' → ports.' + port + '.model_comparison.' + model + '.overall_mape',
-          value: m.overall_mape,
-        })
-      }
-      if (typeof m?.overall_mase === 'number') {
-        rows.push({
-          label: port + ' 全步长 MASE（' + model + '）',
-          field: sourceName + ' → ports.' + port + '.model_comparison.' + model + '.overall_mase',
-          value: m.overall_mase,
-        })
-      }
-      if (typeof m?.overall_smape === 'number') {
-        rows.push({
-          label: port + ' 全步长 sMAPE（' + model + '）',
-          field: sourceName + ' → ports.' + port + '.model_comparison.' + model + '.overall_smape',
-          value: m.overall_smape,
-        })
+      for (const { key, name } of OVERALL_METRICS) {
+        if (typeof m?.[key] === 'number') {
+          rows.push({
+            label: `${port} 全步长 ${name}（${model}）`,
+            field: `${sourceName} → ports.${port}.model_comparison.${model}.${key}`,
+            value: m[key],
+          })
+        }
       }
     }
     for (const [model, d] of Object.entries(cmp.dm_vs_linear ?? {})) {

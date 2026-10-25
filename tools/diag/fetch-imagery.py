@@ -6,13 +6,11 @@ key 从 .env 的 VITE_TIANDITU_KEY 读，不硬编码。
   backend/algorithm-service/.venv/Scripts/python.exe tools/diag/fetch-imagery.py \
     --lng 108.9373 --lat 22.4472 --zoom 17 --n 12 --out .local/3d-review/madao-r2
 """
-import argparse, json, os, sys, urllib.request
-from io import BytesIO
-from PIL import Image
+import argparse, json, os, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(ROOT, 'tools', 'lib'))
-from tianditu import read_key, tile_lnglat, tile_xy  # noqa: E402
+from tianditu import fetch_mosaic, read_key, tile_lnglat, tile_xy  # noqa: E402
 
 ap = argparse.ArgumentParser()
 ap.add_argument('--lng', type=float, required=True)
@@ -25,20 +23,9 @@ KEY = read_key()
 
 cx, cy = tile_xy(a.lng, a.lat, a.zoom)
 x0, y0 = int(cx) - a.n // 2, int(cy) - a.n // 2
-canvas = Image.new('RGB', (256 * a.n, 256 * a.n))
-ok = 0
-for j in range(a.n):
-    for i in range(a.n):
-        col, row = x0 + i, y0 + j
-        url = ('https://t%d.tianditu.gov.cn/img_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0'
-               '&LAYER=img&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILEMATRIX=%d&TILEROW=%d&TILECOL=%d&tk=%s'
-               ) % (j % 8, a.zoom, row, col, KEY)
-        try:
-            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-            canvas.paste(Image.open(BytesIO(urllib.request.urlopen(req, timeout=30).read())).convert('RGB'), (i * 256, j * 256))
-            ok += 1
-        except Exception as e:
-            print('  瓦片 %d,%d 失败 %s' % (col, row, str(e)[:60]))
+canvas, ok = fetch_mosaic(
+    x0, y0, a.zoom, a.n, lambda col, row, e: print('  瓦片 %d,%d 失败 %s' % (col, row, str(e)[:60]))
+)
 print('成功 %d/%d 瓦片' % (ok, a.n * a.n))
 if ok == 0: sys.exit(1)
 west, north = tile_lnglat(x0, y0, a.zoom)

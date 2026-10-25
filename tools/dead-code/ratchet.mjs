@@ -55,27 +55,26 @@ export function currentCounts() {
 }
 
 /**
+ * 三条棘轮口径：`fallback` = 老账本缺该栏时的兜底（`undefined` 沿用「缺栏即放行」；
+ * 空模块兜底 0 —— 基线未升级时新造空模块也立刻红），`tail` 只负责消息尾巴。
+ */
+const RATCHET_FIELDS = [
+  { key: 'totalDead', fallback: undefined, tail: (d) => `（+${d}）` },
+  { key: 'totalRedundantExport', fallback: undefined, tail: () => '' },
+  { key: 'totalEmptyModule', fallback: 0, tail: () => '（空模块不许新增）' },
+]
+
+/**
  * 比较（纯函数，便于测）：返回违规列表（空 = 通过）。
  * `baseline.byModule` 缺失时**跳过**按模块比较 —— 否则首次接线会把存量全判成上涨。
  */
 export function compare(current, baseline) {
   const bad = []
-  if (current.totalDead > baseline.totalDead) {
-    bad.push(
-      `totalDead 上涨：${baseline.totalDead} → ${current.totalDead}` +
-        `（+${current.totalDead - baseline.totalDead}）`
-    )
-  }
-  if (current.totalRedundantExport > baseline.totalRedundantExport) {
-    bad.push(
-      `totalRedundantExport 上涨：${baseline.totalRedundantExport} → ${current.totalRedundantExport}`
-    )
-  }
-  // 空模块（`export {}` 壳）三类盲区之一：老账本没有这一栏，默认按 0 算 ——
-  // 即**基线未升级时新造一个空模块也立刻红**，不必等下次 --update 才生效。
-  const baseEmpty = baseline.totalEmptyModule ?? 0
-  if (current.totalEmptyModule > baseEmpty) {
-    bad.push(`totalEmptyModule 上涨：${baseEmpty} → ${current.totalEmptyModule}（空模块不许新增）`)
+  for (const { key, fallback, tail } of RATCHET_FIELDS) {
+    const base = baseline[key] ?? fallback
+    if (current[key] > base) {
+      bad.push(`${key} 上涨：${base} → ${current[key]}${tail(current[key] - base)}`)
+    }
   }
   if (baseline.byModule) {
     for (const [mod, n] of Object.entries(current.byModule)) {

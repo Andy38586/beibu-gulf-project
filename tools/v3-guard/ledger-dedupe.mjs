@@ -25,29 +25,27 @@ const SOLVED_LEDGER = 'docs/已解决问题.md'
 /** 台账行：`| p1 | a034-标题<br>`discover:20260922` | 描述 | 记录 |` */
 const ROW_RE = /^\|\s*p([0-3])\s*\|/
 
+/** 台账行扫描的唯一实现：每条合格行回调 `(id, level)` */
+function forEachLedgerId(text, visit) {
+  for (const line of text.split(/\r?\n/)) {
+    const row = ROW_RE.exec(line)
+    if (!row) continue
+    const m = (line.split('|')[2] ?? '').match(/\b([abcdfz])(\d{3})\b/)
+    if (m) visit(m[1] + m[2], Number(row[1]))
+  }
+}
+
 /** 从一本文本提取全部台账行编号（按出现序，可重复） */
 export function parseLedgerIds(text) {
   const ids = []
-  for (const line of text.split(/\r?\n/)) {
-    if (!ROW_RE.test(line)) continue
-    const cells = line.split('|')
-    const idCell = cells[2] ?? ''
-    const m = idCell.match(/\b([abcdfz])(\d{3})\b/)
-    if (m) ids.push(m[1] + m[2])
-  }
+  forEachLedgerId(text, (id) => ids.push(id))
   return ids
 }
 
 /** 按等级分组的行编号 */
 export function parseLedgerByLevel(text) {
   const byLevel = { 0: [], 1: [], 2: [], 3: [] }
-  for (const line of text.split(/\r?\n/)) {
-    const row = ROW_RE.exec(line)
-    if (!row) continue
-    const cells = line.split('|')
-    const m = (cells[2] ?? '').match(/\b([abcdfz])(\d{3})\b/)
-    if (m) byLevel[Number(row[1])].push(m[1] + m[2])
-  }
+  forEachLedgerId(text, (id, level) => byLevel[level].push(id))
   return byLevel
 }
 

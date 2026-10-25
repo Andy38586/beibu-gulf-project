@@ -47,27 +47,27 @@ function parseArgs(argv) {
 function probeOne(c) {
   const file = path.join(ROOT, c.target)
   const started = Date.now()
+  /** error 结果的唯一构造点：五处 error 返回只有 detail 与附加字段不同 */
+  const fail = (detail, { durationMs = Date.now() - started, ...extra } = {}) => ({
+    id: c.id,
+    status: 'error',
+    code: null,
+    detail,
+    durationMs,
+    ...extra,
+  })
   let orig
   try {
     orig = fs.readFileSync(file, 'utf8')
   } catch (e) {
-    return {
-      id: c.id,
-      status: 'error',
-      code: null,
-      detail: `读不到目标 ${c.target}: ${e.message}`,
-      durationMs: 0,
-    }
+    return fail(`读不到目标 ${c.target}: ${e.message}`, { durationMs: 0 })
   }
   const occurrences = orig.split(c.find).length - 1
   if (occurrences !== 1) {
-    return {
-      id: c.id,
-      status: 'error',
-      code: null,
-      detail: `变异锚点在 ${c.target} 中应唯一，实际匹配 ${occurrences} 次（find=${JSON.stringify(c.find).slice(0, 80)}）`,
-      durationMs: 0,
-    }
+    return fail(
+      `变异锚点在 ${c.target} 中应唯一，实际匹配 ${occurrences} 次（find=${JSON.stringify(c.find).slice(0, 80)}）`,
+      { durationMs: 0 }
+    )
   }
 
   const mutated = orig.replace(c.find, c.replace)
@@ -108,37 +108,20 @@ function probeOne(c) {
     if (restored !== orig) restoreIssue = '还原后与原文件不一致（!!），请手动 git checkout 该文件'
   }
   if (restoreIssue) {
-    return {
-      id: c.id,
-      status: 'error',
-      code: null,
-      detail: restoreIssue,
-      durationMs: Date.now() - started,
-    }
+    return fail(restoreIssue)
   }
   if (runError) {
-    return {
-      id: c.id,
-      status: 'error',
-      code: null,
-      detail: runError,
-      durationMs: Date.now() - started,
-    }
+    return fail(runError)
   }
 
   // 子进程没起来（status=null）既不是 killed 也不是 survived，判 error：
   // 绝不许把「跑不起来」记成「测试抓住了变异」。
   if (code === null) {
-    return {
-      id: c.id,
-      status: 'error',
-      code: null,
-      detail: '子进程未正常退出（环境限制？）——既不能判 killed 也不能判 survived',
-      durationMs: Date.now() - started,
+    return fail('子进程未正常退出（环境限制？）——既不能判 killed 也不能判 survived', {
       tail,
       desc: c.desc,
       target: c.target,
-    }
+    })
   }
   const killed = code !== 0
   return {

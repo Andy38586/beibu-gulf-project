@@ -245,6 +245,15 @@ export function auditDocMap(input) {
   return problems
 }
 
+/** git 采集壳：成功返回 stdout 原文，跑不起来返回 null —— **null 的语义由调用方各自决定** */
+function gitText(args) {
+  try {
+    return execFileSync('git', args, { cwd: ROOT, encoding: 'utf8' })
+  } catch {
+    return null
+  }
+}
+
 /**
  * 读取受版本控制的三层目录文件列表。
  *
@@ -255,46 +264,25 @@ export function auditDocMap(input) {
  * 是两种状态，不许混成一个返回值：git 失败 ⇒ 返回 null，由 main 转成失败。
  */
 function trackedUnderDirs() {
-  try {
-    // core.quotepath 默认 true ⇒ 中文路径输出八进制转义，与 doc-map 登记的真实路径
-    // 对不上（本地仓库若显式设为 false 就本地绿、CI 红的假绿），此处强制原始路径输出。
-    const out = execFileSync('git', ['-c', 'core.quotepath=false', 'ls-files', ...ACTIVE_DIRS], {
-      cwd: ROOT,
-      encoding: 'utf8',
-    })
-    return out
-      .split(/\r?\n/)
-      .filter(Boolean)
-      .map((p) => p.replace(/\\/g, '/'))
-  } catch {
-    return null
-  }
+  // core.quotepath 默认 true ⇒ 中文路径输出八进制转义，与 doc-map 登记的真实路径
+  // 对不上（本地仓库若显式设为 false 就本地绿、CI 红的假绿），此处强制原始路径输出。
+  const out = gitText(['-c', 'core.quotepath=false', 'ls-files', ...ACTIVE_DIRS])
+  if (out === null) return null
+  return out
+    .split(/\r?\n/)
+    .filter(Boolean)
+    .map((p) => p.replace(/\\/g, '/'))
 }
 
 function gitDateOf(rel) {
-  try {
-    const out = execFileSync('git', ['log', '-1', '--format=%cs', '--', rel], {
-      cwd: ROOT,
-      encoding: 'utf8',
-    })
-    return out.trim() || null
-  } catch {
-    return null
-  }
+  const out = gitText(['log', '-1', '--format=%cs', '--', rel])
+  return out === null ? null : out.trim() || null
 }
 
 /** 本笔已暂存文件（pre-commit 时 = 即将入库的集合）；生成件在列 ⇒ 视为正在刷新 */
 function stagedFilesOf() {
-  try {
-    return execFileSync('git', ['diff', '--cached', '--name-only'], {
-      cwd: ROOT,
-      encoding: 'utf8',
-    })
-      .split(/\r?\n/)
-      .filter(Boolean)
-  } catch {
-    return []
-  }
+  const out = gitText(['diff', '--cached', '--name-only'])
+  return out === null ? [] : out.split(/\r?\n/).filter(Boolean)
 }
 
 function main() {

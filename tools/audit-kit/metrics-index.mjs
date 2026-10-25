@@ -401,6 +401,17 @@ export function countBySpec(entries = parseSpec()) {
   return out
 }
 
+// 逐条自检口径 [判违规, 措辞]；顺序即报出顺序（缺字段 → 断链 → 附录区 → 无等级）
+const ENTRY_RULES = [
+  [(e) => e.缺失字段.length, (e) => `字段缺失：${e.id} 缺 ${e.缺失字段.join('/')}`],
+  [
+    (e) => e.面.missing.length,
+    (e) => `证据面断链：${e.id} 引用不存在的路径 ${e.面.missing.join(', ')}`,
+  ],
+  [(e) => e.落在附录区, (e) => `指标落在附录区内：${e.id}（附录是答案册，须与正文分开）`],
+  [(e) => !e.风险等级, (e) => `无 P0-P3 等级：${e.id}`],
+]
+
 /** 体系自检：撞号 / 缺字段 / 证据面断链 / 指标落在附录区 */
 export function checkIndex(entries) {
   const problems = []
@@ -411,16 +422,7 @@ export function checkIndex(entries) {
   for (const [id, n] of [...seen].sort()) {
     if (n > 1) problems.push(`ID 撞号：${id} 出现 ${n} 次（同专项内「部分.序号」必须唯一）`)
   }
-  const noField = entries.filter((e) => e.缺失字段.length)
-  for (const e of noField) problems.push(`字段缺失：${e.id} 缺 ${e.缺失字段.join('/')}`)
-  const broken = entries.filter((e) => e.面.missing.length)
-  for (const e of broken)
-    problems.push(`证据面断链：${e.id} 引用不存在的路径 ${e.面.missing.join(', ')}`)
-  const misplaced = entries.filter((e) => e.落在附录区)
-  for (const e of misplaced)
-    problems.push(`指标落在附录区内：${e.id}（附录是答案册，须与正文分开）`)
-  const noLevel = entries.filter((e) => !e.风险等级)
-  for (const e of noLevel) problems.push(`无 P0-P3 等级：${e.id}`)
+  for (const [hit, msg] of ENTRY_RULES) for (const e of entries.filter(hit)) problems.push(msg(e))
   return { problems, 统计: summarize(entries) }
 }
 

@@ -425,3 +425,29 @@ body {
 .slider-focus-mode .GCS-drawer__header {
   transition: opacity 0.15s ease;
 }
+
+/* ===== GCS 选择片（chip）=====
+ * 预测面板「运河情景」与选址面板「陆地占比」的按钮原为两份逐字副本（F29）：
+ * 底色/边框/圆角/文字色/选中态/禁用态完全相同。随面板 cell 尺寸变化的 padding 与字号
+ * 各组件仍需 v-bind（全局类拿不到组件级响应式尺寸），故动态值留在组件内、静态面收在这里。 */
+.gcs-chip {
+  flex: 1;
+  min-width: 0;
+  background: var(--GCS-bg-container);
+  border: 1px solid var(--GCS-border-default);
+  border-radius: var(--GCS-radius-lg);
+  color: var(--GCS-text-regular);
+  cursor: pointer;
+}
+
+.gcs-chip.sel {
+  background: var(--GCS-bg-active);
+  border-color: var(--GCS-color-primary);
+  color: var(--GCS-color-primary);
+  font-weight: 600;
+}
+
+.gcs-chip:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}

@@ -62,10 +62,7 @@ def main() -> None:
         rows = 2**z
         for x in range(cols):
             for y in range(rows):
-                lon_w = -180.0 + x * 360.0 / cols
-                lon_e = lon_w + 360.0 / cols
-                lat_n = 90.0 - y * 180.0 / rows
-                lat_s = lat_n - 180.0 / rows
+                lon_w, lat_s, lon_e, lat_n = tile_bounds(z, x, y)
                 if (
                     lon_e > DEM_MIN_LON
                     and lon_w < DEM_MAX_LON

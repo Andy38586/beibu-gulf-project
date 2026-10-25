@@ -203,30 +203,26 @@ export function auditControllers(files, { root = ROOT, face = CONTROLLER_FACE } 
     // 公开面/限流豁免（d026/d050）：必须登记，且声明与实装一致（注释剥离后判）
     const code = stripComments(content)
     const declared = face.find((e) => e.file === rel)
+    // 公开面违例统一形态：文本固定 file/line，只有 text/why 变（三段同形收在这里）
+    const pushFace = (text, why) => violations.push({ file: rel, line: 1, text, why })
     if (!declared) {
-      violations.push({
-        file: rel,
-        line: 1,
-        text: '',
-        why: '新 controller 未登记公开面（d026）：先定它是否需要登录、是否豁免命名桶，再进 CONTROLLER_FACE',
-      })
+      pushFace(
+        '',
+        '新 controller 未登记公开面（d026）：先定它是否需要登录、是否豁免命名桶，再进 CONTROLLER_FACE'
+      )
     } else {
       const hasGuard = /@UseGuards\(/.test(code)
       const hasSkip = /@SkipThrottle\(/.test(code)
       if (hasGuard !== declared.needAuth)
-        violations.push({
-          file: rel,
-          line: 1,
-          text: `实装 @UseGuards=${hasGuard}`,
-          why: `公开面登记与实装不符：登记 needAuth=${declared.needAuth}（d026）`,
-        })
+        pushFace(
+          `实装 @UseGuards=${hasGuard}`,
+          `公开面登记与实装不符：登记 needAuth=${declared.needAuth}（d026）`
+        )
       if (hasSkip !== declared.skipAuthBuckets)
-        violations.push({
-          file: rel,
-          line: 1,
-          text: `实装 @SkipThrottle=${hasSkip}`,
-          why: `限流豁免登记与实装不符：登记 skipAuthBuckets=${declared.skipAuthBuckets}（d050）`,
-        })
+        pushFace(
+          `实装 @SkipThrottle=${hasSkip}`,
+          `限流豁免登记与实装不符：登记 skipAuthBuckets=${declared.skipAuthBuckets}（d050）`
+        )
     }
   }
   return { violations }

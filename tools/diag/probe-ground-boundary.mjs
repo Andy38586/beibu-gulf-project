@@ -169,6 +169,17 @@ function line(label, o, skipU = false) {
   )
 }
 
+/**
+ * 两盒四向差（W/E/S/N），三处打印共用：正值 = `a` 相对 `b` 外扩多少。
+ * 原先三处逐字手拼同一串 `W … | E … | S … | N …`，换一处口径要同时改三段。
+ */
+function quadDiff(a, b, unit = ' m') {
+  return (
+    `W ${fmt(a.minE - b.minE)}${unit} | E ${fmt(b.maxE - a.maxE)}${unit} | ` +
+    `S ${fmt(a.minN - b.minN)}${unit} | N ${fmt(b.maxN - a.maxN)}${unit}`
+  )
+}
+
 const ROOT = process.cwd()
 const P = (p) => path.join(ROOT, p)
 const REQUIRED = [
@@ -299,9 +310,7 @@ for (const [name, st] of [
 }
 console.log('')
 console.log('--- 地面盒 vs 影像 bbox 差（负值=地面盒多出）---')
-console.log(
-  `W ${fmt(groundBox.minE - imgSt.minE)} m | E ${fmt(imgSt.maxE - groundBox.maxE)} m | S ${fmt(groundBox.minN - imgSt.minN)} m | N ${fmt(imgSt.maxN - groundBox.maxN)} m`
-)
+console.log(quadDiff(groundBox, imgSt))
 
 const osmFile = P('.local/3d-diag/roads.json')
 if (!fs.existsSync(osmFile)) {
@@ -360,17 +369,7 @@ if (!fs.existsSync(osmFile)) {
     '盒外占比=' + ((100 * (segOut + segCross / 2)) / segAll).toFixed(1) + '%（跨边界按半段计）'
   )
   console.log('OSM 点 AABB: E ' + rng(minE, maxE) + ' | N ' + rng(minN, maxN))
-  console.log(
-    '道路点超出地面盒：W ' +
-      fmt(groundBox.minE - minE) +
-      ' m | E ' +
-      fmt(maxE - groundBox.maxE) +
-      ' m | S ' +
-      fmt(groundBox.minN - minN) +
-      ' m | N ' +
-      fmt(maxN - groundBox.maxN) +
-      ' m'
-  )
+  console.log('道路点超出地面盒：' + quadDiff(groundBox, { minE, maxE, minN, maxN }))
 
   console.log('')
   console.log('--- 候选域：道路保留率（逐段端点判定；跨边界按半段计）---')
@@ -467,26 +466,8 @@ if (!fs.existsSync(osmFile)) {
 
 console.log('')
 console.log('--- 集装箱/交付内容 vs 地面盒（负值=超出）---')
-console.log(
-  '集装箱: W ' +
-    fmt(containers.st.minE - groundBox.minE) +
-    ' | E ' +
-    fmt(groundBox.maxE - containers.st.maxE) +
-    ' | S ' +
-    fmt(containers.st.minN - groundBox.minN) +
-    ' | N ' +
-    fmt(groundBox.maxN - containers.st.maxN)
-)
-console.log(
-  '交付包t4/t5: W ' +
-    fmt(delv.st45.minE - groundBox.minE) +
-    ' | E ' +
-    fmt(groundBox.maxE - delv.st45.maxE) +
-    ' | S ' +
-    fmt(delv.st45.minN - groundBox.minN) +
-    ' | N ' +
-    fmt(groundBox.maxN - delv.st45.maxN)
-)
+console.log('集装箱: ' + quadDiff(containers.st, groundBox, ''))
+console.log('交付包t4/t5: ' + quadDiff(delv.st45, groundBox, ''))
 console.log('')
 console.log('--- 内容节点计数 ---')
 console.log(

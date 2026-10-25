@@ -16,16 +16,15 @@
    现役树为椭球高，故 POST 须由椭球件生成（07b 缺省已自动解析椭球件，见其 [基准] 行）。
 """
 from __future__ import annotations
-import json, math, sys
+import json, sys
 from pathlib import Path
-import numpy as np
 import rasterio
 from rasterio.enums import Resampling
 from rasterio.vrt import WarpedVRT
-from rasterio.windows import from_bounds
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
-from terrain_enc import SAMPLES, build_payload, encode  # noqa: E402
+from terrain_enc import build_payload, encode  # noqa: E402
+from tile_sample import reslice_tile, tile_bounds  # noqa: E402
 
 REPO = Path(__file__).resolve().parents[2]
 TERRAIN = REPO / "backend/static/terrain"
@@ -35,12 +34,6 @@ MAXZ = 14  # layer.json 的 maxzoom（枢纽渠槽加密层级；层级参数，
 FOOT = {"madao": (108.93922, 22.44632, 198.0, -1478.0, 801.0, 305.0),
         "qishi": (108.94146, 22.32265, 182.0, -687.0, 1003.0, 349.0),
         "qingnian": (108.65500, 22.01020, 190.0, -438.0, 817.0, 292.0)}
-
-
-def tb(z, x, y):
-    cols, rows = 2 ** (z + 1), 2 ** z
-    return (-180.0 + x * 360.0 / cols, 90.0 - (y + 1) * 180.0 / rows,
-            -180.0 + (x + 1) * 360.0 / cols, 90.0 - y * 180.0 / rows)
 
 
 def main():
@@ -103,7 +96,7 @@ def main():
         print(f"运河走廊：补 z13/z14 {len(corridor_tiles)} 张（含 ±1 邻域）")
     targets = set()
     for z, x, y in planned:
-        tw, ts, te, tn = tb(z, x, y)
+        tw, ts, te, tn = tile_bounds(z, x, y)
         for w, s, e, n in boxes:
             if te > w and tw < e and tn > s and ts < n:
                 targets.add((z, x, y)); break
@@ -122,18 +115,10 @@ def main():
     raw = rasterio.open(post_path)
     dem = raw if raw.crs.to_epsg() == 4326 else WarpedVRT(raw, crs="EPSG:4326", resampling=Resampling.bilinear)
     nodata = raw.nodata if raw.nodata is not None else -32768.0
-    db = dem.bounds
     written = changed = 0
     for z, x, y in sorted(targets):
-        lon_w, lat_s, lon_e, lat_n = tb(z, x, y)
-        sl = (lat_n - lat_s) / (SAMPLES - 1); so = (lon_e - lon_w) / (SAMPLES - 1)
-        j0 = max(0, math.ceil((db.left - lon_w) / so)); j1 = min(SAMPLES - 1, math.floor((db.right - lon_w) / so))
-        i0 = max(0, math.ceil((lat_n - db.top) / sl)); i1 = min(SAMPLES - 1, math.floor((lat_n - db.bottom) / sl))
-        h = np.zeros((SAMPLES, SAMPLES))
-        if j1 >= j0 and i1 >= i0:
-            win = from_bounds(lon_w + j0 * so, lat_n - i1 * sl, lon_w + j1 * so, lat_n - i0 * sl, transform=dem.transform)
-            sub = dem.read(1, window=win, out_shape=(i1 - i0 + 1, j1 - j0 + 1), resampling=Resampling.bilinear).astype(np.float64)
-            h[i0:i1 + 1, j0:j1 + 1] = np.where((sub == nodata) | ~np.isfinite(sub), 0.0, sub)
+        # 窗口求交 + 双线性采样 + nodata 补 0 见 lib/tile_sample.py（与 07 同源）
+        h = reslice_tile(dem, tile_bounds(z, x, y), nodata)
         enc = encode(h)
         mask = 0
         for bit, (cx, cy) in ((0, (2 * x, 2 * y + 1)), (1, (2 * x + 1, 2 * y + 1)),

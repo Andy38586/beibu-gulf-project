@@ -14,6 +14,9 @@ gdal.UseExceptions()
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+from bilinear import bilinear_sample  # noqa: E402
+
 REPO = str(Path(__file__).resolve().parents[2])
 CUT = sys.argv[1] if len(sys.argv) > 1 else rf"{REPO}/.local/dem-work/filled_utm48n_cut.tif"
 SEA = sys.argv[2] if len(sys.argv) > 2 else rf"{REPO}/.local/dem-sea-work/sea_custom.tif"
@@ -55,12 +58,8 @@ for r0 in range(0, H, 1500):
     xs = ox + (np.arange(W) + 0.5) * px
     fr = (ys[:, None] - soy) / spy - 0.5
     fc = (xs[None, :] - sox) / spx - 0.5
-    i0 = np.clip(np.floor(fr).astype(np.int64), 0, sea.shape[0] - 2)
-    j0 = np.clip(np.floor(fc).astype(np.int64), 0, sea.shape[1] - 2)
-    fy, fx = fr - i0, fc - j0
-    p00 = sea[i0, j0]; p01 = sea[i0, j0 + 1]; p10 = sea[i0 + 1, j0]; p11 = sea[i0 + 1, j0 + 1]
-    ok = ~np.isnan(p00) & ~np.isnan(p01) & ~np.isnan(p10) & ~np.isnan(p11)
-    bil = (p00 * (1 - fx) + p01 * fx) * (1 - fy) + (p10 * (1 - fx) + p11 * fx) * fy
+    # 四角双线性 + NaN 缺角判定见 lib/bilinear.py（与 10 同源）
+    bil, ok = bilinear_sample(sea, fr, fc)
     lm = land_mask[r0:r1] & ok
     dd = cut[r0:r1].astype(np.float64) - bil
     for lo, hi in [(2, 20), (20, 50), (50, 100), (100, 200), (200, 600)]:

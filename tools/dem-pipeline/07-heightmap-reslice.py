@@ -15,18 +15,16 @@ RangeError（8-10 生产"无起伏"即本 bug 症状），瓦片从未渲染成�
 """
 from __future__ import annotations
 
-import math
 import sys
 from pathlib import Path
 
-import numpy as np
 import rasterio
 from rasterio.enums import Resampling
 from rasterio.vrt import WarpedVRT
-from rasterio.windows import from_bounds
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
-from terrain_enc import SAMPLES, build_payload, encode  # noqa: E402
+from terrain_enc import build_payload, encode  # noqa: E402
+from tile_sample import reslice_tile, tile_bounds  # noqa: E402
 
 REPO = Path(__file__).resolve().parents[2]
 # 2026-10-04 路径修订：原两个默认路径（dem/ 下的 dem_4326_cut.tif 与 filled_utm48n_cut.tif）
@@ -37,17 +35,6 @@ REPO = Path(__file__).resolve().parents[2]
 DEM_4326 = REPO / ".local/dem-work/dem_4326_cut.tif"  # 可选加速件（本机已无）；缺失即回落
 DEM_UTM = REPO / ".local/dem-work/filled_utm48n_cut.tif"  # 06 脚本产出的工作版（实际走这条）
 TERRAIN_DIR = REPO / "backend/static/terrain"
-
-
-def tile_bounds(z: int, x: int, y: int) -> tuple[float, float, float, float]:
-    """Cesium GeographicTilingScheme：z 级 2^(z+1) 列 × 2^z 行，y=0 最北。"""
-    cols = 2 ** (z + 1)
-    rows = 2**z
-    lon_w = -180.0 + x * 360.0 / cols
-    lon_e = -180.0 + (x + 1) * 360.0 / cols
-    lat_n = 90.0 - y * 180.0 / rows
-    lat_s = 90.0 - (y + 1) * 180.0 / rows
-    return lon_w, lat_s, lon_e, lat_n
 
 
 def main() -> None:
@@ -94,34 +81,11 @@ def main() -> None:
             dem = raw
         else:
             dem = WarpedVRT(raw, crs="EPSG:4326", resampling=Resampling.bilinear)
-        dem_bounds = dem.bounds
-        grid = np.zeros((SAMPLES, SAMPLES), dtype=np.float64)
         written = 0
         written_paths: set[Path] = set()
         for z, x, y in sorted(tile_set):
-            lon_w, lat_s, lon_e, lat_n = tile_bounds(z, x, y)
-            heights = np.full((SAMPLES, SAMPLES), 0.0)
-            step_lat = (lat_n - lat_s) / (SAMPLES - 1)
-            step_lon = (lon_e - lon_w) / (SAMPLES - 1)
-            # 瓦片 SAMPLES 网格与 DEM 范围求交集（WarpedVRT 不支持 boundless，越界补 0 高程=海洋）
-            j0 = max(0, math.ceil((dem_bounds.left - lon_w) / step_lon))
-            j1 = min(SAMPLES - 1, math.floor((dem_bounds.right - lon_w) / step_lon))
-            i0 = max(0, math.ceil((lat_n - dem_bounds.top) / step_lat))
-            i1 = min(SAMPLES - 1, math.floor((lat_n - dem_bounds.bottom) / step_lat))
-            if j1 >= j0 and i1 >= i0:
-                sub_w = lon_w + j0 * step_lon
-                sub_e = lon_w + j1 * step_lon
-                sub_n = lat_n - i0 * step_lat
-                sub_s = lat_n - i1 * step_lat
-                win = from_bounds(sub_w, sub_s, sub_e, sub_n, transform=dem.transform)
-                sub = dem.read(
-                    1,
-                    window=win,
-                    out_shape=(i1 - i0 + 1, j1 - j0 + 1),
-                    resampling=Resampling.bilinear,
-                )
-                heights[i0 : i1 + 1, j0 : j1 + 1] = sub
-            heights = np.where(np.isfinite(heights) & (heights != nodata), heights, 0.0)
+            # 窗口求交 + 双线性采样 + nodata 补 0 见 lib/tile_sample.py（与 07c 同源）
+            heights = reslice_tile(dem, tile_bounds(z, x, y), nodata)
             encoded = encode(heights)
             # heightmap-1.0 瓦片布局（见 lib/terrain_enc.py）：heights + 1B childTileMask
             # + N B waterMask。childTileMask 位：

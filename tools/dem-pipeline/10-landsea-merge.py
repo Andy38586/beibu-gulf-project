@@ -21,6 +21,9 @@ from pathlib import Path
 import numpy as np
 from osgeo import gdal, gdalconst
 
+sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+from bilinear import bilinear_sample  # noqa: E402
+
 gdal.UseExceptions()
 
 REPO = str(Path(__file__).resolve().parents[2])
@@ -56,18 +59,8 @@ def main():
         ys = oy + (np.arange(r0, r1) + 0.5) * py
         fr = (ys[:, None] - soy) / spy - 0.5                      # (n, 1)
         fc = fc_all                                               # (1, W) 全宽，广播到 (n, W)
-        i0 = np.clip(np.floor(fr).astype(np.int64), 0, sh - 2)
-        j0 = np.clip(np.floor(fc).astype(np.int64), 0, sw - 2)
-        fy = fr - i0
-        fx = fc - j0
-        p00 = sea[i0, j0]
-        p01 = sea[i0, j0 + 1]
-        p10 = sea[i0 + 1, j0]
-        p11 = sea[i0 + 1, j0 + 1]
-        ok = (
-            ~np.isnan(p00) & ~np.isnan(p01) & ~np.isnan(p10) & ~np.isnan(p11)
-        )
-        bil = (p00 * (1 - fx) + p01 * fx) * (1 - fy) + (p10 * (1 - fx) + p11 * fx) * fy
+        # 四角双线性 + NaN 缺角判定见 lib/bilinear.py（与 11 同源）
+        bil, ok = bilinear_sample(sea, fr, fc)
         ir = np.clip(np.rint(fr).astype(np.int64), 0, sh - 1)
         jr = np.clip(np.rint(fc).astype(np.int64), 0, sw - 1)
         near = sea[ir, jr]

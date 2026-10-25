@@ -31,8 +31,6 @@ const ALLOWED_LITERALS: Record<string, string[]> = {
   'business/site-suitability/components/SuitabilityRadarPanel.vue': [
     'rgba(255,255,255,.18)|rgba(0,0,0,.12)',
   ],
-  // 与 CHART_COLORS.textPrimary.dark（#e8edf4）近失，合并属视觉变更（文件头已声明）
-  'visualization/charts/SankeyChart.vue': ['#e5eaf3|#303133'],
 }
 
 type HitKind = 'palette' | 'literal' | 'keyPick'

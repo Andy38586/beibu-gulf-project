@@ -63,6 +63,12 @@ if (process.argv.includes('--freeze-check')) {
   ]) {
     delete gitEnv[key]
   }
+  // git 子进程统一 runner（2026-10-25 收口）：encoding/stdio/env 三件套原先在本模式 4 处
+  // 各写一遍，任一处漏 env 即重新踩回上面的 GIT_DIR 陷阱。exec 可注入以保留既有差异：
+  // spawnSync 非零退出**不抛**（调用方读 status 判定），execFileSync 非零退出**直接抛**
+  // （由下方 catch 归入 DRIFT / GIT_UNAVAILABLE）——故不统一成单一 spawn 语义。
+  const gitOpts = { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env: gitEnv }
+  const runGit = (args, exec = spawnSync) => exec('git', args, gitOpts)
   // ⚠️ 相对路径解析基准 = **cwd 优先**（CLI 直觉），不存在时再退回 repoRoot。
   // 历史坑：先前一律以 repoRoot 为基准，导致 `cd frontend && node ../scripts/... --freeze-check
   // coverage-baseline.json` 被解析成 `<repo>/coverage-baseline.json`（不存在）而不是
@@ -94,11 +100,7 @@ if (process.argv.includes('--freeze-check')) {
   }
   let ownRoot = null
   try {
-    const top = spawnSync(
-      'git',
-      ['-C', path.dirname(freezeBaselineFile), 'rev-parse', '--show-toplevel'],
-      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env: gitEnv }
-    )
+    const top = runGit(['-C', path.dirname(freezeBaselineFile), 'rev-parse', '--show-toplevel'])
     if (top.status === 0) ownRoot = realOr(top.stdout.trim())
   } catch {
     /* spawn 本身失败（git 不在 PATH）：ownRoot 保持 null，下方按 GIT_UNAVAILABLE 降级 */
@@ -124,22 +126,10 @@ if (process.argv.includes('--freeze-check')) {
   let hasHead = false
   let trackedInHead = false
   if (ownRoot) {
-    const rv = spawnSync('git', ['-C', ownRoot, 'rev-parse', '--verify', '--quiet', 'HEAD'], {
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'pipe'],
-      env: gitEnv,
-    })
+    const rv = runGit(['-C', ownRoot, 'rev-parse', '--verify', '--quiet', 'HEAD'])
     hasHead = rv.status === 0
     if (hasHead) {
-      const ls = spawnSync(
-        'git',
-        ['-C', ownRoot, 'ls-tree', '--name-only', 'HEAD', '--', relPath],
-        {
-          encoding: 'utf8',
-          stdio: ['ignore', 'pipe', 'pipe'],
-          env: gitEnv,
-        }
-      )
+      const ls = runGit(['-C', ownRoot, 'ls-tree', '--name-only', 'HEAD', '--', relPath])
       trackedInHead = ls.status === 0 && ls.stdout.trim().length > 0
     }
   }
@@ -166,11 +156,7 @@ if (process.argv.includes('--freeze-check')) {
       verdict = 'DRIFT'
       detail = 'NOT_TRACKED（基线未被 HEAD 跟踪）'
     } else {
-      const head = execFileSync('git', ['-C', ownRoot, 'show', `HEAD:${relPath}`], {
-        encoding: 'utf8',
-        stdio: ['ignore', 'pipe', 'pipe'],
-        env: gitEnv,
-      })
+      const head = runGit(['-C', ownRoot, 'show', `HEAD:${relPath}`], execFileSync)
       if (head.trim() === workRaw.trim()) {
         verdict = 'MATCH'
       } else {

@@ -26,19 +26,25 @@ const UNIQUE_VIOLATION = '23505'
 export class UsersRepository {
   constructor(private readonly db: DbService) {}
 
-  async findById(id: string): Promise<StoredUser | null> {
-    const res = await this.db.query<StoredUser>(`SELECT ${USER_COLUMNS} FROM users WHERE id = $1`, [
-      id,
-    ])
+  /**
+   * findById / findByUsername 的唯一差异 = WHERE 列名（2026-10-25 收口，原为两份 100% 同形实现）。
+   * 列名取字面量联合类型而非任意 string ⇒ 取值集合在编译期锁死，不构成 SQL 注入面
+   * （查询值仍走 $1 参数化）。
+   */
+  private async findOneBy(column: 'id' | 'username', value: string): Promise<StoredUser | null> {
+    const res = await this.db.query<StoredUser>(
+      `SELECT ${USER_COLUMNS} FROM users WHERE ${column} = $1`,
+      [value]
+    )
     return res.rows[0] ?? null
   }
 
+  async findById(id: string): Promise<StoredUser | null> {
+    return this.findOneBy('id', id)
+  }
+
   async findByUsername(username: string): Promise<StoredUser | null> {
-    const res = await this.db.query<StoredUser>(
-      `SELECT ${USER_COLUMNS} FROM users WHERE username = $1`,
-      [username]
-    )
-    return res.rows[0] ?? null
+    return this.findOneBy('username', username)
   }
 
   async create(username: string, passwordHash: string): Promise<StoredUser> {

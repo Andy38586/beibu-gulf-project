@@ -7,7 +7,7 @@ import { DataFilesService } from '../../../infra/files/data-files.service'
 import type { ForecastPoint, HistoricalPoint, SpatialFeature } from './forecast-engine'
 import { computeForecast, generateSpatialValues } from './forecast-engine'
 import { getModelForecast } from './model-loader'
-import { applyCanalScenario, scenarioLabel, type ScenarioId } from './scenario.service'
+import { applyCanalScenario, type ScenarioId, scenarioLabel } from './scenario.service'
 
 // 预测服务（逐行等价移植 backend/services/forecastService.js）：
 // 指标白名单拒绝路径遍历；activity 文件自带完整 forecast 直接透传；cargo/container 走模型产物
@@ -67,6 +67,22 @@ interface ComputedPort {
   metadata: Record<string, unknown> | null
 }
 
+/**
+ * getOrComputeForecast 的返回形状（= engineCache 的 value 形状，含缓存命中直出路径）。
+ * 2026-10-25 收口：原在方法签名/cache 断言/局部变量注解三处各写一遍同一 5 字段字面量类型，
+ * 改一处必漏两处（与 B2 指标名散写同类缺陷）⇒ 提为命名类型，三处共用。
+ *
+ * ⚠️ 必须是 type 别名而非 interface：缓存命中处要 `hit as ComputedForecast`
+ * （hit 为 Record<string, unknown>）。type 别名带隐式索引签名 ⇒ 单次断言合法；
+ * 写成 interface 则 TS2352（无隐式索引签名），被迫降级 `as unknown as` 反而更松。
+ */
+type ComputedForecast = {
+  indicator: string
+  unit: string
+  canalScenario: ScenarioId
+  ports: Record<string, ComputedPort>
+}
+
 @Injectable()
 export class ForecastService {
   // 引擎结果缓存（TTL + LRU 上限）：上限防枚举 confidence 造成内存放大
@@ -108,12 +124,7 @@ export class ForecastService {
     indicator: string,
     scenarioLevel: number,
     canalScenario: ScenarioId = 'baseline'
-  ): Promise<{
-    indicator: string
-    unit: string
-    canalScenario: ScenarioId
-    ports: Record<string, ComputedPort>
-  }> {
+  ): Promise<ComputedForecast> {
     validateIndicator(indicator)
     // 运河增量仅有货物吨口径的文献锚点（04-B10：不伪造参数）——非 cargo 组合显式拒绝。
     // 此前查 MODEL_INDICATORS（含 container）放行了无参数依据的集装箱情景预测：
@@ -124,21 +135,10 @@ export class ForecastService {
     }
     const key = this.getCacheKey(indicator, scenarioLevel, canalScenario)
     const hit = this.engineCache.get(key)
-    if (hit !== undefined)
-      return hit as {
-        indicator: string
-        unit: string
-        canalScenario: ScenarioId
-        ports: Record<string, ComputedPort>
-      }
+    if (hit !== undefined) return hit as ComputedForecast
 
     const data = await this.readDataFile(indicator + '.json')
-    const result: {
-      indicator: string
-      unit: string
-      canalScenario: ScenarioId
-      ports: Record<string, ComputedPort>
-    } = {
+    const result: ComputedForecast = {
       indicator: data.indicator,
       unit: data.unit,
       canalScenario,

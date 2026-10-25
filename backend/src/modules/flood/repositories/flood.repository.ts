@@ -136,18 +136,31 @@ export class FloodRepository {
   }
 
   readFloodStatistics(): Promise<unknown> {
-    return this.dataFiles.read(FLOOD_FILES.floodStatistics)
+    return this.readFloodFile('floodStatistics')
   }
 
   readFacilityPoints(): Promise<unknown> {
-    return this.dataFiles.read(FLOOD_FILES.facilityPoints)
+    return this.readFloodFile('facilityPoints')
   }
 
   readWaterArea(): Promise<unknown> {
-    return this.dataFiles.read(FLOOD_FILES.waterArea)
+    return this.readFloodFile('waterArea')
   }
 
   readTerrainProfile(): Promise<unknown> {
-    return this.dataFiles.read(FLOOD_FILES.terrainProfile)
+    return this.readFloodFile('terrainProfile')
+  }
+
+  /**
+   * 4 个 readXxx 的公共读函数（2026-10-25 收口）：原先每个方法各写一遍
+   * `this.dataFiles.read(FLOOD_FILES.xxx)`，新增数据文件时要重复第四遍。
+   * 键 → 文件名映射收敛在此（FLOOD_FILES 为 as const 的唯一真值），读盘/缓存语义
+   * 仍全交 DataFilesService（TTL + LRU）。
+   *
+   * 公开方法名保持不变：调用方（flood.service.ts）与测试桩
+   * （test/flood-depth-disclosure.spec.ts 按方法名打桩）依赖该形状，改名即破契约。
+   */
+  private readFloodFile(key: keyof typeof FLOOD_FILES): Promise<unknown> {
+    return this.dataFiles.read(FLOOD_FILES[key])
   }
 }

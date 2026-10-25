@@ -52,6 +52,14 @@ function relTo(rootAbs, fileAbs) {
 
 // ---------- 极简 glob（支持 ** * ? 与 {a,b} 花括号，满足 vitest include 的表达需要）----------
 /**
+ * 正则元字符转义（2026-10-25 收口）：`{a,b}` 的各备选项与 `?(x)` 的内层字面量都要按
+ * 正则元字符转义，原先同一表达式在三处各写一遍——新增一处转义点若漏字，
+ * 后果是静默误匹配（本器要根除的失效模式），故收敛为唯一真值。
+ */
+function escapeRe(s) {
+  return s.replace(/[.+^${}()|[\]\\]/g, '\\$&')
+}
+/**
  * ⚠️ 花括号支持是 2026-09-18 补的（审计 D-05）：vitest 的 **默认 include** 是
  * `**\/*.{test,spec}.?(c|m)[jt]s?(x)` 这种带 {a,b} 与 ?(x) 的写法，原引擎把 `{` `}`
  * 当字面量 ⇒ 该模式匹配 0 个文件。后果比「漏报」更糟：用默认 include 当基准去比对时
@@ -74,7 +82,7 @@ function globToRegExp(glob) {
         const alts = glob
           .slice(i + 1, close)
           .split(',')
-          .map((a) => a.replace(/[.+^${}()|[\]\\]/g, '\\$&'))
+          .map((a) => escapeRe(a))
         re += '(?:' + alts.join('|') + ')'
         i = close
         continue
@@ -89,9 +97,9 @@ function globToRegExp(glob) {
         const body = inner.includes('|')
           ? inner
               .split('|')
-              .map((a) => a.replace(/[.+^${}()|[\]\\]/g, '\\$&'))
+              .map((a) => escapeRe(a))
               .join('|')
-          : inner.replace(/[.+^${}()|[\]\\]/g, '\\$&')
+          : escapeRe(inner)
         re += '(?:' + body + ')?'
         i = close
         continue

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-21",
+  "generatedAt": "2026-10-25",
   "source": "frontend/src/types/schemas.ts（单一事实源，types:gen 自动生成勿手改）",
   "schemas": {
     "userSchema": {
@@ -789,29 +789,29 @@
     "timeSeriesResponseSchema": {
       "file": "backend/src/modules/forecast/services/forecast.service.ts",
       "occurrence": {
-        "indicator": 30,
-        "unit": 14,
+        "indicator": 28,
+        "unit": 12,
         "granularity": 2,
-        "canalScenario": 26,
+        "canalScenario": 24,
         "series": 2
       }
     },
     "indicatorComparisonResponseSchema": {
       "file": "backend/src/modules/forecast/services/forecast.service.ts",
       "occurrence": {
-        "indicator": 30,
-        "unit": 14,
-        "canalScenario": 26,
-        "ports": 10
+        "indicator": 28,
+        "unit": 12,
+        "canalScenario": 24,
+        "ports": 8
       }
     },
     "forecastMapDataSchema": {
       "file": "backend/src/modules/forecast/services/forecast.service.ts",
       "occurrence": {
-        "indicator": 30,
-        "unit": 14,
+        "indicator": 28,
+        "unit": 12,
         "time": 11,
-        "canalScenario": 26,
+        "canalScenario": 24,
         "type": 8,
         "features": 6
       }

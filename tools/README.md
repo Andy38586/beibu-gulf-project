@@ -17,8 +17,17 @@
 | `forecast/`      | 吞吐量预测  | 模型产物生成 `throughput_model.cjs`、活跃度派生 `derive-activity.mjs`（详见该目录 README）                                                                                                                                                                                                                                                                                                                                                                                          |
 | `data-download/` | 原始数据    | 陆地 DEM / OSM / 海底地形下载（网络可用时跑）                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | `perf-bench/`    | 性能基准    | 服务端压测                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| `diag/`          | 诊断        | 淹没多边形 vs DEM 高程基准、3D 页面实况抓取                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `diag/`          | 诊断        | 只读探针：3D 页面实况抓取（15 个浏览器探针共用 `lib/browser.cjs`）、淹没几何 / 地形 / 港区对位取证。多数被台账当「复算钩子」引用——删改前先做引用扫描（约定见下）。                                                                                                                                                                                                                                                                                                                  |
 | `v3-guard/`      | 质量守卫    | 编号外泄 / 分层结构 / 协议自述 / 路由契约 / 常量审计 / CSS 检查可见性 / 预测置信度 / 指标自洽 / 台账编号 / 分层互引覆盖 / 控制器面契约（数据/参数/公开面） / CSP 同步 / 锚点校验 / 3D Tiles / 临时文件卫生 / 文档条数对账 / 跨文档引用解析 / 手抄数字扫描 / 协议单源 / 文档体系登记 / 守卫红样自证 / 图层归属 / 图层 key 字面量 / Vue 列表 key / 宿主属性双断言 / DEV 门控日志 / 退役词条残留 / 飞行单入口 / 渲染色单源 / 断点单源 / 可选字段生产者 / 跨通道色值对账，32 项 CI 断言 |
+
+## diag 归档约定
+
+探针移出 `tools/diag` 时：文档与台账里的原路径一律改成 `<文件名>（已归档）`，不留裸路径；
+需要复跑旧探针用 `git show <sha>:tools/diag/<名>` 取回。当前**动不得**的三组（改了直接红）：
+
+- `tools/diag/__tests__/browser-lib.test.mjs` 断言 ≥15 个 `.cjs` 探针含 `page.goto(`（人口断言，删一个就红）；
+- `tools/lib/test_geo.py` / `tools/lib/test_glb.py` / `tools/lib/test_tianditu.py` / `tools/dem-pipeline/test_terrain_enc.py` 的 `STATIONS` 逐条点名；
+- 运行时调用：`tools/dem-pipeline/06-restore-cut-dem.ps1` 直接调 `diag_datum.py`。
 
 ## 根目录单文件（工程与元工具）
 

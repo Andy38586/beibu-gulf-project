@@ -132,7 +132,7 @@ tools/diag/probe-seam-pairs.py .local/dem-work/filled_utm48n_cut.tif
 backend/data/flood/dem/landsea_utm48n.tif` ⇒ `中位 -3.00 … P95 +0.00`。
 
 **衍生链错代取证（2026-10-05，只读）**：10-04 掩膜修复（海→陆 4,822,464 px，
-`tools/diag/probe-mask-diff-cells.py` 实测）之后，**12/13（地形因子→适宜性格网→PostGIS）
+`probe-mask-diff-cells.py（已归档）` 实测）之后，**12/13（地形因子→适宜性格网→PostGIS）
 未重派生，且其输入路径仍指向旧代**——`12-terrain-factors.py` 的
 `DEM = .local/dem-sea-work/landsea_utm48n.tif` 当前仍是 09-27 版（`E0DC45F6…`），
 `slope.tif` 同为 09-27 产物；因子产物 `terrain_factors.gpkg` / `_import.sql` 为 09-29 23:06、
@@ -140,7 +140,7 @@ backend/data/flood/dem/landsea_utm48n.tif` ⇒ `中位 -3.00 … P95 +0.00`。
 165,966 格中 **22,289 格（13.43%）受影响**（全部为海→陆方向）。⇒ 即便重跑 12/13，也会从
 旧代 DEM 重建；补跑顺序必须是「先定权威副本（A2）并刷新/改指 script 12 的 DEM 输入 →
 再跑 12/13 → 重灌 PostGIS → 论文敏感性数字重算」。
-**复算**：`python -X utf8 tools/diag/probe-mask-diff-cells.py
+**复算**：`python -X utf8 probe-mask-diff-cells.py（已归档）
 .local/dem-work/filled_utm48n_cut.20260830mask.tif .local/dem-work/filled_utm48n_cut.tif`
 ⇒ `变化像元=4822464（8.50%）… 受影响含陆格=22289（13.43%）`。
 **以上缺口已于同日按「12/13 链重派生」收口**（见上）。

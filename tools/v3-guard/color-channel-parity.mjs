@@ -42,8 +42,10 @@ import { walkFiles } from './lib/walk.mjs'
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 
 export const STYLE_FILE = 'frontend/src/style.css'
-/** 渲染色权威源：canvas 通道的唯一具名色表（含 SEMANTIC_COLORS 单源语义色） */
+/** 渲染色权威源：canvas 通道的唯一具名色表（含水面层等基础色值） */
 export const COLOR_AUTH = 'frontend/src/shared/constants/colors.ts'
+/** 语义色单源表（Q-C1 B）：ui/map 两变体与地图背景常量在独立文件 */
+export const SEMANTIC_AUTH = 'frontend/src/shared/constants/semantic-colors.ts'
 /** 地图侧语义色的消费点：必须引用 map 变体，不得绕表 */
 export const FLOOD_COLORS_FILE = 'frontend/src/business/flood-analysis/constants/colors.ts'
 
@@ -133,9 +135,9 @@ export function contrastOnWhite(rgb) {
 }
 
 /**
- * 解析 `colors.ts` 的单源语义色表。
+ * 解析 `semantic-colors.ts` 的单源语义色表。
  *
- * 机器可读契约（写在 colors.ts 表头）：每个键保持
+ * 机器可读契约（写在 semantic-colors.ts 表头）：每个键保持
  * `key: { ui: '#rrggbb', map: '#rrggbb' }` 的单对象形态。允许换行/多空格/注释；
  * 解析不到即红——**不静默跳过**，否则改名后守卫会变成空转。
  *
@@ -148,7 +150,7 @@ export function parseSemanticTable(colorsText) {
     return {
       entries,
       background: null,
-      problems: [`读不到权威源 ${COLOR_AUTH} —— 单源语义色表不存在，对账失去对象`],
+      problems: [`读不到权威源 ${SEMANTIC_AUTH} —— 单源语义色表不存在，对账失去对象`],
     }
   }
 
@@ -158,7 +160,7 @@ export function parseSemanticTable(colorsText) {
       entries,
       background: null,
       problems: [
-        `在 ${COLOR_AUTH} 里解析不到 \`export const SEMANTIC_COLORS = { … } as const\` —— ` +
+        `在 ${SEMANTIC_AUTH} 里解析不到 \`export const SEMANTIC_COLORS = { … } as const\` —— ` +
           '表被删/改名，ui≡CSS 与 map≥3:1 两条判据都会失去对象',
       ],
     }
@@ -175,7 +177,7 @@ export function parseSemanticTable(colorsText) {
     if (!m) {
       problems.push(
         `SEMANTIC_COLORS.${key} 解析不到 —— 缺少 \`${key}: { ui: '#rrggbb', map: '#rrggbb' }\` ` +
-          '（或字段名/引号形态被改；机器可读契约见 colors.ts 表头）'
+          '（或字段名/引号形态被改；机器可读契约见 semantic-colors.ts 表头）'
       )
       continue
     }
@@ -197,7 +199,7 @@ export function parseSemanticTable(colorsText) {
   const bg = colorsText.match(/export const SEMANTIC_MAP_BACKGROUND\s*=\s*'(#[0-9a-fA-F]{6})'/)
   if (!bg) {
     problems.push(
-      `在 ${COLOR_AUTH} 里解析不到 SEMANTIC_MAP_BACKGROUND —— ` +
+      `在 ${SEMANTIC_AUTH} 里解析不到 SEMANTIC_MAP_BACKGROUND —— ` +
         'map 变体的对比度失去可复核背景，不能用白底代替'
     )
   }
@@ -222,15 +224,20 @@ export function auditColorParity({
   colorsText,
 }) {
   const problems = []
-  const authText = colorsText ?? sources.get(COLOR_AUTH)
+  const authText = colorsText ?? sources.get(SEMANTIC_AUTH)
   const table = parseSemanticTable(authText)
   problems.push(...table.problems)
 
   // 背景常量必须能从水面层复核：否则「按实际地图背景算」只是一句注释
-  const water = authText?.match(
+  const waterText = sources.get(COLOR_AUTH)
+  const water = waterText?.match(
     /export const LAYER_FILL_WATER\s*=\s*'rgba\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/
   )
-  if (authText && !water) {
+  if (!waterText) {
+    problems.push(
+      `读不到 ${COLOR_AUTH} —— SEMANTIC_MAP_BACKGROUND 的取色依据（水面层基色）无法复核`
+    )
+  } else if (!water) {
     problems.push(
       `在 ${COLOR_AUTH} 里解析不到 LAYER_FILL_WATER 的 RGB —— ` +
         'SEMANTIC_MAP_BACKGROUND 的取色依据（水面层基色）无法复核'
@@ -255,7 +262,7 @@ export function auditColorParity({
     if (!css) {
       problems.push(
         `--GCS-color-${p.css} 在 ${STYLE_FILE} 里解析不到 —— CSS 通道丢了这一色，` +
-          `而 ${COLOR_AUTH} 的 ui 变体仍在。两侧必须逐值相等（成对存在是底线）。`
+          `而 ${SEMANTIC_AUTH} 的 ui 变体仍在。两侧必须逐值相等（成对存在是底线）。`
       )
       continue
     }
@@ -311,7 +318,7 @@ export function auditColorParity({
   const allowedFiles = new Set(allowed.filter((a) => a.exemptFromBareHex).map((a) => a.file))
   // 豁免面不得把判据域盖住：那样裸 hex 判据就扫不到任何东西，等于被禁用
   // （AGENTS §七-7「半覆盖的守卫比没有守卫更危险」的同族形态）
-  const scannable = [...sources.keys()].filter((f) => f !== COLOR_AUTH)
+  const scannable = [...sources.keys()].filter((f) => f !== COLOR_AUTH && f !== SEMANTIC_AUTH)
   if (scannable.length > 0 && scannable.every((f) => allowedFiles.has(f))) {
     problems.push(
       `豁免面覆盖了判据域全部文件（${scannable.length} 个）——` +
@@ -319,7 +326,7 @@ export function auditColorParity({
     )
   }
   for (const [file, text] of sources) {
-    if (file === COLOR_AUTH || allowedFiles.has(file)) continue
+    if (file === COLOR_AUTH || file === SEMANTIC_AUTH || allowedFiles.has(file)) continue
     const lines = text.split(/\r?\n/)
     lines.forEach((line, i) => {
       const code = line.replace(/\/\/.*$/, '').replace(/\/\*[\s\S]*?\*\//g, '')
@@ -327,7 +334,7 @@ export function auditColorParity({
       if (m) {
         problems.push(
           `${file}:${i + 1} 裸 hex ${m.join(' ')} —— canvas 通道的色值必须来自 ` +
-            `${COLOR_AUTH} 的具名常量；确属业务专属色表请在 ALLOWED_HEX_FILES 登记理由。`
+            `${COLOR_AUTH} / ${SEMANTIC_AUTH} 的具名常量；确属业务专属色表请在 ALLOWED_HEX_FILES 登记理由。`
         )
       }
     })
@@ -354,7 +361,8 @@ function main() {
   const { problems, table } = auditColorParity({ cssText, sources })
 
   console.log(
-    `[color-channel-parity] CSS ${STYLE_FILE} × canvas ${COLOR_AUTH}（地图背景 ${table.background ?? '缺失'}）`
+    `[color-channel-parity] CSS ${STYLE_FILE} × canvas ${COLOR_AUTH} × 语义 ${SEMANTIC_AUTH}` +
+      `（地图背景 ${table.background ?? '缺失'}）`
   )
   for (const p of SEMANTIC_PAIRS) {
     const css = cssSemanticColor(cssText, p.css)

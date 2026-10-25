@@ -22,6 +22,7 @@ import {
   COLOR_AUTH,
   FLOOD_COLORS_FILE,
   MAP_CONTRAST_MIN,
+  SEMANTIC_AUTH,
   SEMANTIC_KEYS,
   SEMANTIC_PAIRS,
   auditColorParity,
@@ -39,7 +40,7 @@ const CSS_OK = `
   --GCS-color-danger: rgb(204 58 77);
 `
 
-/** 权威源：三组 ui/map + 可复核背景 + 水面层基色（与背景同值） */
+/** 语义权威源：三组 ui/map + 可复核背景（Q-C1 B：独立文件） */
 const COLORS_OK = `
 export const SEMANTIC_COLORS = {
   success: { ui: '#187a30', map: '#125223' },
@@ -48,13 +49,14 @@ export const SEMANTIC_COLORS = {
 } as const
 
 export const SEMANTIC_MAP_BACKGROUND = '#409eff'
-
-export const LAYER_FILL_WATER = 'rgba(64, 158, 255, 0.5)'
 `
+
+/** 渲染色权威源：水面层基色（背景常量的取色依据） */
+const WATER_OK = `export const LAYER_FILL_WATER = 'rgba(64, 158, 255, 0.5)'`
 
 /** 洪涝消费点：三档都取 map 变体 */
 const FLOOD_OK = `
-import { FLOOD_RISK_NEUTRAL_COLOR, SEMANTIC_COLORS, withAlpha } from '../../../shared/constants/colors'
+import { FLOOD_RISK_NEUTRAL_COLOR, SEMANTIC_COLORS, withAlpha } from '@/shared'
 const riskTier = (stroke: string, alpha: number) => ({ stroke, fill: withAlpha(stroke, alpha) })
 export const FLOOD_RISK_COLORS = {
   低风险: riskTier(SEMANTIC_COLORS.success.map, 0.3),
@@ -66,9 +68,10 @@ export const FLOOD_RISK_COLORS = {
 `
 
 /** 基础判据域：权威源 + 洪涝消费点 + 一个干净文件（留出可判面） */
-function baseSources(colorsText = COLORS_OK, floodText = FLOOD_OK) {
+function baseSources(colorsText = COLORS_OK, floodText = FLOOD_OK, waterText = WATER_OK) {
   return new Map([
-    [COLOR_AUTH, colorsText],
+    [SEMANTIC_AUTH, colorsText],
+    [COLOR_AUTH, waterText],
     [FLOOD_COLORS_FILE, floodText],
     ['frontend/src/clean.ts', 'export const C = 1\n'],
   ])
@@ -289,9 +292,10 @@ describe('对比度计算可信（判据数字本身要能被复核）', () => {
 })
 
 describe('真仓集成：单源表与消费点现状必须自洽', () => {
-  it('真实 style.css / colors.ts / 洪涝色表 ⇒ 零问题（防止本笔只改了测试夹具）', () => {
+  it('真实 style.css / semantic-colors.ts / colors.ts / 洪涝色表 ⇒ 零问题（防只改夹具）', () => {
     const read = (rel) => readFileSync(path.join(ROOT, rel), 'utf8')
     const sources = new Map([
+      [SEMANTIC_AUTH, read(SEMANTIC_AUTH)],
       [COLOR_AUTH, read(COLOR_AUTH)],
       [FLOOD_COLORS_FILE, read(FLOOD_COLORS_FILE)],
       ['frontend/src/clean.ts', 'export const C = 1\n'],

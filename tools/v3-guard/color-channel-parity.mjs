@@ -77,10 +77,6 @@ export const SEMANTIC_KEYS = SEMANTIC_PAIRS.map((p) => p.key)
 export const ALLOWED_HEX_FILES = [
   {
     file: 'frontend/src/business/diversion/constants/diversionMap.ts',
-    why:
-      '分流弧线/运河线位配色：Cesium 弧线渲染需要 Material 用的纯色值，' +
-      '与图层语义绑定（我方/对方/高亮三态），shared 无对应具名常量。' +
-      '待评估是否并入 colors.ts。',
     exemptFromBareHex: true,
   },
 ]

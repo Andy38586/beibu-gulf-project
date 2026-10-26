@@ -178,7 +178,6 @@ describe('F82 model_comparison 指标行：键序（字节序）与行尾独有�
       'combination',
       'dm_vs_linear',
       'selected',
-      'gate',
     ])
     expect(Object.keys(mc.linear)).toEqual(METRIC_ROW)
     expect(Object.keys(mc.seasonal_naive)).toEqual(METRIC_ROW)

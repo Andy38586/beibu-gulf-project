@@ -285,8 +285,7 @@
             "n": 294
           }
         },
-        "selected": "combination",
-        "gate": "候选须比线性好 ≥0.5pp 且 DM(vs 线性) p<0.1 才可替换；达标者取 MAPE 最小（平局取参数少者）；组合须严格优于当轮最好单模型"
+        "selected": "combination"
       },
       "predictions": [
         {
@@ -720,8 +719,7 @@
             "n": 294
           }
         },
-        "selected": "combination",
-        "gate": "候选须比线性好 ≥0.5pp 且 DM(vs 线性) p<0.1 才可替换；达标者取 MAPE 最小（平局取参数少者）；组合须严格优于当轮最好单模型"
+        "selected": "combination"
       },
       "predictions": [
         {
@@ -1155,8 +1153,7 @@
             "n": 294
           }
         },
-        "selected": "combination",
-        "gate": "候选须比线性好 ≥0.5pp 且 DM(vs 线性) p<0.1 才可替换；达标者取 MAPE 最小（平局取参数少者）；组合须严格优于当轮最好单模型"
+        "selected": "combination"
       },
       "predictions": [
         {

@@ -15,10 +15,15 @@
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
+import ts from 'typescript'
 import { afterAll, describe, expect, it } from 'vitest'
 
 import { DEFAULT_SKIP_DIRS, walkFiles } from '../lib/walk.mjs'
+
+/** 红样标记（与 tools/v3-guard/guard-red-sample.mjs 同一约定） */
+const RED_MARK = '@guard-red-sample'
 
 const TMP_ROOTS = []
 afterAll(() => {
@@ -119,5 +124,170 @@ describe('walkFiles：扫描面', () => {
     expect(
       walkFiles(path.join(os.tmpdir(), 'walk-contract-missing-root'), { match: isTs })
     ).toEqual([])
+  })
+})
+
+// ── F72 残余：新守卫不得自建递归文件遍历（AST 窄判据）────────────────────────────
+//
+// 背景（§136）：生产侧 9 处 walker 已收进 lib/walk.mjs，但**没有判据阻止新守卫再写一套**；
+// walk.test.mjs 此前只钉 walk.mjs 自身契约，对「另一个文件里又长出 walker」无感。
+//
+// 判据形状（窄）：函数体（不跨嵌套函数）内同时出现
+//   (a) 调用 readdirSync / opendir / opendirSync / globSync 之一；
+//   (b) 对**自身函数名**的调用（递归）；
+//   (c) 收集信号 `.push(`（把结果攒进数组）。
+// (c) 是本轮实测后**额外收窄**的一条：`guard-red-mutation.mjs` 的 `removeTreeNoFollow`
+// 满足 (a)+(b) 但它只做 `unlinkSync/rmdirSync`（无 push）——递归**删除**遍历不是文件
+// 收集器，收进判据会把「防御性清理」误报成「第二套 walker」。实证见本文件「现有站点」用例。
+//
+// 白名单只有 lib/walk.mjs；判据**主动**验证它能命中它（阳性对照），生产扫描跳过它。
+const GUARD_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+const WALK_FS_CALLS = new Set(['readdirSync', 'opendir', 'opendirSync', 'globSync'])
+const WALK_WHITELIST = new Map([
+  ['lib/walk.mjs', '守卫族唯一的递归文件遍历实现（F72 收口点，本判据的阳性对照）'],
+])
+
+/** tools/v3-guard 下所有 .mjs（跳过 __tests__ 与白名单） */
+function collectGuardFiles(dir = GUARD_DIR, out = []) {
+  for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+    if (e.name === '__tests__') continue
+    const p = path.join(dir, e.name)
+    const rel = path.relative(GUARD_DIR, p).split(path.sep).join('/')
+    if (e.isDirectory()) collectGuardFiles(p, out)
+    else if (e.name.endsWith('.mjs') && !WALK_WHITELIST.has(rel)) out.push(p)
+  }
+  return out
+}
+
+/** 取被调用者的名字：readdirSync / fs.readdirSync / fs['readdirSync'] 都归一 */
+function calleeName(expr) {
+  if (ts.isIdentifier(expr)) return expr.text
+  if (ts.isPropertyAccessExpression(expr)) return expr.name.text
+  if (ts.isElementAccessExpression(expr) && ts.isStringLiteralLike(expr.argumentExpression)) {
+    return expr.argumentExpression.text
+  }
+  return null
+}
+
+/** 函数名：声明名 / 变量名 / 对象属性名 */
+function functionName(node) {
+  if (node.name && ts.isIdentifier(node.name)) return node.name.text
+  const p = node.parent
+  if (p && ts.isVariableDeclaration(p) && ts.isIdentifier(p.name)) return p.name.text
+  if (p && ts.isPropertyAssignment(p) && ts.isIdentifier(p.name)) return p.name.text
+  return null
+}
+
+/**
+ * 返回命中 [{line, name}]。
+ * AST 不看注释/字符串；不跨嵌套函数（内层 helper 的 push/readdir 不算外层）。
+ */
+function findRecursiveWalkers(fileName, text) {
+  const sf = ts.createSourceFile(fileName, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS)
+  const hits = []
+  const visit = (node) => {
+    const isFn =
+      ts.isFunctionDeclaration(node) || ts.isFunctionExpression(node) || ts.isArrowFunction(node)
+    if (isFn) {
+      const name = functionName(node)
+      if (name) {
+        let readsDir = false
+        let selfCall = false
+        let collects = false
+        const inside = (n) => {
+          if (
+            n !== node &&
+            (ts.isFunctionDeclaration(n) || ts.isFunctionExpression(n) || ts.isArrowFunction(n))
+          ) {
+            return
+          }
+          if (ts.isCallExpression(n)) {
+            const callee = n.expression
+            const cname = calleeName(callee)
+            if (cname && WALK_FS_CALLS.has(cname)) readsDir = true
+            if (ts.isIdentifier(callee) && callee.text === name) selfCall = true
+            if (cname === 'push') collects = true
+          }
+          ts.forEachChild(n, inside)
+        }
+        inside(node.body ?? node)
+        if (readsDir && selfCall && collects) {
+          const { line } = sf.getLineAndCharacterOfPosition(node.getStart(sf))
+          hits.push({ line: line + 1, name })
+        }
+      }
+    }
+    ts.forEachChild(node, visit)
+  }
+  visit(sf)
+  return hits
+}
+
+describe('F72 残余：新守卫不得自建递归文件遍历（AST 窄判据）', () => {
+  it(`🔴 ${RED_MARK} 合成递归 walker ⇒ 命中（阳性）`, () => {
+    const sample = [
+      'import fs from "node:fs"',
+      'import path from "node:path"',
+      'function walk(dir) {',
+      '  const out = []',
+      '  for (const e of fs.readdirSync(dir, { withFileTypes: true })) {',
+      '    const p = path.join(dir, e.name)',
+      '    if (e.isDirectory()) out.push(...walk(p))',
+      '    else if (e.isFile()) out.push(p)',
+      '  }',
+      '  return out',
+      '}',
+    ].join('\n')
+    const hits = findRecursiveWalkers('synthetic.mjs', sample)
+    expect(hits).toHaveLength(1)
+    expect(hits[0].name).toBe('walk')
+  })
+
+  it('非递归 readdirSync（含 fs. / 裸调用 / 链式 filter）⇒ 命中 0（阴性）', () => {
+    const sample = [
+      'import fs from "node:fs"',
+      'export function list(dir) {',
+      '  return fs.readdirSync(dir, { withFileTypes: true })',
+      '    .filter((e) => e.isFile())',
+      '    .map((e) => e.name)',
+      '}',
+      'const names = readdirSync(".")',
+    ].join('\n')
+    expect(findRecursiveWalkers('flat.mjs', sample)).toEqual([])
+  })
+
+  it('递归删除遍历（readdir + 自调用但只 rm）⇒ 命中 0（本轮实测后收窄的边界）', () => {
+    const sample = [
+      'function removeTree(dir) {',
+      '  for (const e of fs.readdirSync(dir, { withFileTypes: true })) {',
+      '    const p = path.join(dir, e.name)',
+      '    if (e.isDirectory()) removeTree(p)',
+      '    else fs.unlinkSync(p)',
+      '  }',
+      '  fs.rmdirSync(dir)',
+      '}',
+    ].join('\n')
+    expect(findRecursiveWalkers('rm.mjs', sample)).toEqual([])
+  })
+
+  it(`🔴 ${RED_MARK} 当前真实 v3-guard 目录 ⇒ 命中 0（白名单外没有第二套 walker）`, () => {
+    const files = collectGuardFiles()
+    expect(files.length, '扫描面为空 ⇒ 根路径写错，先红').toBeGreaterThan(30)
+    const offenders = files.flatMap((file) =>
+      findRecursiveWalkers(file, fs.readFileSync(file, 'utf8')).map(
+        (h) => `${path.relative(GUARD_DIR, file).split(path.sep).join('/')}:${h.line} ${h.name}`
+      )
+    )
+    expect(offenders).toEqual([])
+  })
+
+  it(`🔴 ${RED_MARK} 阳性对照：白名单里的 lib/walk.mjs 必须能被同一判据命中`, () => {
+    const file = path.join(GUARD_DIR, 'lib/walk.mjs')
+    const hits = findRecursiveWalkers(file, fs.readFileSync(file, 'utf8'))
+    expect(
+      hits.some((h) => h.name === 'walk'),
+      '判据认不出真实 walker = 判据本身空转'
+    ).toBe(true)
+    expect(WALK_WHITELIST.get('lib/walk.mjs'), '白名单必须写理由').toBeTruthy()
   })
 })

@@ -7,7 +7,7 @@ import type {
   FloodFeature,
   FloodSavedState,
   FloodStatistics,
-} from '@/types/business/base'
+} from '@/types'
 
 import { createPersistedState } from './factories/createPersistedState'
 

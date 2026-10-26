@@ -3,7 +3,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { useFloodStore } from '@/stores'
-import type { AffectedFacility } from '@/types/business/base'
+import type { AffectedFacility } from '@/types'
 
 /**
  * LIF-3 验收：*Active 标志单向置位

@@ -4,7 +4,7 @@ import { reactive, ref, shallowRef } from 'vue'
 
 // 分层铁律：stores 不得引用 business——初始化所需共享常量一律从 shared 取
 import { BoundedMap, DEFAULT_CONFIDENCE } from '@/shared'
-import type { ConfidenceThresholds } from '@/types/business/base'
+import type { ConfidenceThresholds } from '@/types'
 import type { ForecastDataSource } from '@/types/schemas'
 
 import { createPersistedState } from './factories/createPersistedState'

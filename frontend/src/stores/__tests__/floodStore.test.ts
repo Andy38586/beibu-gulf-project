@@ -1,7 +1,7 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it } from 'vitest'
 
-import type { FloodFeature, FloodStatistics } from '@/types/business/base'
+import type { FloodFeature, FloodStatistics } from '@/types'
 
 import { useFloodStore } from '../floodStore'
 

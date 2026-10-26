@@ -1,17 +1,16 @@
 {
   "generatedFrom": "tools/deep-import/scan.mjs",
-  "total": 76,
+  "total": 65,
   "byGroup": {
     "core/map": 7,
     "shared/constants": 6,
-    "types/business": 8,
-    "types/api": 1,
     "core/config": 8,
-    "types/core": 4,
     "shared/utils": 22,
     "shared/layout": 5,
     "shared/composables": 5,
     "stores/factories": 4,
+    "types/core": 1,
+    "types/business": 1,
     "views/components": 2,
     "visualization/composables": 4
   },
@@ -25,21 +24,6 @@
       "file": "business/diversion/panels.ts",
       "target": "shared/constants/panels",
       "group": "shared/constants"
-    },
-    {
-      "file": "business/flood-analysis/composables/useFloodRequest.ts",
-      "target": "types/business/base",
-      "group": "types/business"
-    },
-    {
-      "file": "business/flood-analysis/FloodAnalysisPage.vue",
-      "target": "types/business/base",
-      "group": "types/business"
-    },
-    {
-      "file": "business/forecast/composables/useForecastLayer.ts",
-      "target": "types/api/forecast",
-      "group": "types/api"
     },
     {
       "file": "business/preload.ts",
@@ -77,16 +61,6 @@
       "group": "core/map"
     },
     {
-      "file": "core/map/BusinessLayerManager.ts",
-      "target": "types/core/layerManager",
-      "group": "types/core"
-    },
-    {
-      "file": "core/map/components/LayerControlPanel.vue",
-      "target": "types/core/layerManager",
-      "group": "types/core"
-    },
-    {
       "file": "core/map/composables/useBoundaryLayer.ts",
       "target": "core/config/map",
       "group": "core/config"
@@ -95,11 +69,6 @@
       "file": "core/map/composables/useMapControls.ts",
       "target": "core/config/map",
       "group": "core/config"
-    },
-    {
-      "file": "core/map/layerAdapters.ts",
-      "target": "types/core/layerManager",
-      "group": "types/core"
     },
     {
       "file": "core/map/renderers/CesiumRenderer.ts",
@@ -125,11 +94,6 @@
       "file": "core/provideKeys.ts",
       "target": "core/map/renderers/MapRenderer",
       "group": "core/map"
-    },
-    {
-      "file": "services/adapters/floodAdapter.ts",
-      "target": "types/business/base",
-      "group": "types/business"
     },
     {
       "file": "services/mapDataService.ts",
@@ -302,11 +266,6 @@
       "group": "stores/factories"
     },
     {
-      "file": "stores/floodStore.ts",
-      "target": "types/business/base",
-      "group": "types/business"
-    },
-    {
       "file": "stores/forecastStore.ts",
       "target": "stores/factories/createPersistedState",
       "group": "stores/factories"
@@ -315,11 +274,6 @@
       "file": "stores/forecastStore.ts",
       "target": "stores/factories/createTransactionId",
       "group": "stores/factories"
-    },
-    {
-      "file": "stores/forecastStore.ts",
-      "target": "types/business/base",
-      "group": "types/business"
     },
     {
       "file": "stores/mapStore.ts",
@@ -353,16 +307,6 @@
     },
     {
       "file": "types/renderer.ts",
-      "target": "types/business/base",
-      "group": "types/business"
-    },
-    {
-      "file": "views/components/PlansPanel.vue",
-      "target": "types/business/base",
-      "group": "types/business"
-    },
-    {
-      "file": "views/components/PlansPanel.vue",
       "target": "types/business/base",
       "group": "types/business"
     },
@@ -404,6 +348,12 @@
       "total": 76,
       "kind": "未标注",
       "note": "views 改走 @/visualization 入口，消除 4 条 BarChart/LineChart 深路径穿透"
+    },
+    {
+      "at": "2026-10-26",
+      "total": 65,
+      "kind": "未标注",
+      "note": "types/business/base + types/core/layerManager + types/api/forecast 改走 @/types 入口，穿透 76→65"
     }
   ]
 }

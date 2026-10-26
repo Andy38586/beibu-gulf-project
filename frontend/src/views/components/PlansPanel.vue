@@ -20,8 +20,8 @@ import {
   useFavorites,
 } from '@/shared'
 import { useFloodStore } from '@/stores'
-import type { AffectedFacility, FloodFeature } from '@/types/business/base'
-import type { FavoriteItem } from '@/types/business/base'
+import type { AffectedFacility, FloodFeature } from '@/types'
+import type { FavoriteItem } from '@/types'
 import type { Plan } from '@/types/plan'
 import type { SavedXiaoqu } from '@/types/xiaoqu'
 

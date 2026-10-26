@@ -30,7 +30,7 @@ import {
 } from '@/shared'
 import { useFloodStore, useTaskStore } from '@/stores'
 import { useMapStore } from '@/stores'
-import type { AffectedFacility, FloodFeature } from '@/types/business/base'
+import type { AffectedFacility, FloodFeature } from '@/types'
 import type { TaskSlot } from '@/types/task'
 
 import AffectedFacilityListPanel from './components/AffectedFacilityListPanel.vue'

@@ -2,7 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { MapRenderer } from '@/types'
-import type { LayerType } from '@/types/core/layerManager'
+import type { LayerType } from '@/types'
 
 import {
   BusinessLayerManager,

@@ -22,7 +22,7 @@ import type {
   Water3DCapability,
 } from '@/types'
 import { DEFAULT_ENGINES, ENGINE_NAMES } from '@/types'
-import type { LayerType, Tiles3DData, WaterSurfaceData } from '@/types/core/layerManager'
+import type { LayerType, Tiles3DData, WaterSurfaceData } from '@/types'
 
 // ===== 引擎适用性（面板三态）=====
 

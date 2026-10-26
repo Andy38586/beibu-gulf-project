@@ -11,7 +11,7 @@ import { perfTimeFn } from '@/shared'
 import { logger } from '@/shared'
 import type { EngineName, LayerEntry, LayerOptions, MapRenderer } from '@/types'
 import { ENGINE_NAMES } from '@/types'
-import type { LayerType } from '@/types/core/layerManager'
+import type { LayerType } from '@/types'
 
 import { LAYER_ADAPTERS } from './layerAdapters'
 

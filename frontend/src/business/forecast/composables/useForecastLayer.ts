@@ -19,7 +19,7 @@ import { scenarioParam } from '@/shared'
 import { useForecastStore } from '@/stores'
 import { useMapStore } from '@/stores'
 import type { LayerOptions, LayerType, MapRenderer } from '@/types'
-import type { ForecastMapData } from '@/types/api/forecast'
+import type { ForecastMapData } from '@/types'
 import { forecastMapDataSchema } from '@/types/schemas'
 
 import { guardForecastAuth, useForecastRequest } from './useForecastRequest'

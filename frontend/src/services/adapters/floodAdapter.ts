@@ -8,7 +8,7 @@
  */
 
 import { DEFAULT_RISK_LEVEL, ENDPOINTS, logger, useApiRequest } from '@/shared'
-import type { AffectedFacility, FloodFeature, FloodStatistics } from '@/types/business/base'
+import type { AffectedFacility, FloodFeature, FloodStatistics } from '@/types'
 import type {
   FloodAreasResponseParsed,
   FloodDisasterResponseParsed,

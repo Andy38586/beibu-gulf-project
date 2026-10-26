@@ -32,7 +32,7 @@
 import { floodAdapter } from '@/services'
 import { logger, showError, useLatestRequest } from '@/shared'
 import { useTaskStore } from '@/stores'
-import type { AffectedFacility, FloodFeature, FloodStatistics } from '@/types/business/base'
+import {} from '@/types'
 
 /** 本页路由标识（taskStore 按 route 分槽的 key） */
 export const FLOOD_ROUTE_PATH = '/flood-analysis'

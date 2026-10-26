@@ -45,7 +45,7 @@
     "test:mutation": "node tools/mutation-probe/run.mjs",
     "test:report:be": "npm --prefix backend run test:report",
     "test:report:fe": "cd frontend && vitest run --coverage --reporter=default --reporter=json --outputFile=coverage/vitest-result.json",
-    "test:tools": "vitest run --root . tools scripts",
+    "test:tools": "node scripts/check-tools-skips.mjs",
     "test:watch": "cd frontend && vitest",
     "test:watchdog": "node scripts/test-watchdog.cjs",
     "tmp:clean": "node scripts/clean-tmp.cjs",

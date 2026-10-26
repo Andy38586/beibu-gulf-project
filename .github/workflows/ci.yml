@@ -296,6 +296,17 @@ jobs:
           node scripts/coverage-ratchet.cjs frontend/coverage/coverage-summary.json frontend/coverage-baseline.json
           node scripts/test-watchdog.cjs --project frontend
 
+      # tools/dem-pipeline 的 pytest 接线需要 Python + numpy/rasterio。
+      # 2026-10-26：五个包装器此前写死 Windows venv + skipIf，Linux CI 恒跳过；
+      # 现改为跨平台解析，缺 Python/依赖直接 fail，不再用 skip 冒充绿。
+      - name: Setup Python for dem-pipeline tests
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Python deps for dem-pipeline pytest
+        run: python -m pip install --disable-pip-version-check numpy rasterio pytest
+
       # tools/ 下的脚本单测（导入/质检/迁移）：此前游离于所有测试链路之外，
       # `npm test` 只跑 frontend，写在这里的用例实际从未被执行（门禁清单存在 ≠ 被执行）。
       # 覆盖率棘轮不适用（工具脚本不入前端/后端基线体系），故只跑断言。

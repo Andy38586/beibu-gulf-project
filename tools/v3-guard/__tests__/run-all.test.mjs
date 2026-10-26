@@ -44,6 +44,39 @@ function jobBlockOf(text, script) {
   return { id: lines[start].trim().replace(/:$/, ''), block: lines.slice(start, end).join('\n') }
 }
 
+/**
+ * 派生 `core.hooksPath`，并**区分三态**（注入 exec 以便单测，不依赖真实 git）：
+ *   ① git 可派生 + 键有值 ② git 可派生但键未设（exit 1，走 .git/hooks 真判据）
+ *   ③ git 不可派生（spawn ENOENT / EBUSY 等）
+ * 旧实现把 ③ 只 `console.warn('SKIPPED')`，vitest 记 passed、skip 计数 0 ——
+ * 同一红在「工具不可用」与「shim 缺失」两类因上不可区分，且 §5.4 的 SKIPPED 报告不存在。
+ */
+function readHooksPath(exec, { root = ROOT } = {}) {
+  try {
+    return {
+      gitUsable: true,
+      hooksPath:
+        exec('git', ['config', '--get', 'core.hooksPath'], {
+          cwd: root,
+          encoding: 'utf8',
+        }).trim() || null,
+    }
+  } catch (err) {
+    // exit 1 = 键未设（git 正常），不是「不可派生」
+    if (err && err.status === 1) return { gitUsable: true, hooksPath: null }
+    return { gitUsable: false, hooksPath: null, reason: String(err?.message ?? err) }
+  }
+}
+
+/** fail-closed：git 不可派生时判据无法执行，必须红（不许静默记 passed） */
+function assertGitUsable(state) {
+  expect(
+    state.gitUsable,
+    `git 不可派生（${state.reason ?? 'spawn 失败'}）⇒ hooksPath→shim 判据无法执行；` +
+      'AGENTS §5.4：工具不可用不得以 console.warn 记 passed，请修环境或显式登记豁免'
+  ).toBe(true)
+}
+
 describe('guard:v3 串联执行器（审查 z163）', () => {
   it('全部通过时 ok=true，且逐项记录退出码 0', () => {
     const calls = []
@@ -147,9 +180,9 @@ describe('guard:v3 串联执行器（审查 z163）', () => {
 
   it('@guard-red-sample 强制点必须真会触发：hooksPath→shim 在位，workflow on: 有效且 job 无 if:', () => {
     // 真仓：core.hooksPath → husky shim；shim 不在 = .husky/<hook> 永远不会被执行（z063 实测漏洞）
-    // 区分两种 null：① git 可派生但键未设（exit 1，走 .git/hooks 真判据）② git 不可派生
-    //（ENOENT/EBUSY 等）。后者按 AGENTS §5.4 记 SKIPPED —— 否则「工具不可用」被误报成
-    //「shim 缺失」，同一红在两类因上不可区分（本仓实测：EBUSY 环境即此红，长期无人查）。
+    // 三态由 readHooksPath 派生（可注入单测）：① 可派生+有值 ② 可派生但键未设（exit 1）
+    // ③ 不可派生（ENOENT/EBUSY）。③ 必须 fail-closed —— 旧实现只 console.warn 记 passed，
+    // 既让「工具不可用」与「shim 缺失」不可区分，又违反 §5.4「跳过必须计入报告」。
     const hooks = [
       ...new Set(
         SEPARATELY_RUN.flatMap((g) => g.enforcedBy)
@@ -157,28 +190,34 @@ describe('guard:v3 串联执行器（审查 z163）', () => {
           .map((rel) => path.basename(rel))
       ),
     ]
-    let gitUsable = true
-    let hooksPath = null
-    try {
-      hooksPath =
-        execFileSync('git', ['config', '--get', 'core.hooksPath'], {
-          cwd: ROOT,
-          encoding: 'utf8',
-        }).trim() || null
-    } catch (err) {
-      if (err && err.status === 1) hooksPath = null
-      else gitUsable = false
-    }
-    if (gitUsable) {
-      expect(
-        hookFiringProblems(hooksPath, hooks, (rel) => fs.existsSync(path.join(ROOT, rel)))
-      ).toEqual([])
-    } else {
-      console.warn('[run-all.test] SKIPPED：git 不可派生，hooksPath→shim 自证跳过（AGENTS §5.4）')
-    }
+    const gitState = readHooksPath(execFileSync)
+    assertGitUsable(gitState)
+    expect(
+      hookFiringProblems(gitState.hooksPath, hooks, (rel) => fs.existsSync(path.join(ROOT, rel)))
+    ).toEqual([])
     // workflow 断言不依赖 git 派生，照常跑：on: 真的在；跑 guard:mutation 的 job 不许带条件
     const wf = fs.readFileSync(path.join(ROOT, '.github/workflows/ci.yml'), 'utf8')
     expect(ciTriggerProblems(wf, 'guard:mutation', jobBlockOf)).toEqual([])
+  })
+
+  it('@guard-red-sample git 不可派生 ⇒ 显式失败（旧实现只 console.warn，vitest 记 passed）', () => {
+    // 不依赖真实 git 状态：注入一个「spawn 就抛 ENOENT」的 exec 模拟工具缺失
+    const missingGit = () => {
+      const err = new Error('spawnSync git ENOENT')
+      err.code = 'ENOENT'
+      throw err
+    }
+    const broken = readHooksPath(missingGit)
+    expect(broken.gitUsable, 'git 不可派生必须被识别为 gitUsable=false').toBe(false)
+    expect(() => assertGitUsable(broken), '不可派生却放过 = 假绿').toThrow()
+
+    // 对照：exit 1（键未设）是 git 正常，不得被误判为不可派生
+    const unsetKey = () => {
+      const err = new Error('exit 1')
+      err.status = 1
+      throw err
+    }
+    expect(readHooksPath(unsetKey)).toEqual({ gitUsable: true, hooksPath: null })
   })
 
   it('@guard-red-sample 步骤级 if: 也是强制点失效（z063 只判 job 级；步骤级条件同样让该步不跑）', () => {

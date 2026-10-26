@@ -169,15 +169,57 @@ describe('F101 B：注入只写临时 worktree 副本（硬杀不留注入态）
       expect(copy, '注入路径必须在副本里').not.toBe(realGuard)
       expect(readFileSync(copy, 'utf8')).toContain('return []')
       expect(fileMd5(realGuard), '副本注入不得改真件').toBe(before)
-      const shim = join(ROOT, '.husky/_/pre-push')
-      if (existsSync(shim)) {
-        expect(existsSync(join(wt.dir, '.husky/_/pre-push')), 'husky shim 必须随副本').toBe(true)
-      }
+      // shim 随副本复制由下一条用例用**临时仓库**自证（旧实现 if (existsSync(shim)) 才断言，
+      // shim 缺失时该断言静默不执行 —— 等价于没有判据）
     } finally {
       removeProbeWorktree(wt.dir)
     }
     expect(existsSync(wt.dir), '正常清理后副本目录必须消失').toBe(false)
     expect(fileMd5(realGuard)).toBe(before)
+  }, 120000)
+
+  it('@guard-red-sample 未提交的 .husky/_/pre-push 随副本复制，且真实 .husky 不被改', () => {
+    // 不依赖 husky install 产物：自建临时仓库，shim **只在盘、不进 HEAD**（正是生成物的形态）
+    const realShim = join(ROOT, '.husky/_/pre-push')
+    const realShimBefore = existsSync(realShim) ? fileMd5(realShim) : null
+
+    const repo = mkdtempSync(join(tmpdir(), 'grm-shim-repo-'))
+    const git = (args) => {
+      const r = spawnSync('git', args, { cwd: repo, encoding: 'utf8' })
+      if (r.status !== 0) throw new Error(`git ${args.join(' ')} 失败：${r.stderr}`)
+    }
+    let wt = null
+    try {
+      git(['init', '-q'])
+      writeFileSync(join(repo, 'README.md'), 'tmp repo\n')
+      // 注入副本落在 <root>/.local/tmp 下，必须被 ignore，否则 git status 会把它自己列成未跟踪目录
+      writeFileSync(join(repo, '.gitignore'), '.local/\n')
+      mkdirSync(join(repo, 'tools', 'v3-guard'), { recursive: true })
+      writeFileSync(
+        join(repo, 'tools', 'v3-guard', 'tmp-hygiene.mjs'),
+        'export function scan() {\n  return []\n}\n'
+      )
+      git(['add', '.'])
+      git(['-c', 'user.email=t@example.com', '-c', 'user.name=t', 'commit', '-qm', 'init'])
+      mkdirSync(join(repo, '.husky', '_'), { recursive: true })
+      writeFileSync(join(repo, '.husky', '_', 'pre-push'), '#!/bin/sh\necho tmp-shim\n')
+
+      wt = createProbeWorktree({ root: repo })
+      const copied = join(wt.dir, '.husky', '_', 'pre-push')
+      expect(existsSync(copied), '未提交的 shim 必须随工作区复制进副本（旧实现静默跳过）').toBe(
+        true
+      )
+      expect(readFileSync(copied, 'utf8')).toContain('tmp-shim')
+      // 源仓库（=「真件」）不得被复制/注入改动
+      expect(readFileSync(join(repo, '.husky', '_', 'pre-push'), 'utf8')).toContain('tmp-shim')
+    } finally {
+      if (wt) removeProbeWorktree(wt.dir, { root: repo })
+      rmSync(repo, { recursive: true, force: true })
+    }
+    expect(wt && existsSync(wt.dir), '副本必须清理干净').toBe(false)
+    if (realShimBefore !== null) {
+      expect(fileMd5(realShim), '本用例不得改动真实 .husky/_/pre-push').toBe(realShimBefore)
+    }
   }, 120000)
 
   it('工作区首个修改文件也必须复制进副本（-z 前导空格不得被 trim）', () => {

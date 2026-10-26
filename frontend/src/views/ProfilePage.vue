@@ -18,11 +18,11 @@ import LoginPanel from './LoginPanel.vue'
 
 // 图表异步化：echarts 移出首屏关键路径（同首页；loader 深路径保留——见 HomePage 注释）
 const LineChart = defineAsyncComponent({
-  loader: () => import('@/visualization/charts/LineChart.vue'),
+  loader: () => import('@/visualization').then((m) => m.LineChart),
   loadingComponent: ChartLoading,
 })
 const BarChart = defineAsyncComponent({
-  loader: () => import('@/visualization/charts/BarChart.vue'),
+  loader: () => import('@/visualization').then((m) => m.BarChart),
   loadingComponent: ChartLoading,
 })
 

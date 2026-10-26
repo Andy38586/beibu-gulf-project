@@ -1,6 +1,6 @@
 {
   "generatedFrom": "tools/deep-import/scan.mjs",
-  "total": 80,
+  "total": 76,
   "byGroup": {
     "core/map": 7,
     "shared/constants": 6,
@@ -12,7 +12,6 @@
     "shared/layout": 5,
     "shared/composables": 5,
     "stores/factories": 4,
-    "visualization/charts": 4,
     "views/components": 2,
     "visualization/composables": 4
   },
@@ -368,16 +367,6 @@
       "group": "types/business"
     },
     {
-      "file": "views/HomePage.vue",
-      "target": "visualization/charts/BarChart.vue",
-      "group": "visualization/charts"
-    },
-    {
-      "file": "views/HomePage.vue",
-      "target": "visualization/charts/LineChart.vue",
-      "group": "visualization/charts"
-    },
-    {
       "file": "views/ProfilePage.vue",
       "target": "views/components/PlansPanel.vue",
       "group": "views/components"
@@ -386,16 +375,6 @@
       "file": "views/ProfilePage.vue",
       "target": "views/components/UserInfoCard.vue",
       "group": "views/components"
-    },
-    {
-      "file": "views/ProfilePage.vue",
-      "target": "visualization/charts/BarChart.vue",
-      "group": "visualization/charts"
-    },
-    {
-      "file": "views/ProfilePage.vue",
-      "target": "visualization/charts/LineChart.vue",
-      "group": "visualization/charts"
     },
     {
       "file": "visualization/charts/composables/useChartBase.ts",
@@ -418,6 +397,13 @@
       "group": "visualization/composables"
     }
   ],
-  "updatedAt": "2026-10-20",
-  "history": []
+  "updatedAt": "2026-10-26",
+  "history": [
+    {
+      "at": "2026-10-26",
+      "total": 76,
+      "kind": "未标注",
+      "note": "views 改走 @/visualization 入口，消除 4 条 BarChart/LineChart 深路径穿透"
+    }
+  ]
 }

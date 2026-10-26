@@ -1,8 +1,11 @@
 <script setup lang="ts">
 /**
  * 雷达图面板：顶部标题、中部雷达图（最大化居中）、底部可点击综合评分。
- * hover 综合评分出现提示框，点击弹出具体得分详情面板（居中，1 列 6 行）；
- * 点击轴名称显示对应设施 POI 图层（互斥）。渲染与交互逻辑封装在 useRadarChart
+ * hover 综合评分出现提示框，点击弹出具体得分详情面板（居中，1 列 6 行）。
+ * 渲染与交互逻辑封装在 useRadarChart
+ *
+ * 2026-10-26：轴名点击 → 设施 POI 图层 的 show/hide-facility-layer 两条 emit
+ * 与 facilityPoi prop 全仓零生产消费，已整批删除（挂载点 AppLayout.vue 从未监听）。
  */
 
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
@@ -10,7 +13,6 @@ import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { EmptyState } from '@/shared'
 import { useGCS } from '@/shared'
 import { logger } from '@/shared'
-import type { FacilityPoint } from '@/types/facility'
 import type { ScoredXiaoqu } from '@/types/xiaoqu'
 
 import RadarScoreTooltip from './components/RadarScoreTooltip.vue'
@@ -20,7 +22,6 @@ interface Props {
   visible?: boolean
   xiaoqu?: ScoredXiaoqu | null
   selectedTypes?: string[]
-  facilityPoi?: Record<string, FacilityPoint[]>
   /** 雷达图标题，默认显示"xx小区评分详情图" */
   title?: string
   /** 数据源为硬编码示例快照（未完成分析时的兜底）——为真时角标明示"示例数据"，
@@ -28,29 +29,13 @@ interface Props {
   snapshot?: boolean
 }
 
-interface Emits {
-  (
-    _e: 'show-facility-layer',
-    _data: {
-      type: string
-      poiList: FacilityPoint[]
-      color: string
-      label: string
-    }
-  ): void
-  (_e: 'hide-facility-layer', type: string): void
-}
-
 const props = withDefaults(defineProps<Props>(), {
   visible: true,
   xiaoqu: null,
   selectedTypes: () => [],
-  facilityPoi: () => ({}),
   title: '',
   snapshot: false,
 })
-
-const emit = defineEmits<Emits>()
 
 const chartRef = ref<HTMLElement | null>(null)
 const scoreAreaRef = ref<HTMLElement | null>(null)
@@ -64,7 +49,6 @@ const { tooltipVisible, tooltipPosition, renderRadar, handleScoreClick, handleGl
     chartRef,
     getScoreAreaRef: () => scoreAreaRef.value,
     getProps: () => props,
-    emit,
   })
 
 // 标记监听器是否已添加，防止泄漏
@@ -96,9 +80,9 @@ watch(
 )
 
 watch(
-  [() => props.xiaoqu, () => props.selectedTypes, () => props.facilityPoi],
-  ([newXiaoqu, newTypes, newPoi]) => {
-    logger.debug('[RadarChart] 数据变化:', { xiaoqu: newXiaoqu, types: newTypes, poi: newPoi })
+  [() => props.xiaoqu, () => props.selectedTypes],
+  ([newXiaoqu, newTypes]) => {
+    logger.debug('[RadarChart] 数据变化:', { xiaoqu: newXiaoqu, types: newTypes })
     void nextTick(() => renderRadar())
   },
   {

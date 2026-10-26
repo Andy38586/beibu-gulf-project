@@ -136,11 +136,10 @@ describe('facilityColor — 设施渲染色映射+兜底的唯一入口', () => 
     expect(scan(sources)).toEqual([])
   })
 
-  it('两个图表消费点改走权威入口（旧本地实现与旧具名导入都已摘除）', () => {
-    for (const rel of [
-      'visualization/charts/components/RadarScoreTooltip.vue',
-      'visualization/charts/composables/useRadarChart.ts',
-    ]) {
+  it('图表消费点改走权威入口（旧本地实现与旧具名导入都已摘除）', () => {
+    // useRadarChart.ts 曾是第二个消费点，其 facilityColor 调用随 2026-10-26
+    // 零消费删除一并消失；现存唯一图表消费点是 RadarScoreTooltip 的模板段（AST 不覆盖）。
+    for (const rel of ['visualization/charts/components/RadarScoreTooltip.vue']) {
       const text = fs.readFileSync(path.join(SRC, rel), 'utf8')
       expect(text, rel).toMatch(/facilityColor\(/)
       expect(text, rel).not.toMatch(/getFacilityColor/)

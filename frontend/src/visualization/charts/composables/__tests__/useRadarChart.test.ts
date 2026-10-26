@@ -1,9 +1,9 @@
 /**
- * 回归测试：雷达轴名点击依赖 radar 根级 triggerEvent。
- * ECharts RadarModel 从 radar 根读取 triggerEvent 并下发到各指示器轴模型，
- * axisName 节点只承载样式——写在 axisName 里的 triggerEvent 静默失效
- * （轴名元素保持 silent，点击永不派发），曾导致「点轴名 → POI 图层 +
- * 多点呼吸」交互整体不可用（见 2026-08-29 交接文档 §3）。
+ * 雷达图 option 渲染配置回归：radar 根级 triggerEvent + axisName.cursor。
+ * ECharts RadarModel 从 radar 根读取 triggerEvent 并下发到指示器轴模型，写在
+ * axisName 内静默失效（历史：曾导致轴名不可点）。
+ * 2026-10-26：轴名点击 → POI 图层 的 show/hide-facility-layer 消费链零消费已删，
+ * 此处只钉渲染配置本身（triggerEvent / cursor 保留，未随删除调整）。
  * 策略与 useChartBase.test.ts 一致：mock useECharts 捕获 getOption，不依赖真实渲染。
  */
 import { mount } from '@vue/test-utils'
@@ -55,9 +55,7 @@ function setupRadar() {
         breakdown: { hospital: 50 },
       },
       selectedTypes: ['hospital'],
-      facilityPoi: {},
     }),
-    emit: vi.fn(),
   })
 }
 
@@ -91,9 +89,7 @@ describe('useRadarChart 尺寸重试上限', () => {
         getProps: () => ({
           xiaoqu: null,
           selectedTypes: ['hospital'],
-          facilityPoi: {},
         }),
-        emit: vi.fn(),
       })
       const build = captured.getOption!
       for (let i = 0; i < 15; i++) build()
@@ -129,9 +125,7 @@ describe('useRadarChart 清理侧（W8：三条变异各必红）', () => {
       getProps: () => ({
         xiaoqu: null,
         selectedTypes: ['hospital'],
-        facilityPoi: {},
       }),
-      emit: vi.fn(),
     })
     return captured.getOption!
   }
@@ -189,8 +183,7 @@ describe('useRadarChart 清理侧（W8：三条变异各必红）', () => {
           useRadarChart({
             chartRef: sizeable.ref,
             getScoreAreaRef: () => null,
-            getProps: () => ({ xiaoqu: null, selectedTypes: ['hospital'], facilityPoi: {} }),
-            emit: vi.fn(),
+            getProps: () => ({ xiaoqu: null, selectedTypes: ['hospital'] }),
           })
           return () => h('div')
         },
@@ -205,54 +198,5 @@ describe('useRadarChart 清理侧（W8：三条变异各必红）', () => {
     } finally {
       vi.useRealTimers()
     }
-  })
-})
-
-describe('useRadarChart 轴名点亮语义（互斥）', () => {
-  /** 经 echarts onClick 通道点轴名（label → type 反查在 composable 内部） */
-  function setupTwoTypes() {
-    const emit = vi.fn()
-    const radar = useRadarChart({
-      chartRef: ref<HTMLElement | null>(null),
-      getScoreAreaRef: () => null,
-      getProps: () => ({
-        xiaoqu: null,
-        selectedTypes: ['hospital', 'park'],
-        facilityPoi: { hospital: [], park: [] },
-      }),
-      emit,
-    })
-    const clickAxis = (label: string) => captured.onClick!({ componentType: 'radar', name: label })
-    return { radar, emit, clickAxis }
-  }
-
-  it('点一根轴点亮；点另一根先熄旧再点新（集合不叠加）', () => {
-    const { radar, emit, clickAxis } = setupTwoTypes()
-    clickAxis('医院')
-    expect([...radar.activeFacilityTypes.value]).toEqual(['hospital'])
-    expect(emit).toHaveBeenCalledWith(
-      'show-facility-layer',
-      expect.objectContaining({ type: 'hospital' })
-    )
-
-    clickAxis('公园')
-    expect([...radar.activeFacilityTypes.value]).toEqual(['park'])
-    // 旧类型被显式熄掉，再点亮新类型——与页面 activeBreathTypes 的整体替换同终态
-    expect(emit).toHaveBeenCalledWith('hide-facility-layer', 'hospital')
-    expect(emit).toHaveBeenCalledWith(
-      'show-facility-layer',
-      expect.objectContaining({ type: 'park' })
-    )
-  })
-
-  it('阳性对照：再点已点亮的轴 = 熄灭且集合清空（旧并集语义下这里会残留幻影）', () => {
-    const { radar, emit, clickAxis } = setupTwoTypes()
-    clickAxis('医院')
-    clickAxis('公园')
-    emit.mockClear()
-    clickAxis('公园')
-    expect([...radar.activeFacilityTypes.value]).toEqual([])
-    expect(emit).toHaveBeenCalledWith('hide-facility-layer', 'park')
-    expect(emit).not.toHaveBeenCalledWith('show-facility-layer', expect.anything())
   })
 })

@@ -4,13 +4,12 @@ import { TooltipComponent } from 'echarts/components'
 import * as echarts from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
 import type { Ref } from 'vue'
-import { onBeforeUnmount, ref, watch } from 'vue'
+import { onBeforeUnmount, ref } from 'vue'
 
 import {
   CHART_COLORS,
   CHART_GRID,
   chartColor,
-  facilityColor,
   RADAR_AXIS_NAME_ALLOWANCE,
   RADAR_AXIS_NAME_FONT_SIZE,
   RADAR_AXIS_NAME_GAP,
@@ -23,7 +22,6 @@ import { chartAxisLineOption, chartTitleOption } from '@/visualization/charts/ch
 import { useTheme } from '@/shared'
 import { logger } from '@/shared'
 import { perfMark, perfMeasure } from '@/shared'
-import type { FacilityPoint } from '@/types/facility'
 import type { ScoredXiaoqu } from '@/types/xiaoqu'
 import { useECharts } from '@/visualization/composables/useECharts'
 
@@ -34,23 +32,8 @@ echarts.use([EChartsRadarChart, TooltipComponent, CanvasRenderer])
 interface RadarChartProps {
   xiaoqu: ScoredXiaoqu | null
   selectedTypes: string[]
-  facilityPoi: Record<string, FacilityPoint[]>
   /** 雷达图标题（缺省时用 "xx小区评分详情图"） */
   title?: string
-}
-
-/** show-facility-layer 事件载荷 */
-interface FacilityLayerPayload {
-  type: string
-  poiList: FacilityPoint[]
-  color: string
-  label: string
-}
-
-/** 雷达图事件发射器 */
-interface RadarChartEmit {
-  (event: 'show-facility-layer', data: FacilityLayerPayload): void
-  (event: 'hide-facility-layer', type: string): void
 }
 
 /** useRadarChart 配置选项 */
@@ -59,7 +42,6 @@ interface UseRadarChartOptions {
   chartRef: Ref<HTMLElement | null>
   getScoreAreaRef: () => HTMLElement | null
   getProps: () => RadarChartProps
-  emit: RadarChartEmit
 }
 
 /** 详情面板位置（viewport 坐标） */
@@ -72,8 +54,6 @@ interface TooltipPosition {
 interface UseRadarChartReturn {
   tooltipVisible: Ref<boolean>
   tooltipPosition: Ref<TooltipPosition>
-  /** 点亮的设施类型集合（互斥：同时只允许一类呼吸，新类型点亮即熄灭旧类型） */
-  activeFacilityTypes: Ref<Set<string>>
   renderRadar: () => void
   handleScoreClick: () => void
   handleGlobalClick: (e: MouseEvent) => void
@@ -83,7 +63,6 @@ export function useRadarChart({
   chartRef,
   getScoreAreaRef,
   getProps,
-  emit,
 }: UseRadarChartOptions): UseRadarChartReturn {
   const { isDark } = useTheme()
   const { cellPixel } = useGCS()
@@ -98,9 +77,6 @@ export function useRadarChart({
   const tooltipVisible = ref<boolean>(false)
   /** 详情面板位置（打开时按雷达面板 rect 计算，与 RadarScoreTooltip 尺寸公式保持一致） */
   const tooltipPosition = ref<TooltipPosition>({ left: 0, top: 0 })
-
-  /** 点亮的设施类型集合（互斥：同时只允许一类呼吸，新类型点亮即熄灭旧类型） */
-  const activeFacilityTypes = ref<Set<string>>(new Set())
 
   /** 构建雷达图 option（每次现取容器尺寸，radius 依赖容器大小） */
   function buildRadarOption(): Record<string, unknown> {
@@ -198,56 +174,12 @@ export function useRadarChart({
     }
   }
 
-  /** 点击设施名称：互斥点亮（同时只允许一类呼吸，新类型点亮即熄灭旧类型）。
-   * 语义与页面 activeBreathTypes 的「6 类互斥」对齐——旧实现做并集，组合式集合与
-   * 页面集合自首次点击即分叉：再点旧类型时组合式走取消分支 emit hide，而页面集合里
-   * 没有它 ⇒ 一次点击零反馈，继续点则幻影集合逐轮收缩。 */
-  function handleFacilityClick(key: string): void {
-    if (activeFacilityTypes.value.has(key)) {
-      activeFacilityTypes.value = new Set()
-      emit('hide-facility-layer', key)
-      return
-    }
-    const previous = [...activeFacilityTypes.value]
-    activeFacilityTypes.value = new Set([key])
-    for (const old of previous) {
-      emit('hide-facility-layer', old)
-    }
-    emit('show-facility-layer', {
-      type: key,
-      poiList: getProps().facilityPoi[key] || [],
-      color: facilityColor(key),
-      label: FACILITY_LABELS[key],
-    })
-  }
-
-  // 新分析结果到达即清空点亮集合：页面同时撤下了该类型的 POI 图层与呼吸，
-  // 点亮若残留，用户首次点击会走"取消"分支空转（图层已不存在），需点两次才重新显示
-  watch(
-    () => getProps().facilityPoi,
-    () => {
-      activeFacilityTypes.value = new Set()
-    }
-  )
-
   // 统一图表生命周期委托 useECharts：init/dispose/resize/theme/watch 由它管理
   const { updateChart } = useECharts({
     getOption: buildRadarOption,
     chartRef,
     recomputeOptionOnResize: true,
-    onClick: (params) => {
-      if (params.componentType === 'radar' && params.name) {
-        const key = getProps().selectedTypes.find((k) => FACILITY_LABELS[k] === params.name)
-        if (key) {
-          handleFacilityClick(key)
-        }
-      }
-    },
-    watchSources: [
-      () => getProps().xiaoqu,
-      () => getProps().selectedTypes,
-      () => getProps().facilityPoi,
-    ],
+    watchSources: [() => getProps().xiaoqu, () => getProps().selectedTypes],
   })
 
   /** 渲染雷达图（对外保留：数据变化 / 容器可见后由组件显式触发） */
@@ -308,7 +240,6 @@ export function useRadarChart({
   return {
     tooltipVisible,
     tooltipPosition,
-    activeFacilityTypes,
     renderRadar,
     handleScoreClick,
     handleGlobalClick,

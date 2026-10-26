@@ -34,7 +34,6 @@ const ALLOWED: Record<string, string[]> = {
   'business/diversion/composables/useDiversionLayer.ts': ['clearDiversionLayers'],
   'core/map/composables/useOwnedLayers.ts': ['releaseAll'],
   'shared/composables/useLatestRequest.ts': ['getCurrentSignal'],
-  'visualization/charts/composables/useRadarChart.ts': ['activeFacilityTypes'],
 }
 
 /** 本单元删掉的返回面成员：不得以任何写法加回 */

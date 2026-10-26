@@ -8,15 +8,6 @@ export type FacilityType =
   | 'bus_station'
   | 'mall'
 
-// 设施点（POI，来自后端数据 source）
-// 坐标系统：WGS84(EPSG:4326)，lng/lat 为地理经纬度
-export interface FacilityPoint {
-  id?: string
-  name: string
-  lng: number
-  lat: number
-}
-
 // 设施类型设置（因子面板中每个设施的状态）
 // importance 影响缓冲半径与评分权重（见 importanceMapping.js）
 export interface TypeSetting {

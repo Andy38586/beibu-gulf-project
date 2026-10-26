@@ -18,13 +18,14 @@ import { describe, expect, it } from 'vitest'
  *  · UnifiedMap.vue          type-change
  *  · PaginatedListPanel.vue  click-item / favorite-change
  *  · BarChart.vue / LineChart.vue  select
+ * 其后波次一再删 RadarChart.vue 的 show-facility-layer / hide-facility-layer。
  *
  * 已知边界（两条，均如实记）：
  *  · 只认静态形态的消费点（模板 @ 绑定、emitted/$emit/断言字面量）；动态拼接的事件名
  *    （`@${x}`、emit(name) 传变量）不在覆盖内——这类写法本仓实测 0 处。
- *  · 「composable 层的 emit 替身断言」也算消费点。RadarChart 的 show/hide-facility-layer
- *    即靠 useRadarChart.test.ts 的 toHaveBeenCalledWith 判为活，而组件层 @ 监听全仓为 0
- *    （唯一挂载点 AppLayout.vue:159-164 未监听）——该条留作后续候选，不在本单元处理。
+ *  · 「composable 层的 emit 替身断言」也算消费点：RadarChart 的 show/hide-facility-layer
+ *    曾靠 useRadarChart.test.ts 的 toHaveBeenCalledWith 判为活（组件层 @ 监听全仓为 0，
+ *    唯一挂载点 AppLayout.vue 从未监听）——该假活通道已随必要性审判连同 emit 面一并删除。
  */
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
@@ -162,7 +163,7 @@ describe('defineEmits 零监听（必要性审判波二·单元 P）', () => {
     expect(declared).toBeGreaterThan(10)
   })
 
-  it('本单元删除的七条通道没有被重新加回（不得重新出现声明）', () => {
+  it('已删通道没有被重新加回（单元 P 七条 + RadarChart 两条）', () => {
     const GONE: Array<[string, string]> = [
       ['core/layout/components/GCSPanel.vue', 'dragstart'],
       ['core/layout/components/GCSPanel.vue', 'dragend'],
@@ -171,6 +172,8 @@ describe('defineEmits 零监听（必要性审判波二·单元 P）', () => {
       ['shared/components/PaginatedListPanel.vue', 'favorite-change'],
       ['visualization/charts/BarChart.vue', 'select'],
       ['visualization/charts/LineChart.vue', 'select'],
+      ['visualization/charts/RadarChart.vue', 'show-facility-layer'],
+      ['visualization/charts/RadarChart.vue', 'hide-facility-layer'],
     ]
     const offenders: string[] = []
     for (const [rel, event] of GONE) {

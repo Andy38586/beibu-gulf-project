@@ -119,6 +119,11 @@ export const ITERATION_TOLERANCE = 1e-12
 `
 const FRONTEND_TOL = `export const COMPARE_TOLERANCE = 1e-9
 `
+// TASK_DOMAINS 跨端同值数组：前后端各写一份，值必须逐字一致。
+const BACKEND_TASK_DOMAINS = `export const TASK_DOMAINS = ['flood-areas', 'route-path', 'site-suitability-map'] as const
+`
+const FRONTEND_TASK_DOMAINS = `export const TASK_DOMAINS = ['flood-areas', 'route-path', 'site-suitability-map'] as const
+`
 // PC-3 端口族：.env.example 为声明权威，五个副本站点按真实文件形状缩样。
 const ENV_EXAMPLE = `# 监听端口（统一 3000）
 PORT=3000
@@ -174,6 +179,8 @@ const base = {
   frontendCrs: FRONTEND_CRS,
   backendRoute: BACKEND_ROUTE,
   frontendRoute: FRONTEND_ROUTE,
+  backendTaskDomains: BACKEND_TASK_DOMAINS,
+  frontendTaskDomains: FRONTEND_TASK_DOMAINS,
   floodPy: FLOOD_PY,
   toolsGulfBounds: TOOLS_GULF,
   // 唯一来源判据的输入集合：正常仓库 = 无第二份手抄（扫到的都是合法派生）
@@ -276,6 +283,30 @@ describe('auditSharedConstants — 跨进程常量一致性', () => {
       ),
     })
     expect(problems.some((p) => p.includes('寻路 mode') && p.includes('多 [walk]'))).toBe(true)
+  })
+
+  it('@guard-red-sample 后端 TASK_DOMAINS 新增域而前端未同步 ⇒ 必红', () => {
+    const problems = auditSharedConstants({
+      ...base,
+      backendTaskDomains: BACKEND_TASK_DOMAINS.replace(
+        "'site-suitability-map'",
+        "'site-suitability-map', 'forecast-map'"
+      ),
+    })
+    expect(problems.some((p) => p.includes('TASK_DOMAINS') && p.includes('forecast-map'))).toBe(
+      true
+    )
+  })
+
+  it('@guard-red-sample 前端 TASK_DOMAINS 顺序不同 ⇒ 必红（顺序敏感）', () => {
+    const problems = auditSharedConstants({
+      ...base,
+      frontendTaskDomains: FRONTEND_TASK_DOMAINS.replace(
+        "['flood-areas', 'route-path', 'site-suitability-map']",
+        "['route-path', 'flood-areas', 'site-suitability-map']"
+      ),
+    })
+    expect(problems.some((p) => p.includes('TASK_DOMAINS'))).toBe(true)
   })
 
   it('@guard-red-sample 前端第二处手抄漏同步 ⇒ 必红（两处都要对账）', () => {

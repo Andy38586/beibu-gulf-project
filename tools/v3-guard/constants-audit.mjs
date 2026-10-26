@@ -28,10 +28,16 @@ const FRONTEND_CRS = 'frontend/src/shared/utils/crs.ts'
 const FLOOD_PY_REALIFY = 'tools/flood/flood_realify.py'
 // D29：tools 侧业务边界的**唯一来源**（工具脚本统一从这里取；权威仍是 backend GULF_BOUNDS）。
 const TOOLS_GULF_BOUNDS = 'tools/lib/gulf-bounds.mjs'
+const FRONTEND_TASK_TYPES = 'frontend/src/types/task.ts'
+const BACKEND_TASK_TYPES = 'backend/src/modules/task/types/task.ts'
 // D4②：寻路权重口径。后端 MODE_WEIGHT 的键为权威；前端 types/route.ts 里 mode 的
 // 字面量联合是手抄（当前两处：RoutePathParams.mode 与 RoutePathResult.mode）。
 const BACKEND_ROUTE_MODES = 'backend/src/modules/route/repositories/route.repository.ts'
 const FRONTEND_ROUTE_TYPES = 'frontend/src/types/route.ts'
+// TASK_DOMAINS 跨端同值数组：后端 task/types 是 HTTP 契约入口，前端 task.ts 给 zod enum
+// 提供运行期值。两侧值必须逐字一致，此前无守卫时曾出现后端加域前端不报错、前端加域后端只 400。
+const BACKEND_TASK_DOMAINS = 'backend/src/modules/task/types/task.ts'
+const FRONTEND_TASK_DOMAINS = 'frontend/src/types/task.ts'
 // B1：跨端请求头名。前后端不共享模块，同一头名各写一份，改一侧另一侧不报错——
 // 后果是日志里搜不到对方写的头（rid 跨端断链 / 任务属主识别失效）。
 // 只断言两侧字面量相等，不选哪侧是权威源（选边属 §四-9）。
@@ -236,6 +242,19 @@ export function parseFrontendModeLiterals(content) {
     out.push([...m[1].matchAll(/'([^']+)'/g)].map((x) => x[1]))
   }
   return out
+}
+
+/**
+ * 解析 `export const NAME = ['a', 'b'] as const` 形态的字符串数组（宽松空白）。
+ * 用于 TASK_DOMAINS 这类跨端同值运行期数组：前后端各写一份，但值必须逐字一致。
+ * 返回 null 表示未命中（触发解析失败告警）。
+ */
+export function parseStringArrayConst(content, name) {
+  const m = content.match(
+    new RegExp(`(?:export\\s+)?const ${name}\\s*=\\s*\\[([\\s\\S]*?)\\]\\s*(?:as const)?`)
+  )
+  if (!m) return null
+  return [...m[1].matchAll(/['"]([^'"]+)['"]/g)].map((x) => x[1])
 }
 
 /**
@@ -484,6 +503,27 @@ const AUDITS = [
           )
         }
       })
+    },
+  },
+  {
+    // TASK_DOMAINS 跨端同值数组：后端 task/types 是 HTTP 契约入口，前端 task.ts 给 zod enum
+    // 提供运行期值。两侧值必须逐字一致（含顺序），此前无守卫时后端加域前端不报错、
+    // 前端加域后端只 400。不选哪侧是权威源（选边属 §四-9），只断言双侧值相等。
+    read: (f) => [
+      parseStringArrayConst(f.backendTaskDomains ?? '', 'TASK_DOMAINS'),
+      parseStringArrayConst(f.frontendTaskDomains ?? '', 'TASK_DOMAINS'),
+    ],
+    valid: ([b, f]) => !!b?.length && !!f?.length,
+    fail: ([b, f]) =>
+      `TASK_DOMAINS 解析失败：backend=${b === null ? 'null' : (b?.length ?? 0)} 项 ` +
+      `frontend=${f === null ? 'null' : (f?.length ?? 0)} 项（常量被改名/删除？）`,
+    compare: ([b, f], bad) => {
+      if (b.length !== f.length || b.some((v, i) => v !== f[i])) {
+        bad(
+          `TASK_DOMAINS 跨端漂移：backend=[${b.join(',')}] frontend=[${f.join(',')}] ` +
+            '（两侧值必须逐字一致，含顺序）'
+        )
+      }
     },
   },
   {
@@ -790,6 +830,8 @@ function main() {
     frontendCrs: read(FRONTEND_CRS),
     backendRoute: read(BACKEND_ROUTE_MODES),
     frontendRoute: read(FRONTEND_ROUTE_TYPES),
+    backendTaskDomains: read(BACKEND_TASK_DOMAINS),
+    frontendTaskDomains: read(FRONTEND_TASK_DOMAINS),
     floodPy: read(FLOOD_PY_REALIFY),
     toolsGulfBounds: read(TOOLS_GULF_BOUNDS),
     localBoundDefs: scanLocalGulfBoundsDefs(ROOT),
@@ -819,8 +861,8 @@ function main() {
     console.log(
       '[constants-audit] OK：水位上限/业务边界框（含 tools 侧）/寻路 mode 双侧一致、' +
         'flood 分段 TS↔PY 一致、跨端请求头名逐字相等、浮点容差前端子集同值、' +
-        '端口 3000/5432 全部副本对等、路径别名三侧同键同目标、存储键单源无手抄，' +
-        '前端业务码 ⊆ 后端 ErrorCode'
+        '端口 3000/5432 全部副本对等、路径别名三侧同键同目标、存储键单源无手抄、' +
+        'TASK_DOMAINS 跨端同值、前端业务码 ⊆ 后端 ErrorCode'
     )
     return
   }

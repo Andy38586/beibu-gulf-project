@@ -45,13 +45,15 @@ export function definePytestCase(title, files, timeout = 120000) {
             'pytest 门禁不得 skip；CI 需 setup-python 并安装 numpy rasterio pytest。'
         )
       }
+      // 留 20s 余量：vitest 先超时会只剩「test timed out」，丢掉 spawn 的 stdout/stderr
+      const spawnTimeout = Math.max(10_000, timeout - 20_000)
       const abs = files.map((f) => (path.isAbsolute(f) ? f : path.join(ROOT, f)))
       const missing = abs.filter((f) => !fs.existsSync(f))
       if (missing.length) expect.fail(`pytest 输入文件不存在：${missing.join(', ')}`)
       const r = spawnSync(py, ['-X', 'utf8', '-m', 'pytest', ...abs, '-q'], {
         cwd: ROOT,
         encoding: 'utf8',
-        timeout,
+        timeout: spawnTimeout,
       })
       expect(r.status, `${r.stdout}\n${r.stderr}`).toBe(0)
     },

@@ -122,6 +122,17 @@ describe('taskResultToIR（结构判定，L3 不引业务类型）', () => {
     ).toBeNull()
   })
 
+  it('现役域 site-suitability-map 合法但无 IR → null（P2-3 正向守卫）', () => {
+    expect(
+      taskResultToIR({
+        taskId: 't1',
+        route: '/site-suitability',
+        domain: 'site-suitability-map',
+        result: { series: [] },
+      })
+    ).toBeNull()
+  })
+
   it('畸形结果 → null（浸没缺 features / 航线坐标 <2 点），绝不造空几何充数', () => {
     expect(
       taskResultToIR({ taskId: 't1', route: '/flood-analysis', domain: 'flood-areas', result: {} })

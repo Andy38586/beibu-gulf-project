@@ -305,7 +305,7 @@ jobs:
           python-version: '3.12'
 
       - name: Install Python deps for dem-pipeline pytest
-        run: python -m pip install --disable-pip-version-check numpy rasterio pytest
+        run: python -m pip install --disable-pip-version-check numpy rasterio scipy pytest
 
       # tools/ 下的脚本单测（导入/质检/迁移）：此前游离于所有测试链路之外，
       # `npm test` 只跑 frontend，写在这里的用例实际从未被执行（门禁清单存在 ≠ 被执行）。

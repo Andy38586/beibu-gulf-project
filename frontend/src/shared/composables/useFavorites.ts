@@ -7,7 +7,7 @@
 import type { Ref } from 'vue'
 import { ref, watch } from 'vue'
 
-import { ENDPOINTS } from '@/shared/constants/api'
+import { ENDPOINTS } from '@/shared/constants'
 import type { FavoriteAddInput, FavoriteItem, FavoriteItemType } from '@/types'
 import {
   favoriteAddResponseSchema,

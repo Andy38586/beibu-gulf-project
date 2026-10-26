@@ -1,7 +1,7 @@
 import type { ComputedRef, Ref } from 'vue'
 import { computed, ref } from 'vue'
 
-import { ENDPOINTS } from '@/shared/constants/api'
+import { ENDPOINTS } from '@/shared/constants'
 import { logger } from '@/shared/utils/logger'
 import { readStoredJSON, writeStoredJSON } from '@/shared/utils/safeStorage'
 import type { AuthResponse, User } from '@/types/api'

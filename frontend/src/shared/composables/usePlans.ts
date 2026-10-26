@@ -2,7 +2,7 @@ import type { Ref } from 'vue'
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 
-import { ENDPOINTS } from '@/shared/constants/api'
+import { ENDPOINTS } from '@/shared/constants'
 import { handleAuthError, isAuthError } from '@/shared/utils/errorHandler'
 import { logger } from '@/shared/utils/logger'
 import type { TypeSetting } from '@/types/facility'

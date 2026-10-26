@@ -28,6 +28,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { DEFAULT_SKIP_DIRS } from '../v3-guard/lib/walk.mjs'
+
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 /**
  * 扫描范围。
@@ -49,7 +51,6 @@ const SCAN_ROOTS = ['frontend/src', 'backend/src', 'frontend/test', 'backend/tes
  * 另注意扩展名：工具链以 `.mjs/.cjs` 为主，只认 `.ts/.vue` 会整目录漏掉。
  */
 const REF_ONLY = { roots: ['tools', 'scripts', '.github'], exts: /\.(ts|vue|mjs|cjs|js)$/ }
-const SKIP_DIRS = new Set(['node_modules', 'dist', '.venv'])
 
 /**
  * G 类（门禁载体）判别：契约源 `schemas.ts` 里的 `*Schema` 本体与其 `*Parsed` 配对类型。
@@ -108,7 +109,7 @@ export function listSources(roots = SCAN_ROOTS, { isDef = true, exts = /\.(ts|vu
       return
     }
     for (const e of entries) {
-      if (SKIP_DIRS.has(e.name)) continue
+      if (DEFAULT_SKIP_DIRS.has(e.name)) continue
       const p = path.join(abs, e.name)
       if (e.isDirectory()) walk(p)
       else if (exts.test(e.name)) {

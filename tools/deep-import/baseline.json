@@ -1,10 +1,10 @@
 {
   "generatedFrom": "tools/deep-import/scan.mjs",
-  "total": 60,
+  "total": 59,
   "byGroup": {
     "core/map": 7,
     "shared/constants": 6,
-    "core/config": 3,
+    "core/config": 2,
     "shared/utils": 22,
     "shared/layout": 5,
     "shared/composables": 5,
@@ -39,11 +39,6 @@
       "file": "business/site-suitability/panels.ts",
       "target": "shared/constants/panels",
       "group": "shared/constants"
-    },
-    {
-      "file": "core/index.ts",
-      "target": "core/config/map",
-      "group": "core/config"
     },
     {
       "file": "core/layout/AppLayout.vue",
@@ -335,6 +330,12 @@
       "total": 60,
       "kind": "未标注",
       "note": "core/config 建入口，穿透 65→60"
+    },
+    {
+      "at": "2026-10-26",
+      "total": 59,
+      "kind": "未标注",
+      "note": "core/index.ts 改走 config 入口，穿透 60→59"
     }
   ]
 }

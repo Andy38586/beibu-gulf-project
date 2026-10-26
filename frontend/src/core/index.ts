@@ -3,7 +3,7 @@
 // renderers 内部实现（P8 后 CesiumRenderer 单文件，无拆分辅助文件）不 re-export
 // renderers 里**只有工厂与预载**经入口对外（createRenderer / preloadCesium，见文件末尾的
 // export 段）；实现类 OLRenderer / CesiumRenderer 不对外。
-export * from './config/map'
+export * from './config'
 export * from './layout/navConfig'
 export * from './layout/routeReadiness'
 export * from './layout/taskIndicator'

@@ -4,27 +4,20 @@
  * 继承 AppLayout 布局基座：左侧吞吐量图表（自 AppLayout 下沉），
  * 右侧单个 4×8 Panel 放置登录/用户信息/收藏夹（UserInfoCard、PlansPanel 为独立子组件）。
  */
-import { defineAsyncComponent, onMounted, watch } from 'vue'
+import { onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { useOverviewCharts } from '@/business'
 import { AppLayout, GCSPanel } from '@/core'
 import { useAuth, useGCS } from '@/shared'
-import { ChartLoading } from '@/visualization'
 
 import PlansPanel from './components/PlansPanel.vue'
 import UserInfoCard from './components/UserInfoCard.vue'
 import LoginPanel from './LoginPanel.vue'
+import { LazyBarChart, LazyLineChart } from './lazyCharts'
 
-// 图表异步化：echarts 移出首屏关键路径（同首页；loader 深路径保留——见 HomePage 注释）
-const LineChart = defineAsyncComponent({
-  loader: () => import('@/visualization').then((m) => m.LineChart),
-  loadingComponent: ChartLoading,
-})
-const BarChart = defineAsyncComponent({
-  loader: () => import('@/visualization').then((m) => m.BarChart),
-  loadingComponent: ChartLoading,
-})
+const LineChart = LazyLineChart
+const BarChart = LazyBarChart
 
 const { user, logout } = useAuth()
 const { cellCss, css } = useGCS()

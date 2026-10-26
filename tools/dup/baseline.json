@@ -1,8 +1,8 @@
 {
   "generatedFrom": "tools/dup/scan.mjs",
   "minTokens": 12,
-  "totalGroups": 100,
-  "totalRedundantTokens": 1603,
+  "totalGroups": 96,
+  "totalRedundantTokens": 1533,
   "callSiteGroups": 11,
   "callSiteTokens": 408,
   "moduleDeclGroups": 1,
@@ -16,7 +16,6 @@
     "backend/src/modules": 347,
     "frontend/src/services": 36,
     "backend/src/main.ts": 19,
-    "frontend/src/views": 70,
     "frontend/src/stores": 57
   },
   "groups": [
@@ -293,22 +292,6 @@
       "kind": "block"
     },
     {
-      "text": "defineAsyncComponent ( { loader : ( ) => import ( '@/visualization/charts/LineChart.vue' ) , loadingComponent : ChartLoading , } )",
-      "tokenCount": 19,
-      "count": 2,
-      "files": ["frontend/src/views/HomePage.vue", "frontend/src/views/ProfilePage.vue"],
-      "redundantTokens": 19,
-      "kind": "block"
-    },
-    {
-      "text": "defineAsyncComponent ( { loader : ( ) => import ( '@/visualization/charts/BarChart.vue' ) , loadingComponent : ChartLoading , } )",
-      "tokenCount": 19,
-      "count": 2,
-      "files": ["frontend/src/views/HomePage.vue", "frontend/src/views/ProfilePage.vue"],
-      "redundantTokens": 19,
-      "kind": "block"
-    },
-    {
       "text": "return res . rows . map ( ( r ) => this . toView ( r ) )",
       "tokenCount": 18,
       "count": 2,
@@ -445,22 +428,6 @@
       "tokenCount": 16,
       "count": 2,
       "files": ["frontend/src/stores/taskStore.ts"],
-      "redundantTokens": 16,
-      "kind": "block"
-    },
-    {
-      "text": "{ loader : ( ) => import ( '@/visualization/charts/LineChart.vue' ) , loadingComponent : ChartLoading , }",
-      "tokenCount": 16,
-      "count": 2,
-      "files": ["frontend/src/views/HomePage.vue", "frontend/src/views/ProfilePage.vue"],
-      "redundantTokens": 16,
-      "kind": "block"
-    },
-    {
-      "text": "{ loader : ( ) => import ( '@/visualization/charts/BarChart.vue' ) , loadingComponent : ChartLoading , }",
-      "tokenCount": 16,
-      "count": 2,
-      "files": ["frontend/src/views/HomePage.vue", "frontend/src/views/ProfilePage.vue"],
       "redundantTokens": 16,
       "kind": "block"
     },
@@ -981,6 +948,13 @@
       "totalRedundantTokens": 1603,
       "kind": "真清理",
       "note": "C：删 GCS 调试层，重复组/计数下降"
+    },
+    {
+      "at": "2026-10-26",
+      "totalGroups": 96,
+      "totalRedundantTokens": 1533,
+      "kind": "真清理",
+      "note": "HomePage/ProfilePage 懒加载图表抽取到 lazyCharts.ts，消除重复定义"
     }
   ]
 }

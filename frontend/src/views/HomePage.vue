@@ -5,27 +5,18 @@
  * 港口吞吐量图表下沉到本页（业务数据由业务页持有）。
  */
 
-import { defineAsyncComponent, onMounted } from 'vue'
+import { onMounted } from 'vue'
 
 // 6-01：经 business 桶入口取数（不再深路径穿透 composables）
 import { useOverviewCharts } from '@/business'
 import { AppLayout, GCSPanel } from '@/core'
 import { usePanelPlacements } from '@/shared'
-import { ChartLoading } from '@/visualization'
 
 import { HOME_PANELS } from './panels'
+import { LazyBarChart, LazyLineChart } from './lazyCharts'
 
-// 图表异步化：echarts 移出首屏关键路径，就绪后替换 loading 占位。
-// loader 保留深路径：懒加载走入口会把整个 visualization 桶打进主 chunk，
-// 破坏拆分语义（入口仅约束静态跨层 import；动态 import 属构建优化，见 core/README 入口约定）
-const LineChart = defineAsyncComponent({
-  loader: () => import('@/visualization').then((m) => m.LineChart),
-  loadingComponent: ChartLoading,
-})
-const BarChart = defineAsyncComponent({
-  loader: () => import('@/visualization').then((m) => m.BarChart),
-  loadingComponent: ChartLoading,
-})
+const LineChart = LazyLineChart
+const BarChart = LazyBarChart
 
 const { chartData, barData, loadOverviewCharts } = useOverviewCharts()
 

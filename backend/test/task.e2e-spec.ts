@@ -286,7 +286,7 @@ describe('v4 异步任务域（/nest-api/task）', () => {
       'site-suitability-map',
       tracked('site-suitability-map', async () => {
         await settle(120)
-        return { forecast: true }
+        return { suitability: true }
       })
     )
 

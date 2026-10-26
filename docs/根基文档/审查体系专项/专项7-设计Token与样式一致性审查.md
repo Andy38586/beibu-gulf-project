@@ -543,7 +543,7 @@
 **检查范围**：`core/layout/components/` 标准组件清单 vs 业务组件内相似实现。
 **检查方法**：
 
-1. 列出现有标准组件清单（GCSPanel/GCSButton/NavButton/BottomNavBar/MobileDrawer/TitlePanel/DebugToggle 等）。
+1. 列出现有标准组件清单（GCSPanel/GCSButton/NavButton/BottomNavBar/MobileDrawer/TitlePanel 等）。
 2. 在业务组件中搜索手写同类结构（手写圆形按钮+悬浮定位、手写面板容器、手写导航条）。
 3. 计算复用覆盖率：标准组件被引用次数 / 应使用场景数。
 4. 检查新组件立项路径：是否评估过"进 core/layout/components/"（对照根基文档 03 §1.4 组件拆分标准）。
@@ -609,7 +609,7 @@
 ### 指标 3.5：布局常量守约（CELL / GAP 不散落）
 
 **指标名称**：布局常量守约（CELL / GAP 不散落）
-**检查目标**：确认面板尺寸/间距/边距全部来自 `config.ts` 常量（CELL_PIXEL/GAP/PANEL_SPACING/SAFE_MARGIN/GRID_SIZE），无散落数值。
+**检查目标**：确认面板尺寸/间距/边距全部来自 `config.ts` 常量（CELL_PIXEL/GAP/PANEL_SPACING/SAFE_MARGIN），无散落数值。
 **为什么需要检查**：散落数值（如 `width: 320px` 手写）绕过网格体系，网格档位调整（90/80/70）时不同步；GAP 变化时散落间距纹丝不动。
 **检查范围**：业务组件中的尺寸/间距字面量、`useGCS` 调用点。
 **检查方法**：
@@ -1472,7 +1472,7 @@ Object.entries(map).filter(([,v])=>v.length>1).forEach(([v,ks])=>console.log('�
 
 ## 附录 I：GCS 标准组件规格书（迁移至 03 §三.3，本处仅保留索引）
 
-> 标准组件规格书（GCSPanel / GCSButton / NavButton / BottomNavBar / MobileDrawer / TitlePanel / DebugToggle 的职责、Props、样式契约、常见误用）与组件复用判定流程已并入设计文档 `docs/根基文档/开发指南与决策.md` §三.3/§三.4——审查时以 03 §三 为"应然"基准比对（指标 3.2）。
+> 标准组件规格书（GCSPanel / GCSButton / NavButton / BottomNavBar / MobileDrawer / TitlePanel 的职责、Props、样式契约、常见误用）与组件复用判定流程已并入设计文档 `docs/根基文档/开发指南与决策.md` §三.3/§三.4——审查时以 03 §三 为"应然"基准比对（指标 3.2）。
 
 ## 附录 J：部分验收对照表
 
@@ -1652,7 +1652,7 @@ Object.entries(map).filter(([,v])=>v.length>1).forEach(([v,ks])=>console.log('�
 | 按钮内 flex 居中（GCSButton 内部）      | ✅ 豁免   | 组件内部实现                              |
 | `:deep()` 覆盖第三方组件（有前缀）      | ✅ 豁免   | 必要穿透                                  |
 | 全局样式文件（style.css 变量/reset）    | ✅ 豁免   | 职责合法                                  |
-| 调试组件（DebugToggle/GCSDebugOverlay） | ✅ 豁免   | 开发用，不进生产                          |
+| 调试组件（DebugToggle/GCSDebugOverlay） | — 已下线  | 2026-10-26 裁 C；不再有现行组件           |
 | 弹窗/消息内临时定位                     | ⚠️ 需判断 | 走 overlay 层级的豁免；散落 absolute 违约 |
 
 ### M.4 第四部分：主题豁免

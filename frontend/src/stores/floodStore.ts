@@ -9,7 +9,7 @@ import type {
   FloodStatistics,
 } from '@/types'
 
-import { createPersistedState } from './factories/createPersistedState'
+import { createPersistedState } from './factories'
 
 /**
  * 浸没分析 store（Pinia 全局状态库）：

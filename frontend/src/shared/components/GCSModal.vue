@@ -8,8 +8,8 @@
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 
-import { useGCS } from '@/shared/layout/useGCS'
-import { closeModal, confirmModal, gcsModalState } from '@/shared/utils/gcsFeedback'
+import { useGCS } from '../layout/useGCS'
+import { closeModal, confirmModal, gcsModalState } from '../utils/gcsFeedback'
 
 const router = useRouter()
 const { cellPixel } = useGCS()

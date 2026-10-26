@@ -8,13 +8,13 @@
  */
 import { computed, ref, watch } from 'vue'
 
-import EmptyState from '@/shared/components/EmptyState.vue'
-import { useAuth } from '@/shared/composables/useAuth'
-import { useFavorites } from '@/shared/composables/useFavorites'
-import { useGCS } from '@/shared/layout/useGCS'
-import { showError } from '@/shared/utils/errorHandler'
-import { showToast } from '@/shared/utils/gcsFeedback'
-import { logger } from '@/shared/utils/logger'
+import EmptyState from './EmptyState.vue'
+import { useAuth } from '../composables/useAuth'
+import { useFavorites } from '../composables/useFavorites'
+import { useGCS } from '../layout/useGCS'
+import { showError } from '../utils/errorHandler'
+import { showToast } from '../utils/gcsFeedback'
+import { logger } from '../utils/logger'
 import type { FavoriteAddInput, FavoriteItemType } from '@/types'
 import type { ScoredXiaoqu } from '@/types/xiaoqu'
 

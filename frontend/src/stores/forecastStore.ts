@@ -7,8 +7,8 @@ import { BoundedMap, DEFAULT_CONFIDENCE } from '@/shared'
 import type { ConfidenceThresholds } from '@/types'
 import type { ForecastDataSource } from '@/types/schemas'
 
-import { createPersistedState } from './factories/createPersistedState'
-import { createTransactionId } from './factories/createTransactionId'
+import { createPersistedState } from './factories'
+import { createTransactionId } from './factories'
 
 /**
  * 预测分析跨页面状态快照（「跳转个人中心登录 → 返回原路由」链路：saveState → consumeState）。

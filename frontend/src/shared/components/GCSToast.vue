@@ -7,8 +7,8 @@
  */
 import { computed, onBeforeUnmount, watch } from 'vue'
 
-import { useGCS } from '@/shared/layout/useGCS'
-import { gcsToastState } from '@/shared/utils/gcsFeedback'
+import { useGCS } from '../layout/useGCS'
+import { gcsToastState } from '../utils/gcsFeedback'
 
 const { cell } = useGCS()
 

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onErrorCaptured, ref } from 'vue'
 
-import { logger } from '@/shared/utils/logger'
+import { logger } from '../utils/logger'
 
 const hasError = ref(false)
 

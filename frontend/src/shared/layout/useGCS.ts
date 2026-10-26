@@ -2,7 +2,7 @@
 import type { ComputedRef, Ref } from 'vue'
 import { computed, ref } from 'vue'
 
-import { logger } from '@/shared/utils/logger'
+import { logger } from '../utils/logger'
 
 import {
   CELL_PADDING,

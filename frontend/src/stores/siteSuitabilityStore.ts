@@ -11,7 +11,7 @@ import {
   SNAPSHOT_PROVENANCE,
   SNAPSHOT_WEIGHTS,
 } from './siteSuitabilityDefaults.snapshot'
-import { createTransactionId } from './factories/createTransactionId'
+import { createTransactionId } from './factories'
 import type { SuitabilityWeightsState } from './siteSuitabilityDefaults.snapshot'
 export type { SuitabilityWeightsState }
 

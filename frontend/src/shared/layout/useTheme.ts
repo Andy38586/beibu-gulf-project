@@ -7,7 +7,7 @@
  */
 import { computed, type ComputedRef, readonly, type Ref, ref } from 'vue'
 
-import { getSafeStorage } from '@/shared/utils/safeStorage'
+import { getSafeStorage } from '../utils/safeStorage'
 import { STORAGE_KEYS } from '@/shared/constants'
 
 type ThemeMode = 'light' | 'dark'

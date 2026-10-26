@@ -1,6 +1,6 @@
 {
   "generatedFrom": "tools/deep-import/scan.mjs",
-  "total": 59,
+  "total": 55,
   "byGroup": {
     "core/map": 7,
     "shared/constants": 6,
@@ -8,7 +8,6 @@
     "shared/utils": 22,
     "shared/layout": 5,
     "shared/composables": 5,
-    "stores/factories": 4,
     "types/core": 1,
     "types/business": 1,
     "views/components": 2,
@@ -231,29 +230,9 @@
       "group": "shared/composables"
     },
     {
-      "file": "stores/floodStore.ts",
-      "target": "stores/factories/createPersistedState",
-      "group": "stores/factories"
-    },
-    {
-      "file": "stores/forecastStore.ts",
-      "target": "stores/factories/createPersistedState",
-      "group": "stores/factories"
-    },
-    {
-      "file": "stores/forecastStore.ts",
-      "target": "stores/factories/createTransactionId",
-      "group": "stores/factories"
-    },
-    {
       "file": "stores/mapStore.ts",
       "target": "shared/utils/safeStorage",
       "group": "shared/utils"
-    },
-    {
-      "file": "stores/siteSuitabilityStore.ts",
-      "target": "stores/factories/createTransactionId",
-      "group": "stores/factories"
     },
     {
       "file": "stores/taskStore.ts",
@@ -336,6 +315,12 @@
       "total": 59,
       "kind": "未标注",
       "note": "core/index.ts 改走 config 入口，穿透 60→59"
+    },
+    {
+      "at": "2026-10-26",
+      "total": 55,
+      "kind": "未标注",
+      "note": "stores/factories 建入口，穿透 59→55"
     }
   ]
 }

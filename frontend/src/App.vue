@@ -21,7 +21,7 @@ import {
 import { useMapControls } from '@/core'
 import { UNIFIED_MAP_KEY, type UnifiedMapExposed } from '@/core'
 import { preloadCesium, UnifiedMap } from '@/core'
-import { type LayerIR, taskResultToIR, useLayerIRLayer } from '@/core/map/ir/LayerIR'
+import { type LayerIR, taskResultToIR, useLayerIRLayer } from '@/core'
 import {
   ErrorBoundary,
   GCSModal,

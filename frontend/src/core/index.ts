@@ -21,6 +21,7 @@ export * from './map/renderers/MapRenderer'
 // 3D Tiles 分组派生（通用能力，零业务语义）：按谓词从瓦片集裁子树 + uri 绝对化 + Data URI。
 // 业务分组定义由调用方（business）提供，见 business/route-analysis/constants/pingluTiles.ts
 export * from './map/tiles3dGroups'
+export * from './map/ir/LayerIR'
 export * from './provideKeys'
 // Q4 收口：渲染器工厂/预载经入口对外（App.vue 使用；OLRenderer/CesiumRenderer 实现类不对外）
 export { createRenderer, preloadCesium } from './map/renderers'

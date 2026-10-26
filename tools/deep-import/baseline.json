@@ -1,10 +1,10 @@
 {
   "generatedFrom": "tools/deep-import/scan.mjs",
-  "total": 55,
+  "total": 52,
   "byGroup": {
-    "core/map": 7,
     "shared/constants": 6,
     "core/config": 2,
+    "core/map": 4,
     "shared/utils": 22,
     "shared/layout": 5,
     "shared/composables": 5,
@@ -15,24 +15,9 @@
   },
   "items": [
     {
-      "file": "App.vue",
-      "target": "core/map/ir/LayerIR",
-      "group": "core/map"
-    },
-    {
       "file": "business/diversion/panels.ts",
       "target": "shared/constants/panels",
       "group": "shared/constants"
-    },
-    {
-      "file": "business/preload.ts",
-      "target": "core/map/tiles3dGroups",
-      "group": "core/map"
-    },
-    {
-      "file": "business/route-analysis/constants/beibu3dTiles.ts",
-      "target": "core/map/tiles3dGroups",
-      "group": "core/map"
     },
     {
       "file": "business/site-suitability/panels.ts",
@@ -321,6 +306,12 @@
       "total": 55,
       "kind": "未标注",
       "note": "stores/factories 建入口，穿透 59→55"
+    },
+    {
+      "at": "2026-10-26",
+      "total": 52,
+      "kind": "未标注",
+      "note": "core/map tiles3dGroups+LayerIR 改走 @/core 入口，穿透 55→52"
     }
   ]
 }

@@ -69,7 +69,7 @@ import {
   type DeriveOptions,
   type TilesetJson,
   type TilesetNode,
-} from '@/core/map/tiles3dGroups'
+} from '@/core'
 
 import { LOD_REFINE_GE_PER_SSE } from './lodRefinePolicy'
 

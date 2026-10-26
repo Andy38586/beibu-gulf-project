@@ -37,7 +37,7 @@
  * 取舍（§8.22 待裁），不在本项内自行决定。
  */
 import { BEIBU_TILES, prepareBeibuTileset } from '@/business/route-analysis'
-import type { TilesetJson } from '@/core/map/tiles3dGroups'
+import type { TilesetJson } from '@/core'
 
 /** 预热目标：URL + 可选派生（与注册点同一函数；返回 null ⇒ 该资产裁空、无内容可预热） */
 interface PreloadTarget {

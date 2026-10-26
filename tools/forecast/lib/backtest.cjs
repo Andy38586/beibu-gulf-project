@@ -445,6 +445,10 @@ function selectModel(scores = {}, dmP = {}) {
 
 module.exports = {
   runRollingBacktest,
+  // 表驱动面（F84 复核补）：清单与工厂导出给测试，才能钉住"加一个指标必须三处同改"
+  // 里的第一处（清单）与第二处（置零）——否则漏改只会在运行时以 NaN 暴露。
+  STEP_ACCUMULATORS,
+  createStepAccumulators,
   seasonalNaiveModel,
   seasonalNaiveForecast,
   seasonalNaiveScale,

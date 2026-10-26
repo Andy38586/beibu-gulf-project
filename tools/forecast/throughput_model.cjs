@@ -295,7 +295,13 @@ function rollingBacktest(historical) {
   return { mapeByStep, cntByStep }
 }
 
-function processPort(portId, historical) {
+/**
+ * @param {string} portId 港口键（只用于降级日志文案）
+ * @param {Array<{time: string, value: number}>} historical 真数据（就地排序，调用方传副本）
+ * @param {'linear'|'ets'|'seasonal_naive'|'combination'|null} [overrideWinner] 测试/实验用
+ *   强制胜者；缺省 null = 走闸门 selectModel。生产路径（main）恒不传，判据面不变。
+ */
+function processPort(portId, historical, overrideWinner = null) {
   historical.sort((a, b) => a.time.localeCompare(b.time))
 
   const trainData = historical.filter((d) => d.time <= TRAIN_END)
@@ -397,19 +403,21 @@ function processPort(portId, historical) {
     })
   )
 
-  const selected = selectModel(
-    {
-      linear: linH.overallMape,
-      ets: etsH.overallMape,
-      seasonal_naive: snH.overallMape,
-      combination: comH.overallMape,
-    },
-    {
-      ets: dmVsLinear.ets_damped.p,
-      seasonal_naive: dmVsLinear.seasonal_naive.p,
-      combination: dmVsLinear.combination.p,
-    }
-  )
+  const selected =
+    overrideWinner ??
+    selectModel(
+      {
+        linear: linH.overallMape,
+        ets: etsH.overallMape,
+        seasonal_naive: snH.overallMape,
+        combination: comH.overallMape,
+      },
+      {
+        ets: dmVsLinear.ets_damped.p,
+        seasonal_naive: dmVsLinear.seasonal_naive.p,
+        combination: dmVsLinear.combination.p,
+      }
+    )
 
   const lastTime = historical[historical.length - 1].time
 
@@ -441,7 +449,9 @@ function processPort(portId, historical) {
    * 胜者分支表（F82）：四个分支的差异只有四件事 ——
    *   ① `fit`：全量重拟合用哪个模型（线性趋势 / ETS / 季节朴素 / 三成员组合）；
    *   ② `predict`：给定拟合件与目标月产出点值（线性还要序列序号 i —— 趋势按步数外推）；
-   *   ③ `harness`：区间构造取哪份同协议回测（分步长 MAPE / 覆盖率 / 区间偏移）；
+   *   ③ `harness`：区间构造**与**回测对象（覆盖率/区间偏移）共用的那份同协议回测。
+   *      只在这一处引用：`backtest(h)` 由 buildWinner 传入同一个 `harness`，杜绝「两处各写
+   *      一遍、只改一处」导致区间取 A、对比表取 B 的静默脱钩；
    *   ④ `onFitFail`：拟合缺件时 `abort`（返回 null）还是 `linear`（诚实降级）。
    * 其余三件（目标时点序列 futureTargets、forecastPoint 构造、relIdx = 月差）四个分支完全同源。
    * 此前是四段 30~80 行的平行分支：加第 5 个候选要重抄一遍，且「只在一条分支里改口径」无人拦。
@@ -457,15 +467,17 @@ function processPort(portId, historical) {
         correctionFactor *
         model.seasonalIndices[extractMonth(t)],
       harness: linH,
-      backtest: () => ({
+      // 回测对象由分支表把 `harness` 传进来（不在这里再写一次 linH）——两处各写一遍时，
+      // 只改其中一处就会出现「区间用 A、对比表用 B」的静默脱钩，见 buildWinner 注释。
+      backtest: (h) => ({
         selected_model: 'linear',
         validation_overall_mape: Math.round(overallMAPE * 100) / 100,
         validation_months: testPreds.length,
         rolling_mape_by_step: rolling.mapeByStep,
         rolling_samples_by_step: rolling.cntByStep,
-        rolling_picp_by_step: linH.picpByStep,
-        overall_picp: linH.overallPicp,
-        interval_offsets: linH.intervalOffsets,
+        rolling_picp_by_step: h.picpByStep,
+        overall_picp: h.overallPicp,
+        interval_offsets: h.intervalOffsets,
         bias,
         correction_factor: Math.round(correctionFactor * 10000) / 10000,
       }),
@@ -476,7 +488,7 @@ function processPort(portId, historical) {
       fit: () => fullEts,
       predict: (model, t) => forecastEtsCandidate(model, t),
       harness: etsH,
-      backtest: () => candidateBacktest('ets', etsH),
+      backtest: (h) => candidateBacktest('ets', h),
       onFitFail: 'linear',
     },
     seasonal_naive: {
@@ -484,7 +496,7 @@ function processPort(portId, historical) {
       fit: () => seasonalNaiveModel(historical),
       predict: (model, t) => seasonalNaiveForecast(model, t),
       harness: snH,
-      backtest: () => candidateBacktest('seasonal_naive', snH),
+      backtest: (h) => candidateBacktest('seasonal_naive', h),
       onFitFail: 'abort',
     },
     combination: {
@@ -507,7 +519,7 @@ function processPort(portId, historical) {
           comH.finalWeights ?? {}
         ),
       harness: comH,
-      backtest: () => candidateBacktest('combination', comH),
+      backtest: (h) => candidateBacktest('combination', h),
       onFitFail: 'linear',
       // 成员/权重任一件缺失 ⇒ 点值非有限 ⇒ 诚实降级（04-B7：不伪造）
       requireFinite: true,
@@ -542,7 +554,7 @@ function processPort(portId, historical) {
           monthIndex(t) - monthIndex(lastTime)
         )
       ),
-      backtest: branch.backtest(),
+      backtest: branch.backtest(branch.harness),
     }
   }
 
@@ -550,41 +562,32 @@ function processPort(portId, historical) {
   if (!winner) return null
   const { predictions, backtest } = winner
 
+  /**
+   * 同协议指标行（F82 余项）：四席的六个"总体指标 + 分步长曲线"字段此前逐字抄四遍，
+   * 差异只有 harness 来源与行尾独有字段（ETS 的 param、组合的权重）。工厂只按**同一插入序**
+   * 产键（overall_mape → … → mase_by_step），行尾独有字段靠 spread 追加，
+   * 保证 JSON.stringify 的键序与逐字四份完全一致（字节级不变，见 .local/math2-report.md）。
+   */
+  const metricRow = (h) => ({
+    overall_mape: h.overallMape,
+    overall_mase: h.overallMase,
+    overall_smape: h.overallSmape,
+    overall_picp: h.overallPicp,
+    mape_by_step: h.mapeByStep,
+    mase_by_step: h.maseByStep,
+  })
+
   const modelComparison = {
     protocol: `滚动原点 origin ${ROLLING_START}~${ROLLING_END}，horizon ${ROLLING_HORIZON}，训练<origin，无校正防泄漏`,
-    linear: {
-      overall_mape: linH.overallMape,
-      overall_mase: linH.overallMase,
-      overall_smape: linH.overallSmape,
-      overall_picp: linH.overallPicp,
-      mape_by_step: linH.mapeByStep,
-      mase_by_step: linH.maseByStep,
-    },
+    linear: metricRow(linH),
     ets_damped: {
-      overall_mape: etsH.overallMape,
-      overall_mase: etsH.overallMase,
-      overall_smape: etsH.overallSmape,
-      overall_picp: etsH.overallPicp,
-      mape_by_step: etsH.mapeByStep,
-      mase_by_step: etsH.maseByStep,
+      ...metricRow(etsH),
       params: etsFitInfo ? etsFitInfo.params : null,
       seasonal_type: etsFitInfo ? etsFitInfo.seasonal_type : null,
     },
-    seasonal_naive: {
-      overall_mape: snH.overallMape,
-      overall_mase: snH.overallMase,
-      overall_smape: snH.overallSmape,
-      overall_picp: snH.overallPicp,
-      mape_by_step: snH.mapeByStep,
-      mase_by_step: snH.maseByStep,
-    },
+    seasonal_naive: metricRow(snH),
     combination: {
-      overall_mape: comH.overallMape,
-      overall_mase: comH.overallMase,
-      overall_smape: comH.overallSmape,
-      overall_picp: comH.overallPicp,
-      mape_by_step: comH.mapeByStep,
-      mase_by_step: comH.maseByStep,
+      ...metricRow(comH),
       // P0-1 可复核面：final_weights 由各成员平均已实现误差（member_mape，%）反比归一
       final_weights: comH.finalWeights,
       member_mape: comH.memberScores,
@@ -709,4 +712,19 @@ function main() {
   }
 }
 
-main()
+/**
+ * 直接执行才跑 main。
+ *
+ * 为什么要有这道守卫（F81/F82/F84 复核补）：本文件此前 `main()` 裸调用，
+ * 于是任何 `require('./throughput_model.cjs')` 都会**立刻重写 backend/data 两份产物**，
+ * 副作用把「winner 分支表」锁在不可测状态——四个分支里 ets / seasonal_naive 在真实数据上
+ * 从未胜出，等于零覆盖，谁把 `harness: etsH` 抄成 `snH` 没有任何判据会红。
+ * 生产两条入口（`npm run forecast:model` 直调、run-all 的 node 子进程）都是直接执行，
+ * `require.main === module` 恒真，产物路径与输出逐字不变。
+ */
+if (require.main === module) main()
+
+// 只导出判据真正消费的面（多导一个就是新的死导出，棘轮会记一笔）：
+// processPort 驱四席 + overrideWinner；rollingBacktest 复算 linear 的 legacy 来源；
+// futureTargets/ROLLING_HORIZON 钉预测骨架与步长上限。
+module.exports = { main, processPort, rollingBacktest, futureTargets, ROLLING_HORIZON }

@@ -35,8 +35,8 @@ import {
 } from 'cesium'
 import type { FeatureCollection } from 'geojson'
 
-import { breathingAlpha, breathingSize, elapsedSeconds } from '@/core/config/breathing'
-import { buildTiandituUrl, defaultCameraCenter, MAP_CONFIG, zoomToHeight } from '@/core/config/map'
+import { breathingAlpha, breathingSize, elapsedSeconds } from '@/core/config'
+import { buildTiandituUrl, defaultCameraCenter, MAP_CONFIG, zoomToHeight } from '@/core/config'
 import type { IndexedItem } from '@/shared'
 import { createSpatialIndex, LAYER_DEFAULTS, showError, showWarning } from '@/shared'
 import { breathingPoints, isStaleToken, logger, normalizePoint } from '@/shared'

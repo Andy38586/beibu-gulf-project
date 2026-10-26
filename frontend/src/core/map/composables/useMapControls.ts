@@ -1,7 +1,7 @@
 import type { Ref } from 'vue'
 import { inject } from 'vue'
 
-import { MAP_CONFIG } from '@/core/config/map'
+import { MAP_CONFIG } from '@/core/config'
 import { UNIFIED_MAP_KEY, type UnifiedMapExposed } from '@/core/provideKeys'
 import type { FlyToOptions, FlyToTarget, GeoPoint } from '@/types'
 

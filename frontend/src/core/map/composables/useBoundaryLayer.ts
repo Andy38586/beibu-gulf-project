@@ -4,7 +4,7 @@
  */
 import type { FeatureCollection } from 'geojson'
 
-import { MAP_CONFIG } from '@/core/config/map'
+import { MAP_CONFIG } from '@/core/config'
 import { LAYER_DEFAULTS } from '@/shared'
 import { loadStatic } from '@/shared'
 import { logger } from '@/shared'

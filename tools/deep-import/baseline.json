@@ -1,10 +1,10 @@
 {
   "generatedFrom": "tools/deep-import/scan.mjs",
-  "total": 65,
+  "total": 60,
   "byGroup": {
     "core/map": 7,
     "shared/constants": 6,
-    "core/config": 8,
+    "core/config": 3,
     "shared/utils": 22,
     "shared/layout": 5,
     "shared/composables": 5,
@@ -41,6 +41,11 @@
       "group": "shared/constants"
     },
     {
+      "file": "core/index.ts",
+      "target": "core/config/map",
+      "group": "core/config"
+    },
+    {
       "file": "core/layout/AppLayout.vue",
       "target": "core/config/map",
       "group": "core/config"
@@ -59,36 +64,6 @@
       "file": "core/layout/components/BottomNavBar.vue",
       "target": "core/map/renderers",
       "group": "core/map"
-    },
-    {
-      "file": "core/map/composables/useBoundaryLayer.ts",
-      "target": "core/config/map",
-      "group": "core/config"
-    },
-    {
-      "file": "core/map/composables/useMapControls.ts",
-      "target": "core/config/map",
-      "group": "core/config"
-    },
-    {
-      "file": "core/map/renderers/CesiumRenderer.ts",
-      "target": "core/config/breathing",
-      "group": "core/config"
-    },
-    {
-      "file": "core/map/renderers/CesiumRenderer.ts",
-      "target": "core/config/map",
-      "group": "core/config"
-    },
-    {
-      "file": "core/map/renderers/OLRenderer.ts",
-      "target": "core/config/breathing",
-      "group": "core/config"
-    },
-    {
-      "file": "core/map/renderers/OLRenderer.ts",
-      "target": "core/config/map",
-      "group": "core/config"
     },
     {
       "file": "core/provideKeys.ts",
@@ -354,6 +329,12 @@
       "total": 65,
       "kind": "未标注",
       "note": "types/business/base + types/core/layerManager + types/api/forecast 改走 @/types 入口，穿透 76→65"
+    },
+    {
+      "at": "2026-10-26",
+      "total": 60,
+      "kind": "未标注",
+      "note": "core/config 建入口，穿透 65→60"
     }
   ]
 }

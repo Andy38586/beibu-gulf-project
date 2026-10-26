@@ -5,6 +5,6 @@ import { describe } from 'vitest'
 
 import { definePytestCase } from '../../lib/__tests__/py-runner.mjs'
 
-describe('桥构件色单源（pytest 5 例）', () => {
+describe('桥构件色单源', () => {
   definePytestCase('探针读权威源 · PY 侧无第二份手抄', ['tools/diag/test_bridge_palette.py'])
 })

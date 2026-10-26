@@ -37,12 +37,12 @@ const DEFAULT_ROOTS = new Set(['it', 'test', 'describe', 'suite'])
 /** 标记「该用例是红样」，与 tools/v3-guard/guard-red-sample.mjs 同一约定 */
 const RED = '@guard-red-sample'
 
-/** tools 下所有 __tests__/**\/*.test.mjs（不含本文件） */
+/** tools 下**所有** *.test.mjs（不含本文件）——先收全，再按内容过滤 */
 function collectTestFiles(dir, out = []) {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
     const p = path.join(dir, e.name)
     if (e.isDirectory()) collectTestFiles(p, out)
-    else if (/__tests__[\\/].*\.test\.mjs$/.test(p) && !p.endsWith(SELF)) out.push(p)
+    else if (p.endsWith('.test.mjs') && !p.endsWith(SELF)) out.push(p)
   }
   return out
 }
@@ -148,6 +148,64 @@ function countDefinePytestCase(text) {
   return n
 }
 
+/** tools 下所有 `test_*.py` 的绝对路径 */
+function collectPyTests(dir, out = []) {
+  for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+    const p = path.join(dir, e.name)
+    if (e.isDirectory()) collectPyTests(p, out)
+    else if (/^test_.*\.py$/.test(e.name)) out.push(p)
+  }
+  return out
+}
+
+/**
+ * 从 AST 取 `definePytestCase(title, files, …)` **第二个参数**里的字符串字面量。
+ * 不靠文件名猜测、不靠正则扫文本：数组元素逐个取字面量，单字符串形态也接受。
+ */
+function referencedPyFiles(text) {
+  const sf = parse('files.mjs', text)
+  const out = []
+  const visit = (node) => {
+    if (
+      ts.isCallExpression(node) &&
+      ts.isIdentifier(node.expression) &&
+      node.expression.text === 'definePytestCase'
+    ) {
+      const arg = node.arguments[1]
+      const push = (n) => {
+        if (ts.isStringLiteralLike(n)) out.push(n.text)
+      }
+      if (arg && ts.isArrayLiteralExpression(arg)) arg.elements.forEach(push)
+      else if (arg) push(arg)
+    }
+    ts.forEachChild(node, visit)
+  }
+  visit(sf)
+  return out
+}
+
+/** 标题字符串：definePytestCase 第一参 / it|test|describe|suite 第一参（含别名与命名空间） */
+function titleLiterals(text) {
+  const sf = parse('titles.mjs', text)
+  const ctx = vitestRoots(sf)
+  const out = []
+  const visit = (node) => {
+    if (ts.isCallExpression(node)) {
+      const callee = node.expression
+      const isTitleCall =
+        (ts.isIdentifier(callee) &&
+          (callee.text === 'definePytestCase' || isVitestRoot(callee, ctx))) ||
+        ((ts.isPropertyAccessExpression(callee) || ts.isElementAccessExpression(callee)) &&
+          isVitestRoot(callee.expression, ctx))
+      const arg = node.arguments[0]
+      if (isTitleCall && arg && ts.isStringLiteralLike(arg)) out.push(arg.text)
+    }
+    ts.forEachChild(node, visit)
+  }
+  visit(sf)
+  return out
+}
+
 describe('Python pytest 包装器契约（AST）', () => {
   it('扫描面由内容派生且非空：≥11 个包装器，每个至少 1 次 definePytestCase', () => {
     const wrappers = collectWrappers()
@@ -158,6 +216,34 @@ describe('Python pytest 包装器契约（AST）', () => {
         `${path.relative(ROOT, file)} 缺 definePytestCase`
       ).toBeGreaterThan(0)
     }
+  })
+
+  it(`🔴 ${RED} 每个 tools/**/test_*.py 都必须被某个包装器引用（AST 取第二参）`, () => {
+    const onDisk = collectPyTests(TOOLS)
+      .map((p) => path.basename(p))
+      .sort()
+    const referenced = [
+      ...new Set(
+        collectWrappers().flatMap(({ text }) =>
+          referencedPyFiles(text).map((f) => path.basename(f))
+        )
+      ),
+    ].sort()
+    // 反例形态：从某包装器的 files 数组里删掉一个文件名 ⇒ 集合差 1 ⇒ 本断言红
+    expect(
+      referenced,
+      `磁盘有 ${onDisk.length} 个 py 测试，被引用 ${referenced.length} 个：` +
+        `未被引用 = ${onDisk.filter((f) => !referenced.includes(f)).join(', ') || '无'}`
+    ).toEqual(onDisk)
+  })
+
+  it(`🔴 ${RED} 标题不得写死「pytest N 例」（数字会随用例增删漂移）`, () => {
+    const bad = collectWrappers().flatMap(({ file, text }) =>
+      titleLiterals(text)
+        .filter((t) => /pytest\s*\d+\s*例/.test(t))
+        .map((t) => `${path.relative(ROOT, file)}: ${t}`)
+    )
+    expect(bad).toEqual([])
   })
 
   it(`🔴 ${RED} 真实包装器零 skip：命中即红（describe.skip 也算）`, () => {
@@ -193,8 +279,20 @@ describe('Python pytest 包装器契约（AST）', () => {
       'import * as v from "vitest"',
       'v.it.skip("x", () => {})',
       'v["describe"].skipIf(true)("y", () => {})',
+      "v['it'].skip('z', () => {})",
     ].join('\n')
-    expect(findSkipCalls('ns.mjs', nsSample)).toHaveLength(2)
+    expect(findSkipCalls('ns.mjs', nsSample)).toHaveLength(3)
+  })
+
+  it(`🔴 ${RED} 成员面：only / todo / fails / describe.only 全部命中（缺一项即红）`, () => {
+    const sample = [
+      'import { describe, it } from "vitest"',
+      'it.only("a", () => {})',
+      'it.todo("b")',
+      'it.fails("c", () => {})',
+      'describe.only("d", () => {})',
+    ].join('\n')
+    expect(findSkipCalls('members.mjs', sample)).toHaveLength(4)
   })
 
   it('阴性对照：字符串字面量里的 it.skip( 不算（非调用节点）', () => {

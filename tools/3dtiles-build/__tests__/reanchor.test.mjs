@@ -21,9 +21,19 @@ import {
 } from '../reanchor-hubs.mjs'
 import { ecefToGeo as ecefToLlh, geoToEcef as geocentric } from '../../lib/geo.mjs'
 
-// ROOT 取交付包（入库）：它不随校准变化，仅提供 ECEF 参考系
+// 交付包资产（入库）：仅提供 ECEF 参考系，不随校准变化。
+// **惰性读取**：资产缺失时给明确断言，而不是在 import 期抛 ENOENT、把整文件用例一起带走。
 const TILESET = 'backend/static/pinglu/tiles/tileset.json'
-const ROOT = toMath(JSON.parse(fs.readFileSync(TILESET, 'utf8')).root.transform)
+let tilesetRootCache = null
+function tilesetRoot(file = TILESET) {
+  expect(
+    fs.existsSync(file),
+    `缺交付包资产：${file} —— 3dtiles 交付包缺失时本判据无法执行，请先构建/放置该资产`
+  ).toBe(true)
+  if (tilesetRootCache) return tilesetRootCache
+  tilesetRootCache = toMath(JSON.parse(fs.readFileSync(file, 'utf8')).root.transform)
+  return tilesetRootCache
+}
 
 // 未校准的原始马道 child（列主序；与 git HEAD 一致，+X 朝 az=197.8 南偏西）
 const ORIG_CHILD_ARR = [
@@ -36,8 +46,8 @@ const TARGET = { lon: 108.940167, lat: 22.447154, h: 20 }
 
 /** P0 处本地某轴方向的世界方位角（度） */
 function axisAzimuth(NEW, axis) {
-  const base = mulPoint(mul(ROOT, NEW), [...P0_LOCAL, 1]).slice(0, 3)
-  const tip = mulPoint(mul(ROOT, NEW), [
+  const base = mulPoint(mul(tilesetRoot(), NEW), [...P0_LOCAL, 1]).slice(0, 3)
+  const tip = mulPoint(mul(tilesetRoot(), NEW), [
     P0_LOCAL[0] + axis[0],
     P0_LOCAL[1] + axis[1],
     P0_LOCAL[2] + axis[2],
@@ -51,7 +61,7 @@ function axisAzimuth(NEW, axis) {
 
 describe('reanchor 数学底座', () => {
   it('inv：enu × inv(enu) = 单位阵（漏主元行交换会失败）', () => {
-    const P0 = mulPoint(mul(ROOT, OLD), [...P0_LOCAL, 1]).slice(0, 3)
+    const P0 = mulPoint(mul(tilesetRoot(), OLD), [...P0_LOCAL, 1]).slice(0, 3)
     const enu = enuFrame(P0)
     const prod = mul(enu, inv(enu))
     for (let r = 0; r < 4; r++)
@@ -77,7 +87,7 @@ describe('reanchor 数学底座', () => {
 })
 
 describe('computeNew — 朝向 + 平移校准', () => {
-  const NEW = computeNew(ROOT, OLD, {
+  const NEW = computeNew(tilesetRoot(), OLD, {
     angle: 17,
     targetLon: TARGET.lon,
     targetLat: TARGET.lat,
@@ -85,7 +95,7 @@ describe('computeNew — 朝向 + 平移校准', () => {
   })
 
   it('P0 落在 target（经纬度 + 高程）', () => {
-    const p = mulPoint(mul(ROOT, NEW), [...P0_LOCAL, 1]).slice(0, 3)
+    const p = mulPoint(mul(tilesetRoot(), NEW), [...P0_LOCAL, 1]).slice(0, 3)
     const llh = ecefToLlh(p)
     expect(llh[0]).toBeCloseTo(TARGET.lon, 6)
     expect(llh[1]).toBeCloseTo(TARGET.lat, 6)
@@ -114,7 +124,7 @@ describe('computeNew — 朝向 + 平移校准', () => {
 
 describe('computeNew — 纯平移', () => {
   it('平移量叠加到 child 平移，旋转部分不变', () => {
-    const NEW = computeNew(ROOT, OLD, { dE: 300, dN: -60, dH: 5 })
+    const NEW = computeNew(tilesetRoot(), OLD, { dE: 300, dN: -60, dH: 5 })
     expect(NEW[0][3]).toBeCloseTo(OLD[0][3] + 300, 9)
     expect(NEW[1][3]).toBeCloseTo(OLD[1][3] - 60, 9)
     expect(NEW[2][3]).toBeCloseTo(OLD[2][3] + 5, 9)
@@ -126,9 +136,15 @@ describe('computeNew — 纯平移', () => {
 
 describe('computeNew — angle=0 纯旋转不移动 P0', () => {
   it('不指定 target 时，P0 原地不动，仅旋转', () => {
-    const NEW = computeNew(ROOT, OLD, { angle: 0 })
-    const before = ecefToLlh(mulPoint(mul(ROOT, OLD), [...P0_LOCAL, 1]).slice(0, 3))
-    const after = ecefToLlh(mulPoint(mul(ROOT, NEW), [...P0_LOCAL, 1]).slice(0, 3))
+    const NEW = computeNew(tilesetRoot(), OLD, { angle: 0 })
+    const before = ecefToLlh(mulPoint(mul(tilesetRoot(), OLD), [...P0_LOCAL, 1]).slice(0, 3))
+    const after = ecefToLlh(mulPoint(mul(tilesetRoot(), NEW), [...P0_LOCAL, 1]).slice(0, 3))
     for (let i = 0; i < 3; i++) expect(after[i]).toBeCloseTo(before[i], 6)
+  })
+})
+
+describe('交付包资产缺失的失败形状', () => {
+  it('@guard-red-sample 资产缺失 ⇒ 明确断言（不在 import 期崩）', () => {
+    expect(() => tilesetRoot('no-such-tileset.json')).toThrow(/缺交付包资产/)
   })
 })

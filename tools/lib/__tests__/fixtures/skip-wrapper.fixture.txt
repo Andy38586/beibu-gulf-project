@@ -1,0 +1,11 @@
+// 入库红样夹具（故意不用 .mjs 后缀，避免被 vitest 收集/执行）。
+// 期望：tools/lib/__tests__/python-wrapper-contract.test.mjs 的 AST 判据命中 ≥1。
+// 它只证明「describe.skip 被识别」（旧文本正则漏此形状，见 cb-p12-red.txt 样本 C）；
+// 「注释不误红 / 字符串不误红」由测试内阴性对照承担。
+import { describe } from 'vitest'
+
+import { definePytestCase } from '../py-runner.mjs'
+
+describe.skip('被静默跳过的 pytest 接线（红样）', () => {
+  definePytestCase('本该跑的 pytest 接线', ['tools/lib/test_geo.py'])
+})

@@ -1,7 +1,7 @@
 /**
- * 跨平台 pytest 接线器（2026-10-26，修 P1：五个包装器写死 Windows venv + skipIf，
+ * 跨平台 pytest 接线器（2026-10-26，修 P1：tools 下 11 个包装器写死 Windows venv + skipIf，
  * Linux CI 恒跳过 ⇒ 判据不存在）。解析顺序：V3_PYTHON → backend venv
- * （Windows/Linux 两种布局；algorithm-service 已退役，仅作为历史 venv 目录）→ PATH 上的 python3/python。
+ * （Windows/Linux 两种布局；algorithm-service 已退役，仅历史 venv 目录）→ PATH 上的 python3/python。
  * 找不到就 fail，不 skip。
  */
 import { spawnSync } from 'node:child_process'
@@ -12,7 +12,6 @@ import { fileURLToPath } from 'node:url'
 import { expect, it } from 'vitest'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..')
-const DEM = path.join(ROOT, 'tools', 'dem-pipeline')
 
 function probe(cmd) {
   if (cmd.includes(path.sep)) return fs.existsSync(cmd) ? cmd : null
@@ -46,7 +45,9 @@ export function definePytestCase(title, files, timeout = 120000) {
             'pytest 门禁不得 skip；CI 需 setup-python 并安装 numpy rasterio pytest。'
         )
       }
-      const abs = files.map((f) => (path.isAbsolute(f) ? f : path.join(DEM, f)))
+      const abs = files.map((f) => (path.isAbsolute(f) ? f : path.join(ROOT, f)))
+      const missing = abs.filter((f) => !fs.existsSync(f))
+      if (missing.length) expect.fail(`pytest 输入文件不存在：${missing.join(', ')}`)
       const r = spawnSync(py, ['-X', 'utf8', '-m', 'pytest', ...abs, '-q'], {
         cwd: ROOT,
         encoding: 'utf8',

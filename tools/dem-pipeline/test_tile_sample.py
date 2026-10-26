@@ -16,6 +16,7 @@
 """
 from __future__ import annotations
 
+import ast
 import math
 import sys
 from pathlib import Path
@@ -170,3 +171,33 @@ def test_tile_bounds_matches_geographic_scheme():
     assert ts.tile_bounds(0, 0, 0) == (-180.0, -90.0, 0.0, 90.0)
     assert ts.tile_bounds(0, 1, 0) == (0.0, -90.0, 180.0, 90.0)
     assert ts.tile_bounds(1, 2, 1) == (0.0, -90.0, 90.0, 0.0)
+
+
+def test_scripts_import_modules_they_use():
+    """F74 回归：脚本删 import 但保留用法 ⇒ NameError（2026-10-26 07c 的 math 实测）。"""
+    scripts = [
+        '07-heightmap-reslice.py',
+        '07c-patch-terrain.py',
+        '10-landsea-merge.py',
+        '11-seam-audit.py',
+    ]
+    watched = {'math', 'np', 'json', 'sys'}
+    root = Path(__file__).resolve().parent
+    bad = []
+    for name in scripts:
+        tree = ast.parse((root / name).read_text(encoding='utf-8'))
+        imported = set()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                imported.update((a.asname or a.name).split('.')[0] for a in node.names)
+            elif isinstance(node, ast.ImportFrom):
+                imported.update(a.asname or a.name for a in node.names)
+        used = {
+            n.id
+            for n in ast.walk(tree)
+            if isinstance(n, ast.Name) and isinstance(n.ctx, ast.Load)
+        }
+        missing = sorted((used & watched) - imported)
+        if missing:
+            bad.append(f'{name}: 使用了未导入的 {missing}')
+    assert not bad, '；'.join(bad)

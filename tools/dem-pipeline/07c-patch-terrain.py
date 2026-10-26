@@ -16,7 +16,7 @@
    现役树为椭球高，故 POST 须由椭球件生成（07b 缺省已自动解析椭球件，见其 [基准] 行）。
 """
 from __future__ import annotations
-import json, sys
+import json, math, sys
 from pathlib import Path
 import rasterio
 from rasterio.enums import Resampling

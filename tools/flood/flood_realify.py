@@ -54,7 +54,18 @@ FLOOD_DIR = ROOT / "backend" / "data" / "flood"
 sys.path.insert(0, str(ROOT / "tools" / "flood" / "lib"))
 from dem_identity import dem_identity  # noqa: E402
 
-DEM_LABEL, DEM_MD5 = dem_identity(DEM_SOURCE)
+# 溯源延迟到 main：import 期读 DEM 会让不含 DEM 资产的 CI 在 pytest 收集阶段就
+# FileNotFoundError（测试用合成夹具，本不需要仓库真 DEM）。
+DEM_LABEL: str | None = None
+DEM_MD5: str | None = None
+
+
+def ensure_dem_identity() -> None:
+    global DEM_LABEL, DEM_MD5
+    if DEM_LABEL is None or DEM_MD5 is None:
+        DEM_LABEL, DEM_MD5 = dem_identity(DEM_SOURCE)
+
+
 # 生成时写入（原为硬编码 "2026-08-30"）：戳记必须是**本次生成日**——写死会让数据自述随时间
 # 失真（实测 facilityPoints.json 的 updatedAt 落后其内容改动 10 天），且与
 # backend/test/data-freshness.spec.ts 的「戳记 vs git 改动日」核对直接冲突
@@ -188,6 +199,7 @@ def load_dem_ds(downsample=DOWNSAMPLE):
 
 def main():
     print("=== flood 真数据重建 ===")
+    ensure_dem_identity()
     OFFSET = datum_offset()
     print(f"垂直基准：水位(理论深度基准面) - {OFFSET}m = DEM 正高(EGM96/平均海平面)")
 

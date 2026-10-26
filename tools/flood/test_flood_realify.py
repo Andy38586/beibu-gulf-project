@@ -19,6 +19,8 @@ from __future__ import annotations
 import gzip
 import hashlib
 import json
+import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -150,6 +152,26 @@ def sandbox(tmp_path, monkeypatch):
     monkeypatch.setattr(fr, "DEM_LABEL", f"{dem.name}（夹具地表）")
     monkeypatch.setattr(fr, "DEM_MD5", md5)
     return {"dir": tmp_path, "md5": md5, "facility": facility, "terrain": terrain}
+
+
+def test_import_does_not_read_dem(tmp_path):
+    """import 期不得读 DEM：CI 无该资产，否则 pytest 收集阶段直接失败。
+
+    变异：把 dem_identity(DEM_SOURCE) 挪回模块级 ⇒ 本用例必红（FileNotFoundError）。
+    """
+    missing = tmp_path / "missing_dem.tif"
+    env = os.environ.copy()
+    env["FLOOD_DEM_PATH"] = str(missing)
+    env["PYTHONPATH"] = str(Path(__file__).resolve().parent)
+    proc = subprocess.run(
+        [sys.executable, "-c", "import flood_realify; print(flood_realify.DEM_LABEL)"],
+        cwd=Path(__file__).resolve().parents[2],
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+    assert proc.returncode == 0, proc.stderr
+    assert proc.stdout.strip() == "None", "import 期已计算 DEM 溯源"
 
 
 def test_no_retired_outputs_and_dem_provenance(sandbox):

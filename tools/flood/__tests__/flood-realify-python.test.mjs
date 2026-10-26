@@ -6,7 +6,7 @@ import { describe } from 'vitest'
 import { definePytestCase } from '../../lib/__tests__/py-runner.mjs'
 
 describe('flood 生成侧 · 溯源与废弃件收口（python）', () => {
-  definePytestCase('DEM md5 接线 / 不写废弃件 / 无陆地写 null（pytest 2 例）', [
+  definePytestCase('DEM md5 接线 / 不写废弃件 / 无陆地写 null / import 不读 DEM（pytest）', [
     'tools/flood/test_flood_realify.py',
   ])
 })

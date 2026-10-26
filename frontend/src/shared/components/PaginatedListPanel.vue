@@ -26,8 +26,6 @@ interface Props {
   emptyHint?: string
   /** 收藏方案的业务类型键（随面板业务类型：flood → facility）。留给调用方注入，故为 string */
   planType?: string
-  /** 收藏方案命名前缀（业务文案由调用方注入——shared 不硬编码业务类型名） */
-  planNamePrefix?: string
   /** 加载进行态 */
   loading?: boolean
   showFavorite?: boolean
@@ -42,7 +40,6 @@ const props = withDefaults(defineProps<Props>(), {
   emptyText: '暂无数据',
   emptyHint: '',
   planType: 'flood',
-  planNamePrefix: '收藏',
   loading: false,
   showFavorite: true,
   // 显式 undefined：flyTo 为可选能力（个人中心 PlansPanel 无地图上下文），非遗漏默认值

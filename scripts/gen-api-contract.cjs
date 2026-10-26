@@ -254,11 +254,16 @@ for (const def of defs) {
   contractBackends[def.name] = { file: rel, occurrence, ...(optionality ? { optionality } : {}) }
 }
 const indirect = []
+// 剥注释后再正则匹配，避免注释里的 `// export type XxxParsed` 假命中。
+// 仅用于 parsedExport 存在性判据，不影响 parseSchemaDef 的括号配对解析。
+const schemasNoComment = schemasText
+  .replace(/\/\*[\s\S]*?\*\//g, '')
+  .replace(/(^|[^:])\/\/[^\n]*/g, '$1')
 for (const def of defs) {
   const parsedExport = new RegExp(
     `export\\s+type\\s+\\w*${def.name.replace(/Schema$/, '')}Parsed\\b`,
     'i'
-  ).test(schemasText)
+  ).test(schemasNoComment)
   if (!parsedExport) {
     problems.push(`✗ ${def.name}: 无对应 z.infer 类型导出（缺 *Parsed）`)
   }

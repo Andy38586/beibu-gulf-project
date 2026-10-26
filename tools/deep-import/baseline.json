@@ -1,8 +1,8 @@
 {
   "generatedFrom": "tools/deep-import/scan.mjs",
-  "total": 52,
+  "total": 49,
   "byGroup": {
-    "shared/constants": 6,
+    "shared/constants": 3,
     "core/config": 2,
     "core/map": 4,
     "shared/utils": 22,
@@ -136,11 +136,6 @@
     },
     {
       "file": "shared/composables/useAuth.ts",
-      "target": "shared/constants/api",
-      "group": "shared/constants"
-    },
-    {
-      "file": "shared/composables/useAuth.ts",
       "target": "shared/utils/logger",
       "group": "shared/utils"
     },
@@ -151,11 +146,6 @@
     },
     {
       "file": "shared/composables/useFavorites.ts",
-      "target": "shared/constants/api",
-      "group": "shared/constants"
-    },
-    {
-      "file": "shared/composables/useFavorites.ts",
       "target": "shared/utils/errorHandler",
       "group": "shared/utils"
     },
@@ -163,11 +153,6 @@
       "file": "shared/composables/useFavorites.ts",
       "target": "shared/utils/gcsFeedback",
       "group": "shared/utils"
-    },
-    {
-      "file": "shared/composables/usePlans.ts",
-      "target": "shared/constants/api",
-      "group": "shared/constants"
     },
     {
       "file": "shared/composables/usePlans.ts",
@@ -312,6 +297,12 @@
       "total": 52,
       "kind": "未标注",
       "note": "core/map tiles3dGroups+LayerIR 改走 @/core 入口，穿透 55→52"
+    },
+    {
+      "at": "2026-10-26",
+      "total": 49,
+      "kind": "真清理",
+      "note": "shared composables 改走 constants 入口，3 条穿透收敛"
     }
   ]
 }

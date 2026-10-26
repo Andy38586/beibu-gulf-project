@@ -46,10 +46,6 @@ export const ENDPOINTS = {
   },
   // route 域（2026-09-10 起 Nest + pgRouting；原 /flood-online 代理通道已随退役删除）
   route: {
-    // 2026-09-10：route 域自 algorithm-service 下沉至 NestJS（pgRouting）。
-    // 由 FastAPI 全路径 '/flood-online/route/path' 改为 Nest 相对路径，
-    // 响应结构未变，仅外层信封从「裸 JSON」变为 Nest 统一信封。
-    path: '/route/path',
     // 名称关键词搜索（航线分析选点）：2026-09-30 自旧版选址域迁入本域
     // （多源点集合并口径不变，limit 1..200）
     pois: '/route/pois',

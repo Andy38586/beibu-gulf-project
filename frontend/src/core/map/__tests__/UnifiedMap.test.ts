@@ -175,7 +175,7 @@ describe('UnifiedMap Integration Tests', () => {
     expect(createRenderer).toHaveBeenCalledWith('3d', expect.any(HTMLElement))
   })
 
-  it('should emit click event when renderer emits click', async () => {
+  it('should register click handler on renderer（组件不再向上 emit click）', async () => {
     wrapper = mount(UnifiedMap, {
       props: { mapType: '2d' },
       ...makeMountOptions(mapStore),
@@ -185,27 +185,12 @@ describe('UnifiedMap Integration Tests', () => {
     await flushPromises()
     await new Promise((resolve) => setTimeout(resolve, 50))
 
+    // click 只在组件内部驱动气泡，向上 emit 全仓零监听已删；
+    // 本判据保留「渲染器 click 已接线」，不再断言 emitted('click')。
     const renderer = mockedCreateRenderer.mock.results[0].value
     const clickHandler = renderer.on.mock.calls.find((c: unknown[]) => c[0] === 'click')?.[1]
 
     expect(clickHandler).toBeDefined()
-
-    clickHandler({
-      detail: {
-        featureType: 'port',
-        data: { name: 'test-port' },
-        coordinate: [108.1, 21.5],
-      },
-    })
-
-    await wrapper.vm.$nextTick()
-
-    expect(wrapper.emitted('click')).toBeTruthy()
-    expect(wrapper.emitted('click')![0][0]).toEqual({
-      featureType: 'port',
-      data: { name: 'test-port' },
-      coordinate: [108.1, 21.5],
-    })
   })
 })
 
@@ -571,7 +556,7 @@ describe('UnifiedMap Error Handling', () => {
     wrapper?.unmount()
   })
 
-  it('should emit error when renderer initialization fails', async () => {
+  it('should surface renderer init failure in loadError tip（组件不再向上 emit error）', async () => {
     // 用 Once 而非 mockImplementation：后者会永久改写实现，污染本文件后续所有
     // 用例的渲染器（测试间无恢复点时表现为 createRenderer 恒抛错、getRenderer() 恒 null）
     mockedCreateRenderer.mockImplementationOnce(() => {
@@ -587,8 +572,8 @@ describe('UnifiedMap Error Handling', () => {
     await flushPromises()
     await new Promise((resolve) => setTimeout(resolve, 50))
 
-    expect(wrapper.emitted('error')).toBeTruthy()
-    expect((wrapper.emitted('error')![0][0] as Error).message).toBe('Renderer init failed')
+    // error 通道零监听已删；失败必须仍落到用户可见的错误提示（loadError → .map-error）
+    expect(wrapper.find('.map-error').text()).toContain('Renderer init failed')
   })
 })
 
@@ -654,43 +639,6 @@ describe('UnifiedMap 呼吸灯透传（设施 POI 多点 + 自定义色）', () 
     wrapper.vm.stopBreathing()
 
     expect(renderer.stopBreathing).toHaveBeenCalled()
-  })
-})
-
-describe('UnifiedMap switchMapType no-op (LIF-6)', () => {
-  let wrapper: VueWrapper<InstanceType<typeof UnifiedMap>>
-  let mapStore: ReturnType<typeof useMapStore>
-  let pinia: ReturnType<typeof createPinia>
-
-  beforeEach(() => {
-    pinia = createPinia()
-    setActivePinia(pinia)
-    vi.clearAllMocks()
-    mapStore = useMapStore()
-  })
-
-  afterEach(() => {
-    wrapper?.unmount()
-  })
-
-  it('should early-return without re-creating renderer when switching to the same type', async () => {
-    wrapper = mount(UnifiedMap, {
-      props: { mapType: '2d' },
-      ...makeMountOptions(mapStore),
-    })
-
-    await new Promise((resolve) => setTimeout(resolve, 50))
-    await flushPromises()
-    await new Promise((resolve) => setTimeout(resolve, 50))
-
-    const callsBefore = mockedCreateRenderer.mock.calls.length
-
-    // 同类型切换（2d → 2d）应走 no-op 分支
-    await wrapper.vm.switchMapType('2d')
-    await flushPromises()
-
-    // 不应再次调用 createRenderer（验证 early-return 生效）
-    expect(mockedCreateRenderer.mock.calls.length).toBe(callsBefore)
   })
 })
 

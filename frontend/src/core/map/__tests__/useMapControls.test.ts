@@ -17,8 +17,6 @@ function fakeMap() {
     flyTo: vi.fn(),
     startBreathing: vi.fn(),
     stopBreathing: vi.fn(),
-    startFacilityBreathing: vi.fn(),
-    stopFacilityBreathing: vi.fn(),
     getRenderer: vi.fn(),
   } as unknown as UnifiedMapExposed
 }

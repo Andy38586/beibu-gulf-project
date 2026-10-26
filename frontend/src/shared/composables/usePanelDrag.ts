@@ -90,8 +90,6 @@ interface UsePanelDragReturn {
   overZone: ReturnType<typeof ref<boolean>>
   /** 绑定到拖拽手柄的 pointerdown */
   onPointerDown: (e: PointerEvent) => void
-  /** 手动中止拖拽（回滚） */
-  abort: () => void
 }
 
 /**
@@ -265,14 +263,6 @@ export function usePanelDrag(options: UsePanelDragOptions = {}): UsePanelDragRet
     target?.setPointerCapture?.(e.pointerId)
   }
 
-  function abort(): void {
-    releaseCapture()
-    if (phase.value === 'dragging') {
-      onCancel?.()
-    }
-    reset()
-  }
-
   const stop = (): void => {
     window.removeEventListener('pointermove', handleMove)
     window.removeEventListener('pointerup', handleUp)
@@ -298,6 +288,5 @@ export function usePanelDrag(options: UsePanelDragOptions = {}): UsePanelDragRet
     offsetY,
     overZone,
     onPointerDown,
-    abort,
   }
 }

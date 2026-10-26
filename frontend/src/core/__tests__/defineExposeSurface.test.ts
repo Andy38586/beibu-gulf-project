@@ -27,15 +27,7 @@ const SKIP_DIR = new Set(['__tests__', '__mocks__', 'node_modules', 'dist', '.lo
 
 /** 白名单：文件（相对 SRC）→ 允许暴露的键（顺序即声明顺序） */
 const ALLOWED: Record<string, string[]> = {
-  'core/map/UnifiedMap.vue': [
-    'switchMapType',
-    'flyTo',
-    'getRenderer',
-    'startBreathing',
-    'stopBreathing',
-    'startFacilityBreathing',
-    'stopFacilityBreathing',
-  ],
+  'core/map/UnifiedMap.vue': ['flyTo', 'getRenderer', 'startBreathing', 'stopBreathing'],
   'business/route-analysis/components/RouteControlPanel.vue': ['handleMapPick', 'handleClear'],
   'business/flood-analysis/components/WaterLevelProfilePanel.vue': [
     'registerRenderers',

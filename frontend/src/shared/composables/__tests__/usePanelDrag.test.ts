@@ -294,20 +294,6 @@ describe('usePanelDrag', () => {
     expect(api.phase.value).toBe('idle')
   })
 
-  it('abort() 手动中止 ⇒ 回滚并复位', async () => {
-    downOnHost(100, 100)
-    window.dispatchEvent(pointer('pointermove', 300, 300))
-    await nextTick()
-    expect(api.phase.value).toBe('dragging')
-
-    api.abort()
-    await nextTick()
-
-    expect(spy.cancel).toHaveBeenCalledTimes(1)
-    expect(api.phase.value).toBe('idle')
-    expect(api.offsetX.value).toBe(0)
-  })
-
   it('ignored pointerId 的 move/up 不影响本次拖拽（多指场景隔离）', async () => {
     downOnHost(100, 100)
     window.dispatchEvent(pointer('pointermove', 300, 300, 99))
@@ -370,18 +356,6 @@ describe('usePanelDrag', () => {
       expect(active.value).toBe(true)
 
       window.dispatchEvent(pointer('pointercancel', 200, 200))
-      await nextTick()
-      expect(active.value).toBe(false)
-    })
-
-    it('abort() 复位（外部强制中止时不留残影）', async () => {
-      const active = useGlobalPanelDragActive()
-      downOnHost(100, 100)
-      window.dispatchEvent(pointer('pointermove', 200, 200))
-      await nextTick()
-      expect(active.value).toBe(true)
-
-      api.abort()
       await nextTick()
       expect(active.value).toBe(false)
     })

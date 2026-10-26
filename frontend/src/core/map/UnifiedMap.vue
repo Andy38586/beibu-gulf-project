@@ -34,11 +34,6 @@ const props = withDefaults(defineProps<Props>(), {
   mapType: '2d',
 })
 
-const emit = defineEmits<{
-  click: [payload: MapRendererEventMap['click']]
-  error: [error: Error]
-}>()
-
 // 两个容器引用（OL始终存在，Cesium首次创建后保留）
 const olContainerRef = ref<HTMLElement | null>(null)
 const cesiumContainerRef = ref<HTMLElement | null>(null)
@@ -300,7 +295,6 @@ async function initRenderer(type: '2d' | '3d', container: HTMLElement | null) {
     logger.error(`Renderer ${type} 初始化失败:`, err)
 
     loadError.value = err.message || '地图初始化失败'
-    emit('error', err)
     // 上抛给 switchMapType 统一回滚（mapType + currentRenderer）；吞错会导致
     // UI 已切新引擎但渲染器仍是旧实例的撕裂态
     throw err
@@ -402,7 +396,7 @@ function isFacilityEventData(data: unknown): data is FacilityBubbleData {
 
 // 具名回调，保存引用供 off 解绑（MapRenderer 事件注册/移除配对契约）
 function handleRendererClick(event: CustomEvent<MapRendererEventMap['click']>): void {
-  const { featureType, data, coordinate } = event.detail
+  const { featureType, data } = event.detail
   // 气泡是 2D Overlay 能力，3D 点击一律只走关闭分支
   const is2D = props.mapType === '2d'
   if (is2D && featureType === 'port' && data && isPortEventData(data)) {
@@ -445,7 +439,6 @@ function handleRendererClick(event: CustomEvent<MapRendererEventMap['click']>): 
     // 空白/非气泡要素/3D（无气泡能力）：关闭气泡
     closeBubble()
   }
-  emit('click', { featureType, data, coordinate })
 }
 
 /** 悬停驱动气泡：命中港口即显、移开即隐；任一气泡钉住时悬浮不打扰（含设施气泡） */
@@ -582,8 +575,6 @@ async function switchMapType(newType: '2d' | '3d') {
         mapStore.setMapType(oldType)
       }
     }
-
-    emit('error', err)
   } finally {
     switching.value = false
     loading.value = false
@@ -620,14 +611,6 @@ function startBreathing(target: GeoPoint | GeoPoint[], color?: string) {
 
 function stopBreathing() {
   currentRenderer.value?.stopBreathing()
-}
-
-function startFacilityBreathing(target: Array<GeoPoint & { color?: string }>, color?: string) {
-  currentRenderer.value?.startFacilityBreathing(target, color)
-}
-
-function stopFacilityBreathing() {
-  currentRenderer.value?.stopFacilityBreathing()
 }
 
 // 监听 mapType 变化触发切换；两引擎容器常驻（v-show），渲染器实例保留复用
@@ -680,7 +663,7 @@ onMounted(async () => {
     try {
       await initRenderer(props.mapType, container)
     } catch {
-      // initRenderer 内部已 emit('error') + 设置 loadError；rethrow 仅服务 switchMapType 回滚，
+      // initRenderer 内部已设置 loadError；rethrow 仅服务 switchMapType 回滚，
       // 首次挂载路径无回滚目标，此处吞掉防止 mounted hook unhandled rejection
     }
     loading.value = false
@@ -746,13 +729,10 @@ onUnmounted(() => {
 })
 
 defineExpose({
-  switchMapType,
   flyTo,
   getRenderer,
   startBreathing,
   stopBreathing,
-  startFacilityBreathing,
-  stopFacilityBreathing,
 })
 </script>
 

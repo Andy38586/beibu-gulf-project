@@ -29,7 +29,7 @@ import { describe, expect, it } from 'vitest'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const SRC = path.resolve(HERE, '..', '..')
-/** 测试件必须纳入扫描面：部分事件只在 \`emitted(...)\` 断言里被消费（如 UnifiedMap 的 click / error） */
+/** 测试件必须纳入扫描面：部分事件只在 \`emitted(...)\` 断言里被消费（UnifiedMap 的 click / error 曾属此列，已随 emit 删空） */
 const SKIP_DIR = new Set(['__mocks__', 'node_modules', 'dist', '.local'])
 
 /** kebab-case ↔ camelCase 在模板里等价，两种拼写都要查 */
@@ -174,8 +174,8 @@ describe('defineEmits 零监听（必要性审判波二·单元 P）', () => {
     ]
     const offenders: string[] = []
     for (const [rel, event] of GONE) {
-      // 只断言「这条事件」不再被声明：文件里若还有别的 emit（GCSPanel 的 drop、
-      // UnifiedMap 的 click/error）属正常保留面，不得因噎废食。
+      // 只断言「这条事件」不再被声明：文件里若还有别的 emit（如 GCSPanel 的 drop）
+      // 属正常保留面，不得因噎废食。
       const declared = declaredEvents(fs.readFileSync(path.join(SRC, rel), 'utf8'))
       if (declared.includes(event)) offenders.push(`${rel}: 重新声明了 ${event}`)
     }

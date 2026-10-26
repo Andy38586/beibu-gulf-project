@@ -1,7 +1,8 @@
 // 入库红样：只做 AST 解析，不被 vitest 收集（.txt）。
-// 期望 tools/lib/__tests__/tools-skip-static.test.mjs 的静态判据命中 8 处：
-// 6 处 only（含元素访问）/ 2 处动态成员或解构。
+// 期望 tools/lib/__tests__/tools-skip-static.test.mjs 的静态判据命中 10 处：
+// 7 处 only（含元素访问/别名）/ 3 处动态成员或解构。
 import { describe, it } from 'vitest'
+import { it as t } from 'vitest'
 import * as v from 'vitest'
 
 it.only('静态 only', () => {})
@@ -11,4 +12,6 @@ it[m]('动态成员', () => {})
 v['it'].only('命名空间元素访问 + only', () => {})
 const { only } = it
 const alias = it.only
+t.only('别名 only', () => {})
+t[m]('别名动态成员', () => {})
 v[n]('命名空间动态成员', () => {})

@@ -154,8 +154,8 @@ function findBlindSpots(fileName, text) {
 describe('tools/scripts 静态跳过判据（only / 动态成员）', () => {
   it(`🔴 ${RED} 入库夹具：only / 动态成员 / 解构 / 别名全部命中`, () => {
     const hits = findBlindSpots(FIXTURE, fs.readFileSync(FIXTURE, 'utf8'))
-    expect(hits.filter((h) => h.kind === 'only')).toHaveLength(6)
-    expect(hits.filter((h) => h.kind === 'dynamic')).toHaveLength(2)
+    expect(hits.filter((h) => h.kind === 'only')).toHaveLength(7)
+    expect(hits.filter((h) => h.kind === 'dynamic')).toHaveLength(3)
   })
 
   it(`🔴 ${RED} 真实 tools/scripts 测试零 only、零动态成员`, () => {

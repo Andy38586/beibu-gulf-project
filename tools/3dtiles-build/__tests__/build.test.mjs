@@ -8,7 +8,9 @@
 //   ③ **实例化确实被用上**：节点必须带 EXT_mesh_gpu_instancing 且 extensionsUsed 声明它。
 //      少了这条声明 Cesium 会忽略扩展 ⇒ 箱子全堆在原点。
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
@@ -977,27 +979,42 @@ describe('桥构件色单源（P3·D23 余项）', () => {
   }
 
   /** 全仓扫描（跳过权威源自身）；返回 { hits, scanned } */
-  function scanRepo() {
+  function scanRepo(root = ROOT) {
     const hits = []
     let scanned = 0
-    const walk = (url, relDir) => {
-      for (const e of fs.readdirSync(url, { withFileTypes: true })) {
-        if (SKIP.has(e.name) || e.name.startsWith('tmp-')) continue
+    const rootDir = root instanceof URL ? fileURLToPath(root) : root
+    const walk = (dir, relDir) => {
+      for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+        if (e.name.includes('%') || SKIP.has(e.name) || e.name.startsWith('tmp-')) continue
         const rel = relDir ? relDir + '/' + e.name : e.name
         if (e.isDirectory()) {
-          walk(new URL(e.name + '/', url), rel)
+          walk(path.join(dir, e.name), rel)
           continue
         }
         if (!/\.(mjs|cjs|js|ts|vue)$/.test(e.name) || rel === PALETTE_REL) continue
         scanned++
         hits.push(
-          ...scanColorTriples(sourceOf(rel, fs.readFileSync(new URL(e.name, url), 'utf8')), rel)
+          ...scanColorTriples(sourceOf(rel, fs.readFileSync(path.join(dir, e.name), 'utf8')), rel)
         )
       }
     }
-    walk(ROOT, '')
+    walk(rootDir, '')
     return { hits, scanned }
   }
+
+  it('含 % 的目录不应 URIError（显式 SKIP）', () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'q2-pct-'))
+    try {
+      const bad = path.join(tmp, '%SystemDrive%', 'Caches')
+      fs.mkdirSync(bad, { recursive: true })
+      fs.writeFileSync(path.join(bad, 'x.mjs'), 'export const A = 1\n')
+      const root = pathToFileURL(tmp + path.sep)
+      expect(() => scanRepo(root)).not.toThrow()
+      expect(scanRepo(root).scanned).toBe(0)
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true })
+    }
+  })
 
   it('权威源形状 = 4 个构件 × 3 通道，且都在 [0,1]', () => {
     expect(Object.keys(BRIDGE_PALETTE)).toEqual(['deck', 'pier', 'rail', 'tower'])

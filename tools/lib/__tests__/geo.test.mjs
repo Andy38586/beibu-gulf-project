@@ -1,4 +1,7 @@
 import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
@@ -89,13 +92,15 @@ function findCopies(source, file, { formulas = true } = {}) {
 }
 
 /** 递归扫全仓（唯一豁免 = 权威源自身） */
-function scanRepo() {
+function scanRepo(root = ROOT) {
   const hits = []
   let scanned = 0
-  const walk = (url, relDir) => {
-    for (const e of fs.readdirSync(url, { withFileTypes: true })) {
+  const rootDir = root instanceof URL ? fileURLToPath(root) : root
+  const walk = (dir, relDir) => {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
       const rel = relDir + e.name
       if (
+        e.name.includes('%') ||
         SKIP.has(e.name) ||
         e.name.startsWith('tmp-') ||
         e.name.startsWith('dist') ||
@@ -103,20 +108,33 @@ function scanRepo() {
       )
         continue
       if (e.isDirectory()) {
-        walk(new URL(e.name + '/', url), rel + '/')
+        walk(path.join(dir, e.name), rel + '/')
         continue
       }
       if (!SCAN_EXT.test(e.name) || rel === GEO_REL || rel === GUARD_REL) continue
       scanned++
-      const src = sourceOf(rel, fs.readFileSync(new URL(e.name, url), 'utf8'))
+      const src = sourceOf(rel, fs.readFileSync(path.join(dir, e.name), 'utf8'))
       hits.push(...findCopies(src, rel, { formulas: rel.startsWith('tools/') }))
     }
   }
-  walk(ROOT, '')
+  walk(rootDir, '')
   return { hits, scanned }
 }
 
 describe('地理底座单源（P4·D24）', () => {
+  it('含 % 的目录不应 URIError（显式 SKIP）', () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'q2-pct-'))
+    try {
+      const bad = path.join(tmp, '%SystemDrive%', 'Caches')
+      fs.mkdirSync(bad, { recursive: true })
+      fs.writeFileSync(path.join(bad, 'x.mjs'), 'export const A = 1\n')
+      const root = pathToFileURL(tmp + path.sep)
+      expect(() => scanRepo(root)).not.toThrow()
+      expect(scanRepo(root).scanned).toBe(0)
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true })
+    }
+  })
   it('权威源形状：WGS84 参数自洽，每度米为正', () => {
     expect(WGS84_A).toBe(6378137)
     expect(WGS84_F).toBe(1 / 298.257223563)

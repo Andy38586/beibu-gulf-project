@@ -8,6 +8,8 @@
  */
 
 // ── 权威源 re-export（后端 task.ts 为唯一权威）─────────────────────────────
+import type { TaskDomain, TaskStatus } from '@backend/modules/task/types/task'
+
 export {
   TASK_STATUSES,
   TASK_DOMAINS,

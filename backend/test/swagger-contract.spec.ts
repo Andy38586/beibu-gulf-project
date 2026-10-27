@@ -34,6 +34,8 @@ const BACKEND_ONLY_PATHS: Record<string, string> = {
   '/health/version': '版本探针（同上）',
   '/csp-report': '浏览器 CSP 上报（nginx report-uri 直通，无前端代码调用）',
   '/forecast': '前端零调用（2026-10-06 实测：ENDPOINTS 与调用点 0 命中）——保留端点',
+  '/route/path':
+    '前端已改走异步任务域（domain=route-path，只调 /task）；该 GET 仅后端 e2e/fixture 与兼容调用使用',
   // Express 遗留兼容端点：权威登记在 backend/src/routes.compat.ts（不在此手抄第二份）
   ...Object.fromEntries(
     COMPAT_ENDPOINTS.map((e) => [

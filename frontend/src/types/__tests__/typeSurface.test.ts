@@ -30,7 +30,7 @@ interface Case {
 }
 
 const CASES: Case[] = [
-  { file: 'types/task.ts', internal: 'TaskError', publicAnchor: 'TaskView' },
+  { file: 'types/task.ts', internal: 'TaskError', publicAnchor: 'TaskSlot' },
   {
     file: 'shared/composables/useAuth.ts',
     internal: 'UseAuthReturn',

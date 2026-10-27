@@ -355,8 +355,9 @@ md5 双向 `F7712FF7…`）⇒ `GAP … selected=1 tris=1508 px=0` EXIT=1；旧�
   省水池是独立 `poolWater`，闸室 `waterDynamic` 在打包时剔除，开挖面是 `earth/rock`，均不入 `water`。
   上一版“water 含省水池/宽度污染、中心线对齐产生假残差”的判断作废。
 - **真正剩余**：① `h.head=29.6` 高于岸顶 `YT=29.0` 0.6 m，水面顶宽 132.2 vs 岸顶 131.2，外溢约 1 m
-  ——改设计水位/岸顶属交付包侧，需另裁；② `backend/static/pinglu/README.md:30` 仍指 20260921/07，
-  实物是 20260928 包；③ `madao-low` 水面比 `z2` 高约 58 m，远距 LOD 切换可能跳变。以上均不是平移。
+  ——改设计水位/岸顶属交付包侧，需另裁；② `backend/static/pinglu/README.md:30` 已在本笔改为
+  20260928 包（09-21/07 仅作历史）；③ `madao-low` 水面比 `z2` 高约 58 m，远距 LOD 切换可能跳变。
+  以上均不是平移。
 - **证据**：`.local/3d-madao-decision-20261027.md`、`.local/3d-water-semantics-20261027.md`
   （WorkBuddy 只读事实包）；本机复跑 az=180.800192、`decision-overlay.py madao ...` 自检失败为上述 17° 差。
 - **失效条件**：换影像/交付包，或 `water` 几何重做后，本结论作废；结构基准 180 的依据目前

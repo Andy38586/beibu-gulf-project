@@ -21,6 +21,12 @@ describe('深路径穿透棘轮判据（W59）', () => {
     expect(Object.entries(current.byGroup).every(([g, n]) => baseline.byGroup[g] === n)).toBe(true)
   })
 
+  it('基线自相矛盾（total≠items.length）⇒ 红（Q26）', () => {
+    const baseline = { ...readBaseline(), total: readBaseline().total + 1 }
+    const bad = compare(currentCounts(), baseline)
+    expect(bad.some((b) => b.includes('基线自相矛盾'))).toBe(true)
+  })
+
   it('持平通过；总量上涨即红且点名涨幅', () => {
     const baseline = readBaseline()
     const current = currentCounts()

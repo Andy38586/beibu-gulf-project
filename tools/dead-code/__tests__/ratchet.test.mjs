@@ -15,7 +15,7 @@ import { compare } from '../ratchet.mjs'
 const BASE = {
   totalDead: 10,
   totalRedundantExport: 20,
-  byModule: { 'frontend/src/types': 5, 'backend/src/modules': 2 },
+  byModule: { 'frontend/src/types': 5, 'backend/src/modules': 5 },
 }
 
 describe('dead-code 棘轮 — 基线只许下降或持平', () => {
@@ -23,6 +23,12 @@ describe('dead-code 棘轮 — 基线只许下降或持平', () => {
     const bad = compare({ ...BASE, totalDead: 11 }, BASE)
     expect(bad).toHaveLength(1)
     expect(bad[0]).toContain('totalDead 上涨')
+  })
+
+  it('基线自相矛盾（totalDead≠dead.length）⇒ 红（Q26）', () => {
+    const b = { totalDead: 1, dead: [] }
+    const bad = compare({ totalDead: 0, byModule: {} }, b)
+    expect(bad.some((x) => x.includes('基线自相矛盾'))).toBe(true)
   })
 
   it('@guard-red-sample 按模块上涨 ⇒ 必报（总量持平也抓得住）', () => {

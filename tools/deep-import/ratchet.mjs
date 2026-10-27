@@ -40,9 +40,16 @@ import { fileURLToPath } from 'node:url'
 import { emptyInputProblem } from '../v3-guard/lib/input-set.mjs'
 
 import { scanDeepImports } from './scan.mjs'
-import { applyRatchetUpdate, failRatchet, parseRatchetArgs } from '../lib/ratchet-main.mjs'
+import {
+  applyRatchetUpdate,
+  baselineSelfConflict,
+  failRatchet,
+  parseRatchetArgs,
+  warnBaselineDegradation,
+} from '../lib/ratchet-main.mjs'
 
 const TAG = '[deep-import-ratchet]'
+const BASELINE_SHAPE = { metric: 'total', items: 'items', byGroup: 'byGroup' }
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 export const BASELINE_PATH = path.join(ROOT, 'tools/deep-import/baseline.json')
@@ -62,6 +69,7 @@ export function currentCounts() {
  */
 export function compare(current, baseline) {
   const bad = []
+  bad.push(...baselineSelfConflict(baseline, BASELINE_SHAPE).errors)
   // 空分母：扫到 0 条而基线非 0 ⇒ 扫描条件失效，不是「债清零了」
   const empty = emptyInputProblem(current.total, {
     what: '深路径穿透',
@@ -96,6 +104,7 @@ function main() {
   }
   const baselinePath = args.baseline ? path.resolve(ROOT, args.baseline) : BASELINE_PATH
   const baseline = JSON.parse(fs.readFileSync(baselinePath, 'utf8'))
+  warnBaselineDegradation(TAG, baseline, BASELINE_SHAPE)
   const current = currentCounts()
   const bad = compare(current, baseline)
 

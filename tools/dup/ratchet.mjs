@@ -27,9 +27,21 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { applyRatchetUpdate, failRatchet, parseRatchetArgs } from '../lib/ratchet-main.mjs'
+import {
+  applyRatchetUpdate,
+  baselineSelfConflict,
+  failRatchet,
+  parseRatchetArgs,
+  warnBaselineDegradation,
+} from '../lib/ratchet-main.mjs'
 
 const TAG = '[dup-ratchet]'
+const BASELINE_SHAPE = {
+  metric: 'totalGroups',
+  items: 'groups',
+  tokenMetric: 'totalRedundantTokens',
+  byModule: 'byModule',
+}
 
 import { scanDuplication } from './scan.mjs'
 
@@ -71,6 +83,7 @@ export function currentCounts() {
  */
 export function compare(current, baseline) {
   const bad = []
+  bad.push(...baselineSelfConflict(baseline, BASELINE_SHAPE).errors)
   if (current.totalGroups > baseline.totalGroups) {
     bad.push(
       `totalGroups 上涨：${baseline.totalGroups} → ${current.totalGroups}` +
@@ -95,6 +108,7 @@ export function compare(current, baseline) {
 function main() {
   const args = parseRatchetArgs(process.argv.slice(2))
   const baseline = JSON.parse(fs.readFileSync(BASELINE_PATH, 'utf8'))
+  warnBaselineDegradation(TAG, baseline, BASELINE_SHAPE)
   const current = currentCounts()
   const bad = compare(current, baseline)
 

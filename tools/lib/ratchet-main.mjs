@@ -10,6 +10,67 @@ import fs from 'node:fs'
  */
 
 /**
+ * 基线自洽判据（Q26）：`metric` 必须与条目列表长度、分组求和一致。
+ * - 列表/分组存在但不等 ⇒ errors（compare 会红）；
+ * - 老格式缺列表/分组 ⇒ warnings（不红，但 main 必须打印，不能静默跳过）。
+ * spec: { metric, items?, byGroup?, tokenMetric?, byModule? }
+ */
+export function baselineSelfConflict(
+  baseline,
+  { metric, items, byGroup, tokenMetric, byModule } = {}
+) {
+  const errors = []
+  const warnings = []
+  if (!baseline || typeof baseline !== 'object') return { errors: ['基线不是对象'], warnings }
+  if (!Number.isFinite(baseline[metric])) return { errors: [`基线缺数值字段 ${metric}`], warnings }
+  if (items) {
+    if (!Array.isArray(baseline[items])) {
+      warnings.push(`基线为老格式（缺 ${items}）：跳过 ${metric} 与条目数自洽校验`)
+    } else if (baseline[items].length !== baseline[metric]) {
+      errors.push(
+        `基线自相矛盾：${metric}=${baseline[metric]}，但 ${items}.length=${baseline[items].length}`
+      )
+    }
+  }
+  if (byGroup) {
+    if (!baseline[byGroup] || typeof baseline[byGroup] !== 'object') {
+      warnings.push(`基线为老格式（缺 ${byGroup}）：跳过 ${metric} 与分组求和自洽校验`)
+    } else {
+      const sum = Object.values(baseline[byGroup]).reduce(
+        (a, c) => a + (Number.isFinite(c) ? c : 0),
+        0
+      )
+      if (sum !== baseline[metric]) {
+        errors.push(`基线自相矛盾：${metric}=${baseline[metric]}，但 Σ${byGroup}=${sum}`)
+      }
+    }
+  }
+  if (tokenMetric && byModule) {
+    if (!Number.isFinite(baseline[tokenMetric])) {
+      errors.push(`基线缺数值字段 ${tokenMetric}`)
+    } else if (!baseline[byModule] || typeof baseline[byModule] !== 'object') {
+      warnings.push(`基线为老格式（缺 ${byModule}）：跳过 ${tokenMetric} 与分组求和自洽校验`)
+    } else {
+      const sum = Object.values(baseline[byModule]).reduce(
+        (a, c) => a + (Number.isFinite(c) ? c : 0),
+        0
+      )
+      if (sum !== baseline[tokenMetric]) {
+        errors.push(`基线自相矛盾：${tokenMetric}=${baseline[tokenMetric]}，但 Σ${byModule}=${sum}`)
+      }
+    }
+  }
+  return { errors, warnings }
+}
+
+/** main 侧打印“老格式/缺字段”降级；compare 只吃 errors，不吃 warnings。 */
+export function warnBaselineDegradation(tag, baseline, spec) {
+  for (const w of baselineSelfConflict(baseline, spec).warnings) {
+    console.warn(`${tag} 基线降级：${w}`)
+  }
+}
+
+/**
  * 棘轮 CLI 参数：--update 开关 + --note/--kind 取值 + 额外取值旗标（如 --baseline）。
  * extraValueFlags 传旗标名（不带 --），解析结果放在同名键上，缺省 null。
  */

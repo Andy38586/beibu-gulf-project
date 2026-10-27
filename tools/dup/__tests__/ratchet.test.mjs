@@ -14,6 +14,12 @@ describe('dup 棘轮 compare（基线只许下降或持平）', () => {
     expect(bad.some((b) => b.includes('totalGroups'))).toBe(true)
   })
 
+  it('基线自相矛盾（totalGroups≠groups.length）⇒ 红（Q26）', () => {
+    const b = { totalGroups: 2, groups: [{}], totalRedundantTokens: 0, byModule: {} }
+    const bad = compare({ totalGroups: 0, totalRedundantTokens: 0, byModule: {} }, b)
+    expect(bad.some((x) => x.includes('基线自相矛盾'))).toBe(true)
+  })
+
   it('组数持平但 token 上涨 ⇒ 红（同一组长得更长也是恶化）', () => {
     const bad = compare({ ...BASE, totalRedundantTokens: 130 }, BASE)
     expect(bad.some((b) => b.includes('totalRedundantTokens'))).toBe(true)

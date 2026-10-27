@@ -33,9 +33,16 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { groupByModule, scan } from './scan.mjs'
-import { applyRatchetUpdate, failRatchet, parseRatchetArgs } from '../lib/ratchet-main.mjs'
+import {
+  applyRatchetUpdate,
+  baselineSelfConflict,
+  failRatchet,
+  parseRatchetArgs,
+  warnBaselineDegradation,
+} from '../lib/ratchet-main.mjs'
 
 const TAG = '[dead-code-ratchet]'
+const BASELINE_SHAPE = { metric: 'totalDead', items: 'dead', byGroup: 'byModule' }
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 export const BASELINE_PATH = path.join(ROOT, 'tools/dead-code/dead-code-baseline.json')
@@ -70,6 +77,7 @@ const RATCHET_FIELDS = [
  */
 export function compare(current, baseline) {
   const bad = []
+  bad.push(...baselineSelfConflict(baseline, BASELINE_SHAPE).errors)
   for (const { key, fallback, tail } of RATCHET_FIELDS) {
     const base = baseline[key] ?? fallback
     if (current[key] > base) {
@@ -88,6 +96,7 @@ export function compare(current, baseline) {
 function main() {
   const args = parseRatchetArgs(process.argv.slice(2))
   const baseline = JSON.parse(fs.readFileSync(BASELINE_PATH, 'utf8'))
+  warnBaselineDegradation(TAG, baseline, BASELINE_SHAPE)
   const current = currentCounts()
   const bad = compare(current, baseline)
 

@@ -1,14 +1,14 @@
 {
   "generatedFrom": "tools/dup/scan.mjs",
   "minTokens": 12,
-  "totalGroups": 96,
-  "totalRedundantTokens": 1533,
+  "totalGroups": 94,
+  "totalRedundantTokens": 1470,
   "callSiteGroups": 11,
   "callSiteTokens": 408,
   "moduleDeclGroups": 1,
   "moduleDeclTokens": 24,
   "byModule": {
-    "跨模块": 165,
+    "跨模块": 102,
     "frontend/src/business": 158,
     "frontend/src/core": 607,
     "frontend/src/types": 86,
@@ -28,14 +28,6 @@
         "frontend/src/shared/constants/flood.ts"
       ],
       "redundantTokens": 64,
-      "kind": "block"
-    },
-    {
-      "text": "export interface TaskView { taskId : string domain : TaskDomain route : string status : TaskStatus progress : number queuePosition ? : number retryCount : number result ? : unknown error ? : TaskError createdAtMs : number startedAt ? : number finishedAt ? : number }",
-      "tokenCount": 46,
-      "count": 2,
-      "files": ["backend/src/modules/task/types/task.ts", "frontend/src/types/task.ts"],
-      "redundantTokens": 46,
       "kind": "block"
     },
     {
@@ -318,14 +310,6 @@
         "backend/src/modules/plans/repositories/plans.repository.ts",
         "backend/src/modules/plans/services/plans.service.ts"
       ],
-      "redundantTokens": 17,
-      "kind": "block"
-    },
-    {
-      "text": "export interface TaskSubmitResponse { taskId : string status : TaskStatus queuePosition : number createdAtMs : number }",
-      "tokenCount": 17,
-      "count": 2,
-      "files": ["backend/src/modules/task/types/task.ts", "frontend/src/types/task.ts"],
       "redundantTokens": 17,
       "kind": "block"
     },
@@ -870,7 +854,7 @@
       "kind": "call-site"
     }
   ],
-  "updatedAt": "2026-10-26",
+  "updatedAt": "2026-10-27",
   "history": [
     {
       "at": "2026-10-17",
@@ -955,6 +939,13 @@
       "totalRedundantTokens": 1533,
       "kind": "真清理",
       "note": "HomePage/ProfilePage 懒加载图表抽取到 lazyCharts.ts，消除重复定义"
+    },
+    {
+      "at": "2026-10-27",
+      "totalGroups": 94,
+      "totalRedundantTokens": 1470,
+      "kind": "未标注",
+      "note": "TASK_DOMAINS_状态机切后端权威源前端删副本"
     }
   ]
 }

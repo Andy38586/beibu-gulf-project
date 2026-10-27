@@ -1,68 +1,33 @@
 /**
- * v4 异步任务的前端类型（与后端 `backend/src/modules/task/types/task.ts` 对齐）。
+ * v4 异步任务的前端类型。
  *
- * 🔴 维护约束：两侧字段必须同步。后端是权威，前端是消费副本。
- * 若字段漂移，`GET /task/:id` 的 `result` 会静默取不到值——表现为「任务成功但没结果」，
- * 比报错更难查。改动后端 `TaskView` 时必须回到本文件同步。
+ * 🔴 权威源切换（必要性审判）：运行期常量与状态/域类型以
+ * `backend/src/modules/task/types/task.ts` 为唯一权威源，前端从此处 re-export。
+ * 前端只保留运行时无关的接口（TaskError 内嵌 TaskView/TaskSlot、TaskSlot 槽位结构）。
+ * 改动后端 TaskView 字段时，本文件的 TaskView 镜像需同步（字段漂移会导致 GET /task/:id 的 result 静默取不到）。
  */
 
-/**
- * 任务状态机（与后端一致）：pending → running → (retrying →) done | failed | cancelled
- *
- * 由运行期数组派生（与后端 TASK_DOMAINS 同一手法）：zod 契约校验需要运行期值，
- * 枚举写字面量联合时校验只能退化成 z.string()、后端删字段抓不住。
- */
-export const TASK_STATUSES = [
-  'pending',
-  'running',
-  'retrying',
-  'done',
-  'failed',
-  'cancelled',
-] as const
+// ── 权威源 re-export（后端 task.ts 为唯一权威）─────────────────────────────
+export {
+  TASK_STATUSES,
+  TASK_DOMAINS,
+  isActiveStatus,
+  isTerminalStatus,
+} from '@backend/modules/task/types/task'
+export type {
+  TaskStatus,
+  TaskPriority,
+  TaskDomain,
+  TaskView,
+  TaskSubmitResponse,
+} from '@backend/modules/task/types/task'
 
-export type TaskStatus = (typeof TASK_STATUSES)[number]
-
-/** 优先级：当前路由 = high（插队首），后台路由 = normal（队尾） */
-export type TaskPriority = 'high' | 'normal'
-
-/** 可提交的任务域（与后端 TaskHandlers 支持的域一致，多一个都会被 400 拒绝） */
-export const TASK_DOMAINS = ['flood-areas', 'route-path', 'site-suitability-map'] as const
-
-export type TaskDomain = (typeof TASK_DOMAINS)[number]
+// ── 前端独有类型 ──────────────────────────────────────────────────────────
 
 /** 任务失败信息（只被本文件的 TaskView/TaskSlot 引用，2026-10-19 必要性审判收为模块内部） */
 interface TaskError {
   message: string
   bizCode?: number
-}
-
-/** `POST /task` 响应 */
-export interface TaskSubmitResponse {
-  taskId: string
-  status: TaskStatus
-  queuePosition: number
-  /** epoch-ms；与 user/plan 的 ISO string createdAt 同名异义，Ms 后缀区分（1004-F11） */
-  createdAtMs: number
-}
-
-/** `GET /task/:id` 响应（后端 TaskView 的镜像） */
-export interface TaskView {
-  taskId: string
-  domain: TaskDomain
-  route: string
-  status: TaskStatus
-  /** 🔴 阶段式（0 → 0.1 → 1），**不是**真实百分比。见后端 task-queue.runOnce 注释 */
-  progress: number
-  /** 仅 status='pending' 时有值（1 = 下一个执行） */
-  queuePosition?: number
-  /** 🔴 已重试次数。**不得显示给用户**（口径 #17），只用于内部判断 */
-  retryCount: number
-  result?: unknown
-  error?: TaskError
-  createdAtMs: number
-  startedAt?: number
-  finishedAt?: number
 }
 
 /**
@@ -90,14 +55,4 @@ export interface TaskSlot {
   submitSeq: number
   /** 该槽位是否已被「拖进 dock」（true = 面板收起、任务在后台跑） */
   docked: boolean
-}
-
-/** 判断是否为终态（done/failed/cancelled 都不再变化，可停止轮询） */
-export function isTerminalStatus(status: TaskStatus): boolean {
-  return status === 'done' || status === 'failed' || status === 'cancelled'
-}
-
-/** 判断是否为活跃态（还没跑完） */
-export function isActiveStatus(status: TaskStatus): boolean {
-  return status === 'pending' || status === 'running' || status === 'retrying'
 }

@@ -8,16 +8,35 @@
 // 必须长于 HTTP 请求。同步的 `await service.xxx()` 做不到这点（连接断了就没了），
 // 所以改成「POST 立即返回 taskId，计算在服务端后台推进」。
 
-/** 任务状态机：pending → running → (retrying →) done | failed | cancelled */
-export type TaskStatus = 'pending' | 'running' | 'retrying' | 'done' | 'failed' | 'cancelled'
+/**
+ * 任务状态机：pending → running → (retrying →) done | failed | cancelled
+ *
+ * 由运行期数组派生（与 TASK_DOMAINS 同一手法）：前端 zod 契约校验需要运行期值，
+ * 且前后端共享此唯一权威源。
+ */
+export const TASK_STATUSES = [
+  'pending',
+  'running',
+  'retrying',
+  'done',
+  'failed',
+  'cancelled',
+] as const
+
+export type TaskStatus = (typeof TASK_STATUSES)[number]
 
 /**
  * 活跃态 / 终态判定——后端唯一权威源（必要性审判波次二·单元 H）。
  * 此前该判据在 task.service.ts / task-registry.ts / 前端三个 core 组件各手抄一份，改一处漏四处。
  * 两谓词互斥且合起来恰为 TaskStatus 全集，由 frontend/src/types/__tests__/taskStatus.test.ts 守护。
+ * 从 TASK_STATUSES filter 派生，保证与状态机定义同源。
  */
-const ACTIVE_STATUSES: readonly TaskStatus[] = ['pending', 'running', 'retrying']
-const TERMINAL_STATUSES: readonly TaskStatus[] = ['done', 'failed', 'cancelled']
+const ACTIVE_STATUSES: readonly TaskStatus[] = TASK_STATUSES.filter(
+  (s): s is TaskStatus => s === 'pending' || s === 'running' || s === 'retrying'
+)
+const TERMINAL_STATUSES: readonly TaskStatus[] = TASK_STATUSES.filter(
+  (s): s is TaskStatus => s === 'done' || s === 'failed' || s === 'cancelled'
+)
 
 export function isActiveStatus(status: TaskStatus): boolean {
   return ACTIVE_STATUSES.includes(status)

@@ -285,25 +285,12 @@ describe('auditSharedConstants — 跨进程常量一致性', () => {
     expect(problems.some((p) => p.includes('寻路 mode') && p.includes('多 [walk]'))).toBe(true)
   })
 
-  it('@guard-red-sample 后端 TASK_DOMAINS 新增域而前端未同步 ⇒ 必红', () => {
+  it('@guard-red-sample 后端 TASK_DOMAINS 删空 ⇒ 必红（权威源必须有定义）', () => {
     const problems = auditSharedConstants({
       ...base,
       backendTaskDomains: BACKEND_TASK_DOMAINS.replace(
-        "'site-suitability-map'",
-        "'site-suitability-map', 'forecast-map'"
-      ),
-    })
-    expect(problems.some((p) => p.includes('TASK_DOMAINS') && p.includes('forecast-map'))).toBe(
-      true
-    )
-  })
-
-  it('@guard-red-sample 前端 TASK_DOMAINS 顺序不同 ⇒ 必红（顺序敏感）', () => {
-    const problems = auditSharedConstants({
-      ...base,
-      frontendTaskDomains: FRONTEND_TASK_DOMAINS.replace(
-        "['flood-areas', 'route-path', 'site-suitability-map']",
-        "['route-path', 'flood-areas', 'site-suitability-map']"
+        /export const TASK_DOMAINS = \[[\s\S]*?\] as const/,
+        'export const TASK_DOMAINS = [] as const'
       ),
     })
     expect(problems.some((p) => p.includes('TASK_DOMAINS'))).toBe(true)

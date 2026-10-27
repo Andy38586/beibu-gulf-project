@@ -283,39 +283,53 @@ describe('任务状态判据单源守卫', () => {
       arrays: {},
     }
     const walk = (node: ts.Node): void => {
-      if (
-        ts.isTypeAliasDeclaration(node) &&
-        node.name.text === 'TaskStatus' &&
-        ts.isUnionTypeNode(node.type)
-      ) {
-        found.members = node.type.types
-          .map((t) =>
-            ts.isLiteralTypeNode(t) && ts.isStringLiteral(t.literal) ? t.literal.text : null
-          )
-          .filter((x): x is string => x !== null)
+      // TASK_STATUSES 以 `as const` 断言包裹数组字面量 ⇒ initializer 是 AsExpression。
+      const arrLit =
+        ts.isAsExpression(node) && ts.isArrayLiteralExpression(node.expression)
+          ? node.expression
+          : ts.isArrayLiteralExpression(node)
+            ? node
+            : undefined
+      if (arrLit) {
+        const parentVar = node.parent
+        if (
+          ts.isVariableDeclaration(parentVar) &&
+          ts.isIdentifier(parentVar.name) &&
+          parentVar.name.text === 'TASK_STATUSES'
+        ) {
+          found.members = arrLit.elements
+            .map((e) => (ts.isStringLiteral(e) ? e.text : null))
+            .filter((x): x is string => x !== null)
+        }
       }
-      // 后端权威枚举的载体是模块私有数组 ⇒ 联合与数组任一侧漏改都要红
+      // 后端权威枚举的载体是模块私有数组 ⇒ 联合与数组任一侧漏改都要红。
+      // ACTIVE/TERMINAL_STATUSES 可能是字面量数组，也可能是 TASK_STATUSES.filter(...) 派生——
+      // filter 形参箭头函数体里的字面量比较仍是载体。
       if (
         ts.isVariableDeclaration(node) &&
         ts.isIdentifier(node.name) &&
-        node.initializer !== undefined &&
-        ts.isArrayLiteralExpression(node.initializer) &&
-        (node.name.text === 'ACTIVE_STATUSES' || node.name.text === 'TERMINAL_STATUSES')
+        node.initializer !== undefined
       ) {
-        found.arrays[node.name.text] = node.initializer.elements
-          .map((e) => (ts.isStringLiteral(e) ? e.text : null))
-          .filter((x): x is string => x !== null)
+        if (node.name.text === 'ACTIVE_STATUSES' || node.name.text === 'TERMINAL_STATUSES') {
+          const lits: string[] = []
+          const collectLits = (n: ts.Node): void => {
+            if (ts.isStringLiteral(n)) lits.push(n.text)
+            ts.forEachChild(n, collectLits)
+          }
+          collectLits(node.initializer)
+          found.arrays[node.name.text] = lits
+        }
       }
       ts.forEachChild(node, walk)
     }
     ts.forEachChild(sf, walk)
-    expect(found.members, '后端 TaskStatus 联合类型未找到').not.toBeNull()
+    expect(found.members, '后端 TASK_STATUSES 数组未找到').not.toBeNull()
     expect([...(found.members ?? [])].sort()).toEqual([...TASK_STATUSES].sort())
-    expect(found.arrays.ACTIVE_STATUSES, '后端 ACTIVE_STATUSES 数组未找到').toBeDefined()
-    expect(found.arrays.TERMINAL_STATUSES, '后端 TERMINAL_STATUSES 数组未找到').toBeDefined()
+    expect(found.arrays.ACTIVE_STATUSES, '后端 ACTIVE_STATUSES 未找到').toBeDefined()
+    expect(found.arrays.TERMINAL_STATUSES, '后端 TERMINAL_STATUSES 未找到').toBeDefined()
     const union = [...found.arrays.ACTIVE_STATUSES, ...found.arrays.TERMINAL_STATUSES]
     expect(new Set(union).size, '活跃/终态数组必须互斥').toBe(union.length)
-    expect([...union].sort(), '两数组必须恰好覆盖 TaskStatus 全集').toEqual(
+    expect([...union].sort(), '两数组必须恰好覆盖 TASK_STATUSES 全集').toEqual(
       [...(found.members ?? [])].sort()
     )
   })

@@ -104,6 +104,10 @@ export default defineConfig(({ mode, command }) => {
       //   mode==='test' 时跳过：vitest 直接跑源码、没有 window.Cesium，要让它走 npm 包。
       alias: [
         { find: '@', replacement: fileURLToPath(new URL('./src', import.meta.url)) },
+        {
+          find: '@backend',
+          replacement: fileURLToPath(new URL('../backend/src', import.meta.url)),
+        },
         ...(command === 'serve' && mode !== 'test'
           ? [
               {

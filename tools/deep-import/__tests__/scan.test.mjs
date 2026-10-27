@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { afterAll, describe, expect, it } from 'vitest'
 
 import { currentCounts } from '../ratchet.mjs'
-import { scanDeepImports } from '../scan.mjs'
+import { scanDeepImports, walkTree } from '../scan.mjs'
 
 const TMP_ROOTS = []
 afterAll(() => TMP_ROOTS.forEach((r) => fs.rmSync(r, { recursive: true, force: true })))
@@ -107,6 +107,30 @@ describe('深路径穿透扫描口径（W59）', () => {
     // 目标组没有入口 ⇒ 存量形态（core/index.ts 31 条、shared/index.ts 49 条），豁免
     delete files['business/forecast/index.ts']
     expect(scanDeepImports(makeTree(files))).toEqual([])
+  })
+
+  it('不可读目录跳过并计数，不崩（Q28）', () => {
+    const root = path.join('virtual-root')
+    const readdir = (dir) => {
+      if (dir === root) {
+        return [
+          { name: 'ok.ts', isDirectory: () => false },
+          { name: 'blocked', isDirectory: () => true },
+        ]
+      }
+      if (dir === path.join(root, 'blocked')) {
+        const err = new Error('EPERM: operation not permitted')
+        err.code = 'EPERM'
+        throw err
+      }
+      return []
+    }
+    const skipped = []
+    const out = walkTree(root, { readdir, skipped })
+    expect(out).toEqual([path.join(root, 'ok.ts')])
+    expect(skipped).toHaveLength(1)
+    expect(skipped[0].code).toBe('EPERM')
+    expect(skipped[0].dir).toBe(path.join(root, 'blocked'))
   })
 
   it('真实树口径回归锚：当前存量与基线一致（防口径悄悄漂移）', () => {

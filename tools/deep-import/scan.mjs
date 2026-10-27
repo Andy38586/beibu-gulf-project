@@ -33,12 +33,24 @@ export const SRC = path.join(ROOT, 'frontend/src')
 /** 与本项目 cruise 配置同一套排除口径（`.dependency-cruiser.cjs` options.exclude.path） */
 const EXCLUDE_RE = /(__tests__|\.test\.|\.spec\.)/
 
-const walk = (dir, out = []) => {
-  for (const e of readdirSync(dir, { withFileTypes: true })) {
+/**
+ * 递归收集 .ts/.vue 文件。
+ * `readdir` 可注入（测试用）：不可读目录**不崩**——记入 `skipped` 后继续，
+ * 与 `entryGroups()` 的容错口径对齐（Q28）。不能纯静默：调用方必须打印 skipped。
+ */
+export function walkTree(dir, { out = [], readdir = readdirSync, skipped = [] } = {}) {
+  let entries
+  try {
+    entries = readdir(dir, { withFileTypes: true })
+  } catch (err) {
+    skipped.push({ dir, code: err?.code ?? 'UNKNOWN', message: err?.message ?? String(err) })
+    return out
+  }
+  for (const e of entries) {
     const p = path.join(dir, e.name)
     if (e.isDirectory()) {
       if (EXCLUDE_RE.test(e.name)) continue
-      walk(p, out)
+      walkTree(p, { out, readdir, skipped })
     } else if (/\.(ts|vue)$/.test(e.name) && !EXCLUDE_RE.test(e.name)) out.push(p)
   }
   return out
@@ -103,7 +115,15 @@ const entryGroups = (srcRoot) => {
 export function scanDeepImports(srcRoot = SRC) {
   const entries = entryGroups(srcRoot)
   const rows = []
-  for (const file of walk(srcRoot)) {
+  const skipped = []
+  const files = walkTree(srcRoot, { skipped })
+  if (skipped.length) {
+    console.warn(
+      `[deep-import] 跳过 ${skipped.length} 个不可读目录（不静默）：` +
+        skipped.map((s) => `${s.dir}${s.code ? `(${s.code})` : ''}`).join(', ')
+    )
+  }
+  for (const file of files) {
     const rel = path.relative(srcRoot, file).split(path.sep).join('/')
     // 口径 2：入口文件是公开面的定义处；但目标组已有入口时必须走入口，不能穿透
     const isEntry = path.basename(rel) === 'index.ts'

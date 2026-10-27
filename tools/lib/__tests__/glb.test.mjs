@@ -1,5 +1,7 @@
 import fs from 'node:fs'
-import { fileURLToPath } from 'node:url'
+import os from 'node:os'
+import path from 'node:path'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
@@ -102,17 +104,24 @@ function findCopies(source, file) {
 }
 
 /** 递归扫 tools/（豁免：权威源自身、判据自身、*.test.*） */
-function scanRepo() {
+function scanRepo(root = TOOLS) {
   const hits = []
   let scanned = 0
-  const walk = (url, relDir) => {
-    for (const e of fs.readdirSync(url, { withFileTypes: true })) {
+  const rootDir = root instanceof URL ? fileURLToPath(root) : root
+  const walk = (dir, relDir) => {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
       const rel = relDir + e.name
       // dist* 是构建产物（含 vendored Cesium 打包件），不是站点；与 geo.test.mjs 同口径
-      if (SKIP.has(e.name) || e.name.startsWith('tmp-') || e.name.startsWith('dist')) continue
+      if (
+        e.name.includes('%') ||
+        SKIP.has(e.name) ||
+        e.name.startsWith('tmp-') ||
+        e.name.startsWith('dist')
+      )
+        continue
       if (e.name.startsWith('.')) continue
       if (e.isDirectory()) {
-        walk(new URL(e.name + '/', url), rel + '/')
+        walk(path.join(dir, e.name), rel + '/')
         continue
       }
       if (
@@ -123,10 +132,10 @@ function scanRepo() {
       )
         continue
       scanned++
-      hits.push(...findCopies(fs.readFileSync(new URL(e.name, url), 'utf8'), rel))
+      hits.push(...findCopies(fs.readFileSync(path.join(dir, e.name), 'utf8'), rel))
     }
   }
-  walk(TOOLS, 'tools/')
+  walk(rootDir, 'tools/')
   return { hits, scanned }
 }
 
@@ -154,6 +163,20 @@ describe('GLB 读链单源（P4 遗留 glb.py/glb.mjs 补做）', () => {
         .sort((a, b) => a - b)
     ).toEqual([5120, 5121, 5122, 5123, 5125, 5126])
     expect(Object.keys(NC).sort()).toEqual(['SCALAR', 'VEC2', 'VEC3', 'VEC4'])
+  })
+
+  it('含 % 的目录不应 URIError（显式 SKIP）', () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'q2-glb-'))
+    try {
+      const bad = path.join(tmp, '%SystemDrive%', 'Caches')
+      fs.mkdirSync(bad, { recursive: true })
+      fs.writeFileSync(path.join(bad, 'x.mjs'), 'export const A = 1\n')
+      const root = pathToFileURL(tmp + path.sep)
+      expect(() => scanRepo(root)).not.toThrow()
+      expect(scanRepo(root).scanned).toBe(0)
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true })
+    }
   })
 
   it('真语料取数：入库 canal.glb 可读且元素宽度 = componentType 原生宽度', () => {

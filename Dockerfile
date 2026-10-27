@@ -41,6 +41,11 @@ RUN npm ci --no-audit --no-fund
 # 前端源码与 vite 配置
 COPY frontend/ ./frontend/
 
+# @backend 类型别名的权威源（frontend/tsconfig.app.json + vite.config.js 指向
+# ../backend/src）：只拷 frontend/ 时 vite build 会 TS2307。task 类型是当前唯一
+# 跨端构建期依赖，故只拷这一个最小目录；新增 @backend 引用须同步本行。
+COPY backend/src/modules/task/types ./backend/src/modules/task/types
+
 # 触发 vite build → frontend/dist
 RUN npm run build
 

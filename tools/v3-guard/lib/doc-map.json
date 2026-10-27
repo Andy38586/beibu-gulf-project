@@ -277,6 +277,18 @@
       "ts": "2026-10-19"
     },
     {
+      "id": "RUNBOOK-DATA-CHAIN",
+      "path": "docs/日志/状态/数据链排障入口.md",
+      "layer": "日志",
+      "role": "数据链故障定位手册（专项1 指标 7.1–7.4 的入口件：rid 反查 / 契约校验 / 图层面三症状；不复述端点路径，取 ENDPOINTS 与 routes.manifest.ts 权威）",
+      "status": "active",
+      "guard": "tools/v3-guard/doc-map-check.mjs",
+      "owns": ["数据链排障入口与顺序"],
+      "readWhen": ["D", "接手", "排障"],
+      "writeWhen": ["rid 头名/日志文案/端点前缀变化时同笔改（见文末失效条件）"],
+      "ts": "2026-10-27"
+    },
+    {
       "id": "LOG-DECISIONS",
       "path": "docs/日志/决策/",
       "layer": "日志",
